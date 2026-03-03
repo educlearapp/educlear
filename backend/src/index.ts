@@ -92,31 +92,30 @@ const PORT = 3000;
 */
 
 app.use(
-  import cors from "cors";
 
+  cors({
 
+    origin: [
 
-  app.use(
+      "http://localhost:5173",
+
+      "http://localhost:5175",
+
+      "https://educlear-frontend.onrender.com",
+
+    ],
+
+    methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+
+    allowedHeaders: ["Content-Type", "Authorization"],
+
+    credentials: true,
+
+  })
+
+);
   
-    cors({
   
-      origin: [
-  
-        "http://localhost:5173",
-  
-        "https://educlear-frontend.onrender.com"
-  
-      ],
-  
-      methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
-  
-      allowedHeaders: ["Content-Type", "Authorization"],
-  
-      credentials: true,
-  
-    })
-  
-  );
 
 
 
