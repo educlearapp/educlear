@@ -1,4 +1,4 @@
-const API_BASE = "https://educlear-backend.onrender.com";
+const BASE_URL = import.meta.env.VITE_API_BASE || "http://localhost:3000";
 
 
 
