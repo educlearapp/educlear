@@ -1,4 +1,6 @@
-import { useState, type FormEvent } from "react"
+import * as React from "react";
+
+import { useState } from "react";
 
 import { apiFetch } from "./api";
 
@@ -22,7 +24,7 @@ export default function Login({ onLoggedIn }: Props) {
 
 
 
-  const handleLogin = async (e: FormEvent) => {
+  const handleLogin = async (e: React.FormEvent<HTMLFormElement>) => {
 
     e.preventDefault();
 
@@ -42,35 +44,13 @@ export default function Login({ onLoggedIn }: Props) {
 
 
 
-      // token could be named token or accessToken depending on backend
-
-      const token = data?.token || data?.accessToken;
-
-
-
-      if (!token) {
-
-        setStatus("Login failed: token missing");
-
-        console.log("LOGIN RESPONSE:", data);
-
-        return;
-
-      }
-
-
-
-      localStorage.setItem("token", token);
-
-      setStatus("Logged in ✅");
+      localStorage.setItem("token", data.token);
 
       onLoggedIn();
 
     } catch (err: any) {
 
-      console.error("LOGIN ERROR:", err);
-
-      setStatus(err?.message || "Login failed ❌");
+      setStatus(err?.message || "Login failed");
 
     }
 
@@ -80,51 +60,67 @@ export default function Login({ onLoggedIn }: Props) {
 
   return (
 
-    <div style={{ textAlign: "center", marginTop: 50 }}>
+    <div style={{ maxWidth: 420, margin: "40px auto", padding: 16 }}>
 
-      <h1>EduClear Login</h1>
+      <h2>Login</h2>
 
 
 
       <form onSubmit={handleLogin}>
 
-        <input
+        <div style={{ marginBottom: 12 }}>
 
-          placeholder="Email"
+          <label>Email</label>
 
-          value={email}
+          <input
 
-          onChange={(e) => setEmail(e.target.value)}
+            style={{ width: "100%", padding: 8 }}
 
-          style={{ padding: 10, width: 260, marginBottom: 10 }}
+            value={email}
 
-        />
+            onChange={(e) => setEmail(e.target.value)}
 
-        <br />
+            autoComplete="username"
 
-        <input
+          />
 
-          placeholder="Password"
+        </div>
 
-          type="password"
 
-          value={password}
 
-          onChange={(e) => setPassword(e.target.value)}
+        <div style={{ marginBottom: 12 }}>
 
-          style={{ padding: 10, width: 260, marginBottom: 10 }}
+          <label>Password</label>
 
-        />
+          <input
 
-        <br />
+            style={{ width: "100%", padding: 8 }}
 
-        <button type="submit">Login</button>
+            type="password"
+
+            value={password}
+
+            onChange={(e) => setPassword(e.target.value)}
+
+            autoComplete="current-password"
+
+          />
+
+        </div>
+
+
+
+        <button type="submit" style={{ padding: "8px 14px" }}>
+
+          Login
+
+        </button>
+
+
+
+        {status && <p style={{ marginTop: 12 }}>{status}</p>}
 
       </form>
-
-
-
-      <p>{status}</p>
 
     </div>
 
