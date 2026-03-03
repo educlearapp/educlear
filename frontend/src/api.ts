@@ -4,29 +4,17 @@ const BASE_URL = import.meta.env.VITE_API_BASE || "http://localhost:3000";
 
 export async function apiFetch(path: string, options: RequestInit = {}) {
 
-  const token = localStorage.getItem("token"); // ✅ ADD THIS
+  const res = await fetch(`${BASE_URL}${path}`, {
 
+    headers: {
 
+      "Content-Type": "application/json",
 
-  const headers = new Headers(options.headers || {});
+      ...(options.headers || {}),
 
-  headers.set("Content-Type", "application/json");
-
-
-
-  if (token) {
-
-    headers.set("Authorization", `Bearer ${token}`);
-
-  }
-
-
-
-  const res = await fetch(`${API_BASE}${path}`, {
+    },
 
     ...options,
-
-    headers,
 
   });
 
@@ -36,22 +24,6 @@ export async function apiFetch(path: string, options: RequestInit = {}) {
 
     const text = await res.text();
 
-    throw new Error(`API ${res.status}: ${text}`);
+    throw new Error(text || `Request failed: ${res.status}`);
 
   }
-
-
-
-  const contentType = res.headers.get("content-type") || "";
-
-  if (contentType.includes("application/json")) {
-
-    return res.json();
-
-  }
-
-
-
-  return res.text();
-
-}
