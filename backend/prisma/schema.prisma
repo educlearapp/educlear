@@ -1,0 +1,251 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+
+  url = env("DATABASE_URL")
+}
+
+enum UserRole {
+  SCHOOL_ADMIN
+
+  FINANCE
+
+  STAFF
+}
+
+model School {
+  id String @id @default(cuid())
+
+  name String
+
+  email String? @unique
+
+  createdAt DateTime @default(now())
+
+  users User[]
+
+  parents Parent[]
+
+  learners Learner[]
+
+  SchoolFeeSetting SchoolFeeSetting[]
+  LetterTemplate   LetterTemplate[]
+  Letter           Letter[]
+}
+
+model User {
+  id String @id @default(cuid())
+
+  schoolId String
+
+  email String
+
+  passwordHash String
+
+  role UserRole @default(SCHOOL_ADMIN)
+
+  createdAt DateTime @default(now())
+
+  school School @relation(fields: [schoolId], references: [id])
+
+  @@unique([schoolId, email])
+  @@index([schoolId])
+}
+
+model Parent {
+  id String @id @default(cuid())
+
+  schoolId String
+
+  fullName String
+
+  mobile String
+
+  email String?
+
+  identityHash String?
+
+  createdAt DateTime @default(now())
+
+  school School @relation(fields: [schoolId], references: [id])
+
+  links ParentLearnerLink[]
+
+  Letter Letter[]
+
+  @@index([schoolId])
+  @@index([schoolId, mobile])
+}
+
+model Learner {
+  id String @id @default(cuid())
+
+  schoolId String
+
+  firstName String
+
+  lastName String
+
+  grade String
+
+  className String?
+
+  admissionNo String?
+
+  createdAt DateTime @default(now())
+
+  school School @relation(fields: [schoolId], references: [id])
+
+  links ParentLearnerLink[]
+
+  Letter Letter[]
+
+  @@unique([schoolId, admissionNo])
+  @@index([schoolId])
+  @@index([schoolId, grade])
+}
+
+model ParentLearnerLink {
+  id String @id @default(cuid())
+
+  schoolId String
+
+  parentId String
+
+  learnerId String
+
+  relation String?
+
+  isPrimary Boolean @default(true)
+
+  parent Parent @relation(fields: [parentId], references: [id])
+
+  learner Learner @relation(fields: [learnerId], references: [id])
+
+  @@unique([parentId, learnerId])
+  @@index([schoolId])
+}
+
+enum LetterType {
+  DEMAND
+
+  SECTION_41
+}
+
+enum LetterStatus {
+  DRAFT
+
+  GENERATED
+
+  SENT
+}
+
+model SchoolFeeSetting {
+  id String @id @default(cuid())
+
+  schoolId String
+
+  grade String
+
+  monthlyFeeCents Int
+
+  createdAt DateTime @default(now())
+
+  updatedAt DateTime @updatedAt
+
+  school School @relation(fields: [schoolId], references: [id])
+
+  @@unique([schoolId, grade])
+  @@index([schoolId])
+}
+
+model CompetitorSchool {
+  id String @id @default(cuid())
+
+  name String
+
+  province String?
+
+  city String?
+
+  createdAt DateTime @default(now())
+
+  fees CompetitorFee[]
+}
+
+model CompetitorFee {
+  id String @id @default(cuid())
+
+  competitorSchoolId String
+
+  grade String
+
+  monthlyFeeCents Int
+
+  createdAt DateTime @default(now())
+
+  competitorSchool CompetitorSchool @relation(fields: [competitorSchoolId], references: [id])
+
+  @@index([competitorSchoolId])
+  @@index([grade])
+}
+
+model LetterTemplate {
+  id String @id @default(cuid())
+
+  schoolId String
+
+  type LetterType
+
+  name String
+
+  subject String
+
+  body String
+
+  createdAt DateTime @default(now())
+
+  updatedAt DateTime @updatedAt
+
+  school School @relation(fields: [schoolId], references: [id])
+
+  @@index([schoolId, type])
+}
+
+model Letter {
+  id String @id @default(cuid())
+
+  schoolId String
+
+  type LetterType
+
+  status LetterStatus @default(DRAFT)
+
+  parentId String
+
+  learnerId String?
+
+  amountCents Int?
+
+  dueDate DateTime?
+
+  subject String
+
+  body String
+
+  createdAt DateTime @default(now())
+
+  sentAt DateTime?
+
+  school School @relation(fields: [schoolId], references: [id])
+
+  parent Parent @relation(fields: [parentId], references: [id])
+
+  learner Learner? @relation(fields: [learnerId], references: [id])
+
+  @@index([schoolId, type])
+  @@index([parentId])
+}
