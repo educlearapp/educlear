@@ -1,4 +1,4 @@
-import React, { useState, type FormEvent } from "react";
+import { useState } from "react";
 
 import { apiFetch } from "./api";
 
