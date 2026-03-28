@@ -1,9 +1,17 @@
 import express from "express";
+
 import cors from "cors";
+
+import { PrismaClient } from "@prisma/client";
+
 import schoolsRoutes from "./routes/schools";
+import parentsRoutes from "./routes/parents";
 import jwt from "jsonwebtoken";
+import learnerRoutes from "./routes/learner";
 import bcrypt from "bcryptjs";
+
 import authRoutes from "./routes/auth";
+import teacherPerformanceRoutes from "./routes/teacherPerformance";
 type OtpRecord = {
 
     code: string;
@@ -13,7 +21,7 @@ type OtpRecord = {
   };
   
 
-  
+  const prisma = new PrismaClient();
   const otpStore = new Map<string, OtpRecord>();
   
   function authMiddleware(req: any, res: any, next: any) {
@@ -90,7 +98,7 @@ const PORT = 3000;
   Allow frontend (Vite runs on 5173)
 
 */
-
+app.use(express.json());
 app.use(
 
   cors({
@@ -122,9 +130,10 @@ app.use(
 app.use(express.json());
 // ===== OTP AUTH (DEV MODE) =====
 app.use ("/auth", authRoutes);
+app.use("/learner", learnerRoutes);
 app.use("/api/schools", schoolsRoutes);
-
-
+app.use("/api", parentsRoutes);
+app.use("/teacher-performance", teacherPerformanceRoutes);
 import { timeStamp } from "console";
 
 // Request OTP
@@ -255,6 +264,799 @@ app.get("/dashboard", authMiddleware, (req, res) => {
   app.get("/health", (req, res) => {
 
     res.json({ status: "OK" });
+  
+  });
+  app.get("/api/dashboard", async (_req, res) => {
+
+    try {
+  
+      const [schools, parents, learners, feeSettings, letters] = await Promise.all([
+  
+        prisma.school.count(),
+  
+        prisma.parent.count(),
+  
+        prisma.learner.count(),
+  
+        prisma.schoolFeeSetting.count(),
+  
+        prisma.letter.count(),
+  
+      ]);
+  
+  
+  
+      res.json({
+  
+        success: true,
+  
+        stats: {
+  
+          schools,
+  
+          parents,
+  
+          learners,
+  
+          feeSettings,
+  
+          letters,
+  
+        },
+  
+      });
+  
+    } catch (error) {
+  
+      console.error("Dashboard error:", error);
+  
+      res.status(500).json({
+  
+        success: false,
+  
+        message: "Failed to load dashboard data",
+  
+      });
+  
+    }
+  
+  });
+  
+  app.post("/api/parents", async (req, res) => {
+
+    try {
+  
+      const { fullName, mobile, email, idNumber, schoolId } = req.body;
+
+
+
+      if (!fullName || !mobile || !schoolId || !idNumber) {
+      
+        return res.status(400).json({
+      
+          success: false,
+      
+          message: "fullName, mobile, schoolId and idNumber are required",
+      
+        });
+      
+      }
+      
+      
+      
+     
+  
+  
+  
+      // 🔍 CHECK EXISTING BY SA ID
+  
+      const existingParent = await prisma.parent.findFirst({
+  
+        where: { idNumber },
+  
+      });
+  
+      if (existingParent) {
+
+        return res.status(400).json({
+      
+          success: false,
+      
+          message: "Parent with this ID number already exists",
+      
+        });
+      
+      }
+      
+      const school = await prisma.school.findFirst();
+
+
+
+      if (!school) {
+      
+        return res.status(400).json({
+      
+          success: false,
+      
+          message: "No school found in database",
+      
+        });
+      
+      }
+
+      const parent = await prisma.parent.create({
+  
+        data: {
+  
+          relationship: "Parent",
+  
+          title: null,
+  
+          firstName: fullName,
+  
+          surname: "",
+  
+          nickname: null,
+  
+          idNumber,
+  
+          maritalStatus: null,
+  
+          notes: null,
+  
+          homeNo: null,
+  
+          workNo: null,
+  
+          cellNo: mobile,
+  
+          faxNo: null,
+  
+          email: email || null,
+  
+          communicationByEmail: true,
+  
+          communicationByPrint: true,
+  
+          communicationBySMS: true,
+  
+          status: "GREEN",
+  
+          schoolId: school.id,
+  
+        },
+  
+      });
+  
+  
+  
+      return res.status(201).json({
+  
+        success: true,
+  
+        parent,
+  
+      });
+  
+  
+  
+    } catch (error) {
+  
+      console.error(error);
+  
+      return res.status(500).json({
+  
+        success: false,
+  
+        message: "Server error",
+  
+      });
+  
+    }
+  
+  });
+
+  app.get("/api/parents", async (_req, res) => {
+
+    try {
+  
+      const parents = await prisma.parent.findMany({
+  
+        orderBy: { createdAt: "desc" },
+  
+      });
+  
+  
+  
+      res.json({
+  
+        success: true,
+  
+        parents,
+  
+      });
+  
+    } catch (error) {
+  
+      console.error("Get parents error:", error);
+  
+      res.status(500).json({
+  
+        success: false,
+  
+        message: "Failed to fetch parents",
+  
+      });
+  
+    }
+  
+  });
+  app.post("/api/learners", async (req, res) => {
+
+    try {
+  
+      const { schoolId, firstName, lastName, grade, className, admissionNo } = req.body;
+  
+  
+  
+      if (!schoolId || !firstName || !lastName || !grade) {
+  
+        return res.status(400).json({
+  
+          success: false,
+  
+          message: "schoolId, firstName, lastName and grade are required",
+  
+        });
+  
+      }
+  
+      console.log("schoolId being used:", schoolId);
+
+      console.log("request body:", req.body);
+  
+      const learner = await prisma.learner.create({
+  
+        data: {
+  
+          schoolId,
+  
+          firstName,
+  
+          lastName,
+  
+          grade,
+  
+          className: className || null,
+  
+          admissionNo: admissionNo || null,
+  
+        },
+  
+      });
+  
+  
+  
+      return res.status(201).json({
+  
+        success: true,
+  
+        learner,
+  
+      });
+  
+    } catch (error) {
+  
+      console.error("Create learner error:", error);
+  
+      return res.status(500).json({
+  
+        success: false,
+  
+        message: "Failed to create learner",
+  
+      });
+  
+    }
+  
+  });
+  
+  
+  
+  app.get("/api/learners", async (_req, res) => {
+  
+    try {
+  
+      const learners = await prisma.learner.findMany({
+  
+        orderBy: { createdAt: "desc" },
+  
+      });
+  
+  
+  
+      return res.json({
+  
+        success: true,
+  
+        learners,
+  
+      });
+  
+    } catch (error) {
+  
+      console.error("Get learners error:", error);
+  
+      return res.status(500).json({
+  
+        success: false,
+  
+        message: "Failed to fetch learners",
+  
+      });
+  
+    }
+  
+  });
+  app.post("/api/schools/create", async (req, res) => {
+
+    try {
+  
+      const { name, email } = req.body;
+  
+  
+  
+      if (!name) {
+  
+        return res.status(400).json({
+  
+          success: false,
+  
+          message: "School name is required",
+  
+        });
+  
+      }
+  
+  
+  
+      const school = await prisma.school.create({
+  
+        data: {
+  
+          name,
+  
+          email,
+  
+        },
+  
+      });
+  
+  
+  
+      res.status(201).json({
+  
+        success: true,
+  
+        school,
+  
+      });
+  
+    } catch (error) {
+  
+      console.error("Create school error:", error);
+  
+      res.status(500).json({
+  
+        success: false,
+  
+        message: "Failed to create school",
+  
+      });
+  
+    }
+  
+  });
+  app.get("/api/schools", async (_req, res) => {
+
+    try {
+  
+      const schools = await prisma.school.findMany({
+
+        include: {
+          parents: true,
+          learners: true,
+      
+        },
+      
+        orderBy: { createdAt: "desc" },
+      
+      });
+  
+  
+  
+      res.json({
+  
+        success: true,
+  
+        schools,
+  
+      });
+  
+    } catch (error) {
+  
+      console.error("Get schools error:", error);
+  
+      res.status(500).json({
+  
+        success: false,
+  
+        message: "Failed to fetch schools",
+  
+      });
+  
+    }
+  
+  });
+  
+  app.post("/api/learners", async (req, res) => {
+
+    try {
+  
+      const {
+  
+        schoolId,
+  
+        firstName,
+  
+        lastName,
+  
+        grade,
+  
+        className,
+  
+        admissionNo,
+  
+        tuitionFee,
+  
+        transportFee,
+  
+        otherFee,
+  
+      } = req.body;
+  
+  
+  
+      const learner = await prisma.learner.create({
+  
+        data: {
+  
+          firstName,
+  
+          lastName,
+  
+          grade,
+  
+          className: className || null,
+  
+          admissionNo: admissionNo || null,
+  
+  
+  
+          tuitionFee: tuitionFee || 0,
+  
+          transportFee: transportFee || 0,
+  
+          otherFee: otherFee || 0,
+  
+          totalFee:
+  
+            (tuitionFee || 0) +
+  
+            (transportFee || 0) +
+  
+            (otherFee || 0),
+  
+  
+  
+          school: {
+  
+            connect: { id: schoolId },
+  
+          },
+  
+        },
+  
+      });
+  
+  
+  
+      res.json({ success: true, learner });
+  
+    } catch (error) {
+  
+      console.error("Create learner error:", error);
+  
+      res.status(500).json({ message: "Failed to create learner" });
+  
+    }
+  
+  });
+  
+  app.post("/api/fees", async (req, res) => {
+
+    try {
+  
+      const {
+  
+        schoolId,
+  
+        name,
+  
+        amount,
+  
+        frequency,
+  
+        grade,
+  
+      } = req.body;
+  
+  
+  
+      const fee = await prisma.feeStructure.create({
+  
+        data: {
+  
+          schoolId,
+  
+          name,
+  
+          amount: Number(amount),
+  
+          frequency,
+  
+          grade: grade || null,
+  
+        },
+  
+      });
+  
+  
+  
+      res.json({ success: true, fee });
+  
+  
+  
+    } catch (error) {
+  
+      console.error("Create fee error:", error);
+  
+      res.status(500).json({ message: "Failed to create fee" });
+  
+    }
+  
+  });
+
+  app.get("/api/learners", async (_req, res) => {
+
+    try {
+  
+      const learners = await prisma.learner.findMany({
+  
+        orderBy: { createdAt: "desc" },
+  
+      });
+  
+  
+  
+      res.json({
+  
+        success: true,
+  
+        learners,
+  
+      });
+  
+    } catch (error) {
+  
+      console.error("Get learners error:", error);
+  
+      res.status(500).json({
+  
+        success: false,
+  
+        message: "Failed to fetch learners",
+  
+      });
+  
+    }
+  
+  });
+
+  app.get("/api/parents", async (_req, res) => {
+  
+    try {
+  
+      const parents = await prisma.parent.findMany({
+  
+        orderBy: { createdAt: "desc" },
+  
+      });
+  
+  
+  
+      res.json({
+  
+        success: true,
+  
+        parents,
+  
+      });
+  
+    } catch (error) {
+  
+      console.error("Get parents error:", error);
+  
+      res.status(500).json({
+  
+        success: false,
+  
+        message: "Failed to fetch parents",
+  
+      });
+  
+    }
+  
+  });
+  app.get("/api/fees-status/:idNumber", async (req, res) => {
+
+    try {
+  
+      const { idNumber } = req.params;
+  
+  
+  
+      const parents = await prisma.parent.findMany({
+  
+        where: {
+  
+          idNumber,
+  
+        },
+  
+        include: {
+  
+          school: true,
+  
+          Letter: true,
+  
+        },
+  
+      });
+  
+  
+  
+      if (parents.length === 0) {
+  
+        return res.json({
+  
+          found: false,
+  
+          status: "GREEN",
+  
+          outstandingAmount: 0,
+  
+          school: "No record found",
+  
+          schools: [],
+  
+          parentName: "",
+  
+        });
+  
+      }
+  
+  
+  
+      let totalOutstandingCents = 0;
+  
+      const schoolNames = new Set<string>();
+  
+      let parentName = "";
+  
+  
+  
+      for (const parent of parents) {
+  
+        if (!parentName) {
+  
+          parentName = `${parent.firstName} ${parent.surname}`;
+  
+        }
+  
+  
+  
+        if (parent.school?.name) {
+  
+          schoolNames.add(parent.school.name);
+  
+        }
+  
+  
+  
+        const parentLetterTotal = parent.Letter.reduce((sum, letter) => {
+  
+          if (letter.status === "DRAFT") return sum;
+  
+          return sum + (letter.amountCents || 0);
+  
+        }, 0);
+  
+  
+  
+        totalOutstandingCents += parentLetterTotal;
+  
+      }
+  
+  
+  
+      const totalOutstanding = totalOutstandingCents / 100;
+  
+  
+  
+      let status = "GREEN";
+  
+  
+  
+      if (totalOutstanding > 10000) {
+  
+        status = "RED";
+  
+      } else if (totalOutstanding > 0) {
+  
+        status = "AMBER";
+  
+      }
+  
+  
+  
+      return res.json({
+  
+        found: true,
+  
+        status,
+  
+        outstandingAmount: totalOutstanding,
+  
+        school: Array.from(schoolNames).join(", "),
+  
+        schools: Array.from(schoolNames),
+  
+        parentName,
+  
+      });
+  
+    } catch (error) {
+  
+      console.error("Fee status check error:", error);
+  
+      return res.status(500).json({
+  
+        found: false,
+  
+        status: "GREEN",
+  
+        outstandingAmount: 0,
+  
+        school: "Server error",
+  
+        schools: [],
+  
+        parentName: "",
+  
+      });
+  
+    }
   
   });
 

@@ -8,6 +8,16 @@ datasource db {
   url = env("DATABASE_URL")
 }
 
+
+enum FeeFrequency {
+
+  MONTHLY
+
+  ONCE_OFF
+
+  YEARLY
+
+}
 enum UserRole {
   SCHOOL_ADMIN
 
@@ -30,10 +40,41 @@ model School {
   parents Parent[]
 
   learners Learner[]
-
+  familyAccounts FamilyAccount[]
+  fees FeeStructure[]
   SchoolFeeSetting SchoolFeeSetting[]
   LetterTemplate   LetterTemplate[]
   Letter           Letter[]
+
+  teacherPerformances TeacherPerformance[]
+}
+  
+
+
+model FeeStructure {
+
+  id        String       @id @default(cuid())
+
+  schoolId  String
+
+  name      String
+
+  amount    Float
+
+  frequency FeeFrequency
+
+  grade     String?
+
+  createdAt DateTime     @default(now())
+
+
+
+  school    School       @relation(fields: [schoolId], references: [id])
+
+
+
+  @@index([schoolId])
+
 }
 
 model User {
@@ -56,35 +97,107 @@ model User {
 }
 
 model Parent {
+
   id String @id @default(cuid())
 
+
+
   schoolId String
+familyAccountId String?
 
-  fullName String
 
-  mobile String
+  relationship String?
+
+  title String?
+
+  firstName String
+
+  surname String
+
+  nickname String?
+
+  idNumber String? @unique 
+  status String @default("GREEN")
+
+  maritalStatus String?
+
+  notes String?
+
+
+
+  homeNo String?
+
+  workNo String?
+
+  cellNo String
+
+  faxNo String?
 
   email String?
 
-  identityHash String?
+
+
+  communicationByEmail Boolean @default(true)
+
+  communicationByPrint Boolean @default(true)
+
+  communicationBySMS Boolean @default(true)
+
+
 
   createdAt DateTime @default(now())
 
+
+
   school School @relation(fields: [schoolId], references: [id])
+familyAccount FamilyAccount? @relation(fields: [familyAccountId], references: [id])
+
 
   links ParentLearnerLink[]
 
   Letter Letter[]
 
+
+
   @@index([schoolId])
-  @@index([schoolId, mobile])
+
+  @@index([schoolId, cellNo])
+
+
+}
+model FamilyAccount {
+
+  id              String    @id @default(cuid())
+
+  schoolId        String
+
+  accountRef      String    @unique
+
+  familyName      String
+
+  createdAt       DateTime  @default(now())
+
+
+
+  school          School    @relation(fields: [schoolId], references: [id])
+
+  learners        Learner[]
+
+  parents         Parent[]
+
+
+
+  @@index([schoolId])
+
+  @@index([schoolId, familyName])
+
 }
 
 model Learner {
   id String @id @default(cuid())
 
   schoolId String
-
+  familyAccountId String?
   firstName String
 
   lastName String
@@ -94,11 +207,18 @@ model Learner {
   className String?
 
   admissionNo String?
+  tuitionFee   Float   @default(0)
+
+transportFee Float   @default(0)
+
+otherFee     Float   @default(0)
+
+totalFee     Float   @default(0)
 
   createdAt DateTime @default(now())
 
   school School @relation(fields: [schoolId], references: [id])
-
+familyAccount FamilyAccount? @relation(fields: [familyAccountId], references: [id])
   links ParentLearnerLink[]
 
   Letter Letter[]
@@ -106,7 +226,10 @@ model Learner {
   @@unique([schoolId, admissionNo])
   @@index([schoolId])
   @@index([schoolId, grade])
+  
 }
+
+
 
 model ParentLearnerLink {
   id String @id @default(cuid())
@@ -248,4 +371,47 @@ model Letter {
 
   @@index([schoolId, type])
   @@index([parentId])
+}
+model TeacherPerformance {
+
+  id                   String   @id @default(cuid())
+
+  schoolId             String
+
+  teacherName          String
+
+  teacherEmail         String?
+
+  month                String
+
+  learnerResults       Float
+
+  classroomManagement  Float
+
+  teachingQuality      Float
+
+  administration       Float
+
+  professionalConduct  Float
+
+  finalScore           Float
+
+  performanceLevel     String
+
+  notes                String?
+
+  createdAt            DateTime @default(now())
+
+  updatedAt            DateTime @updatedAt
+
+
+
+  school School @relation(fields: [schoolId], references: [id], onDelete: Cascade)
+
+
+
+  @@index([schoolId])
+
+  @@index([month])
+
 }

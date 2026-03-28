@@ -1,50 +1,44 @@
 import { Router } from "express";
 
-import jwt from "jsonwebtoken";
+import { PrismaClient } from "@prisma/client";
 
 
+
+const prisma = new PrismaClient();
 
 const router = Router();
 
 
 
-router.get("/", (req, res) => {
-
-  const authHeader = req.headers.authorization;
-
-
-
-  if (!authHeader) {
-
-    return res.status(401).json({ message: "No token provided" });
-
-  }
-
-
-
-  const token = authHeader.split(" ")[1];
-
-
+router.get("/", async (req, res) => {
 
   try {
 
-    jwt.verify(token, process.env.JWT_SECRET || "secret");
+    const schools = await prisma.school.findMany({
 
-  } catch (err) {
+      include: {
+    
+        learners: true,
+    
+      },
+    
+      orderBy: {
+    
+        createdAt: "desc",
+    
+      },
+    
+    }); 
 
-    return res.status(403).json({ message: "Invalid token" });
+    res.json(schools);
+
+  } catch (error) {
+
+    console.error("Error fetching schools:", error);
+
+    res.status(500).json({ error: "Failed to fetch schools" });
 
   }
-
-
-
-  res.json([
-
-    { id: 1, name: "Da Silva Academy" },
-
-    { id: 2, name: "Test School" }
-
-  ]);
 
 });
 
