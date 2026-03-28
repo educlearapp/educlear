@@ -1,125 +1,467 @@
-import { useEffect, useState } from "react";
+import "./App.css";
 
-import Login from "./Login";
+import { useMemo, useState } from "react";
 
+import SchoolDashboard from "./SchoolDashboard";
+import TeacherPerformance from "./TeacherPerformance";
+type Parent = {
 
+  id: number;
 
-type School = {
+  parentType: string;
 
-  id: number | string;
+  fullName: string;
 
-  name?: string;
+  idNumber: string;
+
+  mobile: string;
+
+  email: string;
+
+  address: string;
+
+  occupation: string;
+
+  employer: string;
+
+  billingResponsible: boolean;
+
+  primaryContact: boolean;
 
 };
 
 
 
-export default function App() {
+type Sibling = {
 
-  const token = localStorage.getItem("token");
+  id: number;
 
-  const [schools, setSchools] = useState<School[]>([]);
+  firstName: string;
 
-  const [error, setError] = useState("");
+  surname: string;
+
+  learnerIdNumber: string;
+
+  gender: string;
+
+  grade: string;
+
+  birthDate: string;
+
+  homeLanguage: string;
+
+  nationality: string;
+
+  religion: string;
+
+  enrolmentDate: string;
+
+  notes: string;
+
+};
 
 
 
-  useEffect(() => {
+type FeeItem = {
 
-    if (!token) return;
+  id: number;
+
+  feeName: string;
+
+  amount: string;
+
+  frequency: string;
+
+  discount: string;
+
+};
 
 
 
-    fetch("http://localhost:3000/api/schools", {
+function App() {
 
-      headers: {
+  const [firstName, setFirstName] = useState("");
 
-        Authorization: `Bearer ${token}`,
+  const [surname, setSurname] = useState("");
+
+  const [learnerIdNumber, setLearnerIdNumber] = useState("");
+
+  const [gender, setGender] = useState("");
+
+  const [grade, setGrade] = useState("");
+
+  const [birthDate, setBirthDate] = useState("");
+
+  const [homeLanguage, setHomeLanguage] = useState("");
+
+  const [nationality, setNationality] = useState("");
+
+  const [religion, setReligion] = useState("");
+
+  const [enrolmentDate, setEnrolmentDate] = useState("");
+
+  const [notes, setNotes] = useState("");
+
+
+
+  const [parents, setParents] = useState<Parent[]>([]);
+
+  const [siblings, setSiblings] = useState<Sibling[]>([]);
+
+  const [fees, setFees] = useState<FeeItem[]>([]);
+
+  const [message, setMessage] = useState("");
+
+
+
+  const [familyReference, setFamilyReference] = useState("");
+
+    
+  
+
+
+  const totalFees = useMemo(() => {
+
+    return fees.reduce((sum, fee) => {
+
+      const amount = parseFloat(fee.amount || "0");
+
+      const discount = parseFloat(fee.discount || "0");
+
+      return sum + Math.max(amount - discount, 0);
+
+    }, 0);
+
+  }, [fees]);
+
+
+
+  const addParent = () => {
+
+    setParents((prev) => [
+
+      ...prev,
+
+      {
+
+        id: Date.now(),
+
+        parentType: "Mother",
+
+        fullName: "",
+
+        idNumber: "",
+
+        mobile: "",
+
+        email: "",
+
+        address: "",
+
+        occupation: "",
+
+        employer: "",
+
+        billingResponsible: false,
+
+        primaryContact: false,
 
       },
 
-    })
+    ]);
 
-      .then((res) => {
+  };
 
-        if (!res.ok) throw new Error("Failed to fetch schools");
 
-        return res.json();
 
-      })
+  const updateParent = (
 
-      .then((data) => {
+    id: number,
 
-        setSchools(Array.isArray(data) ? data : data.schools || []);
+    field: keyof Parent,
 
-      })
+    value: string | boolean
 
-      .catch((err) => {
+  ) => {
 
-        setError(err.message);
+    setParents((prev) =>
 
+      prev.map((parent) =>
+
+        parent.id === id ? { ...parent, [field]: value } : parent
+
+      )
+    );
+  };
+
+
+
+  const removeParent = (id: number) => {
+
+    setParents((prev) => prev.filter((parent) => parent.id !== id));
+
+  };
+
+
+
+  const addSibling = () => {
+
+    setSiblings((prev) => [
+  
+      ...prev,
+  
+      {
+  
+        id: Date.now(),
+  
+        firstName: "",
+  
+        surname: "",
+  
+        learnerIdNumber: "",
+  
+        gender: "",
+  
+        grade: "",
+  
+        birthDate: "",
+  
+        homeLanguage: "",
+  
+        nationality: "",
+  
+        religion: "",
+  
+        enrolmentDate: "",
+  
+        notes: "",
+  
+      },
+  
+    ]);
+  
+  };
+
+
+
+  const updateSibling = (
+
+    id: number,
+  
+    field: keyof Sibling,
+  
+    value: string
+  
+  ) => {
+  
+    setSiblings((prev) =>
+  
+      prev.map((sibling) =>
+  
+        sibling.id === id
+  
+          ? { ...sibling, [field]: value }
+  
+          : sibling
+  
+      )
+  
+    );
+  
+  };
+
+
+
+  const removeSibling = (id: number) => {
+
+    setSiblings((prev) => prev.filter((sibling) => sibling.id !== id));
+
+  };
+
+
+
+  const addFee = () => {
+
+    setFees((prev) => [
+
+      ...prev,
+
+      {
+
+        id: Date.now(),
+
+        feeName: "",
+
+        amount: "",
+
+        frequency: "Monthly",
+
+        discount: "",
+
+      },
+
+    ]);
+
+  };
+
+
+
+  const updateFee = (id: number, field: keyof FeeItem, value: string) => {
+
+    setFees((prev) =>
+
+      prev.map((fee) => (fee.id === id ? { ...fee, [field]: value } : fee))
+
+    );
+
+  };
+
+
+
+  const removeFee = (id: number) => {
+
+    setFees((prev) => prev.filter((fee) => fee.id !== id));
+
+  };
+
+
+
+  const handleSave = async (e: React.FormEvent) => {
+
+    e.preventDefault();
+  
+  
+  
+    try {
+  
+      const payload = {
+  
+      
+  
+        learner: {
+  
+          firstName,
+  
+          surname,
+  
+          learnerIdNumber,
+  
+          gender,
+  
+          grade,
+  
+          birthDate,
+  
+          homeLanguage,
+  
+          nationality,
+  
+          religion,
+  
+          enrolmentDate,
+  
+          notes,
+  
+        },
+  
+        parents,
+  
+        siblings,
+  
+        fees,
+  
+        totalFees,
+  
+      };
+  
+  
+  
+      const res = await fetch("http://localhost:3000/learner", {
+  
+        method: "POST",
+  
+        headers: {
+  
+          "Content-Type": "application/json",
+  
+        },
+  
+        body: JSON.stringify(payload),
+  
       });
+  
+  
+  
+      const data = await res.json();
+  
+  
+  
+      if (res.ok) {
+  
+        setMessage("Saved! Account Ref: " + data.familyReference);
+  
+  
+  
+        // ✅ CLEAR FORM
+  
+        setFirstName("");
+  
+        setSurname("");
+  
+        setLearnerIdNumber("");
+  
+        setGender("");
+  
+        setGrade("");
+  
+        setBirthDate("");
+  
+        setHomeLanguage("");
+  
+        setNationality("");
+  
+        setReligion("");
+  
+        setEnrolmentDate("");
+  
+        setNotes("");
+  
+  
+  
+        setParents([]);
+  
+        setSiblings([]);
+  
+        setFees([]);
+  
+    
+  
+  
+  
+      } else {
+  
+        setMessage("Error saving learner");
+  
+      }
+  
+  
+  
+    } catch (err) {
+  
+      console.error(err);
+  
+      setMessage("Server error");
+  
+    }
+  
+  };
 
-  }, [token]);
 
 
-
-  if (!token) {
-
-    return <Login onLoggedIn={() => window.location.reload()} />;
-
-  }
-
-
-
-  return (
-
-    <div style={{ textAlign: "center", marginTop: 60 }}>
-
-      <h1>EduClear System</h1>
-
-      <h2>Welcome — Logged In ✅</h2>
-
-
-
-      <button
-
-        onClick={() => {
-
-          localStorage.removeItem("token");
-
-          window.location.reload();
-
-        }}
-
-      >
-
-        Logout
-
-      </button>
-
-
-
-      <div style={{ marginTop: 30 }}>
-
-        <h3>Schools</h3>
-
-        {error ? (
-
-          <p>{error}</p>
-
-        ) : (
-
-          <pre>{JSON.stringify(schools, null, 2)}</pre>
-
-        )}
-
-      </div>
-
-    </div>
-
-  );
+ return <TeacherPerformance />;
 
 }
 
 
+
+export default App;

@@ -1,10 +1,14 @@
-const BASE_URL = import.meta.env.VITE_API_BASE || "http://localhost:3000";
+const API_BASE = import.meta.env.VITE_API_BASE || "http://localhost:3000";
 
 
 
 export async function apiFetch(path: string, options: RequestInit = {}) {
 
-  const res = await fetch(`${BASE_URL}${path}`, {
+  const url = `${API_BASE}${path}`;
+
+
+
+  const res = await fetch(url, {
 
     headers: {
 
@@ -20,10 +24,42 @@ export async function apiFetch(path: string, options: RequestInit = {}) {
 
 
 
-  if (!res.ok) {
+  const text = await res.text();
 
-    const text = await res.text();
 
-    throw new Error(text || `Request failed: ${res.status}`);
+
+  let data: any = null;
+
+
+
+  try {
+
+    data = text ? JSON.parse(text) : null;
+
+  } catch {
+
+    data = text;
 
   }
+
+
+
+  if (!res.ok) {
+
+    throw new Error(
+
+      typeof data === "string"
+
+        ? data
+
+        : data?.error || `Request failed with status ${res.status}`
+
+    );
+
+  }
+
+
+
+  return data;
+
+}
