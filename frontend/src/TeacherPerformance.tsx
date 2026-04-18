@@ -1,4 +1,5 @@
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
+import { API_URL } from "./api";
 
 
 
@@ -30,32 +31,28 @@ type TeacherRecord = {
 
 };
 
+function defaultMonth(): string {
+  return new Date().toISOString().slice(0, 7);
+}
 
+type TeacherPerformanceProps = {
+  schoolId?: string;
+};
 
-export default function TeacherPerformance() {
-
-    const schoolId = "cmnacgg6b0000tusy4b8e6tku";
-
-
+export default function TeacherPerformance({ schoolId: schoolIdProp }: TeacherPerformanceProps) {
+  const [resolvedSchoolId, setResolvedSchoolId] = useState<string | null>(schoolIdProp ?? null);
+  const [schoolError, setSchoolError] = useState<string | null>(null);
 
   const [form, setForm] = useState({
-
     teacherName: "",
-
     teacherEmail: "",
-
+    month: defaultMonth(),
     learnerResults: 0,
-
     classroomManagement: 0,
-
     teachingQuality: 0,
-
     administration: 0,
-
     professionalConduct: 0,
-
     notes: "",
-
   });
 
 
@@ -65,169 +62,137 @@ export default function TeacherPerformance() {
   const [loading, setLoading] = useState(false);
 
   const [editingId, setEditingId] = useState<string | null>(null);
+  const topPerformer =
+    records.length > 0 ? [...records].sort((a, b) => b.finalScore - a.finalScore)[0] : null;
 
-
-
-  async function loadRecords() {
-
+  const loadRecords = useCallback(async () => {
+    if (!resolvedSchoolId) return;
     try {
-
-      const res = await fetch(
-
-        `http://localhost:3000/teacher-performance/school/${schoolId}`
-
-      );
-
+      const res = await fetch(`${API_URL}/api/teacher-performance/school/${resolvedSchoolId}`);
+      if (!res.ok) {
+        throw new Error(`Failed to load records (${res.status})`);
+      }
       const data = await res.json();
-
-
-
       setRecords([...data].sort((a, b) => b.finalScore - a.finalScore));
-
     } catch (error) {
-
       console.error("Failed to load records", error);
-
     }
-
-  }
-
-
+  }, [resolvedSchoolId]);
 
   useEffect(() => {
+    if (schoolIdProp) {
+      setResolvedSchoolId(schoolIdProp);
+      setSchoolError(null);
+      return;
+    }
+    let cancelled = false;
+    (async () => {
+      try {
+        const res = await fetch(`${API_URL}/api/schools`);
+        const json = await res.json();
+        const schools = json.schools ?? [];
+        if (!schools.length) {
+          if (!cancelled) setSchoolError("No school found. Register a school first.");
+          return;
+        }
+        if (!cancelled) {
+          setResolvedSchoolId(schools[0].id);
+          setSchoolError(null);
+        }
+      } catch {
+        if (!cancelled) setSchoolError("Could not load school.");
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [schoolIdProp]);
 
+  useEffect(() => {
+    if (!resolvedSchoolId) return;
     loadRecords();
-
-  }, []);
+  }, [resolvedSchoolId, loadRecords]);
 
 
 
   const handleSubmit = async () => {
-
-    try {
-
-      setLoading(true);
-
-
-
-      const url = editingId
-
-        ? `http://localhost:3000/teacher-performance/${editingId}`
-
-        : "http://localhost:3000/teacher-performance";
-
-
-
-      const method = editingId ? "PUT" : "POST";
-
-
-
-      const res = await fetch(url, {
-
-        method,
-
-        headers: {
-
-          "Content-Type": "application/json",
-
-        },
-
-        body: JSON.stringify({
-
-          ...form,
-
-          schoolId,
-
-          month: "2026-04",
-
-        }),
-
-      });
-
-
-
-      const data = await res.json();
-
-      console.log("SAVE/UPDATE RESPONSE", data);
-
-
-
-      alert(editingId ? "Updated!" : "Saved!");
-
-
-
-      setForm({
-
-        teacherName: "",
-
-        teacherEmail: "",
-
-        learnerResults: 0,
-
-        classroomManagement: 0,
-
-        teachingQuality: 0,
-
-        administration: 0,
-
-        professionalConduct: 0,
-
-        notes: "",
-
-      });
-
-
-
-      setEditingId(null);
-
-      loadRecords();
-
-      window.scrollTo({ top: 0, behavior: "smooth" });
-
-    } catch (error) {
-
-      console.error(error);
-
-      alert("Failed to save");
-
-    } finally {
-
-      setLoading(false);
-
+    if (!resolvedSchoolId) {
+      alert(schoolError || "School is not ready yet.");
+      return;
     }
-
+    try {
+      setLoading(true);
+      const wasEditing = Boolean(editingId);
+      const url = editingId
+        ? `${API_URL}/api/teacher-performance/${editingId}`
+        : `${API_URL}/api/teacher-performance`;
+      const method = editingId ? "PUT" : "POST";
+      const body: Record<string, unknown> = {
+        teacherName: form.teacherName,
+        teacherEmail: form.teacherEmail,
+        month: form.month,
+        learnerResults: form.learnerResults,
+        classroomManagement: form.classroomManagement,
+        teachingQuality: form.teachingQuality,
+        administration: form.administration,
+        professionalConduct: form.professionalConduct,
+        notes: form.notes,
+      };
+      if (!wasEditing) {
+        body.schoolId = resolvedSchoolId;
+      }
+      const res = await fetch(url, {
+        method,
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(body),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        alert(
+          (data as { details?: string; error?: string })?.details ||
+            (data as { error?: string })?.error ||
+            "Save failed"
+        );
+        return;
+      }
+      setForm({
+        teacherName: "",
+        teacherEmail: "",
+        month: defaultMonth(),
+        learnerResults: 0,
+        classroomManagement: 0,
+        teachingQuality: 0,
+        administration: 0,
+        professionalConduct: 0,
+        notes: "",
+      });
+      setEditingId(null);
+      await loadRecords();
+      window.scrollTo({ top: 0, behavior: "smooth" });
+      alert(wasEditing ? "Updated!" : "Saved!");
+    } catch (error) {
+      console.error("SAVE ERROR:", error);
+      alert(error instanceof Error ? error.message : "Failed to save");
+    } finally {
+      setLoading(false);
+    }
   };
 
 
 
   const handleDelete = async (id: string) => {
-
     try {
-
-      const res = await fetch(`http://localhost:3000/teacher-performance/${id}`, {
-
-        method: "DELETE",
-
-      });
-
-
-
-      const data = await res.json();
-
-      console.log(data);
-
-
-
-      loadRecords();
-
+      const res = await fetch(`${API_URL}/api/teacher-performance/${id}`, { method: "DELETE" });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        alert((data as { details?: string; error?: string })?.details || (data as { error?: string })?.error || "Failed to delete");
+        return;
+      }
+      await loadRecords();
     } catch (error) {
-
       console.error(error);
-
       alert("Failed to delete");
-
     }
-
   };
 
 
@@ -252,7 +217,69 @@ export default function TeacherPerformance() {
 
       <h2>Teacher Performance</h2>
 
+      {schoolError && !resolvedSchoolId && (
+        <p style={{ color: "crimson", marginBottom: 12 }}>{schoolError}</p>
+      )}
 
+      {topPerformer && (
+
+
+
+<div
+
+
+
+  style={{
+
+
+
+    marginTop: 16,
+
+
+
+    marginBottom: 20,
+
+
+
+    padding: 16,
+
+
+
+    borderRadius: 12,
+
+
+
+    background: "#f8fafc",
+
+
+
+    border: "1px solid #e2e8f0",
+
+
+
+  }}
+
+
+
+>
+
+
+
+  <div style={{ fontSize: 14, color: "#64748b" }}>🏆 Top Performer</div>
+
+  <div style={{ fontSize: 18, fontWeight: 700, color: "#0f172a" }}>{topPerformer.teacherName}</div>
+
+  <div style={{ fontSize: 13, color: "#64748b" }}>{topPerformer.teacherEmail || "No email"}</div>
+
+  <div style={{ fontSize: 15, fontWeight: 600, color: "#0f172a", marginTop: 6 }}>
+    Score: {topPerformer.finalScore.toFixed(1)} / 10 · {topPerformer.performanceLevel}
+  </div>
+
+</div>
+
+
+
+)}
 
       <div style={{ display: "grid", gap: 12, marginBottom: 30 }}>
 
@@ -282,25 +309,75 @@ export default function TeacherPerformance() {
 
         />
 
+        <label>Month</label>
 
+        <input
+
+          type="month"
+
+          value={form.month}
+
+          onChange={(e) => setForm({ ...form, month: e.target.value })}
+
+          style={{ padding: 10 }}
+
+        />
 
         <label>Learner Results</label>
 
         <input
 
-          type="number"
 
-          value={form.learnerResults}
 
-          onChange={(e) =>
+  type="number"
 
-            setForm({ ...form, learnerResults: Number(e.target.value) })
 
-          }
 
-          style={{ padding: 10 }}
+  min={0}
 
-        />
+
+
+  max={10}
+
+
+
+  step={1}
+
+
+
+  value={form.learnerResults}
+
+
+
+  onChange={(e) =>
+
+
+
+    setForm({
+
+
+
+      ...form,
+
+
+
+      learnerResults: Math.max(0, Math.min(10, Math.round(Number(e.target.value) || 0))),
+
+
+
+    })
+
+
+
+  }
+
+
+
+  style={{ padding: 10 }}
+
+
+
+/>
 
 
 
@@ -308,19 +385,57 @@ export default function TeacherPerformance() {
 
         <input
 
-          type="number"
 
-          value={form.classroomManagement}
 
-          onChange={(e) =>
+  type="number"
 
-            setForm({ ...form, classroomManagement: Number(e.target.value) })
 
-          }
 
-          style={{ padding: 10 }}
+  min={0}
 
-        />
+
+
+  max={10}
+
+
+
+  step={1}
+
+
+
+  value={form.classroomManagement}
+
+
+
+  onChange={(e) =>
+
+
+
+    setForm({
+
+
+
+      ...form,
+
+
+
+      classroomManagement: Math.max(0, Math.min(10, Math.round(Number(e.target.value) || 0))),
+
+
+
+    })
+
+
+
+  }
+
+
+
+  style={{ padding: 10 }}
+
+
+
+/>
 
 
 
@@ -328,19 +443,57 @@ export default function TeacherPerformance() {
 
         <input
 
-          type="number"
 
-          value={form.teachingQuality}
 
-          onChange={(e) =>
+  type="number"
 
-            setForm({ ...form, teachingQuality: Number(e.target.value) })
 
-          }
 
-          style={{ padding: 10 }}
+  min={0}
 
-        />
+
+
+  max={10}
+
+
+
+  step={1}
+
+
+
+  value={form.teachingQuality}
+
+
+
+  onChange={(e) =>
+
+
+
+    setForm({
+
+
+
+      ...form,
+
+
+
+      teachingQuality: Math.max(0, Math.min(10, Math.round(Number(e.target.value) || 0))),
+
+
+
+    })
+
+
+
+  }
+
+
+
+  style={{ padding: 10 }}
+
+
+
+/>
 
 
 
@@ -348,19 +501,57 @@ export default function TeacherPerformance() {
 
         <input
 
-          type="number"
 
-          value={form.administration}
 
-          onChange={(e) =>
+type="number"
 
-            setForm({ ...form, administration: Number(e.target.value) })
 
-          }
 
-          style={{ padding: 10 }}
+min={0}
 
-        />
+
+
+max={10}
+
+
+
+step={1}
+
+
+
+value={form.administration}
+
+
+
+onChange={(e) =>
+
+
+
+  setForm({
+
+
+
+    ...form,
+
+
+
+    administration: Math.max(0, Math.min(10, Math.round(Number(e.target.value) || 0))),
+
+
+
+  })
+
+
+
+}
+
+
+
+style={{ padding: 10 }}
+
+
+
+/>
 
 
 
@@ -368,19 +559,57 @@ export default function TeacherPerformance() {
 
         <input
 
-          type="number"
 
-          value={form.professionalConduct}
 
-          onChange={(e) =>
+  type="number"
 
-            setForm({ ...form, professionalConduct: Number(e.target.value) })
 
-          }
 
-          style={{ padding: 10 }}
+  min={0}
 
-        />
+
+
+  max={10}
+
+
+
+  step={1}
+
+
+
+  value={form.professionalConduct}
+
+
+
+  onChange={(e) =>
+
+
+
+    setForm({
+
+
+
+      ...form,
+
+
+
+      professionalConduct: Math.max(0, Math.min(10, Math.round(Number(e.target.value) || 0))),
+
+
+
+    })
+
+
+
+  }
+
+
+
+  style={{ padding: 10 }}
+
+
+
+/>
 
 
 
@@ -620,11 +849,11 @@ export default function TeacherPerformance() {
 
                   color:
 
-                    record.finalScore >= 80
+                    record.finalScore >= 8 
 
                       ? "green"
 
-                      : record.finalScore >= 60
+                      : record.finalScore >= 6 
 
                       ? "orange"
 
@@ -634,7 +863,7 @@ export default function TeacherPerformance() {
 
               >
 
-                Final Score: {record.finalScore}
+                Final Score: {record.finalScore.toFixed(1)} / 10
 
               </p>
 
@@ -695,6 +924,8 @@ export default function TeacherPerformance() {
                       teacherName: record.teacherName || "",
 
                       teacherEmail: record.teacherEmail || "",
+
+                      month: record.month || defaultMonth(),
 
                       learnerResults: Number(record.learnerResults) || 0,
 

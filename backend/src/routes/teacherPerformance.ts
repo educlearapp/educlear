@@ -1,266 +1,220 @@
 import { Router } from "express";
-
-
 import { PrismaClient } from "@prisma/client";
 
-
-
 const router = Router();
-
 const prisma = new PrismaClient();
 
-  
+const isDev = process.env.NODE_ENV !== "production";
 
-
-// Calculate score
-
+/** Average of the five category scores, each 0–10. */
 function calculateFinalScore(
-
   learnerResults: number,
-
   classroomManagement: number,
-
   teachingQuality: number,
-
   administration: number,
-
   professionalConduct: number
-
-) {
-
-    return (
-
-        (learnerResults * 0.4 +
-      
-          classroomManagement * 0.2 +
-      
-          teachingQuality * 0.15 +
-      
-          administration * 0.15 +
-      
-          professionalConduct * 0.1) * 10
-      
-      );
-
+): number {
+  const sum =
+    learnerResults +
+    classroomManagement +
+    teachingQuality +
+    administration +
+    professionalConduct;
+  return Math.round((sum / 5) * 10) / 10;
 }
 
-
-
-// Performance level
-
-function getPerformanceLevel(score: number) {
-
-  if (score >= 85) return "Excellent";
-
-  if (score >= 70) return "Acceptable";
-
-  if (score >= 50) return "At Risk";
-
-  return "Critical";
-
+function getPerformanceLevel(score: number): string {
+  if (score >= 8) return "Excellent";
+  if (score >= 6) return "Acceptable";
+  return "At Risk";
 }
 
-
-
-// CREATE
+function parseScore(value: unknown): number {
+  const n = Number(value);
+  if (!Number.isFinite(n)) return NaN;
+  return Math.max(0, Math.min(10, Math.round(n)));
+}
 
 router.post("/", async (req, res) => {
-
   try {
+    const body = req.body ?? {};
+    const schoolId = body.schoolId as string | undefined;
+    const teacherName = (body.teacherName as string)?.trim() ?? "";
+    const teacherEmail =
+      typeof body.teacherEmail === "string" && body.teacherEmail.trim()
+        ? body.teacherEmail.trim()
+        : null;
+    const month = typeof body.month === "string" ? body.month.trim() : "";
 
-    const data = req.body;
-    console.log("POST schoolId:", data.schoolId);
+    if (!schoolId) {
+      return res.status(400).json({ error: "schoolId is required" });
+    }
+    if (!teacherName) {
+      return res.status(400).json({ error: "teacherName is required" });
+    }
+    if (!month) {
+      return res.status(400).json({ error: "month is required" });
+    }
 
+    const learnerResults = parseScore(body.learnerResults);
+    const classroomManagement = parseScore(body.classroomManagement);
+    const teachingQuality = parseScore(body.teachingQuality);
+    const administration = parseScore(body.administration);
+    const professionalConduct = parseScore(body.professionalConduct);
 
+    if (
+      [learnerResults, classroomManagement, teachingQuality, administration, professionalConduct].some(
+        (v) => Number.isNaN(v)
+      )
+    ) {
+      return res.status(400).json({ error: "All score fields must be numbers between 0 and 10" });
+    }
 
-const school = await prisma.school.findUnique({
-
-  where: { id: data.schoolId },
-
-});
-
-
-
-console.log("FOUND SCHOOL:", school);
-
+    const school = await prisma.school.findUnique({ where: { id: schoolId } });
+    if (!school) {
+      return res.status(400).json({ error: "School not found", schoolId });
+    }
 
     const finalScore = calculateFinalScore(
-
-      data.learnerResults,
-
-      data.classroomManagement,
-
-      data.teachingQuality,
-
-      data.administration,
-
-      data.professionalConduct
-
+      learnerResults,
+      classroomManagement,
+      teachingQuality,
+      administration,
+      professionalConduct
     );
-
-
-
     const performanceLevel = getPerformanceLevel(finalScore);
 
-
+    const notes =
+      typeof body.notes === "string" && body.notes.trim() ? body.notes.trim() : null;
 
     const record = await prisma.teacherPerformance.create({
-
       data: {
-
-        ...data,
-
+        schoolId,
+        teacherName,
+        teacherEmail,
+        month,
+        learnerResults,
+        classroomManagement,
+        teachingQuality,
+        administration,
+        professionalConduct,
+        notes,
         finalScore,
-
         performanceLevel,
-
       },
-
     });
-
-
 
     res.json(record);
-
   } catch (err) {
-
-    console.error(err);
-
-    res.status(500).json({ error: "Error creating record" });
-
+    console.error("teacher-performance POST:", err);
+    res.status(500).json({
+      error: "Error creating record",
+      ...(isDev && { details: err instanceof Error ? err.message : String(err) }),
+    });
   }
-
 });
 
-
-
-// GET ALL BY SCHOOL
-
 router.get("/school/:schoolId", async (req, res) => {
-
   try {
-
+    const { schoolId } = req.params;
     const records = await prisma.teacherPerformance.findMany({
-
-      where: { schoolId: req.params.schoolId },
-
+      where: { schoolId },
       orderBy: { createdAt: "desc" },
-
     });
-
-
-
     res.json(records);
-
   } catch (err) {
-
-    res.status(500).json({ error: "Error fetching records" });
-
+    console.error("teacher-performance GET:", err);
+    res.status(500).json({
+      error: "Error fetching records",
+      ...(isDev && { details: err instanceof Error ? err.message : String(err) }),
+    });
   }
-
 });
 
 router.delete("/:id", async (req, res) => {
+  try {
+    const { id } = req.params;
+    await prisma.teacherPerformance.delete({ where: { id } });
+    res.json({ success: true });
+  } catch (err) {
+    console.error("teacher-performance DELETE:", err);
+    res.status(500).json({
+      error: "Error deleting record",
+      ...(isDev && { details: err instanceof Error ? err.message : String(err) }),
+    });
+  }
+});
 
-    try {
-  
-      const { id } = req.params;
-  
-  
-  
-      await prisma.teacherPerformance.delete({
-  
-        where: { id },
-  
-      });
-  
-  
-  
-      res.json({ success: true });
-  
-    } catch (err) {
-  
-      console.error(err);
-  
-      res.status(500).json({ error: "Error deleting record" });
-  
+router.put("/:id", async (req, res) => {
+  try {
+    const { id } = req.params;
+    const body = req.body ?? {};
+
+    const teacherName = (body.teacherName as string)?.trim() ?? "";
+    const teacherEmail =
+      typeof body.teacherEmail === "string" && body.teacherEmail.trim()
+        ? body.teacherEmail.trim()
+        : null;
+    const month = typeof body.month === "string" ? body.month.trim() : "";
+
+    if (!teacherName) {
+      return res.status(400).json({ error: "teacherName is required" });
     }
-  
-  });
-
-  router.put("/:id", async (req, res) => {
-
-    try {
-  
-      const { id } = req.params;
-  
-      const data = req.body;
-  
-  
-  
-      const finalScore = calculateFinalScore(
-  
-        Number(data.learnerResults),
-  
-        Number(data.classroomManagement),
-  
-        Number(data.teachingQuality),
-  
-        Number(data.administration),
-  
-        Number(data.professionalConduct)
-  
-      );
-  
-  
-  
-      const performanceLevel = getPerformanceLevel(finalScore);
-  
-  
-  
-      const updated = await prisma.teacherPerformance.update({
-  
-        where: { id },
-  
-        data: {
-  
-          teacherName: data.teacherName,
-  
-          teacherEmail: data.teacherEmail,
-  
-          learnerResults: Number(data.learnerResults),
-  
-          classroomManagement: Number(data.classroomManagement),
-  
-          teachingQuality: Number(data.teachingQuality),
-  
-          administration: Number(data.administration),
-  
-          professionalConduct: Number(data.professionalConduct),
-  
-          notes: data.notes,
-  
-          month: data.month,
-  
-          finalScore,
-  
-          performanceLevel,
-  
-        },
-  
-      });
-  
-  
-  
-      res.json(updated);
-  
-    } catch (err) {
-  
-      console.error(err);
-  
-      res.status(500).json({ error: "Error updating record" });
-  
+    if (!month) {
+      return res.status(400).json({ error: "month is required" });
     }
-  
-  });
+
+    const learnerResults = parseScore(body.learnerResults);
+    const classroomManagement = parseScore(body.classroomManagement);
+    const teachingQuality = parseScore(body.teachingQuality);
+    const administration = parseScore(body.administration);
+    const professionalConduct = parseScore(body.professionalConduct);
+
+    if (
+      [learnerResults, classroomManagement, teachingQuality, administration, professionalConduct].some(
+        (v) => Number.isNaN(v)
+      )
+    ) {
+      return res.status(400).json({ error: "All score fields must be numbers between 0 and 10" });
+    }
+
+    const finalScore = calculateFinalScore(
+      learnerResults,
+      classroomManagement,
+      teachingQuality,
+      administration,
+      professionalConduct
+    );
+    const performanceLevel = getPerformanceLevel(finalScore);
+
+    const notes =
+      typeof body.notes === "string" && body.notes.trim() ? body.notes.trim() : null;
+
+    const updated = await prisma.teacherPerformance.update({
+      where: { id },
+      data: {
+        teacherName,
+        teacherEmail,
+        month,
+        learnerResults,
+        classroomManagement,
+        teachingQuality,
+        administration,
+        professionalConduct,
+        notes,
+        finalScore,
+        performanceLevel,
+      },
+    });
+
+    res.json(updated);
+  } catch (err) {
+    console.error("teacher-performance PUT:", err);
+    res.status(500).json({
+      error: "Error updating record",
+      ...(isDev && { details: err instanceof Error ? err.message : String(err) }),
+    });
+  }
+});
+
 export default router;
