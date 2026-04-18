@@ -1,469 +1,1683 @@
 import { useEffect, useState } from "react";
 
+import AddLearner from "./AddLearner";
+import TeacherPerformance from "./TeacherPerformance";
+import { API_URL } from "./api";
 import "./App.css";
 
-import logo from "./assets/logo.png";
+type TeacherPerformanceRecord = {
+  id: string;
+  teacherName: string;
+  teacherEmail?: string | null;
+  finalScore: number;
+  performanceLevel: string;
+  createdAt?: string;
+};
+
+function pickTopPerformer(records: TeacherPerformanceRecord[]): TeacherPerformanceRecord | null {
+  if (records.length === 0) return null;
+  return [...records].sort((a, b) => {
+    const scoreDiff = b.finalScore - a.finalScore;
+    if (scoreDiff !== 0) return scoreDiff;
+    const ta = a.createdAt ? new Date(a.createdAt).getTime() : 0;
+    const tb = b.createdAt ? new Date(b.createdAt).getTime() : 0;
+    return tb - ta;
+  })[0];
+}
 
 
 
-type MenuKey =
+type PageKey =
 
   | "dashboard"
 
   | "registrations"
 
-  | "class-registers"
-
   | "classrooms"
 
-  | "attendance"
+  | "groups"
 
   | "employees"
 
+  | "attendance"
+
   | "incidents"
 
-  | "invoice-runs"
+  | "lists"
 
-  | "billing-plans"
+  | "forms"
 
-  | "billing-reports"
+  | "help"
 
-  | "billing-documents"
+  | "more"
 
   | "statements"
 
   | "invoices"
-
+  | "invoiceCreate"
   | "payments"
 
   | "fees"
 
-  | "letters-of-demand"
+  | "plans"
 
-  | "section-41"
+  | "runs"
 
-  | "email"
+  | "reports"
 
-  | "sms";
+  | "documents"
 
+  | "billing-help"
+
+  | "billing-more"
+
+  | "addLearner"
+  | "teacherPerformance"; 
 
 
 export default function SchoolDashboard() {
-    const schoolId = localStorage.getItem("schoolId");
-  const [activeMenu, setActiveMenu] = useState<MenuKey>("dashboard");
 
-  const [openSection, setOpenSection] = useState<string | null>(null);
+  const [activePage, setActivePage] = useState<PageKey>("dashboard");
 
-  const [registrationView, setRegistrationView] = useState<"list" | "learner" | "parent">("list");
+  const [adminOpen, setAdminOpen] = useState(true);
+
+  const [billingOpen, setBillingOpen] = useState(true);
+
+
+
+  const [parentIdInput, setParentIdInput] = useState("");
+
+  const [feeStatus, setFeeStatus] = useState("GREEN");
+
+  const [feeOutstandingAmount, setFeeOutstandingAmount] = useState(0);
+
+  const [feeSchool, setFeeSchool] = useState("No record found");
+
+  const [feeParentName, setFeeParentName] = useState("-");
+
+  const [feeMessage, setFeeMessage] = useState("");
+
+  const [feeLoading, setFeeLoading] = useState(false);
+
+
+
+  const [learners, setLearners] = useState<any[]>([]);
+
   const [parents, setParents] = useState<any[]>([]);
-  const [selectedLearnerParents, setSelectedLearnerParents] = useState<any[]>([]);
-  const [parentForm, setParentForm] = useState({
 
-    name: "",
-  
-    surname: "",
-  
-    idNumber: "",
-  
-    phone: "",
-  
-    email: "",
-    relationship: "",
-  });
-  const [learnerForm, setLearnerForm] = useState({
+  const [selectedLearner, setSelectedLearner] = useState<any | null>(null);
 
-    firstName: "",
-  
-    lastName: "",
-  
-    grade: "",
-  
-    className: "",
-  
-    admissionNo: "",
-  
-    idNumber: "",
+  const [showUnenrolled, setShowUnenrolled] = useState(false);
 
-birthDate: "",
+  const [topPerformer, setTopPerformer] = useState<TeacherPerformanceRecord | null>(null);
+  const [topPerformerLoading, setTopPerformerLoading] = useState(false);
+  const [topPerformerFetchFailed, setTopPerformerFetchFailed] = useState(false);
 
-gender: "",
+  useEffect(() => {
+    if (activePage !== "dashboard") return;
 
-homeLanguage: "",
+    const schoolId = localStorage.getItem("schoolId");
+    if (!schoolId) {
+      setTopPerformer(null);
+      setTopPerformerLoading(false);
+      setTopPerformerFetchFailed(false);
+      return;
+    }
 
-nationality: "",
+    let cancelled = false;
+    setTopPerformerLoading(true);
+    setTopPerformerFetchFailed(false);
 
-religion: "",
-  });
-  const [selectedLearner, setSelectedLearner] = useState<any>(null);
-  const [searchId, setSearchId] = useState("");
-
-const [statusResult, setStatusResult] = useState<any>(null);
-const [savedParents, setSavedParents] = useState<any[]>([]);
-
-const [savedLearners, setSavedLearners] = useState<any[]>([]);
-useEffect(() => {
-
-    fetch("http://localhost:3000/api/learners")
-  
-      .then((res) => res.json())
-  
-      .then((data) => {
-  
-        if (Array.isArray(data)) {
-  
-          setSavedLearners(data);
-  
-        } else if (data.learners) {
-  
-          setSavedLearners(data.learners);
-  
-        } else {
-  
-          setSavedLearners([]);
-  
+    (async () => {
+      try {
+        const res = await fetch(`${API_URL}/api/teacher-performance/school/${schoolId}`);
+        if (!res.ok) {
+          if (!cancelled) {
+            setTopPerformer(null);
+            setTopPerformerFetchFailed(true);
+          }
+          return;
         }
-  
-      })
-  
-      .catch((err) => {
-  
-        console.error(err);
-  
-        setSavedLearners([]);
-  
-      });
-  
-  }, []);
-  const toggleSection = (section: string) => {
-
-    setOpenSection((prev) => (prev === section ? null : section));
-
-  };
-
-
-  const saveParent = async () => {
-
-    try {
-  
-      const res = await fetch("http://localhost:3000/api/parents", {
-  
-        method: "POST",
-  
-        headers: {
-  
-          "Content-Type": "application/json",
-  
-        },
-  
-        body: JSON.stringify({
-  
-          fullName: parentForm.name,
-  
-          mobile: parentForm.phone,
-  
-          email: parentForm.email,
-  
-          idNumber: parentForm.idNumber,
-  
-          schoolId: schoolId,
-          learnerId: selectedLearner?.id,
-        }),
-  
-      });
-  
-  
-  
-      const data = await res.json();
-  
-  
-  
-      if (data.success) {
-  
-        alert("Parent saved successfully ✅");
-  
-        console.log(data);
-  
-      } else {
-  
-        alert(data.message);
-  
+        const data = (await res.json()) as TeacherPerformanceRecord[];
+        if (cancelled) return;
+        const list = Array.isArray(data) ? data : [];
+        setTopPerformer(pickTopPerformer(list));
+        setTopPerformerFetchFailed(false);
+      } catch {
+        if (!cancelled) {
+          setTopPerformer(null);
+          setTopPerformerFetchFailed(true);
+        }
+      } finally {
+        if (!cancelled) setTopPerformerLoading(false);
       }
-  
-    } catch (err) {
-  
-      console.error(err);
-  
-      alert("Error saving parent");
-  
-    }
-  
-  };
-  const saveLearner = async () => {
+    })();
 
-    try {
-        console.log("SENDING:", {
+    return () => {
+      cancelled = true;
+    };
+  }, [activePage]);
 
-            schoolId,
-          
-            firstName: learnerForm.firstName,
-          
-            lastName: learnerForm.lastName,
-          
-            grade: learnerForm.grade || learnerForm.className,
-          
-          });
-      const res = await fetch("http://localhost:3000/api/learners", {
-  
-        method: "POST",
-  
-        headers: {
-  
-          "Content-Type": "application/json",
-  
-        },
-  
-        body: JSON.stringify({
-  
-          schoolId: "cmmyhftzu00009eojp6o9i2tb",
-  
-          firstName: learnerForm.firstName,
-  
-          lastName: learnerForm.lastName,
-  
-          grade: learnerForm.grade || learnerForm.className,
-  
-          className: learnerForm.className,
-  
-          admissionNo: learnerForm.admissionNo,
-  
-        }),
-  
-      });
-  
-  
-  
-      const data = await res.json();
-  
-  
-  
-      if (data.success) {
-  
-        alert("Learner saved successfully ✅");
-  
-        console.log(data);
-  
-      } else {
-  
-        alert(data.message);
-  
-      }
-  
-    } catch (err) {
-  
-      console.error(err);
-  
-      alert("Error saving learner");
-  
-    }
-  
-  };
   useEffect(() => {
 
-    const loadData = async () => {
-  
-      try {
-  
-        const parentsRes = await fetch("http://localhost:3000/api/parents");
-  
-        const parentsData = await parentsRes.json();
-  
-  
-  
-        if (Array.isArray(parentsData)) {
-  
-          setSavedParents(parentsData);
-  
-        } else if (parentsData.success) {
-  
-          setSavedParents(parentsData.parents || []);
-  
-        }
-  
-  
-  
-        const learnersRes = await fetch("http://localhost:3000/api/learners");
-  
-        const learnersData = await learnersRes.json();
-  
-  
-  
-        if (Array.isArray(learnersData)) {
-  
-          setSavedLearners(learnersData);
-  
-        } else if (learnersData.success) {
-  
-          setSavedLearners(learnersData.learners || []);
-  
-        }
-  
-      } catch (err) {
-  
-        console.error(err);
-  
+    console.log("Active page is:", activePage);
+
+
+
+    if (activePage === "registrations") {
+
+      Promise.all([
+
+        fetch("http://localhost:3000/api/learners").then((res) => res.json()),
+
+        fetch("http://localhost:3000/api/parents").then((res) => res.json()),
+
+      ])
+
+        .then(([learnersData, parentsData]) => {
+
+          console.log("Learners loaded:", learnersData);
+
+          console.log("Parents loaded:", parentsData);
+
+
+
+          setLearners(learnersData.learners || []);
+
+          setParents(parentsData.parents || []);
+
+        })
+
+        .catch((error) => {
+
+          console.error("Failed to fetch registrations data:", error);
+
+          setLearners([]);
+
+          setParents([]);
+
+        });
+
+    }
+
+  }, [activePage]);
+
+
+
+  const handleFeeCheck = async () => {
+
+    try {
+
+      if (!parentIdInput.trim()) return;
+
+
+
+      setFeeLoading(true);
+
+
+
+      const res = await fetch(
+
+        `http://localhost:3000/api/parents/fee-check/${parentIdInput}`
+
+      );
+
+
+
+      const data = await res.json();
+
+
+
+      setFeeStatus(data.status);
+
+      setFeeOutstandingAmount(data.outstandingAmount);
+
+      setFeeSchool(data.school);
+
+      setFeeParentName(data.parentName);
+
+
+
+      if (data.status === "RED") {
+
+        setFeeMessage("Immediate action required – high outstanding balance");
+
+      } else if (data.status === "AMBER") {
+
+        setFeeMessage("Payment arrangement required");
+
+      } else {
+
+        setFeeMessage("Account in good standing");
+
       }
+
+    } catch (err) {
+
+      console.error("Fee check error:", err);
+
+      setFeeMessage("");
+
+    } finally {
+
+      setFeeLoading(false);
+
+    }
+
+  };
+
+
+
+  const getAgeFromBirthDate = (birthDate?: string | null) => {
+
+    if (!birthDate) return "-";
+
+
+
+    const dob = new Date(birthDate);
+
+    const today = new Date();
+
+
+
+    if (Number.isNaN(dob.getTime())) return "-";
+
+
+
+    let years = today.getFullYear() - dob.getFullYear();
+
+    const monthDiff = today.getMonth() - dob.getMonth();
+
+
+
+    if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < dob.getDate())) {
+
+      years -= 1;
+
+    }
+
+
+
+    return years >= 0 ? String(years) : "-";
+
+  };
+
+
+
+  const statCardStyle = {
+
+    background: "linear-gradient(180deg, #ffffff 0%, #f8fafc 100%)",
+  
+    padding: "22px 24px",
+  
+    borderRadius: "20px",
+  
+    minWidth: "150px",
+  
+    textAlign: "left" as const,
+  
+    border: "1px solid rgba(15, 23, 42, 0.08)",
+  
+    boxShadow:
+  
+      "0 10px 30px rgba(15, 23, 42, 0.06), inset 0 1px 0 rgba(255,255,255,0.9)",
+  
+    transition: "transform 0.2s ease, box-shadow 0.2s ease",
+  
+  };
+
+
+
+  const statNumber = {
+
+    fontSize: "40px",
+  
+    fontWeight: 800,
+  
+    lineHeight: 1,
+  
+    color: "#0f172a",
+  
+    marginBottom: "10px",
+  
+    letterSpacing: "-0.03em",
+  
+  };
+
+
+
+  const statLabel = {
+
+    fontSize: "13px",
+  
+    fontWeight: 700,
+  
+    color: "#64748b",
+  
+    textTransform: "uppercase" as const,
+  
+    letterSpacing: "0.08em",
+  
+  };
+
+
+  const actionBtn = {
+
+    padding: "10px 16px",
+  
+    borderRadius: "12px",
+  
+    border: "1px solid rgba(15, 23, 42, 0.08)",
+  
+    background: "#ffffff",
+  
+    fontWeight: 600,
+  
+    fontSize: "13px",
+  
+    color: "#0f172a",
+  
+    boxShadow: "0 4px 12px rgba(15, 23, 42, 0.05)",
+  
+    cursor: "pointer",
+  
+  };
+
+
+  const selectStyle = {
+
+    padding: "10px 14px",
+  
+    borderRadius: "12px",
+  
+    border: "1px solid rgba(15, 23, 42, 0.08)",
+  
+    background: "#ffffff",
+  
+    fontSize: "13px",
+  
+    color: "#0f172a",
+  
+  };
+
+
+
+  const th = {
+
+    textAlign: "left" as const,
+  
+    padding: "12px 16px",
+  
+    fontSize: "12px",
+  
+    color: "#64748b",
+  
+    fontWeight: 700,
+  
+    textTransform: "uppercase" as const,
+  
+    letterSpacing: "0.08em",
+  
+  };
+
+
+
+  const td = {
+
+    padding: "18px 16px",
+  
+    color: "#0f172a",
+  
+    background: "#ffffff",
+  
+  };
+  const billingSummaryWrap = {
+
+    display: "grid",
+  
+    gridTemplateColumns: "repeat(5, minmax(160px, 1fr))",
+  
+    gap: "12px",
+  
+    marginBottom: "18px",
+  
+  };
+  
+  
+  
+  const billingSummaryCard = {
+  
+    background: "#ffffff",
+  
+    border: "1px solid rgba(15, 23, 42, 0.08)",
+  
+    borderRadius: "16px",
+  
+    padding: "16px 18px",
+  
+    boxShadow: "0 8px 24px rgba(15, 23, 42, 0.06)",
+  
+  };
+  
+  
+  
+  const billingSummaryValue = {
+  
+    fontSize: "18px",
+  
+    fontWeight: 800,
+  
+    color: "#0f172a",
+  
+    marginBottom: "6px",
+  
+  };
+  
+  
+  
+  const billingSummaryLabel = {
+  
+    fontSize: "12px",
+  
+    fontWeight: 700,
+  
+    color: "#64748b",
+  
+    textTransform: "uppercase" as const,
+  
+    letterSpacing: "0.08em",
+  
+  };
+  
+  
+  
+  const billingTableCard = {
+  
+    background: "#ffffff",
+  
+    borderRadius: "18px",
+  
+    padding: "16px",
+  
+    border: "1px solid rgba(15, 23, 42, 0.06)",
+  
+    boxShadow: "0 20px 50px rgba(15, 23, 42, 0.08)",
+  
+    overflow: "hidden",
+  
+  };
+
+  const formatAge = (birthDate?: string) => {
+
+    if (!birthDate) return "-";
+
+
+
+    const dob = new Date(birthDate);
+
+    const today = new Date();
+
+
+
+    let years = today.getFullYear() - dob.getFullYear();
+
+    let months = today.getMonth() - dob.getMonth();
+
+
+
+    if (months < 0 || (months === 0 && today.getDate() < dob.getDate())) {
+
+      years--;
+
+      months += 12;
+
+    }
+
+
+
+    if (years <= 0) return `${months} months`;
+
+
+
+    return `${years} years${months > 0 ? ` ${months} months` : ""}`;
+
+  };
+
+
+
+  const filteredLearners = showUnenrolled
+
+    ? learners
+
+    : learners.filter((l: any) => (l.childStatus || "Enrolled") === "Enrolled");
+
+
+
+  const totalLearners = filteredLearners.length;
+
+  const totalParents = parents.length;
+
+  const totalBoys = learners.filter((l: any) => l.gender === "Male").length;
+
+  const totalGirls = learners.filter((l: any) => l.gender === "Female").length;
+
+  const totalClassrooms = new Set(
+
+    learners
+
+      .map((l: any) => l.grade || l.className || l.classroom)
+
+      .filter(Boolean)
+
+  ).size;
+  const statementRows = learners.map((l: any, index: number) => {
+
+    const familyRef =
+  
+      l.familyAccount?.accountRef ||
+  
+      l.admissionNo ||
+  
+      l.admissionNumber ||
+  
+      `ACC${String(index + 1).padStart(3, "0")}`;
+  
+  
+  
+    const name = l.firstName || "-";
+  
+    const surname = l.lastName || l.surname || "-";
+  
+  
+  
+    const balance = Number(l.totalFee || l.balance || 0);
+  
+    const lastInvoiceAmount = Number(l.lastInvoiceAmount || l.tuitionFee || 0);
+  
+    const lastPaymentAmount = Number(l.lastPaymentAmount || 0);
+  
+  
+  
+    let status = "Up To Date";
+  
+    if (balance > 10000) status = "Bad Debt";
+  
+    else if (balance > 0) status = "Recently Owing";
+  
+    else if (balance < 0) status = "Over Paid";
+  
+  
+  
+    return {
+  
+      accountNo: familyRef,
+  
+      name,
+  
+      surname,
+  
+      balance,
+  
+      lastInvoice: lastInvoiceAmount,
+  
+      lastInvoiceDate: "2026/04/15",
+  
+      lastPayment: lastPaymentAmount,
+  
+      lastPaymentDate: "2026/04/09",
+  
+      status,
   
     };
   
+  });
   
   
-    loadData();
   
-  }, []);
-  const renderContent = () => {
-
-    switch (activeMenu) {
-
-      case "dashboard":
-
-        return (
-    
-
-          <div className="dashboard-grid">
-         <div style={{ marginBottom: "20px", width: "100%" }}>
-         <div style={{ width: "100%", marginBottom: "20px" }}>
-
-<h3>Saved Parents</h3>
-
-
-
-{parents && parents.length > 0 ? (
-
-  parents.map((p: any) => (
-
-    <div key={p.id} style={{ padding: "10px", borderBottom: "1px solid #ccc" }}>
-
-      <p><strong>{p.fullName}</strong></p>
-
-      <p>{p.mobile}</p>
-
-      <p>{p.email}</p>
-
-    </div>
-
-  ))
-
-) : (
-
-  <p>No parents found</p>
-
-)}
-
-</div>    
-
-<h3>Check Outstanding Fees</h3>
+  const statementsAccountsCount = statementRows.length;
+  
+  
+  
+  const statementsTotalOutstanding = statementRows
+  
+    .filter((row) => row.balance > 0)
+  
+    .reduce((sum, row) => sum + row.balance, 0);
+  
+  
+  
+  const statementsRecentlyOwing = statementRows
+  
+    .filter((row) => row.balance > 0 && row.balance <= 10000)
+  
+    .reduce((sum, row) => sum + row.balance, 0);
+  
+  
+  
+  const statementsBadDebt = statementRows
+  
+    .filter((row) => row.balance > 10000)
+  
+    .reduce((sum, row) => sum + row.balance, 0);
+  
+  
+  
+  const statementsOverPaidAbs = Math.abs(
+  
+    statementRows
+  
+      .filter((row) => row.balance < 0)
+  
+      .reduce((sum, row) => sum + row.balance, 0)
+  
+  );
+  
+  const invoiceRows = statementRows;
 
 
 
-<input
+  const invoicesAccountsCount = invoiceRows.length;
+  
+  const invoicesTotalOutstanding = statementsTotalOutstanding;
+  
+  const invoicesRecentlyOwing = statementsRecentlyOwing;
+  
+  const invoicesBadDebt = statementsBadDebt;
+  
+  const invoicesOverPaidAbs = statementsOverPaidAbs;
+  
+  const formatMoney = (value: number) =>
+  
+    `R ${value.toLocaleString("en-ZA", {
+  
+      minimumFractionDigits: 2,
+  
+      maximumFractionDigits: 2,
+  
+    })}`;
+  const renderPage = () => {
 
-  type="text"
+    if (activePage === "addLearner") {
 
-  placeholder="Enter Parent ID"
-
-  value={searchId}
-
-  onChange={(e) => setSearchId(e.target.value)}
-
-  style={{ padding: "10px", marginRight: "10px" }}
-
-/>
-
-
-
-<button
-
-  onClick={async () => {
-
-    try {
-
-      const res = await fetch(`http://localhost:3000/api/fees-status/${searchId}`);
-
-      const data = await res.json();
-
-      setStatusResult(data);
-
-    } catch (err) {
-
-      console.error(err);
+      return <AddLearner setActivePage={setActivePage} />; 
 
     }
 
-  }}
+    if (activePage === "teacherPerformance") {
 
-  className="primary-btn"
+
+
+      return <TeacherPerformance />;
+    
+    
+    
+    }
+
+    if (activePage === "registrations") {
+
+      return (
+
+        <div
+
+
+        style={{
+      
+          padding: "32px",
+      
+          background:
+      
+            "linear-gradient(180deg, #f8fafc 0%, #f3f4f6 45%, #eef2f7 100%)",
+      
+          minHeight: "100%",
+      
+          borderRadius: "28px",
+      
+          border: "1px solid rgba(15, 23, 42, 0.06)",
+      
+          boxShadow:
+      
+            "0 24px 60px rgba(15, 23, 42, 0.08), inset 0 1px 0 rgba(255,255,255,0.8)",
+      
+        }}
+      
+      >
+
+<div style={{ marginBottom: "24px" }}>
+
+<h1
+
+  style={{
+
+    margin: 0,
+
+    fontSize: "38px",
+
+    fontWeight: 800,
+
+    letterSpacing: "-0.03em",
+
+    color: "#0f172a",
+
+  }}
 
 >
 
-  Check Status
+  Registrations
+
+</h1>
+
+
+
+<p
+
+  style={{
+
+    margin: "10px 0 0 0",
+
+    fontSize: "15px",
+
+    color: "#475569",
+
+    fontWeight: 500,
+
+  }}
+
+>
+
+  Learner registrations, sibling linking, class placement and enrolment management.
+
+</p>
+
+</div>
+
+
+
+          <div
+
+style={{
+
+  display: "flex",
+
+  gap: "12px",
+
+  marginBottom: "22px",
+
+  alignItems: "center",
+
+  flexWrap: "wrap",
+
+  padding: "14px",
+
+  background: "linear-gradient(180deg, #ffffff 0%, #f8fafc 100%)",
+
+  border: "1px solid rgba(15, 23, 42, 0.06)",
+
+  borderRadius: "18px",
+
+  boxShadow: "0 12px 32px rgba(15, 23, 42, 0.05)",
+
+}}
+  >
+          
+
+            <div style={statCardStyle}>
+
+              <div style={statNumber}>{totalLearners}</div>
+
+              <div style={statLabel}>children</div>
+
+            </div>
+
+
+
+            <div style={statCardStyle}>
+
+              <div style={statNumber}>{totalParents}</div>
+
+              <div style={statLabel}>parents</div>
+
+            </div>
+
+
+
+            <div style={statCardStyle}>
+
+              <div style={statNumber}>{totalBoys}</div>
+
+              <div style={statLabel}>boys</div>
+
+            </div>
+
+
+
+            <div style={statCardStyle}>
+
+              <div style={statNumber}>{totalGirls}</div>
+
+              <div style={statLabel}>girls</div>
+
+            </div>
+
+
+
+            <div style={statCardStyle}>
+
+              <div style={statNumber}>{totalClassrooms}</div>
+
+              <div style={statLabel}>classrooms</div>
+
+            </div>
+
+          </div>
+
+
+
+          <div
+
+style={{
+
+  display: "flex",
+
+  gap: "10px",
+
+  marginBottom: "16px",
+
+  alignItems: "center",
+
+  flexWrap: "wrap",
+
+  padding: "14px",
+
+
+}}
+
+          >
+
+<button
+
+style={{
+
+  padding: "10px 18px",
+
+  borderRadius: "12px",
+
+  border: "none",
+
+  background: "linear-gradient(135deg, #d4af37, #f5d06f)",
+
+  color: "#0f172a",
+
+  fontWeight: 700,
+
+  fontSize: "13px",
+
+  boxShadow: "0 6px 18px rgba(212, 175, 55, 0.35)",
+
+  cursor: "pointer",
+
+}}
+
+onClick={() => {
+
+  const savedAccount = localStorage.getItem("selectedInvoiceAccount");
+
+
+
+  if (!savedAccount) {
+
+    alert("Please select a learner first.");
+
+    return;
+
+  }
+
+
+
+  setActivePage("invoiceCreate");
+
+}}
+
+>
+
++ Add
 
 </button>
 
 
 
-{statusResult && (
+<button
 
-<div style={{ marginTop: "15px", fontWeight: "bold" }}>
+style={actionBtn}
 
-  <p>
+onClick={() => {
 
-    Status:{" "}
+  if (!selectedLearner) {
 
-    <span
+    alert("Please select a learner first.");
 
-      style={{
+    return;
 
-        color:
-
-          statusResult.status === "GREEN"
-
-            ? "green"
-
-            : statusResult.status === "AMBER"
-
-            ? "orange"
-
-            : "red",
-
-      }}
-
-    >
-
-      {statusResult.status}
-
-    </span>
-
-  </p>
+  }
 
 
 
-  <p>Outstanding Amount: R {statusResult.outstandingAmount}</p>
+  localStorage.setItem(
 
-  <p>School: {statusResult.school}</p>
+    "selectedLearnerForSibling",
 
-  <p>Parent: {statusResult.parentName}</p>
+    JSON.stringify(selectedLearner)
 
-</div>
+  );
 
-)}
 
-</div>   
+
+  localStorage.removeItem("selectedLearnerForManage");
+
+  setActivePage("addLearner");
+
+}}
+
+>
+
+Add Sibling
+
+</button>
+
+
+
+<button
+
+style={actionBtn}
+
+onClick={() => {
+
+  if (!selectedLearner) {
+
+    alert("Please select a learner first.");
+
+    return;
+
+  }
+
+
+
+  localStorage.setItem(
+
+    "selectedLearnerForManage",
+
+    JSON.stringify(selectedLearner)
+
+  );
+
+
+
+  setActivePage("addLearner");
+
+}}
+
+>
+
+Manage
+
+</button>
+
+
+
+            <select
+
+              style={selectStyle}
+
+              value={showUnenrolled ? "show" : "hide"}
+
+              onChange={(e) => setShowUnenrolled(e.target.value === "show")}
+
+            >
+
+              <option value="hide">Hide Unenrolled</option>
+
+              <option value="show">Show Unenrolled</option>
+
+            </select>
+
+
+
+            <select style={selectStyle}>
+
+              <option>All Groups</option>
+
+            </select>
+
+
+
+            <select style={selectStyle}>
+
+              <option>All Classrooms</option>
+
+            </select>
+
+
+
+            <input
+
+              placeholder="Search"
+
+              style={{
+
+                padding: "10px 14px",
+              
+                borderRadius: "12px",
+              
+                border: "1px solid rgba(15, 23, 42, 0.08)",
+              
+                background: "#ffffff",
+              
+                fontSize: "13px",
+              
+                width: "200px",
+              
+                boxShadow: "0 4px 12px rgba(15, 23, 42, 0.05)",
+              
+              }}
+
+            />
+
+          </div>
+
+
+
+          {selectedLearner && (
+
+            <div
+
+            style={{
+
+              marginBottom: "16px",
+            
+              padding: "20px",
+            
+              border: "1px solid #e5e7eb",
+            
+              borderRadius: "14px",
+            
+              background: "#ffffff",
+            
+              boxShadow: "0 1px 3px rgba(15, 23, 42, 0.05)",
+            
+            }}
+
+            >
+
+              <h3>
+
+                {selectedLearner.firstName}{" "}
+
+                {selectedLearner.lastName || selectedLearner.surname || ""}
+
+              </h3>
+
+
+
+              <p>
+
+                Grade:{" "}
+
+                {selectedLearner.grade || selectedLearner.className || "-"}
+
+              </p>
+
+
+
+              <p>Age: {formatAge(selectedLearner.birthDate)}</p>
+
+            </div>
+
+          )}
+
+
+
+          {filteredLearners.length === 0 ? (
+
+            <p>No learners found</p>
+
+          ) : (
+
+            <div
+
+  style={{
+
+    background: "#ffffff",
+
+    borderRadius: "18px",
+
+    padding: "16px",
+
+    border: "1px solid rgba(15, 23, 42, 0.06)",
+
+    boxShadow: "0 20px 50px rgba(15, 23, 42, 0.08)",
+
+    overflow: "hidden",
+
+  }}
+
+>
+          
+            <table
+            
+              style={{
+          
+                width: "100%",
+          
+                borderCollapse: "separate",
+               borderSpacing: "0 10px",
+                fontSize: "14px",
+          
+              }}
+          
+            >
+
+             
+
+              <thead>
+
+                <tr>
+
+                  <th style={th}>Name</th>
+
+                  <th style={th}>Surname</th>
+
+                  <th style={th}>Classroom</th>
+
+                  <th style={th}>Age</th>
+
+                  <th style={th}>Child Status</th>
+
+                </tr>
+
+              </thead>
+
+
+
+              <tbody>
+
+                {filteredLearners.map((l: any) => (
+
+  <tr key={l.id}>
+
+                    <td style={td}>
+
+                      <button
+
+                        type="button"
+
+                        onClick={() => {
+
+                          setSelectedLearner(l);
+
+                          localStorage.setItem(
+
+                            "selectedLearnerForManage",
+
+                            JSON.stringify(l)
+
+                          );
+
+                        }}
+
+                        style={{
+
+                          background: "none",
+
+                          border: "none",
+
+                          padding: 0,
+
+                          margin: 0,
+
+                          color: "#1d4ed8",
+
+                          cursor: "pointer",
+
+                          fontWeight: 600,
+
+                          textDecoration: "underline",
+
+                          fontSize: "inherit",
+
+                        }}
+
+                      >
+
+                        {l.firstName || "--"}
+
+                      </button>
+
+                    </td>
+
+
+
+                    <td style={td}>
+
+                      <button
+
+                        type="button"
+
+                        onClick={() => {
+
+                          setSelectedLearner(l);
+
+                          localStorage.setItem(
+
+                            "selectedLearnerForManage",
+
+                            JSON.stringify(l)
+
+                          );
+
+                        }}
+
+                        style={{
+
+                          background: "none",
+
+                          border: "none",
+
+                          padding: 0,
+
+                          margin: 0,
+
+                          color: "#1d4ed8",
+
+                          cursor: "pointer",
+
+                          fontWeight: 600,
+
+                          textDecoration: "underline",
+
+                          fontSize: "inherit",
+
+                        }}
+
+                      >
+
+                        {l.lastName || l.surname || "--"}
+
+                      </button>
+
+                    </td>
+
+
+
+                    <td style={td}>
+
+                      {l.grade || l.className || l.classroom || "-"}
+
+                    </td>
+
+
+
+                    <td style={td}>{formatAge(l.birthDate)}</td>
+
+
+
+                    <td style={td}>
+
+                      <span
+
+                        style={{
+
+                          padding: "6px 12px",
+
+                          borderRadius: "20px",
+
+                          fontWeight: "bold",
+
+                          fontSize: "12px",
+
+                          color: "white",
+
+                          backgroundColor:
+
+                            (l.childStatus || "Enrolled") === "Enrolled"
+
+                              ? "#16a34a"
+
+                              : "#dc2626",
+
+                        }}
+
+                      >
+
+                        {l.childStatus || "Enrolled"}
+
+                      </span>
+
+                    </td>
+
+                  </tr>
+
+                ))}
+
+              </tbody>
+
+            </table>
+       </div>
+          )}
+          </div>
+
+      );
+
+    }
+    if (activePage === "dashboard") {
+
+      return (
+
+        <div className="dashboard-page">
+
+          <div className="dashboard-header">
+
+            <img src="/logo.png" className="dashboard-logo" />
+
+
+
+            <div>
+
+              <h1 className="page-title">Hello Da Silva Academy!</h1>
+
+              <p className="dashboard-subtitle">School Management Dashboard</p>
+
+            </div>
+
+          </div>
+
+
+
+          <div className="fees-check-card">
+
+            <div className="fees-check-left">
+
+              <h2 className="dashboard-card-title">Check Outstanding Fees</h2>
+
+
+
+              <div className="fees-check-form">
+
+                <input
+
+                  className="fees-input"
+
+                  type="text"
+
+                  placeholder="Enter Parent ID"
+
+                  value={parentIdInput}
+
+                  onChange={(e) => setParentIdInput(e.target.value)}
+
+                />
+
+
+
+                <button
+
+                  className="fees-check-button"
+
+                  type="button"
+
+                  onClick={handleFeeCheck}
+
+                  disabled={feeLoading}
+
+                >
+
+                  {feeLoading ? "Checking..." : "Check Status"}
+
+                </button>
+
+              </div>
+
+
+
+              <div className="fees-status-results">
+
+                <div className="fees-status-line">
+
+                  <span className="fees-label">Status:</span>
+
+                  <span
+
+                    className={`status-pill ${
+
+                      feeStatus === "RED"
+
+                        ? "status-red"
+
+                        : feeStatus === "AMBER"
+
+                        ? "status-amber"
+
+                        : "status-green"
+
+                    }`}
+
+                  >
+
+                    {feeStatus}
+
+                  </span>
+
+                </div>
+
+
+
+                {feeMessage && (
+
+                  <div
+
+                    style={{
+
+                      marginTop: "10px",
+
+                      padding: "12px 16px",
+
+                      borderRadius: "10px",
+
+                      fontWeight: "600",
+
+                      width: "fit-content",
+
+                      backgroundColor:
+
+                        feeStatus === "RED"
+
+                          ? "#ffe5e5"
+
+                          : feeStatus === "AMBER"
+
+                          ? "#fff4e5"
+
+                          : "#e6f7ec",
+
+                      color:
+
+                        feeStatus === "RED"
+
+                          ? "#cc0000"
+
+                          : feeStatus === "AMBER"
+
+                          ? "#b36b00"
+
+                          : "#1e7e34",
+
+                      border:
+
+                        feeStatus === "RED"
+
+                          ? "1px solid #ffb3b3"
+
+                          : feeStatus === "AMBER"
+
+                          ? "1px solid #ffd699"
+
+                          : "1px solid #b7ebc6",
+
+                    }}
+
+                  >
+
+                    {feeMessage}
+
+                  </div>
+
+                )}
+
+
+
+                <div className="fees-status-line">
+
+                  <span className="fees-label">Outstanding Amount:</span>
+
+                  <strong>R {feeOutstandingAmount.toLocaleString()}</strong>
+
+                </div>
+
+
+
+                <div className="fees-status-line">
+
+                  <span className="fees-label">School:</span>
+
+                  <span>{feeSchool}</span>
+
+                </div>
+
+
+
+                <div className="fees-status-line">
+
+                  <span className="fees-label">Parent:</span>
+
+                  <span>{feeParentName}</span>
+
+                </div>
+
+              </div>
+
+            </div>
+
+
+
+            <div className="fees-check-right">
+
+              <div className="fees-legend-card">
+
+                <h3 className="legend-title">Fee Status Guide</h3>
+
+
+
+                <div className="legend-row">
+
+                  <span className="status-pill status-green">GREEN</span>
+
+                  <span>Fees up to date</span>
+
+                </div>
+
+
+
+                <div className="legend-row">
+
+                  <span className="status-pill status-amber">AMBER</span>
+
+                  <span>Outstanding fees of R10,000 or less</span>
+
+                </div>
+
+
+
+                <div className="legend-row">
+
+                  <span className="status-pill status-red">RED</span>
+
+                  <span>Outstanding fees above R10,000</span>
+
+                </div>
+
+              </div>
+
+            </div>
+
+          </div>
+
+
+
+          <div className="dashboard-bottom-grid">
+
+            <div
+              className="dashboard-card dashboard-card-clickable"
+              role="button"
+              tabIndex={0}
+              onClick={() => setActivePage("teacherPerformance")}
+              onKeyDown={(e) => {
+                if (e.key === "Enter" || e.key === " ") {
+                  e.preventDefault();
+                  setActivePage("teacherPerformance");
+                }
+              }}
+            >
+              <div className="top-performer-card-head">
+                <span className="top-performer-trophy" aria-hidden>
+                  🏆
+                </span>
+                <h3>Top Performer</h3>
+              </div>
+
+              {topPerformerLoading ? (
+                <p className="dashboard-card-text">Loading…</p>
+              ) : topPerformerFetchFailed ? (
+                <p className="dashboard-card-text">Could not load teacher performance.</p>
+              ) : !topPerformer ? (
+                <p className="dashboard-card-text">No teacher records yet</p>
+              ) : (
+                <>
+                  <h2 className="dashboard-card-value" style={{ fontSize: 26 }}>
+                    {topPerformer.teacherName}
+                  </h2>
+                  {topPerformer.teacherEmail ? (
+                    <p className="dashboard-card-text" style={{ marginBottom: 8 }}>
+                      {topPerformer.teacherEmail}
+                    </p>
+                  ) : null}
+                  <p className="dashboard-card-text-large" style={{ marginBottom: 6 }}>
+                    {Number(topPerformer.finalScore).toFixed(1)} / 10
+                  </p>
+                  <p
+                    style={{
+                      color:
+                        topPerformer.performanceLevel === "Excellent"
+                          ? "#1e7e34"
+                          : topPerformer.performanceLevel === "Acceptable"
+                            ? "#b36b00"
+                            : topPerformer.performanceLevel === "At Risk"
+                              ? "#cc5500"
+                              : "#cc0000",
+                      fontWeight: 700,
+                      fontSize: 16,
+                    }}
+                  >
+                    {topPerformer.performanceLevel}
+                  </p>
+                </>
+              )}
+            </div>
 
             <div className="dashboard-card">
 
-              <h3>Total Learners</h3>
+              <h3>Learners</h3>
 
-              <p>395 Learners</p>
+              <h2>393</h2>
+
+              <p>188 boys • 205 girls</p>
 
             </div>
 
@@ -471,19 +1685,11 @@ useEffect(() => {
 
             <div className="dashboard-card">
 
-              <h3>Outstanding Fees</h3>
+              <h3>Classrooms</h3>
 
-              <p>R 0.00</p>
+              <h2>23</h2>
 
-            </div>
-
-
-
-            <div className="dashboard-card">
-
-              <h3>Payments This Month</h3>
-
-              <p>R 0.00</p>
+              <p>Average class size: 17</p>
 
             </div>
 
@@ -493,23 +1699,19 @@ useEffect(() => {
 
               <h3>Birthdays</h3>
 
-              <p>1 today</p>
+              <h2>1 today</h2>
+
+              <p>View today’s learner birthdays</p>
 
             </div>
 
-
-
-            <div className="dashboard-card dashboard-card-wide">
-
-              <h3>Quick Actions</h3>
-
-              <p>Add Learner, Capture Payment, Send Statement</p>
-
-            </div>
+          </div>
 
 
 
-            <div className="dashboard-card dashboard-card-wide">
+          <div className="dashboard-bottom-grid">
+
+            <div className="dashboard-card">
 
               <h3>Announcements</h3>
 
@@ -517,1227 +1719,1181 @@ useEffect(() => {
 
             </div>
 
+
+
+            <div className="dashboard-card">
+
+              <h3>Review</h3>
+
+              <p>
+
+                We would love your feedback once everything is live and complete.
+
+              </p>
+
+            </div>
+
           </div>
 
-        );
+        </div>
 
-        case "registrations":
+      );
+
+    }
+    
+    
+
+
+
+      switch (activePage) {
+
+        case "invoiceCreate":
 
         return (
       
-          <div className="content-panel registration-page">
+          <div style={{ padding: "32px" }}>
       
-            <div className="registration-header">
+            <h1 className="page-title">Create Invoice</h1>
       
-              <div>
       
-                <h2>Registration</h2>
       
-                <p>
+            <div
       
-                  {registrationView === "learner"
+              style={{
       
-                    ? "Manage child and parent information"
+                background: "#ffffff",
       
-                    : "Change parent's information"}
+                borderRadius: "12px",
       
-                </p>
+                padding: "24px",
+      
+                boxShadow: "0 8px 24px rgba(15, 23, 42, 0.08)",
+      
+                marginTop: "20px",
+      
+              }}
+      
+            >
+      
+              <p>Select fees or add manual items for this learner.</p>
+      
+            </div>
+      
+          </div>
+      
+        );
+      
+      
+      
+      case "classrooms":
+
+        return <h1 className="page-title">Classrooms</h1>;
+
+      case "groups":
+
+        return <h1 className="page-title">Groups</h1>;
+
+      case "employees":
+
+        return <h1 className="page-title">Employees</h1>;
+
+      case "attendance":
+
+        return <h1 className="page-title">Attendance</h1>;
+
+      case "incidents":
+
+        return <h1 className="page-title">Incidents</h1>;
+
+      case "lists":
+
+        return <h1 className="page-title">Lists & Registers</h1>;
+
+      case "forms":
+
+        return <h1 className="page-title">Forms & Templates</h1>;
+
+      case "help":
+
+        return <h1 className="page-title">Help & Tips</h1>;
+
+      case "more":
+
+        return <h1 className="page-title">More</h1>;
+
+        case "statements":
+
+        return (
+      
+          <div
+      
+            style={{
+      
+              padding: "32px",
+      
+              background:
+      
+                "linear-gradient(180deg, #f8fafc 0%, #f3f4f6 45%, #eef2f7 100%)",
+      
+              minHeight: "100%",
+      
+              borderRadius: "28px",
+      
+              border: "1px solid rgba(15, 23, 42, 0.06)",
+      
+              boxShadow:
+      
+                "0 24px 60px rgba(15, 23, 42, 0.08), inset 0 1px 0 rgba(255,255,255,0.8)",
+      
+            }}
+      
+          >
+      
+            <div style={{ marginBottom: "24px" }}>
+      
+              <h1
+      
+                style={{
+      
+                  margin: 0,
+      
+                  fontSize: "38px",
+      
+                  fontWeight: 800,
+      
+                  letterSpacing: "-0.03em",
+      
+                  color: "#0f172a",
+      
+                }}
+      
+              >
+      
+                Statements
+      
+              </h1>
+      
+      
+      
+              <p
+      
+                style={{
+      
+                  margin: "10px 0 0 0",
+      
+                  fontSize: "15px",
+      
+                  color: "#475569",
+      
+                  fontWeight: 500,
+      
+                }}
+      
+              >
+      
+                Manage your statement of accounts.
+      
+              </p>
+      
+            </div>
+      
+      
+      
+            <div style={billingSummaryWrap}>
+      
+              <div style={billingSummaryCard}>
+      
+                <div style={billingSummaryValue}>{statementsAccountsCount}</div>
+      
+                <div style={billingSummaryLabel}>Accounts</div>
       
               </div>
       
       
-              {registrationView === "list" && (
-
-<div className="registration-card">
-
-  <div className="registration-section-title">Children</div>
-
-
-
-  <div style={{ display: "flex", gap: "10px", marginBottom: "15px", flexWrap: "wrap" }}>
-
-    <button
-
-      className="primary-btn"
-
-      onClick={() => setRegistrationView("learner")}
-
-    >
-
-      + Add Learner
-
-    </button>
-
-
-
-    <button
-
-      className="secondary-btn"
-
-      onClick={() => setRegistrationView("learner")}
-
-    >
-
-      + Add Sibling
-
-    </button>
-
-
-  </div>
-
-
-
-  {savedLearners.length === 0 ? (
-
-    <p>No learners saved yet</p>
-
-  ) : (
-
-    <div style={{ overflowX: "auto" }}>
-
-      <table style={{ width: "100%", borderCollapse: "collapse" }}>
-
-        <thead>
-
-          <tr>
-
-            <th style={{ textAlign: "left", padding: "10px", borderBottom: "1px solid #ddd" }}>Name</th>
-
-            <th style={{ textAlign: "left", padding: "10px", borderBottom: "1px solid #ddd" }}>Surname</th>
-
-            <th style={{ textAlign: "left", padding: "10px", borderBottom: "1px solid #ddd" }}>Grade</th>
-
-            <th style={{ textAlign: "left", padding: "10px", borderBottom: "1px solid #ddd" }}>Classroom</th>
-            <th style={{ textAlign: "left", padding: "10px", borderBottom: "1px solid #ddd" }}>Actions</th>
-          </tr>
-
-        </thead>
-
-        <tbody>
-
-          {savedLearners.map((learner: any, index) => (
-
-<tr
-
-key={learner.id || index}
-
-onClick={() => setSelectedLearner(learner)}
-
-style={{
-
-  cursor: "pointer",
-
-  backgroundColor: selectedLearner === learner ? "#eef4ff" : "transparent",
-
-}}
-
->  
-
-              <td style={{ padding: "10px", borderBottom: "1px solid #eee" }}>{learner.firstName}</td>
-
-              <td style={{ padding: "10px", borderBottom: "1px solid #eee" }}>{learner.lastName}</td>
-
-              <td style={{ padding: "10px", borderBottom: "1px solid #eee" }}>{learner.grade}</td>
-
-              <td style={{ padding: "10px", borderBottom: "1px solid #eee" }}>{learner.className}</td>
-              <td style={{ padding: "10px", borderBottom: "1px solid #eee" }}>
-
-<button
-
-  className="secondary-btn"
-
-  onClick={() => {
-
-    setSelectedLearner(learner);
-  
-    setSelectedLearnerParents(
-  
-      parents.filter((parent) => parent.learnerId === learner.id)
-  
-    );
-  
-  
-  
-    setLearnerForm({
-  
-      firstName: learner.firstName || "",
-  
-      lastName: learner.lastName || "",
-  
-      grade: learner.grade || "",
-  
-      className: learner.className || "",
-  
-      admissionNo: learner.admissionNo || "",
-  
-  
-  
-      idNumber: learner.idNumber || "",
-  
-      birthDate: learner.birthDate || "",
-  
-      gender: learner.gender || "",
-  
-      homeLanguage: learner.homeLanguage || "",
-  
-      nationality: learner.nationality || "",
-  
-      religion: learner.religion || "",
-  
-    });
-  
-  
-  
-    setRegistrationView("learner");
-  
-  }}
-
->
-
-  Manage
-
-</button>
-
-</td>
-            </tr>
-
-          ))}
-
-        </tbody>
-
-      </table>
-
-    </div>
-
-  )}
-
-</div>
-
-)}
-              <div className="registration-actions">
+      
+              <div style={billingSummaryCard}>
+      
+                <div style={billingSummaryValue}>
+      
+                  {formatMoney(statementsTotalOutstanding)}
+      
+                </div>
+      
+                <div style={billingSummaryLabel}>Total Outstanding</div>
+      
+              </div>
+      
+      
+      
+              <div style={billingSummaryCard}>
+      
+                <div style={billingSummaryValue}>
+      
+                  {formatMoney(statementsRecentlyOwing)}
+      
+                </div>
+      
+                <div style={billingSummaryLabel}>Recently Owing</div>
+      
+              </div>
+      
+      
+      
+              <div style={billingSummaryCard}>
+      
+                <div style={{ ...billingSummaryValue, color: "#b91c1c" }}>
+      
+                  {formatMoney(statementsBadDebt)}
+      
+                </div>
+      
+                <div style={billingSummaryLabel}>Bad Debt</div>
+      
+              </div>
+      
+      
+      
+              <div style={billingSummaryCard}>
+      
+                <div style={{ ...billingSummaryValue, color: "#15803d" }}>
+      
+                  {formatMoney(statementsOverPaidAbs)}
+      
+                </div>
+      
+                <div style={billingSummaryLabel}>Over Paid</div>
+      
+              </div>
+      
+            </div>
+      
+      
+      
+            <div style={billingTableCard}>
+      
+              <div
+      
+                style={{
+      
+                  display: "flex",
+      
+                  justifyContent: "space-between",
+      
+                  alignItems: "center",
+      
+                  gap: "12px",
+      
+                  marginBottom: "14px",
+      
+                  flexWrap: "wrap",
+      
+                }}
+      
+              >
       
                 <button
       
-                  className="secondary-btn"
+                  style={{
       
-                  onClick={() => setRegistrationView("learner")}
+                    ...actionBtn,
+      
+                    border: "1px solid rgba(15, 23, 42, 0.12)",
+      
+                    background: "#ffffff",
+      
+                  }}
       
                 >
       
-                  Back
+                  Manage
       
                 </button>
       
       
       
-                <button
-
-className="primary-btn"
-
-onClick={() => {
-
-    if (registrationView === "parent") {
-  
-      saveParent();
-  
-    } else {
-  
-      saveLearner();
-  
-    }
-  
-  }}
-
->
-
-Save
-
-</button> 
+                <input
       
+                  placeholder="Search"
       
+                  style={{
       
-                <button className="secondary-btn">More Actions</button>
+                    padding: "10px 14px",
+      
+                    borderRadius: "12px",
+      
+                    border: "1px solid rgba(15, 23, 42, 0.08)",
+      
+                    background: "#ffffff",
+      
+                    fontSize: "13px",
+      
+                    width: "220px",
+      
+                    boxShadow: "0 4px 12px rgba(15, 23, 42, 0.05)",
+      
+                  }}
+      
+                />
       
               </div>
       
-            </div>
       
       
+              <table
       
-            {registrationView === "learner" && (
+                style={{
       
-              <>
+                  width: "100%",
       
-                <div className="registration-card">
+                  borderCollapse: "separate",
       
-                  <div className="registration-section-title">Child</div>
+                  borderSpacing: "0 10px",
       
+                  fontSize: "14px",
       
+                }}
       
-                  <div className="registration-tabs">
+              >
       
-                    <button className="registration-tab active">General</button>
+                <thead>
       
-                    <button className="registration-tab">Billing Plan</button>
+                  <tr>
       
-                    <button className="registration-tab">Medical</button>
+                    <th style={th}>Account No</th>
       
-                    <button className="registration-tab">Groups</button>
+                    <th style={th}>Name</th>
       
-                    <button className="registration-tab">Other</button>
+                    <th style={th}>Surname</th>
       
-                    <button className="registration-tab">Extra</button>
+                    <th style={th}>Balance</th>
       
-                  </div>
+                    <th style={th}>Last Invoice</th>
       
+                    <th style={th}>Last Payment</th>
       
+                    <th style={th}>Account Status</th>
       
-                  <div className="kid-form-grid">
+                  </tr>
       
-                    <label>Name / Nickname</label>
+                </thead>
       
-                    <div className="double-field">
       
-                    <input
-
-placeholder="Name"
-
-value={learnerForm.firstName}
-
-onChange={(e) =>
-
-  setLearnerForm({ ...learnerForm, firstName: e.target.value })
-
-}
-
-/> 
       
-                      <input placeholder="Nickname" />
+                <tbody>
       
-                    </div>
+                  {statementRows.length === 0 ? (
       
+                    <tr>
       
+                      <td
       
-                    <label>Surname</label>
+                        colSpan={7}
       
-                    <input
-
-placeholder="Surname"
-
-value={learnerForm.lastName}
-
-onChange={(e) =>
-
-  setLearnerForm({ ...learnerForm, lastName: e.target.value })
-
-}
-
-/> 
+                        style={{
       
+                          ...td,
       
+                          textAlign: "center",
       
-                    <label>ID No</label>
+                          borderRadius: "12px",
       
-                    <input placeholder="ID No" />
+                        }}
       
+                      >
       
+                        No statement accounts found
       
-                    <label>Birth Date</label>
+                      </td>
       
-                    <input type="date" />
+                    </tr>
       
+                  ) : (
       
+                    statementRows.map((row, index) => (
       
-                    <label>Gender</label>
+                      <tr
       
-                    <select defaultValue="">
+                        key={`${row.accountNo}-${index}`}
       
-                      <option value="" disabled>
+                        style={{
       
-                        Select gender
+                          background: "#ffffff",
       
-                      </option>
+                          boxShadow: "0 8px 24px rgba(15, 23, 42, 0.08)",
       
-                      <option>Male</option>
+                          borderRadius: "12px",
       
-                      <option>Female</option>
+                          overflow: "hidden",
       
-                    </select>
+                        }}
       
+                      >
       
+                        <td style={td}>{row.accountNo}</td>
       
-                    <label>Classroom</label>
+                        <td style={td}>{row.name}</td>
       
-                    <input
-
-placeholder="Classroom"
-
-value={learnerForm.className}
-
-onChange={(e) =>
-
-  setLearnerForm({ ...learnerForm, className: e.target.value })
-
-}
-
-/> 
+                        <td style={td}>{row.surname}</td>
       
+                        <td style={td}>{formatMoney(row.balance)}</td>
       
+                        <td style={td}>
       
-                    <label>Home Language</label>
+                          {formatMoney(row.lastInvoice)} on {row.lastInvoiceDate}
       
-                    <input placeholder="Home Language" />
+                        </td>
       
+                        <td style={td}>
       
+                          {formatMoney(row.lastPayment)} on {row.lastPaymentDate}
       
-                    <label>Nationality</label>
+                        </td>
       
-                    <input placeholder="Nationality" />
+                        <td style={td}>
       
+                          <span
       
+                            style={{
       
-                    <label>Religion</label>
+                              fontWeight: 700,
       
-                    <input placeholder="Religion" />
+                              color:
       
+                                row.status === "Bad Debt"
       
+                                  ? "#b91c1c"
       
-                    <label>Enrolment Date</label>
+                                  : row.status === "Recently Owing"
       
-                    <input type="date" />
+                                  ? "#b45309"
       
+                                  : row.status === "Over Paid"
       
+                                  ? "#15803d"
       
-                    <label>Notes</label>
+                                  : "#475569",
       
-                    <textarea placeholder="Notes" rows={4} />
+                            }}
       
-                  </div>
+                          >
       
-                </div>
+                            {row.status}
       
+                          </span>
       
-      
-                <div className="registration-card" style={{ marginTop: "24px" }}>
-      
-                  <div className="registration-section-title">Parents</div>
-      
-      
-      
-                  <div className="parent-toolbar">
-      
-                    <button
-      
-                      className="small-action-btn"
-      
-                      onClick={() => setRegistrationView("parent")}
-      
-                    >
-      
-                      + Add
-      
-                    </button>
-      
-                    <button className="small-action-btn">+ Add Existing</button>
-      
-                    <button className="small-action-btn">Manage</button>
-      
-                    <button className="small-action-btn danger">Remove</button>
-      
-                  </div>
-      
-      
-      
-                  <table className="parent-table">
-      
-                    <thead>
-      
-                      <tr>
-      
-                        <th>Relationship</th>
-      
-                        <th>Name</th>
-      
-                        <th>Surname</th>
-      
-                        <th>Cell</th>
-      
-                        <th>ID No</th>
-      
-                        <th>Email</th>
+                        </td>
       
                       </tr>
       
-                    </thead>
+                    ))
       
-                    <tbody>
-
-{parents.length === 0 ? (
-
-  <tr>
-
-    <td colSpan={6}>No parents added yet</td>
-
-  </tr>
-
-) : (
-
-  parents.map((parent, index) => (
-
-    <tr key={index}>
-
-<td>{parent.relationship || "Parent"}</td>
-
-<td>{parent.name}</td>
-
-<td>{parent.surname || "-"}</td>
-
-<td>{parent.phone || "-"}</td>
-
-<td>{parent.idNumber || "-"}</td>
-
-<td>{parent.email || "-"}</td>
-
-
-    </tr>
-
-  ))
-
-)}
-
-</tbody>  
+                  )}
       
-                  </table>
+                </tbody>
       
-                </div>
+              </table>
       
-              </>
+            </div>
       
+          </div>
+      
+        );
+
+        case "invoices":
+
+  return (
+
+    <div
+
+      style={{
+
+        padding: "32px",
+
+        background:
+
+          "linear-gradient(180deg, #f8fafc 0%, #f3f4f6 45%, #eef2f7 100%)",
+
+        minHeight: "100%",
+
+        borderRadius: "28px",
+
+        border: "1px solid rgba(15, 23, 42, 0.06)",
+
+        boxShadow:
+
+          "0 24px 60px rgba(15, 23, 42, 0.08), inset 0 1px 0 rgba(255,255,255,0.8)",
+
+      }}
+
+    >
+
+      <div style={{ marginBottom: "24px" }}>
+
+        <h1
+
+          style={{
+
+            margin: 0,
+
+            fontSize: "38px",
+
+            fontWeight: 800,
+
+            letterSpacing: "-0.03em",
+
+            color: "#0f172a",
+
+          }}
+
+        >
+
+          New Invoice
+
+        </h1>
+
+
+
+        <p
+
+          style={{
+
+            margin: "10px 0 0 0",
+
+            fontSize: "15px",
+
+            color: "#475569",
+
+            fontWeight: 500,
+
+          }}
+
+        >
+
+          Create a new invoice.
+
+        </p>
+
+      </div>
+
+
+
+      <div style={billingSummaryWrap}>
+
+        <div style={billingSummaryCard}>
+
+          <div style={billingSummaryValue}>{invoicesAccountsCount}</div>
+
+          <div style={billingSummaryLabel}>Accounts</div>
+
+        </div>
+
+
+
+        <div style={billingSummaryCard}>
+
+          <div style={billingSummaryValue}>
+
+            {formatMoney(invoicesTotalOutstanding)}
+
+          </div>
+
+          <div style={billingSummaryLabel}>Total Outstanding</div>
+
+        </div>
+
+
+
+        <div style={billingSummaryCard}>
+
+          <div style={billingSummaryValue}>
+
+            {formatMoney(invoicesRecentlyOwing)}
+
+          </div>
+
+          <div style={billingSummaryLabel}>Recently Owing</div>
+
+        </div>
+
+
+
+        <div style={billingSummaryCard}>
+
+          <div style={{ ...billingSummaryValue, color: "#b91c1c" }}>
+
+            {formatMoney(invoicesBadDebt)}
+
+          </div>
+
+          <div style={billingSummaryLabel}>Bad Debt</div>
+
+        </div>
+
+
+
+        <div style={billingSummaryCard}>
+
+          <div style={{ ...billingSummaryValue, color: "#15803d" }}>
+
+            {formatMoney(invoicesOverPaidAbs)}
+
+          </div>
+
+          <div style={billingSummaryLabel}>Over Paid</div>
+
+        </div>
+
+      </div>
+
+
+
+      <div style={billingTableCard}>
+
+        <div
+
+          style={{
+
+            display: "flex",
+
+            justifyContent: "space-between",
+
+            alignItems: "center",
+
+            gap: "12px",
+
+            marginBottom: "14px",
+
+            flexWrap: "wrap",
+
+          }}
+
+        >
+
+          <button
+
+            style={{
+
+              padding: "10px 18px",
+
+              borderRadius: "12px",
+
+              border: "none",
+
+              background: "linear-gradient(135deg, #d4af37, #f5d06f)",
+
+              color: "#0f172a",
+
+              fontWeight: 700,
+
+              fontSize: "13px",
+
+              boxShadow: "0 6px 18px rgba(212, 175, 55, 0.35)",
+
+              cursor: "pointer",
+
+            }}
+
+          >
+
+            + Add
+
+          </button>
+
+
+
+          <input
+
+            placeholder="Search"
+
+            style={{
+
+              padding: "10px 14px",
+
+              borderRadius: "12px",
+
+              border: "1px solid rgba(15, 23, 42, 0.08)",
+
+              background: "#ffffff",
+
+              fontSize: "13px",
+
+              width: "220px",
+
+              boxShadow: "0 4px 12px rgba(15, 23, 42, 0.05)",
+
+            }}
+
+          />
+
+        </div>
+
+
+
+        <table
+
+          style={{
+
+            width: "100%",
+
+            borderCollapse: "separate",
+
+            borderSpacing: "0 10px",
+
+            fontSize: "14px",
+
+          }}
+
+        >
+
+          <thead>
+
+            <tr>
+
+              <th style={th}>Account No</th>
+
+              <th style={th}>Name</th>
+
+              <th style={th}>Surname</th>
+
+              <th style={th}>Balance</th>
+
+              <th style={th}>Last Invoice</th>
+
+              <th style={th}>Last Payment</th>
+
+              <th style={th}>Account Status</th>
+
+            </tr>
+
+          </thead>
+
+
+
+          <tbody>
+
+            {invoiceRows.length === 0 ? (
+
+              <tr>
+
+                <td
+
+                  colSpan={7}
+
+                  style={{
+
+                    ...td,
+
+                    textAlign: "center",
+
+                    borderRadius: "12px",
+
+                  }}
+
+                >
+
+                  No invoice accounts found
+
+                </td>
+
+              </tr>
+
+            ) : (
+
+              invoiceRows.map((row, index) => (
+
+                <tr
+
+                  key={`${row.accountNo}-${index}`}
+
+                  style={{
+
+                    background: "#ffffff",
+
+                    boxShadow: "0 8px 24px rgba(15, 23, 42, 0.08)",
+
+                    borderRadius: "12px",
+
+                    overflow: "hidden",
+
+                  }}
+
+                >
+
+                  <td style={td}>{row.accountNo}</td>
+
+                  <td style={td}>
+
+  <button
+
+    type="button"
+
+    onClick={() => {
+
+      localStorage.setItem("selectedInvoiceAccount", JSON.stringify(row));
+
+    }}
+
+    style={{
+
+      background: "none",
+
+      border: "none",
+
+      padding: 0,
+
+      margin: 0,
+
+      color: "#1d4ed8",
+
+      cursor: "pointer",
+
+      fontWeight: 600,
+
+      textDecoration: "underline",
+
+      fontSize: "inherit",
+
+    }}
+
+  >
+
+    {row.name}
+
+  </button>
+
+</td>
+
+                  <td style={td}>{row.surname}</td>
+
+                  <td style={td}>{formatMoney(row.balance)}</td>
+
+                  <td style={td}>
+
+                    {formatMoney(row.lastInvoice)} on {row.lastInvoiceDate}
+
+                  </td>
+
+                  <td style={td}>
+
+                    {formatMoney(row.lastPayment)} on {row.lastPaymentDate}
+
+                  </td>
+
+                  <td style={td}>
+
+                    <span
+
+                      style={{
+
+                        fontWeight: 700,
+
+                        color:
+
+                          row.status === "Bad Debt"
+
+                            ? "#b91c1c"
+
+                            : row.status === "Recently Owing"
+
+                            ? "#b45309"
+
+                            : row.status === "Over Paid"
+
+                            ? "#15803d"
+
+                            : "#475569",
+
+                      }}
+
+                    >
+
+                      {row.status}
+
+                    </span>
+
+                  </td>
+
+                </tr>
+
+              ))
+
             )}
-      
-      
-      
-            {registrationView === "parent" && (
-      
-              <div className="registration-card">
-      
-                <div className="registration-section-title small">Parent</div>
-      
-      
-      
-                <div className="registration-tabs">
-      
-                  <button className="registration-tab active">General</button>
-      
-                  <button className="registration-tab">Contact</button>
-      
-                  <button className="registration-tab">Address</button>
-      
-                  <button className="registration-tab">Billing</button>
-      
-                  <button className="registration-tab">Other</button>
-      
-                  <button className="registration-tab">Extra</button>
-      
-                </div>
-      
-      
-      
-                <div className="kid-form-grid">
-      
-                  <label>Relationship</label>
-      
-                  <select
 
-value={parentForm.relationship}
+          </tbody>
 
-onChange={(e) =>
+        </table>
 
-  setParentForm({ ...parentForm, relationship: e.target.value })
+      </div>
 
-}
+    </div>
 
->
-
-<option value="">Select relationship</option>
-
-<option value="Father">Father</option>
-
-<option value="Mother">Mother</option>
-
-<option value="Guardian">Guardian</option>
-
-</select>
-      
-      
-      
-                  <label>Title</label>
-      
-                  <select defaultValue="">
-      
-                    <option value="" disabled>
-      
-                      Select title
-      
-                    </option>
-      
-                    <option>Mr.</option>
-      
-                    <option>Mrs.</option>
-      
-                    <option>Ms.</option>
-      
-                  </select>
-      
-      
-      
-                  <label>Name / Nickname</label>
-      
-                  <div className="double-field">
-      
-                  <input
-
-placeholder="Parent Name"
-
-value={parentForm.name}
-
-onChange={(e) =>
-
-  setParentForm({ ...parentForm, name: e.target.value })
-
-}
-
-/>
-      
-                    <input placeholder="Nickname" />
-      
-                  </div>
-      
-      
-      
-                  <label>Surname</label>
-      
-                  <input
-
-  placeholder="Parent Surname"
-
-  value={parentForm.surname}
-
-  onChange={(e) =>
-
-    setParentForm({ ...parentForm, surname: e.target.value })
-
-  }
-
-/>
-      
-      
-      
-                  <label>ID No</label>
-      
-                  <input
-
-  placeholder="Parent ID No"
-
-  value={parentForm.idNumber}
-
-  onChange={(e) =>
-
-    setParentForm({ ...parentForm, idNumber: e.target.value })
-
-  }
-
-/>
-      
-      
-      
-                  <label>Marital Status</label>
-      
-                  <select defaultValue="">
-      
-                    <option value="" disabled>
-      
-                      Select marital status
-      
-                    </option>
-      
-                    <option>Single</option>
-      
-                    <option>Married</option>
-      
-                    <option>Divorced</option>
-      
-                    <option>Widowed</option>
-      
-                  </select>
-      
-      
-      
-                  <label>Cell</label>
-      
-                  <input
-
-  placeholder="Phone Number"
-
-  value={parentForm.phone}
-
-  onChange={(e) =>
-
-    setParentForm({ ...parentForm, phone: e.target.value })
-
-  }
-
-/>
-      
-      
-      
-                  <label>Email</label>
-      
-                  <input
-
-  placeholder="Email Address"
-
-  value={parentForm.email}
-
-  onChange={(e) =>
-
-    setParentForm({ ...parentForm, email: e.target.value })
-
-  }
-
-/>
-      
-      
-      
-                  <label>Address</label>
-      
-                  <textarea placeholder="Address" rows={3} />
-      
-      
-      
-                  <label>Notes</label>
-      
-                  <textarea placeholder="Notes" rows={4} />
-      
-                </div>
-      
-              </div>
-      
-            )}
-      
-          </div>
-      
-        ); 
-
-
-
-      case "class-registers":
-
-        return (
-
-          <div className="content-panel">
-
-            <h2>Class Registers</h2>
-
-            <p>Daily class registers will be managed here.</p>
-
-          </div>
-
-        );
-
-
-
-      case "classrooms":
-
-        return (
-
-          <div className="content-panel">
-
-            <h2>Classrooms</h2>
-
-            <p>Classroom setup will be managed here.</p>
-
-          </div>
-
-        );
-
-
-
-      case "attendance":
-
-        return (
-
-          <div className="content-panel">
-
-            <h2>Attendance</h2>
-
-            <p>Attendance records will be managed here.</p>
-
-          </div>
-
-        );
-
-
-
-      case "employees":
-
-        return (
-
-          <div className="content-panel">
-
-            <h2>Employees</h2>
-
-            <p>Employee records will be managed here.</p>
-
-          </div>
-
-        );
-
-
-
-      case "incidents":
-
-        return (
-
-          <div className="content-panel">
-
-            <h2>Incidents</h2>
-
-            <p>Incidents will be managed here.</p>
-
-          </div>
-
-        );
-
-
-
-      case "invoice-runs":
-
-        return (
-
-          <div className="content-panel">
-
-            <h2>Invoice Runs</h2>
-
-            <p>Run monthly invoices for learners here.</p>
-
-          </div>
-
-        );
-
-
-
-      case "billing-plans":
-
-        return (
-
-          <div className="content-panel">
-
-            <h2>Billing Plans</h2>
-
-            <p>Set up and manage a child&apos;s billing plan here.</p>
-
-
-
-            <div className="content-card">
-
-              <h3>Billing Plan</h3>
-
-              <p>Child: ADRIEN</p>
-
-              <p>Exclude From Invoice Run: No</p>
-
-              <p>Total: R 3000.00</p>
-
-            </div>
-
-          </div>
-
-        );
-
-
-
-      case "billing-reports":
-
-        return (
-
-          <div className="content-panel">
-
-            <h2>Billing Reports</h2>
-
-            <p>View, print or export billing reports here.</p>
-
-
-
-            <div className="content-card">
-
-              <h3>Available Reports</h3>
-
-              <ul className="simple-list">
-
-                <li>Account List (Account Status)</li>
-
-                <li>Account List (Age Analysis)</li>
-
-                <li>Billing Plan Summary By Child</li>
-
-                <li>Deposit List</li>
-
-                <li>Payments By Type</li>
-
-                <li>Sibling Accounts</li>
-
-                <li>Transaction List</li>
-
-              </ul>
-
-            </div>
-
-          </div>
-
-        );
-
-
-
-      case "billing-documents":
-
-        return (
-
-          <div className="content-panel">
-
-            <h2>Billing Documents</h2>
-
-            <p>View or print billing documents here.</p>
-
-
-
-            <div className="content-card">
-
-              <h3>Documents</h3>
-
-              <ul className="simple-list">
-
-                <li>Invoices</li>
-
-                <li>Statements</li>
-
-              </ul>
-
-            </div>
-
-          </div>
-
-        );
-
-
-
-      case "statements":
-
-        return (
-
-          <div className="content-panel">
-
-            <h2>Statements</h2>
-
-            <p>Statements section.</p>
-
-          </div>
-
-        );
-
-
-
-      case "invoices":
-
-        return (
-
-          <div className="content-panel">
-
-            <h2>Invoices</h2>
-
-            <p>Invoices section.</p>
-
-          </div>
-
-        );
-
-
+  );
 
       case "payments":
 
-        return (
-
-          <div className="content-panel">
-
-            <h2>Payments</h2>
-
-            <p>Payments section.</p>
-
-          </div>
-
-        );
-
-
+        return <h1 className="page-title">Payments</h1>;
 
       case "fees":
 
-        return (
+        return <h1 className="page-title">Fees</h1>;
 
-          <div className="content-panel">
+      case "plans":
 
-            <h2>Fees</h2>
+        return <h1 className="page-title">Billing Plans</h1>;
 
-            <p>Fees section.</p>
+      case "runs":
 
-          </div>
+        return <h1 className="page-title">Invoice Runs</h1>;
 
-        );
+      case "reports":
 
+        return <h1 className="page-title">Billing Reports</h1>;
 
+      case "documents":
 
-      case "letters-of-demand":
+        return <h1 className="page-title">Billing Documents</h1>;
 
-        return (
+      case "billing-help":
 
-          <div className="content-panel">
+        return <h1 className="page-title">Help & Tips</h1>;
 
-            <h2>Letters of Demand</h2>
+      case "billing-more":
 
-            <p>Letters of demand will be created here.</p>
-
-          </div>
-
-        );
-
-
-
-      case "section-41":
-
-        return (
-
-          <div className="content-panel">
-
-            <h2>Section 41</h2>
-
-            <p>Section 41 notices will be created here.</p>
-
-          </div>
-
-        );
-
-
-
-      case "email":
-
-        return (
-
-          <div className="content-panel">
-
-            <h2>Email</h2>
-
-            <p>Email communication will be managed here.</p>
-
-          </div>
-
-        );
-
-
-
-      case "sms":
-
-        return (
-
-          <div className="content-panel">
-
-            <h2>SMS</h2>
-
-            <p>SMS communication will be managed here.</p>
-
-          </div>
-
-        );
-
-
+        return <h1 className="page-title">More</h1>;
 
       default:
 
-        return (
-
-          <div className="content-panel">
-
-            <h2>Coming Soon</h2>
-
-            <p>This section is under construction.</p>
-
-          </div>
-
-        );
+        return <h1 className="page-title">Dashboard</h1>;
 
     }
 
   };
 
-
-
   return (
 
-    <div className="dashboard-page">
+    <div className="school-shell">
 
       <aside className="sidebar">
 
-        <div className="sidebar-header">
+        <div className="brand-row">
 
-          <div className="logo-container">
+          <img src="/logo.png" className="sidebar-logo" />
 
-            <img src={logo} alt="EduClear Logo" className="logo" />
-
-          </div>
-
-          <h2>Da Silva Academy</h2>
-
-          <p>EduClear</p>
+          <span>EduClear</span>
 
         </div>
 
 
 
-        <button
+        <div
 
-          className={`menu-item ${activeMenu === "dashboard" ? "active" : ""}`}
+          className={`top-dashboard ${activePage === "dashboard" ? "active" : ""}`}
 
-          onClick={() => setActiveMenu("dashboard")}
+          onClick={() => setActivePage("dashboard")}
 
         >
 
-          Dashboard
+          <span className="menu-icon">◉</span>
 
-        </button>
-
-
-
-        <div className="menu-group">
-
-          <button className="menu-item" onClick={() => toggleSection("business")}>
-
-            Business
-
-          </button>
-
-
-
-          {openSection === "business" && (
-
-            <div className="submenu">
-
-              <button className="submenu-item">School Profile</button>
-
-              <button className="submenu-item">Package</button>
-
-              <button className="submenu-item">Users</button>
-
-            </div>
-
-          )}
+          <span>Dashboard</span>
 
         </div>
 
 
 
-        <div className="menu-group">
+        <div className="main-section">
 
-          <button className="menu-item" onClick={() => toggleSection("administration")}>
+          <div className="section-header" onClick={() => setAdminOpen(!adminOpen)}>
 
-            Administration
+            <div className="section-left">
 
-          </button>
+              <span className="menu-icon">👥</span>
+
+              <span>Administration</span>
+
+            </div>
+
+            <span className={`chevron ${adminOpen ? "open" : ""}`}>⌄</span>
+
+          </div>
 
 
 
-          {openSection === "administration" && (
+          {adminOpen && (
 
             <div className="submenu">
 
-              <button
+              <div
 
-                className="submenu-item"
+                className={`submenu-item ${activePage === "registrations" ? "active" : ""}`}
 
-                onClick={() => setActiveMenu("registrations")}
+                onClick={() => setActivePage("registrations")}
 
               >
 
                 Registrations
 
-              </button>
+              </div>
 
 
 
-              <button
+              <div
 
-                className="submenu-item"
+                className={`submenu-item ${activePage === "addLearner" ? "active" : ""}`}
 
-                onClick={() => setActiveMenu("class-registers")}
+                onClick={() => setActivePage("addLearner")}
 
               >
 
-                Class Registers
+                Add Learner
 
-              </button>
+              </div>
 
 
 
-              <button
+              <div
 
-                className="submenu-item"
+                className={`submenu-item ${activePage === "classrooms" ? "active" : ""}`}
 
-                onClick={() => setActiveMenu("classrooms")}
+                onClick={() => setActivePage("classrooms")}
 
               >
 
                 Classrooms
 
-              </button>
+              </div>
 
 
 
-              <button
+              <div
 
-                className="submenu-item"
+                className={`submenu-item ${activePage === "groups" ? "active" : ""}`}
 
-                onClick={() => setActiveMenu("attendance")}
+                onClick={() => setActivePage("groups")}
 
               >
 
-                Attendance
+                Groups
 
-              </button>
+              </div>
 
 
 
-              <button
+              <div
 
-                className="submenu-item"
+                className={`submenu-item ${activePage === "employees" ? "active" : ""}`}
 
-                onClick={() => setActiveMenu("employees")}
+                onClick={() => setActivePage("employees")}
 
               >
 
                 Employees
 
-              </button>
+              </div>
+              <div
 
 
 
-              <button
+className={`submenu-item ${activePage === "teacherPerformance" ? "active" : ""}`}
 
-                className="submenu-item"
 
-                onClick={() => setActiveMenu("incidents")}
+
+onClick={() => setActivePage("teacherPerformance")}
+
+
+
+>
+
+
+
+Teacher Performance
+
+
+
+</div>
+
+
+              <div
+
+                className={`submenu-item ${activePage === "attendance" ? "active" : ""}`}
+
+                onClick={() => setActivePage("attendance")}
+
+              >
+
+                Attendance
+
+              </div>
+
+
+
+              <div
+
+                className={`submenu-item ${activePage === "incidents" ? "active" : ""}`}
+
+                onClick={() => setActivePage("incidents")}
 
               >
 
                 Incidents
 
-              </button>
+              </div>
+
+
+
+              <div
+
+                className={`submenu-item ${activePage === "lists" ? "active" : ""}`}
+
+                onClick={() => setActivePage("lists")}
+
+              >
+
+                Lists & Registers
+
+              </div>
+
+
+
+              <div
+
+                className={`submenu-item ${activePage === "forms" ? "active" : ""}`}
+
+                onClick={() => setActivePage("forms")}
+
+              >
+
+                Forms & Templates
+
+              </div>
+
+
+
+              <div
+
+                className={`submenu-item ${activePage === "help" ? "active" : ""}`}
+
+                onClick={() => setActivePage("help")}
+
+              >
+
+                Help & Tips
+
+              </div>
+
+
+
+              <div
+
+                className={`submenu-item ${activePage === "more" ? "active" : ""}`}
+
+                onClick={() => setActivePage("more")}
+
+              >
+
+                More
+
+              </div>
 
             </div>
 
@@ -1747,151 +2903,165 @@ onChange={(e) =>
 
 
 
-        <div className="menu-group">
+        <div className="main-section">
 
-          <button className="menu-item" onClick={() => toggleSection("billing")}>
+          <div className="section-header" onClick={() => setBillingOpen(!billingOpen)}>
 
-            Billing
+            <div className="section-left">
 
-          </button>
+              <span className="menu-icon">▦</span>
+
+              <span>Billing</span>
+
+            </div>
+
+            <span className={`chevron ${billingOpen ? "open" : ""}`}>⌄</span>
+
+          </div>
 
 
 
-          {openSection === "billing" && (
+          {billingOpen && (
 
             <div className="submenu">
 
-              <button
+              <div
 
-                className="submenu-item"
+                className={`submenu-item ${activePage === "statements" ? "active" : ""}`}
 
-                onClick={() => setActiveMenu("invoice-runs")}
-
-              >
-
-                Invoice Runs
-
-              </button>
-
-
-
-              <button
-
-                className="submenu-item"
-
-                onClick={() => setActiveMenu("billing-plans")}
-
-              >
-
-                Billing Plans
-
-              </button>
-
-
-
-              <button
-
-                className="submenu-item"
-
-                onClick={() => setActiveMenu("billing-reports")}
-
-              >
-
-                Billing Reports
-
-              </button>
-
-
-
-              <button
-
-                className="submenu-item"
-
-                onClick={() => setActiveMenu("billing-documents")}
-
-              >
-
-                Billing Documents
-
-              </button>
-
-
-
-              <button
-
-                className="submenu-item"
-
-                onClick={() => setActiveMenu("statements")}
+                onClick={() => setActivePage("statements")}
 
               >
 
                 Statements
 
-              </button>
+              </div>
 
 
 
-              <button
+              <div
 
-                className="submenu-item"
+                className={`submenu-item ${activePage === "invoices" ? "active" : ""}`}
 
-                onClick={() => setActiveMenu("invoices")}
+                onClick={() => setActivePage("invoices")}
 
               >
 
                 Invoices
 
-              </button>
+              </div>
 
 
 
-              <button
+              <div
 
-                className="submenu-item"
+                className={`submenu-item ${activePage === "payments" ? "active" : ""}`}
 
-                onClick={() => setActiveMenu("payments")}
+                onClick={() => setActivePage("payments")}
 
               >
 
                 Payments
 
-              </button>
+              </div>
 
 
 
-              <button className="submenu-item" onClick={() => setActiveMenu("fees")}>
+              <div
+
+                className={`submenu-item ${activePage === "fees" ? "active" : ""}`}
+
+                onClick={() => setActivePage("fees")}
+
+              >
 
                 Fees
 
-              </button>
+              </div>
 
 
 
-              <button
+              <div
 
-                className="submenu-item"
+                className={`submenu-item ${activePage === "plans" ? "active" : ""}`}
 
-                onClick={() => setActiveMenu("letters-of-demand")}
-
-              >
-
-                Letters of Demand
-
-              </button>
-
-
-
-              <button
-
-                className="submenu-item"
-
-                onClick={() => setActiveMenu("section-41")}
+                onClick={() => setActivePage("plans")}
 
               >
 
-                Section 41
+                Billing Plans
 
-              </button>
+              </div>
+
+
+
+              <div
+
+                className={`submenu-item ${activePage === "runs" ? "active" : ""}`}
+
+                onClick={() => setActivePage("runs")}
+
+              >
+
+                Invoice Runs
+
+              </div>
+
+
+
+              <div
+
+                className={`submenu-item ${activePage === "reports" ? "active" : ""}`}
+
+                onClick={() => setActivePage("reports")}
+
+              >
+
+                Billing Reports
+
+              </div>
+
+
+
+              <div
+
+                className={`submenu-item ${activePage === "documents" ? "active" : ""}`}
+
+                onClick={() => setActivePage("documents")}
+
+              >
+
+                Billing Documents
+
+              </div>
+
+
+
+              <div
+
+                className={`submenu-item ${activePage === "billing-help" ? "active" : ""}`}
+
+                onClick={() => setActivePage("billing-help")}
+
+              >
+
+                Help & Tips
+
+              </div>
+
+
+
+              <div
+
+                className={`submenu-item ${activePage === "billing-more" ? "active" : ""}`}
+
+                onClick={() => setActivePage("billing-more")}
+
+              >
+
+                More
+
+              </div>
 
             </div>
 
@@ -1901,37 +3071,25 @@ onChange={(e) =>
 
 
 
-        <div className="menu-group">
+        <div className="bottom-section">
 
-          <button className="menu-item" onClick={() => toggleSection("communication")}>
+          <div className="section-header">
 
-            Communication
+            <div className="section-left">
 
-          </button>
+              <span className="menu-icon">💬</span>
 
-
-
-          {openSection === "communication" && (
-
-            <div className="submenu">
-
-              <button className="submenu-item" onClick={() => setActiveMenu("email")}>
-
-                Email
-
-              </button>
-
-
-
-              <button className="submenu-item" onClick={() => setActiveMenu("sms")}>
-
-                SMS
-
-              </button>
+              <span>Communication</span>
 
             </div>
 
-          )}
+            <span className="chevron">⌄</span>
+
+          </div>
+
+
+
+          <div className="sidebar-collapse">≪</div>
 
         </div>
 
@@ -1939,19 +3097,65 @@ onChange={(e) =>
 
 
 
-      <main className="main-content">
+      <main
 
-        <div className="main-header">
+        className="main-content"
 
-          <h1>Hello Da Silva Academy!</h1>
+        style={{
 
-          <p>School Management Dashboard</p>
+          flex: 1,
+
+          width: "100%",
+
+          minWidth: 0,
+
+          display: "flex",
+
+          alignItems: "stretch",
+
+          justifyContent: "stretch",
+
+          boxSizing: "border-box",
+
+          padding: 0,
+
+          background: "#f7f4ef",
+
+        }}
+
+      >
+
+        <div
+
+          className="page-area"
+
+          style={{
+
+            flex: 1,
+
+            width: "100%",
+
+            minWidth: 0,
+
+            maxWidth: "none",
+
+            display: "block",
+
+            boxSizing: "border-box",
+
+            background: "#ffffff",
+
+            minHeight: "100vh",
+
+            padding: "32px",
+
+          }}
+
+        >
+
+          {renderPage()}
 
         </div>
-
-
-
-        {renderContent()}
 
       </main>
 
@@ -1959,5 +3163,4 @@ onChange={(e) =>
 
   );
 
-}
-
+ }
