@@ -33,9 +33,12 @@ model School {
 
   email String? @unique
 
+  phone String?
+
   createdAt DateTime @default(now())
 
   users User[]
+  roles SchoolRole[]
 
   parents Parent[]
 
@@ -86,14 +89,93 @@ model User {
 
   passwordHash String
 
+  isActive Boolean @default(true)
+
+  /// RBAC role assignment (preferred). Kept optional for backward compatibility.
+  roleId String?
+
   role UserRole @default(SCHOOL_ADMIN)
 
   createdAt DateTime @default(now())
 
   school School @relation(fields: [schoolId], references: [id])
 
+  roleRef SchoolRole? @relation(fields: [roleId], references: [id], onDelete: SetNull)
+
+  permissionOverrides UserPermissionOverride[]
+
   @@unique([schoolId, email])
   @@index([schoolId])
+  @@index([roleId])
+}
+
+/// Global permission catalog (keys are stable across schools)
+model Permission {
+  id String @id @default(cuid())
+
+  key String @unique
+
+  label String
+
+  description String?
+
+  category String?
+
+  rolePermissions RolePermission[]
+  userOverrides UserPermissionOverride[]
+}
+
+/// Role definitions are per-school
+model SchoolRole {
+  id String @id @default(cuid())
+
+  schoolId String
+
+  name String
+
+  /// Owner role effectively implies all permissions.
+  isOwner Boolean @default(false)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  school School @relation(fields: [schoolId], references: [id], onDelete: Cascade)
+  users User[]
+  permissions RolePermission[]
+
+  @@unique([schoolId, name])
+  @@index([schoolId])
+}
+
+model RolePermission {
+  id String @id @default(cuid())
+
+  roleId String
+  permissionId String
+
+  role SchoolRole @relation(fields: [roleId], references: [id], onDelete: Cascade)
+  permission Permission @relation(fields: [permissionId], references: [id], onDelete: Cascade)
+
+  @@unique([roleId, permissionId])
+  @@index([roleId])
+  @@index([permissionId])
+}
+
+/// Optional per-user overrides (allow/deny). When present, overrides role permissions.
+model UserPermissionOverride {
+  id String @id @default(cuid())
+
+  userId String
+  permissionId String
+
+  allowed Boolean
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  permission Permission @relation(fields: [permissionId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, permissionId])
+  @@index([userId])
+  @@index([permissionId])
 }
 
 model Parent {
@@ -118,6 +200,8 @@ familyAccountId String?
 
   idNumber String? @unique 
   status String @default("GREEN")
+
+  outstandingAmount Float @default(0)
 
   maritalStatus String?
 
@@ -201,6 +285,10 @@ model Learner {
   firstName String
 
   lastName String
+
+  birthDate DateTime?
+  gender String?
+  idNumber String?
 
   grade String
 
