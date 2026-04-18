@@ -60,6 +60,7 @@ export default function TeacherPerformance() {
   const [loading, setLoading] = useState(false);
 
   const [editingId, setEditingId] = useState<string | null>(null);
+  const [isTopPerformerHovered, setIsTopPerformerHovered] = useState(false);
   const topPerformer =
     records.length > 0 ? [...records].sort((a, b) => b.finalScore - a.finalScore)[0] : null;
 
@@ -178,7 +179,32 @@ export default function TeacherPerformance() {
 
   }
 
+  function getPerformanceBadge(level: string | undefined, score: number | undefined) {
+    const normalized = (level || "").trim().toLowerCase();
 
+    let label: "Excellent" | "Good" | "Average" | "Poor" = "Average";
+    if (normalized === "excellent") label = "Excellent";
+    else if (normalized === "good") label = "Good";
+    else if (normalized === "average") label = "Average";
+    else if (normalized === "poor") label = "Poor";
+    else if (normalized === "acceptable") label = "Average";
+    else if (normalized === "at risk" || normalized === "critical") label = "Poor";
+    else if (typeof score === "number") {
+      if (score >= 9) label = "Excellent";
+      else if (score >= 7) label = "Good";
+      else if (score >= 5) label = "Average";
+      else label = "Poor";
+    }
+
+    const stylesByLabel: Record<typeof label, { bg: string; border: string; text: string }> = {
+      Excellent: { bg: "#ECFDF5", border: "#10B981", text: "#047857" },
+      Good: { bg: "#EFF6FF", border: "#3B82F6", text: "#1D4ED8" },
+      Average: { bg: "#FFF7ED", border: "#F97316", text: "#C2410C" },
+      Poor: { bg: "#FEF2F2", border: "#EF4444", text: "#B91C1C" },
+    };
+
+    return { label, ...stylesByLabel[label] };
+  }
 
   return (
 
@@ -197,55 +223,103 @@ export default function TeacherPerformance() {
 
 
 <div
-
-
-
+  onMouseEnter={() => setIsTopPerformerHovered(true)}
+  onMouseLeave={() => setIsTopPerformerHovered(false)}
   style={{
-
-
-
     marginTop: 16,
-
-
-
     marginBottom: 20,
-
-
-
     padding: 16,
-
-
-
-    borderRadius: 12,
-
-
-
-    background: "#f8fafc",
-
-
-
-    border: "1px solid #e2e8f0",
-
-
-
+    borderRadius: 14,
+    background: "linear-gradient(180deg, #ffffff 0%, #FFFBEB 100%)",
+    border: "1px solid #FDE68A",
+    borderLeft: "5px solid #D4AF37",
+    boxShadow: isTopPerformerHovered
+      ? "0 12px 28px rgba(15, 23, 42, 0.12)"
+      : "0 6px 16px rgba(15, 23, 42, 0.08)",
+    transform: isTopPerformerHovered ? "translateY(-2px)" : "translateY(0)",
+    transition: "transform 160ms ease, box-shadow 160ms ease",
   }}
-
-
-
 >
+  {(() => {
+    const badge = getPerformanceBadge(topPerformer.performanceLevel, topPerformer.finalScore);
+    return (
+      <div style={{ display: "flex", alignItems: "flex-start", gap: 12 }}>
+        <div
+          aria-hidden="true"
+          style={{
+            width: 40,
+            height: 40,
+            borderRadius: 12,
+            background: "rgba(212, 175, 55, 0.12)",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            border: "1px solid rgba(212, 175, 55, 0.35)",
+            flex: "0 0 auto",
+          }}
+        >
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" role="img" aria-label="Trophy">
+            <path d="M8 4h8v2a4 4 0 0 1-4 4 4 4 0 0 1-4-4V4Z" fill="#D4AF37" />
+            <path
+              d="M6 4H4a1 1 0 0 0-1 1v1a5 5 0 0 0 5 5h.2A6 6 0 0 0 11 12.9V14H9a1 1 0 0 0-1 1v1h8v-1a1 1 0 0 0-1-1h-2v-1.1A6 6 0 0 0 15.8 11H16a5 5 0 0 0 5-5V5a1 1 0 0 0-1-1h-2"
+              stroke="#D4AF37"
+              strokeWidth="1.6"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            />
+            <path d="M10 20h4" stroke="#D4AF37" strokeWidth="1.6" strokeLinecap="round" />
+            <path d="M9 18h6" stroke="#D4AF37" strokeWidth="1.6" strokeLinecap="round" />
+          </svg>
+        </div>
 
+        <div style={{ flex: 1, minWidth: 0 }}>
+          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10 }}>
+            <div style={{ fontSize: 13, letterSpacing: 0.2, color: "#6b7280" }}>Top Performer</div>
+            <span
+              style={{
+                fontSize: 12,
+                fontWeight: 700,
+                padding: "4px 10px",
+                borderRadius: 999,
+                background: badge.bg,
+                color: badge.text,
+                border: `1px solid ${badge.border}`,
+                whiteSpace: "nowrap",
+              }}
+            >
+              {badge.label}
+            </span>
+          </div>
 
+          <div
+            style={{
+              fontSize: 18,
+              fontWeight: 800,
+              color: "#0f172a",
+              marginTop: 4,
+              lineHeight: 1.2,
+              overflow: "hidden",
+              textOverflow: "ellipsis",
+              whiteSpace: "nowrap",
+            }}
+          >
+            {topPerformer.teacherName}
+          </div>
 
-  <div style={{ fontSize: 14, color: "#64748b" }}>🏆 Top Performer</div>
+          <div style={{ fontSize: 13, color: "#64748b", marginTop: 2 }}>
+            {topPerformer.teacherEmail || "No email"}
+          </div>
 
-  <div style={{ fontSize: 18, fontWeight: 700, color: "#0f172a" }}>{topPerformer.teacherName}</div>
-
-  <div style={{ fontSize: 13, color: "#64748b" }}>{topPerformer.teacherEmail || "No email"}</div>
-
-  <div style={{ fontSize: 15, fontWeight: 600, color: "#0f172a", marginTop: 6 }}>
-    Score: {topPerformer.finalScore.toFixed(1)} / 10 · {topPerformer.performanceLevel}
-  </div>
-
+          <div style={{ marginTop: 8, display: "flex", alignItems: "baseline", gap: 8, flexWrap: "wrap" }}>
+            <span style={{ fontSize: 13, color: "#6b7280" }}>Score</span>
+            <span style={{ fontSize: 16, fontWeight: 800, color: "#0f172a" }}>
+              {topPerformer.finalScore.toFixed(1)} / 10
+            </span>
+          </div>
+        </div>
+      </div>
+    );
+  })()}
 </div>
 
 
