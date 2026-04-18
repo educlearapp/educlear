@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { useNavigate } from "react-router-dom";
 
 import AddLearner from "./AddLearner";
 import TeacherPerformance from "./TeacherPerformance";
@@ -76,6 +77,7 @@ type PageKey =
 
 
 export default function SchoolDashboard() {
+  const navigate = useNavigate();
 
   const [activePage, setActivePage] = useState<PageKey>("dashboard");
 
@@ -1220,6 +1222,7 @@ Manage
                             JSON.stringify(l)
 
                           );
+                          navigate(`/learners/${encodeURIComponent(String(l.id))}`);
 
                         }}
 
@@ -1272,6 +1275,7 @@ Manage
                             JSON.stringify(l)
 
                           );
+                          navigate(`/learners/${encodeURIComponent(String(l.id))}`);
 
                         }}
 
