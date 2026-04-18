@@ -35,13 +35,11 @@ function defaultMonth(): string {
   return new Date().toISOString().slice(0, 7);
 }
 
-type TeacherPerformanceProps = {
-  schoolId?: string;
-};
 
-export default function TeacherPerformance({ schoolId: schoolIdProp }: TeacherPerformanceProps) {
-  const [resolvedSchoolId, setResolvedSchoolId] = useState<string | null>(schoolIdProp ?? null);
-  const [schoolError, setSchoolError] = useState<string | null>(null);
+
+export default function TeacherPerformance() {
+  
+  const schoolId = localStorage.getItem("schoolId");
 
   const [form, setForm] = useState({
     teacherName: "",
@@ -66,9 +64,9 @@ export default function TeacherPerformance({ schoolId: schoolIdProp }: TeacherPe
     records.length > 0 ? [...records].sort((a, b) => b.finalScore - a.finalScore)[0] : null;
 
   const loadRecords = useCallback(async () => {
-    if (!resolvedSchoolId) return;
+    if (!schoolId) return;
     try {
-      const res = await fetch(`${API_URL}/api/teacher-performance/school/${resolvedSchoolId}`);
+      const res = await fetch(`${API_URL}/api/teacher-performance/school/${schoolId}`);
       if (!res.ok) {
         throw new Error(`Failed to load records (${res.status})`);
       }
@@ -77,47 +75,18 @@ export default function TeacherPerformance({ schoolId: schoolIdProp }: TeacherPe
     } catch (error) {
       console.error("Failed to load records", error);
     }
-  }, [resolvedSchoolId]);
+  }, [schoolId]);
 
   useEffect(() => {
-    if (schoolIdProp) {
-      setResolvedSchoolId(schoolIdProp);
-      setSchoolError(null);
-      return;
-    }
-    let cancelled = false;
-    (async () => {
-      try {
-        const res = await fetch(`${API_URL}/api/schools`);
-        const json = await res.json();
-        const schools = json.schools ?? [];
-        if (!schools.length) {
-          if (!cancelled) setSchoolError("No school found. Register a school first.");
-          return;
-        }
-        if (!cancelled) {
-          setResolvedSchoolId(schools[0].id);
-          setSchoolError(null);
-        }
-      } catch {
-        if (!cancelled) setSchoolError("Could not load school.");
-      }
-    })();
-    return () => {
-      cancelled = true;
-    };
-  }, [schoolIdProp]);
-
-  useEffect(() => {
-    if (!resolvedSchoolId) return;
+    if (!schoolId) return;
     loadRecords();
-  }, [resolvedSchoolId, loadRecords]);
+  }, [schoolId, loadRecords]);
 
 
 
   const handleSubmit = async () => {
-    if (!resolvedSchoolId) {
-      alert(schoolError || "School is not ready yet.");
+    if (!schoolId) {
+      alert('Missing schoolId. Please log in again so a school is selected.');
       return;
     }
     try {
@@ -139,7 +108,7 @@ export default function TeacherPerformance({ schoolId: schoolIdProp }: TeacherPe
         notes: form.notes,
       };
       if (!wasEditing) {
-        body.schoolId = resolvedSchoolId;
+        body.schoolId = schoolId;
       }
       const res = await fetch(url, {
         method,
@@ -217,8 +186,10 @@ export default function TeacherPerformance({ schoolId: schoolIdProp }: TeacherPe
 
       <h2>Teacher Performance</h2>
 
-      {schoolError && !resolvedSchoolId && (
-        <p style={{ color: "crimson", marginBottom: 12 }}>{schoolError}</p>
+      {!schoolId && (
+        <p style={{ color: "crimson", marginBottom: 12 }}>
+          Missing school selection. Please log in again so a school is selected.
+        </p>
       )}
 
       {topPerformer && (
@@ -635,7 +606,7 @@ style={{ padding: 10 }}
 
           onClick={handleSubmit}
 
-          disabled={loading}
+          disabled={loading || !schoolId}
 
           style={{
 
