@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { API_URL } from "./api";
+import { useSchoolId } from "./useSchoolId";
 
 export type FeeListItem = {
   id: string;
@@ -55,7 +56,7 @@ export default function Fees(props: {
   onAdd: () => void;
   onManage: (feeId: string) => void;
 }) {
-  const schoolId = localStorage.getItem("schoolId") || "";
+  const schoolId = useSchoolId();
 
   const [items, setItems] = useState<FeeListItem[]>([]);
   const [total, setTotal] = useState(0);

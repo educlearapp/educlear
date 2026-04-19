@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { API_URL } from "./api";
+import { useSchoolId } from "./useSchoolId";
 
 const CATEGORY_OPTIONS = [
   { value: "SCHOOL_CHARGE", label: "School Charge" },
@@ -47,7 +48,7 @@ function parseMoneyInput(input: string): number | null {
 }
 
 export default function FeeUpsert(props: { feeId?: string | null; onBack: () => void; onSaved: () => void }) {
-  const schoolId = localStorage.getItem("schoolId") || "";
+  const schoolId = useSchoolId();
   const isEdit = Boolean(props.feeId);
 
   const [loading, setLoading] = useState(false);

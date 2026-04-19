@@ -4,10 +4,11 @@ import { Route, Routes, useLocation, useNavigate, useParams } from "react-router
 import AddLearner from "./AddLearner";
 import TeacherPerformance from "./TeacherPerformance";
 import { API_URL } from "./api";
-import logo from "./assets/logo.png";
+import logo from "./assets/educlear-logo.svg";
 import "./App.css";
 import Fees from "./Fees";
 import FeeUpsert from "./FeeUpsert";
+import { useSchoolId } from "./useSchoolId";
 
 type TeacherPerformanceRecord = {
   id: string;
@@ -83,9 +84,19 @@ type PageKey =
 export default function SchoolDashboard() {
   const navigate = useNavigate();
   const location = useLocation();
+  const schoolId = useSchoolId();
 
   const [activePage, setActivePage] = useState<PageKey>("dashboard");
   const [manageFeeId, setManageFeeId] = useState<string | null>(null);
+
+  const go = (page: PageKey) => {
+    setActivePage(page);
+    // Fees uses nested routes; leaving those routes is required for non-fees pages
+    // to render again when switching via sidebar.
+    if (location.pathname.startsWith("/dashboard/billing/")) {
+      navigate("/dashboard");
+    }
+  };
 
   const [adminOpen, setAdminOpen] = useState(true);
 
@@ -123,8 +134,6 @@ export default function SchoolDashboard() {
 
   useEffect(() => {
     if (activePage !== "dashboard") return;
-
-    const schoolId = localStorage.getItem("schoolId");
     if (!schoolId) {
       setTopPerformer(null);
       setTopPerformerLoading(false);
@@ -164,7 +173,7 @@ export default function SchoolDashboard() {
     return () => {
       cancelled = true;
     };
-  }, [activePage]);
+  }, [activePage, schoolId]);
 
   useEffect(() => {
 
@@ -1662,11 +1671,11 @@ Manage
               className="dashboard-card dashboard-card-clickable"
               role="button"
               tabIndex={0}
-              onClick={() => setActivePage("teacherPerformance")}
+              onClick={() => go("teacherPerformance")}
               onKeyDown={(e) => {
                 if (e.key === "Enter" || e.key === " ") {
                   e.preventDefault();
-                  setActivePage("teacherPerformance");
+                  go("teacherPerformance");
                 }
               }}
             >
@@ -2754,7 +2763,7 @@ Manage
 
           className={`top-dashboard ${activePage === "dashboard" ? "active" : ""}`}
 
-          onClick={() => setActivePage("dashboard")}
+          onClick={() => go("dashboard")}
 
         >
 
@@ -2792,7 +2801,7 @@ Manage
 
                 className={`submenu-item ${activePage === "registrations" ? "active" : ""}`}
 
-                onClick={() => setActivePage("registrations")}
+                onClick={() => go("registrations")}
 
               >
 
@@ -2806,7 +2815,7 @@ Manage
 
                 className={`submenu-item ${activePage === "addLearner" ? "active" : ""}`}
 
-                onClick={() => setActivePage("addLearner")}
+                onClick={() => go("addLearner")}
 
               >
 
@@ -2820,7 +2829,7 @@ Manage
 
                 className={`submenu-item ${activePage === "classrooms" ? "active" : ""}`}
 
-                onClick={() => setActivePage("classrooms")}
+                onClick={() => go("classrooms")}
 
               >
 
@@ -2834,7 +2843,7 @@ Manage
 
                 className={`submenu-item ${activePage === "groups" ? "active" : ""}`}
 
-                onClick={() => setActivePage("groups")}
+                onClick={() => go("groups")}
 
               >
 
@@ -2848,7 +2857,7 @@ Manage
 
                 className={`submenu-item ${activePage === "employees" ? "active" : ""}`}
 
-                onClick={() => setActivePage("employees")}
+                onClick={() => go("employees")}
 
               >
 
@@ -2863,7 +2872,7 @@ className={`submenu-item ${activePage === "teacherPerformance" ? "active" : ""}`
 
 
 
-onClick={() => setActivePage("teacherPerformance")}
+onClick={() => go("teacherPerformance")}
 
 
 
@@ -2882,7 +2891,7 @@ Teacher Performance
 
                 className={`submenu-item ${activePage === "attendance" ? "active" : ""}`}
 
-                onClick={() => setActivePage("attendance")}
+                onClick={() => go("attendance")}
 
               >
 
@@ -2896,7 +2905,7 @@ Teacher Performance
 
                 className={`submenu-item ${activePage === "incidents" ? "active" : ""}`}
 
-                onClick={() => setActivePage("incidents")}
+                onClick={() => go("incidents")}
 
               >
 
@@ -2910,7 +2919,7 @@ Teacher Performance
 
                 className={`submenu-item ${activePage === "lists" ? "active" : ""}`}
 
-                onClick={() => setActivePage("lists")}
+                onClick={() => go("lists")}
 
               >
 
@@ -2924,7 +2933,7 @@ Teacher Performance
 
                 className={`submenu-item ${activePage === "forms" ? "active" : ""}`}
 
-                onClick={() => setActivePage("forms")}
+                onClick={() => go("forms")}
 
               >
 
@@ -2938,7 +2947,7 @@ Teacher Performance
 
                 className={`submenu-item ${activePage === "help" ? "active" : ""}`}
 
-                onClick={() => setActivePage("help")}
+                onClick={() => go("help")}
 
               >
 
@@ -2952,7 +2961,7 @@ Teacher Performance
 
                 className={`submenu-item ${activePage === "more" ? "active" : ""}`}
 
-                onClick={() => setActivePage("more")}
+                onClick={() => go("more")}
 
               >
 
@@ -2994,7 +3003,7 @@ Teacher Performance
 
                 className={`submenu-item ${activePage === "statements" ? "active" : ""}`}
 
-                onClick={() => setActivePage("statements")}
+                onClick={() => go("statements")}
 
               >
 
@@ -3008,7 +3017,7 @@ Teacher Performance
 
                 className={`submenu-item ${activePage === "invoices" ? "active" : ""}`}
 
-                onClick={() => setActivePage("invoices")}
+                onClick={() => go("invoices")}
 
               >
 
@@ -3022,7 +3031,7 @@ Teacher Performance
 
                 className={`submenu-item ${activePage === "payments" ? "active" : ""}`}
 
-                onClick={() => setActivePage("payments")}
+                onClick={() => go("payments")}
 
               >
 
@@ -3050,7 +3059,7 @@ Teacher Performance
 
                 className={`submenu-item ${activePage === "plans" ? "active" : ""}`}
 
-                onClick={() => setActivePage("plans")}
+                onClick={() => go("plans")}
 
               >
 
@@ -3064,7 +3073,7 @@ Teacher Performance
 
                 className={`submenu-item ${activePage === "runs" ? "active" : ""}`}
 
-                onClick={() => setActivePage("runs")}
+                onClick={() => go("runs")}
 
               >
 
@@ -3078,7 +3087,7 @@ Teacher Performance
 
                 className={`submenu-item ${activePage === "reports" ? "active" : ""}`}
 
-                onClick={() => setActivePage("reports")}
+                onClick={() => go("reports")}
 
               >
 
@@ -3092,7 +3101,7 @@ Teacher Performance
 
                 className={`submenu-item ${activePage === "documents" ? "active" : ""}`}
 
-                onClick={() => setActivePage("documents")}
+                onClick={() => go("documents")}
 
               >
 
@@ -3106,7 +3115,7 @@ Teacher Performance
 
                 className={`submenu-item ${activePage === "billing-help" ? "active" : ""}`}
 
-                onClick={() => setActivePage("billing-help")}
+                onClick={() => go("billing-help")}
 
               >
 
@@ -3120,7 +3129,7 @@ Teacher Performance
 
                 className={`submenu-item ${activePage === "billing-more" ? "active" : ""}`}
 
-                onClick={() => setActivePage("billing-more")}
+                onClick={() => go("billing-more")}
 
               >
 

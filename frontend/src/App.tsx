@@ -5,7 +5,7 @@ import Login from "./Login";
 import SchoolDashboard from "./SchoolDashboard";
 
 import TeacherPerformance from "./TeacherPerformance";
-import logo from "./assets/logo.png"; 
+import logo from "./assets/educlear-logo.svg";
 import RegisterSchool from "./RegisterSchool";
 import { apiFetch } from "./api";
 import LearnerProfile from "./LearnerProfile.tsx";

@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState } from "react";
 import { API_URL } from "./api";
+import { useSchoolId } from "./useSchoolId";
 
 
 
@@ -39,7 +40,7 @@ function defaultMonth(): string {
 
 export default function TeacherPerformance() {
   
-  const schoolId = localStorage.getItem("schoolId");
+  const schoolId = useSchoolId();
 
   const [form, setForm] = useState({
     teacherName: "",
