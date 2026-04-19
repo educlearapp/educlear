@@ -101,19 +101,26 @@ model FeeStructure {
 
   schoolId  String
 
+  /// Legacy fields (kept for existing billing UI compatibility)
   name      String
 
   amount    Float
 
   frequency FeeFrequency
 
+  /// Fees module fields
   category  FeeCategory?
+  type      String?
+  description String?
 
   notes     String?
 
   grade     String?
 
   createdAt DateTime     @default(now())
+  updatedAt DateTime     @updatedAt
+
+  isActive  Boolean      @default(true)
 
 
 
@@ -122,6 +129,7 @@ model FeeStructure {
 
 
   @@index([schoolId])
+  @@index([schoolId, isActive])
 
 }
 

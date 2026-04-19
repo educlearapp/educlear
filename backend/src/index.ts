@@ -14,6 +14,7 @@ import authRoutes from "./routes/auth";
 import teacherPerformanceRoutes from "./routes/teacherPerformance";
 import rbacRoutes from "./routes/rbac";
 import payrollRoutes from "./routes/payroll";
+import feesRoutes from "./routes/fees";
 type OtpRecord = {
 
     code: string;
@@ -137,154 +138,8 @@ app.use("/api", parentsRoutes);
 app.use("/api/rbac", rbacRoutes);
 app.use("/teacher-performance", teacherPerformanceRoutes);
 app.use("/api/payroll", payrollRoutes);
+app.use("/api/fees", feesRoutes);
 
-app.get("/api/fees", async (req, res) => {
-  try {
-    const schoolId = String(req.query.schoolId || "").trim();
-    const q = String(req.query.q || "").trim();
-    const page = Math.max(1, Number(req.query.page || 1));
-    const pageSize = Math.min(100, Math.max(5, Number(req.query.pageSize || 10)));
-
-    if (!schoolId) {
-      return res.status(400).json({ success: false, message: "schoolId is required" });
-    }
-
-    const where: any = {
-      schoolId,
-      ...(q
-        ? {
-            OR: [
-              { name: { contains: q, mode: "insensitive" } },
-              { grade: { contains: q, mode: "insensitive" } },
-              { notes: { contains: q, mode: "insensitive" } },
-              { category: { equals: q as any } },
-              { frequency: { equals: q as any } },
-            ],
-          }
-        : {}),
-    };
-
-    const [total, fees] = await Promise.all([
-      prisma.feeStructure.count({ where }),
-      prisma.feeStructure.findMany({
-        where,
-        orderBy: { createdAt: "desc" },
-        skip: (page - 1) * pageSize,
-        take: pageSize,
-      }),
-    ]);
-
-    return res.json({
-      success: true,
-      items: fees.map((f) => ({
-        id: f.id,
-        schoolId: f.schoolId,
-        name: f.name,
-        amount: f.amount,
-        frequency: f.frequency,
-        category: (f as any).category ?? null,
-        notes: (f as any).notes ?? null,
-        grade: f.grade,
-        createdAt: f.createdAt,
-        usedBillingPlansCount: 0,
-      })),
-      total,
-      page,
-      pageSize,
-    });
-  } catch (error) {
-    console.error("List fees error:", error);
-    return res.status(500).json({ success: false, message: "Failed to fetch fees" });
-  }
-});
-
-app.get("/api/fees/:id", async (req, res) => {
-  try {
-    const id = String(req.params.id || "").trim();
-    const schoolId = String(req.query.schoolId || "").trim();
-    if (!id) return res.status(400).json({ success: false, message: "id is required" });
-    if (!schoolId) {
-      return res.status(400).json({ success: false, message: "schoolId is required" });
-    }
-
-    const fee = await prisma.feeStructure.findFirst({ where: { id, schoolId } });
-    if (!fee) return res.status(404).json({ success: false, message: "Fee not found" });
-
-    return res.json({
-      success: true,
-      fee: {
-        id: fee.id,
-        schoolId: fee.schoolId,
-        name: fee.name,
-        amount: fee.amount,
-        frequency: fee.frequency,
-        category: (fee as any).category ?? null,
-        notes: (fee as any).notes ?? null,
-        grade: fee.grade,
-        createdAt: fee.createdAt,
-        usedBillingPlansCount: 0,
-      },
-    });
-  } catch (error) {
-    console.error("Get fee error:", error);
-    return res.status(500).json({ success: false, message: "Failed to fetch fee" });
-  }
-});
-
-app.put("/api/fees/:id", async (req, res) => {
-  try {
-    const id = String(req.params.id || "").trim();
-    const { schoolId, name, amount, frequency, category, notes, grade } = req.body || {};
-    const schoolIdStr = String(schoolId || "").trim();
-    if (!id) return res.status(400).json({ success: false, message: "id is required" });
-    if (!schoolIdStr) {
-      return res.status(400).json({ success: false, message: "schoolId is required" });
-    }
-    if (!String(name || "").trim()) {
-      return res.status(400).json({ success: false, message: "name is required" });
-    }
-    if (!String(frequency || "").trim()) {
-      return res.status(400).json({ success: false, message: "frequency is required" });
-    }
-    if (!String(category || "").trim()) {
-      return res.status(400).json({ success: false, message: "category is required" });
-    }
-
-    const existing = await prisma.feeStructure.findFirst({ where: { id, schoolId: schoolIdStr } });
-    if (!existing) return res.status(404).json({ success: false, message: "Fee not found" });
-
-    const updated = await prisma.feeStructure.update({
-      where: { id },
-      data: {
-        name: String(name).trim(),
-        amount: Number(amount),
-        frequency,
-        category,
-        notes: notes ? String(notes).trim() : null,
-        grade: grade ? String(grade).trim() : null,
-      },
-    });
-
-    return res.json({
-      success: true,
-      fee: {
-        id: updated.id,
-        schoolId: updated.schoolId,
-        name: updated.name,
-        amount: updated.amount,
-        frequency: updated.frequency,
-        category: (updated as any).category ?? null,
-        notes: (updated as any).notes ?? null,
-        grade: updated.grade,
-        createdAt: updated.createdAt,
-        usedBillingPlansCount: 0,
-      },
-    });
-  } catch (error) {
-    console.error("Update fee error:", error);
-    return res.status(500).json({ success: false, message: "Failed to update fee" });
-  }
-});
 
 
 // Request OTP
@@ -934,73 +789,7 @@ app.get("/dashboard", authMiddleware, (req, res) => {
   
   });
   
-  app.post("/api/fees", async (req, res) => {
-
-    try {
-  
-      const {
-  
-        schoolId,
-  
-        name,
-  
-        amount,
-  
-        frequency,
-  
-        category,
-  
-        notes,
-  
-        grade,
-  
-      } = req.body;
-  
-      const schoolIdStr = String(schoolId || "").trim();
-      if (!schoolIdStr) return res.status(400).json({ message: "schoolId is required" });
-      if (!String(name || "").trim()) return res.status(400).json({ message: "name is required" });
-      if (!String(frequency || "").trim()) return res.status(400).json({ message: "frequency is required" });
-      if (!String(category || "").trim()) return res.status(400).json({ message: "category is required" });
-      const amountNum = Number(amount);
-      if (!Number.isFinite(amountNum)) return res.status(400).json({ message: "amount must be a number" });
-  
-      const fee = await prisma.feeStructure.create({
-  
-        data: {
-  
-          schoolId: schoolIdStr,
-  
-          name: String(name).trim(),
-  
-          amount: amountNum,
-  
-          frequency,
-  
-          category,
-  
-          notes: notes ? String(notes).trim() : null,
-  
-          grade: grade || null,
-  
-        },
-  
-      });
-  
-  
-  
-      res.json({ success: true, fee });
-  
-  
-  
-    } catch (error) {
-  
-      console.error("Create fee error:", error);
-  
-      res.status(500).json({ message: "Failed to create fee" });
-  
-    }
-  
-  });
+  // Fees routes are mounted at /api/fees
 
   app.get("/api/learners", async (_req, res) => {
 
