@@ -105,6 +105,13 @@ async function loadImageDataUrl(url: string): Promise<{ data: string; format: "P
   }
 }
 
+/** Keeps payslip on one page when labels wrap (e.g. long addresses). */
+function splitTextLimited(doc: jsPDF, text: string, maxWidth: number, maxLines: number): string[] {
+  const lines = doc.splitTextToSize(text, maxWidth);
+  if (lines.length <= maxLines) return lines;
+  return lines.slice(0, maxLines);
+}
+
 export default function Payroll() {
   const [schoolId, setSchoolId] = useState("");
   const [schoolInfo, setSchoolInfo] = useState<SchoolPayrollInfo | null>(null);
@@ -162,66 +169,83 @@ export default function Payroll() {
       const emp = employees.find((e) => e.id === result.employeeId);
       const doc = new jsPDF({ unit: "mm", format: "a4" });
       const pageW = doc.internal.pageSize.getWidth();
-      const margin = 16;
+      const margin = 14;
+      const innerW = pageW - 2 * margin;
       let y = margin;
 
       const m = lastPayrollMonth ?? new Date().getMonth() + 1;
       const yrr = lastPayrollYear ?? new Date().getFullYear();
       const periodLabel = `${MONTH_NAMES[Math.min(12, Math.max(1, m)) - 1]} ${yrr}`;
 
-      let logoBottom = y;
+      const employerName = safeText(schoolInfo?.name, "Not captured");
+      const employerEmail = safeText(schoolInfo?.email);
+      const employerPhone = safeText(schoolInfo?.phone);
+
+      const employerPad = 5;
+      const employerBoxTop = y;
+      const logoW = 24;
+      const logoH = 14;
+
+      let logoData: { data: string; format: "PNG" | "JPEG" | "WEBP" } | null = null;
       if (schoolInfo?.logoUrl) {
-        const loaded = await loadImageDataUrl(schoolInfo.logoUrl);
-        if (loaded) {
-          try {
-            const lw = 42;
-            const lh = 14;
-            doc.addImage(loaded.data, loaded.format, margin, y, lw, lh);
-            logoBottom = y + lh + 2;
-          } catch {
-            /* ignore logo errors */
-          }
+        logoData = await loadImageDataUrl(schoolInfo.logoUrl);
+      }
+
+      const textStartY = employerBoxTop + employerPad + 4;
+      const employerTextBlockH = 16;
+      const employerBoxH = Math.max(
+        logoData ? logoH + employerPad * 2 : employerTextBlockH + employerPad * 2,
+        employerTextBlockH + employerPad * 2
+      );
+
+      doc.setFillColor(248, 250, 252);
+      doc.setDrawColor(226, 232, 240);
+      doc.rect(margin, employerBoxTop, innerW, employerBoxH, "FD");
+
+      let textX = margin + employerPad;
+      if (logoData) {
+        try {
+          doc.addImage(logoData.data, logoData.format, margin + employerPad, employerBoxTop + employerPad, logoW, logoH);
+          textX = margin + employerPad + logoW + 7;
+        } catch {
+          /* omit logo; leave text left-aligned */
         }
       }
 
       doc.setFont("helvetica", "bold");
-      doc.setFontSize(11);
-      const headerX = Math.min(margin + 48, pageW - margin - 60);
-      doc.text(safeText(schoolInfo?.name, "Employer"), headerX, y + 5);
+      doc.setFontSize(12);
+      doc.setTextColor(15, 23, 42);
+      doc.text(employerName, textX, textStartY);
       doc.setFont("helvetica", "normal");
       doc.setFontSize(9);
-      let hy = y + 9;
-      if (schoolInfo?.email) {
-        doc.text(`Email: ${schoolInfo.email}`, headerX, hy);
-        hy += 4;
-      }
-      if (schoolInfo?.phone) {
-        doc.text(`Phone: ${schoolInfo.phone}`, headerX, hy);
-        hy += 4;
-      }
-      doc.text("Address: Not captured", headerX, hy);
+      doc.setTextColor(71, 85, 105);
+      doc.text(`Email: ${employerEmail}`, textX, textStartY + 5);
+      doc.text(`Phone: ${employerPhone}`, textX, textStartY + 10);
+      doc.setTextColor(0, 0, 0);
 
-      y = Math.max(logoBottom, hy + 2);
-
-      doc.setDrawColor(200);
+      y = employerBoxTop + employerBoxH + 7;
+      doc.setDrawColor(203, 213, 225);
       doc.line(margin, y, pageW - margin, y);
-      y += 8;
-
-      doc.setFont("helvetica", "bold");
-      doc.setFontSize(16);
-      doc.text("Payslip", margin, y);
-      y += 7;
-      doc.setFontSize(10);
-      doc.setFont("helvetica", "normal");
-      doc.text(`Pay period: ${periodLabel}`, margin, y);
       y += 10;
 
       doc.setFont("helvetica", "bold");
-      doc.setFontSize(11);
-      doc.text("Employee details", margin, y);
+      doc.setFontSize(17);
+      doc.text("PAYSLIP", pageW / 2, y, { align: "center" });
+      y += 7;
+      doc.setFont("helvetica", "normal");
+      doc.setFontSize(9.5);
+      doc.setTextColor(100, 116, 139);
+      doc.text(`Pay period: ${periodLabel}`, pageW / 2, y, { align: "center" });
+      doc.setTextColor(0, 0, 0);
+      y += 12;
+
+      const empSectionTop = y;
+      doc.setFont("helvetica", "bold");
+      doc.setFontSize(10.5);
+      doc.text("Employee details", margin + 2, y);
       y += 6;
       doc.setFont("helvetica", "normal");
-      doc.setFontSize(9);
+      doc.setFontSize(8.5);
 
       const fullName = safeText(emp?.fullName || result.employeeName);
       const rows: [string, string][] = [
@@ -236,30 +260,41 @@ export default function Payroll() {
         ["Account number", safeText(emp?.bankAccountNumber)],
         ["Branch code", safeText(emp?.bankBranchCode)],
       ];
-      const labelW = 48;
+      const labelW = 46;
+      const valueMaxW = innerW - labelW - 8;
+      const lineStep = 4.1;
+      const maxAddrLines = 3;
       for (const [label, val] of rows) {
         doc.setFont("helvetica", "bold");
-        doc.text(`${label}:`, margin, y);
+        doc.text(`${label}:`, margin + 2, y);
         doc.setFont("helvetica", "normal");
-        const lines = doc.splitTextToSize(val, pageW - margin * 2 - labelW - 4);
-        doc.text(lines, margin + labelW, y);
-        y += Math.max(5, lines.length * 4.2);
+        const limited =
+          label === "Physical address"
+            ? splitTextLimited(doc, val, valueMaxW, maxAddrLines)
+            : splitTextLimited(doc, val, valueMaxW, 2);
+        doc.text(limited, margin + 2 + labelW, y);
+        y += Math.max(lineStep + 0.5, limited.length * lineStep);
       }
-      y += 4;
+      y += 5;
+      doc.setDrawColor(226, 232, 240);
+      doc.rect(margin, empSectionTop, innerW, y - empSectionTop, "S");
+      y += 6;
 
-      const empMed = num(result.medicalAidEmployee);
-      const emplMed = num(result.medicalAidEmployer);
+      const empMed = num(result.medicalAidEmployee ?? emp?.employeeMedicalAid);
+      const emplMed = num(result.medicalAidEmployer ?? emp?.employerMedicalAid);
       const otPay = num(result.overtimePay);
-      const basic = num(result.basicSalary);
-      const gross = num(result.grossEarnings);
+      const basic = num(result.basicSalary ?? emp?.basicSalary);
+      const payslipGross = Number((basic + otPay + emplMed).toFixed(2));
       const paye = num(result.paye);
       const uif = num(result.uif);
       const pension = num(result.pension);
       const totDed = num(result.deductions);
       const net = num(result.net);
 
+      const amtRight = pageW - margin - 2;
+
       doc.setFont("helvetica", "bold");
-      doc.setFontSize(11);
+      doc.setFontSize(10.5);
       doc.text("Earnings", margin, y);
       y += 6;
       doc.setFont("helvetica", "normal");
@@ -268,23 +303,20 @@ export default function Payroll() {
       const earnRows: [string, number][] = [
         ["Basic salary", basic],
         ["Overtime pay", otPay],
+        ["Medical aid (employer contribution)", emplMed],
       ];
-      if (emplMed > 0) {
-        earnRows.push(["Medical aid (employer contribution)", emplMed]);
-      }
-      const earnXAmt = pageW - margin - 32;
       for (const [lab, amt] of earnRows) {
-        doc.text(lab, margin, y);
-        doc.text(fmtMoney(amt), earnXAmt, y, { align: "right" });
-        y += 5;
+        doc.text(lab, margin + 2, y);
+        doc.text(fmtMoney(amt), amtRight, y, { align: "right" });
+        y += 4.8;
       }
-      doc.setDrawColor(180);
-      doc.line(margin, y + 1, pageW - margin, y + 1);
-      y += 6;
+      doc.setDrawColor(203, 213, 225);
+      doc.line(margin, y + 0.8, pageW - margin, y + 0.8);
+      y += 5.5;
       doc.setFont("helvetica", "bold");
-      doc.text("Gross earnings", margin, y);
-      doc.text(fmtMoney(gross), earnXAmt, y, { align: "right" });
-      y += 10;
+      doc.text("Gross earnings", margin + 2, y);
+      doc.text(fmtMoney(payslipGross), amtRight, y, { align: "right" });
+      y += 9;
 
       doc.text("Deductions", margin, y);
       y += 6;
@@ -293,28 +325,31 @@ export default function Payroll() {
         ["PAYE", paye],
         ["UIF", uif],
         ["Pension", pension],
+        ["Medical aid (employee)", empMed],
       ];
-      if (empMed > 0) {
-        dedRows.push(["Medical aid (employee)", empMed]);
-      }
       for (const [lab, amt] of dedRows) {
-        doc.text(lab, margin, y);
-        doc.text(fmtMoney(amt), earnXAmt, y, { align: "right" });
-        y += 5;
+        doc.text(lab, margin + 2, y);
+        doc.text(fmtMoney(amt), amtRight, y, { align: "right" });
+        y += 4.8;
       }
-      doc.setDrawColor(180);
-      doc.line(margin, y + 1, pageW - margin, y + 1);
-      y += 6;
+      doc.setDrawColor(203, 213, 225);
+      doc.line(margin, y + 0.8, pageW - margin, y + 0.8);
+      y += 5.5;
       doc.setFont("helvetica", "bold");
-      doc.text("Total deductions", margin, y);
-      doc.text(fmtMoney(totDed), earnXAmt, y, { align: "right" });
-      y += 12;
+      doc.text("Total deductions", margin + 2, y);
+      doc.text(fmtMoney(totDed), amtRight, y, { align: "right" });
+      y += 10;
 
-      doc.setFillColor(241, 245, 249);
-      doc.rect(margin, y - 5, pageW - 2 * margin, 14, "F");
+      const netTop = y;
+      const netBoxH = 16;
+      doc.setFillColor(15, 23, 42);
+      doc.rect(margin, netTop, innerW, netBoxH, "F");
+      doc.setFont("helvetica", "bold");
       doc.setFontSize(12);
-      doc.text("Net pay", margin + 3, y + 3);
-      doc.text(fmtMoney(net), pageW - margin - 3, y + 3, { align: "right" });
+      doc.setTextColor(255, 255, 255);
+      doc.text("Net pay", margin + 4, netTop + netBoxH / 2 + 2);
+      doc.text(fmtMoney(net), amtRight - 2, netTop + netBoxH / 2 + 2, { align: "right" });
+      doc.setTextColor(0, 0, 0);
 
       const fileBase = `${sanitizeFilePart(result.employeeName)}-Payslip-${yrr}-${String(m).padStart(2, "0")}`;
       doc.save(`${fileBase}.pdf`);
