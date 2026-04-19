@@ -763,16 +763,10 @@ Net: R${data.netTotal}`
             )}
 
             {payrollResults.length > 0 && (
-              <div
-                style={{
-                  marginTop: "24px",
-                  background: "#fff",
-                  border: "1px solid #e2e8f0",
-                  borderRadius: "16px",
-                  padding: "24px",
-                }}
-              >
-                <h2 style={{ marginTop: 0 }}>Payroll Results</h2>
+              <div style={payrollResultsSectionCard}>
+                <h2 style={{ marginTop: 0, marginBottom: "4px", fontSize: "20px", fontWeight: 800, color: "#0f172a" }}>
+                  Payroll Results
+                </h2>
 
                 {payrollSummary && (
                   <div
@@ -794,232 +788,49 @@ Net: R${data.netTotal}`
                   </div>
                 )}
 
-                <div
-                  style={{
-                    border: "1px solid #e2e8f0",
-                    borderRadius: "12px",
-                    overflow: "hidden",
-                    marginTop: "4px",
-                  }}
-                >
+                <div style={payrollResultsTableContainer}>
+                  <style>{`
+                    .payroll-results-table tbody tr:hover td {
+                      background-color: #f1f5f9;
+                    }
+                  `}</style>
                   <div style={{ overflowX: "auto", WebkitOverflowScrolling: "touch" }}>
                     <table
+                      className="payroll-results-table"
                       style={{
                         width: "100%",
                         minWidth: "880px",
-                        borderCollapse: "collapse",
-                        fontSize: "13px",
+                        borderCollapse: "separate",
+                        borderSpacing: 0,
+                        fontSize: "14px",
                         color: "#0f172a",
                         fontVariantNumeric: "tabular-nums",
                       }}
                     >
                       <thead>
-                        <tr
-                          style={{
-                            background: "#f1f5f9",
-                            borderBottom: "1px solid #cbd5e1",
-                          }}
-                        >
-                          <th
-                            style={{
-                              textAlign: "left",
-                              padding: "10px 12px",
-                              fontWeight: 700,
-                              color: "#334155",
-                              borderRight: "1px solid #e2e8f0",
-                              whiteSpace: "nowrap",
-                            }}
-                          >
-                            Employee name
-                          </th>
-                          <th
-                            style={{
-                              textAlign: "right",
-                              padding: "10px 12px",
-                              fontWeight: 700,
-                              color: "#334155",
-                              borderRight: "1px solid #e2e8f0",
-                              whiteSpace: "nowrap",
-                            }}
-                          >
-                            Gross earnings
-                          </th>
-                          <th
-                            style={{
-                              textAlign: "right",
-                              padding: "10px 12px",
-                              fontWeight: 700,
-                              color: "#334155",
-                              borderRight: "1px solid #e2e8f0",
-                              whiteSpace: "nowrap",
-                            }}
-                          >
-                            Basic salary
-                          </th>
-                          <th
-                            style={{
-                              textAlign: "right",
-                              padding: "10px 12px",
-                              fontWeight: 700,
-                              color: "#334155",
-                              borderRight: "1px solid #e2e8f0",
-                              whiteSpace: "nowrap",
-                            }}
-                          >
-                            PAYE
-                          </th>
-                          <th
-                            style={{
-                              textAlign: "right",
-                              padding: "10px 12px",
-                              fontWeight: 700,
-                              color: "#334155",
-                              borderRight: "1px solid #e2e8f0",
-                              whiteSpace: "nowrap",
-                            }}
-                          >
-                            UIF
-                          </th>
-                          <th
-                            style={{
-                              textAlign: "right",
-                              padding: "10px 12px",
-                              fontWeight: 700,
-                              color: "#334155",
-                              borderRight: "1px solid #e2e8f0",
-                              whiteSpace: "nowrap",
-                            }}
-                          >
-                            Total deductions
-                          </th>
-                          <th
-                            style={{
-                              textAlign: "right",
-                              padding: "10px 12px",
-                              fontWeight: 700,
-                              color: "#334155",
-                              borderRight: "1px solid #e2e8f0",
-                              whiteSpace: "nowrap",
-                            }}
-                          >
-                            Net pay
-                          </th>
-                          <th
-                            style={{
-                              textAlign: "center",
-                              padding: "10px 12px",
-                              fontWeight: 700,
-                              color: "#334155",
-                              whiteSpace: "nowrap",
-                            }}
-                          >
-                            Action
-                          </th>
+                        <tr style={{ background: "#f8fafc" }}>
+                          <th style={{ ...payrollTh, textAlign: "left" }}>Employee name</th>
+                          <th style={{ ...payrollTh, textAlign: "right" }}>Gross earnings</th>
+                          <th style={{ ...payrollTh, textAlign: "right" }}>Basic salary</th>
+                          <th style={{ ...payrollTh, textAlign: "right" }}>PAYE</th>
+                          <th style={{ ...payrollTh, textAlign: "right" }}>UIF</th>
+                          <th style={{ ...payrollTh, textAlign: "right" }}>Total deductions</th>
+                          <th style={{ ...payrollTh, textAlign: "right" }}>Net pay</th>
+                          <th style={{ ...payrollTh, textAlign: "center" }}>Action</th>
                         </tr>
                       </thead>
                       <tbody>
-                        {payrollResults.map((item, idx) => (
-                          <tr
-                            key={item.employeeId}
-                            style={{
-                              background: idx % 2 === 1 ? "#f8fafc" : "#ffffff",
-                              borderBottom: "1px solid #e2e8f0",
-                            }}
-                          >
-                            <td
-                              style={{
-                                padding: "8px 12px",
-                                borderRight: "1px solid #e2e8f0",
-                                verticalAlign: "middle",
-                                fontWeight: 600,
-                              }}
-                            >
-                              {item.employeeName}
-                            </td>
-                            <td
-                              style={{
-                                padding: "8px 12px",
-                                borderRight: "1px solid #e2e8f0",
-                                textAlign: "right",
-                                verticalAlign: "middle",
-                                color: "#334155",
-                              }}
-                            >
-                              {fmtMoney(item.grossEarnings)}
-                            </td>
-                            <td
-                              style={{
-                                padding: "8px 12px",
-                                borderRight: "1px solid #e2e8f0",
-                                textAlign: "right",
-                                verticalAlign: "middle",
-                                color: "#334155",
-                              }}
-                            >
-                              {fmtMoney(item.basicSalary)}
-                            </td>
-                            <td
-                              style={{
-                                padding: "8px 12px",
-                                borderRight: "1px solid #e2e8f0",
-                                textAlign: "right",
-                                verticalAlign: "middle",
-                                color: "#334155",
-                              }}
-                            >
-                              {fmtMoney(item.paye)}
-                            </td>
-                            <td
-                              style={{
-                                padding: "8px 12px",
-                                borderRight: "1px solid #e2e8f0",
-                                textAlign: "right",
-                                verticalAlign: "middle",
-                                color: "#334155",
-                              }}
-                            >
-                              {fmtMoney(item.uif)}
-                            </td>
-                            <td
-                              style={{
-                                padding: "8px 12px",
-                                borderRight: "1px solid #e2e8f0",
-                                textAlign: "right",
-                                verticalAlign: "middle",
-                                fontWeight: 600,
-                                color: "#334155",
-                              }}
-                            >
-                              {fmtMoney(item.deductions)}
-                            </td>
-                            <td
-                              style={{
-                                padding: "8px 12px",
-                                borderRight: "1px solid #e2e8f0",
-                                textAlign: "right",
-                                verticalAlign: "middle",
-                                fontWeight: 700,
-                                color: "#0f172a",
-                              }}
-                            >
-                              {fmtMoney(item.net)}
-                            </td>
-                            <td style={{ padding: "8px 12px", textAlign: "center", verticalAlign: "middle" }}>
-                              <button
-                                type="button"
-                                onClick={() => void generatePayslip(item)}
-                                style={{
-                                  padding: "6px 12px",
-                                  borderRadius: "8px",
-                                  border: "none",
-                                  background: "#111827",
-                                  color: "#fff",
-                                  cursor: "pointer",
-                                  fontSize: "12px",
-                                  fontWeight: 600,
-                                  whiteSpace: "nowrap",
-                                }}
-                              >
+                        {payrollResults.map((item) => (
+                          <tr key={item.employeeId}>
+                            <td style={payrollTdName}>{item.employeeName}</td>
+                            <td style={payrollTdMoney}>{fmtMoney(item.grossEarnings)}</td>
+                            <td style={payrollTdMoney}>{fmtMoney(item.basicSalary)}</td>
+                            <td style={payrollTdMoney}>{fmtMoney(item.paye)}</td>
+                            <td style={payrollTdMoney}>{fmtMoney(item.uif)}</td>
+                            <td style={{ ...payrollTdMoney, fontWeight: 600 }}>{fmtMoney(item.deductions)}</td>
+                            <td style={payrollTdNet}>{fmtMoney(item.net)}</td>
+                            <td style={payrollTdAction}>
+                              <button type="button" onClick={() => void generatePayslip(item)} style={payslipDownloadButtonStyle}>
                                 Download Payslip
                               </button>
                             </td>
@@ -1145,4 +956,79 @@ const secondaryButtonStyle: React.CSSProperties = {
   fontSize: "15px",
   fontWeight: 700,
   cursor: "pointer",
+};
+
+/** Payroll results block — aligned with SchoolDashboard learner table cards */
+const payrollResultsSectionCard: React.CSSProperties = {
+  marginTop: "24px",
+  background: "#ffffff",
+  borderRadius: "18px",
+  padding: "16px",
+  border: "1px solid rgba(15, 23, 42, 0.06)",
+  boxShadow: "0 20px 50px rgba(15, 23, 42, 0.08)",
+  overflow: "hidden",
+};
+
+const payrollResultsTableContainer: React.CSSProperties = {
+  marginTop: "8px",
+  background: "#ffffff",
+  borderRadius: "12px",
+  padding: "20px",
+  boxShadow: "0 8px 24px rgba(15, 23, 42, 0.08)",
+};
+
+const payrollTh: React.CSSProperties = {
+  padding: "14px 16px",
+  fontSize: "11px",
+  fontWeight: 700,
+  color: "#64748b",
+  textTransform: "uppercase",
+  letterSpacing: "0.07em",
+  whiteSpace: "nowrap",
+  borderBottom: "1px solid rgba(15, 23, 42, 0.08)",
+};
+
+const payrollTdShared: React.CSSProperties = {
+  padding: "14px 16px",
+  verticalAlign: "middle",
+  borderBottom: "1px solid rgba(15, 23, 42, 0.06)",
+  background: "#ffffff",
+};
+
+const payrollTdName: React.CSSProperties = {
+  ...payrollTdShared,
+  fontWeight: 600,
+  color: "#0f172a",
+};
+
+const payrollTdMoney: React.CSSProperties = {
+  ...payrollTdShared,
+  textAlign: "right",
+  color: "#475569",
+  fontWeight: 500,
+};
+
+const payrollTdNet: React.CSSProperties = {
+  ...payrollTdShared,
+  textAlign: "right",
+  fontWeight: 800,
+  color: "#020617",
+};
+
+const payrollTdAction: React.CSSProperties = {
+  ...payrollTdShared,
+  textAlign: "center",
+};
+
+const payslipDownloadButtonStyle: React.CSSProperties = {
+  padding: "5px 12px",
+  borderRadius: "8px",
+  border: "none",
+  background: "#0f172a",
+  color: "#ffffff",
+  cursor: "pointer",
+  fontSize: "12px",
+  fontWeight: 600,
+  whiteSpace: "nowrap",
+  lineHeight: 1.25,
 };
