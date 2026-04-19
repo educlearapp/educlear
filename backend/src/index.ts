@@ -498,73 +498,203 @@ app.get("/dashboard", authMiddleware, (req, res) => {
   
   });
   app.post("/api/learners", async (req, res) => {
-
     try {
-  
-      const { schoolId, firstName, lastName, grade, className, admissionNo } = req.body;
-  
-  
-  
-      if (!schoolId || !firstName || !lastName || !grade) {
-  
-        return res.status(400).json({
-  
-          success: false,
-  
-          message: "schoolId, firstName, lastName and grade are required",
-  
-        });
-  
-      }
-  
-      console.log("schoolId being used:", schoolId);
+      const body = req.body ?? {};
 
-      console.log("request body:", req.body);
-  
-      const learner = await prisma.learner.create({
-  
-        data: {
-  
+      const schoolId = typeof body.schoolId === "string" ? body.schoolId : "";
+      const firstName = typeof body.firstName === "string" ? body.firstName.trim() : "";
+      const lastName = typeof body.lastName === "string" ? body.lastName.trim() : "";
+      const grade = typeof body.grade === "string" ? body.grade.trim() : "";
+      const className =
+        typeof body.className === "string" && body.className.trim() ? body.className.trim() : null;
+      const admissionNo =
+        typeof body.admissionNo === "string" && body.admissionNo.trim() ? body.admissionNo.trim() : null;
+
+      const idNumber =
+        typeof body.idNumber === "string" && body.idNumber.trim() ? body.idNumber.trim() : null;
+      const gender =
+        typeof body.gender === "string" && body.gender.trim() ? body.gender.trim() : null;
+      const birthDate = body.birthDate ? new Date(String(body.birthDate)) : null;
+      const birthDateValue =
+        birthDate && !Number.isNaN(birthDate.getTime()) ? birthDate : null;
+
+      const parent = (body.parent ?? null) as
+        | {
+            firstName?: unknown;
+            surname?: unknown;
+            email?: unknown;
+            phone?: unknown;
+            idNumber?: unknown;
+          }
+        | null;
+
+      const siblings = Array.isArray(body.siblings) ? (body.siblings as any[]) : [];
+
+      if (!schoolId || !firstName || !lastName || !grade) {
+        return res.status(400).json({
+          success: false,
+          message: "schoolId, firstName, lastName and grade are required",
+        });
+      }
+
+      const school = await prisma.school.findUnique({ where: { id: schoolId } });
+      if (!school) {
+        return res.status(400).json({ success: false, message: "School not found", schoolId });
+      }
+
+      const surnameParts = lastName
+        .trim()
+        .toUpperCase()
+        .split(/\s+/)
+        .filter(Boolean);
+      const lastWord = surnameParts[surnameParts.length - 1] || "FAM";
+      const prefix = lastWord.replace(/[^A-Z]/g, "").slice(0, 3).padEnd(3, "X");
+      const existingFamilies = await prisma.familyAccount.count({
+        where: {
           schoolId,
-  
-          firstName,
-  
-          lastName,
-  
-          grade,
-  
-          className: className || null,
-  
-          admissionNo: admissionNo || null,
-  
+          accountRef: {
+            startsWith: prefix,
+          },
         },
-  
       });
-  
-  
-  
+      const nextNumber = String(existingFamilies + 1).padStart(3, "0");
+      const familyReference = `${prefix}${nextNumber}`;
+
+      const familyAccount = await prisma.familyAccount.create({
+        data: {
+          schoolId,
+          accountRef: familyReference,
+          familyName: lastName,
+        },
+      });
+
+      const learner = await prisma.learner.create({
+        data: {
+          schoolId,
+          familyAccountId: familyAccount.id,
+          firstName,
+          lastName,
+          grade,
+          className,
+          admissionNo: admissionNo || familyReference,
+          idNumber,
+          gender,
+          birthDate: birthDateValue,
+        },
+      });
+
+      let parentRecord: any = null;
+      if (parent && typeof parent === "object") {
+        const pFirstName = typeof parent.firstName === "string" ? parent.firstName.trim() : "";
+        const pSurname = typeof parent.surname === "string" ? parent.surname.trim() : "";
+        const pEmail =
+          typeof parent.email === "string" && parent.email.trim() ? parent.email.trim() : null;
+        const pPhone = typeof parent.phone === "string" ? parent.phone.trim() : "";
+        const pIdNumber =
+          typeof parent.idNumber === "string" && parent.idNumber.trim() ? parent.idNumber.trim() : null;
+
+        if (pFirstName && pSurname && pPhone) {
+          const existingParent = pIdNumber
+            ? await prisma.parent.findFirst({ where: { schoolId, idNumber: pIdNumber } })
+            : pEmail
+              ? await prisma.parent.findFirst({ where: { schoolId, email: pEmail } })
+              : null;
+
+          parentRecord = existingParent
+            ? await prisma.parent.update({
+                where: { id: existingParent.id },
+                data: {
+                  firstName: pFirstName,
+                  surname: pSurname,
+                  email: pEmail,
+                  cellNo: pPhone,
+                  familyAccountId: familyAccount.id,
+                  ...(pIdNumber ? { idNumber: pIdNumber } : {}),
+                },
+              })
+            : await prisma.parent.create({
+                data: {
+                  schoolId,
+                  familyAccountId: familyAccount.id,
+                  firstName: pFirstName,
+                  surname: pSurname,
+                  email: pEmail,
+                  cellNo: pPhone,
+                  idNumber: pIdNumber,
+                },
+              });
+
+          await prisma.parentLearnerLink.create({
+            data: {
+              schoolId,
+              parentId: parentRecord.id,
+              learnerId: learner.id,
+              isPrimary: true,
+            },
+          });
+        }
+      }
+
+      const siblingLearners: any[] = [];
+      for (const s of siblings) {
+        const sFirstName = typeof s?.firstName === "string" ? s.firstName.trim() : "";
+        const sLastName = typeof s?.lastName === "string" ? s.lastName.trim() : "";
+        const sGrade = typeof s?.grade === "string" ? s.grade.trim() : "";
+        if (!sFirstName || !sLastName || !sGrade) continue;
+
+        const sClassName =
+          typeof s?.className === "string" && s.className.trim() ? s.className.trim() : null;
+        const sAdmissionNo =
+          typeof s?.admissionNo === "string" && s.admissionNo.trim() ? s.admissionNo.trim() : null;
+        const sIdNumber =
+          typeof s?.idNumber === "string" && s.idNumber.trim() ? s.idNumber.trim() : null;
+        const sGender = typeof s?.gender === "string" && s.gender.trim() ? s.gender.trim() : null;
+        const sBirthDate = s?.birthDate ? new Date(String(s.birthDate)) : null;
+        const sBirthDateValue =
+          sBirthDate && !Number.isNaN(sBirthDate.getTime()) ? sBirthDate : null;
+
+        const createdSibling = await prisma.learner.create({
+          data: {
+            schoolId,
+            familyAccountId: familyAccount.id,
+            firstName: sFirstName,
+            lastName: sLastName,
+            grade: sGrade,
+            className: sClassName,
+            admissionNo: sAdmissionNo,
+            idNumber: sIdNumber,
+            gender: sGender,
+            birthDate: sBirthDateValue,
+          },
+        });
+        siblingLearners.push(createdSibling);
+
+        if (parentRecord) {
+          await prisma.parentLearnerLink.create({
+            data: {
+              schoolId,
+              parentId: parentRecord.id,
+              learnerId: createdSibling.id,
+              isPrimary: false,
+            },
+          });
+        }
+      }
+
       return res.status(201).json({
-  
         success: true,
-  
         learner,
-  
+        parent: parentRecord,
+        siblings: siblingLearners,
+        familyAccountId: familyAccount.id,
       });
-  
     } catch (error) {
-  
       console.error("Create learner error:", error);
-  
       return res.status(500).json({
-  
         success: false,
-  
         message: "Failed to create learner",
-  
       });
-  
     }
-  
   });
   
   

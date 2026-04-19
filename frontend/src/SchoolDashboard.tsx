@@ -4,6 +4,7 @@ import { Route, Routes, useLocation, useNavigate, useParams } from "react-router
 import AddLearner from "./AddLearner";
 import TeacherPerformance from "./TeacherPerformance";
 import { API_URL } from "./api";
+import logo from "./assets/logo.png";
 import "./App.css";
 import Fees from "./Fees";
 import FeeUpsert from "./FeeUpsert";
@@ -1419,7 +1420,7 @@ Manage
 
           <div className="dashboard-header">
 
-            <img src="/logo.png" className="dashboard-logo" />
+            <img src={logo} className="dashboard-logo" alt="EduClear" />
 
 
 
@@ -1678,10 +1679,8 @@ Manage
 
               {topPerformerLoading ? (
                 <p className="dashboard-card-text">Loading…</p>
-              ) : topPerformerFetchFailed ? (
-                <p className="dashboard-card-text">Could not load teacher performance.</p>
               ) : !topPerformer ? (
-                <p className="dashboard-card-text">No teacher records yet</p>
+                <p className="dashboard-card-text">No teacher performance data yet</p>
               ) : (
                 <>
                   <h2 className="dashboard-card-value" style={{ fontSize: 26 }}>
@@ -2743,7 +2742,7 @@ Manage
 
         <div className="brand-row">
 
-          <img src="/logo.png" className="sidebar-logo" />
+          <img src={logo} className="sidebar-logo" alt="EduClear" />
 
           <span>EduClear</span>
 
