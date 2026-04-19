@@ -126,7 +126,7 @@ export default function FeeUpsert(props: { feeId?: string | null; onBack: () => 
   }, [amountNumber, category, description, schoolId, type]);
 
   const pageWrap = {
-    padding: "32px",
+    padding: "24px",
     background: "linear-gradient(180deg, #f8fafc 0%, #f3f4f6 45%, #eef2f7 100%)",
     minHeight: "100%",
     borderRadius: "28px",
@@ -150,20 +150,20 @@ export default function FeeUpsert(props: { feeId?: string | null; onBack: () => 
   } as const;
 
   const btnBase = {
-    padding: "10px 16px",
+    padding: "9px 14px",
     borderRadius: "12px",
     border: "1px solid rgba(15, 23, 42, 0.10)",
     background: "#ffffff",
     fontWeight: 800,
     fontSize: "13px",
     color: "#0f172a",
-    boxShadow: "0 4px 12px rgba(15, 23, 42, 0.05)",
+    boxShadow: "0 4px 12px rgba(15, 23, 42, 0.04)",
     cursor: "pointer",
   } as const;
 
   const btnPrimary = (disabled: boolean) =>
     ({
-      padding: "10px 18px",
+      padding: "9px 16px",
       borderRadius: "12px",
       border: "none",
       background: "linear-gradient(135deg, #d4af37, #f5d06f)",
@@ -178,18 +178,18 @@ export default function FeeUpsert(props: { feeId?: string | null; onBack: () => 
   const card = {
     background: "#ffffff",
     borderRadius: "18px",
-    border: "1px solid rgba(15, 23, 42, 0.06)",
-    boxShadow: "0 20px 50px rgba(15, 23, 42, 0.08)",
+    border: "1px solid rgba(15, 23, 42, 0.07)",
+    boxShadow: "0 14px 44px rgba(15, 23, 42, 0.08)",
     overflow: "hidden",
-    maxWidth: "980px",
+    maxWidth: "920px",
   } as const;
 
   const cardHeader = {
     display: "flex",
     alignItems: "center",
     justifyContent: "space-between",
-    padding: "18px 20px",
-    borderBottom: "1px solid rgba(15, 23, 42, 0.06)",
+    padding: "16px 18px",
+    borderBottom: "1px solid rgba(15, 23, 42, 0.07)",
     background: "linear-gradient(180deg, #ffffff 0%, #f8fafc 100%)",
   } as const;
 
@@ -209,7 +209,7 @@ export default function FeeUpsert(props: { feeId?: string | null; onBack: () => 
     fontSize: "12px",
     fontWeight: 900,
     color: "#0f172a",
-    boxShadow: "0 4px 12px rgba(15, 23, 42, 0.05)",
+    boxShadow: "0 4px 12px rgba(15, 23, 42, 0.04)",
   } as const;
 
   const label = {
@@ -223,13 +223,13 @@ export default function FeeUpsert(props: { feeId?: string | null; onBack: () => 
 
   const input = (invalid: boolean) =>
     ({
-      padding: "12px 14px",
+      padding: "11px 12px",
       borderRadius: "12px",
       border: invalid ? "1px solid rgba(239, 68, 68, 0.55)" : "1px solid rgba(15, 23, 42, 0.10)",
-      background: "#ffffff",
+      background: "linear-gradient(180deg, #ffffff 0%, #f8fafc 100%)",
       fontSize: "14px",
       width: "100%",
-      boxShadow: "0 4px 12px rgba(15, 23, 42, 0.05)",
+      boxShadow: "0 4px 12px rgba(15, 23, 42, 0.04)",
       outline: "none",
     }) as const;
 
@@ -245,12 +245,12 @@ export default function FeeUpsert(props: { feeId?: string | null; onBack: () => 
   return (
     <div style={pageWrap}>
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: "12px", flexWrap: "wrap" }}>
-        <div style={{ marginBottom: "24px" }}>
+        <div style={{ marginBottom: "18px" }}>
           <h1 style={titleStyle}>Fee</h1>
           <p style={subtitleStyle}>Add or change the fees you charge</p>
         </div>
 
-        <div style={{ display: "flex", gap: "10px", alignItems: "center", marginTop: "6px" }}>
+        <div style={{ display: "flex", gap: "8px", alignItems: "center", marginTop: "6px" }}>
           <button type="button" style={btnBase} onClick={props.onBack} disabled={saving}>
             Back
           </button>
@@ -389,10 +389,10 @@ export default function FeeUpsert(props: { feeId?: string | null; onBack: () => 
           <div style={tabPill}>General</div>
         </div>
 
-        <div style={{ padding: "20px" }}>
+        <div style={{ padding: "18px" }}>
           {loading ? <div style={{ color: "#475569", fontWeight: 800 }}>Loading…</div> : null}
 
-          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "14px", opacity: loading ? 0.55 : 1 }}>
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "12px", opacity: loading ? 0.55 : 1 }}>
             <div>
               <div style={label}>Category *</div>
               <select
@@ -430,7 +430,7 @@ export default function FeeUpsert(props: { feeId?: string | null; onBack: () => 
             </div>
           </div>
 
-          <div style={{ display: "grid", gridTemplateColumns: "1fr 280px", gap: "14px", marginTop: "14px", opacity: loading ? 0.55 : 1 }}>
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 280px", gap: "12px", marginTop: "12px", opacity: loading ? 0.55 : 1 }}>
             <div>
               <div style={label}>Description *</div>
               <input
@@ -457,7 +457,7 @@ export default function FeeUpsert(props: { feeId?: string | null; onBack: () => 
             </div>
           </div>
 
-          <div style={{ marginTop: "14px", opacity: loading ? 0.55 : 1 }}>
+          <div style={{ marginTop: "12px", opacity: loading ? 0.55 : 1 }}>
             <div style={label}>Notes</div>
             <textarea
               value={notes}
@@ -465,7 +465,7 @@ export default function FeeUpsert(props: { feeId?: string | null; onBack: () => 
               placeholder="Optional notes"
               style={{
                 ...input(false),
-                minHeight: "110px",
+                minHeight: "170px",
                 resize: "vertical",
                 lineHeight: 1.4,
               }}

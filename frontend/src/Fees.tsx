@@ -125,7 +125,7 @@ export default function Fees(props: {
   }, [items]);
 
   const pageWrap = {
-    padding: "32px",
+    padding: "24px",
     background: "linear-gradient(180deg, #f8fafc 0%, #f3f4f6 45%, #eef2f7 100%)",
     minHeight: "100%",
     borderRadius: "28px",
@@ -151,23 +151,23 @@ export default function Fees(props: {
   const summaryWrap = {
     display: "grid",
     gridTemplateColumns: "repeat(1, minmax(220px, 280px))",
-    gap: "12px",
-    marginBottom: "18px",
+    gap: "10px",
+    marginBottom: "14px",
   } as const;
 
   const summaryCard = {
-    background: "#ffffff",
-    border: "1px solid rgba(15, 23, 42, 0.08)",
+    background: "linear-gradient(180deg, #ffffff 0%, #f8fafc 100%)",
+    border: "1px solid rgba(15, 23, 42, 0.07)",
     borderRadius: "16px",
-    padding: "16px 18px",
-    boxShadow: "0 8px 24px rgba(15, 23, 42, 0.06)",
+    padding: "14px 16px",
+    boxShadow: "0 10px 30px rgba(15, 23, 42, 0.06), inset 0 1px 0 rgba(255,255,255,0.8)",
   } as const;
 
   const summaryValue = {
-    fontSize: "18px",
-    fontWeight: 800,
+    fontSize: "20px",
+    fontWeight: 900,
     color: "#0f172a",
-    marginBottom: "6px",
+    marginBottom: "4px",
   } as const;
 
   const summaryLabel = {
@@ -181,15 +181,15 @@ export default function Fees(props: {
   const tableCard = {
     background: "#ffffff",
     borderRadius: "18px",
-    padding: "16px",
-    border: "1px solid rgba(15, 23, 42, 0.06)",
-    boxShadow: "0 20px 50px rgba(15, 23, 42, 0.08)",
+    padding: "14px",
+    border: "1px solid rgba(15, 23, 42, 0.07)",
+    boxShadow: "0 14px 44px rgba(15, 23, 42, 0.08)",
     overflow: "hidden",
   } as const;
 
   const th = {
     textAlign: "left" as const,
-    padding: "12px 16px",
+    padding: "10px 12px",
     fontSize: "12px",
     color: "#64748b",
     fontWeight: 700,
@@ -198,16 +198,16 @@ export default function Fees(props: {
   } as const;
 
   const td = {
-    padding: "18px 16px",
+    padding: "14px 12px",
     color: "#0f172a",
     background: "#ffffff",
     verticalAlign: "middle" as const,
   } as const;
 
   const actionBtn = {
-    padding: "10px 16px",
+    padding: "9px 14px",
     borderRadius: "12px",
-    border: "1px solid rgba(15, 23, 42, 0.08)",
+    border: "1px solid rgba(15, 23, 42, 0.10)",
     background: "#ffffff",
     fontWeight: 700,
     fontSize: "13px",
@@ -217,7 +217,7 @@ export default function Fees(props: {
   } as const;
 
   const primaryBtn = {
-    padding: "10px 18px",
+    padding: "9px 16px",
     borderRadius: "12px",
     border: "none",
     background: "linear-gradient(135deg, #d4af37, #f5d06f)",
@@ -239,7 +239,7 @@ export default function Fees(props: {
 
   return (
     <div style={pageWrap}>
-      <div style={{ marginBottom: "24px" }}>
+      <div style={{ marginBottom: "18px" }}>
         <h1 style={titleStyle}>Fees</h1>
         <p style={subtitleStyle}>Add and manage fees</p>
       </div>
@@ -258,7 +258,7 @@ export default function Fees(props: {
             justifyContent: "space-between",
             alignItems: "center",
             gap: "12px",
-            marginBottom: "14px",
+            marginBottom: "10px",
             flexWrap: "wrap",
           }}
         >
@@ -289,13 +289,13 @@ export default function Fees(props: {
             }}
             placeholder="Search"
             style={{
-              padding: "10px 14px",
+              padding: "9px 12px",
               borderRadius: "12px",
-              border: "1px solid rgba(15, 23, 42, 0.08)",
-              background: "#ffffff",
+              border: "1px solid rgba(15, 23, 42, 0.10)",
+              background: "linear-gradient(180deg, #ffffff 0%, #f8fafc 100%)",
               fontSize: "13px",
-              width: "260px",
-              boxShadow: "0 4px 12px rgba(15, 23, 42, 0.05)",
+              width: "280px",
+              boxShadow: "0 4px 12px rgba(15, 23, 42, 0.04)",
             }}
           />
         </div>
@@ -320,17 +320,17 @@ export default function Fees(props: {
           style={{
             width: "100%",
             borderCollapse: "separate",
-            borderSpacing: "0 10px",
+            borderSpacing: "0 8px",
             fontSize: "14px",
           }}
         >
           <thead>
             <tr>
-              <th style={th}>Description</th>
-              <th style={th}>Category</th>
-              <th style={th}>Type</th>
-              <th style={{ ...th, textAlign: "right" }}>Amount</th>
-              <th style={th}>Fee Status</th>
+              <th style={{ ...th, width: "34%" }}>Description</th>
+              <th style={{ ...th, width: "16%" }}>Category</th>
+              <th style={{ ...th, width: "20%" }}>Type</th>
+              <th style={{ ...th, textAlign: "right", width: "12%" }}>Amount</th>
+              <th style={{ ...th, width: "18%" }}>Fee Status</th>
             </tr>
           </thead>
 
@@ -356,14 +356,13 @@ export default function Fees(props: {
                     onClick={() => setSelectedFeeId(row.id)}
                     style={{
                       background: selected ? "linear-gradient(180deg, #ffffff 0%, #f8fafc 100%)" : "#ffffff",
-                      boxShadow: selected
-                        ? "0 12px 30px rgba(15, 23, 42, 0.12)"
-                        : "0 8px 24px rgba(15, 23, 42, 0.08)",
+                      boxShadow: selected ? "0 10px 26px rgba(15, 23, 42, 0.10)" : "0 8px 18px rgba(15, 23, 42, 0.06)",
                       borderRadius: "12px",
                       overflow: "hidden",
                       cursor: "pointer",
-                      outline: selected ? "2px solid rgba(212, 175, 55, 0.55)" : "none",
+                      outline: selected ? "2px solid rgba(212, 175, 55, 0.45)" : "none",
                       outlineOffset: "2px",
+                      border: "1px solid rgba(15, 23, 42, 0.08)",
                     }}
                   >
                     <td style={{ ...td, fontWeight: 750 }}>{row.name}</td>
@@ -373,7 +372,7 @@ export default function Fees(props: {
                     <td style={td}>
                       <span
                         style={{
-                          fontWeight: 800,
+                          fontWeight: 850,
                           color: row.feeStatus === "Not used" ? "#64748b" : "#0f172a",
                         }}
                       >

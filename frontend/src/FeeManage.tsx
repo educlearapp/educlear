@@ -64,7 +64,7 @@ export default function FeeManage(props: { feeId: string; onDone: () => void }) 
   }, [amount, name, schoolId]);
 
   const wrap = {
-    padding: "32px",
+    padding: "24px",
     background: "linear-gradient(180deg, #f8fafc 0%, #f3f4f6 45%, #eef2f7 100%)",
     minHeight: "100%",
     borderRadius: "28px",
@@ -75,11 +75,11 @@ export default function FeeManage(props: { feeId: string; onDone: () => void }) 
   const card = {
     background: "#ffffff",
     borderRadius: "18px",
-    padding: "18px",
-    border: "1px solid rgba(15, 23, 42, 0.06)",
-    boxShadow: "0 20px 50px rgba(15, 23, 42, 0.08)",
+    padding: "16px",
+    border: "1px solid rgba(15, 23, 42, 0.07)",
+    boxShadow: "0 14px 44px rgba(15, 23, 42, 0.08)",
     overflow: "hidden",
-    maxWidth: "760px",
+    maxWidth: "720px",
   } as const;
 
   const label = {
@@ -92,33 +92,33 @@ export default function FeeManage(props: { feeId: string; onDone: () => void }) 
   } as const;
 
   const input = {
-    padding: "12px 14px",
+    padding: "11px 12px",
     borderRadius: "12px",
     border: "1px solid rgba(15, 23, 42, 0.10)",
-    background: "#ffffff",
+    background: "linear-gradient(180deg, #ffffff 0%, #f8fafc 100%)",
     fontSize: "14px",
     width: "100%",
-    boxShadow: "0 4px 12px rgba(15, 23, 42, 0.05)",
+    boxShadow: "0 4px 12px rgba(15, 23, 42, 0.04)",
     outline: "none",
   } as const;
 
   const btn = (primary: boolean, disabled: boolean) =>
     ({
-      padding: "10px 18px",
+      padding: "9px 16px",
       borderRadius: "12px",
       border: primary ? "none" : "1px solid rgba(15, 23, 42, 0.10)",
       background: primary ? "linear-gradient(135deg, #d4af37, #f5d06f)" : "#ffffff",
       color: "#0f172a",
       fontWeight: 800,
       fontSize: "13px",
-      boxShadow: primary ? "0 6px 18px rgba(212, 175, 55, 0.35)" : "0 4px 12px rgba(15, 23, 42, 0.05)",
+      boxShadow: primary ? "0 6px 18px rgba(212, 175, 55, 0.35)" : "0 4px 12px rgba(15, 23, 42, 0.04)",
       cursor: disabled ? "not-allowed" : "pointer",
       opacity: disabled ? 0.6 : 1,
     }) as const;
 
   return (
     <div style={wrap}>
-      <div style={{ marginBottom: "24px" }}>
+      <div style={{ marginBottom: "18px" }}>
         <h1
           style={{
             margin: 0,
@@ -184,7 +184,7 @@ export default function FeeManage(props: { feeId: string; onDone: () => void }) 
               </div>
             </div>
 
-            <div style={{ display: "flex", justifyContent: "flex-end", gap: "10px", marginTop: "16px" }}>
+            <div style={{ display: "flex", justifyContent: "flex-end", gap: "8px", marginTop: "14px" }}>
               <button type="button" style={btn(false, saving)} disabled={saving} onClick={props.onDone}>
                 Back
               </button>
