@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import jsPDF from "jspdf";
 
 
 
@@ -120,6 +121,61 @@ export default function Payroll() {
 
   const [message, setMessage] = useState("");
 
+  function generatePayslip(employee: any) {
+
+
+
+    const doc = new jsPDF();
+  
+  
+  
+    doc.setFontSize(18);
+  
+  
+  
+    doc.text("EduClear Payslip", 20, 20);
+  
+  
+  
+    doc.setFontSize(12);
+  
+  
+  
+    doc.text(`Employee: ${employee.employeeName}`, 20, 40);
+  
+  
+  
+    doc.text(`Basic Salary: R ${Number(employee.basicSalary).toFixed(2)}`, 20, 50);
+  
+  
+  
+    doc.text(`PAYE: R ${Number(employee.paye).toFixed(2)}`, 20, 60);
+  
+  
+  
+    doc.text(`UIF: R ${Number(employee.uif).toFixed(2)}`, 20, 70);
+  
+  
+  
+    doc.text(`Total Deductions: R ${Number(employee.deductions).toFixed(2)}`, 20, 80);
+  
+  
+  
+    doc.setFontSize(14);
+  
+  
+  
+    doc.text(`Net Pay: R ${Number(employee.net).toFixed(2)}`, 20, 100);
+  
+  
+  
+    doc.save(`${employee.employeeName}-Payslip.pdf`);
+  
+  
+  
+  }
+  
+  
 
 
   useEffect(() => {
@@ -1118,6 +1174,61 @@ export default function Payroll() {
 
         </div>
 
+
+
+        <button
+
+
+
+onClick={() => generatePayslip(item)}
+
+
+
+style={{
+
+
+
+  marginTop: "12px",
+
+
+
+  padding: "10px 14px",
+
+
+
+  borderRadius: "8px",
+
+
+
+  border: "none",
+
+
+
+  background: "#111827",
+
+
+
+  color: "#fff",
+
+
+
+  cursor: "pointer"
+
+
+
+}}
+
+
+
+>
+
+
+
+Download Payslip
+
+
+
+</button>
 
 
       </div>
