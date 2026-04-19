@@ -1,5 +1,6 @@
-import { useMemo, useState } from "react";
+import { useState } from "react";
 import { apiFetch } from "./api";
+import { useSchoolId } from "./useSchoolId";
 
 type GenderOption = "" | "Male" | "Female" | "Other";
 
@@ -25,7 +26,7 @@ function splitFullName(fullName: string): { firstName: string; surname: string }
 }
 
 export default function AddLearner() {
-  const schoolId = useMemo(() => localStorage.getItem("schoolId") || "", []);
+  const schoolId = useSchoolId();
 
   const [firstName, setFirstName] = useState("");
   const [surname, setSurname] = useState("");

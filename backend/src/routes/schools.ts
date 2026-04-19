@@ -14,21 +14,17 @@ router.get("/", async (req, res) => {
 
   try {
 
+    // NOTE: Some deployed DBs may be behind the Prisma schema (missing newer columns).
+    // Selecting only stable columns avoids runtime failures (e.g. missing `primaryColor`).
     const schools = await prisma.school.findMany({
-
-      include: {
-    
-        learners: true,
-    
+      select: {
+        id: true,
+        name: true,
+        email: true,
+        createdAt: true,
       },
-    
-      orderBy: {
-    
-        createdAt: "desc",
-    
-      },
-    
-    }); 
+      orderBy: { createdAt: "desc" },
+    });
 
     res.json(schools);
 

@@ -374,20 +374,12 @@ app.get("/dashboard", authMiddleware, (req, res) => {
       
       }
       
-      const school = await prisma.school.findFirst();
-
-
-
+      const school = await prisma.school.findUnique({ where: { id: schoolId } });
       if (!school) {
-      
         return res.status(400).json({
-      
           success: false,
-      
-          message: "No school found in database",
-      
+          message: "School not found",
         });
-      
       }
 
       const parent = await prisma.parent.create({
@@ -428,7 +420,7 @@ app.get("/dashboard", authMiddleware, (req, res) => {
   
           status: "GREEN",
   
-          schoolId: school.id,
+          schoolId,
   
         },
   
@@ -465,11 +457,11 @@ app.get("/dashboard", authMiddleware, (req, res) => {
   app.get("/api/parents", async (_req, res) => {
 
     try {
-  
+      const schoolId =
+        typeof (_req as any).query?.schoolId === "string" ? String((_req as any).query.schoolId) : "";
       const parents = await prisma.parent.findMany({
-  
+        where: schoolId ? { schoolId } : undefined,
         orderBy: { createdAt: "desc" },
-  
       });
   
   
@@ -702,11 +694,11 @@ app.get("/dashboard", authMiddleware, (req, res) => {
   app.get("/api/learners", async (_req, res) => {
   
     try {
-  
+      const schoolId =
+        typeof (_req as any).query?.schoolId === "string" ? String((_req as any).query.schoolId) : "";
       const learners = await prisma.learner.findMany({
-  
+        where: schoolId ? { schoolId } : undefined,
         orderBy: { createdAt: "desc" },
-  
       });
   
   
@@ -835,163 +827,7 @@ app.get("/dashboard", authMiddleware, (req, res) => {
   
   });
   
-  app.post("/api/learners", async (req, res) => {
-
-    try {
-  
-      const {
-  
-        schoolId,
-  
-        firstName,
-  
-        lastName,
-  
-        grade,
-  
-        className,
-  
-        admissionNo,
-  
-        tuitionFee,
-  
-        transportFee,
-  
-        otherFee,
-  
-      } = req.body;
-  
-  
-  
-      const learner = await prisma.learner.create({
-  
-        data: {
-  
-          firstName,
-  
-          lastName,
-  
-          grade,
-  
-          className: className || null,
-  
-          admissionNo: admissionNo || null,
-  
-  
-  
-          tuitionFee: tuitionFee || 0,
-  
-          transportFee: transportFee || 0,
-  
-          otherFee: otherFee || 0,
-  
-          totalFee:
-  
-            (tuitionFee || 0) +
-  
-            (transportFee || 0) +
-  
-            (otherFee || 0),
-  
-  
-  
-          school: {
-  
-            connect: { id: schoolId },
-  
-          },
-  
-        },
-  
-      });
-  
-  
-  
-      res.json({ success: true, learner });
-  
-    } catch (error) {
-  
-      console.error("Create learner error:", error);
-  
-      res.status(500).json({ message: "Failed to create learner" });
-  
-    }
-  
-  });
-  
   // Fees routes are mounted at /api/fees
-
-  app.get("/api/learners", async (_req, res) => {
-
-    try {
-  
-      const learners = await prisma.learner.findMany({
-  
-        orderBy: { createdAt: "desc" },
-  
-      });
-  
-  
-  
-      res.json({
-  
-        success: true,
-  
-        learners,
-  
-      });
-  
-    } catch (error) {
-  
-      console.error("Get learners error:", error);
-  
-      res.status(500).json({
-  
-        success: false,
-  
-        message: "Failed to fetch learners",
-  
-      });
-  
-    }
-  
-  });
-
-  app.get("/api/parents", async (_req, res) => {
-  
-    try {
-  
-      const parents = await prisma.parent.findMany({
-  
-        orderBy: { createdAt: "desc" },
-  
-      });
-  
-  
-  
-      res.json({
-  
-        success: true,
-  
-        parents,
-  
-      });
-  
-    } catch (error) {
-  
-      console.error("Get parents error:", error);
-  
-      res.status(500).json({
-  
-        success: false,
-  
-        message: "Failed to fetch parents",
-  
-      });
-  
-    }
-  
-  });
   app.get("/api/fees-status/:idNumber", async (req, res) => {
 
     try {

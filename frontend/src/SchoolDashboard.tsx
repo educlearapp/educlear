@@ -5,7 +5,7 @@ import AddLearner from "./AddLearner";
 import TeacherPerformance from "./TeacherPerformance";
 import Payroll from "./Payroll";
 import { API_URL } from "./api";
-import logo from "./assets/educlear-logo.svg";
+import logo from "./assets/logo.png";
 import "./App.css";
 import Fees from "./Fees";
 import FeeUpsert from "./FeeUpsert";
@@ -181,15 +181,21 @@ export default function SchoolDashboard() {
 
     console.log("Active page is:", activePage);
 
-
-
     if (activePage === "registrations") {
+      if (!schoolId) {
+        setLearners([]);
+        setParents([]);
+        return;
+      }
 
       Promise.all([
 
-        fetch("http://localhost:3000/api/learners").then((res) => res.json()),
-
-        fetch("http://localhost:3000/api/parents").then((res) => res.json()),
+        fetch(`${API_URL}/api/learners?schoolId=${encodeURIComponent(schoolId)}`).then((res) =>
+          res.json()
+        ),
+        fetch(`${API_URL}/api/parents?schoolId=${encodeURIComponent(schoolId)}`).then((res) =>
+          res.json()
+        ),
 
       ])
 
@@ -201,9 +207,8 @@ export default function SchoolDashboard() {
 
 
 
-          setLearners(learnersData.learners || []);
-
-          setParents(parentsData.parents || []);
+          setLearners(Array.isArray(learnersData?.learners) ? learnersData.learners : []);
+          setParents(Array.isArray(parentsData?.parents) ? parentsData.parents : []);
 
         })
 
@@ -219,7 +224,7 @@ export default function SchoolDashboard() {
 
     }
 
-  }, [activePage]);
+  }, [activePage, schoolId]);
 
   useEffect(() => {
     const path = location.pathname || "";

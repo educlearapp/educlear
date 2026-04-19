@@ -2,6 +2,7 @@ import { useCallback, useEffect, useState } from "react";
 import jsPDF from "jspdf";
 
 import { API_URL } from "./api";
+import { useSchoolId } from "./useSchoolId";
 
 type Employee = {
   id: string;
@@ -596,7 +597,7 @@ function downloadBookkeeperReportPdf(params: {
 }
 
 export default function Payroll() {
-  const [schoolId, setSchoolId] = useState("");
+  const schoolId = useSchoolId();
   const [schoolInfo, setSchoolInfo] = useState<SchoolPayrollInfo | null>(null);
 
   const [payrollResults, setPayrollResults] = useState<PayrollResult[]>([]);
@@ -829,13 +830,10 @@ export default function Payroll() {
   ]);
 
   useEffect(() => {
-    const savedSchoolId = localStorage.getItem("schoolId") || "";
-    setSchoolId(savedSchoolId);
-    if (savedSchoolId) {
-      fetchEmployees(savedSchoolId);
-      fetchSchoolInfo(savedSchoolId);
-    }
-  }, [fetchSchoolInfo]);
+    if (!schoolId) return;
+    fetchEmployees(schoolId);
+    fetchSchoolInfo(schoolId);
+  }, [fetchSchoolInfo, schoolId]);
 
   async function fetchEmployees(currentSchoolId: string) {
     try {

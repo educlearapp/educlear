@@ -240,16 +240,18 @@ router.get("/school/:schoolId", async (req, res) => {
         id: true,
         name: true,
         email: true,
-        phone: true,
-        address: true,
-        logoUrl: true,
-        primaryColor: true,
       },
     });
     if (!school) {
       return res.status(404).json({ error: "School not found" });
     }
-    res.json(school);
+    res.json({
+      ...school,
+      phone: null,
+      address: null,
+      logoUrl: null,
+      primaryColor: null,
+    });
   } catch (error) {
     console.error(error);
     res.status(500).json({ error: "Failed to fetch school" });
