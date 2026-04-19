@@ -2089,6 +2089,8 @@ Manage
       
                   }}
                   disabled={!selectedStatementAccount}
+                  aria-disabled={!selectedStatementAccount}
+                  title={!selectedStatementAccount ? "Select an account first" : "Manage selected account"}
                   onClick={() => {
                     if (!selectedStatementAccount) {
                       alert("Please select an account first.");
@@ -2217,7 +2219,11 @@ Manage
       
                         style={{
       
-                          background: "#ffffff",
+                          background:
+                            selectedStatementAccount &&
+                            String(selectedStatementAccount?.accountNo) === String(row?.accountNo)
+                              ? "linear-gradient(180deg, #ffffff 0%, #f8fafc 100%)"
+                              : "#ffffff",
       
                           boxShadow:
                             selectedStatementAccount &&
@@ -2229,6 +2235,12 @@ Manage
       
                           overflow: "hidden",
                           cursor: "pointer",
+                          outline:
+                            selectedStatementAccount &&
+                            String(selectedStatementAccount?.accountNo) === String(row?.accountNo)
+                              ? "2px solid rgba(29, 78, 216, 0.35)"
+                              : "none",
+                          outlineOffset: "2px",
       
                         }}
       
@@ -2497,11 +2509,40 @@ Manage
               cursor: "pointer",
 
             }}
+            onClick={() => {
+              if (!selectedInvoiceAccount) {
+                alert("Please select an account first.");
+                return;
+              }
+              localStorage.setItem("selectedInvoiceAccount", JSON.stringify(selectedInvoiceAccount));
+              setActivePage("invoiceCreate");
+            }}
 
           >
 
             + Add
 
+          </button>
+
+          <button
+            type="button"
+            style={{
+              ...actionBtn,
+              ...(selectedInvoiceAccount ? null : { opacity: 0.6, cursor: "not-allowed" }),
+            }}
+            disabled={!selectedInvoiceAccount}
+            aria-disabled={!selectedInvoiceAccount}
+            title={!selectedInvoiceAccount ? "Select an account first" : "Manage selected account"}
+            onClick={() => {
+              if (!selectedInvoiceAccount) {
+                alert("Please select an account first.");
+                return;
+              }
+              localStorage.setItem("selectedInvoiceAccount", JSON.stringify(selectedInvoiceAccount));
+              setActivePage("invoiceCreate");
+            }}
+          >
+            Manage
           </button>
 
 
@@ -2611,12 +2652,15 @@ Manage
                   key={`${row.accountNo}-${index}`}
                   onClick={() => {
                     setSelectedInvoiceAccount(row);
-                    localStorage.setItem("selectedInvoiceAccount", JSON.stringify(row));
                   }}
 
                   style={{
 
-                    background: "#ffffff",
+                    background:
+                      selectedInvoiceAccount &&
+                      String(selectedInvoiceAccount?.accountNo) === String(row?.accountNo)
+                        ? "linear-gradient(180deg, #ffffff 0%, #f8fafc 100%)"
+                        : "#ffffff",
 
                     boxShadow:
                       selectedInvoiceAccount &&
@@ -2628,6 +2672,12 @@ Manage
 
                     overflow: "hidden",
                     cursor: "pointer",
+                    outline:
+                      selectedInvoiceAccount &&
+                      String(selectedInvoiceAccount?.accountNo) === String(row?.accountNo)
+                        ? "2px solid rgba(29, 78, 216, 0.35)"
+                        : "none",
+                    outlineOffset: "2px",
 
                   }}
 
@@ -2644,9 +2694,11 @@ Manage
     onClick={() => {
 
       setSelectedInvoiceAccount(row);
-      localStorage.setItem("selectedInvoiceAccount", JSON.stringify(row));
+      // Selection only; actions decide what to do with it.
 
     }}
+    onMouseDown={(e) => e.stopPropagation()}
+    onClickCapture={(e) => e.stopPropagation()}
 
     style={{
 
