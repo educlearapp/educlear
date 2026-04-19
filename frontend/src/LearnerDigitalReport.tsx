@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { API_URL, apiFetch } from "./api";
-import educlearLogo from "./assets/educlear-logo.svg";
+import educlearLogo from "./assets/educlear-logo.png";
 
 type LearnerLike = Record<string, any>;
 type SchoolLike = Record<string, any>;
@@ -274,7 +274,7 @@ export default function LearnerDigitalReport() {
                       width: 54,
                       height: 54,
                       borderRadius: 14,
-                      objectFit: "cover",
+                      objectFit: "contain",
                       border: "1px solid rgba(15,23,42,0.08)",
                       background: "#fff",
                     }}
