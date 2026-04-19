@@ -178,8 +178,8 @@ export default function Payroll() {
       const periodLabel = `${MONTH_NAMES[Math.min(12, Math.max(1, m)) - 1]} ${yrr}`;
 
       const schoolDisplayName = safeText(schoolInfo?.name, "EduClear School");
-      const schoolDisplayEmail = safeText(schoolInfo?.email, "-");
-      const schoolDisplayPhone = safeText(schoolInfo?.phone, "-");
+      const schoolDisplayEmail = String(schoolInfo?.email ?? "").trim() || "-";
+      const schoolDisplayPhone = String(schoolInfo?.phone ?? "").trim() || "-";
 
       const employerPad = 5;
       const employerBoxTop = y;
@@ -223,20 +223,22 @@ export default function Payroll() {
       }
 
       doc.setFont("helvetica", "bold");
-      doc.setFontSize(14);
+      doc.setFontSize(15.5);
       doc.setTextColor(15, 23, 42);
       doc.text(nameLines, textX, line1Y);
       doc.setFont("helvetica", "normal");
       doc.setFontSize(8);
-      doc.setTextColor(71, 85, 105);
+      doc.setTextColor(148, 163, 184);
       doc.text(`Email: ${schoolDisplayEmail}`, textX, contact1Y);
       doc.text(`Phone: ${schoolDisplayPhone}`, textX, contact2Y);
       doc.setTextColor(0, 0, 0);
 
-      y = employerBoxTop + employerBoxH + 9;
-      doc.setDrawColor(203, 213, 225);
-      doc.line(margin, y, pageW - margin, y);
-      y += 14;
+      const employerBottom = employerBoxTop + employerBoxH;
+      doc.setLineWidth(0.12);
+      doc.setDrawColor(226, 232, 240);
+      doc.line(margin, employerBottom + 0.25, pageW - margin, employerBottom + 0.25);
+      doc.setLineWidth(0.2);
+      y = employerBottom + 0.25 + 5;
 
       doc.setFont("helvetica", "bold");
       doc.setFontSize(17);
