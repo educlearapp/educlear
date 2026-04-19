@@ -127,6 +127,8 @@ export default function SchoolDashboard() {
   const [parents, setParents] = useState<any[]>([]);
 
   const [selectedLearner, setSelectedLearner] = useState<any | null>(null);
+  const [selectedStatementAccount, setSelectedStatementAccount] = useState<any | null>(null);
+  const [selectedInvoiceAccount, setSelectedInvoiceAccount] = useState<any | null>(null);
 
   const [showUnenrolled, setShowUnenrolled] = useState(false);
 
