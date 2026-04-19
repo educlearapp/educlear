@@ -393,6 +393,26 @@ export default function Payroll() {
       doc.text(fmtMoney(net), amtRight - 2, netTop + netBoxH / 2 + 2, { align: "right" });
       doc.setTextColor(0, 0, 0);
 
+      /** ~40px margin-top at 96dpi → mm */
+      const footerMarginTopMm = (40 * 25.4) / 96;
+      const footerY = netTop + netBoxH + footerMarginTopMm;
+      const footerPrefix = "Payroll processed by ";
+      const footerBrand = "EduClear";
+      doc.setFontSize(7);
+      doc.setTextColor(107, 114, 128);
+      doc.setFont("helvetica", "normal");
+      const footerWPrefix = doc.getTextWidth(footerPrefix);
+      doc.setFont("helvetica", "bold");
+      const footerWBrand = doc.getTextWidth(footerBrand);
+      const footerStartX = (pageW - (footerWPrefix + footerWBrand)) / 2;
+      doc.setFont("helvetica", "normal");
+      doc.text(footerPrefix, footerStartX, footerY);
+      doc.setFont("helvetica", "bold");
+      doc.text(footerBrand, footerStartX + footerWPrefix, footerY);
+      doc.setFont("helvetica", "normal");
+      doc.setFontSize(9);
+      doc.setTextColor(0, 0, 0);
+
       const fileBase = `${sanitizeFilePart(result.employeeName)}-Payslip-${yrr}-${String(m).padStart(2, "0")}`;
       doc.save(`${fileBase}.pdf`);
     },
