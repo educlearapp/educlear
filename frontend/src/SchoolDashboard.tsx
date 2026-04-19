@@ -701,7 +701,7 @@ export default function SchoolDashboard() {
 
     if (activePage === "addLearner") {
 
-      return <AddLearner setActivePage={setActivePage} />; 
+      return <AddLearner />;
 
     }
 

@@ -35,6 +35,9 @@ model School {
 
   phone String?
 
+  /// Optional logo image URL for payslips and branding (HTTPS recommended).
+  logoUrl String?
+
   createdAt DateTime @default(now())
 
   users User[]
@@ -50,6 +53,23 @@ model School {
   Letter           Letter[]
 
   teacherPerformances TeacherPerformance[]
+  employees        Employee[]
+
+
+
+  payrollSettings  PayrollSetting[]
+
+
+
+  payrollRuns      PayrollRun[]
+
+
+
+  payslips         Payslip[]
+
+
+
+  payrollEmailLogs PayrollEmailLog[]
 }
   
 
@@ -501,5 +521,1199 @@ model TeacherPerformance {
   @@index([schoolId])
 
   @@index([month])
+
+}
+// =========================
+
+
+
+// PAYROLL ENUMS
+
+
+
+// =========================
+
+
+
+enum EmploymentType {
+
+
+
+  PERMANENT
+
+
+
+  TEMPORARY
+
+
+
+  CONTRACT
+
+
+
+  PART_TIME
+
+
+
+  CASUAL
+
+
+
+}
+
+
+
+enum SalaryType {
+
+
+
+  MONTHLY
+
+
+
+  WEEKLY
+
+
+
+  DAILY
+
+
+
+  HOURLY
+
+
+
+}
+
+
+
+enum PayFrequency {
+
+
+
+  MONTHLY
+
+
+
+  WEEKLY
+
+
+
+  FORTNIGHTLY
+
+
+
+}
+
+
+
+enum PayrollRunStatus {
+
+
+
+  DRAFT
+
+
+
+  FINALIZED
+
+
+
+  CANCELLED
+
+
+
+}
+
+
+
+enum PayrollItemType {
+
+
+
+  EARNING
+
+
+
+  DEDUCTION
+
+
+
+  EMPLOYER_CONTRIBUTION
+
+
+
+}
+
+
+
+enum PayrollItemCode {
+
+
+
+  BASIC_SALARY
+
+
+
+  OVERTIME
+
+
+
+  BONUS
+
+
+
+  COMMISSION
+
+
+
+  ALLOWANCE
+
+
+
+  HOUSING_ALLOWANCE
+
+
+
+  TRANSPORT_ALLOWANCE
+
+
+
+  CELLPHONE_ALLOWANCE
+
+
+
+  OTHER_EARNING
+
+
+
+  PAYE
+
+
+
+  UIF_EMPLOYEE
+
+
+
+  PENSION
+
+
+
+  MEDICAL_AID
+
+
+
+  STAFF_LOAN
+
+
+
+  STAFF_ADVANCE
+
+
+
+  UNION_FEE
+
+
+
+  OTHER_DEDUCTION
+
+
+
+  UIF_EMPLOYER
+
+
+
+  OTHER_EMPLOYER_CONTRIBUTION
+
+
+
+}
+
+
+
+enum PayslipDeliveryPreference {
+
+
+
+  PRINT
+
+
+
+  EMAIL
+
+
+
+  BOTH
+
+
+
+}
+
+
+
+enum PayslipEmailStatus {
+
+
+
+  NOT_SENT
+
+
+
+  SENT
+
+
+
+  FAILED
+
+
+
+}
+
+
+
+enum PayslipPrintStatus {
+
+
+
+  NOT_PRINTED
+
+
+
+  PRINTED
+
+
+
+}
+
+
+
+enum PayrollReportType {
+
+
+
+  SALARY_REGISTER
+
+
+
+  DEDUCTION_REGISTER
+
+
+
+  EMPLOYER_CONTRIBUTION
+
+
+
+  PAYROLL_SUMMARY
+
+
+
+  PAYROLL_PACK
+
+
+
+}
+
+
+
+// =========================
+
+
+
+// PAYROLL MODELS
+
+
+
+// =========================
+
+
+
+model Employee {
+
+
+
+  id                     String                   @id @default(cuid())
+
+
+
+  schoolId               String
+
+
+
+  employeeNumber         String?
+
+
+
+  firstName              String
+
+
+
+  lastName               String
+
+
+
+  fullName               String?
+
+
+
+  idNumber               String?
+
+
+
+  dateOfBirth            DateTime?
+
+
+
+  gender                 String?
+
+
+
+  mobileNumber           String?
+
+
+
+  email                  String?
+
+
+
+  physicalAddress        String?                  @db.Text
+
+
+
+  jobTitle               String?
+
+
+
+  department             String?
+
+
+
+  employmentType         EmploymentType           @default(PERMANENT)
+
+
+
+  salaryType             SalaryType               @default(MONTHLY)
+
+
+
+  payFrequency           PayFrequency             @default(MONTHLY)
+
+
+
+  paymentMethod          String?
+
+
+
+  startDate              DateTime?
+
+
+
+  endDate                DateTime?
+
+
+
+  isActive               Boolean                  @default(true)
+
+
+
+  taxNumber              String?
+
+
+
+  uifApplicable          Boolean                  @default(true)
+
+
+
+  incomeTaxApplicable    Boolean                  @default(true)
+
+
+
+  basicSalary            Decimal                  @default(0) @db.Decimal(12, 2)
+
+
+
+  hourlyRate             Decimal                  @default(0) @db.Decimal(12, 2)
+
+  overtimeRate           Decimal                  @default(0) @db.Decimal(12, 2)
+
+  overtimeHours          Decimal                  @default(0) @db.Decimal(12, 2)
+
+  fixedHousingAllowance  Decimal                  @default(0) @db.Decimal(12, 2)
+
+
+
+  fixedTransportAllowance Decimal                 @default(0) @db.Decimal(12, 2)
+
+
+
+  fixedCellphoneAllowance Decimal                 @default(0) @db.Decimal(12, 2)
+
+
+
+  fixedOtherAllowance    Decimal                  @default(0) @db.Decimal(12, 2)
+
+
+
+  fixedPension           Decimal                  @default(0) @db.Decimal(12, 2)
+
+
+
+  fixedMedicalAid        Decimal                  @default(0) @db.Decimal(12, 2)
+
+
+
+  fixedStaffLoan         Decimal                  @default(0) @db.Decimal(12, 2)
+
+
+
+  fixedStaffAdvance      Decimal                  @default(0) @db.Decimal(12, 2)
+
+
+
+  fixedOtherDeduction    Decimal                  @default(0) @db.Decimal(12, 2)
+
+  employeeMedicalAid     Decimal                  @default(0) @db.Decimal(12, 2)
+
+  employerMedicalAid     Decimal                  @default(0) @db.Decimal(12, 2)
+
+  employeePension        Decimal                  @default(0) @db.Decimal(12, 2)
+
+  employerPension        Decimal                  @default(0) @db.Decimal(12, 2)
+
+
+  bankAccountHolder      String?
+
+
+
+  bankName               String?
+
+
+
+  bankAccountNumber      String?
+
+
+
+  bankBranchCode         String?
+
+
+
+  payslipDeliveryPreference PayslipDeliveryPreference @default(BOTH)
+
+
+
+  sendPayslipByEmail     Boolean                  @default(true)
+
+
+
+  notes                  String?                  @db.Text
+
+
+
+  createdAt              DateTime                 @default(now())
+
+
+
+  updatedAt              DateTime                 @updatedAt
+
+
+
+  school                 School                   @relation(fields: [schoolId], references: [id], onDelete: Cascade)
+
+
+
+  payrollRunEmployees    PayrollRunEmployee[]
+
+
+
+  payslips               Payslip[]
+
+
+
+  @@index([schoolId])
+
+
+
+  @@index([employeeNumber])
+
+
+
+  @@index([email])
+
+
+
+  @@index([isActive])
+
+
+
+}
+
+
+
+model PayrollSetting {
+
+
+
+  id                           String         @id @default(cuid())
+
+
+
+  schoolId                     String
+
+
+
+  taxYear                      Int
+
+
+
+  isActive                     Boolean        @default(true)
+
+
+
+  payFrequency                 PayFrequency   @default(MONTHLY)
+
+
+
+  defaultPayDay                Int?
+
+
+
+  currency                     String         @default("ZAR")
+
+
+
+  // SARS / UIF settings
+
+
+
+  primaryRebate                Decimal        @default(0) @db.Decimal(12, 2)
+
+
+
+  secondaryRebate              Decimal        @default(0) @db.Decimal(12, 2)
+
+
+
+  tertiaryRebate               Decimal        @default(0) @db.Decimal(12, 2)
+
+
+
+  taxThresholdUnder65          Decimal        @default(0) @db.Decimal(12, 2)
+
+
+
+  taxThreshold65To74           Decimal        @default(0) @db.Decimal(12, 2)
+
+
+
+  taxThreshold75AndOver        Decimal        @default(0) @db.Decimal(12, 2)
+
+
+
+  uifEnabled                   Boolean        @default(true)
+
+
+
+  uifEmployeePercent           Decimal        @default(1) @db.Decimal(5, 2)
+
+
+
+  uifEmployerPercent           Decimal        @default(1) @db.Decimal(5, 2)
+
+
+
+  uifMonthlyCeiling            Decimal        @default(17712) @db.Decimal(12, 2)
+
+
+
+  payslipPrefix                String?        @default("PS")
+
+
+
+  payrollRunPrefix             String?        @default("PR")
+
+
+
+  payrollEmailFromName         String?
+
+
+
+  payrollEmailReplyTo          String?
+
+
+
+  payslipEmailSubjectTemplate  String?        @db.Text
+
+
+
+  payslipEmailBodyTemplate     String?        @db.Text
+
+
+
+  bookkeeperName               String?
+
+
+
+  bookkeeperEmail              String?
+
+
+
+  bookkeeperSendPdf            Boolean        @default(true)
+
+
+
+  bookkeeperSendExcel          Boolean        @default(true)
+
+
+
+  bookkeeperEmailSubjectTemplate String?      @db.Text
+
+
+
+  bookkeeperEmailBodyTemplate  String?        @db.Text
+
+
+
+  envelopeTopOffsetMm          Decimal        @default(0) @db.Decimal(8, 2)
+
+
+
+  envelopeLeftOffsetMm         Decimal        @default(0) @db.Decimal(8, 2)
+
+
+
+  showFoldGuide                Boolean        @default(false)
+
+
+
+  createdAt                    DateTime       @default(now())
+
+
+
+  updatedAt                    DateTime       @updatedAt
+
+
+
+  school                       School         @relation(fields: [schoolId], references: [id], onDelete: Cascade)
+
+
+
+  payrollRuns                  PayrollRun[]
+
+
+
+  @@unique([schoolId, taxYear])
+
+
+
+  @@index([schoolId])
+
+
+
+  @@index([taxYear])
+
+
+
+}
+
+
+
+model PayrollRun {
+
+
+
+  id                    String              @id @default(cuid())
+
+
+
+  schoolId              String
+
+
+
+  payrollSettingId      String?
+
+
+
+  runNumber             String?
+
+
+
+  taxYear               Int
+
+
+
+  payrollMonth          Int
+
+
+
+  payrollYear           Int
+
+
+
+  payDate               DateTime
+
+
+
+  status                PayrollRunStatus    @default(DRAFT)
+
+
+
+  employeeCount         Int                 @default(0)
+
+
+
+  grossTotal            Decimal             @default(0) @db.Decimal(14, 2)
+
+
+
+  deductionsTotal       Decimal             @default(0) @db.Decimal(14, 2)
+
+
+
+  netTotal              Decimal             @default(0) @db.Decimal(14, 2)
+
+
+
+  employerCostTotal     Decimal             @default(0) @db.Decimal(14, 2)
+
+
+
+  finalizedAt           DateTime?
+
+
+
+  notes                 String?             @db.Text
+
+
+
+  createdAt             DateTime            @default(now())
+
+
+
+  updatedAt             DateTime            @updatedAt
+
+
+
+  school                School              @relation(fields: [schoolId], references: [id], onDelete: Cascade)
+
+
+
+  payrollSetting        PayrollSetting?     @relation(fields: [payrollSettingId], references: [id], onDelete: SetNull)
+
+
+
+  employees             PayrollRunEmployee[]
+
+
+
+  payslips              Payslip[]
+
+
+
+  emailLogs             PayrollEmailLog[]
+
+
+
+  @@index([schoolId])
+
+
+
+  @@index([payrollSettingId])
+
+
+
+  @@index([taxYear, payrollMonth, payrollYear])
+
+
+
+  @@index([status])
+
+
+
+}
+
+
+
+model PayrollRunEmployee {
+
+
+
+  id                    String              @id @default(cuid())
+
+
+
+  payrollRunId          String
+
+
+
+  employeeId            String
+
+
+
+  basicSalary           Decimal             @default(0) @db.Decimal(12, 2)
+
+
+
+  overtimeAmount        Decimal             @default(0) @db.Decimal(12, 2)
+
+
+
+  bonusAmount           Decimal             @default(0) @db.Decimal(12, 2)
+
+
+
+  allowanceAmount       Decimal             @default(0) @db.Decimal(12, 2)
+
+
+
+  otherEarningsAmount   Decimal             @default(0) @db.Decimal(12, 2)
+
+
+
+  grossPay              Decimal             @default(0) @db.Decimal(12, 2)
+
+
+
+  payeAmount            Decimal             @default(0) @db.Decimal(12, 2)
+
+
+
+  uifEmployeeAmount     Decimal             @default(0) @db.Decimal(12, 2)
+
+
+
+  otherDeductionsAmount Decimal             @default(0) @db.Decimal(12, 2)
+
+
+
+  totalDeductions       Decimal             @default(0) @db.Decimal(12, 2)
+
+
+
+  netPay                Decimal             @default(0) @db.Decimal(12, 2)
+
+
+
+  uifEmployerAmount     Decimal             @default(0) @db.Decimal(12, 2)
+
+
+
+  employerCost          Decimal             @default(0) @db.Decimal(12, 2)
+
+
+
+  createdAt             DateTime            @default(now())
+
+
+
+  updatedAt             DateTime            @updatedAt
+
+
+
+  payrollRun            PayrollRun          @relation(fields: [payrollRunId], references: [id], onDelete: Cascade)
+
+
+
+  employee              Employee            @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+
+
+
+  items                 PayrollItem[]
+
+
+
+  payslip               Payslip?
+
+
+
+  @@unique([payrollRunId, employeeId])
+
+
+
+  @@index([payrollRunId])
+
+
+
+  @@index([employeeId])
+
+
+
+}
+
+
+
+model PayrollItem {
+
+
+
+  id                    String              @id @default(cuid())
+
+
+
+  payrollRunEmployeeId  String
+
+
+
+  itemType              PayrollItemType
+
+
+
+  itemCode              PayrollItemCode
+
+
+
+  label                 String
+
+
+
+  amount                Decimal             @default(0) @db.Decimal(12, 2)
+
+
+
+  taxable               Boolean             @default(true)
+
+
+
+  sortOrder             Int                 @default(0)
+
+
+
+  createdAt             DateTime            @default(now())
+
+
+
+  updatedAt             DateTime            @updatedAt
+
+
+
+  payrollRunEmployee    PayrollRunEmployee  @relation(fields: [payrollRunEmployeeId], references: [id], onDelete: Cascade)
+
+
+
+  @@index([payrollRunEmployeeId])
+
+
+
+  @@index([itemType])
+
+
+
+  @@index([itemCode])
+
+
+
+}
+
+
+
+model Payslip {
+
+
+
+  id                    String              @id @default(cuid())
+
+
+
+  schoolId              String
+
+
+
+  payrollRunId          String
+
+
+
+  payrollRunEmployeeId  String              @unique
+
+
+
+  employeeId            String
+
+
+
+  payslipNumber         String?
+
+
+
+  taxYear               Int
+
+
+
+  payrollMonth          Int
+
+
+
+  payrollYear           Int
+
+
+
+  payDate               DateTime
+
+
+
+  grossPay              Decimal             @default(0) @db.Decimal(12, 2)
+
+
+
+  totalDeductions       Decimal             @default(0) @db.Decimal(12, 2)
+
+
+
+  netPay                Decimal             @default(0) @db.Decimal(12, 2)
+
+
+
+  employerCost          Decimal             @default(0) @db.Decimal(12, 2)
+
+
+
+  pdfPath               String?
+
+
+
+  emailStatus           PayslipEmailStatus  @default(NOT_SENT)
+
+
+
+  printStatus           PayslipPrintStatus  @default(NOT_PRINTED)
+
+
+
+  emailedAt             DateTime?
+
+
+
+  emailedTo             String?
+
+
+
+  printedAt             DateTime?
+
+
+
+  lastEmailError        String?             @db.Text
+
+
+
+  createdAt             DateTime            @default(now())
+
+
+
+  updatedAt             DateTime            @updatedAt
+
+
+
+  school                School              @relation(fields: [schoolId], references: [id], onDelete: Cascade)
+
+
+
+  payrollRun            PayrollRun          @relation(fields: [payrollRunId], references: [id], onDelete: Cascade)
+
+
+
+  payrollRunEmployee    PayrollRunEmployee  @relation(fields: [payrollRunEmployeeId], references: [id], onDelete: Cascade)
+
+
+
+  employee              Employee            @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+
+
+
+  @@index([schoolId])
+
+
+
+  @@index([payrollRunId])
+
+
+
+  @@index([employeeId])
+
+
+
+  @@index([emailStatus])
+
+
+
+}
+
+
+
+model PayrollEmailLog {
+
+
+
+  id                    String              @id @default(cuid())
+
+
+
+  schoolId              String
+
+
+
+  payrollRunId          String?
+
+
+
+  reportType            PayrollReportType?
+
+
+
+  recipientName         String?
+
+
+
+  recipientEmail        String
+
+
+
+  subject               String?
+
+
+
+  body                  String?             @db.Text
+
+
+
+  success               Boolean             @default(false)
+
+
+
+  errorMessage          String?             @db.Text
+
+
+
+  attachedPdf           Boolean             @default(false)
+
+
+
+  attachedExcel         Boolean             @default(false)
+
+
+
+  createdAt             DateTime            @default(now())
+
+
+
+  school                School              @relation(fields: [schoolId], references: [id], onDelete: Cascade)
+
+
+
+  payrollRun            PayrollRun?         @relation(fields: [payrollRunId], references: [id], onDelete: SetNull)
+
+
+
+  @@index([schoolId])
+
+
+
+  @@index([payrollRunId])
+
+
+
+  @@index([recipientEmail])
+
+
+
+  @@index([createdAt])
+
+
 
 }
