@@ -35,6 +35,9 @@ model School {
 
   phone String?
 
+  /// Physical / postal address for correspondence and payslips.
+  address String?
+
   /// Optional logo image URL for payslips and branding (HTTPS recommended).
   logoUrl String?
 

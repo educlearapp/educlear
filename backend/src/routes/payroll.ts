@@ -223,6 +223,7 @@ router.get("/school/:schoolId", async (req, res) => {
         name: true,
         email: true,
         phone: true,
+        address: true,
         logoUrl: true,
       },
     });

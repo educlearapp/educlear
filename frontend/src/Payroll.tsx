@@ -48,6 +48,7 @@ type SchoolPayrollInfo = {
   name: string;
   email: string | null;
   phone: string | null;
+  address: string | null;
   logoUrl: string | null;
 };
 
@@ -180,6 +181,7 @@ export default function Payroll() {
       const schoolDisplayName = safeText(schoolInfo?.name, "EduClear School");
       const schoolDisplayEmail = String(schoolInfo?.email ?? "").trim() || "-";
       const schoolDisplayPhone = String(schoolInfo?.phone ?? "").trim() || "-";
+      const schoolDisplayAddress = String(schoolInfo?.address ?? "").trim() || "-";
 
       const employerPad = 5;
       const employerBoxTop = y;
@@ -200,12 +202,14 @@ export default function Payroll() {
       const nameLineStep = 5.4;
       const line1Y = employerBoxTop + employerPad + 4;
       const nameBottom = line1Y + (nameLines.length - 1) * nameLineStep;
-      const contact1Y = nameBottom + 6;
-      const contact2Y = contact1Y + 4;
+      const addressLines = splitTextLimited(doc, `Address: ${schoolDisplayAddress}`, nameMaxW, 2);
+      const contactStartY = nameBottom + 6;
+      const contactLineStep = 4;
+      const lastContactBaseline = contactStartY + contactLineStep * (addressLines.length + 1);
 
       const employerBoxH = Math.max(
         logoData ? logoH + employerPad * 2 : 0,
-        contact2Y - employerBoxTop + employerPad + 3
+        lastContactBaseline - employerBoxTop + employerPad + 3
       );
 
       doc.setFillColor(248, 250, 252);
@@ -229,8 +233,15 @@ export default function Payroll() {
       doc.setFont("helvetica", "normal");
       doc.setFontSize(8);
       doc.setTextColor(148, 163, 184);
-      doc.text(`Email: ${schoolDisplayEmail}`, textX, contact1Y);
-      doc.text(`Phone: ${schoolDisplayPhone}`, textX, contact2Y);
+      let contactY = contactStartY;
+      doc.text(`Email: ${schoolDisplayEmail}`, textX, contactY);
+      contactY += contactLineStep;
+      doc.text(`Phone: ${schoolDisplayPhone}`, textX, contactY);
+      contactY += contactLineStep;
+      for (const line of addressLines) {
+        doc.text(line, textX, contactY);
+        contactY += contactLineStep;
+      }
       doc.setTextColor(0, 0, 0);
 
       const employerBottom = employerBoxTop + employerBoxH;
