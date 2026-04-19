@@ -183,7 +183,10 @@ export default function SchoolDashboard() {
 
     console.log("Active page is:", activePage);
 
-    if (activePage === "registrations") {
+    const needsRegistrationsData =
+      activePage === "registrations" || activePage === "statements" || activePage === "invoices";
+
+    if (needsRegistrationsData) {
       if (!schoolId) {
         setLearners([]);
         setParents([]);
@@ -1008,7 +1011,10 @@ onClick={() => {
 
 <button
 
-style={actionBtn}
+style={{
+  ...actionBtn,
+  ...(selectedLearner ? null : { opacity: 0.6, cursor: "not-allowed" }),
+}}
 
 onClick={() => {
 
@@ -1038,6 +1044,7 @@ onClick={() => {
 
 }}
 
+disabled={!selectedLearner}
 >
 
 Add Sibling
@@ -1048,7 +1055,10 @@ Add Sibling
 
 <button
 
-style={actionBtn}
+style={{
+  ...actionBtn,
+  ...(selectedLearner ? null : { opacity: 0.6, cursor: "not-allowed" }),
+}}
 
 onClick={() => {
 
@@ -1076,6 +1086,7 @@ onClick={() => {
 
 }}
 
+disabled={!selectedLearner}
 >
 
 Manage
@@ -1262,7 +1273,22 @@ Manage
 
                 {filteredLearners.map((l: any) => (
 
-  <tr key={l.id}>
+  <tr
+    key={l.id}
+    onClick={() => {
+      setSelectedLearner(l);
+    }}
+    style={{
+      background: "#ffffff",
+      boxShadow:
+        selectedLearner && String(selectedLearner?.id) === String(l?.id)
+          ? "0 0 0 2px rgba(29, 78, 216, 0.45), 0 8px 24px rgba(15, 23, 42, 0.08)"
+          : "0 8px 24px rgba(15, 23, 42, 0.08)",
+      borderRadius: "12px",
+      overflow: "hidden",
+      cursor: "pointer",
+    }}
+  >
 
                     <td style={td}>
 
@@ -1281,7 +1307,6 @@ Manage
                             JSON.stringify(l)
 
                           );
-                          navigate(`/learners/${encodeURIComponent(String(l.id))}`);
 
                         }}
 
@@ -1334,7 +1359,6 @@ Manage
                             JSON.stringify(l)
 
                           );
-                          navigate(`/learners/${encodeURIComponent(String(l.id))}`);
 
                         }}
 
@@ -2057,11 +2081,23 @@ Manage
                   style={{
       
                     ...actionBtn,
+                    ...(selectedStatementAccount ? null : { opacity: 0.6, cursor: "not-allowed" }),
       
                     border: "1px solid rgba(15, 23, 42, 0.12)",
       
                     background: "#ffffff",
       
+                  }}
+                  disabled={!selectedStatementAccount}
+                  onClick={() => {
+                    if (!selectedStatementAccount) {
+                      alert("Please select an account first.");
+                      return;
+                    }
+                    localStorage.setItem(
+                      "selectedStatementAccount",
+                      JSON.stringify(selectedStatementAccount)
+                    );
                   }}
       
                 >
@@ -2175,16 +2211,24 @@ Manage
                       <tr
       
                         key={`${row.accountNo}-${index}`}
+                        onClick={() => {
+                          setSelectedStatementAccount(row);
+                        }}
       
                         style={{
       
                           background: "#ffffff",
       
-                          boxShadow: "0 8px 24px rgba(15, 23, 42, 0.08)",
+                          boxShadow:
+                            selectedStatementAccount &&
+                            String(selectedStatementAccount?.accountNo) === String(row?.accountNo)
+                              ? "0 0 0 2px rgba(29, 78, 216, 0.45), 0 8px 24px rgba(15, 23, 42, 0.08)"
+                              : "0 8px 24px rgba(15, 23, 42, 0.08)",
       
                           borderRadius: "12px",
       
                           overflow: "hidden",
+                          cursor: "pointer",
       
                         }}
       
@@ -2565,16 +2609,25 @@ Manage
                 <tr
 
                   key={`${row.accountNo}-${index}`}
+                  onClick={() => {
+                    setSelectedInvoiceAccount(row);
+                    localStorage.setItem("selectedInvoiceAccount", JSON.stringify(row));
+                  }}
 
                   style={{
 
                     background: "#ffffff",
 
-                    boxShadow: "0 8px 24px rgba(15, 23, 42, 0.08)",
+                    boxShadow:
+                      selectedInvoiceAccount &&
+                      String(selectedInvoiceAccount?.accountNo) === String(row?.accountNo)
+                        ? "0 0 0 2px rgba(29, 78, 216, 0.45), 0 8px 24px rgba(15, 23, 42, 0.08)"
+                        : "0 8px 24px rgba(15, 23, 42, 0.08)",
 
                     borderRadius: "12px",
 
                     overflow: "hidden",
+                    cursor: "pointer",
 
                   }}
 
@@ -2590,6 +2643,7 @@ Manage
 
     onClick={() => {
 
+      setSelectedInvoiceAccount(row);
       localStorage.setItem("selectedInvoiceAccount", JSON.stringify(row));
 
     }}
