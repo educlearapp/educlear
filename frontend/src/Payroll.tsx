@@ -87,23 +87,15 @@ function safeText(s: string | null | undefined, fallback = "Not captured"): stri
   return t.length ? t : fallback;
 }
 
-function employeeIdDisplay(employeeNumber?: string | null, idNumber?: string | null): string {
-  const en = String(employeeNumber ?? "").trim();
-  if (en.length) return en;
-  const id = String(idNumber ?? "").trim();
-  if (id.length) return id;
-  return "Not captured";
+function payrollEmployeeNumber(
+  emp: Employee | undefined,
+  payrollRow: { employeeNumber?: string | null }
+): string {
+  return safeText(emp?.employeeNumber ?? payrollRow.employeeNumber);
 }
 
-/** Same ID display for payslip + bookkeeper: employee record, then payroll row, then "Not captured". */
-function payrollEmployeeIdentifier(
-  emp: Employee | undefined,
-  payrollRow: { employeeNumber?: string | null; idNumber?: string | null }
-): string {
-  return employeeIdDisplay(
-    emp?.employeeNumber ?? payrollRow.employeeNumber,
-    emp?.idNumber ?? payrollRow.idNumber
-  );
+function payrollIdNumber(emp: Employee | undefined, payrollRow: { idNumber?: string | null }): string {
+  return safeText(emp?.idNumber ?? payrollRow.idNumber);
 }
 
 function sanitizeFilePart(name: string): string {
@@ -274,8 +266,8 @@ async function buildPayslipPdf(params: {
   const fullName = safeText(emp?.fullName || result.employeeName);
   const leftPairs: [string, string][] = [
     ["Full name", fullName],
-    ["Employee number", payrollEmployeeIdentifier(emp, result)],
-    ["ID number", safeText(emp?.idNumber)],
+    ["Employee number", payrollEmployeeNumber(emp, result)],
+    ["ID number", payrollIdNumber(emp, result)],
     ["Tax number", safeText(emp?.taxNumber)],
     ["Job title", safeText(emp?.jobTitle ?? result.jobTitle)],
   ];
@@ -536,7 +528,7 @@ function buildBookkeeperReportPdf(params: {
       doc.setTextColor(35, 35, 35);
     }
     const emp = employees.find((e) => e.id === row.employeeId);
-    const empIdDisp = payrollEmployeeIdentifier(emp, row);
+    const empIdDisp = payrollEmployeeNumber(emp, row);
     const cells: string[] = [
       row.employeeName,
       empIdDisp,
@@ -1376,11 +1368,9 @@ Net: R${data.netTotal}`
                     <div style={{ fontWeight: 700 }}>
                       {employee.fullName || `${employee.firstName} ${employee.lastName}`}
                     </div>
-                    {employee.employeeNumber ? (
-                      <div style={{ color: "#475569", marginTop: "4px", fontSize: "14px" }}>
-                        Employee no. {employee.employeeNumber}
-                      </div>
-                    ) : null}
+                    <div style={{ color: "#475569", marginTop: "4px", fontSize: "14px" }}>
+                      Employee no. {safeText(employee.employeeNumber)}
+                    </div>
                     {employee.jobTitle ? (
                       <div style={{ color: "#475569", marginTop: "2px", fontSize: "14px" }}>{employee.jobTitle}</div>
                     ) : null}
@@ -1389,7 +1379,7 @@ Net: R${data.netTotal}`
                       Address: {employee.physicalAddress?.trim() ? employee.physicalAddress : "Not captured"}
                     </div>
                     <div style={{ color: "#475569", marginTop: "6px" }}>
-                      ID Number: {employee.idNumber || "Not captured"}
+                      ID Number: {safeText(employee.idNumber)}
                     </div>
                     <div style={{ color: "#475569", marginTop: "6px" }}>
                       Tax Number: {employee.taxNumber || "Not captured"}
