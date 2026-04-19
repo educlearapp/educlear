@@ -90,24 +90,6 @@ function sanitizeFilePart(name: string): string {
   return name.replace(/[/\\?%*:|"<>]/g, "-").replace(/\s+/g, "_").slice(0, 80);
 }
 
-/** Parses #RGB / #RRGGBB for jsPDF setTextColor / setFillColor. */
-function parseCssHexColor(input: string | null | undefined): [number, number, number] | null {
-  const raw = String(input ?? "").trim();
-  if (!raw) return null;
-  const hex = raw.startsWith("#") ? raw.slice(1) : raw;
-  if (/^[0-9a-fA-F]{6}$/.test(hex)) {
-    return [parseInt(hex.slice(0, 2), 16), parseInt(hex.slice(2, 4), 16), parseInt(hex.slice(4, 6), 16)];
-  }
-  if (/^[0-9a-fA-F]{3}$/.test(hex)) {
-    return [
-      parseInt(hex[0] + hex[0], 16),
-      parseInt(hex[1] + hex[1], 16),
-      parseInt(hex[2] + hex[2], 16),
-    ];
-  }
-  return null;
-}
-
 async function loadImageDataUrl(url: string): Promise<{ data: string; format: "PNG" | "JPEG" | "WEBP" } | null> {
   try {
     const res = await fetch(url, { mode: "cors" });
@@ -138,17 +120,8 @@ function splitTextLimited(doc: jsPDF, text: string, maxWidth: number, maxLines: 
 
 const NEUTRAL_HEADING_RGB: [number, number, number] = [33, 33, 33];
 const LABEL_MUTED_RGB: [number, number, number] = [118, 118, 118];
-const BODY_TEXT_RGB: [number, number, number] = [26, 26, 26];
 
-/** Neutral default; optional school accent only when branding is explicitly enabled */
-function resolvePayslipHeadingRgb(school: SchoolPayrollInfo | null): [number, number, number] {
-  if (school?.brandingEnabled) {
-    const rgb = parseCssHexColor(school.primaryColor ?? null);
-    if (rgb) return rgb;
-  }
-  return NEUTRAL_HEADING_RGB;
-}
-
+/** Returns vertical span used (compact rows). Values slightly bold; labels muted. */
 function drawEmployeeDetailCell(
   doc: jsPDF,
   label: string,
@@ -159,14 +132,16 @@ function drawEmployeeDetailCell(
   maxLines: number
 ): number {
   doc.setFont("helvetica", "normal");
-  doc.setFontSize(6.9);
+  doc.setFontSize(6.4);
   doc.setTextColor(LABEL_MUTED_RGB[0], LABEL_MUTED_RGB[1], LABEL_MUTED_RGB[2]);
-  doc.text(label, x, startY + 2);
-  doc.setFontSize(8.25);
-  doc.setTextColor(BODY_TEXT_RGB[0], BODY_TEXT_RGB[1], BODY_TEXT_RGB[2]);
+  doc.text(label, x, startY + 1.8);
+  doc.setFont("helvetica", "bold");
+  doc.setFontSize(7.6);
+  doc.setTextColor(48, 48, 48);
   const lines = splitTextLimited(doc, value, maxW, maxLines);
-  doc.text(lines, x, startY + 5);
-  return 5 + lines.length * 3.35 + 2;
+  doc.text(lines, x, startY + 4.2);
+  doc.setFont("helvetica", "normal");
+  return 4.2 + lines.length * 3 + 1.2;
 }
 
 async function buildPayslipPdf(params: {
@@ -180,9 +155,9 @@ async function buildPayslipPdf(params: {
   const emp = employees.find((e) => e.id === result.employeeId);
   const doc = new jsPDF({ unit: "mm", format: "a4" });
   const pageW = doc.internal.pageSize.getWidth();
-  const margin = 10;
+  const margin = 12;
   const innerW = pageW - 2 * margin;
-  let y = margin;
+  const hdrRgb = NEUTRAL_HEADING_RGB;
 
   const m = lastPayrollMonth ?? new Date().getMonth() + 1;
   const yrr = lastPayrollYear ?? new Date().getFullYear();
@@ -193,128 +168,89 @@ async function buildPayslipPdf(params: {
   const rawPhone = String(schoolInfo?.phone ?? "").trim();
   const rawAddr = String(schoolInfo?.address ?? "").trim();
 
-  const headingRgb = resolvePayslipHeadingRgb(schoolInfo);
-
-  const employerPad = 3;
-  const employerBoxTop = y;
-  const logoW = 22;
-  const logoH = 13;
-  const logoGap = 6;
-
+  const logoW = 20;
+  const logoH = 11;
   let logoData: { data: string; format: "PNG" | "JPEG" | "WEBP" } | null = null;
   if (schoolInfo?.logoUrl?.trim()) {
     logoData = await loadImageDataUrl(schoolInfo.logoUrl.trim());
   }
 
-  const textLeft = margin + employerPad;
-  const logoReserve = logoData ? logoW + logoGap : 0;
-  const nameMaxW = innerW - employerPad * 2 - logoReserve;
+  const headerTop = margin;
+  const leftTextMaxW = innerW * 0.52 - 2;
 
   doc.setFont("helvetica", "bold");
-  doc.setFontSize(13.5);
-  doc.setTextColor(22, 22, 22);
-  const nameLines = splitTextLimited(doc, schoolDisplayName, nameMaxW, 2);
-  const nameLineStep = 4.5;
-  const line1Y = employerBoxTop + employerPad + 1.5;
-  const nameBottom = line1Y + Math.max(0, nameLines.length - 1) * nameLineStep;
+  doc.setFontSize(11);
+  doc.setTextColor(28, 28, 28);
+  const schoolLines = splitTextLimited(doc, schoolDisplayName, leftTextMaxW, 2);
+  doc.text(schoolLines, margin, headerTop + 4);
 
-  const contactLineStep = 3.05;
-  const contactStartY = nameBottom + 2;
-  const addrLines = rawAddr ? splitTextLimited(doc, rawAddr, nameMaxW, 2) : [];
-
-  let contactLines = 0;
-  if (rawEmail) contactLines++;
-  if (rawPhone) contactLines++;
-  contactLines += addrLines.length;
-  if (!contactLines) contactLines = 1;
-  const lastContactBaseline = contactStartY + contactLines * contactLineStep;
-
-  const employerBoxH = Math.max(
-    logoData ? logoH + employerPad * 2 + 1 : 0,
-    lastContactBaseline - employerBoxTop + employerPad + 2
-  );
-
-  doc.setFillColor(249, 249, 249);
-  doc.setDrawColor(218, 218, 218);
-  doc.rect(margin, employerBoxTop, innerW, employerBoxH, "FD");
+  doc.setFont("helvetica", "normal");
+  doc.setFontSize(7.5);
+  doc.setTextColor(100, 100, 100);
+  let ly = headerTop + 4 + Math.max(0, schoolLines.length - 1) * 4.2 + 2.5;
+  const lineStep = 3.1;
+  if (rawEmail) {
+    doc.text(rawEmail, margin, ly);
+    ly += lineStep;
+  }
+  if (rawPhone) {
+    doc.text(rawPhone, margin, ly);
+    ly += lineStep;
+  }
+  if (rawAddr) {
+    const addrLines = splitTextLimited(doc, rawAddr, leftTextMaxW, 3);
+    doc.text(addrLines, margin, ly);
+    ly += addrLines.length * lineStep;
+  }
+  if (!rawEmail && !rawPhone && !rawAddr) {
+    doc.text("—", margin, ly);
+    ly += lineStep;
+  }
+  const leftBottom = ly + 2;
 
   if (logoData) {
     try {
-      doc.addImage(
-        logoData.data,
-        logoData.format,
-        pageW - margin - employerPad - logoW,
-        employerBoxTop + employerPad,
-        logoW,
-        logoH
-      );
+      doc.addImage(logoData.data, logoData.format, pageW - margin - logoW, headerTop, logoW, logoH);
     } catch {
       /* omit logo */
     }
   }
 
+  const payslipBlockTop = headerTop;
   doc.setFont("helvetica", "bold");
-  doc.setFontSize(13.5);
-  doc.setTextColor(22, 22, 22);
-  doc.text(nameLines, textLeft, line1Y);
-
+  doc.setFontSize(13);
+  doc.setTextColor(28, 28, 28);
+  doc.text("PAYSLIP", pageW - margin, payslipBlockTop + 6, { align: "right" });
   doc.setFont("helvetica", "normal");
-  doc.setFontSize(7.8);
-  doc.setTextColor(94, 94, 94);
-  let cx = contactStartY;
-  if (rawEmail) {
-    doc.text(rawEmail, textLeft, cx);
-    cx += contactLineStep;
-  }
-  if (rawPhone) {
-    doc.text(rawPhone, textLeft, cx);
-    cx += contactLineStep;
-  }
-  for (const ln of addrLines) {
-    doc.text(ln, textLeft, cx);
-    cx += contactLineStep;
-  }
-  if (!rawEmail && !rawPhone && addrLines.length === 0) {
-    doc.text("—", textLeft, cx);
-  }
-  doc.setTextColor(0, 0, 0);
+  doc.setFontSize(8);
+  doc.setTextColor(92, 92, 92);
+  doc.text(`Pay period: ${periodLabel}`, pageW - margin, payslipBlockTop + 11.5, { align: "right" });
 
-  const employerBottom = employerBoxTop + employerBoxH;
-  doc.setLineWidth(0.1);
-  doc.setDrawColor(212, 212, 212);
-  doc.line(margin, employerBottom + 0.15, pageW - margin, employerBottom + 0.15);
+  const rightBottom = payslipBlockTop + 14;
+  const headerBottom = Math.max(leftBottom, rightBottom, logoData ? headerTop + logoH + 3 : headerTop + 14) + 4;
 
-  y = employerBottom + 2;
-  doc.setFont("helvetica", "bold");
-  doc.setFontSize(15);
-  doc.setTextColor(26, 26, 26);
-  doc.text("PAYSLIP", pageW / 2, y, { align: "center" });
-  doc.setTextColor(0, 0, 0);
-  y += 5;
-  doc.setFont("helvetica", "normal");
-  doc.setFontSize(9);
-  doc.setTextColor(88, 88, 88);
-  doc.text(`Pay period: ${periodLabel}`, pageW / 2, y, { align: "center" });
-  doc.setTextColor(0, 0, 0);
-  y += 8;
+  doc.setDrawColor(175, 175, 175);
+  doc.setLineWidth(0.15);
+  doc.line(margin, headerBottom, pageW - margin, headerBottom);
 
+  let y = headerBottom + 6;
+
+  const empPad = 4;
   const empSectionTop = y;
+  y += empPad;
+
   doc.setFont("helvetica", "bold");
-  doc.setFontSize(10);
-  doc.setTextColor(headingRgb[0], headingRgb[1], headingRgb[2]);
-  doc.text("Employee details", margin + 1.5, y);
-  doc.setDrawColor(224, 224, 224);
-  doc.setLineWidth(0.12);
-  doc.line(margin + 1.5, y + 1.5, pageW - margin - 1.5, y + 1.5);
-  doc.setTextColor(0, 0, 0);
+  doc.setFontSize(9);
+  doc.setTextColor(hdrRgb[0], hdrRgb[1], hdrRgb[2]);
+  doc.text("Employee details", margin + empPad, y + 2);
   y += 7;
 
-  const fullName = safeText(emp?.fullName || result.employeeName);
-  const leftColX = margin + 3;
-  const rightColX = margin + innerW / 2 + 3;
-  const leftColW = innerW / 2 - 8;
-  const rightColW = innerW / 2 - 8;
+  const leftColX = margin + empPad + 2;
+  const rightColX = margin + innerW / 2 + 2;
+  const leftColW = innerW / 2 - empPad * 2 - 5;
+  const rightColW = innerW / 2 - empPad * 2 - 5;
 
+  const fullName = safeText(emp?.fullName || result.employeeName);
   const leftPairs: [string, string][] = [
     ["Full name", fullName],
     ["Employee number", safeText(emp?.employeeNumber ?? result.employeeNumber)],
@@ -343,17 +279,20 @@ async function buildPayslipPdf(params: {
     if (rp) {
       rightH = drawEmployeeDetailCell(doc, rp[0], rp[1], rightColX, rowTop, rightColW, rp[0] === "Physical address" ? 3 : 2);
     }
-    const rowH = Math.max(leftH, rightH, 12);
-    doc.setDrawColor(238, 238, 238);
-    doc.setLineWidth(0.06);
-    doc.line(margin + 2.5, rowTop + rowH - 0.8, pageW - margin - 2.5, rowTop + rowH - 0.8);
+    const rowH = Math.max(leftH, rightH, 9);
+    if (i < pairCount - 1) {
+      doc.setDrawColor(228, 228, 228);
+      doc.setLineWidth(0.06);
+      doc.line(margin + empPad + 2, rowTop + rowH - 0.6, pageW - margin - empPad - 2, rowTop + rowH - 0.6);
+    }
     y = rowTop + rowH;
   }
 
-  doc.setDrawColor(218, 218, 218);
-  doc.setLineWidth(0.12);
-  doc.rect(margin, empSectionTop, innerW, y - empSectionTop + 2, "S");
-  y += 5;
+  const empBoxBottom = y + empPad;
+  doc.setDrawColor(140, 140, 140);
+  doc.setLineWidth(0.25);
+  doc.rect(margin, empSectionTop, innerW, empBoxBottom - empSectionTop, "S");
+  y = empBoxBottom + 6;
 
   const empMed = num(result.medicalAidEmployee ?? emp?.employeeMedicalAid);
   const emplMed = num(result.medicalAidEmployer ?? emp?.employerMedicalAid);
@@ -367,93 +306,105 @@ async function buildPayslipPdf(params: {
   const net = num(result.net);
 
   const amtRight = pageW - margin - 2;
-  const earnRowGap = 5;
+  const earnRowH = 4.2;
 
   doc.setFont("helvetica", "bold");
-  doc.setFontSize(10);
-  doc.setTextColor(headingRgb[0], headingRgb[1], headingRgb[2]);
-  doc.text("Earnings", margin + 1.5, y);
-  doc.setDrawColor(224, 224, 224);
-  doc.line(margin + 1.5, y + 1.4, pageW - margin - 1.5, y + 1.4);
-  doc.setTextColor(0, 0, 0);
-  y += 7;
+  doc.setFontSize(9.5);
+  doc.setTextColor(hdrRgb[0], hdrRgb[1], hdrRgb[2]);
+  doc.text("Earnings", margin + 2, y);
+  doc.setDrawColor(195, 195, 195);
+  doc.setLineWidth(0.1);
+  doc.line(margin + 2, y + 1.2, pageW - margin - 2, y + 1.2);
+  y += 6.5;
 
   doc.setFont("helvetica", "normal");
-  doc.setFontSize(9);
+  doc.setFontSize(8.8);
+  doc.setTextColor(40, 40, 40);
   const earnRows: [string, number][] = [
     ["Basic salary", basic],
     ["Overtime pay", otPay],
     ["Medical aid (employer contribution)", emplMed],
   ];
-  for (const [lab, amt] of earnRows) {
-    doc.text(lab, margin + 2.5, y);
+  for (let i = 0; i < earnRows.length; i++) {
+    const [lab, amt] = earnRows[i];
+    doc.text(lab, margin + 3, y);
     doc.text(fmtMoney(amt), amtRight, y, { align: "right" });
-    y += earnRowGap;
+    y += earnRowH;
+    if (i < earnRows.length - 1) {
+      doc.setDrawColor(235, 235, 235);
+      doc.setLineWidth(0.05);
+      doc.line(margin + 3, y - 0.3, pageW - margin - 3, y - 0.3);
+    }
   }
-  doc.setDrawColor(206, 206, 206);
+  doc.setDrawColor(165, 165, 165);
   doc.setLineWidth(0.1);
-  doc.line(margin + 2, y + 0.7, pageW - margin - 2, y + 0.7);
-  y += 5;
+  doc.line(margin + 3, y + 0.4, pageW - margin - 3, y + 0.4);
+  y += 4;
   doc.setFont("helvetica", "bold");
-  doc.text("Gross earnings", margin + 2.5, y);
+  doc.text("Gross earnings", margin + 3, y);
   doc.text(fmtMoney(payslipGross), amtRight, y, { align: "right" });
-  y += 9;
-
-  doc.setTextColor(headingRgb[0], headingRgb[1], headingRgb[2]);
-  doc.text("Deductions", margin + 1.5, y);
-  doc.setDrawColor(224, 224, 224);
-  doc.line(margin + 1.5, y + 1.4, pageW - margin - 1.5, y + 1.4);
-  doc.setTextColor(0, 0, 0);
   y += 7;
 
+  doc.setTextColor(hdrRgb[0], hdrRgb[1], hdrRgb[2]);
+  doc.text("Deductions", margin + 2, y);
+  doc.setDrawColor(195, 195, 195);
+  doc.line(margin + 2, y + 1.2, pageW - margin - 2, y + 1.2);
+  y += 6.5;
+
   doc.setFont("helvetica", "normal");
+  doc.setTextColor(40, 40, 40);
   const dedRows: [string, number][] = [
     ["PAYE", paye],
     ["UIF", uif],
     ["Pension", pension],
     ["Medical aid (employee)", empMed],
   ];
-  for (const [lab, amt] of dedRows) {
-    doc.text(lab, margin + 2.5, y);
+  for (let i = 0; i < dedRows.length; i++) {
+    const [lab, amt] = dedRows[i];
+    doc.text(lab, margin + 3, y);
     doc.text(fmtMoney(amt), amtRight, y, { align: "right" });
-    y += earnRowGap;
+    y += earnRowH;
+    if (i < dedRows.length - 1) {
+      doc.setDrawColor(235, 235, 235);
+      doc.setLineWidth(0.05);
+      doc.line(margin + 3, y - 0.3, pageW - margin - 3, y - 0.3);
+    }
   }
-  doc.setDrawColor(206, 206, 206);
-  doc.line(margin + 2, y + 0.7, pageW - margin - 2, y + 0.7);
-  y += 5;
+  doc.setDrawColor(165, 165, 165);
+  doc.setLineWidth(0.1);
+  doc.line(margin + 3, y + 0.4, pageW - margin - 3, y + 0.4);
+  y += 4;
   doc.setFont("helvetica", "bold");
-  doc.text("Total deductions", margin + 2.5, y);
+  doc.text("Total deductions", margin + 3, y);
   doc.text(fmtMoney(totDed), amtRight, y, { align: "right" });
-  y += 10;
+  y += 9;
 
   const netTop = y;
-  const netBoxH = 15;
-  doc.setFillColor(38, 38, 38);
+  const netBoxH = 14;
+  doc.setFillColor(32, 32, 32);
   doc.rect(margin, netTop, innerW, netBoxH, "F");
   doc.setFont("helvetica", "bold");
-  doc.setFontSize(11.5);
+  doc.setFontSize(11);
   doc.setTextColor(255, 255, 255);
-  doc.text("Net pay", margin + 3.5, netTop + netBoxH / 2 + 2);
-  doc.text(fmtMoney(net), amtRight - 2, netTop + netBoxH / 2 + 2, { align: "right" });
+  doc.text("Net pay", margin + 3.5, netTop + netBoxH / 2 + 1.8);
+  doc.text(fmtMoney(net), amtRight - 2, netTop + netBoxH / 2 + 1.8, { align: "right" });
   doc.setTextColor(0, 0, 0);
 
-  const footerY = netTop + netBoxH + 7;
-  doc.setFontSize(6.3);
-  doc.setTextColor(154, 154, 154);
+  const footerY = netTop + netBoxH + 6;
+  doc.setFontSize(6.5);
+  doc.setTextColor(130, 130, 130);
   doc.setFont("helvetica", "normal");
   doc.text("Payroll processed by EduClear", pageW / 2, footerY, { align: "center" });
-  doc.setFontSize(9);
-  doc.setTextColor(0, 0, 0);
 
   return doc;
 }
 
-function downloadBookkeeperReportPdf(params: {
+function buildBookkeeperReportPdf(params: {
   schoolInfo: SchoolPayrollInfo | null;
   payrollResults: PayrollResult[];
   payrollSummary: { grossTotal: number; deductionsTotal: number; netTotal: number } | null;
   periodLabel: string;
-}): void {
+}): jsPDF {
   const { schoolInfo, payrollResults, payrollSummary, periodLabel } = params;
   const doc = new jsPDF({ unit: "mm", format: "a4", orientation: "landscape" });
   const pageW = doc.internal.pageSize.getWidth();
@@ -506,17 +457,18 @@ function downloadBookkeeperReportPdf(params: {
   doc.text(`Total net pay: ${fmtMoney(net)}`, margin + 3, y + 15);
   y += 21;
 
-  const cols = [52, 23, 25, 21, 16, 21, 25, 27, 25, 27];
+  const cols = [50, 19, 24, 25, 21, 17, 20, 23, 24, 26, 27];
   const headers = [
-    "Employee",
+    "Employee name",
+    "Employee ID",
     "Basic",
     "Gross",
     "PAYE",
     "UIF",
     "Pension",
     "Med (emp)",
-    "Med (emplr)",
-    "Deductions",
+    "Med (employer)",
+    "Total deductions",
     "Net pay",
   ];
 
@@ -527,7 +479,7 @@ function downloadBookkeeperReportPdf(params: {
     let hx = margin;
     for (let i = 0; i < headers.length; i++) {
       const cw = cols[i];
-      if (i === 0) doc.text(headers[i], hx, headerY, { maxWidth: cw });
+      if (i <= 1) doc.text(headers[i], hx, headerY, { maxWidth: cw });
       else doc.text(headers[i], hx + cw, headerY, { align: "right" });
       hx += cw;
     }
@@ -555,8 +507,10 @@ function downloadBookkeeperReportPdf(params: {
       doc.setFontSize(6.8);
       doc.setTextColor(35, 35, 35);
     }
+    const empIdDisp = String(row.employeeNumber ?? "").trim() || "—";
     const cells: string[] = [
       row.employeeName,
+      empIdDisp,
       fmtMoney(row.basicSalary),
       fmtMoney(row.grossEarnings),
       fmtMoney(row.paye),
@@ -576,6 +530,9 @@ function downloadBookkeeperReportPdf(params: {
         const lines = splitTextLimited(doc, txt, cw - 1, 2);
         doc.text(lines, rx, y);
         rowH = Math.max(rowH, lines.length * 3.6);
+      } else if (i === 1) {
+        doc.text(txt, rx, y, { maxWidth: cw });
+        rowH = Math.max(rowH, 4);
       } else {
         doc.text(txt, rx + cw, y, { align: "right" });
       }
@@ -588,8 +545,18 @@ function downloadBookkeeperReportPdf(params: {
   doc.setTextColor(140, 140, 140);
   doc.text("Payroll processed by EduClear", pageW / 2, pageH - 6, { align: "center" });
 
-  const schoolSlug = sanitizeFilePart(safeText(schoolInfo?.name, "school"));
-  doc.save(`Payroll-Bookkeeper-${schoolSlug}-${sanitizeFilePart(periodLabel.replace(/\s+/g, "_"))}.pdf`);
+  return doc;
+}
+
+function downloadBookkeeperReportPdf(params: {
+  schoolInfo: SchoolPayrollInfo | null;
+  payrollResults: PayrollResult[];
+  payrollSummary: { grossTotal: number; deductionsTotal: number; netTotal: number } | null;
+  periodLabel: string;
+}): void {
+  const doc = buildBookkeeperReportPdf(params);
+  const schoolSlug = sanitizeFilePart(safeText(params.schoolInfo?.name, "school"));
+  doc.save(`Payroll-Bookkeeper-${schoolSlug}-${sanitizeFilePart(params.periodLabel.replace(/\s+/g, "_"))}.pdf`);
 }
 
 export default function Payroll() {
@@ -631,6 +598,8 @@ export default function Payroll() {
   const [payrollNotice, setPayrollNotice] = useState("");
   const [emailBusyId, setEmailBusyId] = useState<string | null>(null);
   const [bookkeeperBusy, setBookkeeperBusy] = useState(false);
+  const [bookkeeperEmail, setBookkeeperEmail] = useState("");
+  const [bookkeeperEmailBusy, setBookkeeperEmailBusy] = useState(false);
 
   const fetchSchoolInfo = useCallback(async (sid: string) => {
     if (!sid) return;
@@ -760,6 +729,65 @@ export default function Payroll() {
       setBookkeeperBusy(false);
     }
   }, [payrollResults, payrollSummary, schoolInfo, lastPayrollMonth, lastPayrollYear]);
+
+  const handleEmailBookkeeperReport = useCallback(async () => {
+    if (!payrollResults.length || !schoolId) return;
+    const to = bookkeeperEmail.trim();
+    if (!to) {
+      setPayrollNotice("Enter a bookkeeper email address.");
+      return;
+    }
+    const m = lastPayrollMonth ?? new Date().getMonth() + 1;
+    const yrr = lastPayrollYear ?? new Date().getFullYear();
+    const periodLabel = `${MONTH_NAMES[Math.min(12, Math.max(1, m)) - 1]} ${yrr}`;
+    const schoolSlug = sanitizeFilePart(safeText(schoolInfo?.name, "school"));
+    const fileName = `Payroll-Bookkeeper-${schoolSlug}-${sanitizeFilePart(periodLabel.replace(/\s+/g, "_"))}.pdf`;
+    setPayrollNotice("");
+    try {
+      setBookkeeperEmailBusy(true);
+      const doc = buildBookkeeperReportPdf({
+        schoolInfo,
+        payrollResults,
+        payrollSummary,
+        periodLabel,
+      });
+      const dataUri = doc.output("datauristring");
+      const base64 = dataUri.includes(",") ? dataUri.split(",")[1] : "";
+      const response = await fetch(`${API_URL}/api/payroll/email-bookkeeper-report`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          schoolId,
+          bookkeeperEmail: to,
+          pdfBase64: base64,
+          fileName,
+          periodLabel,
+        }),
+      });
+      const data = await response.json().catch(() => ({}));
+      if (!response.ok) {
+        setPayrollNotice(typeof data?.error === "string" ? data.error : "Could not email bookkeeper report.");
+        return;
+      }
+      if (typeof data?.message === "string") {
+        setPayrollNotice(data.message);
+      } else {
+        setPayrollNotice(`Bookkeeper report emailed to ${to}`);
+      }
+    } catch {
+      setPayrollNotice("Could not email bookkeeper report. Check your connection and try again.");
+    } finally {
+      setBookkeeperEmailBusy(false);
+    }
+  }, [
+    payrollResults,
+    payrollSummary,
+    schoolInfo,
+    schoolId,
+    lastPayrollMonth,
+    lastPayrollYear,
+    bookkeeperEmail,
+  ]);
 
   useEffect(() => {
     const savedSchoolId = localStorage.getItem("schoolId") || "";
@@ -1146,14 +1174,39 @@ Net: R${data.netTotal}`
                   }}
                 >
                   <h2 style={{ margin: 0, fontSize: "20px", fontWeight: 800, color: "#0f172a" }}>Payroll Results</h2>
-                  <button
-                    type="button"
-                    onClick={handleDownloadBookkeeperReport}
-                    disabled={bookkeeperBusy}
-                    style={bookkeeperButtonStyle}
+                  <div
+                    style={{
+                      display: "flex",
+                      flexWrap: "wrap",
+                      alignItems: "center",
+                      gap: "8px",
+                    }}
                   >
-                    {bookkeeperBusy ? "Preparing…" : "Download Bookkeeper Report"}
-                  </button>
+                    <input
+                      type="email"
+                      placeholder="Bookkeeper email"
+                      value={bookkeeperEmail}
+                      onChange={(e) => setBookkeeperEmail(e.target.value)}
+                      autoComplete="email"
+                      style={{ ...inputStyle, minWidth: "200px", maxWidth: "280px", margin: 0 }}
+                    />
+                    <button
+                      type="button"
+                      onClick={() => void handleEmailBookkeeperReport()}
+                      disabled={bookkeeperEmailBusy}
+                      style={bookkeeperEmailButtonStyle}
+                    >
+                      {bookkeeperEmailBusy ? "Sending…" : "Email Bookkeeper Report"}
+                    </button>
+                    <button
+                      type="button"
+                      onClick={handleDownloadBookkeeperReport}
+                      disabled={bookkeeperBusy}
+                      style={bookkeeperButtonStyle}
+                    >
+                      {bookkeeperBusy ? "Preparing…" : "Download Bookkeeper Report"}
+                    </button>
+                  </div>
                 </div>
 
                 {payrollNotice ? (
@@ -1465,6 +1518,18 @@ const payslipEmailButtonStyle: React.CSSProperties = {
   fontWeight: 600,
   whiteSpace: "nowrap",
   lineHeight: 1.25,
+};
+
+const bookkeeperEmailButtonStyle: React.CSSProperties = {
+  padding: "8px 14px",
+  borderRadius: "10px",
+  border: "none",
+  background: "#0f172a",
+  color: "#ffffff",
+  fontSize: "14px",
+  fontWeight: 700,
+  cursor: "pointer",
+  whiteSpace: "nowrap",
 };
 
 const bookkeeperButtonStyle: React.CSSProperties = {

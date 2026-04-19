@@ -601,4 +601,89 @@ router.post("/email-payslip", async (req, res) => {
   }
 });
 
+/**
+ * POST /email-bookkeeper-report
+ * Body: { schoolId, bookkeeperEmail, pdfBase64, fileName?, periodLabel? }
+ * Attaches the client-generated bookkeeper PDF (same content as download).
+ */
+router.post("/email-bookkeeper-report", async (req, res) => {
+  try {
+    const body = req.body || {};
+    const schoolId = typeof body.schoolId === "string" ? body.schoolId : "";
+    const bookkeeperEmail = typeof body.bookkeeperEmail === "string" ? body.bookkeeperEmail.trim() : "";
+    const pdfBase64 =
+      typeof body.pdfBase64 === "string" ? body.pdfBase64.replace(/\s/g, "") : "";
+    const fileName =
+      typeof body.fileName === "string" && body.fileName.trim()
+        ? body.fileName.trim().replace(/[/\\?%*:|"<>]/g, "-")
+        : "payroll-bookkeeper-report.pdf";
+    const periodLabel =
+      typeof body.periodLabel === "string" ? body.periodLabel.trim() : "";
+
+    if (!schoolId || !bookkeeperEmail || !pdfBase64) {
+      return res.status(400).json({ error: "schoolId, bookkeeperEmail, and pdfBase64 are required" });
+    }
+
+    const emailOk = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(bookkeeperEmail);
+    if (!emailOk) {
+      return res.status(400).json({ error: "Invalid bookkeeper email address" });
+    }
+
+    const transport = createMailTransport();
+    if (!transport) {
+      return res.status(503).json({
+        error: "Email is not configured. Set SMTP_HOST (and SMTP_USER / SMTP_PASS if required) on the server.",
+      });
+    }
+
+    let pdfBuffer: Buffer;
+    try {
+      pdfBuffer = Buffer.from(pdfBase64, "base64");
+    } catch {
+      return res.status(400).json({ error: "Invalid PDF data" });
+    }
+    if (pdfBuffer.length < 64 || pdfBuffer.length > 10 * 1024 * 1024) {
+      return res.status(400).json({ error: "PDF attachment is missing or too large" });
+    }
+    const magic = pdfBuffer.subarray(0, 5).toString("utf8");
+    if (!magic.startsWith("%PDF")) {
+      return res.status(400).json({ error: "Attachment is not a valid PDF" });
+    }
+
+    const school = await prisma.school.findUnique({
+      where: { id: schoolId },
+      select: { name: true },
+    });
+    if (!school) {
+      return res.status(404).json({ error: "School not found" });
+    }
+    const schoolName = school.name?.trim() || "School";
+
+    const from =
+      process.env.SMTP_FROM?.trim() || process.env.SMTP_USER?.trim() || "noreply@educlear";
+
+    const monthYearPart = periodLabel || "Report";
+    const subject = `Payroll Report – ${schoolName} – ${monthYearPart}`;
+
+    await transport.sendMail({
+      from,
+      to: bookkeeperEmail,
+      subject,
+      text: "Please find attached the payroll report.",
+      attachments: [
+        {
+          filename: fileName.endsWith(".pdf") ? fileName : `${fileName}.pdf`,
+          content: pdfBuffer,
+          contentType: "application/pdf",
+        },
+      ],
+    });
+
+    res.json({ success: true, message: `Bookkeeper report sent to ${bookkeeperEmail}` });
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ error: "Failed to send bookkeeper report email" });
+  }
+});
+
 export default router;
