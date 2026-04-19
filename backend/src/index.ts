@@ -12,6 +12,8 @@ import bcrypt from "bcryptjs";
 
 import authRoutes from "./routes/auth";
 import teacherPerformanceRoutes from "./routes/teacherPerformance";
+import rbacRoutes from "./routes/rbac";
+import payrollRoutes from "./routes/payroll";
 type OtpRecord = {
 
     code: string;
@@ -98,7 +100,7 @@ const PORT = 3000;
   Allow frontend (Vite runs on 5173)
 
 */
-app.use(express.json());
+app.use(express.json({ limit: "12mb" }));
 app.use(
 
   cors({
@@ -122,19 +124,20 @@ app.use(
   })
 
 );
+
+
   
-  
 
 
-
-app.use(express.json());
 // ===== OTP AUTH (DEV MODE) =====
 app.use ("/auth", authRoutes);
 app.use("/learner", learnerRoutes);
 app.use("/api/schools", schoolsRoutes);
 app.use("/api", parentsRoutes);
+app.use("/api/rbac", rbacRoutes);
 app.use("/teacher-performance", teacherPerformanceRoutes);
-import { timeStamp } from "console";
+app.use("/api/payroll", payrollRoutes);
+
 
 // Request OTP
 

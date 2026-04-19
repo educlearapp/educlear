@@ -1,6 +1,6 @@
 import { Router } from "express";
 
-
+import nodemailer from "nodemailer";
 
 import { PrismaClient } from "@prisma/client";
 
@@ -11,6 +11,22 @@ const router = Router();
 
 
 const prisma = new PrismaClient();
+
+function createMailTransport(): nodemailer.Transporter | null {
+  const host = process.env.SMTP_HOST?.trim();
+  if (!host) return null;
+  const port = Number(process.env.SMTP_PORT || "587");
+  const secure = process.env.SMTP_SECURE === "true" || port === 465;
+  const user = process.env.SMTP_USER?.trim();
+  const pass = process.env.SMTP_PASS;
+  return nodemailer.createTransport({
+    host,
+    port,
+    secure,
+    auth: user && pass ? { user, pass: String(pass) } : undefined,
+  });
+}
+
 // ===== TAX CALCULATION (SARS 2025/2026 - simplified) =====
 
 
@@ -491,6 +507,98 @@ router.post("/run", async (req, res) => {
 
 });
 
+/**
+ * POST /email-payslip
+ * Body: { schoolId, employeeId, pdfBase64, fileName?, periodLabel?, employeeName? }
+ * Sends the payslip PDF to the employee email on file (never a client-supplied address).
+ */
+router.post("/email-payslip", async (req, res) => {
+  try {
+    const body = req.body || {};
+    const schoolId = typeof body.schoolId === "string" ? body.schoolId : "";
+    const employeeId = typeof body.employeeId === "string" ? body.employeeId : "";
+    const pdfBase64 =
+      typeof body.pdfBase64 === "string" ? body.pdfBase64.replace(/\s/g, "") : "";
+    const fileName =
+      typeof body.fileName === "string" && body.fileName.trim()
+        ? body.fileName.trim().replace(/[/\\?%*:|"<>]/g, "-")
+        : "payslip.pdf";
+    const periodLabel =
+      typeof body.periodLabel === "string" ? body.periodLabel.trim() : "";
+    const employeeName =
+      typeof body.employeeName === "string" ? body.employeeName.trim() : "";
 
+    if (!schoolId || !employeeId || !pdfBase64) {
+      return res.status(400).json({ error: "schoolId, employeeId, and pdfBase64 are required" });
+    }
+
+    const transport = createMailTransport();
+    if (!transport) {
+      return res.status(503).json({
+        error: "Email is not configured. Set SMTP_HOST (and SMTP_USER / SMTP_PASS if required) on the server.",
+      });
+    }
+
+    const employee = await prisma.employee.findFirst({
+      where: { id: employeeId, schoolId },
+    });
+    if (!employee) {
+      return res.status(404).json({ error: "Employee not found for this school" });
+    }
+
+    const to = String(employee.email || "").trim();
+    if (!to) {
+      return res.status(400).json({ error: "This employee has no email address on file." });
+    }
+
+    let pdfBuffer: Buffer;
+    try {
+      pdfBuffer = Buffer.from(pdfBase64, "base64");
+    } catch {
+      return res.status(400).json({ error: "Invalid PDF data" });
+    }
+    if (pdfBuffer.length < 64 || pdfBuffer.length > 10 * 1024 * 1024) {
+      return res.status(400).json({ error: "PDF attachment is missing or too large" });
+    }
+    const magic = pdfBuffer.subarray(0, 5).toString("utf8");
+    if (!magic.startsWith("%PDF")) {
+      return res.status(400).json({ error: "Attachment is not a valid PDF" });
+    }
+
+    const school = await prisma.school.findUnique({
+      where: { id: schoolId },
+      select: { name: true },
+    });
+    const schoolName = school?.name?.trim() || "School";
+
+    const from =
+      process.env.SMTP_FROM?.trim() || process.env.SMTP_USER?.trim() || "noreply@educlear";
+
+    const subjectParts = [`Payslip`, schoolName];
+    if (periodLabel) subjectParts.push(periodLabel);
+    const subject = subjectParts.join(" — ");
+
+    const greetingName = employeeName || employee.fullName || `${employee.firstName} ${employee.lastName}`.trim();
+
+    await transport.sendMail({
+      from,
+      to,
+      subject,
+      text: `Hello${greetingName ? ` ${greetingName}` : ""},\n\nPlease find your payslip attached${periodLabel ? ` for ${periodLabel}` : ""}.\n\n— ${schoolName}`,
+      attachments: [
+        {
+          filename: fileName.endsWith(".pdf") ? fileName : `${fileName}.pdf`,
+          content: pdfBuffer,
+          contentType: "application/pdf",
+        },
+      ],
+    });
+
+    res.json({ success: true, message: `Payslip sent to ${to}` });
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ error: "Failed to send payslip email" });
+  }
+});
 
 export default router;
