@@ -27,35 +27,6 @@ function createMailTransport(): nodemailer.Transporter | null {
   });
 }
 
-async function generateEmployeeNumber(schoolId: string): Promise<string> {
-  const prefix = "EMP-";
-  const pad = 4;
-
-  const latest = await prisma.employee.findFirst({
-    where: { schoolId, employeeNumber: { startsWith: prefix } },
-    select: { employeeNumber: true },
-    orderBy: { employeeNumber: "desc" },
-  });
-
-  const latestRaw = String(latest?.employeeNumber ?? "").trim();
-  const latestNum = latestRaw.startsWith(prefix) ? Number(latestRaw.slice(prefix.length)) : NaN;
-  let next = Number.isFinite(latestNum) ? Math.max(0, Math.floor(latestNum)) + 1 : 1;
-
-  // Best-effort uniqueness within a school (schema does not enforce a unique constraint).
-  for (let i = 0; i < 50; i++) {
-    const candidate = `${prefix}${String(next).padStart(pad, "0")}`;
-    const exists = await prisma.employee.findFirst({
-      where: { schoolId, employeeNumber: candidate },
-      select: { id: true },
-    });
-    if (!exists) return candidate;
-    next += 1;
-  }
-
-  // Fallback: still readable, extremely unlikely collision
-  return `${prefix}${Date.now()}`;
-}
-
 // ===== TAX CALCULATION (SARS 2025/2026 - simplified) =====
 
 
@@ -142,7 +113,6 @@ router.post("/employee", async (req, res) => {
       Number(v === undefined || v === null || v === "" ? fallback : v);
 
     const cleanEmpNo = String(employeeNumber ?? "").trim();
-    const finalEmployeeNumber = cleanEmpNo ? cleanEmpNo : await generateEmployeeNumber(String(schoolId));
 
     const employee = await prisma.employee.create({
       data: {
@@ -162,7 +132,7 @@ router.post("/employee", async (req, res) => {
         bankAccountHolder: bankAccountHolder || null,
         bankAccountNumber: bankAccountNumber || null,
         bankBranchCode: bankBranchCode || null,
-        employeeNumber: finalEmployeeNumber,
+        employeeNumber: cleanEmpNo || null,
         jobTitle: jobTitle || null,
         employeePension: num(employeePension),
         employeeMedicalAid: num(employeeMedicalAid),

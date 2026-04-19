@@ -88,14 +88,27 @@ function safeText(s: string | null | undefined, fallback = "Not captured"): stri
 }
 
 function payrollEmployeeNumber(
-  emp: Employee | undefined,
-  payrollRow: { employeeNumber?: string | null }
+  emp: Employee | undefined
 ): string {
-  return safeText(emp?.employeeNumber ?? payrollRow.employeeNumber);
+  // Payslip rule: employee number is manual only (no fallbacks).
+  return safeText(emp?.employeeNumber, "Not captured");
 }
 
-function payrollIdNumber(emp: Employee | undefined, payrollRow: { idNumber?: string | null }): string {
-  return safeText(emp?.idNumber ?? payrollRow.idNumber);
+function payrollIdNumber(emp: Employee | undefined): string {
+  // Payslip rule: ID number is a normal captured field (no fallbacks).
+  return safeText(emp?.idNumber, "Not captured");
+}
+
+function bookkeeperEmployeeId(emp: Employee | undefined, payrollRow: PayrollResult): string {
+  // Bookkeeper report rule for "Employee ID":
+  // a) employee.employeeNumber
+  // b) employee.idNumber
+  // c) "Not captured"
+  const empNo = String(emp?.employeeNumber ?? "").trim();
+  if (empNo) return empNo;
+  const idNo = String(emp?.idNumber ?? payrollRow.idNumber ?? "").trim();
+  if (idNo) return idNo;
+  return "Not captured";
 }
 
 function sanitizeFilePart(name: string): string {
@@ -267,8 +280,8 @@ async function buildPayslipPdf(params: {
   const fullName = safeText(emp?.fullName || result.employeeName);
   const leftPairs: [string, string][] = [
     ["Full name", fullName],
-    ["Employee number", payrollEmployeeNumber(emp, result)],
-    ["ID number", payrollIdNumber(emp, result)],
+    ["Employee number", payrollEmployeeNumber(emp)],
+    ["ID number", payrollIdNumber(emp)],
     ["Tax number", safeText(emp?.taxNumber)],
     ["Job title", safeText(emp?.jobTitle ?? result.jobTitle)],
   ];
@@ -529,7 +542,7 @@ function buildBookkeeperReportPdf(params: {
       doc.setTextColor(35, 35, 35);
     }
     const emp = employees.find((e) => e.id === row.employeeId);
-    const empIdDisp = payrollEmployeeNumber(emp, row);
+    const empIdDisp = bookkeeperEmployeeId(emp, row);
     const cells: string[] = [
       row.employeeName,
       empIdDisp,
