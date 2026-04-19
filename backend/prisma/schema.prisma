@@ -13,10 +13,25 @@ enum FeeFrequency {
 
   MONTHLY
 
+  MONTHLY_EXCL_DEC
+
+  MONTHLY_EXCL_NOV_DEC
+
   ONCE_OFF
+
+  ANNUALLY
 
   YEARLY
 
+  TERMLY
+
+  DAILY
+
+}
+
+enum FeeCategory {
+  SCHOOL_CHARGE
+  EXTRAMURAL_CHARGE
 }
 enum UserRole {
   SCHOOL_ADMIN
@@ -91,6 +106,10 @@ model FeeStructure {
   amount    Float
 
   frequency FeeFrequency
+
+  category  FeeCategory?
+
+  notes     String?
 
   grade     String?
 

@@ -6,8 +6,7 @@ import TeacherPerformance from "./TeacherPerformance";
 import { API_URL } from "./api";
 import "./App.css";
 import Fees from "./Fees";
-import FeeCreate from "./FeeCreate";
-import FeeManage from "./FeeManage";
+import FeeUpsert from "./FeeUpsert";
 
 type TeacherPerformanceRecord = {
   id: string;
@@ -62,8 +61,7 @@ type PageKey =
   | "payments"
 
   | "fees"
-  | "feeCreate"
-  | "feeManage"
+  | "feeUpsert"
 
   | "plans"
 
@@ -721,20 +719,14 @@ export default function SchoolDashboard() {
     
     }
 
-    if (activePage === "feeCreate") {
-      return <FeeCreate onDone={() => setActivePage("fees")} />;
-    }
-
-    if (activePage === "feeManage") {
-      if (!manageFeeId) {
-        return (
-          <div style={{ padding: "32px" }}>
-            <h1 className="page-title">Manage Fee</h1>
-            <p>Please select a fee first.</p>
-          </div>
-        );
-      }
-      return <FeeManage feeId={manageFeeId} onDone={() => setActivePage("fees")} />;
+    if (activePage === "feeUpsert") {
+      return (
+        <FeeUpsert
+          feeId={manageFeeId}
+          onBack={() => setActivePage("fees")}
+          onSaved={() => setActivePage("fees")}
+        />
+      );
     }
 
     if (activePage === "registrations") {
@@ -2662,10 +2654,13 @@ Manage
       case "fees":
         return (
           <Fees
-            onAdd={() => setActivePage("feeCreate")}
+            onAdd={() => {
+              setManageFeeId(null);
+              setActivePage("feeUpsert");
+            }}
             onManage={(feeId) => {
               setManageFeeId(feeId);
-              setActivePage("feeManage");
+              setActivePage("feeUpsert");
             }}
           />
         );

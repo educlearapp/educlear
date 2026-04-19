@@ -6,7 +6,8 @@ export type FeeListItem = {
   name: string;
   amount: number;
   frequency: string;
-  grade?: string | null;
+  category?: string | null;
+  notes?: string | null;
   usedBillingPlansCount?: number;
 };
 
@@ -16,6 +17,38 @@ function formatMoneyZAR(value: number) {
     minimumFractionDigits: 2,
     maximumFractionDigits: 2,
   })}`;
+}
+
+function formatFeeCategory(value?: string | null) {
+  if (!value) return "General";
+  if (value === "SCHOOL_CHARGE") return "School Charge";
+  if (value === "EXTRAMURAL_CHARGE") return "Extramural Charge";
+  return value;
+}
+
+function formatFeeType(value?: string | null) {
+  const v = String(value || "");
+  if (!v) return "-";
+  switch (v) {
+    case "MONTHLY":
+      return "Monthly Fee";
+    case "MONTHLY_EXCL_DEC":
+      return "Monthly Fee (Excl. Dec)";
+    case "MONTHLY_EXCL_NOV_DEC":
+      return "Monthly Fee (Excl. Nov and Dec)";
+    case "ONCE_OFF":
+      return "Once Off";
+    case "ANNUALLY":
+      return "Annually";
+    case "YEARLY":
+      return "Annually";
+    case "TERMLY":
+      return "Termly";
+    case "DAILY":
+      return "Daily";
+    default:
+      return v;
+  }
 }
 
 export default function Fees(props: {
@@ -85,8 +118,8 @@ export default function Fees(props: {
     return items.map((f) => {
       const usedCount = Number(f.usedBillingPlansCount || 0);
       const feeStatus = usedCount > 0 ? `Used (${usedCount} billing plans)` : "Not used";
-      const category = f.grade ? `Grade ${f.grade}` : "General";
-      const type = String(f.frequency || "-");
+      const category = formatFeeCategory(f.category);
+      const type = formatFeeType(f.frequency);
       return { ...f, feeStatus, category, type };
     });
   }, [items]);

@@ -156,6 +156,8 @@ app.get("/api/fees", async (req, res) => {
             OR: [
               { name: { contains: q, mode: "insensitive" } },
               { grade: { contains: q, mode: "insensitive" } },
+              { notes: { contains: q, mode: "insensitive" } },
+              { category: { equals: q as any } },
               { frequency: { equals: q as any } },
             ],
           }
@@ -180,6 +182,8 @@ app.get("/api/fees", async (req, res) => {
         name: f.name,
         amount: f.amount,
         frequency: f.frequency,
+        category: (f as any).category ?? null,
+        notes: (f as any).notes ?? null,
         grade: f.grade,
         createdAt: f.createdAt,
         usedBillingPlansCount: 0,
@@ -214,6 +218,8 @@ app.get("/api/fees/:id", async (req, res) => {
         name: fee.name,
         amount: fee.amount,
         frequency: fee.frequency,
+        category: (fee as any).category ?? null,
+        notes: (fee as any).notes ?? null,
         grade: fee.grade,
         createdAt: fee.createdAt,
         usedBillingPlansCount: 0,
@@ -228,7 +234,7 @@ app.get("/api/fees/:id", async (req, res) => {
 app.put("/api/fees/:id", async (req, res) => {
   try {
     const id = String(req.params.id || "").trim();
-    const { schoolId, name, amount, frequency, grade } = req.body || {};
+    const { schoolId, name, amount, frequency, category, notes, grade } = req.body || {};
     const schoolIdStr = String(schoolId || "").trim();
     if (!id) return res.status(400).json({ success: false, message: "id is required" });
     if (!schoolIdStr) {
@@ -236,6 +242,12 @@ app.put("/api/fees/:id", async (req, res) => {
     }
     if (!String(name || "").trim()) {
       return res.status(400).json({ success: false, message: "name is required" });
+    }
+    if (!String(frequency || "").trim()) {
+      return res.status(400).json({ success: false, message: "frequency is required" });
+    }
+    if (!String(category || "").trim()) {
+      return res.status(400).json({ success: false, message: "category is required" });
     }
 
     const existing = await prisma.feeStructure.findFirst({ where: { id, schoolId: schoolIdStr } });
@@ -247,6 +259,8 @@ app.put("/api/fees/:id", async (req, res) => {
         name: String(name).trim(),
         amount: Number(amount),
         frequency,
+        category,
+        notes: notes ? String(notes).trim() : null,
         grade: grade ? String(grade).trim() : null,
       },
     });
@@ -259,6 +273,8 @@ app.put("/api/fees/:id", async (req, res) => {
         name: updated.name,
         amount: updated.amount,
         frequency: updated.frequency,
+        category: (updated as any).category ?? null,
+        notes: (updated as any).notes ?? null,
         grade: updated.grade,
         createdAt: updated.createdAt,
         usedBillingPlansCount: 0,
@@ -932,23 +948,37 @@ app.get("/dashboard", authMiddleware, (req, res) => {
   
         frequency,
   
+        category,
+  
+        notes,
+  
         grade,
   
       } = req.body;
   
-  
+      const schoolIdStr = String(schoolId || "").trim();
+      if (!schoolIdStr) return res.status(400).json({ message: "schoolId is required" });
+      if (!String(name || "").trim()) return res.status(400).json({ message: "name is required" });
+      if (!String(frequency || "").trim()) return res.status(400).json({ message: "frequency is required" });
+      if (!String(category || "").trim()) return res.status(400).json({ message: "category is required" });
+      const amountNum = Number(amount);
+      if (!Number.isFinite(amountNum)) return res.status(400).json({ message: "amount must be a number" });
   
       const fee = await prisma.feeStructure.create({
   
         data: {
   
-          schoolId,
+          schoolId: schoolIdStr,
   
-          name,
+          name: String(name).trim(),
   
-          amount: Number(amount),
+          amount: amountNum,
   
           frequency,
+  
+          category,
+  
+          notes: notes ? String(notes).trim() : null,
   
           grade: grade || null,
   
