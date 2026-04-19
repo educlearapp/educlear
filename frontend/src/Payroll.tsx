@@ -95,6 +95,17 @@ function employeeIdDisplay(employeeNumber?: string | null, idNumber?: string | n
   return "Not captured";
 }
 
+/** Same ID display for payslip + bookkeeper: employee record, then payroll row, then "Not captured". */
+function payrollEmployeeIdentifier(
+  emp: Employee | undefined,
+  payrollRow: { employeeNumber?: string | null; idNumber?: string | null }
+): string {
+  return employeeIdDisplay(
+    emp?.employeeNumber ?? payrollRow.employeeNumber,
+    emp?.idNumber ?? payrollRow.idNumber
+  );
+}
+
 function sanitizeFilePart(name: string): string {
   return name.replace(/[/\\?%*:|"<>]/g, "-").replace(/\s+/g, "_").slice(0, 80);
 }
@@ -141,16 +152,16 @@ function drawEmployeeDetailCell(
   maxLines: number
 ): number {
   doc.setFont("helvetica", "normal");
-  doc.setFontSize(6.4);
+  doc.setFontSize(6.5);
   doc.setTextColor(LABEL_MUTED_RGB[0], LABEL_MUTED_RGB[1], LABEL_MUTED_RGB[2]);
-  doc.text(label, x, startY + 1.8);
+  doc.text(label, x, startY + 2);
   doc.setFont("helvetica", "bold");
-  doc.setFontSize(7.6);
+  doc.setFontSize(7.7);
   doc.setTextColor(48, 48, 48);
   const lines = splitTextLimited(doc, value, maxW, maxLines);
-  doc.text(lines, x, startY + 4.2);
+  doc.text(lines, x, startY + 5.2);
   doc.setFont("helvetica", "normal");
-  return 4.2 + lines.length * 3 + 1.2;
+  return 5.2 + lines.length * 3.15 + 1.35;
 }
 
 async function buildPayslipPdf(params: {
@@ -191,13 +202,14 @@ async function buildPayslipPdf(params: {
   doc.setFontSize(11);
   doc.setTextColor(28, 28, 28);
   const schoolLines = splitTextLimited(doc, schoolDisplayName, leftTextMaxW, 2);
+  const schoolNameLineGap = 4.6;
   doc.text(schoolLines, margin, headerTop + 4);
 
   doc.setFont("helvetica", "normal");
-  doc.setFontSize(7.5);
-  doc.setTextColor(100, 100, 100);
-  let ly = headerTop + 4 + Math.max(0, schoolLines.length - 1) * 4.2 + 2.5;
-  const lineStep = 3.1;
+  doc.setFontSize(8);
+  doc.setTextColor(95, 95, 95);
+  let ly = headerTop + 4 + Math.max(0, schoolLines.length - 1) * schoolNameLineGap + 4;
+  const lineStep = 4;
   if (rawEmail) {
     doc.text(rawEmail, margin, ly);
     ly += lineStep;
@@ -215,7 +227,7 @@ async function buildPayslipPdf(params: {
     doc.text("—", margin, ly);
     ly += lineStep;
   }
-  const leftBottom = ly + 2;
+  const leftBottom = ly + 3;
 
   if (logoData) {
     try {
@@ -231,12 +243,12 @@ async function buildPayslipPdf(params: {
   doc.setTextColor(28, 28, 28);
   doc.text("PAYSLIP", pageW - margin, payslipBlockTop + 6, { align: "right" });
   doc.setFont("helvetica", "normal");
-  doc.setFontSize(8);
+  doc.setFontSize(8.2);
   doc.setTextColor(92, 92, 92);
-  doc.text(`Pay period: ${periodLabel}`, pageW - margin, payslipBlockTop + 11.5, { align: "right" });
+  doc.text(`Pay period: ${periodLabel}`, pageW - margin, payslipBlockTop + 12, { align: "right" });
 
-  const rightBottom = payslipBlockTop + 14;
-  const headerBottom = Math.max(leftBottom, rightBottom, logoData ? headerTop + logoH + 3 : headerTop + 14) + 4;
+  const rightBottom = payslipBlockTop + 15;
+  const headerBottom = Math.max(leftBottom, rightBottom, logoData ? headerTop + logoH + 3 : headerTop + 15) + 4;
 
   doc.setDrawColor(175, 175, 175);
   doc.setLineWidth(0.15);
@@ -262,7 +274,7 @@ async function buildPayslipPdf(params: {
   const fullName = safeText(emp?.fullName || result.employeeName);
   const leftPairs: [string, string][] = [
     ["Full name", fullName],
-    ["Employee number", employeeIdDisplay(emp?.employeeNumber ?? result.employeeNumber, emp?.idNumber ?? result.idNumber)],
+    ["Employee number", payrollEmployeeIdentifier(emp, result)],
     ["ID number", safeText(emp?.idNumber)],
     ["Tax number", safeText(emp?.taxNumber)],
     ["Job title", safeText(emp?.jobTitle ?? result.jobTitle)],
@@ -288,7 +300,7 @@ async function buildPayslipPdf(params: {
     if (rp) {
       rightH = drawEmployeeDetailCell(doc, rp[0], rp[1], rightColX, rowTop, rightColW, rp[0] === "Physical address" ? 3 : 2);
     }
-    const rowH = Math.max(leftH, rightH, 9);
+    const rowH = Math.max(leftH, rightH, 10.5);
     if (i < pairCount - 1) {
       doc.setDrawColor(228, 228, 228);
       doc.setLineWidth(0.06);
@@ -410,11 +422,12 @@ async function buildPayslipPdf(params: {
 
 function buildBookkeeperReportPdf(params: {
   schoolInfo: SchoolPayrollInfo | null;
+  employees: Employee[];
   payrollResults: PayrollResult[];
   payrollSummary: { grossTotal: number; deductionsTotal: number; netTotal: number } | null;
   periodLabel: string;
 }): jsPDF {
-  const { schoolInfo, payrollResults, payrollSummary, periodLabel } = params;
+  const { schoolInfo, employees, payrollResults, payrollSummary, periodLabel } = params;
   const doc = new jsPDF({ unit: "mm", format: "a4", orientation: "landscape" });
   const pageW = doc.internal.pageSize.getWidth();
   const pageH = doc.internal.pageSize.getHeight();
@@ -425,46 +438,51 @@ function buildBookkeeperReportPdf(params: {
   doc.setFontSize(13);
   doc.setTextColor(28, 28, 28);
   doc.text("Payroll — Bookkeeper report", margin, y);
-  y += 8;
+  y += 10;
 
   doc.setFont("helvetica", "normal");
-  doc.setFontSize(8.5);
+  doc.setFontSize(8.8);
   doc.setTextColor(66, 66, 66);
   doc.text(safeText(schoolInfo?.name, "School"), margin, y);
-  y += 4;
+  y += 5;
   const schEmail = String(schoolInfo?.email ?? "").trim();
   const schPhone = String(schoolInfo?.phone ?? "").trim();
   const schAddr = String(schoolInfo?.address ?? "").trim();
+  const companyLineStep = 4.6;
   if (schEmail) {
     doc.text(schEmail, margin, y);
-    y += 4;
+    y += companyLineStep;
   }
   if (schPhone) {
     doc.text(schPhone, margin, y);
-    y += 4;
+    y += companyLineStep;
   }
   if (schAddr) {
     const addrLines = doc.splitTextToSize(schAddr, pageW - 2 * margin);
     doc.text(addrLines, margin, y);
-    y += addrLines.length * 3.8 + 2;
+    y += addrLines.length * 4.2 + 3;
   }
+  doc.setFontSize(8.5);
   doc.text(`Pay period: ${periodLabel}`, margin, y);
-  y += 8;
+  y += 10;
 
   const gross = payrollSummary?.grossTotal ?? payrollResults.reduce((s, r) => s + num(r.grossEarnings), 0);
   const ded = payrollSummary?.deductionsTotal ?? payrollResults.reduce((s, r) => s + num(r.deductions), 0);
   const net = payrollSummary?.netTotal ?? payrollResults.reduce((s, r) => s + num(r.net), 0);
 
+  const totalsGapBefore = 3;
+  y += totalsGapBefore;
+  const totalsBoxH = 19;
   doc.setFillColor(247, 247, 247);
   doc.setDrawColor(220, 220, 220);
-  doc.rect(margin, y, pageW - 2 * margin, 17, "FD");
+  doc.rect(margin, y, pageW - 2 * margin, totalsBoxH, "FD");
   doc.setFont("helvetica", "bold");
-  doc.setFontSize(8);
+  doc.setFontSize(8.2);
   doc.setTextColor(40, 40, 40);
-  doc.text(`Total gross earnings: ${fmtMoney(gross)}`, margin + 3, y + 5);
-  doc.text(`Total deductions: ${fmtMoney(ded)}`, margin + 3, y + 10);
-  doc.text(`Total net pay: ${fmtMoney(net)}`, margin + 3, y + 15);
-  y += 21;
+  doc.text(`Total gross earnings: ${fmtMoney(gross)}`, margin + 3.5, y + 5.5);
+  doc.text(`Total deductions: ${fmtMoney(ded)}`, margin + 3.5, y + 11);
+  doc.text(`Total net pay: ${fmtMoney(net)}`, margin + 3.5, y + 16.5);
+  y += totalsBoxH + 6;
 
   const cols = [50, 19, 24, 25, 21, 17, 20, 23, 24, 26, 27];
   const headers = [
@@ -483,8 +501,8 @@ function buildBookkeeperReportPdf(params: {
 
   const drawColumnHeaders = (headerY: number) => {
     doc.setFont("helvetica", "bold");
-    doc.setFontSize(7);
-    doc.setTextColor(55, 55, 55);
+    doc.setFontSize(7.4);
+    doc.setTextColor(45, 45, 45);
     let hx = margin;
     for (let i = 0; i < headers.length; i++) {
       const cw = cols[i];
@@ -492,20 +510,21 @@ function buildBookkeeperReportPdf(params: {
       else doc.text(headers[i], hx + cw, headerY, { align: "right" });
       hx += cw;
     }
-    const ruleY = headerY + 5;
-    doc.setDrawColor(210, 210, 210);
+    const ruleY = headerY + 5.5;
+    doc.setDrawColor(200, 200, 200);
+    doc.setLineWidth(0.2);
     doc.line(margin, ruleY, pageW - margin, ruleY);
-    return ruleY + 4;
+    return ruleY + 5;
   };
 
   y = drawColumnHeaders(y);
 
   doc.setFont("helvetica", "normal");
-  doc.setFontSize(6.8);
+  doc.setFontSize(7.1);
   doc.setTextColor(35, 35, 35);
 
   for (const row of payrollResults) {
-    if (y > pageH - margin - 16) {
+    if (y > pageH - margin - 18) {
       doc.addPage();
       doc.setFont("helvetica", "normal");
       doc.setFontSize(7);
@@ -513,10 +532,11 @@ function buildBookkeeperReportPdf(params: {
       doc.text("(continued)", margin, margin + 3);
       y = drawColumnHeaders(margin + 8);
       doc.setFont("helvetica", "normal");
-      doc.setFontSize(6.8);
+      doc.setFontSize(7.1);
       doc.setTextColor(35, 35, 35);
     }
-    const empIdDisp = employeeIdDisplay(row.employeeNumber, row.idNumber);
+    const emp = employees.find((e) => e.id === row.employeeId);
+    const empIdDisp = payrollEmployeeIdentifier(emp, row);
     const cells: string[] = [
       row.employeeName,
       empIdDisp,
@@ -531,23 +551,23 @@ function buildBookkeeperReportPdf(params: {
       fmtMoney(row.net),
     ];
     let rx = margin;
-    let rowH = 4;
+    let rowH = 5;
     for (let i = 0; i < cells.length; i++) {
       const cw = cols[i];
       const txt = cells[i];
       if (i === 0) {
         const lines = splitTextLimited(doc, txt, cw - 1, 2);
         doc.text(lines, rx, y);
-        rowH = Math.max(rowH, lines.length * 3.6);
+        rowH = Math.max(rowH, lines.length * 3.85);
       } else if (i === 1) {
         doc.text(txt, rx, y, { maxWidth: cw });
-        rowH = Math.max(rowH, 4);
+        rowH = Math.max(rowH, 5);
       } else {
         doc.text(txt, rx + cw, y, { align: "right" });
       }
       rx += cw;
     }
-    y += rowH + 0.6;
+    y += rowH + 1.1;
   }
 
   doc.setFontSize(6.5);
@@ -559,6 +579,7 @@ function buildBookkeeperReportPdf(params: {
 
 function downloadBookkeeperReportPdf(params: {
   schoolInfo: SchoolPayrollInfo | null;
+  employees: Employee[];
   payrollResults: PayrollResult[];
   payrollSummary: { grossTotal: number; deductionsTotal: number; netTotal: number } | null;
   periodLabel: string;
@@ -729,6 +750,7 @@ export default function Payroll() {
       setPayrollNotice("");
       downloadBookkeeperReportPdf({
         schoolInfo,
+        employees,
         payrollResults,
         payrollSummary,
         periodLabel,
@@ -737,7 +759,7 @@ export default function Payroll() {
     } finally {
       setBookkeeperBusy(false);
     }
-  }, [payrollResults, payrollSummary, schoolInfo, lastPayrollMonth, lastPayrollYear]);
+  }, [employees, payrollResults, payrollSummary, schoolInfo, lastPayrollMonth, lastPayrollYear]);
 
   const handleEmailBookkeeperReport = useCallback(async () => {
     if (!payrollResults.length || !schoolId) return;
@@ -756,6 +778,7 @@ export default function Payroll() {
       setBookkeeperEmailBusy(true);
       const doc = buildBookkeeperReportPdf({
         schoolInfo,
+        employees,
         payrollResults,
         payrollSummary,
         periodLabel,
@@ -789,6 +812,7 @@ export default function Payroll() {
       setBookkeeperEmailBusy(false);
     }
   }, [
+    employees,
     payrollResults,
     payrollSummary,
     schoolInfo,
