@@ -170,6 +170,7 @@ async function buildPayslipPdf(params: {
   const margin = 12;
   const innerW = pageW - 2 * margin;
   const hdrRgb = NEUTRAL_HEADING_RGB;
+  const sectionGap = 8;
 
   const m = lastPayrollMonth ?? new Date().getMonth() + 1;
   const yrr = lastPayrollYear ?? new Date().getFullYear();
@@ -231,7 +232,7 @@ async function buildPayslipPdf(params: {
 
   const payslipBlockTop = headerTop;
   doc.setFont("helvetica", "bold");
-  doc.setFontSize(13);
+  doc.setFontSize(14);
   doc.setTextColor(28, 28, 28);
   doc.text("PAYSLIP", pageW - margin, payslipBlockTop + 6, { align: "right" });
   doc.setFont("helvetica", "normal");
@@ -305,7 +306,7 @@ async function buildPayslipPdf(params: {
   doc.setDrawColor(140, 140, 140);
   doc.setLineWidth(0.25);
   doc.rect(margin, empSectionTop, innerW, empBoxBottom - empSectionTop, "S");
-  y = empBoxBottom + 6;
+  y = empBoxBottom + sectionGap;
 
   const empMed = num(result.medicalAidEmployee ?? emp?.employeeMedicalAid);
   const emplMed = num(result.medicalAidEmployer ?? emp?.employerMedicalAid);
@@ -356,7 +357,7 @@ async function buildPayslipPdf(params: {
   doc.setFont("helvetica", "bold");
   doc.text("Gross earnings", margin + 3, y);
   doc.text(fmtMoney(payslipGross), amtRight, y, { align: "right" });
-  y += 7;
+  y += 7 + (sectionGap - 6);
 
   doc.setTextColor(hdrRgb[0], hdrRgb[1], hdrRgb[2]);
   doc.text("Deductions", margin + 2, y);
@@ -404,8 +405,8 @@ async function buildPayslipPdf(params: {
   doc.setTextColor(0, 0, 0);
 
   const footerY = netTop + netBoxH + 6;
-  doc.setFontSize(6.5);
-  doc.setTextColor(130, 130, 130);
+  doc.setFontSize(6.2);
+  doc.setTextColor(165, 165, 165);
   doc.setFont("helvetica", "normal");
   doc.text("Payroll processed by EduClear", pageW / 2, footerY, { align: "center" });
 
