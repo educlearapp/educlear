@@ -1,6 +1,8 @@
 import { useCallback, useEffect, useState } from "react";
 import jsPDF from "jspdf";
 
+import { API_URL } from "./api";
+
 type Employee = {
   id: string;
   employeeNumber?: string | null;
@@ -153,13 +155,30 @@ export default function Payroll() {
   const fetchSchoolInfo = useCallback(async (sid: string) => {
     if (!sid) return;
     try {
-      const response = await fetch(`http://localhost:3000/api/payroll/school/${sid}`);
+      const response = await fetch(`${API_URL}/api/payroll/school/${sid}`);
       if (!response.ok) {
         setSchoolInfo(null);
         return;
       }
       const data = await response.json();
-      setSchoolInfo(data);
+      if (!data || typeof data !== "object" || Array.isArray(data)) {
+        setSchoolInfo(null);
+        return;
+      }
+      const d = data as Record<string, unknown>;
+      const id = d.id != null ? String(d.id) : "";
+      if (!id) {
+        setSchoolInfo(null);
+        return;
+      }
+      setSchoolInfo({
+        id,
+        name: String(d.name ?? ""),
+        email: d.email == null ? null : String(d.email),
+        phone: d.phone == null ? null : String(d.phone),
+        address: d.address == null || d.address === "" ? null : String(d.address),
+        logoUrl: d.logoUrl == null ? null : String(d.logoUrl),
+      });
     } catch {
       setSchoolInfo(null);
     }
