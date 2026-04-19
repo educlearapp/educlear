@@ -30,6 +30,7 @@ type PayrollResult = {
   employeeId: string;
   employeeName: string;
   employeeNumber?: string | null;
+  idNumber?: string | null;
   jobTitle?: string | null;
   basicSalary: number;
   overtimeHours: number;
@@ -84,6 +85,14 @@ function fmtMoney(v: number): string {
 function safeText(s: string | null | undefined, fallback = "Not captured"): string {
   const t = String(s ?? "").trim();
   return t.length ? t : fallback;
+}
+
+function employeeIdDisplay(employeeNumber?: string | null, idNumber?: string | null): string {
+  const en = String(employeeNumber ?? "").trim();
+  if (en.length) return en;
+  const id = String(idNumber ?? "").trim();
+  if (id.length) return id;
+  return "Not captured";
 }
 
 function sanitizeFilePart(name: string): string {
@@ -253,7 +262,7 @@ async function buildPayslipPdf(params: {
   const fullName = safeText(emp?.fullName || result.employeeName);
   const leftPairs: [string, string][] = [
     ["Full name", fullName],
-    ["Employee number", safeText(emp?.employeeNumber ?? result.employeeNumber)],
+    ["Employee number", employeeIdDisplay(emp?.employeeNumber ?? result.employeeNumber, emp?.idNumber ?? result.idNumber)],
     ["ID number", safeText(emp?.idNumber)],
     ["Tax number", safeText(emp?.taxNumber)],
     ["Job title", safeText(emp?.jobTitle ?? result.jobTitle)],
@@ -507,7 +516,7 @@ function buildBookkeeperReportPdf(params: {
       doc.setFontSize(6.8);
       doc.setTextColor(35, 35, 35);
     }
-    const empIdDisp = String(row.employeeNumber ?? "").trim() || "—";
+    const empIdDisp = employeeIdDisplay(row.employeeNumber, row.idNumber);
     const cells: string[] = [
       row.employeeName,
       empIdDisp,

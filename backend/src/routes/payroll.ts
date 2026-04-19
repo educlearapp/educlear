@@ -364,6 +364,7 @@ router.post("/run", async (req, res) => {
         employeeId: emp.id,
         employeeName: emp.fullName || `${emp.firstName} ${emp.lastName}`,
         employeeNumber: emp.employeeNumber,
+        idNumber: emp.idNumber,
         jobTitle: emp.jobTitle,
         basicSalary: Number(basicSalaryNum.toFixed(2)),
         overtimeHours: Number(overtimeHoursNum.toFixed(2)),
