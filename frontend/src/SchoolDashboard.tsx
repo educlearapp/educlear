@@ -58,6 +58,7 @@ type PageKey =
   | "more"
 
   | "statements"
+  | "statementManage"
 
   | "invoices"
   | "invoiceCreate"
@@ -1840,29 +1841,66 @@ Manage
       
             <h1 className="page-title">Create Invoice</h1>
       
-      
-      
-            <div
-      
-              style={{
-      
-                background: "#ffffff",
-      
-                borderRadius: "12px",
-      
-                padding: "24px",
-      
-                boxShadow: "0 8px 24px rgba(15, 23, 42, 0.08)",
-      
-                marginTop: "20px",
-      
-              }}
-      
-            >
-      
-              <p>Select fees or add manual items for this learner.</p>
-      
-            </div>
+            {(() => {
+              const saved = localStorage.getItem("selectedInvoiceAccount");
+              const selected =
+                selectedInvoiceAccount ||
+                (saved
+                  ? (() => {
+                      try {
+                        return JSON.parse(saved);
+                      } catch {
+                        return null;
+                      }
+                    })()
+                  : null);
+
+              if (!selected) {
+                return (
+                  <div
+                    style={{
+                      background: "#ffffff",
+                      borderRadius: "12px",
+                      padding: "24px",
+                      boxShadow: "0 8px 24px rgba(15, 23, 42, 0.08)",
+                      marginTop: "20px",
+                      border: "1px solid rgba(234, 88, 12, 0.18)",
+                      color: "#9a3412",
+                      fontWeight: 700,
+                    }}
+                  >
+                    Select an account first.
+                  </div>
+                );
+              }
+
+              const ref = String(selected?.accountNo || "");
+              const learnerName = `${String(selected?.name || "").trim()} ${String(selected?.surname || "").trim()}`.trim();
+
+              return (
+                <div
+                  style={{
+                    background: "#ffffff",
+                    borderRadius: "12px",
+                    padding: "24px",
+                    boxShadow: "0 8px 24px rgba(15, 23, 42, 0.08)",
+                    marginTop: "20px",
+                    border: "1px solid rgba(15, 23, 42, 0.08)",
+                  }}
+                >
+                  <div style={{ fontWeight: 800, fontSize: "14px", color: "#0f172a", marginBottom: "8px" }}>
+                    Invoice for
+                  </div>
+                  <div style={{ fontWeight: 900, fontSize: "18px", color: "#0f172a", marginBottom: "6px" }}>
+                    {learnerName || "Selected account"}
+                  </div>
+                  <div style={{ color: "#475569", fontWeight: 700, fontSize: "13px", marginBottom: "14px" }}>
+                    Account: {ref || "-"}
+                  </div>
+                  <p style={{ margin: 0 }}>Select fees or add manual items for this learner.</p>
+                </div>
+              );
+            })()}
       
           </div>
       
@@ -2100,6 +2138,7 @@ Manage
                       "selectedStatementAccount",
                       JSON.stringify(selectedStatementAccount)
                     );
+                    setActivePage("statementManage");
                   }}
       
                 >
@@ -2316,6 +2355,95 @@ Manage
       
         );
 
+        case "statementManage": {
+          const saved = localStorage.getItem("selectedStatementAccount");
+          const selected =
+            selectedStatementAccount ||
+            (saved
+              ? (() => {
+                  try {
+                    return JSON.parse(saved);
+                  } catch {
+                    return null;
+                  }
+                })()
+              : null);
+
+          if (!selected) {
+            return (
+              <div style={{ padding: "32px" }}>
+                <h1 className="page-title">Statement</h1>
+                <div
+                  style={{
+                    background: "#ffffff",
+                    borderRadius: "12px",
+                    padding: "24px",
+                    boxShadow: "0 8px 24px rgba(15, 23, 42, 0.08)",
+                    marginTop: "20px",
+                    border: "1px solid rgba(234, 88, 12, 0.18)",
+                    color: "#9a3412",
+                    fontWeight: 700,
+                  }}
+                >
+                  Select an account first.
+                </div>
+                <div style={{ marginTop: "14px" }}>
+                  <button type="button" style={actionBtn} onClick={() => setActivePage("statements")}>
+                    Back
+                  </button>
+                </div>
+              </div>
+            );
+          }
+
+          const ref = String(selected?.accountNo || "");
+          const learnerName = `${String(selected?.name || "").trim()} ${String(selected?.surname || "").trim()}`.trim();
+
+          return (
+            <div style={{ padding: "32px" }}>
+              <div
+                style={{
+                  display: "flex",
+                  justifyContent: "space-between",
+                  alignItems: "flex-start",
+                  gap: "12px",
+                  flexWrap: "wrap",
+                }}
+              >
+                <div>
+                  <h1 className="page-title">Statement</h1>
+                  <p style={{ margin: "8px 0 0 0", color: "#475569", fontWeight: 600 }}>
+                    Account: <span style={{ fontWeight: 800, color: "#0f172a" }}>{ref || "-"}</span>
+                    {learnerName ? (
+                      <>
+                        {" "}
+                        • Learner: <span style={{ fontWeight: 800, color: "#0f172a" }}>{learnerName}</span>
+                      </>
+                    ) : null}
+                  </p>
+                </div>
+                <button type="button" style={actionBtn} onClick={() => setActivePage("statements")}>
+                  Back
+                </button>
+              </div>
+
+              <div
+                style={{
+                  background: "#ffffff",
+                  borderRadius: "12px",
+                  padding: "24px",
+                  boxShadow: "0 8px 24px rgba(15, 23, 42, 0.08)",
+                  marginTop: "20px",
+                }}
+              >
+                <p style={{ margin: 0, color: "#475569", fontWeight: 650 }}>
+                  This view is now correctly opened from Statements “Manage” and is linked to the selected account.
+                </p>
+              </div>
+            </div>
+          );
+        }
+
         case "invoices":
 
   return (
@@ -2506,7 +2634,8 @@ Manage
 
               boxShadow: "0 6px 18px rgba(212, 175, 55, 0.35)",
 
-              cursor: "pointer",
+              cursor: selectedInvoiceAccount ? "pointer" : "not-allowed",
+              opacity: selectedInvoiceAccount ? 1 : 0.6,
 
             }}
             onClick={() => {
@@ -2517,6 +2646,9 @@ Manage
               localStorage.setItem("selectedInvoiceAccount", JSON.stringify(selectedInvoiceAccount));
               setActivePage("invoiceCreate");
             }}
+            disabled={!selectedInvoiceAccount}
+            aria-disabled={!selectedInvoiceAccount}
+            title={!selectedInvoiceAccount ? "Select an account first" : "Create an invoice for selected account"}
 
           >
 
