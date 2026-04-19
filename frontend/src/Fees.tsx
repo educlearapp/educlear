@@ -82,7 +82,11 @@ export default function Fees(props: {
     setLoading(true);
     setError(null);
 
-    const url = new URL(`${API_URL}/api/fees`);
+    const base = String(API_URL || "").trim();
+    const url = new URL(
+      "/api/fees",
+      base.startsWith("http://") || base.startsWith("https://") ? base : window.location.origin
+    );
     url.searchParams.set("schoolId", schoolId);
     url.searchParams.set("page", String(page));
     url.searchParams.set("pageSize", String(pageSize));

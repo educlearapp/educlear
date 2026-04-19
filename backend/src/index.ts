@@ -136,7 +136,7 @@ app.use("/learner", learnerRoutes);
 app.use("/api/schools", schoolsRoutes);
 app.use("/api", parentsRoutes);
 app.use("/api/rbac", rbacRoutes);
-app.use("/teacher-performance", teacherPerformanceRoutes);
+app.use("/api/teacher-performance", teacherPerformanceRoutes);
 app.use("/api/payroll", payrollRoutes);
 app.use("/api/fees", feesRoutes);
 

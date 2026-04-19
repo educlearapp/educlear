@@ -3,6 +3,7 @@ import { Route, Routes, useLocation, useNavigate, useParams } from "react-router
 
 import AddLearner from "./AddLearner";
 import TeacherPerformance from "./TeacherPerformance";
+import Payroll from "./Payroll";
 import { API_URL } from "./api";
 import logo from "./assets/educlear-logo.svg";
 import "./App.css";
@@ -61,6 +62,7 @@ type PageKey =
   | "invoices"
   | "invoiceCreate"
   | "payments"
+  | "payroll"
 
   | "fees"
   | "feeUpsert"
@@ -2685,6 +2687,9 @@ Manage
 
         return <h1 className="page-title">Payments</h1>;
 
+      case "payroll":
+        return <Payroll />;
+
       case "fees":
         return (
           <Fees
@@ -3037,6 +3042,13 @@ Teacher Performance
 
                 Payments
 
+              </div>
+
+              <div
+                className={`submenu-item ${activePage === "payroll" ? "active" : ""}`}
+                onClick={() => go("payroll")}
+              >
+                Payroll
               </div>
 
 

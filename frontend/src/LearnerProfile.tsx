@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { API_URL, apiFetch } from "./api";
+import educlearLogo from "./assets/educlear-logo.svg";
 
 type LearnerLike = Record<string, any>;
 type SchoolLike = Record<string, any>;
@@ -116,7 +117,7 @@ export default function LearnerProfile() {
     school?.logo ||
     school?.logoPath ||
     (school?.logoFilename ? `${API_URL}/uploads/${school.logoFilename}` : null) ||
-    "/logo.png";
+    educlearLogo;
 
   return (
     <div
@@ -155,7 +156,7 @@ export default function LearnerProfile() {
                 background: "#fff",
               }}
               onError={(e) => {
-                (e.currentTarget as HTMLImageElement).src = "/logo.png";
+                (e.currentTarget as HTMLImageElement).src = educlearLogo;
               }}
             />
             <div>
