@@ -593,7 +593,8 @@ Net: R${data.netTotal}`
             }}
           >
             <h2 style={{ marginTop: 0 }}>Add Employee</h2>
-            <form onSubmit={handleAddEmployee} style={{ display: "grid", gap: "14px" }}>
+            <div style={{ maxWidth: "600px", margin: "0 auto", width: "100%" }}>
+              <form onSubmit={handleAddEmployee} style={{ display: "grid", gap: "8px" }}>
               <input
                 type="text"
                 placeholder="First name"
@@ -636,7 +637,13 @@ Net: R${data.netTotal}`
                 value={physicalAddress}
                 onChange={(e) => setPhysicalAddress(e.target.value)}
                 rows={2}
-                style={{ ...inputStyle, resize: "vertical", fontFamily: "inherit" }}
+                style={{
+                  ...inputStyle,
+                  resize: "vertical",
+                  fontFamily: "inherit",
+                  minHeight: "72px",
+                  height: "auto",
+                }}
               />
               <input
                 type="text"
@@ -738,6 +745,7 @@ Net: R${data.netTotal}`
                 Save Employee
               </button>
             </form>
+            </div>
 
             <button
               type="button"
@@ -926,34 +934,37 @@ Net: R${data.netTotal}`
 
 const inputStyle: React.CSSProperties = {
   width: "100%",
-  padding: "12px 14px",
-  borderRadius: "10px",
-  border: "1px solid #cbd5e1",
-  fontSize: "15px",
+  maxWidth: "100%",
+  padding: "10px 12px",
+  borderRadius: "8px",
+  border: "1px solid #e5e7eb",
+  fontSize: "14px",
+  lineHeight: 1.35,
   outline: "none",
   boxSizing: "border-box",
+  minHeight: "40px",
 };
 
 const primaryButtonStyle: React.CSSProperties = {
   width: "100%",
-  padding: "12px 16px",
-  borderRadius: "10px",
+  padding: "10px 14px",
+  borderRadius: "8px",
   border: "none",
   background: "#0f172a",
   color: "#ffffff",
-  fontSize: "15px",
+  fontSize: "14px",
   fontWeight: 700,
   cursor: "pointer",
 };
 
 const secondaryButtonStyle: React.CSSProperties = {
   width: "100%",
-  padding: "12px 16px",
-  borderRadius: "10px",
+  padding: "10px 14px",
+  borderRadius: "8px",
   border: "1px solid #0f172a",
   background: "#ffffff",
   color: "#0f172a",
-  fontSize: "15px",
+  fontSize: "14px",
   fontWeight: 700,
   cursor: "pointer",
 };
