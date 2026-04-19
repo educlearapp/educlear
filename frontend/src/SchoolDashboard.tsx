@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { Route, Routes, useLocation, useNavigate, useParams } from "react-router-dom";
 
 import AddLearner from "./AddLearner";
 import TeacherPerformance from "./TeacherPerformance";
@@ -81,6 +81,7 @@ type PageKey =
 
 export default function SchoolDashboard() {
   const navigate = useNavigate();
+  const location = useLocation();
 
   const [activePage, setActivePage] = useState<PageKey>("dashboard");
   const [manageFeeId, setManageFeeId] = useState<string | null>(null);
@@ -207,6 +208,31 @@ export default function SchoolDashboard() {
     }
 
   }, [activePage]);
+
+  useEffect(() => {
+    const path = location.pathname || "";
+    if (!path.startsWith("/dashboard/billing/fees")) return;
+
+    setBillingOpen(true);
+
+    if (path === "/dashboard/billing/fees" || path === "/dashboard/billing/fees/") {
+      setManageFeeId(null);
+      setActivePage("fees");
+      return;
+    }
+
+    if (path.endsWith("/new")) {
+      setManageFeeId(null);
+      setActivePage("feeUpsert");
+      return;
+    }
+
+    const m = path.match(/\/dashboard\/billing\/fees\/([^/]+)\/?$/);
+    if (m?.[1]) {
+      setManageFeeId(decodeURIComponent(m[1]));
+      setActivePage("feeUpsert");
+    }
+  }, [location.pathname]);
 
 
 
@@ -2697,6 +2723,18 @@ Manage
 
   };
 
+  function FeeUpsertRoute() {
+    const params = useParams();
+    const feeId = params.feeId ? String(params.feeId) : null;
+    return (
+      <FeeUpsert
+        feeId={feeId}
+        onBack={() => navigate("/dashboard/billing/fees")}
+        onSaved={() => navigate("/dashboard/billing/fees")}
+      />
+    );
+  }
+
   return (
 
     <div className="school-shell">
@@ -2999,7 +3037,7 @@ Teacher Performance
 
                 className={`submenu-item ${activePage === "fees" ? "active" : ""}`}
 
-                onClick={() => setActivePage("fees")}
+                onClick={() => navigate("/dashboard/billing/fees")}
 
               >
 
@@ -3181,7 +3219,38 @@ Teacher Performance
 
         >
 
-          {renderPage()}
+          <Routes>
+            <Route
+              path="billing/fees"
+              element={
+                <Fees
+                  onAdd={() => {
+                    setManageFeeId(null);
+                    navigate("/dashboard/billing/fees/new");
+                  }}
+                  onManage={(feeId) => {
+                    setManageFeeId(feeId);
+                    navigate(`/dashboard/billing/fees/${encodeURIComponent(String(feeId))}`);
+                  }}
+                />
+              }
+            />
+            <Route
+              path="billing/fees/new"
+              element={
+                <FeeUpsert
+                  feeId={null}
+                  onBack={() => navigate("/dashboard/billing/fees")}
+                  onSaved={() => navigate("/dashboard/billing/fees")}
+                />
+              }
+            />
+            <Route
+              path="billing/fees/:feeId"
+              element={<FeeUpsertRoute />}
+            />
+            <Route path="*" element={renderPage()} />
+          </Routes>
 
         </div>
 

@@ -164,7 +164,7 @@ export default function App() {
         <Route path="/register-school" element={<RegisterSchool />} />
         <Route path="/login" element={<Login onLoggedIn={() => {}} />} />
 
-        <Route path="/dashboard" element={<SchoolDashboard />} />
+        <Route path="/dashboard/*" element={<SchoolDashboard />} />
 
         <Route path="/teacher-performance" element={<TeacherPerformance />} />
         <Route path="/learners/:learnerId" element={<LearnerProfile />} />
