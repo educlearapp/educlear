@@ -41,6 +41,9 @@ model School {
   /// Optional logo image URL for payslips and branding (HTTPS recommended).
   logoUrl String?
 
+  /// Optional brand color for PDFs and UI (e.g. #1a2b3c or #36a).
+  primaryColor String?
+
   createdAt DateTime @default(now())
 
   users User[]

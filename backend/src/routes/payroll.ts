@@ -225,6 +225,7 @@ router.get("/school/:schoolId", async (req, res) => {
         phone: true,
         address: true,
         logoUrl: true,
+        primaryColor: true,
       },
     });
     if (!school) {
