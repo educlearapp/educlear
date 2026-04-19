@@ -177,9 +177,9 @@ export default function Payroll() {
       const yrr = lastPayrollYear ?? new Date().getFullYear();
       const periodLabel = `${MONTH_NAMES[Math.min(12, Math.max(1, m)) - 1]} ${yrr}`;
 
-      const employerName = safeText(schoolInfo?.name, "Not captured");
-      const employerEmail = safeText(schoolInfo?.email);
-      const employerPhone = safeText(schoolInfo?.phone);
+      const schoolDisplayName = safeText(schoolInfo?.name, "EduClear School");
+      const schoolDisplayEmail = safeText(schoolInfo?.email, "-");
+      const schoolDisplayPhone = safeText(schoolInfo?.phone, "-");
 
       const employerPad = 5;
       const employerBoxTop = y;
@@ -187,46 +187,56 @@ export default function Payroll() {
       const logoH = 14;
 
       let logoData: { data: string; format: "PNG" | "JPEG" | "WEBP" } | null = null;
-      if (schoolInfo?.logoUrl) {
-        logoData = await loadImageDataUrl(schoolInfo.logoUrl);
+      if (schoolInfo?.logoUrl?.trim()) {
+        logoData = await loadImageDataUrl(schoolInfo.logoUrl.trim());
       }
 
-      const textStartY = employerBoxTop + employerPad + 4;
-      const employerTextBlockH = 16;
+      const textLeft = margin + employerPad;
+      const textLeftAfterLogo = margin + employerPad + logoW + 7;
+      const nameMaxW = logoData
+        ? pageW - margin - employerPad - textLeftAfterLogo
+        : pageW - margin - employerPad - textLeft;
+      const nameLines = splitTextLimited(doc, schoolDisplayName, nameMaxW, 2);
+      const nameLineStep = 5.4;
+      const line1Y = employerBoxTop + employerPad + 4;
+      const nameBottom = line1Y + (nameLines.length - 1) * nameLineStep;
+      const contact1Y = nameBottom + 6;
+      const contact2Y = contact1Y + 4;
+
       const employerBoxH = Math.max(
-        logoData ? logoH + employerPad * 2 : employerTextBlockH + employerPad * 2,
-        employerTextBlockH + employerPad * 2
+        logoData ? logoH + employerPad * 2 : 0,
+        contact2Y - employerBoxTop + employerPad + 3
       );
 
       doc.setFillColor(248, 250, 252);
       doc.setDrawColor(226, 232, 240);
       doc.rect(margin, employerBoxTop, innerW, employerBoxH, "FD");
 
-      let textX = margin + employerPad;
+      let textX = textLeft;
       if (logoData) {
         try {
           doc.addImage(logoData.data, logoData.format, margin + employerPad, employerBoxTop + employerPad, logoW, logoH);
-          textX = margin + employerPad + logoW + 7;
+          textX = textLeftAfterLogo;
         } catch {
           /* omit logo; leave text left-aligned */
         }
       }
 
       doc.setFont("helvetica", "bold");
-      doc.setFontSize(12);
+      doc.setFontSize(14);
       doc.setTextColor(15, 23, 42);
-      doc.text(employerName, textX, textStartY);
+      doc.text(nameLines, textX, line1Y);
       doc.setFont("helvetica", "normal");
-      doc.setFontSize(9);
+      doc.setFontSize(8);
       doc.setTextColor(71, 85, 105);
-      doc.text(`Email: ${employerEmail}`, textX, textStartY + 5);
-      doc.text(`Phone: ${employerPhone}`, textX, textStartY + 10);
+      doc.text(`Email: ${schoolDisplayEmail}`, textX, contact1Y);
+      doc.text(`Phone: ${schoolDisplayPhone}`, textX, contact2Y);
       doc.setTextColor(0, 0, 0);
 
-      y = employerBoxTop + employerBoxH + 7;
+      y = employerBoxTop + employerBoxH + 9;
       doc.setDrawColor(203, 213, 225);
       doc.line(margin, y, pageW - margin, y);
-      y += 10;
+      y += 14;
 
       doc.setFont("helvetica", "bold");
       doc.setFontSize(17);
