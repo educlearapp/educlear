@@ -138,6 +138,138 @@ app.use("/api/rbac", rbacRoutes);
 app.use("/teacher-performance", teacherPerformanceRoutes);
 app.use("/api/payroll", payrollRoutes);
 
+app.get("/api/fees", async (req, res) => {
+  try {
+    const schoolId = String(req.query.schoolId || "").trim();
+    const q = String(req.query.q || "").trim();
+    const page = Math.max(1, Number(req.query.page || 1));
+    const pageSize = Math.min(100, Math.max(5, Number(req.query.pageSize || 10)));
+
+    if (!schoolId) {
+      return res.status(400).json({ success: false, message: "schoolId is required" });
+    }
+
+    const where: any = {
+      schoolId,
+      ...(q
+        ? {
+            OR: [
+              { name: { contains: q, mode: "insensitive" } },
+              { grade: { contains: q, mode: "insensitive" } },
+              { frequency: { equals: q as any } },
+            ],
+          }
+        : {}),
+    };
+
+    const [total, fees] = await Promise.all([
+      prisma.feeStructure.count({ where }),
+      prisma.feeStructure.findMany({
+        where,
+        orderBy: { createdAt: "desc" },
+        skip: (page - 1) * pageSize,
+        take: pageSize,
+      }),
+    ]);
+
+    return res.json({
+      success: true,
+      items: fees.map((f) => ({
+        id: f.id,
+        schoolId: f.schoolId,
+        name: f.name,
+        amount: f.amount,
+        frequency: f.frequency,
+        grade: f.grade,
+        createdAt: f.createdAt,
+        usedBillingPlansCount: 0,
+      })),
+      total,
+      page,
+      pageSize,
+    });
+  } catch (error) {
+    console.error("List fees error:", error);
+    return res.status(500).json({ success: false, message: "Failed to fetch fees" });
+  }
+});
+
+app.get("/api/fees/:id", async (req, res) => {
+  try {
+    const id = String(req.params.id || "").trim();
+    const schoolId = String(req.query.schoolId || "").trim();
+    if (!id) return res.status(400).json({ success: false, message: "id is required" });
+    if (!schoolId) {
+      return res.status(400).json({ success: false, message: "schoolId is required" });
+    }
+
+    const fee = await prisma.feeStructure.findFirst({ where: { id, schoolId } });
+    if (!fee) return res.status(404).json({ success: false, message: "Fee not found" });
+
+    return res.json({
+      success: true,
+      fee: {
+        id: fee.id,
+        schoolId: fee.schoolId,
+        name: fee.name,
+        amount: fee.amount,
+        frequency: fee.frequency,
+        grade: fee.grade,
+        createdAt: fee.createdAt,
+        usedBillingPlansCount: 0,
+      },
+    });
+  } catch (error) {
+    console.error("Get fee error:", error);
+    return res.status(500).json({ success: false, message: "Failed to fetch fee" });
+  }
+});
+
+app.put("/api/fees/:id", async (req, res) => {
+  try {
+    const id = String(req.params.id || "").trim();
+    const { schoolId, name, amount, frequency, grade } = req.body || {};
+    const schoolIdStr = String(schoolId || "").trim();
+    if (!id) return res.status(400).json({ success: false, message: "id is required" });
+    if (!schoolIdStr) {
+      return res.status(400).json({ success: false, message: "schoolId is required" });
+    }
+    if (!String(name || "").trim()) {
+      return res.status(400).json({ success: false, message: "name is required" });
+    }
+
+    const existing = await prisma.feeStructure.findFirst({ where: { id, schoolId: schoolIdStr } });
+    if (!existing) return res.status(404).json({ success: false, message: "Fee not found" });
+
+    const updated = await prisma.feeStructure.update({
+      where: { id },
+      data: {
+        name: String(name).trim(),
+        amount: Number(amount),
+        frequency,
+        grade: grade ? String(grade).trim() : null,
+      },
+    });
+
+    return res.json({
+      success: true,
+      fee: {
+        id: updated.id,
+        schoolId: updated.schoolId,
+        name: updated.name,
+        amount: updated.amount,
+        frequency: updated.frequency,
+        grade: updated.grade,
+        createdAt: updated.createdAt,
+        usedBillingPlansCount: 0,
+      },
+    });
+  } catch (error) {
+    console.error("Update fee error:", error);
+    return res.status(500).json({ success: false, message: "Failed to update fee" });
+  }
+});
+
 
 // Request OTP
 
