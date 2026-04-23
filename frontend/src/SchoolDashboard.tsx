@@ -5,7 +5,7 @@ import AddLearner from "./AddLearner";
 import TeacherPerformance from "./TeacherPerformance";
 import Payroll from "./Payroll";
 import { API_URL } from "./api";
-import logo from "./assets/educlear-logo.png";
+import logo from "./assets/logo.png";
 import "./App.css";
 import Fees from "./Fees";
 import FeeUpsert from "./FeeUpsert";

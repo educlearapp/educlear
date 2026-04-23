@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { API_URL, apiFetch } from "./api";
-import educlearLogo from "./assets/educlear-logo.png";
+import educlearLogo from "./assets/logo.png";
 
 type LearnerLike = Record<string, any>;
 type SchoolLike = Record<string, any>;
