@@ -8,9 +8,7 @@ datasource db {
   url = env("DATABASE_URL")
 }
 
-
 enum FeeFrequency {
-
   MONTHLY
 
   MONTHLY_EXCL_DEC
@@ -26,13 +24,13 @@ enum FeeFrequency {
   TERMLY
 
   DAILY
-
 }
 
 enum FeeCategory {
   SCHOOL_CHARGE
   EXTRAMURAL_CHARGE
 }
+
 enum UserRole {
   SCHOOL_ADMIN
 
@@ -66,71 +64,55 @@ model School {
 
   parents Parent[]
 
-  learners Learner[]
-  familyAccounts FamilyAccount[]
-  fees FeeStructure[]
+  learners         Learner[]
+  familyAccounts   FamilyAccount[]
+  fees             FeeStructure[]
   SchoolFeeSetting SchoolFeeSetting[]
   LetterTemplate   LetterTemplate[]
   Letter           Letter[]
 
   teacherPerformances TeacherPerformance[]
-  employees        Employee[]
+  employees           Employee[]
 
+  payrollSettings PayrollSetting[]
 
+  payrollRuns PayrollRun[]
 
-  payrollSettings  PayrollSetting[]
-
-
-
-  payrollRuns      PayrollRun[]
-
-
-
-  payslips         Payslip[]
-
-
+  payslips Payslip[]
 
   payrollEmailLogs PayrollEmailLog[]
 }
-  
-
 
 model FeeStructure {
+  id String @id @default(cuid())
 
-  id        String       @id @default(cuid())
-
-  schoolId  String
+  schoolId String
 
   /// Legacy fields (kept for existing billing UI compatibility)
-  name      String
+  name String
 
-  amount    Float
+  amount Float
 
   frequency FeeFrequency
 
   /// Fees module fields
-  category  FeeCategory?
-  type      String?
+  category    FeeCategory?
+  type        String?
   description String?
 
-  notes     String?
+  notes String?
 
-  grade     String?
+  grade String?
 
-  createdAt DateTime     @default(now())
-  updatedAt DateTime     @updatedAt
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
-  isActive  Boolean      @default(true)
+  isActive Boolean @default(true)
 
-
-
-  school    School       @relation(fields: [schoolId], references: [id])
-
-
+  school School @relation(fields: [schoolId], references: [id])
 
   @@index([schoolId])
   @@index([schoolId, isActive])
-
 }
 
 model User {
@@ -175,7 +157,7 @@ model Permission {
   category String?
 
   rolePermissions RolePermission[]
-  userOverrides UserPermissionOverride[]
+  userOverrides   UserPermissionOverride[]
 }
 
 /// Role definitions are per-school
@@ -192,8 +174,8 @@ model SchoolRole {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  school School @relation(fields: [schoolId], references: [id], onDelete: Cascade)
-  users User[]
+  school      School           @relation(fields: [schoolId], references: [id], onDelete: Cascade)
+  users       User[]
   permissions RolePermission[]
 
   @@unique([schoolId, name])
@@ -203,10 +185,10 @@ model SchoolRole {
 model RolePermission {
   id String @id @default(cuid())
 
-  roleId String
+  roleId       String
   permissionId String
 
-  role SchoolRole @relation(fields: [roleId], references: [id], onDelete: Cascade)
+  role       SchoolRole @relation(fields: [roleId], references: [id], onDelete: Cascade)
   permission Permission @relation(fields: [permissionId], references: [id], onDelete: Cascade)
 
   @@unique([roleId, permissionId])
@@ -218,12 +200,12 @@ model RolePermission {
 model UserPermissionOverride {
   id String @id @default(cuid())
 
-  userId String
+  userId       String
   permissionId String
 
   allowed Boolean
 
-  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  user       User       @relation(fields: [userId], references: [id], onDelete: Cascade)
   permission Permission @relation(fields: [permissionId], references: [id], onDelete: Cascade)
 
   @@unique([userId, permissionId])
@@ -232,14 +214,10 @@ model UserPermissionOverride {
 }
 
 model Parent {
-
   id String @id @default(cuid())
 
-
-
-  schoolId String
-familyAccountId String?
-
+  schoolId        String
+  familyAccountId String?
 
   relationship String?
 
@@ -251,16 +229,14 @@ familyAccountId String?
 
   nickname String?
 
-  idNumber String? @unique 
-  status String @default("GREEN")
+  idNumber String? @unique
+  status   String  @default("GREEN")
 
   outstandingAmount Float @default(0)
 
   maritalStatus String?
 
   notes String?
-
-
 
   homeNo String?
 
@@ -272,105 +248,85 @@ familyAccountId String?
 
   email String?
 
-
-
   communicationByEmail Boolean @default(true)
 
   communicationByPrint Boolean @default(true)
 
   communicationBySMS Boolean @default(true)
 
-
-
   createdAt DateTime @default(now())
 
-
-
-  school School @relation(fields: [schoolId], references: [id])
-familyAccount FamilyAccount? @relation(fields: [familyAccountId], references: [id])
-
+  school        School         @relation(fields: [schoolId], references: [id])
+  familyAccount FamilyAccount? @relation(fields: [familyAccountId], references: [id])
 
   links ParentLearnerLink[]
 
-  Letter Letter[]
-
-
+  Letter   Letter[]
+  invoices Invoice[]
 
   @@index([schoolId])
-
   @@index([schoolId, cellNo])
-
-
 }
+
 model FamilyAccount {
+  id String @id @default(cuid())
 
-  id              String    @id @default(cuid())
+  schoolId String
 
-  schoolId        String
+  accountRef String @unique
 
-  accountRef      String    @unique
+  familyName String
 
-  familyName      String
+  createdAt DateTime @default(now())
 
-  createdAt       DateTime  @default(now())
+  school School @relation(fields: [schoolId], references: [id])
 
+  learners Learner[]
 
-
-  school          School    @relation(fields: [schoolId], references: [id])
-
-  learners        Learner[]
-
-  parents         Parent[]
-
-
+  parents Parent[]
 
   @@index([schoolId])
-
   @@index([schoolId, familyName])
-
 }
 
 model Learner {
   id String @id @default(cuid())
 
-  schoolId String
+  schoolId        String
   familyAccountId String?
-  firstName String
+  firstName       String
 
   lastName String
 
   birthDate DateTime?
-  gender String?
-  idNumber String?
+  gender    String?
+  idNumber  String?
 
   grade String
 
   className String?
 
   admissionNo String?
-  tuitionFee   Float   @default(0)
+  tuitionFee  Float   @default(0)
 
-transportFee Float   @default(0)
+  transportFee Float @default(0)
 
-otherFee     Float   @default(0)
+  otherFee Float @default(0)
 
-totalFee     Float   @default(0)
+  totalFee Float @default(0)
 
   createdAt DateTime @default(now())
 
-  school School @relation(fields: [schoolId], references: [id])
-familyAccount FamilyAccount? @relation(fields: [familyAccountId], references: [id])
-  links ParentLearnerLink[]
+  school        School              @relation(fields: [schoolId], references: [id])
+  familyAccount FamilyAccount?      @relation(fields: [familyAccountId], references: [id])
+  links         ParentLearnerLink[]
 
   Letter Letter[]
 
   @@unique([schoolId, admissionNo])
   @@index([schoolId])
   @@index([schoolId, grade])
-  
 }
-
-
 
 model ParentLearnerLink {
   id String @id @default(cuid())
@@ -513,1240 +469,621 @@ model Letter {
   @@index([schoolId, type])
   @@index([parentId])
 }
+
+model Invoice {
+  id String @id @default(cuid())
+
+  parentId    String
+  date        DateTime
+  totalAmount Decimal  @db.Decimal(12, 2)
+  createdAt   DateTime @default(now())
+
+  parent Parent        @relation(fields: [parentId], references: [id])
+  lines  InvoiceLine[]
+
+  @@index([parentId])
+  @@index([date])
+}
+
+model InvoiceLine {
+  id String @id @default(cuid())
+
+  invoiceId   String
+  description String
+  amount      Decimal @db.Decimal(12, 2)
+
+  invoice Invoice @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
+
+  @@index([invoiceId])
+}
+
 model TeacherPerformance {
+  id String @id @default(cuid())
 
-  id                   String   @id @default(cuid())
+  schoolId String
 
-  schoolId             String
+  teacherName String
 
-  teacherName          String
+  teacherEmail String?
 
-  teacherEmail         String?
+  month String
 
-  month                String
+  learnerResults Float
 
-  learnerResults       Float
+  classroomManagement Float
 
-  classroomManagement  Float
+  teachingQuality Float
 
-  teachingQuality      Float
+  administration Float
 
-  administration       Float
+  professionalConduct Float
 
-  professionalConduct  Float
+  finalScore Float
 
-  finalScore           Float
+  performanceLevel String
 
-  performanceLevel     String
+  notes String?
 
-  notes                String?
+  createdAt DateTime @default(now())
 
-  createdAt            DateTime @default(now())
-
-  updatedAt            DateTime @updatedAt
-
-
+  updatedAt DateTime @updatedAt
 
   school School @relation(fields: [schoolId], references: [id], onDelete: Cascade)
 
-
-
   @@index([schoolId])
-
   @@index([month])
-
 }
+
 // =========================
-
-
 
 // PAYROLL ENUMS
 
-
-
 // =========================
 
-
-
 enum EmploymentType {
-
-
-
   PERMANENT
-
-
 
   TEMPORARY
 
-
-
   CONTRACT
-
-
 
   PART_TIME
 
-
-
   CASUAL
-
-
-
 }
 
-
-
 enum SalaryType {
-
-
-
   MONTHLY
 
-
-
   WEEKLY
-
-
 
   DAILY
 
-
-
   HOURLY
-
-
-
 }
 
-
-
 enum PayFrequency {
-
-
-
   MONTHLY
-
-
 
   WEEKLY
 
-
-
   FORTNIGHTLY
-
-
-
 }
 
-
-
 enum PayrollRunStatus {
-
-
-
   DRAFT
-
-
 
   FINALIZED
 
-
-
   CANCELLED
-
-
-
 }
 
-
-
 enum PayrollItemType {
-
-
-
   EARNING
-
-
 
   DEDUCTION
 
-
-
   EMPLOYER_CONTRIBUTION
-
-
-
 }
 
-
-
 enum PayrollItemCode {
-
-
-
   BASIC_SALARY
-
-
 
   OVERTIME
 
-
-
   BONUS
-
-
 
   COMMISSION
 
-
-
   ALLOWANCE
-
-
 
   HOUSING_ALLOWANCE
 
-
-
   TRANSPORT_ALLOWANCE
-
-
 
   CELLPHONE_ALLOWANCE
 
-
-
   OTHER_EARNING
-
-
 
   PAYE
 
-
-
   UIF_EMPLOYEE
-
-
 
   PENSION
 
-
-
   MEDICAL_AID
-
-
 
   STAFF_LOAN
 
-
-
   STAFF_ADVANCE
-
-
 
   UNION_FEE
 
-
-
   OTHER_DEDUCTION
-
-
 
   UIF_EMPLOYER
 
-
-
   OTHER_EMPLOYER_CONTRIBUTION
-
-
-
 }
 
-
-
 enum PayslipDeliveryPreference {
-
-
-
   PRINT
-
-
 
   EMAIL
 
-
-
   BOTH
-
-
-
 }
 
-
-
 enum PayslipEmailStatus {
-
-
-
   NOT_SENT
-
-
 
   SENT
 
-
-
   FAILED
-
-
-
 }
-
-
 
 enum PayslipPrintStatus {
-
-
-
   NOT_PRINTED
 
-
-
   PRINTED
-
-
-
 }
 
-
-
 enum PayrollReportType {
-
-
-
   SALARY_REGISTER
-
-
 
   DEDUCTION_REGISTER
 
-
-
   EMPLOYER_CONTRIBUTION
-
-
 
   PAYROLL_SUMMARY
 
-
-
   PAYROLL_PACK
-
-
-
 }
 
-
-
 // =========================
-
-
 
 // PAYROLL MODELS
 
-
-
 // =========================
 
-
-
 model Employee {
+  id String @id @default(cuid())
 
+  schoolId String
 
+  employeeNumber String?
 
-  id                     String                   @id @default(cuid())
+  firstName String
 
+  lastName String
 
+  fullName String?
 
-  schoolId               String
+  idNumber String?
 
+  dateOfBirth DateTime?
 
+  gender String?
 
-  employeeNumber         String?
+  mobileNumber String?
 
+  email String?
 
+  physicalAddress String? @db.Text
 
-  firstName              String
+  jobTitle String?
 
+  department String?
 
+  employmentType EmploymentType @default(PERMANENT)
 
-  lastName               String
+  salaryType SalaryType @default(MONTHLY)
 
+  payFrequency PayFrequency @default(MONTHLY)
 
+  paymentMethod String?
 
-  fullName               String?
+  startDate DateTime?
 
+  endDate DateTime?
 
+  isActive Boolean @default(true)
 
-  idNumber               String?
+  taxNumber String?
 
+  uifApplicable Boolean @default(true)
 
+  incomeTaxApplicable Boolean @default(true)
 
-  dateOfBirth            DateTime?
+  basicSalary Decimal @default(0) @db.Decimal(12, 2)
 
+  hourlyRate Decimal @default(0) @db.Decimal(12, 2)
 
+  overtimeRate Decimal @default(0) @db.Decimal(12, 2)
 
-  gender                 String?
+  overtimeHours Decimal @default(0) @db.Decimal(12, 2)
 
+  fixedHousingAllowance Decimal @default(0) @db.Decimal(12, 2)
 
+  fixedTransportAllowance Decimal @default(0) @db.Decimal(12, 2)
 
-  mobileNumber           String?
+  fixedCellphoneAllowance Decimal @default(0) @db.Decimal(12, 2)
 
+  fixedOtherAllowance Decimal @default(0) @db.Decimal(12, 2)
 
+  fixedPension Decimal @default(0) @db.Decimal(12, 2)
 
-  email                  String?
+  fixedMedicalAid Decimal @default(0) @db.Decimal(12, 2)
 
+  fixedStaffLoan Decimal @default(0) @db.Decimal(12, 2)
 
+  fixedStaffAdvance Decimal @default(0) @db.Decimal(12, 2)
 
-  physicalAddress        String?                  @db.Text
+  fixedOtherDeduction Decimal @default(0) @db.Decimal(12, 2)
 
+  employeeMedicalAid Decimal @default(0) @db.Decimal(12, 2)
 
+  employerMedicalAid Decimal @default(0) @db.Decimal(12, 2)
 
-  jobTitle               String?
+  employeePension Decimal @default(0) @db.Decimal(12, 2)
 
+  employerPension Decimal @default(0) @db.Decimal(12, 2)
 
+  bankAccountHolder String?
 
-  department             String?
+  bankName String?
 
+  bankAccountNumber String?
 
-
-  employmentType         EmploymentType           @default(PERMANENT)
-
-
-
-  salaryType             SalaryType               @default(MONTHLY)
-
-
-
-  payFrequency           PayFrequency             @default(MONTHLY)
-
-
-
-  paymentMethod          String?
-
-
-
-  startDate              DateTime?
-
-
-
-  endDate                DateTime?
-
-
-
-  isActive               Boolean                  @default(true)
-
-
-
-  taxNumber              String?
-
-
-
-  uifApplicable          Boolean                  @default(true)
-
-
-
-  incomeTaxApplicable    Boolean                  @default(true)
-
-
-
-  basicSalary            Decimal                  @default(0) @db.Decimal(12, 2)
-
-
-
-  hourlyRate             Decimal                  @default(0) @db.Decimal(12, 2)
-
-  overtimeRate           Decimal                  @default(0) @db.Decimal(12, 2)
-
-  overtimeHours          Decimal                  @default(0) @db.Decimal(12, 2)
-
-  fixedHousingAllowance  Decimal                  @default(0) @db.Decimal(12, 2)
-
-
-
-  fixedTransportAllowance Decimal                 @default(0) @db.Decimal(12, 2)
-
-
-
-  fixedCellphoneAllowance Decimal                 @default(0) @db.Decimal(12, 2)
-
-
-
-  fixedOtherAllowance    Decimal                  @default(0) @db.Decimal(12, 2)
-
-
-
-  fixedPension           Decimal                  @default(0) @db.Decimal(12, 2)
-
-
-
-  fixedMedicalAid        Decimal                  @default(0) @db.Decimal(12, 2)
-
-
-
-  fixedStaffLoan         Decimal                  @default(0) @db.Decimal(12, 2)
-
-
-
-  fixedStaffAdvance      Decimal                  @default(0) @db.Decimal(12, 2)
-
-
-
-  fixedOtherDeduction    Decimal                  @default(0) @db.Decimal(12, 2)
-
-  employeeMedicalAid     Decimal                  @default(0) @db.Decimal(12, 2)
-
-  employerMedicalAid     Decimal                  @default(0) @db.Decimal(12, 2)
-
-  employeePension        Decimal                  @default(0) @db.Decimal(12, 2)
-
-  employerPension        Decimal                  @default(0) @db.Decimal(12, 2)
-
-
-  bankAccountHolder      String?
-
-
-
-  bankName               String?
-
-
-
-  bankAccountNumber      String?
-
-
-
-  bankBranchCode         String?
-
-
+  bankBranchCode String?
 
   payslipDeliveryPreference PayslipDeliveryPreference @default(BOTH)
 
+  sendPayslipByEmail Boolean @default(true)
 
+  notes String? @db.Text
 
-  sendPayslipByEmail     Boolean                  @default(true)
+  createdAt DateTime @default(now())
 
+  updatedAt DateTime @updatedAt
 
+  school School @relation(fields: [schoolId], references: [id], onDelete: Cascade)
 
-  notes                  String?                  @db.Text
+  payrollRunEmployees PayrollRunEmployee[]
 
-
-
-  createdAt              DateTime                 @default(now())
-
-
-
-  updatedAt              DateTime                 @updatedAt
-
-
-
-  school                 School                   @relation(fields: [schoolId], references: [id], onDelete: Cascade)
-
-
-
-  payrollRunEmployees    PayrollRunEmployee[]
-
-
-
-  payslips               Payslip[]
-
-
+  payslips Payslip[]
 
   @@index([schoolId])
-
-
-
   @@index([employeeNumber])
-
-
-
   @@index([email])
-
-
-
   @@index([isActive])
-
-
-
 }
 
-
-
 model PayrollSetting {
+  id String @id @default(cuid())
 
+  schoolId String
 
+  taxYear Int
 
-  id                           String         @id @default(cuid())
+  isActive Boolean @default(true)
 
+  payFrequency PayFrequency @default(MONTHLY)
 
+  defaultPayDay Int?
 
-  schoolId                     String
-
-
-
-  taxYear                      Int
-
-
-
-  isActive                     Boolean        @default(true)
-
-
-
-  payFrequency                 PayFrequency   @default(MONTHLY)
-
-
-
-  defaultPayDay                Int?
-
-
-
-  currency                     String         @default("ZAR")
-
-
+  currency String @default("ZAR")
 
   // SARS / UIF settings
 
+  primaryRebate Decimal @default(0) @db.Decimal(12, 2)
 
+  secondaryRebate Decimal @default(0) @db.Decimal(12, 2)
 
-  primaryRebate                Decimal        @default(0) @db.Decimal(12, 2)
+  tertiaryRebate Decimal @default(0) @db.Decimal(12, 2)
 
+  taxThresholdUnder65 Decimal @default(0) @db.Decimal(12, 2)
 
+  taxThreshold65To74 Decimal @default(0) @db.Decimal(12, 2)
 
-  secondaryRebate              Decimal        @default(0) @db.Decimal(12, 2)
+  taxThreshold75AndOver Decimal @default(0) @db.Decimal(12, 2)
 
+  uifEnabled Boolean @default(true)
 
+  uifEmployeePercent Decimal @default(1) @db.Decimal(5, 2)
 
-  tertiaryRebate               Decimal        @default(0) @db.Decimal(12, 2)
+  uifEmployerPercent Decimal @default(1) @db.Decimal(5, 2)
 
+  uifMonthlyCeiling Decimal @default(17712) @db.Decimal(12, 2)
 
+  payslipPrefix String? @default("PS")
 
-  taxThresholdUnder65          Decimal        @default(0) @db.Decimal(12, 2)
+  payrollRunPrefix String? @default("PR")
 
+  payrollEmailFromName String?
 
+  payrollEmailReplyTo String?
 
-  taxThreshold65To74           Decimal        @default(0) @db.Decimal(12, 2)
+  payslipEmailSubjectTemplate String? @db.Text
 
+  payslipEmailBodyTemplate String? @db.Text
 
+  bookkeeperName String?
 
-  taxThreshold75AndOver        Decimal        @default(0) @db.Decimal(12, 2)
+  bookkeeperEmail String?
 
+  bookkeeperSendPdf Boolean @default(true)
 
+  bookkeeperSendExcel Boolean @default(true)
 
-  uifEnabled                   Boolean        @default(true)
+  bookkeeperEmailSubjectTemplate String? @db.Text
 
+  bookkeeperEmailBodyTemplate String? @db.Text
 
+  envelopeTopOffsetMm Decimal @default(0) @db.Decimal(8, 2)
 
-  uifEmployeePercent           Decimal        @default(1) @db.Decimal(5, 2)
+  envelopeLeftOffsetMm Decimal @default(0) @db.Decimal(8, 2)
 
+  showFoldGuide Boolean @default(false)
 
+  createdAt DateTime @default(now())
 
-  uifEmployerPercent           Decimal        @default(1) @db.Decimal(5, 2)
+  updatedAt DateTime @updatedAt
 
+  school School @relation(fields: [schoolId], references: [id], onDelete: Cascade)
 
-
-  uifMonthlyCeiling            Decimal        @default(17712) @db.Decimal(12, 2)
-
-
-
-  payslipPrefix                String?        @default("PS")
-
-
-
-  payrollRunPrefix             String?        @default("PR")
-
-
-
-  payrollEmailFromName         String?
-
-
-
-  payrollEmailReplyTo          String?
-
-
-
-  payslipEmailSubjectTemplate  String?        @db.Text
-
-
-
-  payslipEmailBodyTemplate     String?        @db.Text
-
-
-
-  bookkeeperName               String?
-
-
-
-  bookkeeperEmail              String?
-
-
-
-  bookkeeperSendPdf            Boolean        @default(true)
-
-
-
-  bookkeeperSendExcel          Boolean        @default(true)
-
-
-
-  bookkeeperEmailSubjectTemplate String?      @db.Text
-
-
-
-  bookkeeperEmailBodyTemplate  String?        @db.Text
-
-
-
-  envelopeTopOffsetMm          Decimal        @default(0) @db.Decimal(8, 2)
-
-
-
-  envelopeLeftOffsetMm         Decimal        @default(0) @db.Decimal(8, 2)
-
-
-
-  showFoldGuide                Boolean        @default(false)
-
-
-
-  createdAt                    DateTime       @default(now())
-
-
-
-  updatedAt                    DateTime       @updatedAt
-
-
-
-  school                       School         @relation(fields: [schoolId], references: [id], onDelete: Cascade)
-
-
-
-  payrollRuns                  PayrollRun[]
-
-
+  payrollRuns PayrollRun[]
 
   @@unique([schoolId, taxYear])
-
-
-
   @@index([schoolId])
-
-
-
   @@index([taxYear])
-
-
-
 }
-
-
 
 model PayrollRun {
+  id String @id @default(cuid())
 
+  schoolId String
 
+  payrollSettingId String?
 
-  id                    String              @id @default(cuid())
+  runNumber String?
 
+  taxYear Int
 
+  payrollMonth Int
 
-  schoolId              String
+  payrollYear Int
 
+  payDate DateTime
 
+  status PayrollRunStatus @default(DRAFT)
 
-  payrollSettingId      String?
+  employeeCount Int @default(0)
 
+  grossTotal Decimal @default(0) @db.Decimal(14, 2)
 
+  deductionsTotal Decimal @default(0) @db.Decimal(14, 2)
 
-  runNumber             String?
+  netTotal Decimal @default(0) @db.Decimal(14, 2)
 
+  employerCostTotal Decimal @default(0) @db.Decimal(14, 2)
 
+  finalizedAt DateTime?
 
-  taxYear               Int
+  notes String? @db.Text
 
+  createdAt DateTime @default(now())
 
+  updatedAt DateTime @updatedAt
 
-  payrollMonth          Int
+  school School @relation(fields: [schoolId], references: [id], onDelete: Cascade)
 
+  payrollSetting PayrollSetting? @relation(fields: [payrollSettingId], references: [id], onDelete: SetNull)
 
+  employees PayrollRunEmployee[]
 
-  payrollYear           Int
+  payslips Payslip[]
 
-
-
-  payDate               DateTime
-
-
-
-  status                PayrollRunStatus    @default(DRAFT)
-
-
-
-  employeeCount         Int                 @default(0)
-
-
-
-  grossTotal            Decimal             @default(0) @db.Decimal(14, 2)
-
-
-
-  deductionsTotal       Decimal             @default(0) @db.Decimal(14, 2)
-
-
-
-  netTotal              Decimal             @default(0) @db.Decimal(14, 2)
-
-
-
-  employerCostTotal     Decimal             @default(0) @db.Decimal(14, 2)
-
-
-
-  finalizedAt           DateTime?
-
-
-
-  notes                 String?             @db.Text
-
-
-
-  createdAt             DateTime            @default(now())
-
-
-
-  updatedAt             DateTime            @updatedAt
-
-
-
-  school                School              @relation(fields: [schoolId], references: [id], onDelete: Cascade)
-
-
-
-  payrollSetting        PayrollSetting?     @relation(fields: [payrollSettingId], references: [id], onDelete: SetNull)
-
-
-
-  employees             PayrollRunEmployee[]
-
-
-
-  payslips              Payslip[]
-
-
-
-  emailLogs             PayrollEmailLog[]
-
-
+  emailLogs PayrollEmailLog[]
 
   @@index([schoolId])
-
-
-
   @@index([payrollSettingId])
-
-
-
   @@index([taxYear, payrollMonth, payrollYear])
-
-
-
   @@index([status])
-
-
-
 }
-
-
 
 model PayrollRunEmployee {
+  id String @id @default(cuid())
 
+  payrollRunId String
 
+  employeeId String
 
-  id                    String              @id @default(cuid())
+  basicSalary Decimal @default(0) @db.Decimal(12, 2)
 
+  overtimeAmount Decimal @default(0) @db.Decimal(12, 2)
 
+  bonusAmount Decimal @default(0) @db.Decimal(12, 2)
 
-  payrollRunId          String
+  allowanceAmount Decimal @default(0) @db.Decimal(12, 2)
 
+  otherEarningsAmount Decimal @default(0) @db.Decimal(12, 2)
 
+  grossPay Decimal @default(0) @db.Decimal(12, 2)
 
-  employeeId            String
+  payeAmount Decimal @default(0) @db.Decimal(12, 2)
 
+  uifEmployeeAmount Decimal @default(0) @db.Decimal(12, 2)
 
+  otherDeductionsAmount Decimal @default(0) @db.Decimal(12, 2)
 
-  basicSalary           Decimal             @default(0) @db.Decimal(12, 2)
+  totalDeductions Decimal @default(0) @db.Decimal(12, 2)
 
+  netPay Decimal @default(0) @db.Decimal(12, 2)
 
+  uifEmployerAmount Decimal @default(0) @db.Decimal(12, 2)
 
-  overtimeAmount        Decimal             @default(0) @db.Decimal(12, 2)
+  employerCost Decimal @default(0) @db.Decimal(12, 2)
 
+  createdAt DateTime @default(now())
 
+  updatedAt DateTime @updatedAt
 
-  bonusAmount           Decimal             @default(0) @db.Decimal(12, 2)
+  payrollRun PayrollRun @relation(fields: [payrollRunId], references: [id], onDelete: Cascade)
 
+  employee Employee @relation(fields: [employeeId], references: [id], onDelete: Cascade)
 
+  items PayrollItem[]
 
-  allowanceAmount       Decimal             @default(0) @db.Decimal(12, 2)
-
-
-
-  otherEarningsAmount   Decimal             @default(0) @db.Decimal(12, 2)
-
-
-
-  grossPay              Decimal             @default(0) @db.Decimal(12, 2)
-
-
-
-  payeAmount            Decimal             @default(0) @db.Decimal(12, 2)
-
-
-
-  uifEmployeeAmount     Decimal             @default(0) @db.Decimal(12, 2)
-
-
-
-  otherDeductionsAmount Decimal             @default(0) @db.Decimal(12, 2)
-
-
-
-  totalDeductions       Decimal             @default(0) @db.Decimal(12, 2)
-
-
-
-  netPay                Decimal             @default(0) @db.Decimal(12, 2)
-
-
-
-  uifEmployerAmount     Decimal             @default(0) @db.Decimal(12, 2)
-
-
-
-  employerCost          Decimal             @default(0) @db.Decimal(12, 2)
-
-
-
-  createdAt             DateTime            @default(now())
-
-
-
-  updatedAt             DateTime            @updatedAt
-
-
-
-  payrollRun            PayrollRun          @relation(fields: [payrollRunId], references: [id], onDelete: Cascade)
-
-
-
-  employee              Employee            @relation(fields: [employeeId], references: [id], onDelete: Cascade)
-
-
-
-  items                 PayrollItem[]
-
-
-
-  payslip               Payslip?
-
-
+  payslip Payslip?
 
   @@unique([payrollRunId, employeeId])
-
-
-
   @@index([payrollRunId])
-
-
-
   @@index([employeeId])
-
-
-
 }
-
-
 
 model PayrollItem {
+  id String @id @default(cuid())
 
+  payrollRunEmployeeId String
 
+  itemType PayrollItemType
 
-  id                    String              @id @default(cuid())
+  itemCode PayrollItemCode
 
+  label String
 
+  amount Decimal @default(0) @db.Decimal(12, 2)
 
-  payrollRunEmployeeId  String
+  taxable Boolean @default(true)
 
+  sortOrder Int @default(0)
 
+  createdAt DateTime @default(now())
 
-  itemType              PayrollItemType
+  updatedAt DateTime @updatedAt
 
-
-
-  itemCode              PayrollItemCode
-
-
-
-  label                 String
-
-
-
-  amount                Decimal             @default(0) @db.Decimal(12, 2)
-
-
-
-  taxable               Boolean             @default(true)
-
-
-
-  sortOrder             Int                 @default(0)
-
-
-
-  createdAt             DateTime            @default(now())
-
-
-
-  updatedAt             DateTime            @updatedAt
-
-
-
-  payrollRunEmployee    PayrollRunEmployee  @relation(fields: [payrollRunEmployeeId], references: [id], onDelete: Cascade)
-
-
+  payrollRunEmployee PayrollRunEmployee @relation(fields: [payrollRunEmployeeId], references: [id], onDelete: Cascade)
 
   @@index([payrollRunEmployeeId])
-
-
-
   @@index([itemType])
-
-
-
   @@index([itemCode])
-
-
-
 }
-
-
 
 model Payslip {
+  id String @id @default(cuid())
 
+  schoolId String
 
+  payrollRunId String
 
-  id                    String              @id @default(cuid())
+  payrollRunEmployeeId String @unique
 
+  employeeId String
 
+  payslipNumber String?
 
-  schoolId              String
+  taxYear Int
 
+  payrollMonth Int
 
+  payrollYear Int
 
-  payrollRunId          String
+  payDate DateTime
 
+  grossPay Decimal @default(0) @db.Decimal(12, 2)
 
+  totalDeductions Decimal @default(0) @db.Decimal(12, 2)
 
-  payrollRunEmployeeId  String              @unique
+  netPay Decimal @default(0) @db.Decimal(12, 2)
 
+  employerCost Decimal @default(0) @db.Decimal(12, 2)
 
+  pdfPath String?
 
-  employeeId            String
+  emailStatus PayslipEmailStatus @default(NOT_SENT)
 
+  printStatus PayslipPrintStatus @default(NOT_PRINTED)
 
+  emailedAt DateTime?
 
-  payslipNumber         String?
+  emailedTo String?
 
+  printedAt DateTime?
 
+  lastEmailError String? @db.Text
 
-  taxYear               Int
+  createdAt DateTime @default(now())
 
+  updatedAt DateTime @updatedAt
 
+  school School @relation(fields: [schoolId], references: [id], onDelete: Cascade)
 
-  payrollMonth          Int
+  payrollRun PayrollRun @relation(fields: [payrollRunId], references: [id], onDelete: Cascade)
 
+  payrollRunEmployee PayrollRunEmployee @relation(fields: [payrollRunEmployeeId], references: [id], onDelete: Cascade)
 
-
-  payrollYear           Int
-
-
-
-  payDate               DateTime
-
-
-
-  grossPay              Decimal             @default(0) @db.Decimal(12, 2)
-
-
-
-  totalDeductions       Decimal             @default(0) @db.Decimal(12, 2)
-
-
-
-  netPay                Decimal             @default(0) @db.Decimal(12, 2)
-
-
-
-  employerCost          Decimal             @default(0) @db.Decimal(12, 2)
-
-
-
-  pdfPath               String?
-
-
-
-  emailStatus           PayslipEmailStatus  @default(NOT_SENT)
-
-
-
-  printStatus           PayslipPrintStatus  @default(NOT_PRINTED)
-
-
-
-  emailedAt             DateTime?
-
-
-
-  emailedTo             String?
-
-
-
-  printedAt             DateTime?
-
-
-
-  lastEmailError        String?             @db.Text
-
-
-
-  createdAt             DateTime            @default(now())
-
-
-
-  updatedAt             DateTime            @updatedAt
-
-
-
-  school                School              @relation(fields: [schoolId], references: [id], onDelete: Cascade)
-
-
-
-  payrollRun            PayrollRun          @relation(fields: [payrollRunId], references: [id], onDelete: Cascade)
-
-
-
-  payrollRunEmployee    PayrollRunEmployee  @relation(fields: [payrollRunEmployeeId], references: [id], onDelete: Cascade)
-
-
-
-  employee              Employee            @relation(fields: [employeeId], references: [id], onDelete: Cascade)
-
-
+  employee Employee @relation(fields: [employeeId], references: [id], onDelete: Cascade)
 
   @@index([schoolId])
-
-
-
   @@index([payrollRunId])
-
-
-
   @@index([employeeId])
-
-
-
   @@index([emailStatus])
-
-
-
 }
 
-
-
 model PayrollEmailLog {
+  id String @id @default(cuid())
 
+  schoolId String
 
+  payrollRunId String?
 
-  id                    String              @id @default(cuid())
+  reportType PayrollReportType?
 
+  recipientName String?
 
+  recipientEmail String
 
-  schoolId              String
+  subject String?
 
+  body String? @db.Text
 
+  success Boolean @default(false)
 
-  payrollRunId          String?
+  errorMessage String? @db.Text
 
+  attachedPdf Boolean @default(false)
 
+  attachedExcel Boolean @default(false)
 
-  reportType            PayrollReportType?
+  createdAt DateTime @default(now())
 
+  school School @relation(fields: [schoolId], references: [id], onDelete: Cascade)
 
-
-  recipientName         String?
-
-
-
-  recipientEmail        String
-
-
-
-  subject               String?
-
-
-
-  body                  String?             @db.Text
-
-
-
-  success               Boolean             @default(false)
-
-
-
-  errorMessage          String?             @db.Text
-
-
-
-  attachedPdf           Boolean             @default(false)
-
-
-
-  attachedExcel         Boolean             @default(false)
-
-
-
-  createdAt             DateTime            @default(now())
-
-
-
-  school                School              @relation(fields: [schoolId], references: [id], onDelete: Cascade)
-
-
-
-  payrollRun            PayrollRun?         @relation(fields: [payrollRunId], references: [id], onDelete: SetNull)
-
-
+  payrollRun PayrollRun? @relation(fields: [payrollRunId], references: [id], onDelete: SetNull)
 
   @@index([schoolId])
-
-
-
   @@index([payrollRunId])
-
-
-
   @@index([recipientEmail])
-
-
-
   @@index([createdAt])
-
-
-
 }

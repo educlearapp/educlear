@@ -2,7 +2,7 @@ import express from "express";
 
 import cors from "cors";
 
-import { PrismaClient } from "@prisma/client";
+import { PrismaClient, Prisma } from "@prisma/client";
 
 import schoolsRoutes from "./routes/schools";
 import parentsRoutes from "./routes/parents";
@@ -452,6 +452,98 @@ app.get("/dashboard", authMiddleware, (req, res) => {
   
     }
   
+  });
+
+  app.post("/api/invoices", async (req, res) => {
+    try {
+      const body = req.body ?? {};
+
+      const parentId = typeof body.parentId === "string" ? body.parentId.trim() : "";
+      const totalAmountRaw = body.totalAmount;
+      const itemsRaw = body.items;
+
+      const totalAmount = Number(totalAmountRaw);
+      const items = Array.isArray(itemsRaw) ? (itemsRaw as any[]) : [];
+
+      if (!parentId) {
+        return res.status(400).json({ success: false, message: "parentId is required" });
+      }
+
+      if (!items.length) {
+        return res.status(400).json({ success: false, message: "items must not be empty" });
+      }
+
+      if (!Number.isFinite(totalAmount) || totalAmount <= 0) {
+        return res.status(400).json({ success: false, message: "totalAmount must be > 0" });
+      }
+
+      const normalizedItems = items.map((item) => {
+        const description = typeof item?.description === "string" ? item.description.trim() : "";
+        const amount = Number(item?.amount);
+        return { description, amount };
+      });
+
+      const invalidItem = normalizedItems.find(
+        (i) => !i.description || !Number.isFinite(i.amount)
+      );
+      if (invalidItem) {
+        return res.status(400).json({
+          success: false,
+          message: "Each item must have description (string) and amount (number)",
+        });
+      }
+
+      const prismaAny = prisma as any;
+      const result = await prismaAny.$transaction(async (tx: any) => {
+        const parent = await tx.parent.findUnique({ where: { id: parentId } });
+        if (!parent) {
+          return { notFound: true as const };
+        }
+
+        const invoice = await tx.invoice.create({
+          data: {
+            parentId,
+            date: new Date(),
+            totalAmount: new Prisma.Decimal(totalAmount),
+          },
+        });
+
+        await tx.invoiceLine.createMany({
+          data: normalizedItems.map((i) => ({
+            invoiceId: invoice.id,
+            description: i.description,
+            amount: new Prisma.Decimal(i.amount),
+          })),
+        });
+
+        const updatedParent = await tx.parent.update({
+          where: { id: parentId },
+          data: {
+            outstandingAmount: { increment: totalAmount },
+          },
+        });
+
+        const fullInvoice = await tx.invoice.findUnique({
+          where: { id: invoice.id },
+          include: { lines: true, parent: true },
+        });
+
+        return { invoice: fullInvoice, updatedParent };
+      });
+
+      if ((result as any)?.notFound) {
+        return res.status(404).json({ success: false, message: "Parent not found" });
+      }
+
+      return res.status(201).json({
+        success: true,
+        invoice: (result as any).invoice,
+        updatedParent: (result as any).updatedParent,
+      });
+    } catch (error) {
+      console.error("Create invoice error:", error);
+      return res.status(500).json({ success: false, message: "Failed to create invoice" });
+    }
   });
 
   app.get("/api/parents", async (_req, res) => {
