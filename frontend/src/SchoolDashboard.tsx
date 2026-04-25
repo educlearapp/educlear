@@ -98,6 +98,7 @@ export default function SchoolDashboard() {
 
   const [activePage, setActivePage] = useState<PageKey>("dashboard");
   const [paymentsVersion, setPaymentsVersion] = useState(0);
+  const [showMoreActions, setShowMoreActions] = useState(false);
   const [schoolsProfileTab, setSchoolsProfileTab] = useState<
     "general" | "contact" | "address" | "billing" | "password"
   >("general");
@@ -4379,39 +4380,122 @@ if (savedPerms) {
                         </div>
 
                         <div style={{ display: "flex", gap: "10px", flexWrap: "wrap" }}>
-                          <button
-                            type="button"
-                            style={actionBtnStyle}
-                            onClick={() => setActivePage("statements")}
-                            onMouseEnter={(e) => setBtnHover(e.currentTarget, true)}
-                            onMouseLeave={(e) => setBtnHover(e.currentTarget, false)}
-                          >
-                            Back
-                          </button>
-                          <button
-                            type="button"
-                            style={actionBtnStyle}
-                            onMouseEnter={(e) => setBtnHover(e.currentTarget, true)}
-                            onMouseLeave={(e) => setBtnHover(e.currentTarget, false)}
-                          >
-                            Save
-                          </button>
-                          <button
-                            type="button"
-                            style={actionBtnStyle}
-                            onMouseEnter={(e) => setBtnHover(e.currentTarget, true)}
-                            onMouseLeave={(e) => setBtnHover(e.currentTarget, false)}
-                          >
-                            Print
-                          </button>
-                          <button
-                            type="button"
-                            style={actionBtnStyle}
-                            onMouseEnter={(e) => setBtnHover(e.currentTarget, true)}
-                            onMouseLeave={(e) => setBtnHover(e.currentTarget, false)}
-                          >
-                            Send
-                          </button>
+                        <button
+
+
+
+type="button"
+
+
+
+style={actionBtnStyle}
+
+
+
+onClick={() => setActivePage("statements")}
+
+
+
+onMouseEnter={(e) => setBtnHover(e.currentTarget, true)}
+
+
+
+onMouseLeave={(e) => setBtnHover(e.currentTarget, false)}
+
+
+
+>
+
+
+
+Back
+
+
+
+</button>
+<button
+
+
+
+type="button"
+
+
+
+style={actionBtnStyle}
+
+
+
+onClick={() => alert("Statement saved")}
+
+
+
+onMouseEnter={(e) => setBtnHover(e.currentTarget, true)}
+
+
+
+onMouseLeave={(e) => setBtnHover(e.currentTarget, false)}
+
+
+
+>
+
+
+
+Save
+
+
+
+</button>
+<button
+
+
+
+type="button"
+
+
+
+style={actionBtnStyle}
+
+
+
+onClick={() => window.print()}
+
+
+
+onMouseEnter={(e) => setBtnHover(e.currentTarget, true)}
+
+
+
+onMouseLeave={(e) => setBtnHover(e.currentTarget, false)}
+
+
+
+>
+
+
+
+Print
+
+
+
+</button>
+<button
+
+type="button"
+
+style={actionBtnStyle}
+
+onClick={() => alert("Send statement coming next")}
+
+onMouseEnter={(e) => setBtnHover(e.currentTarget, true)}
+
+onMouseLeave={(e) => setBtnHover(e.currentTarget, false)}
+
+>
+
+Send
+
+</button> 
                           <button
                             type="button"
                             style={{
@@ -4420,6 +4504,7 @@ if (savedPerms) {
                               background:
                                 "linear-gradient(135deg, rgba(212, 175, 55, 0.18), rgba(212, 175, 55, 0.06))",
                             }}
+                            onClick={() => setShowMoreActions(!showMoreActions)}
                             onMouseEnter={(e) => {
                               const el = e.currentTarget;
                               el.style.borderColor = GOLD;
@@ -4433,6 +4518,180 @@ if (savedPerms) {
                           >
                             More Actions
                           </button>
+                          {showMoreActions && (
+
+
+
+<div
+
+
+
+  style={{
+
+
+
+    position: "absolute",
+
+
+
+    marginTop: "8px",
+
+
+
+    background: "#fff",
+
+
+
+    border: "1px solid rgba(212, 175, 55, 0.35)",
+
+
+
+    borderRadius: "12px",
+
+
+
+    boxShadow: "0 12px 28px rgba(0,0,0,0.12)",
+
+
+
+    padding: "8px",
+
+
+
+    zIndex: 50,
+
+
+
+    minWidth: "220px",
+
+
+
+  }}
+
+
+
+>
+
+
+
+<div
+
+
+
+style={{ padding: "10px 12px", cursor: "pointer" }}
+
+
+
+onClick={() => {
+
+
+
+  setShowMoreActions(false);
+
+
+
+  localStorage.setItem("selectedInvoiceAccount", JSON.stringify(selected));
+
+
+
+  setSelectedInvoiceAccount(selected);
+
+
+
+  setActivePage("invoiceCreate");
+
+
+
+}}
+
+
+
+>
+        
+
+
+
+    Create Invoice
+
+
+
+  </div>
+
+
+
+  <div
+
+
+
+style={{ padding: "10px 12px", cursor: "pointer" }}
+
+
+
+onClick={() => {
+
+
+
+  setShowMoreActions(false);
+
+
+
+  localStorage.setItem("selectedPaymentAccount", JSON.stringify(selected));
+
+
+
+  setSelectedPaymentAccount(selected);
+
+
+
+  setActivePage("paymentCreate");
+
+
+
+}}
+
+
+
+>
+
+
+
+    Create Payment
+
+
+
+  </div>
+
+
+
+  <div style={{ padding: "10px 12px", cursor: "pointer" }} onClick={() => alert("Create Journal next")}>
+
+
+
+    Create Journal
+
+
+
+  </div>
+
+
+
+  <div style={{ padding: "10px 12px", cursor: "pointer" }} onClick={() => alert("Unallocate All next")}>
+
+
+
+    Unallocate All
+
+
+
+  </div>
+
+
+
+</div>
+
+
+
+)}
                         </div>
                       </div>
                     </div>
