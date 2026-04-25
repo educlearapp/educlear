@@ -4170,92 +4170,624 @@ if (savedPerms) {
         );
 
         case "statementManage": {
-          const saved = localStorage.getItem("selectedStatementAccount");
-          const selected =
-            selectedStatementAccount ||
-            (saved
-              ? (() => {
-                  try {
-                    return JSON.parse(saved);
-                  } catch {
-                    return null;
-                  }
-                })()
-              : null);
 
+
+
+          const selected = selectedStatementAccount;
+        
+        
+        
           if (!selected) {
+        
+        
+        
             return (
+        
+        
+        
               <div style={{ padding: "32px" }}>
+        
+        
+        
                 <h1 className="page-title">Statement</h1>
-                <div
-                  style={{
-                    background: "#ffffff",
-                    borderRadius: "12px",
-                    padding: "24px",
-                    boxShadow: "0 8px 24px rgba(15, 23, 42, 0.08)",
-                    marginTop: "20px",
-                    border: "1px solid rgba(234, 88, 12, 0.18)",
-                    color: "#9a3412",
-                    fontWeight: 700,
-                  }}
-                >
-                  Select an account first.
-                </div>
-                <div style={{ marginTop: "14px" }}>
-                  <button type="button" style={actionBtn} onClick={() => setActivePage("statements")}>
-                    Back
-                  </button>
-                </div>
+        
+        
+        
+                <p>Select an account first.</p>
+        
+        
+        
               </div>
+        
+        
+        
             );
+        
+        
+        
           }
-
-          const ref = String(selected?.accountNo || "");
-          const learnerName = `${String(selected?.name || "").trim()} ${String(selected?.surname || "").trim()}`.trim();
-
+        
+        
+        
           return (
-            <div style={{ padding: "32px" }}>
-              <div
-                style={{
-                  display: "flex",
-                  justifyContent: "space-between",
-                  alignItems: "flex-start",
-                  gap: "12px",
-                  flexWrap: "wrap",
-                }}
-              >
-                <div>
-                  <h1 className="page-title">Statement</h1>
-                  <p style={{ margin: "8px 0 0 0", color: "#475569", fontWeight: 600 }}>
-                    Account: <span style={{ fontWeight: 800, color: "#0f172a" }}>{ref || "-"}</span>
-                    {learnerName ? (
-                      <>
-                        {" "}
-                        • Learner: <span style={{ fontWeight: 800, color: "#0f172a" }}>{learnerName}</span>
-                      </>
-                    ) : null}
-                  </p>
-                </div>
-                <button type="button" style={actionBtn} onClick={() => setActivePage("statements")}>
-                  Back
-                </button>
-              </div>
+        
+        
+        
+            <div
+              style={{
+                padding: "32px",
+                background: "linear-gradient(180deg, #ffffff 0%, #fafafa 55%, #f3f4f6 100%)",
+                minHeight: "100%",
+              }}
+            >
+              {(() => {
+                const BLACK = "#111827";
+                const GOLD = "#d4af37";
 
-              <div
-                style={{
-                  background: "#ffffff",
+                const textMuted = "rgba(17, 24, 39, 0.70)";
+                const borderSoft = "rgba(17, 24, 39, 0.10)";
+                const shadowSoft = "0 18px 45px rgba(17, 24, 39, 0.10)";
+
+                const setBtnHover = (el: HTMLButtonElement, isHover: boolean) => {
+                  if (isHover) {
+                    el.style.borderColor = GOLD;
+                    el.style.boxShadow = "0 10px 22px rgba(212, 175, 55, 0.20)";
+                    el.style.background = "rgba(212, 175, 55, 0.10)";
+                  } else {
+                    el.style.borderColor = borderSoft;
+                    el.style.boxShadow = "none";
+                    el.style.background = "#ffffff";
+                  }
+                };
+
+                const actionBtnStyle: React.CSSProperties = {
+                  display: "inline-flex",
+                  alignItems: "center",
+                  gap: "8px",
+                  height: "40px",
+                  padding: "0 14px",
                   borderRadius: "12px",
-                  padding: "24px",
-                  boxShadow: "0 8px 24px rgba(15, 23, 42, 0.08)",
-                  marginTop: "20px",
-                }}
-              >
-                <p style={{ margin: 0, color: "#475569", fontWeight: 650 }}>
-                  This view is now correctly opened from Statements “Manage” and is linked to the selected account.
-                </p>
-              </div>
+                  border: `1px solid ${borderSoft}`,
+                  background: "#ffffff",
+                  color: BLACK,
+                  fontWeight: 700,
+                  fontSize: "13px",
+                  letterSpacing: "0.01em",
+                  cursor: "pointer",
+                  transition: "all 140ms ease",
+                  userSelect: "none",
+                  whiteSpace: "nowrap",
+                };
+
+                const cardStyle: React.CSSProperties = {
+                  background: "#ffffff",
+                  borderRadius: "16px",
+                  border: `1px solid ${borderSoft}`,
+                  boxShadow: shadowSoft,
+                };
+
+                const labelStyle: React.CSSProperties = {
+                  fontSize: "12px",
+                  color: textMuted,
+                  fontWeight: 700,
+                  marginBottom: "6px",
+                };
+
+                const inputStyle: React.CSSProperties = {
+                  width: "100%",
+                  height: "40px",
+                  borderRadius: "12px",
+                  border: `1px solid ${borderSoft}`,
+                  padding: "10px 12px",
+                  outline: "none",
+                  color: BLACK,
+                  background: "#ffffff",
+                  fontSize: "13px",
+                  fontWeight: 600,
+                  boxSizing: "border-box",
+                };
+
+                const textareaStyle: React.CSSProperties = {
+                  width: "100%",
+                  minHeight: "98px",
+                  borderRadius: "12px",
+                  border: `1px solid ${borderSoft}`,
+                  padding: "10px 12px",
+                  outline: "none",
+                  color: BLACK,
+                  background: "#ffffff",
+                  fontSize: "13px",
+                  fontWeight: 600,
+                  resize: "vertical",
+                  boxSizing: "border-box",
+                };
+
+                const formatMaybeMoney = (val: unknown) => {
+                  if (val === null || val === undefined) return "";
+                  if (typeof val === "number") return val.toFixed(2);
+                  return String(val);
+                };
+
+                const parentsLabel = `${(selected as any)?.name ?? ""} ${(selected as any)?.surname ?? ""}`.trim() || "-";
+                const childrenLabel =
+                  Array.isArray((selected as any)?.children) ? String((selected as any).children.length) : "-";
+
+                const txDummy: Array<{
+                  auditNo: string;
+                  date: string;
+                  type: string;
+                  reference: string;
+                  description: string;
+                  amount: string;
+                  amountOut: string;
+                  balance: string;
+                }> = [
+                  {
+                    auditNo: "A-000102",
+                    date: "2026-04-15",
+                    type: "Invoice",
+                    reference: "INV-1042",
+                    description: "School Fees",
+                    amount: "R 8 000.00",
+                    amountOut: "—",
+                    balance: "R 8 000.00",
+                  },
+                  {
+                    auditNo: "A-000118",
+                    date: "2026-04-25",
+                    type: "Payment",
+                    reference: "PAY-552",
+                    description: "Payment Received",
+                    amount: "—",
+                    amountOut: "R 2 000.00",
+                    balance: "R 6 000.00",
+                  },
+                ];
+
+                const transactions: typeof txDummy = Array.isArray((selected as any)?.transactions)
+                  ? (selected as any).transactions
+                  : txDummy;
+
+                return (
+                  <>
+                    <div style={{ marginBottom: "18px" }}>
+                      <div
+                        style={{
+                          display: "flex",
+                          justifyContent: "space-between",
+                          alignItems: "flex-start",
+                          gap: "16px",
+                          flexWrap: "wrap",
+                          marginBottom: "12px",
+                        }}
+                      >
+                        <div>
+                          <h1
+                            style={{
+                              margin: 0,
+                              fontSize: "28px",
+                              fontWeight: 900,
+                              letterSpacing: "-0.02em",
+                              color: BLACK,
+                            }}
+                          >
+                            Statement » Manage a statement of account
+                          </h1>
+                          <div style={{ marginTop: "6px", fontSize: "13px", color: textMuted, fontWeight: 600 }}>
+                            Account: {(selected as any).accountNo} • {parentsLabel}
+                          </div>
+                        </div>
+
+                        <div style={{ display: "flex", gap: "10px", flexWrap: "wrap" }}>
+                          <button
+                            type="button"
+                            style={actionBtnStyle}
+                            onClick={() => setActivePage("statements")}
+                            onMouseEnter={(e) => setBtnHover(e.currentTarget, true)}
+                            onMouseLeave={(e) => setBtnHover(e.currentTarget, false)}
+                          >
+                            Back
+                          </button>
+                          <button
+                            type="button"
+                            style={actionBtnStyle}
+                            onMouseEnter={(e) => setBtnHover(e.currentTarget, true)}
+                            onMouseLeave={(e) => setBtnHover(e.currentTarget, false)}
+                          >
+                            Save
+                          </button>
+                          <button
+                            type="button"
+                            style={actionBtnStyle}
+                            onMouseEnter={(e) => setBtnHover(e.currentTarget, true)}
+                            onMouseLeave={(e) => setBtnHover(e.currentTarget, false)}
+                          >
+                            Print
+                          </button>
+                          <button
+                            type="button"
+                            style={actionBtnStyle}
+                            onMouseEnter={(e) => setBtnHover(e.currentTarget, true)}
+                            onMouseLeave={(e) => setBtnHover(e.currentTarget, false)}
+                          >
+                            Send
+                          </button>
+                          <button
+                            type="button"
+                            style={{
+                              ...actionBtnStyle,
+                              borderColor: "rgba(212, 175, 55, 0.55)",
+                              background:
+                                "linear-gradient(135deg, rgba(212, 175, 55, 0.18), rgba(212, 175, 55, 0.06))",
+                            }}
+                            onMouseEnter={(e) => {
+                              const el = e.currentTarget;
+                              el.style.borderColor = GOLD;
+                              el.style.boxShadow = "0 12px 26px rgba(212, 175, 55, 0.25)";
+                            }}
+                            onMouseLeave={(e) => {
+                              const el = e.currentTarget;
+                              el.style.borderColor = "rgba(212, 175, 55, 0.55)";
+                              el.style.boxShadow = "none";
+                            }}
+                          >
+                            More Actions
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+
+                    <div
+                      style={{
+                        display: "grid",
+                        gridTemplateColumns: "2fr 1fr",
+                        gap: "18px",
+                        alignItems: "start",
+                      }}
+                    >
+                      <div style={{ ...cardStyle, padding: "16px" }}>
+                        <div
+                          style={{
+                            display: "flex",
+                            alignItems: "center",
+                            justifyContent: "space-between",
+                            gap: "12px",
+                            paddingBottom: "12px",
+                            borderBottom: `1px solid ${borderSoft}`,
+                            marginBottom: "14px",
+                          }}
+                        >
+                          <div style={{ fontSize: "16px", fontWeight: 900, color: BLACK }}>Account</div>
+
+                          <div style={{ display: "inline-flex", alignItems: "center", gap: "8px" }}>
+                            <div
+                              style={{
+                                fontSize: "12px",
+                                fontWeight: 800,
+                                color: BLACK,
+                                border: `1px solid ${borderSoft}`,
+                                background: "#ffffff",
+                                borderRadius: "999px",
+                                padding: "6px 10px",
+                                boxShadow: "inset 0 1px 0 rgba(255,255,255,0.9)",
+                              }}
+                            >
+                              General
+                            </div>
+                          </div>
+                        </div>
+
+                        <div
+                          style={{
+                            display: "grid",
+                            gridTemplateColumns: "1fr 1fr",
+                            gap: "12px 14px",
+                          }}
+                        >
+                          <div>
+                            <div style={labelStyle}>Account No</div>
+                            <input style={inputStyle} value={(selected as any).accountNo ?? ""} readOnly />
+                          </div>
+                          <div>
+                            <div style={labelStyle}>Balance</div>
+                            <input style={inputStyle} value={formatMaybeMoney((selected as any).balance)} readOnly />
+                          </div>
+                          <div>
+                            <div style={labelStyle}>Current</div>
+                            <input style={inputStyle} value="0.00" readOnly />
+                          </div>
+                          <div>
+                            <div style={labelStyle}>30 Days</div>
+                            <input style={inputStyle} value="0.00" readOnly />
+                          </div>
+                          <div>
+                            <div style={labelStyle}>60 Days</div>
+                            <input style={inputStyle} value="0.00" readOnly />
+                          </div>
+                          <div>
+                            <div style={labelStyle}>90 Days</div>
+                            <input style={inputStyle} value="0.00" readOnly />
+                          </div>
+                          <div>
+                            <div style={labelStyle}>120 Days</div>
+                            <input style={inputStyle} value="0.00" readOnly />
+                          </div>
+
+                          <div style={{ gridColumn: "1 / -1" }}>
+                            <div style={labelStyle}>Notes</div>
+                            <textarea style={textareaStyle} placeholder="Notes" />
+                          </div>
+                        </div>
+                      </div>
+
+                      <div
+                        style={{
+                          ...cardStyle,
+                          padding: "14px 14px 12px 14px",
+                          borderTop: `4px solid ${GOLD}`,
+                        }}
+                      >
+                        <div style={{ fontSize: "14px", fontWeight: 900, color: BLACK, marginBottom: "10px" }}>
+                          Summary
+                        </div>
+
+                        <div style={{ overflow: "hidden", borderRadius: "12px", border: `1px solid ${borderSoft}` }}>
+                          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr" }}>
+                            {[
+                              ["Account No", (selected as any).accountNo ?? "-"],
+                              ["Children", childrenLabel],
+                              ["Parents", parentsLabel],
+                              ["Balance", formatMaybeMoney((selected as any).balance)],
+                              ["Notes", "—"],
+                            ].map(([k, v]) => (
+                              <div key={k} style={{ display: "contents" }}>
+                                <div
+                                  style={{
+                                    padding: "10px 12px",
+                                    borderBottom: `1px solid ${borderSoft}`,
+                                    background: "rgba(17, 24, 39, 0.02)",
+                                    color: textMuted,
+                                    fontSize: "12px",
+                                    fontWeight: 800,
+                                  }}
+                                >
+                                  {k}
+                                </div>
+                                <div
+                                  style={{
+                                    padding: "10px 12px",
+                                    borderBottom: `1px solid ${borderSoft}`,
+                                    color: BLACK,
+                                    fontSize: "12px",
+                                    fontWeight: 800,
+                                  }}
+                                >
+                                  {String(v ?? "")}
+                                </div>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+
+                    <div style={{ ...cardStyle, marginTop: "18px", padding: "14px" }}>
+                      <div
+                        style={{
+                          display: "flex",
+                          alignItems: "center",
+                          justifyContent: "space-between",
+                          gap: "12px",
+                          flexWrap: "wrap",
+                          paddingBottom: "12px",
+                          borderBottom: `1px solid ${borderSoft}`,
+                          marginBottom: "12px",
+                        }}
+                      >
+                        <div style={{ display: "flex", alignItems: "center", gap: "10px", flexWrap: "wrap" }}>
+                          <div style={{ fontSize: "16px", fontWeight: 900, color: BLACK }}>Transactions</div>
+
+                          <div style={{ display: "flex", gap: "10px", flexWrap: "wrap" }}>
+                            <button
+                              type="button"
+                              style={actionBtnStyle}
+                              onMouseEnter={(e) => setBtnHover(e.currentTarget, true)}
+                              onMouseLeave={(e) => setBtnHover(e.currentTarget, false)}
+                            >
+                              Manage
+                            </button>
+                            <button
+                              type="button"
+                              style={actionBtnStyle}
+                              onMouseEnter={(e) => setBtnHover(e.currentTarget, true)}
+                              onMouseLeave={(e) => setBtnHover(e.currentTarget, false)}
+                            >
+                              Undo
+                            </button>
+                          </div>
+                        </div>
+
+                        <div style={{ display: "flex", alignItems: "center", gap: "10px", flexWrap: "wrap" }}>
+                          <button
+                            type="button"
+                            style={{ ...actionBtnStyle, height: "36px", padding: "0 12px", fontWeight: 800 }}
+                            onMouseEnter={(e) => setBtnHover(e.currentTarget, true)}
+                            onMouseLeave={(e) => setBtnHover(e.currentTarget, false)}
+                          >
+                            Hide Corrections
+                          </button>
+                          <button
+                            type="button"
+                            style={{ ...actionBtnStyle, height: "36px", padding: "0 12px", fontWeight: 800 }}
+                            onMouseEnter={(e) => setBtnHover(e.currentTarget, true)}
+                            onMouseLeave={(e) => setBtnHover(e.currentTarget, false)}
+                          >
+                            Last 10 Transactions
+                          </button>
+                          <input
+                            placeholder="Search"
+                            style={{
+                              ...inputStyle,
+                              height: "36px",
+                              width: "260px",
+                              fontWeight: 700,
+                              borderColor: "rgba(17, 24, 39, 0.14)",
+                            }}
+                            onFocus={(e) => {
+                              e.currentTarget.style.borderColor = GOLD;
+                              e.currentTarget.style.boxShadow = "0 0 0 4px rgba(212, 175, 55, 0.16)";
+                            }}
+                            onBlur={(e) => {
+                              e.currentTarget.style.borderColor = "rgba(17, 24, 39, 0.14)";
+                              e.currentTarget.style.boxShadow = "none";
+                            }}
+                          />
+                        </div>
+                      </div>
+
+                      <div style={{ overflowX: "auto" }}>
+                        <table style={{ width: "100%", borderCollapse: "separate", borderSpacing: 0 }}>
+                          <thead>
+                            <tr>
+                              {[
+                                "Audit No",
+                                "Date",
+                                "Type",
+                                "Reference",
+                                "Description",
+                                "Amount",
+                                "Amount Out",
+                                "Balance",
+                              ].map((h) => (
+                                <th
+                                  key={h}
+                                  style={{
+                                    textAlign: "left",
+                                    padding: "10px 10px",
+                                    fontSize: "12px",
+                                    color: textMuted,
+                                    fontWeight: 900,
+                                    borderBottom: `1px solid ${borderSoft}`,
+                                    background: "rgba(17, 24, 39, 0.02)",
+                                    whiteSpace: "nowrap",
+                                  }}
+                                >
+                                  {h}
+                                </th>
+                              ))}
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {transactions.map((tx, idx) => (
+                              <tr
+                                key={(tx as any).auditNo ?? idx}
+                                style={{ background: idx % 2 ? "#ffffff" : "#fcfcfd" }}
+                              >
+                                <td
+                                  style={{
+                                    padding: "10px 10px",
+                                    borderBottom: `1px solid ${borderSoft}`,
+                                    fontWeight: 800,
+                                    color: BLACK,
+                                    whiteSpace: "nowrap",
+                                  }}
+                                >
+                                  {(tx as any).auditNo ?? "—"}
+                                </td>
+                                <td
+                                  style={{
+                                    padding: "10px 10px",
+                                    borderBottom: `1px solid ${borderSoft}`,
+                                    fontWeight: 700,
+                                    color: BLACK,
+                                    whiteSpace: "nowrap",
+                                  }}
+                                >
+                                  {(tx as any).date ?? "—"}
+                                </td>
+                                <td
+                                  style={{
+                                    padding: "10px 10px",
+                                    borderBottom: `1px solid ${borderSoft}`,
+                                    fontWeight: 700,
+                                    color: BLACK,
+                                    whiteSpace: "nowrap",
+                                  }}
+                                >
+                                  {(tx as any).type ?? "—"}
+                                </td>
+                                <td
+                                  style={{
+                                    padding: "10px 10px",
+                                    borderBottom: `1px solid ${borderSoft}`,
+                                    fontWeight: 700,
+                                    color: BLACK,
+                                    whiteSpace: "nowrap",
+                                  }}
+                                >
+                                  {(tx as any).reference ?? "—"}
+                                </td>
+                                <td
+                                  style={{
+                                    padding: "10px 10px",
+                                    borderBottom: `1px solid ${borderSoft}`,
+                                    fontWeight: 700,
+                                    color: BLACK,
+                                    minWidth: "220px",
+                                  }}
+                                >
+                                  {(tx as any).description ?? "—"}
+                                </td>
+                                <td
+                                  style={{
+                                    padding: "10px 10px",
+                                    borderBottom: `1px solid ${borderSoft}`,
+                                    fontWeight: 800,
+                                    color: "#0f172a",
+                                    whiteSpace: "nowrap",
+                                  }}
+                                >
+                                  {(tx as any).amount ?? "—"}
+                                </td>
+                                <td
+                                  style={{
+                                    padding: "10px 10px",
+                                    borderBottom: `1px solid ${borderSoft}`,
+                                    fontWeight: 800,
+                                    color: "#0f172a",
+                                    whiteSpace: "nowrap",
+                                  }}
+                                >
+                                  {(tx as any).amountOut ?? "—"}
+                                </td>
+                                <td
+                                  style={{
+                                    padding: "10px 10px",
+                                    borderBottom: `1px solid ${borderSoft}`,
+                                    fontWeight: 900,
+                                    color: BLACK,
+                                    whiteSpace: "nowrap",
+                                  }}
+                                >
+                                  {(tx as any).balance ?? "—"}
+                                </td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      </div>
+                    </div>
+                  </>
+                );
+              })()}
             </div>
+        
+        
+        
           );
+        
+        
+        
         }
 
         case "invoices":
