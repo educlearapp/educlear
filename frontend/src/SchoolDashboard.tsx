@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Route, Routes, useLocation, useNavigate, useParams } from "react-router-dom";
 
 import AddLearner from "./AddLearner";
@@ -57,12 +57,19 @@ type PageKey =
 
   | "more"
 
+  | "schoolsProfile"
+  | "schoolsPackage"
+  | "schoolsCredits"
+  | "schoolsUsers"
+  | "schoolsMore"
+
   | "statements"
   | "statementManage"
 
   | "invoices"
   | "invoiceCreate"
   | "payments"
+  | "paymentCreate"
   | "payroll"
 
   | "fees"
@@ -90,7 +97,78 @@ export default function SchoolDashboard() {
   const schoolId = useSchoolId();
 
   const [activePage, setActivePage] = useState<PageKey>("dashboard");
+  const [paymentsVersion, setPaymentsVersion] = useState(0);
+  const [schoolsProfileTab, setSchoolsProfileTab] = useState<
+    "general" | "contact" | "address" | "billing" | "password"
+  >("general");
   const [manageFeeId, setManageFeeId] = useState<string | null>(null);
+
+  const [schoolsUsersMode, setSchoolsUsersMode] = useState<"list" | "add" | "manage">("list");
+  const [schoolsUsersPermPanels, setSchoolsUsersPermPanels] = useState<{
+    administration: boolean;
+    billing: boolean;
+    communication: boolean;
+  }>({ administration: false, billing: false, communication: false });
+  const [schoolsUsersPerms, setSchoolsUsersPerms] = useState<{
+
+
+
+    administration: Record<string, boolean>;
+  
+  
+  
+    billing: Record<string, boolean>;
+  
+  
+  
+    communication: Record<string, boolean>;
+  
+  
+  
+  }>(() => {
+  
+  
+  
+    const saved = localStorage.getItem("schoolsUsersPerms");
+  
+  
+  
+    return saved
+  
+  
+  
+      ? JSON.parse(saved)
+  
+  
+  
+      : {
+  
+  
+  
+          administration: {},
+  
+  
+  
+          billing: {},
+  
+  
+  
+          communication: {},
+  
+  
+  
+        };
+  
+  
+  
+  });
+  const [schoolsUsersForm, setSchoolsUsersForm] = useState<{
+    firstName: string;
+    lastName: string;
+    email: string;
+  }>({ firstName: "", lastName: "", email: "" });
+
+  
 
   const go = (page: PageKey) => {
     setActivePage(page);
@@ -104,6 +182,8 @@ export default function SchoolDashboard() {
   const [adminOpen, setAdminOpen] = useState(true);
 
   const [billingOpen, setBillingOpen] = useState(true);
+
+  const [schoolsOpen, setSchoolsOpen] = useState(true);
 
 
 
@@ -130,7 +210,7 @@ export default function SchoolDashboard() {
   const [selectedLearner, setSelectedLearner] = useState<any | null>(null);
   const [selectedStatementAccount, setSelectedStatementAccount] = useState<any | null>(null);
   const [selectedInvoiceAccount, setSelectedInvoiceAccount] = useState<any | null>(null);
-
+  const [selectedPaymentAccount, setSelectedPaymentAccount] = useState<any | null>(null);
   const [showUnenrolled, setShowUnenrolled] = useState(false);
 
   const [topPerformer, setTopPerformer] = useState<TeacherPerformanceRecord | null>(null);
@@ -625,39 +705,81 @@ export default function SchoolDashboard() {
       .filter(Boolean)
 
   ).size;
-  const statementRows = learners.map((l: any, index: number) => {
+  const statementRows = parents.map((p: any, index: number) => {
+
+
 
     const familyRef =
   
-      l.familyAccount?.accountRef ||
   
-      l.admissionNo ||
   
-      l.admissionNumber ||
+      p.familyAccount?.accountRef ||
+  
+  
+  
+      p.accountRef ||
+  
+  
   
       `ACC${String(index + 1).padStart(3, "0")}`;
   
   
   
-    const name = l.firstName || "-";
-  
-    const surname = l.lastName || l.surname || "-";
+    const name = p.name || p.firstName || "-";
   
   
   
-    const balance = Number(l.totalFee || l.balance || 0);
+    const surname = p.surname || p.lastName || "-";
   
-    const lastInvoiceAmount = Number(l.lastInvoiceAmount || l.tuitionFee || 0);
   
-    const lastPaymentAmount = Number(l.lastPaymentAmount || 0);
+  
+    const balance = Number(p.outstandingAmount ?? 0);
+  
+  
+  
+    const lastInvoiceAmount = Number(p.lastInvoiceAmount || 0);
+  
+  
+  
+    const savedPayments = JSON.parse(localStorage.getItem("payments") || "[]");
+
+
+
+const accountPayments = savedPayments
+
+
+
+  .filter((pay: any) => pay.account?.accountNo === familyRef || pay.accountNo === familyRef)
+
+
+
+  .sort((a: any, b: any) => String(b.date || "").localeCompare(String(a.date || "")));
+
+
+
+const lastPaymentRecord = accountPayments[0] || null;
+
+
+
+const lastPaymentAmount = lastPaymentRecord ? Number(lastPaymentRecord.amount || 0) : 0;
+
+
+
+const lastPaymentDate = lastPaymentRecord?.date || "";
   
   
   
     let status = "Up To Date";
   
+  
+  
     if (balance > 10000) status = "Bad Debt";
   
+  
+  
     else if (balance > 0) status = "Recently Owing";
+  
+  
   
     else if (balance < 0) status = "Over Paid";
   
@@ -665,25 +787,48 @@ export default function SchoolDashboard() {
   
     return {
   
+  
+  
+      parentId: p.id,
       accountNo: familyRef,
+  
+  
   
       name,
   
+  
+  
       surname,
+  
+  
   
       balance,
   
+  
+  
       lastInvoice: lastInvoiceAmount,
+  
+  
   
       lastInvoiceDate: "2026/04/15",
   
-      lastPayment: lastPaymentAmount,
   
-      lastPaymentDate: "2026/04/09",
+  
+      lastPayment: lastPaymentAmount,
+
+
+
+lastPaymentDate: lastPaymentDate || "-",
+  
+  
   
       status,
   
+  
+  
     };
+  
+  
   
   });
   
@@ -742,16 +887,563 @@ export default function SchoolDashboard() {
   const invoicesOverPaidAbs = statementsOverPaidAbs;
   
   const formatMoney = (value: number) =>
-  
+
+
+
     `R ${value.toLocaleString("en-ZA", {
+  
+  
   
       minimumFractionDigits: 2,
   
+  
+  
       maximumFractionDigits: 2,
   
+  
+  
     })}`;
-  const renderPage = () => {
+  
+  
+  
+  const getAccountBalance = (account: any) => {
+  
+  
+  
+    if (!account) return 0;
+  
+  
+  
+    // Balance is server-backed (Parent.outstandingAmount). Payments are persisted via /api/payments.
+    return Number(account.balance || 0);
+  
+  
+  
+  };
 
+  type PaymentMethodType = "Cash" | "Cheque" | "Debit Order" | "EFT" | "Credit Card" | "ATM";
+
+  function PaymentCreatePage({ accountRows }: { accountRows: any[] }) {
+    const paymentTypes: PaymentMethodType[] = [
+      "Cash",
+      "Cheque",
+      "Debit Order",
+      "EFT",
+      "Credit Card",
+      "ATM",
+    ];
+
+    const todayIso = (() => {
+      const d = new Date();
+      const mm = String(d.getMonth() + 1).padStart(2, "0");
+      const dd = String(d.getDate()).padStart(2, "0");
+      return `${d.getFullYear()}-${mm}-${dd}`;
+    })();
+
+    const [tab, setTab] = useState<"general">("general");
+    const [date, setDate] = useState<string>(todayIso);
+    const [type, setType] = useState<PaymentMethodType>("Cash");
+    const [description, setDescription] = useState<string>("");
+    const [amountText, setAmountText] = useState<string>("");
+    const [message, setMessage] = useState<string>("");
+    const [allocatedAmount, setAllocatedAmount] = useState<number>(0);
+    const [detailsSelected, setDetailsSelected] = useState<boolean>(true);
+
+    const didInitSelectedAccountRef = useRef(false);
+    useEffect(() => {
+      if (didInitSelectedAccountRef.current) return;
+
+      if (selectedPaymentAccount) {
+        didInitSelectedAccountRef.current = true;
+        return;
+      }
+
+      if (accountRows.length > 0) {
+        const firstRow = accountRows[0];
+
+
+
+const firstRowWithParentId = {
+
+
+
+  ...firstRow,
+
+
+
+  parentId: firstRow.parentId || firstRow.id || firstRow.parent?.id,
+
+
+
+};
+
+
+
+setSelectedPaymentAccount(firstRowWithParentId);
+
+
+
+localStorage.setItem("selectedPaymentAccount", JSON.stringify(firstRowWithParentId));
+        didInitSelectedAccountRef.current = true;
+      }
+    }, [accountRows, selectedPaymentAccount]);
+
+    const selectedAccount = selectedPaymentAccount || null;
+
+    const paymentAmount = Number(amountText || 0) || 0;
+    const unpaidAmount = selectedAccount ? Math.max(getAccountBalance(selectedAccount), 0) : 0;
+    const amountAllocated = Math.max(0, Math.min(allocatedAmount, paymentAmount));
+    const amountUnallocated = Math.max(0, paymentAmount - amountAllocated);
+
+    useEffect(() => {
+      setAllocatedAmount((prev) => Math.max(0, Math.min(prev, paymentAmount)));
+    }, [paymentAmount]);
+
+    const detailsRow = {
+      auditNo: selectedAccount ? `AUD-${String(selectedAccount.accountNo)}` : "-",
+      type: "Invoice",
+      date: selectedAccount?.lastInvoiceDate || "-",
+      reference: selectedAccount ? String(selectedAccount.accountNo) : "-",
+      description: "Outstanding balance",
+      unpaidAmount,
+      allocated: amountAllocated,
+    };
+
+    const autoAllocate = () => {
+      const next = Math.min(paymentAmount, unpaidAmount);
+      setAllocatedAmount(next);
+    };
+
+    const unallocateAll = () => {
+      setAllocatedAmount(0);
+    };
+
+    const allocate = () => {
+      if (!detailsSelected) return;
+      const next = Math.min(paymentAmount, unpaidAmount);
+      setAllocatedAmount(next);
+    };
+
+    const unallocate = () => {
+      if (!detailsSelected) return;
+      setAllocatedAmount(0);
+    };
+
+    const onBack = () => {
+      setActivePage("payments");
+    };
+
+    const onSave = async () => {
+      if (!selectedAccount) {
+        alert("Please select an account.");
+        return;
+      }
+      if (!date) {
+        alert("Please select a date.");
+        return;
+      }
+      if (!paymentAmount || paymentAmount <= 0) {
+        alert("Please enter a valid amount.");
+        return;
+      }
+      if (!selectedAccount.parentId) {
+        alert("This account is missing a parentId. Please refresh and try again.");
+        return;
+      }
+
+      try {
+        const res = await fetch(`${API_URL}/api/payments`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            parentId: selectedAccount.parentId,
+            amount: paymentAmount,
+            method: type,
+          }),
+        });
+
+        if (!res.ok) {
+          const errText = await res.text().catch(() => "");
+          throw new Error(errText || "Failed to save payment");
+        }
+
+        // Optional local audit trail for UI/history; balances come from server.
+        const existing = JSON.parse(localStorage.getItem("payments") || "[]");
+        const auditNo = `PAY-${Date.now()}`;
+        const newPayment = {
+          auditNo,
+          parentId: selectedAccount.parentId,
+          account: {
+            accountNo: selectedAccount.accountNo,
+            name: selectedAccount.name,
+            surname: selectedAccount.surname,
+          },
+          date,
+          type,
+          description,
+          amount: paymentAmount,
+          message,
+          allocated: amountAllocated,
+          createdAt: new Date().toISOString(),
+        };
+        localStorage.setItem("payments", JSON.stringify([newPayment, ...existing]));
+
+        setParents((prev) =>
+          prev.map((p: any) =>
+            p.id === selectedAccount.parentId
+              ? { ...p, outstandingAmount: Number(p.outstandingAmount || 0) - paymentAmount }
+              : p
+          )
+        );
+        setPaymentsVersion((v) => v + 1);
+        setActivePage("payments");
+      } catch (e: any) {
+        console.error(e);
+        alert(e?.message || "Failed to save payment.");
+      }
+    };
+
+    const panelCard: React.CSSProperties = {
+      background: "#ffffff",
+      border: "1px solid rgba(15, 23, 42, 0.10)",
+      borderRadius: "18px",
+      boxShadow: "0 10px 26px rgba(15, 23, 42, 0.06)",
+      overflow: "hidden",
+    };
+
+    const labelStyle: React.CSSProperties = {
+      fontSize: "13px",
+      color: "#475569",
+      fontWeight: 700,
+      marginBottom: "6px",
+      textTransform: "uppercase",
+      letterSpacing: "0.04em",
+    };
+
+    const inputStyle: React.CSSProperties = {
+      width: "100%",
+      padding: "10px 12px",
+      borderRadius: "12px",
+      border: "1px solid rgba(15, 23, 42, 0.14)",
+      outline: "none",
+      fontSize: "14px",
+      background: "#fff",
+    };
+
+    const readOnlyStyle: React.CSSProperties = {
+      ...inputStyle,
+      background: "rgba(148, 163, 184, 0.12)",
+      color: "#0f172a",
+    };
+
+    return (
+      <div style={{ padding: "32px" }}>
+        <div
+          style={{
+            display: "flex",
+            alignItems: "flex-start",
+            justifyContent: "space-between",
+            gap: "12px",
+            marginBottom: "18px",
+          }}
+        >
+          <div>
+            <h1 className="page-title">Create Payment » Create a payment.</h1>
+          </div>
+
+          <div style={{ display: "flex", gap: "10px", flexWrap: "wrap" }}>
+            <button className="action-btn" onClick={onBack}>
+              Back
+            </button>
+            <button className="action-btn" onClick={onSave}>
+              Save
+            </button>
+          </div>
+        </div>
+
+        <div
+          style={{
+            display: "grid",
+            gridTemplateColumns: "1.25fr 0.75fr",
+            gap: "16px",
+            alignItems: "start",
+          }}
+        >
+          <div style={panelCard}>
+            <div
+              style={{
+                padding: "14px 16px",
+                borderBottom: "1px solid rgba(15, 23, 42, 0.08)",
+                background:
+                  "linear-gradient(180deg, rgba(255, 215, 0, 0.20) 0%, rgba(255, 215, 0, 0.08) 100%)",
+              }}
+            >
+              <div style={{ fontWeight: 900, color: "#0f172a" }}>Payment</div>
+
+              <div style={{ display: "flex", gap: "10px", marginTop: "12px" }}>
+                <button
+                  onClick={() => setTab("general")}
+                  style={{
+                    padding: "8px 12px",
+                    borderRadius: "999px",
+                    border: "1px solid rgba(15, 23, 42, 0.12)",
+                    background: tab === "general" ? "rgba(15, 23, 42, 0.92)" : "rgba(255,255,255,0.7)",
+                    color: tab === "general" ? "#ffd700" : "#0f172a",
+                    fontWeight: 800,
+                    cursor: "pointer",
+                  }}
+                >
+                  General
+                </button>
+              </div>
+            </div>
+
+            <div style={{ padding: "16px" }}>
+              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "14px" }}>
+                <div>
+                  <div style={labelStyle}>Account</div>
+                  <select
+                    value={selectedPaymentAccount ? String(selectedPaymentAccount.accountNo) : ""}
+                    onChange={(e) => {
+                      const nextAccountNo = String(e.target.value || "");
+                      const matchedAccount =
+                        accountRows.find((r) => String(r.accountNo) === String(nextAccountNo)) || null;
+                        setSelectedPaymentAccount(
+
+                          matchedAccount
+                        
+                            ? {
+                        
+                                ...matchedAccount,
+                        
+                                parentId:
+                        
+                                  matchedAccount.parentId ||
+                        
+                                  matchedAccount.parent?.id ||
+                        
+                                  matchedAccount.id,
+                        
+                              }
+                        
+                            : null
+                        
+                        );
+                      if (matchedAccount) {
+                        if (matchedAccount) {
+
+
+
+                          const fixedAccount = {
+                        
+                        
+                        
+                            ...matchedAccount,
+                        
+                        
+                        
+                            parentId:
+                        
+                        
+                        
+                              matchedAccount.parentId ||
+                        
+                        
+                        
+                              matchedAccount.parent?.id ||
+                        
+                        
+                        
+                              matchedAccount.id,
+                        
+                        
+                        
+                          };
+                        
+                        
+                        
+                          localStorage.setItem("selectedPaymentAccount", JSON.stringify(fixedAccount));
+                        
+                        
+                        
+                        }
+                      }
+                    }}
+                    style={inputStyle}
+                  >
+                    <option value="">Select account...</option>
+                    {accountRows.map((row) => (
+                      <option key={String(row.accountNo)} value={String(row.accountNo)}>
+                        {row.accountNo} — {row.name} {row.surname}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                <div>
+                  <div style={labelStyle}>Date</div>
+                  <input type="date" value={date} onChange={(e) => setDate(e.target.value)} style={inputStyle} />
+                </div>
+
+                <div>
+                  <div style={labelStyle}>Type</div>
+                  <select value={type} onChange={(e) => setType(e.target.value as PaymentMethodType)} style={inputStyle}>
+                    {paymentTypes.map((t) => (
+                      <option key={t} value={t}>
+                        {t}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                <div>
+                  <div style={labelStyle}>Amount</div>
+                  <input
+                    inputMode="decimal"
+                    value={amountText}
+                    onChange={(e) => setAmountText(e.target.value)}
+                    placeholder="0.00"
+                    style={inputStyle}
+                  />
+                </div>
+
+                <div style={{ gridColumn: "1 / -1" }}>
+                  <div style={labelStyle}>Description</div>
+                  <input value={description} onChange={(e) => setDescription(e.target.value)} style={inputStyle} />
+                </div>
+
+                <div style={{ gridColumn: "1 / -1" }}>
+                  <div style={labelStyle}>Message</div>
+                  <textarea
+                    value={message}
+                    onChange={(e) => setMessage(e.target.value)}
+                    rows={4}
+                    style={{ ...inputStyle, resize: "vertical" }}
+                  />
+                </div>
+
+                <div>
+                  <div style={labelStyle}>Amount Allocated</div>
+                  <input value={formatMoney(amountAllocated)} readOnly style={readOnlyStyle} />
+                </div>
+
+                <div>
+                  <div style={labelStyle}>Amount Unallocated</div>
+                  <input value={formatMoney(amountUnallocated)} readOnly style={readOnlyStyle} />
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div style={panelCard}>
+            <div
+              style={{
+                padding: "14px 16px",
+                borderBottom: "1px solid rgba(15, 23, 42, 0.08)",
+                background:
+                  "linear-gradient(180deg, rgba(15, 23, 42, 0.94) 0%, rgba(15, 23, 42, 0.85) 100%)",
+                color: "#ffd700",
+                fontWeight: 900,
+              }}
+            >
+              Account Summary
+            </div>
+            <div style={{ padding: "16px" }}>
+              <div style={{ display: "grid", gridTemplateColumns: "140px 1fr", gap: "10px 12px", fontSize: "14px" }}>
+                <div style={{ color: "#475569", fontWeight: 800 }}>Account No</div>
+                <div style={{ fontWeight: 800, color: "#0f172a" }}>{selectedAccount?.accountNo || "-"}</div>
+
+                <div style={{ color: "#475569", fontWeight: 800 }}>Children</div>
+                <div style={{ color: "#0f172a" }}>-</div>
+
+                <div style={{ color: "#475569", fontWeight: 800 }}>Parents</div>
+                <div style={{ color: "#0f172a" }}>
+                  {selectedAccount ? `${selectedAccount.name || "-"} ${selectedAccount.surname || "-"}` : "-"}
+                </div>
+
+                <div style={{ color: "#475569", fontWeight: 800 }}>Balance</div>
+                <div style={{ fontWeight: 900, color: "#0f172a" }}>
+                  {selectedAccount ? formatMoney(getAccountBalance(selectedAccount)) : formatMoney(0)}
+                </div>
+
+                <div style={{ color: "#475569", fontWeight: 800 }}>Notes</div>
+                <div style={{ color: "#0f172a" }}>-</div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div style={{ marginTop: "16px", ...panelCard }}>
+          <div
+            style={{
+              padding: "14px 16px",
+              borderBottom: "1px solid rgba(15, 23, 42, 0.08)",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "space-between",
+              gap: "12px",
+              flexWrap: "wrap",
+              background:
+                "linear-gradient(180deg, rgba(255, 215, 0, 0.16) 0%, rgba(255, 215, 0, 0.06) 100%)",
+            }}
+          >
+            <div style={{ fontWeight: 900, color: "#0f172a" }}>Payment Details</div>
+            <div style={{ display: "flex", gap: "10px", flexWrap: "wrap" }}>
+              <button className="action-btn" onClick={autoAllocate}>
+                Auto Allocate
+              </button>
+              <button className="action-btn" onClick={unallocateAll}>
+                Unallocate All
+              </button>
+              <button className="action-btn" onClick={allocate}>
+                Allocate
+              </button>
+              <button className="action-btn" onClick={unallocate}>
+                Unallocate
+              </button>
+            </div>
+          </div>
+
+          <div style={{ padding: "16px" }}>
+            <table className="data-table">
+              <thead>
+                <tr>
+                  <th>Audit No</th>
+                  <th>Type</th>
+                  <th>Date</th>
+                  <th>Reference</th>
+                  <th>Description</th>
+                  <th>Unpaid Amount</th>
+                  <th>Allocated</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr
+                  onClick={() => setDetailsSelected(true)}
+                  style={{
+                    cursor: "pointer",
+                    background: detailsSelected ? "rgba(37, 99, 235, 0.10)" : "transparent",
+                  }}
+                >
+                  <td>{detailsRow.auditNo}</td>
+                  <td>{detailsRow.type}</td>
+                  <td>{detailsRow.date}</td>
+                  <td>{detailsRow.reference}</td>
+                  <td>{detailsRow.description}</td>
+                  <td>{formatMoney(detailsRow.unpaidAmount)}</td>
+                  <td>{formatMoney(detailsRow.allocated)}</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    );
+  }
+  
+   
+  const renderPage = () => {
+    
     if (activePage === "addLearner") {
 
       return <AddLearner />;
@@ -1944,6 +2636,964 @@ Manage
 
         return <h1 className="page-title">More</h1>;
 
+      case "schoolsProfile":
+        return (
+          <div
+            style={{
+              padding: "24px",
+              background: "#f3f4f6",
+              minHeight: "100%",
+              borderRadius: "6px",
+              border: "1px solid rgba(15, 23, 42, 0.10)",
+              boxShadow: "none",
+            }}
+          >
+            <div
+              style={{
+                display: "flex",
+                alignItems: "flex-start",
+                justifyContent: "space-between",
+                gap: "16px",
+                flexWrap: "wrap",
+                marginBottom: "16px",
+              }}
+            >
+              <div>
+                <h1
+                  style={{
+                    margin: 0,
+                    fontSize: "28px",
+                    fontWeight: 800,
+                    letterSpacing: "-0.01em",
+                    color: "#0f172a",
+                  }}
+                >
+                  Profile
+                </h1>
+                <div
+                  style={{
+                    marginTop: "6px",
+                    fontSize: "14px",
+                    color: "#64748b",
+                    fontWeight: 600,
+                  }}
+                >
+                  Manage your profile
+                </div>
+              </div>
+
+              <div style={{ display: "flex", gap: "10px", flexWrap: "wrap" }}>
+                <button
+                  type="button"
+                  onClick={() => go("dashboard")}
+                  style={{
+                    padding: "8px 12px",
+                    borderRadius: "4px",
+                    border: "1px solid rgba(15, 23, 42, 0.18)",
+                    background: "#ffffff",
+                    color: "#0f172a",
+                    fontWeight: 700,
+                    fontSize: "13px",
+                    boxShadow: "none",
+                    cursor: "pointer",
+                  }}
+                >
+                  Back
+                </button>
+                <button
+                  type="button"
+                  style={{
+                    padding: "8px 12px",
+                    borderRadius: "4px",
+                    border: "1px solid rgba(15, 23, 42, 0.18)",
+                    background: "#ffffff",
+                    color: "#0f172a",
+                    fontWeight: 700,
+                    fontSize: "13px",
+                    boxShadow: "none",
+                    cursor: "pointer",
+                  }}
+                >
+                  Save
+                </button>
+                <button
+                  type="button"
+                  style={{
+                    padding: "8px 12px",
+                    borderRadius: "4px",
+                    border: "1px solid rgba(15, 23, 42, 0.18)",
+                    background: "#ffffff",
+                    color: "#0f172a",
+                    fontWeight: 700,
+                    fontSize: "13px",
+                    boxShadow: "none",
+                    cursor: "pointer",
+                  }}
+                >
+                  More Actions
+                </button>
+              </div>
+            </div>
+
+            <div
+              style={{
+                background: "#ffffff",
+                border: "1px solid rgba(15, 23, 42, 0.14)",
+                borderRadius: "6px",
+                padding: "14px",
+                boxShadow: "none",
+              }}
+            >
+              <div
+                style={{
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "space-between",
+                  gap: "14px",
+                  flexWrap: "wrap",
+                  paddingBottom: "10px",
+                  borderBottom: "1px solid rgba(15, 23, 42, 0.12)",
+                  marginBottom: "12px",
+                }}
+              >
+                <div
+                  style={{
+                    fontSize: "16px",
+                    fontWeight: 800,
+                    color: "#0f172a",
+                    letterSpacing: "-0.01em",
+                  }}
+                >
+                  School
+                </div>
+
+                <div
+                  style={{
+                    display: "flex",
+                    gap: 0,
+                    flexWrap: "wrap",
+                    borderRadius: "4px",
+                    border: "1px solid rgba(15, 23, 42, 0.14)",
+                    background: "#f8fafc",
+                    overflow: "hidden",
+                  }}
+                >
+                  {(
+                    [
+                      { key: "general", label: "General" },
+                      { key: "contact", label: "Contact" },
+                      { key: "address", label: "Address" },
+                      { key: "billing", label: "Billing" },
+                      { key: "password", label: "Password" },
+                    ] as const
+                  ).map((t) => {
+                    const active = schoolsProfileTab === t.key;
+                    return (
+                      <button
+                        key={t.key}
+                        type="button"
+                        onClick={() => setSchoolsProfileTab(t.key)}
+                        style={{
+                          padding: "8px 12px",
+                          borderRadius: 0,
+                          border: "none",
+                          borderRight: "1px solid rgba(15, 23, 42, 0.14)",
+                          background: active ? "#ffffff" : "#f8fafc",
+                          color: active ? "#0f172a" : "#475569",
+                          fontWeight: active ? 800 : 700,
+                          fontSize: "13px",
+                          boxShadow: "none",
+                          borderBottom: active
+                            ? "2px solid rgba(15, 23, 42, 0.85)"
+                            : "2px solid transparent",
+                          cursor: "pointer",
+                        }}
+                      >
+                        {t.label}
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+
+              {(() => {
+                const labelColWidth = 220;
+
+                const Section = ({ children }: { children: React.ReactNode }) => (
+                  <div
+                    style={{
+                      border: "1px solid rgba(15, 23, 42, 0.12)",
+                      borderRadius: "4px",
+                      overflow: "hidden",
+                      background: "#ffffff",
+                    }}
+                  >
+                    {children}
+                  </div>
+                );
+
+                const Row = ({
+                  label,
+                  value,
+                  compactValue,
+                }: {
+                  label: string;
+                  value: React.ReactNode;
+                  compactValue?: boolean;
+                }) => (
+                  <div
+                    style={{
+                      display: "grid",
+                      gridTemplateColumns: `${labelColWidth}px 1fr`,
+                      gap: "12px",
+                      alignItems: compactValue ? "start" : "center",
+                      padding: "10px 12px",
+                      borderBottom: "1px solid rgba(15, 23, 42, 0.08)",
+                    }}
+                  >
+                    <div
+                      style={{
+                        fontSize: "13px",
+                        fontWeight: 700,
+                        color: "#334155",
+                      }}
+                    >
+                      {label}
+                    </div>
+                    <div
+                      style={{
+                        fontSize: "13px",
+                        fontWeight: 650,
+                        color: "#0f172a",
+                        lineHeight: 1.4,
+                        wordBreak: "break-word",
+                        whiteSpace: "pre-line",
+                      }}
+                    >
+                      {value}
+                    </div>
+                  </div>
+                );
+
+                const lastRowStyle = { borderBottom: "none" as const };
+
+                if (schoolsProfileTab === "general") {
+                  return (
+                    <Section>
+                      <Row label="Business Name" value="Da Silva Academy" />
+                      <Row label="Registered Email" value="dasilvaacademy@gmail.com" />
+                      <Row label="Package" value="Legendary Package" />
+                      <Row label="Package Until" value="8 October 2026" />
+                      <Row label="Automatic Renew" value="No" />
+                      <div style={lastRowStyle}>
+                        <Row label="Automatic Billing" value="No" />
+                      </div>
+                    </Section>
+                  );
+                }
+
+                if (schoolsProfileTab === "contact") {
+                  return (
+                    <Section>
+                      <Row label="Tel No" value="0145925613" />
+                      <Row label="Cell No" value="0825765507" />
+                      <Row label="Fax No" value="0145925613" />
+                      <div style={lastRowStyle}>
+                        <Row label="Email" value="tonydasilva@dasilvaacademy.com" />
+                      </div>
+                    </Section>
+                  );
+                }
+
+                if (schoolsProfileTab === "address") {
+                  return (
+                    <Section>
+                      <Row
+                        label="Physical Address"
+                        compactValue
+                        value={`212 Klopper Street\nRustenburg\n0299\nPhysical Address Line 4`}
+                      />
+                      <div style={lastRowStyle}>
+                        <Row
+                          label="Postal Address"
+                          compactValue
+                          value={`212 Klopper Street\nBodorp\nRustenburg\n0299`}
+                        />
+                      </div>
+                    </Section>
+                  );
+                }
+
+                if (schoolsProfileTab === "billing") {
+                  return (
+                    <Section>
+                      <div style={lastRowStyle}>
+                        <Row
+                          label="Banking Details"
+                          compactValue
+                          value={`Da Silva Academy\nTymeBank\nFNB\nAccount number: 53001618107\nAccount Number: 62839\nBranch code: 678910\nRustenburg Square Bra`}
+                        />
+                      </div>
+                    </Section>
+                  );
+                }
+
+                return (
+                  <Section>
+                    <Row
+                      label="New Password"
+                      value={
+                        <input
+                          type="password"
+                          placeholder="New Password"
+                          style={{
+                            width: "100%",
+                            maxWidth: 420,
+                            padding: "8px 10px",
+                            borderRadius: "4px",
+                            border: "1px solid rgba(15, 23, 42, 0.18)",
+                            background: "#ffffff",
+                            outline: "none",
+                            fontSize: "13px",
+                            fontWeight: 600,
+                            color: "#0f172a",
+                          }}
+                        />
+                      }
+                    />
+                    <div style={lastRowStyle}>
+                      <Row
+                        label="Confirm Password"
+                        value={
+                          <input
+                            type="password"
+                            placeholder="Confirm Password"
+                            style={{
+                              width: "100%",
+                              maxWidth: 420,
+                              padding: "8px 10px",
+                              borderRadius: "4px",
+                              border: "1px solid rgba(15, 23, 42, 0.18)",
+                              background: "#ffffff",
+                              outline: "none",
+                              fontSize: "13px",
+                              fontWeight: 600,
+                              color: "#0f172a",
+                            }}
+                          />
+                        }
+                      />
+                    </div>
+                  </Section>
+                );
+              })()}
+            </div>
+          </div>
+        );
+
+      case "schoolsPackage":
+      case "schoolsCredits":
+      case "schoolsMore":
+        return (
+          <div style={{ padding: "32px" }}>
+            <h1 className="page-title">Coming Soon</h1>
+            <p>This section will be available soon.</p>
+          </div>
+        );
+
+      case "schoolsUsers": {
+        const administrationPages = [
+          { key: "registrations", label: "Registrations" },
+          { key: "addLearner", label: "Add Learner" },
+          { key: "classrooms", label: "Classrooms" },
+          { key: "groups", label: "Groups" },
+          { key: "employees", label: "Employees" },
+          { key: "teacherPerformance", label: "Teacher Performance" },
+          { key: "attendance", label: "Attendance" },
+          { key: "incidents", label: "Incidents" },
+          { key: "listsAndRegisters", label: "Lists & Registers" },
+          { key: "formsAndTemplates", label: "Forms & Templates" },
+        ] as const;
+
+        const billingPages = [
+          { key: "fees", label: "Fees" },
+          { key: "statements", label: "Statements" },
+          { key: "invoices", label: "Invoices" },
+          { key: "payments", label: "Payments" },
+          { key: "payroll", label: "Payroll" },
+          { key: "billingPlans", label: "Billing Plans" },
+          { key: "billingReports", label: "Billing Reports" },
+          { key: "billingDocuments", label: "Billing Documents" },
+          { key: "billingHelp", label: "Help & Tips" },
+          { key: "billingMore", label: "More" },
+        ] as const;
+
+        const communicationPages = [
+          { key: "sms", label: "SMS" },
+          { key: "email", label: "Email" },
+          { key: "templates", label: "Templates" },
+          { key: "communicationReports", label: "Communication Reports" },
+        ] as const;
+
+        const initPerms = (preset?: {
+          administration?: string[];
+          billing?: string[];
+          communication?: string[];
+        }) => {
+          const presetAdmin = new Set(preset?.administration ?? []);
+          const presetBilling = new Set(preset?.billing ?? []);
+          const presetComms = new Set(preset?.communication ?? []);
+
+          const admin: Record<string, boolean> = {};
+          const billing: Record<string, boolean> = {};
+          const comms: Record<string, boolean> = {};
+
+          administrationPages.forEach((p) => (admin[p.key] = presetAdmin.has(p.key)));
+          billingPages.forEach((p) => (billing[p.key] = presetBilling.has(p.key)));
+          communicationPages.forEach((p) => (comms[p.key] = presetComms.has(p.key)));
+
+          setSchoolsUsersPerms({ administration: admin, billing, communication: comms });
+          const savedPerms = localStorage.getItem("schoolsUsersPerms");
+
+
+
+if (savedPerms) {
+
+
+
+  setSchoolsUsersPerms(JSON.parse(savedPerms));
+
+
+
+} else {
+
+
+
+  setSchoolsUsersPerms({ administration: admin, billing, communication: comms });
+
+
+
+}
+        };
+
+        const countSelected = (section: "administration" | "billing" | "communication") => {
+          const record = schoolsUsersPerms[section] || {};
+          return Object.values(record).filter(Boolean).length;
+        };
+
+        const summary = (section: "administration" | "billing" | "communication", total: number) => {
+          const selected = countSelected(section);
+          if (selected === 0) return "No Access";
+          if (selected === total) return "Full Access";
+          return `${selected} pages selected`;
+        };
+
+        const togglePage = (
+
+
+
+          section: "administration" | "billing" | "communication",
+        
+        
+        
+          page: string
+        
+        
+        
+        ) => {
+        
+        
+        
+          setSchoolsUsersPerms((prev) => {
+        
+        
+        
+            const updated = {
+        
+        
+        
+              ...prev,
+        
+        
+        
+              [section]: {
+        
+        
+        
+                ...(prev[section] || {}),
+        
+        
+        
+                [page]: !prev[section]?.[page],
+        
+        
+        
+              },
+        
+        
+        
+            };
+        
+        
+        
+            localStorage.setItem("schoolsUsersPerms", JSON.stringify(updated));
+        
+        
+        
+            return updated;
+        
+        
+        
+          });
+        
+        
+        
+        };
+
+        const topWrap: React.CSSProperties = {
+          display: "flex",
+          alignItems: "flex-start",
+          justifyContent: "space-between",
+          gap: "16px",
+          flexWrap: "wrap",
+          marginBottom: "16px",
+        };
+
+        const actionBtn: React.CSSProperties = {
+          padding: "8px 12px",
+          borderRadius: "4px",
+          border: "1px solid rgba(15, 23, 42, 0.18)",
+          background: "#ffffff",
+          color: "#0f172a",
+          fontWeight: 700,
+          fontSize: "13px",
+          boxShadow: "none",
+          cursor: "pointer",
+        };
+
+        const card: React.CSSProperties = {
+          background: "#ffffff",
+          border: "1px solid rgba(15, 23, 42, 0.14)",
+          borderRadius: "6px",
+          padding: "14px",
+          boxShadow: "none",
+        };
+
+        const labelColWidth = 220;
+        const Row = ({
+          label,
+          value,
+          compactValue,
+        }: {
+          label: string;
+          value: React.ReactNode;
+          compactValue?: boolean;
+        }) => (
+          <div
+            style={{
+              display: "grid",
+              gridTemplateColumns: `${labelColWidth}px 1fr`,
+              gap: "12px",
+              alignItems: compactValue ? "start" : "center",
+              padding: "10px 12px",
+              borderBottom: "1px solid rgba(15, 23, 42, 0.08)",
+            }}
+          >
+            <div style={{ fontSize: "13px", fontWeight: 700, color: "#334155" }}>{label}</div>
+            <div>{value}</div>
+          </div>
+        );
+
+        const sectionBox = (opts: {
+          title: "Administration Access" | "Billing Access" | "Communication Access";
+          section: "administration" | "billing" | "communication";
+          pages: readonly { key: string; label: string }[];
+        }) => {
+          const open = schoolsUsersPermPanels[opts.section];
+          const total = opts.pages.length;
+          return (
+            <div
+              style={{
+                border: "1px solid rgba(15, 23, 42, 0.12)",
+                borderRadius: "6px",
+                overflow: "hidden",
+                background: "#ffffff",
+              }}
+            >
+              <button
+                type="button"
+                onClick={() =>
+                  setSchoolsUsersPermPanels((p) => ({ ...p, [opts.section]: !p[opts.section] }))
+                }
+                style={{
+                  width: "100%",
+                  textAlign: "left",
+                  padding: "10px 12px",
+                  border: "none",
+                  background: "#f8fafc",
+                  cursor: "pointer",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "space-between",
+                  gap: "10px",
+                  borderBottom: open ? "1px solid rgba(15, 23, 42, 0.10)" : "none",
+                }}
+                aria-expanded={open}
+              >
+                <div style={{ display: "grid", gap: "2px" }}>
+                  <div style={{ fontSize: "13px", fontWeight: 800, color: "#0f172a" }}>
+                    {opts.title}
+                  </div>
+                  <div style={{ fontSize: "12px", fontWeight: 700, color: "#64748b" }}>
+                    {summary(opts.section, total)}
+                  </div>
+                </div>
+                <div
+                  style={{
+                    fontSize: "12px",
+                    fontWeight: 900,
+                    color: "#0f172a",
+                    padding: "6px 10px",
+                    borderRadius: "999px",
+                    border: "1px solid rgba(15, 23, 42, 0.12)",
+                    background: "#ffffff",
+                  }}
+                >
+                  {open ? "Hide" : "Edit"}
+                </div>
+              </button>
+
+              {open ? (
+                <div style={{ padding: "10px 12px" }}>
+                  <div
+                    style={{
+                      display: "grid",
+                      gridTemplateColumns: "repeat(2, minmax(0, 1fr))",
+                      gap: "10px 14px",
+                    }}
+                  >
+                    {opts.pages.map((p) => {
+                      const checked = !!schoolsUsersPerms?.[opts.section]?.[p.key];
+                      return (
+                        <label
+                          key={p.key}
+                          style={{
+                            display: "flex",
+                            alignItems: "center",
+                            gap: "10px",
+                            padding: "8px 10px",
+                            borderRadius: "8px",
+                            border: "1px solid rgba(15, 23, 42, 0.10)",
+                            background: "#ffffff",
+                            cursor: "pointer",
+                            userSelect: "none",
+                          }}
+                        >
+                          <input
+                            type="checkbox"
+                            checked={checked}
+                            onChange={() => togglePage(opts.section, p.key)}
+                            style={{ width: 16, height: 16 }}
+                          />
+                          <span style={{ fontSize: "13px", fontWeight: 800, color: "#0f172a" }}>
+                            {p.label}
+                          </span>
+                        </label>
+                      );
+                    })}
+                  </div>
+                </div>
+              ) : null}
+            </div>
+          );
+        };
+
+        return (
+          <div
+            style={{
+              padding: "24px",
+              background: "#f3f4f6",
+              minHeight: "100%",
+              borderRadius: "6px",
+              border: "1px solid rgba(15, 23, 42, 0.10)",
+              boxShadow: "none",
+            }}
+          >
+            <div style={topWrap}>
+              <div>
+                <h1
+                  style={{
+                    margin: 0,
+                    fontSize: "28px",
+                    fontWeight: 800,
+                    letterSpacing: "-0.01em",
+                    color: "#0f172a",
+                  }}
+                >
+                  Users
+                </h1>
+                <div style={{ marginTop: "6px", fontSize: "14px", color: "#64748b", fontWeight: 600 }}>
+                  Create and manage school users.
+                </div>
+              </div>
+
+              <div style={{ display: "flex", gap: "10px", flexWrap: "wrap" }}>
+                <button
+                  type="button"
+                  onClick={() => {
+                    if (schoolsUsersMode !== "list") {
+                      setSchoolsUsersMode("list");
+                      return;
+                    }
+                    go("dashboard");
+                  }}
+                  style={actionBtn}
+                >
+                  Back
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+
+
+
+                    localStorage.setItem(
+                  
+                  
+                  
+                      "schoolsUsersPerms",
+                  
+                  
+                  
+                      JSON.stringify(schoolsUsersPerms)
+                    );
+                  
+                  
+                    
+                  
+                  
+                  
+                    alert("Saved.");
+                  
+                  
+                  
+                    setSchoolsUsersMode("list");
+                  
+                  
+                  
+                  }}
+                  style={actionBtn}
+                >
+                  Save
+                </button>
+                <button
+                  type="button"
+                  onClick={() => alert("More Actions")}
+                  style={actionBtn}
+                >
+                  More Actions
+                </button>
+              </div>
+            </div>
+
+            <div style={card}>
+              {schoolsUsersMode === "list" ? (
+                <div>
+                  <div
+                    style={{
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "space-between",
+                      gap: "12px",
+                      flexWrap: "wrap",
+                      paddingBottom: "10px",
+                      borderBottom: "1px solid rgba(15, 23, 42, 0.12)",
+                      marginBottom: "12px",
+                    }}
+                  >
+                    <div style={{ fontSize: "16px", fontWeight: 800, color: "#0f172a" }}>School Users</div>
+                    <button
+                      type="button"
+                      style={{ ...actionBtn, borderRadius: "999px" }}
+                      onClick={() => {
+                        setSchoolsUsersMode("add");
+                        setSchoolsUsersForm({ firstName: "", lastName: "", email: "" });
+                        initPerms();
+                      }}
+                    >
+                      Add User
+                    </button>
+                  </div>
+
+                  <div
+                    style={{
+                      display: "grid",
+                      gap: "10px",
+                    }}
+                  >
+                    <div
+                      style={{
+                        border: "1px solid rgba(15, 23, 42, 0.10)",
+                        borderRadius: "10px",
+                        padding: "12px",
+                        display: "flex",
+                        alignItems: "center",
+                        justifyContent: "space-between",
+                        gap: "12px",
+                        flexWrap: "wrap",
+                        background: "#ffffff",
+                      }}
+                    >
+                      <div style={{ display: "grid", gap: "2px" }}>
+                        <div style={{ fontWeight: 900, color: "#0f172a" }}>Tony DaSilva (Sample)</div>
+                        <div style={{ fontWeight: 700, color: "#64748b", fontSize: "13px" }}>
+                          tonydasilva@dasilvaacademy.com
+                        </div>
+                      </div>
+                      <button
+                        type="button"
+                        style={actionBtn}
+                        onClick={() => {
+                          setSchoolsUsersMode("manage");
+                          setSchoolsUsersForm({
+                            firstName: "Tony",
+                            lastName: "DaSilva",
+                            email: "tonydasilva@dasilvaacademy.com",
+                          });
+                          initPerms({
+                            administration: ["registrations", "attendance", "employees"],
+                            billing: ["invoices", "statements"],
+                            communication: ["email"],
+                          });
+                        }}
+                      >
+                        Manage
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              ) : (
+                <div>
+                  <div
+                    style={{
+                      fontSize: "16px",
+                      fontWeight: 900,
+                      color: "#0f172a",
+                      paddingBottom: "10px",
+                      borderBottom: "1px solid rgba(15, 23, 42, 0.12)",
+                      marginBottom: "12px",
+                    }}
+                  >
+                    {schoolsUsersMode === "add" ? "Add User" : "Manage User"}
+                  </div>
+
+                  <div
+                    style={{
+                      border: "1px solid rgba(15, 23, 42, 0.10)",
+                      borderRadius: "6px",
+                      overflow: "hidden",
+                      background: "#ffffff",
+                      marginBottom: "12px",
+                    }}
+                  >
+                    <Row
+                      label="First Name"
+                      value={
+                        <input
+                          value={schoolsUsersForm.firstName}
+                          onChange={(e) =>
+                            setSchoolsUsersForm((p) => ({ ...p, firstName: e.target.value }))
+                          }
+                          placeholder="First Name"
+                          style={{
+                            width: "100%",
+                            maxWidth: 420,
+                            padding: "8px 10px",
+                            borderRadius: "4px",
+                            border: "1px solid rgba(15, 23, 42, 0.18)",
+                            background: "#ffffff",
+                            outline: "none",
+                            fontSize: "13px",
+                            fontWeight: 600,
+                            color: "#0f172a",
+                          }}
+                        />
+                      }
+                    />
+                    <Row
+                      label="Last Name"
+                      value={
+                        <input
+                          value={schoolsUsersForm.lastName}
+                          onChange={(e) =>
+                            setSchoolsUsersForm((p) => ({ ...p, lastName: e.target.value }))
+                          }
+                          placeholder="Last Name"
+                          style={{
+                            width: "100%",
+                            maxWidth: 420,
+                            padding: "8px 10px",
+                            borderRadius: "4px",
+                            border: "1px solid rgba(15, 23, 42, 0.18)",
+                            background: "#ffffff",
+                            outline: "none",
+                            fontSize: "13px",
+                            fontWeight: 600,
+                            color: "#0f172a",
+                          }}
+                        />
+                      }
+                    />
+                    <Row
+                      label="Email"
+                      value={
+                        <input
+                          value={schoolsUsersForm.email}
+                          onChange={(e) =>
+                            setSchoolsUsersForm((p) => ({ ...p, email: e.target.value }))
+                          }
+                          placeholder="Email"
+                          style={{
+                            width: "100%",
+                            maxWidth: 420,
+                            padding: "8px 10px",
+                            borderRadius: "4px",
+                            border: "1px solid rgba(15, 23, 42, 0.18)",
+                            background: "#ffffff",
+                            outline: "none",
+                            fontSize: "13px",
+                            fontWeight: 600,
+                            color: "#0f172a",
+                          }}
+                        />
+                      }
+                    />
+                  </div>
+
+                  <div style={{ display: "grid", gap: "12px" }}>
+                    {sectionBox({
+                      title: "Administration Access",
+                      section: "administration",
+                      pages: administrationPages,
+                    })}
+                    {sectionBox({
+                      title: "Billing Access",
+                      section: "billing",
+                      pages: billingPages,
+                    })}
+                    {sectionBox({
+                      title: "Communication Access",
+                      section: "communication",
+                      pages: communicationPages,
+                    })}
+                  </div>
+                </div>
+              )}
+            </div>
+          </div>
+        );
+      }
+
         case "statements":
 
         return (
@@ -2928,9 +4578,351 @@ Manage
 
   );
 
-      case "payments":
+  case "payments":
 
-        return <h1 className="page-title">Payments</h1>;
+  if (!schoolsUsersPerms?.billing?.payments) {
+
+
+
+    return (
+  
+  
+  
+      <div style={{ padding: "32px" }}>
+  
+  
+  
+        <h1 className="page-title">No Access</h1>
+  
+  
+  
+        <p>You do not have permission to access Payments.</p>
+  
+  
+  
+      </div>
+  
+  
+  
+    );
+  
+  
+  
+  }
+
+  return (
+
+
+
+    <div style={{ padding: "32px" }}>
+
+
+
+      <div style={{ marginBottom: "22px" }}>
+
+
+
+        <h1 className="page-title">New Payment</h1>
+
+
+
+        <p style={{ margin: "6px 0 0", color: "#64748b", fontSize: "15px" }}>
+
+
+
+          Create a new payment
+
+
+
+        </p>
+
+
+
+      </div>
+
+
+
+      <div style={{ display: "flex", gap: "14px", marginBottom: "20px", flexWrap: "wrap" }}>
+
+
+
+        <div className="dashboard-card"><h3>Accounts</h3><h2>{statementsAccountsCount}</h2></div>
+
+
+
+        <div className="dashboard-card"><h3>Total Outstanding</h3>{formatMoney(statementsTotalOutstanding)}<h2></h2></div>
+
+
+
+        <div className="dashboard-card"><h3>Recently Owing</h3><h2>{formatMoney(statementsRecentlyOwing)}</h2></div>
+
+
+
+        <div className="dashboard-card"><h3>Bad Debt</h3><h2>{formatMoney(statementsBadDebt)}</h2></div>
+
+
+
+        <div className="dashboard-card"><h3>Over Paid</h3><h2>{formatMoney(statementsOverPaidAbs)}</h2></div>
+
+
+
+      </div>
+
+
+
+      <button
+
+
+
+        className="action-btn"
+
+
+
+        onClick={() => {
+          if (selectedPaymentAccount) {
+            localStorage.setItem("selectedPaymentAccount", JSON.stringify(selectedPaymentAccount));
+          }
+          setActivePage("paymentCreate" as PageKey);
+        }}
+
+
+
+        style={{ marginBottom: "18px" }}
+
+
+
+      >
+
+
+
+        + Create Payment
+
+
+
+      </button>
+
+
+
+      <div className="table-card">
+
+
+
+        <h2 style={{ marginTop: 0 }}>Children</h2>
+
+
+
+        <table className="data-table">
+
+
+
+          <thead>
+
+
+
+            <tr>
+
+
+
+              <th>Account No</th>
+
+
+
+              <th>Name</th>
+
+
+
+              <th>Surname</th>
+
+
+
+              <th>Balance</th>
+
+
+
+              <th>Last Invoice</th>
+
+
+
+              <th>Last Payment</th>
+
+
+
+              <th>Account Status</th>
+
+
+
+            </tr>
+
+
+
+          </thead>
+
+
+
+          <tbody>
+
+
+
+          
+
+
+
+{statementRows.map((account: any) => (
+
+
+
+<tr
+
+
+
+  key={account.accountNo}
+
+
+
+  onClick={() => {
+
+
+
+    setSelectedPaymentAccount(account);
+
+
+
+    localStorage.setItem("selectedPaymentAccount", JSON.stringify(account));
+
+
+
+  }}
+
+
+
+  style={{
+
+
+
+    cursor: "pointer",
+
+
+
+    background:
+
+
+
+      selectedPaymentAccount?.accountNo === account.accountNo
+
+
+
+        ? "rgba(37, 99, 235, 0.12)"
+
+
+
+        : "transparent",
+
+
+
+  }}
+
+
+
+>
+
+
+
+  <td>{account.accountNo}</td>
+
+
+
+  <td>{account.name}</td>
+
+
+
+  <td>{account.surname}</td>
+
+
+
+  <td>{formatMoney(getAccountBalance(account))}</td>
+
+
+
+  <td>{formatMoney(account.lastInvoice || 0)} on {account.lastInvoiceDate || "-"}</td>
+
+
+
+  <td>
+
+
+
+  {Number(account.lastPayment || 0) > 0
+
+
+
+    ? `${formatMoney(account.lastPayment || 0)} on ${account.lastPaymentDate || "-"}`
+
+
+
+    : "R 0,00"}
+
+
+
+</td>
+
+
+
+  <td>{getAccountBalance(account) <= 0 ? "Over Paid" : "Recently Owing"}</td>
+
+
+
+</tr>
+
+
+
+))}  
+
+
+
+
+
+
+
+
+
+
+
+</tbody> 
+
+
+
+        </table>
+
+
+
+      </div>
+
+
+
+    </div>
+
+
+
+  );
+   
+   
+
+
+case "paymentCreate": 
+
+
+
+  // Ensure balances refresh immediately after Save (localStorage is the source of truth)
+  void paymentsVersion;
+  return <PaymentCreatePage accountRows={statementRows} />;
+
+
+
+
+            
+            
+            
+              
 
       case "payroll":
         return <Payroll />;
@@ -2984,6 +4976,9 @@ Manage
   function FeeUpsertRoute() {
     const params = useParams();
     const feeId = params.feeId ? String(params.feeId) : null;
+
+
+
     return (
       <FeeUpsert
         feeId={feeId}
@@ -3023,7 +5018,91 @@ Manage
 
         </div>
 
+        <div className="main-section">
 
+<div className="section-header" onClick={() => setSchoolsOpen(!schoolsOpen)}>
+
+  <div className="section-left">
+
+    <span className="menu-icon">🏫</span>
+
+    <span>Schools</span>
+
+  </div>
+
+  <span className={`chevron ${schoolsOpen ? "open" : ""}`}>⌄</span>
+
+</div>
+
+{schoolsOpen && (
+
+  <div className="submenu">
+
+    <div
+
+      className={`submenu-item ${activePage === "schoolsProfile" ? "active" : ""}`}
+
+      onClick={() => go("schoolsProfile")}
+
+    >
+
+      Profile
+
+    </div>
+
+    <div
+
+      className={`submenu-item ${activePage === "schoolsPackage" ? "active" : ""}`}
+
+      onClick={() => go("schoolsPackage")}
+
+    >
+
+      Package
+
+    </div>
+
+    <div
+
+      className={`submenu-item ${activePage === "schoolsCredits" ? "active" : ""}`}
+
+      onClick={() => go("schoolsCredits")}
+
+    >
+
+      Credits
+
+    </div>
+
+    <div
+
+      className={`submenu-item ${activePage === "schoolsUsers" ? "active" : ""}`}
+
+      onClick={() => go("schoolsUsers")}
+
+    >
+
+      Users
+
+    </div>
+
+    <div
+
+      className={`submenu-item ${activePage === "schoolsMore" ? "active" : ""}`}
+
+      onClick={() => go("schoolsMore")}
+
+    >
+
+      More
+
+    </div>
+
+  </div>
+
+)}
+
+</div>
 
         <div className="main-section">
 
@@ -3047,82 +5126,19 @@ Manage
 
             <div className="submenu">
 
-              <div
-
-                className={`submenu-item ${activePage === "registrations" ? "active" : ""}`}
-
-                onClick={() => go("registrations")}
-
-              >
-
-                Registrations
-
-              </div>
+{schoolsUsersPerms?.administration?.registrations && (
 
 
 
-              <div
-
-                className={`submenu-item ${activePage === "addLearner" ? "active" : ""}`}
-
-                onClick={() => go("addLearner")}
-
-              >
-
-                Add Learner
-
-              </div>
+<div
 
 
 
-              <div
-
-                className={`submenu-item ${activePage === "classrooms" ? "active" : ""}`}
-
-                onClick={() => go("classrooms")}
-
-              >
-
-                Classrooms
-
-              </div>
+  className={`submenu-item ${activePage === "registrations" ? "active" : ""}`}
 
 
 
-              <div
-
-                className={`submenu-item ${activePage === "groups" ? "active" : ""}`}
-
-                onClick={() => go("groups")}
-
-              >
-
-                Groups
-
-              </div>
-
-
-
-              <div
-
-                className={`submenu-item ${activePage === "employees" ? "active" : ""}`}
-
-                onClick={() => go("employees")}
-
-              >
-
-                Employees
-
-              </div>
-              <div
-
-
-
-className={`submenu-item ${activePage === "teacherPerformance" ? "active" : ""}`}
-
-
-
-onClick={() => go("teacherPerformance")}
+  onClick={() => go("registrations")}
 
 
 
@@ -3130,66 +5146,306 @@ onClick={() => go("teacherPerformance")}
 
 
 
-Teacher Performance
+  Registrations
 
 
 
 </div>
 
 
-              <div
 
-                className={`submenu-item ${activePage === "attendance" ? "active" : ""}`}
+)}
 
-                onClick={() => go("attendance")}
+<div
 
-              >
+  className={`submenu-item ${activePage === "registrations" ? "active" : ""}`}
 
-                Attendance
+  onClick={() => go("registrations")}
 
-              </div>
+>
 
+  Registrations
 
+</div>
 
-              <div
-
-                className={`submenu-item ${activePage === "incidents" ? "active" : ""}`}
-
-                onClick={() => go("incidents")}
-
-              >
-
-                Incidents
-
-              </div>
+)
 
 
 
-              <div
-
-                className={`submenu-item ${activePage === "lists" ? "active" : ""}`}
-
-                onClick={() => go("lists")}
-
-              >
-
-                Lists & Registers
-
-              </div>
+{schoolsUsersPerms?.administration?.addLearner && (
 
 
 
-              <div
+<div
 
-                className={`submenu-item ${activePage === "forms" ? "active" : ""}`}
 
-                onClick={() => go("forms")}
 
-              >
+  className={`submenu-item ${activePage === "addLearner" ? "active" : ""}`}
 
-                Forms & Templates
 
-              </div>
+
+  onClick={() => go("addLearner")}
+
+
+
+>
+
+
+
+  Add Learner
+
+
+
+</div>
+
+
+
+)}  
+
+
+
+{schoolsUsersPerms?.administration?.classrooms && (
+
+
+
+<div
+
+
+
+  className={`submenu-item ${activePage === "classrooms" ? "active" : ""}`}
+
+
+
+  onClick={() => go("classrooms")}
+
+
+
+>
+
+
+
+  Classrooms
+
+
+
+</div>
+
+
+
+)}
+
+
+
+{schoolsUsersPerms?.administration?.groups && (
+
+
+
+<div
+
+
+
+  className={`submenu-item ${activePage === "groups" ? "active" : ""}`}
+
+
+
+  onClick={() => go("groups")}
+
+
+
+>
+
+
+
+  Groups
+
+
+
+</div>
+
+
+
+)}
+          {schoolsUsersPerms?.administration?.employees && (
+
+
+
+<div
+
+
+
+  className={`submenu-item ${activePage === "employees" ? "active" : ""}`}
+
+
+
+  onClick={() => go("employees")}
+
+
+
+>
+
+
+
+  Employees
+
+
+
+</div>
+
+
+
+)}
+    
+
+
+             
+    {schoolsUsersPerms?.administration?.teacherPerformance && (
+
+
+
+<div
+
+
+
+  className={`submenu-item ${activePage === "teacherPerformance" ? "active" : ""}`}
+
+
+
+  onClick={() => go("teacherPerformance")}
+
+
+
+>
+
+
+
+  Teacher Performance
+
+
+
+</div>
+
+
+
+)} 
+
+
+{schoolsUsersPerms?.administration?.attendance && (
+
+
+
+<div
+
+
+
+  className={`submenu-item ${activePage === "attendance" ? "active" : ""}`}
+
+
+
+  onClick={() => go("attendance")}
+
+
+
+>
+
+
+
+  Attendance
+
+
+
+</div>
+
+
+
+)} 
+
+
+
+{schoolsUsersPerms?.administration?.incidents && (
+
+<div
+
+  className={`submenu-item ${activePage === "incidents" ? "active" : ""}`}
+
+  onClick={() => go("incidents")}
+
+>
+
+  Incidents
+
+</div>
+
+)}
+
+
+
+
+
+{schoolsUsersPerms?.administration?.listsAndRegisters && (
+
+
+
+  <div
+
+
+
+    className={`submenu-item ${activePage === "lists" ? "active" : ""}`}
+
+
+
+    onClick={() => go("lists")}
+
+
+
+  >
+
+
+
+    Lists & Registers
+
+
+
+  </div>
+
+
+
+)}
+
+
+
+
+
+
+
+{schoolsUsersPerms?.administration?.formsAndTemplates && (
+
+
+
+<div
+
+
+
+  className={`submenu-item ${activePage === "forms" ? "active" : ""}`}
+
+
+
+  onClick={() => go("forms")}
+
+
+
+>
+
+
+
+  Forms & Templates
+
+
+
+</div>
+
+
+
+)}
 
 
 
@@ -3249,122 +5505,289 @@ Teacher Performance
 
             <div className="submenu">
 
-              <div
-
-                className={`submenu-item ${activePage === "statements" ? "active" : ""}`}
-
-                onClick={() => go("statements")}
-
-              >
-
-                Statements
-
-              </div>
+{schoolsUsersPerms?.billing?.statements && (
 
 
 
-              <div
-
-                className={`submenu-item ${activePage === "invoices" ? "active" : ""}`}
-
-                onClick={() => go("invoices")}
-
-              >
-
-                Invoices
-
-              </div>
+<div
 
 
 
-              <div
-
-                className={`submenu-item ${activePage === "payments" ? "active" : ""}`}
-
-                onClick={() => go("payments")}
-
-              >
-
-                Payments
-
-              </div>
-
-              <div
-                className={`submenu-item ${activePage === "payroll" ? "active" : ""}`}
-                onClick={() => go("payroll")}
-              >
-                Payroll
-              </div>
+  className={`submenu-item ${activePage === "statements" ? "active" : ""}`}
 
 
 
-              <div
-
-                className={`submenu-item ${activePage === "fees" ? "active" : ""}`}
-
-                onClick={() => navigate("/dashboard/billing/fees")}
-
-              >
-
-                Fees
-
-              </div>
+  onClick={() => go("statements")}
 
 
 
-              <div
-
-                className={`submenu-item ${activePage === "plans" ? "active" : ""}`}
-
-                onClick={() => go("plans")}
-
-              >
-
-                Billing Plans
-
-              </div>
+>
 
 
 
-              <div
-
-                className={`submenu-item ${activePage === "runs" ? "active" : ""}`}
-
-                onClick={() => go("runs")}
-
-              >
-
-                Invoice Runs
-
-              </div>
+  Statements
 
 
 
-              <div
-
-                className={`submenu-item ${activePage === "reports" ? "active" : ""}`}
-
-                onClick={() => go("reports")}
-
-              >
-
-                Billing Reports
-
-              </div>
+</div>
 
 
 
-              <div
+)}
 
-                className={`submenu-item ${activePage === "documents" ? "active" : ""}`}
 
-                onClick={() => go("documents")}
 
-              >
+{schoolsUsersPerms?.billing?.invoices && (
 
-                Billing Documents
 
-              </div>
+
+<div
+
+
+
+  className={`submenu-item ${activePage === "invoices" ? "active" : ""}`}
+
+
+
+  onClick={() => go("invoices")}
+
+
+
+>
+
+
+
+  Invoices
+
+
+
+</div>
+
+
+
+)}
+
+
+
+{schoolsUsersPerms?.billing?.payments && (
+
+
+
+<div
+
+
+
+  className={`submenu-item ${activePage === "payments" ? "active" : ""}`}
+
+
+
+  onClick={() => go("payments")}
+
+
+
+>
+
+
+
+  Payments
+
+
+
+</div>
+
+
+
+)}
+
+{schoolsUsersPerms?.billing?.payroll && (
+
+
+
+<div
+
+
+
+  className={`submenu-item ${activePage === "payroll" ? "active" : ""}`}
+
+
+
+  onClick={() => go("payroll")}
+
+
+
+>
+
+
+
+  Payroll
+
+
+
+</div>
+
+
+
+)} 
+
+
+
+{schoolsUsersPerms?.billing?.fees && (
+
+
+
+<div
+
+
+
+  className={`submenu-item ${activePage === "fees" ? "active" : ""}`}
+
+
+
+  onClick={() => go("fees")}
+
+
+
+>
+
+
+
+  Fees
+
+
+
+</div>
+
+
+
+)}
+
+
+
+{schoolsUsersPerms?.billing?.billingPlans && (
+
+
+
+<div
+
+
+
+  className={`submenu-item ${activePage === "plans" ? "active" : ""}`}
+
+
+
+  onClick={() => go("plans")}
+
+
+
+>
+
+
+
+  Billing Plans
+
+
+
+</div>
+
+
+
+)}
+
+
+
+{schoolsUsersPerms?.billing?.invoiceRuns && (
+
+
+
+<div
+
+
+
+  className={`submenu-item ${activePage === "runs" ? "active" : ""}`}
+
+
+
+  onClick={() => go("runs")}
+
+
+
+>
+
+
+
+  Invoice Runs
+
+
+
+</div>
+
+
+
+)}
+
+
+
+{schoolsUsersPerms?.billing?.reports && (
+
+
+
+<div
+
+
+
+  className={`submenu-item ${activePage === "reports" ? "active" : ""}`}
+
+
+
+  onClick={() => go("reports")}
+
+
+
+>
+
+
+
+  Billing Reports
+
+
+
+</div>
+
+
+
+)}
+
+
+
+{schoolsUsersPerms?.billing?.documents && (
+
+
+
+<div
+
+
+
+  className={`submenu-item ${activePage === "documents" ? "active" : ""}`}
+
+
+
+  onClick={() => go("documents")}
+
+
+
+>
+
+
+
+  Billing Documents
+
+
+
+</div>
+
+
+
+)}
 
 
 
@@ -3399,6 +5822,8 @@ Teacher Performance
           )}
 
         </div>
+
+        
 
 
 
