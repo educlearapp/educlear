@@ -212,6 +212,9 @@ export default function SchoolDashboard() {
   const [selectedStatementAccount, setSelectedStatementAccount] = useState<any | null>(null);
   const [selectedInvoiceAccount, setSelectedInvoiceAccount] = useState<any | null>(null);
   const [invoiceDetailsRows, setInvoiceDetailsRows] = useState<Array<{ description: string; amount: number }>>([]);
+  const [invoiceFeePickerOpen, setInvoiceFeePickerOpen] = useState(false);
+  const [invoiceFeeSearch, setInvoiceFeeSearch] = useState("");
+  const invoiceAmountRef = useRef<HTMLInputElement | null>(null);
   const [selectedPaymentAccount, setSelectedPaymentAccount] = useState<any | null>(null);
   const [showUnenrolled, setShowUnenrolled] = useState(false);
 
@@ -2900,6 +2903,18 @@ Manage
                 0
               );
 
+              const localInvoiceFeesFallback: Array<{ name: string; amount: number }> = [
+                { name: "PRIMARY 2026", amount: 3000 },
+                { name: "JAMF APP", amount: 350 },
+                { name: "Grade 6 Leadership Camp", amount: 5000 },
+              ];
+
+              const filteredInvoiceFees = localInvoiceFeesFallback.filter((f) => {
+                const q = invoiceFeeSearch.trim().toLowerCase();
+                if (!q) return true;
+                return f.name.toLowerCase().includes(q);
+              });
+
               return (
                 <div style={{ maxWidth: "1200px", margin: "0 auto" }}>
                   <div
@@ -2942,7 +2957,74 @@ Manage
 
                       <button
                         type="button"
-                        onClick={() => alert("Invoice saved")}
+                        onClick={() => {
+                          const saved = localStorage.getItem("selectedInvoiceAccount");
+                          const selectedForSave =
+                            selectedInvoiceAccount ||
+                            (saved
+                              ? (() => {
+                                  try {
+                                    return JSON.parse(saved);
+                                  } catch {
+                                    return null;
+                                  }
+                                })()
+                              : null);
+
+                          if (!selectedForSave) {
+                            alert("Select an account first.");
+                            return;
+                          }
+
+                          const detailsSum = invoiceDetailsRows.reduce(
+                            (sum, r) => sum + (Number.isFinite(Number(r.amount)) ? Number(r.amount) : 0),
+                            0
+                          );
+
+                          const invoiceTotal = Number.isFinite(Number(detailsSum)) ? Number(detailsSum) : 0;
+
+                          if (invoiceTotal <= 0) {
+                            alert("Please add at least one invoice line.");
+                            return;
+                          }
+
+                          const prevBalance = Number.isFinite(Number(selectedForSave?.balance))
+                            ? Number(selectedForSave.balance)
+                            : 0;
+                          const nextBalance = prevBalance + (Number.isFinite(Number(invoiceTotal)) ? Number(invoiceTotal) : 0);
+
+                          const updatedAccount = { ...selectedForSave, balance: nextBalance };
+                          setSelectedInvoiceAccount(updatedAccount);
+                          localStorage.setItem("selectedInvoiceAccount", JSON.stringify(updatedAccount));
+
+                          if (updatedAccount?.parentId) {
+                            setParents((prev) =>
+                              prev.map((p: any) =>
+                                String(p?.id) === String(updatedAccount.parentId)
+                                  ? { ...p, outstandingAmount: nextBalance }
+                                  : p
+                              )
+                            );
+                          }
+
+                          try {
+                            const existing = JSON.parse(localStorage.getItem("invoices") || "[]");
+                            const list = Array.isArray(existing) ? existing : [];
+                            list.push({
+                              id: `INV-${Date.now()}`,
+                              accountNo: updatedAccount.accountNo,
+                              parentId: updatedAccount.parentId,
+                              total: invoiceTotal,
+                              details: invoiceDetailsRows,
+                              createdAt: new Date().toISOString(),
+                            });
+                            localStorage.setItem("invoices", JSON.stringify(list));
+                          } catch {
+                            // ignore localStorage errors
+                          }
+
+                          alert("Invoice saved. Balance updated.");
+                        }}
                         style={goldButtonBase}
                         onMouseEnter={(e) => {
                           (e.currentTarget as HTMLButtonElement).style.boxShadow =
@@ -2993,7 +3075,7 @@ Manage
 
                         <div style={{ gridColumn: "1 / span 2" }}>
                           <div style={labelStyle}>Amount</div>
-                          <input type="number" defaultValue={amountDefault} style={inputStyle} />
+                          <input ref={invoiceAmountRef} type="number" defaultValue={amountDefault} style={inputStyle} />
                         </div>
 
                         <div style={{ gridColumn: "1 / span 2" }}>
@@ -3090,8 +3172,7 @@ Manage
                         {[
                           {
                             label: "+ Add",
-                            onClick: () =>
-                              setInvoiceDetailsRows((prev) => [...prev, { description: "", amount: 0 }]),
+                            onClick: () => setInvoiceFeePickerOpen((v) => !v),
                           },
                           { label: "+ New", onClick: () => setInvoiceDetailsRows([{ description: "", amount: 0 }]) },
                           { label: "Delete", onClick: () => alert("Delete item") },
@@ -3120,6 +3201,137 @@ Manage
                         ))}
                       </div>
                     </div>
+
+                    {invoiceFeePickerOpen && (
+                      <div
+                        style={{
+                          marginTop: "14px",
+                          borderRadius: "12px",
+                          border: "1px solid rgba(212,175,55,0.28)",
+                          background: "linear-gradient(180deg, rgba(212,175,55,0.10), rgba(255,255,255,0.92))",
+                          padding: "12px",
+                        }}
+                      >
+                        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: "10px", flexWrap: "wrap" }}>
+                          <div style={{ fontSize: "13px", fontWeight: 950, color: "#0f172a" }}>Select a fee to add</div>
+                          <button
+                            type="button"
+                            onClick={() => setInvoiceFeePickerOpen(false)}
+                            style={{
+                              ...goldOutlineButtonBase,
+                              padding: "8px 10px",
+                              fontSize: "12px",
+                            }}
+                          >
+                            Close
+                          </button>
+                        </div>
+
+                        <div style={{ marginTop: "10px", display: "grid", gridTemplateColumns: "1fr 120px", gap: "10px" }}>
+                          <input
+                            type="text"
+                            value={invoiceFeeSearch}
+                            onChange={(e) => setInvoiceFeeSearch(e.target.value)}
+                            placeholder="Search fees…"
+                            style={{
+                              ...inputStyle,
+                              padding: "10px 12px",
+                            }}
+                          />
+                          <button
+                            type="button"
+                            onClick={() => setInvoiceFeeSearch("")}
+                            style={{
+                              ...goldOutlineButtonBase,
+                              background: "rgba(255,255,255,0.92)",
+                            }}
+                          >
+                            Clear
+                          </button>
+                        </div>
+
+                        <div
+                          style={{
+                            marginTop: "10px",
+                            borderRadius: "12px",
+                            overflow: "hidden",
+                            border: "1px solid rgba(212,175,55,0.22)",
+                            background: "#ffffff",
+                          }}
+                        >
+                          <div
+                            style={{
+                              display: "grid",
+                              gridTemplateColumns: "1fr 140px 120px",
+                              gap: "0px",
+                              background: "linear-gradient(180deg, rgba(212,175,55,0.16), rgba(212,175,55,0.06))",
+                              padding: "10px 12px",
+                              color: "#0f172a",
+                              fontWeight: 950,
+                              fontSize: "12px",
+                              letterSpacing: "0.02em",
+                              textTransform: "uppercase",
+                            }}
+                          >
+                            <div>Fee</div>
+                            <div style={{ textAlign: "right" }}>Amount</div>
+                            <div style={{ textAlign: "right" }}>Action</div>
+                          </div>
+
+                          {filteredInvoiceFees.length === 0 ? (
+                            <div
+                              style={{
+                                padding: "12px",
+                                borderTop: "1px solid rgba(15,23,42,0.06)",
+                                color: "#475569",
+                                fontWeight: 800,
+                                fontSize: "13px",
+                              }}
+                            >
+                              No fees match your search.
+                            </div>
+                          ) : (
+                            filteredInvoiceFees.map((fee) => (
+                              <div
+                                key={fee.name}
+                                style={{
+                                  display: "grid",
+                                  gridTemplateColumns: "1fr 140px 120px",
+                                  padding: "12px",
+                                  borderTop: "1px solid rgba(15,23,42,0.06)",
+                                  fontSize: "13px",
+                                  fontWeight: 800,
+                                  color: "#0f172a",
+                                  alignItems: "center",
+                                }}
+                              >
+                                <div style={{ fontWeight: 900 }}>{fee.name}</div>
+                                <div style={{ textAlign: "right", fontWeight: 900 }}>{`R${Number(fee.amount).toFixed(2)}`}</div>
+                                <div style={{ textAlign: "right" }}>
+                                  <button
+                                    type="button"
+                                    onClick={() => {
+                                      setInvoiceDetailsRows((prev) => [
+                                        ...prev,
+                                        { description: fee.name, amount: Number(fee.amount) },
+                                      ]);
+                                    }}
+                                    style={{
+                                      ...goldOutlineButtonBase,
+                                      padding: "8px 10px",
+                                      fontSize: "12px",
+                                      background: "rgba(212,175,55,0.10)",
+                                    }}
+                                  >
+                                    Add
+                                  </button>
+                                </div>
+                              </div>
+                            ))
+                          )}
+                        </div>
+                      </div>
+                    )}
 
                     <div
                       style={{
@@ -3158,7 +3370,7 @@ Manage
                               borderTop: "1px solid rgba(15,23,42,0.06)",
                             }}
                           >
-                            No items yet. Use <span style={{ fontWeight: 950, color: "#0f172a" }}>+ Add</span> to insert invoice lines.
+                            No items yet. Use <span style={{ fontWeight: 950, color: "#0f172a" }}>+ Add</span> to choose a fee, or <span style={{ fontWeight: 950, color: "#0f172a" }}>+ New</span> for a manual line.
                           </div>
                         ) : (
                           invoiceDetailsRows.map((r, idx) => (
