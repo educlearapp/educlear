@@ -999,15 +999,123 @@ localStorage.setItem("selectedPaymentAccount", JSON.stringify(firstRowWithParent
       setAllocatedAmount((prev) => Math.max(0, Math.min(prev, paymentAmount)));
     }, [paymentAmount]);
 
-    const detailsRow = {
-      auditNo: selectedAccount ? `AUD-${String(selectedAccount.accountNo)}` : "-",
+    const savedPayments = JSON.parse(localStorage.getItem("payments") || "[]");
+
+
+
+const accountPaymentRows = savedPayments
+
+
+
+  .filter((pay: any) =>
+
+
+
+    pay.account?.accountNo === selectedAccount?.accountNo ||
+
+
+
+    pay.accountNo === selectedAccount?.accountNo ||
+
+
+
+    pay.parentId === selectedAccount?.parentId
+
+
+
+  )
+
+
+
+  .map((pay: any, index: number) => ({
+
+
+
+    auditNo: pay.auditNo || `PAY-${index + 1}`,
+
+
+
+    type: "Payment",
+
+
+
+    date: pay.date || "-",
+
+
+
+    reference: selectedAccount?.accountNo || "-",
+
+
+
+    description: pay.description || pay.method || "Payment",
+
+
+
+    unpaidAmount: 0,
+
+
+
+    allocated: Number(pay.amount || 0),
+
+
+
+  }));
+
+
+
+const invoiceRow = selectedAccount
+
+
+
+  ? {
+
+
+
+      auditNo: `AUD-${selectedAccount.accountNo}`,
+
+
+
       type: "Invoice",
-      date: selectedAccount?.lastInvoiceDate || "-",
-      reference: selectedAccount ? String(selectedAccount.accountNo) : "-",
+
+
+
+      date: selectedAccount.lastInvoiceDate || "-",
+
+
+
+      reference: selectedAccount.accountNo,
+
+
+
       description: "Outstanding balance",
+
+
+
       unpaidAmount,
-      allocated: amountAllocated,
-    };
+
+
+
+      allocated: 0,
+
+
+
+    }
+
+
+
+  : null;
+
+
+
+const detailsRows = invoiceRow
+
+
+
+  ? [invoiceRow, ...accountPaymentRows]
+
+
+
+  : accountPaymentRows;
 
     const autoAllocate = () => {
       const next = Math.min(paymentAmount, unpaidAmount);
@@ -1418,22 +1526,78 @@ localStorage.setItem("selectedPaymentAccount", JSON.stringify(firstRowWithParent
                 </tr>
               </thead>
               <tbody>
-                <tr
-                  onClick={() => setDetailsSelected(true)}
-                  style={{
-                    cursor: "pointer",
-                    background: detailsSelected ? "rgba(37, 99, 235, 0.10)" : "transparent",
-                  }}
-                >
-                  <td>{detailsRow.auditNo}</td>
-                  <td>{detailsRow.type}</td>
-                  <td>{detailsRow.date}</td>
-                  <td>{detailsRow.reference}</td>
-                  <td>{detailsRow.description}</td>
-                  <td>{formatMoney(detailsRow.unpaidAmount)}</td>
-                  <td>{formatMoney(detailsRow.allocated)}</td>
-                </tr>
-              </tbody>
+
+
+
+{detailsRows.length === 0 ? (
+
+
+
+  <tr>
+
+
+
+    <td colSpan={7}>No transactions found</td>
+
+
+
+  </tr>
+
+
+
+) : (
+
+
+
+  detailsRows.map((row: any, i: number) => (
+
+
+
+    <tr key={i}>
+
+
+
+      <td>{row.auditNo}</td>
+
+
+
+      <td>{row.type}</td>
+
+
+
+      <td>{row.date}</td>
+
+
+
+      <td>{row.reference}</td>
+
+
+
+      <td>{row.description}</td>
+
+
+
+      <td>{formatMoney(row.unpaidAmount)}</td>
+
+
+
+      <td>{formatMoney(row.allocated)}</td>
+
+
+
+    </tr>
+
+
+
+  ))
+
+
+
+)}
+
+
+
+</tbody>
             </table>
           </div>
         </div>
