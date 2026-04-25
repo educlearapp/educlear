@@ -2694,11 +2694,98 @@ Manage
 
         return (
       
-          <div style={{ padding: "32px" }}>
-      
-            <h1 className="page-title">Create Invoice</h1>
+          <div
+            style={{
+              padding: "32px",
+              minHeight: "100%",
+              background: "#f5f7fb"
+                
+            }}
+          >
       
             {(() => {
+              const cardStyle: React.CSSProperties = {
+                background: "#ffffff",
+                border: "1px solid rgba(212,175,55,0.25)",
+                boxShadow: "0 12px 30px rgba(0,0,0,0.08)",
+                borderRadius: "12px",
+              };
+
+              const titleStyle: React.CSSProperties = {
+                margin: 0,
+                fontSize: "22px",
+                fontWeight: 900,
+                letterSpacing: "-0.01em",
+                color: "#0f172a",
+              };
+
+              const subtitleStyle: React.CSSProperties = {
+                marginTop: "6px",
+                fontSize: "13px",
+                color: "#475569",
+                fontWeight: 700,
+              };
+
+              const labelStyle: React.CSSProperties = {
+                fontSize: "12px",
+                fontWeight: 800,
+                color: "#475569",
+                marginBottom: "6px",
+              };
+
+              const inputStyle: React.CSSProperties = {
+                width: "100%",
+                padding: "10px 12px",
+                borderRadius: "10px",
+                border: "1px solid rgba(15,23,42,0.14)",
+                background: "#ffffff",
+                color: "#0f172a",
+                fontWeight: 700,
+                fontSize: "13px",
+                outline: "none",
+              };
+
+              const goldButtonBase: React.CSSProperties = {
+                padding: "10px 14px",
+                borderRadius: "10px",
+                border: "1px solid rgba(212,175,55,0.45)",
+                background:
+                  "linear-gradient(180deg, rgba(212,175,55,0.98) 0%, rgba(176,134,35,0.98) 100%)",
+                color: "#0b0f17",
+                fontWeight: 900,
+                fontSize: "13px",
+                cursor: "pointer",
+                boxShadow: "0 10px 24px rgba(0,0,0,0.18)",
+                transition: "box-shadow 160ms ease, transform 160ms ease, filter 160ms ease",
+                userSelect: "none",
+              };
+
+              const goldOutlineButtonBase: React.CSSProperties = {
+                padding: "10px 12px",
+                borderRadius: "10px",
+                border: "1px solid rgba(212,175,55,0.55)",
+                background: "rgba(255,255,255,0.96)",
+                color: "#0f172a",
+                fontWeight: 900,
+                fontSize: "13px",
+                cursor: "pointer",
+                transition: "box-shadow 160ms ease, transform 160ms ease, background 160ms ease",
+                userSelect: "none",
+              };
+
+              const pillStyle: React.CSSProperties = {
+                display: "inline-flex",
+                alignItems: "center",
+                gap: "8px",
+                padding: "6px 10px",
+                borderRadius: "999px",
+                border: "1px solid rgba(212,175,55,0.30)",
+                background: "rgba(212,175,55,0.10)",
+                color: "#0f172a",
+                fontWeight: 900,
+                fontSize: "12px",
+              };
+
               const saved = localStorage.getItem("selectedInvoiceAccount");
               const selected =
                 selectedInvoiceAccount ||
@@ -2712,49 +2799,398 @@ Manage
                     })()
                   : null);
 
+              const today = new Date();
+              const todayStr = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, "0")}-${String(
+                today.getDate()
+              ).padStart(2, "0")}`;
+
+              const defaultMessage =
+                "School fees to be to be paid in full by the 3rd of the month.\n\nArrangements for those parents that receive their salary on the 15th of the month Late payment penalty of R300 will apply.\n\nPlease keep all receipts safe if there might be any inquiries.";
+
+              const ref = String(selected?.accountNo || "");
+              const childrenName = `${String(selected?.name || "").trim()} ${String(selected?.surname || "").trim()}`.trim() || "-";
+              const parentsName = selected?.parentName || selected?.parent || selected?.parents || "-";
+              const childrenVal = (selected as any)?.children;
+              const parentsVal = (selected as any)?.parents;
+              const notesVal = (selected as any)?.notes;
+              const balanceVal = (selected as any)?.balance;
+
+              const childrenText = Array.isArray(childrenVal)
+                ? `${childrenVal.length}`
+                : String(childrenVal ?? "-");
+              const parentsText = Array.isArray(parentsVal)
+                ? `${parentsVal.length}`
+                : String(parentsVal ?? "-");
+              const notesText = typeof notesVal === "string" ? notesVal : notesVal == null ? "-" : String(notesVal);
+
               if (!selected) {
                 return (
-                  <div
-                    style={{
-                      background: "#ffffff",
-                      borderRadius: "12px",
-                      padding: "24px",
-                      boxShadow: "0 8px 24px rgba(15, 23, 42, 0.08)",
-                      marginTop: "20px",
-                      border: "1px solid rgba(234, 88, 12, 0.18)",
-                      color: "#9a3412",
-                      fontWeight: 700,
-                    }}
-                  >
-                    Select an account first.
+                  <div style={{ maxWidth: "1100px", margin: "0 auto" }}>
+                    <div
+                      style={{
+                        ...cardStyle,
+                        padding: "18px 18px",
+                        display: "flex",
+                        alignItems: "center",
+                        justifyContent: "space-between",
+                        gap: "12px",
+                      }}
+                    >
+                      <div>
+                        <div style={titleStyle}>Create Invoice » Create an invoice</div>
+                        <div style={subtitleStyle}>Select an account first to continue.</div>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => setActivePage("statements")}
+                        style={{
+                          ...goldOutlineButtonBase,
+                          background: "rgba(255,255,255,0.92)",
+                        }}
+                        onMouseEnter={(e) => {
+                          (e.currentTarget as HTMLButtonElement).style.boxShadow =
+                            "0 0 0 4px rgba(212,175,55,0.16), 0 16px 30px rgba(0,0,0,0.12)";
+                          (e.currentTarget as HTMLButtonElement).style.transform = "translateY(-1px)";
+                        }}
+                        onMouseLeave={(e) => {
+                          (e.currentTarget as HTMLButtonElement).style.boxShadow = "none";
+                          (e.currentTarget as HTMLButtonElement).style.transform = "translateY(0px)";
+                        }}
+                      >
+                        Back
+                      </button>
+                    </div>
+
+                    <div
+                      style={{
+                        marginTop: "18px",
+                        ...cardStyle,
+                        padding: "18px",
+                        border: "1px solid rgba(212,175,55,0.25)",
+                      }}
+                    >
+                      <div style={{ fontWeight: 900, color: "#9a3412" }}>Select an account first.</div>
+                    </div>
                   </div>
                 );
               }
 
-              const ref = String(selected?.accountNo || "");
-              const learnerName = `${String(selected?.name || "").trim()} ${String(selected?.surname || "").trim()}`.trim();
+              const amountDefault = Number.isFinite(Number(balanceVal)) ? Number(balanceVal) : 0;
 
-              return (
+              const summaryRow = (label: string, value: React.ReactNode) => (
                 <div
                   style={{
-                    background: "#ffffff",
-                    borderRadius: "12px",
-                    padding: "24px",
-                    boxShadow: "0 8px 24px rgba(15, 23, 42, 0.08)",
-                    marginTop: "20px",
-                    border: "1px solid rgba(15, 23, 42, 0.08)",
+                    display: "flex",
+                    justifyContent: "space-between",
+                    gap: "14px",
+                    padding: "10px 0",
+                    borderBottom: "1px solid rgba(15,23,42,0.08)",
                   }}
                 >
-                  <div style={{ fontWeight: 800, fontSize: "14px", color: "#0f172a", marginBottom: "8px" }}>
-                    Invoice for
+                  <div style={{ fontSize: "12px", fontWeight: 900, color: "#475569" }}>{label}</div>
+                  <div style={{ fontSize: "13px", fontWeight: 900, color: "#0f172a", textAlign: "right" }}>
+                    {value}
                   </div>
-                  <div style={{ fontWeight: 900, fontSize: "18px", color: "#0f172a", marginBottom: "6px" }}>
-                    {learnerName || "Selected account"}
+                </div>
+              );
+
+              const detailsRows: Array<{ description: string; amount: number }> = [];
+              const detailsTotal = detailsRows.reduce((sum, r) => sum + (Number.isFinite(r.amount) ? r.amount : 0), 0);
+
+              return (
+                <div style={{ maxWidth: "1200px", margin: "0 auto" }}>
+                  <div
+                    style={{
+                      ...cardStyle,
+                      padding: "18px 18px",
+                      display: "flex",
+                      alignItems: "flex-start",
+                      justifyContent: "space-between",
+                      gap: "14px",
+                      flexWrap: "wrap",
+                      marginBottom: "18px",
+                    }}
+                  >
+                    <div>
+                      <div style={titleStyle}>Create Invoice » Create an invoice</div>
+                      <div style={subtitleStyle}>Premium invoicing for the selected account.</div>
+                    </div>
+
+                    <div style={{ display: "flex", gap: "10px", flexWrap: "wrap" }}>
+                      <button
+                        type="button"
+                        onClick={() => setActivePage("statements")}
+                        style={{
+                          ...goldOutlineButtonBase,
+                          background: "rgba(255,255,255,0.92)",
+                        }}
+                        onMouseEnter={(e) => {
+                          (e.currentTarget as HTMLButtonElement).style.boxShadow =
+                            "0 0 0 4px rgba(212,175,55,0.16), 0 16px 30px rgba(0,0,0,0.12)";
+                          (e.currentTarget as HTMLButtonElement).style.transform = "translateY(-1px)";
+                        }}
+                        onMouseLeave={(e) => {
+                          (e.currentTarget as HTMLButtonElement).style.boxShadow = "none";
+                          (e.currentTarget as HTMLButtonElement).style.transform = "translateY(0px)";
+                        }}
+                      >
+                        Back
+                      </button>
+
+                      <button
+                        type="button"
+                        onClick={() => alert("Invoice saved")}
+                        style={goldButtonBase}
+                        onMouseEnter={(e) => {
+                          (e.currentTarget as HTMLButtonElement).style.boxShadow =
+                            "0 0 0 4px rgba(212,175,55,0.22), 0 18px 34px rgba(0,0,0,0.18)";
+                          (e.currentTarget as HTMLButtonElement).style.transform = "translateY(-1px)";
+                          (e.currentTarget as HTMLButtonElement).style.filter = "brightness(1.03)";
+                        }}
+                        onMouseLeave={(e) => {
+                          (e.currentTarget as HTMLButtonElement).style.boxShadow = goldButtonBase.boxShadow as string;
+                          (e.currentTarget as HTMLButtonElement).style.transform = "translateY(0px)";
+                          (e.currentTarget as HTMLButtonElement).style.filter = "none";
+                        }}
+                      >
+                        Save
+                      </button>
+                    </div>
                   </div>
-                  <div style={{ color: "#475569", fontWeight: 700, fontSize: "13px", marginBottom: "14px" }}>
-                    Account: {ref || "-"}
+
+                  <div
+                    style={{
+                      display: "grid",
+                      gridTemplateColumns: "7fr 3fr",
+                      gap: "18px",
+                      alignItems: "start",
+                    }}
+                  >
+                    <div style={{ ...cardStyle, padding: "18px" }}>
+                      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: "12px" }}>
+                        <div style={{ fontSize: "16px", fontWeight: 900, color: "#0f172a" }}>Invoice</div>
+                        <div style={pillStyle}>General</div>
+                      </div>
+
+                      <div style={{ marginTop: "16px", display: "grid", gridTemplateColumns: "1fr 1fr", gap: "14px" }}>
+                        <div style={{ gridColumn: "1 / span 2" }}>
+                          <div style={labelStyle}>Account</div>
+                          <input type="text" readOnly value={ref || "-"} style={{ ...inputStyle, background: "#f8fafc" }} />
+                        </div>
+
+                        <div>
+                          <div style={labelStyle}>Date</div>
+                          <input type="date" defaultValue={todayStr} style={inputStyle} />
+                        </div>
+
+                        <div>
+                          <div style={labelStyle}>Due</div>
+                          <input type="date" defaultValue={todayStr} style={inputStyle} />
+                        </div>
+
+                        <div style={{ gridColumn: "1 / span 2" }}>
+                          <div style={labelStyle}>Amount</div>
+                          <input type="number" defaultValue={amountDefault} style={inputStyle} />
+                        </div>
+
+                        <div style={{ gridColumn: "1 / span 2" }}>
+                          <div style={labelStyle}>Message</div>
+                          <textarea
+                            defaultValue={defaultMessage}
+                            rows={6}
+                            style={{
+                              ...inputStyle,
+                              resize: "vertical",
+                              lineHeight: 1.35,
+                              fontWeight: 700,
+                              fontFamily: "inherit",
+                            }}
+                          />
+                        </div>
+                      </div>
+                    </div>
+
+                    <div style={{ ...cardStyle, padding: "18px" }}>
+                      <div style={{ fontSize: "16px", fontWeight: 900, color: "#0f172a", marginBottom: "10px" }}>
+                        Account Summary
+                      </div>
+
+                      <div
+                        style={{
+                          height: "1px",
+                          background: "linear-gradient(90deg, rgba(212,175,55,0.55), rgba(212,175,55,0.10))",
+                          marginBottom: "10px",
+                        }}
+                      />
+
+                      {summaryRow("Account No", ref || "-")}
+                      {summaryRow("Children", childrenName)}
+
+                      {summaryRow("Parents", parentsName)}
+                      {summaryRow(
+
+
+
+"Balance",
+
+
+
+<span style={{ color: "#0f172a", fontWeight: 900 }}>
+
+
+
+  {Number.isFinite(Number(balanceVal))
+
+
+
+    ? `R${Number(balanceVal).toFixed(2)}`
+
+
+
+    : "R0.00"}
+
+
+
+</span>
+
+
+
+)}
+                      <div style={{ paddingTop: "10px" }}>
+                        <div style={{ fontSize: "12px", fontWeight: 900, color: "#475569", marginBottom: "6px" }}>
+                          Notes
+                        </div>
+                        <div
+                          style={{
+                            padding: "10px 12px",
+                            borderRadius: "10px",
+                            border: "1px solid rgba(15,23,42,0.10)",
+                            background: "#f8fafc",
+                            color: "#0f172a",
+                            fontWeight: 800,
+                            fontSize: "13px",
+                            whiteSpace: "pre-wrap",
+                            lineHeight: 1.3,
+                            minHeight: "54px",
+                          }}
+                        >
+                          {notesText}
+                        </div>
+                      </div>
+                    </div>
                   </div>
-                  <p style={{ margin: 0 }}>Select fees or add manual items for this learner.</p>
+
+                  <div style={{ marginTop: "18px", ...cardStyle, padding: "18px" }}>
+                    <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: "12px", flexWrap: "wrap" }}>
+                      <div style={{ fontSize: "16px", fontWeight: 900, color: "#0f172a" }}>Invoice Details</div>
+                      <div style={{ display: "flex", gap: "10px", flexWrap: "wrap" }}>
+                        {[
+                          { label: "+ Add", onClick: () => alert("Add item") },
+                          { label: "+ New", onClick: () => alert("New item") },
+                          { label: "Delete", onClick: () => alert("Delete item") },
+                          { label: "Move Up", onClick: () => alert("Move up") },
+                          { label: "Move Down", onClick: () => alert("Move down") },
+                        ].map((b) => (
+                          <button
+                            key={b.label}
+                            type="button"
+                            onClick={b.onClick}
+                            style={goldOutlineButtonBase}
+                            onMouseEnter={(e) => {
+                              (e.currentTarget as HTMLButtonElement).style.boxShadow =
+                                "0 0 0 4px rgba(212,175,55,0.16), 0 16px 28px rgba(0,0,0,0.10)";
+                              (e.currentTarget as HTMLButtonElement).style.transform = "translateY(-1px)";
+                              (e.currentTarget as HTMLButtonElement).style.background = "rgba(212,175,55,0.08)";
+                            }}
+                            onMouseLeave={(e) => {
+                              (e.currentTarget as HTMLButtonElement).style.boxShadow = "none";
+                              (e.currentTarget as HTMLButtonElement).style.transform = "translateY(0px)";
+                              (e.currentTarget as HTMLButtonElement).style.background = goldOutlineButtonBase.background as string;
+                            }}
+                          >
+                            {b.label}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+
+                    <div
+                      style={{
+                        marginTop: "14px",
+                        borderRadius: "12px",
+                        overflow: "hidden",
+                        border: "1px solid rgba(212,175,55,0.22)",
+                      }}
+                    >
+                      <div
+                        style={{
+                          display: "grid",
+                          gridTemplateColumns: "1fr 160px",
+                          gap: "0px",
+                          background: "linear-gradient(180deg, rgba(212,175,55,0.16), rgba(212,175,55,0.06))",
+                          padding: "10px 12px",
+                          color: "#0f172a",
+                          fontWeight: 950,
+                          fontSize: "12px",
+                          letterSpacing: "0.02em",
+                          textTransform: "uppercase",
+                        }}
+                      >
+                        <div>Description</div>
+                        <div style={{ textAlign: "right" }}>Amount</div>
+                      </div>
+
+                      <div style={{ background: "#ffffff" }}>
+                        {detailsRows.length === 0 ? (
+                          <div
+                            style={{
+                              padding: "14px 12px",
+                              color: "#475569",
+                              fontWeight: 800,
+                              fontSize: "13px",
+                              borderTop: "1px solid rgba(15,23,42,0.06)",
+                            }}
+                          >
+                            No items yet. Use <span style={{ fontWeight: 950, color: "#0f172a" }}>+ Add</span> to insert invoice lines.
+                          </div>
+                        ) : (
+                          detailsRows.map((r, idx) => (
+                            <div
+                              key={`${r.description}-${idx}`}
+                              style={{
+                                display: "grid",
+                                gridTemplateColumns: "1fr 160px",
+                                padding: "12px",
+                                borderTop: "1px solid rgba(15,23,42,0.06)",
+                                fontSize: "13px",
+                                fontWeight: 800,
+                                color: "#0f172a",
+                              }}
+                            >
+                              <div style={{ color: "#0f172a" }}>{r.description}</div>
+                              <div style={{ textAlign: "right" }}>{`R${Number(r.amount || 0).toFixed(2)}`}</div>
+                            </div>
+                          ))
+                        )}
+
+                        <div
+                          style={{
+                            display: "grid",
+                            gridTemplateColumns: "1fr 160px",
+                            padding: "12px",
+                            borderTop: "1px solid rgba(212,175,55,0.22)",
+                            background: "rgba(212,175,55,0.06)",
+                            fontSize: "13px",
+                            fontWeight: 950,
+                            color: "#0f172a",
+                          }}
+                        >
+                          <div style={{ textTransform: "uppercase", letterSpacing: "0.02em" }}>Total</div>
+                          <div style={{ textAlign: "right" }}>{`R${Number(detailsTotal || 0).toFixed(2)}`}</div>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
                 </div>
               );
             })()}
