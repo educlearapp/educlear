@@ -211,6 +211,7 @@ export default function SchoolDashboard() {
   const [selectedLearner, setSelectedLearner] = useState<any | null>(null);
   const [selectedStatementAccount, setSelectedStatementAccount] = useState<any | null>(null);
   const [selectedInvoiceAccount, setSelectedInvoiceAccount] = useState<any | null>(null);
+  const [invoiceDetailsRows, setInvoiceDetailsRows] = useState<Array<{ description: string; amount: number }>>([]);
   const [selectedPaymentAccount, setSelectedPaymentAccount] = useState<any | null>(null);
   const [showUnenrolled, setShowUnenrolled] = useState(false);
 
@@ -2894,8 +2895,10 @@ Manage
                 </div>
               );
 
-              const detailsRows: Array<{ description: string; amount: number }> = [];
-              const detailsTotal = detailsRows.reduce((sum, r) => sum + (Number.isFinite(r.amount) ? r.amount : 0), 0);
+              const detailsTotal = invoiceDetailsRows.reduce(
+                (sum, r) => sum + (Number.isFinite(Number(r.amount)) ? Number(r.amount) : 0),
+                0
+              );
 
               return (
                 <div style={{ maxWidth: "1200px", margin: "0 auto" }}>
@@ -3085,8 +3088,12 @@ Manage
                       <div style={{ fontSize: "16px", fontWeight: 900, color: "#0f172a" }}>Invoice Details</div>
                       <div style={{ display: "flex", gap: "10px", flexWrap: "wrap" }}>
                         {[
-                          { label: "+ Add", onClick: () => alert("Add item") },
-                          { label: "+ New", onClick: () => alert("New item") },
+                          {
+                            label: "+ Add",
+                            onClick: () =>
+                              setInvoiceDetailsRows((prev) => [...prev, { description: "", amount: 0 }]),
+                          },
+                          { label: "+ New", onClick: () => setInvoiceDetailsRows([{ description: "", amount: 0 }]) },
                           { label: "Delete", onClick: () => alert("Delete item") },
                           { label: "Move Up", onClick: () => alert("Move up") },
                           { label: "Move Down", onClick: () => alert("Move down") },
@@ -3141,7 +3148,7 @@ Manage
                       </div>
 
                       <div style={{ background: "#ffffff" }}>
-                        {detailsRows.length === 0 ? (
+                        {invoiceDetailsRows.length === 0 ? (
                           <div
                             style={{
                               padding: "14px 12px",
@@ -3154,9 +3161,9 @@ Manage
                             No items yet. Use <span style={{ fontWeight: 950, color: "#0f172a" }}>+ Add</span> to insert invoice lines.
                           </div>
                         ) : (
-                          detailsRows.map((r, idx) => (
+                          invoiceDetailsRows.map((r, idx) => (
                             <div
-                              key={`${r.description}-${idx}`}
+                              key={idx}
                               style={{
                                 display: "grid",
                                 gridTemplateColumns: "1fr 160px",
@@ -3167,8 +3174,58 @@ Manage
                                 color: "#0f172a",
                               }}
                             >
-                              <div style={{ color: "#0f172a" }}>{r.description}</div>
-                              <div style={{ textAlign: "right" }}>{`R${Number(r.amount || 0).toFixed(2)}`}</div>
+                              <div style={{ color: "#0f172a" }}>
+                                <input
+                                  type="text"
+                                  value={String(r.description ?? "")}
+                                  onChange={(e) => {
+                                    const v = e.target.value;
+                                    setInvoiceDetailsRows((prev) =>
+                                      prev.map((row, i) => (i === idx ? { ...row, description: v } : row))
+                                    );
+                                  }}
+                                  style={{
+                                    width: "100%",
+                                    border: "none",
+                                    outline: "none",
+                                    background: "transparent",
+                                    fontSize: "13px",
+                                    fontWeight: 800,
+                                    color: "#0f172a",
+                                    padding: 0,
+                                    margin: 0,
+                                    fontFamily: "inherit",
+                                  }}
+                                  placeholder="Description"
+                                />
+                              </div>
+                              <div style={{ textAlign: "right" }}>
+                                <input
+                                  type="number"
+                                  value={Number.isFinite(Number(r.amount)) ? String(Number(r.amount)) : "0"}
+                                  onChange={(e) => {
+                                    const raw = e.target.value;
+                                    const nextAmount = raw === "" ? 0 : Number(raw);
+                                    setInvoiceDetailsRows((prev) =>
+                                      prev.map((row, i) => (i === idx ? { ...row, amount: nextAmount } : row))
+                                    );
+                                  }}
+                                  style={{
+                                    width: "100%",
+                                    border: "none",
+                                    outline: "none",
+                                    background: "transparent",
+                                    fontSize: "13px",
+                                    fontWeight: 800,
+                                    color: "#0f172a",
+                                    padding: 0,
+                                    margin: 0,
+                                    fontFamily: "inherit",
+                                    textAlign: "right",
+                                  }}
+                                  placeholder="0.00"
+                                />
+                              </div>
                             </div>
                           ))
                         )}
