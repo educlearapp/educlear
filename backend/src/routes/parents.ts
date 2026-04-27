@@ -137,4 +137,63 @@ router.post("/", async (req, res) => {
   }
   });
 
+  router.get("/fee-check/:parentId", async (req, res) => {
+  try {
+    const { parentId } = req.params;
+
+    if (!parentId) {
+      return res.status(400).json({ found: false, error: "Missing parentId" });
+    }
+
+    const parent = await prisma.parent.findUnique({
+      where: { id: parentId },
+      include: {
+        school: true,
+        Letter: true,
+      },
+    });
+
+    if (!parent) {
+      return res.status(404).json({
+        found: false,
+        status: "GREEN",
+        outstandingAmount: 0,
+        school: "No record found",
+        parentName: "",
+      });
+    }
+
+    const totalOutstandingCents = parent.Letter.reduce((sum, letter) => {
+      if (letter.status === "DRAFT") return sum;
+      return sum + (letter.amountCents || 0);
+    }, 0);
+
+    const outstandingAmount = totalOutstandingCents / 100;
+
+    let status = "GREEN";
+    if (outstandingAmount > 10000) {
+      status = "RED";
+    } else if (outstandingAmount > 0) {
+      status = "AMBER";
+    }
+
+    return res.json({
+      found: true,
+      status,
+      outstandingAmount,
+      school: parent.school?.name || "",
+      parentName: `${parent.firstName} ${parent.surname}`,
+    });
+  } catch (error) {
+    console.error("Fee check error:", error);
+    return res.status(500).json({
+      found: false,
+      status: "GREEN",
+      outstandingAmount: 0,
+      school: "Server error",
+      parentName: "",
+    });
+  }
+});
+
 export default router;

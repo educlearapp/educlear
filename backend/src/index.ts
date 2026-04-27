@@ -150,7 +150,7 @@ app.use(
 app.use ("/auth", authRoutes);
 app.use("/learner", learnerRoutes);
 app.use("/api/schools", schoolsRoutes);
-app.use("/api", parentsRoutes);
+app.use("/api/parents", parentsRoutes);
 
 app.use("/api/teacher-performance", teacherPerformanceRoutes);
 app.use("/api/payroll", payrollRoutes);
