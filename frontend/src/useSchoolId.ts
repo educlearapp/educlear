@@ -1,48 +1,66 @@
 import { useEffect, useState } from "react";
 import { API_URL } from "./api";
 
-type SchoolListItem = { id: string };
+const STORAGE_KEY = "schoolId";
+const FALLBACK_SCHOOL_ID = "demo-school";
 
-async function fetchFirstSchoolId(): Promise<string | null> {
-  const res = await fetch(`${API_URL}/api/schools`);
-  if (!res.ok) return null;
-  const data = (await res.json()) as unknown;
-  const list = Array.isArray(data) ? (data as SchoolListItem[]) : [];
-  const first = list.find((s) => s && typeof (s as any).id === "string");
-  return first?.id ? String(first.id) : null;
+async function schoolExists(id: string): Promise<boolean> {
+  const res = await fetch(`${API_URL}/api/schools/${encodeURIComponent(id)}/exists`);
+  return res.ok;
 }
 
 /**
  * Single source of truth for schoolId in the frontend.
  * - Reads from localStorage
- * - If missing, attempts to infer by loading the newest school and persisting it
+ * - If missing, empty, or invalid, falls back to "demo-school" and persists it
  * - Keeps state in sync with localStorage (including cross-tab changes)
  */
 export function useSchoolId(): string {
-  const [schoolId, setSchoolId] = useState(() => localStorage.getItem("schoolId") || "");
+  // Never expose a stale/deleted stored id before validating it.
+  const [schoolId, setSchoolId] = useState<string>(() => FALLBACK_SCHOOL_ID);
 
   useEffect(() => {
     let cancelled = false;
 
-    async function ensure() {
-      const current = localStorage.getItem("schoolId") || "";
-      if (current) {
-        if (!cancelled) setSchoolId(current);
+    function persistFallback() {
+      localStorage.setItem(STORAGE_KEY, FALLBACK_SCHOOL_ID);
+      if (!cancelled) setSchoolId(FALLBACK_SCHOOL_ID);
+    }
+
+    async function ensureValidSchoolId(raw: string | null) {
+      const candidate = String(raw || "").trim();
+
+      if (!candidate) {
+        persistFallback();
         return;
       }
 
-      const inferred = await fetchFirstSchoolId();
-      if (!inferred) return;
+      if (candidate === FALLBACK_SCHOOL_ID) {
+        localStorage.setItem(STORAGE_KEY, FALLBACK_SCHOOL_ID);
+        if (!cancelled) setSchoolId(FALLBACK_SCHOOL_ID);
+        return;
+      }
 
-      localStorage.setItem("schoolId", inferred);
-      if (!cancelled) setSchoolId(inferred);
+      const ok = await schoolExists(candidate);
+      if (!ok) {
+        persistFallback();
+        return;
+      }
+
+      localStorage.setItem(STORAGE_KEY, candidate);
+      if (!cancelled) setSchoolId(candidate);
     }
 
-    ensure().catch(() => {});
+    ensureValidSchoolId(localStorage.getItem(STORAGE_KEY)).catch(() => {
+      // Treat as invalid (e.g. DB reset / backend unavailable) to avoid using a stale id.
+      persistFallback();
+    });
 
     function onStorage(e: StorageEvent) {
-      if (e.key !== "schoolId") return;
-      setSchoolId(String(e.newValue || ""));
+      if (e.key !== STORAGE_KEY) return;
+      ensureValidSchoolId(e.newValue).catch(() => {
+        persistFallback();
+      });
     }
 
     window.addEventListener("storage", onStorage);

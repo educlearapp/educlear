@@ -2,14 +2,46 @@ import { Router } from "express";
 
 
 
-import { prisma } from "../index";
+import { PrismaClient } from "@prisma/client";
 
 
 
 const router = Router();
-const prismaAny = prisma as any;
+const prisma = new PrismaClient() as any;
 
 
+
+router.get("/", async (req, res) => {
+  try {
+    const schoolId =
+      typeof (req as any).query?.schoolId === "string" ? String((req as any).query.schoolId) : "";
+    const parentId =
+      typeof (req as any).query?.parentId === "string" ? String((req as any).query.parentId) : "";
+
+    const paymentsRaw = await prisma.payment.findMany({
+      where: {
+        ...(schoolId ? { schoolId } : {}),
+        ...(parentId ? { parentId } : {}),
+      },
+      orderBy: [{ date: "desc" }, { createdAt: "desc" }],
+    });
+
+    const payments = (Array.isArray(paymentsRaw) ? paymentsRaw : []).map((p: any) => ({
+      id: p.id,
+      parentId: p.parentId,
+      amount: typeof p.amount?.toNumber === "function" ? p.amount.toNumber() : Number(p.amount),
+      date: p.date ?? null,
+      type: p.type ?? p.method ?? null,
+      description: p.description ?? null,
+      createdAt: p.createdAt ?? null,
+    }));
+
+    return res.json({ success: true, payments });
+  } catch (error) {
+    console.error("Failed to fetch payments:", error);
+    return res.status(500).json({ success: false, message: "Failed to fetch payments" });
+  }
+});
 
 router.post("/", async (req, res) => {
 
@@ -19,30 +51,19 @@ router.post("/", async (req, res) => {
 
 
 
-    const { parentId, amount, method } = req.body;
+    const { parentId, amount, method, type, description, date } = req.body;
 
+    const parentIdStr = typeof parentId === "string" ? parentId.trim() : "";
     const numericAmount = Number(amount);
 
-    if (!parentId || amount === undefined || amount === null) {
-
-
-
+    if (!parentIdStr || amount === undefined || amount === null) {
       return res.status(400).json({ error: "Missing parentId or amount" });
-
-
-
     }
 
 
 
-    const parent = await prismaAny.parent.findFirst({
-
-
-
-      where: { id: parentId },
-    
-    
-    
+    const parent = await prisma.parent.findFirst({
+      where: { id: parentIdStr },
     });
 
 
@@ -63,7 +84,7 @@ router.post("/", async (req, res) => {
       return res.status(400).json({ error: "Amount must be a positive number" });
     }
 
-    const payment = await prismaAny.payment.create({
+    const payment = await prisma.payment.create({
 
 
 
@@ -79,7 +100,7 @@ router.post("/", async (req, res) => {
 
 
 
-          connect: { id: parentId },
+          connect: { id: parentIdStr },
 
 
 
@@ -91,7 +112,11 @@ router.post("/", async (req, res) => {
 
 
 
-        method: method || null,
+        // Backward compat: older clients used `method`; contract now uses `type`.
+        type: type || method || null,
+        method: method || type || null,
+        description: typeof description === "string" ? description.trim() : description ?? null,
+        date: date ? new Date(String(date)) : new Date(),
 
 
 
@@ -103,15 +128,11 @@ router.post("/", async (req, res) => {
     
 
 
-    const newOutstanding = Number(parent.outstandingAmount || 0) - numericAmount;
+    const updatedParent = await prisma.parent.update({
 
 
 
-    await prismaAny.parent.update({
-
-
-
-      where: { id: parentId },
+      where: { id: parentIdStr },
 
 
 
@@ -119,7 +140,7 @@ router.post("/", async (req, res) => {
 
 
 
-        outstandingAmount: newOutstanding,
+        outstandingAmount: { decrement: numericAmount },
 
 
 
@@ -131,7 +152,28 @@ router.post("/", async (req, res) => {
 
 
 
-    return res.json(payment);
+    return res.json({
+      success: true,
+      payment: {
+        id: payment.id,
+        parentId: payment.parentId,
+        amount:
+          typeof (payment as any).amount?.toNumber === "function"
+            ? (payment as any).amount.toNumber()
+            : Number((payment as any).amount),
+        date: (payment as any).date ?? null,
+        type: (payment as any).type ?? (payment as any).method ?? null,
+        description: (payment as any).description ?? null,
+        createdAt: (payment as any).createdAt ?? null,
+      },
+      updatedParent: {
+        id: (updatedParent as any).id,
+        outstandingAmount:
+          typeof (updatedParent as any).outstandingAmount?.toNumber === "function"
+            ? (updatedParent as any).outstandingAmount.toNumber()
+            : Number((updatedParent as any).outstandingAmount),
+      },
+    });
 
 
 

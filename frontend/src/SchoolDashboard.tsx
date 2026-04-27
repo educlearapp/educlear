@@ -207,6 +207,7 @@ export default function SchoolDashboard() {
   const [learners, setLearners] = useState<any[]>([]);
 
   const [parents, setParents] = useState<any[]>([]);
+  const [invoices, setInvoices] = useState<any[]>([]);
 
   const [selectedLearner, setSelectedLearner] = useState<any | null>(null);
   const [selectedStatementAccount, setSelectedStatementAccount] = useState<any | null>(null);
@@ -218,9 +219,122 @@ export default function SchoolDashboard() {
   const [selectedPaymentAccount, setSelectedPaymentAccount] = useState<any | null>(null);
   const [showUnenrolled, setShowUnenrolled] = useState(false);
 
+  const handleInvoiceCreateSave = async () => {
+    const savedSelectedInvoiceAccount = localStorage.getItem("selectedInvoiceAccount");
+    const selectedForSave =
+      selectedInvoiceAccount ||
+      (savedSelectedInvoiceAccount
+        ? (() => {
+            try {
+              return JSON.parse(savedSelectedInvoiceAccount);
+            } catch {
+              return null;
+            }
+          })()
+        : null);
+
+    const directId = selectedForSave?.id;
+    const directParentId = selectedForSave?.parentId;
+    const norm = (v: unknown) => String(v ?? "").trim().toLowerCase();
+    const selectedAccountNo = String(selectedForSave?.accountNo ?? "");
+    const selectedName = norm(selectedForSave?.name ?? selectedForSave?.firstName);
+    const selectedSurname = norm(selectedForSave?.surname ?? selectedForSave?.lastName);
+
+    const matchedParent =
+      parents.find((p: any) => String(p?.accountNo ?? "") === selectedAccountNo) ||
+      parents.find((p: any) => String(p?.familyAccountId ?? "") === selectedAccountNo) ||
+      parents.find((p: any) => String(p?.id ?? "") === String(directParentId ?? "")) ||
+      (selectedName || selectedSurname
+        ? parents.find((p: any) => {
+            const pFirst = norm(p?.firstName);
+            const pSur = norm(p?.surname);
+            if (!pFirst && !pSur) return false;
+            if (selectedName && selectedSurname) return pFirst === selectedName && pSur === selectedSurname;
+            if (selectedName) return pFirst === selectedName;
+            return pSur === selectedSurname;
+          })
+        : undefined);
+
+    const resolvedParentId = String(directId ?? directParentId ?? matchedParent?.id ?? "");
+    if (!resolvedParentId) {
+      console.log("Could not resolve parentId for invoiceCreate", { selectedInvoiceAccount: selectedForSave, parents });
+      alert("Could not find parent database ID for this account.");
+      return;
+    }
+
+    const totalAmount = invoiceDetailsRows.reduce((sum, r) => {
+      const n = Number(r?.amount);
+      return sum + (Number.isFinite(n) ? n : 0);
+    }, 0);
+
+    if (totalAmount <= 0) {
+      alert("Please add at least one invoice line.");
+      return;
+    }
+
+    try {
+      const res = await fetch(`${API_URL}/api/invoices`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          parentId: resolvedParentId,
+          items: invoiceDetailsRows,
+          totalAmount,
+        }),
+      });
+
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        const msg =
+          typeof data?.message === "string"
+            ? data.message
+            : typeof data?.error === "string"
+              ? data.error
+              : "Failed to save invoice.";
+        alert(msg);
+        return;
+      }
+
+      const updatedParent = data?.updatedParent ?? data?.parent;
+      if (updatedParent) {
+        setSelectedInvoiceAccount((prev: any) => {
+          const base = prev ?? selectedForSave ?? {};
+          const merged = { ...base, ...updatedParent };
+          if (base?.accountNo && !merged.accountNo) merged.accountNo = base.accountNo;
+          if (base?.name && !merged.name) merged.name = base.name;
+          if (base?.surname && !merged.surname) merged.surname = base.surname;
+          return merged;
+        });
+        setParents((prev) =>
+          prev.some((p: any) => String(p?.id) === String(updatedParent?.id))
+            ? prev.map((p: any) => (String(p?.id) === String(updatedParent?.id) ? { ...p, ...updatedParent } : p))
+            : [{ ...updatedParent }, ...prev]
+        );
+      }
+
+      if (schoolId) {
+        const invRes = await fetch(`${API_URL}/api/invoices?schoolId=${encodeURIComponent(schoolId)}`);
+        if (invRes.ok) {
+          const data = await invRes.json().catch(() => ({}));
+          const invoiceData = Array.isArray(data) ? data : data?.invoices || [];
+          setInvoices(invoiceData);
+        }
+      }
+
+      alert("Invoice saved successfully");
+    } catch (e: unknown) {
+      const msg =
+        typeof (e as { message?: unknown } | null)?.message === "string"
+          ? String((e as { message?: unknown }).message)
+          : "Failed to save invoice.";
+      alert(msg);
+    }
+  };
+
   const [topPerformer, setTopPerformer] = useState<TeacherPerformanceRecord | null>(null);
   const [topPerformerLoading, setTopPerformerLoading] = useState(false);
   const [topPerformerFetchFailed, setTopPerformerFetchFailed] = useState(false);
+  const [payments, setPayments] = useState<any[]>([]);
 
   useEffect(() => {
     if (activePage !== "dashboard") return;
@@ -266,6 +380,41 @@ export default function SchoolDashboard() {
   }, [activePage, schoolId]);
 
   useEffect(() => {
+    const needsPaymentsData =
+      activePage === "statements" ||
+      activePage === "invoices" ||
+      activePage === "payments" ||
+      activePage === "paymentCreate";
+
+    if (!needsPaymentsData) return;
+
+    if (!schoolId) {
+      setPayments([]);
+      return;
+    }
+
+    let cancelled = false;
+    (async () => {
+      try {
+        const res = await fetch(`${API_URL}/api/payments`);
+        if (!res.ok) {
+          if (!cancelled) setPayments([]);
+          return;
+        }
+        const json = await res.json().catch(() => ([] as any));
+        const list = Array.isArray(json) ? json : Array.isArray(json?.payments) ? json.payments : [];
+        if (!cancelled) setPayments(list);
+      } catch {
+        if (!cancelled) setPayments([]);
+      }
+    })();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [activePage, schoolId, paymentsVersion]);
+
+  useEffect(() => {
 
     console.log("Active page is:", activePage);
 
@@ -276,42 +425,51 @@ export default function SchoolDashboard() {
       if (!schoolId) {
         setLearners([]);
         setParents([]);
+        setInvoices([]);
         return;
       }
 
-      Promise.all([
+      Promise.allSettled([
+        fetch(`${API_URL}/api/learners?schoolId=${encodeURIComponent(schoolId)}`).then((res) => res.json()),
+        fetch(`${API_URL}/api/parents?schoolId=${encodeURIComponent(schoolId)}`).then((res) => res.json()),
+      ]).then((results) => {
+        const learnersResult = results[0];
+        const parentsResult = results[1];
 
-        fetch(`${API_URL}/api/learners?schoolId=${encodeURIComponent(schoolId)}`).then((res) =>
-          res.json()
-        ),
-        fetch(`${API_URL}/api/parents?schoolId=${encodeURIComponent(schoolId)}`).then((res) =>
-          res.json()
-        ),
-
-      ])
-
-        .then(([learnersData, parentsData]) => {
-
+        if (learnersResult.status === "fulfilled") {
+          const learnersData = learnersResult.value;
           console.log("Learners loaded:", learnersData);
-
-          console.log("Parents loaded:", parentsData);
-
-
-
           setLearners(Array.isArray(learnersData?.learners) ? learnersData.learners : []);
-          setParents(Array.isArray(parentsData?.parents) ? parentsData.parents : []);
-
-        })
-
-        .catch((error) => {
-
-          console.error("Failed to fetch registrations data:", error);
-
+        } else {
+          console.error("Failed to fetch learners:", learnersResult.reason);
           setLearners([]);
+        }
 
+        if (parentsResult.status === "fulfilled") {
+          const data = parentsResult.value;
+          console.log("Parents loaded:", data);
+          const parentsData = Array.isArray(data) ? data : data?.parents || [];
+          setParents(parentsData);
+        } else {
+          console.error("Failed to fetch parents:", parentsResult.reason);
           setParents([]);
+        }
 
-        });
+        (async () => {
+          try {
+            const invoiceRes = await fetch(`${API_URL}/api/invoices`);
+            const invoiceJson = await invoiceRes.json();
+            const invoiceList = Array.isArray(invoiceJson)
+              ? invoiceJson
+              : Array.isArray(invoiceJson?.invoices)
+                ? invoiceJson.invoices
+                : [];
+            setInvoices(invoiceList);
+          } catch (e) {
+            console.error("Failed to fetch invoices:", e);
+          }
+        })();
+      });
 
     }
 
@@ -701,6 +859,23 @@ export default function SchoolDashboard() {
 
   const totalGirls = learners.filter((l: any) => l.gender === "Female").length;
 
+  const getLastInvoice = (account: any) => {
+    if (!account || !invoices?.length) return null;
+    const parentId = account.parentId || account.id;
+    const matched = invoices
+    .filter((inv: any) => String(inv.parentId) === String(parentId))
+      .sort(
+        (a: any, b: any) =>
+          new Date(b.createdAt || b.date).getTime() - new Date(a.createdAt || a.date).getTime()
+      );
+    if (!matched.length) return null;
+    const latest = matched[0];
+    return {
+      amount: latest.totalAmount ?? latest.total ?? latest.amount ?? 0,
+      date: latest.date || latest.createdAt || null,
+    };
+  };
+
   const totalClassrooms = new Set(
 
     learners
@@ -742,23 +917,17 @@ export default function SchoolDashboard() {
   
   
   
-    const lastInvoiceAmount = Number(p.lastInvoiceAmount || 0);
+    const lastInvoice = getLastInvoice(p);
+    const lastInvoiceAmount = lastInvoice ? Number(lastInvoice.amount || 0) : 0;
+    const lastInvoiceDate = lastInvoice?.date ? String(lastInvoice.date).slice(0, 10) : "-";
   
   
   
-    const savedPayments = JSON.parse(localStorage.getItem("payments") || "[]");
-
-
-
-const accountPayments = savedPayments
-
-
-
-  .filter((pay: any) => pay.account?.accountNo === familyRef || pay.accountNo === familyRef)
-
-
-
-  .sort((a: any, b: any) => String(b.date || "").localeCompare(String(a.date || "")));
+    const accountPayments = payments
+      .filter((pay: any) => pay?.parentId === p.id)
+      .sort((a: any, b: any) =>
+        String(b?.date || b?.createdAt || "").localeCompare(String(a?.date || a?.createdAt || ""))
+      );
 
 
 
@@ -770,7 +939,7 @@ const lastPaymentAmount = lastPaymentRecord ? Number(lastPaymentRecord.amount ||
 
 
 
-const lastPaymentDate = lastPaymentRecord?.date || "";
+const lastPaymentDate = lastPaymentRecord?.date || lastPaymentRecord?.createdAt || "";
   
   
   
@@ -815,7 +984,7 @@ const lastPaymentDate = lastPaymentRecord?.date || "";
   
   
   
-      lastInvoiceDate: "2026/04/15",
+      lastInvoiceDate,
   
   
   
@@ -1004,39 +1173,17 @@ localStorage.setItem("selectedPaymentAccount", JSON.stringify(firstRowWithParent
       setAllocatedAmount((prev) => Math.max(0, Math.min(prev, paymentAmount)));
     }, [paymentAmount]);
 
-    const savedPayments = JSON.parse(localStorage.getItem("payments") || "[]");
-
-
-
-const accountPaymentRows = savedPayments
-
-
-
-  .filter((pay: any) =>
-
-
-
-    pay.account?.accountNo === selectedAccount?.accountNo ||
-
-
-
-    pay.accountNo === selectedAccount?.accountNo ||
-
-
-
-    pay.parentId === selectedAccount?.parentId
-
-
-
-  )
-
-
+    const accountPaymentRows = payments
+      .filter((pay: any) => pay?.parentId === selectedAccount?.parentId)
+      .sort((a: any, b: any) =>
+        String(b?.date || b?.createdAt || "").localeCompare(String(a?.date || a?.createdAt || ""))
+      )
 
   .map((pay: any, index: number) => ({
 
 
 
-    auditNo: pay.auditNo || `PAY-${index + 1}`,
+    auditNo: pay.id || pay.auditNo || `PAY-${index + 1}`,
 
 
 
@@ -1044,7 +1191,7 @@ const accountPaymentRows = savedPayments
 
 
 
-    date: pay.date || "-",
+    date: pay.date ? String(pay.date).slice(0, 10) : pay.createdAt ? String(pay.createdAt).slice(0, 10) : "-",
 
 
 
@@ -1052,7 +1199,7 @@ const accountPaymentRows = savedPayments
 
 
 
-    description: pay.description || pay.method || "Payment",
+    description: pay.description || pay.type || "Payment",
 
 
 
@@ -1171,7 +1318,9 @@ const detailsRows = invoiceRow
           body: JSON.stringify({
             parentId: selectedAccount.parentId,
             amount: paymentAmount,
-            method: type,
+            type,
+            description,
+            date,
           }),
         });
 
@@ -1180,35 +1329,34 @@ const detailsRows = invoiceRow
           throw new Error(errText || "Failed to save payment");
         }
 
-        // Optional local audit trail for UI/history; balances come from server.
-        const existing = JSON.parse(localStorage.getItem("payments") || "[]");
-        const auditNo = `PAY-${Date.now()}`;
-        const newPayment = {
-          auditNo,
-          parentId: selectedAccount.parentId,
-          account: {
-            accountNo: selectedAccount.accountNo,
-            name: selectedAccount.name,
-            surname: selectedAccount.surname,
-          },
-          date,
-          type,
-          description,
-          amount: paymentAmount,
-          message,
-          allocated: amountAllocated,
-          createdAt: new Date().toISOString(),
-        };
-        localStorage.setItem("payments", JSON.stringify([newPayment, ...existing]));
+        if (schoolId) {
+          const [pRes, payRes] = await Promise.allSettled([
+            fetch(`${API_URL}/api/parents?schoolId=${encodeURIComponent(schoolId)}`),
+            fetch(`${API_URL}/api/payments`),
+          ]);
 
-        setParents((prev) =>
-          prev.map((p: any) =>
-            p.id === selectedAccount.parentId
-              ? { ...p, outstandingAmount: Number(p.outstandingAmount || 0) - paymentAmount }
-              : p
-          )
-        );
-        setPaymentsVersion((v) => v + 1);
+          if (pRes.status === "fulfilled" && pRes.value.ok) {
+            const data = await pRes.value.json().catch(() => ({}));
+            const parentsData = Array.isArray(data) ? data : data?.parents || [];
+            if (Array.isArray(parentsData)) setParents(parentsData);
+
+            const updatedParent = parentsData.find((pp: any) => pp?.id === selectedAccount.parentId);
+            if (updatedParent) {
+              setSelectedPaymentAccount((prev: any) =>
+                prev ? { ...prev, balance: Number(updatedParent.outstandingAmount ?? prev.balance) } : prev
+              );
+            }
+          }
+
+          if (payRes.status === "fulfilled" && payRes.value.ok) {
+            const json = await payRes.value.json().catch(() => ([] as any));
+            const list = Array.isArray(json) ? json : Array.isArray(json?.payments) ? json.payments : [];
+            setPayments(Array.isArray(list) ? list : []);
+          }
+        } else {
+          setPaymentsVersion((v) => v + 1);
+        }
+
         setActivePage("payments");
       } catch (e: any) {
         console.error(e);
@@ -1851,7 +1999,7 @@ onClick={() => {
 
   if (!savedAccount) {
 
-    alert("Please select a learner first.");
+    alert("Opening Add Learner.");
 
     return;
 
@@ -1859,7 +2007,7 @@ onClick={() => {
 
 
 
-  setActivePage("invoiceCreate");
+  setActivePage("addLearner");
 
 }}
 
@@ -2957,74 +3105,7 @@ Manage
 
                       <button
                         type="button"
-                        onClick={() => {
-                          const saved = localStorage.getItem("selectedInvoiceAccount");
-                          const selectedForSave =
-                            selectedInvoiceAccount ||
-                            (saved
-                              ? (() => {
-                                  try {
-                                    return JSON.parse(saved);
-                                  } catch {
-                                    return null;
-                                  }
-                                })()
-                              : null);
-
-                          if (!selectedForSave) {
-                            alert("Select an account first.");
-                            return;
-                          }
-
-                          const detailsSum = invoiceDetailsRows.reduce(
-                            (sum, r) => sum + (Number.isFinite(Number(r.amount)) ? Number(r.amount) : 0),
-                            0
-                          );
-
-                          const invoiceTotal = Number.isFinite(Number(detailsSum)) ? Number(detailsSum) : 0;
-
-                          if (invoiceTotal <= 0) {
-                            alert("Please add at least one invoice line.");
-                            return;
-                          }
-
-                          const prevBalance = Number.isFinite(Number(selectedForSave?.balance))
-                            ? Number(selectedForSave.balance)
-                            : 0;
-                          const nextBalance = prevBalance + (Number.isFinite(Number(invoiceTotal)) ? Number(invoiceTotal) : 0);
-
-                          const updatedAccount = { ...selectedForSave, balance: nextBalance };
-                          setSelectedInvoiceAccount(updatedAccount);
-                          localStorage.setItem("selectedInvoiceAccount", JSON.stringify(updatedAccount));
-
-                          if (updatedAccount?.parentId) {
-                            setParents((prev) =>
-                              prev.map((p: any) =>
-                                String(p?.id) === String(updatedAccount.parentId)
-                                  ? { ...p, outstandingAmount: nextBalance }
-                                  : p
-                              )
-                            );
-                          }
-
-                          try {
-                            const existing = JSON.parse(localStorage.getItem("invoices") || "[]");
-                            const list = Array.isArray(existing) ? existing : [];
-                            list.push({
-                              id: `INV-${Date.now()}`,
-                              accountNo: updatedAccount.accountNo,
-                              parentId: updatedAccount.parentId,
-                              total: invoiceTotal,
-                              details: invoiceDetailsRows,
-                              createdAt: new Date().toISOString(),
-                            });
-                            localStorage.setItem("invoices", JSON.stringify(list));
-                          } catch {
-                            // ignore localStorage errors
-                          }
-
-                          alert("Invoice saved. Balance updated.");
-                        }}
+                        onClick={handleInvoiceCreateSave}
                         style={goldButtonBase}
                         onMouseEnter={(e) => {
                           (e.currentTarget as HTMLButtonElement).style.boxShadow =
@@ -4815,7 +4896,12 @@ if (savedPerms) {
       
                         <td style={td}>
       
-                          {formatMoney(row.lastInvoice)} on {row.lastInvoiceDate}
+                          {(() => {
+                            const lastInvoice = getLastInvoice(row);
+                            return lastInvoice
+                              ? `R ${Number(lastInvoice.amount).toLocaleString()} on ${lastInvoice.date?.slice(0,10)}`
+                              : "R 0.00 on -";
+                          })()}
       
                         </td>
       
@@ -6178,7 +6264,12 @@ onClick={() => {
 
                   <td style={td}>
 
-                    {formatMoney(row.lastInvoice)} on {row.lastInvoiceDate}
+                    {(() => {
+                      const lastInvoice = getLastInvoice(row);
+                      return lastInvoice
+                        ? `R ${Number(lastInvoice.amount).toLocaleString()} on ${lastInvoice.date?.slice(0,10)}`
+                        : "R 0.00 on -";
+                    })()}
 
                   </td>
 
@@ -6503,7 +6594,14 @@ onClick={() => {
 
 
 
-  <td>{formatMoney(account.lastInvoice || 0)} on {account.lastInvoiceDate || "-"}</td>
+  <td>
+    {(() => {
+      const lastInvoice = getLastInvoice(account);
+      return lastInvoice
+        ? `R ${Number(lastInvoice.amount).toLocaleString()} on ${lastInvoice.date?.slice(0,10)}`
+        : "R 0.00 on -";
+    })()}
+  </td>
 
 
 

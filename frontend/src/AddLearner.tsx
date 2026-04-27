@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { apiFetch } from "./api";
+import { API_URL } from "./api";
 import { useSchoolId } from "./useSchoolId";
 
 type GenderOption = "" | "Male" | "Female" | "Other";
@@ -96,8 +96,9 @@ export default function AddLearner() {
 
     setSaving(true);
     try {
-      await apiFetch("/api/learners", {
+      const response = await fetch(`${API_URL}/api/learners`, {
         method: "POST",
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           schoolId,
           firstName: firstName.trim(),
@@ -135,6 +136,14 @@ export default function AddLearner() {
             .filter((s) => s.firstName && s.lastName && s.grade),
         }),
       });
+
+      if (!response.ok) {
+        const json = await response.json().catch(() => null);
+        const apiMessage =
+          (json && typeof json === "object" && ("error" in json || "message" in json) && ((json as any).error || (json as any).message)) ||
+          null;
+        throw new Error(apiMessage || `Request failed with status ${response.status}`);
+      }
 
       setMessage("Learner saved successfully.");
       setFirstName("");

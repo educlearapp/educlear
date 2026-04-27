@@ -263,7 +263,7 @@ model Parent {
 
   Letter   Letter[]
   invoices Invoice[]
-
+  payments Payment[]
   @@index([schoolId])
   @@index([schoolId, cellNo])
 }
@@ -1086,4 +1086,41 @@ model PayrollEmailLog {
   @@index([payrollRunId])
   @@index([recipientEmail])
   @@index([createdAt])
+}
+  model Payment {
+
+
+
+  id        String   @id @default(uuid())
+
+
+
+  parentId  String
+
+
+
+  amount    Float
+
+
+
+  date      DateTime
+
+
+
+  type      String?
+
+
+
+  description String?
+
+
+
+  createdAt DateTime @default(now())
+
+
+
+  parent    Parent   @relation(fields: [parentId], references: [id], onDelete: Cascade)
+
+
+
 }
