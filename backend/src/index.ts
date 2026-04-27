@@ -15,6 +15,18 @@ import teacherPerformanceRoutes from "./routes/teacherPerformance";
 
 import payrollRoutes from "./routes/payroll";
 import feesRoutes from "./routes/fees";
+import invoiceRunsRoutes from "./routes/invoiceRuns";
+import billingPlansRoutes from "./routes/billingPlans";
+import parentPortalRoutes from "./routes/parentPortal";
+import lateFinesRoutes from "./routes/lateFines";
+import billingDocumentsRoutes from "./routes/billingDocuments";
+import schoolEmailSettingsRoutes from "./routes/schoolEmailSettings";
+import { prisma } from "./prisma";
+import path from "path";
+// Keep CommonJS-compatible require to avoid TS project boundary resolution issues.
+// (tsc build still includes the module via normal resolution)
+// eslint-disable-next-line @typescript-eslint/no-var-requires
+const uploadsRoutes = require("./routes/uploads").default;
 type OtpRecord = {
 
     code: string;
@@ -24,7 +36,6 @@ type OtpRecord = {
   };
   
 
-  export const prisma = new PrismaClient();
   const otpStore = new Map<string, OtpRecord>();
   
   function authMiddleware(req: any, res: any, next: any) {
@@ -142,6 +153,9 @@ app.use(
 
 );
 
+// Serve uploaded assets (school logos, etc.)
+app.use("/uploads", express.static(path.resolve("uploads")));
+
 
   
 
@@ -152,9 +166,16 @@ app.use("/learner", learnerRoutes);
 app.use("/api/schools", schoolsRoutes);
 app.use("/api/parents", parentsRoutes);
 
+app.use("/api/uploads", uploadsRoutes);
 app.use("/api/teacher-performance", teacherPerformanceRoutes);
 app.use("/api/payroll", payrollRoutes);
 app.use("/api/fees", feesRoutes);
+app.use("/api/invoice-runs", invoiceRunsRoutes);
+app.use("/api/billing-plans", billingPlansRoutes);
+app.use("/api/parent-portal", parentPortalRoutes);
+app.use("/api/billing/late-fines", lateFinesRoutes);
+app.use("/api/billing-documents", billingDocumentsRoutes);
+app.use("/api/school-email-settings", schoolEmailSettingsRoutes);
 
 
 

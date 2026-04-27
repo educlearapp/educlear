@@ -3,12 +3,20 @@ import { Route, Routes, useLocation, useNavigate, useParams } from "react-router
 
 import AddLearner from "./AddLearner";
 import TeacherPerformance from "./TeacherPerformance";
+import AdminParentMessages from "./AdminParentMessages";
 import Payroll from "./Payroll";
 import logo from "./assets/logo.png";
 import "./App.css";
 import Fees from "./Fees";
 import FeeUpsert from "./FeeUpsert";
+import InvoiceRunWizard from "./InvoiceRunWizard";
 import { useSchoolId } from "./useSchoolId";
+import BillingPlans from "./BillingPlans";
+import BillingReports from "./BillingReports";
+import BillingReportPreview from "./BillingReportPreview";
+import BillingDocuments from "./BillingDocuments";
+import LatePaymentFines from "./LatePaymentFines";
+import SchoolEmailSettings from "./SchoolEmailSettings";
 
 type TeacherPerformanceRecord = {
   id: string;
@@ -54,8 +62,6 @@ type PageKey =
 
   | "help"
 
-  | "more"
-
   | "schoolsProfile"
   | "schoolsPackage"
   | "schoolsCredits"
@@ -77,6 +83,7 @@ type PageKey =
   | "plans"
 
   | "runs"
+  | "invoiceRuns"
 
   | "reports"
 
@@ -84,10 +91,17 @@ type PageKey =
 
   | "billing-help"
 
-  | "billing-more"
+  | "billingJournals"
+  | "billingDeposits"
+  | "billingFeeTypes"
+  | "billingSettings"
+  | "latePaymentFines"
+
+  | "schoolEmailSettings"
 
   | "addLearner"
-  | "teacherPerformance"; 
+  | "teacherPerformance"
+  | "parentMessages";
 
 
 export default function SchoolDashboard() {
@@ -97,6 +111,11 @@ export default function SchoolDashboard() {
   const schoolId = useSchoolId();
 
   const [activePage, setActivePage] = useState<PageKey>("dashboard");
+  const [sidebarExpanded, setSidebarExpanded] = useState<{
+    billingMore: boolean;
+    administrationMore: boolean;
+    administrationSchoolSettings: boolean;
+  }>({ billingMore: false, administrationMore: false, administrationSchoolSettings: false });
   const [paymentsVersion, setPaymentsVersion] = useState(0);
   const [schoolsProfileTab, setSchoolsProfileTab] = useState<
     "general" | "contact" | "address" | "billing" | "password"
@@ -172,6 +191,18 @@ export default function SchoolDashboard() {
 
   const go = (page: PageKey) => {
     setActivePage(page);
+    const isBillingMoreChild =
+      page === "billingJournals" ||
+      page === "billingDeposits" ||
+      page === "billingFeeTypes" ||
+      page === "billingSettings" ||
+      page === "latePaymentFines";
+    setSidebarExpanded((prev) => ({
+      ...prev,
+      billingMore: isBillingMoreChild,
+      administrationMore: false,
+      administrationSchoolSettings: false,
+    }));
     // Fees uses nested routes; leaving those routes is required for non-fees pages
     // to render again when switching via sidebar.
     if (location.pathname.startsWith("/dashboard/billing/")) {
@@ -1624,6 +1655,10 @@ const detailsRows = invoiceRow
     
     }
 
+    if (activePage === "parentMessages") {
+      return <AdminParentMessages schoolId={schoolId} />;
+    }
+
     if (activePage === "feeUpsert") {
       return (
         <FeeUpsert
@@ -2319,13 +2354,18 @@ Manage
 
           <div className="dashboard-header">
 
-            <img src={logo} className="dashboard-logo" alt="EduClear" />
+            <img
+              src={localStorage.getItem("schoolLogoUrl") || logo}
+              className="dashboard-logo"
+              alt={localStorage.getItem("schoolName") ? `${localStorage.getItem("schoolName")} logo` : "EduClear"}
+              style={{ objectFit: "contain" }}
+            />
 
 
 
             <div>
 
-              <h1 className="page-title">Hello Da Silva Academy!</h1>
+            <h1 className="page-title">Hello {localStorage.getItem("schoolName") || "School"}!</h1>
 
               <p className="dashboard-subtitle">School Management Dashboard</p>
 
@@ -2796,10 +2836,6 @@ Manage
 
         return <h1 className="page-title">Help & Tips</h1>;
 
-      case "more":
-
-        return <h1 className="page-title">More</h1>;
-
       case "schoolsProfile":
         return (
           <div
@@ -3186,6 +3222,7 @@ Manage
           { key: "payments", label: "Payments" },
           { key: "payroll", label: "Payroll" },
           { key: "billingPlans", label: "Billing Plans" },
+          { key: "invoiceRuns", label: "Invoice Run" },
           { key: "billingReports", label: "Billing Reports" },
           { key: "billingDocuments", label: "Billing Documents" },
           { key: "billingHelp", label: "Help & Tips" },
@@ -5107,27 +5144,68 @@ case "paymentCreate":
 
       case "plans":
 
-        return <h1 className="page-title">Billing Plans</h1>;
+        return (
+          <div style={{ padding: "16px" }}>
+            <BillingPlans />
+          </div>
+        );
 
       case "runs":
+      case "invoiceRuns":
 
-        return <h1 className="page-title">Invoice Runs</h1>;
+        return (
+          <div style={{ padding: "16px" }}>
+            <InvoiceRunWizard />
+          </div>
+        );
 
       case "reports":
-
-        return <h1 className="page-title">Billing Reports</h1>;
+        return <BillingReports />;
 
       case "documents":
-
-        return <h1 className="page-title">Billing Documents</h1>;
+        return <BillingDocuments />;
 
       case "billing-help":
 
         return <h1 className="page-title">Help & Tips</h1>;
 
-      case "billing-more":
+      case "billingJournals":
+        return (
+          <div style={{ padding: "32px" }}>
+            <h1 className="page-title">Journals</h1>
+            <p>View and manage your billing journals and postings.</p>
+          </div>
+        );
 
-        return <h1 className="page-title">More</h1>;
+      case "billingDeposits":
+        return (
+          <div style={{ padding: "32px" }}>
+            <h1 className="page-title">Deposits</h1>
+            <p>Track deposits received and reconcile them against billing activity.</p>
+          </div>
+        );
+
+      case "billingFeeTypes":
+        return (
+          <div style={{ padding: "32px" }}>
+            <h1 className="page-title">Fee Types</h1>
+            <p>Define and maintain the fee type catalogue used across billing.</p>
+          </div>
+        );
+
+      case "billingSettings":
+        return (
+          <div style={{ padding: "32px" }}>
+            <h1 className="page-title">Settings</h1>
+            <p>Configure billing defaults and preferences for your school.</p>
+          </div>
+        );
+
+      case "schoolEmailSettings":
+        return <SchoolEmailSettings />;
+
+      case "latePaymentFines":
+        return <LatePaymentFines />;
 
       default:
 
@@ -5160,7 +5238,12 @@ case "paymentCreate":
 
         <div className="brand-row">
 
-          <img src={logo} className="sidebar-logo" alt="EduClear" />
+          <img
+            src={localStorage.getItem("schoolLogoUrl") || logo}
+            className="sidebar-logo"
+            alt={localStorage.getItem("schoolName") ? `${localStorage.getItem("schoolName")} logo` : "EduClear"}
+            style={{ objectFit: "contain" }}
+          />
 
           <span>EduClear</span>
 
@@ -5330,6 +5413,13 @@ case "paymentCreate":
 
   Registrations
 
+</div>
+
+<div
+  className={`submenu-item ${activePage === "parentMessages" ? "active" : ""}`}
+  onClick={() => go("parentMessages")}
+>
+  Parent Portal
 </div>
 
 )
@@ -5628,16 +5718,72 @@ case "paymentCreate":
 
 
               <div
-
-                className={`submenu-item ${activePage === "more" ? "active" : ""}`}
-
-                onClick={() => go("more")}
+                className={`submenu-item ${sidebarExpanded.administrationMore ? "active" : ""}`}
+                onClick={() =>
+                  setSidebarExpanded((prev) => ({
+                    ...prev,
+                    administrationMore: !prev.administrationMore,
+                    administrationSchoolSettings: false,
+                  }))
+                }
 
               >
 
                 More
 
               </div>
+
+              <div
+                className={`submenu-item ${sidebarExpanded.administrationSchoolSettings ? "active" : ""}`}
+                onClick={() =>
+                  setSidebarExpanded((prev) => ({
+                    ...prev,
+                    administrationSchoolSettings: !prev.administrationSchoolSettings,
+                    administrationMore: false,
+                  }))
+                }
+
+              >
+                School Settings
+              </div>
+
+              {sidebarExpanded.administrationMore && (
+                <>
+                  <div
+                    className={`submenu-item ${activePage === "lists" ? "active" : ""}`}
+                    style={{ marginLeft: 14 }}
+                    onClick={() => go("lists")}
+                  >
+                    Lists & Registers
+                  </div>
+                  <div
+                    className={`submenu-item ${activePage === "forms" ? "active" : ""}`}
+                    style={{ marginLeft: 14 }}
+                    onClick={() => go("forms")}
+                  >
+                    Forms & Templates
+                  </div>
+                  <div
+                    className={`submenu-item ${activePage === "help" ? "active" : ""}`}
+                    style={{ marginLeft: 14 }}
+                    onClick={() => go("help")}
+                  >
+                    Help & Tips
+                  </div>
+                </>
+              )}
+
+              {sidebarExpanded.administrationSchoolSettings && (
+                <>
+                  <div
+                    className={`submenu-item ${activePage === "schoolEmailSettings" ? "active" : ""}`}
+                    style={{ marginLeft: 14 }}
+                    onClick={() => go("schoolEmailSettings")}
+                  >
+                    School Email Settings
+                  </div>
+                </>
+              )}
 
             </div>
 
@@ -5867,11 +6013,11 @@ case "paymentCreate":
 
 
 
-  className={`submenu-item ${activePage === "runs" ? "active" : ""}`}
+  className={`submenu-item ${activePage === "invoiceRuns" ? "active" : ""}`}
 
 
 
-  onClick={() => go("runs")}
+  onClick={() => go("invoiceRuns")}
 
 
 
@@ -5879,7 +6025,7 @@ case "paymentCreate":
 
 
 
-  Invoice Runs
+  Invoice Run
 
 
 
@@ -5891,7 +6037,7 @@ case "paymentCreate":
 
 
 
-{schoolsUsersPerms?.billing?.reports && (
+{schoolsUsersPerms?.billing?.billingReports && (
 
 
 
@@ -5923,7 +6069,7 @@ case "paymentCreate":
 
 
 
-{schoolsUsersPerms?.billing?.documents && (
+{schoolsUsersPerms?.billing?.billingDocuments && (
 
 
 
@@ -5970,16 +6116,67 @@ case "paymentCreate":
 
 
               <div
-
-                className={`submenu-item ${activePage === "billing-more" ? "active" : ""}`}
-
-                onClick={() => go("billing-more")}
+                className={`submenu-item ${
+                  sidebarExpanded.billingMore ||
+                  activePage === "billingJournals" ||
+                  activePage === "billingDeposits" ||
+                  activePage === "billingFeeTypes" ||
+                  activePage === "billingSettings"
+                    ? "active"
+                    : ""
+                }`}
+                onClick={() =>
+                  setSidebarExpanded((prev) => ({
+                    ...prev,
+                    billingMore: !prev.billingMore,
+                  }))
+                }
 
               >
 
                 More
 
               </div>
+
+              {sidebarExpanded.billingMore && (
+                <>
+                  <div
+                    className={`submenu-item ${activePage === "billingJournals" ? "active" : ""}`}
+                    style={{ marginLeft: 14 }}
+                    onClick={() => go("billingJournals")}
+                  >
+                    Journals
+                  </div>
+                  <div
+                    className={`submenu-item ${activePage === "latePaymentFines" ? "active" : ""}`}
+                    style={{ marginLeft: 14 }}
+                    onClick={() => go("latePaymentFines")}
+                  >
+                    Late Payment Fines
+                  </div>
+                  <div
+                    className={`submenu-item ${activePage === "billingDeposits" ? "active" : ""}`}
+                    style={{ marginLeft: 14 }}
+                    onClick={() => go("billingDeposits")}
+                  >
+                    Deposits
+                  </div>
+                  <div
+                    className={`submenu-item ${activePage === "billingFeeTypes" ? "active" : ""}`}
+                    style={{ marginLeft: 14 }}
+                    onClick={() => go("billingFeeTypes")}
+                  >
+                    Fee Types
+                  </div>
+                  <div
+                    className={`submenu-item ${activePage === "billingSettings" ? "active" : ""}`}
+                    style={{ marginLeft: 14 }}
+                    onClick={() => go("billingSettings")}
+                  >
+                    Settings
+                  </div>
+                </>
+              )}
 
             </div>
 
@@ -6074,6 +6271,7 @@ case "paymentCreate":
         >
 
           <Routes>
+            <Route path="billing/reports/preview" element={<BillingReportPreview />} />
             <Route
               path="billing/fees"
               element={

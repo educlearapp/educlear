@@ -1,8 +1,7 @@
 import { Router } from "express";
 
-import nodemailer from "nodemailer";
-
 import { PrismaClient } from "@prisma/client";
+import { sendSchoolEmail } from "../email/schoolEmailSender";
 
 
 
@@ -11,21 +10,6 @@ const router = Router();
 
 
 const prisma = new PrismaClient();
-
-function createMailTransport(): nodemailer.Transporter | null {
-  const host = process.env.SMTP_HOST?.trim();
-  if (!host) return null;
-  const port = Number(process.env.SMTP_PORT || "587");
-  const secure = process.env.SMTP_SECURE === "true" || port === 465;
-  const user = process.env.SMTP_USER?.trim();
-  const pass = process.env.SMTP_PASS;
-  return nodemailer.createTransport({
-    host,
-    port,
-    secure,
-    auth: user && pass ? { user, pass: String(pass) } : undefined,
-  });
-}
 
 // ===== TAX CALCULATION (SARS 2025/2026 - simplified) =====
 
@@ -537,13 +521,6 @@ router.post("/email-payslip", async (req, res) => {
       return res.status(400).json({ error: "schoolId, employeeId, and pdfBase64 are required" });
     }
 
-    const transport = createMailTransport();
-    if (!transport) {
-      return res.status(503).json({
-        error: "Email is not configured. Set SMTP_HOST (and SMTP_USER / SMTP_PASS if required) on the server.",
-      });
-    }
-
     const employee = await prisma.employee.findFirst({
       where: { id: employeeId, schoolId },
     });
@@ -576,17 +553,13 @@ router.post("/email-payslip", async (req, res) => {
     });
     const schoolName = school?.name?.trim() || "School";
 
-    const from =
-      process.env.SMTP_FROM?.trim() || process.env.SMTP_USER?.trim() || "noreply@educlear";
-
     const subjectParts = [`Payslip`, schoolName];
     if (periodLabel) subjectParts.push(periodLabel);
     const subject = subjectParts.join(" — ");
 
     const greetingName = employeeName || employee.fullName || `${employee.firstName} ${employee.lastName}`.trim();
 
-    await transport.sendMail({
-      from,
+    await sendSchoolEmail(schoolId, {
       to,
       subject,
       text: `Hello${greetingName ? ` ${greetingName}` : ""},\n\nPlease find your payslip attached${periodLabel ? ` for ${periodLabel}` : ""}.\n\n— ${schoolName}`,
@@ -602,7 +575,10 @@ router.post("/email-payslip", async (req, res) => {
     res.json({ success: true, message: `Payslip sent to ${to}` });
   } catch (error) {
     console.error(error);
-    res.status(500).json({ error: "Failed to send payslip email" });
+    const msg = String((error as any)?.message || "Failed to send payslip email");
+    const code = String((error as any)?.code || "");
+    const status = code === "EMAIL_NOT_CONFIGURED" ? 503 : 500;
+    res.status(status).json({ error: msg });
   }
 });
 
@@ -634,13 +610,6 @@ router.post("/email-bookkeeper-report", async (req, res) => {
       return res.status(400).json({ error: "Invalid bookkeeper email address" });
     }
 
-    const transport = createMailTransport();
-    if (!transport) {
-      return res.status(503).json({
-        error: "Email is not configured. Set SMTP_HOST (and SMTP_USER / SMTP_PASS if required) on the server.",
-      });
-    }
-
     let pdfBuffer: Buffer;
     try {
       pdfBuffer = Buffer.from(pdfBase64, "base64");
@@ -664,14 +633,10 @@ router.post("/email-bookkeeper-report", async (req, res) => {
     }
     const schoolName = school.name?.trim() || "School";
 
-    const from =
-      process.env.SMTP_FROM?.trim() || process.env.SMTP_USER?.trim() || "noreply@educlear";
-
     const monthYearPart = periodLabel || "Report";
     const subject = `Payroll Report – ${schoolName} – ${monthYearPart}`;
 
-    await transport.sendMail({
-      from,
+    await sendSchoolEmail(schoolId, {
       to: bookkeeperEmail,
       subject,
       text: "Please find attached the payroll report.",
@@ -687,7 +652,10 @@ router.post("/email-bookkeeper-report", async (req, res) => {
     res.json({ success: true, message: `Bookkeeper report sent to ${bookkeeperEmail}` });
   } catch (error) {
     console.error(error);
-    res.status(500).json({ error: "Failed to send bookkeeper report email" });
+    const msg = String((error as any)?.message || "Failed to send bookkeeper report email");
+    const code = String((error as any)?.code || "");
+    const status = code === "EMAIL_NOT_CONFIGURED" ? 503 : 500;
+    res.status(status).json({ error: msg });
   }
 });
 
