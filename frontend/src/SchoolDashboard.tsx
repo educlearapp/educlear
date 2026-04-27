@@ -353,7 +353,7 @@ export default function SchoolDashboard() {
 
       const res = await fetch(
 
-        `${API_URL}/api/parents/fee-check/${parentIdInput}`
+        `${API_URL}/api/parents/fee-check/${encodeURIComponent(parentIdInput.trim())}`
 
       );
 
