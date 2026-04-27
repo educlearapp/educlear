@@ -1,8 +1,9 @@
 import { useCallback, useEffect, useState } from "react";
 import jsPDF from "jspdf";
 
-import { API_URL } from "./api";
 import { useSchoolId } from "./useSchoolId";
+
+const API_URL = import.meta.env.VITE_API_URL || "http://localhost:3000";
 
 type Employee = {
   id: string;

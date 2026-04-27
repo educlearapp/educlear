@@ -4,7 +4,6 @@ import { Route, Routes, useLocation, useNavigate, useParams } from "react-router
 import AddLearner from "./AddLearner";
 import TeacherPerformance from "./TeacherPerformance";
 import Payroll from "./Payroll";
-import { API_URL } from "./api";
 import logo from "./assets/logo.png";
 import "./App.css";
 import Fees from "./Fees";

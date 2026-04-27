@@ -1,10 +1,12 @@
 import { useEffect, useMemo, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
-import { API_URL, apiFetch } from "./api";
+import { apiFetch } from "./api";
 import educlearLogo from "./assets/logo.png";
 
 type LearnerLike = Record<string, any>;
 type SchoolLike = Record<string, any>;
+
+const API_URL = import.meta.env.VITE_API_URL || "http://localhost:3000";
 
 type SubjectResult = {
   subject: string;

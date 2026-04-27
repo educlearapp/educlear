@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import { API_URL } from "./api";
 import { useSchoolId } from "./useSchoolId";
+
+const API_URL = import.meta.env.VITE_API_URL || "http://localhost:3000";
 
 const CATEGORY_OPTIONS = [
   { value: "SCHOOL_CHARGE", label: "School Charge" },
