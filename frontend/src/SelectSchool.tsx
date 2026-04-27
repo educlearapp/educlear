@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
-import { apiFetch } from "./api";
+import { API_URL, apiFetch } from "./api";
 import logo from "./assets/logo.png";
 
 type SchoolListItem = {
@@ -8,6 +8,7 @@ type SchoolListItem = {
   name?: string | null;
   email?: string | null;
   createdAt?: string | null;
+  logoUrl?: string | null;
 };
 
 const gold = "#D4AF37";
@@ -51,9 +52,30 @@ export default function SelectSchool() {
     return schools.filter((s) => String(s?.name || "").toLowerCase().includes(q) || String(s?.email || "").toLowerCase().includes(q));
   }, [schools, query]);
 
-  function selectSchool(id: string) {
+  function selectSchool(id: string, name: string) {
+
+
+
     localStorage.setItem("schoolId", id);
-    navigate(from);
+  
+  
+  
+    localStorage.setItem("schoolName", name);
+
+    const picked = schools.find((s) => s.id === id);
+    if (picked?.logoUrl) {
+      const u = String(picked.logoUrl);
+      localStorage.setItem("schoolLogoUrl", u.startsWith("/") ? `${API_URL}${u}` : u);
+    } else {
+      localStorage.removeItem("schoolLogoUrl");
+    }
+  
+  
+  
+    window.location.href = "/dashboard";
+  
+  
+  
   }
 
   function logout() {
@@ -136,7 +158,30 @@ export default function SelectSchool() {
                 <button
                   key={s.id}
                   type="button"
-                  onClick={() => selectSchool(s.id)}
+                  onClick={() => {
+
+
+
+                    localStorage.setItem("schoolId", s.id);
+                  
+                  
+                  
+                    localStorage.setItem("schoolName", s.name || "school");
+
+                    if (s.logoUrl) {
+                      const u = String(s.logoUrl);
+                      localStorage.setItem("schoolLogoUrl", u.startsWith("/") ? `${API_URL}${u}` : u);
+                    } else {
+                      localStorage.removeItem("schoolLogoUrl");
+                    }
+                  
+                  
+                  
+                    window.location.href = "/dashboard";
+                  
+                  
+                  
+                  }}
                   style={{
                     textAlign: "left",
                     borderRadius: 16,

@@ -98,7 +98,9 @@ model School {
   tuckshopMenus  TuckshopMenu[]
   messageThreads MessageThread[]
 
-  emailSettings SchoolEmailSettings?
+  emailSettings          SchoolEmailSettings?
+  BillingDocumentRun     BillingDocumentRun[]
+  BillingDocumentRunItem BillingDocumentRunItem[]
 }
 
 model SchoolEmailSettings {
@@ -108,15 +110,15 @@ model SchoolEmailSettings {
 
   provider String?
 
-  smtpHost String
-  smtpPort Int @default(587)
+  smtpHost   String
+  smtpPort   Int     @default(587)
   smtpSecure Boolean @default(false)
 
   smtpUser String
   smtpPass String
 
   smtpFrom String?
-  replyTo String?
+  replyTo  String?
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -312,7 +314,8 @@ model Parent {
   invoices Invoice[]
   payments Payment[]
 
-  lateFineRunItems LateFineRunItem[]
+  lateFineRunItems        LateFineRunItem[]
+  billingDocumentRunItems BillingDocumentRunItem[]
 
   parentUser     ParentUser?
   messageThreads MessageThread[]
@@ -358,7 +361,8 @@ model FamilyAccount {
   parents  Parent[]
   invoices Invoice[]
 
-  lateFineRunItems LateFineRunItem[]
+  lateFineRunItems        LateFineRunItem[]
+  billingDocumentRunItems BillingDocumentRunItem[]
 
   @@index([schoolId])
   @@index([schoolId, familyName])
@@ -401,7 +405,8 @@ model Learner {
 
   billingPlan LearnerBillingPlan?
 
-  messageThreads MessageThread[]
+  messageThreads          MessageThread[]
+  billingDocumentRunItems BillingDocumentRunItem[]
 
   @@unique([schoolId, admissionNo])
   @@index([schoolId])
@@ -684,8 +689,8 @@ model InvoiceLine {
   description String
   amountCents Int
   /// Optional per-line due date (falls back to invoice.dueDate when null).
-  dueDate DateTime?
-  sortOrder   Int    @default(0)
+  dueDate     DateTime?
+  sortOrder   Int       @default(0)
 
   createdAt DateTime @default(now())
 
@@ -783,7 +788,7 @@ model BillingDocumentRun {
 
   createdAt DateTime @default(now())
 
-  school School @relation(fields: [schoolId], references: [id], onDelete: Cascade)
+  school School                   @relation(fields: [schoolId], references: [id], onDelete: Cascade)
   items  BillingDocumentRunItem[]
 
   @@index([schoolId])
@@ -793,7 +798,7 @@ model BillingDocumentRun {
 model BillingDocumentRunItem {
   id String @id @default(cuid())
 
-  runId   String
+  runId    String
   schoolId String
 
   parentId  String?
@@ -808,16 +813,16 @@ model BillingDocumentRunItem {
   generatedHtml String?
 
   /// NOT_SENT | SENT | FAILED
-  emailStatus String @default("NOT_SENT")
+  emailStatus String    @default("NOT_SENT")
   sentAt      DateTime?
 
   createdAt DateTime @default(now())
 
-  run BillingDocumentRun @relation(fields: [runId], references: [id], onDelete: Cascade)
-  school School @relation(fields: [schoolId], references: [id], onDelete: Cascade)
-  parent Parent? @relation(fields: [parentId], references: [id], onDelete: SetNull)
-  learner Learner? @relation(fields: [learnerId], references: [id], onDelete: SetNull)
-  familyAccount FamilyAccount? @relation(fields: [accountId], references: [id], onDelete: SetNull)
+  run           BillingDocumentRun @relation(fields: [runId], references: [id], onDelete: Cascade)
+  school        School             @relation(fields: [schoolId], references: [id], onDelete: Cascade)
+  parent        Parent?            @relation(fields: [parentId], references: [id], onDelete: SetNull)
+  learner       Learner?           @relation(fields: [learnerId], references: [id], onDelete: SetNull)
+  familyAccount FamilyAccount?     @relation(fields: [accountId], references: [id], onDelete: SetNull)
 
   @@index([runId])
   @@index([schoolId])

@@ -26,7 +26,7 @@ export default function Login() {
 
     try {
 
-      const data: any = await apiFetch("/auth/school/login", {
+      const data: any = await apiFetch("/auth/login", {
 
         method: "POST",
 

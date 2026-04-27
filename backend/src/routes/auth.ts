@@ -44,13 +44,15 @@ function assertStrongPassword(password: string) {
   }
 }
 
-router.post("/school/register", async (req, res) => {
+router.post("/register", async (req, res) => {
   try {
     const schoolName = String(req.body?.schoolName || "").trim();
     const contactPerson = String(req.body?.contactPerson || "").trim();
     const email = normalizeEmail(req.body?.email);
     const phone = normalizePhone(req.body?.phone);
     const password = String(req.body?.password || "");
+    const rawLogoUrl = String(req.body?.logoUrl || "").trim();
+    const logoUrl = rawLogoUrl && rawLogoUrl.startsWith("/uploads/") ? rawLogoUrl : null;
 
     if (!schoolName) return res.status(400).json({ error: "School name is required" });
     if (!contactPerson) return res.status(400).json({ error: "Contact person is required" });
@@ -70,6 +72,7 @@ router.post("/school/register", async (req, res) => {
         name: schoolName,
         email,
         phone,
+        ...(logoUrl ? { logoUrl } : {}),
         users: {
           create: {
             email,
@@ -129,46 +132,51 @@ router.post("/school/login", async (req, res) => {
 
 router.post("/login", async (req, res) => {
 
-  const { email, password } = req.body || {};
+  try {
+    const email = normalizeEmail(req.body?.email);
+    const password = String(req.body?.password || "");
 
+    if (!email || !password) {
+      return res.status(400).json({ error: "Email and password required" });
+    }
 
+    const user = await prisma.user.findFirst({
+      where: { email },
+      select: { id: true, email: true, passwordHash: true, schoolId: true, role: true, isActive: true },
+    });
 
-  if (!email || !password) {
+    // Optional fallback for temporary admin (DB user preferred if it exists).
+    const storedHash =
+      user?.passwordHash || (email === normalizeEmail(ADMIN_EMAIL) ? ADMIN_PASSWORD_HASH : "");
 
-    return res.status(400).json({ error: "Email and password required" });
+    if (!storedHash) {
+      return res.status(401).json({ error: "Invalid credentials" });
+    }
 
+    if (user && user.isActive === false) {
+      return res.status(401).json({ error: "Invalid credentials" });
+    }
+
+    const ok = await bcrypt.compare(password, storedHash);
+    if (!ok) {
+      return res.status(401).json({ error: "Invalid credentials" });
+    }
+
+    const token = jwt.sign(
+      {
+        userId: user?.id,
+        schoolId: user?.schoolId,
+        role: user?.role || "admin",
+        email,
+      },
+      JWT_SECRET,
+      { expiresIn: "7d" }
+    );
+
+    return res.json({ token, schoolId: user?.schoolId });
+  } catch (e: any) {
+    return res.status(500).json({ error: e?.message || "Login failed" });
   }
-
-
-
-  if (email !== ADMIN_EMAIL) {
-
-    return res.status(401).json({ error: "Invalid credentials" });
-
-  }
-
-
-
-  const ok = await bcrypt.compare(password, ADMIN_PASSWORD_HASH);
-
-  if (!ok) {
-
-    return res.status(401).json({ error: "Invalid credentials" });
-
-  }
-
-
-
-  const token = jwt.sign({ email, role: "admin" }, JWT_SECRET, {
-
-    expiresIn: "7d",
-
-  });
-
-
-
-  return res.json({ token });
-
 });
 
 

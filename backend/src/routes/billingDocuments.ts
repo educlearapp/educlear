@@ -372,8 +372,8 @@ router.post("/generate", async (req, res) => {
     const note = asString(body.note) || null;
     const dryRun = Boolean(body.dryRun);
 
-    const itemsRaw = Array.isArray(body.items) ? body.items : [];
-    const parentIds = itemsRaw.map((x: any) => asString(x?.parentId)).filter(Boolean);
+    const itemsRaw: any[] = Array.isArray(body.items) ? body.items : [];
+    const parentIds: string[] = itemsRaw.map((x: any) => asString(x?.parentId)).filter((x: string) => Boolean(x));
     if (!parentIds.length) return res.status(400).json({ ok: false, error: "At least 1 account is required" });
 
     const school = await prisma.school.findUnique({

@@ -46,6 +46,72 @@ body {
 
 }
 
+/* Reusable gold accent buttons */
+.btn-gold-dark,
+.btn-gold-light {
+  height: 44px;
+  padding: 0 16px;
+  border-radius: 12px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  font-weight: 800;
+  line-height: 1;
+  letter-spacing: 0.01em;
+  cursor: pointer;
+  user-select: none;
+  transition: background 0.16s ease, border-color 0.16s ease, box-shadow 0.16s ease, transform 0.06s ease;
+}
+
+.btn-gold-dark {
+  border: 1px solid rgba(138, 102, 18, 0.55);
+  background: linear-gradient(135deg, #8b6b16 0%, #d4af37 55%, #f2d47a 100%);
+  color: #0f172a;
+  box-shadow: 0 10px 22px rgba(15, 15, 15, 0.12), inset 0 1px 0 rgba(255, 255, 255, 0.35);
+}
+
+.btn-gold-dark:hover:not(:disabled) {
+  border-color: rgba(138, 102, 18, 0.75);
+  box-shadow: 0 12px 26px rgba(15, 15, 15, 0.14), inset 0 1px 0 rgba(255, 255, 255, 0.45);
+}
+
+.btn-gold-dark:active:not(:disabled) {
+  transform: translateY(1px);
+}
+
+.btn-gold-light {
+  border: 1px solid rgba(212, 175, 55, 0.7);
+  background: #faf3dd;
+  color: #1d2736;
+  box-shadow: 0 10px 22px rgba(15, 15, 15, 0.08), inset 0 1px 0 rgba(255, 255, 255, 0.65);
+}
+
+.btn-gold-light:hover:not(:disabled) {
+  background: #f7ecd0;
+  border-color: rgba(212, 175, 55, 0.85);
+}
+
+.btn-gold-light:active:not(:disabled) {
+  transform: translateY(1px);
+}
+
+.btn-gold-dark:disabled,
+.btn-gold-light:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+  box-shadow: none;
+}
+
+/* Subtle danger treatment (text/icon) for light buttons */
+.btn-danger-light {
+  color: #b42318;
+}
+
+.btn-danger-light:hover:not(:disabled) {
+  color: #991b1b;
+}
+
 
 
 #root {
@@ -959,5 +1025,154 @@ body {
   font-size: 26px;
 
   line-height: 1;
+
+}
+ /* ===== GOLD BUTTON SYSTEM ===== */
+
+
+
+.btn-gold-dark {
+
+
+
+  background: linear-gradient(135deg, #b8962e, #d4af37);
+
+
+
+  color: #ffffff;
+
+
+
+  border: none;
+
+
+
+  padding: 8px 16px;
+
+
+
+  border-radius: 6px;
+
+
+
+  font-weight: 600;
+
+
+
+  cursor: pointer;
+
+
+
+  transition: all 0.2s ease;
+
+
+
+}
+
+
+
+.btn-gold-dark:hover {
+
+
+
+  background: linear-gradient(135deg, #a38322, #c19b2e);
+
+
+
+  transform: translateY(-1px);
+
+
+
+}
+
+
+
+/* Light gold buttons */
+
+
+
+.btn-gold-light {
+
+
+
+  background: #fff8e1;
+
+
+
+  color: #b8962e;
+
+
+
+  border: 1px solid #e6c766;
+
+
+
+  padding: 8px 16px;
+
+
+
+  border-radius: 6px;
+
+
+
+  font-weight: 500;
+
+
+
+  cursor: pointer;
+
+
+
+  transition: all 0.2s ease;
+
+
+
+}
+
+
+
+.btn-gold-light:hover {
+
+
+
+  background: #fff3cc;
+
+
+
+  border-color: #d4af37;
+
+
+
+}
+
+
+
+/* Light danger (for remove) */
+
+
+
+.btn-danger-light {
+
+
+
+  color: #c62828;
+
+
+
+  border: 1px solid #ef9a9a;
+
+
+
+}
+
+
+
+.btn-danger-light:hover {
+
+
+
+  background: #fdecea;
+
+
 
 }

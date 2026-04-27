@@ -1,6 +1,6 @@
 import { useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { apiFetch } from "./api";
+import { API_URL, apiFetch } from "./api";
 import logo from "./assets/logo.png";
 
 const gold = "#D4AF37";
@@ -21,6 +21,8 @@ export default function RegisterSchool() {
     password: "",
     confirmPassword: "",
   });
+  const [logoFile, setLogoFile] = useState<File | null>(null);
+  const [logoPreviewUrl, setLogoPreviewUrl] = useState<string | null>(null);
   const [status, setStatus] = useState<{ type: "idle" | "loading" | "error" | "success"; message?: string }>({
     type: "idle",
   });
@@ -40,7 +42,18 @@ export default function RegisterSchool() {
     setStatus({ type: "loading", message: "Creating your school..." });
 
     try {
-      await apiFetch("/auth/school/register", {
+      let logoUrl: string | undefined = undefined;
+      if (logoFile) {
+        const fd = new FormData();
+        fd.append("file", logoFile);
+        const res = await fetch(`${API_URL}/api/uploads/school-logo`, { method: "POST", body: fd });
+        const text = await res.text();
+        const data = text ? JSON.parse(text) : null;
+        if (!res.ok) throw new Error(data?.error || "Logo upload failed");
+        if (data?.logoUrl) logoUrl = String(data.logoUrl);
+      }
+
+      await apiFetch("/auth/register", {
         method: "POST",
         body: JSON.stringify({
           schoolName: form.schoolName,
@@ -48,6 +61,7 @@ export default function RegisterSchool() {
           email: form.email,
           phone: form.phone,
           password: form.password,
+          ...(logoUrl ? { logoUrl } : {}),
         }),
       });
       setStatus({ type: "success", message: "Registration successful. You can now log in." });
@@ -165,6 +179,77 @@ export default function RegisterSchool() {
                   />
                 </div>
               ))}
+
+              <div style={{ marginBottom: 12 }}>
+                <div style={{ fontWeight: 900, fontSize: 12, color: "rgba(255,255,255,0.9)", marginBottom: 6 }}>School logo (optional)</div>
+                <input
+                  type="file"
+                  accept="image/png,image/jpeg,image/webp"
+                  onChange={(e) => {
+                    const file = e.target.files?.[0] || null;
+                    if (!file) {
+                      setLogoFile(null);
+                      setLogoPreviewUrl(null);
+                      return;
+                    }
+                    const ok = ["image/png", "image/jpeg", "image/webp"].includes(file.type);
+                    if (!ok) {
+                      setLogoFile(null);
+                      setLogoPreviewUrl(null);
+                      setStatus({ type: "error", message: "Logo must be an image (png, jpg, jpeg, webp)." });
+                      return;
+                    }
+                    setLogoFile(file);
+                    const url = URL.createObjectURL(file);
+                    setLogoPreviewUrl(url);
+                  }}
+                  style={{
+                    width: "100%",
+                    padding: "11px 12px",
+                    borderRadius: 12,
+                    border: "1px solid rgba(255,255,255,0.12)",
+                    background: "rgba(255,255,255,0.06)",
+                    color: "#fff",
+                    outline: "none",
+                  }}
+                />
+
+                {logoPreviewUrl ? (
+                  <div
+                    style={{
+                      marginTop: 10,
+                      borderRadius: 12,
+                      border: "1px solid rgba(255,255,255,0.12)",
+                      background: "rgba(0,0,0,0.25)",
+                      padding: 10,
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "space-between",
+                      gap: 10,
+                    }}
+                  >
+                    <img src={logoPreviewUrl} alt="Selected school logo preview" style={{ maxHeight: 60, width: "auto", objectFit: "contain" }} />
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setLogoFile(null);
+                        setLogoPreviewUrl(null);
+                      }}
+                      style={{
+                        padding: "10px 12px",
+                        borderRadius: 12,
+                        background: "transparent",
+                        border: "1px solid rgba(212,175,55,0.35)",
+                        color: "#fff",
+                        fontWeight: 800,
+                        cursor: "pointer",
+                      }}
+                    >
+                      Remove
+                    </button>
+                  </div>
+                ) : null}
+              </div>
 
               {form.password && form.confirmPassword && form.password !== form.confirmPassword ? (
                 <div style={{ margin: "4px 0 10px", color: "#ffb4b4", fontSize: 12, fontWeight: 800 }}>
