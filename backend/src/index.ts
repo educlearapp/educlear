@@ -108,12 +108,28 @@ app.use(
 
     origin: [
 
+
+
       "http://localhost:5173",
-
+    
+    
+    
       "http://localhost:5175",
-
+    
+    
+    
       "https://educlear-frontend.onrender.com",
-
+    
+    
+    
+      "https://www.educlear.co.za",
+    
+    
+    
+      "https://educlear.co.za",
+    
+    
+    
     ],
 
     methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
