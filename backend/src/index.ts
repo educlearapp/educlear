@@ -12,7 +12,7 @@ import bcrypt from "bcryptjs";
 
 import authRoutes from "./routes/auth";
 import teacherPerformanceRoutes from "./routes/teacherPerformance";
-import rbacRoutes from "./routes/rbac";
+
 import payrollRoutes from "./routes/payroll";
 import feesRoutes from "./routes/fees";
 type OtpRecord = {
@@ -24,7 +24,7 @@ type OtpRecord = {
   };
   
 
-  const prisma = new PrismaClient();
+  export const prisma = new PrismaClient();
   const otpStore = new Map<string, OtpRecord>();
   
   function authMiddleware(req: any, res: any, next: any) {
@@ -151,7 +151,7 @@ app.use ("/auth", authRoutes);
 app.use("/learner", learnerRoutes);
 app.use("/api/schools", schoolsRoutes);
 app.use("/api", parentsRoutes);
-app.use("/api/rbac", rbacRoutes);
+
 app.use("/api/teacher-performance", teacherPerformanceRoutes);
 app.use("/api/payroll", payrollRoutes);
 app.use("/api/fees", feesRoutes);
