@@ -12,9 +12,10 @@ import bcrypt from "bcryptjs";
 
 import authRoutes from "./routes/auth";
 import teacherPerformanceRoutes from "./routes/teacherPerformance";
-import rbacRoutes from "./routes/rbac";
+
 import payrollRoutes from "./routes/payroll";
 import feesRoutes from "./routes/fees";
+import paymentsRouter from "./routes/payments";
 type OtpRecord = {
 
     code: string;
@@ -24,7 +25,7 @@ type OtpRecord = {
   };
   
 
-  const prisma = new PrismaClient();
+  export const prisma = new PrismaClient();
   const otpStore = new Map<string, OtpRecord>();
   
   function authMiddleware(req: any, res: any, next: any) {
@@ -108,12 +109,28 @@ app.use(
 
     origin: [
 
+
+
       "http://localhost:5173",
-
+    
+    
+    
       "http://localhost:5175",
-
+    
+    
+    
       "https://educlear-frontend.onrender.com",
-
+    
+    
+    
+      "https://www.educlear.co.za",
+    
+    
+    
+      "https://educlear.co.za"
+    
+    
+    
     ],
 
     methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
@@ -135,10 +152,11 @@ app.use ("/auth", authRoutes);
 app.use("/learner", learnerRoutes);
 app.use("/api/schools", schoolsRoutes);
 app.use("/api", parentsRoutes);
-app.use("/api/rbac", rbacRoutes);
+
 app.use("/api/teacher-performance", teacherPerformanceRoutes);
 app.use("/api/payroll", payrollRoutes);
 app.use("/api/fees", feesRoutes);
+app.use("/api/payments", paymentsRouter);
 
 
 
@@ -543,6 +561,41 @@ app.get("/dashboard", authMiddleware, (req, res) => {
     } catch (error) {
       console.error("Create invoice error:", error);
       return res.status(500).json({ success: false, message: "Failed to create invoice" });
+    }
+  });
+
+  app.get("/api/invoices", async (req, res) => {
+    try {
+      const schoolId = typeof (req as any).query?.schoolId === "string" ? String((req as any).query.schoolId) : "";
+
+      const prismaAny = prisma as any;
+      const invoices = await prismaAny.invoice.findMany({
+        where: schoolId ? { parent: { schoolId } } : undefined,
+        include: { lines: true },
+        orderBy: [{ date: "desc" }, { createdAt: "desc" }],
+      });
+
+      return res.json({
+        success: true,
+        invoices: invoices.map((inv: any) => ({
+          id: inv.id,
+          parentId: inv.parentId,
+          totalAmount: typeof inv.totalAmount?.toNumber === "function" ? inv.totalAmount.toNumber() : Number(inv.totalAmount),
+          date: inv.date ?? inv.createdAt ?? null,
+          createdAt: inv.createdAt ?? null,
+          lines: Array.isArray(inv.lines)
+            ? inv.lines.map((l: any) => ({
+                id: l.id,
+                invoiceId: l.invoiceId,
+                description: l.description,
+                amount: typeof l.amount?.toNumber === "function" ? l.amount.toNumber() : Number(l.amount),
+              }))
+            : [],
+        })),
+      });
+    } catch (error) {
+      console.error("Get invoices error:", error);
+      return res.status(500).json({ success: false, message: "Failed to fetch invoices" });
     }
   });
 
