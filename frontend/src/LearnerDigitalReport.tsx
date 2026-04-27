@@ -107,7 +107,7 @@ export default function LearnerDigitalReport() {
           const list = Array.isArray(schools) ? schools : [];
           const match = schoolId
             ? list.find((s: any) => String(s?.id || "") === String(schoolId))
-            : list[0];
+            : null;
           if (!cancelled) setSchool(match || null);
         } catch {
           if (!cancelled) setSchool(null);

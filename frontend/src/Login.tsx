@@ -3,18 +3,10 @@ import * as React from "react";
 import { useState } from "react";
 
 import { apiFetch } from "./api";
+import { useNavigate } from "react-router-dom";
 
-
-
-type Props = {
-
-  onLoggedIn: () => void;
-
-};
-
-
-
-export default function Login({ onLoggedIn }: Props) {
+export default function Login() {
+  const navigate = useNavigate();
 
   const [email, setEmail] = useState("");
 
@@ -34,7 +26,7 @@ export default function Login({ onLoggedIn }: Props) {
 
     try {
 
-      const data: any = await apiFetch("/auth/login", {
+      const data: any = await apiFetch("/auth/school/login", {
 
         method: "POST",
 
@@ -45,8 +37,15 @@ export default function Login({ onLoggedIn }: Props) {
 
 
       localStorage.setItem("token", data.token);
+      // Enforce explicit school selection after login.
+      localStorage.removeItem("schoolId");
+      localStorage.removeItem("schoolsUsersPerms");
+      localStorage.removeItem("payments");
+      localStorage.removeItem("selectedInvoiceAccount");
+      localStorage.removeItem("selectedStatementAccount");
+      localStorage.removeItem("selectedInvoiceId");
 
-      onLoggedIn();
+      navigate("/select-school", { replace: true });
 
     } catch (err: any) {
 
@@ -116,6 +115,13 @@ export default function Login({ onLoggedIn }: Props) {
 
         </button>
 
+        <button
+          type="button"
+          onClick={() => navigate("/")}
+          style={{ padding: "8px 14px", marginLeft: 10, background: "transparent", border: "1px solid #ccc" }}
+        >
+          Back
+        </button>
 
 
         {status && <p style={{ marginTop: 12 }}>{status}</p>}

@@ -1,22 +1,8 @@
 import { useEffect, useState } from "react";
 
-type SchoolListItem = { id: string };
-
-const API_URL = import.meta.env.VITE_API_URL || "http://localhost:3000";
-
-async function fetchFirstSchoolId(): Promise<string | null> {
-  const res = await fetch(`${API_URL}/api/schools`);
-  if (!res.ok) return null;
-  const data = (await res.json()) as unknown;
-  const list = Array.isArray(data) ? (data as SchoolListItem[]) : [];
-  const first = list.find((s) => s && typeof (s as any).id === "string");
-  return first?.id ? String(first.id) : null;
-}
-
 /**
  * Single source of truth for schoolId in the frontend.
  * - Reads from localStorage
- * - If missing, attempts to infer by loading the newest school and persisting it
  * - Keeps state in sync with localStorage (including cross-tab changes)
  */
 export function useSchoolId(): string {
@@ -31,12 +17,6 @@ export function useSchoolId(): string {
         if (!cancelled) setSchoolId(current);
         return;
       }
-
-      const inferred = await fetchFirstSchoolId();
-      if (!inferred) return;
-
-      localStorage.setItem("schoolId", inferred);
-      if (!cancelled) setSchoolId(inferred);
     }
 
     ensure().catch(() => {});
