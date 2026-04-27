@@ -92,6 +92,7 @@ type PageKey =
 
 
 export default function SchoolDashboard() {
+  const API_URL = import.meta.env.VITE_API_URL || "http://localhost:3000";
   const navigate = useNavigate();
   const location = useLocation();
   const schoolId = useSchoolId();
@@ -516,7 +517,7 @@ export default function SchoolDashboard() {
 
       const res = await fetch(
 
-        `http://localhost:3000/api/parents/fee-check/${parentIdInput}`
+        `${API_URL}/api/parents/fee-check/${parentIdInput}`
 
       );
 
