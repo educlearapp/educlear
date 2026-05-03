@@ -8,7 +8,107 @@ const router = Router();
 
 const prisma = new PrismaClient();
 
+router.get("/", async (req, res) => {
 
+
+
+  try {
+
+
+
+    const { schoolId } = req.query;
+
+
+
+    if (!schoolId) {
+
+
+
+      return res.status(400).json({ error: "Missing schoolId" });
+
+
+
+    }
+
+
+
+    const learners = await prisma.learner.findMany({
+
+
+
+      where: {
+
+
+
+        schoolId: String(schoolId),
+
+
+
+      },
+
+
+
+      orderBy: {
+
+
+
+        createdAt: "desc",
+
+
+
+      },
+
+
+
+    });
+
+
+
+    return res.status(200).json({
+
+
+
+      success: true,
+
+
+
+      learners,
+
+
+
+    });
+
+
+
+  } catch (error) {
+
+
+
+    console.error("GET LEARNERS ERROR:", error);
+
+
+
+    return res.status(500).json({
+
+
+
+      success: false,
+
+
+
+      error: "Failed to fetch learners",
+
+
+
+    });
+
+
+
+  }
+
+
+
+});
 
 router.post("/", async (req, res) => {
 
@@ -145,15 +245,7 @@ router.post("/", async (req, res) => {
     });
 
 
-    return res.status(200).json({
-
-      success: true,
-
-      familyReference,
-
-      learnerId: newLearner.id,
-
-    });
+    
 
   } catch (error) {
 

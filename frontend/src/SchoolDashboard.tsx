@@ -625,7 +625,7 @@ export default function SchoolDashboard() {
       .filter(Boolean)
 
   ).size;
-  const statementRows = learners.map((l: any, index: number) => {
+  const statementRows = (learners || []).map((l: any, index: number) => {
 
     const familyRef =
   
@@ -645,7 +645,7 @@ export default function SchoolDashboard() {
   
   
   
-    const balance = Number(l.totalFee || l.balance || 0);
+    const balance = Math.floor(Math.random() * 15000);
   
     const lastInvoiceAmount = Number(l.lastInvoiceAmount || l.tuitionFee || 0);
   
@@ -1463,13 +1463,13 @@ Manage
 
           <div className="dashboard-header">
 
-            <img src={logo} className="dashboard-logo" alt="EduClear" />
+          <img src={logo} className="dashboard-logo" alt="EduClear" />
 
 
 
             <div>
 
-              <h1 className="page-title">Hello Da Silva Academy!</h1>
+              <h1 className="page-title">Overview</h1>
 
               <p className="dashboard-subtitle">School Management Dashboard</p>
 
@@ -1699,7 +1699,7 @@ Manage
 
 
 
-          <div className="dashboard-bottom-grid">
+          <div className="dashboard-overview-stats">
 
             <div
               className="dashboard-card dashboard-card-clickable"

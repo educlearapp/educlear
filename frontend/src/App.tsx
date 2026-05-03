@@ -7,9 +7,9 @@ import SchoolDashboard from "./SchoolDashboard";
 import TeacherPerformance from "./TeacherPerformance";
 import logo from "./assets/logo.png";
 
-import { apiFetch } from "./api";
 import LearnerProfile from "./LearnerProfile.tsx";
 import LearnerDigitalReport from "./LearnerDigitalReport.tsx";
+import RegisterSchool from "./RegisterSchool";
 function Home() {
 
   return (
@@ -65,6 +65,8 @@ backgroundColor: "#fff"
   <a href="/">Home</a>
   
   <a href="/login">Login</a>
+
+  <a href="/register-school">Register</a>
 
   <a href="#">Features</a>
 
@@ -160,9 +162,11 @@ export default function App() {
 
       <Routes>
 
-      <Route path="/" element={<Navigate to="/dashboard" replace />} />
+      <Route path="/" element={<Home />} />
         
         <Route path="/login" element={<Login onLoggedIn={() => {}} />} />
+
+        <Route path="/register-school" element={<RegisterSchool />} />
 
         <Route path="/dashboard/*" element={<SchoolDashboard />} />
 

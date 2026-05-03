@@ -10,7 +10,7 @@ import { API_URL } from "./api";
 
 
 
-import logo from "./assets/logo.png";
+import logo from "./assets/logo.icon.png";
 
 
 
@@ -438,6 +438,14 @@ export default function RegisterSchool() {
 
 
 
+          grid-template-rows: auto auto;
+
+
+
+          align-content: start;
+
+
+
           background: ${bg};
 
 
@@ -454,11 +462,7 @@ export default function RegisterSchool() {
 
 
 
-          min-height: 100vh;
-
-
-
-          padding: ${showForm ? "34px 48px 58px" : "34px 48px 64px"};
+          padding: ${showForm ? "34px 48px 48px" : "34px 48px 64px"};
 
 
 
@@ -470,7 +474,7 @@ export default function RegisterSchool() {
 
 
 
-          justify-content: center;
+          justify-content: flex-start;
 
 
 
@@ -550,7 +554,7 @@ export default function RegisterSchool() {
 
 
 
-          justify-content: center;
+          justify-content: flex-start;
 
 
 
@@ -578,7 +582,7 @@ export default function RegisterSchool() {
 
 
 
-          padding: ${showForm ? "60px 40px" : "60px 48px"};
+          padding: ${showForm ? "40px 40px 32px" : "60px 48px"};
 
 
 
@@ -614,7 +618,7 @@ export default function RegisterSchool() {
 
 
 
-          width: ${showForm ? "320px" : "390px"};
+          width: clamp(320px, 34vw, 380px);
 
 
 
@@ -646,27 +650,7 @@ export default function RegisterSchool() {
 
 
 
-          filter: 
-
-
-
-  brightness(1.2)
-
-
-
-  contrast(1.4)
-
-
-
-  saturate(1.3)
-
-
-
-  drop-shadow(0 0 18px rgba(212, 175, 55, 0.6));
-
-
-        background: transparent !important;
-          mix-blend-mode: lighten;
+          background: transparent;
 
 
 
@@ -854,6 +838,14 @@ export default function RegisterSchool() {
 
 
 
+          grid-column: 2;
+
+
+
+          grid-row: 1;
+
+
+
           padding: clamp(24px, 4vw, 48px);
 
 
@@ -886,15 +878,15 @@ export default function RegisterSchool() {
 
 
 
-          position: absolute;
+          grid-column: 1 / -1;
 
 
 
-          bottom: 14px;
+          grid-row: 2;
 
 
 
-          left: 0;
+          position: relative;
 
 
 
@@ -902,7 +894,11 @@ export default function RegisterSchool() {
 
 
 
-          z-index: 3;
+          box-sizing: border-box;
+
+
+
+          padding: 20px 16px 28px;
 
 
 
@@ -914,6 +910,10 @@ export default function RegisterSchool() {
 
 
 
+          line-height: 1.6;
+
+
+
           color: rgba(255,255,255,0.62);
 
 
@@ -922,7 +922,31 @@ export default function RegisterSchool() {
 
 
 
-          pointer-events: none;
+        }
+
+
+
+        .reg-school-footer a {
+
+
+
+          color: ${gold};
+
+
+
+          text-decoration: none;
+
+
+
+        }
+
+
+
+        .reg-school-footer a:hover {
+
+
+
+          text-decoration: underline;
 
 
 
@@ -954,7 +978,7 @@ export default function RegisterSchool() {
 
 
 
-            padding: 92px 24px 64px;
+            padding: 88px 24px 40px;
 
 
 
@@ -970,51 +994,35 @@ export default function RegisterSchool() {
 
 
 
+          .reg-school-form-wrap {
+
+
+
+            grid-column: 1;
+
+
+
+            grid-row: auto;
+
+
+
+            min-height: 0;
+
+
+
+          }
+
+
+
           .reg-school-logo {
 
 
 
-  width: 460px;
+            width: clamp(300px, 78vw, 380px);
 
 
 
-  max-width: 100%;
-
-
-
-  height: auto;
-
-
-
-  object-fit: contain;
-
-
-
-  display: block;
-
-
-
-  background: transparent;
-
-
-
-  border: none;
-
-
-
-  outline: none;
-
-
-
-  box-shadow: none;
-
-
-
-  filter: drop-shadow(0 0 16px rgba(212,175,55,0.45));
-
-
-
-}
+          }
 
 
 
@@ -1034,15 +1042,7 @@ export default function RegisterSchool() {
 
 
 
-            position: relative;
-
-
-
-            bottom: auto;
-
-
-
-            padding: 18px 16px;
+            padding: 16px 16px 24px;
 
 
 
@@ -1062,7 +1062,7 @@ export default function RegisterSchool() {
 
 
 
-      <div className="reg-school-page">
+<div className="reg-school-page" style={{ minHeight: "80vh" }}>
 
 
 
@@ -1170,67 +1170,71 @@ export default function RegisterSchool() {
 
 
 
-            <button
+            {!showForm && (
 
 
 
-              type="button"
+              <button
 
 
 
-              onClick={() => setShowForm(true)}
+                type="button"
 
 
 
-              style={{
+                onClick={() => setShowForm(true)}
 
 
 
-                padding: "10px 18px",
+                style={{
 
 
 
-                borderRadius: 999,
+                  padding: "10px 18px",
 
 
 
-                background: gold,
+                  borderRadius: 999,
 
 
 
-                border: `1px solid ${gold}`,
+                  background: gold,
 
 
 
-                color: "#151515",
+                  border: `1px solid ${gold}`,
 
 
 
-                fontWeight: 800,
+                  color: "#151515",
 
 
 
-                cursor: "pointer",
+                  fontWeight: 800,
 
 
 
-                boxShadow: "0 4px 20px rgba(212, 175, 55, 0.25)",
+                  cursor: "pointer",
 
 
 
-              }}
+                }}
 
 
 
-            >
+              >
 
 
 
-              Register Your School
+                Register Your School
 
 
 
-            </button>
+              </button>
+
+
+
+            )}
 
 
 
@@ -1246,7 +1250,43 @@ export default function RegisterSchool() {
 
 
 
-              <img src={logo} alt="EduClear" className="reg-school-logo" />
+            <img
+
+
+
+src={logo}
+
+
+
+alt="EduClear"
+
+
+
+className="reg-school-logo"
+
+
+
+style={{
+
+
+
+  width: "400px",
+
+
+
+  maxWidth: "95%",
+
+
+
+  filter: "drop-shadow(0 0 24px rgba(212,175,55,0.55))",
+
+
+
+}}
+
+
+
+/>
 
 
 
@@ -1922,7 +1962,11 @@ export default function RegisterSchool() {
 
 
 
-          © {new Date().getFullYear()} EduClear. All rights reserved. · info@educlear.co.za
+          © 2026 EduClear. All rights reserved.{" "}
+
+
+
+          <a href="mailto:info@educlear.co.za">info@educlear.co.za</a>
 
 
 

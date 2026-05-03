@@ -853,12 +853,10 @@ body {
 
 .dashboard-logo {
 
-  height: 64px;
-  width: auto;
-  max-width: 220px;
-
+  width: 130px;
+  height: auto;
   object-fit: contain;
-  display: block;
+  flex-shrink: 0;
 
 }
 .brand-row {
@@ -884,15 +882,58 @@ body {
   display: block;
 
 }
-.dashboard-bottom-grid {
+.dashboard-overview-stats {
+
+
 
   display: grid;
 
-  grid-template-columns: repeat(3, 1fr);
 
-  gap: 18px;
 
-  margin-top: 25px;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+
+
+
+  gap: 24px;
+
+
+
+}
+@media (max-width: 1100px) {
+
+
+
+  .dashboard-overview-stats {
+
+
+
+    grid-template-columns: repeat(2, 1fr);
+
+
+
+  }
+
+
+
+}
+
+
+
+@media (max-width: 640px) {
+
+
+
+  .dashboard-overview-stats {
+
+
+
+    grid-template-columns: 1fr;
+
+
+
+  }
+
+
 
 }
 
@@ -912,9 +953,61 @@ body {
 
 
 
-.dashboard-bottom-grid + .dashboard-bottom-grid {
+.dashboard-overview-stats {
 
-  grid-template-columns: repeat(2, 1fr);
+
+
+  display: grid;
+
+
+
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+
+
+
+  gap: 24px;
+
+
+
+}
+
+
+
+@media (max-width: 1100px) {
+
+
+
+  .dashboard-overview-stats {
+
+
+
+    grid-template-columns: repeat(2, 1fr);
+
+
+
+  }
+
+
+
+}
+
+
+
+@media (max-width: 640px) {
+
+
+
+  .dashboard-overview-stats {
+
+
+
+    grid-template-columns: 1fr;
+
+
+
+  }
+
+
 
 }
 
@@ -959,5 +1052,140 @@ body {
   font-size: 26px;
 
   line-height: 1;
+
+}.dashboard-grid {
+
+
+
+  display: grid;
+
+
+
+  grid-template-columns: repeat(4, 1fr);
+
+
+
+  gap: 16px;
+
+
+
+}
+
+
+
+ /* =========================
+
+
+
+   DASHBOARD (SchoolDashboard)
+
+
+
+   ========================= */
+
+
+
+.dashboard-header {
+
+
+
+  display: flex;
+
+
+
+  align-items: center;
+
+
+
+  gap: 12px;
+
+
+
+  margin-bottom: 16px;
+
+
+
+}
+
+
+.dashboard-card {
+
+
+
+  padding: 16px;
+
+
+
+  border-radius: 12px;
+
+
+
+  box-shadow: 0 4px 12px rgba(0,0,0,0.05);
+
+
+
+  border-left: 3px solid #d4af37;
+
+
+
+}
+
+
+
+.dashboard-card h3 {
+
+
+
+  font-size: 14px;
+
+
+
+  margin-bottom: 6px;
+
+
+
+}
+
+
+
+.dashboard-card h2 {
+
+
+
+  font-size: 20px;
+
+
+
+  margin: 0;
+
+
+
+}
+
+
+
+.dashboard-card p {
+
+
+
+  font-size: 13px;
+
+
+
+  margin: 4px 0 0;
+
+
+
+}
+
+
+
+.page-area {
+
+
+
+  padding: 20px 24px;
+
+
 
 }

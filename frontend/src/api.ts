@@ -15,7 +15,7 @@ const API_BASE = normalizeApiBase(RAW_API_BASE);
 export const API_URL = API_BASE;
 
 export async function apiFetch(path: string, options: RequestInit = {}) {
-  const url = `${API_BASE}${path}`;
+  const url = `${API_BASE}/api${path}`;
 
   const res = await fetch(url, {
     headers: {

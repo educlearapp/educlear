@@ -3,16 +3,21 @@ import express from "express";
 import cors from "cors";
 
 import { PrismaClient } from "@prisma/client";
-
+import fs from "fs";
+import path from "path";
+import multer from "multer"; 
 import schoolsRoutes from "./routes/schools";
 import parentsRoutes from "./routes/parents";
 import jwt from "jsonwebtoken";
 import learnerRoutes from "./routes/learner";
+import statementsRoutes from "./routes/statements";
+import paymentsRoutes from "./routes/payments";
+import invoicesRoutes from "./routes/invoices";
 import bcrypt from "bcryptjs";
 
 import authRoutes from "./routes/auth";
 import teacherPerformanceRoutes from "./routes/teacherPerformance";
-import rbacRoutes from "./routes/rbac";
+
 import payrollRoutes from "./routes/payroll";
 import feesRoutes from "./routes/fees";
 type OtpRecord = {
@@ -26,7 +31,75 @@ type OtpRecord = {
 
   const prisma = new PrismaClient();
   const otpStore = new Map<string, OtpRecord>();
+  const storage = multer.diskStorage({
+
+
+
+    destination: function (
   
+  
+  
+      req: express.Request,
+  
+  
+  
+      file: Express.Multer.File,
+  
+  
+  
+      cb: (error: Error | null, destination: string) => void
+  
+  
+  
+    ) {
+  
+  
+  
+      cb(null, path.join(process.cwd(), "uploads/school-logos"));
+  
+  
+  
+    },
+  
+  
+  
+    filename: function (
+  
+  
+  
+      req: express.Request,
+  
+  
+  
+      file: Express.Multer.File,
+  
+  
+  
+      cb: (error: Error | null, filename: string) => void
+  
+  
+  
+    ) {
+  
+  
+  
+      const unique = Date.now() + "-" + Math.round(Math.random() * 1e9);
+  
+  
+  
+      cb(null, "school-logo-" + unique + path.extname(file.originalname));
+  
+  
+  
+    },
+  
+  
+  
+  });
+  
+  
+  
+  const upload = multer({ storage });
   function authMiddleware(req: any, res: any, next: any) {
 
     const authHeader = req.headers.authorization;
@@ -90,6 +163,14 @@ type OtpRecord = {
 
 const app = express();
 
+app.get("/api/debug-current-server", (req, res) => {
+  res.json({
+    ok: true,
+    source: "backend/src/index.ts",
+    time: new Date().toISOString(),
+  });
+});
+
 const PORT = 3000;
 
 
@@ -102,6 +183,7 @@ const PORT = 3000;
 
 */
 app.use(express.json({ limit: "12mb" }));
+app.use("/uploads", express.static(path.join(process.cwd(), "uploads")));
 app.use(
 
   cors({
@@ -110,6 +192,8 @@ app.use(
 
       "http://localhost:5173",
 
+      "http://localhost:5174",
+      
       "http://localhost:5175",
 
       "https://educlear-frontend.onrender.com",
@@ -132,13 +216,252 @@ app.use(
 
 // ===== OTP AUTH (DEV MODE) =====
 app.use ("/auth", authRoutes);
+app.get("/learner", async (req, res) => {
+
+
+
+  try {
+
+
+
+    const schoolId = String(req.query.schoolId || "");
+
+
+
+    if (!schoolId) {
+
+
+
+      return res.status(400).json({ success: false, error: "Missing schoolId" });
+
+
+
+    }
+
+
+
+    const learners = await prisma.learner.findMany({
+
+
+
+      where: { schoolId },
+
+
+
+      orderBy: { createdAt: "desc" },
+
+
+
+    });
+
+
+
+    return res.json({ success: true, learners });
+
+
+
+  } catch (error) {
+
+
+
+    console.error("DIRECT GET /learner ERROR:", error);
+
+
+
+    return res.status(500).json({ success: false, error: "Failed to fetch learners" });
+
+
+
+  }
+
+
+
+});
 app.use("/learner", learnerRoutes);
 app.use("/api/schools", schoolsRoutes);
+app.post("/api/upload-logo", upload.single("logo"), (req, res) => {
+
+
+
+  if (!req.file) {
+
+
+
+    return res.status(400).json({ success: false });
+
+
+
+  }
+
+
+
+  const url = `http://localhost:3000/uploads/school-logos/${req.file.filename}`;
+
+
+
+  res.json({
+
+
+
+    success: true,
+
+
+
+    url,
+
+
+
+  });
+
+
+
+});
 app.use("/api", parentsRoutes);
-app.use("/api/rbac", rbacRoutes);
+app.get("/api/statements/accounts", async (req, res) => {
+  app.use("/api/invoices", invoicesRoutes);
+
+
+  try {
+
+
+
+    const schoolId = String(req.query.schoolId || "");
+
+
+
+    if (!schoolId) {
+
+
+
+      return res.status(400).json({ success: false, error: "schoolId is required" });
+
+
+
+    }
+
+
+
+    const learners = await prisma.learner.findMany({
+
+
+
+      where: { schoolId },
+
+
+
+      include: { familyAccount: true },
+
+
+
+      orderBy: { createdAt: "asc" },
+
+
+
+    });
+
+
+
+    const accounts = learners.map((l: any, index: number) => ({
+
+
+
+      accountNo:
+
+
+
+        l.familyAccount?.accountRef ||
+
+
+
+        l.admissionNo ||
+
+
+
+        l.admissionNumber ||
+
+
+
+        `ACC${String(index + 1).padStart(3, "0")}`,
+
+
+
+      name: l.firstName || "-",
+
+
+
+      surname: l.lastName || "-",
+
+
+
+      balance: Number(l.totalFee || l.balance || 0),
+
+
+
+      lastInvoice: Number(l.lastInvoiceAmount || 0),
+
+
+
+      lastPayment: Number(l.lastPaymentAmount || 0),
+
+
+
+      accountStatus: Number(l.totalFee || l.balance || 0) > 10000 ? "Bad Debt" : Number(l.totalFee || l.balance || 0) > 0 ? "Recently Owing" : "Up To Date",
+
+
+
+    }));
+
+
+
+    return res.json({ success: true, accounts });
+
+
+
+  } catch (error) {
+
+
+
+    console.error("Direct statements accounts error:", error);
+
+
+
+    return res.status(500).json({ success: false, error: "Failed to load statement accounts" });
+
+
+
+  }
+
+
+
+});
+app.use("/api/statements", statementsRoutes);
+app.use("/api/payments", paymentsRoutes);
 app.use("/api/teacher-performance", teacherPerformanceRoutes);
 app.use("/api/payroll", payrollRoutes);
 app.use("/api/fees", feesRoutes);
+
+function mountOptionalCompiledRoute(
+  mountPath: string,
+  compiledRouteBasename: string,
+  label: string
+) {
+  try {
+    const compiledPath = path.resolve(__dirname, "routes", `${compiledRouteBasename}.js`);
+    if (!fs.existsSync(compiledPath)) return;
+    // eslint-disable-next-line @typescript-eslint/no-var-requires
+    const mod = require(compiledPath);
+    const router = mod?.default ?? mod;
+    if (!router) return;
+    app.use(mountPath, router);
+    console.log(`${label} routes mounted at ${mountPath}`);
+  } catch (error) {
+    console.error(`Failed to mount optional route ${label}:`, error);
+  }
+}
+
+mountOptionalCompiledRoute("/api/billing-plans", "billingPlans", "Billing plans");
+mountOptionalCompiledRoute("/api/invoice-runs", "invoiceRuns", "Invoice runs");
+mountOptionalCompiledRoute("/api/billing-documents", "billingDocuments", "Billing documents");
 
 
 
