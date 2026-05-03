@@ -34,6 +34,11 @@ function pickTopPerformer(records: TeacherPerformanceRecord[]): TeacherPerforman
 
 
 type PageKey =
+  | "schoolProfile"
+  | "schoolPackage"
+  | "schoolCredits"
+  | "schoolusers"
+  | "schoolMore"
 
   | "dashboard"
 
@@ -102,7 +107,7 @@ export default function SchoolDashboard() {
   };
 
   const [adminOpen, setAdminOpen] = useState(true);
-
+  const [schoolsOpen, setSchoolsOpen] = useState(false);
   const [billingOpen, setBillingOpen] = useState(true);
 
 
@@ -2997,132 +3002,35 @@ Manage
 
     <div className="school-shell">
 
-      <aside className="sidebar">
+<aside className="sidebar">
 
-        <div className="brand-row">
 
-          <img src={logo} className="sidebar-logo" alt="EduClear" />
 
-          <span>EduClear</span>
+<div className="brand-row">
 
-        </div>
 
 
+  <img src={logo} className="sidebar-logo" alt="EduClear" />
 
-        <div
 
-          className={`top-dashboard ${activePage === "dashboard" ? "active" : ""}`}
 
-          onClick={() => go("dashboard")}
+  <span>EduClear</span>
 
-        >
 
-          <span className="menu-icon">◉</span>
 
-          <span>Dashboard</span>
+</div>
 
-        </div>
 
 
+<div
 
-        <div className="main-section">
 
-          <div className="section-header" onClick={() => setAdminOpen(!adminOpen)}>
 
-            <div className="section-left">
+  className={`top-dashboard ${activePage === "dashboard" ? "active" : ""}`}
 
-              <span className="menu-icon">👥</span>
 
-              <span>Administration</span>
 
-            </div>
-
-            <span className={`chevron ${adminOpen ? "open" : ""}`}>⌄</span>
-
-          </div>
-
-
-
-          {adminOpen && (
-
-            <div className="submenu">
-
-              <div
-
-                className={`submenu-item ${activePage === "registrations" ? "active" : ""}`}
-
-                onClick={() => go("registrations")}
-
-              >
-
-                Registrations
-
-              </div>
-
-
-
-              <div
-
-                className={`submenu-item ${activePage === "addLearner" ? "active" : ""}`}
-
-                onClick={() => go("addLearner")}
-
-              >
-
-                Add Learner
-
-              </div>
-
-
-
-              <div
-
-                className={`submenu-item ${activePage === "classrooms" ? "active" : ""}`}
-
-                onClick={() => go("classrooms")}
-
-              >
-
-                Classrooms
-
-              </div>
-
-
-
-              <div
-
-                className={`submenu-item ${activePage === "groups" ? "active" : ""}`}
-
-                onClick={() => go("groups")}
-
-              >
-
-                Groups
-
-              </div>
-
-
-
-              <div
-
-                className={`submenu-item ${activePage === "employees" ? "active" : ""}`}
-
-                onClick={() => go("employees")}
-
-              >
-
-                Employees
-
-              </div>
-              <div
-
-
-
-className={`submenu-item ${activePage === "teacherPerformance" ? "active" : ""}`}
-
-
-
-onClick={() => go("teacherPerformance")}
+  onClick={() => go("dashboard")}
 
 
 
@@ -3130,399 +3038,584 @@ onClick={() => go("teacherPerformance")}
 
 
 
-Teacher Performance
+  <span className="menu-icon">◉</span>
+
+
+
+  <span>Dashboard</span>
 
 
 
 </div>
 
 
-              <div
 
-                className={`submenu-item ${activePage === "attendance" ? "active" : ""}`}
+<div className="main-section">
 
-                onClick={() => go("attendance")}
 
-              >
 
-                Attendance
+  <div className="section-header" onClick={() => setSchoolsOpen(!schoolsOpen)}>
 
-              </div>
 
 
+    <div className="section-left">
 
-              <div
 
-                className={`submenu-item ${activePage === "incidents" ? "active" : ""}`}
 
-                onClick={() => go("incidents")}
+      <span className="menu-icon">🏫</span>
 
-              >
 
-                Incidents
 
-              </div>
+      <span>Schools</span>
 
 
-
-              <div
-
-                className={`submenu-item ${activePage === "lists" ? "active" : ""}`}
-
-                onClick={() => go("lists")}
-
-              >
-
-                Lists & Registers
-
-              </div>
-
-
-
-              <div
-
-                className={`submenu-item ${activePage === "forms" ? "active" : ""}`}
-
-                onClick={() => go("forms")}
-
-              >
-
-                Forms & Templates
-
-              </div>
-
-
-
-              <div
-
-                className={`submenu-item ${activePage === "help" ? "active" : ""}`}
-
-                onClick={() => go("help")}
-
-              >
-
-                Help & Tips
-
-              </div>
-
-
-
-              <div
-
-                className={`submenu-item ${activePage === "more" ? "active" : ""}`}
-
-                onClick={() => go("more")}
-
-              >
-
-                More
-
-              </div>
-
-            </div>
-
-          )}
-
-        </div>
-
-
-
-        <div className="main-section">
-
-          <div className="section-header" onClick={() => setBillingOpen(!billingOpen)}>
-
-            <div className="section-left">
-
-              <span className="menu-icon">▦</span>
-
-              <span>Billing</span>
-
-            </div>
-
-            <span className={`chevron ${billingOpen ? "open" : ""}`}>⌄</span>
-
-          </div>
-
-
-
-          {billingOpen && (
-
-            <div className="submenu">
-
-              <div
-
-                className={`submenu-item ${activePage === "statements" ? "active" : ""}`}
-
-                onClick={() => go("statements")}
-
-              >
-
-                Statements
-
-              </div>
-
-
-
-              <div
-
-                className={`submenu-item ${activePage === "invoices" ? "active" : ""}`}
-
-                onClick={() => go("invoices")}
-
-              >
-
-                Invoices
-
-              </div>
-
-
-
-              <div
-
-                className={`submenu-item ${activePage === "payments" ? "active" : ""}`}
-
-                onClick={() => go("payments")}
-
-              >
-
-                Payments
-
-              </div>
-
-              <div
-                className={`submenu-item ${activePage === "payroll" ? "active" : ""}`}
-                onClick={() => go("payroll")}
-              >
-                Payroll
-              </div>
-
-
-
-              <div
-
-                className={`submenu-item ${activePage === "fees" ? "active" : ""}`}
-
-                onClick={() => navigate("/dashboard/billing/fees")}
-
-              >
-
-                Fees
-
-              </div>
-
-
-
-              <div
-
-                className={`submenu-item ${activePage === "plans" ? "active" : ""}`}
-
-                onClick={() => go("plans")}
-
-              >
-
-                Billing Plans
-
-              </div>
-
-
-
-              <div
-
-                className={`submenu-item ${activePage === "runs" ? "active" : ""}`}
-
-                onClick={() => go("runs")}
-
-              >
-
-                Invoice Runs
-
-              </div>
-
-
-
-              <div
-
-                className={`submenu-item ${activePage === "reports" ? "active" : ""}`}
-
-                onClick={() => go("reports")}
-
-              >
-
-                Billing Reports
-
-              </div>
-
-
-
-              <div
-
-                className={`submenu-item ${activePage === "documents" ? "active" : ""}`}
-
-                onClick={() => go("documents")}
-
-              >
-
-                Billing Documents
-
-              </div>
-
-
-
-              <div
-
-                className={`submenu-item ${activePage === "billing-help" ? "active" : ""}`}
-
-                onClick={() => go("billing-help")}
-
-              >
-
-                Help & Tips
-
-              </div>
-
-
-
-              <div
-
-                className={`submenu-item ${activePage === "billing-more" ? "active" : ""}`}
-
-                onClick={() => go("billing-more")}
-
-              >
-
-                More
-
-              </div>
-
-            </div>
-
-          )}
-
-        </div>
-
-
-
-        <div className="bottom-section">
-
-          <div className="section-header">
-
-            <div className="section-left">
-
-              <span className="menu-icon">💬</span>
-
-              <span>Communication</span>
-
-            </div>
-
-            <span className="chevron">⌄</span>
-
-          </div>
-
-
-
-          <div className="sidebar-collapse">≪</div>
-
-        </div>
-
-      </aside>
-
-
-
-      <main
-
-        className="main-content"
-
-        style={{
-
-          flex: 1,
-
-          width: "100%",
-
-          minWidth: 0,
-
-          display: "flex",
-
-          alignItems: "stretch",
-
-          justifyContent: "stretch",
-
-          boxSizing: "border-box",
-
-          padding: 0,
-
-          background: "#f7f4ef",
-
-        }}
-
-      >
-
-        <div
-
-          className="page-area"
-
-          style={{
-
-            flex: 1,
-
-            width: "100%",
-
-            minWidth: 0,
-
-            maxWidth: "none",
-
-            display: "block",
-
-            boxSizing: "border-box",
-
-            background: "#ffffff",
-
-            minHeight: "100vh",
-
-            padding: "32px",
-
-          }}
-
-        >
-
-          <Routes>
-            <Route
-              path="billing/fees"
-              element={
-                <Fees
-                  onAdd={() => {
-                    setManageFeeId(null);
-                    navigate("/dashboard/billing/fees/new");
-                  }}
-                  onManage={(feeId) => {
-                    setManageFeeId(feeId);
-                    navigate(`/dashboard/billing/fees/${encodeURIComponent(String(feeId))}`);
-                  }}
-                />
-              }
-            />
-            <Route
-              path="billing/fees/new"
-              element={
-                <FeeUpsert
-                  feeId={null}
-                  onBack={() => navigate("/dashboard/billing/fees")}
-                  onSaved={() => navigate("/dashboard/billing/fees")}
-                />
-              }
-            />
-            <Route
-              path="billing/fees/:feeId"
-              element={<FeeUpsertRoute />}
-            />
-            <Route path="*" element={renderPage()} />
-          </Routes>
-
-        </div>
-
-      </main>
 
     </div>
 
-  );
 
- }
+
+    <span className={`chevron ${schoolsOpen ? "open" : ""}`}>⌄</span>
+
+
+
+  </div>
+
+
+
+  {schoolsOpen && (
+
+
+
+    <div className="submenu">
+
+
+
+      <div className={`submenu-item ${activePage === "schoolProfile" ? "active" : ""}`} onClick={() => go("schoolProfile")}>Profile</div>
+
+
+
+      <div className={`submenu-item ${activePage === "schoolPackage" ? "active" : ""}`} onClick={() => go("schoolPackage")}>Package</div>
+
+
+
+      <div className={`submenu-item ${activePage === "schoolCredits" ? "active" : ""}`} onClick={() => go("schoolCredits")}>Credits</div>
+
+
+
+      <div className={`submenu-item ${activePage === "schoolUsers" ? "active" : ""}`} onClick={() => go("schoolUsers")}>Users</div>
+
+
+
+      <div className={`submenu-item ${activePage === "schoolMore" ? "active" : ""}`} onClick={() => go("schoolMore")}>More</div>
+
+
+
+    </div>
+
+
+
+  )}
+
+
+
+</div>
+
+
+
+<div className="main-section">
+
+
+
+  <div className="section-header" onClick={() => setAdminOpen(!adminOpen)}>
+
+
+
+    <div className="section-left">
+
+
+
+      <span className="menu-icon">👥</span>
+
+
+
+      <span>Administration</span>
+
+
+
+    </div>
+
+
+
+    <span className={`chevron ${adminOpen ? "open" : ""}`}>⌄</span>
+
+
+
+  </div>
+
+
+
+  {adminOpen && (
+
+
+
+    <div className="submenu">
+
+
+
+      <div className={`submenu-item ${activePage === "registrations" ? "active" : ""}`} onClick={() => go("registrations")}>Registrations</div>
+
+
+
+      <div className={`submenu-item ${activePage === "addLearner" ? "active" : ""}`} onClick={() => go("addLearner")}>Add Learner</div>
+
+
+
+      <div className={`submenu-item ${activePage === "classrooms" ? "active" : ""}`} onClick={() => go("classrooms")}>Classrooms</div>
+
+
+
+      <div className={`submenu-item ${activePage === "groups" ? "active" : ""}`} onClick={() => go("groups")}>Groups</div>
+
+
+
+      <div className={`submenu-item ${activePage === "employees" ? "active" : ""}`} onClick={() => go("employees")}>Employees</div>
+
+
+
+      <div className={`submenu-item ${activePage === "teacherPerformance" ? "active" : ""}`} onClick={() => go("teacherPerformance")}>Teacher Performance</div>
+
+
+
+      <div className={`submenu-item ${activePage === "attendance" ? "active" : ""}`} onClick={() => go("attendance")}>Attendance</div>
+
+
+
+      <div className={`submenu-item ${activePage === "incidents" ? "active" : ""}`} onClick={() => go("incidents")}>Incidents</div>
+
+
+
+      <div className={`submenu-item ${activePage === "lists" ? "active" : ""}`} onClick={() => go("lists")}>Lists & Registers</div>
+
+
+
+      <div className={`submenu-item ${activePage === "forms" ? "active" : ""}`} onClick={() => go("forms")}>Forms & Templates</div>
+
+
+
+      <div className={`submenu-item ${activePage === "help" ? "active" : ""}`} onClick={() => go("help")}>Help & Tips</div>
+
+
+
+      <div className={`submenu-item ${activePage === "more" ? "active" : ""}`} onClick={() => go("more")}>More</div>
+
+
+
+    </div>
+
+
+
+  )}
+
+
+
+</div>
+
+
+
+<div className="main-section">
+
+
+
+  <div className="section-header" onClick={() => setBillingOpen(!billingOpen)}>
+
+
+
+    <div className="section-left">
+
+
+
+      <span className="menu-icon">▦</span>
+
+
+
+      <span>Billing</span>
+
+
+
+    </div>
+
+
+
+    <span className={`chevron ${billingOpen ? "open" : ""}`}>⌄</span>
+
+
+
+  </div>
+
+
+
+  {billingOpen && (
+
+
+
+    <div className="submenu">
+
+
+
+      <div className={`submenu-item ${activePage === "statements" ? "active" : ""}`} onClick={() => go("statements")}>Statements</div>
+
+
+
+      <div className={`submenu-item ${activePage === "invoices" ? "active" : ""}`} onClick={() => go("invoices")}>Invoices</div>
+
+
+
+      <div className={`submenu-item ${activePage === "payments" ? "active" : ""}`} onClick={() => go("payments")}>Payments</div>
+
+
+
+      <div className={`submenu-item ${activePage === "payroll" ? "active" : ""}`} onClick={() => go("payroll")}>Payroll</div>
+
+
+
+      <div className={`submenu-item ${activePage === "fees" ? "active" : ""}`} onClick={() => navigate("/dashboard/billing/fees")}>Fees</div>
+
+
+
+      <div className={`submenu-item ${activePage === "plans" ? "active" : ""}`} onClick={() => go("plans")}>Billing Plans</div>
+
+
+
+      <div className={`submenu-item ${activePage === "runs" ? "active" : ""}`} onClick={() => go("runs")}>Invoice Runs</div>
+
+
+
+      <div className={`submenu-item ${activePage === "reports" ? "active" : ""}`} onClick={() => go("reports")}>Billing Reports</div>
+
+
+
+      <div className={`submenu-item ${activePage === "documents" ? "active" : ""}`} onClick={() => go("documents")}>Billing Documents</div>
+
+
+
+      <div className={`submenu-item ${activePage === "billing-help" ? "active" : ""}`} onClick={() => go("billing-help")}>Help & Tips</div>
+
+
+
+      <div className={`submenu-item ${activePage === "billing-more" ? "active" : ""}`} onClick={() => go("billing-more")}>More</div>
+
+
+
+    </div>
+
+
+
+  )}
+
+
+
+</div>
+
+
+
+<div className="bottom-section">
+
+
+
+  <div className="section-header">
+
+
+
+    <div className="section-left">
+
+
+
+      <span className="menu-icon">💬</span>
+
+
+
+      <span>Communication</span>
+
+
+
+    </div>
+
+
+
+    <span className="chevron">⌄</span>
+
+
+
+  </div>
+
+
+
+  <div className="sidebar-collapse">≪</div>
+
+
+
+</div>
+
+
+
+</aside>
+
+
+
+<main
+
+
+
+className="main-content"
+
+
+
+style={{
+
+
+
+  flex: 1,
+
+
+
+  width: "100%",
+
+
+
+  minWidth: 0,
+
+
+
+  display: "flex",
+
+
+
+  alignItems: "stretch",
+
+
+
+  justifyContent: "stretch",
+
+
+
+  boxSizing: "border-box",
+
+
+
+  padding: 0,
+
+
+
+  background: "#f7f4ef",
+
+
+
+}}
+
+
+
+>
+
+
+
+<div
+
+
+
+  className="page-area"
+
+
+
+  style={{
+
+
+
+    flex: 1,
+
+
+
+    width: "100%",
+
+
+
+    minWidth: 0,
+
+
+
+    maxWidth: "none",
+
+
+
+    display: "block",
+
+
+
+    boxSizing: "border-box",
+
+
+
+    background: "#ffffff",
+
+
+
+    minHeight: "100vh",
+
+
+
+    padding: "32px",
+
+
+
+  }}
+
+
+
+>
+
+
+
+  <Routes>
+
+
+
+    <Route
+
+
+
+      path="billing/fees"
+
+
+
+      element={
+
+
+
+        <Fees
+
+
+
+          onAdd={() => {
+
+
+
+            setManageFeeId(null);
+
+
+
+            navigate("/dashboard/billing/fees/new");
+
+
+
+          }}
+
+
+
+          onManage={(feeId) => {
+
+
+
+            setManageFeeId(feeId);
+
+
+
+            navigate(`/dashboard/billing/fees/${encodeURIComponent(String(feeId))}`);
+
+
+
+          }}
+
+
+
+        />
+
+
+
+      }
+
+
+
+    />
+
+
+
+    <Route
+
+
+
+      path="billing/fees/new"
+
+
+
+      element={
+
+
+
+        <FeeUpsert
+
+
+
+          feeId={null}
+
+
+
+          onBack={() => navigate("/dashboard/billing/fees")}
+
+
+
+          onSaved={() => navigate("/dashboard/billing/fees")}
+
+
+
+        />
+
+
+
+      }
+
+
+
+    />
+
+
+
+    <Route
+
+
+
+      path="billing/fees/:feeId"
+
+
+
+      element={<FeeUpsertRoute />}
+
+
+
+    />
+
+
+
+    <Route path="*" element={renderPage()} />
+
+
+
+  </Routes>
+
+
+
+</div>
+
+
+
+</main>
+
+
+
+</div>
+
+
+
+);
+
+
+
+} 
