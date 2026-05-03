@@ -1221,31 +1221,7 @@ padding-left: 25px;
 
 
 
-.profile-card {
 
-
-
-  background: #ffffff;
-
-
-
-  border: 1px solid rgba(212, 175, 55, 0.25);
-
-
-
-  border-radius: 10px;
-
-
-
-  padding: 20px;
-
-
-
-  box-shadow: 0 4px 14px rgba(0,0,0,0.06);
-
-
-
-}
 
 
 
@@ -1344,28 +1320,6 @@ padding-left: 25px;
 }
 
 
-
-/* TABS */
-
-
-
-.profile-tabs {
-
-
-
-  display: flex;
-
-
-
-  border-bottom: 1px solid #eee;
-
-
-
-  margin-bottom: 20px;
-
-
-
-}
 
 
 
@@ -1488,15 +1442,23 @@ padding-left: 25px;
 
 
 
-  padding: 32px;
+  padding: 32px 40px;
 
 
 
-  background: #f7f4ef;
+  background: #f5f1ea;
 
 
 
-  min-height: 100vh;
+  display: flex;
+
+
+
+  flex-direction: column;
+
+
+
+  align-items: flex-start;
 
 
 
@@ -1752,28 +1714,6 @@ padding-left: 25px;
 
 
 
-.profile-tabs {
-
-
-
-  display: flex;
-
-
-
-  justify-content: flex-end;
-
-
-
-  border-bottom: 1px solid rgba(31, 41, 55, 0.16);
-
-
-
-  background: #fafafa;
-
-
-
-}
-
 
 
 .profile-tab {
@@ -1837,43 +1777,6 @@ padding-left: 25px;
 
 
 }
-
-
-
-.profile-form {
-
-
-
-  padding: 34px 34px 32px 34px;
-
-
-
-}
-
-
-
-.profile-row {
-
-
-
-  display: grid;
-
-
-
-  grid-template-columns: 190px 1fr;
-
-
-
-  align-items: center;
-
-
-
-  margin-bottom: 12px;
-
-
-
-}
-
 
 
 .profile-row label {
@@ -2157,40 +2060,6 @@ padding-left: 25px;
 
 
 
-.profile-page .profile-tabs {
-
-
-
-  display: flex !important;
-
-
-
-  justify-content: flex-start !important;
-
-
-
-  gap: 0 !important;
-
-
-
-  background: #f9fafb !important;
-
-
-
-  border-bottom: 1px solid rgba(31,41,55,0.18) !important;
-
-
-
-  margin: 0 !important;
-
-
-
-  padding: 0 !important;
-
-
-
-}
-
 
 
 .profile-page .profile-tab {
@@ -2264,20 +2133,6 @@ padding-left: 25px;
 }
 
 
-
-.profile-form {
-
-
-
-  padding: 34px !important;
-
-
-
-  background: #fff !important;
-
-
-
-}
 
 
 
@@ -2458,91 +2313,6 @@ padding-left: 25px;
 
 
 
-.profile-card {
-
-
-
-  display: flex;
-
-
-
-  background: white;
-
-
-
-  border-radius: 12px;
-
-
-
-  overflow: hidden;
-
-
-
-  border: 1px solid #eee;
-
-
-
-}
-
-
-
-.profile-side {
-
-
-
-  width: 200px;
-
-
-
-  background: #0f172a;
-
-
-
-  color: #d4af37;
-
-
-
-  padding: 20px;
-
-
-
-}
-
-
-
-.profile-main {
-
-
-
-  flex: 1;
-
-
-
-  padding: 20px;
-
-
-
-}
-
-
-
-.profile-tabs {
-
-
-
-  display: flex;
-
-
-
-  gap: 10px;
-
-
-
-  margin-bottom: 20px;
-
-
-
-}
 
 
 
@@ -2588,25 +2358,6 @@ padding-left: 25px;
 
 }
 
-
-
-.profile-form {
-
-
-
-  display: flex;
-
-
-
-  flex-direction: column;
-
-
-
-  gap: 15px;
-
-
-
-}
 
 
 
@@ -2784,23 +2535,7 @@ padding-left: 25px;
 
 
 }
-.profile-tabs {
 
-
-
-  display: flex;
-
-
-
-  gap: 10px;
-
-
-
-  margin-bottom: 20px;
-
-
-
-}
 
 
 
@@ -2861,6 +2596,663 @@ padding-left: 25px;
 
 
   color: #000;
+
+
+
+}
+ /* ==============================
+
+
+
+   School Profile Page - Premium
+
+
+
+   ============================== */
+
+
+
+.profile-page {
+
+
+
+  padding: 32px;
+
+
+
+  background: #f7f4ef;
+
+
+
+  min-height: 100vh;
+
+
+
+}
+
+
+
+.profile-actions {
+
+
+
+  display: flex;
+
+
+
+  gap: 12px;
+
+
+
+  margin-bottom: 24px;
+
+
+
+}
+
+
+
+.profile-btn {
+
+
+
+  background: #111827;
+
+
+
+  color: #d4af37;
+
+
+
+  border: 1px solid rgba(212, 175,
+  /* ===== Profile polish (simple clean upgrade) ===== */
+
+
+
+
+
+.profile-tab {
+
+
+
+  border-right: none;
+
+
+
+  color: #6b7280;
+
+
+
+}
+
+
+
+.profile-tab.active {
+
+
+
+  background: #fff;
+
+
+
+  color: #000;
+
+
+
+  border-top: 4px solid #d4af37;
+
+
+
+  font-weight: 800;
+
+
+
+}
+
+
+
+.profile-actions {
+
+
+
+  gap: 14px;
+
+
+
+}
+
+
+
+.form-row input {
+
+
+
+  height: 42px;
+
+
+
+  border: 1px solid #d1d5db;
+
+
+
+  border-radius: 6px;
+
+
+
+  padding: 0 14px;
+
+
+
+  background: #fff;
+
+
+
+  color: #111827;
+
+
+
+  font-size: 15px;
+
+
+
+  box-shadow: inset 0 1px 2px rgba(0,0,0,0.05);
+
+
+
+}
+
+
+
+.form-row {
+
+
+
+  margin-bottom: 18px;
+
+
+
+}
+
+
+
+.form-row label {
+
+
+
+  display: block;
+
+
+
+  font-size: 13px;
+
+
+
+  font-weight: 600;
+
+
+
+  color: #6b7280;
+
+
+
+  margin-bottom: 6px;
+
+
+
+}
+
+
+
+
+.profile-tabs button {
+
+
+
+  background: none;
+
+
+
+  border: none;
+
+
+
+  padding: 10px 0;
+
+
+
+  font-weight: 600;
+
+
+
+  color: #6b7280;
+
+
+
+  cursor: pointer;
+
+
+
+}
+
+
+
+.profile-tabs .active {
+
+
+
+  color: #111827;
+
+
+
+  border-bottom: 3px solid #d4af37;
+
+
+
+}
+
+
+
+/* INPUT FIELDS */
+
+
+
+.form-row input {
+
+
+
+  width: 100%;
+
+
+
+  height: 40px;
+
+
+
+  border-radius: 8px;
+
+
+
+  border: 1px solid #e5e7eb;
+
+
+
+  padding: 0 12px;
+
+
+
+  background: #f9fafb;
+
+
+
+  font-size: 14px;
+
+
+
+}
+
+
+
+.form-row input:focus {
+
+
+
+  outline: none;
+
+
+
+  border-color: #d4af37;
+
+
+
+  background: #fff;
+
+
+
+}
+
+
+
+/* BUTTONS */
+
+
+
+.profile-actions button {
+
+
+
+  background: #111827;
+
+
+
+  color: #d4af37;
+
+
+
+  border: none;
+
+
+
+  cursor: pointer;
+
+
+
+  transition: all 0.2s ease;
+
+
+
+}
+
+
+
+.profile-actions button:hover {
+
+
+
+  background: #000;
+
+
+
+}
+ 
+
+
+
+
+.profile-tabs .active {
+
+
+
+  border-bottom: 2px solid #d4af37;
+
+
+
+}
+
+
+
+/* inputs look more premium */
+
+
+
+.form-row input {
+
+
+
+  background: #ffffff;
+
+
+
+  border: 1px solid #e5e7eb;
+
+
+
+  transition: all 0.2s ease;
+
+
+
+}
+
+
+
+.form-row input:hover {
+
+
+
+  border-color: #d4af37;
+
+
+
+}
+
+
+
+/* labels sharper */
+
+
+
+.form-row label {
+
+
+
+  font-size: 12px;
+
+
+
+  letter-spacing: 0.3px;
+
+
+
+}
+
+
+
+/* top buttons alignment */
+
+
+
+.profile-actions {
+
+
+
+  margin-bottom: 20px;
+
+
+
+}
+
+
+
+.profile-actions button {
+
+
+
+  border-radius: 8px;
+
+
+
+  font-size: 14px;
+
+
+
+}
+
+
+
+/* MORE ACTIONS button standout */
+
+
+
+.profile-actions button:last-child {
+
+
+
+  background: #d4af37;
+
+
+
+  color: #111827;
+
+
+
+}
+
+
+
+.profile-actions button:last-child:hover {
+
+
+
+  background: #c29b2f;
+
+
+
+}
+
+  /* ===== Profile final layout alignment ===== */
+
+
+
+.profile-page {
+
+
+
+  padding: 36px 48px;
+
+
+
+  background: #f5f1ea;
+
+
+
+}
+
+
+
+.profile-actions {
+
+
+
+  margin-left: 0;
+
+
+
+  margin-bottom: 24px;
+
+
+
+}
+
+
+.profile-card {
+
+
+
+  width: 100%;
+
+
+
+  max-width: 980px;
+
+
+
+  display: flex;
+
+
+
+  align-items: stretch;
+
+
+
+  background: #fff;
+
+
+
+  border-radius: 12px;
+
+
+
+  overflow: hidden;
+
+
+
+  box-shadow: 0 2px 8px rgba(0,0,0,0.05);
+
+
+
+}
+
+
+
+
+.profile-side {
+
+
+
+  flex: 0 0 220px;
+
+
+
+  min-height: 560px;
+
+
+
+}
+
+
+
+.profile-main {
+
+
+
+  flex: 1;
+
+
+
+  padding: 0;
+
+
+
+  background: #fff;
+
+
+
+}
+
+
+
+.profile-tabs {
+
+
+
+  height: 64px;
+
+
+
+  margin: 0;
+
+
+
+  padding-left: 28px;
+
+
+
+  align-items: stretch;
+
+
+
+}
+
+
+
+.profile-form {
+
+
+
+  padding: 34px 42px;
+
+
+
+}
+
+
+
+.form-row {
+
+
+
+  display: grid;
+
+
+
+  grid-template-columns: 1fr;
+
+
+
+  gap: 6px;
+
+
+
+  margin-bottom: 18px;
 
 
 

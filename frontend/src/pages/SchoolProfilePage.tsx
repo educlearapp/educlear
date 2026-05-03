@@ -1,5 +1,5 @@
 import { useState } from "react";
-
+import logo from "../assets/logo.png";
 
 
 type ProfileTab = "general" | "contact" | "address" | "billing" | "password";
@@ -238,7 +238,15 @@ export default function SchoolProfilePage({ go }: Props) {
 
 
 
-        <aside className="profile-side">School</aside>
+      <aside className="profile-side">
+
+
+
+<span>School</span>
+
+
+
+</aside>
 
 
 
