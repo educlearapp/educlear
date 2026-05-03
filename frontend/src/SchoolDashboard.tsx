@@ -3054,31 +3054,60 @@ Manage
 
 
 
-  <div className="section-header" onClick={() => setSchoolsOpen(!schoolsOpen)}>
+
+<div
 
 
 
-    <div className="section-left">
+className="section-header"
 
 
 
-      <span className="menu-icon">🏫</span>
+onClick={() => {
 
 
 
-      <span>Schools</span>
+  setSchoolsOpen(!schoolsOpen);
 
 
 
-    </div>
+  setAdminOpen(false);
 
 
 
-    <span className={`chevron ${schoolsOpen ? "open" : ""}`}>⌄</span>
+  setBillingOpen(false);
+
+
+
+}}
+
+
+
+>
+
+
+
+  <div className="section-left">
+
+
+
+    <span className="menu-icon">🏫</span>
+
+
+
+    <span>Schools</span>
 
 
 
   </div>
+
+
+
+  <span className={`chevron ${schoolsOpen ? "open" : ""}`}>⌄</span>
+
+
+
+</div>
 
 
 
@@ -3126,7 +3155,35 @@ Manage
 
 
 
-  <div className="section-header" onClick={() => setAdminOpen(!adminOpen)}>
+<div
+
+
+
+className="section-header"
+
+
+
+onClick={() => {
+
+
+
+  setAdminOpen(!adminOpen);
+
+
+
+  setSchoolsOpen(false);
+
+
+
+  setBillingOpen(false);
+
+
+
+}}
+
+
+
+>
 
 
 
@@ -3226,7 +3283,35 @@ Manage
 
 
 
-  <div className="section-header" onClick={() => setBillingOpen(!billingOpen)}>
+<div
+
+
+
+className="section-header"
+
+
+
+onClick={() => {
+
+
+
+  setBillingOpen(!billingOpen);
+
+
+
+  setSchoolsOpen(false);
+
+
+
+  setAdminOpen(false);
+
+
+
+}}
+
+
+
+>
 
 
 
