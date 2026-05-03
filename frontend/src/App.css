@@ -1215,6 +1215,1571 @@ padding-left: 25px;
 
 
   content: none !important;
+}
+
+ /* PROFILE PANEL */
+
+
+
+.profile-card {
+
+
+
+  background: #ffffff;
+
+
+
+  border: 1px solid rgba(212, 175, 55, 0.25);
+
+
+
+  border-radius: 10px;
+
+
+
+  padding: 20px;
+
+
+
+  box-shadow: 0 4px 14px rgba(0,0,0,0.06);
+
+
+
+}
+
+
+
+/* HEADER ROW */
+
+
+
+.profile-header {
+
+
+
+  display: flex;
+
+
+
+  align-items: center;
+
+
+
+  justify-content: space-between;
+
+
+
+  margin-bottom: 15px;
+
+
+
+}
+
+
+
+.profile-title {
+
+
+
+  font-size: 28px;
+
+
+
+  font-weight: 600;
+
+
+
+}
+
+
+
+/* BUTTONS */
+
+
+
+.profile-actions button {
+
+
+
+  margin-right: 10px;
+
+
+
+  padding: 8px 16px;
+
+
+
+  border-radius: 6px;
+
+
+
+  border: 1px solid #ccc;
+
+
+
+  background: white;
+
+
+
+  cursor: pointer;
+
+
+
+}
+
+
+
+.profile-actions button:hover {
+
+
+
+  border-color: #d4af37;
+
+
+
+  color: #d4af37;
+
+
+
+}
+
+
+
+/* TABS */
+
+
+
+.profile-tabs {
+
+
+
+  display: flex;
+
+
+
+  border-bottom: 1px solid #eee;
+
+
+
+  margin-bottom: 20px;
+
+
+
+}
+
+
+
+.profile-tab {
+
+
+
+  padding: 10px 20px;
+
+
+
+  cursor: pointer;
+
+
+
+  font-weight: 500;
+
+
+
+  color: #666;
+
+
+
+}
+
+
+
+.profile-tab.active {
+
+
+
+  border-bottom: 2px solid #d4af37;
+
+
+
+  color: #d4af37;
+
+
+
+}
+
+
+
+/* FORM */
+
+
+
+.profile-form-row {
+
+
+
+  display: flex;
+
+
+
+  margin-bottom: 15px;
+
+
+
+}
+
+
+
+.profile-label {
+
+
+
+  width: 180px;
+
+
+
+  font-weight: 500;
+
+
+
+  color: #444;
+
+
+
+}
+
+
+
+.profile-input {
+
+
+
+  flex: 1;
+
+
+
+  padding: 8px;
+
+
+
+  border: 1px solid #ddd;
+
+
+
+  border-radius: 6px;
+
+
+
+}
+
+
+
+.profile-input:focus {
+
+
+
+  border-color: #d4af37;
+
+
+
+  outline: none;
+}
+ 
+.profile-page {
+
+
+
+  padding: 32px;
+
+
+
+  background: #f7f4ef;
+
+
+
+  min-height: 100vh;
+
+
+
+}
+
+
+
+.profile-toolbar-card {
+
+
+
+  background: #ffffff;
+
+
+
+  border: 1px solid rgba(212, 175, 55, 0.22);
+
+
+
+  border-radius: 10px;
+
+
+
+  padding: 22px 26px;
+
+
+
+  margin-bottom: 28px;
+
+
+
+  max-width: 980px;
+
+
+
+  box-shadow: 0 8px 22px rgba(0, 0, 0, 0.05);
+
+
+
+}
+
+
+
+.profile-title-row {
+
+
+
+  display: flex;
+
+
+
+  align-items: baseline;
+
+
+
+  gap: 12px;
+
+
+
+  margin-bottom: 22px;
+
+
+
+}
+
+
+
+.profile-title-main {
+
+
+
+  font-size: 34px;
+
+
+
+  font-weight: 700;
+
+
+
+  color: #1f2937;
+
+
+
+}
+
+
+
+.profile-title-sub {
+
+
+
+  font-size: 18px;
+
+
+
+  color: #6b7280;
+
+
+
+}
+
+
+
+.profile-actions {
+
+
+
+  display: flex;
+
+
+
+  gap: 12px;
+
+
+
+}
+
+
+
+.profile-actions button {
+
+
+
+  height: 42px;
+
+
+
+  padding: 0 18px;
+
+
+
+  border-radius: 7px;
+
+
+
+  border: 1px solid #cfd4dc;
+
+
+
+  background: #ffffff;
+
+
+
+  color: #374151;
+
+
+
+  font-size: 15px;
+
+
+
+  cursor: pointer;
+
+
+
+}
+
+
+
+.profile-actions button:hover {
+
+
+
+  border-color: #d4af37;
+
+
+
+  color: #9a7a14;
+
+
+
+  background: rgba(212, 175, 55, 0.07);
+
+
+
+}
+
+
+
+.profile-panel {
+
+
+
+  max-width: 980px;
+
+
+
+  display: grid;
+
+
+
+  grid-template-columns: 130px 1fr;
+
+
+
+  background: #ffffff;
+
+
+
+  border: 1px solid rgba(31, 41, 55, 0.18);
+
+
+
+  border-radius: 4px;
+
+
+
+  min-height: 360px;
+
+
+
+}
+
+
+
+.profile-panel-side {
+
+
+
+  border-right: 1px solid rgba(31, 41, 55, 0.14);
+
+
+
+  background: rgba(212, 175, 55, 0.06);
+
+
+
+  padding: 18px 16px;
+
+
+
+  font-size: 18px;
+
+
+
+  color: #374151;
+
+
+
+}
+
+
+
+.profile-panel-main {
+
+
+
+  padding: 0;
+
+
+
+}
+
+
+
+.profile-tabs {
+
+
+
+  display: flex;
+
+
+
+  justify-content: flex-end;
+
+
+
+  border-bottom: 1px solid rgba(31, 41, 55, 0.16);
+
+
+
+  background: #fafafa;
+
+
+
+}
+
+
+
+.profile-tab {
+
+
+
+  min-width: 120px;
+
+
+
+  height: 52px;
+
+
+
+  border: none;
+
+
+
+  border-left: 1px solid rgba(31, 41, 55, 0.12);
+
+
+
+  background: transparent;
+
+
+
+  color: #4b5563;
+
+
+
+  font-size: 16px;
+
+
+
+  cursor: pointer;
+
+
+
+}
+
+
+
+.profile-tab.active {
+
+
+
+  background: #ffffff;
+
+
+
+  color: #9a7a14;
+
+
+
+  font-weight: 600;
+
+
+
+  border-top: 3px solid #d4af37;
+
+
+
+}
+
+
+
+.profile-form {
+
+
+
+  padding: 34px 34px 32px 34px;
+
+
+
+}
+
+
+
+.profile-row {
+
+
+
+  display: grid;
+
+
+
+  grid-template-columns: 190px 1fr;
+
+
+
+  align-items: center;
+
+
+
+  margin-bottom: 12px;
+
+
+
+}
+
+
+
+.profile-row label {
+
+
+
+  text-align: right;
+
+
+
+  padding-right: 18px;
+
+
+
+  font-size: 15px;
+
+
+
+  color: #374151;
+
+
+
+  font-weight: 500;
+
+
+
+}
+
+
+
+.profile-row input {
+
+
+
+  height: 38px;
+
+
+
+  border: 1px solid #cfd4dc;
+
+
+
+  border-radius: 2px;
+
+
+
+  padding: 0 12px;
+
+
+
+  font-size: 15px;
+
+
+
+  color: #374151;
+
+
+
+  background: #f9fafb;
+
+
+
+  width: 100%;
+
+
+
+  box-sizing: border-box;
+
+
+
+}
+
+
+
+.profile-row input:focus {
+
+
+
+  outline: none;
+
+
+
+  border-color: #d4af37;
+
+
+
+  box-shadow: 0 0 0 2px rgba(212, 175, 55, 0.16);
+
+
+
+}
+ /* FINAL PREMIUM SCHOOL PROFILE OVERRIDE */
+
+
+
+.profile-page {
+
+
+
+  padding: 34px 42px !important;
+
+
+
+  background: #f7f4ef !important;
+
+
+
+  min-height: 100vh;
+
+
+
+}
+
+
+
+.profile-toolbar-card {
+
+
+
+  max-width: 980px !important;
+
+
+
+  background: #fff !important;
+
+
+
+  border: 1px solid rgba(212, 175, 55, 0.28) !important;
+
+
+
+  border-radius: 12px !important;
+
+
+
+  padding: 22px 26px !important;
+
+
+
+  margin-bottom: 24px !important;
+
+
+
+  box-shadow: 0 10px 28px rgba(0,0,0,0.08) !important;
+
+
+
+}
+
+
+
+.profile-title-main {
+
+
+
+  color: #111827 !important;
+
+
+
+  font-size: 36px !important;
+
+
+
+  font-weight: 800 !important;
+
+
+
+}
+
+
+
+.profile-title-sub {
+
+
+
+  color: #6b7280 !important;
+
+
+
+  font-size: 18px !important;
+
+
+
+}
+
+
+
+.profile-actions button {
+
+
+
+  background: #111827 !important;
+
+
+
+  color: #d4af37 !important;
+
+
+
+  border: 1px solid #d4af37 !important;
+
+
+
+  border-radius: 8px !important;
+
+
+
+  font-weight: 600 !important;
+
+
+
+}
+
+
+
+.profile-panel {
+
+
+
+  max-width: 980px !important;
+
+
+
+  display: grid !important;
+
+
+
+  grid-template-columns: 135px 1fr !important;
+
+
+
+  background: #fff !important;
+
+
+
+  border: 1px solid rgba(31,41,55,0.25) !important;
+
+
+
+  border-radius: 8px !important;
+
+
+
+  overflow: hidden !important;
+
+
+
+  box-shadow: 0 8px 24px rgba(0,0,0,0.06) !important;
+
+
+
+}
+
+
+
+.profile-panel-side {
+
+
+
+  background: linear-gradient(180deg, #111827, #1f2937) !important;
+
+
+
+  color: #d4af37 !important;
+
+
+
+  font-weight: 700 !important;
+
+
+
+  padding: 18px !important;
+
+
+
+  border-right: 1px solid rgba(212,175,55,0.35) !important;
+
+
+
+}
+
+
+
+.profile-page .profile-tabs {
+
+
+
+  display: flex !important;
+
+
+
+  justify-content: flex-start !important;
+
+
+
+  gap: 0 !important;
+
+
+
+  background: #f9fafb !important;
+
+
+
+  border-bottom: 1px solid rgba(31,41,55,0.18) !important;
+
+
+
+  margin: 0 !important;
+
+
+
+  padding: 0 !important;
+
+
+
+}
+
+
+
+.profile-page .profile-tab {
+
+
+
+  height: 54px !important;
+
+
+
+  min-width: 128px !important;
+
+
+
+  padding: 0 22px !important;
+
+
+
+  border: none !important;
+
+
+
+  border-right: 1px solid rgba(31,41,55,0.12) !important;
+
+
+
+  background: transparent !important;
+
+
+
+  color: #374151 !important;
+
+
+
+  font-size: 15px !important;
+
+
+
+  font-weight: 600 !important;
+
+
+
+  border-radius: 0 !important;
+
+
+
+}
+
+
+
+.profile-page .profile-tab.active {
+
+
+
+  background: #fff !important;
+
+
+
+  color: #9a7a14 !important;
+
+
+
+  border-top: 4px solid #d4af37 !important;
+
+
+
+  box-shadow: inset 0 1px 0 rgba(212,175,55,0.45) !important;
+
+
+
+}
+
+
+
+.profile-form {
+
+
+
+  padding: 34px !important;
+
+
+
+  background: #fff !important;
+
+
+
+}
+
+
+
+.profile-row {
+
+
+
+  display: grid !important;
+
+
+
+  grid-template-columns: 190px 1fr !important;
+
+
+
+  align-items: center !important;
+
+
+
+  margin-bottom: 12px !important;
+
+
+
+}
+
+
+
+.profile-row label {
+
+
+
+  text-align: right !important;
+
+
+
+  padding-right: 18px !important;
+
+
+
+  color: #1f2937 !important;
+
+
+
+  font-weight: 600 !important;
+
+
+
+  font-size: 15px !important;
+
+
+
+}
+
+
+
+.profile-row input {
+
+
+
+  height: 38px !important;
+
+
+
+  border: 1px solid #cfd4dc !important;
+
+
+
+  border-radius: 4px !important;
+
+
+
+  background: #f9fafb !important;
+
+
+
+  padding: 0 12px !important;
+
+
+
+  font-size: 15px !important;
+
+
+
+  color: #374151 !important;
+
+
+
+}
+.profile-container {
+
+
+
+  padding: 30px;
+
+
+
+}
+
+
+
+.profile-actions {
+
+
+
+  display: flex;
+
+
+
+  gap: 10px;
+
+
+
+  margin-bottom: 20px;
+
+
+
+}
+
+
+
+.btn {
+
+
+
+  padding: 10px 18px;
+
+
+
+  border-radius: 8px;
+
+
+
+  border: none;
+
+
+
+  cursor: pointer;
+
+
+
+}
+
+
+
+.btn.gold {
+
+
+
+  background: #d4af37;
+
+
+
+  color: black;
+
+
+
+  font-weight: 600;
+
+
+
+}
+
+
+
+.btn.dark {
+
+
+
+  background: #111;
+
+
+
+  color: white;
+
+
+
+}
+
+
+
+.profile-card {
+
+
+
+  display: flex;
+
+
+
+  background: white;
+
+
+
+  border-radius: 12px;
+
+
+
+  overflow: hidden;
+
+
+
+  border: 1px solid #eee;
+
+
+
+}
+
+
+
+.profile-side {
+
+
+
+  width: 200px;
+
+
+
+  background: #0f172a;
+
+
+
+  color: #d4af37;
+
+
+
+  padding: 20px;
+
+
+
+}
+
+
+
+.profile-main {
+
+
+
+  flex: 1;
+
+
+
+  padding: 20px;
+
+
+
+}
+
+
+
+.profile-tabs {
+
+
+
+  display: flex;
+
+
+
+  gap: 10px;
+
+
+
+  margin-bottom: 20px;
+
+
+
+}
+
+
+
+.tab {
+
+
+
+  padding: 10px 16px;
+
+
+
+  border-radius: 8px;
+
+
+
+  border: none;
+
+
+
+  background: #111;
+
+
+
+  color: #d4af37;
+
+
+
+}
+
+
+
+.tab.active {
+
+
+
+  background: #d4af37;
+
+
+
+  color: black;
+
+
+
+}
+
+
+
+.profile-form {
+
+
+
+  display: flex;
+
+
+
+  flex-direction: column;
+
+
+
+  gap: 15px;
+
+
+
+}
+
+
+
+.form-row {
+
+
+
+  display: flex;
+
+
+
+  flex-direction: column;
+
+
+
+}
+
+
+
+.form-row label {
+
+
+
+  font-size: 14px;
+
+
+
+  margin-bottom: 5px;
+
+
+
+}
+
+
+
+.form-row input {
+
+
+
+  padding: 10px;
+
+
+
+  border-radius: 8px;
+
+
+
+  border: 1px solid #ddd;
+
+
+
+}
+.profile-more-wrap {
+
+
+
+  position: relative;
+
+
+
+}
+
+
+
+.profile-more-menu {
+
+
+
+  position: absolute;
+
+
+
+  top: 48px;
+
+
+
+  left: 0;
+
+
+
+  min-width: 180px;
+
+
+
+  background: #0b0b0b;
+
+
+
+  border: 1px solid rgba(212, 175, 55, 0.4);
+
+
+
+  border-radius: 8px;
+
+
+
+  box-shadow: 0 10px 25px rgba(0,0,0,0.3);
+
+
+
+  padding: 6px 0;
+
+
+
+  display: flex;
+
+
+
+  flex-direction: column;
+
+
+
+  z-index: 1000;
+
+
+
+}
+
+
+
+.profile-more-menu button {
+
+
+
+  background: transparent;
+
+
+
+  border: none;
+
+
+
+  color: #d4af37;
+
+
+
+  padding: 10px 14px;
+
+
+
+  text-align: left;
+
+
+
+  cursor: pointer;
+
+
+
+  font-weight: 600;
+
+
+
+}
+
+
+
+.profile-more-menu button:hover {
+
+
+
+  background: rgba(212, 175, 55, 0.15);
+
+
+
+}
+
+
+
+.profile-more-menu .danger {
+
+
+
+  color: #ff4d4f;
 
 
 
