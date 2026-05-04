@@ -95,6 +95,7 @@ export default function SchoolDashboard() {
   const schoolId = useSchoolId();
 
   const [activePage, setActivePage] = useState<PageKey>("dashboard");
+  const [selectedPackage, setSelectedPackage] = useState("starter");
   const [profileTab, setProfileTab] = useState<"general" | "contact" | "address" | "billing" | "password">("general");
   const [profileMoreOpen, setProfileMoreOpen] = useState(false);
   const [manageFeeId, setManageFeeId] = useState<string | null>(null);
@@ -1845,6 +1846,444 @@ Manage
 
 
   return <SchoolProfilePage go={go} />;
+
+  case "package":
+
+
+
+  case "schoolPackage":
+  
+  
+  
+    return (
+  
+  
+  
+      <div style={{ padding: "32px" }}>
+  
+  
+  
+        <h1 className="page-title">Package</h1>
+  
+  
+  
+        <p style={{ color: "#475569", marginTop: "-8px" }}>
+  
+  
+  
+          Choose the EduClear package that matches your school size.
+  
+  
+  
+        </p>
+  
+  
+  
+        <div
+  
+  
+  
+          style={{
+  
+  
+  
+            background: "linear-gradient(135deg, #050505, #111827)",
+  
+  
+  
+            color: "#fff",
+  
+  
+  
+            borderRadius: "18px",
+  
+  
+  
+            padding: "28px",
+  
+  
+  
+            marginTop: "24px",
+  
+  
+  
+            border: "1px solid rgba(212,175,55,0.25)",
+  
+  
+  
+          }}
+  
+  
+  
+        >
+  
+  
+  
+          <div style={{ color: "#d4af37", fontWeight: 800, letterSpacing: "1px" }}>
+  
+  
+  
+            CURRENT PACKAGE
+  
+  
+  
+          </div>
+  
+  
+  
+          <h2>{selectedPackage === "unlimited" ? "Unlimited" : "Starter"}</h2>
+
+
+
+<p>
+
+
+
+  {selectedPackage === "unlimited"
+
+
+
+    ? "Unlimited learners • Unlimited payroll staff"
+
+
+
+    : "Up to 100 learners • Up to 15 payroll staff"}
+
+
+
+</p>
+  
+  
+  
+        </div>
+  
+  
+  
+        <div
+  
+  
+  
+          style={{
+  
+  
+  
+            display: "grid",
+  
+  
+  
+            gridTemplateColumns: "1fr 1fr",
+  
+  
+  
+            gap: "28px",
+  
+  
+  
+            marginTop: "28px",
+  
+  
+  
+          }}
+  
+  
+  
+        >
+  
+  
+  
+          <div
+  
+  
+  
+            style={{
+  
+  
+  
+              background: "#fff",
+  
+  
+  
+              borderRadius: "18px",
+  
+  
+  
+              padding: "28px",
+  
+  
+  
+              border: "1px solid rgba(15,23,42,0.08)",
+  
+  
+  
+              boxShadow: "0 12px 30px rgba(15,23,42,0.08)",
+  
+  
+  
+            }}
+  
+  
+  
+          >
+  
+  
+  
+            <h2>Starter</h2>
+  
+  
+  
+            <p style={{ color: "#6b7280" }}>For smaller schools getting started.</p>
+  
+  
+  
+            <div style={{ marginTop: "20px", lineHeight: 2 }}>
+  
+  
+  
+              ✅ Up to 100 learners<br />
+  
+  
+  
+              ✅ Up to 15 payroll staff<br />
+  
+  
+  
+              ✅ Billing, statements and payments<br />
+  
+  
+  
+              ✅ Registrations and learner records
+  
+  
+  
+            </div>
+  
+  
+  
+            <button
+  
+  
+  
+              onClick={() => setSelectedPackage("starter")}
+  
+  
+  
+              style={{
+  
+  
+  
+                marginTop: "24px",
+  
+  
+  
+                padding: "12px 20px",
+  
+  
+  
+                borderRadius: "10px",
+  
+  
+  
+                border: "1px solid #d4af37",
+  
+  
+  
+                background: selectedPackage === "starter" ? "#d4af37" : "#fff",
+  
+  
+  
+                color: "#000",
+  
+  
+  
+                fontWeight: 700,
+  
+  
+  
+                cursor: "pointer",
+  
+  
+  
+              }}
+  
+  
+  
+            >
+  
+  
+  
+              {selectedPackage === "starter" ? "Current Package" : "Apply Starter Package"}
+  
+  
+  
+            </button>
+  
+  
+  
+          </div>
+  
+  
+  
+          <div
+  
+  
+  
+            style={{
+  
+  
+  
+              background: "linear-gradient(135deg, #050505, #111827)",
+  
+  
+  
+              color: "#fff",
+  
+  
+  
+              borderRadius: "18px",
+  
+  
+  
+              padding: "28px",
+  
+  
+  
+              border: "2px solid #d4af37",
+  
+  
+  
+              boxShadow: "0 18px 40px rgba(212,175,55,0.18)",
+  
+  
+  
+            }}
+  
+  
+  
+          >
+  
+  
+  
+            <div style={{ color: "#d4af37", fontWeight: 800, letterSpacing: "1px" }}>
+  
+  
+  
+              MOST POPULAR
+  
+  
+  
+            </div>
+  
+  
+  
+            <h2>Unlimited</h2>
+  
+  
+  
+            <p style={{ color: "#d1d5db" }}>For growing and larger schools.</p>
+  
+  
+  
+            <div style={{ marginTop: "20px", lineHeight: 2 }}>
+  
+  
+  
+              ✅ Unlimited learners<br />
+  
+  
+  
+              ✅ Unlimited payroll staff<br />
+  
+  
+  
+              ✅ All EduClear features<br />
+  
+  
+  
+              ✅ Priority support
+  
+  
+  
+            </div>
+  
+  
+  
+            <button
+  
+  
+  
+              onClick={() => setSelectedPackage("unlimited")}
+  
+  
+  
+              style={{
+  
+  
+  
+                marginTop: "24px",
+  
+  
+  
+                padding: "12px 20px",
+  
+  
+  
+                borderRadius: "10px",
+  
+  
+  
+                border: "none",
+  
+  
+  
+                background: "#d4af37",
+  
+  
+  
+                color: "#000",
+  
+  
+  
+                fontWeight: 700,
+  
+  
+  
+                cursor: "pointer",
+  
+  
+  
+                boxShadow: "0 6px 18px rgba(212,175,55,0.35)",
+  
+  
+  
+              }}
+  
+  
+  
+            >
+  
+  
+  
+              {selectedPackage === "unlimited" ? "Current Package" : "Apply Unlimited Package"}
+  
+  
+  
+            </button>
+  
+  
+  
+          </div>
+  
+  
+  
+        </div>
+  
+  
+  
+      </div>
+  
+  
+  
+    );
        
         case "invoiceCreate":
 
