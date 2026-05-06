@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import React, { Fragment, useEffect, useMemo, useState } from "react";
 
 
 
@@ -14026,6 +14026,115 @@ const [formsTemplateText, setFormsTemplateText] = useState("");
 
 const [formsTemplateText2, setFormsTemplateText2] = useState("");
 
+const [moreSettingsTab, setMoreSettingsTab] = useState<"general" | "attendance">("general");
+
+
+
+const [adminChildSort, setAdminChildSort] = useState("Name");
+
+
+
+const [adminChildNumberShow, setAdminChildNumberShow] = useState(false);
+
+
+
+const [adminChildNumberRequired, setAdminChildNumberRequired] = useState(false);
+
+
+
+const [adminChildExtraFields, setAdminChildExtraFields] = useState([
+
+
+
+  "Extra Field 1",
+
+
+
+  "Extra Field 2",
+
+
+
+  "Extra Field 3",
+
+
+
+  "Extra Field 4",
+
+
+
+  "Extra Field 5",
+
+
+
+  "Extra Field 6",
+
+
+
+  "Extra Field 7",
+
+
+
+  "Extra Field 8",
+
+
+
+  "Extra Field 9",
+
+
+
+  "Extra Field 10",
+
+
+
+]);
+
+
+
+const [adminParentExtraFields, setAdminParentExtraFields] = useState([
+
+
+
+  "Extra Field 1",
+
+
+
+  "Extra Field 2",
+
+
+
+  "Extra Field 3",
+
+
+
+]);
+
+
+
+const [adminEmployeeExtraFields, setAdminEmployeeExtraFields] = useState([
+
+
+
+  "Extra Field 1",
+
+
+
+  "Extra Field 2",
+
+
+
+  "Extra Field 3",
+
+
+
+]);
+
+
+
+const [schoolOpeningTime, setSchoolOpeningTime] = useState("06:30");
+
+
+
+const [schoolClosingTime, setSchoolClosingTime] = useState("17:30");
 
 const filteredListRegisters = LIST_REGISTER_ITEMS.filter((item) =>
 
@@ -15681,6 +15790,696 @@ const renderFormsTemplates = () => {
 
 };
 
+const renderMoreSettings = () => {
+
+
+
+  const saveMoreSettings = () => {
+
+
+
+    localStorage.setItem(
+
+
+
+      "educlearMoreSettings",
+
+
+
+      JSON.stringify({
+
+
+
+        adminChildSort,
+
+
+
+        adminChildNumberShow,
+
+
+
+        adminChildNumberRequired,
+
+
+
+        adminChildExtraFields,
+
+
+
+        adminParentExtraFields,
+
+
+
+        adminEmployeeExtraFields,
+
+
+
+        schoolOpeningTime,
+
+
+
+        schoolClosingTime,
+
+
+
+      })
+
+
+
+    );
+
+
+
+    alert("Settings saved.");
+
+
+
+  };
+
+
+
+  const updateChildExtraField = (index: number, value: string) => {
+
+
+
+    setAdminChildExtraFields((prev) =>
+
+
+
+      prev.map((item, i) => (i === index ? value : item))
+
+
+
+    );
+
+
+
+  };
+
+
+
+  const updateParentExtraField = (index: number, value: string) => {
+
+
+
+    setAdminParentExtraFields((prev) =>
+
+
+
+      prev.map((item, i) => (i === index ? value : item))
+
+
+
+    );
+
+
+
+  };
+
+
+
+  const updateEmployeeExtraField = (index: number, value: string) => {
+
+
+
+    setAdminEmployeeExtraFields((prev) =>
+
+
+
+      prev.map((item, i) => (i === index ? value : item))
+
+
+
+    );
+
+
+
+  };
+
+
+
+  return (
+
+
+
+    <div style={{ padding: "26px", background: "#f8fafc", minHeight: "100%", borderRadius: "20px" }}>
+
+
+
+      <div style={{ marginBottom: 18 }}>
+
+
+
+        <h1 style={{ margin: 0, fontSize: 34, fontWeight: 900, color: "#0f172a" }}>
+
+
+
+          Administration Settings
+
+
+
+        </h1>
+
+
+
+        <p style={{ margin: "6px 0 0", color: "#64748b", fontWeight: 700 }}>
+
+
+
+          Change administration related settings and details
+
+
+
+        </p>
+
+
+
+      </div>
+
+
+
+      <div style={{ display: "flex", gap: 10, marginBottom: 18 }}>
+
+
+
+        <button style={actionBtn} onClick={() => setActivePage("dashboard")}>
+
+
+
+          ← Back
+
+
+
+        </button>
+
+
+
+        <button style={goldBtn} onClick={saveMoreSettings}>
+
+
+
+          💾 Save
+
+
+
+        </button>
+
+
+
+      </div>
+
+
+
+      <div
+
+
+
+        style={{
+
+
+
+          background: "#fff",
+
+
+
+          border: "1px solid #e5e7eb",
+
+
+
+          borderTop: `4px solid ${GOLD}`,
+
+
+
+          borderRadius: 16,
+
+
+
+          overflow: "hidden",
+
+
+
+          boxShadow: "0 18px 40px rgba(15,23,42,0.08)",
+
+
+
+        }}
+
+
+
+      >
+
+
+
+        <div
+
+
+
+          style={{
+
+
+
+            padding: "14px 16px",
+
+
+
+            borderBottom: "1px solid #e5e7eb",
+
+
+
+            display: "flex",
+
+
+
+            alignItems: "center",
+
+
+
+          }}
+
+
+
+        >
+
+
+
+          <div style={{ fontWeight: 900, color: "#0f172a" }}>Settings</div>
+
+
+
+          <div style={{ flex: 1 }} />
+
+
+
+          <button
+
+
+
+            style={{
+
+
+
+              ...(moreSettingsTab === "general" ? goldBtn : actionBtn),
+
+
+
+              borderRadius: "12px 12px 0 0",
+
+
+
+            }}
+
+
+
+            onClick={() => setMoreSettingsTab("general")}
+
+
+
+          >
+
+
+
+            General
+
+
+
+          </button>
+
+
+
+          <button
+
+
+
+            style={{
+
+
+
+              ...(moreSettingsTab === "attendance" ? goldBtn : actionBtn),
+
+
+
+              borderRadius: "12px 12px 0 0",
+
+
+
+            }}
+
+
+
+            onClick={() => setMoreSettingsTab("attendance")}
+
+
+
+          >
+
+
+
+            Attendance
+
+
+
+          </button>
+
+
+
+        </div>
+
+
+
+        {moreSettingsTab === "general" && (
+
+
+
+          <div style={{ padding: 24, maxWidth: 760 }}>
+
+
+
+            <div style={{ display: "grid", gridTemplateColumns: "190px 1fr", gap: 14, alignItems: "center" }}>
+
+
+
+              <label style={labelStyle}>Child Sort</label>
+
+
+
+              <select style={inputStyle} value={adminChildSort} onChange={(e) => setAdminChildSort(e.target.value)}>
+
+
+
+                <option>Name</option>
+
+
+
+                <option>Surname</option>
+
+
+
+                <option>Classroom</option>
+
+
+
+              </select>
+
+
+
+              <label style={labelStyle}>Child Number</label>
+
+
+
+              <label style={{ display: "flex", gap: 10, alignItems: "center", fontWeight: 800 }}>
+
+
+
+                <input
+
+
+
+                  type="checkbox"
+
+
+
+                  checked={adminChildNumberShow}
+
+
+
+                  onChange={(e) => setAdminChildNumberShow(e.target.checked)}
+
+
+
+                />
+
+
+
+                Show
+
+
+
+              </label>
+
+
+
+              <span />
+
+
+
+              <label style={{ display: "flex", gap: 10, alignItems: "center", fontWeight: 800 }}>
+
+
+
+                <input
+
+
+
+                  type="checkbox"
+
+
+
+                  checked={adminChildNumberRequired}
+
+
+
+                  onChange={(e) => setAdminChildNumberRequired(e.target.checked)}
+
+
+
+                />
+
+
+
+                Required
+
+
+
+              </label>
+
+
+
+              {adminChildExtraFields.map((field, index) => (
+
+
+
+                <React.Fragment key={`child-extra-${index}`}>
+
+
+
+                  <label style={labelStyle}>Child Extra Field {index + 1}</label>
+
+
+
+                  <input
+
+
+
+                    style={inputStyle}
+
+
+
+                    value={field}
+
+
+
+                    onChange={(e) => updateChildExtraField(index, e.target.value)}
+
+
+
+                  />
+
+
+
+                </React.Fragment>
+
+
+
+              ))}
+
+
+
+              {adminParentExtraFields.map((field, index) => (
+
+
+
+                <React.Fragment key={`parent-extra-${index}`}>
+
+
+
+                  <label style={labelStyle}>Parent Extra Field {index + 1}</label>
+
+
+
+                  <input
+
+
+
+                    style={inputStyle}
+
+
+
+                    value={field}
+
+
+
+                    onChange={(e) => updateParentExtraField(index, e.target.value)}
+
+
+
+                  />
+
+
+
+                </React.Fragment>
+
+
+
+              ))}
+
+
+
+              {adminEmployeeExtraFields.map((field, index) => (
+
+
+
+                <React.Fragment key={`employee-extra-${index}`}>
+
+
+
+                  <label style={labelStyle}>Employee Extra Field {index + 1}</label>
+
+
+
+                  <input
+
+
+
+                    style={inputStyle}
+
+
+
+                    value={field}
+
+
+
+                    onChange={(e) => updateEmployeeExtraField(index, e.target.value)}
+
+
+
+                  />
+
+
+
+                </React.Fragment>
+
+
+
+              ))}
+
+
+
+            </div>
+
+
+
+          </div>
+
+
+
+        )}
+
+
+
+        {moreSettingsTab === "attendance" && (
+
+
+
+          <div style={{ padding: 24, maxWidth: 560 }}>
+
+
+
+            <div style={{ display: "grid", gridTemplateColumns: "190px 1fr", gap: 14, alignItems: "center" }}>
+
+
+
+              <label style={labelStyle}>School Opening Time</label>
+
+
+
+              <input
+
+
+
+                type="time"
+
+
+
+                style={inputStyle}
+
+
+
+                value={schoolOpeningTime}
+
+
+
+                onChange={(e) => setSchoolOpeningTime(e.target.value)}
+
+
+
+              />
+
+
+
+              <label style={labelStyle}>School Closing Time</label>
+
+
+
+              <input
+
+
+
+                type="time"
+
+
+
+                style={inputStyle}
+
+
+
+                value={schoolClosingTime}
+
+
+
+                onChange={(e) => setSchoolClosingTime(e.target.value)}
+
+
+
+              />
+
+
+
+            </div>
+
+
+
+          </div>
+
+
+
+        )}
+
+
+
+      </div>
+
+
+
+    </div>
+
+
+
+  );
+
+
+
+};
+
   const renderDashboard = () => (
 
 
@@ -17247,7 +18046,7 @@ case "incidentManage":
   
   
   
-          return <h1 className="page-title">More</h1>;
+         return renderMoreSettings();
   
   
   
