@@ -13835,6 +13835,1778 @@ const renderIncidentManage = () => (
 
 );
 
+const LIST_REGISTER_ITEMS = [
+
+
+
+  "Address List",
+
+
+
+  "Age List",
+
+
+
+  "Allergies List",
+
+
+
+  "Attendance List",
+
+
+
+  "Attendance Register (Daily)",
+
+
+
+  "Attendance Register (Monthly)",
+
+
+
+  "Attendance Register (Monthly) (Weekends)",
+
+
+
+  "Attendance Register (Weekly)",
+
+
+
+  "Attendance Register (Weekly) (Weekends)",
+
+
+
+  "Birthday Child List",
+
+
+
+  "Birthday Employee List",
+
+
+
+  "Birthday Parent List",
+
+
+
+  "Block Sheet (5 Blocks)",
+
+
+
+  "Block Sheet (10 Blocks)",
+
+
+
+  "Block Sheet (20 Blocks)",
+
+
+
+  "Child List",
+
+
+
+  "Child List (3 Extra Fields)",
+
+
+
+  "Child List (6 Extra Fields)",
+
+
+
+  "Class List",
+
+
+
+  "Contact List",
+
+
+
+  "Employee Attendance Register (Monthly)",
+
+
+
+  "Employee Attendance Register (Monthly) (Weekends)",
+
+
+
+  "Employee Attendance Register (Weekly)",
+
+
+
+  "Employee Attendance Register (Weekly) (Weekends)",
+
+
+
+  "Employee Attendance Time Register (Weekly)",
+
+
+
+  "Employee Attendance Time Register (Weekly) (Weekends)",
+
+
+
+  "Employee Contact List",
+
+
+
+  "Future Enrolled List",
+
+
+
+  "Group List",
+
+
+
+  "Incident List",
+
+
+
+];
+
+
+
+const [listRegisterSearch, setListRegisterSearch] = useState("");
+
+
+
+const [selectedListRegister, setSelectedListRegister] = useState("");
+
+
+
+const [listRegisterSetupOpen, setListRegisterSetupOpen] = useState(false);
+
+
+
+const [listRegisterActionsOpen, setListRegisterActionsOpen] = useState(false);
+
+
+
+const [listRegisterViewOpen, setListRegisterViewOpen] = useState(false);
+
+
+
+const [listRegisterGroupBy, setListRegisterGroupBy] =
+
+
+
+  useState("Classrooms");
+
+
+
+const [listRegisterSortBy, setListRegisterSortBy] =
+
+
+
+  useState("Name");
+
+
+
+const filteredListRegisters = LIST_REGISTER_ITEMS.filter((item) =>
+
+
+
+  item.toLowerCase().includes(listRegisterSearch.toLowerCase())
+
+
+
+);
+
+
+
+const openListRegister = (name: string) => {
+
+
+
+  setSelectedListRegister(name);
+
+
+
+  setListRegisterSetupOpen(true);
+
+
+
+};
+
+
+
+const continueListRegister = () => {
+
+
+
+  setListRegisterSetupOpen(false);
+
+
+
+  setListRegisterActionsOpen(true);
+
+
+
+};
+
+
+
+const openListRegisterView = () => {
+
+
+
+  setListRegisterActionsOpen(false);
+
+
+
+  setListRegisterViewOpen(true);
+
+
+
+};
+
+const renderListsRegisters = () => (
+
+
+
+  <div
+
+
+
+    style={{
+
+
+
+      padding: "26px",
+
+
+
+      background: "#f8fafc",
+
+
+
+      minHeight: "100%",
+
+
+
+      borderRadius: "20px",
+
+
+
+    }}
+
+
+
+  >
+
+
+
+    <div style={{ marginBottom: 18 }}>
+
+
+
+      <h1
+
+
+
+        style={{
+
+
+
+          margin: 0,
+
+
+
+          fontSize: 34,
+
+
+
+          fontWeight: 900,
+
+
+
+          color: "#0f172a",
+
+
+
+        }}
+
+
+
+      >
+
+
+
+        Lists & Registers
+
+
+
+      </h1>
+
+
+
+      <p
+
+
+
+        style={{
+
+
+
+          margin: "6px 0 0",
+
+
+
+          color: "#64748b",
+
+
+
+          fontWeight: 700,
+
+
+
+        }}
+
+
+
+      >
+
+
+
+        View, print or export lists and registers
+
+
+
+      </p>
+
+
+
+    </div>
+
+
+
+    <div
+
+
+
+      style={{
+
+
+
+        background: "#fff",
+
+
+
+        border: "1px solid #e5e7eb",
+
+
+
+        borderTop: `4px solid ${GOLD}`,
+
+
+
+        borderRadius: 16,
+
+
+
+        overflow: "hidden",
+
+
+
+        boxShadow: "0 18px 40px rgba(15,23,42,0.08)",
+
+
+
+      }}
+
+
+
+    >
+
+
+
+      <div
+
+
+
+        style={{
+
+
+
+          padding: "14px 16px",
+
+
+
+          borderBottom: "1px solid #e5e7eb",
+
+
+
+          display: "flex",
+
+
+
+          alignItems: "center",
+
+
+
+          gap: 10,
+
+
+
+        }}
+
+
+
+      >
+
+
+<button
+
+
+
+style={goldBtn}
+
+
+
+onClick={() => {
+
+
+
+  if (!selectedListRegister) {
+
+
+
+    alert("Please select a report first.");
+
+
+
+    return;
+
+
+
+  }
+
+
+
+  setListRegisterSetupOpen(true);
+
+
+
+}}
+
+
+
+>
+
+
+
+🖨 Print
+
+
+
+</button>
+
+
+
+
+        <input
+
+
+
+          placeholder="Search"
+
+
+
+          value={listRegisterSearch}
+
+
+
+          onChange={(e) =>
+
+
+
+            setListRegisterSearch(e.target.value)
+
+
+
+          }
+
+
+
+          style={{ ...selectStyle, width: 260 }}
+
+
+
+        />
+
+
+
+      </div>
+
+
+
+      <table
+
+
+
+        style={{
+
+
+
+          width: "100%",
+
+
+
+          borderCollapse: "collapse",
+
+
+
+          fontSize: 14,
+
+
+
+        }}
+
+
+
+      >
+
+
+
+        <thead>
+
+
+
+          <tr>
+
+
+
+            <th style={th}>Report Name</th>
+
+
+
+          </tr>
+
+
+
+        </thead>
+
+
+
+        <tbody>
+
+
+
+          {filteredListRegisters.map(
+
+
+
+            (item: string, index: number) => (
+
+
+
+              <tr
+
+
+
+                key={item}
+
+
+
+                onDoubleClick={() =>
+
+
+
+                  openListRegister(item)
+
+
+
+                }
+
+
+
+                onClick={() =>
+
+
+
+                  setSelectedListRegister(item)
+
+
+
+                }
+
+
+
+                style={{
+
+
+
+                  cursor: "pointer",
+
+
+
+                  background:
+
+
+
+                    selectedListRegister === item
+
+
+
+                      ? "rgba(212,175,55,0.22)"
+
+
+
+                      : index % 2
+
+
+
+                      ? "rgba(212,175,55,0.06)"
+
+
+
+                      : "#fff",
+
+
+
+                }}
+
+
+
+              >
+
+
+
+                <td style={td}>{item}</td>
+
+
+
+              </tr>
+
+
+
+            )
+
+
+
+          )}
+
+
+
+        </tbody>
+
+
+
+      </table>
+
+
+
+    </div>
+
+
+
+    {listRegisterSetupOpen && (
+
+
+
+      <div
+
+
+
+        style={{
+
+
+
+          position: "fixed",
+
+
+
+          inset: 0,
+
+
+
+          background: "rgba(15,23,42,0.45)",
+
+
+
+          display: "grid",
+
+
+
+          placeItems: "center",
+
+
+
+          zIndex: 90,
+
+
+
+        }}
+
+
+
+      >
+
+
+
+        <div
+
+
+
+          style={{
+
+
+
+            width: 500,
+
+
+
+            background: "#fff",
+
+
+
+            borderRadius: 16,
+
+
+
+            border: `2px solid ${GOLD}`,
+
+
+
+            overflow: "hidden",
+
+
+
+            boxShadow:
+
+
+
+              "0 30px 80px rgba(0,0,0,0.25)",
+
+
+
+          }}
+
+
+
+        >
+
+
+
+          <div
+
+
+
+            style={{
+
+
+
+              padding: "16px 20px",
+
+
+
+              borderBottom: "1px solid #e5e7eb",
+
+
+
+              fontWeight: 900,
+
+
+
+              fontSize: 22,
+
+
+
+            }}
+
+
+
+          >
+
+
+
+            {selectedListRegister}
+
+
+
+          </div>
+
+
+
+          <div
+
+
+
+            style={{
+
+
+
+              padding: 20,
+
+
+
+              display: "grid",
+
+
+
+              gridTemplateColumns: "120px 1fr",
+
+
+
+              gap: 14,
+
+
+
+              alignItems: "center",
+
+
+
+            }}
+
+
+
+          >
+
+
+
+            <label style={labelStyle}>
+
+
+
+              Group By
+
+
+
+            </label>
+
+
+
+            <select
+
+
+
+              style={inputStyle}
+
+
+
+              value={listRegisterGroupBy}
+
+
+
+              onChange={(e) =>
+
+
+
+                setListRegisterGroupBy(
+
+
+
+                  e.target.value
+
+
+
+                )
+
+
+
+              }
+
+
+
+            >
+
+
+
+              <option>Classrooms</option>
+
+
+
+              <option>Groups</option>
+
+
+
+            </select>
+
+
+
+            <label style={labelStyle}>
+
+
+
+              Sort By
+
+
+
+            </label>
+
+
+
+            <select
+
+
+
+              style={inputStyle}
+
+
+
+              value={listRegisterSortBy}
+
+
+
+              onChange={(e) =>
+
+
+
+                setListRegisterSortBy(
+
+
+
+                  e.target.value
+
+
+
+                )
+
+
+
+              }
+
+
+
+            >
+
+
+
+              <option>Name</option>
+
+
+
+              <option>Surname</option>
+
+
+
+            </select>
+
+
+
+          </div>
+
+
+
+          <div
+
+
+
+            style={{
+
+
+
+              padding: 16,
+
+
+
+              display: "flex",
+
+
+
+              justifyContent: "space-between",
+
+
+
+              borderTop: "1px solid #e5e7eb",
+
+
+
+            }}
+
+
+
+          >
+
+
+
+            <button
+
+
+
+              style={goldBtn}
+
+
+
+              onClick={continueListRegister}
+
+
+
+            >
+
+
+
+              ✓ Continue
+
+
+
+            </button>
+
+
+
+            <button
+
+
+
+              style={dangerBtn}
+
+
+
+              onClick={() =>
+
+
+
+                setListRegisterSetupOpen(false)
+
+
+
+              }
+
+
+
+            >
+
+
+
+              ✕ Cancel
+
+
+
+            </button>
+
+
+
+          </div>
+
+
+
+        </div>
+
+
+
+      </div>
+
+
+
+    )}
+
+
+
+    {listRegisterActionsOpen && (
+
+
+
+      <div
+
+
+
+        style={{
+
+
+
+          position: "fixed",
+
+
+
+          inset: 0,
+
+
+
+          background: "rgba(15,23,42,0.45)",
+
+
+
+          display: "grid",
+
+
+
+          placeItems: "center",
+
+
+
+          zIndex: 90,
+
+
+
+        }}
+
+
+
+      >
+
+
+
+        <div
+
+
+
+          style={{
+
+
+
+            width: 620,
+
+
+
+            background: "#fff",
+
+
+
+            borderRadius: 16,
+
+
+
+            border: `2px solid ${GOLD}`,
+
+
+
+            overflow: "hidden",
+
+
+
+            boxShadow:
+
+
+
+              "0 30px 80px rgba(0,0,0,0.25)",
+
+
+
+          }}
+
+
+
+        >
+
+
+
+          <div
+
+
+
+            style={{
+
+
+
+              padding: "16px 20px",
+
+
+
+              borderBottom: "1px solid #e5e7eb",
+
+
+
+              fontWeight: 900,
+
+
+
+              fontSize: 22,
+
+
+
+            }}
+
+
+
+          >
+
+
+
+            {selectedListRegister}
+
+
+
+          </div>
+
+
+
+          <div
+
+
+
+            style={{
+
+
+
+              display: "grid",
+
+
+
+              gridTemplateColumns:
+
+
+
+                "1fr 1fr 1fr",
+
+
+
+              gap: 20,
+
+
+
+              padding: 24,
+
+
+
+            }}
+
+
+
+          >
+
+
+
+            <button
+
+
+
+              style={goldBtn}
+
+
+
+              onClick={openListRegisterView}
+
+
+
+            >
+
+
+
+              🔍 View
+
+
+
+            </button>
+
+
+
+            <button
+
+
+
+              style={actionBtn}
+
+
+
+              onClick={() =>
+
+
+
+                alert(
+
+
+
+                  "Download connected later"
+
+
+
+                )
+
+
+
+              }
+
+
+
+            >
+
+
+
+              ⬇ Download
+
+
+
+            </button>
+
+
+
+            <button
+
+
+
+              style={actionBtn}
+
+
+
+              onClick={() =>
+
+
+
+                alert("Export connected later")
+
+
+
+              }
+
+
+
+            >
+
+
+
+              📄 Export
+
+
+
+            </button>
+
+
+
+          </div>
+
+
+
+          <div
+
+
+
+            style={{
+
+
+
+              padding: 16,
+
+
+
+              borderTop: "1px solid #e5e7eb",
+
+
+
+              display: "flex",
+
+
+
+              justifyContent: "flex-end",
+
+
+
+            }}
+
+
+
+          >
+
+
+
+            <button
+
+
+
+              style={dangerBtn}
+
+
+
+              onClick={() =>
+
+
+
+                setListRegisterActionsOpen(false)
+
+
+
+              }
+
+
+
+            >
+
+
+
+              ✕ Close
+
+
+
+            </button>
+
+
+
+          </div>
+
+
+
+        </div>
+
+
+
+      </div>
+
+
+
+    )}
+
+
+
+    {listRegisterViewOpen && (
+
+
+
+      <div
+
+
+
+        style={{
+
+
+
+          position: "fixed",
+
+
+
+          inset: 0,
+
+
+
+          background: "#fff",
+
+
+
+          zIndex: 120,
+
+
+
+          overflow: "auto",
+
+
+
+          padding: 40,
+
+
+
+        }}
+
+
+
+      >
+
+
+
+        <div
+
+
+
+          style={{
+
+
+
+            display: "flex",
+
+
+
+            justifyContent: "space-between",
+
+
+
+            marginBottom: 40,
+
+
+
+          }}
+
+
+
+        >
+
+
+
+          <h1 style={{ fontSize: 32, margin: 0 }}>
+
+
+
+            {selectedListRegister}
+
+
+
+          </h1>
+
+
+
+          <h1 style={{ fontSize: 32, margin: 0 }}>
+
+
+
+            Da Silva Academy
+
+
+
+          </h1>
+
+
+
+        </div>
+
+
+
+        <table
+
+
+
+          style={{
+
+
+
+            width: "100%",
+
+
+
+            borderCollapse: "collapse",
+
+
+
+            fontSize: 14,
+
+
+
+          }}
+
+
+
+        >
+
+
+
+          <thead>
+
+
+
+            <tr>
+
+
+
+              <th style={th}>Name</th>
+
+
+
+              <th style={th}>Surname</th>
+
+
+
+              <th style={th}>Classroom</th>
+
+
+
+            </tr>
+
+
+
+          </thead>
+
+
+
+          <tbody>
+
+
+
+            {learners.map(
+
+
+
+              (learner: any, index: number) => (
+
+
+
+                <tr
+
+
+
+                  key={learner.id}
+
+
+
+                  style={{
+
+
+
+                    background:
+
+
+
+                      index % 2
+
+
+
+                        ? "rgba(212,175,55,0.05)"
+
+
+
+                        : "#fff",
+
+
+
+                  }}
+
+
+
+                >
+
+
+
+                  <td style={td}>
+
+
+
+                    {learner.firstName || "-"}
+
+
+
+                  </td>
+
+
+
+                  <td style={td}>
+
+
+
+                    {learner.lastName ||
+
+
+
+                      learner.surname ||
+
+
+
+                      "-"}
+
+
+
+                  </td>
+
+
+
+                  <td style={td}>
+
+
+
+                    {getLearnerGrade(
+
+
+
+                      learner
+
+
+
+                    ) ||
+
+
+
+                      learner.classroom ||
+
+
+
+                      "-"}
+
+
+
+                  </td>
+
+
+
+                </tr>
+
+
+
+              )
+
+
+
+            )}
+
+
+
+          </tbody>
+
+
+
+        </table>
+
+
+
+        <div style={{ marginTop: 30 }}>
+
+
+
+          <button
+
+
+
+            style={goldBtn}
+
+
+
+            onClick={() => window.print()}
+
+
+
+          >
+
+
+
+            🖨 Print
+
+
+
+          </button>
+
+
+
+          <button
+
+
+
+            style={{
+
+
+
+              ...dangerBtn,
+
+
+
+              marginLeft: 12,
+
+
+
+            }}
+
+
+
+            onClick={() =>
+
+
+
+              setListRegisterViewOpen(false)
+
+
+
+            }
+
+
+
+          >
+
+
+
+            ✕ Close
+
+
+
+          </button>
+
+
+
+        </div>
+
+
+
+      </div>
+
+
+
+    )}
+
+
+
+  </div>
+
+
+
+);
+
   const renderDashboard = () => (
 
 
@@ -15377,7 +17149,7 @@ case "incidentManage":
   
   
   
-          return <h1 className="page-title">Lists & Registers</h1>;
+          return renderListsRegisters();
   
   
   
