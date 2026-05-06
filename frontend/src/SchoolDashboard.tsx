@@ -13996,7 +13996,35 @@ const [listRegisterSortBy, setListRegisterSortBy] =
 
 
   useState("Name");
+  const [formsTemplateSearch, setFormsTemplateSearch] = useState("");
 
+
+
+const [selectedFormsTemplate, setSelectedFormsTemplate] = useState<string | null>(null);
+
+
+
+const [formsTemplateSetupOpen, setFormsTemplateSetupOpen] = useState(false);
+
+
+
+const [formsTemplateActionsOpen, setFormsTemplateActionsOpen] = useState(false);
+
+
+
+const [formsTemplateViewOpen, setFormsTemplateViewOpen] = useState(false);
+
+
+
+const [formsTemplateGroupBy, setFormsTemplateGroupBy] = useState("Classroom");
+
+
+
+const [formsTemplateText, setFormsTemplateText] = useState("");
+
+
+
+const [formsTemplateText2, setFormsTemplateText2] = useState("");
 
 
 const filteredListRegisters = LIST_REGISTER_ITEMS.filter((item) =>
@@ -14778,6 +14806,848 @@ const renderListsRegisters = () => {
 
 
             <button style={{ ...dangerBtn, marginLeft: 12 }} onClick={() => setListRegisterViewOpen(false)}>
+
+
+
+              ✕ Close
+
+
+
+            </button>
+
+
+
+          </div>
+
+
+
+        </div>
+
+
+
+      )}
+
+
+
+    </div>
+
+
+
+  );
+
+
+
+};
+
+const renderFormsTemplates = () => {
+
+
+
+  const formsTemplates = [
+
+
+
+    "Cover Pages - Child",
+
+
+
+    "Cover Pages - Classroom / Group",
+
+
+
+    "Labels - Name (Grade 0 Font)",
+
+
+
+    "Labels - Object (Grade 0 Font)",
+
+
+
+    "Month Calendar",
+
+
+
+    "Registration Form - Child Details",
+
+
+
+    "Registration Form - Child Development Overview",
+
+
+
+    "Registration Form - Medical Permissions",
+
+
+
+    "Registration Form - Other Contacts",
+
+
+
+    "Registration Form - Parent Details",
+
+
+
+    "Registration Form - Photograph Permissions",
+
+
+
+    "Trace Sheet (1 Trace)",
+
+
+
+    "Trace Sheet (3 Traces)",
+
+
+
+    "Trace Sheet (5 Traces)",
+
+
+
+    "Update Details Forms",
+
+
+
+    "Update Details Forms (Next of Kin)",
+
+
+
+    "Update Details Forms (Next of Kin) (One Classroom)",
+
+
+
+    "Update Details Forms (One Classroom)",
+
+
+
+  ];
+
+
+
+  const filteredFormsTemplates = formsTemplates.filter((item) =>
+
+
+
+    item.toLowerCase().includes(formsTemplateSearch.toLowerCase())
+
+
+
+  );
+
+
+
+  const safeSelectedForm = selectedFormsTemplate || "Forms & Templates";
+
+
+
+  const openFormsTemplateSetup = () => {
+
+
+
+    if (!selectedFormsTemplate) {
+
+
+
+      alert("Please select a form first.");
+
+
+
+      return;
+
+
+
+    }
+
+
+
+    setFormsTemplateSetupOpen(true);
+
+
+
+  };
+
+
+
+  const continueFormsTemplate = () => {
+
+
+
+    setFormsTemplateSetupOpen(false);
+
+
+
+    setFormsTemplateActionsOpen(true);
+
+
+
+  };
+
+
+
+  const openFormsTemplateView = () => {
+
+
+
+    setFormsTemplateActionsOpen(false);
+
+
+
+    setFormsTemplateViewOpen(true);
+
+
+
+  };
+
+
+
+  const exportFormsTemplateCsv = () => {
+
+
+
+    if (!selectedFormsTemplate) {
+
+
+
+      alert("Please select a form first.");
+
+
+
+      return;
+
+
+
+    }
+
+
+
+    const rows = [
+
+
+
+      ["Form", safeSelectedForm],
+
+
+
+      ["School", "Da Silva Academy"],
+
+
+
+      ["Group By", formsTemplateGroupBy],
+
+
+
+      ["Text", formsTemplateText],
+
+
+
+      ["Text 2", formsTemplateText2],
+
+
+
+    ];
+
+
+
+    const csv = rows
+
+
+
+      .map((row) =>
+
+
+
+        row.map((cell) => `"${String(cell ?? "").replace(/"/g, '""')}"`).join(",")
+
+
+
+      )
+
+
+
+      .join("\n");
+
+
+
+    const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
+
+
+
+    const url = URL.createObjectURL(blob);
+
+
+
+    const link = document.createElement("a");
+
+
+
+    link.href = url;
+
+
+
+    link.download = `${safeSelectedForm.replace(/\s+/g, "-").toLowerCase()}.csv`;
+
+
+
+    document.body.appendChild(link);
+
+
+
+    link.click();
+
+
+
+    document.body.removeChild(link);
+
+
+
+    URL.revokeObjectURL(url);
+
+
+
+  };
+
+
+
+  const downloadFormsTemplate = () => {
+
+
+
+    exportFormsTemplateCsv();
+
+
+
+  };
+
+
+
+  return (
+
+
+
+    <div style={{ padding: "26px", background: "#f8fafc", minHeight: "100%", borderRadius: "20px" }}>
+
+
+
+      <div style={{ marginBottom: 18 }}>
+
+
+
+        <h1 style={{ margin: 0, fontSize: 34, fontWeight: 900, color: "#0f172a" }}>
+
+
+
+          Forms & Templates
+
+
+
+        </h1>
+
+
+
+        <p style={{ margin: "6px 0 0", color: "#64748b", fontWeight: 700 }}>
+
+
+
+          View, print or export forms and templates
+
+
+
+        </p>
+
+
+
+      </div>
+
+
+
+      <div style={{ background: "#fff", border: "1px solid #e5e7eb", borderTop: `4px solid ${GOLD}`, borderRadius: 16, overflow: "hidden", boxShadow: "0 18px 40px rgba(15,23,42,0.08)" }}>
+
+
+
+        <div style={{ padding: "14px 16px", borderBottom: "1px solid #e5e7eb", display: "flex", alignItems: "center", gap: 10 }}>
+
+
+
+          <button style={goldBtn} onClick={openFormsTemplateSetup}>
+
+
+
+            🖨 Print
+
+
+
+          </button>
+
+
+
+          <div style={{ flex: 1 }} />
+
+
+
+          <input
+
+
+
+            placeholder="Search"
+
+
+
+            value={formsTemplateSearch}
+
+
+
+            onChange={(e) => setFormsTemplateSearch(e.target.value)}
+
+
+
+            style={{ ...selectStyle, width: 260 }}
+
+
+
+          />
+
+
+
+        </div>
+
+
+
+        <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 14 }}>
+
+
+
+          <thead>
+
+
+
+            <tr>
+
+
+
+              <th style={th}>Report Name</th>
+
+
+
+            </tr>
+
+
+
+          </thead>
+
+
+
+          <tbody>
+
+
+
+            {filteredFormsTemplates.map((item, index) => (
+
+
+
+              <tr
+
+
+
+                key={item}
+
+
+
+                onClick={() => setSelectedFormsTemplate(item)}
+
+
+
+                onDoubleClick={() => {
+
+
+
+                  setSelectedFormsTemplate(item);
+
+
+
+                  setFormsTemplateSetupOpen(true);
+
+
+
+                }}
+
+
+
+                style={{
+
+
+
+                  cursor: "pointer",
+
+
+
+                  background:
+
+
+
+                    selectedFormsTemplate === item
+
+
+
+                      ? "rgba(212,175,55,0.22)"
+
+
+
+                      : index % 2
+
+
+
+                      ? "rgba(212,175,55,0.06)"
+
+
+
+                      : "#fff",
+
+
+
+                }}
+
+
+
+              >
+
+
+
+                <td style={td}>{item}</td>
+
+
+
+              </tr>
+
+
+
+            ))}
+
+
+
+          </tbody>
+
+
+
+        </table>
+
+
+
+      </div>
+
+
+
+      {formsTemplateSetupOpen && (
+
+
+
+        <div style={{ position: "fixed", inset: 0, background: "rgba(15,23,42,0.45)", display: "grid", placeItems: "center", zIndex: 90 }}>
+
+
+
+          <div style={{ width: 560, background: "#fff", borderRadius: 16, border: `2px solid ${GOLD}`, overflow: "hidden", boxShadow: "0 30px 80px rgba(0,0,0,0.25)" }}>
+
+
+
+            <div style={{ padding: "16px 20px", borderBottom: "1px solid #e5e7eb", fontWeight: 900, fontSize: 22 }}>
+
+
+
+              {safeSelectedForm}
+
+
+
+            </div>
+
+
+
+            <div style={{ padding: 20, display: "grid", gridTemplateColumns: "120px 1fr", gap: 14, alignItems: "center" }}>
+
+
+
+              <label style={labelStyle}>Group By</label>
+
+
+
+              <select style={inputStyle} value={formsTemplateGroupBy} onChange={(e) => setFormsTemplateGroupBy(e.target.value)}>
+
+
+
+                <option>Classroom</option>
+
+
+
+                <option>Group</option>
+
+
+
+              </select>
+
+
+
+              <label style={labelStyle}>Text</label>
+
+
+
+              <input style={inputStyle} value={formsTemplateText} onChange={(e) => setFormsTemplateText(e.target.value)} placeholder="Text" />
+
+
+
+              <label style={labelStyle}>Text 2</label>
+
+
+
+              <input style={inputStyle} value={formsTemplateText2} onChange={(e) => setFormsTemplateText2(e.target.value)} placeholder="Text 2" />
+
+
+
+            </div>
+
+
+
+            <div style={{ padding: 16, display: "flex", justifyContent: "space-between", borderTop: "1px solid #e5e7eb" }}>
+
+
+
+              <button style={goldBtn} onClick={continueFormsTemplate}>
+
+
+
+                ✓ Continue
+
+
+
+              </button>
+
+
+
+              <button style={dangerBtn} onClick={() => setFormsTemplateSetupOpen(false)}>
+
+
+
+                ✕ Cancel
+
+
+
+              </button>
+
+
+
+            </div>
+
+
+
+          </div>
+
+
+
+        </div>
+
+
+
+      )}
+
+
+
+      {formsTemplateActionsOpen && (
+
+
+
+        <div style={{ position: "fixed", inset: 0, background: "rgba(15,23,42,0.45)", display: "grid", placeItems: "center", zIndex: 90 }}>
+
+
+
+          <div style={{ width: 620, background: "#fff", borderRadius: 16, border: `2px solid ${GOLD}`, overflow: "hidden", boxShadow: "0 30px 80px rgba(0,0,0,0.25)" }}>
+
+
+
+            <div style={{ padding: "16px 20px", borderBottom: "1px solid #e5e7eb", fontWeight: 900, fontSize: 22 }}>
+
+
+
+              {safeSelectedForm}
+
+
+
+            </div>
+
+
+
+            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 20, padding: 24 }}>
+
+
+
+              <button style={goldBtn} onClick={openFormsTemplateView}>
+
+
+
+                🔍 View
+
+
+
+              </button>
+
+
+
+              <button style={actionBtn} onClick={downloadFormsTemplate}>
+
+
+
+                ⬇ Download
+
+
+
+              </button>
+
+
+
+              <button style={actionBtn} onClick={exportFormsTemplateCsv}>
+
+
+
+                📄 Export
+
+
+
+              </button>
+
+
+
+            </div>
+
+
+
+            <div style={{ padding: 16, borderTop: "1px solid #e5e7eb", display: "flex", justifyContent: "flex-end" }}>
+
+
+
+              <button style={dangerBtn} onClick={() => setFormsTemplateActionsOpen(false)}>
+
+
+
+                ✕ Close
+
+
+
+              </button>
+
+
+
+            </div>
+
+
+
+          </div>
+
+
+
+        </div>
+
+
+
+      )}
+
+
+
+      {formsTemplateViewOpen && (
+
+
+
+        <div style={{ position: "fixed", inset: 0, background: "#fff", zIndex: 120, overflow: "auto", padding: 50 }}>
+
+
+
+          <div style={{ minHeight: "80vh", border: "1px solid #e5e7eb", padding: 50 }}>
+
+
+
+            <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 60 }}>
+
+
+
+              <h1 style={{ fontSize: 30, margin: 0 }}>{safeSelectedForm}</h1>
+
+
+
+              <h1 style={{ fontSize: 30, margin: 0 }}>Da Silva Academy</h1>
+
+
+
+            </div>
+
+
+
+            <div style={{ textAlign: "center", marginTop: 120 }}>
+
+
+
+              <h1 style={{ fontSize: 42, marginBottom: 20 }}>
+
+
+
+                {formsTemplateText || safeSelectedForm}
+
+
+
+              </h1>
+
+
+
+              {formsTemplateText2 && (
+
+
+
+                <h2 style={{ fontSize: 26, fontWeight: 700 }}>
+
+
+
+                  {formsTemplateText2}
+
+
+
+                </h2>
+
+
+
+              )}
+
+
+
+              <p style={{ marginTop: 40, fontSize: 18 }}>
+
+
+
+                {formsTemplateGroupBy}
+
+
+
+              </p>
+
+
+
+            </div>
+
+
+
+          </div>
+
+
+
+          <div style={{ marginTop: 30 }}>
+
+
+
+            <button style={goldBtn} onClick={() => window.print()}>
+
+
+
+              🖨 Print
+
+
+
+            </button>
+
+
+
+            <button style={{ ...dangerBtn, marginLeft: 12 }} onClick={() => setFormsTemplateViewOpen(false)}>
 
 
 
@@ -16361,7 +17231,7 @@ case "incidentManage":
   
   
   
-          return <h1 className="page-title">Forms & Templates</h1>;
+          return renderFormsTemplates();
   
   
   
