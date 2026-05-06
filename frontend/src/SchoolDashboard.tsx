@@ -14057,279 +14057,179 @@ const openListRegisterView = () => {
 
 };
 
-const renderListsRegisters = () => (
+const renderListsRegisters = () => {
 
 
 
-  <div
+  const escapeCsv = (value: any) => {
 
 
 
-    style={{
+    const text = String(value ?? "");
 
 
 
-      padding: "26px",
+    return `"${text.replace(/"/g, '""')}"`;
 
 
 
-      background: "#f8fafc",
+  };
 
 
 
-      minHeight: "100%",
+  const listRegisterRows = learners.map((learner: any) => ({
 
 
 
-      borderRadius: "20px",
+    name: learner.firstName || "-",
 
 
 
-    }}
+    surname: learner.lastName || learner.surname || "-",
 
 
 
-  >
+    classroom: getLearnerGrade(learner) || learner.classroom || "-",
 
 
 
-    <div style={{ marginBottom: 18 }}>
+  }));
 
 
 
-      <h1
+  const exportListRegisterCsv = () => {
 
 
 
-        style={{
+    if (!selectedListRegister) {
 
 
 
-          margin: 0,
+      alert("Please select a report first.");
 
 
 
-          fontSize: 34,
+      return;
 
 
 
-          fontWeight: 900,
+    }
 
 
 
-          color: "#0f172a",
+    const csv = [
 
 
 
-        }}
+      ["Report", selectedListRegister],
 
 
 
-      >
+      ["School", "Da Silva Academy"],
 
 
 
-        Lists & Registers
+      [],
 
 
 
-      </h1>
+      ["Name", "Surname", "Classroom"],
 
 
 
-      <p
+      ...listRegisterRows.map((row) => [row.name, row.surname, row.classroom]),
 
 
 
-        style={{
+    ]
 
 
 
-          margin: "6px 0 0",
+      .map((row) => row.map(escapeCsv).join(","))
 
 
 
-          color: "#64748b",
+      .join("\n");
 
 
 
-          fontWeight: 700,
+    const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
 
 
 
-        }}
+    const url = URL.createObjectURL(blob);
 
 
 
-      >
+    const link = document.createElement("a");
 
 
 
-        View, print or export lists and registers
+    link.href = url;
 
 
 
-      </p>
+    link.download = `${String(selectedListRegister).replace(/\s+/g, "-").toLowerCase()}.csv`;
 
 
 
-    </div>
+    link.click();
 
 
 
-    <div
+    URL.revokeObjectURL(url);
 
 
 
-      style={{
+  };
 
 
 
-        background: "#fff",
+  const downloadListRegister = () => {
 
 
 
-        border: "1px solid #e5e7eb",
+    exportListRegisterCsv();
 
 
 
-        borderTop: `4px solid ${GOLD}`,
+  };
 
 
 
-        borderRadius: 16,
+  return (
 
 
 
-        overflow: "hidden",
+    <div style={{ padding: "26px", background: "#f8fafc", minHeight: "100%", borderRadius: "20px" }}>
 
 
 
-        boxShadow: "0 18px 40px rgba(15,23,42,0.08)",
+      <div style={{ marginBottom: 18 }}>
 
 
 
-      }}
+        <h1 style={{ margin: 0, fontSize: 34, fontWeight: 900, color: "#0f172a" }}>
 
 
 
-    >
+          Lists & Registers
 
 
 
-      <div
+        </h1>
 
 
 
-        style={{
+        <p style={{ margin: "6px 0 0", color: "#64748b", fontWeight: 700 }}>
 
 
 
-          padding: "14px 16px",
+          View, print or export lists and registers
 
 
 
-          borderBottom: "1px solid #e5e7eb",
-
-
-
-          display: "flex",
-
-
-
-          alignItems: "center",
-
-
-
-          gap: 10,
-
-
-
-        }}
-
-
-
-      >
-
-
-<button
-
-
-
-style={goldBtn}
-
-
-
-onClick={() => {
-
-
-
-  if (!selectedListRegister) {
-
-
-
-    alert("Please select a report first.");
-
-
-
-    return;
-
-
-
-  }
-
-
-
-  setListRegisterSetupOpen(true);
-
-
-
-}}
-
-
-
->
-
-
-
-🖨 Print
-
-
-
-</button>
-
-
-
-
-        <input
-
-
-
-          placeholder="Search"
-
-
-
-          value={listRegisterSearch}
-
-
-
-          onChange={(e) =>
-
-
-
-            setListRegisterSearch(e.target.value)
-
-
-
-          }
-
-
-
-          style={{ ...selectStyle, width: 260 }}
-
-
-
-        />
+        </p>
 
 
 
@@ -14337,63 +14237,123 @@ onClick={() => {
 
 
 
-      <table
+      <div style={{ background: "#fff", border: "1px solid #e5e7eb", borderTop: `4px solid ${GOLD}`, borderRadius: 16, overflow: "hidden", boxShadow: "0 18px 40px rgba(15,23,42,0.08)" }}>
 
 
 
-        style={{
+        <div style={{ padding: "14px 16px", borderBottom: "1px solid #e5e7eb", display: "flex", alignItems: "center", gap: 10 }}>
 
 
 
-          width: "100%",
+          <button
 
 
 
-          borderCollapse: "collapse",
+            style={goldBtn}
 
 
 
-          fontSize: 14,
+            onClick={() => {
 
 
 
-        }}
+              if (!selectedListRegister) {
 
 
 
-      >
+                alert("Please select a report first.");
 
 
 
-        <thead>
+                return;
 
 
 
-          <tr>
+              }
 
 
 
-            <th style={th}>Report Name</th>
+              setListRegisterSetupOpen(true);
 
 
 
-          </tr>
+            }}
 
 
 
-        </thead>
+          >
 
 
 
-        <tbody>
+            🖨 Print
 
 
 
-          {filteredListRegisters.map(
+          </button>
 
 
 
-            (item: string, index: number) => (
+          <div style={{ flex: 1 }} />
+
+
+
+          <input
+
+
+
+            placeholder="Search"
+
+
+
+            value={listRegisterSearch}
+
+
+
+            onChange={(e) => setListRegisterSearch(e.target.value)}
+
+
+
+            style={{ ...selectStyle, width: 260 }}
+
+
+
+          />
+
+
+
+        </div>
+
+
+
+        <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 14 }}>
+
+
+
+          <thead>
+
+
+
+            <tr>
+
+
+
+              <th style={th}>Report Name</th>
+
+
+
+            </tr>
+
+
+
+          </thead>
+
+
+
+          <tbody>
+
+
+
+            {filteredListRegisters.map((item: string, index: number) => (
 
 
 
@@ -14405,27 +14365,23 @@ onClick={() => {
 
 
 
-                onDoubleClick={() =>
+                onClick={() => setSelectedListRegister(item)}
 
 
 
-                  openListRegister(item)
+                onDoubleClick={() => {
 
 
 
-                }
+                  setSelectedListRegister(item);
 
 
 
-                onClick={() =>
+                  setListRegisterSetupOpen(true);
 
 
 
-                  setSelectedListRegister(item)
-
-
-
-                }
+                }}
 
 
 
@@ -14477,399 +14433,123 @@ onClick={() => {
 
 
 
-            )
+            ))}
 
 
 
-          )}
+          </tbody>
 
 
 
-        </tbody>
+        </table>
 
 
 
-      </table>
+      </div>
 
 
 
-    </div>
+      {listRegisterSetupOpen && (
 
 
 
-    {listRegisterSetupOpen && (
+        <div style={{ position: "fixed", inset: 0, background: "rgba(15,23,42,0.45)", display: "grid", placeItems: "center", zIndex: 90 }}>
 
 
 
-      <div
+          <div style={{ width: 500, background: "#fff", borderRadius: 16, border: `2px solid ${GOLD}`, overflow: "hidden", boxShadow: "0 30px 80px rgba(0,0,0,0.25)" }}>
 
 
 
-        style={{
+            <div style={{ padding: "16px 20px", borderBottom: "1px solid #e5e7eb", fontWeight: 900, fontSize: 22 }}>
 
 
 
-          position: "fixed",
+              {selectedListRegister}
 
 
 
-          inset: 0,
+            </div>
 
 
 
-          background: "rgba(15,23,42,0.45)",
+            <div style={{ padding: 20, display: "grid", gridTemplateColumns: "120px 1fr", gap: 14, alignItems: "center" }}>
 
 
 
-          display: "grid",
+              <label style={labelStyle}>Group By</label>
 
 
 
-          placeItems: "center",
+              <select style={inputStyle} value={listRegisterGroupBy} onChange={(e) => setListRegisterGroupBy(e.target.value)}>
 
 
 
-          zIndex: 90,
+                <option>Classrooms</option>
 
 
 
-        }}
+                <option>Groups</option>
 
 
 
-      >
+              </select>
 
 
 
-        <div
+              <label style={labelStyle}>Sort By</label>
 
 
 
-          style={{
+              <select style={inputStyle} value={listRegisterSortBy} onChange={(e) => setListRegisterSortBy(e.target.value)}>
 
 
 
-            width: 500,
+                <option>Name</option>
 
 
 
-            background: "#fff",
+                <option>Surname</option>
 
 
 
-            borderRadius: 16,
+              </select>
 
 
 
-            border: `2px solid ${GOLD}`,
+            </div>
 
 
 
-            overflow: "hidden",
+            <div style={{ padding: 16, display: "flex", justifyContent: "space-between", borderTop: "1px solid #e5e7eb" }}>
 
 
 
-            boxShadow:
+              <button style={goldBtn} onClick={continueListRegister}>
 
 
 
-              "0 30px 80px rgba(0,0,0,0.25)",
+                ✓ Continue
 
 
 
-          }}
+              </button>
 
 
 
-        >
+              <button style={dangerBtn} onClick={() => setListRegisterSetupOpen(false)}>
 
 
 
-          <div
+                ✕ Cancel
 
 
 
-            style={{
+              </button>
 
 
 
-              padding: "16px 20px",
-
-
-
-              borderBottom: "1px solid #e5e7eb",
-
-
-
-              fontWeight: 900,
-
-
-
-              fontSize: 22,
-
-
-
-            }}
-
-
-
-          >
-
-
-
-            {selectedListRegister}
-
-
-
-          </div>
-
-
-
-          <div
-
-
-
-            style={{
-
-
-
-              padding: 20,
-
-
-
-              display: "grid",
-
-
-
-              gridTemplateColumns: "120px 1fr",
-
-
-
-              gap: 14,
-
-
-
-              alignItems: "center",
-
-
-
-            }}
-
-
-
-          >
-
-
-
-            <label style={labelStyle}>
-
-
-
-              Group By
-
-
-
-            </label>
-
-
-
-            <select
-
-
-
-              style={inputStyle}
-
-
-
-              value={listRegisterGroupBy}
-
-
-
-              onChange={(e) =>
-
-
-
-                setListRegisterGroupBy(
-
-
-
-                  e.target.value
-
-
-
-                )
-
-
-
-              }
-
-
-
-            >
-
-
-
-              <option>Classrooms</option>
-
-
-
-              <option>Groups</option>
-
-
-
-            </select>
-
-
-
-            <label style={labelStyle}>
-
-
-
-              Sort By
-
-
-
-            </label>
-
-
-
-            <select
-
-
-
-              style={inputStyle}
-
-
-
-              value={listRegisterSortBy}
-
-
-
-              onChange={(e) =>
-
-
-
-                setListRegisterSortBy(
-
-
-
-                  e.target.value
-
-
-
-                )
-
-
-
-              }
-
-
-
-            >
-
-
-
-              <option>Name</option>
-
-
-
-              <option>Surname</option>
-
-
-
-            </select>
-
-
-
-          </div>
-
-
-
-          <div
-
-
-
-            style={{
-
-
-
-              padding: 16,
-
-
-
-              display: "flex",
-
-
-
-              justifyContent: "space-between",
-
-
-
-              borderTop: "1px solid #e5e7eb",
-
-
-
-            }}
-
-
-
-          >
-
-
-
-            <button
-
-
-
-              style={goldBtn}
-
-
-
-              onClick={continueListRegister}
-
-
-
-            >
-
-
-
-              ✓ Continue
-
-
-
-            </button>
-
-
-
-            <button
-
-
-
-              style={dangerBtn}
-
-
-
-              onClick={() =>
-
-
-
-                setListRegisterSetupOpen(false)
-
-
-
-              }
-
-
-
-            >
-
-
-
-              ✕ Cancel
-
-
-
-            </button>
+            </div>
 
 
 
@@ -14881,135 +14561,95 @@ onClick={() => {
 
 
 
-      </div>
+      )}
 
 
 
-    )}
+      {listRegisterActionsOpen && (
 
 
 
-    {listRegisterActionsOpen && (
+        <div style={{ position: "fixed", inset: 0, background: "rgba(15,23,42,0.45)", display: "grid", placeItems: "center", zIndex: 90 }}>
 
 
 
-      <div
+          <div style={{ width: 620, background: "#fff", borderRadius: 16, border: `2px solid ${GOLD}`, overflow: "hidden", boxShadow: "0 30px 80px rgba(0,0,0,0.25)" }}>
 
 
 
-        style={{
+            <div style={{ padding: "16px 20px", borderBottom: "1px solid #e5e7eb", fontWeight: 900, fontSize: 22 }}>
 
 
 
-          position: "fixed",
+              {selectedListRegister}
 
 
 
-          inset: 0,
+            </div>
 
 
 
-          background: "rgba(15,23,42,0.45)",
+            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 20, padding: 24 }}>
 
 
 
-          display: "grid",
+              <button style={goldBtn} onClick={openListRegisterView}>
 
 
 
-          placeItems: "center",
+                🔍 View
 
 
 
-          zIndex: 90,
+              </button>
 
 
 
-        }}
+              <button style={actionBtn} onClick={downloadListRegister}>
 
 
 
-      >
+                ⬇ Download
 
 
 
-        <div
+              </button>
 
 
 
-          style={{
+              <button style={actionBtn} onClick={exportListRegisterCsv}>
 
 
 
-            width: 620,
+                📄 Export
 
 
 
-            background: "#fff",
+              </button>
 
 
 
-            borderRadius: 16,
+            </div>
 
 
 
-            border: `2px solid ${GOLD}`,
+            <div style={{ padding: 16, borderTop: "1px solid #e5e7eb", display: "flex", justifyContent: "flex-end" }}>
 
 
 
-            overflow: "hidden",
+              <button style={dangerBtn} onClick={() => setListRegisterActionsOpen(false)}>
 
 
 
-            boxShadow:
+                ✕ Close
 
 
 
-              "0 30px 80px rgba(0,0,0,0.25)",
+              </button>
 
 
 
-          }}
-
-
-
-        >
-
-
-
-          <div
-
-
-
-            style={{
-
-
-
-              padding: "16px 20px",
-
-
-
-              borderBottom: "1px solid #e5e7eb",
-
-
-
-              fontWeight: 900,
-
-
-
-              fontSize: 22,
-
-
-
-            }}
-
-
-
-          >
-
-
-
-            {selectedListRegister}
+            </div>
 
 
 
@@ -15017,135 +14657,31 @@ onClick={() => {
 
 
 
-          <div
+        </div>
 
 
 
-            style={{
+      )}
 
 
 
-              display: "grid",
+      {listRegisterViewOpen && (
 
 
 
-              gridTemplateColumns:
+        <div style={{ position: "fixed", inset: 0, background: "#fff", zIndex: 120, overflow: "auto", padding: 40 }}>
 
 
 
-                "1fr 1fr 1fr",
+          <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 40 }}>
 
 
 
-              gap: 20,
+            <h1 style={{ fontSize: 32, margin: 0 }}>{selectedListRegister}</h1>
 
 
 
-              padding: 24,
-
-
-
-            }}
-
-
-
-          >
-
-
-
-            <button
-
-
-
-              style={goldBtn}
-
-
-
-              onClick={openListRegisterView}
-
-
-
-            >
-
-
-
-              🔍 View
-
-
-
-            </button>
-
-
-
-            <button
-
-
-
-              style={actionBtn}
-
-
-
-              onClick={() =>
-
-
-
-                alert(
-
-
-
-                  "Download connected later"
-
-
-
-                )
-
-
-
-              }
-
-
-
-            >
-
-
-
-              ⬇ Download
-
-
-
-            </button>
-
-
-
-            <button
-
-
-
-              style={actionBtn}
-
-
-
-              onClick={() =>
-
-
-
-                alert("Export connected later")
-
-
-
-              }
-
-
-
-            >
-
-
-
-              📄 Export
-
-
-
-            </button>
+            <h1 style={{ fontSize: 32, margin: 0 }}>Da Silva Academy</h1>
 
 
 
@@ -15153,59 +14689,95 @@ onClick={() => {
 
 
 
-          <div
+          <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 14 }}>
 
 
 
-            style={{
+            <thead>
 
 
 
-              padding: 16,
+              <tr>
 
 
 
-              borderTop: "1px solid #e5e7eb",
+                <th style={th}>Name</th>
 
 
 
-              display: "flex",
+                <th style={th}>Surname</th>
 
 
 
-              justifyContent: "flex-end",
+                <th style={th}>Classroom</th>
 
 
 
-            }}
+              </tr>
 
 
 
-          >
+            </thead>
 
 
 
-            <button
+            <tbody>
 
 
 
-              style={dangerBtn}
+              {listRegisterRows.map((row, index: number) => (
 
 
 
-              onClick={() =>
+                <tr key={`${row.name}-${row.surname}-${index}`} style={{ background: index % 2 ? "rgba(212,175,55,0.05)" : "#fff" }}>
 
 
 
-                setListRegisterActionsOpen(false)
+                  <td style={td}>{row.name}</td>
 
 
 
-              }
+                  <td style={td}>{row.surname}</td>
 
 
 
-            >
+                  <td style={td}>{row.classroom}</td>
+
+
+
+                </tr>
+
+
+
+              ))}
+
+
+
+            </tbody>
+
+
+
+          </table>
+
+
+
+          <div style={{ marginTop: 30 }}>
+
+
+
+            <button style={goldBtn} onClick={() => window.print()}>
+
+
+
+              🖨 Print
+
+
+
+            </button>
+
+
+
+            <button style={{ ...dangerBtn, marginLeft: 12 }} onClick={() => setListRegisterViewOpen(false)}>
 
 
 
@@ -15225,387 +14797,19 @@ onClick={() => {
 
 
 
-      </div>
+      )}
 
 
 
-    )}
+    </div>
 
 
 
-    {listRegisterViewOpen && (
+  );
 
 
 
-      <div
-
-
-
-        style={{
-
-
-
-          position: "fixed",
-
-
-
-          inset: 0,
-
-
-
-          background: "#fff",
-
-
-
-          zIndex: 120,
-
-
-
-          overflow: "auto",
-
-
-
-          padding: 40,
-
-
-
-        }}
-
-
-
-      >
-
-
-
-        <div
-
-
-
-          style={{
-
-
-
-            display: "flex",
-
-
-
-            justifyContent: "space-between",
-
-
-
-            marginBottom: 40,
-
-
-
-          }}
-
-
-
-        >
-
-
-
-          <h1 style={{ fontSize: 32, margin: 0 }}>
-
-
-
-            {selectedListRegister}
-
-
-
-          </h1>
-
-
-
-          <h1 style={{ fontSize: 32, margin: 0 }}>
-
-
-
-            Da Silva Academy
-
-
-
-          </h1>
-
-
-
-        </div>
-
-
-
-        <table
-
-
-
-          style={{
-
-
-
-            width: "100%",
-
-
-
-            borderCollapse: "collapse",
-
-
-
-            fontSize: 14,
-
-
-
-          }}
-
-
-
-        >
-
-
-
-          <thead>
-
-
-
-            <tr>
-
-
-
-              <th style={th}>Name</th>
-
-
-
-              <th style={th}>Surname</th>
-
-
-
-              <th style={th}>Classroom</th>
-
-
-
-            </tr>
-
-
-
-          </thead>
-
-
-
-          <tbody>
-
-
-
-            {learners.map(
-
-
-
-              (learner: any, index: number) => (
-
-
-
-                <tr
-
-
-
-                  key={learner.id}
-
-
-
-                  style={{
-
-
-
-                    background:
-
-
-
-                      index % 2
-
-
-
-                        ? "rgba(212,175,55,0.05)"
-
-
-
-                        : "#fff",
-
-
-
-                  }}
-
-
-
-                >
-
-
-
-                  <td style={td}>
-
-
-
-                    {learner.firstName || "-"}
-
-
-
-                  </td>
-
-
-
-                  <td style={td}>
-
-
-
-                    {learner.lastName ||
-
-
-
-                      learner.surname ||
-
-
-
-                      "-"}
-
-
-
-                  </td>
-
-
-
-                  <td style={td}>
-
-
-
-                    {getLearnerGrade(
-
-
-
-                      learner
-
-
-
-                    ) ||
-
-
-
-                      learner.classroom ||
-
-
-
-                      "-"}
-
-
-
-                  </td>
-
-
-
-                </tr>
-
-
-
-              )
-
-
-
-            )}
-
-
-
-          </tbody>
-
-
-
-        </table>
-
-
-
-        <div style={{ marginTop: 30 }}>
-
-
-
-          <button
-
-
-
-            style={goldBtn}
-
-
-
-            onClick={() => window.print()}
-
-
-
-          >
-
-
-
-            🖨 Print
-
-
-
-          </button>
-
-
-
-          <button
-
-
-
-            style={{
-
-
-
-              ...dangerBtn,
-
-
-
-              marginLeft: 12,
-
-
-
-            }}
-
-
-
-            onClick={() =>
-
-
-
-              setListRegisterViewOpen(false)
-
-
-
-            }
-
-
-
-          >
-
-
-
-            ✕ Close
-
-
-
-          </button>
-
-
-
-        </div>
-
-
-
-      </div>
-
-
-
-    )}
-
-
-
-  </div>
-
-
-
-);
+};
 
   const renderDashboard = () => (
 
