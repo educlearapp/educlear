@@ -88,7 +88,7 @@ type PageKey =
 
   | "classrooms"
 
-
+  | "classroomManage"
 
   | "groups"
 
@@ -367,7 +367,39 @@ export default function SchoolDashboard() {
 
 
   const [selectedLearner, setSelectedLearner] = useState<any | null>(null);
+  const [selectedClassroom, setSelectedClassroom] = useState<any | null>(null);
 
+
+
+const [classroomSearch, setClassroomSearch] = useState("");
+
+
+
+const [classroomPage, setClassroomPage] = useState(1);
+
+
+
+const [classroomLearnerPage, setClassroomLearnerPage] = useState(1);
+
+
+
+const [classroomMode, setClassroomMode] = useState<"none" | "add" | "manage">("none");
+
+
+
+const [classroomDraft, setClassroomDraft] = useState<any>({});
+
+
+
+const [localClassrooms, setLocalClassrooms] = useState<any[]>([]);
+
+
+
+const [learnerGradeOverrides, setLearnerGradeOverrides] = useState<Record<string, string>>({});
+
+
+
+const [selectedClassroomLearnerIds, setSelectedClassroomLearnerIds] = useState<string[]>([]);
 
 
   const [showUnenrolled, setShowUnenrolled] = useState(false);
@@ -6260,6 +6292,1440 @@ export default function SchoolDashboard() {
 
   );
 
+  const getLearnerGrade = (learner: any) => {
+
+
+
+    const id = String(learner?.id || "");
+  
+  
+  
+    return learnerGradeOverrides[id] || learner?.grade || learner?.className || learner?.classroom || "";
+  
+  
+  
+  };
+  
+  
+  
+  const classroomRows = useMemo(() => {
+  
+  
+  
+    const map = new Map<string, any>();
+  
+  
+  
+    learners.forEach((learner: any) => {
+  
+  
+  
+      const grade = getLearnerGrade(learner);
+  
+  
+  
+      if (!grade) return;
+  
+  
+  
+      if (!map.has(grade)) {
+  
+  
+  
+        map.set(grade, {
+  
+  
+  
+          id: grade,
+  
+  
+  
+          name: grade,
+  
+  
+  
+          teacher: "",
+  
+  
+  
+          minYears: "",
+  
+  
+  
+          minMonths: "",
+  
+  
+  
+          maxYears: "",
+  
+  
+  
+          maxMonths: "",
+  
+  
+  
+          notes: "",
+  
+  
+  
+          children: 0,
+  
+  
+  
+        });
+  
+  
+  
+      }
+  
+  
+  
+      map.get(grade).children += 1;
+  
+  
+  
+    });
+  
+  
+  
+    localClassrooms.forEach((classroom) => {
+  
+  
+  
+      if (!map.has(classroom.name)) {
+  
+  
+  
+        map.set(classroom.name, {
+  
+  
+  
+          ...classroom,
+  
+  
+  
+          children: learners.filter((learner: any) => getLearnerGrade(learner) === classroom.name).length,
+  
+  
+  
+        });
+  
+  
+  
+      }
+  
+  
+  
+    });
+  
+  
+  
+    return Array.from(map.values()).sort((a, b) => String(a.name).localeCompare(String(b.name)));
+  
+  
+  
+  }, [learners, localClassrooms, learnerGradeOverrides]);
+  
+  
+  
+  const filteredClassroomRows = useMemo(() => {
+  
+  
+  
+    const q = classroomSearch.trim().toLowerCase();
+  
+  
+  
+    if (!q) return classroomRows;
+  
+  
+  
+    return classroomRows.filter((row) =>
+  
+  
+  
+      [row.name, row.teacher, `${row.children} children`].join(" ").toLowerCase().includes(q)
+  
+  
+  
+    );
+  
+  
+  
+  }, [classroomRows, classroomSearch]);
+  
+  
+  
+  const classroomPageSize = 10;
+  
+  
+  
+  const classroomTotalPages = Math.max(1, Math.ceil(filteredClassroomRows.length / classroomPageSize));
+  
+  
+  
+  const classroomPagedRows = filteredClassroomRows.slice(
+  
+  
+  
+    (classroomPage - 1) * classroomPageSize,
+  
+  
+  
+    classroomPage * classroomPageSize
+  
+  
+  
+  );
+  
+  
+  
+  const selectedClassroomLearners = selectedClassroom
+  
+  
+  
+    ? learners.filter((learner: any) => getLearnerGrade(learner) === selectedClassroom.name)
+  
+  
+  
+    : [];
+  
+  
+  
+  const classroomLearnerPageSize = 5;
+  
+  
+  
+  const classroomLearnerTotalPages = Math.max(
+  
+  
+  
+    1,
+  
+  
+  
+    Math.ceil(selectedClassroomLearners.length / classroomLearnerPageSize)
+  
+  
+  
+  );
+  
+  
+  
+  const classroomLearnerPagedRows = selectedClassroomLearners.slice(
+  
+  
+  
+    (classroomLearnerPage - 1) * classroomLearnerPageSize,
+  
+  
+  
+    classroomLearnerPage * classroomLearnerPageSize
+  
+  
+  
+  );
+  
+  
+  
+  const openClassroomManage = (classroom: any) => {
+  
+  
+  
+    setSelectedClassroom(classroom);
+  
+  
+  
+    setClassroomDraft(classroom);
+  
+  
+  
+    setClassroomMode("manage");
+  
+  
+  
+    setClassroomLearnerPage(1);
+  
+  
+  
+    setSelectedClassroomLearnerIds([]);
+  
+  
+  
+    localStorage.setItem("selectedClassroomForManage", JSON.stringify(classroom));
+  
+  
+  
+    setActivePage("classroomManage");
+  
+  
+  
+  };
+  
+  
+  
+  const renderClassrooms = () => (
+  
+  
+  
+    <div style={{ padding: "26px", background: "#f8fafc", minHeight: "100%", borderRadius: "20px", border: "1px solid rgba(15,23,42,0.08)" }}>
+  
+  
+  
+      <div style={{ marginBottom: "18px" }}>
+  
+  
+  
+        <h1 style={{ margin: 0, fontSize: "34px", fontWeight: 900, color: "#0f172a" }}>Classrooms</h1>
+  
+  
+  
+        <p style={{ margin: "6px 0 0", color: "#64748b", fontWeight: 700 }}>Manage your classrooms</p>
+  
+  
+  
+      </div>
+  
+  
+  
+      <div style={{ background: "#fff", border: "1px solid rgba(15,23,42,0.10)", borderRadius: "12px", overflow: "hidden", boxShadow: "0 18px 40px rgba(15,23,42,0.08)" }}>
+  
+  
+  
+        <div style={{ padding: "12px 14px", borderBottom: "1px solid #e5e7eb", fontWeight: 900 }}>Classrooms</div>
+  
+  
+  
+        <div style={{ padding: "10px", display: "flex", gap: "8px", borderBottom: "1px solid #e5e7eb", alignItems: "center" }}>
+  
+  
+  
+          <button
+  
+  
+  
+            style={goldBtn}
+  
+  
+  
+            onClick={() => {
+  
+  
+  
+              setClassroomMode("add");
+  
+  
+  
+              setSelectedClassroom(null);
+  
+  
+  
+              setClassroomDraft({ name: "", teacher: "", minYears: "", minMonths: "", maxYears: "", maxMonths: "", notes: "" });
+  
+  
+  
+            }}
+  
+  
+  
+          >
+  
+  
+  
+            + Add
+  
+  
+  
+          </button>
+  
+  
+  
+          <button
+  
+  
+  
+            style={{ ...actionBtn, opacity: selectedClassroom ? 1 : 0.55 }}
+  
+  
+  
+            disabled={!selectedClassroom}
+  
+  
+  
+            onClick={() => {
+  
+  
+  
+              if (!selectedClassroom) return alert("Please select a classroom first.");
+  
+  
+  
+              openClassroomManage(selectedClassroom);
+  
+  
+  
+            }}
+  
+  
+  
+          >
+  
+  
+  
+            ✎ Manage
+  
+  
+  
+          </button>
+  
+  
+  
+          <div style={{ flex: 1 }} />
+  
+  
+  
+          <input
+  
+  
+  
+            placeholder="Search"
+  
+  
+  
+            value={classroomSearch}
+  
+  
+  
+            onChange={(e) => {
+  
+  
+  
+              setClassroomSearch(e.target.value);
+  
+  
+  
+              setClassroomPage(1);
+  
+  
+  
+            }}
+  
+  
+  
+            style={{ ...selectStyle, width: "230px" }}
+  
+  
+  
+          />
+  
+  
+  
+        </div>
+  
+  
+  
+        {classroomMode === "add" && (
+  
+  
+  
+          <div style={{ padding: "14px", background: "rgba(212,175,55,0.08)", borderBottom: "1px solid #e5e7eb" }}>
+  
+  
+  
+            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: "10px" }}>
+  
+  
+  
+              <input style={inputStyle} placeholder="Grade name e.g. Grade 1A 2026" value={classroomDraft.name || ""} onChange={(e) => setClassroomDraft((p: any) => ({ ...p, name: e.target.value }))} />
+  
+  
+  
+              <input style={inputStyle} placeholder="Teacher" value={classroomDraft.teacher || ""} onChange={(e) => setClassroomDraft((p: any) => ({ ...p, teacher: e.target.value }))} />
+  
+  
+  
+              <input style={inputStyle} placeholder="Notes" value={classroomDraft.notes || ""} onChange={(e) => setClassroomDraft((p: any) => ({ ...p, notes: e.target.value }))} />
+  
+  
+  
+            </div>
+  
+  
+  
+            <div style={{ display: "flex", gap: "8px", marginTop: "10px" }}>
+  
+  
+  
+              <button
+  
+  
+  
+                style={goldBtn}
+  
+  
+  
+                onClick={() => {
+  
+  
+  
+                  if (!String(classroomDraft.name || "").trim()) return alert("Grade name is required.");
+  
+  
+  
+                  const newClassroom = { ...classroomDraft, id: `classroom-${Date.now()}`, children: 0 };
+  
+  
+  
+                  setLocalClassrooms((prev) => [newClassroom, ...prev]);
+  
+  
+  
+                  setSelectedClassroom(newClassroom);
+  
+  
+  
+                  setClassroomMode("none");
+  
+  
+  
+                }}
+  
+  
+  
+              >
+  
+  
+  
+                Save Classroom
+  
+  
+  
+              </button>
+  
+  
+  
+              <button style={actionBtn} onClick={() => setClassroomMode("none")}>Cancel</button>
+  
+  
+  
+            </div>
+  
+  
+  
+          </div>
+  
+  
+  
+        )}
+  
+  
+  
+        <table style={{ width: "100%", borderCollapse: "collapse", fontSize: "13px" }}>
+  
+  
+  
+          <thead>
+  
+  
+  
+            <tr>
+  
+  
+  
+              <th style={th}>Name</th>
+  
+  
+  
+              <th style={th}>Teacher</th>
+  
+  
+  
+              <th style={th}>Children</th>
+  
+  
+  
+            </tr>
+  
+  
+  
+          </thead>
+  
+  
+  
+          <tbody>
+  
+  
+  
+            {classroomPagedRows.map((row, index) => {
+  
+  
+  
+              const isSelected = selectedClassroom?.name === row.name;
+  
+  
+  
+              return (
+  
+  
+  
+                <tr
+  
+  
+  
+                  key={row.id || row.name}
+  
+  
+  
+                  onClick={() => setSelectedClassroom(row)}
+  
+  
+  
+                  onDoubleClick={() => openClassroomManage(row)}
+  
+  
+  
+                  style={{
+  
+  
+  
+                    cursor: "pointer",
+  
+  
+  
+                    background: isSelected ? "linear-gradient(90deg, rgba(212,175,55,0.25), #fff)" : index % 2 === 0 ? "#fff" : "rgba(212,175,55,0.07)",
+  
+  
+  
+                    outline: isSelected ? `2px solid ${GOLD}` : "none",
+  
+  
+  
+                  }}
+  
+  
+  
+                >
+  
+  
+  
+                  <td style={td}>{row.name}</td>
+  
+  
+  
+                  <td style={td}>{row.teacher || "-"}</td>
+  
+  
+  
+                  <td style={td}>{row.children} children</td>
+  
+  
+  
+                </tr>
+  
+  
+  
+              );
+  
+  
+  
+            })}
+  
+  
+  
+          </tbody>
+  
+  
+  
+        </table>
+  
+  
+  
+        <div style={{ padding: "10px", display: "flex", justifyContent: "space-between", color: "#64748b", fontSize: "12px", fontWeight: 800 }}>
+  
+  
+  
+          <span>{filteredClassroomRows.length === 0 ? "0" : (classroomPage - 1) * classroomPageSize + 1} - {Math.min(classroomPage * classroomPageSize, filteredClassroomRows.length)} / {filteredClassroomRows.length}</span>
+  
+  
+  
+          <div style={{ display: "flex", gap: "6px", alignItems: "center" }}>
+  
+  
+  
+            <button style={actionBtn} disabled={classroomPage <= 1} onClick={() => setClassroomPage((p) => Math.max(1, p - 1))}>‹</button>
+  
+  
+  
+            <span>Page {classroomPage} / {classroomTotalPages}</span>
+  
+  
+  
+            <button style={actionBtn} disabled={classroomPage >= classroomTotalPages} onClick={() => setClassroomPage((p) => Math.min(classroomTotalPages, p + 1))}>›</button>
+  
+  
+  
+          </div>
+  
+  
+  
+        </div>
+  
+  
+  
+      </div>
+  
+  
+  
+    </div>
+  
+  
+  
+  );
+  
+  
+  
+  const renderClassroomManage = () => {
+  
+  
+  
+    const saved = localStorage.getItem("selectedClassroomForManage");
+  
+  
+  
+    const classroom =
+  
+  
+  
+      selectedClassroom ||
+  
+  
+  
+      (saved
+  
+  
+  
+        ? (() => {
+  
+  
+  
+            try {
+  
+  
+  
+              return JSON.parse(saved);
+  
+  
+  
+            } catch {
+  
+  
+  
+              return null;
+  
+  
+  
+            }
+  
+  
+  
+          })()
+  
+  
+  
+        : null);
+  
+  
+  
+    if (!classroom) {
+  
+  
+  
+      return (
+  
+  
+  
+        <div style={{ padding: "32px" }}>
+  
+  
+  
+          <h1 className="page-title">Classroom</h1>
+  
+  
+  
+          <p>Select a classroom first.</p>
+  
+  
+  
+          <button style={actionBtn} onClick={() => setActivePage("classrooms")}>Back</button>
+  
+  
+  
+        </div>
+  
+  
+  
+      );
+  
+  
+  
+    }
+  
+  
+  
+    const moveSelectedLearners = () => {
+  
+  
+  
+      const target = window.prompt("Move selected learners to which grade?");
+  
+  
+  
+      if (!target) return;
+  
+  
+  
+      setLearnerGradeOverrides((prev) => {
+  
+  
+  
+        const next = { ...prev };
+  
+  
+  
+        selectedClassroomLearnerIds.forEach((id) => {
+  
+  
+  
+          next[id] = target;
+  
+  
+  
+        });
+  
+  
+  
+        return next;
+  
+  
+  
+      });
+  
+  
+  
+      setSelectedClassroomLearnerIds([]);
+  
+  
+  
+      alert("Selected learners moved locally. Backend save can be connected in the save pass.");
+  
+  
+  
+    };
+  
+  
+  
+    return (
+  
+  
+  
+      <div style={{ padding: "26px", background: "#f8fafc", minHeight: "100%", borderRadius: "20px", border: "1px solid rgba(15,23,42,0.08)" }}>
+  
+  
+  
+        <div style={{ marginBottom: "12px" }}>
+  
+  
+  
+          <h1 style={{ margin: 0, fontSize: "34px", fontWeight: 900, color: "#0f172a" }}>Classroom</h1>
+  
+  
+  
+          <p style={{ margin: "6px 0 0", color: "#64748b", fontWeight: 700 }}>Change classroom information and manage children</p>
+  
+  
+  
+        </div>
+  
+  
+  
+        <div style={{ display: "flex", gap: "8px", marginBottom: "14px" }}>
+  
+  
+  
+          <button style={actionBtn} onClick={() => setActivePage("classrooms")}>← Back</button>
+  
+  
+  
+          <button
+  
+  
+  
+            style={goldBtn}
+  
+  
+  
+            onClick={() => {
+  
+  
+  
+              const updated = { ...classroom, ...classroomDraft, name: classroomDraft.name || classroom.name };
+  
+  
+  
+              setSelectedClassroom(updated);
+  
+  
+  
+              setLocalClassrooms((prev) => {
+  
+  
+  
+                const exists = prev.some((item) => item.id === updated.id || item.name === classroom.name);
+  
+  
+  
+                return exists ? prev.map((item) => (item.id === updated.id || item.name === classroom.name ? updated : item)) : [updated, ...prev];
+  
+  
+  
+              });
+  
+  
+  
+              localStorage.setItem("selectedClassroomForManage", JSON.stringify(updated));
+  
+  
+  
+              alert("Classroom saved.");
+  
+  
+  
+            }}
+  
+  
+  
+          >
+  
+  
+  
+            💾 Save
+  
+  
+  
+          </button>
+  
+  
+  
+          <button style={actionBtn} onClick={() => alert("More classroom actions will be connected in the next pass.")}>More Actions⌄</button>
+  
+  
+  
+        </div>
+  
+  
+  
+        <div style={{ display: "grid", gridTemplateColumns: "minmax(620px,1fr) 380px", gap: "28px", alignItems: "start" }}>
+  
+  
+  
+          <div style={{ background: "#fff", border: "1px solid #cbd5e1", borderRadius: "10px", overflow: "hidden", boxShadow: "0 14px 34px rgba(15,23,42,0.07)" }}>
+  
+  
+  
+            <div style={{ display: "grid", gridTemplateColumns: "170px 1fr", borderBottom: "1px solid #cbd5e1", background: "#f8fafc" }}>
+  
+  
+  
+              <div style={{ padding: "14px", fontWeight: 900, borderRight: "1px solid #cbd5e1" }}>Classroom</div>
+  
+  
+  
+              <div style={{ padding: "12px 18px", fontWeight: 900, borderTop: `4px solid ${GOLD}`, background: "#fff" }}>General</div>
+  
+  
+  
+            </div>
+  
+  
+  
+            <div style={{ padding: "22px", display: "grid", gridTemplateColumns: "150px 1fr", rowGap: "10px", columnGap: "12px" }}>
+  
+  
+  
+              <label style={labelStyle}>* Name</label>
+  
+  
+  
+              <input style={inputStyle} value={classroomDraft.name ?? classroom.name ?? ""} onChange={(e) => setClassroomDraft((p: any) => ({ ...p, name: e.target.value }))} />
+  
+  
+  
+              <label style={labelStyle}>Teacher</label>
+  
+  
+  
+              <input style={inputStyle} value={classroomDraft.teacher ?? classroom.teacher ?? ""} onChange={(e) => setClassroomDraft((p: any) => ({ ...p, teacher: e.target.value }))} />
+  
+  
+  
+              <label style={labelStyle}>Minimum Age</label>
+  
+  
+  
+              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "8px" }}>
+  
+  
+  
+                <input style={inputStyle} placeholder="Years" value={classroomDraft.minYears ?? classroom.minYears ?? ""} onChange={(e) => setClassroomDraft((p: any) => ({ ...p, minYears: e.target.value }))} />
+  
+  
+  
+                <input style={inputStyle} placeholder="Months" value={classroomDraft.minMonths ?? classroom.minMonths ?? ""} onChange={(e) => setClassroomDraft((p: any) => ({ ...p, minMonths: e.target.value }))} />
+  
+  
+  
+              </div>
+  
+  
+  
+              <label style={labelStyle}>Maximum Age</label>
+  
+  
+  
+              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "8px" }}>
+  
+  
+  
+                <input style={inputStyle} placeholder="Years" value={classroomDraft.maxYears ?? classroom.maxYears ?? ""} onChange={(e) => setClassroomDraft((p: any) => ({ ...p, maxYears: e.target.value }))} />
+  
+  
+  
+                <input style={inputStyle} placeholder="Months" value={classroomDraft.maxMonths ?? classroom.maxMonths ?? ""} onChange={(e) => setClassroomDraft((p: any) => ({ ...p, maxMonths: e.target.value }))} />
+  
+  
+  
+              </div>
+  
+  
+  
+              <label style={labelStyle}>Notes</label>
+  
+  
+  
+              <textarea style={{ ...inputStyle, minHeight: "105px", resize: "vertical", fontFamily: "inherit" }} value={classroomDraft.notes ?? classroom.notes ?? ""} onChange={(e) => setClassroomDraft((p: any) => ({ ...p, notes: e.target.value }))} />
+  
+  
+  
+            </div>
+  
+  
+  
+          </div>
+  
+  
+  
+          <div style={{ paddingTop: "56px" }}>
+  
+  
+  
+            <div style={{ width: "205px", height: "205px", margin: "0 auto 18px", border: "1px solid #cbd5e1", background: "linear-gradient(180deg,#e2e8f0,#f8fafc)", display: "grid", placeItems: "center" }}>
+  
+  
+  
+              <div style={{ width: "120px", height: "120px", borderRadius: "999px", background: "#94a3b8" }} />
+  
+  
+  
+            </div>
+  
+  
+  
+            <div style={{ display: "grid", gridTemplateColumns: "120px 1fr", border: "1px solid #e5e7eb", background: "#fff", boxShadow: "0 10px 26px rgba(15,23,42,0.05)" }}>
+  
+  
+  
+              {[
+  
+  
+  
+                ["Name", classroomDraft.name || classroom.name || "-"],
+  
+  
+  
+                ["Teacher", classroomDraft.teacher || classroom.teacher || "-"],
+  
+  
+  
+                ["Children", `${selectedClassroomLearners.length} children`],
+  
+  
+  
+                ["Notes", classroomDraft.notes || classroom.notes || ""],
+  
+  
+  
+              ].map(([label, value]) => (
+  
+  
+  
+                <>
+  
+  
+  
+                  <div key={`${label}-l`} style={{ padding: "12px", background: "#f1f5f9", fontWeight: 900, textAlign: "right", borderBottom: "1px solid #e5e7eb" }}>{label}</div>
+  
+  
+  
+                  <div key={`${label}-v`} style={{ padding: "12px", fontWeight: 800, borderBottom: "1px solid #e5e7eb" }}>{value}</div>
+  
+  
+  
+                </>
+  
+  
+  
+              ))}
+  
+  
+  
+            </div>
+  
+  
+  
+          </div>
+  
+  
+  
+        </div>
+  
+  
+  
+        <div style={{ marginTop: "18px", background: "#fff", border: "1px solid #cbd5e1", borderRadius: "10px", overflow: "hidden", boxShadow: "0 14px 34px rgba(15,23,42,0.07)" }}>
+  
+  
+  
+          <div style={{ padding: "12px 14px", borderBottom: "1px solid #cbd5e1", fontWeight: 900, background: "#f8fafc" }}>Children</div>
+  
+  
+  
+          <div style={{ padding: "10px", display: "flex", gap: "8px", borderBottom: "1px solid #e5e7eb" }}>
+  
+  
+  
+            <button style={goldBtn} onClick={() => setActivePage("addLearner")}>+ Add</button>
+  
+  
+  
+            <button
+  
+  
+  
+              style={actionBtn}
+  
+  
+  
+              onClick={() => {
+  
+  
+  
+                if (selectedClassroomLearnerIds.length !== 1) return alert("Select one learner to manage.");
+  
+  
+  
+                const learner = selectedClassroomLearners.find((l: any) => String(l.id) === String(selectedClassroomLearnerIds[0]));
+  
+  
+  
+                if (learner) openLearnerProfile(learner);
+  
+  
+  
+              }}
+  
+  
+  
+            >
+  
+  
+  
+              ✎ Manage
+  
+  
+  
+            </button>
+  
+  
+  
+            <button style={actionBtn} onClick={moveSelectedLearners}>➜ Move</button>
+  
+  
+  
+            <button
+  
+  
+  
+              style={dangerBtn}
+  
+  
+  
+              onClick={() => {
+  
+  
+  
+                if (selectedClassroomLearnerIds.length === 0) return alert("Select learners first.");
+  
+  
+  
+                setLearnerGradeOverrides((prev) => {
+  
+  
+  
+                  const next = { ...prev };
+  
+  
+  
+                  selectedClassroomLearnerIds.forEach((id) => {
+  
+  
+  
+                    next[id] = "";
+  
+  
+  
+                  });
+  
+  
+  
+                  return next;
+  
+  
+  
+                });
+  
+  
+  
+                setSelectedClassroomLearnerIds([]);
+  
+  
+  
+              }}
+  
+  
+  
+            >
+  
+  
+  
+              × Remove
+  
+  
+  
+            </button>
+  
+  
+  
+          </div>
+  
+  
+  
+          <table style={{ width: "100%", borderCollapse: "collapse", fontSize: "13px" }}>
+  
+  
+  
+            <thead>
+  
+  
+  
+              <tr>
+  
+  
+  
+                <th style={th}>✓</th>
+  
+  
+  
+                <th style={th}>Name</th>
+  
+  
+  
+                <th style={th}>Surname</th>
+  
+  
+  
+                <th style={th}>Age</th>
+  
+  
+  
+                <th style={th}>Child Status</th>
+  
+  
+  
+              </tr>
+  
+  
+  
+            </thead>
+  
+  
+  
+            <tbody>
+  
+  
+  
+              {classroomLearnerPagedRows.map((learner: any, index: number) => {
+  
+  
+  
+                const checked = selectedClassroomLearnerIds.includes(String(learner.id));
+  
+  
+  
+                return (
+  
+  
+  
+                  <tr key={learner.id || index} style={{ background: checked ? "rgba(212,175,55,0.22)" : index % 2 === 0 ? "#fff" : "rgba(212,175,55,0.06)" }}>
+  
+  
+  
+                    <td style={td}>
+  
+  
+  
+                      <input
+  
+  
+  
+                        type="checkbox"
+  
+  
+  
+                        checked={checked}
+  
+  
+  
+                        onChange={(e) => {
+  
+  
+  
+                          const id = String(learner.id);
+  
+  
+  
+                          setSelectedClassroomLearnerIds((prev) => e.target.checked ? [...prev, id] : prev.filter((x) => x !== id));
+  
+  
+  
+                        }}
+  
+  
+  
+                      />
+  
+  
+  
+                    </td>
+  
+  
+  
+                    <td style={td}>{learner.firstName || "-"}</td>
+  
+  
+  
+                    <td style={td}>{learner.lastName || learner.surname || "-"}</td>
+  
+  
+  
+                    <td style={td}>{formatAge(learner.birthDate)}</td>
+  
+  
+  
+                    <td style={td}>
+  
+  
+  
+                      <span style={{ color: (learner.childStatus || "Enrolled") === "Enrolled" ? "#15803d" : "#b91c1c", fontWeight: 900 }}>
+  
+  
+  
+                        {learner.childStatus || "Enrolled"}
+  
+  
+  
+                      </span>
+  
+  
+  
+                    </td>
+  
+  
+  
+                  </tr>
+  
+  
+  
+                );
+  
+  
+  
+              })}
+  
+  
+  
+            </tbody>
+  
+  
+  
+          </table>
+  
+  
+  
+          <div style={{ padding: "10px", display: "flex", justifyContent: "space-between", color: "#64748b", fontSize: "12px", fontWeight: 800 }}>
+  
+  
+  
+            <span>{selectedClassroomLearners.length === 0 ? "0" : (classroomLearnerPage - 1) * classroomLearnerPageSize + 1} - {Math.min(classroomLearnerPage * classroomLearnerPageSize, selectedClassroomLearners.length)} / {selectedClassroomLearners.length}</span>
+  
+  
+  
+            <div style={{ display: "flex", gap: "6px", alignItems: "center" }}>
+  
+  
+  
+              <button style={actionBtn} disabled={classroomLearnerPage <= 1} onClick={() => setClassroomLearnerPage((p) => Math.max(1, p - 1))}>‹</button>
+  
+  
+  
+              <span>Page {classroomLearnerPage} / {classroomLearnerTotalPages}</span>
+  
+  
+  
+              <button style={actionBtn} disabled={classroomLearnerPage >= classroomLearnerTotalPages} onClick={() => setClassroomLearnerPage((p) => Math.min(classroomLearnerTotalPages, p + 1))}>›</button>
+  
+  
+  
+            </div>
+  
+  
+  
+          </div>
+  
+  
+  
+        </div>
+  
+  
+  
+      </div>
+  
+  
+  
+    );
+  
+  
+  
+  };
+
   const renderDashboard = () => (
 
 
@@ -7714,11 +9180,19 @@ export default function SchoolDashboard() {
   
   
   
-        case "classrooms":
-  
-  
-  
-          return <h1 className="page-title">Classrooms</h1>;
+          case "classrooms":
+
+
+
+  return renderClassrooms();
+
+
+
+case "classroomManage":
+
+
+
+  return renderClassroomManage();
   
   
   
