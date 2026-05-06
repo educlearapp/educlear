@@ -95,7 +95,7 @@ type PageKey =
 
 
   | "employees"
-
+  | "employeeManage"
 
 
   | "teacherPerformance"
@@ -417,7 +417,35 @@ const [groupDraft, setGroupDraft] = useState<any>({});
 
 
 const [localGroups, setLocalGroups] = useState<any[]>([]);
+const [selectedEmployee, setSelectedEmployee] = useState<any | null>(null);
 
+
+
+const [employeeSearch, setEmployeeSearch] = useState("");
+
+
+
+const [employeePage, setEmployeePage] = useState(1);
+
+
+
+const [employeeTab, setEmployeeTab] = useState<"general" | "contact" | "address" | "payroll" | "other" | "extra">("general");
+
+
+
+const [employeeMode, setEmployeeMode] = useState<"none" | "add">("none");
+
+
+
+const [employeeMoreOpen, setEmployeeMoreOpen] = useState(false);
+
+
+
+const [employeeDraft, setEmployeeDraft] = useState<any>({});
+
+
+
+const [localEmployees, setLocalEmployees] = useState<any[]>([]);
 
 
 const [selectedGroupLearnerIds, setSelectedGroupLearnerIds] = useState<string[]>([]);
@@ -9341,6 +9369,1770 @@ const [selectedClassroomLearnerIds, setSelectedClassroomLearnerIds] = useState<s
   
   };
 
+  const employeeRows = useMemo(() => {
+
+
+
+    return localEmployees.sort((a, b) =>
+  
+  
+  
+      `${a.surname || ""} ${a.firstName || ""}`.localeCompare(`${b.surname || ""} ${b.firstName || ""}`)
+  
+  
+  
+    );
+  
+  
+  
+  }, [localEmployees]);
+  
+  
+  
+  const filteredEmployeeRows = useMemo(() => {
+  
+  
+  
+    const q = employeeSearch.trim().toLowerCase();
+  
+  
+  
+    if (!q) return employeeRows;
+  
+  
+  
+    return employeeRows.filter((employee) =>
+  
+  
+  
+      [
+  
+  
+  
+        employee.occupation,
+  
+  
+  
+        employee.title,
+  
+  
+  
+        employee.firstName,
+  
+  
+  
+        employee.surname,
+  
+  
+  
+        employee.phone,
+  
+  
+  
+        employee.cell,
+  
+  
+  
+        employee.email,
+  
+  
+  
+        employee.idNumber,
+  
+  
+  
+      ]
+  
+  
+  
+        .join(" ")
+  
+  
+  
+        .toLowerCase()
+  
+  
+  
+        .includes(q)
+  
+  
+  
+    );
+  
+  
+  
+  }, [employeeRows, employeeSearch]);
+  
+  
+  
+  const employeePageSize = 10;
+  
+  
+  
+  const employeeTotalPages = Math.max(1, Math.ceil(filteredEmployeeRows.length / employeePageSize));
+  
+  
+  
+  const employeePagedRows = filteredEmployeeRows.slice(
+  
+  
+  
+    (employeePage - 1) * employeePageSize,
+  
+  
+  
+    employeePage * employeePageSize
+  
+  
+  
+  );
+  
+  
+  
+  const employeeFullName = (employee: any) =>
+  
+  
+  
+    `${employee?.firstName || ""} ${employee?.surname || ""}`.trim();
+  
+  
+  
+  const saveEmployee = (updatedEmployee: any) => {
+  
+  
+  
+    const cleanEmployee = {
+  
+  
+  
+      ...updatedEmployee,
+  
+  
+  
+      id: updatedEmployee.id || `employee-${Date.now()}`,
+  
+  
+  
+    };
+  
+  
+  
+    setSelectedEmployee(cleanEmployee);
+  
+  
+  
+    setEmployeeDraft(cleanEmployee);
+  
+  
+  
+    setLocalEmployees((prev) =>
+  
+  
+  
+      prev.some((item) => item.id === cleanEmployee.id)
+  
+  
+  
+        ? prev.map((item) => (item.id === cleanEmployee.id ? cleanEmployee : item))
+  
+  
+  
+        : [cleanEmployee, ...prev]
+  
+  
+  
+    );
+  
+  
+  
+    localStorage.setItem("selectedEmployeeForManage", JSON.stringify(cleanEmployee));
+  
+  
+  
+  };
+  
+  
+  
+  const openEmployeeManage = (employee: any) => {
+  
+  
+  
+    setSelectedEmployee(employee);
+  
+  
+  
+    setEmployeeDraft(employee);
+  
+  
+  
+    setEmployeeTab("general");
+  
+  
+  
+    setEmployeeMoreOpen(false);
+  
+  
+  
+    localStorage.setItem("selectedEmployeeForManage", JSON.stringify(employee));
+  
+  
+  
+    setActivePage("employeeManage");
+  
+  
+  
+  };
+  
+  
+  
+  const renderEmployees = () => (
+  
+  
+  
+    <div style={{ padding: "26px", background: "#f8fafc", minHeight: "100%", borderRadius: "20px", border: "1px solid rgba(15,23,42,0.08)" }}>
+  
+  
+  
+      <div style={{ marginBottom: "18px" }}>
+  
+  
+  
+        <h1 style={{ margin: 0, fontSize: "34px", fontWeight: 900, color: "#0f172a" }}>Employees</h1>
+  
+  
+  
+        <p style={{ margin: "6px 0 0", color: "#64748b", fontWeight: 700 }}>Manage your employees</p>
+  
+  
+  
+      </div>
+  
+  
+  
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(3, minmax(160px, 1fr))", gap: "12px", marginBottom: "18px" }}>
+  
+  
+  
+        <div style={{ background: "#fff", border: "1px solid rgba(15,23,42,0.08)", borderTop: `4px solid ${GOLD}`, borderRadius: "14px", padding: "16px", boxShadow: "0 10px 26px rgba(15,23,42,0.06)" }}>
+  
+  
+  
+          <div style={{ fontSize: "28px", fontWeight: 900, color: "#0f172a" }}>{localEmployees.length}</div>
+  
+  
+  
+          <div style={{ color: "#64748b", fontWeight: 900, fontSize: "12px" }}>employees</div>
+  
+  
+  
+        </div>
+  
+  
+  
+        <div style={{ background: "#fff", border: "1px solid rgba(15,23,42,0.08)", borderTop: `4px solid ${GOLD}`, borderRadius: "14px", padding: "16px", boxShadow: "0 10px 26px rgba(15,23,42,0.06)" }}>
+  
+  
+  
+          <div style={{ fontSize: "28px", fontWeight: 900, color: "#0f172a" }}>
+  
+  
+  
+            {localEmployees.filter((e) => String(e.occupation || "").toLowerCase().includes("teacher")).length}
+  
+  
+  
+          </div>
+  
+  
+  
+          <div style={{ color: "#64748b", fontWeight: 900, fontSize: "12px" }}>teachers</div>
+  
+  
+  
+        </div>
+  
+  
+  
+        <div style={{ background: "#fff", border: "1px solid rgba(15,23,42,0.08)", borderTop: `4px solid ${GOLD}`, borderRadius: "14px", padding: "16px", boxShadow: "0 10px 26px rgba(15,23,42,0.06)" }}>
+  
+  
+  
+          <div style={{ fontSize: "28px", fontWeight: 900, color: "#0f172a" }}>
+  
+  
+  
+            {localEmployees.filter((e) => e.payrollEnabled).length}
+  
+  
+  
+          </div>
+  
+  
+  
+          <div style={{ color: "#64748b", fontWeight: 900, fontSize: "12px" }}>payroll enabled</div>
+  
+  
+  
+        </div>
+  
+  
+  
+      </div>
+  
+  
+  
+      <div style={{ background: "#fff", border: "1px solid rgba(15,23,42,0.10)", borderTop: `4px solid ${GOLD}`, borderRadius: "12px", overflow: "hidden", boxShadow: "0 18px 40px rgba(15,23,42,0.08)" }}>
+  
+  
+  
+        <div style={{ padding: "12px 14px", borderBottom: "1px solid #e5e7eb", fontWeight: 900 }}>
+  
+  
+  
+          Employees
+  
+  
+  
+        </div>
+  
+  
+  
+        <div style={{ padding: "10px", display: "flex", gap: "8px", borderBottom: "1px solid #e5e7eb", alignItems: "center" }}>
+  
+  
+  
+          <button
+  
+  
+  
+            style={goldBtn}
+  
+  
+  
+            onClick={() => {
+  
+  
+  
+              setEmployeeMode("add");
+  
+  
+  
+              setSelectedEmployee(null);
+  
+  
+  
+              setEmployeeDraft({
+  
+  
+  
+                occupation: "Teacher",
+  
+  
+  
+                title: "",
+  
+  
+  
+                firstName: "",
+  
+  
+  
+                surname: "",
+  
+  
+  
+                idNumber: "",
+  
+  
+  
+                employmentDate: "",
+  
+  
+  
+                notes: "",
+  
+  
+  
+                payrollEnabled: true,
+  
+  
+  
+                basicSalary: "",
+  
+  
+  
+                uifEnabled: true,
+  
+  
+  
+                taxNumber: "",
+  
+  
+  
+              });
+  
+  
+  
+            }}
+  
+  
+  
+          >
+  
+  
+  
+            + Add
+  
+  
+  
+          </button>
+  
+  
+  
+          <button
+  
+  
+  
+            style={{ ...actionBtn, opacity: selectedEmployee ? 1 : 0.55, cursor: selectedEmployee ? "pointer" : "not-allowed" }}
+  
+  
+  
+            disabled={!selectedEmployee}
+  
+  
+  
+            onClick={() => {
+  
+  
+  
+              if (!selectedEmployee) return alert("Please select an employee first.");
+  
+  
+  
+              openEmployeeManage(selectedEmployee);
+  
+  
+  
+            }}
+  
+  
+  
+          >
+  
+  
+  
+            ✎ Manage
+  
+  
+  
+          </button>
+  
+  
+  
+          <div style={{ flex: 1 }} />
+  
+  
+  
+          <input
+  
+  
+  
+            placeholder="Search"
+  
+  
+  
+            value={employeeSearch}
+  
+  
+  
+            onChange={(e) => {
+  
+  
+  
+              setEmployeeSearch(e.target.value);
+  
+  
+  
+              setEmployeePage(1);
+  
+  
+  
+            }}
+  
+  
+  
+            style={{ ...selectStyle, width: "230px" }}
+  
+  
+  
+          />
+  
+  
+  
+        </div>
+  
+  
+  
+        {employeeMode === "add" && (
+  
+  
+  
+          <div style={{ padding: "14px", background: "rgba(212,175,55,0.08)", borderBottom: "1px solid #e5e7eb" }}>
+  
+  
+  
+            <div style={{ display: "grid", gridTemplateColumns: "repeat(5, 1fr)", gap: "10px" }}>
+  
+  
+  
+              <input style={inputStyle} placeholder="Occupation" value={employeeDraft.occupation || ""} onChange={(e) => setEmployeeDraft((p: any) => ({ ...p, occupation: e.target.value }))} />
+  
+  
+  
+              <input style={inputStyle} placeholder="Title" value={employeeDraft.title || ""} onChange={(e) => setEmployeeDraft((p: any) => ({ ...p, title: e.target.value }))} />
+  
+  
+  
+              <input style={inputStyle} placeholder="Name" value={employeeDraft.firstName || ""} onChange={(e) => setEmployeeDraft((p: any) => ({ ...p, firstName: e.target.value }))} />
+  
+  
+  
+              <input style={inputStyle} placeholder="Surname" value={employeeDraft.surname || ""} onChange={(e) => setEmployeeDraft((p: any) => ({ ...p, surname: e.target.value }))} />
+  
+  
+  
+              <input style={inputStyle} placeholder="Cell" value={employeeDraft.cell || ""} onChange={(e) => setEmployeeDraft((p: any) => ({ ...p, cell: e.target.value }))} />
+  
+  
+  
+            </div>
+  
+  
+  
+            <div style={{ display: "flex", gap: "8px", marginTop: "10px" }}>
+  
+  
+  
+              <button
+  
+  
+  
+                style={goldBtn}
+  
+  
+  
+                onClick={() => {
+  
+  
+  
+                  if (!String(employeeDraft.firstName || "").trim()) return alert("Employee name is required.");
+  
+  
+  
+                  if (!String(employeeDraft.surname || "").trim()) return alert("Employee surname is required.");
+  
+  
+  
+                  saveEmployee(employeeDraft);
+  
+  
+  
+                  setEmployeeMode("none");
+  
+  
+  
+                }}
+  
+  
+  
+              >
+  
+  
+  
+                Save Employee
+  
+  
+  
+              </button>
+  
+  
+  
+              <button style={actionBtn} onClick={() => setEmployeeMode("none")}>Cancel</button>
+  
+  
+  
+            </div>
+  
+  
+  
+          </div>
+  
+  
+  
+        )}
+  
+  
+  
+        <table style={{ width: "100%", borderCollapse: "collapse", fontSize: "13px" }}>
+  
+  
+  
+          <thead>
+  
+  
+  
+            <tr>
+  
+  
+  
+              <th style={th}>Occupation</th>
+  
+  
+  
+              <th style={th}>Name</th>
+  
+  
+  
+              <th style={th}>Surname</th>
+  
+  
+  
+              <th style={th}>Phone</th>
+  
+  
+  
+              <th style={th}>Cell</th>
+  
+  
+  
+              <th style={th}>Payroll</th>
+  
+  
+  
+            </tr>
+  
+  
+  
+          </thead>
+  
+  
+  
+          <tbody>
+  
+  
+  
+            {employeePagedRows.length === 0 ? (
+  
+  
+  
+              <tr>
+  
+  
+  
+                <td colSpan={6} style={{ ...td, textAlign: "center", padding: "24px" }}>
+  
+  
+  
+                  No employees found. Click + Add to create your first employee.
+  
+  
+  
+                </td>
+  
+  
+  
+              </tr>
+  
+  
+  
+            ) : (
+  
+  
+  
+              employeePagedRows.map((employee, index) => {
+  
+  
+  
+                const isSelected = selectedEmployee?.id === employee.id;
+  
+  
+  
+                return (
+  
+  
+  
+                  <tr
+  
+  
+  
+                    key={employee.id}
+  
+  
+  
+                    onClick={() => setSelectedEmployee(employee)}
+  
+  
+  
+                    onDoubleClick={() => openEmployeeManage(employee)}
+  
+  
+  
+                    style={{
+  
+  
+  
+                      cursor: "pointer",
+  
+  
+  
+                      background: isSelected
+  
+  
+  
+                        ? "linear-gradient(90deg, rgba(212,175,55,0.25), #fff)"
+  
+  
+  
+                        : index % 2 === 0
+  
+  
+  
+                        ? "#fff"
+  
+  
+  
+                        : "rgba(212,175,55,0.07)",
+  
+  
+  
+                      outline: isSelected ? `2px solid ${GOLD}` : "none",
+  
+  
+  
+                    }}
+  
+  
+  
+                  >
+  
+  
+  
+                    <td style={td}>{employee.occupation || "-"}</td>
+  
+  
+  
+                    <td style={td}>{employee.firstName || "-"}</td>
+  
+  
+  
+                    <td style={td}>{employee.surname || "-"}</td>
+  
+  
+  
+                    <td style={td}>{employee.phone || "-"}</td>
+  
+  
+  
+                    <td style={td}>{employee.cell || "-"}</td>
+  
+  
+  
+                    <td style={td}>
+  
+  
+  
+                      <span style={{ color: employee.payrollEnabled ? "#15803d" : "#64748b", fontWeight: 900 }}>
+  
+  
+  
+                        {employee.payrollEnabled ? "Enabled" : "Not enabled"}
+  
+  
+  
+                      </span>
+  
+  
+  
+                    </td>
+  
+  
+  
+                  </tr>
+  
+  
+  
+                );
+  
+  
+  
+              })
+  
+  
+  
+            )}
+  
+  
+  
+          </tbody>
+  
+  
+  
+        </table>
+  
+  
+  
+        <div style={{ padding: "10px", display: "flex", justifyContent: "space-between", color: "#64748b", fontSize: "12px", fontWeight: 800 }}>
+  
+  
+  
+          <span>
+  
+  
+  
+            {filteredEmployeeRows.length === 0 ? "0" : (employeePage - 1) * employeePageSize + 1} - {Math.min(employeePage * employeePageSize, filteredEmployeeRows.length)} / {filteredEmployeeRows.length}
+  
+  
+  
+          </span>
+  
+  
+  
+          <div style={{ display: "flex", gap: "6px", alignItems: "center" }}>
+  
+  
+  
+            <button style={actionBtn} disabled={employeePage <= 1} onClick={() => setEmployeePage((p) => Math.max(1, p - 1))}>‹</button>
+  
+  
+  
+            <span>Page {employeePage} / {employeeTotalPages}</span>
+  
+  
+  
+            <button style={actionBtn} disabled={employeePage >= employeeTotalPages} onClick={() => setEmployeePage((p) => Math.min(employeeTotalPages, p + 1))}>›</button>
+  
+  
+  
+          </div>
+  
+  
+  
+        </div>
+  
+  
+  
+      </div>
+  
+  
+  
+    </div>
+  
+  
+  
+  );
+   
+  const renderEmployeeManage = () => {
+
+
+
+    const saved = localStorage.getItem("selectedEmployeeForManage");
+  
+  
+  
+    const employee =
+  
+  
+  
+      selectedEmployee ||
+  
+  
+  
+      (saved
+  
+  
+  
+        ? (() => {
+  
+  
+  
+            try {
+  
+  
+  
+              return JSON.parse(saved);
+  
+  
+  
+            } catch {
+  
+  
+  
+              return null;
+  
+  
+  
+            }
+  
+  
+  
+          })()
+  
+  
+  
+        : null);
+  
+  
+  
+    if (!employee) {
+  
+  
+  
+      return (
+  
+  
+  
+        <div style={{ padding: "32px" }}>
+  
+  
+  
+          <h1 className="page-title">Employee</h1>
+  
+  
+  
+          <p>Select an employee first.</p>
+  
+  
+  
+          <button style={actionBtn} onClick={() => setActivePage("employees")}>
+  
+  
+  
+            Back
+  
+  
+  
+          </button>
+  
+  
+  
+        </div>
+  
+  
+  
+      );
+  
+  
+  
+    }
+  
+  
+  
+    const updateEmployeeDraft = (key: string, value: any) => {
+  
+  
+  
+      setEmployeeDraft((prev: any) => ({ ...prev, [key]: value }));
+  
+  
+  
+    };
+  
+  
+  
+    const tabButton = (key: typeof employeeTab, label: string) => (
+  
+  
+  
+      <button
+  
+  
+  
+        type="button"
+  
+  
+  
+        onClick={() => setEmployeeTab(key)}
+  
+  
+  
+        style={{
+  
+  
+  
+          padding: "14px 18px",
+  
+  
+  
+          border: "none",
+  
+  
+  
+          borderRight: "1px solid #e5e7eb",
+  
+  
+  
+          background: employeeTab === key ? "#ffffff" : "#f8fafc",
+  
+  
+  
+          borderTop: employeeTab === key ? `4px solid ${GOLD}` : "4px solid transparent",
+  
+  
+  
+          fontWeight: 900,
+  
+  
+  
+          color: employeeTab === key ? "#0f172a" : "#64748b",
+  
+  
+  
+          cursor: "pointer",
+  
+  
+  
+        }}
+  
+  
+  
+      >
+  
+  
+  
+        {label}
+  
+  
+  
+      </button>
+  
+  
+  
+    );
+  
+  
+  
+    const field = (label: string, key: string, required = false, type = "text") => (
+  
+  
+  
+      <>
+  
+  
+  
+        <label style={labelStyle}>{required ? "* " : ""}{label}</label>
+  
+  
+  
+        <input
+  
+  
+  
+          type={type}
+  
+  
+  
+          style={inputStyle}
+  
+  
+  
+          value={employeeDraft[key] ?? employee[key] ?? ""}
+  
+  
+  
+          onChange={(e) => updateEmployeeDraft(key, e.target.value)}
+  
+  
+  
+        />
+  
+  
+  
+      </>
+  
+  
+  
+    );
+  
+  
+  
+    return (
+  
+  
+  
+      <div style={{ padding: "26px", background: "#f8fafc", minHeight: "100%", borderRadius: "20px", border: "1px solid rgba(15,23,42,0.08)" }}>
+  
+  
+  
+        <div style={{ marginBottom: "12px" }}>
+  
+  
+  
+          <h1 style={{ margin: 0, fontSize: "34px", fontWeight: 900, color: "#0f172a" }}>Employee</h1>
+  
+  
+  
+          <p style={{ margin: "6px 0 0", color: "#64748b", fontWeight: 700 }}>Change employee information</p>
+  
+  
+  
+        </div>
+  
+  
+  
+        <div style={{ display: "flex", gap: "8px", marginBottom: "14px", position: "relative" }}>
+  
+  
+  
+          <button style={actionBtn} onClick={() => setActivePage("employees")}>← Back</button>
+  
+  
+  
+          <button
+  
+  
+  
+            style={goldBtn}
+  
+  
+  
+            onClick={() => {
+  
+  
+  
+              saveEmployee({
+  
+  
+  
+                ...employee,
+  
+  
+  
+                ...employeeDraft,
+  
+  
+  
+                firstName: employeeDraft.firstName ?? employee.firstName,
+  
+  
+  
+                surname: employeeDraft.surname ?? employee.surname,
+  
+  
+  
+              });
+  
+  
+  
+              alert("Employee saved.");
+  
+  
+  
+            }}
+  
+  
+  
+          >
+  
+  
+  
+            💾 Save
+  
+  
+  
+          </button>
+  
+  
+  
+          <button style={actionBtn} onClick={() => setEmployeeMoreOpen((v) => !v)}>
+  
+  
+  
+            More Actions⌄
+  
+  
+  
+          </button>
+  
+  
+  
+          {employeeMoreOpen && (
+  
+  
+  
+            <div
+  
+  
+  
+              style={{
+  
+  
+  
+                position: "absolute",
+  
+  
+  
+                top: "42px",
+  
+  
+  
+                left: "196px",
+  
+  
+  
+                width: "230px",
+  
+  
+  
+                background: "#ffffff",
+  
+  
+  
+                border: "1px solid #e5e7eb",
+  
+  
+  
+                borderRadius: "12px",
+  
+  
+  
+                boxShadow: "0 18px 40px rgba(15,23,42,0.18)",
+  
+  
+  
+                overflow: "hidden",
+  
+  
+  
+                zIndex: 20,
+  
+  
+  
+              }}
+  
+  
+  
+            >
+  
+  
+  
+              {["Unenrol", "Delete", "Manage Occupations"].map((item) => (
+  
+  
+  
+                <button
+  
+  
+  
+                  key={item}
+  
+  
+  
+                  type="button"
+  
+  
+  
+                  onClick={() => {
+  
+  
+  
+                    setEmployeeMoreOpen(false);
+  
+  
+  
+                    alert(`${item} will be connected in the backend pass.`);
+  
+  
+  
+                  }}
+  
+  
+  
+                  style={{
+  
+  
+  
+                    display: "block",
+  
+  
+  
+                    width: "100%",
+  
+  
+  
+                    textAlign: "left",
+  
+  
+  
+                    padding: "14px 16px",
+  
+  
+  
+                    background: "#ffffff",
+  
+  
+  
+                    border: "none",
+  
+  
+  
+                    borderBottom: "1px solid #e5e7eb",
+  
+  
+  
+                    fontWeight: 800,
+  
+  
+  
+                    cursor: "pointer",
+  
+  
+  
+                  }}
+  
+  
+  
+                >
+  
+  
+  
+                  {item}
+  
+  
+  
+                </button>
+  
+  
+  
+              ))}
+  
+  
+  
+            </div>
+  
+  
+  
+          )}
+  
+  
+  
+        </div>
+  
+  
+  
+        <div style={{ display: "grid", gridTemplateColumns: "minmax(680px,1fr) 380px", gap: "28px", alignItems: "start" }}>
+  
+  
+  
+          <div style={{ background: "#fff", border: "1px solid #cbd5e1", borderTop: `4px solid ${GOLD}`, borderRadius: "10px", overflow: "hidden", boxShadow: "0 14px 34px rgba(15,23,42,0.07)" }}>
+  
+  
+  
+            <div style={{ display: "grid", gridTemplateColumns: "160px repeat(6, 1fr)", borderBottom: "1px solid #cbd5e1", background: "#f8fafc" }}>
+  
+  
+  
+              <div style={{ padding: "14px", fontWeight: 900, borderRight: "1px solid #cbd5e1" }}>Employee</div>
+  
+  
+  
+              {tabButton("general", "General")}
+  
+  
+  
+              {tabButton("contact", "Contact")}
+  
+  
+  
+              {tabButton("address", "Address")}
+  
+  
+  
+              {tabButton("payroll", "Payroll")}
+  
+  
+  
+              {tabButton("other", "Other")}
+  
+  
+  
+              {tabButton("extra", "Extra")}
+  
+  
+  
+            </div>
+  
+  
+  
+            <div style={{ padding: "22px", display: "grid", gridTemplateColumns: "170px 1fr", rowGap: "10px", columnGap: "12px" }}>
+  
+  
+  
+              {employeeTab === "general" && (
+  
+  
+  
+                <>
+  
+  
+  
+                  {field("Occupation", "occupation", true)}
+  
+  
+  
+                  {field("Title", "title", true)}
+  
+  
+  
+                  {field("Name / Nickname", "firstName", true)}
+  
+  
+  
+                  {field("Surname", "surname", true)}
+  
+  
+  
+                  {field("ID No", "idNumber")}
+  
+  
+  
+                  {field("Employment Date", "employmentDate", false, "date")}
+  
+  
+  
+                  <label style={labelStyle}>Notes</label>
+  
+  
+  
+                  <textarea
+  
+  
+  
+                    style={{ ...inputStyle, minHeight: "110px", resize: "vertical", fontFamily: "inherit" }}
+  
+  
+  
+                    value={employeeDraft.notes ?? employee.notes ?? ""}
+  
+  
+  
+                    onChange={(e) => updateEmployeeDraft("notes", e.target.value)}
+  
+  
+  
+                  />
+  
+  
+  
+                </>
+  
+  
+  
+              )}
+  
+  
+  
+              {employeeTab === "contact" && (
+  
+  
+  
+                <>
+  
+  
+  
+                  {field("Cell", "cell")}
+  
+  
+  
+                  {field("Phone", "phone")}
+  
+  
+  
+                  {field("Email", "email", false, "email")}
+  
+  
+  
+                  {field("Emergency Contact", "emergencyContact")}
+  
+  
+  
+                  {field("Emergency Cell", "emergencyCell")}
+  
+  
+  
+                </>
+  
+  
+  
+              )}
+  
+  
+  
+              {employeeTab === "address" && (
+  
+  
+  
+                <>
+  
+  
+  
+                  {field("Address Line 1", "address1")}
+  
+  
+  
+                  {field("Address Line 2", "address2")}
+  
+  
+  
+                  {field("City", "city")}
+  
+  
+  
+                  {field("Province", "province")}
+  
+  
+  
+                  {field("Postal Code", "postalCode")}
+  
+  
+  
+                </>
+  
+  
+  
+              )}
+  
+  
+  
+              {employeeTab === "payroll" && (
+  
+  
+  
+                <>
+  
+  
+  
+                  <label style={labelStyle}>Payroll Enabled</label>
+  
+  
+  
+                  <select
+  
+  
+  
+                    style={inputStyle}
+  
+  
+  
+                    value={employeeDraft.payrollEnabled ?? employee.payrollEnabled ? "yes" : "no"}
+  
+  
+  
+                    onChange={(e) => updateEmployeeDraft("payrollEnabled", e.target.value === "yes")}
+  
+  
+  
+                  >
+  
+  
+  
+                    <option value="yes">Yes</option>
+  
+  
+  
+                    <option value="no">No</option>
+  
+  
+  
+                  </select>
+  
+  
+  
+                  {field("Basic Salary", "basicSalary", false, "number")}
+  
+  
+  
+                  {field("Tax Number", "taxNumber")}
+  
+  
+  
+                  {field("UIF Number", "uifNumber")}
+  
+  
+  
+                  {field("Bank Name", "bankName")}
+  
+  
+  
+                  {field("Account Number", "bankAccount")}
+  
+  
+  
+                  {field("Branch Code", "branchCode")}
+  
+  
+  
+                </>
+  
+  
+  
+              )}
+  
+  
+  
+              {employeeTab === "other" && (
+  
+  
+  
+                <>
+  
+  
+  
+                  {field("Vehicle Reg No", "vehicleRegNo")}
+  
+  
+  
+                  {field("Vehicle Description", "vehicleDescription")}
+  
+  
+  
+                  {field("Birthday Day", "birthdayDay", false, "number")}
+  
+  
+  
+                  {field("Birthday Month", "birthdayMonth")}
+  
+  
+  
+                </>
+  
+  
+  
+              )}
+  
+  
+  
+              {employeeTab === "extra" && (
+  
+  
+  
+                <>
+  
+  
+  
+                  {field("Extra Info 1", "extra1")}
+  
+  
+  
+                  {field("Extra Info 2", "extra2")}
+  
+  
+  
+                  {field("Extra Info 3", "extra3")}
+  
+  
+  
+                </>
+  
+  
+  
+              )}
+  
+  
+  
+            </div>
+  
+  
+  
+          </div>
+  
+  
+  
+          <div style={{ paddingTop: "56px" }}>
+  
+  
+  
+            <div style={{ width: "205px", height: "205px", margin: "0 auto 18px", border: "1px solid #cbd5e1", background: "linear-gradient(180deg,#e2e8f0,#f8fafc)", display: "grid", placeItems: "center" }}>
+  
+  
+  
+              <div style={{ width: "120px", height: "120px", borderRadius: "999px", background: "#94a3b8" }} />
+  
+  
+  
+            </div>
+  
+  
+  
+            <div style={{ display: "grid", gridTemplateColumns: "120px 1fr", border: "1px solid #e5e7eb", background: "#fff", boxShadow: "0 10px 26px rgba(15,23,42,0.05)" }}>
+  
+  
+  
+              {[
+  
+  
+  
+                ["Full Name", employeeFullName({ ...employee, ...employeeDraft }) || "-"],
+  
+  
+  
+                ["Occupation", employeeDraft.occupation || employee.occupation || "-"],
+  
+  
+  
+                ["Payroll", employeeDraft.payrollEnabled ?? employee.payrollEnabled ? "Enabled" : "Not enabled"],
+  
+  
+  
+                ["Notes", employeeDraft.notes || employee.notes || ""],
+  
+  
+  
+              ].map(([label, value]) => (
+  
+  
+  
+                <>
+  
+  
+  
+                  <div key={`${label}-l`} style={{ padding: "12px", background: "#f1f5f9", fontWeight: 900, textAlign: "right", borderBottom: "1px solid #e5e7eb" }}>{label}</div>
+  
+  
+  
+                  <div key={`${label}-v`} style={{ padding: "12px", fontWeight: 800, borderBottom: "1px solid #e5e7eb" }}>{value}</div>
+  
+  
+  
+                </>
+  
+  
+  
+              ))}
+  
+  
+  
+            </div>
+  
+  
+  
+          </div>
+  
+  
+  
+        </div>
+  
+  
+  
+      </div>
+  
+  
+  
+    );
+  
+  
+  
+  };
+
   const renderDashboard = () => (
 
 
@@ -10827,11 +12619,19 @@ case "groupManage":
   
   
   
-        case "employees":
-  
-  
-  
-          return <h1 className="page-title">Employees</h1>;
+  case "employees":
+
+
+
+  return renderEmployees();
+
+
+
+case "employeeManage":
+
+
+
+  return renderEmployeeManage(); 
   
   
   
