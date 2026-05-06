@@ -91,7 +91,7 @@ type PageKey =
   | "classroomManage"
 
   | "groups"
-
+  | "groupManage" 
 
 
   | "employees"
@@ -392,7 +392,35 @@ const [classroomDraft, setClassroomDraft] = useState<any>({});
 
 
 const [localClassrooms, setLocalClassrooms] = useState<any[]>([]);
+const [selectedGroup, setSelectedGroup] = useState<any | null>(null);
 
+
+
+const [groupSearch, setGroupSearch] = useState("");
+
+
+
+const [groupPage, setGroupPage] = useState(1);
+
+
+
+const [groupLearnerPage, setGroupLearnerPage] = useState(1);
+
+
+
+const [groupMode, setGroupMode] = useState<"none" | "add" | "manage">("none");
+
+
+
+const [groupDraft, setGroupDraft] = useState<any>({});
+
+
+
+const [localGroups, setLocalGroups] = useState<any[]>([]);
+
+
+
+const [selectedGroupLearnerIds, setSelectedGroupLearnerIds] = useState<string[]>([]);
 
 
 const [learnerGradeOverrides, setLearnerGradeOverrides] = useState<Record<string, string>>({});
@@ -7726,6 +7754,1593 @@ const [selectedClassroomLearnerIds, setSelectedClassroomLearnerIds] = useState<s
   
   };
 
+  const groupRows = useMemo(() => {
+
+
+
+    return localGroups
+  
+  
+  
+      .map((group) => ({
+  
+  
+  
+        ...group,
+  
+  
+  
+        children: Array.isArray(group.learnerIds) ? group.learnerIds.length : 0,
+  
+  
+  
+      }))
+  
+  
+  
+      .sort((a, b) => String(a.name).localeCompare(String(b.name)));
+  
+  
+  
+  }, [localGroups]);
+  
+  
+  
+  const filteredGroupRows = useMemo(() => {
+  
+  
+  
+    const q = groupSearch.trim().toLowerCase();
+  
+  
+  
+    if (!q) return groupRows;
+  
+  
+  
+    return groupRows.filter((group) =>
+  
+  
+  
+      [group.name, group.comments, `${group.children} children`]
+  
+  
+  
+        .join(" ")
+  
+  
+  
+        .toLowerCase()
+  
+  
+  
+        .includes(q)
+  
+  
+  
+    );
+  
+  
+  
+  }, [groupRows, groupSearch]);
+  
+  
+  
+  const groupPageSize = 10;
+  
+  
+  
+  const groupTotalPages = Math.max(1, Math.ceil(filteredGroupRows.length / groupPageSize));
+  
+  
+  
+  const groupPagedRows = filteredGroupRows.slice(
+  
+  
+  
+    (groupPage - 1) * groupPageSize,
+  
+  
+  
+    groupPage * groupPageSize
+  
+  
+  
+  );
+  
+  
+  
+  const selectedGroupLearners = selectedGroup
+  
+  
+  
+    ? learners.filter((learner: any) =>
+  
+  
+  
+        Array.isArray(selectedGroup.learnerIds)
+  
+  
+  
+          ? selectedGroup.learnerIds.map(String).includes(String(learner.id))
+  
+  
+  
+          : false
+  
+  
+  
+      )
+  
+  
+  
+    : [];
+  
+  
+  
+  const groupLearnerPageSize = 5;
+  
+  
+  
+  const groupLearnerTotalPages = Math.max(1, Math.ceil(selectedGroupLearners.length / groupLearnerPageSize));
+  
+  
+  
+  const groupLearnerPagedRows = selectedGroupLearners.slice(
+  
+  
+  
+    (groupLearnerPage - 1) * groupLearnerPageSize,
+  
+  
+  
+    groupLearnerPage * groupLearnerPageSize
+  
+  
+  
+  );
+  
+  
+  
+  const openGroupManage = (group: any) => {
+  
+  
+  
+    setSelectedGroup(group);
+  
+  
+  
+    setGroupDraft(group);
+  
+  
+  
+    setGroupLearnerPage(1);
+  
+  
+  
+    setSelectedGroupLearnerIds([]);
+  
+  
+  
+    localStorage.setItem("selectedGroupForManage", JSON.stringify(group));
+  
+  
+  
+    setActivePage("groupManage");
+  
+  
+  
+  };
+  
+  
+  
+  const saveGroup = (updatedGroup: any) => {
+  
+  
+  
+    setSelectedGroup(updatedGroup);
+  
+  
+  
+    setGroupDraft(updatedGroup);
+  
+  
+  
+    setLocalGroups((prev) =>
+  
+  
+  
+      prev.some((item) => item.id === updatedGroup.id)
+  
+  
+  
+        ? prev.map((item) => (item.id === updatedGroup.id ? updatedGroup : item))
+  
+  
+  
+        : [updatedGroup, ...prev]
+  
+  
+  
+    );
+  
+  
+  
+    localStorage.setItem("selectedGroupForManage", JSON.stringify(updatedGroup));
+  
+  
+  
+  };
+  
+  
+  
+  const renderGroups = () => (
+  
+  
+  
+    <div style={{ padding: "26px", background: "#f8fafc", minHeight: "100%", borderRadius: "20px", border: "1px solid rgba(15,23,42,0.08)" }}>
+  
+  
+  
+      <div style={{ marginBottom: "18px" }}>
+  
+  
+  
+        <h1 style={{ margin: 0, fontSize: "34px", fontWeight: 900, color: "#0f172a" }}>Groups</h1>
+  
+  
+  
+        <p style={{ margin: "6px 0 0", color: "#64748b", fontWeight: 700 }}>Manage your groups</p>
+  
+  
+  
+      </div>
+  
+  
+  
+      <div style={{ background: "#fff", border: "1px solid rgba(15,23,42,0.10)", borderTop: `4px solid ${GOLD}`, borderRadius: "12px", overflow: "hidden", boxShadow: "0 18px 40px rgba(15,23,42,0.08)" }}>
+  
+  
+  
+        <div style={{ padding: "12px 14px", borderBottom: "1px solid #e5e7eb", fontWeight: 900 }}>
+  
+  
+  
+          Groups
+  
+  
+  
+        </div>
+  
+  
+  
+        <div style={{ padding: "10px", display: "flex", gap: "8px", borderBottom: "1px solid #e5e7eb", alignItems: "center" }}>
+  
+  
+  
+          <button
+  
+  
+  
+            style={goldBtn}
+  
+  
+  
+            onClick={() => {
+  
+  
+  
+              setGroupMode("add");
+  
+  
+  
+              setSelectedGroup(null);
+  
+  
+  
+              setGroupDraft({ name: "", comments: "", learnerIds: [] });
+  
+  
+  
+            }}
+  
+  
+  
+          >
+  
+  
+  
+            + Add
+  
+  
+  
+          </button>
+  
+  
+  
+          <button
+  
+  
+  
+            style={{ ...actionBtn, opacity: selectedGroup ? 1 : 0.55, cursor: selectedGroup ? "pointer" : "not-allowed" }}
+  
+  
+  
+            disabled={!selectedGroup}
+  
+  
+  
+            onClick={() => {
+  
+  
+  
+              if (!selectedGroup) return alert("Please select a group first.");
+  
+  
+  
+              openGroupManage(selectedGroup);
+  
+  
+  
+            }}
+  
+  
+  
+          >
+  
+  
+  
+            ✎ Manage
+  
+  
+  
+          </button>
+  
+  
+  
+          <div style={{ flex: 1 }} />
+  
+  
+  
+          <input
+  
+  
+  
+            placeholder="Search"
+  
+  
+  
+            value={groupSearch}
+  
+  
+  
+            onChange={(e) => {
+  
+  
+  
+              setGroupSearch(e.target.value);
+  
+  
+  
+              setGroupPage(1);
+  
+  
+  
+            }}
+  
+  
+  
+            style={{ ...selectStyle, width: "230px" }}
+  
+  
+  
+          />
+  
+  
+  
+        </div>
+  
+  
+  
+        {groupMode === "add" && (
+  
+  
+  
+          <div style={{ padding: "14px", background: "rgba(212,175,55,0.08)", borderBottom: "1px solid #e5e7eb" }}>
+  
+  
+  
+            <div style={{ display: "grid", gridTemplateColumns: "1fr 2fr", gap: "10px" }}>
+  
+  
+  
+              <input
+  
+  
+  
+                style={inputStyle}
+  
+  
+  
+                placeholder="Group name"
+  
+  
+  
+                value={groupDraft.name || ""}
+  
+  
+  
+                onChange={(e) => setGroupDraft((p: any) => ({ ...p, name: e.target.value }))}
+  
+  
+  
+              />
+  
+  
+  
+              <input
+  
+  
+  
+                style={inputStyle}
+  
+  
+  
+                placeholder="Comments"
+  
+  
+  
+                value={groupDraft.comments || ""}
+  
+  
+  
+                onChange={(e) => setGroupDraft((p: any) => ({ ...p, comments: e.target.value }))}
+  
+  
+  
+              />
+  
+  
+  
+            </div>
+  
+  
+  
+            <div style={{ display: "flex", gap: "8px", marginTop: "10px" }}>
+  
+  
+  
+              <button
+  
+  
+  
+                style={goldBtn}
+  
+  
+  
+                onClick={() => {
+  
+  
+  
+                  if (!String(groupDraft.name || "").trim()) return alert("Group name is required.");
+  
+  
+  
+                  const newGroup = {
+  
+  
+  
+                    id: `group-${Date.now()}`,
+  
+  
+  
+                    name: groupDraft.name,
+  
+  
+  
+                    comments: groupDraft.comments || "",
+  
+  
+  
+                    learnerIds: [],
+  
+  
+  
+                  };
+  
+  
+  
+                  saveGroup(newGroup);
+  
+  
+  
+                  setGroupMode("none");
+  
+  
+  
+                }}
+  
+  
+  
+              >
+  
+  
+  
+                Save Group
+  
+  
+  
+              </button>
+  
+  
+  
+              <button style={actionBtn} onClick={() => setGroupMode("none")}>
+  
+  
+  
+                Cancel
+  
+  
+  
+              </button>
+  
+  
+  
+            </div>
+  
+  
+  
+          </div>
+  
+  
+  
+        )}
+  
+  
+  
+        <table style={{ width: "100%", borderCollapse: "collapse", fontSize: "13px" }}>
+  
+  
+  
+          <thead>
+  
+  
+  
+            <tr>
+  
+  
+  
+              <th style={th}>Name</th>
+  
+  
+  
+              <th style={th}>Children</th>
+  
+  
+  
+              <th style={th}>Comments</th>
+  
+  
+  
+            </tr>
+  
+  
+  
+          </thead>
+  
+  
+  
+          <tbody>
+  
+  
+  
+            {groupPagedRows.length === 0 ? (
+  
+  
+  
+              <tr>
+  
+  
+  
+                <td colSpan={3} style={{ ...td, textAlign: "center", padding: "24px" }}>
+  
+  
+  
+                  No groups found. Click + Add to create your first group.
+  
+  
+  
+                </td>
+  
+  
+  
+              </tr>
+  
+  
+  
+            ) : (
+  
+  
+  
+              groupPagedRows.map((group, index) => {
+  
+  
+  
+                const isSelected = selectedGroup?.id === group.id;
+  
+  
+  
+                return (
+  
+  
+  
+                  <tr
+  
+  
+  
+                    key={group.id}
+  
+  
+  
+                    onClick={() => setSelectedGroup(group)}
+  
+  
+  
+                    onDoubleClick={() => openGroupManage(group)}
+  
+  
+  
+                    style={{
+  
+  
+  
+                      cursor: "pointer",
+  
+  
+  
+                      background: isSelected
+  
+  
+  
+                        ? "linear-gradient(90deg, rgba(212,175,55,0.25), #fff)"
+  
+  
+  
+                        : index % 2 === 0
+  
+  
+  
+                        ? "#fff"
+  
+  
+  
+                        : "rgba(212,175,55,0.07)",
+  
+  
+  
+                      outline: isSelected ? `2px solid ${GOLD}` : "none",
+  
+  
+  
+                    }}
+  
+  
+  
+                  >
+  
+  
+  
+                    <td style={td}>{group.name}</td>
+  
+  
+  
+                    <td style={td}>{group.children} children</td>
+  
+  
+  
+                    <td style={td}>{group.comments || "-"}</td>
+  
+  
+  
+                  </tr>
+  
+  
+  
+                );
+  
+  
+  
+              })
+  
+  
+  
+            )}
+  
+  
+  
+          </tbody>
+  
+  
+  
+        </table>
+  
+  
+  
+        <div style={{ padding: "10px", display: "flex", justifyContent: "space-between", color: "#64748b", fontSize: "12px", fontWeight: 800 }}>
+  
+  
+  
+          <span>
+  
+  
+  
+            {filteredGroupRows.length === 0 ? "0" : (groupPage - 1) * groupPageSize + 1} - {Math.min(groupPage * groupPageSize, filteredGroupRows.length)} / {filteredGroupRows.length}
+  
+  
+  
+          </span>
+  
+  
+  
+          <div style={{ display: "flex", gap: "6px", alignItems: "center" }}>
+  
+  
+  
+            <button style={actionBtn} disabled={groupPage <= 1} onClick={() => setGroupPage((p) => Math.max(1, p - 1))}>‹</button>
+  
+  
+  
+            <span>Page {groupPage} / {groupTotalPages}</span>
+  
+  
+  
+            <button style={actionBtn} disabled={groupPage >= groupTotalPages} onClick={() => setGroupPage((p) => Math.min(groupTotalPages, p + 1))}>›</button>
+  
+  
+  
+          </div>
+  
+  
+  
+        </div>
+  
+  
+  
+      </div>
+  
+  
+  
+    </div>
+  
+  
+  
+  );
+  const renderGroupManage = () => {
+
+
+
+    const saved = localStorage.getItem("selectedGroupForManage");
+  
+  
+  
+    const group =
+  
+  
+  
+      selectedGroup ||
+  
+  
+  
+      (saved
+  
+  
+  
+        ? (() => {
+  
+  
+  
+            try {
+  
+  
+  
+              return JSON.parse(saved);
+  
+  
+  
+            } catch {
+  
+  
+  
+              return null;
+  
+  
+  
+            }
+  
+  
+  
+          })()
+  
+  
+  
+        : null);
+  
+  
+  
+    if (!group) {
+  
+  
+  
+      return (
+  
+  
+  
+        <div style={{ padding: "32px" }}>
+  
+  
+  
+          <h1 className="page-title">Group</h1>
+  
+  
+  
+          <p>Select a group first.</p>
+  
+  
+  
+          <button style={actionBtn} onClick={() => setActivePage("groups")}>
+  
+  
+  
+            Back
+  
+  
+  
+          </button>
+  
+  
+  
+        </div>
+  
+  
+  
+      );
+  
+  
+  
+    }
+  
+  
+  
+    const addLearnerToGroup = () => {
+  
+  
+  
+      const typed = window.prompt("Type learner name to add to this group:");
+  
+  
+  
+      if (!typed) return;
+  
+  
+  
+      const found = learners.find((learner: any) =>
+  
+  
+  
+        `${learner.firstName || ""} ${learner.lastName || learner.surname || ""}`
+  
+  
+  
+          .toLowerCase()
+  
+  
+  
+          .includes(typed.toLowerCase())
+  
+  
+  
+      );
+  
+  
+  
+      if (!found) return alert("Learner not found.");
+  
+  
+  
+      if ((group.learnerIds || []).map(String).includes(String(found.id))) {
+  
+  
+  
+        return alert("Learner is already in this group.");
+  
+  
+  
+      }
+  
+  
+  
+      saveGroup({
+  
+  
+  
+        ...group,
+  
+  
+  
+        learnerIds: [...(group.learnerIds || []), String(found.id)],
+  
+  
+  
+      });
+  
+  
+  
+    };
+  
+  
+  
+    const removeLearnersFromGroup = () => {
+  
+  
+  
+      if (selectedGroupLearnerIds.length === 0) return alert("Select learners first.");
+  
+  
+  
+      saveGroup({
+  
+  
+  
+        ...group,
+  
+  
+  
+        learnerIds: (group.learnerIds || []).filter(
+  
+  
+  
+          (id: string) => !selectedGroupLearnerIds.includes(String(id))
+  
+  
+  
+        ),
+  
+  
+  
+      });
+  
+  
+  
+      setSelectedGroupLearnerIds([]);
+  
+  
+  
+    };
+  
+  
+  
+    return (
+  
+  
+  
+      <div style={{ padding: "26px", background: "#f8fafc", minHeight: "100%", borderRadius: "20px", border: "1px solid rgba(15,23,42,0.08)" }}>
+  
+  
+  
+        <div style={{ marginBottom: "12px" }}>
+  
+  
+  
+          <h1 style={{ margin: 0, fontSize: "34px", fontWeight: 900, color: "#0f172a" }}>Group</h1>
+  
+  
+  
+          <p style={{ margin: "6px 0 0", color: "#64748b", fontWeight: 700 }}>Change group information and manage children</p>
+  
+  
+  
+        </div>
+  
+  
+  
+        <div style={{ display: "flex", gap: "8px", marginBottom: "14px" }}>
+  
+  
+  
+          <button style={actionBtn} onClick={() => setActivePage("groups")}>
+  
+  
+  
+            ← Back
+  
+  
+  
+          </button>
+  
+  
+  
+          <button
+  
+  
+  
+            style={goldBtn}
+  
+  
+  
+            onClick={() => {
+  
+  
+  
+              saveGroup({
+  
+  
+  
+                ...group,
+  
+  
+  
+                ...groupDraft,
+  
+  
+  
+                name: groupDraft.name || group.name,
+  
+  
+  
+                comments: groupDraft.comments ?? group.comments ?? "",
+  
+  
+  
+                learnerIds: group.learnerIds || [],
+  
+  
+  
+              });
+  
+  
+  
+              alert("Group saved.");
+  
+  
+  
+            }}
+  
+  
+  
+          >
+  
+  
+  
+            💾 Save
+  
+  
+  
+          </button>
+  
+  
+  
+          <button style={actionBtn} onClick={() => alert("More group actions will be connected later.")}>
+  
+  
+  
+            More Actions⌄
+  
+  
+  
+          </button>
+  
+  
+  
+        </div>
+  
+  
+  
+        <div style={{ background: "#fff", border: "1px solid #cbd5e1", borderTop: `4px solid ${GOLD}`, borderRadius: "10px", overflow: "hidden", boxShadow: "0 14px 34px rgba(15,23,42,0.07)", marginBottom: "18px" }}>
+  
+  
+  
+          <div style={{ display: "grid", gridTemplateColumns: "170px 1fr", borderBottom: "1px solid #cbd5e1", background: "#f8fafc" }}>
+  
+  
+  
+            <div style={{ padding: "14px", fontWeight: 900, borderRight: "1px solid #cbd5e1" }}>
+  
+  
+  
+              Group
+  
+  
+  
+            </div>
+  
+  
+  
+            <div style={{ padding: "12px 18px", fontWeight: 900, background: "#fff" }}>
+  
+  
+  
+              General
+  
+  
+  
+            </div>
+  
+  
+  
+          </div>
+  
+  
+  
+          <div style={{ padding: "22px", display: "grid", gridTemplateColumns: "150px 1fr", rowGap: "10px", columnGap: "12px" }}>
+  
+  
+  
+            <label style={labelStyle}>* Name</label>
+  
+  
+  
+            <input
+  
+  
+  
+              style={inputStyle}
+  
+  
+  
+              value={groupDraft.name ?? group.name ?? ""}
+  
+  
+  
+              onChange={(e) => setGroupDraft((p: any) => ({ ...p, name: e.target.value }))}
+  
+  
+  
+            />
+  
+  
+  
+            <label style={labelStyle}>Notes</label>
+  
+  
+  
+            <textarea
+  
+  
+  
+              style={{ ...inputStyle, minHeight: "105px", resize: "vertical", fontFamily: "inherit" }}
+  
+  
+  
+              value={groupDraft.comments ?? group.comments ?? ""}
+  
+  
+  
+              onChange={(e) => setGroupDraft((p: any) => ({ ...p, comments: e.target.value }))}
+  
+  
+  
+            />
+  
+  
+  
+          </div>
+  
+  
+  
+        </div>
+  
+  
+  
+        <div style={{ background: "#fff", border: "1px solid #cbd5e1", borderRadius: "10px", overflow: "hidden", boxShadow: "0 14px 34px rgba(15,23,42,0.07)" }}>
+  
+  
+  
+          <div style={{ padding: "12px 14px", borderBottom: "1px solid #cbd5e1", fontWeight: 900, background: "#f8fafc" }}>
+  
+  
+  
+            Children
+  
+  
+  
+          </div>
+  
+  
+  
+          <div style={{ padding: "10px", display: "flex", gap: "8px", borderBottom: "1px solid #e5e7eb" }}>
+  
+  
+  
+            <button style={goldBtn} onClick={addLearnerToGroup}>
+  
+  
+  
+              + Add
+  
+  
+  
+            </button>
+  
+  
+  
+            <button
+  
+  
+  
+              style={actionBtn}
+  
+  
+  
+              onClick={() => {
+  
+  
+  
+                if (selectedGroupLearnerIds.length !== 1) return alert("Select one learner to manage.");
+  
+  
+  
+                const learner = selectedGroupLearners.find(
+  
+  
+  
+                  (item: any) => String(item.id) === String(selectedGroupLearnerIds[0])
+  
+  
+  
+                );
+  
+  
+  
+                if (learner) openLearnerProfile(learner);
+  
+  
+  
+              }}
+  
+  
+  
+            >
+  
+  
+  
+              ✎ Manage
+  
+  
+  
+            </button>
+  
+  
+  
+            <button style={dangerBtn} onClick={removeLearnersFromGroup}>
+  
+  
+  
+              × Remove
+  
+  
+  
+            </button>
+  
+  
+  
+          </div>
+  
+  
+  
+          <table style={{ width: "100%", borderCollapse: "collapse", fontSize: "13px" }}>
+  
+  
+  
+            <thead>
+  
+  
+  
+              <tr>
+  
+  
+  
+                <th style={th}>✓</th>
+  
+  
+  
+                <th style={th}>Name</th>
+  
+  
+  
+                <th style={th}>Surname</th>
+  
+  
+  
+                <th style={th}>Grade</th>
+  
+  
+  
+                <th style={th}>Age</th>
+  
+  
+  
+                <th style={th}>Child Status</th>
+  
+  
+  
+              </tr>
+  
+  
+  
+            </thead>
+  
+  
+  
+            <tbody>
+  
+  
+  
+              {groupLearnerPagedRows.length === 0 ? (
+  
+  
+  
+                <tr>
+  
+  
+  
+                  <td colSpan={6} style={{ ...td, textAlign: "center", padding: "20px" }}>
+  
+  
+  
+                    No learners linked to this group yet
+  
+  
+  
+                  </td>
+  
+  
+  
+                </tr>
+  
+  
+  
+              ) : (
+  
+  
+  
+                groupLearnerPagedRows.map((learner: any, index: number) => {
+  
+  
+  
+                  const checked = selectedGroupLearnerIds.includes(String(learner.id));
+  
+  
+  
+                  return (
+  
+  
+  
+                    <tr
+  
+  
+  
+                      key={learner.id || index}
+  
+  
+  
+                      style={{
+  
+  
+  
+                        background: checked
+  
+  
+  
+                          ? "rgba(212,175,55,0.22)"
+  
+  
+  
+                          : index % 2 === 0
+  
+  
+  
+                          ? "#fff"
+  
+  
+  
+                          : "rgba(212,175,55,0.06)",
+  
+  
+  
+                      }}
+  
+  
+  
+                    >
+  
+  
+  
+                      <td style={td}>
+  
+  
+  
+                        <input
+  
+  
+  
+                          type="checkbox"
+  
+  
+  
+                          checked={checked}
+  
+  
+  
+                          onChange={(e) => {
+  
+  
+  
+                            const id = String(learner.id);
+  
+  
+  
+                            setSelectedGroupLearnerIds((prev) =>
+  
+  
+  
+                              e.target.checked ? [...prev, id] : prev.filter((x) => x !== id)
+  
+  
+  
+                            );
+  
+  
+  
+                          }}
+  
+  
+  
+                        />
+  
+  
+  
+                      </td>
+  
+  
+  
+                      <td style={td}>{learner.firstName || "-"}</td>
+  
+  
+  
+                      <td style={td}>{learner.lastName || learner.surname || "-"}</td>
+  
+  
+  
+                      <td style={td}>{getLearnerGrade(learner) || "-"}</td>
+  
+  
+  
+                      <td style={td}>{formatAge(learner.birthDate)}</td>
+  
+  
+  
+                      <td style={td}>
+  
+  
+  
+                        <span style={{ color: (learner.childStatus || "Enrolled") === "Enrolled" ? "#15803d" : "#b91c1c", fontWeight: 900 }}>
+  
+  
+  
+                          {learner.childStatus || "Enrolled"}
+  
+  
+  
+                        </span>
+  
+  
+  
+                      </td>
+  
+  
+  
+                    </tr>
+  
+  
+  
+                  );
+  
+  
+  
+                })
+  
+  
+  
+              )}
+  
+  
+  
+            </tbody>
+  
+  
+  
+          </table>
+  
+  
+  
+          <div style={{ padding: "10px", display: "flex", justifyContent: "space-between", color: "#64748b", fontSize: "12px", fontWeight: 800 }}>
+  
+  
+  
+            <span>
+  
+  
+  
+              {selectedGroupLearners.length === 0 ? "0" : (groupLearnerPage - 1) * groupLearnerPageSize + 1} - {Math.min(groupLearnerPage * groupLearnerPageSize, selectedGroupLearners.length)} / {selectedGroupLearners.length}
+  
+  
+  
+            </span>
+  
+  
+  
+            <div style={{ display: "flex", gap: "6px", alignItems: "center" }}>
+  
+  
+  
+              <button style={actionBtn} disabled={groupLearnerPage <= 1} onClick={() => setGroupLearnerPage((p) => Math.max(1, p - 1))}>
+  
+  
+  
+                ‹
+  
+  
+  
+              </button>
+  
+  
+  
+              <span>
+  
+  
+  
+                Page {groupLearnerPage} / {groupLearnerTotalPages}
+  
+  
+  
+              </span>
+  
+  
+  
+              <button style={actionBtn} disabled={groupLearnerPage >= groupLearnerTotalPages} onClick={() => setGroupLearnerPage((p) => Math.min(groupLearnerTotalPages, p + 1))}>
+  
+  
+  
+                ›
+  
+  
+  
+              </button>
+  
+  
+  
+            </div>
+  
+  
+  
+          </div>
+  
+  
+  
+        </div>
+  
+  
+  
+      </div>
+  
+  
+  
+    );
+  
+  
+  
+  };
+
   const renderDashboard = () => (
 
 
@@ -9196,11 +10811,19 @@ case "classroomManage":
   
   
   
-        case "groups":
-  
-  
-  
-          return <h1 className="page-title">Groups</h1>;
+  case "groups":
+
+
+
+  return renderGroups();
+
+
+
+case "groupManage":
+
+
+
+  return renderGroupManage();
   
   
   
