@@ -103,7 +103,7 @@ type PageKey =
 
 
   | "attendance"
-
+  | "attendanceManage"
 
 
   | "incidents"
@@ -446,7 +446,51 @@ const [employeeDraft, setEmployeeDraft] = useState<any>({});
 
 
 const [localEmployees, setLocalEmployees] = useState<any[]>([]);
+const [selectedAttendance, setSelectedAttendance] = useState<any | null>(null);
 
+
+
+const [attendanceSearch, setAttendanceSearch] = useState("");
+
+
+
+const [attendancePage, setAttendancePage] = useState(1);
+
+
+
+const [attendanceCapturePage, setAttendanceCapturePage] = useState(1);
+
+
+
+const [attendanceClassroomFilter, setAttendanceClassroomFilter] = useState("All Classrooms");
+
+
+
+const [attendanceRange, setAttendanceRange] = useState("Last 3 Months");
+
+
+
+const [attendanceModalOpen, setAttendanceModalOpen] = useState(false);
+
+
+
+const [attendanceDate, setAttendanceDate] = useState(() => new Date().toISOString().slice(0, 10));
+
+
+
+const [attendanceSelection, setAttendanceSelection] = useState("Today");
+
+
+
+const [attendanceRecords, setAttendanceRecords] = useState<any[]>([]);
+
+
+
+const [attendanceMarks, setAttendanceMarks] = useState<Record<string, any>>({});
+
+
+
+const [attendanceMoreOpen, setAttendanceMoreOpen] = useState(false);
 
 const [selectedGroupLearnerIds, setSelectedGroupLearnerIds] = useState<string[]>([]);
 
@@ -11132,6 +11176,1346 @@ const [selectedClassroomLearnerIds, setSelectedClassroomLearnerIds] = useState<s
   
   
   };
+  
+  const attendancePerPage = 10;
+
+
+
+const attendanceFiltered = attendanceRecords.filter((item) => {
+
+
+
+  const matchesSearch =
+
+
+
+    item.type?.toLowerCase().includes(attendanceSearch.toLowerCase()) ||
+
+
+
+    item.date?.toLowerCase().includes(attendanceSearch.toLowerCase());
+
+
+
+  return matchesSearch;
+
+
+
+});
+
+
+
+const attendanceTotalPages = Math.max(
+
+
+
+  1,
+
+
+
+  Math.ceil(attendanceFiltered.length / attendancePerPage)
+
+
+
+);
+
+
+
+const attendancePaginated = attendanceFiltered.slice(
+
+
+
+  (attendancePage - 1) * attendancePerPage,
+
+
+
+  attendancePage * attendancePerPage
+
+
+
+);
+
+
+
+const attendanceLearnersFiltered = learners.filter((learner: any) => {
+
+
+
+  if (
+
+
+
+    attendanceClassroomFilter !== "All Classrooms" &&
+
+
+
+    learner.classroom !== attendanceClassroomFilter
+
+
+
+  ) {
+
+
+
+    return false;
+
+
+
+  }
+
+
+
+  const fullName =
+
+
+
+    `${learner.firstName || ""} ${learner.lastName || ""}`.toLowerCase();
+
+
+
+  return fullName.includes(attendanceSearch.toLowerCase());
+
+
+
+});
+
+
+
+const attendanceCaptureTotalPages = Math.max(
+
+
+
+  1,
+
+
+
+  Math.ceil(attendanceLearnersFiltered.length / attendancePerPage)
+
+
+
+);
+
+
+
+const attendanceCapturePaginated = attendanceLearnersFiltered.slice(
+
+
+
+  (attendanceCapturePage - 1) * attendancePerPage,
+
+
+
+  attendanceCapturePage * attendancePerPage
+
+
+
+);
+
+
+
+const attendanceClassrooms = [
+
+
+
+  "All Classrooms",
+
+
+
+  ...new Set(
+
+
+
+    learners
+
+
+
+      .map((l: any) => l.classroom)
+
+
+
+      .filter(Boolean)
+
+
+
+  ),
+
+
+
+];
+
+
+
+const updateAttendanceMark = (
+
+
+
+  learnerId: string,
+
+
+
+  field: string,
+
+
+
+  value: string
+
+
+
+) => {
+
+
+
+  setAttendanceMarks((prev) => ({
+
+
+
+    ...prev,
+
+
+
+    [learnerId]: {
+
+
+
+      ...(prev[learnerId] || {}),
+
+
+
+      [field]: value,
+
+
+
+    },
+
+
+
+  }));
+
+
+
+};
+
+
+
+const setAllAttendance = (status: "Present" | "Absent") => {
+
+
+
+  const updates: Record<string, any> = {};
+
+
+
+  attendanceLearnersFiltered.forEach((learner: any) => {
+
+
+
+    updates[learner.id] = {
+
+
+
+      ...(attendanceMarks[learner.id] || {}),
+
+
+
+      attendance: status,
+
+
+
+    };
+
+
+
+  });
+
+
+
+  setAttendanceMarks((prev) => ({
+
+
+
+    ...prev,
+
+
+
+    ...updates,
+
+
+
+  }));
+
+
+
+};
+
+
+
+const openAttendanceCapture = () => {
+
+
+
+  const newAttendance = {
+
+
+
+    id: Date.now().toString(),
+
+
+
+    date: attendanceDate,
+
+
+
+    type: "Child Attendance",
+
+
+
+    attendance: `${learners.length} Learners`,
+
+
+
+    updated: "Just now",
+
+
+
+  };
+
+
+
+  setAttendanceRecords((prev) => [newAttendance, ...prev]);
+
+
+
+  setSelectedAttendance(newAttendance);
+
+
+
+  setAttendanceModalOpen(false);
+
+
+
+};
+
+
+
+useEffect(() => {
+
+
+
+  if (attendanceRecords.length === 0) {
+
+
+
+    setAttendanceRecords([
+
+
+
+      {
+
+
+
+        id: "1",
+
+
+
+        date: "2026/05/06",
+
+
+
+        type: "Child Attendance",
+
+
+
+        attendance: "0 Present",
+
+
+
+        updated: "Today",
+
+
+
+      },
+
+
+
+    ]);
+
+
+
+  }
+
+
+
+}, []);
+
+const renderAttendance = () => (
+
+
+
+  <div style={{ padding: "26px", background: "#f8fafc", minHeight: "100%", borderRadius: "20px", border: "1px solid rgba(15,23,42,0.08)" }}>
+
+
+
+    <div style={{ marginBottom: "18px" }}>
+
+
+
+      <h1 style={{ margin: 0, fontSize: "34px", fontWeight: 900, color: "#0f172a" }}>Attendance</h1>
+
+
+
+      <p style={{ margin: "6px 0 0", color: "#64748b", fontWeight: 700 }}>Manage attendance</p>
+
+
+
+    </div>
+
+
+
+    <div style={{ background: "#fff", border: "1px solid rgba(15,23,42,0.10)", borderTop: `4px solid ${GOLD}`, borderRadius: "12px", overflow: "hidden", boxShadow: "0 18px 40px rgba(15,23,42,0.08)" }}>
+
+
+
+      <div style={{ padding: "12px 14px", borderBottom: "1px solid #e5e7eb", fontWeight: 900 }}>Attendance</div>
+
+
+
+      <div style={{ padding: "10px", display: "flex", gap: "8px", borderBottom: "1px solid #e5e7eb", alignItems: "center" }}>
+
+
+
+        <button style={goldBtn} onClick={() => setAttendanceModalOpen(true)}>+ Add</button>
+
+
+
+        <button
+
+
+
+          style={{ ...actionBtn, opacity: selectedAttendance ? 1 : 0.55, cursor: selectedAttendance ? "pointer" : "not-allowed" }}
+
+
+
+          disabled={!selectedAttendance}
+
+
+
+          onClick={() => {
+
+
+
+            if (!selectedAttendance) return alert("Please select an attendance record first.");
+
+
+
+            setActivePage("attendanceManage");
+
+
+
+          }}
+
+
+
+        >
+
+
+
+          ✎ Manage
+
+
+
+        </button>
+
+
+
+        <div style={{ flex: 1 }} />
+
+
+
+        <select style={selectStyle} value={attendanceRange} onChange={(e) => setAttendanceRange(e.target.value)}>
+
+
+
+          <option>Last 3 Months</option>
+
+
+
+          <option>This Month</option>
+
+
+
+          <option>This Week</option>
+
+
+
+          <option>Today</option>
+
+
+
+        </select>
+
+
+
+        <input
+
+
+
+          placeholder="Search"
+
+
+
+          value={attendanceSearch}
+
+
+
+          onChange={(e) => {
+
+
+
+            setAttendanceSearch(e.target.value);
+
+
+
+            setAttendancePage(1);
+
+
+
+          }}
+
+
+
+          style={{ ...selectStyle, width: "230px" }}
+
+
+
+        />
+
+
+
+      </div>
+
+
+
+      <table style={{ width: "100%", borderCollapse: "collapse", fontSize: "13px" }}>
+
+
+
+        <thead>
+
+
+
+          <tr>
+
+
+
+            <th style={th}>Date</th>
+
+
+
+            <th style={th}>Type</th>
+
+
+
+            <th style={th}>Attendance</th>
+
+
+
+            <th style={th}>Last Updated</th>
+
+
+
+          </tr>
+
+
+
+        </thead>
+
+
+
+        <tbody>
+
+
+
+          {attendancePaginated.length === 0 ? (
+
+
+
+            <tr>
+
+
+
+              <td colSpan={4} style={{ ...td, textAlign: "center", padding: "24px" }}>
+
+
+
+                No attendance records found. Click + Add to start attendance.
+
+
+
+              </td>
+
+
+
+            </tr>
+
+
+
+          ) : (
+
+
+
+            attendancePaginated.map((item: any, index: number) => {
+
+
+
+              const isSelected = selectedAttendance?.id === item.id;
+
+
+
+              return (
+
+
+
+                <tr
+
+
+
+                  key={item.id}
+
+
+
+                  onClick={() => setSelectedAttendance(item)}
+
+
+
+                  onDoubleClick={() => {
+
+
+
+                    setSelectedAttendance(item);
+
+
+
+                    setActivePage("attendanceManage");
+
+
+
+                  }}
+
+
+
+                  style={{
+
+
+
+                    cursor: "pointer",
+
+
+
+                    background: isSelected
+
+
+
+                      ? "linear-gradient(90deg, rgba(212,175,55,0.25), #fff)"
+
+
+
+                      : index % 2 === 0
+
+
+
+                      ? "#fff"
+
+
+
+                      : "rgba(212,175,55,0.07)",
+
+
+
+                    outline: isSelected ? `2px solid ${GOLD}` : "none",
+
+
+
+                  }}
+
+
+
+                >
+
+
+
+                  <td style={td}>{item.date}</td>
+
+
+
+                  <td style={td}>{item.type}</td>
+
+
+
+                  <td style={td}>{item.attendance}</td>
+
+
+
+                  <td style={td}>{item.updated}</td>
+
+
+
+                </tr>
+
+
+
+              );
+
+
+
+            })
+
+
+
+          )}
+
+
+
+        </tbody>
+
+
+
+      </table>
+
+
+
+      <div style={{ padding: "10px", display: "flex", justifyContent: "space-between", color: "#64748b", fontSize: "12px", fontWeight: 800 }}>
+
+
+
+        <span>
+
+
+
+          {attendanceFiltered.length === 0 ? "0" : (attendancePage - 1) * attendancePerPage + 1} - {Math.min(attendancePage * attendancePerPage, attendanceFiltered.length)} / {attendanceFiltered.length}
+
+
+
+        </span>
+
+
+
+        <div style={{ display: "flex", gap: "6px", alignItems: "center" }}>
+
+
+
+          <button style={actionBtn} disabled={attendancePage <= 1} onClick={() => setAttendancePage((p) => Math.max(1, p - 1))}>‹</button>
+
+
+
+          <span>Page {attendancePage} / {attendanceTotalPages}</span>
+
+
+
+          <button style={actionBtn} disabled={attendancePage >= attendanceTotalPages} onClick={() => setAttendancePage((p) => Math.min(attendanceTotalPages, p + 1))}>›</button>
+
+
+
+        </div>
+
+
+
+      </div>
+
+
+
+    </div>
+
+
+
+    {attendanceModalOpen && (
+
+
+
+      <div style={{ position: "fixed", inset: 0, background: "rgba(15,23,42,0.45)", display: "grid", placeItems: "center", zIndex: 50 }}>
+
+
+
+        <div style={{ width: "620px", background: "#fff", borderRadius: "16px", border: `2px solid ${GOLD}`, boxShadow: "0 30px 80px rgba(0,0,0,0.25)", overflow: "hidden" }}>
+
+
+
+          <div style={{ padding: "18px 20px", borderBottom: "1px solid #e5e7eb", fontWeight: 900, fontSize: "18px", color: "#0f172a" }}>
+
+
+
+            Attendance Date
+
+
+
+          </div>
+
+
+
+          <div style={{ padding: "22px", display: "grid", gridTemplateColumns: "130px 1fr", gap: "12px", alignItems: "center" }}>
+
+
+
+            <label style={labelStyle}>Selection</label>
+
+
+
+            <select style={inputStyle} value={attendanceSelection} onChange={(e) => setAttendanceSelection(e.target.value)}>
+
+
+
+              <option>Today</option>
+
+
+
+              <option>Choose Date</option>
+
+
+
+            </select>
+
+
+
+            <label style={labelStyle}>Date</label>
+
+
+
+            <input type="date" style={inputStyle} value={attendanceDate} onChange={(e) => setAttendanceDate(e.target.value)} />
+
+
+
+          </div>
+
+
+
+          <div style={{ padding: "14px 20px", borderTop: "1px solid #e5e7eb", display: "flex", justifyContent: "space-between" }}>
+
+
+
+            <button
+
+
+
+              style={goldBtn}
+
+
+
+              onClick={() => {
+
+
+
+                openAttendanceCapture();
+
+
+
+                setActivePage("attendanceManage");
+
+
+
+              }}
+
+
+
+            >
+
+
+
+              ✓ Continue
+
+
+
+            </button>
+
+
+
+            <button style={dangerBtn} onClick={() => setAttendanceModalOpen(false)}>× Cancel</button>
+
+
+
+          </div>
+
+
+
+        </div>
+
+
+
+      </div>
+
+
+
+    )}
+
+
+
+  </div>
+
+
+
+);
+
+
+
+const renderAttendanceManage = () => (
+
+
+
+  <div style={{ padding: "26px", background: "#f8fafc", minHeight: "100%", borderRadius: "20px", border: "1px solid rgba(15,23,42,0.08)" }}>
+
+
+
+    <div style={{ marginBottom: "12px" }}>
+
+
+
+      <h1 style={{ margin: 0, fontSize: "34px", fontWeight: 900, color: "#0f172a" }}>Attendance</h1>
+
+
+
+      <p style={{ margin: "6px 0 0", color: "#64748b", fontWeight: 700 }}>Add or update attendance</p>
+
+
+
+    </div>
+
+
+
+    <div style={{ display: "flex", gap: "8px", marginBottom: "20px" }}>
+
+
+
+      <button style={actionBtn} onClick={() => setActivePage("attendance")}>← Back</button>
+
+
+
+      <button style={goldBtn} onClick={() => alert("Attendance auto-saved.")}>💾 Auto Saving</button>
+
+
+
+      <button style={actionBtn} onClick={() => window.print()}>▣ Print</button>
+
+
+
+      <button style={actionBtn} onClick={() => setAttendanceMoreOpen((v) => !v)}>More Actions⌄</button>
+
+
+
+    </div>
+
+
+
+    <h2 style={{ margin: "0 0 18px", fontSize: "26px", color: "#0f172a" }}>
+
+
+
+      Child Attendance for {attendanceDate}
+
+
+
+    </h2>
+
+
+
+    <div style={{ background: "#fff", border: "1px solid rgba(15,23,42,0.10)", borderTop: `4px solid ${GOLD}`, borderRadius: "12px", overflow: "hidden", boxShadow: "0 18px 40px rgba(15,23,42,0.08)" }}>
+
+
+
+      <div style={{ padding: "12px 14px", borderBottom: "1px solid #e5e7eb", fontWeight: 900 }}>Attendance</div>
+
+
+
+      <div style={{ padding: "10px", display: "flex", gap: "8px", borderBottom: "1px solid #e5e7eb", alignItems: "center" }}>
+
+
+
+        <button style={goldBtn} onClick={() => setAllAttendance("Present")}>✓ All Present</button>
+
+
+
+        <button style={dangerBtn} onClick={() => setAllAttendance("Absent")}>× All Absent</button>
+
+
+
+        <button style={goldBtn} onClick={() => setActivePage("addLearner")}>+ Add</button>
+
+
+
+        <button style={dangerBtn} onClick={() => alert("Select learner removal will be connected later.")}>× Remove</button>
+
+
+
+        <div style={{ flex: 1 }} />
+
+
+
+        <select
+
+
+
+          style={selectStyle}
+
+
+
+          value={attendanceClassroomFilter}
+
+
+
+          onChange={(e) => {
+
+
+
+            setAttendanceClassroomFilter(e.target.value);
+
+
+
+            setAttendanceCapturePage(1);
+
+
+
+          }}
+
+
+
+        >
+
+
+
+          {attendanceClassrooms.map((room: string) => (
+
+
+
+            <option key={room}>{room}</option>
+
+
+
+          ))}
+
+
+
+        </select>
+
+
+
+        <input
+
+
+
+          placeholder="Search"
+
+
+
+          value={attendanceSearch}
+
+
+
+          onChange={(e) => {
+
+
+
+            setAttendanceSearch(e.target.value);
+
+
+
+            setAttendanceCapturePage(1);
+
+
+
+          }}
+
+
+
+          style={{ ...selectStyle, width: "230px" }}
+
+
+
+        />
+
+
+
+      </div>
+
+
+
+      <table style={{ width: "100%", borderCollapse: "collapse", fontSize: "13px" }}>
+
+
+
+        <thead>
+
+
+
+          <tr>
+
+
+
+            <th style={th}>Name</th>
+
+
+
+            <th style={th}>Surname</th>
+
+
+
+            <th style={th}>Grade</th>
+
+
+
+            <th style={th}>Attendance</th>
+
+
+
+            <th style={th}>Arrived</th>
+
+
+
+            <th style={th}>Left</th>
+
+
+
+            <th style={th}>Reason</th>
+
+
+
+            <th style={th}>Edit</th>
+
+
+
+          </tr>
+
+
+
+        </thead>
+
+
+
+        <tbody>
+
+
+
+          {attendanceCapturePaginated.length === 0 ? (
+
+
+
+            <tr>
+
+
+
+              <td colSpan={8} style={{ ...td, textAlign: "center", padding: "24px" }}>
+
+
+
+                No learners found for this attendance selection.
+
+
+
+              </td>
+
+
+
+            </tr>
+
+
+
+          ) : (
+
+
+
+            attendanceCapturePaginated.map((learner: any, index: number) => {
+
+
+
+              const id = String(learner.id);
+
+
+
+              const mark = attendanceMarks[id] || { attendance: "Absent", arrived: "", left: "", reason: "" };
+
+
+
+              return (
+
+
+
+                <tr key={id} style={{ background: index % 2 === 0 ? "#fff" : "rgba(212,175,55,0.07)" }}>
+
+
+
+                  <td style={td}>{learner.firstName || "-"}</td>
+
+
+
+                  <td style={td}>{learner.lastName || learner.surname || "-"}</td>
+
+
+
+                  <td style={td}>{getLearnerGrade(learner) || learner.classroom || "-"}</td>
+
+
+
+                  <td style={td}>
+
+
+
+                    <select
+
+
+
+                      style={inputStyle}
+
+
+
+                      value={mark.attendance || "Absent"}
+
+
+
+                      onChange={(e) => updateAttendanceMark(id, "attendance", e.target.value)}
+
+
+
+                    >
+
+
+
+                      <option>Present</option>
+
+
+
+                      <option>Absent</option>
+
+
+
+                      <option>Late</option>
+
+
+
+                    </select>
+
+
+
+                  </td>
+
+
+
+                  <td style={td}>
+
+
+
+                    <input type="time" style={inputStyle} value={mark.arrived || ""} onChange={(e) => updateAttendanceMark(id, "arrived", e.target.value)} />
+
+
+
+                  </td>
+
+
+
+                  <td style={td}>
+
+
+
+                    <input type="time" style={inputStyle} value={mark.left || ""} onChange={(e) => updateAttendanceMark(id, "left", e.target.value)} />
+
+
+
+                  </td>
+
+
+
+                  <td style={td}>
+
+
+
+                    <input style={inputStyle} placeholder="Reason" value={mark.reason || ""} onChange={(e) => updateAttendanceMark(id, "reason", e.target.value)} />
+
+
+
+                  </td>
+
+
+
+                  <td style={td}>
+
+
+
+                    <button style={actionBtn} onClick={() => openLearnerProfile(learner)}>✎</button>
+
+
+
+                  </td>
+
+
+
+                </tr>
+
+
+
+              );
+
+
+
+            })
+
+
+
+          )}
+
+
+
+        </tbody>
+
+
+
+      </table>
+
+
+
+      <div style={{ padding: "10px", display: "flex", justifyContent: "space-between", color: "#64748b", fontSize: "12px", fontWeight: 800 }}>
+
+
+
+        <span>
+
+
+
+          {attendanceLearnersFiltered.length === 0 ? "0" : (attendanceCapturePage - 1) * attendancePerPage + 1} - {Math.min(attendanceCapturePage * attendancePerPage, attendanceLearnersFiltered.length)} / {attendanceLearnersFiltered.length}
+
+
+
+        </span>
+
+
+
+        <div style={{ display: "flex", gap: "6px", alignItems: "center" }}>
+
+
+
+          <button style={actionBtn} disabled={attendanceCapturePage <= 1} onClick={() => setAttendanceCapturePage((p) => Math.max(1, p - 1))}>‹</button>
+
+
+
+          <span>Page {attendanceCapturePage} / {attendanceCaptureTotalPages}</span>
+
+
+
+          <button style={actionBtn} disabled={attendanceCapturePage >= attendanceCaptureTotalPages} onClick={() => setAttendanceCapturePage((p) => Math.min(attendanceCaptureTotalPages, p + 1))}>›</button>
+
+
+
+        </div>
+
+
+
+      </div>
+
+
+
+    </div>
+
+
+
+  </div>
+
+
+
+);
 
   const renderDashboard = () => (
 
@@ -12635,11 +14019,19 @@ case "employeeManage":
   
   
   
-        case "attendance":
-  
-  
-  
-          return <h1 className="page-title">Attendance</h1>;
+  case "attendance":
+
+
+
+  return renderAttendance();
+
+
+
+case "attendanceManage":
+
+
+
+  return renderAttendanceManage();
   
   
   
