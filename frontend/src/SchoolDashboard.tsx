@@ -107,7 +107,7 @@ type PageKey =
 
 
   | "incidents"
-
+  | "incidentManage"
 
 
   | "lists"
@@ -491,7 +491,67 @@ const [attendanceMarks, setAttendanceMarks] = useState<Record<string, any>>({});
 
 
 const [attendanceMoreOpen, setAttendanceMoreOpen] = useState(false);
+const [incidentSearch, setIncidentSearch] = useState("");
 
+
+
+const [incidentPage, setIncidentPage] = useState(1);
+
+
+
+const [incidentLearnerPage, setIncidentLearnerPage] = useState(1);
+
+
+
+const [incidentAddOpen, setIncidentAddOpen] = useState(false);
+
+
+
+const [incidentAddType, setIncidentAddType] = useState<"child" | "parent">("child");
+
+
+
+const [selectedIncidentLearner, setSelectedIncidentLearner] = useState<any | null>(null);
+
+
+
+const [selectedIncident, setSelectedIncident] = useState<any | null>(null);
+
+
+
+const [incidentMode, setIncidentMode] = useState<"add" | "manage">("add");
+
+
+
+const [incidentMoreOpen, setIncidentMoreOpen] = useState(false);
+
+
+
+const [incidentRecords, setIncidentRecords] = useState<any[]>([]);
+
+
+
+const [incidentDraft, setIncidentDraft] = useState<any>({
+
+
+
+  type: "General",
+
+
+
+  subject: "General",
+
+
+
+  incident: "",
+
+
+
+  private: false,
+
+
+
+});
 const [selectedGroupLearnerIds, setSelectedGroupLearnerIds] = useState<string[]>([]);
 
 
@@ -12516,6 +12576,1264 @@ const renderAttendanceManage = () => (
 
 
 );
+  
+const incidentMenuBtn: React.CSSProperties = {
+
+
+
+  width: "100%",
+
+
+
+  padding: "14px 16px",
+
+
+
+  border: "none",
+
+
+
+  background: "#fff",
+
+
+
+  textAlign: "left",
+
+
+
+  fontWeight: 800,
+
+
+
+  cursor: "pointer",
+
+
+
+  color: "#0f172a",
+
+
+
+};
+
+
+
+const incidentPerPage = 10;
+
+
+
+const incidentFiltered = incidentRecords.filter((item: any) => {
+
+
+
+  const text = `${item.date || ""} ${item.name || ""} ${item.relationship || ""} ${item.subject || ""}`.toLowerCase();
+
+
+
+  return text.includes(incidentSearch.toLowerCase());
+
+
+
+});
+
+
+
+const incidentTotalPages = Math.max(1, Math.ceil(incidentFiltered.length / incidentPerPage));
+
+
+
+const incidentPaginated = incidentFiltered.slice(
+
+
+
+  (incidentPage - 1) * incidentPerPage,
+
+
+
+  incidentPage * incidentPerPage
+
+
+
+);
+
+
+
+const incidentLearnersFiltered = learners.filter((learner: any) => {
+
+
+
+  const fullName = `${learner.firstName || ""} ${learner.lastName || learner.surname || ""}`.toLowerCase();
+
+
+
+  const grade = String(getLearnerGrade(learner) || learner.classroom || "").toLowerCase();
+
+
+
+  return `${fullName} ${grade}`.includes(incidentSearch.toLowerCase());
+
+
+
+});
+
+
+
+const incidentLearnerTotalPages = Math.max(1, Math.ceil(incidentLearnersFiltered.length / incidentPerPage));
+
+
+
+const incidentLearnerPaginated = incidentLearnersFiltered.slice(
+
+
+
+  (incidentLearnerPage - 1) * incidentPerPage,
+
+
+
+  incidentLearnerPage * incidentPerPage
+
+
+
+);
+
+
+
+const openIncidentLearnerPicker = (type: "child" | "parent") => {
+
+
+
+  setIncidentAddType(type);
+
+
+
+  setIncidentAddOpen(true);
+
+
+
+  setIncidentLearnerPage(1);
+
+
+
+  setIncidentSearch("");
+
+
+
+  setSelectedIncidentLearner(null);
+
+
+
+};
+
+
+
+const openIncidentFormForLearner = (learner: any) => {
+
+
+
+  const fullName = `${learner.firstName || ""} ${learner.lastName || learner.surname || ""}`.trim();
+
+
+
+  setSelectedIncidentLearner(learner);
+
+
+
+  setIncidentDraft({
+
+
+
+    type: "General",
+
+
+
+    subject: "General",
+
+
+
+    incident: "",
+
+
+
+    private: false,
+
+
+
+    relationship: incidentAddType === "parent" ? "Parent" : "Child",
+
+
+
+    name: fullName,
+
+
+
+    date: new Date().toISOString().slice(0, 16),
+
+
+
+  });
+
+
+
+  setIncidentMode("add");
+
+
+
+  setIncidentAddOpen(false);
+
+
+
+  setActivePage("incidentManage");
+
+
+
+};
+
+
+
+const manageSelectedIncident = () => {
+
+
+
+  if (!selectedIncident) {
+
+
+
+    alert("Please select an incident first.");
+
+
+
+    return;
+
+
+
+  }
+
+
+
+  setIncidentDraft({
+
+
+
+    type: selectedIncident.type || "General",
+
+
+
+    subject: selectedIncident.subject || "General",
+
+
+
+    incident: selectedIncident.incident || "",
+
+
+
+    private: Boolean(selectedIncident.private),
+
+
+
+    relationship: selectedIncident.relationship || "Child",
+
+
+
+    name: selectedIncident.name || "",
+
+
+
+    date: selectedIncident.date || new Date().toISOString().slice(0, 16),
+
+
+
+  });
+
+
+
+  const learner = learners.find((l: any) => String(l.id) === String(selectedIncident.learnerId));
+
+
+
+  setSelectedIncidentLearner(learner || null);
+
+
+
+  setIncidentMode("manage");
+
+
+
+  setActivePage("incidentManage");
+
+
+
+};
+
+
+
+const saveIncidentRecord = () => {
+
+
+
+  const record = {
+
+
+
+    id: selectedIncident?.id || String(Date.now()),
+
+
+
+    date: incidentDraft.date || new Date().toISOString().slice(0, 16),
+
+
+
+    name: incidentDraft.name || "-",
+
+
+
+    relationship: incidentDraft.relationship || "Child",
+
+
+
+    subject: incidentDraft.subject || "General",
+
+
+
+    type: incidentDraft.type || "General",
+
+
+
+    incident: incidentDraft.incident || "",
+
+
+
+    private: Boolean(incidentDraft.private),
+
+
+
+    learnerId: selectedIncidentLearner?.id || selectedIncident?.learnerId || null,
+
+
+
+  };
+
+
+
+  setIncidentRecords((prev: any[]) => {
+
+
+
+    const exists = prev.some((item: any) => item.id === record.id);
+
+
+
+    if (exists) return prev.map((item: any) => (item.id === record.id ? record : item));
+
+
+
+    return [record, ...prev];
+
+
+
+  });
+
+
+
+  setSelectedIncident(record);
+
+
+
+  setActivePage("incidents");
+
+
+
+};
+
+
+
+const deleteSelectedIncident = () => {
+
+
+
+  if (!selectedIncident) return alert("Please select an incident first.");
+
+
+
+  if (!window.confirm("Delete this incident?")) return;
+
+
+
+  setIncidentRecords((prev: any[]) => prev.filter((item: any) => item.id !== selectedIncident.id));
+
+
+
+  setSelectedIncident(null);
+
+
+
+  setActivePage("incidents");
+
+
+
+};
+
+
+
+const renderIncidents = () => (
+
+
+
+  <div style={{ padding: "26px", background: "#f8fafc", minHeight: "100%", borderRadius: "20px" }}>
+
+
+
+    <div style={{ marginBottom: 18 }}>
+
+
+
+      <h1 style={{ margin: 0, fontSize: 34, fontWeight: 900, color: "#0f172a" }}>Incidents</h1>
+
+
+
+      <p style={{ margin: "6px 0 0", color: "#64748b", fontWeight: 700 }}>Manage incidents</p>
+
+
+
+    </div>
+
+
+
+    <div style={{ background: "#fff", border: "1px solid #e5e7eb", borderTop: `4px solid ${GOLD}`, borderRadius: 14, overflow: "hidden", boxShadow: "0 18px 40px rgba(15,23,42,0.08)" }}>
+
+
+
+      <div style={{ padding: "14px 16px", fontWeight: 900, borderBottom: "1px solid #e5e7eb" }}>Incidents</div>
+
+
+
+      <div style={{ padding: 10, display: "flex", gap: 8, alignItems: "center", borderBottom: "1px solid #e5e7eb" }}>
+
+
+
+        <div style={{ position: "relative" }}>
+
+
+
+          <button style={goldBtn} onClick={() => setIncidentAddOpen((v: boolean) => !v)}>+ Add ▾</button>
+
+
+
+          {incidentAddOpen && (
+
+
+
+            <div style={{ position: "absolute", top: 44, left: 0, width: 220, background: "#fff", border: "1px solid #e5e7eb", borderRadius: 12, boxShadow: "0 20px 45px rgba(15,23,42,0.18)", zIndex: 20, overflow: "hidden" }}>
+
+
+
+              <button style={incidentMenuBtn} onClick={() => openIncidentLearnerPicker("child")}>Child Incident</button>
+
+
+
+              <button style={incidentMenuBtn} onClick={() => openIncidentLearnerPicker("parent")}>Parent Incident</button>
+
+
+
+            </div>
+
+
+
+          )}
+
+
+
+        </div>
+
+
+
+        <button style={actionBtn} onClick={manageSelectedIncident}>✎ Manage</button>
+
+
+
+        <div style={{ flex: 1 }} />
+
+
+
+        <input
+
+
+
+          placeholder="Search"
+
+
+
+          value={incidentSearch}
+
+
+
+          onChange={(e) => {
+
+
+
+            setIncidentSearch(e.target.value);
+
+
+
+            setIncidentPage(1);
+
+
+
+          }}
+
+
+
+          style={{ ...selectStyle, width: 230 }}
+
+
+
+        />
+
+
+
+      </div>
+
+
+
+      <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13 }}>
+
+
+
+        <thead>
+
+
+
+          <tr>
+
+
+
+            <th style={th}>Date</th>
+
+
+
+            <th style={th}>Name</th>
+
+
+
+            <th style={th}>Relationship</th>
+
+
+
+            <th style={th}>Subject</th>
+
+
+
+          </tr>
+
+
+
+        </thead>
+
+
+
+        <tbody>
+
+
+
+          {incidentPaginated.length === 0 ? (
+
+
+
+            <tr>
+
+
+
+              <td colSpan={4} style={{ ...td, textAlign: "center", padding: 24 }}>No incidents captured yet.</td>
+
+
+
+            </tr>
+
+
+
+          ) : (
+
+
+
+            incidentPaginated.map((item: any, index: number) => {
+
+
+
+              const selected = selectedIncident?.id === item.id;
+
+
+
+              return (
+
+
+
+                <tr
+
+
+
+                  key={item.id}
+
+
+
+                  onClick={() => setSelectedIncident(item)}
+
+
+
+                  onDoubleClick={manageSelectedIncident}
+
+
+
+                  style={{
+
+
+
+                    cursor: "pointer",
+
+
+
+                    background: selected ? "rgba(212,175,55,0.22)" : index % 2 ? "rgba(212,175,55,0.07)" : "#fff",
+
+
+
+                    outline: selected ? `2px solid ${GOLD}` : "none",
+
+
+
+                  }}
+
+
+
+                >
+
+
+
+                  <td style={td}>{String(item.date || "").slice(0, 10)}</td>
+
+
+
+                  <td style={td}>{item.name || "-"}</td>
+
+
+
+                  <td style={td}>{item.relationship || "-"}</td>
+
+
+
+                  <td style={td}>{item.subject || "-"}</td>
+
+
+
+                </tr>
+
+
+
+              );
+
+
+
+            })
+
+
+
+          )}
+
+
+
+        </tbody>
+
+
+
+      </table>
+
+
+
+      <div style={{ padding: 10, display: "flex", justifyContent: "space-between", fontSize: 12, fontWeight: 800, color: "#64748b" }}>
+
+
+
+        <span>
+
+
+
+          {incidentFiltered.length === 0 ? "0" : (incidentPage - 1) * incidentPerPage + 1} - {Math.min(incidentPage * incidentPerPage, incidentFiltered.length)} / {incidentFiltered.length}
+
+
+
+        </span>
+
+
+
+        <div style={{ display: "flex", gap: 6, alignItems: "center" }}>
+
+
+
+          <button style={actionBtn} onClick={() => setIncidentPage((p: number) => Math.max(1, p - 1))}>‹</button>
+
+
+
+          <span>Page {incidentPage} / {incidentTotalPages}</span>
+
+
+
+          <button style={actionBtn} onClick={() => setIncidentPage((p: number) => Math.min(incidentTotalPages, p + 1))}>›</button>
+
+
+
+        </div>
+
+
+
+      </div>
+
+
+
+    </div>
+
+
+
+    {incidentAddOpen && (
+
+
+
+      <div style={{ position: "fixed", inset: 0, background: "rgba(15,23,42,0.45)", display: "grid", placeItems: "center", zIndex: 80 }}>
+
+
+
+        <div style={{ width: "900px", background: "#fff", borderRadius: 16, border: `2px solid ${GOLD}`, boxShadow: "0 30px 80px rgba(0,0,0,0.25)", overflow: "hidden" }}>
+
+
+
+          <div style={{ padding: "16px 20px", fontWeight: 900, fontSize: 20, borderBottom: "1px solid #e5e7eb" }}>
+
+
+
+            {incidentAddType === "parent" ? "Parent Incident" : "Child Incident"}
+
+
+
+          </div>
+
+
+
+          <div style={{ padding: 12, display: "flex", gap: 8, borderBottom: "1px solid #e5e7eb" }}>
+
+
+
+            <select style={selectStyle}><option>All Groups</option></select>
+
+
+
+            <select style={selectStyle}><option>All Classrooms</option></select>
+
+
+
+            <input
+
+
+
+              placeholder="Search"
+
+
+
+              value={incidentSearch}
+
+
+
+              onChange={(e) => {
+
+
+
+                setIncidentSearch(e.target.value);
+
+
+
+                setIncidentLearnerPage(1);
+
+
+
+              }}
+
+
+
+              style={{ ...selectStyle, flex: 1 }}
+
+
+
+            />
+
+
+
+          </div>
+
+
+
+          <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13 }}>
+
+
+
+            <thead>
+
+
+
+              <tr>
+
+
+
+                <th style={th}>Name</th>
+
+
+
+                <th style={th}>Surname</th>
+
+
+
+                <th style={th}>Classroom</th>
+
+
+
+              </tr>
+
+
+
+            </thead>
+
+
+
+            <tbody>
+
+
+
+              {incidentLearnerPaginated.map((learner: any, index: number) => {
+
+
+
+                const selected = selectedIncidentLearner?.id === learner.id;
+
+
+
+                return (
+
+
+
+                  <tr
+
+
+
+                    key={learner.id}
+
+
+
+                    onClick={() => setSelectedIncidentLearner(learner)}
+
+
+
+                    style={{
+
+
+
+                      cursor: "pointer",
+
+
+
+                      background: selected ? "rgba(212,175,55,0.22)" : index % 2 ? "rgba(212,175,55,0.07)" : "#fff",
+
+
+
+                      outline: selected ? `2px solid ${GOLD}` : "none",
+
+
+
+                    }}
+
+
+
+                  >
+
+
+
+                    <td style={td}>{learner.firstName || "-"}</td>
+
+
+
+                    <td style={td}>{learner.lastName || learner.surname || "-"}</td>
+
+
+
+                    <td style={td}>{getLearnerGrade(learner) || learner.classroom || "-"}</td>
+
+
+
+                  </tr>
+
+
+
+                );
+
+
+
+              })}
+
+
+
+            </tbody>
+
+
+
+          </table>
+
+
+
+          <div style={{ padding: 10, display: "flex", justifyContent: "space-between", alignItems: "center", borderTop: "1px solid #e5e7eb" }}>
+
+
+
+            <div style={{ display: "flex", gap: 6, alignItems: "center", fontSize: 12, fontWeight: 800 }}>
+
+
+
+              <button style={actionBtn} onClick={() => setIncidentLearnerPage((p: number) => Math.max(1, p - 1))}>‹</button>
+
+
+
+              <span>Page {incidentLearnerPage} / {incidentLearnerTotalPages}</span>
+
+
+
+              <button style={actionBtn} onClick={() => setIncidentLearnerPage((p: number) => Math.min(incidentLearnerTotalPages, p + 1))}>›</button>
+
+
+
+            </div>
+
+
+
+            <div style={{ display: "flex", gap: 8 }}>
+
+
+
+              <button
+
+
+
+                style={goldBtn}
+
+
+
+                onClick={() => {
+
+
+
+                  if (!selectedIncidentLearner) return alert("Please select a learner first.");
+
+
+
+                  openIncidentFormForLearner(selectedIncidentLearner);
+
+
+
+                }}
+
+
+
+              >
+
+
+
+                ✓ Continue
+
+
+
+              </button>
+
+
+
+              <button style={dangerBtn} onClick={() => setIncidentAddOpen(false)}>× Cancel</button>
+
+
+
+            </div>
+
+
+
+          </div>
+
+
+
+        </div>
+
+
+
+      </div>
+
+
+
+    )}
+
+
+
+  </div>
+
+
+
+);
+
+
+
+const renderIncidentManage = () => (
+
+
+
+  <div style={{ padding: "26px", background: "#f8fafc", minHeight: "100%", borderRadius: "20px" }}>
+
+
+
+    <div style={{ marginBottom: 12 }}>
+
+
+
+      <h1 style={{ margin: 0, fontSize: 34, fontWeight: 900, color: "#0f172a" }}>Incident</h1>
+
+
+
+      <p style={{ margin: "6px 0 0", color: "#64748b", fontWeight: 700 }}>Add or manage an incident</p>
+
+
+
+    </div>
+
+
+
+    <div style={{ display: "flex", gap: 8, marginBottom: 20, position: "relative" }}>
+
+
+
+      <button style={actionBtn} onClick={() => setActivePage("incidents")}>← Back</button>
+
+
+
+      <button style={goldBtn} onClick={saveIncidentRecord}>💾 Save</button>
+
+
+
+      <button style={actionBtn} onClick={() => window.print()}>▣ Print</button>
+
+
+
+      <button style={actionBtn} onClick={() => setIncidentMoreOpen((v: boolean) => !v)}>More Actions⌄</button>
+
+
+
+      {incidentMoreOpen && (
+
+
+
+        <div style={{ position: "absolute", top: 44, left: 310, width: 210, background: "#fff", border: "1px solid #e5e7eb", borderRadius: 12, boxShadow: "0 20px 45px rgba(15,23,42,0.18)", zIndex: 30, overflow: "hidden" }}>
+
+
+
+          <button style={incidentMenuBtn} onClick={deleteSelectedIncident}>Delete</button>
+
+
+
+          <button style={incidentMenuBtn} onClick={() => alert("Manage Types will be connected later.")}>Manage Types</button>
+
+
+
+        </div>
+
+
+
+      )}
+
+
+
+    </div>
+
+
+
+    <div style={{ display: "grid", gridTemplateColumns: "1fr 330px", gap: 26 }}>
+
+
+
+      <div style={{ background: "#fff", border: "1px solid #e5e7eb", borderTop: `4px solid ${GOLD}`, borderRadius: 14, overflow: "hidden", boxShadow: "0 18px 40px rgba(15,23,42,0.08)" }}>
+
+
+
+        <div style={{ padding: "14px 16px", fontWeight: 900, borderBottom: "1px solid #e5e7eb" }}>Incident</div>
+
+
+
+        <div style={{ padding: 18, display: "grid", gridTemplateColumns: "160px 1fr", gap: 12, alignItems: "center" }}>
+
+
+
+          <label style={labelStyle}>* Name</label>
+
+
+
+          <input style={inputStyle} value={incidentDraft.name || ""} onChange={(e) => setIncidentDraft((p: any) => ({ ...p, name: e.target.value }))} />
+
+
+
+          <label style={labelStyle}>* Relationship</label>
+
+
+
+          <input style={inputStyle} value={incidentDraft.relationship || ""} onChange={(e) => setIncidentDraft((p: any) => ({ ...p, relationship: e.target.value }))} />
+
+
+
+          <label style={labelStyle}>* Type</label>
+
+
+
+          <select style={inputStyle} value={incidentDraft.type || "General"} onChange={(e) => setIncidentDraft((p: any) => ({ ...p, type: e.target.value }))}>
+
+
+
+            <option>General</option>
+
+
+
+            <option>Discipline</option>
+
+
+
+            <option>Bullying</option>
+
+
+
+            <option>Late Coming</option>
+
+
+
+            <option>Parent Meeting</option>
+
+
+
+          </select>
+
+
+
+          <label style={labelStyle}>* Date</label>
+
+
+
+          <input type="datetime-local" style={inputStyle} value={incidentDraft.date || ""} onChange={(e) => setIncidentDraft((p: any) => ({ ...p, date: e.target.value }))} />
+
+
+
+          <label style={labelStyle}>* Subject</label>
+
+
+
+          <input style={inputStyle} value={incidentDraft.subject || ""} onChange={(e) => setIncidentDraft((p: any) => ({ ...p, subject: e.target.value }))} />
+
+
+
+          <label style={labelStyle}>Incident</label>
+
+
+
+          <textarea
+
+
+
+            style={{ ...inputStyle, minHeight: 250, resize: "vertical" }}
+
+
+
+            value={incidentDraft.incident || ""}
+
+
+
+            onChange={(e) => setIncidentDraft((p: any) => ({ ...p, incident: e.target.value }))}
+
+
+
+          />
+
+
+
+          <span />
+
+
+
+          <label style={{ display: "flex", gap: 8, alignItems: "center", fontWeight: 800 }}>
+
+
+
+            <input type="checkbox" checked={Boolean(incidentDraft.private)} onChange={(e) => setIncidentDraft((p: any) => ({ ...p, private: e.target.checked }))} />
+
+
+
+            Private
+
+
+
+          </label>
+
+
+
+        </div>
+
+
+
+      </div>
+
+
+
+      <div style={{ background: "#fff", border: "1px solid #e5e7eb", borderRadius: 14, padding: 18, alignSelf: "start", boxShadow: "0 18px 40px rgba(15,23,42,0.08)" }}>
+
+
+
+        <div style={{ width: 150, height: 150, margin: "0 auto 18px", borderRadius: 18, background: "linear-gradient(135deg,#e5e7eb,#f8fafc)", display: "grid", placeItems: "center", fontSize: 72 }}>
+
+
+
+          👤
+
+
+
+        </div>
+
+
+
+        <div style={{ display: "grid", gridTemplateColumns: "120px 1fr", border: "1px solid #e5e7eb", borderRadius: 12, overflow: "hidden" }}>
+
+
+
+          <div style={{ padding: 12, background: "#f1f5f9", fontWeight: 900 }}>Full Name</div>
+
+
+
+          <div style={{ padding: 12 }}>{incidentDraft.name || "-"}</div>
+
+
+
+          <div style={{ padding: 12, background: "#f1f5f9", fontWeight: 900 }}>Relationship</div>
+
+
+
+          <div style={{ padding: 12 }}>{incidentDraft.relationship || "-"}</div>
+
+
+
+        </div>
+
+
+
+      </div>
+
+
+
+    </div>
+
+
+
+  </div>
+
+
+
+);
 
   const renderDashboard = () => (
 
@@ -14034,12 +15352,24 @@ case "attendanceManage":
   return renderAttendanceManage();
   
   
-  
-        case "incidents":
-  
-  
-  
-          return <h1 className="page-title">Incidents</h1>;
+     
+  case "incidents":
+
+
+
+  return renderIncidents();
+
+
+
+case "incidentManage":
+
+
+
+  return renderIncidentManage();
+
+
+
+
   
   
   
