@@ -151,8 +151,7 @@ type PageKey =
 
 
   | "payroll"
-
-
+  | "paymentCreate"
 
   | "fees"
 
@@ -19804,12 +19803,1176 @@ const renderMoreSettings = () => {
   
   
   
-        case "payments":
-  
-  
-  
-          return <h1 className="page-title">Payments</h1>;
-  
+         
+        case "payments": {
+
+
+
+          const payBtn = {
+        
+        
+        
+            border: "1px solid #d4af37",
+        
+        
+        
+            background: "#ffffff",
+        
+        
+        
+            color: "#111827",
+        
+        
+        
+            borderRadius: "12px",
+        
+        
+        
+            padding: "10px 16px",
+        
+        
+        
+            fontWeight: 800,
+        
+        
+        
+            cursor: "pointer",
+        
+        
+        
+          };
+        
+        
+        
+          const payGoldBtn = {
+        
+        
+        
+            ...payBtn,
+        
+        
+        
+            background: "#d4af37",
+        
+        
+        
+            color: "#111827",
+        
+        
+        
+            boxShadow: "0 10px 24px rgba(212,175,55,0.25)",
+        
+        
+        
+          };
+        
+        
+        
+          const payCell = {
+        
+        
+        
+            padding: "14px 16px",
+        
+        
+        
+            borderTop: "1px solid #e5e7eb",
+        
+        
+        
+            fontWeight: 700,
+        
+        
+        
+            color: "#111827",
+        
+        
+        
+          };
+        
+        
+        
+          const paymentAccounts = statementRows.map((row: any) => ({
+        
+        
+        
+            accountNo: row.accountNo,
+        
+        
+        
+            name: row.name,
+        
+        
+        
+            surname: row.surname,
+        
+        
+        
+            balance: Number(row.balance || 0),
+        
+        
+        
+            lastInvoice: row.lastInvoice || "No invoices",
+        
+        
+        
+            lastPayment: row.lastPayment || "No payments",
+        
+        
+        
+            status: row.status || "Up To Date",
+        
+        
+        
+          }));
+        
+        
+        
+          const totalOutstanding = paymentAccounts.reduce(
+        
+        
+        
+            (sum: number, row: any) => sum + Math.max(Number(row.balance || 0), 0),
+        
+        
+        
+            0
+        
+        
+        
+          );
+        
+        
+        
+          const overPaid = paymentAccounts.reduce(
+        
+        
+        
+            (sum: number, row: any) => sum + Math.min(Number(row.balance || 0), 0),
+        
+        
+        
+            0
+        
+        
+        
+          );
+        
+        
+        
+          return (
+        
+        
+        
+            <div style={{ padding: "32px", background: "#f6f4ef", minHeight: "100vh" }}>
+        
+        
+        
+              <h1 style={{ margin: 0, fontSize: 38, fontWeight: 900, color: "#111827" }}>
+        
+        
+        
+                New Payment
+        
+        
+        
+                <span style={{ color: "#64748b", fontSize: 22, fontWeight: 600 }}>
+        
+        
+        
+                  {" "}» Create a new payment
+        
+        
+        
+                </span>
+        
+        
+        
+              </h1>
+        
+        
+        
+              <div style={{ display: "grid", gridTemplateColumns: "repeat(5, 1fr)", gap: 14, margin: "24px 0" }}>
+        
+        
+        
+                {[
+        
+        
+        
+                  ["Accounts", paymentAccounts.length, "#166534"],
+        
+        
+        
+                  ["Total Outstanding", `R ${totalOutstanding.toFixed(2)}`, "#1d4ed8"],
+        
+        
+        
+                  ["Recently Owing", "R 0.00", "#b45309"],
+        
+        
+        
+                  ["Bad Debt", "R 0.00", "#b91c1c"],
+        
+        
+        
+                  ["Over Paid", `R ${overPaid.toFixed(2)}`, "#166534"],
+        
+        
+        
+                ].map(([label, value, color]) => (
+        
+        
+        
+                  <div key={String(label)} style={{ background: "#fff", border: "1px solid #e5e7eb", borderRadius: 18, padding: 18 }}>
+        
+        
+        
+                    <div style={{ color: String(color), fontSize: 24, fontWeight: 900 }}>{String(value)}</div>
+        
+        
+        
+                    <div style={{ color: "#64748b", fontWeight: 800, textTransform: "uppercase", fontSize: 12 }}>{String(label)}</div>
+        
+        
+        
+                  </div>
+        
+        
+        
+                ))}
+        
+        
+        
+              </div>
+        
+        
+        
+              <div style={{ marginBottom: 16 }}>
+        
+        
+        
+                <button style={payBtn} onClick={() => setActivePage("payments")}>
+        
+        
+        
+                  ☰ Switch To Manage Payments
+        
+        
+        
+                </button>
+        
+        
+        
+              </div>
+        
+        
+        
+              <div style={{ background: "#fff", border: "1px solid #d6c17a", borderRadius: 18, overflow: "hidden" }}>
+        
+        
+        
+                <div style={{ background: "#111827", color: "#d4af37", padding: "16px 20px", fontSize: 22, fontWeight: 900 }}>
+        
+        
+        
+                  Children
+        
+        
+        
+                </div>
+        
+        
+        
+                <div style={{ display: "flex", justifyContent: "space-between", padding: 14, borderBottom: "1px solid #e5e7eb" }}>
+        
+        
+        
+                  <div style={{ display: "flex", gap: 10 }}>
+        
+        
+        
+                    <button
+        
+        
+        
+                      style={payGoldBtn}
+        
+        
+        
+                      onClick={() => {
+        
+        
+        
+                        if (!paymentAccounts.length) return alert("No account available.");
+        
+        
+        
+                        localStorage.setItem("selectedPaymentAccount", JSON.stringify(paymentAccounts[0]));
+        
+        
+        
+                        setActivePage("paymentCreate");
+        
+        
+        
+                      }}
+        
+        
+        
+                    >
+        
+        
+        
+                      + Add
+        
+        
+        
+                    </button>
+        
+        
+        
+                    <button
+        
+        
+        
+                      style={payBtn}
+        
+        
+        
+                      onClick={() => alert("Add Multiple will be connected to batch payment allocation.")}
+        
+        
+        
+                    >
+        
+        
+        
+                      + Add Multiple
+        
+        
+        
+                    </button>
+        
+        
+        
+                  </div>
+        
+        
+        
+                  <input
+        
+        
+        
+                    placeholder="Search"
+        
+        
+        
+                    style={{ width: 260, border: "1px solid #d4af37", borderRadius: 12, padding: "10px 14px", fontWeight: 700 }}
+        
+        
+        
+                  />
+        
+        
+        
+                </div>
+        
+        
+        
+                <table style={{ width: "100%", borderCollapse: "collapse" }}>
+        
+        
+        
+                  <thead>
+        
+        
+        
+                    <tr style={{ background: "#f8fafc" }}>
+        
+        
+        
+                      {["Account No", "Name", "Surname", "Balance", "Last Invoice", "Last Payment", "Account Status"].map((h) => (
+        
+        
+        
+                        <th key={h} style={{ padding: 14, textAlign: "left", fontWeight: 900 }}>{h}</th>
+        
+        
+        
+                      ))}
+        
+        
+        
+                    </tr>
+        
+        
+        
+                  </thead>
+        
+        
+        
+                  <tbody>
+        
+        
+        
+                    {paymentAccounts.map((account: any, index: number) => (
+        
+        
+        
+                      <tr
+        
+        
+        
+                        key={account.accountNo}
+        
+        
+        
+                        style={{ background: index % 2 === 0 ? "#fffdf7" : "#fff", cursor: "pointer" }}
+        
+        
+        
+                        onClick={() => {
+        
+        
+        
+                          localStorage.setItem("selectedPaymentAccount", JSON.stringify(account));
+        
+        
+        
+                          setActivePage("paymentCreate");
+        
+        
+        
+                        }}
+        
+        
+        
+                      >
+        
+        
+        
+                        <td style={payCell}>{account.accountNo}</td>
+        
+        
+        
+                        <td style={payCell}>{account.name}</td>
+        
+        
+        
+                        <td style={payCell}>{account.surname}</td>
+        
+        
+        
+                        <td style={payCell}>R {Number(account.balance || 0).toFixed(2)}</td>
+        
+        
+        
+                        <td style={payCell}>{account.lastInvoice}</td>
+        
+        
+        
+                        <td style={payCell}>{account.lastPayment}</td>
+        
+        
+        
+                        <td style={{ ...payCell, color: account.status === "Bad Debt" ? "#b91c1c" : account.status === "Recently Owing" ? "#b45309" : "#166534" }}>
+        
+        
+        
+                          {account.status}
+        
+        
+        
+                        </td>
+        
+        
+        
+                      </tr>
+        
+        
+        
+                    ))}
+        
+        
+        
+                  </tbody>
+        
+        
+        
+                </table>
+        
+        
+        
+              </div>
+        
+        
+        
+            </div>
+        
+        
+        
+          );
+        
+        
+        
+        }
+        
+        
+        
+        case "paymentCreate": {
+        
+        
+        
+          const saved = localStorage.getItem("selectedPaymentAccount");
+        
+        
+        
+          const selected = saved
+        
+        
+        
+            ? (() => {
+        
+        
+        
+                try {
+        
+        
+        
+                  return JSON.parse(saved);
+        
+        
+        
+                } catch {
+        
+        
+        
+                  return null;
+        
+        
+        
+                }
+        
+        
+        
+              })()
+        
+        
+        
+            : null;
+        
+        
+        
+          const paymentKey = `paymentDraft:${selected?.accountNo || "none"}`;
+        
+        
+        
+          const readPayment = () => {
+        
+        
+        
+            try {
+        
+        
+        
+              return JSON.parse(localStorage.getItem(paymentKey) || "{}");
+        
+        
+        
+            } catch {
+        
+        
+        
+              return {};
+        
+        
+        
+            }
+        
+        
+        
+          };
+        
+        
+        
+          const payment = readPayment();
+        
+        
+        
+          const amount = Number(payment.amount || 0);
+        
+        
+        
+          const paymentRows = [
+        
+        
+        
+            { audit: "110926", type: "Invoice", date: "2024/12/14", reference: "Invoice", description: "PRIMARY 2025 (2,700.00)", unpaid: 2550, allocated: 0 },
+        
+        
+        
+            { audit: "112013", type: "Invoice", date: "2025/01/23", reference: "Invoice", description: "PRIMARY 2025 (2,700.00)", unpaid: 2700, allocated: 0 },
+        
+        
+        
+            { audit: "113201", type: "Invoice", date: "2025/02/21", reference: "Invoice", description: "PRIMARY 2025 (2,700.00)", unpaid: 2700, allocated: 0 },
+        
+        
+        
+            { audit: "115768", type: "Invoice", date: "2025/03/18", reference: "Invoice", description: "PRIMARY 2025 (2,700.00)", unpaid: 2700, allocated: 0 },
+        
+        
+        
+          ];
+        
+        
+        
+          const allocated = Number(payment.allocated || 0);
+        
+        
+        
+          const unallocated = Math.max(amount - allocated, 0);
+        
+        
+        
+          const savePayment = (next: any) => {
+        
+        
+        
+            localStorage.setItem(paymentKey, JSON.stringify({ ...payment, ...next }));
+        
+        
+        
+            const keep = selected ? { ...selected, __paymentRefresh: Date.now() } : selected;
+        
+        
+        
+            if (keep) localStorage.setItem("selectedPaymentAccount", JSON.stringify(keep));
+        
+        
+        
+            setActivePage("paymentCreate");
+        
+        
+        
+          };
+        
+        
+        
+          const payBtn = {
+        
+        
+        
+            border: "1px solid #d4af37",
+        
+        
+        
+            background: "#ffffff",
+        
+        
+        
+            color: "#111827",
+        
+        
+        
+            borderRadius: "12px",
+        
+        
+        
+            padding: "10px 16px",
+        
+        
+        
+            fontWeight: 800,
+        
+        
+        
+            cursor: "pointer",
+        
+        
+        
+          };
+        
+        
+        
+          const payGoldBtn = { ...payBtn, background: "#d4af37" };
+        
+        
+        
+          const payInput = {
+        
+        
+        
+            width: "100%",
+        
+        
+        
+            minHeight: 40,
+        
+        
+        
+            border: "1px solid #d8dde6",
+        
+        
+        
+            background: "#f8fafc",
+        
+        
+        
+            padding: "9px 12px",
+        
+        
+        
+            fontWeight: 700,
+        
+        
+        
+          };
+        
+        
+        
+          const payCell = {
+        
+        
+        
+            padding: "13px 14px",
+        
+        
+        
+            borderTop: "1px solid #e5e7eb",
+        
+        
+        
+            fontWeight: 700,
+        
+        
+        
+          };
+        
+        
+        
+          if (!selected) {
+        
+        
+        
+            return (
+        
+        
+        
+              <div style={{ padding: "32px" }}>
+        
+        
+        
+                <h1 className="page-title">Create Payment</h1>
+        
+        
+        
+                <p>Select an account first.</p>
+        
+        
+        
+                <button style={payBtn} onClick={() => setActivePage("payments")}>Back</button>
+        
+        
+        
+              </div>
+        
+        
+        
+            );
+        
+        
+        
+          }
+        
+        
+        
+          return (
+        
+        
+        
+            <div style={{ padding: "32px", background: "#f6f4ef", minHeight: "100vh" }}>
+        
+        
+        
+              <h1 style={{ margin: 0, fontSize: 38, fontWeight: 900, color: "#111827" }}>
+        
+        
+        
+                Create Payment
+        
+        
+        
+                <span style={{ color: "#64748b", fontSize: 22, fontWeight: 600 }}>
+        
+        
+        
+                  {" "}» Create a payment
+        
+        
+        
+                </span>
+        
+        
+        
+              </h1>
+        
+        
+        
+              <div style={{ display: "flex", gap: 10, margin: "22px 0" }}>
+        
+        
+        
+                <button style={payBtn} onClick={() => setActivePage("payments")}>↩ Back</button>
+        
+        
+        
+                <button style={payGoldBtn} onClick={() => alert(`Payment saved for ${selected.accountNo}.`)}>
+        
+        
+        
+                  💾 Save
+        
+        
+        
+                </button>
+        
+        
+        
+              </div>
+        
+        
+        
+              <div style={{ display: "grid", gridTemplateColumns: "minmax(0, 1fr) 430px", gap: 28 }}>
+        
+        
+        
+                <section style={{ background: "#fff", border: "1px solid #d6c17a" }}>
+        
+        
+        
+                  <div style={{ background: "#111827", color: "#d4af37", padding: "14px 18px", fontSize: 22, fontWeight: 900 }}>
+        
+        
+        
+                    Payment
+        
+        
+        
+                  </div>
+        
+        
+        
+                  <div style={{ padding: 24, display: "grid", gap: 13 }}>
+        
+        
+        
+                    {[
+        
+        
+        
+                      ["* Account", <input style={payInput} value={selected.accountNo || ""} readOnly />],
+        
+        
+        
+                      ["* Date", <input type="date" style={payInput} defaultValue={new Date().toISOString().slice(0, 10)} />],
+        
+        
+        
+                      ["* Type", (
+        
+        
+        
+                        <select style={payInput} defaultValue={payment.type || "EFT"} onChange={(e) => savePayment({ type: e.target.value })}>
+        
+        
+        
+                          <option>Cash</option>
+        
+        
+        
+                          <option>EFT</option>
+        
+        
+        
+                          <option>Card</option>
+        
+        
+        
+                          <option>Debit Order</option>
+        
+        
+        
+                        </select>
+        
+        
+        
+                      )],
+        
+        
+        
+                      ["Description", <input style={payInput} placeholder="Description" defaultValue={payment.description || ""} onBlur={(e) => savePayment({ description: e.target.value })} />],
+        
+        
+        
+                      ["* Amount", <input type="number" style={payInput} defaultValue={payment.amount || 0} onBlur={(e) => savePayment({ amount: Number(e.target.value || 0) })} />],
+        
+        
+        
+                      ["Message", <textarea style={{ ...payInput, minHeight: 120 }} placeholder="Message" defaultValue={payment.message || ""} onBlur={(e) => savePayment({ message: e.target.value })} />],
+        
+        
+        
+                      ["Amount Allocated", <input style={payInput} value={allocated.toFixed(2)} readOnly />],
+        
+        
+        
+                      ["Amount Unallocated", <input style={payInput} value={unallocated.toFixed(2)} readOnly />],
+        
+        
+        
+                    ].map(([label, input]: any) => (
+        
+        
+        
+                      <div key={label} style={{ display: "grid", gridTemplateColumns: "170px 1fr", gap: 12, alignItems: "center" }}>
+        
+        
+        
+                        <div style={{ textAlign: "right", fontWeight: 800 }}>{label}</div>
+        
+        
+        
+                        {input}
+        
+        
+        
+                      </div>
+        
+        
+        
+                    ))}
+        
+        
+        
+                  </div>
+        
+        
+        
+                </section>
+        
+        
+        
+                <section style={{ background: "#fff", border: "1px solid #d6c17a", display: "grid", gridTemplateColumns: "120px 1fr", alignSelf: "start" }}>
+        
+        
+        
+                  <div>
+        
+        
+        
+                    {["Account No", "Children", "Parents", "Balance", "Notes"].map((tab) => (
+        
+        
+        
+                      <div key={tab} style={{ padding: "18px 14px", background: "#111827", color: "#d4af37", borderBottom: "1px solid rgba(212,175,55,0.3)", fontWeight: 900 }}>
+        
+        
+        
+                        {tab}
+        
+        
+        
+                      </div>
+        
+        
+        
+                    ))}
+        
+        
+        
+                  </div>
+        
+        
+        
+                  <div style={{ padding: 24, fontWeight: 800, lineHeight: 1.9 }}>
+        
+        
+        
+                    <div>{selected.accountNo}</div>
+        
+        
+        
+                    <div>{selected.name} {selected.surname}</div>
+        
+        
+        
+                    <div>{selected.parentName || "Parent details to connect"}</div>
+        
+        
+        
+                    <div>R {Number(selected.balance || 0).toFixed(2)}</div>
+        
+        
+        
+                    <div style={{ color: "#64748b" }}>No notes captured.</div>
+        
+        
+        
+                  </div>
+        
+        
+        
+                </section>
+        
+        
+        
+              </div>
+        
+        
+        
+              <section style={{ marginTop: 28, background: "#fff", border: "1px solid #d6c17a" }}>
+        
+        
+        
+                <div style={{ background: "#111827", color: "#d4af37", padding: "14px 18px", fontSize: 22, fontWeight: 900 }}>
+        
+        
+        
+                  Payment Details
+        
+        
+        
+                </div>
+        
+        
+        
+                <div style={{ display: "flex", gap: 10, padding: 14, flexWrap: "wrap" }}>
+        
+        
+        
+                  <button style={payGoldBtn} onClick={() => savePayment({ allocated: amount })}>✓ Auto Allocate</button>
+        
+        
+        
+                  <button style={payBtn} onClick={() => savePayment({ allocated: 0 })}>✖ Unallocate All</button>
+        
+        
+        
+                  <button style={payBtn} onClick={() => savePayment({ allocated: amount })}>✓ Allocate</button>
+        
+        
+        
+                  <button style={payBtn} onClick={() => savePayment({ allocated: 0 })}>✖ Unallocate</button>
+        
+        
+        
+                </div>
+        
+        
+        
+                <table style={{ width: "100%", borderCollapse: "collapse" }}>
+        
+        
+        
+                  <thead>
+        
+        
+        
+                    <tr style={{ background: "#f8fafc" }}>
+        
+        
+        
+                      {["Audit No", "Type", "Date", "Reference", "Description", "Unpaid Amount", "Allocated"].map((h) => (
+        
+        
+        
+                        <th key={h} style={{ padding: 12, textAlign: "left", fontWeight: 900 }}>{h}</th>
+        
+        
+        
+                      ))}
+        
+        
+        
+                    </tr>
+        
+        
+        
+                  </thead>
+        
+        
+        
+                  <tbody>
+        
+        
+        
+                    {paymentRows.map((row, index) => (
+        
+        
+        
+                      <tr key={row.audit} style={{ background: index % 2 === 0 ? "#fffdf7" : "#fff" }}>
+        
+        
+        
+                        <td style={payCell}>{row.audit}</td>
+        
+        
+        
+                        <td style={payCell}>{row.type}</td>
+        
+        
+        
+                        <td style={payCell}>{row.date}</td>
+        
+        
+        
+                        <td style={payCell}>{row.reference}</td>
+        
+        
+        
+                        <td style={payCell}>{row.description}</td>
+        
+        
+        
+                        <td style={payCell}>R {row.unpaid.toFixed(2)}</td>
+        
+        
+        
+                        <td style={payCell}>R 0.00</td>
+        
+        
+        
+                      </tr>
+        
+        
+        
+                    ))}
+        
+        
+        
+                  </tbody>
+        
+        
+        
+                </table>
+        
+        
+        
+              </section>
+        
+        
+        
+            </div>
+        
+        
+        
+          );
+        
+        
+        
+        }
   
   
         case "payroll":
