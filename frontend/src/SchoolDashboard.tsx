@@ -18605,109 +18605,1201 @@ const renderMoreSettings = () => {
   
   
         case "invoiceCreate": {
-  
-  
-  
+
+
+
           const saved = localStorage.getItem("selectedInvoiceAccount");
-  
-  
-  
+        
+        
+        
           const selected =
-  
-  
-  
+        
+        
+        
             selectedInvoiceAccount ||
-  
-  
-  
+        
+        
+        
             (saved
-  
-  
-  
+        
+        
+        
               ? (() => {
-  
-  
-  
+        
+        
+        
                   try {
-  
-  
-  
+        
+        
+        
                     return JSON.parse(saved);
-  
-  
-  
+        
+        
+        
                   } catch {
-  
-  
-  
+        
+        
+        
                     return null;
-  
-  
-  
+        
+        
+        
                   }
-  
-  
-  
+        
+        
+        
                 })()
-  
-  
-  
+        
+        
+        
               : null);
-  
-  
-  
+        
+        
+        
+          if (!selected) {
+        
+        
+        
+            return (
+        
+        
+        
+              <div style={{ padding: "32px" }}>
+        
+        
+        
+                <h1 className="page-title">Create Invoice</h1>
+        
+        
+        
+                <p style={{ color: "#475569", fontWeight: 700 }}>Select an account first.</p>
+        
+        
+        
+                <button style={actionBtn} onClick={() => setActivePage("invoices")}>Back</button>
+        
+        
+        
+              </div>
+        
+        
+        
+            );
+        
+        
+        
+          }
+        
+        
+        
+          const today = new Date().toISOString().slice(0, 10);
+        
+        
+        
+          const invoiceKey = `invoiceDraft:${selected.accountNo}`;
+        
+        
+        
+          const modalKey = `invoiceFeeModal:${selected.accountNo}`;
+        
+        
+        
+          const readLines = () => {
+        
+        
+        
+            try {
+        
+        
+        
+              return JSON.parse(localStorage.getItem(invoiceKey) || "[]");
+        
+        
+        
+            } catch {
+        
+        
+        
+              return [];
+        
+        
+        
+            }
+        
+        
+        
+          };
+        
+        
+        
+          const refreshInvoice = () => {
+        
+        
+        
+            const next = { ...selected, __invoiceRefresh: Date.now() };
+        
+        
+        
+            setSelectedInvoiceAccount(next);
+        
+        
+        
+            localStorage.setItem("selectedInvoiceAccount", JSON.stringify(next));
+        
+        
+        
+          };
+        
+        
+        
+          const saveLines = (nextLines: any[]) => {
+        
+        
+        
+            localStorage.setItem(invoiceKey, JSON.stringify(nextLines));
+        
+        
+        
+            refreshInvoice();
+        
+        
+        
+          };
+        
+        
+        
+          const lines = readLines();
+        
+        
+        
+          const showFeeModal = localStorage.getItem(modalKey) === "yes";
+        
+        
+        
+          const total = lines.reduce((sum: number, line: any) => sum + Number(line.amount || 0), 0);
+        
+        
+        
+          const feeOptions = [
+        
+        
+        
+            { description: "Aftercare", category: "School Charge", type: "Monthly Fee (Excl. Dec)", amount: 500 },
+        
+        
+        
+            { description: "2027 Registration", category: "School Charge", type: "Once Off", amount: 800 },
+        
+        
+        
+            { description: "Transport", category: "School Charge", type: "Monthly Fee (Excl. Dec)", amount: 700 },
+        
+        
+        
+            { description: "Primary 2026", category: "School Charge", type: "Monthly Fee", amount: 2500 },
+        
+        
+        
+          ];
+        
+        
+        
+          const btn = {
+        
+        
+        
+            ...actionBtn,
+        
+        
+        
+            border: "1px solid #d4af37",
+        
+        
+        
+            background: "#fff",
+        
+        
+        
+            color: "#111827",
+        
+        
+        
+            fontWeight: 800,
+        
+        
+        
+          };
+        
+        
+        
+          const field = {
+        
+        
+        
+            width: "100%",
+        
+        
+        
+            minHeight: 40,
+        
+        
+        
+            border: "1px solid #d8dde6",
+        
+        
+        
+            background: "#f8fafc",
+        
+        
+        
+            padding: "9px 12px",
+        
+        
+        
+            fontWeight: 700,
+        
+        
+        
+          };
+        
+        
+        
+          const addManualLine = () => {
+        
+        
+        
+            saveLines([
+        
+        
+        
+              ...lines,
+        
+        
+        
+              { id: Date.now(), description: "Enter Description Here", category: "Manual", type: "Manual", amount: 0 },
+        
+        
+        
+            ]);
+        
+        
+        
+          };
+        
+        
+        
+          const addFeeLine = (fee: any) => {
+        
+        
+        
+            saveLines([...lines, { id: Date.now() + Math.random(), ...fee }]);
+        
+        
+        
+          };
+        
+        
+        
+          const deleteLastLine = () => {
+        
+        
+        
+            if (!lines.length) {
+        
+        
+        
+              alert("No invoice line to delete.");
+        
+        
+        
+              return;
+        
+        
+        
+            }
+        
+        
+        
+            saveLines(lines.slice(0, -1));
+        
+        
+        
+          };
+        
+        
+        
+          const moveLine = (direction: "up" | "down") => {
+        
+        
+        
+            if (lines.length < 2) {
+        
+        
+        
+              alert("Add at least two invoice lines first.");
+        
+        
+        
+              return;
+        
+        
+        
+            }
+        
+        
+        
+            const next = [...lines];
+        
+        
+        
+            if (direction === "up") {
+        
+        
+        
+              [next[next.length - 2], next[next.length - 1]] = [next[next.length - 1], next[next.length - 2]];
+        
+        
+        
+            } else {
+        
+        
+        
+              [next[0], next[1]] = [next[1], next[0]];
+        
+        
+        
+            }
+        
+        
+        
+            saveLines(next);
+        
+        
+        
+          };
+        
+        
+        
+          const openFeeModal = () => {
+        
+        
+        
+            localStorage.setItem(modalKey, "yes");
+        
+        
+        
+            refreshInvoice();
+        
+        
+        
+          };
+        
+        
+        
+          const closeFeeModal = () => {
+        
+        
+        
+            localStorage.removeItem(modalKey);
+        
+        
+        
+            refreshInvoice();
+        
+        
+        
+          };
+        
+        
+        
           return (
-  
-  
-  
-            <div style={{ padding: "32px" }}>
-  
-  
-  
-              <h1 className="page-title">Create Invoice</h1>
-  
-  
-  
-              <p style={{ color: "#475569", fontWeight: 700 }}>
-  
-  
-  
-                {selected
-  
-  
-  
-                  ? `Invoice for ${selected.name} ${selected.surname} • Account ${selected.accountNo}`
-  
-  
-  
-                  : "Select an account first."}
-  
-  
-  
-              </p>
-  
-  
-  
-              <button style={actionBtn} onClick={() => setActivePage("invoices")}>
-  
-  
-  
-                Back
-  
-  
-  
-              </button>
-  
-  
-  
+        
+        
+        
+            <div style={{ padding: "28px 32px", background: "#f6f4ef", minHeight: "100vh" }}>
+        
+        
+        
+              <h1 style={{ margin: 0, fontSize: 34, fontWeight: 900, color: "#111827" }}>
+        
+        
+        
+                Create Invoice
+        
+        
+        
+                <span style={{ color: "#6b7280", fontSize: 22, fontWeight: 500 }}>
+        
+        
+        
+                  {" "}» Create an invoice
+        
+        
+        
+                </span>
+        
+        
+        
+              </h1>
+        
+        
+        
+              <div style={{ display: "flex", gap: 10, margin: "22px 0", flexWrap: "wrap" }}>
+        
+        
+        
+                <button style={btn} onClick={() => setActivePage("invoices")}>↩ Back</button>
+        
+        
+        
+                <button
+        
+        
+        
+                  style={btn}
+        
+        
+        
+                  onClick={() => alert(`Invoice saved for ${selected.accountNo}. Total: R ${total.toFixed(2)}`)}
+        
+        
+        
+                >
+        
+        
+        
+                  💾 Save
+        
+        
+        
+                </button>
+        
+        
+        
+              </div>
+        
+        
+        
+              <div style={{ display: "grid", gridTemplateColumns: "minmax(0, 1fr) 430px", gap: 28 }}>
+        
+        
+        
+                <section style={{ background: "#fff", border: "1px solid #d6c17a", boxShadow: "0 14px 35px rgba(17,24,39,0.08)" }}>
+        
+        
+        
+                  <div style={{ background: "#111827", color: "#d4af37", padding: "14px 18px", fontSize: 22, fontWeight: 900 }}>
+        
+        
+        
+                    Invoice
+        
+        
+        
+                  </div>
+        
+        
+        
+                  <div style={{ padding: 24, display: "grid", gap: 13 }}>
+        
+        
+        
+                    <div style={{ display: "grid", gridTemplateColumns: "170px 1fr", gap: 12, alignItems: "center" }}>
+        
+        
+        
+                      <div style={{ textAlign: "right", fontWeight: 800 }}>* Account</div>
+        
+        
+        
+                      <input style={field} value={selected.accountNo || ""} readOnly />
+        
+        
+        
+                    </div>
+        
+        
+        
+                    <div style={{ display: "grid", gridTemplateColumns: "170px 1fr", gap: 12, alignItems: "center" }}>
+        
+        
+        
+                      <div style={{ textAlign: "right", fontWeight: 800 }}>* Date</div>
+        
+        
+        
+                      <input type="date" style={field} defaultValue={today} />
+        
+        
+        
+                    </div>
+        
+        
+        
+                    <div style={{ display: "grid", gridTemplateColumns: "170px 1fr", gap: 12, alignItems: "center" }}>
+        
+        
+        
+                      <div style={{ textAlign: "right", fontWeight: 800 }}>* Due</div>
+        
+        
+        
+                      <input type="date" style={field} defaultValue={today} />
+        
+        
+        
+                    </div>
+        
+        
+        
+                    <div style={{ display: "grid", gridTemplateColumns: "170px 1fr", gap: 12, alignItems: "center" }}>
+        
+        
+        
+                      <div style={{ textAlign: "right", fontWeight: 800 }}>* Amount</div>
+        
+        
+        
+                      <input style={field} value={total.toFixed(2)} readOnly />
+        
+        
+        
+                    </div>
+        
+        
+        
+                    <div style={{ display: "grid", gridTemplateColumns: "170px 1fr", gap: 12 }}>
+        
+        
+        
+                      <div style={{ textAlign: "right", fontWeight: 800 }}>Message</div>
+        
+        
+        
+                      <textarea
+        
+        
+        
+                        style={{ ...field, minHeight: 130 }}
+        
+        
+        
+                        defaultValue={
+        
+        
+        
+                          "School fees to be paid in full by the 3rd of the month.\nArrangements for parents that receive their salary on the 15th of the month may be reviewed by the school.\nLate payment penalty of R300 may apply.\n\nPlease keep all receipts safe for enquiries."
+        
+        
+        
+                        }
+        
+        
+        
+                      />
+        
+        
+        
+                    </div>
+        
+        
+        
+                  </div>
+        
+        
+        
+                  <div style={{ borderTop: "1px solid #d6c17a" }}>
+        
+        
+        
+                    <div style={{ background: "#111827", color: "#d4af37", padding: "14px 18px", fontSize: 22, fontWeight: 900 }}>
+        
+        
+        
+                      Invoice Details
+        
+        
+        
+                    </div>
+        
+        
+        
+                    <div style={{ display: "flex", gap: 10, padding: 14, flexWrap: "wrap" }}>
+        
+        
+        
+                      <button style={btn} onClick={openFeeModal}>✚ Add</button>
+        
+        
+        
+                      <button style={btn} onClick={addManualLine}>✚ New</button>
+        
+        
+        
+                      <button style={btn} onClick={deleteLastLine}>✖ Delete</button>
+        
+        
+        
+                      <button style={btn} onClick={() => moveLine("up")}>⬆ Move Up</button>
+        
+        
+        
+                      <button style={btn} onClick={() => moveLine("down")}>⬇ Move Down</button>
+        
+        
+        
+                    </div>
+        
+        
+        
+                    <table style={{ width: "100%", borderCollapse: "collapse" }}>
+        
+        
+        
+                      <thead>
+        
+        
+        
+                        <tr style={{ background: "#f8fafc" }}>
+        
+        
+        
+                          <th style={{ padding: 12, textAlign: "left", borderTop: "1px solid #e5e7eb" }}>Description</th>
+        
+        
+        
+                          <th style={{ padding: 12, textAlign: "left", borderTop: "1px solid #e5e7eb" }}>Type</th>
+        
+        
+        
+                          <th style={{ padding: 12, textAlign: "right", borderTop: "1px solid #e5e7eb" }}>Amount</th>
+        
+        
+        
+                          <th style={{ padding: 12, width: 70, borderTop: "1px solid #e5e7eb" }}></th>
+        
+        
+        
+                        </tr>
+        
+        
+        
+                      </thead>
+        
+        
+        
+                      <tbody>
+        
+        
+        
+                        {lines.length ? (
+        
+        
+        
+                          lines.map((line: any) => (
+        
+        
+        
+                            <tr key={line.id}>
+        
+        
+        
+                              <td style={{ padding: 12, borderTop: "1px solid #e5e7eb" }}>
+        
+        
+        
+                                <input
+        
+        
+        
+                                  style={{ ...field, background: "#fff" }}
+        
+        
+        
+                                  defaultValue={line.description}
+        
+        
+        
+                                  onBlur={(e) => {
+        
+        
+        
+                                    saveLines(lines.map((l: any) => l.id === line.id ? { ...l, description: e.target.value } : l));
+        
+        
+        
+                                  }}
+        
+        
+        
+                                />
+        
+        
+        
+                              </td>
+        
+        
+        
+                              <td style={{ padding: 12, borderTop: "1px solid #e5e7eb" }}>
+        
+        
+        
+                                <input
+        
+        
+        
+                                  style={{ ...field, background: "#fff" }}
+        
+        
+        
+                                  defaultValue={line.type || ""}
+        
+        
+        
+                                  onBlur={(e) => {
+        
+        
+        
+                                    saveLines(lines.map((l: any) => l.id === line.id ? { ...l, type: e.target.value } : l));
+        
+        
+        
+                                  }}
+        
+        
+        
+                                />
+        
+        
+        
+                              </td>
+        
+        
+        
+                              <td style={{ padding: 12, borderTop: "1px solid #e5e7eb" }}>
+        
+        
+        
+                                <input
+        
+        
+        
+                                  type="number"
+        
+        
+        
+                                  style={{ ...field, background: "#fff", textAlign: "right" }}
+        
+        
+        
+                                  defaultValue={line.amount}
+        
+        
+        
+                                  onBlur={(e) => {
+        
+        
+        
+                                    saveLines(lines.map((l: any) => l.id === line.id ? { ...l, amount: Number(e.target.value || 0) } : l));
+        
+        
+        
+                                  }}
+        
+        
+        
+                                />
+        
+        
+        
+                              </td>
+        
+        
+        
+                              <td style={{ padding: 12, borderTop: "1px solid #e5e7eb" }}>
+        
+        
+        
+                                <button style={btn} onClick={() => saveLines(lines.filter((l: any) => l.id !== line.id))}>✎</button>
+        
+        
+        
+                              </td>
+        
+        
+        
+                            </tr>
+        
+        
+        
+                          ))
+        
+        
+        
+                        ) : (
+        
+        
+        
+                          <tr>
+        
+        
+        
+                            <td style={{ padding: 14, borderTop: "1px solid #e5e7eb" }}>Enter Description Here</td>
+        
+        
+        
+                            <td style={{ padding: 14, borderTop: "1px solid #e5e7eb" }}>Manual</td>
+        
+        
+        
+                            <td style={{ padding: 14, textAlign: "right", borderTop: "1px solid #e5e7eb" }}>0.00</td>
+        
+        
+        
+                            <td style={{ borderTop: "1px solid #e5e7eb" }}></td>
+        
+        
+        
+                          </tr>
+        
+        
+        
+                        )}
+        
+        
+        
+                        <tr style={{ fontWeight: 900 }}>
+        
+        
+        
+                          <td colSpan={2} style={{ padding: 14, borderTop: "1px solid #111827" }}>Total</td>
+        
+        
+        
+                          <td style={{ padding: 14, textAlign: "right", borderTop: "1px solid #111827" }}>{total.toFixed(2)}</td>
+        
+        
+        
+                          <td style={{ borderTop: "1px solid #111827" }}></td>
+        
+        
+        
+                        </tr>
+        
+        
+        
+                      </tbody>
+        
+        
+        
+                    </table>
+        
+        
+        
+                  </div>
+        
+        
+        
+                </section>
+        
+        
+        
+                <section style={{ background: "#fff", border: "1px solid #d6c17a", display: "grid", gridTemplateColumns: "120px 1fr", alignSelf: "start", boxShadow: "0 14px 35px rgba(17,24,39,0.08)" }}>
+        
+        
+        
+                  <div>
+        
+        
+        
+                    {["Account No", "Children", "Parents", "Balance", "Notes"].map((tab) => (
+        
+        
+        
+                      <div key={tab} style={{ padding: "18px 14px", background: "#111827", color: "#d4af37", borderBottom: "1px solid rgba(212,175,55,0.3)", fontWeight: 900 }}>
+        
+        
+        
+                        {tab}
+        
+        
+        
+                      </div>
+        
+        
+        
+                    ))}
+        
+        
+        
+                  </div>
+        
+        
+        
+                  <div style={{ padding: 24, fontWeight: 800, lineHeight: 1.9 }}>
+        
+        
+        
+                    <div>{selected.accountNo}</div>
+        
+        
+        
+                    <div>{selected.name} {selected.surname}</div>
+        
+        
+        
+                    <div>{selected.parentName || "Parent details to connect"}</div>
+        
+        
+        
+                    <div style={{ color: Number(selected.balance || 0) > 0 ? "#b91c1c" : "#166534" }}>
+        
+        
+        
+                      R {Number(selected.balance || 0).toFixed(2)}
+        
+        
+        
+                    </div>
+        
+        
+        
+                    <div style={{ color: "#64748b" }}>No notes captured.</div>
+        
+        
+        
+                  </div>
+        
+        
+        
+                </section>
+        
+        
+        
+              </div>
+        
+        
+        
+              {showFeeModal && (
+        
+        
+        
+                <div style={{
+        
+        
+        
+                  position: "fixed",
+        
+        
+        
+                  inset: 0,
+        
+        
+        
+                  background: "rgba(17,24,39,0.45)",
+        
+        
+        
+                  display: "flex",
+        
+        
+        
+                  alignItems: "center",
+        
+        
+        
+                  justifyContent: "center",
+        
+        
+        
+                  zIndex: 9999,
+        
+        
+        
+                }}>
+        
+        
+        
+                  <div style={{ width: 820, maxHeight: "82vh", overflow: "auto", background: "#fff", border: "2px solid #d4af37", boxShadow: "0 25px 70px rgba(0,0,0,0.25)" }}>
+        
+        
+        
+                    <div style={{ background: "#111827", color: "#d4af37", padding: "16px 20px", fontSize: 24, fontWeight: 900 }}>
+        
+        
+        
+                      Add fees to invoice
+        
+        
+        
+                    </div>
+        
+        
+        
+                    <div style={{ padding: 14, textAlign: "right" }}>
+        
+        
+        
+                      <input placeholder="Search" style={{ padding: "10px 12px", border: "1px solid #d4af37", width: 260 }} />
+        
+        
+        
+                    </div>
+        
+        
+        
+                    <table style={{ width: "100%", borderCollapse: "collapse" }}>
+        
+        
+        
+                      <thead>
+        
+        
+        
+                        <tr style={{ background: "#f8fafc" }}>
+        
+        
+        
+                          <th style={{ padding: 10 }}></th>
+        
+        
+        
+                          <th style={{ padding: 10, textAlign: "left" }}>Description</th>
+        
+        
+        
+                          <th style={{ padding: 10, textAlign: "left" }}>Category</th>
+        
+        
+        
+                          <th style={{ padding: 10, textAlign: "left" }}>Type</th>
+        
+        
+        
+                          <th style={{ padding: 10, textAlign: "right" }}>Amount</th>
+        
+        
+        
+                        </tr>
+        
+        
+        
+                      </thead>
+        
+        
+        
+                      <tbody>
+        
+        
+        
+                        {feeOptions.map((fee) => (
+        
+        
+        
+                          <tr key={fee.description}>
+        
+        
+        
+                            <td style={{ padding: 10 }}>
+        
+        
+        
+                              <input
+        
+        
+        
+                                type="checkbox"
+        
+        
+        
+                                onChange={(e) => e.target.checked && addFeeLine(fee)}
+        
+        
+        
+                              />
+        
+        
+        
+                            </td>
+        
+        
+        
+                            <td style={{ padding: 10 }}>{fee.description}</td>
+        
+        
+        
+                            <td style={{ padding: 10 }}>{fee.category}</td>
+        
+        
+        
+                            <td style={{ padding: 10 }}>{fee.type}</td>
+        
+        
+        
+                            <td style={{ padding: 10, textAlign: "right" }}>
+        
+        
+        
+                              {Number(fee.amount || 0).toFixed(2)}
+        
+        
+        
+                            </td>
+        
+        
+        
+                          </tr>
+        
+        
+        
+                        ))}
+        
+        
+        
+                      </tbody>
+        
+        
+        
+                    </table>
+        
+        
+        
+                    <div style={{ display: "flex", justifyContent: "space-between", padding: 16, borderTop: "1px solid #e5e7eb" }}>
+        
+        
+        
+                      <button style={btn} onClick={closeFeeModal}>✔ Continue</button>
+        
+        
+        
+                      <button style={btn} onClick={closeFeeModal}>✖ Cancel</button>
+        
+        
+        
+                    </div>
+        
+        
+        
+                  </div>
+        
+        
+        
+                </div>
+        
+        
+        
+              )}
+        
+        
+        
             </div>
-  
-  
-  
+        
+        
+        
           );
-  
-  
-  
+        
+        
+        
         }
   
   
