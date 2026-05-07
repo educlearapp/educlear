@@ -40,6 +40,8 @@ import logo from "./assets/logo.png";
 
 import { useSchoolId } from "./useSchoolId";
 
+import ParentPortal from "./ParentPortal";
+
 
 
 import "./App.css";
@@ -77,6 +79,8 @@ type PageKey =
   | "registrations"
 
 
+
+  | "parentPortal"
 
   | "learnerProfile"
 
@@ -2636,7 +2640,9 @@ const [selectedClassroomLearnerIds, setSelectedClassroomLearnerIds] = useState<s
 
           </button>
 
-
+          <button style={actionBtn} onClick={() => setActivePage("parentPortal")}>
+            👪 Parent Portal
+          </button>
 
           <div style={{ flex: 1 }} />
 
@@ -17104,6 +17110,8 @@ const renderMoreSettings = () => {
 
 
 
+  const ParentPortalPage = ParentPortal as any;
+
   const renderPage = () => {
 
 
@@ -17561,6 +17569,20 @@ const renderMoreSettings = () => {
 
 
         return renderRegistrations();
+
+      case "parentPortal":
+
+        return (
+          <ParentPortalPage
+            schoolId={schoolId}
+            onBack={() => setActivePage("registrations")}
+            onOpenLearnerProfile={openLearnerProfile}
+            onGoToStatements={() => setActivePage("statements")}
+            onGoToInvoices={() => setActivePage("invoices")}
+            onGoToPayments={() => setActivePage("payments")}
+            onGoToIncidents={() => setActivePage("incidents")}
+          />
+        );
 
 
 
@@ -18405,6 +18427,8 @@ case "incidentManage":
   
   
                 <div className={`submenu-item ${activePage === "registrations" ? "active" : ""}`} onClick={() => go("registrations")}>Registrations</div>
+
+                <div className={`submenu-item ${activePage === "parentPortal" ? "active" : ""}`} onClick={() => go("parentPortal")}>Parent Portal</div>
   
   
   

@@ -584,8 +584,6 @@ export default function App() {
 
         <Route path="/register-school" element={<RegisterSchool />} />
 
-
-
         <Route path="/dashboard/*" element={<SchoolDashboard />} />
 
 
