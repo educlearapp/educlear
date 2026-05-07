@@ -189,7 +189,7 @@ const ParentPortal: React.FC<ParentPortalProps> = ({
       qs.set("cellNo", cellNo.trim());
       if (idNumber.trim()) qs.set("idNumber", idNumber.trim());
 
-      const data = (await apiFetch(`/parent-portal/lookup?${qs.toString()}`)) as {
+      const data = (await apiFetch(`/api/parent-portal/lookup?${qs.toString()}`)) as {
         success: boolean;
         parent: LookupParent;
         learners: LookupLearner[];
