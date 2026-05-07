@@ -139,7 +139,7 @@ model User {
   schoolId String
 
   email String
-
+  fullName String?
   passwordHash String
 
   isActive Boolean @default(true)

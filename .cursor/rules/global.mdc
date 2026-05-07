@@ -1,0 +1,154 @@
+---
+
+
+
+alwaysApply: true
+
+
+
+---
+
+
+
+# 🚨 EduClear Strict Development Rules
+
+
+
+## 1. NO BREAKING EXISTING CODE
+
+
+
+- Do NOT modify existing working code unless explicitly told
+
+
+
+- Do NOT refactor unrelated sections
+
+
+
+- Do NOT "clean up" anything outside the task
+
+
+
+## 2. ISOLATED CHANGES ONLY
+
+
+
+- Only change the exact feature requested
+
+
+
+- Do NOT touch other pages, components, or logic
+
+
+
+## 3. FULL FILE CONTEXT REQUIRED
+
+
+
+- Always read the full file before making changes
+
+
+
+- Never guess structure
+
+
+
+- Never insert code blindly
+
+
+
+## 4. JSX SAFETY RULES
+
+
+
+- All JSX must be properly opened and closed
+
+
+
+- Never leave unclosed tags (button, div, etc.)
+
+
+
+- Never break render() or return blocks
+
+
+
+## 5. NO PARTIAL RESPONSES
+
+
+
+- Always provide COMPLETE working code
+
+
+
+- No placeholders
+
+
+
+- No “add this somewhere”
+
+
+
+## 6. MATCH EXISTING STYLE
+
+
+
+- Follow existing UI structure exactly
+
+
+
+- Keep EduClear premium black + gold styling
+
+
+
+- Do NOT introduce new design patterns unless asked
+
+
+
+## 7. DO NOT DELETE LOGIC
+
+
+
+- Never remove existing functions, variables, or state
+
+
+
+- Only extend or adjust safely
+
+
+
+## 8. CONFIRM BEFORE MAJOR CHANGES
+
+
+
+- If change affects more than one section → STOP and ask
+
+
+
+## 9. ERROR PREVENTION FIRST
+
+
+
+- Prioritize code stability over speed
+
+
+
+- Avoid changes that can break rendering
+
+
+
+## 10. EXACT INSTRUCTIONS MODE
+
+
+
+- Follow prompts EXACTLY
+
+
+
+- No assumptions
+
+
+
+- No improvisation
+

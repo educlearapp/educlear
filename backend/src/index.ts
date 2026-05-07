@@ -13,6 +13,7 @@ import learnerRoutes from "./routes/learner";
 import statementsRoutes from "./routes/statements";
 import paymentsRoutes from "./routes/payments";
 import invoicesRoutes from "./routes/invoices";
+import usersRoutes from "./routes/users";
 import bcrypt from "bcryptjs";
 
 import authRoutes from "./routes/auth";
@@ -279,6 +280,7 @@ app.get("/learner", async (req, res) => {
 });
 app.use("/learner", learnerRoutes);
 app.use("/api/schools", schoolsRoutes);
+app.use("/api/users", usersRoutes);
 app.post("/api/upload-logo", upload.single("logo"), (req, res) => {
 
 
