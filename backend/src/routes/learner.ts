@@ -37,29 +37,205 @@ router.get("/", async (req, res) => {
 
 
       where: {
-
-
-
+    
+    
+    
         schoolId: String(schoolId),
-
-
-
+    
+    
+    
       },
-
-
-
+    
+    
+    
+      include: {
+    
+    
+    
+        links: {
+    
+    
+    
+          include: {
+    
+    
+    
+            parent: true,
+    
+    
+    
+          },
+    
+    
+    
+        },
+    
+    
+    
+      },
+    
+    
+    
       orderBy: {
-
-
-
+    
+    
+    
         createdAt: "desc",
-
-
-
+    
+    
+    
       },
+    
+    
+    
+    });
+    
+    
+    
+    const learnersWithParents = learners.map((learner) => {
 
 
 
+      const parents =
+    
+    
+    
+        learner.links?.map((link: any) => {
+    
+    
+    
+          const parent = link.parent;
+    
+    
+    
+          if (!parent) return null;
+    
+    
+    
+          return {
+    
+    
+    
+            id: parent.id,
+    
+    
+    
+            firstName: parent.firstName || "",
+    
+    
+    
+            lastName: parent.lastName || "",
+    
+    
+    
+            email: parent.email || "",
+    
+    
+    
+            cellNo: parent.cellNo || "",
+    
+    
+    
+            relationship: link.relation || "",
+    
+    
+    
+            isPrimary: link.isPrimary || false,
+    
+    
+    
+            outstandingAmount: parent.outstandingAmount || 0,
+    
+    
+    
+            status: parent.status || "GREEN",
+    
+    
+    
+          };
+    
+    
+    
+        }).filter(Boolean) || [];
+    
+    
+    
+      return {
+    
+    
+    
+        id: learner.id,
+    
+    
+    
+        schoolId: learner.schoolId,
+    
+    
+    
+        familyAccountId: learner.familyAccountId,
+    
+    
+    
+        firstName: learner.firstName,
+    
+    
+    
+        lastName: learner.lastName,
+    
+    
+    
+        birthDate: learner.birthDate,
+    
+    
+    
+        gender: learner.gender,
+    
+    
+    
+        idNumber: learner.idNumber,
+    
+    
+    
+        grade: learner.grade,
+    
+    
+    
+        className: learner.className,
+    
+    
+    
+        admissionNo: learner.admissionNo,
+    
+    
+    
+        tuitionFee: learner.tuitionFee || 0,
+    
+    
+    
+        transportFee: learner.transportFee || 0,
+    
+    
+    
+        otherFee: learner.otherFee || 0,
+    
+    
+    
+        totalFee: learner.totalFee || 0,
+    
+    
+    
+        createdAt: learner.createdAt,
+    
+    
+    
+        parents,
+    
+    
+    
+      };
+    
+    
+    
     });
 
 
@@ -69,13 +245,57 @@ router.get("/", async (req, res) => {
 
 
       success: true,
-
-
-
-      learners,
-
-
-
+    
+    
+    
+      TEST_PARENT_FIX: true,
+    
+    
+    
+      learners: learners.map((learner) => ({
+    
+    
+    
+        ...learner,
+    
+    
+    
+        parents: learner.links?.map((link) => ({
+    
+    
+    
+          firstName: link.parent.firstName,
+    
+    
+    
+          surname: link.parent.surname,
+    
+    
+    
+          idNumber: link.parent.idNumber,
+    
+    
+    
+          cell: link.parent.cellNo,
+    
+    
+    
+          email: link.parent.email,
+    
+    
+    
+          relationship: link.relation || "",
+    
+    
+    
+        })) || [],
+    
+    
+    
+      })),
+    
+    
+    
     });
 
 

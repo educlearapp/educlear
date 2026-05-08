@@ -21,6 +21,7 @@ import teacherPerformanceRoutes from "./routes/teacherPerformance";
 
 import payrollRoutes from "./routes/payroll";
 import feesRoutes from "./routes/fees";
+import registrationsRoutes from "./routes/registrations";
 type OtpRecord = {
 
     code: string;
@@ -441,7 +442,7 @@ app.use("/api/payments", paymentsRoutes);
 app.use("/api/teacher-performance", teacherPerformanceRoutes);
 app.use("/api/payroll", payrollRoutes);
 app.use("/api/fees", feesRoutes);
-
+app.use("/api/registrations", registrationsRoutes);
 function mountOptionalCompiledRoute(
   mountPath: string,
   compiledRouteBasename: string,

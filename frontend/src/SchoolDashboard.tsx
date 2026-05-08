@@ -41,7 +41,7 @@ import logo from "./assets/logo.png";
 import { useSchoolId } from "./useSchoolId";
 
 import ParentPortal from "./ParentPortal";
-
+import Registrations from "./components/registrations/Registrations";
 
 
 import "./App.css";
@@ -1464,7 +1464,7 @@ const [selectedClassroomLearnerIds, setSelectedClassroomLearnerIds] = useState<s
 
 
 
-      fetch(`${API_URL}/api/learners?schoolId=${encodeURIComponent(schoolId)}`).then((res) =>
+      fetch(`${API_URL}/api/registrations/learners?schoolId=${encodeURIComponent(schoolId)}`).then((res) =>
 
 
 
@@ -1484,7 +1484,7 @@ const [selectedClassroomLearnerIds, setSelectedClassroomLearnerIds] = useState<s
 
 
 
-      ),
+      )
 
 
 
@@ -1500,7 +1500,39 @@ const [selectedClassroomLearnerIds, setSelectedClassroomLearnerIds] = useState<s
 
 
 
-        setParents(Array.isArray(parentsData?.parents) ? parentsData.parents : []);
+        setParents(
+
+
+
+          Array.isArray(parentsData)
+        
+        
+        
+            ? parentsData
+        
+        
+        
+            : Array.isArray(parentsData?.parents)
+        
+        
+        
+            ? parentsData.parents
+        
+        
+        
+            : Array.isArray(parentsData?.data)
+        
+        
+        
+            ? parentsData.data
+        
+        
+        
+            : []
+        
+        
+        
+        );
 
 
 
@@ -2078,1045 +2110,9 @@ const [selectedClassroomLearnerIds, setSelectedClassroomLearnerIds] = useState<s
 
   };
 
-  const renderRegistrations = () => (
+  
 
-
-
-    <div
-
-
-
-      style={{
-
-
-
-        padding: "26px",
-
-
-
-        background: "#f8fafc",
-
-
-
-        minHeight: "100%",
-
-
-
-        borderRadius: "20px",
-
-
-
-        border: "1px solid rgba(15,23,42,0.08)",
-
-
-
-      }}
-
-
-
-    >
-
-
-
-      <div style={{ marginBottom: "18px" }}>
-
-
-
-        <h1 style={{ margin: 0, fontSize: "34px", fontWeight: 900, color: "#0f172a" }}>
-
-
-
-          Registrations
-
-
-
-        </h1>
-
-
-
-        <p style={{ margin: "6px 0 0", color: "#64748b", fontWeight: 700 }}>
-
-
-
-          Manage your registrations
-
-
-
-        </p>
-
-
-
-      </div>
-
-
-
-      <div
-
-
-
-        style={{
-
-
-
-          display: "grid",
-
-
-
-          gridTemplateColumns: "repeat(6, minmax(130px, 1fr))",
-
-
-
-          gap: "12px",
-
-
-
-          marginBottom: "18px",
-
-
-
-        }}
-
-
-
-      >
-
-
-
-        {[
-
-
-
-          ["👥", totalLearners, "children"],
-
-
-
-          ["👪", totalParents, "parents"],
-
-
-
-          ["🚹", totalBoys, "boys"],
-
-
-
-          ["🚺", totalGirls, "girls"],
-
-
-
-          ["🏫", totalClassrooms, "classrooms"],
-
-
-
-          ["☰", averageClassSize, "average classroom size"],
-
-
-
-        ].map(([icon, value, label]) => (
-
-
-
-          <div
-
-
-
-            key={String(label)}
-
-
-
-            style={{
-
-
-
-              background: "#ffffff",
-
-
-
-              border: "1px solid rgba(15,23,42,0.08)",
-
-
-
-              borderTop: `3px solid ${GOLD}`,
-
-
-
-              borderRadius: "14px",
-
-
-
-              padding: "16px",
-
-
-
-              display: "flex",
-
-
-
-              alignItems: "center",
-
-
-
-              gap: "12px",
-
-
-
-              boxShadow: "0 10px 26px rgba(15,23,42,0.06)",
-
-
-
-            }}
-
-
-
-          >
-
-
-
-            <div
-
-
-
-              style={{
-
-
-
-                width: "44px",
-
-
-
-                height: "44px",
-
-
-
-                borderRadius: "999px",
-
-
-
-                background: "linear-gradient(135deg,#111827,#000000)",
-
-
-
-                color: GOLD,
-
-
-
-                display: "grid",
-
-
-
-                placeItems: "center",
-
-
-
-                fontSize: "20px",
-
-
-
-                border: `1px solid ${GOLD}`,
-
-
-
-              }}
-
-
-
-            >
-
-
-
-              {icon}
-
-
-
-            </div>
-
-
-
-            <div>
-
-
-
-              <div style={{ fontSize: "28px", fontWeight: 900, color: "#0f172a", lineHeight: 1 }}>
-
-
-
-                {value}
-
-
-
-              </div>
-
-
-
-              <div style={{ fontSize: "12px", fontWeight: 800, color: "#64748b" }}>
-
-
-
-                {label}
-
-
-
-              </div>
-
-
-
-            </div>
-
-
-
-          </div>
-
-
-
-        ))}
-
-
-
-      </div>
-
-
-
-      <div
-
-
-
-        style={{
-
-
-
-          background: "#ffffff",
-
-
-
-          border: "1px solid rgba(15,23,42,0.10)",
-
-
-
-          borderRadius: "12px",
-
-
-
-          overflow: "hidden",
-
-
-
-          boxShadow: "0 18px 40px rgba(15,23,42,0.08)",
-
-
-
-        }}
-
-
-
-      >
-
-
-
-        <div
-
-
-
-          style={{
-
-
-
-            padding: "12px 14px",
-
-
-
-            borderBottom: "1px solid #e5e7eb",
-
-
-
-            fontWeight: 900,
-
-
-
-            color: "#0f172a",
-
-
-
-          }}
-
-
-
-        >
-
-
-
-          Children
-
-
-
-        </div>
-
-
-
-        <div
-
-
-
-          style={{
-
-
-
-            padding: "10px",
-
-
-
-            display: "flex",
-
-
-
-            gap: "8px",
-
-
-
-            alignItems: "center",
-
-
-
-            flexWrap: "wrap",
-
-
-
-            borderBottom: "1px solid #e5e7eb",
-
-
-
-          }}
-
-
-
-        >
-
-
-
-          <button
-
-
-
-            style={goldBtn}
-
-
-
-            onClick={() => {
-
-
-
-              localStorage.removeItem("selectedLearnerForManage");
-
-
-
-              localStorage.removeItem("selectedLearnerForSibling");
-
-
-
-              setActivePage("addLearner");
-
-
-
-            }}
-
-
-
-          >
-
-
-
-            + Add
-
-
-
-          </button>
-
-
-
-          <button
-
-
-
-            style={{
-
-
-
-              ...actionBtn,
-
-
-
-              opacity: selectedLearner ? 1 : 0.55,
-
-
-
-              cursor: selectedLearner ? "pointer" : "not-allowed",
-
-
-
-            }}
-
-
-
-            disabled={!selectedLearner}
-
-
-
-            onClick={() => {
-
-
-
-              if (!selectedLearner) return alert("Please select a learner first.");
-
-
-
-              localStorage.setItem("selectedLearnerForSibling", JSON.stringify(selectedLearner));
-
-
-
-              localStorage.removeItem("selectedLearnerForManage");
-
-
-
-              setActivePage("addLearner");
-
-
-
-            }}
-
-
-
-          >
-
-
-
-            + Add Sibling
-
-
-
-          </button>
-
-
-
-          <button
-
-
-
-            style={{
-
-
-
-              ...actionBtn,
-
-
-
-              opacity: selectedLearner ? 1 : 0.55,
-
-
-
-              cursor: selectedLearner ? "pointer" : "not-allowed",
-
-
-
-            }}
-
-
-
-            disabled={!selectedLearner}
-
-
-
-            onClick={() => {
-
-
-
-              if (!selectedLearner) return alert("Please select a learner first.");
-
-
-
-              openLearnerProfile(selectedLearner);
-
-
-
-            }}
-
-
-
-          >
-
-
-
-            ✎ Manage
-
-
-
-          </button>
-
-          <button style={actionBtn} onClick={() => setActivePage("parentPortal")}>
-            👪 Parent Portal
-          </button>
-
-          <div style={{ flex: 1 }} />
-
-
-
-          <select
-
-
-
-            style={selectStyle}
-
-
-
-            value={showUnenrolled ? "show" : "hide"}
-
-
-
-            onChange={(e) => setShowUnenrolled(e.target.value === "show")}
-
-
-
-          >
-
-
-
-            <option value="hide">Hide Unenrolled</option>
-
-
-
-            <option value="show">Show Unenrolled</option>
-
-
-
-          </select>
-
-
-
-          <select style={selectStyle}>
-
-
-
-            <option>All Groups</option>
-
-
-
-          </select>
-
-
-
-          <select style={selectStyle}>
-
-
-
-            <option>All Classrooms</option>
-
-
-
-          </select>
-
-
-
-          <input
-
-
-
-            value={searchText}
-
-
-
-            onChange={(e) => setSearchText(e.target.value)}
-
-
-
-            placeholder="Search"
-
-
-
-            style={{
-
-
-
-              ...selectStyle,
-
-
-
-              width: "220px",
-
-
-
-            }}
-
-
-
-          />
-
-
-
-        </div>
-
-
-
-        <table style={{ width: "100%", borderCollapse: "collapse", fontSize: "13px" }}>
-
-
-
-          <thead>
-
-
-
-            <tr>
-
-
-
-              <th style={th}>Name</th>
-
-
-
-              <th style={th}>Surname</th>
-
-
-
-              <th style={th}>Classroom</th>
-
-
-
-              <th style={th}>Age</th>
-
-
-
-              <th style={th}>Child Status</th>
-
-
-
-            </tr>
-
-
-
-          </thead>
-
-
-
-          <tbody>
-
-
-
-            {filteredLearners.length === 0 ? (
-
-
-
-              <tr>
-
-
-
-                <td colSpan={5} style={{ ...td, textAlign: "center", padding: "24px" }}>
-
-
-
-                  No learners found
-
-
-
-                </td>
-
-
-
-              </tr>
-
-
-
-            ) : (
-
-
-
-              filteredLearners.slice(0, 10).map((learner: any, index: number) => {
-
-
-
-                const isSelected = String(selectedLearner?.id || "") === String(learner?.id || "");
-
-
-
-                return (
-
-
-
-                  <tr
-
-
-
-                    key={learner.id || index}
-
-
-
-                    onClick={() => setSelectedLearner(learner)}
-
-
-
-                    onDoubleClick={() => openLearnerProfile(learner)}
-
-
-
-                    style={{
-
-
-
-                      cursor: "pointer",
-
-
-
-                      background: isSelected
-
-
-
-                        ? "linear-gradient(90deg, rgba(212,175,55,0.22), #ffffff)"
-
-
-
-                        : index % 2 === 0
-
-
-
-                        ? "#ffffff"
-
-
-
-                        : "rgba(212,175,55,0.07)",
-
-
-
-                      outline: isSelected ? `2px solid ${GOLD}` : "none",
-
-
-
-                    }}
-
-
-
-                  >
-
-
-
-                    <td style={td}>
-
-
-
-                      <button
-
-
-
-                        type="button"
-
-
-
-                        onClick={(e) => {
-
-
-
-                          e.stopPropagation();
-
-
-
-                          openLearnerProfile(learner);
-
-
-
-                        }}
-
-
-
-                        style={{
-
-
-
-                          background: "none",
-
-
-
-                          border: "none",
-
-
-
-                          padding: 0,
-
-
-
-                          color: "#0f172a",
-
-
-
-                          fontWeight: 900,
-
-
-
-                          cursor: "pointer",
-
-
-
-                          textDecoration: "underline",
-
-
-
-                          textDecorationColor: GOLD,
-
-
-
-                        }}
-
-
-
-                      >
-
-
-
-                        {learner.firstName || "--"}
-
-
-
-                      </button>
-
-
-
-                    </td>
-
-
-
-                    <td style={td}>{learner.lastName || learner.surname || "--"}</td>
-
-
-
-                    <td style={td}>{learnerClassroom(learner) || "-"}</td>
-
-
-
-                    <td style={td}>{formatAge(learner.birthDate)}</td>
-
-
-
-                    <td style={td}>
-
-
-
-                      <span
-
-
-
-                        style={{
-
-
-
-                          color:
-
-
-
-                            (learner.childStatus || "Enrolled") === "Enrolled" ? "#15803d" : "#b91c1c",
-
-
-
-                          fontWeight: 900,
-
-
-
-                        }}
-
-
-
-                      >
-
-
-
-                        {learner.childStatus || "Enrolled"}
-
-
-
-                      </span>
-
-
-
-                    </td>
-
-
-
-                  </tr>
-
-
-
-                );
-
-
-
-              })
-
-
-
-            )}
-
-
-
-          </tbody>
-
-
-
-        </table>
-
-
-
-        <div
-
-
-
-          style={{
-
-
-
-            padding: "10px",
-
-
-
-            display: "flex",
-
-
-
-            justifyContent: "space-between",
-
-
-
-            color: "#64748b",
-
-
-
-            fontSize: "12px",
-
-
-
-            fontWeight: 800,
-
-
-
-          }}
-
-
-
-        >
-
-
-
-          <span>1 - {Math.min(10, filteredLearners.length)} / {filteredLearners.length}</span>
-
-
-
-          <span>Page 1</span>
-
-
-
-        </div>
-
-
-
-      </div>
-
-
-
-    </div>
-
-
-
-  );
+  
   const renderLearnerProfile = () => {
 
 
@@ -5478,7 +4474,7 @@ const [selectedClassroomLearnerIds, setSelectedClassroomLearnerIds] = useState<s
 
 
 
-                      key={parent.id || index}
+                    key={parent.idNumber || parent.email || index}
 
 
 
@@ -17120,6 +16116,239 @@ const renderMoreSettings = () => {
 
   const ParentPortalPage = ParentPortal as any;
 
+  const [invoiceRunView, setInvoiceRunView] = useState<
+
+
+
+  | "list"
+
+
+
+  | "wizard"
+
+
+
+  | "manage"
+
+
+
+  | "emailInvoices"
+
+
+
+  | "emailStatements"
+
+
+
+  | "emailBoth"
+
+
+
+  | "printInvoices"
+
+
+
+  | "printStatements"
+
+
+
+>("list");
+
+
+
+  const [invoiceRunStep, setInvoiceRunStep] = useState(1);
+  
+  
+  
+  const [invoiceRunSearch, setInvoiceRunSearch] = useState("");
+  
+  
+  
+  const [invoiceRunPage, setInvoiceRunPage] = useState(1);
+  
+  
+  
+  const [selectedInvoiceRunId, setSelectedInvoiceRunId] = useState<string | null>(null);
+  
+  
+  
+  const invoiceRunSteps = [
+  
+  
+  
+    "Start",
+  
+  
+  
+    "Settings",
+  
+  
+  
+    "Children",
+  
+  
+  
+    "Fees",
+  
+  
+  
+    "Preview",
+  
+  
+  
+    "Create Invoices",
+  
+  
+  
+    "Summary",
+  
+  
+  
+    "Finish",
+  
+  
+  
+  ];
+  
+  
+  
+  const [invoiceRunSettings, setInvoiceRunSettings] = useState({
+  
+  
+  
+    description: `Invoice Run For ${new Date().toLocaleString("default", {
+  
+  
+  
+      month: "long",
+  
+  
+  
+    })} ${new Date().getFullYear()}`,
+  
+  
+  
+    invoiceDate: new Date().toISOString().split("T")[0],
+  
+  
+  
+    dueDate: new Date().toISOString().split("T")[0],
+  
+  
+  
+    month: new Date().toLocaleString("default", { month: "long" }),
+  
+  
+  
+    message: "School fees are payable by the due date stated on this invoice.",
+  
+  
+  
+  });
+  const [invoiceRunActionsOpen, setInvoiceRunActionsOpen] = useState(false);
+  const [invoiceRunActionType, setInvoiceRunActionType] = useState<
+
+
+
+  "emailInvoices" | "emailStatements" | "emailBoth" | "printInvoices" | "printStatements" | ""
+
+
+
+>("");
+
+
+
+const [invoiceRunModal, setInvoiceRunModal] = useState<
+
+
+
+  "statementOptions" | "invoiceOptions" | "documentsReady" | ""
+
+
+
+>("");
+
+
+
+const [invoiceRunStatementOptions, setInvoiceRunStatementOptions] = useState({
+
+
+
+  statementPeriod: "Last 3 Months",
+
+
+
+  hideCorrections: true,
+
+
+
+  message:
+
+
+
+    "Please note: School fees to be paid in full by the 3rd of the month.\n\nPlease keep all receipts safe if there might be any enquiries.",
+
+
+
+});
+
+
+
+const [invoiceRunInvoiceOptions, setInvoiceRunInvoiceOptions] = useState({
+
+
+
+  accountStatus: "All",
+
+
+
+  groupBy: "Classroom",
+
+
+
+  sortBy: "Name",
+
+
+
+  selection: "Custom Dates",
+
+
+
+  fromDate: new Date().toISOString().split("T")[0],
+
+
+
+  toDate: new Date().toISOString().split("T")[0],
+
+
+
+});
+
+
+
+const [invoiceRunEmailDraft, setInvoiceRunEmailDraft] = useState({
+
+
+
+  from: "no-reply@educlear.co.za",
+
+
+
+  description: "",
+
+
+
+  subject: "",
+
+
+
+  body: "",
+
+
+
+});
+
+
   const renderPage = () => {
 
 
@@ -17574,9 +16803,49 @@ const renderMoreSettings = () => {
 
       case "registrations":
 
+      return (
 
 
-        return renderRegistrations();
+
+        <Registrations
+      
+      
+      
+          learners={learners}
+      
+      
+      
+          parents={parents}
+         linkedParents={parents}
+      
+      
+          classrooms={classroomRows}
+      
+      
+      
+          schoolId={schoolId}
+      
+      
+      
+          onAddLearner={() => setActivePage("addLearner")}
+      
+      
+      
+          onOpenLearner={(learner: any) => openLearnerProfile(learner)}
+      
+      
+      
+          onOpenParentPortal={() => setActivePage("parentPortal")}
+      
+      
+      
+        />
+      
+      
+      
+      );
+
+        
 
       case "parentPortal":
 
@@ -21408,27 +20677,8 @@ case "incidentManage":
         
         
         
-            const possibleStateLists = [
-        
-        
-        
-              typeof fees !== "undefined" ? fees : [],
-        
-        
-        
-              typeof schoolFees !== "undefined" ? schoolFees : [],
-        
-        
-        
-              typeof feeRows !== "undefined" ? feeRows : [],
-        
-        
-        
-              typeof billingFees !== "undefined" ? billingFees : [],
-        
-        
-        
-            ];
+            const possibleStateLists: any[] = [];
+
         
         
         
@@ -23301,12 +22551,5298 @@ Showing {filteredLearners.length === 0 ? 0 : (currentPage - 1) * pageSize + 1}
   
   
   
-        case "runs":
-  
-  
-  
-          return <h1 className="page-title">Invoice Runs</h1>;
-  
+
+case "runs": {
+
+
+
+  const money = (value: any) =>
+
+
+
+    `R ${Number(value || 0).toLocaleString("en-ZA", {
+
+
+
+      minimumFractionDigits: 2,
+
+
+
+      maximumFractionDigits: 2,
+
+
+
+    })}`;
+
+
+
+  const readJson = (keys: string[], fallback: any) => {
+
+
+
+    for (const key of keys) {
+
+
+
+      try {
+
+
+
+        const raw = localStorage.getItem(key);
+
+
+
+        if (!raw) continue;
+
+
+
+        const parsed = JSON.parse(raw);
+
+
+
+        if (parsed) return parsed;
+
+
+
+      } catch {}
+
+
+
+    }
+
+
+
+    return fallback;
+
+
+
+  };
+
+
+
+  const toArray = (value: any) => {
+
+
+
+    if (Array.isArray(value)) return value;
+
+
+
+    if (Array.isArray(value?.data)) return value.data;
+
+
+
+    if (Array.isArray(value?.learners)) return value.learners;
+
+
+
+    if (Array.isArray(value?.parents)) return value.parents;
+
+
+
+    if (Array.isArray(value?.accounts)) return value.accounts;
+
+
+
+    if (Array.isArray(value?.items)) return value.items;
+
+
+
+    return [];
+
+
+
+  };
+
+
+
+  const schoolProfile =
+
+
+
+    readJson(
+
+
+
+      [
+
+
+
+        "educlearCurrentSchool",
+
+
+
+        "educlearSchoolProfile",
+
+
+
+        "currentSchool",
+
+
+
+        "selectedSchool",
+
+
+
+        "schoolProfile",
+
+
+
+        "school",
+
+
+
+      ],
+
+
+
+      {}
+
+
+
+    ) || {};
+
+
+
+  const schoolName =
+
+
+
+    schoolProfile?.name ||
+
+
+
+    schoolProfile?.schoolName ||
+
+
+
+    schoolProfile?.registeredName ||
+
+
+
+    "School Name";
+
+
+
+  const schoolEmail =
+
+
+
+    schoolProfile?.email ||
+
+
+
+    schoolProfile?.schoolEmail ||
+
+
+
+    schoolProfile?.contactEmail ||
+
+
+
+    "info@educlear.co.za";
+
+
+
+  const schoolPhone =
+
+
+
+    schoolProfile?.phone ||
+
+
+
+    schoolProfile?.cell ||
+
+
+
+    schoolProfile?.telephone ||
+
+
+
+    "";
+
+
+
+  const schoolAddress =
+
+
+
+    schoolProfile?.address ||
+
+
+
+    schoolProfile?.physicalAddress ||
+
+
+
+    schoolProfile?.streetAddress ||
+
+
+
+    "School address not captured";
+
+
+
+  const storedParents = toArray(
+
+
+
+    readJson(
+
+
+
+      [
+
+
+
+        "educlearParents",
+
+
+
+        "parents",
+
+
+
+        "parentRecords",
+
+
+
+        "educlearParentRecords",
+
+
+
+        "educlearAccounts",
+
+
+
+        "accounts",
+
+
+
+      ],
+
+
+
+      []
+
+
+
+    )
+
+
+
+  );
+
+
+
+  const storedRuns = toArray(readJson(["educlearInvoiceRuns"], []));
+
+
+
+  const btn = {
+
+
+
+    padding: "10px 14px",
+
+
+
+    borderRadius: "10px",
+
+
+
+    border: "1px solid #cbd5e1",
+
+
+
+    background: "#ffffff",
+
+
+
+    color: "#111827",
+
+
+
+    fontSize: "13px",
+
+
+
+    fontWeight: 900,
+
+
+
+    cursor: "pointer",
+
+
+
+  };
+
+
+
+  const goldBtn = {
+
+
+
+    ...btn,
+
+
+
+    background: "linear-gradient(135deg, #f7d56a, #d4af37)",
+
+
+
+    border: "1px solid #b89329",
+
+
+
+  };
+
+
+
+  const darkBtn = {
+
+
+
+    ...btn,
+
+
+
+    background: "#111827",
+
+
+
+    color: "#ffffff",
+
+
+
+    border: "1px solid #111827",
+
+
+
+  };
+
+
+
+  const dangerBtn = {
+
+
+
+    ...btn,
+
+
+
+    background: "#fee2e2",
+
+
+
+    border: "1px solid #fecaca",
+
+
+
+    color: "#991b1b",
+
+
+
+  };
+
+
+
+  const th = {
+
+
+
+    padding: "11px",
+
+
+
+    border: "1px solid #d8dee8",
+
+
+
+    background: "#f8fafc",
+
+
+
+    color: "#111827",
+
+
+
+    fontSize: "12px",
+
+
+
+    fontWeight: 900,
+
+
+
+    textAlign: "left" as const,
+
+
+
+  };
+
+
+
+  const td = {
+
+
+
+    padding: "10px 11px",
+
+
+
+    border: "1px solid #e5eaf2",
+
+
+
+    color: "#0f172a",
+
+
+
+    fontSize: "13px",
+
+
+
+  };
+
+
+
+  const input = {
+
+
+
+    width: "100%",
+
+
+
+    padding: "10px",
+
+
+
+    border: "1px solid #cbd5e1",
+
+
+
+    borderRadius: "10px",
+
+
+
+    background: "#ffffff",
+
+
+
+    fontSize: "13px",
+
+
+
+    color: "#111827",
+
+
+
+  };
+
+
+
+  const label = {
+
+
+
+    display: "block",
+
+
+
+    fontSize: "13px",
+
+
+
+    fontWeight: 900,
+
+
+
+    color: "#334155",
+
+
+
+    marginBottom: "6px",
+
+
+
+  };
+
+
+
+  const learnerFullName = (learner: any) =>
+
+
+
+    `${learner?.firstName || learner?.name || ""} ${
+
+
+
+      learner?.surname || learner?.lastName || ""
+
+
+
+    }`.trim() || "Learner";
+
+
+
+  const findParent = (learner: any) => {
+
+
+
+    const embedded =
+
+
+
+      learner?.parent ||
+
+
+
+      learner?.primaryParent ||
+
+
+
+      learner?.guardian ||
+
+
+
+      learner?.accountHolder ||
+
+
+
+      (Array.isArray(learner?.parents) ? learner.parents[0] : null) ||
+
+
+
+      (Array.isArray(learner?.guardians) ? learner.guardians[0] : null);
+
+
+
+    if (embedded) return embedded;
+
+
+
+    const learnerId = String(learner?.id || "");
+
+
+
+    const learnerAccount = String(
+
+
+
+      learner?.accountNo ||
+
+
+
+        learner?.accountNumber ||
+
+
+
+        learner?.admissionNo ||
+
+
+
+        ""
+
+
+
+    ).toLowerCase();
+
+
+
+    const parentId = String(
+
+
+
+      learner?.parentId ||
+
+
+
+        learner?.primaryParentId ||
+
+
+
+        learner?.guardianId ||
+
+
+
+        ""
+
+
+
+    );
+
+
+
+    const learnerName = learnerFullName(learner).toLowerCase();
+
+
+
+    return (
+
+
+
+      storedParents.find((parent: any) => {
+
+
+
+        const pId = String(parent?.id || parent?.parentId || "");
+
+
+
+        const pAccount = String(
+
+
+
+          parent?.accountNo ||
+
+
+
+            parent?.accountNumber ||
+
+
+
+            parent?.familyCode ||
+
+
+
+            ""
+
+
+
+        ).toLowerCase();
+
+
+
+        const childIds = [
+
+
+
+          parent?.learnerId,
+
+
+
+          parent?.childId,
+
+
+
+          parent?.studentId,
+
+
+
+          ...(Array.isArray(parent?.learnerIds) ? parent.learnerIds : []),
+
+
+
+          ...(Array.isArray(parent?.childrenIds) ? parent.childrenIds : []),
+
+
+
+        ].map((x: any) => String(x || ""));
+
+
+
+        const childNames = [
+
+
+
+          parent?.learnerName,
+
+
+
+          parent?.childName,
+
+
+
+          ...(Array.isArray(parent?.learners)
+
+
+
+            ? parent.learners.map((child: any) => learnerFullName(child))
+
+
+
+            : []),
+
+
+
+          ...(Array.isArray(parent?.children)
+
+
+
+            ? parent.children.map((child: any) => learnerFullName(child))
+
+
+
+            : []),
+
+
+
+        ].map((x: any) => String(x || "").toLowerCase());
+
+
+
+        return (
+
+
+
+          (parentId && pId && parentId === pId) ||
+
+
+
+          (learnerId && childIds.includes(learnerId)) ||
+
+
+
+          (learnerAccount && pAccount && learnerAccount === pAccount) ||
+
+
+
+          (learnerName && childNames.includes(learnerName))
+
+
+
+        );
+
+
+
+      }) || {}
+
+
+
+    );
+
+
+
+  };
+  const selectedRows = learners.map((learner: any, index: number) => {
+
+
+
+    const parent = findParent(learner);
+
+
+
+    const feeSourceRows = toArray(
+
+
+
+      readJson(["educlearFees", "fees", "schoolFees", "feeRows", "billingFees"], [])
+    
+    
+    
+    );
+    
+    
+    
+    const learnerFees = Array.isArray(feeSourceRows)
+    
+    
+    
+      ? feeSourceRows.filter((fee: any) => { 
+
+
+
+          const learnerGrade = String(
+
+
+
+            learner?.grade ||
+
+
+
+              learner?.classroom ||
+
+
+
+              learner?.gradeName ||
+
+
+
+              ""
+
+
+
+          ).toLowerCase();
+
+
+
+          const feeGrade = String(
+
+
+
+            fee?.grade ||
+
+
+
+              fee?.classroom ||
+
+
+
+              fee?.appliesTo ||
+
+
+
+              ""
+
+
+
+          ).toLowerCase();
+
+
+
+          if (!feeGrade) return true;
+
+
+
+          return learnerGrade.includes(feeGrade);
+
+
+
+        })
+
+
+
+      : [];
+
+
+
+    const invoiceAmount = learnerFees.reduce(
+
+
+
+      (total: number, fee: any) =>
+
+
+
+        total + Number(fee?.amount || 0),
+
+
+
+      0
+
+
+
+    );
+
+
+
+    const parentName =
+
+
+
+      parent?.name ||
+
+
+
+      parent?.fullName ||
+
+
+
+      `${parent?.firstName || ""} ${parent?.lastName || ""}`.trim() ||
+
+
+
+      learner?.parentName ||
+
+
+
+      learner?.guardianName ||
+
+
+
+      "Parent / Guardian";
+
+
+
+    const parentEmail =
+
+
+
+      parent?.email ||
+
+
+
+      parent?.parentEmail ||
+
+
+
+      learner?.parentEmail ||
+
+
+
+      learner?.guardianEmail ||
+
+
+
+      "";
+
+
+
+    return {
+
+
+
+      id: learner?.id || index,
+
+
+
+      learnerName: learnerFullName(learner),
+
+
+
+      classroom:
+
+
+
+        learner?.classroom ||
+
+
+
+        learner?.grade ||
+
+
+
+        learner?.gradeName ||
+
+
+
+        "Classroom",
+
+
+
+      accountNo:
+
+
+
+        learner?.accountNo ||
+
+
+
+        learner?.accountNumber ||
+
+
+
+        learner?.admissionNo ||
+
+
+
+        `SIL${String(index + 1).padStart(3, "0")}`,
+
+
+
+      parentName,
+
+
+
+      parentEmail,
+
+
+
+      invoiceNo: 65000 + index,
+
+
+
+      statementNo: `ST${String(index + 1).padStart(4, "0")}`,
+
+
+
+      invoiceAmount,
+
+
+
+      status: invoiceAmount <= 0 ? "Paid" : "Unpaid",
+
+
+
+    };
+
+
+
+  });
+
+
+
+  const filteredRows = selectedRows.filter((row: any) => {
+
+
+
+    if (!invoiceRunSearch) return true;
+
+
+
+    return (
+
+
+
+      String(row?.learnerName || "")
+
+
+
+        .toLowerCase()
+
+
+
+        .includes(invoiceRunSearch.toLowerCase()) ||
+
+
+
+      String(row?.parentName || "")
+
+
+
+        .toLowerCase()
+
+
+
+        .includes(invoiceRunSearch.toLowerCase()) ||
+
+
+
+      String(row?.accountNo || "")
+
+
+
+        .toLowerCase()
+
+
+
+        .includes(invoiceRunSearch.toLowerCase())
+
+
+
+    );
+
+
+
+  });
+
+
+
+  const paginatedRows = filteredRows.slice(
+
+
+
+    (invoiceRunPage - 1) * 10,
+
+
+
+    invoiceRunPage * 10
+
+
+
+  );
+
+
+
+  if (invoiceRunView === "printInvoices") {
+
+
+
+    return (
+
+
+
+      <div style={{ display: "flex", flexDirection: "column", gap: 24 }}>
+
+
+
+        <div
+
+
+
+          style={{
+
+
+
+            display: "flex",
+
+
+
+            justifyContent: "space-between",
+
+
+
+            alignItems: "center",
+
+
+
+          }}
+
+
+
+        >
+
+
+
+          <div>
+
+
+
+            <h1 className="page-title">Print Invoices</h1>
+
+
+
+            <div
+
+
+
+              style={{
+
+
+
+                fontSize: "13px",
+
+
+
+                color: "#64748b",
+
+
+
+                marginTop: 4,
+
+
+
+              }}
+
+
+
+            >
+
+
+
+              Invoice batch preview before printing
+
+
+
+            </div>
+
+
+
+          </div>
+
+
+
+          <div style={{ display: "flex", gap: 10 }}>
+
+
+
+            <button
+
+
+
+              style={btn}
+
+
+
+              onClick={() => setInvoiceRunView("list")}
+
+
+
+            >
+
+
+
+              ← Back
+
+
+
+            </button>
+
+
+
+            <button
+
+
+
+              style={goldBtn}
+
+
+
+              onClick={() => window.print()}
+
+
+
+            >
+
+
+
+              View / Print
+
+
+
+            </button>
+
+
+
+          </div>
+
+
+
+        </div>
+
+
+
+        <div
+
+
+
+          className="premium-card"
+
+
+
+          style={{
+
+
+
+            padding: 20,
+
+
+
+            borderRadius: 20,
+
+
+
+            background: "#ffffff",
+
+
+
+            border: "1px solid rgba(15,23,42,0.08)",
+
+
+
+          }}
+
+
+
+        >
+
+
+
+          <div
+
+
+
+            style={{
+
+
+
+              fontSize: "18px",
+
+
+
+              fontWeight: 900,
+
+
+
+              color: "#0f172a",
+
+
+
+              marginBottom: 18,
+
+
+
+            }}
+
+
+
+          >
+
+
+
+            Invoices In This Run
+
+
+
+          </div>
+
+
+
+          <table
+
+
+
+            style={{
+
+
+
+              width: "100%",
+
+
+
+              borderCollapse: "collapse",
+
+
+
+            }}
+
+
+
+          >
+
+
+
+            <thead>
+
+
+
+              <tr>
+
+
+
+                <th style={th}>Account No</th>
+
+
+
+                <th style={th}>Invoice No</th>
+
+
+
+                <th style={th}>Learner</th>
+
+
+
+                <th style={th}>Parent</th>
+
+
+
+                <th style={th}>Email</th>
+
+
+
+                <th style={{ ...th, textAlign: "right" }}>
+
+
+
+                  Amount
+
+
+
+                </th>
+
+
+
+                <th style={th}>Status</th>
+
+
+
+              </tr>
+
+
+
+            </thead>
+
+
+
+            <tbody>
+
+
+
+              {filteredRows.map((row: any, index: number) => (
+
+
+
+                <tr
+
+
+
+                  key={String(row.id || index)}
+
+
+
+                  style={{
+
+
+
+                    background:
+
+
+
+                      index % 2 === 0
+
+
+
+                        ? "#ffffff"
+
+
+
+                        : "rgba(212,175,55,0.05)",
+
+
+
+                  }}
+
+
+
+                >
+
+
+
+                  <td style={td}>{row.accountNo}</td>
+
+
+
+                  <td style={td}>{row.invoiceNo}</td>
+
+
+
+                  <td style={td}>{row.learnerName}</td>
+
+
+
+                  <td style={td}>{row.parentName}</td>
+
+
+
+                  <td style={td}>
+
+
+
+                    {row.parentEmail || "Missing Email"}
+
+
+
+                  </td>
+
+
+
+                  <td
+
+
+
+                    style={{
+
+
+
+                      ...td,
+
+
+
+                      textAlign: "right",
+
+
+
+                      fontWeight: 900,
+
+
+
+                    }}
+
+
+
+                  >
+
+
+
+                    {money(row.invoiceAmount)}
+
+
+
+                  </td>
+
+
+
+                  <td
+
+
+
+                    style={{
+
+
+
+                      ...td,
+
+
+
+                      fontWeight: 900,
+
+
+
+                      color:
+
+
+
+                        row.status === "Paid"
+
+
+
+                          ? "#15803d"
+
+
+
+                          : "#b91c1c",
+
+
+
+                    }}
+
+
+
+                  >
+
+
+
+                    {row.status}
+
+
+
+                  </td>
+
+
+
+                </tr>
+
+
+
+              ))}
+
+
+
+            </tbody>
+
+
+
+          </table>
+
+
+
+        </div>
+        {filteredRows.map((row: any, index: number) => (
+
+
+
+<div
+
+
+
+  key={`invoice-preview-${row.id || index}`}
+
+
+
+  style={{
+
+
+
+    marginTop: 18,
+
+
+
+    padding: 22,
+
+
+
+    borderRadius: 18,
+
+
+
+    border: "1px solid rgba(15,23,42,0.12)",
+
+
+
+    background: "#ffffff",
+
+
+
+    pageBreakInside: "avoid",
+
+
+
+  }}
+
+
+
+>
+
+
+
+  <div
+
+
+
+    style={{
+
+
+
+      display: "flex",
+
+
+
+      justifyContent: "space-between",
+
+
+
+      borderBottom: "2px solid #111827",
+
+
+
+      paddingBottom: 14,
+
+
+
+      marginBottom: 16,
+
+
+
+    }}
+
+
+
+  >
+
+
+
+    <div>
+
+
+
+      <div
+
+
+
+        style={{
+
+
+
+          color: "#d4af37",
+
+
+
+          fontWeight: 900,
+
+
+
+          fontSize: 13,
+
+
+
+          marginBottom: 4,
+
+
+
+        }}
+
+
+
+      >
+
+
+
+        EduClear
+
+
+
+      </div>
+
+
+
+      <div
+
+
+
+        style={{
+
+
+
+          fontSize: 22,
+
+
+
+          fontWeight: 900,
+
+
+
+          color: "#111827",
+
+
+
+        }}
+
+
+
+      >
+
+
+
+        {schoolName}
+
+
+
+      </div>
+
+
+
+      <div style={{ fontSize: 12, color: "#64748b" }}>
+
+
+
+        {schoolAddress}
+
+
+
+      </div>
+
+
+
+      <div style={{ fontSize: 12, color: "#64748b" }}>
+
+
+
+        {schoolEmail} {schoolPhone ? `| ${schoolPhone}` : ""}
+
+
+
+      </div>
+
+
+
+    </div>
+
+
+
+    <div style={{ textAlign: "right" }}>
+
+
+
+      <div
+
+
+
+        style={{
+
+
+
+          color: "#d4af37",
+
+
+
+          fontSize: 26,
+
+
+
+          fontWeight: 900,
+
+
+
+        }}
+
+
+
+      >
+
+
+
+        INVOICE
+
+
+
+      </div>
+
+
+
+      <div style={{ fontSize: 12, color: "#64748b" }}>
+
+
+
+        Invoice No: {row.invoiceNo}
+
+
+
+      </div>
+
+
+
+      <div style={{ fontSize: 12, color: "#64748b" }}>
+
+
+
+        Date: {invoiceRunSettings.invoiceDate}
+
+
+
+      </div>
+
+
+
+      <div style={{ fontSize: 12, color: "#64748b" }}>
+
+
+
+        Due Date: {invoiceRunSettings.dueDate}
+
+
+
+      </div>
+
+
+
+    </div>
+
+
+
+  </div>
+
+
+
+  <div
+
+
+
+    style={{
+
+
+
+      display: "grid",
+
+
+
+      gridTemplateColumns: "1fr 1fr",
+
+
+
+      gap: 14,
+
+
+
+      marginBottom: 16,
+
+
+
+    }}
+
+
+
+  >
+
+
+
+    <div
+
+
+
+      style={{
+
+
+
+        padding: 14,
+
+
+
+        borderRadius: 12,
+
+
+
+        background: "#f8fafc",
+
+
+
+        border: "1px solid #e5e7eb",
+
+
+
+      }}
+
+
+
+    >
+
+
+
+      <div style={{ fontWeight: 900, marginBottom: 6 }}>
+
+
+
+        Learner
+
+
+
+      </div>
+
+
+
+      <div>{row.learnerName}</div>
+
+
+
+      <div style={{ fontSize: 12, color: "#64748b" }}>
+
+
+
+        Classroom: {row.classroom}
+
+
+
+      </div>
+
+
+
+      <div style={{ fontSize: 12, color: "#64748b" }}>
+
+
+
+        Account: {row.accountNo}
+
+
+
+      </div>
+
+
+
+    </div>
+
+
+
+    <div
+
+
+
+      style={{
+
+
+
+        padding: 14,
+
+
+
+        borderRadius: 12,
+
+
+
+        background: "#f8fafc",
+
+
+
+        border: "1px solid #e5e7eb",
+
+
+
+      }}
+
+
+
+    >
+
+
+
+      <div style={{ fontWeight: 900, marginBottom: 6 }}>
+
+
+
+        Parent / Guardian
+
+
+
+      </div>
+
+
+
+      <div>{row.parentName}</div>
+
+
+
+      <div style={{ fontSize: 12, color: "#64748b" }}>
+
+
+
+        {row.parentEmail || "Missing Email"}
+
+
+
+      </div>
+
+
+
+    </div>
+
+
+
+  </div>
+
+
+
+  <table
+
+
+
+    style={{
+
+
+
+      width: "100%",
+
+
+
+      borderCollapse: "collapse",
+
+
+
+      marginBottom: 16,
+
+
+
+    }}
+
+
+
+  >
+
+
+
+    <thead>
+
+
+
+      <tr>
+
+
+
+        <th style={th}>Description</th>
+
+
+
+        <th style={{ ...th, textAlign: "right" }}>Amount</th>
+
+
+
+      </tr>
+
+
+
+    </thead>
+
+
+
+    <tbody>
+
+
+
+      <tr>
+
+
+
+        <td style={td}>
+
+
+
+          {invoiceRunSettings.description || "School Fees"}
+
+
+
+        </td>
+
+
+
+        <td
+
+
+
+          style={{
+
+
+
+            ...td,
+
+
+
+            textAlign: "right",
+
+
+
+            fontWeight: 900,
+
+
+
+          }}
+
+
+
+        >
+
+
+
+          {money(row.invoiceAmount)}
+
+
+
+        </td>
+
+
+
+      </tr>
+
+
+
+    </tbody>
+
+
+
+  </table>
+
+
+
+  <div
+
+
+
+    style={{
+
+
+
+      display: "flex",
+
+
+
+      justifyContent: "space-between",
+
+
+
+      borderTop: "1px solid #e5e7eb",
+
+
+
+      paddingTop: 14,
+
+
+
+      gap: 20,
+
+
+
+    }}
+
+
+
+  >
+
+
+
+    <div
+
+
+
+      style={{
+
+
+
+        maxWidth: "65%",
+
+
+
+        fontSize: 13,
+
+
+
+        color: "#475569",
+
+
+
+        lineHeight: 1.5,
+
+
+
+      }}
+
+
+
+    >
+
+
+
+      {invoiceRunSettings.message}
+
+
+
+    </div>
+
+
+
+    <div style={{ textAlign: "right" }}>
+
+
+
+      <div
+
+
+
+        style={{
+
+
+
+          fontSize: 12,
+
+
+
+          color: "#64748b",
+
+
+
+          fontWeight: 800,
+
+
+
+        }}
+
+
+
+      >
+
+
+
+        Invoice Total
+
+
+
+      </div>
+
+
+
+      <div
+
+
+
+        style={{
+
+
+
+          fontSize: 24,
+
+
+
+          fontWeight: 900,
+
+
+
+          color: "#111827",
+
+
+
+        }}
+
+
+
+      >
+
+
+
+        {money(row.invoiceAmount)}
+
+
+
+      </div>
+
+
+
+    </div>
+
+
+
+  </div>
+
+
+
+</div>
+
+
+
+))}
+
+
+
+</div>
+
+
+
+);
+
+
+
+}
+if (invoiceRunView === "printStatements") {
+
+
+
+  return (
+
+
+
+    <div style={{ display: "flex", flexDirection: "column", gap: 24 }}>
+
+
+
+      <div
+
+
+
+        style={{
+
+
+
+          display: "flex",
+
+
+
+          justifyContent: "space-between",
+
+
+
+          alignItems: "center",
+
+
+
+        }}
+
+
+
+      >
+
+
+
+        <div>
+
+
+
+          <h1 className="page-title">Print Statements</h1>
+
+
+
+          <div
+
+
+
+            style={{
+
+
+
+              fontSize: "13px",
+
+
+
+              color: "#64748b",
+
+
+
+              marginTop: 4,
+
+
+
+            }}
+
+
+
+          >
+
+
+
+            Statement batch preview before printing
+
+
+
+          </div>
+
+
+
+        </div>
+
+
+
+        <div style={{ display: "flex", gap: 10 }}>
+
+
+
+          <button
+
+
+
+            style={btn}
+
+
+
+            onClick={() => setInvoiceRunView("list")}
+
+
+
+          >
+
+
+
+            ← Back
+
+
+
+          </button>
+
+
+
+          <button
+
+
+
+            style={goldBtn}
+
+
+
+            onClick={() => window.print()}
+
+
+
+          >
+
+
+
+            View / Print
+
+
+
+          </button>
+
+
+
+        </div>
+
+
+
+      </div>
+
+
+
+      <div
+
+
+
+        className="premium-card"
+
+
+
+        style={{
+
+
+
+          padding: 20,
+
+
+
+          borderRadius: 20,
+
+
+
+          background: "#ffffff",
+
+
+
+          border: "1px solid rgba(15,23,42,0.08)",
+
+
+
+        }}
+
+
+
+      >
+
+
+
+        <div
+
+
+
+          style={{
+
+
+
+            fontSize: "18px",
+
+
+
+            fontWeight: 900,
+
+
+
+            color: "#0f172a",
+
+
+
+            marginBottom: 18,
+
+
+
+          }}
+
+
+
+        >
+
+
+
+          Statements In This Run
+
+
+
+        </div>
+
+
+
+        {filteredRows.map((row: any, index: number) => (
+
+
+
+          <div
+
+
+
+            key={`statement-preview-${row.id || index}`}
+
+
+
+            style={{
+
+
+
+              marginTop: 18,
+
+
+
+              padding: 22,
+
+
+
+              borderRadius: 18,
+
+
+
+              border: "1px solid rgba(15,23,42,0.12)",
+
+
+
+              background: "#ffffff",
+
+
+
+              pageBreakInside: "avoid",
+
+
+
+            }}
+
+
+
+          >
+
+
+
+            <div
+
+
+
+              style={{
+
+
+
+                display: "flex",
+
+
+
+                justifyContent: "space-between",
+
+
+
+                borderBottom: "2px solid #111827",
+
+
+
+                paddingBottom: 14,
+
+
+
+                marginBottom: 16,
+
+
+
+              }}
+
+
+
+            >
+
+
+
+              <div>
+
+
+
+                <div
+
+
+
+                  style={{
+
+
+
+                    color: "#d4af37",
+
+
+
+                    fontWeight: 900,
+
+
+
+                    fontSize: 13,
+
+
+
+                    marginBottom: 4,
+
+
+
+                  }}
+
+
+
+                >
+
+
+
+                  EduClear
+
+
+
+                </div>
+
+
+
+                <div
+
+
+
+                  style={{
+
+
+
+                    fontSize: 22,
+
+
+
+                    fontWeight: 900,
+
+
+
+                    color: "#111827",
+
+
+
+                  }}
+
+
+
+                >
+
+
+
+                  {schoolName}
+
+
+
+                </div>
+
+
+
+                <div style={{ fontSize: 12, color: "#64748b" }}>
+
+
+
+                  {schoolAddress}
+
+
+
+                </div>
+
+
+
+                <div style={{ fontSize: 12, color: "#64748b" }}>
+
+
+
+                  {schoolEmail}{" "}
+
+
+
+                  {schoolPhone ? `| ${schoolPhone}` : ""}
+
+
+
+                </div>
+
+
+
+              </div>
+
+
+
+              <div style={{ textAlign: "right" }}>
+
+
+
+                <div
+
+
+
+                  style={{
+
+
+
+                    color: "#d4af37",
+
+
+
+                    fontSize: 26,
+
+
+
+                    fontWeight: 900,
+
+
+
+                  }}
+
+
+
+                >
+
+
+
+                  STATEMENT
+
+
+
+                </div>
+
+
+
+                <div style={{ fontSize: 12, color: "#64748b" }}>
+
+
+
+                  Statement No: {row.statementNo}
+
+
+
+                </div>
+
+
+
+                <div style={{ fontSize: 12, color: "#64748b" }}>
+
+
+
+                  Date: {invoiceRunSettings.invoiceDate}
+
+
+
+                </div>
+
+
+
+              </div>
+
+
+
+            </div>
+
+
+
+            <div
+
+
+
+              style={{
+
+
+
+                display: "grid",
+
+
+
+                gridTemplateColumns: "1fr 1fr",
+
+
+
+                gap: 14,
+
+
+
+                marginBottom: 16,
+
+
+
+              }}
+
+
+
+            >
+
+
+
+              <div
+
+
+
+                style={{
+
+
+
+                  padding: 14,
+
+
+
+                  borderRadius: 12,
+
+
+
+                  background: "#f8fafc",
+
+
+
+                  border: "1px solid #e5e7eb",
+
+
+
+                }}
+
+
+
+              >
+
+
+
+                <div style={{ fontWeight: 900, marginBottom: 6 }}>
+
+
+
+                  Learner
+
+
+
+                </div>
+
+
+
+                <div>{row.learnerName}</div>
+
+
+
+                <div style={{ fontSize: 12, color: "#64748b" }}>
+
+
+
+                  Classroom: {row.classroom}
+
+
+
+                </div>
+
+
+
+                <div style={{ fontSize: 12, color: "#64748b" }}>
+
+
+
+                  Account: {row.accountNo}
+
+
+
+                </div>
+
+
+
+              </div>
+
+
+
+              <div
+
+
+
+                style={{
+
+
+
+                  padding: 14,
+
+
+
+                  borderRadius: 12,
+
+
+
+                  background: "#f8fafc",
+
+
+
+                  border: "1px solid #e5e7eb",
+
+
+
+                }}
+
+
+
+              >
+
+
+
+                <div style={{ fontWeight: 900, marginBottom: 6 }}>
+
+
+
+                  Parent / Guardian
+
+
+
+                </div>
+
+
+
+                <div>{row.parentName}</div>
+
+
+
+                <div style={{ fontSize: 12, color: "#64748b" }}>
+
+
+
+                  {row.parentEmail || "Missing Email"}
+
+
+
+                </div>
+
+
+
+              </div>
+
+
+
+            </div>
+
+
+
+            <table
+
+
+
+              style={{
+
+
+
+                width: "100%",
+
+
+
+                borderCollapse: "collapse",
+
+
+
+                marginBottom: 16,
+
+
+
+              }}
+
+
+
+            >
+
+
+
+              <thead>
+
+
+
+                <tr>
+
+
+
+                  <th style={th}>Date</th>
+
+
+
+                  <th style={th}>Description</th>
+
+
+
+                  <th style={{ ...th, textAlign: "right" }}>
+
+
+
+                    Debit
+
+
+
+                  </th>
+
+
+
+                  <th style={{ ...th, textAlign: "right" }}>
+
+
+
+                    Credit
+
+
+
+                  </th>
+
+
+
+                  <th style={{ ...th, textAlign: "right" }}>
+
+
+
+                    Balance
+
+
+
+                  </th>
+
+
+
+                </tr>
+
+
+
+              </thead>
+
+
+
+              <tbody>
+
+
+
+                <tr>
+
+
+
+                  <td style={td}>
+
+
+
+                    {invoiceRunSettings.invoiceDate}
+
+
+
+                  </td>
+
+
+
+                  <td style={td}>
+
+
+
+                    {invoiceRunSettings.description}
+
+
+
+                  </td>
+
+
+
+                  <td
+
+
+
+                    style={{
+
+
+
+                      ...td,
+
+
+
+                      textAlign: "right",
+
+
+
+                    }}
+
+
+
+                  >
+
+
+
+                    {money(row.invoiceAmount)}
+
+
+
+                  </td>
+
+
+
+                  <td
+
+
+
+                    style={{
+
+
+
+                      ...td,
+
+
+
+                      textAlign: "right",
+
+
+
+                    }}
+
+
+
+                  >
+
+
+
+                    {money(0)}
+
+
+
+                  </td>
+
+
+
+                  <td
+
+
+
+                    style={{
+
+
+
+                      ...td,
+
+
+
+                      textAlign: "right",
+
+
+
+                      fontWeight: 900,
+
+
+
+                    }}
+
+
+
+                  >
+
+
+
+                    {money(row.invoiceAmount)}
+
+
+
+                  </td>
+
+
+
+                </tr>
+
+
+
+              </tbody>
+
+
+
+            </table>
+
+
+
+            <div
+
+
+
+              style={{
+
+
+
+                display: "flex",
+
+
+
+                justifyContent: "space-between",
+
+
+
+                borderTop: "1px solid #e5e7eb",
+
+
+
+                paddingTop: 14,
+
+
+
+                gap: 20,
+
+
+
+              }}
+
+
+
+            >
+
+
+
+              <div
+
+
+
+                style={{
+
+
+
+                  maxWidth: "65%",
+
+
+
+                  fontSize: 13,
+
+
+
+                  color: "#475569",
+
+
+
+                  lineHeight: 1.5,
+
+
+
+                }}
+
+
+
+              >
+
+
+
+                {invoiceRunSettings.message}
+
+
+
+              </div>
+
+
+
+              <div style={{ textAlign: "right" }}>
+
+
+
+                <div
+
+
+
+                  style={{
+
+
+
+                    fontSize: 12,
+
+
+
+                    color: "#64748b",
+
+
+
+                    fontWeight: 800,
+
+
+
+                  }}
+
+
+
+                >
+
+
+
+                  Statement Balance
+
+
+
+                </div>
+
+
+
+                <div
+
+
+
+                  style={{
+
+
+
+                    fontSize: 24,
+
+
+
+                    fontWeight: 900,
+
+
+
+                    color: "#111827",
+
+
+
+                  }}
+
+
+
+                >
+
+
+
+                  {money(row.invoiceAmount)}
+
+
+
+                </div>
+
+
+
+              </div>
+
+
+
+            </div>
+
+
+
+          </div>
+
+
+
+        ))}
+
+
+
+      </div>
+
+
+
+    </div>
+
+
+
+  );
+
+
+
+}
+if (invoiceRunView === "emailInvoices") {
+
+
+
+  return (
+
+
+
+    <div style={{ display: "flex", flexDirection: "column", gap: 24 }}>
+
+
+
+      <div
+
+
+
+        style={{
+
+
+
+          display: "flex",
+
+
+
+          justifyContent: "space-between",
+
+
+
+          alignItems: "center",
+
+
+
+        }}
+
+
+
+      >
+
+
+
+        <div>
+
+
+
+          <h1 className="page-title">Email Invoices</h1>
+
+
+
+          <div
+
+
+
+            style={{
+
+
+
+              fontSize: "13px",
+
+
+
+              color: "#64748b",
+
+
+
+              marginTop: 4,
+
+
+
+            }}
+
+
+
+          >
+
+
+
+            Send invoices directly to parents
+
+
+
+          </div>
+
+
+
+        </div>
+
+
+
+        <div style={{ display: "flex", gap: 10 }}>
+
+
+
+          <button
+
+
+
+            style={btn}
+
+
+
+            onClick={() => setInvoiceRunView("list")}
+
+
+
+          >
+
+
+
+            ← Back
+
+
+
+          </button>
+
+
+
+          <button
+
+
+
+            style={goldBtn}
+
+
+
+            onClick={() =>
+
+
+
+              alert(
+
+
+
+                `${filteredRows.filter((r: any) => r.parentEmail).length} invoice emails queued.`
+
+
+
+              )
+
+
+
+            }
+
+
+
+          >
+
+
+
+            Send Emails
+
+
+
+          </button>
+
+
+
+        </div>
+
+
+
+      </div>
+
+
+
+      <div
+
+
+
+        className="premium-card"
+
+
+
+        style={{
+
+
+
+          padding: 20,
+
+
+
+          borderRadius: 20,
+
+
+
+          background: "#ffffff",
+
+
+
+          border: "1px solid rgba(15,23,42,0.08)",
+
+
+
+        }}
+
+
+
+      >
+
+
+
+        <div
+
+
+
+          style={{
+
+
+
+            fontSize: "18px",
+
+
+
+            fontWeight: 900,
+
+
+
+            color: "#0f172a",
+
+
+
+            marginBottom: 18,
+
+
+
+          }}
+
+
+
+        >
+
+
+
+          Recipients
+
+
+
+        </div>
+
+
+
+        <table
+
+
+
+          style={{
+
+
+
+            width: "100%",
+
+
+
+            borderCollapse: "collapse",
+
+
+
+          }}
+
+
+
+        >
+
+
+
+          <thead>
+
+
+
+            <tr>
+
+
+
+              <th style={th}>Parent</th>
+
+
+
+              <th style={th}>Learner</th>
+
+
+
+              <th style={th}>Email</th>
+
+
+
+              <th style={th}>Invoice</th>
+
+
+
+              <th style={th}>Status</th>
+
+
+
+            </tr>
+
+
+
+          </thead>
+
+
+
+          <tbody>
+
+
+
+            {filteredRows.map((row: any, index: number) => (
+
+
+
+              <tr
+
+
+
+                key={String(row.id || index)}
+
+
+
+                style={{
+
+
+
+                  background:
+
+
+
+                    index % 2 === 0
+
+
+
+                      ? "#ffffff"
+
+
+
+                      : "rgba(212,175,55,0.05)",
+
+
+
+                }}
+
+
+
+              >
+
+
+
+                <td style={td}>{row.parentName}</td>
+
+
+
+                <td style={td}>{row.learnerName}</td>
+
+
+
+                <td style={td}>
+
+
+
+                  {row.parentEmail || "Missing Email"}
+
+
+
+                </td>
+
+
+
+                <td style={td}>
+
+
+
+                  Invoice #{row.invoiceNo}
+
+
+
+                </td>
+
+
+
+                <td
+
+
+
+                  style={{
+
+
+
+                    ...td,
+
+
+
+                    fontWeight: 900,
+
+
+
+                    color:
+
+
+
+                      row.parentEmail
+
+
+
+                        ? "#15803d"
+
+
+
+                        : "#b91c1c",
+
+
+
+                  }}
+
+
+
+                >
+
+
+
+                  {row.parentEmail
+
+
+
+                    ? "Ready"
+
+
+
+                    : "Missing Email"}
+
+
+
+                </td>
+
+
+
+              </tr>
+
+
+
+            ))}
+
+
+
+          </tbody>
+
+
+
+        </table>
+
+
+
+      </div>
+
+
+
+    </div>
+
+
+
+  );
+
+
+
+}
+
+
+
+if (invoiceRunView === "emailStatements") {
+
+
+
+  return (
+
+
+
+    <div style={{ display: "flex", flexDirection: "column", gap: 24 }}>
+
+
+
+      <div
+
+
+
+        style={{
+
+
+
+          display: "flex",
+
+
+
+          justifyContent: "space-between",
+
+
+
+          alignItems: "center",
+
+
+
+        }}
+
+
+
+      >
+
+
+
+        <div>
+
+
+
+          <h1 className="page-title">Email Statements</h1>
+
+
+
+          <div
+
+
+
+            style={{
+
+
+
+              fontSize: "13px",
+
+
+
+              color: "#64748b",
+
+
+
+              marginTop: 4,
+
+
+
+            }}
+
+
+
+          >
+
+
+
+            Send statements directly to parents
+
+
+
+          </div>
+
+
+
+        </div>
+
+
+
+        <div style={{ display: "flex", gap: 10 }}>
+
+
+
+          <button
+
+
+
+            style={btn}
+
+
+
+            onClick={() => setInvoiceRunView("list")}
+
+
+
+          >
+
+
+
+            ← Back
+
+
+
+          </button>
+
+
+
+          <button
+
+
+
+            style={goldBtn}
+
+
+
+            onClick={() =>
+
+
+
+              alert(
+
+
+
+                `${filteredRows.filter((r: any) => r.parentEmail).length} statement emails queued.`
+
+
+
+              )
+
+
+
+            }
+
+
+
+          >
+
+
+
+            Send Emails
+
+
+
+          </button>
+
+
+
+        </div>
+
+
+
+      </div>
+
+
+
+      <div
+
+
+
+        className="premium-card"
+
+
+
+        style={{
+
+
+
+          padding: 20,
+
+
+
+          borderRadius: 20,
+
+
+
+          background: "#ffffff",
+
+
+
+          border: "1px solid rgba(15,23,42,0.08)",
+
+
+
+        }}
+
+
+
+      >
+
+
+
+        <div
+
+
+
+          style={{
+
+
+
+            fontSize: "18px",
+
+
+
+            fontWeight: 900,
+
+
+
+            color: "#0f172a",
+
+
+
+            marginBottom: 18,
+
+
+
+          }}
+
+
+
+        >
+
+
+
+          Recipients
+
+
+
+        </div>
+
+
+
+        <table
+
+
+
+          style={{
+
+
+
+            width: "100%",
+
+
+
+            borderCollapse: "collapse",
+
+
+
+          }}
+
+
+
+        >
+
+
+
+          <thead>
+
+
+
+            <tr>
+
+
+
+              <th style={th}>Parent</th>
+
+
+
+              <th style={th}>Learner</th>
+
+
+
+              <th style={th}>Email</th>
+
+
+
+              <th style={th}>Statement</th>
+
+
+
+              <th style={th}>Status</th>
+
+
+
+            </tr>
+
+
+
+          </thead>
+
+
+
+          <tbody>
+
+
+
+            {filteredRows.map((row: any, index: number) => (
+
+
+
+              <tr
+
+
+
+                key={String(row.id || index)}
+
+
+
+                style={{
+
+
+
+                  background:
+
+
+
+                    index % 2 === 0
+
+
+
+                      ? "#ffffff"
+
+
+
+                      : "rgba(212,175,55,0.05)",
+
+
+
+                }}
+
+
+
+              >
+
+
+
+                <td style={td}>{row.parentName}</td>
+
+
+
+                <td style={td}>{row.learnerName}</td>
+
+
+
+                <td style={td}>
+
+
+
+                  {row.parentEmail || "Missing Email"}
+
+
+
+                </td>
+
+
+
+                <td style={td}>
+
+
+
+                  Statement #{row.statementNo}
+
+
+
+                </td>
+
+
+
+                <td
+
+
+
+                  style={{
+
+
+
+                    ...td,
+
+
+
+                    fontWeight: 900,
+
+
+
+                    color:
+
+
+
+                      row.parentEmail
+
+
+
+                        ? "#15803d"
+
+
+
+                        : "#b91c1c",
+
+
+
+                  }}
+
+
+
+                >
+
+
+
+                  {row.parentEmail
+
+
+
+                    ? "Ready"
+
+
+
+                    : "Missing Email"}
+
+
+
+                </td>
+
+
+
+              </tr>
+
+
+
+            ))}
+
+
+
+          </tbody>
+
+
+
+        </table>
+
+
+
+      </div>
+
+
+
+    </div>
+
+
+
+  );
+
+
+
+}
+if (invoiceRunView === "emailBoth") {
+
+
+
+  return (
+
+
+
+    <div style={{ display: "flex", flexDirection: "column", gap: 24 }}>
+
+
+
+      <div
+
+
+
+        style={{
+
+
+
+          display: "flex",
+
+
+
+          justifyContent: "space-between",
+
+
+
+          alignItems: "center",
+
+
+
+        }}
+
+
+
+      >
+
+
+
+        <div>
+
+
+
+          <h1 className="page-title">Email Invoices & Statements</h1>
+
+
+
+          <div
+
+
+
+            style={{
+
+
+
+              fontSize: "13px",
+
+
+
+              color: "#64748b",
+
+
+
+              marginTop: 4,
+
+
+
+            }}
+
+
+
+          >
+
+
+
+            Send invoices and statements directly to parents
+
+
+
+          </div>
+
+
+
+        </div>
+
+
+
+        <div style={{ display: "flex", gap: 10 }}>
+
+
+
+          <button style={btn} onClick={() => setInvoiceRunView("list")}>
+
+
+
+            ← Back
+
+
+
+          </button>
+
+
+
+          <button
+
+
+
+            style={goldBtn}
+
+
+
+            onClick={() =>
+
+
+
+              alert(
+
+
+
+                `${filteredRows.filter((r: any) => r.parentEmail).length} invoice + statement emails queued.`
+
+
+
+              )
+
+
+
+            }
+
+
+
+          >
+
+
+
+            Send Emails
+
+
+
+          </button>
+
+
+
+        </div>
+
+
+
+      </div>
+
+
+
+      <div
+
+
+
+        className="premium-card"
+
+
+
+        style={{
+
+
+
+          padding: 20,
+
+
+
+          borderRadius: 20,
+
+
+
+          background: "#ffffff",
+
+
+
+          border: "1px solid rgba(15,23,42,0.08)",
+
+
+
+        }}
+
+
+
+      >
+
+
+
+        <div
+
+
+
+          style={{
+
+
+
+            fontSize: "18px",
+
+
+
+            fontWeight: 900,
+
+
+
+            color: "#0f172a",
+
+
+
+            marginBottom: 18,
+
+
+
+          }}
+
+
+
+        >
+
+
+
+          Recipients
+
+
+
+        </div>
+
+
+
+        <table style={{ width: "100%", borderCollapse: "collapse" }}>
+
+
+
+          <thead>
+
+
+
+            <tr>
+
+
+
+              <th style={th}>Parent</th>
+
+
+
+              <th style={th}>Learner</th>
+
+
+
+              <th style={th}>Email</th>
+
+
+
+              <th style={th}>Attachments</th>
+
+
+
+              <th style={th}>Status</th>
+
+
+
+            </tr>
+
+
+
+          </thead>
+
+
+
+          <tbody>
+
+
+
+            {filteredRows.map((row: any, index: number) => (
+
+
+
+              <tr
+
+
+
+                key={String(row.id || index)}
+
+
+
+                style={{
+
+
+
+                  background:
+
+
+
+                    index % 2 === 0 ? "#ffffff" : "rgba(212,175,55,0.05)",
+
+
+
+                }}
+
+
+
+              >
+
+
+
+                <td style={td}>{row.parentName}</td>
+
+
+
+                <td style={td}>{row.learnerName}</td>
+
+
+
+                <td style={td}>{row.parentEmail || "Missing Email"}</td>
+
+
+
+                <td style={td}>
+
+
+
+                  Invoice #{row.invoiceNo} + Statement #{row.statementNo}
+
+
+
+                </td>
+
+
+
+                <td
+
+
+
+                  style={{
+
+
+
+                    ...td,
+
+
+
+                    fontWeight: 900,
+
+
+
+                    color: row.parentEmail ? "#15803d" : "#b91c1c",
+
+
+
+                  }}
+
+
+
+                >
+
+
+
+                  {row.parentEmail ? "Ready" : "Missing Email"}
+
+
+
+                </td>
+
+
+
+              </tr>
+
+
+
+            ))}
+
+
+
+          </tbody>
+
+
+
+        </table>
+
+
+
+      </div>
+
+
+
+    </div>
+
+
+
+  );
+
+
+
+}
+
+
+
+return (
+
+
+
+  <div style={{ display: "flex", flexDirection: "column", gap: 24 }}>
+
+
+
+    <div
+
+
+
+      style={{
+
+
+
+        display: "flex",
+
+
+
+        justifyContent: "space-between",
+
+
+
+        alignItems: "center",
+
+
+
+        gap: 12,
+
+
+
+        flexWrap: "wrap",
+
+
+
+      }}
+
+
+
+    >
+
+
+
+      <div>
+
+
+
+        <h1 className="page-title">Invoice Runs</h1>
+
+
+
+        <div
+
+
+
+          style={{
+
+
+
+            fontSize: 13,
+
+
+
+            color: "#64748b",
+
+
+
+            marginTop: 4,
+
+
+
+          }}
+
+
+
+        >
+
+
+
+          Create invoices, statements, print documents and email parents.
+
+
+
+        </div>
+
+
+
+      </div>
+
+
+
+      <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
+
+
+
+        <button
+
+
+
+          style={goldBtn}
+
+
+
+          onClick={() => setInvoiceRunView("printInvoices")}
+
+
+
+        >
+
+
+
+          Print Invoices
+
+
+
+        </button>
+
+
+
+        <button
+
+
+
+          style={goldBtn}
+
+
+
+          onClick={() => setInvoiceRunView("printStatements")}
+
+
+
+        >
+
+
+
+          Print Statements
+
+
+
+        </button>
+
+
+
+        <button
+
+
+
+          style={darkBtn}
+
+
+
+          onClick={() => setInvoiceRunView("emailInvoices")}
+
+
+
+        >
+
+
+
+          Email Invoices
+
+
+
+        </button>
+
+
+
+        <button
+
+
+
+          style={darkBtn}
+
+
+
+          onClick={() => setInvoiceRunView("emailStatements")}
+
+
+
+        >
+
+
+
+          Email Statements
+
+
+
+        </button>
+
+
+
+        <button
+
+
+
+          style={darkBtn}
+
+
+
+          onClick={() => setInvoiceRunView("emailBoth")}
+
+
+
+        >
+
+
+
+          Email Both
+
+
+
+        </button>
+
+
+
+      </div>
+
+
+
+    </div>
+
+
+
+    <div
+
+
+
+      className="premium-card"
+
+
+
+      style={{
+
+
+
+        padding: 20,
+
+
+
+        borderRadius: 20,
+
+
+
+        background: "#ffffff",
+
+
+
+        border: "1px solid rgba(15,23,42,0.08)",
+
+
+
+      }}
+
+
+
+    >
+
+
+
+      <div
+
+
+
+        style={{
+
+
+
+          display: "flex",
+
+
+
+          justifyContent: "space-between",
+
+
+
+          gap: 12,
+
+
+
+          alignItems: "center",
+
+
+
+          marginBottom: 16,
+
+
+
+        }}
+
+
+
+      >
+
+
+
+        <div
+
+
+
+          style={{
+
+
+
+            fontSize: "18px",
+
+
+
+            fontWeight: 900,
+
+
+
+            color: "#0f172a",
+
+
+
+          }}
+
+
+
+        >
+
+
+
+          Invoices In This Run
+
+
+
+        </div>
+
+
+
+        <input
+
+
+
+          value={invoiceRunSearch}
+
+
+
+          onChange={(e) => {
+
+
+
+            setInvoiceRunSearch(e.target.value);
+
+
+
+            setInvoiceRunPage(1);
+
+
+
+          }}
+
+
+
+          placeholder="Search learner, parent or account"
+
+
+
+          style={{
+
+
+
+            width: 320,
+
+
+
+            maxWidth: "100%",
+
+
+
+            padding: "10px 12px",
+
+
+
+            borderRadius: 10,
+
+
+
+            border: "1px solid #cbd5e1",
+
+
+
+            outline: "none",
+
+
+
+          }}
+
+
+
+        />
+
+
+
+      </div>
+
+
+
+      <table style={{ width: "100%", borderCollapse: "collapse" }}>
+
+
+
+        <thead>
+
+
+
+          <tr>
+
+
+
+            <th style={th}>Account No</th>
+
+
+
+            <th style={th}>Invoice No</th>
+
+
+
+            <th style={th}>Learner</th>
+
+
+
+            <th style={th}>Parent</th>
+
+
+
+            <th style={th}>Email</th>
+
+
+
+            <th style={{ ...th, textAlign: "right" }}>Amount</th>
+
+
+
+            <th style={th}>Status</th>
+
+
+
+          </tr>
+
+
+
+        </thead>
+
+
+
+        <tbody>
+
+
+
+          {paginatedRows.map((row: any, index: number) => (
+
+
+
+            <tr
+
+
+
+              key={String(row.id || index)}
+
+
+
+              style={{
+
+
+
+                background:
+
+
+
+                  index % 2 === 0 ? "#ffffff" : "rgba(212,175,55,0.05)",
+
+
+
+              }}
+
+
+
+            >
+
+
+
+              <td style={td}>{row.accountNo}</td>
+
+
+
+              <td style={td}>{row.invoiceNo}</td>
+
+
+
+              <td style={td}>{row.learnerName}</td>
+
+
+
+              <td style={td}>{row.parentName}</td>
+
+
+
+              <td style={td}>{row.parentEmail || "Missing Email"}</td>
+
+
+
+              <td style={{ ...td, textAlign: "right", fontWeight: 900 }}>
+
+
+
+                {money(row.invoiceAmount)}
+
+
+
+              </td>
+
+
+
+              <td
+
+
+
+                style={{
+
+
+
+                  ...td,
+
+
+
+                  fontWeight: 900,
+
+
+
+                  color: row.status === "Paid" ? "#15803d" : "#b91c1c",
+
+
+
+                }}
+
+
+
+              >
+
+
+
+                {row.status}
+
+
+
+              </td>
+
+
+
+            </tr>
+
+
+
+          ))}
+
+
+
+        </tbody>
+
+
+
+      </table>
+
+
+
+    </div>
+
+
+
+  </div>
+
+
+
+);
+
+
+
+}
+ 
   
   
         case "reports":
@@ -24355,4 +28891,5 @@ Showing {filteredLearners.length === 0 ? 0 : (currentPage - 1) * pageSize + 1}
   
   
   
-  };
+  }
+  
