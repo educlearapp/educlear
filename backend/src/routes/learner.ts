@@ -284,7 +284,7 @@ router.get("/", async (req, res) => {
     
     
     
-          relationship: link.relation || "",
+          relationship: link.parent?.relationship || link.relation || "",
     
     
     

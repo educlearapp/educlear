@@ -118,7 +118,47 @@ function parentsOf(l: AnyRecord) {
 
 
 
-  return Array.isArray(l.parents) ? l.parents : [];
+  const directParents = Array.isArray(l?.parents) ? l.parents : [];
+
+
+
+  return directParents.map((p: AnyRecord) => ({
+
+
+
+    ...p,
+
+
+
+    relationship:
+
+
+
+      p.relationship ||
+
+
+
+      p.parentRelationship ||
+
+
+
+      p.relation ||
+
+
+
+      p.link?.relation ||
+
+
+
+      p.parent?.relationship ||
+
+
+
+      "",
+
+
+
+  }));
 
 
 
@@ -678,19 +718,51 @@ export default function Registrations(props: AnyRecord) {
 
 
 
-const mergedLearners = learners.map((learner: AnyRecord) => ({
+      const mergedLearners = learners.map((learner: AnyRecord) => {
 
 
 
-  ...learner,
-
-
-
-  ...(savedEdits[String(learner.id)] || {}),
-
-
-
-}));
+        const edits = savedEdits[String(learner.id)] || {};
+      
+      
+      
+        return {
+      
+      
+      
+          ...learner,
+      
+      
+      
+          ...edits,
+      
+      
+      
+          parents: Array.isArray(edits.parents)
+      
+      
+      
+            ? edits.parents
+      
+      
+      
+            : Array.isArray(learner.parents)
+      
+      
+      
+              ? learner.parents
+      
+      
+      
+              : [],
+      
+      
+      
+        };
+      
+      
+      
+      });
 
 
 
@@ -1165,9 +1237,33 @@ setLocalLearners(mergedLearners);
   
     const savedEdits = JSON.parse(localStorage.getItem("registrationLearnerEdits") || "{}");
   
+    const updatedWithParents = {
+
+
+
+      ...updated,
+    
+    
+    
+      parents: parentsOf(updated).map((p: AnyRecord) => ({
+    
+    
+    
+        ...p,
+    
+    
+    
+        relationship: p.relationship || "",
+    
+    
+    
+      })),
+    
+    
+    
+    };
   
-  
-    savedEdits[String(updated.id)] = updated;
+    savedEdits[String(updated.id)] = updatedWithParents;
   
   
   
@@ -1187,7 +1283,7 @@ setLocalLearners(mergedLearners);
   
   
   
-    setLearnerDraft(updated);
+    setLearnerDraft(updatedWithParents);
   
   
   
@@ -1545,125 +1641,269 @@ setLocalLearners(mergedLearners);
 
 
     if (!selectedLearner) return;
-
-
-
+  
+  
+  
+    const relationshipValue = String(parentDraft.relationship || "").trim();
+  
+  
+  
     const savedParent = {
-
-
-
+  
+  
+  
       ...parentDraft,
-
-
-
+  
+  
+  
       id: parentDraft.id || `local-parent-${Date.now()}`,
-
-
-
+  
+  
+  
       firstName: parentDraft.firstName || parentDraft.name || "",
-
-
-
+  
+  
+  
+      name: parentDraft.firstName || parentDraft.name || "",
+  
+  
+  
       surname: parentDraft.surname || parentDraft.lastName || "",
-
-
-
-      relationship: parentDraft.relationship || "",
-
-
-
+  
+  
+  
+      lastName: parentDraft.surname || parentDraft.lastName || "",
+  
+  
+  
+      relationship: relationshipValue,
+  
+  
+  
       cellNo: parentDraft.cellNo || parentDraft.cell || "",
-
-
-
+  
+  
+  
+      cell: parentDraft.cellNo || parentDraft.cell || "",
+  
+  
+  
       workNo: parentDraft.workNo || parentDraft.work || "",
-
-
-
+  
+  
+  
+      work: parentDraft.workNo || parentDraft.work || "",
+  
+  
+  
+      email: parentDraft.email || "",
+  
+  
+  
+      idNumber: parentDraft.idNumber || "",
+  
+  
+  
+      isPrimary:
+  
+  
+  
+        parentDraft.isPrimary !== undefined
+  
+  
+  
+          ? parentDraft.isPrimary
+  
+  
+  
+          : parentsOf(selectedLearner).length === 0,
+  
+  
+  
     };
-
-
-
-    setLocalParents((prev) => {
-
-
-
-      const exists = prev.some((p) => String(p.id) === String(savedParent.id));
-
-
-
-      return exists
-
-
-
-        ? prev.map((p) => (String(p.id) === String(savedParent.id) ? savedParent : p))
-
-
-
-        : [savedParent, ...prev];
-
-
-
-    });
-
-
-
-    setLocalLearners((prev) =>
-
-
-
-      prev.map((learner) => {
-
-
-
-        if (String(learner.id) !== String(selectedLearner.id)) return learner;
-
-
-
-        const current = parentsOf(learner);
-
-
-
-        const exists = current.some((p: AnyRecord) => String(p.id) === String(savedParent.id));
-
-
-
-        const nextParents = exists
-
-
-
-          ? current.map((p: AnyRecord) => (String(p.id) === String(savedParent.id) ? savedParent : p))
-
-
-
-          : [...current, savedParent];
-
-
-
-        return { ...learner, parents: nextParents };
-
-
-
-      })
-
-
-
+  
+  
+  
+    const currentParents = parentsOf(selectedLearner);
+  
+  
+  
+    const parentExists = currentParents.some(
+  
+  
+  
+      (p: AnyRecord) => String(p.id) === String(savedParent.id)
+  
+  
+  
     );
-
-
-
+  
+  
+  
+    const nextParents = parentExists
+  
+  
+  
+      ? currentParents.map((p: AnyRecord) =>
+  
+  
+  
+          String(p.id) === String(savedParent.id)
+  
+  
+  
+            ? {
+  
+  
+  
+                ...p,
+  
+  
+  
+                ...savedParent,
+  
+  
+  
+                relationship: relationshipValue || p.relationship || "",
+  
+  
+  
+              }
+  
+  
+  
+            : p
+  
+  
+  
+        )
+  
+  
+  
+      : [...currentParents, savedParent];
+  
+  
+  
+    const updatedLearner = {
+  
+  
+  
+      ...selectedLearner,
+  
+  
+  
+      parents: nextParents,
+  
+  
+  
+    };
+  
+  
+  
+    setLocalParents((prev) => {
+  
+  
+  
+      const exists = prev.some(
+  
+  
+  
+        (p: AnyRecord) => String(p.id) === String(savedParent.id)
+  
+  
+  
+      );
+  
+  
+  
+      return exists
+  
+  
+  
+        ? prev.map((p: AnyRecord) =>
+  
+  
+  
+            String(p.id) === String(savedParent.id)
+  
+  
+  
+              ? { ...p, ...savedParent }
+  
+  
+  
+              : p
+  
+  
+  
+          )
+  
+  
+  
+        : [...prev, savedParent];
+  
+  
+  
+    });
+  
+  
+  
+    setLocalLearners((prev) =>
+  
+  
+  
+      prev.map((learner) =>
+  
+  
+  
+        String(learner.id) === String(selectedLearner.id) ? updatedLearner : learner
+  
+  
+  
+      )
+  
+  
+  
+    );
+  
+  
+  
+    const savedEdits = JSON.parse(
+  
+  
+  
+      localStorage.getItem("registrationLearnerEdits") || "{}"
+  
+  
+  
+    );
+  
+  
+  
+    savedEdits[String(updatedLearner.id)] = updatedLearner;
+  
+  
+  
+    localStorage.setItem("registrationLearnerEdits", JSON.stringify(savedEdits));
+  
+  
+  
+    setLearnerDraft(updatedLearner);
+  
+  
+  
     setSelectedParentId(String(savedParent.id));
-
-
-
+  
+  
+  
     setParentDraft(savedParent);
-
-
-
+  
+  
+  
     setParentMode("none");
-
-
-
+  
+  
+  
   }
 
 
@@ -1689,17 +1929,37 @@ setLocalLearners(mergedLearners);
 
 
       ...found,
-
-
-
-      relationship: found.relationship || "",
-
-
-
+    
+    
+    
+      relationship:
+    
+    
+    
+        found.relationship ||
+    
+    
+    
+        parentsOf(selectedLearner).find(
+    
+    
+    
+          (p: AnyRecord) => String(p.id) === String(found.id),
+    
+    
+    
+        )?.relationship ||
+    
+    
+    
+        "",
+    
+    
+    
       isPrimary: parentsOf(selectedLearner).length === 0,
-
-
-
+    
+    
+    
     });
 
 
@@ -3691,7 +3951,31 @@ setLocalLearners(mergedLearners);
 
 
 
-              onChange={(e) => setParentDraft({ ...parentDraft, relationship: e.target.value })}
+              onChange={(e) => {
+
+
+
+               
+              
+              
+              
+                setParentDraft({
+              
+              
+              
+                  ...parentDraft,
+              
+              
+              
+                  relationship: e.target.value,
+              
+              
+              
+                });
+              
+              
+              
+              }}
 
 
 
@@ -5053,7 +5337,35 @@ setLocalLearners(mergedLearners);
 
 
 
-                      <td style={tdStyle}>{dash(parent.relationship)}</td>
+<td style={tdStyle}>
+
+
+
+{dash(
+
+
+
+  parent.relationship ||
+
+
+
+    selectedParent?.relationship ||
+
+
+
+    parentDraft.relationship ||
+
+
+
+    ""
+
+
+
+)}
+
+
+
+</td>
 
 
 
