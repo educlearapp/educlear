@@ -2,6 +2,38 @@ import React, { useEffect, useMemo, useState } from "react";
 
 
 
+type ParentRelationship = {
+
+
+
+  id?: string;
+
+
+
+  firstName?: string;
+
+
+
+  surname?: string;
+
+
+
+  email?: string;
+
+
+
+  cellNo?: string;
+
+
+
+  relationship?: any;
+
+
+
+};
+
+
+
 type AnyRecord = Record<string, any>;
 
 
@@ -930,23 +962,23 @@ setLocalLearners(mergedLearners);
 
 
 
-        p?.firstName,
+        (p as AnyRecord)?.firstName,
 
 
 
-        p?.surname,
-
-
-
-        p?.idNumber,
-
-
-
-        p?.cellNo,
-
-
-
-        p?.email,
+        (p as AnyRecord)?.surname,
+        
+        
+        
+        (p as AnyRecord)?.idNumber,
+        
+        
+        
+        (p as AnyRecord)?.cellNo,
+        
+        
+        
+        (p as AnyRecord)?.email,
 
 
 
@@ -995,7 +1027,7 @@ setLocalLearners(mergedLearners);
 
 
 
-    setSelectedParentId(p?.id ? String(p.id) : "");
+    setSelectedParentId((p as AnyRecord)?.id ? String((p as AnyRecord).id) : "");
 
 
 
@@ -1263,7 +1295,7 @@ setLocalLearners(mergedLearners);
     
     };
   
-    savedEdits[String(updated.id)] = updatedWithParents;
+    savedEdits[String((updated as AnyRecord).id)] = updatedWithParents;
   
   
   
@@ -1275,7 +1307,7 @@ setLocalLearners(mergedLearners);
   
   
   
-      prev.map((l) => (String(l.id) === String(updated.id) ? updated : l))
+      prev.map((l) => (String((l as AnyRecord).id) === String((updated as AnyRecord).id) ? updated : l))
   
   
   
@@ -1340,7 +1372,7 @@ setLocalLearners(mergedLearners);
 
 
 
-      setSelectedParentId(String(p.id || ""));
+      setSelectedParentId(String((p as AnyRecord).id || ""));
 
 
 
@@ -1392,7 +1424,7 @@ setLocalLearners(mergedLearners);
 
 
 
-      setSelectedParentId(String(p.id || ""));
+      setSelectedParentId(String((p as AnyRecord).id || ""));
 
 
 
@@ -1456,7 +1488,7 @@ setLocalLearners(mergedLearners);
 
 
 
-      prev.map((l) => String(l.id) === String(updated.id) ? updated : l)
+      prev.map((l) => String((l as AnyRecord).id) === String((updated as AnyRecord).id) ? updated : l) 
 
 
 
@@ -1624,7 +1656,7 @@ setLocalLearners(mergedLearners);
 
 
 
-    setSelectedParentId(String(p.id));
+    setSelectedParentId(String((p as AnyRecord).id || ""));
 
 
 
@@ -1880,7 +1912,7 @@ setLocalLearners(mergedLearners);
   
   
   
-    savedEdits[String(updatedLearner.id)] = updatedLearner;
+    savedEdits[String((updatedLearner as AnyRecord).id)] = updatedLearner;
   
   
   
@@ -2024,7 +2056,7 @@ setLocalLearners(mergedLearners);
 
 
 
-            (p: AnyRecord) => String(p.id) !== String(parentToRemove.id)
+            (p: AnyRecord) => String((p as AnyRecord).id) !== String((parentToRemove as AnyRecord).id)
 
 
 
@@ -4228,7 +4260,7 @@ setLocalLearners(mergedLearners);
 
 
 
-    const recipientContact = isEmail ? p?.email || "" : p?.cellNo || "";
+    const recipientContact = isEmail ? (p as AnyRecord)?.email || "" : (p as AnyRecord)?.cellNo || "";
 
 
 
