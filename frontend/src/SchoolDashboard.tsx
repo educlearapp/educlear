@@ -387,7 +387,7 @@ const [classroomLearnerPage, setClassroomLearnerPage] = useState(1);
 
 
 const [classroomMode, setClassroomMode] = useState<"none" | "add" | "manage">("none");
-
+const [classroomMoreOpen, setClassroomMoreOpen] = useState(false);
 
 
 const [classroomDraft, setClassroomDraft] = useState<any>({});
@@ -563,7 +563,11 @@ const [learnerGradeOverrides, setLearnerGradeOverrides] = useState<Record<string
 
 
 const [selectedClassroomLearnerIds, setSelectedClassroomLearnerIds] = useState<string[]>([]);
+const [reportTab, setReportTab] = useState<"overview" | "results" | "reports">("overview");
 
+
+
+const [selectedLearnerReport, setSelectedLearnerReport] = useState<any>(null);
 
   const [showUnenrolled, setShowUnenrolled] = useState(false);
 
@@ -5470,7 +5474,35 @@ const [selectedClassroomLearnerIds, setSelectedClassroomLearnerIds] = useState<s
   
   
   
-    return learnerGradeOverrides[id] || learner?.grade || learner?.className || learner?.classroom || "";
+    return (
+
+
+
+      learnerGradeOverrides[id] ||
+    
+    
+    
+      learner?.className ||
+    
+    
+    
+      learner?.classroom ||
+    
+    
+    
+      learner?.classroomName ||
+    
+    
+    
+      learner?.grade ||
+    
+    
+    
+      ""
+    
+    
+    
+    );
   
   
   
@@ -5479,6 +5511,42 @@ const [selectedClassroomLearnerIds, setSelectedClassroomLearnerIds] = useState<s
   
   
   const classroomRows = useMemo(() => {
+
+
+
+    const getClassValue = (learner: any) =>
+  
+  
+  
+      String(
+  
+  
+  
+        getLearnerGrade(learner) ||
+  
+  
+  
+          learner.className ||
+  
+  
+  
+          learner.classroom ||
+  
+  
+  
+          learner.classroomName ||
+  
+  
+  
+          learner.grade ||
+  
+  
+  
+          ""
+  
+  
+  
+      ).trim();
   
   
   
@@ -5490,51 +5558,31 @@ const [selectedClassroomLearnerIds, setSelectedClassroomLearnerIds] = useState<s
   
   
   
-      const grade = getLearnerGrade(learner);
+      const className = getClassValue(learner);
   
   
   
-      if (!grade) return;
+      if (!className) return;
   
   
   
-      if (!map.has(grade)) {
+      if (!map.has(className)) {
   
   
   
-        map.set(grade, {
+        map.set(className, {
   
   
   
-          id: grade,
+          id: className,
   
   
   
-          name: grade,
+          name: className,
   
   
   
           teacher: "",
-  
-  
-  
-          minYears: "",
-  
-  
-  
-          minMonths: "",
-  
-  
-  
-          maxYears: "",
-  
-  
-  
-          maxMonths: "",
-  
-  
-  
-          notes: "",
   
   
   
@@ -5550,7 +5598,7 @@ const [selectedClassroomLearnerIds, setSelectedClassroomLearnerIds] = useState<s
   
   
   
-      map.get(grade).children += 1;
+      map.get(className).children += 1;
   
   
   
@@ -5558,15 +5606,23 @@ const [selectedClassroomLearnerIds, setSelectedClassroomLearnerIds] = useState<s
   
   
   
-    localClassrooms.forEach((classroom) => {
+    localClassrooms.forEach((classroom: any) => {
   
   
   
-      if (!map.has(classroom.name)) {
+      const className = String(classroom.name || "").trim();
   
   
   
-        map.set(classroom.name, {
+      if (!className) return;
+  
+  
+  
+      if (!map.has(className)) {
+  
+  
+  
+        map.set(className, {
   
   
   
@@ -5574,7 +5630,15 @@ const [selectedClassroomLearnerIds, setSelectedClassroomLearnerIds] = useState<s
   
   
   
-          children: learners.filter((learner: any) => getLearnerGrade(learner) === classroom.name).length,
+          id: classroom.id || className,
+  
+  
+  
+          name: className,
+  
+  
+  
+          children: 0,
   
   
   
@@ -5590,7 +5654,15 @@ const [selectedClassroomLearnerIds, setSelectedClassroomLearnerIds] = useState<s
   
   
   
-    return Array.from(map.values()).sort((a, b) => String(a.name).localeCompare(String(b.name)));
+    return Array.from(map.values()).sort((a, b) =>
+  
+  
+  
+      String(a.name).localeCompare(String(b.name), undefined, { numeric: true })
+  
+  
+  
+    );
   
   
   
@@ -5598,7 +5670,7 @@ const [selectedClassroomLearnerIds, setSelectedClassroomLearnerIds] = useState<s
   
   
   
-  const filteredClassroomRows = useMemo(() => {
+       const filteredClassroomRows = useMemo(() => {
   
   
   
@@ -5651,14 +5723,62 @@ const [selectedClassroomLearnerIds, setSelectedClassroomLearnerIds] = useState<s
   
   
   const selectedClassroomLearners = selectedClassroom
-  
-  
-  
-    ? learners.filter((learner: any) => getLearnerGrade(learner) === selectedClassroom.name)
-  
-  
-  
-    : [];
+
+
+
+  ? learners.filter((learner: any) => {
+
+
+
+      const learnerClass = String(
+
+
+
+        learner.classroom || ""
+
+
+
+      )
+
+
+
+        .trim()
+
+
+
+        .toLowerCase();
+
+
+
+      return (
+
+
+
+        learnerClass ===
+
+
+
+        String(selectedClassroom.name || "")
+
+
+
+          .trim()
+
+
+
+          .toLowerCase()
+
+
+
+      );
+
+
+
+    })
+
+
+
+  : [];
   
   
   
@@ -6086,7 +6206,63 @@ const [selectedClassroomLearnerIds, setSelectedClassroomLearnerIds] = useState<s
   
   
   
-                  <td style={td}>{row.children} children</td>
+                  <td style={td}>
+
+
+
+{
+
+
+
+  learners.filter((learner: any) => {
+
+
+
+    const learnerClass = String(
+
+
+
+      learner.className ||
+
+
+
+      learner.classroom ||
+
+
+
+      learner.classroomName ||
+
+
+
+      learner.grade ||
+
+
+
+      ""
+
+
+
+    ).trim().toLowerCase();
+
+
+
+    const rowClass = String(row.name || "").trim().toLowerCase();
+
+
+
+    return learnerClass === rowClass;
+
+
+
+  }).length
+
+
+
+} children
+
+
+
+</td>
   
   
   
@@ -6152,12 +6328,10 @@ const [selectedClassroomLearnerIds, setSelectedClassroomLearnerIds] = useState<s
   
   );
   
-  
-  
   const renderClassroomManage = () => {
-  
-  
-  
+
+
+
     const saved = localStorage.getItem("selectedClassroomForManage");
   
   
@@ -6226,7 +6400,15 @@ const [selectedClassroomLearnerIds, setSelectedClassroomLearnerIds] = useState<s
   
   
   
-          <button style={actionBtn} onClick={() => setActivePage("classrooms")}>Back</button>
+          <button style={actionBtn} onClick={() => setActivePage("classrooms")}>
+  
+  
+  
+            Back
+  
+  
+  
+          </button>
   
   
   
@@ -6239,6 +6421,119 @@ const [selectedClassroomLearnerIds, setSelectedClassroomLearnerIds] = useState<s
   
   
     }
+  
+  
+  
+    const selectedClassName = String(
+  
+  
+  
+      classroomDraft?.name || classroom?.name || selectedClassroom?.name || ""
+  
+  
+  
+    )
+  
+  
+  
+      .trim()
+  
+     
+  
+      .toLowerCase();
+     
+      
+  
+  
+      
+  
+  
+  
+    const classroomLearnerTotalPages = Math.max(
+  
+  
+  
+      1,
+  
+  
+  
+      Math.ceil(selectedClassroomLearners.length / classroomLearnerPageSize)
+  
+  
+  
+    );
+  
+  
+  
+    const classroomLearnerPagedRows = selectedClassroomLearners.slice(
+  
+  
+  
+      (classroomLearnerPage - 1) * classroomLearnerPageSize,
+  
+  
+  
+      classroomLearnerPage * classroomLearnerPageSize
+  
+  
+  
+    );
+  
+  
+  
+    const openLearnerReport = (learner: any) => {
+  
+  
+  
+      setSelectedLearnerReport({
+  
+  
+  
+        learnerId: learner.id,
+  
+  
+  
+        learnerName:
+  
+  
+  
+          learner.firstName && learner.lastName
+  
+  
+  
+            ? `${learner.firstName} ${learner.lastName}`
+  
+  
+  
+            : learner.name || "Learner",
+  
+  
+  
+        term: "Term 1",
+  
+  
+  
+        average: "",
+  
+  
+  
+        attendance: "",
+  
+  
+  
+        teacherRemark: "",
+  
+  
+  
+        principalRemark: "",
+  
+  
+  
+      });
+  
+  
+  
+    };
   
   
   
@@ -6282,11 +6577,63 @@ const [selectedClassroomLearnerIds, setSelectedClassroomLearnerIds] = useState<s
   
   
   
+      setLearners((prevLearners: any[]) =>
+  
+  
+  
+        prevLearners.map((learner: any) =>
+  
+  
+  
+          selectedClassroomLearnerIds.includes(String(learner.id))
+  
+  
+  
+            ? {
+  
+  
+  
+                ...learner,
+  
+  
+  
+                className: target,
+  
+  
+  
+                grade: target,
+  
+  
+  
+                classroom: target,
+  
+  
+  
+                classroomName: target,
+  
+  
+  
+              }
+  
+  
+  
+            : learner
+  
+  
+  
+        )
+  
+  
+  
+      );
+  
+  
+  
       setSelectedClassroomLearnerIds([]);
   
   
   
-      alert("Selected learners moved locally. Backend save can be connected in the save pass.");
+      alert("Selected learners moved successfully. Now click Save on this classroom page.");
   
   
   
@@ -6298,7 +6645,39 @@ const [selectedClassroomLearnerIds, setSelectedClassroomLearnerIds] = useState<s
   
   
   
-      <div style={{ padding: "26px", background: "#f8fafc", minHeight: "100%", borderRadius: "20px", border: "1px solid rgba(15,23,42,0.08)" }}>
+      <div
+  
+  
+  
+        style={{
+  
+  
+  
+          padding: "26px",
+  
+  
+  
+          background: "#f8fafc",
+  
+  
+  
+          minHeight: "100%",
+  
+  
+  
+          borderRadius: "20px",
+  
+  
+  
+          border: "1px solid rgba(15,23,42,0.08)",
+  
+  
+  
+        }}
+  
+  
+  
+      >
   
   
   
@@ -6306,11 +6685,27 @@ const [selectedClassroomLearnerIds, setSelectedClassroomLearnerIds] = useState<s
   
   
   
-          <h1 style={{ margin: 0, fontSize: "34px", fontWeight: 900, color: "#0f172a" }}>Classroom</h1>
+          <h1 style={{ margin: 0, fontSize: "34px", fontWeight: 900, color: "#0f172a" }}>
   
   
   
-          <p style={{ margin: "6px 0 0", color: "#64748b", fontWeight: 700 }}>Change classroom information and manage children</p>
+            Classroom
+  
+  
+  
+          </h1>
+  
+  
+  
+          <p style={{ margin: "6px 0 0", color: "#64748b", fontWeight: 700 }}>
+  
+  
+  
+            Change classroom information and manage children
+  
+  
+  
+          </p>
   
   
   
@@ -6322,7 +6717,15 @@ const [selectedClassroomLearnerIds, setSelectedClassroomLearnerIds] = useState<s
   
   
   
-          <button style={actionBtn} onClick={() => setActivePage("classrooms")}>← Back</button>
+          <button style={actionBtn} onClick={() => setActivePage("classrooms")}>
+  
+  
+  
+            ← Back
+  
+  
+  
+          </button>
   
   
   
@@ -6334,11 +6737,27 @@ const [selectedClassroomLearnerIds, setSelectedClassroomLearnerIds] = useState<s
   
   
   
-            onClick={() => {
+            onClick={async () => {
   
   
   
-              const updated = { ...classroom, ...classroomDraft, name: classroomDraft.name || classroom.name };
+              const updated = {
+  
+  
+  
+                ...classroom,
+  
+  
+  
+                ...classroomDraft,
+  
+  
+  
+                name: classroomDraft.name || classroom.name,
+  
+  
+  
+              };
   
   
   
@@ -6350,11 +6769,35 @@ const [selectedClassroomLearnerIds, setSelectedClassroomLearnerIds] = useState<s
   
   
   
-                const exists = prev.some((item) => item.id === updated.id || item.name === classroom.name);
+                const exists = prev.some(
   
   
   
-                return exists ? prev.map((item) => (item.id === updated.id || item.name === classroom.name ? updated : item)) : [updated, ...prev];
+                  (item) => item.id === updated.id || item.name === classroom.name
+  
+  
+  
+                );
+  
+  
+  
+                return exists
+  
+  
+  
+                  ? prev.map((item) =>
+  
+  
+  
+                      item.id === updated.id || item.name === classroom.name ? updated : item
+  
+  
+  
+                    )
+  
+  
+  
+                  : [updated, ...prev];
   
   
   
@@ -6363,6 +6806,106 @@ const [selectedClassroomLearnerIds, setSelectedClassroomLearnerIds] = useState<s
   
   
               localStorage.setItem("selectedClassroomForManage", JSON.stringify(updated));
+  
+  
+  
+              for (const [learnerId, newClass] of Object.entries(learnerGradeOverrides)) {
+  
+  
+  
+                await fetch(`${API_URL}/api/learners/${learnerId}`, {
+  
+  
+  
+                  method: "PUT",
+  
+  
+  
+                  headers: { "Content-Type": "application/json" },
+  
+  
+  
+                  body: JSON.stringify({
+  
+  
+  
+                    className: newClass,
+  
+  
+  
+                    classroom: newClass,
+  
+  
+  
+                    classroomName: newClass,
+  
+  
+  
+                    grade: newClass,
+  
+  
+  
+                  }),
+  
+  
+  
+                });
+  
+  
+  
+              }
+  
+  
+  
+              setLearners((prevLearners: any[]) =>
+  
+  
+  
+                prevLearners.map((learner: any) => {
+  
+  
+  
+                  const override = learnerGradeOverrides[String(learner.id)];
+  
+  
+  
+                  if (!override) return learner;
+  
+  
+  
+                  return {
+  
+  
+  
+                    ...learner,
+  
+  
+  
+                    className: override,
+  
+  
+  
+                    classroom: override,
+  
+  
+  
+                    classroomName: override,
+  
+  
+  
+                    grade: override,
+  
+  
+  
+                  };
+  
+  
+  
+                })
+  
+  
+  
+              );
   
   
   
@@ -6386,7 +6929,287 @@ const [selectedClassroomLearnerIds, setSelectedClassroomLearnerIds] = useState<s
   
   
   
-          <button style={actionBtn} onClick={() => alert("More classroom actions will be connected in the next pass.")}>More Actions⌄</button>
+          <div style={{ position: "relative" }}>
+  
+  
+  
+            <button
+  
+  
+  
+              type="button"
+  
+  
+  
+              className="btn-secondary"
+  
+  
+  
+              onClick={() => setClassroomMoreOpen((prev: boolean) => !prev)}
+  
+  
+  
+            >
+  
+  
+  
+              More Actions
+  
+  
+  
+            </button>
+  
+  
+  
+            {classroomMoreOpen && (
+  
+  
+  
+              <div
+  
+  
+  
+                style={{
+  
+  
+  
+                  position: "absolute",
+  
+  
+  
+                  top: "52px",
+  
+  
+  
+                  left: 0,
+  
+  
+  
+                  background: "#ffffff",
+  
+  
+  
+                  border: "1px solid #e5e7eb",
+  
+  
+  
+                  borderRadius: "14px",
+  
+  
+  
+                  boxShadow: "0 10px 30px rgba(0,0,0,0.12)",
+  
+  
+  
+                  minWidth: "240px",
+  
+  
+  
+                  overflow: "hidden",
+  
+  
+  
+                  zIndex: 1000,
+  
+  
+  
+                }}
+  
+  
+  
+              >
+  
+  
+  
+                <button
+  
+  
+  
+                  type="button"
+  
+  
+  
+                  onClick={() => {
+  
+  
+  
+                    setReportTab("reports");
+  
+  
+  
+                    setClassroomMoreOpen(false);
+  
+  
+  
+                  }}
+  
+  
+  
+                  style={{
+  
+  
+  
+                    width: "100%",
+  
+  
+  
+                    padding: "14px 18px",
+  
+  
+  
+                    border: "none",
+  
+  
+  
+                    background: "#fff",
+  
+  
+  
+                    textAlign: "left",
+  
+  
+  
+                    cursor: "pointer",
+  
+  
+  
+                    fontWeight: 600,
+  
+  
+  
+                  }}
+  
+  
+  
+                >
+  
+  
+  
+                  📄 Send Learner Digital Reports
+  
+  
+  
+                </button>
+  
+  
+  
+                <button
+  
+  
+  
+                  type="button"
+  
+  
+  
+                  onClick={() => {
+  
+  
+  
+                    const confirmed = window.confirm("Are you sure you want to delete this classroom?");
+  
+  
+  
+                    if (!confirmed) return;
+  
+  
+  
+                    setLocalClassrooms((prev: any[]) =>
+  
+  
+  
+                      prev.filter((c: any) => c.id !== classroom?.id)
+  
+  
+  
+                    );
+  
+  
+  
+                    setSelectedClassroom(null);
+  
+  
+  
+                    setClassroomMode("none");
+  
+  
+  
+                    setClassroomMoreOpen(false);
+  
+  
+  
+                    setActivePage("classrooms");
+  
+  
+  
+                  }}
+  
+  
+  
+                  style={{
+  
+  
+  
+                    width: "100%",
+  
+  
+  
+                    padding: "14px 18px",
+  
+  
+  
+                    border: "none",
+  
+  
+  
+                    borderTop: "1px solid #f3f4f6",
+  
+  
+  
+                    background: "#fff",
+  
+  
+  
+                    textAlign: "left",
+  
+  
+  
+                    cursor: "pointer",
+  
+  
+  
+                    color: "#dc2626",
+  
+  
+  
+                    fontWeight: 700,
+  
+  
+  
+                  }}
+  
+  
+  
+                >
+  
+  
+  
+                  🗑 Delete Classroom
+  
+  
+  
+                </button>
+  
+  
+  
+              </div>
+  
+  
+  
+            )}
+  
+  
+  
+          </div>
   
   
   
@@ -6394,23 +7217,151 @@ const [selectedClassroomLearnerIds, setSelectedClassroomLearnerIds] = useState<s
   
   
   
-        <div style={{ display: "grid", gridTemplateColumns: "minmax(620px,1fr) 380px", gap: "28px", alignItems: "start" }}>
+        {reportTab === "reports" && (
   
   
   
-          <div style={{ background: "#fff", border: "1px solid #cbd5e1", borderRadius: "10px", overflow: "hidden", boxShadow: "0 14px 34px rgba(15,23,42,0.07)" }}>
+          <div
   
   
   
-            <div style={{ display: "grid", gridTemplateColumns: "170px 1fr", borderBottom: "1px solid #cbd5e1", background: "#f8fafc" }}>
+            style={{
   
   
   
-              <div style={{ padding: "14px", fontWeight: 900, borderRight: "1px solid #cbd5e1" }}>Classroom</div>
+              marginBottom: "22px",
   
   
   
-              <div style={{ padding: "12px 18px", fontWeight: 900, borderTop: `4px solid ${GOLD}`, background: "#fff" }}>General</div>
+              background: "#fff",
+  
+  
+  
+              border: "1px solid #cbd5e1",
+  
+  
+  
+              borderRadius: "16px",
+  
+  
+  
+              overflow: "hidden",
+  
+  
+  
+              boxShadow: "0 18px 40px rgba(15,23,42,0.08)",
+  
+  
+  
+            }}
+  
+  
+  
+          >
+  
+  
+  
+            <div
+  
+  
+  
+              style={{
+  
+  
+  
+                padding: "16px 18px",
+  
+  
+  
+                borderBottom: "1px solid #e5e7eb",
+  
+  
+  
+                display: "flex",
+  
+  
+  
+                justifyContent: "space-between",
+  
+  
+  
+                alignItems: "center",
+  
+  
+  
+                gap: "12px",
+  
+  
+  
+              }}
+  
+  
+  
+            >
+  
+  
+  
+              <div>
+  
+  
+  
+                <h2 style={{ margin: 0, fontSize: "22px", fontWeight: 900 }}>
+  
+  
+  
+                  Learner Digital Reports
+  
+  
+  
+                </h2>
+  
+  
+  
+                <p style={{ margin: "4px 0 0", color: "#64748b", fontWeight: 700 }}>
+  
+  
+  
+                  Generate reports for all learners in this classroom.
+  
+  
+  
+                </p>
+  
+  
+  
+              </div>
+  
+  
+  
+              <button
+  
+  
+  
+                style={goldBtn}
+  
+  
+  
+                onClick={() =>
+  
+  
+  
+                  alert("Next step: this will generate and email reports to all parents in this classroom.")
+  
+  
+  
+                }
+  
+  
+  
+              >
+  
+  
+  
+                Generate & Email All
+  
+  
+  
+              </button>
   
   
   
@@ -6418,7 +7369,355 @@ const [selectedClassroomLearnerIds, setSelectedClassroomLearnerIds] = useState<s
   
   
   
-            <div style={{ padding: "22px", display: "grid", gridTemplateColumns: "150px 1fr", rowGap: "10px", columnGap: "12px" }}>
+            <table style={{ width: "100%", borderCollapse: "collapse", fontSize: "13px" }}>
+  
+  
+  
+              <thead>
+  
+  
+  
+                <tr>
+  
+  
+  
+                  <th style={th}>Learner</th>
+  
+  
+  
+                  <th style={th}>Class</th>
+  
+  
+  
+                  <th style={th}>Actions</th>
+  
+  
+  
+                </tr>
+  
+  
+  
+              </thead>
+  
+  
+  
+              <tbody>
+  
+  
+  
+                {selectedClassroomLearners.length === 0 ? (
+  
+  
+  
+                  <tr>
+  
+  
+  
+                    <td style={td} colSpan={3}>
+  
+  
+  
+                      No learners in this classroom.
+  
+  
+  
+                    </td>
+  
+  
+  
+                  </tr>
+  
+  
+  
+                ) : (
+  
+  
+  
+                  selectedClassroomLearners.map((learner: any) => (
+  
+  
+  
+                    <tr key={learner.id}>
+  
+  
+  
+                      <td style={td}>
+  
+  
+  
+                        {learner.firstName} {learner.lastName || learner.surname}
+  
+  
+  
+                      </td>
+  
+  
+  
+                      <td style={td}>{learner.className || learner.classroom || learner.grade || "-"}</td>
+  
+  
+  
+                      <td style={td}>
+  
+  
+  
+                        <button
+  
+  
+  
+                          style={goldBtn}
+  
+  
+  
+                          onClick={() => {
+  
+  
+  
+                            localStorage.setItem("selectedLearnerForManage", JSON.stringify(learner));
+  
+  
+  
+                            window.location.href = `/learner-report/${learner.id}`;
+  
+  
+  
+                          }}
+  
+  
+  
+                        >
+  
+  
+  
+                          Open Report
+  
+  
+  
+                        </button>
+  
+  
+  
+                      </td>
+  
+  
+  
+                    </tr>
+  
+  
+  
+                  ))
+  
+  
+  
+                )}
+  
+  
+  
+              </tbody>
+  
+  
+  
+            </table>
+  
+  
+  
+          </div>
+  
+  
+  
+        )}
+  
+  
+  
+        <div
+  
+  
+  
+          style={{
+  
+  
+  
+            display: "grid",
+  
+  
+  
+            gridTemplateColumns: "minmax(620px,1fr) 380px",
+  
+  
+  
+            gap: "28px",
+  
+  
+  
+            alignItems: "start",
+  
+  
+  
+          }}
+  
+  
+  
+        >
+  
+  
+  
+          <div
+  
+  
+  
+            style={{
+  
+  
+  
+              background: "#fff",
+  
+  
+  
+              border: "1px solid #cbd5e1",
+  
+  
+  
+              borderRadius: "10px",
+  
+  
+  
+              overflow: "hidden",
+  
+  
+  
+              boxShadow: "0 14px 34px rgba(15,23,42,0.07)",
+  
+  
+  
+            }}
+  
+  
+  
+          >
+  
+  
+  
+            <div
+  
+  
+  
+              style={{
+  
+  
+  
+                display: "grid",
+  
+  
+  
+                gridTemplateColumns: "170px 1fr",
+  
+  
+  
+                borderBottom: "1px solid #cbd5e1",
+  
+  
+  
+                background: "#f8fafc",
+  
+  
+  
+              }}
+  
+  
+  
+            >
+  
+  
+  
+              <div style={{ padding: "14px", fontWeight: 900, borderRight: "1px solid #cbd5e1" }}>
+  
+  
+  
+                Classroom
+  
+  
+  
+              </div>
+  
+  
+  
+              <div
+  
+  
+  
+                style={{
+  
+  
+  
+                  padding: "12px 18px",
+  
+  
+  
+                  fontWeight: 900,
+  
+  
+  
+                  borderTop: `4px solid ${GOLD}`,
+  
+  
+  
+                  background: "#fff",
+  
+  
+  
+                }}
+  
+  
+  
+              >
+  
+  
+  
+                General
+  
+  
+  
+              </div>
+  
+  
+  
+            </div>
+  
+  
+  
+            <div
+  
+  
+  
+              style={{
+  
+  
+  
+                padding: "22px",
+  
+  
+  
+                display: "grid",
+  
+  
+  
+                gridTemplateColumns: "150px 1fr",
+  
+  
+  
+                rowGap: "10px",
+  
+  
+  
+                columnGap: "12px",
+  
+  
+  
+              }}
+  
+  
+  
+            >
   
   
   
@@ -6426,7 +7725,23 @@ const [selectedClassroomLearnerIds, setSelectedClassroomLearnerIds] = useState<s
   
   
   
-              <input style={inputStyle} value={classroomDraft.name ?? classroom.name ?? ""} onChange={(e) => setClassroomDraft((p: any) => ({ ...p, name: e.target.value }))} />
+              <input
+  
+  
+  
+                style={inputStyle}
+  
+  
+  
+                value={classroomDraft.name ?? classroom.name ?? ""}
+  
+  
+  
+                onChange={(e) => setClassroomDraft((p: any) => ({ ...p, name: e.target.value }))}
+  
+  
+  
+              />
   
   
   
@@ -6434,7 +7749,23 @@ const [selectedClassroomLearnerIds, setSelectedClassroomLearnerIds] = useState<s
   
   
   
-              <input style={inputStyle} value={classroomDraft.teacher ?? classroom.teacher ?? ""} onChange={(e) => setClassroomDraft((p: any) => ({ ...p, teacher: e.target.value }))} />
+              <input
+  
+  
+  
+                style={inputStyle}
+  
+  
+  
+                value={classroomDraft.teacher ?? classroom.teacher ?? ""}
+  
+  
+  
+                onChange={(e) => setClassroomDraft((p: any) => ({ ...p, teacher: e.target.value }))}
+  
+  
+  
+              />
   
   
   
@@ -6446,11 +7777,51 @@ const [selectedClassroomLearnerIds, setSelectedClassroomLearnerIds] = useState<s
   
   
   
-                <input style={inputStyle} placeholder="Years" value={classroomDraft.minYears ?? classroom.minYears ?? ""} onChange={(e) => setClassroomDraft((p: any) => ({ ...p, minYears: e.target.value }))} />
+                <input
   
   
   
-                <input style={inputStyle} placeholder="Months" value={classroomDraft.minMonths ?? classroom.minMonths ?? ""} onChange={(e) => setClassroomDraft((p: any) => ({ ...p, minMonths: e.target.value }))} />
+                  style={inputStyle}
+  
+  
+  
+                  placeholder="Years"
+  
+  
+  
+                  value={classroomDraft.minYears ?? classroom.minYears ?? ""}
+  
+  
+  
+                  onChange={(e) => setClassroomDraft((p: any) => ({ ...p, minYears: e.target.value }))}
+  
+  
+  
+                />
+  
+  
+  
+                <input
+  
+  
+  
+                  style={inputStyle}
+  
+  
+  
+                  placeholder="Months"
+  
+  
+  
+                  value={classroomDraft.minMonths ?? classroom.minMonths ?? ""}
+  
+  
+  
+                  onChange={(e) => setClassroomDraft((p: any) => ({ ...p, minMonths: e.target.value }))}
+  
+  
+  
+                />
   
   
   
@@ -6466,11 +7837,51 @@ const [selectedClassroomLearnerIds, setSelectedClassroomLearnerIds] = useState<s
   
   
   
-                <input style={inputStyle} placeholder="Years" value={classroomDraft.maxYears ?? classroom.maxYears ?? ""} onChange={(e) => setClassroomDraft((p: any) => ({ ...p, maxYears: e.target.value }))} />
+                <input
   
   
   
-                <input style={inputStyle} placeholder="Months" value={classroomDraft.maxMonths ?? classroom.maxMonths ?? ""} onChange={(e) => setClassroomDraft((p: any) => ({ ...p, maxMonths: e.target.value }))} />
+                  style={inputStyle}
+  
+  
+  
+                  placeholder="Years"
+  
+  
+  
+                  value={classroomDraft.maxYears ?? classroom.maxYears ?? ""}
+  
+  
+  
+                  onChange={(e) => setClassroomDraft((p: any) => ({ ...p, maxYears: e.target.value }))}
+  
+  
+  
+                />
+  
+  
+  
+                <input
+  
+  
+  
+                  style={inputStyle}
+  
+  
+  
+                  placeholder="Months"
+  
+  
+  
+                  value={classroomDraft.maxMonths ?? classroom.maxMonths ?? ""}
+  
+  
+  
+                  onChange={(e) => setClassroomDraft((p: any) => ({ ...p, maxMonths: e.target.value }))}
+  
+  
+  
+                />
   
   
   
@@ -6482,7 +7893,43 @@ const [selectedClassroomLearnerIds, setSelectedClassroomLearnerIds] = useState<s
   
   
   
-              <textarea style={{ ...inputStyle, minHeight: "105px", resize: "vertical", fontFamily: "inherit" }} value={classroomDraft.notes ?? classroom.notes ?? ""} onChange={(e) => setClassroomDraft((p: any) => ({ ...p, notes: e.target.value }))} />
+              <textarea
+  
+  
+  
+                style={{
+  
+  
+  
+                  ...inputStyle,
+  
+  
+  
+                  minHeight: "105px",
+  
+  
+  
+                  resize: "vertical",
+  
+  
+  
+                  fontFamily: "inherit",
+  
+  
+  
+                }}
+  
+  
+  
+                value={classroomDraft.notes ?? classroom.notes ?? ""}
+  
+  
+  
+                onChange={(e) => setClassroomDraft((p: any) => ({ ...p, notes: e.target.value }))}
+  
+  
+  
+              />
   
   
   
@@ -6498,7 +7945,47 @@ const [selectedClassroomLearnerIds, setSelectedClassroomLearnerIds] = useState<s
   
   
   
-            <div style={{ width: "205px", height: "205px", margin: "0 auto 18px", border: "1px solid #cbd5e1", background: "linear-gradient(180deg,#e2e8f0,#f8fafc)", display: "grid", placeItems: "center" }}>
+            <div
+  
+  
+  
+              style={{
+  
+  
+  
+                width: "205px",
+  
+  
+  
+                height: "205px",
+  
+  
+  
+                margin: "0 auto 18px",
+  
+  
+  
+                border: "1px solid #cbd5e1",
+  
+  
+  
+                background: "linear-gradient(180deg,#e2e8f0,#f8fafc)",
+  
+  
+  
+                display: "grid",
+  
+  
+  
+                placeItems: "center",
+  
+  
+  
+              }}
+  
+  
+  
+            >
   
   
   
@@ -6510,7 +7997,39 @@ const [selectedClassroomLearnerIds, setSelectedClassroomLearnerIds] = useState<s
   
   
   
-            <div style={{ display: "grid", gridTemplateColumns: "120px 1fr", border: "1px solid #e5e7eb", background: "#fff", boxShadow: "0 10px 26px rgba(15,23,42,0.05)" }}>
+            <div
+  
+  
+  
+              style={{
+  
+  
+  
+                display: "grid",
+  
+  
+  
+                gridTemplateColumns: "120px 1fr",
+  
+  
+  
+                border: "1px solid #e5e7eb",
+  
+  
+  
+                background: "#fff",
+  
+  
+  
+                boxShadow: "0 10px 26px rgba(15,23,42,0.05)",
+  
+  
+  
+              }}
+  
+  
+  
+            >
   
   
   
@@ -6538,19 +8057,67 @@ const [selectedClassroomLearnerIds, setSelectedClassroomLearnerIds] = useState<s
   
   
   
-                <>
+                <React.Fragment key={label}>
   
   
   
-                  <div key={`${label}-l`} style={{ padding: "12px", background: "#f1f5f9", fontWeight: 900, textAlign: "right", borderBottom: "1px solid #e5e7eb" }}>{label}</div>
+                  <div
   
   
   
-                  <div key={`${label}-v`} style={{ padding: "12px", fontWeight: 800, borderBottom: "1px solid #e5e7eb" }}>{value}</div>
+                    style={{
   
   
   
-                </>
+                      padding: "12px",
+  
+  
+  
+                      background: "#f1f5f9",
+  
+  
+  
+                      fontWeight: 900,
+  
+  
+  
+                      textAlign: "right",
+  
+  
+  
+                      borderBottom: "1px solid #e5e7eb",
+  
+  
+  
+                    }}
+  
+  
+  
+                  >
+  
+  
+  
+                    {label}
+  
+  
+  
+                  </div>
+  
+  
+  
+                  <div style={{ padding: "12px", fontWeight: 800, borderBottom: "1px solid #e5e7eb" }}>
+  
+  
+  
+                    {value}
+  
+  
+  
+                  </div>
+  
+  
+  
+                </React.Fragment>
   
   
   
@@ -6570,11 +8137,55 @@ const [selectedClassroomLearnerIds, setSelectedClassroomLearnerIds] = useState<s
   
   
   
-        <div style={{ marginTop: "18px", background: "#fff", border: "1px solid #cbd5e1", borderRadius: "10px", overflow: "hidden", boxShadow: "0 14px 34px rgba(15,23,42,0.07)" }}>
+        <div
   
   
   
-          <div style={{ padding: "12px 14px", borderBottom: "1px solid #cbd5e1", fontWeight: 900, background: "#f8fafc" }}>Children</div>
+          style={{
+  
+  
+  
+            marginTop: "18px",
+  
+  
+  
+            background: "#fff",
+  
+  
+  
+            border: "1px solid #cbd5e1",
+  
+  
+  
+            borderRadius: "10px",
+  
+  
+  
+            overflow: "hidden",
+  
+  
+  
+            boxShadow: "0 14px 34px rgba(15,23,42,0.07)",
+  
+  
+  
+          }}
+  
+  
+  
+        >
+  
+  
+  
+          <div style={{ padding: "12px 14px", borderBottom: "1px solid #cbd5e1", fontWeight: 900, background: "#f8fafc" }}>
+  
+  
+  
+            Children
+  
+  
+  
+          </div>
   
   
   
@@ -6582,7 +8193,15 @@ const [selectedClassroomLearnerIds, setSelectedClassroomLearnerIds] = useState<s
   
   
   
-            <button style={goldBtn} onClick={() => setActivePage("addLearner")}>+ Add</button>
+            <button style={goldBtn} onClick={() => setActivePage("addLearner")}>
+  
+  
+  
+              + Add
+  
+  
+  
+            </button>
   
   
   
@@ -6602,7 +8221,15 @@ const [selectedClassroomLearnerIds, setSelectedClassroomLearnerIds] = useState<s
   
   
   
-                const learner = selectedClassroomLearners.find((l: any) => String(l.id) === String(selectedClassroomLearnerIds[0]));
+                const learner = selectedClassroomLearners.find(
+  
+  
+  
+                  (l: any) => String(l.id) === String(selectedClassroomLearnerIds[0])
+  
+  
+  
+                );
   
   
   
@@ -6626,7 +8253,15 @@ const [selectedClassroomLearnerIds, setSelectedClassroomLearnerIds] = useState<s
   
   
   
-            <button style={actionBtn} onClick={moveSelectedLearners}>➜ Move</button>
+            <button style={actionBtn} onClick={moveSelectedLearners}>
+  
+  
+  
+              ➜ Move
+  
+  
+  
+            </button>
   
   
   
@@ -6742,103 +8377,207 @@ const [selectedClassroomLearnerIds, setSelectedClassroomLearnerIds] = useState<s
   
   
   
-              {classroomLearnerPagedRows.map((learner: any, index: number) => {
+              {classroomLearnerPagedRows.length === 0 ? (
   
   
   
-                const checked = selectedClassroomLearnerIds.includes(String(learner.id));
+                <tr>
   
   
   
-                return (
+                  <td style={td} colSpan={5}>
   
   
   
-                  <tr key={learner.id || index} style={{ background: checked ? "rgba(212,175,55,0.22)" : index % 2 === 0 ? "#fff" : "rgba(212,175,55,0.06)" }}>
+                    No learners in this classroom.
   
   
   
-                    <td style={td}>
+                  </td>
   
   
   
-                      <input
+                </tr>
   
   
   
-                        type="checkbox"
+              ) : (
   
   
   
-                        checked={checked}
+                classroomLearnerPagedRows.map((learner: any, index: number) => {
   
   
   
-                        onChange={(e) => {
+                  const checked = selectedClassroomLearnerIds.includes(String(learner.id));
   
   
   
-                          const id = String(learner.id);
+                  return (
   
   
   
-                          setSelectedClassroomLearnerIds((prev) => e.target.checked ? [...prev, id] : prev.filter((x) => x !== id));
+                    <tr
   
   
   
-                        }}
+                      key={learner.id || index}
   
   
   
-                      />
+                      style={{
   
   
   
-                    </td>
+                        background: checked
   
   
   
-                    <td style={td}>{learner.firstName || "-"}</td>
+                          ? "rgba(212,175,55,0.22)"
   
   
   
-                    <td style={td}>{learner.lastName || learner.surname || "-"}</td>
+                          : index % 2 === 0
   
   
   
-                    <td style={td}>{formatAge(learner.birthDate)}</td>
+                          ? "#fff"
   
   
   
-                    <td style={td}>
+                          : "rgba(212,175,55,0.06)",
   
   
   
-                      <span style={{ color: (learner.childStatus || "Enrolled") === "Enrolled" ? "#15803d" : "#b91c1c", fontWeight: 900 }}>
+                      }}
   
   
   
-                        {learner.childStatus || "Enrolled"}
+                    >
   
   
   
-                      </span>
+                      <td style={td}>
   
   
   
-                    </td>
+                        <input
   
   
   
-                  </tr>
+                          type="checkbox"
   
   
   
-                );
+                          checked={checked}
   
   
   
-              })}
+                          onChange={(e) => {
+  
+  
+  
+                            const learnerId = String(learner.id);
+  
+  
+  
+                            setSelectedClassroomLearnerIds((prev) =>
+  
+  
+  
+                              e.target.checked
+  
+  
+  
+                                ? [...prev, learnerId]
+  
+  
+  
+                                : prev.filter((x) => x !== learnerId)
+  
+  
+  
+                            );
+  
+  
+  
+                          }}
+  
+  
+  
+                        />
+  
+  
+  
+                      </td>
+  
+  
+  
+                      <td style={td}>{learner.firstName || "-"}</td>
+  
+  
+  
+                      <td style={td}>{learner.lastName || learner.surname || "-"}</td>
+  
+  
+  
+                      <td style={td}>{formatAge(learner.birthDate)}</td>
+  
+  
+  
+                      <td style={td}>
+  
+  
+  
+                        <span
+  
+  
+  
+                          style={{
+  
+  
+  
+                            color: (learner.childStatus || "Enrolled") === "Enrolled" ? "#15803d" : "#b91c1c",
+  
+  
+  
+                            fontWeight: 900,
+  
+  
+  
+                          }}
+  
+  
+  
+                        >
+  
+  
+  
+                          {learner.childStatus || "Enrolled"}
+  
+  
+  
+                        </span>
+  
+  
+  
+                      </td>
+  
+  
+  
+                    </tr>
+  
+  
+  
+                  );
+  
+  
+  
+                })
+  
+  
+  
+              )}
   
   
   
@@ -6850,11 +8589,71 @@ const [selectedClassroomLearnerIds, setSelectedClassroomLearnerIds] = useState<s
   
   
   
-          <div style={{ padding: "10px", display: "flex", justifyContent: "space-between", color: "#64748b", fontSize: "12px", fontWeight: 800 }}>
+          <div
   
   
   
-            <span>{selectedClassroomLearners.length === 0 ? "0" : (classroomLearnerPage - 1) * classroomLearnerPageSize + 1} - {Math.min(classroomLearnerPage * classroomLearnerPageSize, selectedClassroomLearners.length)} / {selectedClassroomLearners.length}</span>
+            style={{
+  
+  
+  
+              padding: "10px",
+  
+  
+  
+              display: "flex",
+  
+  
+  
+              justifyContent: "space-between",
+  
+  
+  
+              color: "#64748b",
+  
+  
+  
+              fontSize: "12px",
+  
+  
+  
+              fontWeight: 800,
+  
+  
+  
+            }}
+  
+  
+  
+          >
+  
+  
+  
+            <span>
+  
+  
+  
+              {selectedClassroomLearners.length === 0
+  
+  
+  
+                ? "0"
+  
+  
+  
+                : (classroomLearnerPage - 1) * classroomLearnerPageSize + 1}{" "}
+  
+  
+  
+              - {Math.min(classroomLearnerPage * classroomLearnerPageSize, selectedClassroomLearners.length)} /{" "}
+  
+  
+  
+              {selectedClassroomLearners.length}
+  
+  
+  
+            </span>
   
   
   
@@ -6862,15 +8661,71 @@ const [selectedClassroomLearnerIds, setSelectedClassroomLearnerIds] = useState<s
   
   
   
-              <button style={actionBtn} disabled={classroomLearnerPage <= 1} onClick={() => setClassroomLearnerPage((p) => Math.max(1, p - 1))}>‹</button>
+              <button
   
   
   
-              <span>Page {classroomLearnerPage} / {classroomLearnerTotalPages}</span>
+                style={actionBtn}
   
   
   
-              <button style={actionBtn} disabled={classroomLearnerPage >= classroomLearnerTotalPages} onClick={() => setClassroomLearnerPage((p) => Math.min(classroomLearnerTotalPages, p + 1))}>›</button>
+                disabled={classroomLearnerPage <= 1}
+  
+  
+  
+                onClick={() => setClassroomLearnerPage((p) => Math.max(1, p - 1))}
+  
+  
+  
+              >
+  
+  
+  
+                ‹
+  
+  
+  
+              </button>
+  
+  
+  
+              <span>
+  
+  
+  
+                Page {classroomLearnerPage} / {classroomLearnerTotalPages}
+  
+  
+  
+              </span>
+  
+  
+  
+              <button
+  
+  
+  
+                style={actionBtn}
+  
+  
+  
+                disabled={classroomLearnerPage >= classroomLearnerTotalPages}
+  
+  
+  
+                onClick={() => setClassroomLearnerPage((p) => Math.min(classroomLearnerTotalPages, p + 1))}
+  
+  
+  
+              >
+  
+  
+  
+                ›
+  
+  
+  
+              </button>
   
   
   
@@ -6895,6 +8750,8 @@ const [selectedClassroomLearnerIds, setSelectedClassroomLearnerIds] = useState<s
   
   
   };
+  
+  
 
   const groupRows = useMemo(() => {
 

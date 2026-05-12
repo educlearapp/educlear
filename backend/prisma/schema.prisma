@@ -67,6 +67,13 @@ model School {
   parents Parent[]
 
   learners Learner[]
+  learnerResults LearnerResult[]
+
+
+
+learnerReports LearnerReport[]
+
+
   familyAccounts FamilyAccount[]
   fees FeeStructure[]
   SchoolFeeSetting SchoolFeeSetting[]
@@ -363,6 +370,11 @@ familyAccount FamilyAccount? @relation(fields: [familyAccountId], references: [i
   links ParentLearnerLink[]
 
   Letter Letter[]
+  results LearnerResult[]
+
+
+
+reports LearnerReport[]
 
   @@unique([schoolId, admissionNo])
   @@index([schoolId])
@@ -1746,6 +1758,124 @@ model PayrollEmailLog {
 
 
   @@index([createdAt])
+
+
+
+}
+
+ model LearnerResult {
+
+
+
+  id               String   @id @default(cuid())
+
+
+
+  learnerId        String
+
+
+
+  schoolId         String
+
+
+
+  classroomId      String?
+
+
+
+  term             String
+
+
+
+  subject          String
+
+
+
+  mark             Float
+
+
+
+  percentage       Float?
+
+
+
+  comment          String?
+
+
+
+  createdAt        DateTime @default(now())
+
+
+
+  updatedAt        DateTime @updatedAt
+
+
+
+  learner          Learner  @relation(fields: [learnerId], references: [id], onDelete: Cascade)
+
+
+
+  school           School   @relation(fields: [schoolId], references: [id], onDelete: Cascade)
+
+
+
+}
+
+
+
+model LearnerReport {
+
+
+
+  id                    String   @id @default(cuid())
+
+
+
+  learnerId             String
+
+
+
+  schoolId              String
+
+
+
+  term                  String
+
+
+
+  overallAverage        Float?
+
+
+
+  attendancePercent     Float?
+
+
+
+  classTeacherRemark    String?
+
+
+
+  principalRemark       String?
+
+
+
+  pdfUrl                String?
+
+
+
+  createdAt             DateTime @default(now())
+
+
+
+  updatedAt             DateTime @updatedAt
+
+
+
+  learner               Learner  @relation(fields: [learnerId], references: [id], onDelete: Cascade)
+
+
+
+  school                School   @relation(fields: [schoolId], references: [id], onDelete: Cascade)
 
 
 
