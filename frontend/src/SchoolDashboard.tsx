@@ -7341,15 +7341,79 @@ const [selectedLearnerReport, setSelectedLearnerReport] = useState<any>(null);
   
   
   
-                onClick={() =>
-  
-  
-  
-                  alert("Next step: this will generate and email reports to all parents in this classroom.")
-  
-  
-  
-                }
+                onClick={() => {
+
+
+
+                  if (selectedClassroomLearners.length === 0) {
+                
+                
+                
+                    alert("There are no learners in this classroom to generate reports for.");
+                
+                
+                
+                    return;
+                
+                
+                
+                  }
+                
+                
+                
+                  const confirmed = window.confirm(
+                
+                
+                
+                    `Generate learner digital reports for ${selectedClassroomLearners.length} learner(s) in ${classroom.name}?`
+                
+                
+                
+                  );
+                
+                
+                
+                  if (!confirmed) return;
+                
+                
+                
+                  localStorage.setItem(
+                
+                
+                
+                    "bulkLearnerReports",
+                
+                
+                
+                    JSON.stringify({
+                
+                
+                
+                      classroomName: classroom.name,
+                
+                
+                
+                      learners: selectedClassroomLearners,
+                
+                
+                
+                      createdAt: new Date().toISOString(),
+                
+                
+                
+                    })
+                
+                
+                
+                  );
+                
+                
+                
+                  alert(`${selectedClassroomLearners.length} report(s) prepared. Open each learner report to complete/print/email.`);
+                
+                
+                
+                }}
   
   
   
