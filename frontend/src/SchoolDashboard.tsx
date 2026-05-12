@@ -476,7 +476,35 @@ const [employeeDraft, setEmployeeDraft] = useState<any>({});
 
 
 
-const [localEmployees, setLocalEmployees] = useState<any[]>([]);
+const [localEmployees, setLocalEmployees] = useState<any[]>(() => {
+
+
+
+  try {
+
+
+
+    const saved = localStorage.getItem("educlearEmployees");
+
+
+
+    return saved ? JSON.parse(saved) : [];
+
+
+
+  } catch {
+
+
+
+    return [];
+
+
+
+  }
+
+
+
+});
 const [selectedAttendance, setSelectedAttendance] = useState<any | null>(null);
 
 
@@ -11007,23 +11035,59 @@ localStorage.setItem(
   
   
   
-    setLocalEmployees((prev) =>
-  
-  
-  
-      prev.some((item) => item.id === cleanEmployee.id)
-  
-  
-  
-        ? prev.map((item) => (item.id === cleanEmployee.id ? cleanEmployee : item))
-  
-  
-  
-        : [cleanEmployee, ...prev]
-  
-  
-  
-    );
+    setLocalEmployees((prev: any[]) => {
+
+
+
+      const updatedEmployees = prev.some(
+    
+    
+    
+        (item) => item.id === cleanEmployee.id
+    
+    
+    
+      )
+    
+    
+    
+        ? prev.map((item) =>
+    
+    
+    
+            item.id === cleanEmployee.id ? cleanEmployee : item
+    
+    
+    
+          )
+    
+    
+    
+        : [cleanEmployee, ...prev];
+    
+    
+    
+      localStorage.setItem(
+    
+    
+    
+        "educlearEmployees",
+    
+    
+    
+        JSON.stringify(updatedEmployees)
+    
+    
+    
+      );
+    
+    
+    
+      return updatedEmployees;
+    
+    
+    
+    });
   
   
   
