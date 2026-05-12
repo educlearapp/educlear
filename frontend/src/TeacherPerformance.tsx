@@ -54,7 +54,35 @@ export default function TeacherPerformance() {
     notes: "",
   });
 
+  const [localEmployees] = useState<any[]>(() => {
 
+
+
+    try {
+  
+  
+  
+      const saved = localStorage.getItem("educlearEmployees");
+  
+  
+  
+      return saved ? JSON.parse(saved) : [];
+  
+  
+  
+    } catch {
+  
+  
+  
+      return [];
+  
+  
+  
+    }
+  
+  
+  
+  });
 
   const [records, setRecords] = useState<TeacherRecord[]>([]);
 
@@ -329,17 +357,75 @@ export default function TeacherPerformance() {
 
       <div style={{ display: "grid", gap: 12, marginBottom: 30 }}>
 
-        <input
+      <select
 
-          placeholder="Teacher Name"
+value={form.teacherName}
 
-          value={form.teacherName}
+onChange={(e) => {
 
-          onChange={(e) => setForm({ ...form, teacherName: e.target.value })}
+  const selectedTeacher = localEmployees.find(
 
-          style={{ padding: 10 }}
+    (employee: any) =>
 
-        />
+
+
+      `${employee.firstName || employee.name || ""} ${employee.lastName || employee.surname || ""}`.trim() ===
+    
+    
+    
+      e.target.value
+
+  );
+
+  setForm({
+
+    ...form,
+
+    teacherName: e.target.value,
+
+    teacherEmail: selectedTeacher?.email || "",
+
+  });
+
+}}
+
+style={{
+
+  padding: 10,
+
+  borderRadius: 10,
+
+  border: "1px solid #cbd5e1",
+
+  background: "#ffffff",
+
+  fontWeight: 700,
+
+}}
+
+>
+
+<option value="">Select Teacher</option>
+
+{localEmployees.map((employee: any) => {
+
+  const fullName =
+
+   `${employee.firstName || employee.name || ""} ${employee.lastName || employee.surname || ""}`.trim()
+
+  return (
+
+    <option key={employee.id} value={fullName}>
+
+      {fullName}
+
+    </option>
+
+  );
+
+})}
+
+</select>
 
 
 

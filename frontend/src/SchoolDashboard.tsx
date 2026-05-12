@@ -23045,11 +23045,59 @@ case "incidentManage":
         
         
         
-          const getPlan = (learner: any) =>
-        
-        
-        
-            Array.isArray(learner?.billingPlan) ? learner.billingPlan : [];
+          const getPlan = (learner: any) => {
+
+
+
+            try {
+          
+          
+          
+              const savedPlans = JSON.parse(
+          
+          
+          
+                localStorage.getItem("educlearBillingPlans") || "{}"
+          
+          
+          
+              );
+          
+          
+          
+              const savedPlan = savedPlans?.[learner?.id];
+          
+          
+          
+              if (Array.isArray(savedPlan)) {
+          
+          
+          
+                return savedPlan;
+          
+          
+          
+              }
+          
+          
+          
+            } catch {
+          
+          
+          
+              // ignore bad localStorage
+          
+          
+          
+            }
+          
+          
+          
+            return Array.isArray(learner?.billingPlan) ? learner.billingPlan : [];
+          
+          
+          
+          };
         
         
         
@@ -23354,54 +23402,146 @@ case "incidentManage":
         
         
         
-          const savePlan = (learner: any, plan: any[]) => {
-        
-        
-        
-            const updatedLearner = { ...learner, billingPlan: plan };
-        
-        
-        
-            setLearners(
-        
-        
-        
-              learners.map((item: any) =>
-        
-        
-        
+          const savePlan = async (learner: any, plan: any[]) => {
+
+
+
+            const updatedLearner = {
+          
+          
+          
+              ...learner,
+          
+          
+          
+              billingPlan: plan,
+          
+          
+          
+            };
+          
+          
+          
+            setLearners((prev: any[]) =>
+          
+          
+          
+              prev.map((item: any) =>
+          
+          
+          
                 item.id === learner.id ? updatedLearner : item
-        
-        
-        
+          
+          
+          
               )
-        
-        
-        
+          
+          
+          
             );
-        
-        
-        
+          
+          
+          
             setSelectedPlanLearner(updatedLearner);
-        
-        
-        
-            localStorage.setItem(
-        
-        
-        
-              "selectedBillingPlanLearner",
-        
-        
-        
-              JSON.stringify(updatedLearner)
-        
-        
-        
+          
+          
+          
+            const savedPlans = JSON.parse(
+          
+          
+          
+              localStorage.getItem("educlearBillingPlans") || "{}"
+          
+          
+          
             );
-        
-        
-        
+          
+          
+          
+            const updatedPlans = {
+          
+          
+          
+              ...savedPlans,
+          
+          
+          
+              [learner.id]: plan,
+          
+          
+          
+            };
+          
+          
+          
+            localStorage.setItem(
+          
+          
+          
+              "educlearBillingPlans",
+          
+          
+          
+              JSON.stringify(updatedPlans)
+          
+          
+          
+            );
+          
+          
+          
+            localStorage.setItem(
+          
+          
+          
+              "selectedBillingPlanLearner",
+          
+          
+          
+              JSON.stringify(updatedLearner)
+          
+          
+          
+            );
+          
+          
+          
+            try {
+          
+          
+          
+              await fetch(`${API_URL}/api/learners/${learner.id}`, {
+          
+          
+          
+                method: "PUT",
+          
+          
+          
+                headers: { "Content-Type": "application/json" },
+          
+          
+          
+                body: JSON.stringify(updatedLearner),
+          
+          
+          
+              });
+          
+          
+          
+            } catch {
+          
+          
+          
+              // Local save already done.
+          
+          
+          
+            }
+          
+          
+          
           };
         
         
@@ -23418,7 +23558,31 @@ case "incidentManage":
         
         
         
-              JSON.stringify(learner)
+              JSON.stringify({
+
+
+
+                ...learner,
+              
+              
+              
+                billingPlan:
+              
+              
+              
+                  JSON.parse(localStorage.getItem("educlearBillingPlans") || "{}")[
+              
+              
+              
+                    learner.id
+              
+              
+              
+                  ] || learner.billingPlan || [],
+              
+              
+              
+              })
         
         
         
