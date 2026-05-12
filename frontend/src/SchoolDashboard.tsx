@@ -419,7 +419,35 @@ const [groupDraft, setGroupDraft] = useState<any>({});
 
 
 
-const [localGroups, setLocalGroups] = useState<any[]>([]);
+const [localGroups, setLocalGroups] = useState<any[]>(() => {
+
+
+
+  try {
+
+
+
+    const saved = localStorage.getItem("educlearGroups");
+
+
+
+    return saved ? JSON.parse(saved) : [];
+
+
+
+  } catch {
+
+
+
+    return [];
+
+
+
+  }
+
+
+
+});
 const [selectedEmployee, setSelectedEmployee] = useState<any | null>(null);
 
 
@@ -9397,30 +9425,54 @@ const [selectedLearnerReport, setSelectedLearnerReport] = useState<any>(null);
   
   
     setSelectedGroup(updatedGroup);
-  
-  
-  
-    setGroupDraft(updatedGroup);
-  
-  
-  
-    setLocalGroups((prev) =>
-  
-  
-  
-      prev.some((item) => item.id === updatedGroup.id)
-  
-  
-  
-        ? prev.map((item) => (item.id === updatedGroup.id ? updatedGroup : item))
-  
-  
-  
-        : [updatedGroup, ...prev]
-  
-  
-  
-    );
+
+
+
+setGroupDraft(updatedGroup);
+
+
+
+const updatedGroups =
+
+
+
+  localGroups.some((item: any) => item.id === updatedGroup.id)
+
+
+
+    ? localGroups.map((item: any) =>
+
+
+
+        item.id === updatedGroup.id ? updatedGroup : item
+
+
+
+      )
+
+
+
+    : [...localGroups, updatedGroup];
+
+
+
+setLocalGroups(updatedGroups);
+
+
+
+localStorage.setItem(
+
+
+
+  "educlearGroups",
+
+
+
+  JSON.stringify(updatedGroups)
+
+
+
+);
   
   
   
