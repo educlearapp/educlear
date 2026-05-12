@@ -2,6 +2,10 @@ import { useEffect, useMemo, useState } from "react";
 
 
 
+import type { CSSProperties } from "react";
+
+
+
 import { useNavigate, useParams } from "react-router-dom";
 
 
@@ -258,15 +262,7 @@ export default function LearnerDigitalReport() {
 
 
 
-    setLoading(true);
-
-
-
-    setError("");
-
-
-
-    (async () => {
+    const loadReport = async () => {
 
 
 
@@ -274,63 +270,59 @@ export default function LearnerDigitalReport() {
 
 
 
+        setLoading(true);
+
+
+
+        setError("");
+
+
+
         const id = String(learnerId || "").trim();
 
 
 
-        if (!id) {
+        const schoolId = localStorage.getItem("schoolId");
 
 
 
-          if (!cancelled) setError("Missing learner ID.");
+        let localLearner: any = null;
 
 
 
-          return;
+        const localKeys = ["selectedLearnerForManage", "selectedLearnerForSibling"];
 
 
 
-        }
+        for (const key of localKeys) {
 
 
 
-        const fromLocalStorage = (() => {
+          const raw = localStorage.getItem(key);
 
 
 
-          const keys = ["selectedLearnerForManage", "selectedLearnerForSibling"];
+          if (!raw) continue;
 
 
 
-          for (const k of keys) {
+          try {
 
 
 
-            const raw = localStorage.getItem(k);
+            const parsed = JSON.parse(raw);
 
 
 
-            if (!raw) continue;
+            if (!id || String(parsed?.id || "") === id) {
 
 
 
-            try {
+              localLearner = parsed;
 
 
 
-              const parsed = JSON.parse(raw);
-
-
-
-              if (String(parsed?.id || "") === id) return parsed;
-
-
-
-            } catch {
-
-
-
-              // ignore bad localStorage
+              break;
 
 
 
@@ -338,43 +330,15 @@ export default function LearnerDigitalReport() {
 
 
 
+          } catch {
+
+
+
+            localLearner = null;
+
+
+
           }
-
-
-
-          return null;
-
-
-
-        })();
-
-
-
-        if (fromLocalStorage) {
-
-
-
-          if (!cancelled) setLearner(fromLocalStorage);
-
-
-
-        } else {
-
-
-
-          const data: any = await apiFetch("/api/learners");
-
-
-
-          const list = Array.isArray(data?.learners) ? data.learners : [];
-
-
-
-          const found = list.find((l: any) => String(l?.id || "") === id) || null;
-
-
-
-          if (!cancelled) setLearner(found);
 
 
 
@@ -382,7 +346,67 @@ export default function LearnerDigitalReport() {
 
 
 
-        const schoolId = localStorage.getItem("schoolId");
+        let backendLearner: any = null;
+
+
+
+        if (id) {
+
+
+
+          const learnerUrl = schoolId
+
+
+
+            ? `/api/learners?schoolId=${encodeURIComponent(schoolId)}`
+
+
+
+            : "/api/learners";
+
+
+
+          const data: any = await apiFetch(learnerUrl);
+
+
+
+          const list = Array.isArray(data?.learners) ? data.learners : [];
+
+
+
+          backendLearner = list.find((item: any) => String(item?.id || "") === id) || null;
+
+
+
+        }
+
+
+
+        const finalLearner = {
+
+
+
+          ...(localLearner || {}),
+
+
+
+          ...(backendLearner || {}),
+
+
+
+        };
+
+
+
+        if (!cancelled) {
+
+
+
+          setLearner(finalLearner?.id ? finalLearner : null);
+
+
+
+        }
 
 
 
@@ -462,7 +486,11 @@ export default function LearnerDigitalReport() {
 
 
 
-    })();
+    };
+
+
+
+    loadReport();
 
 
 
@@ -586,7 +614,7 @@ export default function LearnerDigitalReport() {
 
 
 
-  const gradeOrClass = safeString(learner?.grade || learner?.className || learner?.classroom);
+  const gradeOrClass = safeString(learner?.classroom || learner?.className || learner?.grade);
 
 
 
@@ -698,7 +726,7 @@ export default function LearnerDigitalReport() {
 
 
 
-  const shellButton: React.CSSProperties = {
+  const shellButton: CSSProperties = {
 
 
 
@@ -1242,7 +1270,7 @@ export default function LearnerDigitalReport() {
 
 
 
-                  Learner not found. Please return to registrations and select a learner again.
+                  Learner not found. Please return to classrooms and select a learner report again.
 
 
 
@@ -1262,35 +1290,7 @@ export default function LearnerDigitalReport() {
 
 
 
-                    <div
-
-
-
-                      style={{
-
-
-
-                        borderRadius: 16,
-
-
-
-                        border: `1px solid ${schoolSecondary}`,
-
-
-
-                        background: "#ffffff",
-
-
-
-                        padding: 16,
-
-
-
-                      }}
-
-
-
-                    >
+                    <div style={{ borderRadius: 16, border: `1px solid ${schoolSecondary}`, background: "#ffffff", padding: 16 }}>
 
 
 
@@ -1422,35 +1422,7 @@ export default function LearnerDigitalReport() {
 
 
 
-                    <div
-
-
-
-                      style={{
-
-
-
-                        borderRadius: 16,
-
-
-
-                        border: "1px solid rgba(15,23,42,0.08)",
-
-
-
-                        background: "#ffffff",
-
-
-
-                        padding: 16,
-
-
-
-                      }}
-
-
-
-                    >
+                    <div style={{ borderRadius: 16, border: "1px solid rgba(15,23,42,0.08)", background: "#ffffff", padding: 16 }}>
 
 
 
