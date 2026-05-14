@@ -22,6 +22,7 @@ import teacherPerformanceRoutes from "./routes/teacherPerformance";
 import payrollRoutes from "./routes/payroll";
 import feesRoutes from "./routes/fees";
 import registrationsRoutes from "./routes/registrations";
+import emailRoutes from "./routes/emails";
 type OtpRecord = {
 
     code: string;
@@ -281,6 +282,7 @@ app.get("/learner", async (req, res) => {
 });
 app.use("/learner", learnerRoutes);
 app.use("/api/schools", schoolsRoutes);
+app.use("/api/emails", emailRoutes);
 app.use("/api/users", usersRoutes);
 app.post("/api/upload-logo", upload.single("logo"), (req, res) => {
 
