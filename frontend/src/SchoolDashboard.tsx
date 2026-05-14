@@ -18556,11 +18556,39 @@ const renderMoreSettings = () => {
 
 
 
-  | "wizard"
-
-
-
   | "manage"
+
+
+
+  | "wizardStart"
+
+
+
+  | "wizardSettings"
+
+
+
+  | "wizardChildren"
+
+
+
+  | "wizardFees"
+
+
+
+  | "wizardPreview"
+
+
+
+  | "wizardCreate"
+
+
+
+  | "wizardSummary"
+
+
+
+  | "wizardFinish"
 
 
 
@@ -18648,15 +18676,7 @@ const renderMoreSettings = () => {
   
   
   
-    description: `Invoice Run For ${new Date().toLocaleString("default", {
-  
-  
-  
-      month: "long",
-  
-  
-  
-    })} ${new Date().getFullYear()}`,
+    description: "",
   
   
   
@@ -18668,7 +18688,7 @@ const renderMoreSettings = () => {
   
   
   
-    month: new Date().toLocaleString("default", { month: "long" }),
+    month: "",
   
   
   
@@ -18677,6 +18697,30 @@ const renderMoreSettings = () => {
   
   
   });
+  const [storedRuns, setStoredRuns] = useState<any[]>(() => {
+    const readJson = (keys: string[], fallback: any) => {
+      for (const key of keys) {
+        try {
+          const raw = localStorage.getItem(key);
+          if (!raw) continue;
+          const parsed = JSON.parse(raw);
+          if (parsed) return parsed;
+        } catch {}
+      }
+      return fallback;
+    };
+    const toArray = (value: any) => {
+      if (Array.isArray(value)) return value;
+      if (Array.isArray(value?.data)) return value.data;
+      if (Array.isArray(value?.learners)) return value.learners;
+      if (Array.isArray(value?.parents)) return value.parents;
+      if (Array.isArray(value?.accounts)) return value.accounts;
+      if (Array.isArray(value?.items)) return value.items;
+      return [];
+    };
+    return toArray(readJson(["educlearInvoiceRuns"], []));
+  });
+
   const [invoiceRunActionsOpen, setInvoiceRunActionsOpen] = useState(false);
   const [invoiceRunActionType, setInvoiceRunActionType] = useState<
 
@@ -25216,6 +25260,18 @@ case "runs": {
 
 
 
+  const writeJson = (key: string, value: any) => {
+
+
+
+    localStorage.setItem(key, JSON.stringify(value));
+
+
+
+  };
+
+
+
   const toArray = (value: any) => {
 
 
@@ -25249,134 +25305,6 @@ case "runs": {
 
 
   };
-
-
-
-  const schoolProfile =
-
-
-
-    readJson(
-
-
-
-      [
-
-
-
-        "educlearCurrentSchool",
-
-
-
-        "educlearSchoolProfile",
-
-
-
-        "currentSchool",
-
-
-
-        "selectedSchool",
-
-
-
-        "schoolProfile",
-
-
-
-        "school",
-
-
-
-      ],
-
-
-
-      {}
-
-
-
-    ) || {};
-
-
-
-  const schoolName =
-
-
-
-    schoolProfile?.name ||
-
-
-
-    schoolProfile?.schoolName ||
-
-
-
-    schoolProfile?.registeredName ||
-
-
-
-    "School Name";
-
-
-
-  const schoolEmail =
-
-
-
-    schoolProfile?.email ||
-
-
-
-    schoolProfile?.schoolEmail ||
-
-
-
-    schoolProfile?.contactEmail ||
-
-
-
-    "info@educlear.co.za";
-
-
-
-  const schoolPhone =
-
-
-
-    schoolProfile?.phone ||
-
-
-
-    schoolProfile?.cell ||
-
-
-
-    schoolProfile?.telephone ||
-
-
-
-    "";
-
-
-
-  const schoolAddress =
-
-
-
-    schoolProfile?.address ||
-
-
-
-    schoolProfile?.physicalAddress ||
-
-
-
-    schoolProfile?.streetAddress ||
-
-
-
-    "School address not captured";
 
 
 
@@ -25431,8 +25359,12 @@ case "runs": {
   );
 
 
+  
+  
 
-  const storedRuns = toArray(readJson(["educlearInvoiceRuns"], []));
+
+
+  const savedBillingPlans = readJson(["educlearBillingPlans"], {});
 
 
 
@@ -25489,6 +25421,10 @@ case "runs": {
 
 
     border: "1px solid #b89329",
+
+
+
+    color: "#111827",
 
 
 
@@ -25640,34 +25576,6 @@ case "runs": {
 
 
 
-  const label = {
-
-
-
-    display: "block",
-
-
-
-    fontSize: "13px",
-
-
-
-    fontWeight: 900,
-
-
-
-    color: "#334155",
-
-
-
-    marginBottom: "6px",
-
-
-
-  };
-
-
-
   const learnerFullName = (learner: any) =>
 
 
@@ -25681,6 +25589,30 @@ case "runs": {
 
 
     }`.trim() || "Learner";
+
+
+
+  const getLearnerBillingPlan = (learner: any) => {
+
+
+
+    const saved = savedBillingPlans?.[learner?.id];
+
+
+
+    if (Array.isArray(saved)) return saved;
+
+
+
+    if (Array.isArray(learner?.billingPlan)) return learner.billingPlan;
+
+
+
+    return [];
+
+
+
+  };
 
 
 
@@ -25708,11 +25640,7 @@ case "runs": {
 
 
 
-      (Array.isArray(learner?.parents) ? learner.parents[0] : null) ||
-
-
-
-      (Array.isArray(learner?.guardians) ? learner.guardians[0] : null);
+      (Array.isArray(learner?.parents) ? learner.parents[0] : null);
 
 
 
@@ -25721,54 +25649,6 @@ case "runs": {
 
 
     const learnerId = String(learner?.id || "");
-
-
-
-    const learnerAccount = String(
-
-
-
-      learner?.accountNo ||
-
-
-
-        learner?.accountNumber ||
-
-
-
-        learner?.admissionNo ||
-
-
-
-        ""
-
-
-
-    ).toLowerCase();
-
-
-
-    const parentId = String(
-
-
-
-      learner?.parentId ||
-
-
-
-        learner?.primaryParentId ||
-
-
-
-        learner?.guardianId ||
-
-
-
-        ""
-
-
-
-    );
 
 
 
@@ -25784,34 +25664,6 @@ case "runs": {
 
 
 
-        const pId = String(parent?.id || parent?.parentId || "");
-
-
-
-        const pAccount = String(
-
-
-
-          parent?.accountNo ||
-
-
-
-            parent?.accountNumber ||
-
-
-
-            parent?.familyCode ||
-
-
-
-            ""
-
-
-
-        ).toLowerCase();
-
-
-
         const childIds = [
 
 
@@ -25824,15 +25676,7 @@ case "runs": {
 
 
 
-          parent?.studentId,
-
-
-
           ...(Array.isArray(parent?.learnerIds) ? parent.learnerIds : []),
-
-
-
-          ...(Array.isArray(parent?.childrenIds) ? parent.childrenIds : []),
 
 
 
@@ -25864,43 +25708,11 @@ case "runs": {
 
 
 
-          ...(Array.isArray(parent?.children)
-
-
-
-            ? parent.children.map((child: any) => learnerFullName(child))
-
-
-
-            : []),
-
-
-
         ].map((x: any) => String(x || "").toLowerCase());
 
 
 
-        return (
-
-
-
-          (parentId && pId && parentId === pId) ||
-
-
-
-          (learnerId && childIds.includes(learnerId)) ||
-
-
-
-          (learnerAccount && pAccount && learnerAccount === pAccount) ||
-
-
-
-          (learnerName && childNames.includes(learnerName))
-
-
-
-        );
+        return childIds.includes(learnerId) || childNames.includes(learnerName);
 
 
 
@@ -25921,91 +25733,11 @@ case "runs": {
 
 
 
-    const feeSourceRows = toArray(
+    const fees = getLearnerBillingPlan(learner);
 
 
 
-      readJson(["educlearFees", "fees", "schoolFees", "feeRows", "billingFees"], [])
-    
-    
-    
-    );
-    
-    
-    
-    const learnerFees = Array.isArray(feeSourceRows)
-    
-    
-    
-      ? feeSourceRows.filter((fee: any) => { 
-
-
-
-          const learnerGrade = String(
-
-
-
-            learner?.grade ||
-
-
-
-              learner?.classroom ||
-
-
-
-              learner?.gradeName ||
-
-
-
-              ""
-
-
-
-          ).toLowerCase();
-
-
-
-          const feeGrade = String(
-
-
-
-            fee?.grade ||
-
-
-
-              fee?.classroom ||
-
-
-
-              fee?.appliesTo ||
-
-
-
-              ""
-
-
-
-          ).toLowerCase();
-
-
-
-          if (!feeGrade) return true;
-
-
-
-          return learnerGrade.includes(feeGrade);
-
-
-
-        })
-
-
-
-      : [];
-
-
-
-    const invoiceAmount = learnerFees.reduce(
+    const invoiceAmount = fees.reduce(
 
 
 
@@ -26013,7 +25745,7 @@ case "runs": {
 
 
 
-        total + Number(fee?.amount || 0),
+        total + Number(fee?.amount || fee?.feeAmount || fee?.monthlyAmount || 0),
 
 
 
@@ -26037,7 +25769,7 @@ case "runs": {
 
 
 
-      `${parent?.firstName || ""} ${parent?.lastName || ""}`.trim() ||
+      `${parent?.firstName || ""} ${parent?.surname || parent?.lastName || ""}`.trim() ||
 
 
 
@@ -26089,11 +25821,23 @@ case "runs": {
 
 
 
+      firstName: learner?.firstName || learner?.name || "",
+
+
+
+      surname: learner?.surname || learner?.lastName || "",
+
+
+
       classroom:
 
 
 
         learner?.classroom ||
+
+
+
+        learner?.className ||
 
 
 
@@ -26145,11 +25889,23 @@ case "runs": {
 
 
 
+      balance: Number(learner?.balance || learner?.outstandingAmount || 0),
+
+
+
       invoiceAmount,
 
 
 
+      newBalance: Number(learner?.balance || learner?.outstandingAmount || 0) + invoiceAmount,
+
+
+
       status: invoiceAmount <= 0 ? "Paid" : "Unpaid",
+
+
+
+      fees,
 
 
 
@@ -26161,7 +25917,15 @@ case "runs": {
 
 
 
-  const filteredRows = selectedRows.filter((row: any) => {
+  const selectedRun = readJson(["educlearSelectedInvoiceRun"], null);
+
+
+
+  const runRows = Array.isArray(selectedRun?.rows) ? selectedRun.rows : selectedRows;
+
+
+
+  const filteredRows = runRows.filter((row: any) => {
 
 
 
@@ -26169,43 +25933,23 @@ case "runs": {
 
 
 
+    const q = invoiceRunSearch.toLowerCase();
+
+
+
     return (
 
 
 
-      String(row?.learnerName || "")
+      String(row?.learnerName || "").toLowerCase().includes(q) ||
 
 
 
-        .toLowerCase()
+      String(row?.parentName || "").toLowerCase().includes(q) ||
 
 
 
-        .includes(invoiceRunSearch.toLowerCase()) ||
-
-
-
-      String(row?.parentName || "")
-
-
-
-        .toLowerCase()
-
-
-
-        .includes(invoiceRunSearch.toLowerCase()) ||
-
-
-
-      String(row?.accountNo || "")
-
-
-
-        .toLowerCase()
-
-
-
-        .includes(invoiceRunSearch.toLowerCase())
+      String(row?.accountNo || "").toLowerCase().includes(q)
 
 
 
@@ -26233,7 +25977,956 @@ case "runs": {
 
 
 
-  if (invoiceRunView === "printInvoices") {
+  const runTotalPages = Math.max(1, Math.ceil(filteredRows.length / 10));
+
+
+
+  const runTotalAmount = runRows.reduce(
+
+
+
+    (sum: number, row: any) => sum + Number(row.invoiceAmount || 0),
+
+
+
+    0
+
+
+
+  );
+
+
+
+  const saveRun = (run: any) => {
+
+
+
+    const existingRuns = toArray(readJson(["educlearInvoiceRuns"], []));
+
+
+
+    const updatedRuns = existingRuns.some((item: any) => String(item.id) === String(run.id))
+
+
+
+      ? existingRuns.map((item: any) => (String(item.id) === String(run.id) ? run : item))
+
+
+
+      : [run, ...existingRuns];
+
+
+
+    writeJson("educlearInvoiceRuns", updatedRuns);
+
+    setStoredRuns(updatedRuns);
+
+    writeJson("educlearSelectedInvoiceRun", run);
+
+
+
+  };
+
+
+
+  const createNewRun = (original = false) => {
+
+
+
+    const now = new Date();
+
+
+
+    const runMonthDate = new Date(
+
+
+
+      now.getFullYear(),
+
+
+
+      now.getMonth() + 1,
+
+
+
+      1
+
+
+
+    );
+
+
+
+    const month = runMonthDate.toLocaleString("en-ZA", {
+
+
+
+      month: "long",
+
+
+
+      year: "numeric",
+
+
+
+    });
+
+
+
+    const run: any = {
+
+
+
+      id: `RUN-${Date.now()}`,
+
+
+
+      date: now.toISOString().slice(0, 10).replaceAll("-", "/"),
+
+
+
+      month,
+
+
+
+      invoiceDate: now.toISOString().slice(0, 10),
+
+
+
+      dueDate: now.toISOString().slice(0, 10),
+
+
+
+      invoiceMessage:
+
+
+
+        "School fees to be paid in full by the 3rd of the month.\nArrangements for those parents that receive their salary on the 15th of the month. Late payment penalty of R300 will apply.\n\nPlease keep all receipts safe if there might be any inquiries.",
+
+
+
+      rows: selectedRows,
+
+
+
+      totalInvoices: selectedRows.length,
+
+
+
+      totalAmount: selectedRows.reduce(
+
+
+
+        (sum: number, row: any) => sum + Number(row.invoiceAmount || 0),
+
+
+
+        0
+
+
+
+      ),
+
+
+
+      original,
+
+
+
+      createdAt: now.toISOString(),
+
+
+
+    };
+
+
+
+    run.description = `Invoice Run For ${run.month || ""}`;
+
+
+
+    saveRun(run);
+
+
+
+    setInvoiceRunSettings((prev: any) => ({
+
+
+
+      ...prev,
+
+
+
+      month: run.month || "",
+
+
+
+      description: run.description,
+
+
+
+      invoiceDate: run.invoiceDate,
+
+
+
+      dueDate: run.dueDate,
+
+
+
+      message: run.invoiceMessage,
+
+
+
+    }));
+
+
+
+    setInvoiceRunView("wizardStart");
+
+
+
+  };
+
+
+
+  const openRun = (run: any) => {
+
+
+
+    saveRun(run);
+
+
+
+    setInvoiceRunSettings((prev: any) => ({
+
+
+
+      ...prev,
+
+
+
+      description: run.description || prev.description,
+
+
+
+      month: run.month || prev.month,
+
+
+
+      invoiceDate: run.invoiceDate || prev.invoiceDate,
+
+
+
+      dueDate: run.dueDate || prev.dueDate,
+
+
+
+      message: run.invoiceMessage || prev.message,
+
+
+
+    }));
+
+
+
+    setInvoiceRunView("manage");
+
+
+
+  };
+
+
+
+  const updateCurrentRun = (patch: any) => {
+
+
+
+    const current = readJson(["educlearSelectedInvoiceRun"], null);
+
+
+
+    if (!current) return;
+
+
+
+    const updated = {
+
+
+
+      ...current,
+
+
+
+      ...patch,
+
+
+
+      totalInvoices: Array.isArray(current.rows) ? current.rows.length : runRows.length,
+
+
+
+      totalAmount: (Array.isArray(current.rows) ? current.rows : runRows).reduce(
+
+
+
+        (sum: number, row: any) => sum + Number(row.invoiceAmount || 0),
+
+
+
+        0
+
+
+
+      ),
+
+
+
+    };
+
+
+
+    saveRun(updated);
+
+
+
+  };
+
+
+
+  const deleteCurrentRun = () => {
+
+
+
+    const current = readJson(["educlearSelectedInvoiceRun"], null);
+
+
+
+    if (!current) return alert("No invoice run selected.");
+
+
+
+    if (!window.confirm("Delete this invoice run?")) return;
+
+
+
+    const existingRuns = toArray(readJson(["educlearInvoiceRuns"], []));
+
+
+
+    const updatedRuns = existingRuns.filter(
+
+
+
+      (item: any) => String(item.id) !== String(current.id)
+
+
+
+    );
+
+
+
+    writeJson("educlearInvoiceRuns", updatedRuns);
+
+    setStoredRuns(updatedRuns);
+
+    localStorage.removeItem("educlearSelectedInvoiceRun");
+
+
+
+    setInvoiceRunView("list");
+
+
+
+  };
+
+
+
+  const stepNames = [
+
+
+
+    "Start",
+
+
+
+    "Settings",
+
+
+
+    "Children",
+
+
+
+    "Fees",
+
+
+
+    "Preview",
+
+
+
+    "Create Invoices",
+
+
+
+    "Summary",
+
+
+
+    "Finish",
+
+
+
+  ];
+
+
+
+  const Stepper = ({ step }: { step: number }) => (
+
+
+
+    <div style={{ padding: "18px 10px 26px" }}>
+
+
+
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(8, 1fr)", alignItems: "center" }}>
+
+
+
+        {stepNames.map((name, index) => {
+
+
+
+          const n = index + 1;
+
+
+
+          const done = n < step;
+
+
+
+          const active = n === step;
+
+
+
+          return (
+
+
+
+            <div key={name} style={{ textAlign: "center", position: "relative" }}>
+
+
+
+              {index > 0 && (
+
+
+
+                <div
+
+
+
+                  style={{
+
+
+
+                    position: "absolute",
+
+
+
+                    top: 20,
+
+
+
+                    left: "-50%",
+
+
+
+                    width: "100%",
+
+
+
+                    height: 4,
+
+
+
+                    background: n <= step ? "#2563eb" : "#cbd5e1",
+
+
+
+                    zIndex: 0,
+
+
+
+                  }}
+
+
+
+                />
+
+
+
+              )}
+
+
+
+              <div
+
+
+
+                style={{
+
+
+
+                  width: 42,
+
+
+
+                  height: 42,
+
+
+
+                  borderRadius: 999,
+
+
+
+                  margin: "0 auto",
+
+
+
+                  display: "grid",
+
+
+
+                  placeItems: "center",
+
+
+
+                  position: "relative",
+
+
+
+                  zIndex: 1,
+
+
+
+                  border: `4px solid ${done || active ? "#2563eb" : "#cbd5e1"}`,
+
+
+
+                  background: done ? "#dcfce7" : "#ffffff",
+
+
+
+                  color: done ? "#15803d" : "#334155",
+
+
+
+                  fontWeight: 950,
+
+
+
+                }}
+
+
+
+              >
+
+
+
+                {done ? "✓" : n}
+
+
+
+              </div>
+
+
+
+              <div style={{ marginTop: 8, fontSize: 13, fontWeight: 800, color: "#334155" }}>
+
+
+
+                {name}
+
+
+
+              </div>
+
+
+
+            </div>
+
+
+
+          );
+
+
+
+        })}
+
+
+
+      </div>
+
+
+
+    </div>
+
+
+
+  );
+
+
+
+  const WizardShell = ({
+
+
+
+    step,
+
+
+
+    title,
+
+
+
+    description,
+
+
+
+    previous,
+
+
+
+    next,
+
+
+
+    nextLabel = "Next ➜",
+
+
+
+    children,
+
+
+
+  }: any) => (
+
+
+
+    <div style={{ display: "flex", flexDirection: "column", gap: 18 }}>
+
+
+
+      <h1 className="page-title">
+
+
+
+        Invoice Run{" "}
+
+
+
+        <span style={{ color: "#64748b", fontSize: 18 }}>» Perform a new invoice run</span>
+
+
+
+      </h1>
+
+
+
+      <Stepper step={step} />
+
+
+
+      <div style={{ display: "flex", justifyContent: "space-between", gap: 10 }}>
+
+
+
+        <button style={btn} onClick={() => setInvoiceRunView(previous || "list")}>
+
+
+
+          ← Previous
+
+
+
+        </button>
+
+
+
+        <button
+
+
+
+style={btn}
+
+
+
+onClick={() => {
+
+
+
+  if (step === 2) {
+
+
+
+    const settingsBox = document.querySelector(
+
+
+
+      "[data-invoice-settings='yes']"
+
+
+
+    ) as HTMLElement | null;
+
+
+
+    const descriptionInput = settingsBox?.querySelector(
+
+
+
+      "[data-field='description']"
+
+
+
+    ) as HTMLInputElement | null;
+
+
+
+    const invoiceDateInput = settingsBox?.querySelector(
+
+
+
+      "[data-field='invoiceDate']"
+
+
+
+    ) as HTMLInputElement | null;
+
+
+
+    const dueDateInput = settingsBox?.querySelector(
+
+
+
+      "[data-field='dueDate']"
+
+
+
+    ) as HTMLInputElement | null;
+
+
+
+    const monthInput = settingsBox?.querySelector(
+
+
+
+      "[data-field='month']"
+
+
+
+    ) as HTMLInputElement | null;
+
+
+
+    const messageInput = settingsBox?.querySelector(
+
+
+
+      "[data-field='message']"
+
+
+
+    ) as HTMLTextAreaElement | null;
+
+
+
+    const updatedSettings = {
+
+
+
+      ...invoiceRunSettings,
+
+
+
+      description:
+
+
+
+        descriptionInput?.value || invoiceRunSettings.description,
+
+
+
+      invoiceDate:
+
+
+
+        invoiceDateInput?.value || invoiceRunSettings.invoiceDate,
+
+
+
+      dueDate: dueDateInput?.value || invoiceRunSettings.dueDate,
+
+
+
+      month: monthInput?.value || invoiceRunSettings.month,
+
+
+
+      message: messageInput?.value || invoiceRunSettings.message,
+
+
+
+    };
+
+
+
+    setInvoiceRunSettings(updatedSettings);
+
+
+
+    const current = readJson(
+
+
+
+      ["educlearSelectedInvoiceRun"],
+
+
+
+      selectedRun
+
+
+
+    );
+
+
+
+    if (current) {
+
+
+
+      saveRun({
+
+
+
+        ...current,
+
+
+
+        description: updatedSettings.description,
+
+
+
+        invoiceDate: updatedSettings.invoiceDate,
+
+
+
+        dueDate: updatedSettings.dueDate,
+
+
+
+        month: updatedSettings.month,
+
+
+
+        invoiceMessage: updatedSettings.message,
+
+
+
+      });
+
+
+
+    }
+
+
+
+  }
+
+
+
+    setInvoiceRunView(next);
+
+
+
+      }}
+
+
+
+   >
+
+
+
+    {nextLabel}
+
+
+
+     </button>
+
+
+
+      </div>
+
+
+
+      <div
+
+
+
+        style={{
+
+
+
+          border: "1px solid #d8dee8",
+
+
+
+          background: "#ffffff",
+
+
+
+          padding: 24,
+
+
+
+          borderRadius: 14,
+
+
+
+          textAlign: "center",
+
+
+
+        }}
+
+
+
+      >
+
+
+
+        <h2 style={{ margin: 0, color: "#2563eb", fontWeight: 800 }}>{title}</h2>
+
+
+
+        <p style={{ color: "#334155", fontWeight: 600 }}>{description}</p>
+
+
+
+      </div>
+
+
+
+      {children}
+
+
+
+    </div>
+
+
+
+  );
+  if (invoiceRunView === "wizardStart") {
 
 
 
@@ -26241,7 +26934,31 @@ case "runs": {
 
 
 
-      <div style={{ display: "flex", flexDirection: "column", gap: 24 }}>
+      <WizardShell
+
+
+
+        step={1}
+
+
+
+        title="Start"
+
+
+
+        description="You are about to start the invoice run wizard. Choose from one of the options below to get started."
+
+
+
+        previous="list"
+
+
+
+        next="wizardSettings"
+
+
+
+      >
 
 
 
@@ -26253,15 +26970,27 @@ case "runs": {
 
 
 
-            display: "flex",
+            padding: "14px 18px",
 
 
 
-            justifyContent: "space-between",
+            background: "#dbeafe",
 
 
 
-            alignItems: "center",
+            border: "1px solid #bfdbfe",
+
+
+
+            color: "#1e3a8a",
+
+
+
+            fontWeight: 700,
+
+
+
+            borderRadius: 10,
 
 
 
@@ -26273,43 +27002,107 @@ case "runs": {
 
 
 
-          <div>
+          <b>New!</b> As you can see we have enhanced the invoice run process to give you more
 
 
 
-            <h1 className="page-title">Print Invoices</h1>
+          flexibility. Choose the standard option for the original invoice run experience.
 
 
 
-            <div
+        </div>
 
 
 
-              style={{
+        <div style={{ maxWidth: 680, margin: "0 auto", display: "grid", gap: 18 }}>
 
 
 
-                fontSize: "13px",
+          <div
 
 
 
-                color: "#64748b",
+            style={{
 
 
 
-                marginTop: 4,
+              border: "1px solid #d8dee8",
 
 
 
-              }}
+              borderRadius: 12,
 
 
 
-            >
+              background: "#ffffff",
 
 
 
-              Invoice batch preview before printing
+              padding: 20,
+
+
+
+              display: "grid",
+
+
+
+              gridTemplateColumns: "1fr 170px",
+
+
+
+              gap: 18,
+
+
+
+              alignItems: "start",
+
+
+
+            }}
+
+
+
+          >
+
+
+
+            <div>
+
+
+
+              <h2 style={{ color: "#2563eb", marginTop: 0 }}>Standard</h2>
+
+
+
+              <div style={{ fontWeight: 900, color: "#64748b", marginBottom: 10 }}>
+
+
+
+                All Children + Billing Plan Fees
+
+
+
+              </div>
+
+
+
+              <ul style={{ marginTop: 0, color: "#334155", lineHeight: 1.6 }}>
+
+
+
+                <li>All enrolled children will be selected for this invoice run.</li>
+
+
+
+                <li>The fees on each child&apos;s billing plan will be used for each invoice.</li>
+
+
+
+                <li>You will have the option to add extra fees to all invoices.</li>
+
+
+
+              </ul>
 
 
 
@@ -26317,31 +27110,11 @@ case "runs": {
 
 
 
-          </div>
+            <button style={goldBtn} onClick={() => setInvoiceRunView("wizardSettings")}>
 
 
 
-          <div style={{ display: "flex", gap: 10 }}>
-
-
-
-            <button
-
-
-
-              style={btn}
-
-
-
-              onClick={() => setInvoiceRunView("list")}
-
-
-
-            >
-
-
-
-              ← Back
+              This one!
 
 
 
@@ -26349,23 +27122,107 @@ case "runs": {
 
 
 
-            <button
+          </div>
 
 
 
-              style={goldBtn}
+          <div
 
 
 
-              onClick={() => window.print()}
+            style={{
 
 
 
-            >
+              border: "1px solid #d8dee8",
 
 
 
-              View / Print
+              borderRadius: 12,
+
+
+
+              background: "#ffffff",
+
+
+
+              padding: 20,
+
+
+
+              display: "grid",
+
+
+
+              gridTemplateColumns: "1fr 170px",
+
+
+
+              gap: 18,
+
+
+
+              alignItems: "start",
+
+
+
+            }}
+
+
+
+          >
+
+
+
+            <div>
+
+
+
+              <h2 style={{ color: "#2563eb", marginTop: 0 }}>Selected</h2>
+
+
+
+              <div style={{ fontWeight: 900, color: "#64748b", marginBottom: 10 }}>
+
+
+
+                Selected Children + Billing Plan Fees
+
+
+
+              </div>
+
+
+
+              <ul style={{ marginTop: 0, color: "#334155", lineHeight: 1.6 }}>
+
+
+
+                <li>You will choose which children will be selected for this invoice run.</li>
+
+
+
+                <li>The fees on each child&apos;s billing plan will be used for each invoice.</li>
+
+
+
+                <li>You will have the option to add extra fees to all invoices.</li>
+
+
+
+              </ul>
+
+
+
+            </div>
+
+
+
+            <button style={goldBtn} onClick={() => setInvoiceRunView("wizardSettings")}>
+
+
+
+              This one!
 
 
 
@@ -26381,23 +27238,75 @@ case "runs": {
 
 
 
-        <div
+      </WizardShell>
 
 
 
-          className="premium-card"
+    );
 
 
 
-          style={{
+  }
 
 
 
-            padding: 20,
+  if (invoiceRunView === "wizardSettings") {
 
 
 
-            borderRadius: 20,
+    return (
+
+
+
+      <WizardShell
+
+
+
+        step={2}
+
+
+
+        title="Settings"
+
+
+
+        description="Please fill in the required settings for this invoice run and then click on Next to continue."
+
+
+
+        previous="wizardStart"
+
+
+
+        next="wizardChildren"
+
+
+
+      >
+
+
+
+         <div
+
+
+
+    data-invoice-settings="yes"
+
+
+
+       style={{
+
+
+
+        maxWidth: 720,
+
+
+
+            margin: "0 auto",
+
+
+
+            border: "1px solid #d8dee8",
 
 
 
@@ -26405,7 +27314,11 @@ case "runs": {
 
 
 
-            border: "1px solid rgba(15,23,42,0.08)",
+            borderRadius: 14,
+
+
+
+            padding: 22,
 
 
 
@@ -26425,19 +27338,19 @@ case "runs": {
 
 
 
-              fontSize: "18px",
+              display: "grid",
 
 
 
-              fontWeight: 900,
+              gridTemplateColumns: "180px 1fr",
 
 
 
-              color: "#0f172a",
+              gap: 12,
 
 
 
-              marginBottom: 18,
+              alignItems: "start",
 
 
 
@@ -26449,7 +27362,205 @@ case "runs": {
 
 
 
-            Invoices In This Run
+            <label style={{ fontWeight: 900, color: "#334155" }}>* Description</label>
+
+
+
+            <input
+
+
+
+  data-field="description"
+
+
+
+  style={input}
+
+
+
+  value={`Invoice Run For ${invoiceRunSettings.month || ""}`}
+
+
+
+  readOnly
+
+
+
+/>
+
+
+
+            <label style={{ fontWeight: 900, color: "#334155" }}>* Date On Invoices</label>
+
+
+
+            <input
+
+
+
+              type="date"
+
+
+
+              style={input}
+
+
+
+              defaultValue={invoiceRunSettings.invoiceDate || ""}
+
+
+
+onBlur={(e) =>
+
+
+
+  setInvoiceRunSettings({
+
+
+
+    ...invoiceRunSettings,
+
+
+
+    invoiceDate: e.target.value
+
+
+
+  })
+
+
+
+}
+
+
+
+            />
+
+
+
+            <label style={{ fontWeight: 900, color: "#334155" }}>* Due Date On Invoices</label>
+
+
+
+            <input
+
+
+
+              type="date"
+
+
+
+              style={input}
+
+
+
+              defaultValue={invoiceRunSettings.dueDate || ""}
+
+
+
+              onBlur={(e) =>
+              
+              
+              
+                setInvoiceRunSettings({
+              
+              
+              
+                  ...invoiceRunSettings,
+              
+              
+              
+                  dueDate: e.target.value,
+              
+              
+              
+                })
+              
+              
+              
+              }
+
+
+
+            />
+
+
+
+            <label style={{ fontWeight: 900, color: "#334155" }}>* For The Month Of</label>
+
+
+
+            <input
+
+
+
+              style={input}
+
+
+
+              defaultValue={invoiceRunSettings.month ?? ""}
+
+
+
+              onBlur={(e) =>
+
+                setInvoiceRunSettings({
+              
+                  ...invoiceRunSettings,
+              
+                  month: e.target.value,
+              
+                })
+              
+              }
+
+
+
+            />
+
+
+
+            <label style={{ fontWeight: 900, color: "#334155" }}>Message On Invoices</label>
+
+
+
+            <textarea
+
+
+
+              style={{ ...input, minHeight: 170, resize: "vertical" }}
+
+
+
+              defaultValue={invoiceRunSettings.message || ""}
+
+
+
+onBlur={(e) =>
+
+
+
+  setInvoiceRunSettings({
+
+
+
+    ...invoiceRunSettings,
+
+
+
+    description: e.target.value,
+
+
+
+  })
+
+
+
+}
+
+
+
+            />
 
 
 
@@ -26457,27 +27568,123 @@ case "runs": {
 
 
 
-          <table
+        </div>
 
 
 
-            style={{
+      </WizardShell>
 
 
 
-              width: "100%",
+    );
 
 
 
-              borderCollapse: "collapse",
+  }
 
 
 
-            }}
+  if (invoiceRunView === "wizardChildren") {
 
 
 
-          >
+    return (
+
+
+
+      <WizardShell
+
+
+
+        step={3}
+
+
+
+        title="Children"
+
+
+
+        description="The following children are selected to be invoiced. You can add and remove children as you wish. Once you are happy click on Next to continue."
+
+
+
+        previous="wizardSettings"
+
+
+
+        next="wizardFees"
+
+
+
+      >
+
+
+
+        <div
+
+
+
+          style={{
+
+
+
+            border: "1px solid #d8dee8",
+
+
+
+            background: "#ffffff",
+
+
+
+            borderRadius: 14,
+
+
+
+            overflow: "hidden",
+
+
+
+          }}
+
+
+
+        >
+
+
+
+          <div style={{ padding: 12, display: "flex", gap: 10 }}>
+
+
+
+            <button style={goldBtn} onClick={() => alert("All enrolled children are already included.")}>
+
+
+
+              + Add
+
+
+
+            </button>
+
+
+
+            <button style={goldBtn} onClick={() => alert("Auto Add completed.")}>
+
+
+
+              + Auto Add
+
+
+
+            </button>
+
+
+
+          </div>
+
+
+
+          <table style={{ width: "100%", borderCollapse: "collapse" }}>
 
 
 
@@ -26493,35 +27700,31 @@ case "runs": {
 
 
 
-                <th style={th}>Invoice No</th>
+                <th style={th}>Name</th>
 
 
 
-                <th style={th}>Learner</th>
+                <th style={th}>Surname</th>
 
 
 
-                <th style={th}>Parent</th>
+                <th style={th}>Classroom / Group</th>
 
 
 
-                <th style={th}>Email</th>
+                <th style={{ ...th, textAlign: "right" }}>Balance</th>
 
 
 
-                <th style={{ ...th, textAlign: "right" }}>
+                <th style={th}>Last Invoice</th>
 
 
 
-                  Amount
+                <th style={th}>Account Status</th>
 
 
 
-                </th>
-
-
-
-                <th style={th}>Status</th>
+                <th style={th}></th>
 
 
 
@@ -26537,7 +27740,7 @@ case "runs": {
 
 
 
-              {filteredRows.map((row: any, index: number) => (
+              {runRows.map((row: any, index: number) => (
 
 
 
@@ -26557,15 +27760,7 @@ case "runs": {
 
 
 
-                      index % 2 === 0
-
-
-
-                        ? "#ffffff"
-
-
-
-                        : "rgba(212,175,55,0.05)",
+                      index % 2 === 0 ? "#ffffff" : "rgba(212,175,55,0.05)",
 
 
 
@@ -26581,63 +27776,23 @@ case "runs": {
 
 
 
-                  <td style={td}>{row.invoiceNo}</td>
+                  <td style={td}>{row.firstName || row.learnerName}</td>
 
 
 
-                  <td style={td}>{row.learnerName}</td>
+                  <td style={td}>{row.surname || ""}</td>
 
 
 
-                  <td style={td}>{row.parentName}</td>
+                  <td style={td}>{row.classroom}</td>
 
 
 
-                  <td style={td}>
+                  <td style={{ ...td, textAlign: "right" }}>{money(row.balance)}</td>
 
 
 
-                    {row.parentEmail || "Missing Email"}
-
-
-
-                  </td>
-
-
-
-                  <td
-
-
-
-                    style={{
-
-
-
-                      ...td,
-
-
-
-                      textAlign: "right",
-
-
-
-                      fontWeight: 900,
-
-
-
-                    }}
-
-
-
-                  >
-
-
-
-                    {money(row.invoiceAmount)}
-
-
-
-                  </td>
+                  <td style={td}>{money(row.invoiceAmount)} on {invoiceRunSettings.invoiceDate}</td>
 
 
 
@@ -26661,7 +27816,7 @@ case "runs": {
 
 
 
-                        row.status === "Paid"
+                        row.balance < 0
 
 
 
@@ -26669,7 +27824,15 @@ case "runs": {
 
 
 
-                          : "#b91c1c",
+                          : row.balance > 5000
+
+
+
+                            ? "#b91c1c"
+
+
+
+                            : "#ca8a04",
 
 
 
@@ -26678,6 +27841,1668 @@ case "runs": {
 
 
                   >
+
+
+
+                    {row.balance < 0 ? "Over Paid" : row.balance > 5000 ? "Bad Debt" : "Recently Owing"}
+
+
+
+                  </td>
+
+
+
+                  <td style={td}>
+
+
+
+                    <button
+
+
+
+                      style={dangerBtn}
+
+
+
+                      onClick={() => {
+
+
+
+                        const current = readJson(["educlearSelectedInvoiceRun"], selectedRun);
+
+
+
+                        const rows = (Array.isArray(current?.rows) ? current.rows : runRows).filter(
+
+
+
+                          (item: any) => String(item.id) !== String(row.id)
+
+
+
+                        );
+
+
+
+                        updateCurrentRun({ rows });
+
+
+
+                      }}
+
+
+
+                    >
+
+
+
+                      ×
+
+
+
+                    </button>
+
+
+
+                  </td>
+
+
+
+                </tr>
+
+
+
+              ))}
+
+
+
+            </tbody>
+
+
+
+          </table>
+
+
+
+        </div>
+
+
+
+      </WizardShell>
+
+
+
+    );
+
+
+
+  }
+  if (invoiceRunView === "wizardFees") {
+
+
+
+    return (
+
+
+
+      <WizardShell
+
+
+
+        step={4}
+
+
+
+        title="Fees"
+
+
+
+        description="The fees on each child's billing plan will be used for each of the invoices. If you would like to add any extra fees on to all of the invoices click on Add Extra Fees below. Click on Next to continue."
+
+
+
+        previous="wizardChildren"
+
+
+
+        next="wizardPreview"
+
+
+
+      >
+
+
+
+        <div style={{ maxWidth: 720, margin: "0 auto" }}>
+
+
+
+          <button
+
+
+
+            style={{ ...btn, width: "100%", padding: 14 }}
+
+
+
+            onClick={() => {
+
+
+
+              const description = window.prompt("Extra fee description:");
+
+
+
+              if (!description) return;
+
+
+
+              const amount = Number(window.prompt("Extra fee amount:") || 0);
+
+
+
+              if (!amount || amount <= 0) {
+
+
+
+                alert("Please enter a valid amount.");
+
+
+
+                return;
+
+
+
+              }
+
+
+
+              const current = readJson(["educlearSelectedInvoiceRun"], selectedRun);
+
+
+
+              const rows = (Array.isArray(current?.rows) ? current.rows : runRows).map((row: any) => {
+
+
+
+                const extraFee = {
+
+
+
+                  id: `extra-${Date.now()}`,
+
+
+
+                  description,
+
+
+
+                  name: description,
+
+
+
+                  type: "EXTRA",
+
+
+
+                  amount,
+
+
+
+                };
+
+
+
+                const fees = Array.isArray(row.fees) ? [...row.fees, extraFee] : [extraFee];
+
+
+
+                const invoiceAmount = fees.reduce(
+
+
+
+                  (sum: number, fee: any) => sum + Number(fee.amount || 0),
+
+
+
+                  0
+
+
+
+                );
+
+
+
+                return {
+
+
+
+                  ...row,
+
+
+
+                  fees,
+
+
+
+                  invoiceAmount,
+
+
+
+                  newBalance: Number(row.balance || 0) + invoiceAmount,
+
+
+
+                  status: invoiceAmount <= 0 ? "Paid" : "Unpaid",
+
+
+
+                };
+
+
+
+              });
+
+
+
+              updateCurrentRun({ rows });
+
+
+
+              alert("Extra fee added to all invoices.");
+
+
+
+            }}
+
+
+
+          >
+
+
+
+            Add Extra Fees
+
+
+
+          </button>
+
+
+
+        </div>
+
+
+
+      </WizardShell>
+
+
+
+    );
+
+
+
+  }
+
+
+
+  if (invoiceRunView === "wizardPreview") {
+
+
+
+    return (
+
+
+
+      <WizardShell
+
+
+
+        step={5}
+
+
+
+        title="Preview"
+
+
+
+        description={`An invoice WILL be made for the following ${runRows.length} children. You can also see what they will be charged for. If you are happy with this click on Next to continue.`}
+
+
+
+        previous="wizardFees"
+
+
+
+        next="wizardCreate"
+
+
+
+      >
+
+
+
+        <div
+
+
+
+          style={{
+
+
+
+            border: "1px solid #d8dee8",
+
+
+
+            background: "#ffffff",
+
+
+
+            borderRadius: 14,
+
+
+
+            overflow: "hidden",
+
+
+
+          }}
+
+
+
+        >
+
+
+
+          <table style={{ width: "100%", borderCollapse: "collapse" }}>
+
+
+
+            <thead>
+
+
+
+              <tr>
+
+
+
+                <th style={th}>Account No</th>
+
+
+
+                <th style={th}>Name</th>
+
+
+
+                <th style={th}>Surname</th>
+
+
+
+                <th style={th}>Classroom / Group</th>
+
+
+
+                <th style={{ ...th, textAlign: "right" }}>Balance</th>
+
+
+
+                <th style={{ ...th, textAlign: "center" }}>Items</th>
+
+
+
+                <th style={{ ...th, textAlign: "right" }}>Invoice</th>
+
+
+
+                <th style={{ ...th, textAlign: "right" }}>New Balance</th>
+
+
+
+              </tr>
+
+
+
+            </thead>
+
+
+
+            <tbody>
+
+
+
+              {runRows.map((row: any, index: number) => (
+
+
+
+                <tr
+
+
+
+                  key={String(row.id || index)}
+
+
+
+                  style={{
+
+
+
+                    background:
+
+
+
+                      index % 2 === 0 ? "#ffffff" : "rgba(212,175,55,0.05)",
+
+
+
+                  }}
+
+
+
+                >
+
+
+
+                  <td style={td}>{row.accountNo}</td>
+
+
+
+                  <td style={td}>{row.firstName || row.learnerName}</td>
+
+
+
+                  <td style={td}>{row.surname || ""}</td>
+
+
+
+                  <td style={td}>{row.classroom}</td>
+
+
+
+                  <td style={{ ...td, textAlign: "right" }}>{money(row.balance)}</td>
+
+
+
+                  <td style={{ ...td, textAlign: "center" }}>
+
+
+
+                    {Array.isArray(row.fees) ? row.fees.length : 0} 👁
+
+
+
+                  </td>
+
+
+
+                  <td style={{ ...td, textAlign: "right", fontWeight: 900 }}>
+
+
+
+                    {money(row.invoiceAmount)}
+
+
+
+                  </td>
+
+
+
+                  <td style={{ ...td, textAlign: "right", fontWeight: 900 }}>
+
+
+
+                    {money(row.newBalance)}
+
+
+
+                  </td>
+
+
+
+                </tr>
+
+
+
+              ))}
+
+
+
+            </tbody>
+
+
+
+          </table>
+
+
+
+        </div>
+
+
+
+      </WizardShell>
+
+
+
+    );
+
+
+
+  }
+
+
+
+  if (invoiceRunView === "wizardCreate") {
+
+
+
+    return (
+
+
+
+      <WizardShell
+
+
+
+        step={6}
+
+
+
+        title="Create Invoices"
+
+
+
+        description="You are now ready to create invoices! When you click on Next invoices will be made."
+
+
+
+        previous="wizardPreview"
+
+
+
+        next="wizardSummary"
+
+
+
+      >
+
+
+
+        <div
+
+
+
+          style={{
+
+
+
+            maxWidth: 620,
+
+
+
+            margin: "0 auto",
+
+
+
+            padding: 22,
+
+
+
+            borderRadius: 14,
+
+
+
+            border: "1px solid rgba(212,175,55,0.45)",
+
+
+
+            background: "rgba(212,175,55,0.08)",
+
+
+
+            textAlign: "center",
+
+
+
+            fontWeight: 800,
+
+
+
+            color: "#0f172a",
+
+
+
+          }}
+
+
+
+        >
+
+
+
+          Ready to create {runRows.length} invoices with a total value of{" "}
+
+
+
+          <span style={{ color: "#b45309", fontWeight: 950 }}>
+
+
+
+            {money(runTotalAmount)}
+
+
+
+          </span>
+
+
+
+          .
+
+
+
+        </div>
+
+
+
+      </WizardShell>
+
+
+
+    );
+
+
+
+  }
+
+
+
+  if (invoiceRunView === "wizardSummary") {
+
+
+
+    return (
+
+
+
+      <WizardShell
+
+
+
+        step={7}
+
+
+
+        title="Summary"
+
+
+
+        description={`Invoice run completed successfully! A total of ${runRows.length} invoices were created. Below you can see a list of these invoices.`}
+
+
+
+        previous="wizardCreate"
+
+
+
+        next="wizardFinish"
+
+
+
+      >
+
+
+
+        <div
+
+
+
+          style={{
+
+
+
+            border: "1px solid #d8dee8",
+
+
+
+            background: "#ffffff",
+
+
+
+            borderRadius: 14,
+
+
+
+            overflow: "hidden",
+
+
+
+          }}
+
+
+
+        >
+
+
+
+          <table style={{ width: "100%", borderCollapse: "collapse" }}>
+
+
+
+            <thead>
+
+
+
+              <tr>
+
+
+
+                <th style={th}>Invoice No</th>
+
+
+
+                <th style={th}>Date</th>
+
+
+
+                <th style={th}>Children</th>
+
+
+
+                <th style={th}>Parents</th>
+
+
+
+                <th style={{ ...th, textAlign: "right" }}>Amount</th>
+
+
+
+              </tr>
+
+
+
+            </thead>
+
+
+
+            <tbody>
+
+
+
+              {runRows.map((row: any, index: number) => (
+
+
+
+                <tr
+
+
+
+                  key={String(row.id || index)}
+
+
+
+                  style={{
+
+
+
+                    background:
+
+
+
+                      index % 2 === 0 ? "#ffffff" : "rgba(212,175,55,0.05)",
+
+
+
+                  }}
+
+
+
+                >
+
+
+
+                  <td style={td}>{row.invoiceNo}</td>
+
+
+
+                  <td style={td}>{invoiceRunSettings.invoiceDate || selectedRun?.invoiceDate}</td>
+
+
+
+                  <td style={td}>{row.learnerName}</td>
+
+
+
+                  <td style={td}>{row.parentName}</td>
+
+
+
+                  <td style={{ ...td, textAlign: "right", fontWeight: 900 }}>
+
+
+
+                    {money(row.invoiceAmount)}
+
+
+
+                  </td>
+
+
+
+                </tr>
+
+
+
+              ))}
+
+
+
+            </tbody>
+
+
+
+          </table>
+
+
+
+        </div>
+
+
+
+      </WizardShell>
+
+
+
+    );
+
+
+
+  }
+
+
+
+  if (invoiceRunView === "wizardFinish") {
+
+
+
+    return (
+
+
+
+      <WizardShell
+
+
+
+        step={8}
+
+
+
+        title="Finish"
+
+
+
+        description="You have now finished your invoice run! You may find the shortcut buttons and explanations below helpful."
+
+
+
+        previous="wizardSummary"
+
+
+
+        next="list"
+
+
+
+        nextLabel="Finish"
+
+
+
+      >
+
+
+
+        <div style={{ maxWidth: 760, margin: "0 auto", display: "grid", gap: 18 }}>
+
+
+
+          <div
+
+
+
+            style={{
+
+
+
+              border: "1px solid #d8dee8",
+
+
+
+              borderRadius: 12,
+
+
+
+              background: "#ffffff",
+
+
+
+              padding: 22,
+
+
+
+              display: "grid",
+
+
+
+              gridTemplateColumns: "1fr 190px",
+
+
+
+              gap: 18,
+
+
+
+              alignItems: "center",
+
+
+
+            }}
+
+
+
+          >
+
+
+
+            <div>
+
+
+
+              <h2 style={{ color: "#2563eb", marginTop: 0 }}>Email</h2>
+
+
+
+              <ul style={{ color: "#334155", lineHeight: 1.6, marginBottom: 0 }}>
+
+
+
+                <li>Choose one of these options to email invoices and / or statements to parents.</li>
+
+
+
+                <li>You will be able to review the mail and recipients before sending.</li>
+
+
+
+                <li>You can also do this later by going to Billing ➜ Invoice Runs.</li>
+
+
+
+              </ul>
+
+
+
+            </div>
+
+
+
+            <div style={{ display: "grid", gap: 8 }}>
+
+
+
+              <button style={btn} onClick={() => setInvoiceRunView("emailInvoices")}>
+
+
+
+                Email Invoices
+
+
+
+              </button>
+
+
+
+              <button style={btn} onClick={() => setInvoiceRunView("emailStatements")}>
+
+
+
+                Email Statements
+
+
+
+              </button>
+
+
+
+              <button style={btn} onClick={() => setInvoiceRunView("emailBoth")}>
+
+
+
+                Email Both
+
+
+
+              </button>
+
+
+
+            </div>
+
+
+
+          </div>
+
+
+
+          <div
+
+
+
+            style={{
+
+
+
+              border: "1px solid #d8dee8",
+
+
+
+              borderRadius: 12,
+
+
+
+              background: "#ffffff",
+
+
+
+              padding: 22,
+
+
+
+              display: "grid",
+
+
+
+              gridTemplateColumns: "1fr 190px",
+
+
+
+              gap: 18,
+
+
+
+              alignItems: "center",
+
+
+
+            }}
+
+
+
+          >
+
+
+
+            <div>
+
+
+
+              <h2 style={{ color: "#2563eb", marginTop: 0 }}>Print</h2>
+
+
+
+              <ul style={{ color: "#334155", lineHeight: 1.6, marginBottom: 0 }}>
+
+
+
+                <li>Choose one of these options to print invoices and / or statements from this invoice run.</li>
+
+
+
+                <li>You can also do this later by going to Billing ➜ Invoice Runs.</li>
+
+
+
+              </ul>
+
+
+
+            </div>
+
+
+
+            <div style={{ display: "grid", gap: 8 }}>
+
+
+
+              <button style={btn} onClick={() => setInvoiceRunView("printInvoices")}>
+
+
+
+                Print Invoices
+
+
+
+              </button>
+
+
+
+              <button style={btn} onClick={() => setInvoiceRunView("printStatements")}>
+
+
+
+                Print Statements
+
+
+
+              </button>
+
+
+
+              <button
+
+
+
+                style={btn}
+
+
+
+                onClick={() => {
+
+
+
+                  setInvoiceRunView("printInvoices");
+
+
+
+                  alert("Print Both starts with invoices. Print statements after invoices.");
+
+
+
+                }}
+
+
+
+              >
+
+
+
+                Print Both
+
+
+
+              </button>
+
+
+
+            </div>
+
+
+
+          </div>
+
+
+
+        </div>
+
+
+
+      </WizardShell>
+
+
+
+    );
+
+
+
+  }
+  if (
+
+
+
+    invoiceRunView === "emailInvoices" ||
+
+
+
+    invoiceRunView === "emailStatements" ||
+
+
+
+    invoiceRunView === "emailBoth"
+
+
+
+  ) {
+
+
+
+    const emailTitle =
+
+
+
+      invoiceRunView === "emailInvoices"
+
+
+
+        ? "Email Invoices"
+
+
+
+        : invoiceRunView === "emailStatements"
+
+
+
+          ? "Email Statements"
+
+
+
+          : "Email Invoices & Statements";
+
+
+
+    const readyCount = filteredRows.filter((row: any) => row.parentEmail).length;
+
+
+
+    return (
+
+
+
+      <div style={{ display: "flex", flexDirection: "column", gap: 24 }}>
+
+
+
+        <div style={{ display: "flex", justifyContent: "space-between", gap: 12 }}>
+
+
+
+          <div>
+
+
+
+            <h1 className="page-title">{emailTitle}</h1>
+
+
+
+            <div style={{ fontSize: 13, color: "#64748b" }}>
+
+
+
+              Review recipients before sending.
+
+
+
+            </div>
+
+
+
+          </div>
+
+
+
+          <div style={{ display: "flex", gap: 10 }}>
+
+
+
+            <button style={btn} onClick={() => setInvoiceRunView("manage")}>
+
+
+
+              ← Back
+
+
+
+            </button>
+
+
+
+            <button
+
+
+
+              style={goldBtn}
+
+
+
+              onClick={() => alert(`${readyCount} email(s) queued.`)}
+
+
+
+            >
+
+
+
+              Send Emails
+
+
+
+            </button>
+
+
+
+          </div>
+
+
+
+        </div>
+
+
+
+        <div className="premium-card" style={{ padding: 20, borderRadius: 20, background: "#ffffff" }}>
+
+
+
+          <table style={{ width: "100%", borderCollapse: "collapse" }}>
+
+
+
+            <thead>
+
+
+
+              <tr>
+
+
+
+                <th style={th}>Parent</th>
+
+
+
+                <th style={th}>Learner</th>
+
+
+
+                <th style={th}>Email</th>
+
+
+
+                <th style={th}>Documents</th>
+
+
+
+                <th style={th}>Status</th>
+
+
+
+              </tr>
+
+
+
+            </thead>
+
+
+
+            <tbody>
+
+
+
+              {filteredRows.map((row: any, index: number) => (
+
+
+
+                <tr key={String(row.id || index)} style={{ background: index % 2 === 0 ? "#ffffff" : "rgba(212,175,55,0.05)" }}>
+
+
+
+                  <td style={td}>{row.parentName}</td>
+
+
+
+                  <td style={td}>{row.learnerName}</td>
+
+
+
+                  <td style={td}>{row.parentEmail || "Missing Email"}</td>
+
+
+
+                  <td style={td}>
+
+
+
+                    {invoiceRunView === "emailInvoices" && `Invoice #${row.invoiceNo}`}
+
+
+
+                    {invoiceRunView === "emailStatements" && `Statement #${row.statementNo}`}
+
+
+
+                    {invoiceRunView === "emailBoth" && `Invoice #${row.invoiceNo} + Statement #${row.statementNo}`}
+
+
+
+                  </td>
+
+
+
+                  <td style={{ ...td, fontWeight: 900, color: row.parentEmail ? "#15803d" : "#b91c1c" }}>
+
+
+
+                    {row.parentEmail ? "Ready" : "Missing Email"}
+
+
+
+                  </td>
+
+
+
+                </tr>
+
+
+
+              ))}
+
+
+
+            </tbody>
+
+
+
+          </table>
+
+
+
+        </div>
+
+
+
+      </div>
+
+
+
+    );
+
+
+
+  }
+
+
+
+  if (invoiceRunView === "printInvoices" || invoiceRunView === "printStatements") {
+
+
+
+    const isInvoices = invoiceRunView === "printInvoices";
+
+
+
+    return (
+
+
+
+      <div style={{ display: "flex", flexDirection: "column", gap: 24 }}>
+
+
+
+        <div style={{ display: "flex", justifyContent: "space-between", gap: 12 }}>
+
+
+
+          <div>
+
+
+
+            <h1 className="page-title">
+
+
+
+              {isInvoices ? "Print Invoices" : "Print Statements"}
+
+
+
+            </h1>
+
+
+
+            <div style={{ fontSize: 13, color: "#64748b" }}>
+
+
+
+              Preview batch before printing.
+
+
+
+            </div>
+
+
+
+          </div>
+
+
+
+          <div style={{ display: "flex", gap: 10 }}>
+
+
+
+            <button style={btn} onClick={() => setInvoiceRunView("manage")}>
+
+
+
+              ← Back
+
+
+
+            </button>
+
+
+
+            <button style={goldBtn} onClick={() => window.print()}>
+
+
+
+              View / Print
+
+
+
+            </button>
+
+
+
+          </div>
+
+
+
+        </div>
+
+
+
+        <div className="premium-card" style={{ padding: 20, borderRadius: 20, background: "#ffffff" }}>
+
+
+
+          <div style={{ fontSize: 18, fontWeight: 900, marginBottom: 18 }}>
+
+
+
+            {isInvoices ? "Invoices In This Run" : "Statements In This Run"}
+
+
+
+          </div>
+
+
+
+          <table style={{ width: "100%", borderCollapse: "collapse" }}>
+
+
+
+            <thead>
+
+
+
+              <tr>
+
+
+
+                <th style={th}>Account No</th>
+
+
+
+                <th style={th}>{isInvoices ? "Invoice No" : "Statement No"}</th>
+
+
+
+                <th style={th}>Learner</th>
+
+
+
+                <th style={th}>Parent</th>
+
+
+
+                <th style={{ ...th, textAlign: "right" }}>Amount</th>
+
+
+
+                <th style={th}>Status</th>
+
+
+
+              </tr>
+
+
+
+            </thead>
+
+
+
+            <tbody>
+
+
+
+              {filteredRows.map((row: any, index: number) => (
+
+
+
+                <tr key={String(row.id || index)} style={{ background: index % 2 === 0 ? "#ffffff" : "rgba(212,175,55,0.05)" }}>
+
+
+
+                  <td style={td}>{row.accountNo}</td>
+
+
+
+                  <td style={td}>{isInvoices ? row.invoiceNo : row.statementNo}</td>
+
+
+
+                  <td style={td}>{row.learnerName}</td>
+
+
+
+                  <td style={td}>{row.parentName}</td>
+
+
+
+                  <td style={{ ...td, textAlign: "right", fontWeight: 900 }}>
+
+
+
+                    {money(row.invoiceAmount)}
+
+
+
+                  </td>
+
+
+
+                  <td style={{ ...td, fontWeight: 900, color: row.status === "Paid" ? "#15803d" : "#b91c1c" }}>
 
 
 
@@ -26706,127 +29531,6 @@ case "runs": {
 
 
         </div>
-        {filteredRows.map((row: any, index: number) => (
-
-
-
-<div
-
-
-
-  key={`invoice-preview-${row.id || index}`}
-
-
-
-  style={{
-
-
-
-    marginTop: 18,
-
-
-
-    padding: 22,
-
-
-
-    borderRadius: 18,
-
-
-
-    border: "1px solid rgba(15,23,42,0.12)",
-
-
-
-    background: "#ffffff",
-
-
-
-    pageBreakInside: "avoid",
-
-
-
-  }}
-
-
-
->
-
-
-
-  <div
-
-
-
-    style={{
-
-
-
-      display: "flex",
-
-
-
-      justifyContent: "space-between",
-
-
-
-      borderBottom: "2px solid #111827",
-
-
-
-      paddingBottom: 14,
-
-
-
-      marginBottom: 16,
-
-
-
-    }}
-
-
-
-  >
-
-
-
-    <div>
-
-
-
-      <div
-
-
-
-        style={{
-
-
-
-          color: "#d4af37",
-
-
-
-          fontWeight: 900,
-
-
-
-          fontSize: 13,
-
-
-
-          marginBottom: 4,
-
-
-
-        }}
-
-
-
-      >
-
-
-
-        EduClear
 
 
 
@@ -26834,2722 +29538,83 @@ case "runs": {
 
 
 
-      <div
+    );
 
 
 
-        style={{
+  }
 
 
 
-          fontSize: 22,
+  if (invoiceRunView === "manage") {
 
 
 
-          fontWeight: 900,
+    const run = selectedRun || {
 
 
 
-          color: "#111827",
+      description: invoiceRunSettings.description || "Invoice Run",
 
 
 
-        }}
+      invoiceMessage: invoiceRunSettings.message || "",
 
 
 
-      >
+      month: invoiceRunSettings.month || "",
 
 
 
-        {schoolName}
+      invoiceDate: invoiceRunSettings.invoiceDate || "",
 
 
 
-      </div>
+      dueDate: invoiceRunSettings.dueDate || "",
 
 
 
-      <div style={{ fontSize: 12, color: "#64748b" }}>
+      rows: runRows,
 
 
 
-        {schoolAddress}
+    };
 
 
 
-      </div>
+    return (
 
 
 
-      <div style={{ fontSize: 12, color: "#64748b" }}>
+      <div style={{ display: "flex", flexDirection: "column", gap: 18 }}>
 
 
 
-        {schoolEmail} {schoolPhone ? `| ${schoolPhone}` : ""}
+        <h1 className="page-title">
 
 
 
-      </div>
+          Invoice Run{" "}
 
 
 
-    </div>
+          <span style={{ color: "#64748b", fontSize: 18 }}>
 
 
 
-    <div style={{ textAlign: "right" }}>
+            » Manage an invoice run
 
 
 
-      <div
+          </span>
 
 
 
-        style={{
+        </h1>
 
 
 
-          color: "#d4af37",
-
-
-
-          fontSize: 26,
-
-
-
-          fontWeight: 900,
-
-
-
-        }}
-
-
-
-      >
-
-
-
-        INVOICE
-
-
-
-      </div>
-
-
-
-      <div style={{ fontSize: 12, color: "#64748b" }}>
-
-
-
-        Invoice No: {row.invoiceNo}
-
-
-
-      </div>
-
-
-
-      <div style={{ fontSize: 12, color: "#64748b" }}>
-
-
-
-        Date: {invoiceRunSettings.invoiceDate}
-
-
-
-      </div>
-
-
-
-      <div style={{ fontSize: 12, color: "#64748b" }}>
-
-
-
-        Due Date: {invoiceRunSettings.dueDate}
-
-
-
-      </div>
-
-
-
-    </div>
-
-
-
-  </div>
-
-
-
-  <div
-
-
-
-    style={{
-
-
-
-      display: "grid",
-
-
-
-      gridTemplateColumns: "1fr 1fr",
-
-
-
-      gap: 14,
-
-
-
-      marginBottom: 16,
-
-
-
-    }}
-
-
-
-  >
-
-
-
-    <div
-
-
-
-      style={{
-
-
-
-        padding: 14,
-
-
-
-        borderRadius: 12,
-
-
-
-        background: "#f8fafc",
-
-
-
-        border: "1px solid #e5e7eb",
-
-
-
-      }}
-
-
-
-    >
-
-
-
-      <div style={{ fontWeight: 900, marginBottom: 6 }}>
-
-
-
-        Learner
-
-
-
-      </div>
-
-
-
-      <div>{row.learnerName}</div>
-
-
-
-      <div style={{ fontSize: 12, color: "#64748b" }}>
-
-
-
-        Classroom: {row.classroom}
-
-
-
-      </div>
-
-
-
-      <div style={{ fontSize: 12, color: "#64748b" }}>
-
-
-
-        Account: {row.accountNo}
-
-
-
-      </div>
-
-
-
-    </div>
-
-
-
-    <div
-
-
-
-      style={{
-
-
-
-        padding: 14,
-
-
-
-        borderRadius: 12,
-
-
-
-        background: "#f8fafc",
-
-
-
-        border: "1px solid #e5e7eb",
-
-
-
-      }}
-
-
-
-    >
-
-
-
-      <div style={{ fontWeight: 900, marginBottom: 6 }}>
-
-
-
-        Parent / Guardian
-
-
-
-      </div>
-
-
-
-      <div>{row.parentName}</div>
-
-
-
-      <div style={{ fontSize: 12, color: "#64748b" }}>
-
-
-
-        {row.parentEmail || "Missing Email"}
-
-
-
-      </div>
-
-
-
-    </div>
-
-
-
-  </div>
-
-
-
-  <table
-
-
-
-    style={{
-
-
-
-      width: "100%",
-
-
-
-      borderCollapse: "collapse",
-
-
-
-      marginBottom: 16,
-
-
-
-    }}
-
-
-
-  >
-
-
-
-    <thead>
-
-
-
-      <tr>
-
-
-
-        <th style={th}>Description</th>
-
-
-
-        <th style={{ ...th, textAlign: "right" }}>Amount</th>
-
-
-
-      </tr>
-
-
-
-    </thead>
-
-
-
-    <tbody>
-
-
-
-      <tr>
-
-
-
-        <td style={td}>
-
-
-
-          {invoiceRunSettings.description || "School Fees"}
-
-
-
-        </td>
-
-
-
-        <td
-
-
-
-          style={{
-
-
-
-            ...td,
-
-
-
-            textAlign: "right",
-
-
-
-            fontWeight: 900,
-
-
-
-          }}
-
-
-
-        >
-
-
-
-          {money(row.invoiceAmount)}
-
-
-
-        </td>
-
-
-
-      </tr>
-
-
-
-    </tbody>
-
-
-
-  </table>
-
-
-
-  <div
-
-
-
-    style={{
-
-
-
-      display: "flex",
-
-
-
-      justifyContent: "space-between",
-
-
-
-      borderTop: "1px solid #e5e7eb",
-
-
-
-      paddingTop: 14,
-
-
-
-      gap: 20,
-
-
-
-    }}
-
-
-
-  >
-
-
-
-    <div
-
-
-
-      style={{
-
-
-
-        maxWidth: "65%",
-
-
-
-        fontSize: 13,
-
-
-
-        color: "#475569",
-
-
-
-        lineHeight: 1.5,
-
-
-
-      }}
-
-
-
-    >
-
-
-
-      {invoiceRunSettings.message}
-
-
-
-    </div>
-
-
-
-    <div style={{ textAlign: "right" }}>
-
-
-
-      <div
-
-
-
-        style={{
-
-
-
-          fontSize: 12,
-
-
-
-          color: "#64748b",
-
-
-
-          fontWeight: 800,
-
-
-
-        }}
-
-
-
-      >
-
-
-
-        Invoice Total
-
-
-
-      </div>
-
-
-
-      <div
-
-
-
-        style={{
-
-
-
-          fontSize: 24,
-
-
-
-          fontWeight: 900,
-
-
-
-          color: "#111827",
-
-
-
-        }}
-
-
-
-      >
-
-
-
-        {money(row.invoiceAmount)}
-
-
-
-      </div>
-
-
-
-    </div>
-
-
-
-  </div>
-
-
-
-</div>
-
-
-
-))}
-
-
-
-</div>
-
-
-
-);
-
-
-
-}
-if (invoiceRunView === "printStatements") {
-
-
-
-  return (
-
-
-
-    <div style={{ display: "flex", flexDirection: "column", gap: 24 }}>
-
-
-
-      <div
-
-
-
-        style={{
-
-
-
-          display: "flex",
-
-
-
-          justifyContent: "space-between",
-
-
-
-          alignItems: "center",
-
-
-
-        }}
-
-
-
-      >
-
-
-
-        <div>
-
-
-
-          <h1 className="page-title">Print Statements</h1>
-
-
-
-          <div
-
-
-
-            style={{
-
-
-
-              fontSize: "13px",
-
-
-
-              color: "#64748b",
-
-
-
-              marginTop: 4,
-
-
-
-            }}
-
-
-
-          >
-
-
-
-            Statement batch preview before printing
-
-
-
-          </div>
-
-
-
-        </div>
-
-
-
-        <div style={{ display: "flex", gap: 10 }}>
-
-
-
-          <button
-
-
-
-            style={btn}
-
-
-
-            onClick={() => setInvoiceRunView("list")}
-
-
-
-          >
-
-
-
-            ← Back
-
-
-
-          </button>
-
-
-
-          <button
-
-
-
-            style={goldBtn}
-
-
-
-            onClick={() => window.print()}
-
-
-
-          >
-
-
-
-            View / Print
-
-
-
-          </button>
-
-
-
-        </div>
-
-
-
-      </div>
-
-
-
-      <div
-
-
-
-        className="premium-card"
-
-
-
-        style={{
-
-
-
-          padding: 20,
-
-
-
-          borderRadius: 20,
-
-
-
-          background: "#ffffff",
-
-
-
-          border: "1px solid rgba(15,23,42,0.08)",
-
-
-
-        }}
-
-
-
-      >
-
-
-
-        <div
-
-
-
-          style={{
-
-
-
-            fontSize: "18px",
-
-
-
-            fontWeight: 900,
-
-
-
-            color: "#0f172a",
-
-
-
-            marginBottom: 18,
-
-
-
-          }}
-
-
-
-        >
-
-
-
-          Statements In This Run
-
-
-
-        </div>
-
-
-
-        {filteredRows.map((row: any, index: number) => (
-
-
-
-          <div
-
-
-
-            key={`statement-preview-${row.id || index}`}
-
-
-
-            style={{
-
-
-
-              marginTop: 18,
-
-
-
-              padding: 22,
-
-
-
-              borderRadius: 18,
-
-
-
-              border: "1px solid rgba(15,23,42,0.12)",
-
-
-
-              background: "#ffffff",
-
-
-
-              pageBreakInside: "avoid",
-
-
-
-            }}
-
-
-
-          >
-
-
-
-            <div
-
-
-
-              style={{
-
-
-
-                display: "flex",
-
-
-
-                justifyContent: "space-between",
-
-
-
-                borderBottom: "2px solid #111827",
-
-
-
-                paddingBottom: 14,
-
-
-
-                marginBottom: 16,
-
-
-
-              }}
-
-
-
-            >
-
-
-
-              <div>
-
-
-
-                <div
-
-
-
-                  style={{
-
-
-
-                    color: "#d4af37",
-
-
-
-                    fontWeight: 900,
-
-
-
-                    fontSize: 13,
-
-
-
-                    marginBottom: 4,
-
-
-
-                  }}
-
-
-
-                >
-
-
-
-                  EduClear
-
-
-
-                </div>
-
-
-
-                <div
-
-
-
-                  style={{
-
-
-
-                    fontSize: 22,
-
-
-
-                    fontWeight: 900,
-
-
-
-                    color: "#111827",
-
-
-
-                  }}
-
-
-
-                >
-
-
-
-                  {schoolName}
-
-
-
-                </div>
-
-
-
-                <div style={{ fontSize: 12, color: "#64748b" }}>
-
-
-
-                  {schoolAddress}
-
-
-
-                </div>
-
-
-
-                <div style={{ fontSize: 12, color: "#64748b" }}>
-
-
-
-                  {schoolEmail}{" "}
-
-
-
-                  {schoolPhone ? `| ${schoolPhone}` : ""}
-
-
-
-                </div>
-
-
-
-              </div>
-
-
-
-              <div style={{ textAlign: "right" }}>
-
-
-
-                <div
-
-
-
-                  style={{
-
-
-
-                    color: "#d4af37",
-
-
-
-                    fontSize: 26,
-
-
-
-                    fontWeight: 900,
-
-
-
-                  }}
-
-
-
-                >
-
-
-
-                  STATEMENT
-
-
-
-                </div>
-
-
-
-                <div style={{ fontSize: 12, color: "#64748b" }}>
-
-
-
-                  Statement No: {row.statementNo}
-
-
-
-                </div>
-
-
-
-                <div style={{ fontSize: 12, color: "#64748b" }}>
-
-
-
-                  Date: {invoiceRunSettings.invoiceDate}
-
-
-
-                </div>
-
-
-
-              </div>
-
-
-
-            </div>
-
-
-
-            <div
-
-
-
-              style={{
-
-
-
-                display: "grid",
-
-
-
-                gridTemplateColumns: "1fr 1fr",
-
-
-
-                gap: 14,
-
-
-
-                marginBottom: 16,
-
-
-
-              }}
-
-
-
-            >
-
-
-
-              <div
-
-
-
-                style={{
-
-
-
-                  padding: 14,
-
-
-
-                  borderRadius: 12,
-
-
-
-                  background: "#f8fafc",
-
-
-
-                  border: "1px solid #e5e7eb",
-
-
-
-                }}
-
-
-
-              >
-
-
-
-                <div style={{ fontWeight: 900, marginBottom: 6 }}>
-
-
-
-                  Learner
-
-
-
-                </div>
-
-
-
-                <div>{row.learnerName}</div>
-
-
-
-                <div style={{ fontSize: 12, color: "#64748b" }}>
-
-
-
-                  Classroom: {row.classroom}
-
-
-
-                </div>
-
-
-
-                <div style={{ fontSize: 12, color: "#64748b" }}>
-
-
-
-                  Account: {row.accountNo}
-
-
-
-                </div>
-
-
-
-              </div>
-
-
-
-              <div
-
-
-
-                style={{
-
-
-
-                  padding: 14,
-
-
-
-                  borderRadius: 12,
-
-
-
-                  background: "#f8fafc",
-
-
-
-                  border: "1px solid #e5e7eb",
-
-
-
-                }}
-
-
-
-              >
-
-
-
-                <div style={{ fontWeight: 900, marginBottom: 6 }}>
-
-
-
-                  Parent / Guardian
-
-
-
-                </div>
-
-
-
-                <div>{row.parentName}</div>
-
-
-
-                <div style={{ fontSize: 12, color: "#64748b" }}>
-
-
-
-                  {row.parentEmail || "Missing Email"}
-
-
-
-                </div>
-
-
-
-              </div>
-
-
-
-            </div>
-
-
-
-            <table
-
-
-
-              style={{
-
-
-
-                width: "100%",
-
-
-
-                borderCollapse: "collapse",
-
-
-
-                marginBottom: 16,
-
-
-
-              }}
-
-
-
-            >
-
-
-
-              <thead>
-
-
-
-                <tr>
-
-
-
-                  <th style={th}>Date</th>
-
-
-
-                  <th style={th}>Description</th>
-
-
-
-                  <th style={{ ...th, textAlign: "right" }}>
-
-
-
-                    Debit
-
-
-
-                  </th>
-
-
-
-                  <th style={{ ...th, textAlign: "right" }}>
-
-
-
-                    Credit
-
-
-
-                  </th>
-
-
-
-                  <th style={{ ...th, textAlign: "right" }}>
-
-
-
-                    Balance
-
-
-
-                  </th>
-
-
-
-                </tr>
-
-
-
-              </thead>
-
-
-
-              <tbody>
-
-
-
-                <tr>
-
-
-
-                  <td style={td}>
-
-
-
-                    {invoiceRunSettings.invoiceDate}
-
-
-
-                  </td>
-
-
-
-                  <td style={td}>
-
-
-
-                    {invoiceRunSettings.description}
-
-
-
-                  </td>
-
-
-
-                  <td
-
-
-
-                    style={{
-
-
-
-                      ...td,
-
-
-
-                      textAlign: "right",
-
-
-
-                    }}
-
-
-
-                  >
-
-
-
-                    {money(row.invoiceAmount)}
-
-
-
-                  </td>
-
-
-
-                  <td
-
-
-
-                    style={{
-
-
-
-                      ...td,
-
-
-
-                      textAlign: "right",
-
-
-
-                    }}
-
-
-
-                  >
-
-
-
-                    {money(0)}
-
-
-
-                  </td>
-
-
-
-                  <td
-
-
-
-                    style={{
-
-
-
-                      ...td,
-
-
-
-                      textAlign: "right",
-
-
-
-                      fontWeight: 900,
-
-
-
-                    }}
-
-
-
-                  >
-
-
-
-                    {money(row.invoiceAmount)}
-
-
-
-                  </td>
-
-
-
-                </tr>
-
-
-
-              </tbody>
-
-
-
-            </table>
-
-
-
-            <div
-
-
-
-              style={{
-
-
-
-                display: "flex",
-
-
-
-                justifyContent: "space-between",
-
-
-
-                borderTop: "1px solid #e5e7eb",
-
-
-
-                paddingTop: 14,
-
-
-
-                gap: 20,
-
-
-
-              }}
-
-
-
-            >
-
-
-
-              <div
-
-
-
-                style={{
-
-
-
-                  maxWidth: "65%",
-
-
-
-                  fontSize: 13,
-
-
-
-                  color: "#475569",
-
-
-
-                  lineHeight: 1.5,
-
-
-
-                }}
-
-
-
-              >
-
-
-
-                {invoiceRunSettings.message}
-
-
-
-              </div>
-
-
-
-              <div style={{ textAlign: "right" }}>
-
-
-
-                <div
-
-
-
-                  style={{
-
-
-
-                    fontSize: 12,
-
-
-
-                    color: "#64748b",
-
-
-
-                    fontWeight: 800,
-
-
-
-                  }}
-
-
-
-                >
-
-
-
-                  Statement Balance
-
-
-
-                </div>
-
-
-
-                <div
-
-
-
-                  style={{
-
-
-
-                    fontSize: 24,
-
-
-
-                    fontWeight: 900,
-
-
-
-                    color: "#111827",
-
-
-
-                  }}
-
-
-
-                >
-
-
-
-                  {money(row.invoiceAmount)}
-
-
-
-                </div>
-
-
-
-              </div>
-
-
-
-            </div>
-
-
-
-          </div>
-
-
-
-        ))}
-
-
-
-      </div>
-
-
-
-    </div>
-
-
-
-  );
-
-
-
-}
-if (invoiceRunView === "emailInvoices") {
-
-
-
-  return (
-
-
-
-    <div style={{ display: "flex", flexDirection: "column", gap: 24 }}>
-
-
-
-      <div
-
-
-
-        style={{
-
-
-
-          display: "flex",
-
-
-
-          justifyContent: "space-between",
-
-
-
-          alignItems: "center",
-
-
-
-        }}
-
-
-
-      >
-
-
-
-        <div>
-
-
-
-          <h1 className="page-title">Email Invoices</h1>
-
-
-
-          <div
-
-
-
-            style={{
-
-
-
-              fontSize: "13px",
-
-
-
-              color: "#64748b",
-
-
-
-              marginTop: 4,
-
-
-
-            }}
-
-
-
-          >
-
-
-
-            Send invoices directly to parents
-
-
-
-          </div>
-
-
-
-        </div>
-
-
-
-        <div style={{ display: "flex", gap: 10 }}>
-
-
-
-          <button
-
-
-
-            style={btn}
-
-
-
-            onClick={() => setInvoiceRunView("list")}
-
-
-
-          >
-
-
-
-            ← Back
-
-
-
-          </button>
-
-
-
-          <button
-
-
-
-            style={goldBtn}
-
-
-
-            onClick={() =>
-
-
-
-              alert(
-
-
-
-                `${filteredRows.filter((r: any) => r.parentEmail).length} invoice emails queued.`
-
-
-
-              )
-
-
-
-            }
-
-
-
-          >
-
-
-
-            Send Emails
-
-
-
-          </button>
-
-
-
-        </div>
-
-
-
-      </div>
-
-
-
-      <div
-
-
-
-        className="premium-card"
-
-
-
-        style={{
-
-
-
-          padding: 20,
-
-
-
-          borderRadius: 20,
-
-
-
-          background: "#ffffff",
-
-
-
-          border: "1px solid rgba(15,23,42,0.08)",
-
-
-
-        }}
-
-
-
-      >
-
-
-
-        <div
-
-
-
-          style={{
-
-
-
-            fontSize: "18px",
-
-
-
-            fontWeight: 900,
-
-
-
-            color: "#0f172a",
-
-
-
-            marginBottom: 18,
-
-
-
-          }}
-
-
-
-        >
-
-
-
-          Recipients
-
-
-
-        </div>
-
-
-
-        <table
-
-
-
-          style={{
-
-
-
-            width: "100%",
-
-
-
-            borderCollapse: "collapse",
-
-
-
-          }}
-
-
-
-        >
-
-
-
-          <thead>
-
-
-
-            <tr>
-
-
-
-              <th style={th}>Parent</th>
-
-
-
-              <th style={th}>Learner</th>
-
-
-
-              <th style={th}>Email</th>
-
-
-
-              <th style={th}>Invoice</th>
-
-
-
-              <th style={th}>Status</th>
-
-
-
-            </tr>
-
-
-
-          </thead>
-
-
-
-          <tbody>
-
-
-
-            {filteredRows.map((row: any, index: number) => (
-
-
-
-              <tr
-
-
-
-                key={String(row.id || index)}
-
-
-
-                style={{
-
-
-
-                  background:
-
-
-
-                    index % 2 === 0
-
-
-
-                      ? "#ffffff"
-
-
-
-                      : "rgba(212,175,55,0.05)",
-
-
-
-                }}
-
-
-
-              >
-
-
-
-                <td style={td}>{row.parentName}</td>
-
-
-
-                <td style={td}>{row.learnerName}</td>
-
-
-
-                <td style={td}>
-
-
-
-                  {row.parentEmail || "Missing Email"}
-
-
-
-                </td>
-
-
-
-                <td style={td}>
-
-
-
-                  Invoice #{row.invoiceNo}
-
-
-
-                </td>
-
-
-
-                <td
-
-
-
-                  style={{
-
-
-
-                    ...td,
-
-
-
-                    fontWeight: 900,
-
-
-
-                    color:
-
-
-
-                      row.parentEmail
-
-
-
-                        ? "#15803d"
-
-
-
-                        : "#b91c1c",
-
-
-
-                  }}
-
-
-
-                >
-
-
-
-                  {row.parentEmail
-
-
-
-                    ? "Ready"
-
-
-
-                    : "Missing Email"}
-
-
-
-                </td>
-
-
-
-              </tr>
-
-
-
-            ))}
-
-
-
-          </tbody>
-
-
-
-        </table>
-
-
-
-      </div>
-
-
-
-    </div>
-
-
-
-  );
-
-
-
-}
-
-
-
-if (invoiceRunView === "emailStatements") {
-
-
-
-  return (
-
-
-
-    <div style={{ display: "flex", flexDirection: "column", gap: 24 }}>
-
-
-
-      <div
-
-
-
-        style={{
-
-
-
-          display: "flex",
-
-
-
-          justifyContent: "space-between",
-
-
-
-          alignItems: "center",
-
-
-
-        }}
-
-
-
-      >
-
-
-
-        <div>
-
-
-
-          <h1 className="page-title">Email Statements</h1>
-
-
-
-          <div
-
-
-
-            style={{
-
-
-
-              fontSize: "13px",
-
-
-
-              color: "#64748b",
-
-
-
-              marginTop: 4,
-
-
-
-            }}
-
-
-
-          >
-
-
-
-            Send statements directly to parents
-
-
-
-          </div>
-
-
-
-        </div>
-
-
-
-        <div style={{ display: "flex", gap: 10 }}>
-
-
-
-          <button
-
-
-
-            style={btn}
-
-
-
-            onClick={() => setInvoiceRunView("list")}
-
-
-
-          >
-
-
-
-            ← Back
-
-
-
-          </button>
-
-
-
-          <button
-
-
-
-            style={goldBtn}
-
-
-
-            onClick={() =>
-
-
-
-              alert(
-
-
-
-                `${filteredRows.filter((r: any) => r.parentEmail).length} statement emails queued.`
-
-
-
-              )
-
-
-
-            }
-
-
-
-          >
-
-
-
-            Send Emails
-
-
-
-          </button>
-
-
-
-        </div>
-
-
-
-      </div>
-
-
-
-      <div
-
-
-
-        className="premium-card"
-
-
-
-        style={{
-
-
-
-          padding: 20,
-
-
-
-          borderRadius: 20,
-
-
-
-          background: "#ffffff",
-
-
-
-          border: "1px solid rgba(15,23,42,0.08)",
-
-
-
-        }}
-
-
-
-      >
-
-
-
-        <div
-
-
-
-          style={{
-
-
-
-            fontSize: "18px",
-
-
-
-            fontWeight: 900,
-
-
-
-            color: "#0f172a",
-
-
-
-            marginBottom: 18,
-
-
-
-          }}
-
-
-
-        >
-
-
-
-          Recipients
-
-
-
-        </div>
-
-
-
-        <table
-
-
-
-          style={{
-
-
-
-            width: "100%",
-
-
-
-            borderCollapse: "collapse",
-
-
-
-          }}
-
-
-
-        >
-
-
-
-          <thead>
-
-
-
-            <tr>
-
-
-
-              <th style={th}>Parent</th>
-
-
-
-              <th style={th}>Learner</th>
-
-
-
-              <th style={th}>Email</th>
-
-
-
-              <th style={th}>Statement</th>
-
-
-
-              <th style={th}>Status</th>
-
-
-
-            </tr>
-
-
-
-          </thead>
-
-
-
-          <tbody>
-
-
-
-            {filteredRows.map((row: any, index: number) => (
-
-
-
-              <tr
-
-
-
-                key={String(row.id || index)}
-
-
-
-                style={{
-
-
-
-                  background:
-
-
-
-                    index % 2 === 0
-
-
-
-                      ? "#ffffff"
-
-
-
-                      : "rgba(212,175,55,0.05)",
-
-
-
-                }}
-
-
-
-              >
-
-
-
-                <td style={td}>{row.parentName}</td>
-
-
-
-                <td style={td}>{row.learnerName}</td>
-
-
-
-                <td style={td}>
-
-
-
-                  {row.parentEmail || "Missing Email"}
-
-
-
-                </td>
-
-
-
-                <td style={td}>
-
-
-
-                  Statement #{row.statementNo}
-
-
-
-                </td>
-
-
-
-                <td
-
-
-
-                  style={{
-
-
-
-                    ...td,
-
-
-
-                    fontWeight: 900,
-
-
-
-                    color:
-
-
-
-                      row.parentEmail
-
-
-
-                        ? "#15803d"
-
-
-
-                        : "#b91c1c",
-
-
-
-                  }}
-
-
-
-                >
-
-
-
-                  {row.parentEmail
-
-
-
-                    ? "Ready"
-
-
-
-                    : "Missing Email"}
-
-
-
-                </td>
-
-
-
-              </tr>
-
-
-
-            ))}
-
-
-
-          </tbody>
-
-
-
-        </table>
-
-
-
-      </div>
-
-
-
-    </div>
-
-
-
-  );
-
-
-
-}
-if (invoiceRunView === "emailBoth") {
-
-
-
-  return (
-
-
-
-    <div style={{ display: "flex", flexDirection: "column", gap: 24 }}>
-
-
-
-      <div
-
-
-
-        style={{
-
-
-
-          display: "flex",
-
-
-
-          justifyContent: "space-between",
-
-
-
-          alignItems: "center",
-
-
-
-        }}
-
-
-
-      >
-
-
-
-        <div>
-
-
-
-          <h1 className="page-title">Email Invoices & Statements</h1>
-
-
-
-          <div
-
-
-
-            style={{
-
-
-
-              fontSize: "13px",
-
-
-
-              color: "#64748b",
-
-
-
-              marginTop: 4,
-
-
-
-            }}
-
-
-
-          >
-
-
-
-            Send invoices and statements directly to parents
-
-
-
-          </div>
-
-
-
-        </div>
-
-
-
-        <div style={{ display: "flex", gap: 10 }}>
+        <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
 
 
 
@@ -29573,23 +29638,102 @@ if (invoiceRunView === "emailBoth") {
 
 
 
-            onClick={() =>
+            onClick={() => {
 
 
 
-              alert(
+              const updatedRun = {
 
 
 
-                `${filteredRows.filter((r: any) => r.parentEmail).length} invoice + statement emails queued.`
+                ...run,
 
 
 
-              )
+                description:
 
 
 
-            }
+  invoiceRunSettings.description &&
+
+
+
+  invoiceRunSettings.description !== invoiceRunSettings.dueDate
+
+
+
+    ? invoiceRunSettings.description
+
+
+
+    : `Invoice Run For ${
+
+
+
+        invoiceRunSettings.month ||
+
+
+
+        run.month ||
+
+
+
+        run.period ||
+
+
+
+        "this period"
+
+
+
+      }`,
+
+
+
+                month: invoiceRunSettings.month || run.month || "this period",
+ 
+          
+              period: invoiceRunSettings.month || run.month || run.period || "this period",
+
+
+
+                invoiceDate: invoiceRunSettings.invoiceDate || run.invoiceDate,
+
+
+
+                dueDate: invoiceRunSettings.dueDate || run.dueDate,
+
+
+
+                invoiceMessage: invoiceRunSettings.message || run.invoiceMessage,
+
+
+
+                rows: runRows,
+
+
+
+                totalInvoices: runRows.length,
+
+
+
+                totalAmount: runTotalAmount,
+
+
+
+              };
+
+
+
+              saveRun(updatedRun);
+
+
+
+              alert("Invoice run saved.");
+
+
+
+            }}
 
 
 
@@ -29597,11 +29741,571 @@ if (invoiceRunView === "emailBoth") {
 
 
 
-            Send Emails
+            💾 Save
 
 
 
           </button>
+
+
+
+          <select
+
+
+
+            style={btn}
+
+
+
+            defaultValue=""
+
+
+
+            onChange={(e) => {
+
+
+
+              const value = e.target.value;
+
+
+
+              if (!value) return;
+
+
+
+              if (value === "emailInvoices") setInvoiceRunView("emailInvoices");
+
+
+
+              if (value === "emailStatements") setInvoiceRunView("emailStatements");
+
+
+
+              if (value === "emailBoth") setInvoiceRunView("emailBoth");
+
+
+
+              if (value === "printInvoices") setInvoiceRunView("printInvoices");
+
+
+
+              if (value === "printStatements") setInvoiceRunView("printStatements");
+
+
+
+              if (value === "delete") deleteCurrentRun();
+
+
+
+              e.currentTarget.value = "";
+
+
+
+            }}
+
+
+
+          >
+
+
+
+            <option value="">More Actions</option>
+
+
+
+            <option value="emailInvoices">Email Invoices</option>
+
+
+
+            <option value="emailStatements">Email Statements</option>
+
+
+
+            <option value="emailBoth">Email Both</option>
+
+
+
+            <option value="printInvoices">Print Invoices</option>
+
+
+
+            <option value="printStatements">Print Statements</option>
+
+
+
+            <option value="delete">Undo / Delete</option>
+
+
+
+          </select>
+
+
+
+        </div>
+
+
+
+        <div className="premium-card" style={{ background: "#ffffff", border: "1px solid #d8dee8", borderRadius: 16, overflow: "hidden" }}>
+
+
+
+          <div style={{ padding: "12px 16px", background: "#f8fafc", borderBottom: "1px solid #d8dee8", fontWeight: 900 }}>
+
+
+
+            Invoice Run
+
+
+
+          </div>
+
+
+
+          <div style={{ padding: 18, display: "grid", gridTemplateColumns: "220px 1fr", gap: 12 }}>
+
+
+
+            <label style={{ fontWeight: 900 }}>* Description</label>
+
+
+
+            <input
+
+
+
+              style={input}
+
+
+
+              value={`Invoice Run For ${invoiceRunSettings.month || selectedRun?.month || selectedRun?.period || ""}`}
+
+
+
+              
+
+
+
+            />
+
+
+
+            <label style={{ fontWeight: 900 }}>* Date On Invoices</label>
+
+
+
+            <input
+
+
+
+              type="date"
+
+
+
+              style={input}
+
+
+
+              value={invoiceRunSettings.invoiceDate || run.invoiceDate || ""}
+
+
+
+              onChange={(e) =>
+
+
+
+                setInvoiceRunSettings({ ...invoiceRunSettings, invoiceDate: e.target.value })
+
+
+
+              }
+
+
+
+            />
+
+
+
+            <label style={{ fontWeight: 900 }}>* Due Date On Invoices</label>
+
+
+
+            <input
+
+
+
+              type="date"
+
+
+
+              style={input}
+
+
+
+              value={invoiceRunSettings.dueDate || run.dueDate || ""}
+
+
+
+              onChange={(e) =>
+
+
+
+                setInvoiceRunSettings({ ...invoiceRunSettings, dueDate: e.target.value })
+
+
+
+              }
+
+
+
+            />
+
+
+
+            <label style={{ fontWeight: 900 }}>* For The Month Of</label>
+
+
+
+            <input
+
+
+
+  style={input}
+
+
+
+  value={invoiceRunSettings.month ?? ""}
+
+
+
+  onChange={(e) => {
+
+
+
+    const newMonth = e.target.value;
+  
+  
+  
+    setInvoiceRunSettings((prev: any) => ({
+  
+  
+  
+      ...prev,
+  
+  
+  
+      month: newMonth,
+  
+  
+  
+      description: `Invoice Run For ${newMonth}`,
+  
+  
+  
+    }));
+  
+  
+  
+  }}
+
+
+
+/>
+
+
+
+            <label style={{ fontWeight: 900 }}>Total Count</label>
+
+
+
+            <input style={input} value={runRows.length} readOnly />
+
+
+
+            <label style={{ fontWeight: 900 }}>Total Amount</label>
+
+
+
+            <input style={input} value={money(runTotalAmount)} readOnly />
+
+
+
+            <label style={{ fontWeight: 900 }}>Invoice Message</label>
+
+
+
+            <textarea
+
+
+
+              style={{ ...input, minHeight: 110, resize: "vertical" }}
+
+
+
+              value={invoiceRunSettings.message || run.invoiceMessage || ""}
+
+
+
+              onChange={(e) =>
+
+
+
+                setInvoiceRunSettings({ ...invoiceRunSettings, message: e.target.value })
+
+
+
+              }
+
+
+
+            />
+
+
+
+          </div>
+
+
+
+        </div>
+
+
+
+        <div className="premium-card" style={{ background: "#ffffff", border: "1px solid #d8dee8", borderRadius: 16, overflow: "hidden" }}>
+
+
+
+          <div style={{ padding: "12px 16px", background: "#f8fafc", borderBottom: "1px solid #d8dee8", fontWeight: 900 }}>
+
+
+
+            Invoices
+
+
+
+          </div>
+
+
+
+          <div style={{ padding: 12, display: "flex", justifyContent: "space-between", gap: 12 }}>
+
+
+
+            <button style={btn} onClick={() => alert("Invoice manage will open from selected invoice row.")}>
+
+
+
+              ✎ Manage
+
+
+
+            </button>
+
+
+
+            <input
+
+
+
+              value={invoiceRunSearch}
+
+
+
+              onChange={(e) => {
+
+
+
+                setInvoiceRunSearch(e.target.value);
+
+
+
+                setInvoiceRunPage(1);
+
+
+
+              }}
+
+
+
+              placeholder="Search"
+
+
+
+              style={{ ...input, width: 260 }}
+
+
+
+            />
+
+
+
+          </div>
+
+
+
+          <table style={{ width: "100%", borderCollapse: "collapse" }}>
+
+
+
+            <thead>
+
+
+
+              <tr>
+
+
+
+                <th style={th}>Account No</th>
+
+
+
+                <th style={th}>Invoice No</th>
+
+
+
+                <th style={th}>Date</th>
+
+
+
+                <th style={th}>Children</th>
+
+
+
+                <th style={{ ...th, textAlign: "right" }}>Amount</th>
+
+
+
+                <th style={th}>Invoice Status</th>
+
+
+
+              </tr>
+
+
+
+            </thead>
+
+
+
+            <tbody>
+
+
+
+              {paginatedRows.map((row: any, index: number) => (
+
+
+
+                <tr key={String(row.id || index)} style={{ background: index % 2 === 0 ? "#ffffff" : "rgba(212,175,55,0.05)" }}>
+
+
+
+                  <td style={td}>{row.accountNo}</td>
+
+
+
+                  <td style={td}>{row.invoiceNo}</td>
+
+
+
+                  <td style={td}>{invoiceRunSettings.invoiceDate || run.invoiceDate}</td>
+
+
+
+                  <td style={td}>{row.learnerName}</td>
+
+
+
+                  <td style={{ ...td, textAlign: "right", fontWeight: 900 }}>
+
+
+
+                    {money(row.invoiceAmount)}
+
+
+
+                  </td>
+
+
+
+                  <td style={{ ...td, color: row.status === "Paid" ? "#15803d" : "#b91c1c", fontWeight: 900 }}>
+
+
+
+                    {row.status}
+
+
+
+                  </td>
+
+
+
+                </tr>
+
+
+
+              ))}
+
+
+
+            </tbody>
+
+
+
+          </table>
+
+
+
+          <div style={{ padding: "12px 16px", display: "flex", justifyContent: "space-between", borderTop: "1px solid #e5e7eb" }}>
+
+
+
+            <span style={{ color: "#64748b", fontSize: 13 }}>
+
+
+
+              Page {invoiceRunPage} / {runTotalPages}
+
+
+
+            </span>
+
+
+
+            <div style={{ display: "flex", gap: 8 }}>
+
+
+
+              <button style={btn} onClick={() => setInvoiceRunPage((p) => Math.max(1, p - 1))}>
+
+
+
+                ‹
+
+
+
+              </button>
+
+
+
+              <button style={{ ...goldBtn, padding: "8px 12px" }}>{invoiceRunPage}</button>
+
+
+
+              <button style={btn} onClick={() => setInvoiceRunPage((p) => Math.min(runTotalPages, p + 1))}>
+
+
+
+                ›
+
+
+
+              </button>
+
+
+
+            </div>
+
+
+
+          </div>
 
 
 
@@ -29613,11 +30317,51 @@ if (invoiceRunView === "emailBoth") {
 
 
 
+    );
+
+
+
+  }
+
+
+
+  const visibleRuns = storedRuns;
+
+
+
+  return (
+
+
+
+    <div style={{ display: "flex", flexDirection: "column", gap: 18 }}>
+
+
+
+      <h1 className="page-title">
+
+
+
+        Invoice Runs{" "}
+
+
+
+        <span style={{ color: "#64748b", fontSize: 18 }}>
+
+
+
+          » View previous invoice runs or perform a new one
+
+
+
+        </span>
+
+
+
+      </h1>
+
+
+
       <div
-
-
-
-        className="premium-card"
 
 
 
@@ -29625,19 +30369,27 @@ if (invoiceRunView === "emailBoth") {
 
 
 
-          padding: 20,
+          padding: "14px 18px",
 
 
 
-          borderRadius: 20,
+          background: "#dbeafe",
 
 
 
-          background: "#ffffff",
+          border: "1px solid #bfdbfe",
 
 
 
-          border: "1px solid rgba(15,23,42,0.08)",
+          color: "#1e3a8a",
+
+
+
+          fontWeight: 700,
+
+
+
+          borderRadius: 10,
 
 
 
@@ -29649,39 +30401,103 @@ if (invoiceRunView === "emailBoth") {
 
 
 
-        <div
+        <b>New!</b> We have enhanced the invoice run process to give you more flexibility.
 
 
 
-          style={{
+      </div>
 
 
 
-            fontSize: "18px",
+      <div className="premium-card" style={{ background: "#ffffff", border: "1px solid #d8dee8", borderRadius: 16, overflow: "hidden" }}>
 
 
 
-            fontWeight: 900,
+        <div style={{ padding: "12px 16px", background: "#f8fafc", borderBottom: "1px solid #d8dee8", fontWeight: 900 }}>
 
 
 
-            color: "#0f172a",
+          Invoice Runs
 
 
 
-            marginBottom: 18,
+        </div>
 
 
 
-          }}
+        <div style={{ padding: 12, display: "flex", gap: 10, flexWrap: "wrap" }}>
 
 
 
-        >
+          <button style={goldBtn} onClick={() => createNewRun(false)}>
 
 
 
-          Recipients
+            + Add
+
+
+
+          </button>
+
+
+
+          <button style={goldBtn} onClick={() => createNewRun(true)}>
+
+
+
+            + Add Original
+
+
+
+          </button>
+
+
+
+          <button
+
+
+
+            style={btn}
+
+
+
+            onClick={() => {
+
+
+
+              if (!visibleRuns[0]) {
+
+
+
+                alert("No invoice run selected.");
+
+
+
+                return;
+
+
+
+              }
+
+
+
+              openRun(visibleRuns[0]);
+
+
+
+            }}
+
+
+
+          >
+
+
+
+            ✎ Manage
+
+
+
+          </button>
 
 
 
@@ -29701,23 +30517,23 @@ if (invoiceRunView === "emailBoth") {
 
 
 
-              <th style={th}>Parent</th>
+              <th style={th}>Date</th>
 
 
 
-              <th style={th}>Learner</th>
+              <th style={th}>Description</th>
 
 
 
-              <th style={th}>Email</th>
+              <th style={th}>Period</th>
 
 
 
-              <th style={th}>Attachments</th>
+              <th style={th}>Invoices</th>
 
 
 
-              <th style={th}>Status</th>
+              <th style={{ ...th, textAlign: "right" }}>Amount</th>
 
 
 
@@ -29733,7 +30549,7 @@ if (invoiceRunView === "emailBoth") {
 
 
 
-            {filteredRows.map((row: any, index: number) => (
+            {visibleRuns.map((run: any, index: number) => (
 
 
 
@@ -29741,7 +30557,11 @@ if (invoiceRunView === "emailBoth") {
 
 
 
-                key={String(row.id || index)}
+                key={run.id || index}
+
+
+
+                onDoubleClick={() => openRun(run)}
 
 
 
@@ -29749,11 +30569,11 @@ if (invoiceRunView === "emailBoth") {
 
 
 
-                  background:
+                  background: index % 2 === 0 ? "#ffffff" : "rgba(212,175,55,0.06)",
 
 
 
-                    index % 2 === 0 ? "#ffffff" : "rgba(212,175,55,0.05)",
+                  cursor: "pointer",
 
 
 
@@ -29765,59 +30585,27 @@ if (invoiceRunView === "emailBoth") {
 
 
 
-                <td style={td}>{row.parentName}</td>
+                <td style={td}>{run.date || run.invoiceDate || "-"}</td>
 
 
 
-                <td style={td}>{row.learnerName}</td>
+                <td style={td}>{`Invoice Run For ${run.period || run.month || "this period"}`}</td>
 
 
 
-                <td style={td}>{row.parentEmail || "Missing Email"}</td>
+                <td style={td}>{run.period || run.month || "-"}</td>
 
 
 
-                <td style={td}>
+                <td style={td}>{run.totalInvoices || run.invoices || 0} invoices</td>
 
 
 
-                  Invoice #{row.invoiceNo} + Statement #{row.statementNo}
+                <td style={{ ...td, textAlign: "right", fontWeight: 900 }}>
 
 
 
-                </td>
-
-
-
-                <td
-
-
-
-                  style={{
-
-
-
-                    ...td,
-
-
-
-                    fontWeight: 900,
-
-
-
-                    color: row.parentEmail ? "#15803d" : "#b91c1c",
-
-
-
-                  }}
-
-
-
-                >
-
-
-
-                  {row.parentEmail ? "Ready" : "Missing Email"}
+                  {money(run.totalAmount || 0)}
 
 
 
@@ -29841,6 +30629,38 @@ if (invoiceRunView === "emailBoth") {
 
 
 
+        <div style={{ padding: "12px 16px", display: "flex", justifyContent: "space-between", borderTop: "1px solid #e5e7eb" }}>
+
+
+
+          <span style={{ color: "#64748b", fontSize: 13 }}>Page 1 / 1</span>
+
+
+
+          <div style={{ display: "flex", gap: 8 }}>
+
+
+
+            <button style={btn}>‹</button>
+
+
+
+            <button style={{ ...goldBtn, padding: "8px 12px" }}>1</button>
+
+
+
+            <button style={btn}>›</button>
+
+
+
+          </div>
+
+
+
+        </div>
+
+
+
       </div>
 
 
@@ -29850,590 +30670,6 @@ if (invoiceRunView === "emailBoth") {
 
 
   );
-
-
-
-}
-
-
-
-return (
-
-
-
-  <div style={{ display: "flex", flexDirection: "column", gap: 24 }}>
-
-
-
-    <div
-
-
-
-      style={{
-
-
-
-        display: "flex",
-
-
-
-        justifyContent: "space-between",
-
-
-
-        alignItems: "center",
-
-
-
-        gap: 12,
-
-
-
-        flexWrap: "wrap",
-
-
-
-      }}
-
-
-
-    >
-
-
-
-      <div>
-
-
-
-        <h1 className="page-title">Invoice Runs</h1>
-
-
-
-        <div
-
-
-
-          style={{
-
-
-
-            fontSize: 13,
-
-
-
-            color: "#64748b",
-
-
-
-            marginTop: 4,
-
-
-
-          }}
-
-
-
-        >
-
-
-
-          Create invoices, statements, print documents and email parents.
-
-
-
-        </div>
-
-
-
-      </div>
-
-
-
-      <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
-
-
-
-        <button
-
-
-
-          style={goldBtn}
-
-
-
-          onClick={() => setInvoiceRunView("printInvoices")}
-
-
-
-        >
-
-
-
-          Print Invoices
-
-
-
-        </button>
-
-
-
-        <button
-
-
-
-          style={goldBtn}
-
-
-
-          onClick={() => setInvoiceRunView("printStatements")}
-
-
-
-        >
-
-
-
-          Print Statements
-
-
-
-        </button>
-
-
-
-        <button
-
-
-
-          style={darkBtn}
-
-
-
-          onClick={() => setInvoiceRunView("emailInvoices")}
-
-
-
-        >
-
-
-
-          Email Invoices
-
-
-
-        </button>
-
-
-
-        <button
-
-
-
-          style={darkBtn}
-
-
-
-          onClick={() => setInvoiceRunView("emailStatements")}
-
-
-
-        >
-
-
-
-          Email Statements
-
-
-
-        </button>
-
-
-
-        <button
-
-
-
-          style={darkBtn}
-
-
-
-          onClick={() => setInvoiceRunView("emailBoth")}
-
-
-
-        >
-
-
-
-          Email Both
-
-
-
-        </button>
-
-
-
-      </div>
-
-
-
-    </div>
-
-
-
-    <div
-
-
-
-      className="premium-card"
-
-
-
-      style={{
-
-
-
-        padding: 20,
-
-
-
-        borderRadius: 20,
-
-
-
-        background: "#ffffff",
-
-
-
-        border: "1px solid rgba(15,23,42,0.08)",
-
-
-
-      }}
-
-
-
-    >
-
-
-
-      <div
-
-
-
-        style={{
-
-
-
-          display: "flex",
-
-
-
-          justifyContent: "space-between",
-
-
-
-          gap: 12,
-
-
-
-          alignItems: "center",
-
-
-
-          marginBottom: 16,
-
-
-
-        }}
-
-
-
-      >
-
-
-
-        <div
-
-
-
-          style={{
-
-
-
-            fontSize: "18px",
-
-
-
-            fontWeight: 900,
-
-
-
-            color: "#0f172a",
-
-
-
-          }}
-
-
-
-        >
-
-
-
-          Invoices In This Run
-
-
-
-        </div>
-
-
-
-        <input
-
-
-
-          value={invoiceRunSearch}
-
-
-
-          onChange={(e) => {
-
-
-
-            setInvoiceRunSearch(e.target.value);
-
-
-
-            setInvoiceRunPage(1);
-
-
-
-          }}
-
-
-
-          placeholder="Search learner, parent or account"
-
-
-
-          style={{
-
-
-
-            width: 320,
-
-
-
-            maxWidth: "100%",
-
-
-
-            padding: "10px 12px",
-
-
-
-            borderRadius: 10,
-
-
-
-            border: "1px solid #cbd5e1",
-
-
-
-            outline: "none",
-
-
-
-          }}
-
-
-
-        />
-
-
-
-      </div>
-
-
-
-      <table style={{ width: "100%", borderCollapse: "collapse" }}>
-
-
-
-        <thead>
-
-
-
-          <tr>
-
-
-
-            <th style={th}>Account No</th>
-
-
-
-            <th style={th}>Invoice No</th>
-
-
-
-            <th style={th}>Learner</th>
-
-
-
-            <th style={th}>Parent</th>
-
-
-
-            <th style={th}>Email</th>
-
-
-
-            <th style={{ ...th, textAlign: "right" }}>Amount</th>
-
-
-
-            <th style={th}>Status</th>
-
-
-
-          </tr>
-
-
-
-        </thead>
-
-
-
-        <tbody>
-
-
-
-          {paginatedRows.map((row: any, index: number) => (
-
-
-
-            <tr
-
-
-
-              key={String(row.id || index)}
-
-
-
-              style={{
-
-
-
-                background:
-
-
-
-                  index % 2 === 0 ? "#ffffff" : "rgba(212,175,55,0.05)",
-
-
-
-              }}
-
-
-
-            >
-
-
-
-              <td style={td}>{row.accountNo}</td>
-
-
-
-              <td style={td}>{row.invoiceNo}</td>
-
-
-
-              <td style={td}>{row.learnerName}</td>
-
-
-
-              <td style={td}>{row.parentName}</td>
-
-
-
-              <td style={td}>{row.parentEmail || "Missing Email"}</td>
-
-
-
-              <td style={{ ...td, textAlign: "right", fontWeight: 900 }}>
-
-
-
-                {money(row.invoiceAmount)}
-
-
-
-              </td>
-
-
-
-              <td
-
-
-
-                style={{
-
-
-
-                  ...td,
-
-
-
-                  fontWeight: 900,
-
-
-
-                  color: row.status === "Paid" ? "#15803d" : "#b91c1c",
-
-
-
-                }}
-
-
-
-              >
-
-
-
-                {row.status}
-
-
-
-              </td>
-
-
-
-            </tr>
-
-
-
-          ))}
-
-
-
-        </tbody>
-
-
-
-      </table>
-
-
-
-    </div>
-
-
-
-  </div>
-
-
-
-);
 
 
 
