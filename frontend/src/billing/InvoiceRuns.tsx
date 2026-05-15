@@ -1,4 +1,8 @@
-import React from "react";
+import React, { useState } from "react";
+
+
+
+import { API_URL } from "../api";
 
 
 
@@ -46,7 +50,7 @@ export default function InvoiceRuns(props: any) {
 
 
 
-    storedRuns,
+    storedRuns = [],
 
 
 
@@ -55,6 +59,109 @@ export default function InvoiceRuns(props: any) {
 
 
   } = props;
+
+
+
+  const [statementEmailOpen, setStatementEmailOpen] = useState(false);
+
+
+
+  const [statementEmailRows, setStatementEmailRows] = useState<any[]>([]);
+
+
+
+  const [statementEmailSubject, setStatementEmailSubject] = useState("");
+
+
+
+  const [statementEmailMessage, setStatementEmailMessage] = useState("");
+
+
+
+  const [statementEmailSending, setStatementEmailSending] = useState(false);
+
+
+
+  const schoolName =
+
+
+
+    props?.school?.name ||
+
+
+
+    props?.selectedSchool?.name ||
+
+
+
+    props?.schoolName ||
+
+
+
+    "School";
+
+
+
+  const schoolEmail =
+
+
+
+    props?.school?.email ||
+
+
+
+    props?.selectedSchool?.email ||
+
+
+
+    props?.schoolEmail ||
+
+
+
+    "";
+
+
+
+  const schoolPhone =
+
+
+
+    props?.school?.phone ||
+
+
+
+    props?.selectedSchool?.phone ||
+
+
+
+    props?.schoolPhone ||
+
+
+
+    "";
+
+
+
+  const schoolAddress =
+
+
+
+    props?.school?.address ||
+
+
+
+    props?.selectedSchool?.address ||
+
+
+
+    props?.schoolAddress ||
+
+
+
+    "";
+
+
+
   const money = (value: any) =>
 
 
@@ -167,6 +274,10 @@ export default function InvoiceRuns(props: any) {
 
 
 
+  const normalizedLearners = toArray(learners);
+
+
+
   const storedParents = toArray(
 
 
@@ -216,10 +327,6 @@ export default function InvoiceRuns(props: any) {
 
 
   );
-
-
-  
-  
 
 
 
@@ -284,30 +391,6 @@ export default function InvoiceRuns(props: any) {
 
 
     color: "#111827",
-
-
-
-  };
-
-
-
-  const darkBtn = {
-
-
-
-    ...btn,
-
-
-
-    background: "#111827",
-
-
-
-    color: "#ffffff",
-
-
-
-    border: "1px solid #111827",
 
 
 
@@ -472,9 +555,6 @@ export default function InvoiceRuns(props: any) {
 
 
   };
-
-
-
   const findParent = (learner: any) => {
 
 
@@ -535,7 +615,15 @@ export default function InvoiceRuns(props: any) {
 
 
 
-          ...(Array.isArray(parent?.learnerIds) ? parent.learnerIds : []),
+          ...(Array.isArray(parent?.learnerIds)
+
+
+
+            ? parent.learnerIds
+
+
+
+            : []),
 
 
 
@@ -559,7 +647,15 @@ export default function InvoiceRuns(props: any) {
 
 
 
-            ? parent.learners.map((child: any) => learnerFullName(child))
+            ? parent.learners.map((child: any) =>
+
+
+
+                learnerFullName(child)
+
+
+
+              )
 
 
 
@@ -571,7 +667,19 @@ export default function InvoiceRuns(props: any) {
 
 
 
-        return childIds.includes(learnerId) || childNames.includes(learnerName);
+        return (
+
+
+
+          childIds.includes(learnerId) ||
+
+
+
+          childNames.includes(learnerName)
+
+
+
+        );
 
 
 
@@ -584,203 +692,326 @@ export default function InvoiceRuns(props: any) {
 
 
   };
-  const selectedRows = learners.map((learner: any, index: number) => {
 
 
 
-    const parent = findParent(learner);
+  const selectedRows = normalizedLearners.map(
 
 
 
-    const fees = getLearnerBillingPlan(learner);
+    (learner: any, index: number) => {
 
 
 
-    const invoiceAmount = fees.reduce(
+      const parent = findParent(learner);
 
 
 
-      (total: number, fee: any) =>
+      const fees = getLearnerBillingPlan(learner);
 
 
 
-        total + Number(fee?.amount || fee?.feeAmount || fee?.monthlyAmount || 0),
+      const invoiceAmount = fees.reduce(
 
 
 
-      0
+        (total: number, fee: any) =>
 
 
 
-    );
+          total +
 
 
 
-    const parentName =
+          Number(
 
 
 
-      parent?.name ||
+            fee?.amount ||
 
 
 
-      parent?.fullName ||
+              fee?.feeAmount ||
 
 
 
-      `${parent?.firstName || ""} ${parent?.surname || parent?.lastName || ""}`.trim() ||
+              fee?.monthlyAmount ||
 
 
 
-      learner?.parentName ||
+              0
 
 
 
-      learner?.guardianName ||
+          ),
 
 
 
-      "Parent / Guardian";
+        0
 
 
 
-    const parentEmail =
+      );
 
 
 
-      parent?.email ||
+      const parentName =
 
 
 
-      parent?.parentEmail ||
+        parent?.name ||
 
 
 
-      learner?.parentEmail ||
+        parent?.fullName ||
 
 
 
-      learner?.guardianEmail ||
+        `${
 
 
 
-      "";
+          parent?.firstName || ""
 
 
 
-    return {
+        } ${parent?.surname || parent?.lastName || ""}`.trim() ||
 
 
 
-      id: learner?.id || index,
+        learner?.parentName ||
 
 
 
-      learnerName: learnerFullName(learner),
+        learner?.guardianName ||
 
 
 
-      firstName: learner?.firstName || learner?.name || "",
+        "Parent / Guardian";
 
 
 
-      surname: learner?.surname || learner?.lastName || "",
+      const parentEmail =
 
 
 
-      classroom:
+        parent?.email ||
 
 
 
-        learner?.classroom ||
+        parent?.parentEmail ||
 
 
 
-        learner?.className ||
+        learner?.parentEmail ||
 
 
 
-        learner?.grade ||
+        learner?.guardianEmail ||
 
 
 
-        learner?.gradeName ||
+        "";
 
 
 
-        "Classroom",
+      return {
 
 
 
-      accountNo:
+        id: learner?.id || index,
 
 
 
-        learner?.accountNo ||
+        learnerName: learnerFullName(learner),
 
 
 
-        learner?.accountNumber ||
+        firstName:
 
 
 
-        learner?.admissionNo ||
+          learner?.firstName || learner?.name || "",
 
 
 
-        `SIL${String(index + 1).padStart(3, "0")}`,
+        surname:
 
 
 
-      parentName,
+          learner?.surname || learner?.lastName || "",
 
 
 
-      parentEmail,
+        classroom:
 
 
 
-      invoiceNo: 65000 + index,
+          learner?.classroom ||
 
 
 
-      statementNo: `ST${String(index + 1).padStart(4, "0")}`,
+          learner?.className ||
 
 
 
-      balance: Number(learner?.balance || learner?.outstandingAmount || 0),
+          learner?.grade ||
 
 
 
-      invoiceAmount,
+          learner?.gradeName ||
 
 
 
-      newBalance: Number(learner?.balance || learner?.outstandingAmount || 0) + invoiceAmount,
+          "Classroom",
 
 
 
-      status: invoiceAmount <= 0 ? "Paid" : "Unpaid",
+        accountNo:
 
 
 
-      fees,
+          learner?.accountNo ||
 
 
 
-    };
+          learner?.accountNumber ||
 
 
 
-  });
+          learner?.admissionNo ||
 
 
 
-  const selectedRun = readJson(["educlearSelectedInvoiceRun"], null);
+          `SIL${String(index + 1).padStart(3, "0")}`,
 
 
 
-  const runRows = Array.isArray(selectedRun?.rows) ? selectedRun.rows : selectedRows;
+        parentName,
+
+
+
+        parentEmail,
+
+
+
+        invoiceNo: 65000 + index,
+
+
+
+        statementNo: `ST${String(index + 1).padStart(
+
+
+
+          4,
+
+
+
+          "0"
+
+
+
+        )}`,
+
+
+
+        balance: Number(
+
+
+
+          learner?.balance ||
+
+
+
+            learner?.outstandingAmount ||
+
+
+
+            0
+
+
+
+        ),
+
+
+
+        invoiceAmount,
+
+
+
+        newBalance:
+
+
+
+          Number(
+
+
+
+            learner?.balance ||
+
+
+
+              learner?.outstandingAmount ||
+
+
+
+              0
+
+
+
+          ) + invoiceAmount,
+
+
+
+        status:
+
+
+
+          invoiceAmount <= 0 ? "Paid" : "Unpaid",
+
+
+
+        fees,
+
+
+
+      };
+
+
+
+    }
+
+
+
+  );
+
+
+
+  const selectedRun = readJson(
+
+
+
+    ["educlearSelectedInvoiceRun"],
+
+
+
+    null
+
+
+
+  );
+
+
+
+  const runRows = Array.isArray(selectedRun?.rows)
+
+
+
+    ? selectedRun.rows
+
+
+
+    : selectedRows;
 
 
 
@@ -800,15 +1031,39 @@ export default function InvoiceRuns(props: any) {
 
 
 
-      String(row?.learnerName || "").toLowerCase().includes(q) ||
+      String(row?.learnerName || "")
 
 
 
-      String(row?.parentName || "").toLowerCase().includes(q) ||
+        .toLowerCase()
 
 
 
-      String(row?.accountNo || "").toLowerCase().includes(q)
+        .includes(q) ||
+
+
+
+      String(row?.parentName || "")
+
+
+
+        .toLowerCase()
+
+
+
+        .includes(q) ||
+
+
+
+      String(row?.accountNo || "")
+
+
+
+        .toLowerCase()
+
+
+
+        .includes(q)
 
 
 
@@ -836,7 +1091,19 @@ export default function InvoiceRuns(props: any) {
 
 
 
-  const runTotalPages = Math.max(1, Math.ceil(filteredRows.length / 10));
+  const runTotalPages = Math.max(
+
+
+
+    1,
+
+
+
+    Math.ceil(filteredRows.length / 10)
+
+
+
+  );
 
 
 
@@ -844,7 +1111,11 @@ export default function InvoiceRuns(props: any) {
 
 
 
-    (sum: number, row: any) => sum + Number(row.invoiceAmount || 0),
+    (sum: number, row: any) =>
+
+
+
+      sum + Number(row.invoiceAmount || 0),
 
 
 
@@ -860,15 +1131,51 @@ export default function InvoiceRuns(props: any) {
 
 
 
-    const existingRuns = toArray(readJson(["educlearInvoiceRuns"], []));
+    const existingRuns = toArray(
 
 
 
-    const updatedRuns = existingRuns.some((item: any) => String(item.id) === String(run.id))
+      readJson(["educlearInvoiceRuns"], [])
 
 
 
-      ? existingRuns.map((item: any) => (String(item.id) === String(run.id) ? run : item))
+    );
+
+
+
+    const updatedRuns = existingRuns.some(
+
+
+
+      (item: any) =>
+
+
+
+        String(item.id) === String(run.id)
+
+
+
+    )
+
+
+
+      ? existingRuns.map((item: any) =>
+
+
+
+          String(item.id) === String(run.id)
+
+
+
+            ? run
+
+
+
+            : item
+
+
+
+        )
 
 
 
@@ -878,16 +1185,17 @@ export default function InvoiceRuns(props: any) {
 
     writeJson("educlearInvoiceRuns", updatedRuns);
 
+
+
     setStoredRuns(updatedRuns);
+
+
 
     writeJson("educlearSelectedInvoiceRun", run);
 
 
 
   };
-
-
-
   const createNewRun = (original = false) => {
 
 
@@ -948,6 +1256,10 @@ export default function InvoiceRuns(props: any) {
 
 
 
+      period: month,
+
+
+
       invoiceDate: now.toISOString().slice(0, 10),
 
 
@@ -960,7 +1272,7 @@ export default function InvoiceRuns(props: any) {
 
 
 
-        "School fees to be paid in full by the 3rd of the month.\nArrangements for those parents that receive their salary on the 15th of the month. Late payment penalty of R300 will apply.\n\nPlease keep all receipts safe if there might be any inquiries.",
+        "School fees to be paid in full by the 3rd of the month.\nPlease keep all receipts safe if there might be any enquiries.",
 
 
 
@@ -976,7 +1288,11 @@ export default function InvoiceRuns(props: any) {
 
 
 
-        (sum: number, row: any) => sum + Number(row.invoiceAmount || 0),
+        (sum: number, row: any) =>
+
+
+
+          sum + Number(row.invoiceAmount || 0),
 
 
 
@@ -1000,7 +1316,7 @@ export default function InvoiceRuns(props: any) {
 
 
 
-    run.description = `Invoice Run For ${run.month || ""}`;
+    run.description = `Invoice Run For ${month}`;
 
 
 
@@ -1016,7 +1332,7 @@ export default function InvoiceRuns(props: any) {
 
 
 
-      month: run.month || "",
+      month,
 
 
 
@@ -1064,11 +1380,19 @@ export default function InvoiceRuns(props: any) {
 
 
 
-      description: run.description || prev.description,
+      description:
 
 
 
-      month: run.month || prev.month,
+        run.description ||
+
+
+
+        `Invoice Run For ${run.month || run.period || ""}`,
+
+
+
+      month: run.month || run.period || prev.month,
 
 
 
@@ -1100,11 +1424,43 @@ export default function InvoiceRuns(props: any) {
 
 
 
-    const current = readJson(["educlearSelectedInvoiceRun"], null);
+    const current = readJson(
+
+
+
+      ["educlearSelectedInvoiceRun"],
+
+
+
+      null
+
+
+
+    );
 
 
 
     if (!current) return;
+
+
+
+    const updatedRows = Array.isArray(patch.rows)
+
+
+
+      ? patch.rows
+
+
+
+      : Array.isArray(current.rows)
+
+
+
+        ? current.rows
+
+
+
+        : runRows;
 
 
 
@@ -1120,15 +1476,23 @@ export default function InvoiceRuns(props: any) {
 
 
 
-      totalInvoices: Array.isArray(current.rows) ? current.rows.length : runRows.length,
+      rows: updatedRows,
 
 
 
-      totalAmount: (Array.isArray(current.rows) ? current.rows : runRows).reduce(
+      totalInvoices: updatedRows.length,
 
 
 
-        (sum: number, row: any) => sum + Number(row.invoiceAmount || 0),
+      totalAmount: updatedRows.reduce(
+
+
+
+        (sum: number, row: any) =>
+
+
+
+          sum + Number(row.invoiceAmount || 0),
 
 
 
@@ -1156,11 +1520,35 @@ export default function InvoiceRuns(props: any) {
 
 
 
-    const current = readJson(["educlearSelectedInvoiceRun"], null);
+    const current = readJson(
 
 
 
-    if (!current) return alert("No invoice run selected.");
+      ["educlearSelectedInvoiceRun"],
+
+
+
+      null
+
+
+
+    );
+
+
+
+    if (!current) {
+
+
+
+      alert("No invoice run selected.");
+
+
+
+      return;
+
+
+
+    }
 
 
 
@@ -1168,7 +1556,15 @@ export default function InvoiceRuns(props: any) {
 
 
 
-    const existingRuns = toArray(readJson(["educlearInvoiceRuns"], []));
+    const existingRuns = toArray(
+
+
+
+      readJson(["educlearInvoiceRuns"], [])
+
+
+
+    );
 
 
 
@@ -1176,7 +1572,11 @@ export default function InvoiceRuns(props: any) {
 
 
 
-      (item: any) => String(item.id) !== String(current.id)
+      (item: any) =>
+
+
+
+        String(item.id) !== String(current.id)
 
 
 
@@ -1186,13 +1586,1082 @@ export default function InvoiceRuns(props: any) {
 
     writeJson("educlearInvoiceRuns", updatedRuns);
 
+
+
     setStoredRuns(updatedRuns);
+
+
 
     localStorage.removeItem("educlearSelectedInvoiceRun");
 
 
 
     setInvoiceRunView("list");
+
+
+
+  };
+
+
+
+  const escapeHtml = (value: any) =>
+
+
+
+    String(value ?? "")
+
+
+
+      .replaceAll("&", "&amp;")
+
+
+
+      .replaceAll("<", "&lt;")
+
+
+
+      .replaceAll(">", "&gt;")
+
+
+
+      .replaceAll('"', "&quot;")
+
+
+
+      .replaceAll("'", "&#039;");
+
+
+
+  const buildStatementHtml = (row: any) => {
+
+
+
+    const period =
+
+
+
+      invoiceRunSettings?.month ||
+
+
+
+      selectedRun?.period ||
+
+
+
+      selectedRun?.month ||
+
+
+
+      "Selected period";
+
+
+
+    const invoiceDate =
+
+
+
+      invoiceRunSettings?.invoiceDate ||
+
+
+
+      selectedRun?.invoiceDate ||
+
+
+
+      new Date().toISOString().slice(0, 10);
+
+
+
+    const dueDate =
+
+
+
+      invoiceRunSettings?.dueDate ||
+
+
+
+      selectedRun?.dueDate ||
+
+
+
+      invoiceDate;
+
+
+
+    return `
+
+
+
+      <!doctype html>
+
+
+
+      <html>
+
+
+
+        <head>
+
+
+
+          <meta charset="utf-8" />
+
+
+
+          <title>Statement - ${escapeHtml(row.learnerName)}</title>
+
+
+
+          <style>
+
+
+
+            body {
+
+
+
+              font-family: Arial, sans-serif;
+
+
+
+              color: #111827;
+
+
+
+              margin: 0;
+
+
+
+              padding: 32px;
+
+
+
+              background: #ffffff;
+
+
+
+            }
+
+
+
+            .header {
+
+
+
+              display: flex;
+
+
+
+              justify-content: space-between;
+
+
+
+              border-bottom: 3px solid #d4af37;
+
+
+
+              padding-bottom: 18px;
+
+
+
+              margin-bottom: 24px;
+
+
+
+            }
+
+
+
+            .school-name {
+
+
+
+              font-size: 26px;
+
+
+
+              font-weight: 900;
+
+
+
+              color: #111827;
+
+
+
+              margin-bottom: 6px;
+
+
+
+            }
+
+
+
+            .muted {
+
+
+
+              color: #6b7280;
+
+
+
+              font-size: 12px;
+
+
+
+              line-height: 1.5;
+
+
+
+            }
+
+
+
+            .title {
+
+
+
+              text-align: right;
+
+
+
+              font-size: 28px;
+
+
+
+              font-weight: 900;
+
+
+
+            }
+
+
+
+            .grid {
+
+
+
+              display: grid;
+
+
+
+              grid-template-columns: 1fr 1fr;
+
+
+
+              gap: 16px;
+
+
+
+              margin-bottom: 20px;
+
+
+
+            }
+
+
+
+            .box {
+
+
+
+              border: 1px solid #e5e7eb;
+
+
+
+              border-radius: 12px;
+
+
+
+              padding: 14px;
+
+
+
+              background: #fafafa;
+
+
+
+            }
+
+
+
+            .box-title {
+
+
+
+              font-size: 13px;
+
+
+
+              font-weight: 900;
+
+
+
+              margin-bottom: 8px;
+
+
+
+              text-transform: uppercase;
+
+
+
+            }
+
+
+
+            table {
+
+
+
+              width: 100%;
+
+
+
+              border-collapse: collapse;
+
+
+
+              margin-top: 12px;
+
+
+
+            }
+
+
+
+            th {
+
+
+
+              background: #111827;
+
+
+
+              color: #ffffff;
+
+
+
+              padding: 10px;
+
+
+
+              font-size: 12px;
+
+
+
+              text-align: left;
+
+
+
+            }
+
+
+
+            td {
+
+
+
+              border: 1px solid #e5e7eb;
+
+
+
+              padding: 10px;
+
+
+
+              font-size: 12px;
+
+
+
+            }
+
+
+
+            .totals {
+
+
+
+              margin-top: 18px;
+
+
+
+              display: flex;
+
+
+
+              justify-content: flex-end;
+
+
+
+            }
+
+
+
+            .total-box {
+
+
+
+              width: 320px;
+
+
+
+              border: 2px solid #d4af37;
+
+
+
+              border-radius:
+               padding: 14px;
+
+
+
+              background: #fffbeb;
+
+
+
+            }
+
+
+
+            .total-row {
+
+
+
+              display: flex;
+
+
+
+              justify-content: space-between;
+
+
+
+              font-weight: 800;
+
+
+
+              margin-bottom: 8px;
+
+
+
+            }
+
+
+
+            .closing {
+
+
+
+              font-size: 18px;
+
+
+
+              font-weight: 900;
+
+
+
+              color: #991b1b;
+
+
+
+            }
+
+
+
+            .footer {
+
+
+
+              margin-top: 32px;
+
+
+
+              padding-top: 12px;
+
+
+
+              border-top: 1px solid #e5e7eb;
+
+
+
+              font-size: 11px;
+
+
+
+              color: #6b7280;
+
+
+
+              text-align: center;
+
+
+
+            }
+
+
+
+          </style>
+
+
+
+        </head>
+
+
+
+        <body>
+
+
+
+          <div class="header">
+
+
+
+            <div>
+
+
+
+              <div class="school-name">${escapeHtml(schoolName)}</div>
+
+
+
+              <div class="muted">
+
+
+
+                ${escapeHtml(schoolAddress)}<br />
+
+
+
+                ${escapeHtml(schoolEmail)}
+
+
+
+                ${schoolPhone ? " | " + escapeHtml(schoolPhone) : ""}
+
+
+
+              </div>
+
+
+
+            </div>
+
+
+
+            <div>
+
+
+
+              <div class="title">STATEMENT</div>
+
+
+
+              <div class="muted">
+
+
+
+                Statement No: ${escapeHtml(row.statementNo)}<br />
+
+
+
+                Period: ${escapeHtml(period)}<br />
+
+
+
+                Date: ${escapeHtml(invoiceDate)}
+
+
+
+              </div>
+
+
+
+            </div>
+
+
+
+          </div>
+
+
+
+          <div class="grid">
+
+
+
+            <div class="box">
+
+
+
+              <div class="box-title">Learner Details</div>
+
+
+
+              <div><b>Learner:</b> ${escapeHtml(row.learnerName)}</div>
+
+
+
+              <div><b>Classroom:</b> ${escapeHtml(row.classroom)}</div>
+
+
+
+              <div><b>Account No:</b> ${escapeHtml(row.accountNo)}</div>
+
+
+
+            </div>
+
+
+
+            <div class="box">
+
+
+
+              <div class="box-title">Parent / Account Holder</div>
+
+
+
+              <div><b>Parent:</b> ${escapeHtml(row.parentName)}</div>
+
+
+
+              <div><b>Email:</b> ${escapeHtml(row.parentEmail)}</div>
+
+
+
+              <div><b>Due Date:</b> ${escapeHtml(dueDate)}</div>
+
+
+
+            </div>
+
+
+
+          </div>
+
+
+
+          <table>
+
+
+
+            <thead>
+
+
+
+              <tr>
+
+
+
+                <th>Date</th>
+
+
+
+                <th>Description</th>
+
+
+
+                <th style="text-align:right;">Debit</th>
+
+
+
+                <th style="text-align:right;">Credit</th>
+
+
+
+                <th style="text-align:right;">Balance</th>
+
+
+
+              </tr>
+
+
+
+            </thead>
+
+
+
+            <tbody>
+
+
+
+              <tr>
+
+
+
+                <td>${escapeHtml(invoiceDate)}</td>
+
+
+
+                <td>Invoice Run - ${escapeHtml(period)}</td>
+
+
+
+                <td style="text-align:right;">${money(row.invoiceAmount || 0)}</td>
+
+
+
+                <td style="text-align:right;">${money(0)}</td>
+
+
+
+                <td style="text-align:right;">${money(row.newBalance || 0)}</td>
+
+
+
+              </tr>
+
+
+
+            </tbody>
+
+
+
+          </table>
+
+
+
+          <div class="totals">
+
+
+
+            <div class="total-box">
+
+
+
+              <div class="total-row">
+
+
+
+                <span>Previous Balance</span>
+
+
+
+                <span>${money(row.balance || 0)}</span>
+
+
+
+              </div>
+
+
+
+              <div class="total-row">
+
+
+
+                <span>Invoice Amount</span>
+
+
+
+                <span>${money(row.invoiceAmount || 0)}</span>
+
+
+
+              </div>
+
+
+
+              <div class="total-row closing">
+
+
+
+                <span>Closing Balance</span>
+
+
+
+                <span>${money(row.newBalance || 0)}</span>
+
+
+
+              </div>
+
+
+
+            </div>
+
+
+
+          </div>
+
+
+
+          <div class="footer">
+
+
+
+            This statement was generated by EduClear for ${escapeHtml(schoolName)}.
+
+
+
+          </div>
+
+
+
+        </body>
+
+
+
+      </html>
+
+
+
+    `;
+
+
+
+  };
+
+
+
+  const htmlToBase64 = (html: string) =>
+
+
+
+    btoa(unescape(encodeURIComponent(html)));
+
+
+
+  const openStatementPreview = () => {
+
+
+
+    const validEmails = filteredRows.filter((row: any) => row.parentEmail);
+
+
+
+    if (!validEmails.length) {
+
+
+
+      alert("No parent emails found.");
+
+
+
+      return;
+
+
+
+    }
+
+
+
+    setStatementEmailRows(validEmails);
+
+
+
+    const firstLearner =
+
+
+
+      validEmails.length === 1
+
+
+
+        ? validEmails[0]?.learnerName || "Learner"
+
+
+
+        : `${validEmails.length} Learners`;
+
+
+
+    setStatementEmailSubject(`${schoolName} Statement - ${firstLearner}`);
+
+
+
+    setStatementEmailMessage(
+
+
+
+      `Dear Parent,
+
+
+
+Please find attached the latest statement.
+
+
+
+Kind regards,
+
+
+
+${schoolName}`
+
+
+
+    );
+
+
+
+    setStatementEmailOpen(true);
+
+
+
+  };
+
+
+
+  const sendStatementEmails = async () => {
+
+
+
+    if (!statementEmailRows.length) {
+
+
+
+      alert("No statements selected.");
+
+
+
+      return;
+
+
+
+    }
+
+
+
+    if (!statementEmailSubject.trim()) {
+
+
+
+      alert("Please enter an email subject.");
+
+
+
+      return;
+
+
+
+    }
+
+
+
+    setStatementEmailSending(true);
+
+
+
+    try {
+
+
+
+      for (const row of statementEmailRows) {
+
+
+
+        const statementHtml = buildStatementHtml(row);
+
+
+
+        const pdfBase64 = htmlToBase64(statementHtml);
+
+
+
+        await fetch(`${API_URL}/emails/send-statement`, {
+
+
+
+          method: "POST",
+
+
+
+          headers: {
+
+
+
+            "Content-Type": "application/json",
+
+
+
+          },
+
+
+
+          body: JSON.stringify({
+
+
+
+            to: row.parentEmail,
+
+
+
+            subject:
+
+
+
+              statementEmailRows.length === 1
+
+
+
+                ? statementEmailSubject
+
+
+
+                : `${schoolName} Statement - ${row.learnerName}`,
+
+
+
+            message: statementEmailMessage,
+
+
+
+            learnerName: row.learnerName,
+
+
+
+            parentName: row.parentName,
+
+
+
+            statementNo: row.statementNo,
+
+
+
+            pdfBase64,
+
+
+
+            filename: `${row.learnerName || "learner"}-statement.html`,
+
+
+
+          }),
+
+
+
+        });
+
+
+
+      }
+
+
+
+      alert(`${statementEmailRows.length} statement email(s) sent.`);
+
+
+
+      setStatementEmailOpen(false);
+
+
+
+    } catch (error) {
+
+
+
+      console.error(error);
+
+
+
+      alert("Email sending failed. Please check the backend email endpoint.");
+
+
+
+    } finally {
+
+
+
+      setStatementEmailSending(false);
+
+
+
+    }
 
 
 
@@ -1237,9 +2706,6 @@ export default function InvoiceRuns(props: any) {
 
 
   ];
-
-
-
   const Stepper = ({ step }: { step: number }) => (
 
 
@@ -1248,7 +2714,31 @@ export default function InvoiceRuns(props: any) {
 
 
 
-      <div style={{ display: "grid", gridTemplateColumns: "repeat(8, 1fr)", alignItems: "center" }}>
+      <div
+
+
+
+        style={{
+
+
+
+          display: "grid",
+
+
+
+          gridTemplateColumns: "repeat(8, 1fr)",
+
+
+
+          alignItems: "center",
+
+
+
+        }}
+
+
+
+      >
 
 
 
@@ -1272,7 +2762,19 @@ export default function InvoiceRuns(props: any) {
 
 
 
-            <div key={name} style={{ textAlign: "center", position: "relative" }}>
+            <div
+
+
+
+              key={name}
+
+
+
+              style={{ textAlign: "center", position: "relative" }}
+
+
+
+            >
 
 
 
@@ -1368,7 +2870,15 @@ export default function InvoiceRuns(props: any) {
 
 
 
-                  border: `4px solid ${done || active ? "#2563eb" : "#cbd5e1"}`,
+                  border: `4px solid ${
+
+
+
+                    done || active ? "#2563eb" : "#cbd5e1"
+
+
+
+                  }`,
 
 
 
@@ -1400,7 +2910,35 @@ export default function InvoiceRuns(props: any) {
 
 
 
-              <div style={{ marginTop: 8, fontSize: 13, fontWeight: 800, color: "#334155" }}>
+              <div
+
+
+
+                style={{
+
+
+
+                  marginTop: 8,
+
+
+
+                  fontSize: 13,
+
+
+
+                  fontWeight: 800,
+
+
+
+                  color: "#334155",
+
+
+
+                }}
+
+
+
+              >
 
 
 
@@ -1433,6 +2971,138 @@ export default function InvoiceRuns(props: any) {
 
 
   );
+
+
+
+  const saveSettingsToCurrentRun = () => {
+
+
+
+    const current = readJson(
+
+
+
+      ["educlearSelectedInvoiceRun"],
+
+
+
+      selectedRun
+
+
+
+    );
+
+
+
+    if (!current) return;
+
+
+
+    const updatedMonth =
+
+
+
+      invoiceRunSettings.month ||
+
+
+
+      current.month ||
+
+
+
+      current.period ||
+
+
+
+      "";
+
+
+
+    saveRun({
+
+
+
+      ...current,
+
+
+
+      description: `Invoice Run For ${updatedMonth}`,
+
+
+
+      month: updatedMonth,
+
+
+
+      period: updatedMonth,
+
+
+
+      invoiceDate:
+
+
+
+        invoiceRunSettings.invoiceDate ||
+
+
+
+        current.invoiceDate ||
+
+
+
+        "",
+
+
+
+      dueDate:
+
+
+
+        invoiceRunSettings.dueDate ||
+
+
+
+        current.dueDate ||
+
+
+
+        "",
+
+
+
+      invoiceMessage:
+
+
+
+        invoiceRunSettings.message ||
+
+
+
+        current.invoiceMessage ||
+
+
+
+        "",
+
+
+
+      rows: Array.isArray(current.rows)
+
+
+
+        ? current.rows
+
+
+
+        : runRows,
+
+
+
+    });
+
+
+
+  };
 
 
 
@@ -1484,7 +3154,15 @@ export default function InvoiceRuns(props: any) {
 
 
 
-        <span style={{ color: "#64748b", fontSize: 18 }}>» Perform a new invoice run</span>
+        <span style={{ color: "#64748b", fontSize: 18 }}>
+
+
+
+          » Perform a new invoice run
+
+
+
+        </span>
 
 
 
@@ -1496,11 +3174,47 @@ export default function InvoiceRuns(props: any) {
 
 
 
-      <div style={{ display: "flex", justifyContent: "space-between", gap: 10 }}>
+      <div
 
 
 
-        <button style={btn} onClick={() => setInvoiceRunView(previous || "list")}>
+        style={{
+
+
+
+          display: "flex",
+
+
+
+          justifyContent: "space-between",
+
+
+
+          gap: 10,
+
+
+
+        }}
+
+
+
+      >
+
+
+
+        <button
+
+
+
+          style={btn}
+
+
+
+          onClick={() => setInvoiceRunView(previous || "list")}
+
+
+
+        >
 
 
 
@@ -1516,211 +3230,35 @@ export default function InvoiceRuns(props: any) {
 
 
 
-style={btn}
+          style={btn}
 
 
 
-onClick={() => {
+          onClick={() => {
 
 
 
-  if (step === 2) {
+            if (step === 2) saveSettingsToCurrentRun();
 
 
 
-    const settingsBox = document.querySelector(
+            setInvoiceRunView(next);
 
 
 
-      "[data-invoice-settings='yes']"
+          }}
 
 
 
-    ) as HTMLElement | null;
+        >
 
 
 
-    const descriptionInput = settingsBox?.querySelector(
+          {nextLabel}
 
 
 
-      "[data-field='description']"
-
-
-
-    ) as HTMLInputElement | null;
-
-
-
-    const invoiceDateInput = settingsBox?.querySelector(
-
-
-
-      "[data-field='invoiceDate']"
-
-
-
-    ) as HTMLInputElement | null;
-
-
-
-    const dueDateInput = settingsBox?.querySelector(
-
-
-
-      "[data-field='dueDate']"
-
-
-
-    ) as HTMLInputElement | null;
-
-
-
-    const monthInput = settingsBox?.querySelector(
-
-
-
-      "[data-field='month']"
-
-
-
-    ) as HTMLInputElement | null;
-
-
-
-    const messageInput = settingsBox?.querySelector(
-
-
-
-      "[data-field='message']"
-
-
-
-    ) as HTMLTextAreaElement | null;
-
-
-
-    const updatedSettings = {
-
-
-
-      ...invoiceRunSettings,
-
-
-
-      description:
-
-
-
-        descriptionInput?.value || invoiceRunSettings.description,
-
-
-
-      invoiceDate:
-
-
-
-        invoiceDateInput?.value || invoiceRunSettings.invoiceDate,
-
-
-
-      dueDate: dueDateInput?.value || invoiceRunSettings.dueDate,
-
-
-
-      month: monthInput?.value || invoiceRunSettings.month,
-
-
-
-      message: messageInput?.value || invoiceRunSettings.message,
-
-
-
-    };
-
-
-
-    setInvoiceRunSettings(updatedSettings);
-
-
-
-    const current = readJson(
-
-
-
-      ["educlearSelectedInvoiceRun"],
-
-
-
-      selectedRun
-
-
-
-    );
-
-
-
-    if (current) {
-
-
-
-      saveRun({
-
-
-
-        ...current,
-
-
-
-        description: updatedSettings.description,
-
-
-
-        invoiceDate: updatedSettings.invoiceDate,
-
-
-
-        dueDate: updatedSettings.dueDate,
-
-
-
-        month: updatedSettings.month,
-
-
-
-        invoiceMessage: updatedSettings.message,
-
-
-
-      });
-
-
-
-    }
-
-
-
-  }
-
-
-
-    setInvoiceRunView(next);
-
-
-
-      }}
-
-
-
-   >
-
-
-
-    {nextLabel}
-
-
-
-     </button>
+        </button>
 
 
 
@@ -1764,11 +3302,27 @@ onClick={() => {
 
 
 
-        <h2 style={{ margin: 0, color: "#2563eb", fontWeight: 800 }}>{title}</h2>
+        <h2 style={{ margin: 0, color: "#2563eb", fontWeight: 800 }}>
 
 
 
-        <p style={{ color: "#334155", fontWeight: 600 }}>{description}</p>
+          {title}
+
+
+
+        </h2>
+
+
+
+        <p style={{ color: "#334155", fontWeight: 600 }}>
+
+
+
+          {description}
+
+
+
+        </p>
 
 
 
@@ -1785,6 +3339,9 @@ onClick={() => {
 
 
   );
+
+
+
   if (invoiceRunView === "wizardStart") {
 
 
@@ -1861,11 +3418,11 @@ onClick={() => {
 
 
 
-          <b>New!</b> As you can see we have enhanced the invoice run process to give you more
+          <b>New!</b> As you can see we have enhanced the invoice run process to
 
 
 
-          flexibility. Choose the standard option for the original invoice run experience.
+          give you more flexibility.
 
 
 
@@ -1873,7 +3430,35 @@ onClick={() => {
 
 
 
-        <div style={{ maxWidth: 680, margin: "0 auto", display: "grid", gap: 18 }}>
+        <div
+
+
+
+          style={{
+
+
+
+            maxWidth: 680,
+
+
+
+            margin: "0 auto",
+
+
+
+            display: "grid",
+
+
+
+            gap: 18,
+
+
+
+          }}
+
+
+
+        >
 
 
 
@@ -1929,11 +3514,43 @@ onClick={() => {
 
 
 
-              <h2 style={{ color: "#2563eb", marginTop: 0 }}>Standard</h2>
+              <h2 style={{ color: "#2563eb", marginTop: 0 }}>
 
 
 
-              <div style={{ fontWeight: 900, color: "#64748b", marginBottom: 10 }}>
+                Standard
+
+
+
+              </h2>
+
+
+
+              <div
+
+
+
+                style={{
+
+
+
+                  fontWeight: 900,
+
+
+
+                  color: "#64748b",
+
+
+
+                  marginBottom: 10,
+
+
+
+                }}
+
+
+
+              >
 
 
 
@@ -1945,19 +3562,71 @@ onClick={() => {
 
 
 
-              <ul style={{ marginTop: 0, color: "#334155", lineHeight: 1.6 }}>
+              <ul
 
 
 
-                <li>All enrolled children will be selected for this invoice run.</li>
+                style={{
 
 
 
-                <li>The fees on each child&apos;s billing plan will be used for each invoice.</li>
+                  marginTop: 0,
 
 
 
-                <li>You will have the option to add extra fees to all invoices.</li>
+                  color: "#334155",
+
+
+
+                  lineHeight: 1.6,
+
+
+
+                }}
+
+
+
+              >
+
+
+
+                <li>
+
+
+
+                  All enrolled children will be selected for this invoice run.
+
+
+
+                </li>
+
+
+
+                <li>
+
+
+
+                  The fees on each child&apos;s billing plan will be used for
+
+
+
+                  each invoice.
+
+
+
+                </li>
+
+
+
+                <li>
+
+
+
+                  You will have the option to add extra fees to all invoices.
+
+
+
+                </li>
 
 
 
@@ -1969,115 +3638,19 @@ onClick={() => {
 
 
 
-            <button style={goldBtn} onClick={() => setInvoiceRunView("wizardSettings")}>
+            <button
 
 
 
-              This one!
+              style={goldBtn}
 
 
 
-            </button>
+              onClick={() => setInvoiceRunView("wizardSettings")}
 
 
 
-          </div>
-
-
-
-          <div
-
-
-
-            style={{
-
-
-
-              border: "1px solid #d8dee8",
-
-
-
-              borderRadius: 12,
-
-
-
-              background: "#ffffff",
-
-
-
-              padding: 20,
-
-
-
-              display: "grid",
-
-
-
-              gridTemplateColumns: "1fr 170px",
-
-
-
-              gap: 18,
-
-
-
-              alignItems: "start",
-
-
-
-            }}
-
-
-
-          >
-
-
-
-            <div>
-
-
-
-              <h2 style={{ color: "#2563eb", marginTop: 0 }}>Selected</h2>
-
-
-
-              <div style={{ fontWeight: 900, color: "#64748b", marginBottom: 10 }}>
-
-
-
-                Selected Children + Billing Plan Fees
-
-
-
-              </div>
-
-
-
-              <ul style={{ marginTop: 0, color: "#334155", lineHeight: 1.6 }}>
-
-
-
-                <li>You will choose which children will be selected for this invoice run.</li>
-
-
-
-                <li>The fees on each child&apos;s billing plan will be used for each invoice.</li>
-
-
-
-                <li>You will have the option to add extra fees to all invoices.</li>
-
-
-
-              </ul>
-
-
-
-            </div>
-
-
-
-            <button style={goldBtn} onClick={() => setInvoiceRunView("wizardSettings")}>
+            >
 
 
 
@@ -2106,9 +3679,6 @@ onClick={() => {
 
 
   }
-
-
-
   if (invoiceRunView === "wizardSettings") {
 
 
@@ -2145,19 +3715,15 @@ onClick={() => {
 
 
 
-         <div
+        <div
 
 
 
-    data-invoice-settings="yes"
+          style={{
 
 
 
-       style={{
-
-
-
-        maxWidth: 720,
+            maxWidth: 720,
 
 
 
@@ -2221,7 +3787,15 @@ onClick={() => {
 
 
 
-            <label style={{ fontWeight: 900, color: "#334155" }}>* Description</label>
+            <label style={{ fontWeight: 900, color: "#334155" }}>
+
+
+
+              * Description
+
+
+
+            </label>
 
 
 
@@ -2229,27 +3803,31 @@ onClick={() => {
 
 
 
-  data-field="description"
+              style={input}
 
 
 
-  style={input}
+              value={`Invoice Run For ${invoiceRunSettings.month || ""}`}
 
 
 
-  value={`Invoice Run For ${invoiceRunSettings.month || ""}`}
+              readOnly
 
 
 
-  readOnly
+            />
 
 
 
-/>
+            <label style={{ fontWeight: 900, color: "#334155" }}>
 
 
 
-            <label style={{ fontWeight: 900, color: "#334155" }}>* Date On Invoices</label>
+              * Date On Invoices
+
+
+
+            </label>
 
 
 
@@ -2269,27 +3847,27 @@ onClick={() => {
 
 
 
-onBlur={(e) =>
+              onBlur={(e) =>
 
 
 
-  setInvoiceRunSettings({
+                setInvoiceRunSettings({
 
 
 
-    ...invoiceRunSettings,
+                  ...invoiceRunSettings,
 
 
 
-    invoiceDate: e.target.value
+                  invoiceDate: e.target.value,
 
 
 
-  })
+                })
 
 
 
-}
+              }
 
 
 
@@ -2297,7 +3875,15 @@ onBlur={(e) =>
 
 
 
-            <label style={{ fontWeight: 900, color: "#334155" }}>* Due Date On Invoices</label>
+            <label style={{ fontWeight: 900, color: "#334155" }}>
+
+
+
+              * Due Date On Invoices
+
+
+
+            </label>
 
 
 
@@ -2318,25 +3904,25 @@ onBlur={(e) =>
 
 
               onBlur={(e) =>
-              
-              
-              
+
+
+
                 setInvoiceRunSettings({
-              
-              
-              
+
+
+
                   ...invoiceRunSettings,
-              
-              
-              
+
+
+
                   dueDate: e.target.value,
-              
-              
-              
+
+
+
                 })
-              
-              
-              
+
+
+
               }
 
 
@@ -2345,7 +3931,15 @@ onBlur={(e) =>
 
 
 
-            <label style={{ fontWeight: 900, color: "#334155" }}>* For The Month Of</label>
+            <label style={{ fontWeight: 900, color: "#334155" }}>
+
+
+
+              * For The Month Of
+
+
+
+            </label>
 
 
 
@@ -2363,14 +3957,28 @@ onBlur={(e) =>
 
               onBlur={(e) =>
 
+
+
                 setInvoiceRunSettings({
-              
+
+
+
                   ...invoiceRunSettings,
-              
+
+
+
                   month: e.target.value,
-              
+
+
+
+                  description: `Invoice Run For ${e.target.value}`,
+
+
+
                 })
-              
+
+
+
               }
 
 
@@ -2379,7 +3987,15 @@ onBlur={(e) =>
 
 
 
-            <label style={{ fontWeight: 900, color: "#334155" }}>Message On Invoices</label>
+            <label style={{ fontWeight: 900, color: "#334155" }}>
+
+
+
+              Message On Invoices
+
+
+
+            </label>
 
 
 
@@ -2395,27 +4011,27 @@ onBlur={(e) =>
 
 
 
-onBlur={(e) =>
+              onBlur={(e) =>
 
 
 
-  setInvoiceRunSettings({
+                setInvoiceRunSettings({
 
 
 
-    ...invoiceRunSettings,
+                  ...invoiceRunSettings,
 
 
 
-    description: e.target.value,
+                  message: e.target.value,
 
 
 
-  })
+                })
 
 
 
-}
+              }
 
 
 
@@ -2515,7 +4131,27 @@ onBlur={(e) =>
 
 
 
-            <button style={goldBtn} onClick={() => alert("All enrolled children are already included.")}>
+            <button
+
+
+
+              style={goldBtn}
+
+
+
+              onClick={() =>
+
+
+
+                alert("All enrolled children are already included.")
+
+
+
+              }
+
+
+
+            >
 
 
 
@@ -2527,7 +4163,19 @@ onBlur={(e) =>
 
 
 
-            <button style={goldBtn} onClick={() => alert("Auto Add completed.")}>
+            <button
+
+
+
+              style={goldBtn}
+
+
+
+              onClick={() => alert("Auto Add completed.")}
+
+
+
+            >
 
 
 
@@ -2543,119 +4191,119 @@ onBlur={(e) =>
 
 
 
-          <table style={{ width: "100%", borderCollapse: "collapse" }}>
+          {runRows.length === 0 ? (
 
 
 
-            <thead>
+            <div
 
 
 
-              <tr>
+              style={{
 
 
 
-                <th style={th}>Account No</th>
+                padding: 30,
 
 
 
-                <th style={th}>Name</th>
+                textAlign: "center",
 
 
 
-                <th style={th}>Surname</th>
+                color: "#991b1b",
 
 
 
-                <th style={th}>Classroom / Group</th>
+                fontWeight: 900,
 
 
 
-                <th style={{ ...th, textAlign: "right" }}>Balance</th>
+              }}
 
 
 
-                <th style={th}>Last Invoice</th>
+            >
 
 
 
-                <th style={th}>Account Status</th>
+              No learners found for this invoice run.
 
 
 
-                <th style={th}></th>
+            </div>
 
 
 
-              </tr>
+          ) : (
 
 
 
-            </thead>
+            <table style={{ width: "100%", borderCollapse: "collapse" }}>
 
 
 
-            <tbody>
+              <thead>
 
 
 
-              {runRows.map((row: any, index: number) => (
+                <tr>
 
 
 
-                <tr
+                  <th style={th}>Account No</th>
 
 
 
-                  key={String(row.id || index)}
+                  <th style={th}>Name</th>
 
 
 
-                  style={{
+                  <th style={th}>Surname</th>
 
 
 
-                    background:
+                  <th style={th}>Classroom / Group</th>
 
 
 
-                      index % 2 === 0 ? "#ffffff" : "rgba(212,175,55,0.05)",
+                  <th style={{ ...th, textAlign: "right" }}>Balance</th>
 
 
 
-                  }}
+                  <th style={th}>Last Invoice</th>
 
 
 
-                >
+                  <th style={th}>Account Status</th>
 
 
 
-                  <td style={td}>{row.accountNo}</td>
+                  <th style={th}></th>
 
 
 
-                  <td style={td}>{row.firstName || row.learnerName}</td>
+                </tr>
 
 
 
-                  <td style={td}>{row.surname || ""}</td>
+              </thead>
 
 
 
-                  <td style={td}>{row.classroom}</td>
+              <tbody>
 
 
 
-                  <td style={{ ...td, textAlign: "right" }}>{money(row.balance)}</td>
+                {runRows.map((row: any, index: number) => (
 
 
 
-                  <td style={td}>{money(row.invoiceAmount)} on {invoiceRunSettings.invoiceDate}</td>
+                  <tr
 
 
 
-                  <td
+                    key={String(row.id || index)}
 
 
 
@@ -2663,35 +4311,19 @@ onBlur={(e) =>
 
 
 
-                      ...td,
+                      background:
 
 
 
-                      fontWeight: 900,
+                        index % 2 === 0
 
 
 
-                      color:
+                          ? "#ffffff"
 
 
 
-                        row.balance < 0
-
-
-
-                          ? "#15803d"
-
-
-
-                          : row.balance > 5000
-
-
-
-                            ? "#b91c1c"
-
-
-
-                            : "#ca8a04",
+                          : "rgba(212,175,55,0.05)",
 
 
 
@@ -2703,47 +4335,87 @@ onBlur={(e) =>
 
 
 
-                    {row.balance < 0 ? "Over Paid" : row.balance > 5000 ? "Bad Debt" : "Recently Owing"}
+                    <td style={td}>{row.accountNo}</td>
 
 
 
-                  </td>
+                    <td style={td}>{row.firstName || row.learnerName}</td>
 
 
 
-                  <td style={td}>
+                    <td style={td}>{row.surname || ""}</td>
 
 
 
-                    <button
+                    <td style={td}>{row.classroom}</td>
 
 
 
-                      style={dangerBtn}
+                    <td style={{ ...td, textAlign: "right" }}>
 
 
 
-                      onClick={() => {
+                      {money(row.balance)}
 
 
 
-                        const current = readJson(["educlearSelectedInvoiceRun"], selectedRun);
+                    </td>
 
 
 
-                        const rows = (Array.isArray(current?.rows) ? current.rows : runRows).filter(
+                    <td style={td}>
 
 
 
-                          (item: any) => String(item.id) !== String(row.id)
+                      {money(row.invoiceAmount)} on{" "}
 
 
 
-                        );
+                      {invoiceRunSettings.invoiceDate || selectedRun?.invoiceDate}
 
 
 
-                        updateCurrentRun({ rows });
+                    </td>
+
+
+
+                    <td
+
+
+
+                      style={{
+
+
+
+                        ...td,
+
+
+
+                        fontWeight: 900,
+
+
+
+                        color:
+
+
+
+                          row.balance < 0
+
+
+
+                            ? "#15803d"
+
+
+
+                            : row.balance > 5000
+
+
+
+                              ? "#b91c1c"
+
+
+
+                              : "#ca8a04",
 
 
 
@@ -2755,31 +4427,131 @@ onBlur={(e) =>
 
 
 
-                      ×
+                      {row.balance < 0
 
 
 
-                    </button>
+                        ? "Over Paid"
 
 
 
-                  </td>
+                        : row.balance > 5000
 
 
 
-                </tr>
+                          ? "Bad Debt"
 
 
 
-              ))}
+                          : "Recently Owing"}
 
 
 
-            </tbody>
+                    </td>
 
 
 
-          </table>
+                    <td style={td}>
+
+
+
+                      <button
+
+
+
+                        style={dangerBtn}
+
+
+
+                        onClick={() => {
+
+
+
+                          const current = readJson(
+
+
+
+                            ["educlearSelectedInvoiceRun"],
+
+
+
+                            selectedRun
+
+
+
+                          );
+
+
+
+                          const rows = (
+
+
+
+                            Array.isArray(current?.rows)
+
+
+
+                              ? current.rows
+
+
+
+                              : runRows
+
+
+
+                          ).filter(
+
+
+
+                            (item: any) => String(item.id) !== String(row.id)
+
+
+
+                          );
+
+
+
+                          updateCurrentRun({ rows });
+
+
+
+                        }}
+
+
+
+                      >
+
+
+
+                        ×
+
+
+
+                      </button>
+
+
+
+                    </td>
+
+
+
+                  </tr>
+
+
+
+                ))}
+
+
+
+              </tbody>
+
+
+
+            </table>
+
+
+
+          )}
 
 
 
@@ -2880,87 +4652,103 @@ onBlur={(e) =>
 
 
 
-              const rows = (Array.isArray(current?.rows) ? current.rows : runRows).map((row: any) => {
+              const rows = (Array.isArray(current?.rows) ? current.rows : runRows).map(
 
 
 
-                const extraFee = {
+                (row: any) => {
 
 
 
-                  id: `extra-${Date.now()}`,
+                  const extraFee = {
 
 
 
-                  description,
+                    id: `extra-${Date.now()}`,
 
 
 
-                  name: description,
+                    description,
 
 
 
-                  type: "EXTRA",
+                    name: description,
 
 
 
-                  amount,
+                    type: "EXTRA",
 
 
 
-                };
+                    amount,
 
 
 
-                const fees = Array.isArray(row.fees) ? [...row.fees, extraFee] : [extraFee];
+                  };
 
 
 
-                const invoiceAmount = fees.reduce(
+                  const fees = Array.isArray(row.fees)
 
 
 
-                  (sum: number, fee: any) => sum + Number(fee.amount || 0),
+                    ? [...row.fees, extraFee]
 
 
 
-                  0
+                    : [extraFee];
 
 
 
-                );
+                  const invoiceAmount = fees.reduce(
 
 
 
-                return {
+                    (sum: number, fee: any) => sum + Number(fee.amount || 0),
 
 
 
-                  ...row,
+                    0
 
 
 
-                  fees,
+                  );
 
 
 
-                  invoiceAmount,
+                  return {
 
 
 
-                  newBalance: Number(row.balance || 0) + invoiceAmount,
+                    ...row,
 
 
 
-                  status: invoiceAmount <= 0 ? "Paid" : "Unpaid",
+                    fees,
 
 
 
-                };
+                    invoiceAmount,
 
 
 
-              });
+                    newBalance: Number(row.balance || 0) + invoiceAmount,
+
+
+
+                    status: invoiceAmount <= 0 ? "Paid" : "Unpaid",
+
+
+
+                  };
+
+
+
+                }
+
+
+
+              );
 
 
 
@@ -3072,147 +4860,95 @@ onBlur={(e) =>
 
 
 
-          <table style={{ width: "100%", borderCollapse: "collapse" }}>
+          {runRows.length === 0 ? (
 
 
 
-            <thead>
+            <div
 
 
 
-              <tr>
+              style={{
 
 
 
-                <th style={th}>Account No</th>
+                padding: 30,
 
 
 
-                <th style={th}>Name</th>
+                textAlign: "center",
 
 
 
-                <th style={th}>Surname</th>
+                color: "#991b1b",
 
 
 
-                <th style={th}>Classroom / Group</th>
+                fontWeight: 900,
 
 
 
-                <th style={{ ...th, textAlign: "right" }}>Balance</th>
+              }}
 
 
 
-                <th style={{ ...th, textAlign: "center" }}>Items</th>
+            >
 
 
 
-                <th style={{ ...th, textAlign: "right" }}>Invoice</th>
+              No learners found. Go back and make sure learners are loaded.
 
 
 
-                <th style={{ ...th, textAlign: "right" }}>New Balance</th>
+            </div>
 
 
 
-              </tr>
+          ) : (
 
 
 
-            </thead>
+            <table style={{ width: "100%", borderCollapse: "collapse" }}>
 
 
 
-            <tbody>
+              <thead>
 
 
 
-              {runRows.map((row: any, index: number) => (
+                <tr>
 
 
 
-                <tr
+                  <th style={th}>Account No</th>
 
 
 
-                  key={String(row.id || index)}
+                  <th style={th}>Name</th>
 
 
 
-                  style={{
+                  <th style={th}>Surname</th>
 
 
 
-                    background:
+                  <th style={th}>Classroom / Group</th>
 
 
 
-                      index % 2 === 0 ? "#ffffff" : "rgba(212,175,55,0.05)",
+                  <th style={{ ...th, textAlign: "right" }}>Balance</th>
 
 
 
-                  }}
+                  <th style={{ ...th, textAlign: "center" }}>Items</th>
 
 
 
-                >
+                  <th style={{ ...th, textAlign: "right" }}>Invoice</th>
 
 
 
-                  <td style={td}>{row.accountNo}</td>
-
-
-
-                  <td style={td}>{row.firstName || row.learnerName}</td>
-
-
-
-                  <td style={td}>{row.surname || ""}</td>
-
-
-
-                  <td style={td}>{row.classroom}</td>
-
-
-
-                  <td style={{ ...td, textAlign: "right" }}>{money(row.balance)}</td>
-
-
-
-                  <td style={{ ...td, textAlign: "center" }}>
-
-
-
-                    {Array.isArray(row.fees) ? row.fees.length : 0} 👁
-
-
-
-                  </td>
-
-
-
-                  <td style={{ ...td, textAlign: "right", fontWeight: 900 }}>
-
-
-
-                    {money(row.invoiceAmount)}
-
-
-
-                  </td>
-
-
-
-                  <td style={{ ...td, textAlign: "right", fontWeight: 900 }}>
-
-
-
-                    {money(row.newBalance)}
-
-
-
-                  </td>
+                  <th style={{ ...th, textAlign: "right" }}>New Balance</th>
 
 
 
@@ -3220,15 +4956,119 @@ onBlur={(e) =>
 
 
 
-              ))}
+              </thead>
 
 
 
-            </tbody>
+              <tbody>
 
 
 
-          </table>
+                {runRows.map((row: any, index: number) => (
+
+
+
+                  <tr
+
+
+
+                    key={String(row.id || index)}
+
+
+
+                    style={{
+
+
+
+                      background:
+
+
+
+                        index % 2 === 0 ? "#ffffff" : "rgba(212,175,55,0.05)",
+
+
+
+                    }}
+
+
+
+                  >
+
+
+
+                    <td style={td}>{row.accountNo}</td>
+
+
+
+                    <td style={td}>{row.firstName || row.learnerName}</td>
+
+
+
+                    <td style={td}>{row.surname || ""}</td>
+
+
+
+                    <td style={td}>{row.classroom}</td>
+
+
+
+                    <td style={{ ...td, textAlign: "right" }}>{money(row.balance)}</td>
+
+
+
+                    <td style={{ ...td, textAlign: "center" }}>
+
+
+
+                      {Array.isArray(row.fees) ? row.fees.length : 0} 👁
+
+
+
+                    </td>
+
+
+
+                    <td style={{ ...td, textAlign: "right", fontWeight: 900 }}>
+
+
+
+                      {money(row.invoiceAmount)}
+
+
+
+                    </td>
+
+
+
+                    <td style={{ ...td, textAlign: "right", fontWeight: 900 }}>
+
+
+
+                      {money(row.newBalance)}
+
+
+
+                    </td>
+
+
+
+                  </tr>
+
+
+
+                ))}
+
+
+
+              </tbody>
+
+
+
+            </table>
+
+
+
+          )}
 
 
 
@@ -3245,9 +5085,6 @@ onBlur={(e) =>
 
 
   }
-
-
-
   if (invoiceRunView === "wizardCreate") {
 
 
@@ -3440,107 +5277,83 @@ onBlur={(e) =>
 
 
 
-          <table style={{ width: "100%", borderCollapse: "collapse" }}>
+          {runRows.length === 0 ? (
 
 
 
-            <thead>
+            <div
 
 
 
-              <tr>
+              style={{
 
 
 
-                <th style={th}>Invoice No</th>
+                padding: 30,
 
 
 
-                <th style={th}>Date</th>
+                textAlign: "center",
 
 
 
-                <th style={th}>Children</th>
+                color: "#991b1b",
 
 
 
-                <th style={th}>Parents</th>
+                fontWeight: 900,
 
 
 
-                <th style={{ ...th, textAlign: "right" }}>Amount</th>
+              }}
 
 
 
-              </tr>
+            >
 
 
 
-            </thead>
+              No invoices were created because no learners were found.
 
 
 
-            <tbody>
+            </div>
 
 
 
-              {runRows.map((row: any, index: number) => (
+          ) : (
 
 
 
-                <tr
+            <table style={{ width: "100%", borderCollapse: "collapse" }}>
 
 
 
-                  key={String(row.id || index)}
+              <thead>
 
 
 
-                  style={{
+                <tr>
 
 
 
-                    background:
+                  <th style={th}>Invoice No</th>
 
 
 
-                      index % 2 === 0 ? "#ffffff" : "rgba(212,175,55,0.05)",
+                  <th style={th}>Date</th>
 
 
 
-                  }}
+                  <th style={th}>Children</th>
 
 
 
-                >
+                  <th style={th}>Parents</th>
 
 
 
-                  <td style={td}>{row.invoiceNo}</td>
-
-
-
-                  <td style={td}>{invoiceRunSettings.invoiceDate || selectedRun?.invoiceDate}</td>
-
-
-
-                  <td style={td}>{row.learnerName}</td>
-
-
-
-                  <td style={td}>{row.parentName}</td>
-
-
-
-                  <td style={{ ...td, textAlign: "right", fontWeight: 900 }}>
-
-
-
-                    {money(row.invoiceAmount)}
-
-
-
-                  </td>
+                  <th style={{ ...th, textAlign: "right" }}>Amount</th>
 
 
 
@@ -3548,15 +5361,99 @@ onBlur={(e) =>
 
 
 
-              ))}
+              </thead>
 
 
 
-            </tbody>
+              <tbody>
 
 
 
-          </table>
+                {runRows.map((row: any, index: number) => (
+
+
+
+                  <tr
+
+
+
+                    key={String(row.id || index)}
+
+
+
+                    style={{
+
+
+
+                      background:
+
+
+
+                        index % 2 === 0 ? "#ffffff" : "rgba(212,175,55,0.05)",
+
+
+
+                    }}
+
+
+
+                  >
+
+
+
+                    <td style={td}>{row.invoiceNo}</td>
+
+
+
+                    <td style={td}>
+
+
+
+                      {invoiceRunSettings.invoiceDate || selectedRun?.invoiceDate}
+
+
+
+                    </td>
+
+
+
+                    <td style={td}>{row.learnerName}</td>
+
+
+
+                    <td style={td}>{row.parentName}</td>
+
+
+
+                    <td style={{ ...td, textAlign: "right", fontWeight: 900 }}>
+
+
+
+                      {money(row.invoiceAmount)}
+
+
+
+                    </td>
+
+
+
+                  </tr>
+
+
+
+                ))}
+
+
+
+              </tbody>
+
+
+
+            </table>
+
+
+
+          )}
 
 
 
@@ -3616,7 +5513,35 @@ onBlur={(e) =>
 
 
 
-        <div style={{ maxWidth: 760, margin: "0 auto", display: "grid", gap: 18 }}>
+        <div
+
+
+
+          style={{
+
+
+
+            maxWidth: 760,
+
+
+
+            margin: "0 auto",
+
+
+
+            display: "grid",
+
+
+
+            gap: 18,
+
+
+
+          }}
+
+
+
+        >
 
 
 
@@ -3676,19 +5601,63 @@ onBlur={(e) =>
 
 
 
-              <ul style={{ color: "#334155", lineHeight: 1.6, marginBottom: 0 }}>
+              <ul
 
 
 
-                <li>Choose one of these options to email invoices and / or statements to parents.</li>
+                style={{
 
 
 
-                <li>You will be able to review the mail and recipients before sending.</li>
+                  color: "#334155",
 
 
 
-                <li>You can also do this later by going to Billing ➜ Invoice Runs.</li>
+                  lineHeight: 1.6,
+
+
+
+                  marginBottom: 0,
+
+
+
+                }}
+
+
+
+              >
+
+
+
+                <li>
+
+
+
+                  Choose one of these options to email invoices and / or
+
+
+
+                  statements to parents.
+
+
+
+                </li>
+
+
+
+                <li>You will be able to review the mail before sending.</li>
+
+
+
+                <li>
+
+
+
+                  You can also do this later by going to Billing ➜ Invoice Runs.
+
+
+
+                </li>
 
 
 
@@ -3704,147 +5673,23 @@ onBlur={(e) =>
 
 
 
-              <button style={btn} onClick={() => setInvoiceRunView("emailInvoices")}>
+              <button
+
+
+
+                style={btn}
+
+
+
+                onClick={() => setInvoiceRunView("emailInvoices")}
+
+
+
+              >
 
 
 
                 Email Invoices
-
-
-
-              </button>
-
-
-
-              <button style={btn} onClick={() => setInvoiceRunView("emailStatements")}>
-
-
-
-                Email Statements
-
-
-
-              </button>
-
-
-
-              <button style={btn} onClick={() => setInvoiceRunView("emailBoth")}>
-
-
-
-                Email Both
-
-
-
-              </button>
-
-
-
-            </div>
-
-
-
-          </div>
-
-
-
-          <div
-
-
-
-            style={{
-
-
-
-              border: "1px solid #d8dee8",
-
-
-
-              borderRadius: 12,
-
-
-
-              background: "#ffffff",
-
-
-
-              padding: 22,
-
-
-
-              display: "grid",
-
-
-
-              gridTemplateColumns: "1fr 190px",
-
-
-
-              gap: 18,
-
-
-
-              alignItems: "center",
-
-
-
-            }}
-
-
-
-          >
-
-
-
-            <div>
-
-
-
-              <h2 style={{ color: "#2563eb", marginTop: 0 }}>Print</h2>
-
-
-
-              <ul style={{ color: "#334155", lineHeight: 1.6, marginBottom: 0 }}>
-
-
-
-                <li>Choose one of these options to print invoices and / or statements from this invoice run.</li>
-
-
-
-                <li>You can also do this later by going to Billing ➜ Invoice Runs.</li>
-
-
-
-              </ul>
-
-
-
-            </div>
-
-
-
-            <div style={{ display: "grid", gap: 8 }}>
-
-
-
-              <button style={btn} onClick={() => setInvoiceRunView("printInvoices")}>
-
-
-
-                Print Invoices
-
-
-
-              </button>
-
-
-
-              <button style={btn} onClick={() => setInvoiceRunView("printStatements")}>
-
-
-
-                Print Statements
 
 
 
@@ -3860,19 +5705,7 @@ onBlur={(e) =>
 
 
 
-                onClick={() => {
-
-
-
-                  setInvoiceRunView("printInvoices");
-
-
-
-                  alert("Print Both starts with invoices. Print statements after invoices.");
-
-
-
-                }}
+                onClick={() => setInvoiceRunView("emailStatements")}
 
 
 
@@ -3880,7 +5713,31 @@ onBlur={(e) =>
 
 
 
-                Print Both
+                Email Statements
+
+
+
+              </button>
+
+
+
+              <button
+
+
+
+                style={btn}
+
+
+
+                onClick={() => setInvoiceRunView("emailBoth")}
+
+
+
+              >
+
+
+
+                Email Both
 
 
 
@@ -3953,10 +5810,6 @@ onBlur={(e) =>
 
 
 
-    const readyCount = filteredRows.filter((row: any) => row.parentEmail).length;
-
-
-
     return (
 
 
@@ -4009,19 +5862,7 @@ onBlur={(e) =>
 
 
 
-            <button
-
-
-
-              style={goldBtn}
-
-
-
-              onClick={() => alert(`${readyCount} email(s) queued.`)}
-
-
-
-            >
+            <button style={goldBtn} onClick={openStatementPreview}>
 
 
 
@@ -4041,7 +5882,19 @@ onBlur={(e) =>
 
 
 
-        <div className="premium-card" style={{ padding: 20, borderRadius: 20, background: "#ffffff" }}>
+        <div
+
+
+
+          className="premium-card"
+
+
+
+          style={{ padding: 20, borderRadius: 20, background: "#ffffff" }}
+
+
+
+        >
 
 
 
@@ -4093,7 +5946,31 @@ onBlur={(e) =>
 
 
 
-                <tr key={String(row.id || index)} style={{ background: index % 2 === 0 ? "#ffffff" : "rgba(212,175,55,0.05)" }}>
+                <tr
+
+
+
+                  key={String(row.id || index)}
+
+
+
+                  style={{
+
+
+
+                    background:
+
+
+
+                      index % 2 === 0 ? "#ffffff" : "rgba(212,175,55,0.05)",
+
+
+
+                  }}
+
+
+
+                >
 
 
 
@@ -4113,15 +5990,27 @@ onBlur={(e) =>
 
 
 
-                    {invoiceRunView === "emailInvoices" && `Invoice #${row.invoiceNo}`}
+                    {invoiceRunView === "emailInvoices" &&
 
 
 
-                    {invoiceRunView === "emailStatements" && `Statement #${row.statementNo}`}
+                      `Invoice #${row.invoiceNo}`}
 
 
 
-                    {invoiceRunView === "emailBoth" && `Invoice #${row.invoiceNo} + Statement #${row.statementNo}`}
+                    {invoiceRunView === "emailStatements" &&
+
+
+
+                      `Statement #${row.statementNo}`}
+
+
+
+                    {invoiceRunView === "emailBoth" &&
+
+
+
+                      `Invoice #${row.invoiceNo} + Statement #${row.statementNo}`}
 
 
 
@@ -4129,7 +6018,31 @@ onBlur={(e) =>
 
 
 
-                  <td style={{ ...td, fontWeight: 900, color: row.parentEmail ? "#15803d" : "#b91c1c" }}>
+                  <td
+
+
+
+                    style={{
+
+
+
+                      ...td,
+
+
+
+                      fontWeight: 900,
+
+
+
+                      color: row.parentEmail ? "#15803d" : "#b91c1c",
+
+
+
+                    }}
+
+
+
+                  >
 
 
 
@@ -4161,6 +6074,270 @@ onBlur={(e) =>
 
 
 
+        {statementEmailOpen && (
+
+
+
+          <div
+
+
+
+            style={{
+
+
+
+              position: "fixed",
+
+
+
+              inset: 0,
+
+
+
+              background: "rgba(0,0,0,0.65)",
+
+
+
+              display: "flex",
+
+
+
+              alignItems: "center",
+
+
+
+              justifyContent: "center",
+
+
+
+              zIndex: 9999,
+
+
+
+              padding: 20,
+
+
+
+            }}
+
+
+
+          >
+
+
+
+            <div
+
+
+
+              style={{
+
+
+
+                width: "100%",
+
+
+
+                maxWidth: 900,
+
+
+
+                background: "#ffffff",
+
+
+
+                borderRadius: 20,
+
+
+
+                padding: 24,
+
+
+
+                boxShadow: "0 20px 60px rgba(0,0,0,0.35)",
+
+
+
+              }}
+
+
+
+            >
+
+
+
+              <h2 style={{ marginTop: 0 }}>Email Statements</h2>
+
+
+
+              <input
+
+
+
+                value={statementEmailSubject}
+
+
+
+                onChange={(e) => setStatementEmailSubject(e.target.value)}
+
+
+
+                style={{ ...input, marginBottom: 12 }}
+
+
+
+              />
+
+
+
+              <textarea
+
+
+
+                value={statementEmailMessage}
+
+
+
+                onChange={(e) => setStatementEmailMessage(e.target.value)}
+
+
+
+                rows={9}
+
+
+
+                style={{ ...input, minHeight: 180, resize: "vertical" }}
+
+
+
+              />
+
+
+
+              <div
+
+
+
+                style={{
+
+
+
+                  marginTop: 16,
+
+
+
+                  display: "flex",
+
+
+
+                  justifyContent: "space-between",
+
+
+
+                  alignItems: "center",
+
+
+
+                }}
+
+
+
+              >
+
+
+
+                <strong>{statementEmailRows.length} statement(s) selected</strong>
+
+
+
+                <div style={{ display: "flex", gap: 10 }}>
+
+
+
+                  <button
+
+
+
+                    type="button"
+
+
+
+                    style={btn}
+
+
+
+                    onClick={() => setStatementEmailOpen(false)}
+
+
+
+                    disabled={statementEmailSending}
+
+
+
+                  >
+
+
+
+                    Cancel
+
+
+
+                  </button>
+
+
+
+                  <button
+
+
+
+                    type="button"
+
+
+
+                    style={goldBtn}
+
+
+
+                    onClick={sendStatementEmails}
+
+
+
+                    disabled={statementEmailSending}
+
+
+
+                  >
+
+
+
+                    {statementEmailSending ? "Sending..." : "Send Statements"}
+
+
+
+                  </button>
+
+
+
+                </div>
+
+
+
+              </div>
+
+
+
+            </div>
+
+
+
+          </div>
+
+
+
+        )}
+
+
+
       </div>
 
 
@@ -4170,9 +6347,6 @@ onBlur={(e) =>
 
 
   }
-
-
-
   if (invoiceRunView === "printInvoices" || invoiceRunView === "printStatements") {
 
 
@@ -4261,7 +6435,19 @@ onBlur={(e) =>
 
 
 
-        <div className="premium-card" style={{ padding: 20, borderRadius: 20, background: "#ffffff" }}>
+        <div
+
+
+
+          className="premium-card"
+
+
+
+          style={{ padding: 20, borderRadius: 20, background: "#ffffff" }}
+
+
+
+        >
 
 
 
@@ -4277,99 +6463,87 @@ onBlur={(e) =>
 
 
 
-          <table style={{ width: "100%", borderCollapse: "collapse" }}>
+          {filteredRows.length === 0 ? (
 
 
 
-            <thead>
+            <div
 
 
 
-              <tr>
+              style={{
 
 
 
-                <th style={th}>Account No</th>
+                padding: 30,
 
 
 
-                <th style={th}>{isInvoices ? "Invoice No" : "Statement No"}</th>
+                textAlign: "center",
 
 
 
-                <th style={th}>Learner</th>
+                color: "#991b1b",
 
 
 
-                <th style={th}>Parent</th>
+                fontWeight: 900,
 
 
 
-                <th style={{ ...th, textAlign: "right" }}>Amount</th>
+              }}
 
 
 
-                <th style={th}>Status</th>
+            >
 
 
 
-              </tr>
+              No records found to print.
 
 
 
-            </thead>
+            </div>
 
 
 
-            <tbody>
+          ) : (
 
 
 
-              {filteredRows.map((row: any, index: number) => (
+            <table style={{ width: "100%", borderCollapse: "collapse" }}>
 
 
 
-                <tr key={String(row.id || index)} style={{ background: index % 2 === 0 ? "#ffffff" : "rgba(212,175,55,0.05)" }}>
+              <thead>
 
 
 
-                  <td style={td}>{row.accountNo}</td>
+                <tr>
 
 
 
-                  <td style={td}>{isInvoices ? row.invoiceNo : row.statementNo}</td>
+                  <th style={th}>Account No</th>
 
 
 
-                  <td style={td}>{row.learnerName}</td>
+                  <th style={th}>{isInvoices ? "Invoice No" : "Statement No"}</th>
 
 
 
-                  <td style={td}>{row.parentName}</td>
+                  <th style={th}>Learner</th>
 
 
 
-                  <td style={{ ...td, textAlign: "right", fontWeight: 900 }}>
+                  <th style={th}>Parent</th>
 
 
 
-                    {money(row.invoiceAmount)}
+                  <th style={{ ...th, textAlign: "right" }}>Amount</th>
 
 
 
-                  </td>
-
-
-
-                  <td style={{ ...td, fontWeight: 900, color: row.status === "Paid" ? "#15803d" : "#b91c1c" }}>
-
-
-
-                    {row.status}
-
-
-
-                  </td>
+                  <th style={th}>Status</th>
 
 
 
@@ -4377,15 +6551,127 @@ onBlur={(e) =>
 
 
 
-              ))}
+              </thead>
 
 
 
-            </tbody>
+              <tbody>
 
 
 
-          </table>
+                {filteredRows.map((row: any, index: number) => (
+
+
+
+                  <tr
+
+
+
+                    key={String(row.id || index)}
+
+
+
+                    style={{
+
+
+
+                      background:
+
+
+
+                        index % 2 === 0 ? "#ffffff" : "rgba(212,175,55,0.05)",
+
+
+
+                    }}
+
+
+
+                  >
+
+
+
+                    <td style={td}>{row.accountNo}</td>
+
+
+
+                    <td style={td}>{isInvoices ? row.invoiceNo : row.statementNo}</td>
+
+
+
+                    <td style={td}>{row.learnerName}</td>
+
+
+
+                    <td style={td}>{row.parentName}</td>
+
+
+
+                    <td style={{ ...td, textAlign: "right", fontWeight: 900 }}>
+
+
+
+                      {money(row.invoiceAmount)}
+
+
+
+                    </td>
+
+
+
+                    <td
+
+
+
+                      style={{
+
+
+
+                        ...td,
+
+
+
+                        fontWeight: 900,
+
+
+
+                        color: row.status === "Paid" ? "#15803d" : "#b91c1c",
+
+
+
+                      }}
+
+
+
+                    >
+
+
+
+                      {row.status}
+
+
+
+                    </td>
+
+
+
+                  </tr>
+
+
+
+                ))}
+
+
+
+              </tbody>
+
+
+
+            </table>
+
+
+
+          )}
 
 
 
@@ -4422,6 +6708,10 @@ onBlur={(e) =>
 
 
       month: invoiceRunSettings.month || "",
+
+
+
+      period: invoiceRunSettings.month || "",
 
 
 
@@ -4501,6 +6791,26 @@ onBlur={(e) =>
 
 
 
+              const updatedMonth =
+
+
+
+                invoiceRunSettings.month ||
+
+
+
+                run.month ||
+
+
+
+                run.period ||
+
+
+
+                "this period";
+
+
+
               const updatedRun = {
 
 
@@ -4509,50 +6819,15 @@ onBlur={(e) =>
 
 
 
-                description:
+                description: `Invoice Run For ${updatedMonth}`,
 
 
 
-  invoiceRunSettings.description &&
+                month: updatedMonth,
 
 
 
-  invoiceRunSettings.description !== invoiceRunSettings.dueDate
-
-
-
-    ? invoiceRunSettings.description
-
-
-
-    : `Invoice Run For ${
-
-
-
-        invoiceRunSettings.month ||
-
-
-
-        run.month ||
-
-
-
-        run.period ||
-
-
-
-        "this period"
-
-
-
-      }`,
-
-
-
-                month: invoiceRunSettings.month || run.month || "this period",
- 
-          
-              period: invoiceRunSettings.month || run.month || run.period || "this period",
+                period: updatedMonth,
 
 
 
@@ -4704,11 +6979,71 @@ onBlur={(e) =>
 
 
 
-        <div className="premium-card" style={{ background: "#ffffff", border: "1px solid #d8dee8", borderRadius: 16, overflow: "hidden" }}>
+        <div
 
 
 
-          <div style={{ padding: "12px 16px", background: "#f8fafc", borderBottom: "1px solid #d8dee8", fontWeight: 900 }}>
+          className="premium-card"
+
+
+
+          style={{
+
+
+
+            background: "#ffffff",
+
+
+
+            border: "1px solid #d8dee8",
+
+
+
+            borderRadius: 16,
+
+
+
+            overflow: "hidden",
+
+
+
+          }}
+
+
+
+        >
+
+
+
+          <div
+
+
+
+            style={{
+
+
+
+              padding: "12px 16px",
+
+
+
+              background: "#f8fafc",
+
+
+
+              borderBottom: "1px solid #d8dee8",
+
+
+
+              fontWeight: 900,
+
+
+
+            }}
+
+
+
+          >
 
 
 
@@ -4720,7 +7055,35 @@ onBlur={(e) =>
 
 
 
-          <div style={{ padding: 18, display: "grid", gridTemplateColumns: "220px 1fr", gap: 12 }}>
+          <div
+
+
+
+            style={{
+
+
+
+              padding: 18,
+
+
+
+              display: "grid",
+
+
+
+              gridTemplateColumns: "220px 1fr",
+
+
+
+              gap: 12,
+
+
+
+            }}
+
+
+
+          >
 
 
 
@@ -4736,11 +7099,31 @@ onBlur={(e) =>
 
 
 
-              value={`Invoice Run For ${invoiceRunSettings.month || selectedRun?.month || selectedRun?.period || ""}`}
+              value={`Invoice Run For ${
 
 
 
-              
+                invoiceRunSettings.month ||
+
+
+
+                selectedRun?.month ||
+
+
+
+                selectedRun?.period ||
+
+
+
+                ""
+
+
+
+              }`}
+
+
+
+              readOnly
 
 
 
@@ -4764,15 +7147,27 @@ onBlur={(e) =>
 
 
 
-              value={invoiceRunSettings.invoiceDate || run.invoiceDate || ""}
+              defaultValue={invoiceRunSettings.invoiceDate || run.invoiceDate || ""}
 
 
 
-              onChange={(e) =>
+              onBlur={(e) =>
 
 
 
-                setInvoiceRunSettings({ ...invoiceRunSettings, invoiceDate: e.target.value })
+                setInvoiceRunSettings({
+
+
+
+                  ...invoiceRunSettings,
+
+
+
+                  invoiceDate: e.target.value,
+
+
+
+                })
 
 
 
@@ -4800,15 +7195,27 @@ onBlur={(e) =>
 
 
 
-              value={invoiceRunSettings.dueDate || run.dueDate || ""}
+              defaultValue={invoiceRunSettings.dueDate || run.dueDate || ""}
 
 
 
-              onChange={(e) =>
+              onBlur={(e) =>
 
 
 
-                setInvoiceRunSettings({ ...invoiceRunSettings, dueDate: e.target.value })
+                setInvoiceRunSettings({
+
+
+
+                  ...invoiceRunSettings,
+
+
+
+                  dueDate: e.target.value,
+
+
+
+                })
 
 
 
@@ -4828,47 +7235,43 @@ onBlur={(e) =>
 
 
 
-  style={input}
+              style={input}
 
 
 
-  value={invoiceRunSettings.month ?? ""}
+              defaultValue={invoiceRunSettings.month ?? ""}
 
 
 
-  onChange={(e) => {
+              onBlur={(e) =>
 
 
 
-    const newMonth = e.target.value;
-  
-  
-  
-    setInvoiceRunSettings((prev: any) => ({
-  
-  
-  
-      ...prev,
-  
-  
-  
-      month: newMonth,
-  
-  
-  
-      description: `Invoice Run For ${newMonth}`,
-  
-  
-  
-    }));
-  
-  
-  
-  }}
+                setInvoiceRunSettings({
 
 
 
-/>
+                  ...invoiceRunSettings,
+
+
+
+                  month: e.target.value,
+
+
+
+                  description: `Invoice Run For ${e.target.value}`,
+
+
+
+                })
+
+
+
+              }
+
+
+
+            />
 
 
 
@@ -4900,15 +7303,27 @@ onBlur={(e) =>
 
 
 
-              value={invoiceRunSettings.message || run.invoiceMessage || ""}
+              defaultValue={invoiceRunSettings.message || run.invoiceMessage || ""}
 
 
 
-              onChange={(e) =>
+              onBlur={(e) =>
 
 
 
-                setInvoiceRunSettings({ ...invoiceRunSettings, message: e.target.value })
+                setInvoiceRunSettings({
+
+
+
+                  ...invoiceRunSettings,
+
+
+
+                  message: e.target.value,
+
+
+
+                })
 
 
 
@@ -4928,11 +7343,71 @@ onBlur={(e) =>
 
 
 
-        <div className="premium-card" style={{ background: "#ffffff", border: "1px solid #d8dee8", borderRadius: 16, overflow: "hidden" }}>
+        <div
 
 
 
-          <div style={{ padding: "12px 16px", background: "#f8fafc", borderBottom: "1px solid #d8dee8", fontWeight: 900 }}>
+          className="premium-card"
+
+
+
+          style={{
+
+
+
+            background: "#ffffff",
+
+
+
+            border: "1px solid #d8dee8",
+
+
+
+            borderRadius: 16,
+
+
+
+            overflow: "hidden",
+
+
+
+          }}
+
+
+
+        >
+
+
+
+          <div
+
+
+
+            style={{
+
+
+
+              padding: "12px 16px",
+
+
+
+              background: "#f8fafc",
+
+
+
+              borderBottom: "1px solid #d8dee8",
+
+
+
+              fontWeight: 900,
+
+
+
+            }}
+
+
+
+          >
 
 
 
@@ -4944,11 +7419,59 @@ onBlur={(e) =>
 
 
 
-          <div style={{ padding: 12, display: "flex", justifyContent: "space-between", gap: 12 }}>
+          <div
 
 
 
-            <button style={btn} onClick={() => alert("Invoice manage will open from selected invoice row.")}>
+            style={{
+
+
+
+              padding: 12,
+
+
+
+              display: "flex",
+
+
+
+              justifyContent: "space-between",
+
+
+
+              gap: 12,
+
+
+
+            }}
+
+
+
+          >
+
+
+
+            <button
+
+
+
+              style={btn}
+
+
+
+              onClick={() =>
+
+
+
+                alert("Invoice manage will open from selected invoice row.")
+
+
+
+              }
+
+
+
+            >
 
 
 
@@ -5000,99 +7523,87 @@ onBlur={(e) =>
 
 
 
-          <table style={{ width: "100%", borderCollapse: "collapse" }}>
+          {paginatedRows.length === 0 ? (
 
 
 
-            <thead>
+            <div
 
 
 
-              <tr>
+              style={{
 
 
 
-                <th style={th}>Account No</th>
+                padding: 30,
 
 
 
-                <th style={th}>Invoice No</th>
+                textAlign: "center",
 
 
 
-                <th style={th}>Date</th>
+                color: "#991b1b",
 
 
 
-                <th style={th}>Children</th>
+                fontWeight: 900,
 
 
 
-                <th style={{ ...th, textAlign: "right" }}>Amount</th>
+              }}
 
 
 
-                <th style={th}>Invoice Status</th>
+            >
 
 
 
-              </tr>
+              No invoices found for this run.
 
 
 
-            </thead>
+            </div>
 
 
 
-            <tbody>
+          ) : (
 
 
 
-              {paginatedRows.map((row: any, index: number) => (
+            <table style={{ width: "100%", borderCollapse: "collapse" }}>
 
 
 
-                <tr key={String(row.id || index)} style={{ background: index % 2 === 0 ? "#ffffff" : "rgba(212,175,55,0.05)" }}>
+              <thead>
 
 
 
-                  <td style={td}>{row.accountNo}</td>
+                <tr>
 
 
 
-                  <td style={td}>{row.invoiceNo}</td>
+                  <th style={th}>Account No</th>
 
 
 
-                  <td style={td}>{invoiceRunSettings.invoiceDate || run.invoiceDate}</td>
+                  <th style={th}>Invoice No</th>
 
 
 
-                  <td style={td}>{row.learnerName}</td>
+                  <th style={th}>Date</th>
 
 
 
-                  <td style={{ ...td, textAlign: "right", fontWeight: 900 }}>
+                  <th style={th}>Children</th>
 
 
 
-                    {money(row.invoiceAmount)}
+                  <th style={{ ...th, textAlign: "right" }}>Amount</th>
 
 
 
-                  </td>
-
-
-
-                  <td style={{ ...td, color: row.status === "Paid" ? "#15803d" : "#b91c1c", fontWeight: 900 }}>
-
-
-
-                    {row.status}
-
-
-
-                  </td>
+                  <th style={th}>Invoice Status</th>
 
 
 
@@ -5100,19 +7611,159 @@ onBlur={(e) =>
 
 
 
-              ))}
+              </thead>
 
 
 
-            </tbody>
+              <tbody>
 
 
 
-          </table>
+                {paginatedRows.map((row: any, index: number) => (
 
 
 
-          <div style={{ padding: "12px 16px", display: "flex", justifyContent: "space-between", borderTop: "1px solid #e5e7eb" }}>
+                  <tr
+
+
+
+                    key={String(row.id || index)}
+
+
+
+                    style={{
+
+
+
+                      background:
+
+
+
+                        index % 2 === 0 ? "#ffffff" : "rgba(212,175,55,0.05)",
+
+
+
+                    }}
+
+
+
+                  >
+
+
+
+                    <td style={td}>{row.accountNo}</td>
+
+
+
+                    <td style={td}>{row.invoiceNo}</td>
+
+
+
+                    <td style={td}>{invoiceRunSettings.invoiceDate || run.invoiceDate}</td>
+
+
+
+                    <td style={td}>{row.learnerName}</td>
+
+
+
+                    <td style={{ ...td, textAlign: "right", fontWeight: 900 }}>
+
+
+
+                      {money(row.invoiceAmount)}
+
+
+
+                    </td>
+
+
+
+                    <td
+
+
+
+                      style={{
+
+
+
+                        ...td,
+
+
+
+                        color: row.status === "Paid" ? "#15803d" : "#b91c1c",
+
+
+
+                        fontWeight: 900,
+
+
+
+                      }}
+
+
+
+                    >
+
+
+
+                      {row.status}
+
+
+
+                    </td>
+
+
+
+                  </tr>
+
+
+
+                ))}
+
+
+
+              </tbody>
+
+
+
+            </table>
+
+
+
+          )}
+
+
+
+          <div
+
+
+
+            style={{
+
+
+
+              padding: "12px 16px",
+
+
+
+              display: "flex",
+
+
+
+              justifyContent: "space-between",
+
+
+
+              borderTop: "1px solid #e5e7eb",
+
+
+
+            }}
+
+
+
+          >
 
 
 
@@ -5132,7 +7783,27 @@ onBlur={(e) =>
 
 
 
-              <button style={btn} onClick={() => setInvoiceRunPage((p: number) => Math.max(1, p - 1))}>
+              <button
+
+
+
+                style={btn}
+
+
+
+                onClick={() =>
+
+
+
+                  setInvoiceRunPage((p: number) => Math.max(1, p - 1))
+
+
+
+                }
+
+
+
+              >
 
 
 
@@ -5144,11 +7815,39 @@ onBlur={(e) =>
 
 
 
-              <button style={{ ...goldBtn, padding: "8px 12px" }}>{invoiceRunPage}</button>
+              <button style={{ ...goldBtn, padding: "8px 12px" }}>
 
 
 
-              <button style={btn} onClick={() => setInvoiceRunPage((p: number) => Math.min(runTotalPages, p + 1))}>
+                {invoiceRunPage}
+
+
+
+              </button>
+
+
+
+              <button
+
+
+
+                style={btn}
+
+
+
+                onClick={() =>
+
+
+
+                  setInvoiceRunPage((p: number) => Math.min(runTotalPages, p + 1))
+
+
+
+                }
+
+
+
+              >
 
 
 
@@ -5184,7 +7883,7 @@ onBlur={(e) =>
 
 
 
-  const visibleRuns = storedRuns;
+  const visibleRuns = toArray(storedRuns);
 
 
 
@@ -5260,7 +7959,11 @@ onBlur={(e) =>
 
 
 
-        <b>New!</b> We have enhanced the invoice run process to give you more flexibility.
+        <b>New!</b> We have enhanced the invoice run process to give you more
+
+
+
+        flexibility.
 
 
 
@@ -5268,11 +7971,71 @@ onBlur={(e) =>
 
 
 
-      <div className="premium-card" style={{ background: "#ffffff", border: "1px solid #d8dee8", borderRadius: 16, overflow: "hidden" }}>
+      <div
 
 
 
-        <div style={{ padding: "12px 16px", background: "#f8fafc", borderBottom: "1px solid #d8dee8", fontWeight: 900 }}>
+        className="premium-card"
+
+
+
+        style={{
+
+
+
+          background: "#ffffff",
+
+
+
+          border: "1px solid #d8dee8",
+
+
+
+          borderRadius: 16,
+
+
+
+          overflow: "hidden",
+
+
+
+        }}
+
+
+
+      >
+
+
+
+        <div
+
+
+
+          style={{
+
+
+
+            padding: "12px 16px",
+
+
+
+            background: "#f8fafc",
+
+
+
+            borderBottom: "1px solid #d8dee8",
+
+
+
+            fontWeight: 900,
+
+
+
+          }}
+
+
+
+        >
 
 
 
@@ -5364,111 +8127,83 @@ onBlur={(e) =>
 
 
 
-        <table style={{ width: "100%", borderCollapse: "collapse" }}>
+        {visibleRuns.length === 0 ? (
 
 
 
-          <thead>
+          <div
 
 
 
-            <tr>
+            style={{
 
 
 
-              <th style={th}>Date</th>
+              padding: 30,
 
 
 
-              <th style={th}>Description</th>
+              textAlign: "center",
 
 
 
-              <th style={th}>Period</th>
+              color: "#64748b",
 
 
 
-              <th style={th}>Invoices</th>
+              fontWeight: 900,
 
 
 
-              <th style={{ ...th, textAlign: "right" }}>Amount</th>
+            }}
 
 
 
-            </tr>
+          >
 
 
 
-          </thead>
+            No invoice runs yet. Click + Add to create one.
 
 
 
-          <tbody>
+          </div>
 
 
 
-            {visibleRuns.map((run: any, index: number) => (
+        ) : (
 
 
 
-              <tr
+          <table style={{ width: "100%", borderCollapse: "collapse" }}>
 
 
 
-                key={run.id || index}
+            <thead>
 
 
 
-                onDoubleClick={() => openRun(run)}
+              <tr>
 
 
 
-                style={{
+                <th style={th}>Date</th>
 
 
 
-                  background: index % 2 === 0 ? "#ffffff" : "rgba(212,175,55,0.06)",
+                <th style={th}>Description</th>
 
 
 
-                  cursor: "pointer",
+                <th style={th}>Period</th>
 
 
 
-                }}
+                <th style={th}>Invoices</th>
 
 
 
-              >
-
-
-
-                <td style={td}>{run.date || run.invoiceDate || "-"}</td>
-
-
-
-                <td style={td}>{`Invoice Run For ${run.period || run.month || "this period"}`}</td>
-
-
-
-                <td style={td}>{run.period || run.month || "-"}</td>
-
-
-
-                <td style={td}>{run.totalInvoices || run.invoices || 0} invoices</td>
-
-
-
-                <td style={{ ...td, textAlign: "right", fontWeight: 900 }}>
-
-
-
-                  {money(run.totalAmount || 0)}
-
-
-
-                </td>
+                <th style={{ ...th, textAlign: "right" }}>Amount</th>
 
 
 
@@ -5476,19 +8211,147 @@ onBlur={(e) =>
 
 
 
-            ))}
+            </thead>
 
 
 
-          </tbody>
+            <tbody>
 
 
 
-        </table>
+              {visibleRuns.map((run: any, index: number) => (
 
 
 
-        <div style={{ padding: "12px 16px", display: "flex", justifyContent: "space-between", borderTop: "1px solid #e5e7eb" }}>
+                <tr
+
+
+
+                  key={run.id || index}
+
+
+
+                  onDoubleClick={() => openRun(run)}
+
+
+
+                  style={{
+
+
+
+                    background:
+
+
+
+                      index % 2 === 0 ? "#ffffff" : "rgba(212,175,55,0.06)",
+
+
+
+                    cursor: "pointer",
+
+
+
+                  }}
+
+
+
+                >
+
+
+
+                  <td style={td}>{run.date || run.invoiceDate || "-"}</td>
+
+
+
+                  <td style={td}>
+
+
+
+                    {`Invoice Run For ${run.period || run.month || "this period"}`}
+
+
+
+                  </td>
+
+
+
+                  <td style={td}>{run.period || run.month || "-"}</td>
+
+
+
+                  <td style={td}>
+
+
+
+                    {run.totalInvoices || run.invoices || 0} invoices
+
+
+
+                  </td>
+
+
+
+                  <td style={{ ...td, textAlign: "right", fontWeight: 900 }}>
+
+
+
+                    {money(run.totalAmount || 0)}
+
+
+
+                  </td>
+
+
+
+                </tr>
+
+
+
+              ))}
+
+
+
+            </tbody>
+
+
+
+          </table>
+
+
+
+        )}
+
+
+
+        <div
+
+
+
+          style={{
+
+
+
+            padding: "12px 16px",
+
+
+
+            display: "flex",
+
+
+
+            justifyContent: "space-between",
+
+
+
+            borderTop: "1px solid #e5e7eb",
+
+
+
+          }}
+
+
+
+        >
 
 
 

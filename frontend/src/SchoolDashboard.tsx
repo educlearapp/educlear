@@ -325,7 +325,31 @@ export default function SchoolDashboard() {
 
 
 
-  const schoolId = useSchoolId();
+  const hookSchoolId = useSchoolId();
+
+
+
+const schoolId =
+
+
+
+  hookSchoolId ||
+
+
+
+  localStorage.getItem("schoolId") ||
+
+
+
+  localStorage.getItem("selectedSchoolId") ||
+
+
+
+  localStorage.getItem("currentSchoolId") ||
+
+
+
+  "";
 
 
 
