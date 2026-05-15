@@ -560,137 +560,169 @@ export default function InvoiceRuns(props: any) {
 
 
     const embedded =
-
-
-
+  
+  
+  
       learner?.parent ||
-
-
-
+  
+  
+  
       learner?.primaryParent ||
-
-
-
+  
+  
+  
       learner?.guardian ||
-
-
-
+  
+  
+  
       learner?.accountHolder ||
-
-
-
+  
+  
+  
       (Array.isArray(learner?.parents) ? learner.parents[0] : null);
-
-
-
+  
+  
+  
     if (embedded) return embedded;
-
-
-
+  
+  
+  
     const learnerId = String(learner?.id || "");
-
-
-
+  
+  
+  
     const learnerName = learnerFullName(learner).toLowerCase();
-
-
-
+  
+  
+  
     return (
-
-
-
+  
+  
+  
       storedParents.find((parent: any) => {
-
-
-
+  
+  
+  
         const childIds = [
-
-
-
+  
+  
+  
           parent?.learnerId,
-
-
-
+  
+  
+  
           parent?.childId,
-
-
-
-          ...(Array.isArray(parent?.learnerIds)
-
-
-
-            ? parent.learnerIds
-
-
-
+  
+  
+  
+          parent?.studentId,
+  
+  
+  
+          parent?.child?.id,
+  
+  
+  
+          parent?.learner?.id,
+  
+  
+  
+          ...(Array.isArray(parent?.learnerIds) ? parent.learnerIds : []),
+  
+  
+  
+          ...(Array.isArray(parent?.children)
+  
+  
+  
+            ? parent.children.map((child: any) => child?.id)
+  
+  
+  
             : []),
-
-
-
-        ].map((x: any) => String(x || ""));
-
-
-
-        const childNames = [
-
-
-
-          parent?.learnerName,
-
-
-
-          parent?.childName,
-
-
-
+  
+  
+  
           ...(Array.isArray(parent?.learners)
-
-
-
-            ? parent.learners.map((child: any) =>
-
-
-
-                learnerFullName(child)
-
-
-
-              )
-
-
-
+  
+  
+  
+            ? parent.learners.map((child: any) => child?.id)
+  
+  
+  
             : []),
-
-
-
-        ].map((x: any) => String(x || "").toLowerCase());
-
-
-
-        return (
-
-
-
-          childIds.includes(learnerId) ||
-
-
-
-          childNames.includes(learnerName)
-
-
-
-        );
-
-
-
+  
+  
+  
+        ].map((x: any) => String(x || ""));
+  
+  
+  
+        const childNames = [
+  
+  
+  
+          parent?.learnerName,
+  
+  
+  
+          parent?.childName,
+  
+  
+  
+          parent?.studentName,
+  
+  
+  
+          parent?.child?.name,
+  
+  
+  
+          parent?.learner?.name,
+  
+  
+  
+          ...(Array.isArray(parent?.children)
+  
+  
+  
+            ? parent.children.map((child: any) => learnerFullName(child))
+  
+  
+  
+            : []),
+  
+  
+  
+          ...(Array.isArray(parent?.learners)
+  
+  
+  
+            ? parent.learners.map((child: any) => learnerFullName(child))
+  
+  
+  
+            : []),
+  
+  
+  
+        ].map((x: any) => String(x || "").toLowerCase().trim());
+  
+  
+  
+        return childIds.includes(learnerId) || childNames.includes(learnerName);
+  
+  
+  
       }) || {}
-
-
-
+  
+  
+  
     );
-
-
-
+  
+  
+  
   };
 
 
@@ -1007,11 +1039,67 @@ export default function InvoiceRuns(props: any) {
 
 
 
-    ? selectedRun.rows
+  ? selectedRun.rows.map((row: any) => {
 
 
 
-    : selectedRows;
+      const fresh = selectedRows.find(
+
+
+
+        (item: any) =>
+
+
+
+          String(item.id) === String(row.id) ||
+
+
+
+          String(item.learnerName).toLowerCase() ===
+
+
+
+            String(row.learnerName).toLowerCase()
+
+
+
+      );
+
+
+
+      return fresh
+
+
+
+        ? {
+
+
+
+            ...row,
+
+
+
+            parentName: fresh.parentName,
+
+
+
+            parentEmail: fresh.parentEmail,
+
+
+
+          }
+
+
+
+        : row;
+
+
+
+    })
+
+
+
+  : selectedRows;
 
 
 

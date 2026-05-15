@@ -24,7 +24,7 @@ import Fees from "./Fees";
 
 import FeeUpsert from "./FeeUpsert";
 import InvoiceRuns from "./billing/InvoiceRuns";
-
+import Statements from "./billing/Statements";
 
 import SchoolProfilePage from "./pages/SchoolProfilePage";
 
@@ -19363,46 +19363,62 @@ const [invoiceRunEmailDraft, setInvoiceRunEmailDraft] = useState({
 
 
 
-      case "statements":
+        case "statements":
 
 
 
-        return renderBillingAccounts(
-
-
-
-          "Statements",
-
-
-
-          "Manage your statement of accounts.",
-
-
-
-          statementRows,
-
-
-
-          selectedStatementAccount,
-
-
-
-          setSelectedStatementAccount,
-
-
-
-          "statementManage",
-
-
-
-          "selectedStatementAccount",
-
-
-
-          "Manage"
-
-
-
+        return (
+      
+      
+      
+          <Statements
+      
+      
+      
+            rows={statementRows}
+      
+      
+      
+            selected={selectedStatementAccount}
+      
+      
+      
+            setSelected={setSelectedStatementAccount}
+      
+      
+      
+            onManage={(row) => {
+      
+      
+      
+              localStorage.setItem(
+      
+      
+      
+                "selectedStatementAccount",
+      
+      
+      
+                JSON.stringify(row)
+      
+      
+      
+              );
+      
+      
+      
+              setActivePage("statementManage");
+      
+      
+      
+            }}
+      
+      
+      
+          />
+      
+      
+      
         );
 
 
