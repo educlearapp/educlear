@@ -48,6 +48,7 @@ import { useSchoolId } from "./useSchoolId";
 
 import ParentPortal from "./ParentPortal";
 import Registrations from "./components/registrations/Registrations";
+import Users from "./users/Users";
 import ManageLearner from "./learner/ManageLearner";
 import { calculateLearnerAge, getLearnerAccountNo } from "./learner/learnerIdentity";
 
@@ -17938,10 +17939,10 @@ return (
   
   
         case "schoolUsers":
-  
-  
-  
-          return <h1 className="page-title">Users</h1>;
+
+
+
+          return <Users schoolId={schoolId || ""} />;
   
   
   
