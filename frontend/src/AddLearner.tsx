@@ -481,7 +481,6 @@ export default function AddLearner() {
 
 
 
-          admissionNo: admissionNo.trim() || null,
 
 
 
@@ -561,7 +560,6 @@ export default function AddLearner() {
 
 
 
-              admissionNo: s.admissionNo.trim() || null,
 
 
 
@@ -1097,11 +1095,15 @@ export default function AddLearner() {
 
 
 
-              <label style={labelStyle}>Admission Number</label>
+              <label style={labelStyle}>Account / Admission No</label>
 
 
 
-              <input style={inputStyle} value={admissionNo} onChange={(e) => setAdmissionNo(e.target.value)} />
+              <input
+                style={{ ...inputStyle, background: "#f8fafc" }}
+                value="Auto-generated on save"
+                readOnly
+              />
 
 
 
@@ -1469,11 +1471,15 @@ export default function AddLearner() {
 
 
 
-                      <label style={labelStyle}>Admission Number</label>
+                      <label style={labelStyle}>Account / Admission No</label>
 
 
 
-                      <input style={inputStyle} value={s.admissionNo} onChange={(e) => updateSibling(idx, { admissionNo: e.target.value })} />
+                      <input
+                        style={{ ...inputStyle, background: "#f8fafc" }}
+                        value="Auto-generated on save"
+                        readOnly
+                      />
 
 
 

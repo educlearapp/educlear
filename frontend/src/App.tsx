@@ -6,7 +6,7 @@ import Login from "./Login";
 
 
 
-import SchoolDashboard from "./SchoolDashboard_OLD";
+import SchoolDashboard from "./SchoolDashboard";
 
 
 

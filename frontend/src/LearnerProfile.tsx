@@ -58,7 +58,14 @@ export default function LearnerProfile() {
         if (fromLocalStorage) {
           if (!cancelled) setLearner(fromLocalStorage);
         } else {
-          const data: any = await apiFetch("/api/learners");
+          const schoolIdForFetch = localStorage.getItem("schoolId");
+          if (!schoolIdForFetch) {
+            if (!cancelled) setError("Missing school ID. Open the school dashboard first.");
+            return;
+          }
+          const data: any = await apiFetch(
+            `/api/learners?schoolId=${encodeURIComponent(schoolIdForFetch)}`
+          );
           const list = Array.isArray(data?.learners) ? data.learners : [];
           const found = list.find((l: any) => String(l?.id || "") === id) || null;
           if (!cancelled) setLearner(found);

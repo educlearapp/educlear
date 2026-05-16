@@ -74,10 +74,9 @@ export function calculateLearnerAge(value: any): string {
 
 export function getLearnerAccountNo(learner: any): string {
   const account =
+    learner?.familyAccount?.accountRef ||
     learner?.accountNo ||
     learner?.accountNumber ||
-    learner?.admissionNo ||
-    learner?.familyAccount?.accountRef ||
     "";
   const trimmed = String(account || "").trim();
   return trimmed || "-";

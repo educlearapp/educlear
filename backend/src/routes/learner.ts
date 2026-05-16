@@ -4,6 +4,8 @@ import { Router } from "express";
 
 import { PrismaClient } from "@prisma/client";
 
+import { getSurnamePrefix, resolveLearnerAccountNo } from "../utils/learnerIdentity";
+
 
 
 const router = Router();
@@ -19,26 +21,6 @@ function cleanString(value: any) {
 
 
   return typeof value === "string" ? value.trim() : "";
-
-
-
-}
-
-
-
-function getSurnamePrefix(surname: string) {
-
-
-
-  const parts = cleanString(surname).toUpperCase().split(/\s+/).filter(Boolean);
-
-
-
-  const lastWord = parts[parts.length - 1] || "ACC";
-
-
-
-  return lastWord.replace(/[^A-Z]/g, "").slice(0, 3).padEnd(3, "X");
 
 
 
@@ -566,7 +548,7 @@ router.get("/", async (req, res) => {
 
 
 
-      const accountNo = learner.familyAccount?.accountRef || learner.admissionNo || "";
+      const accountNo = resolveLearnerAccountNo(learner);
 
 
 
@@ -1634,11 +1616,11 @@ router.put("/:id", async (req, res) => {
 
 
 
-        accountNo: refreshedLearner?.familyAccount?.accountRef || refreshedLearner?.admissionNo || "",
+        accountNo: resolveLearnerAccountNo(refreshedLearner),
 
 
 
-        accountNumber: refreshedLearner?.familyAccount?.accountRef || refreshedLearner?.admissionNo || "",
+        accountNumber: resolveLearnerAccountNo(refreshedLearner),
 
 
 

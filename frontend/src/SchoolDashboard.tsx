@@ -45,7 +45,7 @@ import { useSchoolId } from "./useSchoolId";
 import ParentPortal from "./ParentPortal";
 import Registrations from "./components/registrations/Registrations";
 import ManageLearner from "./learner/ManageLearner";
-import { getLearnerAccountNo } from "./learner/learnerIdentity";
+import { calculateLearnerAge, getLearnerAccountNo } from "./learner/learnerIdentity";
 
 
 import "./App.css";
@@ -932,62 +932,6 @@ const [selectedLearnerReport, setSelectedLearnerReport] = useState<any>(null);
 
 
     fontSize: "13px",
-
-
-
-  };
-
-
-
-  const formatAge = (birthDate?: string | null) => {
-
-
-
-    if (!birthDate) return "-";
-
-
-
-    const dob = new Date(birthDate);
-
-
-
-    const today = new Date();
-
-
-
-    if (Number.isNaN(dob.getTime())) return "-";
-
-
-
-    let years = today.getFullYear() - dob.getFullYear();
-
-
-
-    let months = today.getMonth() - dob.getMonth();
-
-
-
-    if (months < 0 || (months === 0 && today.getDate() < dob.getDate())) {
-
-
-
-      years--;
-
-
-
-      months += 12;
-
-
-
-    }
-
-
-
-    if (years <= 0) return `${months} months`;
-
-
-
-    return `${years} years${months > 0 ? ` and ${months} months` : ""}`;
 
 
 
@@ -5931,7 +5875,7 @@ const [selectedLearnerReport, setSelectedLearnerReport] = useState<any>(null);
   
   
   
-                      <td style={td}>{formatAge(learner.birthDate)}</td>
+                      <td style={td}>{calculateLearnerAge(learner.birthDate || learner.dateOfBirth || learner.dob)}</td>
   
   
   
@@ -7648,7 +7592,7 @@ localStorage.setItem(
   
   
   
-                      <td style={td}>{formatAge(learner.birthDate)}</td>
+                      <td style={td}>{calculateLearnerAge(learner.birthDate || learner.dateOfBirth || learner.dob)}</td>
   
   
   

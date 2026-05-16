@@ -1,6 +1,7 @@
 import { Router } from "express";
 
 import { prisma } from "../prisma";
+import { resolveLearnerAccountNo } from "../utils/learnerIdentity";
 
 const router = Router();
 const prismaAny = prisma as any;
@@ -26,8 +27,8 @@ router.get("/accounts", async (req, res) => {
       },
     });
 
-    const accounts = learners.map((l, index) => ({
-      accountNo: l.familyAccount?.accountRef || l.admissionNo || `ACC${String(index + 1).padStart(3, "0")}`,
+    const accounts = learners.map((l) => ({
+      accountNo: resolveLearnerAccountNo(l),
       learnerId: l.id,
       schoolId: l.schoolId,
       firstName: l.firstName || "-",

@@ -1,4 +1,5 @@
 import { Router } from "express";
+import { calculateLearnerAge, resolveLearnerAccountNo } from "../utils/learnerIdentity";
 
 
 
@@ -11,126 +12,6 @@ const router = Router();
 
 
 const prisma = new PrismaClient();
-
-
-
-function parseBirthDate(value: Date | string | null) {
-
-
-
-  if (!value) return null;
-
-
-
-  if (value instanceof Date) {
-
-
-
-    return Number.isNaN(value.getTime()) ? null : value;
-
-
-
-  }
-
-
-
-  const text = String(value).trim();
-
-
-
-  if (!text) return null;
-
-
-
-  const slashMatch = text.match(/^(\d{4})\/(\d{1,2})\/(\d{1,2})$/);
-
-
-
-  if (slashMatch) {
-
-
-
-    const year = Number(slashMatch[1]);
-
-
-
-    const month = Number(slashMatch[2]) - 1;
-
-
-
-    const day = Number(slashMatch[3]);
-
-
-
-    return new Date(year, month, day);
-
-
-
-  }
-
-
-
-  const parsed = new Date(text);
-
-
-
-  return Number.isNaN(parsed.getTime()) ? null : parsed;
-
-
-
-}
-
-
-
-function calculateAge(birthDate: Date | string | null) {
-
-
-
-  const dob = parseBirthDate(birthDate);
-
-
-
-  if (!dob) return "";
-
-
-
-  const today = new Date();
-
-
-
-  let age = today.getFullYear() - dob.getFullYear();
-
-
-
-  const birthdayThisYear = new Date(
-
-
-
-    today.getFullYear(),
-
-
-
-    dob.getMonth(),
-
-
-
-    dob.getDate()
-
-
-
-  );
-
-
-
-  if (today < birthdayThisYear) age -= 1;
-
-
-
-  return age;
-
-
-
-}
 
 
 
@@ -218,19 +99,7 @@ router.get("/learners", async (req, res) => {
 
 
 
-      const accountNo =
-
-
-
-        learner.familyAccount?.accountRef ||
-
-
-
-        learner.admissionNo ||
-
-
-
-        "";
+      const accountNo = resolveLearnerAccountNo(learner);
 
 
 
@@ -290,7 +159,7 @@ router.get("/learners", async (req, res) => {
 
 
 
-        age: calculateAge(learner.birthDate),
+        age: calculateLearnerAge(learner.birthDate),
 
 
 
