@@ -1,6 +1,6 @@
 import { getLearnerAccountNo } from "../learner/learnerIdentity";
 
-export type BillingLedgerEntryType = "invoice" | "payment" | "credit";
+export type BillingLedgerEntryType = "invoice" | "payment" | "credit" | "penalty";
 
 export type BillingLedgerEntry = {
   id: string;
@@ -10,6 +10,7 @@ export type BillingLedgerEntry = {
   type: BillingLedgerEntryType;
   amount: number;
   date: string;
+  dueDate?: string;
   reference: string;
   description: string;
   method?: string;
@@ -25,6 +26,7 @@ export type BillingAccountRow = {
   surname: string;
   balance: number;
   invoiceTotal: number;
+  penaltyTotal: number;
   paymentTotal: number;
   creditTotal: number;
   lastInvoice: string;
@@ -156,6 +158,9 @@ export function calculateAccountBalance(
   const invoiceTotal = list
     .filter((e) => e.type === "invoice")
     .reduce((s, e) => s + normaliseBillingAmount(e.amount), 0);
+  const penaltyTotal = list
+    .filter((e) => e.type === "penalty")
+    .reduce((s, e) => s + normaliseBillingAmount(e.amount), 0);
   const paymentTotal = list
     .filter((e) => e.type === "payment")
     .reduce((s, e) => s + normaliseBillingAmount(e.amount), 0);
@@ -163,7 +168,7 @@ export function calculateAccountBalance(
     .filter((e) => e.type === "credit")
     .reduce((s, e) => s + normaliseBillingAmount(e.amount), 0);
 
-  return invoiceTotal - paymentTotal - creditTotal;
+  return invoiceTotal + penaltyTotal - paymentTotal - creditTotal;
 }
 
 export function getLastInvoice(transactions: BillingLedgerEntry[]) {
@@ -202,6 +207,9 @@ export function getBillingRows(learners: any[], schoolId: string): BillingAccoun
     const invoiceTotal = accountLedger
       .filter((e) => e.type === "invoice")
       .reduce((s, e) => s + normaliseBillingAmount(e.amount), 0);
+    const penaltyTotal = accountLedger
+      .filter((e) => e.type === "penalty")
+      .reduce((s, e) => s + normaliseBillingAmount(e.amount), 0);
     const paymentTotal = accountLedger
       .filter((e) => e.type === "payment")
       .reduce((s, e) => s + normaliseBillingAmount(e.amount), 0);
@@ -219,6 +227,7 @@ export function getBillingRows(learners: any[], schoolId: string): BillingAccoun
       surname: learner?.lastName || learner?.surname || "-",
       balance,
       invoiceTotal,
+      penaltyTotal,
       paymentTotal,
       creditTotal,
       lastInvoice: lastInv ? formatMoney(lastInv.amount) : "No invoices",
@@ -259,6 +268,60 @@ export function appendPaymentTransaction(input: {
     reference: String(input.reference || "").trim(),
     description: String(input.description || "Payment").trim(),
     method: input.method,
+    createdAt: new Date().toISOString(),
+  };
+
+  upsertSchoolEntries(schoolId, [entry]);
+  return entry;
+}
+
+export function buildPenaltyEntryId(
+  schoolId: string,
+  accountNo: string,
+  date: string,
+  description: string
+) {
+  const slug = String(description || "penalty")
+    .trim()
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "-")
+    .slice(0, 40);
+  return `penalty-${schoolId}-${accountNo}-${date}-${slug}`;
+}
+
+export function appendPenaltyTransaction(input: {
+  schoolId: string;
+  learnerId: string;
+  accountNo: string;
+  amount: number;
+  date?: string;
+  dueDate?: string;
+  reference?: string;
+  description?: string;
+}) {
+  const schoolId = String(input.schoolId || "").trim();
+  const learnerId = String(input.learnerId || "").trim();
+  const accountNo = String(input.accountNo || "").trim();
+  const amount = normaliseBillingAmount(input.amount);
+  const date = input.date || new Date().toISOString().slice(0, 10);
+  const description = String(input.description || "Late payment penalty").trim();
+  if (!schoolId || !amount || !accountNo || accountNo === "-") return null;
+
+  const id = buildPenaltyEntryId(schoolId, accountNo, date, description);
+  const existing = readSchoolLedger(schoolId).find((e) => e.id === id);
+  if (existing) return existing;
+
+  const entry: BillingLedgerEntry = {
+    id,
+    schoolId,
+    learnerId,
+    accountNo,
+    type: "penalty",
+    amount,
+    date,
+    dueDate: input.dueDate || date,
+    reference: String(input.reference || `PEN-${date}`).trim(),
+    description,
     createdAt: new Date().toISOString(),
   };
 

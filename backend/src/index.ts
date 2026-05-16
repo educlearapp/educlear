@@ -13,6 +13,8 @@ import learnerRoutes from "./routes/learner";
 import statementsRoutes from "./routes/statements";
 import paymentsRoutes from "./routes/payments";
 import invoicesRoutes from "./routes/invoices";
+import billingDocumentsRoutes from "./routes/billingDocuments";
+import billingPenaltiesRoutes from "./routes/billingPenalties";
 import usersRoutes from "./routes/users";
 import bcrypt from "bcryptjs";
 
@@ -264,6 +266,8 @@ app.use("/api", parentsRoutes);
 app.use("/api/invoices", invoicesRoutes);
 app.use("/api/statements", statementsRoutes);
 app.use("/api/payments", paymentsRoutes);
+app.use("/api/billing-documents", billingDocumentsRoutes);
+app.use("/api/billing/late-penalties", billingPenaltiesRoutes);
 app.use("/api/teacher-performance", teacherPerformanceRoutes);
 app.use("/api/payroll", payrollRoutes);
 app.use("/api/fees", feesRoutes);

@@ -44,17 +44,25 @@ export default function StatementManage({ selected, setActivePage }: Props) {
     let running = 0;
     return sorted.map((entry, index) => {
       const amount = normaliseBillingAmount(entry.amount);
-      const signed =
-        entry.type === "invoice" ? amount : entry.type === "payment" || entry.type === "credit" ? -amount : 0;
+      const isDebit = entry.type === "invoice" || entry.type === "penalty";
+      const signed = isDebit ? amount : -amount;
       running += signed;
+      const typeLabel =
+        entry.type === "invoice"
+          ? "Invoice"
+          : entry.type === "penalty"
+            ? "Penalty"
+            : entry.type === "credit"
+              ? "Credit"
+              : "Payment";
       return {
         auditNo: index + 1,
         date: entry.date || "-",
-        type: entry.type === "invoice" ? "Invoice" : entry.type === "credit" ? "Credit" : "Payment",
+        type: typeLabel,
         reference: entry.reference || "-",
         description: entry.description || "-",
-        amountIn: entry.type === "invoice" ? amount : 0,
-        amountOut: entry.type !== "invoice" ? amount : 0,
+        amountIn: isDebit ? amount : 0,
+        amountOut: !isDebit ? amount : 0,
         balance: running,
       };
     });

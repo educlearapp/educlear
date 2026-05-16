@@ -29,6 +29,7 @@ import StatementManage from "./billing/StatementManage";
 import BillingPlans from "./billing/BillingPlans";
 import Payments from "./billing/Payments";
 import PaymentCreate from "./billing/PaymentCreate";
+import BillingDocuments from "./billing/BillingDocuments";
 import { BILLING_UPDATED_EVENT, getBillingRows } from "./billing/billingLedger";
 import { syncBillingLedgerFromApi } from "./billing/billingApi";
 import SchoolProfilePage from "./pages/SchoolProfilePage";
@@ -17901,10 +17902,14 @@ return (
   
   
         case "documents":
-  
-  
-  
-          return <h1 className="page-title">Billing Documents</h1>;
+          return (
+            <BillingDocuments
+              schoolId={schoolId || ""}
+              learners={learners}
+              statementRows={statementRows}
+              setActivePage={setActivePage}
+            />
+          );
   
   
   

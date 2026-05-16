@@ -1,7 +1,7 @@
 import fs from "fs";
 import path from "path";
 
-export type BillingLedgerEntryType = "invoice" | "payment" | "credit";
+export type BillingLedgerEntryType = "invoice" | "payment" | "credit" | "penalty";
 
 export type BillingLedgerEntry = {
   id: string;
@@ -11,6 +11,7 @@ export type BillingLedgerEntry = {
   type: BillingLedgerEntryType;
   amount: number;
   date: string;
+  dueDate?: string;
   reference: string;
   description: string;
   method?: string;
@@ -85,6 +86,73 @@ export function listPayments(schoolId: string) {
   return readSchoolLedger(schoolId).filter((e) => e.type === "payment");
 }
 
+export function listPenalties(schoolId: string) {
+  return readSchoolLedger(schoolId).filter((e) => e.type === "penalty");
+}
+
+export function buildPenaltyEntryId(
+  schoolId: string,
+  accountNo: string,
+  date: string,
+  description: string
+) {
+  const slug = String(description || "penalty")
+    .trim()
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "-")
+    .slice(0, 40);
+  return `penalty-${schoolId}-${accountNo}-${date}-${slug}`;
+}
+
+function entryDueDate(entry: BillingLedgerEntry): string {
+  return String(entry.dueDate || entry.date || "").slice(0, 10);
+}
+
+export function accountEntries(
+  entries: BillingLedgerEntry[],
+  learnerId: string,
+  accountNo: string
+) {
+  const keys = new Set(
+    [learnerId, accountNo].filter((v) => v && v !== "-").map((v) => String(v).trim())
+  );
+  return entries.filter(
+    (e) => keys.has(String(e.learnerId || "").trim()) || keys.has(String(e.accountNo || "").trim())
+  );
+}
+
+export function computeAccountOverdue(
+  entries: BillingLedgerEntry[],
+  learnerId: string,
+  accountNo: string,
+  options: {
+    penaltyDate: string;
+    dueDateCutoff: string;
+    excludeNotYetDue: boolean;
+  }
+) {
+  const matched = accountEntries(entries, learnerId, accountNo);
+  const penaltyDate = String(options.penaltyDate || "").slice(0, 10);
+  const dueDateCutoff = String(options.dueDateCutoff || penaltyDate).slice(0, 10);
+
+  let overdueAmount = 0;
+  let excludedNotYetDue = 0;
+
+  for (const entry of matched.filter((e) => e.type === "invoice")) {
+    const amount = normaliseAmount(entry.amount);
+    if (!amount) continue;
+    const due = entryDueDate(entry);
+    if (options.excludeNotYetDue && due > dueDateCutoff) {
+      excludedNotYetDue += amount;
+      continue;
+    }
+    if (due <= penaltyDate) overdueAmount += amount;
+  }
+
+  const balance = calculateBalanceForAccount(entries, learnerId, accountNo);
+  return { balance, overdueAmount, excludedNotYetDue };
+}
+
 export function calculateBalanceForAccount(
   entries: BillingLedgerEntry[],
   learnerId: string,
@@ -99,11 +167,14 @@ export function calculateBalanceForAccount(
   const invoiceTotal = matched
     .filter((e) => e.type === "invoice")
     .reduce((s, e) => s + normaliseAmount(e.amount), 0);
+  const penaltyTotal = matched
+    .filter((e) => e.type === "penalty")
+    .reduce((s, e) => s + normaliseAmount(e.amount), 0);
   const paymentTotal = matched
     .filter((e) => e.type === "payment")
     .reduce((s, e) => s + normaliseAmount(e.amount), 0);
   const creditTotal = matched
     .filter((e) => e.type === "credit")
     .reduce((s, e) => s + normaliseAmount(e.amount), 0);
-  return invoiceTotal - paymentTotal - creditTotal;
+  return invoiceTotal + penaltyTotal - paymentTotal - creditTotal;
 }
