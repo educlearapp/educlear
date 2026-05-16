@@ -338,6 +338,7 @@ export function appendInvoiceRunTransactions(run: any, schoolId: string) {
   const invoiceDate =
     String(run?.invoiceDate || run?.date || "").trim() ||
     new Date().toISOString().slice(0, 10);
+  const runDueDate = String(run?.dueDate || "").trim() || invoiceDate;
 
   const entries: BillingLedgerEntry[] = rows
     .map((row: any) => {
@@ -347,6 +348,7 @@ export function appendInvoiceRunTransactions(run: any, schoolId: string) {
       if (!amount) return null;
       const learnerId = String(row?.id || row?.learnerId || "").trim();
       const accountNo = String(row?.accountNo || getLearnerAccountNo(row) || "").trim();
+      const rowDueDate = String(row?.dueDate || runDueDate || "").trim() || invoiceDate;
       return {
         id: `invoice-${runId}-${learnerId || accountNo}`,
         schoolId: sid,
@@ -355,6 +357,7 @@ export function appendInvoiceRunTransactions(run: any, schoolId: string) {
         type: "invoice" as const,
         amount,
         date: invoiceDate,
+        dueDate: rowDueDate,
         reference: String(row?.invoiceNo || row?.statementNo || runId).trim(),
         description: String(run?.description || `Invoice Run ${run?.month || ""}`).trim(),
         runId,
@@ -386,6 +389,7 @@ function migrateLegacyLedgerIfNeeded(schoolId: string) {
     const invoiceDate =
       String(run?.invoiceDate || run?.date || "").trim() ||
       new Date().toISOString().slice(0, 10);
+    const runDueDate = String(run?.dueDate || "").trim() || invoiceDate;
     for (const row of rows) {
       const amount = normaliseBillingAmount(
         row?.invoiceAmount ?? row?.amount ?? row?.total ?? 0
@@ -393,6 +397,7 @@ function migrateLegacyLedgerIfNeeded(schoolId: string) {
       if (!amount) continue;
       const learnerId = String(row?.id || row?.learnerId || "").trim();
       const accountNo = String(row?.accountNo || getLearnerAccountNo(row) || "").trim();
+      const rowDueDate = String(row?.dueDate || runDueDate || "").trim() || invoiceDate;
       const id = `invoice-${runId}-${learnerId || accountNo}`;
       byId.set(id, {
         id,
@@ -402,6 +407,7 @@ function migrateLegacyLedgerIfNeeded(schoolId: string) {
         type: "invoice",
         amount,
         date: invoiceDate,
+        dueDate: rowDueDate,
         reference: String(row?.invoiceNo || row?.statementNo || runId).trim(),
         description: String(run?.description || "Invoice").trim(),
         runId,
@@ -453,10 +459,302 @@ export function ledgerEntryToApiShape(entry: BillingLedgerEntry) {
     type: entry.type,
     amount: entry.amount,
     date: entry.date,
+    dueDate: entry.dueDate,
     reference: entry.reference,
     description: entry.description,
     method: entry.method,
     runId: entry.runId,
     createdAt: entry.createdAt,
   };
+}
+
+function isValidCalendarYmd(y: number, m: number, d: number): boolean {
+  if (!Number.isFinite(y) || m < 1 || m > 12 || d < 1 || d > 31) return false;
+  const dt = new Date(Date.UTC(y, m - 1, d));
+  return dt.getUTCFullYear() === y && dt.getUTCMonth() === m - 1 && dt.getUTCDate() === d;
+}
+
+function toIsoYmd(y: number, m: number, d: number): string {
+  return `${y}-${String(m).padStart(2, "0")}-${String(d).padStart(2, "0")}`;
+}
+
+/** Disambiguate DD/MM/YYYY vs MM/DD/YYYY (SA default when both parts <= 12). */
+function slashDateToIso(first: number, second: number, year: number): string {
+  const asIso = (month: number, day: number) =>
+    isValidCalendarYmd(year, month, day) ? toIsoYmd(year, month, day) : "";
+
+  if (first > 12 && second >= 1 && second <= 12) return asIso(second, first);
+  if (second > 12 && first >= 1 && first <= 12) return asIso(first, second);
+  if (first > 12 && second > 12) return "";
+
+  const dmy = asIso(second, first);
+  if (dmy) return dmy;
+  return asIso(first, second);
+}
+
+/** Normalise to YYYY-MM-DD (ISO, DD/MM/YYYY, MM/DD/YYYY, YYYY/MM/DD). */
+export function normaliseIsoDate(value: unknown): string {
+  if (value === null || value === undefined) return "";
+  const raw = String(value).trim();
+  if (!raw) return "";
+
+  if (/^\d{4}-\d{2}-\d{2}$/.test(raw)) {
+    const [y, m, d] = raw.split("-").map((p) => Number(p));
+    return isValidCalendarYmd(y, m, d) ? raw : "";
+  }
+
+  const slashYmd = raw.match(/^(\d{1,2})[\/\-](\d{1,2})[\/\-](\d{4})$/);
+  if (slashYmd) {
+    const iso = slashDateToIso(Number(slashYmd[1]), Number(slashYmd[2]), Number(slashYmd[3]));
+    if (iso) return iso;
+  }
+
+  const ymd = raw.match(/^(\d{4})[\/\-](\d{1,2})[\/\-](\d{1,2})$/);
+  if (ymd) {
+    const y = Number(ymd[1]);
+    const m = Number(ymd[2]);
+    const d = Number(ymd[3]);
+    return isValidCalendarYmd(y, m, d) ? toIsoYmd(y, m, d) : "";
+  }
+
+  if (!raw.includes("/")) {
+    const parsed = new Date(raw);
+    if (!Number.isNaN(parsed.getTime())) return parsed.toISOString().slice(0, 10);
+  }
+  return "";
+}
+
+export function buildRunDueDateMap(): Record<string, string> {
+  const runs = readJson<any[]>("educlearInvoiceRuns", []);
+  const map: Record<string, string> = {};
+  if (!Array.isArray(runs)) return map;
+  for (const run of runs) {
+    const id = String(run?.id || "").trim();
+    const due = normaliseIsoDate(run?.dueDate);
+    if (id && due) map[id] = due;
+  }
+  return map;
+}
+
+export function resolveEntryDueDate(
+  entry: BillingLedgerEntry,
+  runDueDates: Record<string, string> = {}
+): string {
+  const explicit = normaliseIsoDate(entry.dueDate);
+  if (explicit) return explicit;
+  const runId = String(entry.runId || "").trim();
+  if (runId && runDueDates[runId]) {
+    const fromRun = normaliseIsoDate(runDueDates[runId]);
+    if (fromRun) return fromRun;
+  }
+  return normaliseIsoDate(entry.date);
+}
+
+/** Due date strictly before as-of date (due today is not overdue). */
+export function isInvoicePastDue(dueIso: string, asOfDate: string): boolean {
+  const due = normaliseIsoDate(dueIso);
+  const asOf = normaliseIsoDate(asOfDate);
+  if (!due || !asOf) return false;
+  return due < asOf;
+}
+
+export type LegalEligibleDebug = {
+  statementRowsCount: number;
+  balancePositiveCount: number;
+  pastDueInvoiceCount: number;
+  legalEligibleCount: number;
+  excluded: { accountNo: string; learnerId: string; reason: string }[];
+};
+
+export type LegalEligibleCandidate = {
+  learnerId: string;
+  accountNo: string;
+  learnerName: string;
+  grade: string;
+  className: string;
+  balance: number;
+  overdueBalance: number;
+  overdueInvoiceDates: string[];
+  status: string;
+};
+
+function matchesLegalStatusFilter(status: string, filter: string) {
+  if (!filter || filter === "All Overdue") {
+    return status === "Recently Owing" || status === "Bad Debt";
+  }
+  return status === filter;
+}
+
+function computeOverdueFromLedger(
+  schoolId: string,
+  learnerId: string,
+  accountNo: string,
+  balance: number,
+  asOfDate: string,
+  runDueDates: Record<string, string>
+) {
+  const accountLedger = getAccountLedger(schoolId, learnerId, accountNo);
+  const asOf = normaliseIsoDate(asOfDate) || new Date().toISOString().slice(0, 10);
+
+  let overdueAmount = 0;
+  const overdueDates: string[] = [];
+
+  for (const entry of accountLedger.filter((e) => e.type === "invoice")) {
+    const amount = normaliseBillingAmount(entry.amount);
+    if (!amount) continue;
+    const due = resolveEntryDueDate(entry, runDueDates);
+    if (!due || !isInvoicePastDue(due, asOf)) continue;
+    overdueAmount += amount;
+    if (!overdueDates.includes(due)) overdueDates.push(due);
+  }
+
+  overdueDates.sort();
+
+  if (overdueAmount > 0 && balance > 0) {
+    return {
+      overdueBalance: Math.min(balance, overdueAmount),
+      overdueInvoiceDates: overdueDates,
+    };
+  }
+
+  // Statements shows owing but ledger rows may lack dueDate — use latest invoice due from run/row
+  if (balance > 0) {
+    let latestDue = "";
+    for (const entry of accountLedger.filter((e) => e.type === "invoice")) {
+      const due = resolveEntryDueDate(entry, runDueDates);
+      if (due && (!latestDue || due > latestDue)) latestDue = due;
+    }
+    if (latestDue && isInvoicePastDue(latestDue, asOf)) {
+      return {
+        overdueBalance: balance,
+        overdueInvoiceDates: [latestDue, ...overdueDates.filter((d) => d !== latestDue)].sort(),
+      };
+    }
+  }
+
+  return { overdueBalance: 0, overdueInvoiceDates: [] };
+}
+
+/**
+ * Legal eligibility uses the same statement rows + unified ledger as Statements.
+ */
+export function computeLegalEligibleFromStatements(
+  statementRows: BillingAccountRow[],
+  schoolId: string,
+  learners: any[],
+  options: {
+    statusFilter?: string;
+    minBalance?: number;
+    gradeFilter?: string;
+    classFilter?: string;
+    asOfDate?: string;
+  } = {}
+): { eligible: LegalEligibleCandidate[]; debug: LegalEligibleDebug } {
+  const statusFilter = options.statusFilter || "All Overdue";
+  const minBalance = normaliseBillingAmount(options.minBalance ?? 0);
+  const gradeFilter = String(options.gradeFilter || "").trim();
+  const classFilter = String(options.classFilter || "").trim();
+  const asOfDate = options.asOfDate || new Date().toISOString().slice(0, 10);
+  const runDueDates = buildRunDueDateMap();
+
+  const learnerById = new Map<string, any>();
+  for (const learner of learners || []) {
+    const id = String(learner?.id || learner?.learnerId || "").trim();
+    if (id) learnerById.set(id, learner);
+  }
+
+  const debug: LegalEligibleDebug = {
+    statementRowsCount: statementRows.length,
+    balancePositiveCount: 0,
+    pastDueInvoiceCount: 0,
+    legalEligibleCount: 0,
+    excluded: [],
+  };
+
+  const eligible: LegalEligibleCandidate[] = [];
+
+  for (const row of statementRows) {
+    const learnerId = String(row.learnerId || row.id || "").trim();
+    const accountNo = String(row.accountNo || "").trim();
+    const balance = normaliseBillingAmount(row.balance);
+    const status = String(row.status || "Up To Date");
+
+    if (!accountNo || accountNo === "-") {
+      debug.excluded.push({ accountNo: accountNo || "-", learnerId, reason: "Unassigned account number" });
+      continue;
+    }
+
+    if (balance <= 0) {
+      debug.excluded.push({
+        accountNo,
+        learnerId,
+        reason: balance < 0 ? "Overpaid account" : "Paid up account",
+      });
+      continue;
+    }
+
+    debug.balancePositiveCount += 1;
+
+    if (!matchesLegalStatusFilter(status, statusFilter)) {
+      debug.excluded.push({ accountNo, learnerId, reason: `Status filter (${status})` });
+      continue;
+    }
+
+    const learner = learnerById.get(learnerId);
+    const grade = String(learner?.grade || "").trim();
+    const className = String(learner?.className || learner?.classroom || "").trim();
+    if (gradeFilter && grade !== gradeFilter) {
+      debug.excluded.push({ accountNo, learnerId, reason: "Grade filter" });
+      continue;
+    }
+    if (classFilter && className !== classFilter) {
+      debug.excluded.push({ accountNo, learnerId, reason: "Classroom filter" });
+      continue;
+    }
+
+    const { overdueBalance, overdueInvoiceDates } = computeOverdueFromLedger(
+      schoolId,
+      learnerId,
+      accountNo,
+      balance,
+      asOfDate,
+      runDueDates
+    );
+
+    if (overdueInvoiceDates.length) debug.pastDueInvoiceCount += 1;
+
+    if (overdueBalance <= 0) {
+      debug.excluded.push({
+        accountNo,
+        learnerId,
+        reason: "No invoice/fee rows with due date before today",
+      });
+      continue;
+    }
+
+    if (overdueBalance < minBalance) {
+      debug.excluded.push({ accountNo, learnerId, reason: "Below minimum overdue balance" });
+      continue;
+    }
+
+    eligible.push({
+      learnerId,
+      accountNo,
+      learnerName: `${row.name || ""} ${row.surname || ""}`.trim(),
+      grade,
+      className,
+      balance,
+      overdueBalance,
+      overdueInvoiceDates,
+      status,
+    });
+  }
+
+  debug.legalEligibleCount = eligible.length;
+
+  if (typeof console !== "undefined" && console.debug) {
+    console.debug("[LegalBilling] eligibility", debug);
+  }
+
+  return { eligible, debug };
 }

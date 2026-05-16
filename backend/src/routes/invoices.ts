@@ -5,6 +5,7 @@ import {
   appendSchoolEntry,
   listInvoices,
   normaliseAmount,
+  normaliseIsoDate,
   readSchoolLedger,
   type BillingLedgerEntry,
 } from "../utils/billingLedgerStore";
@@ -27,6 +28,7 @@ router.get("/", async (req, res) => {
       amount: entry.amount,
       invoiceDate: entry.date,
       date: entry.date,
+      dueDate: entry.dueDate,
       type: entry.type,
       reference: entry.reference,
       createdAt: entry.createdAt,
@@ -52,6 +54,11 @@ router.post("/", async (req, res) => {
       return res.status(400).json({ success: false, error: "Missing schoolId, learnerId, or amount" });
     }
 
+    const invoiceDate =
+      normaliseIsoDate(body.date || body.invoiceDate) || new Date().toISOString().slice(0, 10);
+    const dueDate =
+      normaliseIsoDate(body.dueDate) || invoiceDate;
+
     const entry: BillingLedgerEntry = {
       id: String(body.id || `invoice-${Date.now()}`),
       schoolId,
@@ -59,7 +66,8 @@ router.post("/", async (req, res) => {
       accountNo: accountNo || resolveLearnerAccountNo(body as any),
       type: "invoice",
       amount,
-      date: String(body.date || body.invoiceDate || new Date().toISOString()).slice(0, 10),
+      date: invoiceDate,
+      dueDate,
       reference: String(body.reference || body.invoiceNumber || "").trim(),
       description: String(body.description || "Invoice").trim(),
       runId: body.runId ? String(body.runId) : undefined,

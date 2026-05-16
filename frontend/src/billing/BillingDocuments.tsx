@@ -1,6 +1,8 @@
 import React, { useMemo, useState } from "react";
 import BulkStatementSend from "./BulkStatementSend";
 import LatePenaltyFine from "./LatePenaltyFine";
+import LegalBillingDocuments, { type LegalDocMode } from "./LegalBillingDocuments";
+import type { LegalDocumentType } from "./billingApi";
 
 type Props = {
   schoolId: string;
@@ -20,7 +22,24 @@ const DOCUMENT_ROWS = [
     name: "Late Penalty Fine",
     description: "Apply a late payment penalty to overdue accounts.",
   },
-];
+  {
+    id: "section-41-notice",
+    name: "Section 41 Notice",
+    description: "Formal overdue notice (Section 41 school-fee recovery context).",
+  },
+  {
+    id: "letter-of-demand",
+    name: "Letter of Demand",
+    description: "Stern 7-day demand for overdue school fees.",
+  },
+  {
+    id: "final-demand",
+    name: "Final Demand",
+    description: "Final 48-hour demand before recovery handover.",
+  },
+] as const;
+
+const LEGAL_DOC_IDS = new Set(["section-41-notice", "letter-of-demand", "final-demand"]);
 
 const goldBtn: React.CSSProperties = {
   padding: "8px 14px",
@@ -42,6 +61,10 @@ const ghostBtn: React.CSSProperties = {
   cursor: "pointer",
 };
 
+function legalTitle(id: string) {
+  return DOCUMENT_ROWS.find((r) => r.id === id)?.name || "Legal Document";
+}
+
 export default function BillingDocuments({
   schoolId,
   learners,
@@ -51,6 +74,10 @@ export default function BillingDocuments({
   const [search, setSearch] = useState("");
   const [bulkSendOpen, setBulkSendOpen] = useState(false);
   const [penaltyOpen, setPenaltyOpen] = useState(false);
+  const [legalDoc, setLegalDoc] = useState<{
+    type: LegalDocumentType;
+    mode: LegalDocMode;
+  } | null>(null);
 
   const filtered = useMemo(() => {
     const q = search.trim().toLowerCase();
@@ -63,6 +90,11 @@ export default function BillingDocuments({
     );
   }, [search]);
 
+  const openLegal = (id: string, mode: LegalDocMode) => {
+    if (!LEGAL_DOC_IDS.has(id)) return;
+    setLegalDoc({ type: id as LegalDocumentType, mode });
+  };
+
   const handlePrint = (id: string) => {
     if (id === "statements") {
       setActivePage("statements");
@@ -70,6 +102,10 @@ export default function BillingDocuments({
     }
     if (id === "invoices") {
       setActivePage("invoices");
+      return;
+    }
+    if (LEGAL_DOC_IDS.has(id)) {
+      openLegal(id, "preview");
       return;
     }
     window.print();
@@ -82,6 +118,10 @@ export default function BillingDocuments({
     }
     if (id === "invoices") {
       setActivePage("runs");
+      return;
+    }
+    if (LEGAL_DOC_IDS.has(id)) {
+      openLegal(id, "wizard");
       return;
     }
     alert("Late Penalty Fine is applied from Manage — not sent by email.");
@@ -98,6 +138,10 @@ export default function BillingDocuments({
     }
     if (id === "late-penalty-fine") {
       setPenaltyOpen(true);
+      return;
+    }
+    if (LEGAL_DOC_IDS.has(id)) {
+      openLegal(id, "wizard");
     }
   };
 
@@ -197,6 +241,18 @@ export default function BillingDocuments({
           statementRows={statementRows}
           onClose={() => setPenaltyOpen(false)}
           onApplied={() => setPenaltyOpen(false)}
+        />
+      )}
+
+      {legalDoc && (
+        <LegalBillingDocuments
+          schoolId={schoolId}
+          learners={learners}
+          statementRows={statementRows}
+          documentType={legalDoc.type}
+          documentTitle={legalTitle(legalDoc.type)}
+          initialMode={legalDoc.mode}
+          onClose={() => setLegalDoc(null)}
         />
       )}
     </>

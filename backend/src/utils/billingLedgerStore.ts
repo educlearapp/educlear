@@ -104,8 +104,100 @@ export function buildPenaltyEntryId(
   return `penalty-${schoolId}-${accountNo}-${date}-${slug}`;
 }
 
-function entryDueDate(entry: BillingLedgerEntry): string {
-  return String(entry.dueDate || entry.date || "").slice(0, 10);
+function isValidCalendarYmd(y: number, m: number, d: number): boolean {
+  if (!Number.isFinite(y) || m < 1 || m > 12 || d < 1 || d > 31) return false;
+  const dt = new Date(Date.UTC(y, m - 1, d));
+  return dt.getUTCFullYear() === y && dt.getUTCMonth() === m - 1 && dt.getUTCDate() === d;
+}
+
+function toIsoYmd(y: number, m: number, d: number): string {
+  return `${y}-${String(m).padStart(2, "0")}-${String(d).padStart(2, "0")}`;
+}
+
+/** Disambiguate DD/MM/YYYY vs MM/DD/YYYY (SA default when both parts <= 12). */
+function slashDateToIso(first: number, second: number, year: number): string {
+  const asIso = (month: number, day: number) =>
+    isValidCalendarYmd(year, month, day) ? toIsoYmd(year, month, day) : "";
+
+  if (first > 12 && second >= 1 && second <= 12) return asIso(second, first);
+  if (second > 12 && first >= 1 && first <= 12) return asIso(first, second);
+  if (first > 12 && second > 12) return "";
+
+  const dmy = asIso(second, first);
+  if (dmy) return dmy;
+  return asIso(first, second);
+}
+
+/** Normalise to YYYY-MM-DD (handles ISO, DD/MM/YYYY, MM/DD/YYYY, YYYY/MM/DD). */
+export function normaliseIsoDate(value: unknown): string {
+  if (value === null || value === undefined) return "";
+  const raw = String(value).trim();
+  if (!raw) return "";
+
+  if (/^\d{4}-\d{2}-\d{2}$/.test(raw)) {
+    const [y, m, d] = raw.split("-").map((p) => Number(p));
+    return isValidCalendarYmd(y, m, d) ? raw : "";
+  }
+
+  const slashYmd = raw.match(/^(\d{1,2})[\/\-](\d{1,2})[\/\-](\d{4})$/);
+  if (slashYmd) {
+    const iso = slashDateToIso(Number(slashYmd[1]), Number(slashYmd[2]), Number(slashYmd[3]));
+    if (iso) return iso;
+  }
+
+  const ymd = raw.match(/^(\d{4})[\/\-](\d{1,2})[\/\-](\d{1,2})$/);
+  if (ymd) {
+    const y = Number(ymd[1]);
+    const m = Number(ymd[2]);
+    const d = Number(ymd[3]);
+    return isValidCalendarYmd(y, m, d) ? toIsoYmd(y, m, d) : "";
+  }
+
+  if (!raw.includes("/")) {
+    const parsed = new Date(raw);
+    if (!Number.isNaN(parsed.getTime())) return parsed.toISOString().slice(0, 10);
+  }
+  return "";
+}
+
+export function resolveEntryDueDate(
+  entry: BillingLedgerEntry,
+  runDueDates: Record<string, string> = {}
+): string {
+  const explicit = normaliseIsoDate(entry.dueDate);
+  if (explicit) return explicit;
+
+  const runId = String(entry.runId || "").trim();
+  if (runId && runDueDates[runId]) {
+    const fromRun = normaliseIsoDate(runDueDates[runId]);
+    if (fromRun) return fromRun;
+  }
+
+  return normaliseIsoDate(entry.date);
+}
+
+/** Invoice due dates strictly before asOfDate count as overdue (due today is not overdue). */
+export function isInvoicePastDue(due: string, asOfDate: string): boolean {
+  const dueIso = normaliseIsoDate(due);
+  const asOfIso = normaliseIsoDate(asOfDate);
+  if (!dueIso || !asOfIso) return false;
+  return dueIso < asOfIso;
+}
+
+export function prepareLedgerEntries(
+  entries: BillingLedgerEntry[],
+  runDueDates: Record<string, string> = {}
+): BillingLedgerEntry[] {
+  return entries.map((entry) => {
+    if (entry.type !== "invoice") return entry;
+    const dueDate = resolveEntryDueDate(entry, runDueDates);
+    if (!dueDate || dueDate === entry.dueDate) return entry;
+    return { ...entry, dueDate };
+  });
+}
+
+function entryDueDate(entry: BillingLedgerEntry, runDueDates: Record<string, string> = {}): string {
+  return resolveEntryDueDate(entry, runDueDates);
 }
 
 export function accountEntries(
@@ -121,6 +213,43 @@ export function accountEntries(
   );
 }
 
+export type OverdueInvoiceLine = {
+  id: string;
+  dueDate: string;
+  invoiceDate: string;
+  amount: number;
+  reference: string;
+  description: string;
+};
+
+export function listOverdueInvoicesForAccount(
+  entries: BillingLedgerEntry[],
+  learnerId: string,
+  accountNo: string,
+  asOfDate: string,
+  runDueDates: Record<string, string> = {}
+): OverdueInvoiceLine[] {
+  const matched = accountEntries(entries, learnerId, accountNo);
+  const asOfIso = normaliseIsoDate(asOfDate);
+  return matched
+    .filter((e) => e.type === "invoice")
+    .map((entry) => {
+      const due = entryDueDate(entry, runDueDates);
+      const amount = normaliseAmount(entry.amount);
+      if (!amount || !due || !isInvoicePastDue(due, asOfIso)) return null;
+      return {
+        id: entry.id,
+        dueDate: due,
+        invoiceDate: normaliseIsoDate(entry.date),
+        amount,
+        reference: String(entry.reference || ""),
+        description: String(entry.description || "School fees"),
+      };
+    })
+    .filter((row): row is OverdueInvoiceLine => Boolean(row))
+    .sort((a, b) => a.dueDate.localeCompare(b.dueDate));
+}
+
 export function computeAccountOverdue(
   entries: BillingLedgerEntry[],
   learnerId: string,
@@ -129,11 +258,11 @@ export function computeAccountOverdue(
     penaltyDate: string;
     dueDateCutoff: string;
     excludeNotYetDue: boolean;
+    runDueDates?: Record<string, string>;
   }
 ) {
   const matched = accountEntries(entries, learnerId, accountNo);
-  const penaltyDate = String(options.penaltyDate || "").slice(0, 10);
-  const dueDateCutoff = String(options.dueDateCutoff || penaltyDate).slice(0, 10);
+  const asOf = normaliseIsoDate(options.penaltyDate || options.dueDateCutoff);
 
   let overdueAmount = 0;
   let excludedNotYetDue = 0;
@@ -141,16 +270,71 @@ export function computeAccountOverdue(
   for (const entry of matched.filter((e) => e.type === "invoice")) {
     const amount = normaliseAmount(entry.amount);
     if (!amount) continue;
-    const due = entryDueDate(entry);
-    if (options.excludeNotYetDue && due > dueDateCutoff) {
+    const due = entryDueDate(entry, options.runDueDates);
+    if (!due) continue;
+
+    if (options.excludeNotYetDue && !isInvoicePastDue(due, asOf)) {
       excludedNotYetDue += amount;
       continue;
     }
-    if (due <= penaltyDate) overdueAmount += amount;
+    if (isInvoicePastDue(due, asOf)) overdueAmount += amount;
   }
 
   const balance = calculateBalanceForAccount(entries, learnerId, accountNo);
   return { balance, overdueAmount, excludedNotYetDue };
+}
+
+/** Shared legal-recovery overdue resolver (Section 41, Letter of Demand, Final Demand). */
+export function computeLegalOverdueSnapshot(
+  entries: BillingLedgerEntry[],
+  learnerId: string,
+  accountNo: string,
+  asOfDate: string,
+  runDueDates?: Record<string, string>
+) {
+  const date = normaliseIsoDate(asOfDate) || new Date().toISOString().slice(0, 10);
+  const { balance, overdueAmount, excludedNotYetDue } = computeAccountOverdue(
+    entries,
+    learnerId,
+    accountNo,
+    { penaltyDate: date, dueDateCutoff: date, excludeNotYetDue: true, runDueDates }
+  );
+  let overdueInvoices = listOverdueInvoicesForAccount(
+    entries,
+    learnerId,
+    accountNo,
+    date,
+    runDueDates
+  );
+  let overdueBalance =
+    balance > 0 && overdueAmount > 0 ? Math.min(balance, overdueAmount) : 0;
+
+  // Align with Statements legal eligibility: owing account + latest invoice due in the past
+  if (overdueBalance <= 0 && balance > 0) {
+    const matched = accountEntries(entries, learnerId, accountNo);
+    let latestDue = "";
+    for (const entry of matched.filter((e) => e.type === "invoice")) {
+      const due = entryDueDate(entry, runDueDates);
+      if (due && (!latestDue || due > latestDue)) latestDue = due;
+    }
+    if (latestDue && isInvoicePastDue(latestDue, date)) {
+      overdueBalance = balance;
+      if (!overdueInvoices.length) {
+        overdueInvoices = [
+          {
+            id: `fallback-${learnerId}`,
+            dueDate: latestDue,
+            invoiceDate: latestDue,
+            amount: balance,
+            reference: "",
+            description: "Outstanding school fees",
+          },
+        ];
+      }
+    }
+  }
+
+  return { balance, overdueAmount, overdueBalance, excludedNotYetDue, overdueInvoices };
 }
 
 export function calculateBalanceForAccount(

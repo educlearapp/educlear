@@ -21,6 +21,24 @@ const DOCUMENT_CATALOG = [
     description: "Apply a late payment penalty to overdue accounts.",
     actions: ["print", "send", "manage"],
   },
+  {
+    id: "section-41-notice",
+    name: "Section 41 Notice",
+    description: "Formal overdue notice for school-fee recovery (Section 41 context).",
+    actions: ["print", "send", "manage"],
+  },
+  {
+    id: "letter-of-demand",
+    name: "Letter of Demand",
+    description: "Stern 7-day demand for overdue school fees.",
+    actions: ["print", "send", "manage"],
+  },
+  {
+    id: "final-demand",
+    name: "Final Demand",
+    description: "Final 48-hour demand before handover for recovery.",
+    actions: ["print", "send", "manage"],
+  },
 ];
 
 router.get("/", async (req, res) => {

@@ -1,0 +1,129 @@
+[
+  {
+    "id": "legal-test",
+    "schoolId": "school1",
+    "documentType": "section-41-notice",
+    "generatedAt": "2026-05-16T16:26:22.435Z",
+    "status": "Ready",
+    "learnerId": "learner1",
+    "learnerName": "Test",
+    "parentName": "Parent",
+    "parentEmail": "p@test.com",
+    "accountNo": "ABC001",
+    "overdueBalance": 100,
+    "overdueInvoiceDates": [
+      "2026-04-01"
+    ],
+    "paymentDeadline": "2026-05-01"
+  },
+  {
+    "id": "legal-1778948870842-cknqocs",
+    "schoolId": "school1",
+    "documentType": "section-41-notice",
+    "generatedAt": "2026-05-16T16:27:50.841Z",
+    "status": "Ready",
+    "learnerId": "l1",
+    "learnerName": "Test",
+    "parentName": "Parent",
+    "parentEmail": "p@test.com",
+    "accountNo": "ABC001",
+    "overdueBalance": 500,
+    "overdueInvoiceDates": [
+      "2026-04-01"
+    ],
+    "paymentDeadline": "2026-05-16"
+  },
+  {
+    "id": "legal-1778948992479-ri5kojn",
+    "schoolId": "school1",
+    "documentType": "section-41-notice",
+    "generatedAt": "2026-05-16T16:29:52.479Z",
+    "status": "Sent",
+    "learnerId": "l2",
+    "learnerName": "Jane",
+    "parentName": "Parent",
+    "parentEmail": "jane@parent.com",
+    "accountNo": "XYZ002",
+    "overdueBalance": 1200,
+    "overdueInvoiceDates": [
+      "2026-04-01"
+    ],
+    "paymentDeadline": "2026-05-30",
+    "sentAt": "2026-05-16T16:29:52.489Z"
+  },
+  {
+    "id": "legal-1778949227224-6wq4i4r",
+    "schoolId": "cmojugbly001hxi55qvotd0hd",
+    "documentType": "section-41-notice",
+    "generatedAt": "2026-05-16T16:33:47.222Z",
+    "status": "Sent",
+    "learnerId": "cmov5l75c000613nsqb36rr7j",
+    "learnerName": "Anthony Da Silva",
+    "parentName": "Tony Da Silva",
+    "parentEmail": "tony@email.com",
+    "accountNo": "SIL002",
+    "overdueBalance": 9000,
+    "overdueInvoiceDates": [
+      "2026-04-03",
+      "2026-05-03"
+    ],
+    "paymentDeadline": "2026-05-30",
+    "sentAt": "2026-05-16T16:33:47.229Z"
+  },
+  {
+    "id": "legal-1778949227224-o3oozot",
+    "schoolId": "cmojugbly001hxi55qvotd0hd",
+    "documentType": "section-41-notice",
+    "generatedAt": "2026-05-16T16:33:47.222Z",
+    "status": "Ready",
+    "learnerId": "cmokbh56b000391mp0q2q62r6",
+    "learnerName": "Adrien Da Silva",
+    "parentName": "Parent/Guardian",
+    "parentEmail": "",
+    "accountNo": "SIL001",
+    "overdueBalance": 9400,
+    "overdueInvoiceDates": [
+      "2026-04-03",
+      "2026-05-03"
+    ],
+    "paymentDeadline": "2026-05-30"
+  },
+  {
+    "id": "legal-1778949227224-s6rlrzv",
+    "schoolId": "cmojugbly001hxi55qvotd0hd",
+    "documentType": "section-41-notice",
+    "generatedAt": "2026-05-16T16:33:47.222Z",
+    "status": "Sent",
+    "learnerId": "cmojv1nlc0029xi55azpt25ew",
+    "learnerName": "Tebogo leboe",
+    "parentName": "Katlego Leboe",
+    "parentEmail": "katlego@email.com",
+    "accountNo": "LEB001",
+    "overdueBalance": 9000,
+    "overdueInvoiceDates": [
+      "2026-04-03",
+      "2026-05-03"
+    ],
+    "paymentDeadline": "2026-05-30",
+    "sentAt": "2026-05-16T16:33:47.229Z"
+  },
+  {
+    "id": "legal-1778949227224-pxn83us",
+    "schoolId": "cmojugbly001hxi55qvotd0hd",
+    "documentType": "section-41-notice",
+    "generatedAt": "2026-05-16T16:33:47.222Z",
+    "status": "Sent",
+    "learnerId": "cmojut8bk0021xi558cyoya4j",
+    "learnerName": "Kganya Ndlovu",
+    "parentName": "Kgosi Ndlovu",
+    "parentEmail": "kgosi@email.com",
+    "accountNo": "NDL001",
+    "overdueBalance": 8000,
+    "overdueInvoiceDates": [
+      "2026-04-03",
+      "2026-05-03"
+    ],
+    "paymentDeadline": "2026-05-30",
+    "sentAt": "2026-05-16T16:33:47.229Z"
+  }
+]

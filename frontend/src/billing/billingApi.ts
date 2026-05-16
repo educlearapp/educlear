@@ -158,6 +158,53 @@ export const applyLatePenalties = async (payload: Record<string, unknown>) => {
   return response.json();
 };
 
+export type LegalDocumentType = "section-41-notice" | "letter-of-demand" | "final-demand";
+
+export const previewLegalDocuments = async (payload: Record<string, unknown>) => {
+  const response = await fetch(`${API_URL}/api/legal-billing-documents/preview`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(payload),
+  });
+  const data = await response.json().catch(() => ({}));
+  if (!response.ok) {
+    throw new Error(String((data as any)?.error || "Failed to preview legal documents"));
+  }
+  return data;
+};
+
+export const generateLegalDocuments = async (payload: Record<string, unknown>) => {
+  const response = await fetch(`${API_URL}/api/legal-billing-documents/generate`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(payload),
+  });
+  const data = await response.json().catch(() => ({}));
+  if (!response.ok) {
+    throw new Error(String((data as any)?.error || "Failed to generate legal documents"));
+  }
+  return data;
+};
+
+export const sendLegalDocuments = async (payload: Record<string, unknown>) => {
+  const response = await fetch(`${API_URL}/api/legal-billing-documents/send`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ ...payload, simulate: true }),
+  });
+  const data = await response.json().catch(() => ({}));
+  if (!response.ok) {
+    throw new Error(String((data as any)?.error || "Failed to send legal documents"));
+  }
+  return data;
+};
+
+export const fetchLegalDocumentHistory = async (schoolId: string, documentType?: string) => {
+  const params = new URLSearchParams({ schoolId });
+  if (documentType) params.set("documentType", documentType);
+  return getJson(`${API_URL}/api/legal-billing-documents/history?${params.toString()}`);
+};
+
 export const createInvoice = async (data: any) => postJson(`${API_URL}/api/invoices`, data);
 
 export const createPayment = async (data: any) => postJson(`${API_URL}/api/payments`, data);
