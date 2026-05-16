@@ -1,6 +1,7 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { API_URL } from "../api";
 import { getLearnerAccountNo } from "../learner/learnerIdentity";
+import { appendInvoiceRunTransactions } from "./billingLedger";
 import {
 
 
@@ -17,19 +18,13 @@ import {
 
 
 
+import { calculateLastPayment } from "./billingCalculations";
 import {
-
-
-
-  calculateOutstandingBalance,
-
-
-
-  calculateLastPayment,
-
-
-
-} from "./billingCalculations";
+  BILLING_UPDATED_EVENT,
+  calculateAccountBalance,
+  getAccountLedger,
+} from "./billingLedger";
+import { syncBillingLedgerFromApi } from "./billingApi";
 
 
 
@@ -220,39 +215,20 @@ export default function InvoiceRuns(props: any) {
   
   };
 
-  const getLearnerOutstandingBalance = (
+  const schoolIdForLedger = localStorage.getItem("schoolId") || "";
 
-
-
-    learnerId: string
-  
-  
-  
-  ) => {
-  
-  
-  
-    return calculateOutstandingBalance(
-  
-  
-  
-      invoices,
-  
-  
-  
-      payments,
-  
-  
-  
-      learnerId
-  
-  
-  
-    );
-  
-  
-  
+  const getLearnerOutstandingBalance = (learnerId: string, accountNo = "") => {
+    const ledger = getAccountLedger(schoolIdForLedger, learnerId, accountNo);
+    return calculateAccountBalance(ledger, learnerId, accountNo);
   };
+
+  useEffect(() => {
+    if (!schoolIdForLedger) return;
+    syncBillingLedgerFromApi(schoolIdForLedger).catch(() => {});
+    const refresh = () => loadBillingData();
+    window.addEventListener(BILLING_UPDATED_EVENT, refresh);
+    return () => window.removeEventListener(BILLING_UPDATED_EVENT, refresh);
+  }, [schoolIdForLedger]);
   
   
   
@@ -1136,13 +1112,8 @@ export default function InvoiceRuns(props: any) {
 
 
         balance: getLearnerOutstandingBalance(
-
-
-
-          learner.id || learner.learnerId
-        
-        
-        
+          learner.id || learner.learnerId,
+          getLearnerAccountNo(learner)
         ),
 
 
@@ -1155,9 +1126,8 @@ export default function InvoiceRuns(props: any) {
         newBalance:
 
   getLearnerOutstandingBalance(
-
-    learner.id || learner.learnerId
-
+    learner.id || learner.learnerId,
+    getLearnerAccountNo(learner)
   ) + invoiceAmount,
 
 
@@ -1443,7 +1413,9 @@ export default function InvoiceRuns(props: any) {
 
 
     setStoredRuns(updatedRuns);
-      loadBillingData();
+    const schoolId = localStorage.getItem("schoolId") || "";
+    appendInvoiceRunTransactions(run, schoolId);
+    loadBillingData();
 
 
     writeJson("educlearSelectedInvoiceRun", run);
@@ -4610,7 +4582,7 @@ ${schoolName}`
 
 
 
-                    {money(getLearnerOutstandingBalance(row.id || row.learnerId))}
+                    {money(getLearnerOutstandingBalance(row.id || row.learnerId, row.accountNo || getLearnerAccountNo(row)))}
 
 
 
@@ -5267,7 +5239,7 @@ ${schoolName}`
 
 
 
-                    <td style={{ ...td, textAlign: "right" }}>{money(getLearnerOutstandingBalance(row.id || row.learnerId))}</td>
+                    <td style={{ ...td, textAlign: "right" }}>{money(getLearnerOutstandingBalance(row.id || row.learnerId, row.accountNo || getLearnerAccountNo(row)))}</td>
 
 
 

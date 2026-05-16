@@ -2,9 +2,67 @@ import { Router } from "express";
 
 import { prisma } from "../prisma";
 import { resolveLearnerAccountNo } from "../utils/learnerIdentity";
+import {
+  appendSchoolEntry,
+  calculateBalanceForAccount,
+  listPayments,
+  normaliseAmount,
+  readSchoolLedger,
+  type BillingLedgerEntry,
+} from "../utils/billingLedgerStore";
 
 const router = Router();
-const prismaAny = prisma as any;
+
+function lastInvoiceAmount(entries: BillingLedgerEntry[], learnerId: string, accountNo: string) {
+  const matched = entries.filter(
+    (e) =>
+      e.type === "invoice" &&
+      (String(e.learnerId) === learnerId || String(e.accountNo) === accountNo)
+  );
+  const sorted = matched.sort(
+    (a, b) => new Date(b.date || b.createdAt).getTime() - new Date(a.date || a.createdAt).getTime()
+  );
+  return sorted[0]?.amount ?? 0;
+}
+
+function lastPaymentAmount(entries: BillingLedgerEntry[], learnerId: string, accountNo: string) {
+  const matched = entries.filter(
+    (e) =>
+      e.type === "payment" &&
+      (String(e.learnerId) === learnerId || String(e.accountNo) === accountNo)
+  );
+  const sorted = matched.sort(
+    (a, b) => new Date(b.date || b.createdAt).getTime() - new Date(a.date || a.createdAt).getTime()
+  );
+  return sorted[0]?.amount ?? 0;
+}
+
+// GET /api/payments?schoolId=...
+router.get("/", async (req, res) => {
+  try {
+    const schoolId = typeof req.query?.schoolId === "string" ? String(req.query.schoolId) : "";
+    if (!schoolId) return res.status(400).json({ success: false, error: "Missing schoolId" });
+
+    const payments = listPayments(schoolId).map((entry) => ({
+      id: entry.id,
+      learnerId: entry.learnerId,
+      accountNo: entry.accountNo,
+      amount: entry.amount,
+      paymentDate: entry.date,
+      date: entry.date,
+      method: entry.method,
+      reference: entry.reference,
+      description: entry.description,
+      type: entry.type,
+      createdAt: entry.createdAt,
+    }));
+
+    return res.json({ success: true, payments });
+  } catch (error) {
+    console.error("[payments] GET / failed:", error);
+    return res.status(500).json({ success: false, error: "Server error" });
+  }
+});
 
 // GET /api/payments/accounts?schoolId=...
 router.get("/accounts", async (req, res) => {
@@ -12,6 +70,7 @@ router.get("/accounts", async (req, res) => {
     const schoolId = typeof req.query?.schoolId === "string" ? String(req.query.schoolId) : "";
     if (!schoolId) return res.status(400).json({ success: false, error: "Missing schoolId" });
 
+    const ledger = readSchoolLedger(schoolId);
     const learners = await prisma.learner.findMany({
       where: { schoolId },
       orderBy: { createdAt: "desc" },
@@ -27,17 +86,24 @@ router.get("/accounts", async (req, res) => {
       },
     });
 
-    const accounts = learners.map((l) => ({
-      accountNo: resolveLearnerAccountNo(l),
-      learnerId: l.id,
-      schoolId: l.schoolId,
-      firstName: l.firstName || "-",
-      lastName: l.lastName || "-",
-      familyAccountId: l.familyAccountId,
-      familyName: l.familyAccount?.familyName ?? null,
-      admissionNo: l.admissionNo ?? null,
-      createdAt: l.createdAt,
-    }));
+    const accounts = learners.map((l) => {
+      const accountNo = resolveLearnerAccountNo(l);
+      const balance = calculateBalanceForAccount(ledger, l.id, accountNo);
+      return {
+        accountNo,
+        learnerId: l.id,
+        schoolId: l.schoolId,
+        firstName: l.firstName || "-",
+        lastName: l.lastName || "-",
+        familyAccountId: l.familyAccountId,
+        familyName: l.familyAccount?.familyName ?? null,
+        admissionNo: l.admissionNo ?? null,
+        createdAt: l.createdAt,
+        balance,
+        lastInvoice: lastInvoiceAmount(ledger, l.id, accountNo),
+        lastPayment: lastPaymentAmount(ledger, l.id, accountNo),
+      };
+    });
 
     return res.json({ success: true, accounts });
   } catch (error) {
@@ -48,44 +114,32 @@ router.get("/accounts", async (req, res) => {
 
 router.post("/", async (req, res) => {
   try {
-    const body = (req.body ?? {}) as any;
-    const parentId = body.parentId || body.accountId || body.parent?.id || null;
-    const amount = body.amount;
-    const method = body.method || body.type || null;
-    const dateRaw = body.date ?? body.paidAt ?? body.createdAt ?? null;
+    const body = (req.body ?? {}) as Record<string, unknown>;
+    const schoolId = String(body.schoolId || "").trim();
+    const learnerId = String(body.learnerId || body.parentId || body.accountId || "").trim();
+    const accountNo = String(body.accountNo || "").trim();
+    const amount = normaliseAmount(body.amount);
 
-    const numericAmount = Number(amount);
-    if (!parentId || amount == null || Number.isNaN(numericAmount)) {
-      return res.status(400).json({ success: false, error: "Missing parentId or amount" });
+    if (!schoolId || !amount) {
+      return res.status(400).json({ success: false, error: "Missing schoolId or amount" });
     }
 
-    const paidAt = dateRaw ? new Date(dateRaw) : new Date();
+    const entry: BillingLedgerEntry = {
+      id: String(body.id || `pay-${Date.now()}`),
+      schoolId,
+      learnerId,
+      accountNo,
+      type: "payment",
+      amount,
+      date: String(body.date || body.paidAt || new Date().toISOString()).slice(0, 10),
+      reference: String(body.reference || "").trim(),
+      description: String(body.description || "Payment").trim(),
+      method: String(body.method || body.type || "").trim() || undefined,
+      createdAt: new Date().toISOString(),
+    };
 
-    // Best-effort persistence (kept loose to avoid type/model mismatches)
-    const createFn =
-      prismaAny?.payment?.create ??
-      prismaAny?.payments?.create ??
-      prismaAny?.paymentRecord?.create ??
-      prismaAny?.paymentTransaction?.create ??
-      null;
-
-    if (typeof createFn === "function") {
-      try {
-        await createFn({
-          data: {
-            parentId,
-            amount: numericAmount,
-            method,
-            paidAt,
-          },
-        });
-      } catch (e) {
-        console.error("[payments] create payment failed:", e);
-        return res.status(500).json({ success: false, error: "Server error" });
-      }
-    }
-
-    return res.json({ success: true });
+    appendSchoolEntry(schoolId, entry);
+    return res.json({ success: true, payment: entry });
   } catch (error) {
     console.error("[payments] POST / failed:", error);
     return res.status(500).json({ success: false, error: "Server error" });

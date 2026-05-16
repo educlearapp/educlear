@@ -1,5 +1,5 @@
 import React from "react";
-import { getLearnerAccountNo } from "../learner/learnerIdentity";
+import { formatMoney } from "./billingLedger";
 
 
 
@@ -103,94 +103,16 @@ export default function Payments({ statementRows, setActivePage }: PaymentsProps
 
 
 
-  const getLastPayment = (row: any) => {
-
-
-
-    try {
-
-
-
-      const saved = JSON.parse(
-
-
-
-        localStorage.getItem(`savedPayments:${row.accountNo}`) || "[]"
-
-
-
-      );
-
-
-
-      return saved?.[0]?.amount
-
-
-
-        ? `R ${Number(saved[0].amount).toFixed(2)} on ${saved[0].date}`
-
-
-
-        : row.lastPayment || "No payments";
-
-
-
-    } catch {
-
-
-
-      return row.lastPayment || "No payments";
-
-
-
-    }
-
-
-
-  };
-
-
-
   const paymentAccounts = statementRows.map((row: any, index: number) => ({
-
-
-
     id: row.id || row.learnerId || row.accountNo || `account-${index}`,
-
-
-
     learnerId: row.learnerId || row.id || row.accountNo || `account-${index}`,
-
-
-
-    accountNo: getLearnerAccountNo(row),
-
-
-
+    accountNo: row.accountNo || "-",
     name: row.name || "",
-
-
-
     surname: row.surname || "",
-
-
-
     balance: Number(row.balance || 0),
-
-
-
     lastInvoice: row.lastInvoice || "No invoices",
-
-
-
-    lastPayment: getLastPayment(row),
-
-
-
+    lastPayment: row.lastPayment || "No payments",
     status: row.status || "Up To Date",
-
-
-
   }));
 
 

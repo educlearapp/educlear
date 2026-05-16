@@ -1,49 +1,9 @@
 import React, { useEffect, useMemo, useState } from "react";
-import {
+import { formatMoney, normaliseBillingAmount } from "./billingLedger";
+import { syncBillingLedgerFromApi } from "./billingApi";
 
 
 
-  fetchInvoices,
-
-
-
-  fetchPayments,
-
-
-
-} from "./billingApi";
-
-
-
-import {
-
-
-
-  calculateOutstandingBalance,
-
-
-
-  calculateLastPayment,
-
-
-
-} from "./billingCalculations";
-
-
-
-import type {
-
-
-
-  Invoice,
-
-
-
-  Payment,
-
-
-
-} from "./billingTypes";
 
 
 type Props = {
@@ -108,119 +68,12 @@ export default function Statements({
 
 }: Props) {
   
-  const [invoices, setInvoices] = useState<Invoice[]>([]);
-
-
-
-  const [payments, setPayments] = useState<Payment[]>([]);
-  
-  
-  
-  const [billingLoading, setBillingLoading] = useState(false);
-  
-  
-  
   useEffect(() => {
-  
-  
-  
-    loadBillingData();
-  
-  
-  
+    const schoolId = localStorage.getItem("schoolId") || "";
+    if (schoolId) syncBillingLedgerFromApi(schoolId).catch(() => {});
   }, []);
-  
-  
-  
-  const loadBillingData = async () => {
-  
-  
-  
-    try {
-  
-  
-  
-      setBillingLoading(true);
-  
-  
-  
-      const schoolId =
-  
-  
-  
-        localStorage.getItem("schoolId") || "";
-  
-  
-  
-      const invoicesData =
-  
-  
-  
-        await fetchInvoices(schoolId);
-  
-  
-  
-      const paymentsData =
-  
-  
-  
-        await fetchPayments(schoolId);
-  
-  
-  
-      setInvoices(invoicesData || []);
-  
-  
-  
-      setPayments(paymentsData || []);
-  
-  
-  
-    } catch (error) {
-  
-  
-  
-      console.error("Failed to load statement billing data", error);
-  
-  
-  
-    } finally {
-  
-  
-  
-      setBillingLoading(false);
-  
-  
-  
-    }
-  
-  
-  
-  };
-  
-  
-  
-  const getLearnerOutstandingBalance = (learnerId: string) => {
-  
-  
-  
-    return calculateOutstandingBalance(invoices, payments, learnerId);
-  
-  
-  
-  };
-  
-  
-  
-  const getLearnerLastPayment = (learnerId: string) => {
-  
-  
-  
-    return calculateLastPayment(payments, learnerId);
-  
-  
-  
-  };
+
+  const rowBalance = (row: any) => normaliseBillingAmount(row?.balance);
 
 
   const [statementSearch, setStatementSearch] = useState("");
@@ -235,23 +88,6 @@ export default function Statements({
 
 
 
-  const formatMoney = (value: any) =>
-
-
-
-    `R ${Number(value || 0).toLocaleString("en-ZA", {
-
-
-
-      minimumFractionDigits: 2,
-
-
-
-      maximumFractionDigits: 2,
-
-
-
-    })}`;
 
 
 
@@ -492,26 +328,9 @@ export default function Statements({
 
 
   const totalOutstanding = rows.reduce(
-
-
-
-    (sum, row) =>
-  
-  
-  
-      sum +
-  
-  
-  
-      getLearnerOutstandingBalance(row.id || row.learnerId),
-  
-  
-  
-         0
-  
-  
-  
-       );
+    (sum, row) => sum + Math.max(rowBalance(row), 0),
+    0
+  );
 
 
 
@@ -523,59 +342,11 @@ export default function Statements({
 
 
 
-    .reduce(
-
-
-
-      (sum, row) =>
-    
-    
-    
-        sum +
-    
-    
-    
-        getLearnerOutstandingBalance(row.id || row.learnerId),
-    
-    
-    
-      0
-    
-    
-    
-    );
-
-
+    .reduce((sum, row) => sum + rowBalance(row), 0);
 
   const badDebt = rows
-
-
-
     .filter((row) => row.status === "Bad Debt")
-
-
-
-    .reduce(
-
-
-
-      (sum, row) =>
-    
-    
-    
-        sum +
-    
-    
-    
-        getLearnerOutstandingBalance(row.id || row.learnerId),
-    
-    
-    
-      0
-    
-    
-    
-    );
+    .reduce((sum, row) => sum + rowBalance(row), 0);
 
 
 
@@ -1167,15 +938,7 @@ export default function Statements({
 
 
 
-            {formatMoney(
-
-
-
-        getLearnerOutstandingBalance(row.id || row.learnerId)
-
-
-
-         )}
+            {formatMoney(rowBalance(row))}
 
 
 
@@ -1187,7 +950,8 @@ export default function Statements({
 
 
 
-                      {formatMoney(row.lastInvoice)} on {row.lastInvoiceDate || "-"}
+                      {row.lastInvoice || "No invoices"}
+                      {row.lastInvoiceDate ? ` · ${row.lastInvoiceDate}` : ""}
 
 
 
@@ -1199,7 +963,7 @@ export default function Statements({
 
 
 
-                      {formatMoney(row.lastPayment)} on {row.lastPaymentDate || "-"}
+                      {row.lastPayment || "No payments"}
 
 
 

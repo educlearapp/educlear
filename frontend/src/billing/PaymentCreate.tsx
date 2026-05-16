@@ -1,4 +1,6 @@
 import React, { useMemo, useState } from "react";
+import { appendPaymentTransaction, formatMoney, normaliseBillingAmount } from "./billingLedger";
+import { createPayment } from "./billingApi";
 
 
 
@@ -18,23 +20,7 @@ type PaymentCreateProps = {
 
 
 
-const money = (value: any) =>
-
-
-
-  `R ${Number(value || 0).toLocaleString("en-ZA", {
-
-
-
-    minimumFractionDigits: 2,
-
-
-
-    maximumFractionDigits: 2,
-
-
-
-  })}`;
+const money = (value: any) => formatMoney(value);
 
 
 
@@ -534,97 +520,48 @@ export default function PaymentCreate({
 
 
 
-    const record = {
+    const schoolId = localStorage.getItem("schoolId") || "";
+    const learnerId = String(accountRow?.learnerId || accountRow?.id || selected?.learnerId || "").trim();
+    const accountNo = String(accountRow?.accountNo || selected?.accountNo || "").trim();
+    const paymentDate = payment.date || new Date().toISOString().slice(0, 10);
 
-
-
-      id: `PAY-${Date.now()}`,
-
-
-
-      accountNo: selected?.accountNo,
-
-
-
-      name: selected?.name,
-
-
-
-      surname: selected?.surname,
-
-
-
-      date: payment.date || new Date().toISOString().slice(0, 10),
-
-
-
-      type: payment.type || "EFT",
-
-
-
+    const record = appendPaymentTransaction({
+      schoolId,
+      learnerId,
+      accountNo,
+      amount: normaliseBillingAmount(amount),
+      date: paymentDate,
+      reference: String(payment.reference || payment.type || "EFT").trim(),
       description: payment.description || "Payment",
+      method: payment.type || "EFT",
+    });
 
+    if (record) {
+      const nextPayments = [record, ...savedPayments];
+      setSavedPayments(nextPayments);
+      localStorage.setItem(savedPaymentsKey, JSON.stringify(nextPayments));
+    }
 
+    createPayment({
+      schoolId,
+      learnerId,
+      accountNo,
+      amount: normaliseBillingAmount(amount),
+      date: paymentDate,
+      reference: String(payment.reference || payment.type || "EFT").trim(),
+      description: payment.description || "Payment",
+      method: payment.type || "EFT",
+    }).catch(() => {});
 
-      amount,
-
-
-
-      allocated,
-
-
-
-      unallocated,
-
-
-
-      createdAt: new Date().toISOString(),
-
-
-
-    };
-
-
-
-    const nextPayments = [record, ...savedPayments];
-
-
-
-    setSavedPayments(nextPayments);
-
-
-
-    localStorage.setItem(savedPaymentsKey, JSON.stringify(nextPayments));
-
-
-
-    const updatedAccount = {
-
-
-
-      ...selected,
-
-
-
-      lastPayment: `${money(amount)} on ${record.date}`,
-
-
-
-      balance: Math.max(Number(selected?.balance || 0) - amount, 0),
-
-
-
-      __paymentRefresh: Date.now(),
-
-
-
-    };
-
-
-
-    localStorage.setItem("selectedPaymentAccount", JSON.stringify(updatedAccount));
-
-
+    localStorage.setItem(
+      "selectedPaymentAccount",
+      JSON.stringify({
+        ...selected,
+        learnerId,
+        accountNo,
+        lastPayment: `${money(amount)} on ${paymentDate}`,
+      })
+    );
 
     alert("Payment saved.");
 
