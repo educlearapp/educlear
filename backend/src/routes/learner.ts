@@ -26,6 +26,74 @@ function cleanString(value: any) {
 
 
 
+function getSurnamePrefix(surname: string) {
+
+
+
+  const parts = cleanString(surname).toUpperCase().split(/\s+/).filter(Boolean);
+
+
+
+  const lastWord = parts[parts.length - 1] || "ACC";
+
+
+
+  return lastWord.replace(/[^A-Z]/g, "").slice(0, 3).padEnd(3, "X");
+
+
+
+}
+
+
+
+async function createFamilyAccountRef(schoolId: string, surname: string) {
+
+
+
+  const prefix = getSurnamePrefix(surname);
+
+
+
+  const existingCount = await prisma.familyAccount.count({
+
+
+
+    where: {
+
+
+
+      schoolId,
+
+
+
+      accountRef: {
+
+
+
+        startsWith: prefix,
+
+
+
+      },
+
+
+
+    },
+
+
+
+  });
+
+
+
+  return `${prefix}${String(existingCount + 1).padStart(3, "0")}`;
+
+
+
+}
+
+
+
 function normaliseParents(body: any) {
 
 
@@ -38,7 +106,19 @@ function normaliseParents(body: any) {
 
 
 
-  return [...directParents, ...learnerParents].filter((p) => p && typeof p === "object");
+  const singleParent = body.parent && typeof body.parent === "object" ? [body.parent] : [];
+
+
+
+  return [...directParents, ...learnerParents, ...singleParent].filter(
+
+
+
+    (p) => p && typeof p === "object"
+
+
+
+  );
 
 
 
@@ -102,7 +182,7 @@ async function saveParentLinks({
 
 
 
-    const cellNo = cleanString(rawParent.cellNo || rawParent.cell);
+    const cellNo = cleanString(rawParent.cellNo || rawParent.cell || rawParent.phone);
 
 
 
@@ -446,6 +526,10 @@ router.get("/", async (req, res) => {
 
 
 
+        familyAccount: true,
+
+
+
         links: {
 
 
@@ -478,147 +562,167 @@ router.get("/", async (req, res) => {
 
 
 
-    const learnersWithParents = learners.map((learner) => ({
+    const learnersWithParents = learners.map((learner) => {
 
 
 
-      id: learner.id,
+      const accountNo = learner.familyAccount?.accountRef || learner.admissionNo || "";
 
 
 
-      schoolId: learner.schoolId,
+      return {
 
 
 
-      familyAccountId: learner.familyAccountId,
+        id: learner.id,
 
 
 
-      firstName: learner.firstName || "",
+        schoolId: learner.schoolId,
 
 
 
-      lastName: learner.lastName || "",
+        familyAccountId: learner.familyAccountId,
 
 
 
-      surname: learner.lastName || "",
+        accountNo,
 
 
 
-      birthDate: learner.birthDate,
+        accountNumber: accountNo,
 
 
 
-      gender: learner.gender || "",
+        firstName: learner.firstName || "",
 
 
 
-      idNumber: learner.idNumber || "",
+        lastName: learner.lastName || "",
 
 
 
-      grade: learner.grade || "",
+        surname: learner.lastName || "",
 
 
 
-      className: learner.className || "",
+        birthDate: learner.birthDate,
 
 
 
-      classroom: learner.className || "",
+        gender: learner.gender || "",
 
 
 
-      classroomName: learner.className || "",
+        idNumber: learner.idNumber || "",
 
 
 
-      admissionNo: learner.admissionNo || "",
+        grade: learner.grade || "",
 
 
 
-      tuitionFee: learner.tuitionFee || 0,
+        className: learner.className || "",
 
 
 
-      transportFee: learner.transportFee || 0,
+        classroom: learner.className || "",
 
 
 
-      otherFee: learner.otherFee || 0,
+        classroomName: learner.className || "",
 
 
 
-      totalFee: learner.totalFee || 0,
+        admissionNo: learner.admissionNo || accountNo,
 
 
 
-      createdAt: learner.createdAt,
+        tuitionFee: learner.tuitionFee || 0,
 
 
 
-      parents:
+        transportFee: learner.transportFee || 0,
 
 
 
-        learner.links?.map((link) => ({
+        otherFee: learner.otherFee || 0,
 
 
 
-          id: link.parent.id,
+        totalFee: learner.totalFee || 0,
 
 
 
-          firstName: link.parent.firstName || "",
+        createdAt: learner.createdAt,
 
 
 
-          surname: link.parent.surname || "",
+        parents:
 
 
 
-          lastName: link.parent.surname || "",
+          learner.links?.map((link) => ({
 
 
 
-          idNumber: link.parent.idNumber || "",
+            id: link.parent.id,
 
 
 
-          cellNo: link.parent.cellNo || "",
+            firstName: link.parent.firstName || "",
 
 
 
-          cell: link.parent.cellNo || "",
+            surname: link.parent.surname || "",
 
 
 
-          email: link.parent.email || "",
+            lastName: link.parent.surname || "",
 
 
 
-          relationship: link.relation || link.parent.relationship || "",
+            idNumber: link.parent.idNumber || "",
 
 
 
-          isPrimary: link.isPrimary || false,
+            cellNo: link.parent.cellNo || "",
 
 
 
-          outstandingAmount: link.parent.outstandingAmount || 0,
+            cell: link.parent.cellNo || "",
 
 
 
-          status: link.parent.status || "GREEN",
+            email: link.parent.email || "",
 
 
 
-        })) || [],
+            relationship: link.relation || link.parent.relationship || "",
 
 
 
-    }));
+            isPrimary: link.isPrimary || false,
+
+
+
+            outstandingAmount: link.parent.outstandingAmount || 0,
+
+
+
+            status: link.parent.status || "GREEN",
+
+
+
+          })) || [],
+
+
+
+      };
+
+
+
+    });
 
 
 
@@ -670,6 +774,166 @@ router.get("/", async (req, res) => {
 
 
 
+async function createLearnerWithAccount({
+
+
+
+  schoolId,
+
+
+
+  learner,
+
+
+
+}: {
+
+
+
+  schoolId: string;
+
+
+
+  learner: any;
+
+
+
+}) {
+
+
+
+  const learnerSurname = cleanString(learner.surname || learner.lastName);
+
+
+
+  const accountNo = await createFamilyAccountRef(schoolId, learnerSurname);
+
+
+
+  const familyAccount = await prisma.familyAccount.create({
+
+
+
+    data: {
+
+
+
+      schoolId,
+
+
+
+      accountRef: accountNo,
+
+
+
+      familyName: learnerSurname,
+
+
+
+    },
+
+
+
+  });
+
+
+
+  const newLearner = await prisma.learner.create({
+
+
+
+    data: {
+
+
+
+      schoolId,
+
+
+
+      familyAccountId: familyAccount.id,
+
+
+
+      firstName: cleanString(learner.firstName),
+
+
+
+      lastName: learnerSurname,
+
+
+
+      birthDate: learner.birthDate ? new Date(learner.birthDate) : null,
+
+
+
+      gender: cleanString(learner.gender),
+
+
+
+      idNumber: cleanString(learner.idNumber) || null,
+
+
+
+      grade: cleanString(learner.grade),
+
+
+
+      className: cleanString(learner.className || learner.classroom || learner.classroomName) || null,
+
+
+
+      admissionNo: accountNo,
+
+
+
+      tuitionFee: Number(learner.tuitionFee) || 0,
+
+
+
+      transportFee: Number(learner.transportFee) || 0,
+
+
+
+      otherFee: Number(learner.otherFee) || 0,
+
+
+
+      totalFee: Number(learner.totalFee) || 0,
+
+
+
+    },
+
+
+
+  });
+
+
+
+  return {
+
+
+
+    accountNo,
+
+
+
+    familyAccount,
+
+
+
+    learner: newLearner,
+
+
+
+  };
+
+
+
+}
+
+
+
 router.post("/", async (req, res) => {
 
 
@@ -678,7 +942,7 @@ router.post("/", async (req, res) => {
 
 
 
-    const { learner } = req.body;
+    const learner = req.body.learner || req.body;
 
 
 
@@ -710,7 +974,7 @@ router.post("/", async (req, res) => {
 
 
 
-    if (learner.schoolId) {
+    if (learner.schoolId || req.body.schoolId) {
 
 
 
@@ -718,7 +982,7 @@ router.post("/", async (req, res) => {
 
 
 
-        where: { id: learner.schoolId },
+        where: { id: learner.schoolId || req.body.schoolId },
 
 
 
@@ -782,163 +1046,23 @@ router.post("/", async (req, res) => {
 
 
 
-    const learnerSurname = cleanString(learner.surname || learner.lastName);
+    const main = await createLearnerWithAccount({
 
 
 
-    const surnameParts = learnerSurname
+      schoolId: school.id,
 
 
 
-      .toUpperCase()
+      learner: {
 
 
 
-      .split(/\s+/)
-
-
-
-      .filter(Boolean);
-
-
-
-    const lastWord = surnameParts[surnameParts.length - 1] || "";
-
-
-
-    const prefix = lastWord.replace(/[^A-Z]/g, "").slice(0, 3).padEnd(3, "X");
-
-
-
-    const existingFamilies = await prisma.familyAccount.count({
-
-
-
-      where: {
+        ...learner,
 
 
 
         schoolId: school.id,
-
-
-
-        accountRef: {
-
-
-
-          startsWith: prefix,
-
-
-
-        },
-
-
-
-      },
-
-
-
-    });
-
-
-
-    const nextNumber = String(existingFamilies + 1).padStart(3, "0");
-
-
-
-    const familyReference = `${prefix}${nextNumber}`;
-
-
-
-    const familyAccount = await prisma.familyAccount.create({
-
-
-
-      data: {
-
-
-
-        schoolId: school.id,
-
-
-
-        accountRef: familyReference,
-
-
-
-        familyName: learnerSurname,
-
-
-
-      },
-
-
-
-    });
-
-
-
-    const newLearner = await prisma.learner.create({
-
-
-
-      data: {
-
-
-
-        schoolId: school.id,
-
-
-
-        familyAccountId: familyAccount.id,
-
-
-
-        firstName: cleanString(learner.firstName),
-
-
-
-        lastName: learnerSurname,
-
-
-
-        birthDate: learner.birthDate ? new Date(learner.birthDate) : null,
-
-
-
-        gender: cleanString(learner.gender),
-
-
-
-        idNumber: cleanString(learner.idNumber) || null,
-
-
-
-        grade: cleanString(learner.grade),
-
-
-
-        className: cleanString(learner.className || learner.classroom || learner.classroomName) || null,
-
-
-
-        admissionNo: familyReference,
-
-
-
-        tuitionFee: Number(learner.tuitionFee) || 0,
-
-
-
-        transportFee: Number(learner.transportFee) || 0,
-
-
-
-        otherFee: Number(learner.otherFee) || 0,
-
-
-
-        totalFee: Number(learner.totalFee) || 0,
 
 
 
@@ -962,11 +1086,11 @@ router.post("/", async (req, res) => {
 
 
 
-      learnerId: newLearner.id,
+      learnerId: main.learner.id,
 
 
 
-      familyAccountId: familyAccount.id,
+      familyAccountId: main.familyAccount.id,
 
 
 
@@ -978,6 +1102,126 @@ router.post("/", async (req, res) => {
 
 
 
+    const siblings = Array.isArray(req.body.siblings) ? req.body.siblings : [];
+
+
+
+    const createdSiblings = [];
+
+
+
+    for (const sibling of siblings) {
+
+
+
+      const siblingFirstName = cleanString(sibling.firstName);
+
+
+
+      const siblingSurname = cleanString(sibling.surname || sibling.lastName);
+
+
+
+      const siblingGrade = cleanString(sibling.grade);
+
+
+
+      if (!siblingFirstName || !siblingSurname || !siblingGrade) continue;
+
+
+
+      const createdSibling = await createLearnerWithAccount({
+
+
+
+        schoolId: school.id,
+
+
+
+        learner: {
+
+
+
+          ...sibling,
+
+
+
+          schoolId: school.id,
+
+
+
+          firstName: siblingFirstName,
+
+
+
+          lastName: siblingSurname,
+
+
+
+          grade: siblingGrade,
+
+
+
+        },
+
+
+
+      });
+
+
+
+      await saveParentLinks({
+
+
+
+        schoolId: school.id,
+
+
+
+        learnerId: createdSibling.learner.id,
+
+
+
+        familyAccountId: createdSibling.familyAccount.id,
+
+
+
+        parents,
+
+
+
+      });
+
+
+
+      createdSiblings.push({
+
+
+
+        accountNo: createdSibling.accountNo,
+
+
+
+        familyAccountId: createdSibling.familyAccount.id,
+
+
+
+        learnerId: createdSibling.learner.id,
+
+
+
+        learner: createdSibling.learner,
+
+
+
+      });
+
+
+
+    }
+
+
+
     return res.status(200).json({
 
 
@@ -986,19 +1230,43 @@ router.post("/", async (req, res) => {
 
 
 
-      familyReference,
+      accountNo: main.accountNo,
 
 
 
-      familyAccountId: familyAccount.id,
+      familyReference: main.accountNo,
 
 
 
-      learnerId: newLearner.id,
+      familyAccountId: main.familyAccount.id,
 
 
 
-      learner: newLearner,
+      learnerId: main.learner.id,
+
+
+
+      learner: {
+
+
+
+        ...main.learner,
+
+
+
+        accountNo: main.accountNo,
+
+
+
+        accountNumber: main.accountNo,
+
+
+
+      },
+
+
+
+      siblings: createdSiblings,
 
 
 
@@ -1246,6 +1514,10 @@ router.put("/:id", async (req, res) => {
 
 
 
+        familyAccount: true,
+
+
+
         links: {
 
 
@@ -1314,6 +1586,10 @@ router.put("/:id", async (req, res) => {
 
 
 
+        familyAccount: true,
+
+
+
         links: {
 
 
@@ -1350,7 +1626,23 @@ router.put("/:id", async (req, res) => {
 
 
 
-      learner: refreshedLearner,
+      learner: {
+
+
+
+        ...refreshedLearner,
+
+
+
+        accountNo: refreshedLearner?.familyAccount?.accountRef || refreshedLearner?.admissionNo || "",
+
+
+
+        accountNumber: refreshedLearner?.familyAccount?.accountRef || refreshedLearner?.admissionNo || "",
+
+
+
+      },
 
 
 

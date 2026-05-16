@@ -10,7 +10,7 @@ type PaymentCreateProps = {
 
 
 
-  setActivePage: (page: string) => void;
+  setActivePage: React.Dispatch<React.SetStateAction<any>>;
 
 
 
@@ -378,23 +378,79 @@ export default function PaymentCreate({
 
 
 
-  const allocated = Math.min(
+  const totalUnpaid = invoiceRows.reduce(
 
 
 
-    Number(payment.allocated || 0),
-
-
-
-    amount,
-
-
-
-    invoiceRows.reduce((sum, row) => sum + Number(row.unpaid || 0), 0)
-
-
-
+    (sum, row) => sum + Number(row.unpaid || 0),
+  
+  
+  
+    0
+  
+  
+  
   );
+  
+  
+  
+  const allocated = Math.min(
+  
+  
+  
+    Number(payment.allocated || 0),
+  
+  
+  
+    amount,
+  
+  
+  
+    totalUnpaid
+  
+  
+  
+  );
+  
+  
+  
+  const getRowAllocated = (rowIndex: number) => {
+  
+  
+  
+    let remaining = allocated;
+  
+  
+  
+    for (let i = 0; i < invoiceRows.length; i++) {
+  
+  
+  
+      const rowUnpaid = Number(invoiceRows[i].unpaid || 0);
+  
+  
+  
+      const rowAllocated = Math.min(remaining, rowUnpaid);
+  
+  
+  
+      if (i === rowIndex) return rowAllocated;
+  
+  
+  
+      remaining -= rowAllocated;
+  
+  
+  
+    }
+  
+  
+  
+    return 0;
+  
+  
+  
+  };
 
 
 
@@ -1258,7 +1314,7 @@ export default function PaymentCreate({
 
 
 
-                  <td style={payCell}>{money(index === 0 ? allocated : 0)}</td>
+                  <td style={payCell}>{money(getRowAllocated(index))}</td>
 
 
 
