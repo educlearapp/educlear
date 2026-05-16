@@ -1,107 +1,62 @@
 import React from "react";
 import { formatMoney } from "./billingLedger";
 
-
-
 type PaymentsProps = {
-
-
-
   statementRows: any[];
-
-
-
   setActivePage: React.Dispatch<React.SetStateAction<any>>;
-
-
-
 };
 
-
-
 export default function Payments({ statementRows, setActivePage }: PaymentsProps) {
-
-
-
   const payBtn: React.CSSProperties = {
-
-
-
-    border: "1px solid #d4af37",
-
-
-
+    border: "1px solid #b89329",
     background: "#ffffff",
-
-
-
     color: "#111827",
-
-
-
-    borderRadius: "12px",
-
-
-
+    borderRadius: 10,
     padding: "10px 16px",
-
-
-
-    fontWeight: 800,
-
-
-
+    fontWeight: 900,
     cursor: "pointer",
-
-
-
   };
-
-
 
   const payGoldBtn: React.CSSProperties = {
-
-
-
     ...payBtn,
-
-
-
-    background: "#d4af37",
-
-
-
-    boxShadow: "0 10px 24px rgba(212,175,55,0.25)",
-
-
-
+    background: "linear-gradient(135deg, #f7d56a, #d4af37)",
+    boxShadow: "0 10px 24px rgba(212, 175, 55, 0.25)",
   };
 
-
-
-  const payCell: React.CSSProperties = {
-
-
-
-    padding: "14px 16px",
-
-
-
-    borderTop: "1px solid #e5e7eb",
-
-
-
-    fontWeight: 700,
-
-
-
+  const selectStyle: React.CSSProperties = {
+    padding: "10px 12px",
+    borderRadius: 10,
+    border: "1px solid #cbd5e1",
+    background: "#fff",
     color: "#111827",
-
-
-
+    fontWeight: 700,
   };
 
+  const summaryCard: React.CSSProperties = {
+    background: "#fff",
+    borderRadius: 18,
+    padding: "22px 20px",
+    border: "1px solid rgba(212,175,55,0.35)",
+    boxShadow: "0 10px 25px rgba(15,23,42,0.05)",
+  };
 
+  const th: React.CSSProperties = {
+    padding: "12px",
+    borderBottom: "1px solid #e5e7eb",
+    textAlign: "left",
+    fontSize: 13,
+    color: "#334155",
+    background: "rgba(212,175,55,0.16)",
+    fontWeight: 900,
+  };
+
+  const td: React.CSSProperties = {
+    padding: "12px",
+    borderBottom: "1px solid #e5e7eb",
+    fontSize: 13,
+    color: "#0f172a",
+    fontWeight: 700,
+  };
 
   const paymentAccounts = statementRows.map((row: any, index: number) => ({
     id: row.id || row.learnerId || row.accountNo || `account-${index}`,
@@ -115,422 +70,186 @@ export default function Payments({ statementRows, setActivePage }: PaymentsProps
     status: row.status || "Up To Date",
   }));
 
-
-
   const openPaymentCreate = (account: any) => {
-
-
-
     localStorage.setItem(
-
-
-
       "selectedPaymentAccount",
-
-
-
       JSON.stringify({
-
-
-
         ...account,
-
-
-
         learnerId: account.learnerId || account.id || account.accountNo,
-
-
-
         id: account.id || account.learnerId || account.accountNo,
-
-
-
       })
-
-
-
     );
-
-
-
     setActivePage("paymentCreate");
-
-
-
   };
 
-
-
   const totalOutstanding = paymentAccounts.reduce(
-
-
-
     (sum: number, row: any) => sum + Math.max(Number(row.balance || 0), 0),
-
-
-
     0
-
-
-
   );
-
-
 
   const overPaid = paymentAccounts.reduce(
-
-
-
     (sum: number, row: any) => sum + Math.min(Number(row.balance || 0), 0),
-
-
-
     0
-
-
-
   );
-
-
 
   return (
-
-
-
-    <div style={{ padding: "32px", background: "#f6f4ef", minHeight: "100vh" }}>
-
-
-
-      <h1 style={{ margin: 0, fontSize: 38, fontWeight: 900, color: "#111827" }}>
-
-
-
-        New Payment
-
-
-
-        <span style={{ color: "#64748b", fontSize: 22, fontWeight: 600 }}>
-
-
-
-          {" "}» Create a new payment
-
-
-
-        </span>
-
-
-
-      </h1>
-
-
-
-      <div style={{ display: "grid", gridTemplateColumns: "repeat(5, 1fr)", gap: 14, margin: "24px 0" }}>
-
-
-
-        {[
-
-
-
-          ["Accounts", paymentAccounts.length, "#166534"],
-
-
-
-          ["Total Outstanding", `R ${totalOutstanding.toFixed(2)}`, "#1d4ed8"],
-
-
-
-          ["Recently Owing", "R 0.00", "#b45309"],
-
-
-
-          ["Bad Debt", "R 0.00", "#b91c1c"],
-
-
-
-          ["Over Paid", `R ${Math.abs(overPaid).toFixed(2)}`, "#166534"],
-
-
-
-        ].map(([label, value, color]) => (
-
-
-
-          <div key={String(label)} style={{ background: "#fff", border: "1px solid #e5e7eb", borderRadius: 18, padding: 18 }}>
-
-
-
-            <div style={{ color: String(color), fontSize: 24, fontWeight: 900 }}>{String(value)}</div>
-
-
-
-            <div style={{ color: "#64748b", fontWeight: 800, textTransform: "uppercase", fontSize: 12 }}>{String(label)}</div>
-
-
-
-          </div>
-
-
-
-        ))}
-
-
-
+    <div
+      style={{
+        padding: 26,
+        background: "#f8fafc",
+        minHeight: "100%",
+        borderRadius: 20,
+        border: "1px solid rgba(15,23,42,0.08)",
+      }}
+    >
+      <div style={{ marginBottom: 18 }}>
+        <h1 style={{ margin: 0, fontSize: 34, fontWeight: 900, color: "#0f172a" }}>
+          New Payment
+        </h1>
+        <p style={{ margin: "6px 0 0", color: "#64748b", fontWeight: 700 }}>
+          Create a new payment
+        </p>
       </div>
 
+      <div
+        style={{
+          display: "grid",
+          gridTemplateColumns: "repeat(5, minmax(140px, 1fr))",
+          gap: 16,
+          marginBottom: 22,
+        }}
+      >
+        <div style={summaryCard}>
+          <div style={{ fontSize: 24, fontWeight: 950 }}>{paymentAccounts.length}</div>
+          <div style={{ fontSize: 12, fontWeight: 900, color: "#64748b" }}>ACCOUNTS</div>
+        </div>
+        <div style={summaryCard}>
+          <div style={{ fontSize: 24, fontWeight: 950 }}>{formatMoney(totalOutstanding)}</div>
+          <div style={{ fontSize: 12, fontWeight: 900, color: "#64748b" }}>TOTAL OUTSTANDING</div>
+        </div>
+        <div style={summaryCard}>
+          <div style={{ fontSize: 24, fontWeight: 950 }}>R 0.00</div>
+          <div style={{ fontSize: 12, fontWeight: 900, color: "#64748b" }}>RECENTLY OWING</div>
+        </div>
+        <div style={summaryCard}>
+          <div style={{ fontSize: 24, fontWeight: 950, color: "#b91c1c" }}>R 0.00</div>
+          <div style={{ fontSize: 12, fontWeight: 900, color: "#64748b" }}>BAD DEBT</div>
+        </div>
+        <div style={summaryCard}>
+          <div style={{ fontSize: 24, fontWeight: 950, color: "#15803d" }}>
+            {formatMoney(Math.abs(overPaid))}
+          </div>
+          <div style={{ fontSize: 12, fontWeight: 900, color: "#64748b" }}>OVER PAID</div>
+        </div>
+      </div>
 
-
-      <div style={{ marginBottom: 16 }}>
-
-
-
-        <button style={payBtn} onClick={() => setActivePage("payments")}>
-
-
-
+      <div style={{ marginBottom: 14 }}>
+        <button type="button" style={payBtn} onClick={() => setActivePage("payments")}>
           ☰ Switch To Manage Payments
-
-
-
         </button>
-
-
-
       </div>
 
-
-
-      <div style={{ background: "#fff", border: "1px solid #d6c17a", borderRadius: 18, overflow: "hidden" }}>
-
-
-
-        <div style={{ background: "#111827", color: "#d4af37", padding: "16px 20px", fontSize: 22, fontWeight: 900 }}>
-
-
-
+      <div
+        style={{
+          background: "#fff",
+          borderRadius: 20,
+          padding: 18,
+          border: "1px solid #e5e7eb",
+          boxShadow: "0 10px 25px rgba(15,23,42,0.05)",
+        }}
+      >
+        <div
+          style={{
+            background: "#111827",
+            color: "#d4af37",
+            margin: "-18px -18px 14px",
+            padding: "12px 18px",
+            borderRadius: "20px 20px 0 0",
+            fontSize: 18,
+            fontWeight: 900,
+          }}
+        >
           Children
-
-
-
         </div>
 
-
-
-        <div style={{ display: "flex", justifyContent: "space-between", padding: 14, borderBottom: "1px solid #e5e7eb" }}>
-
-
-
-          <div style={{ display: "flex", gap: 10 }}>
-
-
-
+        <div
+          style={{
+            display: "flex",
+            justifyContent: "space-between",
+            gap: 12,
+            alignItems: "center",
+            marginBottom: 14,
+            flexWrap: "wrap",
+          }}
+        >
+          <div style={{ display: "flex", gap: 10, alignItems: "center" }}>
             <button
-
-
-
+              type="button"
               style={payGoldBtn}
-
-
-
               onClick={() => {
-
-
-
                 if (!paymentAccounts.length) return alert("No account available.");
-
-
-
                 openPaymentCreate(paymentAccounts[0]);
-
-
-
               }}
-
-
-
             >
-
-
-
               + Add
-
-
-
             </button>
-
-
-
             <button
-
-
-
+              type="button"
               style={payBtn}
-
-
-
               onClick={() => alert("Add Multiple will be connected to batch payment allocation.")}
-
-
-
             >
-
-
-
               + Add Multiple
-
-
-
             </button>
-
-
-
           </div>
-
-
-
-          <input
-
-
-
-            placeholder="Search"
-
-
-
-            style={{ width: 260, border: "1px solid #d4af37", borderRadius: 12, padding: "10px 14px", fontWeight: 700 }}
-
-
-
-          />
-
-
-
+          <input placeholder="Search" style={{ ...selectStyle, width: 260 }} />
         </div>
-
-
 
         <table style={{ width: "100%", borderCollapse: "collapse" }}>
-
-
-
           <thead>
-
-
-
-            <tr style={{ background: "#f8fafc" }}>
-
-
-
-              {["Account No", "Name", "Surname", "Balance", "Last Invoice", "Last Payment", "Account Status"].map((h) => (
-
-
-
-                <th key={h} style={{ padding: 14, textAlign: "left", fontWeight: 900 }}>{h}</th>
-
-
-
-              ))}
-
-
-
+            <tr>
+              {["Account No", "Name", "Surname", "Balance", "Last Invoice", "Last Payment", "Account Status"].map(
+                (h) => (
+                  <th key={h} style={th}>
+                    {h}
+                  </th>
+                )
+              )}
             </tr>
-
-
-
           </thead>
-
-
-
           <tbody>
-
-
-
             {paymentAccounts.map((account: any, index: number) => (
-
-
-
               <tr
-
-
-
                 key={account.accountNo || index}
-
-
-
-                style={{ background: index % 2 === 0 ? "#fffdf7" : "#fff", cursor: "pointer" }}
-
-
-
+                style={{
+                  background: index % 2 === 0 ? "#fffdf7" : "#fff",
+                  cursor: "pointer",
+                }}
                 onClick={() => openPaymentCreate(account)}
-
-
-
               >
-
-
-
-                <td style={payCell}>{account.accountNo}</td>
-
-
-
-                <td style={payCell}>{account.name}</td>
-
-
-
-                <td style={payCell}>{account.surname}</td>
-
-
-
-                <td style={payCell}>R {Number(account.balance || 0).toFixed(2)}</td>
-
-
-
-                <td style={payCell}>{account.lastInvoice}</td>
-
-
-
-                <td style={payCell}>{account.lastPayment}</td>
-
-
-
-                <td style={{ ...payCell, color: account.status === "Bad Debt" ? "#b91c1c" : account.status === "Recently Owing" ? "#b45309" : "#166534" }}>
-
-
-
+                <td style={td}>{account.accountNo}</td>
+                <td style={td}>{account.name}</td>
+                <td style={td}>{account.surname}</td>
+                <td style={td}>R {Number(account.balance || 0).toFixed(2)}</td>
+                <td style={td}>{account.lastInvoice}</td>
+                <td style={td}>{account.lastPayment}</td>
+                <td
+                  style={{
+                    ...td,
+                    color:
+                      account.status === "Bad Debt"
+                        ? "#b91c1c"
+                        : account.status === "Recently Owing"
+                          ? "#b45309"
+                          : "#166534",
+                  }}
+                >
                   {account.status}
-
-
-
                 </td>
-
-
-
               </tr>
-
-
-
             ))}
-
-
-
           </tbody>
-
-
-
         </table>
-
-
-
       </div>
-
-
-
     </div>
-
-
-
   );
-
-
-
 }
