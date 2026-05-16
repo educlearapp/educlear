@@ -1,4 +1,5 @@
 import React from "react";
+import { getLearnerAccountNo } from "../learner/learnerIdentity";
 
 
 
@@ -10,7 +11,7 @@ type PaymentsProps = {
 
 
 
-  setActivePage: (page: string) => void;
+  setActivePage: React.Dispatch<React.SetStateAction<any>>;
 
 
 
@@ -18,19 +19,7 @@ type PaymentsProps = {
 
 
 
-export default function Payments({
-
-
-
-  statementRows,
-
-
-
-  setActivePage,
-
-
-
-}: PaymentsProps) {
+export default function Payments({ statementRows, setActivePage }: PaymentsProps) {
 
 
 
@@ -82,10 +71,6 @@ export default function Payments({
 
 
 
-    color: "#111827",
-
-
-
     boxShadow: "0 10px 24px rgba(212,175,55,0.25)",
 
 
@@ -118,35 +103,7 @@ export default function Payments({
 
 
 
-  const paymentAccounts = statementRows.map((row: any) => ({
-
-
-
-    accountNo: row.accountNo,
-
-
-
-    name: row.name,
-
-
-
-    surname: row.surname,
-
-
-
-    balance: Number(row.balance || 0),
-
-
-
-    lastInvoice: row.lastInvoice || "No invoices",
-
-
-
-    lastPayment:
-
-
-
-  (() => {
+  const getLastPayment = (row: any) => {
 
 
 
@@ -190,7 +147,43 @@ export default function Payments({
 
 
 
-  })(),
+  };
+
+
+
+  const paymentAccounts = statementRows.map((row: any, index: number) => ({
+
+
+
+    id: row.id || row.learnerId || row.accountNo || `account-${index}`,
+
+
+
+    learnerId: row.learnerId || row.id || row.accountNo || `account-${index}`,
+
+
+
+    accountNo: getLearnerAccountNo(row),
+
+
+
+    name: row.name || "",
+
+
+
+    surname: row.surname || "",
+
+
+
+    balance: Number(row.balance || 0),
+
+
+
+    lastInvoice: row.lastInvoice || "No invoices",
+
+
+
+    lastPayment: getLastPayment(row),
 
 
 
@@ -199,6 +192,50 @@ export default function Payments({
 
 
   }));
+
+
+
+  const openPaymentCreate = (account: any) => {
+
+
+
+    localStorage.setItem(
+
+
+
+      "selectedPaymentAccount",
+
+
+
+      JSON.stringify({
+
+
+
+        ...account,
+
+
+
+        learnerId: account.learnerId || account.id || account.accountNo,
+
+
+
+        id: account.id || account.learnerId || account.accountNo,
+
+
+
+      })
+
+
+
+    );
+
+
+
+    setActivePage("paymentCreate");
+
+
+
+  };
 
 
 
@@ -290,7 +327,7 @@ export default function Payments({
 
 
 
-          ["Over Paid", `R ${overPaid.toFixed(2)}`, "#166534"],
+          ["Over Paid", `R ${Math.abs(overPaid).toFixed(2)}`, "#166534"],
 
 
 
@@ -382,63 +419,7 @@ export default function Payments({
 
 
 
-                localStorage.setItem(
-
-
-
-                    "selectedPaymentAccount",
-                  
-                  
-                  
-                    JSON.stringify({
-                  
-                  
-                  
-                      ...paymentAccounts[0],
-                  
-                  
-                  
-                      learnerId:
-                  
-                  
-                  
-                        paymentAccounts[0]?.learnerId ||
-                  
-                  
-                  
-                        paymentAccounts[0]?.id ||
-                  
-                  
-                  
-                        paymentAccounts[0]?.accountNo,
-                  
-                  
-                  
-                      id:
-                  
-                  
-                  
-                        paymentAccounts[0]?.id ||
-                  
-                  
-                  
-                        paymentAccounts[0]?.learnerId ||
-                  
-                  
-                  
-                        paymentAccounts[0]?.accountNo,
-                  
-                  
-                  
-                    })
-                  
-                  
-                  
-                  );
-
-
-
-                setActivePage("paymentCreate");
+                openPaymentCreate(paymentAccounts[0]);
 
 
 
@@ -558,71 +539,7 @@ export default function Payments({
 
 
 
-                onClick={() => {
-
-
-
-                    localStorage.setItem(
-
-
-
-                        "selectedPaymentAccount",
-                      
-                      
-                      
-                        JSON.stringify({
-                      
-                      
-                      
-                          ...account,
-                      
-                      
-                      
-                          learnerId:
-                      
-                      
-                      
-                            account?.learnerId ||
-                      
-                      
-                      
-                            account?.id ||
-                      
-                      
-                      
-                            account?.accountNo,
-                      
-                      
-                      
-                          id:
-                      
-                      
-                      
-                            account?.id ||
-                      
-                      
-                      
-                            account?.learnerId ||
-                      
-                      
-                      
-                            account?.accountNo,
-                      
-                      
-                      
-                        })
-                      
-                      
-                      
-                      );
-
-
-
-                  setActivePage("paymentCreate");
-
-
-
-                }}
+                onClick={() => openPaymentCreate(account)}
 
 
 

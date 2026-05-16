@@ -2,6 +2,11 @@ import { useEffect, useMemo, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { API_URL, apiFetch } from "./api";
 import educlearLogo from "./assets/logo.png";
+import {
+  calculateLearnerAge,
+  getLearnerAccountNo,
+  normaliseDateForInput,
+} from "./learner/learnerIdentity";
 
 type LearnerLike = Record<string, any>;
 type SchoolLike = Record<string, any>;
@@ -10,29 +15,6 @@ function safeString(value: unknown, fallback = "-") {
   if (value === null || value === undefined) return fallback;
   const s = String(value).trim();
   return s ? s : fallback;
-}
-
-function formatDate(value: unknown) {
-  if (!value) return "-";
-  const d = new Date(String(value));
-  if (Number.isNaN(d.getTime())) return "-";
-  return d.toISOString().slice(0, 10);
-}
-
-function formatAge(value: unknown) {
-  if (!value) return "-";
-  const dob = new Date(String(value));
-  if (Number.isNaN(dob.getTime())) return "-";
-  const today = new Date();
-  let years = today.getFullYear() - dob.getFullYear();
-  let months = today.getMonth() - dob.getMonth();
-  if (today.getDate() < dob.getDate()) months -= 1;
-  if (months < 0) {
-    years -= 1;
-    months += 12;
-  }
-  if (years < 0) return "-";
-  return `${years}y ${months}m`;
 }
 
 export default function LearnerProfile() {
@@ -240,7 +222,7 @@ export default function LearnerProfile() {
                   <div style={{ marginTop: 6, color: "#64748b", fontWeight: 700, fontSize: 13 }}>
                     Grade/Class: {safeString(learner.grade || learner.className || learner.classroom)}
                     {" · "}
-                    Age: {formatAge(learner.birthDate)}
+                    Age: {calculateLearnerAge(learner.birthDate || learner.dateOfBirth)}
                   </div>
                 </div>
 
@@ -278,7 +260,8 @@ export default function LearnerProfile() {
                       { label: "Admission No", value: learner.admissionNumber || learner.admissionNo },
                       { label: "ID No", value: learner.idNo || learner.idNumber },
                       { label: "Gender", value: learner.gender },
-                      { label: "Date of Birth", value: formatDate(learner.birthDate || learner.dateOfBirth) },
+                      { label: "Date of Birth", value: normaliseDateForInput(learner.birthDate || learner.dateOfBirth) || "-" },
+                      { label: "Account No", value: getLearnerAccountNo(learner) },
                       { label: "Home Language", value: learner.homeLanguage },
                       { label: "Nationality", value: learner.nationality },
                     ].map((item) => (

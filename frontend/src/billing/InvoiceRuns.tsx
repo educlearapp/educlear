@@ -1,8 +1,6 @@
 import React, { useEffect, useMemo, useState } from "react";
-
-
-
 import { API_URL } from "../api";
+import { getLearnerAccountNo } from "../learner/learnerIdentity";
 import {
 
 
@@ -1105,23 +1103,7 @@ export default function InvoiceRuns(props: any) {
 
 
 
-        accountNo:
-
-
-
-          learner?.accountNo ||
-
-
-
-          learner?.accountNumber ||
-
-
-
-          learner?.admissionNo ||
-
-
-
-          `SIL${String(index + 1).padStart(3, "0")}`,
+        accountNo: getLearnerAccountNo(learner),
 
 
 
