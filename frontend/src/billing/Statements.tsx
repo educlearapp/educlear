@@ -1,5 +1,49 @@
-import React, { useMemo, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
+import {
 
+
+
+  fetchInvoices,
+
+
+
+  fetchPayments,
+
+
+
+} from "./billingApi";
+
+
+
+import {
+
+
+
+  calculateOutstandingBalance,
+
+
+
+  calculateLastPayment,
+
+
+
+} from "./billingCalculations";
+
+
+
+import type {
+
+
+
+  Invoice,
+
+
+
+  Payment,
+
+
+
+} from "./billingTypes";
 
 
 type Props = {
@@ -63,7 +107,120 @@ export default function Statements({
 
 
 }: Props) {
+  
+  const [invoices, setInvoices] = useState<Invoice[]>([]);
 
+
+
+  const [payments, setPayments] = useState<Payment[]>([]);
+  
+  
+  
+  const [billingLoading, setBillingLoading] = useState(false);
+  
+  
+  
+  useEffect(() => {
+  
+  
+  
+    loadBillingData();
+  
+  
+  
+  }, []);
+  
+  
+  
+  const loadBillingData = async () => {
+  
+  
+  
+    try {
+  
+  
+  
+      setBillingLoading(true);
+  
+  
+  
+      const schoolId =
+  
+  
+  
+        localStorage.getItem("schoolId") || "";
+  
+  
+  
+      const invoicesData =
+  
+  
+  
+        await fetchInvoices(schoolId);
+  
+  
+  
+      const paymentsData =
+  
+  
+  
+        await fetchPayments(schoolId);
+  
+  
+  
+      setInvoices(invoicesData || []);
+  
+  
+  
+      setPayments(paymentsData || []);
+  
+  
+  
+    } catch (error) {
+  
+  
+  
+      console.error("Failed to load statement billing data", error);
+  
+  
+  
+    } finally {
+  
+  
+  
+      setBillingLoading(false);
+  
+  
+  
+    }
+  
+  
+  
+  };
+  
+  
+  
+  const getLearnerOutstandingBalance = (learnerId: string) => {
+  
+  
+  
+    return calculateOutstandingBalance(invoices, payments, learnerId);
+  
+  
+  
+  };
+  
+  
+  
+  const getLearnerLastPayment = (learnerId: string) => {
+  
+  
+  
+    return calculateLastPayment(payments, learnerId);
+  
+  
+  
+  };
 
 
   const [statementSearch, setStatementSearch] = useState("");
@@ -338,15 +495,23 @@ export default function Statements({
 
 
 
-    (sum, row) => sum + Number(row.balance || 0),
-
-
-
-    0
-
-
-
-  );
+    (sum, row) =>
+  
+  
+  
+      sum +
+  
+  
+  
+      getLearnerOutstandingBalance(row.id || row.learnerId),
+  
+  
+  
+         0
+  
+  
+  
+       );
 
 
 
@@ -358,7 +523,27 @@ export default function Statements({
 
 
 
-    .reduce((sum, row) => sum + Number(row.balance || 0), 0);
+    .reduce(
+
+
+
+      (sum, row) =>
+    
+    
+    
+        sum +
+    
+    
+    
+        getLearnerOutstandingBalance(row.id || row.learnerId),
+    
+    
+    
+      0
+    
+    
+    
+    );
 
 
 
@@ -370,7 +555,27 @@ export default function Statements({
 
 
 
-    .reduce((sum, row) => sum + Number(row.balance || 0), 0);
+    .reduce(
+
+
+
+      (sum, row) =>
+    
+    
+    
+        sum +
+    
+    
+    
+        getLearnerOutstandingBalance(row.id || row.learnerId),
+    
+    
+    
+      0
+    
+    
+    
+    );
 
 
 
@@ -958,7 +1163,23 @@ export default function Statements({
 
 
 
-                    <td style={td}>{formatMoney(row.balance)}</td>
+                    <td style={td}>
+
+
+
+            {formatMoney(
+
+
+
+        getLearnerOutstandingBalance(row.id || row.learnerId)
+
+
+
+         )}
+
+
+
+       </td>
 
 
 

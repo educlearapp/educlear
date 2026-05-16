@@ -444,6 +444,7 @@ app.use("/api/payments", paymentsRoutes);
 app.use("/api/teacher-performance", teacherPerformanceRoutes);
 app.use("/api/payroll", payrollRoutes);
 app.use("/api/fees", feesRoutes);
+app.use("/api/learners", learnerRoutes);
 app.use("/api/registrations", registrationsRoutes);
 app.get("/api/parents", async (_req, res) => {
 

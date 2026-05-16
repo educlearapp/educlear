@@ -1,9 +1,53 @@
-import React, { useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 
 
 
 import { API_URL } from "../api";
+import {
 
+
+
+  fetchInvoices,
+
+
+
+  fetchPayments,
+
+
+
+} from "./billingApi";
+
+
+
+import {
+
+
+
+  calculateOutstandingBalance,
+
+
+
+  calculateLastPayment,
+
+
+
+} from "./billingCalculations";
+
+
+
+import type {
+
+
+
+  Invoice,
+
+
+
+  Payment,
+
+
+
+} from "./billingTypes";
 
 
 export default function InvoiceRuns(props: any) {
@@ -60,8 +104,16 @@ export default function InvoiceRuns(props: any) {
 
   } = props;
 
+  const [invoices, setInvoices] = useState<Invoice[]>([]);
 
 
+
+  const [payments, setPayments] = useState<Payment[]>([]);
+  
+  
+  
+  const [billingLoading, setBillingLoading] = useState(false);
+  
   const [statementEmailOpen, setStatementEmailOpen] = useState(false);
 
 
@@ -80,7 +132,161 @@ export default function InvoiceRuns(props: any) {
 
   const [statementEmailSending, setStatementEmailSending] = useState(false);
 
+  useEffect(() => {
 
+
+
+    loadBillingData();
+  
+  
+  
+  }, []);
+  
+  
+  
+  const loadBillingData = async () => {
+  
+  
+  
+    try {
+  
+  
+  
+      setBillingLoading(true);
+  
+  
+  
+      const schoolId =
+  
+  
+  
+        localStorage.getItem("schoolId") || "";
+  
+  
+  
+      const invoicesData =
+  
+  
+  
+        await fetchInvoices(schoolId);
+  
+  
+  
+      const paymentsData =
+  
+  
+  
+        await fetchPayments(schoolId);
+  
+  
+  
+      setInvoices(invoicesData || []);
+  
+  
+  
+      setPayments(paymentsData || []);
+  
+  
+  
+    } catch (error) {
+  
+  
+  
+      console.error(
+  
+  
+  
+        "Failed to load billing data",
+  
+  
+  
+        error
+  
+  
+  
+      );
+  
+  
+  
+    } finally {
+  
+  
+  
+      setBillingLoading(false);
+  
+  
+  
+    }
+  
+  
+  
+  };
+
+  const getLearnerOutstandingBalance = (
+
+
+
+    learnerId: string
+  
+  
+  
+  ) => {
+  
+  
+  
+    return calculateOutstandingBalance(
+  
+  
+  
+      invoices,
+  
+  
+  
+      payments,
+  
+  
+  
+      learnerId
+  
+  
+  
+    );
+  
+  
+  
+  };
+  
+  
+  
+  const getLearnerLastPayment = (
+  
+  
+  
+    learnerId: string
+  
+  
+  
+  ) => {
+  
+  
+  
+    return calculateLastPayment(
+  
+  
+  
+      payments,
+  
+  
+  
+      learnerId
+  
+  
+  
+    );
+  
+  
+  
+  };
 
   const schoolName =
 
@@ -947,23 +1153,16 @@ export default function InvoiceRuns(props: any) {
 
 
 
-        balance: Number(
+        balance: getLearnerOutstandingBalance(
 
 
 
-          learner?.balance ||
-
-
-
-            learner?.outstandingAmount ||
-
-
-
-            0
-
-
-
+          learner.id || learner.learnerId
+        
+        
+        
         ),
+
 
 
 
@@ -973,25 +1172,11 @@ export default function InvoiceRuns(props: any) {
 
         newBalance:
 
+  getLearnerOutstandingBalance(
 
+    learner.id || learner.learnerId
 
-          Number(
-
-
-
-            learner?.balance ||
-
-
-
-              learner?.outstandingAmount ||
-
-
-
-              0
-
-
-
-          ) + invoiceAmount,
+  ) + invoiceAmount,
 
 
 
@@ -1276,7 +1461,7 @@ export default function InvoiceRuns(props: any) {
 
 
     setStoredRuns(updatedRuns);
-
+      loadBillingData();
 
 
     writeJson("educlearSelectedInvoiceRun", run);
@@ -4443,7 +4628,7 @@ ${schoolName}`
 
 
 
-                      {money(row.balance)}
+                    {money(getLearnerOutstandingBalance(row.id || row.learnerId))}
 
 
 
@@ -5100,7 +5285,7 @@ ${schoolName}`
 
 
 
-                    <td style={{ ...td, textAlign: "right" }}>{money(row.balance)}</td>
+                    <td style={{ ...td, textAlign: "right" }}>{money(getLearnerOutstandingBalance(row.id || row.learnerId))}</td>
 
 
 
