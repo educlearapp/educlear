@@ -21,14 +21,7 @@ export { default as AccountingBudget } from "./AccountingBudget";
 
 export { default as AccountingFinancialStatements } from "./AccountingFinancialStatements";
 
-export function AccountingReports() {
-  return (
-    <AccountingPlaceholder
-      title="Accounting Reports"
-      description="Management reports, audit trails, and export packs for accountants."
-    />
-  );
-}
+export { default as AccountingReports } from "./AccountingReports";
 
 export function AccountingSettings() {
   return (

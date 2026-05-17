@@ -1,0 +1,1048 @@
+import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { fetchBankImports, type BankImportRecord } from "../banking/bankingApi";
+import {
+  computeBankingStats,
+  loadSuppliersForMatching,
+} from "../banking/bankingReconciliationUtils";
+import {
+  BILLING_UPDATED_EVENT,
+  formatMoney,
+  getBillingRows,
+  normaliseBillingAmount,
+  readSchoolLedger,
+  type BillingAccountRow,
+  type BillingLedgerEntry,
+} from "../billing/billingLedger";
+import { fetchLegalDocumentHistory } from "../billing/billingApi";
+import {
+  ACCOUNTING_EXPENSES_UPDATED_EVENT,
+  filterApprovedExpensesForMonth,
+  loadApprovedExpenses,
+  loadExpenseCandidates,
+  migrateLegacyExpenseStores,
+  normalizeExpenseCategory,
+  reviewQueueFromCandidates,
+  sumApprovedExpensesByCategory,
+  totalApprovedSpendForMonth,
+  type AccountingApprovedExpense,
+} from "./accountingExpenseStorage";
+import { loadJournalStore } from "./accountingJournalStorage";
+import {
+  ACCOUNTING_GOLD,
+  ACCOUNTING_INK,
+  accountingCard,
+  accountingCardLabel,
+  accountingCardValue,
+  accountingPageWrap,
+  accountingSubtitle,
+  accountingTitle,
+} from "./accountingTheme";
+
+type Props = {
+  schoolId: string;
+  learners?: any[];
+  schoolName?: string;
+};
+
+type ReportType =
+  | "management"
+  | "budget-actual"
+  | "cashflow"
+  | "expense-analysis"
+  | "debtors"
+  | "supplier-spend"
+  | "bank-recon"
+  | "audit-pack";
+
+const REPORT_OPTIONS: { id: ReportType; label: string }[] = [
+  { id: "management", label: "Management Accounts" },
+  { id: "budget-actual", label: "Budget vs Actual" },
+  { id: "cashflow", label: "Cash Flow Forecast" },
+  { id: "expense-analysis", label: "Expense Analysis" },
+  { id: "debtors", label: "Debtors Summary" },
+  { id: "supplier-spend", label: "Supplier Spend" },
+  { id: "bank-recon", label: "Bank Reconciliation Summary" },
+  { id: "audit-pack", label: "Audit Pack Export" },
+];
+
+const MONTH_NAMES = [
+  "January",
+  "February",
+  "March",
+  "April",
+  "May",
+  "June",
+  "July",
+  "August",
+  "September",
+  "October",
+  "November",
+  "December",
+];
+
+const PAGE_SIZE = 10;
+
+/** Planning figures aligned with Accounting Budget sample categories (read-only for reports). */
+const DEFAULT_EXPENSE_BUDGET_MONTHLY: Record<string, number> = {
+  salaries: 185000,
+  "rent / bond": 42000,
+  electricity: 12000,
+  utilities: 18500,
+  transport: 12000,
+  maintenance: 9500,
+  stationery: 6500,
+  "food / tuckshop": 14000,
+  insurance: 8800,
+  marketing: 4500,
+  other: 6000,
+};
+
+const goldBtn: React.CSSProperties = {
+  padding: "10px 18px",
+  borderRadius: 10,
+  border: "1px solid #b89329",
+  background: "linear-gradient(135deg, #f7d56a, #d4af37)",
+  color: ACCOUNTING_INK,
+  fontWeight: 900,
+  cursor: "pointer",
+  fontSize: 14,
+};
+
+const outlineBtn: React.CSSProperties = {
+  padding: "10px 18px",
+  borderRadius: 10,
+  border: `2px solid ${ACCOUNTING_GOLD}`,
+  background: "#fff",
+  color: ACCOUNTING_INK,
+  fontWeight: 800,
+  cursor: "pointer",
+  fontSize: 14,
+};
+
+const fieldStyle: React.CSSProperties = {
+  padding: "10px 12px",
+  borderRadius: 10,
+  border: `1px solid ${ACCOUNTING_GOLD}`,
+  fontWeight: 700,
+  color: ACCOUNTING_INK,
+  background: "#fff",
+  minWidth: 140,
+};
+
+const th: React.CSSProperties = {
+  padding: "10px 12px",
+  textAlign: "left",
+  fontSize: 11,
+  fontWeight: 900,
+  textTransform: "uppercase",
+  letterSpacing: "0.05em",
+  color: ACCOUNTING_GOLD,
+  background: ACCOUNTING_INK,
+  borderBottom: `2px solid ${ACCOUNTING_GOLD}`,
+};
+
+const td: React.CSSProperties = {
+  padding: "10px 12px",
+  borderBottom: "1px solid #f1f5f9",
+  fontSize: 13,
+  fontWeight: 600,
+  color: ACCOUNTING_INK,
+};
+
+const sectionCard: React.CSSProperties = {
+  marginBottom: 20,
+  padding: 20,
+  borderRadius: 12,
+  border: `1px solid ${ACCOUNTING_GOLD}`,
+  background: "linear-gradient(180deg, #fff 0%, #faf8f0 100%)",
+};
+
+function parseYearMonth(dateRaw: string): { year: number; monthIndex: number } | null {
+  const raw = String(dateRaw || "").trim();
+  if (!raw) return null;
+  const iso = raw.match(/^(\d{4})-(\d{2})/);
+  if (iso) {
+    const year = Number(iso[1]);
+    const monthIndex = Number(iso[2]) - 1;
+    if (year >= 1970 && monthIndex >= 0 && monthIndex <= 11) return { year, monthIndex };
+  }
+  const d = new Date(raw);
+  if (Number.isNaN(d.getTime())) return null;
+  return { year: d.getFullYear(), monthIndex: d.getMonth() };
+}
+
+function entryInPeriod(dateRaw: string, year: number, monthIndex: number) {
+  const parsed = parseYearMonth(dateRaw);
+  return parsed?.year === year && parsed?.monthIndex === monthIndex;
+}
+
+function entryInYearToDate(dateRaw: string, year: number, monthIndex: number) {
+  const parsed = parseYearMonth(dateRaw);
+  if (!parsed || parsed.year !== year) return false;
+  return parsed.monthIndex <= monthIndex;
+}
+
+function sumPaymentsForMonth(ledger: BillingLedgerEntry[], year: number, monthIndex: number) {
+  return ledger
+    .filter((e) => e.type === "payment" && entryInPeriod(e.date, year, monthIndex))
+    .reduce((sum, e) => sum + normaliseBillingAmount(e.amount), 0);
+}
+
+function sumPaymentsYtd(ledger: BillingLedgerEntry[], year: number, monthIndex: number) {
+  return ledger
+    .filter((e) => e.type === "payment" && entryInYearToDate(e.date, year, monthIndex))
+    .reduce((sum, e) => sum + normaliseBillingAmount(e.amount), 0);
+}
+
+function filterApprovedYtd(rows: AccountingApprovedExpense[], year: number, monthIndex: number) {
+  return rows.filter((row) => {
+    const parsed = parseYearMonth(row.date);
+    return parsed?.year === year && parsed.monthIndex <= monthIndex;
+  });
+}
+
+function totalApprovedYtd(rows: AccountingApprovedExpense[], year: number, monthIndex: number) {
+  return filterApprovedYtd(rows, year, monthIndex).reduce((sum, row) => {
+    const amount = Number(row.amount);
+    return sum + (Number.isFinite(amount) && amount > 0 ? amount : 0);
+  }, 0);
+}
+
+function formatPeriodLabel(year: number, monthIndex: number) {
+  return `${MONTH_NAMES[monthIndex] || ""} ${year}`;
+}
+
+function varianceStatus(variancePct: number) {
+  if (variancePct > 10) return "Over budget";
+  if (variancePct < -10) return "Under budget";
+  return "On track";
+}
+
+function paginate<T>(rows: T[], page: number) {
+  const totalPages = Math.max(1, Math.ceil(rows.length / PAGE_SIZE));
+  const safePage = Math.min(Math.max(1, page), totalPages);
+  const start = (safePage - 1) * PAGE_SIZE;
+  return { page: safePage, totalPages, rows: rows.slice(start, start + PAGE_SIZE), total: rows.length };
+}
+
+function PaginationBar({
+  page,
+  totalPages,
+  total,
+  onPage,
+}: {
+  page: number;
+  totalPages: number;
+  total: number;
+  onPage: (p: number) => void;
+}) {
+  if (total <= PAGE_SIZE) return null;
+  return (
+    <div
+      style={{
+        display: "flex",
+        justifyContent: "space-between",
+        alignItems: "center",
+        marginTop: 12,
+        fontSize: 13,
+        fontWeight: 700,
+        color: "#64748b",
+      }}
+    >
+      <span>
+        Showing page {page} of {totalPages} ({total} rows)
+      </span>
+      <div style={{ display: "flex", gap: 8 }}>
+        <button type="button" style={outlineBtn} disabled={page <= 1} onClick={() => onPage(page - 1)}>
+          Previous
+        </button>
+        <button
+          type="button"
+          style={outlineBtn}
+          disabled={page >= totalPages}
+          onClick={() => onPage(page + 1)}
+        >
+          Next
+        </button>
+      </div>
+    </div>
+  );
+}
+
+function ReportTable({
+  columns,
+  rows,
+  page,
+  onPage,
+  emptyMessage,
+}: {
+  columns: string[];
+  rows: (string | number)[][];
+  page: number;
+  onPage: (p: number) => void;
+  emptyMessage?: string;
+}) {
+  const paged = paginate(rows, page);
+  if (!rows.length) {
+    return <div style={{ padding: 16, color: "#64748b", fontWeight: 600 }}>{emptyMessage || "No data for this period."}</div>;
+  }
+  return (
+    <>
+      <div style={{ overflowX: "auto" }}>
+        <table style={{ width: "100%", borderCollapse: "collapse", minWidth: 640 }}>
+          <thead>
+            <tr>
+              {columns.map((c) => (
+                <th key={c} style={th}>
+                  {c}
+                </th>
+              ))}
+            </tr>
+          </thead>
+          <tbody>
+            {paged.rows.map((row, i) => (
+              <tr key={`${i}-${String(row[0])}`}>
+                {row.map((cell, j) => (
+                  <td key={j} style={td}>
+                    {cell}
+                  </td>
+                ))}
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+      <PaginationBar page={paged.page} totalPages={paged.totalPages} total={paged.total} onPage={onPage} />
+    </>
+  );
+}
+
+export default function AccountingReports({ schoolId, learners = [], schoolName = "School" }: Props) {
+  const now = new Date();
+  const [year, setYear] = useState(now.getFullYear());
+  const [monthIndex, setMonthIndex] = useState(now.getMonth());
+  const [reportType, setReportType] = useState<ReportType>("management");
+  const [generated, setGenerated] = useState(false);
+  const [refreshKey, setRefreshKey] = useState(0);
+  const [bankImports, setBankImports] = useState<BankImportRecord[]>([]);
+  const [legalHistoryCount, setLegalHistoryCount] = useState(0);
+  const [placeholderBanner, setPlaceholderBanner] = useState("");
+  const [tablePage, setTablePage] = useState(1);
+  const reportRef = useRef<HTMLDivElement>(null);
+
+  const bumpRefresh = useCallback(() => setRefreshKey((k) => k + 1), []);
+
+  useEffect(() => {
+    if (!schoolId) return;
+    migrateLegacyExpenseStores(schoolId);
+  }, [schoolId, refreshKey]);
+
+  useEffect(() => {
+    const onExpenses = (e: Event) => {
+      const detail = (e as CustomEvent<{ schoolId?: string }>).detail;
+      if (!detail?.schoolId || detail.schoolId === schoolId) bumpRefresh();
+    };
+    const onBilling = () => bumpRefresh();
+    window.addEventListener(ACCOUNTING_EXPENSES_UPDATED_EVENT, onExpenses);
+    window.addEventListener(BILLING_UPDATED_EVENT, onBilling);
+    return () => {
+      window.removeEventListener(ACCOUNTING_EXPENSES_UPDATED_EVENT, onExpenses);
+      window.removeEventListener(BILLING_UPDATED_EVENT, onBilling);
+    };
+  }, [schoolId, bumpRefresh]);
+
+  useEffect(() => {
+    if (!schoolId) {
+      setBankImports([]);
+      return;
+    }
+    let cancelled = false;
+    fetchBankImports(schoolId)
+      .then((res) => {
+        if (!cancelled && res?.success) setBankImports(Array.isArray(res.imports) ? res.imports : []);
+      })
+      .catch(() => {
+        if (!cancelled) setBankImports([]);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [schoolId, refreshKey]);
+
+  useEffect(() => {
+    if (!schoolId) {
+      setLegalHistoryCount(0);
+      return;
+    }
+    fetchLegalDocumentHistory(schoolId)
+      .then((res) => {
+        const rows = Array.isArray(res?.history) ? res.history : [];
+        setLegalHistoryCount(rows.length);
+      })
+      .catch(() => setLegalHistoryCount(0));
+  }, [schoolId, refreshKey]);
+
+  useEffect(() => {
+    setTablePage(1);
+  }, [reportType, year, monthIndex, generated]);
+
+  const periodLabel = formatPeriodLabel(year, monthIndex);
+
+  const data = useMemo(() => {
+    void refreshKey;
+    const sid = String(schoolId || "").trim();
+    const statementRows: BillingAccountRow[] = sid ? getBillingRows(learners, sid) : [];
+    const ledger = sid ? readSchoolLedger(sid) : [];
+    const approvedAll = sid ? loadApprovedExpenses(sid) : [];
+    const approvedMonth = sid ? filterApprovedExpensesForMonth(approvedAll, year, monthIndex) : [];
+    const spendByCategory = sid ? sumApprovedExpensesByCategory(approvedAll, year, monthIndex) : { totals: new Map(), labels: new Map() };
+    const candidates = sid ? reviewQueueFromCandidates(loadExpenseCandidates(sid)) : [];
+    const suppliers = sid ? loadSuppliersForMatching(sid) : [];
+    const journalStore = sid ? loadJournalStore(sid) : { journals: [], audit: [] };
+
+    const income = sumPaymentsForMonth(ledger, year, monthIndex);
+    const expenses = totalApprovedSpendForMonth(approvedAll, year, monthIndex);
+    const net = income - expenses;
+
+    const outstandingDebtors = statementRows
+      .filter((r) => normaliseBillingAmount(r.balance) > 0)
+      .reduce((s, r) => s + normaliseBillingAmount(r.balance), 0);
+
+    const recentlyOwing = statementRows.filter((r) => r.status === "Recently Owing");
+    const badDebt = statementRows.filter((r) => r.status === "Bad Debt");
+    const overpaid = statementRows.filter((r) => normaliseBillingAmount(r.balance) < 0);
+
+    const topDebtors = [...statementRows]
+      .filter((r) => normaliseBillingAmount(r.balance) > 0)
+      .sort((a, b) => normaliseBillingAmount(b.balance) - normaliseBillingAmount(a.balance))
+      .slice(0, 10);
+
+    const categoryRows = Array.from(spendByCategory.totals.entries())
+      .map(([key, amount]) => ({
+        category: spendByCategory.labels.get(key) || key,
+        amount,
+        pct: expenses > 0 ? (amount / expenses) * 100 : 0,
+      }))
+      .sort((a, b) => b.amount - a.amount);
+
+    const budgetRows = Array.from(
+      new Set([
+        ...Object.keys(DEFAULT_EXPENSE_BUDGET_MONTHLY),
+        ...Array.from(spendByCategory.totals.keys()),
+      ])
+    ).map((key) => {
+      const budgeted = DEFAULT_EXPENSE_BUDGET_MONTHLY[key] || 0;
+      const actual = spendByCategory.totals.get(key) || 0;
+      const label = spendByCategory.labels.get(key) || key.replace(/\b\w/g, (ch: string) => ch.toUpperCase());
+      const variance = actual - budgeted;
+      const variancePct = budgeted > 0 ? (variance / budgeted) * 100 : 0;
+      return {
+        category: label,
+        budgeted,
+        actual,
+        variance,
+        variancePct,
+        status: varianceStatus(variancePct),
+      };
+    });
+
+    const totalBudgeted = budgetRows.reduce((s, r) => s + r.budgeted, 0);
+    const totalActualBudget = budgetRows.reduce((s, r) => s + r.actual, 0);
+    const budgetVariance = totalBudgeted - totalActualBudget;
+
+    const expectedCollectionsPlaceholder = outstandingDebtors * 0.65;
+    const forecastedCash = net + expectedCollectionsPlaceholder;
+    const cashWarning = forecastedCash < 0;
+
+    const supplierMap = new Map<
+      string,
+      { supplier: string; category: string; month: number; ytd: number; lastDate: string }
+    >();
+    for (const row of approvedAll) {
+      const supplier = String(row.supplier || "Unknown").trim() || "Unknown";
+      const key = normalizeExpenseCategory(supplier);
+      const amount = normaliseBillingAmount(row.amount);
+      if (amount <= 0) continue;
+      const parsed = parseYearMonth(row.date);
+      if (!parsed || parsed.year !== year) continue;
+      const existing = supplierMap.get(key) || {
+        supplier,
+        category: String(row.category || "Other"),
+        month: 0,
+        ytd: 0,
+        lastDate: "",
+      };
+      if (parsed.monthIndex <= monthIndex) existing.ytd += amount;
+      if (parsed.monthIndex === monthIndex) existing.month += amount;
+      if (!existing.lastDate || row.date > existing.lastDate) existing.lastDate = row.date;
+      supplierMap.set(key, existing);
+    }
+
+    const supplierRows = Array.from(supplierMap.values())
+      .map((s) => ({
+        ...s,
+        status: suppliers.some((sup) => normalizeExpenseCategory(sup.name) === normalizeExpenseCategory(s.supplier))
+          ? "Active"
+          : "Recorded",
+      }))
+      .sort((a, b) => b.month - a.month);
+
+    const activeImport = bankImports.length ? bankImports[0] : null;
+    const bankStats = computeBankingStats(bankImports, activeImport);
+    const importSummaries = bankImports.map((imp) => {
+      const txns = imp.transactions || [];
+      let matchedPayments = 0;
+      let expenseMatched = 0;
+      let unmatched = 0;
+      let duplicates = 0;
+      let readyToPost = 0;
+      for (const t of txns) {
+        if (t.isDuplicate) duplicates += 1;
+        if (t.direction === "in" && t.matchConfidence !== "none" && t.matchConfidence !== "low") {
+          matchedPayments += 1;
+        }
+        if (t.direction === "out" && t.expenseCategory && t.expenseCategory !== "Other") {
+          expenseMatched += 1;
+        }
+        if (t.reviewStatus === "unmatched" || (t.matchConfidence === "none" && t.reviewStatus === "pending")) {
+          unmatched += 1;
+        }
+        if (
+          t.direction === "in" &&
+          t.reviewStatus === "accepted" &&
+          t.matchConfidence !== "none" &&
+          t.matchConfidence !== "low"
+        ) {
+          readyToPost += 1;
+        }
+      }
+      return {
+        fileName: imp.fileName,
+        importedAt: imp.importedAt,
+        txCount: txns.length,
+        matchedPayments,
+        expenseMatched,
+        unmatched,
+        duplicates,
+        readyToPost,
+      };
+    });
+
+    const overBudgetCategories = budgetRows.filter((r) => r.budgeted > 0 && r.actual > r.budgeted);
+
+    const warnings: string[] = [];
+    if (expenses > income && (expenses > 0 || income > 0)) {
+      warnings.push("Approved expenses exceed fee income for the selected month.");
+    }
+    if (outstandingDebtors > 50000) {
+      warnings.push("Outstanding debtor balance is elevated — review Billing Documents legal recovery.");
+    }
+    if (candidates.length > 0) {
+      warnings.push(`${candidates.length} bank expense candidate(s) awaiting review.`);
+    }
+    if (bankStats.unmatched > 0) {
+      warnings.push(`${bankStats.unmatched} unmatched bank line(s) on the latest import.`);
+    }
+    if (cashWarning) {
+      warnings.push("Projected month-end cash position is negative.");
+    }
+
+    return {
+      statementRows,
+      ledger,
+      income,
+      expenses,
+      net,
+      outstandingDebtors,
+      recentlyOwing,
+      badDebt,
+      overpaid,
+      topDebtors,
+      categoryRows,
+      budgetRows,
+      budgetVariance,
+      forecastedCash,
+      cashWarning,
+      expectedCollectionsPlaceholder,
+      supplierRows,
+      bankStats,
+      importSummaries,
+      expenseCandidates: candidates.length,
+      overBudgetCategories,
+      warnings,
+      journalCount: journalStore.journals.length,
+      postedJournals: journalStore.journals.filter((j) => j.status === "Posted").length,
+      paymentsYtd: sumPaymentsYtd(ledger, year, monthIndex),
+      expensesYtd: totalApprovedYtd(approvedAll, year, monthIndex),
+    };
+  }, [schoolId, learners, year, monthIndex, refreshKey, bankImports]);
+
+  const summaryCards = [
+    { label: "Total Income", value: formatMoney(data.income) },
+    { label: "Total Expenses", value: formatMoney(data.expenses) },
+    { label: "Net Position", value: formatMoney(data.net) },
+    { label: "Outstanding Debtors", value: formatMoney(data.outstandingDebtors) },
+    { label: "Budget Variance", value: formatMoney(data.budgetVariance) },
+    { label: "Forecasted Cash Position", value: formatMoney(data.forecastedCash) },
+  ];
+
+  const handleGenerate = () => {
+    setGenerated(true);
+    setPlaceholderBanner("");
+    bumpRefresh();
+  };
+
+  const handlePrint = () => {
+    const el = reportRef.current;
+    if (!el) return;
+    const w = window.open("", "_blank");
+    if (!w) {
+      setPlaceholderBanner("Pop-up blocked. Allow pop-ups to print the report.");
+      return;
+    }
+    w.document.write(`<!DOCTYPE html><html><head><meta charset="utf-8"/><title>Reports — ${periodLabel}</title>
+<style>
+body{font-family:system-ui,-apple-system,sans-serif;color:#111827;margin:24px;line-height:1.45}
+h1{font-size:22px;margin:0 0 6px}
+h2{font-size:16px;margin:24px 0 10px;color:#111827;border-bottom:2px solid #d4af37;padding-bottom:6px}
+.sub{color:#64748b;font-size:13px;margin-bottom:20px}
+table{width:100%;border-collapse:collapse;margin:12px 0 20px;font-size:12px}
+th,td{padding:8px 10px;border-bottom:1px solid #e5e7eb;text-align:left}
+th{background:#111827;color:#d4af37;font-size:11px;text-transform:uppercase}
+.warn{background:#fffbeb;border:1px solid #d4af37;padding:10px;border-radius:8px;margin:10px 0}
+.card{display:inline-block;min-width:140px;margin:0 12px 12px 0;padding:12px;border:1px solid #d4af37;border-radius:8px}
+.card label{font-size:10px;text-transform:uppercase;color:#64748b;font-weight:700}
+.card strong{display:block;margin-top:4px;font-size:18px}
+</style></head><body>
+<h1>Reports — ${schoolName}</h1>
+<p class="sub">${REPORT_OPTIONS.find((r) => r.id === reportType)?.label || reportType} · ${periodLabel}</p>
+${el.innerHTML}
+</body></html>`);
+    w.document.close();
+    w.focus();
+    setTimeout(() => w.print(), 400);
+  };
+
+  const handleExportPlaceholder = (kind: "PDF" | "Excel") => {
+    setPlaceholderBanner(
+      `${kind} export will be available in a future release. Use Print to save as PDF from your browser for now.`
+    );
+  };
+
+  const renderReportBody = () => {
+    if (!generated) {
+      return (
+        <div style={{ ...sectionCard, textAlign: "center", color: "#64748b", fontWeight: 600 }}>
+          Select year, month, and report type, then click <strong>Generate</strong> to build the report.
+        </div>
+      );
+    }
+
+    switch (reportType) {
+      case "management":
+        return (
+          <>
+            <div style={sectionCard}>
+              <h2 style={{ margin: "0 0 12px", fontSize: 17, fontWeight: 900 }}>Income &amp; expenses</h2>
+              <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(200px, 1fr))", gap: 12 }}>
+                <div>
+                  <strong>Income summary</strong>
+                  <div>{formatMoney(data.income)} fee payments ({periodLabel})</div>
+                </div>
+                <div>
+                  <strong>Expenses summary</strong>
+                  <div>{formatMoney(data.expenses)} approved expenses</div>
+                </div>
+                <div>
+                  <strong>Net surplus / deficit</strong>
+                  <div style={{ color: data.net >= 0 ? "#15803d" : "#b91c1c", fontWeight: 900 }}>
+                    {formatMoney(data.net)}
+                  </div>
+                </div>
+              </div>
+            </div>
+            <div style={sectionCard}>
+              <h2 style={{ margin: "0 0 12px", fontSize: 17, fontWeight: 900 }}>Top expense categories</h2>
+              <ReportTable
+                columns={["Category", "Amount", "% of spend"]}
+                rows={data.categoryRows.slice(0, 10).map((r) => [
+                  r.category,
+                  formatMoney(r.amount),
+                  `${r.pct.toFixed(1)}%`,
+                ])}
+                page={tablePage}
+                onPage={setTablePage}
+                emptyMessage="No approved expenses for this month."
+              />
+            </div>
+            <div style={sectionCard}>
+              <h2 style={{ margin: "0 0 12px", fontSize: 17, fontWeight: 900 }}>Outstanding fees / debtors</h2>
+              <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(160px, 1fr))", gap: 10 }}>
+                <div>Total outstanding: {formatMoney(data.outstandingDebtors)}</div>
+                <div>Recently owing: {data.recentlyOwing.length} accounts</div>
+                <div>Bad debt: {data.badDebt.length} accounts</div>
+                <div>Overpaid: {data.overpaid.length} accounts</div>
+              </div>
+            </div>
+            <div style={sectionCard}>
+              <h2 style={{ margin: "0 0 12px", fontSize: 17, fontWeight: 900 }}>Cash movement estimate</h2>
+              <p style={{ margin: 0, fontWeight: 600 }}>
+                Month net cash movement: {formatMoney(data.net)} · Forecast with expected collections:{" "}
+                {formatMoney(data.forecastedCash)}
+              </p>
+            </div>
+            {data.warnings.length ? (
+              <div style={{ ...sectionCard, borderColor: "#b45309", background: "#fffbeb" }}>
+                <h2 style={{ margin: "0 0 10px", fontSize: 17, fontWeight: 900 }}>Key finance warnings</h2>
+                <ul style={{ margin: 0, paddingLeft: 20, fontWeight: 600 }}>
+                  {data.warnings.map((w) => (
+                    <li key={w}>{w}</li>
+                  ))}
+                </ul>
+              </div>
+            ) : null}
+          </>
+        );
+
+      case "budget-actual":
+        return (
+          <div style={sectionCard}>
+            <h2 style={{ margin: "0 0 8px", fontSize: 17, fontWeight: 900 }}>Budget vs actual</h2>
+            <p style={{ margin: "0 0 14px", fontSize: 13, color: "#64748b", fontWeight: 600 }}>
+              Budget figures use Accounting planning categories; actuals from approved expenses.
+            </p>
+            <ReportTable
+              columns={["Category", "Budgeted", "Actual", "Variance", "Variance %", "Status"]}
+              rows={data.budgetRows.map((r) => [
+                r.category,
+                formatMoney(r.budgeted),
+                formatMoney(r.actual),
+                formatMoney(r.variance),
+                `${r.variancePct.toFixed(1)}%`,
+                r.status,
+              ])}
+              page={tablePage}
+              onPage={setTablePage}
+            />
+          </div>
+        );
+
+      case "cashflow":
+        return (
+          <div style={sectionCard}>
+            <h2 style={{ margin: "0 0 12px", fontSize: 17, fontWeight: 900 }}>Cash flow forecast — {periodLabel}</h2>
+            <div style={{ display: "grid", gap: 10, fontWeight: 600 }}>
+              <div>Current month income: {formatMoney(data.income)}</div>
+              <div>Current month expenses: {formatMoney(data.expenses)}</div>
+              <div>Net cash movement: {formatMoney(data.net)}</div>
+              <div>
+                Expected collections (placeholder): {formatMoney(data.expectedCollectionsPlaceholder)} — 65% of
+                outstanding debtors
+              </div>
+              <div style={{ fontWeight: 900, fontSize: 16 }}>
+                Forecasted month-end cash position: {formatMoney(data.forecastedCash)}
+              </div>
+              {data.cashWarning ? (
+                <div
+                  style={{
+                    marginTop: 8,
+                    padding: 12,
+                    borderRadius: 10,
+                    background: "#fef2f2",
+                    color: "#b91c1c",
+                    fontWeight: 800,
+                  }}
+                >
+                  Warning: projected cash position is negative for this period.
+                </div>
+              ) : null}
+            </div>
+          </div>
+        );
+
+      case "expense-analysis":
+        return (
+          <>
+            <div style={sectionCard}>
+              <h2 style={{ margin: "0 0 12px", fontSize: 17, fontWeight: 900 }}>Expenses by category</h2>
+              <ReportTable
+                columns={["Category", "Month spend", "% of total"]}
+                rows={data.categoryRows.map((r) => [r.category, formatMoney(r.amount), `${r.pct.toFixed(1)}%`])}
+                page={tablePage}
+                onPage={setTablePage}
+              />
+            </div>
+            <div style={sectionCard}>
+              <h2 style={{ margin: "0 0 12px", fontSize: 17, fontWeight: 900 }}>Month-to-date &amp; over budget</h2>
+              <p style={{ margin: "0 0 8px", fontWeight: 600 }}>
+                Month-to-date approved spend: {formatMoney(data.expenses)} · YTD: {formatMoney(data.expensesYtd)}
+              </p>
+              <p style={{ margin: 0, fontWeight: 600 }}>
+                Over-budget categories: {data.overBudgetCategories.length || "None"}
+                {data.overBudgetCategories.length
+                  ? ` — ${data.overBudgetCategories.map((c) => c.category).join(", ")}`
+                  : ""}
+              </p>
+              <p style={{ margin: "12px 0 0", fontSize: 13, color: "#64748b" }}>
+                Expense trend chart — placeholder for future analytics.
+              </p>
+            </div>
+          </>
+        );
+
+      case "debtors":
+        return (
+          <>
+            <div style={sectionCard}>
+              <h2 style={{ margin: "0 0 12px", fontSize: 17, fontWeight: 900 }}>Debtors summary</h2>
+              <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(160px, 1fr))", gap: 10, fontWeight: 600 }}>
+                <div>Total outstanding: {formatMoney(data.outstandingDebtors)}</div>
+                <div>Recently owing: {data.recentlyOwing.length}</div>
+                <div>Bad debt: {data.badDebt.length}</div>
+                <div>Overpaid: {data.overpaid.length}</div>
+              </div>
+              <p style={{ marginTop: 14, fontSize: 13, color: "#64748b", fontWeight: 600 }}>
+                Legal recovery: use <strong>Billing → Billing Documents</strong> (Section 41, Letter of Demand, Final
+                Demand) for overdue accounts aligned with Statements.
+              </p>
+            </div>
+            <div style={sectionCard}>
+              <h2 style={{ margin: "0 0 12px", fontSize: 17, fontWeight: 900 }}>Top 10 debtor accounts</h2>
+              <ReportTable
+                columns={["Learner", "Account", "Balance", "Status"]}
+                rows={data.topDebtors.map((r) => [
+                  `${r.name} ${r.surname}`.trim(),
+                  r.accountNo || "-",
+                  formatMoney(r.balance),
+                  r.status,
+                ])}
+                page={tablePage}
+                onPage={setTablePage}
+                emptyMessage="No outstanding debtor balances."
+              />
+            </div>
+          </>
+        );
+
+      case "supplier-spend":
+        return (
+          <div style={sectionCard}>
+            <h2 style={{ margin: "0 0 12px", fontSize: 17, fontWeight: 900 }}>Supplier spend</h2>
+            <ReportTable
+              columns={["Supplier", "Category", "This month", "Year to date", "Last transaction", "Status"]}
+              rows={data.supplierRows.map((r) => [
+                r.supplier,
+                r.category,
+                formatMoney(r.month),
+                formatMoney(r.ytd),
+                r.lastDate || "—",
+                r.status,
+              ])}
+              page={tablePage}
+              onPage={setTablePage}
+              emptyMessage="No approved supplier expenses for this period."
+            />
+          </div>
+        );
+
+      case "bank-recon":
+        return (
+          <>
+            <div style={sectionCard}>
+              <h2 style={{ margin: "0 0 12px", fontSize: 17, fontWeight: 900 }}>Bank reconciliation summary</h2>
+              <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(140px, 1fr))", gap: 10, fontWeight: 700 }}>
+                <div>Imports: {data.bankStats.imports}</div>
+                <div>Matched payments: {data.bankStats.matchedPayments}</div>
+                <div>Expense candidates: {data.expenseCandidates}</div>
+                <div>Unmatched: {data.bankStats.unmatched}</div>
+                <div>Duplicates: {data.bankStats.duplicateLines}</div>
+                <div>Ready to post: {data.bankStats.readyToPost}</div>
+              </div>
+            </div>
+            {data.importSummaries.length ? (
+              <div style={sectionCard}>
+                <h2 style={{ margin: "0 0 12px", fontSize: 17, fontWeight: 900 }}>Imports</h2>
+                <ReportTable
+                  columns={["File", "Imported", "Lines", "Payments", "Expenses", "Unmatched", "Duplicates", "Ready"]}
+                  rows={data.importSummaries.map((r) => [
+                    r.fileName,
+                    r.importedAt?.slice(0, 10) || "—",
+                    String(r.txCount),
+                    String(r.matchedPayments),
+                    String(r.expenseMatched),
+                    String(r.unmatched),
+                    String(r.duplicates),
+                    String(r.readyToPost),
+                  ])}
+                  page={tablePage}
+                  onPage={setTablePage}
+                />
+              </div>
+            ) : (
+              <div style={sectionCard}>
+                <p style={{ margin: 0, color: "#64748b", fontWeight: 600 }}>No bank imports found for this school.</p>
+              </div>
+            )}
+          </>
+        );
+
+      case "audit-pack":
+        return (
+          <div style={sectionCard}>
+            <h2 style={{ margin: "0 0 12px", fontSize: 17, fontWeight: 900 }}>Audit pack export</h2>
+            <p style={{ margin: "0 0 16px", fontSize: 14, color: "#64748b", fontWeight: 600 }}>
+              Prepare a consolidated pack for auditors. Export is a placeholder; checklist reflects data available in
+              EduClear for {periodLabel}.
+            </p>
+            <ul style={{ margin: "0 0 20px", paddingLeft: 20, fontWeight: 600, lineHeight: 1.8 }}>
+              {[
+                `Income Statement — use Financial Statements (${data.income > 0 ? "data available" : "limited data"})`,
+                "Balance Sheet — Financial Statements module",
+                "Trial Balance — Financial Statements module",
+                `General Ledger — ${data.journalCount} journal(s) on file`,
+                `Journals — ${data.postedJournals} posted`,
+                `Debtors Ageing — ${formatMoney(data.outstandingDebtors)} outstanding`,
+                `Supplier Spend — ${data.supplierRows.length} supplier(s) with spend`,
+                `Bank Reconciliation — ${data.bankStats.imports} import(s)`,
+                `Budget vs Actual — ${data.budgetRows.length} categories`,
+                `Legal Recovery History — ${legalHistoryCount} record(s)`,
+              ].map((item) => (
+                <li key={item}>{item}</li>
+              ))}
+            </ul>
+            <div
+              style={{
+                padding: 14,
+                borderRadius: 10,
+                background: "#fffbeb",
+                border: `1px solid ${ACCOUNTING_GOLD}`,
+                marginBottom: 16,
+                fontWeight: 600,
+                fontSize: 14,
+              }}
+            >
+              Audit pack ZIP/PDF export will be available in a future release. Use individual reports and Print in the
+              meantime.
+            </div>
+            <button
+              type="button"
+              style={goldBtn}
+              onClick={() =>
+                setPlaceholderBanner(
+                  "Prepare Audit Pack — coming soon. Run each report above and print or save individually."
+                )
+              }
+            >
+              Prepare Audit Pack
+            </button>
+          </div>
+        );
+
+      default:
+        return null;
+    }
+  };
+
+  const yearOptions = useMemo(() => {
+    const current = new Date().getFullYear();
+    return [current - 2, current - 1, current, current + 1];
+  }, []);
+
+  return (
+    <div style={accountingPageWrap}>
+      <div style={{ borderBottom: `2px solid ${ACCOUNTING_GOLD}`, paddingBottom: 18, marginBottom: 24 }}>
+        <h1 style={accountingTitle}>Reports</h1>
+        <p style={accountingSubtitle}>Management, audit, and forecasting reports for school finance.</p>
+      </div>
+
+      <div
+        style={{
+          display: "flex",
+          flexWrap: "wrap",
+          gap: 14,
+          alignItems: "flex-end",
+          marginBottom: 20,
+        }}
+      >
+        <label style={{ display: "grid", gap: 6, fontWeight: 800, fontSize: 12, color: "#64748b" }}>
+          Year
+          <select style={fieldStyle} value={year} onChange={(e) => setYear(Number(e.target.value))}>
+            {yearOptions.map((y) => (
+              <option key={y} value={y}>
+                {y}
+              </option>
+            ))}
+          </select>
+        </label>
+        <label style={{ display: "grid", gap: 6, fontWeight: 800, fontSize: 12, color: "#64748b" }}>
+          Month
+          <select style={fieldStyle} value={monthIndex} onChange={(e) => setMonthIndex(Number(e.target.value))}>
+            {MONTH_NAMES.map((name, idx) => (
+              <option key={name} value={idx}>
+                {name}
+              </option>
+            ))}
+          </select>
+        </label>
+        <label style={{ display: "grid", gap: 6, fontWeight: 800, fontSize: 12, color: "#64748b" }}>
+          Report type
+          <select style={{ ...fieldStyle, minWidth: 220 }} value={reportType} onChange={(e) => setReportType(e.target.value as ReportType)}>
+            {REPORT_OPTIONS.map((o) => (
+              <option key={o.id} value={o.id}>
+                {o.label}
+              </option>
+            ))}
+          </select>
+        </label>
+        <button type="button" style={goldBtn} onClick={handleGenerate}>
+          Generate
+        </button>
+        <button type="button" style={outlineBtn} onClick={handlePrint} disabled={!generated}>
+          Print
+        </button>
+        <button type="button" style={outlineBtn} onClick={() => handleExportPlaceholder("PDF")} disabled={!generated}>
+          Export PDF
+        </button>
+        <button type="button" style={outlineBtn} onClick={() => handleExportPlaceholder("Excel")} disabled={!generated}>
+          Export Excel
+        </button>
+      </div>
+
+      {placeholderBanner ? (
+        <div
+          style={{
+            marginBottom: 16,
+            padding: 12,
+            borderRadius: 10,
+            background: "#fffbeb",
+            border: `1px solid ${ACCOUNTING_GOLD}`,
+            fontWeight: 600,
+            color: "#92400e",
+          }}
+        >
+          {placeholderBanner}
+        </div>
+      ) : null}
+
+      <div
+        style={{
+          display: "grid",
+          gridTemplateColumns: "repeat(auto-fill, minmax(200px, 1fr))",
+          gap: 16,
+          marginBottom: 28,
+        }}
+      >
+        {summaryCards.map((card) => (
+          <div key={card.label} style={accountingCard}>
+            <div style={accountingCardLabel}>{card.label}</div>
+            <div style={accountingCardValue}>{card.value}</div>
+          </div>
+        ))}
+      </div>
+
+      <div ref={reportRef} style={{ maxHeight: "none", overflow: "visible" }}>
+        {renderReportBody()}
+      </div>
+    </div>
+  );
+}
