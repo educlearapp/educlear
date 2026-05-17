@@ -4,14 +4,7 @@ export { default as AccountingExpenses } from "./AccountingExpenses";
 
 export { default as AccountingSuppliers } from "./AccountingSuppliers";
 
-export function AccountingAssets() {
-  return (
-    <AccountingPlaceholder
-      title="Assets"
-      description="Track fixed assets, depreciation schedules, and asset register entries."
-    />
-  );
-}
+export { default as AccountingAssets } from "./AccountingAssets";
 
 export { default as AccountingJournals } from "./AccountingJournals";
 
