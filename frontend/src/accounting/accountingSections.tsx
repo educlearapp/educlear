@@ -16,4 +16,6 @@ export { default as AccountingFinancialStatements } from "./AccountingFinancialS
 
 export { default as AccountingReports } from "./AccountingReports";
 
+export { default as AccountingDebtorsAgeing } from "./AccountingDebtorsAgeing";
+
 export { default as AccountingSettings } from "./AccountingSettings";

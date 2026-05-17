@@ -44,6 +44,7 @@ import {
   AccountingGeneralLedger,
   AccountingJournals,
   AccountingReports,
+  AccountingDebtorsAgeing,
   AccountingSettings,
   AccountingSuppliers,
 } from "./accounting/accountingSections";
@@ -227,6 +228,7 @@ type PageKey =
   | "accountingBudget"
   | "accountingFinancialStatements"
   | "accountingReports"
+  | "accountingDebtorsAgeing"
   | "accountingSettings";
 
 
@@ -728,6 +730,7 @@ const [selectedLearnerReport, setSelectedLearnerReport] = useState<any>(null);
       page === "accountingBudget" ||
       page === "accountingFinancialStatements" ||
       page === "accountingReports" ||
+      page === "accountingDebtorsAgeing" ||
       page === "accountingSettings";
 
     if (isAccountingPage) {
@@ -17744,6 +17747,22 @@ const [invoiceRunEmailDraft, setInvoiceRunEmailDraft] = useState({
             />
           );
 
+        case "accountingDebtorsAgeing":
+          return (
+            <AccountingDebtorsAgeing
+              schoolId={schoolId || ""}
+              learners={learners}
+              statementRows={statementRows}
+              setActivePage={setActivePage}
+              onOpenLearner={(learnerId) => {
+                const learner = (learners || []).find(
+                  (l: any) => String(l?.id || l?.learnerId || "") === learnerId
+                );
+                if (learner) openLearnerProfile(learner);
+              }}
+            />
+          );
+
         case "accountingSettings":
           return <AccountingSettings schoolId={schoolId || ""} />;
         
@@ -18667,6 +18686,7 @@ return (
                 <div className={`submenu-item ${activePage === "accountingBudget" ? "active" : ""}`} onClick={() => go("accountingBudget")}>Budget</div>
                 <div className={`submenu-item ${activePage === "accountingFinancialStatements" ? "active" : ""}`} onClick={() => go("accountingFinancialStatements")}>Financial Statements</div>
                 <div className={`submenu-item ${activePage === "accountingReports" ? "active" : ""}`} onClick={() => go("accountingReports")}>Reports</div>
+                <div className={`submenu-item ${activePage === "accountingDebtorsAgeing" ? "active" : ""}`} onClick={() => go("accountingDebtorsAgeing")}>Debtors Ageing</div>
                 <div className={`submenu-item ${activePage === "accountingSettings" ? "active" : ""}`} onClick={() => go("accountingSettings")}>Settings</div>
               </div>
             )}
