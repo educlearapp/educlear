@@ -45,6 +45,7 @@ import {
   AccountingJournals,
   AccountingReports,
   AccountingDebtorsAgeing,
+  AccountingCreditorsAgeing,
   AccountingSettings,
   AccountingSuppliers,
 } from "./accounting/accountingSections";
@@ -229,6 +230,7 @@ type PageKey =
   | "accountingFinancialStatements"
   | "accountingReports"
   | "accountingDebtorsAgeing"
+  | "accountingCreditorsAgeing"
   | "accountingSettings";
 
 
@@ -731,6 +733,7 @@ const [selectedLearnerReport, setSelectedLearnerReport] = useState<any>(null);
       page === "accountingFinancialStatements" ||
       page === "accountingReports" ||
       page === "accountingDebtorsAgeing" ||
+      page === "accountingCreditorsAgeing" ||
       page === "accountingSettings";
 
     if (isAccountingPage) {
@@ -17763,6 +17766,14 @@ const [invoiceRunEmailDraft, setInvoiceRunEmailDraft] = useState({
             />
           );
 
+        case "accountingCreditorsAgeing":
+          return (
+            <AccountingCreditorsAgeing
+              schoolId={schoolId || ""}
+              setActivePage={setActivePage}
+            />
+          );
+
         case "accountingSettings":
           return <AccountingSettings schoolId={schoolId || ""} />;
         
@@ -18687,6 +18698,7 @@ return (
                 <div className={`submenu-item ${activePage === "accountingFinancialStatements" ? "active" : ""}`} onClick={() => go("accountingFinancialStatements")}>Financial Statements</div>
                 <div className={`submenu-item ${activePage === "accountingReports" ? "active" : ""}`} onClick={() => go("accountingReports")}>Reports</div>
                 <div className={`submenu-item ${activePage === "accountingDebtorsAgeing" ? "active" : ""}`} onClick={() => go("accountingDebtorsAgeing")}>Debtors Ageing</div>
+                <div className={`submenu-item ${activePage === "accountingCreditorsAgeing" ? "active" : ""}`} onClick={() => go("accountingCreditorsAgeing")}>Creditors Ageing</div>
                 <div className={`submenu-item ${activePage === "accountingSettings" ? "active" : ""}`} onClick={() => go("accountingSettings")}>Settings</div>
               </div>
             )}
