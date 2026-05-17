@@ -6,6 +6,8 @@ export { default as AccountingAssets } from "./AccountingAssets";
 
 export { default as AccountingJournals } from "./AccountingJournals";
 
+export { default as AccountingGeneralLedger } from "./AccountingGeneralLedger";
+
 export { default as AccountingChartOfAccounts } from "./AccountingChartOfAccounts";
 
 export { default as AccountingBudget } from "./AccountingBudget";

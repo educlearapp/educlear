@@ -41,6 +41,7 @@ import {
   AccountingChartOfAccounts,
   AccountingExpenses,
   AccountingFinancialStatements,
+  AccountingGeneralLedger,
   AccountingJournals,
   AccountingReports,
   AccountingSettings,
@@ -221,6 +222,7 @@ type PageKey =
   | "accountingSuppliers"
   | "accountingAssets"
   | "accountingJournals"
+  | "accountingGeneralLedger"
   | "accountingChartOfAccounts"
   | "accountingBudget"
   | "accountingFinancialStatements"
@@ -721,6 +723,7 @@ const [selectedLearnerReport, setSelectedLearnerReport] = useState<any>(null);
       page === "accountingSuppliers" ||
       page === "accountingAssets" ||
       page === "accountingJournals" ||
+      page === "accountingGeneralLedger" ||
       page === "accountingChartOfAccounts" ||
       page === "accountingBudget" ||
       page === "accountingFinancialStatements" ||
@@ -17714,6 +17717,9 @@ const [invoiceRunEmailDraft, setInvoiceRunEmailDraft] = useState({
         case "accountingJournals":
           return <AccountingJournals schoolId={schoolId || ""} />;
 
+        case "accountingGeneralLedger":
+          return <AccountingGeneralLedger schoolId={schoolId || ""} />;
+
         case "accountingChartOfAccounts":
           return <AccountingChartOfAccounts schoolId={schoolId || ""} />;
 
@@ -18656,6 +18662,7 @@ return (
                 <div className={`submenu-item ${activePage === "accountingSuppliers" ? "active" : ""}`} onClick={() => go("accountingSuppliers")}>Suppliers</div>
                 <div className={`submenu-item ${activePage === "accountingAssets" ? "active" : ""}`} onClick={() => go("accountingAssets")}>Assets</div>
                 <div className={`submenu-item ${activePage === "accountingJournals" ? "active" : ""}`} onClick={() => go("accountingJournals")}>Journals</div>
+                <div className={`submenu-item ${activePage === "accountingGeneralLedger" ? "active" : ""}`} onClick={() => go("accountingGeneralLedger")}>General Ledger</div>
                 <div className={`submenu-item ${activePage === "accountingChartOfAccounts" ? "active" : ""}`} onClick={() => go("accountingChartOfAccounts")}>Chart of Accounts</div>
                 <div className={`submenu-item ${activePage === "accountingBudget" ? "active" : ""}`} onClick={() => go("accountingBudget")}>Budget</div>
                 <div className={`submenu-item ${activePage === "accountingFinancialStatements" ? "active" : ""}`} onClick={() => go("accountingFinancialStatements")}>Financial Statements</div>
