@@ -7,11 +7,15 @@ import {
 } from "./accountingJournalEngine";
 import { COA_CODES } from "./accountingAutoPostingRules";
 import {
+  findJournalByFingerprint,
   loadActiveCoaAccounts,
   loadJournalStore,
   roundMoney,
+  type Journal,
   type JournalLine,
 } from "./accountingJournalStorage";
+import { repairPayrollCoaForSchool } from "./AccountingChartOfAccounts";
+import { findPayrollCoaByCode } from "./accountingPayrollCoa";
 import { dateInReportingRange, parseAccountingDate } from "./accountingSettingsStorage";
 
 export const PAYROLL_RUNS_STORAGE_PREFIX = "educlearAccountingPayrollRuns:";
@@ -105,6 +109,106 @@ export function dispatchPayrollAccountingUpdated(schoolId: string) {
       detail: { schoolId: String(schoolId || "").trim() },
     })
   );
+}
+
+const PAYROLL_COA_LABELS: Record<string, string> = {
+  [PAYROLL_COA.salariesExpense]: "Salaries Expense",
+  [PAYROLL_COA.payrollLiabilities]: "Payroll Liabilities",
+  [PAYROLL_COA.taxLiabilities]: "Tax Liabilities",
+  [PAYROLL_COA.bank]: "Bank Account",
+};
+
+/** True posted AUTO payroll journal from `educlearAccountingJournals:{schoolId}`. */
+export function findPostedPayrollJournal(schoolId: string, payrollRunId: string): Journal | null {
+  const id = String(payrollRunId || "").trim();
+  if (!schoolId || !id) return null;
+
+  const store = loadJournalStore(schoolId);
+  const bySource = store.journals.find(
+    (j) =>
+      j.sourceModule === "Payroll" &&
+      String(j.sourceId || "").trim() === id &&
+      j.status === "Posted"
+  );
+  if (bySource) return bySource;
+
+  const fingerprint = payrollRunFingerprint(id);
+  const byFingerprint = findJournalByFingerprint(store, fingerprint);
+  if (byFingerprint?.sourceModule === "Payroll" && byFingerprint.status === "Posted") {
+    return byFingerprint;
+  }
+
+  return null;
+}
+
+/** Combined Chart of Accounts validation before payroll posting. */
+export function validatePayrollCoaForPosting(
+  schoolId: string,
+  paidImmediately: boolean
+): { ok: boolean; message: string } {
+  if (!schoolId) {
+    return { ok: false, message: "School is not selected." };
+  }
+
+  repairPayrollCoaForSchool(schoolId);
+
+  const accounts = loadActiveCoaAccounts(schoolId);
+  const required = [
+    PAYROLL_COA.salariesExpense,
+    PAYROLL_COA.payrollLiabilities,
+    PAYROLL_COA.taxLiabilities,
+    ...(paidImmediately ? [PAYROLL_COA.bank] : []),
+  ];
+
+  const missing = required
+    .filter((code) => !findPayrollCoaByCode(accounts, code))
+    .map((code) => `${PAYROLL_COA_LABELS[code] || "Account"} (${code})`);
+
+  if (!missing.length) {
+    return { ok: true, message: "" };
+  }
+
+  return {
+    ok: false,
+    message: `Chart of Accounts is missing required accounts: ${missing.join(", ")}. Open Accounting → Chart of Accounts and use Import Default School COA to add missing payroll accounts.`,
+  };
+}
+
+/** Align payroll run storage with an existing posted AUTO journal (no journal creation). */
+export function reconcilePayrollRunWithJournal(
+  schoolId: string,
+  payrollRunId: string
+): PayrollRunAccounting | null {
+  const id = String(payrollRunId || "").trim();
+  if (!schoolId || !id) return null;
+
+  const journal = findPostedPayrollJournal(schoolId, id);
+  const runs = loadPayrollRuns(schoolId);
+  const idx = runs.findIndex((r) => r.payrollRunId === id);
+  if (idx < 0) return null;
+
+  if (!journal) {
+    return runs[idx];
+  }
+
+  const current = runs[idx];
+  if (
+    current.status === "Posted" &&
+    current.journalNo === journal.journalNo &&
+    current.journalId === journal.id
+  ) {
+    return current;
+  }
+
+  runs[idx] = {
+    ...current,
+    status: "Posted",
+    journalNo: journal.journalNo,
+    journalId: journal.id,
+    postedAt: journal.postedAt || current.postedAt || new Date().toISOString(),
+  };
+  savePayrollRuns(schoolId, runs);
+  return runs[idx];
 }
 
 export function calculateEmployerUif(gross: number): number {
@@ -412,18 +516,30 @@ export function upsertDraftPayrollRun(input: {
   const runDate = new Date().toISOString().slice(0, 10);
   const payrollRunId = String(input.payrollRunId || uid("pr")).trim();
 
+  const runs = loadPayrollRuns(schoolId);
+  const idx = runs.findIndex((r) => r.payrollRunId === payrollRunId);
+  const existing = idx >= 0 ? runs[idx] : null;
+  const postedJournal = findPostedPayrollJournal(schoolId, payrollRunId);
+  const isPosted = existing?.status === "Posted" || Boolean(postedJournal);
+
   const run: PayrollRunAccounting = {
     payrollRunId,
     schoolId,
     runDate,
     period: String(input.period || "").trim() || runDate.slice(0, 7),
     ...totals,
-    status: "Draft",
+    status: isPosted ? "Posted" : "Draft",
     employees,
+    ...(isPosted
+      ? {
+          journalNo: existing?.journalNo || postedJournal?.journalNo,
+          journalId: existing?.journalId || postedJournal?.id,
+          postedAt: existing?.postedAt || postedJournal?.postedAt,
+          paidImmediately: existing?.paidImmediately,
+        }
+      : {}),
   };
 
-  const runs = loadPayrollRuns(schoolId);
-  const idx = runs.findIndex((r) => r.payrollRunId === payrollRunId);
   if (idx >= 0) runs[idx] = run;
   else runs.unshift(run);
   savePayrollRuns(schoolId, runs);
@@ -453,6 +569,17 @@ export function postPayrollRunJournal(input: {
     return { ok: false, skipped: true, reason: "Missing school or payroll run" };
   }
 
+  const existingJournal = findPostedPayrollJournal(schoolId, run.payrollRunId);
+  if (existingJournal) {
+    reconcilePayrollRunWithJournal(schoolId, run.payrollRunId);
+    return {
+      ok: false,
+      duplicate: true,
+      journalNo: existingJournal.journalNo,
+      reason: "Payroll run already posted to accounting",
+    };
+  }
+
   if (run.status === "Posted" && run.journalNo) {
     return {
       ok: false,
@@ -460,6 +587,11 @@ export function postPayrollRunJournal(input: {
       journalNo: run.journalNo,
       reason: "Payroll run already posted to accounting",
     };
+  }
+
+  const coaValidation = validatePayrollCoaForPosting(schoolId, paidImmediately);
+  if (!coaValidation.ok) {
+    return { ok: false, skipped: true, reason: coaValidation.message };
   }
 
   const fingerprint = payrollRunFingerprint(run.payrollRunId);
@@ -500,7 +632,7 @@ function postPayrollRunJournalInner(input: {
   const { schoolId, run, totals, paidImmediately, fingerprint } = input;
 
   const resolveAccount = (code: string) => {
-    const account = loadActiveCoaAccounts(schoolId).find((a) => a.code === code);
+    const account = findPayrollCoaByCode(loadActiveCoaAccounts(schoolId), code);
     if (!account) {
       console.warn("[EduClear PayrollAccounting] Chart of Accounts code missing — posting skipped", { code });
       return null;
@@ -657,6 +789,10 @@ export function postPayrollRunToAccounting(input: {
   });
 
   if (!result.ok) {
+    if (result.duplicate) {
+      const reconciled = reconcilePayrollRunWithJournal(schoolId, payrollRunId);
+      return { result, run: reconciled };
+    }
     return { result, run };
   }
 

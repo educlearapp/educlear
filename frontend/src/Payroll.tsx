@@ -11,10 +11,17 @@ import { API_URL } from "./api";
 
 
 import { useSchoolId } from "./useSchoolId";
+import { ACCOUNTING_COA_UPDATED_EVENT } from "./accounting/accountingPayrollCoa";
+import { repairPayrollCoaForSchool } from "./accounting/AccountingChartOfAccounts";
+import { ACCOUNTING_JOURNALS_UPDATED_EVENT } from "./accounting/accountingJournalStorage";
 import {
+  ACCOUNTING_PAYROLL_UPDATED_EVENT,
+  findPostedPayrollJournal,
   getPayrollRun,
   postPayrollRunToAccounting,
+  reconcilePayrollRunWithJournal,
   upsertDraftPayrollRun,
+  validatePayrollCoaForPosting,
 } from "./accounting/accountingPayrollIntegration";
 
 
@@ -104,6 +111,74 @@ type PayrollAdjustment = {
 
 
   extraDeduction: number;
+
+
+
+  allowances?: number;
+
+
+
+  payeOverride?: number | null;
+
+
+
+  uifOverride?: number | null;
+
+
+
+  notes?: string;
+
+
+
+};
+
+
+
+type PayrollEditDraft = {
+
+
+
+  basicSalary: string;
+
+
+
+  overtimeHours: string;
+
+
+
+  overtimeRate: string;
+
+
+
+  bonus: string;
+
+
+
+  extraDeduction: string;
+
+
+
+  allowances: string;
+
+
+
+  pension: string;
+
+
+
+  medicalAid: string;
+
+
+
+  payeOverride: string;
+
+
+
+  uifOverride: string;
+
+
+
+  notes: string;
 
 
 
@@ -291,6 +366,62 @@ function employeeName(emp: Employee): string {
 
 
 
+function employeeAllowances(emp: Employee): number {
+
+
+
+  const row = emp as Employee & {
+
+
+
+    fixedHousingAllowance?: number | string | null;
+
+
+
+    fixedTransportAllowance?: number | string | null;
+
+
+
+    fixedCellphoneAllowance?: number | string | null;
+
+
+
+    fixedOtherAllowance?: number | string | null;
+
+
+
+  };
+
+
+
+  return (
+
+
+
+    num(row.fixedHousingAllowance) +
+
+
+
+    num(row.fixedTransportAllowance) +
+
+
+
+    num(row.fixedCellphoneAllowance) +
+
+
+
+    num(row.fixedOtherAllowance)
+
+
+
+  );
+
+
+
+}
+
+
+
 /* SARS 2026/2027 */
 
 
@@ -411,6 +542,10 @@ function calculatePayroll(
 
 
 
+  const allowances = num(adj.allowances);
+
+
+
   const pension = num(emp.employeePension);
 
 
@@ -443,15 +578,43 @@ function calculatePayroll(
 
 
 
+    allowances +
+
+
+
     medicalAidEmployer;
 
 
 
-  const paye = calculatePAYE(gross);
+  let paye = calculatePAYE(gross);
 
 
 
-  const uif = Math.min(gross * 0.01, 177.12);
+  if (adj.payeOverride != null && Number.isFinite(Number(adj.payeOverride))) {
+
+
+
+    paye = num(adj.payeOverride);
+
+
+
+  }
+
+
+
+  let uif = Math.min(gross * 0.01, 177.12);
+
+
+
+  if (adj.uifOverride != null && Number.isFinite(Number(adj.uifOverride))) {
+
+
+
+    uif = num(adj.uifOverride);
+
+
+
+  }
 
 
 
@@ -613,10 +776,15 @@ export default function Payroll() {
 
   >({});
 
+  const [editingEmployeeId, setEditingEmployeeId] = useState<string | null>(null);
+
+  const [editDraft, setEditDraft] = useState<PayrollEditDraft | null>(null);
+
   const [currentPayrollRunId, setCurrentPayrollRunId] = useState("");
   const [accountingMessage, setAccountingMessage] = useState("");
   const [payImmediately, setPayImmediately] = useState(false);
   const [accountingBusy, setAccountingBusy] = useState(false);
+  const [accountingSyncTick, setAccountingSyncTick] = useState(0);
 
 
 
@@ -804,11 +972,351 @@ export default function Payroll() {
 
 
 
+        allowances: 0,
+
+
+
       }
 
 
 
     );
+
+
+
+  }
+
+
+
+  const editingEmployee = useMemo(
+
+
+
+    () => employees.find((e) => e.id === editingEmployeeId) || null,
+
+
+
+    [employees, editingEmployeeId]
+
+
+
+  );
+
+
+
+  function buildPayrollRows(
+
+
+
+    employeeList: Employee[],
+
+
+
+    adjustmentMap: Record<string, PayrollAdjustment>
+
+
+
+  ): PayrollRow[] {
+
+
+
+    return employeeList.map((emp) =>
+
+
+
+      calculatePayroll(emp, adjustmentMap[emp.id] || getAdjustment(emp.id))
+
+
+
+    );
+
+
+
+  }
+
+
+
+  function syncResultsFromState(
+
+
+
+    employeeList: Employee[],
+
+
+
+    adjustmentMap: Record<string, PayrollAdjustment>
+
+
+
+  ) {
+
+
+
+    if (!results.length) return;
+
+
+
+    const rows = buildPayrollRows(employeeList, adjustmentMap);
+
+
+
+    setResults(rows);
+
+
+
+    if (schoolId) {
+
+
+
+      const draft = upsertDraftPayrollRun({
+
+
+
+        schoolId,
+
+
+
+        period,
+
+
+
+        rows,
+
+
+
+        payrollRunId: currentPayrollRunId || undefined,
+
+
+
+      });
+
+
+
+      setCurrentPayrollRunId(draft.payrollRunId);
+
+
+
+    }
+
+
+
+  }
+
+
+
+  function openEditEmployee(emp: Employee) {
+
+
+
+    const adj = getAdjustment(emp.id);
+
+
+
+    setEditingEmployeeId(emp.id);
+
+
+
+    setEditDraft({
+
+
+
+      basicSalary: String(num(emp.basicSalary)),
+
+
+
+      overtimeHours: String(adj.overtimeHours),
+
+
+
+      overtimeRate: String(adj.overtimeRate || num(emp.overtimeRate)),
+
+
+
+      bonus: String(adj.bonus),
+
+
+
+      extraDeduction: String(adj.extraDeduction),
+
+
+
+      allowances: String(num(adj.allowances) || employeeAllowances(emp)),
+
+
+
+      pension: String(num(emp.employeePension)),
+
+
+
+      medicalAid: String(num(emp.employeeMedicalAid)),
+
+
+
+      payeOverride: adj.payeOverride != null ? String(adj.payeOverride) : "",
+
+
+
+      uifOverride: adj.uifOverride != null ? String(adj.uifOverride) : "",
+
+
+
+      notes: String(adj.notes || ""),
+
+
+
+    });
+
+
+
+  }
+
+
+
+  function closeEditEmployee() {
+
+
+
+    setEditingEmployeeId(null);
+
+
+
+    setEditDraft(null);
+
+
+
+  }
+
+
+
+  function saveEditEmployee() {
+
+
+
+    if (!editingEmployeeId || !editDraft) return;
+
+
+
+    const id = editingEmployeeId;
+
+
+
+    const payeOverrideRaw = editDraft.payeOverride.trim();
+
+
+
+    const uifOverrideRaw = editDraft.uifOverride.trim();
+
+
+
+    const nextEmployees = employees.map((emp) =>
+
+
+
+      emp.id === id
+
+
+
+        ? {
+
+
+
+            ...emp,
+
+
+
+            basicSalary: num(editDraft.basicSalary),
+
+
+
+            employeePension: num(editDraft.pension),
+
+
+
+            employeeMedicalAid: num(editDraft.medicalAid),
+
+
+
+          }
+
+
+
+        : emp
+
+
+
+    );
+
+
+
+    const nextAdjustments: Record<string, PayrollAdjustment> = {
+
+
+
+      ...adjustments,
+
+
+
+      [id]: {
+
+
+
+        ...getAdjustment(id),
+
+
+
+        overtimeHours: num(editDraft.overtimeHours),
+
+
+
+        overtimeRate: num(editDraft.overtimeRate),
+
+
+
+        bonus: num(editDraft.bonus),
+
+
+
+        extraDeduction: num(editDraft.extraDeduction),
+
+
+
+        allowances: num(editDraft.allowances),
+
+
+
+        payeOverride: payeOverrideRaw === "" ? null : num(payeOverrideRaw),
+
+
+
+        uifOverride: uifOverrideRaw === "" ? null : num(uifOverrideRaw),
+
+
+
+        notes: editDraft.notes.trim(),
+
+
+
+      },
+
+
+
+    };
+
+
+
+    setEmployees(nextEmployees);
+
+
+
+    setAdjustments(nextAdjustments);
+
+
+
+    syncResultsFromState(nextEmployees, nextAdjustments);
+
+
+
+    closeEditEmployee();
 
 
 
@@ -872,15 +1380,7 @@ export default function Payroll() {
 
 
 
-    const rows = employees.map((emp) =>
-
-
-
-      calculatePayroll(emp, getAdjustment(emp.id))
-
-
-
-    );
+    const rows = buildPayrollRows(employees, adjustments);
 
 
 
@@ -913,16 +1413,98 @@ export default function Payroll() {
 
   }
 
+  useEffect(() => {
+    if (!schoolId) return;
+    const bump = () => setAccountingSyncTick((n) => n + 1);
+    const onPayroll = (event: Event) => {
+      const detail = (event as CustomEvent<{ schoolId?: string }>).detail;
+      if (detail?.schoolId && detail.schoolId !== schoolId) return;
+      bump();
+    };
+    window.addEventListener(ACCOUNTING_PAYROLL_UPDATED_EVENT, onPayroll);
+    window.addEventListener(ACCOUNTING_JOURNALS_UPDATED_EVENT, onPayroll);
+    return () => {
+      window.removeEventListener(ACCOUNTING_PAYROLL_UPDATED_EVENT, onPayroll);
+      window.removeEventListener(ACCOUNTING_JOURNALS_UPDATED_EVENT, onPayroll);
+    };
+  }, [schoolId]);
+
+  useEffect(() => {
+    if (!schoolId || !currentPayrollRunId) return;
+    reconcilePayrollRunWithJournal(schoolId, currentPayrollRunId);
+    setAccountingSyncTick((n) => n + 1);
+  }, [schoolId, currentPayrollRunId, results.length]);
+
+  useEffect(() => {
+    if (!schoolId) return;
+    repairPayrollCoaForSchool(schoolId);
+    setAccountingSyncTick((n) => n + 1);
+  }, [schoolId]);
+
+  useEffect(() => {
+    if (!schoolId) return;
+    const onCoaUpdated = (event: Event) => {
+      const detail = (event as CustomEvent<{ schoolId?: string }>).detail;
+      if (detail?.schoolId && detail.schoolId !== schoolId) return;
+      setAccountingSyncTick((n) => n + 1);
+    };
+    window.addEventListener(ACCOUNTING_COA_UPDATED_EVENT, onCoaUpdated);
+    return () => window.removeEventListener(ACCOUNTING_COA_UPDATED_EVENT, onCoaUpdated);
+  }, [schoolId]);
+
+  const postedPayrollJournal = useMemo(() => {
+    if (!schoolId || !currentPayrollRunId) return null;
+    return findPostedPayrollJournal(schoolId, currentPayrollRunId);
+  }, [schoolId, currentPayrollRunId, accountingSyncTick]);
+
+  const hasPostedPayrollJournal = Boolean(postedPayrollJournal);
+
   const currentAccountingRun = useMemo(() => {
     if (!schoolId || !currentPayrollRunId) return null;
     return getPayrollRun(schoolId, currentPayrollRunId);
-  }, [schoolId, currentPayrollRunId, results.length]);
+  }, [schoolId, currentPayrollRunId, accountingSyncTick]);
+
+  const payrollJournalNo = postedPayrollJournal?.journalNo || currentAccountingRun?.journalNo || "";
+
+  const payrollAccountingStatus: "Draft" | "Posted" = hasPostedPayrollJournal
+    ? "Posted"
+    : currentAccountingRun?.status === "Posted"
+      ? "Posted"
+      : "Draft";
+
+  const coaValidation = useMemo(() => {
+    if (!schoolId || hasPostedPayrollJournal) return { ok: true, message: "" };
+    return validatePayrollCoaForPosting(schoolId, payImmediately);
+  }, [schoolId, payImmediately, hasPostedPayrollJournal, accountingSyncTick]);
+
+  useEffect(() => {
+    if (!hasPostedPayrollJournal || !payrollJournalNo) return;
+    setAccountingMessage((prev) => {
+      const lower = prev.toLowerCase();
+      if (
+        lower.includes("not found") ||
+        lower.includes("missing required") ||
+        lower.includes("post payroll to accounting first")
+      ) {
+        return `Posted to Accounting · Journal ${payrollJournalNo} · AUTO · Source Payroll`;
+      }
+      return prev;
+    });
+  }, [hasPostedPayrollJournal, payrollJournalNo]);
 
   async function handlePostPayrollToAccounting() {
     if (!schoolId || !currentPayrollRunId) {
       setAccountingMessage("Run payroll first to create an accounting draft.");
       return;
     }
+    if (hasPostedPayrollJournal) {
+      setAccountingMessage(
+        `Already posted · Journal ${payrollJournalNo || postedPayrollJournal?.journalNo || ""}`
+      );
+      return;
+    }
+    const preCheck = validatePayrollCoaForPosting(schoolId, payImmediately);
+    if (!preCheck.ok) return;
     setAccountingBusy(true);
     setAccountingMessage("");
     try {
@@ -932,29 +1514,27 @@ export default function Payroll() {
         paidImmediately: payImmediately,
         createdBy: "Payroll",
       });
+      setAccountingSyncTick((n) => n + 1);
       if (result.ok) {
         setAccountingMessage(
           `Posted to Accounting · Journal ${result.journalNo} · AUTO · Source Payroll`
         );
       } else if (result.duplicate) {
         setAccountingMessage(
-          `Already posted${result.journalNo ? ` · Journal ${result.journalNo}` : ""}. Duplicate post blocked.`
+          `Already posted${result.journalNo ? ` · Journal ${result.journalNo}` : ""}.`
         );
       } else {
         setAccountingMessage(result.reason || "Could not post payroll to accounting.");
       }
-      if (run?.journalNo) setCurrentPayrollRunId(run.payrollRunId);
+      if (run?.payrollRunId) setCurrentPayrollRunId(run.payrollRunId);
     } finally {
       setAccountingBusy(false);
     }
   }
 
   function handleViewPayrollJournal() {
-    const journalNo = currentAccountingRun?.journalNo;
-    if (!journalNo) {
-      setAccountingMessage("Post payroll to Accounting first to create the AUTO journal.");
-      return;
-    }
+    if (!hasPostedPayrollJournal || !postedPayrollJournal) return;
+    const journalNo = postedPayrollJournal.journalNo;
     window.alert(
       `Payroll journal ${journalNo} (Source: Payroll, AUTO).\n\nOpen Accounting → Journals and search for this journal number.`
     );
@@ -2870,7 +3450,23 @@ export default function Payroll() {
 
 
 
-                      <button style={btn}>
+                      <button
+
+
+
+                        type="button"
+
+
+
+                        style={btn}
+
+
+
+                        onClick={() => openEditEmployee(emp)}
+
+
+
+                      >
 
 
 
@@ -2919,31 +3515,50 @@ export default function Payroll() {
           <div style={header}>Accounting</div>
           <div style={{ padding: 16, display: "grid", gap: 12 }}>
             <div style={{ fontWeight: 700 }}>
-              Status: <strong>{currentAccountingRun?.status || "Draft"}</strong>
-              {currentAccountingRun?.journalNo ? ` · Journal ${currentAccountingRun.journalNo}` : ""}
+              Status: <strong>{payrollAccountingStatus}</strong>
+              {payrollJournalNo ? ` · Journal ${payrollJournalNo}` : ""}
             </div>
             <label style={{ display: "flex", alignItems: "center", gap: 8, fontWeight: 700 }}>
               <input
                 type="checkbox"
                 checked={payImmediately}
                 onChange={(e) => setPayImmediately(e.target.checked)}
-                disabled={currentAccountingRun?.status === "Posted"}
+                disabled={hasPostedPayrollJournal}
               />
               Pay net salaries immediately (credit Bank instead of Payroll Payable)
             </label>
+            {!hasPostedPayrollJournal && !coaValidation.ok ? (
+              <div style={{ fontWeight: 700, color: "#b91c1c", lineHeight: 1.5 }}>{coaValidation.message}</div>
+            ) : !hasPostedPayrollJournal && coaValidation.ok ? (
+              <div style={{ fontWeight: 700, color: "#15803d" }}>
+                Chart of Accounts ready for payroll posting (1000, 2100, 2200, 5000).
+              </div>
+            ) : null}
             {accountingMessage ? (
-              <div style={{ fontWeight: 700, color: "#92400e" }}>{accountingMessage}</div>
+              <div
+                style={{
+                  fontWeight: 700,
+                  color: hasPostedPayrollJournal ? "#166534" : "#92400e",
+                }}
+              >
+                {accountingMessage}
+              </div>
             ) : null}
             <div style={{ display: "flex", flexWrap: "wrap", gap: 10 }}>
               <button
                 type="button"
                 style={goldBtn}
-                disabled={accountingBusy || currentAccountingRun?.status === "Posted"}
+                disabled={accountingBusy || hasPostedPayrollJournal || !coaValidation.ok}
                 onClick={handlePostPayrollToAccounting}
               >
                 {accountingBusy ? "Posting…" : "Post Payroll to Accounting"}
               </button>
-              <button type="button" style={btn} onClick={handleViewPayrollJournal}>
+              <button
+                type="button"
+                style={btn}
+                onClick={handleViewPayrollJournal}
+                disabled={!hasPostedPayrollJournal}
+              >
                 View Payroll Journal
               </button>
             </div>
@@ -3376,6 +3991,302 @@ export default function Payroll() {
 
 
       )}
+
+
+
+      {editingEmployee && editDraft ? (
+
+
+
+        <div
+
+
+
+          role="presentation"
+
+
+
+          style={{
+
+
+
+            position: "fixed",
+
+
+
+            inset: 0,
+
+
+
+            background: "rgba(15,23,42,0.55)",
+
+
+
+            zIndex: 6000,
+
+
+
+            display: "flex",
+
+
+
+            alignItems: "center",
+
+
+
+            justifyContent: "center",
+
+
+
+            padding: 20,
+
+
+
+          }}
+
+
+
+          onClick={closeEditEmployee}
+
+
+
+        >
+
+
+
+          <div
+
+
+
+            style={{
+
+
+
+              ...card,
+
+
+
+              width: "min(560px, 100%)",
+
+
+
+              maxHeight: "90vh",
+
+
+
+              overflow: "auto",
+
+
+
+            }}
+
+
+
+            onClick={(e) => e.stopPropagation()}
+
+
+
+          >
+
+
+
+            <div style={header}>Edit Payroll — {employeeName(editingEmployee)}</div>
+
+
+
+            <div style={{ padding: 20, display: "grid", gap: 12 }}>
+
+
+
+              {[
+
+
+
+                ["Basic Salary", "basicSalary"],
+
+
+
+                ["Overtime Hours", "overtimeHours"],
+
+
+
+                ["Overtime Rate", "overtimeRate"],
+
+
+
+                ["Bonus", "bonus"],
+
+
+
+                ["Extra Deduction", "extraDeduction"],
+
+
+
+                ["Allowances", "allowances"],
+
+
+
+                ["Pension", "pension"],
+
+
+
+                ["Medical Aid", "medicalAid"],
+
+
+
+                ["PAYE override (optional)", "payeOverride"],
+
+
+
+                ["UIF override (optional)", "uifOverride"],
+
+
+
+              ].map(([label, key]) => (
+
+
+
+                <label key={key} style={{ display: "grid", gap: 6, fontWeight: 800 }}>
+
+
+
+                  {label}
+
+
+
+                  <input
+
+
+
+                    type="number"
+
+
+
+                    style={input}
+
+
+
+                    value={editDraft[key as keyof PayrollEditDraft]}
+
+
+
+                    onChange={(e) =>
+
+
+
+                      setEditDraft((prev) =>
+
+
+
+                        prev ? { ...prev, [key]: e.target.value } : prev
+
+
+
+                      )
+
+
+
+                    }
+
+
+
+                  />
+
+
+
+                </label>
+
+
+
+              ))}
+
+
+
+              <label style={{ display: "grid", gap: 6, fontWeight: 800 }}>
+
+
+
+                Notes
+
+
+
+                <textarea
+
+
+
+                  style={{ ...input, minHeight: 80, resize: "vertical" }}
+
+
+
+                  value={editDraft.notes}
+
+
+
+                  onChange={(e) =>
+
+
+
+                    setEditDraft((prev) => (prev ? { ...prev, notes: e.target.value } : prev))
+
+
+
+                  }
+
+
+
+                />
+
+
+
+              </label>
+
+
+
+              <div style={{ display: "flex", gap: 10, flexWrap: "wrap", marginTop: 8 }}>
+
+
+
+                <button type="button" style={goldBtn} onClick={saveEditEmployee}>
+
+
+
+                  Save
+
+
+
+                </button>
+
+
+
+                <button type="button" style={btn} onClick={closeEditEmployee}>
+
+
+
+                  Cancel
+
+
+
+                </button>
+
+
+
+              </div>
+
+
+
+            </div>
+
+
+
+          </div>
+
+
+
+        </div>
+
+
+
+      ) : null}
 
 
 

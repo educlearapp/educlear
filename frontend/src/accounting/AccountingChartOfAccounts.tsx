@@ -9,6 +9,12 @@ import {
   accountingSubtitle,
   accountingTitle,
 } from "./accountingTheme";
+import {
+  dispatchCoaUpdated,
+  ensureRequiredPayrollCoa,
+  getPayrollCoaReadiness,
+  REQUIRED_PAYROLL_COA,
+} from "./accountingPayrollCoa";
 
 export type AccountType = "Assets" | "Liabilities" | "Equity" | "Income" | "Expenses";
 
@@ -92,7 +98,7 @@ export const DEFAULT_SCHOOL_COA: DefaultSeed[] = [
   { code: "4030", name: "Aftercare Income", group: "Operating Income", type: "Income", linkedModule: "Billing" },
   { code: "4040", name: "Tuckshop Income", group: "Operating Income", type: "Income", linkedModule: "Billing" },
   { code: "4900", name: "Other Income", group: "Operating Income", type: "Income", linkedModule: "Financial Statements" },
-  { code: "5000", name: "Salaries", group: "Operating Expenses", type: "Expenses", linkedModule: "Payroll" },
+  { code: "5000", name: "Salaries Expense", group: "Operating Expenses", type: "Expenses", linkedModule: "Payroll" },
   { code: "5100", name: "Electricity", group: "Operating Expenses", type: "Expenses", linkedModule: "Expenses" },
   { code: "5110", name: "Water", group: "Operating Expenses", type: "Expenses", linkedModule: "Expenses" },
   { code: "5120", name: "Fuel", group: "Operating Expenses", type: "Expenses", linkedModule: "Expenses" },
@@ -135,6 +141,7 @@ function loadStore(schoolId: string): CoaStore {
 function saveStore(schoolId: string, store: CoaStore) {
   if (!schoolId) return;
   localStorage.setItem(storageKey(schoolId), JSON.stringify(store));
+  dispatchCoaUpdated(schoolId);
 }
 
 function seedToAccount(seed: DefaultSeed, now: string): ChartAccount {
@@ -163,13 +170,24 @@ function accountExists(accounts: ChartAccount[], seed: DefaultSeed) {
 
 export function importDefaultCoa(accounts: ChartAccount[]): ChartAccount[] {
   const now = new Date().toISOString();
-  const next = [...accounts];
+  let next = [...accounts];
   for (const seed of DEFAULT_SCHOOL_COA) {
     if (!accountExists(next, seed)) {
       next.push(seedToAccount(seed, now));
     }
   }
-  return next;
+  return ensureRequiredPayrollCoa(next).accounts;
+}
+
+/** Repair missing payroll GL accounts for a school (additive, no duplicates). */
+export function repairPayrollCoaForSchool(schoolId: string): { added: string[]; accounts: ChartAccount[] } {
+  if (!schoolId) return { added: [], accounts: [] };
+  const store = loadStore(schoolId);
+  const { accounts, added } = ensureRequiredPayrollCoa(store.accounts);
+  if (added.length) {
+    saveStore(schoolId, { ...store, accounts });
+  }
+  return { added, accounts };
 }
 
 function nextAccountCode(type: AccountType, accounts: ChartAccount[]): string {
@@ -323,7 +341,20 @@ export default function AccountingChartOfAccounts({ schoolId = "" }: Props) {
   );
 
   useEffect(() => {
-    setStore(loadStore(schoolId));
+    if (!schoolId) {
+      setStore(emptyStore());
+      setPage(1);
+      return;
+    }
+    const loaded = loadStore(schoolId);
+    const { accounts, added } = ensureRequiredPayrollCoa(loaded.accounts);
+    if (added.length) {
+      const next = { ...loaded, accounts };
+      saveStore(schoolId, next);
+      setStore(next);
+    } else {
+      setStore(loaded);
+    }
     setPage(1);
   }, [schoolId]);
 
@@ -384,6 +415,8 @@ export default function AccountingChartOfAccounts({ schoolId = "" }: Props) {
       custom: accounts.filter((a) => !a.isDefault).length,
     };
   }, [accounts]);
+
+  const payrollCoaStatus = useMemo(() => getPayrollCoaReadiness(accounts), [accounts]);
 
   const openAddAccount = () => {
     const type: AccountType = typeFilter !== "All" ? (typeFilter as AccountType) : "Expenses";
@@ -481,11 +514,17 @@ export default function AccountingChartOfAccounts({ schoolId = "" }: Props) {
 
   const handleImportDefault = () => {
     const before = accounts.length;
-    const merged = importDefaultCoa(accounts);
+    const afterDefaults = importDefaultCoa(accounts);
+    const payrollRepair = ensureRequiredPayrollCoa(afterDefaults);
+    const merged = payrollRepair.accounts;
     const added = merged.length - before;
     persist({ ...store, accounts: merged });
-    if (added === 0) {
-      setToast("Default accounts already loaded — no duplicates added.");
+    if (added === 0 && payrollRepair.added.length === 0) {
+      setToast("Default school COA is up to date — all accounts present, including payroll.");
+    } else if (payrollRepair.added.length > 0) {
+      setToast(
+        `Imported ${added} account(s). Repaired payroll: ${payrollRepair.added.join("; ")}.`
+      );
     } else {
       setToast(`Imported ${added} default account(s).`);
     }
@@ -611,6 +650,33 @@ export default function AccountingChartOfAccounts({ schoolId = "" }: Props) {
           {toast}
         </div>
       ) : null}
+
+      <div
+        style={{
+          marginBottom: 20,
+          padding: "14px 18px",
+          borderRadius: 12,
+          border: `2px solid ${payrollCoaStatus.ready ? "#22c55e" : "#ef4444"}`,
+          background: payrollCoaStatus.ready ? "rgba(34,197,94,0.1)" : "rgba(239,68,68,0.08)",
+        }}
+      >
+        <div style={{ fontWeight: 900, fontSize: 15, color: payrollCoaStatus.ready ? "#15803d" : "#b91c1c" }}>
+          Payroll posting {payrollCoaStatus.ready ? "ready" : "blocked — missing accounts"}
+        </div>
+        <div style={{ marginTop: 8, fontWeight: 600, fontSize: 13, color: ACCOUNTING_INK, lineHeight: 1.55 }}>
+          {payrollCoaStatus.ready ? (
+            <>
+              All required payroll accounts are present:{" "}
+              {REQUIRED_PAYROLL_COA.map((s) => `${s.code} ${s.name}`).join(" · ")}.
+            </>
+          ) : (
+            <>
+              Missing: {payrollCoaStatus.missing.join(", ")}. Use <strong>Import Default School COA</strong> to
+              add defaults and repair payroll accounts without duplicating existing codes or names.
+            </>
+          )}
+        </div>
+      </div>
 
       <div
         style={{
