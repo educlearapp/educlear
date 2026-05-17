@@ -28,6 +28,10 @@ import {
   resolveAsOfDate,
 } from "./accountingCreditorsHelpers";
 import {
+  ACCOUNTING_PAYROLL_UPDATED_EVENT,
+  payrollInsightsForMonth,
+} from "./accountingPayrollIntegration";
+import {
   ACCOUNTING_GOLD,
   ACCOUNTING_INK,
   accountingCard,
@@ -162,15 +166,21 @@ export default function AccountingOverview({ schoolId }: Props) {
       const detail = (e as CustomEvent<{ schoolId?: string }>).detail;
       if (!detail?.schoolId || detail.schoolId === schoolId) bumpRefresh();
     };
+    const onPayroll = (e: Event) => {
+      const detail = (e as CustomEvent<{ schoolId?: string }>).detail;
+      if (!detail?.schoolId || detail.schoolId === schoolId) bumpRefresh();
+    };
     window.addEventListener(ACCOUNTING_EXPENSES_UPDATED_EVENT, onExpenses);
     window.addEventListener(BILLING_UPDATED_EVENT, onBilling);
     window.addEventListener(ACCOUNTING_ASSETS_UPDATED_EVENT, onAssets);
     window.addEventListener(CREDITORS_UPDATED_EVENT, onCreditors);
+    window.addEventListener(ACCOUNTING_PAYROLL_UPDATED_EVENT, onPayroll);
     return () => {
       window.removeEventListener(ACCOUNTING_EXPENSES_UPDATED_EVENT, onExpenses);
       window.removeEventListener(BILLING_UPDATED_EVENT, onBilling);
       window.removeEventListener(ACCOUNTING_ASSETS_UPDATED_EVENT, onAssets);
       window.removeEventListener(CREDITORS_UPDATED_EVENT, onCreditors);
+      window.removeEventListener(ACCOUNTING_PAYROLL_UPDATED_EVENT, onPayroll);
     };
   }, [schoolId, bumpRefresh]);
 
@@ -212,10 +222,13 @@ export default function AccountingOverview({ schoolId }: Props) {
         assetActiveCount: 0,
         supplierPayables: 0,
         overdueSuppliers: 0,
+        payrollCost: 0,
+        payrollLiabilities: 0,
       };
     }
 
     const asAtDate = resolveAsOfDate(year, monthIndex);
+    const payrollInsights = payrollInsightsForMonth(sid, year, monthIndex);
     const creditorTotals = calculateCreditorTotals(sid, asAtDate);
 
     const assets = loadAssets(sid);
@@ -295,6 +308,8 @@ export default function AccountingOverview({ schoolId }: Props) {
       assetActiveCount: assets.filter((a) => a.status !== "Disposed").length,
       supplierPayables: creditorTotals.supplierPayables,
       overdueSuppliers: creditorTotals.overdueSupplierPayables,
+      payrollCost: payrollInsights.payrollCost,
+      payrollLiabilities: payrollInsights.liabilities,
     };
   }, [schoolId, year, monthIndex, refreshKey, bankImports]);
 
@@ -349,6 +364,16 @@ export default function AccountingOverview({ schoolId }: Props) {
       label: "Overdue Suppliers",
       value: formatMoney(metrics.overdueSuppliers),
       hint: "Overdue creditor balances as at period end",
+    },
+    {
+      label: "Payroll Cost This Month",
+      value: formatMoney(metrics.payrollCost),
+      hint: "Posted payroll runs in Accounting",
+    },
+    {
+      label: "Payroll Liabilities",
+      value: formatMoney(metrics.payrollLiabilities),
+      hint: "Net pay + statutory deductions not yet paid",
     },
   ];
 

@@ -38,6 +38,12 @@ import {
   upcomingCreditorPaymentsForReportingPeriod,
 } from "./accountingCreditorsHelpers";
 import {
+  ACCOUNTING_PAYROLL_UPDATED_EVENT,
+  payrollLiabilitiesFromPostedRuns,
+  payrollRunsCashPayments,
+  payrollTotalsForReportingPeriod,
+} from "./accountingPayrollIntegration";
+import {
   ACCOUNTING_GOLD,
   ACCOUNTING_INK,
   accountingCard,
@@ -307,7 +313,10 @@ type FinancialReport = {
   netSurplus: number;
   cashReceived: number;
   cashPaidExpenses: number;
-  payrollPlaceholder: number;
+  payrollPayments: number;
+  payrollSalariesExpense: number;
+  payrollLiabilitiesTotal: number;
+  payeLiabilities: number;
   netCashMovement: number;
   openingCashPlaceholder: number;
   closingCashPlaceholder: number;
@@ -370,16 +379,34 @@ export function buildFinancialReport(
   const depTotals = calculateDepreciationTotals(assets, period.depreciationYear);
   const depreciationExpense = depTotals.expenseForYear;
 
+  const payrollPosted =
+    schoolId && period.startDate && period.endDate
+      ? payrollTotalsForReportingPeriod(schoolId, period.startDate, period.endDate, "Posted")
+      : {
+          totalPayrollCost: 0,
+          netPay: 0,
+          paye: 0,
+          runCount: 0,
+        };
+
+  const payrollSalariesExpense = payrollPosted.totalPayrollCost;
+  if (payrollSalariesExpense > 0) {
+    expenseByLine.Salaries += payrollSalariesExpense;
+  }
+
   const totalIncome = INCOME_LINES.reduce((s, k) => s + incomeByLine[k], 0);
   const operatingExpenses = EXPENSE_LINES.reduce((s, k) => s + expenseByLine[k], 0);
   const totalExpenses = operatingExpenses + depreciationExpense;
   const netSurplus = totalIncome - totalExpenses;
 
+  const payrollPayments = payrollPosted.runCount
+    ? payrollRunsCashPayments(schoolId, period.startDate, period.endDate)
+    : 0;
+
   const cashReceived = totalIncome;
   const cashPaidExpenses = totalExpenses;
-  const payrollPlaceholder = 0;
   const openingCashPlaceholder = 0;
-  const netCashMovement = cashReceived - cashPaidExpenses - payrollPlaceholder;
+  const netCashMovement = cashReceived - cashPaidExpenses - payrollPayments;
   const closingCashPlaceholder = openingCashPlaceholder + netCashMovement;
   const bankCashEstimate = Math.max(closingCashPlaceholder, 0);
 
@@ -415,13 +442,15 @@ export function buildFinancialReport(
   const scheduledSupplierPayments = upcomingCreditors.scheduledInvoicePayments;
   const upcomingCreditorPaymentsEstimate = upcomingCreditors.totalUpcoming;
 
-  const payrollLiabilitiesPlaceholder = 0;
-  const taxLiabilitiesPlaceholder = 0;
+  const payrollLiab = schoolId
+    ? payrollLiabilitiesFromPostedRuns(schoolId, period.endDate)
+    : { total: 0, paye: 0 };
+  const payrollLiabilitiesTotal = payrollLiab.total;
+  const payeLiabilities = payrollLiab.paye;
   const openingEquityPlaceholder = 0;
 
   const totalAssets = bankCashEstimate + debtorsOutstanding + fixedAssetsNetBook;
-  const totalLiabilities =
-    supplierPayables + payrollLiabilitiesPlaceholder + taxLiabilitiesPlaceholder;
+  const totalLiabilities = supplierPayables + payrollLiabilitiesTotal + payeLiabilities;
   const equitySurplus = openingEquityPlaceholder + netSurplus;
 
   const trialRows: FinancialReport["trialRows"] = [];
@@ -513,7 +542,10 @@ export function buildFinancialReport(
     netSurplus,
     cashReceived,
     cashPaidExpenses,
-    payrollPlaceholder,
+    payrollPayments,
+    payrollSalariesExpense,
+    payrollLiabilitiesTotal,
+    payeLiabilities,
     netCashMovement,
     openingCashPlaceholder,
     closingCashPlaceholder,
@@ -581,7 +613,7 @@ export function buildPrintHtml(opts: {
       "Upcoming creditor payments (estimate)",
       report.upcomingCreditorPaymentsEstimate
     );
-    body += lineRow("Payroll payments (placeholder)", report.payrollPlaceholder);
+    body += lineRow("Payroll / salary payments", report.payrollPayments);
     body += lineRow("Net cash movement", report.netCashMovement, true);
     body += lineRow("Opening balance (placeholder)", report.openingCashPlaceholder);
     body += lineRow("Closing balance (placeholder)", report.closingCashPlaceholder, true);
@@ -604,7 +636,8 @@ export function buildPrintHtml(opts: {
     body += lineRow("Supplier payables", report.supplierPayables);
     body += lineRow("Overdue supplier payables", report.overdueSupplierPayables);
     body += lineRow("Payment plan commitments", report.paymentPlanCommitments);
-    body += lineRow("Payroll liabilities (placeholder)", 0);
+    body += lineRow("Payroll liabilities", report.payrollLiabilitiesTotal);
+    body += lineRow("PAYE liabilities", report.payeLiabilities);
     body += lineRow("Tax liabilities (placeholder)", 0);
     body += lineRow("Total Liabilities", report.totalLiabilities, true);
     body += `</table><h2 style="font-size:16px;margin:18px 0 6px;">Equity</h2><table style="width:100%;">`;
@@ -690,15 +723,21 @@ export default function AccountingFinancialStatements({
       const detail = (e as CustomEvent<{ schoolId?: string }>).detail;
       if (!detail?.schoolId || detail.schoolId === schoolId) bumpRefresh();
     };
+    const onPayroll = (e: Event) => {
+      const detail = (e as CustomEvent<{ schoolId?: string }>).detail;
+      if (!detail?.schoolId || detail.schoolId === schoolId) bumpRefresh();
+    };
     window.addEventListener(ACCOUNTING_EXPENSES_UPDATED_EVENT, onExpenses);
     window.addEventListener(BILLING_UPDATED_EVENT, onBilling);
     window.addEventListener(ACCOUNTING_ASSETS_UPDATED_EVENT, onAssets);
     window.addEventListener(CREDITORS_UPDATED_EVENT, onCreditors);
+    window.addEventListener(ACCOUNTING_PAYROLL_UPDATED_EVENT, onPayroll);
     return () => {
       window.removeEventListener(ACCOUNTING_EXPENSES_UPDATED_EVENT, onExpenses);
       window.removeEventListener(BILLING_UPDATED_EVENT, onBilling);
       window.removeEventListener(ACCOUNTING_ASSETS_UPDATED_EVENT, onAssets);
       window.removeEventListener(CREDITORS_UPDATED_EVENT, onCreditors);
+      window.removeEventListener(ACCOUNTING_PAYROLL_UPDATED_EVENT, onPayroll);
     };
   }, [schoolId, bumpRefresh]);
 
@@ -870,7 +909,7 @@ export default function AccountingFinancialStatements({
           ["Cash paid to suppliers / expenses (approved)", report.cashPaidExpenses],
           ["Scheduled supplier payments (creditors due)", report.scheduledSupplierPayments],
           ["Upcoming creditor payments (estimate)", report.upcomingCreditorPaymentsEstimate],
-          ["Payroll payments (placeholder)", report.payrollPlaceholder],
+          ["Payroll / salary payments", report.payrollPayments],
           ["Net cash movement", report.netCashMovement],
           ["Opening balance (placeholder)", report.openingCashPlaceholder],
           ["Closing balance (placeholder)", report.closingCashPlaceholder],
@@ -947,7 +986,8 @@ export default function AccountingFinancialStatements({
             ["Supplier payables", report.supplierPayables],
             ["Overdue supplier payables", report.overdueSupplierPayables],
             ["Payment plan commitments", report.paymentPlanCommitments],
-            ["Payroll liabilities (placeholder)", 0],
+            ["Payroll liabilities", report.payrollLiabilitiesTotal],
+            ["PAYE liabilities", report.payeLiabilities],
             ["Tax liabilities (placeholder)", 0],
             ["Total Liabilities", report.totalLiabilities],
           ].map(([label, amount], idx) => (

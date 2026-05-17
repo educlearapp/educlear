@@ -363,17 +363,6 @@ export function postBankChargeJournal(input: {
   });
 }
 
-export function postPayrollJournalPlaceholder(): AutoJournalResult {
-  console.info(
-    "[EduClear AutoJournal] Payroll automatic journal posting will be connected later."
-  );
-  return {
-    ok: false,
-    skipped: true,
-    reason: "Payroll automatic journal posting will be connected later.",
-  };
-}
-
 export function postSupplierPaymentPlaceholder(): AutoJournalResult {
   console.info(
     "[EduClear AutoJournal] Supplier payment automatic journal posting will be connected later."

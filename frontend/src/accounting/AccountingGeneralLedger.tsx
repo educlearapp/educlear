@@ -322,7 +322,7 @@ export default function AccountingGeneralLedger({ schoolId = "" }: Props) {
       if (row.source === "Payroll") {
         setSourcePreview({
           kind: "payroll",
-          message: "Payroll automatic journal posting will be connected in a future release.",
+          message: "Payroll AUTO journals — post payroll runs from the Payroll module (Source: Payroll).",
         });
         return;
       }

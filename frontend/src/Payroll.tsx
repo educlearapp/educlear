@@ -11,6 +11,11 @@ import { API_URL } from "./api";
 
 
 import { useSchoolId } from "./useSchoolId";
+import {
+  getPayrollRun,
+  postPayrollRunToAccounting,
+  upsertDraftPayrollRun,
+} from "./accounting/accountingPayrollIntegration";
 
 
 
@@ -608,6 +613,11 @@ export default function Payroll() {
 
   >({});
 
+  const [currentPayrollRunId, setCurrentPayrollRunId] = useState("");
+  const [accountingMessage, setAccountingMessage] = useState("");
+  const [payImmediately, setPayImmediately] = useState(false);
+  const [accountingBusy, setAccountingBusy] = useState(false);
+
 
 
   const period = `${MONTHS[new Date().getMonth()]} ${new Date().getFullYear()}`;
@@ -888,8 +898,66 @@ export default function Payroll() {
 
     );
 
+    if (schoolId) {
+      const draft = upsertDraftPayrollRun({
+        schoolId,
+        period,
+        rows,
+        payrollRunId: currentPayrollRunId || undefined,
+      });
+      setCurrentPayrollRunId(draft.payrollRunId);
+      setAccountingMessage(`Accounting: Draft saved for ${period}. Post to Accounting when ready.`);
+    }
 
 
+
+  }
+
+  const currentAccountingRun = useMemo(() => {
+    if (!schoolId || !currentPayrollRunId) return null;
+    return getPayrollRun(schoolId, currentPayrollRunId);
+  }, [schoolId, currentPayrollRunId, results.length]);
+
+  async function handlePostPayrollToAccounting() {
+    if (!schoolId || !currentPayrollRunId) {
+      setAccountingMessage("Run payroll first to create an accounting draft.");
+      return;
+    }
+    setAccountingBusy(true);
+    setAccountingMessage("");
+    try {
+      const { result, run } = postPayrollRunToAccounting({
+        schoolId,
+        payrollRunId: currentPayrollRunId,
+        paidImmediately: payImmediately,
+        createdBy: "Payroll",
+      });
+      if (result.ok) {
+        setAccountingMessage(
+          `Posted to Accounting · Journal ${result.journalNo} · AUTO · Source Payroll`
+        );
+      } else if (result.duplicate) {
+        setAccountingMessage(
+          `Already posted${result.journalNo ? ` · Journal ${result.journalNo}` : ""}. Duplicate post blocked.`
+        );
+      } else {
+        setAccountingMessage(result.reason || "Could not post payroll to accounting.");
+      }
+      if (run?.journalNo) setCurrentPayrollRunId(run.payrollRunId);
+    } finally {
+      setAccountingBusy(false);
+    }
+  }
+
+  function handleViewPayrollJournal() {
+    const journalNo = currentAccountingRun?.journalNo;
+    if (!journalNo) {
+      setAccountingMessage("Post payroll to Accounting first to create the AUTO journal.");
+      return;
+    }
+    window.alert(
+      `Payroll journal ${journalNo} (Source: Payroll, AUTO).\n\nOpen Accounting → Journals and search for this journal number.`
+    );
   }
 
 
@@ -2845,6 +2913,43 @@ export default function Payroll() {
       </div>
 
 
+
+      {results.length > 0 && schoolId ? (
+        <div style={{ ...card, marginBottom: 22 }}>
+          <div style={header}>Accounting</div>
+          <div style={{ padding: 16, display: "grid", gap: 12 }}>
+            <div style={{ fontWeight: 700 }}>
+              Status: <strong>{currentAccountingRun?.status || "Draft"}</strong>
+              {currentAccountingRun?.journalNo ? ` · Journal ${currentAccountingRun.journalNo}` : ""}
+            </div>
+            <label style={{ display: "flex", alignItems: "center", gap: 8, fontWeight: 700 }}>
+              <input
+                type="checkbox"
+                checked={payImmediately}
+                onChange={(e) => setPayImmediately(e.target.checked)}
+                disabled={currentAccountingRun?.status === "Posted"}
+              />
+              Pay net salaries immediately (credit Bank instead of Payroll Payable)
+            </label>
+            {accountingMessage ? (
+              <div style={{ fontWeight: 700, color: "#92400e" }}>{accountingMessage}</div>
+            ) : null}
+            <div style={{ display: "flex", flexWrap: "wrap", gap: 10 }}>
+              <button
+                type="button"
+                style={goldBtn}
+                disabled={accountingBusy || currentAccountingRun?.status === "Posted"}
+                onClick={handlePostPayrollToAccounting}
+              >
+                {accountingBusy ? "Posting…" : "Post Payroll to Accounting"}
+              </button>
+              <button type="button" style={btn} onClick={handleViewPayrollJournal}>
+                View Payroll Journal
+              </button>
+            </div>
+          </div>
+        </div>
+      ) : null}
 
       {results.length > 0 && (
 

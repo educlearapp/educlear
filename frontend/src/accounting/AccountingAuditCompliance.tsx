@@ -1,6 +1,6 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { fetchBankImports, type BankImportRecord } from "../banking/bankingApi";
-import { BILLING_UPDATED_EVENT, getBillingRows } from "../billing/billingLedger";
+import { BILLING_UPDATED_EVENT, formatMoney, getBillingRows } from "../billing/billingLedger";
 import { ACCOUNTING_ASSETS_UPDATED_EVENT } from "./accountingAssetStorage";
 import {
   ACCOUNTING_SETTINGS_UPDATED_EVENT,
@@ -15,6 +15,12 @@ import { ACCOUNTING_AUDIT_COMPLIANCE_UPDATED_EVENT } from "./accountingAuditComp
 import { ACCOUNTING_EXPENSES_UPDATED_EVENT } from "./accountingExpenseStorage";
 import { CREDITORS_UPDATED_EVENT } from "./accountingCreditorsHelpers";
 import { ACCOUNTING_JOURNALS_UPDATED_EVENT } from "./accountingJournalStorage";
+import {
+  buildPayslipRegister,
+  payrollJournalsForRuns,
+  payrollRunsForReportingPeriod,
+  payrollTotalsForReportingPeriod,
+} from "./accountingPayrollIntegration";
 import {
   buildComplianceChecks,
   buildComplianceMetrics,
@@ -361,6 +367,27 @@ export default function AccountingAuditCompliance({ schoolId, schoolName, learne
     () => resolveReportingBasisSummary(schoolId, reportBasis, reportYear, reportMonth),
     [schoolId, reportBasis, reportYear, reportMonth, refreshKey]
   );
+
+  const payrollAudit = useMemo(() => {
+    const sid = String(schoolId || "").trim();
+    if (!sid) {
+      return {
+        totals: { totalPayrollCost: 0, paye: 0, uifEmployee: 0, uifEmployer: 0, runCount: 0, employeeCount: 0 },
+        payslipCount: 0,
+        journalCount: 0,
+      };
+    }
+    const period = reportingSummary.period;
+    const runs = payrollRunsForReportingPeriod(sid, period.startDate, period.endDate);
+    const totals = payrollTotalsForReportingPeriod(sid, period.startDate, period.endDate, "Posted");
+    const payslipRegister = buildPayslipRegister(runs);
+    const journals = payrollJournalsForRuns(sid, runs.filter((r) => r.status === "Posted"));
+    return {
+      totals,
+      payslipCount: payslipRegister.length,
+      journalCount: journals.length,
+    };
+  }, [schoolId, reportingSummary.period, refreshKey]);
 
   const activeLocks = lockedPeriods.filter((p) => p.status === "locked");
 
@@ -902,6 +929,37 @@ export default function AccountingAuditCompliance({ schoolId, schoolName, learne
                   </div>
                 );
               })}
+              {[
+                {
+                  label: "Payroll Summary",
+                  detail: `${formatMoney(payrollAudit.totals.totalPayrollCost)} · ${payrollAudit.totals.runCount} posted run(s)`,
+                },
+                {
+                  label: "PAYE / UIF Summary",
+                  detail: `PAYE ${formatMoney(payrollAudit.totals.paye)} · UIF ${formatMoney(payrollAudit.totals.uifEmployee + payrollAudit.totals.uifEmployer)}`,
+                },
+                {
+                  label: "Payslip Register",
+                  detail: `${payrollAudit.payslipCount} payslip line(s) in period`,
+                },
+                {
+                  label: "Payroll Journals",
+                  detail: `${payrollAudit.journalCount} AUTO journal(s) · Source Payroll`,
+                },
+              ].map((item) => (
+                <div
+                  key={item.label}
+                  style={{
+                    border: `1px solid ${ACCOUNTING_GOLD}`,
+                    borderRadius: 12,
+                    padding: 14,
+                    background: payrollAudit.totals.runCount > 0 ? "rgba(212,175,55,0.08)" : "#fff",
+                  }}
+                >
+                  <div style={{ fontWeight: 900, marginBottom: 8 }}>{item.label}</div>
+                  <div style={{ fontSize: 12, color: "#64748b", fontWeight: 600 }}>{item.detail}</div>
+                </div>
+              ))}
             </div>
             <div style={{ display: "flex", flexWrap: "wrap", gap: 10, marginTop: 8 }}>
               <button
@@ -978,8 +1036,13 @@ export default function AccountingAuditCompliance({ schoolId, schoolName, learne
                   <li>Tax year: {resolveReportingPeriod("sars", reportYear, 0).label}</li>
                   <li>Default report basis: {reportingSummary.defaultBasis.toUpperCase()}</li>
                   <li>VAT-ready placeholders (configure in Settings)</li>
-                  <li>PAYE / UIF placeholders (Payroll module)</li>
-                  <li>Payroll reconciliation placeholder</li>
+                  <li>
+                    PAYE / UIF — posted payroll PAYE {formatMoney(payrollAudit.totals.paye)}, UIF{" "}
+                    {formatMoney(payrollAudit.totals.uifEmployee + payrollAudit.totals.uifEmployer)}
+                  </li>
+                  <li>
+                    Payroll — {payrollAudit.totals.runCount} posted run(s), {payrollAudit.journalCount} AUTO journal(s)
+                  </li>
                 </ul>
               </div>
             </div>

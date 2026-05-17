@@ -19,6 +19,9 @@ export type AutoPostingRule = {
 export const COA_CODES = {
   bank: "1000",
   schoolFeesIncome: "4000",
+  salariesExpense: "5000",
+  payrollLiabilities: "2100",
+  taxLiabilities: "2200",
   bankChargesExpense: "5700",
   electricity: "5100",
   fuel: "5120",
@@ -50,10 +53,10 @@ export const DEFAULT_AUTO_POSTING_RULES: AutoPostingRule[] = [
   },
   {
     transactionType: "payroll",
-    debitAccountCode: "5000",
-    creditAccountCode: COA_CODES.bank,
+    debitAccountCode: COA_CODES.salariesExpense,
+    creditAccountCode: COA_CODES.payrollLiabilities,
     descriptionTemplate: "Payroll — {reference}",
-    enabled: false,
+    enabled: true,
   },
   {
     transactionType: "supplier_payment",

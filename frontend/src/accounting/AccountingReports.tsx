@@ -49,6 +49,15 @@ import {
 } from "./accountingCreditorsHelpers";
 import { loadJournalStore } from "./accountingJournalStorage";
 import {
+  ACCOUNTING_PAYROLL_UPDATED_EVENT,
+  buildPayslipRegister,
+  expectedSalaryPaymentsForPeriod,
+  payrollJournalsForRuns,
+  payrollLiabilitiesFromPostedRuns,
+  payrollRunsForReportingPeriod,
+  payrollTotalsForReportingPeriod,
+} from "./accountingPayrollIntegration";
+import {
   ACCOUNTING_SETTINGS_UPDATED_EVENT,
   dateInReportingRange,
   getDefaultReportingBasis,
@@ -450,15 +459,21 @@ export default function AccountingReports({ schoolId, learners = [], schoolName 
       const detail = (e as CustomEvent<{ schoolId?: string }>).detail;
       if (!detail?.schoolId || detail.schoolId === schoolId) bumpRefresh();
     };
+    const onPayroll = (e: Event) => {
+      const detail = (e as CustomEvent<{ schoolId?: string }>).detail;
+      if (!detail?.schoolId || detail.schoolId === schoolId) bumpRefresh();
+    };
     window.addEventListener(ACCOUNTING_EXPENSES_UPDATED_EVENT, onExpenses);
     window.addEventListener(BILLING_UPDATED_EVENT, onBilling);
     window.addEventListener(ACCOUNTING_ASSETS_UPDATED_EVENT, onAssets);
     window.addEventListener(CREDITORS_UPDATED_EVENT, onCreditors);
+    window.addEventListener(ACCOUNTING_PAYROLL_UPDATED_EVENT, onPayroll);
     return () => {
       window.removeEventListener(ACCOUNTING_EXPENSES_UPDATED_EVENT, onExpenses);
       window.removeEventListener(BILLING_UPDATED_EVENT, onBilling);
       window.removeEventListener(ACCOUNTING_ASSETS_UPDATED_EVENT, onAssets);
       window.removeEventListener(CREDITORS_UPDATED_EVENT, onCreditors);
+      window.removeEventListener(ACCOUNTING_PAYROLL_UPDATED_EVENT, onPayroll);
     };
   }, [schoolId, bumpRefresh]);
 
@@ -749,6 +764,34 @@ export default function AccountingReports({ schoolId, learners = [], schoolName 
 
     const overBudgetCategories = budgetRows.filter((r) => r.budgeted > 0 && r.actual > r.budgeted);
 
+    const payrollPosted = sid
+      ? payrollTotalsForReportingPeriod(sid, period.startDate, period.endDate, "Posted")
+      : {
+          totalPayrollCost: 0,
+          grossPay: 0,
+          netPay: 0,
+          paye: 0,
+          uifEmployee: 0,
+          uifEmployer: 0,
+          pension: 0,
+          medicalAid: 0,
+          employeeCount: 0,
+          runCount: 0,
+        };
+    const payrollLiabilities = sid
+      ? payrollLiabilitiesFromPostedRuns(sid, period.endDate)
+      : { total: 0, paye: 0, uif: 0, pension: 0, medicalAid: 0 };
+    const payrollPctOfIncome =
+      income > 0 ? (payrollPosted.totalPayrollCost / income) * 100 : 0;
+    const expectedSalaryPayments = sid
+      ? expectedSalaryPaymentsForPeriod(sid, period.startDate, period.endDate)
+      : 0;
+    const payrollRunsInPeriod = sid
+      ? payrollRunsForReportingPeriod(sid, period.startDate, period.endDate)
+      : [];
+    const payslipRegister = buildPayslipRegister(payrollRunsInPeriod);
+    const payrollJournals = sid ? payrollJournalsForRuns(sid, payrollRunsInPeriod) : [];
+
     const warnings: string[] = [];
     if (expenses > income && (expenses > 0 || income > 0)) {
       warnings.push("Approved expenses exceed fee income for the selected month.");
@@ -815,6 +858,13 @@ export default function AccountingReports({ schoolId, learners = [], schoolName 
       upcomingCreditors,
       creditorAgeing,
       topCreditors,
+      payrollPosted,
+      payrollLiabilities,
+      payrollPctOfIncome,
+      expectedSalaryPayments,
+      payslipRegister,
+      payrollJournals,
+      payrollRunsInPeriod,
     };
   }, [schoolId, learners, year, monthIndex, reportingBasis, period, refreshKey, bankImports]);
 
@@ -1046,6 +1096,30 @@ ${el.innerHTML}
               </p>
             </div>
             <div style={sectionCard}>
+              <h2 style={{ margin: "0 0 12px", fontSize: 17, fontWeight: 900 }}>Payroll</h2>
+              <div
+                style={{
+                  display: "grid",
+                  gridTemplateColumns: "repeat(auto-fill, minmax(160px, 1fr))",
+                  gap: 10,
+                  fontWeight: 600,
+                }}
+              >
+                <div>Payroll cost: {formatMoney(data.payrollPosted.totalPayrollCost)}</div>
+                <div>Payroll % of income: {data.payrollPctOfIncome.toFixed(1)}%</div>
+                <div>Employees (posted runs): {data.payrollPosted.employeeCount}</div>
+                <div>Payroll liabilities: {formatMoney(data.payrollLiabilities.total)}</div>
+                <div>PAYE: {formatMoney(data.payrollPosted.paye)}</div>
+                <div>
+                  UIF (EE+ER):{" "}
+                  {formatMoney(data.payrollPosted.uifEmployee + data.payrollPosted.uifEmployer)}
+                </div>
+              </div>
+              <p style={{ margin: "12px 0 0", fontSize: 12, color: "#64748b", fontWeight: 600 }}>
+                From Payroll runs posted to Accounting. Post each run from Payroll → Accounting panel after processing.
+              </p>
+            </div>
+            <div style={sectionCard}>
               <h2 style={{ margin: "0 0 12px", fontSize: 17, fontWeight: 900 }}>Cash movement estimate</h2>
               <p style={{ margin: 0, fontWeight: 600 }}>
                 Month net cash movement: {formatMoney(data.net)} · Forecast with expected collections:{" "}
@@ -1098,6 +1172,7 @@ ${el.innerHTML}
               <div>Net cash movement: {formatMoney(data.net)}</div>
               <div>Scheduled supplier payments: {formatMoney(data.upcomingCreditors.scheduledInvoicePayments)}</div>
               <div>Upcoming creditor payments (estimate): {formatMoney(data.upcomingCreditors.totalUpcoming)}</div>
+              <div>Expected salary payments: {formatMoney(data.expectedSalaryPayments)}</div>
               <div>
                 Expected collections (placeholder): {formatMoney(data.expectedCollectionsPlaceholder)} — 65% of
                 outstanding debtors
@@ -1352,6 +1427,10 @@ ${el.innerHTML}
                 `Asset Register — ${data.assetTotals.activeCount} active asset(s), ${formatMoney(data.bookTotals.netBookValue)} net book value`,
                 `Depreciation Schedule — ${formatMoney(data.depTotals.expenseForYear)} expense for ${year}`,
                 `Asset Disposal History — ${data.disposedAssets.length} disposed asset(s)`,
+                `Payroll Summary — ${formatMoney(data.payrollPosted.totalPayrollCost)} (${data.payrollPosted.runCount} posted run(s))`,
+                `PAYE / UIF Summary — PAYE ${formatMoney(data.payrollPosted.paye)}, UIF ${formatMoney(data.payrollPosted.uifEmployee + data.payrollPosted.uifEmployer)}`,
+                `Payslip Register — ${data.payslipRegister.length} line(s)`,
+                `Payroll Journals — ${data.payrollJournals.length} AUTO journal(s)`,
               ].map((item) => (
                 <li key={item}>{item}</li>
               ))}

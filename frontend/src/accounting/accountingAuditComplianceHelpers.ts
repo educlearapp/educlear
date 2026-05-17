@@ -340,5 +340,6 @@ export const COMPLIANCE_REFRESH_EVENTS = [
   "educlear-accounting-expenses-updated",
   "educlear-creditors-updated",
   "educlear-accounting-assets-updated",
+  "educlear-accounting-payroll-updated",
   ACCOUNTING_AUDIT_COMPLIANCE_UPDATED_EVENT,
 ] as const;
