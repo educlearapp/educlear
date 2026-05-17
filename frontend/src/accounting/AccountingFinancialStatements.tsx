@@ -8,6 +8,12 @@ import {
   type BillingLedgerEntry,
 } from "../billing/billingLedger";
 import {
+  ACCOUNTING_ASSETS_UPDATED_EVENT,
+  calculateBookValueTotals,
+  calculateDepreciationTotals,
+  loadAssets,
+} from "./accountingAssetStorage";
+import {
   ACCOUNTING_EXPENSES_UPDATED_EVENT,
   filterApprovedExpensesForMonth,
   loadApprovedExpenses,
@@ -234,6 +240,10 @@ type FinancialReport = {
   closingCashPlaceholder: number;
   debtorsOutstanding: number;
   bankCashEstimate: number;
+  fixedAssetsGross: number;
+  accumulatedDepreciation: number;
+  fixedAssetsNetBook: number;
+  depreciationExpense: number;
   totalAssets: number;
   totalLiabilities: number;
   equitySurplus: number;
@@ -269,8 +279,14 @@ function buildFinancialReport(
     expenseByLine[line] += amount;
   }
 
+  const assets = schoolId ? loadAssets(schoolId) : [];
+  const bookTotals = calculateBookValueTotals(assets);
+  const depTotals = calculateDepreciationTotals(assets, year);
+  const depreciationExpense = depTotals.expenseForYear;
+
   const totalIncome = INCOME_LINES.reduce((s, k) => s + incomeByLine[k], 0);
-  const totalExpenses = EXPENSE_LINES.reduce((s, k) => s + expenseByLine[k], 0);
+  const operatingExpenses = EXPENSE_LINES.reduce((s, k) => s + expenseByLine[k], 0);
+  const totalExpenses = operatingExpenses + depreciationExpense;
   const netSurplus = totalIncome - totalExpenses;
 
   const cashReceived = totalIncome;
@@ -287,13 +303,15 @@ function buildFinancialReport(
     return sum + (bal > 0 ? bal : 0);
   }, 0);
 
-  const fixedAssetsPlaceholder = 0;
+  const fixedAssetsGross = bookTotals.grossPurchaseCost;
+  const accumulatedDepreciation = bookTotals.accumulatedDepreciation;
+  const fixedAssetsNetBook = bookTotals.netBookValue;
   const supplierPayablesPlaceholder = 0;
   const payrollLiabilitiesPlaceholder = 0;
   const taxLiabilitiesPlaceholder = 0;
   const openingEquityPlaceholder = 0;
 
-  const totalAssets = bankCashEstimate + debtorsOutstanding + fixedAssetsPlaceholder;
+  const totalAssets = bankCashEstimate + debtorsOutstanding + fixedAssetsNetBook;
   const totalLiabilities =
     supplierPayablesPlaceholder + payrollLiabilitiesPlaceholder + taxLiabilitiesPlaceholder;
   const equitySurplus = openingEquityPlaceholder + netSurplus;
@@ -317,6 +335,33 @@ function buildFinancialReport(
       debit: amount,
       credit: 0,
       balance: amount,
+    });
+  }
+
+  if (depreciationExpense > 0) {
+    trialRows.push({
+      account: "Depreciation Expense",
+      debit: depreciationExpense,
+      credit: 0,
+      balance: depreciationExpense,
+    });
+  }
+
+  if (fixedAssetsGross > 0) {
+    trialRows.push({
+      account: "Fixed Assets",
+      debit: fixedAssetsGross,
+      credit: 0,
+      balance: fixedAssetsGross,
+    });
+  }
+
+  if (accumulatedDepreciation > 0) {
+    trialRows.push({
+      account: "Accumulated Depreciation",
+      debit: 0,
+      credit: accumulatedDepreciation,
+      balance: -accumulatedDepreciation,
     });
   }
 
@@ -364,6 +409,10 @@ function buildFinancialReport(
     closingCashPlaceholder,
     debtorsOutstanding,
     bankCashEstimate,
+    fixedAssetsGross,
+    accumulatedDepreciation,
+    fixedAssetsNetBook,
+    depreciationExpense,
     totalAssets,
     totalLiabilities,
     equitySurplus,
@@ -399,6 +448,9 @@ function buildPrintHtml(opts: {
     for (const line of EXPENSE_LINES) {
       if (report.expenseByLine[line] > 0) body += lineRow(line, report.expenseByLine[line]);
     }
+    if (report.depreciationExpense > 0) {
+      body += lineRow("Depreciation Expense", report.depreciationExpense);
+    }
     body += `</table><table style="width:100%;margin-top:16px;border-top:2px solid #d4af37;padding-top:12px;">`;
     body += lineRow("Total Income", report.totalIncome, true);
     body += lineRow("Total Expenses", report.totalExpenses, true);
@@ -423,7 +475,9 @@ function buildPrintHtml(opts: {
     body += `<h2 style="font-size:16px;margin:12px 0 6px;">Assets</h2><table style="width:100%;">`;
     body += lineRow("Bank / Cash (estimated)", report.bankCashEstimate);
     body += lineRow("Debtors (billing outstanding)", report.debtorsOutstanding);
-    body += lineRow("Fixed assets (placeholder)", 0);
+    body += lineRow("Fixed assets at book value (gross)", report.fixedAssetsGross);
+    body += lineRow("Accumulated depreciation", report.accumulatedDepreciation);
+    body += lineRow("Net fixed asset value", report.fixedAssetsNetBook);
     body += lineRow("Total Assets", report.totalAssets, true);
     body += `</table><h2 style="font-size:16px;margin:18px 0 6px;">Liabilities</h2><table style="width:100%;">`;
     body += lineRow("Supplier payables (placeholder)", 0);
@@ -490,11 +544,17 @@ export default function AccountingFinancialStatements({
       if (!detail?.schoolId || detail.schoolId === schoolId) bumpRefresh();
     };
     const onBilling = () => bumpRefresh();
+    const onAssets = (e: Event) => {
+      const detail = (e as CustomEvent<{ schoolId?: string }>).detail;
+      if (!detail?.schoolId || detail.schoolId === schoolId) bumpRefresh();
+    };
     window.addEventListener(ACCOUNTING_EXPENSES_UPDATED_EVENT, onExpenses);
     window.addEventListener(BILLING_UPDATED_EVENT, onBilling);
+    window.addEventListener(ACCOUNTING_ASSETS_UPDATED_EVENT, onAssets);
     return () => {
       window.removeEventListener(ACCOUNTING_EXPENSES_UPDATED_EVENT, onExpenses);
       window.removeEventListener(BILLING_UPDATED_EVENT, onBilling);
+      window.removeEventListener(ACCOUNTING_ASSETS_UPDATED_EVENT, onAssets);
     };
   }, [schoolId, bumpRefresh]);
 
@@ -559,6 +619,12 @@ export default function AccountingFinancialStatements({
               <td style={tdRight}>{formatMoney(report.expenseByLine[line])}</td>
             </tr>
           ))}
+          {report.depreciationExpense > 0 ? (
+            <tr>
+              <td style={td}>Depreciation Expense</td>
+              <td style={tdRight}>{formatMoney(report.depreciationExpense)}</td>
+            </tr>
+          ) : null}
         </tbody>
       </table>
       <table style={{ width: "100%", borderCollapse: "collapse", borderTop: `2px solid ${ACCOUNTING_GOLD}` }}>
@@ -652,12 +718,14 @@ export default function AccountingFinancialStatements({
           {[
             ["Bank / Cash (estimated)", report.bankCashEstimate],
             ["Debtors (billing outstanding)", report.debtorsOutstanding],
-            ["Fixed assets (placeholder)", 0],
+            ["Fixed assets at book value (gross)", report.fixedAssetsGross],
+            ["Accumulated depreciation", report.accumulatedDepreciation],
+            ["Net fixed asset value", report.fixedAssetsNetBook],
             ["Total Assets", report.totalAssets],
           ].map(([label, amount], idx) => (
             <tr key={String(label)}>
-              <td style={{ ...td, fontWeight: idx === 3 ? 900 : 600 }}>{label}</td>
-              <td style={{ ...tdRight, fontWeight: idx === 3 ? 900 : 600 }}>
+              <td style={{ ...td, fontWeight: idx === 5 ? 900 : 600 }}>{label}</td>
+              <td style={{ ...tdRight, fontWeight: idx === 5 ? 900 : 600 }}>
                 {formatMoney(amount as number)}
               </td>
             </tr>
@@ -807,6 +875,8 @@ export default function AccountingFinancialStatements({
           ["Expenses", report.totalExpenses],
           ["Net Surplus / Deficit", report.netSurplus],
           ["Cash Movement", report.netCashMovement],
+          ["Fixed assets (net)", report.fixedAssetsNetBook],
+          ["Depreciation expense", report.depreciationExpense],
           ["Assets", report.totalAssets],
           ["Liabilities", report.totalLiabilities],
         ].map(([label, value]) => (
@@ -855,7 +925,12 @@ export default function AccountingFinancialStatements({
           }}
         >
           <p style={{ margin: "0 0 8px" }}>
-            Management statement based on approved expenses and billing receipts.
+            Management statement based on approved expenses, billing receipts, and asset depreciation from
+            Accounting Assets.
+          </p>
+          <p style={{ margin: "0 0 8px", fontSize: 12, color: "#64748b" }}>
+            Asset depreciation feeds Financial Statements automatically. Disposed assets remain available for
+            audit history.
           </p>
           <p style={{ margin: 0 }}>
             Final audited financial statements must be reviewed by the school&apos;s accountant/auditor.

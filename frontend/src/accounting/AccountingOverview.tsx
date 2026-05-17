@@ -8,6 +8,11 @@ import {
   type BillingLedgerEntry,
 } from "../billing/billingLedger";
 import {
+  ACCOUNTING_ASSETS_UPDATED_EVENT,
+  calculateBookValueTotals,
+  loadAssets,
+} from "./accountingAssetStorage";
+import {
   ACCOUNTING_EXPENSES_UPDATED_EVENT,
   filterApprovedExpensesForMonth,
   loadApprovedExpenses,
@@ -144,11 +149,17 @@ export default function AccountingOverview({ schoolId }: Props) {
       if (!detail?.schoolId || detail.schoolId === schoolId) bumpRefresh();
     };
     const onBilling = () => bumpRefresh();
+    const onAssets = (e: Event) => {
+      const detail = (e as CustomEvent<{ schoolId?: string }>).detail;
+      if (!detail?.schoolId || detail.schoolId === schoolId) bumpRefresh();
+    };
     window.addEventListener(ACCOUNTING_EXPENSES_UPDATED_EVENT, onExpenses);
     window.addEventListener(BILLING_UPDATED_EVENT, onBilling);
+    window.addEventListener(ACCOUNTING_ASSETS_UPDATED_EVENT, onAssets);
     return () => {
       window.removeEventListener(ACCOUNTING_EXPENSES_UPDATED_EVENT, onExpenses);
       window.removeEventListener(BILLING_UPDATED_EVENT, onBilling);
+      window.removeEventListener(ACCOUNTING_ASSETS_UPDATED_EVENT, onAssets);
     };
   }, [schoolId, bumpRefresh]);
 
@@ -186,8 +197,13 @@ export default function AccountingOverview({ schoolId }: Props) {
         recentActivity: [] as { date: string; type: string; description: string; amount: number; sortKey: number }[],
         biggestCategory: "—",
         expensesExceedIncome: false,
+        assetNetBookValue: 0,
+        assetActiveCount: 0,
       };
     }
+
+    const assets = loadAssets(sid);
+    const assetBook = calculateBookValueTotals(assets);
 
     const ledger = readSchoolLedger(sid);
     const income = sumPaymentsForMonth(ledger, year, monthIndex);
@@ -259,6 +275,8 @@ export default function AccountingOverview({ schoolId }: Props) {
       recentActivity: activity.slice(0, 12),
       biggestCategory,
       expensesExceedIncome: expenses > income && (expenses > 0 || income > 0),
+      assetNetBookValue: assetBook.netBookValue,
+      assetActiveCount: assets.filter((a) => a.status !== "Disposed").length,
     };
   }, [schoolId, year, monthIndex, refreshKey, bankImports]);
 
@@ -298,6 +316,11 @@ export default function AccountingOverview({ schoolId }: Props) {
       label: "Expense Candidates",
       value: String(metrics.expenseCandidates),
       hint: "Pending review from bank imports",
+    },
+    {
+      label: "Asset Value (net book)",
+      value: formatMoney(metrics.assetNetBookValue),
+      hint: "Active fixed assets from Accounting Assets",
     },
   ];
 
@@ -390,7 +413,14 @@ export default function AccountingOverview({ schoolId }: Props) {
           <div>Pending expense candidates: {metrics.expenseCandidates}</div>
           <div>Estimated net movement: {formatMoney(metrics.net)}</div>
           <div>Biggest expense category: {metrics.biggestCategory}</div>
+          <div>
+            Fixed assets: {formatMoney(metrics.assetNetBookValue)} net book ({metrics.assetActiveCount} active)
+          </div>
         </div>
+        <p style={{ margin: "14px 0 0", fontSize: 12, color: "#64748b", fontWeight: 600 }}>
+          Asset depreciation feeds Financial Statements automatically. Disposed assets remain available for audit
+          history.
+        </p>
         {metrics.expensesExceedIncome ? (
           <div
             style={{

@@ -26,6 +26,17 @@ import {
   totalApprovedSpendForMonth,
   type AccountingApprovedExpense,
 } from "./accountingExpenseStorage";
+import {
+  ACCOUNTING_ASSETS_UPDATED_EVENT,
+  annualDepreciationFromRuns,
+  buildAssetCategorySummary,
+  calculateAssetTotals,
+  calculateBookValueTotals,
+  calculateDepreciationTotals,
+  largestAssetCategory,
+  listDisposedAssets,
+  loadAssets,
+} from "./accountingAssetStorage";
 import { loadJournalStore } from "./accountingJournalStorage";
 import {
   ACCOUNTING_GOLD,
@@ -52,6 +63,7 @@ type ReportType =
   | "debtors"
   | "supplier-spend"
   | "bank-recon"
+  | "asset-summary"
   | "audit-pack";
 
 const REPORT_OPTIONS: { id: ReportType; label: string }[] = [
@@ -62,6 +74,7 @@ const REPORT_OPTIONS: { id: ReportType; label: string }[] = [
   { id: "debtors", label: "Debtors Summary" },
   { id: "supplier-spend", label: "Supplier Spend" },
   { id: "bank-recon", label: "Bank Reconciliation Summary" },
+  { id: "asset-summary", label: "Asset Register Summary" },
   { id: "audit-pack", label: "Audit Pack Export" },
 ];
 
@@ -343,11 +356,17 @@ export default function AccountingReports({ schoolId, learners = [], schoolName 
       if (!detail?.schoolId || detail.schoolId === schoolId) bumpRefresh();
     };
     const onBilling = () => bumpRefresh();
+    const onAssets = (e: Event) => {
+      const detail = (e as CustomEvent<{ schoolId?: string }>).detail;
+      if (!detail?.schoolId || detail.schoolId === schoolId) bumpRefresh();
+    };
     window.addEventListener(ACCOUNTING_EXPENSES_UPDATED_EVENT, onExpenses);
     window.addEventListener(BILLING_UPDATED_EVENT, onBilling);
+    window.addEventListener(ACCOUNTING_ASSETS_UPDATED_EVENT, onAssets);
     return () => {
       window.removeEventListener(ACCOUNTING_EXPENSES_UPDATED_EVENT, onExpenses);
       window.removeEventListener(BILLING_UPDATED_EVENT, onBilling);
+      window.removeEventListener(ACCOUNTING_ASSETS_UPDATED_EVENT, onAssets);
     };
   }, [schoolId, bumpRefresh]);
 
@@ -399,6 +418,14 @@ export default function AccountingReports({ schoolId, learners = [], schoolName 
     const candidates = sid ? reviewQueueFromCandidates(loadExpenseCandidates(sid)) : [];
     const suppliers = sid ? loadSuppliersForMatching(sid) : [];
     const journalStore = sid ? loadJournalStore(sid) : { journals: [], audit: [] };
+    const assets = sid ? loadAssets(sid) : [];
+    const assetTotals = calculateAssetTotals(assets);
+    const bookTotals = calculateBookValueTotals(assets);
+    const depTotals = calculateDepreciationTotals(assets, year);
+    const assetCategorySummary = buildAssetCategorySummary(assets);
+    const disposedAssets = listDisposedAssets(assets);
+    const topAssetCategory = largestAssetCategory(assets);
+    const annualDepreciation = annualDepreciationFromRuns(assets);
 
     const income = sumPaymentsForMonth(ledger, year, monthIndex);
     const expenses = totalApprovedSpendForMonth(approvedAll, year, monthIndex);
@@ -574,6 +601,13 @@ export default function AccountingReports({ schoolId, learners = [], schoolName 
       postedJournals: journalStore.journals.filter((j) => j.status === "Posted").length,
       paymentsYtd: sumPaymentsYtd(ledger, year, monthIndex),
       expensesYtd: totalApprovedYtd(approvedAll, year, monthIndex),
+      assetTotals,
+      bookTotals,
+      depTotals,
+      assetCategorySummary,
+      disposedAssets,
+      topAssetCategory,
+      annualDepreciation,
     };
   }, [schoolId, learners, year, monthIndex, refreshKey, bankImports]);
 
@@ -683,6 +717,28 @@ ${el.innerHTML}
                 <div>Bad debt: {data.badDebt.length} accounts</div>
                 <div>Overpaid: {data.overpaid.length} accounts</div>
               </div>
+            </div>
+            <div style={sectionCard}>
+              <h2 style={{ margin: "0 0 12px", fontSize: 17, fontWeight: 900 }}>Fixed assets</h2>
+              <div
+                style={{
+                  display: "grid",
+                  gridTemplateColumns: "repeat(auto-fill, minmax(160px, 1fr))",
+                  gap: 10,
+                  fontWeight: 600,
+                }}
+              >
+                <div>Total asset value: {formatMoney(data.assetTotals.purchaseCostActive)}</div>
+                <div>Net book value: {formatMoney(data.bookTotals.netBookValue)}</div>
+                <div>Annual depreciation: {formatMoney(data.annualDepreciation)}</div>
+                <div>Largest category: {data.topAssetCategory}</div>
+                <div>Active assets: {data.assetTotals.activeCount}</div>
+                <div>Disposed (history): {data.disposedAssets.length}</div>
+              </div>
+              <p style={{ margin: "12px 0 0", fontSize: 12, color: "#64748b", fontWeight: 600 }}>
+                Asset depreciation feeds Financial Statements automatically. Disposed assets remain in the register
+                for audit history.
+              </p>
             </div>
             <div style={sectionCard}>
               <h2 style={{ margin: "0 0 12px", fontSize: 17, fontWeight: 900 }}>Cash movement estimate</h2>
@@ -886,6 +942,67 @@ ${el.innerHTML}
           </>
         );
 
+      case "asset-summary":
+        return (
+          <>
+            <div style={sectionCard}>
+              <h2 style={{ margin: "0 0 12px", fontSize: 17, fontWeight: 900 }}>Asset register summary</h2>
+              <div
+                style={{
+                  display: "grid",
+                  gridTemplateColumns: "repeat(auto-fill, minmax(160px, 1fr))",
+                  gap: 10,
+                  fontWeight: 600,
+                  marginBottom: 14,
+                }}
+              >
+                <div>Active assets: {data.assetTotals.activeCount}</div>
+                <div>Total purchase cost (active): {formatMoney(data.assetTotals.purchaseCostActive)}</div>
+                <div>Net book value: {formatMoney(data.bookTotals.netBookValue)}</div>
+                <div>Depreciation expense ({year}): {formatMoney(data.depTotals.expenseForYear)}</div>
+              </div>
+              <ReportTable
+                columns={[
+                  "Category",
+                  "Asset count",
+                  "Purchase cost",
+                  "Accumulated depreciation",
+                  "Net book value",
+                ]}
+                rows={data.assetCategorySummary.map((r) => [
+                  r.category,
+                  String(r.assetCount),
+                  formatMoney(r.purchaseCost),
+                  formatMoney(r.accumulatedDepreciation),
+                  formatMoney(r.netBookValue),
+                ])}
+                page={tablePage}
+                onPage={setTablePage}
+                emptyMessage="No active fixed assets on the register."
+              />
+            </div>
+            <div style={sectionCard}>
+              <h2 style={{ margin: "0 0 12px", fontSize: 17, fontWeight: 900 }}>Asset disposal history</h2>
+              <ReportTable
+                columns={["Asset", "Category", "Disposal date", "Proceeds", "Reason"]}
+                rows={data.disposedAssets.map((a) => [
+                  a.name,
+                  a.category,
+                  a.disposalDate || "—",
+                  formatMoney(a.disposalAmount),
+                  a.disposalReason || "—",
+                ])}
+                page={tablePage}
+                onPage={setTablePage}
+                emptyMessage="No disposed assets recorded."
+              />
+              <p style={{ margin: "12px 0 0", fontSize: 12, color: "#64748b", fontWeight: 600 }}>
+                Disposed assets remain in reports for audit history and are excluded from active asset totals.
+              </p>
+            </div>
+          </>
+        );
+
       case "audit-pack":
         return (
           <div style={sectionCard}>
@@ -897,7 +1014,7 @@ ${el.innerHTML}
             <ul style={{ margin: "0 0 20px", paddingLeft: 20, fontWeight: 600, lineHeight: 1.8 }}>
               {[
                 `Income Statement — use Financial Statements (${data.income > 0 ? "data available" : "limited data"})`,
-                "Balance Sheet — Financial Statements module",
+                "Balance Sheet — Financial Statements module (includes fixed assets)",
                 "Trial Balance — Financial Statements module",
                 `General Ledger — ${data.journalCount} journal(s) on file`,
                 `Journals — ${data.postedJournals} posted`,
@@ -906,6 +1023,9 @@ ${el.innerHTML}
                 `Bank Reconciliation — ${data.bankStats.imports} import(s)`,
                 `Budget vs Actual — ${data.budgetRows.length} categories`,
                 `Legal Recovery History — ${legalHistoryCount} record(s)`,
+                `Asset Register — ${data.assetTotals.activeCount} active asset(s), ${formatMoney(data.bookTotals.netBookValue)} net book value`,
+                `Depreciation Schedule — ${formatMoney(data.depTotals.expenseForYear)} expense for ${year}`,
+                `Asset Disposal History — ${data.disposedAssets.length} disposed asset(s)`,
               ].map((item) => (
                 <li key={item}>{item}</li>
               ))}

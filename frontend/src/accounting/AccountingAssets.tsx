@@ -1,5 +1,11 @@
 import React, { useEffect, useMemo, useState } from "react";
 import {
+  type AssetRecord,
+  computeAssetDepreciation,
+  loadAssets,
+  persistAssets,
+} from "./accountingAssetStorage";
+import {
   ACCOUNTING_GOLD,
   ACCOUNTING_INK,
   accountingCard,
@@ -9,6 +15,9 @@ import {
   accountingSubtitle,
   accountingTitle,
 } from "./accountingTheme";
+
+export type { AssetRecord } from "./accountingAssetStorage";
+export { computeAssetDepreciation } from "./accountingAssetStorage";
 
 export const DEFAULT_ASSET_CATEGORIES = [
   "Buildings",
@@ -29,35 +38,9 @@ export const DEFAULT_ASSET_CATEGORIES = [
   "Other",
 ] as const;
 
-type AssetStatus = "Active" | "Under Maintenance" | "Disposed";
-type DepreciationMethod = "Straight Line" | "None";
+type AssetStatus = AssetRecord["status"];
+type DepreciationMethod = AssetRecord["depreciationMethod"];
 type TabId = "register" | "categories" | "depreciation" | "maintenance" | "disposal";
-
-export type AssetRecord = {
-  id: string;
-  name: string;
-  category: string;
-  assetNumber: string;
-  serialNumber: string;
-  purchaseDate: string;
-  purchaseCost: number;
-  depreciationMethod: DepreciationMethod;
-  usefulLifeYears: number;
-  currentBookValue: number;
-  location: string;
-  assignedTo: string;
-  supplier: string;
-  warrantyExpiry: string;
-  notes: string;
-  status: AssetStatus;
-  disposalDate: string;
-  disposalAmount: number;
-  disposalReason: string;
-  disposalNotes: string;
-  depreciationYearsApplied: number[];
-  createdAt: string;
-  updatedAt: string;
-};
 
 export type MaintenanceRecord = {
   id: string;
@@ -81,18 +64,10 @@ type CustomAssetCategory = {
 
 type CategoryOption = { name: string; isCustom: boolean };
 
-type DepreciationView = {
-  annualDepreciation: number;
-  accumulatedDepreciation: number;
-  bookValue: number;
-  depreciationThisYear: number;
-};
-
 type Props = {
   schoolId?: string;
 };
 
-const ASSETS_STORAGE_PREFIX = "educlearAccountingAssets:";
 const CUSTOM_CATEGORIES_STORAGE_PREFIX = "educlearAccountingAssetCategories:";
 const MAINTENANCE_STORAGE_PREFIX = "educlearAccountingAssetMaintenance:";
 const PAGE_SIZE = 10;
@@ -232,10 +207,6 @@ function formatMoney(value: number) {
   return `R ${n.toLocaleString("en-ZA", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 }
 
-function assetsStorageKey(schoolId: string) {
-  return ASSETS_STORAGE_PREFIX + schoolId;
-}
-
 function customCategoriesStorageKey(schoolId: string) {
   return CUSTOM_CATEGORIES_STORAGE_PREFIX + schoolId;
 }
@@ -265,49 +236,6 @@ function isDefaultCategory(name: string) {
   return DEFAULT_ASSET_CATEGORIES.some((d) => normalizeCategoryKey(d) === key);
 }
 
-export function computeAssetDepreciation(asset: AssetRecord, asOf = new Date()): DepreciationView {
-  const cost = Math.max(0, Number(asset.purchaseCost) || 0);
-  const method = asset.depreciationMethod || "None";
-  const usefulLife = Math.max(0, Number(asset.usefulLifeYears) || 0);
-
-  if (method === "None" || !usefulLife || !cost) {
-    const book = Math.max(0, Math.min(cost, Number(asset.currentBookValue) || cost));
-    return {
-      annualDepreciation: 0,
-      accumulatedDepreciation: Math.max(0, cost - book),
-      bookValue: book,
-      depreciationThisYear: 0,
-    };
-  }
-
-  const annualDepreciation = cost / usefulLife;
-  const purchase = parseIsoDate(asset.purchaseDate);
-  const asOfDate = asOf;
-  let yearsFromPurchase = 0;
-  if (purchase) {
-    const ms = asOfDate.getTime() - purchase.getTime();
-    yearsFromPurchase = Math.max(0, ms / (365.25 * 24 * 60 * 60 * 1000));
-  }
-
-  const timeBasedAccumulated = Math.min(cost, annualDepreciation * yearsFromPurchase);
-  const runAccumulated = Math.min(
-    cost,
-    annualDepreciation * (asset.depreciationYearsApplied || []).length
-  );
-  const accumulatedDepreciation = Math.min(cost, Math.max(timeBasedAccumulated, runAccumulated));
-  const bookValue = Math.max(0, cost - accumulatedDepreciation);
-
-  const depreciationThisYear =
-    asset.status !== "Disposed" && bookValue > 0 ? Math.min(annualDepreciation, bookValue) : 0;
-
-  return {
-    annualDepreciation,
-    accumulatedDepreciation,
-    bookValue,
-    depreciationThisYear,
-  };
-}
-
 function loadCustomCategories(schoolId: string): CustomAssetCategory[] {
   try {
     const raw = localStorage.getItem(customCategoriesStorageKey(schoolId));
@@ -330,61 +258,6 @@ function loadCustomCategories(schoolId: string): CustomAssetCategory[] {
 function saveCustomCategories(schoolId: string, rows: CustomAssetCategory[]) {
   try {
     localStorage.setItem(customCategoriesStorageKey(schoolId), JSON.stringify(rows));
-  } catch {
-    /* ignore */
-  }
-}
-
-function normalizeAsset(row: Record<string, unknown>): AssetRecord {
-  return {
-    id: String(row?.id || uid()),
-    name: String(row?.name || "").trim(),
-    category: String(row?.category || "Other").trim() || "Other",
-    assetNumber: String(row?.assetNumber || "").trim(),
-    serialNumber: String(row?.serialNumber || "").trim(),
-    purchaseDate: String(row?.purchaseDate || "").slice(0, 10),
-    purchaseCost: Math.max(0, Number(row?.purchaseCost) || 0),
-    depreciationMethod: row?.depreciationMethod === "None" ? "None" : "Straight Line",
-    usefulLifeYears: Math.max(0, Number(row?.usefulLifeYears) || 0),
-    currentBookValue: Math.max(0, Number(row?.currentBookValue) || 0),
-    location: String(row?.location || "").trim(),
-    assignedTo: String(row?.assignedTo || "").trim(),
-    supplier: String(row?.supplier || "").trim(),
-    warrantyExpiry: String(row?.warrantyExpiry || "").slice(0, 10),
-    notes: String(row?.notes || "").trim(),
-    status:
-      row?.status === "Disposed"
-        ? "Disposed"
-        : row?.status === "Under Maintenance"
-          ? "Under Maintenance"
-          : "Active",
-    disposalDate: String(row?.disposalDate || "").slice(0, 10),
-    disposalAmount: Math.max(0, Number(row?.disposalAmount) || 0),
-    disposalReason: String(row?.disposalReason || "").trim(),
-    disposalNotes: String(row?.disposalNotes || "").trim(),
-    depreciationYearsApplied: Array.isArray(row?.depreciationYearsApplied)
-      ? (row.depreciationYearsApplied as unknown[]).map((y) => Number(y)).filter((y) => Number.isFinite(y))
-      : [],
-    createdAt: String(row?.createdAt || new Date().toISOString()),
-    updatedAt: String(row?.updatedAt || new Date().toISOString()),
-  };
-}
-
-function loadAssets(schoolId: string): AssetRecord[] | null {
-  try {
-    const raw = localStorage.getItem(assetsStorageKey(schoolId));
-    if (!raw) return null;
-    const parsed = JSON.parse(raw);
-    if (!Array.isArray(parsed)) return null;
-    return parsed.map((row: Record<string, unknown>) => normalizeAsset(row));
-  } catch {
-    return null;
-  }
-}
-
-function saveAssets(schoolId: string, rows: AssetRecord[]) {
-  try {
-    localStorage.setItem(assetsStorageKey(schoolId), JSON.stringify(rows));
   } catch {
     /* ignore */
   }
@@ -778,7 +651,7 @@ export default function AccountingAssets({ schoolId = "" }: Props) {
 
   useEffect(() => {
     const stored = loadAssets(sid);
-    setAssets(stored?.length ? stored : buildSampleAssets());
+    setAssets(stored.length ? stored : buildSampleAssets());
     setCustomCategories(loadCustomCategories(sid));
     setMaintenance(loadMaintenance(sid));
     setHydrated(true);
@@ -786,7 +659,7 @@ export default function AccountingAssets({ schoolId = "" }: Props) {
 
   useEffect(() => {
     if (!hydrated) return;
-    saveAssets(sid, assets);
+    persistAssets(sid, assets);
   }, [sid, assets, hydrated]);
 
   useEffect(() => {
@@ -1220,7 +1093,8 @@ export default function AccountingAssets({ schoolId = "" }: Props) {
           lineHeight: 1.5,
         }}
       >
-        Asset depreciation will feed Financial Statements and audit reports.
+        Asset depreciation feeds Financial Statements automatically. Disposed assets remain available for audit
+        history.
       </div>
 
       <div style={tabBar}>
