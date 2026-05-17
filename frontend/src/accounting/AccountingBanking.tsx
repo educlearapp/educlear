@@ -14,7 +14,7 @@ export default function AccountingBanking({ schoolId, learners }: Props) {
         <div style={{ borderBottom: `2px solid ${ACCOUNTING_GOLD}`, paddingBottom: 14, marginBottom: 8 }}>
           <h1 style={{ ...accountingTitle, fontSize: 26 }}>Banking</h1>
           <p style={accountingSubtitle}>
-            Bank statements, reconciliation, and payment matching. Incoming payments still post to Billing.
+            Import bank statements, reconcile payments, classify expenses, and prepare accounting entries.
           </p>
         </div>
       </div>

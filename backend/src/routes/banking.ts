@@ -16,16 +16,22 @@ import {
 import { parseBankStatementFile } from "../utils/bankStatementParser";
 import {
   EXPENSE_CATEGORIES,
+  inferExpenseCategory,
+  inferSupplierNameFromDescription,
   matchBankTransaction,
+  matchSupplierFromDescription,
   transactionFingerprint,
   type ExpenseCategory,
   type LearnerMatchProfile,
   type MatchConfidence,
+  type SupplierMatchInput,
 } from "../utils/paymentMatcher";
 
 const router = Router();
 const DATA_FILE = path.join(process.cwd(), "data", "banking-imports.json");
 const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 12 * 1024 * 1024 } });
+
+type TransactionType = "payment" | "expense" | "transfer" | "ignore";
 
 type BankTransactionRow = {
   id: string;
@@ -35,6 +41,7 @@ type BankTransactionRow = {
   moneyIn: number;
   moneyOut: number;
   direction: "in" | "out";
+  transactionType: TransactionType;
   suggestedAccountNo: string;
   suggestedLearnerId: string;
   suggestedLearnerName: string;
@@ -42,8 +49,12 @@ type BankTransactionRow = {
   matchReason: string;
   reviewStatus: "pending" | "accepted" | "unmatched" | "ignored" | "posted";
   expenseCategory: ExpenseCategory | "";
+  suggestedSupplierName: string;
+  supplierId: string;
+  expenseNotes: string;
   postedPaymentId?: string;
   fingerprint: string;
+  isDuplicate?: boolean;
 };
 
 type BankImportRecord = {
@@ -90,6 +101,62 @@ function writeStore(store: BankingStore) {
 
 function newId(prefix: string) {
   return `${prefix}-${Date.now()}-${crypto.randomBytes(4).toString("hex")}`;
+}
+
+function parseSupplierList(raw: unknown): SupplierMatchInput[] {
+  if (Array.isArray(raw)) {
+    const out: SupplierMatchInput[] = [];
+    for (const row of raw) {
+      const r = row as Record<string, unknown>;
+      const id = String(r.id || "").trim();
+      const name = String(r.name || "").trim();
+      if (!id || !name) continue;
+      const rule = String(r.autoMatchRule || "").trim();
+      out.push({
+        id,
+        name,
+        category: String(r.category || "Other").trim(),
+        ...(rule ? { autoMatchRule: rule } : {}),
+      });
+    }
+    return out;
+  }
+  if (typeof raw === "string" && raw.trim()) {
+    try {
+      return parseSupplierList(JSON.parse(raw));
+    } catch {
+      return [];
+    }
+  }
+  return [];
+}
+
+function defaultTransactionType(direction: "in" | "out"): TransactionType {
+  return direction === "in" ? "payment" : "expense";
+}
+
+function hydrateTransaction(txn: BankTransactionRow): BankTransactionRow {
+  return {
+    ...txn,
+    transactionType: txn.transactionType || defaultTransactionType(txn.direction),
+    suggestedSupplierName: String(txn.suggestedSupplierName || ""),
+    supplierId: String(txn.supplierId || ""),
+    expenseNotes: String(txn.expenseNotes || ""),
+    isDuplicate: Boolean(txn.isDuplicate),
+  };
+}
+
+function hydrateImport(record: BankImportRecord): BankImportRecord {
+  const seen = new Set<string>();
+  const store = ensureStore();
+  const postedSet = new Set(store.postedFingerprints[record.schoolId] || []);
+  record.transactions = record.transactions.map((txn) => {
+    const hydrated = hydrateTransaction(txn);
+    const dup = seen.has(hydrated.fingerprint) || postedSet.has(hydrated.fingerprint);
+    seen.add(hydrated.fingerprint);
+    return { ...hydrated, isDuplicate: hydrated.isDuplicate || dup };
+  });
+  return record;
 }
 
 async function buildMatchProfiles(schoolId: string): Promise<LearnerMatchProfile[]> {
@@ -144,9 +211,17 @@ router.post("/import", upload.single("file"), async (req, res) => {
 
     const profiles = await buildMatchProfiles(schoolId);
     const store = ensureStore();
+    const supplierList = parseSupplierList(req.body?.suppliers);
+
+    const seenFingerprints = new Set<string>();
+    const postedSet = new Set(store.postedFingerprints[schoolId] || []);
 
     const transactions: BankTransactionRow[] = parsed.transactions.map((txn) => {
       const direction: "in" | "out" = txn.moneyIn > 0 ? "in" : "out";
+      const fingerprint = transactionFingerprint(txn);
+      const isDuplicate = seenFingerprints.has(fingerprint) || postedSet.has(fingerprint);
+      seenFingerprints.add(fingerprint);
+
       const suggestion =
         direction === "in"
           ? matchBankTransaction(txn, profiles)
@@ -158,6 +233,36 @@ router.post("/import", upload.single("file"), async (req, res) => {
               matchReason: "",
             };
 
+      let expenseCategory: ExpenseCategory | "" = "";
+      let suggestedSupplierName = "";
+      let supplierId = "";
+      let expenseMatchReason = "";
+
+      if (direction === "out") {
+        const supplierHit = matchSupplierFromDescription(
+          txn.description,
+          txn.reference,
+          supplierList
+        );
+        const expenseInfer = inferExpenseCategory(txn.description, txn.reference);
+        if (supplierHit) {
+          supplierId = supplierHit.supplierId;
+          suggestedSupplierName = supplierHit.supplierName;
+          const cat = String(supplierHit.category || "").trim() as ExpenseCategory;
+          expenseCategory = (EXPENSE_CATEGORIES as readonly string[]).includes(cat)
+            ? cat
+            : expenseInfer.expenseCategory;
+          expenseMatchReason = supplierHit.reason;
+        } else {
+          expenseCategory = expenseInfer.expenseCategory;
+          suggestedSupplierName = inferSupplierNameFromDescription(txn.description);
+          expenseMatchReason = expenseInfer.matchReason;
+        }
+      }
+
+      const transactionType: TransactionType =
+        direction === "in" ? "payment" : "expense";
+
       return {
         id: newId("txn"),
         date: txn.date,
@@ -166,14 +271,22 @@ router.post("/import", upload.single("file"), async (req, res) => {
         moneyIn: normaliseAmount(txn.moneyIn),
         moneyOut: normaliseAmount(txn.moneyOut),
         direction,
+        transactionType,
         suggestedAccountNo: suggestion.suggestedAccountNo,
         suggestedLearnerId: suggestion.suggestedLearnerId,
         suggestedLearnerName: suggestion.suggestedLearnerName,
         matchConfidence: suggestion.matchConfidence,
-        matchReason: suggestion.matchReason,
+        matchReason:
+          direction === "in"
+            ? suggestion.matchReason
+            : expenseMatchReason || suggestion.matchReason,
         reviewStatus: "pending",
-        expenseCategory: direction === "out" ? "Other" : "",
-        fingerprint: transactionFingerprint(txn),
+        expenseCategory,
+        suggestedSupplierName,
+        supplierId,
+        expenseNotes: "",
+        fingerprint,
+        isDuplicate,
       };
     });
 
@@ -191,9 +304,10 @@ router.post("/import", upload.single("file"), async (req, res) => {
 
     return res.status(201).json({
       success: true,
-      import: record,
+      import: hydrateImport(record),
       expenseCategories: EXPENSE_CATEGORIES,
-      accountingNote: "Accounting module integration pending",
+      accountingNote:
+        "Accepted banking expense candidates are sent to Accounting → Expenses review queue.",
     });
   } catch (error) {
     console.error("[banking] POST /import failed:", error);
@@ -208,7 +322,8 @@ router.get("/imports", (req, res) => {
     const store = ensureStore();
     const imports = store.imports
       .filter((r) => r.schoolId === schoolId)
-      .sort((a, b) => b.importedAt.localeCompare(a.importedAt));
+      .sort((a, b) => b.importedAt.localeCompare(a.importedAt))
+      .map(hydrateImport);
     return res.json({ success: true, imports });
   } catch (error) {
     console.error("[banking] GET /imports failed:", error);
@@ -225,9 +340,10 @@ router.get("/imports/:id", (req, res) => {
     if (!record) return res.status(404).json({ success: false, error: "Import not found" });
     return res.json({
       success: true,
-      import: record,
+      import: hydrateImport(record),
       expenseCategories: EXPENSE_CATEGORIES,
-      accountingNote: "Accounting module integration pending",
+      accountingNote:
+        "Accepted banking expense candidates are sent to Accounting → Expenses review queue.",
     });
   } catch (error) {
     console.error("[banking] GET /imports/:id failed:", error);
@@ -272,6 +388,19 @@ router.patch("/imports/:id/transaction/:transactionId", (req, res) => {
       const cat = String(body.expenseCategory).trim() as ExpenseCategory;
       next.expenseCategory = (EXPENSE_CATEGORIES as readonly string[]).includes(cat) ? cat : "Other";
     }
+
+    if (body.transactionType !== undefined) {
+      const tt = String(body.transactionType).trim() as TransactionType;
+      if (["payment", "expense", "transfer", "ignore"].includes(tt)) {
+        next.transactionType = tt;
+      }
+    }
+
+    if (body.suggestedSupplierName !== undefined) {
+      next.suggestedSupplierName = String(body.suggestedSupplierName).trim();
+    }
+    if (body.supplierId !== undefined) next.supplierId = String(body.supplierId).trim();
+    if (body.expenseNotes !== undefined) next.expenseNotes = String(body.expenseNotes).trim();
 
     record.transactions[idx] = next;
     writeStore(store);

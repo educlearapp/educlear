@@ -1,5 +1,12 @@
 import React, { useCallback, useEffect, useMemo, useState } from "react";
 import {
+  ACCOUNTING_GOLD,
+  ACCOUNTING_INK,
+  accountingCard,
+  accountingCardLabel,
+  accountingCardValue,
+} from "../accounting/accountingTheme";
+import {
   BILLING_UPDATED_EVENT,
   formatMoney,
   notifyBillingUpdated,
@@ -8,7 +15,20 @@ import {
 } from "../billing/billingLedger";
 import { getLearnerAccountNo } from "../learner/learnerIdentity";
 import {
-  EXPENSE_CATEGORIES,
+  BANKING_EXPENSE_CATEGORIES,
+  computeBankingStats,
+  confidenceColor,
+  importSummary,
+  isUnmatchedTxn,
+  loadSuppliersForMatching,
+  paginate,
+  statusPillStyle,
+  suggestedMatchLabel,
+  txnType,
+  type BankingTransactionType,
+} from "./bankingReconciliationUtils";
+import { addExpenseCandidateFromBank } from "../accounting/accountingExpenseStorage";
+import {
   fetchBankImport,
   fetchBankImports,
   importBankStatement,
@@ -18,18 +38,18 @@ import {
   type BankTransactionRow,
 } from "./bankingApi";
 
+const EXPENSE_CANDIDATES_UPDATED = "educlear-expense-candidates-updated";
+
 type Props = {
   schoolId: string;
   learners: any[];
 };
 
-const GOLD = "#d4af37";
-const INK = "#111827";
+type TabId = "import" | "review" | "payments" | "expenses" | "unmatched" | "history";
 
-const pageWrap: React.CSSProperties = {
-  padding: 24,
-  maxWidth: 1400,
-};
+const PAGE_SIZE = 10;
+const GOLD = ACCOUNTING_GOLD;
+const INK = ACCOUNTING_INK;
 
 const goldBtn: React.CSSProperties = {
   padding: "10px 18px",
@@ -39,15 +59,17 @@ const goldBtn: React.CSSProperties = {
   color: INK,
   fontWeight: 900,
   cursor: "pointer",
+  fontSize: 13,
 };
 
 const ghostBtn: React.CSSProperties = {
-  padding: "10px 18px",
-  borderRadius: 10,
+  padding: "8px 12px",
+  borderRadius: 8,
   border: "1px solid #cbd5e1",
   background: "#fff",
   color: INK,
-  fontWeight: 800,
+  fontWeight: 700,
+  fontSize: 12,
   cursor: "pointer",
 };
 
@@ -57,37 +79,97 @@ const fieldStyle: React.CSSProperties = {
   borderRadius: 10,
   border: "1px solid #cbd5e1",
   fontWeight: 600,
+  fontSize: 13,
 };
 
 const th: React.CSSProperties = {
-  padding: 12,
+  padding: "10px 12px",
   textAlign: "left",
-  fontSize: 12,
+  fontSize: 11,
   fontWeight: 900,
+  color: GOLD,
+  background: INK,
   borderBottom: `2px solid ${GOLD}`,
+  whiteSpace: "nowrap",
 };
 
 const td: React.CSSProperties = {
-  padding: 12,
+  padding: "10px 12px",
   borderBottom: "1px solid #f1f5f9",
   fontSize: 13,
   verticalAlign: "top",
 };
 
-function confidenceColor(c: string) {
-  if (c === "high") return "#15803d";
-  if (c === "medium") return "#92400e";
-  if (c === "low") return "#b45309";
-  return "#64748b";
+const tabBtn = (active: boolean): React.CSSProperties => ({
+  padding: "10px 16px",
+  borderRadius: 10,
+  border: active ? `2px solid ${GOLD}` : "1px solid #e2e8f0",
+  background: active ? "linear-gradient(135deg, #f7d56a, #d4af37)" : "#fff",
+  color: INK,
+  fontWeight: active ? 900 : 700,
+  cursor: "pointer",
+  fontSize: 13,
+});
+
+function typeLabel(t: BankingTransactionType) {
+  if (t === "payment") return "Payment";
+  if (t === "expense") return "Expense";
+  if (t === "transfer") return "Transfer";
+  return "Ignore";
+}
+
+function PaginationBar({
+  page,
+  totalPages,
+  total,
+  onPage,
+}: {
+  page: number;
+  totalPages: number;
+  total: number;
+  onPage: (p: number) => void;
+}) {
+  if (total <= PAGE_SIZE) return null;
+  return (
+    <div style={{ display: "flex", gap: 8, alignItems: "center", marginTop: 12, flexWrap: "wrap" }}>
+      <button type="button" style={ghostBtn} disabled={page <= 1} onClick={() => onPage(page - 1)}>
+        Previous
+      </button>
+      <span style={{ fontSize: 12, fontWeight: 700, color: "#64748b" }}>
+        Page {page} of {totalPages} · {total} row(s)
+      </span>
+      <button type="button" style={ghostBtn} disabled={page >= totalPages} onClick={() => onPage(page + 1)}>
+        Next
+      </button>
+    </div>
+  );
 }
 
 export default function BankStatementImport({ schoolId, learners }: Props) {
   const [imports, setImports] = useState<BankImportRecord[]>([]);
   const [activeImport, setActiveImport] = useState<BankImportRecord | null>(null);
+  const [tab, setTab] = useState<TabId>("import");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [message, setMessage] = useState("");
-  const [accountingNote, setAccountingNote] = useState("Accounting module integration pending");
+  const [accountingNote, setAccountingNote] = useState(
+    "Accepted banking expense candidates are sent to Accounting → Expenses review queue."
+  );
+
+  const [reviewPage, setReviewPage] = useState(1);
+  const [paymentsPage, setPaymentsPage] = useState(1);
+  const [expensesPage, setExpensesPage] = useState(1);
+  const [unmatchedPage, setUnmatchedPage] = useState(1);
+  const [historyPage, setHistoryPage] = useState(1);
+
+  const [typeModal, setTypeModal] = useState<BankTransactionRow | null>(null);
+  const [editModal, setEditModal] = useState<BankTransactionRow | null>(null);
+  const [draftType, setDraftType] = useState<BankingTransactionType>("payment");
+  const [draftLearnerId, setDraftLearnerId] = useState("");
+  const [draftSupplier, setDraftSupplier] = useState("");
+  const [draftCategory, setDraftCategory] = useState("Other");
+  const [draftNotes, setDraftNotes] = useState("");
+  const [draftDescription, setDraftDescription] = useState("");
 
   const learnerOptions = useMemo(() => {
     return (learners || []).map((l) => ({
@@ -96,6 +178,8 @@ export default function BankStatementImport({ schoolId, learners }: Props) {
       accountNo: getLearnerAccountNo(l),
     }));
   }, [learners]);
+
+  const stats = useMemo(() => computeBankingStats(imports, activeImport), [imports, activeImport]);
 
   const loadImports = useCallback(async () => {
     if (!schoolId) return;
@@ -115,7 +199,10 @@ export default function BankStatementImport({ schoolId, learners }: Props) {
     if (!schoolId) return;
     const res = await fetchBankImport(schoolId, importId);
     setActiveImport(res.import);
-    setAccountingNote(res.accountingNote || "Accounting module integration pending");
+    setAccountingNote(
+      res.accountingNote ||
+        "Accepted banking expense candidates are sent to Accounting → Expenses review queue."
+    );
     setImports((prev) => {
       const next = prev.filter((r) => r.id !== importId);
       return [res.import, ...next];
@@ -128,10 +215,13 @@ export default function BankStatementImport({ schoolId, learners }: Props) {
     setError("");
     setMessage("");
     try {
-      const res = await importBankStatement(schoolId, file);
+      const suppliers = loadSuppliersForMatching(schoolId);
+      const res = await importBankStatement(schoolId, file, suppliers);
       setActiveImport(res.import);
       setAccountingNote(res.accountingNote);
       setMessage(`Parsed ${res.import.transactions.length} transaction(s) from ${res.import.format.toUpperCase()}.`);
+      setTab("review");
+      setReviewPage(1);
       await loadImports();
     } catch (e: any) {
       setError(e?.message || "Import failed");
@@ -155,19 +245,91 @@ export default function BankStatementImport({ schoolId, learners }: Props) {
     }
   };
 
-  const acceptTxn = (txn: BankTransactionRow) => patchTxn(txn, { reviewStatus: "accepted" });
-  const ignoreTxn = (txn: BankTransactionRow) => patchTxn(txn, { reviewStatus: "ignored" });
-  const unmatchedTxn = (txn: BankTransactionRow) => patchTxn(txn, { reviewStatus: "unmatched" });
+  const acceptTxn = async (txn: BankTransactionRow) => {
+    const type = txnType(txn);
+    if (type === "expense") {
+      if (!activeImport || !schoolId) return;
+      setLoading(true);
+      setError("");
+      try {
+        const res = await patchBankTransaction(schoolId, activeImport.id, txn.id, {
+          reviewStatus: "accepted",
+          transactionType: "expense",
+        });
+        setActiveImport(res.import);
+        const updated =
+          res.import.transactions.find((t) => t.id === txn.id) ||
+          ({ ...txn, reviewStatus: "accepted" as const, transactionType: "expense" as const });
+        const addResult = addExpenseCandidateFromBank(schoolId, activeImport.id, updated);
+        window.dispatchEvent(new CustomEvent(EXPENSE_CANDIDATES_UPDATED));
+        if (addResult === "duplicate") {
+          setMessage("Duplicate — this bank line is already in Accounting → Expenses review queue.");
+        } else {
+          setMessage("Sent to Accounting → Expenses review queue.");
+        }
+      } catch (e: any) {
+        setError(e?.message || "Failed to accept expense");
+      } finally {
+        setLoading(false);
+      }
+      return;
+    }
+    if (type === "ignore" || type === "transfer") {
+      patchTxn(txn, { reviewStatus: "accepted", transactionType: type });
+      return;
+    }
+    patchTxn(txn, { reviewStatus: "accepted", transactionType: "payment" });
+  };
 
-  const changeAccount = (txn: BankTransactionRow, learnerId: string) => {
-    const learner = learnerOptions.find((l) => l.id === learnerId);
-    if (!learner) return;
-    patchTxn(txn, {
-      suggestedLearnerId: learner.id,
-      suggestedLearnerName: learner.name,
-      suggestedAccountNo: learner.accountNo,
-      reviewStatus: "accepted",
-    });
+  const ignoreTxn = (txn: BankTransactionRow) =>
+    patchTxn(txn, { reviewStatus: "ignored", transactionType: "ignore" });
+
+  const openTypeModal = (txn: BankTransactionRow) => {
+    setTypeModal(txn);
+    setDraftType(txnType(txn));
+  };
+
+  const saveTypeModal = () => {
+    if (!typeModal) return;
+    const payload: Record<string, unknown> = { transactionType: draftType };
+    if (draftType === "ignore") payload.reviewStatus = "ignored";
+    void patchTxn(typeModal, payload).then(() => setTypeModal(null));
+  };
+
+  const openEditModal = (txn: BankTransactionRow) => {
+    setEditModal(txn);
+    setDraftLearnerId(txn.suggestedLearnerId || "");
+    setDraftSupplier(txn.suggestedSupplierName || "");
+    setDraftCategory(txn.expenseCategory || "Other");
+    setDraftNotes(txn.expenseNotes || "");
+    setDraftDescription(txn.description || "");
+  };
+
+  const saveEditModal = () => {
+    if (!editModal) return;
+    const type = txnType(editModal);
+    if (type === "payment") {
+      const learner = learnerOptions.find((l) => l.id === draftLearnerId);
+      if (!learner) {
+        setError("Select a learner account for payment matching.");
+        return;
+      }
+      void patchTxn(editModal, {
+        suggestedLearnerId: learner.id,
+        suggestedLearnerName: learner.name,
+        suggestedAccountNo: learner.accountNo,
+        reviewStatus: "accepted",
+        transactionType: "payment",
+      }).then(() => setEditModal(null));
+      return;
+    }
+    void patchTxn(editModal, {
+      suggestedSupplierName: draftSupplier,
+      expenseCategory: draftCategory,
+      expenseNotes: draftNotes,
+      description: draftDescription,
+      transactionType: "expense",
+    }).then(() => setEditModal(null));
   };
 
   const postAccepted = async () => {
@@ -180,6 +342,7 @@ export default function BankStatementImport({ schoolId, learners }: Props) {
         .filter(
           (t) =>
             t.direction === "in" &&
+            txnType(t) === "payment" &&
             t.reviewStatus === "accepted" &&
             t.matchConfidence !== "low" &&
             t.matchConfidence !== "none"
@@ -200,9 +363,7 @@ export default function BankStatementImport({ schoolId, learners }: Props) {
       }
       await refreshActive(activeImport.id);
       setMessage(
-        `Posted ${res.postedCount} payment(s) to the unified ledger.${
-          res.skipped?.length ? ` Skipped ${res.skipped.length}.` : ""
-        }`
+        `Posted ${res.postedCount} payment(s) to Billing.${res.skipped?.length ? ` Skipped ${res.skipped.length}.` : ""}`
       );
     } catch (e: any) {
       setError(e?.message || "Post payments failed");
@@ -211,18 +372,97 @@ export default function BankStatementImport({ schoolId, learners }: Props) {
     }
   };
 
-  const incoming = activeImport?.transactions.filter((t) => t.direction === "in") || [];
-  const expenses = activeImport?.transactions.filter((t) => t.direction === "out") || [];
+  const allTxns = activeImport?.transactions || [];
+  const paymentRows = allTxns.filter((t) => t.direction === "in" && txnType(t) === "payment");
+  const expenseRows = allTxns.filter((t) => t.direction === "out" && txnType(t) === "expense");
+  const unmatchedRows = allTxns.filter(isUnmatchedTxn);
+
+  const reviewPaged = paginate(allTxns, reviewPage, PAGE_SIZE);
+  const paymentsPaged = paginate(paymentRows, paymentsPage, PAGE_SIZE);
+  const expensesPaged = paginate(expenseRows, expensesPage, PAGE_SIZE);
+  const unmatchedPaged = paginate(unmatchedRows, unmatchedPage, PAGE_SIZE);
+  const historyPaged = paginate(imports, historyPage, PAGE_SIZE);
+
+  const renderActions = (txn: BankTransactionRow) => (
+    <div style={{ display: "flex", flexDirection: "column", gap: 6, minWidth: 140 }}>
+      <button type="button" style={ghostBtn} disabled={loading || txn.reviewStatus === "posted"} onClick={() => acceptTxn(txn)}>
+        Accept
+      </button>
+      <button type="button" style={ghostBtn} disabled={loading || txn.reviewStatus === "posted"} onClick={() => openTypeModal(txn)}>
+        Change Type
+      </button>
+      <button type="button" style={ghostBtn} disabled={loading || txn.reviewStatus === "posted"} onClick={() => openEditModal(txn)}>
+        Change Account/Category
+      </button>
+      <button type="button" style={ghostBtn} disabled={loading || txn.reviewStatus === "posted"} onClick={() => ignoreTxn(txn)}>
+        Ignore
+      </button>
+    </div>
+  );
+
+  const renderReconciliationTable = (rows: BankTransactionRow[]) => (
+    <table style={{ width: "100%", borderCollapse: "collapse", minWidth: 1100, background: "#fff" }}>
+      <thead>
+        <tr>
+          {[
+            "Date",
+            "Description",
+            "Amount In",
+            "Amount Out",
+            "Suggested Match",
+            "Confidence",
+            "Type",
+            "Status",
+            "Actions",
+          ].map((h) => (
+            <th key={h} style={th}>
+              {h}
+            </th>
+          ))}
+        </tr>
+      </thead>
+      <tbody>
+        {rows.length === 0 ? (
+          <tr>
+            <td colSpan={9} style={{ ...td, textAlign: "center", color: "#64748b" }}>
+              No transactions to show.
+            </td>
+          </tr>
+        ) : (
+          rows.map((txn) => (
+            <tr key={txn.id} style={txn.isDuplicate ? { background: "#fffbeb" } : undefined}>
+              <td style={td}>{txn.date}</td>
+              <td style={td}>
+                {txn.description}
+                {txn.isDuplicate ? (
+                  <div style={{ fontSize: 11, color: "#b45309", fontWeight: 800 }}>Duplicate line</div>
+                ) : null}
+              </td>
+              <td style={td}>{txn.moneyIn > 0 ? formatMoney(txn.moneyIn) : "-"}</td>
+              <td style={td}>{txn.moneyOut > 0 ? formatMoney(txn.moneyOut) : "-"}</td>
+              <td style={td}>
+                <div style={{ fontWeight: 800 }}>{suggestedMatchLabel(txn)}</div>
+                {txn.matchReason ? (
+                  <div style={{ fontSize: 11, color: "#64748b", marginTop: 4 }}>{txn.matchReason}</div>
+                ) : null}
+              </td>
+              <td style={{ ...td, color: confidenceColor(txn.matchConfidence), fontWeight: 800 }}>
+                {txn.direction === "in" ? txn.matchConfidence : txn.expenseCategory ? "rule" : "none"}
+              </td>
+              <td style={td}>{typeLabel(txnType(txn))}</td>
+              <td style={td}>
+                <span style={statusPillStyle(txn.reviewStatus)}>{txn.reviewStatus}</span>
+              </td>
+              <td style={td}>{renderActions(txn)}</td>
+            </tr>
+          ))
+        )}
+      </tbody>
+    </table>
+  );
 
   return (
-    <div style={pageWrap}>
-      <div style={{ marginBottom: 18 }}>
-        <h1 style={{ margin: 0, fontSize: 34, fontWeight: 900, color: "#0f172a" }}>Bank Statement Import</h1>
-        <p style={{ margin: "6px 0 0", color: "#64748b", fontWeight: 700 }}>
-          Upload CSV or OFX bank statements · match incoming payments to learner accounts
-        </p>
-      </div>
-
+    <div style={{ padding: "8px 32px 40px", maxWidth: 1400 }}>
       {error ? (
         <div style={{ marginBottom: 14, padding: 12, borderRadius: 10, background: "#fef2f2", color: "#b91c1c", fontWeight: 700 }}>
           {error}
@@ -236,205 +476,339 @@ export default function BankStatementImport({ schoolId, learners }: Props) {
 
       <div
         style={{
-          padding: 20,
-          borderRadius: 12,
-          border: `2px solid ${GOLD}`,
-          background: "#fff",
+          display: "grid",
+          gridTemplateColumns: "repeat(auto-fill, minmax(150px, 1fr))",
+          gap: 12,
           marginBottom: 20,
         }}
       >
-        <h3 style={{ marginTop: 0 }}>1. Upload bank statement</h3>
-        <p style={{ color: "#64748b", fontSize: 13 }}>
-          Supported: CSV, OFX. PDF is not parsed yet (placeholder only).
-        </p>
-        <input
-          type="file"
-          accept=".csv,.ofx,.qfx,text/csv,application/vnd.ms-excel"
-          disabled={loading || !schoolId}
-          onChange={(e) => handleUpload(e.target.files?.[0] || null)}
-        />
-        {imports.length ? (
-          <div style={{ marginTop: 16 }}>
-            <label style={{ fontWeight: 800, fontSize: 13 }}>Recent imports</label>
-            <select
-              style={{ ...fieldStyle, maxWidth: 420, marginTop: 6 }}
-              value={activeImport?.id || ""}
-              onChange={async (e) => {
-                const id = e.target.value;
-                if (!id) {
-                  setActiveImport(null);
-                  return;
-                }
-                setLoading(true);
-                try {
-                  await refreshActive(id);
-                } catch (err: any) {
-                  setError(err?.message || "Failed to load import");
-                } finally {
-                  setLoading(false);
-                }
-              }}
-            >
-              <option value="">Select import…</option>
-              {imports.map((imp) => (
-                <option key={imp.id} value={imp.id}>
-                  {imp.fileName} · {imp.importedAt.slice(0, 10)} · {imp.transactions.length} lines
-                </option>
-              ))}
-            </select>
+        {[
+          { label: "Imports", value: stats.imports },
+          { label: "Matched Payments", value: stats.matchedPayments },
+          { label: "Expense Candidates", value: stats.expenseCandidates },
+          { label: "Unmatched Lines", value: stats.unmatched },
+          { label: "Duplicate Lines", value: stats.duplicateLines },
+          { label: "Ready to Post", value: stats.readyToPost },
+        ].map((card) => (
+          <div key={card.label} style={accountingCard}>
+            <div style={accountingCardLabel}>{card.label}</div>
+            <div style={accountingCardValue}>{card.value}</div>
           </div>
-        ) : null}
+        ))}
       </div>
 
-      {activeImport ? (
-        <>
-          <div style={{ display: "flex", gap: 10, flexWrap: "wrap", marginBottom: 14 }}>
-            <button type="button" style={goldBtn} onClick={postAccepted} disabled={loading}>
-              Post accepted payments
-            </button>
-            <span style={{ color: "#64748b", fontWeight: 700, alignSelf: "center" }}>
-              {incoming.filter((t) => t.reviewStatus === "accepted").length} accepted incoming ·{" "}
-              {expenses.length} expense candidate(s)
-            </span>
-          </div>
+      <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginBottom: 18 }}>
+        {(
+          [
+            ["import", "Import Statement"],
+            ["review", "Reconciliation Review"],
+            ["payments", "Payment Matches"],
+            ["expenses", "Expense Matches"],
+            ["unmatched", "Unmatched"],
+            ["history", "Import History"],
+          ] as [TabId, string][]
+        ).map(([id, label]) => (
+          <button key={id} type="button" style={tabBtn(tab === id)} onClick={() => setTab(id)}>
+            {label}
+          </button>
+        ))}
+      </div>
 
-          <h3>2. Review incoming payments</h3>
-          <div style={{ overflowX: "auto", marginBottom: 28 }}>
-            <table style={{ width: "100%", borderCollapse: "collapse", minWidth: 1100, background: "#fff" }}>
-              <thead>
-                <tr>
-                  {[
-                    "Date",
-                    "Description",
-                    "Reference",
-                    "Money In",
-                    "Suggested Account",
-                    "Suggested Learner",
-                    "Confidence",
-                    "Action",
-                  ].map((h) => (
+      {tab === "import" && (
+        <div style={{ ...accountingCard, marginBottom: 16 }}>
+          <h3 style={{ marginTop: 0, color: INK }}>Upload bank statement</h3>
+          <p style={{ color: "#64748b", fontSize: 13, marginTop: 0 }}>
+            CSV or OFX · incoming payments post to Billing when you accept and post · duplicate protection enabled
+          </p>
+          <input
+            type="file"
+            accept=".csv,.ofx,.qfx,text/csv,application/vnd.ms-excel"
+            disabled={loading || !schoolId}
+            onChange={(e) => handleUpload(e.target.files?.[0] || null)}
+          />
+          {imports.length ? (
+            <div style={{ marginTop: 16 }}>
+              <label style={{ fontWeight: 800, fontSize: 13 }}>Open import</label>
+              <select
+                style={{ ...fieldStyle, maxWidth: 480, marginTop: 6 }}
+                value={activeImport?.id || ""}
+                onChange={async (e) => {
+                  const id = e.target.value;
+                  if (!id) {
+                    setActiveImport(null);
+                    return;
+                  }
+                  setLoading(true);
+                  try {
+                    await refreshActive(id);
+                    setTab("review");
+                  } catch (err: any) {
+                    setError(err?.message || "Failed to load import");
+                  } finally {
+                    setLoading(false);
+                  }
+                }}
+              >
+                <option value="">Select import…</option>
+                {imports.map((imp) => (
+                  <option key={imp.id} value={imp.id}>
+                    {imp.fileName} · {imp.importedAt.slice(0, 10)}
+                  </option>
+                ))}
+              </select>
+            </div>
+          ) : null}
+          {activeImport ? (
+            <div style={{ marginTop: 16, display: "flex", gap: 10, flexWrap: "wrap" }}>
+              <button type="button" style={goldBtn} onClick={postAccepted} disabled={loading}>
+                Post accepted payments to Billing
+              </button>
+              <span style={{ color: "#64748b", fontWeight: 700, alignSelf: "center" }}>
+                {stats.readyToPost} ready · uses same ledger as Payments
+              </span>
+            </div>
+          ) : null}
+        </div>
+      )}
+
+      {tab === "review" && (
+        <div>
+          {!activeImport ? (
+            <p style={{ color: "#64748b", fontWeight: 700 }}>Upload or select an import to review transactions.</p>
+          ) : (
+            <>
+              <p style={{ color: "#64748b", fontSize: 13, fontWeight: 600 }}>
+                {activeImport.fileName} · {allTxns.length} line(s)
+              </p>
+              <div style={{ overflowX: "auto" }}>{renderReconciliationTable(reviewPaged.rows)}</div>
+              <PaginationBar
+                page={reviewPaged.page}
+                totalPages={reviewPaged.totalPages}
+                total={reviewPaged.total}
+                onPage={setReviewPage}
+              />
+            </>
+          )}
+        </div>
+      )}
+
+      {tab === "payments" && (
+        <div>
+          {!activeImport ? (
+            <p style={{ color: "#64748b", fontWeight: 700 }}>No active import.</p>
+          ) : (
+            <>
+              <div style={{ display: "flex", gap: 10, marginBottom: 12, flexWrap: "wrap" }}>
+                <button type="button" style={goldBtn} onClick={postAccepted} disabled={loading}>
+                  Post accepted to Billing
+                </button>
+              </div>
+              <div style={{ overflowX: "auto" }}>{renderReconciliationTable(paymentsPaged.rows)}</div>
+              <PaginationBar
+                page={paymentsPaged.page}
+                totalPages={paymentsPaged.totalPages}
+                total={paymentsPaged.total}
+                onPage={setPaymentsPage}
+              />
+            </>
+          )}
+        </div>
+      )}
+
+      {tab === "expenses" && (
+        <div>
+          {!activeImport ? (
+            <p style={{ color: "#64748b", fontWeight: 700 }}>No active import.</p>
+          ) : (
+            <>
+              <p style={{ color: "#92400e", fontWeight: 700, fontSize: 13, marginBottom: 12 }}>{accountingNote}</p>
+              <div style={{ overflowX: "auto" }}>{renderReconciliationTable(expensesPaged.rows)}</div>
+              <PaginationBar
+                page={expensesPaged.page}
+                totalPages={expensesPaged.totalPages}
+                total={expensesPaged.total}
+                onPage={setExpensesPage}
+              />
+            </>
+          )}
+        </div>
+      )}
+
+      {tab === "unmatched" && (
+        <div>
+          {!activeImport ? (
+            <p style={{ color: "#64748b", fontWeight: 700 }}>No active import.</p>
+          ) : (
+            <>
+              <div style={{ overflowX: "auto" }}>{renderReconciliationTable(unmatchedPaged.rows)}</div>
+              <PaginationBar
+                page={unmatchedPaged.page}
+                totalPages={unmatchedPaged.totalPages}
+                total={unmatchedPaged.total}
+                onPage={setUnmatchedPage}
+              />
+            </>
+          )}
+        </div>
+      )}
+
+      {tab === "history" && (
+        <div style={{ overflowX: "auto" }}>
+          <table style={{ width: "100%", borderCollapse: "collapse", minWidth: 900, background: "#fff" }}>
+            <thead>
+              <tr>
+                {["Date", "File", "Transactions", "Payments matched", "Expenses matched", "Unmatched", "Status", "Actions"].map(
+                  (h) => (
                     <th key={h} style={th}>
                       {h}
                     </th>
-                  ))}
-                </tr>
-              </thead>
-              <tbody>
-                {incoming.length === 0 ? (
-                  <tr>
-                    <td colSpan={8} style={{ ...td, textAlign: "center", color: "#64748b" }}>
-                      No incoming transactions in this file.
-                    </td>
-                  </tr>
-                ) : (
-                  incoming.map((txn) => (
-                    <tr key={txn.id}>
-                      <td style={td}>{txn.date}</td>
-                      <td style={td}>{txn.description}</td>
-                      <td style={td}>{txn.reference || "-"}</td>
-                      <td style={td}>{formatMoney(txn.moneyIn)}</td>
-                      <td style={td}>{txn.suggestedAccountNo || "-"}</td>
-                      <td style={td}>{txn.suggestedLearnerName || "-"}</td>
-                      <td style={{ ...td, color: confidenceColor(txn.matchConfidence), fontWeight: 800 }}>
-                        {txn.matchConfidence}
-                        {txn.matchReason ? (
-                          <div style={{ fontSize: 11, fontWeight: 600, color: "#64748b" }}>{txn.matchReason}</div>
-                        ) : null}
-                      </td>
-                      <td style={td}>
-                        <div style={{ display: "flex", flexDirection: "column", gap: 6, minWidth: 160 }}>
-                          <select
-                            style={fieldStyle}
-                            value={txn.suggestedLearnerId || ""}
-                            disabled={txn.reviewStatus === "posted"}
-                            onChange={(e) => changeAccount(txn, e.target.value)}
-                          >
-                            <option value="">Change account…</option>
-                            {learnerOptions.map((l) => (
-                              <option key={l.id} value={l.id}>
-                                {l.accountNo} — {l.name}
-                              </option>
-                            ))}
-                          </select>
-                          <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
-                            <button type="button" style={ghostBtn} disabled={loading || txn.reviewStatus === "posted"} onClick={() => acceptTxn(txn)}>
-                              Accept
-                            </button>
-                            <button type="button" style={ghostBtn} disabled={loading || txn.reviewStatus === "posted"} onClick={() => unmatchedTxn(txn)}>
-                              Unmatched
-                            </button>
-                            <button type="button" style={ghostBtn} disabled={loading || txn.reviewStatus === "posted"} onClick={() => ignoreTxn(txn)}>
-                              Ignore
-                            </button>
-                          </div>
-                          <span style={{ fontSize: 11, fontWeight: 800, color: txn.reviewStatus === "posted" ? "#15803d" : "#64748b" }}>
-                            {txn.reviewStatus}
-                          </span>
-                        </div>
-                      </td>
-                    </tr>
-                  ))
+                  )
                 )}
-              </tbody>
-            </table>
-          </div>
-
-          <h3>3. Expense candidates (not posted to billing)</h3>
-          <p style={{ color: "#92400e", fontWeight: 700, fontSize: 13 }}>{accountingNote}</p>
-          <div style={{ overflowX: "auto" }}>
-            <table style={{ width: "100%", borderCollapse: "collapse", minWidth: 900, background: "#fff" }}>
-              <thead>
+              </tr>
+            </thead>
+            <tbody>
+              {historyPaged.rows.length === 0 ? (
                 <tr>
-                  {["Date", "Description", "Reference", "Money Out", "Category", "Status", "Action"].map((h) => (
-                    <th key={h} style={th}>
-                      {h}
-                    </th>
-                  ))}
+                  <td colSpan={8} style={{ ...td, textAlign: "center", color: "#64748b" }}>
+                    No imports yet.
+                  </td>
                 </tr>
-              </thead>
-              <tbody>
-                {expenses.length === 0 ? (
-                  <tr>
-                    <td colSpan={7} style={{ ...td, textAlign: "center", color: "#64748b" }}>
-                      No outgoing transactions detected.
-                    </td>
-                  </tr>
-                ) : (
-                  expenses.map((txn) => (
-                    <tr key={txn.id}>
-                      <td style={td}>{txn.date}</td>
-                      <td style={td}>{txn.description}</td>
-                      <td style={td}>{txn.reference || "-"}</td>
-                      <td style={td}>{formatMoney(txn.moneyOut)}</td>
+              ) : (
+                historyPaged.rows.map((imp) => {
+                  const sum = importSummary(imp);
+                  return (
+                    <tr key={imp.id}>
+                      <td style={td}>{imp.importedAt.slice(0, 10)}</td>
+                      <td style={td}>{imp.fileName}</td>
+                      <td style={td}>{imp.transactions.length}</td>
+                      <td style={td}>{sum.paymentsMatched}</td>
+                      <td style={td}>{sum.expensesMatched}</td>
+                      <td style={td}>{sum.unmatched}</td>
                       <td style={td}>
-                        <select
-                          style={fieldStyle}
-                          value={txn.expenseCategory || "Other"}
-                          onChange={(e) => patchTxn(txn, { expenseCategory: e.target.value })}
-                        >
-                          {EXPENSE_CATEGORIES.map((c) => (
-                            <option key={c} value={c}>
-                              {c}
-                            </option>
-                          ))}
-                        </select>
+                        <span style={statusPillStyle(sum.status.toLowerCase())}>{sum.status}</span>
                       </td>
-                      <td style={td}>{txn.reviewStatus}</td>
                       <td style={td}>
-                        <button type="button" style={ghostBtn} onClick={() => ignoreTxn(txn)}>
-                          Ignore
+                        <button
+                          type="button"
+                          style={ghostBtn}
+                          onClick={async () => {
+                            setLoading(true);
+                            try {
+                              await refreshActive(imp.id);
+                              setTab("review");
+                            } catch (err: any) {
+                              setError(err?.message || "Failed to open import");
+                            } finally {
+                              setLoading(false);
+                            }
+                          }}
+                        >
+                          View
                         </button>
                       </td>
                     </tr>
-                  ))
-                )}
-              </tbody>
-            </table>
-          </div>
-        </>
-      ) : (
-        <p style={{ color: "#64748b", fontWeight: 700 }}>Upload a statement to begin review.</p>
+                  );
+                })
+              )}
+            </tbody>
+          </table>
+          <PaginationBar
+            page={historyPaged.page}
+            totalPages={historyPaged.totalPages}
+            total={historyPaged.total}
+            onPage={setHistoryPage}
+          />
+        </div>
       )}
+
+      {typeModal ? (
+        <div
+          style={{
+            position: "fixed",
+            inset: 0,
+            background: "rgba(15,23,42,0.55)",
+            zIndex: 6000,
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            padding: 20,
+          }}
+        >
+          <div style={{ ...accountingCard, width: "min(420px, 100%)" }}>
+            <h3 style={{ marginTop: 0 }}>Change transaction type</h3>
+            <select style={fieldStyle} value={draftType} onChange={(e) => setDraftType(e.target.value as BankingTransactionType)}>
+              <option value="payment">Payment</option>
+              <option value="expense">Expense</option>
+              <option value="transfer">Transfer</option>
+              <option value="ignore">Ignore</option>
+            </select>
+            <div style={{ display: "flex", gap: 10, marginTop: 16 }}>
+              <button type="button" style={goldBtn} onClick={saveTypeModal}>
+                Save
+              </button>
+              <button type="button" style={ghostBtn} onClick={() => setTypeModal(null)}>
+                Cancel
+              </button>
+            </div>
+          </div>
+        </div>
+      ) : null}
+
+      {editModal ? (
+        <div
+          style={{
+            position: "fixed",
+            inset: 0,
+            background: "rgba(15,23,42,0.55)",
+            zIndex: 6000,
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            padding: 20,
+          }}
+        >
+          <div style={{ ...accountingCard, width: "min(480px, 100%)" }}>
+            <h3 style={{ marginTop: 0 }}>
+              {txnType(editModal) === "payment" ? "Change payment account" : "Change expense details"}
+            </h3>
+            {txnType(editModal) === "payment" ? (
+              <select style={fieldStyle} value={draftLearnerId} onChange={(e) => setDraftLearnerId(e.target.value)}>
+                <option value="">Select learner account…</option>
+                {learnerOptions.map((l) => (
+                  <option key={l.id} value={l.id}>
+                    {l.accountNo} — {l.name}
+                  </option>
+                ))}
+              </select>
+            ) : (
+              <>
+                <label style={{ fontWeight: 800, fontSize: 12 }}>Supplier</label>
+                <input style={fieldStyle} value={draftSupplier} onChange={(e) => setDraftSupplier(e.target.value)} />
+                <label style={{ fontWeight: 800, fontSize: 12, marginTop: 10, display: "block" }}>Category</label>
+                <select style={fieldStyle} value={draftCategory} onChange={(e) => setDraftCategory(e.target.value)}>
+                  {BANKING_EXPENSE_CATEGORIES.map((c) => (
+                    <option key={c} value={c}>
+                      {c}
+                    </option>
+                  ))}
+                </select>
+                <label style={{ fontWeight: 800, fontSize: 12, marginTop: 10, display: "block" }}>Description</label>
+                <input style={fieldStyle} value={draftDescription} onChange={(e) => setDraftDescription(e.target.value)} />
+                <label style={{ fontWeight: 800, fontSize: 12, marginTop: 10, display: "block" }}>Notes</label>
+                <textarea style={{ ...fieldStyle, minHeight: 72 }} value={draftNotes} onChange={(e) => setDraftNotes(e.target.value)} />
+              </>
+            )}
+            <div style={{ display: "flex", gap: 10, marginTop: 16 }}>
+              <button type="button" style={goldBtn} onClick={saveEditModal}>
+                Save
+              </button>
+              <button type="button" style={ghostBtn} onClick={() => setEditModal(null)}>
+                Cancel
+              </button>
+            </div>
+          </div>
+        </div>
+      ) : null}
     </div>
   );
 }

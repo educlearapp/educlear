@@ -1,5 +1,18 @@
-import React, { useCallback, useEffect, useMemo, useState } from "react";
-import { fetchBankImports, type BankTransactionRow } from "../banking/bankingApi";
+import React, { useEffect, useMemo, useState } from "react";
+import {
+  acceptExpenseCandidate,
+  addManualApprovedExpense,
+  ignoreExpenseCandidate,
+  loadApprovedExpenses,
+  loadExpenseCandidates,
+  loadLegacyRecurringRules,
+  migrateLegacyExpenseStores,
+  reviewQueueFromCandidates,
+  saveApprovedExpenses,
+  updateExpenseCandidate,
+  type AccountingExpenseCandidate,
+  LEGACY_EXPENSES_STORAGE_PREFIX,
+} from "./accountingExpenseStorage";
 import {
   ACCOUNTING_GOLD,
   ACCOUNTING_INK,
@@ -59,6 +72,7 @@ type ReviewCandidate = {
   bankImportId?: string;
   bankTransactionId?: string;
   reference?: string;
+  fingerprint?: string;
 };
 
 type ApprovedExpense = {
@@ -68,7 +82,7 @@ type ApprovedExpense = {
   category: ExpenseCategory;
   description: string;
   amount: number;
-  source: "Bank import" | "Manual" | "Sample";
+  source: "Bank Import" | "Manual" | "Sample";
   approvedBy: string;
   reference?: string;
   notes?: string;
@@ -113,18 +127,12 @@ type RecurringRule = {
   active: boolean;
 };
 
-type ExpensesStore = {
-  reviewQueue: ReviewCandidate[];
-  approved: ApprovedExpense[];
-  recurringRules: RecurringRule[];
-};
-
 type Props = {
   schoolId?: string;
   approvedBy?: string;
 };
 
-const STORAGE_PREFIX = "educlearAccountingExpenses:";
+const EXPENSE_CANDIDATES_UPDATED = "educlear-expense-candidates-updated";
 const PAGE_SIZE = 10;
 
 const modalOverlay: React.CSSProperties = {
@@ -409,29 +417,6 @@ function uid(prefix: string) {
   return `${prefix}-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
 }
 
-function mapBankCategory(raw: string): ExpenseCategory {
-  const v = String(raw || "").trim().toLowerCase();
-  if (v.includes("salary") || v.includes("payroll")) return "Salaries";
-  if (v.includes("rent") || v.includes("bond")) return "Rent / Bond";
-  if (v.includes("electric") || v.includes("eskom") || v.includes("util")) return "Electricity";
-  if (v.includes("water")) return "Water";
-  if (v.includes("transport") || v.includes("fuel") || v.includes("diesel")) return "Fuel";
-  if (v.includes("maint") || v.includes("repair")) return "Repairs & Maintenance";
-  if (v.includes("station") || v.includes("suppl")) return "Stationery";
-  if (v.includes("food") || v.includes("tuck")) return "Food / Tuckshop";
-  if (v.includes("insur")) return "Insurance";
-  if (v.includes("market")) return "Marketing";
-  if (v.includes("bank")) return "Bank Charges";
-  if (v.includes("sars") || v.includes("uif")) return "SARS / UIF";
-  return "Other";
-}
-
-function confidenceFromTxn(txn: BankTransactionRow): "high" | "medium" | "low" {
-  if (txn.matchConfidence === "high") return "high";
-  if (txn.matchConfidence === "medium") return "medium";
-  return "low";
-}
-
 function defaultRecurringRules(): RecurringRule[] {
   return [
     { id: uid("rule"), supplierContains: "ESKOM", category: "Electricity", autoApprove: false, active: true },
@@ -494,32 +479,37 @@ function sampleReviewQueue(): ReviewCandidate[] {
   ];
 }
 
-function loadStore(schoolId: string): ExpensesStore | null {
-  try {
-    const raw = localStorage.getItem(STORAGE_PREFIX + schoolId);
-    if (!raw) return null;
-    const parsed = JSON.parse(raw) as ExpensesStore;
-    if (!parsed || typeof parsed !== "object") return null;
-    return {
-      reviewQueue: Array.isArray(parsed.reviewQueue) ? parsed.reviewQueue : [],
-      approved: Array.isArray(parsed.approved)
-        ? parsed.approved.map((row: ApprovedExpense) => ({
-            ...row,
-            description: String(row.description || row.reference || "").trim(),
-          }))
-        : [],
-      recurringRules: Array.isArray(parsed.recurringRules) ? parsed.recurringRules : defaultRecurringRules(),
-    };
-  } catch {
-    return null;
-  }
+function candidateToReviewRow(c: AccountingExpenseCandidate): ReviewCandidate {
+  return {
+    id: c.id,
+    date: c.date,
+    supplier: c.supplier,
+    description: c.description,
+    amount: c.amount,
+    suggestedCategory: c.category,
+    confidence: c.confidence,
+    status: c.status === "Category updated" ? "Category updated" : "Pending",
+    source: "bank",
+    bankImportId: c.importId,
+    bankTransactionId: c.transactionId,
+    reference: c.reference,
+    fingerprint: c.fingerprint,
+  };
 }
 
-function saveStore(schoolId: string, store: ExpensesStore) {
+function reloadBankReviewQueue(schoolId: string, sampleRows: ReviewCandidate[]) {
+  const bankRows = reviewQueueFromCandidates(loadExpenseCandidates(schoolId)).map(candidateToReviewRow);
+  return [...bankRows, ...sampleRows.filter((r) => r.source === "sample")];
+}
+
+function saveRecurringRules(schoolId: string, rules: RecurringRule[]) {
   try {
-    localStorage.setItem(STORAGE_PREFIX + schoolId, JSON.stringify(store));
+    localStorage.setItem(
+      LEGACY_EXPENSES_STORAGE_PREFIX + schoolId,
+      JSON.stringify({ recurringRules: rules })
+    );
   } catch {
-    /* ignore quota errors */
+    /* ignore */
   }
 }
 
@@ -536,41 +526,13 @@ function suggestCategoryFromRules(
   return null;
 }
 
-function bankTxnToCandidate(
-  txn: BankTransactionRow,
-  importId: string,
-  rules: RecurringRule[]
-): ReviewCandidate | null {
-  if (txn.direction !== "out") return null;
-  if (txn.reviewStatus === "ignored" || txn.reviewStatus === "posted") return null;
-
-  const supplier = String(txn.description || "Unknown").trim();
-  const ruleCategory = suggestCategoryFromRules(supplier, txn.reference || "", rules);
-  const suggestedCategory = ruleCategory || mapBankCategory(txn.expenseCategory);
-
-  return {
-    id: `bank-${importId}-${txn.id}`,
-    date: txn.date,
-    supplier,
-    description: String(txn.reference || "").trim() || "Bank transaction",
-    amount: txn.moneyOut,
-    suggestedCategory,
-    confidence: ruleCategory ? "high" : confidenceFromTxn(txn),
-    status: "Pending",
-    source: "bank",
-    bankImportId: importId,
-    bankTransactionId: txn.id,
-    reference: txn.reference,
-  };
-}
-
 export default function AccountingExpenses({ schoolId = "default", approvedBy = "Finance User" }: Props) {
   const [tab, setTab] = useState<TabId>("review");
   const [reviewQueue, setReviewQueue] = useState<ReviewCandidate[]>([]);
   const [approved, setApproved] = useState<ApprovedExpense[]>([]);
   const [recurringRules, setRecurringRules] = useState<RecurringRule[]>(defaultRecurringRules);
   const [hydrated, setHydrated] = useState(false);
-  const [bankLoadNote, setBankLoadNote] = useState("");
+  const [sampleRows, setSampleRows] = useState<ReviewCandidate[]>([]);
 
   const [categoryModal, setCategoryModal] = useState<{
     candidate: ReviewCandidate;
@@ -657,83 +619,55 @@ export default function AccountingExpenses({ schoolId = "default", approvedBy = 
     if (recurringPage > recurringPaged.totalPages) setRecurringPage(recurringPaged.totalPages);
   }, [recurringPage, recurringPaged.totalPages]);
 
-  const persist = useCallback(
-    (next: Partial<ExpensesStore>) => {
-      const store: ExpensesStore = {
-        reviewQueue: next.reviewQueue ?? reviewQueue,
-        approved: next.approved ?? approved,
-        recurringRules: next.recurringRules ?? recurringRules,
-      };
-      saveStore(schoolId, store);
-    },
-    [schoolId, reviewQueue, approved, recurringRules]
-  );
-
   useEffect(() => {
-    const stored = loadStore(schoolId);
-    if (stored) {
-      setReviewQueue(stored.reviewQueue);
-      setApproved(stored.approved);
-      setRecurringRules(stored.recurringRules.length ? stored.recurringRules : defaultRecurringRules());
-      setHydrated(true);
-      return;
+    migrateLegacyExpenseStores(schoolId);
+
+    const bankCandidates = loadExpenseCandidates(schoolId);
+    const approvedRows = loadApprovedExpenses(schoolId).map((row) => ({
+      ...row,
+      description: String(row.description || row.reference || "").trim(),
+    })) as ApprovedExpense[];
+
+    const legacyRules = loadLegacyRecurringRules(schoolId) as RecurringRule[];
+    const rules = legacyRules.length ? legacyRules : defaultRecurringRules();
+
+    const bankReview = reviewQueueFromCandidates(bankCandidates).map(candidateToReviewRow);
+    const hasRealData = bankReview.length > 0 || approvedRows.length > 0;
+
+    if (!hasRealData) {
+      const samples = sampleReviewQueue();
+      setSampleRows(samples);
+      setReviewQueue(samples);
+      setApproved([]);
+    } else {
+      setSampleRows([]);
+      setReviewQueue(bankReview);
+      setApproved(approvedRows);
     }
 
-    const samples = sampleReviewQueue();
-    const rules = defaultRecurringRules();
-    setReviewQueue(samples);
     setRecurringRules(rules);
-    saveStore(schoolId, { reviewQueue: samples, approved: [], recurringRules: rules });
     setHydrated(true);
   }, [schoolId]);
 
   useEffect(() => {
-    if (!hydrated || !schoolId || schoolId === "default") return;
-
-    let cancelled = false;
-
-    (async () => {
-      try {
-        const res = await fetchBankImports(schoolId);
-        if (cancelled || !res?.imports?.length) return;
-
-        const rules = recurringRules;
-        const existingIds = new Set(reviewQueue.map((r) => r.id));
-        const bankCandidates: ReviewCandidate[] = [];
-
-        for (const imp of res.imports) {
-          for (const txn of imp.transactions || []) {
-            const row = bankTxnToCandidate(txn, imp.id, rules);
-            if (row && !existingIds.has(row.id)) bankCandidates.push(row);
-          }
-        }
-
-        if (!bankCandidates.length) {
-          setBankLoadNote("Bank imports loaded — no new outgoing lines for review.");
-          return;
-        }
-
-        setReviewQueue((prev) => {
-          const merged = [...bankCandidates, ...prev.filter((p) => p.source !== "bank")];
-          persist({ reviewQueue: merged });
-          return merged;
-        });
-        setBankLoadNote(`Added ${bankCandidates.length} expense candidate(s) from bank imports.`);
-      } catch {
-        setBankLoadNote("");
-      }
-    })();
-
-    return () => {
-      cancelled = true;
-    };
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- load bank once after hydrate
-  }, [hydrated, schoolId]);
+    if (!hydrated) return;
+    saveRecurringRules(schoolId, recurringRules);
+  }, [recurringRules, hydrated, schoolId]);
 
   useEffect(() => {
     if (!hydrated) return;
-    persist({ reviewQueue, approved, recurringRules });
-  }, [reviewQueue, approved, recurringRules, hydrated, persist]);
+    const refreshFromStorage = () => {
+      setReviewQueue(reloadBankReviewQueue(schoolId, sampleRows));
+      setApproved(
+        loadApprovedExpenses(schoolId).map((row) => ({
+          ...row,
+          description: String(row.description || row.reference || "").trim(),
+        })) as ApprovedExpense[]
+      );
+    };
+    window.addEventListener(EXPENSE_CANDIDATES_UPDATED, refreshFromStorage);
+    return () => window.removeEventListener(EXPENSE_CANDIDATES_UPDATED, refreshFromStorage);
+  }, [hydrated, schoolId, sampleRows]);
 
   const stats = useMemo(() => {
     const approvedThisMonth = approved.filter((a) => isInCurrentMonth(a.date));
@@ -753,6 +687,26 @@ export default function AccountingExpenses({ schoolId = "default", approvedBy = 
   }, [reviewQueue, approved, recurringRules]);
 
   const acceptCandidate = (candidate: ReviewCandidate) => {
+    if (candidate.source === "bank") {
+      const { approved: nextApproved, candidates } = acceptExpenseCandidate(
+        schoolId,
+        candidate.id,
+        approvedBy
+      );
+      setApproved(
+        nextApproved.map((row) => ({
+          ...row,
+          description: String(row.description || row.reference || "").trim(),
+        })) as ApprovedExpense[]
+      );
+      setReviewQueue([
+        ...reviewQueueFromCandidates(candidates).map(candidateToReviewRow),
+        ...sampleRows,
+      ]);
+      setTab("approved");
+      return;
+    }
+
     const expense: ApprovedExpense = {
       id: uid("approved"),
       date: candidate.date,
@@ -760,18 +714,34 @@ export default function AccountingExpenses({ schoolId = "default", approvedBy = 
       category: candidate.suggestedCategory,
       description: candidate.description,
       amount: candidate.amount,
-      source: candidate.source === "bank" ? "Bank import" : candidate.source === "sample" ? "Sample" : "Manual",
+      source: candidate.source === "sample" ? "Sample" : "Manual",
       approvedBy,
       reference: candidate.reference,
       approvedAt: new Date().toISOString(),
     };
-    setApproved((prev) => [expense, ...prev]);
+    const nextApproved = addManualApprovedExpense(schoolId, expense);
+    setApproved(
+      nextApproved.map((row) => ({
+        ...row,
+        description: String(row.description || row.reference || "").trim(),
+      })) as ApprovedExpense[]
+    );
     setReviewQueue((prev) => prev.filter((r) => r.id !== candidate.id));
+    setSampleRows((prev) => prev.filter((r) => r.id !== candidate.id));
     setTab("approved");
   };
 
   const ignoreCandidate = (candidate: ReviewCandidate) => {
+    if (candidate.source === "bank") {
+      const next = ignoreExpenseCandidate(schoolId, candidate.id);
+      setReviewQueue([
+        ...reviewQueueFromCandidates(next).map(candidateToReviewRow),
+        ...sampleRows,
+      ]);
+      return;
+    }
     setReviewQueue((prev) => prev.filter((r) => r.id !== candidate.id));
+    setSampleRows((prev) => prev.filter((r) => r.id !== candidate.id));
   };
 
   const openCategoryModal = (candidate: ReviewCandidate) => {
@@ -786,20 +756,47 @@ export default function AccountingExpenses({ schoolId = "default", approvedBy = 
 
   const saveCategoryChange = () => {
     if (!categoryModal) return;
-    const { candidate, newCategory, supplier, description } = categoryModal;
-    setReviewQueue((prev) =>
-      prev.map((r) =>
-        r.id === candidate.id
-          ? {
-              ...r,
-              suggestedCategory: newCategory,
-              supplier: supplier.trim() || r.supplier,
-              description: description.trim() || r.description,
-              status: "Category updated",
-            }
-          : r
-      )
-    );
+    const { candidate, newCategory, supplier, description, notes } = categoryModal;
+    if (candidate.source === "bank") {
+      const next = updateExpenseCandidate(schoolId, candidate.id, {
+        category: newCategory,
+        supplier: supplier.trim() || candidate.supplier,
+        description: description.trim() || candidate.description,
+        notes: notes.trim(),
+        status: "Category updated",
+      });
+      setReviewQueue([
+        ...reviewQueueFromCandidates(next).map(candidateToReviewRow),
+        ...sampleRows,
+      ]);
+    } else {
+      setReviewQueue((prev) =>
+        prev.map((r) =>
+          r.id === candidate.id
+            ? {
+                ...r,
+                suggestedCategory: newCategory,
+                supplier: supplier.trim() || r.supplier,
+                description: description.trim() || r.description,
+                status: "Category updated",
+              }
+            : r
+        )
+      );
+      setSampleRows((prev) =>
+        prev.map((r) =>
+          r.id === candidate.id
+            ? {
+                ...r,
+                suggestedCategory: newCategory,
+                supplier: supplier.trim() || r.supplier,
+                description: description.trim() || r.description,
+                status: "Category updated",
+              }
+            : r
+        )
+      );
+    }
     setCategoryModal(null);
   };
 
@@ -809,17 +806,22 @@ export default function AccountingExpenses({ schoolId = "default", approvedBy = 
 
   const saveEditApproved = () => {
     if (!editApprovedModal) return;
-    setApproved((prev) =>
-      prev.map((row) =>
-        row.id === editApprovedModal.id
-          ? {
-              ...editApprovedModal,
-              supplier: editApprovedModal.supplier.trim() || row.supplier,
-              description: editApprovedModal.description.trim(),
-              notes: editApprovedModal.notes?.trim() || undefined,
-            }
-          : row
-      )
+    const next = loadApprovedExpenses(schoolId).map((row) =>
+      row.id === editApprovedModal.id
+        ? {
+            ...editApprovedModal,
+            supplier: editApprovedModal.supplier.trim() || row.supplier,
+            description: editApprovedModal.description.trim(),
+            notes: editApprovedModal.notes?.trim() || undefined,
+          }
+        : row
+    );
+    saveApprovedExpenses(schoolId, next);
+    setApproved(
+      next.map((row) => ({
+        ...row,
+        description: String(row.description || row.reference || "").trim(),
+      })) as ApprovedExpense[]
     );
     setEditApprovedModal(null);
   };
@@ -842,7 +844,13 @@ export default function AccountingExpenses({ schoolId = "default", approvedBy = 
       approvedAt: new Date().toISOString(),
     };
 
-    setApproved((prev) => [expense, ...prev]);
+    const nextApproved = addManualApprovedExpense(schoolId, expense);
+    setApproved(
+      nextApproved.map((row) => ({
+        ...row,
+        description: String(row.description || row.reference || "").trim(),
+      })) as ApprovedExpense[]
+    );
     setManualForm({
       date: new Date().toISOString().slice(0, 10),
       category: "Other",
@@ -963,7 +971,8 @@ export default function AccountingExpenses({ schoolId = "default", approvedBy = 
           <div>
             <h1 style={accountingTitle}>Expenses</h1>
             <p style={{ ...accountingSubtitle, margin: 0 }}>
-              Review, classify, and approve school expenses from banking and manual captures.
+              Review, classify, and approve school expenses from banking and manual captures. Accepted
+              banking expense candidates are now sent here from Accounting → Banking.
             </p>
           </div>
           <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
@@ -1020,10 +1029,6 @@ export default function AccountingExpenses({ schoolId = "default", approvedBy = 
       >
         Approved expenses will feed Accounting → Budget actual spend automatically.
       </div>
-
-      {bankLoadNote ? (
-        <p style={{ margin: "0 0 16px", color: "#64748b", fontWeight: 600, fontSize: 13 }}>{bankLoadNote}</p>
-      ) : null}
 
       <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginBottom: 20 }}>
         {(

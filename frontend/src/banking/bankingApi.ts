@@ -12,6 +12,8 @@ async function parseJson(res: Response) {
 
 export type MatchConfidence = "high" | "medium" | "low" | "none";
 
+export type BankingTransactionType = "payment" | "expense" | "transfer" | "ignore";
+
 export type BankTransactionRow = {
   id: string;
   date: string;
@@ -20,6 +22,7 @@ export type BankTransactionRow = {
   moneyIn: number;
   moneyOut: number;
   direction: "in" | "out";
+  transactionType?: BankingTransactionType;
   suggestedAccountNo: string;
   suggestedLearnerId: string;
   suggestedLearnerName: string;
@@ -27,8 +30,12 @@ export type BankTransactionRow = {
   matchReason: string;
   reviewStatus: "pending" | "accepted" | "unmatched" | "ignored" | "posted";
   expenseCategory: string;
+  suggestedSupplierName?: string;
+  supplierId?: string;
+  expenseNotes?: string;
   postedPaymentId?: string;
   fingerprint: string;
+  isDuplicate?: boolean;
 };
 
 export type BankImportRecord = {
@@ -41,19 +48,36 @@ export type BankImportRecord = {
 };
 
 export const EXPENSE_CATEGORIES = [
-  "Rent",
+  "Electricity",
+  "Water",
+  "Rent / Bond",
   "Salaries",
-  "Utilities",
-  "Transport",
-  "Supplies",
-  "Maintenance",
+  "Fuel",
+  "Repairs & Maintenance",
+  "Stationery",
+  "Food / Tuckshop",
+  "Insurance",
+  "Bank Charges",
+  "SARS / UIF",
   "Other",
 ] as const;
 
-export async function importBankStatement(schoolId: string, file: File) {
+export type SupplierMatchPayload = {
+  id: string;
+  name: string;
+  category: string;
+  autoMatchRule?: string;
+};
+
+export async function importBankStatement(
+  schoolId: string,
+  file: File,
+  suppliers?: SupplierMatchPayload[]
+) {
   const form = new FormData();
   form.append("schoolId", schoolId);
   form.append("file", file);
+  if (suppliers?.length) form.append("suppliers", JSON.stringify(suppliers));
   const res = await fetch(`${BASE}/import`, { method: "POST", body: form });
   return parseJson(res) as Promise<{
     success: boolean;
