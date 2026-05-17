@@ -30,6 +30,10 @@ import BillingPlans from "./billing/BillingPlans";
 import Payments from "./billing/Payments";
 import PaymentCreate from "./billing/PaymentCreate";
 import BillingDocuments from "./billing/BillingDocuments";
+import Email from "./communication/Email";
+import SMS from "./communication/SMS";
+import CommunicationSettings from "./communication/CommunicationSettings";
+import BankStatementImport from "./banking/BankStatementImport";
 import { BILLING_UPDATED_EVENT, getBillingRows } from "./billing/billingLedger";
 import { syncBillingLedgerFromApi } from "./billing/billingApi";
 import SchoolProfilePage from "./pages/SchoolProfilePage";
@@ -190,7 +194,15 @@ type PageKey =
 
 
 
-  | "billing-more";
+  | "billing-more"
+
+  | "communicationEmail"
+
+  | "communicationSms"
+
+  | "communicationSettings"
+
+  | "bankStatementImport";
 
 
 
@@ -328,6 +340,9 @@ const schoolId =
 
   const [billingOpen, setBillingOpen] = useState(true);
 
+  const [communicationOpen, setCommunicationOpen] = useState(false);
+  const [communicationMoreOpen, setCommunicationMoreOpen] = useState(false);
+
 
 
   const [selectedPackage, setSelectedPackage] = useState("starter");
@@ -344,6 +359,11 @@ const schoolId =
 
 
   const [parents, setParents] = useState<any[]>([]);
+
+  const [schoolBranding, setSchoolBranding] = useState<{ name: string; email: string }>({
+    name: String(localStorage.getItem("schoolName") || "").trim() || "School",
+    email: "",
+  });
 
 
 
@@ -666,25 +686,23 @@ const [selectedLearnerReport, setSelectedLearnerReport] = useState<any>(null);
   const [showFeePicker, setShowFeePicker] = useState(false);
 
   const go = (page: PageKey) => {
-
-
-
     setActivePage(page);
 
-
-
-    if (location.pathname.startsWith("/dashboard/billing/")) {
-
-
-
-      navigate("/dashboard");
-
-
-
+    if (
+      page === "communicationEmail" ||
+      page === "communicationSms" ||
+      page === "communicationSettings"
+    ) {
+      setCommunicationOpen(true);
+      setCommunicationMoreOpen(page === "communicationSettings");
+      setSchoolsOpen(false);
+      setAdminOpen(false);
+      setBillingOpen(false);
     }
 
-
-
+    if (location.pathname.startsWith("/dashboard/billing/")) {
+      navigate("/dashboard");
+    }
   };
 
 
@@ -1917,6 +1935,27 @@ const [selectedLearnerReport, setSelectedLearnerReport] = useState<any>(null);
     const refresh = () => setBillingVersion((v) => v + 1);
     window.addEventListener(BILLING_UPDATED_EVENT, refresh);
     return () => window.removeEventListener(BILLING_UPDATED_EVENT, refresh);
+  }, [schoolId]);
+
+  useEffect(() => {
+    if (!schoolId) return;
+    let cancelled = false;
+    fetch(`${API_URL}/api/schools`)
+      .then((res) => res.json())
+      .then((rows) => {
+        if (cancelled) return;
+        const match = Array.isArray(rows) ? rows.find((row: any) => row?.id === schoolId) : null;
+        if (match) {
+          setSchoolBranding({
+            name: String(match.name || localStorage.getItem("schoolName") || "School").trim() || "School",
+            email: String(match.email || "").trim(),
+          });
+        }
+      })
+      .catch(() => {});
+    return () => {
+      cancelled = true;
+    };
   }, [schoolId]);
 
   const statementRows = useMemo(
@@ -12243,7 +12282,7 @@ const [formsTemplateText, setFormsTemplateText] = useState("");
 
 const [formsTemplateText2, setFormsTemplateText2] = useState("");
 
-const [moreSettingsTab, setMoreSettingsTab] = useState<"general" | "attendance">("general");
+const [moreSettingsTab, setMoreSettingsTab] = useState<"general" | "attendance" | "communication">("general");
 
 
 
@@ -14359,7 +14398,53 @@ const renderMoreSettings = () => {
 
 
 
+          <button
+
+
+
+            style={{
+
+
+
+              ...(moreSettingsTab === "communication" ? goldBtn : actionBtn),
+
+
+
+              borderRadius: "12px 12px 0 0",
+
+
+
+            }}
+
+
+
+            onClick={() => setMoreSettingsTab("communication")}
+
+
+
+          >
+
+
+
+            Communication
+
+
+
+          </button>
+
+
+
         </div>
+
+
+
+        {moreSettingsTab === "communication" && schoolId ? (
+          <CommunicationSettings
+            schoolId={schoolId}
+            schoolName={schoolBranding.name}
+            schoolEmail={schoolBranding.email}
+          />
+        ) : null}
 
 
 
@@ -17555,6 +17640,14 @@ const [invoiceRunEmailDraft, setInvoiceRunEmailDraft] = useState({
         
         
         }
+
+        case "bankStatementImport":
+          return (
+            <BankStatementImport
+              schoolId={schoolId || ""}
+              learners={learners}
+            />
+          );
         
         
         
@@ -17927,6 +18020,38 @@ return (
   
   
           return <h1 className="page-title">More</h1>;
+
+        case "communicationEmail":
+          return (
+            <Email
+              schoolId={schoolId || ""}
+              learners={learners}
+              parents={parents}
+              schoolName={schoolBranding.name}
+              schoolEmail={schoolBranding.email}
+            />
+          );
+
+        case "communicationSms":
+          return (
+            <SMS
+              schoolId={schoolId || ""}
+              learners={learners}
+              parents={parents}
+              schoolName={schoolBranding.name}
+            />
+          );
+
+        case "communicationSettings":
+          return schoolId ? (
+            <CommunicationSettings
+              schoolId={schoolId}
+              schoolName={schoolBranding.name}
+              schoolEmail={schoolBranding.email}
+            />
+          ) : (
+            <h1 className="page-title">Communication Settings</h1>
+          );
   
   
   
@@ -18278,7 +18403,6 @@ return (
   
   
   
-                <div className={`submenu-item ${activePage === "help" ? "active" : ""}`} onClick={() => go("help")}>Help & Tips</div>
   
   
   
@@ -18375,6 +18499,8 @@ return (
   
   
                 <div className={`submenu-item ${activePage === "payments" ? "active" : ""}`} onClick={() => go("payments")}>Payments</div>
+
+                <div className={`submenu-item ${activePage === "bankStatementImport" ? "active" : ""}`} onClick={() => go("bankStatementImport")}>Bank Statement Import</div>
   
   
   
@@ -18422,42 +18548,60 @@ return (
   
   
   
-          <div className="bottom-section">
-  
-  
-  
-            <div className="section-header">
-  
-  
-  
+                    <div className="main-section">
+            <div
+              className="section-header"
+              onClick={() => {
+                setCommunicationOpen(!communicationOpen);
+                setSchoolsOpen(false);
+                setAdminOpen(false);
+                setBillingOpen(false);
+              }}
+            >
               <div className="section-left">
-  
-  
-  
                 <span className="menu-icon">💬</span>
-  
-  
-  
                 <span>Communication</span>
-  
-  
-  
               </div>
-  
-  
-  
-              <span className="chevron">⌄</span>
-  
-  
-  
+              <span className={`chevron ${communicationOpen ? "open" : ""}`}>⌄</span>
             </div>
-  
-  
-  
+            {communicationOpen && (
+              <div className="submenu">
+                <div
+                  className={`submenu-item ${activePage === "communicationEmail" ? "active" : ""}`}
+                  onClick={() => go("communicationEmail")}
+                >
+                  Email
+                </div>
+                <div
+                  className={`submenu-item ${activePage === "communicationSms" ? "active" : ""}`}
+                  onClick={() => go("communicationSms")}
+                >
+                  SMS
+                </div>
+                <div
+                  className={`submenu-item submenu-expand ${communicationMoreOpen ? "open" : ""}`}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setCommunicationMoreOpen((prev) => !prev);
+                  }}
+                >
+                  <span>More</span>
+                  <span className={`chevron submenu-chevron ${communicationMoreOpen ? "open" : ""}`}>⌄</span>
+                </div>
+                {communicationMoreOpen ? (
+                  <div
+                    className={`submenu-item submenu-nested ${activePage === "communicationSettings" ? "active" : ""}`}
+                    onClick={() => go("communicationSettings")}
+                  >
+                    Settings
+                  </div>
+                ) : null}
+              </div>
+            )}
+          </div>
+
+          <div className="bottom-section">
             <div className="sidebar-collapse">≪</div>
-  
-  
-  
           </div>
   
   

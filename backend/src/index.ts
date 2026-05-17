@@ -16,6 +16,8 @@ import invoicesRoutes from "./routes/invoices";
 import billingDocumentsRoutes from "./routes/billingDocuments";
 import billingPenaltiesRoutes from "./routes/billingPenalties";
 import legalBillingDocumentsRoutes from "./routes/legalBillingDocuments";
+import communicationRoutes from "./routes/communication";
+import bankingRoutes from "./routes/banking";
 import usersRoutes from "./routes/users";
 import bcrypt from "bcryptjs";
 
@@ -269,6 +271,8 @@ app.use("/api/statements", statementsRoutes);
 app.use("/api/payments", paymentsRoutes);
 app.use("/api/billing-documents", billingDocumentsRoutes);
 app.use("/api/legal-billing-documents", legalBillingDocumentsRoutes);
+app.use("/api/communication", communicationRoutes);
+app.use("/api/banking", bankingRoutes);
 app.use("/api/billing/late-penalties", billingPenaltiesRoutes);
 app.use("/api/teacher-performance", teacherPerformanceRoutes);
 app.use("/api/payroll", payrollRoutes);
