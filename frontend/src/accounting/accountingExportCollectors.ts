@@ -9,7 +9,7 @@ import {
 import {
   buildCreditorAgeingRows,
   calculateCreditorTotals,
-  loadCreditorInvoices,
+  loadCreditorInvoicesUnified,
   loadCreditorPaymentPlans,
 } from "./accountingCreditorsHelpers";
 import {
@@ -259,7 +259,7 @@ export function collectAccountingExportPayload(input: CollectExportInput): Accou
   }
 
   if (reportType === "creditors-ageing") {
-    const invoices = sid ? loadCreditorInvoices(sid) : [];
+    const invoices = sid ? loadCreditorInvoicesUnified(sid) : [];
     const plans = sid ? loadCreditorPaymentPlans(sid) : [];
     const rows = buildCreditorAgeingRows({ invoices, plans, asOfDate: period.endDate });
     return payloadFromTable(

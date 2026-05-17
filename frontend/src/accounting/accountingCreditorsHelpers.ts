@@ -528,9 +528,17 @@ export type CreditorReportingPeriod = {
 };
 
 /** Supplier liabilities as at period end (Creditors Ageing source). */
+import { loadCreditorInvoicesUnified } from "./supplierInvoiceCreditorBridge";
+
+export { loadCreditorInvoicesUnified };
+
+function loadCreditorInvoicesForReporting(schoolId: string): CreditorInvoice[] {
+  return loadCreditorInvoicesUnified(schoolId);
+}
+
 export function calculateCreditorTotals(schoolId: string, asAtDate: string): CreditorTotals {
   const asOf = normaliseIsoDate(asAtDate) || new Date().toISOString().slice(0, 10);
-  const invoices = loadCreditorInvoices(schoolId);
+  const invoices = loadCreditorInvoicesForReporting(schoolId);
   const plans = loadCreditorPaymentPlans(schoolId);
   const ageingRows = buildCreditorAgeingRows({ invoices, plans, asOfDate: asOf });
   const lines = buildCreditorInvoiceLines(invoices, plans, asOf);
@@ -568,7 +576,7 @@ export function calculateCreditorTotals(schoolId: string, asAtDate: string): Cre
 export function calculateCreditorAgeing(schoolId: string, asAtDate: string): CreditorAgeingRow[] {
   const asOf = normaliseIsoDate(asAtDate) || new Date().toISOString().slice(0, 10);
   return buildCreditorAgeingRows({
-    invoices: loadCreditorInvoices(schoolId),
+    invoices: loadCreditorInvoicesForReporting(schoolId),
     plans: loadCreditorPaymentPlans(schoolId),
     asOfDate: asOf,
   });
@@ -581,7 +589,7 @@ export function calculateUpcomingSupplierPayments(
 ): UpcomingSupplierPayments {
   const startDate = normaliseIsoDate(period.startDate) || period.startDate;
   const endDate = normaliseIsoDate(period.endDate) || period.endDate;
-  const invoices = loadCreditorInvoices(schoolId);
+  const invoices = loadCreditorInvoicesForReporting(schoolId);
   const plans = loadCreditorPaymentPlans(schoolId);
 
   let scheduledInvoicePayments = 0;

@@ -18,7 +18,6 @@ import {
   resolveExportBranding,
 } from "./accountingExportEngine";
 import {
-  applyPaymentToInvoice,
   buildCreditorAgeingRows,
   buildCreditorInvoiceLines,
   creditorStatusColor,
@@ -28,7 +27,6 @@ import {
   invoiceOutstanding,
   isDueInMonth,
   isPaymentPlanActive,
-  loadCreditorInvoices,
   loadCreditorNotes,
   loadCreditorPaymentPlans,
   loadCreditorSuppliers,
@@ -36,7 +34,6 @@ import {
   normaliseIsoDate,
   noteStorageKey,
   resolveAsOfDate,
-  saveCreditorInvoices,
   saveCreditorNotes,
   saveCreditorPaymentPlans,
   supplierApprovedSpend,
@@ -50,6 +47,14 @@ import {
   type CreditorNoteType,
   type CreditorPaymentPlan,
 } from "./accountingCreditorsHelpers";
+import { loadCreditorInvoicesUnified } from "./supplierInvoiceCreditorBridge";
+import {
+  approveSupplierInvoice,
+  createSupplierInvoice,
+  markSupplierInvoiceDisputed,
+  postSupplierInvoicePayment,
+} from "./supplierInvoiceHelpers";
+import { SUPPLIER_INVOICES_UPDATED_EVENT } from "./supplierInvoiceStorage";
 
 type Props = {
   schoolId: string;
@@ -223,7 +228,11 @@ export default function AccountingCreditorsAgeing({ schoolId, setActivePage }: P
       if (!detail?.schoolId || detail.schoolId === schoolId) bumpRefresh();
     };
     window.addEventListener(CREDITORS_UPDATED_EVENT, onCreditors);
-    return () => window.removeEventListener(CREDITORS_UPDATED_EVENT, onCreditors);
+    window.addEventListener(SUPPLIER_INVOICES_UPDATED_EVENT, onCreditors);
+    return () => {
+      window.removeEventListener(CREDITORS_UPDATED_EVENT, onCreditors);
+      window.removeEventListener(SUPPLIER_INVOICES_UPDATED_EVENT, onCreditors);
+    };
   }, [schoolId, bumpRefresh]);
 
   const asOfDate = useMemo(() => resolveAsOfDate(year, monthIndex), [year, monthIndex]);
@@ -236,7 +245,7 @@ export default function AccountingCreditorsAgeing({ schoolId, setActivePage }: P
 
   const invoices = useMemo(() => {
     void refreshKey;
-    return schoolId ? loadCreditorInvoices(schoolId) : [];
+    return schoolId ? loadCreditorInvoicesUnified(schoolId) : [];
   }, [schoolId, refreshKey]);
 
   const plans = useMemo(() => {
@@ -356,8 +365,8 @@ export default function AccountingCreditorsAgeing({ schoolId, setActivePage }: P
       setBanner("Invoice amount must be greater than zero.");
       return;
     }
-    const row: CreditorInvoice = {
-      id: `cinv-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
+    const inv = createSupplierInvoice({
+      schoolId,
       supplierId: invSupplierId.trim(),
       supplierName: name,
       category: invCategory.trim() || "Other",
@@ -365,16 +374,31 @@ export default function AccountingCreditorsAgeing({ schoolId, setActivePage }: P
       invoiceDate: normaliseIsoDate(invDate) || invDate,
       dueDate: normaliseIsoDate(invDue) || invDue,
       amount,
+      vatAmount: 0,
+      totalAmount: amount,
       description: invDescription.trim(),
       notes: invNotes.trim(),
-      status: invStatus,
-      payments: [],
-      createdAt: new Date().toISOString(),
-      updatedAt: new Date().toISOString(),
-    };
-    saveCreditorInvoices(schoolId, [row, ...loadCreditorInvoices(schoolId)]);
+      captureMethod: "Manual",
+      status: "Draft",
+    });
+    if (invStatus === "Open") approveSupplierInvoice(schoolId, inv.id);
+    else if (invStatus === "Disputed") markSupplierInvoiceDisputed(schoolId, inv.id);
+    else if (invStatus === "Paid") {
+      const approved = approveSupplierInvoice(schoolId, inv.id);
+      if (approved) {
+        postSupplierInvoicePayment({
+          schoolId,
+          invoiceId: approved.id,
+          paymentDate: new Date().toISOString().slice(0, 10),
+          amount,
+          reference: "",
+          method: "EFT",
+          notes: "Recorded from creditors ageing",
+        });
+      }
+    }
     setInvoiceModal(null);
-    setBanner("Supplier invoice saved.");
+    setBanner("Supplier invoice saved to invoice engine.");
     bumpRefresh();
   };
 
@@ -418,20 +442,17 @@ export default function AccountingCreditorsAgeing({ schoolId, setActivePage }: P
       return;
     }
     const targetId = markPaidInvoiceId || markPaidModal.invoice.id;
-    const next = loadCreditorInvoices(schoolId).map((inv) =>
-      inv.id === targetId
-        ? applyPaymentToInvoice(inv, {
-            paymentDate: payDate,
-            amount,
-            reference: payReference,
-            method: payMethod,
-            notes: payNotes,
-          })
-        : inv
-    );
-    saveCreditorInvoices(schoolId, next);
+    postSupplierInvoicePayment({
+      schoolId,
+      invoiceId: targetId,
+      paymentDate: payDate,
+      amount,
+      reference: payReference,
+      method: payMethod,
+      notes: payNotes,
+    });
     setMarkPaidModal(null);
-    setBanner("Payment recorded.");
+    setBanner("Supplier payment posted.");
     bumpRefresh();
   };
 
@@ -740,8 +761,17 @@ ${el.innerHTML}
         <button type="button" style={outlineBtn} onClick={handleExportExcel}>
           Export Excel
         </button>
+        {setActivePage ? (
+          <button
+            type="button"
+            style={goldBtn}
+            onClick={() => setActivePage("accountingSupplierInvoices")}
+          >
+            Supplier Invoice Engine
+          </button>
+        ) : null}
         <button type="button" style={outlineBtn} onClick={() => openInvoiceModal(null)}>
-          Add supplier invoice
+          Quick add invoice
         </button>
       </div>
 

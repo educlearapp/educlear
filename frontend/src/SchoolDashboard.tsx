@@ -47,6 +47,7 @@ import {
   AccountingReports,
   AccountingDebtorsAgeing,
   AccountingCreditorsAgeing,
+  SupplierInvoiceEngine,
   AccountingSettings,
   AccountingSuppliers,
   AccountingAuditCompliance,
@@ -233,6 +234,7 @@ type PageKey =
   | "accountingReports"
   | "accountingDebtorsAgeing"
   | "accountingCreditorsAgeing"
+  | "accountingSupplierInvoices"
   | "accountingAuditCompliance"
   | "accountingExportCenter"
   | "accountingSettings";
@@ -738,6 +740,7 @@ const [selectedLearnerReport, setSelectedLearnerReport] = useState<any>(null);
       page === "accountingReports" ||
       page === "accountingDebtorsAgeing" ||
       page === "accountingCreditorsAgeing" ||
+      page === "accountingSupplierInvoices" ||
       page === "accountingAuditCompliance" ||
       page === "accountingExportCenter" ||
       page === "accountingSettings";
@@ -17780,6 +17783,14 @@ const [invoiceRunEmailDraft, setInvoiceRunEmailDraft] = useState({
             />
           );
 
+        case "accountingSupplierInvoices":
+          return (
+            <SupplierInvoiceEngine
+              schoolId={schoolId || ""}
+              setActivePage={setActivePage}
+            />
+          );
+
         case "accountingExportCenter":
           return (
             <AccountingExportCenter
@@ -18723,6 +18734,7 @@ return (
                 <div className={`submenu-item ${activePage === "accountingReports" ? "active" : ""}`} onClick={() => go("accountingReports")}>Reports</div>
                 <div className={`submenu-item ${activePage === "accountingDebtorsAgeing" ? "active" : ""}`} onClick={() => go("accountingDebtorsAgeing")}>Debtors Ageing</div>
                 <div className={`submenu-item ${activePage === "accountingCreditorsAgeing" ? "active" : ""}`} onClick={() => go("accountingCreditorsAgeing")}>Creditors Ageing</div>
+                <div className={`submenu-item ${activePage === "accountingSupplierInvoices" ? "active" : ""}`} onClick={() => go("accountingSupplierInvoices")}>Supplier Invoices</div>
                 <div className={`submenu-item ${activePage === "accountingAuditCompliance" ? "active" : ""}`} onClick={() => go("accountingAuditCompliance")}>Audit & Compliance</div>
                 <div className={`submenu-item ${activePage === "accountingExportCenter" ? "active" : ""}`} onClick={() => go("accountingExportCenter")}>Export Center</div>
                 <div className={`submenu-item ${activePage === "accountingSettings" ? "active" : ""}`} onClick={() => go("accountingSettings")}>Settings</div>

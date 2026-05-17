@@ -5,6 +5,7 @@ export type AutoPostingTransactionType =
   | "expense_approval"
   | "bank_charge"
   | "payroll"
+  | "supplier_invoice_approval"
   | "supplier_payment";
 
 export type AutoPostingRule = {
@@ -59,11 +60,18 @@ export const DEFAULT_AUTO_POSTING_RULES: AutoPostingRule[] = [
     enabled: true,
   },
   {
+    transactionType: "supplier_invoice_approval",
+    debitAccountCode: COA_CODES.otherExpense,
+    creditAccountCode: "2000",
+    descriptionTemplate: "Supplier invoice — {supplier}",
+    enabled: true,
+  },
+  {
     transactionType: "supplier_payment",
     debitAccountCode: "2000",
     creditAccountCode: COA_CODES.bank,
     descriptionTemplate: "Supplier payment — {reference}",
-    enabled: false,
+    enabled: true,
   },
 ];
 

@@ -28,6 +28,7 @@ import {
   type BankingTransactionType,
 } from "./bankingReconciliationUtils";
 import { addExpenseCandidateFromBank } from "../accounting/accountingExpenseStorage";
+import SupplierInvoiceBankMatch from "../accounting/SupplierInvoiceBankMatch";
 import {
   fetchBankImport,
   fetchBankImports,
@@ -170,6 +171,7 @@ export default function BankStatementImport({ schoolId, learners }: Props) {
   const [draftCategory, setDraftCategory] = useState("Other");
   const [draftNotes, setDraftNotes] = useState("");
   const [draftDescription, setDraftDescription] = useState("");
+  const [supplierMatchTxn, setSupplierMatchTxn] = useState<BankTransactionRow | null>(null);
 
   const learnerOptions = useMemo(() => {
     return (learners || []).map((l) => ({
@@ -385,6 +387,16 @@ export default function BankStatementImport({ schoolId, learners }: Props) {
 
   const renderActions = (txn: BankTransactionRow) => (
     <div style={{ display: "flex", flexDirection: "column", gap: 6, minWidth: 140 }}>
+      {txn.moneyOut > 0 ? (
+        <button
+          type="button"
+          style={ghostBtn}
+          disabled={loading || txn.reviewStatus === "posted"}
+          onClick={() => setSupplierMatchTxn(txn)}
+        >
+          Match supplier invoice
+        </button>
+      ) : null}
       <button type="button" style={ghostBtn} disabled={loading || txn.reviewStatus === "posted"} onClick={() => acceptTxn(txn)}>
         Accept
       </button>
@@ -808,6 +820,29 @@ export default function BankStatementImport({ schoolId, learners }: Props) {
             </div>
           </div>
         </div>
+      ) : null}
+
+      {supplierMatchTxn && schoolId ? (
+        <SupplierInvoiceBankMatch
+          schoolId={schoolId}
+          bankTransactionId={supplierMatchTxn.id}
+          date={supplierMatchTxn.date}
+          description={supplierMatchTxn.description}
+          amount={supplierMatchTxn.moneyOut}
+          reference={supplierMatchTxn.reference}
+          onClose={() => setSupplierMatchTxn(null)}
+          onMatched={async () => {
+            if (activeImport) {
+              await patchTxn(supplierMatchTxn, {
+                reviewStatus: "posted",
+                transactionType: "expense",
+                matchReason: "Supplier invoice matched",
+              });
+            }
+            setSupplierMatchTxn(null);
+            setMessage("Supplier invoice matched and bank line reconciled.");
+          }}
+        />
       ) : null}
     </div>
   );
