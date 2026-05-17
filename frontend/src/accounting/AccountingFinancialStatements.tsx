@@ -1,0 +1,877 @@
+import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import {
+  BILLING_UPDATED_EVENT,
+  formatMoney,
+  getBillingRows,
+  normaliseBillingAmount,
+  readSchoolLedger,
+  type BillingLedgerEntry,
+} from "../billing/billingLedger";
+import {
+  ACCOUNTING_EXPENSES_UPDATED_EVENT,
+  filterApprovedExpensesForMonth,
+  loadApprovedExpenses,
+  migrateLegacyExpenseStores,
+  normalizeExpenseCategory,
+} from "./accountingExpenseStorage";
+import {
+  ACCOUNTING_GOLD,
+  ACCOUNTING_INK,
+  accountingCard,
+  accountingCardLabel,
+  accountingCardValue,
+  accountingPageWrap,
+  accountingSubtitle,
+  accountingTitle,
+} from "./accountingTheme";
+
+type Props = {
+  schoolId: string;
+  schoolName?: string;
+  learners?: any[];
+};
+
+type StatementType = "income" | "cashflow" | "trial-balance" | "balance-sheet";
+
+const STATEMENT_OPTIONS: { id: StatementType; label: string }[] = [
+  { id: "income", label: "Income Statement" },
+  { id: "cashflow", label: "Cash Flow Statement" },
+  { id: "trial-balance", label: "Trial Balance" },
+  { id: "balance-sheet", label: "Balance Sheet" },
+];
+
+const INCOME_LINES = [
+  "School Fees",
+  "Registration Fees",
+  "Transport Fees",
+  "Aftercare",
+  "Other Income",
+] as const;
+
+const EXPENSE_LINES = [
+  "Salaries",
+  "Rent / Bond",
+  "Electricity",
+  "Water",
+  "Fuel",
+  "Repairs & Maintenance",
+  "Stationery",
+  "Food / Tuckshop",
+  "Insurance",
+  "Marketing",
+  "Bank Charges",
+  "SARS / UIF",
+  "Other",
+] as const;
+
+const MONTH_NAMES = [
+  "January",
+  "February",
+  "March",
+  "April",
+  "May",
+  "June",
+  "July",
+  "August",
+  "September",
+  "October",
+  "November",
+  "December",
+];
+
+const fieldStyle: React.CSSProperties = {
+  padding: "10px 12px",
+  borderRadius: 10,
+  border: `1px solid ${ACCOUNTING_GOLD}`,
+  fontWeight: 700,
+  color: ACCOUNTING_INK,
+  background: "#fff",
+  minWidth: 140,
+};
+
+const goldBtn: React.CSSProperties = {
+  padding: "10px 18px",
+  borderRadius: 10,
+  border: "1px solid #b89329",
+  background: "linear-gradient(135deg, #f7d56a, #d4af37)",
+  color: ACCOUNTING_INK,
+  fontWeight: 900,
+  cursor: "pointer",
+};
+
+const outlineBtn: React.CSSProperties = {
+  ...goldBtn,
+  background: "#fff",
+  border: `2px solid ${ACCOUNTING_GOLD}`,
+};
+
+const th: React.CSSProperties = {
+  padding: "10px 12px",
+  textAlign: "left",
+  fontSize: 11,
+  fontWeight: 900,
+  textTransform: "uppercase",
+  letterSpacing: "0.05em",
+  color: ACCOUNTING_GOLD,
+  background: ACCOUNTING_INK,
+  borderBottom: `2px solid ${ACCOUNTING_GOLD}`,
+};
+
+const td: React.CSSProperties = {
+  padding: "10px 12px",
+  borderBottom: "1px solid #f1f5f9",
+  fontSize: 13,
+  fontWeight: 600,
+  color: ACCOUNTING_INK,
+};
+
+const tdRight: React.CSSProperties = { ...td, textAlign: "right", fontVariantNumeric: "tabular-nums" };
+
+function parseYearMonth(dateRaw: string): { year: number; monthIndex: number } | null {
+  const raw = String(dateRaw || "").trim();
+  if (!raw) return null;
+  const iso = raw.match(/^(\d{4})-(\d{2})/);
+  if (iso) {
+    const year = Number(iso[1]);
+    const monthIndex = Number(iso[2]) - 1;
+    if (year >= 1970 && monthIndex >= 0 && monthIndex <= 11) return { year, monthIndex };
+  }
+  const d = new Date(raw);
+  if (Number.isNaN(d.getTime())) return null;
+  return { year: d.getFullYear(), monthIndex: d.getMonth() };
+}
+
+function entryInPeriod(dateRaw: string, year: number, monthIndex: number) {
+  const parsed = parseYearMonth(dateRaw);
+  return parsed?.year === year && parsed?.monthIndex === monthIndex;
+}
+
+function paymentsForMonth(ledger: BillingLedgerEntry[], year: number, monthIndex: number) {
+  return ledger.filter((e) => e.type === "payment" && entryInPeriod(e.date, year, monthIndex));
+}
+
+function classifyPaymentIncome(description: string, reference: string): (typeof INCOME_LINES)[number] {
+  const text = `${description} ${reference}`.toLowerCase();
+  if (text.includes("registration")) return "Registration Fees";
+  if (text.includes("transport") || text.includes("bus")) return "Transport Fees";
+  if (text.includes("aftercare") || text.includes("after care")) return "Aftercare";
+  if (text.includes("tuckshop") || text.includes("fundraising") || text.includes("donation")) {
+    return "Other Income";
+  }
+  return "School Fees";
+}
+
+function mapExpenseToLine(category: string): (typeof EXPENSE_LINES)[number] {
+  const key = normalizeExpenseCategory(category);
+  const map: Record<string, (typeof EXPENSE_LINES)[number]> = {
+    salaries: "Salaries",
+    "rent / bond": "Rent / Bond",
+    rent: "Rent / Bond",
+    bond: "Rent / Bond",
+    electricity: "Electricity",
+    utilities: "Electricity",
+    water: "Water",
+    fuel: "Fuel",
+    transport: "Fuel",
+    maintenance: "Repairs & Maintenance",
+    "repairs & maintenance": "Repairs & Maintenance",
+    stationery: "Stationery",
+    "food / tuckshop": "Food / Tuckshop",
+    food: "Food / Tuckshop",
+    tuckshop: "Food / Tuckshop",
+    insurance: "Insurance",
+    marketing: "Marketing",
+    "bank charges": "Bank Charges",
+    "sars / uif": "SARS / UIF",
+    sars: "SARS / UIF",
+    uif: "SARS / UIF",
+  };
+  return map[key] || "Other";
+}
+
+function emptyLineMap<T extends string>(lines: readonly T[]): Record<T, number> {
+  return lines.reduce(
+    (acc, line) => {
+      acc[line] = 0;
+      return acc;
+    },
+    {} as Record<T, number>
+  );
+}
+
+function openPrintHtml(html: string) {
+  const w = window.open("", "_blank");
+  if (!w) {
+    alert("Pop-up blocked. Please allow pop-ups to print the statement.");
+    return false;
+  }
+  w.document.write(html);
+  w.document.close();
+  w.focus();
+  setTimeout(() => w.print(), 400);
+  return true;
+}
+
+function escapeHtml(value: string) {
+  return value
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;");
+}
+
+type FinancialReport = {
+  incomeByLine: Record<(typeof INCOME_LINES)[number], number>;
+  expenseByLine: Record<(typeof EXPENSE_LINES)[number], number>;
+  totalIncome: number;
+  totalExpenses: number;
+  netSurplus: number;
+  cashReceived: number;
+  cashPaidExpenses: number;
+  payrollPlaceholder: number;
+  netCashMovement: number;
+  openingCashPlaceholder: number;
+  closingCashPlaceholder: number;
+  debtorsOutstanding: number;
+  bankCashEstimate: number;
+  totalAssets: number;
+  totalLiabilities: number;
+  equitySurplus: number;
+  trialRows: { account: string; debit: number; credit: number; balance: number }[];
+};
+
+function buildFinancialReport(
+  schoolId: string,
+  learners: any[],
+  year: number,
+  monthIndex: number
+): FinancialReport {
+  const ledger = readSchoolLedger(schoolId);
+  const approved = loadApprovedExpenses(schoolId);
+  const monthApproved = filterApprovedExpensesForMonth(approved, year, monthIndex);
+
+  const incomeByLine = emptyLineMap(INCOME_LINES);
+  for (const pay of paymentsForMonth(ledger, year, monthIndex)) {
+    const amount = normaliseBillingAmount(pay.amount);
+    if (amount <= 0) continue;
+    const line = classifyPaymentIncome(
+      String(pay.description || ""),
+      String(pay.reference || "")
+    );
+    incomeByLine[line] += amount;
+  }
+
+  const expenseByLine = emptyLineMap(EXPENSE_LINES);
+  for (const row of monthApproved) {
+    const amount = normaliseBillingAmount(row.amount);
+    if (amount <= 0) continue;
+    const line = mapExpenseToLine(String(row.category || "Other"));
+    expenseByLine[line] += amount;
+  }
+
+  const totalIncome = INCOME_LINES.reduce((s, k) => s + incomeByLine[k], 0);
+  const totalExpenses = EXPENSE_LINES.reduce((s, k) => s + expenseByLine[k], 0);
+  const netSurplus = totalIncome - totalExpenses;
+
+  const cashReceived = totalIncome;
+  const cashPaidExpenses = totalExpenses;
+  const payrollPlaceholder = 0;
+  const openingCashPlaceholder = 0;
+  const netCashMovement = cashReceived - cashPaidExpenses - payrollPlaceholder;
+  const closingCashPlaceholder = openingCashPlaceholder + netCashMovement;
+  const bankCashEstimate = Math.max(closingCashPlaceholder, 0);
+
+  const billingRows = getBillingRows(learners || [], schoolId);
+  const debtorsOutstanding = billingRows.reduce((sum, row) => {
+    const bal = normaliseBillingAmount(row.balance);
+    return sum + (bal > 0 ? bal : 0);
+  }, 0);
+
+  const fixedAssetsPlaceholder = 0;
+  const supplierPayablesPlaceholder = 0;
+  const payrollLiabilitiesPlaceholder = 0;
+  const taxLiabilitiesPlaceholder = 0;
+  const openingEquityPlaceholder = 0;
+
+  const totalAssets = bankCashEstimate + debtorsOutstanding + fixedAssetsPlaceholder;
+  const totalLiabilities =
+    supplierPayablesPlaceholder + payrollLiabilitiesPlaceholder + taxLiabilitiesPlaceholder;
+  const equitySurplus = openingEquityPlaceholder + netSurplus;
+
+  const trialRows: FinancialReport["trialRows"] = [];
+
+  if (bankCashEstimate > 0) {
+    trialRows.push({
+      account: "Bank / Cash (estimated)",
+      debit: bankCashEstimate,
+      credit: 0,
+      balance: bankCashEstimate,
+    });
+  }
+
+  for (const line of EXPENSE_LINES) {
+    const amount = expenseByLine[line];
+    if (amount <= 0) continue;
+    trialRows.push({
+      account: line,
+      debit: amount,
+      credit: 0,
+      balance: amount,
+    });
+  }
+
+  const schoolFeeIncome = incomeByLine["School Fees"] + incomeByLine["Registration Fees"];
+  const otherIncome =
+    incomeByLine["Transport Fees"] +
+    incomeByLine["Aftercare"] +
+    incomeByLine["Other Income"];
+
+  if (schoolFeeIncome > 0) {
+    trialRows.push({
+      account: "School Fee Income",
+      debit: 0,
+      credit: schoolFeeIncome,
+      balance: -schoolFeeIncome,
+    });
+  }
+  if (otherIncome > 0) {
+    trialRows.push({
+      account: "Other Income",
+      debit: 0,
+      credit: otherIncome,
+      balance: -otherIncome,
+    });
+  }
+
+  trialRows.push({
+    account: "Supplier Payables (placeholder)",
+    debit: 0,
+    credit: supplierPayablesPlaceholder,
+    balance: -supplierPayablesPlaceholder,
+  });
+
+  return {
+    incomeByLine,
+    expenseByLine,
+    totalIncome,
+    totalExpenses,
+    netSurplus,
+    cashReceived,
+    cashPaidExpenses,
+    payrollPlaceholder,
+    netCashMovement,
+    openingCashPlaceholder,
+    closingCashPlaceholder,
+    debtorsOutstanding,
+    bankCashEstimate,
+    totalAssets,
+    totalLiabilities,
+    equitySurplus,
+    trialRows,
+  };
+}
+
+function statementTitle(type: StatementType) {
+  return STATEMENT_OPTIONS.find((o) => o.id === type)?.label || "Financial Statement";
+}
+
+function buildPrintHtml(opts: {
+  schoolName: string;
+  periodLabel: string;
+  generatedAt: string;
+  statementType: StatementType;
+  report: FinancialReport;
+}) {
+  const { schoolName, periodLabel, generatedAt, statementType, report } = opts;
+  const title = statementTitle(statementType);
+
+  const lineRow = (label: string, amount: number, bold = false) =>
+    `<tr><td style="padding:6px 0;${bold ? "font-weight:800;" : ""}">${escapeHtml(label)}</td><td style="padding:6px 0;text-align:right;font-variant-numeric:tabular-nums;${bold ? "font-weight:800;" : ""}">${escapeHtml(formatMoney(amount))}</td></tr>`;
+
+  let body = "";
+
+  if (statementType === "income") {
+    body += `<h2 style="font-size:16px;margin:18px 0 8px;color:#111827;">Income</h2><table style="width:100%;border-collapse:collapse;">`;
+    for (const line of INCOME_LINES) {
+      if (report.incomeByLine[line] > 0) body += lineRow(line, report.incomeByLine[line]);
+    }
+    body += `</table><h2 style="font-size:16px;margin:18px 0 8px;color:#111827;">Expenses</h2><table style="width:100%;border-collapse:collapse;">`;
+    for (const line of EXPENSE_LINES) {
+      if (report.expenseByLine[line] > 0) body += lineRow(line, report.expenseByLine[line]);
+    }
+    body += `</table><table style="width:100%;margin-top:16px;border-top:2px solid #d4af37;padding-top:12px;">`;
+    body += lineRow("Total Income", report.totalIncome, true);
+    body += lineRow("Total Expenses", report.totalExpenses, true);
+    body += lineRow("Net Surplus / Deficit", report.netSurplus, true);
+    body += `</table>`;
+  } else if (statementType === "cashflow") {
+    body += `<table style="width:100%;border-collapse:collapse;">`;
+    body += lineRow("Cash received from parents / billing", report.cashReceived);
+    body += lineRow("Cash paid to suppliers / expenses", report.cashPaidExpenses);
+    body += lineRow("Payroll payments (placeholder)", report.payrollPlaceholder);
+    body += lineRow("Net cash movement", report.netCashMovement, true);
+    body += lineRow("Opening balance (placeholder)", report.openingCashPlaceholder);
+    body += lineRow("Closing balance (placeholder)", report.closingCashPlaceholder, true);
+    body += `</table>`;
+  } else if (statementType === "trial-balance") {
+    body += `<table style="width:100%;border-collapse:collapse;font-size:13px;"><thead><tr style="background:#111827;color:#d4af37;"><th style="padding:8px;text-align:left;">Account</th><th style="padding:8px;text-align:right;">Debit</th><th style="padding:8px;text-align:right;">Credit</th><th style="padding:8px;text-align:right;">Balance</th></tr></thead><tbody>`;
+    for (const row of report.trialRows) {
+      body += `<tr><td style="padding:8px;border-bottom:1px solid #eee;">${escapeHtml(row.account)}</td><td style="padding:8px;border-bottom:1px solid #eee;text-align:right;">${row.debit ? escapeHtml(formatMoney(row.debit)) : "—"}</td><td style="padding:8px;border-bottom:1px solid #eee;text-align:right;">${row.credit ? escapeHtml(formatMoney(row.credit)) : "—"}</td><td style="padding:8px;border-bottom:1px solid #eee;text-align:right;font-weight:700;">${escapeHtml(formatMoney(row.balance))}</td></tr>`;
+    }
+    body += `</tbody></table>`;
+  } else {
+    body += `<h2 style="font-size:16px;margin:12px 0 6px;">Assets</h2><table style="width:100%;">`;
+    body += lineRow("Bank / Cash (estimated)", report.bankCashEstimate);
+    body += lineRow("Debtors (billing outstanding)", report.debtorsOutstanding);
+    body += lineRow("Fixed assets (placeholder)", 0);
+    body += lineRow("Total Assets", report.totalAssets, true);
+    body += `</table><h2 style="font-size:16px;margin:18px 0 6px;">Liabilities</h2><table style="width:100%;">`;
+    body += lineRow("Supplier payables (placeholder)", 0);
+    body += lineRow("Payroll liabilities (placeholder)", 0);
+    body += lineRow("Tax liabilities (placeholder)", 0);
+    body += lineRow("Total Liabilities", report.totalLiabilities, true);
+    body += `</table><h2 style="font-size:16px;margin:18px 0 6px;">Equity</h2><table style="width:100%;">`;
+    body += lineRow("Opening balance (placeholder)", 0);
+    body += lineRow("Current year surplus / deficit", report.equitySurplus, true);
+    body += `</table>`;
+  }
+
+  return `<!DOCTYPE html><html><head><meta charset="utf-8"/><title>${escapeHtml(title)} — ${escapeHtml(periodLabel)}</title>
+<style>
+  body { font-family: Georgia, "Times New Roman", serif; color: #111827; margin: 36px; line-height: 1.5; }
+  .header { border-bottom: 2px solid #d4af37; padding-bottom: 14px; margin-bottom: 20px; }
+  .school { font-size: 20px; font-weight: 800; }
+  .meta { color: #64748b; font-size: 13px; margin-top: 6px; }
+  h1 { font-size: 22px; margin: 0 0 8px; }
+  .notes { margin-top: 24px; font-size: 12px; color: #64748b; border-top: 1px solid #e5e7eb; padding-top: 12px; }
+  .footer { margin-top: 20px; font-weight: 800; color: #b89329; }
+</style></head><body>
+  <div class="header">
+    <div class="school">${escapeHtml(schoolName)}</div>
+    <div class="meta">Period: ${escapeHtml(periodLabel)} · Generated: ${escapeHtml(generatedAt)}</div>
+  </div>
+  <h1>${escapeHtml(title)}</h1>
+  ${body}
+  <div class="notes">
+    <p>Management statement based on approved expenses and billing receipts.</p>
+    <p>Final audited financial statements must be reviewed by the school's accountant/auditor.</p>
+  </div>
+  <div class="footer">Prepared by EduClear Accounting</div>
+</body></html>`;
+}
+
+export default function AccountingFinancialStatements({
+  schoolId,
+  schoolName: schoolNameProp,
+  learners = [],
+}: Props) {
+  const now = new Date();
+  const [year, setYear] = useState(now.getFullYear());
+  const [monthIndex, setMonthIndex] = useState(now.getMonth());
+  const [statementType, setStatementType] = useState<StatementType>("income");
+  const [generatedAt, setGeneratedAt] = useState("");
+  const [refreshKey, setRefreshKey] = useState(0);
+  const [exportBanner, setExportBanner] = useState("");
+  const previewRef = useRef<HTMLDivElement>(null);
+
+  const schoolName =
+    String(schoolNameProp || localStorage.getItem("schoolName") || "").trim() || "School";
+
+  const bumpRefresh = useCallback(() => setRefreshKey((k) => k + 1), []);
+
+  useEffect(() => {
+    if (!schoolId) return;
+    migrateLegacyExpenseStores(schoolId);
+  }, [schoolId, refreshKey]);
+
+  useEffect(() => {
+    const onExpenses = (e: Event) => {
+      const detail = (e as CustomEvent<{ schoolId?: string }>).detail;
+      if (!detail?.schoolId || detail.schoolId === schoolId) bumpRefresh();
+    };
+    const onBilling = () => bumpRefresh();
+    window.addEventListener(ACCOUNTING_EXPENSES_UPDATED_EVENT, onExpenses);
+    window.addEventListener(BILLING_UPDATED_EVENT, onBilling);
+    return () => {
+      window.removeEventListener(ACCOUNTING_EXPENSES_UPDATED_EVENT, onExpenses);
+      window.removeEventListener(BILLING_UPDATED_EVENT, onBilling);
+    };
+  }, [schoolId, bumpRefresh]);
+
+  const periodLabel = `${MONTH_NAMES[monthIndex]} ${year}`;
+
+  const report = useMemo(() => {
+    const sid = String(schoolId || "").trim();
+    if (!sid) {
+      return buildFinancialReport("", [], year, monthIndex);
+    }
+    return buildFinancialReport(sid, learners, year, monthIndex);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [schoolId, learners, year, monthIndex, refreshKey]);
+
+  const displayGeneratedAt = generatedAt || "Not generated yet — click Generate";
+
+  const handleGenerate = () => {
+    setGeneratedAt(new Date().toLocaleString("en-ZA"));
+    bumpRefresh();
+  };
+
+  const handlePrint = () => {
+    const at = generatedAt || new Date().toLocaleString("en-ZA");
+    const html = buildPrintHtml({
+      schoolName,
+      periodLabel,
+      generatedAt: at,
+      statementType,
+      report,
+    });
+    openPrintHtml(html);
+  };
+
+  const handleExportPlaceholder = () => {
+    setExportBanner("PDF/Excel export will be connected in the export module.");
+  };
+
+  const yearOptions = useMemo(() => {
+    const current = new Date().getFullYear();
+    return Array.from({ length: 6 }, (_, i) => current - i);
+  }, []);
+
+  const renderIncomeStatement = () => (
+    <>
+      <h3 style={{ margin: "0 0 12px", fontWeight: 900, color: ACCOUNTING_INK }}>Income</h3>
+      <table style={{ width: "100%", borderCollapse: "collapse", marginBottom: 20 }}>
+        <tbody>
+          {INCOME_LINES.map((line) => (
+            <tr key={line}>
+              <td style={td}>{line}</td>
+              <td style={tdRight}>{formatMoney(report.incomeByLine[line])}</td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+      <h3 style={{ margin: "0 0 12px", fontWeight: 900, color: ACCOUNTING_INK }}>Expenses</h3>
+      <table style={{ width: "100%", borderCollapse: "collapse", marginBottom: 20 }}>
+        <tbody>
+          {EXPENSE_LINES.map((line) => (
+            <tr key={line}>
+              <td style={td}>{line}</td>
+              <td style={tdRight}>{formatMoney(report.expenseByLine[line])}</td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+      <table style={{ width: "100%", borderCollapse: "collapse", borderTop: `2px solid ${ACCOUNTING_GOLD}` }}>
+        <tbody>
+          <tr>
+            <td style={{ ...td, fontWeight: 900 }}>Total Income</td>
+            <td style={{ ...tdRight, fontWeight: 900 }}>{formatMoney(report.totalIncome)}</td>
+          </tr>
+          <tr>
+            <td style={{ ...td, fontWeight: 900 }}>Total Expenses</td>
+            <td style={{ ...tdRight, fontWeight: 900 }}>{formatMoney(report.totalExpenses)}</td>
+          </tr>
+          <tr>
+            <td style={{ ...td, fontWeight: 900, color: report.netSurplus >= 0 ? "#166534" : "#b91c1c" }}>
+              Net Surplus / Deficit
+            </td>
+            <td
+              style={{
+                ...tdRight,
+                fontWeight: 900,
+                color: report.netSurplus >= 0 ? "#166534" : "#b91c1c",
+              }}
+            >
+              {formatMoney(report.netSurplus)}
+            </td>
+          </tr>
+        </tbody>
+      </table>
+    </>
+  );
+
+  const renderCashFlow = () => (
+    <table style={{ width: "100%", borderCollapse: "collapse" }}>
+      <tbody>
+        {[
+          ["Cash received from parents / billing", report.cashReceived],
+          ["Cash paid to suppliers / expenses", report.cashPaidExpenses],
+          ["Payroll payments (placeholder)", report.payrollPlaceholder],
+          ["Net cash movement", report.netCashMovement],
+          ["Opening balance (placeholder)", report.openingCashPlaceholder],
+          ["Closing balance (placeholder)", report.closingCashPlaceholder],
+        ].map(([label, amount], idx) => (
+          <tr key={String(label)}>
+            <td style={{ ...td, fontWeight: idx === 3 || idx === 5 ? 900 : 600 }}>{label}</td>
+            <td style={{ ...tdRight, fontWeight: idx === 3 || idx === 5 ? 900 : 600 }}>
+              {formatMoney(amount as number)}
+            </td>
+          </tr>
+        ))}
+      </tbody>
+    </table>
+  );
+
+  const renderTrialBalance = () => (
+    <table style={{ width: "100%", borderCollapse: "collapse", minWidth: 640 }}>
+      <thead>
+        <tr>
+          {["Account", "Debit", "Credit", "Balance"].map((h) => (
+            <th key={h} style={h === "Account" ? th : { ...th, textAlign: "right" }}>
+              {h}
+            </th>
+          ))}
+        </tr>
+      </thead>
+      <tbody>
+        {report.trialRows.length === 0 ? (
+          <tr>
+            <td colSpan={4} style={{ ...td, textAlign: "center", color: "#64748b" }}>
+              No trial balance lines for this period.
+            </td>
+          </tr>
+        ) : (
+          report.trialRows.map((row) => (
+            <tr key={row.account}>
+              <td style={td}>{row.account}</td>
+              <td style={tdRight}>{row.debit > 0 ? formatMoney(row.debit) : "—"}</td>
+              <td style={tdRight}>{row.credit > 0 ? formatMoney(row.credit) : "—"}</td>
+              <td style={{ ...tdRight, fontWeight: 800 }}>{formatMoney(row.balance)}</td>
+            </tr>
+          ))
+        )}
+      </tbody>
+    </table>
+  );
+
+  const renderBalanceSheet = () => (
+    <>
+      <h3 style={{ margin: "0 0 12px", fontWeight: 900 }}>Assets</h3>
+      <table style={{ width: "100%", borderCollapse: "collapse", marginBottom: 20 }}>
+        <tbody>
+          {[
+            ["Bank / Cash (estimated)", report.bankCashEstimate],
+            ["Debtors (billing outstanding)", report.debtorsOutstanding],
+            ["Fixed assets (placeholder)", 0],
+            ["Total Assets", report.totalAssets],
+          ].map(([label, amount], idx) => (
+            <tr key={String(label)}>
+              <td style={{ ...td, fontWeight: idx === 3 ? 900 : 600 }}>{label}</td>
+              <td style={{ ...tdRight, fontWeight: idx === 3 ? 900 : 600 }}>
+                {formatMoney(amount as number)}
+              </td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+      <h3 style={{ margin: "0 0 12px", fontWeight: 900 }}>Liabilities</h3>
+      <table style={{ width: "100%", borderCollapse: "collapse", marginBottom: 20 }}>
+        <tbody>
+          {[
+            ["Supplier payables (placeholder)", 0],
+            ["Payroll liabilities (placeholder)", 0],
+            ["Tax liabilities (placeholder)", 0],
+            ["Total Liabilities", report.totalLiabilities],
+          ].map(([label, amount], idx) => (
+            <tr key={String(label)}>
+              <td style={{ ...td, fontWeight: idx === 3 ? 900 : 600 }}>{label}</td>
+              <td style={{ ...tdRight, fontWeight: idx === 3 ? 900 : 600 }}>
+                {formatMoney(amount as number)}
+              </td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+      <h3 style={{ margin: "0 0 12px", fontWeight: 900 }}>Equity</h3>
+      <table style={{ width: "100%", borderCollapse: "collapse" }}>
+        <tbody>
+          {[
+            ["Opening balance (placeholder)", 0],
+            ["Current year surplus / deficit", report.equitySurplus],
+          ].map(([label, amount], idx) => (
+            <tr key={String(label)}>
+              <td style={{ ...td, fontWeight: idx === 1 ? 900 : 600 }}>{label}</td>
+              <td style={{ ...tdRight, fontWeight: idx === 1 ? 900 : 600 }}>
+                {formatMoney(amount as number)}
+              </td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </>
+  );
+
+  const renderStatementBody = () => {
+    if (statementType === "income") return renderIncomeStatement();
+    if (statementType === "cashflow") return renderCashFlow();
+    if (statementType === "trial-balance") return renderTrialBalance();
+    return renderBalanceSheet();
+  };
+
+  return (
+    <div style={accountingPageWrap}>
+      <div style={{ marginBottom: 24 }}>
+        <h1 style={accountingTitle}>Financial Statements</h1>
+        <p style={accountingSubtitle}>
+          Generate school-ready management and audit statement reports.
+        </p>
+      </div>
+
+      <div
+        style={{
+          display: "flex",
+          flexWrap: "wrap",
+          gap: 12,
+          alignItems: "flex-end",
+          marginBottom: 20,
+        }}
+      >
+        <label style={{ display: "grid", gap: 6, fontSize: 12, fontWeight: 800, color: "#64748b" }}>
+          Year
+          <select style={fieldStyle} value={year} onChange={(e) => setYear(Number(e.target.value))}>
+            {yearOptions.map((y) => (
+              <option key={y} value={y}>
+                {y}
+              </option>
+            ))}
+          </select>
+        </label>
+        <label style={{ display: "grid", gap: 6, fontSize: 12, fontWeight: 800, color: "#64748b" }}>
+          Month
+          <select
+            style={fieldStyle}
+            value={monthIndex}
+            onChange={(e) => setMonthIndex(Number(e.target.value))}
+          >
+            {MONTH_NAMES.map((name, idx) => (
+              <option key={name} value={idx}>
+                {name}
+              </option>
+            ))}
+          </select>
+        </label>
+        <label style={{ display: "grid", gap: 6, fontSize: 12, fontWeight: 800, color: "#64748b" }}>
+          Statement type
+          <select
+            style={{ ...fieldStyle, minWidth: 220 }}
+            value={statementType}
+            onChange={(e) => setStatementType(e.target.value as StatementType)}
+          >
+            {STATEMENT_OPTIONS.map((o) => (
+              <option key={o.id} value={o.id}>
+                {o.label}
+              </option>
+            ))}
+          </select>
+        </label>
+        <button type="button" style={goldBtn} onClick={handleGenerate}>
+          Generate
+        </button>
+        <button type="button" style={outlineBtn} onClick={handlePrint}>
+          Print
+        </button>
+        <button type="button" style={outlineBtn} onClick={handleExportPlaceholder}>
+          Export PDF
+        </button>
+        <button type="button" style={outlineBtn} onClick={handleExportPlaceholder}>
+          Export Excel
+        </button>
+      </div>
+
+      {exportBanner ? (
+        <div
+          style={{
+            marginBottom: 16,
+            padding: 12,
+            borderRadius: 10,
+            background: "#fffbeb",
+            border: `1px solid ${ACCOUNTING_GOLD}`,
+            color: "#92400e",
+            fontWeight: 700,
+          }}
+        >
+          {exportBanner}
+        </div>
+      ) : null}
+
+      <div
+        style={{
+          display: "grid",
+          gridTemplateColumns: "repeat(auto-fill, minmax(160px, 1fr))",
+          gap: 14,
+          marginBottom: 24,
+        }}
+      >
+        {[
+          ["Income", report.totalIncome],
+          ["Expenses", report.totalExpenses],
+          ["Net Surplus / Deficit", report.netSurplus],
+          ["Cash Movement", report.netCashMovement],
+          ["Assets", report.totalAssets],
+          ["Liabilities", report.totalLiabilities],
+        ].map(([label, value]) => (
+          <div key={String(label)} style={accountingCard}>
+            <div style={accountingCardLabel}>{label}</div>
+            <div style={accountingCardValue}>{formatMoney(value as number)}</div>
+          </div>
+        ))}
+      </div>
+
+      <div
+        ref={previewRef}
+        id="financial-statement-preview"
+        style={{
+          ...accountingCard,
+          padding: "28px 32px",
+          marginBottom: 20,
+        }}
+      >
+        <div
+          style={{
+            borderBottom: `2px solid ${ACCOUNTING_GOLD}`,
+            paddingBottom: 16,
+            marginBottom: 20,
+          }}
+        >
+          <div style={{ fontSize: 22, fontWeight: 900, color: ACCOUNTING_INK }}>{schoolName}</div>
+          <div style={{ fontSize: 14, color: "#64748b", marginTop: 6, fontWeight: 600 }}>
+            {statementTitle(statementType)} · {periodLabel}
+          </div>
+          <div style={{ fontSize: 12, color: "#94a3b8", marginTop: 4 }}>
+            Generated: {displayGeneratedAt}
+          </div>
+        </div>
+
+        {renderStatementBody()}
+
+        <div
+          style={{
+            marginTop: 24,
+            paddingTop: 16,
+            borderTop: "1px solid #e5e7eb",
+            fontSize: 12,
+            color: "#64748b",
+            lineHeight: 1.6,
+          }}
+        >
+          <p style={{ margin: "0 0 8px" }}>
+            Management statement based on approved expenses and billing receipts.
+          </p>
+          <p style={{ margin: 0 }}>
+            Final audited financial statements must be reviewed by the school&apos;s accountant/auditor.
+          </p>
+        </div>
+        <div
+          style={{
+            marginTop: 16,
+            fontWeight: 900,
+            color: ACCOUNTING_GOLD,
+            fontSize: 13,
+          }}
+        >
+          Prepared by EduClear Accounting
+        </div>
+      </div>
+    </div>
+  );
+}

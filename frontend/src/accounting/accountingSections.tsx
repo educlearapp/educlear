@@ -33,14 +33,7 @@ export function AccountingChartOfAccounts() {
 
 export { default as AccountingBudget } from "./AccountingBudget";
 
-export function AccountingFinancialStatements() {
-  return (
-    <AccountingPlaceholder
-      title="Financial Statements"
-      description="Income statement, balance sheet, and cash flow views for the school."
-    />
-  );
-}
+export { default as AccountingFinancialStatements } from "./AccountingFinancialStatements";
 
 export function AccountingReports() {
   return (

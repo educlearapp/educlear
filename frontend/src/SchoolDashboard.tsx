@@ -17721,7 +17721,13 @@ const [invoiceRunEmailDraft, setInvoiceRunEmailDraft] = useState({
           return <AccountingBudget schoolId={schoolId || ""} />;
 
         case "accountingFinancialStatements":
-          return <AccountingFinancialStatements />;
+          return (
+            <AccountingFinancialStatements
+              schoolId={schoolId || ""}
+              schoolName={schoolBranding.name}
+              learners={learners}
+            />
+          );
 
         case "accountingReports":
           return <AccountingReports />;
