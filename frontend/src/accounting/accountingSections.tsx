@@ -1,22 +1,8 @@
 import AccountingPlaceholder from "./AccountingPlaceholder";
 
-export function AccountingExpenses() {
-  return (
-    <AccountingPlaceholder
-      title="Expenses"
-      description="Record and approve school expenses. Money out from banking can be classified here as expense candidates."
-    />
-  );
-}
+export { default as AccountingExpenses } from "./AccountingExpenses";
 
-export function AccountingSuppliers() {
-  return (
-    <AccountingPlaceholder
-      title="Suppliers"
-      description="Manage supplier profiles, payment terms, and purchase history for the school."
-    />
-  );
-}
+export { default as AccountingSuppliers } from "./AccountingSuppliers";
 
 export function AccountingAssets() {
   return (
