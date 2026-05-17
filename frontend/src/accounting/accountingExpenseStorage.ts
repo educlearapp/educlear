@@ -2,6 +2,7 @@ import type { BankTransactionRow, MatchConfidence } from "../banking/bankingApi"
 
 export const EXPENSE_CANDIDATES_STORAGE_PREFIX = "educlearAccountingExpenseCandidates:";
 export const APPROVED_EXPENSES_STORAGE_PREFIX = "educlearAccountingApprovedExpenses:";
+export const ACCOUNTING_EXPENSES_UPDATED_EVENT = "educlear-accounting-expenses-updated";
 /** Legacy combined store — recurring rules only after migration */
 export const LEGACY_EXPENSES_STORAGE_PREFIX = "educlearAccountingExpenses:";
 
@@ -89,12 +90,101 @@ export function loadApprovedExpenses(schoolId: string): AccountingApprovedExpens
   }
 }
 
+export function dispatchAccountingExpensesUpdated(schoolId: string) {
+  if (typeof window === "undefined") return;
+  window.dispatchEvent(
+    new CustomEvent(ACCOUNTING_EXPENSES_UPDATED_EVENT, { detail: { schoolId: String(schoolId || "").trim() } })
+  );
+}
+
 export function saveApprovedExpenses(schoolId: string, rows: AccountingApprovedExpense[]) {
   try {
     localStorage.setItem(approvedKey(schoolId), JSON.stringify(rows));
+    dispatchAccountingExpensesUpdated(schoolId);
   } catch {
     /* quota */
   }
+}
+
+/** Case-insensitive category key for Budget ↔ Expenses matching */
+export function normalizeExpenseCategory(category: unknown): string {
+  return String(category ?? "")
+    .trim()
+    .toLowerCase()
+    .replace(/\s+/g, " ");
+}
+
+function parseExpenseYearMonth(dateRaw: string): { year: number; monthIndex: number } | null {
+  const raw = String(dateRaw || "").trim();
+  if (!raw) return null;
+  const iso = raw.match(/^(\d{4})-(\d{2})/);
+  if (iso) {
+    const year = Number(iso[1]);
+    const monthIndex = Number(iso[2]) - 1;
+    if (year >= 1970 && monthIndex >= 0 && monthIndex <= 11) return { year, monthIndex };
+  }
+  const d = new Date(raw);
+  if (Number.isNaN(d.getTime())) return null;
+  return { year: d.getFullYear(), monthIndex: d.getMonth() };
+}
+
+export function filterApprovedExpensesForMonth(
+  rows: AccountingApprovedExpense[],
+  year: number,
+  monthIndex: number
+): AccountingApprovedExpense[] {
+  return rows.filter((row) => {
+    const parsed = parseExpenseYearMonth(row.date);
+    return parsed?.year === year && parsed?.monthIndex === monthIndex;
+  });
+}
+
+export type ApprovedSpendByCategory = {
+  /** Normalized key → total amount */
+  totals: Map<string, number>;
+  /** Normalized key → display label (first seen casing) */
+  labels: Map<string, string>;
+};
+
+export function sumApprovedExpensesByCategory(
+  rows: AccountingApprovedExpense[],
+  year: number,
+  monthIndex: number
+): ApprovedSpendByCategory {
+  const totals = new Map<string, number>();
+  const labels = new Map<string, string>();
+  for (const row of filterApprovedExpensesForMonth(rows, year, monthIndex)) {
+    const amount = Number(row.amount);
+    if (!Number.isFinite(amount) || amount <= 0) continue;
+    const key = normalizeExpenseCategory(row.category);
+    if (!key) continue;
+    totals.set(key, (totals.get(key) || 0) + amount);
+    if (!labels.has(key)) {
+      labels.set(key, String(row.category || "").trim() || key);
+    }
+  }
+  return { totals, labels };
+}
+
+export function actualSpendForBudgetCategory(
+  spend: ApprovedSpendByCategory,
+  category: unknown
+): number {
+  const key = normalizeExpenseCategory(category);
+  if (!key) return 0;
+  const value = spend.totals.get(key) ?? 0;
+  return Number.isFinite(value) ? value : 0;
+}
+
+export function totalApprovedSpendForMonth(
+  rows: AccountingApprovedExpense[],
+  year: number,
+  monthIndex: number
+): number {
+  return filterApprovedExpensesForMonth(rows, year, monthIndex).reduce((sum, row) => {
+    const amount = Number(row.amount);
+    return sum + (Number.isFinite(amount) && amount > 0 ? amount : 0);
+  }, 0);
 }
 
 export function buildExpenseCandidateFromBankTxn(

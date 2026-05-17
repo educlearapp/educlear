@@ -1,4 +1,12 @@
-import React, { useMemo, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useState } from "react";
+import {
+  ACCOUNTING_EXPENSES_UPDATED_EVENT,
+  actualSpendForBudgetCategory,
+  loadApprovedExpenses,
+  normalizeExpenseCategory,
+  sumApprovedExpensesByCategory,
+  type ApprovedSpendByCategory,
+} from "./accountingExpenseStorage";
 import {
   ACCOUNTING_GOLD,
   ACCOUNTING_INK,
@@ -23,6 +31,7 @@ const INCOME_CATEGORIES = [
 const EXPENSE_CATEGORIES = [
   "Salaries",
   "Rent / Bond",
+  "Electricity",
   "Utilities",
   "Transport",
   "Maintenance",
@@ -50,6 +59,7 @@ const BUDGET_PAGES: BudgetPage[] = [
   { id: "income", label: "Income", section: "Income" },
   { id: "salaries", label: "Salaries", section: "Expense", category: "Salaries" },
   { id: "rent", label: "Rent / Bond", section: "Expense", category: "Rent / Bond" },
+  { id: "electricity", label: "Electricity", section: "Expense", category: "Electricity" },
   { id: "utilities", label: "Utilities", section: "Expense", category: "Utilities" },
   { id: "transport", label: "Transport", section: "Expense", category: "Transport" },
   { id: "maintenance", label: "Maintenance", section: "Expense", category: "Maintenance" },
@@ -196,17 +206,18 @@ function buildSampleRows(): BudgetRow[] {
     { category: "Other Income", monthly: 5000, actual: 3800, notes: "Miscellaneous income" },
   ];
 
-  const expenseSamples: Array<{ category: ExpenseCategory; monthly: number; actual: number; notes: string }> = [
-    { category: "Salaries", monthly: 185000, actual: 172400, notes: "Teaching and admin payroll" },
-    { category: "Rent / Bond", monthly: 42000, actual: 42000, notes: "Campus lease" },
-    { category: "Utilities", monthly: 18500, actual: 16200, notes: "Electricity, water, refuse" },
-    { category: "Transport", monthly: 12000, actual: 9800, notes: "Bus contract and fuel" },
-    { category: "Maintenance", monthly: 9500, actual: 11200, notes: "Repairs — roof leak" },
-    { category: "Stationery", monthly: 6500, actual: 5200, notes: "Classroom supplies" },
-    { category: "Food / Tuckshop", monthly: 14000, actual: 13800, notes: "Tuckshop stock" },
-    { category: "Insurance", monthly: 8800, actual: 8800, notes: "Monthly premium" },
-    { category: "Marketing", monthly: 4500, actual: 2100, notes: "Open day campaign" },
-    { category: "Other", monthly: 6000, actual: 4800, notes: "Miscellaneous" },
+  const expenseSamples: Array<{ category: ExpenseCategory; monthly: number; notes: string }> = [
+    { category: "Salaries", monthly: 185000, notes: "Teaching and admin payroll" },
+    { category: "Rent / Bond", monthly: 42000, notes: "Campus lease" },
+    { category: "Electricity", monthly: 12000, notes: "Electricity — main campus" },
+    { category: "Utilities", monthly: 18500, notes: "Water, refuse, and shared utilities" },
+    { category: "Transport", monthly: 12000, notes: "Bus contract and fuel" },
+    { category: "Maintenance", monthly: 9500, notes: "Repairs and upkeep" },
+    { category: "Stationery", monthly: 6500, notes: "Classroom supplies" },
+    { category: "Food / Tuckshop", monthly: 14000, notes: "Tuckshop stock" },
+    { category: "Insurance", monthly: 8800, notes: "Monthly premium" },
+    { category: "Marketing", monthly: 4500, notes: "Open day campaign" },
+    { category: "Other", monthly: 6000, notes: "Miscellaneous" },
   ];
 
   const incomeRows = incomeSamples.map((s, i) => ({
@@ -225,11 +236,45 @@ function buildSampleRows(): BudgetRow[] {
     category: s.category,
     monthlyBudget: s.monthly,
     annualBudget: s.monthly * 12,
-    actual: s.actual,
+    actual: 0,
     notes: s.notes,
   }));
 
   return [...incomeRows, ...expenseRows];
+}
+
+function applyApprovedActualsToRows(
+  budgetRows: BudgetRow[],
+  spend: ApprovedSpendByCategory
+): BudgetRow[] {
+  const expenseNormKeys = new Set(
+    budgetRows.filter((r) => r.section === "Expense").map((r) => normalizeExpenseCategory(r.category))
+  );
+
+  const withActual = budgetRows.map((row) => {
+    if (row.section === "Income") return row;
+    return {
+      ...row,
+      actual: actualSpendForBudgetCategory(spend, row.category),
+    };
+  });
+
+  for (const [normKey, amount] of spend.totals.entries()) {
+    if (!normKey || amount <= 0) continue;
+    if (expenseNormKeys.has(normKey)) continue;
+    const label = spend.labels.get(normKey) || normKey;
+    withActual.push({
+      id: `expense-approved-${normKey.replace(/\s+/g, "-")}`,
+      section: "Expense",
+      category: label as BudgetCategory,
+      monthlyBudget: 0,
+      annualBudget: 0,
+      actual: amount,
+      notes: "From approved Accounting Expenses",
+    });
+  }
+
+  return withActual;
 }
 
 function rowsForPage(rows: BudgetRow[], page: BudgetPage): BudgetRow[] {
@@ -537,16 +582,49 @@ const emptyForm = (): ModalForm => ({
   notes: "",
 });
 
-export default function AccountingBudget() {
+type BudgetProps = {
+  schoolId?: string;
+};
+
+export default function AccountingBudget({ schoolId = "" }: BudgetProps) {
   const now = new Date();
   const [year, setYear] = useState(now.getFullYear());
   const [monthIndex, setMonthIndex] = useState(now.getMonth());
-  const [rows, setRows] = useState<BudgetRow[]>(buildSampleRows);
+  const [budgetRows, setBudgetRows] = useState<BudgetRow[]>(buildSampleRows);
+  const [expensesRefreshKey, setExpensesRefreshKey] = useState(0);
   const [pageIndex, setPageIndex] = useState(0);
   const [modalOpen, setModalOpen] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [form, setForm] = useState<ModalForm>(emptyForm);
   const [importNote, setImportNote] = useState("");
+
+  const refreshApprovedSpend = useCallback(() => {
+    setExpensesRefreshKey((k) => k + 1);
+  }, []);
+
+  useEffect(() => {
+    const onUpdated = (event: Event) => {
+      const detail = (event as CustomEvent<{ schoolId?: string }>).detail;
+      const eventSchool = String(detail?.schoolId || "").trim();
+      const activeSchool = String(schoolId || "").trim();
+      if (!activeSchool || !eventSchool || eventSchool === activeSchool) {
+        refreshApprovedSpend();
+      }
+    };
+    window.addEventListener(ACCOUNTING_EXPENSES_UPDATED_EVENT, onUpdated);
+    return () => window.removeEventListener(ACCOUNTING_EXPENSES_UPDATED_EVENT, onUpdated);
+  }, [schoolId, refreshApprovedSpend]);
+
+  const approvedSpend = useMemo(() => {
+    void expensesRefreshKey;
+    const approved = loadApprovedExpenses(schoolId);
+    return sumApprovedExpensesByCategory(approved, year, monthIndex);
+  }, [schoolId, year, monthIndex, expensesRefreshKey]);
+
+  const rows = useMemo(
+    () => applyApprovedActualsToRows(budgetRows, approvedSpend),
+    [budgetRows, approvedSpend]
+  );
 
   const currentPage = BUDGET_PAGES[pageIndex];
   const expenseRows = useMemo(() => rows.filter((r) => r.section === "Expense"), [rows]);
@@ -558,11 +636,16 @@ export default function AccountingBudget() {
     const actualSpend = expenseRows.reduce((s, r) => s + r.actual, 0);
     const remaining = totalBudget - actualSpend;
     const variancePct = totalBudget > 0 ? ((actualSpend - totalBudget) / totalBudget) * 100 : 0;
-    const dayOfMonth = now.getDate();
     const daysInMonth = new Date(year, monthIndex + 1, 0).getDate();
+    const isCurrentMonth = year === now.getFullYear() && monthIndex === now.getMonth();
+    const dayOfMonth = isCurrentMonth ? now.getDate() : daysInMonth;
     const forecastedMonthEnd =
-      dayOfMonth > 0 ? actualSpend * (daysInMonth / Math.max(dayOfMonth, 1)) : actualSpend;
-    const overBudgetItems = expenseRows.filter((r) => r.actual > r.monthlyBudget).length;
+      isCurrentMonth && dayOfMonth > 0
+        ? actualSpend * (daysInMonth / dayOfMonth)
+        : actualSpend;
+    const overBudgetItems = expenseRows.filter(
+      (r) => r.monthlyBudget > 0 && r.actual > r.monthlyBudget
+    ).length;
     return { totalBudget, actualSpend, remaining, variancePct, forecastedMonthEnd, overBudgetItems };
   }, [expenseRows, year, monthIndex, now]);
 
@@ -641,24 +724,22 @@ export default function AccountingBudget() {
       category: form.category,
       monthlyBudget: monthly || annual / 12,
       annualBudget: annual || monthly * 12,
-      actual: editingId ? rows.find((r) => r.id === editingId)?.actual ?? 0 : 0,
+      actual: 0,
       notes: form.notes.trim(),
     };
 
     if (editingId) {
-      setRows((prev) => prev.map((r) => (r.id === editingId ? payload : r)));
+      setBudgetRows((prev) => prev.map((r) => (r.id === editingId ? payload : r)));
     } else {
-      const exists = rows.some((r) => r.section === payload.section && r.category === payload.category);
+      const exists = budgetRows.some((r) => r.section === payload.section && r.category === payload.category);
       if (exists) {
-        setRows((prev) =>
+        setBudgetRows((prev) =>
           prev.map((r) =>
-            r.section === payload.section && r.category === payload.category
-              ? { ...payload, id: r.id, actual: r.actual }
-              : r
+            r.section === payload.section && r.category === payload.category ? { ...payload, id: r.id } : r
           )
         );
       } else {
-        setRows((prev) => [...prev, payload]);
+        setBudgetRows((prev) => [...prev, payload]);
       }
     }
     closeModal();
@@ -666,7 +747,7 @@ export default function AccountingBudget() {
 
   const importPreviousYear = () => {
     const prevYear = year - 1;
-    setRows((prev) =>
+    setBudgetRows((prev) =>
       prev.map((r) => ({
         ...r,
         notes: r.notes || `Imported baseline from ${prevYear}`,
@@ -802,8 +883,12 @@ export default function AccountingBudget() {
           lineHeight: 1.5,
         }}
       >
-        Actual spend updates from approved expenses. Forecast uses day {now.getDate()} of{" "}
-        {new Date(year, monthIndex + 1, 0).getDate()} for {MONTHS[monthIndex]} {year}.
+        Actual spend is calculated automatically from approved Accounting Expenses for {MONTHS[monthIndex]}{" "}
+        {year}. Forecast uses month-to-date approved spend
+        {year === now.getFullYear() && monthIndex === now.getMonth()
+          ? ` (day ${now.getDate()} of ${new Date(year, monthIndex + 1, 0).getDate()})`
+          : ""}
+        .
       </div>
 
       <div
