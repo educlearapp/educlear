@@ -1,4 +1,5 @@
 import React, { useEffect, useMemo, useState } from "react";
+import { postExpenseApprovalJournal } from "./accountingJournalEngine";
 import {
   acceptExpenseCandidate,
   addManualApprovedExpense,
@@ -686,6 +687,24 @@ export default function AccountingExpenses({ schoolId = "default", approvedBy = 
     };
   }, [reviewQueue, approved, recurringRules]);
 
+  const triggerExpenseAutoJournal = (expense: {
+    id: string;
+    date: string;
+    category: string;
+    amount: number;
+    reference?: string;
+  }) => {
+    postExpenseApprovalJournal({
+      schoolId,
+      sourceId: expense.id,
+      amount: expense.amount,
+      date: expense.date,
+      category: expense.category,
+      reference: expense.reference,
+      createdBy: approvedBy,
+    });
+  };
+
   const acceptCandidate = (candidate: ReviewCandidate) => {
     if (candidate.source === "bank") {
       const { approved: nextApproved, candidates } = acceptExpenseCandidate(
@@ -693,6 +712,10 @@ export default function AccountingExpenses({ schoolId = "default", approvedBy = 
         candidate.id,
         approvedBy
       );
+      const latest = nextApproved[0];
+      if (latest) {
+        triggerExpenseAutoJournal(latest);
+      }
       setApproved(
         nextApproved.map((row) => ({
           ...row,
@@ -720,6 +743,7 @@ export default function AccountingExpenses({ schoolId = "default", approvedBy = 
       approvedAt: new Date().toISOString(),
     };
     const nextApproved = addManualApprovedExpense(schoolId, expense);
+    triggerExpenseAutoJournal(expense);
     setApproved(
       nextApproved.map((row) => ({
         ...row,
@@ -845,6 +869,7 @@ export default function AccountingExpenses({ schoolId = "default", approvedBy = 
     };
 
     const nextApproved = addManualApprovedExpense(schoolId, expense);
+    triggerExpenseAutoJournal(expense);
     setApproved(
       nextApproved.map((row) => ({
         ...row,

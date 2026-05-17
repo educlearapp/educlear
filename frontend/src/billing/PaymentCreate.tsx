@@ -1,4 +1,5 @@
 import React, { useMemo, useState } from "react";
+import { postBillingPaymentJournal } from "../accounting/accountingJournalEngine";
 import { appendPaymentTransaction, formatMoney, normaliseBillingAmount } from "./billingLedger";
 import { createPayment } from "./billingApi";
 
@@ -540,6 +541,16 @@ export default function PaymentCreate({
       const nextPayments = [record, ...savedPayments];
       setSavedPayments(nextPayments);
       localStorage.setItem(savedPaymentsKey, JSON.stringify(nextPayments));
+
+      postBillingPaymentJournal({
+        schoolId,
+        sourceId: record.id,
+        amount: normaliseBillingAmount(amount),
+        date: paymentDate,
+        accountNo,
+        reference: String(payment.reference || payment.type || "EFT").trim(),
+        createdBy: "Billing",
+      });
     }
 
     createPayment({

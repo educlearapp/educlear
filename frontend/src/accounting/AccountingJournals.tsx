@@ -1,6 +1,25 @@
 import React, { useCallback, useEffect, useMemo, useState } from "react";
 import type { ChartAccount } from "./AccountingChartOfAccounts";
 import {
+  ACCOUNTING_JOURNALS_UPDATED_EVENT,
+  appendAudit,
+  journalOrigin,
+  journalSourceModule,
+  journalTotals,
+  lineTotals,
+  loadActiveCoaAccounts,
+  loadJournalStore,
+  nextJournalNo,
+  roundMoney,
+  saveJournalStore,
+  uid,
+  type AuditEntry,
+  type Journal,
+  type JournalLine,
+  type JournalStatus,
+  type JournalStore,
+} from "./accountingJournalStorage";
+import {
   ACCOUNTING_GOLD,
   ACCOUNTING_INK,
   accountingCard,
@@ -11,49 +30,6 @@ import {
   accountingTitle,
 } from "./accountingTheme";
 
-type JournalStatus = "Draft" | "Posted";
-
-type JournalLine = {
-  id: string;
-  accountCode: string;
-  accountName: string;
-  debit: number;
-  credit: number;
-  memo: string;
-};
-
-type Journal = {
-  id: string;
-  journalNo: string;
-  date: string;
-  description: string;
-  reference: string;
-  notes: string;
-  status: JournalStatus;
-  lines: JournalLine[];
-  createdBy: string;
-  createdAt: string;
-  updatedAt: string;
-  postedAt?: string;
-  reversedFromJournalNo?: string;
-};
-
-type AuditAction = "Created" | "Edited" | "Posted" | "Reversed";
-
-type AuditEntry = {
-  id: string;
-  at: string;
-  journalNo: string;
-  action: AuditAction;
-  user: string;
-  details: string;
-};
-
-type JournalStore = {
-  journals: Journal[];
-  audit: AuditEntry[];
-};
-
 type TabId = "list" | "drafts" | "posted" | "audit";
 
 type Props = {
@@ -61,8 +37,6 @@ type Props = {
   createdBy?: string;
 };
 
-const COA_STORAGE_PREFIX = "educlearAccountingCOA:";
-const JOURNALS_STORAGE_PREFIX = "educlearAccountingJournals:";
 const PAGE_SIZE = 10;
 
 const goldBtn: React.CSSProperties = {
@@ -156,91 +130,11 @@ const actionBtn: React.CSSProperties = {
   marginRight: 6,
 };
 
-function uid(prefix: string) {
-  return `${prefix}-${Date.now()}-${Math.random().toString(36).slice(2, 9)}`;
-}
-
-function journalsKey(schoolId: string) {
-  return `${JOURNALS_STORAGE_PREFIX}${schoolId}`;
-}
-
-function coaKey(schoolId: string) {
-  return `${COA_STORAGE_PREFIX}${schoolId}`;
-}
-
-function emptyStore(): JournalStore {
-  return { journals: [], audit: [] };
-}
-
-function loadStore(schoolId: string): JournalStore {
-  if (!schoolId) return emptyStore();
-  try {
-    const raw = localStorage.getItem(journalsKey(schoolId));
-    if (!raw) return emptyStore();
-    const parsed = JSON.parse(raw);
-    return {
-      journals: Array.isArray(parsed?.journals) ? parsed.journals : [],
-      audit: Array.isArray(parsed?.audit) ? parsed.audit : [],
-    };
-  } catch {
-    return emptyStore();
-  }
-}
-
-function saveStore(schoolId: string, store: JournalStore) {
-  if (!schoolId) return;
-  localStorage.setItem(journalsKey(schoolId), JSON.stringify(store));
-}
-
-function loadActiveCoaAccounts(schoolId: string): ChartAccount[] {
-  if (!schoolId) return [];
-  try {
-    const raw = localStorage.getItem(coaKey(schoolId));
-    if (!raw) return [];
-    const parsed = JSON.parse(raw);
-    const accounts: ChartAccount[] = Array.isArray(parsed)
-      ? parsed
-      : Array.isArray(parsed?.accounts)
-        ? parsed.accounts
-        : [];
-    return accounts.filter((a) => a.active !== false);
-  } catch {
-    return [];
-  }
-}
-
-function roundMoney(value: number) {
-  return Math.round((Number(value) || 0) * 100) / 100;
-}
-
 function formatMoney(value: number) {
   return roundMoney(value).toLocaleString("en-ZA", {
     minimumFractionDigits: 2,
     maximumFractionDigits: 2,
   });
-}
-
-function lineTotals(lines: JournalLine[]) {
-  const debit = roundMoney(lines.reduce((s, l) => s + roundMoney(l.debit), 0));
-  const credit = roundMoney(lines.reduce((s, l) => s + roundMoney(l.credit), 0));
-  const diff = roundMoney(debit - credit);
-  return { debit, credit, diff, balanced: Math.abs(diff) < 0.01 };
-}
-
-function journalTotals(journal: Journal) {
-  return lineTotals(journal.lines);
-}
-
-function nextJournalNo(journals: Journal[], date: string) {
-  const yyyymm = date.slice(0, 4) + date.slice(5, 7);
-  const prefix = `JNL-${yyyymm}-`;
-  let max = 0;
-  for (const j of journals) {
-    if (!j.journalNo.startsWith(prefix)) continue;
-    const n = parseInt(j.journalNo.slice(prefix.length), 10);
-    if (!Number.isNaN(n) && n > max) max = n;
-  }
-  return `${prefix}${String(max + 1).padStart(3, "0")}`;
 }
 
 function emptyLine(): JournalLine {
@@ -264,23 +158,6 @@ function defaultJournalForm(user: string): Omit<Journal, "id" | "journalNo" | "c
     lines: [emptyLine(), emptyLine()],
     createdBy: user,
   };
-}
-
-function appendAudit(
-  audit: AuditEntry[],
-  entry: Omit<AuditEntry, "id" | "at"> & { at?: string }
-): AuditEntry[] {
-  return [
-    {
-      id: uid("aud"),
-      at: entry.at || new Date().toISOString(),
-      journalNo: entry.journalNo,
-      action: entry.action,
-      user: entry.user,
-      details: entry.details,
-    },
-    ...audit,
-  ];
 }
 
 function paginate<T>(items: T[], page: number, pageSize: number) {
@@ -311,6 +188,29 @@ function statusBadge(status: JournalStatus): React.CSSProperties {
   };
 }
 
+function originBadge(origin: "MANUAL" | "AUTO"): React.CSSProperties {
+  if (origin === "AUTO") {
+    return {
+      padding: "4px 8px",
+      borderRadius: 999,
+      background: "rgba(59,130,246,0.12)",
+      color: "#1d4ed8",
+      fontWeight: 900,
+      fontSize: 11,
+      letterSpacing: "0.04em",
+    };
+  }
+  return {
+    padding: "4px 8px",
+    borderRadius: 999,
+    background: "rgba(15,23,42,0.08)",
+    color: "#334155",
+    fontWeight: 900,
+    fontSize: 11,
+    letterSpacing: "0.04em",
+  };
+}
+
 type PostValidation = { ok: true } | { ok: false; message: string };
 
 function validateCanPost(journal: Journal, activeAccounts: ChartAccount[]): PostValidation {
@@ -338,7 +238,7 @@ export default function AccountingJournals({
   schoolId = "",
   createdBy = "Finance User",
 }: Props) {
-  const [store, setStore] = useState<JournalStore>(() => loadStore(schoolId));
+  const [store, setStore] = useState<JournalStore>(() => loadJournalStore(schoolId));
   const [tab, setTab] = useState<TabId>("list");
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [page, setPage] = useState(1);
@@ -352,15 +252,25 @@ export default function AccountingJournals({
   const coaAccounts = useMemo(() => loadActiveCoaAccounts(schoolId), [schoolId]);
 
   useEffect(() => {
-    setStore(loadStore(schoolId));
+    setStore(loadJournalStore(schoolId));
     setSelected(new Set());
     setPage(1);
+  }, [schoolId]);
+
+  useEffect(() => {
+    const onUpdated = (event: Event) => {
+      const detail = (event as CustomEvent<{ schoolId?: string }>).detail;
+      if (detail?.schoolId && detail.schoolId !== schoolId) return;
+      setStore(loadJournalStore(schoolId));
+    };
+    window.addEventListener(ACCOUNTING_JOURNALS_UPDATED_EVENT, onUpdated);
+    return () => window.removeEventListener(ACCOUNTING_JOURNALS_UPDATED_EVENT, onUpdated);
   }, [schoolId]);
 
   const persist = useCallback(
     (next: JournalStore) => {
       setStore(next);
-      saveStore(schoolId, next);
+      saveJournalStore(schoolId, next);
     },
     [schoolId]
   );
@@ -880,19 +790,28 @@ export default function AccountingJournals({
                     }
                   />
                 </th>
-                {["Date", "Journal No", "Description", "Debit Total", "Credit Total", "Status", "Created By", "Actions"].map(
-                  (h) => (
-                    <th key={h} style={darkTh}>
-                      {h}
-                    </th>
-                  )
-                )}
+                {[
+                  "Date",
+                  "Journal No",
+                  "Type",
+                  "Source",
+                  "Description",
+                  "Debit Total",
+                  "Credit Total",
+                  "Status",
+                  "Created By",
+                  "Actions",
+                ].map((h) => (
+                  <th key={h} style={darkTh}>
+                    {h}
+                  </th>
+                ))}
               </tr>
             </thead>
             <tbody>
               {journalPageRows.length === 0 ? (
                 <tr>
-                  <td colSpan={9} style={{ ...tdStyle, textAlign: "center", color: "#64748b" }}>
+                  <td colSpan={11} style={{ ...tdStyle, textAlign: "center", color: "#64748b" }}>
                     No journals in this view.
                   </td>
                 </tr>
@@ -911,6 +830,10 @@ export default function AccountingJournals({
                       </td>
                       <td style={tdStyle}>{row.date}</td>
                       <td style={{ ...tdStyle, fontFamily: "ui-monospace, monospace", fontWeight: 900 }}>{row.journalNo}</td>
+                      <td style={tdStyle}>
+                        <span style={originBadge(journalOrigin(row))}>{journalOrigin(row)}</span>
+                      </td>
+                      <td style={tdStyle}>{journalSourceModule(row)}</td>
                       <td style={tdStyle}>
                         {row.description || "—"}
                         {row.reversedFromJournalNo ? (
@@ -933,7 +856,7 @@ export default function AccountingJournals({
                         >
                           {row.status === "Posted" ? "View" : "View/Edit"}
                         </button>
-                        {row.status === "Draft" ? (
+                        {row.status === "Draft" && journalOrigin(row) === "MANUAL" ? (
                           <button type="button" style={actionBtn} onClick={() => handlePostOne(row)}>
                             Post
                           </button>
@@ -988,7 +911,8 @@ export default function AccountingJournals({
       </div>
 
       <p style={{ marginTop: 20, fontSize: 13, color: "#64748b", fontWeight: 600, lineHeight: 1.5 }}>
-        Automatic journals from Payroll, Banking, Expenses, and Billing will be connected later.
+        AUTO journals are posted automatically from Billing payments, approved Expenses, and Bank Charges.
+        Payroll and Supplier auto-posting will be connected later.
       </p>
 
       {modalOpen ? (
@@ -1012,7 +936,10 @@ export default function AccountingJournals({
                 {readOnly ? "View Journal" : editing ? "Edit Journal" : "New Journal"}
               </h2>
               {editing ? (
-                <div style={{ fontSize: 13, marginTop: 6, opacity: 0.9 }}>{editing.journalNo}</div>
+                <div style={{ fontSize: 13, marginTop: 6, opacity: 0.9 }}>
+                  {editing.journalNo}
+                  {editing.autoGenerated ? ` · AUTO · ${journalSourceModule(editing)}` : ""}
+                </div>
               ) : null}
             </div>
 
