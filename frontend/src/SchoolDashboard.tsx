@@ -33,7 +33,18 @@ import BillingDocuments from "./billing/BillingDocuments";
 import Email from "./communication/Email";
 import SMS from "./communication/SMS";
 import CommunicationSettings from "./communication/CommunicationSettings";
-import BankStatementImport from "./banking/BankStatementImport";
+import AccountingOverview from "./accounting/AccountingOverview";
+import AccountingBanking from "./accounting/AccountingBanking";
+import {
+  AccountingAssets,
+  AccountingChartOfAccounts,
+  AccountingExpenses,
+  AccountingFinancialStatements,
+  AccountingJournals,
+  AccountingReports,
+  AccountingSettings,
+  AccountingSuppliers,
+} from "./accounting/accountingSections";
 import { BILLING_UPDATED_EVENT, getBillingRows } from "./billing/billingLedger";
 import { syncBillingLedgerFromApi } from "./billing/billingApi";
 import SchoolProfilePage from "./pages/SchoolProfilePage";
@@ -202,7 +213,17 @@ type PageKey =
 
   | "communicationSettings"
 
-  | "bankStatementImport";
+  | "bankStatementImport"
+  | "accountingOverview"
+  | "accountingBanking"
+  | "accountingExpenses"
+  | "accountingSuppliers"
+  | "accountingAssets"
+  | "accountingJournals"
+  | "accountingChartOfAccounts"
+  | "accountingFinancialStatements"
+  | "accountingReports"
+  | "accountingSettings";
 
 
 
@@ -339,6 +360,7 @@ const schoolId =
 
 
   const [billingOpen, setBillingOpen] = useState(true);
+  const [accountingOpen, setAccountingOpen] = useState(false);
 
   const [communicationOpen, setCommunicationOpen] = useState(false);
   const [communicationMoreOpen, setCommunicationMoreOpen] = useState(false);
@@ -688,6 +710,29 @@ const [selectedLearnerReport, setSelectedLearnerReport] = useState<any>(null);
   const go = (page: PageKey) => {
     setActivePage(page);
 
+    const isAccountingPage =
+      page === "payroll" ||
+      page === "bankStatementImport" ||
+      page === "accountingOverview" ||
+      page === "accountingBanking" ||
+      page === "accountingExpenses" ||
+      page === "accountingSuppliers" ||
+      page === "accountingAssets" ||
+      page === "accountingJournals" ||
+      page === "accountingChartOfAccounts" ||
+      page === "accountingFinancialStatements" ||
+      page === "accountingReports" ||
+      page === "accountingSettings";
+
+    if (isAccountingPage) {
+      setAccountingOpen(true);
+      setBillingOpen(false);
+      setSchoolsOpen(false);
+      setAdminOpen(false);
+      setCommunicationOpen(false);
+      setCommunicationMoreOpen(false);
+    }
+
     if (
       page === "communicationEmail" ||
       page === "communicationSms" ||
@@ -698,6 +743,7 @@ const [selectedLearnerReport, setSelectedLearnerReport] = useState<any>(null);
       setSchoolsOpen(false);
       setAdminOpen(false);
       setBillingOpen(false);
+      setAccountingOpen(false);
     }
 
     if (location.pathname.startsWith("/dashboard/billing/")) {
@@ -17642,12 +17688,40 @@ const [invoiceRunEmailDraft, setInvoiceRunEmailDraft] = useState({
         }
 
         case "bankStatementImport":
+        case "accountingBanking":
           return (
-            <BankStatementImport
+            <AccountingBanking
               schoolId={schoolId || ""}
               learners={learners}
             />
           );
+
+        case "accountingOverview":
+          return <AccountingOverview />;
+
+        case "accountingExpenses":
+          return <AccountingExpenses />;
+
+        case "accountingSuppliers":
+          return <AccountingSuppliers />;
+
+        case "accountingAssets":
+          return <AccountingAssets />;
+
+        case "accountingJournals":
+          return <AccountingJournals />;
+
+        case "accountingChartOfAccounts":
+          return <AccountingChartOfAccounts />;
+
+        case "accountingFinancialStatements":
+          return <AccountingFinancialStatements />;
+
+        case "accountingReports":
+          return <AccountingReports />;
+
+        case "accountingSettings":
+          return <AccountingSettings />;
         
         
         
@@ -18435,21 +18509,10 @@ return (
   
   
               onClick={() => {
-  
-  
-  
                 setBillingOpen(!billingOpen);
-  
-  
-  
                 setSchoolsOpen(false);
-  
-  
-  
                 setAdminOpen(false);
-  
-  
-  
+                setAccountingOpen(false);
               }}
   
   
@@ -18500,11 +18563,9 @@ return (
   
                 <div className={`submenu-item ${activePage === "payments" ? "active" : ""}`} onClick={() => go("payments")}>Payments</div>
 
-                <div className={`submenu-item ${activePage === "bankStatementImport" ? "active" : ""}`} onClick={() => go("bankStatementImport")}>Bank Statement Import</div>
   
   
   
-                <div className={`submenu-item ${activePage === "payroll" ? "active" : ""}`} onClick={() => go("payroll")}>Payroll</div>
   
   
   
@@ -18545,10 +18606,47 @@ return (
   
   
           </div>
-  
-  
-  
-                    <div className="main-section">
+
+          <div className="main-section">
+            <div
+              className="section-header"
+              onClick={() => {
+                setAccountingOpen(!accountingOpen);
+                setBillingOpen(false);
+                setSchoolsOpen(false);
+                setAdminOpen(false);
+                setCommunicationOpen(false);
+              }}
+            >
+              <div className="section-left">
+                <span className="menu-icon">◈</span>
+                <span>Accounting</span>
+              </div>
+              <span className={`chevron ${accountingOpen ? "open" : ""}`}>⌄</span>
+            </div>
+            {accountingOpen && (
+              <div className="submenu">
+                <div className={`submenu-item ${activePage === "accountingOverview" ? "active" : ""}`} onClick={() => go("accountingOverview")}>Overview</div>
+                <div
+                  className={`submenu-item ${activePage === "accountingBanking" || activePage === "bankStatementImport" ? "active" : ""}`}
+                  onClick={() => go("accountingBanking")}
+                >
+                  Banking
+                </div>
+                <div className={`submenu-item ${activePage === "payroll" ? "active" : ""}`} onClick={() => go("payroll")}>Payroll</div>
+                <div className={`submenu-item ${activePage === "accountingExpenses" ? "active" : ""}`} onClick={() => go("accountingExpenses")}>Expenses</div>
+                <div className={`submenu-item ${activePage === "accountingSuppliers" ? "active" : ""}`} onClick={() => go("accountingSuppliers")}>Suppliers</div>
+                <div className={`submenu-item ${activePage === "accountingAssets" ? "active" : ""}`} onClick={() => go("accountingAssets")}>Assets</div>
+                <div className={`submenu-item ${activePage === "accountingJournals" ? "active" : ""}`} onClick={() => go("accountingJournals")}>Journals</div>
+                <div className={`submenu-item ${activePage === "accountingChartOfAccounts" ? "active" : ""}`} onClick={() => go("accountingChartOfAccounts")}>Chart of Accounts</div>
+                <div className={`submenu-item ${activePage === "accountingFinancialStatements" ? "active" : ""}`} onClick={() => go("accountingFinancialStatements")}>Financial Statements</div>
+                <div className={`submenu-item ${activePage === "accountingReports" ? "active" : ""}`} onClick={() => go("accountingReports")}>Reports</div>
+                <div className={`submenu-item ${activePage === "accountingSettings" ? "active" : ""}`} onClick={() => go("accountingSettings")}>Settings</div>
+              </div>
+            )}
+          </div>
+
+          <div className="main-section">
             <div
               className="section-header"
               onClick={() => {
@@ -18556,6 +18654,7 @@ return (
                 setSchoolsOpen(false);
                 setAdminOpen(false);
                 setBillingOpen(false);
+                setAccountingOpen(false);
               }}
             >
               <div className="section-left">
