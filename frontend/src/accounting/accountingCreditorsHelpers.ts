@@ -499,4 +499,158 @@ export function supplierApprovedSpend(
   });
 }
 
+export type CreditorTotals = {
+  asAtDate: string;
+  supplierPayables: number;
+  overdueSupplierPayables: number;
+  paymentPlanCommitments: number;
+  openInvoiceCount: number;
+  overdueInvoiceCount: number;
+  disputedCount: number;
+  supplierCount: number;
+  ageing: AgeingBuckets;
+};
+
+export type UpcomingSupplierPayments = {
+  asAtDate: string;
+  startDate: string;
+  endDate: string;
+  scheduledInvoicePayments: number;
+  paymentPlanInstallments: number;
+  totalUpcoming: number;
+};
+
+export type CreditorReportingPeriod = {
+  startDate: string;
+  endDate: string;
+  year?: number;
+  monthIndex?: number;
+};
+
+/** Supplier liabilities as at period end (Creditors Ageing source). */
+export function calculateCreditorTotals(schoolId: string, asAtDate: string): CreditorTotals {
+  const asOf = normaliseIsoDate(asAtDate) || new Date().toISOString().slice(0, 10);
+  const invoices = loadCreditorInvoices(schoolId);
+  const plans = loadCreditorPaymentPlans(schoolId);
+  const ageingRows = buildCreditorAgeingRows({ invoices, plans, asOfDate: asOf });
+  const lines = buildCreditorInvoiceLines(invoices, plans, asOf);
+
+  const supplierPayables = normaliseCreditorAmount(
+    ageingRows.reduce((sum, row) => sum + row.outstandingBalance, 0)
+  );
+  const overdueSupplierPayables = normaliseCreditorAmount(
+    lines
+      .filter((line) => line.outstanding > 0 && line.displayStatus === "Overdue")
+      .reduce((sum, line) => sum + line.outstanding, 0)
+  );
+  const paymentPlanCommitments = normaliseCreditorAmount(
+    plans
+      .filter((plan) => isPaymentPlanActive(plan, asOf))
+      .reduce((sum, plan) => sum + normaliseCreditorAmount(plan.installmentAmount), 0)
+  );
+
+  return {
+    asAtDate: asOf,
+    supplierPayables,
+    overdueSupplierPayables,
+    paymentPlanCommitments,
+    openInvoiceCount: lines.filter((line) => line.outstanding > 0).length,
+    overdueInvoiceCount: lines.filter(
+      (line) => line.outstanding > 0 && line.displayStatus === "Overdue"
+    ).length,
+    disputedCount: lines.filter((line) => line.status === "Disputed" && line.outstanding > 0).length,
+    supplierCount: ageingRows.filter((row) => row.outstandingBalance > 0 || row.hasActivePlan).length,
+    ageing: sumAgeingBuckets(ageingRows),
+  };
+}
+
+/** Supplier ageing rows as at date (same as Creditors Ageing). */
+export function calculateCreditorAgeing(schoolId: string, asAtDate: string): CreditorAgeingRow[] {
+  const asOf = normaliseIsoDate(asAtDate) || new Date().toISOString().slice(0, 10);
+  return buildCreditorAgeingRows({
+    invoices: loadCreditorInvoices(schoolId),
+    plans: loadCreditorPaymentPlans(schoolId),
+    asOfDate: asOf,
+  });
+}
+
+/** Open invoices and active plan installments due within the reporting period. */
+export function calculateUpcomingSupplierPayments(
+  schoolId: string,
+  period: CreditorReportingPeriod
+): UpcomingSupplierPayments {
+  const startDate = normaliseIsoDate(period.startDate) || period.startDate;
+  const endDate = normaliseIsoDate(period.endDate) || period.endDate;
+  const invoices = loadCreditorInvoices(schoolId);
+  const plans = loadCreditorPaymentPlans(schoolId);
+
+  let scheduledInvoicePayments = 0;
+  for (const invoice of invoices) {
+    const outstanding = invoiceOutstanding(invoice);
+    if (outstanding <= 0) continue;
+    const due = normaliseIsoDate(invoice.dueDate);
+    if (!due) continue;
+    if (due >= startDate && due <= endDate) {
+      scheduledInvoicePayments += outstanding;
+    } else if (
+      period.year !== undefined &&
+      period.monthIndex !== undefined &&
+      isDueInMonth(due, period.year, period.monthIndex)
+    ) {
+      scheduledInvoicePayments += outstanding;
+    }
+  }
+
+  let paymentPlanInstallments = 0;
+  for (const plan of plans) {
+    if (!isPaymentPlanActive(plan, endDate)) continue;
+    const planStart = normaliseIsoDate(plan.startDate);
+    const planEnd = normaliseIsoDate(plan.endDate);
+    if (planStart && planEnd && planEnd >= startDate && planStart <= endDate) {
+      paymentPlanInstallments += normaliseCreditorAmount(plan.installmentAmount);
+    }
+  }
+
+  scheduledInvoicePayments = normaliseCreditorAmount(scheduledInvoicePayments);
+  paymentPlanInstallments = normaliseCreditorAmount(paymentPlanInstallments);
+
+  return {
+    asAtDate: endDate,
+    startDate,
+    endDate,
+    scheduledInvoicePayments,
+    paymentPlanInstallments,
+    totalUpcoming: normaliseCreditorAmount(scheduledInvoicePayments + paymentPlanInstallments),
+  };
+}
+
+export function listTopCreditors(
+  schoolId: string,
+  asAtDate: string,
+  limit = 10
+): CreditorAgeingRow[] {
+  return calculateCreditorAgeing(schoolId, asAtDate).slice(0, limit);
+}
+
+export function creditorTotalsForReportingPeriod(
+  schoolId: string,
+  period: { endDate: string; year: number; monthIndex: number }
+): CreditorTotals {
+  const asAt =
+    normaliseIsoDate(period.endDate) || resolveAsOfDate(period.year, period.monthIndex);
+  return calculateCreditorTotals(schoolId, asAt);
+}
+
+export function upcomingCreditorPaymentsForReportingPeriod(
+  schoolId: string,
+  period: { startDate: string; endDate: string; year: number; monthIndex: number }
+): UpcomingSupplierPayments {
+  return calculateUpcomingSupplierPayments(schoolId, {
+    startDate: period.startDate,
+    endDate: period.endDate,
+    year: period.year,
+    monthIndex: period.monthIndex,
+  });
+}
+
 export { formatMoney };

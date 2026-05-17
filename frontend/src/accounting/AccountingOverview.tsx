@@ -23,6 +23,11 @@ import {
   totalApprovedSpendForMonth,
 } from "./accountingExpenseStorage";
 import {
+  calculateCreditorTotals,
+  CREDITORS_UPDATED_EVENT,
+  resolveAsOfDate,
+} from "./accountingCreditorsHelpers";
+import {
   ACCOUNTING_GOLD,
   ACCOUNTING_INK,
   accountingCard,
@@ -153,13 +158,19 @@ export default function AccountingOverview({ schoolId }: Props) {
       const detail = (e as CustomEvent<{ schoolId?: string }>).detail;
       if (!detail?.schoolId || detail.schoolId === schoolId) bumpRefresh();
     };
+    const onCreditors = (e: Event) => {
+      const detail = (e as CustomEvent<{ schoolId?: string }>).detail;
+      if (!detail?.schoolId || detail.schoolId === schoolId) bumpRefresh();
+    };
     window.addEventListener(ACCOUNTING_EXPENSES_UPDATED_EVENT, onExpenses);
     window.addEventListener(BILLING_UPDATED_EVENT, onBilling);
     window.addEventListener(ACCOUNTING_ASSETS_UPDATED_EVENT, onAssets);
+    window.addEventListener(CREDITORS_UPDATED_EVENT, onCreditors);
     return () => {
       window.removeEventListener(ACCOUNTING_EXPENSES_UPDATED_EVENT, onExpenses);
       window.removeEventListener(BILLING_UPDATED_EVENT, onBilling);
       window.removeEventListener(ACCOUNTING_ASSETS_UPDATED_EVENT, onAssets);
+      window.removeEventListener(CREDITORS_UPDATED_EVENT, onCreditors);
     };
   }, [schoolId, bumpRefresh]);
 
@@ -199,8 +210,13 @@ export default function AccountingOverview({ schoolId }: Props) {
         expensesExceedIncome: false,
         assetNetBookValue: 0,
         assetActiveCount: 0,
+        supplierPayables: 0,
+        overdueSuppliers: 0,
       };
     }
+
+    const asAtDate = resolveAsOfDate(year, monthIndex);
+    const creditorTotals = calculateCreditorTotals(sid, asAtDate);
 
     const assets = loadAssets(sid);
     const assetBook = calculateBookValueTotals(assets);
@@ -277,6 +293,8 @@ export default function AccountingOverview({ schoolId }: Props) {
       expensesExceedIncome: expenses > income && (expenses > 0 || income > 0),
       assetNetBookValue: assetBook.netBookValue,
       assetActiveCount: assets.filter((a) => a.status !== "Disposed").length,
+      supplierPayables: creditorTotals.supplierPayables,
+      overdueSuppliers: creditorTotals.overdueSupplierPayables,
     };
   }, [schoolId, year, monthIndex, refreshKey, bankImports]);
 
@@ -321,6 +339,16 @@ export default function AccountingOverview({ schoolId }: Props) {
       label: "Asset Value (net book)",
       value: formatMoney(metrics.assetNetBookValue),
       hint: "Active fixed assets from Accounting Assets",
+    },
+    {
+      label: "Supplier Payables",
+      value: formatMoney(metrics.supplierPayables),
+      hint: "Outstanding supplier invoices (Creditors Ageing)",
+    },
+    {
+      label: "Overdue Suppliers",
+      value: formatMoney(metrics.overdueSuppliers),
+      hint: "Overdue creditor balances as at period end",
     },
   ];
 

@@ -33,11 +33,14 @@ import {
   type ResolvedReportingPeriod,
 } from "./accountingSettingsStorage";
 import {
+  creditorTotalsForReportingPeriod,
+  CREDITORS_UPDATED_EVENT,
+  upcomingCreditorPaymentsForReportingPeriod,
+} from "./accountingCreditorsHelpers";
+import {
   ACCOUNTING_GOLD,
   ACCOUNTING_INK,
   accountingCard,
-  accountingCardLabel,
-  accountingCardValue,
   accountingPageWrap,
   accountingSubtitle,
   accountingTitle,
@@ -129,6 +132,58 @@ const td: React.CSSProperties = {
 };
 
 const tdRight: React.CSSProperties = { ...td, textAlign: "right", fontVariantNumeric: "tabular-nums" };
+
+const statementsSummaryGrid: React.CSSProperties = {
+  display: "grid",
+  gridTemplateColumns: "repeat(auto-fit, minmax(185px, 1fr))",
+  gap: 16,
+  marginBottom: 24,
+  alignItems: "stretch",
+};
+
+const statementsSummaryCard: React.CSSProperties = {
+  ...accountingCard,
+  boxSizing: "border-box",
+  minHeight: 124,
+  height: "100%",
+  padding: "18px 20px",
+  overflow: "hidden",
+  display: "flex",
+  flexDirection: "column",
+  justifyContent: "space-between",
+};
+
+const statementsSummaryLabel: React.CSSProperties = {
+  fontSize: 10,
+  fontWeight: 800,
+  color: "#64748b",
+  textTransform: "uppercase",
+  letterSpacing: "0.07em",
+  lineHeight: 1.25,
+  marginBottom: 8,
+};
+
+const statementsSummaryValueWrap: React.CSSProperties = {
+  flex: 1,
+  display: "flex",
+  flexDirection: "column",
+  justifyContent: "flex-end",
+  maxWidth: "100%",
+  minHeight: 0,
+};
+
+const statementsSummaryValue: React.CSSProperties = {
+  fontSize: "clamp(1.35rem, 1.6vw, 2rem)",
+  lineHeight: 1.1,
+  fontWeight: 700,
+  letterSpacing: "-0.02em",
+  fontVariantNumeric: "tabular-nums",
+  color: ACCOUNTING_INK,
+  maxWidth: "100%",
+  overflowWrap: "anywhere",
+  wordBreak: "normal",
+  whiteSpace: "normal",
+};
 
 function parseYearMonth(dateRaw: string): { year: number; monthIndex: number } | null {
   const raw = String(dateRaw || "").trim();
@@ -258,6 +313,12 @@ type FinancialReport = {
   totalAssets: number;
   totalLiabilities: number;
   equitySurplus: number;
+  supplierPayables: number;
+  overdueSupplierPayables: number;
+  paymentPlanCommitments: number;
+  scheduledSupplierPayments: number;
+  upcomingCreditorPaymentsEstimate: number;
+  creditorSupplierCount: number;
   trialRows: { account: string; debit: number; credit: number; balance: number }[];
 };
 
@@ -324,14 +385,36 @@ function buildFinancialReport(
   const fixedAssetsGross = bookTotals.grossPurchaseCost;
   const accumulatedDepreciation = bookTotals.accumulatedDepreciation;
   const fixedAssetsNetBook = bookTotals.netBookValue;
-  const supplierPayablesPlaceholder = 0;
+
+  const creditorTotals = schoolId
+    ? creditorTotalsForReportingPeriod(schoolId, period)
+    : {
+        supplierPayables: 0,
+        overdueSupplierPayables: 0,
+        paymentPlanCommitments: 0,
+        supplierCount: 0,
+      };
+  const upcomingCreditors = schoolId
+    ? upcomingCreditorPaymentsForReportingPeriod(schoolId, period)
+    : {
+        scheduledInvoicePayments: 0,
+        paymentPlanInstallments: 0,
+        totalUpcoming: 0,
+      };
+
+  const supplierPayables = creditorTotals.supplierPayables;
+  const overdueSupplierPayables = creditorTotals.overdueSupplierPayables;
+  const paymentPlanCommitments = creditorTotals.paymentPlanCommitments;
+  const scheduledSupplierPayments = upcomingCreditors.scheduledInvoicePayments;
+  const upcomingCreditorPaymentsEstimate = upcomingCreditors.totalUpcoming;
+
   const payrollLiabilitiesPlaceholder = 0;
   const taxLiabilitiesPlaceholder = 0;
   const openingEquityPlaceholder = 0;
 
   const totalAssets = bankCashEstimate + debtorsOutstanding + fixedAssetsNetBook;
   const totalLiabilities =
-    supplierPayablesPlaceholder + payrollLiabilitiesPlaceholder + taxLiabilitiesPlaceholder;
+    supplierPayables + payrollLiabilitiesPlaceholder + taxLiabilitiesPlaceholder;
   const equitySurplus = openingEquityPlaceholder + netSurplus;
 
   const trialRows: FinancialReport["trialRows"] = [];
@@ -406,12 +489,14 @@ function buildFinancialReport(
     });
   }
 
-  trialRows.push({
-    account: "Supplier Payables (placeholder)",
-    debit: 0,
-    credit: supplierPayablesPlaceholder,
-    balance: -supplierPayablesPlaceholder,
-  });
+  if (supplierPayables > 0) {
+    trialRows.push({
+      account: "Accounts Payable / Supplier Payables",
+      debit: 0,
+      credit: supplierPayables,
+      balance: -supplierPayables,
+    });
+  }
 
   return {
     incomeByLine,
@@ -434,6 +519,12 @@ function buildFinancialReport(
     totalAssets,
     totalLiabilities,
     equitySurplus,
+    supplierPayables,
+    overdueSupplierPayables,
+    paymentPlanCommitments,
+    scheduledSupplierPayments,
+    upcomingCreditorPaymentsEstimate,
+    creditorSupplierCount: creditorTotals.supplierCount,
     trialRows,
   };
 }
@@ -478,6 +569,11 @@ function buildPrintHtml(opts: {
     body += `<table style="width:100%;border-collapse:collapse;">`;
     body += lineRow("Cash received from parents / billing", report.cashReceived);
     body += lineRow("Cash paid to suppliers / expenses", report.cashPaidExpenses);
+    body += lineRow("Scheduled supplier payments (creditors due)", report.scheduledSupplierPayments);
+    body += lineRow(
+      "Upcoming creditor payments (estimate)",
+      report.upcomingCreditorPaymentsEstimate
+    );
     body += lineRow("Payroll payments (placeholder)", report.payrollPlaceholder);
     body += lineRow("Net cash movement", report.netCashMovement, true);
     body += lineRow("Opening balance (placeholder)", report.openingCashPlaceholder);
@@ -498,7 +594,9 @@ function buildPrintHtml(opts: {
     body += lineRow("Net fixed asset value", report.fixedAssetsNetBook);
     body += lineRow("Total Assets", report.totalAssets, true);
     body += `</table><h2 style="font-size:16px;margin:18px 0 6px;">Liabilities</h2><table style="width:100%;">`;
-    body += lineRow("Supplier payables (placeholder)", 0);
+    body += lineRow("Supplier payables", report.supplierPayables);
+    body += lineRow("Overdue supplier payables", report.overdueSupplierPayables);
+    body += lineRow("Payment plan commitments", report.paymentPlanCommitments);
     body += lineRow("Payroll liabilities (placeholder)", 0);
     body += lineRow("Tax liabilities (placeholder)", 0);
     body += lineRow("Total Liabilities", report.totalLiabilities, true);
@@ -581,13 +679,19 @@ export default function AccountingFinancialStatements({
       const detail = (e as CustomEvent<{ schoolId?: string }>).detail;
       if (!detail?.schoolId || detail.schoolId === schoolId) bumpRefresh();
     };
+    const onCreditors = (e: Event) => {
+      const detail = (e as CustomEvent<{ schoolId?: string }>).detail;
+      if (!detail?.schoolId || detail.schoolId === schoolId) bumpRefresh();
+    };
     window.addEventListener(ACCOUNTING_EXPENSES_UPDATED_EVENT, onExpenses);
     window.addEventListener(BILLING_UPDATED_EVENT, onBilling);
     window.addEventListener(ACCOUNTING_ASSETS_UPDATED_EVENT, onAssets);
+    window.addEventListener(CREDITORS_UPDATED_EVENT, onCreditors);
     return () => {
       window.removeEventListener(ACCOUNTING_EXPENSES_UPDATED_EVENT, onExpenses);
       window.removeEventListener(BILLING_UPDATED_EVENT, onBilling);
       window.removeEventListener(ACCOUNTING_ASSETS_UPDATED_EVENT, onAssets);
+      window.removeEventListener(CREDITORS_UPDATED_EVENT, onCreditors);
     };
   }, [schoolId, bumpRefresh]);
 
@@ -698,15 +802,17 @@ export default function AccountingFinancialStatements({
       <tbody>
         {[
           ["Cash received from parents / billing", report.cashReceived],
-          ["Cash paid to suppliers / expenses", report.cashPaidExpenses],
+          ["Cash paid to suppliers / expenses (approved)", report.cashPaidExpenses],
+          ["Scheduled supplier payments (creditors due)", report.scheduledSupplierPayments],
+          ["Upcoming creditor payments (estimate)", report.upcomingCreditorPaymentsEstimate],
           ["Payroll payments (placeholder)", report.payrollPlaceholder],
           ["Net cash movement", report.netCashMovement],
           ["Opening balance (placeholder)", report.openingCashPlaceholder],
           ["Closing balance (placeholder)", report.closingCashPlaceholder],
         ].map(([label, amount], idx) => (
           <tr key={String(label)}>
-            <td style={{ ...td, fontWeight: idx === 3 || idx === 5 ? 900 : 600 }}>{label}</td>
-            <td style={{ ...tdRight, fontWeight: idx === 3 || idx === 5 ? 900 : 600 }}>
+            <td style={{ ...td, fontWeight: idx === 5 || idx === 7 ? 900 : 600 }}>{label}</td>
+            <td style={{ ...tdRight, fontWeight: idx === 5 || idx === 7 ? 900 : 600 }}>
               {formatMoney(amount as number)}
             </td>
           </tr>
@@ -773,14 +879,16 @@ export default function AccountingFinancialStatements({
       <table style={{ width: "100%", borderCollapse: "collapse", marginBottom: 20 }}>
         <tbody>
           {[
-            ["Supplier payables (placeholder)", 0],
+            ["Supplier payables", report.supplierPayables],
+            ["Overdue supplier payables", report.overdueSupplierPayables],
+            ["Payment plan commitments", report.paymentPlanCommitments],
             ["Payroll liabilities (placeholder)", 0],
             ["Tax liabilities (placeholder)", 0],
             ["Total Liabilities", report.totalLiabilities],
           ].map(([label, amount], idx) => (
             <tr key={String(label)}>
-              <td style={{ ...td, fontWeight: idx === 3 ? 900 : 600 }}>{label}</td>
-              <td style={{ ...tdRight, fontWeight: idx === 3 ? 900 : 600 }}>
+              <td style={{ ...td, fontWeight: idx === 5 ? 900 : 600 }}>{label}</td>
+              <td style={{ ...tdRight, fontWeight: idx === 5 ? 900 : 600 }}>
                 {formatMoney(amount as number)}
               </td>
             </tr>
@@ -918,14 +1026,7 @@ export default function AccountingFinancialStatements({
         </div>
       ) : null}
 
-      <div
-        style={{
-          display: "grid",
-          gridTemplateColumns: "repeat(auto-fill, minmax(160px, 1fr))",
-          gap: 14,
-          marginBottom: 24,
-        }}
-      >
+      <div style={statementsSummaryGrid}>
         {[
           ["Income", report.totalIncome],
           ["Expenses", report.totalExpenses],
@@ -936,9 +1037,11 @@ export default function AccountingFinancialStatements({
           ["Assets", report.totalAssets],
           ["Liabilities", report.totalLiabilities],
         ].map(([label, value]) => (
-          <div key={String(label)} style={accountingCard}>
-            <div style={accountingCardLabel}>{label}</div>
-            <div style={accountingCardValue}>{formatMoney(value as number)}</div>
+          <div key={String(label)} style={statementsSummaryCard}>
+            <div style={statementsSummaryLabel}>{label}</div>
+            <div style={statementsSummaryValueWrap}>
+              <div style={statementsSummaryValue}>{formatMoney(value as number)}</div>
+            </div>
           </div>
         ))}
       </div>

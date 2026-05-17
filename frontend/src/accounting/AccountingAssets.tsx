@@ -9,8 +9,6 @@ import {
   ACCOUNTING_GOLD,
   ACCOUNTING_INK,
   accountingCard,
-  accountingCardLabel,
-  accountingCardValue,
   accountingPageWrap,
   accountingSubtitle,
   accountingTitle,
@@ -196,6 +194,58 @@ const tabBar: React.CSSProperties = {
   marginBottom: 20,
   borderBottom: `2px solid ${ACCOUNTING_GOLD}`,
   paddingBottom: 4,
+};
+
+const assetsSummaryGrid: React.CSSProperties = {
+  display: "grid",
+  gridTemplateColumns: "repeat(auto-fit, minmax(185px, 1fr))",
+  gap: 16,
+  marginBottom: 24,
+  alignItems: "stretch",
+};
+
+const assetsSummaryCard: React.CSSProperties = {
+  ...accountingCard,
+  boxSizing: "border-box",
+  minHeight: 124,
+  height: "100%",
+  padding: "18px 20px",
+  overflow: "hidden",
+  display: "flex",
+  flexDirection: "column",
+  justifyContent: "space-between",
+};
+
+const assetsSummaryLabel: React.CSSProperties = {
+  fontSize: 10,
+  fontWeight: 800,
+  color: "#64748b",
+  textTransform: "uppercase",
+  letterSpacing: "0.07em",
+  lineHeight: 1.25,
+  marginBottom: 8,
+};
+
+const assetsSummaryValueWrap: React.CSSProperties = {
+  flex: 1,
+  display: "flex",
+  flexDirection: "column",
+  justifyContent: "flex-end",
+  maxWidth: "100%",
+  minHeight: 0,
+};
+
+const assetsSummaryValue: React.CSSProperties = {
+  fontSize: "clamp(1.35rem, 1.6vw, 2rem)",
+  lineHeight: 1.1,
+  fontWeight: 700,
+  letterSpacing: "-0.02em",
+  fontVariantNumeric: "tabular-nums",
+  color: ACCOUNTING_INK,
+  maxWidth: "100%",
+  overflowWrap: "anywhere",
+  wordBreak: "normal",
+  whiteSpace: "normal",
 };
 
 function uid(prefix = "ast") {
@@ -1057,14 +1107,7 @@ export default function AccountingAssets({ schoolId = "" }: Props) {
         </div>
       ) : null}
 
-      <div
-        style={{
-          display: "grid",
-          gridTemplateColumns: "repeat(auto-fill, minmax(160px, 1fr))",
-          gap: 14,
-          marginBottom: 24,
-        }}
-      >
+      <div style={assetsSummaryGrid}>
         {[
           { label: "Total Assets", value: String(stats.totalAssets) },
           { label: "Total Cost", value: formatMoney(stats.totalCost) },
@@ -1073,9 +1116,11 @@ export default function AccountingAssets({ schoolId = "" }: Props) {
           { label: "Vehicles", value: String(stats.vehicles) },
           { label: "Devices", value: String(stats.devices) },
         ].map((card) => (
-          <div key={card.label} style={accountingCard}>
-            <div style={accountingCardLabel}>{card.label}</div>
-            <div style={accountingCardValue}>{card.value}</div>
+          <div key={card.label} style={assetsSummaryCard}>
+            <div style={assetsSummaryLabel}>{card.label}</div>
+            <div style={assetsSummaryValueWrap}>
+              <div style={assetsSummaryValue}>{card.value}</div>
+            </div>
           </div>
         ))}
       </div>

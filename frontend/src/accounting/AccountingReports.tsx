@@ -37,6 +37,16 @@ import {
   listDisposedAssets,
   loadAssets,
 } from "./accountingAssetStorage";
+import {
+  buildCreditorInvoiceLines,
+  calculateCreditorAgeing,
+  calculateCreditorTotals,
+  calculateUpcomingSupplierPayments,
+  CREDITORS_UPDATED_EVENT,
+  loadCreditorInvoices,
+  loadCreditorPaymentPlans,
+  listTopCreditors,
+} from "./accountingCreditorsHelpers";
 import { loadJournalStore } from "./accountingJournalStorage";
 import {
   ACCOUNTING_SETTINGS_UPDATED_EVENT,
@@ -428,13 +438,19 @@ export default function AccountingReports({ schoolId, learners = [], schoolName 
       const detail = (e as CustomEvent<{ schoolId?: string }>).detail;
       if (!detail?.schoolId || detail.schoolId === schoolId) bumpRefresh();
     };
+    const onCreditors = (e: Event) => {
+      const detail = (e as CustomEvent<{ schoolId?: string }>).detail;
+      if (!detail?.schoolId || detail.schoolId === schoolId) bumpRefresh();
+    };
     window.addEventListener(ACCOUNTING_EXPENSES_UPDATED_EVENT, onExpenses);
     window.addEventListener(BILLING_UPDATED_EVENT, onBilling);
     window.addEventListener(ACCOUNTING_ASSETS_UPDATED_EVENT, onAssets);
+    window.addEventListener(CREDITORS_UPDATED_EVENT, onCreditors);
     return () => {
       window.removeEventListener(ACCOUNTING_EXPENSES_UPDATED_EVENT, onExpenses);
       window.removeEventListener(BILLING_UPDATED_EVENT, onBilling);
       window.removeEventListener(ACCOUNTING_ASSETS_UPDATED_EVENT, onAssets);
+      window.removeEventListener(CREDITORS_UPDATED_EVENT, onCreditors);
     };
   }, [schoolId, bumpRefresh]);
 
@@ -604,14 +620,83 @@ export default function AccountingReports({ schoolId, learners = [], schoolName 
       supplierMap.set(key, existing);
     }
 
+    const creditorAsAt = period.endDate;
+    const creditorTotals = sid
+      ? calculateCreditorTotals(sid, creditorAsAt)
+      : {
+          supplierPayables: 0,
+          overdueSupplierPayables: 0,
+          paymentPlanCommitments: 0,
+          openInvoiceCount: 0,
+          overdueInvoiceCount: 0,
+          supplierCount: 0,
+        };
+    const upcomingCreditors = sid
+      ? calculateUpcomingSupplierPayments(sid, {
+          startDate: period.startDate,
+          endDate: period.endDate,
+          year: period.year,
+          monthIndex: period.monthIndex,
+        })
+      : {
+          scheduledInvoicePayments: 0,
+          paymentPlanInstallments: 0,
+          totalUpcoming: 0,
+        };
+    const creditorAgeing = sid ? calculateCreditorAgeing(sid, creditorAsAt) : [];
+    const creditorInvoiceLines = sid
+      ? buildCreditorInvoiceLines(
+          loadCreditorInvoices(sid),
+          loadCreditorPaymentPlans(sid),
+          creditorAsAt
+        )
+      : [];
+    const topCreditors = sid ? listTopCreditors(sid, creditorAsAt, 10) : [];
+
+    for (const row of creditorAgeing) {
+      const key = normalizeExpenseCategory(row.supplierName);
+      if (!supplierMap.has(key)) {
+        supplierMap.set(key, {
+          supplier: row.supplierName,
+          category: row.category || "Other",
+          month: 0,
+          ytd: 0,
+          lastDate: row.nextDueDate || "",
+        });
+      }
+    }
+
+    const creditorBySupplier = new Map(
+      creditorAgeing.map((row) => [normalizeExpenseCategory(row.supplierName), row])
+    );
+
     const supplierRows = Array.from(supplierMap.values())
-      .map((s) => ({
-        ...s,
-        status: suppliers.some((sup) => normalizeExpenseCategory(sup.name) === normalizeExpenseCategory(s.supplier))
-          ? "Active"
-          : "Recorded",
-      }))
-      .sort((a, b) => b.month - a.month);
+      .map((s) => {
+        const creditor = creditorBySupplier.get(normalizeExpenseCategory(s.supplier));
+        const supplierLines = creditorInvoiceLines.filter(
+          (line) =>
+            normalizeExpenseCategory(line.supplierName) === normalizeExpenseCategory(s.supplier)
+        );
+        const overdueInvoices = supplierLines.filter(
+          (line) => line.outstanding > 0 && line.displayStatus === "Overdue"
+        ).length;
+        return {
+          ...s,
+          outstanding: creditor?.outstandingBalance || 0,
+          openInvoices: creditor?.openInvoiceCount || 0,
+          overdueInvoices,
+          paymentPlan: creditor?.hasActivePlan ? "Active plan" : "—",
+          creditorStatus: creditor?.displayStatus || (s.month > 0 || s.ytd > 0 ? "Spend only" : "—"),
+          status: suppliers.some(
+            (sup) => normalizeExpenseCategory(sup.name) === normalizeExpenseCategory(s.supplier)
+          )
+            ? "Active"
+            : creditor?.outstandingBalance
+              ? "Creditor"
+              : "Recorded",
+        };
+      })
+      .sort((a, b) => b.outstanding - a.outstanding || b.month - a.month);
 
     const activeImport = bankImports.length ? bankImports[0] : null;
     const bankStats = computeBankingStats(bankImports, activeImport);
@@ -672,6 +757,11 @@ export default function AccountingReports({ schoolId, learners = [], schoolName 
     if (cashWarning) {
       warnings.push("Projected month-end cash position is negative.");
     }
+    if (creditorTotals.overdueSupplierPayables > 0) {
+      warnings.push(
+        `${formatMoney(creditorTotals.overdueSupplierPayables)} overdue supplier payables — review Creditors Ageing.`
+      );
+    }
 
     return {
       statementRows,
@@ -713,6 +803,10 @@ export default function AccountingReports({ schoolId, learners = [], schoolName 
       disposedAssets,
       topAssetCategory,
       annualDepreciation,
+      creditorTotals,
+      upcomingCreditors,
+      creditorAgeing,
+      topCreditors,
     };
   }, [schoolId, learners, year, monthIndex, reportingBasis, period, refreshKey, bankImports]);
 
@@ -815,6 +909,27 @@ ${el.innerHTML}
               />
             </div>
             <div style={sectionCard}>
+              <h2 style={{ margin: "0 0 12px", fontSize: 17, fontWeight: 900 }}>Supplier liabilities (creditors)</h2>
+              <div
+                style={{
+                  display: "grid",
+                  gridTemplateColumns: "repeat(auto-fill, minmax(160px, 1fr))",
+                  gap: 10,
+                  fontWeight: 600,
+                }}
+              >
+                <div>Supplier payables: {formatMoney(data.creditorTotals.supplierPayables)}</div>
+                <div>Overdue: {formatMoney(data.creditorTotals.overdueSupplierPayables)}</div>
+                <div>Open invoices: {data.creditorTotals.openInvoiceCount}</div>
+                <div>Overdue invoices: {data.creditorTotals.overdueInvoiceCount}</div>
+                <div>Payment plan commitments: {formatMoney(data.creditorTotals.paymentPlanCommitments)}</div>
+                <div>Upcoming payments: {formatMoney(data.upcomingCreditors.totalUpcoming)}</div>
+              </div>
+              <p style={{ margin: "12px 0 0", fontSize: 12, color: "#64748b", fontWeight: 600 }}>
+                From Creditors Ageing supplier invoices — not double-counted with approved expenses.
+              </p>
+            </div>
+            <div style={sectionCard}>
               <h2 style={{ margin: "0 0 12px", fontSize: 17, fontWeight: 900 }}>Outstanding fees / debtors</h2>
               <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(160px, 1fr))", gap: 10 }}>
                 <div>Total outstanding: {formatMoney(data.outstandingDebtors)}</div>
@@ -896,6 +1011,8 @@ ${el.innerHTML}
               <div>Current month income: {formatMoney(data.income)}</div>
               <div>Current month expenses: {formatMoney(data.expenses)}</div>
               <div>Net cash movement: {formatMoney(data.net)}</div>
+              <div>Scheduled supplier payments: {formatMoney(data.upcomingCreditors.scheduledInvoicePayments)}</div>
+              <div>Upcoming creditor payments (estimate): {formatMoney(data.upcomingCreditors.totalUpcoming)}</div>
               <div>
                 Expected collections (placeholder): {formatMoney(data.expectedCollectionsPlaceholder)} — 65% of
                 outstanding debtors
@@ -989,19 +1106,35 @@ ${el.innerHTML}
         return (
           <div style={sectionCard}>
             <h2 style={{ margin: "0 0 12px", fontSize: 17, fontWeight: 900 }}>Supplier spend</h2>
+            <p style={{ margin: "0 0 12px", fontSize: 13, color: "#64748b", fontWeight: 600 }}>
+              Approved expense spend plus Creditors Ageing outstanding balances (not double-counted).
+            </p>
             <ReportTable
-              columns={["Supplier", "Category", "This month", "Year to date", "Last transaction", "Status"]}
+              columns={[
+                "Supplier",
+                "Category",
+                "This month",
+                "YTD spend",
+                "Outstanding",
+                "Open inv.",
+                "Overdue",
+                "Payment plan",
+                "Status",
+              ]}
               rows={data.supplierRows.map((r) => [
                 r.supplier,
                 r.category,
                 formatMoney(r.month),
                 formatMoney(r.ytd),
-                r.lastDate || "—",
+                formatMoney(r.outstanding || 0),
+                String(r.openInvoices || 0),
+                String(r.overdueInvoices || 0),
+                r.paymentPlan || "—",
                 r.status,
               ])}
               page={tablePage}
               onPage={setTablePage}
-              emptyMessage="No approved supplier expenses for this period."
+              emptyMessage="No supplier spend or creditor balances for this period."
             />
           </div>
         );
@@ -1124,7 +1257,10 @@ ${el.innerHTML}
                 `General Ledger — ${data.journalCount} journal(s) on file`,
                 `Journals — ${data.postedJournals} posted`,
                 `Debtors Ageing — ${formatMoney(data.outstandingDebtors)} outstanding`,
-                `Supplier Spend — ${data.supplierRows.length} supplier(s) with spend`,
+                `Creditors Ageing — ${formatMoney(data.creditorTotals.supplierPayables)} payables (${data.creditorTotals.openInvoiceCount} open invoice(s))`,
+                `Supplier Invoice Listing — ${data.creditorTotals.openInvoiceCount} open, ${data.creditorTotals.overdueInvoiceCount} overdue`,
+                `Supplier Payment Plans — ${data.creditorTotals.paymentPlanCommitments > 0 ? `${formatMoney(data.creditorTotals.paymentPlanCommitments)} commitments` : "none active"}`,
+                `Supplier Spend — ${data.supplierRows.length} supplier(s) with spend or balances`,
                 `Bank Reconciliation — ${data.bankStats.imports} import(s)`,
                 `Budget vs Actual — ${data.budgetRows.length} categories`,
                 `Legal Recovery History — ${legalHistoryCount} record(s)`,
