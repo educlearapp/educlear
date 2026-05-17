@@ -45,6 +45,8 @@ export function AccountingChartOfAccounts() {
   );
 }
 
+export { default as AccountingBudget } from "./AccountingBudget";
+
 export function AccountingFinancialStatements() {
   return (
     <AccountingPlaceholder
