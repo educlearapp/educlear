@@ -21,3 +21,5 @@ export { default as AccountingDebtorsAgeing } from "./AccountingDebtorsAgeing";
 export { default as AccountingCreditorsAgeing } from "./AccountingCreditorsAgeing";
 
 export { default as AccountingSettings } from "./AccountingSettings";
+
+export { default as AccountingAuditCompliance } from "./AccountingAuditCompliance";
