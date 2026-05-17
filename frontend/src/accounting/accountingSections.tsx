@@ -13,14 +13,7 @@ export function AccountingAssets() {
   );
 }
 
-export function AccountingJournals() {
-  return (
-    <AccountingPlaceholder
-      title="Journals"
-      description="General journal entries, adjustments, and period-close postings."
-    />
-  );
-}
+export { default as AccountingJournals } from "./AccountingJournals";
 
 export { default as AccountingChartOfAccounts } from "./AccountingChartOfAccounts";
 
