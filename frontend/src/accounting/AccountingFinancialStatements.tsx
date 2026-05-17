@@ -21,6 +21,18 @@ import {
   normalizeExpenseCategory,
 } from "./accountingExpenseStorage";
 import {
+  ACCOUNTING_SETTINGS_UPDATED_EVENT,
+  dateInReportingRange,
+  getDefaultReportingBasis,
+  loadAccountingSettings,
+  MONTH_NAMES,
+  REPORTING_BASIS_OPTIONS,
+  reportingBasisYearLabel,
+  resolveReportingPeriod,
+  type ReportingBasis,
+  type ResolvedReportingPeriod,
+} from "./accountingSettingsStorage";
+import {
   ACCOUNTING_GOLD,
   ACCOUNTING_INK,
   accountingCard,
@@ -69,21 +81,6 @@ const EXPENSE_LINES = [
   "SARS / UIF",
   "Other",
 ] as const;
-
-const MONTH_NAMES = [
-  "January",
-  "February",
-  "March",
-  "April",
-  "May",
-  "June",
-  "July",
-  "August",
-  "September",
-  "October",
-  "November",
-  "December",
-];
 
 const fieldStyle: React.CSSProperties = {
   padding: "10px 12px",
@@ -154,6 +151,20 @@ function entryInPeriod(dateRaw: string, year: number, monthIndex: number) {
 
 function paymentsForMonth(ledger: BillingLedgerEntry[], year: number, monthIndex: number) {
   return ledger.filter((e) => e.type === "payment" && entryInPeriod(e.date, year, monthIndex));
+}
+
+function paymentsInRange(ledger: BillingLedgerEntry[], startDate: string, endDate: string) {
+  return ledger.filter(
+    (e) => e.type === "payment" && dateInReportingRange(e.date, startDate, endDate)
+  );
+}
+
+function approvedExpensesInRange(
+  rows: ReturnType<typeof loadApprovedExpenses>,
+  startDate: string,
+  endDate: string
+) {
+  return rows.filter((row) => dateInReportingRange(row.date, startDate, endDate));
 }
 
 function classifyPaymentIncome(description: string, reference: string): (typeof INCOME_LINES)[number] {
@@ -253,15 +264,22 @@ type FinancialReport = {
 function buildFinancialReport(
   schoolId: string,
   learners: any[],
-  year: number,
-  monthIndex: number
+  period: ResolvedReportingPeriod
 ): FinancialReport {
   const ledger = readSchoolLedger(schoolId);
   const approved = loadApprovedExpenses(schoolId);
-  const monthApproved = filterApprovedExpensesForMonth(approved, year, monthIndex);
+  const monthApproved =
+    period.basis === "month"
+      ? filterApprovedExpensesForMonth(approved, period.year, period.monthIndex)
+      : approvedExpensesInRange(approved, period.startDate, period.endDate);
+
+  const paymentRows =
+    period.basis === "month"
+      ? paymentsForMonth(ledger, period.year, period.monthIndex)
+      : paymentsInRange(ledger, period.startDate, period.endDate);
 
   const incomeByLine = emptyLineMap(INCOME_LINES);
-  for (const pay of paymentsForMonth(ledger, year, monthIndex)) {
+  for (const pay of paymentRows) {
     const amount = normaliseBillingAmount(pay.amount);
     if (amount <= 0) continue;
     const line = classifyPaymentIncome(
@@ -281,7 +299,7 @@ function buildFinancialReport(
 
   const assets = schoolId ? loadAssets(schoolId) : [];
   const bookTotals = calculateBookValueTotals(assets);
-  const depTotals = calculateDepreciationTotals(assets, year);
+  const depTotals = calculateDepreciationTotals(assets, period.depreciationYear);
   const depreciationExpense = depTotals.expenseForYear;
 
   const totalIncome = INCOME_LINES.reduce((s, k) => s + incomeByLine[k], 0);
@@ -522,6 +540,9 @@ export default function AccountingFinancialStatements({
   const now = new Date();
   const [year, setYear] = useState(now.getFullYear());
   const [monthIndex, setMonthIndex] = useState(now.getMonth());
+  const [reportingBasis, setReportingBasis] = useState<ReportingBasis>(() =>
+    schoolId ? getDefaultReportingBasis(schoolId) : "doe"
+  );
   const [statementType, setStatementType] = useState<StatementType>("income");
   const [generatedAt, setGeneratedAt] = useState("");
   const [refreshKey, setRefreshKey] = useState(0);
@@ -536,7 +557,19 @@ export default function AccountingFinancialStatements({
   useEffect(() => {
     if (!schoolId) return;
     migrateLegacyExpenseStores(schoolId);
+    setReportingBasis(loadAccountingSettings(schoolId).reports.defaultReportBasis);
   }, [schoolId, refreshKey]);
+
+  useEffect(() => {
+    const onSettings = (e: Event) => {
+      const detail = (e as CustomEvent<{ schoolId?: string }>).detail;
+      if (!detail?.schoolId || detail.schoolId === schoolId) {
+        setReportingBasis(getDefaultReportingBasis(schoolId));
+      }
+    };
+    window.addEventListener(ACCOUNTING_SETTINGS_UPDATED_EVENT, onSettings);
+    return () => window.removeEventListener(ACCOUNTING_SETTINGS_UPDATED_EVENT, onSettings);
+  }, [schoolId]);
 
   useEffect(() => {
     const onExpenses = (e: Event) => {
@@ -558,16 +591,20 @@ export default function AccountingFinancialStatements({
     };
   }, [schoolId, bumpRefresh]);
 
-  const periodLabel = `${MONTH_NAMES[monthIndex]} ${year}`;
+  const period = useMemo(
+    () => resolveReportingPeriod(reportingBasis, year, monthIndex),
+    [reportingBasis, year, monthIndex]
+  );
+  const periodLabel = period.label;
 
   const report = useMemo(() => {
     const sid = String(schoolId || "").trim();
     if (!sid) {
-      return buildFinancialReport("", [], year, monthIndex);
+      return buildFinancialReport("", [], period);
     }
-    return buildFinancialReport(sid, learners, year, monthIndex);
+    return buildFinancialReport(sid, learners, period);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [schoolId, learners, year, monthIndex, refreshKey]);
+  }, [schoolId, learners, period, refreshKey]);
 
   const displayGeneratedAt = generatedAt || "Not generated yet — click Generate";
 
@@ -795,29 +832,48 @@ export default function AccountingFinancialStatements({
         }}
       >
         <label style={{ display: "grid", gap: 6, fontSize: 12, fontWeight: 800, color: "#64748b" }}>
-          Year
-          <select style={fieldStyle} value={year} onChange={(e) => setYear(Number(e.target.value))}>
-            {yearOptions.map((y) => (
-              <option key={y} value={y}>
-                {y}
+          Reporting basis
+          <select
+            style={{ ...fieldStyle, minWidth: 240 }}
+            value={reportingBasis}
+            onChange={(e) => setReportingBasis(e.target.value as ReportingBasis)}
+          >
+            {REPORTING_BASIS_OPTIONS.map((o) => (
+              <option key={o.id} value={o.id}>
+                {o.label}
               </option>
             ))}
           </select>
         </label>
         <label style={{ display: "grid", gap: 6, fontSize: 12, fontWeight: 800, color: "#64748b" }}>
-          Month
-          <select
-            style={fieldStyle}
-            value={monthIndex}
-            onChange={(e) => setMonthIndex(Number(e.target.value))}
-          >
-            {MONTH_NAMES.map((name, idx) => (
-              <option key={name} value={idx}>
-                {name}
+          {reportingBasisYearLabel(reportingBasis)}
+          <select style={fieldStyle} value={year} onChange={(e) => setYear(Number(e.target.value))}>
+            {yearOptions.map((y) => (
+              <option key={y} value={y}>
+                {reportingBasis === "sars" ? `Feb ${y}` : y}
               </option>
             ))}
           </select>
         </label>
+        {reportingBasis === "month" ? (
+          <label style={{ display: "grid", gap: 6, fontSize: 12, fontWeight: 800, color: "#64748b" }}>
+            Month
+            <select
+              style={fieldStyle}
+              value={monthIndex}
+              onChange={(e) => setMonthIndex(Number(e.target.value))}
+            >
+              {MONTH_NAMES.map((name, idx) => (
+                <option key={name} value={idx}>
+                  {name}
+                </option>
+              ))}
+            </select>
+          </label>
+        ) : null}
+        <div style={{ fontWeight: 800, fontSize: 13, color: ACCOUNTING_INK, paddingBottom: 10 }}>
+          Period: {periodLabel}
+        </div>
         <label style={{ display: "grid", gap: 6, fontSize: 12, fontWeight: 800, color: "#64748b" }}>
           Statement type
           <select

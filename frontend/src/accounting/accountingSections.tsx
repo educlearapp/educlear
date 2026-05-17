@@ -1,5 +1,3 @@
-import AccountingPlaceholder from "./AccountingPlaceholder";
-
 export { default as AccountingExpenses } from "./AccountingExpenses";
 
 export { default as AccountingSuppliers } from "./AccountingSuppliers";
@@ -16,11 +14,4 @@ export { default as AccountingFinancialStatements } from "./AccountingFinancialS
 
 export { default as AccountingReports } from "./AccountingReports";
 
-export function AccountingSettings() {
-  return (
-    <AccountingPlaceholder
-      title="Accounting Settings"
-      description="Financial year, tax settings, default accounts, and integration preferences."
-    />
-  );
-}
+export { default as AccountingSettings } from "./AccountingSettings";

@@ -39,6 +39,17 @@ import {
 } from "./accountingAssetStorage";
 import { loadJournalStore } from "./accountingJournalStorage";
 import {
+  ACCOUNTING_SETTINGS_UPDATED_EVENT,
+  dateInReportingRange,
+  getDefaultReportingBasis,
+  loadAccountingSettings,
+  MONTH_NAMES,
+  REPORTING_BASIS_OPTIONS,
+  reportingBasisYearLabel,
+  resolveReportingPeriod,
+  type ReportingBasis,
+} from "./accountingSettingsStorage";
+import {
   ACCOUNTING_GOLD,
   ACCOUNTING_INK,
   accountingCard,
@@ -76,21 +87,6 @@ const REPORT_OPTIONS: { id: ReportType; label: string }[] = [
   { id: "bank-recon", label: "Bank Reconciliation Summary" },
   { id: "asset-summary", label: "Asset Register Summary" },
   { id: "audit-pack", label: "Audit Pack Export" },
-];
-
-const MONTH_NAMES = [
-  "January",
-  "February",
-  "March",
-  "April",
-  "May",
-  "June",
-  "July",
-  "August",
-  "September",
-  "October",
-  "November",
-  "December",
 ];
 
 const PAGE_SIZE = 10;
@@ -201,10 +197,55 @@ function sumPaymentsForMonth(ledger: BillingLedgerEntry[], year: number, monthIn
     .reduce((sum, e) => sum + normaliseBillingAmount(e.amount), 0);
 }
 
+function sumPaymentsInRange(ledger: BillingLedgerEntry[], startDate: string, endDate: string) {
+  return ledger
+    .filter((e) => e.type === "payment" && dateInReportingRange(e.date, startDate, endDate))
+    .reduce((sum, e) => sum + normaliseBillingAmount(e.amount), 0);
+}
+
 function sumPaymentsYtd(ledger: BillingLedgerEntry[], year: number, monthIndex: number) {
   return ledger
     .filter((e) => e.type === "payment" && entryInYearToDate(e.date, year, monthIndex))
     .reduce((sum, e) => sum + normaliseBillingAmount(e.amount), 0);
+}
+
+function totalApprovedSpendInRange(
+  rows: AccountingApprovedExpense[],
+  startDate: string,
+  endDate: string
+) {
+  return rows
+    .filter((row) => dateInReportingRange(row.date, startDate, endDate))
+    .reduce((sum, row) => {
+      const amount = Number(row.amount);
+      return sum + (Number.isFinite(amount) && amount > 0 ? amount : 0);
+    }, 0);
+}
+
+function filterApprovedInRange(
+  rows: AccountingApprovedExpense[],
+  startDate: string,
+  endDate: string
+) {
+  return rows.filter((row) => dateInReportingRange(row.date, startDate, endDate));
+}
+
+function sumApprovedByCategoryInRange(
+  rows: AccountingApprovedExpense[],
+  startDate: string,
+  endDate: string
+) {
+  const totals = new Map<string, number>();
+  const labels = new Map<string, string>();
+  for (const row of filterApprovedInRange(rows, startDate, endDate)) {
+    const amount = Number(row.amount);
+    if (!Number.isFinite(amount) || amount <= 0) continue;
+    const key = normalizeExpenseCategory(row.category);
+    if (!key) continue;
+    totals.set(key, (totals.get(key) || 0) + amount);
+    if (!labels.has(key)) labels.set(key, String(row.category || "").trim() || key);
+  }
+  return { totals, labels };
 }
 
 function filterApprovedYtd(rows: AccountingApprovedExpense[], year: number, monthIndex: number) {
@@ -223,6 +264,17 @@ function totalApprovedYtd(rows: AccountingApprovedExpense[], year: number, month
 
 function formatPeriodLabel(year: number, monthIndex: number) {
   return `${MONTH_NAMES[monthIndex] || ""} ${year}`;
+}
+
+function countMonthsInRange(startDate: string, endDate: string) {
+  const start = startDate.match(/^(\d{4})-(\d{2})/);
+  const end = endDate.match(/^(\d{4})-(\d{2})/);
+  if (!start || !end) return 1;
+  const sy = Number(start[1]);
+  const sm = Number(start[2]);
+  const ey = Number(end[1]);
+  const em = Number(end[2]);
+  return Math.max(1, (ey - sy) * 12 + (em - sm) + 1);
 }
 
 function varianceStatus(variancePct: number) {
@@ -334,6 +386,9 @@ export default function AccountingReports({ schoolId, learners = [], schoolName 
   const now = new Date();
   const [year, setYear] = useState(now.getFullYear());
   const [monthIndex, setMonthIndex] = useState(now.getMonth());
+  const [reportingBasis, setReportingBasis] = useState<ReportingBasis>(() =>
+    schoolId ? getDefaultReportingBasis(schoolId) : "doe"
+  );
   const [reportType, setReportType] = useState<ReportType>("management");
   const [generated, setGenerated] = useState(false);
   const [refreshKey, setRefreshKey] = useState(0);
@@ -348,7 +403,20 @@ export default function AccountingReports({ schoolId, learners = [], schoolName 
   useEffect(() => {
     if (!schoolId) return;
     migrateLegacyExpenseStores(schoolId);
+    const settings = loadAccountingSettings(schoolId);
+    setReportingBasis(settings.reports.defaultReportBasis);
   }, [schoolId, refreshKey]);
+
+  useEffect(() => {
+    const onSettings = (e: Event) => {
+      const detail = (e as CustomEvent<{ schoolId?: string }>).detail;
+      if (!detail?.schoolId || detail.schoolId === schoolId) {
+        setReportingBasis(getDefaultReportingBasis(schoolId));
+      }
+    };
+    window.addEventListener(ACCOUNTING_SETTINGS_UPDATED_EVENT, onSettings);
+    return () => window.removeEventListener(ACCOUNTING_SETTINGS_UPDATED_EVENT, onSettings);
+  }, [schoolId]);
 
   useEffect(() => {
     const onExpenses = (e: Event) => {
@@ -403,9 +471,13 @@ export default function AccountingReports({ schoolId, learners = [], schoolName 
 
   useEffect(() => {
     setTablePage(1);
-  }, [reportType, year, monthIndex, generated]);
+  }, [reportType, year, monthIndex, reportingBasis, generated]);
 
-  const periodLabel = formatPeriodLabel(year, monthIndex);
+  const period = useMemo(
+    () => resolveReportingPeriod(reportingBasis, year, monthIndex),
+    [reportingBasis, year, monthIndex]
+  );
+  const periodLabel = period.label;
 
   const data = useMemo(() => {
     void refreshKey;
@@ -413,22 +485,42 @@ export default function AccountingReports({ schoolId, learners = [], schoolName 
     const statementRows: BillingAccountRow[] = sid ? getBillingRows(learners, sid) : [];
     const ledger = sid ? readSchoolLedger(sid) : [];
     const approvedAll = sid ? loadApprovedExpenses(sid) : [];
-    const approvedMonth = sid ? filterApprovedExpensesForMonth(approvedAll, year, monthIndex) : [];
-    const spendByCategory = sid ? sumApprovedExpensesByCategory(approvedAll, year, monthIndex) : { totals: new Map(), labels: new Map() };
+    const approvedMonth =
+      reportingBasis === "month"
+        ? sid
+          ? filterApprovedExpensesForMonth(approvedAll, year, monthIndex)
+          : []
+        : sid
+          ? filterApprovedInRange(approvedAll, period.startDate, period.endDate)
+          : [];
+    const spendByCategory =
+      reportingBasis === "month"
+        ? sid
+          ? sumApprovedExpensesByCategory(approvedAll, year, monthIndex)
+          : { totals: new Map(), labels: new Map() }
+        : sid
+          ? sumApprovedByCategoryInRange(approvedAll, period.startDate, period.endDate)
+          : { totals: new Map(), labels: new Map() };
     const candidates = sid ? reviewQueueFromCandidates(loadExpenseCandidates(sid)) : [];
     const suppliers = sid ? loadSuppliersForMatching(sid) : [];
     const journalStore = sid ? loadJournalStore(sid) : { journals: [], audit: [] };
     const assets = sid ? loadAssets(sid) : [];
     const assetTotals = calculateAssetTotals(assets);
     const bookTotals = calculateBookValueTotals(assets);
-    const depTotals = calculateDepreciationTotals(assets, year);
+    const depTotals = calculateDepreciationTotals(assets, period.depreciationYear);
     const assetCategorySummary = buildAssetCategorySummary(assets);
     const disposedAssets = listDisposedAssets(assets);
     const topAssetCategory = largestAssetCategory(assets);
     const annualDepreciation = annualDepreciationFromRuns(assets);
 
-    const income = sumPaymentsForMonth(ledger, year, monthIndex);
-    const expenses = totalApprovedSpendForMonth(approvedAll, year, monthIndex);
+    const income =
+      reportingBasis === "month"
+        ? sumPaymentsForMonth(ledger, year, monthIndex)
+        : sumPaymentsInRange(ledger, period.startDate, period.endDate);
+    const expenses =
+      reportingBasis === "month"
+        ? totalApprovedSpendForMonth(approvedAll, year, monthIndex)
+        : totalApprovedSpendInRange(approvedAll, period.startDate, period.endDate);
     const net = income - expenses;
 
     const outstandingDebtors = statementRows
@@ -452,13 +544,16 @@ export default function AccountingReports({ schoolId, learners = [], schoolName 
       }))
       .sort((a, b) => b.amount - a.amount);
 
+    const budgetMonthFactor =
+      reportingBasis === "month" ? 1 : countMonthsInRange(period.startDate, period.endDate);
+
     const budgetRows = Array.from(
       new Set([
         ...Object.keys(DEFAULT_EXPENSE_BUDGET_MONTHLY),
         ...Array.from(spendByCategory.totals.keys()),
       ])
     ).map((key) => {
-      const budgeted = DEFAULT_EXPENSE_BUDGET_MONTHLY[key] || 0;
+      const budgeted = (DEFAULT_EXPENSE_BUDGET_MONTHLY[key] || 0) * budgetMonthFactor;
       const actual = spendByCategory.totals.get(key) || 0;
       const label = spendByCategory.labels.get(key) || key.replace(/\b\w/g, (ch: string) => ch.toUpperCase());
       const variance = actual - budgeted;
@@ -490,8 +585,8 @@ export default function AccountingReports({ schoolId, learners = [], schoolName 
       const key = normalizeExpenseCategory(supplier);
       const amount = normaliseBillingAmount(row.amount);
       if (amount <= 0) continue;
+      if (!dateInReportingRange(row.date, period.startDate, period.endDate)) continue;
       const parsed = parseYearMonth(row.date);
-      if (!parsed || parsed.year !== year) continue;
       const existing = supplierMap.get(key) || {
         supplier,
         category: String(row.category || "Other"),
@@ -499,8 +594,12 @@ export default function AccountingReports({ schoolId, learners = [], schoolName 
         ytd: 0,
         lastDate: "",
       };
-      if (parsed.monthIndex <= monthIndex) existing.ytd += amount;
-      if (parsed.monthIndex === monthIndex) existing.month += amount;
+      existing.ytd += amount;
+      if (reportingBasis === "month" && parsed?.monthIndex === monthIndex) {
+        existing.month += amount;
+      } else if (reportingBasis !== "month") {
+        existing.month += amount;
+      }
       if (!existing.lastDate || row.date > existing.lastDate) existing.lastDate = row.date;
       supplierMap.set(key, existing);
     }
@@ -599,8 +698,14 @@ export default function AccountingReports({ schoolId, learners = [], schoolName 
       warnings,
       journalCount: journalStore.journals.length,
       postedJournals: journalStore.journals.filter((j) => j.status === "Posted").length,
-      paymentsYtd: sumPaymentsYtd(ledger, year, monthIndex),
-      expensesYtd: totalApprovedYtd(approvedAll, year, monthIndex),
+      paymentsYtd:
+        reportingBasis === "month"
+          ? sumPaymentsYtd(ledger, year, monthIndex)
+          : sumPaymentsInRange(ledger, period.startDate, period.endDate),
+      expensesYtd:
+        reportingBasis === "month"
+          ? totalApprovedYtd(approvedAll, year, monthIndex)
+          : totalApprovedSpendInRange(approvedAll, period.startDate, period.endDate),
       assetTotals,
       bookTotals,
       depTotals,
@@ -609,7 +714,7 @@ export default function AccountingReports({ schoolId, learners = [], schoolName 
       topAssetCategory,
       annualDepreciation,
     };
-  }, [schoolId, learners, year, monthIndex, refreshKey, bankImports]);
+  }, [schoolId, learners, year, monthIndex, reportingBasis, period, refreshKey, bankImports]);
 
   const summaryCards = [
     { label: "Total Income", value: formatMoney(data.income) },
@@ -1085,25 +1190,44 @@ ${el.innerHTML}
         }}
       >
         <label style={{ display: "grid", gap: 6, fontWeight: 800, fontSize: 12, color: "#64748b" }}>
-          Year
-          <select style={fieldStyle} value={year} onChange={(e) => setYear(Number(e.target.value))}>
-            {yearOptions.map((y) => (
-              <option key={y} value={y}>
-                {y}
+          Reporting basis
+          <select
+            style={{ ...fieldStyle, minWidth: 240 }}
+            value={reportingBasis}
+            onChange={(e) => setReportingBasis(e.target.value as ReportingBasis)}
+          >
+            {REPORTING_BASIS_OPTIONS.map((o) => (
+              <option key={o.id} value={o.id}>
+                {o.label}
               </option>
             ))}
           </select>
         </label>
         <label style={{ display: "grid", gap: 6, fontWeight: 800, fontSize: 12, color: "#64748b" }}>
-          Month
-          <select style={fieldStyle} value={monthIndex} onChange={(e) => setMonthIndex(Number(e.target.value))}>
-            {MONTH_NAMES.map((name, idx) => (
-              <option key={name} value={idx}>
-                {name}
+          {reportingBasisYearLabel(reportingBasis)}
+          <select style={fieldStyle} value={year} onChange={(e) => setYear(Number(e.target.value))}>
+            {yearOptions.map((y) => (
+              <option key={y} value={y}>
+                {reportingBasis === "sars" ? `Feb ${y}` : y}
               </option>
             ))}
           </select>
         </label>
+        {reportingBasis === "month" ? (
+          <label style={{ display: "grid", gap: 6, fontWeight: 800, fontSize: 12, color: "#64748b" }}>
+            Month
+            <select style={fieldStyle} value={monthIndex} onChange={(e) => setMonthIndex(Number(e.target.value))}>
+              {MONTH_NAMES.map((name, idx) => (
+                <option key={name} value={idx}>
+                  {name}
+                </option>
+              ))}
+            </select>
+          </label>
+        ) : null}
+        <div style={{ fontWeight: 800, fontSize: 13, color: ACCOUNTING_INK, paddingBottom: 10 }}>
+          Period: {periodLabel}
+        </div>
         <label style={{ display: "grid", gap: 6, fontWeight: 800, fontSize: 12, color: "#64748b" }}>
           Report type
           <select style={{ ...fieldStyle, minWidth: 220 }} value={reportType} onChange={(e) => setReportType(e.target.value as ReportType)}>
