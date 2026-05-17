@@ -22,14 +22,7 @@ export function AccountingJournals() {
   );
 }
 
-export function AccountingChartOfAccounts() {
-  return (
-    <AccountingPlaceholder
-      title="Chart of Accounts"
-      description="Configure account codes, categories, and mapping for financial reporting."
-    />
-  );
-}
+export { default as AccountingChartOfAccounts } from "./AccountingChartOfAccounts";
 
 export { default as AccountingBudget } from "./AccountingBudget";
 
