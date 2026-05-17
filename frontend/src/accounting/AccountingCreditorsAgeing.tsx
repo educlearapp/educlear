@@ -11,6 +11,13 @@ import {
   accountingTitle,
 } from "./accountingTheme";
 import {
+  exportPayloadCsv,
+  exportPayloadPdf,
+  formatExportMoney,
+  payloadFromTable,
+  resolveExportBranding,
+} from "./accountingExportEngine";
+import {
   applyPaymentToInvoice,
   buildCreditorAgeingRows,
   buildCreditorInvoiceLines,
@@ -538,6 +545,49 @@ ${el.innerHTML}
     setTimeout(() => w.print(), 400);
   };
 
+  const buildCreditorsExportPayload = () => {
+    if (!filteredRows.length) return null;
+    return payloadFromTable(
+      resolveExportBranding(),
+      "Creditors Ageing",
+      periodLabel,
+      new Date().toLocaleString("en-ZA"),
+      {
+        columns: ["Supplier", "Category", "Outstanding", "Open invoices", "Disputed", "Status", "Next due"],
+        rows: filteredRows.map((r) => [
+          r.supplierName,
+          r.category,
+          formatExportMoney(r.outstandingBalance),
+          String(r.openInvoiceCount),
+          String(r.disputedCount),
+          r.displayStatus,
+          r.nextDueDate || "—",
+        ]),
+      },
+      [{ label: "Suppliers", value: String(filteredRows.length) }]
+    );
+  };
+
+  const handleExportPdf = () => {
+    const payload = buildCreditorsExportPayload();
+    if (!payload) {
+      setBanner("No creditor rows to export for the current filters.");
+      return;
+    }
+    if (!exportPayloadPdf(payload)) setBanner("Pop-up blocked. Allow pop-ups to export PDF.");
+    else setBanner("");
+  };
+
+  const handleExportExcel = () => {
+    const payload = buildCreditorsExportPayload();
+    if (!payload) {
+      setBanner("No creditor rows to export for the current filters.");
+      return;
+    }
+    exportPayloadCsv(payload);
+    setBanner("");
+  };
+
   const yearOptions = useMemo(() => {
     const current = new Date().getFullYear();
     return [current - 2, current - 1, current, current + 1];
@@ -684,10 +734,10 @@ ${el.innerHTML}
         <button type="button" style={outlineBtn} onClick={handlePrint}>
           Print
         </button>
-        <button type="button" style={outlineBtn} onClick={() => setBanner("Export PDF — coming soon.")}>
+        <button type="button" style={outlineBtn} onClick={handleExportPdf}>
           Export PDF
         </button>
-        <button type="button" style={outlineBtn} onClick={() => setBanner("Export Excel — coming soon.")}>
+        <button type="button" style={outlineBtn} onClick={handleExportExcel}>
           Export Excel
         </button>
         <button type="button" style={outlineBtn} onClick={() => openInvoiceModal(null)}>

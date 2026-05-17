@@ -29,6 +29,13 @@ import {
   accountingSubtitle,
   accountingTitle,
 } from "./accountingTheme";
+import {
+  exportPayloadCsv,
+  exportPayloadPdf,
+  formatExportMoney,
+  payloadFromTable,
+  resolveExportBranding,
+} from "./accountingExportEngine";
 
 type TabId = "list" | "drafts" | "posted" | "audit";
 
@@ -602,6 +609,43 @@ export default function AccountingJournals({
 
   const coaWarning = !coaAccounts.length;
 
+  const exportJournalList = (format: "pdf" | "csv") => {
+    if (tab === "audit") {
+      setToast("Switch to Journal List, Drafts, or Posted to export journals.");
+      return;
+    }
+    if (!filteredJournals.length) {
+      setToast("No journals to export for this tab.");
+      return;
+    }
+    const payload = payloadFromTable(
+      resolveExportBranding(),
+      "Journal List",
+      tab === "list" ? "All journals" : tab === "drafts" ? "Draft journals" : "Posted journals",
+      new Date().toLocaleString("en-ZA"),
+      {
+        columns: ["Journal No", "Date", "Description", "Status", "Debit", "Credit"],
+        rows: filteredJournals.map((j) => {
+          const totals = journalTotals(j);
+          return [
+            j.journalNo,
+            j.date,
+            j.description,
+            j.status,
+            formatExportMoney(totals.debit),
+            formatExportMoney(totals.credit),
+          ];
+        }),
+      },
+      [{ label: "Journals", value: String(filteredJournals.length) }]
+    );
+    if (format === "pdf") {
+      if (!exportPayloadPdf(payload)) setToast("Pop-up blocked. Allow pop-ups to export.");
+    } else {
+      exportPayloadCsv(payload);
+    }
+  };
+
   const tabs: { id: TabId; label: string }[] = [
     { id: "list", label: "Journal List" },
     { id: "drafts", label: "Drafts" },
@@ -629,12 +673,11 @@ export default function AccountingJournals({
             >
               Post Selected
             </button>
-            <button
-              type="button"
-              style={outlineBtn}
-              onClick={() => setToast("Export Journal List — coming soon.")}
-            >
-              Export Journal List
+            <button type="button" style={outlineBtn} onClick={() => exportJournalList("pdf")}>
+              Export Journal List (PDF)
+            </button>
+            <button type="button" style={outlineBtn} onClick={() => exportJournalList("csv")}>
+              Export Journal List (CSV)
             </button>
           </div>
         </div>

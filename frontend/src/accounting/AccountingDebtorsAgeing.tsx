@@ -44,6 +44,13 @@ import {
   accountingSubtitle,
   accountingTitle,
 } from "./accountingTheme";
+import {
+  exportPayloadCsv,
+  exportPayloadPdf,
+  formatExportMoney,
+  payloadFromTable,
+  resolveExportBranding,
+} from "./accountingExportEngine";
 
 type Props = {
   schoolId: string;
@@ -481,6 +488,63 @@ ${el.innerHTML}
     setTimeout(() => w.print(), 400);
   };
 
+  const buildDebtorsExportPayload = () => {
+    if (!filteredRows.length) return null;
+    return payloadFromTable(
+      resolveExportBranding(),
+      "Debtors Ageing",
+      period.label,
+      new Date().toLocaleString("en-ZA"),
+      {
+        columns: [
+          "Account",
+          "Learner",
+          "Parent",
+          "Balance",
+          "Current",
+          "30 Days",
+          "60 Days",
+          "90 Days",
+          "120+",
+          "Status",
+        ],
+        rows: filteredRows.map((r) => [
+          r.accountNo,
+          r.learnerName,
+          r.parentName,
+          formatExportMoney(r.outstandingBalance),
+          formatExportMoney(r.ageing.current),
+          formatExportMoney(r.ageing.days30),
+          formatExportMoney(r.ageing.days60),
+          formatExportMoney(r.ageing.days90),
+          formatExportMoney(r.ageing.days120Plus),
+          r.displayStatus,
+        ]),
+      },
+      [{ label: "Accounts", value: String(filteredRows.length) }]
+    );
+  };
+
+  const handleExportPdf = () => {
+    const payload = buildDebtorsExportPayload();
+    if (!payload) {
+      setBanner("No debtor rows to export for the current filters.");
+      return;
+    }
+    if (!exportPayloadPdf(payload)) setBanner("Pop-up blocked. Allow pop-ups to export PDF.");
+    else setBanner("");
+  };
+
+  const handleExportExcel = () => {
+    const payload = buildDebtorsExportPayload();
+    if (!payload) {
+      setBanner("No debtor rows to export for the current filters.");
+      return;
+    }
+    exportPayloadCsv(payload);
+    setBanner("");
+  };
+
   const yearOptions = useMemo(() => {
     const current = new Date().getFullYear();
     return [current - 2, current - 1, current, current + 1];
@@ -631,18 +695,10 @@ ${el.innerHTML}
         <button type="button" style={outlineBtn} onClick={handlePrint}>
           Print
         </button>
-        <button
-          type="button"
-          style={outlineBtn}
-          onClick={() => setBanner("Export PDF — coming soon.")}
-        >
+        <button type="button" style={outlineBtn} onClick={handleExportPdf}>
           Export PDF
         </button>
-        <button
-          type="button"
-          style={outlineBtn}
-          onClick={() => setBanner("Export Excel — coming soon.")}
-        >
+        <button type="button" style={outlineBtn} onClick={handleExportExcel}>
           Export Excel
         </button>
       </div>

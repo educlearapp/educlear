@@ -69,6 +69,14 @@ import {
   accountingSubtitle,
   accountingTitle,
 } from "./accountingTheme";
+import {
+  exportPayloadCsv,
+  exportPayloadPdf,
+  formatExportMoney,
+  payloadFromHtmlBody,
+  payloadFromTable,
+  resolveExportBranding,
+} from "./accountingExportEngine";
 
 type Props = {
   schoolId: string;
@@ -856,10 +864,87 @@ ${el.innerHTML}
     setTimeout(() => w.print(), 400);
   };
 
-  const handleExportPlaceholder = (kind: "PDF" | "Excel") => {
-    setPlaceholderBanner(
-      `${kind} export will be available in a future release. Use Print to save as PDF from your browser for now.`
+  const handleExportPdf = () => {
+    if (!generated || !reportRef.current) {
+      setPlaceholderBanner("Generate the report before exporting.");
+      return;
+    }
+    const title = REPORT_OPTIONS.find((r) => r.id === reportType)?.label || "Report";
+    const payload = payloadFromHtmlBody(
+      resolveExportBranding(schoolName),
+      title,
+      periodLabel,
+      new Date().toLocaleString("en-ZA"),
+      reportRef.current.innerHTML
     );
+    if (!exportPayloadPdf(payload)) {
+      setPlaceholderBanner("Pop-up blocked. Allow pop-ups to export PDF.");
+    } else {
+      setPlaceholderBanner("");
+    }
+  };
+
+  const handleExportExcel = () => {
+    if (!generated) {
+      setPlaceholderBanner("Generate the report before exporting.");
+      return;
+    }
+    const at = new Date().toLocaleString("en-ZA");
+    const title = REPORT_OPTIONS.find((r) => r.id === reportType)?.label || "Report";
+    const branding = resolveExportBranding(schoolName);
+    let table = { columns: ["Metric", "Value"], rows: [] as string[][] };
+
+    if (reportType === "budget-actual") {
+      table = {
+        columns: ["Category", "Budgeted", "Actual", "Variance", "Status"],
+        rows: data.budgetRows.map((r) => [
+          r.category,
+          formatExportMoney(r.budgeted),
+          formatExportMoney(r.actual),
+          formatExportMoney(r.variance),
+          r.status,
+        ]),
+      };
+    } else if (reportType === "debtors") {
+      table = {
+        columns: ["Learner", "Account", "Balance", "Status"],
+        rows: data.topDebtors.map((r) => [
+          `${r.name} ${r.surname}`,
+          r.accountNo,
+          formatExportMoney(r.balance),
+          r.status,
+        ]),
+      };
+    } else if (reportType === "audit-pack") {
+      exportPayloadCsv(
+        payloadFromTable(branding, title, periodLabel, at, {
+          columns: ["Checklist item", "Status"],
+          rows: [
+            ["Income & expenses", formatExportMoney(data.income)],
+            ["Outstanding debtors", formatExportMoney(data.outstandingDebtors)],
+            ["Journals on file", String(data.journalCount)],
+            ["Active assets", String(data.assetTotals.activeCount)],
+            ["Creditor payables", formatExportMoney(data.creditorTotals.supplierPayables)],
+          ],
+        })
+      );
+      setPlaceholderBanner("");
+      return;
+    } else {
+      table = {
+        columns: ["Metric", "Value"],
+        rows: [
+          ["Income", formatExportMoney(data.income)],
+          ["Expenses", formatExportMoney(data.expenses)],
+          ["Net position", formatExportMoney(data.net)],
+          ["Outstanding debtors", formatExportMoney(data.outstandingDebtors)],
+          ["Forecasted cash", formatExportMoney(data.forecastedCash)],
+        ],
+      };
+    }
+
+    exportPayloadCsv(payloadFromTable(branding, title, periodLabel, at, table));
+    setPlaceholderBanner("");
   };
 
   const renderReportBody = () => {
@@ -1380,10 +1465,10 @@ ${el.innerHTML}
         <button type="button" style={outlineBtn} onClick={handlePrint} disabled={!generated}>
           Print
         </button>
-        <button type="button" style={outlineBtn} onClick={() => handleExportPlaceholder("PDF")} disabled={!generated}>
+        <button type="button" style={outlineBtn} onClick={handleExportPdf} disabled={!generated}>
           Export PDF
         </button>
-        <button type="button" style={outlineBtn} onClick={() => handleExportPlaceholder("Excel")} disabled={!generated}>
+        <button type="button" style={outlineBtn} onClick={handleExportExcel} disabled={!generated}>
           Export Excel
         </button>
       </div>

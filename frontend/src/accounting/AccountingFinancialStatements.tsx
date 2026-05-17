@@ -45,6 +45,13 @@ import {
   accountingSubtitle,
   accountingTitle,
 } from "./accountingTheme";
+import {
+  exportPayloadCsv,
+  formatExportMoney,
+  openPrintWindow,
+  payloadFromTable,
+  resolveExportBranding,
+} from "./accountingExportEngine";
 
 type Props = {
   schoolId: string;
@@ -52,7 +59,7 @@ type Props = {
   learners?: any[];
 };
 
-type StatementType = "income" | "cashflow" | "trial-balance" | "balance-sheet";
+export type StatementType = "income" | "cashflow" | "trial-balance" | "balance-sheet";
 
 const STATEMENT_OPTIONS: { id: StatementType; label: string }[] = [
   { id: "income", label: "Income Statement" },
@@ -322,7 +329,7 @@ type FinancialReport = {
   trialRows: { account: string; debit: number; credit: number; balance: number }[];
 };
 
-function buildFinancialReport(
+export function buildFinancialReport(
   schoolId: string,
   learners: any[],
   period: ResolvedReportingPeriod
@@ -533,7 +540,7 @@ function statementTitle(type: StatementType) {
   return STATEMENT_OPTIONS.find((o) => o.id === type)?.label || "Financial Statement";
 }
 
-function buildPrintHtml(opts: {
+export function buildPrintHtml(opts: {
   schoolName: string;
   periodLabel: string;
   generatedAt: string;
@@ -729,8 +736,66 @@ export default function AccountingFinancialStatements({
     openPrintHtml(html);
   };
 
-  const handleExportPlaceholder = () => {
-    setExportBanner("PDF/Excel export will be connected in the export module.");
+  const handleExportPdf = () => {
+    const at = generatedAt || new Date().toLocaleString("en-ZA");
+    const html = buildPrintHtml({
+      schoolName,
+      periodLabel,
+      generatedAt: at,
+      statementType,
+      report,
+    });
+    if (!openPrintWindow(html)) {
+      setExportBanner("Pop-up blocked. Allow pop-ups to export PDF.");
+    } else {
+      setExportBanner("");
+    }
+  };
+
+  const handleExportExcel = () => {
+    const at = generatedAt || new Date().toLocaleString("en-ZA");
+    const title = statementTitle(statementType);
+    const summary = [
+      { label: "Total Income", value: formatExportMoney(report.totalIncome) },
+      { label: "Total Expenses", value: formatExportMoney(report.totalExpenses) },
+      { label: "Net Surplus / Deficit", value: formatExportMoney(report.netSurplus) },
+    ];
+    let columns: string[] = [];
+    let rows: string[][] = [];
+    if (statementType === "trial-balance") {
+      columns = ["Account", "Debit", "Credit", "Balance"];
+      rows = report.trialRows.map((r) => [
+        r.account,
+        r.debit ? formatExportMoney(r.debit) : "",
+        r.credit ? formatExportMoney(r.credit) : "",
+        formatExportMoney(r.balance),
+      ]);
+    } else if (statementType === "income") {
+      columns = ["Line", "Amount"];
+      rows = [
+        ...INCOME_LINES.filter((l) => report.incomeByLine[l] > 0).map((l) => [
+          l,
+          formatExportMoney(report.incomeByLine[l]),
+        ]),
+        ...EXPENSE_LINES.filter((l) => report.expenseByLine[l] > 0).map((l) => [
+          l,
+          formatExportMoney(report.expenseByLine[l]),
+        ]),
+      ];
+    } else {
+      columns = ["Item", "Amount"];
+      rows = [
+        ["Cash received", formatExportMoney(report.cashReceived)],
+        ["Cash paid (expenses)", formatExportMoney(report.cashPaidExpenses)],
+        ["Net cash movement", formatExportMoney(report.netCashMovement)],
+        ["Total assets", formatExportMoney(report.totalAssets)],
+        ["Total liabilities", formatExportMoney(report.totalLiabilities)],
+      ];
+    }
+    exportPayloadCsv(
+      payloadFromTable(resolveExportBranding(schoolName), title, periodLabel, at, { columns, rows }, summary)
+    );
+    setExportBanner("");
   };
 
   const yearOptions = useMemo(() => {
@@ -1002,10 +1067,10 @@ export default function AccountingFinancialStatements({
         <button type="button" style={outlineBtn} onClick={handlePrint}>
           Print
         </button>
-        <button type="button" style={outlineBtn} onClick={handleExportPlaceholder}>
+        <button type="button" style={outlineBtn} onClick={handleExportPdf}>
           Export PDF
         </button>
-        <button type="button" style={outlineBtn} onClick={handleExportPlaceholder}>
+        <button type="button" style={outlineBtn} onClick={handleExportExcel}>
           Export Excel
         </button>
       </div>

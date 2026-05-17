@@ -13,6 +13,13 @@ import {
   accountingSubtitle,
   accountingTitle,
 } from "./accountingTheme";
+import {
+  exportPayloadCsv,
+  exportPayloadPdf,
+  formatExportMoney,
+  payloadFromTable,
+  resolveExportBranding,
+} from "./accountingExportEngine";
 
 export type { AssetRecord } from "./accountingAssetStorage";
 export { computeAssetDepreciation } from "./accountingAssetStorage";
@@ -1050,8 +1057,36 @@ export default function AccountingAssets({ schoolId = "" }: Props) {
     setToast("Asset marked as disposed.");
   };
 
-  const exportPlaceholder = () => {
-    setToast("Export Asset Register — coming soon.");
+  const exportAssetRegister = (format: "pdf" | "csv") => {
+    const active = assets.filter((a) => a.status !== "Disposed");
+    if (!active.length) {
+      setToast("No active assets to export.");
+      return;
+    }
+    const payload = payloadFromTable(
+      resolveExportBranding(),
+      "Assets Register",
+      `As at ${new Date().toLocaleDateString("en-ZA")}`,
+      new Date().toLocaleString("en-ZA"),
+      {
+        columns: ["Asset", "Category", "Purchase date", "Cost", "Net book", "Location", "Status"],
+        rows: active.map((a) => [
+          a.name,
+          a.category,
+          a.purchaseDate || "—",
+          formatExportMoney(a.purchaseCost),
+          formatExportMoney(a.currentBookValue || 0),
+          a.location || "—",
+          a.status || "Active",
+        ]),
+      },
+      [{ label: "Active assets", value: String(active.length) }]
+    );
+    if (format === "pdf") {
+      if (!exportPayloadPdf(payload)) setToast("Pop-up blocked. Allow pop-ups to export.");
+    } else {
+      exportPayloadCsv(payload);
+    }
   };
 
   const tabStyle = (id: TabId): React.CSSProperties => ({
@@ -1085,8 +1120,11 @@ export default function AccountingAssets({ schoolId = "" }: Props) {
           <button type="button" style={outlineBtn} onClick={runDepreciation}>
             Depreciation Run
           </button>
-          <button type="button" style={outlineBtn} onClick={exportPlaceholder}>
-            Export Asset Register
+          <button type="button" style={outlineBtn} onClick={() => exportAssetRegister("pdf")}>
+            Export Asset Register (PDF)
+          </button>
+          <button type="button" style={outlineBtn} onClick={() => exportAssetRegister("csv")}>
+            Export Asset Register (CSV)
           </button>
         </div>
       </div>

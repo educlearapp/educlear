@@ -44,6 +44,13 @@ import {
   accountingSubtitle,
   accountingTitle,
 } from "./accountingTheme";
+import {
+  exportPayloadCsv,
+  exportPayloadPdf,
+  formatExportMoney,
+  payloadFromTable,
+  resolveExportBranding,
+} from "./accountingExportEngine";
 
 type Props = {
   schoolId?: string;
@@ -403,6 +410,52 @@ export default function AccountingGeneralLedger({ schoolId = "" }: Props) {
     }
   };
 
+  const buildLedgerExportPayload = () => {
+    if (!applied || !filteredRows.length) return null;
+    return payloadFromTable(
+      resolveExportBranding(),
+      "General Ledger",
+      applied.periodLabel,
+      new Date().toLocaleString("en-ZA"),
+      {
+        columns: ["Date", "Account", "Description", "Reference", "Debit", "Credit", "Balance"],
+        rows: filteredRows.map((r) => [
+          r.date,
+          `${r.accountCode} ${r.accountName}`,
+          r.description,
+          r.reference || "",
+          r.debit ? formatExportMoney(r.debit) : "",
+          r.credit ? formatExportMoney(r.credit) : "",
+          formatExportMoney(r.runningBalance),
+        ]),
+      },
+      [{ label: "Transactions", value: String(filteredRows.length) }]
+    );
+  };
+
+  const handleExportPdf = () => {
+    const payload = buildLedgerExportPayload();
+    if (!payload) {
+      setExportBanner("Generate the ledger with at least one row before exporting.");
+      return;
+    }
+    if (!exportPayloadPdf(payload)) {
+      setExportBanner("Pop-up blocked. Allow pop-ups to export PDF.");
+      return;
+    }
+    setExportBanner("");
+  };
+
+  const handleExportExcel = () => {
+    const payload = buildLedgerExportPayload();
+    if (!payload) {
+      setExportBanner("Generate the ledger with at least one row before exporting.");
+      return;
+    }
+    exportPayloadCsv(payload);
+    setExportBanner("");
+  };
+
   const handlePrint = () => {
     const root = printRef.current;
     if (!root) return;
@@ -727,18 +780,10 @@ ${html}
         <button type="button" style={outlineBtn} onClick={handlePrint} disabled={!applied || !filteredRows.length}>
           Print
         </button>
-        <button
-          type="button"
-          style={outlineBtn}
-          onClick={() => setExportBanner("Export PDF — coming soon. Use Print to save as PDF from your browser.")}
-        >
+        <button type="button" style={outlineBtn} onClick={handleExportPdf}>
           Export PDF
         </button>
-        <button
-          type="button"
-          style={outlineBtn}
-          onClick={() => setExportBanner("Export Excel — coming soon.")}
-        >
+        <button type="button" style={outlineBtn} onClick={handleExportExcel}>
           Export Excel
         </button>
       </div>
