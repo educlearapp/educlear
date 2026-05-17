@@ -17700,7 +17700,7 @@ const [invoiceRunEmailDraft, setInvoiceRunEmailDraft] = useState({
           );
 
         case "accountingOverview":
-          return <AccountingOverview />;
+          return <AccountingOverview schoolId={schoolId || ""} />;
 
         case "accountingExpenses":
           return <AccountingExpenses schoolId={schoolId || ""} />;
