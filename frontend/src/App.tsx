@@ -8,6 +8,9 @@ import Login from "./Login";
 
 import SchoolDashboard from "./SchoolDashboard";
 
+import SuperAdminGate from "./auth/SuperAdminGate";
+import SuperAdminDashboard from "./SuperAdminDashboard";
+
 
 
 import TeacherPerformance from "./TeacherPerformance";
@@ -585,6 +588,15 @@ export default function App() {
         <Route path="/register-school" element={<RegisterSchool />} />
 
         <Route path="/dashboard/*" element={<SchoolDashboard />} />
+
+        <Route
+          path="/super-admin/*"
+          element={
+            <SuperAdminGate>
+              <SuperAdminDashboard />
+            </SuperAdminGate>
+          }
+        />
 
 
 

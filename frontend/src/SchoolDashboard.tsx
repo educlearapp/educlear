@@ -55,6 +55,8 @@ import {
 import { BILLING_UPDATED_EVENT, getBillingRows } from "./billing/billingLedger";
 import { syncBillingLedgerFromApi } from "./billing/billingApi";
 import SchoolProfilePage from "./pages/SchoolProfilePage";
+import SchoolCreditsPage from "./pages/SchoolCreditsPage";
+import { isSuperAdmin } from "./auth/roles";
 
 
 
@@ -18219,10 +18221,7 @@ return (
   
   
         case "schoolCredits":
-  
-  
-  
-          return <h1 className="page-title">Credits</h1>;
+          return <SchoolCreditsPage />;
   
   
   
@@ -18525,6 +18524,15 @@ return (
   
   
                 <div className={`submenu-item ${activePage === "registrations" ? "active" : ""}`} onClick={() => go("registrations")}>Registrations</div>
+
+                {isSuperAdmin() ? (
+                  <div
+                    className={`submenu-item${location.pathname.startsWith("/super-admin/schools") ? " active" : ""}`}
+                    onClick={() => navigate("/super-admin/schools")}
+                  >
+                    Schools Management
+                  </div>
+                ) : null}
 
                 <div className={`submenu-item ${activePage === "parentPortal" ? "active" : ""}`} onClick={() => go("parentPortal")}>Parent Portal</div>
   
