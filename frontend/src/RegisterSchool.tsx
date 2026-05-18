@@ -6,7 +6,7 @@ import { useNavigate } from "react-router-dom";
 
 
 
-import { API_URL } from "./api";
+import { API_URL, apiFetch } from "./api";
 
 
 
@@ -316,31 +316,32 @@ export default function RegisterSchool() {
 
       const logoUrl = await uploadLogo();
 
+      const email = String(form.email).trim().toLowerCase();
 
-
-      localStorage.setItem("schoolName", form.schoolName || "EduClear Test School");
-
-
-
-      if (logoUrl) localStorage.setItem("schoolLogoUrl", logoUrl);
-
-
-
-      setStatus({
-
-
-
-        type: "success",
-
-
-
-        message: "Registration successful. Opening dashboard...",
-
-
-
+      const data: any = await apiFetch("/auth/register-school", {
+        method: "POST",
+        body: JSON.stringify({
+          schoolName: String(form.schoolName).trim(),
+          contactPerson: String(form.contactPerson).trim(),
+          email,
+          phone: String(form.phone).trim(),
+          password: form.password,
+          logoUrl: logoUrl || undefined,
+        }),
       });
 
+      localStorage.setItem("token", data.token);
+      localStorage.setItem("schoolId", String(data.school?.id || ""));
+      localStorage.setItem("schoolName", String(data.school?.name || form.schoolName || ""));
 
+      if (logoUrl || data.school?.logoUrl) {
+        localStorage.setItem("schoolLogoUrl", logoUrl || String(data.school.logoUrl));
+      }
+
+      setStatus({
+        type: "success",
+        message: "Registration successful. Opening dashboard...",
+      });
 
       navigate("/dashboard");
 

@@ -38,13 +38,28 @@ export default function Login({ onLoggedIn }: Props) {
 
         method: "POST",
 
-        body: JSON.stringify({ email, password }),
+        body: JSON.stringify({
+          email: email.trim().toLowerCase(),
+          password,
+        }),
 
       });
 
 
 
       localStorage.setItem("token", data.token);
+
+      if (data?.school?.id) {
+        localStorage.setItem("schoolId", String(data.school.id));
+      }
+
+      if (data?.school?.name) {
+        localStorage.setItem("schoolName", String(data.school.name));
+      }
+
+      if (data?.school?.logoUrl) {
+        localStorage.setItem("schoolLogoUrl", String(data.school.logoUrl));
+      }
 
       onLoggedIn();
 
