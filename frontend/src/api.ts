@@ -1,4 +1,8 @@
-export const API_URL = import.meta.env.VITE_API_URL || "http://localhost:3000";
+const PRODUCTION_API_URL = "https://educlear-backend.onrender.com";
+
+export const API_URL =
+  import.meta.env.VITE_API_URL ||
+  (import.meta.env.PROD ? PRODUCTION_API_URL : "http://localhost:3000");
 
 export async function apiFetch(path: string, options: RequestInit = {}) {
   const url = `${API_URL}${path}`;

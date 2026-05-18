@@ -196,17 +196,67 @@ app.use(
 
   cors({
 
-    origin: [
+    origin: (origin, callback) => {
 
-      "http://localhost:5173",
 
-      "http://localhost:5174",
-      
-      "http://localhost:5175",
 
-      "https://educlear-frontend.onrender.com",
-
-    ],
+      const allowedOrigins = [
+    
+    
+    
+        "http://localhost:5173",
+    
+    
+    
+        "http://localhost:5174",
+    
+    
+    
+        "http://localhost:5175",
+    
+    
+    
+        "https://educlear-frontend.onrender.com",
+    
+    
+    
+        "https://educlear.co.za",
+    
+    
+    
+        "https://www.educlear.co.za",
+    
+    
+    
+      ];
+    
+    
+    
+      if (!origin || allowedOrigins.includes(origin)) {
+    
+    
+    
+        callback(null, true);
+    
+    
+    
+      } else {
+    
+    
+    
+        console.log("Blocked by CORS:", origin);
+    
+    
+    
+        callback(new Error("Not allowed by CORS"));
+    
+    
+    
+      }
+    
+    
+    
+    },
 
     methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
 
@@ -244,7 +294,11 @@ app.post("/api/upload-logo", upload.single("logo"), (req, res) => {
 
 
 
-  const url = `http://localhost:3000/uploads/school-logos/${req.file.filename}`;
+  const base =
+    process.env.PUBLIC_API_URL?.replace(/\/$/, "") ||
+    `${req.protocol}://${req.get("host")}`;
+
+  const url = `${base}/uploads/school-logos/${req.file.filename}`;
 
 
 
