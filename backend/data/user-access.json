@@ -377,6 +377,195 @@
         }
       },
       "lastLoginAt": null
+    },
+    "cmpbctq2r0003ac9utppwwr0k": {
+      "schoolId": "cmpbctq2l0001ac9uduzwowrm",
+      "firstName": "Test",
+      "surname": "Admin",
+      "appRole": "Owner",
+      "permissions": {
+        "dashboard": {
+          "view": true,
+          "create": true,
+          "edit": true,
+          "delete": true,
+          "print": true,
+          "send": true,
+          "manage": true
+        },
+        "registrations": {
+          "view": true,
+          "create": true,
+          "edit": true,
+          "delete": true,
+          "print": true,
+          "send": true,
+          "manage": true
+        },
+        "learners": {
+          "view": true,
+          "create": true,
+          "edit": true,
+          "delete": true,
+          "print": true,
+          "send": true,
+          "manage": true
+        },
+        "parents": {
+          "view": true,
+          "create": true,
+          "edit": true,
+          "delete": true,
+          "print": true,
+          "send": true,
+          "manage": true
+        },
+        "attendance": {
+          "view": true,
+          "create": true,
+          "edit": true,
+          "delete": true,
+          "print": true,
+          "send": true,
+          "manage": true
+        },
+        "classrooms": {
+          "view": true,
+          "create": true,
+          "edit": true,
+          "delete": true,
+          "print": true,
+          "send": true,
+          "manage": true
+        },
+        "employees": {
+          "view": true,
+          "create": true,
+          "edit": true,
+          "delete": true,
+          "print": true,
+          "send": true,
+          "manage": true
+        },
+        "teachers": {
+          "view": true,
+          "create": true,
+          "edit": true,
+          "delete": true,
+          "print": true,
+          "send": true,
+          "manage": true
+        },
+        "users": {
+          "view": true,
+          "create": true,
+          "edit": true,
+          "delete": true,
+          "print": true,
+          "send": true,
+          "manage": true
+        },
+        "billing": {
+          "view": true,
+          "create": true,
+          "edit": true,
+          "delete": true,
+          "print": true,
+          "send": true,
+          "manage": true
+        },
+        "statements": {
+          "view": true,
+          "create": true,
+          "edit": true,
+          "delete": true,
+          "print": true,
+          "send": true,
+          "manage": true
+        },
+        "payments": {
+          "view": true,
+          "create": true,
+          "edit": true,
+          "delete": true,
+          "print": true,
+          "send": true,
+          "manage": true
+        },
+        "invoices": {
+          "view": true,
+          "create": true,
+          "edit": true,
+          "delete": true,
+          "print": true,
+          "send": true,
+          "manage": true
+        },
+        "invoiceRuns": {
+          "view": true,
+          "create": true,
+          "edit": true,
+          "delete": true,
+          "print": true,
+          "send": true,
+          "manage": true
+        },
+        "billingPlans": {
+          "view": true,
+          "create": true,
+          "edit": true,
+          "delete": true,
+          "print": true,
+          "send": true,
+          "manage": true
+        },
+        "billingDocuments": {
+          "view": true,
+          "create": true,
+          "edit": true,
+          "delete": true,
+          "print": true,
+          "send": true,
+          "manage": true
+        },
+        "legalDocuments": {
+          "view": true,
+          "create": true,
+          "edit": true,
+          "delete": true,
+          "print": true,
+          "send": true,
+          "manage": true
+        },
+        "reports": {
+          "view": true,
+          "create": true,
+          "edit": true,
+          "delete": true,
+          "print": true,
+          "send": true,
+          "manage": true
+        },
+        "payroll": {
+          "view": true,
+          "create": true,
+          "edit": true,
+          "delete": true,
+          "print": true,
+          "send": true,
+          "manage": true
+        },
+        "settings": {
+          "view": true,
+          "create": true,
+          "edit": true,
+          "delete": true,
+          "print": true,
+          "send": true,
+          "manage": true
+        }
+      },
+      "lastLoginAt": null
     }
   }
 }
