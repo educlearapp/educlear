@@ -419,65 +419,23 @@ function uid(prefix: string) {
 }
 
 function defaultRecurringRules(): RecurringRule[] {
-  return [
-    { id: uid("rule"), supplierContains: "ESKOM", category: "Electricity", autoApprove: false, active: true },
-    { id: uid("rule"), supplierContains: "Shell", category: "Fuel", autoApprove: false, active: true },
-    { id: uid("rule"), supplierContains: "Bank Charges", category: "Bank Charges", autoApprove: true, active: true },
-  ];
+
+
+
+  return [];
+
+
+
 }
 
 function sampleReviewQueue(): ReviewCandidate[] {
-  const today = new Date().toISOString().slice(0, 10);
-  return [
-    {
-      id: uid("sample"),
-      date: today,
-      supplier: "ESKOM Holdings",
-      description: "Electricity — main campus",
-      amount: 8420.5,
-      suggestedCategory: "Electricity",
-      confidence: "high",
-      status: "Pending",
-      source: "sample",
-      reference: "ESK-APR-01",
-    },
-    {
-      id: uid("sample"),
-      date: today,
-      supplier: "Shell Fleet Card",
-      description: "Diesel — school bus route",
-      amount: 2150,
-      suggestedCategory: "Fuel",
-      confidence: "medium",
-      status: "Pending",
-      source: "sample",
-      reference: "SHL-88421",
-    },
-    {
-      id: uid("sample"),
-      date: today,
-      supplier: "Standard Bank",
-      description: "Monthly service fee",
-      amount: 185,
-      suggestedCategory: "Bank Charges",
-      confidence: "high",
-      status: "Pending",
-      source: "sample",
-      reference: "BNK-FEE",
-    },
-    {
-      id: uid("sample"),
-      date: today,
-      supplier: "Makro Business",
-      description: "Classroom stationery bulk order",
-      amount: 3299.99,
-      suggestedCategory: "Stationery",
-      confidence: "low",
-      status: "Pending",
-      source: "sample",
-      reference: "MKR-9921",
-    },
-  ];
+
+
+
+  return [];
+
+
+
 }
 
 function candidateToReviewRow(c: AccountingExpenseCandidate): ReviewCandidate {
