@@ -2,6 +2,8 @@ import * as React from "react";
 
 import { useState } from "react";
 
+import { useNavigate } from "react-router-dom";
+
 import { apiFetch } from "./api";
 
 
@@ -16,11 +18,15 @@ type Props = {
 
 export default function Login({ onLoggedIn }: Props) {
 
+  const navigate = useNavigate();
+
   const [email, setEmail] = useState("");
 
   const [password, setPassword] = useState("");
 
   const [status, setStatus] = useState("");
+
+  const [loading, setLoading] = useState(false);
 
 
 
@@ -29,6 +35,8 @@ export default function Login({ onLoggedIn }: Props) {
     e.preventDefault();
 
     setStatus("Logging in...");
+
+    setLoading(true);
 
 
 
@@ -47,25 +55,75 @@ export default function Login({ onLoggedIn }: Props) {
 
 
 
-      localStorage.setItem("token", data.token);
+      console.log("[Login] response", data);
 
-      if (data?.school?.id) {
-        localStorage.setItem("schoolId", String(data.school.id));
+
+
+      const token = data?.token;
+
+      const schoolId =
+        data?.schoolId ?? data?.school?.id ?? data?.user?.schoolId;
+
+
+
+      if (!token) {
+
+        throw new Error("Login response missing token. Please try again.");
+
       }
 
-      if (data?.school?.name) {
-        localStorage.setItem("schoolName", String(data.school.name));
+
+
+      if (!schoolId) {
+
+        throw new Error(
+
+          "Your account is not linked to a school. Please contact support."
+
+        );
+
       }
 
-      if (data?.school?.logoUrl) {
-        localStorage.setItem("schoolLogoUrl", String(data.school.logoUrl));
+
+
+      localStorage.setItem("token", String(token));
+
+      localStorage.setItem("schoolId", String(schoolId));
+
+
+
+      const schoolName =
+        data?.school?.name ?? data?.schoolName ?? data?.user?.schoolName;
+
+      if (schoolName) {
+
+        localStorage.setItem("schoolName", String(schoolName));
+
       }
+
+
+
+      const logoUrl = data?.school?.logoUrl;
+
+      if (logoUrl) {
+
+        localStorage.setItem("schoolLogoUrl", String(logoUrl));
+
+      }
+
+
 
       onLoggedIn();
+
+      navigate("/dashboard");
 
     } catch (err: any) {
 
       setStatus(err?.message || "Login failed");
+
+    } finally {
+
+      setLoading(false);
 
     }
 
@@ -125,7 +183,7 @@ export default function Login({ onLoggedIn }: Props) {
 
 
 
-        <button type="submit" style={{ padding: "8px 14px" }}>
+        <button type="submit" style={{ padding: "8px 14px" }} disabled={loading}>
 
           Login
 
