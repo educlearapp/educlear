@@ -5,6 +5,7 @@ import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 
 import { apiFetch } from "./api";
+import { clearEduClearRole, syncEduClearRoleFromLoginResponse } from "./auth/roles";
 
 
 
@@ -37,6 +38,8 @@ export default function Login({ onLoggedIn }: Props) {
     setStatus("Logging in...");
 
     setLoading(true);
+
+    clearEduClearRole();
 
 
 
@@ -110,6 +113,8 @@ export default function Login({ onLoggedIn }: Props) {
         localStorage.setItem("schoolLogoUrl", String(logoUrl));
 
       }
+
+      syncEduClearRoleFromLoginResponse(data);
 
 
 

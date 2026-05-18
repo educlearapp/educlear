@@ -56,6 +56,10 @@ import { BILLING_UPDATED_EVENT, getBillingRows } from "./billing/billingLedger";
 import { syncBillingLedgerFromApi } from "./billing/billingApi";
 import SchoolProfilePage from "./pages/SchoolProfilePage";
 import SchoolCreditsPage from "./pages/SchoolCreditsPage";
+import SchoolSasamsReportUploadPage from "./pages/SchoolSasamsReportUploadPage";
+import SchoolSettingsPage from "./pages/SchoolSettingsPage";
+import BillingDepositsPage from "./pages/BillingDepositsPage";
+import BillingSettingsPage from "./pages/BillingSettingsPage";
 import { isSuperAdmin } from "./auth/roles";
 
 
@@ -105,11 +109,13 @@ type PageKey =
 
 
 
-  | "schoolMore"
+  | "schoolSettings"
 
 
 
   | "registrations"
+
+  | "sasamsReportUpload"
 
 
 
@@ -215,6 +221,10 @@ type PageKey =
 
 
   | "billing-more"
+
+  | "billingDeposits"
+
+  | "billingSettings"
 
   | "communicationEmail"
 
@@ -376,6 +386,7 @@ const schoolId =
 
 
   const [billingOpen, setBillingOpen] = useState(true);
+  const [billingMoreOpen, setBillingMoreOpen] = useState(false);
   const [accountingOpen, setAccountingOpen] = useState(false);
 
   const [communicationOpen, setCommunicationOpen] = useState(false);
@@ -767,6 +778,15 @@ const [selectedLearnerReport, setSelectedLearnerReport] = useState<any>(null);
       setAdminOpen(false);
       setBillingOpen(false);
       setAccountingOpen(false);
+    }
+
+    if (page === "billingDeposits" || page === "billingSettings") {
+      setBillingOpen(true);
+      setBillingMoreOpen(true);
+      setSchoolsOpen(false);
+      setAdminOpen(false);
+      setAccountingOpen(false);
+      setCommunicationOpen(false);
     }
 
     if (location.pathname.startsWith("/dashboard/billing/")) {
@@ -18180,11 +18200,12 @@ return (
   
   
   
-        case "billing-more":
-  
-  
-  
-          return <h1 className="page-title">More</h1>;
+
+        case "billingDeposits":
+          return <BillingDepositsPage />;
+
+        case "billingSettings":
+          return <BillingSettingsPage onBack={() => go("statements")} />;
 
         case "communicationEmail":
           return (
@@ -18222,6 +18243,9 @@ return (
   
         case "schoolCredits":
           return <SchoolCreditsPage />;
+
+        case "sasamsReportUpload":
+          return <SchoolSasamsReportUploadPage />;
   
   
   
@@ -18230,14 +18254,14 @@ return (
 
 
           return <Users schoolId={schoolId || ""} />;
-  
-  
-  
-        case "schoolMore":
-  
-  
-  
-          return <h1 className="page-title">More</h1>;
+
+
+
+        case "schoolSettings":
+
+
+
+          return <SchoolSettingsPage onBack={() => go("dashboard")} />;
   
   
   
@@ -18439,7 +18463,10 @@ return (
   
   
   
-                <div className={`submenu-item ${activePage === "schoolMore" ? "active" : ""}`} onClick={() => go("schoolMore")}>More</div>
+                <div className={`submenu-item ${activePage === "schoolSettings" ? "active" : ""}`} onClick={() => go("schoolSettings")}>Settings</div>
+
+
+
   
   
   
@@ -18524,6 +18551,13 @@ return (
   
   
                 <div className={`submenu-item ${activePage === "registrations" ? "active" : ""}`} onClick={() => go("registrations")}>Registrations</div>
+
+                <div
+                  className={`submenu-item ${activePage === "sasamsReportUpload" ? "active" : ""}`}
+                  onClick={() => go("sasamsReportUpload")}
+                >
+                  SASAMS Report Upload
+                </div>
 
                 {isSuperAdmin() ? (
                   <div
@@ -18690,7 +18724,34 @@ return (
   
   
   
-                <div className={`submenu-item ${activePage === "billing-more" ? "active" : ""}`} onClick={() => go("billing-more")}>More</div>
+                <div
+                  className={`submenu-item submenu-expand ${billingMoreOpen ? "open" : ""} ${
+                    activePage === "billingDeposits" || activePage === "billingSettings" ? "active" : ""
+                  }`}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setBillingMoreOpen((prev) => !prev);
+                  }}
+                >
+                  <span>More</span>
+                  <span className={`chevron submenu-chevron ${billingMoreOpen ? "open" : ""}`}>⌄</span>
+                </div>
+                {billingMoreOpen ? (
+                  <>
+                    <div
+                      className={`submenu-item submenu-nested ${activePage === "billingDeposits" ? "active" : ""}`}
+                      onClick={() => go("billingDeposits")}
+                    >
+                      Deposits
+                    </div>
+                    <div
+                      className={`submenu-item submenu-nested ${activePage === "billingSettings" ? "active" : ""}`}
+                      onClick={() => go("billingSettings")}
+                    >
+                      Settings
+                    </div>
+                  </>
+                ) : null}
   
   
   

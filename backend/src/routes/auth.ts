@@ -32,6 +32,15 @@ function authLog(message: string, extra?: Record<string, unknown>) {
   }
 }
 
+function isPlatformSuperAdminEmail(email: string): boolean {
+  const raw = process.env.SUPER_ADMIN_EMAILS || "";
+  const allowed = raw
+    .split(",")
+    .map((entry) => entry.trim().toLowerCase())
+    .filter(Boolean);
+  return allowed.includes(normalizeEmail(email));
+}
+
 router.post("/login", async (req, res) => {
   const email = normalizeEmail(req.body?.email);
   const password = String(req.body?.password || "");
@@ -91,14 +100,20 @@ router.post("/login", async (req, res) => {
       role: matched.role,
     });
 
+    const educlearRole = isPlatformSuperAdminEmail(matched.email)
+      ? ("superAdmin" as const)
+      : undefined;
+
     return res.json({
       token,
+      ...(educlearRole ? { educlearRole } : {}),
       user: {
         id: matched.id,
         email: matched.email,
         schoolId: matched.schoolId,
         fullName: matched.fullName,
         role: matched.role,
+        ...(educlearRole ? { educlearRole } : {}),
       },
       school: school
         ? { id: school.id, name: school.name, email: school.email, logoUrl: school.logoUrl }

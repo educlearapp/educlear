@@ -1,0 +1,536 @@
+/* Super Admin — Migration Center (premium black + gold) */
+
+.sa-migration-page {
+  max-width: 1320px;
+  margin: 0 auto;
+  padding: 0;
+}
+
+.sa-migration-header {
+  margin-bottom: 28px;
+}
+
+.sa-migration-page .page-title {
+  margin: 0 0 8px;
+}
+
+.sa-migration-subtitle {
+  margin: 0;
+  font-size: 1.05rem;
+  line-height: 1.5;
+  color: #5b6575;
+  font-weight: 500;
+}
+
+/* Summary cards */
+.sa-migration-summary-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 24px;
+  margin-bottom: 28px;
+}
+
+.sa-migration-summary-card {
+  position: relative;
+  padding: 22px 20px 20px;
+  border-radius: 12px;
+  background: #0a0a0a;
+  color: #ffffff;
+  box-shadow: 0 10px 28px rgba(0, 0, 0, 0.35);
+  overflow: hidden;
+  transition: transform 0.25s ease, box-shadow 0.25s ease;
+}
+
+.sa-migration-summary-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 14px 32px rgba(0, 0, 0, 0.42);
+}
+
+.sa-migration-summary-accent {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 3px;
+  background: linear-gradient(135deg, #f7d56a, #d4af37);
+}
+
+.sa-migration-summary-label {
+  margin: 6px 0 10px;
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: rgba(255, 255, 255, 0.65);
+  letter-spacing: 0.02em;
+}
+
+.sa-migration-summary-value {
+  margin: 0;
+  font-size: 2.25rem;
+  font-weight: 800;
+  line-height: 1.1;
+  color: #d4af37;
+}
+
+/* Layout */
+.sa-migration-layout {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1.15fr);
+  gap: 24px;
+  align-items: start;
+}
+
+.sa-migration-column {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+/* Sections */
+.sa-migration-section {
+  padding: 20px;
+  border-radius: 12px;
+  border: 1px solid rgba(212, 175, 55, 0.28);
+  background: #ffffff;
+  box-shadow: 0 8px 24px rgba(15, 15, 15, 0.06);
+}
+
+.sa-migration-section--actions {
+  background: linear-gradient(180deg, #ffffff 0%, rgba(212, 175, 55, 0.06) 100%);
+}
+
+.sa-migration-section-title {
+  margin: 0 0 6px;
+  font-size: 1.05rem;
+  font-weight: 800;
+  color: #1d2736;
+}
+
+.sa-migration-section-hint {
+  margin: 0 0 14px;
+  font-size: 0.9rem;
+  color: #64748b;
+  font-weight: 500;
+}
+
+/* Fields */
+.sa-migration-field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.sa-migration-field-label {
+  font-size: 0.75rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: #8b6b16;
+}
+
+.sa-migration-select {
+  width: 100%;
+  padding: 10px 12px;
+  border-radius: 8px;
+  border: 1px solid #e2e8f0;
+  background: #ffffff;
+  color: #1d2736;
+  font-size: 0.95rem;
+  font-weight: 600;
+  font-family: inherit;
+  line-height: 1.3;
+  transition: border-color 0.2s ease, box-shadow 0.2s ease;
+}
+
+.sa-migration-select:focus {
+  outline: none;
+  border-color: #d4af37;
+  box-shadow: 0 0 0 3px rgba(212, 175, 55, 0.2);
+}
+
+/* Migration source */
+.sa-migration-source-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.sa-migration-source-card {
+  position: relative;
+  display: flex;
+  align-items: center;
+  min-height: 48px;
+  padding: 12px 14px;
+  border-radius: 8px;
+  border: 1px solid #e2e8f0;
+  background: #fafafa;
+  cursor: pointer;
+  transition: border-color 0.2s ease, background 0.2s ease, box-shadow 0.2s ease;
+}
+
+.sa-migration-source-card:hover {
+  border-color: rgba(212, 175, 55, 0.5);
+}
+
+.sa-migration-source-card--selected {
+  border-color: #d4af37;
+  background: rgba(212, 175, 55, 0.1);
+  box-shadow: 0 0 0 2px rgba(212, 175, 55, 0.15);
+}
+
+.sa-migration-source-input {
+  position: absolute;
+  opacity: 0;
+  pointer-events: none;
+}
+
+.sa-migration-source-label {
+  font-size: 0.92rem;
+  font-weight: 700;
+  color: #1d2736;
+}
+
+.sa-migration-source-card--selected .sa-migration-source-label {
+  color: #8b6b16;
+}
+
+/* File upload */
+.sa-migration-dropzone {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  min-height: 160px;
+  padding: 24px;
+  border-radius: 10px;
+  border: 2px dashed rgba(212, 175, 55, 0.45);
+  background: rgba(212, 175, 55, 0.05);
+  cursor: pointer;
+  transition: border-color 0.2s ease, background 0.2s ease;
+}
+
+.sa-migration-dropzone:hover,
+.sa-migration-dropzone--active {
+  border-color: #d4af37;
+  background: rgba(212, 175, 55, 0.12);
+}
+
+.sa-migration-file-input {
+  display: none;
+}
+
+.sa-migration-dropzone-icon {
+  font-size: 1.75rem;
+  margin-bottom: 8px;
+  color: #d4af37;
+}
+
+.sa-migration-dropzone-title {
+  margin: 0 0 4px;
+  font-size: 1rem;
+  font-weight: 800;
+  color: #1d2736;
+}
+
+.sa-migration-dropzone-text {
+  margin: 0;
+  font-size: 0.9rem;
+  color: #64748b;
+}
+
+.sa-migration-file-list-wrap {
+  margin-top: 16px;
+  padding-top: 16px;
+  border-top: 1px solid #f1f5f9;
+}
+
+.sa-migration-file-list-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 10px;
+}
+
+.sa-migration-file-list-title {
+  margin: 0;
+  font-size: 0.85rem;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: #8b6b16;
+}
+
+.sa-migration-link-btn {
+  border: none;
+  background: transparent;
+  color: #8b6b16;
+  font-size: 0.85rem;
+  font-weight: 700;
+  font-family: inherit;
+  cursor: pointer;
+  text-decoration: underline;
+}
+
+.sa-migration-link-btn:hover {
+  color: #d4af37;
+}
+
+.sa-migration-file-list-empty {
+  margin: 0;
+  font-size: 0.9rem;
+  color: #94a3b8;
+  font-weight: 600;
+}
+
+.sa-migration-file-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.sa-migration-file-item {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 12px;
+  border-radius: 8px;
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+}
+
+.sa-migration-file-name {
+  flex: 1;
+  min-width: 0;
+  font-size: 0.9rem;
+  font-weight: 700;
+  color: #1d2736;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.sa-migration-file-meta {
+  font-size: 0.8rem;
+  color: #64748b;
+  font-variant-numeric: tabular-nums;
+}
+
+.sa-migration-file-remove {
+  border: none;
+  background: transparent;
+  color: #b42318;
+  font-size: 0.8rem;
+  font-weight: 700;
+  font-family: inherit;
+  cursor: pointer;
+}
+
+.sa-migration-file-remove:hover {
+  text-decoration: underline;
+}
+
+/* Checklist */
+.sa-migration-checklist {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px 16px;
+}
+
+.sa-migration-check-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 0.92rem;
+  font-weight: 600;
+  color: #1d2736;
+  cursor: pointer;
+}
+
+.sa-migration-check-item input {
+  width: 16px;
+  height: 16px;
+  accent-color: #d4af37;
+}
+
+/* Tables */
+.sa-migration-table-wrap {
+  border-radius: 10px;
+  border: 1px solid rgba(212, 175, 55, 0.2);
+  overflow: hidden;
+}
+
+.sa-migration-table-scroll {
+  overflow-x: auto;
+}
+
+.sa-migration-table {
+  width: 100%;
+  min-width: 520px;
+  border-collapse: collapse;
+}
+
+.sa-migration-table thead tr {
+  background: rgba(212, 175, 55, 0.14);
+}
+
+.sa-migration-table th {
+  padding: 12px 14px;
+  text-align: left;
+  font-size: 0.72rem;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: #334155;
+  border-bottom: 1px solid rgba(212, 175, 55, 0.25);
+}
+
+.sa-migration-table td {
+  padding: 12px 14px;
+  font-size: 0.9rem;
+  color: #1d2736;
+  border-bottom: 1px solid #f1f5f9;
+  vertical-align: middle;
+}
+
+.sa-migration-table tbody tr:hover {
+  background: rgba(212, 175, 55, 0.04);
+}
+
+.sa-migration-table-empty {
+  padding: 36px 20px !important;
+  text-align: center;
+  color: #64748b;
+  font-weight: 600;
+  line-height: 1.5;
+}
+
+/* Actions */
+.sa-migration-actions-bar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.sa-migration-btn {
+  padding: 10px 18px;
+  border-radius: 8px;
+  font-size: 0.92rem;
+  font-weight: 700;
+  font-family: inherit;
+  line-height: 1.2;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: background 0.2s ease, border-color 0.2s ease, color 0.2s ease;
+}
+
+.sa-migration-btn--gold {
+  border: none;
+  background: #d4af37;
+  color: #0a0a0a;
+}
+
+.sa-migration-btn--gold:hover {
+  background: #c9a227;
+}
+
+.sa-migration-btn--outline {
+  border: 1px solid rgba(212, 175, 55, 0.55);
+  background: #ffffff;
+  color: #8b6b16;
+}
+
+.sa-migration-btn--outline:hover {
+  border-color: #d4af37;
+  background: rgba(212, 175, 55, 0.08);
+}
+
+/* Modal */
+.sa-migration-modal-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 5000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+  background: rgba(0, 0, 0, 0.72);
+  backdrop-filter: blur(4px);
+}
+
+.sa-migration-modal {
+  position: relative;
+  width: min(440px, 100%);
+  padding: 28px 26px 24px;
+  border-radius: 12px;
+  border: 2px solid #d4af37;
+  background: #0a0a0a;
+  color: #ffffff;
+  box-shadow:
+    0 0 24px rgba(212, 175, 55, 0.35),
+    0 24px 60px rgba(0, 0, 0, 0.5);
+  overflow: hidden;
+}
+
+.sa-migration-modal-accent {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 3px;
+  background: linear-gradient(135deg, #f7d56a, #d4af37);
+}
+
+.sa-migration-modal-title {
+  margin: 4px 0 16px;
+  font-size: 1.35rem;
+  font-weight: 700;
+  color: #d4af37;
+}
+
+.sa-migration-modal-message {
+  margin: 0 0 24px;
+  font-size: 0.95rem;
+  line-height: 1.55;
+  color: rgba(255, 255, 255, 0.85);
+}
+
+.sa-migration-modal-actions {
+  display: flex;
+  justify-content: flex-end;
+}
+
+@media (max-width: 1100px) {
+  .sa-migration-summary-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .sa-migration-layout {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 768px) {
+  .sa-migration-summary-grid {
+    grid-template-columns: 1fr;
+    gap: 16px;
+  }
+
+  .sa-migration-source-grid,
+  .sa-migration-checklist {
+    grid-template-columns: 1fr;
+  }
+
+  .sa-migration-actions-bar {
+    flex-direction: column;
+  }
+
+  .sa-migration-btn {
+    width: 100%;
+  }
+}

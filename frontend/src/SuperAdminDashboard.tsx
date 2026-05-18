@@ -2,12 +2,13 @@ import { Navigate, Route, Routes, useLocation, useNavigate } from "react-router-
 import AccessDenied from "./auth/AccessDenied";
 import { isSuperAdmin } from "./auth/roles";
 import logo from "./assets/logo.png";
+import SuperAdminMigrationPage from "./pages/SuperAdminMigrationPage";
 import SuperAdminSchoolsPage from "./pages/SuperAdminSchoolsPage";
 import "./App.css";
 import "./SuperAdminDashboard.css";
 
 type NavItem = {
-  key: "schools";
+  key: "schools" | "migration";
   label: string;
   path: string;
   icon: string;
@@ -15,6 +16,7 @@ type NavItem = {
 
 const NAV_ITEMS: NavItem[] = [
   { key: "schools", label: "Schools Management", path: "/super-admin/schools", icon: "🏫" },
+  { key: "migration", label: "Migration Center", path: "/super-admin/migration", icon: "🔄" },
 ];
 
 export default function SuperAdminDashboard() {
@@ -65,6 +67,7 @@ export default function SuperAdminDashboard() {
           <Routes>
             <Route path="/" element={<Navigate to="schools" replace />} />
             <Route path="schools" element={<SuperAdminSchoolsPage />} />
+            <Route path="migration" element={<SuperAdminMigrationPage />} />
             <Route path="*" element={<Navigate to="schools" replace />} />
           </Routes>
         </div>
