@@ -118,21 +118,6 @@ const REPORT_OPTIONS: { id: ReportType; label: string }[] = [
 
 const PAGE_SIZE = 10;
 
-/** Planning figures aligned with Accounting Budget sample categories (read-only for reports). */
-const DEFAULT_EXPENSE_BUDGET_MONTHLY: Record<string, number> = {
-  salaries: 185000,
-  "rent / bond": 42000,
-  electricity: 12000,
-  utilities: 18500,
-  transport: 12000,
-  maintenance: 9500,
-  stationery: 6500,
-  "food / tuckshop": 14000,
-  insurance: 8800,
-  marketing: 4500,
-  other: 6000,
-};
-
 const goldBtn: React.CSSProperties = {
   padding: "10px 18px",
   borderRadius: 10,
@@ -291,17 +276,6 @@ function totalApprovedYtd(rows: AccountingApprovedExpense[], year: number, month
 
 function formatPeriodLabel(year: number, monthIndex: number) {
   return `${MONTH_NAMES[monthIndex] || ""} ${year}`;
-}
-
-function countMonthsInRange(startDate: string, endDate: string) {
-  const start = startDate.match(/^(\d{4})-(\d{2})/);
-  const end = endDate.match(/^(\d{4})-(\d{2})/);
-  if (!start || !end) return 1;
-  const sy = Number(start[1]);
-  const sm = Number(start[2]);
-  const ey = Number(end[1]);
-  const em = Number(end[2]);
-  return Math.max(1, (ey - sy) * 12 + (em - sm) + 1);
 }
 
 function varianceStatus(variancePct: number) {
@@ -583,16 +557,8 @@ export default function AccountingReports({ schoolId, learners = [], schoolName 
       }))
       .sort((a, b) => b.amount - a.amount);
 
-    const budgetMonthFactor =
-      reportingBasis === "month" ? 1 : countMonthsInRange(period.startDate, period.endDate);
-
-    const budgetRows = Array.from(
-      new Set([
-        ...Object.keys(DEFAULT_EXPENSE_BUDGET_MONTHLY),
-        ...Array.from(spendByCategory.totals.keys()),
-      ])
-    ).map((key) => {
-      const budgeted = (DEFAULT_EXPENSE_BUDGET_MONTHLY[key] || 0) * budgetMonthFactor;
+    const budgetRows = Array.from(spendByCategory.totals.keys()).map((key) => {
+      const budgeted = 0;
       const actual = spendByCategory.totals.get(key) || 0;
       const label = spendByCategory.labels.get(key) || key.replace(/\b\w/g, (ch: string) => ch.toUpperCase());
       const variance = actual - budgeted;
@@ -611,7 +577,7 @@ export default function AccountingReports({ schoolId, learners = [], schoolName 
     const totalActualBudget = budgetRows.reduce((s, r) => s + r.actual, 0);
     const budgetVariance = totalBudgeted - totalActualBudget;
 
-    const expectedCollectionsPlaceholder = outstandingDebtors * 0.65;
+    const expectedCollectionsPlaceholder = 0;
     const forecastedCash = net + expectedCollectionsPlaceholder;
     const cashWarning = forecastedCash < 0;
 
@@ -1144,7 +1110,7 @@ ${el.innerHTML}
           <div style={sectionCard}>
             <h2 style={{ margin: "0 0 8px", fontSize: 17, fontWeight: 900 }}>Budget vs actual</h2>
             <p style={{ margin: "0 0 14px", fontSize: 13, color: "#64748b", fontWeight: 600 }}>
-              Budget figures use Accounting planning categories; actuals from approved expenses.
+              Budgeted amounts from Accounting → Budget; actuals from approved expenses.
             </p>
             <ReportTable
               columns={["Category", "Budgeted", "Actual", "Variance", "Variance %", "Status"]}
@@ -1174,8 +1140,10 @@ ${el.innerHTML}
               <div>Upcoming creditor payments (estimate): {formatMoney(data.upcomingCreditors.totalUpcoming)}</div>
               <div>Expected salary payments: {formatMoney(data.expectedSalaryPayments)}</div>
               <div>
-                Expected collections (placeholder): {formatMoney(data.expectedCollectionsPlaceholder)} — 65% of
-                outstanding debtors
+                Expected collections: {formatMoney(data.expectedCollectionsPlaceholder)}
+                {data.outstandingDebtors > 0
+                  ? " — configure collection forecasts when available"
+                  : ""}
               </div>
               <div style={{ fontWeight: 900, fontSize: 16 }}>
                 Forecasted month-end cash position: {formatMoney(data.forecastedCash)}

@@ -195,53 +195,6 @@ function categoriesForSection(section: BudgetSection): readonly BudgetCategory[]
   return section === "Income" ? INCOME_CATEGORIES : EXPENSE_CATEGORIES;
 }
 
-function buildSampleRows(): BudgetRow[] {
-  const incomeSamples: Array<{ category: IncomeCategory; monthly: number; actual: number; notes: string }> = [
-    { category: "School Fees", monthly: 320000, actual: 298500, notes: "Tuition billed" },
-    { category: "Registration Fees", monthly: 18000, actual: 16200, notes: "New enrolments" },
-    { category: "Aftercare", monthly: 22000, actual: 20500, notes: "Aftercare programme" },
-    { category: "Transport Fees", monthly: 45000, actual: 43100, notes: "Bus fees" },
-    { category: "Tuckshop Income", monthly: 12000, actual: 11400, notes: "Tuckshop sales" },
-    { category: "Fundraising", monthly: 8000, actual: 5200, notes: "Spring gala" },
-    { category: "Other Income", monthly: 5000, actual: 3800, notes: "Miscellaneous income" },
-  ];
-
-  const expenseSamples: Array<{ category: ExpenseCategory; monthly: number; notes: string }> = [
-    { category: "Salaries", monthly: 185000, notes: "Teaching and admin payroll" },
-    { category: "Rent / Bond", monthly: 42000, notes: "Campus lease" },
-    { category: "Electricity", monthly: 12000, notes: "Electricity — main campus" },
-    { category: "Utilities", monthly: 18500, notes: "Water, refuse, and shared utilities" },
-    { category: "Transport", monthly: 12000, notes: "Bus contract and fuel" },
-    { category: "Maintenance", monthly: 9500, notes: "Repairs and upkeep" },
-    { category: "Stationery", monthly: 6500, notes: "Classroom supplies" },
-    { category: "Food / Tuckshop", monthly: 14000, notes: "Tuckshop stock" },
-    { category: "Insurance", monthly: 8800, notes: "Monthly premium" },
-    { category: "Marketing", monthly: 4500, notes: "Open day campaign" },
-    { category: "Other", monthly: 6000, notes: "Miscellaneous" },
-  ];
-
-  const incomeRows = incomeSamples.map((s, i) => ({
-    id: `income-${i + 1}`,
-    section: "Income" as const,
-    category: s.category,
-    monthlyBudget: s.monthly,
-    annualBudget: s.monthly * 12,
-    actual: s.actual,
-    notes: s.notes,
-  }));
-
-  const expenseRows = expenseSamples.map((s, i) => ({
-    id: `expense-${i + 1}`,
-    section: "Expense" as const,
-    category: s.category,
-    monthlyBudget: s.monthly,
-    annualBudget: s.monthly * 12,
-    actual: 0,
-    notes: s.notes,
-  }));
-
-  return [...incomeRows, ...expenseRows];
-}
 
 function applyApprovedActualsToRows(
   budgetRows: BudgetRow[],
@@ -590,7 +543,7 @@ export default function AccountingBudget({ schoolId = "" }: BudgetProps) {
   const now = new Date();
   const [year, setYear] = useState(now.getFullYear());
   const [monthIndex, setMonthIndex] = useState(now.getMonth());
-  const [budgetRows, setBudgetRows] = useState<BudgetRow[]>(buildSampleRows);
+  const [budgetRows, setBudgetRows] = useState<BudgetRow[]>([]);
   const [expensesRefreshKey, setExpensesRefreshKey] = useState(0);
   const [pageIndex, setPageIndex] = useState(0);
   const [modalOpen, setModalOpen] = useState(false);

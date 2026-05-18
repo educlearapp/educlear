@@ -428,16 +428,6 @@ function defaultRecurringRules(): RecurringRule[] {
 
 }
 
-function sampleReviewQueue(): ReviewCandidate[] {
-
-
-
-  return [];
-
-
-
-}
-
 function candidateToReviewRow(c: AccountingExpenseCandidate): ReviewCandidate {
   return {
     id: c.id,
@@ -594,9 +584,8 @@ export default function AccountingExpenses({ schoolId = "default", approvedBy = 
     const hasRealData = bankReview.length > 0 || approvedRows.length > 0;
 
     if (!hasRealData) {
-      const samples = sampleReviewQueue();
-      setSampleRows(samples);
-      setReviewQueue(samples);
+      setSampleRows([]);
+      setReviewQueue([]);
       setApproved([]);
     } else {
       setSampleRows([]);
