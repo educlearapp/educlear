@@ -95,6 +95,17 @@
   box-shadow: 0 0 0 2px rgba(212, 175, 55, 0.14);
 }
 
+.school-profile-page .form-row input:read-only {
+  background: #f9fafb;
+  color: #374151;
+  cursor: default;
+}
+
+.school-profile-page .form-row input:read-only:focus {
+  border-color: #d1d5db;
+  box-shadow: none;
+}
+
 .school-profile-page .profile-menu-wrap {
   position: relative;
 }

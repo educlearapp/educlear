@@ -10,6 +10,16 @@ function parseJsonBody(text: string): unknown {
   }
 }
 
+function pickString(row: Record<string, unknown>, keys: string[]): string {
+  for (const key of keys) {
+    const value = row[key];
+    if (value === null || value === undefined) continue;
+    const text = String(value).trim();
+    if (text) return text;
+  }
+  return "";
+}
+
 function recordFromRow(row: Record<string, unknown>, schoolId: string): SchoolProfileRecord {
   return {
     id: String(row.id || schoolId),
@@ -19,6 +29,10 @@ function recordFromRow(row: Record<string, unknown>, schoolId: string): SchoolPr
     address: String(row.address || ""),
     logoUrl: String(row.logoUrl || ""),
     primaryColor: String(row.primaryColor || ""),
+    package: pickString(row, ["package", "packageName", "schoolPackage"]),
+    packageUntil: pickString(row, ["packageUntil", "package_until", "subscriptionEndsAt"]),
+    automaticRenew: pickString(row, ["automaticRenew", "automatic_renew", "autoRenew"]),
+    automaticBilling: pickString(row, ["automaticBilling", "automatic_billing", "autoBilling"]),
   };
 }
 

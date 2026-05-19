@@ -74,8 +74,13 @@ export default function SchoolProfilePage({ go }: Props) {
     try {
       const payload = formToSchoolUpdatePayload(form);
       const updated = await saveSchoolProfile(schoolId, payload);
+      const savedGeneral = schoolRecordToForm(updated);
       setForm((prev) => ({
-        ...schoolRecordToForm(updated),
+        ...savedGeneral,
+        package: savedGeneral.package || prev.package,
+        packageUntil: savedGeneral.packageUntil || prev.packageUntil,
+        automaticRenew: savedGeneral.automaticRenew || prev.automaticRenew,
+        automaticBilling: savedGeneral.automaticBilling || prev.automaticBilling,
         cellNo: prev.cellNo,
         faxNo: prev.faxNo,
         postalAddress1: prev.postalAddress1,
@@ -107,6 +112,12 @@ export default function SchoolProfilePage({ go }: Props) {
     onChange: (e: ChangeEvent<HTMLInputElement>) => setField(field, e.target.value),
     type: options?.type,
     placeholder: options?.placeholder,
+    disabled: loading || saving,
+  });
+
+  const readOnlyInputProps = (field: FormField) => ({
+    value: form[field],
+    readOnly: true,
     disabled: loading || saving,
   });
 
@@ -194,6 +205,22 @@ export default function SchoolProfilePage({ go }: Props) {
                 <div className="form-row">
                   <label>Registered Email</label>
                   <input {...inputProps("registeredEmail")} type="email" />
+                </div>
+                <div className="form-row">
+                  <label>Package</label>
+                  <input {...readOnlyInputProps("package")} />
+                </div>
+                <div className="form-row">
+                  <label>Package Until</label>
+                  <input {...readOnlyInputProps("packageUntil")} />
+                </div>
+                <div className="form-row">
+                  <label>Automatic Renew</label>
+                  <input {...readOnlyInputProps("automaticRenew")} />
+                </div>
+                <div className="form-row">
+                  <label>Automatic Billing</label>
+                  <input {...readOnlyInputProps("automaticBilling")} />
                 </div>
               </>
             )}
