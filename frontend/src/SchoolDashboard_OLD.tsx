@@ -15926,7 +15926,7 @@ const renderListsRegisters = () => {
 
 
 
-      ["School", "Da Silva Academy"],
+      ["School", String(localStorage.getItem("schoolName") || "").trim()],
 
 
 
@@ -16482,7 +16482,7 @@ const renderListsRegisters = () => {
 
 
 
-            <h1 style={{ fontSize: 32, margin: 0 }}>Da Silva Academy</h1>
+            <h1 style={{ fontSize: 32, margin: 0 }}>{String(localStorage.getItem("schoolName") || "").trim()}</h1>
 
 
 
@@ -16800,7 +16800,7 @@ const renderFormsTemplates = () => {
 
 
 
-      ["School", "Da Silva Academy"],
+      ["School", String(localStorage.getItem("schoolName") || "").trim()],
 
 
 
@@ -17340,7 +17340,7 @@ const renderFormsTemplates = () => {
 
 
 
-              <h1 style={{ fontSize: 30, margin: 0 }}>Da Silva Academy</h1>
+              <h1 style={{ fontSize: 30, margin: 0 }}>{String(localStorage.getItem("schoolName") || "").trim()}</h1>
 
 
 
@@ -19915,7 +19915,7 @@ const [invoiceRunEmailDraft, setInvoiceRunEmailDraft] = useState({
         
         
         
-                      <div class="school">Da Silva Academy</div>
+                      <div class="school"></div>
         
         
         
@@ -19927,27 +19927,6 @@ const [invoiceRunEmailDraft, setInvoiceRunEmailDraft] = useState({
         
         
         
-                      212 Klopper Street<br/>
-        
-        
-        
-                      Rustenburg<br/>
-        
-        
-        
-                      0299<br/>
-        
-        
-        
-                      0145925613<br/>
-        
-        
-        
-                      0825765507<br/>
-        
-        
-        
-                      tonydasilva@dasilvaacademy.com
         
         
         

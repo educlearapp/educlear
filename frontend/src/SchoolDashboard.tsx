@@ -12607,7 +12607,7 @@ const renderListsRegisters = () => {
 
 
 
-      ["School", "Da Silva Academy"],
+      ["School", schoolBranding.name || ""],
 
 
 
@@ -13163,7 +13163,7 @@ const renderListsRegisters = () => {
 
 
 
-            <h1 style={{ fontSize: 32, margin: 0 }}>Da Silva Academy</h1>
+            <h1 style={{ fontSize: 32, margin: 0 }}>{schoolBranding.name || ""}</h1>
 
 
 
@@ -13481,7 +13481,7 @@ const renderFormsTemplates = () => {
 
 
 
-      ["School", "Da Silva Academy"],
+      ["School", schoolBranding.name || ""],
 
 
 
@@ -14021,7 +14021,7 @@ const renderFormsTemplates = () => {
 
 
 
-              <h1 style={{ fontSize: 30, margin: 0 }}>Da Silva Academy</h1>
+              <h1 style={{ fontSize: 30, margin: 0 }}>{schoolBranding.name || ""}</h1>
 
 
 

@@ -1,0 +1,128 @@
+/* Compact School Profile — scoped to avoid affecting other pages */
+.school-profile-page.profile-page {
+  padding: 20px 28px;
+  min-height: auto;
+  background: #f5f1ea;
+}
+
+.school-profile-page .profile-actions {
+  margin-bottom: 14px;
+  gap: 10px;
+}
+
+.school-profile-page .profile-actions button,
+.school-profile-page .profile-btn {
+  height: 34px;
+  padding: 0 14px;
+  font-size: 13px;
+  border-radius: 6px;
+}
+
+.school-profile-page .profile-card {
+  max-width: 920px;
+  border-radius: 10px;
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.06);
+}
+
+.school-profile-page .profile-side {
+  flex: 0 0 140px;
+  min-height: 280px;
+  padding: 16px 14px;
+  background: linear-gradient(180deg, #111827, #1f2937);
+  color: #d4af37;
+  font-weight: 700;
+  font-size: 15px;
+  border-right: 1px solid rgba(212, 175, 55, 0.35);
+}
+
+.school-profile-page .profile-tabs {
+  height: 44px;
+  padding-left: 16px;
+  display: flex;
+  align-items: stretch;
+  border-bottom: 1px solid rgba(31, 41, 55, 0.1);
+}
+
+.school-profile-page .profile-tab {
+  min-width: 96px;
+  height: 44px;
+  padding: 0 14px;
+  font-size: 13px;
+  font-weight: 600;
+  border: none;
+  border-right: 1px solid rgba(31, 41, 55, 0.08);
+  background: transparent;
+  color: #6b7280;
+  cursor: pointer;
+}
+
+.school-profile-page .profile-tab.active {
+  background: #fff;
+  color: #9a7a14;
+  border-top: 2px solid #d4af37;
+  font-weight: 700;
+}
+
+.school-profile-page .profile-form {
+  padding: 18px 22px 22px;
+}
+
+.school-profile-page .form-row {
+  margin-bottom: 10px;
+  gap: 4px;
+}
+
+.school-profile-page .form-row label {
+  font-size: 12px;
+  font-weight: 600;
+  color: #6b7280;
+  margin-bottom: 2px;
+  letter-spacing: 0.02em;
+}
+
+.school-profile-page .form-row input {
+  height: 34px;
+  padding: 0 10px;
+  font-size: 14px;
+  border-radius: 5px;
+  border: 1px solid #d1d5db;
+  background: #fff;
+}
+
+.school-profile-page .form-row input:focus {
+  outline: none;
+  border-color: #d4af37;
+  box-shadow: 0 0 0 2px rgba(212, 175, 55, 0.14);
+}
+
+.school-profile-page .profile-menu-wrap {
+  position: relative;
+}
+
+.school-profile-page .profile-menu {
+  position: absolute;
+  top: 100%;
+  left: 0;
+  margin-top: 4px;
+  min-width: 160px;
+  background: #fff;
+  border: 1px solid rgba(212, 175, 55, 0.35);
+  border-radius: 6px;
+  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.1);
+  z-index: 20;
+}
+
+.school-profile-page .profile-menu button {
+  display: block;
+  width: 100%;
+  text-align: left;
+  padding: 8px 12px;
+  border: none;
+  background: transparent;
+  font-size: 13px;
+  cursor: pointer;
+}
+
+.school-profile-page .profile-menu button:hover {
+  background: rgba(212, 175, 55, 0.1);
+}

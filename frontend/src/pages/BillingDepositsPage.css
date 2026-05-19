@@ -73,7 +73,7 @@
 
 .billing-deposits-filters {
   display: grid;
-  grid-template-columns: minmax(140px, 180px) minmax(140px, 180px) minmax(0, 1fr);
+  grid-template-columns: minmax(140px, 200px) minmax(0, 1fr);
   gap: 12px;
   margin-bottom: 14px;
 }
@@ -259,8 +259,290 @@
   justify-content: flex-end;
 }
 
+.billing-deposits-th--actions,
+.billing-deposits-td--actions {
+  text-align: right;
+  white-space: nowrap;
+}
+
+.billing-deposits-td--amount {
+  text-align: right;
+}
+
+.billing-deposits-manage-btn {
+  padding: 5px 12px;
+  border-radius: 6px;
+  border: 1px solid rgba(212, 175, 55, 0.55);
+  background: #ffffff;
+  color: #8b6b16;
+  font-size: 0.8rem;
+  font-weight: 700;
+  font-family: inherit;
+  cursor: pointer;
+}
+
+.billing-deposits-manage-btn:hover {
+  border-color: #d4af37;
+  background: rgba(212, 175, 55, 0.08);
+}
+
+.billing-deposits-status {
+  display: inline-block;
+  padding: 3px 8px;
+  border-radius: 999px;
+  font-size: 0.75rem;
+  font-weight: 800;
+  letter-spacing: 0.02em;
+}
+
+.billing-deposits-status--active {
+  background: rgba(34, 197, 94, 0.12);
+  color: #15803d;
+}
+
+.billing-deposits-status--partially_allocated {
+  background: rgba(234, 179, 8, 0.15);
+  color: #a16207;
+}
+
+.billing-deposits-status--fully_allocated {
+  background: rgba(59, 130, 246, 0.12);
+  color: #1d4ed8;
+}
+
+.billing-deposits-status--refunded,
+.billing-deposits-status--void {
+  background: rgba(100, 116, 139, 0.15);
+  color: #475569;
+}
+
+.billing-deposits-page-error {
+  margin: 0 0 12px;
+  color: #b91c1c;
+  font-weight: 600;
+  font-size: 0.88rem;
+}
+
+.billing-deposits-page-loading {
+  margin: 0 0 12px;
+  color: #64748b;
+  font-weight: 600;
+  font-size: 0.88rem;
+}
+
+.billing-deposits-modal--form,
+.billing-deposits-modal--wide {
+  width: min(520px, 100%);
+  max-height: min(90vh, 860px);
+  overflow-y: auto;
+}
+
+.billing-deposits-modal--wide {
+  width: min(720px, 100%);
+}
+
+.billing-deposits-form {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.billing-deposits-field {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+
+.billing-deposits-field-label {
+  font-size: 0.78rem;
+  font-weight: 700;
+  color: rgba(255, 255, 255, 0.75);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.billing-deposits-select--dark,
+.billing-deposits-input--dark,
+.billing-deposits-textarea {
+  width: 100%;
+  padding: 8px 10px;
+  border-radius: 8px;
+  border: 1px solid rgba(212, 175, 55, 0.45);
+  background: rgba(255, 255, 255, 0.06);
+  color: #ffffff;
+  font-size: 0.88rem;
+  font-weight: 600;
+  font-family: inherit;
+  box-sizing: border-box;
+}
+
+.billing-deposits-textarea {
+  resize: vertical;
+  min-height: 72px;
+}
+
+.billing-deposits-input--compact {
+  max-width: 120px;
+}
+
+.billing-deposits-form-error {
+  margin: 0;
+  color: #fca5a5;
+  font-size: 0.86rem;
+  font-weight: 600;
+}
+
+.billing-deposits-modal-actions--split {
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.billing-deposits-btn--on-dark {
+  border-color: rgba(212, 175, 55, 0.55);
+  background: transparent;
+  color: #f7d56a;
+}
+
+.billing-deposits-manage-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 14px;
+}
+
+.billing-deposits-manage-sub {
+  margin: 4px 0 0;
+  font-size: 0.86rem;
+  color: rgba(255, 255, 255, 0.7);
+}
+
+.billing-deposits-manage-summary {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10px;
+  margin-bottom: 14px;
+  padding: 12px;
+  border-radius: 8px;
+  border: 1px solid rgba(212, 175, 55, 0.25);
+  background: rgba(255, 255, 255, 0.04);
+}
+
+.billing-deposits-summary-label {
+  display: block;
+  font-size: 0.72rem;
+  font-weight: 700;
+  color: rgba(255, 255, 255, 0.6);
+  text-transform: uppercase;
+  margin-bottom: 4px;
+}
+
+.billing-deposits-manage-summary strong {
+  color: #f7d56a;
+  font-size: 1rem;
+}
+
+.billing-deposits-tabs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-bottom: 12px;
+}
+
+.billing-deposits-tabs button {
+  padding: 6px 12px;
+  border-radius: 6px;
+  border: 1px solid rgba(212, 175, 55, 0.35);
+  background: transparent;
+  color: rgba(255, 255, 255, 0.8);
+  font-size: 0.8rem;
+  font-weight: 700;
+  font-family: inherit;
+  cursor: pointer;
+}
+
+.billing-deposits-tabs button.active {
+  background: rgba(212, 175, 55, 0.2);
+  color: #f7d56a;
+  border-color: #d4af37;
+}
+
+.billing-deposits-tabs button:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+.billing-deposits-manage-panel {
+  margin-bottom: 8px;
+}
+
+.billing-deposits-manage-note,
+.billing-deposits-manage-loading {
+  margin: 0;
+  color: rgba(255, 255, 255, 0.75);
+  font-size: 0.88rem;
+}
+
+.billing-deposits-allocate-table-wrap {
+  overflow-x: auto;
+  margin-bottom: 12px;
+}
+
+.billing-deposits-allocate-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.82rem;
+}
+
+.billing-deposits-allocate-table th,
+.billing-deposits-allocate-table td {
+  padding: 8px 10px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+  color: rgba(255, 255, 255, 0.9);
+  text-align: left;
+}
+
+.billing-deposits-allocate-table th {
+  font-size: 0.74rem;
+  text-transform: uppercase;
+  color: #d4af37;
+}
+
+.billing-deposits-history-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.billing-deposits-history-list li {
+  padding: 10px 12px;
+  border-radius: 8px;
+  border: 1px solid rgba(212, 175, 55, 0.2);
+  background: rgba(255, 255, 255, 0.04);
+}
+
+.billing-deposits-history-list li > div {
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+  margin-bottom: 4px;
+}
+
+.billing-deposits-history-list p {
+  margin: 0 0 4px;
+  color: rgba(255, 255, 255, 0.8);
+  font-size: 0.86rem;
+}
+
 @media (max-width: 768px) {
   .billing-deposits-filters {
+    grid-template-columns: 1fr;
+  }
+
+  .billing-deposits-manage-summary {
     grid-template-columns: 1fr;
   }
 

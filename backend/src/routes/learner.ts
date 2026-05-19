@@ -997,33 +997,10 @@ router.post("/", async (req, res) => {
 
 
     if (!school) {
-
-
-
-      school = await prisma.school.create({
-
-
-
-        data: {
-
-
-
-          name: "Da Silva Academy",
-
-
-
-          email: "director@dasilvaacademy.com",
-
-
-
-        },
-
-
-
+      return res.status(400).json({
+        success: false,
+        error: "No school found. Register a school or provide a valid schoolId.",
       });
-
-
-
     }
 
 

@@ -100,6 +100,7 @@ learnerReports LearnerReport[]
   payrollEmailLogs PayrollEmailLog[]
 
   billingSettings BillingSettings?
+  billingDeposits BillingDeposit[]
 }
 
 model BillingSettings {
@@ -346,6 +347,8 @@ model FamilyAccount {
 
   parents         Parent[]
 
+  billingDeposits BillingDeposit[]
+
 
 
   @@index([schoolId])
@@ -393,10 +396,12 @@ familyAccount FamilyAccount? @relation(fields: [familyAccountId], references: [i
 
 reports LearnerReport[]
 
+  billingDeposits BillingDeposit[]
+
   @@unique([schoolId, admissionNo])
   @@index([schoolId])
   @@index([schoolId, grade])
-  
+
 }
 
 
@@ -1896,4 +1901,73 @@ model LearnerReport {
 
 
 
+}
+
+enum DepositStatus {
+  ACTIVE
+  PARTIALLY_ALLOCATED
+  FULLY_ALLOCATED
+  REFUNDED
+  VOID
+}
+
+model BillingDeposit {
+  id               String        @id @default(cuid())
+  schoolId         String
+  depositNumber    String
+  familyAccountId  String?
+  learnerId        String
+  amount           Float
+  remainingBalance Float
+  reference        String?
+  notes            String?
+  depositDate      DateTime
+  status           DepositStatus @default(ACTIVE)
+  createdAt        DateTime      @default(now())
+  updatedAt        DateTime      @updatedAt
+
+  school        School                      @relation(fields: [schoolId], references: [id], onDelete: Cascade)
+  learner       Learner                     @relation(fields: [learnerId], references: [id], onDelete: Cascade)
+  familyAccount FamilyAccount?              @relation(fields: [familyAccountId], references: [id], onDelete: SetNull)
+  allocations   BillingDepositAllocation[]
+  history       BillingDepositHistoryEntry[]
+
+  @@unique([schoolId, depositNumber])
+  @@index([schoolId])
+  @@index([schoolId, status])
+  @@index([schoolId, learnerId])
+  @@index([schoolId, depositDate])
+}
+
+model BillingDepositAllocation {
+  id               String   @id @default(cuid())
+  schoolId         String
+  depositId        String
+  ledgerInvoiceId  String
+  invoiceReference String?
+  invoiceDate      String?
+  amount           Float
+  createdAt        DateTime @default(now())
+
+  deposit BillingDeposit @relation(fields: [depositId], references: [id], onDelete: Cascade)
+
+  @@index([schoolId])
+  @@index([depositId])
+  @@index([schoolId, ledgerInvoiceId])
+}
+
+model BillingDepositHistoryEntry {
+  id          String   @id @default(cuid())
+  schoolId    String
+  depositId   String
+  action      String
+  amount      Float?
+  description String?
+  metadata    Json?
+  createdAt   DateTime @default(now())
+
+  deposit BillingDeposit @relation(fields: [depositId], references: [id], onDelete: Cascade)
+
+  @@index([depositId])
+  @@index([schoolId])
 }
