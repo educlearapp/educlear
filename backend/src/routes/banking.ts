@@ -1,8 +1,7 @@
 import { Router } from "express";
-import fs from "fs";
-import path from "path";
 import crypto from "crypto";
 import multer from "multer";
+import type { BankTransaction, BankTransactionMatchStatus, Prisma } from "@prisma/client";
 
 import { prisma } from "../prisma";
 import { resolveLearnerAccountNo } from "../utils/learnerIdentity";
@@ -10,7 +9,6 @@ import {
   appendSchoolEntry,
   listPayments,
   normaliseAmount,
-  readSchoolLedger,
   type BillingLedgerEntry,
 } from "../utils/billingLedgerStore";
 import { parseBankStatementFile } from "../utils/bankStatementParser";
@@ -28,7 +26,6 @@ import {
 } from "../utils/paymentMatcher";
 
 const router = Router();
-const DATA_FILE = path.join(process.cwd(), "data", "banking-imports.json");
 const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 12 * 1024 * 1024 } });
 
 type TransactionType = "payment" | "expense" | "transfer" | "ignore";
@@ -48,6 +45,7 @@ type BankTransactionRow = {
   matchConfidence: MatchConfidence;
   matchReason: string;
   reviewStatus: "pending" | "accepted" | "unmatched" | "ignored" | "posted";
+  matchStatus: BankTransactionMatchStatus;
   expenseCategory: ExpenseCategory | "";
   suggestedSupplierName: string;
   supplierId: string;
@@ -66,38 +64,14 @@ type BankImportRecord = {
   transactions: BankTransactionRow[];
 };
 
-type BankingStore = {
-  imports: BankImportRecord[];
-  postedFingerprints: Record<string, string[]>;
+type BankingStats = {
+  imports: number;
+  matchedPayments: number;
+  expenseCandidates: number;
+  unmatched: number;
+  duplicateLines: number;
+  readyToPost: number;
 };
-
-function ensureStore(): BankingStore {
-  const dir = path.dirname(DATA_FILE);
-  if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
-  if (!fs.existsSync(DATA_FILE)) {
-    const initial: BankingStore = { imports: [], postedFingerprints: {} };
-    fs.writeFileSync(DATA_FILE, JSON.stringify(initial, null, 2), "utf8");
-    return initial;
-  }
-  try {
-    const parsed = JSON.parse(fs.readFileSync(DATA_FILE, "utf8"));
-    return {
-      imports: Array.isArray(parsed?.imports) ? parsed.imports : [],
-      postedFingerprints:
-        parsed?.postedFingerprints && typeof parsed.postedFingerprints === "object"
-          ? parsed.postedFingerprints
-          : {},
-    };
-  } catch {
-    return { imports: [], postedFingerprints: {} };
-  }
-}
-
-function writeStore(store: BankingStore) {
-  const dir = path.dirname(DATA_FILE);
-  if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
-  fs.writeFileSync(DATA_FILE, JSON.stringify(store, null, 2), "utf8");
-}
 
 function newId(prefix: string) {
   return `${prefix}-${Date.now()}-${crypto.randomBytes(4).toString("hex")}`;
@@ -135,32 +109,192 @@ function defaultTransactionType(direction: "in" | "out"): TransactionType {
   return direction === "in" ? "payment" : "expense";
 }
 
-function hydrateTransaction(txn: BankTransactionRow): BankTransactionRow {
+function txnTypeFromRow(txn: Pick<BankTransactionRow, "transactionType" | "direction">): TransactionType {
+  const tt = txn.transactionType;
+  if (tt === "payment" || tt === "expense" || tt === "transfer" || tt === "ignore") return tt;
+  return defaultTransactionType(txn.direction);
+}
+
+function toApiRow(txn: BankTransaction): BankTransactionRow {
   return {
-    ...txn,
-    transactionType: txn.transactionType || defaultTransactionType(txn.direction),
-    suggestedSupplierName: String(txn.suggestedSupplierName || ""),
-    supplierId: String(txn.supplierId || ""),
-    expenseNotes: String(txn.expenseNotes || ""),
-    isDuplicate: Boolean(txn.isDuplicate),
+    id: txn.id,
+    date: txn.date,
+    description: txn.description,
+    reference: txn.reference,
+    moneyIn: normaliseAmount(txn.moneyIn),
+    moneyOut: normaliseAmount(txn.moneyOut),
+    direction: txn.direction === "out" ? "out" : "in",
+    transactionType: txnTypeFromRow({
+      transactionType: txn.transactionType as TransactionType,
+      direction: txn.direction === "out" ? "out" : "in",
+    }),
+    suggestedAccountNo: txn.suggestedAccountNo,
+    suggestedLearnerId: txn.suggestedLearnerId,
+    suggestedLearnerName: txn.suggestedLearnerName,
+    matchConfidence: (txn.matchConfidence || "none") as MatchConfidence,
+    matchReason: txn.matchReason,
+    reviewStatus: txn.reviewStatus as BankTransactionRow["reviewStatus"],
+    matchStatus: txn.matchStatus,
+    expenseCategory: (txn.expenseCategory || "") as ExpenseCategory | "",
+    suggestedSupplierName: txn.suggestedSupplierName,
+    supplierId: txn.supplierId,
+    expenseNotes: txn.expenseNotes,
+    postedPaymentId: txn.postedPaymentId || undefined,
+    fingerprint: txn.fingerprint,
+    isDuplicate: txn.isDuplicate,
   };
 }
 
-function hydrateImport(record: BankImportRecord): BankImportRecord {
-  const seen = new Set<string>();
-  const store = ensureStore();
-  const postedSet = new Set(store.postedFingerprints[record.schoolId] || []);
-  record.transactions = record.transactions.map((txn) => {
-    const hydrated = hydrateTransaction(txn);
-    const dup = seen.has(hydrated.fingerprint) || postedSet.has(hydrated.fingerprint);
-    seen.add(hydrated.fingerprint);
-    return { ...hydrated, isDuplicate: hydrated.isDuplicate || dup };
+function toImportRecord(
+  imp: { id: string; schoolId: string; fileName: string; format: string; importedAt: Date },
+  transactions: BankTransaction[]
+): BankImportRecord {
+  return {
+    id: imp.id,
+    schoolId: imp.schoolId,
+    fileName: imp.fileName,
+    format: imp.format,
+    importedAt: imp.importedAt.toISOString(),
+    transactions: transactions.map(toApiRow),
+  };
+}
+
+function deriveInitialMatchStatus(input: {
+  isDuplicate: boolean;
+  direction: "in" | "out";
+  matchConfidence: MatchConfidence;
+  expenseCategory: ExpenseCategory | "";
+}): BankTransactionMatchStatus {
+  if (input.isDuplicate) return "duplicate";
+  if (input.direction === "in") {
+    if (input.matchConfidence === "high" || input.matchConfidence === "medium") return "matched";
+    if (input.matchConfidence === "low" || input.matchConfidence === "none") return "unmatched";
+    return "imported";
+  }
+  if (input.expenseCategory && input.expenseCategory !== "Other") return "matched";
+  return "imported";
+}
+
+function syncMatchStatus(row: BankTransactionRow): BankTransactionMatchStatus {
+  if (row.isDuplicate || row.matchStatus === "duplicate") return "duplicate";
+  if (row.reviewStatus === "posted") return row.matchStatus === "ready_to_post" ? "ready_to_post" : row.matchStatus;
+  if (row.reviewStatus === "unmatched") return "unmatched";
+
+  const type = txnTypeFromRow(row);
+  if (
+    row.reviewStatus === "accepted" &&
+    row.direction === "in" &&
+    type === "payment" &&
+    row.matchConfidence !== "none" &&
+    row.matchConfidence !== "low"
+  ) {
+    return "ready_to_post";
+  }
+
+  if (row.direction === "in" && type === "payment") {
+    if (row.matchConfidence === "high" || row.matchConfidence === "medium") return "matched";
+    if (row.matchConfidence === "low" || row.matchConfidence === "none") return "unmatched";
+  }
+
+  if (row.direction === "out" && type === "expense" && row.expenseCategory && row.expenseCategory !== "Other") {
+    return "matched";
+  }
+
+  if (row.matchStatus) return row.matchStatus;
+  return "imported";
+}
+
+async function loadSchoolFingerprints(schoolId: string): Promise<Set<string>> {
+  const posted = await prisma.bankTransaction.findMany({
+    where: { schoolId, reviewStatus: "posted" },
+    select: { fingerprint: true },
   });
-  return record;
+  const all = await prisma.bankTransaction.findMany({
+    where: { schoolId },
+    select: { fingerprint: true },
+  });
+  return new Set([...posted.map((r) => r.fingerprint), ...all.map((r) => r.fingerprint)]);
+}
+
+async function computeStats(schoolId: string, importId?: string): Promise<BankingStats> {
+  const imports = await prisma.bankStatementImport.count({ where: { schoolId } });
+
+  if (!importId) {
+    return {
+      imports,
+      matchedPayments: 0,
+      expenseCandidates: 0,
+      unmatched: 0,
+      duplicateLines: 0,
+      readyToPost: 0,
+    };
+  }
+
+  const txns = await prisma.bankTransaction.findMany({
+    where: { schoolId, importId },
+  });
+
+  let matchedPayments = 0;
+  let expenseCandidates = 0;
+  let unmatched = 0;
+  let duplicateLines = 0;
+  let readyToPost = 0;
+
+  for (const raw of txns) {
+    const row = toApiRow(raw);
+    const type = txnTypeFromRow(row);
+
+    if (row.isDuplicate || row.matchStatus === "duplicate") duplicateLines += 1;
+
+    if (
+      row.direction === "in" &&
+      type === "payment" &&
+      row.reviewStatus !== "ignored" &&
+      (row.matchStatus === "matched" ||
+        row.matchStatus === "ready_to_post" ||
+        (row.matchConfidence !== "none" && row.matchConfidence !== "low"))
+    ) {
+      matchedPayments += 1;
+    }
+
+    if (row.direction === "out" && type === "expense" && row.reviewStatus === "accepted") {
+      expenseCandidates += 1;
+    }
+
+    if (
+      row.matchStatus === "unmatched" ||
+      row.reviewStatus === "unmatched" ||
+      (row.reviewStatus === "pending" &&
+        row.direction === "in" &&
+        type === "payment" &&
+        (row.matchConfidence === "none" || row.matchConfidence === "low"))
+    ) {
+      unmatched += 1;
+    }
+
+    if (
+      row.matchStatus === "ready_to_post" ||
+      (row.direction === "in" &&
+        type === "payment" &&
+        row.reviewStatus === "accepted" &&
+        row.matchConfidence !== "none" &&
+        row.matchConfidence !== "low")
+    ) {
+      readyToPost += 1;
+    }
+  }
+
+  return {
+    imports,
+    matchedPayments,
+    expenseCandidates,
+    unmatched,
+    duplicateLines,
+    readyToPost,
+  };
 }
 
 async function buildMatchProfiles(schoolId: string): Promise<LearnerMatchProfile[]> {
-  const ledger = readSchoolLedger(schoolId);
   const payments = listPayments(schoolId);
 
   const learners = await prisma.learner.findMany({
@@ -200,6 +334,54 @@ async function buildMatchProfiles(schoolId: string): Promise<LearnerMatchProfile
   });
 }
 
+async function fetchImportRecord(schoolId: string, importId: string): Promise<BankImportRecord | null> {
+  const imp = await prisma.bankStatementImport.findFirst({
+    where: { id: importId, schoolId },
+    include: {
+      transactions: { orderBy: [{ date: "asc" }, { createdAt: "asc" }] },
+    },
+  });
+  if (!imp) return null;
+  return toImportRecord(imp, imp.transactions);
+}
+
+router.get("/stats", async (req, res) => {
+  try {
+    const schoolId = String(req.query.schoolId || "").trim();
+    const importId = String(req.query.importId || "").trim();
+    if (!schoolId) return res.status(400).json({ success: false, error: "Missing schoolId" });
+    const stats = await computeStats(schoolId, importId || undefined);
+    return res.json({ success: true, stats });
+  } catch (error) {
+    console.error("[banking] GET /stats failed:", error);
+    return res.status(500).json({ success: false, error: "Server error" });
+  }
+});
+
+router.get("/transactions", async (req, res) => {
+  try {
+    const schoolId = String(req.query.schoolId || "").trim();
+    const importId = String(req.query.importId || "").trim();
+    const matchStatus = String(req.query.matchStatus || "").trim() as BankTransactionMatchStatus;
+
+    if (!schoolId) return res.status(400).json({ success: false, error: "Missing schoolId" });
+
+    const where: Prisma.BankTransactionWhereInput = { schoolId };
+    if (importId) where.importId = importId;
+    if (matchStatus) where.matchStatus = matchStatus;
+
+    const rows = await prisma.bankTransaction.findMany({
+      where,
+      orderBy: [{ date: "desc" }, { createdAt: "desc" }],
+    });
+
+    return res.json({ success: true, transactions: rows.map(toApiRow) });
+  } catch (error) {
+    console.error("[banking] GET /transactions failed:", error);
+    return res.status(500).json({ success: false, error: "Server error" });
+  }
+});
+
 router.post("/import", upload.single("file"), async (req, res) => {
   try {
     const schoolId = String(req.body?.schoolId || "").trim();
@@ -210,17 +392,27 @@ router.post("/import", upload.single("file"), async (req, res) => {
     if (!parsed.ok) return res.status(400).json({ success: false, error: parsed.error });
 
     const profiles = await buildMatchProfiles(schoolId);
-    const store = ensureStore();
     const supplierList = parseSupplierList(req.body?.suppliers);
+    const existingFingerprints = await loadSchoolFingerprints(schoolId);
+    const postedFingerprints = new Set(
+      (
+        await prisma.bankTransaction.findMany({
+          where: { schoolId, reviewStatus: "posted" },
+          select: { fingerprint: true },
+        })
+      ).map((r) => r.fingerprint)
+    );
 
-    const seenFingerprints = new Set<string>();
-    const postedSet = new Set(store.postedFingerprints[schoolId] || []);
+    const seenInBatch = new Set<string>();
+    const createRows: Prisma.BankTransactionUncheckedCreateWithoutImportInput[] = [];
 
-    const transactions: BankTransactionRow[] = parsed.transactions.map((txn) => {
+    for (const txn of parsed.transactions) {
       const direction: "in" | "out" = txn.moneyIn > 0 ? "in" : "out";
       const fingerprint = transactionFingerprint(txn);
-      const isDuplicate = seenFingerprints.has(fingerprint) || postedSet.has(fingerprint);
-      seenFingerprints.add(fingerprint);
+      const duplicateInBatch = seenInBatch.has(fingerprint);
+      seenInBatch.add(fingerprint);
+      const isDuplicate =
+        duplicateInBatch || existingFingerprints.has(fingerprint) || postedFingerprints.has(fingerprint);
 
       const suggestion =
         direction === "in"
@@ -239,11 +431,7 @@ router.post("/import", upload.single("file"), async (req, res) => {
       let expenseMatchReason = "";
 
       if (direction === "out") {
-        const supplierHit = matchSupplierFromDescription(
-          txn.description,
-          txn.reference,
-          supplierList
-        );
+        const supplierHit = matchSupplierFromDescription(txn.description, txn.reference, supplierList);
         const expenseInfer = inferExpenseCategory(txn.description, txn.reference);
         if (supplierHit) {
           supplierId = supplierHit.supplierId;
@@ -260,51 +448,62 @@ router.post("/import", upload.single("file"), async (req, res) => {
         }
       }
 
-      const transactionType: TransactionType =
-        direction === "in" ? "payment" : "expense";
+      const matchConfidence = suggestion.matchConfidence;
+      const matchStatus = deriveInitialMatchStatus({
+        isDuplicate,
+        direction,
+        matchConfidence,
+        expenseCategory,
+      });
 
-      return {
+      createRows.push({
         id: newId("txn"),
+        schoolId,
         date: txn.date,
         description: txn.description,
         reference: txn.reference,
         moneyIn: normaliseAmount(txn.moneyIn),
         moneyOut: normaliseAmount(txn.moneyOut),
         direction,
-        transactionType,
+        transactionType: direction === "in" ? "payment" : "expense",
         suggestedAccountNo: suggestion.suggestedAccountNo,
         suggestedLearnerId: suggestion.suggestedLearnerId,
         suggestedLearnerName: suggestion.suggestedLearnerName,
-        matchConfidence: suggestion.matchConfidence,
+        matchConfidence,
         matchReason:
-          direction === "in"
-            ? suggestion.matchReason
-            : expenseMatchReason || suggestion.matchReason,
+          direction === "in" ? suggestion.matchReason : expenseMatchReason || suggestion.matchReason,
         reviewStatus: "pending",
+        matchStatus,
         expenseCategory,
         suggestedSupplierName,
         supplierId,
         expenseNotes: "",
         fingerprint,
+        rawRow: txn as unknown as Prisma.InputJsonValue,
         isDuplicate,
-      };
+      });
+    }
+
+    const importRecord = await prisma.bankStatementImport.create({
+      data: {
+        id: newId("import"),
+        schoolId,
+        fileName: req.file.originalname,
+        format: parsed.format,
+        transactions: {
+          create: createRows,
+        },
+      },
+      include: {
+        transactions: { orderBy: [{ date: "asc" }, { createdAt: "asc" }] },
+      },
     });
 
-    const record: BankImportRecord = {
-      id: newId("import"),
-      schoolId,
-      fileName: req.file.originalname,
-      format: parsed.format,
-      importedAt: new Date().toISOString(),
-      transactions,
-    };
-
-    store.imports.unshift(record);
-    writeStore(store);
+    const hydrated = toImportRecord(importRecord, importRecord.transactions);
 
     return res.status(201).json({
       success: true,
-      import: hydrateImport(record),
+      import: hydrated,
       expenseCategories: EXPENSE_CATEGORIES,
       accountingNote:
         "Accepted banking expense candidates are sent to Accounting → Expenses review queue.",
@@ -315,32 +514,41 @@ router.post("/import", upload.single("file"), async (req, res) => {
   }
 });
 
-router.get("/imports", (req, res) => {
+router.get("/imports", async (req, res) => {
   try {
     const schoolId = String(req.query.schoolId || "").trim();
     if (!schoolId) return res.status(400).json({ success: false, error: "Missing schoolId" });
-    const store = ensureStore();
-    const imports = store.imports
-      .filter((r) => r.schoolId === schoolId)
-      .sort((a, b) => b.importedAt.localeCompare(a.importedAt))
-      .map(hydrateImport);
-    return res.json({ success: true, imports });
+
+    const imports = await prisma.bankStatementImport.findMany({
+      where: { schoolId },
+      orderBy: { importedAt: "desc" },
+      include: {
+        transactions: { orderBy: [{ date: "asc" }, { createdAt: "asc" }] },
+      },
+    });
+
+    return res.json({
+      success: true,
+      imports: imports.map((imp) => toImportRecord(imp, imp.transactions)),
+    });
   } catch (error) {
     console.error("[banking] GET /imports failed:", error);
     return res.status(500).json({ success: false, error: "Server error" });
   }
 });
 
-router.get("/imports/:id", (req, res) => {
+router.get("/imports/:id", async (req, res) => {
   try {
     const schoolId = String(req.query.schoolId || "").trim();
     const id = String(req.params.id || "").trim();
-    const store = ensureStore();
-    const record = store.imports.find((r) => r.id === id && (!schoolId || r.schoolId === schoolId));
+    if (!schoolId) return res.status(400).json({ success: false, error: "Missing schoolId" });
+
+    const record = await fetchImportRecord(schoolId, id);
     if (!record) return res.status(404).json({ success: false, error: "Import not found" });
+
     return res.json({
       success: true,
-      import: hydrateImport(record),
+      import: record,
       expenseCategories: EXPENSE_CATEGORIES,
       accountingNote:
         "Accepted banking expense candidates are sent to Accounting → Expenses review queue.",
@@ -351,25 +559,24 @@ router.get("/imports/:id", (req, res) => {
   }
 });
 
-router.patch("/imports/:id/transaction/:transactionId", (req, res) => {
+router.patch("/imports/:id/transaction/:transactionId", async (req, res) => {
   try {
     const importId = String(req.params.id || "").trim();
     const transactionId = String(req.params.transactionId || "").trim();
     const schoolId = String(req.body?.schoolId || "").trim();
-    const store = ensureStore();
-    const record = store.imports.find((r) => r.id === importId && r.schoolId === schoolId);
-    if (!record) return res.status(404).json({ success: false, error: "Import not found" });
+    if (!schoolId) return res.status(400).json({ success: false, error: "Missing schoolId" });
 
-    const idx = record.transactions.findIndex((t) => t.id === transactionId);
-    if (idx < 0) return res.status(404).json({ success: false, error: "Transaction not found" });
-
-    const current = record.transactions[idx];
-    if (current.reviewStatus === "posted") {
+    const existing = await prisma.bankTransaction.findFirst({
+      where: { id: transactionId, importId, schoolId },
+    });
+    if (!existing) return res.status(404).json({ success: false, error: "Transaction not found" });
+    if (existing.reviewStatus === "posted") {
       return res.status(400).json({ success: false, error: "Posted transactions cannot be edited" });
     }
 
     const body = req.body || {};
-    const next = { ...current };
+    const current = toApiRow(existing);
+    const next: BankTransactionRow = { ...current };
 
     if (body.reviewStatus) {
       const status = String(body.reviewStatus) as BankTransactionRow["reviewStatus"];
@@ -401,11 +608,31 @@ router.patch("/imports/:id/transaction/:transactionId", (req, res) => {
     }
     if (body.supplierId !== undefined) next.supplierId = String(body.supplierId).trim();
     if (body.expenseNotes !== undefined) next.expenseNotes = String(body.expenseNotes).trim();
+    if (body.description !== undefined) next.description = String(body.description).trim();
 
-    record.transactions[idx] = next;
-    writeStore(store);
+    next.matchStatus = syncMatchStatus(next);
 
-    return res.json({ success: true, transaction: next, import: record });
+    const updated = await prisma.bankTransaction.update({
+      where: { id: transactionId },
+      data: {
+        reviewStatus: next.reviewStatus,
+        matchStatus: next.matchStatus,
+        suggestedAccountNo: next.suggestedAccountNo,
+        suggestedLearnerId: next.suggestedLearnerId,
+        suggestedLearnerName: next.suggestedLearnerName,
+        expenseCategory: next.expenseCategory,
+        transactionType: next.transactionType,
+        suggestedSupplierName: next.suggestedSupplierName,
+        supplierId: next.supplierId,
+        expenseNotes: next.expenseNotes,
+        description: next.description,
+      },
+    });
+
+    const importRecord = await fetchImportRecord(schoolId, importId);
+    if (!importRecord) return res.status(404).json({ success: false, error: "Import not found" });
+
+    return res.json({ success: true, transaction: toApiRow(updated), import: importRecord });
   } catch (error) {
     console.error("[banking] PATCH transaction failed:", error);
     return res.status(500).json({ success: false, error: "Server error" });
@@ -422,35 +649,49 @@ router.post("/imports/:id/post-payments", async (req, res) => {
 
     if (!schoolId) return res.status(400).json({ success: false, error: "Missing schoolId" });
 
-    const store = ensureStore();
-    const record = store.imports.find((r) => r.id === importId && r.schoolId === schoolId);
-    if (!record) return res.status(404).json({ success: false, error: "Import not found" });
+    const importExists = await prisma.bankStatementImport.findFirst({
+      where: { id: importId, schoolId },
+    });
+    if (!importExists) return res.status(404).json({ success: false, error: "Import not found" });
 
-    if (!store.postedFingerprints[schoolId]) store.postedFingerprints[schoolId] = [];
-    const postedSet = new Set(store.postedFingerprints[schoolId]);
+    const transactions = await prisma.bankTransaction.findMany({
+      where: { importId, schoolId },
+    });
+
+    const postedFingerprints = new Set(
+      (
+        await prisma.bankTransaction.findMany({
+          where: { schoolId, reviewStatus: "posted" },
+          select: { fingerprint: true },
+        })
+      ).map((r) => r.fingerprint)
+    );
 
     const posted: BillingLedgerEntry[] = [];
     const skipped: { transactionId: string; reason: string }[] = [];
 
-    for (const txn of record.transactions) {
+    for (const txn of transactions) {
       if (transactionIds.length && !transactionIds.includes(txn.id)) continue;
-      if (txn.direction !== "in" || txn.moneyIn <= 0) {
+
+      const row = toApiRow(txn);
+
+      if (row.direction !== "in" || row.moneyIn <= 0) {
         skipped.push({ transactionId: txn.id, reason: "Not an incoming payment" });
         continue;
       }
-      if (txn.reviewStatus !== "accepted") {
+      if (row.reviewStatus !== "accepted") {
         skipped.push({ transactionId: txn.id, reason: "Transaction not accepted for posting" });
         continue;
       }
-      if (txn.matchConfidence === "low" || txn.matchConfidence === "none") {
+      if (row.matchConfidence === "low" || row.matchConfidence === "none") {
         skipped.push({ transactionId: txn.id, reason: "Low confidence match cannot be auto-posted" });
         continue;
       }
-      if (!txn.suggestedLearnerId || !txn.suggestedAccountNo || txn.suggestedAccountNo === "-") {
+      if (!row.suggestedLearnerId || !row.suggestedAccountNo || row.suggestedAccountNo === "-") {
         skipped.push({ transactionId: txn.id, reason: "Missing learner/account match" });
         continue;
       }
-      if (postedSet.has(txn.fingerprint)) {
+      if (postedFingerprints.has(row.fingerprint)) {
         skipped.push({ transactionId: txn.id, reason: "Duplicate bank transaction already posted" });
         continue;
       }
@@ -459,33 +700,40 @@ router.post("/imports/:id/post-payments", async (req, res) => {
       const entry: BillingLedgerEntry = {
         id: paymentId,
         schoolId,
-        learnerId: txn.suggestedLearnerId,
-        accountNo: txn.suggestedAccountNo,
+        learnerId: row.suggestedLearnerId,
+        accountNo: row.suggestedAccountNo,
         type: "payment",
-        amount: normaliseAmount(txn.moneyIn),
-        date: txn.date,
-        reference: txn.reference || txn.description.slice(0, 80),
-        description: `Bank import: ${txn.description || "Payment"}`.trim(),
+        amount: normaliseAmount(row.moneyIn),
+        date: row.date,
+        reference: row.reference || row.description.slice(0, 80),
+        description: `Bank import: ${row.description || "Payment"}`.trim(),
         method: "Bank Import",
         createdAt: new Date().toISOString(),
       };
 
       appendSchoolEntry(schoolId, entry);
-      postedSet.add(txn.fingerprint);
-      txn.reviewStatus = "posted";
-      txn.postedPaymentId = paymentId;
+      postedFingerprints.add(row.fingerprint);
+
+      await prisma.bankTransaction.update({
+        where: { id: txn.id },
+        data: {
+          reviewStatus: "posted",
+          matchStatus: "ready_to_post",
+          postedPaymentId: paymentId,
+        },
+      });
+
       posted.push(entry);
     }
 
-    store.postedFingerprints[schoolId] = Array.from(postedSet);
-    writeStore(store);
+    const importRecord = await fetchImportRecord(schoolId, importId);
 
     return res.json({
       success: true,
       postedCount: posted.length,
       skipped,
       ledgerEntries: posted,
-      import: record,
+      import: importRecord,
     });
   } catch (error) {
     console.error("[banking] POST post-payments failed:", error);

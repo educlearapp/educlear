@@ -14,6 +14,13 @@ export type MatchConfidence = "high" | "medium" | "low" | "none";
 
 export type BankingTransactionType = "payment" | "expense" | "transfer" | "ignore";
 
+export type BankTransactionMatchStatus =
+  | "imported"
+  | "matched"
+  | "unmatched"
+  | "duplicate"
+  | "ready_to_post";
+
 export type BankTransactionRow = {
   id: string;
   date: string;
@@ -29,6 +36,7 @@ export type BankTransactionRow = {
   matchConfidence: MatchConfidence;
   matchReason: string;
   reviewStatus: "pending" | "accepted" | "unmatched" | "ignored" | "posted";
+  matchStatus?: BankTransactionMatchStatus;
   expenseCategory: string;
   suggestedSupplierName?: string;
   supplierId?: string;
@@ -36,6 +44,15 @@ export type BankTransactionRow = {
   postedPaymentId?: string;
   fingerprint: string;
   isDuplicate?: boolean;
+};
+
+export type BankingStats = {
+  imports: number;
+  matchedPayments: number;
+  expenseCandidates: number;
+  unmatched: number;
+  duplicateLines: number;
+  readyToPost: number;
 };
 
 export type BankImportRecord = {
@@ -90,6 +107,24 @@ export async function importBankStatement(
 export async function fetchBankImports(schoolId: string) {
   const res = await fetch(`${BASE}/imports?schoolId=${encodeURIComponent(schoolId)}`);
   return parseJson(res) as Promise<{ success: boolean; imports: BankImportRecord[] }>;
+}
+
+export async function fetchBankingStats(schoolId: string, importId?: string) {
+  const params = new URLSearchParams({ schoolId });
+  if (importId) params.set("importId", importId);
+  const res = await fetch(`${BASE}/stats?${params.toString()}`);
+  return parseJson(res) as Promise<{ success: boolean; stats: BankingStats }>;
+}
+
+export async function fetchBankTransactions(
+  schoolId: string,
+  options?: { importId?: string; matchStatus?: BankTransactionMatchStatus }
+) {
+  const params = new URLSearchParams({ schoolId });
+  if (options?.importId) params.set("importId", options.importId);
+  if (options?.matchStatus) params.set("matchStatus", options.matchStatus);
+  const res = await fetch(`${BASE}/transactions?${params.toString()}`);
+  return parseJson(res) as Promise<{ success: boolean; transactions: BankTransactionRow[] }>;
 }
 
 export async function fetchBankImport(schoolId: string, importId: string) {

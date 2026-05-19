@@ -101,6 +101,16 @@ learnerReports LearnerReport[]
 
   billingSettings BillingSettings?
   billingDeposits BillingDeposit[]
+  bankStatementImports BankStatementImport[]
+  bankTransactions BankTransaction[]
+}
+
+enum BankTransactionMatchStatus {
+  imported
+  matched
+  unmatched
+  duplicate
+  ready_to_post
 }
 
 model BillingSettings {
@@ -1970,4 +1980,57 @@ model BillingDepositHistoryEntry {
 
   @@index([depositId])
   @@index([schoolId])
+}
+
+model BankStatementImport {
+  id         String   @id @default(cuid())
+  schoolId   String
+  fileName   String
+  format     String
+  importedAt DateTime @default(now())
+
+  school       School            @relation(fields: [schoolId], references: [id], onDelete: Cascade)
+  transactions BankTransaction[]
+
+  @@index([schoolId])
+  @@index([schoolId, importedAt])
+}
+
+model BankTransaction {
+  id                    String                     @id @default(cuid())
+  schoolId              String
+  importId              String
+  date                  String
+  description           String                     @default("")
+  reference             String                     @default("")
+  moneyIn               Float                      @default(0)
+  moneyOut              Float                      @default(0)
+  direction             String
+  transactionType       String                     @default("payment")
+  suggestedAccountNo    String                     @default("")
+  suggestedLearnerId    String                     @default("")
+  suggestedLearnerName  String                     @default("")
+  matchConfidence       String                     @default("none")
+  matchReason           String                     @default("")
+  reviewStatus          String                     @default("pending")
+  matchStatus           BankTransactionMatchStatus @default(imported)
+  expenseCategory       String                     @default("")
+  suggestedSupplierName String                     @default("")
+  supplierId            String                     @default("")
+  expenseNotes          String                     @default("")
+  postedPaymentId       String?
+  fingerprint           String
+  rawRow                Json?
+  isDuplicate           Boolean                    @default(false)
+  createdAt             DateTime                   @default(now())
+  updatedAt             DateTime                   @updatedAt
+
+  school School              @relation(fields: [schoolId], references: [id], onDelete: Cascade)
+  import BankStatementImport @relation(fields: [importId], references: [id], onDelete: Cascade)
+
+  @@index([schoolId])
+  @@index([schoolId, fingerprint])
+  @@index([schoolId, matchStatus])
+  @@index([importId])
+  @@index([importId, matchStatus])
 }

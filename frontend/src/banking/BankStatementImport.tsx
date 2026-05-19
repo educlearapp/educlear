@@ -16,7 +16,6 @@ import {
 import { getLearnerAccountNo } from "../learner/learnerIdentity";
 import {
   BANKING_EXPENSE_CATEGORIES,
-  computeBankingStats,
   confidenceColor,
   importSummary,
   isUnmatchedTxn,
@@ -32,10 +31,12 @@ import SupplierInvoiceBankMatch from "../accounting/SupplierInvoiceBankMatch";
 import {
   fetchBankImport,
   fetchBankImports,
+  fetchBankingStats,
   importBankStatement,
   patchBankTransaction,
   postAcceptedBankPayments,
   type BankImportRecord,
+  type BankingStats,
   type BankTransactionRow,
 } from "./bankingApi";
 
@@ -181,7 +182,24 @@ export default function BankStatementImport({ schoolId, learners }: Props) {
     }));
   }, [learners]);
 
-  const stats = useMemo(() => computeBankingStats(imports, activeImport), [imports, activeImport]);
+  const [stats, setStats] = useState<BankingStats>({
+    imports: 0,
+    matchedPayments: 0,
+    expenseCandidates: 0,
+    unmatched: 0,
+    duplicateLines: 0,
+    readyToPost: 0,
+  });
+
+  const refreshStats = useCallback(async (importId?: string) => {
+    if (!schoolId) return;
+    try {
+      const res = await fetchBankingStats(schoolId, importId);
+      setStats(res.stats);
+    } catch {
+      /* stats are non-blocking */
+    }
+  }, [schoolId]);
 
   const loadImports = useCallback(async () => {
     if (!schoolId) return;
@@ -196,6 +214,10 @@ export default function BankStatementImport({ schoolId, learners }: Props) {
   useEffect(() => {
     loadImports();
   }, [loadImports]);
+
+  useEffect(() => {
+    void refreshStats(activeImport?.id);
+  }, [activeImport?.id, refreshStats]);
 
   const refreshActive = async (importId: string) => {
     if (!schoolId) return;
@@ -225,6 +247,7 @@ export default function BankStatementImport({ schoolId, learners }: Props) {
       setTab("review");
       setReviewPage(1);
       await loadImports();
+      await refreshStats(res.import.id);
     } catch (e: any) {
       setError(e?.message || "Import failed");
     } finally {
@@ -240,6 +263,7 @@ export default function BankStatementImport({ schoolId, learners }: Props) {
       const res = await patchBankTransaction(schoolId, activeImport.id, txn.id, payload);
       setActiveImport(res.import);
       setMessage("Transaction updated.");
+      await refreshStats(res.import.id);
     } catch (e: any) {
       setError(e?.message || "Update failed");
     } finally {
@@ -259,6 +283,7 @@ export default function BankStatementImport({ schoolId, learners }: Props) {
           transactionType: "expense",
         });
         setActiveImport(res.import);
+        await refreshStats(res.import.id);
         const updated =
           res.import.transactions.find((t) => t.id === txn.id) ||
           ({ ...txn, reviewStatus: "accepted" as const, transactionType: "expense" as const });
@@ -364,6 +389,7 @@ export default function BankStatementImport({ schoolId, learners }: Props) {
         window.dispatchEvent(new CustomEvent(BILLING_UPDATED_EVENT));
       }
       await refreshActive(activeImport.id);
+      await refreshStats(activeImport.id);
       setMessage(
         `Posted ${res.postedCount} payment(s) to Billing.${res.skipped?.length ? ` Skipped ${res.skipped.length}.` : ""}`
       );

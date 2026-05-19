@@ -1,5 +1,5 @@
 import type React from "react";
-import type { BankImportRecord, BankTransactionRow, MatchConfidence } from "./bankingApi";
+import type { BankImportRecord, BankingStats, BankTransactionRow, MatchConfidence } from "./bankingApi";
 
 export const SUPPLIERS_STORAGE_PREFIX = "educlearAccountingSuppliers:";
 
@@ -107,14 +107,7 @@ export function importSummary(imp: BankImportRecord) {
   return { paymentsMatched, expensesMatched, unmatched, status };
 }
 
-export type BankingStats = {
-  imports: number;
-  matchedPayments: number;
-  expenseCandidates: number;
-  unmatched: number;
-  duplicateLines: number;
-  readyToPost: number;
-};
+export type { BankingStats };
 
 export function computeBankingStats(
   imports: BankImportRecord[],
