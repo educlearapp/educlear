@@ -1,1 +1,68 @@
-{}
+{
+  "cmojugbly001hxi55qvotd0hd": [
+    {
+      "id": "pay-bank-txn-1779188558705-6e309c5f",
+      "schoolId": "cmojugbly001hxi55qvotd0hd",
+      "learnerId": "cmojut8bk0021xi558cyoya4j",
+      "accountNo": "NDL001",
+      "type": "payment",
+      "amount": 1500,
+      "date": "2026-05-19",
+      "reference": "NDL001",
+      "description": "Bank statement (bank-test.csv): Kganya Ndlovu school fees",
+      "method": "Bank Import",
+      "bankTransactionId": "txn-1779188558705-6e309c5f",
+      "bankImportId": "import-1779188558705-bd4b29d1",
+      "source": "bank_import",
+      "createdAt": "2026-05-19T11:03:38.973Z"
+    },
+    {
+      "id": "pay-bank-txn-1779188772018-969d51b1",
+      "schoolId": "cmojugbly001hxi55qvotd0hd",
+      "learnerId": "cmojut8bk0021xi558cyoya4j",
+      "accountNo": "NDL001",
+      "type": "payment",
+      "amount": 800,
+      "date": "2026-05-19",
+      "reference": "NDL001",
+      "description": "Bank statement (bank-test2.csv): Kganya Ndlovu fees May",
+      "method": "Bank Import",
+      "bankTransactionId": "txn-1779188772018-969d51b1",
+      "bankImportId": "import-1779188772018-08a20462",
+      "source": "bank_import",
+      "createdAt": "2026-05-19T11:06:12.100Z"
+    },
+    {
+      "id": "pay-bank-txn-1779201777493-250850d4",
+      "schoolId": "cmojugbly001hxi55qvotd0hd",
+      "learnerId": "cmov5l75c000613nsqb36rr7j",
+      "accountNo": "SIL002",
+      "type": "payment",
+      "amount": 2500,
+      "date": "2026-05-19",
+      "reference": "SIL002",
+      "description": "Bank statement (bank-test.csv): Anthony Da Silva school fees",
+      "method": "Bank Import",
+      "bankTransactionId": "txn-1779201777493-250850d4",
+      "bankImportId": "import-1779201777494-aa745b30",
+      "source": "bank_import",
+      "createdAt": "2026-05-19T14:43:48.961Z"
+    },
+    {
+      "id": "pay-bank-txn-1779201777493-a0645102",
+      "schoolId": "cmojugbly001hxi55qvotd0hd",
+      "learnerId": "cmov5l75c000613nsqb36rr7j",
+      "accountNo": "SIL002",
+      "type": "payment",
+      "amount": 700,
+      "date": "2026-05-19",
+      "reference": "SIL002",
+      "description": "Bank statement (bank-test.csv): Anthony Da Silva registration",
+      "method": "Bank Import",
+      "bankTransactionId": "txn-1779201777493-a0645102",
+      "bankImportId": "import-1779201777494-aa745b30",
+      "source": "bank_import",
+      "createdAt": "2026-05-19T14:43:48.964Z"
+    }
+  ]
+}

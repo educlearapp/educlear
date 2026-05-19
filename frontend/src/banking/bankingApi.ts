@@ -7,6 +7,9 @@ async function parseJson(res: Response) {
   if (!res.ok) {
     throw new Error(String((data as any)?.error || `Request failed (${res.status})`));
   }
+  if (data && typeof data === "object" && (data as { success?: boolean }).success === false) {
+    throw new Error(String((data as { error?: string }).error || "Request failed"));
+  }
   return data;
 }
 
@@ -43,6 +46,9 @@ export type BankTransactionRow = {
   expenseCategory: string;
   suggestedSupplierName?: string;
   supplierId?: string;
+  suggestedInvoiceId?: string;
+  suggestedInvoiceNumber?: string;
+  invoiceMatchScore?: number;
   expenseNotes?: string;
   postedPaymentId?: string;
   fingerprint: string;
@@ -149,15 +155,31 @@ export async function patchBankTransaction(
   transactionId: string,
   payload: Record<string, unknown>
 ) {
-  const res = await fetch(
-    `${BASE}/imports/${encodeURIComponent(importId)}/transaction/${encodeURIComponent(transactionId)}`,
-    {
-      method: "PATCH",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ schoolId, ...payload }),
-    }
-  );
-  return parseJson(res) as Promise<{ success: boolean; transaction: BankTransactionRow; import: BankImportRecord }>;
+  console.log("PATCH START", { importId, transactionId, payload });
+  try {
+    const res = await fetch(
+      `${BASE}/imports/${encodeURIComponent(importId)}/transaction/${encodeURIComponent(transactionId)}`,
+      {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ schoolId, ...payload }),
+      }
+    );
+    const data = (await parseJson(res)) as {
+      success: boolean;
+      transaction: BankTransactionRow;
+      import: BankImportRecord;
+    };
+    console.log("PATCH SUCCESS", {
+      transactionId,
+      reviewStatus: data.transaction?.reviewStatus,
+      matchStatus: data.transaction?.matchStatus,
+    });
+    return data;
+  } catch (e) {
+    console.log("PATCH FAILED", { transactionId, error: e });
+    throw e;
+  }
 }
 
 export async function postAcceptedBankPayments(
@@ -165,16 +187,27 @@ export async function postAcceptedBankPayments(
   importId: string,
   transactionIds?: string[]
 ) {
-  const res = await fetch(`${BASE}/imports/${encodeURIComponent(importId)}/post-payments`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ schoolId, transactionIds }),
-  });
-  return parseJson(res) as Promise<{
-    success: boolean;
-    postedCount: number;
-    skipped: { transactionId: string; reason: string }[];
-    ledgerEntries: Array<Record<string, unknown>>;
-    import: BankImportRecord;
-  }>;
+  try {
+    const res = await fetch(`${BASE}/imports/${encodeURIComponent(importId)}/post-payments`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ schoolId, transactionIds }),
+    });
+    const data = (await parseJson(res)) as {
+      success: boolean;
+      postedCount: number;
+      skipped: { transactionId: string; reason: string }[];
+      ledgerEntries: Array<Record<string, unknown>>;
+      import: BankImportRecord;
+    };
+    console.log("POST PAYMENTS SUCCESS", {
+      importId,
+      postedCount: data.postedCount,
+      skipped: data.skipped?.length || 0,
+    });
+    return data;
+  } catch (e) {
+    console.log("POST PAYMENTS FAILED", { importId, error: e });
+    throw e;
+  }
 }

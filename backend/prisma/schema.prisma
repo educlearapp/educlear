@@ -103,6 +103,10 @@ learnerReports LearnerReport[]
   billingDeposits BillingDeposit[]
   bankStatementImports BankStatementImport[]
   bankTransactions BankTransaction[]
+  suppliers Supplier[]
+  supplierInvoices SupplierInvoice[]
+  expenseCategories ExpenseCategory[]
+  accountingJournals AccountingJournal[]
 }
 
 enum BankTransactionMatchStatus {
@@ -2020,6 +2024,9 @@ model BankTransaction {
   expenseCategory       String                     @default("")
   suggestedSupplierName String                     @default("")
   supplierId            String                     @default("")
+  suggestedInvoiceId    String                     @default("")
+  suggestedInvoiceNumber String                    @default("")
+  invoiceMatchScore     Int                        @default(0)
   expenseNotes          String                     @default("")
   postedPaymentId       String?
   fingerprint           String
@@ -2036,4 +2043,151 @@ model BankTransaction {
   @@index([schoolId, matchStatus])
   @@index([importId])
   @@index([importId, matchStatus])
+}
+
+enum SupplierStatus {
+  active
+  inactive
+}
+
+enum SupplierInvoiceStatus {
+  pending
+  approved
+  partially_paid
+  paid
+}
+
+model Supplier {
+  id            String         @id @default(cuid())
+  schoolId      String
+  supplierName  String
+  contactPerson String         @default("")
+  email         String         @default("")
+  phone         String         @default("")
+  vatNumber     String         @default("")
+  address       String         @default("")
+  status        SupplierStatus @default(active)
+  createdAt     DateTime       @default(now())
+  updatedAt     DateTime       @updatedAt
+
+  school   School            @relation(fields: [schoolId], references: [id], onDelete: Cascade)
+  invoices SupplierInvoice[]
+
+  @@index([schoolId])
+  @@index([schoolId, supplierName])
+  @@index([schoolId, status])
+}
+
+model ExpenseCategory {
+  id        String   @id @default(cuid())
+  schoolId  String
+  name      String
+  code      String
+  createdAt DateTime @default(now())
+
+  school School                @relation(fields: [schoolId], references: [id], onDelete: Cascade)
+  lines  SupplierInvoiceLine[]
+
+  @@unique([schoolId, code])
+  @@index([schoolId])
+}
+
+model SupplierInvoice {
+  id                      String                @id @default(cuid())
+  schoolId                String
+  supplierId              String
+  invoiceNumber           String
+  invoiceDate             DateTime
+  dueDate                 DateTime
+  subtotal                Decimal               @db.Decimal(14, 2)
+  vatAmount               Decimal               @db.Decimal(14, 2)
+  totalAmount             Decimal               @db.Decimal(14, 2)
+  outstandingAmount       Decimal               @db.Decimal(14, 2)
+  status                  SupplierInvoiceStatus @default(pending)
+  notes                   String                @default("")
+  linkedBankTransactionId String?
+  createdAt               DateTime              @default(now())
+  updatedAt               DateTime              @updatedAt
+
+  school   School                   @relation(fields: [schoolId], references: [id], onDelete: Cascade)
+  supplier Supplier                 @relation(fields: [supplierId], references: [id], onDelete: Cascade)
+  lines    SupplierInvoiceLine[]
+  payments SupplierInvoicePayment[]
+
+  @@index([schoolId])
+  @@index([schoolId, status])
+  @@index([schoolId, dueDate])
+  @@index([supplierId])
+}
+
+model SupplierInvoiceLine {
+  id                String  @id @default(cuid())
+  invoiceId         String
+  description       String
+  quantity          Decimal @default(1) @db.Decimal(12, 4)
+  unitPrice         Decimal @db.Decimal(14, 2)
+  lineTotal         Decimal @db.Decimal(14, 2)
+  expenseCategoryId String?
+
+  invoice         SupplierInvoice  @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
+  expenseCategory ExpenseCategory? @relation(fields: [expenseCategoryId], references: [id], onDelete: SetNull)
+
+  @@index([invoiceId])
+}
+
+model SupplierInvoicePayment {
+  id                String   @id @default(cuid())
+  schoolId          String
+  invoiceId         String
+  paymentDate       DateTime
+  amount            Decimal  @db.Decimal(14, 2)
+  reference         String   @default("")
+  method            String   @default("EFT")
+  notes             String   @default("")
+  bankTransactionId String?
+  createdAt         DateTime @default(now())
+
+  invoice SupplierInvoice @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
+
+  @@index([schoolId])
+  @@index([invoiceId])
+  @@index([bankTransactionId])
+}
+
+model AccountingJournal {
+  id                String   @id @default(cuid())
+  schoolId          String
+  journalNo         String
+  date              String
+  description       String
+  reference         String   @default("")
+  notes             String   @default("")
+  status            String   @default("Posted")
+  sourceModule      String?
+  sourceId          String?
+  sourceFingerprint String?
+  createdBy         String   @default("")
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+
+  school School                 @relation(fields: [schoolId], references: [id], onDelete: Cascade)
+  lines  AccountingJournalLine[]
+
+  @@unique([schoolId, sourceFingerprint])
+  @@index([schoolId])
+  @@index([schoolId, date])
+}
+
+model AccountingJournalLine {
+  id          String  @id @default(cuid())
+  journalId   String
+  accountCode String
+  accountName String
+  debit       Decimal @default(0) @db.Decimal(14, 2)
+  credit      Decimal @default(0) @db.Decimal(14, 2)
+  memo        String  @default("")
+
+  journal AccountingJournal @relation(fields: [journalId], references: [id], onDelete: Cascade)
+
+  @@index([journalId])
 }

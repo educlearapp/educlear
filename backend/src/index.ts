@@ -1,3 +1,4 @@
+import "dotenv/config";
 import express from "express";
 
 import cors from "cors";
@@ -20,6 +21,7 @@ import communicationRoutes from "./routes/communication";
 import billingSettingsRoutes from "./routes/billingSettings";
 import depositsRoutes from "./routes/deposits";
 import bankingRoutes from "./routes/banking";
+import accountingRoutes from "./routes/accounting";
 import usersRoutes from "./routes/users";
 import bcrypt from "bcryptjs";
 
@@ -261,7 +263,7 @@ app.use(
     },
      
 
-    methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+    methods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
 
     allowedHeaders: ["Content-Type", "Authorization"],
 
@@ -332,6 +334,7 @@ app.use("/api/communication", communicationRoutes);
 app.use("/api/billing-settings", billingSettingsRoutes);
 app.use("/api/deposits", depositsRoutes);
 app.use("/api/banking", bankingRoutes);
+app.use("/api/accounting", accountingRoutes);
 app.use("/api/billing/late-penalties", billingPenaltiesRoutes);
 app.use("/api/teacher-performance", teacherPerformanceRoutes);
 app.use("/api/payroll", payrollRoutes);

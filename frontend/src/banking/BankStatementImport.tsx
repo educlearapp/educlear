@@ -25,7 +25,9 @@ import {
   hasSuggestedPaymentMatch,
   importSummary,
   isUnmatchedTxn,
+  hasSuggestedSupplierInvoiceMatch,
   loadSuppliersForMatching,
+  refreshSuppliersForMatching,
   matchStatusLabel,
   paginate,
   statusPillStyle,
@@ -262,7 +264,7 @@ export default function BankStatementImport({ schoolId, learners }: Props) {
     setError("");
     setMessage("");
     try {
-      const suppliers = loadSuppliersForMatching(schoolId);
+      const suppliers = await refreshSuppliersForMatching(schoolId);
       const res = await importBankStatement(schoolId, file, suppliers);
       setActiveImport(res.import);
       setAccountingNote(res.accountingNote);
@@ -278,31 +280,84 @@ export default function BankStatementImport({ schoolId, learners }: Props) {
     }
   };
 
-  const patchTxn = async (txn: BankTransactionRow, payload: Record<string, unknown>) => {
-    if (!activeImport || !schoolId) return;
+  const mergePatchedImport = (
+    importRecord: BankImportRecord,
+    transaction: BankTransactionRow
+  ): BankImportRecord => ({
+    ...importRecord,
+    transactions: importRecord.transactions.map((row) =>
+      row.id === transaction.id ? transaction : row
+    ),
+  });
+
+  const patchTxn = async (
+    txn: BankTransactionRow,
+    payload: Record<string, unknown>
+  ): Promise<boolean> => {
+    if (!schoolId) {
+      const msg = "Missing school — cannot update this bank transaction.";
+      console.error("[banking] patchTxn:", msg);
+      setError(msg);
+      return false;
+    }
+    if (!activeImport) {
+      const msg = "No import selected — open an import from Import or History before accepting.";
+      console.error("[banking] patchTxn:", msg);
+      setError(msg);
+      return false;
+    }
+
     setLoading(true);
     setError("");
     try {
       const res = await patchBankTransaction(schoolId, activeImport.id, txn.id, payload);
-      setActiveImport(res.import);
-      setMessage("Transaction updated.");
-      await refreshStats(res.import.id);
-    } catch (e: any) {
-      setError(e?.message || "Update failed");
+      const updatedTxn = res.transaction;
+      const nextImport = res.import
+        ? updatedTxn
+          ? mergePatchedImport(res.import, updatedTxn)
+          : res.import
+        : updatedTxn
+          ? mergePatchedImport(activeImport, updatedTxn)
+          : null;
+
+      if (!nextImport) {
+        throw new Error("Server did not return the updated import.");
+      }
+
+      setActiveImport(nextImport);
+      setImports((prev) => prev.map((imp) => (imp.id === nextImport.id ? nextImport : imp)));
+      setMessage(
+        updatedTxn?.reviewStatus === "accepted"
+          ? "Match accepted — ready to post when confidence is 50+."
+          : updatedTxn?.reviewStatus === "unmatched"
+            ? "Match rejected."
+            : updatedTxn?.reviewStatus === "ignored"
+              ? "Transaction ignored."
+              : "Transaction updated."
+      );
+      await refreshStats(nextImport.id);
+      return true;
+    } catch (e: unknown) {
+      const msg = e instanceof Error ? e.message : "Update failed";
+      console.log("PATCH FAILED", { transactionId: txn.id, error: msg });
+      setError(msg.includes("fetch") ? `${msg} — check network/CORS or API URL.` : msg);
+      return false;
     } finally {
       setLoading(false);
     }
   };
 
   const acceptMatchTxn = async (txn: BankTransactionRow) => {
-    patchTxn(txn, { matchAction: "accept" });
+    console.log("ACCEPT CLICKED", txn.id);
+    await patchTxn(txn, { matchAction: "accept", reviewStatus: "accepted" });
   };
 
   const rejectMatchTxn = async (txn: BankTransactionRow) => {
-    patchTxn(txn, { matchAction: "reject" });
+    await patchTxn(txn, { matchAction: "reject" });
   };
 
   const acceptTxn = async (txn: BankTransactionRow) => {
+    console.log("ACCEPT CLICKED", txn.id);
     const type = txnType(txn);
     if (type === "expense") {
       if (!activeImport || !schoolId) return;
@@ -333,14 +388,19 @@ export default function BankStatementImport({ schoolId, learners }: Props) {
       return;
     }
     if (type === "ignore" || type === "transfer") {
-      patchTxn(txn, { reviewStatus: "accepted", transactionType: type });
+      await patchTxn(txn, { reviewStatus: "accepted", transactionType: type });
       return;
     }
-    patchTxn(txn, { reviewStatus: "accepted", transactionType: "payment" });
+    await patchTxn(txn, {
+      matchAction: "accept",
+      reviewStatus: "accepted",
+      transactionType: "payment",
+    });
   };
 
-  const ignoreTxn = (txn: BankTransactionRow) =>
-    patchTxn(txn, { reviewStatus: "ignored", transactionType: "ignore" });
+  const ignoreTxn = async (txn: BankTransactionRow) => {
+    await patchTxn(txn, { reviewStatus: "ignored", transactionType: "ignore" });
+  };
 
   const openTypeModal = (txn: BankTransactionRow) => {
     setTypeModal(txn);
@@ -395,7 +455,11 @@ export default function BankStatementImport({ schoolId, learners }: Props) {
   };
 
   const postAccepted = async () => {
-    if (!activeImport || !schoolId) return;
+    console.log("POST PAYMENTS CLICKED");
+    if (!activeImport || !schoolId) {
+      setError("No import selected — open an import before posting payments.");
+      return;
+    }
     setLoading(true);
     setError("");
     setMessage("");
@@ -432,8 +496,10 @@ export default function BankStatementImport({ schoolId, learners }: Props) {
       setMessage(
         `Posted ${res.postedCount} payment(s) to Billing.${skippedCount ? ` Skipped ${skippedCount}.` : ""}`
       );
-    } catch (e: any) {
-      setError(e?.message || "Post payments failed");
+    } catch (e: unknown) {
+      const msg = e instanceof Error ? e.message : "Post payments failed";
+      console.log("POST PAYMENTS FAILED", msg);
+      setError(msg);
     } finally {
       setLoading(false);
     }
@@ -461,10 +527,69 @@ export default function BankStatementImport({ schoolId, learners }: Props) {
     <div style={{ display: "flex", flexDirection: "column", gap: 6, minWidth: 140 }}>
       {showPaymentMatchActions ? (
         <>
-          <button type="button" style={goldBtn} disabled={loading} onClick={() => acceptMatchTxn(txn)}>
+          <button
+            type="button"
+            style={goldBtn}
+            disabled={loading}
+            onClick={() => void acceptMatchTxn(txn)}
+          >
             Accept Match
           </button>
-          <button type="button" style={ghostBtn} disabled={loading} onClick={() => rejectMatchTxn(txn)}>
+          <button
+            type="button"
+            style={ghostBtn}
+            disabled={loading}
+            onClick={() => void rejectMatchTxn(txn)}
+          >
+            Reject Match
+          </button>
+        </>
+      ) : null}
+      {txn.moneyOut > 0 && hasSuggestedSupplierInvoiceMatch(txn) ? (
+        <>
+          <button
+            type="button"
+            style={goldBtn}
+            disabled={loading}
+            onClick={async () => {
+              const { acceptBankSupplierMatch, mergeJournalsIntoLocalStore } = await import(
+                "../accounting/accountingSuppliersApi"
+              );
+              try {
+                const res = await acceptBankSupplierMatch({
+                  schoolId,
+                  invoiceId: txn.suggestedInvoiceId!,
+                  bankTransactionId: txn.id,
+                  amount: txn.moneyOut,
+                  paymentDate: txn.date,
+                  reference: txn.reference || txn.description,
+                });
+                if (res.journal) mergeJournalsIntoLocalStore(schoolId, [res.journal]);
+                await patchTxn(txn, {
+                  reviewStatus: "posted",
+                  transactionType: "expense",
+                  matchReason: "Supplier invoice matched",
+                });
+                setMessage("Supplier match accepted.");
+              } catch (e: unknown) {
+                setError(e instanceof Error ? e.message : "Supplier match failed");
+              }
+            }}
+          >
+            Accept Supplier Match
+          </button>
+          <button
+            type="button"
+            style={ghostBtn}
+            disabled={loading}
+            onClick={() =>
+              void patchTxn(txn, {
+                suggestedInvoiceId: "",
+                invoiceMatchScore: 0,
+                matchReason: "Supplier match rejected",
+              })
+            }
+          >
             Reject Match
           </button>
         </>
@@ -476,10 +601,15 @@ export default function BankStatementImport({ schoolId, learners }: Props) {
           disabled={loading || txn.reviewStatus === "posted"}
           onClick={() => setSupplierMatchTxn(txn)}
         >
-          Match supplier invoice
+          {hasSuggestedSupplierInvoiceMatch(txn) ? "Change supplier" : "Match supplier invoice"}
         </button>
       ) : null}
-      <button type="button" style={ghostBtn} disabled={loading || txn.reviewStatus === "posted"} onClick={() => acceptTxn(txn)}>
+      <button
+        type="button"
+        style={ghostBtn}
+        disabled={loading || txn.reviewStatus === "posted"}
+        onClick={() => void acceptTxn(txn)}
+      >
         Accept
       </button>
       <button type="button" style={ghostBtn} disabled={loading || txn.reviewStatus === "posted"} onClick={() => openTypeModal(txn)}>
@@ -488,7 +618,12 @@ export default function BankStatementImport({ schoolId, learners }: Props) {
       <button type="button" style={ghostBtn} disabled={loading || txn.reviewStatus === "posted"} onClick={() => openEditModal(txn)}>
         Change Account/Category
       </button>
-      <button type="button" style={ghostBtn} disabled={loading || txn.reviewStatus === "posted"} onClick={() => ignoreTxn(txn)}>
+      <button
+        type="button"
+        style={ghostBtn}
+        disabled={loading || txn.reviewStatus === "posted"}
+        onClick={() => void ignoreTxn(txn)}
+      >
         Ignore
       </button>
     </div>
@@ -666,7 +801,7 @@ export default function BankStatementImport({ schoolId, learners }: Props) {
               <button
                 type="button"
                 style={goldBtn}
-                onClick={postAccepted}
+                onClick={() => void postAccepted()}
                 disabled={loading || stats.readyToPost === 0}
               >
                 Post accepted payments to Billing
@@ -710,7 +845,7 @@ export default function BankStatementImport({ schoolId, learners }: Props) {
                 <button
                   type="button"
                   style={goldBtn}
-                  onClick={postAccepted}
+                  onClick={() => void postAccepted()}
                   disabled={loading || stats.readyToPost === 0}
                 >
                   Post accepted to Billing
@@ -939,17 +1074,13 @@ export default function BankStatementImport({ schoolId, learners }: Props) {
           description={supplierMatchTxn.description}
           amount={supplierMatchTxn.moneyOut}
           reference={supplierMatchTxn.reference}
+          suggestedInvoiceId={supplierMatchTxn.suggestedInvoiceId}
           onClose={() => setSupplierMatchTxn(null)}
           onMatched={async () => {
-            if (activeImport) {
-              await patchTxn(supplierMatchTxn, {
-                reviewStatus: "posted",
-                transactionType: "expense",
-                matchReason: "Supplier invoice matched",
-              });
-            }
             setSupplierMatchTxn(null);
             setMessage("Supplier invoice matched and bank line reconciled.");
+            if (activeImport) await loadImports();
+            await refreshStats(activeImport?.id);
           }}
         />
       ) : null}

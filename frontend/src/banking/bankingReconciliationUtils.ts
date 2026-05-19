@@ -27,23 +27,54 @@ export type SupplierForMatch = {
   autoMatchRule?: string;
 };
 
+let supplierMatchCache: Record<string, { at: number; rows: SupplierForMatch[] }> = {};
+
 export function loadSuppliersForMatching(schoolId: string): SupplierForMatch[] {
   if (!schoolId) return [];
+  const cached = supplierMatchCache[schoolId];
+  if (cached && Date.now() - cached.at < 60_000) return cached.rows;
   try {
     const raw = localStorage.getItem(`${SUPPLIERS_STORAGE_PREFIX}${schoolId}`);
     const parsed = raw ? JSON.parse(raw) : [];
-    if (!Array.isArray(parsed)) return [];
-    return parsed
+    if (!Array.isArray(parsed)) return cached?.rows || [];
+    const rows = parsed
       .map((row: Record<string, unknown>) => ({
         id: String(row.id || "").trim(),
-        name: String(row.name || "").trim(),
+        name: String(row.name || row.supplierName || "").trim(),
         category: String(row.category || "Other").trim(),
         autoMatchRule: String(row.autoMatchRule || "").trim(),
       }))
       .filter((s) => s.id && s.name);
+    supplierMatchCache[schoolId] = { at: Date.now(), rows };
+    return rows;
   } catch {
-    return [];
+    return cached?.rows || [];
   }
+}
+
+export async function refreshSuppliersForMatching(schoolId: string): Promise<SupplierForMatch[]> {
+  if (!schoolId) return [];
+  try {
+    const { fetchSuppliers } = await import("../accounting/accountingSuppliersApi");
+    const res = await fetchSuppliers(schoolId, { pageSize: 500, status: "Active" });
+    const rows = res.suppliers.map((s) => ({
+      id: s.id,
+      name: s.supplierName || s.name,
+      category: "Other",
+    }));
+    supplierMatchCache[schoolId] = { at: Date.now(), rows };
+    return rows;
+  } catch {
+    return loadSuppliersForMatching(schoolId);
+  }
+}
+
+export function hasSuggestedSupplierInvoiceMatch(txn: BankTransactionRow): boolean {
+  return (
+    txn.direction === "out" &&
+    !!txn.suggestedInvoiceId &&
+    (txn.invoiceMatchScore ?? 0) >= 40
+  );
 }
 
 export function txnType(txn: BankTransactionRow): BankingTransactionType {
@@ -74,7 +105,9 @@ export function hasSuggestedPaymentMatch(txn: BankTransactionRow): boolean {
     type === "payment" &&
     txn.direction === "in" &&
     txn.reviewStatus === "pending" &&
-    (txn.matchStatus === "suggested" || (txn.confidenceScore > 0 && !!txn.suggestedLearnerId))
+    (txn.matchStatus === "suggested" ||
+      (txn.confidenceScore > 0 &&
+        (!!txn.suggestedLearnerId || !!txn.suggestedAccountNo)))
   );
 }
 
@@ -128,6 +161,23 @@ export function importSummary(imp: BankImportRecord) {
 
 export type { BankingStats };
 
+/** Incoming payment accepted by admin and eligible for billing post (not auto-posted on import). */
+export function canPostBankPaymentToBilling(txn: BankTransactionRow): boolean {
+  if (txn.reviewStatus === "posted" || txn.postedPaymentId) return false;
+  if (txn.isDuplicate) return false;
+  if (txn.direction !== "in" || txn.moneyIn <= 0) return false;
+  if (txnType(txn) !== "payment") return false;
+  if (txn.reviewStatus !== "accepted") return false;
+  if (!txn.suggestedLearnerId || !txn.suggestedAccountNo || txn.suggestedAccountNo === "-") {
+    return false;
+  }
+  if (txn.matchStatus === "ready_to_post") return true;
+  if (txn.confidenceScore >= 50) return true;
+  const mc = String(txn.matchConfidence || "").toLowerCase();
+  if (mc === "high" || mc === "medium" || mc === "low") return true;
+  return false;
+}
+
 export function computeBankingStats(
   imports: BankImportRecord[],
   activeImport: BankImportRecord | null
@@ -155,13 +205,7 @@ export function computeBankingStats(
     ).length,
     unmatched: txns.filter(isUnmatchedTxn).length,
     duplicateLines: txns.filter((t) => t.isDuplicate).length,
-    readyToPost: txns.filter(
-      (t) =>
-        t.direction === "in" &&
-        txnType(t) === "payment" &&
-        t.reviewStatus === "accepted" &&
-        t.confidenceScore >= 50
-    ).length,
+    readyToPost: txns.filter(canPostBankPaymentToBilling).length,
   };
 }
 
@@ -207,18 +251,4 @@ export function matchStatusLabel(txn: BankTransactionRow): string {
   if (txn.matchStatus) return txn.matchStatus.replace(/_/g, " ");
   if (txn.reviewStatus === "posted") return "posted";
   return txn.reviewStatus;
-}
-
-/** Incoming payment accepted by admin and eligible for billing post (not auto-posted on import). */
-export function canPostBankPaymentToBilling(txn: BankTransactionRow): boolean {
-  if (txn.reviewStatus === "posted" || txn.postedPaymentId) return false;
-  if (txn.isDuplicate) return false;
-  if (txn.direction !== "in" || txn.moneyIn <= 0) return false;
-  if (txnType(txn) !== "payment") return false;
-  if (txn.reviewStatus !== "accepted") return false;
-  if (txn.confidenceScore < 50) return false;
-  if (!txn.suggestedLearnerId || !txn.suggestedAccountNo || txn.suggestedAccountNo === "-") {
-    return false;
-  }
-  return true;
 }

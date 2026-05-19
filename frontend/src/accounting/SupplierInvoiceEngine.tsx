@@ -1,7 +1,16 @@
 import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { formatMoney } from "../billing/billingLedger";
-import { loadSuppliersForMatching } from "../banking/bankingReconciliationUtils";
 import { DEFAULT_SUPPLIER_CATEGORIES } from "./AccountingSuppliers";
+import {
+  approveSupplierInvoice as approveSupplierInvoiceApi,
+  createSupplierInvoice as createSupplierInvoiceApi,
+  fetchExpenseCategories,
+  fetchSupplierInvoices,
+  fetchSuppliers,
+  mergeJournalsIntoLocalStore,
+  postSupplierInvoicePayment,
+  type ApiSupplierInvoice,
+} from "./accountingSuppliersApi";
 import {
   ACCOUNTING_GOLD,
   ACCOUNTING_INK,
@@ -12,20 +21,15 @@ import {
   accountingSubtitle,
   accountingTitle,
 } from "./accountingTheme";
-import {
-  approveSupplierInvoice,
-  cancelSupplierInvoice,
-  createSupplierInvoice,
-  markSupplierInvoiceDisputed,
-  postSupplierInvoicePayment,
-  submitSupplierInvoiceForApproval,
-  supplierInvoiceStats,
-} from "./supplierInvoiceHelpers";
-import {
-  loadSupplierInvoices,
-  SUPPLIER_INVOICES_UPDATED_EVENT,
-  type SupplierInvoice,
-} from "./supplierInvoiceStorage";
+
+type SupplierInvoice = ApiSupplierInvoice & {
+  supplierName: string;
+  category: string;
+  description: string;
+  balance: number;
+  status: string;
+  captureMethod: string;
+};
 
 type TabId =
   | "list"
@@ -133,27 +137,73 @@ export default function SupplierInvoiceEngine({
   const [payReference, setPayReference] = useState("");
   const [payMethod, setPayMethod] = useState("EFT");
   const [payNotes, setPayNotes] = useState("");
+  const [invoices, setInvoices] = useState<SupplierInvoice[]>([]);
+  const [suppliers, setSuppliers] = useState<Array<{ id: string; name: string; category: string }>>([]);
+  const [expenseCategories, setExpenseCategories] = useState<Array<{ id: string; name: string }>>([]);
+  const [invoiceLines, setInvoiceLines] = useState([
+    { description: "", quantity: 1, unitPrice: 0, expenseCategoryId: "" },
+  ]);
 
   const bump = useCallback(() => setRefreshKey((k) => k + 1), []);
 
+  const reload = useCallback(async () => {
+    if (!schoolId) return;
+    try {
+      const [supRes, invRes, catRes] = await Promise.all([
+        fetchSuppliers(schoolId, { pageSize: 200 }),
+        fetchSupplierInvoices(schoolId, { pageSize: 200 }),
+        fetchExpenseCategories(schoolId),
+      ]);
+      setSuppliers(
+        supRes.suppliers.map((s) => ({
+          id: s.id,
+          name: s.supplierName || s.name,
+          category: "Other",
+        }))
+      );
+      setExpenseCategories(catRes.categories.map((c) => ({ id: c.id, name: c.name })));
+      setInvoices(
+        invRes.invoices.map((inv) => ({
+          ...inv,
+          category: inv.lines[0]?.expenseCategoryName || "Other",
+          description: inv.lines[0]?.description || inv.notes,
+          balance: inv.outstandingAmount,
+          status: inv.statusLabel,
+          captureMethod: "Manual",
+        }))
+      );
+    } catch {
+      setInvoices([]);
+    }
+  }, [schoolId]);
+
   useEffect(() => {
-    const onUpd = () => bump();
-    window.addEventListener(SUPPLIER_INVOICES_UPDATED_EVENT, onUpd);
-    return () => window.removeEventListener(SUPPLIER_INVOICES_UPDATED_EVENT, onUpd);
-  }, [bump]);
+    void reload();
+  }, [reload, refreshKey]);
 
-  const suppliers = useMemo(() => (schoolId ? loadSuppliersForMatching(schoolId) : []), [schoolId, refreshKey]);
-
-  const invoices = useMemo(() => {
-    void refreshKey;
-    return schoolId ? loadSupplierInvoices(schoolId) : [];
-  }, [schoolId, refreshKey]);
-
-  const stats = useMemo(() => supplierInvoiceStats(schoolId), [schoolId, refreshKey, invoices]);
+  const stats = useMemo(() => {
+    const now = new Date();
+    const month = now.getMonth();
+    const year = now.getFullYear();
+    const open = invoices.filter((i) => i.status !== "Paid" && i.status !== "pending").length;
+    const awaitingApproval = invoices.filter((i) => i.status === "Pending").length;
+    const dueThisMonth = invoices.filter((i) => {
+      const d = new Date(i.dueDate);
+      return d.getMonth() === month && d.getFullYear() === year && i.outstandingAmount > 0;
+    }).length;
+    const overdue = invoices.filter((i) => new Date(i.dueDate) < now && i.outstandingAmount > 0).length;
+    const partPaid = invoices.filter((i) => i.status === "Partially Paid").length;
+    const paidThisMonth = invoices.filter((i) => {
+      if (i.status !== "Paid") return false;
+      const d = new Date(i.updatedAt);
+      return d.getMonth() === month && d.getFullYear() === year;
+    }).length;
+    return { open, awaitingApproval, dueThisMonth, overdue, partPaid, paidThisMonth };
+  }, [invoices]);
 
   const tableInvoices = useMemo(() => {
     if (tab === "history") {
-      return invoices.filter((i) => i.status === "Paid" || i.status === "Cancelled");
+      return invoices.filter((i) => i.status === "Paid");
     }
     return invoices;
   }, [invoices, tab]);
@@ -163,7 +213,7 @@ export default function SupplierInvoiceEngine({
   const paged = tableInvoices.slice((safePage - 1) * PAGE_SIZE, safePage * PAGE_SIZE);
 
   const payable = useMemo(
-    () => invoices.filter((i) => i.status === "Approved" || i.status === "Part Paid"),
+    () => invoices.filter((i) => i.status === "Approved" || i.status === "Partially Paid"),
     [invoices]
   );
 
@@ -175,30 +225,44 @@ export default function SupplierInvoiceEngine({
     return { ...merged, totalAmount: Math.round(total * 100) / 100 };
   };
 
-  const saveManual = (target: "Draft" | "Awaiting Approval" | "Approved") => {
-    if (!schoolId) return;
+  const saveManual = async (target: "Draft" | "Awaiting Approval" | "Approved") => {
+    if (!schoolId || !form.supplierId) {
+      setBanner("Select a supplier.");
+      return;
+    }
     try {
-      const inv = createSupplierInvoice({
-        schoolId,
+      const lines = invoiceLines
+        .filter((l) => l.description.trim())
+        .map((l) => ({
+          description: l.description.trim(),
+          quantity: Number(l.quantity) || 1,
+          unitPrice: Number(l.unitPrice) || 0,
+          lineTotal: Math.round((Number(l.quantity) || 1) * (Number(l.unitPrice) || 0) * 100) / 100,
+          expenseCategoryId: l.expenseCategoryId || null,
+        }));
+
+      const res = await createSupplierInvoiceApi(schoolId, {
         supplierId: form.supplierId,
-        supplierName: form.supplierName,
-        category: form.category,
         invoiceNumber: form.invoiceNumber,
         invoiceDate: form.invoiceDate,
         dueDate: form.dueDate,
-        amount: form.amount,
+        subtotal: form.amount,
         vatAmount: form.vatAmount,
         totalAmount: form.totalAmount,
-        description: form.description,
-        notes: form.notes,
-        captureMethod: "Manual",
-        attachmentName: form.attachmentName,
-        status: "Draft",
+        notes: form.notes || form.description,
+        lines: lines.length ? lines : undefined,
+        autoApprove: target === "Approved",
       });
-      if (target === "Awaiting Approval") submitSupplierInvoiceForApproval(schoolId, inv.id);
-      if (target === "Approved") approveSupplierInvoice(schoolId, inv.id);
+
+      if (res.journal) mergeJournalsIntoLocalStore(schoolId, [res.journal]);
+      if (target === "Approved" && res.invoice.status === "pending") {
+        const approved = await approveSupplierInvoiceApi(schoolId, res.invoice.id);
+        if (approved.journal) mergeJournalsIntoLocalStore(schoolId, [approved.journal]);
+      }
+
       setBanner(`Invoice saved (${target}).`);
       setForm(emptyForm());
+      setInvoiceLines([{ description: "", quantity: 1, unitPrice: 0, expenseCategoryId: "" }]);
       bump();
       setTab("list");
     } catch (e: unknown) {
@@ -206,37 +270,14 @@ export default function SupplierInvoiceEngine({
     }
   };
 
-  const confirmUpload = () => {
+  const confirmUpload = async () => {
     if (!schoolId || !ocrConfirmed) {
       setBanner("Confirm extracted details before saving.");
       return;
     }
-    try {
-      createSupplierInvoice({
-        schoolId,
-        supplierId: form.supplierId,
-        supplierName: form.supplierName,
-        category: form.category,
-        invoiceNumber: form.invoiceNumber,
-        invoiceDate: form.invoiceDate,
-        dueDate: form.dueDate,
-        amount: form.amount,
-        vatAmount: form.vatAmount,
-        totalAmount: form.totalAmount,
-        description: form.description,
-        notes: form.notes,
-        captureMethod: "Upload",
-        attachmentName: uploadFile?.name || form.attachmentName || "upload.pdf",
-        status: "Awaiting Approval",
-      });
-      setBanner("Uploaded invoice confirmed — awaiting approval.");
-      setUploadFile(null);
-      setOcrConfirmed(false);
-      bump();
-      setTab("list");
-    } catch (e: unknown) {
-      setBanner(e instanceof Error ? e.message : "Upload save failed.");
-    }
+    await saveManual("Awaiting Approval");
+    setUploadFile(null);
+    setOcrConfirmed(false);
   };
 
   const simulateOcr = () => {
@@ -259,18 +300,17 @@ export default function SupplierInvoiceEngine({
     setBanner("OCR extraction will be connected later. Review simulated fields below.");
   };
 
-  const postPayment = () => {
+  const postPayment = async () => {
     if (!schoolId || !payInvoiceId) return;
     try {
-      postSupplierInvoicePayment({
-        schoolId,
-        invoiceId: payInvoiceId,
-        paymentDate: payDate,
+      const data = await postSupplierInvoicePayment(schoolId, payInvoiceId, {
         amount: payAmount,
+        paymentDate: payDate,
         reference: payReference,
         method: payMethod,
         notes: payNotes,
       });
+      if (data.journal) mergeJournalsIntoLocalStore(schoolId, [data.journal]);
       setBanner("Supplier payment posted.");
       setPayInvoiceId("");
       bump();
@@ -396,17 +436,81 @@ export default function SupplierInvoiceEngine({
           onChange={(e) => setForm(syncTotal(form, { notes: e.target.value }))}
         />
       </label>
-      {!forUpload && (
-        <label style={{ gridColumn: "span 2" }}>
-          Attachment (placeholder)
-          <input
-            style={field}
-            placeholder="filename.pdf"
-            value={form.attachmentName}
-            onChange={(e) => setForm(syncTotal(form, { attachmentName: e.target.value }))}
-          />
-        </label>
-      )}
+      <div style={{ gridColumn: "span 2", marginTop: 8 }}>
+        <div style={{ fontWeight: 800, marginBottom: 8 }}>Invoice lines</div>
+        {invoiceLines.map((line, idx) => (
+          <div
+            key={idx}
+            style={{ display: "grid", gridTemplateColumns: "2fr 80px 100px 1fr auto", gap: 8, marginBottom: 8 }}
+          >
+            <input
+              style={field}
+              placeholder="Description"
+              value={line.description}
+              onChange={(e) => {
+                const next = [...invoiceLines];
+                next[idx] = { ...next[idx], description: e.target.value };
+                setInvoiceLines(next);
+              }}
+            />
+            <input
+              type="number"
+              style={field}
+              value={line.quantity}
+              onChange={(e) => {
+                const next = [...invoiceLines];
+                next[idx] = { ...next[idx], quantity: Number(e.target.value) };
+                setInvoiceLines(next);
+              }}
+            />
+            <input
+              type="number"
+              style={field}
+              value={line.unitPrice || ""}
+              onChange={(e) => {
+                const next = [...invoiceLines];
+                next[idx] = { ...next[idx], unitPrice: Number(e.target.value) };
+                setInvoiceLines(next);
+              }}
+            />
+            <select
+              style={field}
+              value={line.expenseCategoryId}
+              onChange={(e) => {
+                const next = [...invoiceLines];
+                next[idx] = { ...next[idx], expenseCategoryId: e.target.value };
+                setInvoiceLines(next);
+              }}
+            >
+              <option value="">Category</option>
+              {expenseCategories.map((c) => (
+                <option key={c.id} value={c.id}>
+                  {c.name}
+                </option>
+              ))}
+            </select>
+            <button
+              type="button"
+              style={ghostBtn}
+              onClick={() => setInvoiceLines(invoiceLines.filter((_, i) => i !== idx))}
+            >
+              ×
+            </button>
+          </div>
+        ))}
+        <button
+          type="button"
+          style={ghostBtn}
+          onClick={() =>
+            setInvoiceLines([
+              ...invoiceLines,
+              { description: "", quantity: 1, unitPrice: 0, expenseCategoryId: "" },
+            ])
+          }
+        >
+          + Add line
+        </button>
+      </div>
     </div>
   );
 
@@ -507,12 +611,13 @@ export default function SupplierInvoiceEngine({
                   <td style={td}>{inv.status}</td>
                   <td style={td}>{inv.captureMethod}</td>
                   <td style={td}>
-                    {inv.status === "Awaiting Approval" ? (
+                    {inv.status === "Pending" ? (
                       <button
                         type="button"
                         style={ghostBtn}
-                        onClick={() => {
-                          approveSupplierInvoice(schoolId, inv.id);
+                        onClick={async () => {
+                          const res = await approveSupplierInvoiceApi(schoolId, inv.id);
+                          if (res.journal) mergeJournalsIntoLocalStore(schoolId, [res.journal]);
                           setBanner(`Approved ${inv.invoiceNumber || inv.id}.`);
                           bump();
                         }}
@@ -520,7 +625,7 @@ export default function SupplierInvoiceEngine({
                         Approve
                       </button>
                     ) : null}
-                    {inv.status === "Approved" || inv.status === "Part Paid" ? (
+                    {inv.status === "Approved" || inv.status === "Partially Paid" ? (
                       <button
                         type="button"
                         style={ghostBtn}
@@ -531,18 +636,6 @@ export default function SupplierInvoiceEngine({
                         }}
                       >
                         Pay
-                      </button>
-                    ) : null}
-                    {inv.status !== "Cancelled" && inv.status !== "Paid" ? (
-                      <button
-                        type="button"
-                        style={ghostBtn}
-                        onClick={() => {
-                          markSupplierInvoiceDisputed(schoolId, inv.id);
-                          bump();
-                        }}
-                      >
-                        Dispute
                       </button>
                     ) : null}
                   </td>

@@ -21,6 +21,7 @@ import {
   buildCreditorAgeingRows,
   buildCreditorInvoiceLines,
   creditorStatusColor,
+  type AgeingBuckets,
   CREDITORS_UPDATED_EVENT,
   formatMoney,
   getActivePaymentPlan,
@@ -47,6 +48,7 @@ import {
   type CreditorNoteType,
   type CreditorPaymentPlan,
 } from "./accountingCreditorsHelpers";
+import { fetchCreditorsAgeing, type CreditorsAgeingRow } from "./accountingSuppliersApi";
 import { loadCreditorInvoicesUnified } from "./supplierInvoiceCreditorBridge";
 import {
   approveSupplierInvoice,
@@ -218,6 +220,8 @@ export default function AccountingCreditorsAgeing({ schoolId, setActivePage }: P
   const [noteDate, setNoteDate] = useState(new Date().toISOString().slice(0, 10));
   const [noteText, setNoteText] = useState("");
   const [markPaidInvoiceId, setMarkPaidInvoiceId] = useState("");
+  const [apiAgeingRows, setApiAgeingRows] = useState<CreditorAgeingRow[]>([]);
+  const [apiTotals, setApiTotals] = useState<AgeingBuckets | null>(null);
 
   const reportRef = useRef<HTMLDivElement>(null);
   const bumpRefresh = useCallback(() => setRefreshKey((k) => k + 1), []);
@@ -258,10 +262,60 @@ export default function AccountingCreditorsAgeing({ schoolId, setActivePage }: P
     [invoices, plans, asOfDate]
   );
 
+  useEffect(() => {
+    if (!schoolId || !generated) {
+      setApiAgeingRows([]);
+      setApiTotals(null);
+      return;
+    }
+    let cancelled = false;
+    fetchCreditorsAgeing(schoolId, { asOf: asOfDate, search: search.trim() || undefined })
+      .then((res) => {
+        if (cancelled) return;
+        setApiAgeingRows(
+          res.rows.map((r: CreditorsAgeingRow) => ({
+            supplierId: r.supplierId,
+            supplierName: r.supplierName,
+            category: "Other",
+            outstandingBalance: r.total,
+            ageing: {
+              current: r.current,
+              days30: r.days30,
+              days60: r.days60,
+              days90: r.days90plus,
+              days120Plus: 0,
+            },
+            displayStatus: r.days90plus > 0 ? "Overdue" : r.days30 + r.days60 > 0 ? "Due Soon" : "Current",
+            nextDueDate: "",
+            openInvoiceCount: 0,
+            disputedCount: 0,
+            hasActivePlan: false,
+          }))
+        );
+        setApiTotals({
+          current: res.totals.current,
+          days30: res.totals.days30,
+          days60: res.totals.days60,
+          days90: res.totals.days90plus,
+          days120Plus: 0,
+        });
+      })
+      .catch(() => {
+        if (!cancelled) {
+          setApiAgeingRows([]);
+          setApiTotals(null);
+        }
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [schoolId, generated, asOfDate, refreshKey, search]);
+
   const allRows = useMemo(() => {
     if (!schoolId || !generated) return [];
+    if (apiAgeingRows.length) return apiAgeingRows;
     return buildCreditorAgeingRows({ invoices, plans, asOfDate });
-  }, [schoolId, generated, invoices, plans, asOfDate]);
+  }, [schoolId, generated, invoices, plans, asOfDate, apiAgeingRows]);
 
   const categoryOptions = useMemo(() => {
     const set = new Set<string>();

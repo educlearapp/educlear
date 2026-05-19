@@ -1,4 +1,10 @@
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useState } from "react";
+import {
+  createSupplier,
+  fetchSuppliers,
+  updateSupplier,
+  type ApiSupplier,
+} from "./accountingSuppliersApi";
 import {
   ACCOUNTING_GOLD,
   ACCOUNTING_INK,
@@ -251,24 +257,36 @@ function saveCustomCategories(schoolId: string, rows: CustomSupplierCategory[]) 
   }
 }
 
-function loadSuppliers(schoolId: string): SupplierRecord[] | null {
-  try {
-    const raw = localStorage.getItem(suppliersStorageKey(schoolId));
-    if (!raw) return null;
-    const parsed = JSON.parse(raw);
-    if (!Array.isArray(parsed)) return null;
-    return parsed.map(normalizeSupplier);
-  } catch {
-    return null;
-  }
-}
-
-function saveSuppliers(schoolId: string, rows: SupplierRecord[]) {
-  try {
-    localStorage.setItem(suppliersStorageKey(schoolId), JSON.stringify(rows));
-  } catch {
-    /* ignore */
-  }
+function apiSupplierToRecord(row: ApiSupplier): SupplierRecord {
+  return {
+    id: row.id,
+    name: row.supplierName || row.name,
+    category: "Other",
+    contactPerson: row.contactPerson,
+    email: row.email,
+    phone: row.phone,
+    vatNumber: row.vatNumber,
+    registrationNumber: "",
+    bankName: "",
+    accountNumber: "",
+    branchCode: "",
+    paymentTerms: "",
+    notes: row.address,
+    status: row.status === "Inactive" ? "Disabled" : "Active",
+    recurring: false,
+    autoMatchRule: "",
+    spend: {
+      thisMonth: 0,
+      lastMonth: 0,
+      yearToDate: 0,
+      lastTransactionDate: "",
+      lastPaymentDate: "",
+      outstandingBalance: row.outstandingBalance,
+      averageMonthlySpend: 0,
+    },
+    createdAt: row.createdAt,
+    updatedAt: row.updatedAt,
+  };
 }
 
 function normalizeSupplier(row: Record<string, unknown>): SupplierRecord {
@@ -438,6 +456,10 @@ export default function AccountingSuppliers({ schoolId = "" }: Props) {
   const [suppliers, setSuppliers] = useState<SupplierRecord[]>([]);
   const [customCategories, setCustomCategories] = useState<CustomSupplierCategory[]>([]);
   const [hydrated, setHydrated] = useState(false);
+  const [loading, setLoading] = useState(false);
+  const [serverPage, setServerPage] = useState(1);
+  const [serverTotalPages, setServerTotalPages] = useState(1);
+  const [serverTotalItems, setServerTotalItems] = useState(0);
 
   const [activeTab, setActiveTab] = useState<TabId>("suppliers");
   const [search, setSearch] = useState("");
@@ -460,17 +482,34 @@ export default function AccountingSuppliers({ schoolId = "" }: Props) {
   const [spendFocusId, setSpendFocusId] = useState<string | null>(null);
   const [toast, setToast] = useState("");
 
-  useEffect(() => {
-    const stored = loadSuppliers(sid);
-    setSuppliers(stored?.length ? stored : []);
-    setCustomCategories(loadCustomCategories(sid));
-    setHydrated(true);
-  }, [sid]);
+  const reloadSuppliers = useCallback(async () => {
+    if (!sid) return;
+    setLoading(true);
+    try {
+      const statusParam =
+        statusFilter === "Active" ? "Active" : statusFilter === "Disabled" ? "Inactive" : "";
+      const res = await fetchSuppliers(sid, {
+        search: search.trim() || undefined,
+        status: statusParam || undefined,
+        page: suppliersPage,
+        pageSize: PAGE_SIZE,
+      });
+      setSuppliers(res.suppliers.map(apiSupplierToRecord));
+      setServerPage(res.page);
+      setServerTotalPages(res.totalPages);
+      setServerTotalItems(res.totalItems);
+    } catch {
+      setSuppliers([]);
+    } finally {
+      setLoading(false);
+      setHydrated(true);
+    }
+  }, [sid, search, statusFilter, suppliersPage]);
 
   useEffect(() => {
-    if (!hydrated) return;
-    saveSuppliers(sid, suppliers);
-  }, [sid, suppliers, hydrated]);
+    setCustomCategories(loadCustomCategories(sid));
+    void reloadSuppliers();
+  }, [sid, reloadSuppliers]);
 
   useEffect(() => {
     if (!hydrated) return;
@@ -489,20 +528,11 @@ export default function AccountingSuppliers({ schoolId = "" }: Props) {
   );
 
   const filteredSuppliers = useMemo(() => {
-    const q = search.trim().toLowerCase();
     return suppliers.filter((s) => {
       if (categoryFilter && s.category !== categoryFilter) return false;
-      if (statusFilter === "Active" && s.status !== "Active") return false;
-      if (statusFilter === "Disabled" && s.status !== "Disabled") return false;
-      if (!q) return true;
-      return (
-        s.name.toLowerCase().includes(q) ||
-        s.email.toLowerCase().includes(q) ||
-        s.category.toLowerCase().includes(q) ||
-        s.contactPerson.toLowerCase().includes(q)
-      );
+      return true;
     });
-  }, [suppliers, search, categoryFilter, statusFilter]);
+  }, [suppliers, categoryFilter]);
 
   const recurringSuppliers = useMemo(
     () => suppliers.filter((s) => s.recurring),
@@ -526,8 +556,13 @@ export default function AccountingSuppliers({ schoolId = "" }: Props) {
   }, [suppliers]);
 
   const suppliersPaginated = useMemo(
-    () => paginateList(filteredSuppliers, suppliersPage),
-    [filteredSuppliers, suppliersPage]
+    () => ({
+      items: filteredSuppliers,
+      page: serverPage,
+      totalPages: serverTotalPages,
+      totalItems: serverTotalItems,
+    }),
+    [filteredSuppliers, serverPage, serverTotalPages, serverTotalItems]
   );
 
   const spendRows = useMemo(() => {
@@ -584,62 +619,53 @@ export default function AccountingSuppliers({ schoolId = "" }: Props) {
     setSupplierModalOpen(true);
   };
 
-  const saveSupplier = () => {
+  const saveSupplier = async () => {
     const name = supplierForm.name.trim();
     if (!name) {
       setToast("Supplier name is required.");
       return;
     }
-    const now = new Date().toISOString();
-    if (editingSupplierId) {
-      setSuppliers((prev) =>
-        prev.map((s) =>
-          s.id === editingSupplierId
-            ? {
-                ...s,
-                ...supplierForm,
-                name,
-                updatedAt: now,
-              }
-            : s
-        )
-      );
-      setToast("Supplier updated.");
-    } else {
-      const row: SupplierRecord = {
-        id: uid(),
-        ...supplierForm,
-        name,
-        spend: {
-          thisMonth: 0,
-          lastMonth: 0,
-          yearToDate: 0,
-          lastTransactionDate: "",
-          lastPaymentDate: "",
-          outstandingBalance: 0,
-          averageMonthlySpend: 0,
-        },
-        createdAt: now,
-        updatedAt: now,
-      };
-      setSuppliers((prev) => [row, ...prev]);
-      setToast("Supplier added.");
+    try {
+      if (editingSupplierId) {
+        await updateSupplier(sid, editingSupplierId, {
+          supplierName: name,
+          contactPerson: supplierForm.contactPerson,
+          email: supplierForm.email,
+          phone: supplierForm.phone,
+          vatNumber: supplierForm.vatNumber,
+          address: supplierForm.notes,
+          status: supplierForm.status === "Disabled" ? "Inactive" : "Active",
+        });
+        setToast("Supplier updated.");
+      } else {
+        await createSupplier(sid, {
+          supplierName: name,
+          contactPerson: supplierForm.contactPerson,
+          email: supplierForm.email,
+          phone: supplierForm.phone,
+          vatNumber: supplierForm.vatNumber,
+          address: supplierForm.notes,
+          status: supplierForm.status === "Disabled" ? "Inactive" : "Active",
+        });
+        setToast("Supplier added.");
+      }
+      setSupplierModalOpen(false);
+      await reloadSuppliers();
+    } catch (e: unknown) {
+      setToast(e instanceof Error ? e.message : "Save failed.");
     }
-    setSupplierModalOpen(false);
   };
 
-  const toggleSupplierStatus = (id: string) => {
-    setSuppliers((prev) =>
-      prev.map((s) =>
-        s.id === id
-          ? {
-              ...s,
-              status: s.status === "Active" ? "Disabled" : "Active",
-              updatedAt: new Date().toISOString(),
-            }
-          : s
-      )
-    );
+  const toggleSupplierStatus = async (id: string) => {
+    const row = suppliers.find((s) => s.id === id);
+    if (!row) return;
+    const next = row.status === "Active" ? "Inactive" : "Active";
+    try {
+      await updateSupplier(sid, id, { status: next });
+      await reloadSuppliers();
+    } catch (e: unknown) {
+      setToast(e instanceof Error ? e.message : "Status update failed.");
+    }
   };
 
   const viewSpend = (s: SupplierRecord) => {

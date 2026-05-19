@@ -28,6 +28,7 @@ import {
   type PreviousBankMatch,
   type SupplierMatchInput,
 } from "../utils/paymentMatcher";
+import { matchSupplierInvoicesForBankLine } from "../utils/supplierInvoiceMatcher";
 
 const router = Router();
 const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 12 * 1024 * 1024 } });
@@ -56,6 +57,9 @@ type BankTransactionRow = {
   suggestedSupplierName: string;
   supplierId: string;
   expenseNotes: string;
+  suggestedInvoiceId: string;
+  suggestedInvoiceNumber: string;
+  invoiceMatchScore: number;
   postedPaymentId?: string;
   fingerprint: string;
   isDuplicate?: boolean;
@@ -122,7 +126,21 @@ function txnTypeFromRow(txn: Pick<BankTransactionRow, "transactionType" | "direc
   return defaultTransactionType(txn.direction);
 }
 
+function effectiveConfidenceScore(
+  txn: Pick<BankTransaction, "confidenceScore" | "matchConfidence" | "suggestedLearnerId">
+): number {
+  const stored = txn.confidenceScore ?? 0;
+  if (stored > 0) return stored;
+  if (!txn.suggestedLearnerId) return 0;
+  const mc = String(txn.matchConfidence || "").toLowerCase();
+  if (mc === "high") return 95;
+  if (mc === "medium") return 75;
+  if (mc === "low") return 55;
+  return 0;
+}
+
 function toApiRow(txn: BankTransaction): BankTransactionRow {
+  const confidenceScore = effectiveConfidenceScore(txn);
   return {
     id: txn.id,
     date: txn.date,
@@ -139,7 +157,7 @@ function toApiRow(txn: BankTransaction): BankTransactionRow {
     suggestedAccountNo: txn.suggestedAccountNo,
     suggestedLearnerId: txn.suggestedLearnerId,
     suggestedLearnerName: txn.suggestedLearnerName,
-    confidenceScore: txn.confidenceScore ?? 0,
+    confidenceScore,
     matchConfidence: (txn.matchConfidence || "none") as MatchConfidence,
     matchReason: txn.matchReason,
     reviewStatus: txn.reviewStatus as BankTransactionRow["reviewStatus"],
@@ -148,6 +166,9 @@ function toApiRow(txn: BankTransaction): BankTransactionRow {
     suggestedSupplierName: txn.suggestedSupplierName,
     supplierId: txn.supplierId,
     expenseNotes: txn.expenseNotes,
+    suggestedInvoiceId: txn.suggestedInvoiceId || "",
+    suggestedInvoiceNumber: txn.suggestedInvoiceNumber || "",
+    invoiceMatchScore: txn.invoiceMatchScore ?? 0,
     postedPaymentId: txn.postedPaymentId || undefined,
     fingerprint: txn.fingerprint,
     isDuplicate: txn.isDuplicate,
@@ -286,12 +307,20 @@ async function computeStats(schoolId: string, importId?: string): Promise<Bankin
       unmatched += 1;
     }
 
+    const postConfidence = effectiveConfidenceScore({
+      confidenceScore: row.confidenceScore,
+      matchConfidence: row.matchConfidence,
+      suggestedLearnerId: row.suggestedLearnerId,
+    });
     if (
       row.matchStatus === "ready_to_post" ||
       (row.direction === "in" &&
         type === "payment" &&
         row.reviewStatus === "accepted" &&
-        row.confidenceScore >= 50)
+        postConfidence >= 50 &&
+        row.suggestedLearnerId &&
+        row.suggestedAccountNo &&
+        row.suggestedAccountNo !== "-")
     ) {
       readyToPost += 1;
     }
@@ -454,7 +483,38 @@ router.post("/import", upload.single("file"), async (req, res) => {
 
     const profiles = await buildMatchProfiles(schoolId);
     const previousMatches = await loadPreviousBankMatches(schoolId);
-    const supplierList = parseSupplierList(req.body?.suppliers);
+
+    const dbSuppliers = await prisma.supplier.findMany({
+      where: { schoolId, status: "active" },
+      select: { id: true, supplierName: true },
+    });
+    const supplierList: SupplierMatchInput[] =
+      parseSupplierList(req.body?.suppliers).length > 0
+        ? parseSupplierList(req.body?.suppliers)
+        : dbSuppliers.map((s) => ({
+            id: s.id,
+            name: s.supplierName,
+            category: "Other",
+          }));
+
+    const openInvoices = await prisma.supplierInvoice.findMany({
+      where: {
+        schoolId,
+        status: { in: ["approved", "partially_paid"] },
+        outstandingAmount: { gt: 0 },
+      },
+      include: { supplier: true },
+    });
+    const invoiceMatchInputs = openInvoices.map((inv) => ({
+      id: inv.id,
+      invoiceNumber: inv.invoiceNumber,
+      totalAmount: inv.totalAmount,
+      outstandingAmount: inv.outstandingAmount,
+      supplierId: inv.supplierId,
+      status: inv.status,
+      supplierName: inv.supplier.supplierName,
+    }));
+
     const existingFingerprints = await loadSchoolFingerprints(schoolId);
     const postedFingerprints = new Set(
       (
@@ -493,11 +553,32 @@ router.post("/import", upload.single("file"), async (req, res) => {
       let suggestedSupplierName = "";
       let supplierId = "";
       let expenseMatchReason = "";
+      let suggestedInvoiceId = "";
+      let suggestedInvoiceNumber = "";
+      let invoiceMatchScore = 0;
 
       if (direction === "out") {
+        const bankAmount = normaliseAmount(txn.moneyOut);
+        const invoiceHit = matchSupplierInvoicesForBankLine(
+          txn.description,
+          txn.reference,
+          bankAmount,
+          dbSuppliers.map((s) => ({ id: s.id, supplierName: s.supplierName })),
+          invoiceMatchInputs
+        );
+
         const supplierHit = matchSupplierFromDescription(txn.description, txn.reference, supplierList);
         const expenseInfer = inferExpenseCategory(txn.description, txn.reference);
-        if (supplierHit) {
+
+        if (invoiceHit) {
+          suggestedInvoiceId = invoiceHit.invoiceId;
+          suggestedInvoiceNumber = invoiceHit.invoiceNumber;
+          invoiceMatchScore = invoiceHit.score;
+          supplierId = invoiceHit.supplierId;
+          suggestedSupplierName = invoiceHit.supplierName;
+          expenseMatchReason = invoiceHit.reason;
+          expenseCategory = expenseInfer.expenseCategory;
+        } else if (supplierHit) {
           supplierId = supplierHit.supplierId;
           suggestedSupplierName = supplierHit.supplierName;
           const cat = String(supplierHit.category || "").trim() as ExpenseCategory;
@@ -543,6 +624,9 @@ router.post("/import", upload.single("file"), async (req, res) => {
         expenseCategory,
         suggestedSupplierName,
         supplierId,
+        suggestedInvoiceId,
+        suggestedInvoiceNumber,
+        invoiceMatchScore,
         expenseNotes: "",
         fingerprint,
         rawRow: txn as unknown as Prisma.InputJsonValue,
@@ -647,6 +731,21 @@ router.patch("/imports/:id/transaction/:transactionId", async (req, res) => {
     const matchAction = String(body.matchAction || "").trim();
     if (matchAction === "accept") {
       next.reviewStatus = "accepted";
+      if (
+        next.direction === "in" &&
+        txnTypeFromRow(next) === "payment" &&
+        next.suggestedLearnerId
+      ) {
+        const floor = effectiveConfidenceScore({
+          confidenceScore: next.confidenceScore,
+          matchConfidence: next.matchConfidence,
+          suggestedLearnerId: next.suggestedLearnerId,
+        });
+        if (floor > next.confidenceScore) {
+          next.confidenceScore = floor;
+          next.matchConfidence = confidenceFromScore(next.confidenceScore);
+        }
+      }
     } else if (matchAction === "reject") {
       next.reviewStatus = "unmatched";
     } else if (body.reviewStatus) {
@@ -705,6 +804,15 @@ router.patch("/imports/:id/transaction/:transactionId", async (req, res) => {
       next.suggestedSupplierName = String(body.suggestedSupplierName).trim();
     }
     if (body.supplierId !== undefined) next.supplierId = String(body.supplierId).trim();
+    if (body.suggestedInvoiceId !== undefined) {
+      next.suggestedInvoiceId = String(body.suggestedInvoiceId).trim();
+    }
+    if (body.suggestedInvoiceNumber !== undefined) {
+      next.suggestedInvoiceNumber = String(body.suggestedInvoiceNumber).trim();
+    }
+    if (body.invoiceMatchScore !== undefined) {
+      next.invoiceMatchScore = Math.max(0, Math.min(100, Number(body.invoiceMatchScore) || 0));
+    }
     if (body.expenseNotes !== undefined) next.expenseNotes = String(body.expenseNotes).trim();
     if (body.description !== undefined) next.description = String(body.description).trim();
 
@@ -726,6 +834,9 @@ router.patch("/imports/:id/transaction/:transactionId", async (req, res) => {
         transactionType: next.transactionType,
         suggestedSupplierName: next.suggestedSupplierName,
         supplierId: next.supplierId,
+        suggestedInvoiceId: next.suggestedInvoiceId,
+        suggestedInvoiceNumber: next.suggestedInvoiceNumber,
+        invoiceMatchScore: next.invoiceMatchScore,
         expenseNotes: next.expenseNotes,
         description: next.description,
       },
