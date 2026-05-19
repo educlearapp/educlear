@@ -16,6 +16,7 @@ export type BankingTransactionType = "payment" | "expense" | "transfer" | "ignor
 
 export type BankTransactionMatchStatus =
   | "imported"
+  | "suggested"
   | "matched"
   | "unmatched"
   | "duplicate"
@@ -30,9 +31,11 @@ export type BankTransactionRow = {
   moneyOut: number;
   direction: "in" | "out";
   transactionType?: BankingTransactionType;
+  suggestedAccountId: string;
   suggestedAccountNo: string;
   suggestedLearnerId: string;
   suggestedLearnerName: string;
+  confidenceScore: number;
   matchConfidence: MatchConfidence;
   matchReason: string;
   reviewStatus: "pending" | "accepted" | "unmatched" | "ignored" | "posted";
@@ -49,6 +52,7 @@ export type BankTransactionRow = {
 export type BankingStats = {
   imports: number;
   matchedPayments: number;
+  suggestedPayments: number;
   expenseCandidates: number;
   unmatched: number;
   duplicateLines: number;

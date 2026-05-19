@@ -68,17 +68,33 @@ export function suggestedMatchLabel(txn: BankTransactionRow): string {
   return "Ignored";
 }
 
+export function hasSuggestedPaymentMatch(txn: BankTransactionRow): boolean {
+  const type = txnType(txn);
+  return (
+    type === "payment" &&
+    txn.direction === "in" &&
+    txn.reviewStatus === "pending" &&
+    (txn.matchStatus === "suggested" || (txn.confidenceScore > 0 && !!txn.suggestedLearnerId))
+  );
+}
+
 export function isUnmatchedTxn(txn: BankTransactionRow): boolean {
-  if (txn.reviewStatus === "unmatched") return true;
+  if (txn.reviewStatus === "unmatched" || txn.matchStatus === "unmatched") return true;
   if (txn.reviewStatus === "ignored" || txn.reviewStatus === "posted") return false;
   const type = txnType(txn);
   if (type === "payment" && txn.direction === "in") {
-    return txn.matchConfidence === "none" || txn.matchConfidence === "low";
+    return txn.matchStatus === "imported" || txn.confidenceScore === 0;
   }
   if (type === "expense" && txn.direction === "out") {
     return !txn.expenseCategory || txn.expenseCategory === "Other";
   }
   return false;
+}
+
+export function formatConfidence(txn: BankTransactionRow): string {
+  if (txn.direction !== "in") return txn.expenseCategory ? "rule" : "none";
+  if (txn.confidenceScore > 0) return `${txn.confidenceScore}% (${txn.matchConfidence})`;
+  return txn.matchConfidence;
 }
 
 export function importSummary(imp: BankImportRecord) {
@@ -89,7 +105,10 @@ export function importSummary(imp: BankImportRecord) {
 
   for (const t of txns) {
     if (isUnmatchedTxn(t)) unmatched += 1;
-    if (t.direction === "in" && t.matchConfidence !== "none" && t.matchConfidence !== "low") {
+    if (
+      t.direction === "in" &&
+      (t.matchStatus === "matched" || t.matchStatus === "ready_to_post" || t.reviewStatus === "accepted")
+    ) {
       paymentsMatched += 1;
     }
     if (t.direction === "out" && t.expenseCategory && t.expenseCategory !== "Other") {
@@ -122,8 +141,14 @@ export function computeBankingStats(
       (t) =>
         t.direction === "in" &&
         txnType(t) === "payment" &&
-        t.matchConfidence !== "none" &&
-        t.reviewStatus !== "ignored"
+        (t.matchStatus === "matched" || t.matchStatus === "ready_to_post" || t.reviewStatus === "accepted")
+    ).length,
+    suggestedPayments: txns.filter(
+      (t) =>
+        t.direction === "in" &&
+        txnType(t) === "payment" &&
+        t.matchStatus === "suggested" &&
+        t.reviewStatus === "pending"
     ).length,
     expenseCandidates: txns.filter(
       (t) => t.direction === "out" && txnType(t) === "expense" && t.reviewStatus === "accepted"
@@ -135,8 +160,7 @@ export function computeBankingStats(
         t.direction === "in" &&
         txnType(t) === "payment" &&
         t.reviewStatus === "accepted" &&
-        t.matchConfidence !== "none" &&
-        t.matchConfidence !== "low"
+        t.confidenceScore >= 50
     ).length,
   };
 }
@@ -169,10 +193,18 @@ export function statusPillStyle(status: string): React.CSSProperties {
     fontWeight: 800,
     textTransform: "capitalize",
   };
-  if (status === "posted" || status === "accepted") {
+  if (status === "posted" || status === "accepted" || status === "matched" || status === "ready_to_post") {
     return { ...base, background: "#dcfce7", color: "#166534" };
   }
+  if (status === "suggested") return { ...base, background: "#fef9c3", color: "#854d0e" };
   if (status === "ignored") return { ...base, background: "#f1f5f9", color: "#64748b" };
   if (status === "unmatched") return { ...base, background: "#fef3c7", color: "#92400e" };
+  if (status === "duplicate") return { ...base, background: "#fffbeb", color: "#b45309" };
   return { ...base, background: "#e0e7ff", color: "#3730a3" };
+}
+
+export function matchStatusLabel(txn: BankTransactionRow): string {
+  if (txn.matchStatus) return txn.matchStatus.replace(/_/g, " ");
+  if (txn.reviewStatus === "posted") return "posted";
+  return txn.reviewStatus;
 }

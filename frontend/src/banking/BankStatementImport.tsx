@@ -17,9 +17,12 @@ import { getLearnerAccountNo } from "../learner/learnerIdentity";
 import {
   BANKING_EXPENSE_CATEGORIES,
   confidenceColor,
+  formatConfidence,
+  hasSuggestedPaymentMatch,
   importSummary,
   isUnmatchedTxn,
   loadSuppliersForMatching,
+  matchStatusLabel,
   paginate,
   statusPillStyle,
   suggestedMatchLabel,
@@ -172,6 +175,7 @@ export default function BankStatementImport({ schoolId, learners }: Props) {
   const [draftCategory, setDraftCategory] = useState("Other");
   const [draftNotes, setDraftNotes] = useState("");
   const [draftDescription, setDraftDescription] = useState("");
+  const [learnerSearch, setLearnerSearch] = useState("");
   const [supplierMatchTxn, setSupplierMatchTxn] = useState<BankTransactionRow | null>(null);
 
   const learnerOptions = useMemo(() => {
@@ -179,12 +183,27 @@ export default function BankStatementImport({ schoolId, learners }: Props) {
       id: String(l?.id || l?.learnerId || "").trim(),
       name: `${l?.firstName || ""} ${l?.lastName || l?.surname || ""}`.trim(),
       accountNo: getLearnerAccountNo(l),
+      familyAccountId: String(
+        l?.familyAccountId || l?.familyAccount?.id || ""
+      ).trim(),
     }));
   }, [learners]);
+
+  const filteredLearnerOptions = useMemo(() => {
+    const q = learnerSearch.trim().toLowerCase();
+    if (!q) return learnerOptions;
+    return learnerOptions.filter(
+      (l) =>
+        l.name.toLowerCase().includes(q) ||
+        l.accountNo.toLowerCase().includes(q) ||
+        l.id.toLowerCase().includes(q)
+    );
+  }, [learnerOptions, learnerSearch]);
 
   const [stats, setStats] = useState<BankingStats>({
     imports: 0,
     matchedPayments: 0,
+    suggestedPayments: 0,
     expenseCandidates: 0,
     unmatched: 0,
     duplicateLines: 0,
@@ -271,6 +290,14 @@ export default function BankStatementImport({ schoolId, learners }: Props) {
     }
   };
 
+  const acceptMatchTxn = async (txn: BankTransactionRow) => {
+    patchTxn(txn, { matchAction: "accept" });
+  };
+
+  const rejectMatchTxn = async (txn: BankTransactionRow) => {
+    patchTxn(txn, { matchAction: "reject" });
+  };
+
   const acceptTxn = async (txn: BankTransactionRow) => {
     const type = txnType(txn);
     if (type === "expense") {
@@ -326,6 +353,7 @@ export default function BankStatementImport({ schoolId, learners }: Props) {
   const openEditModal = (txn: BankTransactionRow) => {
     setEditModal(txn);
     setDraftLearnerId(txn.suggestedLearnerId || "");
+    setLearnerSearch("");
     setDraftSupplier(txn.suggestedSupplierName || "");
     setDraftCategory(txn.expenseCategory || "Other");
     setDraftNotes(txn.expenseNotes || "");
@@ -342,9 +370,12 @@ export default function BankStatementImport({ schoolId, learners }: Props) {
         return;
       }
       void patchTxn(editModal, {
+        suggestedAccountId: learner.familyAccountId,
         suggestedLearnerId: learner.id,
         suggestedLearnerName: learner.name,
         suggestedAccountNo: learner.accountNo,
+        confidenceScore: 100,
+        matchReason: "Manually selected by admin",
         reviewStatus: "accepted",
         transactionType: "payment",
       }).then(() => setEditModal(null));
@@ -371,13 +402,12 @@ export default function BankStatementImport({ schoolId, learners }: Props) {
             t.direction === "in" &&
             txnType(t) === "payment" &&
             t.reviewStatus === "accepted" &&
-            t.matchConfidence !== "low" &&
-            t.matchConfidence !== "none"
+            t.confidenceScore >= 50
         )
         .map((t) => t.id);
 
       if (!acceptedIds.length) {
-        setError("No accepted incoming payments with sufficient match confidence to post.");
+        setError("No accepted incoming payments with confidence score 50+ to post.");
         return;
       }
 
@@ -411,8 +441,25 @@ export default function BankStatementImport({ schoolId, learners }: Props) {
   const unmatchedPaged = paginate(unmatchedRows, unmatchedPage, PAGE_SIZE);
   const historyPaged = paginate(imports, historyPage, PAGE_SIZE);
 
-  const renderActions = (txn: BankTransactionRow) => (
+  const renderActions = (txn: BankTransactionRow) => {
+    const showPaymentMatchActions =
+      txn.direction === "in" &&
+      txnType(txn) === "payment" &&
+      hasSuggestedPaymentMatch(txn) &&
+      txn.reviewStatus !== "posted";
+
+    return (
     <div style={{ display: "flex", flexDirection: "column", gap: 6, minWidth: 140 }}>
+      {showPaymentMatchActions ? (
+        <>
+          <button type="button" style={goldBtn} disabled={loading} onClick={() => acceptMatchTxn(txn)}>
+            Accept Match
+          </button>
+          <button type="button" style={ghostBtn} disabled={loading} onClick={() => rejectMatchTxn(txn)}>
+            Reject Match
+          </button>
+        </>
+      ) : null}
       {txn.moneyOut > 0 ? (
         <button
           type="button"
@@ -436,7 +483,8 @@ export default function BankStatementImport({ schoolId, learners }: Props) {
         Ignore
       </button>
     </div>
-  );
+    );
+  };
 
   const renderReconciliationTable = (rows: BankTransactionRow[]) => (
     <table style={{ width: "100%", borderCollapse: "collapse", minWidth: 1100, background: "#fff" }}>
@@ -485,11 +533,11 @@ export default function BankStatementImport({ schoolId, learners }: Props) {
                 ) : null}
               </td>
               <td style={{ ...td, color: confidenceColor(txn.matchConfidence), fontWeight: 800 }}>
-                {txn.direction === "in" ? txn.matchConfidence : txn.expenseCategory ? "rule" : "none"}
+                {formatConfidence(txn)}
               </td>
               <td style={td}>{typeLabel(txnType(txn))}</td>
               <td style={td}>
-                <span style={statusPillStyle(txn.reviewStatus)}>{txn.reviewStatus}</span>
+                <span style={statusPillStyle(matchStatusLabel(txn))}>{matchStatusLabel(txn)}</span>
               </td>
               <td style={td}>{renderActions(txn)}</td>
             </tr>
@@ -523,6 +571,7 @@ export default function BankStatementImport({ schoolId, learners }: Props) {
         {[
           { label: "Imports", value: stats.imports },
           { label: "Matched Payments", value: stats.matchedPayments },
+          { label: "Suggested Matches", value: stats.suggestedPayments ?? 0 },
           { label: "Expense Candidates", value: stats.expenseCandidates },
           { label: "Unmatched Lines", value: stats.unmatched },
           { label: "Duplicate Lines", value: stats.duplicateLines },
@@ -810,14 +859,22 @@ export default function BankStatementImport({ schoolId, learners }: Props) {
               {txnType(editModal) === "payment" ? "Change payment account" : "Change expense details"}
             </h3>
             {txnType(editModal) === "payment" ? (
-              <select style={fieldStyle} value={draftLearnerId} onChange={(e) => setDraftLearnerId(e.target.value)}>
-                <option value="">Select learner account…</option>
-                {learnerOptions.map((l) => (
-                  <option key={l.id} value={l.id}>
-                    {l.accountNo} — {l.name}
-                  </option>
-                ))}
-              </select>
+              <>
+                <input
+                  style={{ ...fieldStyle, marginBottom: 8 }}
+                  placeholder="Search account, learner name…"
+                  value={learnerSearch}
+                  onChange={(e) => setLearnerSearch(e.target.value)}
+                />
+                <select style={fieldStyle} value={draftLearnerId} onChange={(e) => setDraftLearnerId(e.target.value)}>
+                  <option value="">Select learner account…</option>
+                  {filteredLearnerOptions.map((l) => (
+                    <option key={l.id} value={l.id}>
+                      {l.accountNo} — {l.name}
+                    </option>
+                  ))}
+                </select>
+              </>
             ) : (
               <>
                 <label style={{ fontWeight: 800, fontSize: 12 }}>Supplier</label>

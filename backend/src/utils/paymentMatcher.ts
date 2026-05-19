@@ -1,30 +1,50 @@
 export type MatchConfidence = "high" | "medium" | "low" | "none";
 
-const CONFIDENCE_RANK: Record<MatchConfidence, number> = {
-  high: 4,
-  medium: 3,
-  low: 2,
-  none: 0,
-};
-
-function betterConfidence(a: MatchConfidence, b: MatchConfidence) {
-  return CONFIDENCE_RANK[a] > CONFIDENCE_RANK[b];
+export function confidenceFromScore(score: number): MatchConfidence {
+  if (score >= 90) return "high";
+  if (score >= 70) return "medium";
+  if (score >= 50) return "low";
+  return "none";
 }
 
 export type LearnerMatchProfile = {
   learnerId: string;
   learnerName: string;
+  learnerSurname: string;
   accountNo: string;
+  familyAccountId: string;
   parentNames: string[];
+  parentSurnames: string[];
+  parentCellNumbers: string[];
   lastPaymentAmount?: number;
 };
 
+export type PreviousBankMatch = {
+  blobKey: string;
+  learnerId: string;
+  learnerName: string;
+  accountNo: string;
+  familyAccountId: string;
+};
+
 export type MatchSuggestion = {
+  suggestedAccountId: string;
   suggestedAccountNo: string;
   suggestedLearnerId: string;
   suggestedLearnerName: string;
+  confidenceScore: number;
   matchConfidence: MatchConfidence;
   matchReason: string;
+};
+
+const EMPTY_SUGGESTION: MatchSuggestion = {
+  suggestedAccountId: "",
+  suggestedAccountNo: "",
+  suggestedLearnerId: "",
+  suggestedLearnerName: "",
+  confidenceScore: 0,
+  matchConfidence: "none",
+  matchReason: "",
 };
 
 function normaliseText(value: string) {
@@ -32,7 +52,7 @@ function normaliseText(value: string) {
 }
 
 /** Collapse spaces — bank refs like "SCHOOL FEES SIL002 MAY" stay matchable. */
-function normaliseBankBlob(description: string, reference: string) {
+export function normaliseBankBlob(description: string, reference: string) {
   return normaliseText(`${description || ""} ${reference || ""}`).replace(/\s+/g, " ").trim();
 }
 
@@ -54,6 +74,22 @@ export function accountNumberInBankLine(blob: string, accountNo: string) {
   return blob.includes(token);
 }
 
+function buildSuggestion(
+  profile: LearnerMatchProfile,
+  confidenceScore: number,
+  matchReason: string
+): MatchSuggestion {
+  return {
+    suggestedAccountId: profile.familyAccountId,
+    suggestedAccountNo: profile.accountNo,
+    suggestedLearnerId: profile.learnerId,
+    suggestedLearnerName: profile.learnerName,
+    confidenceScore,
+    matchConfidence: confidenceFromScore(confidenceScore),
+    matchReason,
+  };
+}
+
 function matchByAccountNumber(
   blob: string,
   profiles: LearnerMatchProfile[]
@@ -65,13 +101,11 @@ function matchByAccountNumber(
   for (const profile of eligible) {
     const account = String(profile.accountNo).trim();
     if (accountNumberInBankLine(blob, account)) {
-      return {
-        suggestedAccountNo: account,
-        suggestedLearnerId: profile.learnerId,
-        suggestedLearnerName: profile.learnerName,
-        matchConfidence: "high",
-        matchReason: `Account reference ${account} found in bank line`,
-      };
+      return buildSuggestion(
+        profile,
+        95,
+        `Exact account reference ${account} found in bank line`
+      );
     }
   }
   return null;
@@ -79,7 +113,94 @@ function matchByAccountNumber(
 
 function includesToken(haystack: string, token: string) {
   if (!token || token.length < 3) return false;
-  return haystack.includes(token);
+  const pattern = new RegExp(`\\b${token.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}\\b`, "i");
+  return pattern.test(haystack) || haystack.includes(token);
+}
+
+function surnameInBlob(blob: string, surname: string) {
+  const token = normaliseText(surname).trim();
+  if (token.length < 3) return false;
+  return includesToken(blob, token);
+}
+
+function fullNameInBlob(blob: string, fullName: string) {
+  const parts = normaliseText(fullName).split(/\s+/).filter((p) => p.length >= 2);
+  if (parts.length < 2) return false;
+  return parts.every((p) => includesToken(blob, p));
+}
+
+function normaliseCellDigits(value: string) {
+  return String(value || "").replace(/\D/g, "");
+}
+
+function cellInBlob(blob: string, cellNo: string) {
+  const digits = normaliseCellDigits(cellNo);
+  if (digits.length < 9) return false;
+  const blobDigits = normaliseText(blob).replace(/\s+/g, "");
+  const needle = digits.slice(-9);
+  const hay = blobDigits.replace(/\s+/g, "");
+  return hay.includes(needle) || normaliseCellDigits(blob).includes(needle);
+}
+
+function matchByLearnerSurname(blob: string, profiles: LearnerMatchProfile[]): MatchSuggestion | null {
+  for (const profile of profiles) {
+    if (surnameInBlob(blob, profile.learnerSurname)) {
+      return buildSuggestion(profile, 80, "Learner surname matched in bank line");
+    }
+  }
+  return null;
+}
+
+function matchByParentSurname(blob: string, profiles: LearnerMatchProfile[]): MatchSuggestion | null {
+  for (const profile of profiles) {
+    for (const surname of profile.parentSurnames) {
+      if (surnameInBlob(blob, surname)) {
+        return buildSuggestion(profile, 75, "Parent surname matched in bank line");
+      }
+    }
+  }
+  return null;
+}
+
+function matchByLearnerFullName(blob: string, profiles: LearnerMatchProfile[]): MatchSuggestion | null {
+  for (const profile of profiles) {
+    if (fullNameInBlob(blob, profile.learnerName)) {
+      return buildSuggestion(profile, 70, "Learner full name matched in bank line");
+    }
+  }
+  return null;
+}
+
+function matchByParentCell(blob: string, profiles: LearnerMatchProfile[]): MatchSuggestion | null {
+  for (const profile of profiles) {
+    for (const cell of profile.parentCellNumbers) {
+      if (cellInBlob(blob, cell)) {
+        return buildSuggestion(profile, 65, "Parent cell number matched in bank line");
+      }
+    }
+  }
+  return null;
+}
+
+function matchByPreviousMatches(
+  blob: string,
+  previousMatches: PreviousBankMatch[]
+): MatchSuggestion | null {
+  for (const prev of previousMatches) {
+    if (!prev.blobKey || !prev.learnerId) continue;
+    if (blob === prev.blobKey || blob.includes(prev.blobKey) || prev.blobKey.includes(blob)) {
+      return {
+        suggestedAccountId: prev.familyAccountId,
+        suggestedAccountNo: prev.accountNo,
+        suggestedLearnerId: prev.learnerId,
+        suggestedLearnerName: prev.learnerName,
+        confidenceScore: 60,
+        matchConfidence: confidenceFromScore(60),
+        matchReason: "Matches a previous accepted bank reconciliation",
+      };
+    }
+  }
+  return null;
 }
 
 export function transactionFingerprint(input: {
@@ -98,85 +219,36 @@ export function transactionFingerprint(input: {
   ].join("|");
 }
 
+/**
+ * Deterministic parent/learner match for incoming bank lines.
+ * Rules apply in strict priority order; first hit wins.
+ */
 export function matchBankTransaction(
   txn: { description: string; reference: string; moneyIn: number; moneyOut: number },
-  profiles: LearnerMatchProfile[]
+  profiles: LearnerMatchProfile[],
+  previousMatches: PreviousBankMatch[] = []
 ): MatchSuggestion {
   const blob = normaliseBankBlob(txn.description, txn.reference);
 
   const accountHit = matchByAccountNumber(blob, profiles);
   if (accountHit) return accountHit;
 
-  let best: MatchSuggestion = {
-    suggestedAccountNo: "",
-    suggestedLearnerId: "",
-    suggestedLearnerName: "",
-    matchConfidence: "none",
-    matchReason: "",
-  };
+  const learnerSurnameHit = matchByLearnerSurname(blob, profiles);
+  if (learnerSurnameHit) return learnerSurnameHit;
 
-  for (const profile of profiles) {
-    const account = String(profile.accountNo || "").trim();
-    if (!isRealAccountNo(account)) continue;
+  const parentSurnameHit = matchByParentSurname(blob, profiles);
+  if (parentSurnameHit) return parentSurnameHit;
 
-    const nameParts = profile.learnerName.toLowerCase().split(/\s+/).filter((p) => p.length > 2);
-    const nameHits = nameParts.filter((p) => includesToken(blob, p)).length;
-    if (nameHits >= 2) {
-      const candidate: MatchSuggestion = {
-        suggestedAccountNo: account,
-        suggestedLearnerId: profile.learnerId,
-        suggestedLearnerName: profile.learnerName,
-        matchConfidence: "medium",
-        matchReason: "Learner name matched in description/reference",
-      };
-      if (betterConfidence(candidate.matchConfidence, best.matchConfidence)) best = candidate;
-    } else if (nameHits === 1) {
-      const candidate: MatchSuggestion = {
-        suggestedAccountNo: account,
-        suggestedLearnerId: profile.learnerId,
-        suggestedLearnerName: profile.learnerName,
-        matchConfidence: "low",
-        matchReason: "Partial learner name match",
-      };
-      if (
-        best.matchConfidence === "none" ||
-        (best.matchConfidence === "low" && !best.suggestedLearnerId)
-      ) {
-        best = candidate;
-      }
-    }
+  const fullNameHit = matchByLearnerFullName(blob, profiles);
+  if (fullNameHit) return fullNameHit;
 
-    for (const parentName of profile.parentNames) {
-      const parts = parentName.toLowerCase().split(/\s+/).filter((p) => p.length > 2);
-      const parentHits = parts.filter((p) => includesToken(blob, p)).length;
-      if (parentHits >= 2) {
-        const candidate: MatchSuggestion = {
-          suggestedAccountNo: account,
-          suggestedLearnerId: profile.learnerId,
-          suggestedLearnerName: profile.learnerName,
-          matchConfidence: "medium",
-          matchReason: "Parent name matched in description/reference",
-        };
-        if (betterConfidence(candidate.matchConfidence, best.matchConfidence)) best = candidate;
-      }
-    }
+  const cellHit = matchByParentCell(blob, profiles);
+  if (cellHit) return cellHit;
 
-    if (txn.moneyIn > 0 && profile.lastPaymentAmount && profile.lastPaymentAmount > 0) {
-      const diff = Math.abs(txn.moneyIn - profile.lastPaymentAmount);
-      if (diff <= 0.05) {
-        const candidate: MatchSuggestion = {
-          suggestedAccountNo: account,
-          suggestedLearnerId: profile.learnerId,
-          suggestedLearnerName: profile.learnerName,
-          matchConfidence: "medium",
-          matchReason: "Amount matches previous payment",
-        };
-        if (best.matchConfidence === "none" || best.matchConfidence === "low") best = candidate;
-      }
-    }
-  }
+  const previousHit = matchByPreviousMatches(blob, previousMatches);
+  if (previousHit) return previousHit;
 
-  return best;
+  return { ...EMPTY_SUGGESTION };
 }
 
 export const EXPENSE_CATEGORIES = [

@@ -13,15 +13,18 @@ import {
 } from "../utils/billingLedgerStore";
 import { parseBankStatementFile } from "../utils/bankStatementParser";
 import {
+  confidenceFromScore,
   EXPENSE_CATEGORIES,
   inferExpenseCategory,
   inferSupplierNameFromDescription,
   matchBankTransaction,
   matchSupplierFromDescription,
+  normaliseBankBlob,
   transactionFingerprint,
   type ExpenseCategory,
   type LearnerMatchProfile,
   type MatchConfidence,
+  type PreviousBankMatch,
   type SupplierMatchInput,
 } from "../utils/paymentMatcher";
 
@@ -39,9 +42,11 @@ type BankTransactionRow = {
   moneyOut: number;
   direction: "in" | "out";
   transactionType: TransactionType;
+  suggestedAccountId: string;
   suggestedAccountNo: string;
   suggestedLearnerId: string;
   suggestedLearnerName: string;
+  confidenceScore: number;
   matchConfidence: MatchConfidence;
   matchReason: string;
   reviewStatus: "pending" | "accepted" | "unmatched" | "ignored" | "posted";
@@ -67,6 +72,7 @@ type BankImportRecord = {
 type BankingStats = {
   imports: number;
   matchedPayments: number;
+  suggestedPayments: number;
   expenseCandidates: number;
   unmatched: number;
   duplicateLines: number;
@@ -128,9 +134,11 @@ function toApiRow(txn: BankTransaction): BankTransactionRow {
       transactionType: txn.transactionType as TransactionType,
       direction: txn.direction === "out" ? "out" : "in",
     }),
+    suggestedAccountId: txn.suggestedAccountId,
     suggestedAccountNo: txn.suggestedAccountNo,
     suggestedLearnerId: txn.suggestedLearnerId,
     suggestedLearnerName: txn.suggestedLearnerName,
+    confidenceScore: txn.confidenceScore ?? 0,
     matchConfidence: (txn.matchConfidence || "none") as MatchConfidence,
     matchReason: txn.matchReason,
     reviewStatus: txn.reviewStatus as BankTransactionRow["reviewStatus"],
@@ -162,13 +170,12 @@ function toImportRecord(
 function deriveInitialMatchStatus(input: {
   isDuplicate: boolean;
   direction: "in" | "out";
-  matchConfidence: MatchConfidence;
+  confidenceScore: number;
   expenseCategory: ExpenseCategory | "";
 }): BankTransactionMatchStatus {
   if (input.isDuplicate) return "duplicate";
   if (input.direction === "in") {
-    if (input.matchConfidence === "high" || input.matchConfidence === "medium") return "matched";
-    if (input.matchConfidence === "low" || input.matchConfidence === "none") return "unmatched";
+    if (input.confidenceScore > 0) return "suggested";
     return "imported";
   }
   if (input.expenseCategory && input.expenseCategory !== "Other") return "matched";
@@ -181,19 +188,15 @@ function syncMatchStatus(row: BankTransactionRow): BankTransactionMatchStatus {
   if (row.reviewStatus === "unmatched") return "unmatched";
 
   const type = txnTypeFromRow(row);
-  if (
-    row.reviewStatus === "accepted" &&
-    row.direction === "in" &&
-    type === "payment" &&
-    row.matchConfidence !== "none" &&
-    row.matchConfidence !== "low"
-  ) {
-    return "ready_to_post";
+
+  if (row.reviewStatus === "accepted" && row.direction === "in" && type === "payment") {
+    if (row.suggestedLearnerId && row.confidenceScore >= 50) return "ready_to_post";
+    return "matched";
   }
 
-  if (row.direction === "in" && type === "payment") {
-    if (row.matchConfidence === "high" || row.matchConfidence === "medium") return "matched";
-    if (row.matchConfidence === "low" || row.matchConfidence === "none") return "unmatched";
+  if (row.direction === "in" && type === "payment" && row.reviewStatus === "pending") {
+    if (row.confidenceScore > 0 && row.suggestedLearnerId) return "suggested";
+    if (row.confidenceScore === 0) return "imported";
   }
 
   if (row.direction === "out" && type === "expense" && row.expenseCategory && row.expenseCategory !== "Other") {
@@ -223,6 +226,7 @@ async function computeStats(schoolId: string, importId?: string): Promise<Bankin
     return {
       imports,
       matchedPayments: 0,
+      suggestedPayments: 0,
       expenseCandidates: 0,
       unmatched: 0,
       duplicateLines: 0,
@@ -235,6 +239,7 @@ async function computeStats(schoolId: string, importId?: string): Promise<Bankin
   });
 
   let matchedPayments = 0;
+  let suggestedPayments = 0;
   let expenseCandidates = 0;
   let unmatched = 0;
   let duplicateLines = 0;
@@ -250,11 +255,18 @@ async function computeStats(schoolId: string, importId?: string): Promise<Bankin
       row.direction === "in" &&
       type === "payment" &&
       row.reviewStatus !== "ignored" &&
-      (row.matchStatus === "matched" ||
-        row.matchStatus === "ready_to_post" ||
-        (row.matchConfidence !== "none" && row.matchConfidence !== "low"))
+      (row.matchStatus === "matched" || row.matchStatus === "ready_to_post")
     ) {
       matchedPayments += 1;
+    }
+
+    if (
+      row.direction === "in" &&
+      type === "payment" &&
+      row.reviewStatus === "pending" &&
+      row.matchStatus === "suggested"
+    ) {
+      suggestedPayments += 1;
     }
 
     if (row.direction === "out" && type === "expense" && row.reviewStatus === "accepted") {
@@ -267,7 +279,8 @@ async function computeStats(schoolId: string, importId?: string): Promise<Bankin
       (row.reviewStatus === "pending" &&
         row.direction === "in" &&
         type === "payment" &&
-        (row.matchConfidence === "none" || row.matchConfidence === "low"))
+        row.matchStatus === "imported" &&
+        row.confidenceScore === 0)
     ) {
       unmatched += 1;
     }
@@ -277,8 +290,7 @@ async function computeStats(schoolId: string, importId?: string): Promise<Bankin
       (row.direction === "in" &&
         type === "payment" &&
         row.reviewStatus === "accepted" &&
-        row.matchConfidence !== "none" &&
-        row.matchConfidence !== "low")
+        row.confidenceScore >= 50)
     ) {
       readyToPost += 1;
     }
@@ -287,11 +299,48 @@ async function computeStats(schoolId: string, importId?: string): Promise<Bankin
   return {
     imports,
     matchedPayments,
+    suggestedPayments,
     expenseCandidates,
     unmatched,
     duplicateLines,
     readyToPost,
   };
+}
+
+async function loadPreviousBankMatches(schoolId: string): Promise<PreviousBankMatch[]> {
+  const rows = await prisma.bankTransaction.findMany({
+    where: {
+      schoolId,
+      direction: "in",
+      suggestedLearnerId: { not: "" },
+      reviewStatus: { in: ["accepted", "posted"] },
+    },
+    orderBy: { updatedAt: "desc" },
+    select: {
+      description: true,
+      reference: true,
+      suggestedLearnerId: true,
+      suggestedLearnerName: true,
+      suggestedAccountNo: true,
+      suggestedAccountId: true,
+    },
+  });
+
+  const seen = new Set<string>();
+  const out: PreviousBankMatch[] = [];
+  for (const row of rows) {
+    const blobKey = normaliseBankBlob(row.description, row.reference);
+    if (!blobKey || seen.has(blobKey)) continue;
+    seen.add(blobKey);
+    out.push({
+      blobKey,
+      learnerId: row.suggestedLearnerId,
+      learnerName: row.suggestedLearnerName,
+      accountNo: row.suggestedAccountNo,
+      familyAccountId: row.suggestedAccountId,
+    });
+  }
+  return out;
 }
 
 async function buildMatchProfiles(schoolId: string): Promise<LearnerMatchProfile[]> {
@@ -303,10 +352,11 @@ async function buildMatchProfiles(schoolId: string): Promise<LearnerMatchProfile
       id: true,
       firstName: true,
       lastName: true,
-      familyAccount: { select: { accountRef: true } },
+      familyAccountId: true,
+      familyAccount: { select: { id: true, accountRef: true } },
       links: {
         include: {
-          parent: { select: { firstName: true, surname: true } },
+          parent: { select: { firstName: true, surname: true, cellNo: true } },
         },
       },
     },
@@ -323,12 +373,22 @@ async function buildMatchProfiles(schoolId: string): Promise<LearnerMatchProfile
     const parentNames = (learner.links || [])
       .map((l) => `${l.parent?.firstName || ""} ${l.parent?.surname || ""}`.trim())
       .filter(Boolean);
+    const parentSurnames = (learner.links || [])
+      .map((l) => String(l.parent?.surname || "").trim())
+      .filter(Boolean);
+    const parentCellNumbers = (learner.links || [])
+      .map((l) => String(l.parent?.cellNo || "").trim())
+      .filter(Boolean);
 
     return {
       learnerId: learner.id,
       learnerName: `${learner.firstName || ""} ${learner.lastName || ""}`.trim(),
+      learnerSurname: String(learner.lastName || "").trim(),
       accountNo,
+      familyAccountId: String(learner.familyAccountId || learner.familyAccount?.id || "").trim(),
       parentNames,
+      parentSurnames,
+      parentCellNumbers,
       lastPaymentAmount: sorted[0]?.amount,
     };
   });
@@ -392,6 +452,7 @@ router.post("/import", upload.single("file"), async (req, res) => {
     if (!parsed.ok) return res.status(400).json({ success: false, error: parsed.error });
 
     const profiles = await buildMatchProfiles(schoolId);
+    const previousMatches = await loadPreviousBankMatches(schoolId);
     const supplierList = parseSupplierList(req.body?.suppliers);
     const existingFingerprints = await loadSchoolFingerprints(schoolId);
     const postedFingerprints = new Set(
@@ -416,11 +477,13 @@ router.post("/import", upload.single("file"), async (req, res) => {
 
       const suggestion =
         direction === "in"
-          ? matchBankTransaction(txn, profiles)
+          ? matchBankTransaction(txn, profiles, previousMatches)
           : {
+              suggestedAccountId: "",
               suggestedAccountNo: "",
               suggestedLearnerId: "",
               suggestedLearnerName: "",
+              confidenceScore: 0,
               matchConfidence: "none" as MatchConfidence,
               matchReason: "",
             };
@@ -452,7 +515,7 @@ router.post("/import", upload.single("file"), async (req, res) => {
       const matchStatus = deriveInitialMatchStatus({
         isDuplicate,
         direction,
-        matchConfidence,
+        confidenceScore: suggestion.confidenceScore,
         expenseCategory,
       });
 
@@ -466,9 +529,11 @@ router.post("/import", upload.single("file"), async (req, res) => {
         moneyOut: normaliseAmount(txn.moneyOut),
         direction,
         transactionType: direction === "in" ? "payment" : "expense",
+        suggestedAccountId: suggestion.suggestedAccountId,
         suggestedAccountNo: suggestion.suggestedAccountNo,
         suggestedLearnerId: suggestion.suggestedLearnerId,
         suggestedLearnerName: suggestion.suggestedLearnerName,
+        confidenceScore: suggestion.confidenceScore,
         matchConfidence,
         matchReason:
           direction === "in" ? suggestion.matchReason : expenseMatchReason || suggestion.matchReason,
@@ -578,17 +643,49 @@ router.patch("/imports/:id/transaction/:transactionId", async (req, res) => {
     const current = toApiRow(existing);
     const next: BankTransactionRow = { ...current };
 
-    if (body.reviewStatus) {
+    const matchAction = String(body.matchAction || "").trim();
+    if (matchAction === "accept") {
+      next.reviewStatus = "accepted";
+    } else if (matchAction === "reject") {
+      next.reviewStatus = "unmatched";
+    } else if (body.reviewStatus) {
       const status = String(body.reviewStatus) as BankTransactionRow["reviewStatus"];
       if (["pending", "accepted", "unmatched", "ignored"].includes(status)) {
         next.reviewStatus = status;
       }
     }
 
+    if (body.suggestedAccountId !== undefined) {
+      next.suggestedAccountId = String(body.suggestedAccountId).trim();
+    }
     if (body.suggestedAccountNo !== undefined) next.suggestedAccountNo = String(body.suggestedAccountNo).trim();
     if (body.suggestedLearnerId !== undefined) next.suggestedLearnerId = String(body.suggestedLearnerId).trim();
     if (body.suggestedLearnerName !== undefined) {
       next.suggestedLearnerName = String(body.suggestedLearnerName).trim();
+    }
+    if (body.confidenceScore !== undefined) {
+      const score = Math.max(0, Math.min(100, Number(body.confidenceScore) || 0));
+      next.confidenceScore = score;
+      next.matchConfidence = confidenceFromScore(score);
+    }
+    if (body.matchReason !== undefined) next.matchReason = String(body.matchReason).trim();
+    if (body.matchConfidence !== undefined) {
+      const mc = String(body.matchConfidence).trim() as MatchConfidence;
+      if (["high", "medium", "low", "none"].includes(mc)) next.matchConfidence = mc;
+    }
+
+    if (
+      body.suggestedLearnerId !== undefined &&
+      String(body.suggestedLearnerId).trim() &&
+      body.matchAction !== "reject"
+    ) {
+      const manualScore =
+        body.confidenceScore !== undefined ? next.confidenceScore : Math.max(next.confidenceScore, 100);
+      next.confidenceScore = manualScore;
+      next.matchConfidence = confidenceFromScore(manualScore);
+      if (!body.matchReason && !next.matchReason) {
+        next.matchReason = "Manually selected by admin";
+      }
     }
 
     if (body.expenseCategory !== undefined && current.direction === "out") {
@@ -617,9 +714,13 @@ router.patch("/imports/:id/transaction/:transactionId", async (req, res) => {
       data: {
         reviewStatus: next.reviewStatus,
         matchStatus: next.matchStatus,
+        suggestedAccountId: next.suggestedAccountId,
         suggestedAccountNo: next.suggestedAccountNo,
         suggestedLearnerId: next.suggestedLearnerId,
         suggestedLearnerName: next.suggestedLearnerName,
+        confidenceScore: next.confidenceScore,
+        matchConfidence: next.matchConfidence,
+        matchReason: next.matchReason,
         expenseCategory: next.expenseCategory,
         transactionType: next.transactionType,
         suggestedSupplierName: next.suggestedSupplierName,
@@ -683,8 +784,8 @@ router.post("/imports/:id/post-payments", async (req, res) => {
         skipped.push({ transactionId: txn.id, reason: "Transaction not accepted for posting" });
         continue;
       }
-      if (row.matchConfidence === "low" || row.matchConfidence === "none") {
-        skipped.push({ transactionId: txn.id, reason: "Low confidence match cannot be auto-posted" });
+      if (row.confidenceScore < 50) {
+        skipped.push({ transactionId: txn.id, reason: "Low confidence match cannot be posted" });
         continue;
       }
       if (!row.suggestedLearnerId || !row.suggestedAccountNo || row.suggestedAccountNo === "-") {
