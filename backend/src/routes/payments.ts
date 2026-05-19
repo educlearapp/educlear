@@ -54,6 +54,9 @@ router.get("/", async (req, res) => {
       reference: entry.reference,
       description: entry.description,
       type: entry.type,
+      bankTransactionId: entry.bankTransactionId,
+      bankImportId: entry.bankImportId,
+      source: entry.source,
       createdAt: entry.createdAt,
     }));
 

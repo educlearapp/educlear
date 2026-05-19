@@ -85,6 +85,9 @@ export const syncBillingLedgerFromApi = async (schoolId: string) => {
       description: String(row.description || row.type || "Entry"),
       method: row.method ? String(row.method) : undefined,
       runId: row.runId ? String(row.runId) : undefined,
+      bankTransactionId: row.bankTransactionId ? String(row.bankTransactionId) : undefined,
+      bankImportId: row.bankImportId ? String(row.bankImportId) : undefined,
+      source: row.source ? String(row.source) : undefined,
       createdAt: String(row.createdAt || new Date().toISOString()),
     }));
     mergeApiLedger(sid, entries);
@@ -118,6 +121,9 @@ export const syncBillingLedgerFromApi = async (schoolId: string) => {
       reference: String(row.reference || ""),
       description: String(row.description || "Payment"),
       method: row.method ? String(row.method) : undefined,
+      bankTransactionId: row.bankTransactionId ? String(row.bankTransactionId) : undefined,
+      bankImportId: row.bankImportId ? String(row.bankImportId) : undefined,
+      source: row.source ? String(row.source) : undefined,
       createdAt: String(row.createdAt || new Date().toISOString()),
     })),
   ];

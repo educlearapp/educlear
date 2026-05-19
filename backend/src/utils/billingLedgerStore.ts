@@ -16,6 +16,10 @@ export type BillingLedgerEntry = {
   description: string;
   method?: string;
   runId?: string;
+  /** Set when payment was posted from bank reconciliation. */
+  bankTransactionId?: string;
+  bankImportId?: string;
+  source?: string;
   createdAt: string;
 };
 

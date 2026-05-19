@@ -9,6 +9,7 @@ import {
   appendSchoolEntry,
   listPayments,
   normaliseAmount,
+  readSchoolLedger,
   type BillingLedgerEntry,
 } from "../utils/billingLedgerStore";
 import { parseBankStatementFile } from "../utils/bankStatementParser";
@@ -740,6 +741,23 @@ router.patch("/imports/:id/transaction/:transactionId", async (req, res) => {
   }
 });
 
+function bankPaymentIdForTransaction(transactionId: string) {
+  return `pay-bank-${transactionId}`;
+}
+
+function ledgerHasBankSourcePayment(
+  ledger: BillingLedgerEntry[],
+  bankTransactionId: string,
+  paymentId: string
+) {
+  return ledger.some(
+    (e) =>
+      e.type === "payment" &&
+      (e.id === paymentId ||
+        (e.bankTransactionId && e.bankTransactionId === bankTransactionId))
+  );
+}
+
 router.post("/imports/:id/post-payments", async (req, res) => {
   try {
     const importId = String(req.params.id || "").trim();
@@ -768,6 +786,19 @@ router.post("/imports/:id/post-payments", async (req, res) => {
       ).map((r) => r.fingerprint)
     );
 
+    const ledger = readSchoolLedger(schoolId);
+    const learnerRows = await prisma.learner.findMany({
+      where: { schoolId },
+      select: {
+        id: true,
+        familyAccountId: true,
+        familyAccount: { select: { id: true, accountRef: true } },
+      },
+    });
+    const learnerById = new Map(
+      learnerRows.map((l) => [l.id, resolveLearnerAccountNo(l)])
+    );
+
     const posted: BillingLedgerEntry[] = [];
     const skipped: { transactionId: string; reason: string }[] = [];
 
@@ -775,7 +806,20 @@ router.post("/imports/:id/post-payments", async (req, res) => {
       if (transactionIds.length && !transactionIds.includes(txn.id)) continue;
 
       const row = toApiRow(txn);
+      const paymentId = row.postedPaymentId || bankPaymentIdForTransaction(txn.id);
 
+      if (row.reviewStatus === "posted" || row.postedPaymentId) {
+        skipped.push({ transactionId: txn.id, reason: "Already posted to Billing" });
+        continue;
+      }
+      if (row.isDuplicate) {
+        skipped.push({ transactionId: txn.id, reason: "Duplicate bank line cannot be posted" });
+        continue;
+      }
+      if (txnTypeFromRow(row) !== "payment") {
+        skipped.push({ transactionId: txn.id, reason: "Not classified as a payment" });
+        continue;
+      }
       if (row.direction !== "in" || row.moneyIn <= 0) {
         skipped.push({ transactionId: txn.id, reason: "Not an incoming payment" });
         continue;
@@ -792,27 +836,42 @@ router.post("/imports/:id/post-payments", async (req, res) => {
         skipped.push({ transactionId: txn.id, reason: "Missing learner/account match" });
         continue;
       }
+      if (!learnerById.has(row.suggestedLearnerId)) {
+        skipped.push({ transactionId: txn.id, reason: "Learner not found for this school" });
+        continue;
+      }
       if (postedFingerprints.has(row.fingerprint)) {
         skipped.push({ transactionId: txn.id, reason: "Duplicate bank transaction already posted" });
         continue;
       }
+      if (ledgerHasBankSourcePayment(ledger, txn.id, paymentId)) {
+        skipped.push({ transactionId: txn.id, reason: "Payment already exists in billing ledger" });
+        continue;
+      }
 
-      const paymentId = newId("pay");
+      const accountNo = learnerById.get(row.suggestedLearnerId) || row.suggestedAccountNo;
+      const bankRef = String(row.reference || "").trim();
+      const bankDesc = String(row.description || "Payment").trim();
+
       const entry: BillingLedgerEntry = {
         id: paymentId,
         schoolId,
         learnerId: row.suggestedLearnerId,
-        accountNo: row.suggestedAccountNo,
+        accountNo,
         type: "payment",
         amount: normaliseAmount(row.moneyIn),
         date: row.date,
-        reference: row.reference || row.description.slice(0, 80),
-        description: `Bank import: ${row.description || "Payment"}`.trim(),
+        reference: bankRef || bankDesc.slice(0, 80),
+        description: `Bank statement (${importExists.fileName}): ${bankDesc}`.trim(),
         method: "Bank Import",
+        bankTransactionId: txn.id,
+        bankImportId: importId,
+        source: "bank_import",
         createdAt: new Date().toISOString(),
       };
 
       appendSchoolEntry(schoolId, entry);
+      ledger.push(entry);
       postedFingerprints.add(row.fingerprint);
 
       await prisma.bankTransaction.update({

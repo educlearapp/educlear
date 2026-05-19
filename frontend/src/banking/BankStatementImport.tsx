@@ -6,9 +6,12 @@ import {
   accountingCardLabel,
   accountingCardValue,
 } from "../accounting/accountingTheme";
+import { postBillingPaymentJournal } from "../accounting/accountingJournalEngine";
+import { syncBillingLedgerFromApi } from "../billing/billingApi";
 import {
   BILLING_UPDATED_EVENT,
   formatMoney,
+  normaliseBillingAmount,
   notifyBillingUpdated,
   upsertSchoolEntries,
   type BillingLedgerEntry,
@@ -16,6 +19,7 @@ import {
 import { getLearnerAccountNo } from "../learner/learnerIdentity";
 import {
   BANKING_EXPENSE_CATEGORIES,
+  canPostBankPaymentToBilling,
   confidenceColor,
   formatConfidence,
   hasSuggestedPaymentMatch,
@@ -396,18 +400,10 @@ export default function BankStatementImport({ schoolId, learners }: Props) {
     setError("");
     setMessage("");
     try {
-      const acceptedIds = activeImport.transactions
-        .filter(
-          (t) =>
-            t.direction === "in" &&
-            txnType(t) === "payment" &&
-            t.reviewStatus === "accepted" &&
-            t.confidenceScore >= 50
-        )
-        .map((t) => t.id);
+      const acceptedIds = activeImport.transactions.filter(canPostBankPaymentToBilling).map((t) => t.id);
 
       if (!acceptedIds.length) {
-        setError("No accepted incoming payments with confidence score 50+ to post.");
+        setError("No accepted incoming payments ready to post. Accept matches first (confidence 50+).");
         return;
       }
 
@@ -415,13 +411,26 @@ export default function BankStatementImport({ schoolId, learners }: Props) {
       const entries = (res.ledgerEntries || []) as BillingLedgerEntry[];
       if (entries.length) {
         upsertSchoolEntries(schoolId, entries);
+        for (const entry of entries) {
+          postBillingPaymentJournal({
+            schoolId,
+            sourceId: entry.id,
+            amount: normaliseBillingAmount(entry.amount),
+            date: entry.date,
+            accountNo: entry.accountNo,
+            reference: entry.reference || "Bank Import",
+            createdBy: "Banking",
+          });
+        }
         notifyBillingUpdated();
         window.dispatchEvent(new CustomEvent(BILLING_UPDATED_EVENT));
       }
+      await syncBillingLedgerFromApi(schoolId).catch(() => {});
       await refreshActive(activeImport.id);
       await refreshStats(activeImport.id);
+      const skippedCount = res.skipped?.length || 0;
       setMessage(
-        `Posted ${res.postedCount} payment(s) to Billing.${res.skipped?.length ? ` Skipped ${res.skipped.length}.` : ""}`
+        `Posted ${res.postedCount} payment(s) to Billing.${skippedCount ? ` Skipped ${skippedCount}.` : ""}`
       );
     } catch (e: any) {
       setError(e?.message || "Post payments failed");
@@ -538,6 +547,13 @@ export default function BankStatementImport({ schoolId, learners }: Props) {
               <td style={td}>{typeLabel(txnType(txn))}</td>
               <td style={td}>
                 <span style={statusPillStyle(matchStatusLabel(txn))}>{matchStatusLabel(txn)}</span>
+                {txn.reviewStatus === "posted" && txn.postedPaymentId ? (
+                  <span
+                    style={{ fontSize: 11, color: "#166534", fontWeight: 700, marginTop: 4, display: "block" }}
+                  >
+                    Billing payment {txn.postedPaymentId}
+                  </span>
+                ) : null}
               </td>
               <td style={td}>{renderActions(txn)}</td>
             </tr>
@@ -647,7 +663,12 @@ export default function BankStatementImport({ schoolId, learners }: Props) {
           ) : null}
           {activeImport ? (
             <div style={{ marginTop: 16, display: "flex", gap: 10, flexWrap: "wrap" }}>
-              <button type="button" style={goldBtn} onClick={postAccepted} disabled={loading}>
+              <button
+                type="button"
+                style={goldBtn}
+                onClick={postAccepted}
+                disabled={loading || stats.readyToPost === 0}
+              >
                 Post accepted payments to Billing
               </button>
               <span style={{ color: "#64748b", fontWeight: 700, alignSelf: "center" }}>
@@ -686,7 +707,12 @@ export default function BankStatementImport({ schoolId, learners }: Props) {
           ) : (
             <>
               <div style={{ display: "flex", gap: 10, marginBottom: 12, flexWrap: "wrap" }}>
-                <button type="button" style={goldBtn} onClick={postAccepted} disabled={loading}>
+                <button
+                  type="button"
+                  style={goldBtn}
+                  onClick={postAccepted}
+                  disabled={loading || stats.readyToPost === 0}
+                >
                   Post accepted to Billing
                 </button>
               </div>

@@ -15,6 +15,9 @@ export type BillingLedgerEntry = {
   description: string;
   method?: string;
   runId?: string;
+  bankTransactionId?: string;
+  bankImportId?: string;
+  source?: string;
   createdAt: string;
 };
 

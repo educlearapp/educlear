@@ -208,3 +208,17 @@ export function matchStatusLabel(txn: BankTransactionRow): string {
   if (txn.reviewStatus === "posted") return "posted";
   return txn.reviewStatus;
 }
+
+/** Incoming payment accepted by admin and eligible for billing post (not auto-posted on import). */
+export function canPostBankPaymentToBilling(txn: BankTransactionRow): boolean {
+  if (txn.reviewStatus === "posted" || txn.postedPaymentId) return false;
+  if (txn.isDuplicate) return false;
+  if (txn.direction !== "in" || txn.moneyIn <= 0) return false;
+  if (txnType(txn) !== "payment") return false;
+  if (txn.reviewStatus !== "accepted") return false;
+  if (txn.confidenceScore < 50) return false;
+  if (!txn.suggestedLearnerId || !txn.suggestedAccountNo || txn.suggestedAccountNo === "-") {
+    return false;
+  }
+  return true;
+}
