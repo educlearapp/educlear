@@ -40,7 +40,7 @@ export type BillingGeneralSettings = {
 export type BillingStatementSettings = {
   statementLayout: string;
   statementHistory: string;
-  statementInfo: CheckboxMap;
+  statementFeatures: CheckboxMap;
   showAmounts: string;
   displayOnStatement: StatementDisplayFields;
 } & MessageFields;
@@ -50,12 +50,17 @@ export type BillingInvoiceSettings = {
   invoiceLayout: string;
   displayOnInvoice: InvoiceDisplayFields;
   dueDate: string;
+  invoiceFeatures: CheckboxMap;
+  invoicePrefix: string;
+  termsAndConditions: string;
 } & MessageFields;
 
 export type BillingReceiptSettings = {
   defaultPaymentPage: string;
   receiptLayout: string;
   displayOnReceipt: ReceiptDisplayFields;
+  receiptFeatures: CheckboxMap;
+  footerMessage: string;
 } & MessageFields;
 
 export type BillingSettingsState = {

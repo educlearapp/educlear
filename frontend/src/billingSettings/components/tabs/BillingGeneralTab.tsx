@@ -24,7 +24,10 @@ type Props = {
 
 export default function BillingGeneralTab({ schoolId, general, onFieldChange, onCheckboxChange }: Props) {
   return (
-    <section className="billing-settings-card" aria-labelledby="billing-settings-general-heading">
+    <section
+      className="billing-settings-card billing-settings-card--compact"
+      aria-labelledby="billing-settings-general-heading"
+    >
       <h2 id="billing-settings-general-heading" className="billing-settings-card-title">
         General
       </h2>
@@ -54,6 +57,7 @@ export default function BillingGeneralTab({ schoolId, general, onFieldChange, on
         options={QUICK_POPUP_OPTIONS}
         values={general.quickPopups}
         onChange={(id, checked) => onCheckboxChange("quickPopups", id, checked)}
+        columns={2}
       />
 
       <BillingSettingsCheckboxGroup
@@ -63,6 +67,7 @@ export default function BillingGeneralTab({ schoolId, general, onFieldChange, on
         options={ACCOUNTS_INFO_BLOCK_OPTIONS}
         values={general.accountsInfoBlocks}
         onChange={(id, checked) => onCheckboxChange("accountsInfoBlocks", id, checked)}
+        columns={2}
       />
 
       <BillingSettingsCheckboxGroup
@@ -72,6 +77,7 @@ export default function BillingGeneralTab({ schoolId, general, onFieldChange, on
         options={INVOICES_INFO_BLOCK_OPTIONS}
         values={general.invoicesInfoBlocks}
         onChange={(id, checked) => onCheckboxChange("invoicesInfoBlocks", id, checked)}
+        columns={2}
       />
 
       <BillingSettingsCheckboxGroup
@@ -81,6 +87,7 @@ export default function BillingGeneralTab({ schoolId, general, onFieldChange, on
         options={PAYMENTS_INFO_BLOCK_OPTIONS}
         values={general.paymentsInfoBlocks}
         onChange={(id, checked) => onCheckboxChange("paymentsInfoBlocks", id, checked)}
+        columns={2}
       />
 
       <BillingSettingsCheckboxGroup
@@ -90,6 +97,7 @@ export default function BillingGeneralTab({ schoolId, general, onFieldChange, on
         options={CORRECTIONS_OPTIONS}
         values={general.corrections}
         onChange={(id, checked) => onCheckboxChange("corrections", id, checked)}
+        columns={2}
       />
     </section>
   );

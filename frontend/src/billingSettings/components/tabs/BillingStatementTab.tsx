@@ -1,9 +1,9 @@
 import type { BillingStatementSettings } from "../../types/billingSettings";
 import {
-  STATEMENT_SHOW_AMOUNTS_OPTIONS,
+  STATEMENT_FEATURE_OPTIONS,
   STATEMENT_HISTORY_OPTIONS,
-  STATEMENT_INFO_OPTIONS,
   STATEMENT_LAYOUT_OPTIONS,
+  STATEMENT_SHOW_AMOUNTS_OPTIONS,
 } from "../billingSettingsConstants";
 import BillingSettingsCheckbox from "../BillingSettingsCheckbox";
 import BillingSettingsCheckboxGroup from "../BillingSettingsCheckboxGroup";
@@ -14,7 +14,7 @@ type Props = {
   schoolId: string;
   statement: BillingStatementSettings;
   onFieldChange: (patch: Partial<BillingStatementSettings>) => void;
-  onStatementInfoChange: (id: string, checked: boolean) => void;
+  onStatementFeatureChange: (id: string, checked: boolean) => void;
   onDisplayChange: (field: keyof BillingStatementSettings["displayOnStatement"], checked: boolean) => void;
 };
 
@@ -29,7 +29,7 @@ export default function BillingStatementTab({
   schoolId,
   statement,
   onFieldChange,
-  onStatementInfoChange,
+  onStatementFeatureChange,
   onDisplayChange,
 }: Props) {
   return (
@@ -40,7 +40,7 @@ export default function BillingStatementTab({
       <h2 id="billing-settings-statement-heading" className="billing-settings-card-title">
         Statement
       </h2>
-      <p className="billing-settings-card-hint">Configure statement layout, history, and delivery messages.</p>
+      <p className="billing-settings-card-hint">Configure statement layout, features, and delivery messages.</p>
 
       <div className="billing-settings-grid billing-settings-grid--2">
         <BillingSettingsSelect
@@ -61,11 +61,12 @@ export default function BillingStatementTab({
 
       <BillingSettingsCheckboxGroup
         schoolId={schoolId}
-        prefix="statement-info"
-        title="Statement Info"
-        options={STATEMENT_INFO_OPTIONS}
-        values={statement.statementInfo}
-        onChange={onStatementInfoChange}
+        prefix="statement-features"
+        title="Statement Features"
+        options={STATEMENT_FEATURE_OPTIONS}
+        values={statement.statementFeatures}
+        onChange={onStatementFeatureChange}
+        columns={2}
       />
 
       <BillingSettingsSelect
@@ -78,7 +79,7 @@ export default function BillingStatementTab({
 
       <section className="billing-settings-group">
         <h3 className="billing-settings-group-title">Display On Statement</h3>
-        <div className="billing-settings-checklist">
+        <div className="billing-settings-checklist billing-settings-checklist--2col">
           {DISPLAY_OPTIONS.map((option) => (
             <BillingSettingsCheckbox
               key={option.id}
@@ -91,12 +92,7 @@ export default function BillingStatementTab({
         </div>
       </section>
 
-      <BillingSettingsMessages
-        schoolId={schoolId}
-        prefix="statement"
-        values={statement}
-        onChange={onFieldChange}
-      />
+      <BillingSettingsMessages schoolId={schoolId} prefix="statement" values={statement} onChange={onFieldChange} />
     </section>
   );
 }

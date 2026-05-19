@@ -1,10 +1,22 @@
 type Props = {
   onBack: () => void;
   onSave: () => void;
+  onReset: () => void;
   saveDisabled?: boolean;
+  resetDisabled?: boolean;
+  saving?: boolean;
+  resetting?: boolean;
 };
 
-export default function BillingSettingsHeader({ onBack, onSave, saveDisabled = false }: Props) {
+export default function BillingSettingsHeader({
+  onBack,
+  onSave,
+  onReset,
+  saveDisabled = false,
+  resetDisabled = false,
+  saving = false,
+  resetting = false,
+}: Props) {
   return (
     <header className="billing-settings-header">
       <div className="billing-settings-header-main">
@@ -17,11 +29,19 @@ export default function BillingSettingsHeader({ onBack, onSave, saveDisabled = f
         </button>
         <button
           type="button"
+          className="billing-settings-btn billing-settings-btn--outline"
+          onClick={onReset}
+          disabled={resetDisabled || resetting}
+        >
+          {resetting ? "Resetting…" : "Reset Defaults"}
+        </button>
+        <button
+          type="button"
           className="billing-settings-btn billing-settings-btn--gold"
           onClick={onSave}
-          disabled={saveDisabled}
+          disabled={saveDisabled || saving}
         >
-          Save
+          {saving ? "Saving…" : "Save Settings"}
         </button>
       </div>
     </header>

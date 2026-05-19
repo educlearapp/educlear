@@ -1,6 +1,6 @@
 import type { BillingReceiptSettings } from "../../types/billingSettings";
-import { DEFAULT_PAYMENT_PAGE_OPTIONS, RECEIPT_LAYOUT_OPTIONS } from "../billingSettingsConstants";
-import BillingSettingsCheckbox from "../BillingSettingsCheckbox";
+import { DEFAULT_PAYMENT_PAGE_OPTIONS, RECEIPT_FEATURE_OPTIONS, RECEIPT_LAYOUT_OPTIONS } from "../billingSettingsConstants";
+import BillingSettingsCheckboxGroup from "../BillingSettingsCheckboxGroup";
 import BillingSettingsMessages from "../BillingSettingsMessages";
 import BillingSettingsSelect from "../BillingSettingsSelect";
 
@@ -8,15 +8,10 @@ type Props = {
   schoolId: string;
   receipt: BillingReceiptSettings;
   onFieldChange: (patch: Partial<BillingReceiptSettings>) => void;
-  onDisplayChange: (field: keyof BillingReceiptSettings["displayOnReceipt"], checked: boolean) => void;
+  onReceiptFeatureChange: (id: string, checked: boolean) => void;
 };
 
-const DISPLAY_OPTIONS: { id: keyof BillingReceiptSettings["displayOnReceipt"]; label: string }[] = [
-  { id: "schoolName", label: "School Name" },
-  { id: "schoolLogo", label: "School Logo" },
-];
-
-export default function BillingReceiptTab({ schoolId, receipt, onFieldChange, onDisplayChange }: Props) {
+export default function BillingReceiptTab({ schoolId, receipt, onFieldChange, onReceiptFeatureChange }: Props) {
   return (
     <section
       className="billing-settings-card billing-settings-card--compact"
@@ -25,7 +20,7 @@ export default function BillingReceiptTab({ schoolId, receipt, onFieldChange, on
       <h2 id="billing-settings-receipt-heading" className="billing-settings-card-title">
         Receipt
       </h2>
-      <p className="billing-settings-card-hint">Configure receipt pages, layout, and standard messages.</p>
+      <p className="billing-settings-card-hint">Configure receipt layout, display options, and footer message.</p>
 
       <div className="billing-settings-grid billing-settings-grid--2">
         <BillingSettingsSelect
@@ -44,20 +39,28 @@ export default function BillingReceiptTab({ schoolId, receipt, onFieldChange, on
         />
       </div>
 
-      <section className="billing-settings-group">
-        <h3 className="billing-settings-group-title">Display On Receipt</h3>
-        <div className="billing-settings-checklist">
-          {DISPLAY_OPTIONS.map((option) => (
-            <BillingSettingsCheckbox
-              key={option.id}
-              id={`${schoolId}-receipt-display-${option.id}`}
-              label={option.label}
-              checked={receipt.displayOnReceipt[option.id]}
-              onChange={(checked) => onDisplayChange(option.id, checked)}
-            />
-          ))}
-        </div>
-      </section>
+      <BillingSettingsCheckboxGroup
+        schoolId={schoolId}
+        prefix="receipt-features"
+        title="Receipt Display"
+        options={RECEIPT_FEATURE_OPTIONS}
+        values={receipt.receiptFeatures}
+        onChange={onReceiptFeatureChange}
+        columns={2}
+      />
+
+      <div className="billing-settings-field billing-settings-field--full">
+        <label className="billing-settings-label" htmlFor={`${schoolId}-receipt-footer`}>
+          Footer Message
+        </label>
+        <textarea
+          id={`${schoolId}-receipt-footer`}
+          className="billing-settings-textarea"
+          rows={3}
+          value={receipt.footerMessage}
+          onChange={(e) => onFieldChange({ footerMessage: e.target.value })}
+        />
+      </div>
 
       <BillingSettingsMessages schoolId={schoolId} prefix="receipt" values={receipt} onChange={onFieldChange} />
     </section>

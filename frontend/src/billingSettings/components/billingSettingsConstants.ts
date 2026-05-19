@@ -49,11 +49,27 @@ export const CORRECTIONS_OPTIONS = [
   { id: "accountAdjustments", label: "Account Adjustments" },
 ] as const;
 
-export const STATEMENT_INFO_OPTIONS = [
-  { id: "openingBalance", label: "Opening Balance" },
-  { id: "transactionHistory", label: "Transaction History" },
-  { id: "agingSummary", label: "Aging Summary" },
-  { id: "accountMessages", label: "Account Messages" },
+export const STATEMENT_FEATURE_OPTIONS = [
+  { id: "ageAnalysis", label: "Age Analysis" },
+  { id: "overdueHighlight", label: "Overdue Highlight" },
+  { id: "learnerPhoto", label: "Learner Photo" },
+  { id: "siblingBalances", label: "Sibling Balances" },
+  { id: "paymentHistory", label: "Payment History" },
+  { id: "compactStatement", label: "Compact Statement" },
+] as const;
+
+export const INVOICE_FEATURE_OPTIONS = [
+  { id: "autoDueDates", label: "Auto Due Dates" },
+  { id: "latePaymentFine", label: "Late Payment Fine" },
+  { id: "monthlyAutoNumbering", label: "Monthly Auto Numbering" },
+] as const;
+
+export const RECEIPT_FEATURE_OPTIONS = [
+  { id: "showLogo", label: "Show Logo" },
+  { id: "showBankingDetails", label: "Show Banking Details" },
+  { id: "showSignature", label: "Show Signature" },
+  { id: "showPaymentMethod", label: "Show Payment Method" },
+  { id: "autoReceiptNumbering", label: "Auto Receipt Numbering" },
 ] as const;
 
 function checkboxDefaults(ids: readonly { id: string }[]): CheckboxMap {
@@ -74,7 +90,7 @@ export function createDefaultBillingSettings(): BillingSettingsState {
     statement: {
       statementLayout: STATEMENT_LAYOUT_OPTIONS[0],
       statementHistory: STATEMENT_HISTORY_OPTIONS[0],
-      statementInfo: checkboxDefaults(STATEMENT_INFO_OPTIONS),
+      statementFeatures: checkboxDefaults(STATEMENT_FEATURE_OPTIONS),
       showAmounts: STATEMENT_SHOW_AMOUNTS_OPTIONS[0],
       displayOnStatement: {
         schoolName: false,
@@ -98,6 +114,9 @@ export function createDefaultBillingSettings(): BillingSettingsState {
         childClassroom: false,
       },
       dueDate: DUE_DATE_OPTIONS[0],
+      invoiceFeatures: checkboxDefaults(INVOICE_FEATURE_OPTIONS),
+      invoicePrefix: "",
+      termsAndConditions: "",
       standardMessage: "",
       standardEmailSubject: "",
       standardEmailMessage: "",
@@ -110,6 +129,8 @@ export function createDefaultBillingSettings(): BillingSettingsState {
         schoolName: false,
         schoolLogo: false,
       },
+      receiptFeatures: checkboxDefaults(RECEIPT_FEATURE_OPTIONS),
+      footerMessage: "",
       standardMessage: "",
       standardEmailSubject: "",
       standardEmailMessage: "",

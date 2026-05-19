@@ -22,22 +22,33 @@ export default function BillingSettingsPage({ onBack }: Props) {
   const [showSavedModal, setShowSavedModal] = useState(false);
   const {
     settings,
+    loading,
+    saving,
+    resetting,
+    error,
     setGeneral,
     setGeneralCheckbox,
     setStatement,
-    setStatementCheckbox,
+    setStatementFeature,
     setStatementDisplay,
     setInvoice,
+    setInvoiceFeature,
     setInvoiceDisplay,
     setReceipt,
-    setReceiptDisplay,
+    setReceiptFeature,
     saveSettings,
+    resetSettings,
   } = useBillingSettings(schoolId);
 
-  const handleSave = useCallback(() => {
-    const saved = saveSettings();
+  const handleSave = useCallback(async () => {
+    const saved = await saveSettings();
     if (saved) setShowSavedModal(true);
   }, [saveSettings]);
+
+  const handleReset = useCallback(async () => {
+    const reset = await resetSettings();
+    if (reset) setShowSavedModal(true);
+  }, [resetSettings]);
 
   if (!schoolId) {
     return (
@@ -48,9 +59,22 @@ export default function BillingSettingsPage({ onBack }: Props) {
     );
   }
 
+  const actionsDisabled = loading || saving || resetting;
+
   return (
     <div className="billing-settings-page">
-      <BillingSettingsHeader onBack={onBack} onSave={handleSave} />
+      <BillingSettingsHeader
+        onBack={onBack}
+        onSave={handleSave}
+        onReset={handleReset}
+        saveDisabled={actionsDisabled}
+        resetDisabled={actionsDisabled}
+        saving={saving}
+        resetting={resetting}
+      />
+
+      {error ? <p className="billing-settings-error">{error}</p> : null}
+      {loading ? <p className="billing-settings-loading">Loading settings…</p> : null}
 
       <BillingSettingsTabs activeTab={activeTab} onTabChange={setActiveTab} />
 
@@ -69,7 +93,7 @@ export default function BillingSettingsPage({ onBack }: Props) {
             schoolId={schoolId}
             statement={settings.statement}
             onFieldChange={setStatement}
-            onStatementInfoChange={(id, checked) => setStatementCheckbox("statementInfo", id, checked)}
+            onStatementFeatureChange={setStatementFeature}
             onDisplayChange={setStatementDisplay}
           />
         ) : null}
@@ -79,6 +103,7 @@ export default function BillingSettingsPage({ onBack }: Props) {
             schoolId={schoolId}
             invoice={settings.invoice}
             onFieldChange={setInvoice}
+            onInvoiceFeatureChange={setInvoiceFeature}
             onDisplayChange={setInvoiceDisplay}
           />
         ) : null}
@@ -88,7 +113,7 @@ export default function BillingSettingsPage({ onBack }: Props) {
             schoolId={schoolId}
             receipt={settings.receipt}
             onFieldChange={setReceipt}
-            onDisplayChange={setReceiptDisplay}
+            onReceiptFeatureChange={setReceiptFeature}
           />
         ) : null}
 
