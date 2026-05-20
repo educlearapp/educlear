@@ -1,0 +1,18 @@
+{
+  "name": "EduClear Teacher",
+  "short_name": "Teacher",
+  "description": "EduClear teacher tools for class communication and homework.",
+  "start_url": "/teacher/home",
+  "scope": "/teacher/",
+  "display": "standalone",
+  "background_color": "#050505",
+  "theme_color": "#0a0a0a",
+  "icons": [
+    {
+      "src": "/teacher-app-icon.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ]
+}

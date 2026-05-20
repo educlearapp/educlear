@@ -4,6 +4,7 @@ import path from "path";
 import fs from "fs";
 import { prisma } from "../prisma";
 import { createParentNotification, mapThreadMessage } from "../services/parentPortalService";
+import { normalizeStaffEmail, verifyStaffJwt } from "../utils/staffJwt";
 
 const uploadDir = path.join(process.cwd(), "uploads/parent-messages");
 try {
@@ -28,24 +29,71 @@ const upload = multer({ storage, limits: { fileSize: 8 * 1024 * 1024 } });
 const router = Router();
 
 function normalizeEmail(email: string) {
-  return String(email || "").trim().toLowerCase();
+  return normalizeStaffEmail(email);
+}
+
+function resolveInboxFromQuery(req: any):
+  | { ok: true; schoolId: string; adminView: boolean; teacherEmail: string }
+  | { ok: false; status: number; error: string } {
+  const jwtUser = verifyStaffJwt(req.headers.authorization);
+  const schoolId = String(req.query.schoolId || "").trim();
+  const adminView = String(req.query.adminView || "") === "true";
+  let teacherEmail = normalizeEmail(String(req.query.teacherEmail || ""));
+  if (jwtUser) {
+    if (!schoolId || jwtUser.schoolId !== schoolId) {
+      return { ok: false, status: 403, error: "schoolId mismatch or missing" };
+    }
+    if (adminView) {
+      if (jwtUser.role !== "SCHOOL_ADMIN") {
+        return { ok: false, status: 403, error: "adminView requires school admin token" };
+      }
+    } else {
+      teacherEmail = normalizeEmail(jwtUser.email);
+    }
+  }
+  if (!schoolId) return { ok: false, status: 400, error: "schoolId required" };
+  if (!adminView && !teacherEmail) {
+    return { ok: false, status: 400, error: "teacherEmail required" };
+  }
+  return { ok: true, schoolId, adminView, teacherEmail };
+}
+
+function resolveInboxFromBody(req: any):
+  | { ok: true; schoolId: string; adminView: boolean; teacherEmail: string }
+  | { ok: false; status: number; error: string } {
+  const jwtUser = verifyStaffJwt(req.headers.authorization);
+  const schoolId = String(req.body?.schoolId || "").trim();
+  const adminView = String(req.body?.adminView || "") === "true";
+  let teacherEmail = normalizeEmail(String(req.body?.teacherEmail || ""));
+  if (jwtUser) {
+    if (!schoolId || jwtUser.schoolId !== schoolId) {
+      return { ok: false, status: 403, error: "schoolId mismatch or missing" };
+    }
+    if (adminView) {
+      if (jwtUser.role !== "SCHOOL_ADMIN") {
+        return { ok: false, status: 403, error: "adminView requires school admin token" };
+      }
+    } else {
+      teacherEmail = normalizeEmail(jwtUser.email);
+    }
+  }
+  if (!schoolId) return { ok: false, status: 400, error: "schoolId required" };
+  if (!adminView && !teacherEmail) {
+    return { ok: false, status: 400, error: "teacherEmail required" };
+  }
+  return { ok: true, schoolId, adminView, teacherEmail };
 }
 
 router.get("/threads", async (req, res) => {
   try {
-    const schoolId = String(req.query.schoolId || "").trim();
-    const teacherEmail = normalizeEmail(String(req.query.teacherEmail || ""));
-    const adminView = String(req.query.adminView || "") === "true";
-
-    if (!schoolId) {
-      return res.status(400).json({ success: false, error: "schoolId required" });
+    const auth = resolveInboxFromQuery(req);
+    if (!auth.ok) {
+      return res.status(auth.status).json({ success: false, error: auth.error });
     }
+    const { schoolId, adminView, teacherEmail } = auth;
 
     const where: any = { schoolId };
     if (!adminView) {
-      if (!teacherEmail) {
-        return res.status(400).json({ success: false, error: "teacherEmail required" });
-      }
       where.teacherEmail = teacherEmail;
     }
 
@@ -88,18 +136,12 @@ router.get("/threads", async (req, res) => {
 
 router.get("/threads/:threadId", async (req, res) => {
   try {
-    const schoolId = String(req.query.schoolId || "").trim();
-    const teacherEmail = normalizeEmail(String(req.query.teacherEmail || ""));
-    const adminView = String(req.query.adminView || "") === "true";
+    const auth = resolveInboxFromQuery(req);
+    if (!auth.ok) {
+      return res.status(auth.status).json({ success: false, error: auth.error });
+    }
+    const { schoolId, adminView, teacherEmail } = auth;
     const threadId = String(req.params.threadId);
-
-    if (!schoolId) {
-      return res.status(400).json({ success: false, error: "schoolId required" });
-    }
-    if (!adminView && !teacherEmail) {
-      return res.status(400).json({ success: false, error: "teacherEmail required" });
-    }
-
     const thread = await prisma.parentTeacherThread.findFirst({
       where: { id: threadId, schoolId },
       include: {
@@ -128,18 +170,17 @@ router.get("/threads/:threadId", async (req, res) => {
 
 router.post("/threads/:threadId/reply", upload.array("files", 5), async (req, res) => {
   try {
-    const schoolId = String(req.body?.schoolId || "").trim();
-    const teacherEmail = normalizeEmail(String(req.body?.teacherEmail || ""));
+    const auth = resolveInboxFromBody(req);
+    if (!auth.ok) {
+      return res.status(auth.status).json({ success: false, error: auth.error });
+    }
+    const { schoolId, adminView, teacherEmail } = auth;
     const teacherName = String(req.body?.teacherName || "Teacher").trim();
     const body = String(req.body?.body || "").trim();
     const threadId = String(req.params.threadId);
-    const adminView = String(req.body?.adminView || "") === "true";
 
-    if (!schoolId || !body) {
-      return res.status(400).json({ success: false, error: "schoolId and body required" });
-    }
-    if (!adminView && !teacherEmail) {
-      return res.status(400).json({ success: false, error: "teacherEmail required" });
+    if (!body) {
+      return res.status(400).json({ success: false, error: "body required" });
     }
 
     const thread = await prisma.parentTeacherThread.findFirst({
@@ -197,17 +238,12 @@ router.post("/threads/:threadId/reply", upload.array("files", 5), async (req, re
 
 router.patch("/threads/:threadId/read", async (req, res) => {
   try {
-    const schoolId = String(req.body?.schoolId || "").trim();
-    const teacherEmail = normalizeEmail(String(req.body?.teacherEmail || ""));
-    const adminView = Boolean(req.body?.adminView);
+    const auth = resolveInboxFromBody(req);
+    if (!auth.ok) {
+      return res.status(auth.status).json({ success: false, error: auth.error });
+    }
+    const { schoolId, adminView, teacherEmail } = auth;
     const threadId = String(req.params.threadId);
-
-    if (!schoolId) {
-      return res.status(400).json({ success: false, error: "schoolId required" });
-    }
-    if (!adminView && !teacherEmail) {
-      return res.status(400).json({ success: false, error: "teacherEmail required" });
-    }
 
     const thread = await prisma.parentTeacherThread.findFirst({
       where: { id: threadId, schoolId },

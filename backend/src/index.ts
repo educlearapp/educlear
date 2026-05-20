@@ -35,6 +35,7 @@ import emailRoutes from "./routes/emails";
 import parentPortalRoutes from "./routes/parentPortal";
 import classroomsRoutes from "./routes/classrooms";
 import teacherInboxRoutes from "./routes/teacherInbox";
+import teacherAppRoutes from "./routes/teacherApp";
 import { prisma } from "./prisma";
 
 type OtpRecord = {
@@ -349,6 +350,7 @@ app.use("/api/registrations", registrationsRoutes);
 app.use("/api/parent-portal", parentPortalRoutes);
 app.use("/api/classrooms", classroomsRoutes);
 app.use("/api/teacher-inbox", teacherInboxRoutes);
+app.use("/api/teacher-app", teacherAppRoutes);
 app.get("/api/parents", async (_req, res) => {
 
 

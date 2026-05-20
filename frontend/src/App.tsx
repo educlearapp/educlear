@@ -28,6 +28,7 @@ import LearnerDigitalReport from "./LearnerDigitalReport";
 import RegisterSchool from "./RegisterSchool";
 import ParentPortalApp from "./parent/ParentPortalApp";
 import TeacherInbox from "./teacher/TeacherInbox";
+import TeacherApp from "./teacher-app/TeacherApp";
 
 
 
@@ -595,6 +596,7 @@ export default function App() {
 
         <Route path="/dashboard/*" element={<SchoolDashboard />} />
         <Route path="/teacher-inbox" element={<TeacherInbox />} />
+        <Route path="/teacher/*" element={<TeacherApp />} />
 
         <Route
           path="/super-admin/*"
