@@ -33,6 +33,7 @@ import BillingDocuments from "./billing/BillingDocuments";
 import Email from "./communication/Email";
 import SMS from "./communication/SMS";
 import CommunicationSettings from "./communication/CommunicationSettings";
+import CommunicationCentre from "./communication/CommunicationCentre";
 import AccountingOverview from "./accounting/AccountingOverview";
 import AccountingExportCenter from "./accounting/AccountingExportCenter";
 import AccountingBanking from "./accounting/AccountingBanking";
@@ -240,6 +241,8 @@ type PageKey =
   | "communicationSms"
 
   | "communicationSettings"
+
+  | "communicationCentre"
 
   | "bankStatementImport"
   | "accountingOverview"
@@ -802,7 +805,8 @@ const [selectedLearnerReport, setSelectedLearnerReport] = useState<any>(null);
     if (
       page === "communicationEmail" ||
       page === "communicationSms" ||
-      page === "communicationSettings"
+      page === "communicationSettings" ||
+      page === "communicationCentre"
     ) {
       setCommunicationOpen(true);
       setCommunicationMoreOpen(page === "communicationSettings");
@@ -16321,7 +16325,6 @@ const [invoiceRunEmailDraft, setInvoiceRunEmailDraft] = useState({
             onOpenLearnerProfile={openLearnerProfile}
             onGoToStatements={() => setActivePage("statements")}
             onGoToInvoices={() => setActivePage("invoices")}
-            onGoToPayments={() => setActivePage("payments")}
             onGoToIncidents={() => setActivePage("incidents")}
           />
         );
@@ -18307,6 +18310,13 @@ return (
           ) : (
             <h1 className="page-title">Communication Settings</h1>
           );
+
+        case "communicationCentre":
+          return schoolId ? (
+            <CommunicationCentre schoolId={schoolId} schoolName={schoolBranding.name} />
+          ) : (
+            <h1 className="page-title">Communication Centre</h1>
+          );
   
   
   
@@ -18900,6 +18910,12 @@ return (
             </div>
             {communicationOpen && (
               <div className="submenu">
+                <div
+                  className={`submenu-item ${activePage === "communicationCentre" ? "active" : ""}`}
+                  onClick={() => go("communicationCentre")}
+                >
+                  Communication Centre
+                </div>
                 <div
                   className={`submenu-item ${activePage === "communicationEmail" ? "active" : ""}`}
                   onClick={() => go("communicationEmail")}

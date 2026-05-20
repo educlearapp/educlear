@@ -116,6 +116,12 @@ learnerReports LearnerReport[]
   learnerIncidents LearnerIncident[]
   parentOnboardings ParentOnboarding[]
   parentOutreachQueue ParentOutreachQueue[]
+  communicationMessages CommunicationMessage[]
+  communicationCampaigns CommunicationCampaign[]
+  communicationTemplates CommunicationTemplate[]
+  communicationLogs CommunicationLog[]
+  pushSubscriptions PushSubscription[]
+  schoolCommunicationProfile SchoolCommunicationProfile?
 }
 
 enum BankTransactionMatchStatus {
@@ -346,6 +352,8 @@ familyAccount FamilyAccount? @relation(fields: [familyAccountId], references: [i
   teacherThreads ParentTeacherThread[]
   onboarding ParentOnboarding?
   outreachQueue ParentOutreachQueue[]
+  communicationMessages CommunicationMessage[]
+  pushSubscriptions PushSubscription[]
 
   @@index([schoolId])
 
@@ -427,6 +435,7 @@ reports LearnerReport[]
   teacherThreads ParentTeacherThread[]
   homeworkPosts HomeworkPost[]
   incidents LearnerIncident[]
+  communicationMessages CommunicationMessage[]
 
   @@unique([schoolId, admissionNo])
   @@index([schoolId])
@@ -2299,6 +2308,7 @@ model ParentNotification {
   school  School  @relation(fields: [schoolId], references: [id], onDelete: Cascade)
   parent  Parent  @relation(fields: [parentId], references: [id], onDelete: Cascade)
   learner Learner? @relation(fields: [learnerId], references: [id], onDelete: SetNull)
+  engineMessages CommunicationMessage[] @relation("ParentNotificationEngineMessages")
 
   @@index([schoolId, parentId])
   @@index([schoolId, parentId, isRead])
@@ -2464,4 +2474,170 @@ model ParentOutreachQueue {
 
   @@index([schoolId, status])
   @@index([parentId])
+}
+
+// =========================
+// COMMUNICATION ENGINE (centralized queue + templates + campaigns)
+// =========================
+
+enum CommunicationChannel {
+  sms
+  email
+  whatsapp
+  push
+  in_app
+}
+
+enum CommunicationMessageStatus {
+  queued
+  sending
+  sent
+  failed
+}
+
+enum CommunicationCategory {
+  invoice_ready
+  statement_ready
+  attendance_absent
+  attendance_late
+  incident_created
+  homework_added
+  assessment_notice
+  exam_notice
+  parent_message
+  teacher_reply
+  onboarding_invite
+  marketing_campaign
+  payment_reminder
+  school_notice
+  document_shared
+}
+
+model SchoolCommunicationProfile {
+  id                  String   @id @default(cuid())
+  schoolId            String   @unique
+  smtp                Json?
+  smsProvider         Json?
+  whatsappProvider    Json?
+  pushProvider        Json?
+  senderDisplayName   String   @default("")
+  replyToEmail        String   @default("")
+  createdAt           DateTime @default(now())
+  updatedAt           DateTime @updatedAt
+
+  school School @relation(fields: [schoolId], references: [id], onDelete: Cascade)
+}
+
+model CommunicationCampaign {
+  id         String                @id @default(cuid())
+  schoolId   String
+  name       String
+  category   CommunicationCategory
+  metadata   Json?
+  createdBy  String                @default("")
+  createdAt  DateTime              @default(now())
+
+  school   School                 @relation(fields: [schoolId], references: [id], onDelete: Cascade)
+  messages CommunicationMessage[]
+
+  @@index([schoolId, createdAt])
+}
+
+model CommunicationTemplate {
+  id               String               @id @default(cuid())
+  schoolId         String?
+  templateKey      String
+  name             String
+  subjectTemplate  String               @default("")
+  bodyTemplate     String               @db.Text
+  defaultChannel   CommunicationChannel?
+  variableHints    Json?
+  isActive         Boolean              @default(true)
+  createdAt        DateTime             @default(now())
+  updatedAt        DateTime             @updatedAt
+
+  school School? @relation(fields: [schoolId], references: [id], onDelete: Cascade)
+
+  @@index([schoolId, templateKey])
+  @@index([templateKey])
+}
+
+model CommunicationMessage {
+  id                     String                     @id @default(cuid())
+  schoolId               String
+  campaignId             String?
+  learnerId              String?
+  parentId               String?
+  category               CommunicationCategory
+  channel                CommunicationChannel
+  templateKey            String?
+  subject                String                     @default("")
+  body                   String                     @db.Text
+  variables              Json?
+  recipient              String?
+  status                 CommunicationMessageStatus @default(queued)
+  queuedAt               DateTime                   @default(now())
+  sendingAt              DateTime?
+  sentAt                 DateTime?
+  failedAt               DateTime?
+  error                  String?                    @db.Text
+  providerResponse       Json?
+  createdBy              String                     @default("")
+  retryCount             Int                        @default(0)
+  parentNotificationId   String?
+
+  school               School                 @relation(fields: [schoolId], references: [id], onDelete: Cascade)
+  campaign             CommunicationCampaign? @relation(fields: [campaignId], references: [id], onDelete: SetNull)
+  parent               Parent?                @relation(fields: [parentId], references: [id], onDelete: SetNull)
+  learner              Learner?               @relation(fields: [learnerId], references: [id], onDelete: SetNull)
+  parentNotification   ParentNotification?    @relation("ParentNotificationEngineMessages", fields: [parentNotificationId], references: [id], onDelete: SetNull)
+  recipients           CommunicationRecipient[]
+  logs                 CommunicationLog[]
+
+  @@index([schoolId, status])
+  @@index([schoolId, category])
+  @@index([schoolId, channel])
+  @@index([queuedAt])
+  @@index([parentId])
+}
+
+model CommunicationRecipient {
+  id        String @id @default(cuid())
+  messageId String
+  role      String @default("to")
+  address   String
+
+  message CommunicationMessage @relation(fields: [messageId], references: [id], onDelete: Cascade)
+
+  @@index([messageId])
+}
+
+model CommunicationLog {
+  id        String   @id @default(cuid())
+  schoolId  String
+  messageId String
+  event     String
+  detail    Json?
+  createdAt DateTime @default(now())
+
+  school  School               @relation(fields: [schoolId], references: [id], onDelete: Cascade)
+  message CommunicationMessage @relation(fields: [messageId], references: [id], onDelete: Cascade)
+
+  @@index([schoolId, createdAt])
+  @@index([messageId, createdAt])
+}
+
+model PushSubscription {
+  id        String   @id @default(cuid())
+  schoolId  String
+  parentId  String
+  endpoint  String   @unique
+  keys      Json?
+  userAgent String?
+  createdAt DateTime @default(now())
+
+  school School @relation(fields: [schoolId], references: [id], onDelete: Cascade)
+  parent Parent @relation(fields: [parentId], references: [id], onDelete: Cascade)
+
+  @@index([schoolId, parentId])
 }

@@ -1,5 +1,13 @@
 import type { ParentNotificationType, ParentMessageSenderType } from "@prisma/client";
 import { prisma } from "../prisma";
+import {
+  ensureDefaultCommunicationTemplates,
+  portalUrlDefault,
+  queueBillingFollowupsForParent,
+  queueParentOutreachChannels,
+  submitParentInAppNotification,
+} from "../communication/communicationEngine";
+import { resolveRenderedMessage } from "../communication/communicationTemplates";
 
 export function normalizeSaPhone(phone: string) {
   const digits = String(phone || "").replace(/\D/g, "");
@@ -51,10 +59,13 @@ export async function findParentByCredentials(opts: {
   });
 }
 
-export async function resolveClassroomForLearner(schoolId: string, learner: {
-  className?: string | null;
-  grade?: string | null;
-}) {
+export async function resolveClassroomForLearner(
+  schoolId: string,
+  learner: {
+    className?: string | null;
+    grade?: string | null;
+  }
+) {
   const className = String(learner.className || "").trim();
   if (!className) return null;
   let classroom = await prisma.classroom.findFirst({
@@ -115,6 +126,29 @@ export async function getOrCreateThread(opts: {
   return { thread, classroom, learner };
 }
 
+function templateKeyForParentType(t: ParentNotificationType): string | null {
+  switch (t) {
+    case "INVOICE_READY":
+      return "invoice_ready";
+    case "STATEMENT_READY":
+      return "statement_ready";
+    case "ONBOARDING":
+      return "onboarding_welcome";
+    case "HOMEWORK":
+      return "homework_uploaded";
+    case "INCIDENT":
+      return "incident_notice";
+    case "ASSESSMENT":
+    case "EXAM":
+    case "SCHOOL_NOTICE":
+      return "assessment_reminder";
+    case "TEACHER_MESSAGE":
+      return "teacher_reply";
+    default:
+      return null;
+  }
+}
+
 export async function createParentNotification(opts: {
   schoolId: string;
   parentId: string;
@@ -124,17 +158,38 @@ export async function createParentNotification(opts: {
   message: string;
   metadata?: Record<string, unknown>;
 }) {
-  return prisma.parentNotification.create({
-    data: {
-      schoolId: opts.schoolId,
-      parentId: opts.parentId,
-      learnerId: opts.learnerId || null,
-      type: opts.type,
-      title: opts.title,
-      message: opts.message,
-      metadata: opts.metadata ? (opts.metadata as object) : undefined,
-    },
+  await ensureDefaultCommunicationTemplates(prisma);
+  const school = await prisma.school.findUnique({
+    where: { id: opts.schoolId },
+    select: { name: true },
   });
+  const schoolName = school?.name || "School";
+  const md = (opts.metadata || {}) as Record<string, unknown>;
+  const templateKey = templateKeyForParentType(opts.type);
+  const templateVariables: Record<string, string | undefined> = {
+    schoolName,
+    portalUrl: portalUrlDefault,
+    noticeTitle: opts.title,
+    noticeBody: opts.message,
+    homeworkTitle: opts.title,
+    incidentSummary: opts.message,
+    messagePreview: opts.message.slice(0, 800),
+    month: md.month != null ? String(md.month) : undefined,
+    runId: md.runId != null ? String(md.runId) : undefined,
+  };
+
+  const { parentNotification } = await submitParentInAppNotification({
+    schoolId: opts.schoolId,
+    parentId: opts.parentId,
+    learnerId: opts.learnerId ?? null,
+    parentNotificationType: opts.type,
+    title: opts.title,
+    message: opts.message,
+    metadata: opts.metadata,
+    templateKey: templateKey || undefined,
+    templateVariables: templateKey ? templateVariables : undefined,
+  });
+  return parentNotification;
 }
 
 export async function notifyParentsForLearner(opts: {
@@ -172,7 +227,21 @@ export async function notifyParentsInvoiceRun(opts: {
   runId: string;
   learnerIds?: string[];
 }) {
+  await ensureDefaultCommunicationTemplates(prisma);
   const monthLabel = String(opts.month || "this period").trim();
+  const school = await prisma.school.findUnique({
+    where: { id: opts.schoolId },
+    select: { name: true },
+  });
+  const schoolName = school?.name || "School";
+  const portalUrl = portalUrlDefault;
+  const templateVars = {
+    month: monthLabel,
+    runId: opts.runId,
+    schoolName,
+    portalUrl,
+  };
+
   const parents = await prisma.parent.findMany({
     where: {
       schoolId: opts.schoolId,
@@ -182,67 +251,60 @@ export async function notifyParentsInvoiceRun(opts: {
           }
         : {}),
     },
-    select: { id: true },
+    select: {
+      id: true,
+      email: true,
+      cellNo: true,
+      communicationByEmail: true,
+      communicationBySMS: true,
+    },
   });
 
   const seen = new Set<string>();
   for (const p of parents) {
     if (seen.has(p.id)) continue;
     seen.add(p.id);
-    await createParentNotification({
+
+    await submitParentInAppNotification({
       schoolId: opts.schoolId,
       parentId: p.id,
-      type: "INVOICE_READY",
-      title: "Invoice ready",
-      message: `Your invoice for ${monthLabel} is ready.`,
+      parentNotificationType: "INVOICE_READY",
+      title: "",
+      message: "",
       metadata: { runId: opts.runId, month: monthLabel },
+      templateKey: "invoice_ready",
+      templateVariables: templateVars,
+      createdBy: "invoice_run",
     });
-    await createParentNotification({
+
+    await submitParentInAppNotification({
       schoolId: opts.schoolId,
       parentId: p.id,
-      type: "STATEMENT_READY",
-      title: "Statement ready",
-      message: `Your statement for ${monthLabel} is ready to view.`,
+      parentNotificationType: "STATEMENT_READY",
+      title: "",
+      message: "",
       metadata: { runId: opts.runId, month: monthLabel },
+      templateKey: "statement_ready",
+      templateVariables: templateVars,
+      createdBy: "invoice_run",
+    });
+
+    await queueBillingFollowupsForParent({
+      schoolId: opts.schoolId,
+      parentId: p.id,
+      monthLabel,
+      runId: opts.runId,
+      email: p.email,
+      cellNo: p.cellNo,
+      communicationByEmail: p.communicationByEmail,
+      communicationBySMS: p.communicationBySMS,
     });
   }
   return seen.size;
 }
 
-export async function queueParentOutreach(opts: {
-  schoolId: string;
-  parentId: string;
-  channels: Array<"SMS" | "EMAIL" | "WHATSAPP">;
-  subject: string;
-  body: string;
-  cellNo?: string | null;
-  email?: string | null;
-}) {
-  const rows = [];
-  for (const channel of opts.channels) {
-    const recipient =
-      channel === "EMAIL"
-        ? String(opts.email || "").trim()
-        : String(opts.cellNo || "").trim();
-    if (!recipient) continue;
-    rows.push(
-      prisma.parentOutreachQueue.create({
-        data: {
-          schoolId: opts.schoolId,
-          parentId: opts.parentId,
-          channel,
-          recipient,
-          subject: opts.subject,
-          body: opts.body,
-          status: "QUEUED",
-        },
-      })
-    );
-  }
-  return Promise.all(rows);
-}
-
 export async function runMigrationParentOnboarding(schoolId: string) {
+  await ensureDefaultCommunicationTemplates(prisma);
   const school = await prisma.school.findUnique({
     where: { id: schoolId },
     select: { id: true, name: true },
@@ -252,21 +314,26 @@ export async function runMigrationParentOnboarding(schoolId: string) {
   const parents = await prisma.parent.findMany({
     where: {
       schoolId,
-      OR: [
-        { email: { not: null } },
-        { cellNo: { not: "" } },
-      ],
+      OR: [{ email: { not: null } }, { cellNo: { not: "" } }],
     },
   });
 
-  const portalUrl =
-    process.env.PARENT_PORTAL_URL || "https://educlear.co.za/parent";
+  const portalUrl = portalUrlDefault;
   let invited = 0;
+
+  const campaign = await prisma.communicationCampaign.create({
+    data: {
+      schoolId,
+      name: `Parent onboarding (${school.name})`,
+      category: "onboarding_invite",
+      metadata: { source: "migration_onboarding" },
+      createdBy: "migration",
+    },
+  });
 
   for (const parent of parents) {
     const hasContact =
-      Boolean(String(parent.email || "").trim()) ||
-      Boolean(String(parent.cellNo || "").trim());
+      Boolean(String(parent.email || "").trim()) || Boolean(String(parent.cellNo || "").trim());
     if (!hasContact) continue;
 
     await prisma.parentOnboarding.upsert({
@@ -279,23 +346,21 @@ export async function runMigrationParentOnboarding(schoolId: string) {
       update: { status: "INVITED", invitedAt: new Date() },
     });
 
-    const body = [
-      `${school.name} is now using the EduClear Parent Portal.`,
-      "",
-      "View invoices, statements, school notices, homework, and message your child's class teacher.",
-      "",
-      `Open: ${portalUrl}`,
-      "",
-      "On your phone: open the link in your browser, then use Add to Home Screen to install the app.",
-    ].join("\n");
+    const templateVars = {
+      schoolName: school.name,
+      portalUrl,
+    };
 
-    await createParentNotification({
+    await submitParentInAppNotification({
       schoolId,
       parentId: parent.id,
-      type: "ONBOARDING",
-      title: "Welcome to EduClear Parent Portal",
-      message: body,
-      metadata: { portalUrl, schoolName: school.name },
+      parentNotificationType: "ONBOARDING",
+      title: "",
+      message: "",
+      templateKey: "onboarding_welcome",
+      templateVariables: templateVars,
+      metadata: { portalUrl, schoolName: school.name, campaignId: campaign.id },
+      createdBy: "migration",
     });
 
     const channels: Array<"SMS" | "EMAIL" | "WHATSAPP"> = [];
@@ -306,20 +371,35 @@ export async function runMigrationParentOnboarding(schoolId: string) {
       channels.push("EMAIL");
     }
 
-    await queueParentOutreach({
+    const rendered = await resolveRenderedMessage(prisma, schoolId, "onboarding_welcome", templateVars);
+    const subject = rendered.found
+      ? rendered.subject
+      : `${school.name} — EduClear Parent Portal`;
+    const body = rendered.found
+      ? rendered.body
+      : [
+          `${school.name} is now using the EduClear Parent Portal.`,
+          "",
+          `Open: ${portalUrl}`,
+        ].join("\n");
+
+    await queueParentOutreachChannels({
       schoolId,
       parentId: parent.id,
       channels,
-      subject: `${school.name} — EduClear Parent Portal`,
+      subject,
       body,
       cellNo: parent.cellNo,
       email: parent.email,
+      campaignId: campaign.id,
+      category: "onboarding_invite",
+      createdBy: "migration",
     });
 
     invited += 1;
   }
 
-  return { invited, schoolName: school.name };
+  return { invited, schoolName: school.name, campaignId: campaign.id };
 }
 
 export function mapThreadMessage(msg: {

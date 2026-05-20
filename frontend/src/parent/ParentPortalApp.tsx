@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState, type CSSProperties, type ReactNode } from "react";
+import { useCallback, useEffect, useMemo, useState, type CSSProperties } from "react";
 import { API_URL, apiFetch } from "../api";
 import {
   clearParentSession,
@@ -7,6 +7,9 @@ import {
   parentApiFetch,
   setParentSession,
 } from "./parentApi";
+import { useParentPortalPushPreparation } from "./useParentPortalPushPreparation";
+
+const LAST_VISIT_KEY = "parentPortalLastVisitAt";
 
 type Learner = {
   id: string;
@@ -31,7 +34,7 @@ type Notification = {
   isRead: boolean;
   createdAt: string;
   learnerId?: string | null;
-  learner?: { firstName: string; lastName: string } | null;
+  learner?: { firstName: string; lastName: string; grade?: string } | null;
   metadata?: Record<string, unknown>;
 };
 
@@ -44,28 +47,129 @@ type ThreadMessage = {
   attachments?: unknown;
 };
 
+type Panel =
+  | "dashboard"
+  | "messages"
+  | "homework"
+  | "notices"
+  | "documents"
+  | "statements"
+  | "incidents"
+  | "settings"
+  | "notifications"
+  | "profile";
+
 const gold = "#d4af37";
-const dark = "#0f172a";
+const dark = "#0a0e14";
+const cardBg = "#111827";
+const cardBorder = "rgba(212, 175, 55, 0.22)";
+const text = "#e2e8f0";
+const muted = "#94a3b8";
+
+const shell: CSSProperties = {
+  minHeight: "100vh",
+  background: `linear-gradient(180deg, ${dark} 0%, #0d121c 40%, #0a0e14 100%)`,
+  color: text,
+  fontFamily: "system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif",
+  WebkitFontSmoothing: "antialiased",
+};
 
 const card: CSSProperties = {
-  background: "#ffffff",
-  border: "1px solid rgba(212,175,55,0.35)",
-  borderRadius: 14,
-  padding: 16,
+  background: cardBg,
+  border: `1px solid ${cardBorder}`,
+  borderRadius: 12,
+  padding: 12,
+  boxShadow: "0 8px 24px rgba(0,0,0,0.35)",
 };
 
 const btnGold: CSSProperties = {
-  background: gold,
+  background: `linear-gradient(180deg, ${gold}, #b8922a)`,
   color: dark,
   border: "none",
   borderRadius: 10,
-  padding: "10px 16px",
+  padding: "10px 14px",
   fontWeight: 800,
   cursor: "pointer",
+  fontSize: 14,
 };
+
+const btnGhost: CSSProperties = {
+  background: "transparent",
+  color: gold,
+  border: `1px solid ${cardBorder}`,
+  borderRadius: 10,
+  padding: "8px 12px",
+  fontWeight: 700,
+  cursor: "pointer",
+  fontSize: 13,
+};
+
+const navItems: { key: Panel; label: string }[] = [
+  { key: "dashboard", label: "Dashboard" },
+  { key: "messages", label: "Messages" },
+  { key: "homework", label: "Homework" },
+  { key: "notices", label: "Notices" },
+  { key: "documents", label: "Documents" },
+  { key: "statements", label: "Statements" },
+  { key: "incidents", label: "Incidents" },
+  { key: "settings", label: "Settings" },
+];
 
 function isMobile() {
   return /Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
+}
+
+function notificationCategoryLabel(type: string): string {
+  switch (type) {
+    case "INVOICE_READY":
+      return "Invoice ready";
+    case "STATEMENT_READY":
+      return "Statement ready";
+    case "TEACHER_MESSAGE":
+      return "Teacher reply";
+    case "INCIDENT":
+      return "Incident";
+    case "HOMEWORK":
+      return "Homework uploaded";
+    case "SCHOOL_NOTICE":
+    case "ASSESSMENT":
+    case "EXAM":
+      return "Notice added";
+    case "DOCUMENT":
+      return "Document";
+    case "ONBOARDING":
+      return "Welcome";
+    default:
+      return type.replace(/_/g, " ").toLowerCase();
+  }
+}
+
+function documentHref(url: string) {
+  const u = String(url || "").trim();
+  if (!u) return "#";
+  if (u.startsWith("http://") || u.startsWith("https://")) return u;
+  return `${API_URL}${u.startsWith("/") ? "" : "/"}${u}`;
+}
+
+function formatShortDate(iso: string | undefined) {
+  if (!iso) return "—";
+  try {
+    return new Date(iso).toLocaleString(undefined, { dateStyle: "medium", timeStyle: "short" });
+  } catch {
+    return "—";
+  }
+}
+
+function nextDueHomework(homework: any[]): { title: string; due: string } | null {
+  const list = Array.isArray(homework) ? homework : [];
+  const withDue = list
+    .filter((h) => h?.dueDate)
+    .map((h) => ({ h, t: new Date(h.dueDate).getTime() }))
+    .filter((x) => !Number.isNaN(x.t));
+  withDue.sort((a, b) => a.t - b.t);
+  const first = withDue[0];
+  if (!first) return list[0] ? { title: list[0].title, due: "No due date" } : null;
+  return { title: first.h.title, due: `Due ${new Date(first.h.dueDate).toLocaleDateString()}` };
 }
 
 export default function ParentPortalApp() {
@@ -77,9 +181,8 @@ export default function ParentPortalApp() {
   const [otpSent, setOtpSent] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [view, setView] = useState<"login" | "dashboard" | "notifications" | "messages" | "billing" | "pwa">(
-    getParentToken() ? "dashboard" : "login"
-  );
+  const [shellView, setShellView] = useState<"login" | "pwa" | "app">(getParentToken() ? "app" : "login");
+  const [panel, setPanel] = useState<Panel>("dashboard");
   const [session, setSession] = useState(getParentSession());
   const [selectedLearnerId, setSelectedLearnerId] = useState("");
   const [dashboard, setDashboard] = useState<any>(null);
@@ -87,21 +190,48 @@ export default function ParentPortalApp() {
   const [threadMessages, setThreadMessages] = useState<ThreadMessage[]>([]);
   const [teacherInfo, setTeacherInfo] = useState<{ name: string; email: string } | null>(null);
   const [messageDraft, setMessageDraft] = useState("");
-  const [paymentInstructions, setPaymentInstructions] = useState("");
+  const [schoolBranding, setSchoolBranding] = useState<{ logoUrl?: string | null; name?: string }>({});
+  const [profileLearnerId, setProfileLearnerId] = useState<string | null>(null);
+  const [incidentDetail, setIncidentDetail] = useState<any>(null);
+  const [incidentLoading, setIncidentLoading] = useState(false);
+  const [lastVisitShown, setLastVisitShown] = useState<string | null>(null);
 
   const learners: LinkRow[] = useMemo(() => {
-    const rows = (session?.learners || dashboard?.learners || []) as LinkRow[];
+    const rows = (session?.learners || dashboard?.learners || []) as any[];
     return rows.map((r: any) => ({
       linkId: r.linkId || r.id,
-      relation: r.relation,
+      relation: r.relation ?? null,
       learner: r.learner || r,
     }));
   }, [session, dashboard]);
 
+  const findLearner = useCallback(
+    (id: string): Learner | null => {
+      if (!id) return null;
+      const row = learners.find((l) => l.learner.id === id);
+      if (row) return row.learner;
+      const raw = (dashboard?.learners || []) as Learner[];
+      return raw.find((l) => l.id === id) || null;
+    },
+    [learners, dashboard?.learners]
+  );
+
   const activeLearner = useMemo(() => {
     const id = selectedLearnerId || dashboard?.activeLearner?.id;
-    return learners.find((l) => l.learner.id === id)?.learner || dashboard?.activeLearner || null;
-  }, [learners, selectedLearnerId, dashboard]);
+    return findLearner(id || "") || dashboard?.activeLearner || null;
+  }, [findLearner, selectedLearnerId, dashboard]);
+
+  const schoolName =
+    schoolBranding?.name || session?.parent?.school?.name || dashboard?.activeLearner?.school?.name || "Your school";
+
+  const parentDisplayName = session?.parent
+    ? `${session.parent.firstName} ${session.parent.surname}`.trim()
+    : "Parent";
+
+  const unreadNotifCount = useMemo(() => {
+    const list = (dashboard?.notifications || []) as Notification[];
+    return list.filter((n) => !n.isRead).length;
+  }, [dashboard?.notifications]);
 
   useEffect(() => {
     void apiFetch("/api/schools/")
@@ -112,11 +242,57 @@ export default function ParentPortalApp() {
       .catch(() => {});
   }, []);
 
+  const sid = session?.parent?.school?.id || "";
+  const parentId = session?.parent?.id || "";
+
+  useParentPortalPushPreparation({
+    enabled: import.meta.env.VITE_REGISTER_PARENT_PUSH_SW === "true",
+    schoolId: sid,
+    parentId,
+  });
+
+  useEffect(() => {
+    if (!sid) return;
+    void apiFetch(`/api/schools/${encodeURIComponent(sid)}`)
+      .then((s: any) => {
+        setSchoolBranding({ logoUrl: s?.logoUrl || null, name: s?.name || undefined });
+      })
+      .catch(() => {});
+  }, [sid]);
+
   useEffect(() => {
     if (!getParentToken()) return;
     void loadDashboard();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selectedLearnerId]);
+
+  useEffect(() => {
+    if (shellView !== "app" || panel !== "notifications") return;
+    void refreshNotificationsList();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [shellView, panel]);
+
+  useEffect(() => {
+    if (shellView !== "app" || panel !== "messages" || !activeLearner?.id) return;
+    let cancelled = false;
+    setLoading(true);
+    const qs = new URLSearchParams({ learnerId: activeLearner.id });
+    void parentApiFetch(`/api/parent-portal/thread?${qs}`)
+      .then((data) => {
+        if (cancelled) return;
+        setTeacherInfo(data.teacher || null);
+        setThreadMessages(data?.thread?.messages || []);
+      })
+      .catch((e: any) => {
+        if (!cancelled) setError(e?.message || "Failed to load messages");
+      })
+      .finally(() => {
+        if (!cancelled) setLoading(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [shellView, panel, activeLearner?.id]);
 
   async function loadDashboard() {
     setLoading(true);
@@ -125,19 +301,43 @@ export default function ParentPortalApp() {
       const qs = selectedLearnerId ? `?learnerId=${encodeURIComponent(selectedLearnerId)}` : "";
       const data = await parentApiFetch(`/api/parent-portal/dashboard${qs}`);
       setDashboard(data);
-      if (!selectedLearnerId && data?.autoSelectLearner?.id) {
-        setSelectedLearnerId(data.autoSelectLearner.id);
+      if (!selectedLearnerId) {
+        const pick = data?.autoSelectLearner?.id || (Array.isArray(data.learners) && data.learners[0]?.id);
+        if (pick) setSelectedLearnerId(pick);
       }
       const me = await parentApiFetch("/api/parent-portal/me");
       setSession({ parent: me.parent, learners: me.learners });
+      try {
+        const prev = localStorage.getItem(LAST_VISIT_KEY);
+        if (prev) {
+          const t = Number(prev);
+          if (Number.isFinite(t)) {
+            setLastVisitShown(new Date(t).toLocaleString(undefined, { dateStyle: "medium", timeStyle: "short" }));
+          }
+        } else {
+          setLastVisitShown(null);
+        }
+        localStorage.setItem(LAST_VISIT_KEY, String(Date.now()));
+      } catch {
+        setLastVisitShown(null);
+      }
     } catch (e: any) {
       setError(e?.message || "Failed to load dashboard");
       if (String(e?.message || "").includes("401")) {
         clearParentSession();
-        setView("login");
+        setShellView("login");
       }
     } finally {
       setLoading(false);
+    }
+  }
+
+  async function refreshNotificationsList() {
+    try {
+      const data = await parentApiFetch("/api/parent-portal/notifications");
+      setNotifications(data.notifications || []);
+    } catch {
+      /* ignore */
     }
   }
 
@@ -172,7 +372,8 @@ export default function ParentPortalApp() {
       });
       setParentSession(data.token, { parent: data.parent, learners: data.learners });
       setSession({ parent: data.parent, learners: data.learners });
-      setView("dashboard");
+      setShellView("app");
+      setPanel("dashboard");
       await loadDashboard();
     } catch (e: any) {
       setError(e?.message || "Verification failed");
@@ -181,29 +382,28 @@ export default function ParentPortalApp() {
     }
   }
 
-  async function loadNotifications() {
-    const data = await parentApiFetch("/api/parent-portal/notifications");
-    setNotifications(data.notifications || []);
-    setView("notifications");
+  async function openNotificationsPanel() {
+    setPanel("notifications");
+    await refreshNotificationsList();
   }
 
-  async function openMessages() {
-    if (!activeLearner) {
+  function openMessages(overrideLearnerId?: string) {
+    const id =
+      overrideLearnerId ||
+      selectedLearnerId ||
+      dashboard?.autoSelectLearner?.id ||
+      (Array.isArray(dashboard?.learners) ? dashboard.learners[0]?.id : "") ||
+      "";
+    const learner = findLearner(id);
+    if (!learner) {
       setError("Select a learner first.");
       return;
     }
-    setLoading(true);
-    try {
-      const qs = new URLSearchParams({ learnerId: activeLearner.id });
-      const data = await parentApiFetch(`/api/parent-portal/thread?${qs}`);
-      setTeacherInfo(data.teacher || null);
-      setThreadMessages(data?.thread?.messages || []);
-      setView("messages");
-    } catch (e: any) {
-      setError(e?.message || "Failed to load messages");
-    } finally {
-      setLoading(false);
+    if (overrideLearnerId && overrideLearnerId !== selectedLearnerId) {
+      setSelectedLearnerId(overrideLearnerId);
     }
+    setError(null);
+    setPanel("messages");
   }
 
   async function sendMessage() {
@@ -225,50 +425,115 @@ export default function ParentPortalApp() {
     }
   }
 
-  function logout() {
-    clearParentSession();
-    setView("login");
-    setDashboard(null);
-    setSession(null);
+  async function markNotificationRead(id: string) {
+    try {
+      await parentApiFetch(`/api/parent-portal/notifications/${encodeURIComponent(id)}/read`, { method: "PATCH" });
+      await refreshNotificationsList();
+      await loadDashboard();
+    } catch {
+      /* ignore */
+    }
   }
 
-  if (view === "login") {
+  async function openIncident(id: string) {
+    setIncidentLoading(true);
+    setError(null);
+    try {
+      const data = await parentApiFetch(`/api/parent-portal/incidents/${encodeURIComponent(id)}`);
+      setIncidentDetail(data.incident || null);
+    } catch (e: any) {
+      setError(e?.message || "Could not load incident");
+    } finally {
+      setIncidentLoading(false);
+    }
+  }
+
+  function logout() {
+    clearParentSession();
+    setShellView("login");
+    setDashboard(null);
+    setSession(null);
+    setSelectedLearnerId("");
+    setPanel("dashboard");
+  }
+
+  const latestStatement = useMemo(() => {
+    const list = (dashboard?.notifications || []) as Notification[];
+    return list.find((n) => n.type === "STATEMENT_READY") || null;
+  }, [dashboard?.notifications]);
+
+  const homeworkDuePreview = useMemo(() => nextDueHomework(dashboard?.homework || []), [dashboard?.homework]);
+
+  const profileLearner = profileLearnerId ? findLearner(profileLearnerId) : null;
+
+  if (shellView === "login") {
     return (
-      <div style={{ minHeight: "100vh", background: "#f8fafc", fontFamily: "Arial, sans-serif" }}>
-        <header style={{ background: dark, color: "#fff", padding: "18px 20px", borderBottom: `3px solid ${gold}` }}>
-          <strong style={{ color: gold, fontSize: 20 }}>EduClear Parent Portal</strong>
+      <div style={{ ...shell, background: "#f1f5f9", color: dark }}>
+        <header
+          style={{
+            background: dark,
+            color: "#fff",
+            padding: "12px 16px",
+            borderBottom: `2px solid ${gold}`,
+          }}
+        >
+          <strong style={{ color: gold, fontSize: 17 }}>EduClear Parent Portal</strong>
         </header>
-        <main style={{ maxWidth: 480, margin: "32px auto", padding: 16 }}>
-          <div style={card}>
-            <h2 style={{ margin: "0 0 12px", color: dark }}>Sign in</h2>
-            <p style={{ color: "#64748b", fontSize: 14 }}>Use your ID number and OTP verification. No payment features — view invoices and statements only.</p>
-            <label style={{ display: "block", marginTop: 12, fontWeight: 700 }}>School</label>
-            <select value={schoolId} onChange={(e) => setSchoolId(e.target.value)} style={{ width: "100%", padding: 10, marginTop: 4 }}>
+        <main style={{ maxWidth: 440, margin: "16px auto", padding: "0 12px 24px" }}>
+          <div style={{ ...card, background: "#fff", color: dark, padding: 14 }}>
+            <h2 style={{ margin: "0 0 8px", fontSize: 20 }}>Sign in</h2>
+            <p style={{ color: "#64748b", fontSize: 13, margin: 0, lineHeight: 1.45 }}>
+              Sign in with your ID number and OTP. View invoices, statements, notices, and message your child&apos;s class teacher.
+            </p>
+            <label style={{ display: "block", marginTop: 10, fontWeight: 700, fontSize: 13 }}>School</label>
+            <select
+              value={schoolId}
+              onChange={(e) => setSchoolId(e.target.value)}
+              style={{ width: "100%", padding: 10, marginTop: 4, borderRadius: 8, border: "1px solid #e2e8f0" }}
+            >
               <option value="">Select school</option>
               {schools.map((s) => (
-                <option key={s.id} value={s.id}>{s.name}</option>
+                <option key={s.id} value={s.id}>
+                  {s.name}
+                </option>
               ))}
             </select>
-            <label style={{ display: "block", marginTop: 12, fontWeight: 700 }}>ID number</label>
-            <input value={idNumber} onChange={(e) => setIdNumber(e.target.value)} style={{ width: "100%", padding: 10, marginTop: 4 }} />
-            <label style={{ display: "block", marginTop: 12, fontWeight: 700 }}>Mobile (optional)</label>
-            <input value={cellNo} onChange={(e) => setCellNo(e.target.value)} style={{ width: "100%", padding: 10, marginTop: 4 }} />
-            {error && <p style={{ color: "#b91c1c", marginTop: 12 }}>{error}</p>}
+            <label style={{ display: "block", marginTop: 10, fontWeight: 700, fontSize: 13 }}>ID number</label>
+            <input
+              value={idNumber}
+              onChange={(e) => setIdNumber(e.target.value)}
+              style={{ width: "100%", padding: 10, marginTop: 4, borderRadius: 8, border: "1px solid #e2e8f0" }}
+            />
+            <label style={{ display: "block", marginTop: 10, fontWeight: 700, fontSize: 13 }}>Mobile (optional)</label>
+            <input
+              value={cellNo}
+              onChange={(e) => setCellNo(e.target.value)}
+              style={{ width: "100%", padding: 10, marginTop: 4, borderRadius: 8, border: "1px solid #e2e8f0" }}
+            />
+            {error && <p style={{ color: "#b45309", marginTop: 10, fontSize: 13 }}>{error}</p>}
             {!otpSent ? (
-              <button type="button" style={{ ...btnGold, marginTop: 16, width: "100%" }} onClick={() => void requestOtp()} disabled={loading}>
+              <button type="button" style={{ ...btnGold, marginTop: 12, width: "100%" }} onClick={() => void requestOtp()} disabled={loading}>
                 {loading ? "Sending…" : "Send OTP"}
               </button>
             ) : (
               <>
-                <label style={{ display: "block", marginTop: 12, fontWeight: 700 }}>OTP code</label>
-                <input value={otpCode} onChange={(e) => setOtpCode(e.target.value)} style={{ width: "100%", padding: 10, marginTop: 4 }} />
-                <button type="button" style={{ ...btnGold, marginTop: 16, width: "100%" }} onClick={() => void verifyOtp()} disabled={loading}>
+                <label style={{ display: "block", marginTop: 10, fontWeight: 700, fontSize: 13 }}>OTP code</label>
+                <input
+                  value={otpCode}
+                  onChange={(e) => setOtpCode(e.target.value)}
+                  style={{ width: "100%", padding: 10, marginTop: 4, borderRadius: 8, border: "1px solid #e2e8f0" }}
+                />
+                <button type="button" style={{ ...btnGold, marginTop: 12, width: "100%" }} onClick={() => void verifyOtp()} disabled={loading}>
                   {loading ? "Verifying…" : "Verify & enter"}
                 </button>
               </>
             )}
             {isMobile() && (
-              <button type="button" style={{ marginTop: 12, width: "100%", padding: 10, background: "transparent", border: `1px solid ${gold}`, borderRadius: 10, fontWeight: 700 }} onClick={() => setView("pwa")}>
+              <button
+                type="button"
+                style={{ ...btnGhost, marginTop: 10, width: "100%", color: dark, borderColor: "#cbd5e1" }}
+                onClick={() => setShellView("pwa")}
+              >
                 Install app instructions
               </button>
             )}
@@ -278,217 +543,808 @@ export default function ParentPortalApp() {
     );
   }
 
-  if (view === "pwa") {
+  if (shellView === "pwa") {
     return (
-      <div style={{ minHeight: "100vh", background: "#f8fafc", padding: 20 }}>
+      <div style={{ ...shell, padding: 16 }}>
         <div style={card}>
-          <h2 style={{ color: dark }}>Add EduClear to your home screen</h2>
-          <p><strong>iPhone (Safari):</strong> Tap Share → Add to Home Screen.</p>
-          <p><strong>Android (Chrome):</strong> Menu (⋮) → Install app / Add to Home screen.</p>
-          <p>Open: <a href="/parent">{window.location.origin}/parent</a></p>
-          <button type="button" style={btnGold} onClick={() => setView(getParentToken() ? "dashboard" : "login")}>Back</button>
+          <h2 style={{ marginTop: 0, color: gold, fontSize: 18 }}>Add EduClear to your home screen</h2>
+          <p style={{ fontSize: 14, lineHeight: 1.5 }}>
+            <strong>iPhone (Safari):</strong> Tap Share → Add to Home Screen.
+          </p>
+          <p style={{ fontSize: 14, lineHeight: 1.5 }}>
+            <strong>Android (Chrome):</strong> Menu (⋮) → Install app / Add to Home screen.
+          </p>
+          <p style={{ fontSize: 14 }}>
+            Open:{" "}
+            <a href="/parent" style={{ color: gold }}>
+              {window.location.origin}/parent
+            </a>
+          </p>
+          <button type="button" style={btnGold} onClick={() => setShellView(getParentToken() ? "app" : "login")}>
+            Back
+          </button>
         </div>
       </div>
     );
   }
 
-  const schoolName = session?.parent?.school?.name || dashboard?.activeLearner?.school?.name || "Your school";
+  const statementsUrl = `${API_URL}/api/statements/accounts?schoolId=${encodeURIComponent(session?.parent?.school?.id || schoolId)}`;
 
   return (
-    <div style={{ minHeight: "100vh", background: "#f8fafc", fontFamily: "Arial, sans-serif" }}>
-      <header style={{ background: dark, color: "#fff", padding: "14px 16px", borderBottom: `3px solid ${gold}`, display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: 8 }}>
-        <div>
-          <strong style={{ color: gold }}>EduClear Parent Portal</strong>
-          <div style={{ fontSize: 12, opacity: 0.85 }}>{schoolName}</div>
+    <div style={shell}>
+      <header
+        style={{
+          position: "sticky",
+          top: 0,
+          zIndex: 20,
+          background: "rgba(10,14,20,0.92)",
+          backdropFilter: "blur(8px)",
+          borderBottom: `1px solid ${cardBorder}`,
+          padding: "8px 12px",
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "space-between",
+          gap: 8,
+        }}
+      >
+        <div style={{ minWidth: 0 }}>
+          <div style={{ fontSize: 11, fontWeight: 800, letterSpacing: 1.2, color: gold }}>EDUCLEAR</div>
+          <div style={{ fontSize: 13, fontWeight: 700, color: text, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
+            Parent Portal
+          </div>
         </div>
-        <div style={{ display: "flex", gap: 8 }}>
-          <button type="button" style={{ ...btnGold, fontSize: 12 }} onClick={() => void loadNotifications()}>Notifications</button>
-          <button type="button" style={{ background: "transparent", color: gold, border: `1px solid ${gold}`, borderRadius: 10, padding: "8px 12px", fontWeight: 700, cursor: "pointer" }} onClick={logout}>Logout</button>
+        <div style={{ display: "flex", gap: 6, alignItems: "center", flexShrink: 0 }}>
+          <button
+            type="button"
+            aria-label="Notifications"
+            onClick={() => void openNotificationsPanel()}
+            style={{
+              position: "relative",
+              ...btnGhost,
+              padding: "8px 10px",
+              borderRadius: 999,
+            }}
+          >
+            <span style={{ fontSize: 11, fontWeight: 900, color: gold, letterSpacing: 0.5 }}>Alerts</span>
+            {unreadNotifCount > 0 ? (
+              <span
+                style={{
+                  position: "absolute",
+                  top: -4,
+                  right: -4,
+                  background: gold,
+                  color: dark,
+                  borderRadius: 999,
+                  fontSize: 10,
+                  fontWeight: 900,
+                  minWidth: 18,
+                  height: 18,
+                  lineHeight: "18px",
+                  textAlign: "center",
+                  padding: "0 4px",
+                }}
+              >
+                {unreadNotifCount > 9 ? "9+" : unreadNotifCount}
+              </span>
+            ) : null}
+          </button>
+          <button type="button" style={{ ...btnGhost, padding: "8px 10px" }} onClick={logout}>
+            Logout
+          </button>
         </div>
       </header>
 
-      <main style={{ maxWidth: 720, margin: "0 auto", padding: 16 }}>
-        {error && <div style={{ ...card, borderColor: "#fecaca", color: "#b91c1c", marginBottom: 12 }}>{error}</div>}
+      <nav
+        style={{
+          position: "sticky",
+          top: 49,
+          zIndex: 15,
+          display: "flex",
+          gap: 6,
+          padding: "8px 10px",
+          overflowX: "auto",
+          WebkitOverflowScrolling: "touch",
+          borderBottom: `1px solid rgba(255,255,255,0.06)`,
+          background: "rgba(10,14,20,0.88)",
+        }}
+        aria-label="Parent portal sections"
+      >
+        {navItems.map((item) => (
+          <button
+            key={item.key}
+            type="button"
+            onClick={() => {
+              setProfileLearnerId(null);
+              setIncidentDetail(null);
+              setPanel(item.key);
+            }}
+            style={{
+              flex: "0 0 auto",
+              padding: "7px 12px",
+              borderRadius: 999,
+              border: panel === item.key ? `1px solid ${gold}` : `1px solid rgba(255,255,255,0.08)`,
+              background: panel === item.key ? "rgba(212,175,55,0.12)" : "transparent",
+              color: panel === item.key ? gold : muted,
+              fontWeight: 700,
+              fontSize: 12,
+              cursor: "pointer",
+              whiteSpace: "nowrap",
+            }}
+          >
+            {item.label}
+          </button>
+        ))}
+      </nav>
 
-        {view === "dashboard" && (
+      <main style={{ maxWidth: 720, margin: "0 auto", padding: "10px 10px 88px" }}>
+        {error && (
+          <div
+            style={{
+              ...card,
+              borderColor: "rgba(251,191,36,0.45)",
+              color: "#fde68a",
+              marginBottom: 10,
+              fontSize: 13,
+              padding: 10,
+            }}
+          >
+            {error}
+          </div>
+        )}
+
+        {panel === "dashboard" && (
           <>
-            {learners.length > 1 && (
-              <div style={{ ...card, marginBottom: 14 }}>
-                <h3 style={{ margin: "0 0 10px", color: dark }}>Your learners</h3>
-                <div style={{ display: "grid", gap: 10 }}>
-                  {learners.map((row) => (
-                    <button
-                      key={row.learner.id}
-                      type="button"
-                      onClick={() => setSelectedLearnerId(row.learner.id)}
-                      style={{
-                        textAlign: "left",
-                        padding: 12,
-                        borderRadius: 10,
-                        border: selectedLearnerId === row.learner.id ? `2px solid ${gold}` : "1px solid #e2e8f0",
-                        background: selectedLearnerId === row.learner.id ? "rgba(212,175,55,0.12)" : "#fff",
-                        cursor: "pointer",
-                      }}
-                    >
-                      <strong>{row.learner.firstName} {row.learner.lastName}</strong>
-                      <div style={{ fontSize: 13, color: "#64748b" }}>{row.learner.grade} · {row.learner.className || "—"}</div>
-                    </button>
-                  ))}
-                </div>
-              </div>
-            )}
+            <WelcomeStrip
+              parentName={parentDisplayName}
+              schoolName={schoolName}
+              logoUrl={schoolBranding.logoUrl}
+              learnerCount={learners.length}
+              lastVisit={lastVisitShown}
+              unreadCount={unreadNotifCount}
+              onOpenNotifications={() => void openNotificationsPanel()}
+            />
 
-            {activeLearner && (
-              <div style={{ ...card, marginBottom: 14 }}>
-                <h3 style={{ margin: 0, color: dark }}>{activeLearner.firstName} {activeLearner.lastName}</h3>
-                <p style={{ color: "#64748b", margin: "6px 0 14px" }}>{activeLearner.grade} · Class {activeLearner.className || "—"}</p>
-                <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(140px, 1fr))", gap: 10 }}>
-                  <DashTile label="Invoice" value={dashboard?.latestInvoiceNotification ? "Ready" : "—"} onClick={() => setView("billing")} />
-                  <DashTile label="Messages" value={String(dashboard?.unreadTeacherMessages || 0)} onClick={() => void openMessages()} />
-                  <DashTile label="Incidents" value={String(dashboard?.incidents?.length || 0)} />
-                  <DashTile label="Homework" value={String(dashboard?.homework?.length || 0)} />
-                </div>
-                <button type="button" style={{ ...btnGold, marginTop: 14, width: "100%" }} onClick={() => void openMessages()}>
-                  Message class teacher
-                </button>
-                <p style={{ fontSize: 12, color: "#64748b", marginTop: 8 }}>Teacher is assigned automatically from your child&apos;s classroom — you cannot choose a different teacher.</p>
-              </div>
-            )}
+            <div
+              style={{
+                display: "grid",
+                gridTemplateColumns: "repeat(2, minmax(0, 1fr))",
+                gap: 8,
+                marginBottom: 10,
+              }}
+            >
+              <SummaryCard
+                title="Notifications"
+                subtitle={unreadNotifCount ? `${unreadNotifCount} unread` : "Up to date"}
+                onClick={() => void openNotificationsPanel()}
+              />
+              <SummaryCard
+                title="Latest invoice"
+                subtitle={dashboard?.latestInvoiceNotification?.title || "None yet"}
+                onClick={() => setPanel("statements")}
+              />
+              <SummaryCard
+                title="Latest statement"
+                subtitle={latestStatement?.title || "None yet"}
+                onClick={() => setPanel("statements")}
+              />
+              <SummaryCard
+                title="Homework due"
+                subtitle={homeworkDuePreview ? homeworkDuePreview.due : "None"}
+                onClick={() => setPanel("homework")}
+              />
+              <SummaryCard
+                title="Unread messages"
+                subtitle={String(dashboard?.unreadTeacherMessages ?? 0)}
+                onClick={() => void openMessages()}
+              />
+              <SummaryCard
+                title="Incidents"
+                subtitle={String(dashboard?.incidents?.length || 0)}
+                onClick={() => setPanel("incidents")}
+              />
+              <SummaryCard
+                title="Notices"
+                subtitle={dashboard?.notices?.[0]?.title?.slice(0, 36) || "—"}
+                onClick={() => setPanel("notices")}
+              />
+            </div>
 
-            {dashboard?.notices?.length > 0 && (
-              <Section title="Notices">
-                {dashboard.notices.map((n: any) => (
-                  <div key={n.id} style={{ padding: "8px 0", borderBottom: "1px solid #f1f5f9" }}>
-                    <strong>{n.title}</strong>
-                    <div style={{ fontSize: 13, color: "#64748b" }}>{String(n.body || "").slice(0, 120)}</div>
-                  </div>
-                ))}
-              </Section>
-            )}
-
-            {dashboard?.homework?.length > 0 && (
-              <Section title="Homework">
-                {dashboard.homework.map((h: any) => (
-                  <div key={h.id} style={{ padding: "8px 0", borderBottom: "1px solid #f1f5f9" }}>
-                    <strong>{h.title}</strong>
-                    {h.dueDate && <div style={{ fontSize: 12, color: "#b45309" }}>Due {new Date(h.dueDate).toLocaleDateString()}</div>}
-                  </div>
-                ))}
-              </Section>
-            )}
-
-            {dashboard?.incidents?.length > 0 && (
-              <Section title="Incidents">
-                {dashboard.incidents.map((inc: any) => (
-                  <div key={inc.id} style={{ padding: "8px 0", borderBottom: "1px solid #f1f5f9" }}>
-                    <strong>{inc.subject}</strong>
-                    <div style={{ fontSize: 13 }}>{String(inc.summary || "").slice(0, 160)}</div>
-                  </div>
-                ))}
-              </Section>
-            )}
+            <div style={{ fontSize: 12, fontWeight: 800, color: gold, letterSpacing: 0.6, margin: "4px 2px 8px" }}>YOUR CHILDREN</div>
+            {learners.map((row) => (
+              <LearnerPremiumCard
+                key={row.learner.id}
+                row={row}
+                selected={selectedLearnerId === row.learner.id}
+                billingHint={billingHintForLearner(row.learner.id, dashboard?.notifications)}
+                onSelect={() => setSelectedLearnerId(row.learner.id)}
+                onProfile={() => {
+                  setProfileLearnerId(row.learner.id);
+                  setPanel("profile");
+                }}
+                onMessage={() => void openMessages(row.learner.id)}
+                onHomework={() => {
+                  setSelectedLearnerId(row.learner.id);
+                  setPanel("homework");
+                }}
+                onNotices={() => {
+                  setSelectedLearnerId(row.learner.id);
+                  setPanel("notices");
+                }}
+              />
+            ))}
           </>
         )}
 
-        {view === "notifications" && (
+        {panel === "notifications" && (
           <div style={card}>
-            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-              <h3 style={{ margin: 0, color: dark }}>Notifications</h3>
-              <button type="button" style={{ background: "none", border: "none", color: gold, fontWeight: 800, cursor: "pointer" }} onClick={() => setView("dashboard")}>Back</button>
-            </div>
-            {notifications.length === 0 && <p style={{ color: "#64748b" }}>No notifications yet.</p>}
+            <PanelHeader title="Notifications" onBack={() => setPanel("dashboard")} />
+            <p style={{ color: muted, fontSize: 12, marginTop: 0 }}>
+              Invoice ready, teacher replies, incidents, homework, and notices appear here.
+            </p>
+            {notifications.length === 0 && <p style={{ color: muted, fontSize: 14 }}>No notifications yet.</p>}
             {notifications.map((n) => (
-              <div key={n.id} style={{ padding: "12px 0", borderBottom: "1px solid #f1f5f9", opacity: n.isRead ? 0.75 : 1 }}>
-                <div style={{ display: "flex", justifyContent: "space-between" }}>
-                  <strong>{n.title}</strong>
-                  <span style={{ fontSize: 11, color: "#94a3b8" }}>{new Date(n.createdAt).toLocaleDateString()}</span>
+              <div
+                key={n.id}
+                style={{
+                  padding: "10px 0",
+                  borderBottom: "1px solid rgba(255,255,255,0.06)",
+                  opacity: n.isRead ? 0.72 : 1,
+                }}
+              >
+                <div style={{ display: "flex", justifyContent: "space-between", gap: 8, alignItems: "flex-start" }}>
+                  <div>
+                    <div style={{ fontSize: 11, fontWeight: 800, color: gold }}>{notificationCategoryLabel(n.type)}</div>
+                    <strong style={{ fontSize: 14 }}>{n.title}</strong>
+                  </div>
+                  <span style={{ fontSize: 10, color: muted, whiteSpace: "nowrap" }}>{new Date(n.createdAt).toLocaleDateString()}</span>
                 </div>
-                <div style={{ fontSize: 13, color: "#64748b" }}>{n.type.replace(/_/g, " ")}</div>
-                <p style={{ margin: "6px 0 0", fontSize: 14 }}>{n.message}</p>
+                <p style={{ margin: "6px 0 0", fontSize: 13, color: muted, lineHeight: 1.45 }}>{n.message}</p>
+                {!n.isRead ? (
+                  <button type="button" style={{ ...btnGhost, marginTop: 8, fontSize: 12, padding: "6px 10px" }} onClick={() => void markNotificationRead(n.id)}>
+                    Mark read
+                  </button>
+                ) : null}
               </div>
             ))}
           </div>
         )}
 
-        {view === "messages" && (
+        {panel === "messages" && (
           <div style={card}>
-            <button type="button" style={{ background: "none", border: "none", color: gold, fontWeight: 800, cursor: "pointer" }} onClick={() => setView("dashboard")}>← Back</button>
-            <h3 style={{ color: dark }}>Class teacher: {teacherInfo?.name || "Assigned teacher"}</h3>
-            <div style={{ maxHeight: 360, overflowY: "auto", margin: "12px 0", display: "flex", flexDirection: "column", gap: 8 }}>
+            <PanelHeader title="Messages" onBack={() => setPanel("dashboard")} />
+            <LearnerSwitchStrip learners={learners} selectedId={selectedLearnerId} onSelect={setSelectedLearnerId} />
+            {activeLearner ? (
+              <p style={{ margin: "0 0 8px", fontSize: 12, color: muted }}>
+                {activeLearner.firstName} {activeLearner.lastName} · {activeLearner.grade}{" "}
+                {activeLearner.className ? `· ${activeLearner.className}` : ""}
+              </p>
+            ) : null}
+            <h3 style={{ margin: "0 0 8px", fontSize: 16, color: gold }}>Class teacher: {teacherInfo?.name || "Assigned teacher"}</h3>
+            <div style={{ maxHeight: 340, overflowY: "auto", margin: "8px 0", display: "flex", flexDirection: "column", gap: 6 }}>
               {threadMessages.map((m) => (
                 <div
                   key={m.id}
                   style={{
                     alignSelf: m.sender === "PARENT" ? "flex-end" : "flex-start",
-                    maxWidth: "85%",
-                    background: m.sender === "PARENT" ? "rgba(212,175,55,0.2)" : "#f1f5f9",
-                    padding: 10,
-                    borderRadius: 10,
+                    maxWidth: "88%",
+                    background: m.sender === "PARENT" ? "rgba(212,175,55,0.18)" : "rgba(255,255,255,0.06)",
+                    padding: "8px 10px",
+                    borderRadius: 12,
+                    border: `1px solid ${m.sender === "PARENT" ? "rgba(212,175,55,0.35)" : "rgba(255,255,255,0.08)"}`,
                   }}
                 >
-                  <div style={{ fontSize: 11, fontWeight: 700 }}>{m.senderName || m.sender}</div>
-                  <div>{m.body}</div>
+                  <div style={{ fontSize: 10, fontWeight: 800, color: gold }}>{m.senderName || m.sender}</div>
+                  <div style={{ fontSize: 14, lineHeight: 1.45 }}>{m.body}</div>
                 </div>
               ))}
             </div>
-            <textarea value={messageDraft} onChange={(e) => setMessageDraft(e.target.value)} rows={3} style={{ width: "100%", padding: 10, borderRadius: 10, border: "1px solid #e2e8f0" }} />
-            <button type="button" style={{ ...btnGold, marginTop: 8, width: "100%" }} onClick={() => void sendMessage()} disabled={loading}>Send</button>
+            <textarea
+              value={messageDraft}
+              onChange={(e) => setMessageDraft(e.target.value)}
+              rows={3}
+              style={{
+                width: "100%",
+                padding: 10,
+                borderRadius: 10,
+                border: `1px solid ${cardBorder}`,
+                background: "#0f172a",
+                color: text,
+                resize: "vertical",
+              }}
+            />
+            <button type="button" style={{ ...btnGold, marginTop: 8, width: "100%" }} onClick={() => void sendMessage()} disabled={loading}>
+              Send
+            </button>
+            <p style={{ fontSize: 11, color: muted, marginTop: 8, lineHeight: 1.45 }}>
+              Messages go to your child&apos;s class teacher for this learner. Switch learner from the dashboard if you have more than one child.
+            </p>
           </div>
         )}
 
-        {view === "billing" && (
+        {panel === "homework" && (
           <div style={card}>
-            <button type="button" style={{ background: "none", border: "none", color: gold, fontWeight: 800, cursor: "pointer" }} onClick={() => setView("dashboard")}>← Back</button>
-            <h3 style={{ color: dark }}>Invoices & statements</h3>
-            <p style={{ color: "#64748b", fontSize: 14 }}>View and download only. Online payments are not available in the parent portal.</p>
+            <PanelHeader title="Homework" onBack={() => setPanel("dashboard")} />
+            <LearnerSwitchStrip learners={learners} selectedId={selectedLearnerId} onSelect={setSelectedLearnerId} />
+            {(!dashboard?.homework || dashboard.homework.length === 0) && <p style={{ color: muted }}>No homework posted yet.</p>}
+            {(dashboard?.homework || []).map((h: any) => (
+              <div key={h.id} style={{ padding: "10px 0", borderBottom: "1px solid rgba(255,255,255,0.06)" }}>
+                <strong style={{ fontSize: 14 }}>{h.title}</strong>
+                {h.dueDate ? (
+                  <div style={{ fontSize: 12, color: gold, marginTop: 4 }}>Due {new Date(h.dueDate).toLocaleDateString()}</div>
+                ) : (
+                  <div style={{ fontSize: 12, color: muted, marginTop: 4 }}>No due date</div>
+                )}
+              </div>
+            ))}
+          </div>
+        )}
+
+        {panel === "notices" && (
+          <div style={card}>
+            <PanelHeader title="Notices" onBack={() => setPanel("dashboard")} />
+            <LearnerSwitchStrip learners={learners} selectedId={selectedLearnerId} onSelect={setSelectedLearnerId} />
+            {(!dashboard?.notices || dashboard.notices.length === 0) && <p style={{ color: muted }}>No notices yet.</p>}
+            {(dashboard?.notices || []).map((n: any) => (
+              <div key={n.id} style={{ padding: "10px 0", borderBottom: "1px solid rgba(255,255,255,0.06)" }}>
+                <strong style={{ fontSize: 14 }}>{n.title}</strong>
+                <div style={{ fontSize: 13, color: muted, marginTop: 4, lineHeight: 1.45 }}>{String(n.body || "").slice(0, 220)}</div>
+              </div>
+            ))}
+          </div>
+        )}
+
+        {panel === "documents" && (
+          <div style={card}>
+            <PanelHeader title="Documents" onBack={() => setPanel("dashboard")} />
+            <LearnerSwitchStrip learners={learners} selectedId={selectedLearnerId} onSelect={setSelectedLearnerId} />
+            {(!dashboard?.documents || dashboard.documents.length === 0) && <p style={{ color: muted }}>No documents yet.</p>}
+            {(dashboard?.documents || []).map((d: any) => (
+              <div key={d.id} style={{ padding: "10px 0", borderBottom: "1px solid rgba(255,255,255,0.06)" }}>
+                <a href={documentHref(d.fileUrl)} target="_blank" rel="noreferrer" style={{ color: gold, fontWeight: 800, textDecoration: "none" }}>
+                  {d.title}
+                </a>
+                {d.description ? <div style={{ fontSize: 12, color: muted, marginTop: 4 }}>{d.description}</div> : null}
+              </div>
+            ))}
+          </div>
+        )}
+
+        {panel === "statements" && (
+          <div style={card}>
+            <PanelHeader title="Statements & invoices" onBack={() => setPanel("dashboard")} />
+            <p style={{ color: muted, fontSize: 13, lineHeight: 1.5, marginTop: 0 }}>
+              View and download your school billing files. A credit or negative amount on a statement usually means your account is in credit — not
+              necessarily an error.
+            </p>
             {dashboard?.latestInvoiceNotification && (
-              <div style={{ background: "rgba(212,175,55,0.1)", padding: 12, borderRadius: 10, marginBottom: 12 }}>
+              <div
+                style={{
+                  background: "rgba(212,175,55,0.1)",
+                  border: `1px solid ${cardBorder}`,
+                  padding: 10,
+                  borderRadius: 10,
+                  marginBottom: 10,
+                  fontSize: 13,
+                  color: text,
+                }}
+              >
+                <div style={{ fontSize: 11, fontWeight: 800, color: gold, marginBottom: 4 }}>Latest invoice notice</div>
                 {dashboard.latestInvoiceNotification.message}
               </div>
             )}
-            <a href={`${API_URL}/api/statements/accounts?schoolId=${encodeURIComponent(session?.parent?.school?.id || schoolId)}`} target="_blank" rel="noreferrer" style={{ ...btnGold, display: "inline-block", textDecoration: "none", marginRight: 8 }}>
-              View statement data
+            {latestStatement && (
+              <div
+                style={{
+                  background: "rgba(148,163,184,0.08)",
+                  border: `1px solid rgba(148,163,184,0.25)`,
+                  padding: 10,
+                  borderRadius: 10,
+                  marginBottom: 10,
+                  fontSize: 13,
+                }}
+              >
+                <div style={{ fontSize: 11, fontWeight: 800, color: muted, marginBottom: 4 }}>Latest statement notice</div>
+                <strong>{latestStatement.title}</strong>
+                <div style={{ color: muted, marginTop: 4 }}>{latestStatement.message}</div>
+              </div>
+            )}
+            <a href={statementsUrl} target="_blank" rel="noreferrer" style={{ ...btnGold, display: "block", textAlign: "center", textDecoration: "none" }}>
+              Open statement data
             </a>
-            {paymentInstructions && (
-              <div style={{ marginTop: 14, fontSize: 14 }}>
-                <strong>Payment instructions</strong>
-                <pre style={{ whiteSpace: "pre-wrap", fontFamily: "inherit" }}>{paymentInstructions}</pre>
+          </div>
+        )}
+
+        {panel === "incidents" && (
+          <div style={card}>
+            <PanelHeader title="Incidents" onBack={() => setPanel("dashboard")} />
+            <LearnerSwitchStrip learners={learners} selectedId={selectedLearnerId} onSelect={setSelectedLearnerId} />
+            {incidentLoading && <p style={{ color: muted, fontSize: 13 }}>Loading…</p>}
+            {(!dashboard?.incidents || dashboard.incidents.length === 0) && !incidentLoading && (
+              <p style={{ color: muted }}>No incidents to show.</p>
+            )}
+            {(dashboard?.incidents || []).map((inc: any) => (
+              <button
+                key={inc.id}
+                type="button"
+                onClick={() => void openIncident(inc.id)}
+                style={{
+                  display: "block",
+                  width: "100%",
+                  textAlign: "left",
+                  padding: "10px 0",
+                  border: "none",
+                  borderBottom: "1px solid rgba(255,255,255,0.06)",
+                  background: "transparent",
+                  color: text,
+                  cursor: "pointer",
+                }}
+              >
+                <strong style={{ fontSize: 14 }}>{inc.subject}</strong>
+                <div style={{ fontSize: 12, color: muted, marginTop: 4 }}>{String(inc.summary || "").slice(0, 160)}</div>
+              </button>
+            ))}
+            {incidentDetail && (
+              <div style={{ marginTop: 12, padding: 10, borderRadius: 10, border: `1px solid ${cardBorder}`, background: "rgba(0,0,0,0.25)" }}>
+                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 8 }}>
+                  <strong style={{ color: gold }}>{incidentDetail.subject}</strong>
+                  <button type="button" style={{ ...btnGhost, fontSize: 11, padding: "4px 8px" }} onClick={() => setIncidentDetail(null)}>
+                    Close
+                  </button>
+                </div>
+                <div style={{ fontSize: 12, color: muted, marginTop: 4 }}>{formatShortDate(incidentDetail.incidentDate)}</div>
+                <p style={{ fontSize: 14, lineHeight: 1.5, marginTop: 8 }}>{incidentDetail.summary}</p>
               </div>
             )}
           </div>
         )}
 
-        {loading && <p style={{ textAlign: "center", color: "#64748b" }}>Loading…</p>}
+        {panel === "settings" && (
+          <div style={card}>
+            <PanelHeader title="Settings" onBack={() => setPanel("dashboard")} />
+            <p style={{ color: muted, fontSize: 13 }}>Keep things simple: use the dashboard for day-to-day updates.</p>
+            {isMobile() && (
+              <button type="button" style={{ ...btnGold, width: "100%", marginTop: 8 }} onClick={() => setShellView("pwa")}>
+                Install app instructions
+              </button>
+            )}
+            <button type="button" style={{ ...btnGhost, width: "100%", marginTop: 8 }} onClick={logout}>
+              Sign out
+            </button>
+          </div>
+        )}
+
+        {panel === "profile" && !profileLearner && (
+          <div style={card}>
+            <PanelHeader title="Learner profile" onBack={() => setPanel("dashboard")} />
+            <p style={{ color: muted }}>Choose a learner from the dashboard.</p>
+          </div>
+        )}
+
+        {panel === "profile" && profileLearner && (
+          <div style={card}>
+            <PanelHeader title="Learner profile" onBack={() => setPanel("dashboard")} />
+            <div style={{ fontSize: 20, fontWeight: 900, marginBottom: 4 }}>
+              {profileLearner.firstName} {profileLearner.lastName}
+            </div>
+            <div style={{ fontSize: 13, color: muted, lineHeight: 1.6 }}>
+              <div>
+                <span style={{ color: gold, fontWeight: 800 }}>Grade / class:</span> {profileLearner.grade}
+                {profileLearner.className ? ` · ${profileLearner.className}` : ""}
+              </div>
+              {profileLearner.admissionNo ? (
+                <div>
+                  <span style={{ color: gold, fontWeight: 800 }}>Admission no.:</span> {profileLearner.admissionNo}
+                </div>
+              ) : null}
+            </div>
+            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8, marginTop: 12 }}>
+              <button type="button" style={{ ...btnGold, width: "100%" }} onClick={() => void openMessages(profileLearner.id)}>
+                Message teacher
+              </button>
+              <button
+                type="button"
+                style={{ ...btnGhost, width: "100%" }}
+                onClick={() => {
+                  setSelectedLearnerId(profileLearner.id);
+                  setPanel("homework");
+                }}
+              >
+                Homework
+              </button>
+            </div>
+          </div>
+        )}
+
+        {loading && (
+          <p style={{ textAlign: "center", color: muted, fontSize: 13, marginTop: 8 }}>Loading…</p>
+        )}
       </main>
     </div>
   );
 }
 
-function DashTile({ label, value, onClick }: { label: string; value: string; onClick?: () => void }) {
+function billingHintForLearner(learnerId: string, notifications: Notification[] | undefined): { label: string; tone: "gold" | "slate" } {
+  const list = notifications || [];
+  const forLearner = (n: Notification) => !n.learnerId || n.learnerId === learnerId;
+  if (list.some((n) => forLearner(n) && n.type === "INVOICE_READY" && !n.isRead)) {
+    return { label: "New invoice available", tone: "gold" };
+  }
+  if (list.some((n) => forLearner(n) && n.type === "STATEMENT_READY" && !n.isRead)) {
+    return { label: "Statement ready to view", tone: "gold" };
+  }
+  if (list.some((n) => forLearner(n) && (n.type === "TEACHER_MESSAGE" || n.type === "HOMEWORK") && !n.isRead)) {
+    return { label: "Updates waiting", tone: "slate" };
+  }
+  return { label: "Billing: no new alerts", tone: "slate" };
+}
+
+function WelcomeStrip({
+  parentName,
+  schoolName,
+  logoUrl,
+  learnerCount,
+  lastVisit,
+  unreadCount,
+  onOpenNotifications,
+}: {
+  parentName: string;
+  schoolName: string;
+  logoUrl?: string | null;
+  learnerCount: number;
+  lastVisit: string | null;
+  unreadCount: number;
+  onOpenNotifications: () => void;
+}) {
+  return (
+    <div
+      style={{
+        ...card,
+        padding: 12,
+        marginBottom: 10,
+        display: "grid",
+        gridTemplateColumns: "auto 1fr auto",
+        gap: 10,
+        alignItems: "center",
+      }}
+    >
+      <div
+        style={{
+          width: 48,
+          height: 48,
+          borderRadius: 12,
+          border: `1px solid ${cardBorder}`,
+          overflow: "hidden",
+          background: "rgba(0,0,0,0.35)",
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+          flexShrink: 0,
+        }}
+      >
+        {logoUrl ? (
+          <img src={logoUrl} alt="" style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+        ) : (
+          <span style={{ fontSize: 11, fontWeight: 900, color: gold }}>SCH</span>
+        )}
+      </div>
+      <div style={{ minWidth: 0 }}>
+        <div style={{ fontSize: 11, color: muted, fontWeight: 700 }}>Welcome back</div>
+        <div style={{ fontSize: 16, fontWeight: 900, lineHeight: 1.25, wordBreak: "break-word" }}>{parentName}</div>
+        <div style={{ fontSize: 12, color: muted, marginTop: 2, fontWeight: 600 }}>{schoolName}</div>
+        <div style={{ fontSize: 11, color: muted, marginTop: 4 }}>
+          {learnerCount} learner{learnerCount === 1 ? "" : "s"}
+          {lastVisit ? ` · Last visit: ${lastVisit}` : ""}
+        </div>
+      </div>
+      <button
+        type="button"
+        onClick={onOpenNotifications}
+        style={{
+          position: "relative",
+          width: 40,
+          height: 40,
+          borderRadius: 999,
+          border: `1px solid ${cardBorder}`,
+          background: "rgba(212,175,55,0.08)",
+          cursor: "pointer",
+          flexShrink: 0,
+        }}
+        aria-label="Open notifications"
+      >
+        <span style={{ fontSize: 10, fontWeight: 900, color: gold }}>Alerts</span>
+        {unreadCount > 0 ? (
+          <span
+            style={{
+              position: "absolute",
+              top: -2,
+              right: -2,
+              background: gold,
+              color: dark,
+              borderRadius: 999,
+              fontSize: 10,
+              fontWeight: 900,
+              minWidth: 16,
+              height: 16,
+              lineHeight: "16px",
+              textAlign: "center",
+              padding: "0 4px",
+            }}
+          >
+            {unreadCount > 9 ? "9+" : unreadCount}
+          </span>
+        ) : null}
+      </button>
+    </div>
+  );
+}
+
+function SummaryCard({ title, subtitle, onClick }: { title: string; subtitle: string; onClick?: () => void }) {
   return (
     <button
       type="button"
       onClick={onClick}
+      disabled={!onClick}
       style={{
-        padding: 12,
-        borderRadius: 10,
-        border: "1px solid #e2e8f0",
-        background: "#fff",
-        cursor: onClick ? "pointer" : "default",
         textAlign: "left",
+        padding: "10px 10px",
+        borderRadius: 12,
+        border: `1px solid ${cardBorder}`,
+        background: "linear-gradient(145deg, rgba(30,41,59,0.9), rgba(15,23,42,0.95))",
+        cursor: onClick ? "pointer" : "default",
+        color: text,
+        minHeight: 72,
+        boxShadow: "0 4px 14px rgba(0,0,0,0.28)",
       }}
     >
-      <div style={{ fontSize: 11, color: "#64748b", fontWeight: 700 }}>{label}</div>
-      <div style={{ fontSize: 18, fontWeight: 900, color: dark }}>{value}</div>
+      <div style={{ fontSize: 11, fontWeight: 800, color: gold, letterSpacing: 0.3 }}>{title}</div>
+      <div style={{ fontSize: 13, fontWeight: 700, marginTop: 4, color: muted, lineHeight: 1.35 }}>{subtitle}</div>
     </button>
   );
 }
 
-function Section({ title, children }: { title: string; children: ReactNode }) {
+function LearnerPremiumCard({
+  row,
+  selected,
+  billingHint,
+  onSelect,
+  onProfile,
+  onMessage,
+  onHomework,
+  onNotices,
+}: {
+  row: LinkRow;
+  selected: boolean;
+  billingHint: { label: string; tone: "gold" | "slate" };
+  onSelect: () => void;
+  onProfile: () => void;
+  onMessage: () => void;
+  onHomework: () => void;
+  onNotices: () => void;
+}) {
+  const { learner, relation } = row;
+  const chipBg = billingHint.tone === "gold" ? "rgba(212,175,55,0.12)" : "rgba(148,163,184,0.12)";
+  const chipBorder = billingHint.tone === "gold" ? "rgba(212,175,55,0.35)" : "rgba(148,163,184,0.35)";
+  const chipColor = billingHint.tone === "gold" ? "#fde68a" : muted;
+
   return (
-    <div style={{ ...card, marginBottom: 14 }}>
-      <h3 style={{ margin: "0 0 8px", color: dark }}>{title}</h3>
-      {children}
+    <div
+      style={{
+        ...card,
+        marginBottom: 8,
+        padding: 12,
+        outline: selected ? `2px solid ${gold}` : "none",
+        outlineOffset: 0,
+      }}
+    >
+      <button
+        type="button"
+        onClick={onSelect}
+        style={{
+          display: "flex",
+          justifyContent: "space-between",
+          alignItems: "flex-start",
+          gap: 8,
+          width: "100%",
+          background: "transparent",
+          border: "none",
+          padding: 0,
+          cursor: "pointer",
+          color: text,
+          textAlign: "left",
+        }}
+      >
+        <div>
+          <div style={{ fontSize: 17, fontWeight: 900 }}>
+            {learner.firstName} {learner.lastName}
+          </div>
+          <div style={{ fontSize: 12, color: muted, marginTop: 2, fontWeight: 600 }}>
+            {learner.grade}
+            {learner.className ? ` · ${learner.className}` : ""}
+            {relation ? ` · ${relation}` : ""}
+          </div>
+        </div>
+        {selected ? (
+          <span style={{ fontSize: 10, fontWeight: 900, color: dark, background: gold, padding: "3px 8px", borderRadius: 999 }}>SELECTED</span>
+        ) : (
+          <span style={{ fontSize: 10, fontWeight: 800, color: muted }}>Tap to select</span>
+        )}
+      </button>
+      <div
+        style={{
+          marginTop: 8,
+          fontSize: 11,
+          fontWeight: 700,
+          display: "inline-block",
+          padding: "4px 8px",
+          borderRadius: 8,
+          background: chipBg,
+          border: `1px solid ${chipBorder}`,
+          color: chipColor,
+        }}
+      >
+        {billingHint.label}
+      </div>
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(2, minmax(0, 1fr))", gap: 6, marginTop: 10 }}>
+        <button type="button" style={{ ...btnGhost, width: "100%", fontSize: 12, padding: "8px 6px" }} onClick={onProfile}>
+          View profile
+        </button>
+        <button type="button" style={{ ...btnGold, width: "100%", fontSize: 12, padding: "8px 6px" }} onClick={onMessage}>
+          Message teacher
+        </button>
+        <button type="button" style={{ ...btnGhost, width: "100%", fontSize: 12, padding: "8px 6px" }} onClick={onHomework}>
+          Homework
+        </button>
+        <button type="button" style={{ ...btnGhost, width: "100%", fontSize: 12, padding: "8px 6px" }} onClick={onNotices}>
+          Notices
+        </button>
+      </div>
+    </div>
+  );
+}
+
+function LearnerSwitchStrip({
+  learners,
+  selectedId,
+  onSelect,
+}: {
+  learners: LinkRow[];
+  selectedId: string;
+  onSelect: (id: string) => void;
+}) {
+  if (learners.length <= 1) return null;
+  return (
+    <div style={{ display: "flex", gap: 6, overflowX: "auto", marginBottom: 10, paddingBottom: 2 }}>
+      {learners.map((row) => (
+        <button
+          key={row.learner.id}
+          type="button"
+          onClick={() => onSelect(row.learner.id)}
+          style={{
+            flex: "0 0 auto",
+            padding: "6px 10px",
+            borderRadius: 999,
+            border: selectedId === row.learner.id ? `1px solid ${gold}` : `1px solid rgba(255,255,255,0.1)`,
+            background: selectedId === row.learner.id ? "rgba(212,175,55,0.12)" : "transparent",
+            color: selectedId === row.learner.id ? gold : muted,
+            fontWeight: 700,
+            fontSize: 12,
+            cursor: "pointer",
+          }}
+        >
+          {row.learner.firstName}
+        </button>
+      ))}
+    </div>
+  );
+}
+
+function PanelHeader({ title, onBack }: { title: string; onBack: () => void }) {
+  return (
+    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 8, marginBottom: 8 }}>
+      <h3 style={{ margin: 0, fontSize: 17, color: gold }}>{title}</h3>
+      <button type="button" style={{ ...btnGhost, fontSize: 12, padding: "6px 10px" }} onClick={onBack}>
+        Back
+      </button>
     </div>
   );
 }

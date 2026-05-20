@@ -166,10 +166,6 @@ export type ParentPortalProps = {
 
 
 
-  onGoToPayments: () => void;
-
-
-
   onGoToIncidents: () => void;
 
 
@@ -203,10 +199,6 @@ const ParentPortal: React.FC<ParentPortalProps> = ({
 
 
   onGoToInvoices,
-
-
-
-  onGoToPayments,
 
 
 
@@ -1411,18 +1403,6 @@ const ParentPortal: React.FC<ParentPortalProps> = ({
 
 
                     Invoices
-
-
-
-                  </button>
-
-
-
-                  <button onClick={onGoToPayments} style={portalButtonStyle}>
-
-
-
-                    Payments
 
 
 

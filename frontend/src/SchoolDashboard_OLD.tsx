@@ -19554,7 +19554,6 @@ const [invoiceRunEmailDraft, setInvoiceRunEmailDraft] = useState({
             onOpenLearnerProfile={openLearnerProfile}
             onGoToStatements={() => setActivePage("statements")}
             onGoToInvoices={() => setActivePage("invoices")}
-            onGoToPayments={() => setActivePage("payments")}
             onGoToIncidents={() => setActivePage("incidents")}
           />
         );
