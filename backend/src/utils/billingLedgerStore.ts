@@ -217,6 +217,76 @@ export function accountEntries(
   );
 }
 
+export type FamilyLedgerScope = {
+  accountRef: string;
+  learnerIds: string[];
+};
+
+/**
+ * Family statement scope: learner-tagged rows only for current members;
+ * account-level rows (no learnerId) only when accountNo matches accountRef.
+ */
+export function entryMatchesFamilyAccountScope(
+  entry: BillingLedgerEntry,
+  scope: FamilyLedgerScope
+): boolean {
+  const ref = String(scope.accountRef || "").trim();
+  const learnerSet = new Set(
+    (scope.learnerIds || []).map((id) => String(id).trim()).filter(Boolean)
+  );
+  const entryLearnerId = String(entry.learnerId || "").trim();
+  const entryAccountNo = String(entry.accountNo || "").trim();
+
+  if (entryLearnerId) {
+    return learnerSet.has(entryLearnerId);
+  }
+  return Boolean(ref && entryAccountNo === ref);
+}
+
+/** Entries for a family billing account (statements, balances, parent portal). */
+export function collectFamilyAccountEntries(
+  entries: BillingLedgerEntry[],
+  scope: FamilyLedgerScope
+): BillingLedgerEntry[] {
+  const seen = new Set<string>();
+  const result: BillingLedgerEntry[] = [];
+
+  for (const entry of entries) {
+    if (!entryMatchesFamilyAccountScope(entry, scope)) continue;
+    if (seen.has(entry.id)) continue;
+    seen.add(entry.id);
+    result.push(entry);
+  }
+
+  return result;
+}
+
+export function getFamilyAccountLedger(
+  schoolId: string,
+  scope: FamilyLedgerScope
+): BillingLedgerEntry[] {
+  return collectFamilyAccountEntries(readSchoolLedger(schoolId), scope).sort(
+    (a, b) =>
+      new Date(b.date || b.createdAt).getTime() - new Date(a.date || a.createdAt).getTime()
+  );
+}
+
+export function calculateBalanceFromEntries(entries: BillingLedgerEntry[]): number {
+  const invoiceTotal = entries
+    .filter((e) => e.type === "invoice")
+    .reduce((s, e) => s + normaliseAmount(e.amount), 0);
+  const penaltyTotal = entries
+    .filter((e) => e.type === "penalty")
+    .reduce((s, e) => s + normaliseAmount(e.amount), 0);
+  const paymentTotal = entries
+    .filter((e) => e.type === "payment")
+    .reduce((s, e) => s + normaliseAmount(e.amount), 0);
+  const creditTotal = entries
+    .filter((e) => e.type === "credit")
+    .reduce((s, e) => s + normaliseAmount(e.amount), 0);
+  return invoiceTotal + penaltyTotal - paymentTotal - creditTotal;
+}
+
 export type OpenInvoiceLine = {
   id: string;
   audit: string;
@@ -393,6 +463,300 @@ export function computeLegalOverdueSnapshot(
   }
 
   return { balance, overdueAmount, overdueBalance, excludedNotYetDue, overdueInvoices };
+}
+
+const MONEY_EPS = 0.001;
+
+function roundMoney(value: number): number {
+  return Math.round(value * 100) / 100;
+}
+
+type FifoDebitLine = {
+  entryId: string;
+  learnerId: string;
+  remaining: number;
+  sortTime: number;
+  createdAt: string;
+};
+
+/**
+ * FIFO credit pool applied to family debits; returns per-credit allocation by learner id.
+ */
+export function computeFifoCreditAllocationsByLearner(
+  familyEntries: BillingLedgerEntry[],
+  familyLearnerIds: string[]
+): Map<string, Map<string, number>> {
+  const learnerSet = new Set(familyLearnerIds.map((id) => String(id).trim()).filter(Boolean));
+  const debits: FifoDebitLine[] = familyEntries
+    .filter((e) => e.type === "invoice" || e.type === "penalty")
+    .map((entry) => {
+      const gross = normaliseAmount(entry.amount);
+      return {
+        entryId: entry.id,
+        learnerId: String(entry.learnerId || "").trim(),
+        remaining: gross,
+        sortTime: new Date(entry.date || entry.createdAt).getTime(),
+        createdAt: String(entry.createdAt || ""),
+      };
+    })
+    .filter((d) => d.remaining > MONEY_EPS)
+    .sort((a, b) => {
+      if (a.sortTime !== b.sortTime) return a.sortTime - b.sortTime;
+      return a.createdAt.localeCompare(b.createdAt);
+    });
+
+  const credits = familyEntries
+    .filter((e) => e.type === "payment" || e.type === "credit")
+    .map((entry) => ({
+      id: entry.id,
+      amount: normaliseAmount(entry.amount),
+      sortTime: new Date(entry.date || entry.createdAt).getTime(),
+      createdAt: String(entry.createdAt || ""),
+    }))
+    .filter((c) => c.amount > MONEY_EPS)
+    .sort((a, b) => {
+      if (a.sortTime !== b.sortTime) return a.sortTime - b.sortTime;
+      return a.createdAt.localeCompare(b.createdAt);
+    });
+
+  const result = new Map<string, Map<string, number>>();
+
+  for (const credit of credits) {
+    let pool = credit.amount;
+    const byLearner = new Map<string, number>();
+
+    for (const debit of debits) {
+      if (pool <= MONEY_EPS) break;
+      if (debit.remaining <= MONEY_EPS) continue;
+      const apply = Math.min(pool, debit.remaining);
+      debit.remaining -= apply;
+      pool -= apply;
+      if (!debit.learnerId || !learnerSet.has(debit.learnerId)) continue;
+      byLearner.set(debit.learnerId, roundMoney((byLearner.get(debit.learnerId) || 0) + apply));
+    }
+
+    if (byLearner.size > 0) result.set(credit.id, byLearner);
+  }
+
+  return result;
+}
+
+export type UnmergeLearnerLedgerResult = {
+  updated: number;
+  movedEntryIds: string[];
+  splitEntryIds: string[];
+  entries: BillingLedgerEntry[];
+  balanceBefore: {
+    schoolTotal: number;
+    sourceFamily: number;
+    learnerOnSource: number;
+  };
+  balanceAfter: {
+    schoolTotal: number;
+    sourceFamily: number;
+    learnerOnTarget: number;
+  };
+};
+
+/**
+ * Move a learner's billing rows off a merged family account (never deletes entries).
+ * - Learner-tagged invoices, penalties, credits, and payments move to toAccountNo.
+ * - Shared payments/credits (account ref only, no learnerId) stay on fromAccountNo unless
+ *   FIFO allocation attributes a portion to this learner (then split, do not delete).
+ */
+export function unmergeLearnerLedger(
+  schoolId: string,
+  opts: {
+    fromAccountNo: string;
+    toAccountNo: string;
+    learnerId: string;
+    familyLearnerIds: string[];
+  }
+): UnmergeLearnerLedgerResult {
+  const key = String(schoolId || "").trim();
+  const from = String(opts.fromAccountNo || "").trim();
+  const to = String(opts.toAccountNo || "").trim();
+  const learnerId = String(opts.learnerId || "").trim();
+  const familyLearnerIds = opts.familyLearnerIds.map((id) => String(id).trim()).filter(Boolean);
+
+  const emptyBalances = {
+    schoolTotal: 0,
+    sourceFamily: 0,
+    learnerOnSource: 0,
+  };
+  const emptyAfter = {
+    schoolTotal: 0,
+    sourceFamily: 0,
+    learnerOnTarget: 0,
+  };
+
+  if (!key || !from || !to || !learnerId || from === to) {
+    const entries = readSchoolLedger(key);
+    return {
+      updated: 0,
+      movedEntryIds: [],
+      splitEntryIds: [],
+      entries,
+      balanceBefore: { ...emptyBalances, schoolTotal: calculateBalanceFromEntries(entries) },
+      balanceAfter: { ...emptyAfter, schoolTotal: calculateBalanceFromEntries(entries) },
+    };
+  }
+
+  const current = readSchoolLedger(key);
+  const familyScope: FamilyLedgerScope = { accountRef: from, learnerIds: familyLearnerIds };
+  const familyEntries = collectFamilyAccountEntries(current, familyScope);
+  const fifoAllocations = computeFifoCreditAllocationsByLearner(familyEntries, familyLearnerIds);
+
+  const balanceBefore = {
+    schoolTotal: calculateBalanceFromEntries(current),
+    sourceFamily: calculateBalanceFromEntries(familyEntries),
+    learnerOnSource: calculateBalanceForAccount(current, learnerId, from),
+  };
+
+  const movedEntryIds: string[] = [];
+  const splitEntryIds: string[] = [];
+  const extraRows: BillingLedgerEntry[] = [];
+  let updated = 0;
+
+  const next = current.map((entry) => {
+    const entryLearnerId = String(entry.learnerId || "").trim();
+    const entryAccountNo = String(entry.accountNo || "").trim();
+    const inFamily =
+      entryAccountNo === from ||
+      familyLearnerIds.includes(entryLearnerId) ||
+      entryLearnerId === learnerId;
+
+    if (!inFamily) return entry;
+
+    const isDebit = entry.type === "invoice" || entry.type === "penalty";
+    const isCredit = entry.type === "payment" || entry.type === "credit";
+
+    if (isDebit && entryLearnerId === learnerId) {
+      updated += 1;
+      movedEntryIds.push(entry.id);
+      return { ...entry, accountNo: to };
+    }
+
+    if (entry.type === "credit" && entryLearnerId === learnerId) {
+      updated += 1;
+      movedEntryIds.push(entry.id);
+      return { ...entry, accountNo: to };
+    }
+
+    if (isCredit) {
+      if (entryLearnerId && entryLearnerId !== learnerId) {
+        return entry;
+      }
+
+      if (entryLearnerId === learnerId) {
+        updated += 1;
+        movedEntryIds.push(entry.id);
+        return { ...entry, accountNo: to };
+      }
+
+      if (!entryLearnerId && entryAccountNo === from) {
+        const portion = roundMoney(fifoAllocations.get(entry.id)?.get(learnerId) || 0);
+        const fullAmount = roundMoney(normaliseAmount(entry.amount));
+        if (portion <= MONEY_EPS) return entry;
+
+        if (portion >= fullAmount - MONEY_EPS) {
+          updated += 1;
+          movedEntryIds.push(entry.id);
+          return { ...entry, accountNo: to, learnerId };
+        }
+
+        const remainder = roundMoney(fullAmount - portion);
+        const splitId = `${entry.id}-unmerge-${learnerId.slice(0, 8)}`;
+        splitEntryIds.push(splitId);
+        extraRows.push({
+          ...entry,
+          id: splitId,
+          amount: portion,
+          accountNo: to,
+          learnerId,
+          description: `${entry.description || entry.type} (unmerged to ${to})`.trim(),
+          createdAt: new Date().toISOString(),
+        });
+        updated += 1;
+        return { ...entry, amount: remainder };
+      }
+
+      return entry;
+    }
+
+    return entry;
+  });
+
+  const merged = [...next, ...extraRows];
+  const afterFamilyScope: FamilyLedgerScope = {
+    accountRef: from,
+    learnerIds: familyLearnerIds.filter((id) => id !== learnerId),
+  };
+  const afterFamilyEntries = collectFamilyAccountEntries(merged, afterFamilyScope);
+
+  const balanceAfter = {
+    schoolTotal: calculateBalanceFromEntries(merged),
+    sourceFamily: calculateBalanceFromEntries(afterFamilyEntries),
+    learnerOnTarget: calculateBalanceForAccount(merged, learnerId, to),
+  };
+
+  if (Math.abs(balanceBefore.schoolTotal - balanceAfter.schoolTotal) > 0.02) {
+    throw new Error(
+      `Unmerge ledger reconciliation failed: school balance ${balanceBefore.schoolTotal} → ${balanceAfter.schoolTotal}`
+    );
+  }
+
+  if (updated > 0 || extraRows.length > 0) writeSchoolLedger(key, merged);
+
+  return {
+    updated: updated + extraRows.length,
+    movedEntryIds,
+    splitEntryIds,
+    entries: merged,
+    balanceBefore,
+    balanceAfter,
+  };
+}
+
+/**
+ * Reassign accountNo on ledger rows (never deletes entries).
+ * includeAccountNoOnly: also move rows that match fromAccountNo but lack a learner id (family merge).
+ */
+export function reassignLedgerAccountRefs(
+  schoolId: string,
+  opts: {
+    fromAccountNo: string;
+    toAccountNo: string;
+    learnerIds: string[];
+    includeAccountNoOnly?: boolean;
+  }
+): { updated: number; entries: BillingLedgerEntry[] } {
+  const key = String(schoolId || "").trim();
+  const from = String(opts.fromAccountNo || "").trim();
+  const to = String(opts.toAccountNo || "").trim();
+  if (!key || !from || !to || from === to) {
+    return { updated: 0, entries: readSchoolLedger(key) };
+  }
+
+  const learnerSet = new Set(
+    opts.learnerIds.map((id) => String(id).trim()).filter(Boolean)
+  );
+  const includeAccountNoOnly = Boolean(opts.includeAccountNoOnly);
+
+  const current = readSchoolLedger(key);
+  let updated = 0;
+  const next = current.map((entry) => {
+    const entryLearnerId = String(entry.learnerId || "").trim();
+    const entryAccountNo = String(entry.accountNo || "").trim();
+    const matchesLearner = learnerSet.has(entryLearnerId);
+    const matchesAccount = includeAccountNoOnly && entryAccountNo === from;
+    if (!matchesLearner && !matchesAccount) return entry;
+    updated += 1;
+    return { ...entry, accountNo: to };
+  });
+
+  if (updated > 0) writeSchoolLedger(key, next);
+  return { updated, entries: next };
 }
 
 export function calculateBalanceForAccount(

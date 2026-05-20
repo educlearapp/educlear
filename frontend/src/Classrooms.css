@@ -1,0 +1,279 @@
+/* Classrooms — premium EduClear table page (main list + shared table/button styles) */
+
+.classrooms-page {
+  padding: 26px;
+  background: #f8fafc;
+  min-height: 100%;
+  border-radius: 20px;
+  border: 1px solid rgba(15, 23, 42, 0.08);
+  box-sizing: border-box;
+}
+
+.classrooms-page-header {
+  margin-bottom: 18px;
+}
+
+.classrooms-page-title {
+  margin: 0;
+  font-size: 34px;
+  font-weight: 900;
+  color: #0f172a;
+  letter-spacing: -0.01em;
+}
+
+.classrooms-page-subtitle {
+  margin: 6px 0 0;
+  color: #64748b;
+  font-weight: 700;
+  font-size: 14px;
+}
+
+.classrooms-page-underline {
+  height: 3px;
+  width: 86px;
+  margin-top: 10px;
+  border-radius: 999px;
+  background: linear-gradient(90deg, #d4af37, rgba(212, 175, 55, 0.08));
+}
+
+.classrooms-message {
+  margin-top: 14px;
+  background: rgba(212, 175, 55, 0.18);
+  border: 1px solid rgba(212, 175, 55, 0.45);
+  color: #0f172a;
+  padding: 12px 14px;
+  border-radius: 14px;
+  font-weight: 800;
+}
+
+/* Bordered panel: toolbar + table + pagination */
+.classrooms-panel {
+  background: #ffffff;
+  border: 1px solid rgba(15, 23, 42, 0.1);
+  border-top: 4px solid #d4af37;
+  border-radius: 12px;
+  overflow: hidden;
+  box-shadow: 0 18px 40px rgba(15, 23, 42, 0.08);
+}
+
+.classrooms-panel-heading {
+  padding: 12px 14px;
+  border-bottom: 1px solid #e5e7eb;
+  font-weight: 900;
+  font-size: 14px;
+  color: #0f172a;
+}
+
+.classrooms-toolbar {
+  padding: 10px 12px;
+  display: flex;
+  gap: 8px;
+  border-bottom: 1px solid #e5e7eb;
+  align-items: center;
+  flex-wrap: wrap;
+}
+
+.classrooms-toolbar-spacer {
+  flex: 1;
+  min-width: 12px;
+}
+
+.classrooms-search-wrap {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.classrooms-search-label {
+  color: #475569;
+  font-weight: 800;
+  font-size: 13px;
+}
+
+.classrooms-search-input {
+  height: 38px;
+  border-radius: 10px;
+  border: 1px solid rgba(15, 23, 42, 0.12);
+  background: #ffffff;
+  color: #0f172a;
+  padding: 0 12px;
+  outline: none;
+  font-weight: 700;
+  font-size: 13px;
+  min-width: 230px;
+  box-sizing: border-box;
+}
+
+.classrooms-search-input:focus {
+  border-color: rgba(212, 175, 55, 0.65);
+  box-shadow: 0 0 0 3px rgba(212, 175, 55, 0.18);
+}
+
+.classrooms-pagination {
+  padding: 10px 14px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+  border-top: 1px solid #e5e7eb;
+  color: #64748b;
+  font-size: 12px;
+  font-weight: 800;
+  background: #fafbfc;
+}
+
+.classrooms-pagination-meta {
+  color: #64748b;
+  font-weight: 800;
+  font-size: 12px;
+}
+
+.classrooms-pagination-controls {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.classrooms-pagination-controls .ec-page-btn {
+  min-width: 36px;
+  padding: 8px 12px;
+}
+
+.classrooms-pagination-page-label {
+  font-weight: 800;
+  color: #475569;
+  font-size: 12px;
+}
+
+/* Compact toolbar buttons */
+.ec-page-btn {
+  padding: 10px 16px;
+  border-radius: 10px;
+  border: 1px solid rgba(15, 23, 42, 0.14);
+  background: #ffffff;
+  font-weight: 800;
+  font-size: 13px;
+  color: #0f172a;
+  box-shadow: 0 4px 10px rgba(15, 23, 42, 0.05);
+  cursor: pointer;
+  font-family: inherit;
+  line-height: 1.2;
+  white-space: nowrap;
+}
+
+.ec-page-btn:hover:not(:disabled) {
+  border-color: rgba(212, 175, 55, 0.45);
+  background: rgba(212, 175, 55, 0.06);
+}
+
+.ec-page-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.ec-page-btn--gold {
+  border: 1px solid rgba(212, 175, 55, 0.7);
+  background: linear-gradient(135deg, #d4af37, #f5d06f);
+  color: #111827;
+  box-shadow: 0 8px 18px rgba(212, 175, 55, 0.28);
+}
+
+.ec-page-btn--gold:hover:not(:disabled) {
+  background: linear-gradient(135deg, #e0bc42, #f7d97a);
+}
+
+.ec-page-btn--compact {
+  font-size: 12px;
+  padding: 6px 10px;
+}
+
+/* Premium table inside panel */
+.ec-table-wrap {
+  overflow-x: auto;
+}
+
+.ec-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 13px;
+}
+
+.ec-table thead tr {
+  background: #f1f5f9;
+  border-bottom: 1px solid #cbd5e1;
+}
+
+.ec-table th {
+  text-align: left;
+  padding: 10px 12px;
+  font-size: 12px;
+  color: #334155;
+  font-weight: 900;
+  border-bottom: 1px solid #cbd5e1;
+  white-space: nowrap;
+}
+
+.ec-table td {
+  padding: 10px 12px;
+  color: #0f172a;
+  border-bottom: 1px solid #e5e7eb;
+  vertical-align: middle;
+}
+
+.ec-table tbody tr.table-row {
+  cursor: pointer;
+  transition: background 0.12s ease, outline 0.12s ease;
+}
+
+.ec-table tbody tr.row-white {
+  background: #ffffff;
+}
+
+.ec-table tbody tr.row-gold {
+  background: rgba(212, 175, 55, 0.07);
+}
+
+.ec-table tbody tr.table-row:hover {
+  background: rgba(212, 175, 55, 0.12);
+}
+
+.ec-table tbody tr.selected-row {
+  background: linear-gradient(90deg, rgba(212, 175, 55, 0.25), #ffffff) !important;
+  outline: 2px solid #d4af37;
+  outline-offset: -2px;
+}
+
+.ec-table tbody tr:last-child td {
+  border-bottom: none;
+}
+
+/* Manage / nested cards keep premium shell */
+.classrooms-manage-shell {
+  padding: 26px;
+  background: #f8fafc;
+  min-height: 100%;
+  border-radius: 20px;
+  border: 1px solid rgba(15, 23, 42, 0.08);
+  box-sizing: border-box;
+}
+
+.classrooms-card {
+  background: #ffffff;
+  border-radius: 18px;
+  border: 1px solid rgba(15, 23, 42, 0.1);
+  box-shadow: 0 18px 48px rgba(15, 23, 42, 0.08), inset 0 1px 0 rgba(255, 255, 255, 0.8);
+}
+
+.classrooms-card--gold-border {
+  border: 1px solid rgba(212, 175, 55, 0.18);
+}
+
+.classrooms-section-underline {
+  height: 3px;
+  width: 76px;
+  margin-top: 10px;
+  border-radius: 999px;
+  background: linear-gradient(90deg, #d4af37, rgba(212, 175, 55, 0.08));
+}

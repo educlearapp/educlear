@@ -1,77 +1,9 @@
 import { Router } from "express";
 
-import { prisma } from "../prisma";
-import { resolveLearnerAccountNo } from "../utils/learnerIdentity";
-import {
-  calculateBalanceForAccount,
-  readSchoolLedger,
-} from "../utils/billingLedgerStore";
+import { readSchoolLedger } from "../utils/billingLedgerStore";
+import { buildAccountsFromLearners } from "../services/statementAccounts";
 
 const router = Router();
-
-function statusFromBalance(balance: number) {
-  if (balance > 10000) return "Bad Debt";
-  if (balance > 0) return "Recently Owing";
-  if (balance < 0) return "Over Paid";
-  return "Up To Date";
-}
-
-function buildAccountsFromLearners(schoolId: string, ledger: ReturnType<typeof readSchoolLedger>) {
-  return prisma.learner
-    .findMany({
-      where: { schoolId },
-      orderBy: { createdAt: "desc" },
-      select: {
-        id: true,
-        schoolId: true,
-        firstName: true,
-        lastName: true,
-        familyAccountId: true,
-        familyAccount: { select: { accountRef: true, familyName: true } },
-      },
-    })
-    .then((learners) =>
-      learners.map((l) => {
-        const accountNo = resolveLearnerAccountNo(l);
-        const accountEntries = ledger.filter(
-          (e) =>
-            String(e.learnerId) === l.id ||
-            (accountNo && String(e.accountNo) === accountNo)
-        );
-        const lastInvoice = accountEntries
-          .filter((e) => e.type === "invoice")
-          .sort(
-            (a, b) =>
-              new Date(b.date || b.createdAt).getTime() -
-              new Date(a.date || a.createdAt).getTime()
-          )[0];
-        const lastPayment = accountEntries
-          .filter((e) => e.type === "payment")
-          .sort(
-            (a, b) =>
-              new Date(b.date || b.createdAt).getTime() -
-              new Date(a.date || a.createdAt).getTime()
-          )[0];
-        const balance = calculateBalanceForAccount(ledger, l.id, accountNo);
-
-        return {
-          accountNo,
-          learnerId: l.id,
-          schoolId: l.schoolId,
-          name: l.firstName || "-",
-          surname: l.lastName || "-",
-          balance,
-          lastInvoice: lastInvoice?.amount ?? 0,
-          lastInvoiceDate: lastInvoice?.date || "",
-          lastPayment: lastPayment?.amount ?? 0,
-          lastPaymentDate: lastPayment?.date || "",
-          status: statusFromBalance(balance),
-          familyAccountId: l.familyAccountId,
-          familyName: l.familyAccount?.familyName ?? null,
-        };
-      })
-    );
-}
 
 // GET /api/statements?schoolId=...
 router.get("/", async (req, res) => {

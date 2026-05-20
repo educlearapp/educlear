@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import type { CSSProperties } from "react";
 import { apiFetch, API_URL } from "./api";
+import "./Classrooms.css";
 
 function clampPage(page: number, totalPages: number): number {
   const tp = Math.max(1, totalPages);
@@ -12,13 +13,57 @@ function SimplePagination({
   page,
   totalPages,
   onPageChange,
+  variant = "inline",
+  totalItems,
+  pageSize,
 }: {
   page: number;
   totalPages: number;
   onPageChange: (page: number) => void;
+  variant?: "inline" | "footer";
+  totalItems?: number;
+  pageSize?: number;
 }) {
   const safePage = clampPage(page, totalPages);
   const tp = Math.max(1, totalPages);
+  const total = Math.max(0, Number(totalItems) || 0);
+  const size = Math.max(1, Number(pageSize) || 10);
+  const rangeStart = total === 0 ? 0 : (safePage - 1) * size + 1;
+  const rangeEnd = total === 0 ? 0 : Math.min(safePage * size, total);
+
+  if (variant === "footer") {
+    return (
+      <div className="classrooms-pagination">
+        <span className="classrooms-pagination-meta">
+          {total === 0 ? "0" : `${rangeStart} - ${rangeEnd}`} / {total}
+        </span>
+        <div className="classrooms-pagination-controls">
+          <button
+            type="button"
+            className="ec-page-btn"
+            disabled={safePage <= 1}
+            onClick={() => onPageChange(safePage - 1)}
+            aria-label="Previous page"
+          >
+            ‹
+          </button>
+          <span className="classrooms-pagination-page-label">
+            Page {safePage} / {tp}
+          </span>
+          <button
+            type="button"
+            className="ec-page-btn"
+            disabled={safePage >= tp}
+            onClick={() => onPageChange(safePage + 1)}
+            aria-label="Next page"
+          >
+            ›
+          </button>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div
       style={{
@@ -155,25 +200,6 @@ function inputStyle(): CSSProperties {
     padding: "0 12px",
     fontWeight: 700,
     outline: "none",
-  };
-}
-
-function internalPageShellStyle(): CSSProperties {
-  return {
-    padding: "24px",
-    background: "#f3f4f6",
-    minHeight: "100%",
-    borderRadius: "6px",
-    border: "1px solid rgba(15, 23, 42, 0.10)",
-    boxShadow: "none",
-  };
-}
-
-function goldPrimaryBtnStyle(): CSSProperties {
-  return {
-    borderColor: "rgba(15, 23, 42, 0.18)",
-    background: "#d4af37",
-    color: "#0b1220",
   };
 }
 
@@ -508,34 +534,31 @@ export default function Classrooms({
   }
 
   return (
-    <div
-      style={{
-        ...internalPageShellStyle(),
-      }}
-    >
-      <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 14, flexWrap: "wrap" }}>
-        <div>
-          <div style={{ color: "#0f172a", fontSize: 28, fontWeight: 900, letterSpacing: "-0.01em" }}>Classrooms</div>
-          <div style={{ marginTop: 6, color: "#475569", fontWeight: 700, fontSize: 14 }}>
-            Manage your classrooms
-          </div>
-          <div style={{ height: 3, width: 86, background: "linear-gradient(90deg, #d4af37, rgba(212,175,55,0.08))", marginTop: 10, borderRadius: 999 }} />
-        </div>
+    <div className="classrooms-page">
+      <div className="classrooms-page-header">
+        <h1 className="classrooms-page-title">Classrooms</h1>
+        <p className="classrooms-page-subtitle">Manage your classrooms</p>
+        <div className="classrooms-page-underline" />
+      </div>
 
-        <div style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
+      {message ? <div className="classrooms-message">{message}</div> : null}
+
+      <div className="classrooms-panel">
+        <div className="classrooms-panel-heading">Classrooms</div>
+
+        <div className="classrooms-toolbar">
           <button
             type="button"
             onClick={() => {
               setAddOpen(true);
               setMessage(null);
             }}
-            className="ec-page-btn"
-            style={goldPrimaryBtnStyle()}
+            className="ec-page-btn ec-page-btn--gold"
           >
             + Add
           </button>
           <button type="button" onClick={onManage} className="ec-page-btn">
-            Manage
+            ✎ Manage
           </button>
           {unregisteredCount > 0 ? (
             <button
@@ -557,35 +580,19 @@ export default function Classrooms({
             Repair classes &amp; threads
           </button>
 
-          <div style={{ marginLeft: 8, display: "flex", alignItems: "center", gap: 10 }}>
-            <div style={{ color: "#475569", fontWeight: 800, fontSize: 13 }}>Search</div>
+          <div className="classrooms-toolbar-spacer" />
+
+          <div className="classrooms-search-wrap">
+            <span className="classrooms-search-label">Search</span>
             <input
+              className="classrooms-search-input"
               value={search}
               onChange={(e) => setSearch(e.target.value)}
               placeholder="Name or teacher…"
-              style={{
-                height: 38,
-                borderRadius: 999,
-                border: "1px solid rgba(15, 23, 42, 0.14)",
-                background: "#ffffff",
-                color: "#0f172a",
-                padding: "0 14px",
-                outline: "none",
-                fontWeight: 700,
-                minWidth: 240,
-              }}
             />
           </div>
         </div>
-      </div>
 
-      {message ? (
-        <div style={{ marginTop: 14, background: "rgba(212,175,55,0.18)", border: "1px solid rgba(212,175,55,0.45)", color: "#0f172a", padding: "12px 14px", borderRadius: 14, fontWeight: 800 }}>
-          {message}
-        </div>
-      ) : null}
-
-      <div style={{ marginTop: 18, ...premiumCardStyle(), padding: 14 }}>
         <div className="ec-table-wrap">
           <table className="ec-table">
             <thead>
@@ -619,7 +626,6 @@ export default function Classrooms({
                       setManagedClassroom(c);
                       setMessage(null);
                     }}
-                    style={{ cursor: "pointer" }}
                   >
                     <td style={{ fontWeight: 900 }}>
                       {c.name}
@@ -631,7 +637,7 @@ export default function Classrooms({
                             fontSize: 11,
                             fontWeight: 800,
                             color: "#92400e",
-                            background: "rgba(212,175,55,0.25)",
+                            background: "rgba(212, 175, 55, 0.25)",
                             padding: "2px 8px",
                             borderRadius: 999,
                           }}
@@ -646,8 +652,7 @@ export default function Classrooms({
                       {c.registered === false ? (
                         <button
                           type="button"
-                          className="ec-page-btn"
-                          style={{ fontSize: 12, padding: "6px 10px" }}
+                          className="ec-page-btn ec-page-btn--compact"
                           onClick={() => void createClassroomRecord(c)}
                         >
                           Create classroom record
@@ -669,7 +674,14 @@ export default function Classrooms({
           </table>
         </div>
 
-        <SimplePagination page={safePage} totalPages={totalPages} onPageChange={setPage} />
+        <SimplePagination
+          variant="footer"
+          page={safePage}
+          totalPages={totalPages}
+          totalItems={filtered.length}
+          pageSize={pageSize}
+          onPageChange={setPage}
+        />
       </div>
 
       {addOpen ? (
@@ -736,12 +748,7 @@ export default function Classrooms({
               <button type="button" className="ec-page-btn" onClick={() => setAddOpen(false)}>
                 Cancel
               </button>
-              <button
-                type="button"
-                className="ec-page-btn"
-                onClick={onCreate}
-                style={goldPrimaryBtnStyle()}
-              >
+              <button type="button" className="ec-page-btn ec-page-btn--gold" onClick={onCreate}>
                 Create
               </button>
             </div>
@@ -1208,23 +1215,13 @@ function ClassroomManage(props: {
   };
 
   return (
-    <div
-      style={{
-        ...internalPageShellStyle(),
-      }}
-    >
+    <div className="classrooms-manage-shell">
       <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12, flexWrap: "wrap" }}>
         <div style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
           <button type="button" className="ec-page-btn" onClick={() => props.onBack()}>
             Back
           </button>
-          <button
-            type="button"
-            className="ec-page-btn"
-            onClick={save}
-            disabled={saving}
-            style={goldPrimaryBtnStyle()}
-          >
+          <button type="button" className="ec-page-btn ec-page-btn--gold" onClick={save} disabled={saving}>
             {saving ? "Saving…" : "Save"}
           </button>
         </div>
@@ -1310,14 +1307,10 @@ function ClassroomManage(props: {
         {loading ? <div style={{ color: "#475569", fontWeight: 800 }}>Loading…</div> : null}
       </div>
 
-      {message ? (
-        <div style={{ marginTop: 12, background: "rgba(212,175,55,0.18)", border: "1px solid rgba(212,175,55,0.45)", color: "#0f172a", padding: "12px 14px", borderRadius: 14, fontWeight: 800 }}>
-          {message}
-        </div>
-      ) : null}
+      {message ? <div className="classrooms-message" style={{ marginTop: 12 }}>{message}</div> : null}
 
       <div style={{ marginTop: 16, display: "grid", gridTemplateColumns: "1.6fr 1fr", gap: 14 }}>
-        <div style={{ ...premiumCardStyle(), padding: 16, border: "1px solid rgba(212,175,55,0.18)" }}>
+        <div className="classrooms-card classrooms-card--gold-border" style={{ padding: 16 }}>
           <div style={{ display: "flex", alignItems: "baseline", justifyContent: "space-between", gap: 12, flexWrap: "wrap" }}>
             <div style={{ fontWeight: 900, fontSize: 16, color: "#0f172a" }}>Classroom</div>
             <div style={{ display: "inline-flex", alignItems: "center", gap: 8 }}>
@@ -1326,7 +1319,7 @@ function ClassroomManage(props: {
               </span>
             </div>
           </div>
-          <div style={{ height: 3, width: 76, background: "linear-gradient(90deg, #d4af37, rgba(212,175,55,0.08))", marginTop: 10, borderRadius: 999 }} />
+          <div className="classrooms-section-underline" />
 
           <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12, marginTop: 14 }}>
             <div>
@@ -1566,7 +1559,7 @@ function ClassroomManage(props: {
           </div>
         </div>
 
-        <div style={{ ...premiumCardStyle(), padding: 16, border: "1px solid rgba(212,175,55,0.18)" }}>
+        <div className="classrooms-card classrooms-card--gold-border" style={{ padding: 16 }}>
           <div style={{ height: 86, borderRadius: 16, background: "linear-gradient(135deg, rgba(212,175,55,0.18), rgba(15,23,42,0.06))", border: "1px dashed rgba(212,175,55,0.38)" }} />
           <div style={{ marginTop: 12, fontWeight: 900, fontSize: 18, color: "#0f172a" }}>{form.name}</div>
           <div style={{ marginTop: 6, color: "#64748b", fontWeight: 800, fontSize: 13 }}>
@@ -1584,7 +1577,7 @@ function ClassroomManage(props: {
         </div>
       </div>
 
-      <div style={{ marginTop: 16, ...premiumCardStyle(), padding: 14, border: "1px solid rgba(212,175,55,0.18)" }}>
+      <div className="classrooms-card classrooms-card--gold-border" style={{ marginTop: 16, padding: 14 }}>
         <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12, flexWrap: "wrap" }}>
           <div>
             <div style={{ fontWeight: 900, fontSize: 16, color: "#0f172a" }}>Children</div>
@@ -1593,7 +1586,7 @@ function ClassroomManage(props: {
             </div>
           </div>
           <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
-            <button type="button" className="ec-page-btn" onClick={() => void openAddModal()} style={goldPrimaryBtnStyle()}>
+            <button type="button" className="ec-page-btn ec-page-btn--gold" onClick={() => void openAddModal()}>
               + Add
             </button>
             <button type="button" className="ec-page-btn" onClick={manageSelectedChild}>
@@ -1708,12 +1701,7 @@ function ClassroomManage(props: {
               <button type="button" className="ec-page-btn" onClick={() => setMoveOpen(false)}>
                 Cancel
               </button>
-              <button
-                type="button"
-                className="ec-page-btn"
-                onClick={confirmMove}
-                style={goldPrimaryBtnStyle()}
-              >
+              <button type="button" className="ec-page-btn ec-page-btn--gold" onClick={confirmMove}>
                 Move Selected
               </button>
             </div>
@@ -1867,7 +1855,7 @@ function ClassroomManage(props: {
                 <button type="button" className="ec-page-btn" onClick={() => setAddOpen(false)}>
                   Cancel
                 </button>
-                <button type="button" className="ec-page-btn" onClick={() => void addSelectedLearners()} style={goldPrimaryBtnStyle()}>
+                <button type="button" className="ec-page-btn ec-page-btn--gold" onClick={() => void addSelectedLearners()}>
                   Add Selected
                 </button>
               </div>

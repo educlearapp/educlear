@@ -39,6 +39,37 @@ const postJson = async (url: string, data: any) => {
   return response.json();
 };
 
+export function sanitizeUserFacingError(message: string, fallback: string): string {
+  const raw = String(message || "").trim();
+  if (!raw) return fallback;
+  if (/Invalid `prisma\./i.test(raw) || /invocation in/i.test(raw)) return fallback;
+  if (/Unique constraint failed/i.test(raw)) {
+    if (/admissionNo/i.test(raw)) {
+      return "A learner with this admission number already exists for this school";
+    }
+    return "This operation conflicts with existing records";
+  }
+  const firstLine = raw.split("\n")[0]?.trim() || "";
+  if (!firstLine || firstLine.length > 240) return fallback;
+  return firstLine;
+}
+
+function readApiErrorMessage(
+  response: Response,
+  data: unknown,
+  fallback: string
+): string {
+  const obj =
+    data && typeof data === "object" ? (data as Record<string, unknown>) : null;
+  const fromBody = String(obj?.error || obj?.message || obj?.detail || "").trim();
+  if (fromBody) return sanitizeUserFacingError(fromBody, fallback);
+  if (response.status === 404) return "Backend route not available";
+  if (!response.ok && response.statusText) {
+    return `${fallback} (${response.status} ${response.statusText})`;
+  }
+  return fallback;
+}
+
 export const fetchInvoices = async (schoolId: string) =>
   getJsonOrEmptyArray(`${API_URL}/api/invoices?schoolId=${encodeURIComponent(schoolId)}`, [
     "invoices",
@@ -214,6 +245,61 @@ export const fetchLegalDocumentHistory = async (schoolId: string, documentType?:
 export const createInvoice = async (data: any) => postJson(`${API_URL}/api/invoices`, data);
 
 export const createPayment = async (data: any) => postJson(`${API_URL}/api/payments`, data);
+
+export const mergeFamilyAccount = async (payload: {
+  schoolId: string;
+  sourceFamilyAccountId?: string;
+  sourceAccountRef?: string;
+  sourceLearnerId?: string;
+  targetFamilyAccountId?: string;
+  targetAccountRef?: string;
+  targetLearnerId?: string;
+  actorEmail?: string;
+}) => {
+  const response = await fetch(`${API_URL}/api/family-accounts/merge`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(payload),
+  });
+  const data = await response.json().catch(() => ({}));
+  if (!response.ok) {
+    throw new Error(
+      readApiErrorMessage(response, data, "Failed to merge family accounts")
+    );
+  }
+  const result = data as { success?: boolean; error?: string };
+  if (result?.success === false) {
+    throw new Error(String(result.error || "Failed to merge family accounts"));
+  }
+  return data;
+};
+
+export const unmergeFamilyAccount = async (payload: {
+  schoolId: string;
+  learnerId: string;
+  createNewAccount: boolean;
+  actorEmail?: string;
+}) => {
+  const response = await fetch(`${API_URL}/api/family-accounts/unmerge`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(payload),
+  });
+  const data = await response.json().catch(() => ({}));
+  if (!response.ok) {
+    throw new Error(readApiErrorMessage(response, data, "Failed to unmerge learner"));
+  }
+  const result = data as { success?: boolean; error?: string };
+  if (result?.success === false) {
+    throw new Error(String(result.error || "Failed to unmerge learner"));
+  }
+  return data;
+};
+
+export const fetchFamilyAccountAudit = async (schoolId: string, limit = 50) => {
+  const params = new URLSearchParams({ schoolId, limit: String(limit) });
+  return getJson(`${API_URL}/api/family-accounts/audit?${params.toString()}`);
+};
 
 export const fetchOpenInvoices = async (
   schoolId: string,

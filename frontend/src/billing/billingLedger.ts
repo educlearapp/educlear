@@ -31,6 +31,7 @@ export type BillingAccountRow = {
   id: string;
   learnerId: string;
   accountNo: string;
+  familyAccountId?: string;
   name: string;
   surname: string;
   balance: number;
@@ -49,10 +50,17 @@ const LEDGER_STORAGE_KEY = "educlearBillingLedger";
 const MIGRATED_FLAG_PREFIX = "educlearBillingLedgerMigrated:";
 
 export const BILLING_UPDATED_EVENT = "educlear-billing-updated";
+export const LEARNERS_REFRESH_EVENT = "educlear-learners-refresh";
 
 export function notifyBillingUpdated() {
   if (typeof window !== "undefined") {
     window.dispatchEvent(new CustomEvent(BILLING_UPDATED_EVENT));
+  }
+}
+
+export function notifyLearnersRefresh() {
+  if (typeof window !== "undefined") {
+    window.dispatchEvent(new CustomEvent(LEARNERS_REFRESH_EVENT));
   }
 }
 
@@ -152,6 +160,95 @@ export function getAccountLedger(
       (a, b) =>
         new Date(b.date || b.createdAt).getTime() - new Date(a.date || a.createdAt).getTime()
     );
+}
+
+export type FamilyLedgerScope = {
+  accountRef: string;
+  learnerIds: string[];
+};
+
+/**
+ * Family statement scope: learner-tagged rows only for current members;
+ * account-level rows (no learnerId) only when accountNo matches accountRef.
+ */
+export function entryMatchesFamilyAccountScope(
+  entry: BillingLedgerEntry,
+  scope: FamilyLedgerScope
+): boolean {
+  const ref = String(scope.accountRef || "").trim();
+  const learnerSet = new Set(
+    (scope.learnerIds || []).map((id) => String(id).trim()).filter(Boolean)
+  );
+  const entryLearnerId = String(entry.learnerId || "").trim();
+  const entryAccountNo = String(entry.accountNo || "").trim();
+
+  if (entryLearnerId) {
+    return learnerSet.has(entryLearnerId);
+  }
+  return Boolean(ref && entryAccountNo === ref);
+}
+
+/** Entries for a family billing account (statements, balances, parent portal). */
+export function collectFamilyAccountEntries(
+  entries: BillingLedgerEntry[],
+  scope: FamilyLedgerScope
+): BillingLedgerEntry[] {
+  const seen = new Set<string>();
+  const result: BillingLedgerEntry[] = [];
+
+  for (const entry of entries) {
+    if (!entryMatchesFamilyAccountScope(entry, scope)) continue;
+    if (seen.has(entry.id)) continue;
+    seen.add(entry.id);
+    result.push(entry);
+  }
+
+  return result;
+}
+
+export function getFamilyAccountLedger(
+  schoolId: string,
+  scope: FamilyLedgerScope
+): BillingLedgerEntry[] {
+  return collectFamilyAccountEntries(readSchoolLedger(schoolId), scope).sort(
+    (a, b) =>
+      new Date(b.date || b.createdAt).getTime() - new Date(a.date || a.createdAt).getTime()
+  );
+}
+
+export function calculateBalanceFromEntries(entries: BillingLedgerEntry[]): number {
+  const invoiceTotal = entries
+    .filter((e) => e.type === "invoice")
+    .reduce((s, e) => s + normaliseBillingAmount(e.amount), 0);
+  const penaltyTotal = entries
+    .filter((e) => e.type === "penalty")
+    .reduce((s, e) => s + normaliseBillingAmount(e.amount), 0);
+  const paymentTotal = entries
+    .filter((e) => e.type === "payment")
+    .reduce((s, e) => s + normaliseBillingAmount(e.amount), 0);
+  const creditTotal = entries
+    .filter((e) => e.type === "credit")
+    .reduce((s, e) => s + normaliseBillingAmount(e.amount), 0);
+  return invoiceTotal + penaltyTotal - paymentTotal - creditTotal;
+}
+
+export function resolveEntryLearnerLabel(
+  entry: BillingLedgerEntry,
+  nameByLearnerId: Map<string, string>,
+  accountRef = ""
+): string {
+  const learnerId = String(entry.learnerId || "").trim();
+  const ref = String(accountRef || "").trim();
+  if (learnerId && nameByLearnerId.has(learnerId)) {
+    return nameByLearnerId.get(learnerId) || "";
+  }
+  if (
+    entry.type === "payment" &&
+    (!learnerId || (ref && learnerId === ref))
+  ) {
+    return "Family account";
+  }
+  return "";
 }
 
 export function calculateAccountBalance(
@@ -261,12 +358,41 @@ function statusFromBalance(balance: number) {
 
 export function getBillingRows(learners: any[], schoolId: string): BillingAccountRow[] {
   const ledger = readSchoolLedger(schoolId);
+  const familyMembersById = new Map<string, string[]>();
+  for (const learner of learners || []) {
+    const familyId = String(learner?.familyAccountId || learner?.familyAccount?.id || "").trim();
+    const learnerId = String(learner?.id || learner?.learnerId || "").trim();
+    if (!familyId || !learnerId) continue;
+    const list = familyMembersById.get(familyId) || [];
+    list.push(learnerId);
+    familyMembersById.set(familyId, list);
+  }
+  const familyBalanceById = new Map<string, number>();
+  for (const [familyId, memberIds] of familyMembersById) {
+    const anchor = (learners || []).find(
+      (l: any) => String(l?.id || l?.learnerId) === memberIds[0]
+    );
+    const accountRef = getLearnerAccountNo(anchor);
+    const scoped = collectFamilyAccountEntries(ledger, { accountRef, learnerIds: memberIds });
+    familyBalanceById.set(familyId, calculateBalanceFromEntries(scoped));
+  }
 
   return (learners || []).map((learner: any) => {
     const learnerId = String(learner?.id || learner?.learnerId || "").trim();
     const accountNo = getLearnerAccountNo(learner);
-    const accountLedger = getAccountLedger(schoolId, learnerId, accountNo);
-    const balance = calculateAccountBalance(accountLedger);
+    const familyAccountId = String(
+      learner?.familyAccountId || learner?.familyAccount?.id || ""
+    ).trim();
+    const memberIds = familyAccountId
+      ? familyMembersById.get(familyAccountId) || [learnerId]
+      : [learnerId];
+    const accountLedger = familyAccountId
+      ? collectFamilyAccountEntries(ledger, { accountRef: accountNo, learnerIds: memberIds })
+      : getAccountLedger(schoolId, learnerId, accountNo);
+    const balance =
+      familyAccountId && familyBalanceById.has(familyAccountId)
+        ? familyBalanceById.get(familyAccountId)!
+        : calculateAccountBalance(accountLedger);
     const invoiceTotal = accountLedger
       .filter((e) => e.type === "invoice")
       .reduce((s, e) => s + normaliseBillingAmount(e.amount), 0);
@@ -286,6 +412,7 @@ export function getBillingRows(learners: any[], schoolId: string): BillingAccoun
       id: learnerId,
       learnerId,
       accountNo,
+      familyAccountId: familyAccountId || undefined,
       name: learner?.firstName || learner?.name || "-",
       surname: learner?.lastName || learner?.surname || "-",
       balance,

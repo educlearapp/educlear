@@ -11,6 +11,7 @@ import parentsRoutes from "./routes/parents";
 import jwt from "jsonwebtoken";
 import learnerRoutes from "./routes/learner";
 import statementsRoutes from "./routes/statements";
+import familyAccountsRoutes from "./routes/familyAccounts";
 import paymentsRoutes from "./routes/payments";
 import invoicesRoutes from "./routes/invoices";
 import billingDocumentsRoutes from "./routes/billingDocuments";
@@ -333,6 +334,7 @@ app.post("/api/upload-logo", upload.single("logo"), (req, res) => {
 app.use("/api", parentsRoutes);
 app.use("/api/invoices", invoicesRoutes);
 app.use("/api/statements", statementsRoutes);
+app.use("/api/family-accounts", familyAccountsRoutes);
 app.use("/api/payments", paymentsRoutes);
 app.use("/api/billing-documents", billingDocumentsRoutes);
 app.use("/api/legal-billing-documents", legalBillingDocumentsRoutes);

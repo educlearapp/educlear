@@ -18,6 +18,8 @@ type Learner = {
   grade: string;
   className: string | null;
   admissionNo: string | null;
+  familyAccountId?: string | null;
+  familyAccount?: { id: string; accountRef: string; familyName?: string | null } | null;
 };
 
 type LinkRow = {
@@ -45,6 +47,27 @@ type ThreadMessage = {
   body: string;
   createdAt: string;
   attachments?: unknown;
+};
+
+type ParentBillingTransaction = {
+  auditNo: number;
+  id: string;
+  date: string;
+  type: string;
+  learner: string;
+  reference: string;
+  description: string;
+  amountIn: number;
+  amountOut: number;
+  balance: number;
+};
+
+type ParentBillingSnapshot = {
+  balance: number;
+  accountRef: string;
+  isFamilyAccount: boolean;
+  learners: { id: string; firstName: string; lastName: string; grade: string }[];
+  transactions: ParentBillingTransaction[];
 };
 
 type Panel =
@@ -151,6 +174,12 @@ function documentHref(url: string) {
   return `${API_URL}${u.startsWith("/") ? "" : "/"}${u}`;
 }
 
+function formatMoney(value: unknown) {
+  const n = Number(value);
+  const amount = Number.isFinite(n) ? n : 0;
+  return `R ${amount.toLocaleString("en-ZA", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+}
+
 function formatShortDate(iso: string | undefined) {
   if (!iso) return "—";
   try {
@@ -195,6 +224,8 @@ export default function ParentPortalApp() {
   const [incidentDetail, setIncidentDetail] = useState<any>(null);
   const [incidentLoading, setIncidentLoading] = useState(false);
   const [lastVisitShown, setLastVisitShown] = useState<string | null>(null);
+  const [familyBilling, setFamilyBilling] = useState<ParentBillingSnapshot | null>(null);
+  const [billingLoading, setBillingLoading] = useState(false);
 
   const learners: LinkRow[] = useMemo(() => {
     const rows = (session?.learners || dashboard?.learners || []) as any[];
@@ -220,6 +251,27 @@ export default function ParentPortalApp() {
     const id = selectedLearnerId || dashboard?.activeLearner?.id;
     return findLearner(id || "") || dashboard?.activeLearner || null;
   }, [findLearner, selectedLearnerId, dashboard]);
+
+  const familyBillingLearners = useMemo(() => {
+    const anchorId = selectedLearnerId || activeLearner?.id || learners[0]?.learner?.id || "";
+    const anchor = learners.find((row) => row.learner.id === anchorId)?.learner;
+    if (!anchor) return [];
+
+    const familyId = String(anchor.familyAccountId || anchor.familyAccount?.id || "").trim();
+    const accountRef = String(anchor.familyAccount?.accountRef || "").trim();
+
+    if (familyId) {
+      return learners
+        .filter((row) => String(row.learner.familyAccountId || row.learner.familyAccount?.id || "") === familyId)
+        .map((row) => row.learner);
+    }
+    if (accountRef) {
+      return learners
+        .filter((row) => String(row.learner.familyAccount?.accountRef || "") === accountRef)
+        .map((row) => row.learner);
+    }
+    return anchorId ? [anchor] : [];
+  }, [learners, selectedLearnerId, activeLearner?.id]);
 
   const schoolName =
     schoolBranding?.name || session?.parent?.school?.name || dashboard?.activeLearner?.school?.name || "Your school";
@@ -271,6 +323,35 @@ export default function ParentPortalApp() {
     void refreshNotificationsList();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [shellView, panel]);
+
+  useEffect(() => {
+    if (shellView !== "app" || panel !== "statements") return;
+    const anchorId = selectedLearnerId || activeLearner?.id || learners[0]?.learner?.id || "";
+    if (!anchorId) return;
+    let cancelled = false;
+    setBillingLoading(true);
+    const qs = new URLSearchParams({ learnerId: anchorId });
+    void parentApiFetch(`/api/parent-portal/billing?${qs}`)
+      .then((data) => {
+        if (cancelled) return;
+        setFamilyBilling({
+          balance: Number(data.balance) || 0,
+          accountRef: String(data.accountRef || ""),
+          isFamilyAccount: Boolean(data.isFamilyAccount),
+          learners: Array.isArray(data.learners) ? data.learners : [],
+          transactions: Array.isArray(data.transactions) ? data.transactions : [],
+        });
+      })
+      .catch(() => {
+        if (!cancelled) setFamilyBilling(null);
+      })
+      .finally(() => {
+        if (!cancelled) setBillingLoading(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [shellView, panel, selectedLearnerId, activeLearner?.id, learners]);
 
   useEffect(() => {
     if (shellView !== "app" || panel !== "messages" || !activeLearner?.id) return;
@@ -916,6 +997,32 @@ export default function ParentPortalApp() {
               View and download your school billing files. A credit or negative amount on a statement usually means your account is in credit — not
               necessarily an error.
             </p>
+            {familyBillingLearners.length > 1 ? (
+              <div
+                style={{
+                  background: "rgba(212,175,55,0.08)",
+                  border: `1px solid ${cardBorder}`,
+                  padding: 10,
+                  borderRadius: 10,
+                  marginBottom: 10,
+                  fontSize: 13,
+                }}
+              >
+                <div style={{ fontSize: 11, fontWeight: 800, color: gold, marginBottom: 6 }}>
+                  Billing account{" "}
+                  {familyBillingLearners[0]?.familyAccount?.accountRef || "shared"}
+                </div>
+                <div style={{ fontWeight: 800, marginBottom: 4 }}>Children on this account</div>
+                <ul style={{ margin: 0, paddingLeft: 18, color: text }}>
+                  {familyBillingLearners.map((child) => (
+                    <li key={child.id}>
+                      {child.firstName} {child.lastName}
+                      {child.grade ? ` · Grade ${child.grade}` : ""}
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            ) : null}
             {dashboard?.latestInvoiceNotification && (
               <div
                 style={{
@@ -948,8 +1055,90 @@ export default function ParentPortalApp() {
                 <div style={{ color: muted, marginTop: 4 }}>{latestStatement.message}</div>
               </div>
             )}
-            <a href={statementsUrl} target="_blank" rel="noreferrer" style={{ ...btnGold, display: "block", textAlign: "center", textDecoration: "none" }}>
-              Open statement data
+            {billingLoading ? (
+              <p style={{ color: muted, fontSize: 13 }}>Loading billing…</p>
+            ) : familyBilling ? (
+              <div style={{ marginBottom: 12 }}>
+                <div
+                  style={{
+                    display: "flex",
+                    justifyContent: "space-between",
+                    alignItems: "baseline",
+                    gap: 8,
+                    marginBottom: 10,
+                    flexWrap: "wrap",
+                  }}
+                >
+                  <div>
+                    <div style={{ fontSize: 11, fontWeight: 800, color: gold }}>Account balance</div>
+                    <div style={{ fontSize: 22, fontWeight: 900, color: familyBilling.balance > 0 ? "#fca5a5" : "#86efac" }}>
+                      {formatMoney(familyBilling.balance)}
+                    </div>
+                  </div>
+                  {familyBilling.accountRef ? (
+                    <div style={{ fontSize: 12, color: muted, fontWeight: 700 }}>Ref {familyBilling.accountRef}</div>
+                  ) : null}
+                </div>
+                {familyBilling.transactions.length === 0 ? (
+                  <p style={{ color: muted, fontSize: 13, margin: 0 }}>No transactions on this account yet.</p>
+                ) : (
+                  <div style={{ overflowX: "auto", border: `1px solid ${cardBorder}`, borderRadius: 10 }}>
+                    <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 12, minWidth: 520 }}>
+                      <thead>
+                        <tr style={{ background: "rgba(0,0,0,0.25)" }}>
+                          {(familyBilling.isFamilyAccount
+                            ? ["Date", "Type", "Learner", "Description", "In", "Out", "Balance"]
+                            : ["Date", "Type", "Description", "In", "Out", "Balance"]
+                          ).map((h) => (
+                            <th
+                              key={h}
+                              style={{
+                                padding: "8px 10px",
+                                textAlign: h === "In" || h === "Out" || h === "Balance" ? "right" : "left",
+                                color: muted,
+                                fontWeight: 800,
+                                borderBottom: `1px solid ${cardBorder}`,
+                              }}
+                            >
+                              {h}
+                            </th>
+                          ))}
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {familyBilling.transactions.map((row) => (
+                          <tr key={row.id}>
+                            <td style={{ padding: "8px 10px", borderBottom: "1px solid rgba(255,255,255,0.06)" }}>
+                              {row.date || "—"}
+                            </td>
+                            <td style={{ padding: "8px 10px", borderBottom: "1px solid rgba(255,255,255,0.06)" }}>{row.type}</td>
+                            {familyBilling.isFamilyAccount ? (
+                              <td style={{ padding: "8px 10px", borderBottom: "1px solid rgba(255,255,255,0.06)" }}>
+                                {row.learner || "—"}
+                              </td>
+                            ) : null}
+                            <td style={{ padding: "8px 10px", borderBottom: "1px solid rgba(255,255,255,0.06)" }}>
+                              {row.description || row.reference || "—"}
+                            </td>
+                            <td style={{ padding: "8px 10px", borderBottom: "1px solid rgba(255,255,255,0.06)", textAlign: "right" }}>
+                              {row.amountIn ? formatMoney(row.amountIn) : "—"}
+                            </td>
+                            <td style={{ padding: "8px 10px", borderBottom: "1px solid rgba(255,255,255,0.06)", textAlign: "right" }}>
+                              {row.amountOut ? formatMoney(row.amountOut) : "—"}
+                            </td>
+                            <td style={{ padding: "8px 10px", borderBottom: "1px solid rgba(255,255,255,0.06)", textAlign: "right", fontWeight: 800 }}>
+                              {formatMoney(row.balance)}
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                )}
+              </div>
+            ) : null}
+            <a href={statementsUrl} target="_blank" rel="noreferrer" style={{ ...btnGhost, display: "block", textAlign: "center", textDecoration: "none", marginTop: 8 }}>
+              Open raw statement data
             </a>
           </div>
         )}

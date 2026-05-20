@@ -13,6 +13,12 @@ import {
   runMigrationParentOnboarding,
 } from "../services/parentPortalService";
 import { parentAuthMiddleware, signParentToken, verifyParentToken } from "../middleware/parentAuth";
+import { resolveLearnerAccountNo } from "../utils/learnerIdentity";
+import {
+  calculateBalanceFromEntries,
+  collectFamilyAccountEntries,
+  readSchoolLedger,
+} from "../utils/billingLedgerStore";
 
 const router = Router();
 
@@ -31,11 +37,75 @@ async function parentWithLearners(parentId: string, schoolId: string) {
   return prisma.parent.findFirst({
     where: { id: parentId, schoolId },
     include: {
-      links: { include: { learner: true } },
+      links: {
+        include: {
+          learner: {
+            include: {
+              familyAccount: { select: { id: true, accountRef: true, familyName: true } },
+            },
+          },
+        },
+      },
       school: { select: { id: true, name: true } },
       onboarding: true,
     },
   });
+}
+
+type ParentPortalLearner = {
+  id: string;
+  firstName: string;
+  lastName: string;
+  grade: string;
+  className: string | null;
+  admissionNo: string | null;
+  familyAccountId: string | null;
+  familyAccount: { id: string; accountRef: string; familyName?: string | null } | null;
+};
+
+function resolveParentFamilyBillingScope(
+  learners: ParentPortalLearner[],
+  anchorLearnerId: string
+) {
+  const anchor =
+    learners.find((l) => l.id === anchorLearnerId) || (learners.length === 1 ? learners[0] : null);
+  if (!anchor) {
+    return { accountRef: "", learnerIds: [] as string[], learners: [] as ParentPortalLearner[] };
+  }
+
+  const familyId = String(anchor.familyAccountId || anchor.familyAccount?.id || "").trim();
+  const accountRef = resolveLearnerAccountNo(anchor);
+
+  let group: ParentPortalLearner[] = [anchor];
+  if (familyId) {
+    group = learners.filter(
+      (l) => String(l.familyAccountId || l.familyAccount?.id || "") === familyId
+    );
+  } else if (accountRef) {
+    group = learners.filter((l) => resolveLearnerAccountNo(l) === accountRef);
+  }
+
+  return {
+    accountRef,
+    learnerIds: group.map((l) => l.id),
+    learners: group,
+  };
+}
+
+function resolveEntryLearnerLabel(
+  entry: { learnerId: string; type: string },
+  nameByLearnerId: Map<string, string>,
+  accountRef: string
+): string {
+  const learnerId = String(entry.learnerId || "").trim();
+  const ref = String(accountRef || "").trim();
+  if (learnerId && nameByLearnerId.has(learnerId)) {
+    return nameByLearnerId.get(learnerId) || "";
+  }
+  if (entry.type === "payment" && (!learnerId || (ref && learnerId === ref))) {
+    return "Family account";
+  }
+  return "";
 }
 
 function learnerMatchesNotice(
@@ -278,6 +348,82 @@ router.get("/dashboard", parentAuthMiddleware, async (req, res) => {
   } catch (e) {
     console.error("dashboard", e);
     return res.status(500).json({ success: false, error: "Failed to load dashboard" });
+  }
+});
+
+router.get("/billing", parentAuthMiddleware, async (req, res) => {
+  try {
+    const auth = (req as any).parentAuth;
+    const learnerId = String(req.query.learnerId || "").trim();
+
+    const parent = await parentWithLearners(auth.parentId, auth.schoolId);
+    if (!parent) return res.status(404).json({ success: false, error: "Parent not found" });
+
+    const learners = parent.links.map((l) => l.learner) as ParentPortalLearner[];
+    const anchorId = learnerId || learners[0]?.id || "";
+    const scope = resolveParentFamilyBillingScope(learners, anchorId);
+    const ledger = readSchoolLedger(auth.schoolId);
+    const entries = collectFamilyAccountEntries(ledger, {
+      accountRef: scope.accountRef,
+      learnerIds: scope.learnerIds,
+    });
+    const balance = calculateBalanceFromEntries(entries);
+    const nameByLearnerId = new Map(
+      scope.learners.map((l) => [l.id, `${l.firstName} ${l.lastName}`.trim()])
+    );
+
+    const sorted = [...entries].sort(
+      (a, b) =>
+        new Date(a.date || a.createdAt).getTime() - new Date(b.date || b.createdAt).getTime()
+    );
+    let running = 0;
+    const transactions = sorted.map((entry, index) => {
+      const amount = Number(entry.amount) || 0;
+      const isDebit = entry.type === "invoice" || entry.type === "penalty";
+      running += isDebit ? amount : -amount;
+      const typeLabel =
+        entry.type === "invoice"
+          ? "Invoice"
+          : entry.type === "penalty"
+            ? "Penalty"
+            : entry.type === "credit"
+              ? "Credit"
+              : "Payment";
+      return {
+        auditNo: index + 1,
+        id: entry.id,
+        date: entry.date || "",
+        type: typeLabel,
+        learner: resolveEntryLearnerLabel(entry, nameByLearnerId, scope.accountRef),
+        reference: entry.reference || "",
+        description: entry.description || "",
+        amountIn: isDebit ? amount : 0,
+        amountOut: !isDebit ? amount : 0,
+        balance: running,
+      };
+    });
+
+    const familyAccountId = String(
+      scope.learners[0]?.familyAccountId || scope.learners[0]?.familyAccount?.id || ""
+    ).trim();
+
+    return res.json({
+      success: true,
+      balance,
+      accountRef: scope.accountRef,
+      familyAccountId: familyAccountId || null,
+      isFamilyAccount: scope.learners.length > 1,
+      learners: scope.learners.map((l) => ({
+        id: l.id,
+        firstName: l.firstName,
+        lastName: l.lastName,
+        grade: l.grade,
+      })),
+      transactions: transactions.reverse(),
+    });
+  } catch (e) {
+    console.error("parent billing", e);
+    return res.status(500).json({ success: false, error: "Failed to load billing" });
   }
 });
 

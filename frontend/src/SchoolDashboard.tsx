@@ -53,7 +53,12 @@ import {
   AccountingSuppliers,
   AccountingAuditCompliance,
 } from "./accounting/accountingSections";
-import { appendInvoiceTransaction, BILLING_UPDATED_EVENT, getBillingRows } from "./billing/billingLedger";
+import {
+  appendInvoiceTransaction,
+  BILLING_UPDATED_EVENT,
+  getBillingRows,
+  LEARNERS_REFRESH_EVENT,
+} from "./billing/billingLedger";
 import { createInvoice, syncBillingLedgerFromApi } from "./billing/billingApi";
 import {
   buildInvoiceRunDefaults,
@@ -417,6 +422,7 @@ const schoolId =
 
   const [learners, setLearners] = useState<any[]>([]);
   const [billingVersion, setBillingVersion] = useState(0);
+  const [learnersVersion, setLearnersVersion] = useState(0);
 
 
 
@@ -1517,6 +1523,10 @@ const [selectedLearnerReport, setSelectedLearnerReport] = useState<any>(null);
 
 
 
+      activePage === "statementManage" ||
+
+
+
       activePage === "invoices" ||
 
 
@@ -1741,7 +1751,13 @@ const [selectedLearnerReport, setSelectedLearnerReport] = useState<any>(null);
 
 
 
-  }, [activePage, schoolId]);
+  }, [activePage, schoolId, learnersVersion]);
+
+  useEffect(() => {
+    const onLearnersRefresh = () => setLearnersVersion((v) => v + 1);
+    window.addEventListener(LEARNERS_REFRESH_EVENT, onLearnersRefresh);
+    return () => window.removeEventListener(LEARNERS_REFRESH_EVENT, onLearnersRefresh);
+  }, []);
 
 
 
@@ -16532,7 +16548,14 @@ const [invoiceRunEmailDraft, setInvoiceRunEmailDraft] = useState({
                 String(row.learnerId || row.id) === String(selected.learnerId || selected.id)
             ) || selected;
 
-          return <StatementManage selected={liveRow} setActivePage={setActivePage} />;
+          return (
+            <StatementManage
+              selected={liveRow}
+              setActivePage={setActivePage}
+              statementRows={statementRows}
+              learners={learners || []}
+            />
+          );
         }
 
         case "invoiceCreate": {

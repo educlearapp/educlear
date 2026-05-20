@@ -5,22 +5,191 @@ import {
   resolveStatementMessage,
 } from "./billingSettingsEngine";
 import {
+  mergeFamilyAccount,
+  sanitizeUserFacingError,
+  syncBillingLedgerFromApi,
+  unmergeFamilyAccount,
+} from "./billingApi";
+import {
   BILLING_UPDATED_EVENT,
+  LEARNERS_REFRESH_EVENT,
   calculateAccountBalance,
+  calculateBalanceFromEntries,
   formatMoney,
   getAccountLedger,
+  getFamilyAccountLedger,
   normaliseBillingAmount,
+  notifyBillingUpdated,
+  notifyLearnersRefresh,
+  resolveEntryLearnerLabel,
 } from "./billingLedger";
 
 type Props = {
   selected: any;
   setActivePage: React.Dispatch<React.SetStateAction<any>>;
+  statementRows?: any[];
+  learners?: any[];
 };
 
 const GOLD = "#d4af37";
 const INK = "#111827";
 
-export default function StatementManage({ selected, setActivePage }: Props) {
+type ModalKind =
+  | "pending"
+  | "journal"
+  | "unallocateConfirm"
+  | "unallocatePending"
+  | "merge"
+  | "mergePending"
+  | "unmerge"
+  | "unmergePending";
+
+type PendingModal = {
+  title: string;
+  body: string;
+};
+
+function persistBillingAccount(storageKey: string, account: any) {
+  const payload = {
+    ...account,
+    learnerId: account.learnerId || account.id || account.accountNo,
+    id: account.id || account.learnerId || account.accountNo,
+  };
+  localStorage.setItem(storageKey, JSON.stringify(payload));
+}
+
+function resolveLearnerAccountRef(learner: any): string {
+  return String(
+    learner?.familyAccount?.accountRef ||
+      learner?.accountNo ||
+      learner?.accountNumber ||
+      ""
+  ).trim();
+}
+
+function resolveFamilyAccountId(learner: any): string {
+  return String(learner?.familyAccountId || learner?.familyAccount?.id || "").trim();
+}
+
+type AccountChild = {
+  id: string;
+  firstName: string;
+  lastName: string;
+  grade: string;
+  accountNo: string;
+};
+
+function mapToAccountChild(source: any, fallbackAccountNo: string): AccountChild | null {
+  const id = String(source?.id || source?.learnerId || "").trim();
+  if (!id) return null;
+  return {
+    id,
+    firstName: source?.firstName || source?.name || "-",
+    lastName: source?.lastName || source?.surname || "-",
+    grade: source?.grade || "-",
+    accountNo:
+      resolveLearnerAccountRef(source) ||
+      String(source?.accountNo || "").trim() ||
+      fallbackAccountNo ||
+      "-",
+  };
+}
+
+function StatementModal({
+  title,
+  children,
+  onClose,
+  footer,
+}: {
+  title: string;
+  children: React.ReactNode;
+  onClose?: () => void;
+  footer?: React.ReactNode;
+}) {
+  return (
+    <div
+      role="dialog"
+      aria-modal="true"
+      style={{
+        position: "fixed",
+        inset: 0,
+        background: "rgba(15,23,42,0.55)",
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "center",
+        zIndex: 1200,
+        padding: 24,
+      }}
+      onClick={onClose || undefined}
+    >
+      <div
+        style={{
+          width: "min(560px, 100%)",
+          maxHeight: "90vh",
+          overflow: "auto",
+          background: "#fff",
+          borderRadius: 14,
+          border: `2px solid ${GOLD}`,
+          boxShadow: "0 24px 60px rgba(15,23,42,0.28)",
+        }}
+        onClick={(e) => e.stopPropagation()}
+      >
+        <div
+          style={{
+            background: INK,
+            color: GOLD,
+            padding: "16px 20px",
+            fontWeight: 900,
+            fontSize: 18,
+            display: "flex",
+            justifyContent: "space-between",
+            alignItems: "center",
+          }}
+        >
+          <span>{title}</span>
+          {onClose ? (
+          <button
+            type="button"
+            onClick={onClose}
+            style={{
+              border: `1px solid ${GOLD}`,
+              background: "transparent",
+              color: GOLD,
+              borderRadius: 8,
+              padding: "4px 10px",
+              fontWeight: 800,
+              cursor: "pointer",
+            }}
+          >
+            ✕
+          </button>
+          ) : null}
+        </div>
+        <div style={{ padding: 22 }}>{children}</div>
+        {footer ? (
+          <div
+            style={{
+              padding: "14px 22px 22px",
+              display: "flex",
+              gap: 10,
+              justifyContent: "flex-end",
+              flexWrap: "wrap",
+            }}
+          >
+            {footer}
+          </div>
+        ) : null}
+      </div>
+    </div>
+  );
+}
+
+export default function StatementManage({
+  selected,
+  setActivePage,
+  statementRows = [],
+  learners = [],
+}: Props) {
   const schoolId = localStorage.getItem("schoolId") || "";
   const learnerId = String(selected?.learnerId || selected?.id || "").trim();
   const accountNo = String(selected?.accountNo || "").trim();
@@ -28,6 +197,15 @@ export default function StatementManage({ selected, setActivePage }: Props) {
   const [period, setPeriod] = useState("All Time");
   const [statementNote, setStatementNote] = useState("");
   const [, setTick] = useState(0);
+  const [modalKind, setModalKind] = useState<ModalKind | null>(null);
+  const [pendingModal, setPendingModal] = useState<PendingModal | null>(null);
+  const [mergeSearch, setMergeSearch] = useState("");
+  const [mergeTarget, setMergeTarget] = useState<any | null>(null);
+  const [unmergeLearnerId, setUnmergeLearnerId] = useState("");
+  const [unmergeCreateNew, setUnmergeCreateNew] = useState(true);
+  const [familyActionBusy, setFamilyActionBusy] = useState(false);
+  const [familyActionError, setFamilyActionError] = useState("");
+  const [familyActionSuccess, setFamilyActionSuccess] = useState("");
 
   useEffect(() => {
     if (!schoolId) return;
@@ -45,11 +223,131 @@ export default function StatementManage({ selected, setActivePage }: Props) {
   React.useEffect(() => {
     const refresh = () => setTick((v) => v + 1);
     window.addEventListener(BILLING_UPDATED_EVENT, refresh);
-    return () => window.removeEventListener(BILLING_UPDATED_EVENT, refresh);
+    window.addEventListener(LEARNERS_REFRESH_EVENT, refresh);
+    return () => {
+      window.removeEventListener(BILLING_UPDATED_EVENT, refresh);
+      window.removeEventListener(LEARNERS_REFRESH_EVENT, refresh);
+    };
   }, []);
 
+  const accountRef = useMemo(() => {
+    const fromSelected = resolveLearnerAccountRef(selected) || String(selected?.accountNo || "").trim();
+    if (fromSelected && fromSelected !== "-") return fromSelected;
+    const match = learners.find((l) => String(l?.id || l?.learnerId) === learnerId);
+    return resolveLearnerAccountRef(match) || accountNo;
+  }, [selected, learners, learnerId, accountNo]);
+
+  const familyAccountId = useMemo(() => {
+    const fromSelected = String(selected?.familyAccountId || "").trim();
+    if (fromSelected) return fromSelected;
+    const match = learners.find((l) => String(l?.id || l?.learnerId) === learnerId);
+    const fromLearner = resolveFamilyAccountId(match);
+    if (fromLearner) return fromLearner;
+    if (accountRef) {
+      const byAccount = learners.find((l) => resolveLearnerAccountRef(l) === accountRef);
+      return resolveFamilyAccountId(byAccount);
+    }
+    return "";
+  }, [selected, learners, learnerId, accountRef]);
+
+  const familyAccountIdForRow = (row: any) => {
+    const fromRow = String(row?.familyAccountId || "").trim();
+    if (fromRow) return fromRow;
+    const rowLearnerId = String(row?.learnerId || row?.id || "").trim();
+    const match = learners.find((l) => String(l?.id || l?.learnerId) === rowLearnerId);
+    const fromLearner = resolveFamilyAccountId(match);
+    if (fromLearner) return fromLearner;
+    const rowAccountRef = String(row?.accountNo || "").trim();
+    if (rowAccountRef) {
+      const byAccount = learners.find((l) => resolveLearnerAccountRef(l) === rowAccountRef);
+      return resolveFamilyAccountId(byAccount);
+    }
+    return "";
+  };
+
+  const accountChildren = useMemo(() => {
+    const ref = accountRef && accountRef !== "-" ? accountRef : "";
+    const seen = new Set<string>();
+    const children: AccountChild[] = [];
+
+    const addChild = (source: any) => {
+      const mapped = mapToAccountChild(source, ref || accountNo);
+      if (!mapped || seen.has(mapped.id)) return;
+      seen.add(mapped.id);
+      children.push(mapped);
+    };
+
+    if (familyAccountId) {
+      for (const learner of learners) {
+        if (resolveFamilyAccountId(learner) === familyAccountId) addChild(learner);
+      }
+    } else if (ref) {
+      for (const learner of learners) {
+        if (resolveLearnerAccountRef(learner) === ref) addChild(learner);
+      }
+    }
+
+    for (const row of statementRows) {
+      const rowFamilyId = familyAccountIdForRow(row);
+      const rowAccountRef = String(row.accountNo || "").trim();
+      const matchesFamily = Boolean(familyAccountId && rowFamilyId === familyAccountId);
+      const matchesRef = Boolean(ref && rowAccountRef === ref);
+      if (!matchesFamily && !matchesRef) continue;
+      const rowLearnerId = String(row.learnerId || row.id || "").trim();
+      const learnerMatch = learners.find((l) => String(l?.id || l?.learnerId) === rowLearnerId);
+      addChild(learnerMatch || row);
+    }
+
+    if (children.length === 0 && learnerId) {
+      addChild(selected);
+    }
+
+    children.sort((a, b) =>
+      `${a.lastName} ${a.firstName}`.localeCompare(`${b.lastName} ${b.firstName}`)
+    );
+    return children;
+  }, [familyAccountId, accountRef, learners, statementRows, learnerId, selected, accountNo]);
+
+  const isFamilyBillingAccount = accountChildren.length > 1 || Boolean(familyAccountId);
+  const familyLearnerIds = useMemo(() => accountChildren.map((c) => c.id), [accountChildren]);
+
+  const learnerNameById = useMemo(() => {
+    const map = new Map<string, string>();
+    for (const child of accountChildren) {
+      map.set(child.id, `${child.firstName} ${child.lastName}`.trim());
+    }
+    return map;
+  }, [accountChildren]);
+
+  const familyLedgerScope = useMemo(
+    () => ({
+      accountRef: accountRef || accountNo,
+      learnerIds: familyLearnerIds,
+    }),
+    [accountRef, accountNo, familyLearnerIds]
+  );
+
+  const mergeCandidates = useMemo(() => {
+    const q = mergeSearch.trim().toLowerCase();
+    return statementRows.filter((row) => {
+      const rowLearnerId = String(row.learnerId || row.id || "").trim();
+      const rowAccountNo = String(row.accountNo || "").trim();
+      const rowFamilyId = familyAccountIdForRow(row);
+      if (rowLearnerId === learnerId && rowAccountNo === accountNo) return false;
+      if (familyAccountId && rowFamilyId && rowFamilyId === familyAccountId) return false;
+      if (accountRef && rowAccountNo === accountRef) return false;
+      if (!q) return true;
+      return [row.accountNo, row.name, row.surname, row.status, String(row.balance)]
+        .join(" ")
+        .toLowerCase()
+        .includes(q);
+    });
+  }, [statementRows, mergeSearch, learnerId, accountNo, familyAccountId, learners]);
+
   const ledger = useMemo(() => {
-    const entries = getAccountLedger(schoolId, learnerId, accountNo);
+    const entries = isFamilyBillingAccount
+      ? getFamilyAccountLedger(schoolId, familyLedgerScope)
+      : getAccountLedger(schoolId, learnerId, accountRef || accountNo);
     const sorted = [...entries].sort(
       (a, b) =>
         new Date(b.date || b.createdAt).getTime() - new Date(a.date || a.createdAt).getTime()
@@ -90,9 +388,11 @@ export default function StatementManage({ selected, setActivePage }: Props) {
       const entryDate = new Date(entry.date || entry.createdAt);
       return !Number.isNaN(entryDate.getTime()) && entryDate >= cutoff;
     });
-  }, [schoolId, learnerId, accountNo, period]);
+  }, [schoolId, isFamilyBillingAccount, familyLedgerScope, learnerId, accountRef, accountNo, period]);
 
-  const balance = calculateAccountBalance(ledger, learnerId, accountNo);
+  const balance = isFamilyBillingAccount
+    ? calculateBalanceFromEntries(ledger)
+    : calculateAccountBalance(ledger, learnerId, accountRef || accountNo);
 
   const transactions = useMemo(() => {
     const sorted = [...ledger].sort(
@@ -113,10 +413,16 @@ export default function StatementManage({ selected, setActivePage }: Props) {
             : entry.type === "credit"
               ? "Credit"
               : "Payment";
+      const learnerLabel = resolveEntryLearnerLabel(
+        entry,
+        learnerNameById,
+        accountRef || accountNo
+      );
       return {
         auditNo: index + 1,
         date: entry.date || "-",
         type: typeLabel,
+        learner: learnerLabel,
         reference: entry.reference || "-",
         description: entry.description || "-",
         amountIn: isDebit ? amount : 0,
@@ -124,7 +430,184 @@ export default function StatementManage({ selected, setActivePage }: Props) {
         balance: running,
       };
     });
-  }, [ledger]);
+  }, [ledger, learnerNameById, accountRef, accountNo]);
+
+  const transactionColumns = isFamilyBillingAccount
+    ? ["Audit No", "Date", "Type", "Learner", "Reference", "Description", "Amount In", "Amount Out", "Balance"]
+    : ["Audit No", "Date", "Type", "Reference", "Description", "Amount In", "Amount Out", "Balance"];
+
+  const closeModal = () => {
+    setModalKind(null);
+    setPendingModal(null);
+    setMergeSearch("");
+    setMergeTarget(null);
+    setUnmergeLearnerId("");
+    setUnmergeCreateNew(true);
+  };
+
+  const openCreateInvoice = () => {
+    persistBillingAccount("selectedInvoiceAccount", selected);
+    setActivePage("invoiceCreate");
+  };
+
+  const openCreatePayment = () => {
+    persistBillingAccount("selectedPaymentAccount", selected);
+    setActivePage("paymentCreate");
+  };
+
+  const handleMoreAction = (action: string) => {
+    switch (action) {
+      case "Create Invoice":
+        openCreateInvoice();
+        break;
+      case "Create Payment":
+        openCreatePayment();
+        break;
+      case "Create Journal":
+        setModalKind("journal");
+        break;
+      case "Unallocate All Transactions":
+        setModalKind("unallocateConfirm");
+        break;
+      case "Merge With Another Account":
+        setMergeSearch("");
+        setMergeTarget(null);
+        setFamilyActionError("");
+        setFamilyActionSuccess("");
+        setModalKind("merge");
+        break;
+      case "Unmerge Child From Account":
+        setUnmergeLearnerId(accountChildren[0]?.id || "");
+        setUnmergeCreateNew(true);
+        setModalKind("unmerge");
+        break;
+      default:
+        break;
+    }
+  };
+
+  const confirmUnallocateAll = () => {
+    setModalKind("unallocatePending");
+  };
+
+  const actorEmail = () => localStorage.getItem("userEmail") || undefined;
+
+  const runMerge = async () => {
+    if (!mergeTarget || !schoolId) return;
+    const targetLearnerId = String(mergeTarget.learnerId || mergeTarget.id || "").trim();
+    const targetFamilyId = familyAccountIdForRow(mergeTarget);
+    const targetAccountRef = String(mergeTarget.accountNo || "").trim();
+
+    if (!familyAccountId && !accountNo && !learnerId) {
+      setFamilyActionError("Source account context is missing (school, account, or learner).");
+      return;
+    }
+    if (!targetFamilyId && !targetAccountRef && !targetLearnerId) {
+      setFamilyActionError("Target account context is missing.");
+      return;
+    }
+    if (familyAccountId && targetFamilyId && familyAccountId === targetFamilyId) {
+      setFamilyActionError("Cannot merge account into itself");
+      return;
+    }
+    if (
+      accountNo &&
+      targetAccountRef &&
+      accountNo === targetAccountRef &&
+      (!familyAccountId || !targetFamilyId || familyAccountId === targetFamilyId)
+    ) {
+      setFamilyActionError("Cannot merge account into itself");
+      return;
+    }
+
+    setFamilyActionBusy(true);
+    setFamilyActionError("");
+    setFamilyActionSuccess("");
+    setModalKind("mergePending");
+
+    try {
+      const result = await mergeFamilyAccount({
+        schoolId,
+        sourceFamilyAccountId: familyAccountId || undefined,
+        sourceAccountRef: accountNo || undefined,
+        sourceLearnerId: learnerId || undefined,
+        targetFamilyAccountId: targetFamilyId || undefined,
+        targetAccountRef: targetAccountRef || undefined,
+        targetLearnerId: targetLearnerId || undefined,
+        actorEmail: actorEmail(),
+      });
+      await syncBillingLedgerFromApi(schoolId);
+      notifyBillingUpdated();
+      notifyLearnersRefresh();
+      setTick((v) => v + 1);
+      setFamilyActionSuccess(
+        `Merged ${result.mergedLearnerIds?.length || 0} learner(s) into account ${result.targetAccountRef || mergeTarget.accountNo}.`
+      );
+    } catch (error) {
+      const raw = error instanceof Error ? error.message : "Merge failed";
+      setFamilyActionError(sanitizeUserFacingError(raw, "Merge failed"));
+    } finally {
+      setFamilyActionBusy(false);
+    }
+  };
+
+  const confirmMerge = () => {
+    if (!mergeTarget) return;
+    const targetFamilyId = familyAccountIdForRow(mergeTarget);
+    const targetAccountRef = String(mergeTarget.accountNo || "").trim();
+    if (familyAccountId && targetFamilyId && familyAccountId === targetFamilyId) {
+      setFamilyActionError("Cannot merge account into itself");
+      return;
+    }
+    if (
+      accountNo &&
+      targetAccountRef &&
+      accountNo === targetAccountRef &&
+      (!familyAccountId || !targetFamilyId || familyAccountId === targetFamilyId)
+    ) {
+      setFamilyActionError("Cannot merge account into itself");
+      return;
+    }
+    setFamilyActionError("");
+    void runMerge();
+  };
+
+  const runUnmerge = async () => {
+    if (!unmergeLearnerId || !schoolId) return;
+
+    setFamilyActionBusy(true);
+    setFamilyActionError("");
+    setFamilyActionSuccess("");
+    setModalKind("unmergePending");
+
+    try {
+      const result = await unmergeFamilyAccount({
+        schoolId,
+        learnerId: unmergeLearnerId,
+        createNewAccount: unmergeCreateNew,
+        actorEmail: actorEmail(),
+      });
+      await syncBillingLedgerFromApi(schoolId);
+      notifyBillingUpdated();
+      notifyLearnersRefresh();
+      setTick((v) => v + 1);
+      setFamilyActionSuccess(
+        unmergeCreateNew
+          ? `Learner moved to new account ${result.targetAccountRef || "created"}.`
+          : "Learner detached from family account."
+      );
+    } catch (error) {
+      const raw = error instanceof Error ? error.message : "Unmerge failed";
+      setFamilyActionError(sanitizeUserFacingError(raw, "Unmerge failed"));
+    } finally {
+      setFamilyActionBusy(false);
+    }
+  };
+
+  const confirmUnmerge = () => {
+    if (!unmergeLearnerId) return;
+    void runUnmerge();
+  };
 
   const buttonStyle: React.CSSProperties = {
     border: `1px solid ${GOLD}`,
@@ -134,6 +617,17 @@ export default function StatementManage({ selected, setActivePage }: Props) {
     padding: "10px 16px",
     fontWeight: 800,
     cursor: "pointer",
+  };
+
+  const modalBtn: React.CSSProperties = {
+    ...buttonStyle,
+    minWidth: 110,
+  };
+
+  const modalGoldBtn: React.CSSProperties = {
+    ...modalBtn,
+    background: `linear-gradient(135deg, #f7d56a, ${GOLD})`,
+    border: "1px solid #b89329",
   };
 
   const periods = [
@@ -148,18 +642,53 @@ export default function StatementManage({ selected, setActivePage }: Props) {
     "All Time",
   ];
 
+  const moreActions = [
+    "Create Invoice",
+    "Create Payment",
+    "Create Journal",
+    "Unallocate All Transactions",
+    "Merge With Another Account",
+    "Unmerge Child From Account",
+  ];
+
+  const sourceAccountLabel = `${accountNo || "-"} — ${selected?.name || ""} ${selected?.surname || ""}`.trim();
+
   return (
     <div style={{ padding: "32px 36px", background: "#f6f4ef", minHeight: "100vh" }}>
       <h1 style={{ margin: 0, fontSize: 34, fontWeight: 900, color: INK }}>
         Statement
         <span style={{ color: "#6b7280", fontSize: 22, fontWeight: 500 }}> » Manage a statement of account</span>
       </h1>
-      <div style={{ display: "flex", gap: 10, margin: "24px 0", flexWrap: "wrap" }}>
-        <button type="button" style={buttonStyle} onClick={() => setActivePage("statements")}>↩ Back</button>
-        <button type="button" style={buttonStyle} onClick={() => setActivePage("payments")}>+ Payment</button>
+      <div style={{ display: "flex", gap: 10, margin: "24px 0", flexWrap: "wrap", alignItems: "center" }}>
+        <button type="button" style={buttonStyle} onClick={() => setActivePage("statements")}>
+          ↩ Back
+        </button>
+        <button type="button" style={buttonStyle} onClick={openCreatePayment}>
+          + Payment
+        </button>
+        <select
+          style={{ ...buttonStyle, minWidth: 230, appearance: "auto" }}
+          defaultValue=""
+          onChange={(e) => {
+            const value = e.target.value;
+            if (value) handleMoreAction(value);
+            e.target.value = "";
+          }}
+        >
+          <option value="" disabled>
+            More Actions
+          </option>
+          {moreActions.map((action) => (
+            <option key={action} value={action}>
+              {action}
+            </option>
+          ))}
+        </select>
         <select style={{ ...buttonStyle, minWidth: 200 }} value={period} onChange={(e) => setPeriod(e.target.value)}>
           {periods.map((p) => (
-            <option key={p} value={p}>{p}</option>
+            <option key={p} value={p}>
+              {p}
+            </option>
           ))}
         </select>
       </div>
@@ -167,20 +696,93 @@ export default function StatementManage({ selected, setActivePage }: Props) {
         <section style={{ background: "#fff", border: `1px solid ${GOLD}`, borderRadius: 8, overflow: "hidden" }}>
           <div style={{ background: INK, color: GOLD, padding: "14px 18px", fontWeight: 900 }}>Account</div>
           <div style={{ padding: 22, display: "grid", gap: 12 }}>
-            {[["Account No", accountNo || "-"], ["Balance", formatMoney(balance)], ["Last Invoice", selected?.lastInvoice || "No invoices"], ["Last Payment", selected?.lastPayment || "No payments"]].map(([label, value]) => (
-              <div key={label} style={{ display: "grid", gridTemplateColumns: "150px 1fr", gap: 12, alignItems: "center" }}>
+            {[
+              ["Account No", accountNo || "-"],
+              ["Balance", formatMoney(balance)],
+              ["Last Invoice", selected?.lastInvoice || "No invoices"],
+              ["Last Payment", selected?.lastPayment || "No payments"],
+            ].map(([label, value]) => (
+              <div
+                key={label}
+                style={{ display: "grid", gridTemplateColumns: "150px 1fr", gap: 12, alignItems: "center" }}
+              >
                 <div style={{ textAlign: "right", fontWeight: 800, color: "#64748b" }}>{label}</div>
-                <div style={{ border: "1px solid #e5e7eb", background: "#f8fafc", padding: "10px 12px", borderRadius: 8, fontWeight: 700 }}>{value}</div>
+                <div
+                  style={{
+                    border: "1px solid #e5e7eb",
+                    background: "#f8fafc",
+                    padding: "10px 12px",
+                    borderRadius: 8,
+                    fontWeight: 700,
+                  }}
+                >
+                  {value}
+                </div>
               </div>
             ))}
+            {accountChildren.length > 0 ? (
+              <div style={{ display: "grid", gridTemplateColumns: "150px 1fr", gap: 12, alignItems: "start" }}>
+                <div style={{ textAlign: "right", fontWeight: 800, color: "#64748b" }}>
+                  {accountChildren.length > 1 ? "Children" : "Learner"}
+                </div>
+                <div style={{ display: "grid", gap: 8 }}>
+                  {accountChildren.map((child) => (
+                    <div
+                      key={child.id}
+                      style={{
+                        border: "1px solid #e5e7eb",
+                        background: "#f8fafc",
+                        padding: "10px 12px",
+                        borderRadius: 8,
+                        fontWeight: 700,
+                      }}
+                    >
+                      {child.firstName} {child.lastName}
+                      <span style={{ color: "#64748b", fontWeight: 600, fontSize: 13 }}>
+                        {" "}
+                        · Grade {child.grade}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            ) : null}
+            {isFamilyBillingAccount ? (
+              <div style={{ fontSize: 13, color: "#64748b", fontWeight: 700, textAlign: "right" }}>
+                Family account · {accountChildren.length} learner{accountChildren.length === 1 ? "" : "s"} on{" "}
+                {accountRef || accountNo || "this account"}
+              </div>
+            ) : null}
           </div>
         </section>
         <section style={{ background: "#fff", border: `1px solid ${GOLD}`, borderRadius: 8, padding: 20 }}>
           <div style={{ fontWeight: 900, fontSize: 18, marginBottom: 10 }}>Summary</div>
           <div style={{ fontWeight: 700, lineHeight: 1.8 }}>
-            <div>{selected?.name} {selected?.surname}</div>
-            <div style={{ fontSize: 24, fontWeight: 900, color: balance > 0 ? "#b91c1c" : "#166534" }}>{formatMoney(balance)}</div>
+            {accountChildren.length > 1 ? (
+              <div style={{ marginBottom: 8 }}>
+                <div style={{ fontSize: 12, fontWeight: 900, color: "#64748b", letterSpacing: 0.4, marginBottom: 6 }}>
+                  Children
+                </div>
+                <ul style={{ margin: 0, paddingLeft: 18, display: "grid", gap: 4 }}>
+                  {accountChildren.map((child) => (
+                    <li key={child.id}>
+                      {child.firstName} {child.lastName}
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            ) : (
+              <div>
+                {selected?.name} {selected?.surname}
+              </div>
+            )}
+            <div style={{ fontSize: 24, fontWeight: 900, color: balance > 0 ? "#b91c1c" : "#166534" }}>
+              {formatMoney(balance)}
+            </div>
             <div style={{ color: "#64748b" }}>{selected?.status || "Up To Date"}</div>
+            {accountRef && accountChildren.length > 1 ? (
+              <div style={{ color: "#64748b", fontSize: 13 }}>Account {accountRef}</div>
+            ) : null}
             {statementNote ? (
               <div style={{ marginTop: 12, color: "#475569", fontSize: 14, whiteSpace: "pre-wrap" }}>
                 {statementNote}
@@ -190,30 +792,57 @@ export default function StatementManage({ selected, setActivePage }: Props) {
         </section>
       </div>
       <section style={{ marginTop: 24, background: "#fff", border: `1px solid ${GOLD}`, borderRadius: 8, overflow: "hidden" }}>
-        <div style={{ padding: "14px 18px", background: INK, color: GOLD, fontWeight: 900, fontSize: 18 }}>Transactions</div>
+        <div style={{ padding: "14px 18px", background: INK, color: GOLD, fontWeight: 900, fontSize: 18 }}>
+          Transactions
+        </div>
         <div style={{ overflowX: "auto" }}>
           <table style={{ width: "100%", borderCollapse: "collapse", minWidth: 880 }}>
             <thead>
               <tr style={{ background: "#f8fafc" }}>
-                {["Audit No", "Date", "Type", "Reference", "Description", "Amount In", "Amount Out", "Balance"].map((h) => (
-                  <th key={h} style={{ padding: 12, borderBottom: "1px solid #e5e7eb", textAlign: h.includes("Amount") || h === "Balance" ? "right" : "left", fontSize: 12, fontWeight: 900, color: "#64748b" }}>{h}</th>
-                ))}
+                {transactionColumns.map((h) => (
+                    <th
+                      key={h}
+                      style={{
+                        padding: 12,
+                        borderBottom: "1px solid #e5e7eb",
+                        textAlign: h.includes("Amount") || h === "Balance" ? "right" : "left",
+                        fontSize: 12,
+                        fontWeight: 900,
+                        color: "#64748b",
+                      }}
+                    >
+                      {h}
+                    </th>
+                  ))}
               </tr>
             </thead>
             <tbody>
               {transactions.length === 0 ? (
-                <tr><td colSpan={8} style={{ padding: 28, textAlign: "center", color: "#64748b", fontWeight: 700 }}>No transactions recorded for this account yet.</td></tr>
+                <tr>
+                  <td colSpan={transactionColumns.length} style={{ padding: 28, textAlign: "center", color: "#64748b", fontWeight: 700 }}>
+                    No transactions recorded for this account yet.
+                  </td>
+                </tr>
               ) : (
                 transactions.map((row) => (
-                  <tr key={`${row.auditNo}-${row.reference}`}>
+                  <tr key={`${row.auditNo}-${row.reference}-${row.learner || ""}`}>
                     <td style={{ padding: 12, borderBottom: "1px solid #f1f5f9" }}>{row.auditNo}</td>
                     <td style={{ padding: 12, borderBottom: "1px solid #f1f5f9" }}>{row.date}</td>
                     <td style={{ padding: 12, borderBottom: "1px solid #f1f5f9" }}>{row.type}</td>
+                    {isFamilyBillingAccount ? (
+                      <td style={{ padding: 12, borderBottom: "1px solid #f1f5f9" }}>{row.learner || "-"}</td>
+                    ) : null}
                     <td style={{ padding: 12, borderBottom: "1px solid #f1f5f9" }}>{row.reference}</td>
                     <td style={{ padding: 12, borderBottom: "1px solid #f1f5f9" }}>{row.description}</td>
-                    <td style={{ padding: 12, borderBottom: "1px solid #f1f5f9", textAlign: "right" }}>{row.amountIn ? formatMoney(row.amountIn) : "-"}</td>
-                    <td style={{ padding: 12, borderBottom: "1px solid #f1f5f9", textAlign: "right" }}>{row.amountOut ? formatMoney(row.amountOut) : "-"}</td>
-                    <td style={{ padding: 12, borderBottom: "1px solid #f1f5f9", textAlign: "right", fontWeight: 800 }}>{formatMoney(row.balance)}</td>
+                    <td style={{ padding: 12, borderBottom: "1px solid #f1f5f9", textAlign: "right" }}>
+                      {row.amountIn ? formatMoney(row.amountIn) : "-"}
+                    </td>
+                    <td style={{ padding: 12, borderBottom: "1px solid #f1f5f9", textAlign: "right" }}>
+                      {row.amountOut ? formatMoney(row.amountOut) : "-"}
+                    </td>
+                    <td style={{ padding: 12, borderBottom: "1px solid #f1f5f9", textAlign: "right", fontWeight: 800 }}>
+                      {formatMoney(row.balance)}
+                    </td>
                   </tr>
                 ))
               )}
@@ -221,6 +850,316 @@ export default function StatementManage({ selected, setActivePage }: Props) {
           </table>
         </div>
       </section>
+
+      {modalKind === "journal" ? (
+        <StatementModal
+          title="Create Journal"
+          onClose={closeModal}
+          footer={
+            <button type="button" style={modalGoldBtn} onClick={closeModal}>
+              Close
+            </button>
+          }
+        >
+          <p style={{ margin: 0, lineHeight: 1.7, color: "#334155", fontWeight: 600 }}>
+            Manual billing journals from Statement Manage are not available yet. Supplier and expense journals are
+            handled in Accounting → Journals. This action is pending implementation for debtor accounts.
+          </p>
+        </StatementModal>
+      ) : null}
+
+      {modalKind === "unallocateConfirm" ? (
+        <StatementModal
+          title="Unallocate All Transactions"
+          onClose={closeModal}
+          footer={
+            <>
+              <button type="button" style={modalBtn} onClick={closeModal}>
+                Cancel
+              </button>
+              <button type="button" style={{ ...modalGoldBtn, color: "#7f1d1d" }} onClick={confirmUnallocateAll}>
+                Yes, unallocate all
+              </button>
+            </>
+          }
+        >
+          <p style={{ margin: 0, lineHeight: 1.7, color: "#334155", fontWeight: 600 }}>
+            This will remove payment allocations for every transaction on{" "}
+            <strong>{sourceAccountLabel}</strong>. This cannot be undone once the unallocation engine is live.
+          </p>
+          <p style={{ margin: "14px 0 0", color: "#b45309", fontWeight: 800 }}>
+            Are you sure you want to continue?
+          </p>
+        </StatementModal>
+      ) : null}
+
+      {modalKind === "unallocatePending" ? (
+        <StatementModal
+          title="Unallocate All Transactions"
+          onClose={closeModal}
+          footer={
+            <button type="button" style={modalGoldBtn} onClick={closeModal}>
+              Close
+            </button>
+          }
+        >
+          <p style={{ margin: 0, lineHeight: 1.7, color: "#334155", fontWeight: 700 }}>
+            Unallocation engine not implemented yet.
+          </p>
+          <p style={{ margin: "12px 0 0", color: "#64748b", fontWeight: 600 }}>
+            Per-payment unallocate is available on the Create Payment screen. Account-wide unallocation will be added
+            when the backend API is ready.
+          </p>
+        </StatementModal>
+      ) : null}
+
+      {modalKind === "merge" ? (
+        <StatementModal
+          title="Merge With Another Account"
+          onClose={closeModal}
+          footer={
+            <>
+              <button type="button" style={modalBtn} onClick={closeModal}>
+                Cancel
+              </button>
+              <button
+                type="button"
+                style={{
+                  ...modalGoldBtn,
+                  opacity: mergeTarget ? 1 : 0.45,
+                  cursor: mergeTarget ? "pointer" : "not-allowed",
+                }}
+                disabled={!mergeTarget}
+                onClick={confirmMerge}
+              >
+                Confirm merge
+              </button>
+            </>
+          }
+        >
+          <div style={{ display: "grid", gap: 14 }}>
+            <div>
+              <div style={{ fontWeight: 900, color: INK, marginBottom: 6 }}>Source account</div>
+              <div style={{ padding: 12, borderRadius: 8, border: "1px solid #e5e7eb", background: "#f8fafc" }}>
+                {sourceAccountLabel}
+              </div>
+            </div>
+            <div>
+              <div style={{ fontWeight: 900, color: INK, marginBottom: 6 }}>Search target account</div>
+              <input
+                value={mergeSearch}
+                onChange={(e) => setMergeSearch(e.target.value)}
+                placeholder="Account no, name, or surname"
+                style={{
+                  width: "100%",
+                  padding: "10px 12px",
+                  borderRadius: 8,
+                  border: "1px solid #cbd5e1",
+                  fontWeight: 600,
+                }}
+              />
+              <div
+                style={{
+                  marginTop: 8,
+                  maxHeight: 180,
+                  overflow: "auto",
+                  border: "1px solid #e5e7eb",
+                  borderRadius: 8,
+                }}
+              >
+                {mergeCandidates.length === 0 ? (
+                  <div style={{ padding: 14, color: "#64748b", fontWeight: 600 }}>No matching accounts.</div>
+                ) : (
+                  mergeCandidates.slice(0, 12).map((row) => {
+                    const key = String(row.learnerId || row.id || row.accountNo);
+                    const selectedTarget =
+                      String(mergeTarget?.learnerId || mergeTarget?.id) === String(row.learnerId || row.id);
+                    return (
+                      <button
+                        key={key}
+                        type="button"
+                        onClick={() => {
+                          setMergeTarget(row);
+                          setFamilyActionError("");
+                        }}
+                        style={{
+                          display: "block",
+                          width: "100%",
+                          textAlign: "left",
+                          padding: "10px 12px",
+                          border: "none",
+                          borderBottom: "1px solid #f1f5f9",
+                          background: selectedTarget ? "rgba(212,175,55,0.2)" : "#fff",
+                          cursor: "pointer",
+                          fontWeight: 700,
+                        }}
+                      >
+                        {row.accountNo} — {row.name} {row.surname} ({formatMoney(row.balance)})
+                      </button>
+                    );
+                  })
+                )}
+              </div>
+            </div>
+            {mergeTarget ? (
+              <div>
+                <div style={{ fontWeight: 900, color: INK, marginBottom: 6 }}>Target account</div>
+                <div style={{ padding: 12, borderRadius: 8, border: `1px solid ${GOLD}`, background: "#fffbeb" }}>
+                  {mergeTarget.accountNo} — {mergeTarget.name} {mergeTarget.surname}
+                </div>
+              </div>
+            ) : null}
+            <p style={{ margin: 0, color: "#b45309", fontWeight: 800, lineHeight: 1.6 }}>
+              Warning: learners and transactions from the source account will be merged into the target family account.
+              Balances and history will be combined.
+            </p>
+            {familyActionError ? (
+              <p style={{ margin: 0, color: "#b91c1c", fontWeight: 700, lineHeight: 1.6 }}>{familyActionError}</p>
+            ) : null}
+          </div>
+        </StatementModal>
+      ) : null}
+
+      {modalKind === "mergePending" ? (
+        <StatementModal
+          title="Merge With Another Account"
+          onClose={familyActionBusy ? undefined : closeModal}
+          footer={
+            <button type="button" style={modalGoldBtn} onClick={closeModal} disabled={familyActionBusy}>
+              Close
+            </button>
+          }
+        >
+          {familyActionBusy ? (
+            <p style={{ margin: 0, lineHeight: 1.7, color: "#334155", fontWeight: 700 }}>
+              Merging {sourceAccountLabel} → {mergeTarget?.accountNo} — {mergeTarget?.name} {mergeTarget?.surname}…
+            </p>
+          ) : familyActionError ? (
+            <p style={{ margin: 0, lineHeight: 1.7, color: "#b91c1c", fontWeight: 700 }}>{familyActionError}</p>
+          ) : (
+            <p style={{ margin: 0, lineHeight: 1.7, color: "#334155", fontWeight: 700 }}>
+              {familyActionSuccess || "Merge completed."}
+            </p>
+          )}
+        </StatementModal>
+      ) : null}
+
+      {modalKind === "unmerge" ? (
+        <StatementModal
+          title="Unmerge Child From Account"
+          onClose={closeModal}
+          footer={
+            <>
+              <button type="button" style={modalBtn} onClick={closeModal}>
+                Cancel
+              </button>
+              <button
+                type="button"
+                style={{
+                  ...modalGoldBtn,
+                  opacity: unmergeLearnerId ? 1 : 0.45,
+                  cursor: unmergeLearnerId ? "pointer" : "not-allowed",
+                }}
+                disabled={!unmergeLearnerId}
+                onClick={confirmUnmerge}
+              >
+                Confirm unmerge
+              </button>
+            </>
+          }
+        >
+          <div style={{ display: "grid", gap: 14 }}>
+            <p style={{ margin: 0, color: "#64748b", fontWeight: 600, lineHeight: 1.6 }}>
+              Move a learner off this family billing account. Outstanding balance stays with the family account unless
+              you reallocate after split.
+            </p>
+            <div>
+              <div style={{ fontWeight: 900, color: INK, marginBottom: 6 }}>Learners on this account</div>
+              {accountChildren.length === 0 ? (
+                <div style={{ color: "#64748b", fontWeight: 600 }}>No learners found for this account.</div>
+              ) : (
+                <div style={{ display: "grid", gap: 8 }}>
+                  {accountChildren.map((child) => (
+                    <label
+                      key={child.id}
+                      style={{
+                        display: "flex",
+                        alignItems: "center",
+                        gap: 10,
+                        padding: 12,
+                        borderRadius: 8,
+                        border: `1px solid ${unmergeLearnerId === child.id ? GOLD : "#e5e7eb"}`,
+                        background: unmergeLearnerId === child.id ? "rgba(212,175,55,0.12)" : "#f8fafc",
+                        cursor: "pointer",
+                        fontWeight: 700,
+                      }}
+                    >
+                      <input
+                        type="radio"
+                        name="unmergeLearner"
+                        checked={unmergeLearnerId === child.id}
+                        onChange={() => setUnmergeLearnerId(child.id)}
+                      />
+                      <span>
+                        {child.firstName} {child.lastName} · Grade {child.grade} · {child.accountNo}
+                      </span>
+                    </label>
+                  ))}
+                </div>
+              )}
+            </div>
+            <label style={{ display: "flex", alignItems: "center", gap: 10, fontWeight: 700, cursor: "pointer" }}>
+              <input
+                type="checkbox"
+                checked={unmergeCreateNew}
+                onChange={(e) => setUnmergeCreateNew(e.target.checked)}
+              />
+              Create a new billing account for this learner
+            </label>
+            <p style={{ margin: 0, color: "#b45309", fontWeight: 800, lineHeight: 1.6 }}>
+              Warning: unmerging changes how statements and payments are grouped. Review balances before confirming.
+            </p>
+          </div>
+        </StatementModal>
+      ) : null}
+
+      {modalKind === "unmergePending" ? (
+        <StatementModal
+          title="Unmerge Child From Account"
+          onClose={familyActionBusy ? undefined : closeModal}
+          footer={
+            <button type="button" style={modalGoldBtn} onClick={closeModal} disabled={familyActionBusy}>
+              Close
+            </button>
+          }
+        >
+          {familyActionBusy ? (
+            <p style={{ margin: 0, lineHeight: 1.7, color: "#334155", fontWeight: 700 }}>
+              {unmergeCreateNew ? "Creating new account and unmerging learner…" : "Detaching learner from family account…"}
+            </p>
+          ) : familyActionError ? (
+            <p style={{ margin: 0, lineHeight: 1.7, color: "#b91c1c", fontWeight: 700 }}>{familyActionError}</p>
+          ) : (
+            <p style={{ margin: 0, lineHeight: 1.7, color: "#334155", fontWeight: 700 }}>
+              {familyActionSuccess || "Unmerge completed."}
+            </p>
+          )}
+        </StatementModal>
+      ) : null}
+
+      {modalKind === "pending" && pendingModal ? (
+        <StatementModal
+          title={pendingModal.title}
+          onClose={closeModal}
+          footer={
+            <button type="button" style={modalGoldBtn} onClick={closeModal}>
+              Close
+            </button>
+          }
+        >
+          <p style={{ margin: 0, lineHeight: 1.7, color: "#334155", fontWeight: 600 }}>{pendingModal.body}</p>
+        </StatementModal>
+      ) : null}
     </div>
   );
 }
