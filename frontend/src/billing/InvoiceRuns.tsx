@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
-import { API_URL } from "../api";
+import { API_URL, apiFetch } from "../api";
 import { getLearnerAccountNo } from "../learner/learnerIdentity";
 import { createDefaultBillingSettings } from "../billingSettings/components/billingSettingsConstants";
 import type { BillingSettingsState } from "../billingSettings/types/billingSettings";
@@ -115,7 +115,25 @@ export default function InvoiceRuns(props: any) {
   
   
   const [billingLoading, setBillingLoading] = useState(false);
-  
+  const invoiceRunNotifiedRef = useRef<string>("");
+
+  useEffect(() => {
+    if (invoiceRunView !== "wizardSummary") return;
+    const schoolId = localStorage.getItem("schoolId") || "";
+    const run = readJson(["educlearSelectedInvoiceRun"], null);
+    const runId = String(run?.id || "");
+    if (!schoolId || !runId || invoiceRunNotifiedRef.current === runId) return;
+    invoiceRunNotifiedRef.current = runId;
+    const month = String(run?.month || run?.period || "").trim();
+    const learnerIds = Array.isArray(run?.rows)
+      ? run.rows.map((r: any) => String(r?.id || r?.learnerId || "")).filter(Boolean)
+      : undefined;
+    void apiFetch("/api/parent-portal/notify-invoice-run", {
+      method: "POST",
+      body: JSON.stringify({ schoolId, month, runId, learnerIds }),
+    }).catch((err) => console.warn("[InvoiceRuns] Parent notifications failed:", err));
+  }, [invoiceRunView]);
+
   const [statementEmailOpen, setStatementEmailOpen] = useState(false);
 
 

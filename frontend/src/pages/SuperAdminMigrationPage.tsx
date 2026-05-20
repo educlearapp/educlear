@@ -1,4 +1,5 @@
 import { useCallback, useState } from "react";
+import { apiFetch } from "../api";
 import MigrationActions from "../superAdmin/components/migration/MigrationActions";
 import MigrationDataCategories from "../superAdmin/components/migration/MigrationDataCategories";
 import MigrationFileUpload from "../superAdmin/components/migration/MigrationFileUpload";
@@ -69,11 +70,27 @@ export default function SuperAdminMigrationPage() {
   );
 
   const handleAction = useCallback(
-    (actionId: MigrationActionId) => {
+    async (actionId: MigrationActionId) => {
+      if (actionId === "finalImport" && selectedSchoolId) {
+        try {
+          const result = await apiFetch("/api/parent-portal/migration/onboarding", {
+            method: "POST",
+            body: JSON.stringify({ schoolId: selectedSchoolId }),
+          });
+          showStub(
+            "Parent onboarding started",
+            `Created portal invitations for ${result.invited ?? 0} parents at ${result.schoolName || "the school"}. SMS/email/WhatsApp messages are queued (provider configuration required).`
+          );
+          return;
+        } catch (e: any) {
+          showStub("Parent onboarding failed", e?.message || "Could not run parent onboarding.");
+          return;
+        }
+      }
       const payload = ACTION_MESSAGES[actionId];
       showStub(payload.title, payload.message);
     },
-    [showStub]
+    [showStub, selectedSchoolId]
   );
 
   return (

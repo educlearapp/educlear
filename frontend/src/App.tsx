@@ -26,6 +26,8 @@ import LearnerDigitalReport from "./LearnerDigitalReport";
 
 
 import RegisterSchool from "./RegisterSchool";
+import ParentPortalApp from "./parent/ParentPortalApp";
+import TeacherInbox from "./teacher/TeacherInbox";
 
 
 
@@ -170,6 +172,7 @@ EduClear
 
 
           <a style={{ color: "#ddd", textDecoration: "none" }} href="/login">Login</a>
+          <a style={{ color: "#ddd", textDecoration: "none" }} href="/parent">Parent Portal</a>
 
 
 
@@ -587,7 +590,11 @@ export default function App() {
 
         <Route path="/register-school" element={<RegisterSchool />} />
 
+        <Route path="/parent" element={<ParentPortalApp />} />
+        <Route path="/parent/*" element={<ParentPortalApp />} />
+
         <Route path="/dashboard/*" element={<SchoolDashboard />} />
+        <Route path="/teacher-inbox" element={<TeacherInbox />} />
 
         <Route
           path="/super-admin/*"

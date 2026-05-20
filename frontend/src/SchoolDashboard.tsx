@@ -70,7 +70,7 @@ import { isSuperAdmin } from "./auth/roles";
 
 
 
-import { API_URL } from "./api";
+import { API_URL, apiFetch } from "./api";
 
 
 
@@ -81,6 +81,7 @@ import logo from "./assets/logo.png";
 import { useSchoolId } from "./useSchoolId";
 
 import ParentPortal from "./ParentPortal";
+import TeacherInbox from "./teacher/TeacherInbox";
 import Registrations from "./components/registrations/Registrations";
 import Users from "./users/Users";
 import ManageLearner from "./learner/ManageLearner";
@@ -126,6 +127,8 @@ type PageKey =
 
 
   | "parentPortal"
+
+  | "teacherInbox"
 
   | "learnerProfile"
 
@@ -641,7 +644,30 @@ const [incidentMoreOpen, setIncidentMoreOpen] = useState(false);
 
 const [incidentRecords, setIncidentRecords] = useState<any[]>([]);
 
-
+useEffect(() => {
+  if (!schoolId) return;
+  void apiFetch(`/api/parent-portal/staff/incidents?schoolId=${encodeURIComponent(schoolId)}`)
+    .then((data: any) => {
+      if (Array.isArray(data?.incidents) && data.incidents.length) {
+        setIncidentRecords(
+          data.incidents.map((inc: any) => ({
+            id: inc.id,
+            date: inc.incidentDate,
+            name: inc.learner
+              ? `${inc.learner.firstName} ${inc.learner.lastName}`
+              : "-",
+            relationship: "Child",
+            subject: inc.subject,
+            type: inc.type,
+            incident: inc.summary,
+            private: !inc.parentVisible,
+            learnerId: inc.learnerId,
+          }))
+        );
+      }
+    })
+    .catch(() => {});
+}, [schoolId]);
 
 const [incidentDraft, setIncidentDraft] = useState<any>({
 
@@ -11216,82 +11242,48 @@ const manageSelectedIncident = () => {
 
 
 
-const saveIncidentRecord = () => {
-
-
-
+const saveIncidentRecord = async () => {
+  const learnerId = selectedIncidentLearner?.id || selectedIncident?.learnerId || null;
   const record = {
-
-
-
     id: selectedIncident?.id || String(Date.now()),
-
-
-
     date: incidentDraft.date || new Date().toISOString().slice(0, 16),
-
-
-
     name: incidentDraft.name || "-",
-
-
-
     relationship: incidentDraft.relationship || "Child",
-
-
-
     subject: incidentDraft.subject || "General",
-
-
-
     type: incidentDraft.type || "General",
-
-
-
     incident: incidentDraft.incident || "",
-
-
-
     private: Boolean(incidentDraft.private),
-
-
-
-    learnerId: selectedIncidentLearner?.id || selectedIncident?.learnerId || null,
-
-
-
+    learnerId,
   };
 
-
+  if (schoolId && learnerId) {
+    try {
+      const saved = await apiFetch("/api/parent-portal/staff/incidents", {
+        method: "POST",
+        body: JSON.stringify({
+          schoolId,
+          learnerId,
+          type: record.type,
+          subject: record.subject,
+          summary: record.incident,
+          private: record.private,
+          date: record.date,
+        }),
+      });
+      if (saved?.incident?.id) record.id = saved.incident.id;
+    } catch (e) {
+      console.warn("[Incidents] API save failed, keeping local copy", e);
+    }
+  }
 
   setIncidentRecords((prev: any[]) => {
-
-
-
     const exists = prev.some((item: any) => item.id === record.id);
-
-
-
     if (exists) return prev.map((item: any) => (item.id === record.id ? record : item));
-
-
-
     return [record, ...prev];
-
-
-
   });
 
-
-
   setSelectedIncident(record);
-
-
-
   setActivePage("incidents");
-
-
-
 };
 
 
@@ -16334,6 +16326,9 @@ const [invoiceRunEmailDraft, setInvoiceRunEmailDraft] = useState({
           />
         );
 
+      case "teacherInbox":
+        return <TeacherInbox />;
+
 
 
         case "statements":
@@ -18643,6 +18638,7 @@ return (
                 ) : null}
 
                 <div className={`submenu-item ${activePage === "parentPortal" ? "active" : ""}`} onClick={() => go("parentPortal")}>Parent Portal</div>
+                <div className={`submenu-item ${activePage === "teacherInbox" ? "active" : ""}`} onClick={() => go("teacherInbox")}>Teacher Inbox</div>
   
   
   
