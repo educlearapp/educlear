@@ -1,0 +1,1 @@
+-- Recorded migration; changes are consolidated in later schema alignment migration.

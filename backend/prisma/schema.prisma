@@ -107,6 +107,15 @@ learnerReports LearnerReport[]
   supplierInvoices SupplierInvoice[]
   expenseCategories ExpenseCategory[]
   accountingJournals AccountingJournal[]
+  classrooms Classroom[]
+  parentNotifications ParentNotification[]
+  parentTeacherThreads ParentTeacherThread[]
+  homeworkPosts HomeworkPost[]
+  schoolNotices SchoolNotice[]
+  parentDocuments ParentDocument[]
+  learnerIncidents LearnerIncident[]
+  parentOnboardings ParentOnboarding[]
+  parentOutreachQueue ParentOutreachQueue[]
 }
 
 enum BankTransactionMatchStatus {
@@ -333,8 +342,10 @@ familyAccount FamilyAccount? @relation(fields: [familyAccountId], references: [i
   links ParentLearnerLink[]
 
   Letter Letter[]
-
-
+  notifications ParentNotification[]
+  teacherThreads ParentTeacherThread[]
+  onboarding ParentOnboarding?
+  outreachQueue ParentOutreachQueue[]
 
   @@index([schoolId])
 
@@ -412,6 +423,10 @@ familyAccount FamilyAccount? @relation(fields: [familyAccountId], references: [i
 reports LearnerReport[]
 
   billingDeposits BillingDeposit[]
+  notifications ParentNotification[]
+  teacherThreads ParentTeacherThread[]
+  homeworkPosts HomeworkPost[]
+  incidents LearnerIncident[]
 
   @@unique([schoolId, admissionNo])
   @@index([schoolId])
@@ -2190,4 +2205,263 @@ model AccountingJournalLine {
   journal AccountingJournal @relation(fields: [journalId], references: [id], onDelete: Cascade)
 
   @@index([journalId])
+}
+
+// =========================
+// PARENT PORTAL
+// =========================
+
+enum ParentNotificationType {
+  INVOICE_READY
+  STATEMENT_READY
+  TEACHER_MESSAGE
+  INCIDENT
+  HOMEWORK
+  ASSESSMENT
+  EXAM
+  SCHOOL_NOTICE
+  DOCUMENT
+  ONBOARDING
+}
+
+enum ParentOnboardingStatus {
+  INVITED
+  OPENED
+  REGISTERED
+  LINKED
+  ACTIVE
+}
+
+enum ParentTeacherThreadStatus {
+  OPEN
+  CLOSED
+  ARCHIVED
+}
+
+enum ParentMessageSenderType {
+  PARENT
+  TEACHER
+  ADMIN
+}
+
+enum SchoolNoticeType {
+  SCHOOL
+  GRADE
+  CLASS
+  ASSESSMENT
+  EXAM
+}
+
+enum ParentOutreachChannel {
+  SMS
+  EMAIL
+  WHATSAPP
+}
+
+enum ParentOutreachStatus {
+  QUEUED
+  SENT
+  FAILED
+}
+
+model Classroom {
+  id            String   @id @default(cuid())
+  schoolId      String
+  name          String
+  teacherName   String   @default("")
+  teacherEmail  String   @default("")
+  notes         String?  @db.Text
+  minAgeMonths  Int?
+  maxAgeMonths  Int?
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  school  School               @relation(fields: [schoolId], references: [id], onDelete: Cascade)
+  threads ParentTeacherThread[]
+
+  @@unique([schoolId, name])
+  @@index([schoolId])
+}
+
+model ParentNotification {
+  id          String                 @id @default(cuid())
+  schoolId    String
+  parentId    String
+  learnerId   String?
+  type        ParentNotificationType
+  title       String
+  message     String                 @db.Text
+  metadata    Json?
+  isRead      Boolean                @default(false)
+  readAt      DateTime?
+  createdAt   DateTime               @default(now())
+
+  school  School  @relation(fields: [schoolId], references: [id], onDelete: Cascade)
+  parent  Parent  @relation(fields: [parentId], references: [id], onDelete: Cascade)
+  learner Learner? @relation(fields: [learnerId], references: [id], onDelete: SetNull)
+
+  @@index([schoolId, parentId])
+  @@index([schoolId, parentId, isRead])
+  @@index([parentId, createdAt])
+}
+
+model ParentTeacherThread {
+  id           String                    @id @default(cuid())
+  schoolId     String
+  parentId     String
+  learnerId    String
+  classroomId  String?
+  teacherId    String?
+  teacherName  String                    @default("")
+  teacherEmail String                    @default("")
+  status       ParentTeacherThreadStatus @default(OPEN)
+  createdAt    DateTime                  @default(now())
+  updatedAt    DateTime                  @updatedAt
+
+  school    School                @relation(fields: [schoolId], references: [id], onDelete: Cascade)
+  parent    Parent                @relation(fields: [parentId], references: [id], onDelete: Cascade)
+  learner   Learner               @relation(fields: [learnerId], references: [id], onDelete: Cascade)
+  classroom Classroom?            @relation(fields: [classroomId], references: [id], onDelete: SetNull)
+  messages  ParentTeacherMessage[]
+
+  @@unique([schoolId, parentId, learnerId])
+  @@index([schoolId, teacherEmail])
+  @@index([learnerId])
+}
+
+model ParentTeacherMessage {
+  id         String                  @id @default(cuid())
+  threadId   String
+  schoolId   String
+  senderType ParentMessageSenderType
+  senderName String                  @default("")
+  body       String                  @db.Text
+  attachments Json?
+  isRead     Boolean                 @default(false)
+  readAt     DateTime?
+  createdAt  DateTime                @default(now())
+
+  thread ParentTeacherThread @relation(fields: [threadId], references: [id], onDelete: Cascade)
+
+  @@index([threadId, createdAt])
+  @@index([schoolId])
+}
+
+model HomeworkPost {
+  id          String    @id @default(cuid())
+  schoolId    String
+  learnerId   String?
+  grade       String?
+  className   String?
+  title       String
+  description String?   @db.Text
+  dueDate     DateTime?
+  attachments Json?
+  createdBy   String    @default("")
+  createdAt   DateTime  @default(now())
+
+  school  School  @relation(fields: [schoolId], references: [id], onDelete: Cascade)
+  learner Learner? @relation(fields: [learnerId], references: [id], onDelete: SetNull)
+
+  @@index([schoolId, grade])
+  @@index([schoolId, className])
+  @@index([learnerId])
+}
+
+model SchoolNotice {
+  id          String           @id @default(cuid())
+  schoolId    String
+  noticeType  SchoolNoticeType
+  title       String
+  body        String           @db.Text
+  grade       String?
+  className   String?
+  learnerId   String?
+  attachments Json?
+  publishedAt DateTime         @default(now())
+  createdBy   String           @default("")
+  createdAt   DateTime         @default(now())
+
+  school School @relation(fields: [schoolId], references: [id], onDelete: Cascade)
+
+  @@index([schoolId, noticeType])
+  @@index([schoolId, grade])
+  @@index([schoolId, className])
+}
+
+model ParentDocument {
+  id          String   @id @default(cuid())
+  schoolId    String
+  title       String
+  description String?  @db.Text
+  grade       String?
+  className   String?
+  learnerId   String?
+  fileUrl     String
+  fileName    String   @default("")
+  createdAt   DateTime @default(now())
+
+  school School @relation(fields: [schoolId], references: [id], onDelete: Cascade)
+
+  @@index([schoolId])
+  @@index([schoolId, grade])
+}
+
+model LearnerIncident {
+  id                String   @id @default(cuid())
+  schoolId          String
+  learnerId         String
+  type              String   @default("General")
+  subject           String   @default("General")
+  summary           String   @db.Text
+  parentVisible     Boolean  @default(true)
+  internalNotes     String?  @db.Text
+  incidentDate      DateTime @default(now())
+  createdBy         String   @default("")
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+
+  school  School  @relation(fields: [schoolId], references: [id], onDelete: Cascade)
+  learner Learner @relation(fields: [learnerId], references: [id], onDelete: Cascade)
+
+  @@index([schoolId, learnerId])
+  @@index([learnerId])
+}
+
+model ParentOnboarding {
+  id        String                 @id @default(cuid())
+  schoolId  String
+  parentId  String                 @unique
+  status    ParentOnboardingStatus @default(INVITED)
+  invitedAt DateTime               @default(now())
+  openedAt  DateTime?
+  registeredAt DateTime?
+  linkedAt  DateTime?
+  activeAt  DateTime?
+  updatedAt DateTime               @updatedAt
+
+  school School @relation(fields: [schoolId], references: [id], onDelete: Cascade)
+  parent Parent @relation(fields: [parentId], references: [id], onDelete: Cascade)
+
+  @@index([schoolId, status])
+}
+
+model ParentOutreachQueue {
+  id        String               @id @default(cuid())
+  schoolId  String
+  parentId  String
+  channel   ParentOutreachChannel
+  recipient String
+  subject   String?
+  body      String               @db.Text
+  status    ParentOutreachStatus @default(QUEUED)
+  error     String?              @db.Text
+  createdAt DateTime             @default(now())
+  sentAt    DateTime?
+
+  school School @relation(fields: [schoolId], references: [id], onDelete: Cascade)
+  parent Parent @relation(fields: [parentId], references: [id], onDelete: Cascade)
+
+  @@index([schoolId, status])
+  @@index([parentId])
 }

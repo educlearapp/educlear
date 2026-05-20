@@ -1,0 +1,1 @@
+-- Placeholder migration (index moved to school email settings migration).
