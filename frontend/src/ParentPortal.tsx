@@ -6,7 +6,7 @@ import { useMemo, useState } from "react";
 
 
 
-import { apiFetch } from "./api";
+import { API_URL, apiFetch } from "./api";
 
 
 
@@ -178,7 +178,7 @@ export type ParentPortalProps = {
 
 
 
-const API_BASE = "http://localhost:3000/api";
+const API_BASE = `${API_URL}/api`;
 
 
 

@@ -1,4 +1,10 @@
 import { getLearnerAccountNo } from "../learner/learnerIdentity";
+import type { BillingSettingsState } from "../billingSettings/types/billingSettings";
+import {
+  buildInvoiceReference,
+  computeInvoiceDueDate,
+  resolveInvoiceMessage,
+} from "./billingSettingsEngine";
 
 export type BillingLedgerEntryType = "invoice" | "payment" | "credit" | "penalty";
 
@@ -244,6 +250,43 @@ export function getBillingRows(learners: any[], schoolId: string): BillingAccoun
   });
 }
 
+export function appendInvoiceTransaction(input: {
+  schoolId: string;
+  learnerId: string;
+  accountNo: string;
+  amount: number;
+  date?: string;
+  dueDate?: string;
+  reference?: string;
+  description?: string;
+  runId?: string;
+}) {
+  const schoolId = String(input.schoolId || "").trim();
+  const learnerId = String(input.learnerId || "").trim();
+  const accountNo = String(input.accountNo || "").trim();
+  const amount = normaliseBillingAmount(input.amount);
+  if (!schoolId || !amount) return null;
+
+  const invoiceDate = input.date || new Date().toISOString().slice(0, 10);
+  const entry: BillingLedgerEntry = {
+    id: `invoice-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+    schoolId,
+    learnerId,
+    accountNo,
+    type: "invoice",
+    amount,
+    date: invoiceDate,
+    dueDate: input.dueDate || invoiceDate,
+    reference: String(input.reference || "").trim(),
+    description: String(input.description || "Invoice").trim(),
+    runId: input.runId,
+    createdAt: new Date().toISOString(),
+  };
+
+  upsertSchoolEntries(schoolId, [entry]);
+  return entry;
+}
+
 export function appendPaymentTransaction(input: {
   schoolId: string;
   learnerId: string;
@@ -332,7 +375,11 @@ export function appendPenaltyTransaction(input: {
   return entry;
 }
 
-export function appendInvoiceRunTransactions(run: any, schoolId: string) {
+export function appendInvoiceRunTransactions(
+  run: any,
+  schoolId: string,
+  settings?: BillingSettingsState
+) {
   const sid = String(schoolId || run?.schoolId || "").trim();
   const rows = Array.isArray(run?.rows) ? run.rows : [];
   if (!sid || !rows.length) return [];
@@ -341,17 +388,37 @@ export function appendInvoiceRunTransactions(run: any, schoolId: string) {
   const invoiceDate =
     String(run?.invoiceDate || run?.date || "").trim() ||
     new Date().toISOString().slice(0, 10);
-  const runDueDate = String(run?.dueDate || "").trim() || invoiceDate;
+  const runDueDate = settings
+    ? computeInvoiceDueDate(
+        invoiceDate,
+        settings,
+        String(run?.dueDate || "").trim() || undefined
+      )
+    : String(run?.dueDate || "").trim() || invoiceDate;
+  const runDescription =
+    String(run?.description || run?.invoiceMessage || "").trim() ||
+    (settings ? resolveInvoiceMessage(settings) : "") ||
+    `Invoice Run ${run?.month || ""}`;
 
   const entries: BillingLedgerEntry[] = rows
-    .map((row: any) => {
+    .map((row: any, index: number) => {
       const amount = normaliseBillingAmount(
         row?.invoiceAmount ?? row?.amount ?? row?.total ?? 0
       );
       if (!amount) return null;
       const learnerId = String(row?.id || row?.learnerId || "").trim();
       const accountNo = String(row?.accountNo || getLearnerAccountNo(row) || "").trim();
-      const rowDueDate = String(row?.dueDate || runDueDate || "").trim() || invoiceDate;
+      const rowDueDate = settings
+        ? computeInvoiceDueDate(
+            invoiceDate,
+            settings,
+            String(row?.dueDate || runDueDate || "").trim() || undefined
+          )
+        : String(row?.dueDate || runDueDate || "").trim() || invoiceDate;
+      const fallbackRef = String(row?.invoiceNo || row?.statementNo || runId).trim();
+      const reference = settings
+        ? buildInvoiceReference(settings, invoiceDate, index + 1, fallbackRef)
+        : fallbackRef;
       return {
         id: `invoice-${runId}-${learnerId || accountNo}`,
         schoolId: sid,
@@ -361,8 +428,8 @@ export function appendInvoiceRunTransactions(run: any, schoolId: string) {
         amount,
         date: invoiceDate,
         dueDate: rowDueDate,
-        reference: String(row?.invoiceNo || row?.statementNo || runId).trim(),
-        description: String(run?.description || `Invoice Run ${run?.month || ""}`).trim(),
+        reference,
+        description: runDescription,
         runId,
         createdAt: String(run?.createdAt || new Date().toISOString()),
       };

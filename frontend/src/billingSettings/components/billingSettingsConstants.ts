@@ -116,6 +116,7 @@ export function createDefaultBillingSettings(): BillingSettingsState {
       dueDate: DUE_DATE_OPTIONS[0],
       invoiceFeatures: checkboxDefaults(INVOICE_FEATURE_OPTIONS),
       invoicePrefix: "",
+      latePenaltyAmount: 0,
       termsAndConditions: "",
       standardMessage: "",
       standardEmailSubject: "",

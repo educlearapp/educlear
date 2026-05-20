@@ -1,11 +1,17 @@
 import { Router } from "express";
 
+import { loadSchoolBillingSettings } from "./billingSettings";
 import { resolveLearnerAccountNo } from "../utils/learnerIdentity";
+import {
+  buildInvoiceReference,
+  computeInvoiceDueDate,
+  normaliseIsoDate,
+  resolveInvoiceMessage,
+} from "../utils/billingSettingsEngine";
 import {
   appendSchoolEntry,
   listInvoices,
   normaliseAmount,
-  normaliseIsoDate,
   readSchoolLedger,
   type BillingLedgerEntry,
 } from "../utils/billingLedgerStore";
@@ -54,10 +60,28 @@ router.post("/", async (req, res) => {
       return res.status(400).json({ success: false, error: "Missing schoolId, learnerId, or amount" });
     }
 
+    const settings = await loadSchoolBillingSettings(schoolId);
     const invoiceDate =
       normaliseIsoDate(body.date || body.invoiceDate) || new Date().toISOString().slice(0, 10);
-    const dueDate =
-      normaliseIsoDate(body.dueDate) || invoiceDate;
+    const dueDate = computeInvoiceDueDate(
+      invoiceDate,
+      settings,
+      normaliseIsoDate(body.dueDate) || undefined
+    );
+
+    const existingInvoices = listInvoices(schoolId);
+    const fallbackRef = String(body.reference || body.invoiceNumber || `INV-${Date.now()}`).trim();
+    const reference = buildInvoiceReference(
+      settings,
+      invoiceDate,
+      existingInvoices.length + 1,
+      fallbackRef
+    );
+
+    const description =
+      String(body.description || "").trim() ||
+      resolveInvoiceMessage(settings) ||
+      "Invoice";
 
     const entry: BillingLedgerEntry = {
       id: String(body.id || `invoice-${Date.now()}`),
@@ -68,8 +92,8 @@ router.post("/", async (req, res) => {
       amount,
       date: invoiceDate,
       dueDate,
-      reference: String(body.reference || body.invoiceNumber || "").trim(),
-      description: String(body.description || "Invoice").trim(),
+      reference,
+      description,
       runId: body.runId ? String(body.runId) : undefined,
       createdAt: new Date().toISOString(),
     };

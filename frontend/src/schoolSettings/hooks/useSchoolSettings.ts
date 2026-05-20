@@ -1,4 +1,4 @@
-import { useCallback, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { createDefaultSchoolSettings } from "../components/schoolSettingsConstants";
 import type {
   DocumentDisplayFieldId,
@@ -6,8 +6,46 @@ import type {
   SchoolSettingsState,
 } from "../types/schoolSettings";
 
+const storageKey = (schoolId: string) => `educlearSchoolSettings:${schoolId}`;
+
+function readStoredSettings(schoolId: string): SchoolSettingsState | null {
+  try {
+    const raw = localStorage.getItem(storageKey(schoolId));
+    if (!raw) return null;
+    const parsed = JSON.parse(raw) as SchoolSettingsState;
+    if (!parsed || typeof parsed !== "object") return null;
+    return {
+      ...createDefaultSchoolSettings(),
+      ...parsed,
+      general: {
+        ...createDefaultSchoolSettings().general,
+        ...(parsed.general || {}),
+      },
+      documents: {
+        ...createDefaultSchoolSettings().documents,
+        ...(parsed.documents || {}),
+      },
+    };
+  } catch {
+    return null;
+  }
+}
+
 export function useSchoolSettings(schoolId: string) {
   const [settingsBySchool, setSettingsBySchool] = useState<Record<string, SchoolSettingsState>>({});
+  const [loaded, setLoaded] = useState(false);
+
+  useEffect(() => {
+    if (!schoolId) {
+      setLoaded(true);
+      return;
+    }
+    const stored = readStoredSettings(schoolId);
+    if (stored) {
+      setSettingsBySchool((prev) => ({ ...prev, [schoolId]: stored }));
+    }
+    setLoaded(true);
+  }, [schoolId]);
 
   const settings = useMemo(() => {
     if (!schoolId) return createDefaultSchoolSettings();
@@ -47,12 +85,18 @@ export function useSchoolSettings(schoolId: string) {
 
   const saveSettings = useCallback(() => {
     if (!schoolId) return false;
-    updateSettings((current) => ({ ...current }));
-    return true;
-  }, [schoolId, updateSettings]);
+    try {
+      localStorage.setItem(storageKey(schoolId), JSON.stringify(settings));
+      setSettingsBySchool((prev) => ({ ...prev, [schoolId]: settings }));
+      return true;
+    } catch {
+      return false;
+    }
+  }, [schoolId, settings]);
 
   return {
     settings,
+    loaded,
     setGeneralField,
     setDocumentField,
     saveSettings,

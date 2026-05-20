@@ -1,4 +1,9 @@
-import React, { useMemo, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
+import {
+  loadBillingSettingsForSchool,
+  mapStatementHistoryToDefaultPeriod,
+  resolveStatementMessage,
+} from "./billingSettingsEngine";
 import {
   BILLING_UPDATED_EVENT,
   calculateAccountBalance,
@@ -21,7 +26,21 @@ export default function StatementManage({ selected, setActivePage }: Props) {
   const accountNo = String(selected?.accountNo || "").trim();
 
   const [period, setPeriod] = useState("All Time");
+  const [statementNote, setStatementNote] = useState("");
   const [, setTick] = useState(0);
+
+  useEffect(() => {
+    if (!schoolId) return;
+    let cancelled = false;
+    loadBillingSettingsForSchool(schoolId).then((settings) => {
+      if (cancelled) return;
+      setPeriod(mapStatementHistoryToDefaultPeriod(settings.statement.statementHistory));
+      setStatementNote(resolveStatementMessage(settings));
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [schoolId]);
 
   React.useEffect(() => {
     const refresh = () => setTick((v) => v + 1);
@@ -29,10 +48,49 @@ export default function StatementManage({ selected, setActivePage }: Props) {
     return () => window.removeEventListener(BILLING_UPDATED_EVENT, refresh);
   }, []);
 
-  const ledger = useMemo(
-    () => getAccountLedger(schoolId, learnerId, accountNo),
-    [schoolId, learnerId, accountNo, period]
-  );
+  const ledger = useMemo(() => {
+    const entries = getAccountLedger(schoolId, learnerId, accountNo);
+    const sorted = [...entries].sort(
+      (a, b) =>
+        new Date(b.date || b.createdAt).getTime() - new Date(a.date || a.createdAt).getTime()
+    );
+
+    if (period === "Last 10 Transactions") {
+      return sorted.slice(0, 10).reverse();
+    }
+
+    if (period === "All Time") {
+      return entries;
+    }
+
+    const now = new Date();
+    let cutoff: Date | null = null;
+
+    if (period === "This Year") {
+      cutoff = new Date(now.getFullYear(), 0, 1);
+    } else {
+      const monthsMap: Record<string, number> = {
+        "Last 3 Months": 3,
+        "Last 6 Months": 6,
+        "Last 9 Months": 9,
+        "Last 12 Months": 12,
+        "Last 18 Months": 18,
+        "Last 24 Months": 24,
+      };
+      const months = monthsMap[period];
+      if (months) {
+        cutoff = new Date(now);
+        cutoff.setMonth(cutoff.getMonth() - months);
+      }
+    }
+
+    if (!cutoff) return entries;
+
+    return entries.filter((entry) => {
+      const entryDate = new Date(entry.date || entry.createdAt);
+      return !Number.isNaN(entryDate.getTime()) && entryDate >= cutoff;
+    });
+  }, [schoolId, learnerId, accountNo, period]);
 
   const balance = calculateAccountBalance(ledger, learnerId, accountNo);
 
@@ -123,6 +181,11 @@ export default function StatementManage({ selected, setActivePage }: Props) {
             <div>{selected?.name} {selected?.surname}</div>
             <div style={{ fontSize: 24, fontWeight: 900, color: balance > 0 ? "#b91c1c" : "#166534" }}>{formatMoney(balance)}</div>
             <div style={{ color: "#64748b" }}>{selected?.status || "Up To Date"}</div>
+            {statementNote ? (
+              <div style={{ marginTop: 12, color: "#475569", fontSize: 14, whiteSpace: "pre-wrap" }}>
+                {statementNote}
+              </div>
+            ) : null}
           </div>
         </section>
       </div>

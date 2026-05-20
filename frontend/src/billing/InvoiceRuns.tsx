@@ -1,6 +1,17 @@
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import { API_URL } from "../api";
 import { getLearnerAccountNo } from "../learner/learnerIdentity";
+import { createDefaultBillingSettings } from "../billingSettings/components/billingSettingsConstants";
+import type { BillingSettingsState } from "../billingSettings/types/billingSettings";
+import {
+  buildInvoiceReference,
+  buildInvoiceRunDefaults,
+  computeInvoiceDueDate,
+  loadBillingSettingsForSchool,
+  resolveEmailTemplate,
+  resolveStatementMessage,
+  substituteBillingTokens,
+} from "./billingSettingsEngine";
 import { appendInvoiceRunTransactions } from "./billingLedger";
 import {
 
@@ -11,9 +22,7 @@ import {
 
 
   fetchPayments,
-
-
-
+  createInvoice,
 } from "./billingApi";
 
 
@@ -124,6 +133,22 @@ export default function InvoiceRuns(props: any) {
 
 
   const [statementEmailSending, setStatementEmailSending] = useState(false);
+  const billingSettingsRef = useRef<BillingSettingsState>(createDefaultBillingSettings());
+
+  useEffect(() => {
+    const sid = localStorage.getItem("schoolId") || "";
+    if (!sid) return;
+    loadBillingSettingsForSchool(sid).then((settings) => {
+      billingSettingsRef.current = settings;
+      const today = new Date().toISOString().slice(0, 10);
+      const defaults = buildInvoiceRunDefaults(settings, today);
+      setInvoiceRunSettings((prev: any) => ({
+        ...prev,
+        message: prev?.message || defaults.message,
+        dueDate: prev?.dueDate || defaults.dueDate,
+      }));
+    });
+  }, []);
 
   useEffect(() => {
 
@@ -1091,7 +1116,12 @@ export default function InvoiceRuns(props: any) {
 
 
 
-        invoiceNo: 65000 + index,
+        invoiceNo: buildInvoiceReference(
+          billingSettingsRef.current,
+          new Date().toISOString().slice(0, 10),
+          index + 1,
+          String(65000 + index)
+        ),
 
 
 
@@ -1414,7 +1444,38 @@ export default function InvoiceRuns(props: any) {
 
     setStoredRuns(updatedRuns);
     const schoolId = localStorage.getItem("schoolId") || "";
-    appendInvoiceRunTransactions(run, schoolId);
+    appendInvoiceRunTransactions(run, schoolId, billingSettingsRef.current);
+    if (schoolId) {
+      const rows = Array.isArray(run?.rows) ? run.rows : [];
+      const invoiceDate =
+        String(run?.invoiceDate || run?.date || "").trim() ||
+        new Date().toISOString().slice(0, 10);
+      void Promise.all(
+        rows.map(async (row: any) => {
+          const amount = Number(row?.invoiceAmount ?? row?.amount ?? row?.total ?? 0);
+          if (!amount) return;
+          try {
+            await createInvoice({
+              schoolId,
+              learnerId: String(row?.id || row?.learnerId || ""),
+              accountNo: String(row?.accountNo || ""),
+              amount,
+              date: invoiceDate,
+              dueDate: computeInvoiceDueDate(
+                invoiceDate,
+                billingSettingsRef.current,
+                String(row?.dueDate || run?.dueDate || "")
+              ),
+              reference: String(row?.invoiceNo || row?.statementNo || run?.id || ""),
+              description: String(run?.description || `Invoice Run ${run?.month || ""}`),
+              runId: String(run?.id || ""),
+            });
+          } catch (error) {
+            console.warn("[InvoiceRuns] Server invoice sync failed:", error);
+          }
+        })
+      ).then(() => syncBillingLedgerFromApi(schoolId));
+    }
     loadBillingData();
 
 
@@ -1491,15 +1552,17 @@ export default function InvoiceRuns(props: any) {
 
 
 
-      dueDate: now.toISOString().slice(0, 10),
+      dueDate: computeInvoiceDueDate(
+        now.toISOString().slice(0, 10),
+        billingSettingsRef.current
+      ),
 
 
 
-      invoiceMessage:
-
-
-
-        "School fees to be paid in full by the 3rd of the month.\nPlease keep all receipts safe if there might be any enquiries.",
+      invoiceMessage: buildInvoiceRunDefaults(
+        billingSettingsRef.current,
+        now.toISOString().slice(0, 10)
+      ).message,
 
 
 
@@ -2608,6 +2671,13 @@ export default function InvoiceRuns(props: any) {
 
 
 
+          ${
+            resolveStatementMessage(billingSettingsRef.current)
+              ? `<p style="margin-top:20px;line-height:1.5;">${escapeHtml(
+                  resolveStatementMessage(billingSettingsRef.current)
+                )}</p>`
+              : ""
+          }
           <div class="footer">
 
 
@@ -2688,30 +2758,19 @@ export default function InvoiceRuns(props: any) {
 
 
 
-    setStatementEmailSubject(`${schoolName} Statement - ${firstLearner}`);
-
-
-
+    const emailTemplate = resolveEmailTemplate(billingSettingsRef.current, "statement");
+    const tokens = {
+      school_name: schoolName,
+      learner_name: firstLearner,
+      document_type: "Statement",
+    };
+    setStatementEmailSubject(
+      substituteBillingTokens(emailTemplate.subject, tokens) ||
+        `${schoolName} Statement - ${firstLearner}`
+    );
     setStatementEmailMessage(
-
-
-
-      `Dear Parent,
-
-
-
-Please find attached the latest statement.
-
-
-
-Kind regards,
-
-
-
-${schoolName}`
-
-
-
+      substituteBillingTokens(emailTemplate.message, tokens) ||
+        `Dear Parent,\n\nPlease find attached the latest statement.\n\nKind regards,\n\n${schoolName}`
     );
 
 
@@ -2780,79 +2839,36 @@ ${schoolName}`
 
 
 
-        await fetch(`${API_URL}/emails/send-statement`, {
+        const emailHtml = `<div style="font-family:Arial,sans-serif;line-height:1.5">${String(
+          statementEmailMessage || ""
+        )
+          .split("\n")
+          .map((line) => `<p style="margin:0 0 8px">${line}</p>`)
+          .join("")}</div>`;
 
-
-
+        const response = await fetch(`${API_URL}/api/emails/send-statement`, {
           method: "POST",
-
-
-
           headers: {
-
-
-
             "Content-Type": "application/json",
-
-
-
           },
-
-
-
           body: JSON.stringify({
-
-
-
             to: row.parentEmail,
-
-
-
             subject:
-
-
-
               statementEmailRows.length === 1
-
-
-
                 ? statementEmailSubject
-
-
-
                 : `${schoolName} Statement - ${row.learnerName}`,
-
-
-
-            message: statementEmailMessage,
-
-
-
-            learnerName: row.learnerName,
-
-
-
-            parentName: row.parentName,
-
-
-
-            statementNo: row.statementNo,
-
-
-
+            html: emailHtml,
             pdfBase64,
-
-
-
-            filename: `${row.learnerName || "learner"}-statement.html`,
-
-
-
+            filename: `${row.learnerName || "learner"}-statement.pdf`,
           }),
-
-
-
         });
+
+        if (!response.ok) {
+          const errBody = await response.json().catch(() => ({}));
+          throw new Error(
+            String((errBody as { error?: string })?.error || `Email failed (${response.status})`)
+          );
+        }
 
 
 

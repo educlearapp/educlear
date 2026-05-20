@@ -1110,14 +1110,11 @@ export default function BillingPlans({
 
 
 
-              <button style={btnGold} onClick={() => alert("Billing plan saved")}>
-
-
-
+              <button
+                style={btnGold}
+                onClick={() => savePlan(selectedPlanLearner, getPlan(selectedPlanLearner))}
+              >
                 Save
-
-
-
               </button>
 
 

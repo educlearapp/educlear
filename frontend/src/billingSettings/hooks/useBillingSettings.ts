@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
+import { clearBillingSettingsCache } from "../../billing/billingSettingsEngine";
 import {
   fetchBillingSettings,
   resetBillingSettings,
@@ -206,6 +207,7 @@ export function useBillingSettings(schoolId: string) {
     setError(null);
     try {
       const saved = await saveBillingSettings(schoolId, settings);
+      clearBillingSettingsCache(schoolId);
       setSettingsBySchool((prev) => ({ ...prev, [schoolId]: saved }));
       return true;
     } catch (err) {
@@ -222,6 +224,7 @@ export function useBillingSettings(schoolId: string) {
     setError(null);
     try {
       const defaults = await resetBillingSettings(schoolId);
+      clearBillingSettingsCache(schoolId);
       setSettingsBySchool((prev) => ({ ...prev, [schoolId]: defaults }));
       return true;
     } catch (err) {

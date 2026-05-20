@@ -1,4 +1,5 @@
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
+import { loadBillingSettingsForSchool, resolvePenaltyConfig } from "./billingSettingsEngine";
 import {
   appendPenaltyTransaction,
   formatMoney,
@@ -69,10 +70,38 @@ const goldBtn: React.CSSProperties = {
   cursor: "pointer",
 };
 
+const PENALTY_NOT_CONFIGURED_MSG =
+  "No late payment fine amount has been configured. Please set it in Billing Settings.";
+
 export default function LatePenaltyFine({ schoolId, learners, onClose, onApplied }: Props) {
   const today = new Date().toISOString().slice(0, 10);
-  const [penaltyAmount, setPenaltyAmount] = useState(300);
+  const [penaltyAmount, setPenaltyAmount] = useState(0);
+  const [penaltyConfigured, setPenaltyConfigured] = useState(false);
+  const [settingsLoaded, setSettingsLoaded] = useState(false);
   const [description, setDescription] = useState("Late payment penalty");
+  useEffect(() => {
+    let cancelled = false;
+    loadBillingSettingsForSchool(schoolId)
+      .then((settings) => {
+        if (cancelled) return;
+        const penalty = resolvePenaltyConfig(settings);
+        if (penalty.amount > 0) {
+          setPenaltyAmount(penalty.amount);
+          setPenaltyConfigured(true);
+        } else {
+          setPenaltyAmount(0);
+          setPenaltyConfigured(false);
+        }
+        setDescription(penalty.description);
+        setSettingsLoaded(true);
+      })
+      .catch(() => {
+        if (!cancelled) setSettingsLoaded(true);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [schoolId]);
   const [penaltyDate, setPenaltyDate] = useState(today);
   const [dueDateCutoff, setDueDateCutoff] = useState(today);
   const [applyToAll, setApplyToAll] = useState(true);
@@ -83,6 +112,10 @@ export default function LatePenaltyFine({ schoolId, learners, onClose, onApplied
   const [showPreview, setShowPreview] = useState(false);
 
   const handlePreview = async () => {
+    if (!penaltyConfigured || !penaltyAmount) {
+      alert(PENALTY_NOT_CONFIGURED_MSG);
+      return;
+    }
     setLoading(true);
     try {
       const res = await previewLatePenalties({
@@ -123,6 +156,10 @@ export default function LatePenaltyFine({ schoolId, learners, onClose, onApplied
   };
 
   const handleApply = async () => {
+    if (!penaltyConfigured || !penaltyAmount) {
+      alert(PENALTY_NOT_CONFIGURED_MSG);
+      return;
+    }
     const selected = previewRows.filter((r) => r.apply && !r.duplicate);
     if (!selected.length) {
       alert("Select at least one account to apply the penalty.");
@@ -175,15 +212,32 @@ export default function LatePenaltyFine({ schoolId, learners, onClose, onApplied
           <div style={{ fontWeight: 900, fontSize: 20 }}>Late Penalty Fine</div>
         </div>
 
+        {settingsLoaded && !penaltyConfigured ? (
+          <div
+            style={{
+              margin: "0 24px",
+              padding: "12px 14px",
+              borderRadius: 10,
+              border: "1px solid #f59e0b",
+              background: "#fffbeb",
+              color: "#92400e",
+              fontWeight: 700,
+            }}
+          >
+            {PENALTY_NOT_CONFIGURED_MSG}
+          </div>
+        ) : null}
+
         <div style={{ padding: 24, display: "grid", gridTemplateColumns: "repeat(2, minmax(0, 1fr))", gap: 14 }}>
           <label>
             Penalty amount (R)
             <input
               type="number"
               min={0}
-              style={fieldStyle}
-              value={penaltyAmount}
-              onChange={(e) => setPenaltyAmount(normaliseBillingAmount(e.target.value))}
+              readOnly
+              style={{ ...fieldStyle, background: "#f8fafc" }}
+              value={penaltyConfigured ? penaltyAmount : ""}
+              placeholder="—"
             />
           </label>
           <label>
@@ -227,7 +281,12 @@ export default function LatePenaltyFine({ schoolId, learners, onClose, onApplied
         </div>
 
         <div style={{ padding: "0 24px 16px", display: "flex", gap: 10, flexWrap: "wrap" }}>
-          <button type="button" style={goldBtn} onClick={handlePreview} disabled={loading}>
+          <button
+            type="button"
+            style={goldBtn}
+            onClick={handlePreview}
+            disabled={loading || !penaltyConfigured}
+          >
             {loading ? "Loading…" : "Preview Affected Accounts"}
           </button>
           <button type="button" style={goldBtn} onClick={onClose}>
@@ -296,7 +355,12 @@ export default function LatePenaltyFine({ schoolId, learners, onClose, onApplied
               </table>
             </div>
             <div style={{ marginTop: 16, display: "flex", gap: 10, justifyContent: "flex-end" }}>
-              <button type="button" style={goldBtn} onClick={handleApply} disabled={applying || !previewRows.length}>
+              <button
+                type="button"
+                style={goldBtn}
+                onClick={handleApply}
+                disabled={applying || !previewRows.length || !penaltyConfigured}
+              >
                 {applying ? "Applying…" : "Apply Penalty"}
               </button>
             </div>

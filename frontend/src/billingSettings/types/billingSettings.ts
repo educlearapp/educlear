@@ -52,6 +52,8 @@ export type BillingInvoiceSettings = {
   dueDate: string;
   invoiceFeatures: CheckboxMap;
   invoicePrefix: string;
+  /** School-configured late payment fine amount (0 = not set). */
+  latePenaltyAmount: number;
   termsAndConditions: string;
 } & MessageFields;
 

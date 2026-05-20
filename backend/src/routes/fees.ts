@@ -84,7 +84,7 @@ function serializeFee(fee: any, usedBillingPlansCount = 0) {
     description: fee.name ?? null,
     amount: fee.amount,
     notes: meta?.notes ?? null,
-    isActive: true,
+    isActive: fee.isActive !== false,
     createdAt: fee.createdAt,
     updatedAt: fee.updatedAt,
 

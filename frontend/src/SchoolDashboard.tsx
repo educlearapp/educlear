@@ -52,8 +52,14 @@ import {
   AccountingSuppliers,
   AccountingAuditCompliance,
 } from "./accounting/accountingSections";
-import { BILLING_UPDATED_EVENT, getBillingRows } from "./billing/billingLedger";
-import { syncBillingLedgerFromApi } from "./billing/billingApi";
+import { appendInvoiceTransaction, BILLING_UPDATED_EVENT, getBillingRows } from "./billing/billingLedger";
+import { createInvoice, syncBillingLedgerFromApi } from "./billing/billingApi";
+import {
+  buildInvoiceRunDefaults,
+  computeInvoiceDueDate,
+  loadBillingSettingsForSchool,
+  resolveInvoiceMessage,
+} from "./billing/billingSettingsEngine";
 import SchoolProfilePage from "./pages/SchoolProfilePage";
 import SchoolCreditsPage from "./pages/SchoolCreditsPage";
 import SchoolSasamsReportUploadPage from "./pages/SchoolSasamsReportUploadPage";
@@ -15642,10 +15648,41 @@ const renderMoreSettings = () => {
   
   
     message: "School fees are payable by the due date stated on this invoice.",
-  
-  
-  
+
+
+
   });
+  const [quickInvoiceMessage, setQuickInvoiceMessage] = useState("");
+  const [quickInvoiceDueDate, setQuickInvoiceDueDate] = useState(
+    () => new Date().toISOString().split("T")[0]
+  );
+
+  useEffect(() => {
+    const schoolId = hookSchoolId || localStorage.getItem("schoolId") || "";
+    if (!schoolId) return;
+    let cancelled = false;
+    loadBillingSettingsForSchool(schoolId).then((settings) => {
+      if (cancelled) return;
+      const today = new Date().toISOString().split("T")[0];
+      const defaults = buildInvoiceRunDefaults(settings, today);
+      setInvoiceRunSettings((prev) => ({
+        ...prev,
+        message: prev.message || defaults.message,
+        dueDate: computeInvoiceDueDate(today, settings, prev.dueDate),
+      }));
+      const invoiceMessage = resolveInvoiceMessage(settings);
+      setQuickInvoiceMessage(invoiceMessage);
+      setQuickInvoiceDueDate(computeInvoiceDueDate(today, settings));
+      setInvoiceRunStatementOptions((prev) => ({
+        ...prev,
+        message: invoiceMessage || prev.message,
+      }));
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [hookSchoolId]);
+
   const [storedRuns, setStoredRuns] = useState<any[]>(() => {
     const readJson = (keys: string[], fallback: any) => {
       for (const key of keys) {
@@ -16955,7 +16992,49 @@ const [invoiceRunEmailDraft, setInvoiceRunEmailDraft] = useState({
         
         
         
-                  onClick={() => alert(`Invoice saved for ${selected.accountNo}. Total: R ${total.toFixed(2)}`)}
+                  onClick={async () => {
+                    if (!lines.length || total <= 0) {
+                      alert("Add at least one fee line with an amount before saving.");
+                      return;
+                    }
+                    const schoolId = localStorage.getItem("schoolId") || "";
+                    const learnerId = String(selected.learnerId || selected.id || "").trim();
+                    const accountNo = String(selected.accountNo || "").trim();
+                    const invoiceDate = today;
+                    const description = lines
+                      .map((line: any) => String(line.description || "").trim())
+                      .filter(Boolean)
+                      .join(", ");
+                    const billingSettings = await loadBillingSettingsForSchool(schoolId);
+                    const dueDate = computeInvoiceDueDate(invoiceDate, billingSettings, quickInvoiceDueDate);
+                    const payload = {
+                      schoolId,
+                      learnerId,
+                      accountNo,
+                      amount: total,
+                      date: invoiceDate,
+                      dueDate,
+                      reference: `INV-${accountNo}-${Date.now()}`,
+                      description: description || resolveInvoiceMessage(billingSettings) || "Invoice",
+                    };
+                    const record = appendInvoiceTransaction(payload);
+                    try {
+                      await createInvoice({
+                        ...payload,
+                        id: record?.id,
+                        invoiceDate,
+                      });
+                      localStorage.removeItem(invoiceKey);
+                      await syncBillingLedgerFromApi(schoolId);
+                      alert(`Invoice saved for ${selected.accountNo}. Total: R ${total.toFixed(2)}`);
+                      setActivePage("invoices");
+                    } catch (error) {
+                      console.error(error);
+                      alert(
+                        "Invoice saved locally but could not sync to the server. Check your connection and try again."
+                      );
+                    }
+                  }}
         
         
         
@@ -17039,7 +17118,7 @@ const [invoiceRunEmailDraft, setInvoiceRunEmailDraft] = useState({
         
         
         
-                      <input type="date" style={field} defaultValue={today} />
+                      <input type="date" style={field} defaultValue={quickInvoiceDueDate || today} />
         
         
         
@@ -17080,13 +17159,8 @@ const [invoiceRunEmailDraft, setInvoiceRunEmailDraft] = useState({
         
         
                         defaultValue={
-        
-        
-        
-                          "School fees to be paid in full by the 3rd of the month.\nArrangements for parents that receive their salary on the 15th of the month may be reviewed by the school.\nLate payment penalty of R300 may apply.\n\nPlease keep all receipts safe for enquiries."
-        
-        
-        
+                          quickInvoiceMessage ||
+                          "School fees are payable by the due date stated on this invoice."
                         }
         
         

@@ -1,6 +1,11 @@
 import { Router } from "express";
 
 import { prisma } from "../prisma";
+import { loadSchoolBillingSettings } from "./billingSettings";
+import {
+  resolveConfiguredPenaltyAmount,
+  resolvePenaltyConfig,
+} from "../utils/billingSettingsEngine";
 import { resolveLearnerAccountNo } from "../utils/learnerIdentity";
 import {
   appendSchoolEntry,
@@ -18,7 +23,6 @@ router.post("/preview", async (req, res) => {
   try {
     const body = (req.body ?? {}) as Record<string, unknown>;
     const schoolId = String(body.schoolId || "").trim();
-    const penaltyAmount = normaliseAmount(body.penaltyAmount ?? 300);
     const penaltyDate = String(body.penaltyDate || new Date().toISOString()).slice(0, 10);
     const dueDateCutoff = String(body.dueDateCutoff || penaltyDate).slice(0, 10);
     const excludeNotYetDue = Boolean(body.excludeNotYetDue);
@@ -31,6 +35,17 @@ router.post("/preview", async (req, res) => {
       return res.status(400).json({ success: false, error: "Missing schoolId" });
     }
 
+    const settings = await loadSchoolBillingSettings(schoolId);
+    const penaltyDefaults = resolvePenaltyConfig(settings);
+    const resolvedAmount = resolveConfiguredPenaltyAmount(settings);
+    if (!resolvedAmount) {
+      return res.status(400).json({
+        success: false,
+        error:
+          "No late payment fine amount has been configured. Please set it in Billing Settings.",
+      });
+    }
+
     const ledger = readSchoolLedger(schoolId);
     const learners = await prisma.learner.findMany({
       where: { schoolId },
@@ -41,8 +56,9 @@ router.post("/preview", async (req, res) => {
         familyAccount: { select: { accountRef: true } },
       },
     });
-
-    const description = String(body.description || "Late payment penalty").trim();
+    const description = String(
+      body.description || penaltyDefaults.description || "Late payment penalty"
+    ).trim();
     const rows = learners
       .map((learner) => {
         const accountNo = resolveLearnerAccountNo(learner);
@@ -69,7 +85,7 @@ router.post("/preview", async (req, res) => {
           balance,
           overdueAmount,
           excludedNotYetDue,
-          penaltyAmount,
+          penaltyAmount: resolvedAmount,
           apply: !alreadyApplied,
           duplicate: alreadyApplied,
         };
@@ -87,10 +103,21 @@ router.post("/apply", async (req, res) => {
   try {
     const body = (req.body ?? {}) as Record<string, unknown>;
     const schoolId = String(body.schoolId || "").trim();
-    const penaltyAmount = normaliseAmount(body.penaltyAmount ?? 300);
+    const settings = await loadSchoolBillingSettings(schoolId);
+    const penaltyDefaults = resolvePenaltyConfig(settings);
+    const penaltyAmount = resolveConfiguredPenaltyAmount(settings);
+    if (!penaltyAmount) {
+      return res.status(400).json({
+        success: false,
+        error:
+          "No late payment fine amount has been configured. Please set it in Billing Settings.",
+      });
+    }
     const penaltyDate = String(body.penaltyDate || new Date().toISOString()).slice(0, 10);
     const dueDate = String(body.dueDate || body.dueDateCutoff || penaltyDate).slice(0, 10);
-    const description = String(body.description || "Late payment penalty").trim();
+    const description = String(
+      body.description || penaltyDefaults.description || "Late payment penalty"
+    ).trim();
     const reference = String(body.reference || `PEN-${penaltyDate}`).trim();
     const accounts = Array.isArray(body.accounts) ? body.accounts : [];
 

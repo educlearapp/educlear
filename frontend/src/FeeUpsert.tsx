@@ -61,6 +61,7 @@ export default function FeeUpsert(props: { feeId?: string | null; onBack: () => 
   const [description, setDescription] = useState("");
   const [amount, setAmount] = useState("");
   const [notes, setNotes] = useState("");
+  const [isActive, setIsActive] = useState(true);
 
   const menuWrapRef = useRef<HTMLDivElement | null>(null);
 
@@ -98,6 +99,7 @@ export default function FeeUpsert(props: { feeId?: string | null; onBack: () => 
         setType(String(fee?.frequency || "") as any);
         setDescription(String(fee?.name || ""));
         setAmount(String(Number(fee?.amount || 0)));
+        setIsActive(fee?.isActive !== false);
         setNotes(String(fee?.notes || ""));
       } catch (e: any) {
         if (!cancelled) setError(e?.message || "Failed to load fee");
@@ -331,35 +333,37 @@ export default function FeeUpsert(props: { feeId?: string | null; onBack: () => 
                     borderRadius: "10px",
                     border: "none",
                     background: "#ffffff",
-                    cursor: "not-allowed",
-                    opacity: 0.65,
+                    cursor: isEdit ? "pointer" : "not-allowed",
+                    opacity: isEdit ? 1 : 0.65,
                     fontWeight: 800,
                     color: "#0f172a",
                   }}
-                  disabled
-                  title="Coming soon"
-                >
-                  Deactivate (coming soon)
-                </button>
-                <button
-                  type="button"
-                  role="menuitem"
-                  style={{
-                    width: "100%",
-                    textAlign: "left",
-                    padding: "10px 12px",
-                    borderRadius: "10px",
-                    border: "none",
-                    background: "#ffffff",
-                    cursor: "not-allowed",
-                    opacity: 0.65,
-                    fontWeight: 800,
-                    color: "#b91c1c",
+                  disabled={!isEdit || saving}
+                  onClick={async () => {
+                    if (!isEdit || !props.feeId || !schoolId) return;
+                    setMenuOpen(false);
+                    setSaving(true);
+                    setError(null);
+                    try {
+                      const res = await fetch(
+                        `${API_URL}/api/fees/${encodeURIComponent(String(props.feeId))}/toggle-active`,
+                        {
+                          method: "PATCH",
+                          headers: { "Content-Type": "application/json" },
+                          body: JSON.stringify({ schoolId }),
+                        }
+                      );
+                      const data = await res.json();
+                      if (!res.ok) throw new Error(data?.message || "Failed to update fee status");
+                      setIsActive(data?.fee?.isActive !== false);
+                    } catch (e: any) {
+                      setError(e?.message || "Failed to update fee status");
+                    } finally {
+                      setSaving(false);
+                    }
                   }}
-                  disabled
-                  title="Coming soon"
                 >
-                  Delete (coming soon)
+                  {isActive ? "Deactivate" : "Activate"}
                 </button>
               </div>
             ) : null}

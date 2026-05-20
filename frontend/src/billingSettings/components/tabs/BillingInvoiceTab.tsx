@@ -1,4 +1,5 @@
 import type { BillingInvoiceSettings } from "../../types/billingSettings";
+import { normaliseLatePenaltyAmount } from "../../../billing/billingSettingsEngine";
 import {
   DEFAULT_INVOICE_PAGE_OPTIONS,
   DUE_DATE_OPTIONS,
@@ -69,6 +70,30 @@ export default function BillingInvoiceTab({
         onChange={onInvoiceFeatureChange}
         columns={2}
       />
+
+      <div className="billing-settings-field billing-settings-field--full">
+        <label className="billing-settings-label" htmlFor={`${schoolId}-late-penalty-amount`}>
+          Late payment fine amount
+        </label>
+        <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+          <span style={{ fontWeight: 700, color: "#b89329" }}>R</span>
+          <input
+            id={`${schoolId}-late-penalty-amount`}
+            type="number"
+            min={0}
+            step="0.01"
+            className="billing-settings-input"
+            style={{ flex: 1 }}
+            placeholder="300.00"
+            value={(invoice.latePenaltyAmount ?? 0) > 0 ? invoice.latePenaltyAmount : ""}
+            onChange={(e) =>
+              onFieldChange({
+                latePenaltyAmount: normaliseLatePenaltyAmount(e.target.value),
+              })
+            }
+          />
+        </div>
+      </div>
 
       <div className="billing-settings-grid billing-settings-grid--2">
         <div className="billing-settings-field">

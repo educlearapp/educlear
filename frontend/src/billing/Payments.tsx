@@ -1,5 +1,5 @@
-import React from "react";
-import { formatMoney } from "./billingLedger";
+import React, { useMemo, useState } from "react";
+import { formatMoney, normaliseBillingAmount } from "./billingLedger";
 
 type PaymentsProps = {
   statementRows: any[];
@@ -7,6 +7,9 @@ type PaymentsProps = {
 };
 
 export default function Payments({ statementRows, setActivePage }: PaymentsProps) {
+  const [search, setSearch] = useState("");
+  const rowBalance = (row: any) => normaliseBillingAmount(row?.balance);
+
   const payBtn: React.CSSProperties = {
     border: "1px solid #b89329",
     background: "#ffffff",
@@ -58,17 +61,40 @@ export default function Payments({ statementRows, setActivePage }: PaymentsProps
     fontWeight: 700,
   };
 
-  const paymentAccounts = statementRows.map((row: any, index: number) => ({
-    id: row.id || row.learnerId || row.accountNo || `account-${index}`,
-    learnerId: row.learnerId || row.id || row.accountNo || `account-${index}`,
-    accountNo: row.accountNo || "-",
-    name: row.name || "",
-    surname: row.surname || "",
-    balance: Number(row.balance || 0),
-    lastInvoice: row.lastInvoice || "No invoices",
-    lastPayment: row.lastPayment || "No payments",
-    status: row.status || "Up To Date",
-  }));
+  const paymentAccounts = useMemo(
+    () =>
+      statementRows.map((row: any, index: number) => ({
+        id: row.id || row.learnerId || row.accountNo || `account-${index}`,
+        learnerId: row.learnerId || row.id || row.accountNo || `account-${index}`,
+        accountNo: row.accountNo || "-",
+        name: row.name || "",
+        surname: row.surname || "",
+        balance: Number(row.balance || 0),
+        lastInvoice: row.lastInvoice || "No invoices",
+        lastPayment: row.lastPayment || "No payments",
+        status: row.status || "Up To Date",
+      })),
+    [statementRows]
+  );
+
+  const filteredAccounts = useMemo(() => {
+    const q = search.trim().toLowerCase();
+    if (!q) return paymentAccounts;
+    return paymentAccounts.filter((account: any) =>
+      [
+        account.accountNo,
+        account.name,
+        account.surname,
+        account.status,
+        account.lastInvoice,
+        account.lastPayment,
+        String(account.balance),
+      ]
+        .join(" ")
+        .toLowerCase()
+        .includes(q)
+    );
+  }, [paymentAccounts, search]);
 
   const openPaymentCreate = (account: any) => {
     localStorage.setItem(
@@ -83,12 +109,20 @@ export default function Payments({ statementRows, setActivePage }: PaymentsProps
   };
 
   const totalOutstanding = paymentAccounts.reduce(
-    (sum: number, row: any) => sum + Math.max(Number(row.balance || 0), 0),
+    (sum: number, row: any) => sum + Math.max(rowBalance(row), 0),
     0
   );
 
+  const recentlyOwing = paymentAccounts
+    .filter((row: any) => row.status === "Recently Owing")
+    .reduce((sum: number, row: any) => sum + rowBalance(row), 0);
+
+  const badDebt = paymentAccounts
+    .filter((row: any) => row.status === "Bad Debt")
+    .reduce((sum: number, row: any) => sum + rowBalance(row), 0);
+
   const overPaid = paymentAccounts.reduce(
-    (sum: number, row: any) => sum + Math.min(Number(row.balance || 0), 0),
+    (sum: number, row: any) => sum + Math.min(rowBalance(row), 0),
     0
   );
 
@@ -128,11 +162,11 @@ export default function Payments({ statementRows, setActivePage }: PaymentsProps
           <div style={{ fontSize: 12, fontWeight: 900, color: "#64748b" }}>TOTAL OUTSTANDING</div>
         </div>
         <div style={summaryCard}>
-          <div style={{ fontSize: 24, fontWeight: 950 }}>R 0.00</div>
+          <div style={{ fontSize: 24, fontWeight: 950 }}>{formatMoney(recentlyOwing)}</div>
           <div style={{ fontSize: 12, fontWeight: 900, color: "#64748b" }}>RECENTLY OWING</div>
         </div>
         <div style={summaryCard}>
-          <div style={{ fontSize: 24, fontWeight: 950, color: "#b91c1c" }}>R 0.00</div>
+          <div style={{ fontSize: 24, fontWeight: 950, color: "#b91c1c" }}>{formatMoney(badDebt)}</div>
           <div style={{ fontSize: 12, fontWeight: 900, color: "#64748b" }}>BAD DEBT</div>
         </div>
         <div style={summaryCard}>
@@ -144,8 +178,8 @@ export default function Payments({ statementRows, setActivePage }: PaymentsProps
       </div>
 
       <div style={{ marginBottom: 14 }}>
-        <button type="button" style={payBtn} onClick={() => setActivePage("payments")}>
-          ☰ Switch To Manage Payments
+        <button type="button" style={payBtn} onClick={() => setActivePage("statements")}>
+          ☰ View Statements
         </button>
       </div>
 
@@ -193,15 +227,13 @@ export default function Payments({ statementRows, setActivePage }: PaymentsProps
             >
               + Add
             </button>
-            <button
-              type="button"
-              style={payBtn}
-              onClick={() => alert("Add Multiple will be connected to batch payment allocation.")}
-            >
-              + Add Multiple
-            </button>
           </div>
-          <input placeholder="Search" style={{ ...selectStyle, width: 260 }} />
+          <input
+            placeholder="Search"
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            style={{ ...selectStyle, width: 260 }}
+          />
         </div>
 
         <table style={{ width: "100%", borderCollapse: "collapse" }}>
@@ -217,7 +249,7 @@ export default function Payments({ statementRows, setActivePage }: PaymentsProps
             </tr>
           </thead>
           <tbody>
-            {paymentAccounts.map((account: any, index: number) => (
+            {filteredAccounts.map((account: any, index: number) => (
               <tr
                 key={account.accountNo || index}
                 style={{

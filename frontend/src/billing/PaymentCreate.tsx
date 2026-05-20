@@ -501,32 +501,17 @@ export default function PaymentCreate({
 
 
 
-  const savePayment = () => {
-
-
-
+  const savePayment = async () => {
     if (!amount || amount <= 0) {
-
-
-
       alert("Enter a payment amount first.");
-
-
-
       return;
-
-
-
     }
-
-
 
     const schoolId = localStorage.getItem("schoolId") || "";
     const learnerId = String(accountRow?.learnerId || accountRow?.id || selected?.learnerId || "").trim();
     const accountNo = String(accountRow?.accountNo || selected?.accountNo || "").trim();
     const paymentDate = payment.date || new Date().toISOString().slice(0, 10);
-
-    const record = appendPaymentTransaction({
+    const paymentPayload = {
       schoolId,
       learnerId,
       accountNo,
@@ -535,7 +520,9 @@ export default function PaymentCreate({
       reference: String(payment.reference || payment.type || "EFT").trim(),
       description: payment.description || "Payment",
       method: payment.type || "EFT",
-    });
+    };
+
+    const record = appendPaymentTransaction(paymentPayload);
 
     if (record) {
       const nextPayments = [record, ...savedPayments];
@@ -548,36 +535,29 @@ export default function PaymentCreate({
         amount: normaliseBillingAmount(amount),
         date: paymentDate,
         accountNo,
-        reference: String(payment.reference || payment.type || "EFT").trim(),
+        reference: paymentPayload.reference,
         createdBy: "Billing",
       });
     }
 
-    createPayment({
-      schoolId,
-      learnerId,
-      accountNo,
-      amount: normaliseBillingAmount(amount),
-      date: paymentDate,
-      reference: String(payment.reference || payment.type || "EFT").trim(),
-      description: payment.description || "Payment",
-      method: payment.type || "EFT",
-    }).catch(() => {});
-
-    localStorage.setItem(
-      "selectedPaymentAccount",
-      JSON.stringify({
-        ...selected,
-        learnerId,
-        accountNo,
-        lastPayment: `${money(amount)} on ${paymentDate}`,
-      })
-    );
-
-    alert("Payment saved.");
-
-
-
+    try {
+      await createPayment(paymentPayload);
+      localStorage.setItem(
+        "selectedPaymentAccount",
+        JSON.stringify({
+          ...selected,
+          learnerId,
+          accountNo,
+          lastPayment: `${money(amount)} on ${paymentDate}`,
+        })
+      );
+      alert("Payment saved.");
+    } catch (error) {
+      console.error(error);
+      alert(
+        "Payment saved locally but could not sync to the server. Check your connection and try again."
+      );
+    }
   };
 
 

@@ -1,5 +1,6 @@
 import { Router } from "express";
 import { Prisma, PrismaClient } from "@prisma/client";
+import { normaliseLatePenaltyAmount } from "../utils/billingSettingsEngine";
 
 const router = Router();
 const prisma = new PrismaClient();
@@ -46,6 +47,7 @@ type BillingInvoiceSettings = {
   dueDate: string;
   invoiceFeatures: CheckboxMap;
   invoicePrefix: string;
+  latePenaltyAmount: number;
   termsAndConditions: string;
   standardMessage: string;
   standardEmailSubject: string;
@@ -141,6 +143,7 @@ export function defaultBillingSettings(): BillingSettingsState {
       dueDate: "Invoice Date",
       invoiceFeatures: checkboxDefaults(INVOICE_FEATURE_IDS),
       invoicePrefix: "",
+      latePenaltyAmount: 0,
       termsAndConditions: "",
       standardMessage: "",
       standardEmailSubject: "",
@@ -242,6 +245,9 @@ function mergeSettings(current: BillingSettingsState, incoming: Partial<BillingS
         termsAndConditions: String(
           incoming.invoice.termsAndConditions ?? current.invoice.termsAndConditions ?? ""
         ),
+        latePenaltyAmount: normaliseLatePenaltyAmount(
+          incoming.invoice.latePenaltyAmount ?? current.invoice.latePenaltyAmount
+        ),
       }
     : current.invoice;
 
@@ -275,7 +281,7 @@ function parseStoredSettings(value: unknown): Partial<BillingSettingsState> | un
   return value as Partial<BillingSettingsState>;
 }
 
-async function loadSchoolSettings(schoolId: string): Promise<BillingSettingsState> {
+export async function loadSchoolBillingSettings(schoolId: string): Promise<BillingSettingsState> {
   const row = await prisma.billingSettings.findUnique({ where: { schoolId } });
   if (!row) return defaultBillingSettings();
   return normalizeSettings(parseStoredSettings(row.settings));
@@ -295,7 +301,7 @@ router.get("/settings", async (req, res) => {
   try {
     const schoolId = String(req.query.schoolId || "").trim();
     if (!schoolId) return res.status(400).json({ success: false, error: "Missing schoolId" });
-    const settings = await loadSchoolSettings(schoolId);
+    const settings = await loadSchoolBillingSettings(schoolId);
     return res.json({ success: true, settings });
   } catch (error) {
     console.error("[billing-settings] GET settings failed:", error);
@@ -307,7 +313,7 @@ router.put("/settings", async (req, res) => {
   try {
     const schoolId = String(req.body?.schoolId || "").trim();
     if (!schoolId) return res.status(400).json({ success: false, error: "Missing schoolId" });
-    const current = await loadSchoolSettings(schoolId);
+    const current = await loadSchoolBillingSettings(schoolId);
     const next = mergeSettings(current, req.body?.settings || {});
     await saveSchoolSettings(schoolId, next);
     return res.json({ success: true, settings: next });
