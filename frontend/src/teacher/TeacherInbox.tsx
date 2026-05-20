@@ -27,6 +27,7 @@ type MeResponse = {
   user?: { id?: string; email?: string | null; fullName?: string | null; role?: string | null };
   school?: { id?: string; name?: string | null };
   assignedClassNames?: string[];
+  assignedClassrooms?: { id: string; name: string; teacherEmail?: string }[];
 };
 
 type Props = {
@@ -56,6 +57,10 @@ export default function TeacherInbox({ embedded }: Props) {
   const teacherEmail = (me?.user?.email || "").trim();
   const teacherName = me?.user?.fullName?.trim() || localStorage.getItem("userName") || "Teacher";
   const assignedClassNames = me?.assignedClassNames ?? [];
+  const assignedClassCount =
+    (me?.assignedClassrooms?.length ?? 0) > 0
+      ? (me?.assignedClassrooms?.length ?? 0)
+      : assignedClassNames.length;
 
   const [threads, setThreads] = useState<ThreadRow[]>([]);
   const [selectedId, setSelectedId] = useState<string | null>(null);
@@ -167,9 +172,9 @@ export default function TeacherInbox({ embedded }: Props) {
   }
 
   const showNoClassesHint =
-    sessionReady && !profileLoadFailed && !adminView && assignedClassNames.length === 0;
+    sessionReady && !profileLoadFailed && !adminView && assignedClassCount === 0;
   const showEmptyInbox =
-    threads.length === 0 && !loading && sessionReady && !profileLoadFailed;
+    threads.length === 0 && !loading && sessionReady && !profileLoadFailed && !showNoClassesHint;
 
   return (
     <div
@@ -270,8 +275,8 @@ export default function TeacherInbox({ embedded }: Props) {
           <div className={embedded ? "teacher-inbox-threads" : undefined}>
           {showNoClassesHint && (
             <p style={{ padding: 16, color: textMuted, lineHeight: 1.5, borderBottom: panelBorder }}>
-              No classrooms are assigned to your email yet. Parent messages still appear here when your email
-              matches the class teacher on the Classrooms page.
+              No classrooms are assigned to your email yet. Ask the school admin to set your email as the class
+              teacher on the Classrooms page, then refresh.
             </p>
           )}
           {showEmptyInbox && (

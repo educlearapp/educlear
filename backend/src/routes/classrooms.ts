@@ -1,7 +1,12 @@
 import { Router } from "express";
 import { prisma } from "../prisma";
-import { syncParentThreadsForClassroom } from "../services/parentPortalService";
+import {
+  repairAllParentTeacherThreads,
+  syncParentThreadsForClassroom,
+} from "../services/parentPortalService";
 import { normalizeStaffEmail } from "../utils/staffJwt";
+
+const UNREGISTERED_PREFIX = "__learner_class__:";
 
 function normalizeTeacherEmail(raw: unknown): string {
   return normalizeStaffEmail(String(raw ?? ""));
@@ -9,6 +14,85 @@ function normalizeTeacherEmail(raw: unknown): string {
 
 function normalizeTeacherName(raw: unknown): string {
   return String(raw ?? "").trim();
+}
+
+function unregisteredClassroomId(className: string) {
+  return `${UNREGISTERED_PREFIX}${encodeURIComponent(className)}`;
+}
+
+export function isUnregisteredClassroomId(id: string) {
+  return String(id || "").startsWith(UNREGISTERED_PREFIX);
+}
+
+export function classNameFromUnregisteredId(id: string) {
+  return decodeURIComponent(String(id).slice(UNREGISTERED_PREFIX.length));
+}
+
+function formatClassroomRow<T extends { name: string; teacherName: string; teacherEmail: string }>(
+  classroom: T,
+  extras?: {
+    learners?: unknown[];
+    childrenCount?: number;
+    registered?: boolean;
+  }
+) {
+  return {
+    ...classroom,
+    className: classroom.name,
+    teacher: classroom.teacherName,
+    teacherName: classroom.teacherName,
+    teacherEmail: classroom.teacherEmail,
+    learners: extras?.learners,
+    children: extras?.learners,
+    childrenCount: extras?.childrenCount,
+    registered: extras?.registered ?? true,
+  };
+}
+
+async function distinctLearnerClassNames(schoolId: string): Promise<string[]> {
+  const grouped = await prisma.learner.groupBy({
+    by: ["className"],
+    where: { schoolId, className: { not: "" } },
+    _count: { _all: true },
+  });
+  return grouped
+    .map((g) => String(g.className || "").trim())
+    .filter(Boolean)
+    .sort((a, b) => a.localeCompare(b));
+}
+
+async function learnerCountForClass(schoolId: string, className: string) {
+  return prisma.learner.count({
+    where: { schoolId, className },
+  });
+}
+
+/** Create Classroom rows for every distinct learner className missing from the Classroom table. */
+export async function rebuildMissingClassroomsFromLearners(schoolId: string) {
+  const names = await distinctLearnerClassNames(schoolId);
+  const existing = await prisma.classroom.findMany({
+    where: { schoolId },
+    select: { name: true },
+  });
+  const existingSet = new Set(existing.map((c) => c.name));
+  const created: string[] = [];
+
+  for (const name of names) {
+    if (existingSet.has(name)) continue;
+    const classroom = await prisma.classroom.create({
+      data: {
+        schoolId,
+        name,
+        teacherName: "",
+        teacherEmail: "",
+      },
+    });
+    existingSet.add(name);
+    created.push(name);
+    await syncParentThreadsForClassroom(schoolId, classroom.id);
+  }
+
+  return { created: created.length, names: created };
 }
 
 const router = Router();
@@ -24,15 +108,7 @@ async function classroomWithLearners(schoolId: string, classroomId: string) {
     orderBy: [{ grade: "asc" }, { lastName: "asc" }],
   });
 
-  return {
-    ...classroom,
-    className: classroom.name,
-    teacher: classroom.teacherName,
-    teacherName: classroom.teacherName,
-    learners,
-    children: learners,
-    childrenCount: learners.length,
-  };
+  return formatClassroomRow(classroom, { learners, childrenCount: learners.length, registered: true });
 }
 
 router.get("/", async (req, res) => {
@@ -44,6 +120,9 @@ router.get("/", async (req, res) => {
       where: { schoolId },
       orderBy: { name: "asc" },
     });
+
+    const registeredByName = new Map<string, (typeof rows)[number]>();
+    for (const c of rows) registeredByName.set(c.name, c);
 
     const classrooms = await Promise.all(
       rows.map(async (c) => {
@@ -58,17 +137,47 @@ router.get("/", async (req, res) => {
             admissionNo: true,
           },
         });
-        return {
-          ...c,
-          className: c.name,
-          teacher: c.teacherName,
-          teacherName: c.teacherName,
-          learners,
-          children: learners,
-          childrenCount: learners.length,
-        };
+        return formatClassroomRow(c, { learners, childrenCount: learners.length, registered: true });
       })
     );
+
+    const learnerClassNames = await distinctLearnerClassNames(schoolId);
+    for (const className of learnerClassNames) {
+      if (registeredByName.has(className)) continue;
+      const count = await learnerCountForClass(schoolId, className);
+      const learners = await prisma.learner.findMany({
+        where: { schoolId, className },
+        select: {
+          id: true,
+          firstName: true,
+          lastName: true,
+          birthDate: true,
+          grade: true,
+          admissionNo: true,
+        },
+        orderBy: [{ grade: "asc" }, { lastName: "asc" }],
+      });
+      classrooms.push({
+        id: unregisteredClassroomId(className),
+        schoolId,
+        name: className,
+        className,
+        teacherName: "",
+        teacherEmail: "",
+        teacher: "",
+        notes: null,
+        minAgeMonths: null,
+        maxAgeMonths: null,
+        createdAt: new Date(0),
+        updatedAt: new Date(0),
+        learners,
+        children: learners,
+        childrenCount: count,
+        registered: false,
+      });
+    }
+
+    classrooms.sort((a, b) => String(a.name).localeCompare(String(b.name)));
 
     return res.json({ classrooms });
   } catch (e) {
@@ -77,10 +186,70 @@ router.get("/", async (req, res) => {
   }
 });
 
+router.post("/repair-missing", async (req, res) => {
+  try {
+    const schoolId = String(req.body?.schoolId || req.query.schoolId || "").trim();
+    if (!schoolId) return res.status(400).json({ error: "schoolId required" });
+
+    const rebuild = await rebuildMissingClassroomsFromLearners(schoolId);
+    const threads = await repairAllParentTeacherThreads({ schoolId });
+
+    return res.json({
+      success: true,
+      classrooms: rebuild,
+      threads,
+    });
+  } catch (e) {
+    console.error("repair-missing classrooms", e);
+    return res.status(500).json({ error: "Failed to repair classrooms" });
+  }
+});
+
+router.post("/bulk-create-missing", async (req, res) => {
+  try {
+    const schoolId = String(req.body?.schoolId || req.query.schoolId || "").trim();
+    if (!schoolId) return res.status(400).json({ error: "schoolId required" });
+
+    const rebuild = await rebuildMissingClassroomsFromLearners(schoolId);
+    return res.json({ success: true, ...rebuild });
+  } catch (e) {
+    console.error("bulk-create-missing classrooms", e);
+    return res.status(500).json({ error: "Failed to create missing classrooms" });
+  }
+});
+
 router.get("/:id", async (req, res) => {
   try {
     const schoolId = String(req.query.schoolId || "").trim();
-    const classroom = await classroomWithLearners(schoolId, String(req.params.id));
+    const id = String(req.params.id);
+
+    if (isUnregisteredClassroomId(id)) {
+      const className = classNameFromUnregisteredId(id);
+      const learners = await prisma.learner.findMany({
+        where: { schoolId, className },
+        orderBy: [{ grade: "asc" }, { lastName: "asc" }],
+      });
+      return res.json({
+        classroom: {
+          id,
+          schoolId,
+          name: className,
+          className,
+          teacher: "",
+          teacherName: "",
+          teacherEmail: "",
+          notes: "",
+          minAgeMonths: null,
+          maxAgeMonths: null,
+          learners,
+          children: learners,
+          childrenCount: learners.length,
+          registered: false,
+        },
+      });
+    }
+
+    const classroom = await classroomWithLearners(schoolId, id);
     if (!classroom) return res.status(404).json({ error: "Classroom not found" });
     return res.json({ classroom });
   } catch (e) {
@@ -103,14 +272,14 @@ router.post("/", async (req, res) => {
       create: {
         schoolId,
         name,
-        teacherName: teacher || undefined,
+        teacherName: teacher,
         teacherEmail,
         notes: req.body?.notes || null,
         minAgeMonths: req.body?.minAgeMonths ?? null,
         maxAgeMonths: req.body?.maxAgeMonths ?? null,
       },
       update: {
-        teacherName: teacher || undefined,
+        teacherName: teacher,
         teacherEmail: req.body?.teacherEmail != null ? teacherEmail : undefined,
         notes: req.body?.notes ?? undefined,
         minAgeMonths: req.body?.minAgeMonths ?? undefined,
@@ -120,7 +289,7 @@ router.post("/", async (req, res) => {
 
     await syncParentThreadsForClassroom(schoolId, classroom.id);
 
-    return res.json({ success: true, classroom });
+    return res.json({ success: true, classroom: formatClassroomRow(classroom) });
   } catch (e) {
     console.error("create classroom", e);
     return res.status(500).json({ error: "Failed to create classroom" });
@@ -131,6 +300,13 @@ router.put("/:id", async (req, res) => {
   try {
     const schoolId = String(req.body?.schoolId || req.query.schoolId || "").trim();
     const id = String(req.params.id);
+
+    if (isUnregisteredClassroomId(id)) {
+      return res.status(400).json({
+        error: "This class exists only on learner records. Create a classroom record first.",
+      });
+    }
+
     const existing = await prisma.classroom.findFirst({ where: { id, schoolId } });
     if (!existing) return res.status(404).json({ error: "Classroom not found" });
 
@@ -164,7 +340,7 @@ router.put("/:id", async (req, res) => {
 
     await syncParentThreadsForClassroom(schoolId, classroom.id);
 
-    return res.json({ success: true, classroom });
+    return res.json({ success: true, classroom: formatClassroomRow(classroom) });
   } catch (e) {
     return res.status(500).json({ error: "Failed to update classroom" });
   }
@@ -173,7 +349,11 @@ router.put("/:id", async (req, res) => {
 router.delete("/:id", async (req, res) => {
   try {
     const schoolId = String(req.query.schoolId || "").trim();
-    await prisma.classroom.deleteMany({ where: { id: String(req.params.id), schoolId } });
+    const id = String(req.params.id);
+    if (isUnregisteredClassroomId(id)) {
+      return res.status(400).json({ error: "Cannot delete an unregistered classroom placeholder" });
+    }
+    await prisma.classroom.deleteMany({ where: { id, schoolId } });
     return res.json({ success: true });
   } catch (e) {
     return res.status(500).json({ error: "Failed to delete classroom" });
@@ -184,14 +364,22 @@ router.post("/:id/add-learners", async (req, res) => {
   try {
     const schoolId = String(req.body?.schoolId || "").trim();
     const learnerIds: string[] = Array.isArray(req.body?.learnerIds) ? req.body.learnerIds : [];
-    const classroom = await prisma.classroom.findFirst({
-      where: { id: String(req.params.id), schoolId },
-    });
-    if (!classroom) return res.status(404).json({ error: "Classroom not found" });
+    const id = String(req.params.id);
+
+    let classroomName = "";
+    if (isUnregisteredClassroomId(id)) {
+      classroomName = classNameFromUnregisteredId(id);
+    } else {
+      const classroom = await prisma.classroom.findFirst({
+        where: { id, schoolId },
+      });
+      if (!classroom) return res.status(404).json({ error: "Classroom not found" });
+      classroomName = classroom.name;
+    }
 
     await prisma.learner.updateMany({
       where: { schoolId, id: { in: learnerIds } },
-      data: { className: classroom.name },
+      data: { className: classroomName },
     });
 
     return res.json({ success: true });
@@ -235,7 +423,29 @@ router.post("/:id/move-learners", async (req, res) => {
 router.get("/:id/export", async (req, res) => {
   try {
     const schoolId = String(req.query.schoolId || "").trim();
-    const data = await classroomWithLearners(schoolId, String(req.params.id));
+    const id = String(req.params.id);
+    if (isUnregisteredClassroomId(id)) {
+      const className = classNameFromUnregisteredId(id);
+      const learners = await prisma.learner.findMany({
+        where: { schoolId, className },
+        orderBy: [{ grade: "asc" }, { lastName: "asc" }],
+      });
+      return res.json({
+        classroom: {
+          id,
+          name: className,
+          className,
+          teacher: "",
+          teacherName: "",
+          teacherEmail: "",
+          learners,
+          children: learners,
+          childrenCount: learners.length,
+          registered: false,
+        },
+      });
+    }
+    const data = await classroomWithLearners(schoolId, id);
     if (!data) return res.status(404).json({ error: "Not found" });
     return res.json({ classroom: data });
   } catch (e) {

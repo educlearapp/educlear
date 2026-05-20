@@ -1,7 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import type { CSSProperties } from "react";
 import { apiFetch, API_URL } from "./api";
-import "./LearnerPremium.css";
 
 function clampPage(page: number, totalPages: number): number {
   const tp = Math.max(1, totalPages);
@@ -64,6 +63,7 @@ type ClassroomListRow = {
   minAgeMonths: number | null;
   maxAgeMonths: number | null;
   notes: string;
+  registered?: boolean;
 };
 
 type ClassroomDetail = {
@@ -215,6 +215,12 @@ export default function Classrooms({
   const [addName, setAddName] = useState("");
   const [addTeacher, setAddTeacher] = useState("");
   const [addTeacherEmail, setAddTeacherEmail] = useState("");
+  const [repairLoading, setRepairLoading] = useState(false);
+
+  const unregisteredCount = useMemo(
+    () => classrooms.filter((c) => c.registered === false).length,
+    [classrooms]
+  );
 
   useEffect(() => {
     console.log("MANAGE FORM", form);
@@ -274,14 +280,14 @@ export default function Classrooms({
                 return v;
               })(),
         teacher: c.teacher || c.teacherName || "",
-        teacherEmail: String(c.teacherEmail || "").trim(),
+        teacherEmail: String(c.teacherEmail || "").trim().toLowerCase(),
         children: c.learners || c.children || [],
         childrenCount: c.childrenCount ?? (c.learners?.length || 0),
         minAgeMonths: c.minAgeMonths ?? null,
         maxAgeMonths: c.maxAgeMonths ?? null,
         notes: c.notes ?? "",
+        registered: c.registered !== false,
       }));
-      console.log("CLASSROOM DATA:", normalized[0]);
       setClassrooms(normalized);
     } catch (e: any) {
       setMessage(e?.message || "Failed to load classrooms.");
@@ -295,6 +301,79 @@ export default function Classrooms({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [schoolId]);
 
+  const createClassroomRecord = async (row: ClassroomListRow) => {
+    if (!schoolId || !row.name) return;
+    try {
+      setMessage(null);
+      const created = await apiFetch(`/api/classrooms`, {
+        method: "POST",
+        body: JSON.stringify({
+          schoolId,
+          name: row.name.trim(),
+          teacher: row.teacher?.trim() || "",
+          teacherName: row.teacher?.trim() || "",
+          teacherEmail: String(row.teacherEmail || "").trim().toLowerCase(),
+        }),
+      });
+      if (!created?.success) {
+        throw new Error(created?.error || "Failed to create classroom record.");
+      }
+      await loadList();
+      const newId = String(created?.classroom?.id || "");
+      if (newId) setSelectedId(newId);
+      setMessage(`Classroom record created for "${row.name}".`);
+    } catch (e: any) {
+      setMessage(e?.message || "Failed to create classroom record.");
+    }
+  };
+
+  const bulkCreateMissingRecords = async () => {
+    if (!schoolId) return;
+    setRepairLoading(true);
+    setMessage(null);
+    try {
+      const result = await apiFetch(`/api/classrooms/bulk-create-missing`, {
+        method: "POST",
+        body: JSON.stringify({ schoolId }),
+      });
+      if (!result?.success) {
+        throw new Error(result?.error || "Bulk create failed.");
+      }
+      await loadList();
+      const n = Number(result?.created ?? 0);
+      setMessage(n > 0 ? `Created ${n} missing classroom record(s).` : "All learner classes already have classroom records.");
+    } catch (e: any) {
+      setMessage(e?.message || "Failed to create missing classroom records.");
+    } finally {
+      setRepairLoading(false);
+    }
+  };
+
+  const repairClassroomsAndThreads = async () => {
+    if (!schoolId) return;
+    setRepairLoading(true);
+    setMessage(null);
+    try {
+      const result = await apiFetch(`/api/classrooms/repair-missing`, {
+        method: "POST",
+        body: JSON.stringify({ schoolId }),
+      });
+      if (!result?.success) {
+        throw new Error(result?.error || "Repair failed.");
+      }
+      await loadList();
+      const created = Number(result?.classrooms?.created ?? 0);
+      const threadsUpdated = Number(result?.threads?.updated ?? 0);
+      setMessage(
+        `Repair complete: ${created} classroom(s) created, ${threadsUpdated} parent thread(s) re-synced.`
+      );
+    } catch (e: any) {
+      setMessage(e?.message || "Repair failed.");
+    } finally {
+      setRepairLoading(false);
+    }
+  };
+
   const onManage = () => {
     if (!selectedId) {
       setMessage("Please select a classroom first.");
@@ -303,6 +382,10 @@ export default function Classrooms({
     const selected = classrooms.find((c) => c.id === selectedId);
     if (!selected) {
       setMessage("Please select a classroom first.");
+      return;
+    }
+    if (selected.registered === false) {
+      setMessage(`"${selected.name}" is an unregistered classroom. Create a classroom record first.`);
       return;
     }
     console.log("MANAGE SELECTED", selected);
@@ -351,15 +434,19 @@ export default function Classrooms({
     }
     try {
       setMessage(null);
-      await apiFetch(`/api/classrooms`, {
+      const created = await apiFetch(`/api/classrooms`, {
         method: "POST",
         body: JSON.stringify({
           schoolId,
           name,
           teacher: addTeacher.trim(),
+          teacherName: addTeacher.trim(),
           teacherEmail: addTeacherEmail.trim().toLowerCase(),
         }),
       });
+      if (!created?.success) {
+        throw new Error(created?.error || "Failed to create classroom.");
+      }
       setAddOpen(false);
       setAddName("");
       setAddTeacher("");
@@ -378,16 +465,18 @@ export default function Classrooms({
                 return v;
               })(),
         teacher: c.teacher || c.teacherName || "",
-        teacherEmail: String(c.teacherEmail || "").trim(),
+        teacherEmail: String(c.teacherEmail || "").trim().toLowerCase(),
         children: c.learners || c.children || [],
         childrenCount: c.childrenCount ?? (c.learners?.length || 0),
         minAgeMonths: c.minAgeMonths ?? null,
         maxAgeMonths: c.maxAgeMonths ?? null,
         notes: c.notes ?? "",
+        registered: c.registered !== false,
       }));
       setClassrooms(normalized);
-      const created = normalized.find((c) => c.name === name);
-      if (created?.id) setSelectedId(created.id);
+      const createdRow = normalized.find((c) => c.name === name);
+      if (createdRow?.id) setSelectedId(createdRow.id);
+      setMessage("Classroom created.");
     } catch (e: any) {
       setMessage(e?.message || "Failed to create classroom.");
     }
@@ -448,6 +537,25 @@ export default function Classrooms({
           <button type="button" onClick={onManage} className="ec-page-btn">
             Manage
           </button>
+          {unregisteredCount > 0 ? (
+            <button
+              type="button"
+              className="ec-page-btn"
+              disabled={repairLoading}
+              onClick={() => void bulkCreateMissingRecords()}
+            >
+              Create missing classroom records ({unregisteredCount})
+            </button>
+          ) : null}
+          <button
+            type="button"
+            className="ec-page-btn"
+            disabled={repairLoading}
+            onClick={() => void repairClassroomsAndThreads()}
+            title="Rebuild missing classrooms from learner classes and re-sync parent message threads"
+          >
+            Repair classes &amp; threads
+          </button>
 
           <div style={{ marginLeft: 8, display: "flex", alignItems: "center", gap: 10 }}>
             <div style={{ color: "#475569", fontWeight: 800, fontSize: 13 }}>Search</div>
@@ -482,15 +590,16 @@ export default function Classrooms({
           <table className="ec-table">
             <thead>
               <tr>
-                <th style={{ width: "55%" }}>Name</th>
+                <th style={{ width: "42%" }}>Name</th>
                 <th>Teacher</th>
                 <th style={{ width: 120 }}>Children</th>
+                <th style={{ width: 200 }}>Status</th>
               </tr>
             </thead>
             <tbody>
               {loadingList ? (
                 <tr>
-                  <td colSpan={3} style={{ padding: 18, fontWeight: 800 }}>
+                  <td colSpan={4} style={{ padding: 18, fontWeight: 800 }}>
                     Loading classrooms…
                   </td>
                 </tr>
@@ -512,14 +621,46 @@ export default function Classrooms({
                     }}
                     style={{ cursor: "pointer" }}
                   >
-                    <td style={{ fontWeight: 900 }}>{c.name}</td>
+                    <td style={{ fontWeight: 900 }}>
+                      {c.name}
+                      {c.registered === false ? (
+                        <span
+                          style={{
+                            display: "inline-block",
+                            marginLeft: 8,
+                            fontSize: 11,
+                            fontWeight: 800,
+                            color: "#92400e",
+                            background: "rgba(212,175,55,0.25)",
+                            padding: "2px 8px",
+                            borderRadius: 999,
+                          }}
+                        >
+                          unregistered classroom
+                        </span>
+                      ) : null}
+                    </td>
                     <td>{c.teacher || "—"}</td>
                     <td style={{ fontWeight: 900 }}>{c.childrenCount}</td>
+                    <td onClick={(e) => e.stopPropagation()}>
+                      {c.registered === false ? (
+                        <button
+                          type="button"
+                          className="ec-page-btn"
+                          style={{ fontSize: 12, padding: "6px 10px" }}
+                          onClick={() => void createClassroomRecord(c)}
+                        >
+                          Create classroom record
+                        </button>
+                      ) : (
+                        <span style={{ color: "#64748b", fontWeight: 700, fontSize: 12 }}>Registered</span>
+                      )}
+                    </td>
                   </tr>
                 ))
               ) : (
                 <tr>
-                  <td colSpan={3} style={{ padding: 18, fontWeight: 800 }}>
+                  <td colSpan={4} style={{ padding: 18, fontWeight: 800 }}>
                     No classrooms found.
                   </td>
                 </tr>
@@ -709,10 +850,9 @@ function ClassroomManage(props: {
       console.log("Loaded classroom for manage:", c);
       if (c) setClassroom(c);
 
-      // IMPORTANT: do not overwrite teacher/children if API payload is incomplete.
       if (c) {
-        const apiTeacher = String(c?.teacher ?? "").trim();
-        const apiTeacherEmail = String(c?.teacherEmail ?? "").trim();
+        const apiTeacher = String(c?.teacher ?? (c as { teacherName?: string })?.teacherName ?? "").trim();
+        const apiTeacherEmail = String(c?.teacherEmail ?? "").trim().toLowerCase();
         const apiNotes = String(c?.notes ?? "");
 
         const merged: ClassroomForm = { ...props.classroomForm };
@@ -726,7 +866,7 @@ function ClassroomManage(props: {
         if (!isIdLike && safeName) {
           merged.name = safeName;
         }
-        if (apiTeacher) merged.teacher = apiTeacher;
+        merged.teacher = apiTeacher;
         merged.teacherEmail = apiTeacherEmail;
         if (String(apiNotes).trim()) merged.notes = apiNotes;
 
@@ -919,7 +1059,8 @@ function ClassroomManage(props: {
         body: JSON.stringify({
           schoolId: props.schoolId,
           name: nextName,
-          teacher: String(props.classroomForm.teacher ?? ""),
+          teacher: String(props.classroomForm.teacher ?? "").trim(),
+          teacherName: String(props.classroomForm.teacher ?? "").trim(),
           teacherEmail: String(props.classroomForm.teacherEmail ?? "").trim().toLowerCase(),
           minAgeYears: props.classroomForm.minAgeYears,
           minAgeExtraMonths: props.classroomForm.minAgeMonths,
@@ -928,6 +1069,9 @@ function ClassroomManage(props: {
           notes: String(props.classroomForm.notes ?? ""),
         }),
       });
+      if (!data?.success) {
+        throw new Error(data?.error || "Failed to save classroom.");
+      }
       const returned = data?.classroom;
       if (returned?.id) {
         const updated: ClassroomDetail = {
@@ -971,7 +1115,8 @@ function ClassroomManage(props: {
         props.setClassroomForm(finalMerged);
       }
       await props.onRefreshList();
-      setMessage("Saved.");
+      await load();
+      setMessage("Classroom saved.");
     } catch (e: any) {
       setMessage(e?.message || "Failed to save classroom.");
     } finally {

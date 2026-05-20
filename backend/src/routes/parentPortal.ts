@@ -466,6 +466,11 @@ async function sendParentMessage(opts: {
     },
   });
 
+  await prisma.parentTeacherThread.update({
+    where: { id: thread.id },
+    data: { updatedAt: new Date() },
+  });
+
   return { message: mapThreadMessage(msg), threadId: thread.id };
 }
 

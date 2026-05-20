@@ -86,6 +86,7 @@ import TeacherInbox from "./teacher/TeacherInbox";
 import Registrations from "./components/registrations/Registrations";
 import Users from "./users/Users";
 import ManageLearner from "./learner/ManageLearner";
+import Classrooms from "./Classrooms";
 import { calculateLearnerAge, getLearnerAccountNo } from "./learner/learnerIdentity";
 
 
@@ -18000,18 +18001,24 @@ const [invoiceRunEmailDraft, setInvoiceRunEmailDraft] = useState({
   
   
           case "classrooms":
-
-
-
-  return renderClassrooms();
-
-
-
-case "classroomManage":
-
-
-
-  return renderClassroomManage();
+          case "classroomManage":
+            return (
+              <Classrooms
+                schoolId={schoolId || ""}
+                onAddLearnerToClassroom={(classroomName) => {
+                  try {
+                    localStorage.setItem("addLearnerPrefillClassName", classroomName);
+                  } catch {
+                    /* ignore */
+                  }
+                  setActivePage("addLearner");
+                }}
+                onManageLearner={(learnerId) => {
+                  const learner = learners.find((l: any) => String(l?.id) === String(learnerId));
+                  if (learner) openLearnerProfile(learner);
+                }}
+              />
+            );
   
   
   

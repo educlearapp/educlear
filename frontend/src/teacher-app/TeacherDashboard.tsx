@@ -7,6 +7,7 @@ type MeResponse = {
   success?: boolean;
   unreadInbox?: number;
   assignedClassNames?: string[];
+  assignedClassrooms?: { id: string; name: string }[];
   user?: { fullName?: string | null; email?: string };
   school?: { name?: string | null };
 };
@@ -27,7 +28,10 @@ export default function TeacherDashboard() {
   }, []);
 
   const unread = me?.unreadInbox ?? 0;
-  const classes = me?.assignedClassNames?.length ?? 0;
+  const classes =
+    (me?.assignedClassrooms?.length ?? 0) > 0
+      ? (me?.assignedClassrooms?.length ?? 0)
+      : (me?.assignedClassNames?.length ?? 0);
 
   return (
     <div>
@@ -42,6 +46,15 @@ export default function TeacherDashboard() {
       {!err && me && classes === 0 && (
         <p className="teacher-pwa-hint">{NO_ASSIGNED_CLASSROOMS_MSG}</p>
       )}
+      {!err && me && classes > 0 && (me.assignedClassrooms?.length || me.assignedClassNames?.length) ? (
+        <p className="teacher-muted" style={{ marginTop: 8 }}>
+          Assigned classes:{" "}
+          {(me.assignedClassrooms?.length
+            ? me.assignedClassrooms.map((c) => c.name)
+            : me.assignedClassNames || []
+          ).join(" · ")}
+        </p>
+      ) : null}
       <div className="teacher-card-grid" style={{ marginTop: 20 }}>
         <Link className="teacher-dash-card" to="/teacher/inbox">
           <span className="icon">✉️</span>

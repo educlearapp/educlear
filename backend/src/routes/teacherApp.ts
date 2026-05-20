@@ -55,11 +55,16 @@ function learnerMatchesClassFilter(
 
 async function loadAssignedClassNames(schoolId: string, teacherEmail: string): Promise<string[]> {
   const norm = normalizeStaffEmail(teacherEmail);
+  if (!norm) return [];
   const rooms = await prisma.classroom.findMany({
-    where: { schoolId },
-    select: { name: true, teacherEmail: true },
+    where: {
+      schoolId,
+      teacherEmail: { equals: norm, mode: "insensitive" },
+    },
+    select: { name: true },
+    orderBy: { name: "asc" },
   });
-  return rooms.filter((r) => normalizeStaffEmail(r.teacherEmail) === norm).map((r) => r.name);
+  return rooms.map((r) => r.name);
 }
 
 async function teacherAppMiddleware(req: any, res: any, next: any) {
@@ -108,6 +113,46 @@ function assertClassAllowed(res: any, className: string, assigned: string[]) {
 
 router.use(teacherAppMiddleware);
 
+router.get("/me/debug", async (req, res) => {
+  try {
+    const { schoolId, email, assignedClassNames } = ctx(req);
+    const normEmail = normalizeStaffEmail(email);
+    const allClassrooms = await prisma.classroom.findMany({
+      where: { schoolId },
+      select: { id: true, name: true, teacherName: true, teacherEmail: true },
+      orderBy: { name: "asc" },
+    });
+    const assigned = allClassrooms.filter(
+      (c) => normalizeStaffEmail(c.teacherEmail) === normEmail
+    );
+    const threads = await prisma.parentTeacherThread.findMany({
+      where: { schoolId, teacherEmail: { equals: normEmail, mode: "insensitive" } },
+      select: { id: true, learnerId: true, teacherEmail: true, teacherName: true },
+      take: 20,
+      orderBy: { updatedAt: "desc" },
+    });
+    return res.json({
+      success: true,
+      debug: {
+        loggedInTeacherEmail: normEmail,
+        jwtEmailRaw: email,
+        assignedClassNames,
+        assignedClassrooms: assigned,
+        allClassroomsWithTeacherEmail: allClassrooms.map((c) => ({
+          name: c.name,
+          teacherEmail: c.teacherEmail,
+          teacherEmailNormalized: normalizeStaffEmail(c.teacherEmail),
+          matchesLoggedIn: normalizeStaffEmail(c.teacherEmail) === normEmail,
+        })),
+        inboxThreadsForTeacher: threads,
+      },
+    });
+  } catch (e) {
+    console.error("teacher-app /me/debug", e);
+    return res.status(500).json({ success: false, error: "Debug failed" });
+  }
+});
+
 router.get("/me", async (req, res) => {
   try {
     const { schoolId, email, userId, role, assignedClassNames } = ctx(req);
@@ -155,7 +200,9 @@ router.get("/me", async (req, res) => {
 
     return res.json({
       success: true,
-      user: user || { id: userId, email, fullName: null, role },
+      user: user
+        ? { ...user, email: normalizeStaffEmail(user.email || email) }
+        : { id: userId, email: normalizeStaffEmail(email), fullName: null, role },
       school,
       assignedClassNames,
       assignedClassrooms: classroomsOut,

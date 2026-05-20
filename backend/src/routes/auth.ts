@@ -93,10 +93,11 @@ router.post("/login", async (req, res) => {
       select: { id: true, name: true, email: true, logoUrl: true },
     });
 
+    const tokenEmail = normalizeEmail(matched.email);
     const token = signAuthToken({
       userId: matched.id,
       schoolId: matched.schoolId,
-      email: matched.email,
+      email: tokenEmail,
       role: matched.role,
     });
 
