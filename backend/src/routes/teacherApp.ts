@@ -186,49 +186,6 @@ function assertClassAllowed(res: any, className: string, assigned: AssignedClass
 
 router.use(teacherAppMiddleware);
 
-router.get("/me/debug", async (req, res) => {
-  try {
-    const { schoolId, email, assignedClassNames } = ctx(req);
-    const normEmail = normalizeStaffEmail(email);
-    const allClassrooms = await prisma.classroom.findMany({
-      where: { schoolId },
-      select: { id: true, name: true, teacherName: true, teacherEmail: true },
-      orderBy: { name: "asc" },
-    });
-    const assigned = allClassrooms.filter(
-      (c) => normalizeStaffEmail(c.teacherEmail) === normEmail
-    );
-    const threads = await prisma.parentTeacherThread.findMany({
-      where: { schoolId, teacherEmail: { equals: normEmail, mode: "insensitive" } },
-      select: { id: true, learnerId: true, teacherEmail: true, teacherName: true },
-      take: 20,
-      orderBy: { updatedAt: "desc" },
-    });
-    const { assignedClassrooms: ctxAssigned } = ctx(req);
-    return res.json({
-      success: true,
-      debug: {
-        schoolId,
-        loggedInTeacherEmail: normEmail,
-        jwtEmailRaw: email,
-        assignedClassNames,
-        assignedClassroomsFromMe: ctxAssigned,
-        assignedClassrooms: assigned,
-        allClassroomsWithTeacherEmail: allClassrooms.map((c) => ({
-          name: c.name,
-          teacherEmail: c.teacherEmail,
-          teacherEmailNormalized: normalizeStaffEmail(c.teacherEmail),
-          matchesLoggedIn: normalizeStaffEmail(c.teacherEmail) === normEmail,
-        })),
-        inboxThreadsForTeacher: threads,
-      },
-    });
-  } catch (e) {
-    console.error("teacher-app /me/debug", e);
-    return res.status(500).json({ success: false, error: "Debug failed" });
-  }
-});
-
 router.get("/me", async (req, res) => {
   try {
     const { schoolId, email, userId, role, assignedClassNames, assignedClassrooms } = ctx(req);

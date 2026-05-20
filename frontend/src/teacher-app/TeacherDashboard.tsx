@@ -1,7 +1,6 @@
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { staffApiFetch } from "../staffApi";
-import TeacherDebugPanel from "./TeacherDebugPanel";
 import { NO_ASSIGNED_CLASSROOMS_MSG } from "./useTeacherAssignedClassrooms";
 
 type MeResponse = {
@@ -44,7 +43,6 @@ export default function TeacherDashboard() {
         </p>
       )}
       {err && <p className="teacher-error">{err}</p>}
-      <TeacherDebugPanel />
       {!err && me && classes === 0 && (
         <p className="teacher-pwa-hint">{NO_ASSIGNED_CLASSROOMS_MSG}</p>
       )}
