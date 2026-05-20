@@ -12,6 +12,8 @@ const ACTIONS: Action[] = [
   { id: "importStaging", label: "Import to Staging", variant: "outline" },
   { id: "finalImport", label: "Final Import", variant: "gold" },
   { id: "downloadTemplate", label: "Download Import Template", variant: "outline" },
+  { id: "rollbackImport", label: "Rollback Last Import", variant: "outline" },
+  { id: "repairClassrooms", label: "Repair Classroom Names", variant: "outline" },
 ];
 
 type Props = {

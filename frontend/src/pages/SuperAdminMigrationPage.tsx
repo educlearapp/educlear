@@ -1,5 +1,4 @@
 import { useCallback, useState } from "react";
-import { apiFetch } from "../api";
 import MigrationActions from "../superAdmin/components/migration/MigrationActions";
 import MigrationDataCategories from "../superAdmin/components/migration/MigrationDataCategories";
 import MigrationFileUpload from "../superAdmin/components/migration/MigrationFileUpload";
@@ -11,30 +10,56 @@ import MigrationStubModal, { type StubNotice } from "../superAdmin/components/mi
 import MigrationSummaryCards from "../superAdmin/components/migration/MigrationSummaryCards";
 import { useMigrationCenter } from "../superAdmin/hooks/useMigrationCenter";
 import type { MigrationActionId, MigrationSource } from "../superAdmin/types/migration";
+import { formatValidationReportSummary } from "../superAdmin/utils/migrationCsv";
 import "./SuperAdminMigrationPage.css";
 
-const ACTION_MESSAGES: Record<MigrationActionId, { title: string; message: string }> = {
-  createProject: {
-    title: "Create Migration Project",
-    message: "Migration project creation will be available when the Super Admin migration API is connected.",
-  },
-  validateFiles: {
-    title: "Validate Files",
-    message: "File validation and field mapping will run here once the migration service is connected.",
-  },
-  importStaging: {
-    title: "Import to Staging",
-    message: "Staging import will load validated data into a preview environment before final import.",
-  },
-  finalImport: {
-    title: "Final Import",
-    message: "Final import will commit approved migration data into the selected school once validation passes.",
-  },
-  downloadTemplate: {
-    title: "Download Import Template",
-    message: "EduClear import templates will be available for download when the migration API is connected.",
-  },
-};
+function formatNormalizationPreview(
+  preview: Array<{
+    originalName?: string;
+    canonicalName: string;
+    normalizedName?: string;
+    detectedGrade?: string;
+    detectedClassLetter?: string;
+    detectedYear?: number | null;
+    importYear?: number | null;
+    rawLabels: string[];
+    learnerCount: number;
+    teacherEmail: string;
+    warnings?: string[];
+    needsConfirmation?: boolean;
+    warning?: string;
+  }>
+): string {
+  if (!preview.length) return "No classrooms to normalize.";
+  return preview
+    .slice(0, 40)
+    .map((row) => {
+      const original = row.originalName || row.rawLabels[0] || "—";
+      const normalized = row.normalizedName || row.canonicalName;
+      const grade = row.detectedGrade || "—";
+      const letter = row.detectedClassLetter || "—";
+      const year =
+        row.importYear ?? row.detectedYear ?? null;
+      const yearLabel = year != null ? String(year) : "—";
+      const warnList = row.warnings?.length
+        ? row.warnings
+        : row.warning
+          ? [row.warning]
+          : [];
+      const confirm = row.needsConfirmation ? " [needs confirmation]" : "";
+      const teacher = row.teacherEmail ? ` · teacher: ${row.teacherEmail}` : "";
+      const warn =
+        warnList.length > 0 ? `\n    ⚠ ${warnList.join("; ")}` : "";
+      return [
+        `${original} → ${normalized}${confirm}`,
+        `    grade: ${grade} · group: ${letter} · year: ${yearLabel} · ${row.learnerCount} learner(s)${teacher}`,
+        warn,
+      ]
+        .filter(Boolean)
+        .join("\n");
+    })
+    .join("\n\n");
+}
 
 export default function SuperAdminMigrationPage() {
   const {
@@ -54,12 +79,22 @@ export default function SuperAdminMigrationPage() {
     fieldMappings,
     issues,
     acceptedExtensions,
+    project,
+    setBusy,
+    createProject,
+    validateFiles,
+    importStaging,
+    previewStaging,
+    finalImport,
+    rollbackImport,
+    repairClassrooms,
+    downloadTemplate,
   } = useMigrationCenter();
 
   const [notice, setNotice] = useState<StubNotice | null>(null);
 
-  const showStub = useCallback((title: string, message: string) => {
-    setNotice({ title, message });
+  const showNotice = useCallback((payload: StubNotice) => {
+    setNotice(payload);
   }, []);
 
   const handleSourceChange = useCallback(
@@ -71,26 +106,171 @@ export default function SuperAdminMigrationPage() {
 
   const handleAction = useCallback(
     async (actionId: MigrationActionId) => {
-      if (actionId === "finalImport" && selectedSchoolId) {
-        try {
-          const result = await apiFetch("/api/parent-portal/migration/onboarding", {
-            method: "POST",
-            body: JSON.stringify({ schoolId: selectedSchoolId }),
+      setBusy(true);
+      try {
+        if (actionId === "downloadTemplate") {
+          downloadTemplate();
+          showNotice({
+            title: "Import template",
+            message: "Learner/parent/class CSV template download started.",
           });
-          showStub(
-            "Parent onboarding started",
-            `Created portal invitations for ${result.invited ?? 0} parents at ${result.schoolName || "the school"}. SMS/email/WhatsApp messages are queued (provider configuration required).`
-          );
-          return;
-        } catch (e: any) {
-          showStub("Parent onboarding failed", e?.message || "Could not run parent onboarding.");
           return;
         }
+
+        if (actionId === "createProject") {
+          const data = await createProject();
+          showNotice({
+            title: "Migration project created",
+            message: `Project ${data.projectId} is ready for ${selectedSchoolId ? "the selected school" : "import"}. Upload CSV files and run validation.`,
+          });
+          return;
+        }
+
+        if (actionId === "validateFiles") {
+          const { report, fileName } = await validateFiles();
+          showNotice({
+            title: report.canImport ? "Validation passed" : "Validation needs fixes",
+            message: `Validated ${fileName} for ${report.schoolName}.`,
+            details: formatValidationReportSummary(report),
+          });
+          return;
+        }
+
+        if (actionId === "importStaging") {
+          await importStaging();
+          const preview = await previewStaging();
+          showNotice({
+            title: "Staged for import",
+            message: `${preview.report?.rowCount ?? 0} rows staged. Review normalization below before Final Import.`,
+            details: formatNormalizationPreview(preview.normalizationPreview || []),
+            primaryAction: preview.canImport
+              ? {
+                  label: "Continue to Final Import",
+                  onClick: () => {
+                    setNotice(null);
+                    void handleAction("finalImport");
+                  },
+                }
+              : undefined,
+          });
+          return;
+        }
+
+        if (actionId === "finalImport") {
+          if (!project?.report) {
+            showNotice({
+              title: "Final import",
+              message: "Validate files and import to staging before final import.",
+            });
+            return;
+          }
+
+          if (project.report.warningCount > 0) {
+            const preview = await previewStaging();
+            showNotice({
+              title: "Confirm import (warnings present)",
+              message: `${project.report.warningCount} warning(s). Classroom names will be normalized as shown below.`,
+              details: formatNormalizationPreview(preview.normalizationPreview || []),
+              primaryAction: {
+                label: "Confirm & Import",
+                onClick: () => {
+                  setNotice(null);
+                  void (async () => {
+                    setBusy(true);
+                    try {
+                      const result = await finalImport(true);
+                      showNotice({
+                        title: "Import complete",
+                        message: `Imported ${result.imported?.learners ?? 0} learners, ${result.imported?.parents ?? 0} parents, ${result.imported?.classrooms ?? 0} classrooms.`,
+                        details: `Project ${project.projectId} — use Rollback Last Import if you need to undo this batch.`,
+                      });
+                    } catch (e: unknown) {
+                      const msg = e instanceof Error ? e.message : "Import failed";
+                      showNotice({ title: "Import failed", message: msg });
+                    } finally {
+                      setBusy(false);
+                    }
+                  })();
+                },
+              },
+            });
+            return;
+          }
+
+          const preview = await previewStaging();
+          showNotice({
+            title: "Confirm final import",
+            message: "No blocking errors. Classroom normalization preview:",
+            details: formatNormalizationPreview(preview.normalizationPreview || []),
+            primaryAction: {
+              label: "Confirm & Import",
+              onClick: () => {
+                setNotice(null);
+                void (async () => {
+                  setBusy(true);
+                  try {
+                    const result = await finalImport(true);
+                    showNotice({
+                      title: "Import complete",
+                      message: `Imported ${result.imported?.learners ?? 0} learners, ${result.imported?.parents ?? 0} parents, ${result.imported?.classrooms ?? 0} classrooms.`,
+                    });
+                  } catch (e: unknown) {
+                    const msg = e instanceof Error ? e.message : "Import failed";
+                    showNotice({ title: "Import failed", message: msg });
+                  } finally {
+                    setBusy(false);
+                  }
+                })();
+              },
+            },
+          });
+          return;
+        }
+
+        if (actionId === "rollbackImport") {
+          const result = await rollbackImport();
+          showNotice({
+            title: "Rollback complete",
+            message: "Last import batch removed from the school.",
+            details: JSON.stringify(result.removed ?? {}, null, 2),
+          });
+          return;
+        }
+
+        if (actionId === "repairClassrooms") {
+          const result = await repairClassrooms();
+          showNotice({
+            title: "Classroom repair complete",
+            message: "Learner class names and duplicate classrooms were normalized for Teacher Portal and parent threads.",
+            details: [
+              `Learners updated: ${result.learnersUpdated}`,
+              `Classrooms merged/renamed: ${result.classroomsMerged}`,
+              `Parent threads synced: ${result.threadsSynced}`,
+            ].join("\n"),
+          });
+          return;
+        }
+      } catch (e: unknown) {
+        const msg = e instanceof Error ? e.message : "Action failed";
+        showNotice({ title: "Migration action failed", message: msg });
+      } finally {
+        setBusy(false);
       }
-      const payload = ACTION_MESSAGES[actionId];
-      showStub(payload.title, payload.message);
     },
-    [showStub, selectedSchoolId]
+    [
+      setBusy,
+      createProject,
+      validateFiles,
+      importStaging,
+      previewStaging,
+      finalImport,
+      rollbackImport,
+      repairClassrooms,
+      downloadTemplate,
+      showNotice,
+      selectedSchoolId,
+      project,
+    ]
   );
 
   return (
@@ -99,7 +279,16 @@ export default function SuperAdminMigrationPage() {
         <h1 className="page-title">Migration Center</h1>
         <p className="sa-migration-subtitle">
           EduClear team migration control center. Import school data from external systems into EduClear.
+          Learner, parent, and class imports only — billing and accounting are excluded from this pass.
         </p>
+        {project?.projectId ? (
+          <p className="sa-migration-subtitle sa-migration-project-id">
+            Active project: <strong>{project.projectId}</strong>
+            {project.report
+              ? ` · ${project.report.blockingErrorCount} blocking · ${project.report.warningCount} warnings`
+              : ""}
+          </p>
+        ) : null}
       </header>
 
       <MigrationSummaryCards summary={summary} />

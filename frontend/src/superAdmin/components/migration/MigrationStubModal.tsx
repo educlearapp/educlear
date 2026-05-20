@@ -1,6 +1,8 @@
 export type StubNotice = {
   title: string;
   message: string;
+  details?: string;
+  primaryAction?: { label: string; onClick: () => void };
 };
 
 type Props = {
@@ -27,7 +29,19 @@ export default function MigrationStubModal({ notice, onClose }: Props) {
           {notice.title}
         </h2>
         <p className="sa-migration-modal-message">{notice.message}</p>
+        {notice.details ? (
+          <pre className="sa-migration-modal-details">{notice.details}</pre>
+        ) : null}
         <div className="sa-migration-modal-actions">
+          {notice.primaryAction ? (
+            <button
+              type="button"
+              className="sa-migration-btn sa-migration-btn--gold"
+              onClick={notice.primaryAction.onClick}
+            >
+              {notice.primaryAction.label}
+            </button>
+          ) : null}
           <button type="button" className="sa-migration-btn sa-migration-btn--gold" onClick={onClose}>
             Close
           </button>
