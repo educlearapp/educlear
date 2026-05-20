@@ -1,4 +1,4 @@
-import { FormEvent, useCallback, useEffect, useMemo, useState } from "react";
+import { type FormEvent, useCallback, useEffect, useMemo, useState } from "react";
 import { fetchLearnersForDeposits } from "../api/depositsApi";
 import type { DepositAccountOption, DepositLearnerOption } from "../types/deposit";
 

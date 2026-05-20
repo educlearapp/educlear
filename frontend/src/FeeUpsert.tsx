@@ -25,6 +25,7 @@ type FeeDto = {
   frequency: string;
   category?: string | null;
   notes?: string | null;
+  isActive?: boolean;
 };
 
 function parseMoneyInput(input: string): number | null {

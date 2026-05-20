@@ -22,8 +22,7 @@ import {
   accountingTitle,
 } from "./accountingTheme";
 
-type SupplierInvoice = ApiSupplierInvoice & {
-  supplierName: string;
+type SupplierInvoice = Omit<ApiSupplierInvoice, "status"> & {
   category: string;
   description: string;
   balance: number;
