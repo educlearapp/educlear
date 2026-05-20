@@ -1,0 +1,23 @@
+---
+description: Prisma migration safety — never reset; use dev/deploy; preserve history
+alwaysApply: true
+---
+
+# Prisma Migrations (EduClear)
+
+## Forbidden
+
+- **Never** run `prisma migrate reset` on EduClear.
+- **Never** delete migration folders already recorded in `_prisma_migrations`.
+
+## Schema changes
+
+| Environment | Command |
+|-------------|---------|
+| Development | `npx prisma migrate dev --name descriptive_name` |
+| Production | `npx prisma migrate deploy` |
+
+## `db push`
+
+- Use `prisma db push` **only** when explicitly approved by the user.
+- If `db push` is used, follow it with a proper migration so history stays in sync.

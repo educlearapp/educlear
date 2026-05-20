@@ -3,7 +3,6 @@ import express from "express";
 
 import cors from "cors";
 
-import { PrismaClient } from "@prisma/client";
 import fs from "fs";
 import path from "path";
 import multer from "multer"; 
@@ -32,6 +31,11 @@ import payrollRoutes from "./routes/payroll";
 import feesRoutes from "./routes/fees";
 import registrationsRoutes from "./routes/registrations";
 import emailRoutes from "./routes/emails";
+import parentPortalRoutes from "./routes/parentPortal";
+import classroomsRoutes from "./routes/classrooms";
+import teacherInboxRoutes from "./routes/teacherInbox";
+import { prisma } from "./prisma";
+
 type OtpRecord = {
 
     code: string;
@@ -41,7 +45,6 @@ type OtpRecord = {
   };
   
 
-  const prisma = new PrismaClient();
   const otpStore = new Map<string, OtpRecord>();
   const storage = multer.diskStorage({
 
@@ -341,6 +344,9 @@ app.use("/api/payroll", payrollRoutes);
 app.use("/api/fees", feesRoutes);
 app.use("/api/learners", learnerRoutes);
 app.use("/api/registrations", registrationsRoutes);
+app.use("/api/parent-portal", parentPortalRoutes);
+app.use("/api/classrooms", classroomsRoutes);
+app.use("/api/teacher-inbox", teacherInboxRoutes);
 app.get("/api/parents", async (_req, res) => {
 
 
@@ -864,8 +870,18 @@ app.get("/api/parent-portal/lookup", async (req, res) => {
 
 
 });
-app.listen(PORT, () => {
+const server = app.listen(PORT, () => {
 
   console.log(`Server running on http://localhost:${PORT}`);
 
+});
+
+server.on("error", (err: NodeJS.ErrnoException) => {
+  console.error("HTTP server error:", err.message);
+  if (err.code === "EADDRINUSE") {
+    console.error(
+      `Port ${PORT} is already in use. Stop the other process using http://localhost:${PORT} before starting this server (a stale backend causes missing routes / 404s).`
+    );
+    process.exit(1);
+  }
 });
