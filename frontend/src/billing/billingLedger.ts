@@ -198,6 +198,60 @@ export function getLastPayment(transactions: BillingLedgerEntry[]) {
     )[0] || null;
 }
 
+export type OpenInvoiceLine = {
+  id: string;
+  audit: string;
+  type: string;
+  date: string;
+  reference: string;
+  description: string;
+  unpaid: number;
+  amount: number;
+};
+
+/** FIFO unpaid balance per invoice/penalty line for payment allocation. */
+export function computeOpenInvoiceLines(
+  entries: BillingLedgerEntry[],
+  learnerId: string,
+  accountNo: string
+): OpenInvoiceLine[] {
+  const matched = entries.filter((e) => entryMatchesAccount(e, learnerId, accountNo));
+  const debits = matched
+    .filter((e) => e.type === "invoice" || e.type === "penalty")
+    .sort((a, b) => {
+      const da = new Date(a.date || a.createdAt).getTime();
+      const db = new Date(b.date || b.createdAt).getTime();
+      if (da !== db) return da - db;
+      return String(a.createdAt).localeCompare(String(b.createdAt));
+    });
+
+  let creditPool = matched
+    .filter((e) => e.type === "payment" || e.type === "credit")
+    .reduce((sum, e) => sum + normaliseBillingAmount(e.amount), 0);
+
+  const lines: OpenInvoiceLine[] = [];
+  for (const entry of debits) {
+    const gross = normaliseBillingAmount(entry.amount);
+    if (gross <= 0) continue;
+    const applied = Math.min(gross, creditPool);
+    creditPool -= applied;
+    const unpaid = gross - applied;
+    if (unpaid <= 0.001) continue;
+    const typeLabel = entry.type === "penalty" ? "Penalty" : "Invoice";
+    lines.push({
+      id: entry.id,
+      audit: entry.id,
+      type: typeLabel,
+      date: entry.date || "",
+      reference: entry.reference || typeLabel,
+      description: entry.description || typeLabel,
+      unpaid,
+      amount: gross,
+    });
+  }
+  return lines;
+}
+
 function statusFromBalance(balance: number) {
   if (balance > 10000) return "Bad Debt";
   if (balance > 0) return "Recently Owing";

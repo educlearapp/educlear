@@ -5,6 +5,7 @@ import { resolveLearnerAccountNo } from "../utils/learnerIdentity";
 import {
   appendSchoolEntry,
   calculateBalanceForAccount,
+  computeOpenInvoiceLines,
   listPayments,
   normaliseAmount,
   readSchoolLedger,
@@ -63,6 +64,30 @@ router.get("/", async (req, res) => {
     return res.json({ success: true, payments });
   } catch (error) {
     console.error("[payments] GET / failed:", error);
+    return res.status(500).json({ success: false, error: "Server error" });
+  }
+});
+
+// GET /api/payments/open-invoices?schoolId=&learnerId=&accountNo=
+router.get("/open-invoices", async (req, res) => {
+  try {
+    const schoolId = typeof req.query?.schoolId === "string" ? String(req.query.schoolId) : "";
+    const learnerId = typeof req.query?.learnerId === "string" ? String(req.query.learnerId) : "";
+    const accountNo = typeof req.query?.accountNo === "string" ? String(req.query.accountNo) : "";
+    if (!schoolId || (!learnerId && !accountNo)) {
+      return res.status(400).json({
+        success: false,
+        error: "Missing schoolId and learnerId or accountNo",
+      });
+    }
+
+    const ledger = readSchoolLedger(schoolId);
+    const openInvoices = computeOpenInvoiceLines(ledger, learnerId, accountNo);
+    const balance = calculateBalanceForAccount(ledger, learnerId, accountNo);
+
+    return res.json({ success: true, openInvoices, balance });
+  } catch (error) {
+    console.error("[payments] GET /open-invoices failed:", error);
     return res.status(500).json({ success: false, error: "Server error" });
   }
 });

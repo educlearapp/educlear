@@ -1,7 +1,16 @@
-import React, { useMemo, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { postBillingPaymentJournal } from "../accounting/accountingJournalEngine";
-import { appendPaymentTransaction, formatMoney, normaliseBillingAmount } from "./billingLedger";
-import { createPayment } from "./billingApi";
+import {
+  BILLING_UPDATED_EVENT,
+  calculateAccountBalance,
+  computeOpenInvoiceLines,
+  formatMoney,
+  getAccountLedger,
+  normaliseBillingAmount,
+  notifyBillingUpdated,
+  type OpenInvoiceLine,
+} from "./billingLedger";
+import { createPayment, fetchOpenInvoices, syncBillingLedgerFromApi } from "./billingApi";
 
 
 
@@ -38,8 +47,7 @@ export default function PaymentCreate({
 
 
 }: PaymentCreateProps) {
-
-
+  const schoolId = localStorage.getItem("schoolId") || "";
 
   const selected = useMemo(() => {
 
@@ -71,15 +79,9 @@ export default function PaymentCreate({
 
   }, []);
 
-
-
-  const paymentKey = `paymentDraft:${selected?.accountNo || "none"}`;
-
-
-
-  const savedPaymentsKey = `savedPayments:${selected?.accountNo || "none"}`;
-
-
+  const learnerId = String(selected?.learnerId || selected?.id || "").trim();
+  const accountNo = String(selected?.accountNo || "").trim();
+  const paymentKey = `paymentDraft:${accountNo || learnerId || "none"}`;
 
   const [payment, setPayment] = useState<any>(() => {
 
@@ -107,261 +109,107 @@ export default function PaymentCreate({
 
   });
 
+  const [ledgerTick, setLedgerTick] = useState(0);
+  const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState("");
+  const [saving, setSaving] = useState(false);
+  const [apiOpenInvoices, setApiOpenInvoices] = useState<OpenInvoiceLine[]>([]);
+  const [apiBalance, setApiBalance] = useState<number | null>(null);
 
-
-  const [savedPayments, setSavedPayments] = useState<any[]>(() => {
-
-
-
-    try {
-
-
-
-      return JSON.parse(localStorage.getItem(savedPaymentsKey) || "[]");
-
-
-
-    } catch {
-
-
-
-      return [];
-
-
-
+  const refreshLedger = useCallback(async () => {
+    if (!schoolId) {
+      setLoading(false);
+      setLoadError("School not loaded. Sign in again and retry.");
+      return;
     }
+    setLoading(true);
+    setLoadError("");
+    try {
+      await syncBillingLedgerFromApi(schoolId);
+      if (learnerId || accountNo) {
+        const { openInvoices, balance } = await fetchOpenInvoices(
+          schoolId,
+          learnerId,
+          accountNo
+        );
+        setApiOpenInvoices(
+          openInvoices.map((row: any) => ({
+            id: String(row.id || ""),
+            audit: String(row.audit || row.id || ""),
+            type: String(row.type || "Invoice"),
+            date: String(row.date || "").slice(0, 10),
+            reference: String(row.reference || ""),
+            description: String(row.description || ""),
+            unpaid: Number(row.unpaid || 0),
+            amount: Number(row.amount || row.unpaid || 0),
+          }))
+        );
+        setApiBalance(balance);
+      } else {
+        setApiOpenInvoices([]);
+        setApiBalance(null);
+      }
+      setLedgerTick((v) => v + 1);
+    } catch (error) {
+      console.error(error);
+      setLoadError("Could not load billing ledger. Check your connection and try again.");
+    } finally {
+      setLoading(false);
+    }
+  }, [schoolId, learnerId, accountNo]);
 
+  useEffect(() => {
+    refreshLedger();
+  }, [refreshLedger]);
 
+  useEffect(() => {
+    const onBillingUpdated = () => {
+      refreshLedger();
+    };
+    window.addEventListener(BILLING_UPDATED_EVENT, onBillingUpdated);
+    return () => window.removeEventListener(BILLING_UPDATED_EVENT, onBillingUpdated);
+  }, [refreshLedger]);
 
-  });
+  const accountLedger = useMemo(() => {
+    void ledgerTick;
+    return getAccountLedger(schoolId, learnerId, accountNo);
+  }, [schoolId, learnerId, accountNo, ledgerTick]);
 
-
-
-  const amount = Number(payment.amount || 0);
-
-
-
-  const accountRow =
-
-
-
-    statementRows.find(
-
-
-
-      (row: any) =>
-
-
-
-        String(row.accountNo || row.id || row.learnerId) ===
-
-
-
-          String(selected?.accountNo || selected?.id || selected?.learnerId) ||
-
-
-
-        String(row.name || "") === String(selected?.name || "")
-
-
-
-    ) || selected;
-
-
-
-  const openingBalance = Number(accountRow?.balance || selected?.balance || 0);
-
-
+  const openingBalance = useMemo(() => {
+    if (apiBalance !== null) return Math.max(apiBalance, 0);
+    return Math.max(calculateAccountBalance(accountLedger, learnerId, accountNo), 0);
+  }, [apiBalance, accountLedger, learnerId, accountNo]);
 
   const invoiceRows = useMemo(() => {
+    if (apiOpenInvoices.length) return apiOpenInvoices;
+    void ledgerTick;
+    return computeOpenInvoiceLines(
+      getAccountLedger(schoolId, learnerId, accountNo),
+      learnerId,
+      accountNo
+    );
+  }, [apiOpenInvoices, schoolId, learnerId, accountNo, ledgerTick]);
 
+  const savedPayments = useMemo(() => {
+    return accountLedger
+      .filter((e) => e.type === "payment")
+      .sort(
+        (a, b) =>
+          new Date(b.date || b.createdAt).getTime() -
+          new Date(a.date || a.createdAt).getTime()
+      )
+      .map((row) => ({
+        id: row.id,
+        date: row.date,
+        type: row.method || "EFT",
+        description: row.description,
+        amount: row.amount,
+        allocated: row.amount,
+        unallocated: 0,
+      }));
+  }, [accountLedger]);
 
-
-    if (openingBalance <= 0) {
-
-
-
-        return [
-      
-      
-      
-          {
-      
-      
-      
-            audit: "110926",
-      
-      
-      
-            type: "Invoice",
-      
-      
-      
-            date: "2024-12-14",
-      
-      
-      
-            reference: "Invoice",
-      
-      
-      
-            description: "PRIMARY 2025",
-      
-      
-      
-            unpaid: 2550,
-      
-      
-      
-          },
-      
-      
-      
-          {
-      
-      
-      
-            audit: "112013",
-      
-      
-      
-            type: "Invoice",
-      
-      
-      
-            date: "2025-01-23",
-      
-      
-      
-            reference: "Invoice",
-      
-      
-      
-            description: "PRIMARY 2025",
-      
-      
-      
-            unpaid: 2700,
-      
-      
-      
-          },
-      
-      
-      
-          {
-      
-      
-      
-            audit: "113201",
-      
-      
-      
-            type: "Invoice",
-      
-      
-      
-            date: "2025-02-21",
-      
-      
-      
-            reference: "Invoice",
-      
-      
-      
-            description: "PRIMARY 2025",
-      
-      
-      
-            unpaid: 2700,
-      
-      
-      
-          },
-      
-      
-      
-          {
-      
-      
-      
-            audit: "115768",
-      
-      
-      
-            type: "Invoice",
-      
-      
-      
-            date: "2025-03-18",
-      
-      
-      
-            reference: "Invoice",
-      
-      
-      
-            description: "PRIMARY 2025",
-      
-      
-      
-            unpaid: 2700,
-      
-      
-      
-          },
-      
-      
-      
-        ];
-      
-      
-      
-      }
-
-
-
-    return [
-
-
-
-      {
-
-
-
-        audit: "BAL001",
-
-
-
-        type: "Balance",
-
-
-
-        date: new Date().toISOString().slice(0, 10),
-
-
-
-        reference: "Opening Balance",
-
-
-
-        description: `${selected?.name || ""} ${selected?.surname || ""}`.trim() || "Outstanding balance",
-
-
-
-        unpaid: openingBalance,
-
-
-
-      },
-
-
-
-    ];
-
-
-
-  }, [openingBalance, selected]);
+  const amount = Number(payment.amount || 0);
 
 
 
@@ -506,10 +354,21 @@ export default function PaymentCreate({
       alert("Enter a payment amount first.");
       return;
     }
+    if (!schoolId) {
+      alert("School not loaded. Sign in again and retry.");
+      return;
+    }
+    if (!learnerId && !accountNo) {
+      alert("Account not selected. Go back and choose an account.");
+      return;
+    }
+    if (!invoiceRows.length) {
+      alert(
+        "No open invoices exist for this account. Post an invoice in Billing before recording a payment."
+      );
+      return;
+    }
 
-    const schoolId = localStorage.getItem("schoolId") || "";
-    const learnerId = String(accountRow?.learnerId || accountRow?.id || selected?.learnerId || "").trim();
-    const accountNo = String(accountRow?.accountNo || selected?.accountNo || "").trim();
     const paymentDate = payment.date || new Date().toISOString().slice(0, 10);
     const paymentPayload = {
       schoolId,
@@ -522,26 +381,23 @@ export default function PaymentCreate({
       method: payment.type || "EFT",
     };
 
-    const record = appendPaymentTransaction(paymentPayload);
+    setSaving(true);
+    try {
+      const result = await createPayment(paymentPayload);
+      await syncBillingLedgerFromApi(schoolId);
+      notifyBillingUpdated();
 
-    if (record) {
-      const nextPayments = [record, ...savedPayments];
-      setSavedPayments(nextPayments);
-      localStorage.setItem(savedPaymentsKey, JSON.stringify(nextPayments));
-
+      const sourceId = String((result as any)?.payment?.id || `pay-${Date.now()}`);
       postBillingPaymentJournal({
         schoolId,
-        sourceId: record.id,
+        sourceId,
         amount: normaliseBillingAmount(amount),
         date: paymentDate,
         accountNo,
         reference: paymentPayload.reference,
         createdBy: "Billing",
       });
-    }
 
-    try {
-      await createPayment(paymentPayload);
       localStorage.setItem(
         "selectedPaymentAccount",
         JSON.stringify({
@@ -551,12 +407,15 @@ export default function PaymentCreate({
           lastPayment: `${money(amount)} on ${paymentDate}`,
         })
       );
+      localStorage.setItem(paymentKey, JSON.stringify({}));
+      setPayment({});
+      await refreshLedger();
       alert("Payment saved.");
     } catch (error) {
       console.error(error);
-      alert(
-        "Payment saved locally but could not sync to the server. Check your connection and try again."
-      );
+      alert("Payment could not be saved. Check your connection and try again.");
+    } finally {
+      setSaving(false);
     }
   };
 
@@ -752,13 +611,25 @@ export default function PaymentCreate({
 
       </h1>
 
+      {loading ? (
+        <p style={{ marginTop: 14, color: "#64748b", fontWeight: 700 }}>Loading open invoices…</p>
+      ) : null}
 
+      {!loading && loadError ? (
+        <p style={{ marginTop: 14, color: "#b91c1c", fontWeight: 800 }}>{loadError}</p>
+      ) : null}
+
+      {!loading && !loadError && !invoiceRows.length ? (
+        <p style={{ marginTop: 14, color: "#b45309", fontWeight: 800 }}>
+          No open invoices exist for this account. Post an invoice before recording a payment.
+        </p>
+      ) : null}
 
       <div style={{ display: "flex", gap: 8, margin: "14px 0" }}>
 
 
 
-        <button style={payBtn} onClick={() => setActivePage("payments")}>
+        <button type="button" style={payBtn} onClick={() => setActivePage("payments")}>
 
 
 
@@ -770,11 +641,16 @@ export default function PaymentCreate({
 
 
 
-        <button style={payGoldBtn} onClick={savePayment}>
+        <button
+          type="button"
+          style={payGoldBtn}
+          onClick={savePayment}
+          disabled={saving || loading || !invoiceRows.length}
+        >
 
 
 
-          💾 Save
+          {saving ? "Saving…" : "💾 Save"}
 
 
 
@@ -1126,7 +1002,7 @@ export default function PaymentCreate({
 
 
 
-          <button style={payGoldBtn} onClick={autoAllocate}>✓ Auto Allocate</button>
+          <button type="button" style={payGoldBtn} onClick={autoAllocate} disabled={!invoiceRows.length}>✓ Auto Allocate</button>
 
 
 
@@ -1134,7 +1010,7 @@ export default function PaymentCreate({
 
 
 
-          <button style={payBtn} onClick={autoAllocate}>✓ Allocate</button>
+          <button type="button" style={payBtn} onClick={autoAllocate} disabled={!invoiceRows.length}>✓ Allocate</button>
 
 
 
@@ -1194,7 +1070,7 @@ export default function PaymentCreate({
 
 
 
-                  No outstanding invoices or balance found for this account.
+                  No outstanding invoices found for this account.
 
 
 
@@ -1214,7 +1090,7 @@ export default function PaymentCreate({
 
 
 
-                <tr key={row.audit} style={{ background: index % 2 === 0 ? "#fffdf7" : "#fff" }}>
+                <tr key={row.id || row.audit} style={{ background: index % 2 === 0 ? "#fffdf7" : "#fff" }}>
 
 
 
@@ -1334,7 +1210,7 @@ export default function PaymentCreate({
 
 
 
-                  No payments saved yet.
+                  No payments recorded yet.
 
 
 

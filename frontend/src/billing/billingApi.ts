@@ -214,3 +214,25 @@ export const fetchLegalDocumentHistory = async (schoolId: string, documentType?:
 export const createInvoice = async (data: any) => postJson(`${API_URL}/api/invoices`, data);
 
 export const createPayment = async (data: any) => postJson(`${API_URL}/api/payments`, data);
+
+export const fetchOpenInvoices = async (
+  schoolId: string,
+  learnerId: string,
+  accountNo: string
+) => {
+  const params = new URLSearchParams({
+    schoolId,
+    learnerId,
+    accountNo,
+  });
+  const data = await getJson(
+    `${API_URL}/api/payments/open-invoices?${params.toString()}`
+  );
+  if (!data) {
+    return { openInvoices: [] as any[], balance: 0 };
+  }
+  return {
+    openInvoices: parseArray(data, ["openInvoices", "items"]),
+    balance: Number((data as any)?.balance || 0),
+  };
+};
