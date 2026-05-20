@@ -28,12 +28,22 @@ const upload = multer({ storage, limits: { fileSize: 12 * 1024 * 1024 } });
 
 const router = Router();
 
+export type AssignedClassroomRow = {
+  id: string;
+  name: string;
+  teacherName: string;
+  teacherEmail: string;
+  learnerCount: number;
+  classNameVariants: string[];
+};
+
 export type TeacherAppContext = {
   userId: string;
   schoolId: string;
   email: string;
   role: string;
   assignedClassNames: string[];
+  assignedClassrooms: AssignedClassroomRow[];
 };
 
 function publicBase(req: { protocol: string; get: (h: string) => string | undefined }) {
@@ -53,18 +63,78 @@ function learnerMatchesClassFilter(
   return false;
 }
 
-async function loadAssignedClassNames(schoolId: string, teacherEmail: string): Promise<string[]> {
+/** Learner/homework className aliases for a registered classroom name (not used for teacher assignment). */
+async function buildClassNameVariants(schoolId: string, classroomName: string): Promise<string[]> {
+  const base = String(classroomName || "").trim();
+  const variants = new Set<string>();
+  if (base) variants.add(base);
+
+  const learners = await prisma.learner.findMany({
+    where: {
+      schoolId,
+      OR: [
+        { className: base },
+        { className: { endsWith: `/${base}` } },
+        { className: { endsWith: ` / ${base}` } },
+      ],
+    },
+    select: { className: true, grade: true },
+    take: 100,
+  });
+
+  for (const l of learners) {
+    const cn = String(l.className || "").trim();
+    if (cn) variants.add(cn);
+    const g = String(l.grade || "").trim();
+    if (g && base) {
+      variants.add(`${g} / ${base}`);
+      variants.add(`${g}/${base}`);
+    }
+  }
+
+  return [...variants];
+}
+
+function allClassNameVariants(assigned: AssignedClassroomRow[]): string[] {
+  const out = new Set<string>();
+  for (const c of assigned) {
+    out.add(c.name);
+    for (const v of c.classNameVariants) out.add(v);
+  }
+  return [...out];
+}
+
+async function loadAssignedClassrooms(
+  schoolId: string,
+  teacherEmail: string
+): Promise<AssignedClassroomRow[]> {
   const norm = normalizeStaffEmail(teacherEmail);
   if (!norm) return [];
+
   const rooms = await prisma.classroom.findMany({
     where: {
       schoolId,
       teacherEmail: { equals: norm, mode: "insensitive" },
     },
-    select: { name: true },
     orderBy: { name: "asc" },
   });
-  return rooms.map((r) => r.name);
+
+  return Promise.all(
+    rooms.map(async (c) => {
+      const classNameVariants = await buildClassNameVariants(schoolId, c.name);
+      const learnerCount = await prisma.learner.count({
+        where: { schoolId, className: { in: classNameVariants } },
+      });
+      return {
+        id: c.id,
+        name: c.name,
+        teacherName: c.teacherName,
+        teacherEmail: c.teacherEmail,
+        learnerCount,
+        classNameVariants,
+      };
+    })
+  );
 }
 
 async function teacherAppMiddleware(req: any, res: any, next: any) {
@@ -79,13 +149,15 @@ async function teacherAppMiddleware(req: any, res: any, next: any) {
     });
   }
   try {
-    const assignedClassNames = await loadAssignedClassNames(payload.schoolId, payload.email);
+    const assignedClassrooms = await loadAssignedClassrooms(payload.schoolId, payload.email);
+    const assignedClassNames = assignedClassrooms.map((c) => c.name);
     req.teacherCtx = {
       userId: payload.userId,
       schoolId: payload.schoolId,
       email: payload.email,
       role: payload.role,
       assignedClassNames,
+      assignedClassrooms,
     } satisfies TeacherAppContext;
     next();
   } catch (e) {
@@ -98,13 +170,14 @@ function ctx(req: any): TeacherAppContext {
   return req.teacherCtx as TeacherAppContext;
 }
 
-function assertClassAllowed(res: any, className: string, assigned: string[]) {
+function assertClassAllowed(res: any, className: string, assigned: AssignedClassroomRow[]) {
   const cn = String(className || "").trim();
   if (!cn) {
     res.status(400).json({ success: false, error: "className required" });
     return false;
   }
-  if (!assigned.includes(cn)) {
+  const allowed = allClassNameVariants(assigned);
+  if (!allowed.includes(cn)) {
     res.status(403).json({ success: false, error: "You are not assigned to this class" });
     return false;
   }
@@ -131,12 +204,15 @@ router.get("/me/debug", async (req, res) => {
       take: 20,
       orderBy: { updatedAt: "desc" },
     });
+    const { assignedClassrooms: ctxAssigned } = ctx(req);
     return res.json({
       success: true,
       debug: {
+        schoolId,
         loggedInTeacherEmail: normEmail,
         jwtEmailRaw: email,
         assignedClassNames,
+        assignedClassroomsFromMe: ctxAssigned,
         assignedClassrooms: assigned,
         allClassroomsWithTeacherEmail: allClassrooms.map((c) => ({
           name: c.name,
@@ -155,7 +231,7 @@ router.get("/me/debug", async (req, res) => {
 
 router.get("/me", async (req, res) => {
   try {
-    const { schoolId, email, userId, role, assignedClassNames } = ctx(req);
+    const { schoolId, email, userId, role, assignedClassNames, assignedClassrooms } = ctx(req);
     const user = await prisma.user.findFirst({
       where: { id: userId, schoolId },
       select: { id: true, email: true, fullName: true, role: true },
@@ -165,25 +241,13 @@ router.get("/me", async (req, res) => {
       select: { id: true, name: true, logoUrl: true },
     });
 
-    const classrooms = await prisma.classroom.findMany({
-      where: { schoolId, name: { in: assignedClassNames } },
-      orderBy: { name: "asc" },
-    });
-
-    const classroomsOut = await Promise.all(
-      classrooms.map(async (c) => {
-        const count = await prisma.learner.count({
-          where: { schoolId, className: c.name },
-        });
-        return {
-          id: c.id,
-          name: c.name,
-          teacherName: c.teacherName,
-          teacherEmail: c.teacherEmail,
-          learnerCount: count,
-        };
-      })
-    );
+    const classroomsOut = assignedClassrooms.map((c) => ({
+      id: c.id,
+      name: c.name,
+      teacherName: c.teacherName,
+      teacherEmail: c.teacherEmail,
+      learnerCount: c.learnerCount,
+    }));
 
     let unreadInbox = 0;
     const normEmail = normalizeStaffEmail(email);
@@ -217,13 +281,19 @@ router.get("/me", async (req, res) => {
 
 router.get("/learners", async (req, res) => {
   try {
-    const { schoolId, assignedClassNames } = ctx(req);
+    const teacherCtx = ctx(req);
+    const { schoolId, assignedClassrooms } = teacherCtx;
     const className = String(req.query.className || "").trim();
-    if (!className || !assignedClassNames.includes(className)) {
+    const allowed = allClassNameVariants(assignedClassrooms);
+    if (!className || !allowed.includes(className)) {
       return res.status(403).json({ success: false, error: "Invalid class" });
     }
+    const room = assignedClassrooms.find(
+      (c) => c.name === className || c.classNameVariants.includes(className)
+    );
+    const variants = room?.classNameVariants.length ? room.classNameVariants : [className];
     const learners = await prisma.learner.findMany({
-      where: { schoolId, className },
+      where: { schoolId, className: { in: variants } },
       orderBy: [{ lastName: "asc" }, { firstName: "asc" }],
       select: {
         id: true,
@@ -242,10 +312,11 @@ router.get("/learners", async (req, res) => {
 
 router.get("/homework", async (req, res) => {
   try {
-    const { schoolId, assignedClassNames } = ctx(req);
-    if (!assignedClassNames.length) return res.json({ success: true, posts: [] });
+    const { schoolId, assignedClassrooms } = ctx(req);
+    const classVariants = allClassNameVariants(assignedClassrooms);
+    if (!classVariants.length) return res.json({ success: true, posts: [] });
     const posts = await prisma.homeworkPost.findMany({
-      where: { schoolId, className: { in: assignedClassNames } },
+      where: { schoolId, className: { in: classVariants } },
       orderBy: { createdAt: "desc" },
       take: 80,
     });
@@ -257,11 +328,12 @@ router.get("/homework", async (req, res) => {
 
 router.post("/homework", upload.array("files", 5), async (req, res) => {
   try {
-    const { schoolId, assignedClassNames, email } = ctx(req);
+    const teacherCtx = ctx(req);
+    const { schoolId, assignedClassrooms, email } = teacherCtx;
     const className = String(req.body?.className || "").trim();
     const title = String(req.body?.title || "").trim();
     if (!title) return res.status(400).json({ success: false, error: "title required" });
-    if (!assertClassAllowed(res, className, assignedClassNames)) return;
+    if (!assertClassAllowed(res, className, assignedClassrooms)) return;
 
     const files = (req.files as Express.Multer.File[]) || [];
     const base = publicBase(req);
@@ -308,10 +380,11 @@ router.post("/homework", upload.array("files", 5), async (req, res) => {
 
 router.get("/notices", async (req, res) => {
   try {
-    const { schoolId, assignedClassNames } = ctx(req);
-    if (!assignedClassNames.length) return res.json({ success: true, notices: [] });
+    const { schoolId, assignedClassrooms } = ctx(req);
+    const classVariants = allClassNameVariants(assignedClassrooms);
+    if (!classVariants.length) return res.json({ success: true, notices: [] });
     const notices = await prisma.schoolNotice.findMany({
-      where: { schoolId, className: { in: assignedClassNames } },
+      where: { schoolId, className: { in: classVariants } },
       orderBy: { publishedAt: "desc" },
       take: 80,
     });
@@ -323,13 +396,14 @@ router.get("/notices", async (req, res) => {
 
 router.post("/notices", upload.array("files", 5), async (req, res) => {
   try {
-    const { schoolId, assignedClassNames, email } = ctx(req);
+    const teacherCtx = ctx(req);
+    const { schoolId, email } = teacherCtx;
     const className = String(req.body?.className || "").trim();
     const title = String(req.body?.title || "").trim();
     const body = String(req.body?.body || "").trim();
     const noticeTypeRaw = String(req.body?.noticeType || "CLASS").toUpperCase();
     if (!title) return res.status(400).json({ success: false, error: "title required" });
-    if (!assertClassAllowed(res, className, assignedClassNames)) return;
+    if (!assertClassAllowed(res, className, teacherCtx.assignedClassrooms)) return;
 
     const allowedTypes: SchoolNoticeType[] = ["CLASS", "SCHOOL", "ASSESSMENT", "EXAM", "GRADE"];
     const noticeType = (allowedTypes.includes(noticeTypeRaw as SchoolNoticeType)
@@ -394,10 +468,11 @@ router.post("/notices", upload.array("files", 5), async (req, res) => {
 
 router.get("/documents", async (req, res) => {
   try {
-    const { schoolId, assignedClassNames } = ctx(req);
-    if (!assignedClassNames.length) return res.json({ success: true, documents: [] });
+    const { schoolId, assignedClassrooms } = ctx(req);
+    const classVariants = allClassNameVariants(assignedClassrooms);
+    if (!classVariants.length) return res.json({ success: true, documents: [] });
     const documents = await prisma.parentDocument.findMany({
-      where: { schoolId, className: { in: assignedClassNames } },
+      where: { schoolId, className: { in: classVariants } },
       orderBy: { createdAt: "desc" },
       take: 80,
     });
@@ -409,11 +484,12 @@ router.get("/documents", async (req, res) => {
 
 router.post("/documents", upload.single("file"), async (req, res) => {
   try {
-    const { schoolId, assignedClassNames, email } = ctx(req);
+    const teacherCtx = ctx(req);
+    const { schoolId, assignedClassrooms, email } = teacherCtx;
     const className = String(req.body?.className || "").trim();
     const title = String(req.body?.title || "").trim();
     if (!title) return res.status(400).json({ success: false, error: "title required" });
-    if (!assertClassAllowed(res, className, assignedClassNames)) return;
+    if (!assertClassAllowed(res, className, assignedClassrooms)) return;
     const file = req.file as Express.Multer.File | undefined;
     if (!file) return res.status(400).json({ success: false, error: "file required" });
 
@@ -458,8 +534,9 @@ router.post("/documents", upload.single("file"), async (req, res) => {
 
 router.get("/incidents", async (req, res) => {
   try {
-    const { schoolId, assignedClassNames } = ctx(req);
-    if (!assignedClassNames.length) return res.json({ success: true, incidents: [] });
+    const { schoolId, assignedClassrooms } = ctx(req);
+    const classVariants = allClassNameVariants(assignedClassrooms);
+    if (!classVariants.length) return res.json({ success: true, incidents: [] });
     const incidents = await prisma.learnerIncident.findMany({
       where: { schoolId },
       include: {
@@ -469,7 +546,7 @@ router.get("/incidents", async (req, res) => {
       take: 120,
     });
     const filtered = incidents.filter(
-      (i) => i.learner.className && assignedClassNames.includes(i.learner.className)
+      (i) => i.learner.className && classVariants.includes(i.learner.className)
     );
     return res.json({ success: true, incidents: filtered });
   } catch (e) {
@@ -479,7 +556,8 @@ router.get("/incidents", async (req, res) => {
 
 router.post("/incidents", async (req, res) => {
   try {
-    const { schoolId, assignedClassNames, email } = ctx(req);
+    const { schoolId, assignedClassrooms, email } = ctx(req);
+    const classVariants = allClassNameVariants(assignedClassrooms);
     const learnerId = String(req.body?.learnerId || "").trim();
     const summary = String(req.body?.summary || "").trim();
     const severity = String(req.body?.severity || "MEDIUM").trim().toUpperCase();
@@ -494,7 +572,7 @@ router.post("/incidents", async (req, res) => {
       where: { id: learnerId, schoolId },
       select: { id: true, className: true },
     });
-    if (!learner || !learner.className || !assignedClassNames.includes(learner.className)) {
+    if (!learner || !learner.className || !classVariants.includes(learner.className)) {
       return res.status(403).json({ success: false, error: "Learner not in your classes" });
     }
 
