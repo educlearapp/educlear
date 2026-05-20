@@ -3,8 +3,15 @@ import multer from "multer";
 import path from "path";
 import fs from "fs";
 import { prisma } from "../prisma";
-import { createParentNotification, mapThreadMessage } from "../services/parentPortalService";
+import {
+  createParentNotification,
+  debugParentThreadResolution,
+  mapThreadMessage,
+  normalizeTeacherEmail,
+  repairAllParentTeacherThreads,
+} from "../services/parentPortalService";
 import { normalizeStaffEmail, verifyStaffJwt } from "../utils/staffJwt";
+import type { StaffJwtPayload } from "../utils/staffJwt";
 
 const uploadDir = path.join(process.cwd(), "uploads/parent-messages");
 try {
@@ -29,7 +36,11 @@ const upload = multer({ storage, limits: { fileSize: 8 * 1024 * 1024 } });
 const router = Router();
 
 function normalizeEmail(email: string) {
-  return normalizeStaffEmail(email);
+  return normalizeTeacherEmail(email);
+}
+
+function userCanAdminInbox(jwtUser: StaffJwtPayload): boolean {
+  return jwtUser.role === "SCHOOL_ADMIN";
 }
 
 /**
@@ -37,9 +48,10 @@ function normalizeEmail(email: string) {
  * for non-admin views so it matches `classroom.teacherEmail` / thread records from the parent portal.
  * Query/body `teacherEmail` is intentionally ignored to prevent spoofing.
  */
-function resolveInboxFromQuery(req: any):
+async function resolveInboxFromQuery(req: any): Promise<
   | { ok: true; schoolId: string; adminView: boolean; teacherEmail: string }
-  | { ok: false; status: number; error: string } {
+  | { ok: false; status: number; error: string }
+> {
   const jwtUser = verifyStaffJwt(req.headers.authorization);
   if (!jwtUser) {
     const tried = Boolean(
@@ -61,8 +73,8 @@ function resolveInboxFromQuery(req: any):
 
   let teacherEmail = "";
   if (adminView) {
-    if (jwtUser.role !== "SCHOOL_ADMIN") {
-      return { ok: false, status: 403, error: "adminView requires school admin token" };
+    if (!userCanAdminInbox(jwtUser)) {
+      return { ok: false, status: 403, error: "adminView requires school admin or owner" };
     }
   } else {
     teacherEmail = normalizeEmail(jwtUser.email);
@@ -74,9 +86,10 @@ function resolveInboxFromQuery(req: any):
   return { ok: true, schoolId, adminView, teacherEmail };
 }
 
-function resolveInboxFromBody(req: any):
+async function resolveInboxFromBody(req: any): Promise<
   | { ok: true; schoolId: string; adminView: boolean; teacherEmail: string }
-  | { ok: false; status: number; error: string } {
+  | { ok: false; status: number; error: string }
+> {
   const jwtUser = verifyStaffJwt(req.headers.authorization);
   if (!jwtUser) {
     const tried = Boolean(
@@ -98,8 +111,8 @@ function resolveInboxFromBody(req: any):
 
   let teacherEmail = "";
   if (adminView) {
-    if (jwtUser.role !== "SCHOOL_ADMIN") {
-      return { ok: false, status: 403, error: "adminView requires school admin token" };
+    if (!userCanAdminInbox(jwtUser)) {
+      return { ok: false, status: 403, error: "adminView requires school admin or owner" };
     }
   } else {
     teacherEmail = normalizeEmail(jwtUser.email);
@@ -111,9 +124,74 @@ function resolveInboxFromBody(req: any):
   return { ok: true, schoolId, adminView, teacherEmail };
 }
 
+router.get("/debug-resolution", async (req, res) => {
+  try {
+    const auth = await resolveInboxFromQuery(req);
+    if (!auth.ok) {
+      return res.status(auth.status).json({ success: false, error: auth.error });
+    }
+    const { schoolId, adminView, teacherEmail } = auth;
+    const learnerId = String(req.query.learnerId || "").trim();
+    const parentId = String(req.query.parentId || "").trim();
+    const threadId = String(req.query.threadId || "").trim();
+    if (!learnerId) {
+      return res.status(400).json({ success: false, error: "learnerId required" });
+    }
+
+    const debug = await debugParentThreadResolution({
+      schoolId,
+      learnerId,
+      parentId: parentId || undefined,
+      loggedInTeacherEmail: teacherEmail || undefined,
+    });
+    if (!debug) {
+      return res.status(404).json({ success: false, error: "Learner not found" });
+    }
+
+    let threadAccess = adminView;
+    if (!adminView && debug.threadTeacherEmail) {
+      threadAccess = debug.threadTeacherEmail === teacherEmail;
+    }
+
+    return res.json({
+      success: true,
+      debug: {
+        ...debug,
+        loggedInTeacherEmail: teacherEmail || null,
+        threadAccess,
+        threadId: threadId || debug.threadId,
+      },
+    });
+  } catch (e) {
+    console.error("debug-resolution", e);
+    return res.status(500).json({ success: false, error: "Debug failed" });
+  }
+});
+
+router.post("/repair-threads", async (req, res) => {
+  try {
+    const jwtUser = verifyStaffJwt(req.headers.authorization);
+    if (!jwtUser) {
+      return res.status(401).json({ success: false, error: "Authentication required" });
+    }
+    if (!userCanAdminInbox(jwtUser)) {
+      return res.status(403).json({ success: false, error: "Admin or owner required" });
+    }
+    const schoolId = String(req.body?.schoolId || req.query.schoolId || jwtUser.schoolId).trim();
+    if (jwtUser.schoolId !== schoolId) {
+      return res.status(403).json({ success: false, error: "schoolId mismatch" });
+    }
+    const result = await repairAllParentTeacherThreads({ schoolId });
+    return res.json({ success: true, ...result });
+  } catch (e) {
+    console.error("repair-threads", e);
+    return res.status(500).json({ success: false, error: "Repair failed" });
+  }
+});
+
 router.get("/threads", async (req, res) => {
   try {
-    const auth = resolveInboxFromQuery(req);
+    const auth = await resolveInboxFromQuery(req);
     if (!auth.ok) {
       return res.status(auth.status).json({ success: false, error: auth.error });
     }
@@ -121,7 +199,7 @@ router.get("/threads", async (req, res) => {
 
     const where: any = { schoolId };
     if (!adminView) {
-      where.teacherEmail = teacherEmail;
+      where.teacherEmail = { equals: teacherEmail, mode: "insensitive" };
     }
 
     const threads = await prisma.parentTeacherThread.findMany({
@@ -163,7 +241,7 @@ router.get("/threads", async (req, res) => {
 
 router.get("/threads/:threadId", async (req, res) => {
   try {
-    const auth = resolveInboxFromQuery(req);
+    const auth = await resolveInboxFromQuery(req);
     if (!auth.ok) {
       return res.status(auth.status).json({ success: false, error: auth.error });
     }
@@ -197,7 +275,7 @@ router.get("/threads/:threadId", async (req, res) => {
 
 router.post("/threads/:threadId/reply", upload.array("files", 5), async (req, res) => {
   try {
-    const auth = resolveInboxFromBody(req);
+    const auth = await resolveInboxFromBody(req);
     if (!auth.ok) {
       return res.status(auth.status).json({ success: false, error: auth.error });
     }
@@ -265,7 +343,7 @@ router.post("/threads/:threadId/reply", upload.array("files", 5), async (req, re
 
 router.patch("/threads/:threadId/read", async (req, res) => {
   try {
-    const auth = resolveInboxFromBody(req);
+    const auth = await resolveInboxFromBody(req);
     if (!auth.ok) {
       return res.status(auth.status).json({ success: false, error: auth.error });
     }

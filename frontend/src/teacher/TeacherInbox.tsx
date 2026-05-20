@@ -97,10 +97,6 @@ export default function TeacherInbox({ embedded }: Props) {
 
   const loadThreads = useCallback(async () => {
     if (!schoolId || !sessionReady || profileLoadFailed) return;
-    if (!adminView && assignedClassNames.length === 0) {
-      setThreads([]);
-      return;
-    }
     setLoading(true);
     setError(null);
     try {
@@ -116,7 +112,7 @@ export default function TeacherInbox({ embedded }: Props) {
     } finally {
       setLoading(false);
     }
-  }, [schoolId, adminView, sessionReady, profileLoadFailed, assignedClassNames.length]);
+  }, [schoolId, adminView, sessionReady, profileLoadFailed]);
 
   useEffect(() => {
     void loadThreads();
@@ -170,15 +166,10 @@ export default function TeacherInbox({ embedded }: Props) {
     }
   }
 
-  const showNoClassesPanel =
+  const showNoClassesHint =
     sessionReady && !profileLoadFailed && !adminView && assignedClassNames.length === 0;
   const showEmptyInbox =
-    threads.length === 0 &&
-    !loading &&
-    sessionReady &&
-    !profileLoadFailed &&
-    !showNoClassesPanel &&
-    (adminView || assignedClassNames.length > 0);
+    threads.length === 0 && !loading && sessionReady && !profileLoadFailed;
 
   return (
     <div
@@ -277,16 +268,16 @@ export default function TeacherInbox({ embedded }: Props) {
           }
         >
           <div className={embedded ? "teacher-inbox-threads" : undefined}>
-          {showNoClassesPanel && (
-            <p style={{ padding: 16, color: textMuted, lineHeight: 1.5 }}>
-              No classrooms are currently assigned to your account.
+          {showNoClassesHint && (
+            <p style={{ padding: 16, color: textMuted, lineHeight: 1.5, borderBottom: panelBorder }}>
+              No classrooms are assigned to your email yet. Parent messages still appear here when your email
+              matches the class teacher on the Classrooms page.
             </p>
           )}
           {showEmptyInbox && (
             <p style={{ padding: 16, color: textMuted, lineHeight: 1.5 }}>No parent conversations yet.</p>
           )}
-          {!showNoClassesPanel &&
-            threads.map((t) => (
+          {threads.map((t) => (
               <button
                 key={t.id}
                 type="button"
@@ -325,7 +316,7 @@ export default function TeacherInbox({ embedded }: Props) {
                   </span>
                 )}
               </button>
-            ))}
+          ))}
           </div>
         </div>
         <div

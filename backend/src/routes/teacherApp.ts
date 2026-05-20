@@ -143,7 +143,7 @@ router.get("/me", async (req, res) => {
     let unreadInbox = 0;
     const normEmail = normalizeStaffEmail(email);
     const threads = await prisma.parentTeacherThread.findMany({
-      where: { schoolId, teacherEmail: normEmail },
+      where: { schoolId, teacherEmail: { equals: normEmail, mode: "insensitive" } },
       select: { id: true },
     });
     for (const t of threads) {

@@ -3,8 +3,10 @@ import type { ParentNotificationType } from "@prisma/client";
 import { prisma } from "../prisma";
 import {
   createParentNotification,
+  debugParentThreadResolution,
   findParentByCredentials,
   getOrCreateThread,
+  logParentThreadResolution,
   mapThreadMessage,
   notifyParentsForLearner,
   notifyParentsInvoiceRun,
@@ -429,11 +431,29 @@ async function sendParentMessage(opts: {
   });
   if (!link) return { error: "Learner not linked to this parent", status: 403 as const };
 
-  const { thread } = await getOrCreateThread({
+  const { thread, classroom, learner } = await getOrCreateThread({
     schoolId: opts.schoolId,
     parentId: opts.parentId,
     learnerId: opts.learnerId,
   });
+
+  const debug = await debugParentThreadResolution({
+    schoolId: opts.schoolId,
+    learnerId: opts.learnerId,
+    parentId: opts.parentId,
+  });
+  if (debug) {
+    logParentThreadResolution("parent-send-message", debug);
+  } else {
+    console.log("[parent-thread] parent-send-message", {
+      learnerId: opts.learnerId,
+      learnerClassName: learner.className,
+      matchedClassroomId: classroom?.id,
+      matchedClassroomName: classroom?.name,
+      classroomTeacherEmail: classroom?.teacherEmail,
+      threadTeacherEmail: thread.teacherEmail,
+    });
+  }
 
   const msg = await prisma.parentTeacherMessage.create({
     data: {

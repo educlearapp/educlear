@@ -1,5 +1,6 @@
 import { Router } from "express";
 import { prisma } from "../prisma";
+import { syncParentThreadsForClassroom } from "../services/parentPortalService";
 import { normalizeStaffEmail } from "../utils/staffJwt";
 
 function normalizeTeacherEmail(raw: unknown): string {
@@ -117,6 +118,8 @@ router.post("/", async (req, res) => {
       },
     });
 
+    await syncParentThreadsForClassroom(schoolId, classroom.id);
+
     return res.json({ success: true, classroom });
   } catch (e) {
     console.error("create classroom", e);
@@ -158,6 +161,8 @@ router.put("/:id", async (req, res) => {
         data: { className: name },
       });
     }
+
+    await syncParentThreadsForClassroom(schoolId, classroom.id);
 
     return res.json({ success: true, classroom });
   } catch (e) {
