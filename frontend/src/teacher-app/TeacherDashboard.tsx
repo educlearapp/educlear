@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { staffApiFetch } from "../staffApi";
+import { NO_ASSIGNED_CLASSROOMS_MSG } from "./useTeacherAssignedClassrooms";
 
 type MeResponse = {
   success?: boolean;
@@ -30,7 +31,7 @@ export default function TeacherDashboard() {
 
   return (
     <div>
-      <h1 style={{ marginTop: 0, fontSize: "1.5rem" }}>Dashboard</h1>
+      <h1 className="teacher-page-heading">Dashboard</h1>
       {me?.user && (
         <p className="teacher-muted">
           {me.user.fullName || "Teacher"} · {me.user.email}
@@ -39,10 +40,7 @@ export default function TeacherDashboard() {
       )}
       {err && <p className="teacher-error">{err}</p>}
       {!err && me && classes === 0 && (
-        <p className="teacher-pwa-hint">
-          No classes are assigned to your email yet. Ask your school admin to set your address as the{" "}
-          <strong>class teacher email</strong> on each classroom you teach.
-        </p>
+        <p className="teacher-pwa-hint">{NO_ASSIGNED_CLASSROOMS_MSG}</p>
       )}
       <div className="teacher-card-grid" style={{ marginTop: 20 }}>
         <Link className="teacher-dash-card" to="/teacher/inbox">

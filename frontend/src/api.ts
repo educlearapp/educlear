@@ -6,13 +6,16 @@ export const API_URL =
 
 export async function apiFetch(path: string, options: RequestInit = {}) {
   const url = `${API_URL}${path}`;
+  const { headers: incomingHeaders, body, ...restOptions } = options;
+  const isFormData = typeof FormData !== "undefined" && body instanceof FormData;
 
   const res = await fetch(url, {
+    ...restOptions,
+    body,
     headers: {
-      "Content-Type": "application/json",
-      ...(options.headers || {}),
+      ...(isFormData ? {} : { "Content-Type": "application/json" }),
+      ...(incomingHeaders || {}),
     },
-    ...options,
   });
 
   const text = await res.text();

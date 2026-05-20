@@ -93,6 +93,11 @@ export default function Login({ onLoggedIn }: Props) {
 
       localStorage.setItem("schoolId", String(schoolId));
 
+      const u = data?.user;
+      if (u?.email) localStorage.setItem("userEmail", String(u.email));
+      if (u?.fullName != null) localStorage.setItem("userName", String(u.fullName));
+      if (u?.role != null) localStorage.setItem("userRole", String(u.role));
+
 
 
       const schoolName =

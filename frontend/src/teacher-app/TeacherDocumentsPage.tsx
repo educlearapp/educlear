@@ -1,28 +1,32 @@
 import { useEffect, useState } from "react";
 import { staffApiFetch, staffFormPost } from "../staffApi";
-
-type Classroom = { id: string; name: string };
+import {
+  NO_ASSIGNED_CLASSROOMS_MSG,
+  useTeacherAssignedClassrooms,
+} from "./useTeacherAssignedClassrooms";
 
 export default function TeacherDocumentsPage() {
-  const [classrooms, setClassrooms] = useState<Classroom[]>([]);
-  const [className, setClassName] = useState("");
+  const { classrooms, className, setClassName, loading, err: loadErr, noAssigned } =
+    useTeacherAssignedClassrooms();
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
   const [file, setFile] = useState<File | null>(null);
   const [docs, setDocs] = useState<unknown[]>([]);
   const [err, setErr] = useState<string | null>(null);
   const [ok, setOk] = useState<string | null>(null);
-  const [loading, setLoading] = useState(false);
+  const [submitting, setSubmitting] = useState(false);
 
-  async function load() {
-    const me = (await staffApiFetch("/api/teacher-app/me")) as { classrooms?: Classroom[] };
-    setClassrooms(me.classrooms || []);
-    const d = (await staffApiFetch("/api/teacher-app/documents")) as { documents?: unknown[] };
-    setDocs(d.documents || []);
+  async function loadDocs() {
+    try {
+      const d = (await staffApiFetch("/api/teacher-app/documents")) as { documents?: unknown[] };
+      setDocs(d.documents || []);
+    } catch (e: unknown) {
+      console.error("[teacher-app] Failed to load documents:", e instanceof Error ? e.message : e);
+    }
   }
 
   useEffect(() => {
-    void load().catch((e: unknown) => setErr(e instanceof Error ? e.message : "Load failed"));
+    void loadDocs();
   }, []);
 
   async function submit(e: React.FormEvent) {
@@ -33,7 +37,7 @@ export default function TeacherDocumentsPage() {
     }
     setErr(null);
     setOk(null);
-    setLoading(true);
+    setSubmitting(true);
     try {
       const form = new FormData();
       form.append("className", className);
@@ -45,56 +49,68 @@ export default function TeacherDocumentsPage() {
       setTitle("");
       setDescription("");
       setFile(null);
-      void load();
+      void loadDocs();
     } catch (e: unknown) {
       setErr(e instanceof Error ? e.message : "Upload failed");
     } finally {
-      setLoading(false);
+      setSubmitting(false);
     }
   }
 
+  const displayErr = loadErr || err;
+
   return (
     <div>
-      <h1 style={{ marginTop: 0 }}>Documents</h1>
+      <h1 className="teacher-page-heading">Documents</h1>
       <p className="teacher-muted">Upload class documents. Linked parents receive a document notification.</p>
-      {err && <p className="teacher-error">{err}</p>}
+      {displayErr && <p className="teacher-error">{displayErr}</p>}
+      {noAssigned && <p className="teacher-pwa-hint">{NO_ASSIGNED_CLASSROOMS_MSG}</p>}
       {ok && <p style={{ color: "var(--t-gold)" }}>{ok}</p>}
-      <form onSubmit={submit}>
-        <div className="teacher-field">
-          <label>Class</label>
-          <select value={className} onChange={(e) => setClassName(e.target.value)} required>
-            <option value="">Select class</option>
-            {classrooms.map((c) => (
-              <option key={c.id} value={c.name}>
-                {c.name}
-              </option>
-            ))}
-          </select>
-        </div>
-        <div className="teacher-field">
-          <label>Title</label>
-          <input value={title} onChange={(e) => setTitle(e.target.value)} required />
-        </div>
-        <div className="teacher-field">
-          <label>Description (optional)</label>
-          <textarea rows={3} value={description} onChange={(e) => setDescription(e.target.value)} />
-        </div>
-        <div className="teacher-field">
-          <label>File</label>
-          <input type="file" accept="application/pdf,image/*,.doc,.docx" onChange={(e) => setFile(e.target.files?.[0] || null)} />
-        </div>
-        <button type="submit" className="teacher-touch-btn primary" disabled={loading}>
-          Upload
-        </button>
-      </form>
-      <h2 style={{ marginTop: 32, fontSize: "1.1rem" }}>Uploaded</h2>
-      <ul className="teacher-muted" style={{ paddingLeft: 18 }}>
+      {!noAssigned && (
+        <form onSubmit={submit}>
+          <div className="teacher-field">
+            <label>Class</label>
+            <select
+              value={className}
+              onChange={(e) => setClassName(e.target.value)}
+              required
+              disabled={loading || classrooms.length === 0}
+            >
+              <option value="">{loading ? "Loading classes…" : "Select class"}</option>
+              {classrooms.map((c) => (
+                <option key={c.id} value={c.name}>
+                  {c.name}
+                </option>
+              ))}
+            </select>
+          </div>
+          <div className="teacher-field">
+            <label>Title</label>
+            <input value={title} onChange={(e) => setTitle(e.target.value)} required />
+          </div>
+          <div className="teacher-field">
+            <label>Description (optional)</label>
+            <textarea rows={3} value={description} onChange={(e) => setDescription(e.target.value)} />
+          </div>
+          <div className="teacher-field">
+            <label>File</label>
+            <input type="file" accept="application/pdf,image/*,.doc,.docx" onChange={(e) => setFile(e.target.files?.[0] || null)} />
+          </div>
+          <div className="teacher-form-actions">
+            <button type="submit" className="teacher-touch-btn primary" disabled={submitting || !className}>
+              Upload
+            </button>
+          </div>
+        </form>
+      )}
+      <h2 className="teacher-section-title">Uploaded</h2>
+      <ul className="teacher-record-list">
         {(docs as { id: string; title: string; fileUrl: string; createdAt: string }[]).map((d) => (
-          <li key={d.id} style={{ marginBottom: 8 }}>
-            <a href={d.fileUrl} target="_blank" rel="noreferrer" style={{ color: "var(--t-gold)" }}>
+          <li key={d.id} className="teacher-record-card">
+            <a href={d.fileUrl} target="_blank" rel="noreferrer">
               {d.title}
-            </a>{" "}
-            · {new Date(d.createdAt).toLocaleString()}
+            </a>
+            {new Date(d.createdAt).toLocaleString()}
           </li>
         ))}
       </ul>

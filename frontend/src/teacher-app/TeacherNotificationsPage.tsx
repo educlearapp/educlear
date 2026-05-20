@@ -1,7 +1,7 @@
 export default function TeacherNotificationsPage() {
   return (
     <div>
-      <h1 style={{ marginTop: 0 }}>Notifications</h1>
+      <h1 className="teacher-page-heading">Notifications</h1>
       <p className="teacher-muted">
         Parent-facing alerts (homework, notices, incidents, documents, and teacher replies) are recorded in the
         Communication Engine as in-app messages. Parents see them in the Parent Portal.

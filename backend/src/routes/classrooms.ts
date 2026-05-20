@@ -1,5 +1,14 @@
 import { Router } from "express";
 import { prisma } from "../prisma";
+import { normalizeStaffEmail } from "../utils/staffJwt";
+
+function normalizeTeacherEmail(raw: unknown): string {
+  return normalizeStaffEmail(String(raw ?? ""));
+}
+
+function normalizeTeacherName(raw: unknown): string {
+  return String(raw ?? "").trim();
+}
 
 const router = Router();
 
@@ -82,7 +91,8 @@ router.post("/", async (req, res) => {
   try {
     const schoolId = String(req.body?.schoolId || "").trim();
     const name = String(req.body?.name || "").trim();
-    const teacher = String(req.body?.teacher || req.body?.teacherName || "").trim();
+    const teacher = normalizeTeacherName(req.body?.teacher || req.body?.teacherName);
+    const teacherEmail = normalizeTeacherEmail(req.body?.teacherEmail);
     if (!schoolId || !name) {
       return res.status(400).json({ error: "schoolId and name required" });
     }
@@ -92,15 +102,15 @@ router.post("/", async (req, res) => {
       create: {
         schoolId,
         name,
-        teacherName: teacher,
-        teacherEmail: String(req.body?.teacherEmail || "").trim(),
+        teacherName: teacher || undefined,
+        teacherEmail,
         notes: req.body?.notes || null,
         minAgeMonths: req.body?.minAgeMonths ?? null,
         maxAgeMonths: req.body?.maxAgeMonths ?? null,
       },
       update: {
         teacherName: teacher || undefined,
-        teacherEmail: req.body?.teacherEmail ? String(req.body.teacherEmail) : undefined,
+        teacherEmail: req.body?.teacherEmail != null ? teacherEmail : undefined,
         notes: req.body?.notes ?? undefined,
         minAgeMonths: req.body?.minAgeMonths ?? undefined,
         maxAgeMonths: req.body?.maxAgeMonths ?? undefined,
@@ -122,12 +132,20 @@ router.put("/:id", async (req, res) => {
     if (!existing) return res.status(404).json({ error: "Classroom not found" });
 
     const name = req.body?.name != null ? String(req.body.name).trim() : existing.name;
+    const teacherName =
+      req.body?.teacher != null || req.body?.teacherName != null
+        ? normalizeTeacherName(req.body?.teacher ?? req.body?.teacherName)
+        : existing.teacherName;
+    const teacherEmail =
+      req.body?.teacherEmail != null
+        ? normalizeTeacherEmail(req.body.teacherEmail)
+        : existing.teacherEmail;
     const classroom = await prisma.classroom.update({
       where: { id },
       data: {
         name,
-        teacherName: String(req.body?.teacher ?? req.body?.teacherName ?? existing.teacherName),
-        teacherEmail: String(req.body?.teacherEmail ?? existing.teacherEmail),
+        teacherName,
+        teacherEmail,
         notes: req.body?.notes ?? existing.notes,
         minAgeMonths: req.body?.minAgeMonths ?? existing.minAgeMonths,
         maxAgeMonths: req.body?.maxAgeMonths ?? existing.maxAgeMonths,

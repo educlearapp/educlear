@@ -566,6 +566,195 @@
         }
       },
       "lastLoginAt": null
+    },
+    "cmpdws7wu0001ya0u9325xcet": {
+      "schoolId": "cmojugbly001hxi55qvotd0hd",
+      "firstName": "Maria",
+      "surname": "Da Silva",
+      "appRole": "Custom",
+      "permissions": {
+        "dashboard": {
+          "view": true,
+          "create": false,
+          "edit": false,
+          "delete": false,
+          "print": false,
+          "send": false,
+          "manage": false
+        },
+        "registrations": {
+          "view": false,
+          "create": false,
+          "edit": false,
+          "delete": false,
+          "print": false,
+          "send": false,
+          "manage": false
+        },
+        "learners": {
+          "view": true,
+          "create": false,
+          "edit": false,
+          "delete": false,
+          "print": false,
+          "send": false,
+          "manage": false
+        },
+        "parents": {
+          "view": false,
+          "create": false,
+          "edit": false,
+          "delete": false,
+          "print": false,
+          "send": false,
+          "manage": false
+        },
+        "attendance": {
+          "view": true,
+          "create": true,
+          "edit": true,
+          "delete": false,
+          "print": false,
+          "send": false,
+          "manage": false
+        },
+        "classrooms": {
+          "view": true,
+          "create": false,
+          "edit": false,
+          "delete": false,
+          "print": false,
+          "send": false,
+          "manage": false
+        },
+        "employees": {
+          "view": false,
+          "create": false,
+          "edit": false,
+          "delete": false,
+          "print": false,
+          "send": false,
+          "manage": false
+        },
+        "teachers": {
+          "view": true,
+          "create": false,
+          "edit": false,
+          "delete": false,
+          "print": false,
+          "send": false,
+          "manage": false
+        },
+        "users": {
+          "view": false,
+          "create": false,
+          "edit": false,
+          "delete": false,
+          "print": false,
+          "send": false,
+          "manage": false
+        },
+        "billing": {
+          "view": false,
+          "create": false,
+          "edit": false,
+          "delete": false,
+          "print": false,
+          "send": false,
+          "manage": false
+        },
+        "statements": {
+          "view": false,
+          "create": false,
+          "edit": false,
+          "delete": false,
+          "print": false,
+          "send": false,
+          "manage": false
+        },
+        "payments": {
+          "view": false,
+          "create": false,
+          "edit": false,
+          "delete": false,
+          "print": false,
+          "send": false,
+          "manage": false
+        },
+        "invoices": {
+          "view": false,
+          "create": false,
+          "edit": false,
+          "delete": false,
+          "print": false,
+          "send": false,
+          "manage": false
+        },
+        "invoiceRuns": {
+          "view": false,
+          "create": false,
+          "edit": false,
+          "delete": false,
+          "print": false,
+          "send": false,
+          "manage": false
+        },
+        "billingPlans": {
+          "view": false,
+          "create": false,
+          "edit": false,
+          "delete": false,
+          "print": false,
+          "send": false,
+          "manage": false
+        },
+        "billingDocuments": {
+          "view": false,
+          "create": false,
+          "edit": false,
+          "delete": false,
+          "print": false,
+          "send": false,
+          "manage": false
+        },
+        "legalDocuments": {
+          "view": false,
+          "create": false,
+          "edit": false,
+          "delete": false,
+          "print": false,
+          "send": false,
+          "manage": false
+        },
+        "reports": {
+          "view": true,
+          "create": false,
+          "edit": false,
+          "delete": false,
+          "print": false,
+          "send": false,
+          "manage": false
+        },
+        "payroll": {
+          "view": false,
+          "create": false,
+          "edit": false,
+          "delete": false,
+          "print": false,
+          "send": false,
+          "manage": false
+        },
+        "settings": {
+          "view": false,
+          "create": false,
+          "edit": false,
+          "delete": false,
+          "print": false,
+          "send": false,
+          "manage": false
+        }
+      },
+      "lastLoginAt": null
     }
   }
 }

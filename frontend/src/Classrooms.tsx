@@ -58,6 +58,7 @@ type ClassroomListRow = {
   id: string;
   name: string;
   teacher: string;
+  teacherEmail: string;
   childrenCount: number;
   children?: ChildRow[];
   minAgeMonths: number | null;
@@ -69,6 +70,7 @@ type ClassroomDetail = {
   id: string;
   name: string;
   teacher: string;
+  teacherEmail: string;
   minAgeMonths: number | null;
   maxAgeMonths: number | null;
   notes: string;
@@ -78,6 +80,7 @@ type ClassroomForm = {
   id: string;
   name: string;
   teacher: string;
+  teacherEmail: string;
   minAgeYears: number;
   minAgeMonths: number;
   maxAgeYears: number;
@@ -196,6 +199,7 @@ export default function Classrooms({
     id: "",
     name: "",
     teacher: "",
+    teacherEmail: "",
     minAgeYears: 0,
     minAgeMonths: 0,
     maxAgeYears: 0,
@@ -210,6 +214,7 @@ export default function Classrooms({
   const [addOpen, setAddOpen] = useState(false);
   const [addName, setAddName] = useState("");
   const [addTeacher, setAddTeacher] = useState("");
+  const [addTeacherEmail, setAddTeacherEmail] = useState("");
 
   useEffect(() => {
     console.log("MANAGE FORM", form);
@@ -269,6 +274,7 @@ export default function Classrooms({
                 return v;
               })(),
         teacher: c.teacher || c.teacherName || "",
+        teacherEmail: String(c.teacherEmail || "").trim(),
         children: c.learners || c.children || [],
         childrenCount: c.childrenCount ?? (c.learners?.length || 0),
         minAgeMonths: c.minAgeMonths ?? null,
@@ -309,6 +315,7 @@ export default function Classrooms({
       id: selected.id,
       name: selected.name ?? "",
       teacher: selected.teacher ?? "",
+      teacherEmail: selected.teacherEmail ?? "",
       minAgeYears: (selected as any)?.minAgeYears ?? minParts.years ?? 0,
       minAgeMonths: (selected as any)?.minAgeMonths ?? minParts.months ?? 0,
       maxAgeYears: (selected as any)?.maxAgeYears ?? maxParts.years ?? 0,
@@ -350,11 +357,13 @@ export default function Classrooms({
           schoolId,
           name,
           teacher: addTeacher.trim(),
+          teacherEmail: addTeacherEmail.trim().toLowerCase(),
         }),
       });
       setAddOpen(false);
       setAddName("");
       setAddTeacher("");
+      setAddTeacherEmail("");
       // Reload list and select the created classroom.
       const data = await apiFetch(`/api/classrooms?schoolId=${encodeURIComponent(schoolId)}`);
       const response = { data: Array.isArray(data?.classrooms) ? (data.classrooms as any[]) : [] };
@@ -369,6 +378,7 @@ export default function Classrooms({
                 return v;
               })(),
         teacher: c.teacher || c.teacherName || "",
+        teacherEmail: String(c.teacherEmail || "").trim(),
         children: c.learners || c.children || [],
         childrenCount: c.childrenCount ?? (c.learners?.length || 0),
         minAgeMonths: c.minAgeMonths ?? null,
@@ -568,6 +578,17 @@ export default function Classrooms({
                 <div style={fieldLabelStyle()}>Teacher</div>
                 <input value={addTeacher} onChange={(e) => setAddTeacher(e.target.value)} style={inputStyle()} placeholder="Teacher name" />
               </div>
+              <div style={{ gridColumn: "1 / -1" }}>
+                <div style={fieldLabelStyle()}>Class teacher email</div>
+                <input
+                  value={addTeacherEmail}
+                  onChange={(e) => setAddTeacherEmail(e.target.value)}
+                  style={inputStyle()}
+                  placeholder="teacher@school.com"
+                  type="email"
+                  autoComplete="email"
+                />
+              </div>
             </div>
 
             <div style={{ display: "flex", justifyContent: "flex-end", gap: 10, marginTop: 16 }}>
@@ -622,6 +643,7 @@ function ClassroomManage(props: {
           id: props.initialClassroom.id,
           name: props.initialClassroom.name,
           teacher: props.initialClassroom.teacher ?? "",
+          teacherEmail: props.initialClassroom.teacherEmail ?? "",
           minAgeMonths: props.initialClassroom.minAgeMonths ?? null,
           maxAgeMonths: props.initialClassroom.maxAgeMonths ?? null,
           notes: props.initialClassroom.notes ?? "",
@@ -654,7 +676,8 @@ function ClassroomManage(props: {
         ? ({
             id: String(data.classroom?.id ?? ""),
             name: String(data.classroom?.name ?? ""),
-            teacher: String(data.classroom?.teacher ?? ""),
+            teacher: String(data.classroom?.teacher ?? data.classroom?.teacherName ?? ""),
+            teacherEmail: String(data.classroom?.teacherEmail ?? ""),
             minAgeMonths: data.classroom?.minAgeMonths ?? null,
             maxAgeMonths: data.classroom?.maxAgeMonths ?? null,
             notes: String(data.classroom?.notes ?? ""),
@@ -663,7 +686,8 @@ function ClassroomManage(props: {
           ? ({
               id: String(data?.id ?? ""),
               name: String(data?.name ?? ""),
-              teacher: String(data?.teacher ?? ""),
+              teacher: String(data?.teacher ?? data?.teacherName ?? ""),
+              teacherEmail: String(data?.teacherEmail ?? ""),
               minAgeMonths:
                 typeof data?.minAgeYears === "number" || typeof data?.minAgeMonths === "number"
                   ? partsToMonths(Number(data?.minAgeYears || 0), Number(data?.minAgeMonths || 0))
@@ -688,6 +712,7 @@ function ClassroomManage(props: {
       // IMPORTANT: do not overwrite teacher/children if API payload is incomplete.
       if (c) {
         const apiTeacher = String(c?.teacher ?? "").trim();
+        const apiTeacherEmail = String(c?.teacherEmail ?? "").trim();
         const apiNotes = String(c?.notes ?? "");
 
         const merged: ClassroomForm = { ...props.classroomForm };
@@ -702,6 +727,7 @@ function ClassroomManage(props: {
           merged.name = safeName;
         }
         if (apiTeacher) merged.teacher = apiTeacher;
+        merged.teacherEmail = apiTeacherEmail;
         if (String(apiNotes).trim()) merged.notes = apiNotes;
 
         if (c.minAgeMonths != null) {
@@ -894,6 +920,7 @@ function ClassroomManage(props: {
           schoolId: props.schoolId,
           name: nextName,
           teacher: String(props.classroomForm.teacher ?? ""),
+          teacherEmail: String(props.classroomForm.teacherEmail ?? "").trim().toLowerCase(),
           minAgeYears: props.classroomForm.minAgeYears,
           minAgeExtraMonths: props.classroomForm.minAgeMonths,
           maxAgeYears: props.classroomForm.maxAgeYears,
@@ -906,7 +933,8 @@ function ClassroomManage(props: {
         const updated: ClassroomDetail = {
           id: String(returned.id),
           name: String(returned.name ?? nextName),
-          teacher: String(returned.teacher ?? props.classroomForm.teacher ?? ""),
+          teacher: String(returned.teacher ?? returned.teacherName ?? props.classroomForm.teacher ?? ""),
+          teacherEmail: String(returned.teacherEmail ?? props.classroomForm.teacherEmail ?? ""),
           minAgeMonths:
             returned.minAgeMonths ??
             partsToMonths(props.classroomForm.minAgeYears, props.classroomForm.minAgeMonths),
@@ -921,6 +949,7 @@ function ClassroomManage(props: {
           id: updated.id,
           name: updated.name,
           teacher: updated.teacher,
+          teacherEmail: updated.teacherEmail,
           notes: updated.notes,
         };
         console.log("BEFORE SET FORM:", merged);
@@ -1090,7 +1119,7 @@ function ClassroomManage(props: {
                 style={{ width: "100%", textAlign: "left", padding: "10px 12px", border: 0, background: "transparent", fontWeight: 900, cursor: "pointer" }}
                 onClick={() => {
                   setMenuOpen(false);
-                  const merged: ClassroomForm = { ...props.classroomForm, teacher: "" };
+                  const merged: ClassroomForm = { ...props.classroomForm, teacher: "", teacherEmail: "" };
                   console.log("BEFORE SET FORM:", merged);
                   const selected = classroom;
                   const finalMerged: ClassroomForm = {
@@ -1207,6 +1236,36 @@ function ClassroomManage(props: {
                   props.setClassroomForm(finalMerged);
                 }}
                 style={inputStyle()}
+              />
+            </div>
+            <div style={{ gridColumn: "1 / -1" }}>
+              <div style={fieldLabelStyle()}>Class teacher email</div>
+              <input
+                value={props.classroomForm.teacherEmail}
+                onChange={(e) => {
+                  const merged: ClassroomForm = { ...props.classroomForm, teacherEmail: e.target.value };
+                  console.log("BEFORE SET FORM:", merged);
+                  const selected = classroom;
+                  const finalMerged: ClassroomForm = {
+                    ...merged,
+                    name:
+                      merged?.name &&
+                      merged.name.trim() &&
+                      merged.name !== merged.id &&
+                      merged.name.length < 30
+                        ? merged.name
+                        : (selected?.name || ""),
+                  };
+                  if (finalMerged?.name && finalMerged?.id && finalMerged.name === finalMerged.id) {
+                    console.error("INVALID NAME SOURCE");
+                  }
+                  console.log("FINAL SET FORM:", finalMerged);
+                  props.setClassroomForm(finalMerged);
+                }}
+                style={inputStyle()}
+                placeholder="teacher@school.com"
+                type="email"
+                autoComplete="email"
               />
             </div>
 
@@ -1367,6 +1426,9 @@ function ClassroomManage(props: {
           <div style={{ marginTop: 12, fontWeight: 900, fontSize: 18, color: "#0f172a" }}>{form.name}</div>
           <div style={{ marginTop: 6, color: "#64748b", fontWeight: 800, fontSize: 13 }}>
             Teacher: {form.teacher || "—"}
+          </div>
+          <div style={{ marginTop: 6, color: "#64748b", fontWeight: 800, fontSize: 13 }}>
+            Email: {form.teacherEmail || "—"}
           </div>
           <div style={{ marginTop: 6, color: "#64748b", fontWeight: 800, fontSize: 13 }}>
             Children: {classroomChildren.length}

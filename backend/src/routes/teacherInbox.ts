@@ -32,29 +32,45 @@ function normalizeEmail(email: string) {
   return normalizeStaffEmail(email);
 }
 
+/**
+ * Teacher inbox is staff-JWT only. Teacher email is always taken from the token (normalized)
+ * for non-admin views so it matches `classroom.teacherEmail` / thread records from the parent portal.
+ * Query/body `teacherEmail` is intentionally ignored to prevent spoofing.
+ */
 function resolveInboxFromQuery(req: any):
   | { ok: true; schoolId: string; adminView: boolean; teacherEmail: string }
   | { ok: false; status: number; error: string } {
   const jwtUser = verifyStaffJwt(req.headers.authorization);
+  if (!jwtUser) {
+    const tried = Boolean(
+      typeof req.headers.authorization === "string" && req.headers.authorization.startsWith("Bearer ")
+    );
+    return {
+      ok: false,
+      status: 401,
+      error: tried ? "Invalid or expired session" : "Authentication required",
+    };
+  }
+
   const schoolId = String(req.query.schoolId || "").trim();
   const adminView = String(req.query.adminView || "") === "true";
-  let teacherEmail = normalizeEmail(String(req.query.teacherEmail || ""));
-  if (jwtUser) {
-    if (!schoolId || jwtUser.schoolId !== schoolId) {
-      return { ok: false, status: 403, error: "schoolId mismatch or missing" };
-    }
-    if (adminView) {
-      if (jwtUser.role !== "SCHOOL_ADMIN") {
-        return { ok: false, status: 403, error: "adminView requires school admin token" };
-      }
-    } else {
-      teacherEmail = normalizeEmail(jwtUser.email);
-    }
-  }
   if (!schoolId) return { ok: false, status: 400, error: "schoolId required" };
-  if (!adminView && !teacherEmail) {
-    return { ok: false, status: 400, error: "teacherEmail required" };
+  if (jwtUser.schoolId !== schoolId) {
+    return { ok: false, status: 403, error: "schoolId mismatch or missing" };
   }
+
+  let teacherEmail = "";
+  if (adminView) {
+    if (jwtUser.role !== "SCHOOL_ADMIN") {
+      return { ok: false, status: 403, error: "adminView requires school admin token" };
+    }
+  } else {
+    teacherEmail = normalizeEmail(jwtUser.email);
+    if (!teacherEmail) {
+      return { ok: false, status: 403, error: "Your account has no email on record" };
+    }
+  }
+
   return { ok: true, schoolId, adminView, teacherEmail };
 }
 
@@ -62,25 +78,36 @@ function resolveInboxFromBody(req: any):
   | { ok: true; schoolId: string; adminView: boolean; teacherEmail: string }
   | { ok: false; status: number; error: string } {
   const jwtUser = verifyStaffJwt(req.headers.authorization);
+  if (!jwtUser) {
+    const tried = Boolean(
+      typeof req.headers.authorization === "string" && req.headers.authorization.startsWith("Bearer ")
+    );
+    return {
+      ok: false,
+      status: 401,
+      error: tried ? "Invalid or expired session" : "Authentication required",
+    };
+  }
+
   const schoolId = String(req.body?.schoolId || "").trim();
   const adminView = String(req.body?.adminView || "") === "true";
-  let teacherEmail = normalizeEmail(String(req.body?.teacherEmail || ""));
-  if (jwtUser) {
-    if (!schoolId || jwtUser.schoolId !== schoolId) {
-      return { ok: false, status: 403, error: "schoolId mismatch or missing" };
-    }
-    if (adminView) {
-      if (jwtUser.role !== "SCHOOL_ADMIN") {
-        return { ok: false, status: 403, error: "adminView requires school admin token" };
-      }
-    } else {
-      teacherEmail = normalizeEmail(jwtUser.email);
-    }
-  }
   if (!schoolId) return { ok: false, status: 400, error: "schoolId required" };
-  if (!adminView && !teacherEmail) {
-    return { ok: false, status: 400, error: "teacherEmail required" };
+  if (jwtUser.schoolId !== schoolId) {
+    return { ok: false, status: 403, error: "schoolId mismatch or missing" };
   }
+
+  let teacherEmail = "";
+  if (adminView) {
+    if (jwtUser.role !== "SCHOOL_ADMIN") {
+      return { ok: false, status: 403, error: "adminView requires school admin token" };
+    }
+  } else {
+    teacherEmail = normalizeEmail(jwtUser.email);
+    if (!teacherEmail) {
+      return { ok: false, status: 403, error: "Your account has no email on record" };
+    }
+  }
+
   return { ok: true, schoolId, adminView, teacherEmail };
 }
 

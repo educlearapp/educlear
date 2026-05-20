@@ -1,7 +1,7 @@
 {
   "name": "EduClear Teacher",
   "short_name": "Teacher",
-  "description": "EduClear teacher tools for class communication and homework.",
+  "description": "EduClear Teacher Portal — class communication, homework, and parent messaging on any device.",
   "start_url": "/teacher/home",
   "scope": "/teacher/",
   "display": "standalone",

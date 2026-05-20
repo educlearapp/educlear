@@ -1,5 +1,15 @@
 import { useEffect } from "react";
-import { NavLink, Outlet, useLocation, useNavigate } from "react-router-dom";
+import { NavLink, Navigate, Outlet, useLocation, useNavigate } from "react-router-dom";
+
+const SIDEBAR_LINKS = [
+  { to: "/teacher/home", label: "Dashboard", icon: "🏠", end: true },
+  { to: "/teacher/inbox", label: "Inbox", icon: "✉️" },
+  { to: "/teacher/homework", label: "Homework", icon: "📝" },
+  { to: "/teacher/notices", label: "Notices", icon: "📌" },
+  { to: "/teacher/incidents", label: "Incidents", icon: "⚠️" },
+  { to: "/teacher/documents", label: "Documents", icon: "📎" },
+  { to: "/teacher/learners", label: "Learners", icon: "🎓" },
+] as const;
 
 export default function TeacherShell() {
   const navigate = useNavigate();
@@ -36,60 +46,87 @@ export default function TeacherShell() {
     void navigator.serviceWorker.register("/teacher-sw.js").catch(() => {});
   }, []);
 
-  useEffect(() => {
-    if (!onLogin && (!token || !schoolId)) {
-      navigate("/teacher/login", { replace: true });
-    }
-  }, [onLogin, token, schoolId, navigate]);
+  function logout() {
+    localStorage.removeItem("token");
+    localStorage.removeItem("schoolId");
+    localStorage.removeItem("userEmail");
+    localStorage.removeItem("userName");
+    localStorage.removeItem("userRole");
+    navigate("/teacher/login", { replace: true });
+  }
 
   if (onLogin) {
     return <Outlet />;
   }
 
   if (!token || !schoolId) {
-    return null;
+    return <Navigate to="/teacher/login" replace />;
   }
 
   return (
-    <>
-      <header className="teacher-app-header">
-        <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-          {!onHome && (
-            <button type="button" className="teacher-touch-btn" onClick={() => navigate(-1)} aria-label="Back">
-              ←
-            </button>
-          )}
-          <span className="teacher-app-title">Teacher</span>
+    <div className="teacher-app-layout">
+      <aside className="teacher-app-sidebar" aria-label="Teacher Portal navigation">
+        <p className="teacher-app-sidebar-brand">Teacher Portal</p>
+        <p className="teacher-app-sidebar-tag">EduClear Teacher App</p>
+        <nav className="teacher-app-sidebar-nav">
+          {SIDEBAR_LINKS.map((item) => (
+            <NavLink
+              key={item.to}
+              to={item.to}
+              end={"end" in item ? item.end : false}
+              className={({ isActive }) => (isActive ? "active" : "")}
+            >
+              <span className="nav-icon" aria-hidden>
+                {item.icon}
+              </span>
+              {item.label}
+            </NavLink>
+          ))}
+        </nav>
+        <div className="teacher-app-sidebar-footer">
+          <button type="button" className="teacher-touch-btn" onClick={logout} style={{ width: "100%" }}>
+            Log out
+          </button>
         </div>
-        <button
-          type="button"
-          className="teacher-touch-btn"
-          onClick={() => {
-            localStorage.removeItem("token");
-            localStorage.removeItem("schoolId");
-            navigate("/teacher/login", { replace: true });
-          }}
-        >
-          Log out
-        </button>
-      </header>
-      <main className="teacher-app-main">
-        <Outlet />
-      </main>
-      <nav className="teacher-bottom-nav" aria-label="Teacher navigation">
-        <NavLink to="/teacher/home" className={({ isActive }) => (isActive ? "active" : "")} end>
-          Home
-        </NavLink>
-        <NavLink to="/teacher/inbox" className={({ isActive }) => (isActive ? "active" : "")}>
-          Inbox
-        </NavLink>
-        <NavLink to="/teacher/homework" className={({ isActive }) => (isActive ? "active" : "")}>
-          Homework
-        </NavLink>
-        <NavLink to="/teacher/learners" className={({ isActive }) => (isActive ? "active" : "")}>
-          Learners
-        </NavLink>
-      </nav>
-    </>
+      </aside>
+
+      <div className="teacher-app-body">
+        <header className="teacher-app-header">
+          <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+            {!onHome && (
+              <button
+                type="button"
+                className="teacher-touch-btn icon-only"
+                onClick={() => navigate(-1)}
+                aria-label="Back"
+              >
+                ←
+              </button>
+            )}
+            <span className="teacher-app-title">Teacher Portal</span>
+          </div>
+          <button type="button" className="teacher-touch-btn" onClick={logout}>
+            Log out
+          </button>
+        </header>
+        <main className="teacher-app-main">
+          <Outlet />
+        </main>
+        <nav className="teacher-bottom-nav" aria-label="Teacher navigation">
+          <NavLink to="/teacher/home" className={({ isActive }) => (isActive ? "active" : "")} end>
+            Home
+          </NavLink>
+          <NavLink to="/teacher/inbox" className={({ isActive }) => (isActive ? "active" : "")}>
+            Inbox
+          </NavLink>
+          <NavLink to="/teacher/homework" className={({ isActive }) => (isActive ? "active" : "")}>
+            Homework
+          </NavLink>
+          <NavLink to="/teacher/learners" className={({ isActive }) => (isActive ? "active" : "")}>
+            Learners
+          </NavLink>
+        </nav>
+      </div>
+    </div>
   );
 }

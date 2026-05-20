@@ -158,6 +158,7 @@ router.get("/me", async (req, res) => {
       user: user || { id: userId, email, fullName: null, role },
       school,
       assignedClassNames,
+      assignedClassrooms: classroomsOut,
       classrooms: classroomsOut,
       unreadInbox,
     });
