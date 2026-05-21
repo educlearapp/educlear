@@ -23,7 +23,9 @@ export type BankTransactionMatchStatus =
   | "matched"
   | "unmatched"
   | "duplicate"
-  | "ready_to_post";
+  | "ready_to_post"
+  | "accepted"
+  | "rejected";
 
 export type BankTransactionRow = {
   id: string;
@@ -70,7 +72,14 @@ export type BankImportRecord = {
   schoolId: string;
   fileName: string;
   format: string;
+  bankName?: string;
+  uploadedBy?: string;
   importedAt: string;
+  totalRows?: number;
+  matchedRows?: number;
+  unmatchedRows?: number;
+  duplicateRows?: number;
+  totalAmountImported?: number;
   transactions: BankTransactionRow[];
 };
 
@@ -99,11 +108,13 @@ export type SupplierMatchPayload = {
 export async function importBankStatement(
   schoolId: string,
   file: File,
-  suppliers?: SupplierMatchPayload[]
+  suppliers?: SupplierMatchPayload[],
+  uploadedBy?: string
 ) {
   const form = new FormData();
   form.append("schoolId", schoolId);
   form.append("file", file);
+  if (uploadedBy?.trim()) form.append("uploadedBy", uploadedBy.trim());
   if (suppliers?.length) form.append("suppliers", JSON.stringify(suppliers));
   const res = await fetch(`${BASE}/import`, { method: "POST", body: form });
   return parseJson(res) as Promise<{

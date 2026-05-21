@@ -12,9 +12,11 @@ import {
   readSchoolLedger,
   type BillingLedgerEntry,
 } from "../utils/billingLedgerStore";
-import { parseBankStatementFile } from "../utils/bankStatementParser";
+import { parseBankStatementBuffer } from "../utils/bankParsers";
+import { listInvoices } from "../utils/billingLedgerStore";
 import {
   confidenceFromScore,
+  depositMatchStatusFromScore,
   EXPENSE_CATEGORIES,
   inferExpenseCategory,
   inferSupplierNameFromDescription,
@@ -22,6 +24,7 @@ import {
   matchSupplierFromDescription,
   normaliseBankBlob,
   transactionFingerprint,
+  type BillingInvoiceRef,
   type ExpenseCategory,
   type LearnerMatchProfile,
   type MatchConfidence,
@@ -70,7 +73,14 @@ type BankImportRecord = {
   schoolId: string;
   fileName: string;
   format: string;
+  bankName: string;
+  uploadedBy: string;
   importedAt: string;
+  totalRows: number;
+  matchedRows: number;
+  unmatchedRows: number;
+  duplicateRows: number;
+  totalAmountImported: number;
   transactions: BankTransactionRow[];
 };
 
@@ -176,7 +186,20 @@ function toApiRow(txn: BankTransaction): BankTransactionRow {
 }
 
 function toImportRecord(
-  imp: { id: string; schoolId: string; fileName: string; format: string; importedAt: Date },
+  imp: {
+    id: string;
+    schoolId: string;
+    fileName: string;
+    format: string;
+    bankName?: string;
+    uploadedBy?: string;
+    importedAt: Date;
+    totalRows?: number;
+    matchedRows?: number;
+    unmatchedRows?: number;
+    duplicateRows?: number;
+    totalAmountImported?: number;
+  },
   transactions: BankTransaction[]
 ): BankImportRecord {
   return {
@@ -184,8 +207,57 @@ function toImportRecord(
     schoolId: imp.schoolId,
     fileName: imp.fileName,
     format: imp.format,
+    bankName: String(imp.bankName || "").trim(),
+    uploadedBy: String(imp.uploadedBy || "").trim(),
     importedAt: imp.importedAt.toISOString(),
+    totalRows: imp.totalRows ?? transactions.length,
+    matchedRows: imp.matchedRows ?? 0,
+    unmatchedRows: imp.unmatchedRows ?? 0,
+    duplicateRows: imp.duplicateRows ?? 0,
+    totalAmountImported: normaliseAmount(imp.totalAmountImported ?? 0),
     transactions: transactions.map(toApiRow),
+  };
+}
+
+function buildBillingInvoiceRefs(schoolId: string): BillingInvoiceRef[] {
+  return listInvoices(schoolId).map((inv) => ({
+    learnerId: inv.learnerId,
+    learnerName: "",
+    accountNo: inv.accountNo,
+    familyAccountId: "",
+    reference: String(inv.reference || "").trim(),
+  }));
+}
+
+function summariseImportRows(
+  rows: Array<{
+    moneyIn: number;
+    moneyOut: number;
+    isDuplicate: boolean;
+    matchStatus: BankTransactionMatchStatus;
+  }>
+) {
+  let matchedRows = 0;
+  let unmatchedRows = 0;
+  let duplicateRows = 0;
+  let totalAmountImported = 0;
+
+  for (const row of rows) {
+    totalAmountImported += normaliseAmount(row.moneyIn) + normaliseAmount(row.moneyOut);
+    if (row.isDuplicate || row.matchStatus === "duplicate") {
+      duplicateRows += 1;
+      continue;
+    }
+    if (row.matchStatus === "matched") matchedRows += 1;
+    else unmatchedRows += 1;
+  }
+
+  return {
+    totalRows: rows.length,
+    matchedRows,
+    unmatchedRows,
+    duplicateRows,
+    totalAmountImported,
   };
 }
 
@@ -197,8 +269,7 @@ function deriveInitialMatchStatus(input: {
 }): BankTransactionMatchStatus {
   if (input.isDuplicate) return "duplicate";
   if (input.direction === "in") {
-    if (input.confidenceScore > 0) return "suggested";
-    return "imported";
+    return depositMatchStatusFromScore(input.confidenceScore, false);
   }
   if (input.expenseCategory && input.expenseCategory !== "Other") return "matched";
   return "imported";
@@ -206,19 +277,16 @@ function deriveInitialMatchStatus(input: {
 
 function syncMatchStatus(row: BankTransactionRow): BankTransactionMatchStatus {
   if (row.isDuplicate || row.matchStatus === "duplicate") return "duplicate";
-  if (row.reviewStatus === "posted") return row.matchStatus === "ready_to_post" ? "ready_to_post" : row.matchStatus;
-  if (row.reviewStatus === "unmatched") return "unmatched";
+  if (row.reviewStatus === "posted") {
+    return row.matchStatus === "ready_to_post" ? "ready_to_post" : row.matchStatus;
+  }
+  if (row.reviewStatus === "accepted") return "accepted";
+  if (row.reviewStatus === "unmatched") return "rejected";
 
   const type = txnTypeFromRow(row);
 
-  if (row.reviewStatus === "accepted" && row.direction === "in" && type === "payment") {
-    if (row.suggestedLearnerId && row.confidenceScore >= 50) return "ready_to_post";
-    return "matched";
-  }
-
   if (row.direction === "in" && type === "payment" && row.reviewStatus === "pending") {
-    if (row.confidenceScore > 0 && row.suggestedLearnerId) return "suggested";
-    if (row.confidenceScore === 0) return "imported";
+    return depositMatchStatusFromScore(row.confidenceScore, false);
   }
 
   if (row.direction === "out" && type === "expense" && row.expenseCategory && row.expenseCategory !== "Other") {
@@ -478,11 +546,20 @@ router.post("/import", upload.single("file"), async (req, res) => {
     if (!schoolId) return res.status(400).json({ success: false, error: "Missing schoolId" });
     if (!req.file) return res.status(400).json({ success: false, error: "Missing bank statement file" });
 
-    const parsed = parseBankStatementFile(req.file.buffer, req.file.originalname, req.file.mimetype);
+    const parsed = parseBankStatementBuffer(
+      req.file.buffer,
+      req.file.originalname,
+      req.file.mimetype
+    );
     if (!parsed.ok) return res.status(400).json({ success: false, error: parsed.error });
+
+    const uploadedBy = String(req.body?.uploadedBy || req.body?.createdBy || "").trim();
+    const bankName = String(parsed.bankName || "").trim();
+    const importFormat = parsed.parserId || parsed.format;
 
     const profiles = await buildMatchProfiles(schoolId);
     const previousMatches = await loadPreviousBankMatches(schoolId);
+    const invoiceRefs = buildBillingInvoiceRefs(schoolId);
 
     const dbSuppliers = await prisma.supplier.findMany({
       where: { schoolId, status: "active" },
@@ -530,7 +607,7 @@ router.post("/import", upload.single("file"), async (req, res) => {
 
     for (const txn of parsed.transactions) {
       const direction: "in" | "out" = txn.moneyIn > 0 ? "in" : "out";
-      const fingerprint = transactionFingerprint(txn);
+      const fingerprint = transactionFingerprint(schoolId, txn);
       const duplicateInBatch = seenInBatch.has(fingerprint);
       seenInBatch.add(fingerprint);
       const isDuplicate =
@@ -538,7 +615,7 @@ router.post("/import", upload.single("file"), async (req, res) => {
 
       const suggestion =
         direction === "in"
-          ? matchBankTransaction(txn, profiles, previousMatches)
+          ? matchBankTransaction(txn, profiles, previousMatches, invoiceRefs)
           : {
               suggestedAccountId: "",
               suggestedAccountNo: "",
@@ -634,12 +711,28 @@ router.post("/import", upload.single("file"), async (req, res) => {
       });
     }
 
+    const batchSummary = summariseImportRows(
+      createRows.map((r) => ({
+        moneyIn: normaliseAmount(r.moneyIn ?? 0),
+        moneyOut: normaliseAmount(r.moneyOut ?? 0),
+        isDuplicate: Boolean(r.isDuplicate),
+        matchStatus: r.matchStatus as BankTransactionMatchStatus,
+      }))
+    );
+
     const importRecord = await prisma.bankStatementImport.create({
       data: {
         id: newId("import"),
         schoolId,
         fileName: req.file.originalname,
-        format: parsed.format,
+        format: importFormat,
+        bankName,
+        uploadedBy,
+        totalRows: batchSummary.totalRows,
+        matchedRows: batchSummary.matchedRows,
+        unmatchedRows: batchSummary.unmatchedRows,
+        duplicateRows: batchSummary.duplicateRows,
+        totalAmountImported: batchSummary.totalAmountImported,
         transactions: {
           create: createRows,
         },
@@ -731,6 +824,7 @@ router.patch("/imports/:id/transaction/:transactionId", async (req, res) => {
     const matchAction = String(body.matchAction || "").trim();
     if (matchAction === "accept") {
       next.reviewStatus = "accepted";
+      next.matchStatus = "accepted";
       if (
         next.direction === "in" &&
         txnTypeFromRow(next) === "payment" &&
@@ -748,6 +842,7 @@ router.patch("/imports/:id/transaction/:transactionId", async (req, res) => {
       }
     } else if (matchAction === "reject") {
       next.reviewStatus = "unmatched";
+      next.matchStatus = "rejected";
     } else if (body.reviewStatus) {
       const status = String(body.reviewStatus) as BankTransactionRow["reviewStatus"];
       if (["pending", "accepted", "unmatched", "ignored"].includes(status)) {

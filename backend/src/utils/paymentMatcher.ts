@@ -27,6 +27,15 @@ export type PreviousBankMatch = {
   familyAccountId: string;
 };
 
+/** Open billing invoice / account reference for deposit matching. */
+export type BillingInvoiceRef = {
+  learnerId: string;
+  learnerName: string;
+  accountNo: string;
+  familyAccountId: string;
+  reference: string;
+};
+
 export type MatchSuggestion = {
   suggestedAccountId: string;
   suggestedAccountNo: string;
@@ -103,9 +112,53 @@ function matchByAccountNumber(
     if (accountNumberInBankLine(blob, account)) {
       return buildSuggestion(
         profile,
-        95,
-        `Exact account reference ${account} found in bank line`
+        100,
+        `Exact account number ${account} found in bank line`
       );
+    }
+  }
+  return null;
+}
+
+function invoiceRefInBlob(blob: string, reference: string) {
+  const ref = normaliseText(reference).replace(/\s+/g, " ").trim();
+  if (ref.length < 4) return false;
+  return blob.includes(ref);
+}
+
+function matchByInvoiceReference(
+  blob: string,
+  profiles: LearnerMatchProfile[],
+  invoiceRefs: BillingInvoiceRef[]
+): MatchSuggestion | null {
+  const sorted = [...invoiceRefs].sort(
+    (a, b) => (b.reference?.length || 0) - (a.reference?.length || 0)
+  );
+  for (const inv of sorted) {
+    const ref = String(inv.reference || "").trim();
+    if (!ref || !invoiceRefInBlob(blob, ref)) continue;
+    const profile = profiles.find(
+      (p) =>
+        p.learnerId === inv.learnerId ||
+        (inv.accountNo && p.accountNo === inv.accountNo)
+    );
+    if (profile) {
+      return buildSuggestion(
+        profile,
+        90,
+        `Invoice / account reference ${ref} matched in bank line`
+      );
+    }
+    if (inv.learnerId && inv.accountNo) {
+      return {
+        suggestedAccountId: inv.familyAccountId,
+        suggestedAccountNo: inv.accountNo,
+        suggestedLearnerId: inv.learnerId,
+        suggestedLearnerName: inv.learnerName,
+        confidenceScore: 90,
+        matchConfidence: confidenceFromScore(90),
+        matchReason: `Invoice / account reference ${ref} matched in bank line`,
+      };
     }
   }
   return null;
@@ -142,10 +195,30 @@ function cellInBlob(blob: string, cellNo: string) {
   return hay.includes(needle) || normaliseCellDigits(blob).includes(needle);
 }
 
+function matchByLearnerFullName(blob: string, profiles: LearnerMatchProfile[]): MatchSuggestion | null {
+  for (const profile of profiles) {
+    if (fullNameInBlob(blob, profile.learnerName)) {
+      return buildSuggestion(profile, 75, "Learner full name matched in bank line");
+    }
+  }
+  return null;
+}
+
+function matchByParentFullName(blob: string, profiles: LearnerMatchProfile[]): MatchSuggestion | null {
+  for (const profile of profiles) {
+    for (const parentName of profile.parentNames) {
+      if (fullNameInBlob(blob, parentName)) {
+        return buildSuggestion(profile, 65, "Parent full name matched in bank line");
+      }
+    }
+  }
+  return null;
+}
+
 function matchByLearnerSurname(blob: string, profiles: LearnerMatchProfile[]): MatchSuggestion | null {
   for (const profile of profiles) {
     if (surnameInBlob(blob, profile.learnerSurname)) {
-      return buildSuggestion(profile, 80, "Learner surname matched in bank line");
+      return buildSuggestion(profile, 58, "Learner surname matched in bank line");
     }
   }
   return null;
@@ -155,17 +228,8 @@ function matchByParentSurname(blob: string, profiles: LearnerMatchProfile[]): Ma
   for (const profile of profiles) {
     for (const surname of profile.parentSurnames) {
       if (surnameInBlob(blob, surname)) {
-        return buildSuggestion(profile, 75, "Parent surname matched in bank line");
+        return buildSuggestion(profile, 55, "Parent surname matched in bank line");
       }
-    }
-  }
-  return null;
-}
-
-function matchByLearnerFullName(blob: string, profiles: LearnerMatchProfile[]): MatchSuggestion | null {
-  for (const profile of profiles) {
-    if (fullNameInBlob(blob, profile.learnerName)) {
-      return buildSuggestion(profile, 70, "Learner full name matched in bank line");
     }
   }
   return null;
@@ -203,19 +267,23 @@ function matchByPreviousMatches(
   return null;
 }
 
-export function transactionFingerprint(input: {
-  date: string;
-  description: string;
-  reference: string;
-  moneyIn: number;
-  moneyOut: number;
-}) {
+export function transactionFingerprint(
+  schoolId: string,
+  input: {
+    date: string;
+    description: string;
+    reference: string;
+    moneyIn: number;
+    moneyOut: number;
+  }
+) {
   const amount = input.moneyIn || input.moneyOut;
   return [
+    String(schoolId || "").trim(),
     input.date,
     amount.toFixed(2),
-    normaliseText(input.description).replace(/\s+/g, " ").trim(),
     normaliseText(input.reference).replace(/\s+/g, " ").trim(),
+    normaliseText(input.description).replace(/\s+/g, " ").trim(),
   ].join("|");
 }
 
@@ -226,21 +294,28 @@ export function transactionFingerprint(input: {
 export function matchBankTransaction(
   txn: { description: string; reference: string; moneyIn: number; moneyOut: number },
   profiles: LearnerMatchProfile[],
-  previousMatches: PreviousBankMatch[] = []
+  previousMatches: PreviousBankMatch[] = [],
+  invoiceRefs: BillingInvoiceRef[] = []
 ): MatchSuggestion {
   const blob = normaliseBankBlob(txn.description, txn.reference);
 
   const accountHit = matchByAccountNumber(blob, profiles);
   if (accountHit) return accountHit;
 
+  const invoiceHit = matchByInvoiceReference(blob, profiles, invoiceRefs);
+  if (invoiceHit) return invoiceHit;
+
+  const fullNameHit = matchByLearnerFullName(blob, profiles);
+  if (fullNameHit) return fullNameHit;
+
+  const parentNameHit = matchByParentFullName(blob, profiles);
+  if (parentNameHit) return parentNameHit;
+
   const learnerSurnameHit = matchByLearnerSurname(blob, profiles);
   if (learnerSurnameHit) return learnerSurnameHit;
 
   const parentSurnameHit = matchByParentSurname(blob, profiles);
   if (parentSurnameHit) return parentSurnameHit;
-
-  const fullNameHit = matchByLearnerFullName(blob, profiles);
-  if (fullNameHit) return fullNameHit;
 
   const cellHit = matchByParentCell(blob, profiles);
   if (cellHit) return cellHit;
@@ -249,6 +324,17 @@ export function matchBankTransaction(
   if (previousHit) return previousHit;
 
   return { ...EMPTY_SUGGESTION };
+}
+
+/** Map confidence score to initial review-queue status (deposits only). */
+export function depositMatchStatusFromScore(
+  confidenceScore: number,
+  isDuplicate: boolean
+): "duplicate" | "matched" | "suggested" | "unmatched" {
+  if (isDuplicate) return "duplicate";
+  if (confidenceScore >= 90) return "matched";
+  if (confidenceScore >= 60) return "suggested";
+  return "unmatched";
 }
 
 export const EXPENSE_CATEGORIES = [

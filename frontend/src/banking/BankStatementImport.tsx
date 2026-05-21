@@ -58,6 +58,15 @@ type Props = {
 
 type TabId = "import" | "review" | "payments" | "expenses" | "unmatched" | "history";
 
+type QueueFilter =
+  | "all"
+  | "matched"
+  | "suggested"
+  | "unmatched"
+  | "duplicate"
+  | "accepted"
+  | "rejected";
+
 const PAGE_SIZE = 10;
 const GOLD = ACCOUNTING_GOLD;
 const INK = ACCOUNTING_INK;
@@ -172,6 +181,7 @@ export default function BankStatementImport({ schoolId, learners }: Props) {
   const [expensesPage, setExpensesPage] = useState(1);
   const [unmatchedPage, setUnmatchedPage] = useState(1);
   const [historyPage, setHistoryPage] = useState(1);
+  const [queueFilter, setQueueFilter] = useState<QueueFilter>("all");
 
   const [typeModal, setTypeModal] = useState<BankTransactionRow | null>(null);
   const [editModal, setEditModal] = useState<BankTransactionRow | null>(null);
@@ -265,7 +275,8 @@ export default function BankStatementImport({ schoolId, learners }: Props) {
     setMessage("");
     try {
       const suppliers = await refreshSuppliersForMatching(schoolId);
-      const res = await importBankStatement(schoolId, file, suppliers);
+      const uploadedBy = localStorage.getItem("userEmail") || "";
+      const res = await importBankStatement(schoolId, file, suppliers, uploadedBy);
       setActiveImport(res.import);
       setAccountingNote(res.accountingNote);
       setMessage(`Parsed ${res.import.transactions.length} transaction(s) from ${res.import.format.toUpperCase()}.`);
@@ -506,11 +517,28 @@ export default function BankStatementImport({ schoolId, learners }: Props) {
   };
 
   const allTxns = activeImport?.transactions || [];
+
+  const matchesQueueFilter = (txn: BankTransactionRow, filter: QueueFilter): boolean => {
+    if (filter === "all") return true;
+    if (filter === "duplicate") return Boolean(txn.isDuplicate) || txn.matchStatus === "duplicate";
+    if (filter === "accepted") {
+      return txn.reviewStatus === "accepted" || txn.matchStatus === "accepted";
+    }
+    if (filter === "rejected") {
+      return txn.reviewStatus === "unmatched" || txn.matchStatus === "rejected";
+    }
+    if (filter === "matched") return txn.matchStatus === "matched";
+    if (filter === "suggested") return txn.matchStatus === "suggested";
+    if (filter === "unmatched") return isUnmatchedTxn(txn);
+    return true;
+  };
+
+  const filteredReviewTxns = allTxns.filter((t) => matchesQueueFilter(t, queueFilter));
   const paymentRows = allTxns.filter((t) => t.direction === "in" && txnType(t) === "payment");
   const expenseRows = allTxns.filter((t) => t.direction === "out" && txnType(t) === "expense");
   const unmatchedRows = allTxns.filter(isUnmatchedTxn);
 
-  const reviewPaged = paginate(allTxns, reviewPage, PAGE_SIZE);
+  const reviewPaged = paginate(filteredReviewTxns, reviewPage, PAGE_SIZE);
   const paymentsPaged = paginate(paymentRows, paymentsPage, PAGE_SIZE);
   const expensesPaged = paginate(expenseRows, expensesPage, PAGE_SIZE);
   const unmatchedPaged = paginate(unmatchedRows, unmatchedPage, PAGE_SIZE);
@@ -711,6 +739,34 @@ export default function BankStatementImport({ schoolId, learners }: Props) {
         </div>
       ) : null}
 
+      {activeImport ? (
+        <div
+          style={{
+            display: "grid",
+            gridTemplateColumns: "repeat(auto-fill, minmax(140px, 1fr))",
+            gap: 12,
+            marginBottom: 16,
+          }}
+        >
+          {[
+            { label: "Total rows", value: activeImport.totalRows ?? allTxns.length },
+            { label: "Matched", value: activeImport.matchedRows ?? stats.matchedPayments },
+            { label: "Unmatched", value: activeImport.unmatchedRows ?? stats.unmatched },
+            { label: "Duplicates", value: activeImport.duplicateRows ?? stats.duplicateLines },
+            {
+              label: "Amount imported",
+              value: formatMoney(activeImport.totalAmountImported ?? 0),
+            },
+            { label: "Ready to post", value: stats.readyToPost },
+          ].map((card) => (
+            <div key={card.label} style={accountingCard}>
+              <div style={accountingCardLabel}>{card.label}</div>
+              <div style={accountingCardValue}>{card.value}</div>
+            </div>
+          ))}
+        </div>
+      ) : null}
+
       <div
         style={{
           display: "grid",
@@ -756,7 +812,8 @@ export default function BankStatementImport({ schoolId, learners }: Props) {
         <div style={{ ...accountingCard, marginBottom: 16 }}>
           <h3 style={{ marginTop: 0, color: INK }}>Upload bank statement</h3>
           <p style={{ color: "#64748b", fontSize: 13, marginTop: 0 }}>
-            CSV or OFX · incoming payments post to Billing when you accept and post · duplicate protection enabled
+            CSV or OFX (Generic, Standard Bank, FNB, TymeBank auto-detect) · accept matches then post to Billing ·
+            duplicate lines are never posted twice
           </p>
           <input
             type="file"
@@ -821,8 +878,37 @@ export default function BankStatementImport({ schoolId, learners }: Props) {
           ) : (
             <>
               <p style={{ color: "#64748b", fontSize: 13, fontWeight: 600 }}>
-                {activeImport.fileName} · {allTxns.length} line(s)
+                {activeImport.fileName}
+                {activeImport.bankName ? ` · ${activeImport.bankName}` : ""}
+                {activeImport.uploadedBy ? ` · uploaded by ${activeImport.uploadedBy}` : ""}
+                {" · "}
+                {allTxns.length} line(s)
               </p>
+              <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginBottom: 12 }}>
+                {(
+                  [
+                    ["all", "All"],
+                    ["matched", "Matched"],
+                    ["suggested", "Suggested"],
+                    ["unmatched", "Unmatched"],
+                    ["duplicate", "Duplicate"],
+                    ["accepted", "Accepted"],
+                    ["rejected", "Rejected"],
+                  ] as [QueueFilter, string][]
+                ).map(([id, label]) => (
+                  <button
+                    key={id}
+                    type="button"
+                    style={tabBtn(queueFilter === id)}
+                    onClick={() => {
+                      setQueueFilter(id);
+                      setReviewPage(1);
+                    }}
+                  >
+                    {label}
+                  </button>
+                ))}
+              </div>
               <div style={{ overflowX: "auto" }}>{renderReconciliationTable(reviewPaged.rows)}</div>
               <PaginationBar
                 page={reviewPaged.page}
@@ -905,8 +991,18 @@ export default function BankStatementImport({ schoolId, learners }: Props) {
           <table style={{ width: "100%", borderCollapse: "collapse", minWidth: 900, background: "#fff" }}>
             <thead>
               <tr>
-                {["Date", "File", "Transactions", "Payments matched", "Expenses matched", "Unmatched", "Status", "Actions"].map(
-                  (h) => (
+                {[
+                  "Date",
+                  "File",
+                  "Bank",
+                  "Rows",
+                  "Matched",
+                  "Unmatched",
+                  "Duplicates",
+                  "Amount",
+                  "Status",
+                  "Actions",
+                ].map((h) => (
                     <th key={h} style={th}>
                       {h}
                     </th>
@@ -917,21 +1013,24 @@ export default function BankStatementImport({ schoolId, learners }: Props) {
             <tbody>
               {historyPaged.rows.length === 0 ? (
                 <tr>
-                  <td colSpan={8} style={{ ...td, textAlign: "center", color: "#64748b" }}>
+                  <td colSpan={10} style={{ ...td, textAlign: "center", color: "#64748b" }}>
                     No imports yet.
                   </td>
                 </tr>
               ) : (
                 historyPaged.rows.map((imp) => {
                   const sum = importSummary(imp);
+                  const rowCount = imp.totalRows ?? imp.transactions.length;
                   return (
                     <tr key={imp.id}>
                       <td style={td}>{imp.importedAt.slice(0, 10)}</td>
                       <td style={td}>{imp.fileName}</td>
-                      <td style={td}>{imp.transactions.length}</td>
-                      <td style={td}>{sum.paymentsMatched}</td>
-                      <td style={td}>{sum.expensesMatched}</td>
-                      <td style={td}>{sum.unmatched}</td>
+                      <td style={td}>{imp.bankName || imp.format || "—"}</td>
+                      <td style={td}>{rowCount}</td>
+                      <td style={td}>{imp.matchedRows ?? sum.paymentsMatched}</td>
+                      <td style={td}>{imp.unmatchedRows ?? sum.unmatched}</td>
+                      <td style={td}>{imp.duplicateRows ?? 0}</td>
+                      <td style={td}>{formatMoney(imp.totalAmountImported ?? 0)}</td>
                       <td style={td}>
                         <span style={statusPillStyle(sum.status.toLowerCase())}>{sum.status}</span>
                       </td>

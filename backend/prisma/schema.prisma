@@ -132,6 +132,8 @@ enum BankTransactionMatchStatus {
   unmatched
   duplicate
   ready_to_post
+  accepted
+  rejected
 }
 
 model BillingSettings {
@@ -2023,11 +2025,18 @@ model BillingDepositHistoryEntry {
 }
 
 model BankStatementImport {
-  id         String   @id @default(cuid())
-  schoolId   String
-  fileName   String
-  format     String
-  importedAt DateTime @default(now())
+  id                  String   @id @default(cuid())
+  schoolId            String
+  fileName            String
+  format              String
+  bankName            String   @default("")
+  uploadedBy          String   @default("")
+  importedAt          DateTime @default(now())
+  totalRows           Int      @default(0)
+  matchedRows         Int      @default(0)
+  unmatchedRows       Int      @default(0)
+  duplicateRows       Int      @default(0)
+  totalAmountImported Float    @default(0)
 
   school       School            @relation(fields: [schoolId], references: [id], onDelete: Cascade)
   transactions BankTransaction[]

@@ -12,9 +12,10 @@ export default function AccountingBanking({ schoolId, learners }: Props) {
     <div>
       <div style={{ ...accountingPageWrap, paddingBottom: 0 }}>
         <div style={{ borderBottom: `2px solid ${ACCOUNTING_GOLD}`, paddingBottom: 14, marginBottom: 8 }}>
-          <h1 style={{ ...accountingTitle, fontSize: 26 }}>Banking</h1>
+          <h1 style={{ ...accountingTitle, fontSize: 26 }}>Bank Reconciliation</h1>
           <p style={accountingSubtitle}>
-            Import bank statements, reconcile payments, classify expenses, and prepare accounting entries.
+            Import bank statements, review the match queue, accept payments, and post to Billing — with duplicate
+            protection and import history per batch.
           </p>
         </div>
       </div>

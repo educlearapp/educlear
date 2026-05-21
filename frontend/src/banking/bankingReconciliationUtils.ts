@@ -105,18 +105,25 @@ export function hasSuggestedPaymentMatch(txn: BankTransactionRow): boolean {
     type === "payment" &&
     txn.direction === "in" &&
     txn.reviewStatus === "pending" &&
+    !txn.isDuplicate &&
+    txn.matchStatus !== "duplicate" &&
+    txn.matchStatus !== "accepted" &&
+    txn.matchStatus !== "rejected" &&
     (txn.matchStatus === "suggested" ||
-      (txn.confidenceScore > 0 &&
+      txn.matchStatus === "matched" ||
+      (txn.confidenceScore >= 60 &&
         (!!txn.suggestedLearnerId || !!txn.suggestedAccountNo)))
   );
 }
 
 export function isUnmatchedTxn(txn: BankTransactionRow): boolean {
-  if (txn.reviewStatus === "unmatched" || txn.matchStatus === "unmatched") return true;
+  if (txn.reviewStatus === "unmatched" || txn.matchStatus === "unmatched" || txn.matchStatus === "rejected") {
+    return true;
+  }
   if (txn.reviewStatus === "ignored" || txn.reviewStatus === "posted") return false;
   const type = txnType(txn);
   if (type === "payment" && txn.direction === "in") {
-    return txn.matchStatus === "imported" || txn.confidenceScore === 0;
+    return txn.matchStatus === "imported" || txn.confidenceScore < 60;
   }
   if (type === "expense" && txn.direction === "out") {
     return !txn.expenseCategory || txn.expenseCategory === "Other";
@@ -242,6 +249,7 @@ export function statusPillStyle(status: string): React.CSSProperties {
   }
   if (status === "suggested") return { ...base, background: "#fef9c3", color: "#854d0e" };
   if (status === "ignored") return { ...base, background: "#f1f5f9", color: "#64748b" };
+  if (status === "rejected") return { ...base, background: "#fee2e2", color: "#991b1b" };
   if (status === "unmatched") return { ...base, background: "#fef3c7", color: "#92400e" };
   if (status === "duplicate") return { ...base, background: "#fffbeb", color: "#b45309" };
   return { ...base, background: "#e0e7ff", color: "#3730a3" };
