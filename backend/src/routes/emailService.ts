@@ -1,145 +1,34 @@
-import nodemailer from "nodemailer";
+import {
+  buildSetupRequiredPayload,
+  isSchoolEmailConfigured,
+  sendSchoolEmail,
+  type SendSchoolEmailInput,
+} from "../services/schoolEmailService";
 
-
-
-type SendEmailWithAttachmentInput = {
-
-
-
-  to: string;
-
-
-
-  subject: string;
-
-
-
-  html: string;
-
-
-
-  attachments?: {
-
-
-
-    filename: string;
-
-
-
-    content: Buffer | string;
-
-
-
-    contentType?: string;
-
-
-
-  }[];
-
-
-
+export type SendEmailWithAttachmentInput = SendSchoolEmailInput & {
+  schoolId: string;
 };
 
-
-
+/**
+ * Sends billing/statement mail using the school's saved SMTP settings (scoped by schoolId).
+ */
 export async function sendEmailWithAttachment(input: SendEmailWithAttachmentInput) {
-
-
-
-  const host = process.env.SMTP_HOST;
-
-
-
-  const port = Number(process.env.SMTP_PORT || 587);
-
-
-
-  const user = process.env.SMTP_USER;
-
-
-
-  const pass = process.env.SMTP_PASS;
-
-
-
-  const from = process.env.SMTP_FROM || user;
-
-
-
-  if (!host || !user || !pass || !from) {
-
-
-
-    throw new Error("SMTP settings missing. Check SMTP_HOST, SMTP_PORT, SMTP_USER, SMTP_PASS, SMTP_FROM.");
-
-
-
+  const schoolId = String(input.schoolId || "").trim();
+  if (!schoolId) {
+    throw new Error("Missing schoolId for email delivery.");
   }
 
+  if (!(await isSchoolEmailConfigured(schoolId))) {
+    const payload = buildSetupRequiredPayload();
+    const err = new Error(payload.error) as Error & { setupRequired?: boolean };
+    err.setupRequired = true;
+    throw err;
+  }
 
-
-  const transporter = nodemailer.createTransport({
-
-
-
-    host,
-
-
-
-    port,
-
-
-
-    secure: port === 465,
-
-
-
-    auth: {
-
-
-
-      user,
-
-
-
-      pass,
-
-
-
-    },
-
-
-
-  });
-
-
-
-  return transporter.sendMail({
-
-
-
-    from,
-
-
-
+  return sendSchoolEmail(schoolId, {
     to: input.to,
-
-
-
     subject: input.subject,
-
-
-
     html: input.html,
-
-
-
-    attachments: input.attachments || [],
-
-
-
+    attachments: input.attachments,
   });
-
-
-
 }

@@ -34,6 +34,7 @@ import {
   getAccountLedger,
 } from "./billingLedger";
 import { syncBillingLedgerFromApi } from "./billingApi";
+import { buildStatementCoverEmailHtml, sendStatementEmail, resolveSchoolLogoUrl } from "./statementDocument";
 
 
 
@@ -2837,6 +2838,12 @@ export default function InvoiceRuns(props: any) {
 
 
 
+    const schoolId = localStorage.getItem("schoolId") || "";
+    if (!schoolId) {
+      alert("School context missing. Please sign in again.");
+      return;
+    }
+
     setStatementEmailSending(true);
 
 
@@ -2849,43 +2856,41 @@ export default function InvoiceRuns(props: any) {
 
 
 
-        const statementHtml = buildStatementHtml(row);
-
-
-
-        const pdfBase64 = htmlToBase64(statementHtml);
-
-
-
-        const emailHtml = `<div style="font-family:Arial,sans-serif;line-height:1.5">${String(
-          statementEmailMessage || ""
-        )
-          .split("\n")
-          .map((line) => `<p style="margin:0 0 8px">${line}</p>`)
-          .join("")}</div>`;
-
-        const response = await fetch(`${API_URL}/api/emails/send-statement`, {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
+        const emailHtml = buildStatementCoverEmailHtml({
+          school: {
+            name: schoolName,
+            email: schoolEmail,
+            phone: schoolPhone,
+            logoUrl: resolveSchoolLogoUrl(props?.school || props?.selectedSchool),
           },
-          body: JSON.stringify({
+          messagePlain: statementEmailMessage || "",
+        });
+
+        try {
+          const rowLearnerId = String(row.id || row.learnerId || "").trim();
+          if (!rowLearnerId) {
+            throw new Error(`Missing learner id for ${row.learnerName || "learner"}`);
+          }
+          await sendStatementEmail({
+            schoolId,
             to: row.parentEmail,
             subject:
               statementEmailRows.length === 1
                 ? statementEmailSubject
                 : `${schoolName} Statement - ${row.learnerName}`,
             html: emailHtml,
-            pdfBase64,
-            filename: `${row.learnerName || "learner"}-statement.pdf`,
-          }),
-        });
-
-        if (!response.ok) {
-          const errBody = await response.json().catch(() => ({}));
-          throw new Error(
-            String((errBody as { error?: string })?.error || `Email failed (${response.status})`)
-          );
+            learnerId: rowLearnerId,
+            period: "All Time",
+          });
+        } catch (sendErr: unknown) {
+          const err = sendErr as Error & { setupRequired?: boolean };
+          if (err.setupRequired) {
+            throw new Error(
+              err.message ||
+                "Email setup required. Open Communication → Email (SMTP), save settings, and send a test email."
+            );
+          }
+          throw new Error(err.message || "Failed to send statement email");
         }
 
 
@@ -2910,7 +2915,11 @@ export default function InvoiceRuns(props: any) {
 
 
 
-      alert("Email sending failed. Please check the backend email endpoint.");
+      const msg =
+        error instanceof Error
+          ? error.message
+          : "Email sending failed. Configure SMTP under Communication → Email (SMTP).";
+      alert(msg);
 
 
 

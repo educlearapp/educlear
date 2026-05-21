@@ -1,0 +1,160 @@
+.parent-form-panel {
+  border-radius: 14px;
+  border: 1px solid rgba(15, 23, 42, 0.1);
+  background: linear-gradient(180deg, rgba(212, 175, 55, 0.06) 0%, #ffffff 100%);
+  overflow: hidden;
+}
+
+.parent-form-panel__head {
+  padding: 14px 18px 0;
+}
+
+.parent-form-panel__title {
+  margin: 0 0 12px;
+  font-size: 16px;
+  font-weight: 900;
+  color: #0a0a0a;
+}
+
+.parent-form-panel__tabs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0;
+  border-bottom: 1px solid rgba(15, 23, 42, 0.1);
+  background: #f1f5f9;
+}
+
+.parent-form-panel__tab {
+  padding: 11px 16px;
+  border: none;
+  border-right: 1px solid rgba(15, 23, 42, 0.08);
+  background: transparent;
+  color: #64748b;
+  font-size: 13px;
+  font-weight: 800;
+  font-family: inherit;
+  cursor: pointer;
+  border-top: 4px solid transparent;
+  transition: background 0.15s ease, color 0.15s ease;
+}
+
+.parent-form-panel__tab:hover {
+  color: #0f172a;
+  background: rgba(255, 255, 255, 0.6);
+}
+
+.parent-form-panel__tab--active {
+  background: #ffffff;
+  color: #0f172a;
+  border-top-color: #d4af37;
+}
+
+.parent-form-panel__body {
+  padding: 20px 18px 18px;
+}
+
+.parent-form-panel__grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 16px 18px;
+}
+
+.parent-form-panel__grid--3 {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.parent-form-panel__field--full {
+  grid-column: 1 / -1;
+}
+
+.parent-form-panel__label {
+  display: block;
+  margin-bottom: 7px;
+  font-size: 13px;
+  font-weight: 700;
+  color: #0f172a;
+}
+
+.parent-form-panel__input,
+.parent-form-panel__select,
+.parent-form-panel__textarea {
+  width: 100%;
+  box-sizing: border-box;
+  font-family: inherit;
+  font-size: 14px;
+  color: #0f172a;
+  border-radius: 10px;
+  border: 1px solid rgba(15, 23, 42, 0.14);
+  background: #ffffff;
+  transition: border-color 0.2s ease, box-shadow 0.2s ease;
+}
+
+.parent-form-panel__input,
+.parent-form-panel__select {
+  height: 44px;
+  padding: 0 14px;
+}
+
+.parent-form-panel__textarea {
+  min-height: 88px;
+  padding: 12px 14px;
+  resize: vertical;
+}
+
+.parent-form-panel__input:focus,
+.parent-form-panel__select:focus,
+.parent-form-panel__textarea:focus {
+  outline: none;
+  border-color: #d4af37;
+  box-shadow: 0 0 0 3px rgba(212, 175, 55, 0.22);
+}
+
+.parent-form-panel__checks {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px 16px;
+}
+
+.parent-form-panel__check {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 13px;
+  font-weight: 700;
+  color: #334155;
+  cursor: pointer;
+}
+
+.parent-form-panel__check input {
+  width: 18px;
+  height: 18px;
+  accent-color: #d4af37;
+  cursor: pointer;
+}
+
+.parent-form-panel__section-label {
+  grid-column: 1 / -1;
+  margin: 4px 0 0;
+  font-size: 12px;
+  font-weight: 900;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: #8b6b16;
+}
+
+.parent-form-panel__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 16px;
+  padding-top: 14px;
+  border-top: 1px solid rgba(212, 175, 55, 0.22);
+}
+
+@media (max-width: 900px) {
+  .parent-form-panel__grid,
+  .parent-form-panel__grid--3,
+  .parent-form-panel__checks {
+    grid-template-columns: 1fr;
+  }
+}

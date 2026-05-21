@@ -2,8 +2,46 @@ import { Router } from "express";
 
 import { readSchoolLedger } from "../utils/billingLedgerStore";
 import { buildAccountsFromLearners } from "../services/statementAccounts";
+import { buildAndGenerateStatementPdf } from "../services/statementPdfData";
 
 const router = Router();
+
+function sendPdfAttachment(res: import("express").Response, buffer: Buffer, filename: string) {
+  res.setHeader("Content-Type", "application/pdf");
+  res.setHeader("Content-Disposition", `attachment; filename="${filename}"`);
+  res.setHeader("Content-Length", String(buffer.length));
+  return res.send(buffer);
+}
+
+// GET /api/statements/pdf?schoolId=&learnerId=&period=
+router.get("/pdf", async (req, res) => {
+  try {
+    const schoolId = typeof req.query?.schoolId === "string" ? String(req.query.schoolId).trim() : "";
+    const learnerId = typeof req.query?.learnerId === "string" ? String(req.query.learnerId).trim() : "";
+    const period = typeof req.query?.period === "string" ? String(req.query.period).trim() : "All Time";
+    const statementNote =
+      typeof req.query?.statementNote === "string" ? String(req.query.statementNote) : undefined;
+
+    if (!schoolId || !learnerId) {
+      return res.status(400).json({ success: false, error: "Missing schoolId or learnerId" });
+    }
+
+    console.log("[PDF] generating", learnerId, { schoolId, period });
+
+    const { buffer, filename } = await buildAndGenerateStatementPdf({
+      schoolId,
+      learnerId,
+      period: period || "All Time",
+      statementNote,
+    });
+
+    return sendPdfAttachment(res, buffer, filename);
+  } catch (error) {
+    console.error("[statements] GET /pdf failed:", error);
+    const message = error instanceof Error ? error.message : "Server error";
+    return res.status(500).json({ success: false, error: message });
+  }
+});
 
 // GET /api/statements?schoolId=...
 router.get("/", async (req, res) => {

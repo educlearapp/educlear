@@ -26,7 +26,92 @@ function cleanString(value: any) {
 
 }
 
+function cleanBool(value: any, fallback: boolean) {
+  if (value === undefined || value === null) return fallback;
+  return Boolean(value);
+}
 
+function buildParentWriteData(rawParent: any, schoolId: string, familyAccountId?: string | null) {
+  const firstName = cleanString(rawParent.firstName || rawParent.name) || "Parent";
+  const surname = cleanString(rawParent.surname || rawParent.lastName) || "-";
+  const cellNo = cleanString(rawParent.cellNo || rawParent.cell || rawParent.phone || rawParent.mobile);
+  const email = cleanString(rawParent.email);
+  const idNumber = cleanString(rawParent.idNumber);
+  const relationship = cleanString(rawParent.relationship || rawParent.relation);
+  return {
+    schoolId,
+    familyAccountId: familyAccountId || null,
+    relationship: relationship || null,
+    title: cleanString(rawParent.title) || null,
+    firstName,
+    surname,
+    idNumber: idNumber || null,
+    cellNo: cellNo || "-",
+    workNo: cleanString(rawParent.workNo || rawParent.work || rawParent.workPhone) || null,
+    homeAddress: cleanString(rawParent.homeAddress) || null,
+    homeNo: cleanString(rawParent.homeNo) || null,
+    notes: cleanString(rawParent.notes) || null,
+    email: email || null,
+    communicationAdministration: cleanBool(
+      rawParent.communicationAdministration ?? rawParent.administrationCommunications,
+      true
+    ),
+    communicationBilling: cleanBool(rawParent.communicationBilling ?? rawParent.billingCommunications, true),
+    communicationByEmail: cleanBool(rawParent.communicationByEmail, true),
+    communicationByPrint: cleanBool(rawParent.communicationByPrint, true),
+    communicationBySMS: cleanBool(rawParent.communicationBySMS, true),
+  };
+}
+
+function buildLinkWriteData(rawParent: any) {
+  const relationship = cleanString(rawParent.relationship || rawParent.relation);
+  return {
+    relation: relationship || null,
+    isPrimary: rawParent.isPrimary !== undefined ? Boolean(rawParent.isPrimary) : true,
+    isPayingPerson: cleanBool(rawParent.isPayingPerson ?? rawParent.payingPerson, false),
+    billingStatement: cleanBool(rawParent.billingStatement ?? rawParent.statement, true),
+    billingInvoice: cleanBool(rawParent.billingInvoice ?? rawParent.invoice, true),
+    billingReceipt: cleanBool(rawParent.billingReceipt ?? rawParent.receipt, true),
+  };
+}
+
+function mapParentForClient(link: { parent: any; relation?: string | null; isPrimary?: boolean; isPayingPerson?: boolean; billingStatement?: boolean; billingInvoice?: boolean; billingReceipt?: boolean }) {
+  const p = link.parent;
+  return {
+    id: p.id,
+    firstName: p.firstName || "",
+    surname: p.surname || "",
+    lastName: p.surname || "",
+    name: p.firstName || "",
+    idNumber: p.idNumber || "",
+    title: p.title || "",
+    cellNo: p.cellNo || "",
+    cell: p.cellNo || "",
+    phone: p.cellNo || "",
+    mobile: p.cellNo || "",
+    workNo: p.workNo || "",
+    work: p.workNo || "",
+    workPhone: p.workNo || "",
+    homeNo: p.homeNo || "",
+    homeAddress: p.homeAddress || "",
+    email: p.email || "",
+    notes: p.notes || "",
+    relationship: link.relation || p.relationship || "",
+    relation: link.relation || p.relationship || "",
+    isPrimary: link.isPrimary || false,
+    communicationAdministration: p.communicationAdministration ?? true,
+    communicationBilling: p.communicationBilling ?? true,
+    communicationByEmail: p.communicationByEmail ?? true,
+    communicationByPrint: p.communicationByPrint ?? true,
+    communicationBySMS: p.communicationBySMS ?? true,
+    isPayingPerson: link.isPayingPerson ?? false,
+    billingStatement: link.billingStatement ?? true,
+    billingInvoice: link.billingInvoice ?? true,
+    billingReceipt: link.billingReceipt ?? true,
+    outstandingAmount: p.outstandingAmount || 0,
+    status: p.status || "GREEN",
+  };
+}
 
 async function createFamilyAccountRef(schoolId: string, surname: string) {
 
@@ -153,317 +238,54 @@ async function saveParentLinks({
 
 
   for (const rawParent of parents) {
-
-
-
-    const firstName = cleanString(rawParent.firstName);
-
-
-
-    const surname = cleanString(rawParent.surname || rawParent.lastName);
-
-
-
-    const cellNo = cleanString(rawParent.cellNo || rawParent.cell || rawParent.phone);
-
-
-
-    const email = cleanString(rawParent.email);
-
-
-
+    const parentData = buildParentWriteData(rawParent, schoolId, familyAccountId);
+    const linkData = buildLinkWriteData(rawParent);
     const idNumber = cleanString(rawParent.idNumber);
 
-
-
-    const relationship = cleanString(rawParent.relationship || rawParent.relation);
-
-
-
-    if (!firstName && !surname && !cellNo && !email && !idNumber) continue;
-
-
+    if (
+      !parentData.firstName &&
+      parentData.surname === "-" &&
+      parentData.cellNo === "-" &&
+      !parentData.email &&
+      !idNumber
+    ) {
+      continue;
+    }
 
     let parent = null;
 
-
-
-    if (rawParent.id) {
-
-
-
+    if (rawParent.id && !String(rawParent.id).startsWith("local-parent-")) {
       parent = await prisma.parent.update({
-
-
-
         where: { id: rawParent.id },
-
-
-
-        data: {
-
-
-
-          schoolId,
-
-
-
-          familyAccountId: familyAccountId || null,
-
-
-
-          firstName,
-
-
-
-          surname,
-
-
-
-          cellNo,
-
-
-
-          email: email || null,
-
-
-
-          idNumber: idNumber || null,
-
-
-
-          relationship: relationship || null,
-
-
-
-        },
-
-
-
+        data: parentData,
       });
-
-
-
     } else if (idNumber) {
-
-
-
       parent = await prisma.parent.upsert({
-
-
-
         where: { idNumber },
-
-
-
-        update: {
-
-
-
-          schoolId,
-
-
-
-          familyAccountId: familyAccountId || null,
-
-
-
-          firstName,
-
-
-
-          surname,
-
-
-
-          cellNo,
-
-
-
-          email: email || null,
-
-
-
-          relationship: relationship || null,
-
-
-
-        },
-
-
-
-        create: {
-
-
-
-          schoolId,
-
-
-
-          familyAccountId: familyAccountId || null,
-
-
-
-          firstName,
-
-
-
-          surname,
-
-
-
-          cellNo,
-
-
-
-          email: email || null,
-
-
-
-          idNumber,
-
-
-
-          relationship: relationship || null,
-
-
-
-        },
-
-
-
+        update: parentData,
+        create: { ...parentData, idNumber },
       });
-
-
-
     } else {
-
-
-
       parent = await prisma.parent.create({
-
-
-
-        data: {
-
-
-
-          schoolId,
-
-
-
-          familyAccountId: familyAccountId || null,
-
-
-
-          firstName,
-
-
-
-          surname,
-
-
-
-          cellNo,
-
-
-
-          email: email || null,
-
-
-
-          relationship: relationship || null,
-
-
-
-        },
-
-
-
+        data: parentData,
       });
-
-
-
     }
 
-
-
     await prisma.parentLearnerLink.upsert({
-
-
-
       where: {
-
-
-
         parentId_learnerId: {
-
-
-
           parentId: parent.id,
-
-
-
           learnerId,
-
-
-
         },
-
-
-
       },
-
-
-
-      update: {
-
-
-
-        relation: relationship || null,
-
-
-
-        isPrimary: rawParent.isPrimary !== undefined ? Boolean(rawParent.isPrimary) : true,
-
-
-
-      },
-
-
-
+      update: linkData,
       create: {
-
-
-
         schoolId,
-
-
-
         parentId: parent.id,
-
-
-
         learnerId,
-
-
-
-        relation: relationship || null,
-
-
-
-        isPrimary: rawParent.isPrimary !== undefined ? Boolean(rawParent.isPrimary) : true,
-
-
-
+        ...linkData,
       },
-
-
-
     });
-
-
-
   }
 
 
@@ -640,63 +462,7 @@ router.get("/", async (req, res) => {
 
 
 
-        parents:
-
-
-
-          learner.links?.map((link) => ({
-
-
-
-            id: link.parent.id,
-
-
-
-            firstName: link.parent.firstName || "",
-
-
-
-            surname: link.parent.surname || "",
-
-
-
-            lastName: link.parent.surname || "",
-
-
-
-            idNumber: link.parent.idNumber || "",
-
-
-
-            cellNo: link.parent.cellNo || "",
-
-
-
-            cell: link.parent.cellNo || "",
-
-
-
-            email: link.parent.email || "",
-
-
-
-            relationship: link.relation || link.parent.relationship || "",
-
-
-
-            isPrimary: link.isPrimary || false,
-
-
-
-            outstandingAmount: link.parent.outstandingAmount || 0,
-
-
-
-            status: link.parent.status || "GREEN",
-
-
-
-          })) || [],
+        parents: learner.links?.map((link) => mapParentForClient(link)) || [],
 
 
 
@@ -1577,34 +1343,15 @@ router.put("/:id", async (req, res) => {
 
 
 
+    const accountNo = resolveLearnerAccountNo(refreshedLearner);
     return res.json({
-
-
-
       success: true,
-
-
-
       learner: {
-
-
-
         ...refreshedLearner,
-
-
-
-        accountNo: resolveLearnerAccountNo(refreshedLearner),
-
-
-
-        accountNumber: resolveLearnerAccountNo(refreshedLearner),
-
-
-
+        accountNo,
+        accountNumber: accountNo,
+        parents: refreshedLearner?.links?.map((link) => mapParentForClient(link)) || [],
       },
-
-
-
     });
 
 

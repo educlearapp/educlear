@@ -1,6 +1,7 @@
 import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { collectParentEmailContacts } from "./contactHelpers";
 import {
+  applyEmailTemplateTokens,
   COMMUNICATION_SETTINGS_UPDATED,
   createEmail,
   formatComposeSenderLabel,
@@ -9,14 +10,17 @@ import {
   fetchEmail,
   fetchEmails,
   newContactId,
-  resolveSchoolSenderEmail,
+  resolveSchoolReplyToEmail,
   sendEmail,
+  smtpSenderFromSettings,
   updateEmail,
   type CommunicationSettings,
   type EmailContact,
   type EmailRecord,
   type SchoolSenderContext,
+  type SchoolSmtpSender,
 } from "./communicationApi";
+import { fetchSchoolEmailSettings } from "./schoolEmailApi";
 import {
   fieldStyle,
   ghostBtn,
@@ -68,15 +72,27 @@ export default function Email({ schoolId, learners, parents, schoolName = "Schoo
   const [manualRelationship, setManualRelationship] = useState("Parent");
   const [manualEmail, setManualEmail] = useState("");
   const [attachmentName, setAttachmentName] = useState("");
+  const [resolvedSchoolName, setResolvedSchoolName] = useState(schoolName);
+  const [resolvedSchoolEmail, setResolvedSchoolEmail] = useState(schoolEmail);
+  const [smtpSender, setSmtpSender] = useState<SchoolSmtpSender | null>(null);
+  const [serverReplyTo, setServerReplyTo] = useState("");
 
   const schoolCtx = useMemo<SchoolSenderContext>(
-    () => ({ schoolName, schoolEmail }),
-    [schoolName, schoolEmail]
+    () => ({
+      schoolName: resolvedSchoolName || schoolName,
+      schoolEmail: resolvedSchoolEmail || schoolEmail,
+    }),
+    [resolvedSchoolName, resolvedSchoolEmail, schoolName, schoolEmail]
   );
 
   const composeSenderLabel = useMemo(
-    () => formatComposeSenderLabel(settings, schoolCtx),
-    [settings, schoolCtx]
+    () => formatComposeSenderLabel(settings, schoolCtx, smtpSender),
+    [settings, schoolCtx, smtpSender]
+  );
+
+  const replyToEmail = useMemo(
+    () => serverReplyTo || resolveSchoolReplyToEmail(settings, schoolCtx, smtpSender),
+    [serverReplyTo, settings, schoolCtx, smtpSender]
   );
 
   const loadList = useCallback(async () => {
@@ -84,19 +100,24 @@ export default function Email({ schoolId, learners, parents, schoolName = "Schoo
     setLoading(true);
     setError("");
     try {
-      const [listRes, settingsRes] = await Promise.all([
+      const [listRes, settingsRes, smtpRes] = await Promise.all([
         fetchEmails(schoolId),
         fetchCommunicationSettings(schoolId),
+        fetchSchoolEmailSettings(schoolId).catch(() => null),
       ]);
       setRecords(listRes.emails || []);
       setEmailBalance(listRes.emailBalance ?? 0);
       setSettings(settingsRes.settings);
+      setResolvedSchoolName(String(settingsRes.schoolName || schoolName || "").trim() || schoolName);
+      setResolvedSchoolEmail(String(settingsRes.schoolEmail || schoolEmail || "").trim());
+      setServerReplyTo(String(settingsRes.replyToEmail || "").trim());
+      setSmtpSender(smtpRes?.settings ? smtpSenderFromSettings(smtpRes.settings) : null);
     } catch (e: any) {
       setError(e?.message || "Failed to load emails");
     } finally {
       setLoading(false);
     }
-  }, [schoolId]);
+  }, [schoolId, schoolName, schoolEmail]);
 
   useEffect(() => {
     loadList();
@@ -108,21 +129,24 @@ export default function Email({ schoolId, learners, parents, schoolName = "Schoo
         schoolId?: string;
         settings?: CommunicationSettings;
         school?: SchoolSenderContext;
+        smtp?: SchoolSmtpSender | null;
       };
       if (!detail?.settings || detail.schoolId !== schoolId) return;
       setSettings(detail.settings);
+      if (detail.school?.schoolName) setResolvedSchoolName(detail.school.schoolName);
+      if (detail.school?.schoolEmail !== undefined) setResolvedSchoolEmail(detail.school.schoolEmail);
+      if (detail.smtp !== undefined) setSmtpSender(detail.smtp);
       if (view === "compose" && !editId) {
-        setFrom(
-          formatComposeSenderLabel(detail.settings, {
-            schoolName: detail.school?.schoolName || schoolName,
-            schoolEmail: detail.school?.schoolEmail || schoolEmail,
-          })
-        );
+        const ctx: SchoolSenderContext = {
+          schoolName: detail.school?.schoolName || resolvedSchoolName || schoolName,
+          schoolEmail: detail.school?.schoolEmail ?? resolvedSchoolEmail ?? schoolEmail,
+        };
+        setFrom(formatComposeSenderLabel(detail.settings, ctx, detail.smtp ?? smtpSender));
       }
     };
     window.addEventListener(COMMUNICATION_SETTINGS_UPDATED, onSettingsUpdated);
     return () => window.removeEventListener(COMMUNICATION_SETTINGS_UPDATED, onSettingsUpdated);
-  }, [schoolId, view, editId, schoolName, schoolEmail]);
+  }, [schoolId, view, editId, schoolName, schoolEmail, resolvedSchoolName, resolvedSchoolEmail, smtpSender]);
 
   const filtered = useMemo(() => {
     const q = search.trim().toLowerCase();
@@ -138,15 +162,29 @@ export default function Email({ schoolId, learners, parents, schoolName = "Schoo
   const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
   const pageRows = filtered.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
 
-  const resetCompose = (s?: CommunicationSettings | null) => {
+  const resetCompose = (
+    s?: CommunicationSettings | null,
+    ctxOverride?: SchoolSenderContext,
+    smtpOverride?: SchoolSmtpSender | null
+  ) => {
+    const activeSettings = s || settings;
+    const ctx = ctxOverride || schoolCtx;
+    const smtp = smtpOverride !== undefined ? smtpOverride : smtpSender;
+    const displaySchoolName = String(ctx.schoolName || "School").trim() || "School";
     setEditId(null);
     setDescription("");
-    setFrom(formatComposeSenderLabel(s || settings, schoolCtx));
-    setSubject(s?.standardEmailSubject?.replace(/\[school_name\]/g, schoolName) || "");
+    setFrom(formatComposeSenderLabel(activeSettings, ctx, smtp));
+    setSubject(
+      applyEmailTemplateTokens(activeSettings?.standardEmailSubject || "", {
+        schoolName: displaySchoolName,
+        settings: activeSettings,
+      })
+    );
     setMessage(
-      (s?.standardEmailMessage || "")
-        .replace(/\[school_name\]/g, schoolName)
-        .replace(/\[signature\]/g, s?.signature?.replace(/\[school_name\]/g, schoolName) || "")
+      applyEmailTemplateTokens(activeSettings?.standardEmailMessage || "", {
+        schoolName: displaySchoolName,
+        settings: activeSettings,
+      })
     );
     setContacts([]);
     setSelectedContactIds([]);
@@ -156,16 +194,29 @@ export default function Email({ schoolId, learners, parents, schoolName = "Schoo
 
   const openAdd = async () => {
     let s = settings;
-    if (!s && schoolId) {
+    let smtp = smtpSender;
+    let ctx = schoolCtx;
+    if (schoolId) {
       try {
-        const res = await fetchCommunicationSettings(schoolId);
-        s = res.settings;
+        const [settingsRes, smtpRes] = await Promise.all([
+          fetchCommunicationSettings(schoolId),
+          fetchSchoolEmailSettings(schoolId).catch(() => null),
+        ]);
+        s = settingsRes.settings;
+        const name = String(settingsRes.schoolName || schoolName || "").trim() || schoolName;
+        const email = String(settingsRes.schoolEmail || schoolEmail || "").trim();
+        smtp = smtpRes?.settings ? smtpSenderFromSettings(smtpRes.settings) : null;
+        ctx = { schoolName: name, schoolEmail: email };
         setSettings(s);
+        setResolvedSchoolName(name);
+        setResolvedSchoolEmail(email);
+        setServerReplyTo(String(settingsRes.replyToEmail || "").trim());
+        setSmtpSender(smtp);
       } catch {
-        /* use defaults */
+        /* use cached settings */
       }
     }
-    resetCompose(s);
+    resetCompose(s, ctx, smtp);
     setView("compose");
   };
 
@@ -195,7 +246,7 @@ export default function Email({ schoolId, learners, parents, schoolName = "Schoo
     const payload = {
       schoolId,
       description: description || "Email",
-      from: from || formatComposeSenderLabel(settings, schoolCtx),
+      from: from || formatComposeSenderLabel(settings, schoolCtx, smtpSender),
       subject,
       message,
       contacts,
@@ -328,7 +379,7 @@ export default function Email({ schoolId, learners, parents, schoolName = "Schoo
               {editId ? "Manage email" : "Compose email"} · {composeSenderLabel}
             </p>
             <p style={{ margin: "4px 0 0", fontSize: 12, color: "#64748b" }}>
-              Parents reply to {resolveSchoolSenderEmail(settings, schoolCtx)}
+              Parents reply to <strong>{replyToEmail || "your school email (configure in Communication Settings)"}</strong>
             </p>
           </div>
           <div style={{ display: "flex", gap: 10, flexWrap: "wrap", alignItems: "center" }}>
@@ -381,7 +432,7 @@ export default function Email({ schoolId, learners, parents, schoolName = "Schoo
             From
             <input style={fieldStyle} value={from} readOnly />
             <span style={{ fontSize: 12, color: "#64748b", fontWeight: 600 }}>
-              Update billing or administration email in Communication Settings to change the sender.
+              Sender uses your SMTP From name/email when configured, otherwise your registered school name and email, or Administration Email if no school email is on file. EduClear relay (billing@educlear.co.za) applies only when Send via EduClear Domain is enabled.
             </span>
           </label>
           <label>
@@ -496,7 +547,7 @@ export default function Email({ schoolId, learners, parents, schoolName = "Schoo
               <p><strong>Subject:</strong> {subject}</p>
               <div style={{ whiteSpace: "pre-wrap", border: "1px solid #e5e7eb", borderRadius: 10, padding: 16, background: "#fafafa" }}>{message}</div>
               <p style={{ fontSize: 13, color: "#64748b" }}>
-                {contacts.length} recipient(s) · reply-to {resolveSchoolSenderEmail(settings, schoolCtx)}
+                {contacts.length} recipient(s) · reply-to {replyToEmail || "not set"}
               </p>
               <button type="button" style={goldBtn} onClick={() => setPreviewOpen(false)}>Close</button>
             </div>

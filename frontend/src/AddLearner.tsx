@@ -1,7 +1,20 @@
 import { useEffect, useState } from "react";
-import { apiFetch } from "./api";
+import { apiFetch, API_URL } from "./api";
 import { getBirthDateFromSouthAfricanId } from "./learner/learnerIdentity";
+import ParentsSection, { parentToApiPayload } from "./learner/ParentsSection";
+import {
+  normalizeParentRecord,
+  parentsFromLearner,
+  validateParentForSave,
+} from "./learner/parentFormUtils";
+import type { ParentRecord } from "./learner/parentFormTypes";
 import { useSchoolId } from "./useSchoolId";
+import "./AddLearner.css";
+
+type AddLearnerProps = {
+  onBack?: () => void;
+  schoolParents?: ParentRecord[];
+};
 
 
 
@@ -78,31 +91,7 @@ function learnerClassFromBase(learner: Record<string, unknown>): string {
   return String(learner?.classroom || learner?.className || learner?.grade || "").trim();
 }
 
-function splitFullName(fullName: string): { firstName: string; surname: string } {
-
-
-
-  const parts = fullName.trim().split(/\s+/).filter(Boolean);
-
-
-
-  if (parts.length === 0) return { firstName: "", surname: "" };
-
-
-
-  if (parts.length === 1) return { firstName: parts[0], surname: parts[0] };
-
-
-
-  return { firstName: parts.slice(0, -1).join(" "), surname: parts[parts.length - 1] };
-
-
-
-}
-
-
-
-export default function AddLearner() {
+export default function AddLearner({ onBack, schoolParents: schoolParentsProp }: AddLearnerProps = {}) {
 
 
 
@@ -154,19 +143,10 @@ export default function AddLearner() {
 
 
 
-  const [parentFullName, setParentFullName] = useState("");
-
-
-
-  const [parentEmail, setParentEmail] = useState("");
-
-
-
-  const [parentPhone, setParentPhone] = useState("");
-
-
-
-  const [parentIdNumber, setParentIdNumber] = useState("");
+  const [parents, setParents] = useState<ParentRecord[]>([]);
+  const [schoolParents, setSchoolParents] = useState<ParentRecord[]>(
+    Array.isArray(schoolParentsProp) ? schoolParentsProp : []
+  );
 
 
 
@@ -206,28 +186,46 @@ export default function AddLearner() {
         setClassName(baseClass);
       }
 
-      const parent = primaryParentOfLearner(base);
-      if (parent) {
-        const pFirst = String(parent.firstName || parent.name || "").trim();
-        const pLast = String(parent.surname || parent.lastName || "").trim();
-        const fullName = `${pFirst} ${pLast}`.trim();
-        if (fullName) setParentFullName(fullName);
-
-        const email = String(parent.email || "").trim();
-        if (email) setParentEmail(email);
-
-        const phone = String(
-          parent.cellNo || parent.cell || parent.phone || parent.mobile || ""
-        ).trim();
-        if (phone) setParentPhone(phone);
-
-        const idNo = String(parent.idNumber || "").trim();
-        if (idNo) setParentIdNumber(idNo);
+      const prefilled = parentsFromLearner(base);
+      if (prefilled.length) {
+        setParents(prefilled.map((p) => ({ ...p, surname: p.surname || baseLast })));
+      } else {
+        const parent = primaryParentOfLearner(base);
+        if (parent) {
+          setParents([
+            normalizeParentRecord({
+              ...parent,
+              surname: String(parent.surname || parent.lastName || baseLast).trim(),
+            }),
+          ]);
+        }
       }
     } catch {
       // ignore invalid stored sibling context
     }
   }, []);
+
+  useEffect(() => {
+    if (!schoolId) return;
+    if (Array.isArray(schoolParentsProp) && schoolParentsProp.length) {
+      setSchoolParents(schoolParentsProp);
+      return;
+    }
+    let cancelled = false;
+    void fetch(`${API_URL}/api/parents?schoolId=${encodeURIComponent(schoolId)}`)
+      .then((res) => res.json())
+      .then((data) => {
+        if (cancelled) return;
+        const rows = Array.isArray(data?.parents) ? data.parents : [];
+        setSchoolParents(rows.map((p: Record<string, unknown>) => normalizeParentRecord(p)));
+      })
+      .catch(() => {
+        if (!cancelled) setSchoolParents([]);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [schoolId, schoolParentsProp]);
 
   const handleMainIdNumberChange = (value: string) => {
 
@@ -421,25 +419,19 @@ export default function AddLearner() {
 
 
 
-    if (!parentFullName.trim() || !parentPhone.trim()) {
-
-
-
-      setMessage("Please complete Parent Full Name and Phone.");
-
-
-
+    if (parents.length === 0) {
+      setMessage("Please add at least one parent with contact details.");
       return;
-
-
-
     }
 
+    const primaryParent = parents[0];
+    const parentErr = validateParentForSave(primaryParent);
+    if (parentErr) {
+      setMessage(parentErr);
+      return;
+    }
 
-
-    const parentName = splitFullName(parentFullName);
-
-
+    const parentPayloads = parents.map((p) => parentToApiPayload(p));
 
     setSaving(true);
 
@@ -508,31 +500,8 @@ export default function AddLearner() {
 
 
 
-          parent: {
-
-
-
-            firstName: parentName.firstName.trim(),
-
-
-
-            surname: parentName.surname.trim(),
-
-
-
-            email: parentEmail.trim() || null,
-
-
-
-            phone: parentPhone.trim(),
-
-
-
-            idNumber: parentIdNumber.trim() || null,
-
-
-
-          },
+          parent: parentPayloads[0],
+          parents: parentPayloads,
 
 
 
@@ -651,22 +620,7 @@ export default function AddLearner() {
 
 
 
-      setParentFullName("");
-
-
-
-      setParentEmail("");
-
-
-
-      setParentPhone("");
-
-
-
-      setParentIdNumber("");
-
-
-
+      setParents([]);
       setSiblings([]);
 
 
@@ -695,972 +649,336 @@ export default function AddLearner() {
 
 
 
-  const pageStyle: React.CSSProperties = {
+  const messageIsSuccess = message ? message.toLowerCase().includes("success") : false;
 
-
-
-    padding: "32px",
-
-
-
-    background: "linear-gradient(180deg, #f8fafc 0%, #f3f4f6 45%, #eef2f7 100%)",
-
-
-
-    minHeight: "100%",
-
-
-
-    borderRadius: "28px",
-
-
-
-    border: "1px solid rgba(15, 23, 42, 0.06)",
-
-
-
-    boxShadow: "0 24px 60px rgba(15, 23, 42, 0.08), inset 0 1px 0 rgba(255,255,255,0.8)",
-
-
-
+  const handleBack = () => {
+    if (onBack) {
+      onBack();
+      return;
+    }
+    window.history.back();
   };
-
-
-
-  const cardStyle: React.CSSProperties = {
-
-
-
-    background: "#fff",
-
-
-
-    borderRadius: 16,
-
-
-
-    boxShadow: "0 4px 12px rgba(0, 0, 0, 0.05)",
-
-
-
-    padding: 20,
-
-
-
-    border: "1px solid rgba(15, 23, 42, 0.06)",
-
-
-
-  };
-
-
-
-  const gridStyle: React.CSSProperties = {
-
-
-
-    display: "grid",
-
-
-
-    gridTemplateColumns: "repeat(2, minmax(0, 1fr))",
-
-
-
-    gap: 14,
-
-
-
-  };
-
-
-
-  const labelStyle: React.CSSProperties = {
-
-
-
-    fontSize: 13,
-
-
-
-    fontWeight: 700,
-
-
-
-    color: "#0f172a",
-
-
-
-    marginBottom: 6,
-
-
-
-    display: "block",
-
-
-
-  };
-
-
-
-  const inputStyle: React.CSSProperties = {
-
-
-
-    width: "100%",
-
-
-
-    padding: "10px 12px",
-
-
-
-    borderRadius: 12,
-
-
-
-    border: "1px solid rgba(15, 23, 42, 0.14)",
-
-
-
-    outline: "none",
-
-
-
-    fontSize: 14,
-
-
-
-  };
-
-
-
-  const sectionTitleStyle: React.CSSProperties = {
-
-
-
-    margin: "0 0 12px 0",
-
-
-
-    fontSize: 18,
-
-
-
-    fontWeight: 800,
-
-
-
-    color: "#0f172a",
-
-
-
-    letterSpacing: "-0.02em",
-
-
-
-  };
-
-
-
-  const buttonStyle: React.CSSProperties = {
-
-
-
-    borderRadius: 12,
-
-
-
-    border: "1px solid rgba(15, 23, 42, 0.16)",
-
-
-
-    padding: "10px 14px",
-
-
-
-    background: "#fff",
-
-
-
-    fontWeight: 800,
-
-
-
-    cursor: "pointer",
-
-
-
-  };
-
-
-
-  const primaryButtonStyle: React.CSSProperties = {
-
-
-
-    ...buttonStyle,
-
-
-
-    background: "#0f172a",
-
-
-
-    color: "#fff",
-
-
-
-    border: "1px solid #0f172a",
-
-
-
-    padding: "12px 16px",
-
-
-
-  };
-
-
 
   return (
-
-
-
-    <div style={pageStyle}>
-
-
-
-      <div style={{ marginBottom: 18 }}>
-
-
-
-        <h1 style={{ margin: 0, fontSize: 38, fontWeight: 800, letterSpacing: "-0.03em", color: "#0f172a" }}>
-
-
-
-          Add Learner
-
-
-
-        </h1>
-
-
-
-        <p style={{ margin: "10px 0 0 0", fontSize: 15, color: "rgba(15, 23, 42, 0.72)" }}>
+    <div className="add-learner-page">
+      <header className="add-learner-header">
+        <span className="add-learner-badge">New registration</span>
+        <h1 className="add-learner-title">Add Learner</h1>
+        <p
+          className={`add-learner-subtitle${siblingBaseName ? " add-learner-subtitle--sibling" : ""}`}
+        >
           {siblingBaseName
             ? `Adding a sibling for ${siblingBaseName}. Surname, class, and parent details are pre-filled from the selected learner.`
-            : "Capture learner details and link them to a parent."}
+            : "Capture learner details and link parent information"}
         </p>
-
-
-
-      </div>
-
-
+        <div className="add-learner-accent-line" aria-hidden="true" />
+      </header>
 
       {message ? (
-
-
-
         <div
-
-
-
-          style={{
-
-
-
-            ...cardStyle,
-
-
-
-            marginBottom: 16,
-
-
-
-            borderColor: message.toLowerCase().includes("success") ? "rgba(30, 126, 52, 0.25)" : "rgba(204, 0, 0, 0.18)",
-
-
-
-            background: message.toLowerCase().includes("success") ? "rgba(30, 126, 52, 0.06)" : "rgba(204, 0, 0, 0.05)",
-
-
-
-          }}
-
-
-
+          className={`add-learner-message ${
+            messageIsSuccess ? "add-learner-message--success" : "add-learner-message--error"
+          }`}
           role="status"
-
-
-
         >
-
-
-
-          <div style={{ fontWeight: 800, color: "#0f172a" }}>{message}</div>
-
-
-
+          {message}
         </div>
-
-
-
       ) : null}
 
-
-
-      <div style={{ display: "grid", gridTemplateColumns: "minmax(0, 1fr)", gap: 16 }}>
-
-
-
-        <div style={cardStyle}>
-
-
-
-          <h2 style={sectionTitleStyle}>Learner Details</h2>
-
-
-
-          <div style={gridStyle}>
-
-
-
-            <div>
-
-
-
-              <label style={labelStyle}>Learner First Name</label>
-
-
-
-              <input style={inputStyle} value={firstName} onChange={(e) => setFirstName(e.target.value)} />
-
-
-
+      <div className="add-learner-form-stack">
+        <section className="add-learner-card" aria-labelledby="add-learner-learner-heading">
+          <div className="add-learner-section-header">
+            <div className="add-learner-section-header-main">
+              <span className="add-learner-section-accent" aria-hidden="true" />
+              <h2 id="add-learner-learner-heading" className="add-learner-section-title">
+                Learner Details
+              </h2>
             </div>
+          </div>
 
-
-
-            <div>
-
-
-
-              <label style={labelStyle}>Learner Surname</label>
-
-
-
-              <input style={inputStyle} value={surname} onChange={(e) => setSurname(e.target.value)} />
-
-
-
-            </div>
-
-
-
-            <div>
-
-
-
-              <label style={labelStyle}>Grade / Class</label>
-
-
-
-              <input style={inputStyle} value={grade} onChange={(e) => setGrade(e.target.value)} placeholder="e.g. Grade 3" />
-
-
-
-            </div>
-
-
-
-            <div>
-
-
-
-              <label style={labelStyle}>Grade / Class (Optional Class Name)</label>
-
-
-
-              <input style={inputStyle} value={className} onChange={(e) => setClassName(e.target.value)} placeholder="e.g. 3A" />
-
-
-
-            </div>
-
-
-
-            <div>
-
-
-
-              <label style={labelStyle}>Account / Admission No</label>
-
-
-
+          <div className="add-learner-grid">
+            <div className="add-learner-field">
+              <label className="add-learner-label">Learner First Name</label>
               <input
-                style={{ ...inputStyle, background: "#f8fafc" }}
+                className="add-learner-input"
+                value={firstName}
+                onChange={(e) => setFirstName(e.target.value)}
+                placeholder="Enter first name"
+              />
+            </div>
+            <div className="add-learner-field">
+              <label className="add-learner-label">Learner Surname</label>
+              <input
+                className="add-learner-input"
+                value={surname}
+                onChange={(e) => setSurname(e.target.value)}
+                placeholder="Enter surname"
+              />
+            </div>
+            <div className="add-learner-field">
+              <label className="add-learner-label">Grade / Class</label>
+              <input
+                className="add-learner-input"
+                value={grade}
+                onChange={(e) => setGrade(e.target.value)}
+                placeholder="e.g. Grade 3"
+              />
+            </div>
+            <div className="add-learner-field">
+              <label className="add-learner-label">Grade / Class (Optional Class Name)</label>
+              <input
+                className="add-learner-input"
+                value={className}
+                onChange={(e) => setClassName(e.target.value)}
+                placeholder="e.g. 3A"
+              />
+            </div>
+            <div className="add-learner-field">
+              <label className="add-learner-label">Account / Admission No</label>
+              <input
+                className="add-learner-input add-learner-input--readonly"
                 value="Auto-generated on save"
                 readOnly
               />
-
-
-
             </div>
-
-
-
-            <div>
-
-
-
-              <label style={labelStyle}>ID Number</label>
-
-
-
-              <input style={inputStyle} value={idNumber} onChange={(e) => handleMainIdNumberChange(e.target.value)} />
-
-
-
+            <div className="add-learner-field">
+              <label className="add-learner-label">ID Number</label>
+              <input
+                className="add-learner-input"
+                value={idNumber}
+                onChange={(e) => handleMainIdNumberChange(e.target.value)}
+                placeholder="13-digit ID number"
+              />
             </div>
-
-
-
-            <div>
-
-
-
-              <label style={labelStyle}>Date of Birth</label>
-
-
-
-              <input style={inputStyle} type="date" value={dateOfBirth} onChange={(e) => setDateOfBirth(e.target.value)} />
-
-
-
+            <div className="add-learner-field">
+              <label className="add-learner-label">Date of Birth</label>
+              <input
+                className="add-learner-input"
+                type="date"
+                value={dateOfBirth}
+                onChange={(e) => setDateOfBirth(e.target.value)}
+              />
             </div>
-
-
-
-            <div>
-
-
-
-              <label style={labelStyle}>Gender</label>
-
-
-
-              <select style={inputStyle} value={gender} onChange={(e) => setGender(e.target.value as GenderOption)}>
-
-
-
+            <div className="add-learner-field">
+              <label className="add-learner-label">Gender</label>
+              <select
+                className="add-learner-select"
+                value={gender}
+                onChange={(e) => setGender(e.target.value as GenderOption)}
+              >
                 <option value="">Select…</option>
-
-
-
                 <option value="Male">Male</option>
-
-
-
                 <option value="Female">Female</option>
-
-
-
                 <option value="Other">Other</option>
-
-
-
               </select>
-
-
-
             </div>
-
-
-
-            <div>
-
-
-
-              <label style={labelStyle}>Home Language</label>
-
-
-
-              <input style={inputStyle} value={homeLanguage} onChange={(e) => setHomeLanguage(e.target.value)} />
-
-
-
+            <div className="add-learner-field">
+              <label className="add-learner-label">Home Language</label>
+              <input
+                className="add-learner-input"
+                value={homeLanguage}
+                onChange={(e) => setHomeLanguage(e.target.value)}
+                placeholder="e.g. isiZulu"
+              />
             </div>
-
-
-
-            <div>
-
-
-
-              <label style={labelStyle}>Nationality</label>
-
-
-
-              <input style={inputStyle} value={nationality} onChange={(e) => setNationality(e.target.value)} />
-
-
-
+            <div className="add-learner-field">
+              <label className="add-learner-label">Nationality</label>
+              <input
+                className="add-learner-input"
+                value={nationality}
+                onChange={(e) => setNationality(e.target.value)}
+                placeholder="e.g. South African"
+              />
             </div>
-
-
-
-            <div>
-
-
-
-              <label style={labelStyle}>Enrollment Date</label>
-
-
-
-              <input style={inputStyle} type="date" value={enrollmentDate} onChange={(e) => setEnrollmentDate(e.target.value)} />
-
-
-
+            <div className="add-learner-field">
+              <label className="add-learner-label">Enrollment Date</label>
+              <input
+                className="add-learner-input"
+                type="date"
+                value={enrollmentDate}
+                onChange={(e) => setEnrollmentDate(e.target.value)}
+              />
             </div>
-
-
-
-            <div />
-
-
-
           </div>
+        </section>
 
+        <ParentsSection
+          parents={parents}
+          onChange={setParents}
+          schoolParents={schoolParents}
+          defaultSurname={surname}
+          onSendEmail={(p) => {
+            const email = (p.email || "").trim();
+            if (!email) {
+              setMessage("Add an email address for this parent first.");
+              return;
+            }
+            window.location.href = `mailto:${encodeURIComponent(email)}`;
+          }}
+          onSendSms={(p) => {
+            const cell = (p.cellNo || p.cell || p.phone || "").trim();
+            if (!cell) {
+              setMessage("Add a cell number for this parent first.");
+              return;
+            }
+            window.location.href = `sms:${encodeURIComponent(cell)}`;
+          }}
+        />
 
-
-        </div>
-
-
-
-        <div style={cardStyle}>
-
-
-
-          <h2 style={sectionTitleStyle}>Parent Details</h2>
-
-
-
-          <div style={gridStyle}>
-
-
-
-            <div>
-
-
-
-              <label style={labelStyle}>Parent Full Name</label>
-
-
-
-              <input style={inputStyle} value={parentFullName} onChange={(e) => setParentFullName(e.target.value)} />
-
-
-
+        <section className="add-learner-card" aria-labelledby="add-learner-siblings-heading">
+          <div className="add-learner-section-header">
+            <div className="add-learner-section-header-main">
+              <span className="add-learner-section-accent" aria-hidden="true" />
+              <h2 id="add-learner-siblings-heading" className="add-learner-section-title">
+                Additional Details — Siblings
+              </h2>
             </div>
-
-
-
-            <div>
-
-
-
-              <label style={labelStyle}>Email</label>
-
-
-
-              <input style={inputStyle} value={parentEmail} onChange={(e) => setParentEmail(e.target.value)} />
-
-
-
-            </div>
-
-
-
-            <div>
-
-
-
-              <label style={labelStyle}>Phone</label>
-
-
-
-              <input style={inputStyle} value={parentPhone} onChange={(e) => setParentPhone(e.target.value)} />
-
-
-
-            </div>
-
-
-
-            <div>
-
-
-
-              <label style={labelStyle}>ID Number</label>
-
-
-
-              <input style={inputStyle} value={parentIdNumber} onChange={(e) => setParentIdNumber(e.target.value)} />
-
-
-
-            </div>
-
-
-
-          </div>
-
-
-
-        </div>
-
-
-
-        <div style={cardStyle}>
-
-
-
-          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12 }}>
-
-
-
-            <h2 style={sectionTitleStyle}>Siblings</h2>
-
-
-
-            <button type="button" style={buttonStyle} onClick={addSibling}>
-
-
-
+            <button type="button" className="add-learner-btn add-learner-btn--gold-outline" onClick={addSibling}>
               + Add Sibling
-
-
-
             </button>
-
-
-
           </div>
-
-
 
           {siblings.length === 0 ? (
-
-
-
-            <p style={{ margin: 0, color: "rgba(15, 23, 42, 0.72)" }}>No siblings added.</p>
-
-
-
+            <p className="add-learner-empty-hint">No siblings added.</p>
           ) : (
-
-
-
-            <div style={{ display: "grid", gap: 12 }}>
-
-
-
+            <div className="add-learner-siblings-stack">
               {siblings.map((s, idx) => (
-
-
-
-                <div key={idx} style={{ padding: 14, borderRadius: 14, border: "1px solid rgba(15, 23, 42, 0.08)" }}>
-
-
-
-                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 12 }}>
-
-
-
-                    <div style={{ fontWeight: 900, color: "#0f172a" }}>Sibling {idx + 1}</div>
-
-
-
-                    <button type="button" style={buttonStyle} onClick={() => removeSibling(idx)}>
-
-
-
+                <div key={idx} className="add-learner-sibling-block">
+                  <div className="add-learner-sibling-block-header">
+                    <div className="add-learner-sibling-label">Sibling {idx + 1}</div>
+                    <button
+                      type="button"
+                      className="add-learner-btn add-learner-btn--secondary"
+                      onClick={() => removeSibling(idx)}
+                    >
                       Remove
-
-
-
                     </button>
-
-
-
                   </div>
 
-
-
-                  <div style={{ ...gridStyle, marginTop: 12 }}>
-
-
-
-                    <div>
-
-
-
-                      <label style={labelStyle}>Learner First Name</label>
-
-
-
-                      <input style={inputStyle} value={s.firstName} onChange={(e) => updateSibling(idx, { firstName: e.target.value })} />
-
-
-
-                    </div>
-
-
-
-                    <div>
-
-
-
-                      <label style={labelStyle}>Learner Surname</label>
-
-
-
-                      <input style={inputStyle} value={s.surname} onChange={(e) => updateSibling(idx, { surname: e.target.value })} />
-
-
-
-                    </div>
-
-
-
-                    <div>
-
-
-
-                      <label style={labelStyle}>Grade / Class</label>
-
-
-
-                      <input style={inputStyle} value={s.grade} onChange={(e) => updateSibling(idx, { grade: e.target.value })} />
-
-
-
-                    </div>
-
-
-
-                    <div>
-
-
-
-                      <label style={labelStyle}>Class</label>
-
-
-
-                      <input style={inputStyle} value={s.className} onChange={(e) => updateSibling(idx, { className: e.target.value })} />
-
-
-
-                    </div>
-
-
-
-                    <div>
-
-
-
-                      <label style={labelStyle}>Account / Admission No</label>
-
-
-
+                  <div className="add-learner-grid">
+                    <div className="add-learner-field">
+                      <label className="add-learner-label">Learner First Name</label>
                       <input
-                        style={{ ...inputStyle, background: "#f8fafc" }}
+                        className="add-learner-input"
+                        value={s.firstName}
+                        onChange={(e) => updateSibling(idx, { firstName: e.target.value })}
+                        placeholder="Enter first name"
+                      />
+                    </div>
+                    <div className="add-learner-field">
+                      <label className="add-learner-label">Learner Surname</label>
+                      <input
+                        className="add-learner-input"
+                        value={s.surname}
+                        onChange={(e) => updateSibling(idx, { surname: e.target.value })}
+                        placeholder="Enter surname"
+                      />
+                    </div>
+                    <div className="add-learner-field">
+                      <label className="add-learner-label">Grade / Class</label>
+                      <input
+                        className="add-learner-input"
+                        value={s.grade}
+                        onChange={(e) => updateSibling(idx, { grade: e.target.value })}
+                        placeholder="e.g. Grade 3"
+                      />
+                    </div>
+                    <div className="add-learner-field">
+                      <label className="add-learner-label">Class</label>
+                      <input
+                        className="add-learner-input"
+                        value={s.className}
+                        onChange={(e) => updateSibling(idx, { className: e.target.value })}
+                        placeholder="e.g. 3A"
+                      />
+                    </div>
+                    <div className="add-learner-field">
+                      <label className="add-learner-label">Account / Admission No</label>
+                      <input
+                        className="add-learner-input add-learner-input--readonly"
                         value="Auto-generated on save"
                         readOnly
                       />
-
-
-
                     </div>
-
-
-
-                    <div>
-
-
-
-                      <label style={labelStyle}>ID Number</label>
-
-
-
-                      <input style={inputStyle} value={s.idNumber} onChange={(e) => updateSiblingIdNumber(idx, e.target.value)} />
-
-
-
+                    <div className="add-learner-field">
+                      <label className="add-learner-label">ID Number</label>
+                      <input
+                        className="add-learner-input"
+                        value={s.idNumber}
+                        onChange={(e) => updateSiblingIdNumber(idx, e.target.value)}
+                        placeholder="13-digit ID number"
+                      />
                     </div>
-
-
-
-                    <div>
-
-
-
-                      <label style={labelStyle}>Date of Birth</label>
-
-
-
-                      <input style={inputStyle} type="date" value={s.dateOfBirth} onChange={(e) => updateSibling(idx, { dateOfBirth: e.target.value })} />
-
-
-
+                    <div className="add-learner-field">
+                      <label className="add-learner-label">Date of Birth</label>
+                      <input
+                        className="add-learner-input"
+                        type="date"
+                        value={s.dateOfBirth}
+                        onChange={(e) => updateSibling(idx, { dateOfBirth: e.target.value })}
+                      />
                     </div>
-
-
-
-                    <div>
-
-
-
-                      <label style={labelStyle}>Gender</label>
-
-
-
-                      <select style={inputStyle} value={s.gender} onChange={(e) => updateSibling(idx, { gender: e.target.value as GenderOption })}>
-
-
-
+                    <div className="add-learner-field">
+                      <label className="add-learner-label">Gender</label>
+                      <select
+                        className="add-learner-select"
+                        value={s.gender}
+                        onChange={(e) => updateSibling(idx, { gender: e.target.value as GenderOption })}
+                      >
                         <option value="">Select…</option>
-
-
-
                         <option value="Male">Male</option>
-
-
-
                         <option value="Female">Female</option>
-
-
-
                         <option value="Other">Other</option>
-
-
-
                       </select>
-
-
-
                     </div>
-
-
-
-                    <div>
-
-
-
-                      <label style={labelStyle}>Home Language</label>
-
-
-
-                      <input style={inputStyle} value={s.homeLanguage} onChange={(e) => updateSibling(idx, { homeLanguage: e.target.value })} />
-
-
-
+                    <div className="add-learner-field">
+                      <label className="add-learner-label">Home Language</label>
+                      <input
+                        className="add-learner-input"
+                        value={s.homeLanguage}
+                        onChange={(e) => updateSibling(idx, { homeLanguage: e.target.value })}
+                        placeholder="e.g. isiZulu"
+                      />
                     </div>
-
-
-
-                    <div>
-
-
-
-                      <label style={labelStyle}>Nationality</label>
-
-
-
-                      <input style={inputStyle} value={s.nationality} onChange={(e) => updateSibling(idx, { nationality: e.target.value })} />
-
-
-
+                    <div className="add-learner-field">
+                      <label className="add-learner-label">Nationality</label>
+                      <input
+                        className="add-learner-input"
+                        value={s.nationality}
+                        onChange={(e) => updateSibling(idx, { nationality: e.target.value })}
+                        placeholder="e.g. South African"
+                      />
                     </div>
-
-
-
-                    <div>
-
-
-
-                      <label style={labelStyle}>Enrollment Date</label>
-
-
-
-                      <input style={inputStyle} type="date" value={s.enrollmentDate} onChange={(e) => updateSibling(idx, { enrollmentDate: e.target.value })} />
-
-
-
+                    <div className="add-learner-field">
+                      <label className="add-learner-label">Enrollment Date</label>
+                      <input
+                        className="add-learner-input"
+                        type="date"
+                        value={s.enrollmentDate}
+                        onChange={(e) => updateSibling(idx, { enrollmentDate: e.target.value })}
+                      />
                     </div>
-
-
-
-                    <div />
-
-
-
                   </div>
-
-
-
                 </div>
-
-
-
               ))}
-
-
-
             </div>
-
-
-
           )}
+        </section>
 
-
-
-        </div>
-
-
-
-        <div style={{ display: "flex", justifyContent: "flex-end" }}>
-
-
-
-          <button type="button" style={primaryButtonStyle} onClick={onSave} disabled={saving}>
-
-
-
-            {saving ? "Saving…" : "Save"}
-
-
-
+        <div className="add-learner-actions">
+          <button type="button" className="add-learner-btn add-learner-btn--outline" onClick={handleBack}>
+            Cancel / Back
           </button>
-
-
-
+          <button
+            type="button"
+            className="add-learner-btn add-learner-btn--save"
+            onClick={onSave}
+            disabled={saving}
+          >
+            {saving ? "Saving…" : "Save Learner"}
+          </button>
         </div>
-
-
-
       </div>
-
-
-
     </div>
-
-
-
   );
-
-
-
 }

@@ -73,10 +73,10 @@ export default function TeacherInbox({ embedded }: Props) {
     () => localStorage.getItem("userRole") === "SCHOOL_ADMIN" || localStorage.getItem("isOwner") === "true"
   );
 
-  const panelBg = embedded ? "rgba(15,15,15,0.95)" : "#fff";
-  const panelBorder = embedded ? "1px solid rgba(212,175,55,0.35)" : "1px solid #e2e8f0";
-  const textMuted = embedded ? "#94a3b8" : "#64748b";
-  const headingColor = embedded ? gold : dark;
+  const panelBg = "#fff";
+  const panelBorder = embedded ? "1px solid #ece7dc" : "1px solid #e2e8f0";
+  const textMuted = "#5b6575";
+  const headingColor = "#1d2736";
 
   useEffect(() => {
     void (async () => {
@@ -212,8 +212,8 @@ export default function TeacherInbox({ embedded }: Props) {
             padding: 12,
             borderRadius: 10,
             border: panelBorder,
-            background: embedded ? "rgba(127,29,29,0.25)" : "#fef2f2",
-            color: embedded ? "#fecaca" : "#991b1b",
+            background: "#fef2f2",
+            color: "#991b1b",
           }}
         >
           <p style={{ margin: "0 0 10px", fontWeight: 700 }}>Unable to load teacher profile.</p>
@@ -236,13 +236,13 @@ export default function TeacherInbox({ embedded }: Props) {
         </div>
       )}
       {error && (
-        <p style={{ color: "#fecaca" }}>
+        <p style={{ color: "#b45309" }}>
           {looksLikeHtmlOrPlaintextRouteError(error) ? "Something went wrong. Please try again." : error}
         </p>
       )}
       {sessionReady && !profileLoadFailed && teacherEmail && (
         <p style={{ margin: "0 0 12px", fontSize: 13, color: textMuted }}>
-          Signed in as <strong style={{ color: embedded ? "#f8fafc" : dark }}>{teacherName}</strong> ({teacherEmail}) ·{" "}
+          Signed in as <strong style={{ color: dark }}>{teacherName}</strong> ({teacherEmail}) ·{" "}
           {role || "STAFF"}
         </p>
       )}
@@ -293,10 +293,10 @@ export default function TeacherInbox({ embedded }: Props) {
                   textAlign: "left",
                   padding: 12,
                   border: "none",
-                  borderBottom: embedded ? "1px solid rgba(212,175,55,0.15)" : "1px solid #f1f5f9",
-                  background: selectedId === t.id ? "rgba(212,175,55,0.15)" : "transparent",
+                  borderBottom: "1px solid #f1f5f9",
+                  background: selectedId === t.id ? "rgba(212,175,55,0.12)" : "transparent",
                   cursor: "pointer",
-                  color: embedded ? "#f8fafc" : "#0f172a",
+                  color: "#1d2736",
                   minHeight: 48,
                 }}
               >
@@ -368,15 +368,10 @@ export default function TeacherInbox({ embedded }: Props) {
                     style={{
                       alignSelf: m.sender === "PARENT" ? "flex-start" : "flex-end",
                       maxWidth: "min(100%, 420px)",
-                      background:
-                        m.sender === "PARENT"
-                          ? embedded
-                            ? "rgba(148,163,184,0.12)"
-                            : "#f1f5f9"
-                          : "rgba(212,175,55,0.2)",
+                      background: m.sender === "PARENT" ? "#f1f5f9" : "rgba(212,175,55,0.18)",
                       padding: 10,
                       borderRadius: 10,
-                      color: embedded ? "#f8fafc" : "#0f172a",
+                      color: "#1d2736",
                     }}
                   >
                     <div style={{ fontSize: 11, fontWeight: 700 }}>{m.senderName || m.sender}</div>
@@ -400,8 +395,8 @@ export default function TeacherInbox({ embedded }: Props) {
                   padding: 10,
                   borderRadius: 10,
                   border: panelBorder,
-                  background: embedded ? "#080808" : "#fff",
-                  color: embedded ? "#f8fafc" : "#0f172a",
+                  background: "#fff",
+                  color: "#1d2736",
                   boxSizing: "border-box",
                 }}
                 placeholder="Reply to parent…"

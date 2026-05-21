@@ -19,6 +19,9 @@ import {
   collectFamilyAccountEntries,
   readSchoolLedger,
 } from "../utils/billingLedgerStore";
+import { sendStatementEmail } from "../services/statementEmailService";
+import { buildSetupRequiredPayload } from "../services/schoolEmailService";
+import { buildAndGenerateStatementPdf } from "../services/statementPdfData";
 
 const router = Router();
 
@@ -424,6 +427,128 @@ router.get("/billing", parentAuthMiddleware, async (req, res) => {
   } catch (e) {
     console.error("parent billing", e);
     return res.status(500).json({ success: false, error: "Failed to load billing" });
+  }
+});
+
+async function serveParentStatementPdf(
+  req: import("express").Request,
+  res: import("express").Response
+) {
+  const auth = (req as { parentAuth?: { parentId: string; schoolId: string } }).parentAuth;
+  if (!auth?.parentId || !auth?.schoolId) {
+    return res.status(401).json({ success: false, error: "Unauthorized" });
+  }
+
+  const learnerId = String(req.query?.learnerId || "").trim();
+  if (!learnerId) {
+    return res.status(400).json({ success: false, error: "Missing learnerId" });
+  }
+
+  const parent = await parentWithLearners(auth.parentId, auth.schoolId);
+  if (!parent) return res.status(404).json({ success: false, error: "Parent not found" });
+
+  const learners = parent.links.map((l) => l.learner) as ParentPortalLearner[];
+  const scope = resolveParentFamilyBillingScope(learners, learnerId);
+  if (!scope.learnerIds.length) {
+    return res.status(403).json({ success: false, error: "Learner not linked to this account" });
+  }
+
+  console.log("[PDF] generating", learnerId, { schoolId: auth.schoolId, parentId: auth.parentId });
+
+  const { buffer, filename } = await buildAndGenerateStatementPdf({
+    schoolId: auth.schoolId,
+    learnerId,
+    period: "All Time",
+  });
+
+  res.setHeader("Content-Type", "application/pdf");
+  res.setHeader("Content-Disposition", `attachment; filename="${filename}"`);
+  res.setHeader("Content-Length", String(buffer.length));
+  return res.send(buffer);
+}
+
+// GET /api/parent-portal/billing/statement.pdf | statement-pdf
+router.get("/billing/statement.pdf", parentAuthMiddleware, async (req, res) => {
+  try {
+    return await serveParentStatementPdf(req, res);
+  } catch (error: unknown) {
+    console.error("[parent-portal] GET billing/statement.pdf failed:", error);
+    const err = error as Error;
+    return res.status(500).json({
+      success: false,
+      error: err.message || "Failed to generate statement PDF",
+    });
+  }
+});
+
+router.get("/billing/statement-pdf", parentAuthMiddleware, async (req, res) => {
+  try {
+    return await serveParentStatementPdf(req, res);
+  } catch (error: unknown) {
+    console.error("[parent-portal] GET billing/statement-pdf failed:", error);
+    const err = error as Error;
+    return res.status(500).json({
+      success: false,
+      error: err.message || "Failed to generate statement PDF",
+    });
+  }
+});
+
+router.post("/billing/email-statement", parentAuthMiddleware, async (req, res) => {
+  try {
+    const auth = (req as { parentAuth?: { parentId: string; schoolId: string } }).parentAuth;
+    if (!auth?.parentId || !auth?.schoolId) {
+      return res.status(401).json({ success: false, error: "Unauthorized" });
+    }
+
+    const learnerId = String(req.body?.learnerId || "").trim();
+    const subject = String(req.body?.subject || "").trim();
+    const html = String(req.body?.html || "").trim();
+
+    if (!learnerId || !subject || !html) {
+      return res.status(400).json({
+        success: false,
+        error: "Missing required fields: learnerId, subject, html",
+      });
+    }
+
+    const parent = await parentWithLearners(auth.parentId, auth.schoolId);
+    if (!parent) return res.status(404).json({ success: false, error: "Parent not found" });
+
+    const learners = parent.links.map((l) => l.learner) as ParentPortalLearner[];
+    const scope = resolveParentFamilyBillingScope(learners, learnerId);
+    if (!scope.learnerIds.length) {
+      return res.status(403).json({ success: false, error: "Learner not linked to this account" });
+    }
+
+    const to = String(parent.email || "").trim();
+    if (!to) {
+      return res.status(400).json({
+        success: false,
+        error: "No email address on your profile. Contact the school to update your details.",
+      });
+    }
+
+    const result = await sendStatementEmail({
+      schoolId: auth.schoolId,
+      to,
+      subject,
+      html,
+      learnerId,
+      period: "All Time",
+    });
+
+    return res.json({ success: true, messageId: result.messageId });
+  } catch (error: unknown) {
+    console.error("parent billing email-statement", error);
+    const err = error as Error & { setupRequired?: boolean };
+    if (err.setupRequired) {
+      return res.status(409).json(buildSetupRequiredPayload());
+    }
+    return res.status(500).json({
+      success: false,
+      error: err.message || "Failed to email statement",
+    });
   }
 });
 

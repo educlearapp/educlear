@@ -236,29 +236,23 @@ router.get("/learners", async (req, res) => {
 
 
           idNumber: link.parent.idNumber || "",
-
-
-
+          title: link.parent.title || "",
           cellNo: link.parent.cellNo || "",
-
-
-
           cell: link.parent.cellNo || "",
-
-
-
           phone: link.parent.cellNo || "",
-
-
-
           email: link.parent.email || "",
-
-
-
           workNo: link.parent.workNo || "",
-
-
-
+          homeAddress: link.parent.homeAddress || "",
+          notes: link.parent.notes || "",
+          communicationAdministration: link.parent.communicationAdministration ?? true,
+          communicationBilling: link.parent.communicationBilling ?? true,
+          communicationByEmail: link.parent.communicationByEmail ?? true,
+          communicationBySMS: link.parent.communicationBySMS ?? true,
+          communicationByPrint: link.parent.communicationByPrint ?? true,
+          isPayingPerson: link.isPayingPerson ?? false,
+          billingStatement: link.billingStatement ?? true,
+          billingInvoice: link.billingInvoice ?? true,
+          billingReceipt: link.billingReceipt ?? true,
           isPrimary: link.isPrimary || false,
 
 

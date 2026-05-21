@@ -3,6 +3,7 @@ import bcrypt from "bcryptjs";
 import jwt from "jsonwebtoken";
 
 import { prisma } from "../prisma";
+import { seedSchoolEmailDefaults } from "../services/schoolEmailService";
 import { permissionsForRole, prismaRoleForAppRole } from "../utils/userPermissions";
 import { setUserAccessMeta } from "../utils/userAccessStore";
 
@@ -211,6 +212,12 @@ router.post("/register-school", async (req, res) => {
       schoolId: result.school.id,
       userId: result.user.id,
     });
+
+    try {
+      await seedSchoolEmailDefaults(result.school.id);
+    } catch (seedErr) {
+      console.error("[auth] register-school: seedSchoolEmailDefaults failed:", seedErr);
+    }
 
     const token = signAuthToken({
       userId: result.user.id,

@@ -13,7 +13,13 @@ export function setParentSession(token: string, session: Record<string, unknown>
 }
 
 export function getParentSession(): {
-  parent?: { id: string; firstName: string; surname: string; school?: { id: string; name: string } };
+  parent?: {
+    id: string;
+    firstName: string;
+    surname: string;
+    email?: string | null;
+    school?: { id: string; name: string };
+  };
   learners?: unknown[];
 } | null {
   try {

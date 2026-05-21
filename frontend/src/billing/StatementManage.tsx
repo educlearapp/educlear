@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useState } from "react";
 import {
   loadBillingSettingsForSchool,
   mapStatementHistoryToDefaultPeriod,
@@ -23,12 +23,34 @@ import {
   notifyLearnersRefresh,
   resolveEntryLearnerLabel,
 } from "./billingLedger";
+import {
+  fetchSchoolEmailSettings,
+  isSchoolEmailReadyForUi,
+  normalizeSchoolEmailSettings,
+  SCHOOL_EMAIL_READINESS_UPDATED,
+  type SchoolEmailSettings,
+} from "../communication/schoolEmailApi";
+import {
+  buildStatementCoverEmailHtml,
+  buildStatementEmailDefaults,
+  downloadSchoolStatementPdf,
+  openSchoolStatementPdfPrint,
+  loadStatementSchoolBranding,
+  resolveStatementBillingContact,
+  sendStatementEmail,
+  type StatementContact,
+  type StatementSchoolBranding,
+} from "./statementDocument";
 
 type Props = {
   selected: any;
   setActivePage: React.Dispatch<React.SetStateAction<any>>;
+  onOpenEmailSetup?: () => void;
   statementRows?: any[];
   learners?: any[];
+  parents?: any[];
+  schoolName?: string;
+  schoolEmail?: string;
 };
 
 const GOLD = "#d4af37";
@@ -187,8 +209,12 @@ function StatementModal({
 export default function StatementManage({
   selected,
   setActivePage,
+  onOpenEmailSetup,
   statementRows = [],
   learners = [],
+  parents = [],
+  schoolName: schoolNameProp = "",
+  schoolEmail: schoolEmailProp = "",
 }: Props) {
   const schoolId = localStorage.getItem("schoolId") || "";
   const learnerId = String(selected?.learnerId || selected?.id || "").trim();
@@ -206,6 +232,32 @@ export default function StatementManage({
   const [familyActionBusy, setFamilyActionBusy] = useState(false);
   const [familyActionError, setFamilyActionError] = useState("");
   const [familyActionSuccess, setFamilyActionSuccess] = useState("");
+  const [schoolBranding, setSchoolBranding] = useState<StatementSchoolBranding>({
+    name: schoolNameProp || localStorage.getItem("schoolName") || "School",
+    email: schoolEmailProp,
+  });
+  const [sendOpen, setSendOpen] = useState(false);
+  const [sendContact, setSendContact] = useState<StatementContact | null>(null);
+  const [sendSubject, setSendSubject] = useState("");
+  const [sendMessage, setSendMessage] = useState("");
+  const [sendBusy, setSendBusy] = useState(false);
+  const [sendError, setSendError] = useState("");
+  const [actionNotice, setActionNotice] = useState("");
+  const [emailReadiness, setEmailReadiness] = useState<SchoolEmailSettings | null>(null);
+  const emailReady = isSchoolEmailReadyForUi(emailReadiness);
+
+  const loadEmailReadiness = useCallback(async () => {
+    if (!schoolId) {
+      setEmailReadiness(null);
+      return;
+    }
+    try {
+      const res = await fetchSchoolEmailSettings(schoolId);
+      setEmailReadiness(normalizeSchoolEmailSettings(res.settings));
+    } catch {
+      setEmailReadiness(null);
+    }
+  }, [schoolId]);
 
   useEffect(() => {
     if (!schoolId) return;
@@ -215,9 +267,32 @@ export default function StatementManage({
       setPeriod(mapStatementHistoryToDefaultPeriod(settings.statement.statementHistory));
       setStatementNote(resolveStatementMessage(settings));
     });
+    loadStatementSchoolBranding(schoolId).then((branding) => {
+      if (cancelled) return;
+      setSchoolBranding((prev) => ({
+        ...prev,
+        ...branding,
+        name: branding.name || schoolNameProp || prev.name,
+        email: branding.email || schoolEmailProp || prev.email,
+      }));
+    });
     return () => {
       cancelled = true;
     };
+  }, [schoolId, schoolNameProp, schoolEmailProp]);
+
+  useEffect(() => {
+    void loadEmailReadiness();
+  }, [loadEmailReadiness]);
+
+  useEffect(() => {
+    const onReadinessUpdated = (event: Event) => {
+      const detail = (event as CustomEvent).detail as { schoolId?: string; settings?: SchoolEmailSettings };
+      if (!detail?.settings || detail.schoolId !== schoolId) return;
+      setEmailReadiness(normalizeSchoolEmailSettings(detail.settings));
+    };
+    window.addEventListener(SCHOOL_EMAIL_READINESS_UPDATED, onReadinessUpdated);
+    return () => window.removeEventListener(SCHOOL_EMAIL_READINESS_UPDATED, onReadinessUpdated);
   }, [schoolId]);
 
   React.useEffect(() => {
@@ -653,6 +728,160 @@ export default function StatementManage({
 
   const sourceAccountLabel = `${accountNo || "-"} — ${selected?.name || ""} ${selected?.surname || ""}`.trim();
 
+  const accountDisplayLabel = isFamilyBillingAccount
+    ? `Family account ${accountRef || accountNo}`
+    : `${selected?.name || ""} ${selected?.surname || ""}`.trim() || sourceAccountLabel;
+
+  const statementChildren = useMemo(
+    () =>
+      accountChildren.map((c) => ({
+        name: `${c.firstName} ${c.lastName}`.trim(),
+        grade: c.grade,
+      })),
+    [accountChildren]
+  );
+
+  const handlePrintStatement = async () => {
+    setActionNotice("");
+    const anchorId = familyLearnerIds[0] || learnerId;
+    if (!schoolId || !anchorId) {
+      setActionNotice("School or learner context is missing.");
+      return;
+    }
+    try {
+      const opened = await openSchoolStatementPdfPrint(schoolId, anchorId, period, statementNote);
+      if (!opened) {
+        setActionNotice("Please allow pop-ups to print the statement.");
+        setModalKind("pending");
+        setPendingModal({
+          title: "Print Statement",
+          body: "Your browser blocked the print window. Allow pop-ups for this site, then try Print Statement again.",
+        });
+      }
+    } catch (e: unknown) {
+      setActionNotice((e as Error).message || "Could not generate statement PDF.");
+    }
+  };
+
+  const handleDownloadStatement = async () => {
+    setActionNotice("");
+    const anchorId = familyLearnerIds[0] || learnerId;
+    if (!schoolId || !anchorId) {
+      setActionNotice("School or learner context is missing.");
+      return;
+    }
+    const filename = `${(accountRef || accountNo || "statement").replace(/[^\w.-]+/g, "_")}-statement.pdf`;
+    try {
+      await downloadSchoolStatementPdf(schoolId, anchorId, filename, period, statementNote);
+    } catch (e: unknown) {
+      setActionNotice((e as Error).message || "Could not download statement PDF.");
+    }
+  };
+
+  const closeSendModal = () => {
+    setSendOpen(false);
+    setSendError("");
+    setSendBusy(false);
+  };
+
+  const handleSendStatement = async () => {
+    setActionNotice("");
+    const targetIds = familyLearnerIds.length ? familyLearnerIds : learnerId ? [learnerId] : [];
+    const contact = resolveStatementBillingContact(learners, parents, targetIds);
+    if (!contact?.email) {
+      setModalKind("pending");
+      setPendingModal({
+        title: "Send Statement",
+        body: "No parent or guardian email is on file for this account. Add an email on the learner’s Parents tab (with billing statements enabled) and try again.",
+      });
+      return;
+    }
+    if (!schoolId) {
+      setModalKind("pending");
+      setPendingModal({
+        title: "Send Statement",
+        body: "School context is missing. Please sign in again.",
+      });
+      return;
+    }
+    if (!emailReady) {
+      if (onOpenEmailSetup) {
+        onOpenEmailSetup();
+        return;
+      }
+      setModalKind("pending");
+      setPendingModal({
+        title: "Send Statement",
+        body: "Email setup required. Open Communication → Settings → Email (SMTP), save your provider settings, and send a test email.",
+      });
+      return;
+    }
+    const defaults = await buildStatementEmailDefaults(
+      schoolId,
+      schoolBranding.name,
+      accountDisplayLabel,
+      contact.name
+    );
+    setSendContact(contact);
+    setSendSubject(defaults.subject);
+    setSendMessage(defaults.message);
+    setSendError("");
+    setSendOpen(true);
+  };
+
+  const confirmSendStatement = async () => {
+    if (!sendContact?.email || !schoolId) return;
+    if (!sendSubject.trim()) {
+      setSendError("Please enter an email subject.");
+      return;
+    }
+    setSendBusy(true);
+    setSendError("");
+    try {
+      const emailHtml = buildStatementCoverEmailHtml({
+        school: schoolBranding,
+        messagePlain: sendMessage || "",
+      });
+      const anchorId = familyLearnerIds[0] || learnerId;
+      if (!anchorId) throw new Error("Learner context missing for statement PDF.");
+      await sendStatementEmail({
+        schoolId,
+        to: sendContact.email,
+        subject: sendSubject.trim(),
+        html: emailHtml,
+        learnerId: anchorId,
+        period,
+        statementNote,
+        filename: `${(accountRef || accountNo || "statement").replace(/[^\w.-]+/g, "_")}-statement.pdf`,
+      });
+      closeSendModal();
+      setModalKind("pending");
+      setPendingModal({
+        title: "Send Statement",
+        body: `Statement sent to ${sendContact.email}.`,
+      });
+    } catch (e: unknown) {
+      const err = e as Error & { setupRequired?: boolean };
+      if (err.setupRequired) {
+        setSendError(err.message || "Email setup required.");
+        if (onOpenEmailSetup) {
+          closeSendModal();
+          onOpenEmailSetup();
+        }
+      } else {
+        setSendError(err.message || "Failed to send statement.");
+      }
+    } finally {
+      setSendBusy(false);
+    }
+  };
+
+  const goldButtonStyle: React.CSSProperties = {
+    ...buttonStyle,
+    background: `linear-gradient(135deg, #f7d56a, ${GOLD})`,
+    border: "1px solid #b89329",
+  };
+
   return (
     <div style={{ padding: "32px 36px", background: "#f6f4ef", minHeight: "100vh" }}>
       <h1 style={{ margin: 0, fontSize: 34, fontWeight: 900, color: INK }}>
@@ -666,6 +895,39 @@ export default function StatementManage({
         <button type="button" style={buttonStyle} onClick={openCreatePayment}>
           + Payment
         </button>
+        <button type="button" style={buttonStyle} onClick={() => void handlePrintStatement()}>
+          Print Statement
+        </button>
+        <button type="button" style={buttonStyle} onClick={() => void handleDownloadStatement()}>
+          Download PDF
+        </button>
+        <span
+          style={{ position: "relative", display: "inline-flex", alignItems: "center" }}
+          title={emailReady ? "Send statement by email" : "Email setup required"}
+        >
+          <button type="button" style={goldButtonStyle} onClick={() => void handleSendStatement()}>
+            Send Statement
+          </button>
+          {!emailReady ? (
+            <span
+              style={{
+                position: "absolute",
+                top: -8,
+                right: -8,
+                background: "#b45309",
+                color: "#fff",
+                fontSize: 10,
+                fontWeight: 900,
+                padding: "2px 6px",
+                borderRadius: 999,
+                whiteSpace: "nowrap",
+                pointerEvents: "none",
+              }}
+            >
+              Email setup required
+            </span>
+          ) : null}
+        </span>
         <select
           style={{ ...buttonStyle, minWidth: 230, appearance: "auto" }}
           defaultValue=""
@@ -692,6 +954,9 @@ export default function StatementManage({
           ))}
         </select>
       </div>
+      {actionNotice ? (
+        <div style={{ margin: "0 0 16px", color: "#b45309", fontWeight: 700 }}>{actionNotice}</div>
+      ) : null}
       <div style={{ display: "grid", gridTemplateColumns: "1fr 360px", gap: 24, alignItems: "start" }}>
         <section style={{ background: "#fff", border: `1px solid ${GOLD}`, borderRadius: 8, overflow: "hidden" }}>
           <div style={{ background: INK, color: GOLD, padding: "14px 18px", fontWeight: 900 }}>Account</div>
@@ -1158,6 +1423,69 @@ export default function StatementManage({
           }
         >
           <p style={{ margin: 0, lineHeight: 1.7, color: "#334155", fontWeight: 600 }}>{pendingModal.body}</p>
+        </StatementModal>
+      ) : null}
+
+      {sendOpen && sendContact ? (
+        <StatementModal
+          title="Send Statement"
+          onClose={sendBusy ? undefined : closeSendModal}
+          footer={
+            <>
+              <button type="button" style={modalBtn} onClick={closeSendModal} disabled={sendBusy}>
+                Cancel
+              </button>
+              <button type="button" style={modalGoldBtn} onClick={() => void confirmSendStatement()} disabled={sendBusy}>
+                {sendBusy ? "Sending…" : "Send Email"}
+              </button>
+            </>
+          }
+        >
+          <div style={{ display: "grid", gap: 14 }}>
+            <div>
+              <div style={{ fontWeight: 900, color: INK, marginBottom: 6 }}>To</div>
+              <div style={{ padding: 12, borderRadius: 8, border: "1px solid #e5e7eb", background: "#f8fafc", fontWeight: 700 }}>
+                {sendContact.name} &lt;{sendContact.email}&gt;
+              </div>
+            </div>
+            <div>
+              <div style={{ fontWeight: 900, color: INK, marginBottom: 6 }}>Subject</div>
+              <input
+                value={sendSubject}
+                onChange={(e) => setSendSubject(e.target.value)}
+                style={{
+                  width: "100%",
+                  padding: "10px 12px",
+                  borderRadius: 8,
+                  border: "1px solid #cbd5e1",
+                  fontWeight: 600,
+                }}
+              />
+            </div>
+            <div>
+              <div style={{ fontWeight: 900, color: INK, marginBottom: 6 }}>Message</div>
+              <textarea
+                value={sendMessage}
+                onChange={(e) => setSendMessage(e.target.value)}
+                rows={6}
+                style={{
+                  width: "100%",
+                  padding: "10px 12px",
+                  borderRadius: 8,
+                  border: "1px solid #cbd5e1",
+                  fontWeight: 600,
+                  resize: "vertical",
+                }}
+              />
+            </div>
+            <p style={{ margin: 0, color: "#64748b", fontSize: 13, fontWeight: 600 }}>
+              The statement PDF for account {accountRef || accountNo} is attached. Email is sent using your school&apos;s
+              saved SMTP settings (From / Reply-To from Communication settings).
+            </p>
+            {sendError ? (
+              <p style={{ margin: 0, color: "#b91c1c", fontWeight: 700, lineHeight: 1.6 }}>{sendError}</p>
+            ) : null}
+          </div>
         </StatementModal>
       ) : null}
     </div>

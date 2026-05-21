@@ -33,12 +33,14 @@ import payrollRoutes from "./routes/payroll";
 import feesRoutes from "./routes/fees";
 import registrationsRoutes from "./routes/registrations";
 import emailRoutes from "./routes/emails";
+import schoolEmailSettingsRoutes from "./routes/schoolEmailSettings";
 import parentPortalRoutes from "./routes/parentPortal";
 import classroomsRoutes from "./routes/classrooms";
 import teacherInboxRoutes from "./routes/teacherInbox";
 import teacherAppRoutes from "./routes/teacherApp";
 import migrationRoutes from "./routes/migration";
 import { prisma } from "./prisma";
+import { bootstrapDevTestSchoolEmail } from "./dev/devTestSchoolEmail";
 
 type OtpRecord = {
 
@@ -289,6 +291,7 @@ app.use ("/auth", authRoutes);
 app.use("/learner", learnerRoutes);
 app.use("/api/schools", schoolsRoutes);
 app.use("/api/emails", emailRoutes);
+app.use("/api/school-email-settings", schoolEmailSettingsRoutes);
 app.use("/api/users", usersRoutes);
 app.post("/api/upload-logo", upload.single("logo"), (req, res) => {
 
@@ -331,7 +334,7 @@ app.post("/api/upload-logo", upload.single("logo"), (req, res) => {
 
 
 });
-app.use("/api", parentsRoutes);
+app.use("/api/parents", parentsRoutes);
 app.use("/api/invoices", invoicesRoutes);
 app.use("/api/statements", statementsRoutes);
 app.use("/api/family-accounts", familyAccountsRoutes);
@@ -879,9 +882,8 @@ app.get("/api/parent-portal/lookup", async (req, res) => {
 
 });
 const server = app.listen(PORT, () => {
-
   console.log(`Server running on http://localhost:${PORT}`);
-
+  void bootstrapDevTestSchoolEmail();
 });
 
 server.on("error", (err: NodeJS.ErrnoException) => {

@@ -1,5 +1,7 @@
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { NavLink, Navigate, Outlet, useLocation, useNavigate } from "react-router-dom";
+import { resolveSchoolLogoUrl } from "../billing/statementDocument";
+import { staffApiFetch } from "../staffApi";
 
 const SIDEBAR_LINKS = [
   { to: "/teacher/home", label: "Dashboard", icon: "🏠", end: true },
@@ -16,6 +18,8 @@ export default function TeacherShell() {
   const location = useLocation();
   const token = localStorage.getItem("token");
   const schoolId = localStorage.getItem("schoolId");
+  const [schoolLogoUrl, setSchoolLogoUrl] = useState(() => resolveSchoolLogoUrl());
+  const [schoolName, setSchoolName] = useState(() => localStorage.getItem("schoolName") || "");
 
   const path = location.pathname;
   const onLogin = path.endsWith("/login");
@@ -28,7 +32,7 @@ export default function TeacherShell() {
     document.head.appendChild(link);
     const theme = document.createElement("meta");
     theme.name = "theme-color";
-    theme.content = "#0a0a0a";
+    theme.content = "#f7f4ef";
     document.head.appendChild(theme);
     const apple = document.createElement("meta");
     apple.name = "apple-mobile-web-app-capable";
@@ -45,6 +49,23 @@ export default function TeacherShell() {
     if (!("serviceWorker" in navigator)) return;
     void navigator.serviceWorker.register("/teacher-sw.js").catch(() => {});
   }, []);
+
+  useEffect(() => {
+    if (!token || !schoolId) return;
+    void staffApiFetch("/api/teacher-app/me")
+      .then((data: { school?: { name?: string | null; logoUrl?: string | null } }) => {
+        if (data?.school?.name) {
+          setSchoolName(String(data.school.name));
+          localStorage.setItem("schoolName", String(data.school.name));
+        }
+        const logo = resolveSchoolLogoUrl(data?.school || null);
+        if (logo) {
+          setSchoolLogoUrl(logo);
+          localStorage.setItem("schoolLogoUrl", logo);
+        }
+      })
+      .catch(() => {});
+  }, [token, schoolId]);
 
   function logout() {
     localStorage.removeItem("token");
@@ -66,8 +87,15 @@ export default function TeacherShell() {
   return (
     <div className="teacher-app-layout">
       <aside className="teacher-app-sidebar" aria-label="Teacher Portal navigation">
+        <div className="teacher-sidebar-logo-wrap" aria-hidden={!schoolLogoUrl}>
+          {schoolLogoUrl ? (
+            <img src={schoolLogoUrl} alt="" />
+          ) : (
+            <span className="teacher-sidebar-logo-fallback">SCH</span>
+          )}
+        </div>
         <p className="teacher-app-sidebar-brand">Teacher Portal</p>
-        <p className="teacher-app-sidebar-tag">EduClear Teacher App</p>
+        <p className="teacher-app-sidebar-tag">{schoolName || "EduClear Teacher App"}</p>
         <nav className="teacher-app-sidebar-nav">
           {SIDEBAR_LINKS.map((item) => (
             <NavLink

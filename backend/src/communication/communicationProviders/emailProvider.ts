@@ -1,3 +1,5 @@
+import { isSchoolEmailConfigured, sendSchoolEmail } from "../../services/schoolEmailService";
+
 export type ProviderSendContext = {
   schoolId: string;
   messageId: string;
@@ -11,12 +13,46 @@ export type ProviderSendResult = {
   simulated: boolean;
   reference?: string;
   error?: string;
+  setupRequired?: boolean;
 };
 
-/**
- * Adapter boundary for SMTP / transactional email.
- * Live transport is wired here later; returns a structured simulated outcome only.
- */
 export async function sendEmailPlaceholder(ctx: ProviderSendContext): Promise<ProviderSendResult> {
-  return { ok: true, simulated: true, reference: `email:${ctx.messageId}` };
+  const recipient = String(ctx.recipient || "").trim();
+  if (!recipient) {
+    return { ok: false, simulated: false, error: "missing_recipient" };
+  }
+
+  if (!(await isSchoolEmailConfigured(ctx.schoolId))) {
+    return {
+      ok: false,
+      simulated: false,
+      error: "email_setup_required",
+      setupRequired: true,
+    };
+  }
+
+  try {
+    const result = await sendSchoolEmail(ctx.schoolId, {
+      to: recipient,
+      subject: ctx.subject || "Message from your school",
+      html: `<div style="font-family:Arial,sans-serif;line-height:1.5">${String(ctx.body || "")
+        .split("\n")
+        .map((line) => `<p style="margin:0 0 8px">${line}</p>`)
+        .join("")}</div>`,
+    });
+    return {
+      ok: true,
+      simulated: false,
+      reference: result.messageId || `email:${ctx.messageId}`,
+    };
+  } catch (e: unknown) {
+    const message = e instanceof Error ? e.message : String(e);
+    const setupRequired = Boolean((e as { setupRequired?: boolean }).setupRequired);
+    return {
+      ok: false,
+      simulated: false,
+      error: message,
+      setupRequired,
+    };
+  }
 }

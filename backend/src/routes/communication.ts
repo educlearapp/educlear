@@ -3,9 +3,17 @@ import fs from "fs";
 import path from "path";
 import crypto from "crypto";
 import { prisma } from "../prisma";
+import { getPublicSchoolEmailSettings } from "../services/schoolEmailService";
+import {
+  applyEmailTemplateTokens,
+  formatComposeSenderLabel,
+  resolveEmailSignature,
+  resolveSchoolReplyToEmail,
+  resolveSchoolSenderEmail,
+  smtpSenderFromPublic,
+} from "../communication/schoolSender";
 
 const router = Router();
-const FALLBACK_SENDER_EMAIL = "no-reply@educlear.co.za";
 const DATA_FILE = path.join(process.cwd(), "data", "communication-store.json");
 
 export type CommunicationSettings = {
@@ -169,32 +177,6 @@ function mergeSettings(
   return next;
 }
 
-function resolveSchoolSenderEmail(
-  settings: CommunicationSettings,
-  schoolEmail?: string | null
-) {
-  if (settings.sendViaEduClearDomain) {
-    return FALLBACK_SENDER_EMAIL;
-  }
-  const billing = String(settings.billingEmail || "").trim();
-  if (billing) return billing;
-  const administration = String(settings.administrationEmail || "").trim();
-  if (administration) return administration;
-  const email = String(schoolEmail || "").trim();
-  if (email) return email;
-  return FALLBACK_SENDER_EMAIL;
-}
-
-function formatComposeSenderLabel(
-  schoolName: string,
-  settings: CommunicationSettings,
-  schoolEmail?: string | null
-) {
-  const name = String(schoolName || "School").trim() || "School";
-  const email = resolveSchoolSenderEmail(settings, schoolEmail);
-  return `${name} ${email}`;
-}
-
 async function loadSchoolBranding(schoolId: string) {
   const school = await prisma.school.findUnique({
     where: { id: schoolId },
@@ -214,14 +196,24 @@ router.get("/settings", async (req, res) => {
     if (!schoolId) return res.status(400).json({ success: false, error: "Missing schoolId" });
     const store = ensureStore();
     const schoolStore = getSchoolStore(store, schoolId);
-    const branding = await loadSchoolBranding(schoolId);
+    const [branding, smtpPublic] = await Promise.all([
+      loadSchoolBranding(schoolId),
+      getPublicSchoolEmailSettings(schoolId).catch(() => null),
+    ]);
     const schoolName = branding?.schoolName || "School";
     const schoolEmail = branding?.schoolEmail || "";
-    const senderEmail = resolveSchoolSenderEmail(schoolStore.settings, schoolEmail);
-    const senderLabel = formatComposeSenderLabel(schoolName, schoolStore.settings, schoolEmail);
+    const schoolCtx = { schoolName, schoolEmail };
+    const smtp = smtpPublic ? smtpSenderFromPublic(smtpPublic) : null;
+    const clientSettings = settingsForClient(schoolStore.settings);
+    const senderEmail = resolveSchoolSenderEmail(schoolStore.settings, schoolCtx, smtp);
+    const replyToEmail = resolveSchoolReplyToEmail(schoolStore.settings, schoolCtx, smtp);
+    const senderLabel = formatComposeSenderLabel(schoolStore.settings, schoolCtx, smtp);
     return res.json({
       success: true,
-      settings: settingsForClient(schoolStore.settings),
+      settings: {
+        ...clientSettings,
+        signature: resolveEmailSignature(clientSettings.signature, schoolName),
+      },
       emailBalance: schoolStore.emailBalance,
       smsCredits: schoolStore.smsCredits,
       winSmsCredits: schoolStore.winSmsCredits,
@@ -229,6 +221,7 @@ router.get("/settings", async (req, res) => {
       schoolEmail,
       senderEmail,
       senderLabel,
+      replyToEmail,
     });
   } catch (error) {
     console.error("[communication] GET settings failed:", error);
@@ -244,14 +237,24 @@ router.put("/settings", async (req, res) => {
     const schoolStore = getSchoolStore(store, schoolId);
     schoolStore.settings = mergeSettings(schoolStore.settings, req.body?.settings || {});
     writeStore(store);
-    const branding = await loadSchoolBranding(schoolId);
+    const [branding, smtpPublic] = await Promise.all([
+      loadSchoolBranding(schoolId),
+      getPublicSchoolEmailSettings(schoolId).catch(() => null),
+    ]);
     const schoolName = branding?.schoolName || "School";
     const schoolEmail = branding?.schoolEmail || "";
-    const senderEmail = resolveSchoolSenderEmail(schoolStore.settings, schoolEmail);
-    const senderLabel = formatComposeSenderLabel(schoolName, schoolStore.settings, schoolEmail);
+    const schoolCtx = { schoolName, schoolEmail };
+    const smtp = smtpPublic ? smtpSenderFromPublic(smtpPublic) : null;
+    const clientSettings = settingsForClient(schoolStore.settings);
+    const senderEmail = resolveSchoolSenderEmail(schoolStore.settings, schoolCtx, smtp);
+    const replyToEmail = resolveSchoolReplyToEmail(schoolStore.settings, schoolCtx, smtp);
+    const senderLabel = formatComposeSenderLabel(schoolStore.settings, schoolCtx, smtp);
     return res.json({
       success: true,
-      settings: settingsForClient(schoolStore.settings),
+      settings: {
+        ...clientSettings,
+        signature: resolveEmailSignature(clientSettings.signature, schoolName),
+      },
       emailBalance: schoolStore.emailBalance,
       smsCredits: schoolStore.smsCredits,
       winSmsCredits: schoolStore.winSmsCredits,
@@ -259,6 +262,7 @@ router.put("/settings", async (req, res) => {
       schoolEmail,
       senderEmail,
       senderLabel,
+      replyToEmail,
     });
   } catch (error) {
     console.error("[communication] PUT settings failed:", error);
@@ -327,12 +331,16 @@ router.post("/emails", async (req, res) => {
     if (!schoolId) return res.status(400).json({ success: false, error: "Missing schoolId" });
     const store = ensureStore();
     const school = getSchoolStore(store, schoolId);
-    const branding = await loadSchoolBranding(schoolId);
-    const defaultFromLabel = formatComposeSenderLabel(
-      branding?.schoolName || "School",
-      school.settings,
-      branding?.schoolEmail
-    );
+    const [branding, smtpPublic] = await Promise.all([
+      loadSchoolBranding(schoolId),
+      getPublicSchoolEmailSettings(schoolId).catch(() => null),
+    ]);
+    const schoolCtx = {
+      schoolName: branding?.schoolName || "School",
+      schoolEmail: branding?.schoolEmail || "",
+    };
+    const smtp = smtpPublic ? smtpSenderFromPublic(smtpPublic) : null;
+    const defaultFromLabel = formatComposeSenderLabel(school.settings, schoolCtx, smtp);
     const now = new Date().toISOString();
     const record: EmailRecord = {
       id: newId("email"),

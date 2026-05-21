@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import { staffApiFetch } from "../staffApi";
 import { NO_ASSIGNED_CLASSROOMS_MSG } from "./useTeacherAssignedClassrooms";
@@ -7,20 +7,44 @@ type MeResponse = {
   success?: boolean;
   unreadInbox?: number;
   assignedClassNames?: string[];
-  assignedClassrooms?: { id: string; name: string }[];
+  assignedClassrooms?: { id: string; name: string; learnerCount?: number }[];
   user?: { fullName?: string | null; email?: string };
   school?: { name?: string | null };
 };
 
+type HomeworkPost = { dueDate?: string | null };
+type IncidentRow = { id: string };
+
+function isDueToday(iso: string | null | undefined) {
+  if (!iso) return false;
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return false;
+  const now = new Date();
+  return (
+    d.getFullYear() === now.getFullYear() &&
+    d.getMonth() === now.getMonth() &&
+    d.getDate() === now.getDate()
+  );
+}
+
 export default function TeacherDashboard() {
   const [me, setMe] = useState<MeResponse | null>(null);
+  const [homeworkDueToday, setHomeworkDueToday] = useState(0);
+  const [pendingIncidents, setPendingIncidents] = useState(0);
   const [err, setErr] = useState<string | null>(null);
 
   useEffect(() => {
     void (async () => {
       try {
-        const data = (await staffApiFetch("/api/teacher-app/me")) as MeResponse;
-        setMe(data);
+        const [meData, hwData, incData] = await Promise.all([
+          staffApiFetch("/api/teacher-app/me") as Promise<MeResponse>,
+          staffApiFetch("/api/teacher-app/homework").catch(() => ({ posts: [] })),
+          staffApiFetch("/api/teacher-app/incidents").catch(() => ({ incidents: [] })),
+        ]);
+        setMe(meData);
+        const posts = (hwData as { posts?: HomeworkPost[] }).posts || [];
+        setHomeworkDueToday(posts.filter((p) => isDueToday(p.dueDate)).length);
+        setPendingIncidents(((incData as { incidents?: IncidentRow[] }).incidents || []).length);
       } catch (e: unknown) {
         setErr(e instanceof Error ? e.message : "Could not load teacher profile");
       }
@@ -28,6 +52,14 @@ export default function TeacherDashboard() {
   }, []);
 
   const unread = me?.unreadInbox ?? 0;
+  const assignedLearners = useMemo(() => {
+    const rooms = me?.assignedClassrooms || [];
+    if (rooms.length) {
+      return rooms.reduce((sum, c) => sum + (Number(c.learnerCount) || 0), 0);
+    }
+    return me?.assignedClassNames?.length ?? 0;
+  }, [me]);
+
   const classes =
     (me?.assignedClassrooms?.length ?? 0) > 0
       ? (me?.assignedClassrooms?.length ?? 0)
@@ -55,10 +87,34 @@ export default function TeacherDashboard() {
           ).join(" · ")}
         </p>
       ) : null}
-      <div className="teacher-card-grid" style={{ marginTop: 20 }}>
+
+      <div className="teacher-stats-row" aria-label="Quick stats">
+        <div className="teacher-stat-card">
+          <p className="teacher-stat-card-label">Assigned Learners</p>
+          <p className="teacher-stat-card-value">{assignedLearners}</p>
+          <p className="teacher-stat-card-hint">Across your classes</p>
+        </div>
+        <div className="teacher-stat-card">
+          <p className="teacher-stat-card-label">Homework Due Today</p>
+          <p className="teacher-stat-card-value">{homeworkDueToday}</p>
+          <p className="teacher-stat-card-hint">Posted for your classes</p>
+        </div>
+        <div className="teacher-stat-card">
+          <p className="teacher-stat-card-label">Unread Messages</p>
+          <p className="teacher-stat-card-value">{unread}</p>
+          <p className="teacher-stat-card-hint">From parents</p>
+        </div>
+        <div className="teacher-stat-card">
+          <p className="teacher-stat-card-label">Pending Incidents</p>
+          <p className="teacher-stat-card-value">{pendingIncidents}</p>
+          <p className="teacher-stat-card-hint">Recorded for your learners</p>
+        </div>
+      </div>
+
+      <div className="teacher-card-grid">
         <Link className="teacher-dash-card" to="/teacher/inbox">
           <span className="icon">✉️</span>
-          Parent Messages
+          Parents Portal
           {unread > 0 && (
             <span style={{ color: "var(--t-gold)", fontSize: "0.8rem" }}>{unread} unread</span>
           )}

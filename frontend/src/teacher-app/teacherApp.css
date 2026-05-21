@@ -1,20 +1,28 @@
-/* EduClear Teacher Portal — black + gold, responsive across phone / tablet / desktop */
+/* EduClear Teacher Portal — dark sidebar + light main (matches school dashboard) */
 
 :root {
-  --t-bg: #050505;
-  --t-panel: #0f0f0f;
-  --t-border: rgba(212, 175, 55, 0.35);
   --t-gold: #d4af37;
   --t-gold-dim: #a68b2d;
-  --t-text: #f8fafc;
-  --t-muted: #94a3b8;
+  --t-gold-light: #f7d56a;
   --t-sidebar-w: 248px;
+  --t-sidebar-border: rgba(212, 175, 55, 0.35);
+  --t-sidebar-text: #f8fafc;
+  --t-sidebar-muted: #94a3b8;
+  --t-content-bg: #f7f4ef;
+  --t-page-bg: #ffffff;
+  --t-ink: #1d2736;
+  --t-muted: #5b6575;
+  --t-border: #ece7dc;
+  --t-border-gold: rgba(212, 175, 55, 0.32);
+  --t-card-shadow: 0 8px 24px rgba(15, 15, 15, 0.06);
+  --t-error: #b45309;
+  --t-error-bg: #fffbeb;
 }
 
 .teacher-app-root {
   min-height: 100vh;
-  background: radial-gradient(circle at 20% 0%, #1a1508 0%, var(--t-bg) 45%, #000 100%);
-  color: var(--t-text);
+  background: var(--t-content-bg);
+  color: var(--t-ink);
   font-family: system-ui, -apple-system, "Segoe UI", Roboto, Arial, sans-serif;
 }
 
@@ -23,13 +31,15 @@
   min-height: 100vh;
 }
 
+/* Sidebar — dark/black + gold */
 .teacher-app-sidebar {
   display: none;
   flex-direction: column;
   width: var(--t-sidebar-w);
   flex-shrink: 0;
-  border-right: 1px solid var(--t-border);
-  background: rgba(0, 0, 0, 0.75);
+  border-right: 1px solid var(--t-sidebar-border);
+  background: linear-gradient(180deg, #0f0f0f 0%, #1a1a1a 100%);
+  color: var(--t-sidebar-text);
   padding: 20px 14px;
   position: sticky;
   top: 0;
@@ -49,7 +59,7 @@
   margin: 0 0 20px;
   font-size: 0.78rem;
   font-weight: 600;
-  color: var(--t-muted);
+  color: var(--t-sidebar-muted);
 }
 
 .teacher-app-sidebar-nav {
@@ -66,14 +76,14 @@
   padding: 11px 12px;
   border-radius: 12px;
   text-decoration: none;
-  color: var(--t-muted);
+  color: var(--t-sidebar-muted);
   font-size: 0.92rem;
   font-weight: 700;
   border: 1px solid transparent;
 }
 
 .teacher-app-sidebar-nav a:hover {
-  color: var(--t-text);
+  color: var(--t-sidebar-text);
   background: rgba(212, 175, 55, 0.08);
 }
 
@@ -96,11 +106,22 @@
   border-top: 1px solid rgba(212, 175, 55, 0.15);
 }
 
+.teacher-app-sidebar-footer .teacher-touch-btn {
+  color: var(--t-sidebar-text);
+  border-color: var(--t-sidebar-border);
+  background: rgba(255, 255, 255, 0.04);
+}
+
+.teacher-app-sidebar-footer .teacher-touch-btn:hover {
+  background: rgba(212, 175, 55, 0.1);
+}
+
 .teacher-app-body {
   flex: 1;
   min-width: 0;
   display: flex;
   flex-direction: column;
+  background: var(--t-content-bg);
 }
 
 .teacher-app-main {
@@ -119,35 +140,40 @@
   gap: 12px;
   padding: 12px 16px;
   border-bottom: 1px solid var(--t-border);
-  background: rgba(0, 0, 0, 0.65);
+  background: var(--t-page-bg);
   position: sticky;
   top: 0;
   z-index: 20;
-  backdrop-filter: blur(8px);
+  box-shadow: 0 2px 12px rgba(15, 15, 15, 0.04);
 }
 
 .teacher-app-title {
   margin: 0;
   font-size: 1.15rem;
   font-weight: 800;
-  letter-spacing: 0.04em;
-  color: var(--t-gold);
+  letter-spacing: 0.02em;
+  color: var(--t-ink);
 }
 
 .teacher-page-heading {
   margin-top: 0;
   font-size: clamp(1.25rem, 3vw, 1.5rem);
   line-height: 1.25;
+  font-weight: 800;
+  color: var(--t-ink);
+  border-bottom: 2px solid rgba(212, 175, 55, 0.35);
+  padding-bottom: 8px;
+  margin-bottom: 12px;
 }
 
 .teacher-touch-btn {
   min-height: 44px;
   min-width: 44px;
   padding: 10px 18px;
-  border-radius: 14px;
+  border-radius: 12px;
   border: 1px solid var(--t-border);
-  background: linear-gradient(180deg, #1a1810 0%, #0c0c0c 100%);
-  color: var(--t-text);
+  background: var(--t-page-bg);
+  color: var(--t-ink);
   font-size: 0.95rem;
   font-weight: 700;
   cursor: pointer;
@@ -156,12 +182,17 @@
   justify-content: center;
   gap: 8px;
   touch-action: manipulation;
+  box-shadow: 0 2px 8px rgba(15, 15, 15, 0.04);
+}
+
+.teacher-touch-btn:hover {
+  border-color: var(--t-border-gold);
 }
 
 .teacher-touch-btn.primary {
-  background: linear-gradient(180deg, #e8c84a 0%, var(--t-gold) 45%, var(--t-gold-dim) 100%);
-  color: #0a0a0a;
-  border-color: rgba(212, 175, 55, 0.8);
+  background: linear-gradient(135deg, var(--t-gold-light), var(--t-gold));
+  color: #0f0f0f;
+  border-color: rgba(212, 175, 55, 0.55);
 }
 
 .teacher-touch-btn:disabled {
@@ -179,28 +210,101 @@
   gap: 14px;
 }
 
+.teacher-sidebar-logo-wrap {
+  width: 56px;
+  height: 56px;
+  border-radius: 14px;
+  border: 1px solid var(--t-sidebar-border);
+  overflow: hidden;
+  background: rgba(255, 255, 255, 0.06);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-bottom: 12px;
+  flex-shrink: 0;
+}
+
+.teacher-sidebar-logo-wrap img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.teacher-sidebar-logo-fallback {
+  font-size: 0.72rem;
+  font-weight: 800;
+  color: var(--t-gold);
+  letter-spacing: 0.04em;
+}
+
+.teacher-stats-row {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+  margin: 20px 0 24px;
+}
+
+.teacher-stat-card {
+  background: #ffffff;
+  border: 1px solid var(--t-border-gold);
+  border-radius: 16px;
+  padding: 14px 16px;
+  box-shadow: var(--t-card-shadow);
+}
+
+.teacher-stat-card-label {
+  margin: 0;
+  font-size: 0.72rem;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--t-muted);
+}
+
+.teacher-stat-card-value {
+  margin: 6px 0 0;
+  font-size: 1.55rem;
+  font-weight: 900;
+  line-height: 1.1;
+  color: var(--t-ink);
+}
+
+.teacher-stat-card-hint {
+  margin: 4px 0 0;
+  font-size: 0.78rem;
+  font-weight: 600;
+  color: var(--t-gold-dim);
+}
+
 .teacher-dash-card {
   border-radius: 18px;
-  border: 1px solid var(--t-border);
-  background: var(--t-panel);
-  padding: 18px 14px;
+  border: 1px solid var(--t-border-gold);
+  background: #ffffff;
+  padding: 22px 16px;
   text-align: center;
   text-decoration: none;
-  color: inherit;
-  min-height: 112px;
+  color: var(--t-ink);
+  min-height: 128px;
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  gap: 8px;
+  gap: 10px;
   font-weight: 800;
-  font-size: 0.95rem;
-  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.45);
-  transition: border-color 0.15s ease, transform 0.15s ease;
+  font-size: 1rem;
+  box-shadow: var(--t-card-shadow);
+  transition:
+    border-color 0.22s ease,
+    transform 0.22s ease,
+    box-shadow 0.22s ease;
 }
 
 .teacher-dash-card:hover {
   border-color: rgba(212, 175, 55, 0.55);
+  transform: translateY(-3px);
+  box-shadow:
+    0 12px 32px rgba(212, 175, 55, 0.16),
+    0 8px 24px rgba(15, 15, 15, 0.08);
 }
 
 .teacher-dash-card span.icon {
@@ -237,9 +341,9 @@
   font-size: 1rem;
   padding: 12px 14px;
   border-radius: 12px;
-  border: 1px solid var(--t-border);
-  background: #080808;
-  color: var(--t-text);
+  border: 1px solid #e2e8f0;
+  background: var(--t-page-bg);
+  color: var(--t-ink);
 }
 
 .teacher-field input[type="file"] {
@@ -270,10 +374,11 @@
   justify-content: space-around;
   gap: 4px;
   padding: 10px 8px calc(10px + env(safe-area-inset-bottom));
-  background: rgba(5, 5, 5, 0.92);
+  background: rgba(255, 255, 255, 0.96);
   border-top: 1px solid var(--t-border);
   backdrop-filter: blur(10px);
   z-index: 30;
+  box-shadow: 0 -4px 16px rgba(15, 15, 15, 0.06);
 }
 
 .teacher-bottom-nav a {
@@ -295,7 +400,7 @@
 }
 
 .teacher-bottom-nav a.active {
-  color: var(--t-gold);
+  color: var(--t-gold-dim);
   background: rgba(212, 175, 55, 0.12);
 }
 
@@ -303,14 +408,15 @@
   margin-top: 12px;
   padding: 12px 14px;
   border-radius: 12px;
-  border: 1px dashed var(--t-border);
+  border: 1px dashed var(--t-border-gold);
+  background: #fffbeb;
   color: var(--t-muted);
   font-size: 0.88rem;
   line-height: 1.45;
 }
 
 .teacher-error {
-  color: #fecaca;
+  color: var(--t-error);
   font-weight: 600;
   margin: 8px 0;
 }
@@ -323,9 +429,10 @@
 .teacher-section-title {
   margin-top: 32px;
   font-size: 1.1rem;
+  font-weight: 800;
+  color: var(--t-ink);
 }
 
-/* Record lists — cards on all sizes; stacked on phone */
 .teacher-record-list {
   list-style: none;
   padding: 0;
@@ -338,21 +445,22 @@
 .teacher-record-card {
   padding: 14px 16px;
   border-radius: 14px;
-  border: 1px solid var(--t-border);
-  background: var(--t-panel);
+  border: 1px solid var(--t-border-gold);
+  background: #ffffff;
   color: var(--t-muted);
   font-size: 0.9rem;
   line-height: 1.45;
+  box-shadow: var(--t-card-shadow);
 }
 
 .teacher-record-card strong {
-  color: var(--t-text);
+  color: var(--t-ink);
   display: block;
   margin-bottom: 4px;
 }
 
 .teacher-record-card a {
-  color: var(--t-gold);
+  color: var(--t-gold-dim);
   word-break: break-word;
 }
 
@@ -368,15 +476,19 @@
 .teacher-learner-card {
   padding: 14px 16px;
   border-radius: 14px;
-  border: 1px solid var(--t-border);
-  background: var(--t-panel);
+  border: 1px solid var(--t-border-gold);
+  background: #ffffff;
+  box-shadow: var(--t-card-shadow);
+  color: var(--t-ink);
 }
 
-/* Responsive tables → card rows on phone */
 .teacher-data-table-wrap {
   overflow-x: auto;
   -webkit-overflow-scrolling: touch;
   margin-top: 12px;
+  border: 1px solid var(--t-border);
+  border-radius: 12px;
+  background: var(--t-page-bg);
 }
 
 .teacher-data-table {
@@ -388,8 +500,9 @@
 .teacher-data-table th,
 .teacher-data-table td {
   padding: 10px 12px;
-  border-bottom: 1px solid rgba(212, 175, 55, 0.15);
+  border-bottom: 1px solid #f1f5f9;
   text-align: left;
+  color: var(--t-ink);
 }
 
 .teacher-data-table th {
@@ -398,9 +511,10 @@
   font-size: 0.8rem;
   text-transform: uppercase;
   letter-spacing: 0.03em;
+  background: #faf8f0;
 }
 
-/* Teacher Inbox (embedded) */
+/* Teacher Inbox (embedded in light shell) */
 .teacher-inbox--embedded .teacher-inbox-grid {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(min(100%, 280px), 1fr));
@@ -416,8 +530,9 @@
 .teacher-inbox-panel {
   border: 1px solid var(--t-border);
   border-radius: 12px;
-  background: rgba(15, 15, 15, 0.95);
+  background: var(--t-page-bg);
   overflow: hidden;
+  box-shadow: var(--t-card-shadow);
 }
 
 .teacher-inbox-threads {
@@ -428,6 +543,16 @@
 .teacher-inbox-detail {
   padding: 16px;
   min-height: 320px;
+}
+
+.teacher-inbox-reply-input {
+  width: 100%;
+  padding: 10px;
+  border-radius: 10px;
+  border: 1px solid #e2e8f0;
+  background: var(--t-page-bg);
+  color: var(--t-ink);
+  box-sizing: border-box;
 }
 
 .teacher-inbox-reply-actions {
@@ -443,7 +568,6 @@
   min-width: 120px;
 }
 
-/* Tablet */
 @media (min-width: 600px) {
   .teacher-card-grid {
     grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
@@ -459,18 +583,22 @@
     padding: 20px 24px 96px;
   }
 
+  .teacher-stats-row {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 14px;
+  }
+
   .teacher-card-grid {
     grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
     gap: 16px;
   }
 
   .teacher-dash-card {
-    min-height: 120px;
-    padding: 20px 16px;
+    min-height: 136px;
+    padding: 24px 18px;
   }
 }
 
-/* Desktop / laptop — sidebar + wider content, compact buttons */
 @media (min-width: 1024px) {
   .teacher-app-sidebar {
     display: flex;
@@ -503,8 +631,18 @@
   }
 
   .teacher-card-grid {
-    grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
-    gap: 18px;
+    grid-template-columns: repeat(auto-fill, minmax(210px, 1fr));
+    gap: 20px;
+  }
+
+  .teacher-dash-card {
+    min-height: 148px;
+    padding: 26px 20px;
+    font-size: 1.02rem;
+  }
+
+  .teacher-dash-card span.icon {
+    font-size: 2rem;
   }
 
   .teacher-form-actions .teacher-touch-btn.primary {
@@ -512,7 +650,6 @@
   }
 }
 
-/* Phone — full-width actions, bottom nav padding, inbox stack */
 @media (max-width: 767px) {
   .teacher-app-main {
     padding: 14px 14px calc(88px + env(safe-area-inset-bottom));
@@ -553,7 +690,8 @@
     padding: 12px 14px;
     border-radius: 14px;
     border: 1px solid var(--t-border);
-    background: var(--t-panel);
+    background: var(--t-page-bg);
+    box-shadow: var(--t-card-shadow);
   }
 
   .teacher-data-table tbody td {

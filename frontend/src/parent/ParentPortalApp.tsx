@@ -1,5 +1,14 @@
-import { useCallback, useEffect, useMemo, useState, type CSSProperties } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { API_URL, apiFetch } from "../api";
+import "./parentPortal.css";
+import {
+  buildStatementCoverEmailHtml,
+  buildStatementEmailDefaults,
+  downloadParentStatementPdf,
+  loadStatementSchoolBranding,
+  openParentStatementPdfPrint,
+  type StatementSchoolBranding,
+} from "../billing/statementDocument";
 import {
   clearParentSession,
   getParentSession,
@@ -83,59 +92,23 @@ type Panel =
   | "profile";
 
 const gold = "#d4af37";
-const dark = "#0a0e14";
-const cardBg = "#111827";
-const cardBorder = "rgba(212, 175, 55, 0.22)";
-const text = "#e2e8f0";
-const muted = "#94a3b8";
 
-const shell: CSSProperties = {
-  minHeight: "100vh",
-  background: `linear-gradient(180deg, ${dark} 0%, #0d121c 40%, #0a0e14 100%)`,
-  color: text,
-  fontFamily: "system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif",
-  WebkitFontSmoothing: "antialiased",
-};
+const navItems: { key: Panel; label: string; icon: string }[] = [
+  { key: "dashboard", label: "Dashboard", icon: "🏠" },
+  { key: "messages", label: "Messages", icon: "✉️" },
+  { key: "homework", label: "Homework", icon: "📝" },
+  { key: "notices", label: "Notices", icon: "📌" },
+  { key: "documents", label: "Documents", icon: "📎" },
+  { key: "statements", label: "Statements", icon: "💳" },
+  { key: "incidents", label: "Incidents", icon: "⚠️" },
+  { key: "settings", label: "Settings", icon: "⚙️" },
+];
 
-const card: CSSProperties = {
-  background: cardBg,
-  border: `1px solid ${cardBorder}`,
-  borderRadius: 12,
-  padding: 12,
-  boxShadow: "0 8px 24px rgba(0,0,0,0.35)",
-};
-
-const btnGold: CSSProperties = {
-  background: `linear-gradient(180deg, ${gold}, #b8922a)`,
-  color: dark,
-  border: "none",
-  borderRadius: 10,
-  padding: "10px 14px",
-  fontWeight: 800,
-  cursor: "pointer",
-  fontSize: 14,
-};
-
-const btnGhost: CSSProperties = {
-  background: "transparent",
-  color: gold,
-  border: `1px solid ${cardBorder}`,
-  borderRadius: 10,
-  padding: "8px 12px",
-  fontWeight: 700,
-  cursor: "pointer",
-  fontSize: 13,
-};
-
-const navItems: { key: Panel; label: string }[] = [
-  { key: "dashboard", label: "Dashboard" },
+const bottomNavItems: { key: Panel; label: string }[] = [
+  { key: "dashboard", label: "Home" },
   { key: "messages", label: "Messages" },
-  { key: "homework", label: "Homework" },
-  { key: "notices", label: "Notices" },
-  { key: "documents", label: "Documents" },
-  { key: "statements", label: "Statements" },
-  { key: "incidents", label: "Incidents" },
-  { key: "settings", label: "Settings" },
+  { key: "statements", label: "Billing" },
+  { key: "notifications", label: "Alerts" },
 ];
 
 function isMobile() {
@@ -226,6 +199,9 @@ export default function ParentPortalApp() {
   const [lastVisitShown, setLastVisitShown] = useState<string | null>(null);
   const [familyBilling, setFamilyBilling] = useState<ParentBillingSnapshot | null>(null);
   const [billingLoading, setBillingLoading] = useState(false);
+  const [statementBranding, setStatementBranding] = useState<StatementSchoolBranding | null>(null);
+  const [statementNotice, setStatementNotice] = useState<string | null>(null);
+  const [statementActionBusy, setStatementActionBusy] = useState(false);
 
   const learners: LinkRow[] = useMemo(() => {
     const rows = (session?.learners || dashboard?.learners || []) as any[];
@@ -325,10 +301,26 @@ export default function ParentPortalApp() {
   }, [shellView, panel]);
 
   useEffect(() => {
-    if (shellView !== "app" || panel !== "statements") return;
+    if (shellView !== "app" || panel !== "statements" || !sid) return;
+    let cancelled = false;
+    void loadStatementSchoolBranding(sid)
+      .then((branding) => {
+        if (!cancelled) setStatementBranding(branding);
+      })
+      .catch(() => {
+        if (!cancelled) setStatementBranding({ name: schoolName });
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [shellView, panel, sid, schoolName]);
+
+  useEffect(() => {
+    if (shellView !== "app" || (panel !== "statements" && panel !== "dashboard")) return;
     const anchorId = selectedLearnerId || activeLearner?.id || learners[0]?.learner?.id || "";
     if (!anchorId) return;
     let cancelled = false;
+    setStatementNotice(null);
     setBillingLoading(true);
     const qs = new URLSearchParams({ learnerId: anchorId });
     void parentApiFetch(`/api/parent-portal/billing?${qs}`)
@@ -538,6 +530,101 @@ export default function ParentPortalApp() {
     setPanel("dashboard");
   }
 
+  const parentAccountLabel = useMemo(() => {
+    if (!familyBilling) return "";
+    const accountRef = familyBilling.accountRef || "—";
+    if (familyBilling.isFamilyAccount) return `Family account ${accountRef}`;
+    return (
+      `${familyBillingLearners[0]?.firstName || ""} ${familyBillingLearners[0]?.lastName || ""}`.trim() ||
+      parentDisplayName
+    );
+  }, [familyBilling, familyBillingLearners, parentDisplayName]);
+
+  const statementPdfFilename = useMemo(() => {
+    const ref = (familyBilling?.accountRef || "statement").replace(/[^\w.-]+/g, "_");
+    return `${ref}-statement.pdf`;
+  }, [familyBilling?.accountRef]);
+
+  async function handleDownloadStatement() {
+    setStatementNotice(null);
+    const anchorId = selectedLearnerId || activeLearner?.id || learners[0]?.learner?.id || "";
+    const token = getParentToken();
+    if (!anchorId) {
+      setStatementNotice("Select a learner to download your statement.");
+      return;
+    }
+    try {
+      await downloadParentStatementPdf(anchorId, statementPdfFilename, token);
+    } catch (e: unknown) {
+      setStatementNotice((e as Error).message || "Could not download your statement PDF.");
+    }
+  }
+
+  async function handlePrintStatement() {
+    setStatementNotice(null);
+    const anchorId = selectedLearnerId || activeLearner?.id || learners[0]?.learner?.id || "";
+    const token = getParentToken();
+    if (!anchorId) {
+      setStatementNotice("Billing details are still loading. Please try again in a moment.");
+      return;
+    }
+    try {
+      const opened = await openParentStatementPdfPrint(anchorId, token);
+      if (!opened) {
+        setStatementNotice("Please allow pop-ups to print your statement.");
+      }
+    } catch (e: unknown) {
+      setStatementNotice((e as Error).message || "Could not generate your statement PDF.");
+    }
+  }
+
+  async function handleEmailStatement() {
+    setStatementNotice(null);
+    const anchorId = selectedLearnerId || activeLearner?.id || learners[0]?.learner?.id || "";
+    if (!anchorId) {
+      setStatementNotice("Select a learner to email your statement.");
+      return;
+    }
+    const email = String(session?.parent?.email || "").trim();
+    if (!email) {
+      setStatementNotice("No email on your profile. Contact the school to add your email address.");
+      return;
+    }
+    if (!familyBilling || !parentAccountLabel) {
+      setStatementNotice("Billing details are still loading. Please try again in a moment.");
+      return;
+    }
+    const branding = statementBranding || { name: schoolName };
+    const accountLabel = parentAccountLabel;
+    setStatementActionBusy(true);
+    try {
+      const defaults = await buildStatementEmailDefaults(sid, branding.name, accountLabel, parentDisplayName);
+      const emailHtml = buildStatementCoverEmailHtml({
+        school: branding,
+        messagePlain: defaults.message,
+      });
+      await parentApiFetch("/api/parent-portal/billing/email-statement", {
+        method: "POST",
+        body: JSON.stringify({
+          learnerId: anchorId,
+          subject: defaults.subject,
+          html: emailHtml,
+        }),
+      });
+      setStatementNotice(`Statement emailed to ${email}.`);
+    } catch (e: unknown) {
+      const err = e as { message?: string };
+      const msg = String(err?.message || "Could not send statement email.");
+      if (/setup|smtp|email/i.test(msg)) {
+        setStatementNotice("The school has not finished email setup yet. Please contact the school office.");
+      } else {
+        setStatementNotice(msg);
+      }
+    } finally {
+      setStatementActionBusy(false);
+    }
+  }
+
   const latestStatement = useMemo(() => {
     const list = (dashboard?.notifications || []) as Notification[];
     return list.find((n) => n.type === "STATEMENT_READY") || null;
@@ -545,33 +632,40 @@ export default function ParentPortalApp() {
 
   const homeworkDuePreview = useMemo(() => nextDueHomework(dashboard?.homework || []), [dashboard?.homework]);
 
+  const attendancePreview = useMemo(() => {
+    if (!activeLearner) return "Select a learner";
+    const parts = [activeLearner.grade, activeLearner.className].filter(Boolean);
+    return parts.length ? parts.join(" · ") : "Class details on profile";
+  }, [activeLearner]);
+
+  const outstandingBalanceLabel = useMemo(() => {
+    if (billingLoading && panel === "dashboard") return "Loading…";
+    if (familyBilling) return formatMoney(familyBilling.balance);
+    return "—";
+  }, [familyBilling, billingLoading, panel]);
+
   const profileLearner = profileLearnerId ? findLearner(profileLearnerId) : null;
+
+  function switchPanel(next: Panel) {
+    setProfileLearnerId(null);
+    setIncidentDetail(null);
+    setPanel(next);
+  }
 
   if (shellView === "login") {
     return (
-      <div style={{ ...shell, background: "#f1f5f9", color: dark }}>
-        <header
-          style={{
-            background: dark,
-            color: "#fff",
-            padding: "12px 16px",
-            borderBottom: `2px solid ${gold}`,
-          }}
-        >
-          <strong style={{ color: gold, fontSize: 17 }}>EduClear Parent Portal</strong>
+      <div className="parent-portal-root parent-portal-root--login">
+        <header className="parent-portal-login-header">
+          <strong>EduClear Parent Portal</strong>
         </header>
-        <main style={{ maxWidth: 440, margin: "16px auto", padding: "0 12px 24px" }}>
-          <div style={{ ...card, background: "#fff", color: dark, padding: 14 }}>
-            <h2 style={{ margin: "0 0 8px", fontSize: 20 }}>Sign in</h2>
-            <p style={{ color: "#64748b", fontSize: 13, margin: 0, lineHeight: 1.45 }}>
+        <main className="parent-portal-login-main">
+          <div className="parent-portal-card parent-portal-login-card" style={{ padding: 14 }}>
+            <h2>Sign in</h2>
+            <p className="parent-portal-muted" style={{ margin: 0 }}>
               Sign in with your ID number and OTP. View invoices, statements, notices, and message your child&apos;s class teacher.
             </p>
-            <label style={{ display: "block", marginTop: 10, fontWeight: 700, fontSize: 13 }}>School</label>
-            <select
-              value={schoolId}
-              onChange={(e) => setSchoolId(e.target.value)}
-              style={{ width: "100%", padding: 10, marginTop: 4, borderRadius: 8, border: "1px solid #e2e8f0" }}
-            >
+            <label className="parent-portal-field-label">School</label>
+            <select className="parent-portal-select" value={schoolId} onChange={(e) => setSchoolId(e.target.value)}>
               <option value="">Select school</option>
               {schools.map((s) => (
                 <option key={s.id} value={s.id}>
@@ -579,32 +673,30 @@ export default function ParentPortalApp() {
                 </option>
               ))}
             </select>
-            <label style={{ display: "block", marginTop: 10, fontWeight: 700, fontSize: 13 }}>ID number</label>
-            <input
-              value={idNumber}
-              onChange={(e) => setIdNumber(e.target.value)}
-              style={{ width: "100%", padding: 10, marginTop: 4, borderRadius: 8, border: "1px solid #e2e8f0" }}
-            />
-            <label style={{ display: "block", marginTop: 10, fontWeight: 700, fontSize: 13 }}>Mobile (optional)</label>
-            <input
-              value={cellNo}
-              onChange={(e) => setCellNo(e.target.value)}
-              style={{ width: "100%", padding: 10, marginTop: 4, borderRadius: 8, border: "1px solid #e2e8f0" }}
-            />
-            {error && <p style={{ color: "#b45309", marginTop: 10, fontSize: 13 }}>{error}</p>}
+            <label className="parent-portal-field-label">ID number</label>
+            <input className="parent-portal-input" value={idNumber} onChange={(e) => setIdNumber(e.target.value)} />
+            <label className="parent-portal-field-label">Mobile (optional)</label>
+            <input className="parent-portal-input" value={cellNo} onChange={(e) => setCellNo(e.target.value)} />
+            {error && <p className="parent-portal-login-error">{error}</p>}
             {!otpSent ? (
-              <button type="button" style={{ ...btnGold, marginTop: 12, width: "100%" }} onClick={() => void requestOtp()} disabled={loading}>
+              <button
+                type="button"
+                className="parent-portal-btn-primary parent-portal-full-width mt12"
+                onClick={() => void requestOtp()}
+                disabled={loading}
+              >
                 {loading ? "Sending…" : "Send OTP"}
               </button>
             ) : (
               <>
-                <label style={{ display: "block", marginTop: 10, fontWeight: 700, fontSize: 13 }}>OTP code</label>
-                <input
-                  value={otpCode}
-                  onChange={(e) => setOtpCode(e.target.value)}
-                  style={{ width: "100%", padding: 10, marginTop: 4, borderRadius: 8, border: "1px solid #e2e8f0" }}
-                />
-                <button type="button" style={{ ...btnGold, marginTop: 12, width: "100%" }} onClick={() => void verifyOtp()} disabled={loading}>
+                <label className="parent-portal-field-label">OTP code</label>
+                <input className="parent-portal-input" value={otpCode} onChange={(e) => setOtpCode(e.target.value)} />
+                <button
+                  type="button"
+                  className="parent-portal-btn-primary parent-portal-full-width mt12"
+                  onClick={() => void verifyOtp()}
+                  disabled={loading}
+                >
                   {loading ? "Verifying…" : "Verify & enter"}
                 </button>
               </>
@@ -612,7 +704,7 @@ export default function ParentPortalApp() {
             {isMobile() && (
               <button
                 type="button"
-                style={{ ...btnGhost, marginTop: 10, width: "100%", color: dark, borderColor: "#cbd5e1" }}
+                className="parent-portal-btn-ghost parent-portal-full-width mt12"
                 onClick={() => setShellView("pwa")}
               >
                 Install app instructions
@@ -626,22 +718,24 @@ export default function ParentPortalApp() {
 
   if (shellView === "pwa") {
     return (
-      <div style={{ ...shell, padding: 16 }}>
-        <div style={card}>
-          <h2 style={{ marginTop: 0, color: gold, fontSize: 18 }}>Add EduClear to your home screen</h2>
-          <p style={{ fontSize: 14, lineHeight: 1.5 }}>
+      <div className="parent-portal-root" style={{ padding: 16 }}>
+        <div className="parent-portal-card">
+          <h2 className="parent-portal-page-heading" style={{ marginTop: 0 }}>
+            <span>Add EduClear</span> to your home screen
+          </h2>
+          <p className="parent-portal-muted" style={{ fontSize: 14 }}>
             <strong>iPhone (Safari):</strong> Tap Share → Add to Home Screen.
           </p>
-          <p style={{ fontSize: 14, lineHeight: 1.5 }}>
+          <p className="parent-portal-muted" style={{ fontSize: 14 }}>
             <strong>Android (Chrome):</strong> Menu (⋮) → Install app / Add to Home screen.
           </p>
           <p style={{ fontSize: 14 }}>
             Open:{" "}
-            <a href="/parent" style={{ color: gold }}>
+            <a href="/parent" className="parent-portal-link">
               {window.location.origin}/parent
             </a>
           </p>
-          <button type="button" style={btnGold} onClick={() => setShellView(getParentToken() ? "app" : "login")}>
+          <button type="button" className="parent-portal-btn-primary" onClick={() => setShellView(getParentToken() ? "app" : "login")}>
             Back
           </button>
         </div>
@@ -649,129 +743,77 @@ export default function ParentPortalApp() {
     );
   }
 
-  const statementsUrl = `${API_URL}/api/statements/accounts?schoolId=${encodeURIComponent(session?.parent?.school?.id || schoolId)}`;
+  const panelTitle = navItems.find((n) => n.key === panel)?.label || "Parent Portal";
 
   return (
-    <div style={shell}>
-      <header
-        style={{
-          position: "sticky",
-          top: 0,
-          zIndex: 20,
-          background: "rgba(10,14,20,0.92)",
-          backdropFilter: "blur(8px)",
-          borderBottom: `1px solid ${cardBorder}`,
-          padding: "8px 12px",
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "space-between",
-          gap: 8,
-        }}
-      >
-        <div style={{ minWidth: 0 }}>
-          <div style={{ fontSize: 11, fontWeight: 800, letterSpacing: 1.2, color: gold }}>EDUCLEAR</div>
-          <div style={{ fontSize: 13, fontWeight: 700, color: text, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
-            Parent Portal
-          </div>
-        </div>
-        <div style={{ display: "flex", gap: 6, alignItems: "center", flexShrink: 0 }}>
-          <button
-            type="button"
-            aria-label="Notifications"
-            onClick={() => void openNotificationsPanel()}
-            style={{
-              position: "relative",
-              ...btnGhost,
-              padding: "8px 10px",
-              borderRadius: 999,
-            }}
-          >
-            <span style={{ fontSize: 11, fontWeight: 900, color: gold, letterSpacing: 0.5 }}>Alerts</span>
-            {unreadNotifCount > 0 ? (
-              <span
-                style={{
-                  position: "absolute",
-                  top: -4,
-                  right: -4,
-                  background: gold,
-                  color: dark,
-                  borderRadius: 999,
-                  fontSize: 10,
-                  fontWeight: 900,
-                  minWidth: 18,
-                  height: 18,
-                  lineHeight: "18px",
-                  textAlign: "center",
-                  padding: "0 4px",
-                }}
-              >
-                {unreadNotifCount > 9 ? "9+" : unreadNotifCount}
+    <div className="parent-portal-root">
+      <div className="parent-portal-layout">
+        <aside className="parent-portal-sidebar" aria-label="Parent Portal navigation">
+          <div className="parent-portal-sidebar-logo">
+            {schoolBranding.logoUrl ? (
+              <img src={schoolBranding.logoUrl} alt="" />
+            ) : (
+              <span className="parent-portal-notif-type" style={{ fontSize: 11 }}>
+                SCH
               </span>
-            ) : null}
-          </button>
-          <button type="button" style={{ ...btnGhost, padding: "8px 10px" }} onClick={logout}>
-            Logout
-          </button>
-        </div>
-      </header>
-
-      <nav
-        style={{
-          position: "sticky",
-          top: 49,
-          zIndex: 15,
-          display: "flex",
-          gap: 6,
-          padding: "8px 10px",
-          overflowX: "auto",
-          WebkitOverflowScrolling: "touch",
-          borderBottom: `1px solid rgba(255,255,255,0.06)`,
-          background: "rgba(10,14,20,0.88)",
-        }}
-        aria-label="Parent portal sections"
-      >
-        {navItems.map((item) => (
-          <button
-            key={item.key}
-            type="button"
-            onClick={() => {
-              setProfileLearnerId(null);
-              setIncidentDetail(null);
-              setPanel(item.key);
-            }}
-            style={{
-              flex: "0 0 auto",
-              padding: "7px 12px",
-              borderRadius: 999,
-              border: panel === item.key ? `1px solid ${gold}` : `1px solid rgba(255,255,255,0.08)`,
-              background: panel === item.key ? "rgba(212,175,55,0.12)" : "transparent",
-              color: panel === item.key ? gold : muted,
-              fontWeight: 700,
-              fontSize: 12,
-              cursor: "pointer",
-              whiteSpace: "nowrap",
-            }}
-          >
-            {item.label}
-          </button>
-        ))}
-      </nav>
-
-      <main style={{ maxWidth: 720, margin: "0 auto", padding: "10px 10px 88px" }}>
-        {error && (
-          <div
-            style={{
-              ...card,
-              borderColor: "rgba(251,191,36,0.45)",
-              color: "#fde68a",
-              marginBottom: 10,
-              fontSize: 13,
-              padding: 10,
-            }}
-          >
-            {error}
+            )}
           </div>
-        )}
+          <p className="parent-portal-sidebar-brand">Parent Portal</p>
+          <p className="parent-portal-sidebar-tag">{schoolName}</p>
+          <nav className="parent-portal-sidebar-nav">
+            {navItems.map((item) => (
+              <button
+                key={item.key}
+                type="button"
+                className={panel === item.key ? "active" : ""}
+                onClick={() => switchPanel(item.key)}
+              >
+                <span className="nav-icon" aria-hidden>
+                  {item.icon}
+                </span>
+                {item.label}
+              </button>
+            ))}
+          </nav>
+          <div className="parent-portal-sidebar-footer">
+            <button type="button" className="parent-portal-btn-ghost" onClick={logout}>
+              Log out
+            </button>
+          </div>
+        </aside>
+
+        <div className="parent-portal-body">
+          <header className="parent-portal-app-header">
+            <div style={{ minWidth: 0 }}>
+              <h1 className="parent-portal-app-header-title">{panelTitle}</h1>
+              <p className="parent-portal-app-header-sub">{schoolName}</p>
+            </div>
+            <div style={{ display: "flex", gap: 8, alignItems: "center", flexShrink: 0 }}>
+              <button
+                type="button"
+                aria-label="Notifications"
+                className="parent-portal-btn-ghost parent-portal-btn-ghost--header parent-portal-alerts-btn"
+                onClick={() => void openNotificationsPanel()}
+                style={{ padding: "8px 12px", borderRadius: 999 }}
+              >
+                Alerts
+                {unreadNotifCount > 0 ? (
+                  <span className="parent-portal-badge">{unreadNotifCount > 9 ? "9+" : unreadNotifCount}</span>
+                ) : null}
+              </button>
+              <button
+                type="button"
+                className="parent-portal-btn-ghost parent-portal-btn-ghost--header"
+                style={{ padding: "8px 12px" }}
+                onClick={logout}
+              >
+                Log out
+              </button>
+            </div>
+          </header>
+
+          <main className="parent-portal-main">
+        {error && <div className="parent-portal-card parent-portal-card--error" style={{ marginBottom: 10, padding: 10, fontSize: 13 }}>{error}</div>}
 
         {panel === "dashboard" && (
           <>
@@ -785,52 +827,39 @@ export default function ParentPortalApp() {
               onOpenNotifications={() => void openNotificationsPanel()}
             />
 
-            <div
-              style={{
-                display: "grid",
-                gridTemplateColumns: "repeat(2, minmax(0, 1fr))",
-                gap: 8,
-                marginBottom: 10,
-              }}
-            >
+            <div className="parent-portal-kpi-grid" aria-label="Dashboard summary">
+              <SummaryCard
+                title="Outstanding Balance"
+                value={outstandingBalanceLabel}
+                subtitle={familyBilling?.accountRef ? `Ref ${familyBilling.accountRef}` : "Family billing account"}
+                onClick={() => switchPanel("statements")}
+              />
+              <SummaryCard
+                title="Upcoming Homework"
+                value={homeworkDuePreview?.title?.slice(0, 28) || "None"}
+                subtitle={homeworkDuePreview ? homeworkDuePreview.due : "No due dates yet"}
+                onClick={() => switchPanel("homework")}
+              />
               <SummaryCard
                 title="Notifications"
-                subtitle={unreadNotifCount ? `${unreadNotifCount} unread` : "Up to date"}
+                value={String(unreadNotifCount)}
+                subtitle={unreadNotifCount ? "Unread alerts" : "Up to date"}
                 onClick={() => void openNotificationsPanel()}
               />
               <SummaryCard
-                title="Latest invoice"
-                subtitle={dashboard?.latestInvoiceNotification?.title || "None yet"}
-                onClick={() => setPanel("statements")}
-              />
-              <SummaryCard
-                title="Latest statement"
-                subtitle={latestStatement?.title || "None yet"}
-                onClick={() => setPanel("statements")}
-              />
-              <SummaryCard
-                title="Homework due"
-                subtitle={homeworkDuePreview ? homeworkDuePreview.due : "None"}
-                onClick={() => setPanel("homework")}
-              />
-              <SummaryCard
-                title="Unread messages"
-                subtitle={String(dashboard?.unreadTeacherMessages ?? 0)}
-                onClick={() => void openMessages()}
-              />
-              <SummaryCard
-                title="Incidents"
-                subtitle={String(dashboard?.incidents?.length || 0)}
-                onClick={() => setPanel("incidents")}
-              />
-              <SummaryCard
-                title="Notices"
-                subtitle={dashboard?.notices?.[0]?.title?.slice(0, 36) || "—"}
-                onClick={() => setPanel("notices")}
+                title="Attendance"
+                value={attendancePreview}
+                subtitle="Class · contact school for records"
+                onClick={() => {
+                  if (activeLearner) {
+                    setProfileLearnerId(activeLearner.id);
+                    switchPanel("profile");
+                  }
+                }}
               />
             </div>
 
-            <div style={{ fontSize: 12, fontWeight: 800, color: gold, letterSpacing: 0.6, margin: "4px 2px 8px" }}>YOUR CHILDREN</div>
+            <div className="parent-portal-section-label">YOUR CHILDREN</div>
             {learners.map((row) => (
               <LearnerPremiumCard
                 key={row.learner.id}
@@ -857,31 +886,28 @@ export default function ParentPortalApp() {
         )}
 
         {panel === "notifications" && (
-          <div style={card}>
+          <div className="parent-portal-card">
             <PanelHeader title="Notifications" onBack={() => setPanel("dashboard")} />
-            <p style={{ color: muted, fontSize: 12, marginTop: 0 }}>
+            <p className="parent-portal-muted" style={{ fontSize: 12, marginTop: 0 }}>
               Invoice ready, teacher replies, incidents, homework, and notices appear here.
             </p>
-            {notifications.length === 0 && <p style={{ color: muted, fontSize: 14 }}>No notifications yet.</p>}
+            {notifications.length === 0 && <p className="parent-portal-muted">No notifications yet.</p>}
             {notifications.map((n) => (
               <div
                 key={n.id}
-                style={{
-                  padding: "10px 0",
-                  borderBottom: "1px solid rgba(255,255,255,0.06)",
-                  opacity: n.isRead ? 0.72 : 1,
-                }}
+                className="parent-portal-list-divider"
+                style={{ opacity: n.isRead ? 0.72 : 1 }}
               >
                 <div style={{ display: "flex", justifyContent: "space-between", gap: 8, alignItems: "flex-start" }}>
                   <div>
-                    <div style={{ fontSize: 11, fontWeight: 800, color: gold }}>{notificationCategoryLabel(n.type)}</div>
+                    <div className="parent-portal-notif-type">{notificationCategoryLabel(n.type)}</div>
                     <strong style={{ fontSize: 14 }}>{n.title}</strong>
                   </div>
-                  <span style={{ fontSize: 10, color: muted, whiteSpace: "nowrap" }}>{new Date(n.createdAt).toLocaleDateString()}</span>
+                  <span className="parent-portal-muted" style={{ fontSize: 10, whiteSpace: "nowrap" }}>{new Date(n.createdAt).toLocaleDateString()}</span>
                 </div>
-                <p style={{ margin: "6px 0 0", fontSize: 13, color: muted, lineHeight: 1.45 }}>{n.message}</p>
+                <p className="parent-portal-muted" style={{ margin: "6px 0 0", fontSize: 13 }}>{n.message}</p>
                 {!n.isRead ? (
-                  <button type="button" style={{ ...btnGhost, marginTop: 8, fontSize: 12, padding: "6px 10px" }} onClick={() => void markNotificationRead(n.id)}>
+                  <button type="button" className="parent-portal-btn-ghost parent-portal-btn-ghost--gold-text" style={{ marginTop: 8, fontSize: 12, padding: "6px 10px" }} onClick={() => void markNotificationRead(n.id)}>
                     Mark read
                   </button>
                 ) : null}
@@ -891,69 +917,56 @@ export default function ParentPortalApp() {
         )}
 
         {panel === "messages" && (
-          <div style={card}>
+          <div className="parent-portal-card">
             <PanelHeader title="Messages" onBack={() => setPanel("dashboard")} />
             <LearnerSwitchStrip learners={learners} selectedId={selectedLearnerId} onSelect={setSelectedLearnerId} />
             {activeLearner ? (
-              <p style={{ margin: "0 0 8px", fontSize: 12, color: muted }}>
+              <p className="parent-portal-muted" style={{ margin: "0 0 8px", fontSize: 12 }}>
                 {activeLearner.firstName} {activeLearner.lastName} · {activeLearner.grade}{" "}
                 {activeLearner.className ? `· ${activeLearner.className}` : ""}
               </p>
             ) : null}
-            <h3 style={{ margin: "0 0 8px", fontSize: 16, color: gold }}>Class teacher: {teacherInfo?.name || "Assigned teacher"}</h3>
+            <h3 className="parent-portal-page-heading" style={{ margin: "0 0 8px", fontSize: 16 }}>
+              <span>Class teacher:</span> {teacherInfo?.name || "Assigned teacher"}
+            </h3>
             <div style={{ maxHeight: 340, overflowY: "auto", margin: "8px 0", display: "flex", flexDirection: "column", gap: 6 }}>
               {threadMessages.map((m) => (
                 <div
                   key={m.id}
-                  style={{
-                    alignSelf: m.sender === "PARENT" ? "flex-end" : "flex-start",
-                    maxWidth: "88%",
-                    background: m.sender === "PARENT" ? "rgba(212,175,55,0.18)" : "rgba(255,255,255,0.06)",
-                    padding: "8px 10px",
-                    borderRadius: 12,
-                    border: `1px solid ${m.sender === "PARENT" ? "rgba(212,175,55,0.35)" : "rgba(255,255,255,0.08)"}`,
-                  }}
+                  className={`parent-portal-msg-bubble ${m.sender === "PARENT" ? "parent-portal-msg-bubble--parent" : "parent-portal-msg-bubble--other"}`}
                 >
-                  <div style={{ fontSize: 10, fontWeight: 800, color: gold }}>{m.senderName || m.sender}</div>
+                  <div className="parent-portal-notif-type" style={{ fontSize: 10 }}>{m.senderName || m.sender}</div>
                   <div style={{ fontSize: 14, lineHeight: 1.45 }}>{m.body}</div>
                 </div>
               ))}
             </div>
             <textarea
+              className="parent-portal-textarea"
               value={messageDraft}
               onChange={(e) => setMessageDraft(e.target.value)}
               rows={3}
-              style={{
-                width: "100%",
-                padding: 10,
-                borderRadius: 10,
-                border: `1px solid ${cardBorder}`,
-                background: "#0f172a",
-                color: text,
-                resize: "vertical",
-              }}
             />
-            <button type="button" style={{ ...btnGold, marginTop: 8, width: "100%" }} onClick={() => void sendMessage()} disabled={loading}>
+            <button type="button" className="parent-portal-btn-primary parent-portal-full-width" onClick={() => void sendMessage()} disabled={loading}>
               Send
             </button>
-            <p style={{ fontSize: 11, color: muted, marginTop: 8, lineHeight: 1.45 }}>
+            <p className="parent-portal-muted" style={{ fontSize: 11, marginTop: 8 }}>
               Messages go to your child&apos;s class teacher for this learner. Switch learner from the dashboard if you have more than one child.
             </p>
           </div>
         )}
 
         {panel === "homework" && (
-          <div style={card}>
+          <div className="parent-portal-card">
             <PanelHeader title="Homework" onBack={() => setPanel("dashboard")} />
             <LearnerSwitchStrip learners={learners} selectedId={selectedLearnerId} onSelect={setSelectedLearnerId} />
-            {(!dashboard?.homework || dashboard.homework.length === 0) && <p style={{ color: muted }}>No homework posted yet.</p>}
+            {(!dashboard?.homework || dashboard.homework.length === 0) && <p className="parent-portal-muted">No homework posted yet.</p>}
             {(dashboard?.homework || []).map((h: any) => (
-              <div key={h.id} style={{ padding: "10px 0", borderBottom: "1px solid rgba(255,255,255,0.06)" }}>
+              <div key={h.id} className="parent-portal-list-divider">
                 <strong style={{ fontSize: 14 }}>{h.title}</strong>
                 {h.dueDate ? (
-                  <div style={{ fontSize: 12, color: gold, marginTop: 4 }}>Due {new Date(h.dueDate).toLocaleDateString()}</div>
+                  <div className="parent-portal-notif-type" style={{ fontSize: 12, marginTop: 4 }}>Due {new Date(h.dueDate).toLocaleDateString()}</div>
                 ) : (
-                  <div style={{ fontSize: 12, color: muted, marginTop: 4 }}>No due date</div>
+                  <div className="parent-portal-muted" style={{ fontSize: 12, marginTop: 4 }}>No due date</div>
                 )}
               </div>
             ))}
@@ -961,59 +974,50 @@ export default function ParentPortalApp() {
         )}
 
         {panel === "notices" && (
-          <div style={card}>
+          <div className="parent-portal-card">
             <PanelHeader title="Notices" onBack={() => setPanel("dashboard")} />
             <LearnerSwitchStrip learners={learners} selectedId={selectedLearnerId} onSelect={setSelectedLearnerId} />
-            {(!dashboard?.notices || dashboard.notices.length === 0) && <p style={{ color: muted }}>No notices yet.</p>}
+            {(!dashboard?.notices || dashboard.notices.length === 0) && <p className="parent-portal-muted">No notices yet.</p>}
             {(dashboard?.notices || []).map((n: any) => (
-              <div key={n.id} style={{ padding: "10px 0", borderBottom: "1px solid rgba(255,255,255,0.06)" }}>
+              <div key={n.id} className="parent-portal-list-divider">
                 <strong style={{ fontSize: 14 }}>{n.title}</strong>
-                <div style={{ fontSize: 13, color: muted, marginTop: 4, lineHeight: 1.45 }}>{String(n.body || "").slice(0, 220)}</div>
+                <div className="parent-portal-muted" style={{ fontSize: 13, marginTop: 4 }}>{String(n.body || "").slice(0, 220)}</div>
               </div>
             ))}
           </div>
         )}
 
         {panel === "documents" && (
-          <div style={card}>
+          <div className="parent-portal-card">
             <PanelHeader title="Documents" onBack={() => setPanel("dashboard")} />
             <LearnerSwitchStrip learners={learners} selectedId={selectedLearnerId} onSelect={setSelectedLearnerId} />
-            {(!dashboard?.documents || dashboard.documents.length === 0) && <p style={{ color: muted }}>No documents yet.</p>}
+            {(!dashboard?.documents || dashboard.documents.length === 0) && <p className="parent-portal-muted">No documents yet.</p>}
             {(dashboard?.documents || []).map((d: any) => (
-              <div key={d.id} style={{ padding: "10px 0", borderBottom: "1px solid rgba(255,255,255,0.06)" }}>
-                <a href={documentHref(d.fileUrl)} target="_blank" rel="noreferrer" style={{ color: gold, fontWeight: 800, textDecoration: "none" }}>
+              <div key={d.id} className="parent-portal-list-divider">
+                <a href={documentHref(d.fileUrl)} target="_blank" rel="noreferrer" className="parent-portal-link">
                   {d.title}
                 </a>
-                {d.description ? <div style={{ fontSize: 12, color: muted, marginTop: 4 }}>{d.description}</div> : null}
+                {d.description ? <div className="parent-portal-muted" style={{ fontSize: 12, marginTop: 4 }}>{d.description}</div> : null}
               </div>
             ))}
           </div>
         )}
 
         {panel === "statements" && (
-          <div style={card}>
+          <div className="parent-portal-card">
             <PanelHeader title="Statements & invoices" onBack={() => setPanel("dashboard")} />
-            <p style={{ color: muted, fontSize: 13, lineHeight: 1.5, marginTop: 0 }}>
+            <p className="parent-portal-muted" style={{ fontSize: 13, marginTop: 0 }}>
               View and download your school billing files. A credit or negative amount on a statement usually means your account is in credit — not
               necessarily an error.
             </p>
             {familyBillingLearners.length > 1 ? (
-              <div
-                style={{
-                  background: "rgba(212,175,55,0.08)",
-                  border: `1px solid ${cardBorder}`,
-                  padding: 10,
-                  borderRadius: 10,
-                  marginBottom: 10,
-                  fontSize: 13,
-                }}
-              >
-                <div style={{ fontSize: 11, fontWeight: 800, color: gold, marginBottom: 6 }}>
+              <div className="parent-portal-highlight-box">
+                <div className="parent-portal-notif-type" style={{ marginBottom: 6 }}>
                   Billing account{" "}
                   {familyBillingLearners[0]?.familyAccount?.accountRef || "shared"}
                 </div>
                 <div style={{ fontWeight: 800, marginBottom: 4 }}>Children on this account</div>
-                <ul style={{ margin: 0, paddingLeft: 18, color: text }}>
+                <ul style={{ margin: 0, paddingLeft: 18 }}>
                   {familyBillingLearners.map((child) => (
                     <li key={child.id}>
                       {child.firstName} {child.lastName}
@@ -1024,39 +1028,20 @@ export default function ParentPortalApp() {
               </div>
             ) : null}
             {dashboard?.latestInvoiceNotification && (
-              <div
-                style={{
-                  background: "rgba(212,175,55,0.1)",
-                  border: `1px solid ${cardBorder}`,
-                  padding: 10,
-                  borderRadius: 10,
-                  marginBottom: 10,
-                  fontSize: 13,
-                  color: text,
-                }}
-              >
-                <div style={{ fontSize: 11, fontWeight: 800, color: gold, marginBottom: 4 }}>Latest invoice notice</div>
+              <div className="parent-portal-highlight-box" style={{ fontSize: 13 }}>
+                <div className="parent-portal-notif-type" style={{ marginBottom: 4 }}>Latest invoice notice</div>
                 {dashboard.latestInvoiceNotification.message}
               </div>
             )}
             {latestStatement && (
-              <div
-                style={{
-                  background: "rgba(148,163,184,0.08)",
-                  border: `1px solid rgba(148,163,184,0.25)`,
-                  padding: 10,
-                  borderRadius: 10,
-                  marginBottom: 10,
-                  fontSize: 13,
-                }}
-              >
-                <div style={{ fontSize: 11, fontWeight: 800, color: muted, marginBottom: 4 }}>Latest statement notice</div>
+              <div className="parent-portal-highlight-box parent-portal-highlight-box--slate" style={{ fontSize: 13 }}>
+                <div className="parent-portal-muted" style={{ fontSize: 11, fontWeight: 800, marginBottom: 4 }}>Latest statement notice</div>
                 <strong>{latestStatement.title}</strong>
-                <div style={{ color: muted, marginTop: 4 }}>{latestStatement.message}</div>
+                <div className="parent-portal-muted" style={{ marginTop: 4 }}>{latestStatement.message}</div>
               </div>
             )}
             {billingLoading ? (
-              <p style={{ color: muted, fontSize: 13 }}>Loading billing…</p>
+              <p className="parent-portal-muted" style={{ fontSize: 13 }}>Loading billing…</p>
             ) : familyBilling ? (
               <div style={{ marginBottom: 12 }}>
                 <div
@@ -1070,36 +1055,33 @@ export default function ParentPortalApp() {
                   }}
                 >
                   <div>
-                    <div style={{ fontSize: 11, fontWeight: 800, color: gold }}>Account balance</div>
-                    <div style={{ fontSize: 22, fontWeight: 900, color: familyBilling.balance > 0 ? "#fca5a5" : "#86efac" }}>
+                    <div className="parent-portal-notif-type">Account balance</div>
+                    <div
+                      className={`parent-portal-billing-balance${
+                        familyBilling.balance > 0
+                          ? " parent-portal-billing-balance--due"
+                          : " parent-portal-billing-balance--credit"
+                      }`}
+                    >
                       {formatMoney(familyBilling.balance)}
                     </div>
                   </div>
                   {familyBilling.accountRef ? (
-                    <div style={{ fontSize: 12, color: muted, fontWeight: 700 }}>Ref {familyBilling.accountRef}</div>
+                    <div className="parent-portal-muted" style={{ fontSize: 12, fontWeight: 700 }}>Ref {familyBilling.accountRef}</div>
                   ) : null}
                 </div>
                 {familyBilling.transactions.length === 0 ? (
-                  <p style={{ color: muted, fontSize: 13, margin: 0 }}>No transactions on this account yet.</p>
+                  <p className="parent-portal-muted" style={{ fontSize: 13, margin: 0 }}>No transactions on this account yet.</p>
                 ) : (
-                  <div style={{ overflowX: "auto", border: `1px solid ${cardBorder}`, borderRadius: 10 }}>
-                    <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 12, minWidth: 520 }}>
+                  <div className="parent-portal-table-wrap">
+                    <table className="parent-portal-table parent-portal-table--statement">
                       <thead>
-                        <tr style={{ background: "rgba(0,0,0,0.25)" }}>
+                        <tr>
                           {(familyBilling.isFamilyAccount
                             ? ["Date", "Type", "Learner", "Description", "In", "Out", "Balance"]
                             : ["Date", "Type", "Description", "In", "Out", "Balance"]
                           ).map((h) => (
-                            <th
-                              key={h}
-                              style={{
-                                padding: "8px 10px",
-                                textAlign: h === "In" || h === "Out" || h === "Balance" ? "right" : "left",
-                                color: muted,
-                                fontWeight: 800,
-                                borderBottom: `1px solid ${cardBorder}`,
-                              }}
-                            >
+                            <th key={h} className={h === "In" || h === "Out" || h === "Balance" ? "num" : undefined}>
                               {h}
                             </th>
                           ))}
@@ -1108,25 +1090,19 @@ export default function ParentPortalApp() {
                       <tbody>
                         {familyBilling.transactions.map((row) => (
                           <tr key={row.id}>
-                            <td style={{ padding: "8px 10px", borderBottom: "1px solid rgba(255,255,255,0.06)" }}>
-                              {row.date || "—"}
-                            </td>
-                            <td style={{ padding: "8px 10px", borderBottom: "1px solid rgba(255,255,255,0.06)" }}>{row.type}</td>
+                            <td data-label="Date">{row.date || "—"}</td>
+                            <td data-label="Type">{row.type}</td>
                             {familyBilling.isFamilyAccount ? (
-                              <td style={{ padding: "8px 10px", borderBottom: "1px solid rgba(255,255,255,0.06)" }}>
-                                {row.learner || "—"}
-                              </td>
+                              <td data-label="Learner">{row.learner || "—"}</td>
                             ) : null}
-                            <td style={{ padding: "8px 10px", borderBottom: "1px solid rgba(255,255,255,0.06)" }}>
-                              {row.description || row.reference || "—"}
-                            </td>
-                            <td style={{ padding: "8px 10px", borderBottom: "1px solid rgba(255,255,255,0.06)", textAlign: "right" }}>
+                            <td data-label="Description">{row.description || row.reference || "—"}</td>
+                            <td className="num" data-label="In">
                               {row.amountIn ? formatMoney(row.amountIn) : "—"}
                             </td>
-                            <td style={{ padding: "8px 10px", borderBottom: "1px solid rgba(255,255,255,0.06)", textAlign: "right" }}>
+                            <td className="num" data-label="Out">
                               {row.amountOut ? formatMoney(row.amountOut) : "—"}
                             </td>
-                            <td style={{ padding: "8px 10px", borderBottom: "1px solid rgba(255,255,255,0.06)", textAlign: "right", fontWeight: 800 }}>
+                            <td className="num" data-label="Balance" style={{ fontWeight: 800 }}>
                               {formatMoney(row.balance)}
                             </td>
                           </tr>
@@ -1137,50 +1113,65 @@ export default function ParentPortalApp() {
                 )}
               </div>
             ) : null}
-            <a href={statementsUrl} target="_blank" rel="noreferrer" style={{ ...btnGhost, display: "block", textAlign: "center", textDecoration: "none", marginTop: 8 }}>
-              Open raw statement data
-            </a>
+            {familyBilling && !billingLoading ? (
+              <div className="parent-portal-statement-actions">
+                <button
+                  type="button"
+                  className="parent-portal-btn-primary parent-portal-statement-btn"
+                  disabled={statementActionBusy}
+                  onClick={handleDownloadStatement}
+                >
+                  Download Statement PDF
+                </button>
+                <button
+                  type="button"
+                  className="parent-portal-btn-ghost parent-portal-statement-btn parent-portal-btn-ghost--gold-text"
+                  disabled={statementActionBusy}
+                  onClick={handlePrintStatement}
+                >
+                  Print Statement
+                </button>
+                <button
+                  type="button"
+                  className="parent-portal-btn-ghost parent-portal-statement-btn parent-portal-btn-ghost--gold-text"
+                  disabled={statementActionBusy}
+                  onClick={() => void handleEmailStatement()}
+                >
+                  {statementActionBusy ? "Sending…" : "Email Statement"}
+                </button>
+                {statementNotice ? (
+                  <p className="parent-portal-muted" style={{ fontSize: 13, margin: 0 }}>
+                    {statementNotice}
+                  </p>
+                ) : null}
+              </div>
+            ) : null}
           </div>
         )}
 
         {panel === "incidents" && (
-          <div style={card}>
+          <div className="parent-portal-card">
             <PanelHeader title="Incidents" onBack={() => setPanel("dashboard")} />
             <LearnerSwitchStrip learners={learners} selectedId={selectedLearnerId} onSelect={setSelectedLearnerId} />
-            {incidentLoading && <p style={{ color: muted, fontSize: 13 }}>Loading…</p>}
+            {incidentLoading && <p className="parent-portal-muted" style={{ fontSize: 13 }}>Loading…</p>}
             {(!dashboard?.incidents || dashboard.incidents.length === 0) && !incidentLoading && (
-              <p style={{ color: muted }}>No incidents to show.</p>
+              <p className="parent-portal-muted">No incidents to show.</p>
             )}
             {(dashboard?.incidents || []).map((inc: any) => (
-              <button
-                key={inc.id}
-                type="button"
-                onClick={() => void openIncident(inc.id)}
-                style={{
-                  display: "block",
-                  width: "100%",
-                  textAlign: "left",
-                  padding: "10px 0",
-                  border: "none",
-                  borderBottom: "1px solid rgba(255,255,255,0.06)",
-                  background: "transparent",
-                  color: text,
-                  cursor: "pointer",
-                }}
-              >
+              <button key={inc.id} type="button" className="parent-portal-incident-btn" onClick={() => void openIncident(inc.id)}>
                 <strong style={{ fontSize: 14 }}>{inc.subject}</strong>
-                <div style={{ fontSize: 12, color: muted, marginTop: 4 }}>{String(inc.summary || "").slice(0, 160)}</div>
+                <div className="parent-portal-muted" style={{ fontSize: 12, marginTop: 4 }}>{String(inc.summary || "").slice(0, 160)}</div>
               </button>
             ))}
             {incidentDetail && (
-              <div style={{ marginTop: 12, padding: 10, borderRadius: 10, border: `1px solid ${cardBorder}`, background: "rgba(0,0,0,0.25)" }}>
+              <div className="parent-portal-incident-detail">
                 <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 8 }}>
-                  <strong style={{ color: gold }}>{incidentDetail.subject}</strong>
-                  <button type="button" style={{ ...btnGhost, fontSize: 11, padding: "4px 8px" }} onClick={() => setIncidentDetail(null)}>
+                  <strong className="parent-portal-notif-type" style={{ fontSize: 14 }}>{incidentDetail.subject}</strong>
+                  <button type="button" className="parent-portal-btn-ghost parent-portal-btn-ghost--gold-text" style={{ fontSize: 11, padding: "4px 8px" }} onClick={() => setIncidentDetail(null)}>
                     Close
                   </button>
                 </div>
-                <div style={{ fontSize: 12, color: muted, marginTop: 4 }}>{formatShortDate(incidentDetail.incidentDate)}</div>
+                <div className="parent-portal-muted" style={{ fontSize: 12, marginTop: 4 }}>{formatShortDate(incidentDetail.incidentDate)}</div>
                 <p style={{ fontSize: 14, lineHeight: 1.5, marginTop: 8 }}>{incidentDetail.summary}</p>
               </div>
             )}
@@ -1188,51 +1179,52 @@ export default function ParentPortalApp() {
         )}
 
         {panel === "settings" && (
-          <div style={card}>
+          <div className="parent-portal-card">
             <PanelHeader title="Settings" onBack={() => setPanel("dashboard")} />
-            <p style={{ color: muted, fontSize: 13 }}>Keep things simple: use the dashboard for day-to-day updates.</p>
+            <p className="parent-portal-muted" style={{ fontSize: 13 }}>Keep things simple: use the dashboard for day-to-day updates.</p>
             {isMobile() && (
-              <button type="button" style={{ ...btnGold, width: "100%", marginTop: 8 }} onClick={() => setShellView("pwa")}>
+              <button type="button" className="parent-portal-btn-primary parent-portal-full-width" onClick={() => setShellView("pwa")}>
                 Install app instructions
               </button>
             )}
-            <button type="button" style={{ ...btnGhost, width: "100%", marginTop: 8 }} onClick={logout}>
+            <button type="button" className="parent-portal-btn-ghost parent-portal-full-width" onClick={logout}>
               Sign out
             </button>
           </div>
         )}
 
         {panel === "profile" && !profileLearner && (
-          <div style={card}>
+          <div className="parent-portal-card">
             <PanelHeader title="Learner profile" onBack={() => setPanel("dashboard")} />
-            <p style={{ color: muted }}>Choose a learner from the dashboard.</p>
+            <p className="parent-portal-muted">Choose a learner from the dashboard.</p>
           </div>
         )}
 
         {panel === "profile" && profileLearner && (
-          <div style={card}>
+          <div className="parent-portal-card">
             <PanelHeader title="Learner profile" onBack={() => setPanel("dashboard")} />
             <div style={{ fontSize: 20, fontWeight: 900, marginBottom: 4 }}>
               {profileLearner.firstName} {profileLearner.lastName}
             </div>
-            <div style={{ fontSize: 13, color: muted, lineHeight: 1.6 }}>
+            <div className="parent-portal-muted" style={{ fontSize: 13, lineHeight: 1.6 }}>
               <div>
-                <span style={{ color: gold, fontWeight: 800 }}>Grade / class:</span> {profileLearner.grade}
+                <span className="parent-portal-notif-type" style={{ fontSize: 13 }}>Grade / class:</span> {profileLearner.grade}
                 {profileLearner.className ? ` · ${profileLearner.className}` : ""}
               </div>
               {profileLearner.admissionNo ? (
                 <div>
-                  <span style={{ color: gold, fontWeight: 800 }}>Admission no.:</span> {profileLearner.admissionNo}
+                  <span className="parent-portal-notif-type" style={{ fontSize: 13 }}>Admission no.:</span> {profileLearner.admissionNo}
                 </div>
               ) : null}
             </div>
             <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8, marginTop: 12 }}>
-              <button type="button" style={{ ...btnGold, width: "100%" }} onClick={() => void openMessages(profileLearner.id)}>
+              <button type="button" className="parent-portal-btn-primary" style={{ width: "100%" }} onClick={() => void openMessages(profileLearner.id)}>
                 Message teacher
               </button>
               <button
                 type="button"
-                style={{ ...btnGhost, width: "100%" }}
+                className="parent-portal-btn-ghost parent-portal-btn-ghost--gold-text"
+                style={{ width: "100%" }}
                 onClick={() => {
                   setSelectedLearnerId(profileLearner.id);
                   setPanel("homework");
@@ -1245,9 +1237,30 @@ export default function ParentPortalApp() {
         )}
 
         {loading && (
-          <p style={{ textAlign: "center", color: muted, fontSize: 13, marginTop: 8 }}>Loading…</p>
+          <p className="parent-portal-muted" style={{ textAlign: "center", fontSize: 13, marginTop: 8 }}>Loading…</p>
         )}
-      </main>
+          </main>
+
+          <nav className="parent-portal-bottom-nav" aria-label="Parent navigation">
+            {bottomNavItems.map((item) => (
+              <button
+                key={item.key}
+                type="button"
+                className={panel === item.key ? "active" : ""}
+                onClick={() => {
+                  if (item.key === "notifications") {
+                    void openNotificationsPanel();
+                  } else {
+                    switchPanel(item.key);
+                  }
+                }}
+              >
+                {item.label}
+              </button>
+            ))}
+          </nav>
+        </div>
+      </div>
     </div>
   );
 }
@@ -1285,42 +1298,19 @@ function WelcomeStrip({
   onOpenNotifications: () => void;
 }) {
   return (
-    <div
-      style={{
-        ...card,
-        padding: 12,
-        marginBottom: 10,
-        display: "grid",
-        gridTemplateColumns: "auto 1fr auto",
-        gap: 10,
-        alignItems: "center",
-      }}
-    >
-      <div
-        style={{
-          width: 48,
-          height: 48,
-          borderRadius: 12,
-          border: `1px solid ${cardBorder}`,
-          overflow: "hidden",
-          background: "rgba(0,0,0,0.35)",
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "center",
-          flexShrink: 0,
-        }}
-      >
+    <div className="parent-portal-card parent-portal-welcome">
+      <div className="parent-portal-welcome-logo">
         {logoUrl ? (
           <img src={logoUrl} alt="" style={{ width: "100%", height: "100%", objectFit: "cover" }} />
         ) : (
-          <span style={{ fontSize: 11, fontWeight: 900, color: gold }}>SCH</span>
+          <span className="parent-portal-notif-type" style={{ fontSize: 11 }}>SCH</span>
         )}
       </div>
       <div style={{ minWidth: 0 }}>
-        <div style={{ fontSize: 11, color: muted, fontWeight: 700 }}>Welcome back</div>
-        <div style={{ fontSize: 16, fontWeight: 900, lineHeight: 1.25, wordBreak: "break-word" }}>{parentName}</div>
-        <div style={{ fontSize: 12, color: muted, marginTop: 2, fontWeight: 600 }}>{schoolName}</div>
-        <div style={{ fontSize: 11, color: muted, marginTop: 4 }}>
+        <div className="parent-portal-muted" style={{ fontSize: 11, fontWeight: 700 }}>Welcome back</div>
+        <div className="parent-portal-welcome-name">{parentName}</div>
+        <div className="parent-portal-muted" style={{ fontSize: 12, marginTop: 2, fontWeight: 600 }}>{schoolName}</div>
+        <div className="parent-portal-muted" style={{ fontSize: 11, marginTop: 4 }}>
           {learnerCount} learner{learnerCount === 1 ? "" : "s"}
           {lastVisit ? ` · Last visit: ${lastVisit}` : ""}
         </div>
@@ -1328,65 +1318,33 @@ function WelcomeStrip({
       <button
         type="button"
         onClick={onOpenNotifications}
-        style={{
-          position: "relative",
-          width: 40,
-          height: 40,
-          borderRadius: 999,
-          border: `1px solid ${cardBorder}`,
-          background: "rgba(212,175,55,0.08)",
-          cursor: "pointer",
-          flexShrink: 0,
-        }}
+        className="parent-portal-btn-ghost parent-portal-btn-ghost--gold-text parent-portal-alerts-btn"
+        style={{ width: 40, height: 40, borderRadius: 999, padding: 0 }}
         aria-label="Open notifications"
       >
-        <span style={{ fontSize: 10, fontWeight: 900, color: gold }}>Alerts</span>
-        {unreadCount > 0 ? (
-          <span
-            style={{
-              position: "absolute",
-              top: -2,
-              right: -2,
-              background: gold,
-              color: dark,
-              borderRadius: 999,
-              fontSize: 10,
-              fontWeight: 900,
-              minWidth: 16,
-              height: 16,
-              lineHeight: "16px",
-              textAlign: "center",
-              padding: "0 4px",
-            }}
-          >
-            {unreadCount > 9 ? "9+" : unreadCount}
-          </span>
-        ) : null}
+        <span style={{ fontSize: 10, fontWeight: 900 }}>Alerts</span>
+        {unreadCount > 0 ? <span className="parent-portal-badge">{unreadCount > 9 ? "9+" : unreadCount}</span> : null}
       </button>
     </div>
   );
 }
 
-function SummaryCard({ title, subtitle, onClick }: { title: string; subtitle: string; onClick?: () => void }) {
+function SummaryCard({
+  title,
+  value,
+  subtitle,
+  onClick,
+}: {
+  title: string;
+  value: string;
+  subtitle: string;
+  onClick?: () => void;
+}) {
   return (
-    <button
-      type="button"
-      onClick={onClick}
-      disabled={!onClick}
-      style={{
-        textAlign: "left",
-        padding: "10px 10px",
-        borderRadius: 12,
-        border: `1px solid ${cardBorder}`,
-        background: "linear-gradient(145deg, rgba(30,41,59,0.9), rgba(15,23,42,0.95))",
-        cursor: onClick ? "pointer" : "default",
-        color: text,
-        minHeight: 72,
-        boxShadow: "0 4px 14px rgba(0,0,0,0.28)",
-      }}
-    >
-      <div style={{ fontSize: 11, fontWeight: 800, color: gold, letterSpacing: 0.3 }}>{title}</div>
-      <div style={{ fontSize: 13, fontWeight: 700, marginTop: 4, color: muted, lineHeight: 1.35 }}>{subtitle}</div>
+    <button type="button" onClick={onClick} disabled={!onClick} className="parent-portal-summary-card">
+      <div className="parent-portal-summary-card-title">{title}</div>
+      <div className="parent-portal-summary-card-value">{value}</div>
+      <div className="parent-portal-summary-card-sub">{subtitle}</div>
     </button>
   );
 }
@@ -1411,20 +1369,11 @@ function LearnerPremiumCard({
   onNotices: () => void;
 }) {
   const { learner, relation } = row;
-  const chipBg = billingHint.tone === "gold" ? "rgba(212,175,55,0.12)" : "rgba(148,163,184,0.12)";
-  const chipBorder = billingHint.tone === "gold" ? "rgba(212,175,55,0.35)" : "rgba(148,163,184,0.35)";
-  const chipColor = billingHint.tone === "gold" ? "#fde68a" : muted;
+  const chipClass =
+    billingHint.tone === "gold" ? "parent-portal-chip parent-portal-chip--gold" : "parent-portal-chip parent-portal-chip--slate";
 
   return (
-    <div
-      style={{
-        ...card,
-        marginBottom: 8,
-        padding: 12,
-        outline: selected ? `2px solid ${gold}` : "none",
-        outlineOffset: 0,
-      }}
-    >
+    <div className={`parent-portal-card parent-portal-learner-card${selected ? " selected" : ""}`}>
       <button
         type="button"
         onClick={onSelect}
@@ -1438,7 +1387,7 @@ function LearnerPremiumCard({
           border: "none",
           padding: 0,
           cursor: "pointer",
-          color: text,
+          color: "#1d2736",
           textAlign: "left",
         }}
       >
@@ -1446,44 +1395,30 @@ function LearnerPremiumCard({
           <div style={{ fontSize: 17, fontWeight: 900 }}>
             {learner.firstName} {learner.lastName}
           </div>
-          <div style={{ fontSize: 12, color: muted, marginTop: 2, fontWeight: 600 }}>
+          <div className="parent-portal-muted" style={{ fontSize: 12, marginTop: 2, fontWeight: 600 }}>
             {learner.grade}
             {learner.className ? ` · ${learner.className}` : ""}
             {relation ? ` · ${relation}` : ""}
           </div>
         </div>
         {selected ? (
-          <span style={{ fontSize: 10, fontWeight: 900, color: dark, background: gold, padding: "3px 8px", borderRadius: 999 }}>SELECTED</span>
+          <span style={{ fontSize: 10, fontWeight: 900, color: "#0f0f0f", background: gold, padding: "3px 8px", borderRadius: 999 }}>SELECTED</span>
         ) : (
-          <span style={{ fontSize: 10, fontWeight: 800, color: muted }}>Tap to select</span>
+          <span className="parent-portal-muted" style={{ fontSize: 10, fontWeight: 800 }}>Tap to select</span>
         )}
       </button>
-      <div
-        style={{
-          marginTop: 8,
-          fontSize: 11,
-          fontWeight: 700,
-          display: "inline-block",
-          padding: "4px 8px",
-          borderRadius: 8,
-          background: chipBg,
-          border: `1px solid ${chipBorder}`,
-          color: chipColor,
-        }}
-      >
-        {billingHint.label}
-      </div>
-      <div style={{ display: "grid", gridTemplateColumns: "repeat(2, minmax(0, 1fr))", gap: 6, marginTop: 10 }}>
-        <button type="button" style={{ ...btnGhost, width: "100%", fontSize: 12, padding: "8px 6px" }} onClick={onProfile}>
+      <div className={chipClass}>{billingHint.label}</div>
+      <div className="parent-portal-learner-actions">
+        <button type="button" className="parent-portal-btn-ghost parent-portal-btn-ghost--gold-text" style={{ fontSize: 12, padding: "8px 6px" }} onClick={onProfile}>
           View profile
         </button>
-        <button type="button" style={{ ...btnGold, width: "100%", fontSize: 12, padding: "8px 6px" }} onClick={onMessage}>
+        <button type="button" className="parent-portal-btn-primary" style={{ fontSize: 12, padding: "8px 6px" }} onClick={onMessage}>
           Message teacher
         </button>
-        <button type="button" style={{ ...btnGhost, width: "100%", fontSize: 12, padding: "8px 6px" }} onClick={onHomework}>
+        <button type="button" className="parent-portal-btn-ghost parent-portal-btn-ghost--gold-text" style={{ fontSize: 12, padding: "8px 6px" }} onClick={onHomework}>
           Homework
         </button>
-        <button type="button" style={{ ...btnGhost, width: "100%", fontSize: 12, padding: "8px 6px" }} onClick={onNotices}>
+        <button type="button" className="parent-portal-btn-ghost parent-portal-btn-ghost--gold-text" style={{ fontSize: 12, padding: "8px 6px" }} onClick={onNotices}>
           Notices
         </button>
       </div>
@@ -1502,23 +1437,13 @@ function LearnerSwitchStrip({
 }) {
   if (learners.length <= 1) return null;
   return (
-    <div style={{ display: "flex", gap: 6, overflowX: "auto", marginBottom: 10, paddingBottom: 2 }}>
+    <div className="parent-portal-learner-switch">
       {learners.map((row) => (
         <button
           key={row.learner.id}
           type="button"
+          className={`parent-portal-learner-switch-btn${selectedId === row.learner.id ? " active" : ""}`}
           onClick={() => onSelect(row.learner.id)}
-          style={{
-            flex: "0 0 auto",
-            padding: "6px 10px",
-            borderRadius: 999,
-            border: selectedId === row.learner.id ? `1px solid ${gold}` : `1px solid rgba(255,255,255,0.1)`,
-            background: selectedId === row.learner.id ? "rgba(212,175,55,0.12)" : "transparent",
-            color: selectedId === row.learner.id ? gold : muted,
-            fontWeight: 700,
-            fontSize: 12,
-            cursor: "pointer",
-          }}
         >
           {row.learner.firstName}
         </button>
@@ -1530,8 +1455,10 @@ function LearnerSwitchStrip({
 function PanelHeader({ title, onBack }: { title: string; onBack: () => void }) {
   return (
     <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 8, marginBottom: 8 }}>
-      <h3 style={{ margin: 0, fontSize: 17, color: gold }}>{title}</h3>
-      <button type="button" style={{ ...btnGhost, fontSize: 12, padding: "6px 10px" }} onClick={onBack}>
+      <h3 className="parent-portal-page-heading" style={{ fontSize: 17 }}>
+        <span>{title}</span>
+      </h3>
+      <button type="button" className="parent-portal-btn-ghost parent-portal-btn-ghost--gold-text" style={{ fontSize: 12, padding: "6px 10px" }} onClick={onBack}>
         Back
       </button>
     </div>
