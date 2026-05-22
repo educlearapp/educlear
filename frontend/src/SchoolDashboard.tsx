@@ -31,6 +31,7 @@ import Payments from "./billing/Payments";
 import PaymentCreateClean from "./billing/PaymentCreateClean";
 import InvoiceCreateClean from "./billing/InvoiceCreateClean";
 import BillingDocuments from "./billing/BillingDocuments";
+import BillingReports from "./billing/BillingReports";
 import Email from "./communication/Email";
 import SMS from "./communication/SMS";
 import CommunicationSettings from "./communication/CommunicationSettings";
@@ -17250,10 +17251,15 @@ return (
   
   
         case "reports":
-  
-  
-  
-          return <h1 className="page-title">Billing Reports</h1>;
+          return (
+            <BillingReports
+              schoolId={schoolId || ""}
+              schoolName={schoolBranding.name}
+              learners={learners || []}
+              parents={parents || []}
+              statementRows={statementRows}
+            />
+          );
   
   
   
