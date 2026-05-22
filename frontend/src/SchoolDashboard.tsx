@@ -1,4 +1,4 @@
-import React, { Fragment, useEffect, useMemo, useState } from "react";
+import React, { Fragment, useCallback, useEffect, useMemo, useState } from "react";
 
 
 
@@ -28,7 +28,7 @@ import Statements from "./billing/Statements";
 import StatementManage from "./billing/StatementManage";
 import BillingPlans from "./billing/BillingPlans";
 import Payments from "./billing/Payments";
-import PaymentCreate from "./billing/PaymentCreate";
+import PaymentCreateClean from "./billing/PaymentCreateClean";
 import BillingDocuments from "./billing/BillingDocuments";
 import Email from "./communication/Email";
 import SMS from "./communication/SMS";
@@ -65,8 +65,17 @@ import {
   BILLING_UPDATED_EVENT,
   getBillingRows,
   LEARNERS_REFRESH_EVENT,
+  notifyBillingUpdated,
 } from "./billing/billingLedger";
-import { createInvoice, syncBillingLedgerFromApi } from "./billing/billingApi";
+import {
+  defaultPaymentForm,
+  normalizePaymentAccount,
+  paymentAccountContextsEqual,
+  persistPaymentAccount,
+  type PaymentAccountContext,
+  type PaymentFormState,
+} from "./billing/paymentCreateShared";
+import { createInvoice, refreshBillingFromApi, syncBillingLedgerFromApi } from "./billing/billingApi";
 import {
   buildInvoiceRunDefaults,
   computeInvoiceDueDate,
@@ -739,6 +748,8 @@ const [selectedLearnerReport, setSelectedLearnerReport] = useState<any>(null);
 
 
   const [selectedInvoiceAccount, setSelectedInvoiceAccount] = useState<any | null>(null);
+  const [selectedAccount, setSelectedAccount] = useState<PaymentAccountContext | null>(null);
+  const [paymentForm, setPaymentForm] = useState<PaymentFormState>(() => defaultPaymentForm());
 
 
 
@@ -2116,12 +2127,20 @@ const [selectedLearnerReport, setSelectedLearnerReport] = useState<any>(null);
     }
   };
 
+  const refreshBillingRows = useCallback(async () => {
+    if (!schoolId) return;
+    await refreshBillingFromApi(schoolId);
+    setBillingVersion((v) => v + 1);
+  }, [schoolId]);
+
   useEffect(() => {
     if (!schoolId) return;
-    syncBillingLedgerFromApi(schoolId).catch(() => {});
-    const refresh = () => setBillingVersion((v) => v + 1);
-    window.addEventListener(BILLING_UPDATED_EVENT, refresh);
-    return () => window.removeEventListener(BILLING_UPDATED_EVENT, refresh);
+    syncBillingLedgerFromApi(schoolId)
+      .then(() => setBillingVersion((v) => v + 1))
+      .catch(() => {});
+    const onBillingUpdated = () => setBillingVersion((v) => v + 1);
+    window.addEventListener(BILLING_UPDATED_EVENT, onBillingUpdated);
+    return () => window.removeEventListener(BILLING_UPDATED_EVENT, onBillingUpdated);
   }, [schoolId]);
 
   useEffect(() => {
@@ -2150,7 +2169,62 @@ const [selectedLearnerReport, setSelectedLearnerReport] = useState<any>(null);
     [learners, schoolId, billingVersion]
   );
 
+  const selectPaymentAccount = useCallback((account: PaymentAccountContext) => {
+    const normalized = normalizePaymentAccount(account, statementRows, learners) || account;
+    setSelectedAccount(normalized);
+    persistPaymentAccount(normalized);
+  }, [statementRows, learners]);
 
+  const openPaymentCreate = useCallback(
+    (account?: PaymentAccountContext | null) => {
+      if (!account) return;
+      let normalized = normalizePaymentAccount(account, statementRows, learners) || account;
+      const accountNo = String(normalized.accountNo || "").trim();
+      const learnerId = String(normalized.learnerId || "").trim();
+      const learnerIdValid = (learners || []).some(
+        (l: any) => String(l?.id || l?.learnerId || "").trim() === learnerId
+      );
+      if (!learnerIdValid && accountNo) {
+        const match = (learners || []).find(
+          (l: any) => getLearnerAccountNo(l) === accountNo
+        );
+        if (match) {
+          const resolvedId = String(match.id || match.learnerId || "").trim();
+          normalized = {
+            ...normalized,
+            learnerId: resolvedId,
+            id: resolvedId,
+          };
+        }
+      }
+      console.log("OPEN PAYMENT ACCOUNT", normalized);
+      setSelectedAccount(normalized);
+      persistPaymentAccount(normalized);
+      setPaymentForm(defaultPaymentForm(normalized));
+      const resolvedLearnerId = String(normalized.learnerId || "").trim();
+      if (resolvedLearnerId) {
+        const learner =
+          learners.find((l: any) => String(l?.id || l?.learnerId || "") === resolvedLearnerId) ||
+          null;
+        if (learner) setSelectedLearner(learner);
+      }
+      setActivePage("paymentCreate");
+    },
+    [learners, statementRows]
+  );
+
+  useEffect(() => {
+    if (!selectedAccount) return;
+    const refreshed = normalizePaymentAccount(selectedAccount, statementRows, learners);
+    if (!refreshed) return;
+    if (paymentAccountContextsEqual(selectedAccount, refreshed)) return;
+    setSelectedAccount(refreshed);
+  }, [
+    billingVersion,
+    learnersVersion,
+    selectedAccount?.learnerId ?? "",
+    selectedAccount?.accountNo ?? "",
+  ]);
 
   const invoiceRows = statementRows;
 
@@ -16637,6 +16711,7 @@ const [invoiceRunEmailDraft, setInvoiceRunEmailDraft] = useState({
             <StatementManage
               selected={liveRow}
               setActivePage={setActivePage}
+              onOpenPaymentCreate={openPaymentCreate}
               onOpenEmailSetup={openCommunicationEmailSetup}
               statementRows={statementRows}
               learners={learners || []}
@@ -17136,7 +17211,7 @@ const [invoiceRunEmailDraft, setInvoiceRunEmailDraft] = useState({
                         invoiceDate,
                       });
                       localStorage.removeItem(invoiceKey);
-                      await syncBillingLedgerFromApi(schoolId);
+                      await refreshBillingRows();
                       alert(`Invoice saved for ${selected.accountNo}. Total: R ${total.toFixed(2)}`);
                       setActivePage("invoices");
                     } catch (error) {
@@ -17894,17 +17969,12 @@ const [invoiceRunEmailDraft, setInvoiceRunEmailDraft] = useState({
         
         
             <Payments
-        
-        
-        
               statementRows={statementRows}
-        
-        
-        
+              learners={learners}
+              selectedAccount={selectedAccount}
+              onSelectAccount={selectPaymentAccount}
+              onOpenPaymentCreate={openPaymentCreate}
               setActivePage={setActivePage}
-        
-        
-        
             />
         
         
@@ -17921,6 +17991,7 @@ const [invoiceRunEmailDraft, setInvoiceRunEmailDraft] = useState({
             <AccountingBanking
               schoolId={schoolId || ""}
               learners={learners}
+              onOpenPaymentCreate={openPaymentCreate}
             />
           );
 
@@ -18021,7 +18092,7 @@ const [invoiceRunEmailDraft, setInvoiceRunEmailDraft] = useState({
         
         
         
-        case "paymentCreate": {
+          case "paymentCreate":
 
 
 
@@ -18029,15 +18100,40 @@ const [invoiceRunEmailDraft, setInvoiceRunEmailDraft] = useState({
         
         
         
-            <PaymentCreate
+            <PaymentCreateClean
         
         
         
-              statementRows={statementRows}
+              key={selectedAccount?.accountNo || selectedAccount?.id || "payment-create"}
         
         
         
-              setActivePage={setActivePage}
+              schoolId={schoolId || ""}
+        
+              learners={learners}
+        
+        
+        
+              selectedAccount={selectedAccount}
+        
+        
+        
+              paymentForm={paymentForm}
+        
+        
+        
+              onPaymentFormChange={setPaymentForm}
+        
+        
+        
+              onBack={() => setActivePage("payments")}
+        
+        
+        
+              onSaved={async () => {
+                await refreshBillingRows();
+                setActivePage("payments");
+              }}
         
         
         
@@ -18046,10 +18142,6 @@ const [invoiceRunEmailDraft, setInvoiceRunEmailDraft] = useState({
         
         
           );
-        
-        
-        
-        }
   
   
         case "payroll":
@@ -18892,7 +18984,12 @@ return (
   
   
   
-                <div className={`submenu-item ${activePage === "payments" ? "active" : ""}`} onClick={() => go("payments")}>Payments</div>
+                <div
+                  className={`submenu-item ${activePage === "payments" || activePage === "paymentCreate" ? "active" : ""}`}
+                  onClick={() => go("payments")}
+                >
+                  Payments
+                </div>
 
   
   
@@ -19137,61 +19234,58 @@ return (
   
   
           <div
-  
-  
-  
+
+
+
             className="page-area"
-  
-  
-  
+
+
+
             style={{
-  
-  
-  
+
+
+
               flex: 1,
-  
-  
-  
+
+
+
               width: "100%",
-  
-  
-  
+
+
+
               minWidth: 0,
-  
-  
-  
+
+
+
               maxWidth: "none",
-  
-  
-  
+
+
+
               display: "block",
-  
-  
-  
+
+
+
               boxSizing: "border-box",
-  
-  
-  
+
+
+
               background: "#ffffff",
-  
-  
-  
+
+
+
               minHeight: "100vh",
-  
-  
-  
+
+
+
               padding: "32px",
-  
-  
-  
+
+
+
             }}
-  
-  
-  
+
+
+
           >
-  
-  
-  
             <Routes>
   
   
