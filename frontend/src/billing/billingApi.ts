@@ -1,5 +1,10 @@
 import { API_URL } from "../api";
-import { mergeApiLedger, type BillingLedgerEntry } from "./billingLedger";
+import {
+  mergeApiLedger,
+  notifyBillingUpdated,
+  type BillingLedgerEntry,
+  upsertSchoolEntries,
+} from "./billingLedger";
 
 const parseArray = (data: any, keys: string[]) => {
   if (Array.isArray(data)) return data;
@@ -10,7 +15,7 @@ const parseArray = (data: any, keys: string[]) => {
 };
 
 const getJson = async (url: string) => {
-  const response = await fetch(url);
+  const response = await fetch(url, { cache: "no-store" });
   if (!response.ok) {
     console.warn(`Billing API returned ${response.status}: ${url}`);
     return null;
@@ -97,70 +102,87 @@ export const fetchLedger = async (schoolId: string) => {
   return parseArray(data, ["entries", "ledger", "items"]);
 };
 
+function mapApiRowToLedgerEntry(sid: string, row: any): BillingLedgerEntry {
+  const type = String(row.type || "invoice").toLowerCase();
+  const entryType: BillingLedgerEntry["type"] =
+    type === "payment" || type === "credit" || type === "penalty" ? type : "invoice";
+  return {
+    id: String(row.id),
+    schoolId: sid,
+    learnerId: String(row.learnerId || ""),
+    accountNo: String(row.accountNo || ""),
+    type: entryType,
+    amount: Number(row.amount || 0),
+    date: String(row.date || row.invoiceDate || row.paymentDate || "").slice(0, 10),
+    dueDate: row.dueDate ? String(row.dueDate).slice(0, 10) : undefined,
+    reference: String(row.reference || row.invoiceNumber || ""),
+    description: String(row.description || row.type || "Entry"),
+    method: row.method ? String(row.method) : undefined,
+    runId: row.runId ? String(row.runId) : undefined,
+    bankTransactionId: row.bankTransactionId ? String(row.bankTransactionId) : undefined,
+    bankImportId: row.bankImportId ? String(row.bankImportId) : undefined,
+    source: row.source ? String(row.source) : undefined,
+    createdAt: String(row.createdAt || new Date().toISOString()),
+  };
+}
+
+/** Merge API rows into the school ledger without removing existing local entries. */
+export function applyApiLedgerEntries(schoolId: string, rows: any[]) {
+  const sid = String(schoolId || "").trim();
+  if (!sid || !rows.length) return;
+  const entries = rows.map((row) => mapApiRowToLedgerEntry(sid, row));
+  mergeApiLedger(sid, entries);
+}
+
+/** Merge a single payment into the school ledger (same upsert path as invoice runs). */
+export function upsertPaymentFromApiResponse(
+  schoolId: string,
+  payment: any,
+  overrides?: Partial<Pick<BillingLedgerEntry, "learnerId" | "accountNo" | "amount" | "date" | "reference" | "description" | "method">>
+) {
+  const sid = String(schoolId || "").trim();
+  if (!sid || !payment) return;
+  const mapped = mapApiRowToLedgerEntry(sid, { ...payment, type: "payment" });
+  const amount = Math.abs(Number(overrides?.amount ?? mapped.amount) || 0);
+  const entry: BillingLedgerEntry = {
+    ...mapped,
+    ...overrides,
+    type: "payment",
+    amount,
+    learnerId: String(overrides?.learnerId ?? mapped.learnerId).trim(),
+    accountNo: String(overrides?.accountNo ?? mapped.accountNo).trim(),
+  };
+  upsertSchoolEntries(sid, [entry]);
+}
+
 export const syncBillingLedgerFromApi = async (schoolId: string) => {
   const sid = String(schoolId || "").trim();
   if (!sid) return;
 
   const ledgerRows = await fetchLedger(sid);
   if (ledgerRows.length) {
-    const entries: BillingLedgerEntry[] = ledgerRows.map((row: any) => ({
-      id: String(row.id),
-      schoolId: sid,
-      learnerId: String(row.learnerId || ""),
-      accountNo: String(row.accountNo || ""),
-      type: (row.type || "invoice") as BillingLedgerEntry["type"],
-      amount: Number(row.amount || 0),
-      date: String(row.date || row.invoiceDate || row.paymentDate || "").slice(0, 10),
-      dueDate: row.dueDate ? String(row.dueDate).slice(0, 10) : undefined,
-      reference: String(row.reference || row.invoiceNumber || ""),
-      description: String(row.description || row.type || "Entry"),
-      method: row.method ? String(row.method) : undefined,
-      runId: row.runId ? String(row.runId) : undefined,
-      bankTransactionId: row.bankTransactionId ? String(row.bankTransactionId) : undefined,
-      bankImportId: row.bankImportId ? String(row.bankImportId) : undefined,
-      source: row.source ? String(row.source) : undefined,
-      createdAt: String(row.createdAt || new Date().toISOString()),
-    }));
-    mergeApiLedger(sid, entries);
+    applyApiLedgerEntries(sid, ledgerRows);
     return;
   }
 
   const [invoices, payments] = await Promise.all([fetchInvoices(sid), fetchPayments(sid)]);
   const entries: BillingLedgerEntry[] = [
-    ...invoices.map((row: any) => ({
-      id: String(row.id),
-      schoolId: sid,
-      learnerId: String(row.learnerId || ""),
-      accountNo: String(row.accountNo || ""),
-      type: "invoice" as const,
-      amount: Number(row.amount || 0),
-      date: String(row.invoiceDate || row.date || "").slice(0, 10),
-      dueDate: row.dueDate ? String(row.dueDate).slice(0, 10) : undefined,
-      reference: String(row.reference || row.invoiceNumber || ""),
-      description: String(row.description || "Invoice"),
-      runId: row.runId ? String(row.runId) : undefined,
-      createdAt: String(row.createdAt || new Date().toISOString()),
-    })),
-    ...payments.map((row: any) => ({
-      id: String(row.id),
-      schoolId: sid,
-      learnerId: String(row.learnerId || ""),
-      accountNo: String(row.accountNo || ""),
-      type: "payment" as const,
-      amount: Number(row.amount || 0),
-      date: String(row.paymentDate || row.date || "").slice(0, 10),
-      reference: String(row.reference || ""),
-      description: String(row.description || "Payment"),
-      method: row.method ? String(row.method) : undefined,
-      bankTransactionId: row.bankTransactionId ? String(row.bankTransactionId) : undefined,
-      bankImportId: row.bankImportId ? String(row.bankImportId) : undefined,
-      source: row.source ? String(row.source) : undefined,
-      createdAt: String(row.createdAt || new Date().toISOString()),
-    })),
+    ...invoices.map((row: any) => mapApiRowToLedgerEntry(sid, { ...row, type: "invoice" })),
+    ...payments.map((row: any) =>
+      mapApiRowToLedgerEntry(sid, { ...row, type: "payment" })
+    ),
   ];
 
-  mergeApiLedger(sid, entries);
+  if (entries.length) {
+    mergeApiLedger(sid, entries);
+  }
 };
+
+/** Sync ledger from API and broadcast so statementRows / billing pages rebuild. */
+export async function refreshBillingFromApi(schoolId: string) {
+  await syncBillingLedgerFromApi(schoolId);
+  notifyBillingUpdated();
+}
 
 export const fetchBillingDocuments = async (schoolId: string) =>
   getJson(`${API_URL}/api/billing-documents?schoolId=${encodeURIComponent(schoolId)}`);
