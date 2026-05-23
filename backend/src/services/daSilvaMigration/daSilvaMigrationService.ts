@@ -128,6 +128,15 @@ export type DaSilvaMigrationBundle = {
   confirmToken: string;
 };
 
+export type DaSilvaImportPhase =
+  | "school_base"
+  | "classrooms"
+  | "parents"
+  | "learners"
+  | "billing_accounts"
+  | "transactions"
+  | "opening_balances";
+
 export type DaSilvaImportManifest = {
   projectId: string;
   schoolId: string;
@@ -138,6 +147,12 @@ export type DaSilvaImportManifest = {
   classroomIds: string[];
   employeeIds: string[];
   ledgerEntryIds: string[];
+  /** `${matchKey}:${parentIndex}` → parent id (parents phase, links in learners phase) */
+  stagedParentIds?: Record<string, string>;
+  matchKeyToLearnerId?: Record<string, string>;
+  accountToLearnerId?: Record<string, string>;
+  phasesCompleted?: DaSilvaImportPhase[];
+  failedPhase?: DaSilvaImportPhase;
 };
 
 function stagingPath(schoolId: string, projectId: string) {
@@ -609,6 +624,77 @@ function ledgerEntryId(kind: string, transactionNo: string): string {
   return `kidesys-${kind}-${transactionNo}`;
 }
 
+function parentStagingKey(matchKey: string, parentIndex: number): string {
+  return `${matchKey}:${parentIndex}`;
+}
+
+function writeDaSilvaManifest(schoolId: string, projectId: string, manifest: DaSilvaImportManifest) {
+  ensureDir(path.join(STAGING_ROOT, schoolId));
+  fs.writeFileSync(manifestPath(schoolId, projectId), JSON.stringify(manifest, null, 2));
+}
+
+function loadDaSilvaManifest(schoolId: string, projectId: string): DaSilvaImportManifest | null {
+  const file = manifestPath(schoolId, projectId);
+  if (!fs.existsSync(file)) return null;
+  try {
+    return JSON.parse(fs.readFileSync(file, "utf8")) as DaSilvaImportManifest;
+  } catch {
+    return null;
+  }
+}
+
+function pushUniqueId(list: string[], id: string) {
+  if (!list.includes(id)) list.push(id);
+}
+
+function seedAccountLearnerSeqFromExisting(
+  existing: Array<{ admissionNo: string | null }>
+): Map<string, number> {
+  const accountLearnerSeq = new Map<string, number>();
+  for (const row of existing) {
+    const adm = String(row.admissionNo || "").trim();
+    if (!adm) continue;
+    const dash = adm.indexOf("-");
+    if (dash === -1) {
+      accountLearnerSeq.set(adm, Math.max(accountLearnerSeq.get(adm) || 0, 1));
+      continue;
+    }
+    const base = adm.slice(0, dash);
+    const seq = Number.parseInt(adm.slice(dash + 1), 10);
+    if (base && Number.isFinite(seq)) {
+      accountLearnerSeq.set(base, Math.max(accountLearnerSeq.get(base) || 0, seq));
+    }
+  }
+  return accountLearnerSeq;
+}
+
+async function runDaSilvaImportPhase(
+  manifest: DaSilvaImportManifest,
+  phase: DaSilvaImportPhase,
+  schoolId: string,
+  projectId: string,
+  fn: () => Promise<void>
+): Promise<void> {
+  if (manifest.phasesCompleted?.includes(phase)) {
+    console.log(`[DaSilva import] phase "${phase}" already completed — skipping`);
+    return;
+  }
+  console.log(`[DaSilva import] phase "${phase}" starting…`);
+  try {
+    await fn();
+    manifest.phasesCompleted = [...(manifest.phasesCompleted || []), phase];
+    delete manifest.failedPhase;
+    writeDaSilvaManifest(schoolId, projectId, manifest);
+    console.log(`[DaSilva import] phase "${phase}" completed (${manifest.phasesCompleted.length} total)`);
+  } catch (err) {
+    manifest.failedPhase = phase;
+    writeDaSilvaManifest(schoolId, projectId, manifest);
+    const message = err instanceof Error ? err.message : String(err);
+    console.error(`[DaSilva import] phase "${phase}" FAILED: ${message}`);
+    throw new Error(`Da Silva import failed at phase "${phase}": ${message}`);
+  }
+}
+
 export async function commitDaSilvaMigration(opts: {
   schoolId: string;
   projectId: string;
@@ -638,56 +724,134 @@ export async function commitDaSilvaMigration(opts: {
   if (!school) throw new Error("School not found");
   assertDaSilvaFinalImportAllowed(bundle, school.name);
 
-  const manifest: DaSilvaImportManifest = {
-    projectId: opts.projectId,
-    schoolId: opts.schoolId,
-    importedAt: new Date().toISOString(),
-    learnerIds: [],
-    parentIds: [],
-    linkIds: [],
-    classroomIds: [],
-    employeeIds: [],
-    ledgerEntryIds: [],
+  const existingManifest = loadDaSilvaManifest(opts.schoolId, opts.projectId);
+  const manifest: DaSilvaImportManifest = existingManifest?.projectId === opts.projectId &&
+    existingManifest.schoolId === opts.schoolId
+    ? {
+        ...existingManifest,
+        learnerIds: existingManifest.learnerIds || [],
+        parentIds: existingManifest.parentIds || [],
+        linkIds: existingManifest.linkIds || [],
+        classroomIds: existingManifest.classroomIds || [],
+        employeeIds: existingManifest.employeeIds || [],
+        ledgerEntryIds: existingManifest.ledgerEntryIds || [],
+        stagedParentIds: existingManifest.stagedParentIds || {},
+        matchKeyToLearnerId: existingManifest.matchKeyToLearnerId || {},
+        accountToLearnerId: existingManifest.accountToLearnerId || {},
+        phasesCompleted: existingManifest.phasesCompleted || [],
+      }
+    : {
+        projectId: opts.projectId,
+        schoolId: opts.schoolId,
+        importedAt: new Date().toISOString(),
+        learnerIds: [],
+        parentIds: [],
+        linkIds: [],
+        classroomIds: [],
+        employeeIds: [],
+        ledgerEntryIds: [],
+        stagedParentIds: {},
+        matchKeyToLearnerId: {},
+        accountToLearnerId: {},
+        phasesCompleted: [],
+      };
+
+  if (existingManifest?.projectId === opts.projectId) {
+    const done = manifest.phasesCompleted?.length || 0;
+    console.log(
+      `[DaSilva import] resuming project ${opts.projectId} (${done} phase(s) already completed${
+        manifest.failedPhase ? `, last failure: ${manifest.failedPhase}` : ""
+      })`
+    );
+  } else {
+    console.log(`[DaSilva import] starting fresh import for project ${opts.projectId}`);
+    writeDaSilvaManifest(opts.schoolId, opts.projectId, manifest);
+  }
+
+  const matchKeyToLearnerId = new Map(Object.entries(manifest.matchKeyToLearnerId || {}));
+  const accountToLearnerId = new Map(Object.entries(manifest.accountToLearnerId || {}));
+  const accountToFamilyId = new Map<string, string>();
+
+  const persistLearnerMaps = () => {
+    manifest.matchKeyToLearnerId = Object.fromEntries(matchKeyToLearnerId);
+    manifest.accountToLearnerId = Object.fromEntries(accountToLearnerId);
   };
 
-  const matchKeyToLearnerId = new Map<string, string>();
-  const accountToLearnerId = new Map<string, string>();
-  const accountLearnerSeq = new Map<string, number>();
+  const resolveLearnerIdForTxn = (txn: ParsedTransaction): string =>
+    accountToLearnerId.get(txn.accountNo) ||
+    matchKeyToLearnerId.get(
+      buildLearnerMatchKey(
+        txn.fullName,
+        bundle.learners.find((l) => l.accountNo === txn.accountNo)?.className || ""
+      )
+    ) ||
+    "";
 
-  await prisma.$transaction(async (tx) => {
-    for (const classroom of bundle.classrooms) {
-      const norm = normalizeClassroomInput(classroom.className);
-      const name = norm.classroomName || classroom.className;
-      if (!name) continue;
-      const record = await tx.classroom.upsert({
-        where: { schoolId_name: { schoolId: opts.schoolId, name } },
-        create: { schoolId: opts.schoolId, name },
+  const ensureFamilyAccountMap = async () => {
+    if (accountToFamilyId.size > 0) return;
+    const accountNos = [
+      ...new Set(
+        bundle.learners
+          .map((row) => String(row.accountNo || "").trim())
+          .filter(Boolean)
+      ),
+    ];
+    if (!accountNos.length) return;
+    const rows = await prisma.familyAccount.findMany({
+      where: { accountRef: { in: accountNos } },
+      select: { id: true, accountRef: true },
+    });
+    for (const row of rows) {
+      accountToFamilyId.set(row.accountRef, row.id);
+    }
+  };
+
+  await runDaSilvaImportPhase(manifest, "school_base", opts.schoolId, opts.projectId, async () => {
+    const schoolRecord = await prisma.school.findUnique({
+      where: { id: opts.schoolId },
+      select: { id: true, name: true },
+    });
+    if (!schoolRecord) throw new Error("School not found");
+
+    const accountFamilyNames = new Map<string, string>();
+    for (const row of bundle.learners) {
+      const accountNo = String(row.accountNo || "").trim();
+      if (!accountNo) continue;
+      if (!accountFamilyNames.has(accountNo)) {
+        accountFamilyNames.set(accountNo, row.lastName || row.fullName);
+      }
+    }
+    for (const [accountNo, familyName] of accountFamilyNames) {
+      const fa = await prisma.familyAccount.upsert({
+        where: { accountRef: accountNo },
+        create: {
+          schoolId: opts.schoolId,
+          accountRef: accountNo,
+          familyName,
+        },
         update: {},
       });
-      if (!manifest.classroomIds.includes(record.id)) manifest.classroomIds.push(record.id);
+      accountToFamilyId.set(accountNo, fa.id);
     }
 
     for (const emp of bundle.employees) {
-      const existing = await tx.employee.findFirst({
+      const existing = await prisma.employee.findFirst({
         where: {
           schoolId: opts.schoolId,
           OR: [
             { fullName: emp.fullName },
             {
-              AND: [
-                { firstName: emp.firstName },
-                { lastName: emp.lastName },
-              ],
+              AND: [{ firstName: emp.firstName }, { lastName: emp.lastName }],
             },
           ],
         },
         select: { id: true },
       });
       if (existing) {
-        manifest.employeeIds.push(existing.id);
+        pushUniqueId(manifest.employeeIds, existing.id);
         continue;
       }
-      const created = await tx.employee.create({
+      const created = await prisma.employee.create({
         data: {
           schoolId: opts.schoolId,
           firstName: emp.firstName,
@@ -699,15 +863,33 @@ export async function commitDaSilvaMigration(opts: {
         },
         select: { id: true },
       });
-      manifest.employeeIds.push(created.id);
+      pushUniqueId(manifest.employeeIds, created.id);
     }
+  });
 
+  await runDaSilvaImportPhase(manifest, "classrooms", opts.schoolId, opts.projectId, async () => {
+    for (const classroom of bundle.classrooms) {
+      const norm = normalizeClassroomInput(classroom.className);
+      const name = norm.classroomName || classroom.className;
+      if (!name) continue;
+      const record = await prisma.classroom.upsert({
+        where: { schoolId_name: { schoolId: opts.schoolId, name } },
+        create: { schoolId: opts.schoolId, name },
+        update: {},
+      });
+      pushUniqueId(manifest.classroomIds, record.id);
+    }
+  });
+
+  if (!manifest.stagedParentIds) manifest.stagedParentIds = {};
+
+  await runDaSilvaImportPhase(manifest, "parents", opts.schoolId, opts.projectId, async () => {
+    await ensureFamilyAccountMap();
     for (const row of bundle.learners) {
       const accountNo = String(row.accountNo || "").trim();
-      let familyAccountId: string | null = null;
-
-      if (accountNo) {
-        const fa = await tx.familyAccount.upsert({
+      let familyAccountId: string | null = accountNo ? accountToFamilyId.get(accountNo) || null : null;
+      if (accountNo && !familyAccountId) {
+        const fa = await prisma.familyAccount.upsert({
           where: { accountRef: accountNo },
           create: {
             schoolId: opts.schoolId,
@@ -717,17 +899,83 @@ export async function commitDaSilvaMigration(opts: {
           update: {},
         });
         familyAccountId = fa.id;
+        accountToFamilyId.set(accountNo, fa.id);
       }
 
-      const norm = normalizeClassroomInput(row.className);
-      let admissionNo: string | null = null;
-      if (accountNo) {
-        const seq = (accountLearnerSeq.get(accountNo) || 0) + 1;
-        accountLearnerSeq.set(accountNo, seq);
-        admissionNo = seq === 1 ? accountNo : `${accountNo}-${seq}`;
+      for (let pi = 0; pi < row.parents.length; pi++) {
+        const parent = row.parents[pi];
+        const stageKey = parentStagingKey(row.matchKey, pi);
+        if (manifest.stagedParentIds![stageKey]) continue;
+
+        const phone = normalizeSaPhone(parent.cellNo || parent.homeNo || "");
+        const cellNo = phone?.localCell || parent.cellNo || "";
+
+        const existingParent = await prisma.parent.findFirst({
+          where: {
+            schoolId: opts.schoolId,
+            firstName: parent.firstName,
+            surname: parent.surname,
+            cellNo,
+            familyAccountId: familyAccountId ?? null,
+          },
+          select: { id: true },
+        });
+
+        const parentId =
+          existingParent?.id ||
+          (
+            await prisma.parent.create({
+              data: {
+                schoolId: opts.schoolId,
+                familyAccountId,
+                firstName: parent.firstName,
+                surname: parent.surname,
+                cellNo,
+                email: parent.email || null,
+                relationship: parent.relation,
+                workNo: parent.workNo || null,
+                homeNo: parent.homeNo || null,
+                outstandingAmount: row.ageAnalysisBalance,
+              },
+              select: { id: true },
+            })
+          ).id;
+
+        manifest.stagedParentIds![stageKey] = parentId;
+        pushUniqueId(manifest.parentIds, parentId);
       }
-      const learner = await tx.learner.create({
-        data: {
+    }
+  });
+
+  await runDaSilvaImportPhase(manifest, "learners", opts.schoolId, opts.projectId, async () => {
+    await ensureFamilyAccountMap();
+    const existingAdmissionRows = await prisma.learner.findMany({
+      where: { schoolId: opts.schoolId, admissionNo: { not: null } },
+      select: { admissionNo: true },
+    });
+    const accountLearnerSeq = seedAccountLearnerSeqFromExisting(existingAdmissionRows);
+
+    for (const row of bundle.learners) {
+      const accountNo = String(row.accountNo || "").trim();
+      const familyAccountId = accountNo ? accountToFamilyId.get(accountNo) || null : null;
+      const norm = normalizeClassroomInput(row.className);
+
+      const existingLearnerId = manifest.matchKeyToLearnerId?.[row.matchKey];
+      if (existingLearnerId) {
+        matchKeyToLearnerId.set(row.matchKey, existingLearnerId);
+        pushUniqueId(manifest.learnerIds, existingLearnerId);
+        if (accountNo && !accountToLearnerId.has(accountNo)) {
+          accountToLearnerId.set(accountNo, existingLearnerId);
+        }
+      } else {
+        let admissionNo: string | null = null;
+        if (accountNo) {
+          const seq = (accountLearnerSeq.get(accountNo) || 0) + 1;
+          accountLearnerSeq.set(accountNo, seq);
+          admissionNo = seq === 1 ? accountNo : `${accountNo}-${seq}`;
+        }
+
+        const learnerData = {
           schoolId: opts.schoolId,
           familyAccountId,
           firstName: row.firstName,
@@ -737,115 +985,131 @@ export async function commitDaSilvaMigration(opts: {
           admissionNo,
           totalFee: row.billingPlanTotal,
           tuitionFee: row.billingPlanTotal,
-        },
-      });
-      manifest.learnerIds.push(learner.id);
-      matchKeyToLearnerId.set(row.matchKey, learner.id);
-      if (accountNo && !accountToLearnerId.has(accountNo)) {
-        accountToLearnerId.set(accountNo, learner.id);
+        };
+
+        const learner =
+          admissionNo != null
+            ? await prisma.learner.upsert({
+                where: {
+                  schoolId_admissionNo: { schoolId: opts.schoolId, admissionNo },
+                },
+                create: learnerData,
+                update: {
+                  familyAccountId: learnerData.familyAccountId,
+                  firstName: learnerData.firstName,
+                  lastName: learnerData.lastName,
+                  grade: learnerData.grade,
+                  className: learnerData.className,
+                  totalFee: learnerData.totalFee,
+                  tuitionFee: learnerData.tuitionFee,
+                },
+              })
+            : await prisma.learner.create({ data: learnerData });
+
+        pushUniqueId(manifest.learnerIds, learner.id);
+        matchKeyToLearnerId.set(row.matchKey, learner.id);
+        if (accountNo && !accountToLearnerId.has(accountNo)) {
+          accountToLearnerId.set(accountNo, learner.id);
+        }
       }
 
-      for (const parent of row.parents) {
-        const phone = normalizeSaPhone(parent.cellNo || parent.homeNo || "");
-        const createdParent = await tx.parent.create({
-          data: {
-            schoolId: opts.schoolId,
-            familyAccountId,
-            firstName: parent.firstName,
-            surname: parent.surname,
-            cellNo: phone?.localCell || parent.cellNo || "",
-            email: parent.email || null,
-            relationship: parent.relation,
-            workNo: parent.workNo || null,
-            homeNo: parent.homeNo || null,
-            outstandingAmount: row.ageAnalysisBalance,
-          },
-        });
-        if (!manifest.parentIds.includes(createdParent.id)) {
-          manifest.parentIds.push(createdParent.id);
+      const learnerId = matchKeyToLearnerId.get(row.matchKey)!;
+      for (let pi = 0; pi < row.parents.length; pi++) {
+        const parent = row.parents[pi];
+        const stageKey = parentStagingKey(row.matchKey, pi);
+        const parentId = manifest.stagedParentIds![stageKey];
+        if (!parentId) {
+          throw new Error(`Missing staged parent for ${stageKey}`);
         }
-        const link = await tx.parentLearnerLink.create({
+
+        const existingLink = await prisma.parentLearnerLink.findUnique({
+          where: { parentId_learnerId: { parentId, learnerId } },
+          select: { id: true },
+        });
+        if (existingLink) {
+          pushUniqueId(manifest.linkIds, existingLink.id);
+          continue;
+        }
+
+        const link = await prisma.parentLearnerLink.create({
           data: {
             schoolId: opts.schoolId,
-            parentId: createdParent.id,
-            learnerId: learner.id,
+            parentId,
+            learnerId,
             relation: parent.relation,
             isPrimary: row.parents[0] === parent,
           },
+          select: { id: true },
         });
-        manifest.linkIds.push(link.id);
+        pushUniqueId(manifest.linkIds, link.id);
       }
     }
+
+    persistLearnerMaps();
   });
 
-  const billingPlans: Record<string, StoredBillingPlanItem[]> = {};
-  for (const row of bundle.learners) {
-    const learnerId = matchKeyToLearnerId.get(row.matchKey);
-    if (learnerId && row.billingPlan.length) {
-      billingPlans[learnerId] = row.billingPlan;
+  await runDaSilvaImportPhase(manifest, "billing_accounts", opts.schoolId, opts.projectId, async () => {
+    const billingPlans: Record<string, StoredBillingPlanItem[]> = {};
+    for (const row of bundle.learners) {
+      const learnerId = matchKeyToLearnerId.get(row.matchKey);
+      if (learnerId && row.billingPlan.length) {
+        billingPlans[learnerId] = row.billingPlan;
+      }
     }
-  }
-  upsertSchoolBillingPlans(opts.schoolId, billingPlans);
+    upsertSchoolBillingPlans(opts.schoolId, billingPlans);
+  });
 
-  const ledgerEntries: BillingLedgerEntry[] = [];
-  for (const txn of bundle.transactions) {
-    const learnerId =
-      accountToLearnerId.get(txn.accountNo) ||
-      matchKeyToLearnerId.get(
-        buildLearnerMatchKey(
-          txn.fullName,
-          bundle.learners.find((l) => l.accountNo === txn.accountNo)?.className || ""
-        )
-      ) ||
-      "";
+  await runDaSilvaImportPhase(manifest, "transactions", opts.schoolId, opts.projectId, async () => {
+    const ledgerEntries: BillingLedgerEntry[] = [];
+    for (const txn of bundle.transactions) {
+      const entry: BillingLedgerEntry = {
+        id: ledgerEntryId(txn.kind, txn.transactionNo),
+        schoolId: opts.schoolId,
+        learnerId: resolveLearnerIdForTxn(txn),
+        accountNo: txn.accountNo,
+        type: txn.kind,
+        amount: txn.amount,
+        date: txn.date,
+        reference: txn.reference,
+        description: txn.notes || txn.reference,
+        source: "kidesys_migration",
+        createdAt: new Date().toISOString(),
+      };
+      ledgerEntries.push(entry);
+      pushUniqueId(manifest.ledgerEntryIds, entry.id);
+    }
+    upsertSchoolEntries(opts.schoolId, ledgerEntries);
+  });
 
-    const entry: BillingLedgerEntry = {
-      id: ledgerEntryId(txn.kind, txn.transactionNo),
-      schoolId: opts.schoolId,
-      learnerId,
-      accountNo: txn.accountNo,
-      type: txn.kind,
-      amount: txn.amount,
-      date: txn.date,
-      reference: txn.reference,
-      description: txn.notes || txn.reference,
-      source: "kidesys_migration",
-      createdAt: new Date().toISOString(),
-    };
-    ledgerEntries.push(entry);
-    manifest.ledgerEntryIds.push(entry.id);
-  }
+  await runDaSilvaImportPhase(manifest, "opening_balances", opts.schoolId, opts.projectId, async () => {
+    const ledgerEntries: BillingLedgerEntry[] = [];
+    for (const adj of approvedOpeningBalanceAdjustments(bundle)) {
+      const learnerId = accountToLearnerId.get(adj.accountNo) || "";
+      const entry: BillingLedgerEntry = {
+        id: `kidesys-opening-${adj.accountNo}`,
+        schoolId: opts.schoolId,
+        learnerId,
+        accountNo: adj.accountNo,
+        type: adj.entryType,
+        amount: Math.abs(adj.adjustmentAmount),
+        date: adj.date,
+        reference: adj.reference,
+        description: adj.description,
+        source: "kidesys_migration_opening_balance",
+        createdAt: new Date().toISOString(),
+      };
+      ledgerEntries.push(entry);
+      pushUniqueId(manifest.ledgerEntryIds, entry.id);
+    }
+    upsertSchoolEntries(opts.schoolId, ledgerEntries);
+  });
 
-  for (const adj of approvedOpeningBalanceAdjustments(bundle)) {
-    const learnerId = accountToLearnerId.get(adj.accountNo) || "";
-    const entry: BillingLedgerEntry = {
-      id: `kidesys-opening-${adj.accountNo}`,
-      schoolId: opts.schoolId,
-      learnerId,
-      accountNo: adj.accountNo,
-      type: adj.entryType,
-      amount: Math.abs(adj.adjustmentAmount),
-      date: adj.date,
-      reference: adj.reference,
-      description: adj.description,
-      source: "kidesys_migration_opening_balance",
-      createdAt: new Date().toISOString(),
-    };
-    ledgerEntries.push(entry);
-    manifest.ledgerEntryIds.push(entry.id);
-  }
-
-  upsertSchoolEntries(opts.schoolId, ledgerEntries);
-
+  console.log("[DaSilva import] syncing parent threads for imported classrooms…");
   for (const classroomId of manifest.classroomIds) {
     await syncParentThreadsForClassroom(opts.schoolId, classroomId);
   }
 
-  ensureDir(path.join(STAGING_ROOT, opts.schoolId));
-  fs.writeFileSync(
-    manifestPath(opts.schoolId, opts.projectId),
-    JSON.stringify(manifest, null, 2)
-  );
+  writeDaSilvaManifest(opts.schoolId, opts.projectId, manifest);
 
   return {
     success: true,
