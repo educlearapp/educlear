@@ -11,9 +11,33 @@ export function canAutoEnsureSuperAdmin(): boolean {
   return allowed.length > 0 && password.length > 0;
 }
 
+async function resolvePlatformSchool(email: string) {
+  const byContactEmail = await prisma.school.findFirst({
+    where: { email },
+    select: { id: true, name: true, email: true },
+  });
+  if (byContactEmail) return byContactEmail;
+
+  const byName = await prisma.school.findFirst({
+    where: { name: PLATFORM_SCHOOL_NAME },
+    select: { id: true, name: true, email: true },
+  });
+  if (byName) return byName;
+
+  return prisma.school.create({
+    data: {
+      name: PLATFORM_SCHOOL_NAME,
+      email,
+      phone: "",
+    },
+    select: { id: true, name: true, email: true },
+  });
+}
+
 /**
  * Creates or updates the platform super-admin user (idempotent).
  * Requires SUPER_ADMIN_EMAILS and SUPER_ADMIN_SEED_PASSWORD.
+ * Super-admin login role (`educlearRole: superAdmin`) is granted at auth when the email is in SUPER_ADMIN_EMAILS.
  */
 export async function ensureSuperAdminUser(): Promise<string> {
   const allowed = parseSuperAdminEmails();
@@ -34,32 +58,10 @@ export async function ensureSuperAdminUser(): Promise<string> {
 
   const passwordHash = await bcrypt.hash(plainPassword, 10);
 
-  let school = await prisma.school.findFirst({
+  const existing = await prisma.user.findFirst({
     where: { email },
-    select: { id: true, name: true, email: true },
-  });
-
-  if (!school) {
-    school = await prisma.school.findFirst({
-      where: { name: PLATFORM_SCHOOL_NAME },
-      select: { id: true, name: true, email: true },
-    });
-  }
-
-  if (!school) {
-    school = await prisma.school.create({
-      data: {
-        name: PLATFORM_SCHOOL_NAME,
-        email,
-        phone: "",
-      },
-      select: { id: true, name: true, email: true },
-    });
-  }
-
-  const existing = await prisma.user.findUnique({
-    where: { schoolId_email: { schoolId: school.id, email } },
-    select: { id: true, email: true, isActive: true },
+    select: { id: true, email: true, schoolId: true, isActive: true, fullName: true },
+    orderBy: { createdAt: "asc" },
   });
 
   if (existing) {
@@ -69,11 +71,13 @@ export async function ensureSuperAdminUser(): Promise<string> {
         passwordHash,
         isActive: true,
         role: "SCHOOL_ADMIN",
-        fullName: existing.isActive ? undefined : "EduClear Super Admin",
+        fullName: existing.fullName?.trim() ? existing.fullName : "EduClear Super Admin",
       },
     });
     return email;
   }
+
+  const school = await resolvePlatformSchool(email);
 
   await prisma.user.create({
     data: {
@@ -89,9 +93,18 @@ export async function ensureSuperAdminUser(): Promise<string> {
   return email;
 }
 
-/** Safe for every deploy: skips when env is unset; never logs the password. */
+/** Runs on every backend boot when seed env vars are configured. */
 export async function ensureSuperAdminOnStartup(): Promise<void> {
-  if (!canAutoEnsureSuperAdmin()) {
+  const allowed = parseSuperAdminEmails();
+  const hasPassword = Boolean(String(process.env.SUPER_ADMIN_SEED_PASSWORD || "").trim());
+
+  if (!allowed.length) {
+    console.warn("[ensureSuperAdmin] Skipped: SUPER_ADMIN_EMAILS is not set or empty");
+    return;
+  }
+
+  if (!hasPassword) {
+    console.warn("[ensureSuperAdmin] Skipped: SUPER_ADMIN_SEED_PASSWORD is not set");
     return;
   }
 

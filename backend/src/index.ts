@@ -885,18 +885,26 @@ app.get("/api/parent-portal/lookup", async (req, res) => {
 
 
 });
-const server = app.listen(PORT, () => {
-  console.log(`Server running on http://localhost:${PORT}`);
-  void ensureSuperAdminOnStartup();
-  void bootstrapDevTestSchoolEmail();
-});
+async function startServer() {
+  await ensureSuperAdminOnStartup();
+  await bootstrapDevTestSchoolEmail();
 
-server.on("error", (err: NodeJS.ErrnoException) => {
-  console.error("HTTP server error:", err.message);
-  if (err.code === "EADDRINUSE") {
-    console.error(
-      `Port ${PORT} is already in use. Stop the other process using http://localhost:${PORT} before starting this server (a stale backend causes missing routes / 404s).`
-    );
-    process.exit(1);
-  }
+  const server = app.listen(PORT, () => {
+    console.log(`Server running on http://localhost:${PORT}`);
+  });
+
+  server.on("error", (err: NodeJS.ErrnoException) => {
+    console.error("HTTP server error:", err.message);
+    if (err.code === "EADDRINUSE") {
+      console.error(
+        `Port ${PORT} is already in use. Stop the other process using http://localhost:${PORT} before starting this server (a stale backend causes missing routes / 404s).`
+      );
+      process.exit(1);
+    }
+  });
+}
+
+void startServer().catch((error) => {
+  console.error("Failed to start server:", error);
+  process.exit(1);
 });
