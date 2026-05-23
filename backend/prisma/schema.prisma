@@ -50,6 +50,9 @@ model School {
 
   phone String?
 
+  /// Mobile / cell contact number (separate from landline `phone`).
+  cellNo String?
+
   /// Physical / postal address for correspondence and payslips.
   address String?
 

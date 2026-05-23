@@ -9,11 +9,18 @@ const schoolSelect = {
   name: true,
   email: true,
   phone: true,
+  cellNo: true,
   address: true,
   logoUrl: true,
   primaryColor: true,
   createdAt: true,
 } as const;
+
+function optionalTrimmedString(raw: unknown): string | null {
+  if (raw === null || raw === undefined) return null;
+  const text = String(raw).trim();
+  return text === "" ? null : text;
+}
 
 router.get("/", async (_req, res) => {
   try {
@@ -67,27 +74,14 @@ router.put("/:id", async (req, res) => {
     const name = String(req.body?.name ?? "").trim();
     if (!name) return res.status(400).json({ error: "Business name is required" });
 
-    const emailRaw = req.body?.email;
-    const email =
-      emailRaw === null || emailRaw === undefined || String(emailRaw).trim() === ""
-        ? null
-        : String(emailRaw).trim();
-
-    const phoneRaw = req.body?.phone;
-    const phone =
-      phoneRaw === null || phoneRaw === undefined || String(phoneRaw).trim() === ""
-        ? null
-        : String(phoneRaw).trim();
-
-    const addressRaw = req.body?.address;
-    const address =
-      addressRaw === null || addressRaw === undefined || String(addressRaw).trim() === ""
-        ? null
-        : String(addressRaw).trim();
+    const email = optionalTrimmedString(req.body?.email);
+    const phone = optionalTrimmedString(req.body?.phone);
+    const cellNo = optionalTrimmedString(req.body?.cellNo);
+    const address = optionalTrimmedString(req.body?.address);
 
     const school = await prisma.school.update({
       where: { id },
-      data: { name, email, phone, address },
+      data: { name, email, phone, cellNo, address },
       select: schoolSelect,
     });
 
