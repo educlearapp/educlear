@@ -1,0 +1,2482 @@
+{
+  "generatedAt": "2026-05-23T11:40:25.824Z",
+  "desktopRoot": "/Users/dasilvaacademy/Desktop",
+  "trueBalanceMismatchCount": 84,
+  "transactionFiles": {
+    "primary": "/Users/dasilvaacademy/Desktop/01_transaction_list/transaction_list.xls",
+    "primaryExists": true,
+    "backup": "/Users/dasilvaacademy/Desktop/01_transaction_list/transaction_list_2025_backup.xls",
+    "backupExists": true,
+    "note": "User asked for transaction_list_2023_backup.xls; on disk: transaction_list_2025_backup.xls"
+  },
+  "exportStats": {
+    "primaryTransactionCount": 40916,
+    "backupTransactionCount": 14590,
+    "backupOnlyTransactionCount": 0,
+    "primaryDateRange": {
+      "min": "2023-01-03",
+      "max": "2026-05-22"
+    },
+    "backupDateRange": {
+      "min": "2025-01-02",
+      "max": "2026-05-22"
+    }
+  },
+  "summary": {
+    "backupLedgerMatchesAgeWithin1Rand": 7,
+    "accountsWithRowsInBackupNotInPrimary": 0,
+    "accountsWithDuplicateFingerprintsInPrimary": 0,
+    "accountsWithZeroPrimaryTransactions": 0,
+    "rootCauseCounts": {
+      "missingInvoiceHistoryInPrimaryExport": 0,
+      "missingPaymentHistoryInPrimaryExport": 0,
+      "missingMixedHistoryInPrimaryExport": 0,
+      "backupDoesNotExplainVariance": 7,
+      "duplicateTransactionsInPrimary": 0,
+      "noTransactionsInPrimary": 0,
+      "ledgerExceedsAgeAnalysis": 5,
+      "nearMatchUnexplained": 72
+    },
+    "topRecurringCause": "nearMatchUnexplained",
+    "topRecurringCauseCount": 72,
+    "topRecurringCausePct": 85.7
+  },
+  "audits": [
+    {
+      "accountNo": "TLA001",
+      "fullName": "Neo Kearabilwe Tladi",
+      "section": "Bad Debt",
+      "ageAnalysisBalance": 10790,
+      "ledgerBalanceFromImport": 2010,
+      "variance": 8780,
+      "primaryTxnCount": 92,
+      "backupTxnCount": 42,
+      "primaryLedger": 2010,
+      "backupLedger": -9150,
+      "invoiceTotalPrimary": 126875,
+      "paymentTotalPrimary": -124865,
+      "missingInPrimaryCount": 0,
+      "missingInvoiceSum": 0,
+      "missingPaymentSum": 0,
+      "missingNetSum": 0,
+      "duplicateFingerprints": 0,
+      "dateRangePrimary": {
+        "min": "2023-01-11",
+        "max": "2026-05-15"
+      },
+      "dateRangeBackup": {
+        "min": "2025-01-15",
+        "max": "2026-05-15"
+      },
+      "rootCause": "nearMatchUnexplained",
+      "backupClosesGap": false
+    },
+    {
+      "accountNo": "MOL018",
+      "fullName": "Hailey Molema",
+      "section": "Bad Debt",
+      "ageAnalysisBalance": 6500,
+      "ledgerBalanceFromImport": 1085,
+      "variance": 5415,
+      "primaryTxnCount": 106,
+      "backupTxnCount": 42,
+      "primaryLedger": 1085,
+      "backupLedger": 6500,
+      "invoiceTotalPrimary": 129160,
+      "paymentTotalPrimary": -128075,
+      "missingInPrimaryCount": 0,
+      "missingInvoiceSum": 0,
+      "missingPaymentSum": 0,
+      "missingNetSum": 0,
+      "duplicateFingerprints": 0,
+      "dateRangePrimary": {
+        "min": "2023-01-03",
+        "max": "2026-05-15"
+      },
+      "dateRangeBackup": {
+        "min": "2025-01-16",
+        "max": "2026-05-15"
+      },
+      "rootCause": "backupDoesNotExplainVariance",
+      "backupClosesGap": true
+    },
+    {
+      "accountNo": "TSH017",
+      "fullName": "Onthatile Tshose",
+      "section": "Recently Owing",
+      "ageAnalysisBalance": 5290,
+      "ledgerBalanceFromImport": 860,
+      "variance": 4430,
+      "primaryTxnCount": 94,
+      "backupTxnCount": 41,
+      "primaryLedger": 860,
+      "backupLedger": 790,
+      "invoiceTotalPrimary": 149865,
+      "paymentTotalPrimary": -149005,
+      "missingInPrimaryCount": 0,
+      "missingInvoiceSum": 0,
+      "missingPaymentSum": 0,
+      "missingNetSum": 0,
+      "duplicateFingerprints": 0,
+      "dateRangePrimary": {
+        "min": "2023-01-05",
+        "max": "2026-05-15"
+      },
+      "dateRangeBackup": {
+        "min": "2025-01-16",
+        "max": "2026-05-15"
+      },
+      "rootCause": "nearMatchUnexplained",
+      "backupClosesGap": false
+    },
+    {
+      "accountNo": "FRE001",
+      "fullName": "Oatlegile Frederick",
+      "section": "Bad Debt",
+      "ageAnalysisBalance": 9500,
+      "ledgerBalanceFromImport": 5100,
+      "variance": 4400,
+      "primaryTxnCount": 104,
+      "backupTxnCount": 39,
+      "primaryLedger": 5100,
+      "backupLedger": 5000,
+      "invoiceTotalPrimary": 218140,
+      "paymentTotalPrimary": -213040,
+      "missingInPrimaryCount": 0,
+      "missingInvoiceSum": 0,
+      "missingPaymentSum": 0,
+      "missingNetSum": 0,
+      "duplicateFingerprints": 0,
+      "dateRangePrimary": {
+        "min": "2023-01-16",
+        "max": "2026-05-15"
+      },
+      "dateRangeBackup": {
+        "min": "2025-01-15",
+        "max": "2026-05-15"
+      },
+      "rootCause": "nearMatchUnexplained",
+      "backupClosesGap": false
+    },
+    {
+      "accountNo": "MAT022",
+      "fullName": "Phemelo Reotshepile Matsheka",
+      "section": "Bad Debt",
+      "ageAnalysisBalance": 6100,
+      "ledgerBalanceFromImport": 1700,
+      "variance": 4400,
+      "primaryTxnCount": 95,
+      "backupTxnCount": 36,
+      "primaryLedger": 1700,
+      "backupLedger": 4300,
+      "invoiceTotalPrimary": 151410,
+      "paymentTotalPrimary": -149710,
+      "missingInPrimaryCount": 0,
+      "missingInvoiceSum": 0,
+      "missingPaymentSum": 0,
+      "missingNetSum": 0,
+      "duplicateFingerprints": 0,
+      "dateRangePrimary": {
+        "min": "2023-01-03",
+        "max": "2026-05-15"
+      },
+      "dateRangeBackup": {
+        "min": "2025-01-23",
+        "max": "2026-05-15"
+      },
+      "rootCause": "nearMatchUnexplained",
+      "backupClosesGap": false
+    },
+    {
+      "accountNo": "NAS001",
+      "fullName": "Samira Nasere",
+      "section": "Bad Debt",
+      "ageAnalysisBalance": 7800,
+      "ledgerBalanceFromImport": 3905,
+      "variance": 3895,
+      "primaryTxnCount": 13,
+      "backupTxnCount": 12,
+      "primaryLedger": 3905,
+      "backupLedger": 7800,
+      "invoiceTotalPrimary": 23750,
+      "paymentTotalPrimary": -19845,
+      "missingInPrimaryCount": 0,
+      "missingInvoiceSum": 0,
+      "missingPaymentSum": 0,
+      "missingNetSum": 0,
+      "duplicateFingerprints": 0,
+      "dateRangePrimary": {
+        "min": "2023-01-31",
+        "max": "2026-05-15"
+      },
+      "dateRangeBackup": {
+        "min": "2026-01-15",
+        "max": "2026-05-15"
+      },
+      "rootCause": "backupDoesNotExplainVariance",
+      "backupClosesGap": true
+    },
+    {
+      "accountNo": "MAB011",
+      "fullName": "Thandekile Princess Mabuza",
+      "section": "Recently Owing",
+      "ageAnalysisBalance": 5000,
+      "ledgerBalanceFromImport": 1240,
+      "variance": 3760,
+      "primaryTxnCount": 92,
+      "backupTxnCount": 39,
+      "primaryLedger": 1240,
+      "backupLedger": -11350,
+      "invoiceTotalPrimary": 129775,
+      "paymentTotalPrimary": -128535,
+      "missingInPrimaryCount": 0,
+      "missingInvoiceSum": 0,
+      "missingPaymentSum": 0,
+      "missingNetSum": 0,
+      "duplicateFingerprints": 0,
+      "dateRangePrimary": {
+        "min": "2023-01-16",
+        "max": "2026-05-15"
+      },
+      "dateRangeBackup": {
+        "min": "2025-01-10",
+        "max": "2026-05-15"
+      },
+      "rootCause": "nearMatchUnexplained",
+      "backupClosesGap": false
+    },
+    {
+      "accountNo": "TLH005",
+      "fullName": "Oletilwe Tlhame",
+      "section": "Recently Owing",
+      "ageAnalysisBalance": 4350,
+      "ledgerBalanceFromImport": 750,
+      "variance": 3600,
+      "primaryTxnCount": 90,
+      "backupTxnCount": 35,
+      "primaryLedger": 750,
+      "backupLedger": -700,
+      "invoiceTotalPrimary": 166825,
+      "paymentTotalPrimary": -166075,
+      "missingInPrimaryCount": 0,
+      "missingInvoiceSum": 0,
+      "missingPaymentSum": 0,
+      "missingNetSum": 0,
+      "duplicateFingerprints": 0,
+      "dateRangePrimary": {
+        "min": "2023-01-05",
+        "max": "2026-05-15"
+      },
+      "dateRangeBackup": {
+        "min": "2025-01-15",
+        "max": "2026-05-15"
+      },
+      "rootCause": "nearMatchUnexplained",
+      "backupClosesGap": false
+    },
+    {
+      "accountNo": "WOL001",
+      "fullName": "Elleliyon Wolebo",
+      "section": "Bad Debt",
+      "ageAnalysisBalance": 7370,
+      "ledgerBalanceFromImport": 3870,
+      "variance": 3500,
+      "primaryTxnCount": 100,
+      "backupTxnCount": 46,
+      "primaryLedger": 3870,
+      "backupLedger": -60,
+      "invoiceTotalPrimary": 123410,
+      "paymentTotalPrimary": -119540,
+      "missingInPrimaryCount": 0,
+      "missingInvoiceSum": 0,
+      "missingPaymentSum": 0,
+      "missingNetSum": 0,
+      "duplicateFingerprints": 0,
+      "dateRangePrimary": {
+        "min": "2023-01-16",
+        "max": "2026-05-15"
+      },
+      "dateRangeBackup": {
+        "min": "2025-01-13",
+        "max": "2026-05-15"
+      },
+      "rootCause": "nearMatchUnexplained",
+      "backupClosesGap": false
+    },
+    {
+      "accountNo": "SEP899",
+      "fullName": "Omogolo Sepadile",
+      "section": "Bad Debt",
+      "ageAnalysisBalance": 3700,
+      "ledgerBalanceFromImport": 500,
+      "variance": 3200,
+      "primaryTxnCount": 105,
+      "backupTxnCount": 43,
+      "primaryLedger": 500,
+      "backupLedger": 1600,
+      "invoiceTotalPrimary": 135520,
+      "paymentTotalPrimary": -135020,
+      "missingInPrimaryCount": 0,
+      "missingInvoiceSum": 0,
+      "missingPaymentSum": 0,
+      "missingNetSum": 0,
+      "duplicateFingerprints": 0,
+      "dateRangePrimary": {
+        "min": "2023-01-03",
+        "max": "2026-05-15"
+      },
+      "dateRangeBackup": {
+        "min": "2025-01-23",
+        "max": "2026-05-15"
+      },
+      "rootCause": "nearMatchUnexplained",
+      "backupClosesGap": false
+    },
+    {
+      "accountNo": "MAB004",
+      "fullName": "Gosego Mabale",
+      "section": "Recently Owing",
+      "ageAnalysisBalance": 3700,
+      "ledgerBalanceFromImport": 605,
+      "variance": 3095,
+      "primaryTxnCount": 105,
+      "backupTxnCount": 45,
+      "primaryLedger": 605,
+      "backupLedger": 1600,
+      "invoiceTotalPrimary": 132625,
+      "paymentTotalPrimary": -132020,
+      "missingInPrimaryCount": 0,
+      "missingInvoiceSum": 0,
+      "missingPaymentSum": 0,
+      "missingNetSum": 0,
+      "duplicateFingerprints": 0,
+      "dateRangePrimary": {
+        "min": "2023-01-09",
+        "max": "2026-05-15"
+      },
+      "dateRangeBackup": {
+        "min": "2025-01-23",
+        "max": "2026-05-15"
+      },
+      "rootCause": "nearMatchUnexplained",
+      "backupClosesGap": false
+    },
+    {
+      "accountNo": "KHU005",
+      "fullName": "Elethu Entle Khunou",
+      "section": "Recently Owing",
+      "ageAnalysisBalance": 3550,
+      "ledgerBalanceFromImport": 500,
+      "variance": 3050,
+      "primaryTxnCount": 96,
+      "backupTxnCount": 37,
+      "primaryLedger": 500,
+      "backupLedger": -1500,
+      "invoiceTotalPrimary": 159545,
+      "paymentTotalPrimary": -159045,
+      "missingInPrimaryCount": 0,
+      "missingInvoiceSum": 0,
+      "missingPaymentSum": 0,
+      "missingNetSum": 0,
+      "duplicateFingerprints": 0,
+      "dateRangePrimary": {
+        "min": "2023-01-03",
+        "max": "2026-05-15"
+      },
+      "dateRangeBackup": {
+        "min": "2025-01-23",
+        "max": "2026-05-15"
+      },
+      "rootCause": "nearMatchUnexplained",
+      "backupClosesGap": false
+    },
+    {
+      "accountNo": "GEB002",
+      "fullName": "Benyis Geber",
+      "section": "Recently Owing",
+      "ageAnalysisBalance": 3700,
+      "ledgerBalanceFromImport": 700,
+      "variance": 3000,
+      "primaryTxnCount": 92,
+      "backupTxnCount": 42,
+      "primaryLedger": 700,
+      "backupLedger": -800,
+      "invoiceTotalPrimary": 148710,
+      "paymentTotalPrimary": -148010,
+      "missingInPrimaryCount": 0,
+      "missingInvoiceSum": 0,
+      "missingPaymentSum": 0,
+      "missingNetSum": 0,
+      "duplicateFingerprints": 0,
+      "dateRangePrimary": {
+        "min": "2023-01-11",
+        "max": "2026-05-15"
+      },
+      "dateRangeBackup": {
+        "min": "2025-01-15",
+        "max": "2026-05-15"
+      },
+      "rootCause": "nearMatchUnexplained",
+      "backupClosesGap": false
+    },
+    {
+      "accountNo": "BUY001",
+      "fullName": "Kim Omontle Buys",
+      "section": "Recently Owing",
+      "ageAnalysisBalance": 2900,
+      "ledgerBalanceFromImport": 150,
+      "variance": 2750,
+      "primaryTxnCount": 102,
+      "backupTxnCount": 47,
+      "primaryLedger": 150,
+      "backupLedger": -1600,
+      "invoiceTotalPrimary": 134820,
+      "paymentTotalPrimary": -134670,
+      "missingInPrimaryCount": 0,
+      "missingInvoiceSum": 0,
+      "missingPaymentSum": 0,
+      "missingNetSum": 0,
+      "duplicateFingerprints": 0,
+      "dateRangePrimary": {
+        "min": "2023-01-05",
+        "max": "2026-05-15"
+      },
+      "dateRangeBackup": {
+        "min": "2025-01-05",
+        "max": "2026-05-15"
+      },
+      "rootCause": "nearMatchUnexplained",
+      "backupClosesGap": false
+    },
+    {
+      "accountNo": "GAA001",
+      "fullName": "Didintle Nyeko Gaasenwe",
+      "section": "Recently Owing",
+      "ageAnalysisBalance": 3500,
+      "ledgerBalanceFromImport": 750,
+      "variance": 2750,
+      "primaryTxnCount": 89,
+      "backupTxnCount": 36,
+      "primaryLedger": 750,
+      "backupLedger": 3950,
+      "invoiceTotalPrimary": 142510,
+      "paymentTotalPrimary": -141760,
+      "missingInPrimaryCount": 0,
+      "missingInvoiceSum": 0,
+      "missingPaymentSum": 0,
+      "missingNetSum": 0,
+      "duplicateFingerprints": 0,
+      "dateRangePrimary": {
+        "min": "2023-01-05",
+        "max": "2026-05-15"
+      },
+      "dateRangeBackup": {
+        "min": "2025-01-23",
+        "max": "2026-05-15"
+      },
+      "rootCause": "nearMatchUnexplained",
+      "backupClosesGap": false
+    },
+    {
+      "accountNo": "KOR001",
+      "fullName": "Dagimawit Korabza",
+      "section": "Bad Debt",
+      "ageAnalysisBalance": 6860,
+      "ledgerBalanceFromImport": 4110,
+      "variance": 2750,
+      "primaryTxnCount": 80,
+      "backupTxnCount": 34,
+      "primaryLedger": 4110,
+      "backupLedger": 240,
+      "invoiceTotalPrimary": 123510,
+      "paymentTotalPrimary": -119400,
+      "missingInPrimaryCount": 0,
+      "missingInvoiceSum": 0,
+      "missingPaymentSum": 0,
+      "missingNetSum": 0,
+      "duplicateFingerprints": 0,
+      "dateRangePrimary": {
+        "min": "2023-01-12",
+        "max": "2026-05-15"
+      },
+      "dateRangeBackup": {
+        "min": "2025-01-20",
+        "max": "2026-05-15"
+      },
+      "rootCause": "nearMatchUnexplained",
+      "backupClosesGap": false
+    },
+    {
+      "accountNo": "MOD010",
+      "fullName": "Reatlegile Modibedi",
+      "section": "Recently Owing",
+      "ageAnalysisBalance": 6200,
+      "ledgerBalanceFromImport": 3450,
+      "variance": 2750,
+      "primaryTxnCount": 102,
+      "backupTxnCount": 42,
+      "primaryLedger": 3450,
+      "backupLedger": 2660,
+      "invoiceTotalPrimary": 146910,
+      "paymentTotalPrimary": -143460,
+      "missingInPrimaryCount": 0,
+      "missingInvoiceSum": 0,
+      "missingPaymentSum": 0,
+      "missingNetSum": 0,
+      "duplicateFingerprints": 0,
+      "dateRangePrimary": {
+        "min": "2023-01-03",
+        "max": "2026-05-15"
+      },
+      "dateRangeBackup": {
+        "min": "2025-01-23",
+        "max": "2026-05-15"
+      },
+      "rootCause": "nearMatchUnexplained",
+      "backupClosesGap": false
+    },
+    {
+      "accountNo": "MOS009",
+      "fullName": "Wandile Mosito",
+      "section": "Recently Owing",
+      "ageAnalysisBalance": 3700,
+      "ledgerBalanceFromImport": 950,
+      "variance": 2750,
+      "primaryTxnCount": 112,
+      "backupTxnCount": 41,
+      "primaryLedger": 950,
+      "backupLedger": 780,
+      "invoiceTotalPrimary": 130710,
+      "paymentTotalPrimary": -129760,
+      "missingInPrimaryCount": 0,
+      "missingInvoiceSum": 0,
+      "missingPaymentSum": 0,
+      "missingNetSum": 0,
+      "duplicateFingerprints": 0,
+      "dateRangePrimary": {
+        "min": "2023-01-16",
+        "max": "2026-05-15"
+      },
+      "dateRangeBackup": {
+        "min": "2025-01-02",
+        "max": "2026-05-15"
+      },
+      "rootCause": "nearMatchUnexplained",
+      "backupClosesGap": false
+    },
+    {
+      "accountNo": "MOT016",
+      "fullName": "Thoriso Mothibedi",
+      "section": "Recently Owing",
+      "ageAnalysisBalance": 3000,
+      "ledgerBalanceFromImport": 250,
+      "variance": 2750,
+      "primaryTxnCount": 86,
+      "backupTxnCount": 33,
+      "primaryLedger": 250,
+      "backupLedger": 1200,
+      "invoiceTotalPrimary": 123910,
+      "paymentTotalPrimary": -123660,
+      "missingInPrimaryCount": 0,
+      "missingInvoiceSum": 0,
+      "missingPaymentSum": 0,
+      "missingNetSum": 0,
+      "duplicateFingerprints": 0,
+      "dateRangePrimary": {
+        "min": "2023-01-03",
+        "max": "2026-05-15"
+      },
+      "dateRangeBackup": {
+        "min": "2025-01-23",
+        "max": "2026-05-15"
+      },
+      "rootCause": "nearMatchUnexplained",
+      "backupClosesGap": false
+    },
+    {
+      "accountNo": "NTS008",
+      "fullName": "Inkosinam Ntshanga",
+      "section": "Recently Owing",
+      "ageAnalysisBalance": 3950,
+      "ledgerBalanceFromImport": 1200,
+      "variance": 2750,
+      "primaryTxnCount": 110,
+      "backupTxnCount": 40,
+      "primaryLedger": 1200,
+      "backupLedger": -1100,
+      "invoiceTotalPrimary": 172490,
+      "paymentTotalPrimary": -171290,
+      "missingInPrimaryCount": 0,
+      "missingInvoiceSum": 0,
+      "missingPaymentSum": 0,
+      "missingNetSum": 0,
+      "duplicateFingerprints": 0,
+      "dateRangePrimary": {
+        "min": "2023-01-10",
+        "max": "2026-05-15"
+      },
+      "dateRangeBackup": {
+        "min": "2025-01-13",
+        "max": "2026-05-15"
+      },
+      "rootCause": "nearMatchUnexplained",
+      "backupClosesGap": false
+    },
+    {
+      "accountNo": "SEN959",
+      "fullName": "Tshiamo Will Senne",
+      "section": "Recently Owing",
+      "ageAnalysisBalance": 3000,
+      "ledgerBalanceFromImport": 250,
+      "variance": 2750,
+      "primaryTxnCount": 88,
+      "backupTxnCount": 34,
+      "primaryLedger": 250,
+      "backupLedger": -1450,
+      "invoiceTotalPrimary": 137075,
+      "paymentTotalPrimary": -136825,
+      "missingInPrimaryCount": 0,
+      "missingInvoiceSum": 0,
+      "missingPaymentSum": 0,
+      "missingNetSum": 0,
+      "duplicateFingerprints": 0,
+      "dateRangePrimary": {
+        "min": "2023-01-16",
+        "max": "2026-05-15"
+      },
+      "dateRangeBackup": {
+        "min": "2025-01-23",
+        "max": "2026-05-15"
+      },
+      "rootCause": "nearMatchUnexplained",
+      "backupClosesGap": false
+    },
+    {
+      "accountNo": "TAK001",
+      "fullName": "Kagiso Unathi Takata",
+      "section": "Bad Debt",
+      "ageAnalysisBalance": 6800,
+      "ledgerBalanceFromImport": 4050,
+      "variance": 2750,
+      "primaryTxnCount": 89,
+      "backupTxnCount": 37,
+      "primaryLedger": 4050,
+      "backupLedger": 4900,
+      "invoiceTotalPrimary": 125660,
+      "paymentTotalPrimary": -121610,
+      "missingInPrimaryCount": 0,
+      "missingInvoiceSum": 0,
+      "missingPaymentSum": 0,
+      "missingNetSum": 0,
+      "duplicateFingerprints": 0,
+      "dateRangePrimary": {
+        "min": "2023-01-03",
+        "max": "2026-05-15"
+      },
+      "dateRangeBackup": {
+        "min": "2025-01-23",
+        "max": "2026-05-15"
+      },
+      "rootCause": "nearMatchUnexplained",
+      "backupClosesGap": false
+    },
+    {
+      "accountNo": "VUT001",
+      "fullName": "Vutlhari Botake",
+      "section": "Recently Owing",
+      "ageAnalysisBalance": 3850,
+      "ledgerBalanceFromImport": 1100,
+      "variance": 2750,
+      "primaryTxnCount": 90,
+      "backupTxnCount": 35,
+      "primaryLedger": 1100,
+      "backupLedger": -1200,
+      "invoiceTotalPrimary": 139525,
+      "paymentTotalPrimary": -138425,
+      "missingInPrimaryCount": 0,
+      "missingInvoiceSum": 0,
+      "missingPaymentSum": 0,
+      "missingNetSum": 0,
+      "duplicateFingerprints": 0,
+      "dateRangePrimary": {
+        "min": "2023-01-09",
+        "max": "2026-05-19"
+      },
+      "dateRangeBackup": {
+        "min": "2025-01-05",
+        "max": "2026-05-19"
+      },
+      "rootCause": "nearMatchUnexplained",
+      "backupClosesGap": false
+    },
+    {
+      "accountNo": "THO004",
+      "fullName": "Ofentse Koketso Thompo",
+      "section": "Recently Owing",
+      "ageAnalysisBalance": 4000,
+      "ledgerBalanceFromImport": 1320,
+      "variance": 2680,
+      "primaryTxnCount": 100,
+      "backupTxnCount": 35,
+      "primaryLedger": 1320,
+      "backupLedger": 2150,
+      "invoiceTotalPrimary": 166505,
+      "paymentTotalPrimary": -165185,
+      "missingInPrimaryCount": 0,
+      "missingInvoiceSum": 0,
+      "missingPaymentSum": 0,
+      "missingNetSum": 0,
+      "duplicateFingerprints": 0,
+      "dateRangePrimary": {
+        "min": "2023-01-10",
+        "max": "2026-05-19"
+      },
+      "dateRangeBackup": {
+        "min": "2025-01-23",
+        "max": "2026-05-19"
+      },
+      "rootCause": "nearMatchUnexplained",
+      "backupClosesGap": false
+    },
+    {
+      "accountNo": "SER001",
+      "fullName": "Oletilwe Serutle",
+      "section": "Bad Debt",
+      "ageAnalysisBalance": 3700,
+      "ledgerBalanceFromImport": 1150,
+      "variance": 2550,
+      "primaryTxnCount": 98,
+      "backupTxnCount": 42,
+      "primaryLedger": 1150,
+      "backupLedger": 2300,
+      "invoiceTotalPrimary": 131110,
+      "paymentTotalPrimary": -129960,
+      "missingInPrimaryCount": 0,
+      "missingInvoiceSum": 0,
+      "missingPaymentSum": 0,
+      "missingNetSum": 0,
+      "duplicateFingerprints": 0,
+      "dateRangePrimary": {
+        "min": "2023-01-11",
+        "max": "2026-05-15"
+      },
+      "dateRangeBackup": {
+        "min": "2025-01-23",
+        "max": "2026-05-15"
+      },
+      "rootCause": "nearMatchUnexplained",
+      "backupClosesGap": false
+    },
+    {
+      "accountNo": "KAL001",
+      "fullName": "Bohlokwa Kalosane",
+      "section": "Recently Owing",
+      "ageAnalysisBalance": 4500,
+      "ledgerBalanceFromImport": 2100,
+      "variance": 2400,
+      "primaryTxnCount": 117,
+      "backupTxnCount": 44,
+      "primaryLedger": 2100,
+      "backupLedger": 600,
+      "invoiceTotalPrimary": 194320,
+      "paymentTotalPrimary": -192220,
+      "missingInPrimaryCount": 0,
+      "missingInvoiceSum": 0,
+      "missingPaymentSum": 0,
+      "missingNetSum": 0,
+      "duplicateFingerprints": 0,
+      "dateRangePrimary": {
+        "min": "2023-01-03",
+        "max": "2026-05-15"
+      },
+      "dateRangeBackup": {
+        "min": "2025-01-13",
+        "max": "2026-05-15"
+      },
+      "rootCause": "nearMatchUnexplained",
+      "backupClosesGap": false
+    },
+    {
+      "accountNo": "MOL020",
+      "fullName": "Rekgabile Molefe",
+      "section": "Recently Owing",
+      "ageAnalysisBalance": 3700,
+      "ledgerBalanceFromImport": 1350,
+      "variance": 2350,
+      "primaryTxnCount": 103,
+      "backupTxnCount": 40,
+      "primaryLedger": 1350,
+      "backupLedger": -800,
+      "invoiceTotalPrimary": 119985,
+      "paymentTotalPrimary": -118635,
+      "missingInPrimaryCount": 0,
+      "missingInvoiceSum": 0,
+      "missingPaymentSum": 0,
+      "missingNetSum": 0,
+      "duplicateFingerprints": 0,
+      "dateRangePrimary": {
+        "min": "2023-01-03",
+        "max": "2026-05-15"
+      },
+      "dateRangeBackup": {
+        "min": "2025-01-23",
+        "max": "2026-05-15"
+      },
+      "rootCause": "nearMatchUnexplained",
+      "backupClosesGap": false
+    },
+    {
+      "accountNo": "MOG013",
+      "fullName": "Chantelle Otlotleng Mogafe",
+      "section": "Bad Debt",
+      "ageAnalysisBalance": 6800,
+      "ledgerBalanceFromImport": 4550,
+      "variance": 2250,
+      "primaryTxnCount": 105,
+      "backupTxnCount": 49,
+      "primaryLedger": 4550,
+      "backupLedger": 2300,
+      "invoiceTotalPrimary": 138360,
+      "paymentTotalPrimary": -133810,
+      "missingInPrimaryCount": 0,
+      "missingInvoiceSum": 0,
+      "missingPaymentSum": 0,
+      "missingNetSum": 0,
+      "duplicateFingerprints": 0,
+      "dateRangePrimary": {
+        "min": "2023-01-03",
+        "max": "2026-05-15"
+      },
+      "dateRangeBackup": {
+        "min": "2025-01-13",
+        "max": "2026-05-15"
+      },
+      "rootCause": "nearMatchUnexplained",
+      "backupClosesGap": false
+    },
+    {
+      "accountNo": "WIL002",
+      "fullName": "Rishon Kyle Williams",
+      "section": "Recently Owing",
+      "ageAnalysisBalance": 3150,
+      "ledgerBalanceFromImport": 900,
+      "variance": 2250,
+      "primaryTxnCount": 87,
+      "backupTxnCount": 34,
+      "primaryLedger": 900,
+      "backupLedger": 2790,
+      "invoiceTotalPrimary": 160260,
+      "paymentTotalPrimary": -159360,
+      "missingInPrimaryCount": 0,
+      "missingInvoiceSum": 0,
+      "missingPaymentSum": 0,
+      "missingNetSum": 0,
+      "duplicateFingerprints": 0,
+      "dateRangePrimary": {
+        "min": "2023-01-03",
+        "max": "2026-05-15"
+      },
+      "dateRangeBackup": {
+        "min": "2025-01-23",
+        "max": "2026-05-15"
+      },
+      "rootCause": "nearMatchUnexplained",
+      "backupClosesGap": false
+    },
+    {
+      "accountNo": "NZI001",
+      "fullName": "Amantle Nzimande",
+      "section": "Recently Owing",
+      "ageAnalysisBalance": 3700,
+      "ledgerBalanceFromImport": 1470,
+      "variance": 2230,
+      "primaryTxnCount": 110,
+      "backupTxnCount": 46,
+      "primaryLedger": 1470,
+      "backupLedger": -480,
+      "invoiceTotalPrimary": 132620,
+      "paymentTotalPrimary": -131150,
+      "missingInPrimaryCount": 0,
+      "missingInvoiceSum": 0,
+      "missingPaymentSum": 0,
+      "missingNetSum": 0,
+      "duplicateFingerprints": 0,
+      "dateRangePrimary": {
+        "min": "2023-01-03",
+        "max": "2026-05-15"
+      },
+      "dateRangeBackup": {
+        "min": "2025-01-02",
+        "max": "2026-05-15"
+      },
+      "rootCause": "nearMatchUnexplained",
+      "backupClosesGap": false
+    },
+    {
+      "accountNo": "DIK001",
+      "fullName": "Sinenhlanhla Dikana Iviwe",
+      "section": "Recently Owing",
+      "ageAnalysisBalance": 4200,
+      "ledgerBalanceFromImport": 2000,
+      "variance": 2200,
+      "primaryTxnCount": 91,
+      "backupTxnCount": 40,
+      "primaryLedger": 2000,
+      "backupLedger": -7235,
+      "invoiceTotalPrimary": 120645,
+      "paymentTotalPrimary": -118645,
+      "missingInPrimaryCount": 0,
+      "missingInvoiceSum": 0,
+      "missingPaymentSum": 0,
+      "missingNetSum": 0,
+      "duplicateFingerprints": 0,
+      "dateRangePrimary": {
+        "min": "2023-01-16",
+        "max": "2026-05-15"
+      },
+      "dateRangeBackup": {
+        "min": "2025-01-20",
+        "max": "2026-05-15"
+      },
+      "rootCause": "nearMatchUnexplained",
+      "backupClosesGap": false
+    },
+    {
+      "accountNo": "KGO002",
+      "fullName": "Warona Kgonothi",
+      "section": "Bad Debt",
+      "ageAnalysisBalance": 3696,
+      "ledgerBalanceFromImport": 1496,
+      "variance": 2200,
+      "primaryTxnCount": 110,
+      "backupTxnCount": 51,
+      "primaryLedger": 1496,
+      "backupLedger": 1901,
+      "invoiceTotalPrimary": 125895,
+      "paymentTotalPrimary": -124399,
+      "missingInPrimaryCount": 0,
+      "missingInvoiceSum": 0,
+      "missingPaymentSum": 0,
+      "missingNetSum": 0,
+      "duplicateFingerprints": 0,
+      "dateRangePrimary": {
+        "min": "2023-01-03",
+        "max": "2026-05-15"
+      },
+      "dateRangeBackup": {
+        "min": "2025-01-23",
+        "max": "2026-05-15"
+      },
+      "rootCause": "nearMatchUnexplained",
+      "backupClosesGap": false
+    },
+    {
+      "accountNo": "KOB001",
+      "fullName": "Njabulo Kobo",
+      "section": "Recently Owing",
+      "ageAnalysisBalance": 2350,
+      "ledgerBalanceFromImport": 150,
+      "variance": 2200,
+      "primaryTxnCount": 97,
+      "backupTxnCount": 42,
+      "primaryLedger": 150,
+      "backupLedger": -300,
+      "invoiceTotalPrimary": 134710,
+      "paymentTotalPrimary": -134560,
+      "missingInPrimaryCount": 0,
+      "missingInvoiceSum": 0,
+      "missingPaymentSum": 0,
+      "missingNetSum": 0,
+      "duplicateFingerprints": 0,
+      "dateRangePrimary": {
+        "min": "2023-01-05",
+        "max": "2026-05-15"
+      },
+      "dateRangeBackup": {
+        "min": "2025-01-23",
+        "max": "2026-05-15"
+      },
+      "rootCause": "nearMatchUnexplained",
+      "backupClosesGap": false
+    },
+    {
+      "accountNo": "MAK013",
+      "fullName": "Rethabile Roland Makgae",
+      "section": "Bad Debt",
+      "ageAnalysisBalance": 10750,
+      "ledgerBalanceFromImport": 8550,
+      "variance": 2200,
+      "primaryTxnCount": 94,
+      "backupTxnCount": 41,
+      "primaryLedger": 8550,
+      "backupLedger": 10750,
+      "invoiceTotalPrimary": 129250,
+      "paymentTotalPrimary": -120700,
+      "missingInPrimaryCount": 0,
+      "missingInvoiceSum": 0,
+      "missingPaymentSum": 0,
+      "missingNetSum": 0,
+      "duplicateFingerprints": 0,
+      "dateRangePrimary": {
+        "min": "2023-01-03",
+        "max": "2026-05-15"
+      },
+      "dateRangeBackup": {
+        "min": "2025-01-13",
+        "max": "2026-05-15"
+      },
+      "rootCause": "backupDoesNotExplainVariance",
+      "backupClosesGap": true
+    },
+    {
+      "accountNo": "MAO001",
+      "fullName": "Amohelang Ororiseng Maoba",
+      "section": "Recently Owing",
+      "ageAnalysisBalance": 3000,
+      "ledgerBalanceFromImport": 800,
+      "variance": 2200,
+      "primaryTxnCount": 96,
+      "backupTxnCount": 39,
+      "primaryLedger": 800,
+      "backupLedger": -1500,
+      "invoiceTotalPrimary": 119560,
+      "paymentTotalPrimary": -118760,
+      "missingInPrimaryCount": 0,
+      "missingInvoiceSum": 0,
+      "missingPaymentSum": 0,
+      "missingNetSum": 0,
+      "duplicateFingerprints": 0,
+      "dateRangePrimary": {
+        "min": "2023-01-10",
+        "max": "2026-05-15"
+      },
+      "dateRangeBackup": {
+        "min": "2025-01-13",
+        "max": "2026-05-15"
+      },
+      "rootCause": "nearMatchUnexplained",
+      "backupClosesGap": false
+    },
+    {
+      "accountNo": "MAT021",
+      "fullName": "Reatlegile Kaone Matabane",
+      "section": "Bad Debt",
+      "ageAnalysisBalance": 14850,
+      "ledgerBalanceFromImport": 12650,
+      "variance": 2200,
+      "primaryTxnCount": 80,
+      "backupTxnCount": 34,
+      "primaryLedger": 12650,
+      "backupLedger": 6360,
+      "invoiceTotalPrimary": 131210,
+      "paymentTotalPrimary": -118560,
+      "missingInPrimaryCount": 0,
+      "missingInvoiceSum": 0,
+      "missingPaymentSum": 0,
+      "missingNetSum": 0,
+      "duplicateFingerprints": 0,
+      "dateRangePrimary": {
+        "min": "2023-01-03",
+        "max": "2026-05-15"
+      },
+      "dateRangeBackup": {
+        "min": "2025-01-14",
+        "max": "2026-05-15"
+      },
+      "rootCause": "nearMatchUnexplained",
+      "backupClosesGap": false
+    },
+    {
+      "accountNo": "MOD005",
+      "fullName": "Kgolagano Kekaona Modise",
+      "section": "Recently Owing",
+      "ageAnalysisBalance": 3950,
+      "ledgerBalanceFromImport": 1750,
+      "variance": 2200,
+      "primaryTxnCount": 92,
+      "backupTxnCount": 38,
+      "primaryLedger": 1750,
+      "backupLedger": 1850,
+      "invoiceTotalPrimary": 117960,
+      "paymentTotalPrimary": -116210,
+      "missingInPrimaryCount": 0,
+      "missingInvoiceSum": 0,
+      "missingPaymentSum": 0,
+      "missingNetSum": 0,
+      "duplicateFingerprints": 0,
+      "dateRangePrimary": {
+        "min": "2023-01-03",
+        "max": "2026-05-15"
+      },
+      "dateRangeBackup": {
+        "min": "2025-01-23",
+        "max": "2026-05-15"
+      },
+      "rootCause": "nearMatchUnexplained",
+      "backupClosesGap": false
+    },
+    {
+      "accountNo": "MOD006",
+      "fullName": "Tswelopele Botshelo Modisane",
+      "section": "Recently Owing",
+      "ageAnalysisBalance": 3500,
+      "ledgerBalanceFromImport": 1300,
+      "variance": 2200,
+      "primaryTxnCount": 108,
+      "backupTxnCount": 45,
+      "primaryLedger": 1300,
+      "backupLedger": 1150,
+      "invoiceTotalPrimary": 136725,
+      "paymentTotalPrimary": -135425,
+      "missingInPrimaryCount": 0,
+      "missingInvoiceSum": 0,
+      "missingPaymentSum": 0,
+      "missingNetSum": 0,
+      "duplicateFingerprints": 0,
+      "dateRangePrimary": {
+        "min": "2023-01-09",
+        "max": "2026-05-15"
+      },
+      "dateRangeBackup": {
+        "min": "2025-01-23",
+        "max": "2026-05-15"
+      },
+      "rootCause": "nearMatchUnexplained",
+      "backupClosesGap": false
+    },
+    {
+      "accountNo": "MOE003",
+      "fullName": "Owethu Moeng",
+      "section": "Bad Debt",
+      "ageAnalysisBalance": 6300,
+      "ledgerBalanceFromImport": 4100,
+      "variance": 2200,
+      "primaryTxnCount": 92,
+      "backupTxnCount": 39,
+      "primaryLedger": 4100,
+      "backupLedger": 4540,
+      "invoiceTotalPrimary": 125560,
+      "paymentTotalPrimary": -121460,
+      "missingInPrimaryCount": 0,
+      "missingInvoiceSum": 0,
+      "missingPaymentSum": 0,
+      "missingNetSum": 0,
+      "duplicateFingerprints": 0,
+      "dateRangePrimary": {
+        "min": "2023-01-03",
+        "max": "2026-05-15"
+      },
+      "dateRangeBackup": {
+        "min": "2025-01-23",
+        "max": "2026-05-15"
+      },
+      "rootCause": "nearMatchUnexplained",
+      "backupClosesGap": false
+    },
+    {
+      "accountNo": "MOS008",
+      "fullName": "Bokang Mosegedi",
+      "section": "Recently Owing",
+      "ageAnalysisBalance": 3200,
+      "ledgerBalanceFromImport": 1000,
+      "variance": 2200,
+      "primaryTxnCount": 91,
+      "backupTxnCount": 36,
+      "primaryLedger": 1000,
+      "backupLedger": 3200,
+      "invoiceTotalPrimary": 136810,
+      "paymentTotalPrimary": -135810,
+      "missingInPrimaryCount": 0,
+      "missingInvoiceSum": 0,
+      "missingPaymentSum": 0,
+      "missingNetSum": 0,
+      "duplicateFingerprints": 0,
+      "dateRangePrimary": {
+        "min": "2023-01-03",
+        "max": "2026-05-15"
+      },
+      "dateRangeBackup": {
+        "min": "2025-01-15",
+        "max": "2026-05-15"
+      },
+      "rootCause": "backupDoesNotExplainVariance",
+      "backupClosesGap": true
+    },
+    {
+      "accountNo": "MOT017",
+      "fullName": "Onkokeditse Motlhajwa",
+      "section": "Bad Debt",
+      "ageAnalysisBalance": 3700,
+      "ledgerBalanceFromImport": 1500,
+      "variance": 2200,
+      "primaryTxnCount": 92,
+      "backupTxnCount": 35,
+      "primaryLedger": 1500,
+      "backupLedger": -800,
+      "invoiceTotalPrimary": 119180,
+      "paymentTotalPrimary": -117680,
+      "missingInPrimaryCount": 0,
+      "missingInvoiceSum": 0,
+      "missingPaymentSum": 0,
+      "missingNetSum": 0,
+      "duplicateFingerprints": 0,
+      "dateRangePrimary": {
+        "min": "2023-01-09",
+        "max": "2026-05-15"
+      },
+      "dateRangeBackup": {
+        "min": "2025-01-13",
+        "max": "2026-05-15"
+      },
+      "rootCause": "nearMatchUnexplained",
+      "backupClosesGap": false
+    },
+    {
+      "accountNo": "MPA001",
+      "fullName": "Misokuhle Lathitha Mpangeva",
+      "section": "Bad Debt",
+      "ageAnalysisBalance": 6800,
+      "ledgerBalanceFromImport": 4600,
+      "variance": 2200,
+      "primaryTxnCount": 91,
+      "backupTxnCount": 36,
+      "primaryLedger": 4600,
+      "backupLedger": 2300,
+      "invoiceTotalPrimary": 130690,
+      "paymentTotalPrimary": -126090,
+      "missingInPrimaryCount": 0,
+      "missingInvoiceSum": 0,
+      "missingPaymentSum": 0,
+      "missingNetSum": 0,
+      "duplicateFingerprints": 0,
+      "dateRangePrimary": {
+        "min": "2023-01-16",
+        "max": "2026-05-15"
+      },
+      "dateRangeBackup": {
+        "min": "2025-01-16",
+        "max": "2026-05-15"
+      },
+      "rootCause": "nearMatchUnexplained",
+      "backupClosesGap": false
+    },
+    {
+      "accountNo": "MPO001",
+      "fullName": "Kabo Mpodi",
+      "section": "Recently Owing",
+      "ageAnalysisBalance": 3700,
+      "ledgerBalanceFromImport": 1500,
+      "variance": 2200,
+      "primaryTxnCount": 109,
+      "backupTxnCount": 47,
+      "primaryLedger": 1500,
+      "backupLedger": -800,
+      "invoiceTotalPrimary": 125385,
+      "paymentTotalPrimary": -123885,
+      "missingInPrimaryCount": 0,
+      "missingInvoiceSum": 0,
+      "missingPaymentSum": 0,
+      "missingNetSum": 0,
+      "duplicateFingerprints": 0,
+      "dateRangePrimary": {
+        "min": "2023-01-03",
+        "max": "2026-05-15"
+      },
+      "dateRangeBackup": {
+        "min": "2025-01-05",
+        "max": "2026-05-15"
+      },
+      "rootCause": "nearMatchUnexplained",
+      "backupClosesGap": false
+    },
+    {
+      "accountNo": "MSI003",
+      "fullName": "Somusa Sibani Msimango",
+      "section": "Recently Owing",
+      "ageAnalysisBalance": 3700,
+      "ledgerBalanceFromImport": 1500,
+      "variance": 2200,
+      "primaryTxnCount": 91,
+      "backupTxnCount": 34,
+      "primaryLedger": 1500,
+      "backupLedger": 3700,
+      "invoiceTotalPrimary": 119530,
+      "paymentTotalPrimary": -118030,
+      "missingInPrimaryCount": 0,
+      "missingInvoiceSum": 0,
+      "missingPaymentSum": 0,
+      "missingNetSum": 0,
+      "duplicateFingerprints": 0,
+      "dateRangePrimary": {
+        "min": "2023-01-03",
+        "max": "2026-05-15"
+      },
+      "dateRangeBackup": {
+        "min": "2025-01-23",
+        "max": "2026-05-15"
+      },
+      "rootCause": "backupDoesNotExplainVariance",
+      "backupClosesGap": true
+    },
+    {
+      "accountNo": "MSI004",
+      "fullName": "Snekosi Msimango",
+      "section": "Bad Debt",
+      "ageAnalysisBalance": 8300,
+      "ledgerBalanceFromImport": 6100,
+      "variance": 2200,
+      "primaryTxnCount": 97,
+      "backupTxnCount": 36,
+      "primaryLedger": 6100,
+      "backupLedger": 8300,
+      "invoiceTotalPrimary": 127280,
+      "paymentTotalPrimary": -121180,
+      "missingInPrimaryCount": 0,
+      "missingInvoiceSum": 0,
+      "missingPaymentSum": 0,
+      "missingNetSum": 0,
+      "duplicateFingerprints": 0,
+      "dateRangePrimary": {
+        "min": "2023-01-03",
+        "max": "2026-05-15"
+      },
+      "dateRangeBackup": {
+        "min": "2025-01-23",
+        "max": "2026-05-15"
+      },
+      "rootCause": "backupDoesNotExplainVariance",
+      "backupClosesGap": true
+    },
+    {
+      "accountNo": "NTO003",
+      "fullName": "Phenyo Ntoula",
+      "section": "Recently Owing",
+      "ageAnalysisBalance": 3200,
+      "ledgerBalanceFromImport": 1000,
+      "variance": 2200,
+      "primaryTxnCount": 95,
+      "backupTxnCount": 35,
+      "primaryLedger": 1000,
+      "backupLedger": 1400,
+      "invoiceTotalPrimary": 142260,
+      "paymentTotalPrimary": -141260,
+      "missingInPrimaryCount": 0,
+      "missingInvoiceSum": 0,
+      "missingPaymentSum": 0,
+      "missingNetSum": 0,
+      "duplicateFingerprints": 0,
+      "dateRangePrimary": {
+        "min": "2023-01-10",
+        "max": "2026-05-15"
+      },
+      "dateRangeBackup": {
+        "min": "2025-01-23",
+        "max": "2026-05-15"
+      },
+      "rootCause": "nearMatchUnexplained",
+      "backupClosesGap": false
+    },
+    {
+      "accountNo": "OSE001",
+      "fullName": "Osego Makgale",
+      "section": "Bad Debt",
+      "ageAnalysisBalance": 4500,
+      "ledgerBalanceFromImport": 2300,
+      "variance": 2200,
+      "primaryTxnCount": 98,
+      "backupTxnCount": 37,
+      "primaryLedger": 2300,
+      "backupLedger": 2700,
+      "invoiceTotalPrimary": 136015,
+      "paymentTotalPrimary": -133715,
+      "missingInPrimaryCount": 0,
+      "missingInvoiceSum": 0,
+      "missingPaymentSum": 0,
+      "missingNetSum": 0,
+      "duplicateFingerprints": 0,
+      "dateRangePrimary": {
+        "min": "2023-01-03",
+        "max": "2026-05-15"
+      },
+      "dateRangeBackup": {
+        "min": "2025-01-23",
+        "max": "2026-05-15"
+      },
+      "rootCause": "nearMatchUnexplained",
+      "backupClosesGap": false
+    },
+    {
+      "accountNo": "PET002",
+      "fullName": "Obatlilwe Petlale",
+      "section": "Bad Debt",
+      "ageAnalysisBalance": 8600,
+      "ledgerBalanceFromImport": 6400,
+      "variance": 2200,
+      "primaryTxnCount": 98,
+      "backupTxnCount": 41,
+      "primaryLedger": 6400,
+      "backupLedger": 2600,
+      "invoiceTotalPrimary": 135975,
+      "paymentTotalPrimary": -129575,
+      "missingInPrimaryCount": 0,
+      "missingInvoiceSum": 0,
+      "missingPaymentSum": 0,
+      "missingNetSum": 0,
+      "duplicateFingerprints": 0,
+      "dateRangePrimary": {
+        "min": "2023-01-05",
+        "max": "2026-05-15"
+      },
+      "dateRangeBackup": {
+        "min": "2025-01-05",
+        "max": "2026-05-15"
+      },
+      "rootCause": "nearMatchUnexplained",
+      "backupClosesGap": false
+    },
+    {
+      "accountNo": "RAM011",
+      "fullName": "Rethabile Ramalete",
+      "section": "Recently Owing",
+      "ageAnalysisBalance": 3550,
+      "ledgerBalanceFromImport": 1350,
+      "variance": 2200,
+      "primaryTxnCount": 86,
+      "backupTxnCount": 36,
+      "primaryLedger": 1350,
+      "backupLedger": -8990,
+      "invoiceTotalPrimary": 129410,
+      "paymentTotalPrimary": -128060,
+      "missingInPrimaryCount": 0,
+      "missingInvoiceSum": 0,
+      "missingPaymentSum": 0,
+      "missingNetSum": 0,
+      "duplicateFingerprints": 0,
+      "dateRangePrimary": {
+        "min": "2023-01-16",
+        "max": "2026-05-15"
+      },
+      "dateRangeBackup": {
+        "min": "2025-01-23",
+        "max": "2026-05-15"
+      },
+      "rootCause": "nearMatchUnexplained",
+      "backupClosesGap": false
+    },
+    {
+      "accountNo": "RAM015",
+      "fullName": "Remoneilwe Johanna Mothuloe",
+      "section": "Recently Owing",
+      "ageAnalysisBalance": 3550,
+      "ledgerBalanceFromImport": 1350,
+      "variance": 2200,
+      "primaryTxnCount": 90,
+      "backupTxnCount": 35,
+      "primaryLedger": 1350,
+      "backupLedger": -1500,
+      "invoiceTotalPrimary": 136330,
+      "paymentTotalPrimary": -134980,
+      "missingInPrimaryCount": 0,
+      "missingInvoiceSum": 0,
+      "missingPaymentSum": 0,
+      "missingNetSum": 0,
+      "duplicateFingerprints": 0,
+      "dateRangePrimary": {
+        "min": "2023-01-03",
+        "max": "2026-05-15"
+      },
+      "dateRangeBackup": {
+        "min": "2025-01-05",
+        "max": "2026-05-15"
+      },
+      "rootCause": "nearMatchUnexplained",
+      "backupClosesGap": false
+    },
+    {
+      "accountNo": "RAN002",
+      "fullName": "Omaatla Tlotlo Ranta",
+      "section": "Recently Owing",
+      "ageAnalysisBalance": 2800,
+      "ledgerBalanceFromImport": 600,
+      "variance": 2200,
+      "primaryTxnCount": 103,
+      "backupTxnCount": 46,
+      "primaryLedger": 600,
+      "backupLedger": 1000,
+      "invoiceTotalPrimary": 126810,
+      "paymentTotalPrimary": -126210,
+      "missingInPrimaryCount": 0,
+      "missingInvoiceSum": 0,
+      "missingPaymentSum": 0,
+      "missingNetSum": 0,
+      "duplicateFingerprints": 0,
+      "dateRangePrimary": {
+        "min": "2023-01-03",
+        "max": "2026-05-15"
+      },
+      "dateRangeBackup": {
+        "min": "2025-01-23",
+        "max": "2026-05-15"
+      },
+      "rootCause": "nearMatchUnexplained",
+      "backupClosesGap": false
+    },
+    {
+      "accountNo": "TAU003",
+      "fullName": "Unathi Tause",
+      "section": "Bad Debt",
+      "ageAnalysisBalance": 6300,
+      "ledgerBalanceFromImport": 4100,
+      "variance": 2200,
+      "primaryTxnCount": 86,
+      "backupTxnCount": 36,
+      "primaryLedger": 4100,
+      "backupLedger": 7200,
+      "invoiceTotalPrimary": 122405,
+      "paymentTotalPrimary": -118305,
+      "missingInPrimaryCount": 0,
+      "missingInvoiceSum": 0,
+      "missingPaymentSum": 0,
+      "missingNetSum": 0,
+      "duplicateFingerprints": 0,
+      "dateRangePrimary": {
+        "min": "2023-01-16",
+        "max": "2026-05-15"
+      },
+      "dateRangeBackup": {
+        "min": "2025-01-23",
+        "max": "2026-05-15"
+      },
+      "rootCause": "nearMatchUnexplained",
+      "backupClosesGap": false
+    },
+    {
+      "accountNo": "THA003",
+      "fullName": "Omogolo Thakadu",
+      "section": "Recently Owing",
+      "ageAnalysisBalance": 3200,
+      "ledgerBalanceFromImport": 1000,
+      "variance": 2200,
+      "primaryTxnCount": 93,
+      "backupTxnCount": 41,
+      "primaryLedger": 1000,
+      "backupLedger": -1300,
+      "invoiceTotalPrimary": 122010,
+      "paymentTotalPrimary": -121010,
+      "missingInPrimaryCount": 0,
+      "missingInvoiceSum": 0,
+      "missingPaymentSum": 0,
+      "missingNetSum": 0,
+      "duplicateFingerprints": 0,
+      "dateRangePrimary": {
+        "min": "2023-01-11",
+        "max": "2026-05-15"
+      },
+      "dateRangeBackup": {
+        "min": "2025-01-05",
+        "max": "2026-05-15"
+      },
+      "rootCause": "nearMatchUnexplained",
+      "backupClosesGap": false
+    },
+    {
+      "accountNo": "XAB001",
+      "fullName": "Paballo Pearl Xaba",
+      "section": "Bad Debt",
+      "ageAnalysisBalance": 4250,
+      "ledgerBalanceFromImport": 2050,
+      "variance": 2200,
+      "primaryTxnCount": 102,
+      "backupTxnCount": 47,
+      "primaryLedger": 2050,
+      "backupLedger": 2800,
+      "invoiceTotalPrimary": 153810,
+      "paymentTotalPrimary": -151760,
+      "missingInPrimaryCount": 0,
+      "missingInvoiceSum": 0,
+      "missingPaymentSum": 0,
+      "missingNetSum": 0,
+      "duplicateFingerprints": 0,
+      "dateRangePrimary": {
+        "min": "2023-01-03",
+        "max": "2026-05-15"
+      },
+      "dateRangeBackup": {
+        "min": "2025-01-15",
+        "max": "2026-05-15"
+      },
+      "rootCause": "nearMatchUnexplained",
+      "backupClosesGap": false
+    },
+    {
+      "accountNo": "RAM009",
+      "fullName": "Omatla Malesela Ramagogogdi",
+      "section": "Recently Owing",
+      "ageAnalysisBalance": 4250,
+      "ledgerBalanceFromImport": 2070,
+      "variance": 2180,
+      "primaryTxnCount": 129,
+      "backupTxnCount": 57,
+      "primaryLedger": 2070,
+      "backupLedger": 3400,
+      "invoiceTotalPrimary": 135535,
+      "paymentTotalPrimary": -133465,
+      "missingInPrimaryCount": 0,
+      "missingInvoiceSum": 0,
+      "missingPaymentSum": 0,
+      "missingNetSum": 0,
+      "duplicateFingerprints": 0,
+      "dateRangePrimary": {
+        "min": "2023-01-16",
+        "max": "2026-05-15"
+      },
+      "dateRangeBackup": {
+        "min": "2025-01-22",
+        "max": "2026-05-15"
+      },
+      "rootCause": "nearMatchUnexplained",
+      "backupClosesGap": false
+    },
+    {
+      "accountNo": "MAL006",
+      "fullName": "Reboikantse Omosa Mayana",
+      "section": "Recently Owing",
+      "ageAnalysisBalance": 5150,
+      "ledgerBalanceFromImport": 3000,
+      "variance": 2150,
+      "primaryTxnCount": 98,
+      "backupTxnCount": 45,
+      "primaryLedger": 3000,
+      "backupLedger": 650,
+      "invoiceTotalPrimary": 153710,
+      "paymentTotalPrimary": -150710,
+      "missingInPrimaryCount": 0,
+      "missingInvoiceSum": 0,
+      "missingPaymentSum": 0,
+      "missingNetSum": 0,
+      "duplicateFingerprints": 0,
+      "dateRangePrimary": {
+        "min": "2023-01-03",
+        "max": "2026-05-15"
+      },
+      "dateRangeBackup": {
+        "min": "2025-01-05",
+        "max": "2026-05-15"
+      },
+      "rootCause": "nearMatchUnexplained",
+      "backupClosesGap": false
+    },
+    {
+      "accountNo": "MOL044",
+      "fullName": "Omontle Molefe",
+      "section": "Recently Owing",
+      "ageAnalysisBalance": 3450,
+      "ledgerBalanceFromImport": 5580,
+      "variance": -2130,
+      "primaryTxnCount": 94,
+      "backupTxnCount": 41,
+      "primaryLedger": 5580,
+      "backupLedger": -2710,
+      "invoiceTotalPrimary": 123175,
+      "paymentTotalPrimary": -117595,
+      "missingInPrimaryCount": 0,
+      "missingInvoiceSum": 0,
+      "missingPaymentSum": 0,
+      "missingNetSum": 0,
+      "duplicateFingerprints": 0,
+      "dateRangePrimary": {
+        "min": "2023-01-11",
+        "max": "2026-05-15"
+      },
+      "dateRangeBackup": {
+        "min": "2025-01-16",
+        "max": "2026-05-15"
+      },
+      "rootCause": "ledgerExceedsAgeAnalysis",
+      "backupClosesGap": false
+    },
+    {
+      "accountNo": "MOT007",
+      "fullName": "Bokamoso Menyatswe",
+      "section": "Bad Debt",
+      "ageAnalysisBalance": 8019.45,
+      "ledgerBalanceFromImport": 5920,
+      "variance": 2099.45,
+      "primaryTxnCount": 95,
+      "backupTxnCount": 39,
+      "primaryLedger": 5920,
+      "backupLedger": 7020,
+      "invoiceTotalPrimary": 135400,
+      "paymentTotalPrimary": -129480,
+      "missingInPrimaryCount": 0,
+      "missingInvoiceSum": 0,
+      "missingPaymentSum": 0,
+      "missingNetSum": 0,
+      "duplicateFingerprints": 0,
+      "dateRangePrimary": {
+        "min": "2023-01-16",
+        "max": "2026-05-15"
+      },
+      "dateRangeBackup": {
+        "min": "2025-01-13",
+        "max": "2026-05-15"
+      },
+      "rootCause": "nearMatchUnexplained",
+      "backupClosesGap": false
+    },
+    {
+      "accountNo": "TSA001",
+      "fullName": "Omphile Tsame",
+      "section": "Recently Owing",
+      "ageAnalysisBalance": 3000,
+      "ledgerBalanceFromImport": 950,
+      "variance": 2050,
+      "primaryTxnCount": 87,
+      "backupTxnCount": 39,
+      "primaryLedger": 950,
+      "backupLedger": -1055,
+      "invoiceTotalPrimary": 119360,
+      "paymentTotalPrimary": -118410,
+      "missingInPrimaryCount": 0,
+      "missingInvoiceSum": 0,
+      "missingPaymentSum": 0,
+      "missingNetSum": 0,
+      "duplicateFingerprints": 0,
+      "dateRangePrimary": {
+        "min": "2023-01-16",
+        "max": "2026-05-15"
+      },
+      "dateRangeBackup": {
+        "min": "2025-01-10",
+        "max": "2026-05-15"
+      },
+      "rootCause": "nearMatchUnexplained",
+      "backupClosesGap": false
+    },
+    {
+      "accountNo": "MAS021",
+      "fullName": "Kamohelo Masilo",
+      "section": "Bad Debt",
+      "ageAnalysisBalance": 3700,
+      "ledgerBalanceFromImport": 1700,
+      "variance": 2000,
+      "primaryTxnCount": 92,
+      "backupTxnCount": 38,
+      "primaryLedger": 1700,
+      "backupLedger": 1900,
+      "invoiceTotalPrimary": 118360,
+      "paymentTotalPrimary": -116660,
+      "missingInPrimaryCount": 0,
+      "missingInvoiceSum": 0,
+      "missingPaymentSum": 0,
+      "missingNetSum": 0,
+      "duplicateFingerprints": 0,
+      "dateRangePrimary": {
+        "min": "2023-01-03",
+        "max": "2026-05-15"
+      },
+      "dateRangeBackup": {
+        "min": "2025-01-13",
+        "max": "2026-05-15"
+      },
+      "rootCause": "nearMatchUnexplained",
+      "backupClosesGap": false
+    },
+    {
+      "accountNo": "MOK025",
+      "fullName": "Tshegofatso Remoratile Mokgatlhe",
+      "section": "Bad Debt",
+      "ageAnalysisBalance": 4900,
+      "ledgerBalanceFromImport": 2900,
+      "variance": 2000,
+      "primaryTxnCount": 95,
+      "backupTxnCount": 38,
+      "primaryLedger": 2900,
+      "backupLedger": 3100,
+      "invoiceTotalPrimary": 150960,
+      "paymentTotalPrimary": -148060,
+      "missingInPrimaryCount": 0,
+      "missingInvoiceSum": 0,
+      "missingPaymentSum": 0,
+      "missingNetSum": 0,
+      "duplicateFingerprints": 0,
+      "dateRangePrimary": {
+        "min": "2023-01-04",
+        "max": "2026-05-15"
+      },
+      "dateRangeBackup": {
+        "min": "2025-01-23",
+        "max": "2026-05-15"
+      },
+      "rootCause": "nearMatchUnexplained",
+      "backupClosesGap": false
+    },
+    {
+      "accountNo": "NKO004",
+      "fullName": "Kabo Kealeboga Nkonyane",
+      "section": "Bad Debt",
+      "ageAnalysisBalance": 3700,
+      "ledgerBalanceFromImport": 1700,
+      "variance": 2000,
+      "primaryTxnCount": 95,
+      "backupTxnCount": 36,
+      "primaryLedger": 1700,
+      "backupLedger": -1350,
+      "invoiceTotalPrimary": 136160,
+      "paymentTotalPrimary": -134460,
+      "missingInPrimaryCount": 0,
+      "missingInvoiceSum": 0,
+      "missingPaymentSum": 0,
+      "missingNetSum": 0,
+      "duplicateFingerprints": 0,
+      "dateRangePrimary": {
+        "min": "2023-01-05",
+        "max": "2026-05-15"
+      },
+      "dateRangeBackup": {
+        "min": "2025-01-05",
+        "max": "2026-05-15"
+      },
+      "rootCause": "nearMatchUnexplained",
+      "backupClosesGap": false
+    },
+    {
+      "accountNo": "MAP006",
+      "fullName": "Mvuselelo Jasper Maphumulo",
+      "section": "Bad Debt",
+      "ageAnalysisBalance": 8420,
+      "ledgerBalanceFromImport": 6485,
+      "variance": 1935,
+      "primaryTxnCount": 107,
+      "backupTxnCount": 44,
+      "primaryLedger": 6485,
+      "backupLedger": 6900,
+      "invoiceTotalPrimary": 146000,
+      "paymentTotalPrimary": -139515,
+      "missingInPrimaryCount": 0,
+      "missingInvoiceSum": 0,
+      "missingPaymentSum": 0,
+      "missingNetSum": 0,
+      "duplicateFingerprints": 0,
+      "dateRangePrimary": {
+        "min": "2023-01-03",
+        "max": "2026-05-15"
+      },
+      "dateRangeBackup": {
+        "min": "2025-01-02",
+        "max": "2026-05-15"
+      },
+      "rootCause": "nearMatchUnexplained",
+      "backupClosesGap": false
+    },
+    {
+      "accountNo": "JEC002",
+      "fullName": "Nelisiwe Jeche",
+      "section": "Recently Owing",
+      "ageAnalysisBalance": 1965,
+      "ledgerBalanceFromImport": 3890,
+      "variance": -1925,
+      "primaryTxnCount": 95,
+      "backupTxnCount": 36,
+      "primaryLedger": 3890,
+      "backupLedger": -1350,
+      "invoiceTotalPrimary": 131090,
+      "paymentTotalPrimary": -127200,
+      "missingInPrimaryCount": 0,
+      "missingInvoiceSum": 0,
+      "missingPaymentSum": 0,
+      "missingNetSum": 0,
+      "duplicateFingerprints": 0,
+      "dateRangePrimary": {
+        "min": "2023-01-13",
+        "max": "2026-05-15"
+      },
+      "dateRangeBackup": {
+        "min": "2025-01-23",
+        "max": "2026-05-15"
+      },
+      "rootCause": "ledgerExceedsAgeAnalysis",
+      "backupClosesGap": false
+    },
+    {
+      "accountNo": "MAT016",
+      "fullName": "Otshepeng Matsietsa",
+      "section": "Bad Debt",
+      "ageAnalysisBalance": 6400,
+      "ledgerBalanceFromImport": 4500,
+      "variance": 1900,
+      "primaryTxnCount": 77,
+      "backupTxnCount": 38,
+      "primaryLedger": 4500,
+      "backupLedger": 1900,
+      "invoiceTotalPrimary": 124760,
+      "paymentTotalPrimary": -120260,
+      "missingInPrimaryCount": 0,
+      "missingInvoiceSum": 0,
+      "missingPaymentSum": 0,
+      "missingNetSum": 0,
+      "duplicateFingerprints": 0,
+      "dateRangePrimary": {
+        "min": "2023-01-05",
+        "max": "2026-05-15"
+      },
+      "dateRangeBackup": {
+        "min": "2025-01-08",
+        "max": "2026-05-15"
+      },
+      "rootCause": "nearMatchUnexplained",
+      "backupClosesGap": false
+    },
+    {
+      "accountNo": "MKH002",
+      "fullName": "Ntsako Mkhasi",
+      "section": "Bad Debt",
+      "ageAnalysisBalance": 3700,
+      "ledgerBalanceFromImport": 1800,
+      "variance": 1900,
+      "primaryTxnCount": 89,
+      "backupTxnCount": 39,
+      "primaryLedger": 1800,
+      "backupLedger": -800,
+      "invoiceTotalPrimary": 124810,
+      "paymentTotalPrimary": -123010,
+      "missingInPrimaryCount": 0,
+      "missingInvoiceSum": 0,
+      "missingPaymentSum": 0,
+      "missingNetSum": 0,
+      "duplicateFingerprints": 0,
+      "dateRangePrimary": {
+        "min": "2023-01-03",
+        "max": "2026-05-15"
+      },
+      "dateRangeBackup": {
+        "min": "2025-01-16",
+        "max": "2026-05-15"
+      },
+      "rootCause": "nearMatchUnexplained",
+      "backupClosesGap": false
+    },
+    {
+      "accountNo": "SIN001",
+      "fullName": "Reneilwe Sindale",
+      "section": "Recently Owing",
+      "ageAnalysisBalance": 6700,
+      "ledgerBalanceFromImport": 4800,
+      "variance": 1900,
+      "primaryTxnCount": 94,
+      "backupTxnCount": 35,
+      "primaryLedger": 4800,
+      "backupLedger": 5800,
+      "invoiceTotalPrimary": 133160,
+      "paymentTotalPrimary": -128360,
+      "missingInPrimaryCount": 0,
+      "missingInvoiceSum": 0,
+      "missingPaymentSum": 0,
+      "missingNetSum": 0,
+      "duplicateFingerprints": 0,
+      "dateRangePrimary": {
+        "min": "2023-01-03",
+        "max": "2026-05-15"
+      },
+      "dateRangeBackup": {
+        "min": "2025-01-23",
+        "max": "2026-05-15"
+      },
+      "rootCause": "nearMatchUnexplained",
+      "backupClosesGap": false
+    },
+    {
+      "accountNo": "KIN001",
+      "fullName": "Omatla Sensation Kwele",
+      "section": "Recently Owing",
+      "ageAnalysisBalance": 3200,
+      "ledgerBalanceFromImport": 1500,
+      "variance": 1700,
+      "primaryTxnCount": 91,
+      "backupTxnCount": 43,
+      "primaryLedger": 1500,
+      "backupLedger": -1300,
+      "invoiceTotalPrimary": 123260,
+      "paymentTotalPrimary": -121760,
+      "missingInPrimaryCount": 0,
+      "missingInvoiceSum": 0,
+      "missingPaymentSum": 0,
+      "missingNetSum": 0,
+      "duplicateFingerprints": 0,
+      "dateRangePrimary": {
+        "min": "2023-01-10",
+        "max": "2026-05-15"
+      },
+      "dateRangeBackup": {
+        "min": "2025-01-14",
+        "max": "2026-05-15"
+      },
+      "rootCause": "nearMatchUnexplained",
+      "backupClosesGap": false
+    },
+    {
+      "accountNo": "MOD004",
+      "fullName": "Tshimologo Modise",
+      "section": "Recently Owing",
+      "ageAnalysisBalance": 2300,
+      "ledgerBalanceFromImport": 600,
+      "variance": 1700,
+      "primaryTxnCount": 98,
+      "backupTxnCount": 41,
+      "primaryLedger": 600,
+      "backupLedger": 300,
+      "invoiceTotalPrimary": 128825,
+      "paymentTotalPrimary": -128225,
+      "missingInPrimaryCount": 0,
+      "missingInvoiceSum": 0,
+      "missingPaymentSum": 0,
+      "missingNetSum": 0,
+      "duplicateFingerprints": 0,
+      "dateRangePrimary": {
+        "min": "2023-01-03",
+        "max": "2026-05-15"
+      },
+      "dateRangeBackup": {
+        "min": "2025-01-23",
+        "max": "2026-05-15"
+      },
+      "rootCause": "nearMatchUnexplained",
+      "backupClosesGap": false
+    },
+    {
+      "accountNo": "PHI003",
+      "fullName": "Ethan Jacobus Phillips",
+      "section": "Recently Owing",
+      "ageAnalysisBalance": 3000,
+      "ledgerBalanceFromImport": 1300,
+      "variance": 1700,
+      "primaryTxnCount": 93,
+      "backupTxnCount": 38,
+      "primaryLedger": 1300,
+      "backupLedger": -1500,
+      "invoiceTotalPrimary": 151570,
+      "paymentTotalPrimary": -150270,
+      "missingInPrimaryCount": 0,
+      "missingInvoiceSum": 0,
+      "missingPaymentSum": 0,
+      "missingNetSum": 0,
+      "duplicateFingerprints": 0,
+      "dateRangePrimary": {
+        "min": "2023-01-09",
+        "max": "2026-05-15"
+      },
+      "dateRangeBackup": {
+        "min": "2025-01-15",
+        "max": "2026-05-15"
+      },
+      "rootCause": "nearMatchUnexplained",
+      "backupClosesGap": false
+    },
+    {
+      "accountNo": "LEG003",
+      "fullName": "Thato Legari",
+      "section": "Recently Owing",
+      "ageAnalysisBalance": 4350,
+      "ledgerBalanceFromImport": 2750,
+      "variance": 1600,
+      "primaryTxnCount": 85,
+      "backupTxnCount": 34,
+      "primaryLedger": 2750,
+      "backupLedger": -4820,
+      "invoiceTotalPrimary": 155470,
+      "paymentTotalPrimary": -152720,
+      "missingInPrimaryCount": 0,
+      "missingInvoiceSum": 0,
+      "missingPaymentSum": 0,
+      "missingNetSum": 0,
+      "duplicateFingerprints": 0,
+      "dateRangePrimary": {
+        "min": "2023-01-11",
+        "max": "2026-05-15"
+      },
+      "dateRangeBackup": {
+        "min": "2025-01-15",
+        "max": "2026-05-15"
+      },
+      "rootCause": "nearMatchUnexplained",
+      "backupClosesGap": false
+    },
+    {
+      "accountNo": "MAB008",
+      "fullName": "Tlotlego Mabena",
+      "section": "Recently Owing",
+      "ageAnalysisBalance": 2500,
+      "ledgerBalanceFromImport": 900,
+      "variance": 1600,
+      "primaryTxnCount": 100,
+      "backupTxnCount": 40,
+      "primaryLedger": 900,
+      "backupLedger": 470,
+      "invoiceTotalPrimary": 125430,
+      "paymentTotalPrimary": -124530,
+      "missingInPrimaryCount": 0,
+      "missingInvoiceSum": 0,
+      "missingPaymentSum": 0,
+      "missingNetSum": 0,
+      "duplicateFingerprints": 0,
+      "dateRangePrimary": {
+        "min": "2023-01-03",
+        "max": "2026-05-15"
+      },
+      "dateRangeBackup": {
+        "min": "2025-01-23",
+        "max": "2026-05-15"
+      },
+      "rootCause": "nearMatchUnexplained",
+      "backupClosesGap": false
+    },
+    {
+      "accountNo": "MOK028",
+      "fullName": "Ofentse Mokua",
+      "section": "Recently Owing",
+      "ageAnalysisBalance": 3550,
+      "ledgerBalanceFromImport": 2100,
+      "variance": 1450,
+      "primaryTxnCount": 92,
+      "backupTxnCount": 40,
+      "primaryLedger": 2100,
+      "backupLedger": -950,
+      "invoiceTotalPrimary": 135210,
+      "paymentTotalPrimary": -133110,
+      "missingInPrimaryCount": 0,
+      "missingInvoiceSum": 0,
+      "missingPaymentSum": 0,
+      "missingNetSum": 0,
+      "duplicateFingerprints": 0,
+      "dateRangePrimary": {
+        "min": "2023-01-03",
+        "max": "2026-05-15"
+      },
+      "dateRangeBackup": {
+        "min": "2025-01-02",
+        "max": "2026-05-15"
+      },
+      "rootCause": "nearMatchUnexplained",
+      "backupClosesGap": false
+    },
+    {
+      "accountNo": "SEN002",
+      "fullName": "Peoentle Senne",
+      "section": "Recently Owing",
+      "ageAnalysisBalance": 7150,
+      "ledgerBalanceFromImport": 5715,
+      "variance": 1435,
+      "primaryTxnCount": 105,
+      "backupTxnCount": 47,
+      "primaryLedger": 5715,
+      "backupLedger": 2705,
+      "invoiceTotalPrimary": 130010,
+      "paymentTotalPrimary": -124295,
+      "missingInPrimaryCount": 0,
+      "missingInvoiceSum": 0,
+      "missingPaymentSum": 0,
+      "missingNetSum": 0,
+      "duplicateFingerprints": 0,
+      "dateRangePrimary": {
+        "min": "2023-01-16",
+        "max": "2026-05-15"
+      },
+      "dateRangeBackup": {
+        "min": "2025-01-22",
+        "max": "2026-05-15"
+      },
+      "rootCause": "nearMatchUnexplained",
+      "backupClosesGap": false
+    },
+    {
+      "accountNo": "MAN010",
+      "fullName": "Nhlulo Xihluke Manabe",
+      "section": "Bad Debt",
+      "ageAnalysisBalance": 7600,
+      "ledgerBalanceFromImport": 8900,
+      "variance": -1300,
+      "primaryTxnCount": 104,
+      "backupTxnCount": 44,
+      "primaryLedger": 8900,
+      "backupLedger": -1016,
+      "invoiceTotalPrimary": 126850,
+      "paymentTotalPrimary": -117950,
+      "missingInPrimaryCount": 0,
+      "missingInvoiceSum": 0,
+      "missingPaymentSum": 0,
+      "missingNetSum": 0,
+      "duplicateFingerprints": 0,
+      "dateRangePrimary": {
+        "min": "2023-01-03",
+        "max": "2026-05-15"
+      },
+      "dateRangeBackup": {
+        "min": "2025-01-23",
+        "max": "2026-05-15"
+      },
+      "rootCause": "ledgerExceedsAgeAnalysis",
+      "backupClosesGap": false
+    },
+    {
+      "accountNo": "LEK003",
+      "fullName": "Phetogo Lekgetho Moruledi",
+      "section": "Bad Debt",
+      "ageAnalysisBalance": 7200,
+      "ledgerBalanceFromImport": 6145,
+      "variance": 1055,
+      "primaryTxnCount": 86,
+      "backupTxnCount": 37,
+      "primaryLedger": 6145,
+      "backupLedger": 120,
+      "invoiceTotalPrimary": 118860,
+      "paymentTotalPrimary": -112715,
+      "missingInPrimaryCount": 0,
+      "missingInvoiceSum": 0,
+      "missingPaymentSum": 0,
+      "missingNetSum": 0,
+      "duplicateFingerprints": 0,
+      "dateRangePrimary": {
+        "min": "2023-01-16",
+        "max": "2026-05-15"
+      },
+      "dateRangeBackup": {
+        "min": "2025-01-17",
+        "max": "2026-05-15"
+      },
+      "rootCause": "nearMatchUnexplained",
+      "backupClosesGap": false
+    },
+    {
+      "accountNo": "GOV001",
+      "fullName": "Caleb Nathan Govender",
+      "section": "Recently Owing",
+      "ageAnalysisBalance": 1000,
+      "ledgerBalanceFromImport": 0,
+      "variance": 1000,
+      "primaryTxnCount": 89,
+      "backupTxnCount": 37,
+      "primaryLedger": 0,
+      "backupLedger": -1800,
+      "invoiceTotalPrimary": 51010,
+      "paymentTotalPrimary": -51010,
+      "missingInPrimaryCount": 0,
+      "missingInvoiceSum": 0,
+      "missingPaymentSum": 0,
+      "missingNetSum": 0,
+      "duplicateFingerprints": 0,
+      "dateRangePrimary": {
+        "min": "2023-01-03",
+        "max": "2026-05-15"
+      },
+      "dateRangeBackup": {
+        "min": "2025-01-02",
+        "max": "2026-05-15"
+      },
+      "rootCause": "nearMatchUnexplained",
+      "backupClosesGap": false
+    },
+    {
+      "accountNo": "DIA003",
+      "fullName": "Amogelang Warona Diatshwana",
+      "section": "Recently Owing",
+      "ageAnalysisBalance": 2500,
+      "ledgerBalanceFromImport": 1600,
+      "variance": 900,
+      "primaryTxnCount": 94,
+      "backupTxnCount": 41,
+      "primaryLedger": 1600,
+      "backupLedger": 2500,
+      "invoiceTotalPrimary": 124660,
+      "paymentTotalPrimary": -123060,
+      "missingInPrimaryCount": 0,
+      "missingInvoiceSum": 0,
+      "missingPaymentSum": 0,
+      "missingNetSum": 0,
+      "duplicateFingerprints": 0,
+      "dateRangePrimary": {
+        "min": "2023-01-03",
+        "max": "2026-05-15"
+      },
+      "dateRangeBackup": {
+        "min": "2025-01-23",
+        "max": "2026-05-15"
+      },
+      "rootCause": "backupDoesNotExplainVariance",
+      "backupClosesGap": true
+    },
+    {
+      "accountNo": "TSH006",
+      "fullName": "Reitumetse Naledi Njabulo Tshiponyane Setae",
+      "section": "Recently Owing",
+      "ageAnalysisBalance": 2850,
+      "ledgerBalanceFromImport": 2160,
+      "variance": 690,
+      "primaryTxnCount": 107,
+      "backupTxnCount": 42,
+      "primaryLedger": 2160,
+      "backupLedger": -1650,
+      "invoiceTotalPrimary": 146515,
+      "paymentTotalPrimary": -144355,
+      "missingInPrimaryCount": 0,
+      "missingInvoiceSum": 0,
+      "missingPaymentSum": 0,
+      "missingNetSum": 0,
+      "duplicateFingerprints": 0,
+      "dateRangePrimary": {
+        "min": "2023-01-09",
+        "max": "2026-05-15"
+      },
+      "dateRangeBackup": {
+        "min": "2025-01-23",
+        "max": "2026-05-15"
+      },
+      "rootCause": "nearMatchUnexplained",
+      "backupClosesGap": false
+    },
+    {
+      "accountNo": "MOL010",
+      "fullName": "Oagile Kabo Molete",
+      "section": "Recently Owing",
+      "ageAnalysisBalance": 3700,
+      "ledgerBalanceFromImport": 3030,
+      "variance": 670,
+      "primaryTxnCount": 76,
+      "backupTxnCount": 36,
+      "primaryLedger": 3030,
+      "backupLedger": 1400,
+      "invoiceTotalPrimary": 131010,
+      "paymentTotalPrimary": -127980,
+      "missingInPrimaryCount": 0,
+      "missingInvoiceSum": 0,
+      "missingPaymentSum": 0,
+      "missingNetSum": 0,
+      "duplicateFingerprints": 0,
+      "dateRangePrimary": {
+        "min": "2023-01-16",
+        "max": "2026-05-15"
+      },
+      "dateRangeBackup": {
+        "min": "2025-01-23",
+        "max": "2026-05-15"
+      },
+      "rootCause": "nearMatchUnexplained",
+      "backupClosesGap": false
+    },
+    {
+      "accountNo": "MAH004",
+      "fullName": "Mayani Daniel Mahango",
+      "section": "Recently Owing",
+      "ageAnalysisBalance": 3200,
+      "ledgerBalanceFromImport": 3750,
+      "variance": -550,
+      "primaryTxnCount": 87,
+      "backupTxnCount": 37,
+      "primaryLedger": 3750,
+      "backupLedger": -4100,
+      "invoiceTotalPrimary": 131010,
+      "paymentTotalPrimary": -127260,
+      "missingInPrimaryCount": 0,
+      "missingInvoiceSum": 0,
+      "missingPaymentSum": 0,
+      "missingNetSum": 0,
+      "duplicateFingerprints": 0,
+      "dateRangePrimary": {
+        "min": "2023-01-03",
+        "max": "2026-05-15"
+      },
+      "dateRangeBackup": {
+        "min": "2025-01-15",
+        "max": "2026-05-15"
+      },
+      "rootCause": "ledgerExceedsAgeAnalysis",
+      "backupClosesGap": false
+    },
+    {
+      "accountNo": "MOK019",
+      "fullName": "Keitumetse Mokgotho",
+      "section": "Recently Owing",
+      "ageAnalysisBalance": 4500,
+      "ledgerBalanceFromImport": 4150,
+      "variance": 350,
+      "primaryTxnCount": 92,
+      "backupTxnCount": 38,
+      "primaryLedger": 4150,
+      "backupLedger": -550,
+      "invoiceTotalPrimary": 154410,
+      "paymentTotalPrimary": -150260,
+      "missingInPrimaryCount": 0,
+      "missingInvoiceSum": 0,
+      "missingPaymentSum": 0,
+      "missingNetSum": 0,
+      "duplicateFingerprints": 0,
+      "dateRangePrimary": {
+        "min": "2023-01-03",
+        "max": "2026-05-15"
+      },
+      "dateRangeBackup": {
+        "min": "2025-01-05",
+        "max": "2026-05-15"
+      },
+      "rootCause": "nearMatchUnexplained",
+      "backupClosesGap": false
+    },
+    {
+      "accountNo": "RAM010",
+      "fullName": "Keitumetsi Ramasika",
+      "section": "Recently Owing",
+      "ageAnalysisBalance": 3350,
+      "ledgerBalanceFromImport": 3700,
+      "variance": -350,
+      "primaryTxnCount": 92,
+      "backupTxnCount": 38,
+      "primaryLedger": 3700,
+      "backupLedger": -1150,
+      "invoiceTotalPrimary": 118760,
+      "paymentTotalPrimary": -115060,
+      "missingInPrimaryCount": 0,
+      "missingInvoiceSum": 0,
+      "missingPaymentSum": 0,
+      "missingNetSum": 0,
+      "duplicateFingerprints": 0,
+      "dateRangePrimary": {
+        "min": "2023-01-16",
+        "max": "2026-05-15"
+      },
+      "dateRangeBackup": {
+        "min": "2025-01-02",
+        "max": "2026-05-15"
+      },
+      "rootCause": "ledgerExceedsAgeAnalysis",
+      "backupClosesGap": false
+    },
+    {
+      "accountNo": "GAE001",
+      "fullName": "Orateng Gaebolae",
+      "section": "Bad Debt",
+      "ageAnalysisBalance": 6800,
+      "ledgerBalanceFromImport": 6455,
+      "variance": 345,
+      "primaryTxnCount": 106,
+      "backupTxnCount": 45,
+      "primaryLedger": 6455,
+      "backupLedger": 2300,
+      "invoiceTotalPrimary": 125605,
+      "paymentTotalPrimary": -119150,
+      "missingInPrimaryCount": 0,
+      "missingInvoiceSum": 0,
+      "missingPaymentSum": 0,
+      "missingNetSum": 0,
+      "duplicateFingerprints": 0,
+      "dateRangePrimary": {
+        "min": "2023-01-05",
+        "max": "2026-05-15"
+      },
+      "dateRangeBackup": {
+        "min": "2025-01-23",
+        "max": "2026-05-15"
+      },
+      "rootCause": "nearMatchUnexplained",
+      "backupClosesGap": false
+    }
+  ]
+}

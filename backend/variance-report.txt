@@ -1,0 +1,73 @@
+=== Da Silva Migration Preview ===
+{
+  "learnersFromClassList": 396,
+  "learnersFromContactList": 396,
+  "learnersFromBillingPlan": 396,
+  "billingAccountsFromAgeAnalysis": 344,
+  "countsMatch": true,
+  "errors": []
+}
+
+=== Totals ===
+{
+  "totalLearners": 396,
+  "totalParents": 330,
+  "totalClasses": 21,
+  "totalInvoices": 7423,
+  "totalPayments": 7167,
+  "totalInvoiceAmount": 24519263,
+  "totalPaymentAmount": 24718707.38,
+  "totalOutstandingBalance": 1228655.42
+}
+
+canImport: true
+
+Reconciliation sample (first 5):
+[
+  {
+    "accountNo": "ADA004",
+    "fullName": "Zem Adamu\nEldadi Adamu",
+    "ageAnalysisBalance": 7350,
+    "ledgerBalanceFromImport": 7350,
+    "variance": 0
+  },
+  {
+    "accountNo": "AFR002",
+    "fullName": "Jordan-leigh Africa",
+    "ageAnalysisBalance": 4350,
+    "ledgerBalanceFromImport": 4350,
+    "variance": 0
+  },
+  {
+    "accountNo": "ALI002",
+    "fullName": "Alizain Ali",
+    "ageAnalysisBalance": 7000,
+    "ledgerBalanceFromImport": 3140,
+    "variance": 3860
+  },
+  {
+    "accountNo": "BAL002",
+    "fullName": "",
+    "ageAnalysisBalance": 0,
+    "ledgerBalanceFromImport": -5050,
+    "variance": 5050
+  },
+  {
+    "accountNo": "BAL003",
+    "fullName": "",
+    "ageAnalysisBalance": 0,
+    "ledgerBalanceFromImport": 0,
+    "variance": 0
+  }
+]
+
+ADA004 (merged family):
+{
+  "accountNo": "ADA004",
+  "fullName": "Zem Adamu\nEldadi Adamu",
+  "ageAnalysisBalance": 7350,
+  "ledgerBalanceFromImport": 7350,
+  "variance": 0
+}
+
+Reconciliation variances: 336

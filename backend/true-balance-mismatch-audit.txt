@@ -1,0 +1,49 @@
+=== True balance mismatch audit (84 rows, audit only) ===
+Generated: 2026-05-23T11:40:25.824Z
+Desktop: /Users/dasilvaacademy/Desktop
+
+Q1: Missing historical transactions prior to export?
+  Primary export date range: 2023-01-03 .. 2026-05-22
+  Backup export date range:  2025-01-02 .. 2026-05-22
+  Backup-only rows (in backup, not in primary): 0
+  Of 84 accounts: 0 have backup rows missing from primary
+  Backup ledger matches age analysis (±R1): 7 / 84
+
+Q2: Invoices/payments missing from backup file?
+  Backup file used: transaction_list_2025_backup.xls
+  (No transaction_list_2023_backup.xls on Desktop; compared primary vs available backup.)
+
+Q3: Age vs transaction export (84 rows)
+  Sum |variance|: R196099.45
+  Sum age balances: R404710.45
+  Sum ledger (import): R221121.00
+
+Q4/Q5: Root cause patterns
+  nearMatchUnexplained: 72 (85.7%)
+  backupDoesNotExplainVariance: 7 (8.3%)
+  ledgerExceedsAgeAnalysis: 5 (6%)
+  missingInvoiceHistoryInPrimaryExport: 0 (0%)
+  missingPaymentHistoryInPrimaryExport: 0 (0%)
+  missingMixedHistoryInPrimaryExport: 0 (0%)
+  duplicateTransactionsInPrimary: 0 (0%)
+  noTransactionsInPrimary: 0 (0%)
+
+TOP recurring cause: nearMatchUnexplained — 72 accounts (85.7%)
+
+Top 15 by |variance|:
+account | age | ledger | var | primaryTx | missingBackupRows | rootCause
+TLA001 | 10790 | 2010 | 8780 | 92 | 0 | nearMatchUnexplained
+MOL018 | 6500 | 1085 | 5415 | 106 | 0 | backupDoesNotExplainVariance
+TSH017 | 5290 | 860 | 4430 | 94 | 0 | nearMatchUnexplained
+FRE001 | 9500 | 5100 | 4400 | 104 | 0 | nearMatchUnexplained
+MAT022 | 6100 | 1700 | 4400 | 95 | 0 | nearMatchUnexplained
+NAS001 | 7800 | 3905 | 3895 | 13 | 0 | backupDoesNotExplainVariance
+MAB011 | 5000 | 1240 | 3760 | 92 | 0 | nearMatchUnexplained
+TLH005 | 4350 | 750 | 3600 | 90 | 0 | nearMatchUnexplained
+WOL001 | 7370 | 3870 | 3500 | 100 | 0 | nearMatchUnexplained
+SEP899 | 3700 | 500 | 3200 | 105 | 0 | nearMatchUnexplained
+MAB004 | 3700 | 605 | 3095 | 105 | 0 | nearMatchUnexplained
+KHU005 | 3550 | 500 | 3050 | 96 | 0 | nearMatchUnexplained
+GEB002 | 3700 | 700 | 3000 | 92 | 0 | nearMatchUnexplained
+BUY001 | 2900 | 150 | 2750 | 102 | 0 | nearMatchUnexplained
+GAA001 | 3500 | 750 | 2750 | 89 | 0 | nearMatchUnexplained

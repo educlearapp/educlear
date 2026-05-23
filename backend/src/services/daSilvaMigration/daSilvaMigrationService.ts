@@ -2,6 +2,17 @@ import fs from "fs";
 import path from "path";
 import { prisma } from "../../prisma";
 import {
+  addLearnerToFamilyIndex,
+  buildMergedFamilyAccountSet,
+  computeFamilyLedgerBalance,
+  countActiveLearnersPerAccount,
+  findAccountForLearnerName,
+  indexHistoricalLearners,
+  parseSiblingAccountsFile,
+  splitMergedAccountNames,
+  type FamilyAccountIndex,
+} from "./daSilvaMergedFamily";
+import {
   type BillingLedgerEntry,
   upsertSchoolEntries,
 } from "../../utils/billingLedgerStore";
@@ -15,6 +26,11 @@ import {
 } from "../../utils/learnerBillingPlanStore";
 import { normalizeSaPhone } from "../parentPortalService";
 import { syncParentThreadsForClassroom } from "../parentPortalService";
+import {
+  buildOpeningBalancePlan,
+  type DaSilvaOpeningBalancePlan,
+} from "./daSilvaOpeningBalance";
+import { assertDaSilvaFinalImportAllowed } from "./daSilvaFinalImportGate";
 import {
   parseAgeAnalysisFile,
   parseBillingPlanFile,
@@ -101,8 +117,10 @@ export type DaSilvaMigrationBundle = {
   learners: DaSilvaStagedLearner[];
   accounts: ParsedBillingAccount[];
   transactions: ParsedTransaction[];
+  mergedFamilyAccountNos: string[];
   countValidation: DaSilvaCountValidation;
   reconciliation: DaSilvaReconciliationReport;
+  openingBalance: DaSilvaOpeningBalancePlan;
   canImport: boolean;
   confirmToken: string;
 };
@@ -175,87 +193,44 @@ function groupBillingPlans(items: ParsedBillingPlanItem[]): Map<string, StoredBi
   return map;
 }
 
-/** Kid-e-Sys age analysis lists merged siblings on one line separated by newlines. */
-function splitMergedAccountNames(fullName: string): string[] {
-  return String(fullName || "")
-    .split(/\n/)
-    .map((s) => s.trim())
-    .filter(Boolean);
-}
-
-type FamilyAccountIndex = {
-  learnerNameToAccount: Map<string, string>;
-  accountToLearnerNames: Map<string, Set<string>>;
-};
-
-function addLearnerToFamilyIndex(
-  index: FamilyAccountIndex,
-  accountNo: string,
-  fullName: string
-): void {
-  if (!accountNo || !fullName) return;
-  const key = normalizeMatchText(fullName);
-  index.learnerNameToAccount.set(key, accountNo);
-  const set = index.accountToLearnerNames.get(accountNo) || new Set<string>();
-  set.add(key);
-  index.accountToLearnerNames.set(accountNo, set);
-}
-
-function findAccountForLearnerName(
-  fullName: string,
-  accounts: ParsedBillingAccount[],
-  index: FamilyAccountIndex
-): string {
-  const key = normalizeMatchText(fullName);
-  const direct = index.learnerNameToAccount.get(key);
-  if (direct) return direct;
-
-  for (const account of accounts) {
-    const merged = splitMergedAccountNames(account.fullName);
-    if (merged.some((n) => normalizeMatchText(n) === key)) {
-      return account.accountNo;
-    }
-  }
-  return "";
-}
-
 function buildFamilyAccountIndex(
   accounts: ParsedBillingAccount[],
   billingItems: ParsedBillingPlanItem[],
   classLearners: ParsedLearner[],
+  contacts: ParsedLearnerContact[],
   transactions: ParsedTransaction[]
 ): FamilyAccountIndex {
   const index: FamilyAccountIndex = {
     learnerNameToAccount: new Map(),
     accountToLearnerNames: new Map(),
   };
-
-  for (const account of accounts) {
-    const names = splitMergedAccountNames(account.fullName);
-    const list = names.length ? names : [account.fullName];
-    for (const name of list) {
-      addLearnerToFamilyIndex(index, account.accountNo, name);
-    }
-  }
-
-  for (const item of billingItems) {
-    const accountNo = findAccountForLearnerName(item.fullName, accounts, index);
-    if (accountNo) addLearnerToFamilyIndex(index, accountNo, item.fullName);
-  }
-
-  for (const learner of classLearners) {
-    const accountNo = findAccountForLearnerName(learner.fullName, accounts, index);
-    if (accountNo) addLearnerToFamilyIndex(index, accountNo, learner.fullName);
-  }
-
-  for (const txn of transactions) {
-    if (!txn.accountNo || !txn.fullName) continue;
-    const mapped = findAccountForLearnerName(txn.fullName, accounts, index);
-    const accountNo = mapped || txn.accountNo;
-    addLearnerToFamilyIndex(index, accountNo, txn.fullName);
-  }
-
+  indexHistoricalLearners(
+    accounts,
+    billingItems,
+    classLearners,
+    contacts,
+    transactions,
+    index
+  );
   return index;
+}
+
+function loadSiblingAccountNos(siblingAccountsPath?: string): Set<string> {
+  if (!siblingAccountsPath || !fs.existsSync(siblingAccountsPath)) {
+    return new Set();
+  }
+  return parseSiblingAccountsFile(siblingAccountsPath);
+}
+
+function discoverSiblingAccountsPath(desktopRoot: string): string | undefined {
+  const candidates = [
+    path.join(desktopRoot, "07_sibling_accounts", "sibling_accounts.xls"),
+    path.join(desktopRoot, "07_sibling_accounts", "sibling_accounts_(merged).xls"),
+  ];
+  for (const candidate of candidates) {
+    if (fs.existsSync(candidate)) return candidate;
+  }
+  return undefined;
 }
 
 function resolveFamilyAccountNo(
@@ -280,54 +255,6 @@ function aggregateFamilyLedgerBalances(
     ledgerByAccount.set(familyAccountNo, prev + txn.signedAmount);
   }
   return ledgerByAccount;
-}
-
-function hasSilentBillingSibling(
-  accountNo: string,
-  index: FamilyAccountIndex,
-  transactions: ParsedTransaction[]
-): boolean {
-  const learners = index.accountToLearnerNames.get(accountNo);
-  if (!learners || learners.size < 2) return false;
-
-  let withNamedTxns = 0;
-  for (const nameKey of learners) {
-    const hasTxn = transactions.some(
-      (t) =>
-        normalizeMatchText(t.fullName) === nameKey &&
-        resolveFamilyAccountNo(t, index) === accountNo
-    );
-    if (hasTxn) withNamedTxns++;
-  }
-  return withNamedTxns > 0 && withNamedTxns < learners.size;
-}
-
-/**
- * Kid-e-Sys exports merged-family history under one learner name; age analysis holds the family balance.
- */
-function computeFamilyLedgerBalance(
-  account: ParsedBillingAccount,
-  txnSum: number,
-  index: FamilyAccountIndex,
-  transactions: ParsedTransaction[]
-): number {
-  const learners = index.accountToLearnerNames.get(account.accountNo);
-  const isMergedFamily =
-    splitMergedAccountNames(account.fullName).length > 1 || (learners?.size ?? 0) > 1;
-
-  if (!isMergedFamily) {
-    return txnSum;
-  }
-
-  if (Math.abs(txnSum - account.balance) <= 0.01) {
-    return txnSum;
-  }
-
-  if (hasSilentBillingSibling(account.accountNo, index, transactions)) {
-    return account.balance;
-  }
-
-  return txnSum;
 }
 
 function familyAccountForOrphanLedger(
@@ -378,12 +305,28 @@ function buildReconciliation(
   stagedLearners: DaSilvaStagedLearner[],
   transactions: ParsedTransaction[],
   accounts: ParsedBillingAccount[],
-  familyIndex: FamilyAccountIndex
+  familyIndex: FamilyAccountIndex,
+  classLearners: ParsedLearner[],
+  contacts: ParsedLearnerContact[],
+  siblingAccountNos: Set<string>
 ): DaSilvaReconciliationReport {
   const invoices = transactions.filter((t) => t.kind === "invoice");
   const payments = transactions.filter((t) => t.kind === "payment");
 
   const ledgerByAccount = aggregateFamilyLedgerBalances(transactions, familyIndex);
+  const mergedFamilyAccountNos = buildMergedFamilyAccountSet({
+    accounts,
+    index: familyIndex,
+    classLearners,
+    contacts,
+    txnSumByAccount: ledgerByAccount,
+    siblingAccountNos,
+  });
+  const activeLearnersByAccount = countActiveLearnersPerAccount(
+    classLearners,
+    accounts,
+    familyIndex
+  );
 
   const rows: DaSilvaReconciliationRow[] = [];
   const seen = new Set<string>();
@@ -391,11 +334,14 @@ function buildReconciliation(
   for (const account of accounts) {
     seen.add(account.accountNo);
     const txnSum = ledgerByAccount.get(account.accountNo) || 0;
+    const activeLearnerCount = activeLearnersByAccount.get(account.accountNo) || 0;
     const ledgerBalance = computeFamilyLedgerBalance(
       account,
       txnSum,
       familyIndex,
-      transactions
+      transactions,
+      mergedFamilyAccountNos,
+      activeLearnerCount
     );
     rows.push({
       accountNo: account.accountNo,
@@ -444,6 +390,7 @@ export type DaSilvaIngestPaths = {
   billingPlan: string;
   ageAnalysis: string;
   transactions: string;
+  siblingAccounts?: string;
 };
 
 export function buildDaSilvaMigrationBundle(opts: {
@@ -475,8 +422,10 @@ export function buildDaSilvaMigrationBundle(opts: {
     accounts,
     billingItems,
     uniqueClassLearners,
+    contacts,
     transactions
   );
+  const siblingAccountNos = loadSiblingAccountNos(opts.paths.siblingAccounts);
   const stagedLearners: DaSilvaStagedLearner[] = [];
 
   for (const learner of uniqueClassLearners) {
@@ -530,11 +479,32 @@ export function buildDaSilvaMigrationBundle(opts: {
     stagedLearners,
     transactions,
     accounts,
-    familyIndex
+    familyIndex,
+    uniqueClassLearners,
+    contacts,
+    siblingAccountNos
   );
+  const ledgerByAccount = aggregateFamilyLedgerBalances(transactions, familyIndex);
+  const mergedFamilyAccountNos = [
+    ...buildMergedFamilyAccountSet({
+      accounts,
+      index: familyIndex,
+      classLearners: uniqueClassLearners,
+      contacts,
+      txnSumByAccount: ledgerByAccount,
+      siblingAccountNos,
+    }),
+  ].sort();
+  const openingBalance = buildOpeningBalancePlan({
+    accounts,
+    transactions,
+    reconciliationRows: reconciliation.rows,
+    learners: stagedLearners,
+    mergedFamilyAccountNos,
+  });
   const canImport = countValidation.countsMatch;
 
-  const confirmToken = `${opts.projectId}:${countValidation.countsMatch ? "ok" : "blocked"}:${stagedLearners.length}:${transactions.length}`;
+  const confirmToken = `${opts.projectId}:${countValidation.countsMatch ? "ok" : "blocked"}:${stagedLearners.length}:${transactions.length}:${openingBalance.summary.adjustmentCount}`;
 
   return {
     projectId: opts.projectId,
@@ -546,8 +516,10 @@ export function buildDaSilvaMigrationBundle(opts: {
     learners: stagedLearners,
     accounts,
     transactions,
+    mergedFamilyAccountNos,
     countValidation,
     reconciliation,
+    openingBalance,
     canImport,
     confirmToken,
   };
@@ -646,12 +618,22 @@ export async function commitDaSilvaMigration(opts: {
 }> {
   const bundle = loadDaSilvaStaging(opts.schoolId, opts.projectId);
   if (!bundle) throw new Error("Staging not found — run preview first");
+  if (!bundle.openingBalance?.adjustments) {
+    throw new Error("Staging bundle missing opening balance plan — re-run preview first");
+  }
   if (!bundle.canImport) {
     throw new Error(`Count validation failed: ${bundle.countValidation.errors.join("; ")}`);
   }
   if (opts.confirmToken !== bundle.confirmToken) {
     throw new Error("Confirm token mismatch — re-run preview before final import");
   }
+
+  const school = await prisma.school.findUnique({
+    where: { id: opts.schoolId },
+    select: { name: true },
+  });
+  if (!school) throw new Error("School not found");
+  assertDaSilvaFinalImportAllowed(bundle, school.name);
 
   const manifest: DaSilvaImportManifest = {
     projectId: opts.projectId,
@@ -821,6 +803,26 @@ export async function commitDaSilvaMigration(opts: {
     ledgerEntries.push(entry);
     manifest.ledgerEntryIds.push(entry.id);
   }
+
+  for (const adj of bundle.openingBalance.adjustments) {
+    const learnerId = accountToLearnerId.get(adj.accountNo) || "";
+    const entry: BillingLedgerEntry = {
+      id: `kidesys-opening-${adj.accountNo}`,
+      schoolId: opts.schoolId,
+      learnerId,
+      accountNo: adj.accountNo,
+      type: adj.entryType,
+      amount: Math.abs(adj.adjustmentAmount),
+      date: adj.date,
+      reference: adj.reference,
+      description: adj.description,
+      source: "kidesys_migration_opening_balance",
+      createdAt: new Date().toISOString(),
+    };
+    ledgerEntries.push(entry);
+    manifest.ledgerEntryIds.push(entry.id);
+  }
+
   upsertSchoolEntries(opts.schoolId, ledgerEntries);
 
   for (const classroomId of manifest.classroomIds) {
@@ -924,6 +926,7 @@ export function buildDaSilvaBundleFromDesktopLayout(
   projectId: string,
   desktopRoot: string
 ): DaSilvaMigrationBundle {
+  const siblingAccounts = discoverSiblingAccountsPath(desktopRoot);
   return buildDaSilvaMigrationBundle({
     schoolId,
     projectId,
@@ -942,6 +945,16 @@ export function buildDaSilvaBundleFromDesktopLayout(
         "account_list_(age_analysis).xls"
       ),
       transactions: path.join(desktopRoot, "01_transaction_list", "transaction_list.xls"),
+      siblingAccounts,
     },
   });
 }
+
+export { splitMergedAccountNames, buildMergedFamilyAccountSet } from "./daSilvaMergedFamily";
+export {
+  KIDESYS_OPENING_BALANCE_LABEL,
+  DA_SILVA_MIGRATION_CUTOVER_DATE,
+  countAgeAnalysisVarianceAfterAdjustments,
+  type DaSilvaOpeningBalancePlan,
+  type DaSilvaOpeningBalanceAdjustment,
+} from "./daSilvaOpeningBalance";

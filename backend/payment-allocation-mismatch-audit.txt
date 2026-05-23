@@ -1,0 +1,57 @@
+=== Payment allocation / cross-account mismatch audit (read-only) ===
+Generated: 2026-05-23T11:46:42.818Z
+Targets: 111 (84 trueBalanceMismatch + 27 possibleDuplicateOrHistoricalCredit)
+
+Pattern counts (accounts may match multiple):
+  unallocatedPaymentPattern: 105
+  crossAccountCreditOnLinked: 0
+  paymentsWithoutInvoiceCoverage: 11
+  negativeLedgerPositiveAge: 12
+  familyLinkedCreditOffset: 0
+  historicalReceiptOrPaymentOnly: 0
+
+Explanation estimates (unallocated / cross-account payment theory):
+  High confidence: 1
+  Medium confidence: 104
+  Low confidence: 0
+  Any explained: 105 (94.6%)
+  High+medium: 105 (94.6%)
+  Unexplained: 6
+  trueBalanceMismatch explained: 79/84
+  possibleDuplicate explained: 26/27
+
+Cross-account stats:
+  accountsWithMisPostedTxns: 0
+  accountsWithSiblingLink: 1
+  accountsWithInboundCrossPayments: 0
+  totalCrossAccountOutbound: 0
+  totalCrossAccountInbound: 0
+
+Top 25 by |variance| — patterns:
+accountNo | reason | variance | patterns | explained
+--------- | ------ | -------- | -------- | ---------
+MOE004    | possibleDupl |    12930 | negativeLedgerPositiveAge,paymentsWithoutInvoiceCoverage,unallocatedPaymentPattern | medium
+TLA001    | trueBalanceM |     8780 | unallocatedPaymentPattern | medium
+NDL008    | possibleDupl |     6915 | negativeLedgerPositiveAge,paymentsWithoutInvoiceCoverage,unallocatedPaymentPattern | medium
+NGA002    | possibleDupl |     6175 | unallocatedPaymentPattern | medium
+NHL001    | possibleDupl |     5500 | negativeLedgerPositiveAge,paymentsWithoutInvoiceCoverage,unallocatedPaymentPattern | medium
+MOL018    | trueBalanceM |     5415 | unallocatedPaymentPattern | medium
+NDL009    | possibleDupl |     5300 | negativeLedgerPositiveAge,paymentsWithoutInvoiceCoverage,unallocatedPaymentPattern | medium
+MON006    | possibleDupl |     5070 | negativeLedgerPositiveAge,paymentsWithoutInvoiceCoverage,unallocatedPaymentPattern | medium
+MOT010    | possibleDupl |     4965 | negativeLedgerPositiveAge,paymentsWithoutInvoiceCoverage,unallocatedPaymentPattern | medium
+MAT020    | possibleDupl |     4950 | negativeLedgerPositiveAge,paymentsWithoutInvoiceCoverage,unallocatedPaymentPattern | medium
+LAN002    | possibleDupl |     4550 | negativeLedgerPositiveAge,paymentsWithoutInvoiceCoverage,unallocatedPaymentPattern | medium
+TSH003    | possibleDupl |     4500 | negativeLedgerPositiveAge,paymentsWithoutInvoiceCoverage,unallocatedPaymentPattern | medium
+MAK014    | possibleDupl |     4465 | negativeLedgerPositiveAge,paymentsWithoutInvoiceCoverage,unallocatedPaymentPattern | medium
+TSH017    | trueBalanceM |     4430 | unallocatedPaymentPattern | medium
+FRE001    | trueBalanceM |     4400 | unallocatedPaymentPattern | medium
+MAT022    | trueBalanceM |     4400 | unallocatedPaymentPattern | medium
+SEI859    | possibleDupl |     4159 | negativeLedgerPositiveAge,unallocatedPaymentPattern | medium
+NAS001    | trueBalanceM |     3895 | unallocatedPaymentPattern | medium
+MAB011    | trueBalanceM |     3760 | unallocatedPaymentPattern | medium
+TLH005    | trueBalanceM |     3600 | unallocatedPaymentPattern | medium
+MPI102    | possibleDupl |     3595 | unallocatedPaymentPattern | medium
+WOL001    | trueBalanceM |     3500 | unallocatedPaymentPattern | medium
+MOL003    | possibleDupl |    -3200 | - | no
+SEP899    | trueBalanceM |     3200 | unallocatedPaymentPattern | medium
+MAB004    | trueBalanceM |     3095 | unallocatedPaymentPattern | medium

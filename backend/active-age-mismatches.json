@@ -1,0 +1,1906 @@
+[
+  {
+    "accountNo": "MOE004",
+    "fullName": "Kgato Fenyang Moeng",
+    "ageAnalysisBalance": 3850,
+    "ledgerBalanceFromImport": -9080,
+    "variance": 12930,
+    "absVariance": 12930,
+    "inAgeAnalysis": true,
+    "activeLearnerCount": 1,
+    "mergedFamilyCandidate": false,
+    "silentSibling": false,
+    "duplicateAccountNos": [
+      "MOE004"
+    ],
+    "section": "Recently Owing",
+    "auditReason": "possibleDuplicateOrHistoricalCredit"
+  },
+  {
+    "accountNo": "TLA001",
+    "fullName": "Neo Kearabilwe Tladi",
+    "ageAnalysisBalance": 10790,
+    "ledgerBalanceFromImport": 2010,
+    "variance": 8780,
+    "absVariance": 8780,
+    "inAgeAnalysis": true,
+    "activeLearnerCount": 1,
+    "mergedFamilyCandidate": false,
+    "silentSibling": false,
+    "duplicateAccountNos": [
+      "TLA001"
+    ],
+    "section": "Bad Debt",
+    "auditReason": "trueBalanceMismatch"
+  },
+  {
+    "accountNo": "NDL008",
+    "fullName": "Amukelani Gift Ndlovu",
+    "ageAnalysisBalance": 4305,
+    "ledgerBalanceFromImport": -2610,
+    "variance": 6915,
+    "absVariance": 6915,
+    "inAgeAnalysis": true,
+    "activeLearnerCount": 1,
+    "mergedFamilyCandidate": false,
+    "silentSibling": false,
+    "duplicateAccountNos": [
+      "NDL008"
+    ],
+    "section": "Recently Owing",
+    "auditReason": "possibleDuplicateOrHistoricalCredit"
+  },
+  {
+    "accountNo": "NGA002",
+    "fullName": "Bonang Mmokwa",
+    "ageAnalysisBalance": 9200,
+    "ledgerBalanceFromImport": 3025,
+    "variance": 6175,
+    "absVariance": 6175,
+    "inAgeAnalysis": true,
+    "activeLearnerCount": 1,
+    "mergedFamilyCandidate": false,
+    "silentSibling": false,
+    "duplicateAccountNos": [
+      "NGA002"
+    ],
+    "section": "Bad Debt",
+    "auditReason": "possibleDuplicateOrHistoricalCredit"
+  },
+  {
+    "accountNo": "NHL001",
+    "fullName": "Rorisang Nhlapo",
+    "ageAnalysisBalance": 3800,
+    "ledgerBalanceFromImport": -1700,
+    "variance": 5500,
+    "absVariance": 5500,
+    "inAgeAnalysis": true,
+    "activeLearnerCount": 1,
+    "mergedFamilyCandidate": false,
+    "silentSibling": false,
+    "duplicateAccountNos": [
+      "NHL001"
+    ],
+    "section": "Recently Owing",
+    "auditReason": "possibleDuplicateOrHistoricalCredit"
+  },
+  {
+    "accountNo": "MOL018",
+    "fullName": "Hailey Molema",
+    "ageAnalysisBalance": 6500,
+    "ledgerBalanceFromImport": 1085,
+    "variance": 5415,
+    "absVariance": 5415,
+    "inAgeAnalysis": true,
+    "activeLearnerCount": 1,
+    "mergedFamilyCandidate": false,
+    "silentSibling": false,
+    "duplicateAccountNos": [
+      "MOL018"
+    ],
+    "section": "Bad Debt",
+    "auditReason": "trueBalanceMismatch"
+  },
+  {
+    "accountNo": "NDL009",
+    "fullName": "Goitseone Ndlovu",
+    "ageAnalysisBalance": 3700,
+    "ledgerBalanceFromImport": -1600,
+    "variance": 5300,
+    "absVariance": 5300,
+    "inAgeAnalysis": true,
+    "activeLearnerCount": 1,
+    "mergedFamilyCandidate": false,
+    "silentSibling": false,
+    "duplicateAccountNos": [
+      "NDL009"
+    ],
+    "section": "Recently Owing",
+    "auditReason": "possibleDuplicateOrHistoricalCredit"
+  },
+  {
+    "accountNo": "MON006",
+    "fullName": "Oboitshepo Monewe",
+    "ageAnalysisBalance": 4400,
+    "ledgerBalanceFromImport": -670,
+    "variance": 5070,
+    "absVariance": 5070,
+    "inAgeAnalysis": true,
+    "activeLearnerCount": 1,
+    "mergedFamilyCandidate": false,
+    "silentSibling": false,
+    "duplicateAccountNos": [
+      "MON006"
+    ],
+    "section": "Recently Owing",
+    "auditReason": "possibleDuplicateOrHistoricalCredit"
+  },
+  {
+    "accountNo": "MOT010",
+    "fullName": "Tokelo Motshwanedi",
+    "ageAnalysisBalance": 3000,
+    "ledgerBalanceFromImport": -1965,
+    "variance": 4965,
+    "absVariance": 4965,
+    "inAgeAnalysis": true,
+    "activeLearnerCount": 1,
+    "mergedFamilyCandidate": false,
+    "silentSibling": false,
+    "duplicateAccountNos": [
+      "MOT010"
+    ],
+    "section": "Recently Owing",
+    "auditReason": "possibleDuplicateOrHistoricalCredit"
+  },
+  {
+    "accountNo": "MAT020",
+    "fullName": "Bokamoso Matima",
+    "ageAnalysisBalance": 4250,
+    "ledgerBalanceFromImport": -700,
+    "variance": 4950,
+    "absVariance": 4950,
+    "inAgeAnalysis": true,
+    "activeLearnerCount": 1,
+    "mergedFamilyCandidate": false,
+    "silentSibling": false,
+    "duplicateAccountNos": [
+      "MAT020"
+    ],
+    "section": "Recently Owing",
+    "auditReason": "possibleDuplicateOrHistoricalCredit"
+  },
+  {
+    "accountNo": "LAN002",
+    "fullName": "Obakeng Langeni",
+    "ageAnalysisBalance": 2920,
+    "ledgerBalanceFromImport": -1630,
+    "variance": 4550,
+    "absVariance": 4550,
+    "inAgeAnalysis": true,
+    "activeLearnerCount": 1,
+    "mergedFamilyCandidate": false,
+    "silentSibling": false,
+    "duplicateAccountNos": [
+      "LAN002"
+    ],
+    "section": "Recently Owing",
+    "auditReason": "possibleDuplicateOrHistoricalCredit"
+  },
+  {
+    "accountNo": "TSH003",
+    "fullName": "Amphe Lily Tsholoba",
+    "ageAnalysisBalance": 3550,
+    "ledgerBalanceFromImport": -950,
+    "variance": 4500,
+    "absVariance": 4500,
+    "inAgeAnalysis": true,
+    "activeLearnerCount": 1,
+    "mergedFamilyCandidate": false,
+    "silentSibling": false,
+    "duplicateAccountNos": [
+      "TSH003"
+    ],
+    "section": "Recently Owing",
+    "auditReason": "possibleDuplicateOrHistoricalCredit"
+  },
+  {
+    "accountNo": "MAK014",
+    "fullName": "Reitumetse Makwakwa",
+    "ageAnalysisBalance": 3950,
+    "ledgerBalanceFromImport": -515,
+    "variance": 4465,
+    "absVariance": 4465,
+    "inAgeAnalysis": true,
+    "activeLearnerCount": 1,
+    "mergedFamilyCandidate": false,
+    "silentSibling": false,
+    "duplicateAccountNos": [
+      "MAK014"
+    ],
+    "section": "Bad Debt",
+    "auditReason": "possibleDuplicateOrHistoricalCredit"
+  },
+  {
+    "accountNo": "TSH017",
+    "fullName": "Onthatile Tshose",
+    "ageAnalysisBalance": 5290,
+    "ledgerBalanceFromImport": 860,
+    "variance": 4430,
+    "absVariance": 4430,
+    "inAgeAnalysis": true,
+    "activeLearnerCount": 1,
+    "mergedFamilyCandidate": false,
+    "silentSibling": false,
+    "duplicateAccountNos": [
+      "TSH017"
+    ],
+    "section": "Recently Owing",
+    "auditReason": "trueBalanceMismatch"
+  },
+  {
+    "accountNo": "FRE001",
+    "fullName": "Oatlegile Frederick",
+    "ageAnalysisBalance": 9500,
+    "ledgerBalanceFromImport": 5100,
+    "variance": 4400,
+    "absVariance": 4400,
+    "inAgeAnalysis": true,
+    "activeLearnerCount": 1,
+    "mergedFamilyCandidate": false,
+    "silentSibling": false,
+    "duplicateAccountNos": [
+      "FRE001"
+    ],
+    "section": "Bad Debt",
+    "auditReason": "trueBalanceMismatch"
+  },
+  {
+    "accountNo": "MAT022",
+    "fullName": "Phemelo Reotshepile Matsheka",
+    "ageAnalysisBalance": 6100,
+    "ledgerBalanceFromImport": 1700,
+    "variance": 4400,
+    "absVariance": 4400,
+    "inAgeAnalysis": true,
+    "activeLearnerCount": 1,
+    "mergedFamilyCandidate": false,
+    "silentSibling": false,
+    "duplicateAccountNos": [
+      "MAT022"
+    ],
+    "section": "Bad Debt",
+    "auditReason": "trueBalanceMismatch"
+  },
+  {
+    "accountNo": "SEI859",
+    "fullName": "Leano Seichokelo",
+    "ageAnalysisBalance": 3800,
+    "ledgerBalanceFromImport": -359,
+    "variance": 4159,
+    "absVariance": 4159,
+    "inAgeAnalysis": true,
+    "activeLearnerCount": 1,
+    "mergedFamilyCandidate": false,
+    "silentSibling": false,
+    "duplicateAccountNos": [
+      "SEI859"
+    ],
+    "section": "Recently Owing",
+    "auditReason": "possibleDuplicateOrHistoricalCredit"
+  },
+  {
+    "accountNo": "NAS001",
+    "fullName": "Samira Nasere",
+    "ageAnalysisBalance": 7800,
+    "ledgerBalanceFromImport": 3905,
+    "variance": 3895,
+    "absVariance": 3895,
+    "inAgeAnalysis": true,
+    "activeLearnerCount": 1,
+    "mergedFamilyCandidate": false,
+    "silentSibling": false,
+    "duplicateAccountNos": [
+      "NAS001"
+    ],
+    "section": "Bad Debt",
+    "auditReason": "trueBalanceMismatch"
+  },
+  {
+    "accountNo": "MAB011",
+    "fullName": "Thandekile Princess Mabuza",
+    "ageAnalysisBalance": 5000,
+    "ledgerBalanceFromImport": 1240,
+    "variance": 3760,
+    "absVariance": 3760,
+    "inAgeAnalysis": true,
+    "activeLearnerCount": 1,
+    "mergedFamilyCandidate": false,
+    "silentSibling": false,
+    "duplicateAccountNos": [
+      "MAB011"
+    ],
+    "section": "Recently Owing",
+    "auditReason": "trueBalanceMismatch"
+  },
+  {
+    "accountNo": "TLH005",
+    "fullName": "Oletilwe Tlhame",
+    "ageAnalysisBalance": 4350,
+    "ledgerBalanceFromImport": 750,
+    "variance": 3600,
+    "absVariance": 3600,
+    "inAgeAnalysis": true,
+    "activeLearnerCount": 1,
+    "mergedFamilyCandidate": false,
+    "silentSibling": false,
+    "duplicateAccountNos": [
+      "TLH005"
+    ],
+    "section": "Recently Owing",
+    "auditReason": "trueBalanceMismatch"
+  },
+  {
+    "accountNo": "MPI102",
+    "fullName": "Neo Lethabo Mpiko",
+    "ageAnalysisBalance": 3800,
+    "ledgerBalanceFromImport": 205,
+    "variance": 3595,
+    "absVariance": 3595,
+    "inAgeAnalysis": true,
+    "activeLearnerCount": 1,
+    "mergedFamilyCandidate": false,
+    "silentSibling": false,
+    "duplicateAccountNos": [
+      "MPI102"
+    ],
+    "section": "Recently Owing",
+    "auditReason": "possibleDuplicateOrHistoricalCredit"
+  },
+  {
+    "accountNo": "WOL001",
+    "fullName": "Elleliyon Wolebo",
+    "ageAnalysisBalance": 7370,
+    "ledgerBalanceFromImport": 3870,
+    "variance": 3500,
+    "absVariance": 3500,
+    "inAgeAnalysis": true,
+    "activeLearnerCount": 1,
+    "mergedFamilyCandidate": false,
+    "silentSibling": false,
+    "duplicateAccountNos": [
+      "WOL001"
+    ],
+    "section": "Bad Debt",
+    "auditReason": "trueBalanceMismatch"
+  },
+  {
+    "accountNo": "MOL003",
+    "fullName": "Molebogeng Maselela",
+    "ageAnalysisBalance": 4710,
+    "ledgerBalanceFromImport": 7910,
+    "variance": -3200,
+    "absVariance": 3200,
+    "inAgeAnalysis": true,
+    "activeLearnerCount": 1,
+    "mergedFamilyCandidate": false,
+    "silentSibling": false,
+    "duplicateAccountNos": [
+      "MOL003"
+    ],
+    "section": "Recently Owing",
+    "auditReason": "possibleDuplicateOrHistoricalCredit"
+  },
+  {
+    "accountNo": "SEP899",
+    "fullName": "Omogolo Sepadile",
+    "ageAnalysisBalance": 3700,
+    "ledgerBalanceFromImport": 500,
+    "variance": 3200,
+    "absVariance": 3200,
+    "inAgeAnalysis": true,
+    "activeLearnerCount": 1,
+    "mergedFamilyCandidate": false,
+    "silentSibling": false,
+    "duplicateAccountNos": [
+      "SEP899"
+    ],
+    "section": "Bad Debt",
+    "auditReason": "trueBalanceMismatch"
+  },
+  {
+    "accountNo": "MAB004",
+    "fullName": "Gosego Mabale",
+    "ageAnalysisBalance": 3700,
+    "ledgerBalanceFromImport": 605,
+    "variance": 3095,
+    "absVariance": 3095,
+    "inAgeAnalysis": true,
+    "activeLearnerCount": 1,
+    "mergedFamilyCandidate": false,
+    "silentSibling": false,
+    "duplicateAccountNos": [
+      "MAB004"
+    ],
+    "section": "Recently Owing",
+    "auditReason": "trueBalanceMismatch"
+  },
+  {
+    "accountNo": "KHU005",
+    "fullName": "Elethu Entle Khunou",
+    "ageAnalysisBalance": 3550,
+    "ledgerBalanceFromImport": 500,
+    "variance": 3050,
+    "absVariance": 3050,
+    "inAgeAnalysis": true,
+    "activeLearnerCount": 1,
+    "mergedFamilyCandidate": false,
+    "silentSibling": false,
+    "duplicateAccountNos": [
+      "KHU005"
+    ],
+    "section": "Recently Owing",
+    "auditReason": "trueBalanceMismatch"
+  },
+  {
+    "accountNo": "GEB002",
+    "fullName": "Benyis Geber",
+    "ageAnalysisBalance": 3700,
+    "ledgerBalanceFromImport": 700,
+    "variance": 3000,
+    "absVariance": 3000,
+    "inAgeAnalysis": true,
+    "activeLearnerCount": 1,
+    "mergedFamilyCandidate": false,
+    "silentSibling": false,
+    "duplicateAccountNos": [
+      "GEB002"
+    ],
+    "section": "Recently Owing",
+    "auditReason": "trueBalanceMismatch"
+  },
+  {
+    "accountNo": "BUY001",
+    "fullName": "Kim Omontle Buys",
+    "ageAnalysisBalance": 2900,
+    "ledgerBalanceFromImport": 150,
+    "variance": 2750,
+    "absVariance": 2750,
+    "inAgeAnalysis": true,
+    "activeLearnerCount": 1,
+    "mergedFamilyCandidate": false,
+    "silentSibling": false,
+    "duplicateAccountNos": [
+      "BUY001"
+    ],
+    "section": "Recently Owing",
+    "auditReason": "trueBalanceMismatch"
+  },
+  {
+    "accountNo": "GAA001",
+    "fullName": "Didintle Nyeko Gaasenwe",
+    "ageAnalysisBalance": 3500,
+    "ledgerBalanceFromImport": 750,
+    "variance": 2750,
+    "absVariance": 2750,
+    "inAgeAnalysis": true,
+    "activeLearnerCount": 1,
+    "mergedFamilyCandidate": false,
+    "silentSibling": false,
+    "duplicateAccountNos": [
+      "GAA001"
+    ],
+    "section": "Recently Owing",
+    "auditReason": "trueBalanceMismatch"
+  },
+  {
+    "accountNo": "KOR001",
+    "fullName": "Dagimawit Korabza",
+    "ageAnalysisBalance": 6860,
+    "ledgerBalanceFromImport": 4110,
+    "variance": 2750,
+    "absVariance": 2750,
+    "inAgeAnalysis": true,
+    "activeLearnerCount": 1,
+    "mergedFamilyCandidate": false,
+    "silentSibling": false,
+    "duplicateAccountNos": [
+      "KOR001"
+    ],
+    "section": "Bad Debt",
+    "auditReason": "trueBalanceMismatch"
+  },
+  {
+    "accountNo": "MOD010",
+    "fullName": "Reatlegile Modibedi",
+    "ageAnalysisBalance": 6200,
+    "ledgerBalanceFromImport": 3450,
+    "variance": 2750,
+    "absVariance": 2750,
+    "inAgeAnalysis": true,
+    "activeLearnerCount": 1,
+    "mergedFamilyCandidate": false,
+    "silentSibling": false,
+    "duplicateAccountNos": [
+      "MOD010"
+    ],
+    "section": "Recently Owing",
+    "auditReason": "trueBalanceMismatch"
+  },
+  {
+    "accountNo": "MOS009",
+    "fullName": "Wandile Mosito",
+    "ageAnalysisBalance": 3700,
+    "ledgerBalanceFromImport": 950,
+    "variance": 2750,
+    "absVariance": 2750,
+    "inAgeAnalysis": true,
+    "activeLearnerCount": 1,
+    "mergedFamilyCandidate": false,
+    "silentSibling": false,
+    "duplicateAccountNos": [
+      "MOS009"
+    ],
+    "section": "Recently Owing",
+    "auditReason": "trueBalanceMismatch"
+  },
+  {
+    "accountNo": "MOT016",
+    "fullName": "Thoriso Mothibedi",
+    "ageAnalysisBalance": 3000,
+    "ledgerBalanceFromImport": 250,
+    "variance": 2750,
+    "absVariance": 2750,
+    "inAgeAnalysis": true,
+    "activeLearnerCount": 1,
+    "mergedFamilyCandidate": false,
+    "silentSibling": false,
+    "duplicateAccountNos": [
+      "MOT016"
+    ],
+    "section": "Recently Owing",
+    "auditReason": "trueBalanceMismatch"
+  },
+  {
+    "accountNo": "MQA001",
+    "fullName": "Shaun Vuyolwethu Mqali",
+    "ageAnalysisBalance": 4700,
+    "ledgerBalanceFromImport": 1950,
+    "variance": 2750,
+    "absVariance": 2750,
+    "inAgeAnalysis": true,
+    "activeLearnerCount": 1,
+    "mergedFamilyCandidate": false,
+    "silentSibling": false,
+    "duplicateAccountNos": [
+      "MQA001"
+    ],
+    "section": "Bad Debt",
+    "auditReason": "possibleDuplicateOrHistoricalCredit"
+  },
+  {
+    "accountNo": "NTS008",
+    "fullName": "Inkosinam Ntshanga",
+    "ageAnalysisBalance": 3950,
+    "ledgerBalanceFromImport": 1200,
+    "variance": 2750,
+    "absVariance": 2750,
+    "inAgeAnalysis": true,
+    "activeLearnerCount": 1,
+    "mergedFamilyCandidate": false,
+    "silentSibling": false,
+    "duplicateAccountNos": [
+      "NTS008"
+    ],
+    "section": "Recently Owing",
+    "auditReason": "trueBalanceMismatch"
+  },
+  {
+    "accountNo": "SEN959",
+    "fullName": "Tshiamo Will Senne",
+    "ageAnalysisBalance": 3000,
+    "ledgerBalanceFromImport": 250,
+    "variance": 2750,
+    "absVariance": 2750,
+    "inAgeAnalysis": true,
+    "activeLearnerCount": 1,
+    "mergedFamilyCandidate": false,
+    "silentSibling": false,
+    "duplicateAccountNos": [
+      "SEN959"
+    ],
+    "section": "Recently Owing",
+    "auditReason": "trueBalanceMismatch"
+  },
+  {
+    "accountNo": "TAK001",
+    "fullName": "Kagiso Unathi Takata",
+    "ageAnalysisBalance": 6800,
+    "ledgerBalanceFromImport": 4050,
+    "variance": 2750,
+    "absVariance": 2750,
+    "inAgeAnalysis": true,
+    "activeLearnerCount": 1,
+    "mergedFamilyCandidate": false,
+    "silentSibling": false,
+    "duplicateAccountNos": [
+      "TAK001"
+    ],
+    "section": "Bad Debt",
+    "auditReason": "trueBalanceMismatch"
+  },
+  {
+    "accountNo": "VUT001",
+    "fullName": "Vutlhari Botake",
+    "ageAnalysisBalance": 3850,
+    "ledgerBalanceFromImport": 1100,
+    "variance": 2750,
+    "absVariance": 2750,
+    "inAgeAnalysis": true,
+    "activeLearnerCount": 1,
+    "mergedFamilyCandidate": false,
+    "silentSibling": false,
+    "duplicateAccountNos": [
+      "VUT001"
+    ],
+    "section": "Recently Owing",
+    "auditReason": "trueBalanceMismatch"
+  },
+  {
+    "accountNo": "THO004",
+    "fullName": "Ofentse Koketso Thompo",
+    "ageAnalysisBalance": 4000,
+    "ledgerBalanceFromImport": 1320,
+    "variance": 2680,
+    "absVariance": 2680,
+    "inAgeAnalysis": true,
+    "activeLearnerCount": 1,
+    "mergedFamilyCandidate": false,
+    "silentSibling": false,
+    "duplicateAccountNos": [
+      "THO004"
+    ],
+    "section": "Recently Owing",
+    "auditReason": "trueBalanceMismatch"
+  },
+  {
+    "accountNo": "SER001",
+    "fullName": "Oletilwe Serutle",
+    "ageAnalysisBalance": 3700,
+    "ledgerBalanceFromImport": 1150,
+    "variance": 2550,
+    "absVariance": 2550,
+    "inAgeAnalysis": true,
+    "activeLearnerCount": 1,
+    "mergedFamilyCandidate": false,
+    "silentSibling": false,
+    "duplicateAccountNos": [
+      "SER001"
+    ],
+    "section": "Bad Debt",
+    "auditReason": "trueBalanceMismatch"
+  },
+  {
+    "accountNo": "KAL001",
+    "fullName": "Bohlokwa Kalosane",
+    "ageAnalysisBalance": 4500,
+    "ledgerBalanceFromImport": 2100,
+    "variance": 2400,
+    "absVariance": 2400,
+    "inAgeAnalysis": true,
+    "activeLearnerCount": 1,
+    "mergedFamilyCandidate": false,
+    "silentSibling": false,
+    "duplicateAccountNos": [
+      "KAL001"
+    ],
+    "section": "Recently Owing",
+    "auditReason": "trueBalanceMismatch"
+  },
+  {
+    "accountNo": "MOL020",
+    "fullName": "Rekgabile Molefe",
+    "ageAnalysisBalance": 3700,
+    "ledgerBalanceFromImport": 1350,
+    "variance": 2350,
+    "absVariance": 2350,
+    "inAgeAnalysis": true,
+    "activeLearnerCount": 1,
+    "mergedFamilyCandidate": false,
+    "silentSibling": false,
+    "duplicateAccountNos": [
+      "MOL020"
+    ],
+    "section": "Recently Owing",
+    "auditReason": "trueBalanceMismatch"
+  },
+  {
+    "accountNo": "MOG013",
+    "fullName": "Chantelle Otlotleng Mogafe",
+    "ageAnalysisBalance": 6800,
+    "ledgerBalanceFromImport": 4550,
+    "variance": 2250,
+    "absVariance": 2250,
+    "inAgeAnalysis": true,
+    "activeLearnerCount": 1,
+    "mergedFamilyCandidate": false,
+    "silentSibling": false,
+    "duplicateAccountNos": [
+      "MOG013"
+    ],
+    "section": "Bad Debt",
+    "auditReason": "trueBalanceMismatch"
+  },
+  {
+    "accountNo": "WIL002",
+    "fullName": "Rishon Kyle Williams",
+    "ageAnalysisBalance": 3150,
+    "ledgerBalanceFromImport": 900,
+    "variance": 2250,
+    "absVariance": 2250,
+    "inAgeAnalysis": true,
+    "activeLearnerCount": 1,
+    "mergedFamilyCandidate": false,
+    "silentSibling": false,
+    "duplicateAccountNos": [
+      "WIL002"
+    ],
+    "section": "Recently Owing",
+    "auditReason": "trueBalanceMismatch"
+  },
+  {
+    "accountNo": "NZI001",
+    "fullName": "Amantle Nzimande",
+    "ageAnalysisBalance": 3700,
+    "ledgerBalanceFromImport": 1470,
+    "variance": 2230,
+    "absVariance": 2230,
+    "inAgeAnalysis": true,
+    "activeLearnerCount": 1,
+    "mergedFamilyCandidate": false,
+    "silentSibling": false,
+    "duplicateAccountNos": [
+      "NZI001"
+    ],
+    "section": "Recently Owing",
+    "auditReason": "trueBalanceMismatch"
+  },
+  {
+    "accountNo": "DIK001",
+    "fullName": "Sinenhlanhla Dikana Iviwe",
+    "ageAnalysisBalance": 4200,
+    "ledgerBalanceFromImport": 2000,
+    "variance": 2200,
+    "absVariance": 2200,
+    "inAgeAnalysis": true,
+    "activeLearnerCount": 1,
+    "mergedFamilyCandidate": false,
+    "silentSibling": false,
+    "duplicateAccountNos": [
+      "DIK001"
+    ],
+    "section": "Recently Owing",
+    "auditReason": "trueBalanceMismatch"
+  },
+  {
+    "accountNo": "GAE002",
+    "fullName": "Reitumetse Gaebone",
+    "ageAnalysisBalance": 4520,
+    "ledgerBalanceFromImport": 2320,
+    "variance": 2200,
+    "absVariance": 2200,
+    "inAgeAnalysis": true,
+    "activeLearnerCount": 1,
+    "mergedFamilyCandidate": false,
+    "silentSibling": false,
+    "duplicateAccountNos": [
+      "GAE002"
+    ],
+    "section": "Recently Owing",
+    "auditReason": "possibleDuplicateOrHistoricalCredit"
+  },
+  {
+    "accountNo": "KGO002",
+    "fullName": "Warona Kgonothi",
+    "ageAnalysisBalance": 3696,
+    "ledgerBalanceFromImport": 1496,
+    "variance": 2200,
+    "absVariance": 2200,
+    "inAgeAnalysis": true,
+    "activeLearnerCount": 1,
+    "mergedFamilyCandidate": false,
+    "silentSibling": false,
+    "duplicateAccountNos": [
+      "KGO002"
+    ],
+    "section": "Bad Debt",
+    "auditReason": "trueBalanceMismatch"
+  },
+  {
+    "accountNo": "KGO003",
+    "fullName": "Refiloe Kgokong",
+    "ageAnalysisBalance": 5000,
+    "ledgerBalanceFromImport": 2800,
+    "variance": 2200,
+    "absVariance": 2200,
+    "inAgeAnalysis": true,
+    "activeLearnerCount": 1,
+    "mergedFamilyCandidate": false,
+    "silentSibling": false,
+    "duplicateAccountNos": [
+      "KGO003"
+    ],
+    "section": "Bad Debt",
+    "auditReason": "possibleDuplicateOrHistoricalCredit"
+  },
+  {
+    "accountNo": "KOB001",
+    "fullName": "Njabulo Kobo",
+    "ageAnalysisBalance": 2350,
+    "ledgerBalanceFromImport": 150,
+    "variance": 2200,
+    "absVariance": 2200,
+    "inAgeAnalysis": true,
+    "activeLearnerCount": 1,
+    "mergedFamilyCandidate": false,
+    "silentSibling": false,
+    "duplicateAccountNos": [
+      "KOB001"
+    ],
+    "section": "Recently Owing",
+    "auditReason": "trueBalanceMismatch"
+  },
+  {
+    "accountNo": "MAK013",
+    "fullName": "Rethabile Roland Makgae",
+    "ageAnalysisBalance": 10750,
+    "ledgerBalanceFromImport": 8550,
+    "variance": 2200,
+    "absVariance": 2200,
+    "inAgeAnalysis": true,
+    "activeLearnerCount": 1,
+    "mergedFamilyCandidate": false,
+    "silentSibling": false,
+    "duplicateAccountNos": [
+      "MAK013"
+    ],
+    "section": "Bad Debt",
+    "auditReason": "trueBalanceMismatch"
+  },
+  {
+    "accountNo": "MAO001",
+    "fullName": "Amohelang Ororiseng Maoba",
+    "ageAnalysisBalance": 3000,
+    "ledgerBalanceFromImport": 800,
+    "variance": 2200,
+    "absVariance": 2200,
+    "inAgeAnalysis": true,
+    "activeLearnerCount": 1,
+    "mergedFamilyCandidate": false,
+    "silentSibling": false,
+    "duplicateAccountNos": [
+      "MAO001"
+    ],
+    "section": "Recently Owing",
+    "auditReason": "trueBalanceMismatch"
+  },
+  {
+    "accountNo": "MAT021",
+    "fullName": "Reatlegile Kaone Matabane",
+    "ageAnalysisBalance": 14850,
+    "ledgerBalanceFromImport": 12650,
+    "variance": 2200,
+    "absVariance": 2200,
+    "inAgeAnalysis": true,
+    "activeLearnerCount": 1,
+    "mergedFamilyCandidate": false,
+    "silentSibling": false,
+    "duplicateAccountNos": [
+      "MAT021"
+    ],
+    "section": "Bad Debt",
+    "auditReason": "trueBalanceMismatch"
+  },
+  {
+    "accountNo": "MOD005",
+    "fullName": "Kgolagano Kekaona Modise",
+    "ageAnalysisBalance": 3950,
+    "ledgerBalanceFromImport": 1750,
+    "variance": 2200,
+    "absVariance": 2200,
+    "inAgeAnalysis": true,
+    "activeLearnerCount": 1,
+    "mergedFamilyCandidate": false,
+    "silentSibling": false,
+    "duplicateAccountNos": [
+      "MOD005"
+    ],
+    "section": "Recently Owing",
+    "auditReason": "trueBalanceMismatch"
+  },
+  {
+    "accountNo": "MOD006",
+    "fullName": "Tswelopele Botshelo Modisane",
+    "ageAnalysisBalance": 3500,
+    "ledgerBalanceFromImport": 1300,
+    "variance": 2200,
+    "absVariance": 2200,
+    "inAgeAnalysis": true,
+    "activeLearnerCount": 1,
+    "mergedFamilyCandidate": false,
+    "silentSibling": false,
+    "duplicateAccountNos": [
+      "MOD006"
+    ],
+    "section": "Recently Owing",
+    "auditReason": "trueBalanceMismatch"
+  },
+  {
+    "accountNo": "MOE003",
+    "fullName": "Owethu Moeng",
+    "ageAnalysisBalance": 6300,
+    "ledgerBalanceFromImport": 4100,
+    "variance": 2200,
+    "absVariance": 2200,
+    "inAgeAnalysis": true,
+    "activeLearnerCount": 1,
+    "mergedFamilyCandidate": false,
+    "silentSibling": false,
+    "duplicateAccountNos": [
+      "MOE003"
+    ],
+    "section": "Bad Debt",
+    "auditReason": "trueBalanceMismatch"
+  },
+  {
+    "accountNo": "MOR008",
+    "fullName": "Keitumetse Morwe",
+    "ageAnalysisBalance": 450,
+    "ledgerBalanceFromImport": -1750,
+    "variance": 2200,
+    "absVariance": 2200,
+    "inAgeAnalysis": true,
+    "activeLearnerCount": 1,
+    "mergedFamilyCandidate": false,
+    "silentSibling": false,
+    "duplicateAccountNos": [
+      "MOR008"
+    ],
+    "section": "Recently Owing",
+    "auditReason": "possibleDuplicateOrHistoricalCredit"
+  },
+  {
+    "accountNo": "MOS008",
+    "fullName": "Bokang Mosegedi",
+    "ageAnalysisBalance": 3200,
+    "ledgerBalanceFromImport": 1000,
+    "variance": 2200,
+    "absVariance": 2200,
+    "inAgeAnalysis": true,
+    "activeLearnerCount": 1,
+    "mergedFamilyCandidate": false,
+    "silentSibling": false,
+    "duplicateAccountNos": [
+      "MOS008"
+    ],
+    "section": "Recently Owing",
+    "auditReason": "trueBalanceMismatch"
+  },
+  {
+    "accountNo": "MOT017",
+    "fullName": "Onkokeditse Motlhajwa",
+    "ageAnalysisBalance": 3700,
+    "ledgerBalanceFromImport": 1500,
+    "variance": 2200,
+    "absVariance": 2200,
+    "inAgeAnalysis": true,
+    "activeLearnerCount": 1,
+    "mergedFamilyCandidate": false,
+    "silentSibling": false,
+    "duplicateAccountNos": [
+      "MOT017"
+    ],
+    "section": "Bad Debt",
+    "auditReason": "trueBalanceMismatch"
+  },
+  {
+    "accountNo": "MOT026",
+    "fullName": "Kamogelo Junior Motlhoki",
+    "ageAnalysisBalance": 11400,
+    "ledgerBalanceFromImport": 9200,
+    "variance": 2200,
+    "absVariance": 2200,
+    "inAgeAnalysis": true,
+    "activeLearnerCount": 1,
+    "mergedFamilyCandidate": false,
+    "silentSibling": false,
+    "duplicateAccountNos": [
+      "MOT026"
+    ],
+    "section": "Bad Debt",
+    "auditReason": "possibleDuplicateOrHistoricalCredit"
+  },
+  {
+    "accountNo": "MPA001",
+    "fullName": "Misokuhle Lathitha Mpangeva",
+    "ageAnalysisBalance": 6800,
+    "ledgerBalanceFromImport": 4600,
+    "variance": 2200,
+    "absVariance": 2200,
+    "inAgeAnalysis": true,
+    "activeLearnerCount": 1,
+    "mergedFamilyCandidate": false,
+    "silentSibling": false,
+    "duplicateAccountNos": [
+      "MPA001"
+    ],
+    "section": "Bad Debt",
+    "auditReason": "trueBalanceMismatch"
+  },
+  {
+    "accountNo": "MPO001",
+    "fullName": "Kabo Mpodi",
+    "ageAnalysisBalance": 3700,
+    "ledgerBalanceFromImport": 1500,
+    "variance": 2200,
+    "absVariance": 2200,
+    "inAgeAnalysis": true,
+    "activeLearnerCount": 1,
+    "mergedFamilyCandidate": false,
+    "silentSibling": false,
+    "duplicateAccountNos": [
+      "MPO001"
+    ],
+    "section": "Recently Owing",
+    "auditReason": "trueBalanceMismatch"
+  },
+  {
+    "accountNo": "MSI003",
+    "fullName": "Somusa Sibani Msimango",
+    "ageAnalysisBalance": 3700,
+    "ledgerBalanceFromImport": 1500,
+    "variance": 2200,
+    "absVariance": 2200,
+    "inAgeAnalysis": true,
+    "activeLearnerCount": 1,
+    "mergedFamilyCandidate": false,
+    "silentSibling": false,
+    "duplicateAccountNos": [
+      "MSI003"
+    ],
+    "section": "Recently Owing",
+    "auditReason": "trueBalanceMismatch"
+  },
+  {
+    "accountNo": "MSI004",
+    "fullName": "Snekosi Msimango",
+    "ageAnalysisBalance": 8300,
+    "ledgerBalanceFromImport": 6100,
+    "variance": 2200,
+    "absVariance": 2200,
+    "inAgeAnalysis": true,
+    "activeLearnerCount": 1,
+    "mergedFamilyCandidate": false,
+    "silentSibling": false,
+    "duplicateAccountNos": [
+      "MSI004"
+    ],
+    "section": "Bad Debt",
+    "auditReason": "trueBalanceMismatch"
+  },
+  {
+    "accountNo": "NKA003",
+    "fullName": "Ngcebo Sindiso Nkabane",
+    "ageAnalysisBalance": 4500,
+    "ledgerBalanceFromImport": 2300,
+    "variance": 2200,
+    "absVariance": 2200,
+    "inAgeAnalysis": true,
+    "activeLearnerCount": 1,
+    "mergedFamilyCandidate": false,
+    "silentSibling": false,
+    "duplicateAccountNos": [
+      "NKA003"
+    ],
+    "section": "Recently Owing",
+    "auditReason": "possibleDuplicateOrHistoricalCredit"
+  },
+  {
+    "accountNo": "NTO003",
+    "fullName": "Phenyo Ntoula",
+    "ageAnalysisBalance": 3200,
+    "ledgerBalanceFromImport": 1000,
+    "variance": 2200,
+    "absVariance": 2200,
+    "inAgeAnalysis": true,
+    "activeLearnerCount": 1,
+    "mergedFamilyCandidate": false,
+    "silentSibling": false,
+    "duplicateAccountNos": [
+      "NTO003"
+    ],
+    "section": "Recently Owing",
+    "auditReason": "trueBalanceMismatch"
+  },
+  {
+    "accountNo": "OSE001",
+    "fullName": "Osego Makgale",
+    "ageAnalysisBalance": 4500,
+    "ledgerBalanceFromImport": 2300,
+    "variance": 2200,
+    "absVariance": 2200,
+    "inAgeAnalysis": true,
+    "activeLearnerCount": 1,
+    "mergedFamilyCandidate": false,
+    "silentSibling": false,
+    "duplicateAccountNos": [
+      "OSE001"
+    ],
+    "section": "Bad Debt",
+    "auditReason": "trueBalanceMismatch"
+  },
+  {
+    "accountNo": "PET002",
+    "fullName": "Obatlilwe Petlale",
+    "ageAnalysisBalance": 8600,
+    "ledgerBalanceFromImport": 6400,
+    "variance": 2200,
+    "absVariance": 2200,
+    "inAgeAnalysis": true,
+    "activeLearnerCount": 1,
+    "mergedFamilyCandidate": false,
+    "silentSibling": false,
+    "duplicateAccountNos": [
+      "PET002"
+    ],
+    "section": "Bad Debt",
+    "auditReason": "trueBalanceMismatch"
+  },
+  {
+    "accountNo": "RAM011",
+    "fullName": "Rethabile Ramalete",
+    "ageAnalysisBalance": 3550,
+    "ledgerBalanceFromImport": 1350,
+    "variance": 2200,
+    "absVariance": 2200,
+    "inAgeAnalysis": true,
+    "activeLearnerCount": 1,
+    "mergedFamilyCandidate": false,
+    "silentSibling": false,
+    "duplicateAccountNos": [
+      "RAM011"
+    ],
+    "section": "Recently Owing",
+    "auditReason": "trueBalanceMismatch"
+  },
+  {
+    "accountNo": "RAM015",
+    "fullName": "Remoneilwe Johanna Mothuloe",
+    "ageAnalysisBalance": 3550,
+    "ledgerBalanceFromImport": 1350,
+    "variance": 2200,
+    "absVariance": 2200,
+    "inAgeAnalysis": true,
+    "activeLearnerCount": 1,
+    "mergedFamilyCandidate": false,
+    "silentSibling": false,
+    "duplicateAccountNos": [
+      "RAM015"
+    ],
+    "section": "Recently Owing",
+    "auditReason": "trueBalanceMismatch"
+  },
+  {
+    "accountNo": "RAN002",
+    "fullName": "Omaatla Tlotlo Ranta",
+    "ageAnalysisBalance": 2800,
+    "ledgerBalanceFromImport": 600,
+    "variance": 2200,
+    "absVariance": 2200,
+    "inAgeAnalysis": true,
+    "activeLearnerCount": 1,
+    "mergedFamilyCandidate": false,
+    "silentSibling": false,
+    "duplicateAccountNos": [
+      "RAN002"
+    ],
+    "section": "Recently Owing",
+    "auditReason": "trueBalanceMismatch"
+  },
+  {
+    "accountNo": "SES001",
+    "fullName": "Osego Seswai",
+    "ageAnalysisBalance": 4200,
+    "ledgerBalanceFromImport": 2000,
+    "variance": 2200,
+    "absVariance": 2200,
+    "inAgeAnalysis": true,
+    "activeLearnerCount": 1,
+    "mergedFamilyCandidate": false,
+    "silentSibling": false,
+    "duplicateAccountNos": [
+      "SES001"
+    ],
+    "section": "Recently Owing",
+    "auditReason": "possibleDuplicateOrHistoricalCredit"
+  },
+  {
+    "accountNo": "TAU003",
+    "fullName": "Unathi Tause",
+    "ageAnalysisBalance": 6300,
+    "ledgerBalanceFromImport": 4100,
+    "variance": 2200,
+    "absVariance": 2200,
+    "inAgeAnalysis": true,
+    "activeLearnerCount": 1,
+    "mergedFamilyCandidate": false,
+    "silentSibling": false,
+    "duplicateAccountNos": [
+      "TAU003"
+    ],
+    "section": "Bad Debt",
+    "auditReason": "trueBalanceMismatch"
+  },
+  {
+    "accountNo": "THA003",
+    "fullName": "Omogolo Thakadu",
+    "ageAnalysisBalance": 3200,
+    "ledgerBalanceFromImport": 1000,
+    "variance": 2200,
+    "absVariance": 2200,
+    "inAgeAnalysis": true,
+    "activeLearnerCount": 1,
+    "mergedFamilyCandidate": false,
+    "silentSibling": false,
+    "duplicateAccountNos": [
+      "THA003"
+    ],
+    "section": "Recently Owing",
+    "auditReason": "trueBalanceMismatch"
+  },
+  {
+    "accountNo": "TLH003",
+    "fullName": "Whisper Oreneile Rethabile Tlhabanelo",
+    "ageAnalysisBalance": 6800,
+    "ledgerBalanceFromImport": 4600,
+    "variance": 2200,
+    "absVariance": 2200,
+    "inAgeAnalysis": true,
+    "activeLearnerCount": 1,
+    "mergedFamilyCandidate": false,
+    "silentSibling": false,
+    "duplicateAccountNos": [
+      "TLH003"
+    ],
+    "section": "Bad Debt",
+    "auditReason": "possibleDuplicateOrHistoricalCredit"
+  },
+  {
+    "accountNo": "XAB001",
+    "fullName": "Paballo Pearl Xaba",
+    "ageAnalysisBalance": 4250,
+    "ledgerBalanceFromImport": 2050,
+    "variance": 2200,
+    "absVariance": 2200,
+    "inAgeAnalysis": true,
+    "activeLearnerCount": 1,
+    "mergedFamilyCandidate": false,
+    "silentSibling": false,
+    "duplicateAccountNos": [
+      "XAB001"
+    ],
+    "section": "Bad Debt",
+    "auditReason": "trueBalanceMismatch"
+  },
+  {
+    "accountNo": "RAM009",
+    "fullName": "Omatla Malesela Ramagogogdi",
+    "ageAnalysisBalance": 4250,
+    "ledgerBalanceFromImport": 2070,
+    "variance": 2180,
+    "absVariance": 2180,
+    "inAgeAnalysis": true,
+    "activeLearnerCount": 1,
+    "mergedFamilyCandidate": false,
+    "silentSibling": false,
+    "duplicateAccountNos": [
+      "RAM009"
+    ],
+    "section": "Recently Owing",
+    "auditReason": "trueBalanceMismatch"
+  },
+  {
+    "accountNo": "CET001",
+    "fullName": "Yonwaba Cetshane",
+    "ageAnalysisBalance": 6250,
+    "ledgerBalanceFromImport": 4090,
+    "variance": 2160,
+    "absVariance": 2160,
+    "inAgeAnalysis": true,
+    "activeLearnerCount": 1,
+    "mergedFamilyCandidate": false,
+    "silentSibling": false,
+    "duplicateAccountNos": [
+      "CET001"
+    ],
+    "section": "Bad Debt",
+    "auditReason": "possibleDuplicateOrHistoricalCredit"
+  },
+  {
+    "accountNo": "MAL006",
+    "fullName": "Reboikantse Omosa Mayana",
+    "ageAnalysisBalance": 5150,
+    "ledgerBalanceFromImport": 3000,
+    "variance": 2150,
+    "absVariance": 2150,
+    "inAgeAnalysis": true,
+    "activeLearnerCount": 1,
+    "mergedFamilyCandidate": false,
+    "silentSibling": false,
+    "duplicateAccountNos": [
+      "MAL006"
+    ],
+    "section": "Recently Owing",
+    "auditReason": "trueBalanceMismatch"
+  },
+  {
+    "accountNo": "MOL044",
+    "fullName": "Omontle Molefe",
+    "ageAnalysisBalance": 3450,
+    "ledgerBalanceFromImport": 5580,
+    "variance": -2130,
+    "absVariance": 2130,
+    "inAgeAnalysis": true,
+    "activeLearnerCount": 1,
+    "mergedFamilyCandidate": false,
+    "silentSibling": false,
+    "duplicateAccountNos": [
+      "MOL044"
+    ],
+    "section": "Recently Owing",
+    "auditReason": "trueBalanceMismatch"
+  },
+  {
+    "accountNo": "MOT007",
+    "fullName": "Bokamoso Menyatswe",
+    "ageAnalysisBalance": 8019.45,
+    "ledgerBalanceFromImport": 5920,
+    "variance": 2099.45,
+    "absVariance": 2099.45,
+    "inAgeAnalysis": true,
+    "activeLearnerCount": 1,
+    "mergedFamilyCandidate": false,
+    "silentSibling": false,
+    "duplicateAccountNos": [
+      "MOT007"
+    ],
+    "section": "Bad Debt",
+    "auditReason": "trueBalanceMismatch"
+  },
+  {
+    "accountNo": "MOK020",
+    "fullName": "Emmanuella Nyakallo Mokoena",
+    "ageAnalysisBalance": 3700,
+    "ledgerBalanceFromImport": 1650,
+    "variance": 2050,
+    "absVariance": 2050,
+    "inAgeAnalysis": true,
+    "activeLearnerCount": 1,
+    "mergedFamilyCandidate": false,
+    "silentSibling": false,
+    "duplicateAccountNos": [
+      "MOK020"
+    ],
+    "section": "Recently Owing",
+    "auditReason": "possibleDuplicateOrHistoricalCredit"
+  },
+  {
+    "accountNo": "TSA001",
+    "fullName": "Omphile Tsame",
+    "ageAnalysisBalance": 3000,
+    "ledgerBalanceFromImport": 950,
+    "variance": 2050,
+    "absVariance": 2050,
+    "inAgeAnalysis": true,
+    "activeLearnerCount": 1,
+    "mergedFamilyCandidate": false,
+    "silentSibling": false,
+    "duplicateAccountNos": [
+      "TSA001"
+    ],
+    "section": "Recently Owing",
+    "auditReason": "trueBalanceMismatch"
+  },
+  {
+    "accountNo": "LER002",
+    "fullName": "Realeboga Leroke",
+    "ageAnalysisBalance": 3450,
+    "ledgerBalanceFromImport": 1450,
+    "variance": 2000,
+    "absVariance": 2000,
+    "inAgeAnalysis": true,
+    "activeLearnerCount": 1,
+    "mergedFamilyCandidate": false,
+    "silentSibling": false,
+    "duplicateAccountNos": [
+      "LER002"
+    ],
+    "section": "Recently Owing",
+    "auditReason": "possibleDuplicateOrHistoricalCredit"
+  },
+  {
+    "accountNo": "MAS021",
+    "fullName": "Kamohelo Masilo",
+    "ageAnalysisBalance": 3700,
+    "ledgerBalanceFromImport": 1700,
+    "variance": 2000,
+    "absVariance": 2000,
+    "inAgeAnalysis": true,
+    "activeLearnerCount": 1,
+    "mergedFamilyCandidate": false,
+    "silentSibling": false,
+    "duplicateAccountNos": [
+      "MAS021"
+    ],
+    "section": "Bad Debt",
+    "auditReason": "trueBalanceMismatch"
+  },
+  {
+    "accountNo": "MOK025",
+    "fullName": "Tshegofatso Remoratile Mokgatlhe",
+    "ageAnalysisBalance": 4900,
+    "ledgerBalanceFromImport": 2900,
+    "variance": 2000,
+    "absVariance": 2000,
+    "inAgeAnalysis": true,
+    "activeLearnerCount": 1,
+    "mergedFamilyCandidate": false,
+    "silentSibling": false,
+    "duplicateAccountNos": [
+      "MOK025"
+    ],
+    "section": "Bad Debt",
+    "auditReason": "trueBalanceMismatch"
+  },
+  {
+    "accountNo": "NKO004",
+    "fullName": "Kabo Kealeboga Nkonyane",
+    "ageAnalysisBalance": 3700,
+    "ledgerBalanceFromImport": 1700,
+    "variance": 2000,
+    "absVariance": 2000,
+    "inAgeAnalysis": true,
+    "activeLearnerCount": 1,
+    "mergedFamilyCandidate": false,
+    "silentSibling": false,
+    "duplicateAccountNos": [
+      "NKO004"
+    ],
+    "section": "Bad Debt",
+    "auditReason": "trueBalanceMismatch"
+  },
+  {
+    "accountNo": "MAP006",
+    "fullName": "Mvuselelo Jasper Maphumulo",
+    "ageAnalysisBalance": 8420,
+    "ledgerBalanceFromImport": 6485,
+    "variance": 1935,
+    "absVariance": 1935,
+    "inAgeAnalysis": true,
+    "activeLearnerCount": 1,
+    "mergedFamilyCandidate": false,
+    "silentSibling": false,
+    "duplicateAccountNos": [
+      "MAP006"
+    ],
+    "section": "Bad Debt",
+    "auditReason": "trueBalanceMismatch"
+  },
+  {
+    "accountNo": "JEC002",
+    "fullName": "Nelisiwe Jeche",
+    "ageAnalysisBalance": 1965,
+    "ledgerBalanceFromImport": 3890,
+    "variance": -1925,
+    "absVariance": 1925,
+    "inAgeAnalysis": true,
+    "activeLearnerCount": 1,
+    "mergedFamilyCandidate": false,
+    "silentSibling": false,
+    "duplicateAccountNos": [
+      "JEC002"
+    ],
+    "section": "Recently Owing",
+    "auditReason": "trueBalanceMismatch"
+  },
+  {
+    "accountNo": "MAT016",
+    "fullName": "Otshepeng Matsietsa",
+    "ageAnalysisBalance": 6400,
+    "ledgerBalanceFromImport": 4500,
+    "variance": 1900,
+    "absVariance": 1900,
+    "inAgeAnalysis": true,
+    "activeLearnerCount": 1,
+    "mergedFamilyCandidate": false,
+    "silentSibling": false,
+    "duplicateAccountNos": [
+      "MAT016"
+    ],
+    "section": "Bad Debt",
+    "auditReason": "trueBalanceMismatch"
+  },
+  {
+    "accountNo": "MKH002",
+    "fullName": "Ntsako Mkhasi",
+    "ageAnalysisBalance": 3700,
+    "ledgerBalanceFromImport": 1800,
+    "variance": 1900,
+    "absVariance": 1900,
+    "inAgeAnalysis": true,
+    "activeLearnerCount": 1,
+    "mergedFamilyCandidate": false,
+    "silentSibling": false,
+    "duplicateAccountNos": [
+      "MKH002"
+    ],
+    "section": "Bad Debt",
+    "auditReason": "trueBalanceMismatch"
+  },
+  {
+    "accountNo": "SIN001",
+    "fullName": "Reneilwe Sindale",
+    "ageAnalysisBalance": 6700,
+    "ledgerBalanceFromImport": 4800,
+    "variance": 1900,
+    "absVariance": 1900,
+    "inAgeAnalysis": true,
+    "activeLearnerCount": 1,
+    "mergedFamilyCandidate": false,
+    "silentSibling": false,
+    "duplicateAccountNos": [
+      "SIN001"
+    ],
+    "section": "Recently Owing",
+    "auditReason": "trueBalanceMismatch"
+  },
+  {
+    "accountNo": "KIN001",
+    "fullName": "Omatla Sensation Kwele",
+    "ageAnalysisBalance": 3200,
+    "ledgerBalanceFromImport": 1500,
+    "variance": 1700,
+    "absVariance": 1700,
+    "inAgeAnalysis": true,
+    "activeLearnerCount": 1,
+    "mergedFamilyCandidate": false,
+    "silentSibling": false,
+    "duplicateAccountNos": [
+      "KIN001"
+    ],
+    "section": "Recently Owing",
+    "auditReason": "trueBalanceMismatch"
+  },
+  {
+    "accountNo": "MAR005",
+    "fullName": "Alunamda Luyamkela Marman",
+    "ageAnalysisBalance": 0,
+    "ledgerBalanceFromImport": 1700,
+    "variance": -1700,
+    "absVariance": 1700,
+    "inAgeAnalysis": true,
+    "activeLearnerCount": 1,
+    "mergedFamilyCandidate": false,
+    "silentSibling": false,
+    "duplicateAccountNos": [
+      "MAR005"
+    ],
+    "section": "Paid Up",
+    "auditReason": "orphanLedgerOnly"
+  },
+  {
+    "accountNo": "MOD004",
+    "fullName": "Tshimologo Modise",
+    "ageAnalysisBalance": 2300,
+    "ledgerBalanceFromImport": 600,
+    "variance": 1700,
+    "absVariance": 1700,
+    "inAgeAnalysis": true,
+    "activeLearnerCount": 1,
+    "mergedFamilyCandidate": false,
+    "silentSibling": false,
+    "duplicateAccountNos": [
+      "MOD004"
+    ],
+    "section": "Recently Owing",
+    "auditReason": "trueBalanceMismatch"
+  },
+  {
+    "accountNo": "PHI003",
+    "fullName": "Ethan Jacobus Phillips",
+    "ageAnalysisBalance": 3000,
+    "ledgerBalanceFromImport": 1300,
+    "variance": 1700,
+    "absVariance": 1700,
+    "inAgeAnalysis": true,
+    "activeLearnerCount": 1,
+    "mergedFamilyCandidate": false,
+    "silentSibling": false,
+    "duplicateAccountNos": [
+      "PHI003"
+    ],
+    "section": "Recently Owing",
+    "auditReason": "trueBalanceMismatch"
+  },
+  {
+    "accountNo": "LEG003",
+    "fullName": "Thato Legari",
+    "ageAnalysisBalance": 4350,
+    "ledgerBalanceFromImport": 2750,
+    "variance": 1600,
+    "absVariance": 1600,
+    "inAgeAnalysis": true,
+    "activeLearnerCount": 1,
+    "mergedFamilyCandidate": false,
+    "silentSibling": false,
+    "duplicateAccountNos": [
+      "LEG003"
+    ],
+    "section": "Recently Owing",
+    "auditReason": "trueBalanceMismatch"
+  },
+  {
+    "accountNo": "MAB008",
+    "fullName": "Tlotlego Mabena",
+    "ageAnalysisBalance": 2500,
+    "ledgerBalanceFromImport": 900,
+    "variance": 1600,
+    "absVariance": 1600,
+    "inAgeAnalysis": true,
+    "activeLearnerCount": 1,
+    "mergedFamilyCandidate": false,
+    "silentSibling": false,
+    "duplicateAccountNos": [
+      "MAB008"
+    ],
+    "section": "Recently Owing",
+    "auditReason": "trueBalanceMismatch"
+  },
+  {
+    "accountNo": "MOK028",
+    "fullName": "Ofentse Mokua",
+    "ageAnalysisBalance": 3550,
+    "ledgerBalanceFromImport": 2100,
+    "variance": 1450,
+    "absVariance": 1450,
+    "inAgeAnalysis": true,
+    "activeLearnerCount": 1,
+    "mergedFamilyCandidate": false,
+    "silentSibling": false,
+    "duplicateAccountNos": [
+      "MOK028"
+    ],
+    "section": "Recently Owing",
+    "auditReason": "trueBalanceMismatch"
+  },
+  {
+    "accountNo": "SEN002",
+    "fullName": "Peoentle Senne",
+    "ageAnalysisBalance": 7150,
+    "ledgerBalanceFromImport": 5715,
+    "variance": 1435,
+    "absVariance": 1435,
+    "inAgeAnalysis": true,
+    "activeLearnerCount": 1,
+    "mergedFamilyCandidate": false,
+    "silentSibling": false,
+    "duplicateAccountNos": [
+      "SEN002"
+    ],
+    "section": "Recently Owing",
+    "auditReason": "trueBalanceMismatch"
+  },
+  {
+    "accountNo": "MAN010",
+    "fullName": "Nhlulo Xihluke Manabe",
+    "ageAnalysisBalance": 7600,
+    "ledgerBalanceFromImport": 8900,
+    "variance": -1300,
+    "absVariance": 1300,
+    "inAgeAnalysis": true,
+    "activeLearnerCount": 1,
+    "mergedFamilyCandidate": false,
+    "silentSibling": false,
+    "duplicateAccountNos": [
+      "MAN010"
+    ],
+    "section": "Bad Debt",
+    "auditReason": "trueBalanceMismatch"
+  },
+  {
+    "accountNo": "LEK003",
+    "fullName": "Phetogo Lekgetho Moruledi",
+    "ageAnalysisBalance": 7200,
+    "ledgerBalanceFromImport": 6145,
+    "variance": 1055,
+    "absVariance": 1055,
+    "inAgeAnalysis": true,
+    "activeLearnerCount": 1,
+    "mergedFamilyCandidate": false,
+    "silentSibling": false,
+    "duplicateAccountNos": [
+      "LEK003"
+    ],
+    "section": "Bad Debt",
+    "auditReason": "trueBalanceMismatch"
+  },
+  {
+    "accountNo": "GOV001",
+    "fullName": "Caleb Nathan Govender",
+    "ageAnalysisBalance": 1000,
+    "ledgerBalanceFromImport": 0,
+    "variance": 1000,
+    "absVariance": 1000,
+    "inAgeAnalysis": true,
+    "activeLearnerCount": 1,
+    "mergedFamilyCandidate": false,
+    "silentSibling": false,
+    "duplicateAccountNos": [
+      "GOV001"
+    ],
+    "section": "Recently Owing",
+    "auditReason": "trueBalanceMismatch"
+  },
+  {
+    "accountNo": "DIA003",
+    "fullName": "Amogelang Warona Diatshwana",
+    "ageAnalysisBalance": 2500,
+    "ledgerBalanceFromImport": 1600,
+    "variance": 900,
+    "absVariance": 900,
+    "inAgeAnalysis": true,
+    "activeLearnerCount": 1,
+    "mergedFamilyCandidate": false,
+    "silentSibling": false,
+    "duplicateAccountNos": [
+      "DIA003"
+    ],
+    "section": "Recently Owing",
+    "auditReason": "trueBalanceMismatch"
+  },
+  {
+    "accountNo": "POO002",
+    "fullName": "Tshenolo Emmanuel Poo",
+    "ageAnalysisBalance": 19350,
+    "ledgerBalanceFromImport": 18550,
+    "variance": 800,
+    "absVariance": 800,
+    "inAgeAnalysis": true,
+    "activeLearnerCount": 1,
+    "mergedFamilyCandidate": false,
+    "silentSibling": false,
+    "duplicateAccountNos": [
+      "POO002"
+    ],
+    "section": "Bad Debt",
+    "auditReason": "possibleDuplicateOrHistoricalCredit"
+  },
+  {
+    "accountNo": "TSH006",
+    "fullName": "Reitumetse Naledi Njabulo Tshiponyane Setae",
+    "ageAnalysisBalance": 2850,
+    "ledgerBalanceFromImport": 2160,
+    "variance": 690,
+    "absVariance": 690,
+    "inAgeAnalysis": true,
+    "activeLearnerCount": 1,
+    "mergedFamilyCandidate": false,
+    "silentSibling": false,
+    "duplicateAccountNos": [
+      "TSH006"
+    ],
+    "section": "Recently Owing",
+    "auditReason": "trueBalanceMismatch"
+  },
+  {
+    "accountNo": "MOL010",
+    "fullName": "Oagile Kabo Molete",
+    "ageAnalysisBalance": 3700,
+    "ledgerBalanceFromImport": 3030,
+    "variance": 670,
+    "absVariance": 670,
+    "inAgeAnalysis": true,
+    "activeLearnerCount": 1,
+    "mergedFamilyCandidate": false,
+    "silentSibling": false,
+    "duplicateAccountNos": [
+      "MOL010"
+    ],
+    "section": "Recently Owing",
+    "auditReason": "trueBalanceMismatch"
+  },
+  {
+    "accountNo": "MAH004",
+    "fullName": "Mayani Daniel Mahango",
+    "ageAnalysisBalance": 3200,
+    "ledgerBalanceFromImport": 3750,
+    "variance": -550,
+    "absVariance": 550,
+    "inAgeAnalysis": true,
+    "activeLearnerCount": 1,
+    "mergedFamilyCandidate": false,
+    "silentSibling": false,
+    "duplicateAccountNos": [
+      "MAH004"
+    ],
+    "section": "Recently Owing",
+    "auditReason": "trueBalanceMismatch"
+  },
+  {
+    "accountNo": "MOK019",
+    "fullName": "Keitumetse Mokgotho",
+    "ageAnalysisBalance": 4500,
+    "ledgerBalanceFromImport": 4150,
+    "variance": 350,
+    "absVariance": 350,
+    "inAgeAnalysis": true,
+    "activeLearnerCount": 1,
+    "mergedFamilyCandidate": false,
+    "silentSibling": false,
+    "duplicateAccountNos": [
+      "MOK019"
+    ],
+    "section": "Recently Owing",
+    "auditReason": "trueBalanceMismatch"
+  },
+  {
+    "accountNo": "RAM010",
+    "fullName": "Keitumetsi Ramasika",
+    "ageAnalysisBalance": 3350,
+    "ledgerBalanceFromImport": 3700,
+    "variance": -350,
+    "absVariance": 350,
+    "inAgeAnalysis": true,
+    "activeLearnerCount": 1,
+    "mergedFamilyCandidate": false,
+    "silentSibling": false,
+    "duplicateAccountNos": [
+      "RAM010"
+    ],
+    "section": "Recently Owing",
+    "auditReason": "trueBalanceMismatch"
+  },
+  {
+    "accountNo": "GAE001",
+    "fullName": "Orateng Gaebolae",
+    "ageAnalysisBalance": 6800,
+    "ledgerBalanceFromImport": 6455,
+    "variance": 345,
+    "absVariance": 345,
+    "inAgeAnalysis": true,
+    "activeLearnerCount": 1,
+    "mergedFamilyCandidate": false,
+    "silentSibling": false,
+    "duplicateAccountNos": [
+      "GAE001"
+    ],
+    "section": "Bad Debt",
+    "auditReason": "trueBalanceMismatch"
+  },
+  {
+    "accountNo": "MOR004",
+    "fullName": "Onthatile Morobane",
+    "ageAnalysisBalance": 7100,
+    "ledgerBalanceFromImport": 7030,
+    "variance": 70,
+    "absVariance": 70,
+    "inAgeAnalysis": true,
+    "activeLearnerCount": 1,
+    "mergedFamilyCandidate": false,
+    "silentSibling": false,
+    "duplicateAccountNos": [
+      "MOR004"
+    ],
+    "section": "Recently Owing",
+    "auditReason": "possibleDuplicateOrHistoricalCredit"
+  }
+]

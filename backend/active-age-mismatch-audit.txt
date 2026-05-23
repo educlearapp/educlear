@@ -1,0 +1,45 @@
+=== Active age-analysis mismatch audit (audit only) ===
+Generated: 2026-05-23T11:33:01.575Z
+Desktop root: /Users/dasilvaacademy/Desktop
+Active mismatches: 112
+
+Reason breakdown:
+  historicalMergedFamily: 0
+  trueBalanceMismatch: 84
+  orphanLedgerOnly: 1
+  possibleDuplicateOrHistoricalCredit: 27
+
+Top 30 by |variance|:
+
+accountNo | auditReason | age | ledger | variance | name
+--------- | ----------- | --- | ------ | -------- | ----
+MOE004    | possibleDuplicateOrHistoricalCredit |     3850 |    -9080 |    12930 | Kgato Fenyang Moeng
+TLA001    | trueBalanceMismatch                 |    10790 |     2010 |     8780 | Neo Kearabilwe Tladi
+NDL008    | possibleDuplicateOrHistoricalCredit |     4305 |    -2610 |     6915 | Amukelani Gift Ndlovu
+NGA002    | possibleDuplicateOrHistoricalCredit |     9200 |     3025 |     6175 | Bonang Mmokwa
+NHL001    | possibleDuplicateOrHistoricalCredit |     3800 |    -1700 |     5500 | Rorisang Nhlapo
+MOL018    | trueBalanceMismatch                 |     6500 |     1085 |     5415 | Hailey Molema
+NDL009    | possibleDuplicateOrHistoricalCredit |     3700 |    -1600 |     5300 | Goitseone Ndlovu
+MON006    | possibleDuplicateOrHistoricalCredit |     4400 |     -670 |     5070 | Oboitshepo Monewe
+MOT010    | possibleDuplicateOrHistoricalCredit |     3000 |    -1965 |     4965 | Tokelo Motshwanedi
+MAT020    | possibleDuplicateOrHistoricalCredit |     4250 |     -700 |     4950 | Bokamoso Matima
+LAN002    | possibleDuplicateOrHistoricalCredit |     2920 |    -1630 |     4550 | Obakeng Langeni
+TSH003    | possibleDuplicateOrHistoricalCredit |     3550 |     -950 |     4500 | Amphe Lily Tsholoba
+MAK014    | possibleDuplicateOrHistoricalCredit |     3950 |     -515 |     4465 | Reitumetse Makwakwa
+TSH017    | trueBalanceMismatch                 |     5290 |      860 |     4430 | Onthatile Tshose
+FRE001    | trueBalanceMismatch                 |     9500 |     5100 |     4400 | Oatlegile Frederick
+MAT022    | trueBalanceMismatch                 |     6100 |     1700 |     4400 | Phemelo Reotshepile Matsheka
+SEI859    | possibleDuplicateOrHistoricalCredit |     3800 |     -359 |     4159 | Leano Seichokelo
+NAS001    | trueBalanceMismatch                 |     7800 |     3905 |     3895 | Samira Nasere
+MAB011    | trueBalanceMismatch                 |     5000 |     1240 |     3760 | Thandekile Princess Mabuza
+TLH005    | trueBalanceMismatch                 |     4350 |      750 |     3600 | Oletilwe Tlhame
+MPI102    | possibleDuplicateOrHistoricalCredit |     3800 |      205 |     3595 | Neo Lethabo Mpiko
+WOL001    | trueBalanceMismatch                 |     7370 |     3870 |     3500 | Elleliyon Wolebo
+MOL003    | possibleDuplicateOrHistoricalCredit |     4710 |     7910 |    -3200 | Molebogeng Maselela
+SEP899    | trueBalanceMismatch                 |     3700 |      500 |     3200 | Omogolo Sepadile
+MAB004    | trueBalanceMismatch                 |     3700 |      605 |     3095 | Gosego Mabale
+KHU005    | trueBalanceMismatch                 |     3550 |      500 |     3050 | Elethu Entle Khunou
+GEB002    | trueBalanceMismatch                 |     3700 |      700 |     3000 | Benyis Geber
+BUY001    | trueBalanceMismatch                 |     2900 |      150 |     2750 | Kim Omontle Buys
+GAA001    | trueBalanceMismatch                 |     3500 |      750 |     2750 | Didintle Nyeko Gaasenwe
+KOR001    | trueBalanceMismatch                 |     6860 |     4110 |     2750 | Dagimawit Korabza

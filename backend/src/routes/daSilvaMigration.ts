@@ -2,6 +2,7 @@ import { Router } from "express";
 import multer from "multer";
 import path from "path";
 import fs from "fs";
+import { DaSilvaFinalImportBlockedError } from "../services/daSilvaMigration/daSilvaFinalImportGate";
 import {
   buildDaSilvaBundleFromDesktopLayout,
   commitDaSilvaMigration,
@@ -129,6 +130,7 @@ router.post(
         confirmToken: bundle.confirmToken,
         countValidation: bundle.countValidation,
         reconciliation: bundle.reconciliation,
+        openingBalance: bundle.openingBalance,
         summary: bundle.reconciliation.totals,
         issues: bundle.countValidation.errors.map((err, i) => ({
           id: `count-${i}`,
@@ -165,6 +167,7 @@ router.get("/staging/:projectId", async (req, res) => {
         confirmToken: bundle.confirmToken,
         countValidation: bundle.countValidation,
         reconciliation: bundle.reconciliation,
+        openingBalance: bundle.openingBalance,
         summary: bundle.reconciliation.totals,
         learnerCount: bundle.learners.length,
         transactionCount: bundle.transactions.length,
@@ -187,6 +190,16 @@ router.post("/import", async (req, res) => {
     const result = await commitDaSilvaMigration({ schoolId, projectId, confirmToken });
     return res.json(result);
   } catch (e: unknown) {
+    if (e instanceof DaSilvaFinalImportBlockedError) {
+      return res.status(403).json({
+        error: e.message,
+        blocked: true,
+        envConfirmed: e.envConfirmed,
+        preImportSummary: e.snapshot,
+        mismatches: e.mismatches,
+        requiredEnv: "CONFIRM_DA_SILVA_FINAL_IMPORT=true",
+      });
+    }
     console.error("daSilva migration import", e);
     const message = e instanceof Error ? e.message : "Import failed";
     return res.status(500).json({ error: message });
@@ -227,6 +240,7 @@ router.post("/preview-local", async (req, res) => {
       confirmToken: bundle.confirmToken,
       countValidation: bundle.countValidation,
       reconciliation: bundle.reconciliation,
+      openingBalance: bundle.openingBalance,
       summary: bundle.reconciliation.totals,
     });
   } catch (e: unknown) {
