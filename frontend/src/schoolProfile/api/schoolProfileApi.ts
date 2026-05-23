@@ -1,5 +1,22 @@
 import { API_URL } from "../../api";
-import type { SchoolProfileRecord } from "../types/schoolProfile";
+import {
+  formToSchoolUpdatePayload,
+  type SchoolProfileFormState,
+  type SchoolProfileRecord,
+} from "../types/schoolProfile";
+
+export type SchoolProfileApiPayload = {
+  name: string;
+  email: string | null;
+  phone: string | null;
+  cellNo: string | null;
+  address: string | null;
+};
+
+/** Maps form state to PUT /api/schools/:id body; always includes cellNo. */
+export function mapToApiPayload(form: SchoolProfileFormState): SchoolProfileApiPayload {
+  return formToSchoolUpdatePayload(form);
+}
 
 function parseJsonBody(text: string): unknown {
   if (!text) return null;
@@ -26,6 +43,7 @@ function recordFromRow(row: Record<string, unknown>, schoolId: string): SchoolPr
     name: String(row.name || ""),
     email: String(row.email || ""),
     phone: String(row.phone || ""),
+    cellNo: String(row.cellNo ?? ""),
     address: String(row.address || ""),
     logoUrl: String(row.logoUrl || ""),
     primaryColor: String(row.primaryColor || ""),
@@ -69,15 +87,23 @@ function errorMessageFromResponse(status: number, data: unknown): string {
 
 export async function saveSchoolProfile(
   schoolId: string,
-  payload: { name: string; email: string | null; phone: string | null; address: string | null }
+  payload: SchoolProfileApiPayload
 ): Promise<SchoolProfileRecord> {
   const id = String(schoolId || "").trim();
   if (!id) throw new Error("No school selected");
 
+  const body: SchoolProfileApiPayload = {
+    name: payload.name,
+    email: payload.email,
+    phone: payload.phone,
+    cellNo: payload.cellNo?.trim() || null,
+    address: payload.address,
+  };
+
   const res = await fetch(`${API_URL}/api/schools/${encodeURIComponent(id)}`, {
     method: "PUT",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(payload),
+    body: JSON.stringify(body),
   });
 
   const text = await res.text();
