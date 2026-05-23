@@ -187,14 +187,56 @@ export function useMigrationCenter() {
       );
     }
 
-    const files = getUploadedFileList();
-    const { headers, rows, fileName } = await readMigrationFiles(files);
-
     let projectId = project?.projectId;
     if (!projectId) {
       const created = await createProject();
       projectId = created.projectId;
     }
+
+    if (migrationSource === "kideesys") {
+      const kideesysFiles = getUploadedFileList().filter((f) =>
+        f.name.toLowerCase().endsWith(".xls")
+      );
+      if (!kideesysFiles.length) {
+        throw new Error(
+          "Upload Kid-e-Sys .xls exports (class lists, contacts, billing, age analysis, transactions, employees)."
+        );
+      }
+
+      const form = new FormData();
+      form.append("schoolId", selectedSchoolId);
+      form.append("source", "kideesys");
+      form.append("projectId", projectId);
+      for (const file of kideesysFiles) {
+        form.append("files", file, file.name);
+      }
+
+      const result = await superAdminApiFetch("/api/super-admin/migration/validate", {
+        method: "POST",
+        body: form,
+      });
+
+      const report = result.report as MigrationValidationReport;
+      const stagedRows = (result.stagedRows || []) as Record<string, string>[];
+      setProject({
+        projectId: result.projectId as string,
+        confirmToken: result.confirmToken as string,
+        report,
+        stagedRows,
+        headers: [],
+      });
+      setFieldMappings(report.mappings || []);
+      setIssues(report.issues || []);
+
+      return {
+        report,
+        fileName: String(result.fileName || `${kideesysFiles.length} Kid-e-Sys export file(s)`),
+        confirmToken: result.confirmToken as string,
+      };
+    }
+
+    const files = getUploadedFileList();
+    const { headers, rows, fileName } = await readMigrationFiles(files);
 
     const result = await superAdminApiFetch("/api/super-admin/migration/validate", {
       method: "POST",
@@ -232,6 +274,9 @@ export function useMigrationCenter() {
   const importStaging = useCallback(async () => {
     if (!project?.report || !project.projectId) {
       throw new Error("Validate files before importing to staging.");
+    }
+    if (!project.report.canImport) {
+      throw new Error("Validation has blocking errors — fix count mismatches before staging.");
     }
     await superAdminApiFetch("/api/super-admin/migration/staging", {
       method: "POST",
