@@ -30,7 +30,10 @@ import {
   buildOpeningBalancePlan,
   type DaSilvaOpeningBalancePlan,
 } from "./daSilvaOpeningBalance";
-import { assertDaSilvaFinalImportAllowed } from "./daSilvaFinalImportGate";
+import {
+  approvedOpeningBalanceAdjustments,
+  assertDaSilvaFinalImportAllowed,
+} from "./daSilvaFinalImportGate";
 import {
   parseAgeAnalysisFile,
   parseBillingPlanFile,
@@ -649,6 +652,7 @@ export async function commitDaSilvaMigration(opts: {
 
   const matchKeyToLearnerId = new Map<string, string>();
   const accountToLearnerId = new Map<string, string>();
+  const accountLearnerSeq = new Map<string, number>();
 
   await prisma.$transaction(async (tx) => {
     for (const classroom of bundle.classrooms) {
@@ -716,6 +720,12 @@ export async function commitDaSilvaMigration(opts: {
       }
 
       const norm = normalizeClassroomInput(row.className);
+      let admissionNo: string | null = null;
+      if (accountNo) {
+        const seq = (accountLearnerSeq.get(accountNo) || 0) + 1;
+        accountLearnerSeq.set(accountNo, seq);
+        admissionNo = seq === 1 ? accountNo : `${accountNo}-${seq}`;
+      }
       const learner = await tx.learner.create({
         data: {
           schoolId: opts.schoolId,
@@ -724,14 +734,16 @@ export async function commitDaSilvaMigration(opts: {
           lastName: row.lastName,
           grade: norm.gradeLabel || row.className.replace(/[A-Za-z]+$/, "").trim(),
           className: row.canonicalClassName,
-          admissionNo: accountNo || null,
+          admissionNo,
           totalFee: row.billingPlanTotal,
           tuitionFee: row.billingPlanTotal,
         },
       });
       manifest.learnerIds.push(learner.id);
       matchKeyToLearnerId.set(row.matchKey, learner.id);
-      if (accountNo) accountToLearnerId.set(accountNo, learner.id);
+      if (accountNo && !accountToLearnerId.has(accountNo)) {
+        accountToLearnerId.set(accountNo, learner.id);
+      }
 
       for (const parent of row.parents) {
         const phone = normalizeSaPhone(parent.cellNo || parent.homeNo || "");
@@ -804,7 +816,7 @@ export async function commitDaSilvaMigration(opts: {
     manifest.ledgerEntryIds.push(entry.id);
   }
 
-  for (const adj of bundle.openingBalance.adjustments) {
+  for (const adj of approvedOpeningBalanceAdjustments(bundle)) {
     const learnerId = accountToLearnerId.get(adj.accountNo) || "";
     const entry: BillingLedgerEntry = {
       id: `kidesys-opening-${adj.accountNo}`,

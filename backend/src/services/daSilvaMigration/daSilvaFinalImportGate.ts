@@ -1,11 +1,20 @@
 import type { DaSilvaMigrationBundle } from "./daSilvaMigrationService";
 import {
+  countAgeAnalysisVarianceAfterAdjustments,
+  type DaSilvaOpeningBalanceAdjustment,
+} from "./daSilvaOpeningBalance";
+import {
   classifyVarianceGroup,
   isMergedFamilyAccount,
   learnersPerAccount,
 } from "./daSilvaVarianceClassification";
 
 export const DA_SILVA_FINAL_IMPORT_ENV = "CONFIRM_DA_SILVA_FINAL_IMPORT";
+
+/** Manual reconciliation in Kid-e-Sys — excluded from opening balance at final import. */
+export const DA_SILVA_OPENING_BALANCE_EXCLUDED_ACCOUNTS = ["MAR005"] as const;
+
+const OPENING_BALANCE_EXCLUDED = new Set<string>(DA_SILVA_OPENING_BALANCE_EXCLUDED_ACCOUNTS);
 
 /** Approved Kid-e-Sys → EduClear snapshot (Da Silva Academy). */
 export const DA_SILVA_FINAL_IMPORT_EXPECTED = {
@@ -14,10 +23,17 @@ export const DA_SILVA_FINAL_IMPORT_EXPECTED = {
   parents: 330,
   classes: 21,
   billingAccounts: 344,
-  openingBalanceAdjustments: 112,
+  /** 112 base plan minus MAR005 manual exclusion. */
+  openingBalanceAdjustments: 111,
   ageAnalysisRemainingVariance: 0,
   mergedFamilyLedgerGaps: 0,
 } as const;
+
+export function approvedOpeningBalanceAdjustments(
+  bundle: DaSilvaMigrationBundle
+): DaSilvaOpeningBalanceAdjustment[] {
+  return bundle.openingBalance.adjustments.filter((a) => !OPENING_BALANCE_EXCLUDED.has(a.accountNo));
+}
 
 export type DaSilvaFinalImportSnapshot = {
   schoolName: string;
@@ -91,16 +107,62 @@ export function buildDaSilvaFinalImportSnapshot(
   bundle: DaSilvaMigrationBundle,
   schoolName: string
 ): DaSilvaFinalImportSnapshot {
+  const freezeAdjustments = approvedOpeningBalanceAdjustments(bundle);
+  const ageAnalysisAccountNos = new Set(bundle.accounts.map((a) => a.accountNo));
+
   return {
     schoolName: schoolName.trim(),
     learners: bundle.learners.length,
     parents: bundle.reconciliation.totals.totalParents,
     classes: bundle.reconciliation.totals.totalClasses,
     billingAccounts: bundle.countValidation.billingAccountsFromAgeAnalysis,
-    openingBalanceAdjustments: bundle.openingBalance.summary.adjustmentCount,
-    ageAnalysisRemainingVariance: bundle.openingBalance.summary.ageAnalysisRemainingVarianceCount,
+    openingBalanceAdjustments: freezeAdjustments.length,
+    ageAnalysisRemainingVariance: countAgeAnalysisVarianceAfterAdjustments(
+      bundle.reconciliation.rows,
+      freezeAdjustments,
+      ageAnalysisAccountNos
+    ),
     mergedFamilyLedgerGaps: countMergedFamilyLedgerGaps(bundle),
   };
+}
+
+export type DaSilvaFinalImportGatePreview = {
+  snapshot: DaSilvaFinalImportSnapshot;
+  mismatches: DaSilvaFinalImportMismatch[];
+  importAllowed: boolean;
+  gateStatus: "PASS" | "FAIL";
+};
+
+/** Preview-only: validates snapshot + import eligibility without env confirmation. */
+export function previewDaSilvaFinalImportGate(
+  bundle: DaSilvaMigrationBundle,
+  schoolName: string
+): DaSilvaFinalImportGatePreview {
+  const snapshot = buildDaSilvaFinalImportSnapshot(bundle, schoolName);
+  const mismatches = findSnapshotMismatches(snapshot);
+  const importAllowed = bundle.canImport && mismatches.length === 0;
+  return {
+    snapshot,
+    mismatches,
+    importAllowed,
+    gateStatus: importAllowed ? "PASS" : "FAIL",
+  };
+}
+
+export function printDaSilvaFinalImportGatePreview(
+  preview: DaSilvaFinalImportGatePreview
+): void {
+  const expected = DA_SILVA_FINAL_IMPORT_EXPECTED.openingBalanceAdjustments;
+  const actual = preview.snapshot.openingBalanceAdjustments;
+  console.log("=== Da Silva final import gate — preview only (no import) ===");
+  console.log(`Expected opening balance count: ${expected}`);
+  console.log(`Actual opening balance count: ${actual}`);
+  console.log(`Gate status: ${preview.gateStatus}`);
+  if (preview.mismatches.length > 0) {
+    for (const m of preview.mismatches) {
+      console.log(`  ${m.field}: expected ${m.expected}, got ${m.actual}`);
+    }
+  }
 }
 
 function findSnapshotMismatches(snapshot: DaSilvaFinalImportSnapshot): DaSilvaFinalImportMismatch[] {
