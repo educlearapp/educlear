@@ -16,7 +16,7 @@ type NavItem = {
 
 const NAV_ITEMS: NavItem[] = [
   { key: "schools", label: "Schools Management", path: "/super-admin/schools", icon: "🏫" },
-  { key: "migration", label: "Migration Center", path: "/super-admin/migration", icon: "🔄" },
+  { key: "migration", label: "Migration Center", path: "/migration", icon: "🔄" },
 ];
 
 export default function SuperAdminDashboard() {
@@ -24,8 +24,12 @@ export default function SuperAdminDashboard() {
   const location = useLocation();
   const superAdmin = isSuperAdmin();
 
-  const activeKey =
-    NAV_ITEMS.find((item) => location.pathname.startsWith(item.path))?.key ?? "schools";
+  const onMigrationRoute =
+    location.pathname === "/migration" || location.pathname.startsWith("/super-admin/migration");
+
+  const activeKey = onMigrationRoute
+    ? "migration"
+    : (NAV_ITEMS.find((item) => location.pathname.startsWith(item.path))?.key ?? "schools");
 
   if (!superAdmin) {
     return <AccessDenied />;
@@ -64,12 +68,16 @@ export default function SuperAdminDashboard() {
 
       <main className="main-content">
         <div className="page-area">
-          <Routes>
-            <Route path="/" element={<Navigate to="schools" replace />} />
-            <Route path="schools" element={<SuperAdminSchoolsPage />} />
-            <Route path="migration" element={<SuperAdminMigrationPage />} />
-            <Route path="*" element={<Navigate to="schools" replace />} />
-          </Routes>
+          {onMigrationRoute ? (
+            <SuperAdminMigrationPage />
+          ) : (
+            <Routes>
+              <Route path="/" element={<Navigate to="schools" replace />} />
+              <Route path="schools" element={<SuperAdminSchoolsPage />} />
+              <Route path="migration" element={<Navigate to="/migration" replace />} />
+              <Route path="*" element={<Navigate to="schools" replace />} />
+            </Routes>
+          )}
         </div>
       </main>
     </div>

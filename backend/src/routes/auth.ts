@@ -6,15 +6,14 @@ import { prisma } from "../prisma";
 import { seedSchoolEmailDefaults } from "../services/schoolEmailService";
 import { permissionsForRole, prismaRoleForAppRole } from "../utils/userPermissions";
 import { setUserAccessMeta } from "../utils/userAccessStore";
+import { isPlatformSuperAdminEmail, normalizeSuperAdminEmail } from "../utils/superAdmin";
 
 const router = Router();
 
 const JWT_SECRET = process.env.JWT_SECRET || "dev_secret_change_me";
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/i;
 
-function normalizeEmail(email: unknown) {
-  return String(email || "").trim().toLowerCase();
-}
+const normalizeEmail = normalizeSuperAdminEmail;
 
 function signAuthToken(payload: {
   userId: string;
@@ -31,15 +30,6 @@ function authLog(message: string, extra?: Record<string, unknown>) {
   } else {
     console.log(`[auth] ${message}`);
   }
-}
-
-function isPlatformSuperAdminEmail(email: string): boolean {
-  const raw = process.env.SUPER_ADMIN_EMAILS || "";
-  const allowed = raw
-    .split(",")
-    .map((entry) => entry.trim().toLowerCase())
-    .filter(Boolean);
-  return allowed.includes(normalizeEmail(email));
 }
 
 router.post("/login", async (req, res) => {

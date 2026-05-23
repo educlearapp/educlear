@@ -6,7 +6,8 @@
   "scripts": {
     "build": "tsc",
     "start": "node dist/index.js",
-    "dev": "tsc && node dist/index.js"
+    "dev": "tsc && node dist/index.js",
+    "seed:super-admin": "tsc && node dist/seedSuperAdmin.js"
   },
   "devDependencies": {
     "@types/bcryptjs": "^2.4.6",

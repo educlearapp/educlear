@@ -6,6 +6,7 @@ import MigrationIssuesTable from "../superAdmin/components/migration/MigrationIs
 import MigrationMappingTable from "../superAdmin/components/migration/MigrationMappingTable";
 import MigrationSchoolSelect from "../superAdmin/components/migration/MigrationSchoolSelect";
 import MigrationSourceSelect from "../superAdmin/components/migration/MigrationSourceSelect";
+import DaSilvaMigrationPanel from "../superAdmin/components/migration/DaSilvaMigrationPanel";
 import MigrationStubModal, { type StubNotice } from "../superAdmin/components/migration/MigrationStubModal";
 import MigrationSummaryCards from "../superAdmin/components/migration/MigrationSummaryCards";
 import { useMigrationCenter } from "../superAdmin/hooks/useMigrationCenter";
@@ -80,6 +81,7 @@ export default function SuperAdminMigrationPage() {
     issues,
     acceptedExtensions,
     project,
+    busy,
     setBusy,
     createProject,
     validateFiles,
@@ -278,8 +280,9 @@ export default function SuperAdminMigrationPage() {
       <header className="sa-migration-header">
         <h1 className="page-title">Migration Center</h1>
         <p className="sa-migration-subtitle">
-          EduClear team migration control center. Import school data from external systems into EduClear.
-          Learner, parent, and class imports only — billing and accounting are excluded from this pass.
+          {migrationSource === "kideesys"
+            ? "Da Silva Academy Kid-e-Sys migration: upload XML exports, run a dry-run reconciliation, then import to staging and the live school when counts match."
+            : "EduClear team migration control center. Import school data from external systems into EduClear. Learner, parent, and class imports only — billing and accounting are excluded from this pass."}
         </p>
         {project?.projectId ? (
           <p className="sa-migration-subtitle sa-migration-project-id">
@@ -311,7 +314,9 @@ export default function SuperAdminMigrationPage() {
             onRemoveFile={removeFile}
             onClearFiles={clearFiles}
           />
-          <MigrationDataCategories selected={selectedCategories} onToggle={toggleCategory} />
+          {migrationSource !== "kideesys" ? (
+            <MigrationDataCategories selected={selectedCategories} onToggle={toggleCategory} />
+          ) : null}
         </div>
 
         <div className="sa-migration-column sa-migration-column--secondary">
@@ -320,6 +325,14 @@ export default function SuperAdminMigrationPage() {
           <MigrationActions onAction={handleAction} />
         </div>
       </div>
+
+      {migrationSource === "kideesys" ? (
+        <DaSilvaMigrationPanel
+          schoolId={selectedSchoolId}
+          disabled={!selectedSchoolId || busy}
+          onNotice={showNotice}
+        />
+      ) : null}
 
       {notice ? <MigrationStubModal notice={notice} onClose={() => setNotice(null)} /> : null}
     </div>

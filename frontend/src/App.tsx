@@ -599,6 +599,15 @@ export default function App() {
         <Route path="/teacher/*" element={<TeacherApp />} />
 
         <Route
+          path="/migration"
+          element={
+            <SuperAdminGate>
+              <SuperAdminDashboard />
+            </SuperAdminGate>
+          }
+        />
+
+        <Route
           path="/super-admin/*"
           element={
             <SuperAdminGate>

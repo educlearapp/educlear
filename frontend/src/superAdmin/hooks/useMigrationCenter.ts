@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { apiFetch, API_URL } from "../../api";
+import { API_URL } from "../../api";
+import { superAdminApiFetch, superAdminAuthHeaders } from "../superAdminApi";
 import type {
   DataCategoryId,
   FieldMappingRow,
@@ -68,7 +69,7 @@ export function useMigrationCenter() {
   useEffect(() => {
     void (async () => {
       try {
-        const schools = (await apiFetch("/api/schools")) as Array<{
+        const schools = (await superAdminApiFetch("/api/schools")) as Array<{
           id: string;
           name: string;
         }>;
@@ -160,7 +161,7 @@ export function useMigrationCenter() {
 
   const createProject = useCallback(async () => {
     if (!selectedSchoolId) throw new Error("Select a target school first.");
-    const data = await apiFetch("/api/super-admin/migration/projects", {
+    const data = await superAdminApiFetch("/api/super-admin/migration/projects", {
       method: "POST",
       body: JSON.stringify({
         schoolId: selectedSchoolId,
@@ -195,7 +196,7 @@ export function useMigrationCenter() {
       projectId = created.projectId;
     }
 
-    const result = await apiFetch("/api/super-admin/migration/validate", {
+    const result = await superAdminApiFetch("/api/super-admin/migration/validate", {
       method: "POST",
       body: JSON.stringify({
         schoolId: selectedSchoolId,
@@ -232,7 +233,7 @@ export function useMigrationCenter() {
     if (!project?.report || !project.projectId) {
       throw new Error("Validate files before importing to staging.");
     }
-    await apiFetch("/api/super-admin/migration/staging", {
+    await superAdminApiFetch("/api/super-admin/migration/staging", {
       method: "POST",
       body: JSON.stringify({
         schoolId: selectedSchoolId,
@@ -250,7 +251,7 @@ export function useMigrationCenter() {
     if (!project?.projectId || !selectedSchoolId) {
       throw new Error("No staged project — validate and import to staging first.");
     }
-    return apiFetch(
+    return superAdminApiFetch(
       `/api/super-admin/migration/staging/${encodeURIComponent(project.projectId)}/preview?schoolId=${encodeURIComponent(selectedSchoolId)}`
     );
   }, [project?.projectId, selectedSchoolId]);
@@ -260,7 +261,7 @@ export function useMigrationCenter() {
       if (!project?.projectId || !project.confirmToken) {
         throw new Error("Run validation and staging before final import.");
       }
-      return apiFetch("/api/super-admin/migration/import", {
+      return superAdminApiFetch("/api/super-admin/migration/import", {
         method: "POST",
         body: JSON.stringify({
           schoolId: selectedSchoolId,
@@ -275,7 +276,7 @@ export function useMigrationCenter() {
 
   const rollbackImport = useCallback(async () => {
     if (!project?.projectId) throw new Error("No project id for rollback.");
-    return apiFetch("/api/super-admin/migration/rollback", {
+    return superAdminApiFetch("/api/super-admin/migration/rollback", {
       method: "POST",
       body: JSON.stringify({
         schoolId: selectedSchoolId,
@@ -286,14 +287,34 @@ export function useMigrationCenter() {
 
   const repairClassrooms = useCallback(async () => {
     if (!selectedSchoolId) throw new Error("Select a target school first.");
-    return apiFetch("/api/super-admin/migration/repair-classrooms", {
+    return superAdminApiFetch("/api/super-admin/migration/repair-classrooms", {
       method: "POST",
       body: JSON.stringify({ schoolId: selectedSchoolId }),
     });
   }, [selectedSchoolId]);
 
-  const downloadTemplate = useCallback(() => {
-    window.open(`${API_URL}/api/super-admin/migration/template`, "_blank");
+  const downloadTemplate = useCallback(async () => {
+    const res = await fetch(`${API_URL}/api/super-admin/migration/template`, {
+      headers: superAdminAuthHeaders(),
+    });
+    if (!res.ok) {
+      const text = await res.text();
+      let message = "Failed to download template";
+      try {
+        const data = text ? JSON.parse(text) : null;
+        if (data?.error) message = String(data.error);
+      } catch {
+        if (text) message = text;
+      }
+      throw new Error(message);
+    }
+    const blob = await res.blob();
+    const url = URL.createObjectURL(blob);
+    const anchor = document.createElement("a");
+    anchor.href = url;
+    anchor.download = "educlear-migration-learners.csv";
+    anchor.click();
+    URL.revokeObjectURL(url);
   }, []);
 
   return {

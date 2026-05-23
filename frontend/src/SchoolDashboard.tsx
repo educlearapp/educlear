@@ -17651,12 +17651,20 @@ return (
                 </div>
 
                 {isSuperAdmin() ? (
-                  <div
-                    className={`submenu-item${location.pathname.startsWith("/super-admin/schools") ? " active" : ""}`}
-                    onClick={() => navigate("/super-admin/schools")}
-                  >
-                    Schools Management
-                  </div>
+                  <>
+                    <div
+                      className={`submenu-item${location.pathname.startsWith("/super-admin/schools") ? " active" : ""}`}
+                      onClick={() => navigate("/super-admin/schools")}
+                    >
+                      Schools Management
+                    </div>
+                    <div
+                      className={`submenu-item${location.pathname.startsWith("/migration") ? " active" : ""}`}
+                      onClick={() => navigate("/migration")}
+                    >
+                      Migration Center
+                    </div>
+                  </>
                 ) : null}
 
                 <div className={`submenu-item ${activePage === "parentPortal" ? "active" : ""}`} onClick={() => go("parentPortal")}>Parent Portal</div>
