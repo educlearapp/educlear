@@ -39,6 +39,7 @@ import classroomsRoutes from "./routes/classrooms";
 import teacherInboxRoutes from "./routes/teacherInbox";
 import teacherAppRoutes from "./routes/teacherApp";
 import migrationRoutes from "./routes/migration";
+import daSilvaMigrationRoutes from "./routes/daSilvaMigration";
 import { prisma } from "./prisma";
 import { bootstrapDevTestSchoolEmail } from "./dev/devTestSchoolEmail";
 
@@ -358,6 +359,7 @@ app.use("/api/classrooms", classroomsRoutes);
 app.use("/api/teacher-inbox", teacherInboxRoutes);
 app.use("/api/teacher-app", teacherAppRoutes);
 app.use("/api/super-admin/migration", migrationRoutes);
+app.use("/api/super-admin/migration/da-silva", daSilvaMigrationRoutes);
 app.get("/api/parents", async (_req, res) => {
 
 
