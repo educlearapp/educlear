@@ -1022,23 +1022,16 @@ export async function commitDaSilvaMigration(opts: {
           throw new Error(`Missing staged parent for ${stageKey}`);
         }
 
-        const existingLink = await prisma.parentLearnerLink.findUnique({
+        const link = await prisma.parentLearnerLink.upsert({
           where: { parentId_learnerId: { parentId, learnerId } },
-          select: { id: true },
-        });
-        if (existingLink) {
-          pushUniqueId(manifest.linkIds, existingLink.id);
-          continue;
-        }
-
-        const link = await prisma.parentLearnerLink.create({
-          data: {
+          create: {
             schoolId: opts.schoolId,
             parentId,
             learnerId,
             relation: parent.relation,
             isPrimary: row.parents[0] === parent,
           },
+          update: {},
           select: { id: true },
         });
         pushUniqueId(manifest.linkIds, link.id);
