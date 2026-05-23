@@ -43,6 +43,7 @@ import daSilvaMigrationRoutes from "./routes/daSilvaMigration";
 import { requireSuperAdmin } from "./middleware/requireSuperAdmin";
 import { prisma } from "./prisma";
 import { bootstrapDevTestSchoolEmail } from "./dev/devTestSchoolEmail";
+import { ensureSuperAdminOnStartup } from "./services/ensureSuperAdmin";
 
 type OtpRecord = {
 
@@ -886,6 +887,7 @@ app.get("/api/parent-portal/lookup", async (req, res) => {
 });
 const server = app.listen(PORT, () => {
   console.log(`Server running on http://localhost:${PORT}`);
+  void ensureSuperAdminOnStartup();
   void bootstrapDevTestSchoolEmail();
 });
 
