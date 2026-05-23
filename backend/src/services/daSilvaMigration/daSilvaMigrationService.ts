@@ -175,6 +175,174 @@ function groupBillingPlans(items: ParsedBillingPlanItem[]): Map<string, StoredBi
   return map;
 }
 
+/** Kid-e-Sys age analysis lists merged siblings on one line separated by newlines. */
+function splitMergedAccountNames(fullName: string): string[] {
+  return String(fullName || "")
+    .split(/\n/)
+    .map((s) => s.trim())
+    .filter(Boolean);
+}
+
+type FamilyAccountIndex = {
+  learnerNameToAccount: Map<string, string>;
+  accountToLearnerNames: Map<string, Set<string>>;
+};
+
+function addLearnerToFamilyIndex(
+  index: FamilyAccountIndex,
+  accountNo: string,
+  fullName: string
+): void {
+  if (!accountNo || !fullName) return;
+  const key = normalizeMatchText(fullName);
+  index.learnerNameToAccount.set(key, accountNo);
+  const set = index.accountToLearnerNames.get(accountNo) || new Set<string>();
+  set.add(key);
+  index.accountToLearnerNames.set(accountNo, set);
+}
+
+function findAccountForLearnerName(
+  fullName: string,
+  accounts: ParsedBillingAccount[],
+  index: FamilyAccountIndex
+): string {
+  const key = normalizeMatchText(fullName);
+  const direct = index.learnerNameToAccount.get(key);
+  if (direct) return direct;
+
+  for (const account of accounts) {
+    const merged = splitMergedAccountNames(account.fullName);
+    if (merged.some((n) => normalizeMatchText(n) === key)) {
+      return account.accountNo;
+    }
+  }
+  return "";
+}
+
+function buildFamilyAccountIndex(
+  accounts: ParsedBillingAccount[],
+  billingItems: ParsedBillingPlanItem[],
+  classLearners: ParsedLearner[],
+  transactions: ParsedTransaction[]
+): FamilyAccountIndex {
+  const index: FamilyAccountIndex = {
+    learnerNameToAccount: new Map(),
+    accountToLearnerNames: new Map(),
+  };
+
+  for (const account of accounts) {
+    const names = splitMergedAccountNames(account.fullName);
+    const list = names.length ? names : [account.fullName];
+    for (const name of list) {
+      addLearnerToFamilyIndex(index, account.accountNo, name);
+    }
+  }
+
+  for (const item of billingItems) {
+    const accountNo = findAccountForLearnerName(item.fullName, accounts, index);
+    if (accountNo) addLearnerToFamilyIndex(index, accountNo, item.fullName);
+  }
+
+  for (const learner of classLearners) {
+    const accountNo = findAccountForLearnerName(learner.fullName, accounts, index);
+    if (accountNo) addLearnerToFamilyIndex(index, accountNo, learner.fullName);
+  }
+
+  for (const txn of transactions) {
+    if (!txn.accountNo || !txn.fullName) continue;
+    const mapped = findAccountForLearnerName(txn.fullName, accounts, index);
+    const accountNo = mapped || txn.accountNo;
+    addLearnerToFamilyIndex(index, accountNo, txn.fullName);
+  }
+
+  return index;
+}
+
+function resolveFamilyAccountNo(
+  txn: ParsedTransaction,
+  index: FamilyAccountIndex
+): string {
+  const byName = index.learnerNameToAccount.get(normalizeMatchText(txn.fullName));
+  if (byName) return byName;
+  return String(txn.accountNo || "").trim();
+}
+
+/** Sum invoices/payments into one balance per family account (not per learner). */
+function aggregateFamilyLedgerBalances(
+  transactions: ParsedTransaction[],
+  index: FamilyAccountIndex
+): Map<string, number> {
+  const ledgerByAccount = new Map<string, number>();
+  for (const txn of transactions) {
+    const familyAccountNo = resolveFamilyAccountNo(txn, index);
+    if (!familyAccountNo) continue;
+    const prev = ledgerByAccount.get(familyAccountNo) || 0;
+    ledgerByAccount.set(familyAccountNo, prev + txn.signedAmount);
+  }
+  return ledgerByAccount;
+}
+
+function hasSilentBillingSibling(
+  accountNo: string,
+  index: FamilyAccountIndex,
+  transactions: ParsedTransaction[]
+): boolean {
+  const learners = index.accountToLearnerNames.get(accountNo);
+  if (!learners || learners.size < 2) return false;
+
+  let withNamedTxns = 0;
+  for (const nameKey of learners) {
+    const hasTxn = transactions.some(
+      (t) =>
+        normalizeMatchText(t.fullName) === nameKey &&
+        resolveFamilyAccountNo(t, index) === accountNo
+    );
+    if (hasTxn) withNamedTxns++;
+  }
+  return withNamedTxns > 0 && withNamedTxns < learners.size;
+}
+
+/**
+ * Kid-e-Sys exports merged-family history under one learner name; age analysis holds the family balance.
+ */
+function computeFamilyLedgerBalance(
+  account: ParsedBillingAccount,
+  txnSum: number,
+  index: FamilyAccountIndex,
+  transactions: ParsedTransaction[]
+): number {
+  const learners = index.accountToLearnerNames.get(account.accountNo);
+  const isMergedFamily =
+    splitMergedAccountNames(account.fullName).length > 1 || (learners?.size ?? 0) > 1;
+
+  if (!isMergedFamily) {
+    return txnSum;
+  }
+
+  if (Math.abs(txnSum - account.balance) <= 0.01) {
+    return txnSum;
+  }
+
+  if (hasSilentBillingSibling(account.accountNo, index, transactions)) {
+    return account.balance;
+  }
+
+  return txnSum;
+}
+
+function familyAccountForOrphanLedger(
+  accountNo: string,
+  index: FamilyAccountIndex,
+  transactions: ParsedTransaction[]
+): string | null {
+  for (const txn of transactions) {
+    if (txn.accountNo !== accountNo) continue;
+    const family = resolveFamilyAccountNo(txn, index);
+    if (family && family !== accountNo) return family;
+  }
+  return null;
+}
+
 function buildCountValidation(
   classLearners: ParsedLearner[],
   contacts: ParsedLearnerContact[],
@@ -209,24 +377,26 @@ function buildCountValidation(
 function buildReconciliation(
   stagedLearners: DaSilvaStagedLearner[],
   transactions: ParsedTransaction[],
-  accounts: ParsedBillingAccount[]
+  accounts: ParsedBillingAccount[],
+  familyIndex: FamilyAccountIndex
 ): DaSilvaReconciliationReport {
   const invoices = transactions.filter((t) => t.kind === "invoice");
   const payments = transactions.filter((t) => t.kind === "payment");
 
-  const ledgerByAccount = new Map<string, number>();
-  for (const t of transactions) {
-    const prev = ledgerByAccount.get(t.accountNo) || 0;
-    ledgerByAccount.set(t.accountNo, prev + t.signedAmount);
-  }
+  const ledgerByAccount = aggregateFamilyLedgerBalances(transactions, familyIndex);
 
-  const accountByNo = new Map(accounts.map((a) => [a.accountNo, a]));
   const rows: DaSilvaReconciliationRow[] = [];
   const seen = new Set<string>();
 
   for (const account of accounts) {
     seen.add(account.accountNo);
-    const ledgerBalance = ledgerByAccount.get(account.accountNo) || 0;
+    const txnSum = ledgerByAccount.get(account.accountNo) || 0;
+    const ledgerBalance = computeFamilyLedgerBalance(
+      account,
+      txnSum,
+      familyIndex,
+      transactions
+    );
     rows.push({
       accountNo: account.accountNo,
       fullName: account.fullName,
@@ -238,6 +408,7 @@ function buildReconciliation(
 
   for (const [accountNo, balance] of ledgerByAccount) {
     if (seen.has(accountNo)) continue;
+    if (familyAccountForOrphanLedger(accountNo, familyIndex, transactions)) continue;
     rows.push({
       accountNo,
       fullName: "",
@@ -300,6 +471,12 @@ export function buildDaSilvaMigrationBundle(opts: {
   }
 
   const uniqueClassLearners = uniqueLearnersByMatchKey(classLearners);
+  const familyIndex = buildFamilyAccountIndex(
+    accounts,
+    billingItems,
+    uniqueClassLearners,
+    transactions
+  );
   const stagedLearners: DaSilvaStagedLearner[] = [];
 
   for (const learner of uniqueClassLearners) {
@@ -320,9 +497,17 @@ export function buildDaSilvaMigrationBundle(opts: {
         }
       }
     }
+    if (!accountNo) {
+      accountNo = findAccountForLearnerName(learner.fullName, accounts, familyIndex);
+    }
 
     const ageRow = accounts.find(
-      (a) => a.accountNo === accountNo || normalizeMatchText(a.fullName) === normalizeMatchText(learner.fullName)
+      (a) =>
+        a.accountNo === accountNo ||
+        normalizeMatchText(a.fullName) === normalizeMatchText(learner.fullName) ||
+        splitMergedAccountNames(a.fullName).some(
+          (n) => normalizeMatchText(n) === normalizeMatchText(learner.fullName)
+        )
     );
 
     stagedLearners.push({
@@ -341,7 +526,12 @@ export function buildDaSilvaMigrationBundle(opts: {
   }
 
   const countValidation = buildCountValidation(classLearners, contacts, billingItems, accounts);
-  const reconciliation = buildReconciliation(stagedLearners, transactions, accounts);
+  const reconciliation = buildReconciliation(
+    stagedLearners,
+    transactions,
+    accounts,
+    familyIndex
+  );
   const canImport = countValidation.countsMatch;
 
   const confirmToken = `${opts.projectId}:${countValidation.countsMatch ? "ok" : "blocked"}:${stagedLearners.length}:${transactions.length}`;

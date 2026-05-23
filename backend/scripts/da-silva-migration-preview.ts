@@ -22,3 +22,10 @@ if (!bundle.canImport) {
 }
 console.log("\nReconciliation sample (first 5):");
 console.log(JSON.stringify(bundle.reconciliation.rows.slice(0, 5), null, 2));
+const ada004 = bundle.reconciliation.rows.find((r) => r.accountNo === "ADA004");
+if (ada004) {
+  console.log("\nADA004 (merged family):");
+  console.log(JSON.stringify(ada004, null, 2));
+}
+const varianceRows = bundle.reconciliation.rows.filter((r) => Math.abs(r.variance) > 0.01);
+console.log(`\nReconciliation variances: ${varianceRows.length}`);
