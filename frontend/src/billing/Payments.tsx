@@ -1,8 +1,13 @@
 import React, { useMemo, useState } from "react";
 import { formatMoney, normaliseBillingAmount } from "./billingLedger";
+import type { PaymentAccountContext } from "./paymentCreateShared";
 
 type PaymentsProps = {
   statementRows: any[];
+  learners?: any[];
+  selectedAccount?: PaymentAccountContext | null;
+  onSelectAccount?: (account: PaymentAccountContext) => void;
+  onOpenPaymentCreate?: (account?: PaymentAccountContext | null) => void;
   setActivePage: React.Dispatch<React.SetStateAction<any>>;
 };
 

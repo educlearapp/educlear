@@ -23,6 +23,7 @@ import {
   savePaymentAllocations,
   suggestPaymentAllocations,
   type AllocationLine,
+  type PaymentAllocationRow,
 } from "./paymentAllocationApi";
 import {
   dateInputValue,
@@ -32,6 +33,7 @@ import {
   PAYMENT_TYPES,
   type PaymentAccountContext,
   type PaymentFormState,
+  type PaymentType,
 } from "./paymentCreateShared";
 
 const REVERSE_PAYMENT_API_CONNECTED = false;
@@ -165,7 +167,7 @@ export default function PaymentCreateClean({
   });
 
   const updateDraft = (patch: Partial<PaymentFormState>) => {
-    setDraft((prev) => ({ ...prev, ...patch }));
+    setDraft((prev: PaymentFormState) => ({ ...prev, ...patch }));
   };
 
   const [ledgerTick, setLedgerTick] = useState(0);
@@ -297,7 +299,8 @@ export default function PaymentCreateClean({
         });
         const allocatedTotal = roundMoney(
           (res.existingAllocations || []).reduce(
-            (sum, row) => sum + Number(row.allocatedAmount || 0),
+            (sum: number, row: PaymentAllocationRow) =>
+              sum + Number(row.allocatedAmount || 0),
             0
           )
         );
@@ -483,12 +486,9 @@ export default function PaymentCreateClean({
         method: paymentType,
       })) as { payment?: Record<string, unknown> };
       console.log("CREATE PAYMENT RESULT", result);
-      const saved = result?.payment as Record<string, unknown> | undefined;
-      const paymentId = String(saved?.id || `pay-${Date.now()}`).trim();
 
       appendPaymentTransaction({
         schoolId,
-        id: paymentId,
         learnerId: resolvedLearnerId,
         accountNo: resolvedAccountNo,
         amount: paymentAmount,
@@ -496,13 +496,12 @@ export default function PaymentCreateClean({
         reference: paymentType,
         description: draft.description.trim() || "Payment",
         method: paymentType,
-        createdAt: String(saved?.createdAt || new Date().toISOString()),
       });
 
       await syncBillingLedgerFromApi(schoolId);
       notifyBillingUpdated();
       setLedgerTick((v) => v + 1);
-      setDraft((prev) => ({
+      setDraft((prev: PaymentFormState) => ({
         ...prev,
         amount: "",
         description: "Payment",
@@ -633,7 +632,7 @@ export default function PaymentCreateClean({
                     value={draft.type}
                     onChange={(e) => updateDraft({ type: e.target.value })}
                   >
-                    {PAYMENT_TYPES.map((t) => (
+                    {PAYMENT_TYPES.map((t: PaymentType) => (
                       <option key={t} value={t} style={{ color: PAY_FIELD_COLOR }}>
                         {t}
                       </option>

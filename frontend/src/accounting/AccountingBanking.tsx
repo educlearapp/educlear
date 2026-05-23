@@ -5,6 +5,7 @@ import { ACCOUNTING_GOLD, accountingPageWrap, accountingSubtitle, accountingTitl
 type Props = {
   schoolId: string;
   learners: any[];
+  onOpenPaymentCreate?: () => void;
 };
 
 export default function AccountingBanking({ schoolId, learners }: Props) {

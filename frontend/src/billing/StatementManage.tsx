@@ -45,6 +45,7 @@ import {
 type Props = {
   selected: any;
   setActivePage: React.Dispatch<React.SetStateAction<any>>;
+  onOpenPaymentCreate?: () => void;
   onOpenEmailSetup?: () => void;
   statementRows?: any[];
   learners?: any[];
