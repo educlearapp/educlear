@@ -1,5 +1,14 @@
 /** Minimal CSV parser for migration uploads (no external deps). */
 
+import { superAdminApiFetch } from "../superAdminApi";
+
+const LEARNER_FILE_EXTENSIONS = [".csv", ".xls", ".xlsx"];
+
+export function isLearnerMigrationFile(file: File): boolean {
+  const name = file.name.toLowerCase();
+  return LEARNER_FILE_EXTENSIONS.some((ext) => name.endsWith(ext));
+}
+
 export function parseCsvText(text: string): { headers: string[]; rows: Record<string, string>[] } {
   const lines = text
     .replace(/^\uFEFF/, "")
@@ -55,15 +64,36 @@ function splitCsvLine(line: string): string[] {
 export async function readMigrationFiles(
   files: File[]
 ): Promise<{ headers: string[]; rows: Record<string, string>[]; fileName: string }> {
-  const csvFiles = files.filter((f) => f.name.toLowerCase().endsWith(".csv"));
-  if (!csvFiles.length) {
-    throw new Error("Upload at least one CSV file for learner validation (Excel: export as CSV first).");
+  const learnerFiles = files.filter(isLearnerMigrationFile);
+  if (!learnerFiles.length) {
+    throw new Error("Upload at least one learner file (CSV, XLS, or XLSX).");
   }
 
-  const primary = csvFiles[0];
-  const text = await primary.text();
-  const parsed = parseCsvText(text);
-  return { ...parsed, fileName: primary.name };
+  const primary = learnerFiles[0];
+  const lower = primary.name.toLowerCase();
+
+  if (lower.endsWith(".csv")) {
+    const text = await primary.text();
+    const parsed = parseCsvText(text);
+    return { ...parsed, fileName: primary.name };
+  }
+
+  const form = new FormData();
+  form.append("file", primary, primary.name);
+  const data = (await superAdminApiFetch("/api/super-admin/migration/parse-learner-file", {
+    method: "POST",
+    body: form,
+  })) as {
+    headers: string[];
+    rows: Record<string, string>[];
+    fileName?: string;
+  };
+
+  return {
+    headers: data.headers || [],
+    rows: data.rows || [],
+    fileName: data.fileName || primary.name,
+  };
 }
 
 export function formatValidationReportSummary(report: {

@@ -1,4 +1,5 @@
 import { Router } from "express";
+import multer from "multer";
 import {
   buildConfirmToken,
   buildFieldMappings,
@@ -13,8 +14,16 @@ import {
   validateMigrationRows,
   type MigrationLearnerInputRow,
 } from "../services/migrationService";
+import {
+  isAcceptedLearnerMigrationFileName,
+  parseMigrationLearnerFileBuffer,
+} from "../utils/migrationLearnerFileParser";
 
 const router = Router();
+const upload = multer({
+  storage: multer.memoryStorage(),
+  limits: { fileSize: 24 * 1024 * 1024 },
+});
 
 const CORE_CATEGORIES = new Set([
   "learners",
@@ -35,6 +44,35 @@ router.get("/template", (_req, res) => {
     'attachment; filename="educlear-migration-learners.csv"'
   );
   res.send(MIGRATION_CSV_TEMPLATE);
+});
+
+router.post("/parse-learner-file", upload.single("file"), async (req, res) => {
+  try {
+    if (!req.file) {
+      return res.status(400).json({ error: "Learner file required (CSV, XLS, or XLSX)." });
+    }
+    const fileName = String(req.file.originalname || "upload").trim();
+    if (!isAcceptedLearnerMigrationFileName(fileName)) {
+      return res.status(400).json({
+        error: "Learner file must be CSV, XLS, or XLSX.",
+      });
+    }
+
+    const parsed = parseMigrationLearnerFileBuffer(req.file.buffer, fileName);
+    if (!parsed.rows.length) {
+      return res.status(400).json({ error: "No learner rows found in file." });
+    }
+
+    return res.json({
+      success: true,
+      fileName: parsed.fileName,
+      headers: parsed.headers,
+      rows: parsed.rows,
+    });
+  } catch (e: any) {
+    console.error("migration parse-learner-file", e);
+    return res.status(400).json({ error: e?.message || "Failed to parse learner file" });
+  }
 });
 
 router.post("/projects", async (req, res) => {
