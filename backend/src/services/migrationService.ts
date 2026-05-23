@@ -742,20 +742,48 @@ export async function commitMigrationImport(opts: {
         familyAccountId = fa.id;
       }
 
-      const learner = await tx.learner.create({
-        data: {
-          schoolId: opts.schoolId,
-          familyAccountId,
-          firstName: cleanString(row.firstName),
-          lastName: learnerSurname,
-          grade: cleanString(row.grade) || classNorm.gradeLabel || "",
-          className: canonicalClass,
-          idNumber: cleanString(row.idNumber) || null,
-          admissionNo: accountNo || null,
-          birthDate: row.birthDate ? new Date(row.birthDate) : null,
-          gender: cleanString(row.gender) || null,
-        },
-      });
+      const learnerFields = {
+        familyAccountId,
+        firstName: cleanString(row.firstName),
+        lastName: learnerSurname,
+        grade: cleanString(row.grade) || classNorm.gradeLabel || "",
+        className: canonicalClass,
+        idNumber: cleanString(row.idNumber) || null,
+        birthDate: row.birthDate ? new Date(row.birthDate) : null,
+        gender: cleanString(row.gender) || null,
+      };
+
+      let learner;
+      if (accountNo) {
+        const existingLearner = await tx.learner.findFirst({
+          where: { schoolId: opts.schoolId, admissionNo: accountNo },
+          select: { id: true },
+        });
+        if (existingLearner) {
+          learner = await tx.learner.update({
+            where: { id: existingLearner.id },
+            data: learnerFields,
+          });
+          console.log(`updated existing learner admissionNo ${accountNo}`);
+        } else {
+          learner = await tx.learner.create({
+            data: {
+              schoolId: opts.schoolId,
+              admissionNo: accountNo,
+              ...learnerFields,
+            },
+          });
+          console.log(`created learner admissionNo ${accountNo}`);
+        }
+      } else {
+        learner = await tx.learner.create({
+          data: {
+            schoolId: opts.schoolId,
+            admissionNo: null,
+            ...learnerFields,
+          },
+        });
+      }
       manifest.learnerIds.push(learner.id);
 
       const { parentId, created } = await findOrCreateParentInTx(tx, opts.schoolId, row);
