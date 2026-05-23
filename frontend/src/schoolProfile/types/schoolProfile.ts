@@ -3,6 +3,7 @@ export type SchoolProfileRecord = {
   name: string;
   email: string;
   phone: string;
+  cellNo: string;
   address: string;
   logoUrl: string;
   primaryColor: string;
@@ -122,6 +123,7 @@ export function schoolRecordToForm(record: SchoolProfileRecord | null): SchoolPr
     automaticRenew: formatYesNoDisplay(record.automaticRenew),
     automaticBilling: formatYesNoDisplay(record.automaticBilling),
     telNo: record.phone || "",
+    cellNo: record.cellNo || "",
     contactEmail: record.email || "",
     physicalAddress1: physical[0] || "",
     physicalAddress2: physical[1] || "",
@@ -135,6 +137,7 @@ export function formToSchoolUpdatePayload(form: SchoolProfileFormState) {
     name: form.businessName.trim(),
     email: form.registeredEmail.trim() || form.contactEmail.trim() || null,
     phone: form.telNo.trim() || null,
+    cellNo: form.cellNo?.trim() || null,
     address:
       joinAddressLines([
         form.physicalAddress1,

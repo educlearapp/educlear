@@ -1,8 +1,11 @@
 import { useCallback, useEffect, useState, type ChangeEvent } from "react";
-import { fetchSchoolProfile, saveSchoolProfile } from "../schoolProfile/api/schoolProfileApi";
+import {
+  fetchSchoolProfile,
+  mapToApiPayload,
+  saveSchoolProfile,
+} from "../schoolProfile/api/schoolProfileApi";
 import {
   createEmptySchoolProfileForm,
-  formToSchoolUpdatePayload,
   schoolRecordToForm,
   type SchoolProfileFormState,
 } from "../schoolProfile/types/schoolProfile";
@@ -72,7 +75,7 @@ export default function SchoolProfilePage({ go }: Props) {
 
     setSaving(true);
     try {
-      const payload = formToSchoolUpdatePayload(form);
+      const payload = mapToApiPayload(form);
       const updated = await saveSchoolProfile(schoolId, payload);
       const savedGeneral = schoolRecordToForm(updated);
       setForm((prev) => ({
@@ -81,7 +84,6 @@ export default function SchoolProfilePage({ go }: Props) {
         packageUntil: savedGeneral.packageUntil || prev.packageUntil,
         automaticRenew: savedGeneral.automaticRenew || prev.automaticRenew,
         automaticBilling: savedGeneral.automaticBilling || prev.automaticBilling,
-        cellNo: prev.cellNo,
         faxNo: prev.faxNo,
         postalAddress1: prev.postalAddress1,
         postalAddress2: prev.postalAddress2,
