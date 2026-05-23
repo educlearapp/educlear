@@ -83,6 +83,8 @@ export default function SuperAdminMigrationPage() {
     project,
     busy,
     setBusy,
+    validateUploadProgress,
+    validateUploadPhase,
     createProject,
     validateFiles,
     importStaging,
@@ -322,7 +324,12 @@ export default function SuperAdminMigrationPage() {
         <div className="sa-migration-column sa-migration-column--secondary">
           <MigrationMappingTable rows={fieldMappings} hasUploadedFiles={hasUploadedFiles} />
           <MigrationIssuesTable issues={issues} />
-          <MigrationActions onAction={handleAction} />
+          <MigrationActions
+            onAction={handleAction}
+            busy={busy}
+            validateUploadProgress={validateUploadProgress}
+            validateUploadPhase={validateUploadPhase}
+          />
         </div>
       </div>
 

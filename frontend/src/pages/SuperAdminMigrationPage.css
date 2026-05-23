@@ -450,6 +450,40 @@
   background: rgba(212, 175, 55, 0.08);
 }
 
+.sa-migration-btn:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+.sa-migration-upload-status {
+  margin-bottom: 14px;
+  padding: 12px 14px;
+  border-radius: 8px;
+  border: 1px solid rgba(212, 175, 55, 0.35);
+  background: rgba(212, 175, 55, 0.06);
+}
+
+.sa-migration-upload-status-label {
+  margin: 0 0 10px;
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: #8b6b16;
+}
+
+.sa-migration-upload-progress {
+  height: 8px;
+  border-radius: 999px;
+  background: rgba(10, 10, 10, 0.08);
+  overflow: hidden;
+}
+
+.sa-migration-upload-progress-fill {
+  height: 100%;
+  border-radius: 999px;
+  background: linear-gradient(90deg, #c9a227 0%, #d4af37 100%);
+  transition: width 0.2s ease;
+}
+
 /* Modal */
 .sa-migration-modal-overlay {
   position: fixed;

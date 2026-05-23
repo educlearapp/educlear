@@ -30,6 +30,12 @@ const uploadMemory = multer({
 });
 
 const kideesysUploadDir = path.join(process.cwd(), "uploads", "migration-staging", "tmp");
+/** Kid-e-Sys: up to ~21 class lists + 6 export groups; transaction export can exceed 28MB. */
+const KIDEESYS_MAX_FILE_BYTES = 100 * 1024 * 1024;
+const KIDEESYS_MAX_FILES = 40;
+const KIDEESYS_MAX_FIELDS = 32;
+const KIDEESYS_UPLOAD_TIMEOUT_MS = 15 * 60 * 1000;
+
 const uploadDisk = multer({
   storage: multer.diskStorage({
     destination: (_req, _file, cb) => {
@@ -40,7 +46,12 @@ const uploadDisk = multer({
       cb(null, `${Date.now()}-${String(file.originalname || "upload").replace(/[^a-zA-Z0-9._-]/g, "_")}`);
     },
   }),
-  limits: { fileSize: 80 * 1024 * 1024 },
+  limits: {
+    fileSize: KIDEESYS_MAX_FILE_BYTES,
+    files: KIDEESYS_MAX_FILES,
+    fields: KIDEESYS_MAX_FIELDS,
+    parts: KIDEESYS_MAX_FILES + KIDEESYS_MAX_FIELDS,
+  },
 });
 
 const CORE_CATEGORIES = new Set([
@@ -71,10 +82,76 @@ function jsonError(res: Response, status: number, message: string) {
   return res.status(status).json({ error: message });
 }
 
+function isRequestAbortedError(err: unknown): boolean {
+  if (!(err instanceof Error)) return false;
+  const msg = err.message.toLowerCase();
+  return msg === "request aborted" || msg.includes("aborted") || msg.includes("unexpected end");
+}
+
+function logValidateAbort(req: Request, reason: string, extra?: Record<string, unknown>) {
+  console.warn("[migration/validate] request aborted", {
+    reason,
+    schoolId: String(req.body?.schoolId || "").trim() || undefined,
+    projectId: String(req.body?.projectId || "").trim() || undefined,
+    contentLength: req.headers["content-length"],
+    ...extra,
+  });
+}
+
+/** Extend socket timeouts for large Kid-e-Sys multipart uploads. */
+function kideesysValidateUploadGuard(req: Request, res: Response, next: NextFunction) {
+  const startedAt = Date.now();
+  let uploadCompleted = false;
+
+  req.setTimeout(KIDEESYS_UPLOAD_TIMEOUT_MS);
+  res.setTimeout(KIDEESYS_UPLOAD_TIMEOUT_MS);
+  if (req.socket) {
+    req.socket.setTimeout(KIDEESYS_UPLOAD_TIMEOUT_MS);
+    req.socket.setKeepAlive(true, 30000);
+  }
+
+  console.log("[migration/validate] upload started", {
+    schoolId: String(req.body?.schoolId || req.headers["x-migration-school-id"] || "").trim() || undefined,
+    projectId: String(req.body?.projectId || req.headers["x-migration-project-id"] || "").trim() || undefined,
+    contentLength: req.headers["content-length"],
+    contentType: req.headers["content-type"],
+  });
+
+  req.on("aborted", () => {
+    if (uploadCompleted || res.headersSent) return;
+    logValidateAbort(req, "client aborted before upload finished", {
+      elapsedMs: Date.now() - startedAt,
+    });
+  });
+
+  req.on("close", () => {
+    if (uploadCompleted || res.headersSent) return;
+    logValidateAbort(req, "connection closed before response", {
+      elapsedMs: Date.now() - startedAt,
+      destroyed: req.destroyed,
+    });
+  });
+
+  res.on("finish", () => {
+    uploadCompleted = true;
+  });
+
+  (req as Request & { __kideesysUploadGuard?: { markUploadComplete(): void } }).__kideesysUploadGuard = {
+    markUploadComplete() {
+      uploadCompleted = true;
+      console.log("[migration/validate] upload completed", {
+        elapsedMs: Date.now() - startedAt,
+      });
+    },
+  };
+
+  next();
+}
+
 /** Return JSON for multer / payload errors instead of HTML 500 pages. */
 export function migrationErrorHandler(
   err: unknown,
-  _req: Request,
+  req: Request,
   res: Response,
   next: NextFunction
 ) {
@@ -83,8 +160,10 @@ export function migrationErrorHandler(
   if (err instanceof multer.MulterError) {
     const message =
       err.code === "LIMIT_FILE_SIZE"
-        ? "Upload too large. Kid-e-Sys transaction exports can be ~28MB — use Validate Files with all exports attached (multipart), not the learner CSV parser."
-        : err.message || "Upload failed";
+        ? `Upload too large (max ${Math.round(KIDEESYS_MAX_FILE_BYTES / (1024 * 1024))}MB per file). Kid-e-Sys transaction exports can be ~28MB — upload all exports via Validate Files (multipart).`
+        : err.code === "LIMIT_FILE_COUNT"
+          ? `Too many files (max ${KIDEESYS_MAX_FILES}). Upload all Kid-e-Sys exports in one Validate Files pass.`
+          : err.message || "Upload failed";
     return jsonError(res, err.code === "LIMIT_FILE_SIZE" ? 413 : 400, message);
   }
 
@@ -94,6 +173,15 @@ export function migrationErrorHandler(
       res,
       413,
       "Request payload too large. For Kid-e-Sys, upload exports via Validate Files (multipart) instead of sending parsed rows as JSON."
+    );
+  }
+
+  if (isRequestAbortedError(err)) {
+    logValidateAbort(req, err instanceof Error ? err.message : "request aborted");
+    return jsonError(
+      res,
+      408,
+      "Upload interrupted before the server finished receiving files. Keep this tab open until validation completes — do not refresh or navigate away."
     );
   }
 
@@ -164,9 +252,19 @@ router.post(
   "/validate",
   (req, res, next) => {
     if (!isMultipartRequest(req)) return next();
-    uploadDisk.any()(req, res, (err) => {
-      if (err) return migrationErrorHandler(err, req, res, next);
-      next();
+    kideesysValidateUploadGuard(req, res, () => {
+      uploadDisk.any()(req, res, (err) => {
+        const uploaded = collectUploadedFiles(req);
+        console.log("[migration/validate] files received count", {
+          count: uploaded.length,
+          names: uploaded.map((f) => f.originalname || f.filename),
+        });
+        (
+          req as Request & { __kideesysUploadGuard?: { markUploadComplete(): void } }
+        ).__kideesysUploadGuard?.markUploadComplete();
+        if (err) return migrationErrorHandler(err, req, res, next);
+        next();
+      });
     });
   },
   async (req, res) => {
@@ -186,6 +284,12 @@ router.post(
             "Upload Kid-e-Sys .xls exports (class lists, contacts, billing, age analysis, transactions, employees) before validating."
           );
         }
+
+        console.log("[migration/validate] validation started", {
+          schoolId,
+          projectId,
+          fileCount: uploaded.length,
+        });
 
         const result = await validateKideesysMigrationUploads({
           schoolId,

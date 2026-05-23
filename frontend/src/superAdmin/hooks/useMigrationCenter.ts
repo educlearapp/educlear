@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { API_URL } from "../../api";
-import { superAdminApiFetch, superAdminAuthHeaders } from "../superAdminApi";
+import { superAdminApiFetch, superAdminApiUpload, superAdminAuthHeaders } from "../superAdminApi";
 import type {
   DataCategoryId,
   FieldMappingRow,
@@ -63,6 +63,10 @@ export function useMigrationCenter() {
   const [issues, setIssues] = useState<MigrationIssueRow[]>([]);
   const [project, setProject] = useState<MigrationProjectState | null>(null);
   const [busy, setBusy] = useState(false);
+  const [validateUploadProgress, setValidateUploadProgress] = useState<number | null>(null);
+  const [validateUploadPhase, setValidateUploadPhase] = useState<
+    "idle" | "uploading" | "validating"
+  >("idle");
 
   const hasUploadedFiles = uploadedFiles.length > 0;
 
@@ -197,9 +201,10 @@ export function useMigrationCenter() {
     }
 
     if (migrationSource === "kideesys") {
-      const kideesysFiles = getUploadedFileList().filter((f) =>
-        f.name.toLowerCase().endsWith(".xls")
-      );
+      const kideesysFiles = getUploadedFileList().filter((f) => {
+        const name = f.name.toLowerCase();
+        return name.endsWith(".xls") || name.endsWith(".xlsx");
+      });
       if (!kideesysFiles.length) {
         throw new Error(
           "Upload Kid-e-Sys .xls exports (class lists, contacts, billing, age analysis, transactions, employees)."
@@ -214,10 +219,23 @@ export function useMigrationCenter() {
         form.append("files", file, file.name);
       }
 
-      const result = await superAdminApiFetch("/api/super-admin/migration/validate", {
-        method: "POST",
-        body: form,
-      });
+      setValidateUploadPhase("uploading");
+      setValidateUploadProgress(0);
+
+      let result: Record<string, unknown>;
+      try {
+        result = (await superAdminApiUpload(
+          "/api/super-admin/migration/validate",
+          form,
+          (percent) => {
+            setValidateUploadProgress(percent);
+            if (percent >= 100) setValidateUploadPhase("validating");
+          }
+        )) as Record<string, unknown>;
+      } finally {
+        setValidateUploadProgress(null);
+        setValidateUploadPhase("idle");
+      }
 
       const report = result.report as MigrationValidationReport;
       const stagedRows = (result.stagedRows || []) as Record<string, string>[];
@@ -386,6 +404,8 @@ export function useMigrationCenter() {
     project,
     busy,
     setBusy,
+    validateUploadProgress,
+    validateUploadPhase,
     createProject,
     validateFiles,
     importStaging,

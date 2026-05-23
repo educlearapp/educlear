@@ -893,6 +893,11 @@ async function startServer() {
     console.log(`Server running on http://localhost:${PORT}`);
   });
 
+  // Allow large Kid-e-Sys multipart uploads (21 class lists + 6 export groups).
+  server.timeout = 15 * 60 * 1000;
+  server.keepAliveTimeout = 65_000;
+  server.headersTimeout = 66_000;
+
   server.on("error", (err: NodeJS.ErrnoException) => {
     console.error("HTTP server error:", err.message);
     if (err.code === "EADDRINUSE") {
