@@ -192,6 +192,9 @@ export function useMigrationCenter() {
       const created = await createProject();
       projectId = created.projectId;
     }
+    if (!projectId) {
+      throw new Error("Could not create migration project.");
+    }
 
     if (migrationSource === "kideesys") {
       const kideesysFiles = getUploadedFileList().filter((f) =>
