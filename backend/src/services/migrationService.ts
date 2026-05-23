@@ -142,6 +142,26 @@ function ensureDir(dir: string) {
   if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
 }
 
+const MIGRATION_TX_OPTIONS = { maxWait: 30000, timeout: 120000 };
+const MIGRATION_LINK_BATCH_SIZE = 50;
+
+type PendingParentLink = {
+  parentId: string;
+  learnerId: string;
+  relation: string | null;
+  classroomId: string | null;
+  teacherName: string;
+  teacherEmail: string;
+};
+
+function writeImportManifest(manifest: MigrationImportManifest) {
+  ensureDir(path.join(STAGING_ROOT, manifest.schoolId));
+  fs.writeFileSync(
+    manifestPath(manifest.schoolId, manifest.projectId),
+    JSON.stringify(manifest, null, 2)
+  );
+}
+
 function learnerLabel(row: MigrationLearnerInputRow): string {
   return `Row ${row.rowIndex}: ${row.firstName} ${row.lastName}`.trim();
 }
@@ -674,6 +694,8 @@ export async function commitMigrationImport(opts: {
     });
   }
 
+  const pendingLinks: PendingParentLink[] = [];
+
   await prisma.$transaction(async (tx) => {
     for (const row of staging.rows) {
       const classNorm = normalizeClassroomInput(row.className, row.grade);
@@ -791,53 +813,74 @@ export async function commitMigrationImport(opts: {
         if (created && !manifest.parentIds.includes(parentId)) {
           manifest.parentIds.push(parentId);
         }
+        pendingLinks.push({
+          parentId,
+          learnerId: learner.id,
+          relation: cleanString(row.relation) || null,
+          classroomId,
+          teacherName:
+            cleanString(row.teacherName || teacherMeta?.name || "") || "Class Teacher",
+          teacherEmail: normalizeStaffEmail(
+            row.teacherEmail || teacherMeta?.email || ""
+          ),
+        });
+      }
+    }
+  }, MIGRATION_TX_OPTIONS);
+
+  // Persist core records before links — learners survive a link-phase timeout.
+  writeImportManifest(manifest);
+
+  for (let i = 0; i < pendingLinks.length; i += MIGRATION_LINK_BATCH_SIZE) {
+    const batch = pendingLinks.slice(i, i + MIGRATION_LINK_BATCH_SIZE);
+    await prisma.$transaction(async (tx) => {
+      for (const pending of batch) {
         const link = await tx.parentLearnerLink.upsert({
-          where: { parentId_learnerId: { parentId, learnerId: learner.id } },
+          where: {
+            parentId_learnerId: { parentId: pending.parentId, learnerId: pending.learnerId },
+          },
           create: {
             schoolId: opts.schoolId,
-            parentId,
-            learnerId: learner.id,
-            relation: cleanString(row.relation) || null,
+            parentId: pending.parentId,
+            learnerId: pending.learnerId,
+            relation: pending.relation,
             isPrimary: true,
           },
           update: {},
         });
         manifest.linkIds.push(link.id);
 
-        if (classroomId) {
+        if (pending.classroomId) {
           const thread = await tx.parentTeacherThread.upsert({
             where: {
               schoolId_parentId_learnerId: {
                 schoolId: opts.schoolId,
-                parentId,
-                learnerId: learner.id,
+                parentId: pending.parentId,
+                learnerId: pending.learnerId,
               },
             },
             create: {
               schoolId: opts.schoolId,
-              parentId,
-              learnerId: learner.id,
-              classroomId,
-              teacherName:
-                cleanString(row.teacherName || teacherMeta?.name || "") || "Class Teacher",
-              teacherEmail: normalizeStaffEmail(
-                row.teacherEmail || teacherMeta?.email || ""
-              ),
+              parentId: pending.parentId,
+              learnerId: pending.learnerId,
+              classroomId: pending.classroomId,
+              teacherName: pending.teacherName,
+              teacherEmail: pending.teacherEmail,
             },
-            update: { classroomId },
+            update: { classroomId: pending.classroomId },
           });
           manifest.threadIds.push(thread.id);
         }
       }
-    }
-  });
+    }, MIGRATION_TX_OPTIONS);
+    writeImportManifest(manifest);
+  }
 
   for (const classroomId of manifest.classroomIds) {
     await syncParentThreadsForClassroom(opts.schoolId, classroomId);
   }
 
-  ensureDir(path.join(STAGING_ROOT, opts.schoolId));
-  fs.writeFileSync(manifestPath(opts.schoolId, opts.projectId), JSON.stringify(manifest, null, 2));
+  writeImportManifest(manifest);
 
   return {
     success: true,
@@ -900,7 +943,7 @@ export async function rollbackMigrationImport(opts: {
       });
       removed.classrooms = r.count;
     }
-  });
+  }, MIGRATION_TX_OPTIONS);
 
   fs.unlinkSync(file);
   return { success: true, removed };
