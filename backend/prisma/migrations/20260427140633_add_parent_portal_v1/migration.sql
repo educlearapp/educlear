@@ -1,5 +1,5 @@
 -- CreateTable
-CREATE TABLE "ParentUser" (
+CREATE TABLE IF NOT EXISTS "ParentUser" (
     "id" TEXT NOT NULL,
     "parentId" TEXT NOT NULL,
     "email" TEXT NOT NULL,
@@ -10,7 +10,7 @@ CREATE TABLE "ParentUser" (
 );
 
 -- CreateTable
-CREATE TABLE "Homework" (
+CREATE TABLE IF NOT EXISTS "Homework" (
     "id" TEXT NOT NULL,
     "schoolId" TEXT NOT NULL,
     "className" TEXT NOT NULL,
@@ -24,7 +24,7 @@ CREATE TABLE "Homework" (
 );
 
 -- CreateTable
-CREATE TABLE "Notice" (
+CREATE TABLE IF NOT EXISTS "Notice" (
     "id" TEXT NOT NULL,
     "schoolId" TEXT NOT NULL,
     "title" TEXT NOT NULL,
@@ -36,7 +36,7 @@ CREATE TABLE "Notice" (
 );
 
 -- CreateTable
-CREATE TABLE "TuckshopMenu" (
+CREATE TABLE IF NOT EXISTS "TuckshopMenu" (
     "id" TEXT NOT NULL,
     "schoolId" TEXT NOT NULL,
     "date" TIMESTAMP(3) NOT NULL,
@@ -47,7 +47,7 @@ CREATE TABLE "TuckshopMenu" (
 );
 
 -- CreateTable
-CREATE TABLE "MessageThread" (
+CREATE TABLE IF NOT EXISTS "MessageThread" (
     "id" TEXT NOT NULL,
     "schoolId" TEXT NOT NULL,
     "learnerId" TEXT NOT NULL,
@@ -61,7 +61,7 @@ CREATE TABLE "MessageThread" (
 );
 
 -- CreateTable
-CREATE TABLE "MessageReply" (
+CREATE TABLE IF NOT EXISTS "MessageReply" (
     "id" TEXT NOT NULL,
     "threadId" TEXT NOT NULL,
     "senderId" TEXT NOT NULL,
@@ -73,97 +73,133 @@ CREATE TABLE "MessageReply" (
 );
 
 -- CreateIndex
-CREATE UNIQUE INDEX "ParentUser_parentId_key" ON "ParentUser"("parentId");
+CREATE UNIQUE INDEX IF NOT EXISTS "ParentUser_parentId_key" ON "ParentUser"("parentId");
 
 -- CreateIndex
-CREATE UNIQUE INDEX "ParentUser_email_key" ON "ParentUser"("email");
+CREATE UNIQUE INDEX IF NOT EXISTS "ParentUser_email_key" ON "ParentUser"("email");
 
 -- CreateIndex
-CREATE INDEX "ParentUser_parentId_idx" ON "ParentUser"("parentId");
+CREATE INDEX IF NOT EXISTS "ParentUser_parentId_idx" ON "ParentUser"("parentId");
 
 -- CreateIndex
-CREATE INDEX "Homework_schoolId_idx" ON "Homework"("schoolId");
+CREATE INDEX IF NOT EXISTS "Homework_schoolId_idx" ON "Homework"("schoolId");
 
 -- CreateIndex
-CREATE INDEX "Homework_schoolId_className_idx" ON "Homework"("schoolId", "className");
+CREATE INDEX IF NOT EXISTS "Homework_schoolId_className_idx" ON "Homework"("schoolId", "className");
 
 -- CreateIndex
-CREATE INDEX "Homework_dueDate_idx" ON "Homework"("dueDate");
+CREATE INDEX IF NOT EXISTS "Homework_dueDate_idx" ON "Homework"("dueDate");
 
 -- CreateIndex
-CREATE INDEX "Homework_createdAt_idx" ON "Homework"("createdAt");
+CREATE INDEX IF NOT EXISTS "Homework_createdAt_idx" ON "Homework"("createdAt");
 
 -- CreateIndex
-CREATE INDEX "Notice_schoolId_idx" ON "Notice"("schoolId");
+CREATE INDEX IF NOT EXISTS "Notice_schoolId_idx" ON "Notice"("schoolId");
 
 -- CreateIndex
-CREATE INDEX "Notice_date_idx" ON "Notice"("date");
+CREATE INDEX IF NOT EXISTS "Notice_date_idx" ON "Notice"("date");
 
 -- CreateIndex
-CREATE INDEX "Notice_createdAt_idx" ON "Notice"("createdAt");
+CREATE INDEX IF NOT EXISTS "Notice_createdAt_idx" ON "Notice"("createdAt");
 
 -- CreateIndex
-CREATE INDEX "TuckshopMenu_schoolId_idx" ON "TuckshopMenu"("schoolId");
+CREATE INDEX IF NOT EXISTS "TuckshopMenu_schoolId_idx" ON "TuckshopMenu"("schoolId");
 
 -- CreateIndex
-CREATE INDEX "TuckshopMenu_date_idx" ON "TuckshopMenu"("date");
+CREATE INDEX IF NOT EXISTS "TuckshopMenu_date_idx" ON "TuckshopMenu"("date");
 
 -- CreateIndex
-CREATE INDEX "TuckshopMenu_createdAt_idx" ON "TuckshopMenu"("createdAt");
+CREATE INDEX IF NOT EXISTS "TuckshopMenu_createdAt_idx" ON "TuckshopMenu"("createdAt");
 
 -- CreateIndex
-CREATE UNIQUE INDEX "TuckshopMenu_schoolId_date_key" ON "TuckshopMenu"("schoolId", "date");
+CREATE UNIQUE INDEX IF NOT EXISTS "TuckshopMenu_schoolId_date_key" ON "TuckshopMenu"("schoolId", "date");
 
 -- CreateIndex
-CREATE INDEX "MessageThread_schoolId_idx" ON "MessageThread"("schoolId");
+CREATE INDEX IF NOT EXISTS "MessageThread_schoolId_idx" ON "MessageThread"("schoolId");
 
 -- CreateIndex
-CREATE INDEX "MessageThread_parentId_idx" ON "MessageThread"("parentId");
+CREATE INDEX IF NOT EXISTS "MessageThread_parentId_idx" ON "MessageThread"("parentId");
 
 -- CreateIndex
-CREATE INDEX "MessageThread_teacherId_idx" ON "MessageThread"("teacherId");
+CREATE INDEX IF NOT EXISTS "MessageThread_teacherId_idx" ON "MessageThread"("teacherId");
 
 -- CreateIndex
-CREATE INDEX "MessageThread_learnerId_idx" ON "MessageThread"("learnerId");
+CREATE INDEX IF NOT EXISTS "MessageThread_learnerId_idx" ON "MessageThread"("learnerId");
 
 -- CreateIndex
-CREATE INDEX "MessageThread_status_idx" ON "MessageThread"("status");
+CREATE INDEX IF NOT EXISTS "MessageThread_status_idx" ON "MessageThread"("status");
 
 -- CreateIndex
-CREATE INDEX "MessageThread_createdAt_idx" ON "MessageThread"("createdAt");
+CREATE INDEX IF NOT EXISTS "MessageThread_createdAt_idx" ON "MessageThread"("createdAt");
 
 -- CreateIndex
-CREATE INDEX "MessageReply_threadId_idx" ON "MessageReply"("threadId");
+CREATE INDEX IF NOT EXISTS "MessageReply_threadId_idx" ON "MessageReply"("threadId");
 
 -- CreateIndex
-CREATE INDEX "MessageReply_senderId_idx" ON "MessageReply"("senderId");
+CREATE INDEX IF NOT EXISTS "MessageReply_senderId_idx" ON "MessageReply"("senderId");
 
 -- CreateIndex
-CREATE INDEX "MessageReply_createdAt_idx" ON "MessageReply"("createdAt");
+CREATE INDEX IF NOT EXISTS "MessageReply_createdAt_idx" ON "MessageReply"("createdAt");
 
 -- AddForeignKey
-ALTER TABLE "ParentUser" ADD CONSTRAINT "ParentUser_parentId_fkey" FOREIGN KEY ("parentId") REFERENCES "Parent"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+DO $$ BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'ParentUser_parentId_fkey') THEN
+    ALTER TABLE "ParentUser" ADD CONSTRAINT "ParentUser_parentId_fkey" FOREIGN KEY ("parentId") REFERENCES "Parent"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+  END IF;
+END $$;
 
 -- AddForeignKey
-ALTER TABLE "Homework" ADD CONSTRAINT "Homework_schoolId_fkey" FOREIGN KEY ("schoolId") REFERENCES "School"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+DO $$ BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'Homework_schoolId_fkey') THEN
+    ALTER TABLE "Homework" ADD CONSTRAINT "Homework_schoolId_fkey" FOREIGN KEY ("schoolId") REFERENCES "School"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+  END IF;
+END $$;
 
 -- AddForeignKey
-ALTER TABLE "Notice" ADD CONSTRAINT "Notice_schoolId_fkey" FOREIGN KEY ("schoolId") REFERENCES "School"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+DO $$ BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'Notice_schoolId_fkey') THEN
+    ALTER TABLE "Notice" ADD CONSTRAINT "Notice_schoolId_fkey" FOREIGN KEY ("schoolId") REFERENCES "School"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+  END IF;
+END $$;
 
 -- AddForeignKey
-ALTER TABLE "TuckshopMenu" ADD CONSTRAINT "TuckshopMenu_schoolId_fkey" FOREIGN KEY ("schoolId") REFERENCES "School"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+DO $$ BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'TuckshopMenu_schoolId_fkey') THEN
+    ALTER TABLE "TuckshopMenu" ADD CONSTRAINT "TuckshopMenu_schoolId_fkey" FOREIGN KEY ("schoolId") REFERENCES "School"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+  END IF;
+END $$;
 
 -- AddForeignKey
-ALTER TABLE "MessageThread" ADD CONSTRAINT "MessageThread_schoolId_fkey" FOREIGN KEY ("schoolId") REFERENCES "School"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+DO $$ BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'MessageThread_schoolId_fkey') THEN
+    ALTER TABLE "MessageThread" ADD CONSTRAINT "MessageThread_schoolId_fkey" FOREIGN KEY ("schoolId") REFERENCES "School"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+  END IF;
+END $$;
 
 -- AddForeignKey
-ALTER TABLE "MessageThread" ADD CONSTRAINT "MessageThread_learnerId_fkey" FOREIGN KEY ("learnerId") REFERENCES "Learner"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+DO $$ BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'MessageThread_learnerId_fkey') THEN
+    ALTER TABLE "MessageThread" ADD CONSTRAINT "MessageThread_learnerId_fkey" FOREIGN KEY ("learnerId") REFERENCES "Learner"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+  END IF;
+END $$;
 
 -- AddForeignKey
-ALTER TABLE "MessageThread" ADD CONSTRAINT "MessageThread_parentId_fkey" FOREIGN KEY ("parentId") REFERENCES "Parent"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+DO $$ BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'MessageThread_parentId_fkey') THEN
+    ALTER TABLE "MessageThread" ADD CONSTRAINT "MessageThread_parentId_fkey" FOREIGN KEY ("parentId") REFERENCES "Parent"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+  END IF;
+END $$;
 
 -- AddForeignKey
-ALTER TABLE "MessageThread" ADD CONSTRAINT "MessageThread_teacherId_fkey" FOREIGN KEY ("teacherId") REFERENCES "User"("id") ON DELETE SET NULL ON UPDATE CASCADE;
+DO $$ BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'MessageThread_teacherId_fkey') THEN
+    ALTER TABLE "MessageThread" ADD CONSTRAINT "MessageThread_teacherId_fkey" FOREIGN KEY ("teacherId") REFERENCES "User"("id") ON DELETE SET NULL ON UPDATE CASCADE;
+  END IF;
+END $$;
 
 -- AddForeignKey
-ALTER TABLE "MessageReply" ADD CONSTRAINT "MessageReply_threadId_fkey" FOREIGN KEY ("threadId") REFERENCES "MessageThread"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+DO $$ BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'MessageReply_threadId_fkey') THEN
+    ALTER TABLE "MessageReply" ADD CONSTRAINT "MessageReply_threadId_fkey" FOREIGN KEY ("threadId") REFERENCES "MessageThread"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+  END IF;
+END $$;

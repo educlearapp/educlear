@@ -1,23 +1,51 @@
 -- CreateEnum
-CREATE TYPE "ParentMessageSenderType" AS ENUM ('PARENT', 'TEACHER', 'ADMIN');
+DO $$ BEGIN
+  CREATE TYPE "ParentMessageSenderType" AS ENUM ('PARENT', 'TEACHER', 'ADMIN');
+EXCEPTION
+  WHEN duplicate_object THEN NULL;
+END $$;
 
 -- CreateEnum
-CREATE TYPE "ParentNotificationType" AS ENUM ('INVOICE_READY', 'STATEMENT_READY', 'TEACHER_MESSAGE', 'INCIDENT', 'HOMEWORK', 'ASSESSMENT', 'EXAM', 'SCHOOL_NOTICE', 'DOCUMENT', 'ONBOARDING');
+DO $$ BEGIN
+  CREATE TYPE "ParentNotificationType" AS ENUM ('INVOICE_READY', 'STATEMENT_READY', 'TEACHER_MESSAGE', 'INCIDENT', 'HOMEWORK', 'ASSESSMENT', 'EXAM', 'SCHOOL_NOTICE', 'DOCUMENT', 'ONBOARDING');
+EXCEPTION
+  WHEN duplicate_object THEN NULL;
+END $$;
 
 -- CreateEnum
-CREATE TYPE "ParentOnboardingStatus" AS ENUM ('INVITED', 'OPENED', 'REGISTERED', 'LINKED', 'ACTIVE');
+DO $$ BEGIN
+  CREATE TYPE "ParentOnboardingStatus" AS ENUM ('INVITED', 'OPENED', 'REGISTERED', 'LINKED', 'ACTIVE');
+EXCEPTION
+  WHEN duplicate_object THEN NULL;
+END $$;
 
 -- CreateEnum
-CREATE TYPE "ParentOutreachChannel" AS ENUM ('SMS', 'EMAIL', 'WHATSAPP');
+DO $$ BEGIN
+  CREATE TYPE "ParentOutreachChannel" AS ENUM ('SMS', 'EMAIL', 'WHATSAPP');
+EXCEPTION
+  WHEN duplicate_object THEN NULL;
+END $$;
 
 -- CreateEnum
-CREATE TYPE "ParentOutreachStatus" AS ENUM ('QUEUED', 'SENT', 'FAILED');
+DO $$ BEGIN
+  CREATE TYPE "ParentOutreachStatus" AS ENUM ('QUEUED', 'SENT', 'FAILED');
+EXCEPTION
+  WHEN duplicate_object THEN NULL;
+END $$;
 
 -- CreateEnum
-CREATE TYPE "ParentTeacherThreadStatus" AS ENUM ('OPEN', 'CLOSED', 'ARCHIVED');
+DO $$ BEGIN
+  CREATE TYPE "ParentTeacherThreadStatus" AS ENUM ('OPEN', 'CLOSED', 'ARCHIVED');
+EXCEPTION
+  WHEN duplicate_object THEN NULL;
+END $$;
 
 -- CreateEnum
-CREATE TYPE "SchoolNoticeType" AS ENUM ('SCHOOL', 'GRADE', 'CLASS', 'ASSESSMENT', 'EXAM');
+DO $$ BEGIN
+  CREATE TYPE "SchoolNoticeType" AS ENUM ('SCHOOL', 'GRADE', 'CLASS', 'ASSESSMENT', 'EXAM');
+EXCEPTION
+  WHEN duplicate_object THEN NULL;
+END $$;
 
 -- DropForeignKey (production-safe: skip when legacy tables were never created on live DBs)
 ALTER TABLE IF EXISTS "BillingDocumentRun" DROP CONSTRAINT IF EXISTS "BillingDocumentRun_schoolId_fkey";
@@ -60,7 +88,7 @@ ALTER TABLE IF EXISTS "SchoolEmailSettings" DROP CONSTRAINT IF EXISTS "SchoolEma
 ALTER TABLE IF EXISTS "TuckshopMenu" DROP CONSTRAINT IF EXISTS "TuckshopMenu_schoolId_fkey";
 
 -- AlterTable
-ALTER TABLE "User" ADD COLUMN     "fullName" TEXT;
+ALTER TABLE "User" ADD COLUMN IF NOT EXISTS     "fullName" TEXT;
 
 -- DropTable (production-safe: IF EXISTS — no data loss when tables already absent)
 DROP TABLE IF EXISTS "BillingDocumentRunItem";
@@ -83,7 +111,7 @@ DROP TABLE IF EXISTS "SchoolEmailSettings";
 DROP TABLE IF EXISTS "TuckshopMenu";
 
 -- CreateTable
-CREATE TABLE "Classroom" (
+CREATE TABLE IF NOT EXISTS "Classroom" (
     "id" TEXT NOT NULL,
     "schoolId" TEXT NOT NULL,
     "name" TEXT NOT NULL,
@@ -99,7 +127,7 @@ CREATE TABLE "Classroom" (
 );
 
 -- CreateTable
-CREATE TABLE "HomeworkPost" (
+CREATE TABLE IF NOT EXISTS "HomeworkPost" (
     "id" TEXT NOT NULL,
     "schoolId" TEXT NOT NULL,
     "learnerId" TEXT,
@@ -116,7 +144,7 @@ CREATE TABLE "HomeworkPost" (
 );
 
 -- CreateTable
-CREATE TABLE "LearnerIncident" (
+CREATE TABLE IF NOT EXISTS "LearnerIncident" (
     "id" TEXT NOT NULL,
     "schoolId" TEXT NOT NULL,
     "learnerId" TEXT NOT NULL,
@@ -134,7 +162,7 @@ CREATE TABLE "LearnerIncident" (
 );
 
 -- CreateTable
-CREATE TABLE "LearnerReport" (
+CREATE TABLE IF NOT EXISTS "LearnerReport" (
     "id" TEXT NOT NULL,
     "learnerId" TEXT NOT NULL,
     "schoolId" TEXT NOT NULL,
@@ -151,7 +179,7 @@ CREATE TABLE "LearnerReport" (
 );
 
 -- CreateTable
-CREATE TABLE "LearnerResult" (
+CREATE TABLE IF NOT EXISTS "LearnerResult" (
     "id" TEXT NOT NULL,
     "learnerId" TEXT NOT NULL,
     "schoolId" TEXT NOT NULL,
@@ -168,7 +196,7 @@ CREATE TABLE "LearnerResult" (
 );
 
 -- CreateTable
-CREATE TABLE "ParentDocument" (
+CREATE TABLE IF NOT EXISTS "ParentDocument" (
     "id" TEXT NOT NULL,
     "schoolId" TEXT NOT NULL,
     "title" TEXT NOT NULL,
@@ -184,7 +212,7 @@ CREATE TABLE "ParentDocument" (
 );
 
 -- CreateTable
-CREATE TABLE "ParentNotification" (
+CREATE TABLE IF NOT EXISTS "ParentNotification" (
     "id" TEXT NOT NULL,
     "schoolId" TEXT NOT NULL,
     "parentId" TEXT NOT NULL,
@@ -201,7 +229,7 @@ CREATE TABLE "ParentNotification" (
 );
 
 -- CreateTable
-CREATE TABLE "ParentOnboarding" (
+CREATE TABLE IF NOT EXISTS "ParentOnboarding" (
     "id" TEXT NOT NULL,
     "schoolId" TEXT NOT NULL,
     "parentId" TEXT NOT NULL,
@@ -217,7 +245,7 @@ CREATE TABLE "ParentOnboarding" (
 );
 
 -- CreateTable
-CREATE TABLE "ParentOutreachQueue" (
+CREATE TABLE IF NOT EXISTS "ParentOutreachQueue" (
     "id" TEXT NOT NULL,
     "schoolId" TEXT NOT NULL,
     "parentId" TEXT NOT NULL,
@@ -234,7 +262,7 @@ CREATE TABLE "ParentOutreachQueue" (
 );
 
 -- CreateTable
-CREATE TABLE "ParentTeacherMessage" (
+CREATE TABLE IF NOT EXISTS "ParentTeacherMessage" (
     "id" TEXT NOT NULL,
     "threadId" TEXT NOT NULL,
     "schoolId" TEXT NOT NULL,
@@ -250,7 +278,7 @@ CREATE TABLE "ParentTeacherMessage" (
 );
 
 -- CreateTable
-CREATE TABLE "ParentTeacherThread" (
+CREATE TABLE IF NOT EXISTS "ParentTeacherThread" (
     "id" TEXT NOT NULL,
     "schoolId" TEXT NOT NULL,
     "parentId" TEXT NOT NULL,
@@ -267,7 +295,7 @@ CREATE TABLE "ParentTeacherThread" (
 );
 
 -- CreateTable
-CREATE TABLE "SchoolNotice" (
+CREATE TABLE IF NOT EXISTS "SchoolNotice" (
     "id" TEXT NOT NULL,
     "schoolId" TEXT NOT NULL,
     "noticeType" "SchoolNoticeType" NOT NULL,
@@ -285,145 +313,241 @@ CREATE TABLE "SchoolNotice" (
 );
 
 -- CreateIndex
-CREATE INDEX "Classroom_schoolId_idx" ON "Classroom"("schoolId" ASC);
+CREATE INDEX IF NOT EXISTS "Classroom_schoolId_idx" ON "Classroom"("schoolId" ASC);
 
 -- CreateIndex
-CREATE UNIQUE INDEX "Classroom_schoolId_name_key" ON "Classroom"("schoolId" ASC, "name" ASC);
+CREATE UNIQUE INDEX IF NOT EXISTS "Classroom_schoolId_name_key" ON "Classroom"("schoolId" ASC, "name" ASC);
 
 -- CreateIndex
-CREATE INDEX "HomeworkPost_learnerId_idx" ON "HomeworkPost"("learnerId" ASC);
+CREATE INDEX IF NOT EXISTS "HomeworkPost_learnerId_idx" ON "HomeworkPost"("learnerId" ASC);
 
 -- CreateIndex
-CREATE INDEX "HomeworkPost_schoolId_className_idx" ON "HomeworkPost"("schoolId" ASC, "className" ASC);
+CREATE INDEX IF NOT EXISTS "HomeworkPost_schoolId_className_idx" ON "HomeworkPost"("schoolId" ASC, "className" ASC);
 
 -- CreateIndex
-CREATE INDEX "HomeworkPost_schoolId_grade_idx" ON "HomeworkPost"("schoolId" ASC, "grade" ASC);
+CREATE INDEX IF NOT EXISTS "HomeworkPost_schoolId_grade_idx" ON "HomeworkPost"("schoolId" ASC, "grade" ASC);
 
 -- CreateIndex
-CREATE INDEX "LearnerIncident_learnerId_idx" ON "LearnerIncident"("learnerId" ASC);
+CREATE INDEX IF NOT EXISTS "LearnerIncident_learnerId_idx" ON "LearnerIncident"("learnerId" ASC);
 
 -- CreateIndex
-CREATE INDEX "LearnerIncident_schoolId_learnerId_idx" ON "LearnerIncident"("schoolId" ASC, "learnerId" ASC);
+CREATE INDEX IF NOT EXISTS "LearnerIncident_schoolId_learnerId_idx" ON "LearnerIncident"("schoolId" ASC, "learnerId" ASC);
 
 -- CreateIndex
-CREATE INDEX "ParentDocument_schoolId_grade_idx" ON "ParentDocument"("schoolId" ASC, "grade" ASC);
+CREATE INDEX IF NOT EXISTS "ParentDocument_schoolId_grade_idx" ON "ParentDocument"("schoolId" ASC, "grade" ASC);
 
 -- CreateIndex
-CREATE INDEX "ParentDocument_schoolId_idx" ON "ParentDocument"("schoolId" ASC);
+CREATE INDEX IF NOT EXISTS "ParentDocument_schoolId_idx" ON "ParentDocument"("schoolId" ASC);
 
 -- CreateIndex
-CREATE INDEX "ParentNotification_parentId_createdAt_idx" ON "ParentNotification"("parentId" ASC, "createdAt" ASC);
+CREATE INDEX IF NOT EXISTS "ParentNotification_parentId_createdAt_idx" ON "ParentNotification"("parentId" ASC, "createdAt" ASC);
 
 -- CreateIndex
-CREATE INDEX "ParentNotification_schoolId_parentId_idx" ON "ParentNotification"("schoolId" ASC, "parentId" ASC);
+CREATE INDEX IF NOT EXISTS "ParentNotification_schoolId_parentId_idx" ON "ParentNotification"("schoolId" ASC, "parentId" ASC);
 
 -- CreateIndex
-CREATE INDEX "ParentNotification_schoolId_parentId_isRead_idx" ON "ParentNotification"("schoolId" ASC, "parentId" ASC, "isRead" ASC);
+CREATE INDEX IF NOT EXISTS "ParentNotification_schoolId_parentId_isRead_idx" ON "ParentNotification"("schoolId" ASC, "parentId" ASC, "isRead" ASC);
 
 -- CreateIndex
-CREATE UNIQUE INDEX "ParentOnboarding_parentId_key" ON "ParentOnboarding"("parentId" ASC);
+CREATE UNIQUE INDEX IF NOT EXISTS "ParentOnboarding_parentId_key" ON "ParentOnboarding"("parentId" ASC);
 
 -- CreateIndex
-CREATE INDEX "ParentOnboarding_schoolId_status_idx" ON "ParentOnboarding"("schoolId" ASC, "status" ASC);
+CREATE INDEX IF NOT EXISTS "ParentOnboarding_schoolId_status_idx" ON "ParentOnboarding"("schoolId" ASC, "status" ASC);
 
 -- CreateIndex
-CREATE INDEX "ParentOutreachQueue_parentId_idx" ON "ParentOutreachQueue"("parentId" ASC);
+CREATE INDEX IF NOT EXISTS "ParentOutreachQueue_parentId_idx" ON "ParentOutreachQueue"("parentId" ASC);
 
 -- CreateIndex
-CREATE INDEX "ParentOutreachQueue_schoolId_status_idx" ON "ParentOutreachQueue"("schoolId" ASC, "status" ASC);
+CREATE INDEX IF NOT EXISTS "ParentOutreachQueue_schoolId_status_idx" ON "ParentOutreachQueue"("schoolId" ASC, "status" ASC);
 
 -- CreateIndex
-CREATE INDEX "ParentTeacherMessage_schoolId_idx" ON "ParentTeacherMessage"("schoolId" ASC);
+CREATE INDEX IF NOT EXISTS "ParentTeacherMessage_schoolId_idx" ON "ParentTeacherMessage"("schoolId" ASC);
 
 -- CreateIndex
-CREATE INDEX "ParentTeacherMessage_threadId_createdAt_idx" ON "ParentTeacherMessage"("threadId" ASC, "createdAt" ASC);
+CREATE INDEX IF NOT EXISTS "ParentTeacherMessage_threadId_createdAt_idx" ON "ParentTeacherMessage"("threadId" ASC, "createdAt" ASC);
 
 -- CreateIndex
-CREATE INDEX "ParentTeacherThread_learnerId_idx" ON "ParentTeacherThread"("learnerId" ASC);
+CREATE INDEX IF NOT EXISTS "ParentTeacherThread_learnerId_idx" ON "ParentTeacherThread"("learnerId" ASC);
 
 -- CreateIndex
-CREATE UNIQUE INDEX "ParentTeacherThread_schoolId_parentId_learnerId_key" ON "ParentTeacherThread"("schoolId" ASC, "parentId" ASC, "learnerId" ASC);
+CREATE UNIQUE INDEX IF NOT EXISTS "ParentTeacherThread_schoolId_parentId_learnerId_key" ON "ParentTeacherThread"("schoolId" ASC, "parentId" ASC, "learnerId" ASC);
 
 -- CreateIndex
-CREATE INDEX "ParentTeacherThread_schoolId_teacherEmail_idx" ON "ParentTeacherThread"("schoolId" ASC, "teacherEmail" ASC);
+CREATE INDEX IF NOT EXISTS "ParentTeacherThread_schoolId_teacherEmail_idx" ON "ParentTeacherThread"("schoolId" ASC, "teacherEmail" ASC);
 
 -- CreateIndex
-CREATE INDEX "SchoolNotice_schoolId_className_idx" ON "SchoolNotice"("schoolId" ASC, "className" ASC);
+CREATE INDEX IF NOT EXISTS "SchoolNotice_schoolId_className_idx" ON "SchoolNotice"("schoolId" ASC, "className" ASC);
 
 -- CreateIndex
-CREATE INDEX "SchoolNotice_schoolId_grade_idx" ON "SchoolNotice"("schoolId" ASC, "grade" ASC);
+CREATE INDEX IF NOT EXISTS "SchoolNotice_schoolId_grade_idx" ON "SchoolNotice"("schoolId" ASC, "grade" ASC);
 
 -- CreateIndex
-CREATE INDEX "SchoolNotice_schoolId_noticeType_idx" ON "SchoolNotice"("schoolId" ASC, "noticeType" ASC);
+CREATE INDEX IF NOT EXISTS "SchoolNotice_schoolId_noticeType_idx" ON "SchoolNotice"("schoolId" ASC, "noticeType" ASC);
 
 -- AddForeignKey
-ALTER TABLE "Classroom" ADD CONSTRAINT "Classroom_schoolId_fkey" FOREIGN KEY ("schoolId") REFERENCES "School"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+DO $$ BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'Classroom_schoolId_fkey') THEN
+    ALTER TABLE "Classroom" ADD CONSTRAINT "Classroom_schoolId_fkey" FOREIGN KEY ("schoolId") REFERENCES "School"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+  END IF;
+END $$;
 
 -- AddForeignKey
-ALTER TABLE "HomeworkPost" ADD CONSTRAINT "HomeworkPost_learnerId_fkey" FOREIGN KEY ("learnerId") REFERENCES "Learner"("id") ON DELETE SET NULL ON UPDATE CASCADE;
+DO $$ BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'HomeworkPost_learnerId_fkey') THEN
+    ALTER TABLE "HomeworkPost" ADD CONSTRAINT "HomeworkPost_learnerId_fkey" FOREIGN KEY ("learnerId") REFERENCES "Learner"("id") ON DELETE SET NULL ON UPDATE CASCADE;
+  END IF;
+END $$;
 
 -- AddForeignKey
-ALTER TABLE "HomeworkPost" ADD CONSTRAINT "HomeworkPost_schoolId_fkey" FOREIGN KEY ("schoolId") REFERENCES "School"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+DO $$ BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'HomeworkPost_schoolId_fkey') THEN
+    ALTER TABLE "HomeworkPost" ADD CONSTRAINT "HomeworkPost_schoolId_fkey" FOREIGN KEY ("schoolId") REFERENCES "School"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+  END IF;
+END $$;
 
 -- AddForeignKey
-ALTER TABLE "LearnerIncident" ADD CONSTRAINT "LearnerIncident_learnerId_fkey" FOREIGN KEY ("learnerId") REFERENCES "Learner"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+DO $$ BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'LearnerIncident_learnerId_fkey') THEN
+    ALTER TABLE "LearnerIncident" ADD CONSTRAINT "LearnerIncident_learnerId_fkey" FOREIGN KEY ("learnerId") REFERENCES "Learner"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+  END IF;
+END $$;
 
 -- AddForeignKey
-ALTER TABLE "LearnerIncident" ADD CONSTRAINT "LearnerIncident_schoolId_fkey" FOREIGN KEY ("schoolId") REFERENCES "School"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+DO $$ BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'LearnerIncident_schoolId_fkey') THEN
+    ALTER TABLE "LearnerIncident" ADD CONSTRAINT "LearnerIncident_schoolId_fkey" FOREIGN KEY ("schoolId") REFERENCES "School"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+  END IF;
+END $$;
 
 -- AddForeignKey
-ALTER TABLE "LearnerReport" ADD CONSTRAINT "LearnerReport_learnerId_fkey" FOREIGN KEY ("learnerId") REFERENCES "Learner"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+DO $$ BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'LearnerReport_learnerId_fkey') THEN
+    ALTER TABLE "LearnerReport" ADD CONSTRAINT "LearnerReport_learnerId_fkey" FOREIGN KEY ("learnerId") REFERENCES "Learner"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+  END IF;
+END $$;
 
 -- AddForeignKey
-ALTER TABLE "LearnerReport" ADD CONSTRAINT "LearnerReport_schoolId_fkey" FOREIGN KEY ("schoolId") REFERENCES "School"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+DO $$ BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'LearnerReport_schoolId_fkey') THEN
+    ALTER TABLE "LearnerReport" ADD CONSTRAINT "LearnerReport_schoolId_fkey" FOREIGN KEY ("schoolId") REFERENCES "School"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+  END IF;
+END $$;
 
 -- AddForeignKey
-ALTER TABLE "LearnerResult" ADD CONSTRAINT "LearnerResult_learnerId_fkey" FOREIGN KEY ("learnerId") REFERENCES "Learner"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+DO $$ BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'LearnerResult_learnerId_fkey') THEN
+    ALTER TABLE "LearnerResult" ADD CONSTRAINT "LearnerResult_learnerId_fkey" FOREIGN KEY ("learnerId") REFERENCES "Learner"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+  END IF;
+END $$;
 
 -- AddForeignKey
-ALTER TABLE "LearnerResult" ADD CONSTRAINT "LearnerResult_schoolId_fkey" FOREIGN KEY ("schoolId") REFERENCES "School"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+DO $$ BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'LearnerResult_schoolId_fkey') THEN
+    ALTER TABLE "LearnerResult" ADD CONSTRAINT "LearnerResult_schoolId_fkey" FOREIGN KEY ("schoolId") REFERENCES "School"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+  END IF;
+END $$;
 
 -- AddForeignKey
-ALTER TABLE "ParentDocument" ADD CONSTRAINT "ParentDocument_schoolId_fkey" FOREIGN KEY ("schoolId") REFERENCES "School"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+DO $$ BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'ParentDocument_schoolId_fkey') THEN
+    ALTER TABLE "ParentDocument" ADD CONSTRAINT "ParentDocument_schoolId_fkey" FOREIGN KEY ("schoolId") REFERENCES "School"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+  END IF;
+END $$;
 
 -- AddForeignKey
-ALTER TABLE "ParentNotification" ADD CONSTRAINT "ParentNotification_learnerId_fkey" FOREIGN KEY ("learnerId") REFERENCES "Learner"("id") ON DELETE SET NULL ON UPDATE CASCADE;
+DO $$ BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'ParentNotification_learnerId_fkey') THEN
+    ALTER TABLE "ParentNotification" ADD CONSTRAINT "ParentNotification_learnerId_fkey" FOREIGN KEY ("learnerId") REFERENCES "Learner"("id") ON DELETE SET NULL ON UPDATE CASCADE;
+  END IF;
+END $$;
 
 -- AddForeignKey
-ALTER TABLE "ParentNotification" ADD CONSTRAINT "ParentNotification_parentId_fkey" FOREIGN KEY ("parentId") REFERENCES "Parent"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+DO $$ BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'ParentNotification_parentId_fkey') THEN
+    ALTER TABLE "ParentNotification" ADD CONSTRAINT "ParentNotification_parentId_fkey" FOREIGN KEY ("parentId") REFERENCES "Parent"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+  END IF;
+END $$;
 
 -- AddForeignKey
-ALTER TABLE "ParentNotification" ADD CONSTRAINT "ParentNotification_schoolId_fkey" FOREIGN KEY ("schoolId") REFERENCES "School"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+DO $$ BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'ParentNotification_schoolId_fkey') THEN
+    ALTER TABLE "ParentNotification" ADD CONSTRAINT "ParentNotification_schoolId_fkey" FOREIGN KEY ("schoolId") REFERENCES "School"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+  END IF;
+END $$;
 
 -- AddForeignKey
-ALTER TABLE "ParentOnboarding" ADD CONSTRAINT "ParentOnboarding_parentId_fkey" FOREIGN KEY ("parentId") REFERENCES "Parent"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+DO $$ BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'ParentOnboarding_parentId_fkey') THEN
+    ALTER TABLE "ParentOnboarding" ADD CONSTRAINT "ParentOnboarding_parentId_fkey" FOREIGN KEY ("parentId") REFERENCES "Parent"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+  END IF;
+END $$;
 
 -- AddForeignKey
-ALTER TABLE "ParentOnboarding" ADD CONSTRAINT "ParentOnboarding_schoolId_fkey" FOREIGN KEY ("schoolId") REFERENCES "School"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+DO $$ BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'ParentOnboarding_schoolId_fkey') THEN
+    ALTER TABLE "ParentOnboarding" ADD CONSTRAINT "ParentOnboarding_schoolId_fkey" FOREIGN KEY ("schoolId") REFERENCES "School"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+  END IF;
+END $$;
 
 -- AddForeignKey
-ALTER TABLE "ParentOutreachQueue" ADD CONSTRAINT "ParentOutreachQueue_parentId_fkey" FOREIGN KEY ("parentId") REFERENCES "Parent"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+DO $$ BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'ParentOutreachQueue_parentId_fkey') THEN
+    ALTER TABLE "ParentOutreachQueue" ADD CONSTRAINT "ParentOutreachQueue_parentId_fkey" FOREIGN KEY ("parentId") REFERENCES "Parent"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+  END IF;
+END $$;
 
 -- AddForeignKey
-ALTER TABLE "ParentOutreachQueue" ADD CONSTRAINT "ParentOutreachQueue_schoolId_fkey" FOREIGN KEY ("schoolId") REFERENCES "School"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+DO $$ BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'ParentOutreachQueue_schoolId_fkey') THEN
+    ALTER TABLE "ParentOutreachQueue" ADD CONSTRAINT "ParentOutreachQueue_schoolId_fkey" FOREIGN KEY ("schoolId") REFERENCES "School"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+  END IF;
+END $$;
 
 -- AddForeignKey
-ALTER TABLE "ParentTeacherMessage" ADD CONSTRAINT "ParentTeacherMessage_threadId_fkey" FOREIGN KEY ("threadId") REFERENCES "ParentTeacherThread"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+DO $$ BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'ParentTeacherMessage_threadId_fkey') THEN
+    ALTER TABLE "ParentTeacherMessage" ADD CONSTRAINT "ParentTeacherMessage_threadId_fkey" FOREIGN KEY ("threadId") REFERENCES "ParentTeacherThread"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+  END IF;
+END $$;
 
 -- AddForeignKey
-ALTER TABLE "ParentTeacherThread" ADD CONSTRAINT "ParentTeacherThread_classroomId_fkey" FOREIGN KEY ("classroomId") REFERENCES "Classroom"("id") ON DELETE SET NULL ON UPDATE CASCADE;
+DO $$ BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'ParentTeacherThread_classroomId_fkey') THEN
+    ALTER TABLE "ParentTeacherThread" ADD CONSTRAINT "ParentTeacherThread_classroomId_fkey" FOREIGN KEY ("classroomId") REFERENCES "Classroom"("id") ON DELETE SET NULL ON UPDATE CASCADE;
+  END IF;
+END $$;
 
 -- AddForeignKey
-ALTER TABLE "ParentTeacherThread" ADD CONSTRAINT "ParentTeacherThread_learnerId_fkey" FOREIGN KEY ("learnerId") REFERENCES "Learner"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+DO $$ BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'ParentTeacherThread_learnerId_fkey') THEN
+    ALTER TABLE "ParentTeacherThread" ADD CONSTRAINT "ParentTeacherThread_learnerId_fkey" FOREIGN KEY ("learnerId") REFERENCES "Learner"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+  END IF;
+END $$;
 
 -- AddForeignKey
-ALTER TABLE "ParentTeacherThread" ADD CONSTRAINT "ParentTeacherThread_parentId_fkey" FOREIGN KEY ("parentId") REFERENCES "Parent"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+DO $$ BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'ParentTeacherThread_parentId_fkey') THEN
+    ALTER TABLE "ParentTeacherThread" ADD CONSTRAINT "ParentTeacherThread_parentId_fkey" FOREIGN KEY ("parentId") REFERENCES "Parent"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+  END IF;
+END $$;
 
 -- AddForeignKey
-ALTER TABLE "ParentTeacherThread" ADD CONSTRAINT "ParentTeacherThread_schoolId_fkey" FOREIGN KEY ("schoolId") REFERENCES "School"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+DO $$ BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'ParentTeacherThread_schoolId_fkey') THEN
+    ALTER TABLE "ParentTeacherThread" ADD CONSTRAINT "ParentTeacherThread_schoolId_fkey" FOREIGN KEY ("schoolId") REFERENCES "School"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+  END IF;
+END $$;
 
 -- AddForeignKey
-ALTER TABLE "SchoolNotice" ADD CONSTRAINT "SchoolNotice_schoolId_fkey" FOREIGN KEY ("schoolId") REFERENCES "School"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+DO $$ BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'SchoolNotice_schoolId_fkey') THEN
+    ALTER TABLE "SchoolNotice" ADD CONSTRAINT "SchoolNotice_schoolId_fkey" FOREIGN KEY ("schoolId") REFERENCES "School"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+  END IF;
+END $$;
 
 -- Deferred from 20260520083305_communication_engine (ParentNotification did not exist yet)
-ALTER TABLE "CommunicationMessage" ADD CONSTRAINT "CommunicationMessage_parentNotificationId_fkey" FOREIGN KEY ("parentNotificationId") REFERENCES "ParentNotification"("id") ON DELETE SET NULL ON UPDATE CASCADE;
+DO $$ BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'CommunicationMessage_parentNotificationId_fkey') THEN
+    ALTER TABLE "CommunicationMessage" ADD CONSTRAINT "CommunicationMessage_parentNotificationId_fkey" FOREIGN KEY ("parentNotificationId") REFERENCES "ParentNotification"("id") ON DELETE SET NULL ON UPDATE CASCADE;
+  END IF;
+END $$;

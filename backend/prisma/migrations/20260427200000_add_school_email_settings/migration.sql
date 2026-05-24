@@ -1,5 +1,5 @@
 -- CreateTable
-CREATE TABLE "SchoolEmailSettings" (
+CREATE TABLE IF NOT EXISTS "SchoolEmailSettings" (
     "id" TEXT NOT NULL,
     "schoolId" TEXT NOT NULL,
     "provider" TEXT,
@@ -17,8 +17,12 @@ CREATE TABLE "SchoolEmailSettings" (
 );
 
 -- CreateIndex
-CREATE UNIQUE INDEX "SchoolEmailSettings_schoolId_key" ON "SchoolEmailSettings"("schoolId");
+CREATE UNIQUE INDEX IF NOT EXISTS "SchoolEmailSettings_schoolId_key" ON "SchoolEmailSettings"("schoolId");
 
 -- AddForeignKey
-ALTER TABLE "SchoolEmailSettings" ADD CONSTRAINT "SchoolEmailSettings_schoolId_fkey" FOREIGN KEY ("schoolId") REFERENCES "School"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+DO $$ BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'SchoolEmailSettings_schoolId_fkey') THEN
+    ALTER TABLE "SchoolEmailSettings" ADD CONSTRAINT "SchoolEmailSettings_schoolId_fkey" FOREIGN KEY ("schoolId") REFERENCES "School"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+  END IF;
+END $$;
 

@@ -1,14 +1,26 @@
 -- CreateEnum
-CREATE TYPE "EduClearCreditBundleCode" AS ENUM ('FOUNDATION', 'GROWTH', 'PROFESSIONAL', 'ELITE');
+DO $$ BEGIN
+  CREATE TYPE "EduClearCreditBundleCode" AS ENUM ('FOUNDATION', 'GROWTH', 'PROFESSIONAL', 'ELITE');
+EXCEPTION
+  WHEN duplicate_object THEN NULL;
+END $$;
 
 -- CreateEnum
-CREATE TYPE "CreditPurchaseInvoiceStatus" AS ENUM ('PENDING', 'PAID', 'FAILED', 'CANCELLED');
+DO $$ BEGIN
+  CREATE TYPE "CreditPurchaseInvoiceStatus" AS ENUM ('PENDING', 'PAID', 'FAILED', 'CANCELLED');
+EXCEPTION
+  WHEN duplicate_object THEN NULL;
+END $$;
 
 -- CreateEnum
-CREATE TYPE "CreditPurchasePaymentStatus" AS ENUM ('PENDING', 'PAID', 'FAILED', 'CANCELLED');
+DO $$ BEGIN
+  CREATE TYPE "CreditPurchasePaymentStatus" AS ENUM ('PENDING', 'PAID', 'FAILED', 'CANCELLED');
+EXCEPTION
+  WHEN duplicate_object THEN NULL;
+END $$;
 
 -- CreateTable
-CREATE TABLE "EduClearCreditBundle" (
+CREATE TABLE IF NOT EXISTS "EduClearCreditBundle" (
     "id" TEXT NOT NULL,
     "code" "EduClearCreditBundleCode" NOT NULL,
     "name" TEXT NOT NULL,
@@ -24,7 +36,7 @@ CREATE TABLE "EduClearCreditBundle" (
 );
 
 -- CreateTable
-CREATE TABLE "CreditPurchaseInvoice" (
+CREATE TABLE IF NOT EXISTS "CreditPurchaseInvoice" (
     "id" TEXT NOT NULL,
     "schoolId" TEXT NOT NULL,
     "bundleId" TEXT NOT NULL,
@@ -43,7 +55,7 @@ CREATE TABLE "CreditPurchaseInvoice" (
 );
 
 -- CreateTable
-CREATE TABLE "CreditPurchasePaymentLog" (
+CREATE TABLE IF NOT EXISTS "CreditPurchasePaymentLog" (
     "id" TEXT NOT NULL,
     "schoolId" TEXT NOT NULL,
     "invoiceId" TEXT NOT NULL,
@@ -68,37 +80,53 @@ CREATE TABLE "CreditPurchasePaymentLog" (
 );
 
 -- CreateIndex
-CREATE UNIQUE INDEX "EduClearCreditBundle_code_key" ON "EduClearCreditBundle"("code");
+CREATE UNIQUE INDEX IF NOT EXISTS "EduClearCreditBundle_code_key" ON "EduClearCreditBundle"("code");
 
 -- CreateIndex
-CREATE UNIQUE INDEX "CreditPurchaseInvoice_invoiceNumber_key" ON "CreditPurchaseInvoice"("invoiceNumber");
+CREATE UNIQUE INDEX IF NOT EXISTS "CreditPurchaseInvoice_invoiceNumber_key" ON "CreditPurchaseInvoice"("invoiceNumber");
 
 -- CreateIndex
-CREATE INDEX "CreditPurchaseInvoice_schoolId_status_idx" ON "CreditPurchaseInvoice"("schoolId", "status");
+CREATE INDEX IF NOT EXISTS "CreditPurchaseInvoice_schoolId_status_idx" ON "CreditPurchaseInvoice"("schoolId", "status");
 
 -- CreateIndex
-CREATE INDEX "CreditPurchaseInvoice_bundleCode_idx" ON "CreditPurchaseInvoice"("bundleCode");
+CREATE INDEX IF NOT EXISTS "CreditPurchaseInvoice_bundleCode_idx" ON "CreditPurchaseInvoice"("bundleCode");
 
 -- CreateIndex
-CREATE INDEX "CreditPurchasePaymentLog_schoolId_createdAt_idx" ON "CreditPurchasePaymentLog"("schoolId", "createdAt");
+CREATE INDEX IF NOT EXISTS "CreditPurchasePaymentLog_schoolId_createdAt_idx" ON "CreditPurchasePaymentLog"("schoolId", "createdAt");
 
 -- CreateIndex
-CREATE INDEX "CreditPurchasePaymentLog_invoiceId_idx" ON "CreditPurchasePaymentLog"("invoiceId");
+CREATE INDEX IF NOT EXISTS "CreditPurchasePaymentLog_invoiceId_idx" ON "CreditPurchasePaymentLog"("invoiceId");
 
 -- CreateIndex
-CREATE INDEX "CreditPurchasePaymentLog_merchantPaymentId_idx" ON "CreditPurchasePaymentLog"("merchantPaymentId");
+CREATE INDEX IF NOT EXISTS "CreditPurchasePaymentLog_merchantPaymentId_idx" ON "CreditPurchasePaymentLog"("merchantPaymentId");
 
 -- CreateIndex
-CREATE INDEX "CreditPurchasePaymentLog_status_idx" ON "CreditPurchasePaymentLog"("status");
+CREATE INDEX IF NOT EXISTS "CreditPurchasePaymentLog_status_idx" ON "CreditPurchasePaymentLog"("status");
 
 -- AddForeignKey
-ALTER TABLE "CreditPurchaseInvoice" ADD CONSTRAINT "CreditPurchaseInvoice_schoolId_fkey" FOREIGN KEY ("schoolId") REFERENCES "School"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+DO $$ BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'CreditPurchaseInvoice_schoolId_fkey') THEN
+    ALTER TABLE "CreditPurchaseInvoice" ADD CONSTRAINT "CreditPurchaseInvoice_schoolId_fkey" FOREIGN KEY ("schoolId") REFERENCES "School"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+  END IF;
+END $$;
 
 -- AddForeignKey
-ALTER TABLE "CreditPurchaseInvoice" ADD CONSTRAINT "CreditPurchaseInvoice_bundleId_fkey" FOREIGN KEY ("bundleId") REFERENCES "EduClearCreditBundle"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+DO $$ BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'CreditPurchaseInvoice_bundleId_fkey') THEN
+    ALTER TABLE "CreditPurchaseInvoice" ADD CONSTRAINT "CreditPurchaseInvoice_bundleId_fkey" FOREIGN KEY ("bundleId") REFERENCES "EduClearCreditBundle"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+  END IF;
+END $$;
 
 -- AddForeignKey
-ALTER TABLE "CreditPurchasePaymentLog" ADD CONSTRAINT "CreditPurchasePaymentLog_schoolId_fkey" FOREIGN KEY ("schoolId") REFERENCES "School"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+DO $$ BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'CreditPurchasePaymentLog_schoolId_fkey') THEN
+    ALTER TABLE "CreditPurchasePaymentLog" ADD CONSTRAINT "CreditPurchasePaymentLog_schoolId_fkey" FOREIGN KEY ("schoolId") REFERENCES "School"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+  END IF;
+END $$;
 
 -- AddForeignKey
-ALTER TABLE "CreditPurchasePaymentLog" ADD CONSTRAINT "CreditPurchasePaymentLog_invoiceId_fkey" FOREIGN KEY ("invoiceId") REFERENCES "CreditPurchaseInvoice"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+DO $$ BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'CreditPurchasePaymentLog_invoiceId_fkey') THEN
+    ALTER TABLE "CreditPurchasePaymentLog" ADD CONSTRAINT "CreditPurchasePaymentLog_invoiceId_fkey" FOREIGN KEY ("invoiceId") REFERENCES "CreditPurchaseInvoice"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+  END IF;
+END $$;

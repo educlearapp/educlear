@@ -1,11 +1,19 @@
 -- CreateEnum
-CREATE TYPE "SupplierStatus" AS ENUM ('active', 'inactive');
+DO $$ BEGIN
+  CREATE TYPE "SupplierStatus" AS ENUM ('active', 'inactive');
+EXCEPTION
+  WHEN duplicate_object THEN NULL;
+END $$;
 
 -- CreateEnum
-CREATE TYPE "SupplierInvoiceStatus" AS ENUM ('pending', 'approved', 'partially_paid', 'paid');
+DO $$ BEGIN
+  CREATE TYPE "SupplierInvoiceStatus" AS ENUM ('pending', 'approved', 'partially_paid', 'paid');
+EXCEPTION
+  WHEN duplicate_object THEN NULL;
+END $$;
 
 -- CreateTable
-CREATE TABLE "Supplier" (
+CREATE TABLE IF NOT EXISTS "Supplier" (
     "id" TEXT NOT NULL,
     "schoolId" TEXT NOT NULL,
     "supplierName" TEXT NOT NULL,
@@ -22,7 +30,7 @@ CREATE TABLE "Supplier" (
 );
 
 -- CreateTable
-CREATE TABLE "ExpenseCategory" (
+CREATE TABLE IF NOT EXISTS "ExpenseCategory" (
     "id" TEXT NOT NULL,
     "schoolId" TEXT NOT NULL,
     "name" TEXT NOT NULL,
@@ -33,7 +41,7 @@ CREATE TABLE "ExpenseCategory" (
 );
 
 -- CreateTable
-CREATE TABLE "SupplierInvoice" (
+CREATE TABLE IF NOT EXISTS "SupplierInvoice" (
     "id" TEXT NOT NULL,
     "schoolId" TEXT NOT NULL,
     "supplierId" TEXT NOT NULL,
@@ -54,7 +62,7 @@ CREATE TABLE "SupplierInvoice" (
 );
 
 -- CreateTable
-CREATE TABLE "SupplierInvoiceLine" (
+CREATE TABLE IF NOT EXISTS "SupplierInvoiceLine" (
     "id" TEXT NOT NULL,
     "invoiceId" TEXT NOT NULL,
     "description" TEXT NOT NULL,
@@ -67,7 +75,7 @@ CREATE TABLE "SupplierInvoiceLine" (
 );
 
 -- CreateTable
-CREATE TABLE "SupplierInvoicePayment" (
+CREATE TABLE IF NOT EXISTS "SupplierInvoicePayment" (
     "id" TEXT NOT NULL,
     "schoolId" TEXT NOT NULL,
     "invoiceId" TEXT NOT NULL,
@@ -83,7 +91,7 @@ CREATE TABLE "SupplierInvoicePayment" (
 );
 
 -- CreateTable
-CREATE TABLE "AccountingJournal" (
+CREATE TABLE IF NOT EXISTS "AccountingJournal" (
     "id" TEXT NOT NULL,
     "schoolId" TEXT NOT NULL,
     "journalNo" TEXT NOT NULL,
@@ -103,7 +111,7 @@ CREATE TABLE "AccountingJournal" (
 );
 
 -- CreateTable
-CREATE TABLE "AccountingJournalLine" (
+CREATE TABLE IF NOT EXISTS "AccountingJournalLine" (
     "id" TEXT NOT NULL,
     "journalId" TEXT NOT NULL,
     "accountCode" TEXT NOT NULL,
@@ -121,59 +129,95 @@ ALTER TABLE "BankTransaction" ADD COLUMN IF NOT EXISTS "suggestedInvoiceNumber" 
 ALTER TABLE "BankTransaction" ADD COLUMN IF NOT EXISTS "invoiceMatchScore" INTEGER NOT NULL DEFAULT 0;
 
 -- CreateIndex
-CREATE INDEX "Supplier_schoolId_idx" ON "Supplier"("schoolId");
-CREATE INDEX "Supplier_schoolId_supplierName_idx" ON "Supplier"("schoolId", "supplierName");
-CREATE INDEX "Supplier_schoolId_status_idx" ON "Supplier"("schoolId", "status");
+CREATE INDEX IF NOT EXISTS "Supplier_schoolId_idx" ON "Supplier"("schoolId");
+CREATE INDEX IF NOT EXISTS "Supplier_schoolId_supplierName_idx" ON "Supplier"("schoolId", "supplierName");
+CREATE INDEX IF NOT EXISTS "Supplier_schoolId_status_idx" ON "Supplier"("schoolId", "status");
 
 -- CreateIndex
-CREATE UNIQUE INDEX "ExpenseCategory_schoolId_code_key" ON "ExpenseCategory"("schoolId", "code");
-CREATE INDEX "ExpenseCategory_schoolId_idx" ON "ExpenseCategory"("schoolId");
+CREATE UNIQUE INDEX IF NOT EXISTS "ExpenseCategory_schoolId_code_key" ON "ExpenseCategory"("schoolId", "code");
+CREATE INDEX IF NOT EXISTS "ExpenseCategory_schoolId_idx" ON "ExpenseCategory"("schoolId");
 
 -- CreateIndex
-CREATE INDEX "SupplierInvoice_schoolId_idx" ON "SupplierInvoice"("schoolId");
-CREATE INDEX "SupplierInvoice_schoolId_status_idx" ON "SupplierInvoice"("schoolId", "status");
-CREATE INDEX "SupplierInvoice_schoolId_dueDate_idx" ON "SupplierInvoice"("schoolId", "dueDate");
-CREATE INDEX "SupplierInvoice_supplierId_idx" ON "SupplierInvoice"("supplierId");
+CREATE INDEX IF NOT EXISTS "SupplierInvoice_schoolId_idx" ON "SupplierInvoice"("schoolId");
+CREATE INDEX IF NOT EXISTS "SupplierInvoice_schoolId_status_idx" ON "SupplierInvoice"("schoolId", "status");
+CREATE INDEX IF NOT EXISTS "SupplierInvoice_schoolId_dueDate_idx" ON "SupplierInvoice"("schoolId", "dueDate");
+CREATE INDEX IF NOT EXISTS "SupplierInvoice_supplierId_idx" ON "SupplierInvoice"("supplierId");
 
 -- CreateIndex
-CREATE INDEX "SupplierInvoiceLine_invoiceId_idx" ON "SupplierInvoiceLine"("invoiceId");
+CREATE INDEX IF NOT EXISTS "SupplierInvoiceLine_invoiceId_idx" ON "SupplierInvoiceLine"("invoiceId");
 
 -- CreateIndex
-CREATE INDEX "SupplierInvoicePayment_schoolId_idx" ON "SupplierInvoicePayment"("schoolId");
-CREATE INDEX "SupplierInvoicePayment_invoiceId_idx" ON "SupplierInvoicePayment"("invoiceId");
-CREATE INDEX "SupplierInvoicePayment_bankTransactionId_idx" ON "SupplierInvoicePayment"("bankTransactionId");
+CREATE INDEX IF NOT EXISTS "SupplierInvoicePayment_schoolId_idx" ON "SupplierInvoicePayment"("schoolId");
+CREATE INDEX IF NOT EXISTS "SupplierInvoicePayment_invoiceId_idx" ON "SupplierInvoicePayment"("invoiceId");
+CREATE INDEX IF NOT EXISTS "SupplierInvoicePayment_bankTransactionId_idx" ON "SupplierInvoicePayment"("bankTransactionId");
 
 -- CreateIndex
-CREATE UNIQUE INDEX "AccountingJournal_schoolId_sourceFingerprint_key" ON "AccountingJournal"("schoolId", "sourceFingerprint");
-CREATE INDEX "AccountingJournal_schoolId_idx" ON "AccountingJournal"("schoolId");
-CREATE INDEX "AccountingJournal_schoolId_date_idx" ON "AccountingJournal"("schoolId", "date");
+CREATE UNIQUE INDEX IF NOT EXISTS "AccountingJournal_schoolId_sourceFingerprint_key" ON "AccountingJournal"("schoolId", "sourceFingerprint");
+CREATE INDEX IF NOT EXISTS "AccountingJournal_schoolId_idx" ON "AccountingJournal"("schoolId");
+CREATE INDEX IF NOT EXISTS "AccountingJournal_schoolId_date_idx" ON "AccountingJournal"("schoolId", "date");
 
 -- CreateIndex
-CREATE INDEX "AccountingJournalLine_journalId_idx" ON "AccountingJournalLine"("journalId");
+CREATE INDEX IF NOT EXISTS "AccountingJournalLine_journalId_idx" ON "AccountingJournalLine"("journalId");
 
 -- AddForeignKey
-ALTER TABLE "Supplier" ADD CONSTRAINT "Supplier_schoolId_fkey" FOREIGN KEY ("schoolId") REFERENCES "School"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+DO $$ BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'Supplier_schoolId_fkey') THEN
+    ALTER TABLE "Supplier" ADD CONSTRAINT "Supplier_schoolId_fkey" FOREIGN KEY ("schoolId") REFERENCES "School"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+  END IF;
+END $$;
 
 -- AddForeignKey
-ALTER TABLE "ExpenseCategory" ADD CONSTRAINT "ExpenseCategory_schoolId_fkey" FOREIGN KEY ("schoolId") REFERENCES "School"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+DO $$ BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'ExpenseCategory_schoolId_fkey') THEN
+    ALTER TABLE "ExpenseCategory" ADD CONSTRAINT "ExpenseCategory_schoolId_fkey" FOREIGN KEY ("schoolId") REFERENCES "School"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+  END IF;
+END $$;
 
 -- AddForeignKey
-ALTER TABLE "SupplierInvoice" ADD CONSTRAINT "SupplierInvoice_schoolId_fkey" FOREIGN KEY ("schoolId") REFERENCES "School"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+DO $$ BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'SupplierInvoice_schoolId_fkey') THEN
+    ALTER TABLE "SupplierInvoice" ADD CONSTRAINT "SupplierInvoice_schoolId_fkey" FOREIGN KEY ("schoolId") REFERENCES "School"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+  END IF;
+END $$;
 
 -- AddForeignKey
-ALTER TABLE "SupplierInvoice" ADD CONSTRAINT "SupplierInvoice_supplierId_fkey" FOREIGN KEY ("supplierId") REFERENCES "Supplier"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+DO $$ BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'SupplierInvoice_supplierId_fkey') THEN
+    ALTER TABLE "SupplierInvoice" ADD CONSTRAINT "SupplierInvoice_supplierId_fkey" FOREIGN KEY ("supplierId") REFERENCES "Supplier"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+  END IF;
+END $$;
 
 -- AddForeignKey
-ALTER TABLE "SupplierInvoiceLine" ADD CONSTRAINT "SupplierInvoiceLine_invoiceId_fkey" FOREIGN KEY ("invoiceId") REFERENCES "SupplierInvoice"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+DO $$ BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'SupplierInvoiceLine_invoiceId_fkey') THEN
+    ALTER TABLE "SupplierInvoiceLine" ADD CONSTRAINT "SupplierInvoiceLine_invoiceId_fkey" FOREIGN KEY ("invoiceId") REFERENCES "SupplierInvoice"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+  END IF;
+END $$;
 
 -- AddForeignKey
-ALTER TABLE "SupplierInvoiceLine" ADD CONSTRAINT "SupplierInvoiceLine_expenseCategoryId_fkey" FOREIGN KEY ("expenseCategoryId") REFERENCES "ExpenseCategory"("id") ON DELETE SET NULL ON UPDATE CASCADE;
+DO $$ BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'SupplierInvoiceLine_expenseCategoryId_fkey') THEN
+    ALTER TABLE "SupplierInvoiceLine" ADD CONSTRAINT "SupplierInvoiceLine_expenseCategoryId_fkey" FOREIGN KEY ("expenseCategoryId") REFERENCES "ExpenseCategory"("id") ON DELETE SET NULL ON UPDATE CASCADE;
+  END IF;
+END $$;
 
 -- AddForeignKey
-ALTER TABLE "SupplierInvoicePayment" ADD CONSTRAINT "SupplierInvoicePayment_invoiceId_fkey" FOREIGN KEY ("invoiceId") REFERENCES "SupplierInvoice"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+DO $$ BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'SupplierInvoicePayment_invoiceId_fkey') THEN
+    ALTER TABLE "SupplierInvoicePayment" ADD CONSTRAINT "SupplierInvoicePayment_invoiceId_fkey" FOREIGN KEY ("invoiceId") REFERENCES "SupplierInvoice"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+  END IF;
+END $$;
 
 -- AddForeignKey
-ALTER TABLE "AccountingJournal" ADD CONSTRAINT "AccountingJournal_schoolId_fkey" FOREIGN KEY ("schoolId") REFERENCES "School"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+DO $$ BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'AccountingJournal_schoolId_fkey') THEN
+    ALTER TABLE "AccountingJournal" ADD CONSTRAINT "AccountingJournal_schoolId_fkey" FOREIGN KEY ("schoolId") REFERENCES "School"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+  END IF;
+END $$;
 
 -- AddForeignKey
-ALTER TABLE "AccountingJournalLine" ADD CONSTRAINT "AccountingJournalLine_journalId_fkey" FOREIGN KEY ("journalId") REFERENCES "AccountingJournal"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+DO $$ BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'AccountingJournalLine_journalId_fkey') THEN
+    ALTER TABLE "AccountingJournalLine" ADD CONSTRAINT "AccountingJournalLine_journalId_fkey" FOREIGN KEY ("journalId") REFERENCES "AccountingJournal"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+  END IF;
+END $$;

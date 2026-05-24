@@ -1,5 +1,5 @@
 -- CreateTable
-CREATE TABLE "TeacherPerformance" (
+CREATE TABLE IF NOT EXISTS "TeacherPerformance" (
     "id" TEXT NOT NULL,
     "schoolId" TEXT NOT NULL,
     "teacherName" TEXT NOT NULL,
@@ -20,10 +20,14 @@ CREATE TABLE "TeacherPerformance" (
 );
 
 -- CreateIndex
-CREATE INDEX "TeacherPerformance_schoolId_idx" ON "TeacherPerformance"("schoolId");
+CREATE INDEX IF NOT EXISTS "TeacherPerformance_schoolId_idx" ON "TeacherPerformance"("schoolId");
 
 -- CreateIndex
-CREATE INDEX "TeacherPerformance_month_idx" ON "TeacherPerformance"("month");
+CREATE INDEX IF NOT EXISTS "TeacherPerformance_month_idx" ON "TeacherPerformance"("month");
 
 -- AddForeignKey
-ALTER TABLE "TeacherPerformance" ADD CONSTRAINT "TeacherPerformance_schoolId_fkey" FOREIGN KEY ("schoolId") REFERENCES "School"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+DO $$ BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'TeacherPerformance_schoolId_fkey') THEN
+    ALTER TABLE "TeacherPerformance" ADD CONSTRAINT "TeacherPerformance_schoolId_fkey" FOREIGN KEY ("schoolId") REFERENCES "School"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+  END IF;
+END $$;

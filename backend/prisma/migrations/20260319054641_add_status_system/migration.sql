@@ -11,10 +11,18 @@
 
 */
 -- CreateEnum
-CREATE TYPE "LetterType" AS ENUM ('DEMAND', 'SECTION_41');
+DO $$ BEGIN
+  CREATE TYPE "LetterType" AS ENUM ('DEMAND', 'SECTION_41');
+EXCEPTION
+  WHEN duplicate_object THEN NULL;
+END $$;
 
 -- CreateEnum
-CREATE TYPE "LetterStatus" AS ENUM ('DRAFT', 'GENERATED', 'SENT');
+DO $$ BEGIN
+  CREATE TYPE "LetterStatus" AS ENUM ('DRAFT', 'GENERATED', 'SENT');
+EXCEPTION
+  WHEN duplicate_object THEN NULL;
+END $$;
 
 -- DropIndex
 DROP INDEX "Parent_schoolId_mobile_idx";
@@ -23,25 +31,25 @@ DROP INDEX "Parent_schoolId_mobile_idx";
 ALTER TABLE "Parent" DROP COLUMN "fullName",
 DROP COLUMN "identityHash",
 DROP COLUMN "mobile",
-ADD COLUMN     "cellNo" TEXT NOT NULL,
-ADD COLUMN     "communicationByEmail" BOOLEAN NOT NULL DEFAULT true,
-ADD COLUMN     "communicationByPrint" BOOLEAN NOT NULL DEFAULT true,
-ADD COLUMN     "communicationBySMS" BOOLEAN NOT NULL DEFAULT true,
-ADD COLUMN     "faxNo" TEXT,
-ADD COLUMN     "firstName" TEXT NOT NULL,
-ADD COLUMN     "homeNo" TEXT,
-ADD COLUMN     "idNumber" TEXT,
-ADD COLUMN     "maritalStatus" TEXT,
-ADD COLUMN     "nickname" TEXT,
-ADD COLUMN     "notes" TEXT,
-ADD COLUMN     "relationship" TEXT,
-ADD COLUMN     "status" TEXT NOT NULL DEFAULT 'GREEN',
-ADD COLUMN     "surname" TEXT NOT NULL,
-ADD COLUMN     "title" TEXT,
-ADD COLUMN     "workNo" TEXT;
+ADD COLUMN IF NOT EXISTS     "cellNo" TEXT NOT NULL,
+ADD COLUMN IF NOT EXISTS     "communicationByEmail" BOOLEAN NOT NULL DEFAULT true,
+ADD COLUMN IF NOT EXISTS     "communicationByPrint" BOOLEAN NOT NULL DEFAULT true,
+ADD COLUMN IF NOT EXISTS     "communicationBySMS" BOOLEAN NOT NULL DEFAULT true,
+ADD COLUMN IF NOT EXISTS     "faxNo" TEXT,
+ADD COLUMN IF NOT EXISTS     "firstName" TEXT NOT NULL,
+ADD COLUMN IF NOT EXISTS     "homeNo" TEXT,
+ADD COLUMN IF NOT EXISTS     "idNumber" TEXT,
+ADD COLUMN IF NOT EXISTS     "maritalStatus" TEXT,
+ADD COLUMN IF NOT EXISTS     "nickname" TEXT,
+ADD COLUMN IF NOT EXISTS     "notes" TEXT,
+ADD COLUMN IF NOT EXISTS     "relationship" TEXT,
+ADD COLUMN IF NOT EXISTS     "status" TEXT NOT NULL DEFAULT 'GREEN',
+ADD COLUMN IF NOT EXISTS     "surname" TEXT NOT NULL,
+ADD COLUMN IF NOT EXISTS     "title" TEXT,
+ADD COLUMN IF NOT EXISTS     "workNo" TEXT;
 
 -- CreateTable
-CREATE TABLE "SchoolFeeSetting" (
+CREATE TABLE IF NOT EXISTS "SchoolFeeSetting" (
     "id" TEXT NOT NULL,
     "schoolId" TEXT NOT NULL,
     "grade" TEXT NOT NULL,
@@ -53,7 +61,7 @@ CREATE TABLE "SchoolFeeSetting" (
 );
 
 -- CreateTable
-CREATE TABLE "CompetitorSchool" (
+CREATE TABLE IF NOT EXISTS "CompetitorSchool" (
     "id" TEXT NOT NULL,
     "name" TEXT NOT NULL,
     "province" TEXT,
@@ -64,7 +72,7 @@ CREATE TABLE "CompetitorSchool" (
 );
 
 -- CreateTable
-CREATE TABLE "CompetitorFee" (
+CREATE TABLE IF NOT EXISTS "CompetitorFee" (
     "id" TEXT NOT NULL,
     "competitorSchoolId" TEXT NOT NULL,
     "grade" TEXT NOT NULL,
@@ -75,7 +83,7 @@ CREATE TABLE "CompetitorFee" (
 );
 
 -- CreateTable
-CREATE TABLE "LetterTemplate" (
+CREATE TABLE IF NOT EXISTS "LetterTemplate" (
     "id" TEXT NOT NULL,
     "schoolId" TEXT NOT NULL,
     "type" "LetterType" NOT NULL,
@@ -89,7 +97,7 @@ CREATE TABLE "LetterTemplate" (
 );
 
 -- CreateTable
-CREATE TABLE "Letter" (
+CREATE TABLE IF NOT EXISTS "Letter" (
     "id" TEXT NOT NULL,
     "schoolId" TEXT NOT NULL,
     "type" "LetterType" NOT NULL,
@@ -107,46 +115,70 @@ CREATE TABLE "Letter" (
 );
 
 -- CreateIndex
-CREATE INDEX "SchoolFeeSetting_schoolId_idx" ON "SchoolFeeSetting"("schoolId");
+CREATE INDEX IF NOT EXISTS "SchoolFeeSetting_schoolId_idx" ON "SchoolFeeSetting"("schoolId");
 
 -- CreateIndex
-CREATE UNIQUE INDEX "SchoolFeeSetting_schoolId_grade_key" ON "SchoolFeeSetting"("schoolId", "grade");
+CREATE UNIQUE INDEX IF NOT EXISTS "SchoolFeeSetting_schoolId_grade_key" ON "SchoolFeeSetting"("schoolId", "grade");
 
 -- CreateIndex
-CREATE INDEX "CompetitorFee_competitorSchoolId_idx" ON "CompetitorFee"("competitorSchoolId");
+CREATE INDEX IF NOT EXISTS "CompetitorFee_competitorSchoolId_idx" ON "CompetitorFee"("competitorSchoolId");
 
 -- CreateIndex
-CREATE INDEX "CompetitorFee_grade_idx" ON "CompetitorFee"("grade");
+CREATE INDEX IF NOT EXISTS "CompetitorFee_grade_idx" ON "CompetitorFee"("grade");
 
 -- CreateIndex
-CREATE INDEX "LetterTemplate_schoolId_type_idx" ON "LetterTemplate"("schoolId", "type");
+CREATE INDEX IF NOT EXISTS "LetterTemplate_schoolId_type_idx" ON "LetterTemplate"("schoolId", "type");
 
 -- CreateIndex
-CREATE INDEX "Letter_schoolId_type_idx" ON "Letter"("schoolId", "type");
+CREATE INDEX IF NOT EXISTS "Letter_schoolId_type_idx" ON "Letter"("schoolId", "type");
 
 -- CreateIndex
-CREATE INDEX "Letter_parentId_idx" ON "Letter"("parentId");
+CREATE INDEX IF NOT EXISTS "Letter_parentId_idx" ON "Letter"("parentId");
 
 -- CreateIndex
-CREATE UNIQUE INDEX "Parent_idNumber_key" ON "Parent"("idNumber");
+CREATE UNIQUE INDEX IF NOT EXISTS "Parent_idNumber_key" ON "Parent"("idNumber");
 
 -- CreateIndex
-CREATE INDEX "Parent_schoolId_cellNo_idx" ON "Parent"("schoolId", "cellNo");
+CREATE INDEX IF NOT EXISTS "Parent_schoolId_cellNo_idx" ON "Parent"("schoolId", "cellNo");
 
 -- AddForeignKey
-ALTER TABLE "SchoolFeeSetting" ADD CONSTRAINT "SchoolFeeSetting_schoolId_fkey" FOREIGN KEY ("schoolId") REFERENCES "School"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+DO $$ BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'SchoolFeeSetting_schoolId_fkey') THEN
+    ALTER TABLE "SchoolFeeSetting" ADD CONSTRAINT "SchoolFeeSetting_schoolId_fkey" FOREIGN KEY ("schoolId") REFERENCES "School"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+  END IF;
+END $$;
 
 -- AddForeignKey
-ALTER TABLE "CompetitorFee" ADD CONSTRAINT "CompetitorFee_competitorSchoolId_fkey" FOREIGN KEY ("competitorSchoolId") REFERENCES "CompetitorSchool"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+DO $$ BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'CompetitorFee_competitorSchoolId_fkey') THEN
+    ALTER TABLE "CompetitorFee" ADD CONSTRAINT "CompetitorFee_competitorSchoolId_fkey" FOREIGN KEY ("competitorSchoolId") REFERENCES "CompetitorSchool"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+  END IF;
+END $$;
 
 -- AddForeignKey
-ALTER TABLE "LetterTemplate" ADD CONSTRAINT "LetterTemplate_schoolId_fkey" FOREIGN KEY ("schoolId") REFERENCES "School"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+DO $$ BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'LetterTemplate_schoolId_fkey') THEN
+    ALTER TABLE "LetterTemplate" ADD CONSTRAINT "LetterTemplate_schoolId_fkey" FOREIGN KEY ("schoolId") REFERENCES "School"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+  END IF;
+END $$;
 
 -- AddForeignKey
-ALTER TABLE "Letter" ADD CONSTRAINT "Letter_schoolId_fkey" FOREIGN KEY ("schoolId") REFERENCES "School"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+DO $$ BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'Letter_schoolId_fkey') THEN
+    ALTER TABLE "Letter" ADD CONSTRAINT "Letter_schoolId_fkey" FOREIGN KEY ("schoolId") REFERENCES "School"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+  END IF;
+END $$;
 
 -- AddForeignKey
-ALTER TABLE "Letter" ADD CONSTRAINT "Letter_parentId_fkey" FOREIGN KEY ("parentId") REFERENCES "Parent"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+DO $$ BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'Letter_parentId_fkey') THEN
+    ALTER TABLE "Letter" ADD CONSTRAINT "Letter_parentId_fkey" FOREIGN KEY ("parentId") REFERENCES "Parent"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+  END IF;
+END $$;
 
 -- AddForeignKey
-ALTER TABLE "Letter" ADD CONSTRAINT "Letter_learnerId_fkey" FOREIGN KEY ("learnerId") REFERENCES "Learner"("id") ON DELETE SET NULL ON UPDATE CASCADE;
+DO $$ BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'Letter_learnerId_fkey') THEN
+    ALTER TABLE "Letter" ADD CONSTRAINT "Letter_learnerId_fkey" FOREIGN KEY ("learnerId") REFERENCES "Learner"("id") ON DELETE SET NULL ON UPDATE CASCADE;
+  END IF;
+END $$;

@@ -30,29 +30,53 @@ CREATE TABLE IF NOT EXISTS "BillingDocumentRunItem" (
 );
 
 -- Foreign keys (safe: ON DELETE policies avoid cascading into core billing tables)
-ALTER TABLE "BillingDocumentRun"
-  ADD CONSTRAINT "BillingDocumentRun_schoolId_fkey"
-  FOREIGN KEY ("schoolId") REFERENCES "School"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+DO $$ BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'BillingDocumentRun_schoolId_fkey') THEN
+    ALTER TABLE "BillingDocumentRun"
+      ADD CONSTRAINT "BillingDocumentRun_schoolId_fkey"
+      FOREIGN KEY ("schoolId") REFERENCES "School"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+  END IF;
+END $$;
 
-ALTER TABLE "BillingDocumentRunItem"
-  ADD CONSTRAINT "BillingDocumentRunItem_runId_fkey"
-  FOREIGN KEY ("runId") REFERENCES "BillingDocumentRun"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+DO $$ BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'BillingDocumentRunItem_runId_fkey') THEN
+    ALTER TABLE "BillingDocumentRunItem"
+      ADD CONSTRAINT "BillingDocumentRunItem_runId_fkey"
+      FOREIGN KEY ("runId") REFERENCES "BillingDocumentRun"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+  END IF;
+END $$;
 
-ALTER TABLE "BillingDocumentRunItem"
-  ADD CONSTRAINT "BillingDocumentRunItem_schoolId_fkey"
-  FOREIGN KEY ("schoolId") REFERENCES "School"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+DO $$ BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'BillingDocumentRunItem_schoolId_fkey') THEN
+    ALTER TABLE "BillingDocumentRunItem"
+      ADD CONSTRAINT "BillingDocumentRunItem_schoolId_fkey"
+      FOREIGN KEY ("schoolId") REFERENCES "School"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+  END IF;
+END $$;
 
-ALTER TABLE "BillingDocumentRunItem"
-  ADD CONSTRAINT "BillingDocumentRunItem_parentId_fkey"
-  FOREIGN KEY ("parentId") REFERENCES "Parent"("id") ON DELETE SET NULL ON UPDATE CASCADE;
+DO $$ BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'BillingDocumentRunItem_parentId_fkey') THEN
+    ALTER TABLE "BillingDocumentRunItem"
+      ADD CONSTRAINT "BillingDocumentRunItem_parentId_fkey"
+      FOREIGN KEY ("parentId") REFERENCES "Parent"("id") ON DELETE SET NULL ON UPDATE CASCADE;
+  END IF;
+END $$;
 
-ALTER TABLE "BillingDocumentRunItem"
-  ADD CONSTRAINT "BillingDocumentRunItem_learnerId_fkey"
-  FOREIGN KEY ("learnerId") REFERENCES "Learner"("id") ON DELETE SET NULL ON UPDATE CASCADE;
+DO $$ BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'BillingDocumentRunItem_learnerId_fkey') THEN
+    ALTER TABLE "BillingDocumentRunItem"
+      ADD CONSTRAINT "BillingDocumentRunItem_learnerId_fkey"
+      FOREIGN KEY ("learnerId") REFERENCES "Learner"("id") ON DELETE SET NULL ON UPDATE CASCADE;
+  END IF;
+END $$;
 
-ALTER TABLE "BillingDocumentRunItem"
-  ADD CONSTRAINT "BillingDocumentRunItem_accountId_fkey"
-  FOREIGN KEY ("accountId") REFERENCES "FamilyAccount"("id") ON DELETE SET NULL ON UPDATE CASCADE;
+DO $$ BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'BillingDocumentRunItem_accountId_fkey') THEN
+    ALTER TABLE "BillingDocumentRunItem"
+      ADD CONSTRAINT "BillingDocumentRunItem_accountId_fkey"
+      FOREIGN KEY ("accountId") REFERENCES "FamilyAccount"("id") ON DELETE SET NULL ON UPDATE CASCADE;
+  END IF;
+END $$;
 
 -- Indexes
 CREATE INDEX IF NOT EXISTS "BillingDocumentRun_schoolId_idx" ON "BillingDocumentRun"("schoolId");
@@ -63,4 +87,3 @@ CREATE INDEX IF NOT EXISTS "BillingDocumentRunItem_schoolId_idx" ON "BillingDocu
 CREATE INDEX IF NOT EXISTS "BillingDocumentRunItem_schoolId_emailStatus_idx" ON "BillingDocumentRunItem"("schoolId", "emailStatus");
 CREATE INDEX IF NOT EXISTS "BillingDocumentRunItem_parentId_idx" ON "BillingDocumentRunItem"("parentId");
 CREATE INDEX IF NOT EXISTS "BillingDocumentRunItem_accountId_idx" ON "BillingDocumentRunItem"("accountId");
-

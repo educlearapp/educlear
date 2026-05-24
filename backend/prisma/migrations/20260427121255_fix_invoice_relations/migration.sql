@@ -5,37 +5,81 @@
 
 */
 -- CreateEnum
-CREATE TYPE "FeeCategory" AS ENUM ('SCHOOL_CHARGE', 'EXTRAMURAL_CHARGE');
+DO $$ BEGIN
+  CREATE TYPE "FeeCategory" AS ENUM ('SCHOOL_CHARGE', 'EXTRAMURAL_CHARGE');
+EXCEPTION
+  WHEN duplicate_object THEN NULL;
+END $$;
 
 -- CreateEnum
-CREATE TYPE "EmploymentType" AS ENUM ('PERMANENT', 'TEMPORARY', 'CONTRACT', 'PART_TIME', 'CASUAL');
+DO $$ BEGIN
+  CREATE TYPE "EmploymentType" AS ENUM ('PERMANENT', 'TEMPORARY', 'CONTRACT', 'PART_TIME', 'CASUAL');
+EXCEPTION
+  WHEN duplicate_object THEN NULL;
+END $$;
 
 -- CreateEnum
-CREATE TYPE "SalaryType" AS ENUM ('MONTHLY', 'WEEKLY', 'DAILY', 'HOURLY');
+DO $$ BEGIN
+  CREATE TYPE "SalaryType" AS ENUM ('MONTHLY', 'WEEKLY', 'DAILY', 'HOURLY');
+EXCEPTION
+  WHEN duplicate_object THEN NULL;
+END $$;
 
 -- CreateEnum
-CREATE TYPE "PayFrequency" AS ENUM ('MONTHLY', 'WEEKLY', 'FORTNIGHTLY');
+DO $$ BEGIN
+  CREATE TYPE "PayFrequency" AS ENUM ('MONTHLY', 'WEEKLY', 'FORTNIGHTLY');
+EXCEPTION
+  WHEN duplicate_object THEN NULL;
+END $$;
 
 -- CreateEnum
-CREATE TYPE "PayrollRunStatus" AS ENUM ('DRAFT', 'FINALIZED', 'CANCELLED');
+DO $$ BEGIN
+  CREATE TYPE "PayrollRunStatus" AS ENUM ('DRAFT', 'FINALIZED', 'CANCELLED');
+EXCEPTION
+  WHEN duplicate_object THEN NULL;
+END $$;
 
 -- CreateEnum
-CREATE TYPE "PayrollItemType" AS ENUM ('EARNING', 'DEDUCTION', 'EMPLOYER_CONTRIBUTION');
+DO $$ BEGIN
+  CREATE TYPE "PayrollItemType" AS ENUM ('EARNING', 'DEDUCTION', 'EMPLOYER_CONTRIBUTION');
+EXCEPTION
+  WHEN duplicate_object THEN NULL;
+END $$;
 
 -- CreateEnum
-CREATE TYPE "PayrollItemCode" AS ENUM ('BASIC_SALARY', 'OVERTIME', 'BONUS', 'COMMISSION', 'ALLOWANCE', 'HOUSING_ALLOWANCE', 'TRANSPORT_ALLOWANCE', 'CELLPHONE_ALLOWANCE', 'OTHER_EARNING', 'PAYE', 'UIF_EMPLOYEE', 'PENSION', 'MEDICAL_AID', 'STAFF_LOAN', 'STAFF_ADVANCE', 'UNION_FEE', 'OTHER_DEDUCTION', 'UIF_EMPLOYER', 'OTHER_EMPLOYER_CONTRIBUTION');
+DO $$ BEGIN
+  CREATE TYPE "PayrollItemCode" AS ENUM ('BASIC_SALARY', 'OVERTIME', 'BONUS', 'COMMISSION', 'ALLOWANCE', 'HOUSING_ALLOWANCE', 'TRANSPORT_ALLOWANCE', 'CELLPHONE_ALLOWANCE', 'OTHER_EARNING', 'PAYE', 'UIF_EMPLOYEE', 'PENSION', 'MEDICAL_AID', 'STAFF_LOAN', 'STAFF_ADVANCE', 'UNION_FEE', 'OTHER_DEDUCTION', 'UIF_EMPLOYER', 'OTHER_EMPLOYER_CONTRIBUTION');
+EXCEPTION
+  WHEN duplicate_object THEN NULL;
+END $$;
 
 -- CreateEnum
-CREATE TYPE "PayslipDeliveryPreference" AS ENUM ('PRINT', 'EMAIL', 'BOTH');
+DO $$ BEGIN
+  CREATE TYPE "PayslipDeliveryPreference" AS ENUM ('PRINT', 'EMAIL', 'BOTH');
+EXCEPTION
+  WHEN duplicate_object THEN NULL;
+END $$;
 
 -- CreateEnum
-CREATE TYPE "PayslipEmailStatus" AS ENUM ('NOT_SENT', 'SENT', 'FAILED');
+DO $$ BEGIN
+  CREATE TYPE "PayslipEmailStatus" AS ENUM ('NOT_SENT', 'SENT', 'FAILED');
+EXCEPTION
+  WHEN duplicate_object THEN NULL;
+END $$;
 
 -- CreateEnum
-CREATE TYPE "PayslipPrintStatus" AS ENUM ('NOT_PRINTED', 'PRINTED');
+DO $$ BEGIN
+  CREATE TYPE "PayslipPrintStatus" AS ENUM ('NOT_PRINTED', 'PRINTED');
+EXCEPTION
+  WHEN duplicate_object THEN NULL;
+END $$;
 
 -- CreateEnum
-CREATE TYPE "PayrollReportType" AS ENUM ('SALARY_REGISTER', 'DEDUCTION_REGISTER', 'EMPLOYER_CONTRIBUTION', 'PAYROLL_SUMMARY', 'PAYROLL_PACK');
+DO $$ BEGIN
+  CREATE TYPE "PayrollReportType" AS ENUM ('SALARY_REGISTER', 'DEDUCTION_REGISTER', 'EMPLOYER_CONTRIBUTION', 'PAYROLL_SUMMARY', 'PAYROLL_PACK');
+EXCEPTION
+  WHEN duplicate_object THEN NULL;
+END $$;
 
 -- AlterEnum
 -- This migration adds more than one value to an enum.
@@ -52,30 +96,30 @@ ALTER TYPE "FeeFrequency" ADD VALUE 'TERMLY';
 ALTER TYPE "FeeFrequency" ADD VALUE 'DAILY';
 
 -- AlterTable
-ALTER TABLE "FeeStructure" ADD COLUMN     "category" "FeeCategory",
-ADD COLUMN     "description" TEXT,
-ADD COLUMN     "isActive" BOOLEAN NOT NULL DEFAULT true,
-ADD COLUMN     "notes" TEXT,
-ADD COLUMN     "type" TEXT,
-ADD COLUMN     "updatedAt" TIMESTAMP(3) NOT NULL;
+ALTER TABLE "FeeStructure" ADD COLUMN IF NOT EXISTS     "category" "FeeCategory",
+ADD COLUMN IF NOT EXISTS     "description" TEXT,
+ADD COLUMN IF NOT EXISTS     "isActive" BOOLEAN NOT NULL DEFAULT true,
+ADD COLUMN IF NOT EXISTS     "notes" TEXT,
+ADD COLUMN IF NOT EXISTS     "type" TEXT,
+ADD COLUMN IF NOT EXISTS     "updatedAt" TIMESTAMP(3) NOT NULL;
 
 -- AlterTable
-ALTER TABLE "Learner" ADD COLUMN     "birthDate" TIMESTAMP(3),
-ADD COLUMN     "gender" TEXT,
-ADD COLUMN     "idNumber" TEXT;
+ALTER TABLE "Learner" ADD COLUMN IF NOT EXISTS     "birthDate" TIMESTAMP(3),
+ADD COLUMN IF NOT EXISTS     "gender" TEXT,
+ADD COLUMN IF NOT EXISTS     "idNumber" TEXT;
 
 -- AlterTable
-ALTER TABLE "Parent" ADD COLUMN     "outstandingAmount" DOUBLE PRECISION NOT NULL DEFAULT 0;
+ALTER TABLE "Parent" ADD COLUMN IF NOT EXISTS     "outstandingAmount" DOUBLE PRECISION NOT NULL DEFAULT 0;
 
 -- AlterTable
-ALTER TABLE "School" ADD COLUMN     "phone" TEXT;
+ALTER TABLE "School" ADD COLUMN IF NOT EXISTS     "phone" TEXT;
 
 -- AlterTable
-ALTER TABLE "User" ADD COLUMN     "isActive" BOOLEAN NOT NULL DEFAULT true,
-ADD COLUMN     "roleId" TEXT;
+ALTER TABLE "User" ADD COLUMN IF NOT EXISTS     "isActive" BOOLEAN NOT NULL DEFAULT true,
+ADD COLUMN IF NOT EXISTS     "roleId" TEXT;
 
 -- CreateTable
-CREATE TABLE "Permission" (
+CREATE TABLE IF NOT EXISTS "Permission" (
     "id" TEXT NOT NULL,
     "key" TEXT NOT NULL,
     "label" TEXT NOT NULL,
@@ -86,7 +130,7 @@ CREATE TABLE "Permission" (
 );
 
 -- CreateTable
-CREATE TABLE "SchoolRole" (
+CREATE TABLE IF NOT EXISTS "SchoolRole" (
     "id" TEXT NOT NULL,
     "schoolId" TEXT NOT NULL,
     "name" TEXT NOT NULL,
@@ -98,7 +142,7 @@ CREATE TABLE "SchoolRole" (
 );
 
 -- CreateTable
-CREATE TABLE "RolePermission" (
+CREATE TABLE IF NOT EXISTS "RolePermission" (
     "id" TEXT NOT NULL,
     "roleId" TEXT NOT NULL,
     "permissionId" TEXT NOT NULL,
@@ -107,7 +151,7 @@ CREATE TABLE "RolePermission" (
 );
 
 -- CreateTable
-CREATE TABLE "UserPermissionOverride" (
+CREATE TABLE IF NOT EXISTS "UserPermissionOverride" (
     "id" TEXT NOT NULL,
     "userId" TEXT NOT NULL,
     "permissionId" TEXT NOT NULL,
@@ -117,7 +161,7 @@ CREATE TABLE "UserPermissionOverride" (
 );
 
 -- CreateTable
-CREATE TABLE "Employee" (
+CREATE TABLE IF NOT EXISTS "Employee" (
     "id" TEXT NOT NULL,
     "schoolId" TEXT NOT NULL,
     "employeeNumber" TEXT,
@@ -173,7 +217,7 @@ CREATE TABLE "Employee" (
 );
 
 -- CreateTable
-CREATE TABLE "PayrollSetting" (
+CREATE TABLE IF NOT EXISTS "PayrollSetting" (
     "id" TEXT NOT NULL,
     "schoolId" TEXT NOT NULL,
     "taxYear" INTEGER NOT NULL,
@@ -213,7 +257,7 @@ CREATE TABLE "PayrollSetting" (
 );
 
 -- CreateTable
-CREATE TABLE "PayrollRun" (
+CREATE TABLE IF NOT EXISTS "PayrollRun" (
     "id" TEXT NOT NULL,
     "schoolId" TEXT NOT NULL,
     "payrollSettingId" TEXT,
@@ -237,7 +281,7 @@ CREATE TABLE "PayrollRun" (
 );
 
 -- CreateTable
-CREATE TABLE "PayrollRunEmployee" (
+CREATE TABLE IF NOT EXISTS "PayrollRunEmployee" (
     "id" TEXT NOT NULL,
     "payrollRunId" TEXT NOT NULL,
     "employeeId" TEXT NOT NULL,
@@ -261,7 +305,7 @@ CREATE TABLE "PayrollRunEmployee" (
 );
 
 -- CreateTable
-CREATE TABLE "PayrollItem" (
+CREATE TABLE IF NOT EXISTS "PayrollItem" (
     "id" TEXT NOT NULL,
     "payrollRunEmployeeId" TEXT NOT NULL,
     "itemType" "PayrollItemType" NOT NULL,
@@ -277,7 +321,7 @@ CREATE TABLE "PayrollItem" (
 );
 
 -- CreateTable
-CREATE TABLE "Payslip" (
+CREATE TABLE IF NOT EXISTS "Payslip" (
     "id" TEXT NOT NULL,
     "schoolId" TEXT NOT NULL,
     "payrollRunId" TEXT NOT NULL,
@@ -306,7 +350,7 @@ CREATE TABLE "Payslip" (
 );
 
 -- CreateTable
-CREATE TABLE "PayrollEmailLog" (
+CREATE TABLE IF NOT EXISTS "PayrollEmailLog" (
     "id" TEXT NOT NULL,
     "schoolId" TEXT NOT NULL,
     "payrollRunId" TEXT,
@@ -325,169 +369,245 @@ CREATE TABLE "PayrollEmailLog" (
 );
 
 -- CreateIndex
-CREATE UNIQUE INDEX "Permission_key_key" ON "Permission"("key");
+CREATE UNIQUE INDEX IF NOT EXISTS "Permission_key_key" ON "Permission"("key");
 
 -- CreateIndex
-CREATE INDEX "SchoolRole_schoolId_idx" ON "SchoolRole"("schoolId");
+CREATE INDEX IF NOT EXISTS "SchoolRole_schoolId_idx" ON "SchoolRole"("schoolId");
 
 -- CreateIndex
-CREATE UNIQUE INDEX "SchoolRole_schoolId_name_key" ON "SchoolRole"("schoolId", "name");
+CREATE UNIQUE INDEX IF NOT EXISTS "SchoolRole_schoolId_name_key" ON "SchoolRole"("schoolId", "name");
 
 -- CreateIndex
-CREATE INDEX "RolePermission_roleId_idx" ON "RolePermission"("roleId");
+CREATE INDEX IF NOT EXISTS "RolePermission_roleId_idx" ON "RolePermission"("roleId");
 
 -- CreateIndex
-CREATE INDEX "RolePermission_permissionId_idx" ON "RolePermission"("permissionId");
+CREATE INDEX IF NOT EXISTS "RolePermission_permissionId_idx" ON "RolePermission"("permissionId");
 
 -- CreateIndex
-CREATE UNIQUE INDEX "RolePermission_roleId_permissionId_key" ON "RolePermission"("roleId", "permissionId");
+CREATE UNIQUE INDEX IF NOT EXISTS "RolePermission_roleId_permissionId_key" ON "RolePermission"("roleId", "permissionId");
 
 -- CreateIndex
-CREATE INDEX "UserPermissionOverride_userId_idx" ON "UserPermissionOverride"("userId");
+CREATE INDEX IF NOT EXISTS "UserPermissionOverride_userId_idx" ON "UserPermissionOverride"("userId");
 
 -- CreateIndex
-CREATE INDEX "UserPermissionOverride_permissionId_idx" ON "UserPermissionOverride"("permissionId");
+CREATE INDEX IF NOT EXISTS "UserPermissionOverride_permissionId_idx" ON "UserPermissionOverride"("permissionId");
 
 -- CreateIndex
-CREATE UNIQUE INDEX "UserPermissionOverride_userId_permissionId_key" ON "UserPermissionOverride"("userId", "permissionId");
+CREATE UNIQUE INDEX IF NOT EXISTS "UserPermissionOverride_userId_permissionId_key" ON "UserPermissionOverride"("userId", "permissionId");
 
 -- CreateIndex
-CREATE INDEX "Employee_schoolId_idx" ON "Employee"("schoolId");
+CREATE INDEX IF NOT EXISTS "Employee_schoolId_idx" ON "Employee"("schoolId");
 
 -- CreateIndex
-CREATE INDEX "Employee_employeeNumber_idx" ON "Employee"("employeeNumber");
+CREATE INDEX IF NOT EXISTS "Employee_employeeNumber_idx" ON "Employee"("employeeNumber");
 
 -- CreateIndex
-CREATE INDEX "Employee_email_idx" ON "Employee"("email");
+CREATE INDEX IF NOT EXISTS "Employee_email_idx" ON "Employee"("email");
 
 -- CreateIndex
-CREATE INDEX "Employee_isActive_idx" ON "Employee"("isActive");
+CREATE INDEX IF NOT EXISTS "Employee_isActive_idx" ON "Employee"("isActive");
 
 -- CreateIndex
-CREATE INDEX "PayrollSetting_schoolId_idx" ON "PayrollSetting"("schoolId");
+CREATE INDEX IF NOT EXISTS "PayrollSetting_schoolId_idx" ON "PayrollSetting"("schoolId");
 
 -- CreateIndex
-CREATE INDEX "PayrollSetting_taxYear_idx" ON "PayrollSetting"("taxYear");
+CREATE INDEX IF NOT EXISTS "PayrollSetting_taxYear_idx" ON "PayrollSetting"("taxYear");
 
 -- CreateIndex
-CREATE UNIQUE INDEX "PayrollSetting_schoolId_taxYear_key" ON "PayrollSetting"("schoolId", "taxYear");
+CREATE UNIQUE INDEX IF NOT EXISTS "PayrollSetting_schoolId_taxYear_key" ON "PayrollSetting"("schoolId", "taxYear");
 
 -- CreateIndex
-CREATE INDEX "PayrollRun_schoolId_idx" ON "PayrollRun"("schoolId");
+CREATE INDEX IF NOT EXISTS "PayrollRun_schoolId_idx" ON "PayrollRun"("schoolId");
 
 -- CreateIndex
-CREATE INDEX "PayrollRun_payrollSettingId_idx" ON "PayrollRun"("payrollSettingId");
+CREATE INDEX IF NOT EXISTS "PayrollRun_payrollSettingId_idx" ON "PayrollRun"("payrollSettingId");
 
 -- CreateIndex
-CREATE INDEX "PayrollRun_taxYear_payrollMonth_payrollYear_idx" ON "PayrollRun"("taxYear", "payrollMonth", "payrollYear");
+CREATE INDEX IF NOT EXISTS "PayrollRun_taxYear_payrollMonth_payrollYear_idx" ON "PayrollRun"("taxYear", "payrollMonth", "payrollYear");
 
 -- CreateIndex
-CREATE INDEX "PayrollRun_status_idx" ON "PayrollRun"("status");
+CREATE INDEX IF NOT EXISTS "PayrollRun_status_idx" ON "PayrollRun"("status");
 
 -- CreateIndex
-CREATE INDEX "PayrollRunEmployee_payrollRunId_idx" ON "PayrollRunEmployee"("payrollRunId");
+CREATE INDEX IF NOT EXISTS "PayrollRunEmployee_payrollRunId_idx" ON "PayrollRunEmployee"("payrollRunId");
 
 -- CreateIndex
-CREATE INDEX "PayrollRunEmployee_employeeId_idx" ON "PayrollRunEmployee"("employeeId");
+CREATE INDEX IF NOT EXISTS "PayrollRunEmployee_employeeId_idx" ON "PayrollRunEmployee"("employeeId");
 
 -- CreateIndex
-CREATE UNIQUE INDEX "PayrollRunEmployee_payrollRunId_employeeId_key" ON "PayrollRunEmployee"("payrollRunId", "employeeId");
+CREATE UNIQUE INDEX IF NOT EXISTS "PayrollRunEmployee_payrollRunId_employeeId_key" ON "PayrollRunEmployee"("payrollRunId", "employeeId");
 
 -- CreateIndex
-CREATE INDEX "PayrollItem_payrollRunEmployeeId_idx" ON "PayrollItem"("payrollRunEmployeeId");
+CREATE INDEX IF NOT EXISTS "PayrollItem_payrollRunEmployeeId_idx" ON "PayrollItem"("payrollRunEmployeeId");
 
 -- CreateIndex
-CREATE INDEX "PayrollItem_itemType_idx" ON "PayrollItem"("itemType");
+CREATE INDEX IF NOT EXISTS "PayrollItem_itemType_idx" ON "PayrollItem"("itemType");
 
 -- CreateIndex
-CREATE INDEX "PayrollItem_itemCode_idx" ON "PayrollItem"("itemCode");
+CREATE INDEX IF NOT EXISTS "PayrollItem_itemCode_idx" ON "PayrollItem"("itemCode");
 
 -- CreateIndex
-CREATE UNIQUE INDEX "Payslip_payrollRunEmployeeId_key" ON "Payslip"("payrollRunEmployeeId");
+CREATE UNIQUE INDEX IF NOT EXISTS "Payslip_payrollRunEmployeeId_key" ON "Payslip"("payrollRunEmployeeId");
 
 -- CreateIndex
-CREATE INDEX "Payslip_schoolId_idx" ON "Payslip"("schoolId");
+CREATE INDEX IF NOT EXISTS "Payslip_schoolId_idx" ON "Payslip"("schoolId");
 
 -- CreateIndex
-CREATE INDEX "Payslip_payrollRunId_idx" ON "Payslip"("payrollRunId");
+CREATE INDEX IF NOT EXISTS "Payslip_payrollRunId_idx" ON "Payslip"("payrollRunId");
 
 -- CreateIndex
-CREATE INDEX "Payslip_employeeId_idx" ON "Payslip"("employeeId");
+CREATE INDEX IF NOT EXISTS "Payslip_employeeId_idx" ON "Payslip"("employeeId");
 
 -- CreateIndex
-CREATE INDEX "Payslip_emailStatus_idx" ON "Payslip"("emailStatus");
+CREATE INDEX IF NOT EXISTS "Payslip_emailStatus_idx" ON "Payslip"("emailStatus");
 
 -- CreateIndex
-CREATE INDEX "PayrollEmailLog_schoolId_idx" ON "PayrollEmailLog"("schoolId");
+CREATE INDEX IF NOT EXISTS "PayrollEmailLog_schoolId_idx" ON "PayrollEmailLog"("schoolId");
 
 -- CreateIndex
-CREATE INDEX "PayrollEmailLog_payrollRunId_idx" ON "PayrollEmailLog"("payrollRunId");
+CREATE INDEX IF NOT EXISTS "PayrollEmailLog_payrollRunId_idx" ON "PayrollEmailLog"("payrollRunId");
 
 -- CreateIndex
-CREATE INDEX "PayrollEmailLog_recipientEmail_idx" ON "PayrollEmailLog"("recipientEmail");
+CREATE INDEX IF NOT EXISTS "PayrollEmailLog_recipientEmail_idx" ON "PayrollEmailLog"("recipientEmail");
 
 -- CreateIndex
-CREATE INDEX "PayrollEmailLog_createdAt_idx" ON "PayrollEmailLog"("createdAt");
+CREATE INDEX IF NOT EXISTS "PayrollEmailLog_createdAt_idx" ON "PayrollEmailLog"("createdAt");
 
 -- CreateIndex
-CREATE INDEX "FeeStructure_schoolId_isActive_idx" ON "FeeStructure"("schoolId", "isActive");
+CREATE INDEX IF NOT EXISTS "FeeStructure_schoolId_isActive_idx" ON "FeeStructure"("schoolId", "isActive");
 
 -- CreateIndex
-CREATE INDEX "User_roleId_idx" ON "User"("roleId");
+CREATE INDEX IF NOT EXISTS "User_roleId_idx" ON "User"("roleId");
 
 -- AddForeignKey
-ALTER TABLE "User" ADD CONSTRAINT "User_roleId_fkey" FOREIGN KEY ("roleId") REFERENCES "SchoolRole"("id") ON DELETE SET NULL ON UPDATE CASCADE;
+DO $$ BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'User_roleId_fkey') THEN
+    ALTER TABLE "User" ADD CONSTRAINT "User_roleId_fkey" FOREIGN KEY ("roleId") REFERENCES "SchoolRole"("id") ON DELETE SET NULL ON UPDATE CASCADE;
+  END IF;
+END $$;
 
 -- AddForeignKey
-ALTER TABLE "SchoolRole" ADD CONSTRAINT "SchoolRole_schoolId_fkey" FOREIGN KEY ("schoolId") REFERENCES "School"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+DO $$ BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'SchoolRole_schoolId_fkey') THEN
+    ALTER TABLE "SchoolRole" ADD CONSTRAINT "SchoolRole_schoolId_fkey" FOREIGN KEY ("schoolId") REFERENCES "School"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+  END IF;
+END $$;
 
 -- AddForeignKey
-ALTER TABLE "RolePermission" ADD CONSTRAINT "RolePermission_roleId_fkey" FOREIGN KEY ("roleId") REFERENCES "SchoolRole"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+DO $$ BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'RolePermission_roleId_fkey') THEN
+    ALTER TABLE "RolePermission" ADD CONSTRAINT "RolePermission_roleId_fkey" FOREIGN KEY ("roleId") REFERENCES "SchoolRole"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+  END IF;
+END $$;
 
 -- AddForeignKey
-ALTER TABLE "RolePermission" ADD CONSTRAINT "RolePermission_permissionId_fkey" FOREIGN KEY ("permissionId") REFERENCES "Permission"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+DO $$ BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'RolePermission_permissionId_fkey') THEN
+    ALTER TABLE "RolePermission" ADD CONSTRAINT "RolePermission_permissionId_fkey" FOREIGN KEY ("permissionId") REFERENCES "Permission"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+  END IF;
+END $$;
 
 -- AddForeignKey
-ALTER TABLE "UserPermissionOverride" ADD CONSTRAINT "UserPermissionOverride_userId_fkey" FOREIGN KEY ("userId") REFERENCES "User"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+DO $$ BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'UserPermissionOverride_userId_fkey') THEN
+    ALTER TABLE "UserPermissionOverride" ADD CONSTRAINT "UserPermissionOverride_userId_fkey" FOREIGN KEY ("userId") REFERENCES "User"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+  END IF;
+END $$;
 
 -- AddForeignKey
-ALTER TABLE "UserPermissionOverride" ADD CONSTRAINT "UserPermissionOverride_permissionId_fkey" FOREIGN KEY ("permissionId") REFERENCES "Permission"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+DO $$ BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'UserPermissionOverride_permissionId_fkey') THEN
+    ALTER TABLE "UserPermissionOverride" ADD CONSTRAINT "UserPermissionOverride_permissionId_fkey" FOREIGN KEY ("permissionId") REFERENCES "Permission"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+  END IF;
+END $$;
 
 -- AddForeignKey
-ALTER TABLE "Employee" ADD CONSTRAINT "Employee_schoolId_fkey" FOREIGN KEY ("schoolId") REFERENCES "School"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+DO $$ BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'Employee_schoolId_fkey') THEN
+    ALTER TABLE "Employee" ADD CONSTRAINT "Employee_schoolId_fkey" FOREIGN KEY ("schoolId") REFERENCES "School"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+  END IF;
+END $$;
 
 -- AddForeignKey
-ALTER TABLE "PayrollSetting" ADD CONSTRAINT "PayrollSetting_schoolId_fkey" FOREIGN KEY ("schoolId") REFERENCES "School"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+DO $$ BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'PayrollSetting_schoolId_fkey') THEN
+    ALTER TABLE "PayrollSetting" ADD CONSTRAINT "PayrollSetting_schoolId_fkey" FOREIGN KEY ("schoolId") REFERENCES "School"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+  END IF;
+END $$;
 
 -- AddForeignKey
-ALTER TABLE "PayrollRun" ADD CONSTRAINT "PayrollRun_schoolId_fkey" FOREIGN KEY ("schoolId") REFERENCES "School"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+DO $$ BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'PayrollRun_schoolId_fkey') THEN
+    ALTER TABLE "PayrollRun" ADD CONSTRAINT "PayrollRun_schoolId_fkey" FOREIGN KEY ("schoolId") REFERENCES "School"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+  END IF;
+END $$;
 
 -- AddForeignKey
-ALTER TABLE "PayrollRun" ADD CONSTRAINT "PayrollRun_payrollSettingId_fkey" FOREIGN KEY ("payrollSettingId") REFERENCES "PayrollSetting"("id") ON DELETE SET NULL ON UPDATE CASCADE;
+DO $$ BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'PayrollRun_payrollSettingId_fkey') THEN
+    ALTER TABLE "PayrollRun" ADD CONSTRAINT "PayrollRun_payrollSettingId_fkey" FOREIGN KEY ("payrollSettingId") REFERENCES "PayrollSetting"("id") ON DELETE SET NULL ON UPDATE CASCADE;
+  END IF;
+END $$;
 
 -- AddForeignKey
-ALTER TABLE "PayrollRunEmployee" ADD CONSTRAINT "PayrollRunEmployee_payrollRunId_fkey" FOREIGN KEY ("payrollRunId") REFERENCES "PayrollRun"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+DO $$ BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'PayrollRunEmployee_payrollRunId_fkey') THEN
+    ALTER TABLE "PayrollRunEmployee" ADD CONSTRAINT "PayrollRunEmployee_payrollRunId_fkey" FOREIGN KEY ("payrollRunId") REFERENCES "PayrollRun"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+  END IF;
+END $$;
 
 -- AddForeignKey
-ALTER TABLE "PayrollRunEmployee" ADD CONSTRAINT "PayrollRunEmployee_employeeId_fkey" FOREIGN KEY ("employeeId") REFERENCES "Employee"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+DO $$ BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'PayrollRunEmployee_employeeId_fkey') THEN
+    ALTER TABLE "PayrollRunEmployee" ADD CONSTRAINT "PayrollRunEmployee_employeeId_fkey" FOREIGN KEY ("employeeId") REFERENCES "Employee"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+  END IF;
+END $$;
 
 -- AddForeignKey
-ALTER TABLE "PayrollItem" ADD CONSTRAINT "PayrollItem_payrollRunEmployeeId_fkey" FOREIGN KEY ("payrollRunEmployeeId") REFERENCES "PayrollRunEmployee"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+DO $$ BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'PayrollItem_payrollRunEmployeeId_fkey') THEN
+    ALTER TABLE "PayrollItem" ADD CONSTRAINT "PayrollItem_payrollRunEmployeeId_fkey" FOREIGN KEY ("payrollRunEmployeeId") REFERENCES "PayrollRunEmployee"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+  END IF;
+END $$;
 
 -- AddForeignKey
-ALTER TABLE "Payslip" ADD CONSTRAINT "Payslip_schoolId_fkey" FOREIGN KEY ("schoolId") REFERENCES "School"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+DO $$ BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'Payslip_schoolId_fkey') THEN
+    ALTER TABLE "Payslip" ADD CONSTRAINT "Payslip_schoolId_fkey" FOREIGN KEY ("schoolId") REFERENCES "School"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+  END IF;
+END $$;
 
 -- AddForeignKey
-ALTER TABLE "Payslip" ADD CONSTRAINT "Payslip_payrollRunId_fkey" FOREIGN KEY ("payrollRunId") REFERENCES "PayrollRun"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+DO $$ BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'Payslip_payrollRunId_fkey') THEN
+    ALTER TABLE "Payslip" ADD CONSTRAINT "Payslip_payrollRunId_fkey" FOREIGN KEY ("payrollRunId") REFERENCES "PayrollRun"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+  END IF;
+END $$;
 
 -- AddForeignKey
-ALTER TABLE "Payslip" ADD CONSTRAINT "Payslip_payrollRunEmployeeId_fkey" FOREIGN KEY ("payrollRunEmployeeId") REFERENCES "PayrollRunEmployee"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+DO $$ BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'Payslip_payrollRunEmployeeId_fkey') THEN
+    ALTER TABLE "Payslip" ADD CONSTRAINT "Payslip_payrollRunEmployeeId_fkey" FOREIGN KEY ("payrollRunEmployeeId") REFERENCES "PayrollRunEmployee"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+  END IF;
+END $$;
 
 -- AddForeignKey
-ALTER TABLE "Payslip" ADD CONSTRAINT "Payslip_employeeId_fkey" FOREIGN KEY ("employeeId") REFERENCES "Employee"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+DO $$ BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'Payslip_employeeId_fkey') THEN
+    ALTER TABLE "Payslip" ADD CONSTRAINT "Payslip_employeeId_fkey" FOREIGN KEY ("employeeId") REFERENCES "Employee"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+  END IF;
+END $$;
 
 -- AddForeignKey
-ALTER TABLE "PayrollEmailLog" ADD CONSTRAINT "PayrollEmailLog_schoolId_fkey" FOREIGN KEY ("schoolId") REFERENCES "School"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+DO $$ BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'PayrollEmailLog_schoolId_fkey') THEN
+    ALTER TABLE "PayrollEmailLog" ADD CONSTRAINT "PayrollEmailLog_schoolId_fkey" FOREIGN KEY ("schoolId") REFERENCES "School"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+  END IF;
+END $$;
 
 -- AddForeignKey
-ALTER TABLE "PayrollEmailLog" ADD CONSTRAINT "PayrollEmailLog_payrollRunId_fkey" FOREIGN KEY ("payrollRunId") REFERENCES "PayrollRun"("id") ON DELETE SET NULL ON UPDATE CASCADE;
+DO $$ BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'PayrollEmailLog_payrollRunId_fkey') THEN
+    ALTER TABLE "PayrollEmailLog" ADD CONSTRAINT "PayrollEmailLog_payrollRunId_fkey" FOREIGN KEY ("payrollRunId") REFERENCES "PayrollRun"("id") ON DELETE SET NULL ON UPDATE CASCADE;
+  END IF;
+END $$;

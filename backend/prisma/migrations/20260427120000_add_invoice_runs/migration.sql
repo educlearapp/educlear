@@ -1,5 +1,5 @@
 -- CreateTable
-CREATE TABLE "InvoiceRun" (
+CREATE TABLE IF NOT EXISTS "InvoiceRun" (
     "id" TEXT NOT NULL,
     "schoolId" TEXT NOT NULL,
     "description" TEXT,
@@ -12,7 +12,7 @@ CREATE TABLE "InvoiceRun" (
 );
 
 -- CreateTable
-CREATE TABLE "Invoice" (
+CREATE TABLE IF NOT EXISTS "Invoice" (
     "id" TEXT NOT NULL,
     "schoolId" TEXT NOT NULL,
     "invoiceRunId" TEXT NOT NULL,
@@ -28,7 +28,7 @@ CREATE TABLE "Invoice" (
 );
 
 -- CreateTable
-CREATE TABLE "InvoiceLine" (
+CREATE TABLE IF NOT EXISTS "InvoiceLine" (
     "id" TEXT NOT NULL,
     "invoiceId" TEXT NOT NULL,
     "description" TEXT NOT NULL,
@@ -39,27 +39,55 @@ CREATE TABLE "InvoiceLine" (
 );
 
 -- Indexes
-CREATE INDEX "InvoiceRun_schoolId_idx" ON "InvoiceRun"("schoolId");
-CREATE INDEX "InvoiceRun_schoolId_invoiceMonth_idx" ON "InvoiceRun"("schoolId", "invoiceMonth");
-CREATE INDEX "InvoiceRun_createdAt_idx" ON "InvoiceRun"("createdAt");
+CREATE INDEX IF NOT EXISTS "InvoiceRun_schoolId_idx" ON "InvoiceRun"("schoolId");
+CREATE INDEX IF NOT EXISTS "InvoiceRun_schoolId_invoiceMonth_idx" ON "InvoiceRun"("schoolId", "invoiceMonth");
+CREATE INDEX IF NOT EXISTS "InvoiceRun_createdAt_idx" ON "InvoiceRun"("createdAt");
 
-CREATE INDEX "Invoice_schoolId_idx" ON "Invoice"("schoolId");
-CREATE INDEX "Invoice_invoiceRunId_idx" ON "Invoice"("invoiceRunId");
-CREATE INDEX "Invoice_parentId_idx" ON "Invoice"("parentId");
-CREATE INDEX "Invoice_familyAccountId_idx" ON "Invoice"("familyAccountId");
-CREATE INDEX "Invoice_learnerId_idx" ON "Invoice"("learnerId");
-CREATE INDEX "Invoice_createdAt_idx" ON "Invoice"("createdAt");
+CREATE INDEX IF NOT EXISTS "Invoice_schoolId_idx" ON "Invoice"("schoolId");
+CREATE INDEX IF NOT EXISTS "Invoice_invoiceRunId_idx" ON "Invoice"("invoiceRunId");
+CREATE INDEX IF NOT EXISTS "Invoice_parentId_idx" ON "Invoice"("parentId");
+CREATE INDEX IF NOT EXISTS "Invoice_familyAccountId_idx" ON "Invoice"("familyAccountId");
+CREATE INDEX IF NOT EXISTS "Invoice_learnerId_idx" ON "Invoice"("learnerId");
+CREATE INDEX IF NOT EXISTS "Invoice_createdAt_idx" ON "Invoice"("createdAt");
 
-CREATE INDEX "InvoiceLine_invoiceId_idx" ON "InvoiceLine"("invoiceId");
+CREATE INDEX IF NOT EXISTS "InvoiceLine_invoiceId_idx" ON "InvoiceLine"("invoiceId");
 
 -- Foreign keys
-ALTER TABLE "InvoiceRun" ADD CONSTRAINT "InvoiceRun_schoolId_fkey" FOREIGN KEY ("schoolId") REFERENCES "School"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+DO $$ BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'InvoiceRun_schoolId_fkey') THEN
+    ALTER TABLE "InvoiceRun" ADD CONSTRAINT "InvoiceRun_schoolId_fkey" FOREIGN KEY ("schoolId") REFERENCES "School"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+  END IF;
+END $$;
 
-ALTER TABLE "Invoice" ADD CONSTRAINT "Invoice_schoolId_fkey" FOREIGN KEY ("schoolId") REFERENCES "School"("id") ON DELETE CASCADE ON UPDATE CASCADE;
-ALTER TABLE "Invoice" ADD CONSTRAINT "Invoice_invoiceRunId_fkey" FOREIGN KEY ("invoiceRunId") REFERENCES "InvoiceRun"("id") ON DELETE CASCADE ON UPDATE CASCADE;
-ALTER TABLE "Invoice" ADD CONSTRAINT "Invoice_parentId_fkey" FOREIGN KEY ("parentId") REFERENCES "Parent"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
-ALTER TABLE "Invoice" ADD CONSTRAINT "Invoice_learnerId_fkey" FOREIGN KEY ("learnerId") REFERENCES "Learner"("id") ON DELETE SET NULL ON UPDATE CASCADE;
-ALTER TABLE "Invoice" ADD CONSTRAINT "Invoice_familyAccountId_fkey" FOREIGN KEY ("familyAccountId") REFERENCES "FamilyAccount"("id") ON DELETE SET NULL ON UPDATE CASCADE;
+DO $$ BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'Invoice_schoolId_fkey') THEN
+    ALTER TABLE "Invoice" ADD CONSTRAINT "Invoice_schoolId_fkey" FOREIGN KEY ("schoolId") REFERENCES "School"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+  END IF;
+END $$;
+DO $$ BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'Invoice_invoiceRunId_fkey') THEN
+    ALTER TABLE "Invoice" ADD CONSTRAINT "Invoice_invoiceRunId_fkey" FOREIGN KEY ("invoiceRunId") REFERENCES "InvoiceRun"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+  END IF;
+END $$;
+DO $$ BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'Invoice_parentId_fkey') THEN
+    ALTER TABLE "Invoice" ADD CONSTRAINT "Invoice_parentId_fkey" FOREIGN KEY ("parentId") REFERENCES "Parent"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+  END IF;
+END $$;
+DO $$ BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'Invoice_learnerId_fkey') THEN
+    ALTER TABLE "Invoice" ADD CONSTRAINT "Invoice_learnerId_fkey" FOREIGN KEY ("learnerId") REFERENCES "Learner"("id") ON DELETE SET NULL ON UPDATE CASCADE;
+  END IF;
+END $$;
+DO $$ BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'Invoice_familyAccountId_fkey') THEN
+    ALTER TABLE "Invoice" ADD CONSTRAINT "Invoice_familyAccountId_fkey" FOREIGN KEY ("familyAccountId") REFERENCES "FamilyAccount"("id") ON DELETE SET NULL ON UPDATE CASCADE;
+  END IF;
+END $$;
 
-ALTER TABLE "InvoiceLine" ADD CONSTRAINT "InvoiceLine_invoiceId_fkey" FOREIGN KEY ("invoiceId") REFERENCES "Invoice"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+DO $$ BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'InvoiceLine_invoiceId_fkey') THEN
+    ALTER TABLE "InvoiceLine" ADD CONSTRAINT "InvoiceLine_invoiceId_fkey" FOREIGN KEY ("invoiceId") REFERENCES "Invoice"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+  END IF;
+END $$;
 

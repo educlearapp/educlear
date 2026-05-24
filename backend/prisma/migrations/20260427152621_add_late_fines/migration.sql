@@ -1,5 +1,5 @@
 -- CreateTable
-CREATE TABLE "Payment" (
+CREATE TABLE IF NOT EXISTS "Payment" (
     "id" TEXT NOT NULL,
     "schoolId" TEXT NOT NULL,
     "parentId" TEXT NOT NULL,
@@ -11,7 +11,7 @@ CREATE TABLE "Payment" (
 );
 
 -- CreateTable
-CREATE TABLE "Project" (
+CREATE TABLE IF NOT EXISTS "Project" (
     "id" TEXT NOT NULL,
     "schoolId" TEXT NOT NULL,
     "className" TEXT NOT NULL,
@@ -25,31 +25,43 @@ CREATE TABLE "Project" (
 );
 
 -- CreateIndex
-CREATE INDEX "Payment_schoolId_idx" ON "Payment"("schoolId");
+CREATE INDEX IF NOT EXISTS "Payment_schoolId_idx" ON "Payment"("schoolId");
 
 -- CreateIndex
-CREATE INDEX "Payment_parentId_idx" ON "Payment"("parentId");
+CREATE INDEX IF NOT EXISTS "Payment_parentId_idx" ON "Payment"("parentId");
 
 -- CreateIndex
-CREATE INDEX "Payment_createdAt_idx" ON "Payment"("createdAt");
+CREATE INDEX IF NOT EXISTS "Payment_createdAt_idx" ON "Payment"("createdAt");
 
 -- CreateIndex
-CREATE INDEX "Project_schoolId_idx" ON "Project"("schoolId");
+CREATE INDEX IF NOT EXISTS "Project_schoolId_idx" ON "Project"("schoolId");
 
 -- CreateIndex
-CREATE INDEX "Project_schoolId_className_idx" ON "Project"("schoolId", "className");
+CREATE INDEX IF NOT EXISTS "Project_schoolId_className_idx" ON "Project"("schoolId", "className");
 
 -- CreateIndex
-CREATE INDEX "Project_dueDate_idx" ON "Project"("dueDate");
+CREATE INDEX IF NOT EXISTS "Project_dueDate_idx" ON "Project"("dueDate");
 
 -- CreateIndex
-CREATE INDEX "Project_createdAt_idx" ON "Project"("createdAt");
+CREATE INDEX IF NOT EXISTS "Project_createdAt_idx" ON "Project"("createdAt");
 
 -- AddForeignKey
-ALTER TABLE "Payment" ADD CONSTRAINT "Payment_schoolId_fkey" FOREIGN KEY ("schoolId") REFERENCES "School"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+DO $$ BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'Payment_schoolId_fkey') THEN
+    ALTER TABLE "Payment" ADD CONSTRAINT "Payment_schoolId_fkey" FOREIGN KEY ("schoolId") REFERENCES "School"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+  END IF;
+END $$;
 
 -- AddForeignKey
-ALTER TABLE "Payment" ADD CONSTRAINT "Payment_parentId_fkey" FOREIGN KEY ("parentId") REFERENCES "Parent"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+DO $$ BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'Payment_parentId_fkey') THEN
+    ALTER TABLE "Payment" ADD CONSTRAINT "Payment_parentId_fkey" FOREIGN KEY ("parentId") REFERENCES "Parent"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+  END IF;
+END $$;
 
 -- AddForeignKey
-ALTER TABLE "Project" ADD CONSTRAINT "Project_schoolId_fkey" FOREIGN KEY ("schoolId") REFERENCES "School"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+DO $$ BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'Project_schoolId_fkey') THEN
+    ALTER TABLE "Project" ADD CONSTRAINT "Project_schoolId_fkey" FOREIGN KEY ("schoolId") REFERENCES "School"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+  END IF;
+END $$;

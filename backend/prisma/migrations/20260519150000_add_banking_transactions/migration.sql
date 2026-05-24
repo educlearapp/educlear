@@ -1,8 +1,12 @@
 -- CreateEnum
-CREATE TYPE "BankTransactionMatchStatus" AS ENUM ('imported', 'matched', 'unmatched', 'duplicate', 'ready_to_post');
+DO $$ BEGIN
+  CREATE TYPE "BankTransactionMatchStatus" AS ENUM ('imported', 'matched', 'unmatched', 'duplicate', 'ready_to_post');
+EXCEPTION
+  WHEN duplicate_object THEN NULL;
+END $$;
 
 -- CreateTable
-CREATE TABLE "BankStatementImport" (
+CREATE TABLE IF NOT EXISTS "BankStatementImport" (
     "id" TEXT NOT NULL,
     "schoolId" TEXT NOT NULL,
     "fileName" TEXT NOT NULL,
@@ -13,7 +17,7 @@ CREATE TABLE "BankStatementImport" (
 );
 
 -- CreateTable
-CREATE TABLE "BankTransaction" (
+CREATE TABLE IF NOT EXISTS "BankTransaction" (
     "id" TEXT NOT NULL,
     "schoolId" TEXT NOT NULL,
     "importId" TEXT NOT NULL,
@@ -46,31 +50,43 @@ CREATE TABLE "BankTransaction" (
 );
 
 -- CreateIndex
-CREATE INDEX "BankStatementImport_schoolId_idx" ON "BankStatementImport"("schoolId");
+CREATE INDEX IF NOT EXISTS "BankStatementImport_schoolId_idx" ON "BankStatementImport"("schoolId");
 
 -- CreateIndex
-CREATE INDEX "BankStatementImport_schoolId_importedAt_idx" ON "BankStatementImport"("schoolId", "importedAt");
+CREATE INDEX IF NOT EXISTS "BankStatementImport_schoolId_importedAt_idx" ON "BankStatementImport"("schoolId", "importedAt");
 
 -- CreateIndex
-CREATE INDEX "BankTransaction_schoolId_idx" ON "BankTransaction"("schoolId");
+CREATE INDEX IF NOT EXISTS "BankTransaction_schoolId_idx" ON "BankTransaction"("schoolId");
 
 -- CreateIndex
-CREATE INDEX "BankTransaction_schoolId_fingerprint_idx" ON "BankTransaction"("schoolId", "fingerprint");
+CREATE INDEX IF NOT EXISTS "BankTransaction_schoolId_fingerprint_idx" ON "BankTransaction"("schoolId", "fingerprint");
 
 -- CreateIndex
-CREATE INDEX "BankTransaction_schoolId_matchStatus_idx" ON "BankTransaction"("schoolId", "matchStatus");
+CREATE INDEX IF NOT EXISTS "BankTransaction_schoolId_matchStatus_idx" ON "BankTransaction"("schoolId", "matchStatus");
 
 -- CreateIndex
-CREATE INDEX "BankTransaction_importId_idx" ON "BankTransaction"("importId");
+CREATE INDEX IF NOT EXISTS "BankTransaction_importId_idx" ON "BankTransaction"("importId");
 
 -- CreateIndex
-CREATE INDEX "BankTransaction_importId_matchStatus_idx" ON "BankTransaction"("importId", "matchStatus");
+CREATE INDEX IF NOT EXISTS "BankTransaction_importId_matchStatus_idx" ON "BankTransaction"("importId", "matchStatus");
 
 -- AddForeignKey
-ALTER TABLE "BankStatementImport" ADD CONSTRAINT "BankStatementImport_schoolId_fkey" FOREIGN KEY ("schoolId") REFERENCES "School"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+DO $$ BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'BankStatementImport_schoolId_fkey') THEN
+    ALTER TABLE "BankStatementImport" ADD CONSTRAINT "BankStatementImport_schoolId_fkey" FOREIGN KEY ("schoolId") REFERENCES "School"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+  END IF;
+END $$;
 
 -- AddForeignKey
-ALTER TABLE "BankTransaction" ADD CONSTRAINT "BankTransaction_schoolId_fkey" FOREIGN KEY ("schoolId") REFERENCES "School"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+DO $$ BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'BankTransaction_schoolId_fkey') THEN
+    ALTER TABLE "BankTransaction" ADD CONSTRAINT "BankTransaction_schoolId_fkey" FOREIGN KEY ("schoolId") REFERENCES "School"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+  END IF;
+END $$;
 
 -- AddForeignKey
-ALTER TABLE "BankTransaction" ADD CONSTRAINT "BankTransaction_importId_fkey" FOREIGN KEY ("importId") REFERENCES "BankStatementImport"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+DO $$ BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'BankTransaction_importId_fkey') THEN
+    ALTER TABLE "BankTransaction" ADD CONSTRAINT "BankTransaction_importId_fkey" FOREIGN KEY ("importId") REFERENCES "BankStatementImport"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+  END IF;
+END $$;

@@ -1,20 +1,40 @@
 -- CreateEnum
-CREATE TYPE "EduClearPackageCode" AS ENUM ('STARTER', 'UNLIMITED');
+DO $$ BEGIN
+  CREATE TYPE "EduClearPackageCode" AS ENUM ('STARTER', 'UNLIMITED');
+EXCEPTION
+  WHEN duplicate_object THEN NULL;
+END $$;
 
 -- CreateEnum
-CREATE TYPE "SchoolSubscriptionStatus" AS ENUM ('PENDING_PAYMENT', 'ACTIVE', 'PAST_DUE', 'CANCELLED', 'SUSPENDED');
+DO $$ BEGIN
+  CREATE TYPE "SchoolSubscriptionStatus" AS ENUM ('PENDING_PAYMENT', 'ACTIVE', 'PAST_DUE', 'CANCELLED', 'SUSPENDED');
+EXCEPTION
+  WHEN duplicate_object THEN NULL;
+END $$;
 
 -- CreateEnum
-CREATE TYPE "SubscriptionInvoiceStatus" AS ENUM ('PENDING', 'PAID', 'FAILED', 'CANCELLED');
+DO $$ BEGIN
+  CREATE TYPE "SubscriptionInvoiceStatus" AS ENUM ('PENDING', 'PAID', 'FAILED', 'CANCELLED');
+EXCEPTION
+  WHEN duplicate_object THEN NULL;
+END $$;
 
 -- CreateEnum
-CREATE TYPE "SubscriptionPaymentStatus" AS ENUM ('PENDING', 'PAID', 'FAILED', 'CANCELLED');
+DO $$ BEGIN
+  CREATE TYPE "SubscriptionPaymentStatus" AS ENUM ('PENDING', 'PAID', 'FAILED', 'CANCELLED');
+EXCEPTION
+  WHEN duplicate_object THEN NULL;
+END $$;
 
 -- CreateEnum
-CREATE TYPE "PaymentGatewayProvider" AS ENUM ('PAYFAST', 'OZOW');
+DO $$ BEGIN
+  CREATE TYPE "PaymentGatewayProvider" AS ENUM ('PAYFAST', 'OZOW');
+EXCEPTION
+  WHEN duplicate_object THEN NULL;
+END $$;
 
 -- CreateTable
-CREATE TABLE "EduClearPackage" (
+CREATE TABLE IF NOT EXISTS "EduClearPackage" (
     "id" TEXT NOT NULL,
     "code" "EduClearPackageCode" NOT NULL,
     "name" TEXT NOT NULL,
@@ -31,7 +51,7 @@ CREATE TABLE "EduClearPackage" (
 );
 
 -- CreateTable
-CREATE TABLE "SchoolSubscription" (
+CREATE TABLE IF NOT EXISTS "SchoolSubscription" (
     "id" TEXT NOT NULL,
     "schoolId" TEXT NOT NULL,
     "packageId" TEXT NOT NULL,
@@ -48,7 +68,7 @@ CREATE TABLE "SchoolSubscription" (
 );
 
 -- CreateTable
-CREATE TABLE "SubscriptionInvoice" (
+CREATE TABLE IF NOT EXISTS "SubscriptionInvoice" (
     "id" TEXT NOT NULL,
     "schoolId" TEXT NOT NULL,
     "subscriptionId" TEXT NOT NULL,
@@ -67,7 +87,7 @@ CREATE TABLE "SubscriptionInvoice" (
 );
 
 -- CreateTable
-CREATE TABLE "SubscriptionPaymentLog" (
+CREATE TABLE IF NOT EXISTS "SubscriptionPaymentLog" (
     "id" TEXT NOT NULL,
     "schoolId" TEXT NOT NULL,
     "invoiceId" TEXT NOT NULL,
@@ -92,53 +112,77 @@ CREATE TABLE "SubscriptionPaymentLog" (
 );
 
 -- CreateIndex
-CREATE UNIQUE INDEX "EduClearPackage_code_key" ON "EduClearPackage"("code");
+CREATE UNIQUE INDEX IF NOT EXISTS "EduClearPackage_code_key" ON "EduClearPackage"("code");
 
 -- CreateIndex
-CREATE UNIQUE INDEX "SchoolSubscription_schoolId_key" ON "SchoolSubscription"("schoolId");
+CREATE UNIQUE INDEX IF NOT EXISTS "SchoolSubscription_schoolId_key" ON "SchoolSubscription"("schoolId");
 
 -- CreateIndex
-CREATE INDEX "SchoolSubscription_status_idx" ON "SchoolSubscription"("status");
+CREATE INDEX IF NOT EXISTS "SchoolSubscription_status_idx" ON "SchoolSubscription"("status");
 
 -- CreateIndex
-CREATE INDEX "SchoolSubscription_packageCode_idx" ON "SchoolSubscription"("packageCode");
+CREATE INDEX IF NOT EXISTS "SchoolSubscription_packageCode_idx" ON "SchoolSubscription"("packageCode");
 
 -- CreateIndex
-CREATE INDEX "SubscriptionInvoice_schoolId_status_idx" ON "SubscriptionInvoice"("schoolId", "status");
+CREATE INDEX IF NOT EXISTS "SubscriptionInvoice_schoolId_status_idx" ON "SubscriptionInvoice"("schoolId", "status");
 
 -- CreateIndex
-CREATE INDEX "SubscriptionInvoice_subscriptionId_idx" ON "SubscriptionInvoice"("subscriptionId");
+CREATE INDEX IF NOT EXISTS "SubscriptionInvoice_subscriptionId_idx" ON "SubscriptionInvoice"("subscriptionId");
 
 -- CreateIndex
-CREATE UNIQUE INDEX "SubscriptionInvoice_invoiceNumber_key" ON "SubscriptionInvoice"("invoiceNumber");
+CREATE UNIQUE INDEX IF NOT EXISTS "SubscriptionInvoice_invoiceNumber_key" ON "SubscriptionInvoice"("invoiceNumber");
 
 -- CreateIndex
-CREATE INDEX "SubscriptionPaymentLog_schoolId_createdAt_idx" ON "SubscriptionPaymentLog"("schoolId", "createdAt");
+CREATE INDEX IF NOT EXISTS "SubscriptionPaymentLog_schoolId_createdAt_idx" ON "SubscriptionPaymentLog"("schoolId", "createdAt");
 
 -- CreateIndex
-CREATE INDEX "SubscriptionPaymentLog_invoiceId_idx" ON "SubscriptionPaymentLog"("invoiceId");
+CREATE INDEX IF NOT EXISTS "SubscriptionPaymentLog_invoiceId_idx" ON "SubscriptionPaymentLog"("invoiceId");
 
 -- CreateIndex
-CREATE INDEX "SubscriptionPaymentLog_merchantPaymentId_idx" ON "SubscriptionPaymentLog"("merchantPaymentId");
+CREATE INDEX IF NOT EXISTS "SubscriptionPaymentLog_merchantPaymentId_idx" ON "SubscriptionPaymentLog"("merchantPaymentId");
 
 -- CreateIndex
-CREATE INDEX "SubscriptionPaymentLog_status_idx" ON "SubscriptionPaymentLog"("status");
+CREATE INDEX IF NOT EXISTS "SubscriptionPaymentLog_status_idx" ON "SubscriptionPaymentLog"("status");
 
 -- AddForeignKey
-ALTER TABLE "SchoolSubscription" ADD CONSTRAINT "SchoolSubscription_schoolId_fkey" FOREIGN KEY ("schoolId") REFERENCES "School"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+DO $$ BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'SchoolSubscription_schoolId_fkey') THEN
+    ALTER TABLE "SchoolSubscription" ADD CONSTRAINT "SchoolSubscription_schoolId_fkey" FOREIGN KEY ("schoolId") REFERENCES "School"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+  END IF;
+END $$;
 
 -- AddForeignKey
-ALTER TABLE "SchoolSubscription" ADD CONSTRAINT "SchoolSubscription_packageId_fkey" FOREIGN KEY ("packageId") REFERENCES "EduClearPackage"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+DO $$ BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'SchoolSubscription_packageId_fkey') THEN
+    ALTER TABLE "SchoolSubscription" ADD CONSTRAINT "SchoolSubscription_packageId_fkey" FOREIGN KEY ("packageId") REFERENCES "EduClearPackage"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+  END IF;
+END $$;
 
 -- AddForeignKey
-ALTER TABLE "SubscriptionInvoice" ADD CONSTRAINT "SubscriptionInvoice_schoolId_fkey" FOREIGN KEY ("schoolId") REFERENCES "School"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+DO $$ BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'SubscriptionInvoice_schoolId_fkey') THEN
+    ALTER TABLE "SubscriptionInvoice" ADD CONSTRAINT "SubscriptionInvoice_schoolId_fkey" FOREIGN KEY ("schoolId") REFERENCES "School"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+  END IF;
+END $$;
 
 -- AddForeignKey
-ALTER TABLE "SubscriptionInvoice" ADD CONSTRAINT "SubscriptionInvoice_subscriptionId_fkey" FOREIGN KEY ("subscriptionId") REFERENCES "SchoolSubscription"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+DO $$ BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'SubscriptionInvoice_subscriptionId_fkey') THEN
+    ALTER TABLE "SubscriptionInvoice" ADD CONSTRAINT "SubscriptionInvoice_subscriptionId_fkey" FOREIGN KEY ("subscriptionId") REFERENCES "SchoolSubscription"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+  END IF;
+END $$;
 
 -- AddForeignKey
-ALTER TABLE "SubscriptionPaymentLog" ADD CONSTRAINT "SubscriptionPaymentLog_schoolId_fkey" FOREIGN KEY ("schoolId") REFERENCES "School"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+DO $$ BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'SubscriptionPaymentLog_schoolId_fkey') THEN
+    ALTER TABLE "SubscriptionPaymentLog" ADD CONSTRAINT "SubscriptionPaymentLog_schoolId_fkey" FOREIGN KEY ("schoolId") REFERENCES "School"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+  END IF;
+END $$;
 
 -- AddForeignKey
-ALTER TABLE "SubscriptionPaymentLog" ADD CONSTRAINT "SubscriptionPaymentLog_invoiceId_fkey" FOREIGN KEY ("invoiceId") REFERENCES "SubscriptionInvoice"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+DO $$ BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'SubscriptionPaymentLog_invoiceId_fkey') THEN
+    ALTER TABLE "SubscriptionPaymentLog" ADD CONSTRAINT "SubscriptionPaymentLog_invoiceId_fkey" FOREIGN KEY ("invoiceId") REFERENCES "SubscriptionInvoice"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+  END IF;
+END $$;
 

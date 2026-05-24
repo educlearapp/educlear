@@ -1,8 +1,12 @@
 -- CreateEnum
-CREATE TYPE "UserRole" AS ENUM ('SCHOOL_ADMIN', 'FINANCE', 'STAFF');
+DO $$ BEGIN
+  CREATE TYPE "UserRole" AS ENUM ('SCHOOL_ADMIN', 'FINANCE', 'STAFF');
+EXCEPTION
+  WHEN duplicate_object THEN NULL;
+END $$;
 
 -- CreateTable
-CREATE TABLE "School" (
+CREATE TABLE IF NOT EXISTS "School" (
     "id" TEXT NOT NULL,
     "name" TEXT NOT NULL,
     "email" TEXT,
@@ -12,7 +16,7 @@ CREATE TABLE "School" (
 );
 
 -- CreateTable
-CREATE TABLE "User" (
+CREATE TABLE IF NOT EXISTS "User" (
     "id" TEXT NOT NULL,
     "schoolId" TEXT NOT NULL,
     "email" TEXT NOT NULL,
@@ -24,7 +28,7 @@ CREATE TABLE "User" (
 );
 
 -- CreateTable
-CREATE TABLE "Parent" (
+CREATE TABLE IF NOT EXISTS "Parent" (
     "id" TEXT NOT NULL,
     "schoolId" TEXT NOT NULL,
     "fullName" TEXT NOT NULL,
@@ -37,7 +41,7 @@ CREATE TABLE "Parent" (
 );
 
 -- CreateTable
-CREATE TABLE "Learner" (
+CREATE TABLE IF NOT EXISTS "Learner" (
     "id" TEXT NOT NULL,
     "schoolId" TEXT NOT NULL,
     "firstName" TEXT NOT NULL,
@@ -51,7 +55,7 @@ CREATE TABLE "Learner" (
 );
 
 -- CreateTable
-CREATE TABLE "ParentLearnerLink" (
+CREATE TABLE IF NOT EXISTS "ParentLearnerLink" (
     "id" TEXT NOT NULL,
     "schoolId" TEXT NOT NULL,
     "parentId" TEXT NOT NULL,
@@ -63,46 +67,66 @@ CREATE TABLE "ParentLearnerLink" (
 );
 
 -- CreateIndex
-CREATE UNIQUE INDEX "School_email_key" ON "School"("email");
+CREATE UNIQUE INDEX IF NOT EXISTS "School_email_key" ON "School"("email");
 
 -- CreateIndex
-CREATE INDEX "User_schoolId_idx" ON "User"("schoolId");
+CREATE INDEX IF NOT EXISTS "User_schoolId_idx" ON "User"("schoolId");
 
 -- CreateIndex
-CREATE UNIQUE INDEX "User_schoolId_email_key" ON "User"("schoolId", "email");
+CREATE UNIQUE INDEX IF NOT EXISTS "User_schoolId_email_key" ON "User"("schoolId", "email");
 
 -- CreateIndex
-CREATE INDEX "Parent_schoolId_idx" ON "Parent"("schoolId");
+CREATE INDEX IF NOT EXISTS "Parent_schoolId_idx" ON "Parent"("schoolId");
 
 -- CreateIndex
-CREATE INDEX "Parent_schoolId_mobile_idx" ON "Parent"("schoolId", "mobile");
+CREATE INDEX IF NOT EXISTS "Parent_schoolId_mobile_idx" ON "Parent"("schoolId", "mobile");
 
 -- CreateIndex
-CREATE INDEX "Learner_schoolId_idx" ON "Learner"("schoolId");
+CREATE INDEX IF NOT EXISTS "Learner_schoolId_idx" ON "Learner"("schoolId");
 
 -- CreateIndex
-CREATE INDEX "Learner_schoolId_grade_idx" ON "Learner"("schoolId", "grade");
+CREATE INDEX IF NOT EXISTS "Learner_schoolId_grade_idx" ON "Learner"("schoolId", "grade");
 
 -- CreateIndex
-CREATE UNIQUE INDEX "Learner_schoolId_admissionNo_key" ON "Learner"("schoolId", "admissionNo");
+CREATE UNIQUE INDEX IF NOT EXISTS "Learner_schoolId_admissionNo_key" ON "Learner"("schoolId", "admissionNo");
 
 -- CreateIndex
-CREATE INDEX "ParentLearnerLink_schoolId_idx" ON "ParentLearnerLink"("schoolId");
+CREATE INDEX IF NOT EXISTS "ParentLearnerLink_schoolId_idx" ON "ParentLearnerLink"("schoolId");
 
 -- CreateIndex
-CREATE UNIQUE INDEX "ParentLearnerLink_parentId_learnerId_key" ON "ParentLearnerLink"("parentId", "learnerId");
+CREATE UNIQUE INDEX IF NOT EXISTS "ParentLearnerLink_parentId_learnerId_key" ON "ParentLearnerLink"("parentId", "learnerId");
 
 -- AddForeignKey
-ALTER TABLE "User" ADD CONSTRAINT "User_schoolId_fkey" FOREIGN KEY ("schoolId") REFERENCES "School"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+DO $$ BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'User_schoolId_fkey') THEN
+    ALTER TABLE "User" ADD CONSTRAINT "User_schoolId_fkey" FOREIGN KEY ("schoolId") REFERENCES "School"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+  END IF;
+END $$;
 
 -- AddForeignKey
-ALTER TABLE "Parent" ADD CONSTRAINT "Parent_schoolId_fkey" FOREIGN KEY ("schoolId") REFERENCES "School"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+DO $$ BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'Parent_schoolId_fkey') THEN
+    ALTER TABLE "Parent" ADD CONSTRAINT "Parent_schoolId_fkey" FOREIGN KEY ("schoolId") REFERENCES "School"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+  END IF;
+END $$;
 
 -- AddForeignKey
-ALTER TABLE "Learner" ADD CONSTRAINT "Learner_schoolId_fkey" FOREIGN KEY ("schoolId") REFERENCES "School"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+DO $$ BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'Learner_schoolId_fkey') THEN
+    ALTER TABLE "Learner" ADD CONSTRAINT "Learner_schoolId_fkey" FOREIGN KEY ("schoolId") REFERENCES "School"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+  END IF;
+END $$;
 
 -- AddForeignKey
-ALTER TABLE "ParentLearnerLink" ADD CONSTRAINT "ParentLearnerLink_parentId_fkey" FOREIGN KEY ("parentId") REFERENCES "Parent"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+DO $$ BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'ParentLearnerLink_parentId_fkey') THEN
+    ALTER TABLE "ParentLearnerLink" ADD CONSTRAINT "ParentLearnerLink_parentId_fkey" FOREIGN KEY ("parentId") REFERENCES "Parent"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+  END IF;
+END $$;
 
 -- AddForeignKey
-ALTER TABLE "ParentLearnerLink" ADD CONSTRAINT "ParentLearnerLink_learnerId_fkey" FOREIGN KEY ("learnerId") REFERENCES "Learner"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+DO $$ BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'ParentLearnerLink_learnerId_fkey') THEN
+    ALTER TABLE "ParentLearnerLink" ADD CONSTRAINT "ParentLearnerLink_learnerId_fkey" FOREIGN KEY ("learnerId") REFERENCES "Learner"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+  END IF;
+END $$;

@@ -1,14 +1,26 @@
 -- CreateEnum
-CREATE TYPE "CommunicationChannel" AS ENUM ('sms', 'email', 'whatsapp', 'push', 'in_app');
+DO $$ BEGIN
+  CREATE TYPE "CommunicationChannel" AS ENUM ('sms', 'email', 'whatsapp', 'push', 'in_app');
+EXCEPTION
+  WHEN duplicate_object THEN NULL;
+END $$;
 
 -- CreateEnum
-CREATE TYPE "CommunicationMessageStatus" AS ENUM ('queued', 'sending', 'sent', 'failed');
+DO $$ BEGIN
+  CREATE TYPE "CommunicationMessageStatus" AS ENUM ('queued', 'sending', 'sent', 'failed');
+EXCEPTION
+  WHEN duplicate_object THEN NULL;
+END $$;
 
 -- CreateEnum
-CREATE TYPE "CommunicationCategory" AS ENUM ('invoice_ready', 'statement_ready', 'attendance_absent', 'attendance_late', 'incident_created', 'homework_added', 'assessment_notice', 'exam_notice', 'parent_message', 'teacher_reply', 'onboarding_invite', 'marketing_campaign', 'payment_reminder', 'school_notice', 'document_shared');
+DO $$ BEGIN
+  CREATE TYPE "CommunicationCategory" AS ENUM ('invoice_ready', 'statement_ready', 'attendance_absent', 'attendance_late', 'incident_created', 'homework_added', 'assessment_notice', 'exam_notice', 'parent_message', 'teacher_reply', 'onboarding_invite', 'marketing_campaign', 'payment_reminder', 'school_notice', 'document_shared');
+EXCEPTION
+  WHEN duplicate_object THEN NULL;
+END $$;
 
 -- CreateTable
-CREATE TABLE "SchoolCommunicationProfile" (
+CREATE TABLE IF NOT EXISTS "SchoolCommunicationProfile" (
     "id" TEXT NOT NULL,
     "schoolId" TEXT NOT NULL,
     "smtp" JSONB,
@@ -24,7 +36,7 @@ CREATE TABLE "SchoolCommunicationProfile" (
 );
 
 -- CreateTable
-CREATE TABLE "CommunicationCampaign" (
+CREATE TABLE IF NOT EXISTS "CommunicationCampaign" (
     "id" TEXT NOT NULL,
     "schoolId" TEXT NOT NULL,
     "name" TEXT NOT NULL,
@@ -37,7 +49,7 @@ CREATE TABLE "CommunicationCampaign" (
 );
 
 -- CreateTable
-CREATE TABLE "CommunicationTemplate" (
+CREATE TABLE IF NOT EXISTS "CommunicationTemplate" (
     "id" TEXT NOT NULL,
     "schoolId" TEXT,
     "templateKey" TEXT NOT NULL,
@@ -54,7 +66,7 @@ CREATE TABLE "CommunicationTemplate" (
 );
 
 -- CreateTable
-CREATE TABLE "CommunicationMessage" (
+CREATE TABLE IF NOT EXISTS "CommunicationMessage" (
     "id" TEXT NOT NULL,
     "schoolId" TEXT NOT NULL,
     "campaignId" TEXT,
@@ -82,7 +94,7 @@ CREATE TABLE "CommunicationMessage" (
 );
 
 -- CreateTable
-CREATE TABLE "CommunicationRecipient" (
+CREATE TABLE IF NOT EXISTS "CommunicationRecipient" (
     "id" TEXT NOT NULL,
     "messageId" TEXT NOT NULL,
     "role" TEXT NOT NULL DEFAULT 'to',
@@ -92,7 +104,7 @@ CREATE TABLE "CommunicationRecipient" (
 );
 
 -- CreateTable
-CREATE TABLE "CommunicationLog" (
+CREATE TABLE IF NOT EXISTS "CommunicationLog" (
     "id" TEXT NOT NULL,
     "schoolId" TEXT NOT NULL,
     "messageId" TEXT NOT NULL,
@@ -104,7 +116,7 @@ CREATE TABLE "CommunicationLog" (
 );
 
 -- CreateTable
-CREATE TABLE "PushSubscription" (
+CREATE TABLE IF NOT EXISTS "PushSubscription" (
     "id" TEXT NOT NULL,
     "schoolId" TEXT NOT NULL,
     "parentId" TEXT NOT NULL,
@@ -117,81 +129,129 @@ CREATE TABLE "PushSubscription" (
 );
 
 -- CreateIndex
-CREATE UNIQUE INDEX "SchoolCommunicationProfile_schoolId_key" ON "SchoolCommunicationProfile"("schoolId");
+CREATE UNIQUE INDEX IF NOT EXISTS "SchoolCommunicationProfile_schoolId_key" ON "SchoolCommunicationProfile"("schoolId");
 
 -- CreateIndex
-CREATE INDEX "CommunicationCampaign_schoolId_createdAt_idx" ON "CommunicationCampaign"("schoolId", "createdAt");
+CREATE INDEX IF NOT EXISTS "CommunicationCampaign_schoolId_createdAt_idx" ON "CommunicationCampaign"("schoolId", "createdAt");
 
 -- CreateIndex
-CREATE INDEX "CommunicationTemplate_schoolId_templateKey_idx" ON "CommunicationTemplate"("schoolId", "templateKey");
+CREATE INDEX IF NOT EXISTS "CommunicationTemplate_schoolId_templateKey_idx" ON "CommunicationTemplate"("schoolId", "templateKey");
 
 -- CreateIndex
-CREATE INDEX "CommunicationTemplate_templateKey_idx" ON "CommunicationTemplate"("templateKey");
+CREATE INDEX IF NOT EXISTS "CommunicationTemplate_templateKey_idx" ON "CommunicationTemplate"("templateKey");
 
 -- CreateIndex
-CREATE INDEX "CommunicationMessage_schoolId_status_idx" ON "CommunicationMessage"("schoolId", "status");
+CREATE INDEX IF NOT EXISTS "CommunicationMessage_schoolId_status_idx" ON "CommunicationMessage"("schoolId", "status");
 
 -- CreateIndex
-CREATE INDEX "CommunicationMessage_schoolId_category_idx" ON "CommunicationMessage"("schoolId", "category");
+CREATE INDEX IF NOT EXISTS "CommunicationMessage_schoolId_category_idx" ON "CommunicationMessage"("schoolId", "category");
 
 -- CreateIndex
-CREATE INDEX "CommunicationMessage_schoolId_channel_idx" ON "CommunicationMessage"("schoolId", "channel");
+CREATE INDEX IF NOT EXISTS "CommunicationMessage_schoolId_channel_idx" ON "CommunicationMessage"("schoolId", "channel");
 
 -- CreateIndex
-CREATE INDEX "CommunicationMessage_queuedAt_idx" ON "CommunicationMessage"("queuedAt");
+CREATE INDEX IF NOT EXISTS "CommunicationMessage_queuedAt_idx" ON "CommunicationMessage"("queuedAt");
 
 -- CreateIndex
-CREATE INDEX "CommunicationMessage_parentId_idx" ON "CommunicationMessage"("parentId");
+CREATE INDEX IF NOT EXISTS "CommunicationMessage_parentId_idx" ON "CommunicationMessage"("parentId");
 
 -- CreateIndex
-CREATE INDEX "CommunicationRecipient_messageId_idx" ON "CommunicationRecipient"("messageId");
+CREATE INDEX IF NOT EXISTS "CommunicationRecipient_messageId_idx" ON "CommunicationRecipient"("messageId");
 
 -- CreateIndex
-CREATE INDEX "CommunicationLog_schoolId_createdAt_idx" ON "CommunicationLog"("schoolId", "createdAt");
+CREATE INDEX IF NOT EXISTS "CommunicationLog_schoolId_createdAt_idx" ON "CommunicationLog"("schoolId", "createdAt");
 
 -- CreateIndex
-CREATE INDEX "CommunicationLog_messageId_createdAt_idx" ON "CommunicationLog"("messageId", "createdAt");
+CREATE INDEX IF NOT EXISTS "CommunicationLog_messageId_createdAt_idx" ON "CommunicationLog"("messageId", "createdAt");
 
 -- CreateIndex
-CREATE UNIQUE INDEX "PushSubscription_endpoint_key" ON "PushSubscription"("endpoint");
+CREATE UNIQUE INDEX IF NOT EXISTS "PushSubscription_endpoint_key" ON "PushSubscription"("endpoint");
 
 -- CreateIndex
-CREATE INDEX "PushSubscription_schoolId_parentId_idx" ON "PushSubscription"("schoolId", "parentId");
+CREATE INDEX IF NOT EXISTS "PushSubscription_schoolId_parentId_idx" ON "PushSubscription"("schoolId", "parentId");
 
 -- AddForeignKey
-ALTER TABLE "SchoolCommunicationProfile" ADD CONSTRAINT "SchoolCommunicationProfile_schoolId_fkey" FOREIGN KEY ("schoolId") REFERENCES "School"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+DO $$ BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'SchoolCommunicationProfile_schoolId_fkey') THEN
+    ALTER TABLE "SchoolCommunicationProfile" ADD CONSTRAINT "SchoolCommunicationProfile_schoolId_fkey" FOREIGN KEY ("schoolId") REFERENCES "School"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+  END IF;
+END $$;
 
 -- AddForeignKey
-ALTER TABLE "CommunicationCampaign" ADD CONSTRAINT "CommunicationCampaign_schoolId_fkey" FOREIGN KEY ("schoolId") REFERENCES "School"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+DO $$ BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'CommunicationCampaign_schoolId_fkey') THEN
+    ALTER TABLE "CommunicationCampaign" ADD CONSTRAINT "CommunicationCampaign_schoolId_fkey" FOREIGN KEY ("schoolId") REFERENCES "School"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+  END IF;
+END $$;
 
 -- AddForeignKey
-ALTER TABLE "CommunicationTemplate" ADD CONSTRAINT "CommunicationTemplate_schoolId_fkey" FOREIGN KEY ("schoolId") REFERENCES "School"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+DO $$ BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'CommunicationTemplate_schoolId_fkey') THEN
+    ALTER TABLE "CommunicationTemplate" ADD CONSTRAINT "CommunicationTemplate_schoolId_fkey" FOREIGN KEY ("schoolId") REFERENCES "School"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+  END IF;
+END $$;
 
 -- AddForeignKey
-ALTER TABLE "CommunicationMessage" ADD CONSTRAINT "CommunicationMessage_schoolId_fkey" FOREIGN KEY ("schoolId") REFERENCES "School"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+DO $$ BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'CommunicationMessage_schoolId_fkey') THEN
+    ALTER TABLE "CommunicationMessage" ADD CONSTRAINT "CommunicationMessage_schoolId_fkey" FOREIGN KEY ("schoolId") REFERENCES "School"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+  END IF;
+END $$;
 
 -- AddForeignKey
-ALTER TABLE "CommunicationMessage" ADD CONSTRAINT "CommunicationMessage_campaignId_fkey" FOREIGN KEY ("campaignId") REFERENCES "CommunicationCampaign"("id") ON DELETE SET NULL ON UPDATE CASCADE;
+DO $$ BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'CommunicationMessage_campaignId_fkey') THEN
+    ALTER TABLE "CommunicationMessage" ADD CONSTRAINT "CommunicationMessage_campaignId_fkey" FOREIGN KEY ("campaignId") REFERENCES "CommunicationCampaign"("id") ON DELETE SET NULL ON UPDATE CASCADE;
+  END IF;
+END $$;
 
 -- AddForeignKey
-ALTER TABLE "CommunicationMessage" ADD CONSTRAINT "CommunicationMessage_parentId_fkey" FOREIGN KEY ("parentId") REFERENCES "Parent"("id") ON DELETE SET NULL ON UPDATE CASCADE;
+DO $$ BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'CommunicationMessage_parentId_fkey') THEN
+    ALTER TABLE "CommunicationMessage" ADD CONSTRAINT "CommunicationMessage_parentId_fkey" FOREIGN KEY ("parentId") REFERENCES "Parent"("id") ON DELETE SET NULL ON UPDATE CASCADE;
+  END IF;
+END $$;
 
 -- AddForeignKey
-ALTER TABLE "CommunicationMessage" ADD CONSTRAINT "CommunicationMessage_learnerId_fkey" FOREIGN KEY ("learnerId") REFERENCES "Learner"("id") ON DELETE SET NULL ON UPDATE CASCADE;
+DO $$ BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'CommunicationMessage_learnerId_fkey') THEN
+    ALTER TABLE "CommunicationMessage" ADD CONSTRAINT "CommunicationMessage_learnerId_fkey" FOREIGN KEY ("learnerId") REFERENCES "Learner"("id") ON DELETE SET NULL ON UPDATE CASCADE;
+  END IF;
+END $$;
 
 -- ParentNotification FK deferred to 20260520120000_align_live_schema (table created there)
 
 -- AddForeignKey
-ALTER TABLE "CommunicationRecipient" ADD CONSTRAINT "CommunicationRecipient_messageId_fkey" FOREIGN KEY ("messageId") REFERENCES "CommunicationMessage"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+DO $$ BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'CommunicationRecipient_messageId_fkey') THEN
+    ALTER TABLE "CommunicationRecipient" ADD CONSTRAINT "CommunicationRecipient_messageId_fkey" FOREIGN KEY ("messageId") REFERENCES "CommunicationMessage"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+  END IF;
+END $$;
 
 -- AddForeignKey
-ALTER TABLE "CommunicationLog" ADD CONSTRAINT "CommunicationLog_schoolId_fkey" FOREIGN KEY ("schoolId") REFERENCES "School"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+DO $$ BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'CommunicationLog_schoolId_fkey') THEN
+    ALTER TABLE "CommunicationLog" ADD CONSTRAINT "CommunicationLog_schoolId_fkey" FOREIGN KEY ("schoolId") REFERENCES "School"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+  END IF;
+END $$;
 
 -- AddForeignKey
-ALTER TABLE "CommunicationLog" ADD CONSTRAINT "CommunicationLog_messageId_fkey" FOREIGN KEY ("messageId") REFERENCES "CommunicationMessage"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+DO $$ BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'CommunicationLog_messageId_fkey') THEN
+    ALTER TABLE "CommunicationLog" ADD CONSTRAINT "CommunicationLog_messageId_fkey" FOREIGN KEY ("messageId") REFERENCES "CommunicationMessage"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+  END IF;
+END $$;
 
 -- AddForeignKey
-ALTER TABLE "PushSubscription" ADD CONSTRAINT "PushSubscription_schoolId_fkey" FOREIGN KEY ("schoolId") REFERENCES "School"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+DO $$ BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'PushSubscription_schoolId_fkey') THEN
+    ALTER TABLE "PushSubscription" ADD CONSTRAINT "PushSubscription_schoolId_fkey" FOREIGN KEY ("schoolId") REFERENCES "School"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+  END IF;
+END $$;
 
 -- AddForeignKey
-ALTER TABLE "PushSubscription" ADD CONSTRAINT "PushSubscription_parentId_fkey" FOREIGN KEY ("parentId") REFERENCES "Parent"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+DO $$ BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'PushSubscription_parentId_fkey') THEN
+    ALTER TABLE "PushSubscription" ADD CONSTRAINT "PushSubscription_parentId_fkey" FOREIGN KEY ("parentId") REFERENCES "Parent"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+  END IF;
+END $$;

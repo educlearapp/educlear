@@ -1,8 +1,12 @@
 -- CreateEnum
-CREATE TYPE "FeeFrequency" AS ENUM ('MONTHLY', 'ONCE_OFF', 'YEARLY');
+DO $$ BEGIN
+  CREATE TYPE "FeeFrequency" AS ENUM ('MONTHLY', 'ONCE_OFF', 'YEARLY');
+EXCEPTION
+  WHEN duplicate_object THEN NULL;
+END $$;
 
 -- CreateTable
-CREATE TABLE "FeeStructure" (
+CREATE TABLE IF NOT EXISTS "FeeStructure" (
     "id" TEXT NOT NULL,
     "schoolId" TEXT NOT NULL,
     "name" TEXT NOT NULL,
@@ -15,7 +19,11 @@ CREATE TABLE "FeeStructure" (
 );
 
 -- CreateIndex
-CREATE INDEX "FeeStructure_schoolId_idx" ON "FeeStructure"("schoolId");
+CREATE INDEX IF NOT EXISTS "FeeStructure_schoolId_idx" ON "FeeStructure"("schoolId");
 
 -- AddForeignKey
-ALTER TABLE "FeeStructure" ADD CONSTRAINT "FeeStructure_schoolId_fkey" FOREIGN KEY ("schoolId") REFERENCES "School"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+DO $$ BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'FeeStructure_schoolId_fkey') THEN
+    ALTER TABLE "FeeStructure" ADD CONSTRAINT "FeeStructure_schoolId_fkey" FOREIGN KEY ("schoolId") REFERENCES "School"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+  END IF;
+END $$;

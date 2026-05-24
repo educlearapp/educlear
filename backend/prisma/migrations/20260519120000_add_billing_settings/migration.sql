@@ -1,5 +1,5 @@
 -- CreateTable
-CREATE TABLE "BillingSettings" (
+CREATE TABLE IF NOT EXISTS "BillingSettings" (
     "id" TEXT NOT NULL,
     "schoolId" TEXT NOT NULL,
     "settings" JSONB NOT NULL,
@@ -10,10 +10,14 @@ CREATE TABLE "BillingSettings" (
 );
 
 -- CreateIndex
-CREATE UNIQUE INDEX "BillingSettings_schoolId_key" ON "BillingSettings"("schoolId");
+CREATE UNIQUE INDEX IF NOT EXISTS "BillingSettings_schoolId_key" ON "BillingSettings"("schoolId");
 
 -- CreateIndex
-CREATE INDEX "BillingSettings_schoolId_idx" ON "BillingSettings"("schoolId");
+CREATE INDEX IF NOT EXISTS "BillingSettings_schoolId_idx" ON "BillingSettings"("schoolId");
 
 -- AddForeignKey
-ALTER TABLE "BillingSettings" ADD CONSTRAINT "BillingSettings_schoolId_fkey" FOREIGN KEY ("schoolId") REFERENCES "School"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+DO $$ BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'BillingSettings_schoolId_fkey') THEN
+    ALTER TABLE "BillingSettings" ADD CONSTRAINT "BillingSettings_schoolId_fkey" FOREIGN KEY ("schoolId") REFERENCES "School"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+  END IF;
+END $$;
