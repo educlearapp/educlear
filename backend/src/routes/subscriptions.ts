@@ -2,12 +2,10 @@ import { Router } from "express";
 import { SchoolSubscriptionStatus } from "@prisma/client";
 
 import { prisma } from "../prisma";
-import {
-  DA_SILVA_ACADEMY_SCHOOL_ID,
-  ensureDaSilvaAcademySubscription,
-} from "../services/activateDaSilvaSubscription";
+import { ensureDaSilvaAcademySubscription } from "../services/activateDaSilvaSubscription";
 import { ensureEduClearPackages } from "../services/ensureEduClearPackages";
-import { isProductionRuntime } from "../services/runtime";
+import { isDaSilvaSchoolId, refreshDaSilvaSchoolIdCache } from "../services/daSilvaSchoolResolve";
+import { isProductionOrGoLive } from "../services/runtime";
 
 const router = Router();
 
@@ -83,9 +81,10 @@ router.get("/school/:schoolId/status", async (req, res) => {
     }
 
     let daSilvaLiveActivated = false;
-    if (isProductionRuntime() && schoolId === DA_SILVA_ACADEMY_SCHOOL_ID) {
+    await refreshDaSilvaSchoolIdCache();
+    if (isProductionOrGoLive() && isDaSilvaSchoolId(schoolId)) {
       try {
-        await ensureDaSilvaAcademySubscription();
+        await ensureDaSilvaAcademySubscription(schoolId);
         daSilvaLiveActivated = true;
         console.log(
           "[subscription-status] Da Silva live activation ensured ACTIVE, dashboardUnlocked=true"

@@ -1,6 +1,8 @@
 import fs from "fs";
 import path from "path";
 
+import { resolveSchoolJsonStoreKey } from "../services/daSilvaSchoolResolve";
+
 export type StoredBillingPlanItem = {
   feeDescription: string;
   amount: number;
@@ -37,7 +39,12 @@ function writeAll(data: PlanFile) {
 export function readSchoolBillingPlans(schoolId: string): Record<string, StoredBillingPlanItem[]> {
   const key = String(schoolId || "").trim();
   if (!key) return {};
-  return readAll()[key] || {};
+  const all = readAll();
+  const storeKey = resolveSchoolJsonStoreKey(key, all, (value) => {
+    if (!value || typeof value !== "object") return false;
+    return Object.keys(value).length > 0;
+  });
+  return all[storeKey] || {};
 }
 
 export function upsertLearnerBillingPlan(

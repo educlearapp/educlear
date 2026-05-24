@@ -19,7 +19,9 @@ export function getDaSilvaResolvedSchoolId(): string {
 }
 
 export function setDaSilvaResolvedSchoolId(id: string): void {
-  daSilvaResolvedSchoolId = id;
+  const key = String(id || "").trim();
+  if (!key) return;
+  daSilvaResolvedSchoolId = key;
 }
 
 const TARGET_PACKAGE: EduClearPackageCode = "UNLIMITED";
@@ -28,13 +30,18 @@ const TARGET_PACKAGE: EduClearPackageCode = "UNLIMITED";
  * Idempotent UNLIMITED / ACTIVE subscription for Da Silva Academy only.
  * Safe to run on every production boot after the school record exists.
  */
-export async function ensureDaSilvaAcademySubscription(): Promise<void> {
-  const schoolId = getDaSilvaResolvedSchoolId();
+export async function ensureDaSilvaAcademySubscription(
+  requestedSchoolId?: string
+): Promise<void> {
+  const hintId = String(requestedSchoolId || getDaSilvaResolvedSchoolId() || "").trim();
 
-  let school = await prisma.school.findUnique({
-    where: { id: schoolId },
-    select: { id: true, name: true },
-  });
+  let school =
+    hintId &&
+    (await prisma.school.findUnique({
+      where: { id: hintId },
+      select: { id: true, name: true },
+    }));
+
   if (!school) {
     school =
       (await prisma.school.findFirst({
@@ -47,8 +54,10 @@ export async function ensureDaSilvaAcademySubscription(): Promise<void> {
       }));
   }
   if (!school) {
-    throw new Error(`School not found: ${schoolId}`);
+    throw new Error(`School not found: ${hintId || DA_SILVA_ACADEMY_SCHOOL_ID}`);
   }
+
+  setDaSilvaResolvedSchoolId(school.id);
 
   await ensureEduClearPackages();
 

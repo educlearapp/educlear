@@ -6,7 +6,8 @@ import { ensureDaSilvaAcademyProduction } from "./ensureDaSilvaAcademyProduction
 import { ensureEduClearPackages } from "./ensureEduClearPackages";
 import { runPrismaMigrateDeployWithRecovery } from "./prismaMigrationRecovery";
 import { prisma } from "../prisma";
-import { isProductionRuntime } from "./runtime";
+import { refreshDaSilvaSchoolIdCache } from "./daSilvaSchoolResolve";
+import { isProductionOrGoLive, isProductionRuntime } from "./runtime";
 
 /**
  * Production boot tasks before HTTP listen: migrations, package seeds, Da Silva ensure + activation.
@@ -22,8 +23,14 @@ export async function runProductionStartup(): Promise<void> {
     console.error("[startup] ensureEduClearPackages failed:", error);
   }
 
-  if (!isProductionRuntime()) {
+  if (!isProductionOrGoLive()) {
     return;
+  }
+
+  try {
+    await refreshDaSilvaSchoolIdCache();
+  } catch (error) {
+    console.error("[startup] Da Silva school id cache failed:", error);
   }
 
   console.log("[startup] Da Silva school ensure/import starting");

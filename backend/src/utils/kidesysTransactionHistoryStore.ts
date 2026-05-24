@@ -1,6 +1,8 @@
 import fs from "fs";
 import path from "path";
 
+import { resolveSchoolJsonStoreKey } from "../services/daSilvaSchoolResolve";
+
 export type KidesysHistoryEntryType = "invoice" | "payment";
 
 export const KIDESYS_DISPLAY_HISTORY_SOURCE = "kidesys_display_history" as const;
@@ -71,7 +73,10 @@ export function readSchoolKidesysHistory(schoolId: string): KidesysHistoryEntry[
   const key = String(schoolId || "").trim();
   if (!key) return [];
   const all = readAll();
-  return Array.isArray(all[key]) ? all[key] : [];
+  const storeKey = resolveSchoolJsonStoreKey(key, all, (value) =>
+    Array.isArray(value) ? value.length > 0 : false
+  );
+  return Array.isArray(all[storeKey]) ? all[storeKey] : [];
 }
 
 export function writeSchoolKidesysHistory(schoolId: string, entries: KidesysHistoryEntry[]) {

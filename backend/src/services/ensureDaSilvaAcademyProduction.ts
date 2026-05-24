@@ -21,7 +21,8 @@ import {
   setUserAccessMeta,
   type UserAccessMeta,
 } from "../utils/userAccessStore";
-import { isProductionRuntime } from "./runtime";
+import { refreshDaSilvaSchoolIdCache } from "./daSilvaSchoolResolve";
+import { isProductionOrGoLive } from "./runtime";
 
 const DA_SILVA_OWNER_USER_ID = "cmpimyjkj00013lhz6kkxr9xu";
 const DA_SILVA_LOGO_URL = "/uploads/school-logos/da-silva-academy-logo.png";
@@ -398,7 +399,7 @@ async function importFromManifest(manifest: DaSilvaImportManifest): Promise<void
  * Rebuilds Prisma rows from the verified manifest + JSON billing files when the school is missing or incomplete.
  */
 export async function ensureDaSilvaAcademyProduction(): Promise<void> {
-  if (!isProductionRuntime()) {
+  if (!isProductionOrGoLive()) {
     return;
   }
 
@@ -435,10 +436,13 @@ export async function ensureDaSilvaAcademyProduction(): Promise<void> {
   }
 
   if (existing && learnerCount > expectedLearners) {
-    console.error(
-      `[startup] Da Silva learner count ${learnerCount} exceeds expected ${expectedLearners} — startup upsert cannot remove duplicate or stale rows`
+    await ensureSchoolRecord();
+    await ensureOwnerLink();
+    verifyJsonStores();
+    await refreshDaSilvaSchoolIdCache();
+    console.warn(
+      `[startup] Da Silva go-live: ${learnerCount} learners on file (import snapshot expects ${expectedLearners}) — keeping live data, skipping import`
     );
-    console.error("DELETE_DA_SILVA_AND_REIMPORT_REQUIRED");
     return;
   }
 
