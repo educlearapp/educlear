@@ -2,6 +2,7 @@ import { Router } from "express";
 import { SchoolSubscriptionStatus } from "@prisma/client";
 
 import { prisma } from "../prisma";
+import { ensureEduClearPackages } from "../services/ensureEduClearPackages";
 
 const router = Router();
 
@@ -43,6 +44,7 @@ function isActiveSubscriptionStatus(status: SchoolSubscriptionStatus): boolean {
 
 router.get("/packages", async (_req, res) => {
   try {
+    await ensureEduClearPackages();
     const packages = await prisma.eduClearPackage.findMany({
       where: { isActive: true },
       select: packageSelect,
