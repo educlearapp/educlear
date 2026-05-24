@@ -19,176 +19,68 @@ CREATE TYPE "ParentTeacherThreadStatus" AS ENUM ('OPEN', 'CLOSED', 'ARCHIVED');
 -- CreateEnum
 CREATE TYPE "SchoolNoticeType" AS ENUM ('SCHOOL', 'GRADE', 'CLASS', 'ASSESSMENT', 'EXAM');
 
--- DropForeignKey
-ALTER TABLE "BillingDocumentRun" DROP CONSTRAINT "BillingDocumentRun_schoolId_fkey";
-
--- DropForeignKey
-ALTER TABLE "BillingDocumentRunItem" DROP CONSTRAINT "BillingDocumentRunItem_accountId_fkey";
-
--- DropForeignKey
-ALTER TABLE "BillingDocumentRunItem" DROP CONSTRAINT "BillingDocumentRunItem_learnerId_fkey";
-
--- DropForeignKey
-ALTER TABLE "BillingDocumentRunItem" DROP CONSTRAINT "BillingDocumentRunItem_parentId_fkey";
-
--- DropForeignKey
-ALTER TABLE "BillingDocumentRunItem" DROP CONSTRAINT "BillingDocumentRunItem_runId_fkey";
-
--- DropForeignKey
-ALTER TABLE "BillingDocumentRunItem" DROP CONSTRAINT "BillingDocumentRunItem_schoolId_fkey";
-
--- DropForeignKey
-ALTER TABLE "Homework" DROP CONSTRAINT "Homework_schoolId_fkey";
-
--- DropForeignKey
-ALTER TABLE "Invoice" DROP CONSTRAINT "Invoice_familyAccountId_fkey";
-
--- DropForeignKey
-ALTER TABLE "Invoice" DROP CONSTRAINT "Invoice_invoiceRunId_fkey";
-
--- DropForeignKey
-ALTER TABLE "Invoice" DROP CONSTRAINT "Invoice_learnerId_fkey";
-
--- DropForeignKey
-ALTER TABLE "Invoice" DROP CONSTRAINT "Invoice_parentId_fkey";
-
--- DropForeignKey
-ALTER TABLE "Invoice" DROP CONSTRAINT "Invoice_schoolId_fkey";
-
--- DropForeignKey
-ALTER TABLE "InvoiceLine" DROP CONSTRAINT "InvoiceLine_invoiceId_fkey";
-
--- DropForeignKey
-ALTER TABLE "InvoiceRun" DROP CONSTRAINT "InvoiceRun_schoolId_fkey";
-
--- DropForeignKey
-ALTER TABLE "LateFineRun" DROP CONSTRAINT "LateFineRun_invoiceRunId_fkey";
-
--- DropForeignKey
-ALTER TABLE "LateFineRun" DROP CONSTRAINT "LateFineRun_schoolId_fkey";
-
--- DropForeignKey
-ALTER TABLE "LateFineRunItem" DROP CONSTRAINT "LateFineRunItem_familyAccountId_fkey";
-
--- DropForeignKey
-ALTER TABLE "LateFineRunItem" DROP CONSTRAINT "LateFineRunItem_invoiceId_fkey";
-
--- DropForeignKey
-ALTER TABLE "LateFineRunItem" DROP CONSTRAINT "LateFineRunItem_lateFineRunId_fkey";
-
--- DropForeignKey
-ALTER TABLE "LateFineRunItem" DROP CONSTRAINT "LateFineRunItem_parentId_fkey";
-
--- DropForeignKey
-ALTER TABLE "LateFineRunItem" DROP CONSTRAINT "LateFineRunItem_schoolId_fkey";
-
--- DropForeignKey
-ALTER TABLE "LearnerBillingPlan" DROP CONSTRAINT "LearnerBillingPlan_learnerId_fkey";
-
--- DropForeignKey
-ALTER TABLE "LearnerBillingPlan" DROP CONSTRAINT "LearnerBillingPlan_schoolId_fkey";
-
--- DropForeignKey
-ALTER TABLE "LearnerBillingPlanItem" DROP CONSTRAINT "LearnerBillingPlanItem_billingPlanId_fkey";
-
--- DropForeignKey
-ALTER TABLE "LearnerBillingPlanItem" DROP CONSTRAINT "LearnerBillingPlanItem_feeStructureId_fkey";
-
--- DropForeignKey
-ALTER TABLE "LearnerBillingPlanItem" DROP CONSTRAINT "LearnerBillingPlanItem_schoolId_fkey";
-
--- DropForeignKey
-ALTER TABLE "MessageReply" DROP CONSTRAINT "MessageReply_threadId_fkey";
-
--- DropForeignKey
-ALTER TABLE "MessageThread" DROP CONSTRAINT "MessageThread_learnerId_fkey";
-
--- DropForeignKey
-ALTER TABLE "MessageThread" DROP CONSTRAINT "MessageThread_parentId_fkey";
-
--- DropForeignKey
-ALTER TABLE "MessageThread" DROP CONSTRAINT "MessageThread_schoolId_fkey";
-
--- DropForeignKey
-ALTER TABLE "MessageThread" DROP CONSTRAINT "MessageThread_teacherId_fkey";
-
--- DropForeignKey
-ALTER TABLE "Notice" DROP CONSTRAINT "Notice_schoolId_fkey";
-
--- DropForeignKey
-ALTER TABLE "ParentUser" DROP CONSTRAINT "ParentUser_parentId_fkey";
-
--- DropForeignKey
-ALTER TABLE "Payment" DROP CONSTRAINT "Payment_parentId_fkey";
-
--- DropForeignKey
-ALTER TABLE "Payment" DROP CONSTRAINT "Payment_schoolId_fkey";
-
--- DropForeignKey
-ALTER TABLE "Project" DROP CONSTRAINT "Project_schoolId_fkey";
-
--- DropForeignKey
-ALTER TABLE "SchoolEmailSettings" DROP CONSTRAINT "SchoolEmailSettings_schoolId_fkey";
-
--- DropForeignKey
-ALTER TABLE "TuckshopMenu" DROP CONSTRAINT "TuckshopMenu_schoolId_fkey";
+-- DropForeignKey (production-safe: skip when legacy tables were never created on live DBs)
+ALTER TABLE IF EXISTS "BillingDocumentRun" DROP CONSTRAINT IF EXISTS "BillingDocumentRun_schoolId_fkey";
+ALTER TABLE IF EXISTS "BillingDocumentRunItem" DROP CONSTRAINT IF EXISTS "BillingDocumentRunItem_accountId_fkey";
+ALTER TABLE IF EXISTS "BillingDocumentRunItem" DROP CONSTRAINT IF EXISTS "BillingDocumentRunItem_learnerId_fkey";
+ALTER TABLE IF EXISTS "BillingDocumentRunItem" DROP CONSTRAINT IF EXISTS "BillingDocumentRunItem_parentId_fkey";
+ALTER TABLE IF EXISTS "BillingDocumentRunItem" DROP CONSTRAINT IF EXISTS "BillingDocumentRunItem_runId_fkey";
+ALTER TABLE IF EXISTS "BillingDocumentRunItem" DROP CONSTRAINT IF EXISTS "BillingDocumentRunItem_schoolId_fkey";
+ALTER TABLE IF EXISTS "Homework" DROP CONSTRAINT IF EXISTS "Homework_schoolId_fkey";
+ALTER TABLE IF EXISTS "Invoice" DROP CONSTRAINT IF EXISTS "Invoice_familyAccountId_fkey";
+ALTER TABLE IF EXISTS "Invoice" DROP CONSTRAINT IF EXISTS "Invoice_invoiceRunId_fkey";
+ALTER TABLE IF EXISTS "Invoice" DROP CONSTRAINT IF EXISTS "Invoice_learnerId_fkey";
+ALTER TABLE IF EXISTS "Invoice" DROP CONSTRAINT IF EXISTS "Invoice_parentId_fkey";
+ALTER TABLE IF EXISTS "Invoice" DROP CONSTRAINT IF EXISTS "Invoice_schoolId_fkey";
+ALTER TABLE IF EXISTS "InvoiceLine" DROP CONSTRAINT IF EXISTS "InvoiceLine_invoiceId_fkey";
+ALTER TABLE IF EXISTS "InvoiceRun" DROP CONSTRAINT IF EXISTS "InvoiceRun_schoolId_fkey";
+ALTER TABLE IF EXISTS "LateFineRun" DROP CONSTRAINT IF EXISTS "LateFineRun_invoiceRunId_fkey";
+ALTER TABLE IF EXISTS "LateFineRun" DROP CONSTRAINT IF EXISTS "LateFineRun_schoolId_fkey";
+ALTER TABLE IF EXISTS "LateFineRunItem" DROP CONSTRAINT IF EXISTS "LateFineRunItem_familyAccountId_fkey";
+ALTER TABLE IF EXISTS "LateFineRunItem" DROP CONSTRAINT IF EXISTS "LateFineRunItem_invoiceId_fkey";
+ALTER TABLE IF EXISTS "LateFineRunItem" DROP CONSTRAINT IF EXISTS "LateFineRunItem_lateFineRunId_fkey";
+ALTER TABLE IF EXISTS "LateFineRunItem" DROP CONSTRAINT IF EXISTS "LateFineRunItem_parentId_fkey";
+ALTER TABLE IF EXISTS "LateFineRunItem" DROP CONSTRAINT IF EXISTS "LateFineRunItem_schoolId_fkey";
+ALTER TABLE IF EXISTS "LearnerBillingPlan" DROP CONSTRAINT IF EXISTS "LearnerBillingPlan_learnerId_fkey";
+ALTER TABLE IF EXISTS "LearnerBillingPlan" DROP CONSTRAINT IF EXISTS "LearnerBillingPlan_schoolId_fkey";
+ALTER TABLE IF EXISTS "LearnerBillingPlanItem" DROP CONSTRAINT IF EXISTS "LearnerBillingPlanItem_billingPlanId_fkey";
+ALTER TABLE IF EXISTS "LearnerBillingPlanItem" DROP CONSTRAINT IF EXISTS "LearnerBillingPlanItem_feeStructureId_fkey";
+ALTER TABLE IF EXISTS "LearnerBillingPlanItem" DROP CONSTRAINT IF EXISTS "LearnerBillingPlanItem_schoolId_fkey";
+ALTER TABLE IF EXISTS "MessageReply" DROP CONSTRAINT IF EXISTS "MessageReply_threadId_fkey";
+ALTER TABLE IF EXISTS "MessageThread" DROP CONSTRAINT IF EXISTS "MessageThread_learnerId_fkey";
+ALTER TABLE IF EXISTS "MessageThread" DROP CONSTRAINT IF EXISTS "MessageThread_parentId_fkey";
+ALTER TABLE IF EXISTS "MessageThread" DROP CONSTRAINT IF EXISTS "MessageThread_schoolId_fkey";
+ALTER TABLE IF EXISTS "MessageThread" DROP CONSTRAINT IF EXISTS "MessageThread_teacherId_fkey";
+ALTER TABLE IF EXISTS "Notice" DROP CONSTRAINT IF EXISTS "Notice_schoolId_fkey";
+ALTER TABLE IF EXISTS "ParentUser" DROP CONSTRAINT IF EXISTS "ParentUser_parentId_fkey";
+ALTER TABLE IF EXISTS "Payment" DROP CONSTRAINT IF EXISTS "Payment_parentId_fkey";
+ALTER TABLE IF EXISTS "Payment" DROP CONSTRAINT IF EXISTS "Payment_schoolId_fkey";
+ALTER TABLE IF EXISTS "Project" DROP CONSTRAINT IF EXISTS "Project_schoolId_fkey";
+ALTER TABLE IF EXISTS "SchoolEmailSettings" DROP CONSTRAINT IF EXISTS "SchoolEmailSettings_schoolId_fkey";
+ALTER TABLE IF EXISTS "TuckshopMenu" DROP CONSTRAINT IF EXISTS "TuckshopMenu_schoolId_fkey";
 
 -- AlterTable
 ALTER TABLE "User" ADD COLUMN     "fullName" TEXT;
 
--- DropTable
-DROP TABLE "BillingDocumentRun";
-
--- DropTable
-DROP TABLE "BillingDocumentRunItem";
-
--- DropTable
-DROP TABLE "Homework";
-
--- DropTable
-DROP TABLE "Invoice";
-
--- DropTable
-DROP TABLE "InvoiceLine";
-
--- DropTable
-DROP TABLE "InvoiceRun";
-
--- DropTable
-DROP TABLE "LateFineRun";
-
--- DropTable
-DROP TABLE "LateFineRunItem";
-
--- DropTable
-DROP TABLE "LearnerBillingPlan";
-
--- DropTable
-DROP TABLE "LearnerBillingPlanItem";
-
--- DropTable
-DROP TABLE "MessageReply";
-
--- DropTable
-DROP TABLE "MessageThread";
-
--- DropTable
-DROP TABLE "Notice";
-
--- DropTable
-DROP TABLE "ParentUser";
-
--- DropTable
-DROP TABLE "Payment";
-
--- DropTable
-DROP TABLE "Project";
-
--- DropTable
-DROP TABLE "SchoolEmailSettings";
-
--- DropTable
-DROP TABLE "TuckshopMenu";
+-- DropTable (production-safe: IF EXISTS — no data loss when tables already absent)
+DROP TABLE IF EXISTS "BillingDocumentRunItem";
+DROP TABLE IF EXISTS "BillingDocumentRun";
+DROP TABLE IF EXISTS "Homework";
+DROP TABLE IF EXISTS "InvoiceLine";
+DROP TABLE IF EXISTS "Invoice";
+DROP TABLE IF EXISTS "InvoiceRun";
+DROP TABLE IF EXISTS "LateFineRunItem";
+DROP TABLE IF EXISTS "LateFineRun";
+DROP TABLE IF EXISTS "LearnerBillingPlanItem";
+DROP TABLE IF EXISTS "LearnerBillingPlan";
+DROP TABLE IF EXISTS "MessageReply";
+DROP TABLE IF EXISTS "MessageThread";
+DROP TABLE IF EXISTS "Notice";
+DROP TABLE IF EXISTS "ParentUser";
+DROP TABLE IF EXISTS "Payment";
+DROP TABLE IF EXISTS "Project";
+DROP TABLE IF EXISTS "SchoolEmailSettings";
+DROP TABLE IF EXISTS "TuckshopMenu";
 
 -- CreateTable
 CREATE TABLE "Classroom" (
