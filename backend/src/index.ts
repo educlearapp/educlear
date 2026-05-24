@@ -212,84 +212,37 @@ const PORT = 3000;
 */
 app.use(express.json({ limit: "12mb" }));
 app.use("/uploads", express.static(path.join(process.cwd(), "uploads")));
-app.use(
+const corsOptions: cors.CorsOptions = {
+  origin: (origin, callback) => {
+    const allowedOrigins = [
+      "http://localhost:5173",
+      "http://localhost:5174",
+      "http://localhost:5175",
+      "https://educlear-frontend.onrender.com",
+      "https://educlear.co.za",
+      "https://www.educlear.co.za",
+    ];
 
-  cors({
+    if (!origin || allowedOrigins.includes(origin)) {
+      callback(null, true);
+    } else {
+      console.log("Blocked by CORS:", origin);
+      callback(null, false);
+    }
+  },
+  methods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
+  allowedHeaders: [
+    "Content-Type",
+    "Authorization",
+    "Cache-Control",
+    "Pragma",
+    "Expires",
+  ],
+  credentials: true,
+};
 
-    origin: (origin, callback) => {
-
-
-
-      const allowedOrigins = [
-    
-    
-    
-        "http://localhost:5173",
-    
-    
-    
-        "http://localhost:5174",
-    
-    
-    
-        "http://localhost:5175",
-    
-    
-    
-        "https://educlear-frontend.onrender.com",
-    
-    
-    
-        "https://educlear.co.za",
-    
-    
-    
-        "https://www.educlear.co.za",
-    
-    
-    
-      ];
-    
-    
-    
-      if (!origin || allowedOrigins.includes(origin)) {
-
-
-
-        callback(null, true);
-      
-      
-      
-      } else {
-      
-      
-      
-        console.log("Blocked by CORS:", origin);
-      
-      
-      
-        callback(null, false);
-      
-      
-      
-      }
-    
-    
-    
-    },
-     
-
-    methods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
-
-    allowedHeaders: ["Content-Type", "Authorization"],
-
-    credentials: true,
-
-  })
-
-);
-
-app.options(/.*/, cors());
+app.use(cors(corsOptions));
+app.options(/.*/, cors(corsOptions));
   
 
 
