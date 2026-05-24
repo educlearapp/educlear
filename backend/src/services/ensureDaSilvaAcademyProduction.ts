@@ -424,13 +424,21 @@ export async function ensureDaSilvaAcademyProduction(): Promise<void> {
   }
 
   const expectedLearners = DA_SILVA_FINAL_IMPORT_EXPECTED.learners;
-  if (existing && learnerCount >= expectedLearners) {
+  if (existing && learnerCount === expectedLearners) {
     await ensureSchoolRecord();
     await ensureOwnerLink();
     verifyJsonStores();
     console.log(
       `[startup] Da Silva school already present (${learnerCount} learners) — import skipped`
     );
+    return;
+  }
+
+  if (existing && learnerCount > expectedLearners) {
+    console.error(
+      `[startup] Da Silva learner count ${learnerCount} exceeds expected ${expectedLearners} — startup upsert cannot remove duplicate or stale rows`
+    );
+    console.error("DELETE_DA_SILVA_AND_REIMPORT_REQUIRED");
     return;
   }
 
