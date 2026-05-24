@@ -3,12 +3,15 @@ import {
   appendPaymentTransaction,
   BILLING_UPDATED_EVENT,
   calculateAccountBalance,
+  computeOpenInvoiceLines,
   formatMoney,
   getAccountLedger,
   normaliseBillingAmount,
   notifyBillingUpdated,
+  type OpenInvoiceLine,
 } from "./billingLedger";
-import { createPayment, syncBillingLedgerFromApi } from "./billingApi";
+import { formatLedgerTypeLabel, isKidesysOpeningBalanceEntry } from "./billingDisplayRules";
+import { createPayment, fetchOpenInvoices, syncBillingLedgerFromApi } from "./billingApi";
 import { getLearnerAccountNo } from "../learner/learnerIdentity";
 import {
   fetchSchoolEmailSettings,
@@ -28,9 +31,11 @@ import {
 import {
   dateInputValue,
   normalizeIsoDate,
+  normalizePaymentAccount,
   normalizePaymentType,
   parseAmountInput,
   PAYMENT_TYPES,
+  readStoredPaymentAccount,
   type PaymentAccountContext,
   type PaymentFormState,
   type PaymentType,
@@ -60,12 +65,136 @@ function buildLinesFromSuggestions(
 export type PaymentCreateCleanProps = {
   schoolId: string;
   learners?: any[];
+  parents?: any[];
+  statementRows?: any[];
   selectedAccount: PaymentAccountContext | null;
   paymentForm: PaymentFormState;
   onPaymentFormChange: (next: PaymentFormState) => void;
   onBack: () => void;
   onSaved: () => void | Promise<void>;
 };
+
+function findLearnerRecord(learnerId: string, accountNo: string, learners: any[]): any | null {
+  const list = Array.isArray(learners) ? learners : [];
+  const key = String(learnerId || "").trim();
+  if (key) {
+    const match = list.find((l) => String(l?.id || l?.learnerId || "").trim() === key);
+    if (match) return match;
+  }
+  const acct = String(accountNo || "").trim();
+  if (acct && acct !== "-") {
+    const match = list.find((l) => getLearnerAccountNo(l) === acct);
+    if (match) return match;
+  }
+  return null;
+}
+
+function resolveParentNames(
+  selectedAccount: PaymentAccountContext,
+  learners: any[],
+  parents: any[]
+): string[] {
+  const fromAccount = String(selectedAccount?.parentName || "").trim();
+  if (fromAccount) return [fromAccount];
+
+  const learnerId = String(selectedAccount?.learnerId || "").trim();
+  const accountNo = String(selectedAccount?.accountNo || "").trim();
+  const learner = findLearnerRecord(learnerId, accountNo, learners);
+  const names = new Set<string>();
+
+  const pushParent = (p: any) => {
+    if (!p) return;
+    const full =
+      `${p.firstName || p.name || ""} ${p.surname || p.lastName || ""}`.trim() ||
+      String(p.fullName || p.name || "").trim();
+    if (full) names.add(full);
+  };
+
+  if (learner) {
+    for (const p of Array.isArray(learner?.parents) ? learner.parents : []) pushParent(p);
+    for (const link of Array.isArray(learner?.parentLinks) ? learner.parentLinks : []) {
+      pushParent(link?.parent || link);
+    }
+    pushParent(learner?.parent);
+    pushParent(learner?.primaryParent);
+    pushParent(learner?.guardian);
+    const legacy = String(learner?.parentName || learner?.guardianName || "").trim();
+    if (legacy) names.add(legacy);
+  }
+
+  if (names.size === 0 && learner) {
+    const lid = String(learner?.id || learner?.learnerId || "").trim();
+    for (const p of parents) {
+      const linked = [
+        p.learnerId,
+        p.childId,
+        p.studentId,
+        ...(Array.isArray(p.learnerIds) ? p.learnerIds : []),
+        ...(Array.isArray(p.children) ? p.children.map((c: any) => c?.id || c?.learnerId) : []),
+      ]
+        .map((v) => String(v || "").trim())
+        .filter(Boolean);
+      if (lid && linked.includes(lid)) pushParent(p);
+    }
+  }
+
+  return names.size ? [...names] : ["Not linked"];
+}
+
+function resolveAccountChildren(
+  selectedAccount: PaymentAccountContext,
+  learners: any[],
+  statementRows: any[]
+): { id: string; label: string }[] {
+  const accountNo = String(selectedAccount?.accountNo || "").trim();
+  const familyAccountId = String(selectedAccount?.familyAccountId || "").trim();
+  const seen = new Set<string>();
+  const children: { id: string; label: string }[] = [];
+
+  const addLearner = (l: any) => {
+    const id = String(l?.id || l?.learnerId || "").trim();
+    if (!id || seen.has(id)) return;
+    seen.add(id);
+    const name = `${l?.firstName || l?.name || ""} ${l?.lastName || l?.surname || ""}`.trim() || "Learner";
+    const grade = l?.grade ? ` · Grade ${l.grade}` : "";
+    children.push({ id, label: `${name}${grade}` });
+  };
+
+  if (familyAccountId) {
+    for (const l of learners) {
+      const fid = String(l?.familyAccountId || l?.familyAccount?.id || "").trim();
+      if (fid === familyAccountId) addLearner(l);
+    }
+  } else if (accountNo) {
+    for (const l of learners) {
+      if (getLearnerAccountNo(l) === accountNo) addLearner(l);
+    }
+  }
+
+  for (const row of statementRows) {
+    const rowAcct = String(row?.accountNo || "").trim();
+    const rowFamily = String(row?.familyAccountId || "").trim();
+    const matchesFamily = Boolean(familyAccountId && rowFamily === familyAccountId);
+    const matchesAcct = Boolean(accountNo && rowAcct === accountNo);
+    if (!matchesFamily && !matchesAcct) continue;
+    const match = learners.find(
+      (l) => String(l?.id || l?.learnerId || "") === String(row?.learnerId || row?.id || "")
+    );
+    addLearner(match || row);
+  }
+
+  const anchor = findLearnerRecord(selectedAccount.learnerId, accountNo, learners);
+  if (anchor) addLearner(anchor);
+
+  if (!children.length) {
+    children.push({
+      id: selectedAccount.learnerId,
+      label: `${selectedAccount.name} ${selectedAccount.surname}`.trim(),
+    });
+  }
+
+  return children;
+}
 
 /** Real learner UUID for ledger rows — never use selectedAccount.id when it is only an account ref. */
 export function resolvePaymentLearnerId(
@@ -150,12 +279,33 @@ const payCell: React.CSSProperties = {
 export default function PaymentCreateClean({
   schoolId,
   learners = [],
-  selectedAccount,
+  parents = [],
+  statementRows = [],
+  selectedAccount: selectedAccountProp,
   paymentForm,
   onPaymentFormChange: _onPaymentFormChange,
   onBack,
   onSaved,
 }: PaymentCreateCleanProps) {
+  const [resolvedAccount, setResolvedAccount] = useState<PaymentAccountContext | null>(
+    selectedAccountProp
+  );
+
+  useEffect(() => {
+    if (selectedAccountProp) {
+      setResolvedAccount(selectedAccountProp);
+      return;
+    }
+    const stored = readStoredPaymentAccount();
+    if (!stored) {
+      setResolvedAccount(null);
+      return;
+    }
+    setResolvedAccount(normalizePaymentAccount(stored, statementRows, learners));
+  }, [selectedAccountProp, statementRows, learners]);
+
+  const selectedAccount = resolvedAccount;
+
   const [draft, setDraft] = useState<PaymentFormState>({
     accountNo: paymentForm.accountNo || selectedAccount?.accountNo || "",
     learnerId: paymentForm.learnerId || selectedAccount?.learnerId || "",
@@ -165,6 +315,13 @@ export default function PaymentCreateClean({
     amount: paymentForm.amount || "",
     message: paymentForm.message || "",
   });
+
+  const [rowAllocations, setRowAllocations] = useState<Record<string, number>>({});
+  const [selectedDetailId, setSelectedDetailId] = useState<string | null>(null);
+  const [apiOpenInvoices, setApiOpenInvoices] = useState<OpenInvoiceLine[]>([]);
+  const [apiBalance, setApiBalance] = useState<number | null>(null);
+  const [loadingDetails, setLoadingDetails] = useState(false);
+  const [detailsError, setDetailsError] = useState("");
 
   const updateDraft = (patch: Partial<PaymentFormState>) => {
     setDraft((prev: PaymentFormState) => ({ ...prev, ...patch }));
@@ -193,13 +350,34 @@ export default function PaymentCreateClean({
 
   const refreshLedger = useCallback(async () => {
     if (!schoolId) return;
+    setLoadingDetails(true);
+    setDetailsError("");
     try {
       await syncBillingLedgerFromApi(schoolId);
+      if (learnerId || accountNo) {
+        const { openInvoices, balance } = await fetchOpenInvoices(schoolId, learnerId, accountNo);
+        setApiOpenInvoices(
+          openInvoices.map((row: any) => ({
+            id: String(row.id || ""),
+            audit: String(row.audit || row.id || ""),
+            type: String(row.type || "Invoice"),
+            date: String(row.date || "").slice(0, 10),
+            reference: String(row.reference || ""),
+            description: String(row.description || ""),
+            unpaid: Number(row.unpaid || 0),
+            amount: Number(row.amount || row.unpaid || 0),
+          }))
+        );
+        setApiBalance(balance);
+      }
       setLedgerTick((v) => v + 1);
     } catch (error) {
       console.error(error);
+      setDetailsError("Could not load open invoices for this account.");
+    } finally {
+      setLoadingDetails(false);
     }
-  }, [schoolId]);
+  }, [schoolId, learnerId, accountNo]);
 
   useEffect(() => {
     void refreshLedger();
@@ -218,10 +396,133 @@ export default function PaymentCreateClean({
     return getAccountLedger(schoolId, learnerId, accountNo);
   }, [schoolId, learnerId, accountNo, ledgerTick]);
 
-  const openingBalance = useMemo(
-    () => Math.max(calculateAccountBalance(accountLedger, learnerId, accountNo), 0),
-    [accountLedger, learnerId, accountNo]
+  const accountBalance = useMemo(() => {
+    if (apiBalance !== null) return apiBalance;
+    return calculateAccountBalance(accountLedger, learnerId, accountNo);
+  }, [apiBalance, accountLedger, learnerId, accountNo]);
+
+  const invoiceRows = useMemo(() => {
+    if (apiOpenInvoices.length) return apiOpenInvoices;
+    void ledgerTick;
+    const lines = computeOpenInvoiceLines(accountLedger, learnerId, accountNo);
+    return lines.map((row) => {
+      const entry = accountLedger.find((e) => e.id === row.id);
+      const isOb = entry ? isKidesysOpeningBalanceEntry(entry) : false;
+      return {
+        ...row,
+        type: isOb ? formatLedgerTypeLabel(entry!) : row.type,
+      };
+    });
+  }, [apiOpenInvoices, accountLedger, learnerId, accountNo, ledgerTick]);
+
+  const paymentAmount = parseAmountInput(draft.amount);
+  const amountAllocated = roundMoney(
+    Object.values(rowAllocations).reduce((sum, v) => sum + Number(v || 0), 0)
   );
+  const amountUnallocated = roundMoney(Math.max(0, paymentAmount - amountAllocated));
+
+  const accountChildren = useMemo(() => {
+    if (!selectedAccount) return [];
+    return resolveAccountChildren(selectedAccount, learners, statementRows);
+  }, [selectedAccount, learners, statementRows]);
+
+  const parentNames = useMemo(() => {
+    if (!selectedAccount) return [];
+    return resolveParentNames(selectedAccount, learners, parents);
+  }, [selectedAccount, learners, parents]);
+
+  useEffect(() => {
+    setRowAllocations({});
+    setSelectedDetailId(null);
+  }, [selectedAccount?.learnerId, selectedAccount?.accountNo, schoolId]);
+
+  useEffect(() => {
+    if (!selectedAccount) return;
+    setDraft((prev) => ({
+      ...prev,
+      accountNo: selectedAccount.accountNo || prev.accountNo,
+      learnerId: selectedAccount.learnerId || prev.learnerId,
+    }));
+  }, [selectedAccount?.accountNo, selectedAccount?.learnerId]);
+
+  const handleDraftAutoAllocate = useCallback(() => {
+    setTxnActionErr("");
+    setTxnActionMsg("");
+    if (!paymentAmount) {
+      setTxnActionErr("Enter a payment amount first.");
+      return;
+    }
+    let remaining = paymentAmount;
+    const next: Record<string, number> = {};
+    for (const row of invoiceRows) {
+      if (remaining <= 0.001) break;
+      const unpaid = Number(row.unpaid || 0);
+      const alloc = roundMoney(Math.min(unpaid, remaining));
+      if (alloc > 0.001) {
+        next[row.id] = alloc;
+        remaining = roundMoney(remaining - alloc);
+      }
+    }
+    setRowAllocations(next);
+    setTxnActionMsg(
+      Object.keys(next).length
+        ? "Payment allocated to oldest unpaid rows."
+        : "No unpaid rows to allocate."
+    );
+  }, [paymentAmount, invoiceRows]);
+
+  const handleDraftAllocate = useCallback(() => {
+    setTxnActionErr("");
+    setTxnActionMsg("");
+    if (!paymentAmount) {
+      setTxnActionErr("Enter a payment amount first.");
+      return;
+    }
+    if (!selectedDetailId) {
+      setTxnActionErr("Select a payment detail row first.");
+      return;
+    }
+    const row = invoiceRows.find((r) => r.id === selectedDetailId);
+    if (!row) {
+      setTxnActionErr("Selected row not found.");
+      return;
+    }
+    if (amountUnallocated <= 0.001) {
+      setTxnActionErr("No unallocated amount remaining.");
+      return;
+    }
+    const current = Number(rowAllocations[row.id] || 0);
+    const roomOnRow = roundMoney(Math.max(0, Number(row.unpaid || 0) - current));
+    const add = roundMoney(Math.min(roomOnRow, amountUnallocated));
+    if (add <= 0.001) {
+      setTxnActionErr("This row is already fully allocated.");
+      return;
+    }
+    setRowAllocations((prev) => ({ ...prev, [row.id]: roundMoney(current + add) }));
+    setTxnActionMsg(`Allocated ${formatMoney(add)} to selected row.`);
+  }, [paymentAmount, selectedDetailId, invoiceRows, rowAllocations, amountUnallocated]);
+
+  const handleDraftUnallocate = useCallback(() => {
+    setTxnActionErr("");
+    setTxnActionMsg("");
+    if (!selectedDetailId) {
+      setTxnActionErr("Select a payment detail row first.");
+      return;
+    }
+    setRowAllocations((prev) => {
+      const next = { ...prev };
+      delete next[selectedDetailId];
+      return next;
+    });
+    setTxnActionMsg("Allocation removed from selected row.");
+  }, [selectedDetailId]);
+
+  const handleDraftUnallocateAll = useCallback(() => {
+    setTxnActionErr("");
+    setTxnActionMsg("");
+    setRowAllocations({});
+    setTxnActionMsg("All draft allocations cleared.");
+  }, []);
 
   const savedPayments = useMemo(() => {
     return accountLedger
@@ -487,6 +788,33 @@ export default function PaymentCreateClean({
       })) as { payment?: Record<string, unknown> };
       console.log("CREATE PAYMENT RESULT", result);
 
+      const paymentId = String((result as any)?.payment?.id || "").trim();
+      const allocationLines: AllocationLine[] = Object.entries(rowAllocations)
+        .filter(([, amt]) => Number(amt || 0) > 0.001)
+        .map(([invoiceId, allocatedAmount]) => ({
+          invoiceId,
+          allocatedAmount: roundMoney(Number(allocatedAmount)),
+        }));
+      if (paymentId && allocationLines.length) {
+        await savePaymentAllocations(paymentId, {
+          schoolId,
+          learnerId: resolvedLearnerId,
+          accountNo: resolvedAccountNo,
+          paymentAmount,
+          lines: allocationLines,
+          allocatedBy: localStorage.getItem("userEmail") || "Billing",
+        });
+      } else if (paymentId && amountUnallocated > 0.001) {
+        await savePaymentAllocations(paymentId, {
+          schoolId,
+          learnerId: resolvedLearnerId,
+          accountNo: resolvedAccountNo,
+          paymentAmount,
+          lines: [{ feeCategory: "account_credit", allocatedAmount: amountUnallocated }],
+          allocatedBy: localStorage.getItem("userEmail") || "Billing",
+        });
+      }
+
       appendPaymentTransaction({
         schoolId,
         learnerId: resolvedLearnerId,
@@ -501,6 +829,8 @@ export default function PaymentCreateClean({
       await syncBillingLedgerFromApi(schoolId);
       notifyBillingUpdated();
       setLedgerTick((v) => v + 1);
+      setRowAllocations({});
+      setSelectedDetailId(null);
       setDraft((prev: PaymentFormState) => ({
         ...prev,
         amount: "",
@@ -521,6 +851,8 @@ export default function PaymentCreateClean({
     learnerId,
     accountNo,
     learners,
+    rowAllocations,
+    amountUnallocated,
     onSaved,
   ]);
 
@@ -669,6 +1001,26 @@ export default function PaymentCreateClean({
                     onChange={(e) => updateDraft({ message: e.target.value })}
                   />,
                 ],
+                [
+                  "Amount Allocated",
+                  <input
+                    key="allocated"
+                    type="text"
+                    readOnly
+                    style={payInput}
+                    value={amountAllocated.toFixed(2)}
+                  />,
+                ],
+                [
+                  "Amount Unallocated",
+                  <input
+                    key="unallocated"
+                    type="text"
+                    readOnly
+                    style={payInput}
+                    value={amountUnallocated.toFixed(2)}
+                  />,
+                ],
               ] as const
             ).map(([label, input]) => (
               <div
@@ -706,17 +1058,58 @@ export default function PaymentCreateClean({
           >
             Account
           </div>
-          <div style={{ padding: 16, fontWeight: 800, lineHeight: 1.8 }}>
-            <div>{selectedAccount.accountNo}</div>
-            <div>
-              {selectedAccount.name} {selectedAccount.surname}
+          <div style={{ padding: 16, fontWeight: 800, lineHeight: 1.75, fontSize: 14 }}>
+            <div style={{ fontSize: 12, fontWeight: 900, color: "#64748b", letterSpacing: 0.3 }}>
+              Account No
             </div>
-            <div>{selectedAccount.parentName || "Parent details to connect"}</div>
-            <div>{formatMoney(openingBalance)}</div>
-            <div style={{ color: "#64748b", fontSize: 13 }}>Last payment: {lastPaymentLabel}</div>
+            <div>{selectedAccount.accountNo}</div>
+            <div style={{ marginTop: 10, fontSize: 12, fontWeight: 900, color: "#64748b" }}>
+              Children
+            </div>
+            <ul style={{ margin: "4px 0 0", paddingLeft: 18 }}>
+              {accountChildren.map((child) => (
+                <li key={child.id}>{child.label}</li>
+              ))}
+            </ul>
+            <div style={{ marginTop: 10, fontSize: 12, fontWeight: 900, color: "#64748b" }}>
+              Parents
+            </div>
+            <ul style={{ margin: "4px 0 0", paddingLeft: 18 }}>
+              {parentNames.map((name) => (
+                <li key={name}>{name}</li>
+              ))}
+            </ul>
+            <div style={{ marginTop: 10, fontSize: 12, fontWeight: 900, color: "#64748b" }}>
+              Balance
+            </div>
+            <div
+              style={{
+                fontSize: 22,
+                fontWeight: 900,
+                color: accountBalance > 0 ? "#b91c1c" : "#166534",
+              }}
+            >
+              {formatMoney(accountBalance)}
+            </div>
+            <div style={{ marginTop: 10, fontSize: 12, fontWeight: 900, color: "#64748b" }}>
+              Notes
+            </div>
+            <div style={{ color: "#64748b", fontWeight: 600, fontSize: 13 }}>
+              {draft.message.trim() || "No notes captured."}
+            </div>
+            <div style={{ marginTop: 8, color: "#64748b", fontSize: 12 }}>
+              Last payment: {lastPaymentLabel}
+            </div>
           </div>
         </section>
       </div>
+
+      {loadingDetails ? (
+        <p style={{ marginTop: 12, color: "#64748b", fontWeight: 700 }}>Loading payment details…</p>
+      ) : null}
+      {detailsError ? (
+        <p style={{ marginTop: 12, color: "#b45309", fontWeight: 800 }}>{detailsError}</p>
+      ) : null}
 
       <section
         style={{
@@ -736,7 +1129,7 @@ export default function PaymentCreateClean({
             fontWeight: 900,
           }}
         >
-          Transactions
+          Payment Details
         </div>
         <div
           style={{
@@ -750,31 +1143,21 @@ export default function PaymentCreateClean({
         >
           <button
             type="button"
-            style={{
-              ...paySmallGoldBtn,
-              opacity: txnActionBusy || !savedPayments.length ? 0.55 : 1,
-              cursor: txnActionBusy || !savedPayments.length ? "not-allowed" : "pointer",
-            }}
-            onClick={() => void handleAutoAllocate()}
-            disabled={txnActionBusy || !savedPayments.length}
-            title={
-              !savedPayments.length
-                ? "Save a payment before allocating"
-                : "Allocate newest unallocated payment to outstanding invoices (oldest first)"
-            }
+            style={paySmallGoldBtn}
+            onClick={handleDraftAutoAllocate}
+            disabled={!invoiceRows.length}
           >
-            {txnActionBusy ? "Working…" : "Auto Allocate"}
+            Auto Allocate
           </button>
           <button
             type="button"
             style={{
               ...paySmallBtn,
-              opacity: !selectedPayment ? 0.55 : 1,
-              cursor: !selectedPayment ? "not-allowed" : "pointer",
+              opacity: !selectedDetailId ? 0.55 : 1,
+              cursor: !selectedDetailId ? "not-allowed" : "pointer",
             }}
-            onClick={openAllocateModal}
-            disabled={!selectedPayment}
-            title={selectedPayment ? "Open manual allocation for selected payment" : "Select a payment row"}
+            onClick={handleDraftAllocate}
+            disabled={!selectedDetailId}
           >
             Allocate
           </button>
@@ -782,46 +1165,16 @@ export default function PaymentCreateClean({
             type="button"
             style={{
               ...paySmallBtn,
-              opacity: 0.55,
-              cursor: "not-allowed",
+              opacity: !selectedDetailId ? 0.55 : 1,
+              cursor: !selectedDetailId ? "not-allowed" : "pointer",
             }}
-            onClick={handleReversePayment}
-            disabled={!REVERSE_PAYMENT_API_CONNECTED}
-            title="Reverse payment API not connected yet"
+            onClick={handleDraftUnallocate}
+            disabled={!selectedDetailId}
           >
-            Reverse Payment
+            Unallocate
           </button>
-          <button
-            type="button"
-            style={{
-              ...paySmallGoldBtn,
-              opacity: !selectedPayment ? 0.55 : 1,
-              cursor: !selectedPayment ? "not-allowed" : "pointer",
-            }}
-            onClick={handlePrintReceipt}
-            disabled={!selectedPayment}
-            title={selectedPayment ? "Open receipt PDF" : "Select a payment row"}
-          >
-            Print Receipt
-          </button>
-          <button
-            type="button"
-            style={{
-              ...paySmallBtn,
-              opacity: !selectedPayment ? 0.55 : 1,
-              cursor: !selectedPayment ? "not-allowed" : "pointer",
-            }}
-            onClick={handleEmailReceipt}
-            disabled={!selectedPayment}
-            title={
-              !selectedPayment
-                ? "Select a payment row"
-                : isSchoolEmailReadyForUi(emailReadiness)
-                  ? "Email receipt (API not connected yet)"
-                  : "Configure SMTP under Communication → Email"
-            }
-          >
-            Email Receipt
+          <button type="button" style={paySmallBtn} onClick={handleDraftUnallocateAll}>
+            Unallocate All
           </button>
         </div>
         {txnActionErr ? (
@@ -855,57 +1208,74 @@ export default function PaymentCreateClean({
             {txnActionMsg}
           </p>
         ) : null}
-        <table style={{ width: "100%", borderCollapse: "collapse" }}>
-          <thead>
-            <tr style={{ background: "#f8fafc" }}>
-              {["Date", "Type", "Description", "Amount"].map((h) => (
-                <th
-                  key={h}
-                  style={{
-                    padding: 10,
-                    textAlign: "left",
-                    fontWeight: 900,
-                    fontSize: 13,
-                  }}
-                >
-                  {h}
-                </th>
-              ))}
-            </tr>
-          </thead>
-          <tbody>
-            {savedPayments.length === 0 ? (
-              <tr>
-                <td colSpan={4} style={{ ...payCell, textAlign: "center", color: "#64748b" }}>
-                  No payments recorded yet.
-                </td>
-              </tr>
-            ) : (
-              savedPayments.map((row) => {
-                const isSelected = row.id === selectedPaymentId;
-                return (
-                  <tr
-                    key={row.id}
-                    onClick={() => {
-                      setSelectedPaymentId(row.id);
-                      setTxnActionErr("");
-                      setTxnActionMsg("");
-                    }}
+        <div style={{ overflowX: "auto" }}>
+          <table style={{ width: "100%", borderCollapse: "collapse", minWidth: 720 }}>
+            <thead>
+              <tr style={{ background: "#f8fafc" }}>
+                {[
+                  "Audit No",
+                  "Type",
+                  "Date",
+                  "Reference",
+                  "Description",
+                  "Unpaid Amount",
+                  "Allocated",
+                ].map((h) => (
+                  <th
+                    key={h}
                     style={{
-                      cursor: "pointer",
-                      background: isSelected ? "rgba(212, 175, 55, 0.14)" : undefined,
+                      padding: 10,
+                      textAlign: "left",
+                      fontWeight: 900,
+                      fontSize: 12,
                     }}
                   >
-                    <td style={payCell}>{row.date}</td>
-                    <td style={payCell}>{row.type}</td>
-                    <td style={payCell}>{row.description}</td>
-                    <td style={payCell}>{formatMoney(row.amount)}</td>
-                  </tr>
-                );
-              })
-            )}
-          </tbody>
-        </table>
+                    {h}
+                  </th>
+                ))}
+              </tr>
+            </thead>
+            <tbody>
+              {invoiceRows.length === 0 ? (
+                <tr>
+                  <td colSpan={7} style={{ ...payCell, textAlign: "center", color: "#64748b" }}>
+                    No outstanding invoices or opening balance rows for this account.
+                  </td>
+                </tr>
+              ) : (
+                invoiceRows.map((row, index) => {
+                  const isSelected = row.id === selectedDetailId;
+                  const allocated = Number(rowAllocations[row.id] || 0);
+                  return (
+                    <tr
+                      key={row.id || row.audit}
+                      onClick={() => {
+                        setSelectedDetailId(row.id);
+                        setTxnActionErr("");
+                      }}
+                      style={{
+                        cursor: "pointer",
+                        background: isSelected
+                          ? "rgba(212, 175, 55, 0.14)"
+                          : index % 2 === 0
+                            ? "#fffdf7"
+                            : "#fff",
+                      }}
+                    >
+                      <td style={payCell}>{row.audit}</td>
+                      <td style={payCell}>{row.type}</td>
+                      <td style={payCell}>{row.date}</td>
+                      <td style={payCell}>{row.reference}</td>
+                      <td style={payCell}>{row.description}</td>
+                      <td style={payCell}>{formatMoney(row.unpaid)}</td>
+                      <td style={payCell}>{allocated > 0 ? formatMoney(allocated) : "-"}</td>
+                    </tr>
+                  );
+                })
+              )}
+            </tbody>
+          </table>
+        </div>
       </section>
 
       {allocationModal && schoolId && learnerId && accountNo ? (

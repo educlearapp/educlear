@@ -11,6 +11,9 @@ export type SchoolProfileApiPayload = {
   phone: string | null;
   cellNo: string | null;
   address: string | null;
+  postalAddress: string | null;
+  bankingDetails: string | null;
+  logoUrl?: string | null;
 };
 
 /** Maps form state to PUT /api/schools/:id body; always includes cellNo. */
@@ -45,6 +48,8 @@ function recordFromRow(row: Record<string, unknown>, schoolId: string): SchoolPr
     phone: String(row.phone || ""),
     cellNo: String(row.cellNo ?? ""),
     address: String(row.address || ""),
+    postalAddress: String(row.postalAddress ?? ""),
+    bankingDetails: String(row.bankingDetails ?? ""),
     logoUrl: String(row.logoUrl || ""),
     primaryColor: String(row.primaryColor || ""),
     package: pickString(row, ["package", "packageName", "schoolPackage"]),
@@ -98,6 +103,9 @@ export async function saveSchoolProfile(
     phone: payload.phone,
     cellNo: payload.cellNo?.trim() || null,
     address: payload.address,
+    postalAddress: payload.postalAddress,
+    bankingDetails: payload.bankingDetails,
+    ...(payload.logoUrl !== undefined ? { logoUrl: payload.logoUrl } : {}),
   };
 
   const res = await fetch(`${API_URL}/api/schools/${encodeURIComponent(id)}`, {

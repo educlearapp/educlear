@@ -91,6 +91,9 @@ export type ParsedTransaction = {
   notes: string;
   amount: number;
   signedAmount: number;
+  /** 1-based row index in the source spreadsheet file. */
+  sourceFileRow: number;
+  direction: "debit" | "credit";
 };
 
 function rowText(row: string[], index: number): string {
@@ -393,7 +396,8 @@ export function parseTransactionListFile(filePath: string): ParsedTransaction[] 
   let section: "invoice" | "payment" | "" = "";
   const transactions: ParsedTransaction[] = [];
 
-  for (const row of sheet.rows) {
+  for (let rowIndex = 0; rowIndex < sheet.rows.length; rowIndex += 1) {
+    const row = sheet.rows[rowIndex];
     const c0 = rowText(row, 0);
     const c1 = rowText(row, 1);
     const c2 = rowText(row, 2);
@@ -420,6 +424,7 @@ export function parseTransactionListFile(filePath: string): ParsedTransaction[] 
     const transactionNo = invMatch[2];
     const date = parseKidEsysDate(c2) || c2;
     const signedAmount = kind === "payment" && c6 > 0 ? -c6 : c6;
+    const direction: "debit" | "credit" = kind === "invoice" ? "debit" : "credit";
 
     transactions.push({
       kind,
@@ -431,6 +436,8 @@ export function parseTransactionListFile(filePath: string): ParsedTransaction[] 
       notes: c5,
       amount: Math.abs(c6),
       signedAmount,
+      sourceFileRow: rowIndex + 1,
+      direction,
     });
   }
 

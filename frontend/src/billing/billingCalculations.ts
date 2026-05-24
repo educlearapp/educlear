@@ -63,6 +63,34 @@ export const calculateLastPayment = (payments: Payment[], learnerId: string, acc
   return learnerPayments[0] || null;
 };
 
+export type BillingSummaryTotals = {
+  accountsCount: number;
+  netOutstanding: number;
+  recentlyOwing: number;
+  badDebt: number;
+  overPaid: number;
+};
+
+export const calculateBillingSummary = (rows: any[]): BillingSummaryTotals => {
+  const rowBalance = (row: any) => normaliseBillingAmount(row?.balance);
+
+  return {
+    accountsCount: rows.length,
+    netOutstanding: rows.reduce((sum, row) => sum + rowBalance(row), 0),
+    recentlyOwing: rows
+      .filter((row) => row.status === "Recently Owing")
+      .reduce((sum, row) => sum + rowBalance(row), 0),
+    badDebt: rows
+      .filter((row) => row.status === "Bad Debt")
+      .reduce((sum, row) => sum + rowBalance(row), 0),
+    overPaid: Math.abs(
+      rows
+        .filter((row) => row.status === "Over Paid")
+        .reduce((sum, row) => sum + rowBalance(row), 0)
+    ),
+  };
+};
+
 export const buildBillingAccountRows = (learners: any[], invoices: any[], payments: any[]) => {
   const schoolId = localStorage.getItem("schoolId") || "";
   if (schoolId) return getBillingRows(learners, schoolId);

@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { API_URL, apiFetch } from "../api";
+import { absolutizeSchoolLogoUrl } from "../utils/schoolLogo";
 import "./parentPortal.css";
 import {
   buildStatementCoverEmailHtml,
@@ -283,7 +284,10 @@ export default function ParentPortalApp() {
     if (!sid) return;
     void apiFetch(`/api/schools/${encodeURIComponent(sid)}`)
       .then((s: any) => {
-        setSchoolBranding({ logoUrl: s?.logoUrl || null, name: s?.name || undefined });
+        setSchoolBranding({
+          logoUrl: s?.logoUrl ? absolutizeSchoolLogoUrl(String(s.logoUrl)) : null,
+          name: s?.name || undefined,
+        });
       })
       .catch(() => {});
   }, [sid]);

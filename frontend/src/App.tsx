@@ -26,6 +26,9 @@ import LearnerDigitalReport from "./LearnerDigitalReport";
 
 
 import RegisterSchool from "./RegisterSchool";
+import SubscriptionPackages from "./subscriptions/SubscriptionPackages";
+import SubscriptionGate from "./subscriptions/SubscriptionGate";
+import SubscriptionStatus from "./subscriptions/SubscriptionStatus";
 import ParentPortalApp from "./parent/ParentPortalApp";
 import TeacherInbox from "./teacher/TeacherInbox";
 import TeacherApp from "./teacher-app/TeacherApp";
@@ -591,10 +594,24 @@ export default function App() {
 
         <Route path="/register-school" element={<RegisterSchool />} />
 
+        <Route path="/subscription/packages" element={<SubscriptionPackages />} />
+        <Route path="/subscription/status" element={<SubscriptionStatus />} />
+        <Route path="/subscription/return" element={<SubscriptionStatus />} />
+        <Route path="/subscription/cancel" element={<SubscriptionStatus />} />
+        <Route path="/subscriptions/return" element={<SubscriptionStatus />} />
+        <Route path="/subscriptions/cancel" element={<SubscriptionStatus />} />
+
         <Route path="/parent" element={<ParentPortalApp />} />
         <Route path="/parent/*" element={<ParentPortalApp />} />
 
-        <Route path="/dashboard/*" element={<SchoolDashboard />} />
+        <Route
+          path="/dashboard/*"
+          element={
+            <SubscriptionGate>
+              <SchoolDashboard />
+            </SubscriptionGate>
+          }
+        />
         <Route path="/teacher-inbox" element={<TeacherInbox />} />
         <Route path="/teacher/*" element={<TeacherApp />} />
 
@@ -618,15 +635,32 @@ export default function App() {
 
 
 
-        <Route path="/teacher-performance" element={<TeacherPerformance />} />
+        <Route
+          path="/teacher-performance"
+          element={
+            <SubscriptionGate>
+              <TeacherPerformance />
+            </SubscriptionGate>
+          }
+        />
 
+        <Route
+          path="/learners/:learnerId"
+          element={
+            <SubscriptionGate>
+              <LearnerProfile />
+            </SubscriptionGate>
+          }
+        />
 
-
-        <Route path="/learners/:learnerId" element={<LearnerProfile />} />
-
-
-
-        <Route path="/learners/:learnerId/report" element={<LearnerDigitalReport />} />
+        <Route
+          path="/learners/:learnerId/report"
+          element={
+            <SubscriptionGate>
+              <LearnerDigitalReport />
+            </SubscriptionGate>
+          }
+        />
 
 
 

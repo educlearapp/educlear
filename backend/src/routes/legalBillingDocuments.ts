@@ -3,6 +3,7 @@ import fs from "fs";
 import path from "path";
 
 import { prisma } from "../prisma";
+import { toAbsoluteSchoolLogoUrl } from "../utils/schoolLogo";
 import { resolveLearnerAccountNo } from "../utils/learnerIdentity";
 import {
   computeLegalOverdueSnapshot,
@@ -200,7 +201,7 @@ function buildDocumentHtml(payload: Record<string, unknown>) {
   const copy = payload.copy as Record<string, string>;
   const generatedAt = String(payload.generatedAt || currentIso());
   const generatedDate = generatedAt.slice(0, 10);
-  const logoUrl = String(school.logoUrl || "");
+  const logoUrl = toAbsoluteSchoolLogoUrl(String(school.logoUrl || "")) || "";
   const overdueDates = Array.isArray(payload.overdueInvoiceDates)
     ? (payload.overdueInvoiceDates as string[]).join(", ")
     : "-";
@@ -260,7 +261,7 @@ async function loadSchool(schoolId: string) {
     email: school.email || "",
     phone: school.phone || "",
     address: school.address || "",
-    logoUrl: school.logoUrl || "",
+    logoUrl: toAbsoluteSchoolLogoUrl(school.logoUrl) || "",
   };
 }
 

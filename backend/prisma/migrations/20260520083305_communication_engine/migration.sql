@@ -179,8 +179,7 @@ ALTER TABLE "CommunicationMessage" ADD CONSTRAINT "CommunicationMessage_parentId
 -- AddForeignKey
 ALTER TABLE "CommunicationMessage" ADD CONSTRAINT "CommunicationMessage_learnerId_fkey" FOREIGN KEY ("learnerId") REFERENCES "Learner"("id") ON DELETE SET NULL ON UPDATE CASCADE;
 
--- AddForeignKey
-ALTER TABLE "CommunicationMessage" ADD CONSTRAINT "CommunicationMessage_parentNotificationId_fkey" FOREIGN KEY ("parentNotificationId") REFERENCES "ParentNotification"("id") ON DELETE SET NULL ON UPDATE CASCADE;
+-- ParentNotification FK deferred to 20260520120000_align_live_schema (table created there)
 
 -- AddForeignKey
 ALTER TABLE "CommunicationRecipient" ADD CONSTRAINT "CommunicationRecipient_messageId_fkey" FOREIGN KEY ("messageId") REFERENCES "CommunicationMessage"("id") ON DELETE CASCADE ON UPDATE CASCADE;

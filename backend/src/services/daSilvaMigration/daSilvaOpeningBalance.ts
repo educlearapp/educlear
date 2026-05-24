@@ -1,3 +1,4 @@
+import { DA_SILVA_OPENING_BALANCE_EXCLUDED_ACCOUNTS } from "./daSilvaFinalImportGate";
 import {
   classifyVarianceGroup,
   isMergedFamilyAccount,
@@ -5,6 +6,8 @@ import {
   type DaSilvaVarianceRowInput,
 } from "./daSilvaVarianceClassification";
 import type { ParsedBillingAccount, ParsedTransaction } from "./parsers";
+
+const PHASE4_OPENING_EXCLUDED = new Set<string>(DA_SILVA_OPENING_BALANCE_EXCLUDED_ACCOUNTS);
 
 type ReconciliationRow = {
   accountNo: string;
@@ -88,6 +91,44 @@ export function countAgeAnalysisVarianceAfterAdjustments(
     if (Math.abs(variance) > 0.01) remaining++;
   }
   return remaining;
+}
+
+/**
+ * Phase 4: set ledger opening balance = Kid-e-Sys age analysis (no transaction history).
+ */
+export function buildPhase4OpeningBalancesFromAgeAnalysis(opts: {
+  accounts: ParsedBillingAccount[];
+  cutoverDate?: string;
+}): DaSilvaOpeningBalanceAdjustment[] {
+  const cutoverDate = opts.cutoverDate || DA_SILVA_MIGRATION_CUTOVER_DATE;
+  const adjustments: DaSilvaOpeningBalanceAdjustment[] = [];
+
+  for (const account of opts.accounts) {
+    if (PHASE4_OPENING_EXCLUDED.has(account.accountNo)) continue;
+
+    const afterBalance = roundMoney(account.balance);
+    if (Math.abs(afterBalance) <= 0.01) continue;
+
+    const beforeBalance = 0;
+    const adjustmentAmount = afterBalance;
+    const entryType: "invoice" | "credit" = adjustmentAmount > 0 ? "invoice" : "credit";
+
+    adjustments.push({
+      accountNo: account.accountNo,
+      fullName: account.fullName,
+      varianceGroup: "activeAgeAnalysisMismatch",
+      beforeBalance,
+      afterBalance,
+      adjustmentAmount,
+      entryType,
+      date: cutoverDate,
+      description: KIDESYS_OPENING_BALANCE_LABEL,
+      reference: openingBalanceReference(account.accountNo),
+    });
+  }
+
+  adjustments.sort((a, b) => a.accountNo.localeCompare(b.accountNo));
+  return adjustments;
 }
 
 export function buildOpeningBalancePlan(opts: {

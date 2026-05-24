@@ -1,12 +1,17 @@
 import { prisma } from "../prisma";
 import { resolveLearnerAccountNo } from "../utils/learnerIdentity";
 import {
-  calculateBalanceForAccount,
+  buildKidesysHistoryAccountIndex,
+  type KidesysHistoryEntry,
+  readSchoolKidesysHistory,
+} from "../utils/kidesysTransactionHistoryStore";
+import {
   calculateBalanceFromEntries,
   collectFamilyAccountEntries,
   readSchoolLedger,
   type BillingLedgerEntry,
 } from "../utils/billingLedgerStore";
+import { MIGRATED_OPENING_BALANCE_OVERVIEW, isKidesysOpeningBalanceEntry } from "../utils/billingDisplayRules";
 
 function statusFromBalance(balance: number) {
   if (balance > 10000) return "Bad Debt";
@@ -15,7 +20,96 @@ function statusFromBalance(balance: number) {
   return "Up To Date";
 }
 
-export async function buildAccountsFromLearners(schoolId: string, ledger: BillingLedgerEntry[]) {
+function resolveBillingGroupKey(learner: {
+  id: string;
+  familyAccountId: string | null;
+  familyAccount: { accountRef: string } | null;
+}): string {
+  const familyAccountId = String(learner.familyAccountId || "").trim();
+  if (familyAccountId) return `family:${familyAccountId}`;
+  const accountNo = resolveLearnerAccountNo(learner);
+  if (accountNo && accountNo !== "-") return `account:${accountNo}`;
+  return `learner:${learner.id}`;
+}
+
+function lastRealInvoice(entries: BillingLedgerEntry[]) {
+  return entries
+    .filter((e) => e.type === "invoice" && !isKidesysOpeningBalanceEntry(e))
+    .sort(
+      (a, b) =>
+        new Date(b.date || b.createdAt).getTime() - new Date(a.date || a.createdAt).getTime()
+    )[0];
+}
+
+function resolveLastInvoiceFields(
+  accountEntries: BillingLedgerEntry[],
+  historySummary?: { lastInvoice: KidesysHistoryEntry | null }
+) {
+  const histInv = historySummary?.lastInvoice;
+  if (histInv) {
+    return {
+      lastInvoice: histInv.amount ?? 0,
+      lastInvoiceDate: histInv.date || "",
+      lastInvoiceLabel: null as string | null,
+    };
+  }
+  const lastInvoice = lastRealInvoice(accountEntries);
+  if (lastInvoice) {
+    return {
+      lastInvoice: lastInvoice.amount ?? 0,
+      lastInvoiceDate: lastInvoice.date || "",
+      lastInvoiceLabel: null as string | null,
+    };
+  }
+  const hasOpeningBalance = accountEntries.some(
+    (e) => e.type === "invoice" && isKidesysOpeningBalanceEntry(e)
+  );
+  if (hasOpeningBalance) {
+    return {
+      lastInvoice: 0,
+      lastInvoiceDate: "",
+      lastInvoiceLabel: MIGRATED_OPENING_BALANCE_OVERVIEW,
+    };
+  }
+  return {
+    lastInvoice: 0,
+    lastInvoiceDate: "",
+    lastInvoiceLabel: null as string | null,
+  };
+}
+
+function resolveLastPaymentFields(
+  accountEntries: BillingLedgerEntry[],
+  historySummary?: { lastPayment: KidesysHistoryEntry | null }
+) {
+  const histPay = historySummary?.lastPayment;
+  if (histPay) {
+    return {
+      lastPayment: histPay.amount ?? 0,
+      lastPaymentDate: histPay.date || "",
+    };
+  }
+  const lastPayment = accountEntries
+    .filter((e) => e.type === "payment")
+    .sort(
+      (a, b) =>
+        new Date(b.date || b.createdAt).getTime() - new Date(a.date || a.createdAt).getTime()
+    )[0];
+  return {
+    lastPayment: lastPayment?.amount ?? 0,
+    lastPaymentDate: lastPayment?.date || "",
+  };
+}
+
+/** One row per family billing account (deduped siblings). */
+export async function buildAccountsFromLearners(
+  schoolId: string,
+  ledger: BillingLedgerEntry[],
+  historyOverride?: KidesysHistoryEntry[]
+) {
+  const history =
+    historyOverride !== undefined ? historyOverride : readSchoolKidesysHistory(schoolId);
+  const historyIndex = buildKidesysHistoryAccountIndex(history);
   const learners = await prisma.learner.findMany({
     where: { schoolId },
     orderBy: { createdAt: "desc" },
@@ -29,67 +123,50 @@ export async function buildAccountsFromLearners(schoolId: string, ledger: Billin
     },
   });
 
-  const familyMembersById = new Map<string, string[]>();
-  for (const l of learners) {
-    const familyId = String(l.familyAccountId || "").trim();
-    if (!familyId) continue;
-    const list = familyMembersById.get(familyId) || [];
-    list.push(l.id);
-    familyMembersById.set(familyId, list);
+  const groups = new Map<string, { anchor: (typeof learners)[0]; memberIds: string[] }>();
+
+  for (const learner of learners) {
+    const key = resolveBillingGroupKey(learner);
+    const existing = groups.get(key);
+    if (existing) {
+      if (!existing.memberIds.includes(learner.id)) {
+        existing.memberIds.push(learner.id);
+      }
+      continue;
+    }
+    groups.set(key, { anchor: learner, memberIds: [learner.id] });
   }
 
-  const familyBalanceById = new Map<string, number>();
-  for (const [familyId, memberIds] of familyMembersById) {
-    const anchor = learners.find((l) => l.id === memberIds[0]);
-    const accountRef = anchor ? resolveLearnerAccountNo(anchor) : "";
-    const scoped = collectFamilyAccountEntries(ledger, {
-      accountRef,
+  return Array.from(groups.values()).map(({ anchor, memberIds }) => {
+    const accountNo = resolveLearnerAccountNo(anchor);
+    const accountEntries = collectFamilyAccountEntries(ledger, {
+      accountRef: accountNo,
       learnerIds: memberIds,
     });
-    familyBalanceById.set(familyId, calculateBalanceFromEntries(scoped));
-  }
-
-  return learners.map((l) => {
-    const accountNo = resolveLearnerAccountNo(l);
-    const familyId = String(l.familyAccountId || "").trim();
-    const memberIds = familyId ? familyMembersById.get(familyId) || [l.id] : [l.id];
-    const accountEntries = familyId
-      ? collectFamilyAccountEntries(ledger, { accountRef: accountNo, learnerIds: memberIds })
-      : ledger.filter(
-          (e) =>
-            String(e.learnerId) === l.id || (accountNo && String(e.accountNo) === accountNo)
-        );
-    const lastInvoice = accountEntries
-      .filter((e) => e.type === "invoice")
-      .sort(
-        (a, b) =>
-          new Date(b.date || b.createdAt).getTime() - new Date(a.date || a.createdAt).getTime()
-      )[0];
-    const lastPayment = accountEntries
-      .filter((e) => e.type === "payment")
-      .sort(
-        (a, b) =>
-          new Date(b.date || b.createdAt).getTime() - new Date(a.date || a.createdAt).getTime()
-      )[0];
-    const balance =
-      familyId && familyBalanceById.has(familyId)
-        ? familyBalanceById.get(familyId)!
-        : calculateBalanceForAccount(ledger, l.id, accountNo);
+    const balance = calculateBalanceFromEntries(accountEntries);
+    const historySummary = historyIndex.get(accountNo) || {
+      lastInvoice: null,
+      lastPayment: null,
+    };
+    const invoiceFields = resolveLastInvoiceFields(accountEntries, historySummary);
+    const paymentFields = resolveLastPaymentFields(accountEntries, historySummary);
 
     return {
       accountNo,
-      learnerId: l.id,
-      schoolId: l.schoolId,
-      name: l.firstName || "-",
-      surname: l.lastName || "-",
+      learnerId: anchor.id,
+      schoolId: anchor.schoolId,
+      name: anchor.firstName || "-",
+      surname: anchor.lastName || "-",
       balance,
-      lastInvoice: lastInvoice?.amount ?? 0,
-      lastInvoiceDate: lastInvoice?.date || "",
-      lastPayment: lastPayment?.amount ?? 0,
-      lastPaymentDate: lastPayment?.date || "",
+      lastInvoice: invoiceFields.lastInvoice,
+      lastInvoiceDate: invoiceFields.lastInvoiceDate,
+      lastInvoiceLabel: invoiceFields.lastInvoiceLabel,
+      lastPayment: paymentFields.lastPayment,
+      lastPaymentDate: paymentFields.lastPaymentDate,
       status: statusFromBalance(balance),
-      familyAccountId: l.familyAccountId,
-      familyName: l.familyAccount?.familyName ?? null,
+      familyAccountId: anchor.familyAccountId,
+      familyName: anchor.familyAccount?.familyName ?? null,
+      memberLearnerIds: memberIds,
     };
   });
 }

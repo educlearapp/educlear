@@ -6,7 +6,13 @@ import { prisma } from "../prisma";
 import { seedSchoolEmailDefaults } from "../services/schoolEmailService";
 import { permissionsForRole, prismaRoleForAppRole } from "../utils/userPermissions";
 import { setUserAccessMeta } from "../utils/userAccessStore";
+import {
+  isRegistrationProvisionedOwner,
+  isScriptProvisionedOwner,
+  normalizeOwnerEmail,
+} from "../utils/ownerProvisioning";
 import { isPlatformSuperAdminEmail, normalizeSuperAdminEmail } from "../utils/superAdmin";
+import { toStoredSchoolLogoUrl } from "../utils/schoolLogo";
 
 const router = Router();
 
@@ -76,6 +82,7 @@ router.post("/login", async (req, res) => {
     }
 
     if (!matched) {
+      authLog("login: password mismatch for all user row(s)", { email, count: users.length });
       return res.status(401).json({ error: "Invalid credentials" });
     }
 
@@ -124,7 +131,7 @@ router.post("/register-school", async (req, res) => {
   const email = normalizeEmail(body.email);
   const phone = String(body.phone || "").trim();
   const password = String(body.password || "");
-  const logoUrl = body.logoUrl ? String(body.logoUrl).trim() : null;
+  const logoUrl = body.logoUrl ? toStoredSchoolLogoUrl(String(body.logoUrl).trim()) : null;
 
   if (!schoolName || !contactPerson || !email || !phone || !password) {
     return res.status(400).json({
@@ -141,12 +148,177 @@ router.post("/register-school", async (req, res) => {
   }
 
   try {
-    const existingSchool = await prisma.school.findFirst({
+    const existingSchoolByEmail = await prisma.school.findFirst({
       where: { email },
-      select: { id: true },
+      select: { id: true, name: true, email: true },
     });
-    if (existingSchool) {
+    if (existingSchoolByEmail) {
       return res.status(400).json({ error: "A school with this email already exists" });
+    }
+
+    const existingUsers = await prisma.user.findMany({
+      where: { email },
+      select: {
+        id: true,
+        schoolId: true,
+        email: true,
+        fullName: true,
+        isActive: true,
+      },
+    });
+
+    const schoolByName = await prisma.school.findFirst({
+      where: { name: { equals: schoolName, mode: "insensitive" } },
+      select: { id: true, name: true, email: true, phone: true, logoUrl: true },
+    });
+
+    if (schoolByName) {
+      const schoolUsers = await prisma.user.findMany({
+        where: { schoolId: schoolByName.id, isActive: true },
+        select: { id: true, email: true, fullName: true },
+      });
+
+      const scriptOwner = schoolUsers.find(
+        (u) =>
+          normalizeOwnerEmail(u.email) === email &&
+          isScriptProvisionedOwner(u, schoolByName)
+      );
+
+      if (scriptOwner) {
+        authLog("register-school: reclaiming script-provisioned owner", {
+          email,
+          schoolId: schoolByName.id,
+          userId: scriptOwner.id,
+        });
+      } else if (schoolUsers.length > 0) {
+        return res.status(400).json({
+          error:
+            "A school with this name already exists. Please log in with your owner account.",
+        });
+      } else if (existingUsers.some((u) => u.isActive)) {
+        return res.status(400).json({
+          error: "An account with this email already exists. Please log in.",
+        });
+      }
+
+      const passwordHash = await bcrypt.hash(password, 10);
+      authLog("register-school: password hashed", { email });
+
+      const result = await prisma.$transaction(async (tx) => {
+        const school = await tx.school.update({
+          where: { id: schoolByName.id },
+          data: {
+            email,
+            phone,
+            ...(logoUrl ? { logoUrl } : {}),
+          },
+          select: { id: true, name: true, email: true, logoUrl: true },
+        });
+
+        const user = scriptOwner
+          ? await tx.user.update({
+              where: { id: scriptOwner.id },
+              data: {
+                passwordHash,
+                fullName: contactPerson,
+                role: prismaRoleForAppRole("Owner"),
+                isActive: true,
+              },
+              select: {
+                id: true,
+                schoolId: true,
+                email: true,
+                fullName: true,
+                role: true,
+              },
+            })
+          : await tx.user.create({
+              data: {
+                schoolId: school.id,
+                email,
+                fullName: contactPerson,
+                passwordHash,
+                role: prismaRoleForAppRole("Owner"),
+                isActive: true,
+              },
+              select: {
+                id: true,
+                schoolId: true,
+                email: true,
+                fullName: true,
+                role: true,
+              },
+            });
+
+        return { school, user, reclaimed: Boolean(scriptOwner) };
+      });
+
+      const nameParts = contactPerson.split(/\s+/).filter(Boolean);
+      const firstName = nameParts[0] || contactPerson;
+      const surname = nameParts.slice(1).join(" ");
+
+      setUserAccessMeta(result.user.id, {
+        schoolId: result.school.id,
+        firstName,
+        surname,
+        appRole: "Owner",
+        permissions: permissionsForRole("Owner"),
+        lastLoginAt: null,
+      });
+
+      authLog(
+        result.reclaimed
+          ? "register-school: reclaimed existing school with registration password"
+          : "register-school: linked owner to existing school",
+        {
+          email,
+          schoolId: result.school.id,
+          userId: result.user.id,
+        }
+      );
+
+      try {
+        await seedSchoolEmailDefaults(result.school.id);
+      } catch (seedErr) {
+        console.error("[auth] register-school: seedSchoolEmailDefaults failed:", seedErr);
+      }
+
+      const token = signAuthToken({
+        userId: result.user.id,
+        schoolId: result.school.id,
+        email: result.user.email,
+        role: result.user.role,
+      });
+
+      return res.status(result.reclaimed ? 200 : 201).json({
+        token,
+        user: result.user,
+        school: result.school,
+        reclaimed: result.reclaimed,
+      });
+    }
+
+    if (existingUsers.length) {
+      const withSchool = await Promise.all(
+        existingUsers.map(async (u) => {
+          const school = await prisma.school.findUnique({
+            where: { id: u.schoolId },
+            select: { id: true, email: true, name: true },
+          });
+          return { user: u, school };
+        })
+      );
+      const registrationRow = withSchool.find(
+        ({ user, school }) => school && isRegistrationProvisionedOwner(user, school)
+      );
+      if (registrationRow) {
+        return res.status(400).json({
+          error: "An account with this email already exists. Please log in.",
+        });
+      }
+      return res.status(400).json({
+        error: "An account with this email already exists. Please log in.",
+      });
     }
 
     const passwordHash = await bcrypt.hash(password, 10);

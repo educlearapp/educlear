@@ -1,11 +1,13 @@
 import jsPDF from "jspdf";
 import { API_URL } from "../api";
+import { cacheSchoolLogoUrl, resolveSchoolLogoUrl } from "../utils/schoolLogo";
 import { formatMoney } from "./billingLedger";
 import {
   loadBillingSettingsForSchool,
   resolveEmailTemplate,
   substituteBillingTokens,
 } from "./billingSettingsEngine";
+import { DEFAULT_STATEMENT_PERIOD, normalizeStatementPeriod } from "./statementPeriod";
 
 export type StatementTransaction = {
   date: string;
@@ -159,40 +161,28 @@ export function resolveStatementBillingContact(
   };
 }
 
-export function resolveSchoolLogoUrl(school?: Record<string, unknown> | null): string {
-  const fromStorage = String(localStorage.getItem("schoolLogoUrl") || "").trim();
-  if (fromStorage) return fromStorage;
-  const row = school || {};
-  return (
-    String(row.logoUrl || "").trim() ||
-    String(row.logo || "").trim() ||
-    String(row.logoPath || "").trim() ||
-    String(row.schoolLogo || "").trim() ||
-    (row.logoFilename ? `${API_URL}/uploads/${row.logoFilename}` : "")
-  );
-}
+export { absolutizeSchoolLogoUrl, resolveSchoolLogoUrl } from "../utils/schoolLogo";
 
 export async function loadStatementSchoolBranding(schoolId: string): Promise<StatementSchoolBranding> {
   const fallbackName = String(localStorage.getItem("schoolName") || "School").trim() || "School";
   if (!schoolId) {
-    return { name: fallbackName, logoUrl: resolveSchoolLogoUrl() };
+    return { name: fallbackName };
   }
   try {
-    const res = await fetch(`${API_URL}/api/schools`);
-    const rows = await res.json();
-    const match = Array.isArray(rows) ? rows.find((r: any) => r?.id === schoolId) : null;
-    if (!match) {
-      return { name: fallbackName, logoUrl: resolveSchoolLogoUrl() };
-    }
+    const res = await fetch(`${API_URL}/api/schools/${encodeURIComponent(schoolId)}`);
+    if (!res.ok) throw new Error("Failed to load school branding");
+    const match = (await res.json()) as Record<string, unknown>;
+    const logoUrl = resolveSchoolLogoUrl({ logoUrl: String(match.logoUrl || "").trim() || null });
+    if (logoUrl) cacheSchoolLogoUrl(logoUrl);
     return {
       name: String(match.name || fallbackName).trim() || fallbackName,
-      email: String(match.email || "").trim(),
-      phone: String(match.phone || match.cell || match.telephone || "").trim(),
-      address: String(match.address || match.physicalAddress || "").trim(),
-      logoUrl: resolveSchoolLogoUrl(match),
+      email: String(match.email || "").trim() || undefined,
+      phone: String(match.phone || match.cellNo || match.telephone || "").trim() || undefined,
+      address: String(match.address || match.physicalAddress || "").trim() || undefined,
+      logoUrl: logoUrl || undefined,
     };
   } catch {
-    return { name: fallbackName, logoUrl: resolveSchoolLogoUrl() };
+    return { name: fallbackName };
   }
 }
 
@@ -319,6 +309,33 @@ export type AccountStatementDocumentInput = {
 const PDF_INK: [number, number, number] = [17, 24, 39];
 const PDF_MUTED: [number, number, number] = [107, 114, 128];
 const PDF_GOLD: [number, number, number] = [212, 175, 55];
+/** ~100×100 CSS px for HTML; server PDF uses the equivalent 100 pt box. */
+export const STATEMENT_LOGO_PX = 100;
+/** Matches server PDF logo box (100 pt). */
+const STATEMENT_LOGO_MAX_MM = (100 * 25.4) / 72;
+const STATEMENT_LOGO_GAP_MM = 4;
+export const STATEMENT_LOGO_IMG_STYLE = `display:block;width:${STATEMENT_LOGO_PX}px;height:${STATEMENT_LOGO_PX}px;max-width:${STATEMENT_LOGO_PX}px;max-height:${STATEMENT_LOGO_PX}px;object-fit:contain;margin:0 0 10px 0`;
+
+function embedStatementLogoInPdf(doc: jsPDF, logoUrl: string, x: number, y: number): number {
+  for (const format of ["PNG", "JPEG"] as const) {
+    try {
+      const props = doc.getImageProperties(logoUrl);
+      const aspect = props.width / props.height;
+      let w = STATEMENT_LOGO_MAX_MM;
+      let h = STATEMENT_LOGO_MAX_MM;
+      if (aspect >= 1) {
+        h = STATEMENT_LOGO_MAX_MM / aspect;
+      } else {
+        w = STATEMENT_LOGO_MAX_MM * aspect;
+      }
+      doc.addImage(logoUrl, format, x, y, w, h, undefined, "FAST");
+      return h + STATEMENT_LOGO_GAP_MM;
+    } catch {
+      /* try next format */
+    }
+  }
+  return 0;
+}
 
 function sanitizeStatementFilename(filename: string): string {
   const safe = filename.replace(/[^\w.-]+/g, "_").trim();
@@ -360,6 +377,11 @@ export function generateAccountStatementPdf(input: AccountStatementDocumentInput
   doc.rect(0, 0, pageW, 7, "F");
   doc.setFillColor(...PDF_GOLD);
   doc.rect(0, 7, pageW, 1.2, "F");
+
+  if (school.logoUrl) {
+    const logoAdvance = embedStatementLogoInPdf(doc, school.logoUrl, margin, y);
+    if (logoAdvance > 0) y += logoAdvance;
+  }
 
   doc.setTextColor(...PDF_INK);
   doc.setFont("helvetica", "bold");
@@ -572,7 +594,7 @@ export function buildAccountStatementHtml(input: AccountStatementDocumentInput):
     input;
 
   const logoBlock = school.logoUrl
-    ? `<img src="${escapeHtml(school.logoUrl)}" alt="" style="max-width:120px;max-height:120px;object-fit:contain" />`
+    ? `<img src="${escapeHtml(school.logoUrl)}" alt="" style="${STATEMENT_LOGO_IMG_STYLE}" />`
     : "";
 
   const childLines = children
@@ -612,7 +634,7 @@ export function buildAccountStatementHtml(input: AccountStatementDocumentInput):
   <style>
     body { font-family: Arial, sans-serif; color: #111827; margin: 0; padding: 32px; background: #fff; }
     .header { display: flex; justify-content: space-between; align-items: flex-start; border-bottom: 3px solid #d4af37; padding-bottom: 18px; margin-bottom: 24px; gap: 20px; }
-    .school-name { font-size: 26px; font-weight: 900; margin: 8px 0 6px; }
+    .school-name { font-size: 26px; font-weight: 900; margin: 0 0 6px; }
     .muted { color: #6b7280; font-size: 12px; line-height: 1.5; }
     .title { text-align: right; font-size: 28px; font-weight: 900; }
     .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 20px; }
@@ -747,13 +769,13 @@ async function blobLooksLikePdf(blob: Blob): Promise<boolean> {
 export async function fetchSchoolStatementPdfBlob(
   schoolId: string,
   learnerId: string,
-  period = "All Time",
+  period = DEFAULT_STATEMENT_PERIOD,
   statementNote?: string
 ): Promise<Blob> {
   const params = new URLSearchParams({
     schoolId,
     learnerId,
-    period,
+    period: normalizeStatementPeriod(period),
   });
   if (statementNote) params.set("statementNote", statementNote);
   const res = await fetch(`${API_URL}/api/statements/pdf?${params.toString()}`);
@@ -772,7 +794,7 @@ export async function downloadSchoolStatementPdf(
   schoolId: string,
   learnerId: string,
   filename: string,
-  period = "All Time",
+  period = DEFAULT_STATEMENT_PERIOD,
   statementNote?: string
 ): Promise<void> {
   const blob = await fetchSchoolStatementPdfBlob(schoolId, learnerId, period, statementNote);
@@ -782,7 +804,7 @@ export async function downloadSchoolStatementPdf(
 export async function openSchoolStatementPdfPrint(
   schoolId: string,
   learnerId: string,
-  period = "All Time",
+  period = DEFAULT_STATEMENT_PERIOD,
   statementNote?: string
 ): Promise<boolean> {
   const blob = await fetchSchoolStatementPdfBlob(schoolId, learnerId, period, statementNote);

@@ -1,6 +1,7 @@
 import { Router } from "express";
 
 import { prisma } from "../prisma";
+import { toStoredSchoolLogoUrl } from "../utils/schoolLogo";
 
 const router = Router();
 
@@ -11,6 +12,8 @@ const schoolSelect = {
   phone: true,
   cellNo: true,
   address: true,
+  postalAddress: true,
+  bankingDetails: true,
   logoUrl: true,
   primaryColor: true,
   createdAt: true,
@@ -78,10 +81,25 @@ router.put("/:id", async (req, res) => {
     const phone = optionalTrimmedString(req.body?.phone);
     const cellNo = optionalTrimmedString(req.body?.cellNo);
     const address = optionalTrimmedString(req.body?.address);
+    const postalAddress = optionalTrimmedString(req.body?.postalAddress);
+    const bankingDetails = optionalTrimmedString(req.body?.bankingDetails);
+    const logoUrlRaw =
+      req.body?.logoUrl === undefined ? undefined : optionalTrimmedString(req.body?.logoUrl);
+    const logoUrl =
+      logoUrlRaw === undefined ? undefined : logoUrlRaw === null ? null : toStoredSchoolLogoUrl(logoUrlRaw);
 
     const school = await prisma.school.update({
       where: { id },
-      data: { name, email, phone, cellNo, address },
+      data: {
+        name,
+        email,
+        phone,
+        cellNo,
+        address,
+        postalAddress,
+        bankingDetails,
+        ...(logoUrl !== undefined ? { logoUrl } : {}),
+      },
       select: schoolSelect,
     });
 

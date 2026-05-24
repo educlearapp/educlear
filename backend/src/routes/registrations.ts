@@ -1,7 +1,6 @@
 import { Router } from "express";
 import { calculateLearnerAge, resolveLearnerAccountNo } from "../utils/learnerIdentity";
-
-
+import { readSchoolBillingPlans } from "../utils/learnerBillingPlanStore";
 
 import { PrismaClient } from "@prisma/client";
 
@@ -50,6 +49,8 @@ router.get("/learners", async (req, res) => {
     }
 
 
+
+    const billingPlansByLearner = readSchoolBillingPlans(schoolId);
 
     const learners = await prisma.learner.findMany({
 
@@ -283,7 +284,10 @@ router.get("/learners", async (req, res) => {
 
         parentEmail: primary?.parent?.email || "",
 
+        billingPlan: billingPlansByLearner[learner.id] || [],
 
+        tuitionFee: learner.tuitionFee ?? 0,
+        totalFee: learner.totalFee ?? 0,
 
       };
 

@@ -25,6 +25,7 @@ import Fees from "./Fees";
 import FeeUpsert from "./FeeUpsert";
 import InvoiceRuns from "./billing/InvoiceRuns";
 import Statements from "./billing/Statements";
+import BillingSummaryCards from "./billing/BillingSummaryCards";
 import StatementManage from "./billing/StatementManage";
 import BillingPlans from "./billing/BillingPlans";
 import Payments from "./billing/Payments";
@@ -71,12 +72,16 @@ import {
 import {
   defaultPaymentForm,
   normalizePaymentAccount,
+  PAYMENT_ACCOUNT_STORAGE_KEY,
   paymentAccountContextsEqual,
   persistPaymentAccount,
   type PaymentAccountContext,
   type PaymentFormState,
 } from "./billing/paymentCreateShared";
-import { refreshBillingFromApi, syncBillingLedgerFromApi } from "./billing/billingApi";
+import {
+  refreshBillingFromApi,
+} from "./billing/billingApi";
+import { KIDESYS_HISTORY_UPDATED_EVENT } from "./billing/kidesysTransactionHistory";
 import {
   buildInvoiceRunDefaults,
   computeInvoiceDueDate,
@@ -749,6 +754,8 @@ const [selectedLearnerReport, setSelectedLearnerReport] = useState<any>(null);
 
 
   const [selectedInvoiceAccount, setSelectedInvoiceAccount] = useState<any | null>(null);
+  const [billingAccountsSearch, setBillingAccountsSearch] = useState("");
+  const [billingAccountsPage, setBillingAccountsPage] = useState(1);
   const [selectedAccount, setSelectedAccount] = useState<PaymentAccountContext | null>(null);
   const [paymentForm, setPaymentForm] = useState<PaymentFormState>(() => defaultPaymentForm());
 
@@ -1565,29 +1572,16 @@ const [selectedLearnerReport, setSelectedLearnerReport] = useState<any>(null);
 
 
     const needsData =
-
-
-
       activePage === "registrations" ||
-
-
-
+      activePage === "parentPortal" ||
+      activePage === "addLearner" ||
+      activePage === "classrooms" ||
+      activePage === "classroomManage" ||
+      activePage === "plans" ||
       activePage === "learnerProfile" ||
-
-
-
       activePage === "statements" ||
-
-
-
       activePage === "statementManage" ||
-
-
-
       activePage === "invoices" ||
-
-
-
       activePage === "dashboard";
 
 
@@ -1752,42 +1746,29 @@ const [selectedLearnerReport, setSelectedLearnerReport] = useState<any>(null);
 
 
 
-        setParents(
-
-
-
-          Array.isArray(parentsData)
-        
-        
-        
-            ? parentsData
-        
-        
-        
-            : Array.isArray(parentsData?.parents)
-        
-        
-        
+        const nextParents = Array.isArray(parentsData)
+          ? parentsData
+          : Array.isArray(parentsData?.parents)
             ? parentsData.parents
-        
-        
-        
             : Array.isArray(parentsData?.data)
-        
-        
-        
-            ? parentsData.data
-        
-        
-        
-            : []
-        
-        
-        
-        );
+              ? parentsData.data
+              : [];
 
+        setParents(nextParents);
 
-
+        if (import.meta.env.DEV) {
+          const nextLearners = Array.isArray(learnersData?.learners)
+            ? learnersData.learners
+            : [];
+          console.info("[EduClear Dev] School dashboard registrations fetch", {
+            schoolId,
+            apiUrl: API_URL,
+            learnersCount: nextLearners.length,
+            parentsCount: nextParents.length,
+            learnersEndpoint: `${API_URL}/api/registrations/learners?schoolId=${encodeURIComponent(schoolId)}`,
+            parentsEndpoint: `${API_URL}/api/parents?schoolId=${encodeURIComponent(schoolId)}`,
+          });
+        }
       })
 
 
@@ -2136,12 +2117,14 @@ const [selectedLearnerReport, setSelectedLearnerReport] = useState<any>(null);
 
   useEffect(() => {
     if (!schoolId) return;
-    syncBillingLedgerFromApi(schoolId)
-      .then(() => setBillingVersion((v) => v + 1))
-      .catch(() => {});
+    refreshBillingFromApi(schoolId).catch(() => {});
     const onBillingUpdated = () => setBillingVersion((v) => v + 1);
     window.addEventListener(BILLING_UPDATED_EVENT, onBillingUpdated);
-    return () => window.removeEventListener(BILLING_UPDATED_EVENT, onBillingUpdated);
+    window.addEventListener(KIDESYS_HISTORY_UPDATED_EVENT, onBillingUpdated);
+    return () => {
+      window.removeEventListener(BILLING_UPDATED_EVENT, onBillingUpdated);
+      window.removeEventListener(KIDESYS_HISTORY_UPDATED_EVENT, onBillingUpdated);
+    };
   }, [schoolId]);
 
   useEffect(() => {
@@ -2227,170 +2210,6 @@ const [selectedLearnerReport, setSelectedLearnerReport] = useState<any>(null);
     selectedAccount?.accountNo ?? "",
   ]);
 
-  const invoiceRows = statementRows;
-
-
-
-  const accountsCount = statementRows.length;
-
-
-
-  const totalOutstanding = statementRows
-
-
-
-    .filter((row) => row.balance > 0)
-
-
-
-    .reduce((sum, row) => sum + row.balance, 0);
-
-
-
-  const recentlyOwing = statementRows
-
-
-
-    .filter((row) => row.balance > 0 && row.balance <= 10000)
-
-
-
-    .reduce((sum, row) => sum + row.balance, 0);
-
-
-
-  const badDebt = statementRows
-
-
-
-    .filter((row) => row.balance > 10000)
-
-
-
-    .reduce((sum, row) => sum + row.balance, 0);
-
-
-
-  const overPaidAbs = Math.abs(
-
-
-
-    statementRows.filter((row) => row.balance < 0).reduce((sum, row) => sum + row.balance, 0)
-
-
-
-  );
-
-
-
-  const billingSummaryWrap = {
-
-
-
-    display: "grid",
-
-
-
-    gridTemplateColumns: "repeat(5, minmax(150px, 1fr))",
-
-
-
-    gap: "12px",
-
-
-
-    marginBottom: "18px",
-
-
-
-  };
-
-
-
-  const billingSummaryCard = {
-
-
-
-    background: "#ffffff",
-
-
-
-    border: "1px solid rgba(15,23,42,0.08)",
-
-
-
-    borderTop: `3px solid ${GOLD}`,
-
-
-
-    borderRadius: "14px",
-
-
-
-    padding: "16px",
-
-
-
-    boxShadow: "0 10px 26px rgba(15,23,42,0.06)",
-
-
-
-  };
-
-
-
-  const billingSummaryValue = {
-
-
-
-    fontSize: "18px",
-
-
-
-    fontWeight: 900,
-
-
-
-    color: "#0f172a",
-
-
-
-    marginBottom: "4px",
-
-
-
-  };
-
-
-
-  const billingSummaryLabel = {
-
-
-
-    fontSize: "11px",
-
-
-
-    fontWeight: 900,
-
-
-
-    color: "#64748b",
-
-
-
-    textTransform: "uppercase" as const,
-
-
-
-    letterSpacing: "0.06em",
-
-
-
-  };
-
-
-
   const billingTableCard = {
 
 
@@ -2459,7 +2278,44 @@ const [selectedLearnerReport, setSelectedLearnerReport] = useState<any>(null);
 
 
 
-  ) => (
+  ) => {
+    const billingPageSize = 10;
+    const billingSearchQ = billingAccountsSearch.trim().toLowerCase();
+    const billingFilteredRows = !billingSearchQ
+      ? rows
+      : rows.filter((row) =>
+          [
+            row.accountNo,
+            row.name,
+            row.surname,
+            row.balance,
+            row.lastInvoice,
+            row.lastPayment,
+            row.status,
+          ]
+            .join(" ")
+            .toLowerCase()
+            .includes(billingSearchQ)
+        );
+    const billingPageCount = Math.max(
+      1,
+      Math.ceil(billingFilteredRows.length / billingPageSize)
+    );
+    const billingSafePage = Math.min(billingAccountsPage, billingPageCount);
+    const billingPagedRows = billingFilteredRows.slice(
+      (billingSafePage - 1) * billingPageSize,
+      billingSafePage * billingPageSize
+    );
+    const billingFirstItem =
+      billingFilteredRows.length === 0
+        ? 0
+        : (billingSafePage - 1) * billingPageSize + 1;
+    const billingLastItem = Math.min(
+      billingSafePage * billingPageSize,
+      billingFilteredRows.length
+    );
+
+    return (
 
 
 
@@ -2523,91 +2379,7 @@ const [selectedLearnerReport, setSelectedLearnerReport] = useState<any>(null);
 
 
 
-      <div style={billingSummaryWrap}>
-
-
-
-        <div style={billingSummaryCard}>
-
-
-
-          <div style={billingSummaryValue}>{accountsCount}</div>
-
-
-
-          <div style={billingSummaryLabel}>Accounts</div>
-
-
-
-        </div>
-
-
-
-        <div style={billingSummaryCard}>
-
-
-
-          <div style={billingSummaryValue}>{formatMoney(totalOutstanding)}</div>
-
-
-
-          <div style={billingSummaryLabel}>Total Outstanding</div>
-
-
-
-        </div>
-
-
-
-        <div style={billingSummaryCard}>
-
-
-
-          <div style={billingSummaryValue}>{formatMoney(recentlyOwing)}</div>
-
-
-
-          <div style={billingSummaryLabel}>Recently Owing</div>
-
-
-
-        </div>
-
-
-
-        <div style={billingSummaryCard}>
-
-
-
-          <div style={{ ...billingSummaryValue, color: "#b91c1c" }}>{formatMoney(badDebt)}</div>
-
-
-
-          <div style={billingSummaryLabel}>Bad Debt</div>
-
-
-
-        </div>
-
-
-
-        <div style={billingSummaryCard}>
-
-
-
-          <div style={{ ...billingSummaryValue, color: "#15803d" }}>{formatMoney(overPaidAbs)}</div>
-
-
-
-          <div style={billingSummaryLabel}>Over Paid</div>
-
-
-
-        </div>
-
-
-
-      </div>
+      <BillingSummaryCards rows={rows} />
 
 
 
@@ -2715,7 +2487,15 @@ const [selectedLearnerReport, setSelectedLearnerReport] = useState<any>(null);
 
 
 
-          <input placeholder="Search" style={{ ...selectStyle, width: "230px" }} />
+          <input
+            placeholder="Search"
+            value={billingAccountsSearch}
+            onChange={(e) => {
+              setBillingAccountsSearch(e.target.value);
+              setBillingAccountsPage(1);
+            }}
+            style={{ ...selectStyle, width: "230px" }}
+          />
 
 
 
@@ -2775,7 +2555,7 @@ const [selectedLearnerReport, setSelectedLearnerReport] = useState<any>(null);
 
 
 
-            {rows.length === 0 ? (
+            {billingFilteredRows.length === 0 ? (
 
 
 
@@ -2803,7 +2583,7 @@ const [selectedLearnerReport, setSelectedLearnerReport] = useState<any>(null);
 
 
 
-              rows.map((row, index) => {
+              billingPagedRows.map((row, index) => {
 
 
 
@@ -2819,7 +2599,7 @@ const [selectedLearnerReport, setSelectedLearnerReport] = useState<any>(null);
 
 
 
-                    key={`${row.accountNo}-${index}`}
+                    key={`${row.accountNo || row.learnerId || "row"}-${index}`}
 
 
 
@@ -2981,6 +2761,59 @@ const [selectedLearnerReport, setSelectedLearnerReport] = useState<any>(null);
 
         </table>
 
+        <div
+          style={{
+            display: "flex",
+            justifyContent: "space-between",
+            alignItems: "center",
+            marginTop: 16,
+            flexWrap: "wrap",
+            gap: 12,
+            padding: "0 4px",
+          }}
+        >
+          <span style={{ color: "#64748b", fontWeight: 800 }}>
+            {billingFirstItem} - {billingLastItem} / {billingFilteredRows.length}
+          </span>
+          <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+            <button
+              type="button"
+              style={goldBtn}
+              disabled={billingSafePage <= 1}
+              onClick={() => setBillingAccountsPage(1)}
+            >
+              «
+            </button>
+            <button
+              type="button"
+              style={goldBtn}
+              disabled={billingSafePage <= 1}
+              onClick={() => setBillingAccountsPage((p) => Math.max(1, p - 1))}
+            >
+              ‹
+            </button>
+            <span style={{ padding: "0 8px", fontWeight: 900, color: "#0f172a" }}>
+              Page {billingSafePage} / {billingPageCount}
+            </span>
+            <button
+              type="button"
+              style={goldBtn}
+              disabled={billingSafePage >= billingPageCount}
+              onClick={() => setBillingAccountsPage((p) => Math.min(billingPageCount, p + 1))}
+            >
+              ›
+            </button>
+            <button
+              type="button"
+              style={goldBtn}
+              disabled={billingSafePage >= billingPageCount}
+              onClick={() => setBillingAccountsPage(billingPageCount)}
+            >
+              »
+            </button>
+          </div>
+        </div>
+
 
 
       </div>
@@ -2992,6 +2825,7 @@ const [selectedLearnerReport, setSelectedLearnerReport] = useState<any>(null);
 
 
   );
+  };
 
   const getLearnerGrade = (learner: any) => {
 
@@ -16587,7 +16421,7 @@ const [invoiceRunEmailDraft, setInvoiceRunEmailDraft] = useState({
 
 
 
-          invoiceRows,
+          statementRows,
 
 
 
@@ -16887,56 +16721,43 @@ const [invoiceRunEmailDraft, setInvoiceRunEmailDraft] = useState({
         
         
         
-          case "paymentCreate":
-
-
-
+        case "paymentCreate": {
+          const savedPaymentRaw = localStorage.getItem(PAYMENT_ACCOUNT_STORAGE_KEY);
+          const rawPaymentSelected =
+            selectedAccount ||
+            (savedPaymentRaw
+              ? (() => {
+                  try {
+                    return JSON.parse(savedPaymentRaw);
+                  } catch {
+                    return null;
+                  }
+                })()
+              : null);
+          const paymentAccount = normalizePaymentAccount(
+            rawPaymentSelected,
+            statementRows,
+            learners
+          );
           return (
-        
-        
-        
             <PaymentCreateClean
-        
-        
-        
-              key={selectedAccount?.accountNo || selectedAccount?.id || "payment-create"}
-        
-        
-        
+              key={paymentAccount?.accountNo || paymentAccount?.learnerId || "payment-create"}
               schoolId={schoolId || ""}
-        
               learners={learners}
-        
-        
-        
-              selectedAccount={selectedAccount}
-        
-        
-        
+              parents={parents}
+              statementRows={statementRows}
+              selectedAccount={paymentAccount}
               paymentForm={paymentForm}
-        
-        
-        
               onPaymentFormChange={setPaymentForm}
-        
-        
-        
               onBack={() => setActivePage("payments")}
-        
-        
-        
               onSaved={async () => {
                 await refreshBillingRows();
+                notifyBillingUpdated();
                 setActivePage("payments");
               }}
-        
-        
-        
             />
-        
-        
-        
           );
+        }
   
   
         case "payroll":

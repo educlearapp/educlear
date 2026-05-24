@@ -20,27 +20,6 @@
       "winSmsCredits": 800,
       "emails": [],
       "sms": []
-    },
-    "cmojugbly001hxi55qvotd0hd": {
-      "settings": {
-        "sendViaEduClearDomain": false,
-        "administrationEmail": "info@educlear.co.za",
-        "administrationCcSelf": false,
-        "billingEmail": "billing@educlear.co.za",
-        "billingCcSelf": false,
-        "signature": "Kind regards,\n[school_name]",
-        "standardEmailSubject": "[school_name] — [document_type] [document_no]",
-        "standardEmailMessage": "Dear [contact_name],\n\nPlease find your [document_type] ([document_no]) attached.\n\n[school_name]\n\n[signature]",
-        "standardSmsMessage": "Dear [contact_name], your [document_type] [document_no] from [school_name] is ready. Contact the school for details.",
-        "smsProvider": "WinSMS",
-        "winSmsUsername": "",
-        "winSmsPassword": ""
-      },
-      "emailBalance": 5000,
-      "smsCredits": 1200,
-      "winSmsCredits": 800,
-      "emails": [],
-      "sms": []
     }
   }
 }

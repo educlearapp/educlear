@@ -5,6 +5,12 @@ import {
   type BillingLedgerEntry,
   upsertSchoolEntries,
 } from "./billingLedger";
+import {
+  mapApiRowToHistoryEntry,
+  readSchoolKidesysHistory,
+  writeSchoolKidesysHistory,
+  writeStatementApiSummaries,
+} from "./kidesysTransactionHistory";
 
 const parseArray = (data: any, keys: string[]) => {
   if (Array.isArray(data)) return data;
@@ -97,6 +103,35 @@ export const fetchStatements = async (schoolId: string) =>
     "data",
   ]);
 
+function parseKidesysHistoryPayload(data: unknown): any[] {
+  return parseArray(data, ["entries", "kidesysHistoryEntries", "history", "items"]);
+}
+
+/** Kid-e-Sys display history from API (primary + /accounts fallback for older backends). */
+export const fetchKidesysHistory = async (schoolId: string, accountNo?: string) => {
+  const sid = String(schoolId || "").trim();
+  if (!sid) return [];
+
+  const params = new URLSearchParams({ schoolId: sid });
+  if (accountNo) params.set("accountNo", accountNo);
+
+  const primary = await getJson(
+    `${API_URL}/api/statements/kidesys-history?${params.toString()}`
+  );
+  const primaryRows = parseKidesysHistoryPayload(primary);
+  if (primaryRows.length) return primaryRows;
+
+  const fallbackParams = new URLSearchParams({
+    schoolId: sid,
+    includeKidesysHistory: "true",
+  });
+  if (accountNo) fallbackParams.set("accountNo", accountNo);
+  const fallback = await getJson(
+    `${API_URL}/api/statements/accounts?${fallbackParams.toString()}`
+  );
+  return parseKidesysHistoryPayload(fallback);
+};
+
 export const fetchLedger = async (schoolId: string) => {
   const data = await getJson(`${API_URL}/api/invoices/ledger?schoolId=${encodeURIComponent(schoolId)}`);
   return parseArray(data, ["entries", "ledger", "items"]);
@@ -155,6 +190,17 @@ export function upsertPaymentFromApiResponse(
   upsertSchoolEntries(sid, [entry]);
 }
 
+export const syncKidesysHistoryFromApi = async (schoolId: string) => {
+  const sid = String(schoolId || "").trim();
+  if (!sid) return;
+  const rows = await fetchKidesysHistory(sid);
+  if (!rows.length) return;
+  writeSchoolKidesysHistory(
+    sid,
+    rows.map((row: any) => mapApiRowToHistoryEntry(sid, row))
+  );
+};
+
 export const syncBillingLedgerFromApi = async (schoolId: string) => {
   const sid = String(schoolId || "").trim();
   if (!sid) return;
@@ -178,9 +224,51 @@ export const syncBillingLedgerFromApi = async (schoolId: string) => {
   }
 };
 
-/** Sync ledger from API and broadcast so statementRows / billing pages rebuild. */
+/** Cache statement overview fields (last invoice/payment from server history). */
+export const syncStatementSummariesFromApi = async (schoolId: string) => {
+  const sid = String(schoolId || "").trim();
+  if (!sid) return;
+  const rows = await fetchStatements(sid);
+  if (!rows.length) return;
+  writeStatementApiSummaries(
+    sid,
+    rows.map((row: any) => ({
+      accountNo: String(row.accountNo || ""),
+      lastInvoice: Number(row.lastInvoice) || 0,
+      lastInvoiceDate: String(row.lastInvoiceDate || ""),
+      lastInvoiceLabel: row.lastInvoiceLabel ?? null,
+      lastPayment: Number(row.lastPayment) || 0,
+      lastPaymentDate: String(row.lastPaymentDate || ""),
+    }))
+  );
+  notifyBillingUpdated();
+};
+
+export const syncKidesysHistoryForAccountFromApi = async (
+  schoolId: string,
+  accountNo: string
+) => {
+  const sid = String(schoolId || "").trim();
+  const ref = String(accountNo || "").trim();
+  if (!sid || !ref) return [];
+  const rows = await fetchKidesysHistory(sid, ref);
+  const mapped = rows.map((row: any) => mapApiRowToHistoryEntry(sid, row));
+  if (mapped.length) {
+    const existing = readSchoolKidesysHistory(sid);
+    const byId = new Map(existing.map((e) => [e.id, e]));
+    for (const entry of mapped) byId.set(entry.id, entry);
+    writeSchoolKidesysHistory(sid, Array.from(byId.values()));
+  }
+  return mapped;
+};
+
+/** Sync ledger + Kid-e-Sys history + statement summaries from API (display source of truth). */
 export async function refreshBillingFromApi(schoolId: string) {
-  await syncBillingLedgerFromApi(schoolId);
+  const sid = String(schoolId || "").trim();
+  if (!sid) return;
+  await syncBillingLedgerFromApi(sid);
+  await syncKidesysHistoryFromApi(sid).catch(() => {});
+  await syncStatementSummariesFromApi(sid).catch(() => {});
   notifyBillingUpdated();
 }
 

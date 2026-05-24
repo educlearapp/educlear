@@ -10,6 +10,11 @@ import {
   type SchoolProfileFormState,
 } from "../schoolProfile/types/schoolProfile";
 import { useSchoolId } from "../useSchoolId";
+import {
+  absolutizeSchoolLogoUrl,
+  cacheSchoolLogoUrl,
+  uploadSchoolLogoFile,
+} from "../utils/schoolLogo";
 import "./SchoolProfilePage.css";
 
 type ProfileTab = "general" | "contact" | "address" | "billing" | "password";
@@ -25,12 +30,15 @@ export default function SchoolProfilePage({ go }: Props) {
   const [profileTab, setProfileTab] = useState<ProfileTab>("general");
   const [menuOpen, setMenuOpen] = useState(false);
   const [form, setForm] = useState<SchoolProfileFormState>(createEmptySchoolProfileForm);
+  const [logoUrl, setLogoUrl] = useState("");
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [logoUploading, setLogoUploading] = useState(false);
 
   useEffect(() => {
     if (!schoolId) {
       setForm(createEmptySchoolProfileForm());
+      setLogoUrl("");
       return;
     }
 
@@ -41,10 +49,14 @@ export default function SchoolProfilePage({ go }: Props) {
       .then((record) => {
         if (cancelled) return;
         setForm(schoolRecordToForm(record));
+        const url = record?.logoUrl ? absolutizeSchoolLogoUrl(record.logoUrl) : "";
+        setLogoUrl(url);
+        if (url) cacheSchoolLogoUrl(url);
       })
       .catch(() => {
         if (cancelled) return;
         setForm(createEmptySchoolProfileForm());
+        setLogoUrl("");
       })
       .finally(() => {
         if (!cancelled) setLoading(false);
@@ -58,6 +70,31 @@ export default function SchoolProfilePage({ go }: Props) {
   const setField = useCallback((field: FormField, value: string) => {
     setForm((prev) => ({ ...prev, [field]: value }));
   }, []);
+
+  const handleLogoUpload = useCallback(
+    async (event: ChangeEvent<HTMLInputElement>) => {
+      const file = event.target.files?.[0];
+      event.target.value = "";
+      if (!file || !schoolId) return;
+
+      setLogoUploading(true);
+      setMenuOpen(false);
+      try {
+        const uploaded = await uploadSchoolLogoFile(file);
+        const payload = mapToApiPayload(form);
+        const updated = await saveSchoolProfile(schoolId, { ...payload, logoUrl: uploaded });
+        const savedUrl = updated.logoUrl ? absolutizeSchoolLogoUrl(updated.logoUrl) : uploaded;
+        setLogoUrl(savedUrl);
+        cacheSchoolLogoUrl(savedUrl);
+        alert("School logo saved.");
+      } catch (err) {
+        alert(err instanceof Error ? err.message : "Failed to upload logo");
+      } finally {
+        setLogoUploading(false);
+      }
+    },
+    [form, schoolId]
+  );
 
   const handleSave = useCallback(async () => {
     if (!schoolId) {
@@ -76,7 +113,10 @@ export default function SchoolProfilePage({ go }: Props) {
     setSaving(true);
     try {
       const payload = mapToApiPayload(form);
-      const updated = await saveSchoolProfile(schoolId, payload);
+      const updated = await saveSchoolProfile(schoolId, {
+        ...payload,
+        ...(logoUrl ? { logoUrl } : {}),
+      });
       const savedGeneral = schoolRecordToForm(updated);
       setForm((prev) => ({
         ...savedGeneral,
@@ -85,17 +125,14 @@ export default function SchoolProfilePage({ go }: Props) {
         automaticRenew: savedGeneral.automaticRenew || prev.automaticRenew,
         automaticBilling: savedGeneral.automaticBilling || prev.automaticBilling,
         faxNo: prev.faxNo,
-        postalAddress1: prev.postalAddress1,
-        postalAddress2: prev.postalAddress2,
-        postalAddress3: prev.postalAddress3,
-        postalAddress4: prev.postalAddress4,
-        bankingLine1: prev.bankingLine1,
-        bankingLine2: prev.bankingLine2,
-        bankingLine3: prev.bankingLine3,
-        bankingLine4: prev.bankingLine4,
         newPassword: "",
         confirmPassword: "",
       }));
+      if (updated.logoUrl) {
+        const url = absolutizeSchoolLogoUrl(updated.logoUrl);
+        setLogoUrl(url);
+        cacheSchoolLogoUrl(url);
+      }
       if (updated.name) localStorage.setItem("schoolName", updated.name);
       if (!form.newPassword && !form.confirmPassword) {
         alert("Profile saved");
@@ -105,7 +142,7 @@ export default function SchoolProfilePage({ go }: Props) {
     } finally {
       setSaving(false);
     }
-  }, [form, schoolId]);
+  }, [form, logoUrl, schoolId]);
 
   const tabClass = (tab: ProfileTab) => (profileTab === tab ? "profile-tab active" : "profile-tab");
 
@@ -114,14 +151,20 @@ export default function SchoolProfilePage({ go }: Props) {
     onChange: (e: ChangeEvent<HTMLInputElement>) => setField(field, e.target.value),
     type: options?.type,
     placeholder: options?.placeholder,
-    disabled: loading || saving,
+    disabled: loading || saving || logoUploading,
   });
 
   const readOnlyInputProps = (field: FormField) => ({
     value: form[field],
     readOnly: true,
-    disabled: loading || saving,
+    disabled: loading || saving || logoUploading,
   });
+
+  const logoPreview = logoUrl ? (
+    <img src={logoUrl} alt="" className="school-profile-logo-img" />
+  ) : (
+    <div className="school-profile-logo-placeholder">No logo uploaded</div>
+  );
 
   return (
     <div className="profile-page school-profile-page">
@@ -133,7 +176,7 @@ export default function SchoolProfilePage({ go }: Props) {
           type="button"
           onClick={() => void handleSave()}
           className="profile-btn"
-          disabled={loading || saving || !schoolId}
+          disabled={loading || saving || logoUploading || !schoolId}
         >
           {saving ? "Saving…" : "💾 Save"}
         </button>
@@ -143,8 +186,12 @@ export default function SchoolProfilePage({ go }: Props) {
           </button>
           {menuOpen && (
             <div className="profile-menu">
-              <button type="button" onClick={() => document.getElementById("schoolLogoUpload")?.click()}>
-                Upload Logo
+              <button
+                type="button"
+                disabled={logoUploading}
+                onClick={() => document.getElementById("schoolLogoUpload")?.click()}
+              >
+                {logoUploading ? "Uploading logo…" : "Upload Logo"}
               </button>
               <button type="button" onClick={() => go("schoolPackage")}>
                 Change Package
@@ -168,15 +215,24 @@ export default function SchoolProfilePage({ go }: Props) {
         <input
           id="schoolLogoUpload"
           type="file"
-          accept="image/*"
+          accept="image/png,image/jpeg,image/webp,image/gif"
           style={{ display: "none" }}
-          onChange={() => alert("Logo selected")}
+          onChange={(e) => void handleLogoUpload(e)}
         />
       </div>
 
       <div className="profile-card">
-        <aside className="profile-side">
-          <span>School</span>
+        <aside className="profile-side school-profile-side">
+          <div className="school-profile-logo-wrap">{logoPreview}</div>
+          <button
+            type="button"
+            className="school-profile-logo-btn"
+            disabled={loading || logoUploading || !schoolId}
+            onClick={() => document.getElementById("schoolLogoUpload")?.click()}
+          >
+            {logoUploading ? "Uploading…" : "Change logo"}
+          </button>
+          <span className="school-profile-side-label">School</span>
         </aside>
         <main className="profile-main">
           <div className="profile-tabs">
@@ -200,6 +256,20 @@ export default function SchoolProfilePage({ go }: Props) {
           <div className="profile-form">
             {profileTab === "general" && (
               <>
+                <div className="form-row school-profile-logo-row">
+                  <label>School logo</label>
+                  <div className="school-profile-logo-inline">
+                    {logoPreview}
+                    <button
+                      type="button"
+                      className="profile-btn"
+                      disabled={loading || logoUploading || !schoolId}
+                      onClick={() => document.getElementById("schoolLogoUpload")?.click()}
+                    >
+                      {logoUploading ? "Uploading…" : "Upload logo"}
+                    </button>
+                  </div>
+                </div>
                 <div className="form-row">
                   <label>Business Name</label>
                   <input {...inputProps("businessName")} />

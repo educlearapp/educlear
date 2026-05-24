@@ -2,6 +2,7 @@ import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { apiFetch } from "../api";
 import { clearEduClearRole, syncEduClearRoleFromLoginResponse } from "../auth/roles";
+import { cacheSchoolLogoUrl } from "../utils/schoolLogo";
 
 export default function TeacherLogin() {
   const navigate = useNavigate();
@@ -35,7 +36,7 @@ export default function TeacherLogin() {
       const schoolName = data?.school?.name ?? data?.schoolName ?? data?.user?.schoolName;
       if (schoolName) localStorage.setItem("schoolName", String(schoolName));
       const logoUrl = data?.school?.logoUrl;
-      if (logoUrl) localStorage.setItem("schoolLogoUrl", String(logoUrl));
+      if (logoUrl) cacheSchoolLogoUrl(String(logoUrl));
 
       const u = data?.user;
       if (u?.email) localStorage.setItem("userEmail", String(u.email));

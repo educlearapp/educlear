@@ -23,6 +23,8 @@ export type BillingLedgerEntry = {
   createdAt: string;
 };
 
+export { isKidesysOpeningBalanceEntry } from "./billingDisplayRules";
+
 type LedgerFile = Record<string, BillingLedgerEntry[]>;
 
 const DATA_DIR = path.join(process.cwd(), "data");
@@ -88,6 +90,27 @@ export function listInvoices(schoolId: string) {
 
 export function listPayments(schoolId: string) {
   return readSchoolLedger(schoolId).filter((e) => e.type === "payment");
+}
+
+/** Attach learnerId to ledger rows that only have accountNo (post-migration repair). */
+export function backfillLedgerLearnerIds(
+  schoolId: string,
+  accountToLearnerId: Record<string, string>
+): number {
+  const key = String(schoolId || "").trim();
+  if (!key) return 0;
+  const entries = readSchoolLedger(key);
+  let updated = 0;
+  const next = entries.map((entry) => {
+    if (String(entry.learnerId || "").trim()) return entry;
+    const accountNo = String(entry.accountNo || "").trim();
+    const learnerId = accountToLearnerId[accountNo];
+    if (!learnerId) return entry;
+    updated += 1;
+    return { ...entry, learnerId };
+  });
+  if (updated > 0) writeSchoolLedger(key, next);
+  return updated;
 }
 
 export function listPenalties(schoolId: string) {

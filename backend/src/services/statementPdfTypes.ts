@@ -5,20 +5,23 @@ export type StatementPdfTransaction = {
   description: string;
   amountIn: number;
   amountOut: number;
-  balance: number;
+  balance: number | null;
   learner?: string;
 };
 
 export type StatementPdfContact = {
   name: string;
-  email: string;
+  email?: string;
+  cellphone?: string;
   relationship: string;
+  accountNo: string;
 };
 
 export type StatementPdfSchoolBranding = {
   name: string;
   email?: string;
   phone?: string;
+  cellNo?: string;
   address?: string;
   logoUrl?: string;
 };

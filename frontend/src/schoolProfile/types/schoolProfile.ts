@@ -5,6 +5,8 @@ export type SchoolProfileRecord = {
   phone: string;
   cellNo: string;
   address: string;
+  postalAddress: string;
+  bankingDetails: string;
   logoUrl: string;
   primaryColor: string;
   package?: string;
@@ -114,6 +116,8 @@ export function schoolRecordToForm(record: SchoolProfileRecord | null): SchoolPr
   if (!record) return empty;
 
   const physical = splitAddressLines(record.address);
+  const postal = splitAddressLines(record.postalAddress);
+  const banking = splitAddressLines(record.bankingDetails);
   return {
     ...empty,
     businessName: record.name || "",
@@ -129,6 +133,14 @@ export function schoolRecordToForm(record: SchoolProfileRecord | null): SchoolPr
     physicalAddress2: physical[1] || "",
     physicalAddress3: physical[2] || "",
     physicalAddress4: physical[3] || "",
+    postalAddress1: postal[0] || "",
+    postalAddress2: postal[1] || "",
+    postalAddress3: postal[2] || "",
+    postalAddress4: postal[3] || "",
+    bankingLine1: banking[0] || "",
+    bankingLine2: banking[1] || "",
+    bankingLine3: banking[2] || "",
+    bankingLine4: banking[3] || "",
   };
 }
 
@@ -144,6 +156,20 @@ export function formToSchoolUpdatePayload(form: SchoolProfileFormState) {
         form.physicalAddress2,
         form.physicalAddress3,
         form.physicalAddress4,
+      ]) || null,
+    postalAddress:
+      joinAddressLines([
+        form.postalAddress1,
+        form.postalAddress2,
+        form.postalAddress3,
+        form.postalAddress4,
+      ]) || null,
+    bankingDetails:
+      joinAddressLines([
+        form.bankingLine1,
+        form.bankingLine2,
+        form.bankingLine3,
+        form.bankingLine4,
       ]) || null,
   };
 }

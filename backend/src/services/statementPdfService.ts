@@ -1,6 +1,5 @@
-import fs from "fs";
-import path from "path";
 import PDFDocument from "pdfkit";
+import { loadSchoolLogoBuffer } from "../utils/schoolLogo";
 import type { StatementPdfInput } from "./statementPdfTypes";
 
 const INK = "#111827";
@@ -9,10 +8,26 @@ const GOLD = "#d4af37";
 const TABLE_HEAD = "#111827";
 const ROW_ALT = "#faf8f0";
 const ROW_BORDER = "#e5e7eb";
+/** Max logo dimension in PDF points (~100×100 px at 96 dpi). Aspect ratio preserved via fit. */
+const STATEMENT_LOGO_MAX_PT = 100;
+const STATEMENT_LOGO_GAP_PT = 6;
 
 function formatMoney(value: number): string {
   const n = Number.isFinite(value) ? value : 0;
   return `R ${n.toLocaleString("en-ZA", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+}
+
+function formatBalance(value: number | null | undefined): string {
+  if (value === null || value === undefined) return "—";
+  return formatMoney(value);
+}
+
+function formatSchoolContactLine(school: StatementPdfInput["school"]): string {
+  const parts: string[] = [];
+  if (school.phone) parts.push(`Tel: ${school.phone}`);
+  if (school.cellNo) parts.push(`Cell: ${school.cellNo}`);
+  if (school.email) parts.push(school.email);
+  return parts.join(" | ");
 }
 
 function sanitizeFilename(filename: string): string {
@@ -22,26 +37,6 @@ function sanitizeFilename(filename: string): string {
 
 export function statementPdfFilename(accountNo: string): string {
   return sanitizeFilename(`${(accountNo || "statement").replace(/[^\w.-]+/g, "_")}-statement.pdf`);
-}
-
-async function loadLogoBuffer(logoUrl?: string): Promise<Buffer | null> {
-  const url = String(logoUrl || "").trim();
-  if (!url) return null;
-
-  try {
-    if (url.startsWith("http://") || url.startsWith("https://")) {
-      const res = await fetch(url);
-      if (!res.ok) return null;
-      return Buffer.from(await res.arrayBuffer());
-    }
-    if (url.startsWith("/uploads/")) {
-      const filePath = path.join(process.cwd(), url.replace(/^\//, ""));
-      if (fs.existsSync(filePath)) return fs.readFileSync(filePath);
-    }
-  } catch {
-    return null;
-  }
-  return null;
 }
 
 function drawTableHeader(
@@ -114,13 +109,13 @@ export async function generateStatementPdfBuffer(input: StatementPdfInput): Prom
   const contentW = pageW - margin * 2;
   let y = margin;
 
-  const logoBuf = await loadLogoBuffer(input.school.logoUrl);
+  const logoBuf = await loadSchoolLogoBuffer(input.school.logoUrl);
   if (logoBuf) {
     try {
-      doc.image(logoBuf, margin, y, { fit: [80, 48] });
-      y += 52;
-    } catch {
-      /* skip invalid logo */
+      doc.image(logoBuf, margin, y, { fit: [STATEMENT_LOGO_MAX_PT, STATEMENT_LOGO_MAX_PT] });
+      y += STATEMENT_LOGO_MAX_PT + STATEMENT_LOGO_GAP_PT;
+    } catch (err) {
+      console.warn("[statement-pdf] school logo embed failed:", err);
     }
   }
 
@@ -134,7 +129,7 @@ export async function generateStatementPdfBuffer(input: StatementPdfInput): Prom
     doc.text(input.school.address, margin, y);
     y += 12;
   }
-  const schoolContact = [input.school.email, input.school.phone].filter(Boolean).join(" | ");
+  const schoolContact = formatSchoolContactLine(input.school);
   if (schoolContact) {
     doc.text(schoolContact, margin, y);
     y += 12;
@@ -150,7 +145,7 @@ export async function generateStatementPdfBuffer(input: StatementPdfInput): Prom
   doc.strokeColor(GOLD).lineWidth(1.5).moveTo(margin, y).lineTo(pageW - margin, y).stroke();
   y += 14;
 
-  const boxH = 70;
+  const boxH = 82;
   const boxW = (contentW - 12) / 2;
   doc.roundedRect(margin, y, boxW, boxH, 4).strokeColor(ROW_BORDER).stroke();
   doc.roundedRect(margin + boxW + 12, y, boxW, boxH, 4).strokeColor(ROW_BORDER).stroke();
@@ -173,10 +168,14 @@ export async function generateStatementPdfBuffer(input: StatementPdfInput): Prom
 
   const contactName = input.contact?.name || input.accountLabel;
   const contactEmail = input.contact?.email || "—";
+  const contactCell = input.contact?.cellphone || "—";
   const contactRel = input.contact?.relationship || "Parent";
+  const contactAccountNo = input.contact?.accountNo || input.accountNo || "—";
   doc.text(`Name: ${contactName}`, margin + boxW + 20, y + 20, { width: boxW - 16 });
   doc.text(`Email: ${contactEmail}`, margin + boxW + 20, y + 32, { width: boxW - 16 });
-  doc.text(`Relationship: ${contactRel}`, margin + boxW + 20, y + 44, { width: boxW - 16 });
+  doc.text(`Cell: ${contactCell}`, margin + boxW + 20, y + 44, { width: boxW - 16 });
+  doc.text(`Relationship: ${contactRel}`, margin + boxW + 20, y + 56, { width: boxW - 16 });
+  doc.text(`Account No: ${contactAccountNo}`, margin + boxW + 20, y + 68, { width: boxW - 16 });
   y += boxH + 16;
 
   const headers = input.isFamilyAccount
@@ -225,7 +224,7 @@ export async function generateStatementPdfBuffer(input: StatementPdfInput): Prom
             row.description,
             row.amountIn ? formatMoney(row.amountIn) : "-",
             row.amountOut ? formatMoney(row.amountOut) : "-",
-            formatMoney(row.balance),
+            formatBalance(row.balance),
           ]
         : [
             row.date,
@@ -234,7 +233,7 @@ export async function generateStatementPdfBuffer(input: StatementPdfInput): Prom
             row.description,
             row.amountIn ? formatMoney(row.amountIn) : "-",
             row.amountOut ? formatMoney(row.amountOut) : "-",
-            formatMoney(row.balance),
+            formatBalance(row.balance),
           ];
       drawTableRow(doc, values, colWidths, margin, y, rowH, index % 2 === 1);
       y += rowH;

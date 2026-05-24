@@ -3,6 +3,9 @@ import React from "react";
 
 
 import { API_URL } from "../api";
+import { clearEduClearMigrationCache } from "../utils/educlearStorageDebug";
+
+const isDev = import.meta.env.DEV;
 
 
 
@@ -235,53 +238,26 @@ export default function BillingPlans({
 
 
   const getPlan = (learner: any) => {
-
-
-
-    try {
-
-
-
-      const savedPlans = JSON.parse(
-
-
-
-        localStorage.getItem("educlearBillingPlans") || "{}"
-
-
-
-      );
-
-
-
-      const learnerKey = String(learner?.id || learner?.learnerId || "");
-
-
-
-      const savedPlan = savedPlans?.[learnerKey];
-
-
-
-      if (Array.isArray(savedPlan)) return savedPlan;
-
-
-
-    } catch {
-
-
-
-      // ignore bad localStorage
-
-
-
+    if (Array.isArray(learner?.billingPlan)) {
+      return learner.billingPlan;
     }
 
+    const learnerKey = String(learner?.id || learner?.learnerId || "");
+    if (!learnerKey) return [];
 
+    try {
+      const savedPlans = JSON.parse(
+        localStorage.getItem("educlearBillingPlans") || "{}"
+      );
+      const savedPlan = savedPlans?.[learnerKey];
+      if (Array.isArray(savedPlan) && savedPlan.length > 0) {
+        return savedPlan;
+      }
+    } catch {
+      // ignore bad localStorage
+    }
 
-    return Array.isArray(learner?.billingPlan) ? learner.billingPlan : [];
-
-
-
+    return [];
   };
 
 
@@ -561,34 +537,16 @@ export default function BillingPlans({
 
 
 
-      const updatedPlans = {
-
-
-
-        ...savedPlans,
-
-
-
-        [learnerKey]: plan,
-
-
-
-      };
-
-
+      const updatedPlans = { ...savedPlans };
+      if (plan.length === 0) {
+        delete updatedPlans[learnerKey];
+      } else {
+        updatedPlans[learnerKey] = plan;
+      }
 
       localStorage.setItem(
-
-
-
         "educlearBillingPlans",
-
-
-
         JSON.stringify(updatedPlans)
-
-
-
       );
 
 
@@ -1906,14 +1864,25 @@ Billing Plans
 
 
 <p style={{ margin: "4px 0 14px", color: "#64748b" }}>
-
-
-
 Manage learner billing plans for invoice runs
-
-
-
 </p>
+
+{isDev && (
+  <button
+    type="button"
+    style={{ ...btnLight, marginBottom: "12px", fontSize: "12px" }}
+    onClick={() => {
+      const removed = clearEduClearMigrationCache();
+      alert(
+        removed.length
+          ? `Cleared ${removed.length} cached key(s). Reload the page to refresh billing plans from the server.`
+          : "No migration/demo cache keys were stored."
+      );
+    }}
+  >
+    [Dev] Clear billing/migration localStorage cache
+  </button>
+)}
 
 
 

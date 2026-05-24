@@ -6,6 +6,8 @@ import { useNavigate } from "react-router-dom";
 
 import { apiFetch } from "./api";
 import { clearEduClearRole, syncEduClearRoleFromLoginResponse } from "./auth/roles";
+import { resolvePostAuthPath } from "./subscriptions/subscriptionsApi";
+import { cacheSchoolLogoUrl } from "./utils/schoolLogo";
 
 
 
@@ -114,9 +116,7 @@ export default function Login({ onLoggedIn }: Props) {
       const logoUrl = data?.school?.logoUrl;
 
       if (logoUrl) {
-
-        localStorage.setItem("schoolLogoUrl", String(logoUrl));
-
+        cacheSchoolLogoUrl(String(logoUrl));
       }
 
       syncEduClearRoleFromLoginResponse(data);
@@ -125,7 +125,8 @@ export default function Login({ onLoggedIn }: Props) {
 
       onLoggedIn();
 
-      navigate("/dashboard");
+      const nextPath = await resolvePostAuthPath(String(schoolId));
+      navigate(nextPath);
 
     } catch (err: any) {
 

@@ -1,19 +1,33 @@
-import React, { useMemo, useState } from "react";
-import { formatMoney, normaliseBillingAmount } from "./billingLedger";
-import type { PaymentAccountContext } from "./paymentCreateShared";
+import React, { useEffect, useMemo, useState } from "react";
+import BillingSummaryCards from "./BillingSummaryCards";
+import {
+  accountsFromStatementRows,
+  type PaymentAccountContext,
+} from "./paymentCreateShared";
 
 type PaymentsProps = {
   statementRows: any[];
   learners?: any[];
   selectedAccount?: PaymentAccountContext | null;
   onSelectAccount?: (account: PaymentAccountContext) => void;
-  onOpenPaymentCreate?: (account?: PaymentAccountContext | null) => void;
+  onOpenPaymentCreate?: (account: PaymentAccountContext) => void;
   setActivePage: React.Dispatch<React.SetStateAction<any>>;
 };
 
-export default function Payments({ statementRows, setActivePage }: PaymentsProps) {
+const PAGE_SIZE = 10;
+
+export default function Payments({
+  statementRows,
+  learners = [],
+  onOpenPaymentCreate,
+  setActivePage,
+}: PaymentsProps) {
   const [search, setSearch] = useState("");
-  const rowBalance = (row: any) => normaliseBillingAmount(row?.balance);
+  const [page, setPage] = useState(1);
+
+  useEffect(() => {
+    setPage(1);
+  }, [search]);
 
   const payBtn: React.CSSProperties = {
     border: "1px solid #b89329",
@@ -40,13 +54,6 @@ export default function Payments({ statementRows, setActivePage }: PaymentsProps
     fontWeight: 700,
   };
 
-  const summaryCard: React.CSSProperties = {
-    background: "#fff",
-    borderRadius: 18,
-    padding: "22px 20px",
-    border: "1px solid rgba(212,175,55,0.35)",
-    boxShadow: "0 10px 25px rgba(15,23,42,0.05)",
-  };
 
   const th: React.CSSProperties = {
     padding: "12px",
@@ -67,19 +74,8 @@ export default function Payments({ statementRows, setActivePage }: PaymentsProps
   };
 
   const paymentAccounts = useMemo(
-    () =>
-      statementRows.map((row: any, index: number) => ({
-        id: row.id || row.learnerId || row.accountNo || `account-${index}`,
-        learnerId: row.learnerId || row.id || row.accountNo || `account-${index}`,
-        accountNo: row.accountNo || "-",
-        name: row.name || "",
-        surname: row.surname || "",
-        balance: Number(row.balance || 0),
-        lastInvoice: row.lastInvoice || "No invoices",
-        lastPayment: row.lastPayment || "No payments",
-        status: row.status || "Up To Date",
-      })),
-    [statementRows]
+    () => accountsFromStatementRows(statementRows, learners),
+    [statementRows, learners]
   );
 
   const filteredAccounts = useMemo(() => {
@@ -101,35 +97,24 @@ export default function Payments({ statementRows, setActivePage }: PaymentsProps
     );
   }, [paymentAccounts, search]);
 
-  const openPaymentCreate = (account: any) => {
-    localStorage.setItem(
-      "selectedPaymentAccount",
-      JSON.stringify({
-        ...account,
-        learnerId: account.learnerId || account.id || account.accountNo,
-        id: account.id || account.learnerId || account.accountNo,
-      })
-    );
+  const totalPages = Math.max(1, Math.ceil(filteredAccounts.length / PAGE_SIZE));
+  const safePage = Math.min(page, totalPages);
+  const pagedAccounts = filteredAccounts.slice(
+    (safePage - 1) * PAGE_SIZE,
+    safePage * PAGE_SIZE
+  );
+  const firstItem =
+    filteredAccounts.length === 0 ? 0 : (safePage - 1) * PAGE_SIZE + 1;
+  const lastItem = Math.min(safePage * PAGE_SIZE, filteredAccounts.length);
+
+  const openPaymentCreate = (account: PaymentAccountContext) => {
+    if (onOpenPaymentCreate) {
+      onOpenPaymentCreate(account);
+      return;
+    }
     setActivePage("paymentCreate");
   };
 
-  const totalOutstanding = paymentAccounts.reduce(
-    (sum: number, row: any) => sum + Math.max(rowBalance(row), 0),
-    0
-  );
-
-  const recentlyOwing = paymentAccounts
-    .filter((row: any) => row.status === "Recently Owing")
-    .reduce((sum: number, row: any) => sum + rowBalance(row), 0);
-
-  const badDebt = paymentAccounts
-    .filter((row: any) => row.status === "Bad Debt")
-    .reduce((sum: number, row: any) => sum + rowBalance(row), 0);
-
-  const overPaid = paymentAccounts.reduce(
-    (sum: number, row: any) => sum + Math.min(rowBalance(row), 0),
-    0
-  );
 
   return (
     <div
@@ -150,37 +135,7 @@ export default function Payments({ statementRows, setActivePage }: PaymentsProps
         </p>
       </div>
 
-      <div
-        style={{
-          display: "grid",
-          gridTemplateColumns: "repeat(5, minmax(140px, 1fr))",
-          gap: 16,
-          marginBottom: 22,
-        }}
-      >
-        <div style={summaryCard}>
-          <div style={{ fontSize: 24, fontWeight: 950 }}>{paymentAccounts.length}</div>
-          <div style={{ fontSize: 12, fontWeight: 900, color: "#64748b" }}>ACCOUNTS</div>
-        </div>
-        <div style={summaryCard}>
-          <div style={{ fontSize: 24, fontWeight: 950 }}>{formatMoney(totalOutstanding)}</div>
-          <div style={{ fontSize: 12, fontWeight: 900, color: "#64748b" }}>TOTAL OUTSTANDING</div>
-        </div>
-        <div style={summaryCard}>
-          <div style={{ fontSize: 24, fontWeight: 950 }}>{formatMoney(recentlyOwing)}</div>
-          <div style={{ fontSize: 12, fontWeight: 900, color: "#64748b" }}>RECENTLY OWING</div>
-        </div>
-        <div style={summaryCard}>
-          <div style={{ fontSize: 24, fontWeight: 950, color: "#b91c1c" }}>{formatMoney(badDebt)}</div>
-          <div style={{ fontSize: 12, fontWeight: 900, color: "#64748b" }}>BAD DEBT</div>
-        </div>
-        <div style={summaryCard}>
-          <div style={{ fontSize: 24, fontWeight: 950, color: "#15803d" }}>
-            {formatMoney(Math.abs(overPaid))}
-          </div>
-          <div style={{ fontSize: 12, fontWeight: 900, color: "#64748b" }}>OVER PAID</div>
-        </div>
-      </div>
+      <BillingSummaryCards rows={statementRows} />
 
       <div style={{ marginBottom: 14 }}>
         <button type="button" style={payBtn} onClick={() => setActivePage("statements")}>
@@ -254,9 +209,9 @@ export default function Payments({ statementRows, setActivePage }: PaymentsProps
             </tr>
           </thead>
           <tbody>
-            {filteredAccounts.map((account: any, index: number) => (
+            {pagedAccounts.map((account: any, index: number) => (
               <tr
-                key={account.accountNo || index}
+                key={`${account.accountNo || account.learnerId || "row"}-${index}`}
                 style={{
                   background: index % 2 === 0 ? "#fffdf7" : "#fff",
                   cursor: "pointer",
@@ -286,6 +241,58 @@ export default function Payments({ statementRows, setActivePage }: PaymentsProps
             ))}
           </tbody>
         </table>
+
+        <div
+          style={{
+            display: "flex",
+            justifyContent: "space-between",
+            alignItems: "center",
+            marginTop: 16,
+            flexWrap: "wrap",
+            gap: 12,
+          }}
+        >
+          <span style={{ color: "#64748b", fontWeight: 800 }}>
+            {firstItem} - {lastItem} / {filteredAccounts.length}
+          </span>
+          <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+            <button
+              type="button"
+              style={payBtn}
+              disabled={safePage <= 1}
+              onClick={() => setPage(1)}
+            >
+              «
+            </button>
+            <button
+              type="button"
+              style={payBtn}
+              disabled={safePage <= 1}
+              onClick={() => setPage((p) => Math.max(1, p - 1))}
+            >
+              ‹
+            </button>
+            <span style={{ padding: "0 8px", fontWeight: 900, color: "#0f172a" }}>
+              Page {safePage} / {totalPages}
+            </span>
+            <button
+              type="button"
+              style={payBtn}
+              disabled={safePage >= totalPages}
+              onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
+            >
+              ›
+            </button>
+            <button
+              type="button"
+              style={payBtn}
+              disabled={safePage >= totalPages}
+              onClick={() => setPage(totalPages)}
+            >
+              »
+            </button>
+          </div>
+        </div>
       </div>
     </div>
   );

@@ -118,12 +118,13 @@ export function resolveEmailTemplate(
 
 export function mapStatementHistoryToDefaultPeriod(statementHistory: string): string {
   switch (String(statementHistory || "").trim()) {
+    case "Full History":
+      return "All Time";
     case "Recent Only":
-      return "Last 10 Transactions";
     case "Summary Only":
       return "Last 3 Months";
     default:
-      return "All Time";
+      return "Last 3 Months";
   }
 }
 

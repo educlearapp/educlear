@@ -34,7 +34,7 @@ import {
   getAccountLedger,
 } from "./billingLedger";
 import { syncBillingLedgerFromApi } from "./billingApi";
-import { buildStatementCoverEmailHtml, sendStatementEmail, resolveSchoolLogoUrl } from "./statementDocument";
+import { buildStatementCoverEmailHtml, sendStatementEmail, resolveSchoolLogoUrl, STATEMENT_LOGO_IMG_STYLE } from "./statementDocument";
 
 
 
@@ -383,6 +383,10 @@ export default function InvoiceRuns(props: any) {
 
 
     "";
+
+
+
+  const schoolLogoUrl = resolveSchoolLogoUrl(props?.school || props?.selectedSchool);
 
 
 
@@ -2423,6 +2427,14 @@ export default function InvoiceRuns(props: any) {
 
 
             <div>
+
+
+
+              ${
+                schoolLogoUrl
+                  ? `<img src="${escapeHtml(schoolLogoUrl)}" alt="" style="${STATEMENT_LOGO_IMG_STYLE}" />`
+                  : ""
+              }
 
 
 

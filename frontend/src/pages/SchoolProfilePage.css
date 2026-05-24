@@ -35,6 +35,73 @@
   border-right: 1px solid rgba(212, 175, 55, 0.35);
 }
 
+.school-profile-page .school-profile-side {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+}
+
+.school-profile-page .school-profile-logo-wrap {
+  width: 100%;
+  max-width: 112px;
+  min-height: 72px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(255, 255, 255, 0.06);
+  border-radius: 8px;
+  padding: 8px;
+}
+
+.school-profile-page .school-profile-logo-img {
+  display: block;
+  max-width: 100%;
+  max-height: 96px;
+  object-fit: contain;
+}
+
+.school-profile-page .school-profile-logo-placeholder {
+  font-size: 11px;
+  font-weight: 500;
+  color: rgba(255, 255, 255, 0.55);
+  text-align: center;
+  line-height: 1.35;
+}
+
+.school-profile-page .school-profile-logo-btn {
+  width: 100%;
+  max-width: 112px;
+  height: 30px;
+  border: 1px solid rgba(212, 175, 55, 0.45);
+  border-radius: 6px;
+  background: rgba(212, 175, 55, 0.12);
+  color: #f5e6b8;
+  font-size: 11px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.school-profile-page .school-profile-logo-btn:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+.school-profile-page .school-profile-side-label {
+  margin-top: auto;
+}
+
+.school-profile-page .school-profile-logo-row .school-profile-logo-inline {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  flex-wrap: wrap;
+}
+
+.school-profile-page .school-profile-logo-row .school-profile-logo-img {
+  max-height: 72px;
+}
+
 .school-profile-page .profile-tabs {
   height: 44px;
   padding-left: 16px;

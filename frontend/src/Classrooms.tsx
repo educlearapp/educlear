@@ -315,6 +315,20 @@ export default function Classrooms({
         registered: c.registered !== false,
       }));
       setClassrooms(normalized);
+
+      if (import.meta.env.DEV) {
+        const childrenSum = normalized.reduce(
+          (sum, row) => sum + Number(row.childrenCount || 0),
+          0
+        );
+        console.info("[EduClear Dev] Classrooms API", {
+          schoolId,
+          apiUrl: API_URL,
+          classroomsCount: normalized.length,
+          learnersInClassroomsSum: childrenSum,
+          endpoint: `${API_URL}/api/classrooms?schoolId=${encodeURIComponent(schoolId)}`,
+        });
+      }
     } catch (e: any) {
       setMessage(e?.message || "Failed to load classrooms.");
     } finally {

@@ -798,13 +798,32 @@ export async function commitMigrationImport(opts: {
           console.log(`created learner admissionNo ${accountNo}`);
         }
       } else {
-        learner = await tx.learner.create({
-          data: {
+        const existingByName = await tx.learner.findFirst({
+          where: {
             schoolId: opts.schoolId,
-            admissionNo: null,
-            ...learnerFields,
+            firstName: learnerFields.firstName,
+            lastName: learnerFields.lastName,
+            className: canonicalClass || null,
           },
+          select: { id: true },
         });
+        if (existingByName) {
+          learner = await tx.learner.update({
+            where: { id: existingByName.id },
+            data: learnerFields,
+          });
+          console.log(
+            `updated existing learner (name/class) ${learnerFields.firstName} ${learnerFields.lastName}`
+          );
+        } else {
+          learner = await tx.learner.create({
+            data: {
+              schoolId: opts.schoolId,
+              admissionNo: null,
+              ...learnerFields,
+            },
+          });
+        }
       }
       manifest.learnerIds.push(learner.id);
 

@@ -1,4 +1,21 @@
 import { getLearnerAccountNo } from "../learner/learnerIdentity";
+import {
+  buildKidesysHistoryAccountIndex,
+  readSchoolKidesysHistory,
+  readStatementApiSummary,
+  type KidesysHistoryEntry,
+  type StatementApiSummary,
+} from "./kidesysTransactionHistory";
+import {
+  formatLedgerDescriptionDisplay,
+  formatLedgerReferenceDisplay,
+  formatLedgerTypeLabel,
+  isKidesysOpeningBalanceEntry,
+  isMigratedOpeningBalanceOverviewLabel,
+  MIGRATED_OPENING_BALANCE_OVERVIEW,
+} from "./billingDisplayRules";
+
+export { isKidesysOpeningBalanceEntry } from "./billingDisplayRules";
 import type { BillingSettingsState } from "../billingSettings/types/billingSettings";
 import {
   buildInvoiceReference,
@@ -279,11 +296,127 @@ export function calculateAccountBalance(
 
 export function getLastInvoice(transactions: BillingLedgerEntry[]) {
   return transactions
-    .filter((e) => e.type === "invoice")
+    .filter((e) => e.type === "invoice" && !isKidesysOpeningBalanceEntry(e))
     .sort(
       (a, b) =>
         new Date(b.date || b.createdAt).getTime() - new Date(a.date || a.createdAt).getTime()
     )[0] || null;
+}
+
+function resolveLastInvoiceDisplay(
+  accountLedger: BillingLedgerEntry[],
+  historySummary?: { lastInvoice: KidesysHistoryEntry | null }
+): {
+  lastInvoice: string;
+  lastInvoiceDate: string;
+} {
+  const histInv = historySummary?.lastInvoice;
+  if (histInv) {
+    return {
+      lastInvoice: formatMoney(histInv.amount),
+      lastInvoiceDate: histInv.date || "",
+    };
+  }
+  const lastInv = getLastInvoice(accountLedger);
+  if (lastInv) {
+    return {
+      lastInvoice: formatMoney(lastInv.amount),
+      lastInvoiceDate: lastInv.date || "",
+    };
+  }
+  const hasOpeningBalance = accountLedger.some(
+    (e) => e.type === "invoice" && isKidesysOpeningBalanceEntry(e)
+  );
+  if (hasOpeningBalance) {
+    return { lastInvoice: MIGRATED_OPENING_BALANCE_OVERVIEW, lastInvoiceDate: "" };
+  }
+  return { lastInvoice: "No invoices", lastInvoiceDate: "" };
+}
+
+function resolveLastPaymentDisplay(
+  accountLedger: BillingLedgerEntry[],
+  historySummary?: { lastPayment: KidesysHistoryEntry | null }
+): { lastPayment: string; lastPaymentDate: string } {
+  const histPay = historySummary?.lastPayment;
+  if (histPay) {
+    return {
+      lastPayment: `${formatMoney(histPay.amount)} on ${histPay.date || ""}`,
+      lastPaymentDate: histPay.date || "",
+    };
+  }
+  const lastPay = getLastPayment(accountLedger);
+  return {
+    lastPayment: lastPay
+      ? `${formatMoney(lastPay.amount)} on ${lastPay.date || ""}`
+      : "No payments",
+    lastPaymentDate: lastPay?.date || "",
+  };
+}
+
+function apiSummaryHasLastInvoice(apiSummary: StatementApiSummary | null): boolean {
+  if (!apiSummary) return false;
+  if (Number(apiSummary.lastInvoice) > 0) return true;
+  return Boolean(String(apiSummary.lastInvoiceDate || "").trim());
+}
+
+function apiSummaryHasLastPayment(apiSummary: StatementApiSummary | null): boolean {
+  if (!apiSummary) return false;
+  if (Number(apiSummary.lastPayment) > 0) return true;
+  return Boolean(String(apiSummary.lastPaymentDate || "").trim());
+}
+
+/** Last invoice for overview tables — Kid-e-Sys history first, then API, then ledger. */
+function resolveLastInvoiceForRow(
+  accountLedger: BillingLedgerEntry[],
+  historySummary: { lastInvoice: KidesysHistoryEntry | null },
+  apiSummary: StatementApiSummary | null
+): { lastInvoice: string; lastInvoiceDate: string } {
+  const histInv = historySummary.lastInvoice;
+  if (histInv) {
+    return {
+      lastInvoice: formatMoney(histInv.amount),
+      lastInvoiceDate: histInv.date || "",
+    };
+  }
+  if (apiSummary?.lastInvoiceLabel && isMigratedOpeningBalanceOverviewLabel(apiSummary.lastInvoiceLabel)) {
+    return {
+      lastInvoice: MIGRATED_OPENING_BALANCE_OVERVIEW,
+      lastInvoiceDate: "",
+    };
+  }
+  if (apiSummaryHasLastInvoice(apiSummary)) {
+    return {
+      lastInvoice: formatMoney(apiSummary!.lastInvoice),
+      lastInvoiceDate: apiSummary!.lastInvoiceDate || "",
+    };
+  }
+  return resolveLastInvoiceDisplay(accountLedger, historySummary);
+}
+
+/** Last payment for overview tables — Kid-e-Sys history first, then API, then ledger. */
+function resolveLastPaymentForRow(
+  accountLedger: BillingLedgerEntry[],
+  historySummary: { lastPayment: KidesysHistoryEntry | null },
+  apiSummary: StatementApiSummary | null
+): { lastPayment: string; lastPaymentDate: string } {
+  const histPay = historySummary.lastPayment;
+  if (histPay) {
+    const date = histPay.date || "";
+    return {
+      lastPayment: date ? `${formatMoney(histPay.amount)} on ${date}` : formatMoney(histPay.amount),
+      lastPaymentDate: date,
+    };
+  }
+  if (apiSummaryHasLastPayment(apiSummary)) {
+    const date = apiSummary!.lastPaymentDate || "";
+    return {
+      lastPayment: date
+        ? `${formatMoney(apiSummary!.lastPayment)} on ${date}`
+        : formatMoney(apiSummary!.lastPayment),
+      lastPaymentDate: date,
+    };
+  }
+  return resolveLastPaymentDisplay(accountLedger, historySummary);
 }
 
 export function getLastPayment(transactions: BillingLedgerEntry[]) {
@@ -334,14 +467,16 @@ export function computeOpenInvoiceLines(
     creditPool -= applied;
     const unpaid = gross - applied;
     if (unpaid <= 0.001) continue;
-    const typeLabel = entry.type === "penalty" ? "Penalty" : "Invoice";
+    const typeLabel = formatLedgerTypeLabel(entry);
+    const reference = formatLedgerReferenceDisplay(entry);
+    const description = formatLedgerDescriptionDisplay(entry);
     lines.push({
       id: entry.id,
       audit: entry.id,
       type: typeLabel,
       date: entry.date || "",
-      reference: entry.reference || typeLabel,
-      description: entry.description || typeLabel,
+      reference: reference !== "—" ? reference : typeLabel,
+      description: description !== "—" ? description : typeLabel,
       unpaid,
       amount: gross,
     });
@@ -356,79 +491,107 @@ function statusFromBalance(balance: number) {
   return "Up To Date";
 }
 
-export function getBillingRows(learners: any[], schoolId: string): BillingAccountRow[] {
-  const ledger = readSchoolLedger(schoolId);
-  const familyMembersById = new Map<string, string[]>();
-  for (const learner of learners || []) {
-    const familyId = String(learner?.familyAccountId || learner?.familyAccount?.id || "").trim();
-    const learnerId = String(learner?.id || learner?.learnerId || "").trim();
-    if (!familyId || !learnerId) continue;
-    const list = familyMembersById.get(familyId) || [];
-    list.push(learnerId);
-    familyMembersById.set(familyId, list);
-  }
-  const familyBalanceById = new Map<string, number>();
-  for (const [familyId, memberIds] of familyMembersById) {
-    const anchor = (learners || []).find(
-      (l: any) => String(l?.id || l?.learnerId) === memberIds[0]
-    );
-    const accountRef = getLearnerAccountNo(anchor);
-    const scoped = collectFamilyAccountEntries(ledger, { accountRef, learnerIds: memberIds });
-    familyBalanceById.set(familyId, calculateBalanceFromEntries(scoped));
-  }
+function resolveBillingGroupKey(learner: any): string {
+  const familyAccountId = String(
+    learner?.familyAccountId || learner?.familyAccount?.id || ""
+  ).trim();
+  if (familyAccountId) return `family:${familyAccountId}`;
+  const accountNo = getLearnerAccountNo(learner);
+  if (accountNo && accountNo !== "-") return `account:${accountNo}`;
+  const learnerId = String(learner?.id || learner?.learnerId || "").trim();
+  return `learner:${learnerId}`;
+}
 
-  return (learners || []).map((learner: any) => {
-    const learnerId = String(learner?.id || learner?.learnerId || "").trim();
-    const accountNo = getLearnerAccountNo(learner);
-    const familyAccountId = String(
-      learner?.familyAccountId || learner?.familyAccount?.id || ""
-    ).trim();
-    const memberIds = familyAccountId
-      ? familyMembersById.get(familyAccountId) || [learnerId]
-      : [learnerId];
-    const accountLedger = familyAccountId
+function buildBillingAccountRow(
+  anchor: any,
+  memberIds: string[],
+  schoolId: string,
+  ledger: BillingLedgerEntry[],
+  historyIndex: Map<string, { lastInvoice: KidesysHistoryEntry | null; lastPayment: KidesysHistoryEntry | null }>
+): BillingAccountRow {
+  const learnerId = String(anchor?.id || anchor?.learnerId || "").trim();
+  const accountNo = getLearnerAccountNo(anchor);
+  const familyAccountId = String(
+    anchor?.familyAccountId || anchor?.familyAccount?.id || ""
+  ).trim() || undefined;
+  const accountLedger =
+    familyAccountId || memberIds.length > 1
       ? collectFamilyAccountEntries(ledger, { accountRef: accountNo, learnerIds: memberIds })
       : getAccountLedger(schoolId, learnerId, accountNo);
-    const balance =
-      familyAccountId && familyBalanceById.has(familyAccountId)
-        ? familyBalanceById.get(familyAccountId)!
-        : calculateAccountBalance(accountLedger);
-    const invoiceTotal = accountLedger
-      .filter((e) => e.type === "invoice")
-      .reduce((s, e) => s + normaliseBillingAmount(e.amount), 0);
-    const penaltyTotal = accountLedger
-      .filter((e) => e.type === "penalty")
-      .reduce((s, e) => s + normaliseBillingAmount(e.amount), 0);
-    const paymentTotal = accountLedger
-      .filter((e) => e.type === "payment")
-      .reduce((s, e) => s + normaliseBillingAmount(e.amount), 0);
-    const creditTotal = accountLedger
-      .filter((e) => e.type === "credit")
-      .reduce((s, e) => s + normaliseBillingAmount(e.amount), 0);
-    const lastInv = getLastInvoice(accountLedger);
-    const lastPay = getLastPayment(accountLedger);
+  const balance = calculateBalanceFromEntries(accountLedger);
+  const invoiceTotal = accountLedger
+    .filter((e) => e.type === "invoice")
+    .reduce((s, e) => s + normaliseBillingAmount(e.amount), 0);
+  const penaltyTotal = accountLedger
+    .filter((e) => e.type === "penalty")
+    .reduce((s, e) => s + normaliseBillingAmount(e.amount), 0);
+  const paymentTotal = accountLedger
+    .filter((e) => e.type === "payment")
+    .reduce((s, e) => s + normaliseBillingAmount(e.amount), 0);
+  const creditTotal = accountLedger
+    .filter((e) => e.type === "credit")
+    .reduce((s, e) => s + normaliseBillingAmount(e.amount), 0);
+  const apiSummary = readStatementApiSummary(schoolId, accountNo);
+  const historySummary = historyIndex.get(accountNo) || {
+    lastInvoice: null,
+    lastPayment: null,
+  };
+  const { lastInvoice, lastInvoiceDate } = resolveLastInvoiceForRow(
+    accountLedger,
+    historySummary,
+    apiSummary
+  );
+  const { lastPayment, lastPaymentDate } = resolveLastPaymentForRow(
+    accountLedger,
+    historySummary,
+    apiSummary
+  );
 
-    return {
-      id: learnerId,
-      learnerId,
-      accountNo,
-      familyAccountId: familyAccountId || undefined,
-      name: learner?.firstName || learner?.name || "-",
-      surname: learner?.lastName || learner?.surname || "-",
-      balance,
-      invoiceTotal,
-      penaltyTotal,
-      paymentTotal,
-      creditTotal,
-      lastInvoice: lastInv ? formatMoney(lastInv.amount) : "No invoices",
-      lastInvoiceDate: lastInv?.date || "",
-      lastPayment: lastPay
-        ? `${formatMoney(lastPay.amount)} on ${lastPay.date || ""}`
-        : "No payments",
-      lastPaymentDate: lastPay?.date || "",
-      status: statusFromBalance(balance),
-    };
-  });
+  return {
+    id: familyAccountId || learnerId,
+    learnerId,
+    accountNo,
+    familyAccountId,
+    name: anchor?.firstName || anchor?.name || "-",
+    surname: anchor?.lastName || anchor?.surname || "-",
+    balance,
+    invoiceTotal,
+    penaltyTotal,
+    paymentTotal,
+    creditTotal,
+    lastInvoice,
+    lastInvoiceDate,
+    lastPayment,
+    lastPaymentDate,
+    status: statusFromBalance(balance),
+  };
+}
+
+/** One row per family billing account (deduped siblings). */
+export function getBillingRows(learners: any[], schoolId: string): BillingAccountRow[] {
+  const ledger = readSchoolLedger(schoolId);
+  const historyIndex = buildKidesysHistoryAccountIndex(readSchoolKidesysHistory(schoolId));
+  const groups = new Map<string, { anchor: any; memberIds: string[] }>();
+
+  for (const learner of learners || []) {
+    const learnerId = String(learner?.id || learner?.learnerId || "").trim();
+    if (!learnerId) continue;
+    const key = resolveBillingGroupKey(learner);
+    const existing = groups.get(key);
+    if (existing) {
+      if (!existing.memberIds.includes(learnerId)) {
+        existing.memberIds.push(learnerId);
+      }
+      continue;
+    }
+    groups.set(key, { anchor: learner, memberIds: [learnerId] });
+  }
+
+  return Array.from(groups.values())
+    .map(({ anchor, memberIds }) =>
+      buildBillingAccountRow(anchor, memberIds, schoolId, ledger, historyIndex)
+    )
+    .sort((a, b) => String(a.accountNo).localeCompare(String(b.accountNo)));
 }
 
 export function appendInvoiceTransaction(input: {

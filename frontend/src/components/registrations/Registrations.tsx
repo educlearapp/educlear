@@ -1,4 +1,5 @@
 import React, { useEffect, useMemo, useState } from "react";
+import { API_URL } from "../../api";
 import { calculateLearnerAge } from "../../learner/learnerIdentity";
 
 
@@ -348,10 +349,13 @@ const tdStyle: React.CSSProperties = {
 
 
 export default function Registrations(props: AnyRecord) {
-
-
-
-  const { learners = [], parents = [], onAddLearner, onOpenLearner } = props;
+  const {
+    learners = [],
+    parents = [],
+    schoolId = "",
+    onAddLearner,
+    onOpenLearner,
+  } = props;
 
   const [search, setSearch] = useState("");
 
@@ -464,14 +468,18 @@ setLocalLearners(mergedLearners);
 
 
   useEffect(() => {
-
-
-
     if (Array.isArray(parents)) setLocalParents(parents);
-
-
-
   }, [parents]);
+
+  useEffect(() => {
+    if (!import.meta.env.DEV) return;
+    console.info("[EduClear Dev] Registrations view", {
+      schoolId: String(schoolId || ""),
+      apiUrl: API_URL,
+      learnersCount: Array.isArray(learners) ? learners.length : 0,
+      parentsCount: Array.isArray(parents) ? parents.length : 0,
+    });
+  }, [schoolId, learners, parents]);
 
 
 

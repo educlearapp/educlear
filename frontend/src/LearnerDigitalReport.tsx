@@ -14,7 +14,7 @@ import { API_URL, apiFetch } from "./api";
 
 
 
-import educlearLogo from "./assets/logo.png";
+import { resolveSchoolLogoUrl } from "./utils/schoolLogo";
 
 
 
@@ -554,31 +554,7 @@ export default function LearnerDigitalReport() {
 
 
 
-  const schoolLogo =
-
-
-
-    school?.logoUrl ||
-
-
-
-    school?.logo ||
-
-
-
-    school?.logoPath ||
-
-
-
-    school?.schoolLogo ||
-
-
-
-    (school?.logoFilename ? `${API_URL}/uploads/${school.logoFilename}` : null) ||
-
-
-
-    educlearLogo;
+  const schoolLogo = resolveSchoolLogoUrl(school);
 
 
 
@@ -1078,67 +1054,21 @@ export default function LearnerDigitalReport() {
 
 
 
-                  <img
-
-
-
-                    src={schoolLogo}
-
-
-
-                    alt={schoolName}
-
-
-
-                    style={{
-
-
-
-                      width: 66,
-
-
-
-                      height: 66,
-
-
-
-                      borderRadius: 14,
-
-
-
-                      objectFit: "contain",
-
-
-
-                      border: "2px solid rgba(255,255,255,0.55)",
-
-
-
-                      background: "#ffffff",
-
-
-
-                      padding: 4,
-
-
-
-                    }}
-
-
-
-                    onError={(e) => {
-
-
-
-                      (e.currentTarget as HTMLImageElement).src = educlearLogo;
-
-
-
-                    }}
-
-
-
-                  />
+                  {schoolLogo ? (
+                    <img
+                      src={schoolLogo}
+                      alt={schoolName}
+                      style={{
+                        width: 66,
+                        height: 66,
+                        borderRadius: 14,
+                        objectFit: "contain",
+                        border: "2px solid rgba(255,255,255,0.55)",
+                        background: "#ffffff",
+                        padding: 4,
+                      }}
+                    />
+                  ) : null}
 
 
 

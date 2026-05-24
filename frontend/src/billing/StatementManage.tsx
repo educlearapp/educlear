@@ -24,6 +24,25 @@ import {
   resolveEntryLearnerLabel,
 } from "./billingLedger";
 import {
+  formatKidesysHistoryDescriptionDisplay,
+  formatKidesysHistoryReferenceDisplay,
+  formatKidesysHistoryTypeLabel,
+  formatLedgerDescriptionDisplay,
+  formatLedgerReferenceDisplay,
+  formatLedgerTypeLabel,
+  isKidesysOpeningBalanceEntry,
+  isMigratedOpeningBalanceOverviewLabel,
+  MIGRATED_OPENING_BALANCE_OVERVIEW,
+} from "./billingDisplayRules";
+import type { KidesysHistoryEntry } from "./kidesysTransactionHistory";
+import {
+  filterHistoryForAccount,
+  getHistorySummaryForAccount,
+  KIDESYS_HISTORY_UPDATED_EVENT,
+  readSchoolKidesysHistory,
+} from "./kidesysTransactionHistory";
+import { syncKidesysHistoryForAccountFromApi } from "./billingApi";
+import {
   fetchSchoolEmailSettings,
   isSchoolEmailReadyForUi,
   normalizeSchoolEmailSettings,
@@ -41,11 +60,19 @@ import {
   type StatementContact,
   type StatementSchoolBranding,
 } from "./statementDocument";
+import {
+  DEFAULT_STATEMENT_PERIOD,
+  filterKidesysHistoryByStatementPeriod,
+  filterLedgerByStatementPeriod,
+  normalizeStatementPeriod,
+  shouldShowOpeningBalanceMigration,
+  STATEMENT_PERIOD_OPTIONS,
+} from "./statementPeriod";
 
 type Props = {
   selected: any;
   setActivePage: React.Dispatch<React.SetStateAction<any>>;
-  onOpenPaymentCreate?: () => void;
+  onOpenPaymentCreate?: (account: any) => void;
   onOpenEmailSetup?: () => void;
   statementRows?: any[];
   learners?: any[];
@@ -56,6 +83,7 @@ type Props = {
 
 const GOLD = "#d4af37";
 const INK = "#111827";
+const TRANSACTIONS_PER_PAGE = 10;
 
 type ModalKind =
   | "pending"
@@ -210,6 +238,7 @@ function StatementModal({
 export default function StatementManage({
   selected,
   setActivePage,
+  onOpenPaymentCreate,
   onOpenEmailSetup,
   statementRows = [],
   learners = [],
@@ -221,7 +250,7 @@ export default function StatementManage({
   const learnerId = String(selected?.learnerId || selected?.id || "").trim();
   const accountNo = String(selected?.accountNo || "").trim();
 
-  const [period, setPeriod] = useState("All Time");
+  const [period, setPeriod] = useState(DEFAULT_STATEMENT_PERIOD);
   const [statementNote, setStatementNote] = useState("");
   const [, setTick] = useState(0);
   const [modalKind, setModalKind] = useState<ModalKind | null>(null);
@@ -245,6 +274,9 @@ export default function StatementManage({
   const [sendError, setSendError] = useState("");
   const [actionNotice, setActionNotice] = useState("");
   const [emailReadiness, setEmailReadiness] = useState<SchoolEmailSettings | null>(null);
+  const [accountKidesysHistory, setAccountKidesysHistory] = useState<KidesysHistoryEntry[]>([]);
+  const [kidesysHistoryVersion, setKidesysHistoryVersion] = useState(0);
+  const [transactionsPage, setTransactionsPage] = useState(1);
   const emailReady = isSchoolEmailReadyForUi(emailReadiness);
 
   const loadEmailReadiness = useCallback(async () => {
@@ -403,6 +435,36 @@ export default function StatementManage({
     [accountRef, accountNo, familyLearnerIds]
   );
 
+  useEffect(() => {
+    const onHistoryUpdated = () => setKidesysHistoryVersion((v) => v + 1);
+    window.addEventListener(KIDESYS_HISTORY_UPDATED_EVENT, onHistoryUpdated);
+    return () => window.removeEventListener(KIDESYS_HISTORY_UPDATED_EVENT, onHistoryUpdated);
+  }, []);
+
+  useEffect(() => {
+    if (!schoolId) return;
+    const ref = accountRef || accountNo;
+    if (!ref) {
+      setAccountKidesysHistory([]);
+      return;
+    }
+    let cancelled = false;
+    syncKidesysHistoryForAccountFromApi(schoolId, ref)
+      .then((rows) => {
+        if (!cancelled) setAccountKidesysHistory(rows);
+      })
+      .catch(() => {
+        if (!cancelled) setAccountKidesysHistory([]);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [schoolId, accountRef, accountNo, kidesysHistoryVersion]);
+
+  useEffect(() => {
+    setTransactionsPage(1);
+  }, [period, learnerId, accountNo, schoolId, accountRef]);
+
   const mergeCandidates = useMemo(() => {
     const q = mergeSearch.trim().toLowerCase();
     return statementRows.filter((row) => {
@@ -424,89 +486,168 @@ export default function StatementManage({
     const entries = isFamilyBillingAccount
       ? getFamilyAccountLedger(schoolId, familyLedgerScope)
       : getAccountLedger(schoolId, learnerId, accountRef || accountNo);
-    const sorted = [...entries].sort(
-      (a, b) =>
-        new Date(b.date || b.createdAt).getTime() - new Date(a.date || a.createdAt).getTime()
-    );
-
-    if (period === "Last 10 Transactions") {
-      return sorted.slice(0, 10).reverse();
-    }
-
-    if (period === "All Time") {
-      return entries;
-    }
-
-    const now = new Date();
-    let cutoff: Date | null = null;
-
-    if (period === "This Year") {
-      cutoff = new Date(now.getFullYear(), 0, 1);
-    } else {
-      const monthsMap: Record<string, number> = {
-        "Last 3 Months": 3,
-        "Last 6 Months": 6,
-        "Last 9 Months": 9,
-        "Last 12 Months": 12,
-        "Last 18 Months": 18,
-        "Last 24 Months": 24,
-      };
-      const months = monthsMap[period];
-      if (months) {
-        cutoff = new Date(now);
-        cutoff.setMonth(cutoff.getMonth() - months);
-      }
-    }
-
-    if (!cutoff) return entries;
-
-    return entries.filter((entry) => {
-      const entryDate = new Date(entry.date || entry.createdAt);
-      return !Number.isNaN(entryDate.getTime()) && entryDate >= cutoff;
-    });
+    return filterLedgerByStatementPeriod(entries, period);
   }, [schoolId, isFamilyBillingAccount, familyLedgerScope, learnerId, accountRef, accountNo, period]);
+
+  const kidesysHistoryForAccount = useMemo(() => {
+    const ref = accountRef || accountNo;
+    if (accountKidesysHistory.length > 0) return accountKidesysHistory;
+    if (!schoolId || !ref) return [];
+    return filterHistoryForAccount(readSchoolKidesysHistory(schoolId), ref);
+  }, [accountKidesysHistory, schoolId, accountRef, accountNo]);
+
+  const kidesysHistorySummary = useMemo(
+    () => getHistorySummaryForAccount(kidesysHistoryForAccount, accountRef || accountNo),
+    [kidesysHistoryForAccount, accountRef, accountNo]
+  );
+
+  const lastInvoiceDisplay = useMemo(() => {
+    const histInv = kidesysHistorySummary.lastInvoice;
+    if (histInv) {
+      const date = histInv.date ? ` on ${histInv.date}` : "";
+      return `${formatMoney(histInv.amount)}${date}`;
+    }
+    if (selected?.lastInvoiceLabel && isMigratedOpeningBalanceOverviewLabel(selected.lastInvoiceLabel)) {
+      return MIGRATED_OPENING_BALANCE_OVERVIEW;
+    }
+    if (selected?.lastInvoice === MIGRATED_OPENING_BALANCE_OVERVIEW) return MIGRATED_OPENING_BALANCE_OVERVIEW;
+    if (selected?.lastInvoice && Number(selected.lastInvoice) > 0) {
+      const date = selected?.lastInvoiceDate ? ` on ${selected.lastInvoiceDate}` : "";
+      return `${formatMoney(selected.lastInvoice)}${date}`;
+    }
+    return selected?.lastInvoice || "No invoices";
+  }, [kidesysHistorySummary, selected]);
+
+  const lastPaymentDisplay = useMemo(() => {
+    const histPay = kidesysHistorySummary.lastPayment;
+    if (histPay) {
+      const date = histPay.date ? ` on ${histPay.date}` : "";
+      return `${formatMoney(histPay.amount)}${date}`;
+    }
+    if (selected?.lastPayment && Number(selected.lastPayment) > 0) {
+      const date = selected?.lastPaymentDate ? ` on ${selected.lastPaymentDate}` : "";
+      return `${formatMoney(selected.lastPayment)}${date}`;
+    }
+    return selected?.lastPayment || "No payments";
+  }, [kidesysHistorySummary, selected]);
+
+  const filteredKidesysHistory = useMemo(
+    () => filterKidesysHistoryByStatementPeriod(kidesysHistoryForAccount, period),
+    [kidesysHistoryForAccount, period]
+  );
 
   const balance = isFamilyBillingAccount
     ? calculateBalanceFromEntries(ledger)
     : calculateAccountBalance(ledger, learnerId, accountRef || accountNo);
 
+  type TransactionDisplayRow = {
+    key: string;
+    auditNo: string | number;
+    date: string;
+    type: string;
+    learner: string;
+    reference: string;
+    description: string;
+    amountIn: number;
+    amountOut: number;
+    balance: number | null;
+    isKidesysHistory: boolean;
+    isOpeningBalance: boolean;
+    sortTime: number;
+  };
+
   const transactions = useMemo(() => {
-    const sorted = [...ledger].sort(
+    type DisplayRow = TransactionDisplayRow;
+
+    const postingRows: DisplayRow[] = [];
+    const sortedPosting = [...ledger].sort(
       (a, b) =>
         new Date(a.date || a.createdAt).getTime() - new Date(b.date || b.createdAt).getTime()
     );
     let running = 0;
-    return sorted.map((entry, index) => {
+    sortedPosting.forEach((entry, index) => {
+      if (!shouldShowOpeningBalanceMigration(period, entry) && isKidesysOpeningBalanceEntry(entry)) {
+        return;
+      }
       const amount = normaliseBillingAmount(entry.amount);
       const isDebit = entry.type === "invoice" || entry.type === "penalty";
       const signed = isDebit ? amount : -amount;
       running += signed;
-      const typeLabel =
-        entry.type === "invoice"
-          ? "Invoice"
-          : entry.type === "penalty"
-            ? "Penalty"
-            : entry.type === "credit"
-              ? "Credit"
-              : "Payment";
+      const isOpeningBalance = isKidesysOpeningBalanceEntry(entry);
+      const typeLabel = formatLedgerTypeLabel(entry);
       const learnerLabel = resolveEntryLearnerLabel(
         entry,
         learnerNameById,
         accountRef || accountNo
       );
-      return {
+      const sortTime = new Date(entry.date || entry.createdAt).getTime();
+      postingRows.push({
+        key: `posting-${entry.id}`,
         auditNo: index + 1,
         date: entry.date || "-",
         type: typeLabel,
         learner: learnerLabel,
-        reference: entry.reference || "-",
-        description: entry.description || "-",
+        reference: formatLedgerReferenceDisplay(entry),
+        description: formatLedgerDescriptionDisplay(entry),
         amountIn: isDebit ? amount : 0,
         amountOut: !isDebit ? amount : 0,
         balance: running,
+        isKidesysHistory: false,
+        isOpeningBalance,
+        sortTime: Number.isNaN(sortTime) ? 0 : sortTime,
+      });
+    });
+
+    const historyRows: DisplayRow[] = filteredKidesysHistory.map((entry) => {
+      const amount = normaliseBillingAmount(entry.amount);
+      const isDebit = entry.type === "invoice";
+      const sortTime = new Date(entry.date || "").getTime();
+      return {
+        key: `kidesys-${entry.id}`,
+        auditNo: "—",
+        date: entry.date || "-",
+        type: formatKidesysHistoryTypeLabel(entry.type),
+        learner: entry.fullName || "—",
+        reference: formatKidesysHistoryReferenceDisplay(entry),
+        description: formatKidesysHistoryDescriptionDisplay(entry),
+        amountIn: isDebit ? amount : 0,
+        amountOut: !isDebit ? amount : 0,
+        balance: null,
+        isKidesysHistory: true,
+        isOpeningBalance: false,
+        sortTime: Number.isNaN(sortTime) ? 0 : sortTime,
       };
     });
-  }, [ledger, learnerNameById, accountRef, accountNo]);
+
+    return [...postingRows, ...historyRows].sort((a, b) => {
+      if (a.sortTime !== b.sortTime) return b.sortTime - a.sortTime;
+      if (a.isKidesysHistory !== b.isKidesysHistory) return a.isKidesysHistory ? 1 : -1;
+      return String(a.key).localeCompare(String(b.key));
+    });
+  }, [ledger, filteredKidesysHistory, learnerNameById, accountRef, accountNo, period]);
+
+  const openingBalanceRows = useMemo(
+    () => transactions.filter((row) => row.isOpeningBalance),
+    [transactions]
+  );
+
+  const pageableTransactions = useMemo(
+    () => transactions.filter((row) => !row.isOpeningBalance),
+    [transactions]
+  );
+
+  const transactionsPagination = useMemo(() => {
+    const total = pageableTransactions.length;
+    const totalPages = Math.max(1, Math.ceil(total / TRANSACTIONS_PER_PAGE));
+    const currentPage = Math.min(Math.max(1, transactionsPage), totalPages);
+    const rangeStart = total === 0 ? 0 : (currentPage - 1) * TRANSACTIONS_PER_PAGE + 1;
+    const rangeEnd = total === 0 ? 0 : Math.min(currentPage * TRANSACTIONS_PER_PAGE, total);
+    const paginated = pageableTransactions.slice(
+      (currentPage - 1) * TRANSACTIONS_PER_PAGE,
+      currentPage * TRANSACTIONS_PER_PAGE
+    );
+    return { total, totalPages, currentPage, rangeStart, rangeEnd, paginated };
+  }, [pageableTransactions, transactionsPage]);
 
   const transactionColumns = isFamilyBillingAccount
     ? ["Audit No", "Date", "Type", "Learner", "Reference", "Description", "Amount In", "Amount Out", "Balance"]
@@ -528,6 +669,23 @@ export default function StatementManage({
 
   const openCreatePayment = () => {
     persistBillingAccount("selectedPaymentAccount", selected);
+    if (onOpenPaymentCreate) {
+      const account = {
+        id: String(selected?.learnerId || selected?.id || "").trim(),
+        learnerId: String(selected?.learnerId || selected?.id || "").trim(),
+        accountNo: String(selected?.accountNo || "").trim(),
+        name: String(selected?.name || selected?.firstName || "").trim(),
+        surname: String(selected?.surname || selected?.lastName || "").trim(),
+        balance: Number(selected?.balance || 0),
+        parentName: selected?.parentName,
+        lastPayment: selected?.lastPayment,
+        lastInvoice: selected?.lastInvoice,
+        status: selected?.status,
+        familyAccountId: selected?.familyAccountId,
+      };
+      onOpenPaymentCreate(account as any);
+      return;
+    }
     setActivePage("paymentCreate");
   };
 
@@ -689,9 +847,10 @@ export default function StatementManage({
     border: `1px solid ${GOLD}`,
     background: "#fff",
     color: INK,
-    borderRadius: 12,
-    padding: "10px 16px",
+    borderRadius: 8,
+    padding: "6px 12px",
     fontWeight: 800,
+    fontSize: 13,
     cursor: "pointer",
   };
 
@@ -706,17 +865,8 @@ export default function StatementManage({
     border: "1px solid #b89329",
   };
 
-  const periods = [
-    "Last 10 Transactions",
-    "This Year",
-    "Last 3 Months",
-    "Last 6 Months",
-    "Last 9 Months",
-    "Last 12 Months",
-    "Last 18 Months",
-    "Last 24 Months",
-    "All Time",
-  ];
+  const periods = [...STATEMENT_PERIOD_OPTIONS];
+  const statementPeriodForExport = normalizeStatementPeriod(period);
 
   const moreActions = [
     "Create Invoice",
@@ -750,7 +900,12 @@ export default function StatementManage({
       return;
     }
     try {
-      const opened = await openSchoolStatementPdfPrint(schoolId, anchorId, period, statementNote);
+      const opened = await openSchoolStatementPdfPrint(
+        schoolId,
+        anchorId,
+        statementPeriodForExport,
+        statementNote
+      );
       if (!opened) {
         setActionNotice("Please allow pop-ups to print the statement.");
         setModalKind("pending");
@@ -773,7 +928,13 @@ export default function StatementManage({
     }
     const filename = `${(accountRef || accountNo || "statement").replace(/[^\w.-]+/g, "_")}-statement.pdf`;
     try {
-      await downloadSchoolStatementPdf(schoolId, anchorId, filename, period, statementNote);
+      await downloadSchoolStatementPdf(
+        schoolId,
+        anchorId,
+        filename,
+        statementPeriodForExport,
+        statementNote
+      );
     } catch (e: unknown) {
       setActionNotice((e as Error).message || "Could not download statement PDF.");
     }
@@ -851,7 +1012,7 @@ export default function StatementManage({
         subject: sendSubject.trim(),
         html: emailHtml,
         learnerId: anchorId,
-        period,
+        period: statementPeriodForExport,
         statementNote,
         filename: `${(accountRef || accountNo || "statement").replace(/[^\w.-]+/g, "_")}-statement.pdf`,
       });
@@ -883,13 +1044,102 @@ export default function StatementManage({
     border: "1px solid #b89329",
   };
 
+  const pageBtnLight: React.CSSProperties = {
+    border: "1px solid #cbd5e1",
+    background: "#fff",
+    color: INK,
+    borderRadius: 7,
+    padding: "4px 10px",
+    fontWeight: 800,
+    fontSize: 12,
+    cursor: "pointer",
+  };
+
+  const pageBtnGold: React.CSSProperties = {
+    border: "1px solid #b89329",
+    background: `linear-gradient(135deg, #f7d56a, ${GOLD})`,
+    color: INK,
+    borderRadius: 7,
+    padding: "4px 10px",
+    fontWeight: 900,
+    fontSize: 12,
+    minWidth: 32,
+    cursor: "default",
+  };
+
+  const compactCell: React.CSSProperties = {
+    padding: "7px 9px",
+    borderBottom: "1px solid #f1f5f9",
+    fontSize: 12,
+  };
+
+  const compactField: React.CSSProperties = {
+    border: "1px solid #e5e7eb",
+    background: "#f8fafc",
+    padding: "6px 8px",
+    borderRadius: 6,
+    fontWeight: 700,
+    fontSize: 13,
+    minHeight: 30,
+    boxSizing: "border-box",
+  };
+
+  const renderTransactionRow = (row: TransactionDisplayRow) => (
+    <tr
+      key={row.key}
+      style={
+        row.isKidesysHistory
+          ? { background: "rgba(212,175,55,0.08)" }
+          : row.isOpeningBalance
+            ? { background: "rgba(248,250,252,0.95)" }
+            : undefined
+      }
+    >
+      <td style={compactCell}>{row.auditNo}</td>
+      <td style={compactCell}>{row.date}</td>
+      <td style={compactCell}>
+        {row.isKidesysHistory ? (
+          <span style={{ fontWeight: 800, color: "#92400e" }}>{row.type}</span>
+        ) : row.isOpeningBalance ? (
+          <span style={{ fontWeight: 800, color: INK }}>{row.type}</span>
+        ) : (
+          row.type
+        )}
+      </td>
+      {isFamilyBillingAccount ? (
+        <td style={compactCell}>{row.learner || "-"}</td>
+      ) : null}
+      <td style={compactCell}>{row.reference}</td>
+      <td style={compactCell}>{row.description}</td>
+      <td style={{ ...compactCell, textAlign: "right" }}>
+        {row.amountIn ? formatMoney(row.amountIn) : "-"}
+      </td>
+      <td style={{ ...compactCell, textAlign: "right" }}>
+        {row.amountOut ? formatMoney(row.amountOut) : "-"}
+      </td>
+      <td style={{ ...compactCell, textAlign: "right", fontWeight: 800 }}>
+        {row.balance === null ? "—" : formatMoney(row.balance)}
+      </td>
+    </tr>
+  );
+
+  const {
+    total: pageableTotal,
+    totalPages: transactionsTotalPages,
+    currentPage: transactionsCurrentPage,
+    rangeStart: transactionsRangeStart,
+    rangeEnd: transactionsRangeEnd,
+    paginated: paginatedTransactions,
+  } = transactionsPagination;
+  const totalTransactionCount = transactions.length;
+
   return (
-    <div style={{ padding: "32px 36px", background: "#f6f4ef", minHeight: "100vh" }}>
-      <h1 style={{ margin: 0, fontSize: 34, fontWeight: 900, color: INK }}>
+    <div style={{ padding: "14px 18px", background: "#f6f4ef", minHeight: "100vh" }}>
+      <h1 style={{ margin: 0, fontSize: 26, fontWeight: 900, color: INK, lineHeight: 1.2 }}>
         Statement
-        <span style={{ color: "#6b7280", fontSize: 22, fontWeight: 500 }}> » Manage a statement of account</span>
+        <span style={{ color: "#6b7280", fontSize: 16, fontWeight: 500 }}> » Manage a statement of account</span>
       </h1>
-      <div style={{ display: "flex", gap: 10, margin: "24px 0", flexWrap: "wrap", alignItems: "center" }}>
+      <div style={{ display: "flex", gap: 8, margin: "10px 0", flexWrap: "wrap", alignItems: "center" }}>
         <button type="button" style={buttonStyle} onClick={() => setActivePage("statements")}>
           ↩ Back
         </button>
@@ -930,7 +1180,7 @@ export default function StatementManage({
           ) : null}
         </span>
         <select
-          style={{ ...buttonStyle, minWidth: 230, appearance: "auto" }}
+          style={{ ...buttonStyle, minWidth: 200, minHeight: 32, appearance: "auto" }}
           defaultValue=""
           onChange={(e) => {
             const value = e.target.value;
@@ -947,7 +1197,11 @@ export default function StatementManage({
             </option>
           ))}
         </select>
-        <select style={{ ...buttonStyle, minWidth: 200 }} value={period} onChange={(e) => setPeriod(e.target.value)}>
+        <select
+          style={{ ...buttonStyle, minWidth: 180, minHeight: 32 }}
+          value={period}
+          onChange={(e) => setPeriod(e.target.value)}
+        >
           {periods.map((p) => (
             <option key={p} value={p}>
               {p}
@@ -956,53 +1210,38 @@ export default function StatementManage({
         </select>
       </div>
       {actionNotice ? (
-        <div style={{ margin: "0 0 16px", color: "#b45309", fontWeight: 700 }}>{actionNotice}</div>
+        <div style={{ margin: "0 0 8px", color: "#b45309", fontWeight: 700, fontSize: 13 }}>{actionNotice}</div>
       ) : null}
-      <div style={{ display: "grid", gridTemplateColumns: "1fr 360px", gap: 24, alignItems: "start" }}>
+      <div style={{ display: "grid", gridTemplateColumns: "1fr 300px", gap: 12, alignItems: "start" }}>
         <section style={{ background: "#fff", border: `1px solid ${GOLD}`, borderRadius: 8, overflow: "hidden" }}>
-          <div style={{ background: INK, color: GOLD, padding: "14px 18px", fontWeight: 900 }}>Account</div>
-          <div style={{ padding: 22, display: "grid", gap: 12 }}>
+          <div style={{ background: INK, color: GOLD, padding: "8px 12px", fontWeight: 900, fontSize: 14 }}>
+            Account
+          </div>
+          <div style={{ padding: 12, display: "grid", gap: 8 }}>
             {[
               ["Account No", accountNo || "-"],
               ["Balance", formatMoney(balance)],
-              ["Last Invoice", selected?.lastInvoice || "No invoices"],
-              ["Last Payment", selected?.lastPayment || "No payments"],
+              ["Last Invoice", lastInvoiceDisplay],
+              ["Last Payment", lastPaymentDisplay],
             ].map(([label, value]) => (
               <div
                 key={label}
-                style={{ display: "grid", gridTemplateColumns: "150px 1fr", gap: 12, alignItems: "center" }}
+                style={{ display: "grid", gridTemplateColumns: "120px 1fr", gap: 8, alignItems: "center" }}
               >
-                <div style={{ textAlign: "right", fontWeight: 800, color: "#64748b" }}>{label}</div>
-                <div
-                  style={{
-                    border: "1px solid #e5e7eb",
-                    background: "#f8fafc",
-                    padding: "10px 12px",
-                    borderRadius: 8,
-                    fontWeight: 700,
-                  }}
-                >
-                  {value}
+                <div style={{ textAlign: "right", fontWeight: 800, color: "#64748b", fontSize: 12 }}>
+                  {label}
                 </div>
+                <div style={compactField}>{value}</div>
               </div>
             ))}
             {accountChildren.length > 0 ? (
-              <div style={{ display: "grid", gridTemplateColumns: "150px 1fr", gap: 12, alignItems: "start" }}>
-                <div style={{ textAlign: "right", fontWeight: 800, color: "#64748b" }}>
+              <div style={{ display: "grid", gridTemplateColumns: "120px 1fr", gap: 8, alignItems: "start" }}>
+                <div style={{ textAlign: "right", fontWeight: 800, color: "#64748b", fontSize: 12 }}>
                   {accountChildren.length > 1 ? "Children" : "Learner"}
                 </div>
-                <div style={{ display: "grid", gap: 8 }}>
+                <div style={{ display: "grid", gap: 6 }}>
                   {accountChildren.map((child) => (
-                    <div
-                      key={child.id}
-                      style={{
-                        border: "1px solid #e5e7eb",
-                        background: "#f8fafc",
-                        padding: "10px 12px",
-                        borderRadius: 8,
-                        fontWeight: 700,
-                      }}
-                    >
+                    <div key={child.id} style={compactField}>
                       {child.firstName} {child.lastName}
                       <span style={{ color: "#64748b", fontWeight: 600, fontSize: 13 }}>
                         {" "}
@@ -1014,16 +1253,16 @@ export default function StatementManage({
               </div>
             ) : null}
             {isFamilyBillingAccount ? (
-              <div style={{ fontSize: 13, color: "#64748b", fontWeight: 700, textAlign: "right" }}>
+              <div style={{ fontSize: 12, color: "#64748b", fontWeight: 700, textAlign: "right" }}>
                 Family account · {accountChildren.length} learner{accountChildren.length === 1 ? "" : "s"} on{" "}
                 {accountRef || accountNo || "this account"}
               </div>
             ) : null}
           </div>
         </section>
-        <section style={{ background: "#fff", border: `1px solid ${GOLD}`, borderRadius: 8, padding: 20 }}>
-          <div style={{ fontWeight: 900, fontSize: 18, marginBottom: 10 }}>Summary</div>
-          <div style={{ fontWeight: 700, lineHeight: 1.8 }}>
+        <section style={{ background: "#fff", border: `1px solid ${GOLD}`, borderRadius: 8, padding: 12 }}>
+          <div style={{ fontWeight: 900, fontSize: 15, marginBottom: 6 }}>Summary</div>
+          <div style={{ fontWeight: 700, lineHeight: 1.55, fontSize: 13 }}>
             {accountChildren.length > 1 ? (
               <div style={{ marginBottom: 8 }}>
                 <div style={{ fontSize: 12, fontWeight: 900, color: "#64748b", letterSpacing: 0.4, marginBottom: 6 }}>
@@ -1042,7 +1281,7 @@ export default function StatementManage({
                 {selected?.name} {selected?.surname}
               </div>
             )}
-            <div style={{ fontSize: 24, fontWeight: 900, color: balance > 0 ? "#b91c1c" : "#166534" }}>
+            <div style={{ fontSize: 20, fontWeight: 900, color: balance > 0 ? "#b91c1c" : "#166534" }}>
               {formatMoney(balance)}
             </div>
             <div style={{ color: "#64748b" }}>{selected?.status || "Up To Date"}</div>
@@ -1057,8 +1296,8 @@ export default function StatementManage({
           </div>
         </section>
       </div>
-      <section style={{ marginTop: 24, background: "#fff", border: `1px solid ${GOLD}`, borderRadius: 8, overflow: "hidden" }}>
-        <div style={{ padding: "14px 18px", background: INK, color: GOLD, fontWeight: 900, fontSize: 18 }}>
+      <section style={{ marginTop: 12, background: "#fff", border: `1px solid ${GOLD}`, borderRadius: 8, overflow: "hidden" }}>
+        <div style={{ padding: "8px 12px", background: INK, color: GOLD, fontWeight: 900, fontSize: 15 }}>
           Transactions
         </div>
         <div style={{ overflowX: "auto" }}>
@@ -1069,10 +1308,10 @@ export default function StatementManage({
                     <th
                       key={h}
                       style={{
-                        padding: 12,
+                        padding: "7px 9px",
                         borderBottom: "1px solid #e5e7eb",
                         textAlign: h.includes("Amount") || h === "Balance" ? "right" : "left",
-                        fontSize: 12,
+                        fontSize: 11,
                         fontWeight: 900,
                         color: "#64748b",
                       }}
@@ -1083,38 +1322,83 @@ export default function StatementManage({
               </tr>
             </thead>
             <tbody>
-              {transactions.length === 0 ? (
+              {totalTransactionCount === 0 ? (
                 <tr>
-                  <td colSpan={transactionColumns.length} style={{ padding: 28, textAlign: "center", color: "#64748b", fontWeight: 700 }}>
+                  <td
+                    colSpan={transactionColumns.length}
+                    style={{ padding: 16, textAlign: "center", color: "#64748b", fontWeight: 700, fontSize: 13 }}
+                  >
                     No transactions recorded for this account yet.
                   </td>
                 </tr>
               ) : (
-                transactions.map((row) => (
-                  <tr key={`${row.auditNo}-${row.reference}-${row.learner || ""}`}>
-                    <td style={{ padding: 12, borderBottom: "1px solid #f1f5f9" }}>{row.auditNo}</td>
-                    <td style={{ padding: 12, borderBottom: "1px solid #f1f5f9" }}>{row.date}</td>
-                    <td style={{ padding: 12, borderBottom: "1px solid #f1f5f9" }}>{row.type}</td>
-                    {isFamilyBillingAccount ? (
-                      <td style={{ padding: 12, borderBottom: "1px solid #f1f5f9" }}>{row.learner || "-"}</td>
-                    ) : null}
-                    <td style={{ padding: 12, borderBottom: "1px solid #f1f5f9" }}>{row.reference}</td>
-                    <td style={{ padding: 12, borderBottom: "1px solid #f1f5f9" }}>{row.description}</td>
-                    <td style={{ padding: 12, borderBottom: "1px solid #f1f5f9", textAlign: "right" }}>
-                      {row.amountIn ? formatMoney(row.amountIn) : "-"}
-                    </td>
-                    <td style={{ padding: 12, borderBottom: "1px solid #f1f5f9", textAlign: "right" }}>
-                      {row.amountOut ? formatMoney(row.amountOut) : "-"}
-                    </td>
-                    <td style={{ padding: 12, borderBottom: "1px solid #f1f5f9", textAlign: "right", fontWeight: 800 }}>
-                      {formatMoney(row.balance)}
-                    </td>
-                  </tr>
-                ))
+                <>
+                  {openingBalanceRows.map((row) => renderTransactionRow(row))}
+                  {paginatedTransactions.map((row) => renderTransactionRow(row))}
+                </>
               )}
             </tbody>
           </table>
         </div>
+        {totalTransactionCount > 0 ? (
+          <div
+            style={{
+              padding: "8px 12px",
+              display: "flex",
+              justifyContent: "space-between",
+              alignItems: "center",
+              borderTop: "1px solid #e5e7eb",
+              flexWrap: "wrap",
+              gap: 8,
+            }}
+          >
+            <span style={{ color: "#64748b", fontSize: 13, fontWeight: 600 }}>
+              Showing{" "}
+              {pageableTotal === 0
+                ? 0
+                : transactionsRangeStart}
+              {" - "}
+              {transactionsRangeEnd}
+              {" of "}
+              {totalTransactionCount}
+              {" transaction"}
+              {totalTransactionCount === 1 ? "" : "s"}
+            </span>
+            {pageableTotal > TRANSACTIONS_PER_PAGE ? (
+              <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+                <button
+                  type="button"
+                  style={{
+                    ...pageBtnLight,
+                    opacity: transactionsCurrentPage <= 1 ? 0.5 : 1,
+                    cursor: transactionsCurrentPage <= 1 ? "not-allowed" : "pointer",
+                  }}
+                  disabled={transactionsCurrentPage <= 1}
+                  onClick={() => setTransactionsPage((p) => Math.max(1, p - 1))}
+                >
+                  Previous
+                </button>
+                <button type="button" style={pageBtnGold} aria-current="page">
+                  {transactionsCurrentPage}
+                </button>
+                <button
+                  type="button"
+                  style={{
+                    ...pageBtnLight,
+                    opacity: transactionsCurrentPage >= transactionsTotalPages ? 0.5 : 1,
+                    cursor: transactionsCurrentPage >= transactionsTotalPages ? "not-allowed" : "pointer",
+                  }}
+                  disabled={transactionsCurrentPage >= transactionsTotalPages}
+                  onClick={() =>
+                    setTransactionsPage((p) => Math.min(transactionsTotalPages, p + 1))
+                  }
+                >
+                  Next
+                </button>
+              </div>
+            ) : null}
+          </div>
+        ) : null}
       </section>
 
       {modalKind === "journal" ? (

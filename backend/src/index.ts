@@ -40,6 +40,9 @@ import teacherInboxRoutes from "./routes/teacherInbox";
 import teacherAppRoutes from "./routes/teacherApp";
 import migrationRoutes, { migrationErrorHandler } from "./routes/migration";
 import daSilvaMigrationRoutes from "./routes/daSilvaMigration";
+import subscriptionsRoutes from "./routes/subscriptions";
+import payfastRoutes from "./routes/payfast";
+import creditsRoutes from "./routes/credits";
 import { requireSuperAdmin } from "./middleware/requireSuperAdmin";
 import { prisma } from "./prisma";
 import { bootstrapDevTestSchoolEmail } from "./dev/devTestSchoolEmail";
@@ -289,8 +292,9 @@ app.options(/.*/, cors());
   
 
 
-// ===== OTP AUTH (DEV MODE) =====
-app.use ("/auth", authRoutes);
+// ===== AUTH =====
+app.use("/auth", authRoutes);
+app.use("/api/auth", authRoutes);
 app.use("/learner", learnerRoutes);
 app.use("/api/schools", schoolsRoutes);
 app.use("/api/emails", emailRoutes);
@@ -312,23 +316,16 @@ app.post("/api/upload-logo", upload.single("logo"), (req, res) => {
 
 
 
+  const relativeUrl = `/uploads/school-logos/${req.file.filename}`;
   const base =
     process.env.PUBLIC_API_URL?.replace(/\/$/, "") ||
     `${req.protocol}://${req.get("host")}`;
-
-  const url = `${base}/uploads/school-logos/${req.file.filename}`;
-
-
+  const absoluteUrl = `${base}${relativeUrl}`;
 
   res.json({
-
-
-
     success: true,
-
-
-
-    url,
+    url: relativeUrl,
+    absoluteUrl,
 
 
 
@@ -362,6 +359,9 @@ app.use("/api/teacher-inbox", teacherInboxRoutes);
 app.use("/api/teacher-app", teacherAppRoutes);
 app.use("/api/super-admin/migration", requireSuperAdmin, migrationRoutes, migrationErrorHandler);
 app.use("/api/super-admin/migration/da-silva", requireSuperAdmin, daSilvaMigrationRoutes);
+app.use("/api/subscriptions", subscriptionsRoutes);
+app.use("/api/credits", creditsRoutes);
+app.use("/api/payfast", payfastRoutes);
 app.get("/api/parents", async (_req, res) => {
 
 

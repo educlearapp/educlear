@@ -1,8 +1,13 @@
 import { Router } from "express";
 
 import { readSchoolLedger } from "../utils/billingLedgerStore";
+import {
+  filterHistoryForAccount,
+  readSchoolKidesysHistory,
+} from "../utils/kidesysTransactionHistoryStore";
 import { buildAccountsFromLearners } from "../services/statementAccounts";
 import { buildAndGenerateStatementPdf } from "../services/statementPdfData";
+import { normalizeStatementPeriod } from "../utils/statementPeriod";
 
 const router = Router();
 
@@ -18,7 +23,9 @@ router.get("/pdf", async (req, res) => {
   try {
     const schoolId = typeof req.query?.schoolId === "string" ? String(req.query.schoolId).trim() : "";
     const learnerId = typeof req.query?.learnerId === "string" ? String(req.query.learnerId).trim() : "";
-    const period = typeof req.query?.period === "string" ? String(req.query.period).trim() : "All Time";
+    const period = normalizeStatementPeriod(
+      typeof req.query?.period === "string" ? String(req.query.period).trim() : undefined
+    );
     const statementNote =
       typeof req.query?.statementNote === "string" ? String(req.query.statementNote) : undefined;
 
@@ -31,7 +38,7 @@ router.get("/pdf", async (req, res) => {
     const { buffer, filename } = await buildAndGenerateStatementPdf({
       schoolId,
       learnerId,
-      period: period || "All Time",
+      period,
       statementNote,
     });
 
@@ -58,15 +65,49 @@ router.get("/", async (req, res) => {
   }
 });
 
-// GET /api/statements/accounts?schoolId=...
+// GET /api/statements/kidesys-history?schoolId=&accountNo=
+router.get("/kidesys-history", async (req, res) => {
+  try {
+    const schoolId = typeof req.query?.schoolId === "string" ? String(req.query.schoolId) : "";
+    const accountNo =
+      typeof req.query?.accountNo === "string" ? String(req.query.accountNo).trim() : "";
+    if (!schoolId) return res.status(400).json({ success: false, error: "Missing schoolId" });
+
+    const all = readSchoolKidesysHistory(schoolId);
+    const entries = accountNo ? filterHistoryForAccount(all, accountNo) : all;
+    return res.json({ success: true, entries, count: entries.length });
+  } catch (error) {
+    console.error("[statements] GET /kidesys-history failed:", error);
+    return res.status(500).json({ success: false, error: "Server error" });
+  }
+});
+
+// GET /api/statements/accounts?schoolId=&accountNo=&includeKidesysHistory=
 router.get("/accounts", async (req, res) => {
   try {
     const schoolId = typeof req.query?.schoolId === "string" ? String(req.query.schoolId) : "";
+    const accountNo =
+      typeof req.query?.accountNo === "string" ? String(req.query.accountNo).trim() : "";
+    const includeKidesysHistory =
+      req.query?.includeKidesysHistory === "true" || req.query?.includeKidesysHistory === "1";
     if (!schoolId) return res.status(400).json({ success: false, error: "Missing schoolId" });
 
     const ledger = readSchoolLedger(schoolId);
     const accounts = await buildAccountsFromLearners(schoolId, ledger);
-    return res.json({ success: true, accounts });
+
+    if (!includeKidesysHistory) {
+      return res.json({ success: true, accounts });
+    }
+
+    const all = readSchoolKidesysHistory(schoolId);
+    const kidesysHistoryEntries = accountNo ? filterHistoryForAccount(all, accountNo) : all;
+    return res.json({
+      success: true,
+      accounts,
+      entries: kidesysHistoryEntries,
+      kidesysHistoryEntries,
+      count: kidesysHistoryEntries.length,
+    });
   } catch (error) {
     console.error("[statements] GET /accounts failed:", error);
     return res.status(500).json({ success: false, error: "Server error" });

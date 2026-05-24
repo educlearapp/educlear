@@ -532,3 +532,6 @@ ALTER TABLE "ParentTeacherThread" ADD CONSTRAINT "ParentTeacherThread_schoolId_f
 
 -- AddForeignKey
 ALTER TABLE "SchoolNotice" ADD CONSTRAINT "SchoolNotice_schoolId_fkey" FOREIGN KEY ("schoolId") REFERENCES "School"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- Deferred from 20260520083305_communication_engine (ParentNotification did not exist yet)
+ALTER TABLE "CommunicationMessage" ADD CONSTRAINT "CommunicationMessage_parentNotificationId_fkey" FOREIGN KEY ("parentNotificationId") REFERENCES "ParentNotification"("id") ON DELETE SET NULL ON UPDATE CASCADE;

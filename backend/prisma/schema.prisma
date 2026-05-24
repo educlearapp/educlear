@@ -53,8 +53,14 @@ model School {
   /// Mobile / cell contact number (separate from landline `phone`).
   cellNo String?
 
-  /// Physical / postal address for correspondence and payslips.
+  /// Physical address lines for correspondence and payslips (newline-separated).
   address String?
+
+  /// Postal address when different from physical (newline-separated lines).
+  postalAddress String?
+
+  /// Banking details for invoices/statements (newline-separated lines).
+  bankingDetails String?
 
   /// Optional logo image URL for payslips and branding (HTTPS recommended).
   logoUrl String?
@@ -126,6 +132,224 @@ learnerReports LearnerReport[]
   pushSubscriptions PushSubscription[]
   schoolCommunicationProfile SchoolCommunicationProfile?
   schoolEmailSettings SchoolEmailSettings?
+  schoolSubscription SchoolSubscription?
+  subscriptionInvoices SubscriptionInvoice[]
+  subscriptionPaymentLogs SubscriptionPaymentLog[]
+  creditPurchaseInvoices CreditPurchaseInvoice[]
+  creditPurchasePaymentLogs CreditPurchasePaymentLog[]
+}
+
+enum EduClearPackageCode {
+  STARTER
+  UNLIMITED
+}
+
+enum SchoolSubscriptionStatus {
+  PENDING_PAYMENT
+  ACTIVE
+  PAST_DUE
+  CANCELLED
+  SUSPENDED
+}
+
+enum SubscriptionInvoiceStatus {
+  PENDING
+  PAID
+  FAILED
+  CANCELLED
+}
+
+enum SubscriptionPaymentStatus {
+  PENDING
+  PAID
+  FAILED
+  CANCELLED
+}
+
+enum PaymentGatewayProvider {
+  PAYFAST
+  OZOW
+}
+
+model EduClearPackage {
+  id                  String              @id @default(cuid())
+  code                EduClearPackageCode @unique
+  name                String
+  monthlyPriceCents   Int
+  learnerLimit        Int?
+  payrollStaffLimit   Int?
+  mostPopular         Boolean             @default(false)
+  description         String?
+  isActive            Boolean             @default(true)
+  createdAt           DateTime            @default(now())
+  updatedAt           DateTime            @updatedAt
+
+  subscriptions SchoolSubscription[]
+}
+
+model SchoolSubscription {
+  id                 String                   @id @default(cuid())
+  schoolId           String                   @unique
+  packageId          String
+  packageCode        EduClearPackageCode
+  status             SchoolSubscriptionStatus @default(PENDING_PAYMENT)
+  currentPeriodStart DateTime?
+  currentPeriodEnd   DateTime?
+  activatedAt        DateTime?
+  cancelledAt        DateTime?
+  createdAt          DateTime                 @default(now())
+  updatedAt          DateTime                 @updatedAt
+
+  school   School          @relation(fields: [schoolId], references: [id], onDelete: Cascade)
+  package  EduClearPackage @relation(fields: [packageId], references: [id], onDelete: Restrict)
+  invoices SubscriptionInvoice[]
+
+  @@index([status])
+  @@index([packageCode])
+}
+
+model SubscriptionInvoice {
+  id             String                    @id @default(cuid())
+  schoolId       String
+  subscriptionId String
+  invoiceNumber  String
+  amountCents    Int
+  currency       String                    @default("ZAR")
+  status         SubscriptionInvoiceStatus @default(PENDING)
+  periodStart    DateTime?
+  periodEnd      DateTime?
+  dueAt          DateTime
+  paidAt         DateTime?
+  createdAt      DateTime                  @default(now())
+  updatedAt      DateTime                  @updatedAt
+
+  school       School               @relation(fields: [schoolId], references: [id], onDelete: Cascade)
+  subscription SchoolSubscription   @relation(fields: [subscriptionId], references: [id], onDelete: Cascade)
+  payments     SubscriptionPaymentLog[]
+
+  @@unique([invoiceNumber])
+  @@index([schoolId, status])
+  @@index([subscriptionId])
+}
+
+model SubscriptionPaymentLog {
+  id                String                    @id @default(cuid())
+  schoolId          String
+  invoiceId         String
+  gateway           PaymentGatewayProvider    @default(PAYFAST)
+  status            SubscriptionPaymentStatus @default(PENDING)
+  merchantPaymentId String
+  gatewayPaymentId  String?
+  amountCents       Int
+  checkoutUrl       String?
+  returnUrl         String?
+  cancelUrl         String?
+  notifyUrl         String?
+  payerEmail        String?
+  rawRequest        Json?
+  rawNotify         Json?
+  failureReason     String?
+  paidAt            DateTime?
+  createdAt         DateTime                  @default(now())
+  updatedAt         DateTime                  @updatedAt
+
+  school  School              @relation(fields: [schoolId], references: [id], onDelete: Cascade)
+  invoice SubscriptionInvoice @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
+
+  @@index([schoolId, createdAt])
+  @@index([invoiceId])
+  @@index([merchantPaymentId])
+  @@index([status])
+}
+
+enum EduClearCreditBundleCode {
+  FOUNDATION
+  GROWTH
+  PROFESSIONAL
+  ELITE
+}
+
+enum CreditPurchaseInvoiceStatus {
+  PENDING
+  PAID
+  FAILED
+  CANCELLED
+}
+
+enum CreditPurchasePaymentStatus {
+  PENDING
+  PAID
+  FAILED
+  CANCELLED
+}
+
+model EduClearCreditBundle {
+  id          String                   @id @default(cuid())
+  code        EduClearCreditBundleCode @unique
+  name        String
+  smsCredits  Int
+  priceCents  Int
+  mostPopular Boolean                  @default(false)
+  description String?
+  isActive    Boolean                  @default(true)
+  createdAt   DateTime                 @default(now())
+  updatedAt   DateTime                 @updatedAt
+
+  invoices CreditPurchaseInvoice[]
+}
+
+model CreditPurchaseInvoice {
+  id               String                      @id @default(cuid())
+  schoolId         String
+  bundleId         String
+  bundleCode       EduClearCreditBundleCode
+  invoiceNumber    String
+  amountCents      Int
+  smsCredits       Int
+  currency         String                      @default("ZAR")
+  status           CreditPurchaseInvoiceStatus @default(PENDING)
+  creditsGrantedAt DateTime?
+  paidAt           DateTime?
+  createdAt        DateTime                    @default(now())
+  updatedAt        DateTime                    @updatedAt
+
+  school   School               @relation(fields: [schoolId], references: [id], onDelete: Cascade)
+  bundle   EduClearCreditBundle @relation(fields: [bundleId], references: [id], onDelete: Restrict)
+  payments CreditPurchasePaymentLog[]
+
+  @@unique([invoiceNumber])
+  @@index([schoolId, status])
+  @@index([bundleCode])
+}
+
+model CreditPurchasePaymentLog {
+  id                String                      @id @default(cuid())
+  schoolId          String
+  invoiceId         String
+  gateway           PaymentGatewayProvider      @default(PAYFAST)
+  status            CreditPurchasePaymentStatus @default(PENDING)
+  merchantPaymentId String
+  gatewayPaymentId  String?
+  amountCents       Int
+  checkoutUrl       String?
+  returnUrl         String?
+  cancelUrl         String?
+  notifyUrl         String?
+  payerEmail        String?
+  rawRequest        Json?
+  rawNotify         Json?
+  failureReason     String?
+  paidAt            DateTime?
+  createdAt         DateTime                    @default(now())
+  updatedAt         DateTime                    @updatedAt
+
+  school  School                @relation(fields: [schoolId], references: [id], onDelete: Cascade)
+  invoice CreditPurchaseInvoice @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
+
+  @@index([schoolId, createdAt])
+  @@index([invoiceId])
+  @@index([merchantPaymentId])
+  @@index([status])
 }
 
 enum BankTransactionMatchStatus {

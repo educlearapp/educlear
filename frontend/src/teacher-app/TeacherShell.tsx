@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { NavLink, Navigate, Outlet, useLocation, useNavigate } from "react-router-dom";
-import { resolveSchoolLogoUrl } from "../billing/statementDocument";
+import { resolveSchoolLogoUrl } from "../utils/schoolLogo";
 import { staffApiFetch } from "../staffApi";
 
 const SIDEBAR_LINKS = [

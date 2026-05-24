@@ -340,10 +340,10 @@ export default function RegisterSchool() {
 
       setStatus({
         type: "success",
-        message: "Registration successful. Opening dashboard...",
+        message: "Registration successful. Choose your subscription package...",
       });
 
-      navigate("/dashboard");
+      navigate("/subscription/packages");
 
 
 
