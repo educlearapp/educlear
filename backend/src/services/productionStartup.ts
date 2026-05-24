@@ -1,15 +1,18 @@
 import {
+  DA_SILVA_ACADEMY_SCHOOL_ID,
   ensureDaSilvaAcademySubscription,
 } from "./activateDaSilvaSubscription";
 import { ensureDaSilvaAcademyProduction } from "./ensureDaSilvaAcademyProduction";
 import { ensureEduClearPackages } from "./ensureEduClearPackages";
 import { runPrismaMigrateDeployWithRecovery } from "./prismaMigrationRecovery";
+import { prisma } from "../prisma";
 import { isProductionRuntime } from "./runtime";
 
 /**
  * Production boot tasks before HTTP listen: migrations, package seeds, Da Silva ensure + activation.
  */
 export async function runProductionStartup(): Promise<void> {
+  console.log("[startup] Running migration recovery");
   await runPrismaMigrateDeployWithRecovery();
 
   try {
@@ -19,20 +22,35 @@ export async function runProductionStartup(): Promise<void> {
     console.error("[startup] ensureEduClearPackages failed:", error);
   }
 
-  if (isProductionRuntime()) {
-    try {
-      await ensureDaSilvaAcademyProduction();
-    } catch (error) {
-      console.error("[startup] Da Silva school ensure/import failed:", error);
-    }
+  if (!isProductionRuntime()) {
+    return;
+  }
 
-    try {
-      await ensureDaSilvaAcademySubscription();
-      console.log(
-        "[startup] Da Silva subscription ACTIVE (UNLIMITED), dashboardUnlocked=true"
-      );
-    } catch (error) {
-      console.error("[startup] Da Silva subscription activation failed:", error);
-    }
+  console.log("[startup] Da Silva school ensure/import starting");
+  try {
+    await ensureDaSilvaAcademyProduction();
+  } catch (error) {
+    console.error("[startup] Da Silva school ensure/import failed:", error);
+  }
+
+  const school = await prisma.school.findUnique({
+    where: { id: DA_SILVA_ACADEMY_SCHOOL_ID },
+    select: { id: true },
+  });
+  if (!school) {
+    console.error(
+      `[startup] Da Silva subscription activation skipped — school not found: ${DA_SILVA_ACADEMY_SCHOOL_ID}`
+    );
+    return;
+  }
+
+  console.log("[startup] Da Silva school ensured/imported");
+
+  console.log("[startup] Da Silva subscription activation starting");
+  try {
+    await ensureDaSilvaAcademySubscription();
+    console.log("[startup] Da Silva subscription ACTIVE");
+  } catch (error) {
+    console.error("[startup] Da Silva subscription activation failed:", error);
   }
 }
