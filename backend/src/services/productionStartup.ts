@@ -1,6 +1,6 @@
 import {
-  DA_SILVA_ACADEMY_SCHOOL_ID,
   ensureDaSilvaAcademySubscription,
+  getDaSilvaResolvedSchoolId,
 } from "./activateDaSilvaSubscription";
 import { ensureDaSilvaAcademyProduction } from "./ensureDaSilvaAcademyProduction";
 import { ensureEduClearPackages } from "./ensureEduClearPackages";
@@ -33,13 +33,14 @@ export async function runProductionStartup(): Promise<void> {
     console.error("[startup] Da Silva school ensure/import failed:", error);
   }
 
+  const resolvedSchoolId = getDaSilvaResolvedSchoolId();
   const school = await prisma.school.findUnique({
-    where: { id: DA_SILVA_ACADEMY_SCHOOL_ID },
+    where: { id: resolvedSchoolId },
     select: { id: true },
   });
   if (!school) {
     console.error(
-      `[startup] Da Silva subscription activation skipped — school not found: ${DA_SILVA_ACADEMY_SCHOOL_ID}`
+      `[startup] Da Silva subscription activation skipped — school not found: ${resolvedSchoolId}`
     );
     return;
   }

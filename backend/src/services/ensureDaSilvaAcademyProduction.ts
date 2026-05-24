@@ -4,6 +4,10 @@ import path from "path";
 import type { DaSilvaImportManifest } from "./daSilvaMigration/daSilvaMigrationService";
 import {
   DA_SILVA_ACADEMY_SCHOOL_ID,
+  DA_SILVA_OWNER_EMAIL,
+  DA_SILVA_SCHOOL_NAME,
+  getDaSilvaResolvedSchoolId,
+  setDaSilvaResolvedSchoolId,
 } from "./activateDaSilvaSubscription";
 import { DA_SILVA_FINAL_IMPORT_EXPECTED } from "./daSilvaMigration/daSilvaFinalImportGate";
 import { prisma } from "../prisma";
@@ -19,8 +23,6 @@ import {
 } from "../utils/userAccessStore";
 import { isProductionRuntime } from "./runtime";
 
-const DA_SILVA_SCHOOL_NAME = DA_SILVA_FINAL_IMPORT_EXPECTED.schoolName;
-const DA_SILVA_OWNER_EMAIL = "dasilvaacademy@gmail.com";
 const DA_SILVA_OWNER_USER_ID = "cmpimyjkj00013lhz6kkxr9xu";
 const DA_SILVA_LOGO_URL = "/uploads/school-logos/da-silva-academy-logo.png";
 const DA_SILVA_PROJECT_ID = "dasilva-mpin5qzg-xn4cxh";
@@ -96,7 +98,44 @@ function sumBillingPlan(items: { amount: number }[]): number {
   return items.reduce((sum, item) => sum + Number(item.amount || 0), 0);
 }
 
-async function ensureSchoolRecord(): Promise<void> {
+/** Canonical JSON/manifest key; production DB row may use a different id after registration. */
+const DA_SILVA_DATA_SCHOOL_ID = DA_SILVA_ACADEMY_SCHOOL_ID;
+
+type DaSilvaSchoolLookup =
+  | { id: string; foundBy: "id" }
+  | { id: string; foundBy: "email" }
+  | { id: string; foundBy: "name" }
+  | null;
+
+async function findExistingDaSilvaSchool(): Promise<DaSilvaSchoolLookup> {
+  const byId = await prisma.school.findUnique({
+    where: { id: DA_SILVA_ACADEMY_SCHOOL_ID },
+    select: { id: true },
+  });
+  if (byId) {
+    return { id: byId.id, foundBy: "id" };
+  }
+
+  const byEmail = await prisma.school.findFirst({
+    where: { email: DA_SILVA_OWNER_EMAIL },
+    select: { id: true },
+  });
+  if (byEmail) {
+    return { id: byEmail.id, foundBy: "email" };
+  }
+
+  const byName = await prisma.school.findFirst({
+    where: { name: DA_SILVA_SCHOOL_NAME },
+    select: { id: true },
+  });
+  if (byName) {
+    return { id: byName.id, foundBy: "name" };
+  }
+
+  return null;
+}
+
+async function ensureSchoolRecord(): Promise<string> {
   const logoPath = path.join(
     process.cwd(),
     "uploads",
@@ -105,24 +144,43 @@ async function ensureSchoolRecord(): Promise<void> {
   );
   const logoExists = fs.existsSync(logoPath);
 
-  await prisma.school.upsert({
-    where: { id: DA_SILVA_ACADEMY_SCHOOL_ID },
-    create: {
+  const schoolUpdate = {
+    name: DA_SILVA_SCHOOL_NAME,
+    email: DA_SILVA_OWNER_EMAIL,
+    ...(logoExists ? { logoUrl: DA_SILVA_LOGO_URL } : {}),
+  };
+
+  const existing = await findExistingDaSilvaSchool();
+
+  if (existing?.foundBy === "email") {
+    console.log("[startup] Da Silva existing school found by email");
+  } else if (existing?.foundBy === "name") {
+    console.log("[startup] Da Silva existing school found by name");
+  }
+
+  if (existing) {
+    await prisma.school.update({
+      where: { id: existing.id },
+      data: schoolUpdate,
+    });
+    setDaSilvaResolvedSchoolId(existing.id);
+    return existing.id;
+  }
+
+  await prisma.school.create({
+    data: {
       id: DA_SILVA_ACADEMY_SCHOOL_ID,
       name: DA_SILVA_SCHOOL_NAME,
       email: DA_SILVA_OWNER_EMAIL,
       logoUrl: logoExists ? DA_SILVA_LOGO_URL : null,
     },
-    update: {
-      name: DA_SILVA_SCHOOL_NAME,
-      email: DA_SILVA_OWNER_EMAIL,
-      ...(logoExists ? { logoUrl: DA_SILVA_LOGO_URL } : {}),
-    },
   });
+  setDaSilvaResolvedSchoolId(DA_SILVA_ACADEMY_SCHOOL_ID);
+  return DA_SILVA_ACADEMY_SCHOOL_ID;
 }
 
 async function ensureOwnerLink(): Promise<void> {
-  const schoolId = DA_SILVA_ACADEMY_SCHOOL_ID;
+  const schoolId = getDaSilvaResolvedSchoolId();
   let user =
     (await prisma.user.findUnique({
       where: { id: DA_SILVA_OWNER_USER_ID },
@@ -174,7 +232,7 @@ async function ensureOwnerLink(): Promise<void> {
 }
 
 function verifyJsonStores(): void {
-  const schoolId = DA_SILVA_ACADEMY_SCHOOL_ID;
+  const schoolId = DA_SILVA_DATA_SCHOOL_ID;
   const plans = readSchoolBillingPlans(schoolId);
   const planLearners = Object.keys(plans).length;
   const ledger = readSchoolLedger(schoolId);
@@ -185,11 +243,11 @@ function verifyJsonStores(): void {
 }
 
 async function importFromManifest(manifest: DaSilvaImportManifest): Promise<void> {
-  const schoolId = DA_SILVA_ACADEMY_SCHOOL_ID;
+  const schoolId = getDaSilvaResolvedSchoolId();
   const matchEntries = Object.entries(manifest.matchKeyToLearnerId || {});
   const accountToLearner = manifest.accountToLearnerId || {};
   const stagedParents = manifest.stagedParentIds || {};
-  const billingPlans = readSchoolBillingPlans(schoolId);
+  const billingPlans = readSchoolBillingPlans(DA_SILVA_DATA_SCHOOL_ID);
 
   const classNames = new Set<string>();
   for (const matchKey of matchEntries.map(([k]) => k)) {
@@ -344,11 +402,13 @@ export async function ensureDaSilvaAcademyProduction(): Promise<void> {
     return;
   }
 
-  const schoolId = DA_SILVA_ACADEMY_SCHOOL_ID;
-  const existing = await prisma.school.findUnique({
-    where: { id: schoolId },
-    select: { id: true },
-  });
+  const existingLookup = await findExistingDaSilvaSchool();
+  if (existingLookup) {
+    setDaSilvaResolvedSchoolId(existingLookup.id);
+  }
+
+  const schoolId = getDaSilvaResolvedSchoolId();
+  const existing = existingLookup ? { id: existingLookup.id } : null;
   const learnerCount = existing
     ? await prisma.learner.count({ where: { schoolId } })
     : 0;

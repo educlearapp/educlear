@@ -8,6 +8,20 @@ import { addOneCalendarMonth } from "./payfastService";
 import { ensureEduClearPackages } from "./ensureEduClearPackages";
 
 export const DA_SILVA_ACADEMY_SCHOOL_ID = "cmpideqeq0000108xb6ouv9zi";
+export const DA_SILVA_OWNER_EMAIL = "dasilvaacademy@gmail.com";
+export const DA_SILVA_SCHOOL_NAME = "Da Silva Academy";
+
+let daSilvaResolvedSchoolId: string = DA_SILVA_ACADEMY_SCHOOL_ID;
+
+/** School id for Prisma after ensure (may differ from canonical id when registered under another row). */
+export function getDaSilvaResolvedSchoolId(): string {
+  return daSilvaResolvedSchoolId;
+}
+
+export function setDaSilvaResolvedSchoolId(id: string): void {
+  daSilvaResolvedSchoolId = id;
+}
+
 const TARGET_PACKAGE: EduClearPackageCode = "UNLIMITED";
 
 /**
@@ -15,12 +29,23 @@ const TARGET_PACKAGE: EduClearPackageCode = "UNLIMITED";
  * Safe to run on every production boot after the school record exists.
  */
 export async function ensureDaSilvaAcademySubscription(): Promise<void> {
-  const schoolId = DA_SILVA_ACADEMY_SCHOOL_ID;
+  const schoolId = getDaSilvaResolvedSchoolId();
 
-  const school = await prisma.school.findUnique({
+  let school = await prisma.school.findUnique({
     where: { id: schoolId },
     select: { id: true, name: true },
   });
+  if (!school) {
+    school =
+      (await prisma.school.findFirst({
+        where: { email: DA_SILVA_OWNER_EMAIL },
+        select: { id: true, name: true },
+      })) ||
+      (await prisma.school.findFirst({
+        where: { name: DA_SILVA_SCHOOL_NAME },
+        select: { id: true, name: true },
+      }));
+  }
   if (!school) {
     throw new Error(`School not found: ${schoolId}`);
   }
@@ -43,10 +68,12 @@ export async function ensureDaSilvaAcademySubscription(): Promise<void> {
   );
   const currentPeriodEnd = addOneCalendarMonth(currentPeriodStart);
 
+  const resolvedSchoolId = school.id;
+
   await prisma.schoolSubscription.upsert({
-    where: { schoolId },
+    where: { schoolId: resolvedSchoolId },
     create: {
-      schoolId,
+      schoolId: resolvedSchoolId,
       packageId: unlimitedPackage.id,
       packageCode: TARGET_PACKAGE,
       status: SchoolSubscriptionStatus.ACTIVE,
@@ -67,7 +94,7 @@ export async function ensureDaSilvaAcademySubscription(): Promise<void> {
   });
 
   console.log(
-    `[activateDaSilva] ${school.name} (${schoolId}): ${TARGET_PACKAGE} ACTIVE until ${currentPeriodEnd.toISOString()}`
+    `[activateDaSilva] ${school.name} (${resolvedSchoolId}): ${TARGET_PACKAGE} ACTIVE until ${currentPeriodEnd.toISOString()}`
   );
   console.log(
     `[activateDaSilva] dashboardUnlocked=true (subscription status ACTIVE)`
