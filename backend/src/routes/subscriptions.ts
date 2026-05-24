@@ -2,6 +2,11 @@ import { Router } from "express";
 import { SchoolSubscriptionStatus } from "@prisma/client";
 
 import { prisma } from "../prisma";
+import {
+  DA_SILVA_ACADEMY_SCHOOL_ID,
+  ensureDaSilvaAcademySubscription,
+} from "../services/activateDaSilvaSubscription";
+import { isDaSilvaFinalImportEnvConfirmed } from "../services/daSilvaMigration/daSilvaFinalImportGate";
 import { ensureEduClearPackages } from "../services/ensureEduClearPackages";
 
 const router = Router();
@@ -77,6 +82,25 @@ router.get("/school/:schoolId/status", async (req, res) => {
       return res.status(404).json({ success: false, error: "School not found" });
     }
 
+    let daSilvaLiveActivated = false;
+    if (
+      isDaSilvaFinalImportEnvConfirmed() &&
+      schoolId === DA_SILVA_ACADEMY_SCHOOL_ID
+    ) {
+      try {
+        await ensureDaSilvaAcademySubscription();
+        daSilvaLiveActivated = true;
+        console.log(
+          "[subscription-status] Da Silva live activation ensured ACTIVE"
+        );
+      } catch (activationError) {
+        console.error(
+          "[subscription-status] Da Silva live activation failed:",
+          activationError
+        );
+      }
+    }
+
     const subscription = await prisma.schoolSubscription.findUnique({
       where: { schoolId },
       select: {
@@ -95,7 +119,10 @@ router.get("/school/:schoolId/status", async (req, res) => {
       },
     });
 
-    const isActive = subscription ? isActiveSubscriptionStatus(subscription.status) : false;
+    const isActive = subscription
+      ? isActiveSubscriptionStatus(subscription.status)
+      : false;
+    const dashboardUnlocked = isActive || daSilvaLiveActivated;
 
     return res.json({
       success: true,
@@ -103,7 +130,7 @@ router.get("/school/:schoolId/status", async (req, res) => {
       schoolName: school.name,
       hasSubscription: Boolean(subscription),
       isActive,
-      dashboardUnlocked: isActive,
+      dashboardUnlocked,
       subscription: subscription
         ? {
             id: subscription.id,

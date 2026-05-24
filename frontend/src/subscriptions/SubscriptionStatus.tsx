@@ -9,11 +9,13 @@ import {
 import {
   type SchoolSubscriptionStatus,
   type SubscriptionStatusResponse,
+  clearSubscriptionGateCache,
   createSubscriptionCheckout,
   fetchSchoolSubscriptionStatus,
   formatDisplayDate,
   formatPackageMonthlyPrice,
   formatSubscriptionStatus,
+  isSubscriptionDashboardUnlocked,
 } from "./subscriptionsApi";
 
 const GOLD = "#D4AF37";
@@ -211,9 +213,10 @@ export default function SubscriptionStatus() {
     ? formatSubscriptionStatus(subscription.status)
     : "No subscription";
   const nextPaymentDate = formatDisplayDate(subscription?.currentPeriodEnd);
-  const needsPayment =
-    Boolean(subscription?.status === "PENDING_PAYMENT" || !data?.dashboardUnlocked);
-  const canOpenDashboard = Boolean(data?.dashboardUnlocked);
+  const canOpenDashboard = isSubscriptionDashboardUnlocked(data);
+  const needsPayment = Boolean(
+    subscription?.status === "PENDING_PAYMENT" || !canOpenDashboard
+  );
 
   useEffect(() => {
     if (!schoolId || !needsPayment || canOpenDashboard) return;
@@ -226,9 +229,9 @@ export default function SubscriptionStatus() {
   }, [schoolId, needsPayment, canOpenDashboard, refreshStatus]);
 
   useEffect(() => {
-    if (canOpenDashboard) {
-      setReturnNotice("Payment confirmed. Your dashboard is now unlocked.");
-    }
+    if (!canOpenDashboard) return;
+    clearSubscriptionGateCache();
+    setReturnNotice("Payment confirmed. Your dashboard is now unlocked.");
   }, [canOpenDashboard]);
 
   async function handlePayNow() {

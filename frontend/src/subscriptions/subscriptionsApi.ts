@@ -99,11 +99,38 @@ export async function fetchSubscriptionPackages(): Promise<EduClearPackage[]> {
   );
 }
 
+const SUBSCRIPTION_GATE_CACHE_KEYS = ["educlearSelectedPackageCode"] as const;
+
+/** Clears client-side keys that can keep users on package flows after status is ACTIVE. */
+export function clearSubscriptionGateCache(): void {
+  for (const key of SUBSCRIPTION_GATE_CACHE_KEYS) {
+    localStorage.removeItem(key);
+  }
+}
+
+export function isSubscriptionDashboardUnlocked(
+  status: Pick<
+    SubscriptionStatusResponse,
+    "dashboardUnlocked" | "isActive" | "subscription"
+  > | null
+  | undefined
+): boolean {
+  if (!status) return false;
+  if (status.dashboardUnlocked) return true;
+  if (status.isActive) return true;
+  if (status.subscription?.status === "ACTIVE") return true;
+  return false;
+}
+
 export async function fetchSchoolSubscriptionStatus(
   schoolId: string
 ): Promise<SubscriptionStatusResponse> {
   return apiFetch(
-    `/api/subscriptions/school/${encodeURIComponent(schoolId)}/status`
+    `/api/subscriptions/school/${encodeURIComponent(schoolId)}/status`,
+    {
+      cache: "no-store",
+      headers: { "Cache-Control": "no-cache", Pragma: "no-cache" },
+    }
   ) as Promise<SubscriptionStatusResponse>;
 }
 
@@ -212,8 +239,10 @@ export async function createSubscriptionCheckout(
 
 /** Where to send the user immediately after login or registration. */
 export async function resolvePostAuthPath(schoolId: string): Promise<string> {
+  clearSubscriptionGateCache();
   const status = await fetchSchoolSubscriptionStatus(schoolId);
-  if (status.dashboardUnlocked) {
+  if (isSubscriptionDashboardUnlocked(status)) {
+    clearSubscriptionGateCache();
     return "/dashboard";
   }
   const sub = status.subscription;

@@ -9,11 +9,13 @@ import {
 } from "./payfastCheckout";
 import {
   type EduClearPackage,
+  clearSubscriptionGateCache,
   createSubscriptionCheckout,
   fetchSchoolSubscriptionStatus,
   fetchSubscriptionPackages,
   formatLearnerLimit,
   formatPayrollLimit,
+  isSubscriptionDashboardUnlocked,
 } from "./subscriptionsApi";
 
 const GOLD = "#d4af37";
@@ -313,7 +315,8 @@ export default function SubscriptionPackages() {
         if (activeCode) {
           setCurrentPackageCode(String(activeCode).trim().toUpperCase());
         }
-        if (statusResponse?.dashboardUnlocked) {
+        if (isSubscriptionDashboardUnlocked(statusResponse)) {
+          clearSubscriptionGateCache();
           setDashboardUnlocked(true);
         }
       })
@@ -329,6 +332,12 @@ export default function SubscriptionPackages() {
       cancelled = true;
     };
   }, []);
+
+  useEffect(() => {
+    if (!dashboardUnlocked) return;
+    clearSubscriptionGateCache();
+    navigate("/dashboard", { replace: true });
+  }, [dashboardUnlocked, navigate]);
 
   async function handleSelect(pkg: EduClearPackage) {
     const schoolId = String(localStorage.getItem("schoolId") || "").trim();

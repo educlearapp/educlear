@@ -1,7 +1,11 @@
 import { useEffect, useState } from "react";
 import { Navigate, useLocation } from "react-router-dom";
 
-import { fetchSchoolSubscriptionStatus } from "./subscriptionsApi";
+import {
+  clearSubscriptionGateCache,
+  fetchSchoolSubscriptionStatus,
+  isSubscriptionDashboardUnlocked,
+} from "./subscriptionsApi";
 
 type GateState = "loading" | "allowed" | "blocked";
 
@@ -28,7 +32,12 @@ export default function SubscriptionGate({ children }: { children: React.ReactNo
     fetchSchoolSubscriptionStatus(schoolId)
       .then((response) => {
         if (cancelled) return;
-        setGate(response.dashboardUnlocked ? "allowed" : "blocked");
+        if (isSubscriptionDashboardUnlocked(response)) {
+          clearSubscriptionGateCache();
+          setGate("allowed");
+          return;
+        }
+        setGate("blocked");
       })
       .catch(() => {
         if (!cancelled) setGate("blocked");

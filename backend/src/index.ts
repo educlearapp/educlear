@@ -47,6 +47,7 @@ import { requireSuperAdmin } from "./middleware/requireSuperAdmin";
 import { prisma } from "./prisma";
 import { bootstrapDevTestSchoolEmail } from "./dev/devTestSchoolEmail";
 import { ensureSuperAdminOnStartup } from "./services/ensureSuperAdmin";
+import { runProductionStartup } from "./services/productionStartup";
 
 type OtpRecord = {
 
@@ -886,6 +887,7 @@ app.get("/api/parent-portal/lookup", async (req, res) => {
 
 });
 async function startServer() {
+  await runProductionStartup();
   await ensureSuperAdminOnStartup();
   await bootstrapDevTestSchoolEmail();
 
