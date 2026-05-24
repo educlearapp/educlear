@@ -4,8 +4,8 @@
   "description": "EduClear backend",
   "main": "dist/index.js",
   "scripts": {
-    "build": "tsc",
-    "start": "node dist/index.js",
+    "build": "tsc && node scripts/verify-runtime-assets.mjs",
+    "start": "node scripts/verify-runtime-assets.mjs && node dist/index.js",
     "dev": "tsc && node dist/index.js",
     "seed:super-admin": "tsc && node dist/seedSuperAdmin.js",
     "seed:packages": "tsc && node dist/seedEduClearPackages.js",

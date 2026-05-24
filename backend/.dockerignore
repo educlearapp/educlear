@@ -1,0 +1,11 @@
+# Docker build context — exclude dev artifacts only.
+# Runtime JSON stores (data/*.json) and school logos (uploads/school-logos/*)
+# MUST remain in the image; do not add data/ or uploads/ here.
+node_modules
+dist
+.git
+.env
+.env.*
+*.log
+coverage
+backups

@@ -1,0 +1,12 @@
+# Render Blueprint — EduClear backend must run from backend/ so process.cwd()
+# resolves data/ and uploads/ next to dist/.
+services:
+  - type: web
+    name: educlear-backend
+    runtime: node
+    rootDir: backend
+    buildCommand: npm ci && npm run build
+    startCommand: npm start
+    envVars:
+      - key: NODE_VERSION
+        value: "22"
