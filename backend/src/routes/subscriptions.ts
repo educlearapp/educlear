@@ -6,8 +6,8 @@ import {
   DA_SILVA_ACADEMY_SCHOOL_ID,
   ensureDaSilvaAcademySubscription,
 } from "../services/activateDaSilvaSubscription";
-import { isDaSilvaFinalImportEnvConfirmed } from "../services/daSilvaMigration/daSilvaFinalImportGate";
 import { ensureEduClearPackages } from "../services/ensureEduClearPackages";
+import { isProductionRuntime } from "../services/runtime";
 
 const router = Router();
 
@@ -83,15 +83,12 @@ router.get("/school/:schoolId/status", async (req, res) => {
     }
 
     let daSilvaLiveActivated = false;
-    if (
-      isDaSilvaFinalImportEnvConfirmed() &&
-      schoolId === DA_SILVA_ACADEMY_SCHOOL_ID
-    ) {
+    if (isProductionRuntime() && schoolId === DA_SILVA_ACADEMY_SCHOOL_ID) {
       try {
         await ensureDaSilvaAcademySubscription();
         daSilvaLiveActivated = true;
         console.log(
-          "[subscription-status] Da Silva live activation ensured ACTIVE"
+          "[subscription-status] Da Silva live activation ensured ACTIVE, dashboardUnlocked=true"
         );
       } catch (activationError) {
         console.error(

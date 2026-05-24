@@ -1,48 +1,16 @@
-import { execSync } from "child_process";
-import path from "path";
-
-import { ensureDaSilvaAcademySubscription } from "./activateDaSilvaSubscription";
-import { isDaSilvaFinalImportEnvConfirmed } from "./daSilvaMigration/daSilvaFinalImportGate";
+import {
+  ensureDaSilvaAcademySubscription,
+} from "./activateDaSilvaSubscription";
+import { ensureDaSilvaAcademyProduction } from "./ensureDaSilvaAcademyProduction";
 import { ensureEduClearPackages } from "./ensureEduClearPackages";
-
-function getBackendRoot(): string {
-  return path.resolve(__dirname, "../..");
-}
-
-/** Runs `prisma migrate deploy` without aborting the process on failure. */
-export function runPrismaMigrateDeployOnStartup(): void {
-  const backendRoot = getBackendRoot();
-  try {
-    console.log("[startup] Running prisma migrate deploy...");
-    const output = execSync("npx prisma migrate deploy", {
-      cwd: backendRoot,
-      encoding: "utf-8",
-      env: process.env,
-      stdio: ["pipe", "pipe", "pipe"],
-    });
-    const trimmed = output.trim();
-    if (trimmed) {
-      console.log(trimmed);
-    }
-    console.log("[startup] prisma migrate deploy completed");
-  } catch (error: unknown) {
-    const err = error as { message?: string; stdout?: string; stderr?: string };
-    console.error(
-      "[startup] prisma migrate deploy failed (continuing startup):",
-      err?.message || error
-    );
-    const stdout = String(err?.stdout || "").trim();
-    const stderr = String(err?.stderr || "").trim();
-    if (stdout) console.error(stdout);
-    if (stderr) console.error(stderr);
-  }
-}
+import { runPrismaMigrateDeployWithRecovery } from "./prismaMigrationRecovery";
+import { isProductionRuntime } from "./runtime";
 
 /**
- * Production boot tasks before HTTP listen: migrations, package seeds, optional Da Silva activation.
+ * Production boot tasks before HTTP listen: migrations, package seeds, Da Silva ensure + activation.
  */
 export async function runProductionStartup(): Promise<void> {
-  runPrismaMigrateDeployOnStartup();
+  await runPrismaMigrateDeployWithRecovery();
 
   try {
     const codes = await ensureEduClearPackages();
@@ -51,15 +19,20 @@ export async function runProductionStartup(): Promise<void> {
     console.error("[startup] ensureEduClearPackages failed:", error);
   }
 
-  if (isDaSilvaFinalImportEnvConfirmed()) {
+  if (isProductionRuntime()) {
+    try {
+      await ensureDaSilvaAcademyProduction();
+    } catch (error) {
+      console.error("[startup] Da Silva school ensure/import failed:", error);
+    }
+
     try {
       await ensureDaSilvaAcademySubscription();
+      console.log(
+        "[startup] Da Silva subscription ACTIVE (UNLIMITED), dashboardUnlocked=true"
+      );
     } catch (error) {
       console.error("[startup] Da Silva subscription activation failed:", error);
     }
-  } else {
-    console.log(
-      "[startup] Da Silva subscription activation skipped (CONFIRM_DA_SILVA_FINAL_IMPORT is not true)"
-    );
   }
 }

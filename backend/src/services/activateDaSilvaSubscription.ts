@@ -12,7 +12,7 @@ const TARGET_PACKAGE: EduClearPackageCode = "UNLIMITED";
 
 /**
  * Idempotent UNLIMITED / ACTIVE subscription for Da Silva Academy only.
- * Safe to run on every boot when CONFIRM_DA_SILVA_FINAL_IMPORT=true.
+ * Safe to run on every production boot after the school record exists.
  */
 export async function ensureDaSilvaAcademySubscription(): Promise<void> {
   const schoolId = DA_SILVA_ACADEMY_SCHOOL_ID;
@@ -68,5 +68,8 @@ export async function ensureDaSilvaAcademySubscription(): Promise<void> {
 
   console.log(
     `[activateDaSilva] ${school.name} (${schoolId}): ${TARGET_PACKAGE} ACTIVE until ${currentPeriodEnd.toISOString()}`
+  );
+  console.log(
+    `[activateDaSilva] dashboardUnlocked=true (subscription status ACTIVE)`
   );
 }
