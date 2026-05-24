@@ -16,11 +16,7 @@ type MigrationRow = {
   rolled_back_at: Date | null;
 };
 
-/**
- * Detects a failed Prisma migration record (P3009 precursor) and marks it rolled back
- * so `prisma migrate deploy` can proceed. Safe to call when no failed row exists.
- */
-export async function resolveFailedDueDatesMigrationIfNeeded(): Promise<boolean> {
+async function isDueDatesMigrationStillFailed(): Promise<boolean> {
   const rows = await prisma.$queryRaw<MigrationRow[]>`
     SELECT migration_name, finished_at, rolled_back_at
     FROM "_prisma_migrations"
@@ -29,11 +25,7 @@ export async function resolveFailedDueDatesMigrationIfNeeded(): Promise<boolean>
   `;
   const row = rows[0];
   if (!row) return false;
-  if (row.finished_at) return false;
-  if (row.rolled_back_at) return false;
-
-  markMigrationRolledBack();
-  return true;
+  return row.finished_at == null;
 }
 
 function markMigrationRolledBack(): void {
@@ -55,11 +47,26 @@ function markMigrationRolledBack(): void {
   console.log(`[startup] Migration resolved: ${FAILED_DUE_DATES_MIGRATION}`);
 }
 
-/** Runs migrate deploy; on P3009 for the due-dates migration, resolves and retries once. */
+/** Always runs resolve --rolled-back before deploy (no-op if nothing to resolve). */
+function resolveDueDatesMigrationBeforeDeploy(): void {
+  try {
+    markMigrationRolledBack();
+  } catch (error: unknown) {
+    const err = error as { message?: string; stderr?: string; stdout?: string };
+    const combined = `${err?.message || ""}\n${err?.stderr || ""}\n${err?.stdout || ""}`;
+    console.log(
+      "[startup] migrate resolve --rolled-back skipped (no failed record or already resolved)"
+    );
+    const trimmed = combined.trim();
+    if (trimmed) console.log(trimmed);
+  }
+}
+
+/** Runs resolve --rolled-back, then migrate deploy; retries deploy once if still failed. */
 export async function runPrismaMigrateDeployWithRecovery(): Promise<void> {
   const backendRoot = getBackendRoot();
 
-  await resolveFailedDueDatesMigrationIfNeeded();
+  resolveDueDatesMigrationBeforeDeploy();
 
   try {
     console.log("[startup] Running prisma migrate deploy...");
@@ -78,11 +85,12 @@ export async function runPrismaMigrateDeployWithRecovery(): Promise<void> {
     const isP3009 =
       combined.includes("P3009") &&
       combined.includes(FAILED_DUE_DATES_MIGRATION);
+    const stillFailed = await isDueDatesMigrationStillFailed();
 
-    if (isP3009) {
+    if (isP3009 || stillFailed) {
       try {
         console.log(
-          `[startup] P3009 detected — resolving ${FAILED_DUE_DATES_MIGRATION} as rolled back…`
+          `[startup] Migration still failed — resolving ${FAILED_DUE_DATES_MIGRATION} and retrying deploy once…`
         );
         markMigrationRolledBack();
         const retryOutput = execSync("npx prisma migrate deploy", {
