@@ -3,9 +3,6 @@ import path from "path";
 
 import { prisma } from "../prisma";
 
-const FAILED_DUE_DATES_MIGRATION =
-  "20260427180000_add_due_dates_to_billing_plan_items_and_invoice_lines";
-
 function getBackendRoot(): string {
   return path.resolve(__dirname, "../..");
 }
@@ -14,27 +11,48 @@ type MigrationRow = {
   migration_name: string;
   finished_at: Date | null;
   rolled_back_at: Date | null;
+  logs: string | null;
 };
 
-async function isDueDatesMigrationStillFailed(): Promise<boolean> {
-  const rows = await prisma.$queryRaw<MigrationRow[]>`
-    SELECT migration_name, finished_at, rolled_back_at
-    FROM "_prisma_migrations"
-    WHERE migration_name = ${FAILED_DUE_DATES_MIGRATION}
-    LIMIT 1
-  `;
-  const row = rows[0];
-  if (!row) return false;
-  return row.finished_at == null;
+function logsIndicateFailedMigration(logs: string | null): boolean {
+  if (logs == null || logs.trim() === "") {
+    return true;
+  }
+  const lower = logs.toLowerCase();
+  return (
+    lower.includes("error") ||
+    lower.includes("failed") ||
+    lower.includes("exception") ||
+    lower.includes("migrate failed") ||
+    lower.includes("p3018")
+  );
 }
 
-function markMigrationRolledBack(): void {
+/** Rows in _prisma_migrations that never finished and are not yet marked rolled back. */
+function isUnresolvedFailedMigration(row: MigrationRow): boolean {
+  if (row.finished_at != null) return false;
+  if (row.rolled_back_at != null) return false;
+  return logsIndicateFailedMigration(row.logs);
+}
+
+async function findFailedMigrations(): Promise<string[]> {
+  const rows = await prisma.$queryRaw<MigrationRow[]>`
+    SELECT migration_name, finished_at, rolled_back_at, logs
+    FROM "_prisma_migrations"
+    WHERE finished_at IS NULL
+      AND rolled_back_at IS NULL
+    ORDER BY migration_name
+  `;
+  return rows.filter(isUnresolvedFailedMigration).map((r) => r.migration_name);
+}
+
+function markMigrationRolledBack(migrationName: string): void {
   const backendRoot = getBackendRoot();
   console.log(
-    `[startup] Resolving failed migration (rolled-back): ${FAILED_DUE_DATES_MIGRATION}`
+    `[startup] Resolving failed migration (rolled-back): ${migrationName}`
   );
   const output = execSync(
-    `npx prisma migrate resolve --rolled-back ${FAILED_DUE_DATES_MIGRATION}`,
+    `npx prisma migrate resolve --rolled-back ${migrationName}`,
     {
       cwd: backendRoot,
       encoding: "utf-8",
@@ -44,64 +62,89 @@ function markMigrationRolledBack(): void {
   );
   const trimmed = output.trim();
   if (trimmed) console.log(trimmed);
-  console.log(`[startup] Migration resolved: ${FAILED_DUE_DATES_MIGRATION}`);
+  console.log(`[startup] Migration resolved: ${migrationName}`);
 }
 
-/** Always runs resolve --rolled-back before deploy (no-op if nothing to resolve). */
-function resolveDueDatesMigrationBeforeDeploy(): void {
+function resolveFailedMigration(migrationName: string): void {
   try {
-    markMigrationRolledBack();
+    markMigrationRolledBack(migrationName);
   } catch (error: unknown) {
     const err = error as { message?: string; stderr?: string; stdout?: string };
     const combined = `${err?.message || ""}\n${err?.stderr || ""}\n${err?.stdout || ""}`;
     console.log(
-      "[startup] migrate resolve --rolled-back skipped (no failed record or already resolved)"
+      `[startup] migrate resolve --rolled-back skipped for ${migrationName} (no failed record or already resolved)`
     );
     const trimmed = combined.trim();
     if (trimmed) console.log(trimmed);
   }
 }
 
-/** Runs resolve --rolled-back, then migrate deploy; retries deploy once if still failed. */
-export async function runPrismaMigrateDeployWithRecovery(): Promise<void> {
-  const backendRoot = getBackendRoot();
+/** Resolves every failed migration in _prisma_migrations before deploy. */
+async function resolveAllFailedMigrationsBeforeDeploy(): Promise<void> {
+  const failed = await findFailedMigrations();
+  if (failed.length === 0) {
+    console.log("[startup] No failed migrations in _prisma_migrations");
+    return;
+  }
+  console.log(
+    `[startup] Found ${failed.length} failed migration(s): ${failed.join(", ")}`
+  );
+  for (const migrationName of failed) {
+    resolveFailedMigration(migrationName);
+  }
+}
 
-  resolveDueDatesMigrationBeforeDeploy();
+function runMigrateDeploy(): string {
+  const backendRoot = getBackendRoot();
+  console.log("[startup] Running prisma migrate deploy...");
+  const output = execSync("npx prisma migrate deploy", {
+    cwd: backendRoot,
+    encoding: "utf-8",
+    env: process.env,
+    stdio: ["pipe", "pipe", "pipe"],
+  });
+  const trimmed = output.trim();
+  if (trimmed) console.log(trimmed);
+  console.log("[startup] prisma migrate deploy completed");
+  return trimmed;
+}
+
+function isP3009Error(combined: string): boolean {
+  return combined.includes("P3009");
+}
+
+function logDeployFailure(
+  label: string,
+  error: unknown,
+  err: { message?: string; stdout?: string; stderr?: string }
+): void {
+  console.error(`[startup] ${label}:`, err?.message || error);
+  const stdout = String(err?.stdout || "").trim();
+  const stderr = String(err?.stderr || "").trim();
+  if (stdout) console.error(stdout);
+  if (stderr) console.error(stderr);
+}
+
+/** Resolves all failed migrations, then migrate deploy; retries once if P3009 or failures remain. */
+export async function runPrismaMigrateDeployWithRecovery(): Promise<void> {
+  await resolveAllFailedMigrationsBeforeDeploy();
 
   try {
-    console.log("[startup] Running prisma migrate deploy...");
-    const output = execSync("npx prisma migrate deploy", {
-      cwd: backendRoot,
-      encoding: "utf-8",
-      env: process.env,
-      stdio: ["pipe", "pipe", "pipe"],
-    });
-    const trimmed = output.trim();
-    if (trimmed) console.log(trimmed);
-    console.log("[startup] prisma migrate deploy completed");
+    runMigrateDeploy();
   } catch (error: unknown) {
     const err = error as { message?: string; stdout?: string; stderr?: string };
     const combined = `${err?.message || ""}\n${err?.stderr || ""}\n${err?.stdout || ""}`;
-    const isP3009 =
-      combined.includes("P3009") &&
-      combined.includes(FAILED_DUE_DATES_MIGRATION);
-    const stillFailed = await isDueDatesMigrationStillFailed();
+    const stillFailed = await findFailedMigrations();
+    const shouldRetry =
+      isP3009Error(combined) || stillFailed.length > 0;
 
-    if (isP3009 || stillFailed) {
+    if (shouldRetry) {
       try {
         console.log(
-          `[startup] Migration still failed — resolving ${FAILED_DUE_DATES_MIGRATION} and retrying deploy once…`
+          `[startup] Migration deploy blocked — resolving ${stillFailed.length || "any"} failed migration(s) and retrying deploy once…`
         );
-        markMigrationRolledBack();
-        const retryOutput = execSync("npx prisma migrate deploy", {
-          cwd: backendRoot,
-          encoding: "utf-8",
-          env: process.env,
-          stdio: ["pipe", "pipe", "pipe"],
-        });
-        const retryTrimmed = retryOutput.trim();
-        if (retryTrimmed) console.log(retryTrimmed);
-        console.log("[startup] prisma migrate deploy completed");
+        await resolveAllFailedMigrationsBeforeDeploy();
+        runMigrateDeploy();
         return;
       } catch (retryError: unknown) {
         const retryErr = retryError as {
@@ -109,25 +152,19 @@ export async function runPrismaMigrateDeployWithRecovery(): Promise<void> {
           stdout?: string;
           stderr?: string;
         };
-        console.error(
-          "[startup] prisma migrate deploy failed after resolve:",
-          retryErr?.message || retryError
+        logDeployFailure(
+          "prisma migrate deploy failed after resolve",
+          retryError,
+          retryErr
         );
-        const stdout = String(retryErr?.stdout || "").trim();
-        const stderr = String(retryErr?.stderr || "").trim();
-        if (stdout) console.error(stdout);
-        if (stderr) console.error(stderr);
         return;
       }
     }
 
-    console.error(
-      "[startup] prisma migrate deploy failed (continuing startup):",
-      err?.message || error
+    logDeployFailure(
+      "prisma migrate deploy failed (continuing startup)",
+      error,
+      err
     );
-    const stdout = String(err?.stdout || "").trim();
-    const stderr = String(err?.stderr || "").trim();
-    if (stdout) console.error(stdout);
-    if (stderr) console.error(stderr);
   }
 }
