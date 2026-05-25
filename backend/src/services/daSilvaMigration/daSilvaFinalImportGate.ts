@@ -1,4 +1,15 @@
 import type { DaSilvaMigrationBundle } from "./daSilvaMigrationService";
+
+/** Kid-e-Sys portal bundles include billing-only historical learners. */
+export function isKideesysPortalMigrationBundle(bundle: DaSilvaMigrationBundle): boolean {
+  return bundle.learners.some((l) => l.enrollmentTier === "HISTORICAL");
+}
+
+/** Gate compares active (class-list) learners; historical tiers do not count toward the 396 cap. */
+export function gateLearnerCountForSnapshot(bundle: DaSilvaMigrationBundle): number {
+  return bundle.learners.filter((l) => l.enrollmentTier !== "HISTORICAL").length;
+}
+import { DA_SILVA_OPENING_BALANCE_EXCLUDED_ACCOUNTS } from "./daSilvaConstants";
 import {
   countAgeAnalysisVarianceAfterAdjustments,
   type DaSilvaOpeningBalanceAdjustment,
@@ -11,8 +22,7 @@ import {
 
 export const DA_SILVA_FINAL_IMPORT_ENV = "CONFIRM_DA_SILVA_FINAL_IMPORT";
 
-/** Manual reconciliation in Kid-e-Sys — excluded from opening balance at final import. */
-export const DA_SILVA_OPENING_BALANCE_EXCLUDED_ACCOUNTS = ["MAR005"] as const;
+export { DA_SILVA_OPENING_BALANCE_EXCLUDED_ACCOUNTS } from "./daSilvaConstants";
 
 const OPENING_BALANCE_EXCLUDED = new Set<string>(DA_SILVA_OPENING_BALANCE_EXCLUDED_ACCOUNTS);
 
@@ -112,7 +122,7 @@ export function buildDaSilvaFinalImportSnapshot(
 
   return {
     schoolName: schoolName.trim(),
-    learners: bundle.learners.length,
+    learners: gateLearnerCountForSnapshot(bundle),
     parents: bundle.reconciliation.totals.totalParents,
     classes: bundle.reconciliation.totals.totalClasses,
     billingAccounts: bundle.countValidation.billingAccountsFromAgeAnalysis,
@@ -212,10 +222,12 @@ function findSnapshotMismatches(snapshot: DaSilvaFinalImportSnapshot): DaSilvaFi
 export function printDaSilvaFinalImportPreImportSummary(
   snapshot: DaSilvaFinalImportSnapshot,
   mismatches: DaSilvaFinalImportMismatch[],
-  envConfirmed: boolean
+  envConfirmed: boolean,
+  bundle?: DaSilvaMigrationBundle
 ): void {
   const expected = DA_SILVA_FINAL_IMPORT_EXPECTED;
   const mismatchFields = new Set(mismatches.map((m) => m.field));
+  const isKideesysPortal = bundle ? isKideesysPortalMigrationBundle(bundle) : false;
 
   const line = (label: string, field: keyof DaSilvaFinalImportSnapshot, actual: string | number) => {
     const exp = expected[field as keyof typeof expected];
@@ -225,7 +237,17 @@ export function printDaSilvaFinalImportPreImportSummary(
 
   console.log("=== Da Silva final import — pre-import summary ===");
   line("School name", "schoolName", snapshot.schoolName);
-  line("Learners", "learners", snapshot.learners);
+  line(
+    isKideesysPortal ? "Active learners (class lists)" : "Learners",
+    "learners",
+    snapshot.learners
+  );
+  if (isKideesysPortal && bundle) {
+    const historical = bundle.learners.filter((l) => l.enrollmentTier === "HISTORICAL").length;
+    console.log(
+      `  Total staged learners: ${bundle.learners.length} (${snapshot.learners} active + ${historical} historical — historical allowed)`
+    );
+  }
   line("Parents", "parents", snapshot.parents);
   line("Classes", "classes", snapshot.classes);
   line("Billing accounts", "billingAccounts", snapshot.billingAccounts);
@@ -266,7 +288,7 @@ export function assertDaSilvaFinalImportAllowed(
   const envConfirmed = isDaSilvaFinalImportEnvConfirmed();
   const mismatches = findSnapshotMismatches(snapshot);
 
-  printDaSilvaFinalImportPreImportSummary(snapshot, mismatches, envConfirmed);
+  printDaSilvaFinalImportPreImportSummary(snapshot, mismatches, envConfirmed, bundle);
 
   if (!envConfirmed) {
     throw new DaSilvaFinalImportBlockedError(
