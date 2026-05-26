@@ -40,6 +40,7 @@ import {
   assertDaSilvaFinalImportAllowed,
   DA_SILVA_OPENING_BALANCE_EXCLUDED_ACCOUNTS,
 } from "./daSilvaFinalImportGate";
+import { relinkDaSilvaLearnerBillingFromBundle } from "./relinkDaSilvaLearnerBilling";
 import {
   parseAgeAnalysisFile,
   parseBillingPlanFile,
@@ -114,6 +115,8 @@ export type DaSilvaStagedLearner = {
   billingPlanTotal: number;
   ageAnalysisBalance: number;
   parents: ParsedLearnerContact["parents"];
+  /** ACTIVE = class list; HISTORICAL = billing/ledger only (Kid-e-Sys portal). */
+  enrollmentTier?: "ACTIVE" | "HISTORICAL";
 };
 
 export type DaSilvaMigrationBundle = {
@@ -782,7 +785,9 @@ export async function commitDaSilvaMigration(opts: {
     select: { name: true },
   });
   if (!school) throw new Error("School not found");
-  assertDaSilvaFinalImportAllowed(bundle, school.name);
+  if (/da\s*silva\s*academy/i.test(school.name.trim())) {
+    assertDaSilvaFinalImportAllowed(bundle, school.name);
+  }
 
   const existingManifest = loadDaSilvaManifest(opts.schoolId, opts.projectId);
   const manifest: DaSilvaImportManifest = existingManifest?.projectId === opts.projectId &&
@@ -1020,8 +1025,9 @@ export async function commitDaSilvaMigration(opts: {
       learnerRowIndex += 1;
       const accountNo = String(row.accountNo || "").trim();
       const familyAccountId = accountNo ? accountToFamilyId.get(accountNo) || null : null;
+      const isHistorical = row.enrollmentTier === "HISTORICAL";
       const norm = normalizeClassroomInput(row.className);
-      const canonicalClassName = row.canonicalClassName;
+      const canonicalClassName = isHistorical ? null : row.canonicalClassName;
 
       let learnerId =
         manifest.matchKeyToLearnerId?.[row.matchKey] ||
@@ -1036,7 +1042,7 @@ export async function commitDaSilvaMigration(opts: {
           schoolId: opts.schoolId,
           firstName: row.firstName,
           lastName: row.lastName,
-          className: canonicalClassName,
+          className: canonicalClassName || "",
           admissionNo: plannedAdmissionNo,
         });
         if (!learnerId && accountNo) {
@@ -1060,8 +1066,11 @@ export async function commitDaSilvaMigration(opts: {
             familyAccountId,
             firstName: row.firstName,
             lastName: row.lastName,
-            grade: norm.gradeLabel || row.className.replace(/[A-Za-z]+$/, "").trim(),
+            grade: isHistorical
+              ? "Historical"
+              : norm.gradeLabel || row.className.replace(/[A-Za-z]+$/, "").trim(),
             className: canonicalClassName,
+            enrollmentStatus: isHistorical ? "HISTORICAL" : "ACTIVE",
             totalFee: row.billingPlanTotal,
             tuitionFee: row.billingPlanTotal,
           },
@@ -1076,8 +1085,11 @@ export async function commitDaSilvaMigration(opts: {
           familyAccountId,
           firstName: row.firstName,
           lastName: row.lastName,
-          grade: norm.gradeLabel || row.className.replace(/[A-Za-z]+$/, "").trim(),
+          grade: isHistorical
+            ? "Historical"
+            : norm.gradeLabel || row.className.replace(/[A-Za-z]+$/, "").trim(),
           className: canonicalClassName,
+          enrollmentStatus: isHistorical ? ("HISTORICAL" as const) : ("ACTIVE" as const),
           admissionNo,
           totalFee: row.billingPlanTotal,
           tuitionFee: row.billingPlanTotal,
@@ -1096,6 +1108,7 @@ export async function commitDaSilvaMigration(opts: {
                   lastName: learnerData.lastName,
                   grade: learnerData.grade,
                   className: learnerData.className,
+                  enrollmentStatus: learnerData.enrollmentStatus,
                   totalFee: learnerData.totalFee,
                   tuitionFee: learnerData.tuitionFee,
                 },
@@ -1153,6 +1166,22 @@ export async function commitDaSilvaMigration(opts: {
     }
     upsertSchoolBillingPlans(opts.schoolId, billingPlans);
   });
+
+  const relinkResult = await relinkDaSilvaLearnerBillingFromBundle({
+    schoolId: opts.schoolId,
+    bundle,
+    manifest,
+    matchKeyToLearnerId,
+    accountToLearnerId,
+  });
+  persistLearnerMaps();
+  manifest.accountToLearnerId = relinkResult.accountToLearnerId;
+  if (relinkResult.learnersUpdated > 0 || relinkResult.ledgerRowsBackfilled > 0) {
+    console.log(
+      `[DaSilva import] relinked ${relinkResult.learnersUpdated} learner(s), ` +
+        `backfilled ${relinkResult.ledgerRowsBackfilled} ledger row(s)`
+    );
+  }
 
   await runDaSilvaImportPhase(manifest, "transactions", opts.schoolId, opts.projectId, async () => {
     const ledgerEntries: BillingLedgerEntry[] = [];

@@ -92,12 +92,55 @@ const td: React.CSSProperties = {
   fontSize: "13px",
 };
 
+function learnerFirstName(learner: any) {
+  return String(learner?.firstName || learner?.name || "").trim();
+}
+
+function learnerSurname(learner: any) {
+  return String(learner?.lastName || learner?.surname || "").trim();
+}
+
 function learnerFullName(learner: any) {
-  return `${learner?.firstName || ""} ${learner?.lastName || learner?.surname || ""}`.trim();
+  return `${learnerFirstName(learner)} ${learnerSurname(learner)}`.trim();
 }
 
 function learnerClassroom(learner: any) {
-  return learner?.grade || learner?.className || learner?.classroom || "";
+  return learner?.classroom || learner?.className || learner?.classroomName || learner?.grade || "";
+}
+
+function normalizeLearnerForManage(raw: any) {
+  if (!raw || typeof raw !== "object") return raw;
+  const firstName = learnerFirstName(raw);
+  const surname = learnerSurname(raw);
+  const classroom = learnerClassroom(raw);
+  return {
+    ...raw,
+    firstName,
+    name: firstName,
+    lastName: surname,
+    surname,
+    classroom,
+    className: raw.className || classroom,
+    classroomName: raw.classroomName || classroom,
+    idNumber: raw.idNumber || raw.idNo || "",
+    idNo: raw.idNumber || raw.idNo || "",
+    admissionNo:
+      raw.admissionNo ||
+      raw.accountNo ||
+      raw.accountNumber ||
+      raw.familyAccount?.accountRef ||
+      "",
+    accountNo:
+      raw.accountNo ||
+      raw.accountNumber ||
+      raw.admissionNo ||
+      raw.familyAccount?.accountRef ||
+      "",
+    birthDate: raw.birthDate || raw.dateOfBirth || raw.dob || "",
+    dateOfBirth: raw.birthDate || raw.dateOfBirth || raw.dob || "",
+    dob: raw.birthDate || raw.dateOfBirth || raw.dob || "",
+    parents: Array.isArray(raw.parents) ? raw.parents : [],
+  };
 }
 
 function parentName(parent: any) {
@@ -177,25 +220,78 @@ export default function ManageLearner({
 }: ManageLearnerProps) {
   const [profileMoreOpen, setProfileMoreOpen] = useState(false);
   const [profileTab, setProfileTab] = useState<ProfileTab>("general");
-  const learner = useMemo(() => {
-    if (learnerProp) return learnerProp;
+  const [detailLearner, setDetailLearner] = useState<any | null>(null);
+  const [detailLoading, setDetailLoading] = useState(false);
+  const [detailError, setDetailError] = useState("");
+
+  const seedLearner = useMemo(() => {
+    if (learnerProp) return normalizeLearnerForManage(learnerProp);
     const saved = localStorage.getItem("selectedLearnerForManage");
     if (!saved) return null;
     try {
-      return JSON.parse(saved);
+      return normalizeLearnerForManage(JSON.parse(saved));
     } catch {
       return null;
     }
   }, [learnerProp]);
 
+  const learnerId = String(seedLearner?.id || "").trim();
+  const learner = detailLearner || seedLearner;
+
   useEffect(() => {
-    if (!learner?.id) return;
+    if (!learnerId) {
+      setDetailLearner(null);
+      setDetailError("");
+      return;
+    }
+
+    let cancelled = false;
+    setDetailLoading(true);
+    setDetailError("");
+
+    (async () => {
+      try {
+        const response = await fetch(`${API_URL}/api/learners/${encodeURIComponent(learnerId)}`);
+        const payload = await response.json().catch(() => ({}));
+        if (!response.ok) {
+          throw new Error(payload?.error || "Failed to load learner profile");
+        }
+        const loaded = normalizeLearnerForManage(payload?.learner || payload);
+        if (cancelled || !loaded?.id) return;
+        setDetailLearner(loaded);
+        setSelectedLearner(loaded);
+        localStorage.setItem("selectedLearnerForManage", JSON.stringify(loaded));
+      } catch (error) {
+        if (!cancelled) {
+          setDetailError(error instanceof Error ? error.message : "Failed to load learner profile");
+        }
+      } finally {
+        if (!cancelled) setDetailLoading(false);
+      }
+    })();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [learnerId, setSelectedLearner]);
+
+  useEffect(() => {
+    if (!learnerId) return;
     setProfileTab("general");
     setProfileMoreOpen(false);
-  }, [learner?.id]);
+  }, [learnerId]);
 
 
 
+
+    if (!learner && detailLoading) {
+      return (
+        <div style={{ padding: "32px" }}>
+          <h1 className="page-title">Registration</h1>
+          <p>Loading learner profile…</p>
+        </div>
+      );
+    }
 
     if (!learner) {
   
@@ -213,7 +309,7 @@ export default function ManageLearner({
   
   
   
-          <p>No learner selected.</p>
+          <p>{detailError || "No learner selected."}</p>
   
   
   
@@ -1198,15 +1294,15 @@ export default function ManageLearner({
   
   
   
-                {field("Name / Nickname", "firstName", learner.firstName, true)}
+                {field("Name / Nickname", "firstName", learnerFirstName(learner), true)}
   
   
   
-                {field("Surname", "lastName", learner.lastName || learner.surname, true)}
+                {field("Surname", "lastName", learnerSurname(learner), true)}
   
   
   
-                {field("ID No", "idNumber", learner.idNumber || learner.idNo)}
+                {field("ID No", "idNumber", learner.idNumber || learner.idNo || "")}
                 {birthDateField()}
                 {accountNoField()}
                 {field("Gender", "gender", learner.gender)}

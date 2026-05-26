@@ -41,6 +41,12 @@ enum UserRole {
   STAFF
 }
 
+/// ACTIVE = on current class lists; HISTORICAL = billing/ledger only (unenrolled).
+enum LearnerEnrollmentStatus {
+  ACTIVE
+  HISTORICAL
+}
+
 model School {
   id String @id @default(cuid())
 
@@ -193,6 +199,7 @@ model SchoolSubscription {
   packageId          String
   packageCode        EduClearPackageCode
   status             SchoolSubscriptionStatus @default(PENDING_PAYMENT)
+  activationSource   String?
   currentPeriodStart DateTime?
   currentPeriodEnd   DateTime?
   activatedAt        DateTime?
@@ -640,6 +647,8 @@ model Learner {
 
   className String?
 
+  enrollmentStatus LearnerEnrollmentStatus @default(ACTIVE)
+
   admissionNo String?
   tuitionFee   Float   @default(0)
 
@@ -672,6 +681,7 @@ reports LearnerReport[]
   @@unique([schoolId, admissionNo])
   @@index([schoolId])
   @@index([schoolId, grade])
+  @@index([schoolId, enrollmentStatus])
 
 }
 

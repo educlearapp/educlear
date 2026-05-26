@@ -2,10 +2,16 @@ export function resolveLearnerAccountNo(learner: {
   familyAccount?: { accountRef?: string | null } | null;
   accountNo?: string | null;
   accountNumber?: string | null;
+  admissionNo?: string | null;
 } | null | undefined): string {
   if (!learner) return "";
+  const admission = String(learner.admissionNo || "").trim();
+  const admissionBase =
+    admission && admission.includes("-") ? admission.slice(0, admission.indexOf("-")) : admission;
   return (
     String(learner.familyAccount?.accountRef || "").trim() ||
+    admissionBase ||
+    admission ||
     String(learner.accountNo || learner.accountNumber || "").trim() ||
     ""
   );

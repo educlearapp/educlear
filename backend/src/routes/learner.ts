@@ -294,6 +294,100 @@ async function saveParentLinks({
 
 
 
+function mapLearnerDetailForClient(learner: {
+  id: string;
+  schoolId: string;
+  familyAccountId: string | null;
+  firstName: string;
+  lastName: string;
+  birthDate: Date | null;
+  gender: string | null;
+  idNumber: string | null;
+  grade: string;
+  className: string | null;
+  admissionNo: string | null;
+  tuitionFee: number;
+  transportFee: number;
+  otherFee: number;
+  totalFee: number;
+  createdAt: Date;
+  familyAccount?: { id?: string; accountRef?: string; familyName?: string } | null;
+  links?: Array<{
+    relation?: string | null;
+    isPrimary?: boolean;
+    isPayingPerson?: boolean;
+    billingStatement?: boolean;
+    billingInvoice?: boolean;
+    billingReceipt?: boolean;
+    parent: any;
+  }>;
+}) {
+  const accountNo = resolveLearnerAccountNo(learner);
+  const firstName = learner.firstName || "";
+  const lastName = learner.lastName || "";
+  return {
+    id: learner.id,
+    schoolId: learner.schoolId,
+    familyAccountId: learner.familyAccountId,
+    familyAccount: learner.familyAccount
+      ? {
+          id: learner.familyAccount.id,
+          accountRef: learner.familyAccount.accountRef,
+          familyName: learner.familyAccount.familyName,
+        }
+      : null,
+    accountNo,
+    accountNumber: accountNo,
+    admissionNo: learner.admissionNo || accountNo,
+    firstName,
+    name: firstName,
+    lastName,
+    surname: lastName,
+    fullName: `${firstName} ${lastName}`.trim(),
+    birthDate: learner.birthDate,
+    dateOfBirth: learner.birthDate,
+    dob: learner.birthDate,
+    gender: learner.gender || "",
+    idNumber: learner.idNumber || "",
+    idNo: learner.idNumber || "",
+    grade: learner.grade || "",
+    className: learner.className || "",
+    classroom: learner.className || learner.grade || "",
+    classroomName: learner.className || learner.grade || "",
+    tuitionFee: learner.tuitionFee ?? 0,
+    transportFee: learner.transportFee ?? 0,
+    otherFee: learner.otherFee ?? 0,
+    totalFee: learner.totalFee ?? 0,
+    createdAt: learner.createdAt,
+    parents: learner.links?.map((link) => mapParentForClient(link)) || [],
+  };
+}
+
+router.get("/:id", async (req, res) => {
+  try {
+    const { id } = req.params;
+    const learner = await prisma.learner.findUnique({
+      where: { id },
+      include: {
+        familyAccount: true,
+        links: { include: { parent: true } },
+      },
+    });
+
+    if (!learner) {
+      return res.status(404).json({ success: false, error: "Learner not found" });
+    }
+
+    return res.status(200).json({
+      success: true,
+      learner: mapLearnerDetailForClient(learner),
+    });
+  } catch (error) {
+    console.error("GET LEARNER ERROR:", error);
+    return res.status(500).json({ success: false, error: "Failed to fetch learner" });
+  }
+});
+
 router.get("/", async (req, res) => {
 
 
@@ -318,11 +412,17 @@ router.get("/", async (req, res) => {
 
 
 
+    const includeHistorical =
+      String(req.query.includeHistorical || "").toLowerCase() === "true";
+
     const learners = await prisma.learner.findMany({
 
 
 
-      where: { schoolId: String(schoolId) },
+      where: {
+        schoolId: String(schoolId),
+        ...(includeHistorical ? {} : { enrollmentStatus: "ACTIVE" }),
+      },
 
 
 

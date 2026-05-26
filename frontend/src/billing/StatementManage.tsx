@@ -23,6 +23,7 @@ import {
   notifyLearnersRefresh,
   resolveEntryLearnerLabel,
 } from "./billingLedger";
+import { getLearnerAccountNo } from "../learner/learnerIdentity";
 import {
   formatKidesysHistoryDescriptionDisplay,
   formatKidesysHistoryReferenceDisplay,
@@ -110,12 +111,8 @@ function persistBillingAccount(storageKey: string, account: any) {
 }
 
 function resolveLearnerAccountRef(learner: any): string {
-  return String(
-    learner?.familyAccount?.accountRef ||
-      learner?.accountNo ||
-      learner?.accountNumber ||
-      ""
-  ).trim();
+  const ref = getLearnerAccountNo(learner);
+  return ref === "-" ? "" : ref;
 }
 
 function resolveFamilyAccountId(learner: any): string {
