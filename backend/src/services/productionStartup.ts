@@ -2,6 +2,7 @@ import {
   ensureDaSilvaAcademySubscription,
   getDaSilvaResolvedSchoolId,
 } from "./activateDaSilvaSubscription";
+import { ensureDaSilvaAcademyLogin } from "./ensureDaSilvaAcademyLogin";
 import { ensureDaSilvaAcademyProduction } from "./ensureDaSilvaAcademyProduction";
 import { ensureEduClearPackages } from "./ensureEduClearPackages";
 import { runPrismaMigrateDeployWithRecovery } from "./prismaMigrationRecovery";
@@ -38,6 +39,20 @@ export async function runProductionStartup(): Promise<void> {
     await ensureDaSilvaAcademyProduction();
   } catch (error) {
     console.error("[startup] Da Silva school ensure/import failed:", error);
+  }
+
+  console.log("[startup] Da Silva owner login ensure starting");
+  try {
+    const login = await ensureDaSilvaAcademyLogin();
+    if (login.ok) {
+      console.log(`[startup] Da Silva owner login ready (user ${login.userId})`);
+    } else {
+      console.error(
+        `[startup] Da Silva owner login not ready (user ${login.userId ?? "none"})`
+      );
+    }
+  } catch (error) {
+    console.error("[startup] Da Silva owner login ensure failed:", error);
   }
 
   const resolvedSchoolId = getDaSilvaResolvedSchoolId();
