@@ -109,31 +109,48 @@ type DaSilvaSchoolLookup =
   | null;
 
 async function findExistingDaSilvaSchool(): Promise<DaSilvaSchoolLookup> {
-  const byId = await prisma.school.findUnique({
-    where: { id: DA_SILVA_ACADEMY_SCHOOL_ID },
-    select: { id: true },
+  const candidates = await prisma.school.findMany({
+    where: {
+      OR: [
+        { id: DA_SILVA_ACADEMY_SCHOOL_ID },
+        { email: DA_SILVA_OWNER_EMAIL },
+        { name: DA_SILVA_SCHOOL_NAME },
+      ],
+    },
+    select: { id: true, email: true, name: true },
   });
-  if (byId) {
-    return { id: byId.id, foundBy: "id" };
+  if (!candidates.length) return null;
+
+  let best = candidates[0]!;
+  let bestCount = await prisma.learner.count({ where: { schoolId: best.id } });
+
+  for (const row of candidates.slice(1)) {
+    const count = await prisma.learner.count({ where: { schoolId: row.id } });
+    const preferCanonical =
+      row.id === DA_SILVA_ACADEMY_SCHOOL_ID && count >= bestCount;
+    if (count > bestCount || preferCanonical) {
+      best = row;
+      bestCount = count;
+    }
   }
 
-  const byEmail = await prisma.school.findFirst({
-    where: { email: DA_SILVA_OWNER_EMAIL },
-    select: { id: true },
-  });
-  if (byEmail) {
-    return { id: byEmail.id, foundBy: "email" };
-  }
+  const foundBy =
+    best.id === DA_SILVA_ACADEMY_SCHOOL_ID
+      ? ("id" as const)
+      : best.email?.toLowerCase() === DA_SILVA_OWNER_EMAIL.toLowerCase()
+        ? ("email" as const)
+        : ("name" as const);
 
-  const byName = await prisma.school.findFirst({
-    where: { name: DA_SILVA_SCHOOL_NAME },
-    select: { id: true },
-  });
-  if (byName) {
-    return { id: byName.id, foundBy: "name" };
-  }
+  return { id: best.id, foundBy };
+}
 
-  return null;
+/** True when live DB already has migration data — startup must not re-import from manifest. */
+export function shouldSkipDaSilvaStartupImport(learnerCount: number): boolean {
+  if (learnerCount <= 0) return false;
+  if (String(process.env.DA_SILVA_ALLOW_STARTUP_IMPORT || "").trim().toLowerCase() === "true") {
+    return false;
+  }
+  return true;
 }
 
 async function ensureSchoolRecord(): Promise<string> {
@@ -425,44 +442,45 @@ export async function ensureDaSilvaAcademyProduction(): Promise<void> {
   }
 
   const expectedLearners = DA_SILVA_FINAL_IMPORT_EXPECTED.learners;
-  if (existing && learnerCount === expectedLearners) {
-    await ensureSchoolRecord();
-    await ensureOwnerLink();
-    verifyJsonStores();
-    console.log(
-      `[startup] Da Silva school already present (${learnerCount} learners) — import skipped`
-    );
-    return;
-  }
 
-  if (existing && learnerCount > expectedLearners) {
+  if (existing && shouldSkipDaSilvaStartupImport(learnerCount)) {
     await ensureSchoolRecord();
     await ensureOwnerLink();
     verifyJsonStores();
     await refreshDaSilvaSchoolIdCache();
-    console.warn(
-      `[startup] Da Silva go-live: ${learnerCount} learners on file (import snapshot expects ${expectedLearners}) — keeping live data, skipping import`
+    console.log(
+      `[startup] Da Silva migrated school present (${learnerCount} learners, expected ${expectedLearners}) — startup import disabled`
     );
     return;
   }
 
-  console.log("[startup] Da Silva school ensure/import starting…");
+  if (!existing) {
+    console.log("[startup] Da Silva school ensure/import starting…");
+    await ensureSchoolRecord();
+    await importFromManifest(manifest);
+    await ensureOwnerLink();
+    verifyJsonStores();
+
+    const finalLearners = await prisma.learner.count({ where: { schoolId } });
+    const finalParents = await prisma.parent.count({ where: { schoolId } });
+    const finalClassrooms = await prisma.classroom.count({ where: { schoolId } });
+
+    console.log(
+      `[startup] Da Silva school ensured/imported: ${DA_SILVA_SCHOOL_NAME} (${schoolId}) learners=${finalLearners} parents=${finalParents} classrooms=${finalClassrooms}`
+    );
+
+    if (finalLearners < expectedLearners) {
+      console.warn(
+        `[startup] Da Silva learner count ${finalLearners} is below expected ${expectedLearners}`
+      );
+    }
+    return;
+  }
+
+  console.warn(
+    `[startup] Da Silva school exists but has no learners — import requires DA_SILVA_ALLOW_STARTUP_IMPORT=true (manifest present, count=${learnerCount})`
+  );
   await ensureSchoolRecord();
-  await importFromManifest(manifest);
   await ensureOwnerLink();
   verifyJsonStores();
-
-  const finalLearners = await prisma.learner.count({ where: { schoolId } });
-  const finalParents = await prisma.parent.count({ where: { schoolId } });
-  const finalClassrooms = await prisma.classroom.count({ where: { schoolId } });
-
-  console.log(
-    `[startup] Da Silva school ensured/imported: ${DA_SILVA_SCHOOL_NAME} (${schoolId}) learners=${finalLearners} parents=${finalParents} classrooms=${finalClassrooms}`
-  );
-
-  if (finalLearners < expectedLearners) {
-    console.warn(
-      `[startup] Da Silva learner count ${finalLearners} is below expected ${expectedLearners}`
-    );
-  }
 }

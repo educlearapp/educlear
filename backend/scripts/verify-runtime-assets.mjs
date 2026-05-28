@@ -28,6 +28,11 @@ const REQUIRED_FILES = [
     warnBelowCount: 396,
   },
   {
+    rel: "data/family-account-age-analysis.json",
+    kind: "school-object",
+    minCount: 344,
+  },
+  {
     rel: "data/user-access.json",
     kind: "user-access",
   },

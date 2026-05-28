@@ -2,6 +2,7 @@ import { prisma } from "../prisma";
 import {
   DA_SILVA_ACADEMY_SCHOOL_ID,
   DA_SILVA_OWNER_EMAIL,
+  getDaSilvaResolvedSchoolId,
 } from "./activateDaSilvaSubscription";
 import {
   compareAuthPassword,
@@ -34,8 +35,17 @@ export type EnsureDaSilvaLoginResult = {
  * Idempotent Da Silva owner login repair: user row + password + school link + user-access meta.
  * Does not create schools, billing rows, registration records, or migration data.
  */
+async function resolveDaSilvaLoginSchoolId(): Promise<string> {
+  const canonical = await prisma.school.findUnique({
+    where: { id: DA_SILVA_ACADEMY_SCHOOL_ID },
+    select: { id: true },
+  });
+  if (canonical) return DA_SILVA_ACADEMY_SCHOOL_ID;
+  return getDaSilvaResolvedSchoolId() || DA_SILVA_ACADEMY_SCHOOL_ID;
+}
+
 export async function ensureDaSilvaAcademyLogin(): Promise<EnsureDaSilvaLoginResult> {
-  const schoolId = DA_SILVA_ACADEMY_SCHOOL_ID;
+  const schoolId = await resolveDaSilvaLoginSchoolId();
   const base: EnsureDaSilvaLoginResult = {
     ok: false,
     userFound: false,

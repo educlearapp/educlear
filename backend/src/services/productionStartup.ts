@@ -4,6 +4,7 @@ import {
 } from "./activateDaSilvaSubscription";
 import { ensureDaSilvaAcademyLogin } from "./ensureDaSilvaAcademyLogin";
 import { ensureDaSilvaAcademyProduction } from "./ensureDaSilvaAcademyProduction";
+import { healDaSilvaProductionDataIfCorrupted } from "./daSilvaProductionHeal";
 import { ensureEduClearPackages } from "./ensureEduClearPackages";
 import { runPrismaMigrateDeployWithRecovery } from "./prismaMigrationRecovery";
 import { prisma } from "../prisma";
@@ -68,6 +69,12 @@ export async function runProductionStartup(): Promise<void> {
   }
 
   console.log("[startup] Da Silva school ensured/imported");
+
+  try {
+    await healDaSilvaProductionDataIfCorrupted();
+  } catch (error) {
+    console.error("[startup] Da Silva production heal failed:", error);
+  }
 
   console.log("[startup] Da Silva subscription activation starting");
   try {
