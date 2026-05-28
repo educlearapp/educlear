@@ -218,12 +218,22 @@ export async function buildAccountsFromAgeAnalysisSnapshots(
       familyAccount: { select: { accountRef: true } },
     },
   });
-  const learnerByRef = new Map<string, { id: string; fullName: string }>();
+  const learnerByRef = new Map<
+    string,
+    { id: string; firstName: string; lastName: string; fullName: string }
+  >();
   for (const l of learners) {
     const ref = String(l.familyAccount?.accountRef || "").trim().toUpperCase();
     if (!ref || learnerByRef.has(ref)) continue;
-    const fullName = `${String(l.firstName || "").trim()} ${String(l.lastName || "").trim()}`.trim();
-    learnerByRef.set(ref, { id: l.id, fullName: fullName || ref });
+    const firstName = String(l.firstName || "").trim();
+    const lastName = String(l.lastName || "").trim();
+    const fullName = `${firstName} ${lastName}`.trim();
+    learnerByRef.set(ref, {
+      id: l.id,
+      firstName,
+      lastName,
+      fullName: fullName || ref,
+    });
   }
 
   const ledger = opts.ledger ?? readSchoolLedger(sid);
@@ -241,7 +251,9 @@ export async function buildAccountsFromAgeAnalysisSnapshots(
       String(snap.accountHolder || "").trim() ||
       accountRef ||
       "-";
-    const { name, surname } = splitDisplayName(label);
+    const split = splitDisplayName(label);
+    const name = String(learner?.firstName || "").trim() || split.name;
+    const surname = String(learner?.lastName || "").trim() || split.surname;
 
     const accountEntries = ledger.filter(
       (e) => String(e.accountNo || "").trim().toUpperCase() === accountRef

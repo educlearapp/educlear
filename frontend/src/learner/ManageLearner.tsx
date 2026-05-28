@@ -145,8 +145,11 @@ function normalizeLearnerForManage(raw: any) {
   const firstName = learnerFirstName(raw);
   const surname = learnerSurname(raw);
   const classroom = learnerClassroom(raw);
+  const id = String(raw.id || raw.learnerId || "").trim();
   return {
     ...raw,
+    id: id || raw.id,
+    learnerId: id || raw.learnerId,
     firstName,
     name: firstName,
     lastName: surname,
@@ -273,17 +276,19 @@ export default function ManageLearner({
     }
   }, [learnerProp]);
 
-  const learnerId = String(seedLearner?.id || "").trim();
+  const learnerId = String(seedLearner?.id || seedLearner?.learnerId || "").trim();
   const learner = detailLearner || seedLearner;
 
   useEffect(() => {
     if (!learnerId) {
       setDetailLearner(null);
       setDetailError("");
+      setForm(emptyGeneralForm);
       return;
     }
 
     let cancelled = false;
+    setDetailLearner(null);
     setDetailLoading(true);
     setDetailError("");
 
@@ -327,27 +332,22 @@ export default function ManageLearner({
     }
 
     setForm({
-      name: currentLearner?.name || currentLearner?.firstName || "",
-      surname: currentLearner?.surname || currentLearner?.lastName || "",
+      name: learnerFirstName(currentLearner),
+      surname: learnerSurname(currentLearner),
       idNumber: currentLearner?.idNumber || currentLearner?.idNo || "",
       birthDate: normaliseDateForInput(
         currentLearner?.birthDate || currentLearner?.dob || currentLearner?.dateOfBirth || ""
       ),
-      gender: currentLearner?.gender || "",
-      classroom:
-        currentLearner?.classroomName ||
-        currentLearner?.classroom?.name ||
-        currentLearner?.classroom ||
-        currentLearner?.className ||
-        "",
-      homeLanguage: currentLearner?.homeLanguage || "",
+      gender: String(currentLearner?.gender || currentLearner?.Gender || currentLearner?.sex || "").trim(),
+      classroom: String(learnerClassroom(currentLearner) || "").trim(),
+      homeLanguage: currentLearner?.homeLanguage || currentLearner?.language || "",
       nationality: currentLearner?.nationality || currentLearner?.citizenship || "",
       enrollmentDate: normaliseDateForInput(
         currentLearner?.enrollmentDate || currentLearner?.enrolmentDate || ""
       ),
       notes: currentLearner?.notes || "",
     });
-  }, [detailLearner, seedLearner]);
+  }, [detailLearner, seedLearner, learnerId]);
 
 
 

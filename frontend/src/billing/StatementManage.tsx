@@ -145,7 +145,7 @@ function mapToAccountChild(source: any, fallbackAccountNo: string): AccountChild
   return {
     id,
     firstName: source?.firstName || source?.name || "-",
-    lastName: source?.lastName || source?.surname || "-",
+    lastName: String(source?.lastName || source?.surname || "").trim() || "-",
     grade: source?.grade || "-",
     accountNo:
       resolveLearnerAccountRef(source) ||

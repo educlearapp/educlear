@@ -1,8 +1,6 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { API_URL } from "../../api";
-import "./Registrations.css";
 import { calculateLearnerAge } from "../../learner/learnerIdentity";
-import { isActiveEnrollment } from "../../utils/learnerGender";
 
 
 
@@ -286,10 +284,6 @@ const inputStyle: React.CSSProperties = {
 
 
 
-  color: DARK,
-
-  WebkitTextFillColor: DARK,
-
   boxSizing: "border-box",
 
 
@@ -381,17 +375,6 @@ export default function Registrations(props: AnyRecord) {
 
   const [localParents, setLocalParents] = useState<AnyRecord[]>(Array.isArray(parents) ? parents : []);
 
-  const [registrationStats, setRegistrationStats] = useState<{
-    children: number;
-    parents: number;
-    boys: number;
-    girls: number;
-    classrooms: number;
-    averageClassroomSize: number;
-  } | null>(null);
-
-  const [registrationStatsLoading, setRegistrationStatsLoading] = useState(false);
-
 
 
   const [selectedLearnerId, setSelectedLearnerId] = useState<string>(
@@ -419,25 +402,49 @@ export default function Registrations(props: AnyRecord) {
 
 
       const mergedLearners = learners.map((learner: AnyRecord) => {
-        const edits = savedEdits[String(learner.id)] || {};
-        const meaningfulEdits = Object.fromEntries(
-          Object.entries(edits).filter(([key, value]) => {
-            if (key === "parents") return Array.isArray(value) && value.length > 0;
-            if (value === "" || value === null || value === undefined) return false;
-            if (typeof value === "string" && !value.trim()) return false;
-            return true;
-          })
-        );
 
+
+
+        const edits = savedEdits[String(learner.id)] || {};
+      
+      
+      
         return {
+      
+      
+      
           ...learner,
-          ...meaningfulEdits,
-          parents: Array.isArray(meaningfulEdits.parents)
-            ? meaningfulEdits.parents
+      
+      
+      
+          ...edits,
+      
+      
+      
+          parents: Array.isArray(edits.parents)
+      
+      
+      
+            ? edits.parents
+      
+      
+      
             : Array.isArray(learner.parents)
+      
+      
+      
               ? learner.parents
+      
+      
+      
               : [],
+      
+      
+      
         };
+      
+      
+      
       });
 
 
@@ -465,51 +472,6 @@ setLocalLearners(mergedLearners);
   }, [parents]);
 
   useEffect(() => {
-    const sid = String(schoolId || "").trim();
-    if (!sid) {
-      setRegistrationStats(null);
-      setRegistrationStatsLoading(false);
-      return;
-    }
-    let cancelled = false;
-    setRegistrationStats(null);
-    setRegistrationStatsLoading(true);
-    fetch(`${API_URL}/api/registrations/stats?schoolId=${encodeURIComponent(sid)}`, {
-      cache: "no-store",
-    })
-      .then(async (res) => {
-        const data = await res.json().catch(() => null);
-        if (cancelled) return;
-        if (!res.ok || !data?.success || !data?.stats) {
-          setRegistrationStats(null);
-          return;
-        }
-        if (import.meta.env.DEV && Array.isArray(data?.debug?.sampleLearners)) {
-          console.info("[EduClear Dev] Registrations stats sample learners", data.debug.sampleLearners);
-        }
-        setRegistrationStats({
-          children: Number(data.stats.children ?? 0),
-          parents: Number(data.stats.parents ?? 0),
-          boys: Number(data.stats.boys ?? 0),
-          girls: Number(data.stats.girls ?? 0),
-          classrooms: Number(data.stats.classrooms ?? 0),
-          averageClassroomSize: Number(
-            data.stats.averageClassroomSize ?? data.stats.avg ?? 0
-          ),
-        });
-      })
-      .catch(() => {
-        if (!cancelled) setRegistrationStats(null);
-      })
-      .finally(() => {
-        if (!cancelled) setRegistrationStatsLoading(false);
-      });
-    return () => {
-      cancelled = true;
-    };
-  }, [schoolId]);
-
-  useEffect(() => {
     if (!import.meta.env.DEV) return;
     console.info("[EduClear Dev] Registrations view", {
       schoolId: String(schoolId || ""),
@@ -529,10 +491,59 @@ setLocalLearners(mergedLearners);
 
 
 
-  const statsDisplay = (key: keyof NonNullable<typeof registrationStats>) => {
-    if (registrationStatsLoading || !registrationStats) return "—";
-    return registrationStats[key];
-  };
+  const stats = useMemo(() => {
+
+
+
+    const total = localLearners.length;
+
+
+
+    const boys = localLearners.filter((l) => String(l.gender || "").toLowerCase() === "male").length;
+
+
+
+    const girls = localLearners.filter((l) => String(l.gender || "").toLowerCase() === "female").length;
+
+
+
+    const classroomSet = new Set(localLearners.map(learnerClass).filter(Boolean));
+
+
+
+    return {
+
+
+
+      children: total,
+
+
+
+      parents: localParents.length,
+
+
+
+      boys,
+
+
+
+      girls,
+
+
+
+      classrooms: classroomSet.size,
+
+
+
+      avg: classroomSet.size ? Math.round(total / classroomSet.size) : 0,
+
+
+
+    };
+
+
+
+  }, [localLearners, localParents]);
 
 
 
@@ -548,11 +559,7 @@ setLocalLearners(mergedLearners);
 
 
 
-      if (!showUnenrolled) {
-        const status = String(learner.status || learner.childStatus || "").toLowerCase();
-        if (status === "unenrolled" || status === "historical") return false;
-        if (String(learner.enrollmentStatus || "").toUpperCase() === "HISTORICAL") return false;
-      }
+      if (!showUnenrolled && String(learner.status || "Enrolled").toLowerCase() === "unenrolled") return false;
 
 
 
@@ -843,32 +850,27 @@ setLocalLearners(mergedLearners);
 
 
 
-          <StatCard icon="👥" value={statsDisplay("children")} label="children" color="#7a9b28" />
+          <StatCard icon="👥" value={stats.children} label="children" color="#7a9b28" />
 
 
 
-          <StatCard icon="👥" value={statsDisplay("parents")} label="parents" color="#7a9b28" />
+          <StatCard icon="👥" value={stats.parents} label="parents" color="#7a9b28" />
 
 
 
-          <StatCard icon="♂" value={statsDisplay("boys")} label="boys" color="#4f9fd7" />
+          <StatCard icon="♂" value={stats.boys} label="boys" color="#4f9fd7" />
 
 
 
-          <StatCard icon="♀" value={statsDisplay("girls")} label="girls" color="#c94b4b" />
+          <StatCard icon="♀" value={stats.girls} label="girls" color="#c94b4b" />
 
 
 
-          <StatCard icon="⌂" value={statsDisplay("classrooms")} label="classrooms" color="#c89c2d" />
+          <StatCard icon="⌂" value={stats.classrooms} label="classrooms" color="#c89c2d" />
 
 
 
-          <StatCard
-            icon="☷"
-            value={statsDisplay("averageClassroomSize")}
-            label="average classroom size"
-            color="#6856ad"
-          />
+          <StatCard icon="☷" value={stats.avg} label="average classroom size" color="#6856ad" />
 
 
 
@@ -1049,8 +1051,6 @@ setLocalLearners(mergedLearners);
 
 
               placeholder="Search"
-
-              className="registrations-search-input"
 
 
 

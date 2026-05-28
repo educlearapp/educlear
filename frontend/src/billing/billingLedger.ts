@@ -3,6 +3,7 @@ import {
   filterKidESysBillingRows,
   isKidESysAccountRef,
   normalizeKidESysAccountRef,
+  resolveKidESysAccountRefFromLearner,
 } from "./billingAccountRef";
 import {
   buildKidesysHistoryAccountIndex,
@@ -588,8 +589,8 @@ export function mapApiStatementRowToBillingAccountRow(row: any): BillingAccountR
     learnerId,
     accountNo,
     familyAccountId,
-    name: String(row?.name || "-"),
-    surname: String(row?.surname || "-"),
+    name: String(row?.name || row?.firstName || "").trim() || "-",
+    surname: String(row?.surname || row?.lastName || "").trim() || "-",
     balance,
     invoiceTotal: 0,
     penaltyTotal: 0,
@@ -679,16 +680,67 @@ function buildBillingAccountRow(
   };
 }
 
+function buildLearnerBillingDisplayIndex(learners: any[]) {
+  const byAccountRef = new Map<string, any>();
+  const byFamilyId = new Map<string, any>();
+  const byLearnerId = new Map<string, any>();
+
+  for (const learner of learners || []) {
+    const learnerId = String(learner?.id || learner?.learnerId || "").trim();
+    if (learnerId) byLearnerId.set(learnerId, learner);
+
+    const familyAccountId = String(
+      learner?.familyAccountId || learner?.familyAccount?.id || ""
+    ).trim();
+    if (familyAccountId && !byFamilyId.has(familyAccountId)) {
+      byFamilyId.set(familyAccountId, learner);
+    }
+
+    const accountRef = resolveKidESysAccountRefFromLearner(learner);
+    if (accountRef && !byAccountRef.has(accountRef)) {
+      byAccountRef.set(accountRef, learner);
+    }
+  }
+
+  return { byAccountRef, byFamilyId, byLearnerId };
+}
+
+function enrichBillingRowDisplay(
+  row: BillingAccountRow,
+  index: ReturnType<typeof buildLearnerBillingDisplayIndex>
+): BillingAccountRow {
+  const accountRef = normalizeKidESysAccountRef(row.accountNo);
+  const anchor =
+    (accountRef ? index.byAccountRef.get(accountRef) : null) ||
+    (row.familyAccountId ? index.byFamilyId.get(String(row.familyAccountId)) : null) ||
+    (row.learnerId ? index.byLearnerId.get(String(row.learnerId)) : null);
+
+  if (!anchor) return row;
+
+  const displayName = String(anchor?.firstName || anchor?.name || "").trim();
+  const displaySurname = String(anchor?.lastName || anchor?.surname || "").trim();
+
+  return {
+    ...row,
+    name: displayName || (row.name !== "-" ? row.name : "-"),
+    surname: displaySurname || (row.surname !== "-" ? row.surname : "-"),
+  };
+}
+
 /**
  * Billing account list for UI tables — GET /api/statements (Age Analysis accountRef) only.
- * Never builds rows from learners, admissionNo, or SA-SAMS numeric account numbers.
+ * Balances/invoice history stay on API rows; learner list enriches name/surname display only.
  */
-export function getBillingRows(_learners: any[], schoolId: string): BillingAccountRow[] {
+export function getBillingRows(learners: any[], schoolId: string): BillingAccountRow[] {
   const apiCached = readStatementApiAccounts(schoolId);
   if (!apiCached.length) return [];
 
+  const index = buildLearnerBillingDisplayIndex(learners);
+
   return filterKidESysBillingRows(
-    apiCached.map((row) => mapApiStatementRowToBillingAccountRow(row))
+    apiCached.map((row) =>
+      enrichBillingRowDisplay(mapApiStatementRowToBillingAccountRow(row), index)
+    )
   ).sort((a, b) => String(a.accountNo).localeCompare(String(b.accountNo)));
 }
 
