@@ -5,6 +5,7 @@ import {
   syncParentThreadsForClassroom,
 } from "../services/parentPortalService";
 import { normalizeStaffEmail } from "../utils/staffJwt";
+import { activeLearnerWhere } from "../utils/learnerEnrollment";
 
 const UNREGISTERED_PREFIX = "__learner_class__:";
 
@@ -52,7 +53,7 @@ function formatClassroomRow<T extends { name: string; teacherName: string; teach
 async function distinctLearnerClassNames(schoolId: string): Promise<string[]> {
   const grouped = await prisma.learner.groupBy({
     by: ["className"],
-    where: { schoolId, className: { not: "" } },
+    where: { ...activeLearnerWhere(schoolId), className: { not: "" } },
     _count: { _all: true },
   });
   return grouped
@@ -63,7 +64,7 @@ async function distinctLearnerClassNames(schoolId: string): Promise<string[]> {
 
 async function learnerCountForClass(schoolId: string, className: string) {
   return prisma.learner.count({
-    where: { schoolId, className },
+    where: { ...activeLearnerWhere(schoolId), className },
   });
 }
 

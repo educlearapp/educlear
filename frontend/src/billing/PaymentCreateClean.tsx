@@ -12,7 +12,10 @@ import {
 } from "./billingLedger";
 import { formatLedgerTypeLabel, isKidesysOpeningBalanceEntry } from "./billingDisplayRules";
 import { createPayment, fetchOpenInvoices, syncBillingLedgerFromApi } from "./billingApi";
-import { getLearnerAccountNo } from "../learner/learnerIdentity";
+import {
+  normalizeKidESysAccountRef,
+  resolveKidESysAccountRefFromLearner,
+} from "./billingAccountRef";
 import {
   fetchSchoolEmailSettings,
   isSchoolEmailReadyForUi,
@@ -81,9 +84,11 @@ function findLearnerRecord(learnerId: string, accountNo: string, learners: any[]
     const match = list.find((l) => String(l?.id || l?.learnerId || "").trim() === key);
     if (match) return match;
   }
-  const acct = String(accountNo || "").trim();
-  if (acct && acct !== "-") {
-    const match = list.find((l) => getLearnerAccountNo(l) === acct);
+  const acct = normalizeKidESysAccountRef(accountNo);
+  if (acct) {
+    const match = list.find(
+      (l) => resolveKidESysAccountRefFromLearner(l) === acct
+    );
     if (match) return match;
   }
   return null;
@@ -166,8 +171,11 @@ function resolveAccountChildren(
       if (fid === familyAccountId) addLearner(l);
     }
   } else if (accountNo) {
-    for (const l of learners) {
-      if (getLearnerAccountNo(l) === accountNo) addLearner(l);
+    const ref = normalizeKidESysAccountRef(accountNo);
+    if (ref) {
+      for (const l of learners) {
+        if (resolveKidESysAccountRefFromLearner(l) === ref) addLearner(l);
+      }
     }
   }
 
@@ -213,8 +221,9 @@ export function resolvePaymentLearnerId(
     if (match) return String(match.id || match.learnerId || "").trim();
   }
 
-  if (acct) {
-    const byAccount = list.find((l) => getLearnerAccountNo(l) === acct);
+  const kidRef = normalizeKidESysAccountRef(acct);
+  if (kidRef) {
+    const byAccount = list.find((l) => resolveKidESysAccountRefFromLearner(l) === kidRef);
     if (byAccount) return String(byAccount.id || byAccount.learnerId || "").trim();
   }
 
@@ -354,8 +363,9 @@ export default function PaymentCreateClean({
     setDetailsError("");
     try {
       await syncBillingLedgerFromApi(schoolId);
-      if (learnerId || accountNo) {
-        const { openInvoices, balance } = await fetchOpenInvoices(schoolId, learnerId, accountNo);
+      if (accountNo) {
+        // Open invoices + balance must resolve by Kid-e-Sys accountRef (FamilyAccount.accountRef) only.
+        const { openInvoices, balance } = await fetchOpenInvoices(schoolId, "", accountNo);
         setApiOpenInvoices(
           openInvoices.map((row: any) => ({
             id: String(row.id || ""),
@@ -377,7 +387,7 @@ export default function PaymentCreateClean({
     } finally {
       setLoadingDetails(false);
     }
-  }, [schoolId, learnerId, accountNo]);
+  }, [schoolId, accountNo]);
 
   useEffect(() => {
     void refreshLedger();
@@ -742,7 +752,7 @@ export default function PaymentCreateClean({
       setSaveError("School not loaded. Sign in again and retry.");
       return;
     }
-    if (!learnerId && !accountNo) {
+    if (!accountNo) {
       setSaveError("Account not selected. Go back and choose an account.");
       return;
     }
@@ -759,15 +769,13 @@ export default function PaymentCreateClean({
       return;
     }
 
-    const resolvedLearnerId = resolvePaymentLearnerId(selectedAccount, learners, accountNo);
-    const resolvedAccountNo = accountNo || getLearnerAccountNo(
-      learners.find((l) => String(l?.id || l?.learnerId || "").trim() === resolvedLearnerId)
-    );
+    const resolvedAccountNo =
+      normalizeKidESysAccountRef(accountNo) ||
+      normalizeKidESysAccountRef(selectedAccount?.accountNo) ||
+      resolveKidESysAccountRefFromLearner(
+        learners.find((l) => String(l?.id || l?.learnerId || "").trim() === learnerId)
+      );
 
-    if (!resolvedLearnerId) {
-      setSaveError("Could not resolve learner for this account. Go back and re-select the account.");
-      return;
-    }
     if (!resolvedAccountNo || resolvedAccountNo === "-") {
       setSaveError("Account number is missing for this learner.");
       return;
@@ -778,7 +786,8 @@ export default function PaymentCreateClean({
       const paymentAmount = normaliseBillingAmount(amount);
       const result = (await createPayment({
         schoolId,
-        learnerId: resolvedLearnerId,
+        // Billing identity is accountRef only (FamilyAccount.accountRef / Kid-e-Sys accountRef).
+        learnerId: "",
         accountNo: resolvedAccountNo,
         amount: paymentAmount,
         date: paymentDate,
@@ -798,7 +807,7 @@ export default function PaymentCreateClean({
       if (paymentId && allocationLines.length) {
         await savePaymentAllocations(paymentId, {
           schoolId,
-          learnerId: resolvedLearnerId,
+          learnerId,
           accountNo: resolvedAccountNo,
           paymentAmount,
           lines: allocationLines,
@@ -807,7 +816,7 @@ export default function PaymentCreateClean({
       } else if (paymentId && amountUnallocated > 0.001) {
         await savePaymentAllocations(paymentId, {
           schoolId,
-          learnerId: resolvedLearnerId,
+          learnerId,
           accountNo: resolvedAccountNo,
           paymentAmount,
           lines: [{ feeCategory: "account_credit", allocatedAmount: amountUnallocated }],
@@ -817,7 +826,7 @@ export default function PaymentCreateClean({
 
       appendPaymentTransaction({
         schoolId,
-        learnerId: resolvedLearnerId,
+        learnerId: "",
         accountNo: resolvedAccountNo,
         amount: paymentAmount,
         date: paymentDate,
@@ -840,7 +849,11 @@ export default function PaymentCreateClean({
       await onSaved();
     } catch (error) {
       console.error(error);
-      setSaveError("Payment could not be saved. Check your connection and try again.");
+      setSaveError(
+        error instanceof Error
+          ? error.message
+          : "Payment could not be saved. Check your connection and try again."
+      );
     } finally {
       setSaving(false);
     }
@@ -848,7 +861,6 @@ export default function PaymentCreateClean({
     draft,
     selectedAccount,
     schoolId,
-    learnerId,
     accountNo,
     learners,
     rowAllocations,

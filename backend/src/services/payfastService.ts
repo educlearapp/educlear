@@ -142,7 +142,7 @@ export function resolvePayFastHost(merchantId: string, notifyUrl: string): strin
   return PAYFAST_LIVE_HOST;
 }
 
-export function loadPayFastConfig(): PayFastConfig {
+export function getMissingPayFastEnvVars(): string[] {
   const merchantId = String(process.env.PAYFAST_MERCHANT_ID || "").trim();
   const merchantKey = String(process.env.PAYFAST_MERCHANT_KEY || "").trim();
   const passphrase = String(process.env.PAYFAST_PASSPHRASE || "").trim();
@@ -157,6 +157,21 @@ export function loadPayFastConfig(): PayFastConfig {
   if (!returnUrl) missing.push("PAYFAST_RETURN_URL");
   if (!cancelUrl) missing.push("PAYFAST_CANCEL_URL");
   if (!notifyUrl) missing.push("PAYFAST_NOTIFY_URL");
+  return missing;
+}
+
+export function isPayFastConfigured(): boolean {
+  return getMissingPayFastEnvVars().length === 0;
+}
+
+export function loadPayFastConfig(): PayFastConfig {
+  const missing = getMissingPayFastEnvVars();
+  const merchantId = String(process.env.PAYFAST_MERCHANT_ID || "").trim();
+  const merchantKey = String(process.env.PAYFAST_MERCHANT_KEY || "").trim();
+  const passphrase = String(process.env.PAYFAST_PASSPHRASE || "").trim();
+  const returnUrl = String(process.env.PAYFAST_RETURN_URL || "").trim();
+  const cancelUrl = String(process.env.PAYFAST_CANCEL_URL || "").trim();
+  const notifyUrl = String(process.env.PAYFAST_NOTIFY_URL || "").trim();
 
   if (missing.length > 0) {
     throw new PayFastConfigError(`Missing PayFast environment variables: ${missing.join(", ")}`);

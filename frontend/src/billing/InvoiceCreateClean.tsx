@@ -20,7 +20,7 @@ import {
   normalizeIsoDate,
   type PaymentAccountContext,
 } from "./paymentCreateShared";
-import { getLearnerAccountNo } from "../learner/learnerIdentity";
+import { normalizeKidESysAccountRef, resolveKidESysAccountRefFromLearner } from "./billingAccountRef";
 import { resolvePaymentLearnerId } from "./PaymentCreateClean";
 
 export type InvoiceDetailLine = {
@@ -171,9 +171,11 @@ function findLearnerRecord(learnerId: string, accountNo: string, learners: any[]
     const match = list.find((l) => String(l?.id || l?.learnerId || "").trim() === key);
     if (match) return match;
   }
-  const acct = String(accountNo || "").trim();
-  if (acct && acct !== "-") {
-    const match = list.find((l) => getLearnerAccountNo(l) === acct);
+  const acct = normalizeKidESysAccountRef(accountNo);
+  if (acct) {
+    const match = list.find(
+      (l) => resolveKidESysAccountRefFromLearner(l) === acct
+    );
     if (match) return match;
   }
   return null;
@@ -589,11 +591,8 @@ export default function InvoiceCreateClean({
       setSaveError("Account number is missing for this learner.");
       return;
     }
-    const resolvedLearnerId = resolvePaymentLearnerId(selectedAccount, learners, accountNo);
-    if (!resolvedLearnerId) {
-      setSaveError("Could not resolve learner for this account. Go back and re-select the account.");
-      return;
-    }
+    // Billing identity is accountRef only (FamilyAccount.accountRef / Kid-e-Sys accountRef).
+    // learnerId remains optional for write paths.
     const invDate = normalizeIsoDate(invoiceDate);
     if (!invDate) {
       setSaveError("Invoice date is required.");
@@ -635,7 +634,7 @@ export default function InvoiceCreateClean({
         const description = line.description;
         const payload = {
           schoolId,
-          learnerId: resolvedLearnerId,
+          learnerId: "",
           accountNo,
           amount: line.amount,
           date: invDate,

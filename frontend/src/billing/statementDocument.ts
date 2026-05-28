@@ -770,13 +770,16 @@ export async function fetchSchoolStatementPdfBlob(
   schoolId: string,
   learnerId: string,
   period = DEFAULT_STATEMENT_PERIOD,
-  statementNote?: string
+  statementNote?: string,
+  accountNo?: string
 ): Promise<Blob> {
   const params = new URLSearchParams({
     schoolId,
-    learnerId,
     period: normalizeStatementPeriod(period),
   });
+  const billingRef = String(accountNo || "").trim();
+  if (billingRef) params.set("accountNo", billingRef);
+  if (learnerId) params.set("learnerId", learnerId);
   if (statementNote) params.set("statementNote", statementNote);
   const res = await fetch(`${API_URL}/api/statements/pdf?${params.toString()}`);
   if (!res.ok) {
@@ -795,9 +798,10 @@ export async function downloadSchoolStatementPdf(
   learnerId: string,
   filename: string,
   period = DEFAULT_STATEMENT_PERIOD,
-  statementNote?: string
+  statementNote?: string,
+  accountNo?: string
 ): Promise<void> {
-  const blob = await fetchSchoolStatementPdfBlob(schoolId, learnerId, period, statementNote);
+  const blob = await fetchSchoolStatementPdfBlob(schoolId, learnerId, period, statementNote, accountNo);
   triggerBlobDownload(blob, filename);
 }
 
@@ -805,9 +809,10 @@ export async function openSchoolStatementPdfPrint(
   schoolId: string,
   learnerId: string,
   period = DEFAULT_STATEMENT_PERIOD,
-  statementNote?: string
+  statementNote?: string,
+  accountNo?: string
 ): Promise<boolean> {
-  const blob = await fetchSchoolStatementPdfBlob(schoolId, learnerId, period, statementNote);
+  const blob = await fetchSchoolStatementPdfBlob(schoolId, learnerId, period, statementNote, accountNo);
   const url = URL.createObjectURL(blob);
   const win = window.open(url, "_blank");
   if (!win) {
@@ -877,6 +882,7 @@ export async function sendStatementEmail(payload: {
   subject: string;
   html: string;
   learnerId: string;
+  accountNo?: string;
   period?: string;
   statementNote?: string;
   filename?: string;

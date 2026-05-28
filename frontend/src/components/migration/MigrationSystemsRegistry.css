@@ -1,0 +1,206 @@
+.uc-migration-systems-registry {
+  width: 100%;
+}
+
+.uc-migration-systems-registry-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+  margin-bottom: 20px;
+}
+
+.uc-migration-systems-registry-intro {
+  margin: 0;
+  flex: 1 1 280px;
+  font-size: 0.95rem;
+  line-height: 1.5;
+  color: #5b6575;
+  font-weight: 500;
+}
+
+.uc-migration-systems-registry-refresh {
+  padding: 10px 18px;
+  border-radius: 10px;
+  border: 1px solid rgba(212, 175, 55, 0.45);
+  background: #0a0a0a;
+  color: #d4af37;
+  font-weight: 700;
+  font-size: 0.88rem;
+  cursor: pointer;
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.uc-migration-systems-registry-refresh:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 8px 20px rgba(0, 0, 0, 0.25);
+}
+
+.uc-migration-systems-registry-status,
+.uc-migration-systems-registry-error {
+  margin: 0 0 16px;
+  font-size: 0.95rem;
+}
+
+.uc-migration-systems-registry-error {
+  color: #991b1b;
+  font-weight: 600;
+}
+
+.uc-migration-systems-registry-table-wrap {
+  border-radius: 12px;
+  border: 1px solid rgba(212, 175, 55, 0.28);
+  background: #ffffff;
+  box-shadow: 0 8px 24px rgba(15, 15, 15, 0.06);
+  overflow: hidden;
+}
+
+.uc-migration-systems-registry-table-scroll {
+  overflow-x: auto;
+}
+
+.uc-migration-systems-registry-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.9rem;
+}
+
+.uc-migration-systems-registry-table thead {
+  background: #0a0a0a;
+  color: #ffffff;
+}
+
+.uc-migration-systems-registry-table th {
+  padding: 14px 16px;
+  text-align: left;
+  font-weight: 800;
+  font-size: 0.78rem;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  white-space: nowrap;
+  border-bottom: 3px solid #d4af37;
+}
+
+.uc-migration-systems-registry-table td {
+  padding: 14px 16px;
+  border-bottom: 1px solid rgba(15, 23, 42, 0.08);
+  color: #334155;
+  vertical-align: top;
+}
+
+.uc-migration-systems-registry-table tbody tr:hover {
+  background: rgba(212, 175, 55, 0.06);
+}
+
+.uc-migration-systems-registry-system {
+  min-width: 140px;
+}
+
+.uc-migration-systems-registry-system-name {
+  display: block;
+  font-weight: 800;
+  color: #1d2736;
+}
+
+.uc-migration-systems-registry-system-id {
+  display: block;
+  margin-top: 4px;
+  font-size: 0.75rem;
+  color: #64748b;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+}
+
+.uc-migration-systems-registry-templates {
+  font-weight: 800;
+  color: #1d2736;
+  text-align: center;
+}
+
+.uc-migration-systems-registry-empty {
+  text-align: center;
+  color: #64748b;
+  font-style: italic;
+}
+
+.uc-migration-systems-registry-badge {
+  display: inline-block;
+  padding: 4px 10px;
+  border-radius: 999px;
+  font-size: 0.75rem;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  text-transform: capitalize;
+  border: 1px solid transparent;
+}
+
+.uc-migration-systems-registry-badge--planned {
+  background: rgba(51, 65, 85, 0.1);
+  color: #334155;
+  border-color: rgba(51, 65, 85, 0.25);
+}
+
+.uc-migration-systems-registry-badge--researching {
+  background: rgba(30, 64, 175, 0.1);
+  color: #1e40af;
+  border-color: rgba(30, 64, 175, 0.3);
+}
+
+.uc-migration-systems-registry-badge--partial {
+  background: rgba(120, 53, 15, 0.1);
+  color: #9a3412;
+  border-color: rgba(120, 53, 15, 0.3);
+}
+
+.uc-migration-systems-registry-badge--ready {
+  background: rgba(22, 101, 52, 0.12);
+  color: #166534;
+  border-color: rgba(22, 101, 52, 0.35);
+}
+
+.uc-migration-systems-registry-badge--deprecated {
+  background: rgba(127, 29, 29, 0.1);
+  color: #991b1b;
+  border-color: rgba(127, 29, 29, 0.35);
+}
+
+.uc-migration-systems-registry-row--selected {
+  background: rgba(212, 175, 55, 0.12) !important;
+}
+
+.uc-migration-systems-registry-open {
+  display: block;
+  width: 100%;
+  padding: 0;
+  border: none;
+  background: transparent;
+  text-align: left;
+  cursor: pointer;
+}
+
+.uc-migration-systems-registry-open:hover .uc-migration-systems-registry-system-name {
+  color: #b8860b;
+}
+
+.uc-migration-readiness-pill {
+  display: inline-block;
+  padding: 4px 10px;
+  border-radius: 999px;
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  white-space: nowrap;
+}
+
+.uc-migration-readiness-pill--ready_to_test {
+  background: rgba(22, 101, 52, 0.12);
+  color: #166534;
+  border: 1px solid rgba(22, 101, 52, 0.35);
+}
+
+.uc-migration-readiness-pill--needs_research {
+  background: rgba(30, 64, 175, 0.1);
+  color: #1e40af;
+  border: 1px solid rgba(30, 64, 175, 0.3);
+}

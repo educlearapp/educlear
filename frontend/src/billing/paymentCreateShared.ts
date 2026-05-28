@@ -1,4 +1,8 @@
-import { getLearnerAccountNo } from "../learner/learnerIdentity";
+import {
+  normalizeKidESysAccountRef,
+  resolveKidESysAccountRefFromLearner,
+  resolveKidESysAccountRefFromRow,
+} from "./billingAccountRef";
 
 export type PaymentAccountContext = {
   id: string;
@@ -127,15 +131,10 @@ export function paymentAccountContextsEqual(
 }
 
 function resolveAccountNo(source: any): string {
-  const ref = String(
-    source?.accountNo ||
-      source?.accountRef ||
-      source?.familyAccount?.accountRef ||
-      source?.accountNumber ||
-      ""
-  ).trim();
-  if (ref && ref !== "-") return ref;
-  return String(getLearnerAccountNo(source) || "").trim();
+  return (
+    resolveKidESysAccountRefFromRow(source) ||
+    resolveKidESysAccountRefFromLearner(source)
+  );
 }
 
 function findLearnerForRow(row: any, learners: any[]): any | null {
@@ -159,8 +158,14 @@ function findLearnerForRow(row: any, learners: any[]): any | null {
     const match = byLearnerKey(rowId);
     if (match) return match;
   }
-  if (accountNo && accountNo !== "-") {
-    const match = list.find((l) => getLearnerAccountNo(l) === accountNo);
+  if (accountNo) {
+    const upper = accountNo.toUpperCase();
+    const match = list.find(
+      (l) =>
+        String(l?.familyAccount?.accountRef || "")
+          .trim()
+          .toUpperCase() === upper
+    );
     if (match) return match;
   }
   return null;
@@ -243,14 +248,19 @@ export function accountsFromStatementRows(
     ).trim();
     const normalized = normalizePaymentAccount(row, statementRows, learners);
     if (!normalized) continue;
+    const accountNoKey = normalizeKidESysAccountRef(normalized.accountNo);
+    if (!accountNoKey) continue;
     const learnerId = realLearnerId || normalized.learnerId;
-    if (!learnerId) continue;
     const account: PaymentAccountContext = {
       ...normalized,
+      accountNo: accountNoKey,
       learnerId,
-      id: learnerId,
+      id: learnerId || accountNoKey,
     };
-    const key = `${account.learnerId}:${account.accountNo}`;
+    const key =
+      accountNoKey && accountNoKey !== "-"
+        ? `account:${accountNoKey}`
+        : `learner:${account.learnerId}`;
     if (seen.has(key)) continue;
     seen.add(key);
     list.push(account);

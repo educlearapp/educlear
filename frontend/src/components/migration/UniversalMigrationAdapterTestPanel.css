@@ -1,0 +1,171 @@
+.uc-migration-adapter-test {
+  margin-top: 1rem;
+  padding: 1rem;
+  border: 1px solid rgba(212, 175, 55, 0.25);
+  border-radius: 8px;
+  background: rgba(0, 0, 0, 0.35);
+}
+
+.uc-migration-adapter-test-header {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.75rem 1rem;
+  margin-bottom: 0.5rem;
+}
+
+.uc-migration-adapter-test-header .uc-migration-validation-section-title {
+  margin: 0;
+  flex: 1 1 100%;
+}
+
+.uc-migration-adapter-test-overall {
+  font-size: 0.85rem;
+  font-weight: 600;
+  padding: 0.2rem 0.55rem;
+  border-radius: 4px;
+}
+
+.uc-migration-adapter-test-overall--pass {
+  color: #8fd49a;
+  background: rgba(80, 160, 100, 0.15);
+}
+
+.uc-migration-adapter-test-overall--warning {
+  color: #e8c96a;
+  background: rgba(200, 160, 60, 0.15);
+}
+
+.uc-migration-adapter-test-overall--fail {
+  color: #f0a0a0;
+  background: rgba(180, 80, 80, 0.15);
+}
+
+.uc-migration-adapter-test-overall--not_supported {
+  color: #b0b0b0;
+  background: rgba(120, 120, 120, 0.15);
+}
+
+.uc-migration-adapter-test-recommendation {
+  font-size: 0.8rem;
+  font-weight: 600;
+  padding: 0.2rem 0.55rem;
+  border-radius: 4px;
+}
+
+.uc-migration-adapter-test-recommendation--ready {
+  color: #d4af37;
+  border: 1px solid rgba(212, 175, 55, 0.45);
+}
+
+.uc-migration-adapter-test-recommendation--partial {
+  color: #e8c96a;
+  border: 1px solid rgba(232, 201, 106, 0.35);
+}
+
+.uc-migration-adapter-test-recommendation--needs_research {
+  color: #c8a0a0;
+  border: 1px solid rgba(200, 120, 120, 0.35);
+}
+
+.uc-migration-adapter-test-meta {
+  margin: 0 0 0.75rem;
+  font-size: 0.8rem;
+  color: rgba(255, 255, 255, 0.55);
+}
+
+.uc-migration-adapter-test-summary {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  margin-bottom: 0.75rem;
+}
+
+.uc-migration-adapter-test-pill {
+  font-size: 0.75rem;
+  padding: 0.15rem 0.5rem;
+  border-radius: 4px;
+}
+
+.uc-migration-adapter-test-pill--pass {
+  background: rgba(80, 160, 100, 0.12);
+  color: #8fd49a;
+}
+
+.uc-migration-adapter-test-pill--warning {
+  background: rgba(200, 160, 60, 0.12);
+  color: #e8c96a;
+}
+
+.uc-migration-adapter-test-pill--fail {
+  background: rgba(180, 80, 80, 0.12);
+  color: #f0a0a0;
+}
+
+.uc-migration-adapter-test-pill--muted {
+  background: rgba(120, 120, 120, 0.12);
+  color: #b8b8b8;
+}
+
+.uc-migration-adapter-test-status {
+  margin-top: 0.75rem;
+  font-size: 0.85rem;
+  color: rgba(255, 255, 255, 0.7);
+}
+
+.uc-migration-adapter-test-table-wrap {
+  overflow-x: auto;
+}
+
+.uc-migration-adapter-test-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.8rem;
+}
+
+.uc-migration-adapter-test-table th,
+.uc-migration-adapter-test-table td {
+  text-align: left;
+  padding: 0.45rem 0.5rem;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+  vertical-align: top;
+}
+
+.uc-migration-adapter-test-table th {
+  color: rgba(212, 175, 55, 0.85);
+  font-weight: 600;
+}
+
+.uc-migration-adapter-test-details {
+  color: rgba(255, 255, 255, 0.55);
+  max-width: 16rem;
+  word-break: break-word;
+}
+
+.uc-migration-adapter-test-badge {
+  display: inline-block;
+  font-size: 0.7rem;
+  font-weight: 600;
+  padding: 0.1rem 0.4rem;
+  border-radius: 3px;
+}
+
+.uc-migration-adapter-test-badge--pass {
+  color: #8fd49a;
+  background: rgba(80, 160, 100, 0.15);
+}
+
+.uc-migration-adapter-test-badge--warning {
+  color: #e8c96a;
+  background: rgba(200, 160, 60, 0.15);
+}
+
+.uc-migration-adapter-test-badge--fail {
+  color: #f0a0a0;
+  background: rgba(180, 80, 80, 0.15);
+}
+
+.uc-migration-adapter-test-badge--not_supported {
+  color: #b0b0b0;
+  background: rgba(120, 120, 120, 0.15);
+}

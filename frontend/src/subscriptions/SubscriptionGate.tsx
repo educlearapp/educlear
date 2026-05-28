@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { Navigate, useLocation } from "react-router-dom";
 
+import { isSuperAdmin } from "../auth/roles";
 import {
   clearSubscriptionGateCache,
   fetchSchoolSubscriptionStatus,
@@ -17,10 +18,15 @@ export default function SubscriptionGate({ children }: { children: React.ReactNo
   const location = useLocation();
   const schoolId = String(localStorage.getItem("schoolId") || "").trim();
   const token = String(localStorage.getItem("token") || "").trim();
+  const subscriptionGateExempt = isSuperAdmin();
   const [gate, setGate] = useState<GateState>("loading");
 
   useEffect(() => {
     let cancelled = false;
+
+    if (subscriptionGateExempt) {
+      return;
+    }
 
     if (!token || !schoolId) {
       setGate("blocked");
@@ -46,7 +52,11 @@ export default function SubscriptionGate({ children }: { children: React.ReactNo
     return () => {
       cancelled = true;
     };
-  }, [schoolId, token, location.pathname]);
+  }, [schoolId, token, location.pathname, subscriptionGateExempt]);
+
+  if (subscriptionGateExempt) {
+    return <>{children}</>;
+  }
 
   if (!token || !schoolId) {
     return <Navigate to="/login" replace state={{ from: location.pathname }} />;

@@ -94,30 +94,5 @@ export const calculateBillingSummary = (rows: any[]): BillingSummaryTotals => {
 export const buildBillingAccountRows = (learners: any[], invoices: any[], payments: any[]) => {
   const schoolId = localStorage.getItem("schoolId") || "";
   if (schoolId) return getBillingRows(learners, schoolId);
-
-  return learners.map((learner: any) => {
-    const learnerId = String(learner?.id || learner?.learnerId || "").trim();
-    const accountNo = String(learner?.accountNo || "").trim();
-    const ledger = [...invoices, ...payments] as any[];
-    const balance = calculateAccountBalance(
-      ledger.filter((e) => entryMatchesAccount(e, learnerId, accountNo)) as any
-    );
-    const lastInv = getLastInvoice(ledger.filter((e) => e.type === "invoice") as any);
-    const lastPay = getLastPayment(ledger.filter((e) => e.type === "payment") as any);
-
-    return {
-      id: learnerId,
-      learnerId,
-      accountNo,
-      name: learner?.firstName || learner?.name || "",
-      surname: learner?.surname || learner?.lastName || "",
-      balance,
-      lastInvoice: lastInv ? formatMoney(lastInv.amount) : "No invoices",
-      lastInvoiceDate: lastInv?.date || "",
-      lastPayment: lastPay ? `${formatMoney(lastPay.amount)} on ${lastPay.date || ""}` : "No payments",
-      lastPaymentDate: lastPay?.date || "",
-      status:
-        balance > 10000 ? "Bad Debt" : balance > 0 ? "Recently Owing" : balance < 0 ? "Over Paid" : "Up To Date",
-    };
-  });
+  return [];
 };

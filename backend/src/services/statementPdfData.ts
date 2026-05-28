@@ -1,5 +1,6 @@
 import { prisma } from "../prisma";
-import { resolveLearnerAccountNo } from "../utils/learnerIdentity";
+import { buildAccountsFromAgeAnalysisSnapshots } from "./statementAccounts";
+import { resolveBillingAccountRef } from "./resolveBillingAccountRef";
 import {
   calculateBalanceFromEntries,
   collectFamilyAccountEntries,
@@ -43,26 +44,100 @@ function parentDisplayName(parent: {
   return `${parent.firstName || ""} ${parent.surname || ""}`.trim() || "Parent / Guardian";
 }
 
-function resolveAccountScope(learners: LearnerRow[], anchorLearnerId: string) {
-  const anchor = learners.find((l) => l.id === anchorLearnerId);
-  if (!anchor) return null;
+const KIDEESYS_ACCOUNT_REF_RE = /^[A-Z]{2,5}\d{2,5}$/;
 
-  const familyId = String(anchor.familyAccountId || anchor.familyAccount?.id || "").trim();
-  const accountRef = resolveLearnerAccountNo(anchor);
+function normalizeKidESysAccountRef(value: unknown): string {
+  const ref = String(value ?? "").trim().toUpperCase();
+  if (!ref || ref === "-" || ref.startsWith("KID-MISSING-")) return "";
+  if (!KIDEESYS_ACCOUNT_REF_RE.test(ref)) return "";
+  return ref;
+}
 
-  let group: LearnerRow[] = [anchor];
-  if (familyId) {
-    group = learners.filter((l) => String(l.familyAccountId || l.familyAccount?.id || "") === familyId);
-  } else if (accountRef) {
-    group = learners.filter((l) => resolveLearnerAccountNo(l) === accountRef);
-  }
+function isSasamsNumericAccount(value: unknown): boolean {
+  const v = String(value ?? "").trim();
+  if (!v || normalizeKidESysAccountRef(v)) return false;
+  return /^\d{4,}$/.test(v);
+}
 
+function buildAccountScopeFromLearners(learners: LearnerRow[], accountRef: string) {
+  const ref = normalizeKidESysAccountRef(accountRef);
+  if (!ref) return null;
+  const group = learners.filter(
+    (l) => normalizeKidESysAccountRef(l.familyAccount?.accountRef) === ref
+  );
+  if (!group.length) return null;
+  const familyId = String(group[0]?.familyAccountId || group[0]?.familyAccount?.id || "").trim();
   return {
-    accountRef,
+    accountRef: ref,
     learners: group,
     learnerIds: group.map((l) => l.id),
     isFamilyAccount: group.length > 1 || Boolean(familyId),
   };
+}
+
+const learnerSelectForStatement = {
+  id: true,
+  firstName: true,
+  lastName: true,
+  grade: true,
+  familyAccountId: true,
+  familyAccount: { select: { id: true, accountRef: true, familyName: true } },
+} as const;
+
+async function loadLearnersForAccountRef(schoolId: string, accountRef: string): Promise<LearnerRow[]> {
+  const ref = normalizeKidESysAccountRef(accountRef);
+  if (!ref) return [];
+  const rows = await prisma.learner.findMany({
+    where: { schoolId, familyAccount: { accountRef: ref } },
+    select: learnerSelectForStatement,
+    orderBy: { lastName: "asc" },
+  });
+  if (rows.length) return rows as LearnerRow[];
+  const family = await prisma.familyAccount.findFirst({
+    where: { schoolId, accountRef: ref },
+    select: { id: true },
+  });
+  if (!family) return [];
+  const byFamilyId = await prisma.learner.findMany({
+    where: { schoolId, familyAccountId: family.id },
+    select: learnerSelectForStatement,
+    orderBy: { lastName: "asc" },
+  });
+  return byFamilyId as LearnerRow[];
+}
+
+/** Resolve Kid-e-Sys billing identity (FamilyAccount.accountRef) — never admissionNo / idNumber. */
+async function resolveStatementAccountRef(
+  schoolId: string,
+  opts: { accountNo?: string; learnerId?: string }
+): Promise<string | null> {
+  const rawAccountNo = String(opts.accountNo || "").trim();
+  const learnerId = String(opts.learnerId || "").trim();
+
+  if (rawAccountNo && !isSasamsNumericAccount(rawAccountNo)) {
+    const fromKidESysRef = normalizeKidESysAccountRef(rawAccountNo);
+    if (fromKidESysRef) return fromKidESysRef;
+    const resolved = await resolveBillingAccountRef(schoolId, rawAccountNo);
+    if (resolved?.accountRef) return normalizeKidESysAccountRef(resolved.accountRef) || null;
+  }
+
+  if (learnerId) {
+    const learner = await prisma.learner.findFirst({
+      where: { id: learnerId, schoolId },
+      select: {
+        familyAccount: { select: { accountRef: true } },
+      },
+    });
+    const fromLearner = normalizeKidESysAccountRef(learner?.familyAccount?.accountRef);
+    if (fromLearner) return fromLearner;
+  }
+
+  if (rawAccountNo && !isSasamsNumericAccount(rawAccountNo)) {
+    const resolved = await resolveBillingAccountRef(schoolId, rawAccountNo);
+    if (resolved?.accountRef) return normalizeKidESysAccountRef(resolved.accountRef) || null;
+  }
+
+  return null;
 }
 
 function isStatementBillingContact(
@@ -96,48 +171,55 @@ function displayContactScore(link: { isPrimary?: boolean; isPayingPerson?: boole
   return score;
 }
 
-/** Parent/guardian for PDF display (does not require email). */
-export async function resolveStatementContactForDisplay(
-  schoolId: string,
+type StatementContactCandidate = {
+  parent: {
+    id: string;
+    firstName: string | null;
+    surname: string | null;
+    email: string | null;
+    cellNo: string | null;
+  };
+  link: {
+    learnerId: string;
+    isPrimary: boolean;
+    isPayingPerson: boolean;
+    billingStatement: boolean;
+    relation: string | null;
+  };
+};
+
+function collectStatementContactCandidates(
+  links: Array<{
+    learnerId: string;
+    isPrimary: boolean;
+    isPayingPerson: boolean;
+    billingStatement: boolean;
+    relation: string | null;
+    parent: StatementContactCandidate["parent"];
+  }>,
   learnerIds: string[],
-  accountNo: string
-): Promise<StatementPdfContact | null> {
-  const ids = learnerIds.filter(Boolean);
-  if (!ids.length) return null;
-
-  const parents = await prisma.parent.findMany({
-    where: { schoolId },
-    include: {
-      links: {
-        where: { learnerId: { in: ids } },
-        select: {
-          learnerId: true,
-          isPrimary: true,
-          isPayingPerson: true,
-          billingStatement: true,
-          relation: true,
-        },
-      },
-    },
-  });
-
+  requireBillingStatement: boolean
+): StatementContactCandidate[] {
+  const ids = new Set(learnerIds);
   const seenParentIds = new Set<string>();
-  const candidates: {
-    parent: (typeof parents)[0];
-    link: (typeof parents)[0]["links"][0];
-  }[] = [];
+  const candidates: StatementContactCandidate[] = [];
 
-  for (const parent of parents) {
-    for (const link of parent.links) {
-      if (!ids.includes(link.learnerId)) continue;
-      if (link.billingStatement === false) continue;
-      const parentId = String(parent.id || "").trim();
-      if (parentId && seenParentIds.has(parentId)) continue;
-      if (parentId) seenParentIds.add(parentId);
-      candidates.push({ parent, link });
-    }
+  for (const row of links) {
+    if (!ids.has(row.learnerId)) continue;
+    if (requireBillingStatement && row.billingStatement === false) continue;
+    const parentId = String(row.parent.id || "").trim();
+    if (parentId && seenParentIds.has(parentId)) continue;
+    if (parentId) seenParentIds.add(parentId);
+    candidates.push({ parent: row.parent, link: row });
   }
 
+  return candidates;
+}
+
+function buildStatementContactFromCandidates(
+  candidates: StatementContactCandidate[],
+  accountNo: string
+): StatementPdfContact | null {
   if (!candidates.length) return null;
 
   candidates.sort((a, b) => displayContactScore(b.link) - displayContactScore(a.link));
@@ -155,6 +237,38 @@ export async function resolveStatementContactForDisplay(
     relationship: String(best.link.relation || "Parent"),
     accountNo: accountNo || "—",
   };
+}
+
+/** Parent/guardian for PDF display (does not require email). */
+export async function resolveStatementContactForDisplay(
+  schoolId: string,
+  learnerIds: string[],
+  accountNo: string
+): Promise<StatementPdfContact | null> {
+  const ids = learnerIds.filter(Boolean);
+  if (!ids.length) return null;
+
+  const links = await prisma.parentLearnerLink.findMany({
+    where: { schoolId, learnerId: { in: ids } },
+    include: {
+      parent: {
+        select: {
+          id: true,
+          firstName: true,
+          surname: true,
+          email: true,
+          cellNo: true,
+        },
+      },
+    },
+  });
+
+  const withBilling = collectStatementContactCandidates(links, ids, true);
+  const contact =
+    buildStatementContactFromCandidates(withBilling, accountNo) ||
+    buildStatementContactFromCandidates(collectStatementContactCandidates(links, ids, false), accountNo);
+
+  return contact;
 }
 
 export async function resolveStatementBillingContact(
@@ -229,27 +343,19 @@ export async function buildStatementPdfInput(
 ): Promise<StatementPdfInput> {
   const schoolId = String(options.schoolId || "").trim();
   const learnerId = String(options.learnerId || "").trim();
+  const accountNo = String((options as any)?.accountNo || "").trim();
   const period = normalizeStatementPeriod(options.period || DEFAULT_STATEMENT_PERIOD);
 
-  if (!schoolId || !learnerId) {
-    throw new Error("Missing schoolId or learnerId for statement PDF");
+  if (!schoolId || (!accountNo && !learnerId)) {
+    throw new Error("Missing schoolId and accountNo or learnerId for statement PDF");
   }
 
-  const learners = await prisma.learner.findMany({
-    where: { schoolId },
-    select: {
-      id: true,
-      firstName: true,
-      lastName: true,
-      grade: true,
-      familyAccountId: true,
-      familyAccount: { select: { id: true, accountRef: true, familyName: true } },
-    },
-    orderBy: { lastName: "asc" },
-  });
+  const accountRef = await resolveStatementAccountRef(schoolId, { accountNo, learnerId });
+  if (!accountRef) throw new Error("Account not found for statement PDF");
 
-  const scope = resolveAccountScope(learners as LearnerRow[], learnerId);
-  if (!scope) throw new Error("Learner not found for statement PDF");
+  const learners = await loadLearnersForAccountRef(schoolId, accountRef);
+  const scope = buildAccountScopeFromLearners(learners, accountRef);
+  if (!scope) throw new Error("Account not found for statement PDF");
 
   const ledger = readSchoolLedger(schoolId);
   const scopedEntries = collectFamilyAccountEntries(ledger, {
@@ -257,13 +363,16 @@ export async function buildStatementPdfInput(
     learnerIds: scope.learnerIds,
   });
   const filtered = filterLedgerByStatementPeriod(scopedEntries, period);
-  const balance = calculateBalanceFromEntries(filtered);
+  // Balance source of truth: Age Analysis (Kid-e-Sys accountRef) snapshot.
+  const accounts = await buildAccountsFromAgeAnalysisSnapshots(schoolId);
+  const snapshot = accounts.find((row: any) => String(row?.accountNo || "").trim() === scope.accountRef);
+  const balance = snapshot ? normaliseAmount((snapshot as any).balance) : calculateBalanceFromEntries(filtered);
 
   const nameByLearnerId = new Map(
     scope.learners.map((l) => [l.id, `${l.firstName} ${l.lastName}`.trim()])
   );
 
-  const anchor = scope.learners.find((l) => l.id === learnerId) || scope.learners[0];
+  const anchor = scope.learners[0];
   const accountLabel = scope.isFamilyAccount
     ? `Family account ${scope.accountRef || "—"}`
     : `${anchor.firstName} ${anchor.lastName}`.trim();

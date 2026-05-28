@@ -1,10 +1,19 @@
 import * as XLSX from "xlsx";
+import { normalizeKidESysLearnerClassListSheet } from "../services/migration/adapters/kideesysLearnerClassListNormalization";
 import { parseKideesysSpreadsheetBuffer } from "./kideesysSpreadsheet";
+
+export type MigrationParseIssue = {
+  severity: "info" | "warning";
+  field: string;
+  message: string;
+  rowNumber: number;
+};
 
 export type ParsedMigrationLearnerTable = {
   headers: string[];
   rows: Record<string, string>[];
   fileName: string;
+  parseIssues?: MigrationParseIssue[];
 };
 
 export function isAcceptedLearnerMigrationFileName(fileName: string): boolean {
@@ -92,6 +101,26 @@ function matrixToRecords(matrix: string[][]): { headers: string[]; rows: Record<
   return { headers, rows };
 }
 
+export function readMigrationSpreadsheetMatrix(buffer: Buffer, fileName: string): string[][] {
+  const lower = String(fileName || "").toLowerCase();
+  if (lower.endsWith(".csv")) {
+    const parsed = parseCsvText(buffer.toString("utf8"));
+    const matrix: string[][] = [];
+    if (parsed.headers.length) matrix.push(parsed.headers);
+    for (const row of parsed.rows) {
+      matrix.push(parsed.headers.map((h) => String(row[h] ?? "")));
+    }
+    return matrix;
+  }
+
+  if (lower.endsWith(".xls") && isKideesysXmlSpreadsheet(buffer)) {
+    const sheet = parseKideesysSpreadsheetBuffer(buffer);
+    return sheet.rows;
+  }
+
+  return sheetMatrixFromXlsx(buffer);
+}
+
 function sheetMatrixFromXlsx(buffer: Buffer): string[][] {
   const workbook = XLSX.read(buffer, { type: "buffer", cellDates: false });
   const sheetName = workbook.SheetNames[0];
@@ -126,11 +155,15 @@ export function parseMigrationLearnerFileBuffer(
 
   if (lower.endsWith(".xls") && isKideesysXmlSpreadsheet(buffer)) {
     const sheet = parseKideesysSpreadsheetBuffer(buffer);
+    const normalized = normalizeKidESysLearnerClassListSheet(sheet.rows, fileName);
+    if (normalized) return normalized;
     const parsed = matrixToRecords(sheet.rows);
     return { ...parsed, fileName };
   }
 
   const matrix = sheetMatrixFromXlsx(buffer);
+  const normalized = normalizeKidESysLearnerClassListSheet(matrix, fileName);
+  if (normalized) return normalized;
   const parsed = matrixToRecords(matrix);
   return { ...parsed, fileName };
 }

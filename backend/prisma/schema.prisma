@@ -550,6 +550,8 @@ familyAccountId String?
 
   maritalStatus String?
 
+  employer String?
+
   notes String?
 
   homeAddress String?
@@ -639,9 +641,13 @@ model Learner {
 
   lastName String
 
+  nickname String?
+
   birthDate DateTime?
   gender String?
   idNumber String?
+  homeLanguage String?
+  citizenship String?
 
   grade String
 
@@ -659,6 +665,8 @@ otherFee     Float   @default(0)
 totalFee     Float   @default(0)
 
   createdAt DateTime @default(now())
+
+  notes String?
 
   school School @relation(fields: [schoolId], references: [id])
 familyAccount FamilyAccount? @relation(fields: [familyAccountId], references: [id])

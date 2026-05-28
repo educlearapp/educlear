@@ -1,0 +1,50 @@
+.uc-migration-research-page {
+  max-width: 1400px;
+  margin: 0 auto;
+}
+
+.uc-migration-research-header {
+  margin-bottom: 24px;
+}
+
+.uc-migration-research-header .page-title {
+  margin: 0 0 8px;
+}
+
+.uc-migration-research-subtitle {
+  margin: 0;
+  font-size: 1.05rem;
+  line-height: 1.5;
+  color: #5b6575;
+  font-weight: 500;
+}
+
+.uc-migration-research-nav {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  margin-bottom: 24px;
+}
+
+.uc-migration-research-nav-link {
+  padding: 10px 18px;
+  border-radius: 10px;
+  border: 1px solid rgba(212, 175, 55, 0.35);
+  background: #0a0a0a;
+  color: #d4af37;
+  font-weight: 700;
+  font-size: 0.9rem;
+  text-decoration: none;
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.uc-migration-research-nav-link:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 8px 20px rgba(0, 0, 0, 0.25);
+}
+
+.uc-migration-research-nav-link--active {
+  background: linear-gradient(135deg, #f7d56a, #d4af37);
+  color: #0a0a0a;
+  border-color: transparent;
+}

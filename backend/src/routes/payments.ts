@@ -1,7 +1,8 @@
 import { Router } from "express";
 
-import { prisma } from "../prisma";
-import { resolveLearnerAccountNo } from "../utils/learnerIdentity";
+import { relinkSchoolBillingLedger } from "../services/billingLedgerRelink";
+import { resolveBillingAccountRef } from "../services/resolveBillingAccountRef";
+import { buildAccountsFromAgeAnalysisSnapshots } from "../services/statementAccounts";
 import {
   appendSchoolEntry,
   calculateBalanceForAccount,
@@ -13,30 +14,6 @@ import {
 } from "../utils/billingLedgerStore";
 
 const router = Router();
-
-function lastInvoiceAmount(entries: BillingLedgerEntry[], learnerId: string, accountNo: string) {
-  const matched = entries.filter(
-    (e) =>
-      e.type === "invoice" &&
-      (String(e.learnerId) === learnerId || String(e.accountNo) === accountNo)
-  );
-  const sorted = matched.sort(
-    (a, b) => new Date(b.date || b.createdAt).getTime() - new Date(a.date || a.createdAt).getTime()
-  );
-  return sorted[0]?.amount ?? 0;
-}
-
-function lastPaymentAmount(entries: BillingLedgerEntry[], learnerId: string, accountNo: string) {
-  const matched = entries.filter(
-    (e) =>
-      e.type === "payment" &&
-      (String(e.learnerId) === learnerId || String(e.accountNo) === accountNo)
-  );
-  const sorted = matched.sort(
-    (a, b) => new Date(b.date || b.createdAt).getTime() - new Date(a.date || a.createdAt).getTime()
-  );
-  return sorted[0]?.amount ?? 0;
-}
 
 // GET /api/payments?schoolId=...
 router.get("/", async (req, res) => {
@@ -74,16 +51,18 @@ router.get("/open-invoices", async (req, res) => {
     const schoolId = typeof req.query?.schoolId === "string" ? String(req.query.schoolId) : "";
     const learnerId = typeof req.query?.learnerId === "string" ? String(req.query.learnerId) : "";
     const accountNo = typeof req.query?.accountNo === "string" ? String(req.query.accountNo) : "";
-    if (!schoolId || (!learnerId && !accountNo)) {
+    if (!schoolId || !accountNo) {
       return res.status(400).json({
         success: false,
-        error: "Missing schoolId and learnerId or accountNo",
+        error: "Missing schoolId or accountNo",
       });
     }
 
+    await relinkSchoolBillingLedger(schoolId);
     const ledger = readSchoolLedger(schoolId);
-    const openInvoices = computeOpenInvoiceLines(ledger, learnerId, accountNo);
-    const balance = calculateBalanceForAccount(ledger, learnerId, accountNo);
+    // Identity is accountRef only for open invoice allocation + balance snapshots.
+    const openInvoices = computeOpenInvoiceLines(ledger, "", accountNo);
+    const balance = calculateBalanceForAccount(ledger, "", accountNo);
 
     return res.json({ success: true, openInvoices, balance });
   } catch (error) {
@@ -98,40 +77,7 @@ router.get("/accounts", async (req, res) => {
     const schoolId = typeof req.query?.schoolId === "string" ? String(req.query.schoolId) : "";
     if (!schoolId) return res.status(400).json({ success: false, error: "Missing schoolId" });
 
-    const ledger = readSchoolLedger(schoolId);
-    const learners = await prisma.learner.findMany({
-      where: { schoolId },
-      orderBy: { createdAt: "desc" },
-      select: {
-        id: true,
-        schoolId: true,
-        firstName: true,
-        lastName: true,
-        admissionNo: true,
-        familyAccountId: true,
-        createdAt: true,
-        familyAccount: { select: { accountRef: true, familyName: true } },
-      },
-    });
-
-    const accounts = learners.map((l) => {
-      const accountNo = resolveLearnerAccountNo(l);
-      const balance = calculateBalanceForAccount(ledger, l.id, accountNo);
-      return {
-        accountNo,
-        learnerId: l.id,
-        schoolId: l.schoolId,
-        firstName: l.firstName || "-",
-        lastName: l.lastName || "-",
-        familyAccountId: l.familyAccountId,
-        familyName: l.familyAccount?.familyName ?? null,
-        admissionNo: l.admissionNo ?? null,
-        createdAt: l.createdAt,
-        balance,
-        lastInvoice: lastInvoiceAmount(ledger, l.id, accountNo),
-        lastPayment: lastPaymentAmount(ledger, l.id, accountNo),
-      };
-    });
+    const accounts = await buildAccountsFromAgeAnalysisSnapshots(schoolId);
 
     return res.json({ success: true, accounts });
   } catch (error) {
@@ -144,19 +90,29 @@ router.post("/", async (req, res) => {
   try {
     const body = (req.body ?? {}) as Record<string, unknown>;
     const schoolId = String(body.schoolId || "").trim();
-    const learnerId = String(body.learnerId || body.parentId || body.accountId || "").trim();
-    const accountNo = String(body.accountNo || "").trim();
+    const accountInput = String(body.accountNo || body.accountRef || "").trim();
     const amount = normaliseAmount(body.amount);
 
     if (!schoolId || !amount) {
       return res.status(400).json({ success: false, error: "Missing schoolId or amount" });
     }
+    if (!accountInput) {
+      return res.status(400).json({ success: false, error: "Missing accountNo" });
+    }
+
+    const resolved = await resolveBillingAccountRef(schoolId, accountInput);
+    if (!resolved) {
+      return res.status(404).json({
+        success: false,
+        error: `Account not found for ref ${accountInput}`,
+      });
+    }
 
     const entry: BillingLedgerEntry = {
       id: String(body.id || `pay-${Date.now()}`),
       schoolId,
-      learnerId,
-      accountNo,
+      learnerId: "",
+      accountNo: resolved.accountRef,
       type: "payment",
       amount,
       date: String(body.date || body.paidAt || new Date().toISOString()).slice(0, 10),

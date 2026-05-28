@@ -34,7 +34,7 @@ router.get("/", async (_req, res) => {
         email: true,
         createdAt: true,
       },
-      orderBy: { createdAt: "desc" },
+      orderBy: { name: "asc" },
     });
 
     res.json(schools);

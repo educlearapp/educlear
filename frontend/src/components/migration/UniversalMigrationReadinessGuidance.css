@@ -1,0 +1,140 @@
+.uc-migration-readiness-guidance {
+  margin: 0 0 20px;
+  padding: 16px 18px;
+  border-radius: 12px;
+  border: 1px solid rgba(212, 175, 55, 0.28);
+  background: rgba(255, 255, 255, 0.95);
+}
+
+.uc-migration-readiness-guidance-title {
+  margin: 0 0 8px;
+  font-size: 1rem;
+  font-weight: 800;
+  color: #1d2736;
+}
+
+.uc-migration-readiness-guidance-hint {
+  margin: 0 0 14px;
+  font-size: 0.88rem;
+  color: #64748b;
+  font-weight: 500;
+  line-height: 1.45;
+}
+
+.uc-migration-readiness-guidance-kideesys {
+  margin: 0 0 14px;
+  padding: 12px 14px;
+  border-radius: 10px;
+  background: rgba(15, 23, 42, 0.04);
+  border: 1px solid rgba(212, 175, 55, 0.2);
+}
+
+.uc-migration-readiness-guidance-kideesys h4 {
+  margin: 0 0 6px;
+  font-size: 0.78rem;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: #0a0a0a;
+}
+
+.uc-migration-readiness-guidance-kideesys ul {
+  margin: 8px 0 0;
+  padding: 0;
+  list-style: none;
+  font-size: 0.85rem;
+  color: #334155;
+}
+
+.uc-migration-readiness-guidance-kideesys li {
+  padding: 3px 0;
+}
+
+.uc-migration-readiness-guidance-status {
+  margin: 0 0 16px;
+  font-size: 0.9rem;
+  color: #64748b;
+  font-weight: 500;
+}
+
+.uc-migration-readiness-guidance-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 16px;
+}
+
+.uc-migration-readiness-guidance-grid section h4 {
+  margin: 0 0 8px;
+  font-size: 0.75rem;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: #0a0a0a;
+}
+
+.uc-migration-readiness-guidance-grid ul {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  font-size: 0.85rem;
+  color: #334155;
+}
+
+.uc-migration-readiness-guidance-grid li {
+  padding: 4px 0;
+  line-height: 1.4;
+}
+
+.uc-migration-readiness-guidance-grid code {
+  font-size: 0.78rem;
+  color: #1e40af;
+  font-weight: 600;
+}
+
+.uc-migration-readiness-guidance-muted {
+  margin: 0;
+  font-size: 0.85rem;
+  color: #94a3b8;
+  font-style: italic;
+}
+
+.uc-migration-readiness-guidance-more {
+  color: #64748b;
+  font-style: italic;
+}
+
+.uc-migration-readiness-guidance-notes {
+  margin: 14px 0 0;
+  font-size: 0.85rem;
+  line-height: 1.45;
+  color: #475569;
+}
+
+.uc-migration-readiness-guidance-warnings {
+  margin-top: 14px;
+  padding: 12px 14px;
+  border-radius: 10px;
+  background: rgba(120, 53, 15, 0.08);
+  border: 1px solid rgba(154, 52, 18, 0.25);
+}
+
+.uc-migration-readiness-guidance-warnings h4 {
+  margin: 0 0 8px;
+  font-size: 0.78rem;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: #9a3412;
+}
+
+.uc-migration-readiness-guidance-warnings ul {
+  margin: 0;
+  padding-left: 18px;
+  font-size: 0.88rem;
+  color: #7c2d12;
+  font-weight: 600;
+}
+
+.uc-migration-readiness-guidance-warnings li {
+  margin: 4px 0;
+}

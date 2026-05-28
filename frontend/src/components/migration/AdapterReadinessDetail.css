@@ -1,0 +1,167 @@
+.uc-migration-readiness-detail {
+  margin-top: 20px;
+  padding: 20px 22px;
+  border-radius: 12px;
+  border: 1px solid rgba(212, 175, 55, 0.35);
+  background: #fafafa;
+  box-shadow: 0 8px 24px rgba(15, 15, 15, 0.06);
+}
+
+.uc-migration-readiness-detail-header {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 14px;
+}
+
+.uc-migration-readiness-detail-title {
+  margin: 0;
+  font-size: 1.15rem;
+  font-weight: 800;
+  color: #1d2736;
+}
+
+.uc-migration-readiness-detail-id {
+  margin: 4px 0 0;
+  font-size: 0.78rem;
+  color: #64748b;
+  font-weight: 600;
+}
+
+.uc-migration-readiness-detail-close {
+  padding: 8px 14px;
+  border-radius: 8px;
+  border: 1px solid rgba(15, 23, 42, 0.15);
+  background: #fff;
+  color: #334155;
+  font-weight: 700;
+  font-size: 0.85rem;
+  cursor: pointer;
+}
+
+.uc-migration-readiness-detail-session-test-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem 0.75rem;
+  margin: 0.5rem 0;
+}
+
+.uc-migration-readiness-detail-session-test-summary {
+  margin: 0 0 0.35rem;
+  font-size: 0.85rem;
+  color: rgba(255, 255, 255, 0.65);
+}
+
+.uc-migration-readiness-detail-recommendation {
+  margin: 0.5rem 0 0;
+  font-size: 0.85rem;
+  color: rgba(212, 175, 55, 0.9);
+}
+
+.uc-migration-readiness-detail-status-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 16px;
+}
+
+.uc-migration-readiness-detail-status {
+  display: inline-block;
+  padding: 5px 12px;
+  border-radius: 999px;
+  font-size: 0.78rem;
+  font-weight: 800;
+  letter-spacing: 0.02em;
+}
+
+.uc-migration-readiness-detail-status--ready_to_test {
+  background: rgba(22, 101, 52, 0.12);
+  color: #166534;
+  border: 1px solid rgba(22, 101, 52, 0.35);
+}
+
+.uc-migration-readiness-detail-status--needs_research {
+  background: rgba(30, 64, 175, 0.1);
+  color: #1e40af;
+  border: 1px solid rgba(30, 64, 175, 0.3);
+}
+
+.uc-migration-readiness-detail-version {
+  margin: 0 0 16px;
+  font-size: 0.85rem;
+  color: #64748b;
+  font-weight: 600;
+}
+
+.uc-migration-readiness-detail-section {
+  margin-bottom: 18px;
+}
+
+.uc-migration-readiness-detail-section h4 {
+  margin: 0 0 10px;
+  font-size: 0.82rem;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: #0a0a0a;
+}
+
+.uc-migration-readiness-detail-notes {
+  margin: 0;
+  font-size: 0.92rem;
+  line-height: 1.5;
+  color: #475569;
+}
+
+.uc-migration-readiness-detail-list {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.uc-migration-readiness-detail-list li {
+  padding: 10px 0;
+  border-bottom: 1px solid rgba(15, 23, 42, 0.08);
+  font-size: 0.9rem;
+  color: #334155;
+}
+
+.uc-migration-readiness-detail-list li:last-child {
+  border-bottom: none;
+}
+
+.uc-migration-readiness-detail-list li p {
+  margin: 6px 0 0;
+  font-size: 0.85rem;
+  color: #64748b;
+  line-height: 1.45;
+}
+
+.uc-migration-readiness-detail-list--compact li {
+  padding: 6px 0;
+}
+
+.uc-migration-readiness-detail-meta {
+  display: block;
+  margin-top: 4px;
+  font-size: 0.78rem;
+  color: #64748b;
+  font-weight: 600;
+}
+
+.uc-migration-readiness-detail-muted {
+  margin: 0;
+  font-size: 0.9rem;
+  color: #64748b;
+  font-style: italic;
+}
+
+.uc-migration-readiness-detail-error {
+  margin: 0 0 12px;
+  color: #991b1b;
+  font-weight: 600;
+  font-size: 0.9rem;
+}

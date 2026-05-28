@@ -12,6 +12,13 @@ import {
   splitFullName,
   type KideesysSheet,
 } from "../../utils/kideesysSpreadsheet";
+import {
+  parseAgeAnalysisSheet,
+  type AgeAnalysisParseAudit,
+  type AgeAnalysisParseResult,
+} from "./ageAnalysisParser";
+
+export type { AgeAnalysisParseAudit, AgeAnalysisParseResult };
 
 function canonicalClassMatchKey(className: string): string {
   const norm = normalizeClassroomInput(className);
@@ -35,6 +42,8 @@ export type ParsedLearner = {
   className: string;
   matchKey: string;
   sourceFile: string;
+  idNumber?: string | null;
+  admissionNo?: string | null;
 };
 
 export type ParsedParentContact = {
@@ -79,6 +88,13 @@ export type ParsedBillingAccount = {
   fullName: string;
   balance: number;
   section: string;
+  current?: number;
+  d30?: number;
+  d60?: number;
+  d90?: number;
+  d120?: number;
+  /** Names split from multi-line Age Analysis cells (one account, multiple children). */
+  learnerNames?: string[];
 };
 
 export type ParsedTransaction = {
@@ -358,36 +374,15 @@ export function parseBillingPlanFile(filePath: string): ParsedBillingPlanItem[] 
   return items;
 }
 
-const ACCOUNT_NO_RE = /^[A-Z]{3}\d{3}$/;
-
 /** 02_account_list_age_analysis */
 export function parseAgeAnalysisFile(filePath: string): ParsedBillingAccount[] {
   const sheet = parseKideesysSpreadsheetFile(filePath);
-  let section = "";
-  const accounts: ParsedBillingAccount[] = [];
+  return parseAgeAnalysisSheet(sheet).accounts;
+}
 
-  for (const row of sheet.rows) {
-    const c0 = rowText(row, 0);
-    const c1 = rowText(row, 1);
-    const c2 = rowText(row, 2);
-    const c3 = rowText(row, 3);
-
-    if (c0 && !c1 && !c2 && c0 !== "Account" && !isNumericIndexCell(c0)) {
-      section = c0;
-      continue;
-    }
-    if (c1 === "Account" && c3 === "Balance") continue;
-    if (!ACCOUNT_NO_RE.test(c1)) continue;
-
-    accounts.push({
-      accountNo: c1,
-      fullName: c2,
-      balance: parseAmount(c3),
-      section: section || "General",
-    });
-  }
-
-  return accounts;
+export function parseAgeAnalysisFileWithAudit(filePath: string): AgeAnalysisParseResult {
+  const sheet = parseKideesysSpreadsheetFile(filePath);
+  return parseAgeAnalysisSheet(sheet);
 }
 
 /** 01_transaction_list — Invoice and Payment sections. */

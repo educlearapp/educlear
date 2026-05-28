@@ -1,0 +1,79 @@
+.uc-migration-research-table-wrap {
+  border-radius: 12px;
+  border: 1px solid rgba(212, 175, 55, 0.28);
+  background: #ffffff;
+  box-shadow: 0 8px 24px rgba(15, 15, 15, 0.06);
+  overflow: hidden;
+}
+
+.uc-migration-research-table-scroll {
+  overflow-x: auto;
+}
+
+.uc-migration-research-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.9rem;
+}
+
+.uc-migration-research-table thead {
+  background: #0a0a0a;
+  color: #ffffff;
+}
+
+.uc-migration-research-table th {
+  padding: 14px 16px;
+  text-align: left;
+  font-weight: 800;
+  font-size: 0.8rem;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  white-space: nowrap;
+  border-bottom: 3px solid #d4af37;
+}
+
+.uc-migration-research-table td {
+  padding: 14px 16px;
+  border-bottom: 1px solid rgba(15, 23, 42, 0.08);
+  color: #334155;
+  vertical-align: top;
+}
+
+.uc-migration-research-table tbody tr:hover {
+  background: rgba(212, 175, 55, 0.06);
+}
+
+.uc-migration-research-system {
+  font-weight: 800;
+  color: #1d2736;
+}
+
+.uc-migration-research-pill {
+  display: inline-block;
+  padding: 4px 10px;
+  border-radius: 999px;
+  font-size: 0.75rem;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+}
+
+.uc-migration-research-pill--status {
+  background: rgba(212, 175, 55, 0.15);
+  color: #8a6d1d;
+  border: 1px solid rgba(212, 175, 55, 0.35);
+}
+
+.uc-migration-research-pill--difficulty-high {
+  background: rgba(127, 29, 29, 0.1);
+  color: #991b1b;
+}
+
+.uc-migration-research-pill--difficulty-medium {
+  background: rgba(120, 53, 15, 0.1);
+  color: #9a3412;
+}
+
+.uc-migration-research-pill--difficulty-low-medium {
+  background: rgba(22, 101, 52, 0.1);
+  color: #166534;
+}

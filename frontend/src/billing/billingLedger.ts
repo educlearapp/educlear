@@ -1,11 +1,26 @@
 import { getLearnerAccountNo } from "../learner/learnerIdentity";
 import {
+  filterKidESysBillingRows,
+  isKidESysAccountRef,
+  normalizeKidESysAccountRef,
+} from "./billingAccountRef";
+import {
   buildKidesysHistoryAccountIndex,
   readSchoolKidesysHistory,
+  readStatementApiAccounts,
   readStatementApiSummary,
   type KidesysHistoryEntry,
   type StatementApiSummary,
 } from "./kidesysTransactionHistory";
+
+export {
+  filterKidESysBillingRows,
+  isKidESysAccountRef,
+  isSasamsNumericBillingAccount,
+  normalizeKidESysAccountRef,
+  resolveKidESysAccountRefFromLearner,
+  resolveKidESysAccountRefFromRow,
+} from "./billingAccountRef";
 import {
   formatLedgerDescriptionDisplay,
   formatLedgerReferenceDisplay,
@@ -65,6 +80,24 @@ export type BillingAccountRow = {
 
 const LEDGER_STORAGE_KEY = "educlearBillingLedger";
 const MIGRATED_FLAG_PREFIX = "educlearBillingLedgerMigrated:";
+/** Canonical JSON ledger bucket when live school id differs (Da Silva). */
+const CANONICAL_BILLING_LEDGER_SCHOOL_ID = "cmpideqeq0000108xb6ouv9zi";
+
+function resolveLedgerStorageKey(schoolId: string): string {
+  const key = String(schoolId || "").trim();
+  if (!key) return key;
+  const all = readAllLedgers();
+  if (Array.isArray(all[key]) && all[key].length > 0) return key;
+  const canonical = CANONICAL_BILLING_LEDGER_SCHOOL_ID;
+  if (
+    key !== canonical &&
+    Array.isArray(all[canonical]) &&
+    all[canonical].length > 0
+  ) {
+    return canonical;
+  }
+  return key;
+}
 
 export const BILLING_UPDATED_EVENT = "educlear-billing-updated";
 export const LEARNERS_REFRESH_EVENT = "educlear-learners-refresh";
@@ -104,7 +137,15 @@ function readJson<T>(key: string, fallback: T): T {
 }
 
 function writeJson(key: string, value: unknown) {
-  localStorage.setItem(key, JSON.stringify(value));
+  try {
+    localStorage.setItem(key, JSON.stringify(value));
+  } catch (error) {
+    // Migrated schools can hit localStorage quotas due to large ledgers.
+    // Writes are best-effort: the UI still works from API + in-memory state.
+    if (typeof console !== "undefined" && console.warn) {
+      console.warn(`[BillingLedger] localStorage write failed for ${key}`, error);
+    }
+  }
 }
 
 function readAllLedgers(): Record<string, BillingLedgerEntry[]> {
@@ -117,24 +158,24 @@ function writeAllLedgers(data: Record<string, BillingLedgerEntry[]>) {
 }
 
 function readSchoolLedgerRaw(schoolId: string): BillingLedgerEntry[] {
-  const key = String(schoolId || "").trim();
-  if (!key) return [];
+  const storeKey = resolveLedgerStorageKey(schoolId);
+  if (!storeKey) return [];
   const all = readAllLedgers();
-  return Array.isArray(all[key]) ? all[key] : [];
+  return Array.isArray(all[storeKey]) ? all[storeKey] : [];
 }
 
 export function readSchoolLedger(schoolId: string): BillingLedgerEntry[] {
   const key = String(schoolId || "").trim();
   if (!key) return [];
-  migrateLegacyLedgerIfNeeded(key);
+  migrateLegacyLedgerIfNeeded(resolveLedgerStorageKey(key));
   return readSchoolLedgerRaw(key);
 }
 
 export function writeSchoolLedger(schoolId: string, entries: BillingLedgerEntry[]) {
-  const key = String(schoolId || "").trim();
-  if (!key) return;
+  const storeKey = resolveLedgerStorageKey(schoolId);
+  if (!storeKey) return;
   const all = readAllLedgers();
-  all[key] = entries;
+  all[storeKey] = entries;
   writeAllLedgers(all);
   notifyBillingUpdated();
 }
@@ -491,6 +532,77 @@ function statusFromBalance(balance: number) {
   return "Up To Date";
 }
 
+function apiRowHasLastInvoice(row: any): boolean {
+  const amount = Number(row?.lastInvoice);
+  if (Number.isFinite(amount) && amount > 0) return true;
+  return Boolean(String(row?.lastInvoiceDate || "").trim());
+}
+
+function apiRowHasLastPayment(row: any): boolean {
+  const amount = Number(row?.lastPayment);
+  if (Number.isFinite(amount) && amount > 0) return true;
+  return Boolean(String(row?.lastPaymentDate || "").trim());
+}
+
+/** Map GET /api/statements row → billing table row (Kid-e-Sys accountRef + migrated fields). */
+export function mapApiStatementRowToBillingAccountRow(row: any): BillingAccountRow {
+  const accountNo = normalizeKidESysAccountRef(row?.accountNo) || "-";
+  const learnerId = String(row?.learnerId || "").trim();
+  const familyAccountId = row?.familyAccountId
+    ? String(row.familyAccountId).trim()
+    : undefined;
+  const balance = Number.isFinite(Number(row?.balance)) ? Number(row.balance) : 0;
+  const lastInvoiceDate = String(row?.lastInvoiceDate || "");
+  const lastPaymentDate = String(row?.lastPaymentDate || "");
+  const lastInvoiceAmount = Number(row?.lastInvoice);
+  const lastPaymentAmount = Number(row?.lastPayment);
+
+  let lastInvoice: string;
+  if (
+    row?.lastInvoiceLabel &&
+    isMigratedOpeningBalanceOverviewLabel(String(row.lastInvoiceLabel))
+  ) {
+    lastInvoice = MIGRATED_OPENING_BALANCE_OVERVIEW;
+  } else if (apiRowHasLastInvoice(row)) {
+    lastInvoice = formatMoney(
+      Number.isFinite(lastInvoiceAmount) ? lastInvoiceAmount : 0
+    );
+  } else {
+    lastInvoice = "No invoices";
+  }
+
+  let lastPayment: string;
+  if (apiRowHasLastPayment(row)) {
+    const payLabel = formatMoney(
+      Number.isFinite(lastPaymentAmount) ? lastPaymentAmount : 0
+    );
+    lastPayment = lastPaymentDate ? `${payLabel} on ${lastPaymentDate}` : payLabel;
+  } else {
+    lastPayment = "No payments";
+  }
+
+  const status = String(row?.status || "").trim() || statusFromBalance(balance);
+
+  return {
+    id: familyAccountId || learnerId || accountNo,
+    learnerId,
+    accountNo,
+    familyAccountId,
+    name: String(row?.name || "-"),
+    surname: String(row?.surname || "-"),
+    balance,
+    invoiceTotal: 0,
+    penaltyTotal: 0,
+    paymentTotal: 0,
+    creditTotal: 0,
+    lastInvoice,
+    lastInvoiceDate,
+    lastPayment,
+    lastPaymentDate,
+    status,
+  };
+}
+
 function resolveBillingGroupKey(learner: any): string {
   const familyAccountId = String(
     learner?.familyAccountId || learner?.familyAccount?.id || ""
@@ -499,7 +611,7 @@ function resolveBillingGroupKey(learner: any): string {
   const accountNo = getLearnerAccountNo(learner);
   if (accountNo && accountNo !== "-") return `account:${accountNo}`;
   const learnerId = String(learner?.id || learner?.learnerId || "").trim();
-  return `learner:${learnerId}`;
+  return learnerId ? `learner:${learnerId}` : "learner:unknown";
 }
 
 function buildBillingAccountRow(
@@ -567,31 +679,17 @@ function buildBillingAccountRow(
   };
 }
 
-/** One row per family billing account (deduped siblings). */
-export function getBillingRows(learners: any[], schoolId: string): BillingAccountRow[] {
-  const ledger = readSchoolLedger(schoolId);
-  const historyIndex = buildKidesysHistoryAccountIndex(readSchoolKidesysHistory(schoolId));
-  const groups = new Map<string, { anchor: any; memberIds: string[] }>();
+/**
+ * Billing account list for UI tables — GET /api/statements (Age Analysis accountRef) only.
+ * Never builds rows from learners, admissionNo, or SA-SAMS numeric account numbers.
+ */
+export function getBillingRows(_learners: any[], schoolId: string): BillingAccountRow[] {
+  const apiCached = readStatementApiAccounts(schoolId);
+  if (!apiCached.length) return [];
 
-  for (const learner of learners || []) {
-    const learnerId = String(learner?.id || learner?.learnerId || "").trim();
-    if (!learnerId) continue;
-    const key = resolveBillingGroupKey(learner);
-    const existing = groups.get(key);
-    if (existing) {
-      if (!existing.memberIds.includes(learnerId)) {
-        existing.memberIds.push(learnerId);
-      }
-      continue;
-    }
-    groups.set(key, { anchor: learner, memberIds: [learnerId] });
-  }
-
-  return Array.from(groups.values())
-    .map(({ anchor, memberIds }) =>
-      buildBillingAccountRow(anchor, memberIds, schoolId, ledger, historyIndex)
-    )
-    .sort((a, b) => String(a.accountNo).localeCompare(String(b.accountNo)));
+  return filterKidESysBillingRows(
+    apiCached.map((row) => mapApiStatementRowToBillingAccountRow(row))
+  ).sort((a, b) => String(a.accountNo).localeCompare(String(b.accountNo)));
 }
 
 export function appendInvoiceTransaction(input: {
@@ -856,9 +954,9 @@ function migrateLegacyLedgerIfNeeded(schoolId: string) {
     }
   }
 
-  const key = String(schoolId || "").trim();
+  const storeKey = resolveLedgerStorageKey(String(schoolId || "").trim());
   const all = readAllLedgers();
-  all[key] = Array.from(byId.values());
+  all[storeKey] = Array.from(byId.values());
   writeAllLedgers(all);
   localStorage.setItem(flag, "1");
   notifyBillingUpdated();

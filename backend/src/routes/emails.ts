@@ -11,6 +11,7 @@ router.post("/send-statement", async (req, res) => {
     const subject = String(req.body?.subject || "").trim();
     const html = String(req.body?.html || "").trim();
     const learnerId = String(req.body?.learnerId || "").trim();
+    const accountNo = String(req.body?.accountNo || "").trim();
     const period = req.body?.period != null ? String(req.body.period) : undefined;
     const statementNote =
       req.body?.statementNote != null ? String(req.body.statementNote) : undefined;
@@ -24,9 +25,9 @@ router.post("/send-statement", async (req, res) => {
       });
     }
 
-    if (!learnerId && !pdfBase64) {
+    if (!learnerId && !accountNo && !pdfBase64) {
       return res.status(400).json({
-        error: "Missing learnerId. Statement PDF is generated on the server.",
+        error: "Missing learnerId or accountNo. Statement PDF is generated on the server.",
       });
     }
 
@@ -36,6 +37,7 @@ router.post("/send-statement", async (req, res) => {
       subject,
       html,
       learnerId: learnerId || undefined,
+      accountNo: accountNo || undefined,
       period,
       statementNote,
       filename,

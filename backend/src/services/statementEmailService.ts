@@ -7,8 +7,10 @@ export type SendStatementEmailInput = {
   subject: string;
   html: string;
   filename?: string;
-  /** Server generates PDF from ledger when learnerId is provided. */
+  /** Server generates PDF from ledger when learnerId or accountNo is provided. */
   learnerId?: string;
+  /** Kid-e-Sys FamilyAccount.accountRef (preferred over learnerId). */
+  accountNo?: string;
   period?: string;
   statementNote?: string;
   /** Legacy: client-supplied base64 (ignored when learnerId is set). */
@@ -36,10 +38,12 @@ export async function sendStatementEmail(input: SendStatementEmailInput) {
   let filename = input.filename;
 
   const learnerId = String(input.learnerId || "").trim();
-  if (learnerId) {
+  const accountNo = String(input.accountNo || "").trim();
+  if (learnerId || accountNo) {
     const generated = await buildAndGenerateStatementPdf({
       schoolId,
-      learnerId,
+      learnerId: learnerId || "",
+      accountNo: accountNo || undefined,
       period: input.period,
       statementNote: input.statementNote,
     });

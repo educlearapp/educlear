@@ -1,4 +1,4 @@
-import { BrowserRouter, Routes, Route } from "react-router-dom";
+import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 
 
 
@@ -8,7 +8,7 @@ import Login from "./Login";
 
 import SchoolDashboard from "./SchoolDashboard";
 
-import SuperAdminGate from "./auth/SuperAdminGate";
+import MigrationAccessGate from "./auth/MigrationAccessGate";
 import SuperAdminDashboard from "./SuperAdminDashboard";
 
 
@@ -615,21 +615,14 @@ export default function App() {
         <Route path="/teacher-inbox" element={<TeacherInbox />} />
         <Route path="/teacher/*" element={<TeacherApp />} />
 
-        <Route
-          path="/migration"
-          element={
-            <SuperAdminGate>
-              <SuperAdminDashboard />
-            </SuperAdminGate>
-          }
-        />
+        <Route path="/migration" element={<Navigate to="/super-admin/migration" replace />} />
 
         <Route
           path="/super-admin/*"
           element={
-            <SuperAdminGate>
+            <MigrationAccessGate>
               <SuperAdminDashboard />
-            </SuperAdminGate>
+            </MigrationAccessGate>
           }
         />
 

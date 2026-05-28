@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { Navigate, useNavigate } from "react-router-dom";
 
+import { isSuperAdmin, SUPER_ADMIN_ENTRY_PATH } from "../auth/roles";
 import "../App.css";
 import logo from "../assets/logo.png";
 import {
@@ -9,9 +10,11 @@ import {
 } from "./payfastCheckout";
 import {
   type EduClearPackage,
+  activateSubscriptionTestMode,
   clearSubscriptionGateCache,
   createSubscriptionCheckout,
   fetchSchoolSubscriptionStatus,
+  fetchSubscriptionConfig,
   fetchSubscriptionPackages,
   formatLearnerLimit,
   formatPayrollLimit,
@@ -143,11 +146,13 @@ function StarterPackageCard({
   pkg,
   isCurrent,
   checkoutBusy,
+  payfastEnabled,
   onSelect,
 }: {
   pkg: EduClearPackage;
   isCurrent: boolean;
   checkoutBusy: boolean;
+  payfastEnabled: boolean;
   onSelect: (pkg: EduClearPackage) => void;
 }) {
   const displayPrice = getPackageDisplayPrice(pkg.code);
@@ -187,26 +192,28 @@ function StarterPackageCard({
         <br />
         ✅ Registrations and learner records
       </div>
-      <button
-        type="button"
-        disabled={checkoutBusy || isCurrent}
-        onClick={() => onSelect(pkg)}
-        style={{
-          ...actionBtn,
-          marginTop: "24px",
-          width: "100%",
-          border: `1px solid ${GOLD}`,
-          background: isCurrent ? GOLD : "#fff",
-          opacity: checkoutBusy ? 0.7 : 1,
-          cursor: checkoutBusy ? "wait" : isCurrent ? "default" : "pointer",
-        }}
-      >
-        {checkoutBusy
-          ? "Opening PayFast..."
-          : isCurrent
-            ? "Current Package"
-            : "Pay with PayFast — Starter"}
-      </button>
+      {payfastEnabled ? (
+        <button
+          type="button"
+          disabled={checkoutBusy || isCurrent}
+          onClick={() => onSelect(pkg)}
+          style={{
+            ...actionBtn,
+            marginTop: "24px",
+            width: "100%",
+            border: `1px solid ${GOLD}`,
+            background: isCurrent ? GOLD : "#fff",
+            opacity: checkoutBusy ? 0.7 : 1,
+            cursor: checkoutBusy ? "wait" : isCurrent ? "default" : "pointer",
+          }}
+        >
+          {checkoutBusy
+            ? "Opening PayFast..."
+            : isCurrent
+              ? "Current Package"
+              : "Pay with PayFast — Starter"}
+        </button>
+      ) : null}
     </div>
   );
 }
@@ -215,11 +222,13 @@ function UnlimitedPackageCard({
   pkg,
   isCurrent,
   checkoutBusy,
+  payfastEnabled,
   onSelect,
 }: {
   pkg: EduClearPackage;
   isCurrent: boolean;
   checkoutBusy: boolean;
+  payfastEnabled: boolean;
   onSelect: (pkg: EduClearPackage) => void;
 }) {
   const displayPrice = getPackageDisplayPrice(pkg.code);
@@ -263,24 +272,26 @@ function UnlimitedPackageCard({
         <br />
         ✅ Priority support
       </div>
-      <button
-        type="button"
-        disabled={checkoutBusy || isCurrent}
-        onClick={() => onSelect(pkg)}
-        style={{
-          ...goldBtn,
-          marginTop: "24px",
-          width: "100%",
-          opacity: checkoutBusy || isCurrent ? 0.75 : 1,
-          cursor: checkoutBusy ? "wait" : isCurrent ? "default" : "pointer",
-        }}
-      >
-        {checkoutBusy
-          ? "Opening PayFast..."
-          : isCurrent
-            ? "Current Package"
-            : "Pay with PayFast — Unlimited"}
-      </button>
+      {payfastEnabled ? (
+        <button
+          type="button"
+          disabled={checkoutBusy || isCurrent}
+          onClick={() => onSelect(pkg)}
+          style={{
+            ...goldBtn,
+            marginTop: "24px",
+            width: "100%",
+            opacity: checkoutBusy || isCurrent ? 0.75 : 1,
+            cursor: checkoutBusy ? "wait" : isCurrent ? "default" : "pointer",
+          }}
+        >
+          {checkoutBusy
+            ? "Opening PayFast..."
+            : isCurrent
+              ? "Current Package"
+              : "Pay with PayFast — Unlimited"}
+        </button>
+      ) : null}
     </div>
   );
 }
@@ -293,6 +304,10 @@ export default function SubscriptionPackages() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [checkoutCode, setCheckoutCode] = useState("");
+  const [payfastConfigured, setPayfastConfigured] = useState(true);
+  const [testModeAvailable, setTestModeAvailable] = useState(false);
+  const [missingPayFastEnv, setMissingPayFastEnv] = useState<string[]>([]);
+  const [testModeBusy, setTestModeBusy] = useState(false);
 
   useEffect(() => {
     let cancelled = false;
@@ -300,12 +315,24 @@ export default function SubscriptionPackages() {
 
     Promise.all([
       fetchSubscriptionPackages(),
+      fetchSubscriptionConfig().catch(() => ({
+        payfastConfigured: true,
+        testModeAvailable: false,
+        missingPayFastEnv: [],
+      })),
       schoolId
         ? fetchSchoolSubscriptionStatus(schoolId).catch(() => null)
         : Promise.resolve(null),
     ])
-      .then(([rows, statusResponse]) => {
+      .then(([rows, configResponse, statusResponse]) => {
         if (cancelled) return;
+        setPayfastConfigured(Boolean(configResponse?.payfastConfigured));
+        setTestModeAvailable(Boolean(configResponse?.testModeAvailable));
+        setMissingPayFastEnv(
+          Array.isArray(configResponse?.missingPayFastEnv)
+            ? configResponse.missingPayFastEnv
+            : []
+        );
         setPackages(
           [...rows].sort(
             (a, b) => packageSortOrder(a.code) - packageSortOrder(b.code)
@@ -378,6 +405,42 @@ export default function SubscriptionPackages() {
     }
   }
 
+  async function handleTestModeActivate() {
+    const schoolId = String(localStorage.getItem("schoolId") || "").trim();
+    if (!schoolId) {
+      setError("Please log in or register your school before continuing.");
+      navigate("/login");
+      return;
+    }
+
+    const token = String(localStorage.getItem("token") || "").trim();
+    if (!token) {
+      setError("Please log in before continuing in test mode.");
+      navigate("/login");
+      return;
+    }
+
+    setError("");
+    setTestModeBusy(true);
+
+    try {
+      const preferredCode =
+        checkoutCode ||
+        String(localStorage.getItem("educlearSelectedPackageCode") || "").trim().toUpperCase() ||
+        "UNLIMITED";
+      const result = await activateSubscriptionTestMode(preferredCode);
+      if (result.subscription?.packageCode) {
+        setCurrentPackageCode(String(result.subscription.packageCode).trim().toUpperCase());
+      }
+      clearSubscriptionGateCache();
+      setDashboardUnlocked(true);
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : "Could not activate test mode");
+    } finally {
+      setTestModeBusy(false);
+    }
+  }
+
   const currentPackage =
     packages.find((pkg) => pkg.code === currentPackageCode) ?? null;
   const currentBannerPrice = currentPackage
@@ -385,6 +448,10 @@ export default function SubscriptionPackages() {
     : getPackageDisplayPrice(currentPackageCode);
   const starterPkg = packages.find((pkg) => pkg.code === "STARTER");
   const unlimitedPkg = packages.find((pkg) => pkg.code === "UNLIMITED");
+
+  if (isSuperAdmin()) {
+    return <Navigate to={SUPER_ADMIN_ENTRY_PATH} replace />;
+  }
 
   return (
     <SubscriptionDashboardShell
@@ -409,6 +476,46 @@ export default function SubscriptionPackages() {
           <p style={{ color: "#b91c1c", marginTop: 24 }} role="alert">
             {error}
           </p>
+        ) : null}
+
+        {!loading && !payfastConfigured ? (
+          <div
+            style={{
+              marginTop: 24,
+              padding: "20px 22px",
+              borderRadius: 14,
+              border: "1px solid rgba(217, 119, 6, 0.35)",
+              background: "rgba(255, 251, 235, 0.95)",
+              color: "#92400e",
+            }}
+            role="status"
+          >
+            <p style={{ margin: "0 0 8px", fontWeight: 800 }}>
+              PayFast is not configured on this server
+            </p>
+            <p style={{ margin: 0, lineHeight: 1.6 }}>
+              {missingPayFastEnv.length
+                ? `Missing: ${missingPayFastEnv.join(", ")}`
+                : "PayFast environment variables are not set."}{" "}
+              Use test mode for local development and migration testing. Production schools
+              should complete PayFast checkout when payment is enabled.
+            </p>
+            {testModeAvailable ? (
+              <button
+                type="button"
+                disabled={testModeBusy}
+                onClick={handleTestModeActivate}
+                style={{
+                  ...goldBtn,
+                  marginTop: 16,
+                  opacity: testModeBusy ? 0.75 : 1,
+                  cursor: testModeBusy ? "wait" : "pointer",
+                }}
+              >
+                {testModeBusy ? "Activating test mode..." : "Continue in Test Mode"}
+              </button>
+            ) : null}
+          </div>
         ) : null}
 
         {!loading && currentPackage ? (
@@ -444,7 +551,7 @@ export default function SubscriptionPackages() {
           </div>
         ) : null}
 
-        {!loading && !error && (starterPkg || unlimitedPkg) ? (
+        {!loading && (starterPkg || unlimitedPkg) ? (
           <div
             style={{
               display: "grid",
@@ -458,6 +565,7 @@ export default function SubscriptionPackages() {
                 pkg={starterPkg}
                 isCurrent={currentPackageCode === "STARTER"}
                 checkoutBusy={checkoutCode === "STARTER"}
+                payfastEnabled={payfastConfigured}
                 onSelect={handleSelect}
               />
             ) : null}
@@ -466,13 +574,14 @@ export default function SubscriptionPackages() {
                 pkg={unlimitedPkg}
                 isCurrent={currentPackageCode === "UNLIMITED"}
                 checkoutBusy={checkoutCode === "UNLIMITED"}
+                payfastEnabled={payfastConfigured}
                 onSelect={handleSelect}
               />
             ) : null}
           </div>
         ) : null}
 
-        {!loading && !error && packages.length === 0 ? (
+        {!loading && packages.length === 0 ? (
           <p style={{ color: "#64748b", marginTop: 24 }}>No packages available.</p>
         ) : null}
       </div>

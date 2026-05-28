@@ -73,6 +73,9 @@ export function calculateLearnerAge(value: any): string {
 }
 
 export function getLearnerAccountNo(learner: any): string {
+  const fromApi = String(learner?.accountNo || learner?.accountNumber || "").trim();
+  if (fromApi && fromApi !== "-") return fromApi;
+
   const admission = String(learner?.admissionNo || "").trim();
   const admissionBase =
     admission && admission.includes("-")
@@ -80,8 +83,6 @@ export function getLearnerAccountNo(learner: any): string {
       : admission;
   const account =
     learner?.familyAccount?.accountRef ||
-    learner?.accountNo ||
-    learner?.accountNumber ||
     admissionBase ||
     admission ||
     "";

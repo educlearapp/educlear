@@ -1,4 +1,5 @@
 import { apiFetch } from "../api";
+import { isSuperAdmin, SUPER_ADMIN_ENTRY_PATH } from "../auth/roles";
 import type { PayFastCheckoutResponse } from "./payfastCheckout";
 
 export type EduClearPackage = {
@@ -31,6 +32,7 @@ export type SchoolSubscription = {
   id: string;
   status: SchoolSubscriptionStatus;
   packageCode: string;
+  activationSource?: string | null;
   currentPeriodStart: string | null;
   currentPeriodEnd: string | null;
   activatedAt: string | null;
@@ -38,6 +40,22 @@ export type SchoolSubscription = {
   createdAt: string;
   updatedAt: string;
   package: EduClearPackage;
+};
+
+export type SubscriptionConfigResponse = {
+  success: boolean;
+  payfastConfigured: boolean;
+  missingPayFastEnv?: string[];
+  testModeAvailable: boolean;
+};
+
+export type TestActivateSubscriptionResponse = {
+  success: boolean;
+  schoolId: string;
+  dashboardUnlocked: boolean;
+  isActive: boolean;
+  activationSource: string;
+  subscription: SchoolSubscription;
 };
 
 export type SubscriptionStatusResponse = {
@@ -91,12 +109,33 @@ function normalizeEduClearPackage(raw: Record<string, unknown>): EduClearPackage
   };
 }
 
+function subscriptionAuthHeaders(): Record<string, string> {
+  const token = String(localStorage.getItem("token") || "").trim();
+  return token ? { Authorization: `Bearer ${token}` } : {};
+}
+
 export async function fetchSubscriptionPackages(): Promise<EduClearPackage[]> {
   const data = (await apiFetch("/api/subscriptions/packages")) as PackagesResponse;
   if (!Array.isArray(data?.packages)) return [];
   return data.packages.map((pkg) =>
     normalizeEduClearPackage(pkg as unknown as Record<string, unknown>)
   );
+}
+
+export async function fetchSubscriptionConfig(): Promise<SubscriptionConfigResponse> {
+  return apiFetch("/api/subscriptions/config") as Promise<SubscriptionConfigResponse>;
+}
+
+export async function activateSubscriptionTestMode(
+  packageCode?: string
+): Promise<TestActivateSubscriptionResponse> {
+  return apiFetch("/api/subscriptions/test-activate", {
+    method: "POST",
+    headers: subscriptionAuthHeaders(),
+    body: JSON.stringify({
+      ...(packageCode ? { packageCode: String(packageCode).trim().toUpperCase() } : {}),
+    }),
+  }) as Promise<TestActivateSubscriptionResponse>;
 }
 
 const SUBSCRIPTION_GATE_CACHE_KEYS = ["educlearSelectedPackageCode"] as const;
@@ -239,6 +278,10 @@ export async function createSubscriptionCheckout(
 
 /** Where to send the user immediately after login or registration. */
 export async function resolvePostAuthPath(schoolId: string): Promise<string> {
+  if (isSuperAdmin()) {
+    return SUPER_ADMIN_ENTRY_PATH;
+  }
+
   clearSubscriptionGateCache();
   const status = await fetchSchoolSubscriptionStatus(schoolId);
   if (isSubscriptionDashboardUnlocked(status)) {

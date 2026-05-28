@@ -58,21 +58,27 @@ export function normaliseAmount(value: unknown): number {
   return Number.isFinite(n) ? n : 0;
 }
 
-export function readSchoolLedger(schoolId: string): BillingLedgerEntry[] {
+function resolveBillingLedgerStoreKey(schoolId: string): string {
   const key = String(schoolId || "").trim();
-  if (!key) return [];
+  if (!key) return key;
   const all = readAll();
-  const storeKey = resolveSchoolJsonStoreKey(key, all, (value) =>
+  return resolveSchoolJsonStoreKey(key, all, (value) =>
     Array.isArray(value) ? value.length > 0 : false
   );
+}
+
+export function readSchoolLedger(schoolId: string): BillingLedgerEntry[] {
+  const storeKey = resolveBillingLedgerStoreKey(schoolId);
+  if (!storeKey) return [];
+  const all = readAll();
   return Array.isArray(all[storeKey]) ? all[storeKey] : [];
 }
 
 export function writeSchoolLedger(schoolId: string, entries: BillingLedgerEntry[]) {
-  const key = String(schoolId || "").trim();
-  if (!key) return;
+  const storeKey = resolveBillingLedgerStoreKey(schoolId);
+  if (!storeKey) return;
   const all = readAll();
-  all[key] = entries;
+  all[storeKey] = entries;
   writeAll(all);
 }
 
@@ -89,6 +95,18 @@ export function appendSchoolEntry(schoolId: string, entry: BillingLedgerEntry) {
   upsertSchoolEntries(schoolId, [entry]);
 }
 
+export function removeSchoolEntry(schoolId: string, entryId: string): BillingLedgerEntry | null {
+  const sid = String(schoolId || "").trim();
+  const id = String(entryId || "").trim();
+  if (!sid || !id) return null;
+  const entries = readSchoolLedger(sid);
+  const index = entries.findIndex((e) => e.id === id);
+  if (index < 0) return null;
+  const [removed] = entries.splice(index, 1);
+  writeSchoolLedger(sid, entries);
+  return removed;
+}
+
 export function listInvoices(schoolId: string) {
   return readSchoolLedger(schoolId).filter((e) => e.type === "invoice");
 }
@@ -97,25 +115,54 @@ export function listPayments(schoolId: string) {
   return readSchoolLedger(schoolId).filter((e) => e.type === "payment");
 }
 
-/** Attach learnerId to ledger rows that only have accountNo (post-migration repair). */
+function admissionBaseFromAccountKey(accountKey: string): string {
+  const adm = String(accountKey || "").trim();
+  if (!adm) return "";
+  const dash = adm.indexOf("-");
+  return dash === -1 ? adm : adm.slice(0, dash);
+}
+
+export function lookupLearnerIdForAccountKey(
+  accountToLearnerId: Record<string, string>,
+  accountNo: string
+): string {
+  const ref = String(accountNo || "").trim();
+  if (!ref) return "";
+  if (accountToLearnerId[ref]) return accountToLearnerId[ref];
+  const base = admissionBaseFromAccountKey(ref);
+  if (base && accountToLearnerId[base]) return accountToLearnerId[base];
+  return "";
+}
+
+/**
+ * Align ledger learnerId with current learners using accountNo / admission mapping.
+ * Updates missing and stale learner ids (post re-import).
+ */
+export function relinkLedgerLearnerIds(
+  schoolId: string,
+  accountToLearnerId: Record<string, string>
+): number {
+  const entries = readSchoolLedger(schoolId);
+  if (!entries.length) return 0;
+  let updated = 0;
+  const next = entries.map((entry) => {
+    const accountNo = String(entry.accountNo || "").trim();
+    const targetId = lookupLearnerIdForAccountKey(accountToLearnerId, accountNo);
+    const currentId = String(entry.learnerId || "").trim();
+    if (!targetId || currentId === targetId) return entry;
+    updated += 1;
+    return { ...entry, learnerId: targetId };
+  });
+  if (updated > 0) writeSchoolLedger(schoolId, next);
+  return updated;
+}
+
+/** @deprecated Use relinkLedgerLearnerIds — kept for existing scripts. */
 export function backfillLedgerLearnerIds(
   schoolId: string,
   accountToLearnerId: Record<string, string>
 ): number {
-  const key = String(schoolId || "").trim();
-  if (!key) return 0;
-  const entries = readSchoolLedger(key);
-  let updated = 0;
-  const next = entries.map((entry) => {
-    if (String(entry.learnerId || "").trim()) return entry;
-    const accountNo = String(entry.accountNo || "").trim();
-    const learnerId = accountToLearnerId[accountNo];
-    if (!learnerId) return entry;
-    updated += 1;
-    return { ...entry, learnerId };
-  });
-  if (updated > 0) writeSchoolLedger(key, next);
-  return updated;
+  return relinkLedgerLearnerIds(schoolId, accountToLearnerId);
 }
 
 export function listPenalties(schoolId: string) {

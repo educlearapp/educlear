@@ -6,8 +6,10 @@ import {
 } from "./billingSettingsEngine";
 import {
   mergeFamilyAccount,
+  refreshBillingFromApi,
   sanitizeUserFacingError,
   syncBillingLedgerFromApi,
+  undoBillingTransaction,
   unmergeFamilyAccount,
 } from "./billingApi";
 import {
@@ -23,7 +25,10 @@ import {
   notifyLearnersRefresh,
   resolveEntryLearnerLabel,
 } from "./billingLedger";
-import { getLearnerAccountNo } from "../learner/learnerIdentity";
+import {
+  normalizeKidESysAccountRef,
+  resolveKidESysAccountRefFromLearner,
+} from "./billingAccountRef";
 import {
   formatKidesysHistoryDescriptionDisplay,
   formatKidesysHistoryReferenceDisplay,
@@ -31,6 +36,7 @@ import {
   formatLedgerDescriptionDisplay,
   formatLedgerReferenceDisplay,
   formatLedgerTypeLabel,
+  isEduClearUndoableLedgerEntry,
   isKidesysOpeningBalanceEntry,
   isMigratedOpeningBalanceOverviewLabel,
   MIGRATED_OPENING_BALANCE_OVERVIEW,
@@ -111,8 +117,14 @@ function persistBillingAccount(storageKey: string, account: any) {
 }
 
 function resolveLearnerAccountRef(learner: any): string {
-  const ref = getLearnerAccountNo(learner);
-  return ref === "-" ? "" : ref;
+  return resolveKidESysAccountRefFromLearner(learner);
+}
+
+function resolveSelectedAccountRef(selected: any): string {
+  return (
+    normalizeKidESysAccountRef(selected?.accountNo) ||
+    resolveKidESysAccountRefFromLearner(selected)
+  );
 }
 
 function resolveFamilyAccountId(learner: any): string {
@@ -274,6 +286,9 @@ export default function StatementManage({
   const [accountKidesysHistory, setAccountKidesysHistory] = useState<KidesysHistoryEntry[]>([]);
   const [kidesysHistoryVersion, setKidesysHistoryVersion] = useState(0);
   const [transactionsPage, setTransactionsPage] = useState(1);
+  const [selectedTransactionKey, setSelectedTransactionKey] = useState<string | null>(null);
+  const [undoBusy, setUndoBusy] = useState(false);
+  const [undoNotice, setUndoNotice] = useState("");
   const emailReady = isSchoolEmailReadyForUi(emailReadiness);
 
   const loadEmailReadiness = useCallback(async () => {
@@ -336,10 +351,10 @@ export default function StatementManage({
   }, []);
 
   const accountRef = useMemo(() => {
-    const fromSelected = resolveLearnerAccountRef(selected) || String(selected?.accountNo || "").trim();
-    if (fromSelected && fromSelected !== "-") return fromSelected;
+    const fromSelected = resolveSelectedAccountRef(selected);
+    if (fromSelected) return fromSelected;
     const match = learners.find((l) => String(l?.id || l?.learnerId) === learnerId);
-    return resolveLearnerAccountRef(match) || accountNo;
+    return resolveLearnerAccountRef(match) || normalizeKidESysAccountRef(accountNo);
   }, [selected, learners, learnerId, accountNo]);
 
   const familyAccountId = useMemo(() => {
@@ -499,33 +514,33 @@ export default function StatementManage({
   );
 
   const lastInvoiceDisplay = useMemo(() => {
+    // Same source as Statements list row (GET /api/statements Age Analysis accountRef).
+    if (selected?.lastInvoiceLabel && isMigratedOpeningBalanceOverviewLabel(selected.lastInvoiceLabel)) {
+      return MIGRATED_OPENING_BALANCE_OVERVIEW;
+    }
+    if (selected?.lastInvoice === MIGRATED_OPENING_BALANCE_OVERVIEW) return MIGRATED_OPENING_BALANCE_OVERVIEW;
+    if (selected?.lastInvoice && selected.lastInvoice !== "No invoices") {
+      const date = selected?.lastInvoiceDate ? ` · ${selected.lastInvoiceDate}` : "";
+      return `${selected.lastInvoice}${date}`;
+    }
     const histInv = kidesysHistorySummary.lastInvoice;
     if (histInv) {
       const date = histInv.date ? ` on ${histInv.date}` : "";
       return `${formatMoney(histInv.amount)}${date}`;
     }
-    if (selected?.lastInvoiceLabel && isMigratedOpeningBalanceOverviewLabel(selected.lastInvoiceLabel)) {
-      return MIGRATED_OPENING_BALANCE_OVERVIEW;
-    }
-    if (selected?.lastInvoice === MIGRATED_OPENING_BALANCE_OVERVIEW) return MIGRATED_OPENING_BALANCE_OVERVIEW;
-    if (selected?.lastInvoice && Number(selected.lastInvoice) > 0) {
-      const date = selected?.lastInvoiceDate ? ` on ${selected.lastInvoiceDate}` : "";
-      return `${formatMoney(selected.lastInvoice)}${date}`;
-    }
-    return selected?.lastInvoice || "No invoices";
+    return "No invoices";
   }, [kidesysHistorySummary, selected]);
 
   const lastPaymentDisplay = useMemo(() => {
+    if (selected?.lastPayment && selected.lastPayment !== "No payments") {
+      return String(selected.lastPayment);
+    }
     const histPay = kidesysHistorySummary.lastPayment;
     if (histPay) {
       const date = histPay.date ? ` on ${histPay.date}` : "";
       return `${formatMoney(histPay.amount)}${date}`;
     }
-    if (selected?.lastPayment && Number(selected.lastPayment) > 0) {
-      const date = selected?.lastPaymentDate ? ` on ${selected.lastPaymentDate}` : "";
-      return `${formatMoney(selected.lastPayment)}${date}`;
-    }
-    return selected?.lastPayment || "No payments";
+    return "No payments";
   }, [kidesysHistorySummary, selected]);
 
   const filteredKidesysHistory = useMemo(
@@ -533,12 +548,20 @@ export default function StatementManage({
     [kidesysHistoryForAccount, period]
   );
 
-  const balance = isFamilyBillingAccount
-    ? calculateBalanceFromEntries(ledger)
-    : calculateAccountBalance(ledger, learnerId, accountRef || accountNo);
+  const balance = useMemo(() => {
+    // Statement list uses Age Analysis (accountRef) balances. Manage view must match list exactly.
+    const fromRow = normaliseBillingAmount(selected?.balance);
+    if (Number.isFinite(fromRow) && (fromRow !== 0 || Number(selected?.balance) === 0)) {
+      return fromRow;
+    }
+    return isFamilyBillingAccount
+      ? calculateBalanceFromEntries(ledger)
+      : calculateAccountBalance(ledger, learnerId, accountRef || accountNo);
+  }, [selected?.balance, isFamilyBillingAccount, ledger, learnerId, accountRef, accountNo]);
 
   type TransactionDisplayRow = {
     key: string;
+    ledgerEntryId?: string;
     auditNo: string | number;
     date: string;
     type: string;
@@ -550,6 +573,7 @@ export default function StatementManage({
     balance: number | null;
     isKidesysHistory: boolean;
     isOpeningBalance: boolean;
+    canUndo: boolean;
     sortTime: number;
   };
 
@@ -580,6 +604,7 @@ export default function StatementManage({
       const sortTime = new Date(entry.date || entry.createdAt).getTime();
       postingRows.push({
         key: `posting-${entry.id}`,
+        ledgerEntryId: entry.id,
         auditNo: index + 1,
         date: entry.date || "-",
         type: typeLabel,
@@ -591,6 +616,7 @@ export default function StatementManage({
         balance: running,
         isKidesysHistory: false,
         isOpeningBalance,
+        canUndo: isEduClearUndoableLedgerEntry(entry),
         sortTime: Number.isNaN(sortTime) ? 0 : sortTime,
       });
     });
@@ -612,6 +638,7 @@ export default function StatementManage({
         balance: null,
         isKidesysHistory: true,
         isOpeningBalance: false,
+        canUndo: false,
         sortTime: Number.isNaN(sortTime) ? 0 : sortTime,
       };
     });
@@ -901,7 +928,8 @@ export default function StatementManage({
         schoolId,
         anchorId,
         statementPeriodForExport,
-        statementNote
+        statementNote,
+        accountRef || undefined
       );
       if (!opened) {
         setActionNotice("Please allow pop-ups to print the statement.");
@@ -930,7 +958,8 @@ export default function StatementManage({
         anchorId,
         filename,
         statementPeriodForExport,
-        statementNote
+        statementNote,
+        accountRef || undefined
       );
     } catch (e: unknown) {
       setActionNotice((e as Error).message || "Could not download statement PDF.");
@@ -1009,6 +1038,7 @@ export default function StatementManage({
         subject: sendSubject.trim(),
         html: emailHtml,
         learnerId: anchorId,
+        accountNo: accountRef || undefined,
         period: statementPeriodForExport,
         statementNote,
         filename: `${(accountRef || accountNo || "statement").replace(/[^\w.-]+/g, "_")}-statement.pdf`,
@@ -1081,16 +1111,85 @@ export default function StatementManage({
     boxSizing: "border-box",
   };
 
-  const renderTransactionRow = (row: TransactionDisplayRow) => (
+  const selectedTransaction = useMemo(
+    () => transactions.find((row) => row.key === selectedTransactionKey) || null,
+    [transactions, selectedTransactionKey]
+  );
+
+  useEffect(() => {
+    setSelectedTransactionKey(null);
+    setUndoNotice("");
+  }, [learnerId, accountNo, accountRef, period]);
+
+  const handleManageSelectedTransaction = () => {
+    if (!selectedTransaction) return;
+    setUndoNotice("");
+    const amount =
+      selectedTransaction.amountIn || selectedTransaction.amountOut
+        ? formatMoney(selectedTransaction.amountIn || selectedTransaction.amountOut)
+        : "—";
+    setActionNotice(
+      `Selected ${selectedTransaction.type} · ${amount} · ${selectedTransaction.date}${
+        selectedTransaction.reference && selectedTransaction.reference !== "—"
+          ? ` · ${selectedTransaction.reference}`
+          : ""
+      }`
+    );
+  };
+
+  const handleUndoSelectedTransaction = async () => {
+    if (!selectedTransaction) return;
+    if (!selectedTransaction.canUndo || !selectedTransaction.ledgerEntryId) {
+      setUndoNotice("Imported Kid-e-Sys history cannot be undone.");
+      return;
+    }
+    setUndoBusy(true);
+    setUndoNotice("");
+    try {
+      await undoBillingTransaction(
+        schoolId,
+        selectedTransaction.ledgerEntryId,
+        accountRef || accountNo,
+        selectedTransaction.auditNo
+      );
+      await syncBillingLedgerFromApi(schoolId);
+      await refreshBillingFromApi(schoolId);
+      setSelectedTransactionKey(null);
+      setActionNotice("Transaction undone. Balances updated.");
+      notifyBillingUpdated();
+      notifyLearnersRefresh();
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "Failed to undo transaction.";
+      setUndoNotice(
+        message.includes("cannot be undone")
+          ? "Imported Kid-e-Sys history cannot be undone."
+          : sanitizeUserFacingError(message, "Failed to undo transaction.")
+      );
+    } finally {
+      setUndoBusy(false);
+    }
+  };
+
+  const renderTransactionRow = (row: TransactionDisplayRow) => {
+    const isSelected = selectedTransactionKey === row.key;
+    return (
     <tr
       key={row.key}
-      style={
-        row.isKidesysHistory
-          ? { background: "rgba(212,175,55,0.08)" }
-          : row.isOpeningBalance
-            ? { background: "rgba(248,250,252,0.95)" }
-            : undefined
-      }
+      onClick={() => {
+        setSelectedTransactionKey(row.key);
+        setUndoNotice("");
+      }}
+      style={{
+        cursor: "pointer",
+        background: isSelected
+          ? "rgba(212,175,55,0.28)"
+          : row.isKidesysHistory
+            ? "rgba(212,175,55,0.08)"
+            : row.isOpeningBalance
+              ? "rgba(248,250,252,0.95)"
+              : undefined,
+        outline: isSelected ? `2px solid ${GOLD}` : undefined,
+      }}
     >
       <td style={compactCell}>{row.auditNo}</td>
       <td style={compactCell}>{row.date}</td>
@@ -1118,7 +1217,8 @@ export default function StatementManage({
         {row.balance === null ? "—" : formatMoney(row.balance)}
       </td>
     </tr>
-  );
+    );
+  };
 
   const {
     total: pageableTotal,
@@ -1294,9 +1394,57 @@ export default function StatementManage({
         </section>
       </div>
       <section style={{ marginTop: 12, background: "#fff", border: `1px solid ${GOLD}`, borderRadius: 8, overflow: "hidden" }}>
-        <div style={{ padding: "8px 12px", background: INK, color: GOLD, fontWeight: 900, fontSize: 15 }}>
-          Transactions
+        <div
+          style={{
+            padding: "8px 12px",
+            background: INK,
+            color: GOLD,
+            fontWeight: 900,
+            fontSize: 15,
+            display: "flex",
+            justifyContent: "space-between",
+            alignItems: "center",
+            flexWrap: "wrap",
+            gap: 8,
+          }}
+        >
+          <span>Transactions</span>
+          <div style={{ display: "flex", gap: 8 }}>
+            <button
+              type="button"
+              style={{
+                ...buttonStyle,
+                opacity: selectedTransaction ? 1 : 0.5,
+                cursor: selectedTransaction ? "pointer" : "not-allowed",
+              }}
+              disabled={!selectedTransaction}
+              onClick={(e) => {
+                e.stopPropagation();
+                handleManageSelectedTransaction();
+              }}
+            >
+              Manage
+            </button>
+            <button
+              type="button"
+              style={{
+                ...goldButtonStyle,
+                opacity: selectedTransaction && !undoBusy ? 1 : 0.5,
+                cursor: selectedTransaction && !undoBusy ? "pointer" : "not-allowed",
+              }}
+              disabled={!selectedTransaction || undoBusy}
+              onClick={(e) => {
+                e.stopPropagation();
+                void handleUndoSelectedTransaction();
+              }}
+            >
+              {undoBusy ? "Undoing…" : "Undo"}
+            </button>
+          </div>
         </div>
+        {undoNotice ? (
+          <div style={{ padding: "8px 12px", color: "#b45309", fontWeight: 700, fontSize: 13 }}>{undoNotice}</div>
+        ) : null}
         <div style={{ overflowX: "auto" }}>
           <table style={{ width: "100%", borderCollapse: "collapse", minWidth: 880 }}>
             <thead>

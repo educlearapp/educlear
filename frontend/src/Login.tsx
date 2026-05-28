@@ -7,6 +7,10 @@ import { useNavigate } from "react-router-dom";
 import { apiFetch } from "./api";
 import { clearEduClearRole, syncEduClearRoleFromLoginResponse } from "./auth/roles";
 import {
+  clearMigrationAccess,
+  syncMigrationAccessFromLoginResponse,
+} from "./auth/migrationAccess";
+import {
   clearSubscriptionGateCache,
   resolvePostAuthPath,
 } from "./subscriptions/subscriptionsApi";
@@ -45,6 +49,7 @@ export default function Login({ onLoggedIn }: Props) {
     setLoading(true);
 
     clearEduClearRole();
+    clearMigrationAccess();
 
 
 
@@ -102,6 +107,7 @@ export default function Login({ onLoggedIn }: Props) {
       if (u?.email) localStorage.setItem("userEmail", String(u.email));
       if (u?.fullName != null) localStorage.setItem("userName", String(u.fullName));
       if (u?.role != null) localStorage.setItem("userRole", String(u.role));
+      if (u?.id) localStorage.setItem("userId", String(u.id));
 
 
 
@@ -123,6 +129,7 @@ export default function Login({ onLoggedIn }: Props) {
       }
 
       syncEduClearRoleFromLoginResponse(data);
+      syncMigrationAccessFromLoginResponse(data);
 
 
 

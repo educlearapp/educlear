@@ -47,6 +47,37 @@ export function isMigrationBillingSource(source: string | undefined | null): boo
   return normalized.startsWith("kidesys_migration");
 }
 
+const KIDESYS_IMPORTED_LEDGER_SOURCES = new Set([
+  "kideesys-transaction",
+  "kideesys-journal",
+  "kidesys_display_history",
+]);
+
+function isKidesysImportedLedgerSource(source: string | undefined | null): boolean {
+  const normalized = String(source || "").trim().toLowerCase();
+  if (!normalized) return false;
+  return KIDESYS_IMPORTED_LEDGER_SOURCES.has(normalized);
+}
+
+export function isNonPostingImportedLedgerEntry(
+  entry: Pick<BillingLedgerEntry, "source" | "reference" | "description" | "type" | "date" | "createdAt">
+): boolean {
+  if (isImportedBillingLedgerEntry(entry)) return true;
+  if (isKidesysImportedLedgerSource(entry.source)) return true;
+  return false;
+}
+
+/** Undo allowed only for EduClear-created posting ledger rows. */
+export function isEduClearUndoableLedgerEntry(
+  entry: Pick<BillingLedgerEntry, "source" | "reference" | "description" | "type" | "date" | "createdAt">
+): boolean {
+  if (isNonPostingImportedLedgerEntry(entry)) return false;
+  if (entry.type !== "invoice" && entry.type !== "payment" && entry.type !== "penalty") {
+    return false;
+  }
+  return true;
+}
+
 /** Imported Kid-e-Sys / migration ledger row — show migration wording in the UI. */
 export function isImportedBillingLedgerEntry(
   entry: Pick<BillingLedgerEntry, "source" | "reference" | "description" | "type" | "date" | "createdAt">

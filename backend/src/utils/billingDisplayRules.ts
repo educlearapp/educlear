@@ -14,6 +14,8 @@ export const MIGRATED_OPENING_BALANCE_OVERVIEW = "Migrated Opening Balance";
 const MIGRATION_SOURCES = new Set([
   "kidesys_migration",
   "kidesys_migration_opening_balance",
+  "kidesys_csv_migration",
+  "kidesys_csv_opening_balance",
   "kidesys_display_history",
   "kideesys-dasilva",
 ]);
@@ -33,7 +35,12 @@ const LIVE_STRIP_REGEXES = [
 export function isKidesysOpeningBalanceEntry(
   entry: Pick<BillingLedgerEntry, "source" | "reference" | "description">
 ): boolean {
-  if (String(entry.source || "").trim() === "kidesys_migration_opening_balance") return true;
+  if (
+    String(entry.source || "").trim() === "kidesys_migration_opening_balance" ||
+    String(entry.source || "").trim() === "kidesys_csv_opening_balance"
+  ) {
+    return true;
+  }
   const reference = String(entry.reference || "").trim();
   if (reference.startsWith("KIDESYS-OPENING")) return true;
   if (String(entry.description || "").includes("Kid-e-Sys opening balance")) return true;
@@ -45,6 +52,45 @@ export function isMigrationBillingSource(source: string | undefined | null): boo
   if (!normalized) return false;
   if (MIGRATION_SOURCES.has(normalized)) return true;
   return normalized.startsWith("kidesys_migration");
+}
+
+const KIDESYS_IMPORTED_LEDGER_SOURCES = new Set([
+  "kideesys-transaction",
+  "kideesys-journal",
+  "kidesys_display_history",
+]);
+
+function isKidesysImportedLedgerSource(source: string | undefined | null): boolean {
+  const normalized = String(source || "").trim().toLowerCase();
+  if (!normalized) return false;
+  return KIDESYS_IMPORTED_LEDGER_SOURCES.has(normalized);
+}
+
+/** Ledger rows that must not change Age Analysis balances (already in snapshot / display history). */
+export function isNonPostingImportedLedgerEntry(
+  entry: Pick<BillingLedgerEntry, "source" | "reference" | "description" | "type" | "date" | "createdAt">
+): boolean {
+  if (isImportedBillingLedgerEntry(entry)) return true;
+  if (isKidesysImportedLedgerSource(entry.source)) return true;
+  return false;
+}
+
+/** Post-import balance delta: EduClear-created invoice/payment/penalty/credit only. */
+export function countsTowardPostImportBalanceDelta(
+  entry: Pick<BillingLedgerEntry, "source" | "reference" | "description" | "type" | "date" | "createdAt">
+): boolean {
+  return !isNonPostingImportedLedgerEntry(entry);
+}
+
+/** Undo allowed only for EduClear-created posting ledger rows. */
+export function isEduClearUndoableLedgerEntry(
+  entry: Pick<BillingLedgerEntry, "source" | "reference" | "description" | "type" | "date" | "createdAt">
+): boolean {
+  if (isNonPostingImportedLedgerEntry(entry)) return false;
+  if (entry.type !== "invoice" && entry.type !== "payment" && entry.type !== "penalty") {
+    return false;
+  }
+  return true;
 }
 
 export function isImportedBillingLedgerEntry(

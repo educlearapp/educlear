@@ -5,6 +5,7 @@ import { Router } from "express";
 import { PrismaClient } from "@prisma/client";
 
 import { getSurnamePrefix, resolveLearnerAccountNo } from "../utils/learnerIdentity";
+import { normalizeLearnerGender } from "../utils/learnerGender";
 
 
 
@@ -303,14 +304,18 @@ function mapLearnerDetailForClient(learner: {
   birthDate: Date | null;
   gender: string | null;
   idNumber: string | null;
+  homeLanguage: string | null;
+  citizenship: string | null;
   grade: string;
   className: string | null;
+  enrollmentStatus?: string;
   admissionNo: string | null;
   tuitionFee: number;
   transportFee: number;
   otherFee: number;
   totalFee: number;
   createdAt: Date;
+  notes?: string | null;
   familyAccount?: { id?: string; accountRef?: string; familyName?: string } | null;
   links?: Array<{
     relation?: string | null;
@@ -325,6 +330,9 @@ function mapLearnerDetailForClient(learner: {
   const accountNo = resolveLearnerAccountNo(learner);
   const firstName = learner.firstName || "";
   const lastName = learner.lastName || "";
+  const notes = learner.notes || "";
+  const enrollmentDateMatch = notes.match(/Enrolment date:\s*(\d{4}-\d{2}-\d{2})/i);
+  const enrollmentDate = enrollmentDateMatch?.[1] || learner.createdAt.toISOString().slice(0, 10);
   return {
     id: learner.id,
     schoolId: learner.schoolId,
@@ -347,13 +355,20 @@ function mapLearnerDetailForClient(learner: {
     birthDate: learner.birthDate,
     dateOfBirth: learner.birthDate,
     dob: learner.birthDate,
-    gender: learner.gender || "",
+    gender: normalizeLearnerGender(learner.gender) || learner.gender || "",
+    enrollmentStatus: learner.enrollmentStatus || "ACTIVE",
     idNumber: learner.idNumber || "",
     idNo: learner.idNumber || "",
+    homeLanguage: learner.homeLanguage || "",
+    citizenship: learner.citizenship || "",
+    nationality: learner.citizenship || "",
     grade: learner.grade || "",
     className: learner.className || "",
     classroom: learner.className || learner.grade || "",
     classroomName: learner.className || learner.grade || "",
+    classroomId: null,
+    enrollmentDate,
+    notes,
     tuitionFee: learner.tuitionFee ?? 0,
     transportFee: learner.transportFee ?? 0,
     otherFee: learner.otherFee ?? 0,
@@ -512,11 +527,13 @@ router.get("/", async (req, res) => {
 
         birthDate: learner.birthDate,
 
+        gender: normalizeLearnerGender(learner.gender) || learner.gender || "",
 
+        enrollmentStatus: learner.enrollmentStatus,
 
-        gender: learner.gender || "",
+        homeLanguage: learner.homeLanguage || "",
 
-
+        citizenship: learner.citizenship || "",
 
         idNumber: learner.idNumber || "",
 

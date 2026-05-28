@@ -13,6 +13,8 @@ import learnerRoutes from "./routes/learner";
 import statementsRoutes from "./routes/statements";
 import familyAccountsRoutes from "./routes/familyAccounts";
 import paymentsRoutes from "./routes/payments";
+import paymentAllocationsRoutes from "./routes/paymentAllocations";
+import billingTransactionsRoutes from "./routes/billingTransactions";
 import invoicesRoutes from "./routes/invoices";
 import billingDocumentsRoutes from "./routes/billingDocuments";
 import billingPenaltiesRoutes from "./routes/billingPenalties";
@@ -38,11 +40,23 @@ import parentPortalRoutes from "./routes/parentPortal";
 import classroomsRoutes from "./routes/classrooms";
 import teacherInboxRoutes from "./routes/teacherInbox";
 import teacherAppRoutes from "./routes/teacherApp";
-import migrationRoutes, { migrationErrorHandler } from "./routes/migration";
+import migrationRoutes, {
+  migrationErrorHandler,
+  migrationUploadErrorHandler,
+  migrationUploadRouter,
+} from "./routes/migration";
+import {
+  handleKidESysMigrationReadiness,
+  KIDESYS_ADAPTER_READINESS_PATH,
+} from "./routes/migrationKidESysReadiness";
 import daSilvaMigrationRoutes from "./routes/daSilvaMigration";
+import kideesysMigrationRoutes, {
+  kideesysMigrationErrorHandler,
+} from "./routes/kideesysMigration";
 import subscriptionsRoutes from "./routes/subscriptions";
 import payfastRoutes from "./routes/payfast";
 import creditsRoutes from "./routes/credits";
+import { requireMigrationAccess } from "./middleware/requireMigrationAccess";
 import { requireSuperAdmin } from "./middleware/requireSuperAdmin";
 import { prisma } from "./prisma";
 import { bootstrapDevTestSchoolEmail } from "./dev/devTestSchoolEmail";
@@ -293,6 +307,8 @@ app.use("/api/invoices", invoicesRoutes);
 app.use("/api/statements", statementsRoutes);
 app.use("/api/family-accounts", familyAccountsRoutes);
 app.use("/api/payments", paymentsRoutes);
+app.use("/api/payment-allocations", paymentAllocationsRoutes);
+app.use("/api/billing-transactions", billingTransactionsRoutes);
 app.use("/api/billing-documents", billingDocumentsRoutes);
 app.use("/api/legal-billing-documents", legalBillingDocumentsRoutes);
 app.use("/api/communication", communicationRoutes);
@@ -311,8 +327,29 @@ app.use("/api/parent-portal", parentPortalRoutes);
 app.use("/api/classrooms", classroomsRoutes);
 app.use("/api/teacher-inbox", teacherInboxRoutes);
 app.use("/api/teacher-app", teacherAppRoutes);
-app.use("/api/super-admin/migration", requireSuperAdmin, migrationRoutes, migrationErrorHandler);
-app.use("/api/super-admin/migration/da-silva", requireSuperAdmin, daSilvaMigrationRoutes);
+app.post(
+  `/api/migration${KIDESYS_ADAPTER_READINESS_PATH}`,
+  requireSuperAdmin,
+  handleKidESysMigrationReadiness
+);
+app.use(
+  "/api/migration",
+  requireMigrationAccess,
+  migrationUploadRouter,
+  migrationUploadErrorHandler
+);
+app.use("/api/super-admin/migration", requireMigrationAccess, migrationRoutes, migrationErrorHandler);
+app.use(
+  "/api/super-admin/migration/da-silva",
+  requireMigrationAccess,
+  daSilvaMigrationRoutes
+);
+app.use(
+  "/api/super-admin/migration/kideesys",
+  requireMigrationAccess,
+  kideesysMigrationRoutes,
+  kideesysMigrationErrorHandler
+);
 app.use("/api/subscriptions", subscriptionsRoutes);
 app.use("/api/credits", creditsRoutes);
 app.use("/api/payfast", payfastRoutes);

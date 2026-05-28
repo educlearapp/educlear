@@ -1,12 +1,11 @@
 import { Router } from "express";
 
-import { readSchoolLedger } from "../utils/billingLedgerStore";
+import { buildAndGenerateStatementPdf } from "../services/statementPdfData";
+import { buildAccountsFromAgeAnalysisSnapshots } from "../services/statementAccounts";
 import {
   filterHistoryForAccount,
   readSchoolKidesysHistory,
 } from "../utils/kidesysTransactionHistoryStore";
-import { buildAccountsFromLearners } from "../services/statementAccounts";
-import { buildAndGenerateStatementPdf } from "../services/statementPdfData";
 import { normalizeStatementPeriod } from "../utils/statementPeriod";
 
 const router = Router();
@@ -18,26 +17,28 @@ function sendPdfAttachment(res: import("express").Response, buffer: Buffer, file
   return res.send(buffer);
 }
 
-// GET /api/statements/pdf?schoolId=&learnerId=&period=
+// GET /api/statements/pdf?schoolId=&learnerId=&accountNo=&period=
 router.get("/pdf", async (req, res) => {
   try {
     const schoolId = typeof req.query?.schoolId === "string" ? String(req.query.schoolId).trim() : "";
     const learnerId = typeof req.query?.learnerId === "string" ? String(req.query.learnerId).trim() : "";
+    const accountNo = typeof req.query?.accountNo === "string" ? String(req.query.accountNo).trim() : "";
     const period = normalizeStatementPeriod(
       typeof req.query?.period === "string" ? String(req.query.period).trim() : undefined
     );
     const statementNote =
       typeof req.query?.statementNote === "string" ? String(req.query.statementNote) : undefined;
 
-    if (!schoolId || !learnerId) {
-      return res.status(400).json({ success: false, error: "Missing schoolId or learnerId" });
+    if (!schoolId || (!learnerId && !accountNo)) {
+      return res.status(400).json({ success: false, error: "Missing schoolId and learnerId or accountNo" });
     }
 
-    console.log("[PDF] generating", learnerId, { schoolId, period });
+    console.log("[PDF] generating", accountNo || learnerId, { schoolId, period });
 
     const { buffer, filename } = await buildAndGenerateStatementPdf({
       schoolId,
-      learnerId,
+      learnerId: learnerId || "",
+      accountNo: accountNo || undefined,
       period,
       statementNote,
     });
@@ -56,8 +57,7 @@ router.get("/", async (req, res) => {
     const schoolId = typeof req.query?.schoolId === "string" ? String(req.query.schoolId) : "";
     if (!schoolId) return res.status(400).json({ success: false, error: "Missing schoolId" });
 
-    const ledger = readSchoolLedger(schoolId);
-    const accounts = await buildAccountsFromLearners(schoolId, ledger);
+    const accounts = await buildAccountsFromAgeAnalysisSnapshots(schoolId);
     return res.json({ success: true, statements: accounts, accounts });
   } catch (error) {
     console.error("[statements] GET / failed:", error);
@@ -92,8 +92,7 @@ router.get("/accounts", async (req, res) => {
       req.query?.includeKidesysHistory === "true" || req.query?.includeKidesysHistory === "1";
     if (!schoolId) return res.status(400).json({ success: false, error: "Missing schoolId" });
 
-    const ledger = readSchoolLedger(schoolId);
-    const accounts = await buildAccountsFromLearners(schoolId, ledger);
+    const accounts = await buildAccountsFromAgeAnalysisSnapshots(schoolId);
 
     if (!includeKidesysHistory) {
       return res.json({ success: true, accounts });

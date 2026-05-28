@@ -88,6 +88,13 @@ export default function ParentsSection({
       if (onPersistParent) {
         const result = await onPersistParent(parentDraft);
         if (result) saved = normalizeParentRecord(result as Record<string, unknown>);
+        if (parentMode === "manage" && selectedParent) {
+          setSelectedId(String(saved.id || selectedParent.id || ""));
+        } else if (parentMode === "add") {
+          setSelectedId(String(saved.id || ""));
+        }
+        cancelForm();
+        return;
       }
 
       if (parentMode === "add") {

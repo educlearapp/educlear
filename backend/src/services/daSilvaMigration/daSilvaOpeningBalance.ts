@@ -1,4 +1,4 @@
-import { DA_SILVA_OPENING_BALANCE_EXCLUDED_ACCOUNTS } from "./daSilvaFinalImportGate";
+import { DA_SILVA_OPENING_BALANCE_EXCLUDED_ACCOUNTS } from "./daSilvaConstants";
 import {
   classifyVarianceGroup,
   isMergedFamilyAccount,

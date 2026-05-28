@@ -13,6 +13,10 @@ import type {
   UploadedMigrationFile,
 } from "../types/migration";
 import { readMigrationFiles } from "../utils/migrationCsv";
+import {
+  fetchMigrationTargetSchools,
+  type MigrationTargetSchoolsDebug,
+} from "../utils/migrationTargetSchools";
 
 const EMPTY_SUMMARY: MigrationSummary = {
   projects: 0,
@@ -52,6 +56,8 @@ function hasBillingOrAccountingCategories(selected: Set<DataCategoryId>): boolea
 export function useMigrationCenter() {
   const [summary, setSummary] = useState<MigrationSummary>(EMPTY_SUMMARY);
   const [schoolOptions, setSchoolOptions] = useState<SchoolOption[]>([]);
+  const [schoolOptionsDebug, setSchoolOptionsDebug] =
+    useState<MigrationTargetSchoolsDebug | null>(null);
   const [selectedSchoolId, setSelectedSchoolId] = useState("");
   const [migrationSource, setMigrationSource] = useState<MigrationSource | "">("");
   const [selectedCategories, setSelectedCategories] = useState<Set<DataCategoryId>>(
@@ -73,15 +79,12 @@ export function useMigrationCenter() {
   useEffect(() => {
     void (async () => {
       try {
-        const schools = (await superAdminApiFetch("/api/schools")) as Array<{
-          id: string;
-          name: string;
-        }>;
-        setSchoolOptions(
-          (schools || []).map((s) => ({ id: s.id, name: s.name }))
-        );
+        const { schools, debug } = await fetchMigrationTargetSchools();
+        setSchoolOptions(schools);
+        setSchoolOptionsDebug(debug);
       } catch {
         setSchoolOptions([]);
+        setSchoolOptionsDebug(null);
       }
     })();
   }, []);
@@ -386,6 +389,7 @@ export function useMigrationCenter() {
   return {
     summary,
     schoolOptions,
+    schoolOptionsDebug,
     selectedSchoolId,
     setSelectedSchoolId,
     selectedSchool,

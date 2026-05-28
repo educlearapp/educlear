@@ -127,6 +127,39 @@
   color: #8b6b16;
 }
 
+.sa-migration-school-debug {
+  margin-top: 12px;
+  padding: 10px 12px;
+  border-radius: 8px;
+  border: 1px dashed #cbd5e1;
+  background: #f8fafc;
+  font-size: 0.8rem;
+  color: #475569;
+}
+
+.sa-migration-school-debug summary {
+  cursor: pointer;
+  font-weight: 700;
+  color: #8b6b16;
+}
+
+.sa-migration-school-debug dl {
+  margin: 10px 0 0;
+}
+
+.sa-migration-school-debug dt {
+  font-weight: 700;
+  margin-top: 6px;
+}
+
+.sa-migration-school-debug dd {
+  margin: 2px 0 0;
+}
+
+.sa-migration-school-debug code {
+  word-break: break-all;
+}
+
 .sa-migration-select {
   width: 100%;
   padding: 10px 12px;
@@ -625,6 +658,41 @@
   margin-bottom: 20px;
 }
 
+.sa-migration-dasilva-slot--wide {
+  grid-column: 1 / -1;
+}
+
+.sa-migration-dasilva-validation {
+  margin-bottom: 24px;
+}
+
+.sa-migration-dasilva-phase-title {
+  margin: 0 0 10px;
+  font-size: 1rem;
+  color: #e8d48a;
+}
+
+.sa-migration-dasilva-checklist {
+  margin: 0 0 12px;
+  padding-left: 1.25rem;
+  color: #d4dae3;
+  font-size: 0.9rem;
+}
+
+.sa-migration-dasilva-checklist li.ok {
+  color: #86efac;
+}
+
+.sa-migration-dasilva-checklist li.fail {
+  color: #fca5a5;
+}
+
+.sa-migration-dasilva-phases {
+  margin-top: 8px;
+  padding-top: 16px;
+  border-top: 1px solid rgba(201, 162, 39, 0.2);
+}
+
 .sa-migration-dasilva-slot {
   display: flex;
   flex-direction: column;
@@ -664,6 +732,280 @@
 
 @media (max-width: 768px) {
   .sa-migration-dasilva-slots {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* Kid-e-Sys migration portal wizard */
+.sa-kideesys-portal {
+  margin-top: 28px;
+  padding: 24px;
+  border-radius: 12px;
+  border: 1px solid rgba(201, 162, 39, 0.35);
+  background: linear-gradient(180deg, #0f0f0f 0%, #141414 100%);
+}
+
+.sa-kideesys-steps {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 20px;
+}
+
+.sa-kideesys-step {
+  padding: 8px 12px;
+  border-radius: 8px;
+  border: 1px solid #333;
+  background: #1a1a1a;
+  color: #a8b0bc;
+  font-size: 0.75rem;
+  cursor: pointer;
+}
+
+.sa-kideesys-step--active {
+  border-color: #c9a227;
+  color: #f7d56a;
+  background: #252015;
+}
+
+.sa-kideesys-step--done {
+  border-color: #3d5a3d;
+  color: #9ccc9c;
+}
+
+.sa-kideesys-panel {
+  margin-top: 12px;
+}
+
+.sa-kideesys-upload-hint {
+  margin-bottom: 14px;
+}
+
+.sa-kideesys-dropzone {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  min-height: 140px;
+  padding: 22px;
+  border-radius: 10px;
+  border: 2px dashed rgba(201, 162, 39, 0.45);
+  background: rgba(201, 162, 39, 0.06);
+  cursor: pointer;
+  transition: border-color 0.2s ease, background 0.2s ease;
+}
+
+.sa-kideesys-dropzone:hover,
+.sa-kideesys-dropzone--active {
+  border-color: #c9a227;
+  background: rgba(201, 162, 39, 0.14);
+}
+
+.sa-kideesys-file-input {
+  display: none;
+}
+
+.sa-kideesys-dropzone-icon {
+  font-size: 1.6rem;
+  margin-bottom: 8px;
+  color: #f7d56a;
+}
+
+.sa-kideesys-dropzone-title {
+  margin: 0 0 4px;
+  font-size: 0.95rem;
+  font-weight: 800;
+  color: #f7d56a;
+}
+
+.sa-kideesys-dropzone-text {
+  margin: 0;
+  font-size: 0.85rem;
+  color: #a8b0bc;
+  text-align: center;
+}
+
+.sa-kideesys-file-list-wrap {
+  margin-top: 16px;
+  padding-top: 16px;
+  border-top: 1px solid rgba(201, 162, 39, 0.2);
+}
+
+.sa-kideesys-file-list-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 10px;
+}
+
+.sa-kideesys-file-list-title {
+  margin: 0;
+  font-size: 0.8rem;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: #c9a227;
+}
+
+.sa-kideesys-link-btn {
+  border: none;
+  background: transparent;
+  color: #f7d56a;
+  font-size: 0.85rem;
+  font-weight: 700;
+  font-family: inherit;
+  cursor: pointer;
+  text-decoration: underline;
+}
+
+.sa-kideesys-link-btn:hover:not(:disabled) {
+  color: #ffe08a;
+}
+
+.sa-kideesys-link-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.sa-kideesys-file-list-empty {
+  margin: 0;
+  font-size: 0.9rem;
+  color: #8b95a5;
+}
+
+.sa-kideesys-file-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  max-height: 280px;
+  overflow: auto;
+}
+
+.sa-kideesys-file-item {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 12px;
+  border-radius: 8px;
+  background: #1a1a1a;
+  border: 1px solid #333;
+}
+
+.sa-kideesys-file-name {
+  flex: 1;
+  min-width: 0;
+  font-size: 0.88rem;
+  font-weight: 700;
+  color: #e8ecf1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.sa-kideesys-file-meta {
+  font-size: 0.78rem;
+  color: #8b95a5;
+  font-variant-numeric: tabular-nums;
+}
+
+.sa-kideesys-file-remove {
+  border: none;
+  background: transparent;
+  color: #e88a7a;
+  font-size: 0.8rem;
+  font-weight: 700;
+  font-family: inherit;
+  cursor: pointer;
+}
+
+.sa-kideesys-file-remove:hover:not(:disabled) {
+  text-decoration: underline;
+  color: #ffb4a8;
+}
+
+.sa-kideesys-file-remove:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.sa-kideesys-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.85rem;
+  margin-bottom: 16px;
+}
+
+.sa-kideesys-table th,
+.sa-kideesys-table td {
+  padding: 10px 12px;
+  text-align: left;
+  border-bottom: 1px solid #333;
+  color: #e2e8f0;
+}
+
+.sa-kideesys-stats {
+  list-style: none;
+  padding: 0;
+  margin: 0 0 16px;
+  color: #d4dae3;
+}
+
+.sa-kideesys-stats li {
+  margin-bottom: 8px;
+}
+
+.sa-kideesys-classify-lists {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+  margin-bottom: 16px;
+}
+
+.sa-kideesys-classify-lists pre {
+  max-height: 200px;
+  overflow: auto;
+  font-size: 0.75rem;
+  background: #0a0a0a;
+  padding: 12px;
+  border-radius: 8px;
+  color: #cbd5e1;
+}
+
+.sa-kideesys-issue-list {
+  list-style: none;
+  padding: 0;
+  max-height: 280px;
+  overflow: auto;
+  margin-bottom: 16px;
+}
+
+.sa-kideesys-issue {
+  padding: 10px 12px;
+  margin-bottom: 8px;
+  border-radius: 8px;
+  background: #1a1a1a;
+  color: #e2e8f0;
+  font-size: 0.85rem;
+}
+
+.sa-kideesys-issue--error {
+  border-left: 3px solid #e74c3c;
+}
+
+.sa-kideesys-issue--warning {
+  border-left: 3px solid #f39c12;
+}
+
+.sa-kideesys-issue--info {
+  border-left: 3px solid #3498db;
+}
+
+@media (max-width: 768px) {
+  .sa-kideesys-classify-lists {
     grid-template-columns: 1fr;
   }
 }

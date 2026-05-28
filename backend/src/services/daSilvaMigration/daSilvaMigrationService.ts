@@ -2,6 +2,10 @@ import fs from "fs";
 import path from "path";
 import { prisma } from "../../prisma";
 import {
+  indexAgeAnalysisAccountNames,
+  isKidESysSourceAccountRef,
+} from "./ageAnalysisParser";
+import {
   addLearnerToFamilyIndex,
   buildMergedFamilyAccountSet,
   computeFamilyLedgerBalance,
@@ -38,14 +42,37 @@ import {
 import {
   approvedOpeningBalanceAdjustments,
   assertDaSilvaFinalImportAllowed,
-  DA_SILVA_OPENING_BALANCE_EXCLUDED_ACCOUNTS,
 } from "./daSilvaFinalImportGate";
+import {
+  countDaSilvaSasamsClassrooms,
+  countDaSilvaSupplementClassrooms,
+  DA_SILVA_BILLING_ACCOUNT_TARGET,
+  DA_SILVA_EXPECTED_CLASSROOM_LEARNER_COUNTS,
+  DA_SILVA_EXPECTED_CRECHE_SUPPLEMENT_LEARNER_COUNT,
+  DA_SILVA_EXPECTED_FAMILY_ACCOUNT_COUNT,
+  DA_SILVA_EXPECTED_FINAL_LEARNER_COUNT,
+  DA_SILVA_EXPECTED_LEARNER_COUNT,
+  DA_SILVA_EXPECTED_PARENT_COUNT,
+  DA_SILVA_EXPECTED_PARENT_LINK_COUNT,
+  DA_SILVA_EXPECTED_PARENT_LINK_MATCH_COUNT,
+  DA_SILVA_EXPECTED_SASAMS_CLASS_LIST_FILE_COUNT,
+  DA_SILVA_EXPECTED_SASAMS_CLASS_LIST_LEARNER_COUNT,
+  DA_SILVA_EXPECTED_SASAMS_CLASSROOM_COUNT,
+  DA_SILVA_EXPECTED_SASAMS_CLASSROOM_LEARNER_COUNTS,
+  DA_SILVA_EXPECTED_UNIQUE_PARENT_COUNT,
+  DA_SILVA_OPENING_BALANCE_EXCLUDED_ACCOUNTS,
+  isAcceptableDaSilvaPhase2LearnerCount,
+  isAcceptableDaSilvaPhase3LearnerCount,
+  isAllowedDaSilvaSupplementClassroom,
+} from "./daSilvaConstants";
+import { assertDaSilvaMigrationGates } from "./daSilvaPhaseGates";
 import { relinkDaSilvaLearnerBillingFromBundle } from "./relinkDaSilvaLearnerBilling";
+import { runKideesysPostMigrationReconciliation } from "../kideesysMigration/kideesysBillingReconciliation";
 import {
   parseAgeAnalysisFile,
+  parseAgeAnalysisFileWithAudit,
+  type AgeAnalysisParseAudit,
   parseBillingPlanFile,
-  parseClassListDirectory,
-  parseClassListFile,
   parseContactListFile,
   parseEmployeesFile,
   parseTransactionListFile,
@@ -57,6 +84,32 @@ import {
   type ParsedLearnerContact,
   type ParsedTransaction,
 } from "./parsers";
+import {
+  DA_SILVA_BILLING_MATCH_MAX_UNMATCHED,
+  DA_SILVA_BILLING_MATCH_MIN_MATCHED,
+  DA_SILVA_BILLING_MATCH_MIN_RATIO,
+  DA_SILVA_MIGRATION_STRATEGY,
+  discoverBillingSecondPassPaths,
+  type DaSilvaMigrationStrategy,
+  type DaSilvaSasamsIngestPaths,
+} from "./daSilvaMigrationStrategy";
+import { writeDaSilvaMigrationAudit } from "./daSilvaMigrationAudit";
+import {
+  matchKideesysBillingAccountsWithSecondPass,
+  groupSiblingAccounts,
+} from "./daSilvaKideesysBillingMatch";
+import { formatKideesysBillingReconciliationReportText } from "./daSilvaKideesysBillingReconciliationReport";
+import { auditParentMatches, matchParentToLearner, buildLearnerMatchIndexes } from "./daSilvaParentLearnerMatching";
+import {
+  mergeSasamsLearnerSources,
+  parseSasamsClassListDirectory,
+  parseSasamsLearnerRegister,
+  parseSasamsParentRegister,
+  parseSasamsParentSources,
+  sasamsLearnersToParsedLearners,
+  type SasamsLearnerMergeAudit,
+  type SasamsParsedLearner,
+} from "./sasamsParsers";
 
 const STAGING_ROOT = path.join(process.cwd(), "uploads", "migration-staging");
 
@@ -119,10 +172,15 @@ export type DaSilvaStagedLearner = {
   enrollmentTier?: "ACTIVE" | "HISTORICAL";
 };
 
+export type DaSilvaAgeAnalysisLearnerMatchAudit = {
+  learnersMatchedFromAgeAnalysis: number;
+  learnersNotMatchedFromAgeAnalysis: number;
+};
+
 export type DaSilvaMigrationBundle = {
   projectId: string;
   schoolId: string;
-  source: "kideesys-dasilva";
+  source: "sasams-kideesys" | "kideesys-dasilva";
   createdAt: string;
   classrooms: ParsedClassroom[];
   employees: ParsedEmployee[];
@@ -133,6 +191,8 @@ export type DaSilvaMigrationBundle = {
   countValidation: DaSilvaCountValidation;
   reconciliation: DaSilvaReconciliationReport;
   openingBalance: DaSilvaOpeningBalancePlan;
+  ageAnalysisParseAudit: AgeAnalysisParseAudit;
+  ageAnalysisLearnerMatchAudit: DaSilvaAgeAnalysisLearnerMatchAudit;
   canImport: boolean;
   confirmToken: string;
 };
@@ -140,8 +200,9 @@ export type DaSilvaMigrationBundle = {
 export type DaSilvaImportPhase =
   | "school_base"
   | "classrooms"
-  | "parents"
   | "learners"
+  | "parents"
+  | "billing_match"
   | "billing_accounts"
   | "transactions"
   | "opening_balances";
@@ -149,6 +210,7 @@ export type DaSilvaImportPhase =
 export type DaSilvaImportManifest = {
   projectId: string;
   schoolId: string;
+  strategy?: DaSilvaMigrationStrategy;
   importedAt: string;
   learnerIds: string[];
   parentIds: string[];
@@ -156,7 +218,7 @@ export type DaSilvaImportManifest = {
   classroomIds: string[];
   employeeIds: string[];
   ledgerEntryIds: string[];
-  /** `${matchKey}:${parentIndex}` → parent id (parents phase, links in learners phase) */
+  /** `${matchKey}:${parentIndex}` → parent id (parents phase, links in parents phase) */
   stagedParentIds?: Record<string, string>;
   matchKeyToLearnerId?: Record<string, string>;
   accountToLearnerId?: Record<string, string>;
@@ -425,11 +487,21 @@ export function buildDaSilvaMigrationBundle(opts: {
   projectId: string;
   paths: DaSilvaIngestPaths;
 }): DaSilvaMigrationBundle {
-  const { classrooms, learners: classLearners } = parseClassListDirectory(opts.paths.classListDir);
+  const { classrooms: sasamsClassrooms, learners: sasamsClassLearners } = parseSasamsClassListDirectory(
+    opts.paths.classListDir
+  );
+  const classLearners = sasamsLearnersToParsedLearners(sasamsClassLearners);
+  const classrooms: ParsedClassroom[] = sasamsClassrooms.map((c) => ({
+    className: c.className,
+    year: null,
+    sourceFile: c.sourceFile,
+  }));
   const contacts = parseContactListFile(opts.paths.contactList);
   const employees = parseEmployeesFile(opts.paths.employees);
   const billingItems = parseBillingPlanFile(opts.paths.billingPlan);
-  const accounts = parseAgeAnalysisFile(opts.paths.ageAnalysis);
+  const ageAnalysisParsed = parseAgeAnalysisFileWithAudit(opts.paths.ageAnalysis);
+  const accounts = ageAnalysisParsed.accounts;
+  const ageAnalysisParseAudit = ageAnalysisParsed.audit;
   const transactions = parseTransactionListFile(opts.paths.transactions);
 
   const contactByKey = new Map(contacts.map((c) => [c.matchKey, c]));
@@ -437,9 +509,7 @@ export function buildDaSilvaMigrationBundle(opts: {
   const accountByName = new Map<string, string>();
   const accountByNo = buildAccountMap(accounts, transactions);
 
-  for (const a of accounts) {
-    accountByName.set(normalizeMatchText(a.fullName), a.accountNo);
-  }
+  indexAgeAnalysisAccountNames(accounts, accountByName);
   for (const t of transactions) {
     accountByName.set(normalizeMatchText(t.fullName), t.accountNo);
   }
@@ -454,6 +524,62 @@ export function buildDaSilvaMigrationBundle(opts: {
   );
   const siblingAccountNos = loadSiblingAccountNos(opts.paths.siblingAccounts);
   const stagedLearners: DaSilvaStagedLearner[] = [];
+  let learnersMatchedFromAgeAnalysis = 0;
+  let learnersNotMatchedFromAgeAnalysis = 0;
+
+  // Track fallback account numbers generated in this bundle so we can reuse the
+  // same one if the same learner appears twice and guarantee uniqueness otherwise.
+  const fallbackByMatchKey = new Map<string, string>();
+  let fallbackSeq = 0;
+
+  /**
+   * Generate a stable, deterministic fallback account number for a learner that
+   * cannot be matched to any Kid-e-Sys account after Age Analysis is parsed.
+   * Format: KID-MISSING-{4-digit-seq}  e.g. KID-MISSING-0001
+   */
+  function getFallbackAccountNo(matchKey: string): string {
+    if (fallbackByMatchKey.has(matchKey)) return fallbackByMatchKey.get(matchKey)!;
+    fallbackSeq += 1;
+    const seq = String(fallbackSeq).padStart(4, "0");
+    const fallback = `KID-MISSING-${seq}`;
+    fallbackByMatchKey.set(matchKey, fallback);
+    return fallback;
+  }
+
+  function resolveLearnerAccountFromAgeAnalysis(learnerFullName: string): {
+    accountNo: string;
+    ageRow: ParsedBillingAccount | undefined;
+    matchedFromAgeAnalysis: boolean;
+  } {
+    let accountNo =
+      accountByName.get(normalizeMatchText(learnerFullName)) ||
+      findAccountForLearnerName(learnerFullName, accounts, familyIndex) ||
+      "";
+
+    if (!accountNo) {
+      for (const [no, meta] of accountByNo) {
+        if (normalizeMatchText(meta.fullName) === normalizeMatchText(learnerFullName)) {
+          accountNo = no;
+          break;
+        }
+      }
+    }
+
+    const ageRow = accounts.find(
+      (a) =>
+        a.accountNo === accountNo ||
+        normalizeMatchText(a.fullName) === normalizeMatchText(learnerFullName) ||
+        (a.learnerNames || splitMergedAccountNames(a.fullName)).some(
+          (n) => normalizeMatchText(n) === normalizeMatchText(learnerFullName)
+        )
+    );
+
+    const matchedFromAgeAnalysis = Boolean(
+      ageRow?.accountNo && isKidESysSourceAccountRef(ageRow.accountNo)
+    );
+
+    return { accountNo, ageRow, matchedFromAgeAnalysis };
+  }
 
   for (const learner of uniqueClassLearners) {
     const norm = normalizeClassroomInput(learner.className);
@@ -462,29 +588,20 @@ export function buildDaSilvaMigrationBundle(opts: {
     const billingPlan = planByKey.get(learner.matchKey) || [];
     const billingPlanTotal = billingPlan.reduce((s, i) => s + i.amount, 0);
 
-    let accountNo =
-      accountByName.get(normalizeMatchText(learner.fullName)) ||
-      "";
-    if (!accountNo) {
-      for (const [no, meta] of accountByNo) {
-        if (normalizeMatchText(meta.fullName) === normalizeMatchText(learner.fullName)) {
-          accountNo = no;
-          break;
-        }
-      }
-    }
-    if (!accountNo) {
-      accountNo = findAccountForLearnerName(learner.fullName, accounts, familyIndex);
-    }
-
-    const ageRow = accounts.find(
-      (a) =>
-        a.accountNo === accountNo ||
-        normalizeMatchText(a.fullName) === normalizeMatchText(learner.fullName) ||
-        splitMergedAccountNames(a.fullName).some(
-          (n) => normalizeMatchText(n) === normalizeMatchText(learner.fullName)
-        )
+    const { accountNo, ageRow, matchedFromAgeAnalysis } = resolveLearnerAccountFromAgeAnalysis(
+      learner.fullName
     );
+
+    const resolvedAccountNo =
+      (accountNo && isKidESysSourceAccountRef(accountNo) ? accountNo : "") ||
+      (ageRow?.accountNo && isKidESysSourceAccountRef(ageRow.accountNo) ? ageRow.accountNo : "") ||
+      getFallbackAccountNo(learner.matchKey);
+
+    if (matchedFromAgeAnalysis || isKidESysSourceAccountRef(resolvedAccountNo)) {
+      learnersMatchedFromAgeAnalysis += 1;
+    } else {
+      learnersNotMatchedFromAgeAnalysis += 1;
+    }
 
     stagedLearners.push({
       matchKey: learner.matchKey,
@@ -493,7 +610,7 @@ export function buildDaSilvaMigrationBundle(opts: {
       lastName: learner.lastName,
       className: learner.className,
       canonicalClassName,
-      accountNo: accountNo || ageRow?.accountNo || "",
+      accountNo: resolvedAccountNo,
       billingPlan,
       billingPlanTotal,
       ageAnalysisBalance: ageRow?.balance ?? 0,
@@ -536,7 +653,7 @@ export function buildDaSilvaMigrationBundle(opts: {
   return {
     projectId: opts.projectId,
     schoolId: opts.schoolId,
-    source: "kideesys-dasilva",
+    source: "sasams-kideesys",
     createdAt: new Date().toISOString(),
     classrooms,
     employees,
@@ -547,6 +664,11 @@ export function buildDaSilvaMigrationBundle(opts: {
     countValidation,
     reconciliation,
     openingBalance,
+    ageAnalysisParseAudit,
+    ageAnalysisLearnerMatchAudit: {
+      learnersMatchedFromAgeAnalysis,
+      learnersNotMatchedFromAgeAnalysis,
+    },
     canImport,
     confirmToken,
   };
@@ -642,7 +764,7 @@ function writeDaSilvaManifest(schoolId: string, projectId: string, manifest: DaS
   fs.writeFileSync(manifestPath(schoolId, projectId), JSON.stringify(manifest, null, 2));
 }
 
-function loadDaSilvaManifest(schoolId: string, projectId: string): DaSilvaImportManifest | null {
+export function loadDaSilvaManifest(schoolId: string, projectId: string): DaSilvaImportManifest | null {
   const file = manifestPath(schoolId, projectId);
   if (!fs.existsSync(file)) return null;
   try {
@@ -878,27 +1000,6 @@ export async function commitDaSilvaMigration(opts: {
     });
     if (!schoolRecord) throw new Error("School not found");
 
-    const accountFamilyNames = new Map<string, string>();
-    for (const row of bundle.learners) {
-      const accountNo = String(row.accountNo || "").trim();
-      if (!accountNo) continue;
-      if (!accountFamilyNames.has(accountNo)) {
-        accountFamilyNames.set(accountNo, row.lastName || row.fullName);
-      }
-    }
-    for (const [accountNo, familyName] of accountFamilyNames) {
-      const fa = await prisma.familyAccount.upsert({
-        where: { accountRef: accountNo },
-        create: {
-          schoolId: opts.schoolId,
-          accountRef: accountNo,
-          familyName,
-        },
-        update: {},
-      });
-      accountToFamilyId.set(accountNo, fa.id);
-    }
-
     for (const emp of bundle.employees) {
       const existing = await prisma.employee.findFirst({
         where: {
@@ -948,72 +1049,7 @@ export async function commitDaSilvaMigration(opts: {
 
   if (!manifest.stagedParentIds) manifest.stagedParentIds = {};
 
-  await runDaSilvaImportPhase(manifest, "parents", opts.schoolId, opts.projectId, async () => {
-    await ensureFamilyAccountMap();
-    for (const row of bundle.learners) {
-      const accountNo = String(row.accountNo || "").trim();
-      let familyAccountId: string | null = accountNo ? accountToFamilyId.get(accountNo) || null : null;
-      if (accountNo && !familyAccountId) {
-        const fa = await prisma.familyAccount.upsert({
-          where: { accountRef: accountNo },
-          create: {
-            schoolId: opts.schoolId,
-            accountRef: accountNo,
-            familyName: row.lastName || row.fullName,
-          },
-          update: {},
-        });
-        familyAccountId = fa.id;
-        accountToFamilyId.set(accountNo, fa.id);
-      }
-
-      for (let pi = 0; pi < row.parents.length; pi++) {
-        const parent = row.parents[pi];
-        const stageKey = parentStagingKey(row.matchKey, pi);
-        if (manifest.stagedParentIds![stageKey]) continue;
-
-        const phone = normalizeSaPhone(parent.cellNo || parent.homeNo || "");
-        const cellNo = phone?.localCell || parent.cellNo || "";
-
-        const existingParent = await prisma.parent.findFirst({
-          where: {
-            schoolId: opts.schoolId,
-            firstName: parent.firstName,
-            surname: parent.surname,
-            cellNo,
-            familyAccountId: familyAccountId ?? null,
-          },
-          select: { id: true },
-        });
-
-        const parentId =
-          existingParent?.id ||
-          (
-            await prisma.parent.create({
-              data: {
-                schoolId: opts.schoolId,
-                familyAccountId,
-                firstName: parent.firstName,
-                surname: parent.surname,
-                cellNo,
-                email: parent.email || null,
-                relationship: parent.relation,
-                workNo: parent.workNo || null,
-                homeNo: parent.homeNo || null,
-                outstandingAmount: row.ageAnalysisBalance,
-              },
-              select: { id: true },
-            })
-          ).id;
-
-        manifest.stagedParentIds![stageKey] = parentId;
-        pushUniqueId(manifest.parentIds, parentId);
-      }
-    }
-  });
-
   await runDaSilvaImportPhase(manifest, "learners", opts.schoolId, opts.projectId, async () => {
-    await ensureFamilyAccountMap();
     const existingAdmissionRows = await prisma.learner.findMany({
       where: { schoolId: opts.schoolId, admissionNo: { not: null } },
       select: { admissionNo: true },
@@ -1024,7 +1060,6 @@ export async function commitDaSilvaMigration(opts: {
     for (const row of bundle.learners) {
       learnerRowIndex += 1;
       const accountNo = String(row.accountNo || "").trim();
-      const familyAccountId = accountNo ? accountToFamilyId.get(accountNo) || null : null;
       const isHistorical = row.enrollmentTier === "HISTORICAL";
       const norm = normalizeClassroomInput(row.className);
       const canonicalClassName = isHistorical ? null : row.canonicalClassName;
@@ -1063,7 +1098,6 @@ export async function commitDaSilvaMigration(opts: {
         await prisma.learner.update({
           where: { id: learnerId },
           data: {
-            familyAccountId,
             firstName: row.firstName,
             lastName: row.lastName,
             grade: isHistorical
@@ -1071,8 +1105,8 @@ export async function commitDaSilvaMigration(opts: {
               : norm.gradeLabel || row.className.replace(/[A-Za-z]+$/, "").trim(),
             className: canonicalClassName,
             enrollmentStatus: isHistorical ? "HISTORICAL" : "ACTIVE",
-            totalFee: row.billingPlanTotal,
-            tuitionFee: row.billingPlanTotal,
+            totalFee: 0,
+            tuitionFee: 0,
           },
         });
       } else {
@@ -1082,7 +1116,7 @@ export async function commitDaSilvaMigration(opts: {
 
         const learnerData = {
           schoolId: opts.schoolId,
-          familyAccountId,
+          familyAccountId: null as string | null,
           firstName: row.firstName,
           lastName: row.lastName,
           grade: isHistorical
@@ -1091,8 +1125,8 @@ export async function commitDaSilvaMigration(opts: {
           className: canonicalClassName,
           enrollmentStatus: isHistorical ? ("HISTORICAL" as const) : ("ACTIVE" as const),
           admissionNo,
-          totalFee: row.billingPlanTotal,
-          tuitionFee: row.billingPlanTotal,
+          totalFee: 0,
+          tuitionFee: 0,
         };
 
         const learner =
@@ -1128,14 +1162,83 @@ export async function commitDaSilvaMigration(opts: {
         persistLearnerMaps();
         writeDaSilvaManifest(opts.schoolId, opts.projectId, manifest);
       }
+    }
+
+    persistLearnerMaps();
+  });
+
+  await runDaSilvaImportPhase(manifest, "parents", opts.schoolId, opts.projectId, async () => {
+    await ensureFamilyAccountMap();
+    if (!manifest.stagedParentIds) manifest.stagedParentIds = {};
+
+    for (const row of bundle.learners) {
+      const learnerId = matchKeyToLearnerId.get(row.matchKey) || "";
+      if (!learnerId) {
+        throw new Error(`Missing learner id for ${row.matchKey} — learners phase required before parents`);
+      }
+
+      const accountNo = String(row.accountNo || "").trim();
+      let familyAccountId: string | null = accountNo ? accountToFamilyId.get(accountNo) || null : null;
+      if (accountNo && !familyAccountId) {
+        const fa = await prisma.familyAccount.upsert({
+          where: { accountRef: accountNo },
+          create: {
+            schoolId: opts.schoolId,
+            accountRef: accountNo,
+            familyName: row.lastName || row.fullName,
+          },
+          update: {},
+          select: { id: true },
+        });
+        familyAccountId = fa.id;
+        accountToFamilyId.set(accountNo, fa.id);
+      }
+
+      await prisma.learner.update({
+        where: { id: learnerId },
+        data: { familyAccountId },
+      });
 
       for (let pi = 0; pi < row.parents.length; pi++) {
         const parent = row.parents[pi];
         const stageKey = parentStagingKey(row.matchKey, pi);
-        const parentId = manifest.stagedParentIds![stageKey];
-        if (!parentId) {
-          throw new Error(`Missing staged parent for ${stageKey}`);
-        }
+
+        const phone = normalizeSaPhone(parent.cellNo || parent.homeNo || "");
+        const cellNo = phone?.localCell || parent.cellNo || "";
+
+        const existingParent = await prisma.parent.findFirst({
+          where: {
+            schoolId: opts.schoolId,
+            firstName: parent.firstName,
+            surname: parent.surname,
+            cellNo,
+            familyAccountId: familyAccountId ?? null,
+          },
+          select: { id: true },
+        });
+
+        const parentId =
+          existingParent?.id ||
+          (
+            await prisma.parent.create({
+              data: {
+                schoolId: opts.schoolId,
+                familyAccountId,
+                firstName: parent.firstName,
+                surname: parent.surname,
+                cellNo,
+                email: parent.email || null,
+                relationship: parent.relation,
+                workNo: parent.workNo || null,
+                homeNo: parent.homeNo || null,
+                outstandingAmount: row.ageAnalysisBalance,
+              },
+              select: { id: true },
+            })
+          ).id;
+
+        manifest.stagedParentIds![stageKey] = parentId;
+        pushUniqueId(manifest.parentIds, parentId);
 
         const link = await prisma.parentLearnerLink.upsert({
           where: { parentId_learnerId: { parentId, learnerId } },
@@ -1152,8 +1255,6 @@ export async function commitDaSilvaMigration(opts: {
         pushUniqueId(manifest.linkIds, link.id);
       }
     }
-
-    persistLearnerMaps();
   });
 
   await runDaSilvaImportPhase(manifest, "billing_accounts", opts.schoolId, opts.projectId, async () => {
@@ -1166,22 +1267,6 @@ export async function commitDaSilvaMigration(opts: {
     }
     upsertSchoolBillingPlans(opts.schoolId, billingPlans);
   });
-
-  const relinkResult = await relinkDaSilvaLearnerBillingFromBundle({
-    schoolId: opts.schoolId,
-    bundle,
-    manifest,
-    matchKeyToLearnerId,
-    accountToLearnerId,
-  });
-  persistLearnerMaps();
-  manifest.accountToLearnerId = relinkResult.accountToLearnerId;
-  if (relinkResult.learnersUpdated > 0 || relinkResult.ledgerRowsBackfilled > 0) {
-    console.log(
-      `[DaSilva import] relinked ${relinkResult.learnersUpdated} learner(s), ` +
-        `backfilled ${relinkResult.ledgerRowsBackfilled} ledger row(s)`
-    );
-  }
 
   await runDaSilvaImportPhase(manifest, "transactions", opts.schoolId, opts.projectId, async () => {
     const ledgerEntries: BillingLedgerEntry[] = [];
@@ -1204,6 +1289,22 @@ export async function commitDaSilvaMigration(opts: {
     }
     upsertSchoolEntries(opts.schoolId, ledgerEntries);
   });
+
+  const relinkResult = await relinkDaSilvaLearnerBillingFromBundle({
+    schoolId: opts.schoolId,
+    bundle,
+    manifest,
+    matchKeyToLearnerId,
+    accountToLearnerId,
+  });
+  persistLearnerMaps();
+  manifest.accountToLearnerId = relinkResult.accountToLearnerId;
+  if (relinkResult.learnersUpdated > 0 || relinkResult.ledgerRowsBackfilled > 0) {
+    console.log(
+      `[DaSilva import] relinked ${relinkResult.learnersUpdated} learner(s), ` +
+        `backfilled ${relinkResult.ledgerRowsBackfilled} ledger row(s)`
+    );
+  }
 
   await runDaSilvaImportPhase(manifest, "opening_balances", opts.schoolId, opts.projectId, async () => {
     const ledgerEntries: BillingLedgerEntry[] = [];
@@ -1238,6 +1339,17 @@ export async function commitDaSilvaMigration(opts: {
     );
   }
 
+  console.log("[DaSilva import] running Kid-e-Sys post-migration billing reconciliation…");
+  const reconciliation = await runKideesysPostMigrationReconciliation({
+    schoolId: opts.schoolId,
+    projectId: opts.projectId,
+  });
+  console.log(
+    `[DaSilva import] reconciliation gate passed — ` +
+      `${reconciliation.auditAfter.learnersWithResolvableAccountNo}/${reconciliation.auditAfter.learnersTotal} learners with account numbers, ` +
+      `${reconciliation.auditAfter.nonZeroBalanceAccountCount} account(s) with non-zero balance`
+  );
+
   console.log("[DaSilva import] syncing parent threads for imported classrooms…");
   for (const classroomId of manifest.classroomIds) {
     await syncParentThreadsForClassroom(opts.schoolId, classroomId);
@@ -1260,7 +1372,26 @@ export async function commitDaSilvaMigration(opts: {
   };
 }
 
-export const DA_SILVA_EXPECTED_CLASSROOM_COUNT = 21;
+export {
+  DA_SILVA_BILLING_ACCOUNT_TARGET,
+  DA_SILVA_EXPECTED_CLASSROOM_COUNT,
+  DA_SILVA_EXPECTED_CLASSROOM_LEARNER_COUNTS,
+  DA_SILVA_EXPECTED_CRECHE_SUPPLEMENT_LEARNER_COUNT,
+  DA_SILVA_EXPECTED_CREche_SUPPLEMENT_LEARNER_COUNT,
+  DA_SILVA_EXPECTED_FAMILY_ACCOUNT_COUNT,
+  DA_SILVA_EXPECTED_FINAL_LEARNER_COUNT,
+  DA_SILVA_EXPECTED_LEARNER_COUNT,
+  DA_SILVA_EXPECTED_PARENT_COUNT,
+  DA_SILVA_EXPECTED_PARENT_LINK_COUNT,
+  DA_SILVA_EXPECTED_PARENT_LINK_MATCH_COUNT,
+  DA_SILVA_EXPECTED_SASAMS_CLASS_LIST_FILE_COUNT,
+  DA_SILVA_EXPECTED_SASAMS_CLASS_LIST_LEARNER_COUNT,
+  DA_SILVA_EXPECTED_SASAMS_CLASSROOM_COUNT,
+  DA_SILVA_EXPECTED_SASAMS_CLASSROOM_LEARNER_COUNTS,
+  DA_SILVA_EXPECTED_UNIQUE_PARENT_COUNT,
+  isAllowedDaSilvaSupplementClassroom,
+} from "./daSilvaConstants";
+export { assertDaSilvaMigrationGates } from "./daSilvaPhaseGates";
 
 export type DaSilvaClassroomRow = {
   sourceFile: string;
@@ -1280,6 +1411,8 @@ export type DaSilvaClassroomValidation = {
   classrooms: DaSilvaClassroomRow[];
   duplicates: Array<{ matchKey: string; canonicalName: string; files: string[] }>;
   emptyClassFiles: string[];
+  /** DB classrooms allowed as Kid-e-Sys supplements (e.g. Crèche), excluded from ghost checks. */
+  ignoredSupplementClassNames: string[];
   ghostClassNames: string[];
   errors: string[];
 };
@@ -1289,14 +1422,15 @@ function canonicalClassroomName(className: string): string {
   return norm.classroomName || className;
 }
 
-/** Validate Kid-e-Sys 05_class_list exports before/after classroom-only import. */
+/** Validate SA-SAMS class list exports before/after classroom-only import (phase 1). */
 export function validateDaSilvaClassroomsFromKidESys(
   classListDir: string,
   existingDbClassroomNames: string[] = []
 ): DaSilvaClassroomValidation {
   const errors: string[] = [];
-  const { classrooms, learners } = parseClassListDirectory(classListDir);
-  const expectedCount = DA_SILVA_EXPECTED_CLASSROOM_COUNT;
+  const { classrooms, learners } = parseSasamsClassListDirectory(classListDir);
+  const expectedFileCount = DA_SILVA_EXPECTED_SASAMS_CLASSROOM_COUNT;
+  const expectedSasamsLearners = DA_SILVA_EXPECTED_SASAMS_CLASS_LIST_LEARNER_COUNT;
 
   const learnerCountByCanonical = new Map<string, number>();
   for (const learner of learners) {
@@ -1333,25 +1467,34 @@ export function validateDaSilvaClassroomsFromKidESys(
 
   const emptyClassFiles = rows.filter((r) => r.learnerCount === 0).map((r) => r.sourceFile);
   const expectedNames = new Set(rows.map((r) => r.canonicalName));
-  const ghostClassNames = existingDbClassroomNames.filter((name) => !expectedNames.has(name));
+  const dbNotInSasams = existingDbClassroomNames.filter((name) => !expectedNames.has(name));
+  const ignoredSupplementClassNames = dbNotInSasams.filter(isAllowedDaSilvaSupplementClassroom);
+  const ghostClassNames = dbNotInSasams.filter((name) => !isAllowedDaSilvaSupplementClassroom(name));
 
   const sourceFileCount = rows.length;
   const uniqueCanonicalCount = new Set(rows.map((r) => r.canonicalName)).size;
   const uniqueMatchKeyCount = byMatchKey.size;
   const totalLearners = learners.length;
 
-  if (sourceFileCount !== expectedCount) {
+  if (sourceFileCount !== expectedFileCount) {
     errors.push(
-      `Expected ${expectedCount} class list files, found ${sourceFileCount} in ${classListDir}`
+      `Expected ${expectedFileCount} SA-SAMS class list files (Crèche excluded), found ${sourceFileCount} in ${classListDir}`
     );
   }
-  if (uniqueCanonicalCount !== expectedCount) {
+  if (uniqueCanonicalCount !== expectedFileCount) {
     errors.push(
-      `Expected ${expectedCount} unique classrooms, found ${uniqueCanonicalCount} canonical names`
+      `Expected ${expectedFileCount} unique SA-SAMS classrooms, found ${uniqueCanonicalCount} canonical names`
     );
   }
-  if (uniqueMatchKeyCount !== expectedCount) {
-    errors.push(`Expected ${expectedCount} unique match keys, found ${uniqueMatchKeyCount}`);
+  if (uniqueMatchKeyCount !== expectedFileCount) {
+    errors.push(
+      `Expected ${expectedFileCount} unique SA-SAMS match keys, found ${uniqueMatchKeyCount}`
+    );
+  }
+  if (totalLearners !== expectedSasamsLearners) {
+    errors.push(
+      `Expected ${expectedSasamsLearners} SA-SAMS class-list learners, found ${totalLearners} (Crèche ${DA_SILVA_EXPECTED_CRECHE_SUPPLEMENT_LEARNER_COUNT} is a separate supplement → ${DA_SILVA_EXPECTED_FINAL_LEARNER_COUNT} total)`
+    );
   }
   if (duplicates.length) {
     errors.push(
@@ -1362,12 +1505,12 @@ export function validateDaSilvaClassroomsFromKidESys(
     errors.push(`Empty class files (0 learners): ${emptyClassFiles.join(", ")}`);
   }
   if (ghostClassNames.length) {
-    errors.push(`Ghost classes in database (not in Kid-e-Sys): ${ghostClassNames.join(", ")}`);
+    errors.push(`Ghost classes in database (not in SA-SAMS): ${ghostClassNames.join(", ")}`);
   }
 
   return {
     passed: errors.length === 0,
-    expectedCount,
+    expectedCount: expectedFileCount,
     sourceFileCount,
     uniqueCanonicalCount,
     uniqueMatchKeyCount,
@@ -1375,13 +1518,14 @@ export function validateDaSilvaClassroomsFromKidESys(
     classrooms: rows.sort((a, b) => a.canonicalName.localeCompare(b.canonicalName)),
     duplicates,
     emptyClassFiles,
+    ignoredSupplementClassNames,
     ghostClassNames,
     errors,
   };
 }
 
 /**
- * Phase 1 only: import classrooms from Kid-e-Sys 05_class_list. Does not import learners, parents, or billing.
+ * Phase 1 only: import classrooms from SA-SAMS class lists. Does not import learners, parents, or billing.
  */
 export async function commitDaSilvaClassroomsOnly(opts: {
   schoolId: string;
@@ -1409,6 +1553,13 @@ export async function commitDaSilvaClassroomsOnly(opts: {
     opts.classListDir,
     existingDb.map((c) => c.name)
   );
+  console.log("[da-silva-classroom-validation]", {
+    phase: "pre-import",
+    expected: validation.expectedCount,
+    actual: validation.sourceFileCount,
+    ignoredSupplement: validation.ignoredSupplementClassNames,
+    ghost: validation.ghostClassNames,
+  });
   if (!validation.passed) {
     throw new Error(`Classroom validation failed: ${validation.errors.join("; ")}`);
   }
@@ -1429,6 +1580,7 @@ export async function commitDaSilvaClassroomsOnly(opts: {
     : {
         projectId: opts.projectId,
         schoolId: opts.schoolId,
+        strategy: DA_SILVA_MIGRATION_STRATEGY,
         importedAt: new Date().toISOString(),
         learnerIds: [],
         parentIds: [],
@@ -1438,6 +1590,8 @@ export async function commitDaSilvaClassroomsOnly(opts: {
         ledgerEntryIds: [],
         phasesCompleted: [],
       };
+
+  manifest.strategy = DA_SILVA_MIGRATION_STRATEGY;
 
   await runDaSilvaImportPhase(manifest, "classrooms", opts.schoolId, opts.projectId, async () => {
     for (const row of validation.classrooms) {
@@ -1458,18 +1612,53 @@ export async function commitDaSilvaClassroomsOnly(opts: {
     orderBy: { name: "asc" },
   });
   const postImportValidation = validateDaSilvaClassroomsFromKidESys(opts.classListDir, postDb.map((c) => c.name));
-  if (postDb.length !== DA_SILVA_EXPECTED_CLASSROOM_COUNT) {
+  console.log("[da-silva-classroom-validation]", {
+    phase: "post-import",
+    expected: postImportValidation.expectedCount,
+    actual: postDb.length,
+    ignoredSupplement: postImportValidation.ignoredSupplementClassNames,
+    ghost: postImportValidation.ghostClassNames,
+  });
+  const postDbNames = postDb.map((c) => c.name);
+  const supplementCount = countDaSilvaSupplementClassrooms(postDbNames);
+  const sasamsDbCount = countDaSilvaSasamsClassrooms(postDbNames);
+  if (sasamsDbCount !== DA_SILVA_EXPECTED_SASAMS_CLASSROOM_COUNT) {
     postImportValidation.passed = false;
     postImportValidation.errors.push(
-      `Database has ${postDb.length} classrooms after import (expected ${DA_SILVA_EXPECTED_CLASSROOM_COUNT})`
+      `Database has ${sasamsDbCount} SA-SAMS classrooms after import (expected ${DA_SILVA_EXPECTED_SASAMS_CLASSROOM_COUNT})`
     );
   }
-  if (postImportValidation.ghostClassNames.length) {
+
+  try {
+    assertDaSilvaMigrationGates({
+      phase: "classrooms",
+      classroomNames: postDbNames,
+      errors: postImportValidation.passed ? [] : postImportValidation.errors,
+    });
+  } catch (e) {
     postImportValidation.passed = false;
-    postImportValidation.errors.push(
-      `Ghost classes remain in database: ${postImportValidation.ghostClassNames.join(", ")}`
-    );
+    if (e instanceof Error) postImportValidation.errors.push(e.message);
   }
+
+  writeDaSilvaMigrationAudit(opts.schoolId, opts.projectId, {
+    strategy: DA_SILVA_MIGRATION_STRATEGY,
+    phase: "classrooms",
+    generatedAt: new Date().toISOString(),
+    schoolId: opts.schoolId,
+    projectId: opts.projectId,
+    passed: postImportValidation.passed,
+    summary: {
+      classrooms: postDb.length,
+      sasamsClassrooms: sasamsDbCount,
+      supplementClassrooms: supplementCount,
+      expectedSasamsClassrooms: DA_SILVA_EXPECTED_SASAMS_CLASSROOM_COUNT,
+    },
+    unmatchedLearners: [],
+    unmatchedParents: [],
+    duplicateMatches: [],
+    billingAccountsNotMatched: [],
+    errors: postImportValidation.errors,
+  });
 
   return {
     success: postImportValidation.passed,
@@ -1480,32 +1669,7 @@ export async function commitDaSilvaClassroomsOnly(opts: {
   };
 }
 
-export const DA_SILVA_EXPECTED_LEARNER_COUNT = 396;
-
-/** Kid-e-Sys per-class learner counts (canonical classroom names). */
-export const DA_SILVA_EXPECTED_CLASSROOM_LEARNER_COUNTS: Record<string, number> = {
-  Creche: 8,
-  "Grade 1A": 19,
-  "Grade 1B": 18,
-  "Grade 1C": 16,
-  "Grade 2A": 24,
-  "Grade 2B": 21,
-  "Grade 3A": 22,
-  "Grade 3B": 20,
-  "Grade 4A": 22,
-  "Grade 4B": 23,
-  "Grade 5A": 23,
-  "Grade 5B": 19,
-  "Grade 6A": 23,
-  "Grade 6B": 10,
-  "Grade 6C": 22,
-  "Grade 7A": 19,
-  "Grade 7B": 20,
-  "Grade 8A": 17,
-  "Grade 8B": 18,
-  "Grade Ra": 16,
-  "Grade Rb": 16,
-};
+export type DaSilvaSasamsLearnerIngestPaths = DaSilvaSasamsIngestPaths;
 
 export type DaSilvaLearnerImportRow = {
   matchKey: string;
@@ -1515,6 +1679,25 @@ export type DaSilvaLearnerImportRow = {
   className: string;
   canonicalClassName: string;
   grade: string;
+  admissionNo: string | null;
+  idNumber: string | null;
+  birthDate: Date | null;
+  gender: string | null;
+  homeLanguage: string | null;
+  citizenship: string | null;
+  enrichedFromRegister: boolean;
+};
+
+export type DaSilvaLearnerParseAudit = {
+  classListParsed: number;
+  registerParsed: number;
+  mergedTotal: number;
+  enrichedFromRegister: number;
+  registerOnlySkipped: number;
+  missingDob: number;
+  missingGender: number;
+  missingId: number;
+  perClassroomCounts: Array<{ classroomName: string; count: number }>;
 };
 
 export type DaSilvaLearnerImportIssue = {
@@ -1538,39 +1721,124 @@ export type DaSilvaLearnerValidation = {
   errors: string[];
 };
 
-/** Parse learners from Kid-e-Sys 05_class_list only (no parents, billing, or contact list). */
+function sasamsLearnerToImportRow(
+  learner: SasamsParsedLearner,
+  enrichedFromRegister = false
+): DaSilvaLearnerImportRow {
+  const norm = normalizeClassroomInput(learner.className);
+  return {
+    matchKey: learner.matchKey,
+    firstName: learner.firstName,
+    lastName: learner.lastName,
+    fullName: learner.fullName,
+    className: learner.className,
+    canonicalClassName: learner.canonicalClassName,
+    grade: learner.grade || norm.gradeLabel || "",
+    admissionNo: learner.admissionNo,
+    idNumber: learner.idNumber,
+    birthDate: learner.birthDate,
+    gender: learner.gender,
+    homeLanguage: learner.language,
+    citizenship: learner.citizenship,
+    enrichedFromRegister,
+  };
+}
+
+export function buildDaSilvaLearnerParseAudit(
+  classListLearners: SasamsParsedLearner[],
+  merged: SasamsParsedLearner[],
+  mergeAudit: SasamsLearnerMergeAudit
+): DaSilvaLearnerParseAudit {
+  const perClassroomCounts = new Map<string, number>();
+  let missingDob = 0;
+  let missingGender = 0;
+  let missingId = 0;
+
+  for (const row of merged) {
+    perClassroomCounts.set(
+      row.canonicalClassName,
+      (perClassroomCounts.get(row.canonicalClassName) || 0) + 1
+    );
+    if (!row.birthDate) missingDob += 1;
+    if (!row.gender) missingGender += 1;
+    if (!row.idNumber) missingId += 1;
+  }
+
+  return {
+    classListParsed: classListLearners.length,
+    registerParsed: mergeAudit.registerParsed,
+    mergedTotal: merged.length,
+    enrichedFromRegister: mergeAudit.enrichedFromRegister,
+    registerOnlySkipped: mergeAudit.registerOnlySkipped,
+    missingDob,
+    missingGender,
+    missingId,
+    perClassroomCounts: Array.from(perClassroomCounts.entries())
+      .map(([classroomName, count]) => ({ classroomName, count }))
+      .sort((a, b) => a.classroomName.localeCompare(b.classroomName)),
+  };
+}
+
+/** Parse learners: class lists primary, learner register enriches missing fields only. */
+export function parseDaSilvaLearnersFromSasams(
+  paths: DaSilvaSasamsIngestPaths,
+  auditOut?: { audit: DaSilvaLearnerParseAudit }
+): DaSilvaLearnerImportRow[] {
+  const { learners: classListLearners } = parseSasamsClassListDirectory(paths.classListDir);
+  const registerLearners = parseSasamsLearnerRegister(paths.learnerRegister);
+  const mergeAudit: SasamsLearnerMergeAudit = {
+    classListParsed: 0,
+    registerParsed: 0,
+    mergedTotal: 0,
+    enrichedFromRegister: 0,
+    registerOnlySkipped: 0,
+  };
+  const merged = mergeSasamsLearnerSources(classListLearners, registerLearners, mergeAudit);
+
+  const byKey = new Map<string, DaSilvaLearnerImportRow>();
+
+  for (const learner of merged) {
+    byKey.set(learner.matchKey, sasamsLearnerToImportRow(learner, Boolean(learner.enrichedFromRegister)));
+  }
+
+  if (auditOut) {
+    auditOut.audit = buildDaSilvaLearnerParseAudit(classListLearners, merged, mergeAudit);
+  }
+
+  return Array.from(byKey.values());
+}
+
+/** @deprecated Use parseDaSilvaLearnersFromSasams */
 export function parseDaSilvaLearnersFromClassList(classListDir: string): DaSilvaLearnerImportRow[] {
-  const { learners: classLearners } = parseClassListDirectory(classListDir);
-  const unique = uniqueLearnersByMatchKey(classLearners);
-  return unique.map((learner) => {
-    const norm = normalizeClassroomInput(learner.className);
-    const canonicalClassName = norm.classroomName || learner.className;
-    return {
-      matchKey: learner.matchKey,
-      firstName: learner.firstName,
-      lastName: learner.lastName,
-      fullName: learner.fullName,
-      className: learner.className,
-      canonicalClassName,
-      grade: norm.gradeLabel || learner.className.replace(/[A-Za-z]+$/, "").trim(),
-    };
+  return parseDaSilvaLearnersFromSasams({
+    classListDir,
+    learnerRegister: classListDir,
+    parentRegister: classListDir,
   });
 }
 
-/** Validate Kid-e-Sys class-list learner totals before/after learners-only import. */
+/** Validate SA-SAMS learner totals before/after learners-only import. */
 export async function validateDaSilvaLearnersFromKidESys(
-  classListDir: string,
+  paths: DaSilvaSasamsIngestPaths | string,
   schoolId?: string
 ): Promise<DaSilvaLearnerValidation> {
-  return validateDaSilvaLearnersInDatabase(classListDir, schoolId);
+  const ingest =
+    typeof paths === "string"
+      ? ({
+          classListDir: paths,
+          learnerRegister: paths,
+          parentRegister: paths,
+        } as DaSilvaSasamsIngestPaths)
+      : paths;
+  return validateDaSilvaLearnersInDatabase(ingest, schoolId);
 }
 
 async function validateDaSilvaLearnersInDatabase(
-  classListDir: string,
+  paths: DaSilvaSasamsIngestPaths,
   schoolId?: string
 ): Promise<DaSilvaLearnerValidation> {
   const errors: string[] = [];
-  const sourceRows = parseDaSilvaLearnersFromClassList(classListDir);
+  const sourceRows = parseDaSilvaLearnersFromSasams(paths);
   const expectedByClass = new Map<string, number>();
   for (const row of sourceRows) {
     expectedByClass.set(
@@ -1579,18 +1847,24 @@ async function validateDaSilvaLearnersInDatabase(
     );
   }
 
-  const expectedTotal = DA_SILVA_EXPECTED_LEARNER_COUNT;
-  if (sourceRows.length !== expectedTotal) {
+  const expectedSasamsTotal = DA_SILVA_EXPECTED_SASAMS_CLASS_LIST_LEARNER_COUNT;
+  if (sourceRows.length !== expectedSasamsTotal) {
     errors.push(
-      `Expected ${expectedTotal} learners in Kid-e-Sys class lists, found ${sourceRows.length}`
+      `Expected ${expectedSasamsTotal} SA-SAMS class-list learners, found ${sourceRows.length} (final roster ${DA_SILVA_EXPECTED_FINAL_LEARNER_COUNT} includes Crèche supplement ${DA_SILVA_EXPECTED_CRECHE_SUPPLEMENT_LEARNER_COUNT})`
     );
   }
 
-  for (const [name, count] of Object.entries(DA_SILVA_EXPECTED_CLASSROOM_LEARNER_COUNTS)) {
+  for (const [name, count] of Object.entries(DA_SILVA_EXPECTED_SASAMS_CLASSROOM_LEARNER_COUNTS)) {
     const actual = expectedByClass.get(name) || 0;
     if (actual !== count) {
-      errors.push(`Kid-e-Sys ${name}: expected ${count} learners, found ${actual}`);
+      errors.push(`SA-SAMS ${name}: expected ${count} learners, found ${actual}`);
     }
+  }
+  const crecheInSasams = expectedByClass.get("Creche") || 0;
+  if (crecheInSasams > 0) {
+    errors.push(
+      `Crèche must not appear in SA-SAMS class lists (found ${crecheInSasams}); use Kid-e-Sys supplement for ${DA_SILVA_EXPECTED_CRECHE_SUPPLEMENT_LEARNER_COUNT} Crèche learners`
+    );
   }
 
   let actualTotal = sourceRows.length;
@@ -1604,8 +1878,10 @@ async function validateDaSilvaLearnersInDatabase(
       select: { id: true, firstName: true, lastName: true, className: true },
     });
     actualTotal = dbLearners.length;
-    if (actualTotal !== expectedTotal) {
-      errors.push(`Database has ${actualTotal} learners (expected ${expectedTotal})`);
+    if (!isAcceptableDaSilvaPhase2LearnerCount(actualTotal) && !isAcceptableDaSilvaPhase3LearnerCount(actualTotal)) {
+      errors.push(
+        `Database has ${actualTotal} learners (expected ${DA_SILVA_EXPECTED_SASAMS_CLASS_LIST_LEARNER_COUNT} SA-SAMS-only, or ${DA_SILVA_EXPECTED_FINAL_LEARNER_COUNT} after Crèche supplement)`
+      );
     }
 
     const classroomNames = new Set(
@@ -1631,7 +1907,7 @@ async function validateDaSilvaLearnersInDatabase(
       errors.push(`${orphanCount} orphan learner(s) not linked to a classroom`);
     }
 
-    for (const [name, expected] of Object.entries(DA_SILVA_EXPECTED_CLASSROOM_LEARNER_COUNTS)) {
+    for (const [name, expected] of Object.entries(DA_SILVA_EXPECTED_SASAMS_CLASSROOM_LEARNER_COUNTS)) {
       const actual = actualByClass.get(name) || 0;
       if (actual !== expected) {
         errors.push(`Database ${name}: expected ${expected} learners, found ${actual}`);
@@ -1639,7 +1915,7 @@ async function validateDaSilvaLearnersInDatabase(
     }
   }
 
-  const classroomCounts = Object.entries(DA_SILVA_EXPECTED_CLASSROOM_LEARNER_COUNTS)
+  const classroomCounts = Object.entries(DA_SILVA_EXPECTED_SASAMS_CLASSROOM_LEARNER_COUNTS)
     .map(([classroomName, expected]) => {
       const actual = schoolId ? actualByClass.get(classroomName) || 0 : expectedByClass.get(classroomName) || 0;
       return {
@@ -1653,7 +1929,7 @@ async function validateDaSilvaLearnersInDatabase(
 
   return {
     passed: errors.length === 0,
-    expectedTotal,
+    expectedTotal: expectedSasamsTotal,
     actualTotal,
     orphanCount,
     orphans,
@@ -1662,20 +1938,27 @@ async function validateDaSilvaLearnersInDatabase(
   };
 }
 
+export type DaSilvaLearnerImportAudit = {
+  parse: DaSilvaLearnerParseAudit;
+  learnersCreated: number;
+  learnersUpdated: number;
+};
+
 /**
- * Phase 2 only: import learners from Kid-e-Sys 05_class_list and link each to a classroom via className.
+ * Phase 2 only: import learners from SA-SAMS class lists (primary) + learner register (enrichment).
  * Does not import parents, billing, employees, or ledger entries.
  */
 export async function commitDaSilvaLearnersOnly(opts: {
   schoolId: string;
   projectId: string;
-  classListDir: string;
+  sasamsPaths: DaSilvaSasamsIngestPaths;
 }): Promise<{
   success: boolean;
   validation: DaSilvaLearnerValidation;
   postImportValidation: DaSilvaLearnerValidation;
   manifest: DaSilvaImportManifest;
   imported: { learners: number };
+  audit: DaSilvaLearnerImportAudit;
   failed: DaSilvaLearnerImportIssue[];
   skipped: DaSilvaLearnerImportIssue[];
 }> {
@@ -1685,14 +1968,27 @@ export async function commitDaSilvaLearnersOnly(opts: {
   });
   if (!school) throw new Error("School not found");
 
-  const classroomValidation = validateDaSilvaClassroomsFromKidESys(opts.classListDir);
-  const classroomRows = parseDaSilvaLearnersFromClassList(opts.classListDir);
+  const classroomValidation = validateDaSilvaClassroomsFromKidESys(opts.sasamsPaths.classListDir);
+  const parseAuditHolder: { audit: DaSilvaLearnerParseAudit } = {
+    audit: {
+      classListParsed: 0,
+      registerParsed: 0,
+      mergedTotal: 0,
+      enrichedFromRegister: 0,
+      registerOnlySkipped: 0,
+      missingDob: 0,
+      missingGender: 0,
+      missingId: 0,
+      perClassroomCounts: [],
+    },
+  };
+  const classroomRows = parseDaSilvaLearnersFromSasams(opts.sasamsPaths, parseAuditHolder);
   if (!classroomValidation.passed) {
     throw new Error(`Classroom validation failed: ${classroomValidation.errors.join("; ")}`);
   }
-  if (classroomRows.length !== DA_SILVA_EXPECTED_LEARNER_COUNT) {
+  if (parseAuditHolder.audit.classListParsed !== DA_SILVA_EXPECTED_SASAMS_CLASS_LIST_LEARNER_COUNT) {
     throw new Error(
-      `Expected ${DA_SILVA_EXPECTED_LEARNER_COUNT} learners in class lists, found ${classroomRows.length}`
+      `Expected ${DA_SILVA_EXPECTED_SASAMS_CLASS_LIST_LEARNER_COUNT} SA-SAMS class-list learners, found ${parseAuditHolder.audit.classListParsed}`
     );
   }
 
@@ -1700,9 +1996,11 @@ export async function commitDaSilvaLearnersOnly(opts: {
     where: { schoolId: opts.schoolId },
     select: { name: true },
   });
-  if (dbClassrooms.length !== DA_SILVA_EXPECTED_CLASSROOM_COUNT) {
+  const dbClassroomNames = dbClassrooms.map((c) => c.name);
+  const sasamsDbClassrooms = countDaSilvaSasamsClassrooms(dbClassroomNames);
+  if (sasamsDbClassrooms !== DA_SILVA_EXPECTED_SASAMS_CLASSROOM_COUNT) {
     throw new Error(
-      `Phase 1 required: database has ${dbClassrooms.length} classrooms (expected ${DA_SILVA_EXPECTED_CLASSROOM_COUNT}). Run da-silva-classrooms-only.ts first.`
+      `Phase 1 required: database has ${sasamsDbClassrooms} SA-SAMS classrooms (expected ${DA_SILVA_EXPECTED_SASAMS_CLASSROOM_COUNT}). Run da-silva-classrooms-only.ts first.`
     );
   }
   const classroomNameSet = new Set(dbClassrooms.map((c) => c.name));
@@ -1740,10 +2038,12 @@ export async function commitDaSilvaLearnersOnly(opts: {
     phasesCompleted: existingManifest.phasesCompleted || [],
   };
 
-  const preValidation = await validateDaSilvaLearnersInDatabase(opts.classListDir);
+  const preValidation = await validateDaSilvaLearnersInDatabase(opts.sasamsPaths);
   const failed: DaSilvaLearnerImportIssue[] = [];
   const skipped: DaSilvaLearnerImportIssue[] = [];
   const matchKeyToLearnerId = new Map(Object.entries(manifest.matchKeyToLearnerId || {}));
+  let learnersCreated = 0;
+  let learnersUpdated = 0;
 
   await runDaSilvaImportPhase(manifest, "learners", opts.schoolId, opts.projectId, async () => {
     let rowIndex = 0;
@@ -1767,18 +2067,24 @@ export async function commitDaSilvaLearnersOnly(opts: {
           firstName: row.firstName,
           lastName: row.lastName,
           className: row.canonicalClassName,
-          admissionNo: null,
+          admissionNo: row.admissionNo,
         });
       }
 
+      const norm = normalizeClassroomInput(row.canonicalClassName);
       const learnerData = {
         schoolId: opts.schoolId,
-        familyAccountId: null as string | null,
         firstName: row.firstName,
         lastName: row.lastName,
-        grade: row.grade,
+        grade: row.grade || norm.gradeLabel || "",
         className: row.canonicalClassName,
-        admissionNo: null as string | null,
+        admissionNo: row.admissionNo,
+        idNumber: row.idNumber,
+        birthDate: row.birthDate,
+        gender: row.gender,
+        homeLanguage: row.homeLanguage,
+        citizenship: row.citizenship,
+        enrollmentStatus: "ACTIVE" as const,
         totalFee: 0,
         tuitionFee: 0,
       };
@@ -1804,10 +2110,12 @@ export async function commitDaSilvaLearnersOnly(opts: {
               where: { id: learnerId },
               data: learnerData,
             });
+            learnersUpdated += 1;
           }
         } else {
           const created = await prisma.learner.create({ data: learnerData });
           learnerId = created.id;
+          learnersCreated += 1;
         }
       } catch (err) {
         failed.push({
@@ -1833,7 +2141,7 @@ export async function commitDaSilvaLearnersOnly(opts: {
   writeDaSilvaManifest(opts.schoolId, opts.projectId, manifest);
 
   const postImportValidation = await validateDaSilvaLearnersInDatabase(
-    opts.classListDir,
+    opts.sasamsPaths,
     opts.schoolId
   );
   if (failed.length > 0) {
@@ -1841,28 +2149,60 @@ export async function commitDaSilvaLearnersOnly(opts: {
     postImportValidation.errors.push(`${failed.length} learner(s) failed to import`);
   }
 
+  try {
+    assertDaSilvaMigrationGates({
+      phase: "learners",
+      classroomNames: dbClassroomNames,
+      learnerCount: manifest.learnerIds.length,
+      phasesCompleted: manifest.phasesCompleted,
+      errors: postImportValidation.passed ? [] : postImportValidation.errors,
+    });
+  } catch (e) {
+    postImportValidation.passed = false;
+    if (e instanceof Error) postImportValidation.errors.push(e.message);
+  }
+
+  writeDaSilvaMigrationAudit(opts.schoolId, opts.projectId, {
+    strategy: DA_SILVA_MIGRATION_STRATEGY,
+    phase: "learners",
+    generatedAt: new Date().toISOString(),
+    schoolId: opts.schoolId,
+    projectId: opts.projectId,
+    passed: postImportValidation.passed && failed.length === 0,
+    summary: { learners: manifest.learnerIds.length },
+    unmatchedLearners: failed.map((f) => ({ matchKey: f.matchKey, fullName: f.fullName, reason: f.reason })),
+    unmatchedParents: [],
+    duplicateMatches: [],
+    billingAccountsNotMatched: [],
+    errors: postImportValidation.errors,
+  });
+
+  const importAudit: DaSilvaLearnerImportAudit = {
+    parse: parseAuditHolder.audit,
+    learnersCreated,
+    learnersUpdated,
+  };
+
   return {
     success: postImportValidation.passed && failed.length === 0,
     validation: preValidation,
     postImportValidation,
     manifest,
     imported: { learners: manifest.learnerIds.length },
+    audit: importAudit,
     failed,
     skipped,
   };
 }
 
-/** Parent slots on contact list (one per learner–parent pair; siblings share records). */
-export const DA_SILVA_EXPECTED_PARENT_LINK_COUNT = 330;
-/** Distinct parent people after dedupe by name + cell + family account. */
-export const DA_SILVA_EXPECTED_UNIQUE_PARENT_COUNT = 290;
-/** Distinct billing account refs resolved for current learners (Kid-e-Sys age analysis has 344). */
-export const DA_SILVA_EXPECTED_FAMILY_ACCOUNT_COUNT = 344;
-
-/** @deprecated Use DA_SILVA_EXPECTED_PARENT_LINK_COUNT — kept for preview parity with Kid-e-Sys totals. */
-export const DA_SILVA_EXPECTED_PARENT_COUNT = DA_SILVA_EXPECTED_PARENT_LINK_COUNT;
-
+/** SA-SAMS phase 3 — parents and parent-learner links only (no Kid-e-Sys billing refs). */
 export type DaSilvaParentsIngestPaths = {
+  parentRegister: string;
+  parentLearnerLinks: string;
+};
+
+/** Legacy Kid-e-Sys parent staging (repair scripts only). */
+export type DaSilvaKideesysParentsIngestPaths = {
   classListDir: string;
   contactList: string;
   ageAnalysis: string;
@@ -1899,16 +2239,15 @@ export type DaSilvaParentsDbValidation = {
 
 /** Kid-e-Sys parents + family account refs (contact list + age analysis only — no billing/ledger). */
 export function buildDaSilvaParentsStagedLearners(
-  paths: DaSilvaParentsIngestPaths
+  paths: DaSilvaKideesysParentsIngestPaths
 ): DaSilvaStagedLearner[] {
-  const { learners: classLearners } = parseClassListDirectory(paths.classListDir);
+  const { learners: sasamsClassLearners } = parseSasamsClassListDirectory(paths.classListDir);
+  const classLearners = sasamsLearnersToParsedLearners(sasamsClassLearners);
   const contacts = parseContactListFile(paths.contactList);
   const accounts = parseAgeAnalysisFile(paths.ageAnalysis);
   const contactByKey = new Map(contacts.map((c) => [c.matchKey, c]));
   const accountByName = new Map<string, string>();
-  for (const a of accounts) {
-    accountByName.set(normalizeMatchText(a.fullName), a.accountNo);
-  }
+  indexAgeAnalysisAccountNames(accounts, accountByName);
   const uniqueClassLearners = uniqueLearnersByMatchKey(classLearners);
   const familyIndex = buildFamilyAccountIndex(accounts, [], uniqueClassLearners, contacts, []);
   const staged: DaSilvaStagedLearner[] = [];
@@ -1926,7 +2265,7 @@ export function buildDaSilvaParentsStagedLearners(
       (a) =>
         a.accountNo === accountNo ||
         normalizeMatchText(a.fullName) === normalizeMatchText(learner.fullName) ||
-        splitMergedAccountNames(a.fullName).some(
+        (a.learnerNames || splitMergedAccountNames(a.fullName)).some(
           (n) => normalizeMatchText(n) === normalizeMatchText(learner.fullName)
         )
     );
@@ -1938,7 +2277,9 @@ export function buildDaSilvaParentsStagedLearners(
       lastName: learner.lastName,
       className: learner.className,
       canonicalClassName,
-      accountNo: accountNo || ageRow?.accountNo || "",
+      accountNo:
+        (accountNo && isKidESysSourceAccountRef(accountNo) ? accountNo : "") ||
+        (ageRow?.accountNo && isKidESysSourceAccountRef(ageRow.accountNo) ? ageRow.accountNo : ""),
       billingPlan: [],
       billingPlanTotal: 0,
       ageAnalysisBalance: 0,
@@ -1964,7 +2305,7 @@ function countUniqueParentsInStaging(staged: DaSilvaStagedLearner[]): number {
 }
 
 export function validateDaSilvaParentsStaging(
-  paths: DaSilvaParentsIngestPaths
+  paths: DaSilvaKideesysParentsIngestPaths
 ): DaSilvaParentsStagingValidation {
   const staged = buildDaSilvaParentsStagedLearners(paths);
   const errors: string[] = [];
@@ -1995,9 +2336,9 @@ export function validateDaSilvaParentsStaging(
   if (learnersWithoutAccount.length) {
     errors.push(`${learnersWithoutAccount.length} learner(s) missing billing account ref`);
   }
-  if (staged.length !== DA_SILVA_EXPECTED_LEARNER_COUNT) {
+  if (staged.length !== DA_SILVA_EXPECTED_FINAL_LEARNER_COUNT) {
     errors.push(
-      `Expected ${DA_SILVA_EXPECTED_LEARNER_COUNT} staged learners, found ${staged.length}`
+      `Expected ${DA_SILVA_EXPECTED_FINAL_LEARNER_COUNT} staged learners, found ${staged.length}`
     );
   }
 
@@ -2135,9 +2476,55 @@ export async function validateDaSilvaParentsInDatabase(
   };
 }
 
+export type DaSilvaSasamsParentsStagingValidation = {
+  passed: boolean;
+  parentRows: number;
+  expectedParentLinks: number;
+  actualParentLinks: number;
+  unmatchedParents: number;
+  duplicateMatches: number;
+  errors: string[];
+};
+
+async function validateDaSilvaSasamsParentsInDatabase(schoolId: string): Promise<{
+  passed: boolean;
+  parents: number;
+  links: number;
+  orphanParents: Array<{ id: string; firstName: string; surname: string }>;
+  errors: string[];
+}> {
+  const errors: string[] = [];
+  const parents = await prisma.parent.count({ where: { schoolId } });
+  const links = await prisma.parentLearnerLink.count({ where: { schoolId } });
+  const familyAccounts = await prisma.familyAccount.count({ where: { schoolId } });
+
+  if (familyAccounts > 0) {
+    errors.push(
+      `Phase 3 must not create family accounts (${familyAccounts} found) — run phase 4 billing match first`
+    );
+  }
+  if (links < 1) {
+    errors.push("No parent-learner links created");
+  } else if (links !== DA_SILVA_EXPECTED_PARENT_LINK_MATCH_COUNT) {
+    errors.push(
+      `Database has ${links} parent-learner links (expected ${DA_SILVA_EXPECTED_PARENT_LINK_MATCH_COUNT})`
+    );
+  }
+
+  const orphanParents = await prisma.parent.findMany({
+    where: { schoolId, links: { none: {} } },
+    select: { id: true, firstName: true, surname: true },
+  });
+  if (orphanParents.length) {
+    errors.push(`${orphanParents.length} orphan parent(s) with no learner link`);
+  }
+
+  return { passed: errors.length === 0, parents, links, orphanParents, errors };
+}
+
 /**
- * Phase 3 only: family accounts, parents, and parent-learner links from Kid-e-Sys contact list.
- * Does not import billing, ledger, employees, or opening balances.
+ * Phase 3 only: SA-SAMS parents/guardians and parent-learner links (archived flag ignored).
+ * Does not import Kid-e-Sys billing, family accounts, ledger, or employees.
  */
 export async function commitDaSilvaParentsOnly(opts: {
   schoolId: string;
@@ -2145,8 +2532,8 @@ export async function commitDaSilvaParentsOnly(opts: {
   paths: DaSilvaParentsIngestPaths;
 }): Promise<{
   success: boolean;
-  stagingValidation: DaSilvaParentsStagingValidation;
-  postImportValidation: DaSilvaParentsDbValidation;
+  stagingValidation: DaSilvaSasamsParentsStagingValidation;
+  postImportValidation: Awaited<ReturnType<typeof validateDaSilvaSasamsParentsInDatabase>>;
   manifest: DaSilvaImportManifest;
   imported: { parents: number; familyAccounts: number; links: number };
   missingLearnerKeys: string[];
@@ -2157,22 +2544,59 @@ export async function commitDaSilvaParentsOnly(opts: {
   });
   if (!school) throw new Error("School not found");
 
-  const stagingValidation = validateDaSilvaParentsStaging(opts.paths);
-  if (!stagingValidation.passed) {
-    throw new Error(`Parents staging validation failed: ${stagingValidation.errors.join("; ")}`);
-  }
-
-  const staged = buildDaSilvaParentsStagedLearners(opts.paths);
-  const dbLearners = await prisma.learner.count({ where: { schoolId: opts.schoolId } });
-  if (dbLearners !== DA_SILVA_EXPECTED_LEARNER_COUNT) {
+  const sasamsParents = parseSasamsParentSources(
+    opts.paths.parentRegister,
+    opts.paths.parentLearnerLinks
+  );
+  const dbLearners = await prisma.learner.findMany({
+    where: { schoolId: opts.schoolId },
+    select: {
+      id: true,
+      firstName: true,
+      lastName: true,
+      className: true,
+      admissionNo: true,
+      idNumber: true,
+    },
+  });
+  if (!isAcceptableDaSilvaPhase3LearnerCount(dbLearners.length)) {
     throw new Error(
-      `Phase 2 required: database has ${dbLearners} learners (expected ${DA_SILVA_EXPECTED_LEARNER_COUNT}). Run da-silva-learners-only.ts first.`
+      `Phase 2 required: database has ${dbLearners.length} learners (expected ${DA_SILVA_EXPECTED_SASAMS_CLASS_LIST_LEARNER_COUNT} SA-SAMS or ${DA_SILVA_EXPECTED_FINAL_LEARNER_COUNT} after Crèche supplement)`
     );
   }
 
+  const parentAudit = auditParentMatches(sasamsParents, dbLearners);
+  const indexes = buildLearnerMatchIndexes(dbLearners);
+  const learnersById = new Map(dbLearners.map((l) => [l.id, l]));
+
+  const stagingErrors: string[] = [];
+  if (parentAudit.unmatchedParents.length > DA_SILVA_BILLING_MATCH_MAX_UNMATCHED) {
+    stagingErrors.push(
+      `${parentAudit.unmatchedParents.length} SA-SAMS parent row(s) could not be matched to learners`
+    );
+  }
+  if (parentAudit.duplicateMatches.length > 0) {
+    stagingErrors.push(
+      `${parentAudit.duplicateMatches.length} parent row(s) have ambiguous learner matches`
+    );
+  }
+
+  const stagingValidation: DaSilvaSasamsParentsStagingValidation = {
+    passed: stagingErrors.length === 0,
+    parentRows: sasamsParents.length,
+    expectedParentLinks: DA_SILVA_EXPECTED_PARENT_LINK_MATCH_COUNT,
+    actualParentLinks: sasamsParents.length - parentAudit.unmatchedParents.length,
+    unmatchedParents: parentAudit.unmatchedParents.length,
+    duplicateMatches: parentAudit.duplicateMatches.length,
+    errors: stagingErrors,
+  };
+
   const existingParents = await prisma.parent.count({ where: { schoolId: opts.schoolId } });
   const existingEmployees = await prisma.employee.count({ where: { schoolId: opts.schoolId } });
-  if (existingParents > 0 && !loadDaSilvaManifest(opts.schoolId, opts.projectId)?.phasesCompleted?.includes("parents")) {
+  if (
+    existingParents > 0 &&
+    !loadDaSilvaManifest(opts.schoolId, opts.projectId)?.phasesCompleted?.includes("parents")
+  ) {
     throw new Error(
       `BLOCKED: school already has ${existingParents} parent(s) but manifest parents phase not recorded`
     );
@@ -2183,8 +2607,6 @@ export async function commitDaSilvaParentsOnly(opts: {
     );
   }
 
-  const { readSchoolLedger } = await import("../../utils/billingLedgerStore");
-  const { readSchoolBillingPlans } = await import("../../utils/learnerBillingPlanStore");
   if (readSchoolLedger(opts.schoolId).length > 0) {
     throw new Error("BLOCKED: billing ledger already has entries for this school");
   }
@@ -2194,15 +2616,13 @@ export async function commitDaSilvaParentsOnly(opts: {
 
   const existingManifest = loadDaSilvaManifest(opts.schoolId, opts.projectId);
   if (!existingManifest) {
-    throw new Error(
-      `No manifest for project ${opts.projectId}. Run da-silva-classrooms-only.ts and da-silva-learners-only.ts first.`
-    );
+    throw new Error(`No manifest for project ${opts.projectId}. Complete phases 1–2 first.`);
   }
   if (!existingManifest.phasesCompleted?.includes("classrooms")) {
-    throw new Error("Phase 1 (classrooms) not completed — run da-silva-classrooms-only.ts first.");
+    throw new Error("Phase 1 (classrooms) not completed.");
   }
   if (!existingManifest.phasesCompleted?.includes("learners")) {
-    throw new Error("Phase 2 (learners) not completed — run da-silva-learners-only.ts first.");
+    throw new Error("Phase 2 (learners) not completed.");
   }
 
   const manifest: DaSilvaImportManifest = {
@@ -2214,34 +2634,245 @@ export async function commitDaSilvaParentsOnly(opts: {
     phasesCompleted: existingManifest.phasesCompleted || [],
   };
 
-  const matchKeyToLearnerId = new Map(Object.entries(manifest.matchKeyToLearnerId || {}));
   const missingLearnerKeys: string[] = [];
-  for (const row of staged) {
-    if (!matchKeyToLearnerId.get(row.matchKey)) {
-      missingLearnerKeys.push(row.matchKey);
-    }
-  }
-  if (missingLearnerKeys.length) {
-    throw new Error(
-      `${missingLearnerKeys.length} staged learner(s) missing from manifest matchKeyToLearnerId — re-run phase 2`
-    );
-  }
-
-  const accountToFamilyId = new Map<string, string>();
-  let familyAccountsImported = 0;
+  let parentIndex = 0;
 
   await runDaSilvaImportPhase(manifest, "parents", opts.schoolId, opts.projectId, async () => {
     if (!manifest.stagedParentIds) manifest.stagedParentIds = {};
 
-    const accountFamilyNames = new Map<string, string>();
-    for (const row of staged) {
-      const accountNo = String(row.accountNo || "").trim();
-      if (!accountNo) continue;
-      if (!accountFamilyNames.has(accountNo)) {
-        accountFamilyNames.set(accountNo, row.lastName || row.fullName);
-      }
+    for (const parentRow of sasamsParents) {
+      parentIndex += 1;
+      const match = matchParentToLearner(parentRow, indexes, learnersById);
+      if (!match.learnerId || match.ambiguous) continue;
+
+      const stageKey = `sasams-parent:${parentIndex}`;
+      if (manifest.stagedParentIds![stageKey]) continue;
+
+      const phone = normalizeSaPhone(parentRow.cellNo || parentRow.homeNo || "");
+      const cellNo = phone?.localCell || parentRow.cellNo || "0000000000";
+
+      const existingParent = await prisma.parent.findFirst({
+        where: {
+          schoolId: opts.schoolId,
+          firstName: parentRow.firstName,
+          surname: parentRow.surname,
+          cellNo,
+          familyAccountId: null,
+        },
+        select: { id: true },
+      });
+
+      const parentId =
+        existingParent?.id ||
+        (
+          await prisma.parent.create({
+            data: {
+              schoolId: opts.schoolId,
+              familyAccountId: null,
+              firstName: parentRow.firstName,
+              surname: parentRow.surname,
+              cellNo,
+              email: parentRow.email || null,
+              idNumber: parentRow.idNumber,
+              relationship: parentRow.relation,
+              workNo: parentRow.workNo || null,
+              homeNo: parentRow.homeNo || null,
+              outstandingAmount: 0,
+            },
+            select: { id: true },
+          })
+        ).id;
+
+      manifest.stagedParentIds![stageKey] = parentId;
+      pushUniqueId(manifest.parentIds, parentId);
+
+      const link = await prisma.parentLearnerLink.upsert({
+        where: { parentId_learnerId: { parentId, learnerId: match.learnerId } },
+        create: {
+          schoolId: opts.schoolId,
+          parentId,
+          learnerId: match.learnerId,
+          relation: parentRow.relation,
+          isPrimary: true,
+        },
+        update: {},
+        select: { id: true },
+      });
+      pushUniqueId(manifest.linkIds, link.id);
     }
-    for (const [accountNo, familyName] of accountFamilyNames) {
+  });
+
+  writeDaSilvaManifest(opts.schoolId, opts.projectId, manifest);
+
+  const postImportValidation = await validateDaSilvaSasamsParentsInDatabase(opts.schoolId);
+
+  try {
+    assertDaSilvaMigrationGates({
+      phase: "parents",
+      learnerCount: dbLearners.length,
+      parentLinkCount: postImportValidation.links,
+      phasesCompleted: manifest.phasesCompleted,
+      errors: [...stagingValidation.errors, ...postImportValidation.errors],
+    });
+  } catch (e) {
+    postImportValidation.passed = false;
+    if (e instanceof Error) postImportValidation.errors.push(e.message);
+  }
+
+  writeDaSilvaMigrationAudit(opts.schoolId, opts.projectId, {
+    strategy: DA_SILVA_MIGRATION_STRATEGY,
+    phase: "parents",
+    generatedAt: new Date().toISOString(),
+    schoolId: opts.schoolId,
+    projectId: opts.projectId,
+    passed: postImportValidation.passed && stagingValidation.passed,
+    summary: {
+      parents: manifest.parentIds.length,
+      links: manifest.linkIds.length,
+      unmatchedParents: parentAudit.unmatchedParents.length,
+    },
+    unmatchedLearners: [],
+    unmatchedParents: parentAudit.unmatchedParents.map((r) => ({ ...r })),
+    duplicateMatches: parentAudit.duplicateMatches.map((r) => ({ ...r })),
+    billingAccountsNotMatched: [],
+    errors: [...stagingValidation.errors, ...postImportValidation.errors],
+  });
+
+  return {
+    success: postImportValidation.passed && stagingValidation.passed,
+    stagingValidation,
+    postImportValidation,
+    manifest,
+    imported: {
+      parents: manifest.parentIds.length,
+      familyAccounts: 0,
+      links: manifest.linkIds.length,
+    },
+    missingLearnerKeys,
+  };
+}
+
+export type DaSilvaBillingMatchIngestPaths = {
+  classListDir: string;
+  ageAnalysis: string;
+};
+
+/**
+ * Phase 4: match Kid-e-Sys billing accounts to SA-SAMS learners (no profile overwrite).
+ */
+export async function commitDaSilvaBillingMatchOnly(opts: {
+  schoolId: string;
+  projectId: string;
+  paths: DaSilvaBillingMatchIngestPaths;
+}): Promise<{
+  success: boolean;
+  manifest: DaSilvaImportManifest;
+  matched: number;
+  totalAccounts: number;
+  auditPath: string;
+}> {
+  const existingManifest = loadDaSilvaManifest(opts.schoolId, opts.projectId);
+  if (!existingManifest) throw new Error(`No manifest for project ${opts.projectId}`);
+  if (!existingManifest.phasesCompleted?.includes("parents")) {
+    throw new Error("Phase 3 (parents) must complete before billing match");
+  }
+
+  const accounts = parseAgeAnalysisFile(opts.paths.ageAnalysis);
+  const ageAnalysisAudit = parseAgeAnalysisFileWithAudit(opts.paths.ageAnalysis);
+  if (!ageAnalysisAudit.accounts.length || ageAnalysisAudit.audit.headerRowIndex === null) {
+    throw new Error("Age analysis parser failed — no accounts or header row detected");
+  }
+
+  const { learners: sasamsClassLearners } = parseSasamsClassListDirectory(opts.paths.classListDir);
+  const classListLearners = sasamsLearnersToParsedLearners(sasamsClassLearners);
+  const dbLearners = await prisma.learner.findMany({
+    where: { schoolId: opts.schoolId },
+    select: {
+      id: true,
+      firstName: true,
+      lastName: true,
+      className: true,
+      idNumber: true,
+      admissionNo: true,
+    },
+  });
+  const dbForMatch = dbLearners.map((l) => ({
+    id: l.id,
+    firstName: l.firstName,
+    lastName: l.lastName,
+    className: l.className,
+    matchKey: buildLearnerMatchKey(`${l.firstName} ${l.lastName}`, l.className || ""),
+    idNumber: l.idNumber,
+    admissionNo: l.admissionNo,
+  }));
+
+  const secondPassPaths = discoverBillingSecondPassPaths(opts.paths.ageAnalysis);
+  const billingPlanItems =
+    secondPassPaths.billingPlan && fs.existsSync(secondPassPaths.billingPlan)
+      ? parseBillingPlanFile(secondPassPaths.billingPlan)
+      : [];
+  const transactions =
+    secondPassPaths.transactions && fs.existsSync(secondPassPaths.transactions)
+      ? parseTransactionListFile(secondPassPaths.transactions)
+      : [];
+  const contacts =
+    secondPassPaths.contactList && fs.existsSync(secondPassPaths.contactList)
+      ? parseContactListFile(secondPassPaths.contactList)
+      : [];
+
+  const { audit, report } = matchKideesysBillingAccountsWithSecondPass({
+    accounts,
+    dbLearners: dbForMatch,
+    classListLearners,
+    mergedFamilyAccountNos: [],
+    billingPlanItems,
+    transactions,
+    contacts,
+  });
+
+  const reconciliationReportPath = path.join(
+    process.cwd(),
+    "kideesys-billing-reconciliation-report.txt"
+  );
+  const reconciliationJsonPath = path.join(
+    process.cwd(),
+    "kideesys-billing-reconciliation-report.json"
+  );
+  const school = await prisma.school.findUnique({
+    where: { id: opts.schoolId },
+    select: { name: true },
+  });
+  fs.writeFileSync(
+    reconciliationReportPath,
+    formatKideesysBillingReconciliationReportText(report, school?.name || opts.schoolId)
+  );
+  fs.writeFileSync(reconciliationJsonPath, JSON.stringify(report, null, 2));
+
+  const matchedCount = audit.matched.filter((r) => r.learnerId).length;
+  assertDaSilvaMigrationGates({
+    phase: "billing_match",
+    billingMatched: matchedCount,
+    billingTotal: accounts.length,
+    phasesCompleted: existingManifest.phasesCompleted || [],
+  });
+
+  const manifest: DaSilvaImportManifest = {
+    ...existingManifest,
+    accountToLearnerId: existingManifest.accountToLearnerId || {},
+    phasesCompleted: existingManifest.phasesCompleted || [],
+  };
+
+  await runDaSilvaImportPhase(manifest, "billing_match", opts.schoolId, opts.projectId, async () => {
+    const siblingGroups = groupSiblingAccounts(audit.matched);
+    const accountToLearnerId = new Map<string, string>();
+
+    for (const row of audit.matched) {
+      if (row.learnerId) accountToLearnerId.set(row.accountNo, row.learnerId);
+    }
+
+    for (const [accountNo, learnerIds] of siblingGroups) {
+      const familyName =
+        dbLearners.find((l) => l.id === learnerIds[0])?.lastName || accountNo;
       const fa = await prisma.familyAccount.upsert({
         where: { accountRef: accountNo },
         create: {
@@ -2250,114 +2881,55 @@ export async function commitDaSilvaParentsOnly(opts: {
           familyName,
         },
         update: {},
+        select: { id: true },
       });
-      accountToFamilyId.set(accountNo, fa.id);
-      familyAccountsImported += 1;
-    }
 
-    for (const row of staged) {
-      const accountNo = String(row.accountNo || "").trim();
-      const familyAccountId = accountNo ? accountToFamilyId.get(accountNo) || null : null;
-
-      for (let pi = 0; pi < row.parents.length; pi++) {
-        const parent = row.parents[pi];
-        const stageKey = parentStagingKey(row.matchKey, pi);
-        if (manifest.stagedParentIds![stageKey]) continue;
-
-        const phone = normalizeSaPhone(parent.cellNo || parent.homeNo || "");
-        const cellNo = phone?.localCell || parent.cellNo || "";
-
-        const existingParent = await prisma.parent.findFirst({
-          where: {
-            schoolId: opts.schoolId,
-            firstName: parent.firstName,
-            surname: parent.surname,
-            cellNo,
-            familyAccountId: familyAccountId ?? null,
-          },
-          select: { id: true },
+      for (const learnerId of learnerIds) {
+        await prisma.learner.update({
+          where: { id: learnerId },
+          data: { familyAccountId: fa.id },
         });
-
-        const parentId =
-          existingParent?.id ||
-          (
-            await prisma.parent.create({
-              data: {
-                schoolId: opts.schoolId,
-                familyAccountId,
-                firstName: parent.firstName,
-                surname: parent.surname,
-                cellNo,
-                email: parent.email || null,
-                relationship: parent.relation,
-                workNo: parent.workNo || null,
-                homeNo: parent.homeNo || null,
-                outstandingAmount: 0,
-              },
-              select: { id: true },
-            })
-          ).id;
-
-        manifest.stagedParentIds![stageKey] = parentId;
-        pushUniqueId(manifest.parentIds, parentId);
+        accountToLearnerId.set(accountNo, learnerId);
       }
     }
 
-    for (const row of staged) {
-      const accountNo = String(row.accountNo || "").trim();
-      const familyAccountId = accountNo ? accountToFamilyId.get(accountNo) || null : null;
-      const learnerId = matchKeyToLearnerId.get(row.matchKey);
-      if (!learnerId) continue;
-
-      await prisma.learner.update({
-        where: { id: learnerId },
-        data: { familyAccountId },
-      });
-
-      for (let pi = 0; pi < row.parents.length; pi++) {
-        const parent = row.parents[pi];
-        const stageKey = parentStagingKey(row.matchKey, pi);
-        const parentId = manifest.stagedParentIds![stageKey];
-        if (!parentId) {
-          throw new Error(`Missing staged parent for ${stageKey}`);
-        }
-
-        const link = await prisma.parentLearnerLink.upsert({
-          where: { parentId_learnerId: { parentId, learnerId } },
-          create: {
-            schoolId: opts.schoolId,
-            parentId,
-            learnerId,
-            relation: parent.relation,
-            isPrimary: row.parents[0] === parent,
-          },
-          update: {},
-          select: { id: true },
-        });
-        pushUniqueId(manifest.linkIds, link.id);
-      }
-    }
+    manifest.accountToLearnerId = Object.fromEntries(accountToLearnerId);
   });
 
   writeDaSilvaManifest(opts.schoolId, opts.projectId, manifest);
 
-  const postImportValidation = await validateDaSilvaParentsInDatabase(
-    opts.schoolId,
-    staged,
-    manifest.matchKeyToLearnerId || {}
-  );
+  const auditPath = writeDaSilvaMigrationAudit(opts.schoolId, opts.projectId, {
+    strategy: DA_SILVA_MIGRATION_STRATEGY,
+    phase: "billing_match",
+    generatedAt: new Date().toISOString(),
+    schoolId: opts.schoolId,
+    projectId: opts.projectId,
+    passed: true,
+    summary: {
+      matched: matchedCount,
+      totalAccounts: accounts.length,
+      unmatchedLearners: audit.unmatchedLearners.length,
+    },
+    unmatchedLearners: audit.unmatchedLearners.map((r) => ({ ...r })),
+    unmatchedParents: [],
+    duplicateMatches: audit.duplicateMatches.map((r) => ({ ...r })),
+    billingAccountsNotMatched: audit.unmatchedAccounts.map((r) => ({ ...r })),
+    billingReconciliation: {
+      firstPassMatched: report.firstPassMatched,
+      secondPassAutoMatched: report.secondPassAutoMatched,
+      manualReviewCount: report.manualReviewRequired.length,
+      stillUnmatched: report.stillUnmatched,
+      reportPath: reconciliationReportPath,
+    },
+    errors: [],
+  });
 
   return {
-    success: postImportValidation.passed,
-    stagingValidation,
-    postImportValidation,
+    success: true,
     manifest,
-    imported: {
-      parents: manifest.parentIds.length,
-      familyAccounts: familyAccountsImported,
-      links: manifest.linkIds.length,
-    },
-    missingLearnerKeys,
+    matched: matchedCount,
+    totalAccounts: accounts.length,
+    auditPath,
   };
 }
 
@@ -2396,14 +2968,13 @@ export type DaSilvaBillingDbValidation = {
 export function buildDaSilvaBillingStagedLearners(
   paths: DaSilvaBillingIngestPaths
 ): DaSilvaStagedLearner[] {
-  const { learners: classLearners } = parseClassListDirectory(paths.classListDir);
+  const { learners: sasamsClassLearners } = parseSasamsClassListDirectory(paths.classListDir);
+  const classLearners = sasamsLearnersToParsedLearners(sasamsClassLearners);
   const billingItems = parseBillingPlanFile(paths.billingPlan);
   const accounts = parseAgeAnalysisFile(paths.ageAnalysis);
   const planByKey = groupBillingPlans(billingItems);
   const accountByName = new Map<string, string>();
-  for (const a of accounts) {
-    accountByName.set(normalizeMatchText(a.fullName), a.accountNo);
-  }
+  indexAgeAnalysisAccountNames(accounts, accountByName);
   const uniqueClassLearners = uniqueLearnersByMatchKey(classLearners);
   const familyIndex = buildFamilyAccountIndex(accounts, billingItems, uniqueClassLearners, [], []);
   const staged: DaSilvaStagedLearner[] = [];
@@ -2422,7 +2993,7 @@ export function buildDaSilvaBillingStagedLearners(
       (a) =>
         a.accountNo === accountNo ||
         normalizeMatchText(a.fullName) === normalizeMatchText(learner.fullName) ||
-        splitMergedAccountNames(a.fullName).some(
+        (a.learnerNames || splitMergedAccountNames(a.fullName)).some(
           (n) => normalizeMatchText(n) === normalizeMatchText(learner.fullName)
         )
     );
@@ -2434,7 +3005,9 @@ export function buildDaSilvaBillingStagedLearners(
       lastName: learner.lastName,
       className: learner.className,
       canonicalClassName,
-      accountNo: accountNo || ageRow?.accountNo || "",
+      accountNo:
+        (accountNo && isKidESysSourceAccountRef(accountNo) ? accountNo : "") ||
+        (ageRow?.accountNo && isKidESysSourceAccountRef(ageRow.accountNo) ? ageRow.accountNo : ""),
       billingPlan,
       billingPlanTotal,
       ageAnalysisBalance: ageRow?.balance ?? 0,
@@ -2467,9 +3040,9 @@ export function validateDaSilvaBillingStaging(
       `Age analysis has ${actualBillingAccounts} accounts (expected ${expectedBillingAccounts})`
     );
   }
-  if (learnersWithBillingPlan !== DA_SILVA_EXPECTED_LEARNER_COUNT) {
+  if (learnersWithBillingPlan !== DA_SILVA_EXPECTED_FINAL_LEARNER_COUNT && learnersWithBillingPlan !== DA_SILVA_EXPECTED_SASAMS_CLASS_LIST_LEARNER_COUNT) {
     errors.push(
-      `Billing plan covers ${learnersWithBillingPlan} learners (expected ${DA_SILVA_EXPECTED_LEARNER_COUNT})`
+      `Billing plan covers ${learnersWithBillingPlan} learners (expected ${DA_SILVA_EXPECTED_FINAL_LEARNER_COUNT} or ${DA_SILVA_EXPECTED_SASAMS_CLASS_LIST_LEARNER_COUNT} SA-SAMS-only before Crèche supplement)`
     );
   }
   if (!staged.length) {
@@ -2649,9 +3222,9 @@ export async function validateDaSilvaBillingInDatabase(
     errors.push(`${varianceAccountCount} account(s) with age/ledger mismatch (first 15 listed above)`);
   }
 
-  if (familyAccounts !== DA_SILVA_EXPECTED_FAMILY_ACCOUNT_COUNT) {
+  if (familyAccounts < DA_SILVA_BILLING_MATCH_MIN_MATCHED) {
     errors.push(
-      `Family accounts: ${familyAccounts} (expected ${DA_SILVA_EXPECTED_FAMILY_ACCOUNT_COUNT})`
+      `Family accounts: ${familyAccounts} (expected at least ${DA_SILVA_BILLING_MATCH_MIN_MATCHED} matched; ${DA_SILVA_BILLING_ACCOUNT_TARGET} total in Kid-e-Sys with manual review for remainder)`
     );
   }
   if (duplicateOpeningBalanceRefs.length) {
@@ -2726,9 +3299,9 @@ export async function commitDaSilvaBillingOnly(opts: {
   }
 
   const dbLearners = await prisma.learner.count({ where: { schoolId: opts.schoolId } });
-  if (dbLearners !== DA_SILVA_EXPECTED_LEARNER_COUNT) {
+  if (!isAcceptableDaSilvaPhase3LearnerCount(dbLearners)) {
     throw new Error(
-      `Phase 2 required: ${dbLearners} learners (expected ${DA_SILVA_EXPECTED_LEARNER_COUNT})`
+      `Phase 2 required: ${dbLearners} learners (expected ${DA_SILVA_EXPECTED_SASAMS_CLASS_LIST_LEARNER_COUNT} SA-SAMS or ${DA_SILVA_EXPECTED_FINAL_LEARNER_COUNT} after Crèche supplement)`
     );
   }
 
@@ -2758,8 +3331,11 @@ export async function commitDaSilvaBillingOnly(opts: {
   if (!existingManifest.phasesCompleted?.includes("parents")) {
     throw new Error("Phase 3 (parents) not completed.");
   }
+  if (!existingManifest.phasesCompleted?.includes("billing_match")) {
+    throw new Error("Phase 4 (billing match) not completed — run da-silva-billing-match.ts first.");
+  }
   if (existingManifest.phasesCompleted?.includes("transactions")) {
-    throw new Error("BLOCKED: transactions phase already completed — phase 4 must not import ledger history");
+    throw new Error("BLOCKED: transactions phase already completed — phase 5 must not duplicate ledger history");
   }
 
   const staged = buildDaSilvaBillingStagedLearners(opts.paths);
@@ -2800,6 +3376,7 @@ export async function commitDaSilvaBillingOnly(opts: {
           totalFee: row.billingPlanTotal,
           tuitionFee: row.billingPlanTotal,
         },
+        select: { id: true },
       });
       learnersFeeUpdated += 1;
     }

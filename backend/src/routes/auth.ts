@@ -1,8 +1,14 @@
 import { Router } from "express";
-import bcrypt from "bcryptjs";
 import jwt from "jsonwebtoken";
 
+import { requireAuthDiagnostics } from "../middleware/requireAuthDiagnostics";
 import { prisma } from "../prisma";
+import {
+  compareAuthPassword,
+  hashAuthPassword,
+  normalizeAuthEmail,
+} from "../services/authCredentials";
+import { buildAuthDiagnostics } from "../services/authDiagnostics";
 import { seedSchoolEmailDefaults } from "../services/schoolEmailService";
 import { permissionsForRole, prismaRoleForAppRole } from "../utils/userPermissions";
 import { setUserAccessMeta } from "../utils/userAccessStore";
@@ -11,7 +17,8 @@ import {
   isScriptProvisionedOwner,
   normalizeOwnerEmail,
 } from "../utils/ownerProvisioning";
-import { isPlatformSuperAdminEmail, normalizeSuperAdminEmail } from "../utils/superAdmin";
+import { canAccessMigration } from "../utils/migrationAccess";
+import { isPlatformSuperAdminEmail } from "../utils/superAdmin";
 import { toStoredSchoolLogoUrl } from "../utils/schoolLogo";
 
 const router = Router();
@@ -19,7 +26,7 @@ const router = Router();
 const JWT_SECRET = process.env.JWT_SECRET || "dev_secret_change_me";
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/i;
 
-const normalizeEmail = normalizeSuperAdminEmail;
+const normalizeEmail = normalizeAuthEmail;
 
 function signAuthToken(payload: {
   userId: string;
@@ -52,7 +59,10 @@ router.post("/login", async (req, res) => {
 
   try {
     const users = await prisma.user.findMany({
-      where: { email, isActive: true },
+      where: {
+        email: { equals: email, mode: "insensitive" },
+        isActive: true,
+      },
       select: {
         id: true,
         schoolId: true,
@@ -73,7 +83,7 @@ router.post("/login", async (req, res) => {
 
     let matched: (typeof users)[number] | null = null;
     for (const user of users) {
-      const ok = await bcrypt.compare(password, user.passwordHash);
+      const ok = await compareAuthPassword(password, user.passwordHash);
       authLog("login: password compare", { email, userId: user.id, match: ok });
       if (ok) {
         matched = user;
@@ -91,6 +101,15 @@ router.post("/login", async (req, res) => {
       select: { id: true, name: true, email: true, logoUrl: true },
     });
 
+    if (!school) {
+      authLog("login: orphan schoolId on user", {
+        email,
+        userId: matched.id,
+        schoolId: matched.schoolId,
+      });
+      return res.status(401).json({ error: "Invalid credentials" });
+    }
+
     const tokenEmail = normalizeEmail(matched.email);
     const token = signAuthToken({
       userId: matched.id,
@@ -103,15 +122,27 @@ router.post("/login", async (req, res) => {
       ? ("superAdmin" as const)
       : undefined;
 
+    const migrationCtx = {
+      userId: matched.id,
+      schoolId: matched.schoolId,
+      email: tokenEmail,
+      role: matched.role,
+    };
+    const canAccessMigrationFlag = canAccessMigration(migrationCtx);
+    const permissions = permissionsForRole(matched.role);
+
     return res.json({
       token,
       ...(educlearRole ? { educlearRole } : {}),
+      canAccessMigration: canAccessMigrationFlag,
       user: {
         id: matched.id,
         email: matched.email,
         schoolId: matched.schoolId,
         fullName: matched.fullName,
         role: matched.role,
+        permissions,
+        canAccessMigration: canAccessMigrationFlag,
         ...(educlearRole ? { educlearRole } : {}),
       },
       school: school
@@ -121,6 +152,34 @@ router.post("/login", async (req, res) => {
   } catch (error) {
     console.error("[auth] POST /login failed:", error);
     return res.status(500).json({ error: "Login failed" });
+  }
+});
+
+router.get("/diagnostics/:email", requireAuthDiagnostics, async (req, res) => {
+  const email = normalizeEmail(req.params.email);
+  if (!email) {
+    return res.status(400).json({ error: "Email required" });
+  }
+
+  try {
+    const diag = await buildAuthDiagnostics(email);
+    return res.json({
+      userFound: diag.userFound,
+      userId: diag.userId,
+      email: diag.email,
+      role: diag.role,
+      schoolId: diag.schoolId,
+      active: diag.active,
+      passwordHashExists: diag.passwordHashExists,
+      duplicateEmailCount: diag.duplicateEmailCount,
+      loginReady: diag.loginReady,
+      duplicateActiveCount: diag.duplicateActiveCount,
+      issues: diag.issues,
+      users: diag.users,
+    });
+  } catch (error) {
+    console.error("[auth] GET /diagnostics failed:", error);
+    return res.status(500).json({ error: "Auth diagnostics failed" });
   }
 });
 
@@ -149,7 +208,7 @@ router.post("/register-school", async (req, res) => {
 
   try {
     const existingSchoolByEmail = await prisma.school.findFirst({
-      where: { email },
+      where: { email: { equals: email, mode: "insensitive" } },
       select: { id: true, name: true, email: true },
     });
     if (existingSchoolByEmail) {
@@ -157,7 +216,7 @@ router.post("/register-school", async (req, res) => {
     }
 
     const existingUsers = await prisma.user.findMany({
-      where: { email },
+      where: { email: { equals: email, mode: "insensitive" } },
       select: {
         id: true,
         schoolId: true,
@@ -201,7 +260,7 @@ router.post("/register-school", async (req, res) => {
         });
       }
 
-      const passwordHash = await bcrypt.hash(password, 10);
+      const passwordHash = await hashAuthPassword(password);
       authLog("register-school: password hashed", { email });
 
       const result = await prisma.$transaction(async (tx) => {
@@ -321,7 +380,7 @@ router.post("/register-school", async (req, res) => {
       });
     }
 
-    const passwordHash = await bcrypt.hash(password, 10);
+    const passwordHash = await hashAuthPassword(password);
     authLog("register-school: password hashed", { email });
 
     const result = await prisma.$transaction(async (tx) => {

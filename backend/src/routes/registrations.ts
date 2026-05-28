@@ -1,18 +1,64 @@
 import { Router } from "express";
 import { calculateLearnerAge, resolveLearnerAccountNo } from "../utils/learnerIdentity";
+import { resolveLearnerGender } from "../utils/learnerGender";
 import { readSchoolBillingPlans } from "../utils/learnerBillingPlanStore";
+import { buildRegistrationStats } from "../services/registrationStatsService";
+import { prisma } from "../prisma";
 
-import { PrismaClient } from "@prisma/client";
-
-
+import { type LearnerEnrollmentStatus } from "@prisma/client";
 
 const router = Router();
 
+function mapEnrollmentDisplay(status: LearnerEnrollmentStatus): {
+  childStatus: string;
+  status: string;
+  enrolled: boolean;
+  isEnrolled: boolean;
+} {
+  if (status === "HISTORICAL") {
+    return {
+      childStatus: "Historical",
+      status: "Historical",
+      enrolled: false,
+      isEnrolled: false,
+    };
+  }
+  return {
+    childStatus: "Enrolled",
+    status: "Enrolled",
+    enrolled: true,
+    isEnrolled: true,
+  };
+}
 
+router.get("/stats", async (req, res) => {
+  try {
+    const schoolId = String(req.query.schoolId || "").trim();
+    if (!schoolId) {
+      return res.status(400).json({ success: false, error: "Missing schoolId" });
+    }
 
-const prisma = new PrismaClient();
+    const { stats, debug } = await buildRegistrationStats(schoolId);
 
+    console.info("[registrations/stats]", {
+      schoolId,
+      children: stats.children,
+      boys: stats.boys,
+      girls: stats.girls,
+      classrooms: stats.classrooms,
+      sampleLearners: debug.sampleLearners,
+    });
 
+    return res.status(200).json({
+      success: true,
+      stats,
+      debug,
+    });
+  } catch (error) {
+    console.error("GET REGISTRATION STATS ERROR:", error);
+    return res.status(500).json({ success: false, error: "Failed to load registration stats" });
+  }
+});
 
 router.get("/learners", async (req, res) => {
 
@@ -53,9 +99,6 @@ router.get("/learners", async (req, res) => {
     const billingPlansByLearner = readSchoolBillingPlans(schoolId);
 
     const learners = await prisma.learner.findMany({
-
-
-
       where: { schoolId },
 
 
@@ -101,13 +144,14 @@ router.get("/learners", async (req, res) => {
 
 
       const accountNo = resolveLearnerAccountNo(learner);
-
-
+      const enrollment = mapEnrollmentDisplay(learner.enrollmentStatus);
+      const gender =
+        resolveLearnerGender({
+          gender: learner.gender,
+          idNumber: learner.idNumber,
+        }) || "";
 
       return {
-
-
-
         id: learner.id,
 
 
@@ -118,7 +162,13 @@ router.get("/learners", async (req, res) => {
 
         familyAccountId: learner.familyAccountId,
 
-
+        familyAccount: learner.familyAccount
+          ? {
+              id: learner.familyAccount.id,
+              accountRef: learner.familyAccount.accountRef,
+              familyName: learner.familyAccount.familyName,
+            }
+          : null,
 
         accountNo,
 
@@ -164,11 +214,17 @@ router.get("/learners", async (req, res) => {
 
 
 
-        gender: learner.gender || "",
-
-
+        gender,
 
         idNumber: learner.idNumber || "",
+
+        homeLanguage: learner.homeLanguage || "",
+
+        citizenship: learner.citizenship || "",
+
+        nationality: learner.citizenship || "",
+
+        enrollmentStatus: learner.enrollmentStatus,
 
 
 
@@ -188,19 +244,13 @@ router.get("/learners", async (req, res) => {
 
 
 
-        childStatus: "Enrolled",
+        childStatus: enrollment.childStatus,
 
+        status: enrollment.status,
 
+        enrolled: enrollment.enrolled,
 
-        status: "Enrolled",
-
-
-
-        enrolled: true,
-
-
-
-        isEnrolled: true,
+        isEnrolled: enrollment.isEnrolled,
 
 
 

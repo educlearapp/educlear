@@ -42,7 +42,10 @@ export type StatementPdfInput = {
 
 export type BuildStatementPdfOptions = {
   schoolId: string;
-  learnerId: string;
+  /** Optional when accountNo (Kid-e-Sys accountRef) is supplied. */
+  learnerId?: string;
+  /** Kid-e-Sys billing identity (FamilyAccount.accountRef). Preferred over learnerId. */
+  accountNo?: string;
   period?: string;
   statementNote?: string;
 };

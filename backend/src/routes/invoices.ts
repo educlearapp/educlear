@@ -1,13 +1,13 @@
 import { Router } from "express";
 
 import { loadSchoolBillingSettings } from "./billingSettings";
-import { resolveLearnerAccountNo } from "../utils/learnerIdentity";
 import {
   buildInvoiceReference,
   computeInvoiceDueDate,
   normaliseIsoDate,
   resolveInvoiceMessage,
 } from "../utils/billingSettingsEngine";
+import { relinkSchoolBillingLedger } from "../services/billingLedgerRelink";
 import {
   appendSchoolEntry,
   listInvoices,
@@ -52,12 +52,15 @@ router.post("/", async (req, res) => {
   try {
     const body = (req.body ?? {}) as Record<string, unknown>;
     const schoolId = String(body.schoolId || "").trim();
-    const learnerId = String(body.learnerId || body.id || "").trim();
-    const accountNo = String(body.accountNo || "").trim();
+    const learnerId = String(body.learnerId || "").trim();
+    const accountNo = String(body.accountNo || body.accountRef || "").trim();
     const amount = normaliseAmount(body.amount);
 
-    if (!schoolId || !learnerId || !amount) {
-      return res.status(400).json({ success: false, error: "Missing schoolId, learnerId, or amount" });
+    if (!schoolId || !amount) {
+      return res.status(400).json({ success: false, error: "Missing schoolId or amount" });
+    }
+    if (!accountNo) {
+      return res.status(400).json({ success: false, error: "Missing accountNo" });
     }
 
     const settings = await loadSchoolBillingSettings(schoolId);
@@ -86,8 +89,8 @@ router.post("/", async (req, res) => {
     const entry: BillingLedgerEntry = {
       id: String(body.id || `invoice-${Date.now()}`),
       schoolId,
-      learnerId,
-      accountNo: accountNo || resolveLearnerAccountNo(body as any),
+      learnerId: learnerId || "",
+      accountNo,
       type: "invoice",
       amount,
       date: invoiceDate,
@@ -112,6 +115,7 @@ router.get("/ledger", async (req, res) => {
     if (!schoolId) {
       return res.status(400).json({ success: false, error: "Missing schoolId" });
     }
+    await relinkSchoolBillingLedger(schoolId);
     return res.json({ success: true, entries: readSchoolLedger(schoolId) });
   } catch (error) {
     console.error("[invoices] GET /ledger failed:", error);

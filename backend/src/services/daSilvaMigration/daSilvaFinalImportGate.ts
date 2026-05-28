@@ -9,7 +9,11 @@ export function isKideesysPortalMigrationBundle(bundle: DaSilvaMigrationBundle):
 export function gateLearnerCountForSnapshot(bundle: DaSilvaMigrationBundle): number {
   return bundle.learners.filter((l) => l.enrollmentTier !== "HISTORICAL").length;
 }
-import { DA_SILVA_OPENING_BALANCE_EXCLUDED_ACCOUNTS } from "./daSilvaConstants";
+import {
+  DA_SILVA_EXPECTED_FINAL_CLASSROOM_COUNT,
+  DA_SILVA_EXPECTED_FINAL_LEARNER_COUNT,
+  DA_SILVA_OPENING_BALANCE_EXCLUDED_ACCOUNTS,
+} from "./daSilvaConstants";
 import {
   countAgeAnalysisVarianceAfterAdjustments,
   type DaSilvaOpeningBalanceAdjustment,
@@ -29,9 +33,9 @@ const OPENING_BALANCE_EXCLUDED = new Set<string>(DA_SILVA_OPENING_BALANCE_EXCLUD
 /** Approved Kid-e-Sys → EduClear snapshot (Da Silva Academy). */
 export const DA_SILVA_FINAL_IMPORT_EXPECTED = {
   schoolName: "Da Silva Academy",
-  learners: 396,
+  learners: DA_SILVA_EXPECTED_FINAL_LEARNER_COUNT,
   parents: 330,
-  classes: 21,
+  classes: DA_SILVA_EXPECTED_FINAL_CLASSROOM_COUNT,
   billingAccounts: 344,
   /** 112 base plan minus MAR005 manual exclusion. */
   openingBalanceAdjustments: 111,

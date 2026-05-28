@@ -33,6 +33,9 @@ const memoryHistoryBySchool: Record<string, KidesysHistoryEntry[]> = {};
 /** In-memory statement overview fields from GET /api/statements. */
 const memorySummariesBySchool: Record<string, Record<string, StatementApiSummary>> = {};
 
+/** Full statement account rows from GET /api/statements (Age Analysis source of truth). */
+const memoryStatementAccountsBySchool: Record<string, unknown[]> = {};
+
 export function notifyKidesysHistoryUpdated() {
   if (typeof window !== "undefined") {
     window.dispatchEvent(new CustomEvent(KIDESYS_HISTORY_UPDATED_EVENT));
@@ -57,6 +60,22 @@ export function clearSchoolBillingDisplayCache(schoolId: string) {
   if (!key) return;
   delete memoryHistoryBySchool[key];
   delete memorySummariesBySchool[key];
+  delete memoryStatementAccountsBySchool[key];
+}
+
+export function writeStatementApiAccounts(schoolId: string, rows: unknown[]) {
+  const key = String(schoolId || "").trim();
+  if (!key) return;
+  memoryStatementAccountsBySchool[key] = Array.isArray(rows) ? rows : [];
+  notifyKidesysHistoryUpdated();
+}
+
+export function readStatementApiAccounts(schoolId: string): unknown[] {
+  const key = String(schoolId || "").trim();
+  if (!key) return [];
+  return Array.isArray(memoryStatementAccountsBySchool[key])
+    ? memoryStatementAccountsBySchool[key]
+    : [];
 }
 
 export function filterHistoryForAccount(

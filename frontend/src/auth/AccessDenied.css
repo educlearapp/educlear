@@ -14,3 +14,16 @@
   letter-spacing: 0.02em;
   color: #d4af37;
 }
+
+.access-denied__debug {
+  margin-top: 16px;
+  max-width: 480px;
+  padding: 12px;
+  font-size: 0.75rem;
+  color: #ccc;
+  background: #111;
+  border: 1px solid #333;
+  border-radius: 6px;
+  text-align: left;
+  overflow-x: auto;
+}

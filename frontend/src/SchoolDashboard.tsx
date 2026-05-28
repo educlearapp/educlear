@@ -114,7 +114,10 @@ import Registrations from "./components/registrations/Registrations";
 import Users from "./users/Users";
 import ManageLearner from "./learner/ManageLearner";
 import Classrooms from "./Classrooms";
-import { calculateLearnerAge, getLearnerAccountNo } from "./learner/learnerIdentity";
+import { calculateLearnerAge } from "./learner/learnerIdentity";
+import { normalizeKidESysAccountRef, resolveKidESysAccountRefFromLearner } from "./billing/billingAccountRef";
+import { isMigratedOpeningBalanceOverviewLabel } from "./billing/billingDisplayRules";
+import { isActiveEnrollment, isFemaleGender, isMaleGender } from "./utils/learnerGender";
 
 
 import "./App.css";
@@ -2059,43 +2062,27 @@ const [selectedLearnerReport, setSelectedLearnerReport] = useState<any>(null);
 
 
 
+  const activeLearners = useMemo(
+    () => learners.filter((learner: any) => isActiveEnrollment(learner)),
+    [learners]
+  );
+
   const totalLearners = filteredLearners.length;
-
-
 
   const totalParents = parents.length;
 
+  const totalBoys = activeLearners.filter((learner: any) => isMaleGender(learner.gender)).length;
 
+  const totalGirls = activeLearners.filter((learner: any) => isFemaleGender(learner.gender)).length;
 
-  const totalBoys = learners.filter(
+  const totalClassrooms = new Set(
+    activeLearners
+      .map((learner: any) => learnerClassroom(learner))
+      .filter((c: string) => c && !/no classroom/i.test(String(c)))
+  ).size;
 
-
-
-    (learner: any) => String(learner.gender || "").toLowerCase() === "male"
-
-
-
-  ).length;
-
-
-
-  const totalGirls = learners.filter(
-
-
-
-    (learner: any) => String(learner.gender || "").toLowerCase() === "female"
-
-
-
-  ).length;
-
-
-
-  const totalClassrooms = new Set(learners.map((learner: any) => learnerClassroom(learner)).filter(Boolean)).size;
-
-
-
-  const averageClassSize = totalClassrooms > 0 ? Math.round(learners.length / totalClassrooms) : 0;
+  const averageClassSize =
+    totalClassrooms > 0 ? Math.round(activeLearners.length / totalClassrooms) : 0;
 
 
 
@@ -2126,6 +2113,20 @@ const [selectedLearnerReport, setSelectedLearnerReport] = useState<any>(null);
       window.removeEventListener(KIDESYS_HISTORY_UPDATED_EVENT, onBillingUpdated);
     };
   }, [schoolId]);
+
+  useEffect(() => {
+    if (!schoolId) return;
+    const billingPages: PageKey[] = [
+      "statements",
+      "statementManage",
+      "invoices",
+      "invoiceCreate",
+      "payments",
+      "paymentCreate",
+    ];
+    if (!billingPages.includes(activePage)) return;
+    refreshBillingRows().catch(() => {});
+  }, [activePage, schoolId, refreshBillingRows]);
 
   useEffect(() => {
     if (!schoolId) return;
@@ -2168,9 +2169,10 @@ const [selectedLearnerReport, setSelectedLearnerReport] = useState<any>(null);
       const learnerIdValid = (learners || []).some(
         (l: any) => String(l?.id || l?.learnerId || "").trim() === learnerId
       );
-      if (!learnerIdValid && accountNo) {
+      const kidRef = normalizeKidESysAccountRef(accountNo);
+      if (!learnerIdValid && kidRef) {
         const match = (learners || []).find(
-          (l: any) => getLearnerAccountNo(l) === accountNo
+          (l: any) => resolveKidESysAccountRefFromLearner(l) === kidRef
         );
         if (match) {
           const resolvedId = String(match.id || match.learnerId || "").trim();
@@ -2663,11 +2665,17 @@ const [selectedLearnerReport, setSelectedLearnerReport] = useState<any>(null);
 
 
 
-                    <td style={td}>{formatMoney(row.lastInvoice)} on {row.lastInvoiceDate}</td>
+                    <td style={td}>
+                      {isMigratedOpeningBalanceOverviewLabel(row.lastInvoice) ||
+                      row.lastInvoice === "No invoices" ||
+                      !row.lastInvoice
+                        ? row.lastInvoice || "No invoices"
+                        : `${row.lastInvoice}${row.lastInvoiceDate ? ` on ${row.lastInvoiceDate}` : ""}`}
+                    </td>
 
 
 
-                    <td style={td}>{formatMoney(row.lastPayment)} on {row.lastPaymentDate}</td>
+                    <td style={td}>{row.lastPayment || "No payments"}</td>
 
 
 
@@ -15435,7 +15443,7 @@ const renderMoreSettings = () => {
 
 
 
-          <h2>{learners.length || 0}</h2>
+          <h2>{activeLearners.length || 0}</h2>
 
 
 
@@ -17480,8 +17488,8 @@ return (
                       Schools Management
                     </div>
                     <div
-                      className={`submenu-item${location.pathname.startsWith("/migration") ? " active" : ""}`}
-                      onClick={() => navigate("/migration")}
+                      className={`submenu-item${location.pathname.startsWith("/super-admin/migration") || location.pathname === "/migration" ? " active" : ""}`}
+                      onClick={() => navigate("/super-admin/migration")}
                     >
                       Migration Center
                     </div>

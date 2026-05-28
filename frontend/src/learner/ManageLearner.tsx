@@ -57,6 +57,9 @@ const selectStyle: React.CSSProperties = {
   border: "1px solid rgba(15, 23, 42, 0.12)",
   background: "#ffffff",
   fontSize: "13px",
+  color: "#0f172a",
+  WebkitTextFillColor: "#0f172a",
+  caretColor: "#0f172a",
 };
 
 const inputStyle: React.CSSProperties = {
@@ -67,6 +70,9 @@ const inputStyle: React.CSSProperties = {
   fontSize: "13px",
   width: "100%",
   boxSizing: "border-box",
+  color: "#0f172a",
+  WebkitTextFillColor: "#0f172a",
+  caretColor: "#0f172a",
 };
 
 const labelStyle: React.CSSProperties = {
@@ -92,12 +98,38 @@ const td: React.CSSProperties = {
   fontSize: "13px",
 };
 
+type GeneralFormState = {
+  name: string;
+  surname: string;
+  idNumber: string;
+  birthDate: string;
+  gender: string;
+  classroom: string;
+  homeLanguage: string;
+  nationality: string;
+  enrollmentDate: string;
+  notes: string;
+};
+
+const emptyGeneralForm: GeneralFormState = {
+  name: "",
+  surname: "",
+  idNumber: "",
+  birthDate: "",
+  gender: "",
+  classroom: "",
+  homeLanguage: "",
+  nationality: "",
+  enrollmentDate: "",
+  notes: "",
+};
+
 function learnerFirstName(learner: any) {
-  return String(learner?.firstName || learner?.name || "").trim();
+  return String(learner?.firstName || learner?.name || learner?.first_name || "").trim();
 }
 
 function learnerSurname(learner: any) {
-  return String(learner?.lastName || learner?.surname || "").trim();
+  return String(learner?.lastName || learner?.surname || learner?.last_name || learner?.lastName || "").trim();
 }
 
 function learnerFullName(learner: any) {
@@ -122,8 +154,8 @@ function normalizeLearnerForManage(raw: any) {
     classroom,
     className: raw.className || classroom,
     classroomName: raw.classroomName || classroom,
-    idNumber: raw.idNumber || raw.idNo || "",
-    idNo: raw.idNumber || raw.idNo || "",
+    idNumber: raw.idNumber || raw.idNo || raw.identityNumber || "",
+    idNo: raw.idNumber || raw.idNo || raw.identityNumber || "",
     admissionNo:
       raw.admissionNo ||
       raw.accountNo ||
@@ -139,6 +171,11 @@ function normalizeLearnerForManage(raw: any) {
     birthDate: raw.birthDate || raw.dateOfBirth || raw.dob || "",
     dateOfBirth: raw.birthDate || raw.dateOfBirth || raw.dob || "",
     dob: raw.birthDate || raw.dateOfBirth || raw.dob || "",
+    gender: raw.gender || raw.Gender || raw.sex || "",
+    homeLanguage: raw.homeLanguage || raw.language || "",
+    citizenship: raw.citizenship || raw.nationality || "",
+    nationality: raw.citizenship || raw.nationality || "",
+    enrollmentStatus: raw.enrollmentStatus || "",
     parents: Array.isArray(raw.parents) ? raw.parents : [],
   };
 }
@@ -223,6 +260,7 @@ export default function ManageLearner({
   const [detailLearner, setDetailLearner] = useState<any | null>(null);
   const [detailLoading, setDetailLoading] = useState(false);
   const [detailError, setDetailError] = useState("");
+  const [form, setForm] = useState<GeneralFormState>(emptyGeneralForm);
 
   const seedLearner = useMemo(() => {
     if (learnerProp) return normalizeLearnerForManage(learnerProp);
@@ -280,6 +318,36 @@ export default function ManageLearner({
     setProfileTab("general");
     setProfileMoreOpen(false);
   }, [learnerId]);
+
+  useEffect(() => {
+    const currentLearner = detailLearner || seedLearner;
+    if (!currentLearner?.id) {
+      setForm(emptyGeneralForm);
+      return;
+    }
+
+    setForm({
+      name: currentLearner?.name || currentLearner?.firstName || "",
+      surname: currentLearner?.surname || currentLearner?.lastName || "",
+      idNumber: currentLearner?.idNumber || currentLearner?.idNo || "",
+      birthDate: normaliseDateForInput(
+        currentLearner?.birthDate || currentLearner?.dob || currentLearner?.dateOfBirth || ""
+      ),
+      gender: currentLearner?.gender || "",
+      classroom:
+        currentLearner?.classroomName ||
+        currentLearner?.classroom?.name ||
+        currentLearner?.classroom ||
+        currentLearner?.className ||
+        "",
+      homeLanguage: currentLearner?.homeLanguage || "",
+      nationality: currentLearner?.nationality || currentLearner?.citizenship || "",
+      enrollmentDate: normaliseDateForInput(
+        currentLearner?.enrollmentDate || currentLearner?.enrolmentDate || ""
+      ),
+      notes: currentLearner?.notes || "",
+    });
+  }, [detailLearner, seedLearner]);
 
 
 
@@ -345,7 +413,24 @@ export default function ManageLearner({
 
     const persistLearner = (updated: any) => {
       setSelectedLearner(updated);
+      setDetailLearner(updated);
       localStorage.setItem("selectedLearnerForManage", JSON.stringify(updated));
+    };
+
+    const reloadLearnerProfile = async () => {
+      if (!learnerId) return null;
+      const response = await fetch(`${API_URL}/api/learners/${encodeURIComponent(learnerId)}`);
+      const payload = await response.json().catch(() => ({}));
+      if (!response.ok) {
+        throw new Error(payload?.error || "Failed to reload learner profile");
+      }
+      const loaded = normalizeLearnerForManage(payload?.learner || payload);
+      if (!loaded?.id) return null;
+      persistLearner(loaded);
+      setLearners((prev) =>
+        prev.map((row) => (String(row.id) === String(loaded.id) ? { ...row, ...loaded } : row))
+      );
+      return loaded;
     };
 
     const linkedParents: ParentRecord[] =
@@ -379,18 +464,19 @@ export default function ManageLearner({
         body: JSON.stringify({ parents: payloads }),
       });
       if (!response.ok) throw new Error("Failed to save parent");
-      const result = await response.json();
-      const updated = result.learner || result;
-      if (updated?.parents) {
-        const normalized = updated.parents.map((p: Record<string, unknown>) => normalizeParentRecord(p));
+
+      const reloaded = await reloadLearnerProfile();
+      const normalized = Array.isArray(reloaded?.parents)
+        ? reloaded.parents.map((p: Record<string, unknown>) => normalizeParentRecord(p))
+        : [];
+      if (normalized.length) {
         syncParentsState(normalized);
-        const match =
-          normalized.find((p: ParentRecord) => String(p.id) === String(draft.id)) ||
-          normalized.find((p: ParentRecord) => draft.idNumber && p.idNumber === draft.idNumber) ||
-          normalized[normalized.length - 1];
-        return match || draft;
       }
-      return draft;
+      const match =
+        normalized.find((p: ParentRecord) => String(p.id) === String(draft.id)) ||
+        normalized.find((p: ParentRecord) => draft.idNumber && p.idNumber === draft.idNumber) ||
+        normalized[normalized.length - 1];
+      return match || draft;
     };
 
     const updateLearnerField = (key: string, value: any) => {
@@ -433,6 +519,21 @@ export default function ManageLearner({
           value={normaliseDateForInput(learner.birthDate || learner.dateOfBirth || learner.dob)}
           onChange={(e) => updateLearnerField("birthDate", e.target.value)}
         />
+      </>
+    );
+
+    const genderField = () => (
+      <>
+        <label style={labelStyle}>Gender</label>
+        <select
+          style={selectStyle}
+          value={String(learner.gender || "").trim()}
+          onChange={(e) => updateLearnerField("gender", e.target.value)}
+        >
+          <option value="">Select</option>
+          <option value="Male">Male</option>
+          <option value="Female">Female</option>
+        </select>
       </>
     );
 
@@ -1294,105 +1395,138 @@ export default function ManageLearner({
   
   
   
-                {field("Name / Nickname", "firstName", learnerFirstName(learner), true)}
-  
-  
-  
-                {field("Surname", "lastName", learnerSurname(learner), true)}
-  
-  
-  
-                {field("ID No", "idNumber", learner.idNumber || learner.idNo || "")}
-                {birthDateField()}
-                {accountNoField()}
-                {field("Gender", "gender", learner.gender)}
-  
-  
-  
-                {field("Classroom", "classroom", classroom)}
-  
-  
-  
-                {field("Home Language", "homeLanguage", learner.homeLanguage)}
-  
-  
-  
-                {field("Nationality", "nationality", learner.nationality)}
-  
-  
-  
-                {field("Religion", "religion", learner.religion)}
-  
-  
-  
-                {field(
-  
-  
-  
-                  "Enrolment Date",
-  
-  
-  
-                  "enrolmentDate",
-  
-  
-  
-                  normaliseDateForInput(learner.enrolmentDate || learner.createdAt),
-  
-  
-  
-                  false,
-  
-  
-  
-                  "date"
-  
-  
-  
-                )}
-  
-  
-  
-                <label style={labelStyle}>Notes</label>
-  
-  
-  
-                <textarea
-  
-  
-  
-                  style={{
-  
-  
-  
-                    ...inputStyle,
-  
-  
-  
-                    minHeight: "105px",
-  
-  
-  
-                    resize: "vertical",
-  
-  
-  
-                    fontFamily: "inherit",
-  
-  
-  
+                <label style={labelStyle}>* Name / Nickname</label>
+                <input
+                  style={inputStyle}
+                  type="text"
+                  value={form.name}
+                  onChange={(e) => {
+                    const next = e.target.value;
+                    setForm((prev) => ({ ...prev, name: next }));
+                    updateLearnerField("firstName", next);
+                    updateLearnerField("name", next);
                   }}
-  
-  
-  
-                  value={learner.notes || ""}
-  
-  
-  
-                  onChange={(e) => updateLearnerField("notes", e.target.value)}
-  
-  
-  
+                />
+
+                <label style={labelStyle}>* Surname</label>
+                <input
+                  style={inputStyle}
+                  type="text"
+                  value={form.surname}
+                  onChange={(e) => {
+                    const next = e.target.value;
+                    setForm((prev) => ({ ...prev, surname: next }));
+                    updateLearnerField("lastName", next);
+                    updateLearnerField("surname", next);
+                  }}
+                />
+
+                <label style={labelStyle}>ID No</label>
+                <input
+                  style={inputStyle}
+                  type="text"
+                  value={form.idNumber}
+                  onChange={(e) => {
+                    const next = e.target.value;
+                    setForm((prev) => ({ ...prev, idNumber: next }));
+                    updateLearnerField("idNumber", next);
+                  }}
+                />
+
+                <label style={labelStyle}>* Birth Date</label>
+                <input
+                  style={inputStyle}
+                  type="date"
+                  value={form.birthDate}
+                  onChange={(e) => {
+                    const next = e.target.value;
+                    setForm((prev) => ({ ...prev, birthDate: next }));
+                    updateLearnerField("birthDate", next);
+                  }}
+                />
+
+                {accountNoField()}
+
+                <label style={labelStyle}>Gender</label>
+                <select
+                  style={selectStyle}
+                  value={form.gender}
+                  onChange={(e) => {
+                    const next = e.target.value;
+                    setForm((prev) => ({ ...prev, gender: next }));
+                    updateLearnerField("gender", next);
+                  }}
+                >
+                  <option value="">Select</option>
+                  <option value="Male">Male</option>
+                  <option value="Female">Female</option>
+                </select>
+
+                <label style={labelStyle}>Classroom</label>
+                <input
+                  style={inputStyle}
+                  type="text"
+                  value={form.classroom}
+                  onChange={(e) => {
+                    const next = e.target.value;
+                    setForm((prev) => ({ ...prev, classroom: next }));
+                    updateLearnerField("classroom", next);
+                  }}
+                />
+
+                <label style={labelStyle}>Home Language</label>
+                <input
+                  style={inputStyle}
+                  type="text"
+                  value={form.homeLanguage}
+                  onChange={(e) => {
+                    const next = e.target.value;
+                    setForm((prev) => ({ ...prev, homeLanguage: next }));
+                    updateLearnerField("homeLanguage", next);
+                  }}
+                />
+
+                <label style={labelStyle}>Nationality</label>
+                <input
+                  style={inputStyle}
+                  type="text"
+                  value={form.nationality}
+                  onChange={(e) => {
+                    const next = e.target.value;
+                    setForm((prev) => ({ ...prev, nationality: next }));
+                    updateLearnerField("nationality", next);
+                  }}
+                />
+
+                {field("Religion", "religion", learner.religion)}
+
+                <label style={labelStyle}>Enrolment Date</label>
+                <input
+                  style={inputStyle}
+                  type="date"
+                  value={form.enrollmentDate}
+                  onChange={(e) => {
+                    const next = e.target.value;
+                    setForm((prev) => ({ ...prev, enrollmentDate: next }));
+                    updateLearnerField("enrollmentDate", next);
+                    updateLearnerField("enrolmentDate", next);
+                  }}
+                />
+
+                <label style={labelStyle}>Notes</label>
+                <textarea
+                  style={{
+                    ...inputStyle,
+                    minHeight: "105px",
+                    resize: "vertical",
+                    fontFamily: "inherit",
+                  }}
+                  value={form.notes}
+                  onChange={(e) => {
+                    const next = e.target.value;
+                    setForm((prev) => ({ ...prev, notes: next }));
+                    updateLearnerField("notes", next);
+                  }}
                 />
   
   

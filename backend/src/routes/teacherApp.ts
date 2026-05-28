@@ -72,6 +72,7 @@ async function buildClassNameVariants(schoolId: string, classroomName: string): 
   const learners = await prisma.learner.findMany({
     where: {
       schoolId,
+      enrollmentStatus: "ACTIVE",
       OR: [
         { className: base },
         { className: { endsWith: `/${base}` } },
@@ -123,7 +124,11 @@ async function loadAssignedClassrooms(
     rooms.map(async (c) => {
       const classNameVariants = await buildClassNameVariants(schoolId, c.name);
       const learnerCount = await prisma.learner.count({
-        where: { schoolId, className: { in: classNameVariants } },
+        where: {
+          schoolId,
+          enrollmentStatus: "ACTIVE",
+          className: { in: classNameVariants },
+        },
       });
       return {
         id: c.id,
@@ -250,7 +255,7 @@ router.get("/learners", async (req, res) => {
     );
     const variants = room?.classNameVariants.length ? room.classNameVariants : [className];
     const learners = await prisma.learner.findMany({
-      where: { schoolId, className: { in: variants } },
+      where: { schoolId, enrollmentStatus: "ACTIVE", className: { in: variants } },
       orderBy: [{ lastName: "asc" }, { firstName: "asc" }],
       select: {
         id: true,

@@ -1,4 +1,6 @@
 import fs from "fs";
+import path from "path";
+import * as XLSX from "xlsx";
 
 /** One worksheet table parsed from Kid-e-Sys SpreadsheetML (.xls XML). */
 export type KideesysSheet = {
@@ -57,18 +59,46 @@ function parseWorksheet(xml: string, worksheetName?: string): KideesysSheet {
   return { name, rows };
 }
 
-/** Parse Kid-e-Sys XML spreadsheet export (.xls) into row matrices. */
+/** True when .xls is SpreadsheetML XML (Kid-e-Sys), not binary BIFF (SA-SAMS). */
+export function isKideesysXmlSpreadsheet(buffer: Buffer): boolean {
+  const head = buffer.subarray(0, Math.min(buffer.length, 4096)).toString("utf8");
+  return head.includes("<?xml") && (head.includes("<Workbook") || head.includes(":Workbook"));
+}
+
+function sheetMatrixFromBinarySpreadsheet(buffer: Buffer): string[][] {
+  const workbook = XLSX.read(buffer, { type: "buffer", cellDates: false });
+  const sheetName = workbook.SheetNames[0];
+  if (!sheetName) return [];
+  const sheet = workbook.Sheets[sheetName];
+  const raw = XLSX.utils.sheet_to_json<(string | number | boolean | null)[]>(sheet, {
+    header: 1,
+    defval: "",
+    raw: false,
+  });
+  return raw.map((row) => row.map((cell) => String(cell ?? "").trim()));
+}
+
+/** Parse .xls/.xlsx: Kid-e-Sys XML SpreadsheetML or binary Excel (SA-SAMS). */
 export function parseKideesysSpreadsheetFile(filePath: string): KideesysSheet {
-  const xml = fs.readFileSync(filePath, "utf8");
-  return parseKideesysSpreadsheetXml(xml);
+  const buffer = fs.readFileSync(filePath);
+  const stem = path.basename(filePath).replace(/\.(xls|xlsx)$/i, "");
+  return parseKideesysSpreadsheetBuffer(buffer, stem);
 }
 
 export function parseKideesysSpreadsheetXml(xml: string): KideesysSheet {
   return parseWorksheet(xml);
 }
 
-export function parseKideesysSpreadsheetBuffer(buffer: Buffer): KideesysSheet {
-  return parseKideesysSpreadsheetXml(buffer.toString("utf8"));
+export function parseKideesysSpreadsheetBuffer(buffer: Buffer, worksheetName?: string): KideesysSheet {
+  if (isKideesysXmlSpreadsheet(buffer)) {
+    const sheet = parseKideesysSpreadsheetXml(buffer.toString("utf8"));
+    if (worksheetName) sheet.name = worksheetName;
+    return sheet;
+  }
+  return {
+    name: worksheetName || "Sheet1",
+    rows: sheetMatrixFromBinarySpreadsheet(buffer),
+  };
 }
 
 /** Normalise person / class labels for matching. */

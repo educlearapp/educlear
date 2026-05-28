@@ -10,11 +10,18 @@ function authHeaders(): Record<string, string> {
 /** Authenticated API calls for super-admin routes (migration, etc.). */
 export async function superAdminApiFetch(path: string, options: RequestInit = {}) {
   const { headers: incomingHeaders, ...rest } = options;
+  const auth = authHeaders();
+  if (!auth.Authorization && import.meta.env.DEV) {
+    console.warn(
+      "[superAdminApiFetch] No staff token in localStorage — super-admin migration APIs will return 401:",
+      path
+    );
+  }
   return apiFetch(path, {
     ...rest,
     headers: {
-      ...authHeaders(),
       ...(incomingHeaders || {}),
+      ...auth,
     },
   });
 }

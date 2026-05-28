@@ -1,5 +1,10 @@
 import { prisma } from "../prisma";
 import { resolveLearnerAccountNo } from "../utils/learnerIdentity";
+import { isKidESysSourceAccountRef } from "./daSilvaMigration/ageAnalysisParser";
+import {
+  readSchoolFamilyAccountAgeAnalysisSnapshots,
+  type FamilyAccountAgeAnalysisSnapshot,
+} from "../utils/familyAccountAgeAnalysisStore";
 import {
   buildKidesysHistoryAccountIndex,
   type KidesysHistoryEntry,
@@ -11,7 +16,51 @@ import {
   readSchoolLedger,
   type BillingLedgerEntry,
 } from "../utils/billingLedgerStore";
-import { MIGRATED_OPENING_BALANCE_OVERVIEW, isKidesysOpeningBalanceEntry } from "../utils/billingDisplayRules";
+import {
+  MIGRATED_OPENING_BALANCE_OVERVIEW,
+  countsTowardPostImportBalanceDelta,
+  isKidesysOpeningBalanceEntry,
+} from "../utils/billingDisplayRules";
+
+export type BillingStatementAccountRow = {
+  accountNo: string;
+  learnerId: string;
+  schoolId: string;
+  name: string;
+  surname: string;
+  balance: number;
+  lastInvoice: number;
+  lastInvoiceDate: string;
+  lastInvoiceLabel: string | null;
+  lastPayment: number;
+  lastPaymentDate: string;
+  status: string;
+  familyAccountId: string | null;
+  familyName: string | null;
+  memberLearnerIds: string[];
+  ageAnalysis?: {
+    accountHolder: string;
+    buckets: FamilyAccountAgeAnalysisSnapshot["buckets"];
+    importedAt: string;
+    source: string;
+  };
+};
+
+/** SA-SAMS numeric admission-style refs must never be billing identity. */
+export function isSasamsNumericBillingAccount(value: string): boolean {
+  const v = String(value || "").trim();
+  if (!v || isKidESysSourceAccountRef(v)) return false;
+  return /^\d{4,}$/.test(v);
+}
+
+function splitDisplayName(full: string): { name: string; surname: string } {
+  const raw = String(full || "").trim();
+  if (!raw) return { name: "-", surname: "-" };
+  const parts = raw.split(/\s+/).filter(Boolean);
+  if (!parts.length) return { name: "-", surname: "-" };
+  if (parts.length === 1) return { name: parts[0], surname: "-" };
+  return { name: parts[0], surname: parts.slice(1).join(" ") };
+}
 
 function statusFromBalance(balance: number) {
   if (balance > 10000) return "Bad Debt";
@@ -20,15 +69,33 @@ function statusFromBalance(balance: number) {
   return "Up To Date";
 }
 
+type BillingIdentityMode = "legacy" | "kidesys_accountRef_only";
+
+function resolveKidesysAccountRefOnly(learner: {
+  familyAccount: { accountRef: string } | null;
+}): string {
+  const ref = String(learner.familyAccount?.accountRef || "").trim();
+  return isKidESysSourceAccountRef(ref) ? ref : "";
+}
+
 function resolveBillingGroupKey(learner: {
   id: string;
   familyAccountId: string | null;
   familyAccount: { accountRef: string } | null;
-}): string {
+}, mode: BillingIdentityMode): string {
   const familyAccountId = String(learner.familyAccountId || "").trim();
-  if (familyAccountId) return `family:${familyAccountId}`;
-  const accountNo = resolveLearnerAccountNo(learner);
-  if (accountNo && accountNo !== "-") return `account:${accountNo}`;
+  if (familyAccountId) {
+    if (mode === "kidesys_accountRef_only") {
+      const ref = resolveKidesysAccountRefOnly(learner);
+      if (ref) return `family:${familyAccountId}`;
+      return `learner:${learner.id}`;
+    }
+    return `family:${familyAccountId}`;
+  }
+  if (mode !== "kidesys_accountRef_only") {
+    const accountNo = resolveLearnerAccountNo(learner);
+    if (accountNo && accountNo !== "-") return `account:${accountNo}`;
+  }
   return `learner:${learner.id}`;
 }
 
@@ -46,14 +113,19 @@ function resolveLastInvoiceFields(
   historySummary?: { lastInvoice: KidesysHistoryEntry | null }
 ) {
   const histInv = historySummary?.lastInvoice;
-  if (histInv) {
-    return {
-      lastInvoice: histInv.amount ?? 0,
-      lastInvoiceDate: histInv.date || "",
-      lastInvoiceLabel: null as string | null,
-    };
-  }
   const lastInvoice = lastRealInvoice(accountEntries);
+  if (histInv) {
+    const histDate = String(histInv.date || "").trim();
+    const ledgerDate = String(lastInvoice?.date || "").trim();
+    const ledgerIsNewer = Boolean(ledgerDate && (!histDate || ledgerDate > histDate));
+    if (!ledgerIsNewer) {
+      return {
+        lastInvoice: histInv.amount ?? 0,
+        lastInvoiceDate: histInv.date || "",
+        lastInvoiceLabel: null as string | null,
+      };
+    }
+  }
   if (lastInvoice) {
     return {
       lastInvoice: lastInvoice.amount ?? 0,
@@ -83,30 +155,144 @@ function resolveLastPaymentFields(
   historySummary?: { lastPayment: KidesysHistoryEntry | null }
 ) {
   const histPay = historySummary?.lastPayment;
-  if (histPay) {
-    return {
-      lastPayment: histPay.amount ?? 0,
-      lastPaymentDate: histPay.date || "",
-    };
-  }
   const lastPayment = accountEntries
     .filter((e) => e.type === "payment")
     .sort(
       (a, b) =>
         new Date(b.date || b.createdAt).getTime() - new Date(a.date || a.createdAt).getTime()
     )[0];
+  if (histPay) {
+    const histDate = String(histPay.date || "").trim();
+    const ledgerDate = String(lastPayment?.date || "").trim();
+    const ledgerIsNewer = Boolean(ledgerDate && (!histDate || ledgerDate > histDate));
+    if (!ledgerIsNewer) {
+      return {
+        lastPayment: histPay.amount ?? 0,
+        lastPaymentDate: histPay.date || "",
+      };
+    }
+  }
   return {
     lastPayment: lastPayment?.amount ?? 0,
     lastPaymentDate: lastPayment?.date || "",
   };
 }
 
+/**
+ * Authoritative billing account list: Kid-e-Sys Age Analysis snapshots (accountRef) +
+ * ledger + display history. Never uses SA-SAMS admission numbers for accountNo.
+ */
+export async function buildAccountsFromAgeAnalysisSnapshots(
+  schoolId: string,
+  opts: {
+    ledger?: BillingLedgerEntry[];
+    history?: KidesysHistoryEntry[];
+  } = {}
+): Promise<BillingStatementAccountRow[]> {
+  const sid = String(schoolId || "").trim();
+  if (!sid) return [];
+
+  const snapshotsByRef = readSchoolFamilyAccountAgeAnalysisSnapshots(sid);
+  const snapshots: FamilyAccountAgeAnalysisSnapshot[] = Object.values(snapshotsByRef || {});
+  const accountRefs = snapshots
+    .map((s) => String(s.accountRef || "").trim().toUpperCase())
+    .filter(Boolean);
+
+  if (!accountRefs.length) return [];
+
+  const familyAccounts = await prisma.familyAccount.findMany({
+    where: { schoolId: sid, accountRef: { in: accountRefs } },
+    select: { id: true, accountRef: true, familyName: true },
+  });
+  const familyByRef = new Map(
+    familyAccounts.map((fa) => [String(fa.accountRef).trim().toUpperCase(), fa])
+  );
+
+  const learners = await prisma.learner.findMany({
+    where: { schoolId: sid, familyAccount: { accountRef: { in: accountRefs } } },
+    orderBy: { createdAt: "desc" },
+    select: {
+      id: true,
+      firstName: true,
+      lastName: true,
+      familyAccount: { select: { accountRef: true } },
+    },
+  });
+  const learnerByRef = new Map<string, { id: string; fullName: string }>();
+  for (const l of learners) {
+    const ref = String(l.familyAccount?.accountRef || "").trim().toUpperCase();
+    if (!ref || learnerByRef.has(ref)) continue;
+    const fullName = `${String(l.firstName || "").trim()} ${String(l.lastName || "").trim()}`.trim();
+    learnerByRef.set(ref, { id: l.id, fullName: fullName || ref });
+  }
+
+  const ledger = opts.ledger ?? readSchoolLedger(sid);
+  const history = opts.history ?? readSchoolKidesysHistory(sid);
+  const historyIndex = buildKidesysHistoryAccountIndex(history);
+
+  return snapshots.map((snap) => {
+    const accountRef = String(snap.accountRef || "").trim().toUpperCase();
+    const ageBalance = Number(snap.balance) || 0;
+    const family = familyByRef.get(accountRef);
+    const learner = learnerByRef.get(accountRef);
+    const label =
+      String(family?.familyName || "").trim() ||
+      String(learner?.fullName || "").trim() ||
+      String(snap.accountHolder || "").trim() ||
+      accountRef ||
+      "-";
+    const { name, surname } = splitDisplayName(label);
+
+    const accountEntries = ledger.filter(
+      (e) => String(e.accountNo || "").trim().toUpperCase() === accountRef
+    );
+    const hist = historyIndex.get(accountRef) || { lastInvoice: null, lastPayment: null };
+    const invoiceFields = resolveLastInvoiceFields(accountEntries, hist);
+    const paymentFields = resolveLastPaymentFields(accountEntries, hist);
+
+    const importedAt = String(snap.importedAt || "").trim();
+    const postImportEntries = accountEntries.filter((e) => {
+      if (!countsTowardPostImportBalanceDelta(e)) return false;
+      if (!importedAt) return true;
+      return String(e.createdAt || "") >= importedAt;
+    });
+    const deltaBalance = calculateBalanceFromEntries(postImportEntries);
+    const balance = ageBalance + deltaBalance;
+
+    return {
+      accountNo: accountRef || "-",
+      learnerId: learner?.id || "",
+      schoolId: sid,
+      name,
+      surname,
+      balance,
+      lastInvoice: invoiceFields.lastInvoice,
+      lastInvoiceDate: invoiceFields.lastInvoiceDate,
+      lastInvoiceLabel: invoiceFields.lastInvoiceLabel,
+      lastPayment: paymentFields.lastPayment,
+      lastPaymentDate: paymentFields.lastPaymentDate,
+      status: statusFromBalance(balance),
+      familyAccountId: family?.id || null,
+      familyName: family?.familyName ?? null,
+      memberLearnerIds: learner?.id ? [learner.id] : [],
+      ageAnalysis: {
+        accountHolder: snap.accountHolder,
+        buckets: snap.buckets,
+        importedAt: snap.importedAt,
+        source: snap.source,
+      },
+    };
+  });
+}
+
 /** One row per family billing account (deduped siblings). */
 export async function buildAccountsFromLearners(
   schoolId: string,
   ledger: BillingLedgerEntry[],
-  historyOverride?: KidesysHistoryEntry[]
+  historyOverride?: KidesysHistoryEntry[],
+  opts: { billingIdentityMode?: BillingIdentityMode } = {}
 ) {
+  const billingIdentityMode = opts.billingIdentityMode ?? "legacy";
   const history =
     historyOverride !== undefined ? historyOverride : readSchoolKidesysHistory(schoolId);
   const historyIndex = buildKidesysHistoryAccountIndex(history);
@@ -118,6 +304,7 @@ export async function buildAccountsFromLearners(
       schoolId: true,
       firstName: true,
       lastName: true,
+      admissionNo: true,
       familyAccountId: true,
       familyAccount: { select: { accountRef: true, familyName: true } },
     },
@@ -126,7 +313,7 @@ export async function buildAccountsFromLearners(
   const groups = new Map<string, { anchor: (typeof learners)[0]; memberIds: string[] }>();
 
   for (const learner of learners) {
-    const key = resolveBillingGroupKey(learner);
+    const key = resolveBillingGroupKey(learner, billingIdentityMode);
     const existing = groups.get(key);
     if (existing) {
       if (!existing.memberIds.includes(learner.id)) {
@@ -138,7 +325,10 @@ export async function buildAccountsFromLearners(
   }
 
   return Array.from(groups.values()).map(({ anchor, memberIds }) => {
-    const accountNo = resolveLearnerAccountNo(anchor);
+    const accountNo =
+      billingIdentityMode === "kidesys_accountRef_only"
+        ? resolveKidesysAccountRefOnly(anchor) || "-"
+        : resolveLearnerAccountNo(anchor);
     const accountEntries = collectFamilyAccountEntries(ledger, {
       accountRef: accountNo,
       learnerIds: memberIds,

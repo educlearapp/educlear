@@ -9,6 +9,7 @@ import {
   mapApiRowToHistoryEntry,
   readSchoolKidesysHistory,
   writeSchoolKidesysHistory,
+  writeStatementApiAccounts,
   writeStatementApiSummaries,
 } from "./kidesysTransactionHistory";
 
@@ -40,14 +41,17 @@ const getJsonOrEmptyArray = async (url: string, keys: string[]) => {
   }
 };
 
-const postJson = async (url: string, data: any) => {
+const postJson = async (url: string, data: any, fallback = "Request failed") => {
   const response = await fetch(url, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(data),
   });
-  if (!response.ok) throw new Error(`Billing API POST failed: ${url}`);
-  return response.json();
+  const body = await response.json().catch(() => ({}));
+  if (!response.ok) {
+    throw new Error(readApiErrorMessage(response, body, fallback));
+  }
+  return body;
 };
 
 export function sanitizeUserFacingError(message: string, fallback: string): string {
@@ -224,20 +228,21 @@ export const syncBillingLedgerFromApi = async (schoolId: string) => {
   }
 };
 
-/** Cache statement overview fields (last invoice/payment from server history). */
+/** Cache full statement rows from GET /api/statements (Age Analysis account list). */
 export const syncStatementSummariesFromApi = async (schoolId: string) => {
   const sid = String(schoolId || "").trim();
   if (!sid) return;
   const rows = await fetchStatements(sid);
   if (!rows.length) return;
+  writeStatementApiAccounts(sid, rows);
   writeStatementApiSummaries(
     sid,
     rows.map((row: any) => ({
       accountNo: String(row.accountNo || ""),
-      lastInvoice: Number(row.lastInvoice) || 0,
+      lastInvoice: Number.isFinite(Number(row.lastInvoice)) ? Number(row.lastInvoice) : 0,
       lastInvoiceDate: String(row.lastInvoiceDate || ""),
       lastInvoiceLabel: row.lastInvoiceLabel ?? null,
-      lastPayment: Number(row.lastPayment) || 0,
+      lastPayment: Number.isFinite(Number(row.lastPayment)) ? Number(row.lastPayment) : 0,
       lastPaymentDate: String(row.lastPaymentDate || ""),
     }))
   );
@@ -262,13 +267,54 @@ export const syncKidesysHistoryForAccountFromApi = async (
   return mapped;
 };
 
-/** Sync ledger + Kid-e-Sys history + statement summaries from API (display source of truth). */
+export const undoBillingTransaction = async (
+  schoolId: string,
+  transactionId: string,
+  accountNo: string,
+  auditNo?: string | number
+) => {
+  const sid = String(schoolId || "").trim();
+  const id = String(transactionId || "").trim();
+  const ref = String(accountNo || "").trim();
+  if (!sid || !id) throw new Error("Missing school or transaction id");
+
+  const response = await fetch(
+    `${API_URL}/api/billing-transactions/${encodeURIComponent(id)}/undo`,
+    {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ schoolId: sid, accountNo: ref, auditNo }),
+    }
+  );
+  const body = await response.json().catch(() => ({}));
+  if (!response.ok) {
+    throw new Error(String(body?.error || "Failed to undo transaction"));
+  }
+  if (Array.isArray(body?.accounts)) {
+    writeStatementApiAccounts(sid, body.accounts);
+    writeStatementApiSummaries(
+      sid,
+      body.accounts.map((row: any) => ({
+        accountNo: String(row.accountNo || ""),
+        lastInvoice: Number.isFinite(Number(row.lastInvoice)) ? Number(row.lastInvoice) : 0,
+        lastInvoiceDate: String(row.lastInvoiceDate || ""),
+        lastInvoiceLabel: row.lastInvoiceLabel ?? null,
+        lastPayment: Number.isFinite(Number(row.lastPayment)) ? Number(row.lastPayment) : 0,
+        lastPaymentDate: String(row.lastPaymentDate || ""),
+      }))
+    );
+  }
+  notifyBillingUpdated();
+  return body;
+};
+
+/** Sync Age Analysis accounts + Kid-e-Sys history + ledger from API (display source of truth). */
 export async function refreshBillingFromApi(schoolId: string) {
   const sid = String(schoolId || "").trim();
   if (!sid) return;
-  await syncBillingLedgerFromApi(sid);
-  await syncKidesysHistoryFromApi(sid).catch(() => {});
   await syncStatementSummariesFromApi(sid).catch(() => {});
+  await syncKidesysHistoryFromApi(sid).catch(() => {});
+  await syncBillingLedgerFromApi(sid);
   notifyBillingUpdated();
 }
 
@@ -352,9 +398,11 @@ export const fetchLegalDocumentHistory = async (schoolId: string, documentType?:
   return getJson(`${API_URL}/api/legal-billing-documents/history?${params.toString()}`);
 };
 
-export const createInvoice = async (data: any) => postJson(`${API_URL}/api/invoices`, data);
+export const createInvoice = async (data: any) =>
+  postJson(`${API_URL}/api/invoices`, data, "Failed to create invoice");
 
-export const createPayment = async (data: any) => postJson(`${API_URL}/api/payments`, data);
+export const createPayment = async (data: any) =>
+  postJson(`${API_URL}/api/payments`, data, "Failed to create payment");
 
 export const mergeFamilyAccount = async (payload: {
   schoolId: string;
@@ -418,8 +466,8 @@ export const fetchOpenInvoices = async (
 ) => {
   const params = new URLSearchParams({
     schoolId,
-    learnerId,
-    accountNo,
+    learnerId: String(learnerId || ""),
+    accountNo: String(accountNo || ""),
   });
   const data = await getJson(
     `${API_URL}/api/payments/open-invoices?${params.toString()}`

@@ -66,6 +66,7 @@ export default function SuperAdminMigrationPage() {
   const {
     summary,
     schoolOptions,
+    schoolOptionsDebug,
     selectedSchoolId,
     setSelectedSchoolId,
     migrationSource,
@@ -283,7 +284,7 @@ export default function SuperAdminMigrationPage() {
         <h1 className="page-title">Migration Center</h1>
         <p className="sa-migration-subtitle">
           {migrationSource === "kideesys"
-            ? "Da Silva Academy Kid-e-Sys migration: upload XML exports, run a dry-run reconciliation, then import to staging and the live school when counts match."
+            ? "Kid-e-Sys migration portal: upload exports, validate active vs historical learners, reconcile balances from transactions and age analysis, approve, then apply. Use purge before a clean re-import."
             : "EduClear team migration control center. Import school data from external systems into EduClear. Learner, parent, and class imports only — billing and accounting are excluded from this pass."}
         </p>
         {project?.projectId ? (
@@ -304,6 +305,7 @@ export default function SuperAdminMigrationPage() {
             schools={schoolOptions}
             selectedSchoolId={selectedSchoolId}
             onSchoolChange={setSelectedSchoolId}
+            debug={schoolOptionsDebug}
           />
           <MigrationSourceSelect
             value={migrationSource}

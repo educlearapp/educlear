@@ -72,7 +72,7 @@ export function classDisplayFromMatchKeySuffix(classMatchKey: string): string {
   const key = String(classMatchKey || "").trim().toLowerCase();
   if (!key) return "Unassigned";
   if (key.includes("creche") || key === "ps" || key.startsWith("ps|")) {
-    return "Pre-School Creche";
+    return "Creche";
   }
 
   const parts = key.split("|").filter(Boolean);
