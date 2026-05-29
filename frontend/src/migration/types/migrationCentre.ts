@@ -65,12 +65,13 @@ export type MigrationLearnerRepairPreview = {
   fileName: string;
   canApply: boolean;
   counts: {
-    sourceRows: number;
+    totalRows: number;
     matched: number;
-    unmatched: number;
-    genderFixes: number;
-    classroomFixes: number;
-    idFixes: number;
+    ambiguous: number;
+    noMatch: number;
+    boysDetected: number;
+    girlsDetected: number;
+    genderUpdates: number;
     boysAfter: number;
     girlsAfter: number;
     boysBefore: number;
@@ -78,28 +79,27 @@ export type MigrationLearnerRepairPreview = {
   };
   rows: Array<{
     importKey: string;
-    learnerLabel: string;
+    importedLearnerLabel: string;
+    importedClass: string | null;
     matchedLearnerId: string | null;
-    matchedLearnerName: string;
+    currentLearnerName: string;
     currentGender: string | null;
     importedGender: string | null;
-    currentClassroom: string | null;
-    importedClassroom: string | null;
-    currentIdNumber: string | null;
-    importedIdNumber: string | null;
-    status: string;
-    willUpdateGender: boolean;
-    willUpdateClassroom: boolean;
-    willUpdateIdNumber: boolean;
+    matchType: string;
+    action: string;
+    ambiguous: boolean;
   }>;
-  unmatched: Array<{ importKey: string; learnerLabel: string }>;
 };
 
 export type MigrationLearnerRepairApplyResult = {
   success: boolean;
   schoolId: string;
-  learnersUpdated: number;
   fileName: string;
+  updatedLearners: number;
+  boys: number;
+  girls: number;
+  skipped: number;
+  ambiguous: number;
 };
 
 export type MigrationToolStatus = {

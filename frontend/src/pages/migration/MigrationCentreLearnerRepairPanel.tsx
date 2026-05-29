@@ -4,6 +4,7 @@ import {
   previewMigrationLearnerRepair,
 } from "../../migration/migrationCentreApi";
 import type {
+  MigrationLearnerRepairApplyResult,
   MigrationLearnerRepairPreview,
   MigrationToolStatus,
 } from "../../migration/types/migrationCentre";
@@ -15,28 +16,34 @@ type Props = {
   onBack: () => void;
 };
 
+type ModalState =
+  | { kind: "confirm-apply" }
+  | { kind: "success"; result: MigrationLearnerRepairApplyResult }
+  | null;
+
 export default function MigrationCentreLearnerRepairPanel({ schoolId, onBack }: Props) {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [file, setFile] = useState<File | null>(null);
   const [preview, setPreview] = useState<MigrationLearnerRepairPreview | null>(null);
   const [busy, setBusy] = useState(false);
-  const [confirmed, setConfirmed] = useState(false);
+  const [modal, setModal] = useState<ModalState>(null);
   const [status, setStatus] = useState<MigrationToolStatus>({
     phase: "idle",
-    message: "Upload SA-SAMS class list or learner register and run preview.",
+    message:
+      "Upload SASAMS learner export or class list (.csv, .xls, .xlsx) and run preview.",
   });
 
   const runPreview = useCallback(async () => {
     if (!schoolId || !file) return;
     setBusy(true);
-    setConfirmed(false);
+    setModal(null);
     setStatus({ phase: "idle", message: "Running preview…" });
     try {
       const result = await previewMigrationLearnerRepair({ schoolId, file });
       setPreview(result);
       setStatus({
         phase: "previewed",
-        message: `Preview ready — ${result.counts.genderFixes} gender, ${result.counts.classroomFixes} classroom, ${result.counts.idFixes} ID update(s). Boys ${result.counts.boysBefore}→${result.counts.boysAfter}, Girls ${result.counts.girlsBefore}→${result.counts.girlsAfter}.`,
+        message: `Preview ready — ${result.counts.genderUpdates} gender update(s). Boys ${result.counts.boysBefore}→${result.counts.boysAfter}, Girls ${result.counts.girlsBefore}→${result.counts.girlsAfter}.`,
       });
     } catch (e: unknown) {
       setPreview(null);
@@ -48,8 +55,9 @@ export default function MigrationCentreLearnerRepairPanel({ schoolId, onBack }: 
   }, [schoolId, file]);
 
   const runApply = useCallback(async () => {
-    if (!preview?.sessionId || !confirmed) return;
+    if (!preview?.sessionId) return;
     setBusy(true);
+    setModal(null);
     try {
       const result = await applyMigrationLearnerRepair({
         schoolId,
@@ -57,41 +65,50 @@ export default function MigrationCentreLearnerRepairPanel({ schoolId, onBack }: 
       });
       setStatus({
         phase: "applied",
-        message: `Updated ${result.learnersUpdated} learner(s) from ${result.fileName}. No learners were deleted.`,
+        message: `Gender repair completed — ${result.updatedLearners} learner(s) updated.`,
       });
+      setModal({ kind: "success", result });
     } catch (e: unknown) {
       const msg = e instanceof Error ? e.message : "Apply failed";
       setStatus({ phase: "error", message: msg });
     } finally {
       setBusy(false);
     }
-  }, [preview, schoolId, confirmed]);
+  }, [preview, schoolId]);
 
   const summary = preview
     ? [
-        { label: "Gender fixes", value: preview.counts.genderFixes },
-        { label: "Classroom fixes", value: preview.counts.classroomFixes },
-        { label: "ID fixes", value: preview.counts.idFixes },
+        { label: "Total rows", value: preview.counts.totalRows },
         { label: "Matched", value: preview.counts.matched },
-        { label: "Unmatched", value: preview.counts.unmatched },
-        { label: "Boys", value: `${preview.counts.boysBefore} → ${preview.counts.boysAfter}` },
-        { label: "Girls", value: `${preview.counts.girlsBefore} → ${preview.counts.girlsAfter}` },
+        { label: "Ambiguous", value: preview.counts.ambiguous },
+        { label: "No match", value: preview.counts.noMatch },
+        { label: "Boys detected", value: preview.counts.boysDetected },
+        { label: "Girls detected", value: preview.counts.girlsDetected },
+        {
+          label: "Dashboard (after)",
+          value: `${preview.counts.boysAfter} boys · ${preview.counts.girlsAfter} girls`,
+        },
       ]
     : [];
 
   return (
     <div className="migration-centre-page">
       <div className="migration-centre-back">
-        <button type="button" className="migration-centre-btn migration-centre-btn--outline" onClick={onBack}>
+        <button
+          type="button"
+          className="migration-centre-btn migration-centre-btn--outline"
+          onClick={onBack}
+        >
           ← Migration Centre
         </button>
       </div>
 
       <header className="migration-centre-header">
-        <h1 className="page-title">Learner / Gender Repair</h1>
+        <h1 className="page-title">Learner Repair / Gender Repair</h1>
         <p className="migration-centre-subtitle">
-          Upload SA-SAMS learner or class list exports to repair gender, ID number, and classroom on live
-          learners. Optional fields are filled only when empty. Learners are never deleted.
+          Upload SASAMS learner exports or class lists to repair missing gender on live learners.
+          Preview every row before apply — only <strong>Learner.gender</strong> is written. Statements,
+          payments, invoices, billing plans, family accounts, and balances are never modified.
         </p>
       </header>
 
@@ -116,7 +133,7 @@ export default function MigrationCentreLearnerRepairPanel({ schoolId, onBack }: 
             const picked = e.target.files?.[0] || null;
             setFile(picked);
             setPreview(null);
-            setConfirmed(false);
+            setModal(null);
             setStatus({
               phase: picked ? "ready" : "idle",
               message: picked ? `Selected ${picked.name}` : "Choose a file to upload.",
@@ -124,9 +141,11 @@ export default function MigrationCentreLearnerRepairPanel({ schoolId, onBack }: 
           }}
         />
         <p className="migration-centre-dropzone-title">
-          {file ? file.name : "Upload class list or learner register (.xls, .xlsx, .csv)"}
+          {file ? file.name : "Upload SASAMS or class list (.csv, .xls, .xlsx)"}
         </p>
-        <p className="migration-centre-dropzone-hint">SA-SAMS export — one file per preview</p>
+        <p className="migration-centre-dropzone-hint">
+          Gender columns: Gender, Sex, gender, sex — match: SA ID → admission → name + class → name
+        </p>
       </div>
 
       <div className="migration-centre-card-actions" style={{ marginTop: 12 }}>
@@ -144,13 +163,13 @@ export default function MigrationCentreLearnerRepairPanel({ schoolId, onBack }: 
           disabled={!file || busy}
           onClick={() => void runPreview()}
         >
-          {busy ? "Previewing…" : "Preview"}
+          {busy && !modal ? "Previewing…" : "Preview"}
         </button>
         <button
           type="button"
           className="migration-centre-btn migration-centre-btn--dark"
-          disabled={!preview?.canApply || !confirmed || busy || status.phase === "applied"}
-          onClick={() => void runApply()}
+          disabled={!preview?.canApply || busy || status.phase === "applied"}
+          onClick={() => setModal({ kind: "confirm-apply" })}
         >
           Apply
         </button>
@@ -183,37 +202,34 @@ export default function MigrationCentreLearnerRepairPanel({ schoolId, onBack }: 
           <section className="migration-centre-section">
             <h2 className="migration-centre-section-title">Preview</h2>
             <p className="migration-centre-section-hint">
-              Match order: ID number → admission number → name + surname → classroom.
+              Showing up to {preview.rows.length} rows. Match order: SA ID number → admission number →
+              first + surname + classroom → first + surname. Existing Male/Female is not overwritten by
+              blank imports.
             </p>
             <div className="migration-centre-table-wrap">
               <div className="migration-centre-table-scroll">
                 <table className="migration-centre-table">
                   <thead>
                     <tr>
-                      <th>Learner</th>
+                      <th>Current learner</th>
+                      <th>Imported learner</th>
+                      <th>Class</th>
                       <th>Current gender</th>
                       <th>Imported gender</th>
-                      <th>Current classroom</th>
-                      <th>Imported classroom</th>
-                      <th>Status</th>
+                      <th>Match type</th>
+                      <th>Action</th>
                     </tr>
                   </thead>
                   <tbody>
                     {preview.rows.map((row) => (
                       <tr key={row.importKey}>
-                        <td>
-                          {row.learnerLabel}
-                          {row.matchedLearnerName ? (
-                            <div style={{ fontSize: "0.72rem", color: "#64748b" }}>
-                              → {row.matchedLearnerName}
-                            </div>
-                          ) : null}
-                        </td>
+                        <td>{row.currentLearnerName || "—"}</td>
+                        <td>{row.importedLearnerLabel}</td>
+                        <td>{row.importedClass || "—"}</td>
                         <td>{row.currentGender || "—"}</td>
                         <td>{row.importedGender || "—"}</td>
-                        <td>{row.currentClassroom || "—"}</td>
-                        <td>{row.importedClassroom || "—"}</td>
-                        <td>{row.status}</td>
+                        <td>{row.matchType}</td>
+                        <td>{row.action}</td>
                       </tr>
                     ))}
                   </tbody>
@@ -222,44 +238,113 @@ export default function MigrationCentreLearnerRepairPanel({ schoolId, onBack }: 
             </div>
           </section>
 
-          {preview.unmatched.length > 0 ? (
-            <section className="migration-centre-section">
-              <h2 className="migration-centre-section-title">Unmatched ({preview.counts.unmatched})</h2>
-              <div className="migration-centre-table-wrap">
-                <div className="migration-centre-table-scroll">
-                  <table className="migration-centre-table">
-                    <thead>
-                      <tr>
-                        <th>Learner</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {preview.unmatched.map((row) => (
-                        <tr key={row.importKey}>
-                          <td>{row.learnerLabel}</td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
-              </div>
-            </section>
+          {preview.counts.genderUpdates > 0 ? (
+            <p className="migration-centre-section-hint" style={{ marginTop: 8 }}>
+              {preview.counts.genderUpdates} learner(s) will receive a gender update when you apply.
+            </p>
           ) : null}
-
-          <div className="migration-centre-confirm">
-            <label>
-              <input
-                type="checkbox"
-                checked={confirmed}
-                onChange={(e) => setConfirmed(e.target.checked)}
-              />
-              <span>
-                I confirm applying updates to matched learners only (gender, ID number, classroom, and
-                missing optional fields). No learners will be deleted.
-              </span>
-            </label>
-          </div>
         </>
+      ) : null}
+
+      {modal?.kind === "confirm-apply" ? (
+        <div
+          className="migration-centre-modal-overlay"
+          role="presentation"
+          onClick={() => setModal(null)}
+        >
+          <div
+            className="migration-centre-modal"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="migration-centre-confirm-title"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="migration-centre-modal-accent" aria-hidden="true" />
+            <h2 id="migration-centre-confirm-title" className="migration-centre-modal-title">
+              Confirm gender repair
+            </h2>
+            <p className="migration-centre-modal-message">
+              This will update learner gender information only. No financial or billing data will be
+              modified.
+            </p>
+            <p className="migration-centre-modal-message">
+              Apply {preview?.counts.genderUpdates ?? 0} gender update(s) to matched learners?
+            </p>
+            <div className="migration-centre-modal-actions">
+              <button
+                type="button"
+                className="migration-centre-btn migration-centre-btn--outline"
+                onClick={() => setModal(null)}
+                disabled={busy}
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                className="migration-centre-btn migration-centre-btn--gold"
+                disabled={busy}
+                onClick={() => void runApply()}
+              >
+                {busy ? "Applying…" : "Confirm apply"}
+              </button>
+            </div>
+          </div>
+        </div>
+      ) : null}
+
+      {modal?.kind === "success" ? (
+        <div
+          className="migration-centre-modal-overlay"
+          role="presentation"
+          onClick={() => setModal(null)}
+        >
+          <div
+            className="migration-centre-modal"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="migration-centre-success-title"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="migration-centre-modal-accent" aria-hidden="true" />
+            <h2 id="migration-centre-success-title" className="migration-centre-modal-title">
+              Gender repair completed
+            </h2>
+            <ul className="migration-centre-modal-stats">
+              <li>
+                <span>Updated learners</span>
+                <strong>{modal.result.updatedLearners}</strong>
+              </li>
+              <li>
+                <span>Boys (live)</span>
+                <strong>{modal.result.boys}</strong>
+              </li>
+              <li>
+                <span>Girls (live)</span>
+                <strong>{modal.result.girls}</strong>
+              </li>
+              <li>
+                <span>Skipped</span>
+                <strong>{modal.result.skipped}</strong>
+              </li>
+              <li>
+                <span>Ambiguous</span>
+                <strong>{modal.result.ambiguous}</strong>
+              </li>
+            </ul>
+            <p className="migration-centre-modal-message">
+              Refresh the school dashboard to see updated boys/girls counts from live learner records.
+            </p>
+            <div className="migration-centre-modal-actions">
+              <button
+                type="button"
+                className="migration-centre-btn migration-centre-btn--gold"
+                onClick={() => setModal(null)}
+              >
+                Close
+              </button>
+            </div>
+          </div>
+        </div>
       ) : null}
     </div>
   );

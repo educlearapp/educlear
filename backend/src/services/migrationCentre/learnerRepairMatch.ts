@@ -30,7 +30,7 @@ function pickUnique(candidates: string[]): { id: string | null; ambiguous: boole
   return { id: null, ambiguous: true };
 }
 
-/** Match priority: 1 ID number, 2 admission number, 3 name + surname, 4 classroom. */
+/** Match priority: 1 SA ID, 2 admission number, 3 name + classroom, 4 name + surname. */
 export function matchImportedLearnerToLive(
   imported: SasamsParsedLearner,
   indexes: ReturnType<typeof buildLearnerMatchIndexes>
@@ -60,13 +60,8 @@ export function matchImportedLearnerToLive(
 
   const fn = normalizeMatchText(imported.firstName);
   const ln = normalizeMatchText(imported.lastName);
-  if (fn && ln) {
-    const nameKey = `${ln}|${fn}`;
-    const hit = tryPick(indexes.byNameOnly.get(nameKey) || [], "name_surname");
-    if (hit) return hit;
-  }
-
   const cls = normClass(imported.canonicalClassName || imported.className);
+
   if (fn && ln && cls) {
     const classKey = `${fn}|${ln}|${cls}`;
     const hit = tryPick(indexes.byNameClass.get(classKey) || [], "name_surname_classroom");
@@ -74,6 +69,12 @@ export function matchImportedLearnerToLive(
     const altKey = `${normalizeMatchText(imported.firstName)}|${normalizeMatchText(imported.lastName)}|${cls}`;
     const altHit = tryPick(indexes.byNameClass.get(altKey) || [], "name_surname_classroom");
     if (altHit) return altHit;
+  }
+
+  if (fn && ln) {
+    const nameKey = `${ln}|${fn}`;
+    const hit = tryPick(indexes.byNameOnly.get(nameKey) || [], "name_surname");
+    if (hit) return hit;
   }
 
   return { learnerId: null, strategy: null, ambiguous: false };

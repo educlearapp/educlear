@@ -33,6 +33,8 @@ export async function applyMigrationBillingPlans(opts: {
   })) as MigrationBillingPlansApplyResult;
 }
 
+const LEARNER_GENDER_REPAIR_BASE = "/api/super-admin/migration/learner-repair";
+
 export async function previewMigrationLearnerRepair(opts: {
   schoolId: string;
   file: File;
@@ -40,14 +42,17 @@ export async function previewMigrationLearnerRepair(opts: {
   const form = new FormData();
   form.append("schoolId", opts.schoolId);
   form.append("file", opts.file, opts.file.name);
-  return (await staffFormPost("/api/migration/learners/preview", form)) as MigrationLearnerRepairPreview;
+  return (await staffFormPost(
+    `${LEARNER_GENDER_REPAIR_BASE}/preview`,
+    form
+  )) as MigrationLearnerRepairPreview;
 }
 
 export async function applyMigrationLearnerRepair(opts: {
   schoolId: string;
   sessionId: string;
 }): Promise<MigrationLearnerRepairApplyResult> {
-  return (await staffApiFetch("/api/migration/learners/apply", {
+  return (await staffApiFetch(`${LEARNER_GENDER_REPAIR_BASE}/apply`, {
     method: "POST",
     body: JSON.stringify(opts),
   })) as MigrationLearnerRepairApplyResult;

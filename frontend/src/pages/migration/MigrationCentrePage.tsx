@@ -81,10 +81,11 @@ export default function MigrationCentrePage() {
         <article className="migration-centre-card">
           <div className="migration-centre-card-accent" aria-hidden="true" />
           <div className="migration-centre-card-body">
-            <h2 className="migration-centre-card-title">Learner / Gender Repair</h2>
+            <h2 className="migration-centre-card-title">Learner Repair / Gender Repair</h2>
             <p className="migration-centre-card-desc">
-              Upload SA-SAMS class lists or learner register to repair gender, ID number, and classroom.
-              Fills optional missing fields only when empty. Never deletes learners.
+              Upload SASAMS learner exports or class lists to fix missing gender on live learners and
+              refresh dashboard boys/girls counts. Preview → confirm → apply. Gender only — no billing
+              or financial data is touched.
             </p>
             <p className="migration-centre-status" role="status">
               {learnerStatus}
