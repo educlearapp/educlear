@@ -206,8 +206,9 @@ export default function MigrationCentreLearnerRepairPanel({ schoolId, onBack }: 
             : "Upload all SA-SAMS class lists (.csv, .xls, .xlsx)"}
         </p>
         <p className="migration-centre-dropzone-hint">
-          Multi-select enabled — one export per class. Match: SA ID → admission → name + class →
-          name. Duplicates across files are merged automatically.
+          Multi-select enabled — one export per class. Match: SA ID → admission → full name + class
+          → first + surname + class → full name → first + surname → surname + class → fuzzy name.
+          Duplicates across files are merged automatically.
         </p>
       </div>
 
@@ -317,8 +318,10 @@ export default function MigrationCentreLearnerRepairPanel({ schoolId, onBack }: 
               Showing up to {preview.rows.length} rows from {preview.counts.totalRows} unique
               learner(s) (
               {preview.counts.rawRowsParsed ?? preview.counts.totalRows} rows parsed across files).
-              Match order: SA ID number → admission number → first + surname + classroom →
-              first + surname. Existing Male/Female is not overwritten by blank imports.
+              Match order: SA ID → admission → full name + class → first + surname + class → full
+              name → first + surname → surname + class → fuzzy (90%+). Rows show Matched,
+              Ambiguous, or No match with the match type used. Existing Male/Female is not
+              overwritten by blank imports.
             </p>
             <div className="migration-centre-table-wrap">
               <div className="migration-centre-table-scroll">
