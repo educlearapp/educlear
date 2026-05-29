@@ -1,0 +1,291 @@
+/* Migration Centre — premium black + gold (aligned with Billing Settings) */
+
+.migration-centre-page {
+  max-width: 1100px;
+  margin: 0 auto;
+  padding: 0 4px 24px;
+}
+
+.migration-centre-header {
+  margin-bottom: 16px;
+}
+
+.migration-centre-page .page-title {
+  margin: 0 0 4px;
+  font-size: 1.28rem;
+  font-weight: 700;
+  line-height: 1.2;
+}
+
+.migration-centre-subtitle {
+  margin: 0;
+  font-size: 0.86rem;
+  line-height: 1.4;
+  color: #5b6575;
+  font-weight: 500;
+}
+
+.migration-centre-back {
+  margin-bottom: 12px;
+}
+
+.migration-centre-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+  gap: 14px;
+  margin-top: 16px;
+}
+
+.migration-centre-card {
+  border-radius: 10px;
+  border: 1px solid rgba(212, 175, 55, 0.35);
+  background: #ffffff;
+  box-shadow: 0 6px 20px rgba(15, 15, 15, 0.06);
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
+
+.migration-centre-card-accent {
+  height: 4px;
+  background: linear-gradient(90deg, #0a0a0a 0%, #d4af37 50%, #0a0a0a 100%);
+}
+
+.migration-centre-card-body {
+  padding: 14px 16px 16px;
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.migration-centre-card-title {
+  margin: 0;
+  font-size: 1rem;
+  font-weight: 800;
+  color: #1d2736;
+}
+
+.migration-centre-card-desc {
+  margin: 0;
+  font-size: 0.82rem;
+  color: #64748b;
+  line-height: 1.4;
+  font-weight: 500;
+}
+
+.migration-centre-card-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: auto;
+}
+
+.migration-centre-btn {
+  padding: 6px 12px;
+  border-radius: 7px;
+  font-size: 0.82rem;
+  font-weight: 700;
+  font-family: inherit;
+  cursor: pointer;
+  transition: background 0.2s ease, border-color 0.2s ease, color 0.2s ease;
+}
+
+.migration-centre-btn:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+.migration-centre-btn--gold {
+  border: none;
+  background: #d4af37;
+  color: #0a0a0a;
+}
+
+.migration-centre-btn--gold:hover:not(:disabled) {
+  background: #c9a227;
+}
+
+.migration-centre-btn--outline {
+  border: 1px solid rgba(212, 175, 55, 0.55);
+  background: #ffffff;
+  color: #8b6b16;
+}
+
+.migration-centre-btn--outline:hover:not(:disabled) {
+  border-color: #d4af37;
+  background: rgba(212, 175, 55, 0.08);
+}
+
+.migration-centre-btn--dark {
+  border: none;
+  background: #0a0a0a;
+  color: #d4af37;
+}
+
+.migration-centre-status {
+  margin: 0;
+  padding: 8px 10px;
+  border-radius: 7px;
+  font-size: 0.78rem;
+  font-weight: 600;
+  line-height: 1.35;
+  background: rgba(212, 175, 55, 0.1);
+  border: 1px solid rgba(212, 175, 55, 0.25);
+  color: #5c4a12;
+}
+
+.migration-centre-status--error {
+  background: rgba(185, 28, 28, 0.08);
+  border-color: rgba(185, 28, 28, 0.25);
+  color: #991b1b;
+}
+
+.migration-centre-status--success {
+  background: rgba(22, 101, 52, 0.08);
+  border-color: rgba(22, 101, 52, 0.25);
+  color: #166534;
+}
+
+.migration-centre-file-input {
+  display: none;
+}
+
+.migration-centre-dropzone {
+  padding: 12px;
+  border-radius: 8px;
+  border: 1px dashed rgba(212, 175, 55, 0.45);
+  background: rgba(212, 175, 55, 0.04);
+  cursor: pointer;
+  text-align: center;
+}
+
+.migration-centre-dropzone-title {
+  margin: 0;
+  font-size: 0.84rem;
+  font-weight: 700;
+  color: #334155;
+}
+
+.migration-centre-dropzone-hint {
+  margin: 4px 0 0;
+  font-size: 0.76rem;
+  color: #64748b;
+}
+
+.migration-centre-summary-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+  gap: 8px;
+  margin: 12px 0;
+}
+
+.migration-centre-summary-card {
+  position: relative;
+  padding: 10px 12px;
+  border-radius: 8px;
+  border: 1px solid rgba(212, 175, 55, 0.28);
+  background: #fff;
+}
+
+.migration-centre-summary-label {
+  margin: 0;
+  font-size: 0.72rem;
+  font-weight: 700;
+  color: #64748b;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.migration-centre-summary-value {
+  margin: 4px 0 0;
+  font-size: 1.1rem;
+  font-weight: 800;
+  color: #0a0a0a;
+}
+
+.migration-centre-section {
+  margin-top: 18px;
+}
+
+.migration-centre-section-title {
+  margin: 0 0 6px;
+  font-size: 0.95rem;
+  font-weight: 800;
+  color: #1d2736;
+}
+
+.migration-centre-section-hint {
+  margin: 0 0 10px;
+  font-size: 0.8rem;
+  color: #64748b;
+  font-weight: 500;
+}
+
+.migration-centre-table-wrap {
+  border-radius: 8px;
+  border: 1px solid rgba(212, 175, 55, 0.28);
+  overflow: hidden;
+}
+
+.migration-centre-table-scroll {
+  max-height: 360px;
+  overflow: auto;
+}
+
+.migration-centre-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.8rem;
+}
+
+.migration-centre-table th,
+.migration-centre-table td {
+  padding: 8px 10px;
+  text-align: left;
+  border-bottom: 1px solid rgba(15, 23, 42, 0.08);
+}
+
+.migration-centre-table th {
+  position: sticky;
+  top: 0;
+  background: #0a0a0a;
+  color: #d4af37;
+  font-weight: 700;
+  font-size: 0.74rem;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  z-index: 1;
+}
+
+.migration-centre-table tbody tr:hover {
+  background: rgba(212, 175, 55, 0.06);
+}
+
+.migration-centre-confirm {
+  margin-top: 14px;
+  padding: 12px 14px;
+  border-radius: 8px;
+  border: 1px solid rgba(212, 175, 55, 0.4);
+  background: rgba(212, 175, 55, 0.06);
+}
+
+.migration-centre-confirm label {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  font-size: 0.82rem;
+  font-weight: 600;
+  color: #334155;
+  cursor: pointer;
+}
+
+.migration-centre-denied {
+  padding: 16px;
+  border-radius: 10px;
+  border: 1px solid rgba(185, 28, 28, 0.3);
+  background: rgba(185, 28, 28, 0.06);
+  color: #991b1b;
+  font-size: 0.86rem;
+  font-weight: 600;
+}

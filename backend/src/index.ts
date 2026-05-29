@@ -53,6 +53,8 @@ import daSilvaMigrationRoutes from "./routes/daSilvaMigration";
 import kideesysMigrationRoutes, {
   kideesysMigrationErrorHandler,
 } from "./routes/kideesysMigration";
+import migrationBillingPlansRoutes from "./routes/migrationBillingPlans";
+import migrationLearnersRoutes from "./routes/migrationLearners";
 import subscriptionsRoutes from "./routes/subscriptions";
 import payfastRoutes from "./routes/payfast";
 import creditsRoutes from "./routes/credits";
@@ -349,6 +351,16 @@ app.use(
   requireMigrationAccess,
   kideesysMigrationRoutes,
   kideesysMigrationErrorHandler
+);
+app.use(
+  "/api/migration/billing-plans",
+  requireMigrationAccess,
+  migrationBillingPlansRoutes
+);
+app.use(
+  "/api/migration/learners",
+  requireMigrationAccess,
+  migrationLearnersRoutes
 );
 app.use("/api/subscriptions", subscriptionsRoutes);
 app.use("/api/credits", creditsRoutes);

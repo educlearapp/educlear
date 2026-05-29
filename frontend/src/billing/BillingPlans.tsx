@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useEffect } from "react";
 
 
 
@@ -178,68 +178,58 @@ export default function BillingPlans({
 
 
   const normalizeFee = (fee: any, index: number) => ({
-
-
-
     id: String(
-
-
-
       fee?.id ||
-
-
-
         fee?.feeId ||
-
-
-
         fee?.description ||
-
-
-
+        fee?.feeDescription ||
         fee?.name ||
-
-
-
         `fee-${index}`
-
-
-
     ),
-
-
-
     description: String(
-
-
-
-      fee?.description || fee?.name || fee?.title || "Fee"
-
-
-
+      fee?.description ||
+        fee?.feeDescription ||
+        fee?.name ||
+        fee?.title ||
+        "Fee"
     ),
-
-
-
     type: String(fee?.type || fee?.feeType || fee?.category || "Fee"),
-
-
-
-    amount: Number(fee?.amount || fee?.price || fee?.value || 0),
-
-
-
+    amount: Number(fee?.amount ?? fee?.price ?? fee?.value ?? 0),
     dueDate: fee?.dueDate || "",
-
-
-
   });
 
+  const hasBillingPlanSetup = (learner: any) =>
+    Array.isArray(learner?.billingPlan) && learner.billingPlan.length > 0;
 
+  const resolveLearnerFromList = (learner: any) => {
+    const learnerKey = String(learner?.id || learner?.learnerId || "");
+    if (!learnerKey) return learner;
+    const fromList = learners.find(
+      (row: any) => String(row?.id || row?.learnerId || "") === learnerKey
+    );
+    if (!fromList) return learner;
+    return {
+      ...learner,
+      ...fromList,
+      billingPlan: Array.isArray(fromList.billingPlan)
+        ? fromList.billingPlan
+        : learner.billingPlan,
+    };
+  };
 
   const getPlan = (learner: any) => {
     if (Array.isArray(learner?.billingPlan)) {
-      return learner.billingPlan;
+      return learner.billingPlan.map(normalizeFee);
+    }
+
+    const legacyItems =
+      (Array.isArray(learner?.billingPlan?.items) && learner.billingPlan.items) ||
+      (Array.isArray(learner?.plan?.items) && learner.plan.items) ||
+      (Array.isArray(learner?.billingItems) && learner.billingItems) ||
+      (Array.isArray(learner?.fees) && learner.fees) ||
+      null;
+    if (legacyItems) {
+      return legacyItems.map(normalizeFee);
     }
 
     const learnerKey = String(learner?.id || learner?.learnerId || "");
@@ -251,7 +241,7 @@ export default function BillingPlans({
       );
       const savedPlan = savedPlans?.[learnerKey];
       if (Array.isArray(savedPlan) && savedPlan.length > 0) {
-        return savedPlan;
+        return savedPlan.map(normalizeFee);
       }
     } catch {
       // ignore bad localStorage
@@ -260,7 +250,16 @@ export default function BillingPlans({
     return [];
   };
 
-
+  const getPlanTotal = (learner: any) => {
+    if (hasBillingPlanSetup(learner)) {
+      return learner.billingPlan.reduce(
+        (sum: number, fee: any) =>
+          sum + Number(fee?.amount ?? fee?.price ?? fee?.value ?? 0),
+        0
+      );
+    }
+    return getPlan(learner).reduce((sum: number, fee: any) => sum + Number(fee.amount || 0), 0);
+  };
 
   const getFeeOptions = () => {
 
@@ -647,7 +646,9 @@ export default function BillingPlans({
 
 
 
-        billingPlan: getPlan(learner),
+        billingPlan: Array.isArray(learner?.billingPlan)
+          ? learner.billingPlan
+          : getPlan(learner),
 
 
 
@@ -716,13 +717,8 @@ export default function BillingPlans({
 
 
     try {
-
-
-
-      setSelectedPlanLearner(JSON.parse(raw));
-
-
-
+      const parsed = JSON.parse(raw);
+      setSelectedPlanLearner(resolveLearnerFromList(parsed));
     } catch {
 
 
@@ -922,7 +918,21 @@ export default function BillingPlans({
 
     : [];
 
-
+  // Temporary: remove after live verify (Bono Allan should log billingPlanLength >= 1, planTotal 3000).
+  useEffect(() => {
+    if (!Array.isArray(learners) || learners.length === 0) return;
+    for (const learner of learners) {
+      const label = `${getName(learner)} ${getSurname(learner)}`.toLowerCase();
+      if (!label.includes("bono")) continue;
+      console.log("[BillingPlans] debug", {
+        learnerId: learner?.id,
+        billingPlanLength: Array.isArray(learner?.billingPlan)
+          ? learner.billingPlan.length
+          : null,
+        planTotal: getPlanTotal(learner),
+      });
+    }
+  }, [learners]);
 
   const filteredLearners = learnersForPlans.filter((learner: any) =>
 
@@ -981,26 +991,9 @@ export default function BillingPlans({
 
 
   if (selectedPlanLearner) {
-
-
-
-    const plan = getPlan(selectedPlanLearner);
-
-
-
-    const total = plan.reduce(
-
-
-
-      (sum: number, fee: any) => sum + Number(fee.amount || 0),
-
-
-
-      0
-
-
-
-    );
+    const activePlanLearner = resolveLearnerFromList(selectedPlanLearner);
+    const plan = getPlan(activePlanLearner);
+    const total = getPlanTotal(activePlanLearner);
 
 
 
@@ -1070,7 +1063,7 @@ export default function BillingPlans({
 
               <button
                 style={btnGold}
-                onClick={() => savePlan(selectedPlanLearner, getPlan(selectedPlanLearner))}
+                onClick={() => savePlan(activePlanLearner, getPlan(activePlanLearner))}
               >
                 Save
               </button>
@@ -1117,7 +1110,7 @@ export default function BillingPlans({
 
 
 
-                    {getName(selectedPlanLearner)} {getSurname(selectedPlanLearner)}
+                    {getName(activePlanLearner)} {getSurname(activePlanLearner)}
 
 
 
@@ -1157,7 +1150,7 @@ export default function BillingPlans({
 
 
 
-                  <button style={btnDanger} onClick={() => savePlan(selectedPlanLearner, [])}>
+                  <button style={btnDanger} onClick={() => savePlan(activePlanLearner, [])}>
 
 
 
@@ -1302,7 +1295,7 @@ export default function BillingPlans({
 
 
 
-              savePlan(selectedPlanLearner, updatedPlan);
+              savePlan(activePlanLearner, updatedPlan);
 
 
 
@@ -1366,7 +1359,7 @@ export default function BillingPlans({
 
 
 
-              savePlan(selectedPlanLearner, updatedPlan);
+              savePlan(activePlanLearner, updatedPlan);
 
 
 
@@ -1470,7 +1463,7 @@ export default function BillingPlans({
 
 
 
-{getName(selectedPlanLearner)} {getSurname(selectedPlanLearner)}
+{getName(activePlanLearner)} {getSurname(activePlanLearner)}
 
 
 
@@ -1482,7 +1475,7 @@ export default function BillingPlans({
 
 
 
-<div>Classroom: <strong>{getClassroom(selectedPlanLearner)}</strong></div>
+<div>Classroom: <strong>{getClassroom(activePlanLearner)}</strong></div>
 
 
 
@@ -1759,7 +1752,7 @@ Add fees to billing plan
 
 
 
-    savePlan(selectedPlanLearner, [
+    savePlan(activePlanLearner, [
 
 
 
@@ -2104,22 +2097,8 @@ outline: "none",
 
 
         const plan = getPlan(learner);
-
-
-
-        const total = plan.reduce(
-
-
-
-          (sum: number, fee: any) => sum + Number(fee.amount || 0),
-
-
-
-          0
-
-
-
-        );
+        const total = getPlanTotal(learner);
+        const hasPlan = hasBillingPlanSetup(learner);
 
 
 
@@ -2147,7 +2126,7 @@ outline: "none",
 
 
 
-            onDoubleClick={() => setSelectedPlanLearner(learner)}
+            onDoubleClick={() => setSelectedPlanLearner(resolveLearnerFromList(learner))}
 
 
 
@@ -2203,15 +2182,15 @@ outline: "none",
 
 
 
-            <td style={{ ...td, color: plan.length ? "#15803d" : "#b91c1c", fontWeight: 800 }}>
+            <td style={{ ...td, color: hasPlan ? "#15803d" : "#b91c1c", fontWeight: 800 }}>
 
 
 
-              {plan.length
+              {hasPlan
 
 
 
-                ? `Billing plan setup (${plan.length} fee${plan.length === 1 ? "" : "s"})`
+                ? `Billing plan setup (${learner.billingPlan.length} fee${learner.billingPlan.length === 1 ? "" : "s"})`
 
 
 

@@ -1,6 +1,7 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { API_URL } from "../../api";
 import { calculateLearnerAge } from "../../learner/learnerIdentity";
+import { isActiveEnrollment, isFemaleGender, isMaleGender } from "../../utils/learnerGender";
 
 
 
@@ -73,6 +74,14 @@ const RED = "#b42318";
 
 
 const pageSize = 10;
+
+const ENROLLMENT_OVERRIDE_FIELDS = new Set([
+  "status",
+  "childStatus",
+  "enrolled",
+  "isEnrolled",
+  "enrollmentStatus",
+]);
 
 
 
@@ -406,18 +415,13 @@ export default function Registrations(props: AnyRecord) {
 
 
         const edits = savedEdits[String(learner.id)] || {};
-      
-      
-      
+        const safeEdits = Object.fromEntries(
+          Object.entries(edits).filter(([key]) => !ENROLLMENT_OVERRIDE_FIELDS.has(key))
+        );
+
         return {
-      
-      
-      
           ...learner,
-      
-      
-      
-          ...edits,
+          ...safeEdits,
       
       
       
@@ -491,59 +495,26 @@ setLocalLearners(mergedLearners);
 
 
 
+  const activeLearners = useMemo(
+    () => localLearners.filter((learner) => isActiveEnrollment(learner)),
+    [localLearners]
+  );
+
   const stats = useMemo(() => {
-
-
-
-    const total = localLearners.length;
-
-
-
-    const boys = localLearners.filter((l) => String(l.gender || "").toLowerCase() === "male").length;
-
-
-
-    const girls = localLearners.filter((l) => String(l.gender || "").toLowerCase() === "female").length;
-
-
-
-    const classroomSet = new Set(localLearners.map(learnerClass).filter(Boolean));
-
-
+    const total = activeLearners.length;
+    const boys = activeLearners.filter((l) => isMaleGender(l.gender)).length;
+    const girls = activeLearners.filter((l) => isFemaleGender(l.gender)).length;
+    const classroomSet = new Set(activeLearners.map(learnerClass).filter(Boolean));
 
     return {
-
-
-
       children: total,
-
-
-
       parents: localParents.length,
-
-
-
       boys,
-
-
-
       girls,
-
-
-
       classrooms: classroomSet.size,
-
-
-
       avg: classroomSet.size ? Math.round(total / classroomSet.size) : 0,
-
-
-
     };
-
-
-
-  }, [localLearners, localParents]);
+  }, [activeLearners, localParents]);
 
 
 
@@ -559,7 +530,7 @@ setLocalLearners(mergedLearners);
 
 
 
-      if (!showUnenrolled && String(learner.status || "Enrolled").toLowerCase() === "unenrolled") return false;
+      if (!showUnenrolled && !isActiveEnrollment(learner)) return false;
 
 
 

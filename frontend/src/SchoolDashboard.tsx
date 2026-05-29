@@ -92,6 +92,8 @@ import SchoolProfilePage from "./pages/SchoolProfilePage";
 import SchoolCreditsPage from "./pages/SchoolCreditsPage";
 import SchoolSasamsReportUploadPage from "./pages/SchoolSasamsReportUploadPage";
 import SchoolSettingsPage from "./pages/SchoolSettingsPage";
+import MigrationCentrePage from "./pages/migration/MigrationCentrePage";
+import { canAccessMigration } from "./auth/migrationAccess";
 import BillingDepositsPage from "./pages/BillingDepositsPage";
 import BillingSettingsPage from "./pages/BillingSettingsPage";
 import { isSuperAdmin } from "./auth/roles";
@@ -149,6 +151,10 @@ type PageKey =
 
 
   | "schoolSettings"
+
+
+
+  | "migrationCentre"
 
 
 
@@ -17182,6 +17188,14 @@ return (
 
 
           return <SchoolSettingsPage onBack={() => go("dashboard")} />;
+
+
+
+        case "migrationCentre":
+
+
+
+          return <MigrationCentrePage />;
   
   
   
@@ -17384,6 +17398,15 @@ return (
   
   
                 <div className={`submenu-item ${activePage === "schoolSettings" ? "active" : ""}`} onClick={() => go("schoolSettings")}>Settings</div>
+
+                {canAccessMigration() ? (
+                  <div
+                    className={`submenu-item ${activePage === "migrationCentre" ? "active" : ""}`}
+                    onClick={() => go("migrationCentre")}
+                  >
+                    Migration Centre
+                  </div>
+                ) : null}
 
 
 

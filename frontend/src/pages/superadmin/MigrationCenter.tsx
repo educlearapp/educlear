@@ -81,7 +81,8 @@ export default function MigrationCenter() {
   const onCenter =
     location.pathname.startsWith("/super-admin/migration") &&
     !location.pathname.includes("/research") &&
-    !location.pathname.includes("/legacy");
+    !location.pathname.includes("/legacy") &&
+    !location.pathname.includes("/billing-plans");
 
   return (
     <UniversalMigrationWorkflowProvider>
@@ -106,6 +107,12 @@ export default function MigrationCenter() {
             className={`uc-migration-center-nav-link${!onCenter ? " uc-migration-center-nav-link--active" : ""}`}
           >
             Systems Registry
+          </Link>
+          <Link
+            to="/super-admin/migration/billing-plans"
+            className={`uc-migration-center-nav-link${location.pathname.includes("/billing-plans") ? " uc-migration-center-nav-link--active" : ""}`}
+          >
+            Billing plans import
           </Link>
           <Link
             to="/super-admin/migration/legacy"
