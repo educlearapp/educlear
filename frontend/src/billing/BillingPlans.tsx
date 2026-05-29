@@ -1,4 +1,4 @@
-import React, { useEffect } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 
 
 
@@ -106,8 +106,17 @@ export default function BillingPlans({
 
 
   const pageSize = 10;
+  const feePickerPageSize = 10;
 
+  const [feeSearch, setFeeSearch] = useState("");
+  const [feePickerPage, setFeePickerPage] = useState(1);
 
+  useEffect(() => {
+    if (showFeePicker) {
+      setFeeSearch("");
+      setFeePickerPage(1);
+    }
+  }, [showFeePicker]);
 
   const getName = (learner: any) =>
 
@@ -898,7 +907,30 @@ export default function BillingPlans({
 
   const feeOptions = getFeeOptions();
 
+  const filteredFeeOptions = useMemo(() => {
+    const q = feeSearch.trim().toLowerCase();
+    if (!q) return feeOptions;
+    return feeOptions.filter(
+      (fee: any) =>
+        String(fee.description || "").toLowerCase().includes(q) ||
+        String(fee.type || "").toLowerCase().includes(q) ||
+        String(fee.amount ?? "").includes(q) ||
+        money(fee.amount).toLowerCase().includes(q)
+    );
+  }, [feeOptions, feeSearch]);
 
+  const feePickerTotalPages = Math.max(1, Math.ceil(filteredFeeOptions.length / feePickerPageSize));
+  const feePickerPageSafe = Math.min(Math.max(1, feePickerPage), feePickerTotalPages);
+  const pagedFeeOptions = filteredFeeOptions.slice(
+    (feePickerPageSafe - 1) * feePickerPageSize,
+    feePickerPageSafe * feePickerPageSize
+  );
+  const feePickerRangeStart =
+    filteredFeeOptions.length === 0 ? 0 : (feePickerPageSafe - 1) * feePickerPageSize + 1;
+  const feePickerRangeEnd =
+    filteredFeeOptions.length === 0
+      ? 0
+      : Math.min(feePickerPageSafe * feePickerPageSize, filteredFeeOptions.length);
 
   const learnersForPlans = Array.isArray(learners)
 
@@ -1499,7 +1531,99 @@ Add fees to billing plan
 
 
 
-<div style={{ padding: "16px", display: "grid", gap: "9px", maxHeight: "520px", overflowY: "auto" }}>
+<div style={{ padding: "12px 16px", borderBottom: "1px solid #e2e8f0" }}>
+
+
+
+  <input
+
+
+
+    type="search"
+
+
+
+    placeholder="Search fees…"
+
+
+
+    value={feeSearch}
+
+
+
+    onChange={(e) => {
+
+
+
+      setFeeSearch(e.target.value);
+
+
+
+      setFeePickerPage(1);
+
+
+
+    }}
+
+
+
+    style={{
+
+
+
+      width: "100%",
+
+
+
+      maxWidth: "320px",
+
+
+
+      display: "block",
+
+
+
+      marginLeft: "auto",
+
+
+
+      padding: "8px 10px",
+
+
+
+      border: "1px solid #d4af37",
+
+
+
+      borderRadius: "8px",
+
+
+
+      fontWeight: 700,
+
+
+
+      fontSize: "13px",
+
+
+
+      color: "#0f172a",
+
+
+
+    }}
+
+
+
+  />
+
+
+
+</div>
+
+
+
+<div style={{ padding: "16px", display: "grid", gap: "9px", maxHeight: "420px", overflowY: "auto" }}>
 
 
 
@@ -1519,11 +1643,27 @@ Add fees to billing plan
 
 
 
+) : filteredFeeOptions.length === 0 ? (
+
+
+
+  <div style={{ color: "#64748b", padding: "14px" }}>
+
+
+
+    No fees match your search.
+
+
+
+  </div>
+
+
+
 ) : (
 
 
 
-  feeOptions.map((fee: any) => (
+  pagedFeeOptions.map((fee: any) => (
 
 
 
@@ -1660,6 +1800,121 @@ Add fees to billing plan
 
 
 </div>
+
+
+
+<div style={{ padding: "12px 16px", borderTop: "1px solid #e2e8f0", display: "flex", justifyContent: "space-between", alignItems: "center", gap: "12px", flexWrap: "wrap" }}>
+
+
+
+  <span style={{ color: "#64748b", fontSize: "13px", fontWeight: 700 }}>
+
+
+
+    {feePickerRangeStart === 0 ? "0" : `${feePickerRangeStart} - ${feePickerRangeEnd}`} / {filteredFeeOptions.length}
+
+
+
+  </span>
+
+
+
+  <div style={{ display: "flex", gap: "8px", alignItems: "center" }}>
+
+
+
+    <button
+
+
+
+      type="button"
+
+
+
+      style={{ ...btnLight, padding: "6px 12px", opacity: feePickerPageSafe <= 1 ? 0.55 : 1 }}
+
+
+
+      disabled={feePickerPageSafe <= 1}
+
+
+
+      onClick={() => setFeePickerPage(feePickerPageSafe - 1)}
+
+
+
+      aria-label="Previous page"
+
+
+
+    >
+
+
+
+      ‹
+
+
+
+    </button>
+
+
+
+    <span style={{ fontSize: "13px", fontWeight: 800, color: "#334155", minWidth: "96px", textAlign: "center" }}>
+
+
+
+      Page {feePickerPageSafe} / {feePickerTotalPages}
+
+
+
+    </span>
+
+
+
+    <button
+
+
+
+      type="button"
+
+
+
+      style={{ ...btnLight, padding: "6px 12px", opacity: feePickerPageSafe >= feePickerTotalPages ? 0.55 : 1 }}
+
+
+
+      disabled={feePickerPageSafe >= feePickerTotalPages}
+
+
+
+      onClick={() => setFeePickerPage(feePickerPageSafe + 1)}
+
+
+
+      aria-label="Next page"
+
+
+
+    >
+
+
+
+      ›
+
+
+
+    </button>
+
+
+
+  </div>
+
+
+
+</div>
+
+
+
 <div style={{ padding: "13px 16px", borderTop: "1px solid #e2e8f0", display: "flex", justifyContent: "space-between" }}>
 
 
