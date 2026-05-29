@@ -25,6 +25,46 @@ export type RegistrationStatsResult = {
   debug: { sampleLearners: RegistrationStatsDebugLearner[] };
 };
 
+/** Count unique guardians linked to active learners (dedupes duplicate Parent rows). */
+export async function countDistinctLinkedParents(schoolId: string): Promise<number> {
+  const links = await prisma.parentLearnerLink.findMany({
+    where: {
+      schoolId,
+      learner: { enrollmentStatus: "ACTIVE" },
+    },
+    select: {
+      parent: {
+        select: {
+          id: true,
+          firstName: true,
+          surname: true,
+          cellNo: true,
+          idNumber: true,
+        },
+      },
+    },
+  });
+
+  const keys = new Set<string>();
+  for (const link of links) {
+    const parent = link.parent;
+    const idNumber = String(parent.idNumber || "").replace(/\D/g, "");
+    if (idNumber.length === 13) {
+      keys.add(`id:${idNumber}`);
+      continue;
+    }
+    const cell = String(parent.cellNo || "").replace(/\D/g, "").slice(-9);
+    const nameKey = [
+      String(parent.firstName || "").trim().toLowerCase(),
+      String(parent.surname || "").trim().toLowerCase(),
+      cell,
+    ].join("|");
+    keys.add(nameKey || `parent:${parent.id}`);
+  }
+
+  return keys.size;
+}
+
 /**
  * Single source of truth for Registrations dashboard stats (boys/girls/classrooms).
  */
@@ -71,7 +111,7 @@ export async function buildRegistrationStats(schoolId: string): Promise<Registra
     }
   }
 
-  const parents = await prisma.parent.count({ where: { schoolId } });
+  const parents = await countDistinctLinkedParents(schoolId);
   const children = activeLearners.length;
   const classrooms = classroomSet.size;
   const averageClassroomSize = classrooms > 0 ? Math.round(children / classrooms) : 0;

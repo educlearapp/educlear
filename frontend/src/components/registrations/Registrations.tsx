@@ -1,7 +1,7 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { API_URL } from "../../api";
 import { calculateLearnerAge } from "../../learner/learnerIdentity";
-import { isActiveEnrollment, isFemaleGender, isMaleGender } from "../../utils/learnerGender";
+import { isActiveEnrollment, isFemaleLearnerForStats, isMaleLearnerForStats } from "../../utils/learnerGender";
 
 
 
@@ -361,6 +361,7 @@ export default function Registrations(props: AnyRecord) {
   const {
     learners = [],
     parents = [],
+    registrationStats = null,
     schoolId = "",
     dataLoading = false,
     onAddLearner,
@@ -502,10 +503,25 @@ setLocalLearners(mergedLearners);
   );
 
   const stats = useMemo(() => {
+    if (registrationStats) {
+      return {
+        children: Number(registrationStats.children) || 0,
+        parents: Number(registrationStats.parents) || 0,
+        boys: Number(registrationStats.boys) || 0,
+        girls: Number(registrationStats.girls) || 0,
+        classrooms: Number(registrationStats.classrooms) || 0,
+        avg: Number(registrationStats.avg ?? registrationStats.averageClassroomSize) || 0,
+      };
+    }
+
     const total = activeLearners.length;
-    const boys = activeLearners.filter((l) => isMaleGender(l.gender)).length;
-    const girls = activeLearners.filter((l) => isFemaleGender(l.gender)).length;
-    const classroomSet = new Set(activeLearners.map(learnerClass).filter(Boolean));
+    const boys = activeLearners.filter((l) => isMaleLearnerForStats(l)).length;
+    const girls = activeLearners.filter((l) => isFemaleLearnerForStats(l)).length;
+    const classroomSet = new Set(
+      activeLearners
+        .map(learnerClass)
+        .filter((classroom) => classroom && !/no classroom/i.test(String(classroom)))
+    );
 
     return {
       children: total,
@@ -515,7 +531,7 @@ setLocalLearners(mergedLearners);
       classrooms: classroomSet.size,
       avg: classroomSet.size ? Math.round(total / classroomSet.size) : 0,
     };
-  }, [activeLearners, localParents]);
+  }, [activeLearners, localParents, registrationStats]);
 
 
 

@@ -1,6 +1,11 @@
 import { Router } from "express";
 import { calculateLearnerAge, resolveLearnerAccountNo } from "../utils/learnerIdentity";
-import { readSchoolBillingPlans } from "../utils/learnerBillingPlanStore";
+import { readSchoolBillingPlansResolved } from "../services/learnerBillingPlanDbStore";
+import {
+  buildBillingPlanLookupIndexes,
+  resolveLearnerBillingPlanItems,
+} from "../utils/learnerBillingPlanStore";
+import { buildRegistrationStats } from "../services/registrationStatsService";
 
 import { PrismaClient } from "@prisma/client";
 
@@ -11,6 +16,23 @@ const router = Router();
 
 
 const prisma = new PrismaClient();
+
+
+
+router.get("/stats", async (req, res) => {
+  try {
+    const schoolId = String(req.query.schoolId || "");
+    if (!schoolId) {
+      return res.status(400).json({ success: false, error: "Missing schoolId" });
+    }
+
+    const { stats } = await buildRegistrationStats(schoolId);
+    return res.status(200).json({ success: true, stats });
+  } catch (error) {
+    console.error("GET REGISTRATION STATS ERROR:", error);
+    return res.status(500).json({ success: false, error: "Failed to load registration stats" });
+  }
+});
 
 
 
@@ -50,7 +72,7 @@ router.get("/learners", async (req, res) => {
 
 
 
-    const billingPlansByLearner = readSchoolBillingPlans(schoolId);
+    const billingPlansByLearner = await readSchoolBillingPlansResolved(schoolId);
 
     const learners = await prisma.learner.findMany({
 
@@ -89,6 +111,25 @@ router.get("/learners", async (req, res) => {
 
 
     });
+
+    const learnerIds = new Set(learners.map((l) => l.id));
+    const orphanPlanKeys = Object.keys(billingPlansByLearner).filter((id) => !learnerIds.has(id));
+    const orphanLearners =
+      orphanPlanKeys.length > 0
+        ? await prisma.learner.findMany({
+            where: { schoolId, id: { in: orphanPlanKeys } },
+            select: { id: true, admissionNo: true, idNumber: true },
+          })
+        : [];
+
+    const billingPlanIndexes = buildBillingPlanLookupIndexes(billingPlansByLearner, [
+      ...learners.map((l) => ({
+        id: l.id,
+        admissionNo: l.admissionNo,
+        idNumber: l.idNumber,
+      })),
+      ...orphanLearners,
+    ]);
 
 
 
@@ -284,7 +325,15 @@ router.get("/learners", async (req, res) => {
 
         parentEmail: primary?.parent?.email || "",
 
-        billingPlan: billingPlansByLearner[learner.id] || [],
+        billingPlan: resolveLearnerBillingPlanItems(
+          {
+            id: learner.id,
+            admissionNo: learner.admissionNo || accountNo,
+            idNumber: learner.idNumber,
+          },
+          billingPlansByLearner,
+          billingPlanIndexes
+        ),
 
         tuitionFee: learner.tuitionFee ?? 0,
         totalFee: learner.totalFee ?? 0,

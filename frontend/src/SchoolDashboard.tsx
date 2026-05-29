@@ -130,7 +130,7 @@ import Classrooms from "./Classrooms";
 import { calculateLearnerAge } from "./learner/learnerIdentity";
 import { normalizeKidESysAccountRef, resolveKidESysAccountRefFromLearner } from "./billing/billingAccountRef";
 import { isMigratedOpeningBalanceOverviewLabel } from "./billing/billingDisplayRules";
-import { isActiveEnrollment, isFemaleGender, isMaleGender } from "./utils/learnerGender";
+import { isActiveEnrollment, isFemaleLearnerForStats, isMaleLearnerForStats } from "./utils/learnerGender";
 
 
 import "./App.css";
@@ -542,6 +542,15 @@ const schoolId =
   const [billingVersion, setBillingVersion] = useState(0);
   const [learnersVersion, setLearnersVersion] = useState(0);
   const [registrationsDataLoading, setRegistrationsDataLoading] = useState(Boolean(schoolId));
+  const [registrationStats, setRegistrationStats] = useState<{
+    children: number;
+    parents: number;
+    boys: number;
+    girls: number;
+    classrooms: number;
+    avg: number;
+    averageClassroomSize?: number;
+  } | null>(null);
   const [mobileNavOpen, setMobileNavOpen] = useState(false);
   const [isMobileViewport, setIsMobileViewport] = useState(
     () => typeof window !== "undefined" && window.matchMedia("(max-width: 767px)").matches
@@ -1705,6 +1714,7 @@ const [selectedLearnerReport, setSelectedLearnerReport] = useState<any>(null);
     if (!schoolId) {
       setLearners([]);
       setParents([]);
+      setRegistrationStats(null);
       setRegistrationsDataLoading(false);
       return;
     }
@@ -1719,8 +1729,11 @@ const [selectedLearnerReport, setSelectedLearnerReport] = useState<any>(null);
       fetch(`${API_URL}/api/parents?schoolId=${encodeURIComponent(schoolId)}`).then((res) =>
         res.json()
       ),
+      fetch(`${API_URL}/api/registrations/stats?schoolId=${encodeURIComponent(schoolId)}`).then((res) =>
+        res.json()
+      ),
     ])
-      .then(([learnersData, parentsData]) => {
+      .then(([learnersData, parentsData, statsData]) => {
         if (cancelled) return;
 
 
@@ -1835,6 +1848,20 @@ const [selectedLearnerReport, setSelectedLearnerReport] = useState<any>(null);
 
         setParents(nextParents);
 
+        setRegistrationStats(
+          statsData?.success && statsData?.stats
+            ? {
+                children: Number(statsData.stats.children) || 0,
+                parents: Number(statsData.stats.parents) || 0,
+                boys: Number(statsData.stats.boys) || 0,
+                girls: Number(statsData.stats.girls) || 0,
+                classrooms: Number(statsData.stats.classrooms) || 0,
+                avg: Number(statsData.stats.avg ?? statsData.stats.averageClassroomSize) || 0,
+                averageClassroomSize: Number(statsData.stats.averageClassroomSize) || 0,
+              }
+            : null
+        );
+
         if (import.meta.env.DEV) {
           const nextLearners = Array.isArray(learnersData?.learners)
             ? learnersData.learners
@@ -1856,6 +1883,7 @@ const [selectedLearnerReport, setSelectedLearnerReport] = useState<any>(null);
         if (cancelled) return;
         setLearners([]);
         setParents([]);
+        setRegistrationStats(null);
       })
       .finally(() => {
         if (!cancelled) setRegistrationsDataLoading(false);
@@ -2144,20 +2172,27 @@ const [selectedLearnerReport, setSelectedLearnerReport] = useState<any>(null);
 
   const totalLearners = filteredLearners.length;
 
-  const totalParents = parents.length;
+  const totalParents = registrationStats?.parents ?? parents.length;
 
-  const totalBoys = activeLearners.filter((learner: any) => isMaleGender(learner.gender)).length;
+  const totalBoys =
+    registrationStats?.boys ??
+    activeLearners.filter((learner: any) => isMaleLearnerForStats(learner)).length;
 
-  const totalGirls = activeLearners.filter((learner: any) => isFemaleGender(learner.gender)).length;
+  const totalGirls =
+    registrationStats?.girls ??
+    activeLearners.filter((learner: any) => isFemaleLearnerForStats(learner)).length;
 
-  const totalClassrooms = new Set(
-    activeLearners
-      .map((learner: any) => learnerClassroom(learner))
-      .filter((c: string) => c && !/no classroom/i.test(String(c)))
-  ).size;
+  const totalClassrooms =
+    registrationStats?.classrooms ??
+    new Set(
+      activeLearners
+        .map((learner: any) => learnerClassroom(learner))
+        .filter((c: string) => c && !/no classroom/i.test(String(c)))
+    ).size;
 
   const averageClassSize =
-    totalClassrooms > 0 ? Math.round(activeLearners.length / totalClassrooms) : 0;
+    registrationStats?.avg ??
+    (totalClassrooms > 0 ? Math.round(activeLearners.length / totalClassrooms) : 0);
 
 
 
@@ -15420,6 +15455,7 @@ const [invoiceRunEmailDraft, setInvoiceRunEmailDraft] = useState({
       
       
           parents={parents}
+          registrationStats={registrationStats}
           dataLoading={registrationsDataLoading}
          linkedParents={parents}
       

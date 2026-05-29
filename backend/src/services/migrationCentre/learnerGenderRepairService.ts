@@ -438,26 +438,29 @@ export async function applyMigrationLearnerGenderRepair(opts: {
     throw new Error("No learner updates to apply");
   }
 
-  const BATCH_SIZE = 40;
-  const txOptions = { maxWait: 30_000, timeout: 120_000 } as const;
+  const BATCH_SIZE = 10;
+  let updatedCount = 0;
 
   for (let offset = 0; offset < updates.length; offset += BATCH_SIZE) {
     const batch = updates.slice(offset, offset + BATCH_SIZE);
-    await prisma.$transaction(async (tx) => {
-      for (const row of batch) {
+    await Promise.all(
+      batch.map(async (row) => {
         const data: { gender?: string; idNumber?: string; className?: string } = {};
         if (row.gender) data.gender = row.gender;
         if (row.idNumber) data.idNumber = row.idNumber;
         if (row.className) data.className = row.className;
-        if (!Object.keys(data).length) continue;
+        if (!Object.keys(data).length) return;
 
-        await tx.learner.update({
+        await prisma.learner.update({
           where: { id: row.learnerId, schoolId },
           data,
         });
-      }
-    }, txOptions);
+        updatedCount += 1;
+      })
+    );
   }
+
+  console.log(`[learnerRepairApply] schoolId=${schoolId} updatedCount=${updatedCount}`);
 
   try {
     fs.unlinkSync(file);
@@ -466,13 +469,16 @@ export async function applyMigrationLearnerGenderRepair(opts: {
   }
 
   const audit = await genderAudit(schoolId);
+  console.log(
+    `[learnerRepairReload] schoolId=${schoolId} boys=${audit.boys} girls=${audit.girls}`
+  );
 
   return {
     success: true,
     schoolId,
     fileName: payload.fileName,
     fileNames: payload.fileNames || [payload.fileName],
-    updatedLearners: updates.length,
+    updatedLearners: updatedCount,
     boys: audit.boys,
     girls: audit.girls,
     skipped: payload.stats?.skipped ?? 0,

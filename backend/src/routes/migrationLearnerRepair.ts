@@ -91,6 +91,9 @@ router.post("/preview", upload.array("files", MAX_FILES), async (req, res) => {
 
 router.post("/apply", async (req, res) => {
   try {
+    req.setTimeout(600_000);
+    res.setTimeout(600_000);
+
     const migrationReq = req as MigrationAccessRequest;
     const schoolId = resolveMigrationSchoolId(migrationReq, req.body?.schoolId);
     const sessionId = String(req.body?.sessionId || "").trim();

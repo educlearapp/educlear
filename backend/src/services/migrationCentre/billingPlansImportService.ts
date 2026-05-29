@@ -6,10 +6,11 @@ import { prisma } from "../../prisma";
 import { parseBillingPlanFile } from "../daSilvaMigration/parsers";
 import type { DbLearnerForParentMatch } from "../daSilvaMigration/daSilvaParentLearnerMatching";
 import {
-  readSchoolBillingPlans,
-  upsertSchoolBillingPlans,
-  type StoredBillingPlanItem,
-} from "../../utils/learnerBillingPlanStore";
+  countSchoolBillingPlansInDb,
+  readSchoolBillingPlansResolved,
+  upsertSchoolBillingPlansToDb,
+} from "../learnerBillingPlanDbStore";
+import type { StoredBillingPlanItem } from "../../utils/learnerBillingPlanStore";
 import {
   buildBillingPlanMatchIndexes,
   groupBillingPlanItems,
@@ -188,7 +189,7 @@ export async function previewMigrationBillingPlansImport(opts: {
       idNumber: l.idNumber,
     }));
 
-  const existingPlans = readSchoolBillingPlans(schoolId);
+  const existingPlans = await readSchoolBillingPlansResolved(schoolId);
   const existingPlanLearners = Object.keys(existingPlans).length;
 
   const matchedDetails = previewRows.filter((r) => r.learnerId && !r.ambiguous);
@@ -281,7 +282,11 @@ export async function applyMigrationBillingPlansImport(opts: {
     throw new Error("No billing plans to apply");
   }
 
-  upsertSchoolBillingPlans(schoolId, payload.plansByLearnerId);
+  const savedCount = await upsertSchoolBillingPlansToDb(schoolId, payload.plansByLearnerId);
+  console.log(`[billingPlansApply] schoolId=${schoolId} savedCount=${savedCount}`);
+
+  const countAfterSave = await countSchoolBillingPlansInDb(schoolId);
+  console.log(`[billingPlansReload] schoolId=${schoolId} countAfterSave=${countAfterSave}`);
 
   try {
     fs.unlinkSync(file);
@@ -292,7 +297,7 @@ export async function applyMigrationBillingPlansImport(opts: {
   return {
     success: true,
     schoolId,
-    learnersUpdated: planKeys.length,
+    learnersUpdated: savedCount,
     fileName: payload.fileName,
   };
 }

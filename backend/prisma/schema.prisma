@@ -130,6 +130,7 @@ learnerReports LearnerReport[]
   parentDocuments ParentDocument[]
   learnerIncidents LearnerIncident[]
   learnerAttendances LearnerAttendance[]
+  learnerBillingPlanLines LearnerBillingPlanLine[]
   parentOnboardings ParentOnboarding[]
   parentOutreachQueue ParentOutreachQueue[]
   communicationMessages CommunicationMessage[]
@@ -681,6 +682,7 @@ familyAccount FamilyAccount? @relation(fields: [familyAccountId], references: [i
 reports LearnerReport[]
 
   billingDeposits BillingDeposit[]
+  billingPlanLines LearnerBillingPlanLine[]
   notifications ParentNotification[]
   teacherThreads ParentTeacherThread[]
   homeworkPosts HomeworkPost[]
@@ -695,7 +697,23 @@ reports LearnerReport[]
 
 }
 
+/// Persistent per-learner billing plan fee lines (DB source of truth; replaces ephemeral JSON on Render).
+model LearnerBillingPlanLine {
+  id             String   @id @default(cuid())
+  schoolId       String
+  learnerId      String
+  feeDescription String
+  amount         Float
+  sortOrder      Int      @default(0)
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
 
+  school  School  @relation(fields: [schoolId], references: [id], onDelete: Cascade)
+  learner Learner @relation(fields: [learnerId], references: [id], onDelete: Cascade)
+
+  @@index([schoolId])
+  @@index([schoolId, learnerId])
+}
 
 model ParentLearnerLink {
   id String @id @default(cuid())

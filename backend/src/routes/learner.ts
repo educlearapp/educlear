@@ -7,6 +7,10 @@ import { PrismaClient } from "@prisma/client";
 import { getSurnamePrefix, resolveLearnerAccountNo } from "../utils/learnerIdentity";
 import { normalizeLearnerGender } from "../utils/learnerGender";
 import {
+  removeLearnerBillingPlanFromDb,
+  upsertLearnerBillingPlanToDb,
+} from "../services/learnerBillingPlanDbStore";
+import {
   removeLearnerBillingPlan,
   upsertLearnerBillingPlan,
   type StoredBillingPlanItem,
@@ -1429,8 +1433,10 @@ router.put("/:id", async (req, res) => {
         }))
         .filter((fee: StoredBillingPlanItem) => fee.feeDescription);
       if (items.length === 0) {
+        await removeLearnerBillingPlanFromDb(updatedLearner.schoolId, updatedLearner.id);
         removeLearnerBillingPlan(updatedLearner.schoolId, updatedLearner.id);
       } else {
+        await upsertLearnerBillingPlanToDb(updatedLearner.schoolId, updatedLearner.id, items);
         upsertLearnerBillingPlan(updatedLearner.schoolId, updatedLearner.id, items);
       }
     }
