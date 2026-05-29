@@ -3807,3 +3807,241 @@ body,
 
 
 }
+
+
+
+/* =========================
+   School dashboard — mobile (≤767px)
+   Desktop layout unchanged above 768px
+   ========================= */
+
+.school-main-column {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.mobile-top-bar,
+.mobile-nav-backdrop {
+  display: none;
+}
+
+.mobile-menu-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 42px;
+  height: 42px;
+  padding: 0;
+  border: 1px solid rgba(212, 175, 55, 0.35);
+  border-radius: 10px;
+  background: #111111;
+  color: #d4af37;
+  font-size: 20px;
+  line-height: 1;
+  cursor: pointer;
+  flex-shrink: 0;
+}
+
+.mobile-top-bar-brand {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+  flex: 1;
+}
+
+.mobile-top-bar-logo {
+  width: 32px;
+  height: 32px;
+  object-fit: contain;
+  flex-shrink: 0;
+}
+
+.mobile-top-bar-name {
+  font-size: 15px;
+  font-weight: 800;
+  color: #d4af37;
+  white-space: nowrap;
+}
+
+.mobile-top-bar-title {
+  margin: 0;
+  font-size: 15px;
+  font-weight: 700;
+  color: #1d2736;
+  text-align: right;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  flex-shrink: 1;
+  min-width: 0;
+}
+
+.table-scroll-wrap {
+  width: 100%;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+}
+
+.table-scroll-wrap table {
+  min-width: 640px;
+}
+
+.stat-skeleton {
+  display: inline-block;
+  min-width: 2.5rem;
+  height: 1.75rem;
+  border-radius: 6px;
+  background: linear-gradient(90deg, #ece7dc 25%, #f7f4ef 50%, #ece7dc 75%);
+  background-size: 200% 100%;
+  animation: stat-skeleton-shimmer 1.2s ease-in-out infinite;
+  vertical-align: middle;
+}
+
+@keyframes stat-skeleton-shimmer {
+  0% {
+    background-position: 100% 0;
+  }
+  100% {
+    background-position: -100% 0;
+  }
+}
+
+@media (max-width: 767px) {
+  .school-shell {
+    position: relative;
+    overflow-x: hidden;
+  }
+
+  .sidebar {
+    position: fixed;
+    left: 0;
+    top: 0;
+    bottom: 0;
+    z-index: 1200;
+    width: min(280px, 88vw);
+    min-width: 0;
+    max-width: 88vw;
+    transform: translateX(-100%);
+    transition: transform 0.22s ease;
+    overflow-y: auto;
+  }
+
+  .school-shell.mobile-nav-open .sidebar {
+    transform: translateX(0);
+  }
+
+  .mobile-nav-backdrop {
+    display: block;
+    position: fixed;
+    inset: 0;
+    z-index: 1190;
+    margin: 0;
+    padding: 0;
+    border: none;
+    background: rgba(0, 0, 0, 0.55);
+    cursor: pointer;
+  }
+
+  .mobile-top-bar {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    flex-shrink: 0;
+    padding: 10px 14px;
+    background: #ffffff;
+    border-bottom: 1px solid #ece7dc;
+    position: sticky;
+    top: 0;
+    z-index: 100;
+  }
+
+  .school-main-column {
+    width: 100%;
+    max-width: 100%;
+  }
+
+  .main-content {
+    width: 100% !important;
+    min-width: 0 !important;
+  }
+
+  .page-area {
+    padding: 14px !important;
+    overflow-x: hidden;
+  }
+
+  .page-title {
+    font-size: 24px;
+  }
+
+  .dashboard-header .dashboard-logo {
+    display: none;
+  }
+
+  .dashboard-header {
+    gap: 8px;
+  }
+
+  .fees-check-card,
+  .dashboard-grid-three,
+  .dashboard-grid-two,
+  .dashboard-overview-stats,
+  .dashboard-grid {
+    grid-template-columns: 1fr !important;
+  }
+
+  .fees-check-form {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .fees-input {
+    min-width: 0;
+    width: 100%;
+  }
+
+  .fees-check-button {
+    width: 100%;
+  }
+
+  .profile-page {
+    padding: 16px !important;
+  }
+
+  .profile-panel {
+    grid-template-columns: 1fr !important;
+  }
+
+  .profile-row {
+    grid-template-columns: 1fr !important;
+  }
+
+  .profile-row label {
+    text-align: left !important;
+    padding-right: 0 !important;
+  }
+
+  .sidebar-collapse {
+    display: none;
+  }
+
+  .page-area .profile-actions,
+  .page-area [style*="display: flex"] {
+    flex-wrap: wrap;
+  }
+
+  .page-area button {
+    max-width: 100%;
+  }
+
+  .registrations-page {
+    padding: 14px !important;
+  }
+
+  .school-package-grid {
+    grid-template-columns: 1fr !important;
+  }
+}

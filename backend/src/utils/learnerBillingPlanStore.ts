@@ -131,6 +131,16 @@ export function readSchoolBillingPlans(schoolId: string): Record<string, StoredB
   return all[storeKey] || {};
 }
 
+export function removeLearnerBillingPlan(schoolId: string, learnerId: string) {
+  const schoolKey = String(schoolId || "").trim();
+  const learnerKey = String(learnerId || "").trim();
+  if (!schoolKey || !learnerKey) return;
+  const all = readAll();
+  if (!all[schoolKey]?.[learnerKey]) return;
+  delete all[schoolKey][learnerKey];
+  writeAll(all);
+}
+
 export function upsertLearnerBillingPlan(
   schoolId: string,
   learnerId: string,

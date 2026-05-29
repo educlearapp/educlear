@@ -218,7 +218,7 @@ export default function BillingPlans({
   };
 
   const getPlan = (learner: any) => {
-    if (Array.isArray(learner?.billingPlan)) {
+    if (Array.isArray(learner?.billingPlan) && learner.billingPlan.length > 0) {
       return learner.billingPlan.map(normalizeFee);
     }
 
@@ -250,16 +250,8 @@ export default function BillingPlans({
     return [];
   };
 
-  const getPlanTotal = (learner: any) => {
-    if (hasBillingPlanSetup(learner)) {
-      return learner.billingPlan.reduce(
-        (sum: number, fee: any) =>
-          sum + Number(fee?.amount ?? fee?.price ?? fee?.value ?? 0),
-        0
-      );
-    }
-    return getPlan(learner).reduce((sum: number, fee: any) => sum + Number(fee.amount || 0), 0);
-  };
+  const getPlanTotal = (learner: any) =>
+    getPlan(learner).reduce((sum: number, fee: any) => sum + Number(fee.amount || 0), 0);
 
   const getFeeOptions = () => {
 
@@ -917,22 +909,6 @@ export default function BillingPlans({
 
 
     : [];
-
-  // Temporary: remove after live verify (Bono Allan should log billingPlanLength >= 1, planTotal 3000).
-  useEffect(() => {
-    if (!Array.isArray(learners) || learners.length === 0) return;
-    for (const learner of learners) {
-      const label = `${getName(learner)} ${getSurname(learner)}`.toLowerCase();
-      if (!label.includes("bono")) continue;
-      console.log("[BillingPlans] debug", {
-        learnerId: learner?.id,
-        billingPlanLength: Array.isArray(learner?.billingPlan)
-          ? learner.billingPlan.length
-          : null,
-        planTotal: getPlanTotal(learner),
-      });
-    }
-  }, [learners]);
 
   const filteredLearners = learnersForPlans.filter((learner: any) =>
 
@@ -2016,6 +1992,7 @@ outline: "none",
 
 
 
+<div className="table-scroll-wrap">
 <table style={{ width: "100%", borderCollapse: "collapse" }}>
 
 
@@ -2098,7 +2075,7 @@ outline: "none",
 
         const plan = getPlan(learner);
         const total = getPlanTotal(learner);
-        const hasPlan = hasBillingPlanSetup(learner);
+        const hasPlan = plan.length > 0;
 
 
 
@@ -2190,7 +2167,7 @@ outline: "none",
 
 
 
-                ? `Billing plan setup (${learner.billingPlan.length} fee${learner.billingPlan.length === 1 ? "" : "s"})`
+                ? `Billing plan setup (${plan.length} fee${plan.length === 1 ? "" : "s"})`
 
 
 
@@ -2223,6 +2200,7 @@ outline: "none",
 
 
 </table>
+</div>
 
 
 

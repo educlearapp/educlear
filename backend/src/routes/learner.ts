@@ -6,6 +6,11 @@ import { PrismaClient } from "@prisma/client";
 
 import { getSurnamePrefix, resolveLearnerAccountNo } from "../utils/learnerIdentity";
 import { normalizeLearnerGender } from "../utils/learnerGender";
+import {
+  removeLearnerBillingPlan,
+  upsertLearnerBillingPlan,
+  type StoredBillingPlanItem,
+} from "../utils/learnerBillingPlanStore";
 
 
 
@@ -1413,6 +1418,22 @@ router.put("/:id", async (req, res) => {
 
 
     });
+
+    if (Array.isArray(req.body?.billingPlan)) {
+      const items: StoredBillingPlanItem[] = req.body.billingPlan
+        .map((fee: any) => ({
+          feeDescription: String(
+            fee?.feeDescription || fee?.description || fee?.name || fee?.title || ""
+          ).trim(),
+          amount: Number(fee?.amount ?? fee?.price ?? fee?.value ?? 0),
+        }))
+        .filter((fee: StoredBillingPlanItem) => fee.feeDescription);
+      if (items.length === 0) {
+        removeLearnerBillingPlan(updatedLearner.schoolId, updatedLearner.id);
+      } else {
+        upsertLearnerBillingPlan(updatedLearner.schoolId, updatedLearner.id, items);
+      }
+    }
 
 
 

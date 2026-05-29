@@ -105,7 +105,12 @@ import {
   canViewAnySchoolPage,
   findFirstAllowedSchoolPage,
 } from "./auth/schoolAccess";
-import { getSchoolSessionUser, syncSchoolSessionFromLoginResponse } from "./auth/schoolSession";
+import {
+  getSchoolSessionUser,
+  syncSchoolSessionFromLoginResponse,
+  USER_PERMISSIONS_STORAGE_KEY,
+} from "./auth/schoolSession";
+import { getPackageDisplayPrice } from "./subscriptions/payfastCheckout";
 import { API_URL, apiFetch } from "./api";
 
 
@@ -306,7 +311,75 @@ type PageKey =
   | "accountingExportCenter"
   | "accountingSettings";
 
-
+const MOBILE_PAGE_TITLES: Partial<Record<PageKey, string>> = {
+  dashboard: "Dashboard",
+  schoolProfile: "School Profile",
+  schoolPackage: "Package",
+  schoolCredits: "Credits",
+  schoolUsers: "Users",
+  schoolSettings: "Settings",
+  migrationCentre: "Migration Centre",
+  registrations: "Registrations",
+  sasamsReportUpload: "SASAMS Upload",
+  parentPortal: "Parent Portal",
+  teacherInbox: "Teacher Inbox",
+  learnerProfile: "Learner Profile",
+  addLearner: "Add Learner",
+  classrooms: "Classrooms",
+  classroomManage: "Classrooms",
+  groups: "Groups",
+  groupManage: "Groups",
+  employees: "Employees",
+  employeeManage: "Employees",
+  teacherPerformance: "Teacher Performance",
+  attendance: "Attendance",
+  attendanceManage: "Attendance",
+  incidents: "Incidents",
+  incidentManage: "Incidents",
+  lists: "Lists",
+  forms: "Forms",
+  help: "Help",
+  more: "More",
+  statements: "Statements",
+  statementManage: "Statements",
+  invoices: "Invoices",
+  invoiceCreate: "Create Invoice",
+  payments: "Payments",
+  payroll: "Payroll",
+  paymentCreate: "Create Payment",
+  fees: "Fees",
+  feeUpsert: "Fees",
+  plans: "Billing Plans",
+  runs: "Invoice Runs",
+  reports: "Billing Reports",
+  documents: "Documents",
+  "billing-help": "Billing Help",
+  "billing-more": "Billing More",
+  billingDeposits: "Deposits",
+  billingSettings: "Billing Settings",
+  communicationEmail: "Email",
+  communicationSms: "SMS",
+  communicationSettings: "Communication Settings",
+  communicationCentre: "Communication Centre",
+  bankStatementImport: "Bank Import",
+  accountingOverview: "Accounting",
+  accountingBanking: "Banking",
+  accountingExpenses: "Expenses",
+  accountingSuppliers: "Suppliers",
+  accountingAssets: "Assets",
+  accountingJournals: "Journals",
+  accountingGeneralLedger: "General Ledger",
+  accountingChartOfAccounts: "Chart of Accounts",
+  accountingBudget: "Budget",
+  accountingFinancialStatements: "Financial Statements",
+  accountingReports: "Accounting Reports",
+  accountingDebtorsAgeing: "Debtors Ageing",
+  accountingCreditorsAgeing: "Creditors Ageing",
+  accountingSupplierInvoices: "Supplier Invoices",
+  accountingAuditCompliance: "Audit & Compliance",
+  accountingExportCenter: "Export Centre",
+  accountingSettings: "Accounting Settings",
+};
 
 type TeacherPerformanceRecord = {
 
@@ -468,8 +541,11 @@ const schoolId =
   const [learners, setLearners] = useState<any[]>([]);
   const [billingVersion, setBillingVersion] = useState(0);
   const [learnersVersion, setLearnersVersion] = useState(0);
-
-
+  const [registrationsDataLoading, setRegistrationsDataLoading] = useState(Boolean(schoolId));
+  const [mobileNavOpen, setMobileNavOpen] = useState(false);
+  const [isMobileViewport, setIsMobileViewport] = useState(
+    () => typeof window !== "undefined" && window.matchMedia("(max-width: 767px)").matches
+  );
 
   const [parents, setParents] = useState<any[]>([]);
 
@@ -825,10 +901,35 @@ const [selectedLearnerReport, setSelectedLearnerReport] = useState<any>(null);
   useEffect(() => {
     const token = localStorage.getItem("token");
     if (!token) return;
+    if (localStorage.getItem(USER_PERMISSIONS_STORAGE_KEY)) return;
     apiFetch("/auth/me", { headers: { Authorization: `Bearer ${token}` } })
       .then((data) => syncSchoolSessionFromLoginResponse(data))
       .catch(() => {});
   }, []);
+
+  useEffect(() => {
+    const mq = window.matchMedia("(max-width: 767px)");
+    const onChange = () => {
+      setIsMobileViewport(mq.matches);
+      if (!mq.matches) setMobileNavOpen(false);
+    };
+    onChange();
+    mq.addEventListener("change", onChange);
+    return () => mq.removeEventListener("change", onChange);
+  }, []);
+
+  useEffect(() => {
+    if (!mobileNavOpen) return;
+    const onKey = (event: KeyboardEvent) => {
+      if (event.key === "Escape") setMobileNavOpen(false);
+    };
+    document.body.style.overflow = "hidden";
+    window.addEventListener("keydown", onKey);
+    return () => {
+      document.body.style.overflow = "";
+      window.removeEventListener("keydown", onKey);
+    };
+  }, [mobileNavOpen]);
 
   useEffect(() => {
     if (canPage(activePage)) return;
@@ -841,6 +942,7 @@ const [selectedLearnerReport, setSelectedLearnerReport] = useState<any>(null);
       return;
     }
     setActivePage(page);
+    if (isMobileViewport) setMobileNavOpen(false);
 
     const isAccountingPage =
       page === "payroll" ||
@@ -1600,83 +1702,26 @@ const [selectedLearnerReport, setSelectedLearnerReport] = useState<any>(null);
   }, [schoolId]);
 
   useEffect(() => {
-
-
-
-    const needsData =
-      activePage === "registrations" ||
-      activePage === "parentPortal" ||
-      activePage === "addLearner" ||
-      activePage === "classrooms" ||
-      activePage === "classroomManage" ||
-      activePage === "attendance" ||
-      activePage === "attendanceManage" ||
-      activePage === "plans" ||
-      activePage === "learnerProfile" ||
-      activePage === "statements" ||
-      activePage === "statementManage" ||
-      activePage === "invoices" ||
-      activePage === "dashboard";
-
-
-
-    if (!needsData) return;
-
-
-
     if (!schoolId) {
-
-
-
       setLearners([]);
-
-
-
       setParents([]);
-
-
-
+      setRegistrationsDataLoading(false);
       return;
-
-
-
     }
 
-
+    let cancelled = false;
+    setRegistrationsDataLoading(true);
 
     Promise.all([
-
-
-
       fetch(`${API_URL}/api/registrations/learners?schoolId=${encodeURIComponent(schoolId)}`).then((res) =>
-
-
-
         res.json()
-
-
-
       ),
-
-
-
       fetch(`${API_URL}/api/parents?schoolId=${encodeURIComponent(schoolId)}`).then((res) =>
-
-
-
         res.json()
-
-
-
-      )
-
-
-
+      ),
     ])
-
-
-
       .then(([learnersData, parentsData]) => {
+        if (cancelled) return;
 
 
 
@@ -1808,22 +1853,18 @@ const [selectedLearnerReport, setSelectedLearnerReport] = useState<any>(null);
 
 
       .catch(() => {
-
-
-
+        if (cancelled) return;
         setLearners([]);
-
-
-
         setParents([]);
-
-
-
+      })
+      .finally(() => {
+        if (!cancelled) setRegistrationsDataLoading(false);
       });
 
-
-
-  }, [activePage, schoolId, learnersVersion]);
+    return () => {
+      cancelled = true;
+    };
+  }, [schoolId, learnersVersion]);
 
   useEffect(() => {
     const onLearnersRefresh = () => setLearnersVersion((v) => v + 1);
@@ -14497,18 +14538,22 @@ const renderMoreSettings = () => {
 
 
 
-          <h2>{activeLearners.length || 0}</h2>
+          <h2>
+            {registrationsDataLoading ? (
+              <span className="stat-skeleton" aria-label="Loading learners" />
+            ) : (
+              activeLearners.length
+            )}
+          </h2>
 
 
 
           <p>
-
-
-
-            {totalBoys} boys • {totalGirls} girls
-
-
-
+            {registrationsDataLoading ? (
+              <span className="stat-skeleton" style={{ minWidth: 140, height: 14, display: "inline-block" }} aria-hidden />
+            ) : (
+              `${totalBoys} boys • ${totalGirls} girls`
+            )}
           </p>
 
 
@@ -14525,11 +14570,23 @@ const renderMoreSettings = () => {
 
 
 
-          <h2>{totalClassrooms}</h2>
+          <h2>
+            {registrationsDataLoading ? (
+              <span className="stat-skeleton" aria-label="Loading classrooms" />
+            ) : (
+              totalClassrooms
+            )}
+          </h2>
 
 
 
-          <p>Average class size: {averageClassSize}</p>
+          <p>
+            {registrationsDataLoading ? (
+              <span className="stat-skeleton" style={{ minWidth: 160, height: 14, display: "inline-block" }} aria-hidden />
+            ) : (
+              `Average class size: ${averageClassSize}`
+            )}
+          </p>
 
 
 
@@ -15089,33 +15146,13 @@ const [invoiceRunEmailDraft, setInvoiceRunEmailDraft] = useState({
 
 
             <div
-
-
-
+              className="school-package-grid"
               style={{
-
-
-
                 display: "grid",
-
-
-
-                gridTemplateColumns: "1fr 1fr",
-
-
-
+                gridTemplateColumns: "repeat(2, minmax(0, 1fr))",
                 gap: "28px",
-
-
-
                 marginTop: "28px",
-
-
-
               }}
-
-
-
             >
 
 
@@ -15157,6 +15194,10 @@ const [invoiceRunEmailDraft, setInvoiceRunEmailDraft] = useState({
 
 
                 <h2>Starter</h2>
+
+                <p style={{ margin: "8px 0 0", fontSize: 22, fontWeight: 800, color: "#111827" }}>
+                  {getPackageDisplayPrice("STARTER")}
+                </p>
 
 
 
@@ -15290,6 +15331,10 @@ const [invoiceRunEmailDraft, setInvoiceRunEmailDraft] = useState({
 
                 <h2>Unlimited</h2>
 
+                <p style={{ margin: "8px 0 0", fontSize: 22, fontWeight: 800, color: GOLD }}>
+                  {getPackageDisplayPrice("UNLIMITED")}
+                </p>
+
 
 
                 <p style={{ color: "#d1d5db" }}>For growing and larger schools.</p>
@@ -15375,6 +15420,7 @@ const [invoiceRunEmailDraft, setInvoiceRunEmailDraft] = useState({
       
       
           parents={parents}
+          dataLoading={registrationsDataLoading}
          linkedParents={parents}
       
       
@@ -16322,15 +16368,23 @@ return (
   
     }
 
+    const mobilePageTitle = MOBILE_PAGE_TITLES[activePage] || "EduClear";
+
     return (
 
 
 
-      <div className="school-shell">
-  
-  
-  
-        <aside className="sidebar">
+      <div className={`school-shell${mobileNavOpen ? " mobile-nav-open" : ""}`}>
+        {isMobileViewport && mobileNavOpen ? (
+          <button
+            type="button"
+            className="mobile-nav-backdrop"
+            aria-label="Close menu"
+            onClick={() => setMobileNavOpen(false)}
+          />
+        ) : null}
+
+        <aside className="sidebar" aria-hidden={isMobileViewport && !mobileNavOpen}>
   
   
   
@@ -17005,9 +17059,27 @@ return (
   
   
         </aside>
-  
-  
-  
+
+        <div className="school-main-column">
+          {isMobileViewport ? (
+            <header className="mobile-top-bar">
+              <button
+                type="button"
+                className="mobile-menu-btn"
+                aria-label="Open menu"
+                aria-expanded={mobileNavOpen}
+                onClick={() => setMobileNavOpen((open) => !open)}
+              >
+                ☰
+              </button>
+              <div className="mobile-top-bar-brand">
+                <img src={logo} className="mobile-top-bar-logo" alt="" />
+                <span className="mobile-top-bar-name">EduClear</span>
+              </div>
+              <h1 className="mobile-top-bar-title">{mobilePageTitle}</h1>
+            </header>
+          ) : null}
+
         <main
   
   
@@ -17238,17 +17310,17 @@ return (
   
   
         </main>
-  
-  
-  
+
+        </div>
+
       </div>
-  
-  
-  
+
+
+
     );
-  
-  
-  
+
+
+
   }
   const billingPlansTh: React.CSSProperties = {
 

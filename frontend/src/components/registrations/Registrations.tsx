@@ -362,6 +362,7 @@ export default function Registrations(props: AnyRecord) {
     learners = [],
     parents = [],
     schoolId = "",
+    dataLoading = false,
     onAddLearner,
     onOpenLearner,
   } = props;
@@ -641,7 +642,7 @@ setLocalLearners(mergedLearners);
 
 
 
-  function StatCard({ icon, value, label, color }: AnyRecord) {
+  function StatCard({ icon, value, label, color, loading }: AnyRecord) {
 
 
 
@@ -657,11 +658,11 @@ setLocalLearners(mergedLearners);
 
 
 
-          flex: "1 1 160px",
+          flex: "1 1 140px",
 
 
 
-          minWidth: 160,
+          minWidth: 140,
 
 
 
@@ -765,7 +766,9 @@ setLocalLearners(mergedLearners);
 
 
 
-          <div style={{ fontSize: 25, fontWeight: 800, color }}>{value}</div>
+          <div style={{ fontSize: 25, fontWeight: 800, color }}>
+            {loading ? <span className="stat-skeleton" aria-hidden /> : value}
+          </div>
 
 
 
@@ -797,7 +800,7 @@ setLocalLearners(mergedLearners);
 
 
 
-      <div style={{ padding: 30, color: DARK, background: PAGE_BG, minHeight: "100vh" }}>
+      <div className="registrations-page" style={{ padding: 30, color: DARK, background: PAGE_BG, minHeight: "100vh" }}>
 
 
 
@@ -821,27 +824,27 @@ setLocalLearners(mergedLearners);
 
 
 
-          <StatCard icon="👥" value={stats.children} label="children" color="#7a9b28" />
+          <StatCard icon="👥" value={stats.children} label="children" color="#7a9b28" loading={dataLoading} />
 
 
 
-          <StatCard icon="👥" value={stats.parents} label="parents" color="#7a9b28" />
+          <StatCard icon="👥" value={stats.parents} label="parents" color="#7a9b28" loading={dataLoading} />
 
 
 
-          <StatCard icon="♂" value={stats.boys} label="boys" color="#4f9fd7" />
+          <StatCard icon="♂" value={stats.boys} label="boys" color="#4f9fd7" loading={dataLoading} />
 
 
 
-          <StatCard icon="♀" value={stats.girls} label="girls" color="#c94b4b" />
+          <StatCard icon="♀" value={stats.girls} label="girls" color="#c94b4b" loading={dataLoading} />
 
 
 
-          <StatCard icon="⌂" value={stats.classrooms} label="classrooms" color="#c89c2d" />
+          <StatCard icon="⌂" value={stats.classrooms} label="classrooms" color="#c89c2d" loading={dataLoading} />
 
 
 
-          <StatCard icon="☷" value={stats.avg} label="average classroom size" color="#6856ad" />
+          <StatCard icon="☷" value={stats.avg} label="average classroom size" color="#6856ad" loading={dataLoading} />
 
 
 
