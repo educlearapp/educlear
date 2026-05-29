@@ -37,11 +37,13 @@ const LEARNER_GENDER_REPAIR_BASE = "/api/super-admin/migration/learner-repair";
 
 export async function previewMigrationLearnerRepair(opts: {
   schoolId: string;
-  file: File;
+  files: File[];
 }): Promise<MigrationLearnerRepairPreview> {
   const form = new FormData();
   form.append("schoolId", opts.schoolId);
-  form.append("file", opts.file, opts.file.name);
+  for (const file of opts.files) {
+    form.append("files", file, file.name);
+  }
   return (await staffFormPost(
     `${LEARNER_GENDER_REPAIR_BASE}/preview`,
     form

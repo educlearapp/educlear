@@ -173,6 +173,31 @@
   color: #64748b;
 }
 
+.migration-centre-file-list {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  border-radius: 8px;
+  border: 1px solid rgba(212, 175, 55, 0.28);
+  background: #fff;
+  overflow: hidden;
+}
+
+.migration-centre-file-list-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 8px 12px;
+  font-size: 0.82rem;
+  color: #334155;
+  border-bottom: 1px solid rgba(212, 175, 55, 0.15);
+}
+
+.migration-centre-file-list-item:last-child {
+  border-bottom: none;
+}
+
 .migration-centre-summary-grid {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));

@@ -63,15 +63,21 @@ export type MigrationLearnerRepairPreview = {
   schoolName: string;
   sessionId: string;
   fileName: string;
+  fileNames: string[];
+  filesUploaded: number;
   canApply: boolean;
   counts: {
     totalRows: number;
+    rawRowsParsed?: number;
     matched: number;
     ambiguous: number;
     noMatch: number;
     boysDetected: number;
     girlsDetected: number;
+    updatesToApply: number;
     genderUpdates: number;
+    idNumberUpdates: number;
+    classUpdates: number;
     boysAfter: number;
     girlsAfter: number;
     boysBefore: number;
@@ -95,6 +101,7 @@ export type MigrationLearnerRepairApplyResult = {
   success: boolean;
   schoolId: string;
   fileName: string;
+  fileNames?: string[];
   updatedLearners: number;
   boys: number;
   girls: number;
