@@ -6,6 +6,12 @@
         "amount": 2800
       }
     ],
+    "cmpp7op5c001x9ue5ygliiw89": [
+      {
+        "feeDescription": "PRE-PRIMARY 2026 CRECHE AND GRADE R HALF DAY",
+        "amount": 2800
+      }
+    ],
     "cmpp6p4mw00079ue5t73i6umm": [
       {
         "feeDescription": "PRE-PRIMARY 2026 CRECHE AND GRADE R HALF DAY",
@@ -16,6 +22,16 @@
       {
         "feeDescription": "PRE-PRIMARY 2026 CRECHE AND GRADE R HALF DAY",
         "amount": 2800
+      }
+    ],
+    "cmpp7k1i2001n9ue59a3ma9v0": [
+      {
+        "feeDescription": "PRE-PRIMARY 2025",
+        "amount": 2800
+      },
+      {
+        "feeDescription": "AFTERCARE",
+        "amount": 550
       }
     ],
     "cmpp7cf9p00139ue5bj38mdgd": [
@@ -40,10 +56,46 @@
         "amount": 2800
       }
     ],
+    "cmpp2ez0r007rtxyzdbqki3qb": [
+      {
+        "feeDescription": "AFTERCARE",
+        "amount": 550
+      },
+      {
+        "feeDescription": "PRIMARY 2026",
+        "amount": 3000
+      }
+    ],
     "cmpp2ez0d006vtxyz9ej5y1he": [
       {
         "feeDescription": "PRIMARY 2026",
         "amount": 3000
+      }
+    ],
+    "cmpp2ez0a006ntxyz5zsb0222": [
+      {
+        "feeDescription": "PRIMARY 2026",
+        "amount": 3000
+      },
+      {
+        "feeDescription": "AFTERCARE",
+        "amount": 550
+      }
+    ],
+    "cmpp2ez0o007jtxyzlhaed1zb": [
+      {
+        "feeDescription": "PRIMARY 2026",
+        "amount": 3000
+      }
+    ],
+    "cmpp2ez0h0075txyzj7g4v8i7": [
+      {
+        "feeDescription": "PRIMARY 2026",
+        "amount": 3000
+      },
+      {
+        "feeDescription": "AFTERCARE",
+        "amount": 550
       }
     ],
     "cmpp2ez0k007btxyzc1zhkik4": [
@@ -74,10 +126,42 @@
         "amount": 800
       }
     ],
+    "cmpp2ez0p007ltxyzuzw7ag24": [
+      {
+        "feeDescription": "PRIMARY 2026",
+        "amount": 3000
+      }
+    ],
     "cmpp2ez0h0073txyztgxb8wzz": [
       {
         "feeDescription": "PRIMARY 2026",
         "amount": 3000
+      }
+    ],
+    "cmpp2ez0b006rtxyzzp1ht51e": [
+      {
+        "feeDescription": "PRIMARY 2026",
+        "amount": 3000
+      }
+    ],
+    "cmpp2ez0i0077txyz0n5uyjge": [
+      {
+        "feeDescription": "PRIMARY 2026",
+        "amount": 3000
+      },
+      {
+        "feeDescription": "AFTERCARE",
+        "amount": 550
+      }
+    ],
+    "cmpp2ez0j0079txyzwonlhtvw": [
+      {
+        "feeDescription": "PRIMARY 2026",
+        "amount": 3000
+      },
+      {
+        "feeDescription": "INTERVENTION",
+        "amount": 550
       }
     ],
     "cmpp2ez0c006ttxyzoq7qa2sc": [
@@ -96,6 +180,16 @@
         "amount": 550
       }
     ],
+    "cmpp2ez0n007htxyzc4vlc8z2": [
+      {
+        "feeDescription": "PRIMARY 2026",
+        "amount": 3000
+      },
+      {
+        "feeDescription": "INTERVENTION",
+        "amount": 550
+      }
+    ],
     "cmpp2ez0g0071txyzkta0v0qt": [
       {
         "feeDescription": "PRIMARY 2026",
@@ -107,6 +201,54 @@
       }
     ],
     "cmpp2ez0m007ftxyzla9qqwji": [
+      {
+        "feeDescription": "PRIMARY 2026",
+        "amount": 3000
+      }
+    ],
+    "cmpp2ez0e006xtxyz85sffsn3": [
+      {
+        "feeDescription": "PRIMARY 2026",
+        "amount": 3000
+      },
+      {
+        "feeDescription": "INTERVENTION",
+        "amount": 550
+      }
+    ],
+    "cmpp2ez0p007ntxyzfjdtgbau": [
+      {
+        "feeDescription": "PRIMARY 2026",
+        "amount": 3000
+      },
+      {
+        "feeDescription": "AFTERCARE",
+        "amount": 550
+      }
+    ],
+    "cmpp2ez0b006ptxyzkn3pcmee": [
+      {
+        "feeDescription": "PRIMARY 2026",
+        "amount": 3000
+      }
+    ],
+    "cmpp2ez0l007dtxyz7fnrw8f7": [
+      {
+        "feeDescription": "AFTERCARE",
+        "amount": 550
+      },
+      {
+        "feeDescription": "PRIMARY 2026",
+        "amount": 3000
+      }
+    ],
+    "cmpp2ez0q007ptxyzoru08y1h": [
+      {
+        "feeDescription": "PRIMARY 2026",
+        "amount": 3000
+      }
+    ],
+    "cmpp2ez13008jtxyzyl6uvvns": [
       {
         "feeDescription": "PRIMARY 2026",
         "amount": 3000
@@ -134,6 +276,18 @@
         "amount": 3000
       }
     ],
+    "cmpp2ez12008ftxyzsjj3q7l8": [
+      {
+        "feeDescription": "PRIMARY 2026",
+        "amount": 3000
+      }
+    ],
+    "cmpp2ez11008dtxyz397kujtr": [
+      {
+        "feeDescription": "PRIMARY 2026",
+        "amount": 3000
+      }
+    ],
     "cmpp2ez0x0083txyzktv7plws": [
       {
         "feeDescription": "PRIMARY 2024",
@@ -142,6 +296,12 @@
       {
         "feeDescription": "AFTERCARE",
         "amount": 550
+      }
+    ],
+    "cmpp2ez14008ltxyzy70blwvc": [
+      {
+        "feeDescription": "PRIMARY 2026",
+        "amount": 3000
       }
     ],
     "cmpp2ez0s007ttxyzu5w5d2zd": [
@@ -158,6 +318,20 @@
       {
         "feeDescription": "AFTERCARE",
         "amount": 550
+      }
+    ],
+    "cmpp2ez17008ttxyzswh4dzxp": [
+      {
+        "feeDescription": "PRIMARY 2026",
+        "amount": 3000
+      },
+      {
+        "feeDescription": "AFTERCARE",
+        "amount": 550
+      },
+      {
+        "feeDescription": "2026 Transport",
+        "amount": 800
       }
     ],
     "cmpp2ez0y0087txyzmsbubmy6": [
@@ -194,6 +368,30 @@
         "amount": 3000
       }
     ],
+    "cmpp2ez16008rtxyznr1lk2pf": [
+      {
+        "feeDescription": "PRIMARY 2026",
+        "amount": 3000
+      },
+      {
+        "feeDescription": "INTERVENTION",
+        "amount": 550
+      }
+    ],
+    "cmpp2ez15008ntxyz121gjas7": [
+      {
+        "feeDescription": "PRIMARY 2024",
+        "amount": 2300
+      },
+      {
+        "feeDescription": "INTERVENTION",
+        "amount": 450
+      },
+      {
+        "feeDescription": "2026 Transport",
+        "amount": 800
+      }
+    ],
     "cmpp2ez0u007xtxyz1geurehm": [
       {
         "feeDescription": "PRIMARY 2026",
@@ -212,6 +410,12 @@
       {
         "feeDescription": "2026 Transport",
         "amount": 800
+      }
+    ],
+    "cmpp2ez0v007ztxyzkqws376f": [
+      {
+        "feeDescription": "PRIMARY 2026",
+        "amount": 3000
       }
     ],
     "cmpp2ez3400ebtxyzukqtrlqc": [
@@ -256,6 +460,40 @@
         "amount": 550
       }
     ],
+    "cmpp2ez3100e1txyzux74vls0": [
+      {
+        "feeDescription": "PRIMARY 2026",
+        "amount": 3000
+      }
+    ],
+    "cmpp2ez3900evtxyzd85l3xg6": [
+      {
+        "feeDescription": "PRIMARY 2026",
+        "amount": 2800
+      }
+    ],
+    "cmpp2ez3200e5txyzlwrhivpe": [
+      {
+        "feeDescription": "PRIMARY 2026",
+        "amount": 2800
+      },
+      {
+        "feeDescription": "AFTERCARE",
+        "amount": 550
+      }
+    ],
+    "cmpp2ez3700eptxyz5o5fzcj4": [
+      {
+        "feeDescription": "PRIMARY 2026",
+        "amount": 3000
+      }
+    ],
+    "cmpp2ez3b00eztxyzbk8em65q": [
+      {
+        "feeDescription": "PRIMARY 2026",
+        "amount": 3000
+      }
+    ],
     "cmpp2ez3200e7txyztfdbev4g": [
       {
         "feeDescription": "PRIMARY 2026",
@@ -290,7 +528,19 @@
         "amount": 3000
       }
     ],
+    "cmpp2ez3600ejtxyzituk7whs": [
+      {
+        "feeDescription": "PRIMARY 2026",
+        "amount": 3000
+      }
+    ],
     "cmpp2ez3900ettxyz56s9fflf": [
+      {
+        "feeDescription": "PRIMARY 2026",
+        "amount": 3000
+      }
+    ],
+    "cmpp2ez3100e3txyz6pm8uxnf": [
       {
         "feeDescription": "PRIMARY 2026",
         "amount": 3000
@@ -302,10 +552,50 @@
         "amount": 3000
       }
     ],
+    "cmpp2ez2z00dvtxyzj6hn5ja7": [
+      {
+        "feeDescription": "PRIMARY 2026",
+        "amount": 3000
+      },
+      {
+        "feeDescription": "AFTERCARE",
+        "amount": 550
+      }
+    ],
+    "cmpp2ez3500eftxyz334bh6vm": [
+      {
+        "feeDescription": "PRIMARY 2026",
+        "amount": 3000
+      },
+      {
+        "feeDescription": "AFTERCARE",
+        "amount": 550
+      }
+    ],
     "cmpp2ez3a00extxyzzkq4bgla": [
       {
         "feeDescription": "PRIMARY 2026",
         "amount": 3000
+      }
+    ],
+    "cmpp2ez2y00drtxyzjxd3h8ig": [
+      {
+        "feeDescription": "PRIMARY 2026",
+        "amount": 3000
+      }
+    ],
+    "cmpp2ez3g00fjtxyzcgmc0y5c": [
+      {
+        "feeDescription": "PRIMARY 2026",
+        "amount": 3000
+      },
+      {
+        "feeDescription": "INTERVENTION",
+        "amount": 550
+      },
+      {
+        "feeDescription": "2026 Transport",
+        "amount": 800
       }
     ],
     "cmpp2ez3d00f7txyzx07s6shs": [
@@ -324,7 +614,19 @@
         "amount": 550
       }
     ],
+    "cmpp2ez3b00f1txyzcepwnj0d": [
+      {
+        "feeDescription": "PRIMARY 2025",
+        "amount": 2800
+      }
+    ],
     "cmpp2ez3c00f3txyzcxpycyvv": [
+      {
+        "feeDescription": "PRIMARY 2026",
+        "amount": 3000
+      }
+    ],
+    "cmpp2ez3f00fdtxyzzdp06bff": [
       {
         "feeDescription": "PRIMARY 2026",
         "amount": 3000
@@ -334,6 +636,16 @@
       {
         "feeDescription": "PRIMARY 2026",
         "amount": 3000
+      }
+    ],
+    "cmpp2ez3d00f9txyz8w4z1pgi": [
+      {
+        "feeDescription": "PRIMARY 2026",
+        "amount": 3000
+      },
+      {
+        "feeDescription": "AFTERCARE",
+        "amount": 550
       }
     ],
     "cmpp2ez3c00f5txyzveml9xfr": [
@@ -346,13 +658,101 @@
         "amount": 550
       }
     ],
+    "cmpp2ez3f00fftxyz96i40kqd": [
+      {
+        "feeDescription": "PRIMARY 2024",
+        "amount": 2600
+      },
+      {
+        "feeDescription": "INTERVENTION",
+        "amount": 550
+      },
+      {
+        "feeDescription": "2026 Transport",
+        "amount": 800
+      }
+    ],
+    "cmpp2ez3m00g1txyz6exyf63c": [
+      {
+        "feeDescription": "PRIMARY 2026",
+        "amount": 3000
+      },
+      {
+        "feeDescription": "AFTERCARE",
+        "amount": 550
+      },
+      {
+        "feeDescription": "2026 Transport",
+        "amount": 800
+      }
+    ],
+    "cmpp2ez3n00g7txyzrz2y9g53": [
+      {
+        "feeDescription": "PRIMARY 2026",
+        "amount": 3000
+      }
+    ],
+    "cmpp2ez3p00gdtxyzonxfemoz": [
+      {
+        "feeDescription": "PRIMARY 2026",
+        "amount": 3000
+      },
+      {
+        "feeDescription": "AFTERCARE",
+        "amount": 550
+      }
+    ],
+    "cmpp2ez3k00fxtxyz9qgonyob": [
+      {
+        "feeDescription": "PRIMARY 2026",
+        "amount": 3000
+      },
+      {
+        "feeDescription": "INTERVENTION",
+        "amount": 550
+      }
+    ],
+    "cmpp2ez3o00g9txyzxu2vez5u": [
+      {
+        "feeDescription": "PRIMARY 2026",
+        "amount": 3000
+      }
+    ],
+    "cmpp2ez3j00fttxyzpmrcprwd": [
+      {
+        "feeDescription": "AFTERCARE",
+        "amount": 550
+      },
+      {
+        "feeDescription": "PRIMARY 2026",
+        "amount": 3000
+      }
+    ],
+    "cmpp2ez3s00gntxyzyc524upc": [
+      {
+        "feeDescription": "PRIMARY 2026",
+        "amount": 3000
+      }
+    ],
     "cmpp2ez3k00fvtxyzbnkcufjq": [
       {
         "feeDescription": "PRIMARY 2026",
         "amount": 3000
       }
     ],
+    "cmpp2ez3h00fltxyzbjyeu39m": [
+      {
+        "feeDescription": "PRIMARY 2026",
+        "amount": 3000
+      }
+    ],
     "cmpp2ez3r00gjtxyzg3hd55cp": [
+      {
+        "feeDescription": "PRIMARY 2026",
+        "amount": 3000
+      }
+    ],
+    "cmpp2ez3i00fptxyz61vlepta": [
       {
         "feeDescription": "PRIMARY 2026",
         "amount": 3000
@@ -378,7 +778,23 @@
         "amount": 800
       }
     ],
+    "cmpp2ez3o00gbtxyzw0sqbnob": [
+      {
+        "feeDescription": "AFTERCARE",
+        "amount": 550
+      },
+      {
+        "feeDescription": "PRIMARY 2026",
+        "amount": 3000
+      }
+    ],
     "cmpp2ez3n00g5txyzsmehxi6u": [
+      {
+        "feeDescription": "PRIMARY 2026",
+        "amount": 3000
+      }
+    ],
+    "cmpp2ez3l00fztxyzfbq01frd": [
       {
         "feeDescription": "PRIMARY 2026",
         "amount": 3000
@@ -406,10 +822,42 @@
         "amount": 3000
       }
     ],
+    "cmpp2ez3t00gptxyz6pfbfhkn": [
+      {
+        "feeDescription": "PRIMARY 2026",
+        "amount": 3000
+      }
+    ],
     "cmpp2ez3i00fntxyzi9ioegv3": [
       {
         "feeDescription": "PRIMARY 2026",
         "amount": 3000
+      }
+    ],
+    "cmpp2ez3u00gttxyzrk7q3jjr": [
+      {
+        "feeDescription": "PRIMARY 2026",
+        "amount": 3000
+      }
+    ],
+    "cmpp2ez4200hltxyzylkqsmg3": [
+      {
+        "feeDescription": "PRIMARY 2026",
+        "amount": 3000
+      }
+    ],
+    "cmpp2ez3v00gxtxyzryn5v9jm": [
+      {
+        "feeDescription": "PRIMARY 2026",
+        "amount": 3000
+      },
+      {
+        "feeDescription": "AFTERCARE/INTERVENTION",
+        "amount": 550
+      },
+      {
+        "feeDescription": "2026 Transport",
+        "amount": 800
       }
     ],
     "cmpp2ez3w00h1txyzdomnk7lc": [
@@ -419,6 +867,24 @@
       }
     ],
     "cmpp2ez4100hjtxyzbq9wyzd2": [
+      {
+        "feeDescription": "PRIMARY 2026",
+        "amount": 3000
+      }
+    ],
+    "cmpp2ez4000hftxyztbav4f0e": [
+      {
+        "feeDescription": "PRIMARY 2026",
+        "amount": 3000
+      }
+    ],
+    "cmpp2ez3u00gvtxyz203rmz0p": [
+      {
+        "feeDescription": "PRIMARY 2026",
+        "amount": 3000
+      }
+    ],
+    "cmpp2ez3y00h9txyznwcmlawl": [
       {
         "feeDescription": "PRIMARY 2026",
         "amount": 3000
@@ -450,6 +916,18 @@
         "amount": 550
       }
     ],
+    "cmpp2ez3y00h7txyz0vds8vhe": [
+      {
+        "feeDescription": "PRIMARY 2026",
+        "amount": 3000
+      }
+    ],
+    "cmpp2ez3z00hdtxyzfkkreoiz": [
+      {
+        "feeDescription": "PRIMARY 2026",
+        "amount": 3000
+      }
+    ],
     "cmpp2ez4300hptxyz21sda3cx": [
       {
         "feeDescription": "PRIMARY 2026",
@@ -457,6 +935,24 @@
       }
     ],
     "cmpp2ez3x00h5txyzz6y6d0oe": [
+      {
+        "feeDescription": "PRIMARY 2026",
+        "amount": 3000
+      }
+    ],
+    "cmpp2ez4300hrtxyz329vskdw": [
+      {
+        "feeDescription": "PRIMARY 2026",
+        "amount": 3000
+      }
+    ],
+    "cmpp2ez4100hhtxyz3ijf85o9": [
+      {
+        "feeDescription": "PRIMARY 2026",
+        "amount": 3000
+      }
+    ],
+    "cmpp2ez4200hntxyzvmh9jamm": [
       {
         "feeDescription": "PRIMARY 2026",
         "amount": 3000
@@ -490,6 +986,18 @@
         "amount": 550
       }
     ],
+    "cmpp2ez4c00iltxyz9tqxrqi8": [
+      {
+        "feeDescription": "PRIMARY 2026",
+        "amount": 3000
+      }
+    ],
+    "cmpp2ez4f00ivtxyzy3877yz1": [
+      {
+        "feeDescription": "PRIMARY 2026",
+        "amount": 3000
+      }
+    ],
     "cmpp2ez4700i3txyzg0rrgxyc": [
       {
         "feeDescription": "PRIMARY 2023",
@@ -501,6 +1009,12 @@
       }
     ],
     "cmpp2ez4800i5txyz24zzjf3q": [
+      {
+        "feeDescription": "PRIMARY 2026",
+        "amount": 3000
+      }
+    ],
+    "cmpp2ez4800i7txyzv9h0hnkk": [
       {
         "feeDescription": "PRIMARY 2026",
         "amount": 3000
@@ -528,6 +1042,12 @@
         "amount": 550
       }
     ],
+    "cmpp2ez4e00irtxyzuma9cecu": [
+      {
+        "feeDescription": "PRIMARY 2026",
+        "amount": 3000
+      }
+    ],
     "cmpp2ez4f00ittxyz1qosiou3": [
       {
         "feeDescription": "PRIMARY 2026",
@@ -538,6 +1058,16 @@
       {
         "feeDescription": "PRIMARY 2026",
         "amount": 3000
+      }
+    ],
+    "cmpp2ez4g00ixtxyz6vf99neh": [
+      {
+        "feeDescription": "PRIMARY 2026",
+        "amount": 3000
+      },
+      {
+        "feeDescription": "AFTERCARE/INTERVENTION",
+        "amount": 550
       }
     ],
     "cmpp2ez4600hztxyzxtq5cj1t": [
@@ -552,6 +1082,12 @@
       {
         "feeDescription": "2026 Transport",
         "amount": 800
+      }
+    ],
+    "cmpp2ez4c00ijtxyzs9igge7f": [
+      {
+        "feeDescription": "PRIMARY 2026",
+        "amount": 3000
       }
     ],
     "cmpp2ez4500hxtxyzmmptjpaq": [
@@ -582,11 +1118,23 @@
         "amount": 3800
       }
     ],
+    "cmpp2ez4i00j5txyzhasj0ihv": [
+      {
+        "feeDescription": "GRADE 8 2026",
+        "amount": 3000
+      }
+    ],
     "cmpp2ez4h00j1txyzjajezvdv": [
       {
         "feeDescription": "AFTERCARE",
         "amount": 550
       },
+      {
+        "feeDescription": "GRADE 8 2026",
+        "amount": 3800
+      }
+    ],
+    "cmpp2ez4l00jhtxyz1xvmczqv": [
       {
         "feeDescription": "GRADE 8 2026",
         "amount": 3800
@@ -606,6 +1154,12 @@
       {
         "feeDescription": "GRADE 8 2026",
         "amount": 3800
+      }
+    ],
+    "cmpp2ez4p00jttxyz0ngzfuhl": [
+      {
+        "feeDescription": "GRADE 8 2026",
+        "amount": 2800
       }
     ],
     "cmpp2ez4o00jptxyz1jnoqd03": [
@@ -628,6 +1182,12 @@
         "amount": 800
       }
     ],
+    "cmpp2ez4l00jftxyz419213ds": [
+      {
+        "feeDescription": "GRADE 8 2026",
+        "amount": 3800
+      }
+    ],
     "cmpp2ez4k00jbtxyzng2t6cjt": [
       {
         "feeDescription": "GRADE 8 2026",
@@ -640,13 +1200,31 @@
         "amount": 3800
       }
     ],
+    "cmpp2ez4q00jvtxyz4fl85orx": [
+      {
+        "feeDescription": "GRADE 8 2026",
+        "amount": 3800
+      }
+    ],
     "cmpp2ez4g00iztxyz89wx6qb7": [
       {
         "feeDescription": "GRADE 8 2026",
         "amount": 3800
       }
     ],
+    "cmpp2ez4j00j7txyzugazd7it": [
+      {
+        "feeDescription": "GRADE 8 2026",
+        "amount": 3800
+      }
+    ],
     "cmpp2ez4v00kdtxyzvxplhrm7": [
+      {
+        "feeDescription": "GRADE 8 2026",
+        "amount": 3800
+      }
+    ],
+    "cmpp2ez4w00khtxyz6vfbuqv2": [
       {
         "feeDescription": "GRADE 8 2026",
         "amount": 3800
@@ -676,6 +1254,12 @@
         "amount": 3800
       }
     ],
+    "cmpp2ez5000kttxyziflycp4q": [
+      {
+        "feeDescription": "GRADE 8 2026",
+        "amount": 3800
+      }
+    ],
     "cmpp2ez5100kvtxyzo6rkp4ll": [
       {
         "feeDescription": "GRADE 8 2026",
@@ -700,6 +1284,20 @@
         "amount": 3800
       }
     ],
+    "cmpp2ez4v00kbtxyzj1m0n6vp": [
+      {
+        "feeDescription": "INTERVENTION",
+        "amount": 550
+      },
+      {
+        "feeDescription": "GRADE 8 2026",
+        "amount": 3800
+      },
+      {
+        "feeDescription": "2026 Transport",
+        "amount": 800
+      }
+    ],
     "cmpp2ez4r00jztxyzdw1bp8ym": [
       {
         "feeDescription": "GRADE 8 2026",
@@ -707,6 +1305,12 @@
       }
     ],
     "cmpp2ez4t00k5txyzy05wnq5i": [
+      {
+        "feeDescription": "GRADE 8 2026",
+        "amount": 3800
+      }
+    ],
+    "cmpp2ez4z00krtxyzylmniu3u": [
       {
         "feeDescription": "GRADE 8 2026",
         "amount": 3800
@@ -728,6 +1332,48 @@
         "amount": 3800
       }
     ],
+    "cmpp2eyy0001btxyzgsv47ugb": [
+      {
+        "feeDescription": "PRIMARY 2026",
+        "amount": 3000
+      },
+      {
+        "feeDescription": "AFTERCARE",
+        "amount": 550
+      }
+    ],
+    "cmpp2eyyc001ztxyzbpt7tbds": [
+      {
+        "feeDescription": "PRIMARY 2026",
+        "amount": 3000
+      },
+      {
+        "feeDescription": "INTERVENTION",
+        "amount": 550
+      }
+    ],
+    "cmpp2eyyf0025txyz1h0romjy": [
+      {
+        "feeDescription": "PRIMARY 2026",
+        "amount": 2800
+      }
+    ],
+    "cmpp2eyy3001ftxyzzxrocs0e": [
+      {
+        "feeDescription": "AFTERCARE",
+        "amount": 550
+      },
+      {
+        "feeDescription": "PRIMARY 2026",
+        "amount": 3000
+      }
+    ],
+    "cmpp2eyxu0015txyzwp2c3how": [
+      {
+        "feeDescription": "PRIMARY 2026",
+        "amount": 3000
+      }
+    ],
     "cmpp2eyy6001ltxyzrbzcx63m": [
       {
         "feeDescription": "PRIMARY 2026",
@@ -738,7 +1384,35 @@
         "amount": 550
       }
     ],
+    "cmpp2eyxx0017txyzv0ibt1qk": [
+      {
+        "feeDescription": "INTERVENTION",
+        "amount": 550
+      },
+      {
+        "feeDescription": "PRIMARY 2026",
+        "amount": 3000
+      }
+    ],
+    "cmpp2eyy7001ntxyzil9fau5y": [
+      {
+        "feeDescription": "PRIMARY 2026",
+        "amount": 3000
+      }
+    ],
+    "cmpp2eyy9001rtxyz3k4avn3k": [
+      {
+        "feeDescription": "PRIMARY 2026",
+        "amount": 3000
+      }
+    ],
     "cmpp2eyya001vtxyznm5pnis7": [
+      {
+        "feeDescription": "PRIMARY 2026",
+        "amount": 3000
+      }
+    ],
+    "cmpp2eyy1001dtxyz2ssyhcqz": [
       {
         "feeDescription": "PRIMARY 2026",
         "amount": 3000
@@ -754,10 +1428,30 @@
         "amount": 3000
       }
     ],
+    "cmpp2eyy5001jtxyzgen5ydoe": [
+      {
+        "feeDescription": "PRIMARY 2026",
+        "amount": 3000
+      }
+    ],
     "cmpp2eyye0023txyz4vc9qrhv": [
       {
         "feeDescription": "PRIMARY 2026",
         "amount": 3000
+      }
+    ],
+    "cmpp2eyyd0021txyz4ya0xqxv": [
+      {
+        "feeDescription": "AFTERCARE",
+        "amount": 550
+      },
+      {
+        "feeDescription": "PRIMARY 2026",
+        "amount": 3000
+      },
+      {
+        "feeDescription": "2026 Transport",
+        "amount": 800
       }
     ],
     "cmpp2eyy8001ptxyzqqlsdm42": [
@@ -840,6 +1534,22 @@
         "amount": 3000
       }
     ],
+    "cmpp2eyym002jtxyzzcpou9lg": [
+      {
+        "feeDescription": "PRIMARY 2026",
+        "amount": 3000
+      },
+      {
+        "feeDescription": "AFTERCARE",
+        "amount": 550
+      }
+    ],
+    "cmpp2eyyn002ltxyzg1j6f2cs": [
+      {
+        "feeDescription": "PRIMARY 2026",
+        "amount": 3000
+      }
+    ],
     "cmpp2eyyt002xtxyzz599dk6o": [
       {
         "feeDescription": "PRIMARY 2026",
@@ -896,7 +1606,23 @@
         "amount": 3000
       }
     ],
+    "cmpp2eyyg0027txyzvht7dxml": [
+      {
+        "feeDescription": "PRIMARY 2026",
+        "amount": 3000
+      },
+      {
+        "feeDescription": "AFTERCARE",
+        "amount": 550
+      }
+    ],
     "cmpp2eyyv0033txyzo03w0w5y": [
+      {
+        "feeDescription": "PRIMARY 2026",
+        "amount": 3000
+      }
+    ],
+    "cmpp2eyz3003jtxyzii1zoays": [
       {
         "feeDescription": "PRIMARY 2026",
         "amount": 3000
@@ -912,6 +1638,12 @@
       {
         "feeDescription": "PRE-PRIMARY 2025",
         "amount": 2800
+      }
+    ],
+    "cmpp2eyz5003ntxyzy2l1ie3n": [
+      {
+        "feeDescription": "PRIMARY 2026",
+        "amount": 3000
       }
     ],
     "cmpp2eyzc0041txyzy34ordle": [
@@ -930,7 +1662,59 @@
         "amount": 3000
       }
     ],
+    "cmpp2eyz0003dtxyzersbqdg8": [
+      {
+        "feeDescription": "PRIMARY 2026",
+        "amount": 3000
+      }
+    ],
     "cmpp2eyz6003ptxyzzutm00di": [
+      {
+        "feeDescription": "PRIMARY 2026",
+        "amount": 3000
+      }
+    ],
+    "cmpp2eyyz003btxyz06r1otx8": [
+      {
+        "feeDescription": "PRIMARY 2026",
+        "amount": 3000
+      }
+    ],
+    "cmpp2eyz7003rtxyzzyd7ncdg": [
+      {
+        "feeDescription": "PRIMARY 2026",
+        "amount": 3000
+      }
+    ],
+    "cmpp2eyz1003ftxyzexb5qjsb": [
+      {
+        "feeDescription": "PRIMARY 2026",
+        "amount": 3000
+      }
+    ],
+    "cmpp2eyz4003ltxyzeghnoppy": [
+      {
+        "feeDescription": "PRIMARY 2026",
+        "amount": 3000
+      }
+    ],
+    "cmpp2eyz8003ttxyzbyiw76wf": [
+      {
+        "feeDescription": "PRIMARY 2026",
+        "amount": 3000
+      }
+    ],
+    "cmpp2eyz2003htxyzg4bqnqzj": [
+      {
+        "feeDescription": "PRIMARY 2026",
+        "amount": 3000
+      },
+      {
+        "feeDescription": "AFTERCARE/ INTERVENTION",
+        "amount": 550
+      }
+    ],
+    "cmpp2eyzb003ztxyzjmwz7r7c": [
       {
         "feeDescription": "PRIMARY 2026",
         "amount": 3000
@@ -946,6 +1730,20 @@
       {
         "feeDescription": "PRIMARY 2026",
         "amount": 3000
+      }
+    ],
+    "cmpp2eyzg004btxyzw2m91l5e": [
+      {
+        "feeDescription": "PRIMARY 2026",
+        "amount": 3000
+      },
+      {
+        "feeDescription": "AFTERCARE",
+        "amount": 550
+      },
+      {
+        "feeDescription": "2026 Transport",
+        "amount": 800
       }
     ],
     "cmpp2eyzc0043txyzycs9o4rx": [
@@ -974,6 +1772,12 @@
         "amount": 550
       }
     ],
+    "cmpp2eyzq0053txyzx4zchmga": [
+      {
+        "feeDescription": "PRIMARY 2026",
+        "amount": 3000
+      }
+    ],
     "cmpp2eyzo004vtxyzieys9jmn": [
       {
         "feeDescription": "PRIMARY 2026",
@@ -981,6 +1785,22 @@
       },
       {
         "feeDescription": "AFTERCARE",
+        "amount": 550
+      }
+    ],
+    "cmpp2eyzl004ntxyza36k6cj3": [
+      {
+        "feeDescription": "PRE-PRIMARY",
+        "amount": 1000
+      }
+    ],
+    "cmpp2eyzp004ztxyzhh77vkm5": [
+      {
+        "feeDescription": "PRIMARY 2026",
+        "amount": 3000
+      },
+      {
+        "feeDescription": "INTERVENTION",
         "amount": 550
       }
     ],
@@ -994,6 +1814,36 @@
       {
         "feeDescription": "PRIMARY 2026",
         "amount": 3000
+      }
+    ],
+    "cmpp2eyzh004ftxyzydqf33yr": [
+      {
+        "feeDescription": "AFTERCARE",
+        "amount": 550
+      },
+      {
+        "feeDescription": "PRIMARY 2026",
+        "amount": 3000
+      },
+      {
+        "feeDescription": "2026 Transport",
+        "amount": 800
+      }
+    ],
+    "cmpp2eyze0047txyzl75azel1": [
+      {
+        "feeDescription": "PRIMARY 2026",
+        "amount": 3000
+      }
+    ],
+    "cmpp2eyzi004htxyzze1tifld": [
+      {
+        "feeDescription": "PRIMARY 2026",
+        "amount": 3000
+      },
+      {
+        "feeDescription": "AFTERCARE",
+        "amount": 550
       }
     ],
     "cmpp2eyzf0049txyzed0rgea3": [
@@ -1026,6 +1876,12 @@
         "amount": 550
       }
     ],
+    "cmpp2eyzu005dtxyznvmgcz37": [
+      {
+        "feeDescription": "PRIMARY 2026",
+        "amount": 3000
+      }
+    ],
     "cmpp2eyzr0055txyzogrd7nsm": [
       {
         "feeDescription": "PRIMARY 2026 (EMPLOYEE RATE)",
@@ -1036,6 +1892,16 @@
       {
         "feeDescription": "PRIMARY 2026",
         "amount": 3000
+      }
+    ],
+    "cmpp2eyzl004ptxyzajm6days": [
+      {
+        "feeDescription": "PRIMARY 2026",
+        "amount": 3000
+      },
+      {
+        "feeDescription": "INTERVENTION",
+        "amount": 550
       }
     ],
     "cmpp2eyzo004xtxyzmnl82b7m": [
@@ -1050,7 +1916,19 @@
         "amount": 1200
       }
     ],
+    "cmpp2eyzq0051txyzx44e3xrq": [
+      {
+        "feeDescription": "PRIMARY 2026",
+        "amount": 3000
+      }
+    ],
     "cmpp2eyzy005ntxyz1cwq8l3r": [
+      {
+        "feeDescription": "PRIMARY 2026",
+        "amount": 3000
+      }
+    ],
+    "cmpp2eyzv005ftxyzln53t9xs": [
       {
         "feeDescription": "PRIMARY 2026",
         "amount": 3000
@@ -1068,6 +1946,18 @@
         "amount": 3000
       }
     ],
+    "cmpp2ez050069txyz81s0rlwh": [
+      {
+        "feeDescription": "PRIMARY 2026",
+        "amount": 3000
+      }
+    ],
+    "cmpp2eyzw005htxyzf7v3vd6h": [
+      {
+        "feeDescription": "PRIMARY 2025",
+        "amount": 2800
+      }
+    ],
     "cmpp2eyzx005ltxyzpwmjaovx": [
       {
         "feeDescription": "PRIMARY 2026",
@@ -1075,6 +1965,22 @@
       }
     ],
     "cmpp2ez040065txyzwsdeg8l2": [
+      {
+        "feeDescription": "PRIMARY 2026",
+        "amount": 3000
+      }
+    ],
+    "cmpp2ez07006dtxyzvtxfcdwk": [
+      {
+        "feeDescription": "PRIMARY 2026",
+        "amount": 3000
+      },
+      {
+        "feeDescription": "INTERVENTION",
+        "amount": 550
+      }
+    ],
+    "cmpp2ez01005xtxyzjdfhtx2h": [
       {
         "feeDescription": "PRIMARY 2026",
         "amount": 3000
@@ -1096,6 +2002,12 @@
         "amount": 3000
       }
     ],
+    "cmpp2ez08006htxyzhyoeahvj": [
+      {
+        "feeDescription": "PRIMARY 2026",
+        "amount": 3000
+      }
+    ],
     "cmpp2ez06006btxyzs7tgy9md": [
       {
         "feeDescription": "PRIMARY 2026",
@@ -1112,11 +2024,49 @@
         "amount": 3000
       }
     ],
+    "cmpp2ez00005ttxyzk8gkg4y4": [
+      {
+        "feeDescription": "PRIMARY 2026",
+        "amount": 3000
+      },
+      {
+        "feeDescription": "AFTERCARE",
+        "amount": 550
+      }
+    ],
     "cmpp2ez00005vtxyzdxp8fg0b": [
       {
         "feeDescription": "AFTERCARE",
         "amount": 550
       },
+      {
+        "feeDescription": "PRIMARY 2026",
+        "amount": 3000
+      }
+    ],
+    "cmpp2ez09006jtxyzkma6ol31": [
+      {
+        "feeDescription": "PRIMARY 2026",
+        "amount": 3000
+      }
+    ],
+    "cmpp2ez050067txyzorp22nzp": [
+      {
+        "feeDescription": "PRIMARY 2026",
+        "amount": 3000
+      },
+      {
+        "feeDescription": "INTERVENTION",
+        "amount": 550
+      }
+    ],
+    "cmpp2ez07006ftxyz0j9ppvhg": [
+      {
+        "feeDescription": "PRIMARY 2026",
+        "amount": 3000
+      }
+    ],
+    "cmpp2ez02005ztxyzmrn2pxan": [
       {
         "feeDescription": "PRIMARY 2026",
         "amount": 3000
@@ -1132,6 +2082,12 @@
         "amount": 3000
       }
     ],
+    "cmpp2ez18008vtxyz9g1ruatp": [
+      {
+        "feeDescription": "PRIMARY 2023",
+        "amount": 1000
+      }
+    ],
     "cmpp2ez1k009ptxyzyy7nlu4p": [
       {
         "feeDescription": "PRIMARY 2026",
@@ -1142,7 +2098,41 @@
         "amount": 550
       }
     ],
+    "cmpp2ez1a0091txyzqbge0198": [
+      {
+        "feeDescription": "PRIMARY 2026",
+        "amount": 3000
+      }
+    ],
+    "cmpp2ez1f009dtxyzeh67gw84": [
+      {
+        "feeDescription": "PRIMARY 2026",
+        "amount": 3000
+      },
+      {
+        "feeDescription": "INTERVENTION",
+        "amount": 550
+      }
+    ],
+    "cmpp2ez1g009ftxyzydp5u1no": [
+      {
+        "feeDescription": "PRIMARY 2026",
+        "amount": 3000
+      }
+    ],
+    "cmpp2ez1o009xtxyziuub493t": [
+      {
+        "feeDescription": "PRIMARY 2026",
+        "amount": 3000
+      }
+    ],
     "cmpp2ez1n009vtxyzij7rctqc": [
+      {
+        "feeDescription": "PRIMARY 2026",
+        "amount": 3000
+      }
+    ],
+    "cmpp2ez19008xtxyzaujo02qu": [
       {
         "feeDescription": "PRIMARY 2026",
         "amount": 3000
@@ -1154,7 +2144,49 @@
         "amount": 3000
       }
     ],
+    "cmpp2ez1i009ltxyzww5pplyn": [
+      {
+        "feeDescription": "PRIMARY 2026",
+        "amount": 3000
+      }
+    ],
     "cmpp2ez1l009rtxyz5udgohv0": [
+      {
+        "feeDescription": "PRIMARY 2026",
+        "amount": 3000
+      }
+    ],
+    "cmpp2ez1q00a3txyzk0rb2l6v": [
+      {
+        "feeDescription": "PRIMARY 2026",
+        "amount": 3000
+      }
+    ],
+    "cmpp2ez1c0095txyzilrecz47": [
+      {
+        "feeDescription": "PRIMARY 2026",
+        "amount": 3000
+      },
+      {
+        "feeDescription": "AFTERCARE",
+        "amount": 550
+      },
+      {
+        "feeDescription": "2026 Transport",
+        "amount": 800
+      }
+    ],
+    "cmpp2ez1j009ntxyze3l5rb5x": [
+      {
+        "feeDescription": "PRIMARY 2026",
+        "amount": 3000
+      },
+      {
+        "feeDescription": "INTERVENTION",
+        "amount": 550
+      }
+    ],
+    "cmpp2ez1d0099txyz8melk9w4": [
       {
         "feeDescription": "PRIMARY 2026",
         "amount": 3000
@@ -1192,6 +2224,48 @@
         "amount": 550
       }
     ],
+    "cmpp2ez1d0097txyz3fzgvwsd": [
+      {
+        "feeDescription": "PRIMARY 2026",
+        "amount": 3000
+      },
+      {
+        "feeDescription": "AFTERCARE",
+        "amount": 550
+      }
+    ],
+    "cmpp2ez1i009jtxyzf6320b41": [
+      {
+        "feeDescription": "PRIMARY 2026",
+        "amount": 3000
+      },
+      {
+        "feeDescription": "AFTERCARE",
+        "amount": 550
+      }
+    ],
+    "cmpp2ez1v00aftxyz1396ej5h": [
+      {
+        "feeDescription": "PRIMARY 2026",
+        "amount": 3000
+      }
+    ],
+    "cmpp2ez1t00abtxyzmfqfj8hq": [
+      {
+        "feeDescription": "PRIMARY 2026",
+        "amount": 3000
+      },
+      {
+        "feeDescription": "INTERVENTION",
+        "amount": 550
+      }
+    ],
+    "cmpp2ez1y00antxyzmx5xd7aj": [
+      {
+        "feeDescription": "PRIMARY 2026",
+        "amount": 3000
+      }
+    ],
     "cmpp2ez2300b1txyzr7hmosx0": [
       {
         "feeDescription": "PRIMARY 2026",
@@ -1208,6 +2282,34 @@
         "amount": 550
       }
     ],
+    "cmpp2ez2600b9txyz8mxkeufe": [
+      {
+        "feeDescription": "PRIMARY 2026",
+        "amount": 3000
+      }
+    ],
+    "cmpp2ez1s00a7txyz7isto2uy": [
+      {
+        "feeDescription": "PRIMARY 2023",
+        "amount": 2700
+      },
+      {
+        "feeDescription": "AFTERCARE",
+        "amount": 550
+      }
+    ],
+    "cmpp2ez1u00adtxyz95ix85j1": [
+      {
+        "feeDescription": "PRIMARY 2026",
+        "amount": 3000
+      }
+    ],
+    "cmpp2ez1v00ahtxyznhy73rg5": [
+      {
+        "feeDescription": "PRIMARY 2026",
+        "amount": 3000
+      }
+    ],
     "cmpp2ez1s00a9txyzywp29cqv": [
       {
         "feeDescription": "PRIMARY 2026",
@@ -1220,7 +2322,29 @@
         "amount": 1950
       }
     ],
+    "cmpp2ez1r00a5txyzvcr17pav": [
+      {
+        "feeDescription": "PRIMARY 2026",
+        "amount": 3000
+      }
+    ],
+    "cmpp2ez1z00artxyz0lf4088n": [
+      {
+        "feeDescription": "PRIMARY 2026",
+        "amount": 3000
+      }
+    ],
     "cmpp2ez2700bdtxyzj6mi7dpe": [
+      {
+        "feeDescription": "PRIMARY 2026",
+        "amount": 3000
+      },
+      {
+        "feeDescription": "INTERVENTION",
+        "amount": 550
+      }
+    ],
+    "cmpp2ez2000attxyztrqwktlr": [
       {
         "feeDescription": "PRIMARY 2026",
         "amount": 3000
@@ -1234,6 +2358,16 @@
       {
         "feeDescription": "PRIMARY 2026",
         "amount": 3000
+      }
+    ],
+    "cmpp2ez1y00aptxyzqhho3dod": [
+      {
+        "feeDescription": "PRIMARY 2026",
+        "amount": 3000
+      },
+      {
+        "feeDescription": "INTERVENTION",
+        "amount": 550
       }
     ],
     "cmpp2ez2500b7txyz0n8aq50w": [
@@ -1256,6 +2390,34 @@
         "amount": 550
       }
     ],
+    "cmpp2ez2600bbtxyz2fhqeyjh": [
+      {
+        "feeDescription": "PRIMARY 2026",
+        "amount": 3000
+      },
+      {
+        "feeDescription": "AFTERCARE",
+        "amount": 550
+      }
+    ],
+    "cmpp2ez2100axtxyz2p8icebl": [
+      {
+        "feeDescription": "PRIMARY 2026",
+        "amount": 3000
+      }
+    ],
+    "cmpp2ez2100avtxyz0z6txuaw": [
+      {
+        "feeDescription": "PRIMARY 2026",
+        "amount": 3000
+      }
+    ],
+    "cmpp2ez2400b5txyz1po8pijp": [
+      {
+        "feeDescription": "PRIMARY 2026",
+        "amount": 3000
+      }
+    ],
     "cmpp2ez2c00brtxyzhq7d9vet": [
       {
         "feeDescription": "PRIMARY 2026",
@@ -1272,6 +2434,22 @@
         "amount": 3000
       }
     ],
+    "cmpp2ez2a00bjtxyznxssue7v": [
+      {
+        "feeDescription": "PRIMARY 2026",
+        "amount": 3000
+      },
+      {
+        "feeDescription": "AFTERCARE",
+        "amount": 550
+      }
+    ],
+    "cmpp2ez2j00cdtxyz5b48fw13": [
+      {
+        "feeDescription": "PRIMARY 2026",
+        "amount": 3000
+      }
+    ],
     "cmpp2ez2j00cbtxyzats1mn4x": [
       {
         "feeDescription": "PRIMARY 2026",
@@ -1282,6 +2460,22 @@
         "amount": 550
       }
     ],
+    "cmpp2ez2d00bvtxyz2tejs7v0": [
+      {
+        "feeDescription": "PRIMARY 2023",
+        "amount": 1600
+      },
+      {
+        "feeDescription": "AFTERCARE",
+        "amount": 550
+      }
+    ],
+    "cmpp2ez2b00bntxyzjkzo91l8": [
+      {
+        "feeDescription": "PRIMARY 2026",
+        "amount": 3000
+      }
+    ],
     "cmpp2ez2e00bxtxyzjg8v3wyx": [
       {
         "feeDescription": "PRIMARY 2026",
@@ -1289,6 +2483,22 @@
       },
       {
         "feeDescription": "AFTERCARE",
+        "amount": 550
+      }
+    ],
+    "cmpp2ez2m00cntxyz3llblir7": [
+      {
+        "feeDescription": "PRIMARY 2026",
+        "amount": 3000
+      }
+    ],
+    "cmpp2ez2b00bptxyziehqdam6": [
+      {
+        "feeDescription": "PRIMARY 2026",
+        "amount": 3000
+      },
+      {
+        "feeDescription": "INTERVENTION/AFTERCARE",
         "amount": 550
       }
     ],
@@ -1316,13 +2526,61 @@
         "amount": 3000
       }
     ],
+    "cmpp2ez2m00cltxyzknqht0v3": [
+      {
+        "feeDescription": "PRIMARY 2026",
+        "amount": 3000
+      }
+    ],
+    "cmpp2ez2a00bltxyz5hknq6lx": [
+      {
+        "feeDescription": "PRIMARY 2026",
+        "amount": 3000
+      }
+    ],
     "cmpp2ez2l00cjtxyzxd5kc78g": [
       {
         "feeDescription": "PRIMARY 2026",
         "amount": 3000
       }
     ],
+    "cmpp2ez2g00c3txyz6n6fcgjl": [
+      {
+        "feeDescription": "PRIMARY 2026",
+        "amount": 3000
+      }
+    ],
+    "cmpp2ez2f00bztxyzup4e4bzy": [
+      {
+        "feeDescription": "PRIMARY 2026",
+        "amount": 3000
+      },
+      {
+        "feeDescription": "AFTERCARE",
+        "amount": 550
+      },
+      {
+        "feeDescription": "2026 Transport",
+        "amount": 800
+      }
+    ],
+    "cmpp2ez2d00bttxyzljv1v9py": [
+      {
+        "feeDescription": "PRIMARY 2026",
+        "amount": 3000
+      },
+      {
+        "feeDescription": "INTERVENTION CONDITION FOR ALL SUBJECTS",
+        "amount": 550
+      }
+    ],
     "cmpp2ez2i00c9txyzrphncq68": [
+      {
+        "feeDescription": "PRIMARY 2026",
+        "amount": 3000
+      }
+    ],
+    "cmpp2ez2900bhtxyz1m2v65p2": [
       {
         "feeDescription": "PRIMARY 2026",
         "amount": 3000
@@ -1394,6 +2652,30 @@
         "amount": 3000
       }
     ],
+    "cmpp2ez2v00dhtxyzifjffjs1": [
+      {
+        "feeDescription": "AFTERCARE",
+        "amount": 550
+      },
+      {
+        "feeDescription": "PRIMARY 2026",
+        "amount": 3000
+      },
+      {
+        "feeDescription": "2026 Transport",
+        "amount": 800
+      }
+    ],
+    "cmpp2ez2q00d1txyzt10m08nb": [
+      {
+        "feeDescription": "PRIMARY 2026",
+        "amount": 3000
+      },
+      {
+        "feeDescription": "AFTERCARE",
+        "amount": 550
+      }
+    ],
     "cmpp2ez2p00cxtxyz9cnjmmd6": [
       {
         "feeDescription": "PRIMARY 2026",
@@ -1424,6 +2706,22 @@
         "amount": 550
       }
     ],
+    "cmpp2ez2o00crtxyziw4q1m29": [
+      {
+        "feeDescription": "PRIMARY 2026",
+        "amount": 3000
+      }
+    ],
+    "cmpp2ez2x00dntxyzn6n1rqti": [
+      {
+        "feeDescription": "AFTERCARE",
+        "amount": 550
+      },
+      {
+        "feeDescription": "PRIMARY 2026",
+        "amount": 3000
+      }
+    ],
     "cmpp2ez2q00cztxyz819nhq3c": [
       {
         "feeDescription": "PRIMARY 2026",
@@ -1444,6 +2742,18 @@
       {
         "feeDescription": "PRIMARY 2026",
         "amount": 3000
+      }
+    ],
+    "cmpp2ez2u00ddtxyzzug3s4xu": [
+      {
+        "feeDescription": "PRIMARY 2026",
+        "amount": 3000
+      }
+    ],
+    "cmpp2ez5400l7txyzvkfej1ea": [
+      {
+        "feeDescription": "PRE-PRIMARY 2026 CRECHE AND GRADE R HALF DAY",
+        "amount": 2800
       }
     ],
     "cmpp2ez5800ljtxyz8mjcggy9": [
@@ -1472,10 +2782,28 @@
         "amount": 2800
       }
     ],
+    "cmpp2ez5600ldtxyzppzsoxm7": [
+      {
+        "feeDescription": "PRE-PRIMARY 2026 CRECHE AND GRADE R HALF DAY",
+        "amount": 2800
+      }
+    ],
+    "cmpp2ez5800lltxyzrkbpwf2b": [
+      {
+        "feeDescription": "PRE-PRIMARY 2025",
+        "amount": 2800
+      }
+    ],
     "cmpp2ez5a00lptxyz6xkkgpek": [
       {
         "feeDescription": "EMPLOYEE RATE - SCHOOL FEE",
         "amount": 1000
+      }
+    ],
+    "cmpp2ez5700lftxyz9x7kai3n": [
+      {
+        "feeDescription": "PRE-PRIMARY 2026 CRECHE AND GRADE R HALF DAY",
+        "amount": 2800
       }
     ],
     "cmpp2ez5400l5txyzf0hopvdb": [
@@ -1496,6 +2824,18 @@
         "amount": 2800
       }
     ],
+    "cmpp2ez5a00lrtxyzipcm3q9t": [
+      {
+        "feeDescription": "PRE-PRIMARY 2026 CRECHE AND GRADE R HALF DAY",
+        "amount": 2800
+      }
+    ],
+    "cmpp2ez5600lbtxyzqmwhjdis": [
+      {
+        "feeDescription": "GRADE R FULL DAY",
+        "amount": 3350
+      }
+    ],
     "cmpp2ez5100kxtxyzafwlzc28": [
       {
         "feeDescription": "PRE-PRIMARY 2026 CRECHE AND GRADE R HALF DAY",
@@ -1508,13 +2848,85 @@
         "amount": 2800
       }
     ],
+    "cmpp2ez5i00mjtxyz7b8pyil2": [
+      {
+        "feeDescription": "GRADE R FULL DAY",
+        "amount": 3350
+      }
+    ],
+    "cmpp2ez5h00mftxyzza1mvtez": [
+      {
+        "feeDescription": "GRADE R HALF DAY FEES",
+        "amount": 2800
+      }
+    ],
+    "cmpp2ez5f00m7txyz3lfk12vg": [
+      {
+        "feeDescription": "PRE-PRIMARY 2026 CRECHE AND GRADE R HALF DAY",
+        "amount": 2800
+      }
+    ],
+    "cmpp2ez5d00m1txyz6ozbppsu": [
+      {
+        "feeDescription": "PRE-PRIMARY 2026 CRECHE AND GRADE R HALF DAY",
+        "amount": 2800
+      }
+    ],
     "cmpp2ez5j00mntxyzfghoqp87": [
       {
         "feeDescription": "PRE-PRIMARY 2026 CRECHE AND GRADE R HALF DAY",
         "amount": 2800
       }
     ],
+    "cmpp2ez5d00m3txyz9lyo1eq2": [
+      {
+        "feeDescription": "GRADE R FULL DAY",
+        "amount": 3350
+      }
+    ],
+    "cmpp2ez5c00lxtxyzttrr06gj": [
+      {
+        "feeDescription": "PRE-PRIMARY 2026 CRECHE AND GRADE R HALF DAY",
+        "amount": 2800
+      }
+    ],
+    "cmpp2ez5b00lvtxyzeuy3iih0": [
+      {
+        "feeDescription": "PRE-PRIMARY 2026 CRECHE AND GRADE R HALF DAY",
+        "amount": 2800
+      }
+    ],
     "cmpp2ez5h00mdtxyzoac1ebto": [
+      {
+        "feeDescription": "PRE-PRIMARY 2026 CRECHE AND GRADE R HALF DAY",
+        "amount": 2800
+      }
+    ],
+    "cmpp2ez5j00mltxyzca09t4xf": [
+      {
+        "feeDescription": "GRADE R  HALF DAY FEES",
+        "amount": 2800
+      }
+    ],
+    "cmpp2ez5c00lztxyzhilh1fuv": [
+      {
+        "feeDescription": "GRADE R FULL DAY",
+        "amount": 3150
+      }
+    ],
+    "cmpp2ez5b00lttxyz2n7ya604": [
+      {
+        "feeDescription": "PRE-PRIMARY 2026 CRECHE AND GRADE R HALF DAY",
+        "amount": 2800
+      }
+    ],
+    "cmpp2ez5g00mbtxyz5vy7gada": [
+      {
+        "feeDescription": "PRE-PRIMARY 2026 CRECHE AND GRADE R HALF DAY",
+        "amount": 2800
+      }
+    ],
+    "cmpp2ez5e00m5txyz1mqsptb6": [
       {
         "feeDescription": "PRE-PRIMARY 2026 CRECHE AND GRADE R HALF DAY",
         "amount": 2800
