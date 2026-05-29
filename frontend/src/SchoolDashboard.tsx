@@ -100,6 +100,12 @@ import { isSuperAdmin } from "./auth/roles";
 
 
 
+import {
+  canAccessSchoolPage,
+  canViewAnySchoolPage,
+  findFirstAllowedSchoolPage,
+} from "./auth/schoolAccess";
+import { getSchoolSessionUser, syncSchoolSessionFromLoginResponse } from "./auth/schoolSession";
 import { API_URL, apiFetch } from "./api";
 
 
@@ -420,6 +426,9 @@ const schoolId =
 
   const BLACK = "#050505";
 
+  const schoolSessionUser = getSchoolSessionUser();
+  const canPage = (page: PageKey) => canAccessSchoolPage(page, schoolSessionUser);
+
 
 
   const [activePage, setActivePage] = useState<PageKey>("dashboard");
@@ -607,51 +616,16 @@ const [localEmployees, setLocalEmployees] = useState<any[]>(() => {
 
 
 });
-const [selectedAttendance, setSelectedAttendance] = useState<any | null>(null);
-
-
-
+const [attendanceSelectedClass, setAttendanceSelectedClass] = useState<string | null>(null);
 const [attendanceSearch, setAttendanceSearch] = useState("");
-
-
-
-const [attendancePage, setAttendancePage] = useState(1);
-
-
-
 const [attendanceCapturePage, setAttendanceCapturePage] = useState(1);
-
-
-
-const [attendanceClassroomFilter, setAttendanceClassroomFilter] = useState("All Classrooms");
-
-
-
-const [attendanceRange, setAttendanceRange] = useState("Last 3 Months");
-
-
-
-const [attendanceModalOpen, setAttendanceModalOpen] = useState(false);
-
-
-
 const [attendanceDate, setAttendanceDate] = useState(() => new Date().toISOString().slice(0, 10));
-
-
-
-const [attendanceSelection, setAttendanceSelection] = useState("Today");
-
-
-
-const [attendanceRecords, setAttendanceRecords] = useState<any[]>([]);
-
-
-
-const [attendanceMarks, setAttendanceMarks] = useState<Record<string, any>>({});
-
-
-
-const [attendanceMoreOpen, setAttendanceMoreOpen] = useState(false);
+const [attendanceMarks, setAttendanceMarks] = useState<
+  Record<string, { status?: string; arrived?: string; left?: string; reason?: string }>
+>({});
+const [attendanceLoading, setAttendanceLoading] = useState(false);
+const [attendanceSaving, setAttendanceSaving] = useState(false);
+const [attendanceNotice, setAttendanceNotice] = useState<string | null>(null);
 const [incidentSearch, setIncidentSearch] = useState("");
 
 
@@ -714,6 +688,38 @@ useEffect(() => {
     })
     .catch(() => {});
 }, [schoolId]);
+
+useEffect(() => {
+  if (!schoolId || !attendanceSelectedClass) return;
+  if (activePage !== "attendance" && activePage !== "attendanceManage") return;
+
+  let cancelled = false;
+  setAttendanceLoading(true);
+  setAttendanceNotice(null);
+
+  const qs = new URLSearchParams({
+    schoolId,
+    className: attendanceSelectedClass,
+    date: attendanceDate,
+  });
+
+  void apiFetch(`/api/attendance?${qs}`)
+    .then((data: any) => {
+      if (cancelled || !data?.success) return;
+      setAttendanceMarks(data.marks || {});
+      setAttendanceCapturePage(1);
+    })
+    .catch(() => {
+      if (!cancelled) setAttendanceNotice("Could not load attendance for this class and date.");
+    })
+    .finally(() => {
+      if (!cancelled) setAttendanceLoading(false);
+    });
+
+  return () => {
+    cancelled = true;
+  };
+}, [schoolId, attendanceSelectedClass, attendanceDate, activePage]);
 
 const [incidentDraft, setIncidentDraft] = useState<any>({
 
@@ -816,7 +822,24 @@ const [selectedLearnerReport, setSelectedLearnerReport] = useState<any>(null);
   
   const [showFeePicker, setShowFeePicker] = useState(false);
 
+  useEffect(() => {
+    const token = localStorage.getItem("token");
+    if (!token) return;
+    apiFetch("/auth/me", { headers: { Authorization: `Bearer ${token}` } })
+      .then((data) => syncSchoolSessionFromLoginResponse(data))
+      .catch(() => {});
+  }, []);
+
+  useEffect(() => {
+    if (canPage(activePage)) return;
+    setActivePage(findFirstAllowedSchoolPage(schoolSessionUser) as PageKey);
+  }, [activePage]);
+
   const go = (page: PageKey) => {
+    if (!canPage(page)) {
+      window.alert("You do not have permission to access this section.");
+      return;
+    }
     setActivePage(page);
 
     const isAccountingPage =
@@ -1586,6 +1609,8 @@ const [selectedLearnerReport, setSelectedLearnerReport] = useState<any>(null);
       activePage === "addLearner" ||
       activePage === "classrooms" ||
       activePage === "classroomManage" ||
+      activePage === "attendance" ||
+      activePage === "attendanceManage" ||
       activePage === "plans" ||
       activePage === "learnerProfile" ||
       activePage === "statements" ||
@@ -1825,8 +1850,11 @@ const [selectedLearnerReport, setSelectedLearnerReport] = useState<any>(null);
 
 
     if (path === "/dashboard/billing/fees" || path === "/dashboard/billing/fees/") {
-
-
+      if (!canPage("fees")) {
+        setActivePage(findFirstAllowedSchoolPage(schoolSessionUser) as PageKey);
+        navigate("/dashboard");
+        return;
+      }
 
       setManageFeeId(null);
 
@@ -9603,1345 +9631,365 @@ localStorage.setItem(
   
   };
   
-  const attendancePerPage = 10;
-
-
-
-const attendanceFiltered = attendanceRecords.filter((item) => {
-
-
-
-  const matchesSearch =
-
-
-
-    item.type?.toLowerCase().includes(attendanceSearch.toLowerCase()) ||
-
-
-
-    item.date?.toLowerCase().includes(attendanceSearch.toLowerCase());
-
-
-
-  return matchesSearch;
-
-
-
-});
-
-
-
-const attendanceTotalPages = Math.max(
-
-
-
-  1,
-
-
-
-  Math.ceil(attendanceFiltered.length / attendancePerPage)
-
-
-
-);
-
-
-
-const attendancePaginated = attendanceFiltered.slice(
-
-
-
-  (attendancePage - 1) * attendancePerPage,
-
-
-
-  attendancePage * attendancePerPage
-
-
-
-);
-
-
-
-const attendanceLearnersFiltered = learners.filter((learner: any) => {
-
-
-
-  if (
-
-
-
-    attendanceClassroomFilter !== "All Classrooms" &&
-
-
-
-    learner.classroom !== attendanceClassroomFilter
-
-
-
-  ) {
-
-
-
-    return false;
-
-
-
-  }
-
-
-
-  const fullName =
-
-
-
-    `${learner.firstName || ""} ${learner.lastName || ""}`.toLowerCase();
-
-
-
-  return fullName.includes(attendanceSearch.toLowerCase());
-
-
-
-});
-
-
-
-const attendanceCaptureTotalPages = Math.max(
-
-
-
-  1,
-
-
-
-  Math.ceil(attendanceLearnersFiltered.length / attendancePerPage)
-
-
-
-);
-
-
-
-const attendanceCapturePaginated = attendanceLearnersFiltered.slice(
-
-
-
-  (attendanceCapturePage - 1) * attendancePerPage,
-
-
-
-  attendanceCapturePage * attendancePerPage
-
-
-
-);
-
-
-
-const attendanceClassrooms = [
-
-
-
-  "All Classrooms",
-
-
-
-  ...new Set(
-
-
-
-    learners
-
-
-
-      .map((l: any) => l.classroom)
-
-
-
-      .filter(Boolean)
-
-
-
-  ),
-
-
-
-];
-
-
-
-const updateAttendanceMark = (
-
-
-
-  learnerId: string,
-
-
-
-  field: string,
-
-
-
-  value: string
-
-
-
-) => {
-
-
-
-  setAttendanceMarks((prev) => ({
-
-
-
-    ...prev,
-
-
-
-    [learnerId]: {
-
-
-
-      ...(prev[learnerId] || {}),
-
-
-
-      [field]: value,
-
-
-
-    },
-
-
-
-  }));
-
-
-
-};
-
-
-
-const setAllAttendance = (status: "Present" | "Absent") => {
-
-
-
-  const updates: Record<string, any> = {};
-
-
-
-  attendanceLearnersFiltered.forEach((learner: any) => {
-
-
-
-    updates[learner.id] = {
-
-
-
-      ...(attendanceMarks[learner.id] || {}),
-
-
-
-      attendance: status,
-
-
-
-    };
-
-
-
-  });
-
-
-
-  setAttendanceMarks((prev) => ({
-
-
-
-    ...prev,
-
-
-
-    ...updates,
-
-
-
-  }));
-
-
-
-};
-
-
-
-const openAttendanceCapture = () => {
-
-
-
-  const newAttendance = {
-
-
-
-    id: Date.now().toString(),
-
-
-
-    date: attendanceDate,
-
-
-
-    type: "Child Attendance",
-
-
-
-    attendance: `${learners.length} Learners`,
-
-
-
-    updated: "Just now",
-
-
-
+  const ATTENDANCE_STATUSES = ["Present", "Absent", "Late", "Excused"] as const;
+  const attendancePerPage = 25;
+  const attendancePaginationThreshold = 25;
+
+  const learnerMatchesAttendanceClass = (learner: any, className: string) => {
+    const learnerClass = String(getLearnerGrade(learner) || "").trim().toLowerCase();
+    return learnerClass === String(className || "").trim().toLowerCase();
   };
 
+  const attendanceClassLearners = attendanceSelectedClass
+    ? learners.filter(
+        (learner: any) =>
+          isActiveEnrollment(learner) &&
+          learnerMatchesAttendanceClass(learner, attendanceSelectedClass)
+      )
+    : [];
 
+  const attendanceLearnersFiltered = attendanceClassLearners.filter((learner: any) => {
+    const fullName = `${learner.firstName || ""} ${learner.lastName || ""}`.toLowerCase();
+    return fullName.includes(attendanceSearch.trim().toLowerCase());
+  });
 
-  setAttendanceRecords((prev) => [newAttendance, ...prev]);
+  const attendanceUsePagination = attendanceLearnersFiltered.length > attendancePaginationThreshold;
+  const attendanceCaptureTotalPages = Math.max(
+    1,
+    Math.ceil(attendanceLearnersFiltered.length / attendancePerPage)
+  );
+  const attendanceCapturePaginated = attendanceUsePagination
+    ? attendanceLearnersFiltered.slice(
+        (attendanceCapturePage - 1) * attendancePerPage,
+        attendanceCapturePage * attendancePerPage
+      )
+    : attendanceLearnersFiltered;
 
+  const attendanceSummary = {
+    total: attendanceClassLearners.length,
+    present: 0,
+    absent: 0,
+    late: 0,
+    excused: 0,
+  };
+  attendanceClassLearners.forEach((learner: any) => {
+    const status = String(attendanceMarks[learner.id]?.status || "").trim();
+    if (status === "Present") attendanceSummary.present += 1;
+    else if (status === "Absent") attendanceSummary.absent += 1;
+    else if (status === "Late") attendanceSummary.late += 1;
+    else if (status === "Excused") attendanceSummary.excused += 1;
+  });
 
-
-  setSelectedAttendance(newAttendance);
-
-
-
-  setAttendanceModalOpen(false);
-
-
-
-};
-
-
-
-useEffect(() => {
-
-
-
-  if (attendanceRecords.length === 0) {
-
-
-
-    setAttendanceRecords([
-
-
-
-      {
-
-
-
-        id: "1",
-
-
-
-        date: "2026/05/06",
-
-
-
-        type: "Child Attendance",
-
-
-
-        attendance: "0 Present",
-
-
-
-        updated: "Today",
-
-
-
+  const updateAttendanceMark = (
+    learnerId: string,
+    field: "status" | "arrived" | "left" | "reason",
+    value: string
+  ) => {
+    setAttendanceMarks((prev) => ({
+      ...prev,
+      [learnerId]: {
+        ...(prev[learnerId] || {}),
+        [field]: value,
       },
+    }));
+  };
 
+  const setAllAttendancePresent = () => {
+    const updates: Record<string, { status: string }> = {};
+    attendanceClassLearners.forEach((learner: any) => {
+      updates[learner.id] = { ...(attendanceMarks[learner.id] || {}), status: "Present" };
+    });
+    setAttendanceMarks((prev) => ({ ...prev, ...updates }));
+  };
 
+  const clearAllAttendanceMarks = () => {
+    setAttendanceMarks({});
+  };
 
-    ]);
+  const saveAttendanceForClass = async () => {
+    if (!schoolId || !attendanceSelectedClass) return;
+    if (!attendanceClassLearners.length) {
+      alert("No learners in this class.");
+      return;
+    }
+    const missing = attendanceClassLearners.filter((learner: any) => !attendanceMarks[learner.id]?.status);
+    if (missing.length) {
+      alert("Please set a status for every learner before saving.");
+      return;
+    }
 
+    setAttendanceSaving(true);
+    setAttendanceNotice(null);
+    try {
+      const marks = attendanceClassLearners.map((learner: any) => {
+        const mark = attendanceMarks[learner.id] || {};
+        return {
+          learnerId: learner.id,
+          status: mark.status,
+          arrived: mark.arrived || "",
+          left: mark.left || "",
+          reason: mark.reason || "",
+        };
+      });
+      const data: any = await apiFetch("/api/attendance/bulk", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          schoolId,
+          className: attendanceSelectedClass,
+          date: attendanceDate,
+          marks,
+        }),
+      });
+      if (!data?.success) throw new Error(data?.error || "Save failed");
+      setAttendanceNotice(`Attendance saved for ${attendanceSelectedClass} (${attendanceDate}).`);
+      const qs = new URLSearchParams({
+        schoolId,
+        className: attendanceSelectedClass,
+        date: attendanceDate,
+      });
+      const refreshed: any = await apiFetch(`/api/attendance?${qs}`);
+      if (refreshed?.success) setAttendanceMarks(refreshed.marks || {});
+    } catch (e: unknown) {
+      setAttendanceNotice(e instanceof Error ? e.message : "Failed to save attendance.");
+    } finally {
+      setAttendanceSaving(false);
+    }
+  };
 
-
-  }
-
-
-
-}, []);
-
-const renderAttendance = () => (
-
-
-
-  <div style={{ padding: "26px", background: "#f8fafc", minHeight: "100%", borderRadius: "20px", border: "1px solid rgba(15,23,42,0.08)" }}>
-
-
-
-    <div style={{ marginBottom: "18px" }}>
-
-
-
-      <h1 style={{ margin: 0, fontSize: "34px", fontWeight: 900, color: "#0f172a" }}>Attendance</h1>
-
-
-
-      <p style={{ margin: "6px 0 0", color: "#64748b", fontWeight: 700 }}>Manage attendance</p>
-
-
-
+  const renderAttendanceStatusButtons = (learnerId: string, currentStatus: string) => (
+    <div style={{ display: "flex", flexWrap: "wrap", gap: "4px" }}>
+      {ATTENDANCE_STATUSES.map((status) => {
+        const active = currentStatus === status;
+        return (
+          <button
+            key={status}
+            type="button"
+            onClick={() => updateAttendanceMark(learnerId, "status", status)}
+            style={{
+              ...actionBtn,
+              padding: "4px 8px",
+              fontSize: "11px",
+              fontWeight: 800,
+              border: active ? `1px solid ${GOLD}` : "1px solid #e2e8f0",
+              background: active
+                ? "linear-gradient(135deg, #d4af37, #f5d06f)"
+                : "#fff",
+              color: active ? "#111827" : "#475569",
+            }}
+          >
+            {status}
+          </button>
+        );
+      })}
     </div>
-
-
-
-    <div style={{ background: "#fff", border: "1px solid rgba(15,23,42,0.10)", borderTop: `4px solid ${GOLD}`, borderRadius: "12px", overflow: "hidden", boxShadow: "0 18px 40px rgba(15,23,42,0.08)" }}>
-
-
-
-      <div style={{ padding: "12px 14px", borderBottom: "1px solid #e5e7eb", fontWeight: 900 }}>Attendance</div>
-
-
-
-      <div style={{ padding: "10px", display: "flex", gap: "8px", borderBottom: "1px solid #e5e7eb", alignItems: "center" }}>
-
-
-
-        <button style={goldBtn} onClick={() => setAttendanceModalOpen(true)}>+ Add</button>
-
-
-
-        <button
-
-
-
-          style={{ ...actionBtn, opacity: selectedAttendance ? 1 : 0.55, cursor: selectedAttendance ? "pointer" : "not-allowed" }}
-
-
-
-          disabled={!selectedAttendance}
-
-
-
-          onClick={() => {
-
-
-
-            if (!selectedAttendance) return alert("Please select an attendance record first.");
-
-
-
-            setActivePage("attendanceManage");
-
-
-
-          }}
-
-
-
-        >
-
-
-
-          ✎ Manage
-
-
-
-        </button>
-
-
-
-        <div style={{ flex: 1 }} />
-
-
-
-        <select style={selectStyle} value={attendanceRange} onChange={(e) => setAttendanceRange(e.target.value)}>
-
-
-
-          <option>Last 3 Months</option>
-
-
-
-          <option>This Month</option>
-
-
-
-          <option>This Week</option>
-
-
-
-          <option>Today</option>
-
-
-
-        </select>
-
-
-
-        <input
-
-
-
-          placeholder="Search"
-
-
-
-          value={attendanceSearch}
-
-
-
-          onChange={(e) => {
-
-
-
-            setAttendanceSearch(e.target.value);
-
-
-
-            setAttendancePage(1);
-
-
-
-          }}
-
-
-
-          style={{ ...selectStyle, width: "230px" }}
-
-
-
-        />
-
-
-
+  );
+
+  const renderAttendance = () => (
+    <div style={{ padding: "26px", background: "#f8fafc", minHeight: "100%", borderRadius: "20px", border: "1px solid rgba(15,23,42,0.08)" }}>
+      <div style={{ marginBottom: "18px" }}>
+        <h1 style={{ margin: 0, fontSize: "34px", fontWeight: 900, color: "#0f172a" }}>Attendance</h1>
+        <p style={{ margin: "6px 0 0", color: "#64748b", fontWeight: 700 }}>
+          {attendanceSelectedClass
+            ? `Capture attendance for ${attendanceSelectedClass}`
+            : "Select a class to capture attendance"}
+        </p>
       </div>
 
-
-
-      <table style={{ width: "100%", borderCollapse: "collapse", fontSize: "13px" }}>
-
-
-
-        <thead>
-
-
-
-          <tr>
-
-
-
-            <th style={th}>Date</th>
-
-
-
-            <th style={th}>Type</th>
-
-
-
-            <th style={th}>Attendance</th>
-
-
-
-            <th style={th}>Last Updated</th>
-
-
-
-          </tr>
-
-
-
-        </thead>
-
-
-
-        <tbody>
-
-
-
-          {attendancePaginated.length === 0 ? (
-
-
-
-            <tr>
-
-
-
-              <td colSpan={4} style={{ ...td, textAlign: "center", padding: "24px" }}>
-
-
-
-                No attendance records found. Click + Add to start attendance.
-
-
-
-              </td>
-
-
-
-            </tr>
-
-
-
-          ) : (
-
-
-
-            attendancePaginated.map((item: any, index: number) => {
-
-
-
-              const isSelected = selectedAttendance?.id === item.id;
-
-
-
-              return (
-
-
-
-                <tr
-
-
-
-                  key={item.id}
-
-
-
-                  onClick={() => setSelectedAttendance(item)}
-
-
-
-                  onDoubleClick={() => {
-
-
-
-                    setSelectedAttendance(item);
-
-
-
-                    setActivePage("attendanceManage");
-
-
-
+      {!attendanceSelectedClass ? (
+        <div style={{ background: "#fff", border: "1px solid rgba(15,23,42,0.10)", borderTop: `4px solid ${GOLD}`, borderRadius: "12px", overflow: "hidden", boxShadow: "0 18px 40px rgba(15,23,42,0.08)" }}>
+          <div style={{ padding: "12px 14px", borderBottom: "1px solid #e5e7eb", fontWeight: 900, color: "#0f172a" }}>Select class</div>
+          <div style={{ padding: "14px", display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(200px, 1fr))", gap: "12px" }}>
+            {classroomRows.length === 0 ? (
+              <div style={{ color: "#64748b", fontWeight: 700, padding: "12px" }}>No classes found. Add learners with a class name first.</div>
+            ) : (
+              classroomRows.map((row) => (
+                <button
+                  key={row.id || row.name}
+                  type="button"
+                  onClick={() => {
+                    setAttendanceSelectedClass(String(row.name));
+                    setAttendanceCapturePage(1);
+                    setAttendanceSearch("");
+                    setAttendanceNotice(null);
                   }}
-
-
-
                   style={{
-
-
-
-                    cursor: "pointer",
-
-
-
-                    background: isSelected
-
-
-
-                      ? "linear-gradient(90deg, rgba(212,175,55,0.25), #fff)"
-
-
-
-                      : index % 2 === 0
-
-
-
-                      ? "#fff"
-
-
-
-                      : "rgba(212,175,55,0.07)",
-
-
-
-                    outline: isSelected ? `2px solid ${GOLD}` : "none",
-
-
-
+                    ...actionBtn,
+                    textAlign: "left",
+                    padding: "14px",
+                    border: "1px solid rgba(15,23,42,0.12)",
+                    background: "linear-gradient(180deg, #fff 0%, rgba(212,175,55,0.08) 100%)",
+                    boxShadow: "0 8px 18px rgba(15,23,42,0.06)",
                   }}
-
-
-
                 >
-
-
-
-                  <td style={td}>{item.date}</td>
-
-
-
-                  <td style={td}>{item.type}</td>
-
-
-
-                  <td style={td}>{item.attendance}</td>
-
-
-
-                  <td style={td}>{item.updated}</td>
-
-
-
-                </tr>
-
-
-
-              );
-
-
-
-            })
-
-
-
-          )}
-
-
-
-        </tbody>
-
-
-
-      </table>
-
-
-
-      <div style={{ padding: "10px", display: "flex", justifyContent: "space-between", color: "#64748b", fontSize: "12px", fontWeight: 800 }}>
-
-
-
-        <span>
-
-
-
-          {attendanceFiltered.length === 0 ? "0" : (attendancePage - 1) * attendancePerPage + 1} - {Math.min(attendancePage * attendancePerPage, attendanceFiltered.length)} / {attendanceFiltered.length}
-
-
-
-        </span>
-
-
-
-        <div style={{ display: "flex", gap: "6px", alignItems: "center" }}>
-
-
-
-          <button style={actionBtn} disabled={attendancePage <= 1} onClick={() => setAttendancePage((p) => Math.max(1, p - 1))}>‹</button>
-
-
-
-          <span>Page {attendancePage} / {attendanceTotalPages}</span>
-
-
-
-          <button style={actionBtn} disabled={attendancePage >= attendanceTotalPages} onClick={() => setAttendancePage((p) => Math.min(attendanceTotalPages, p + 1))}>›</button>
-
-
-
+                  <div style={{ fontWeight: 900, color: "#0f172a", fontSize: "15px" }}>{row.name}</div>
+                  <div style={{ marginTop: "6px", color: "#64748b", fontWeight: 700, fontSize: "12px" }}>
+                    {row.children} learner{row.children === 1 ? "" : "s"}
+                  </div>
+                </button>
+              ))
+            )}
+          </div>
         </div>
-
-
-
-      </div>
-
-
-
-    </div>
-
-
-
-    {attendanceModalOpen && (
-
-
-
-      <div style={{ position: "fixed", inset: 0, background: "rgba(15,23,42,0.45)", display: "grid", placeItems: "center", zIndex: 50 }}>
-
-
-
-        <div style={{ width: "620px", background: "#fff", borderRadius: "16px", border: `2px solid ${GOLD}`, boxShadow: "0 30px 80px rgba(0,0,0,0.25)", overflow: "hidden" }}>
-
-
-
-          <div style={{ padding: "18px 20px", borderBottom: "1px solid #e5e7eb", fontWeight: 900, fontSize: "18px", color: "#0f172a" }}>
-
-
-
-            Attendance Date
-
-
-
-          </div>
-
-
-
-          <div style={{ padding: "22px", display: "grid", gridTemplateColumns: "130px 1fr", gap: "12px", alignItems: "center" }}>
-
-
-
-            <label style={labelStyle}>Selection</label>
-
-
-
-            <select style={inputStyle} value={attendanceSelection} onChange={(e) => setAttendanceSelection(e.target.value)}>
-
-
-
-              <option>Today</option>
-
-
-
-              <option>Choose Date</option>
-
-
-
-            </select>
-
-
-
-            <label style={labelStyle}>Date</label>
-
-
-
-            <input type="date" style={inputStyle} value={attendanceDate} onChange={(e) => setAttendanceDate(e.target.value)} />
-
-
-
-          </div>
-
-
-
-          <div style={{ padding: "14px 20px", borderTop: "1px solid #e5e7eb", display: "flex", justifyContent: "space-between" }}>
-
-
-
+      ) : (
+        <>
+          <div style={{ display: "flex", flexWrap: "wrap", gap: "8px", marginBottom: "14px", alignItems: "center" }}>
             <button
-
-
-
-              style={goldBtn}
-
-
-
+              type="button"
+              style={actionBtn}
               onClick={() => {
-
-
-
-                openAttendanceCapture();
-
-
-
-                setActivePage("attendanceManage");
-
-
-
+                setAttendanceSelectedClass(null);
+                setAttendanceMarks({});
+                setAttendanceNotice(null);
               }}
-
-
-
             >
-
-
-
-              ✓ Continue
-
-
-
+              ← All classes
             </button>
-
-
-
-            <button style={dangerBtn} onClick={() => setAttendanceModalOpen(false)}>× Cancel</button>
-
-
-
+            <label style={{ display: "flex", alignItems: "center", gap: "8px", fontWeight: 800, color: "#334155" }}>
+              Date
+              <input
+                type="date"
+                style={{ ...selectStyle, width: "170px" }}
+                value={attendanceDate}
+                onChange={(e) => setAttendanceDate(e.target.value)}
+              />
+            </label>
+            <div style={{ flex: 1 }} />
+            <button type="button" style={goldBtn} onClick={() => void setAllAttendancePresent()}>
+              Mark all present
+            </button>
+            <button type="button" style={actionBtn} onClick={clearAllAttendanceMarks}>
+              Clear all
+            </button>
+            <button
+              type="button"
+              style={{ ...goldBtn, opacity: attendanceSaving ? 0.7 : 1 }}
+              disabled={attendanceSaving}
+              onClick={() => void saveAttendanceForClass()}
+            >
+              {attendanceSaving ? "Saving…" : "Save attendance"}
+            </button>
           </div>
 
-
-
-        </div>
-
-
-
-      </div>
-
-
-
-    )}
-
-
-
-  </div>
-
-
-
-);
-
-
-
-const renderAttendanceManage = () => (
-
-
-
-  <div style={{ padding: "26px", background: "#f8fafc", minHeight: "100%", borderRadius: "20px", border: "1px solid rgba(15,23,42,0.08)" }}>
-
-
-
-    <div style={{ marginBottom: "12px" }}>
-
-
-
-      <h1 style={{ margin: 0, fontSize: "34px", fontWeight: 900, color: "#0f172a" }}>Attendance</h1>
-
-
-
-      <p style={{ margin: "6px 0 0", color: "#64748b", fontWeight: 700 }}>Add or update attendance</p>
-
-
-
-    </div>
-
-
-
-    <div style={{ display: "flex", gap: "8px", marginBottom: "20px" }}>
-
-
-
-      <button style={actionBtn} onClick={() => setActivePage("attendance")}>← Back</button>
-
-
-
-      <button style={goldBtn} onClick={() => alert("Attendance auto-saved.")}>💾 Auto Saving</button>
-
-
-
-      <button style={actionBtn} onClick={() => window.print()}>▣ Print</button>
-
-
-
-      <button style={actionBtn} onClick={() => setAttendanceMoreOpen((v) => !v)}>More Actions⌄</button>
-
-
-
-    </div>
-
-
-
-    <h2 style={{ margin: "0 0 18px", fontSize: "26px", color: "#0f172a" }}>
-
-
-
-      Child Attendance for {attendanceDate}
-
-
-
-    </h2>
-
-
-
-    <div style={{ background: "#fff", border: "1px solid rgba(15,23,42,0.10)", borderTop: `4px solid ${GOLD}`, borderRadius: "12px", overflow: "hidden", boxShadow: "0 18px 40px rgba(15,23,42,0.08)" }}>
-
-
-
-      <div style={{ padding: "12px 14px", borderBottom: "1px solid #e5e7eb", fontWeight: 900 }}>Attendance</div>
-
-
-
-      <div style={{ padding: "10px", display: "flex", gap: "8px", borderBottom: "1px solid #e5e7eb", alignItems: "center" }}>
-
-
-
-        <button style={goldBtn} onClick={() => setAllAttendance("Present")}>✓ All Present</button>
-
-
-
-        <button style={dangerBtn} onClick={() => setAllAttendance("Absent")}>× All Absent</button>
-
-
-
-        <button style={goldBtn} onClick={() => setActivePage("addLearner")}>+ Add</button>
-
-
-
-        <button style={dangerBtn} onClick={() => alert("Select learner removal will be connected later.")}>× Remove</button>
-
-
-
-        <div style={{ flex: 1 }} />
-
-
-
-        <select
-
-
-
-          style={selectStyle}
-
-
-
-          value={attendanceClassroomFilter}
-
-
-
-          onChange={(e) => {
-
-
-
-            setAttendanceClassroomFilter(e.target.value);
-
-
-
-            setAttendanceCapturePage(1);
-
-
-
-          }}
-
-
-
-        >
-
-
-
-          {attendanceClassrooms.map((room: string) => (
-
-
-
-            <option key={room}>{room}</option>
-
-
-
-          ))}
-
-
-
-        </select>
-
-
-
-        <input
-
-
-
-          placeholder="Search"
-
-
-
-          value={attendanceSearch}
-
-
-
-          onChange={(e) => {
-
-
-
-            setAttendanceSearch(e.target.value);
-
-
-
-            setAttendanceCapturePage(1);
-
-
-
-          }}
-
-
-
-          style={{ ...selectStyle, width: "230px" }}
-
-
-
-        />
-
-
-
-      </div>
-
-
-
-      <table style={{ width: "100%", borderCollapse: "collapse", fontSize: "13px" }}>
-
-
-
-        <thead>
-
-
-
-          <tr>
-
-
-
-            <th style={th}>Name</th>
-
-
-
-            <th style={th}>Surname</th>
-
-
-
-            <th style={th}>Grade</th>
-
-
-
-            <th style={th}>Attendance</th>
-
-
-
-            <th style={th}>Arrived</th>
-
-
-
-            <th style={th}>Left</th>
-
-
-
-            <th style={th}>Reason</th>
-
-
-
-            <th style={th}>Edit</th>
-
-
-
-          </tr>
-
-
-
-        </thead>
-
-
-
-        <tbody>
-
-
-
-          {attendanceCapturePaginated.length === 0 ? (
-
-
-
-            <tr>
-
-
-
-              <td colSpan={8} style={{ ...td, textAlign: "center", padding: "24px" }}>
-
-
-
-                No learners found for this attendance selection.
-
-
-
-              </td>
-
-
-
-            </tr>
-
-
-
-          ) : (
-
-
-
-            attendanceCapturePaginated.map((learner: any, index: number) => {
-
-
-
-              const id = String(learner.id);
-
-
-
-              const mark = attendanceMarks[id] || { attendance: "Absent", arrived: "", left: "", reason: "" };
-
-
-
-              return (
-
-
-
-                <tr key={id} style={{ background: index % 2 === 0 ? "#fff" : "rgba(212,175,55,0.07)" }}>
-
-
-
-                  <td style={td}>{learner.firstName || "-"}</td>
-
-
-
-                  <td style={td}>{learner.lastName || learner.surname || "-"}</td>
-
-
-
-                  <td style={td}>{getLearnerGrade(learner) || learner.classroom || "-"}</td>
-
-
-
-                  <td style={td}>
-
-
-
-                    <select
-
-
-
-                      style={inputStyle}
-
-
-
-                      value={mark.attendance || "Absent"}
-
-
-
-                      onChange={(e) => updateAttendanceMark(id, "attendance", e.target.value)}
-
-
-
-                    >
-
-
-
-                      <option>Present</option>
-
-
-
-                      <option>Absent</option>
-
-
-
-                      <option>Late</option>
-
-
-
-                    </select>
-
-
-
-                  </td>
-
-
-
-                  <td style={td}>
-
-
-
-                    <input type="time" style={inputStyle} value={mark.arrived || ""} onChange={(e) => updateAttendanceMark(id, "arrived", e.target.value)} />
-
-
-
-                  </td>
-
-
-
-                  <td style={td}>
-
-
-
-                    <input type="time" style={inputStyle} value={mark.left || ""} onChange={(e) => updateAttendanceMark(id, "left", e.target.value)} />
-
-
-
-                  </td>
-
-
-
-                  <td style={td}>
-
-
-
-                    <input style={inputStyle} placeholder="Reason" value={mark.reason || ""} onChange={(e) => updateAttendanceMark(id, "reason", e.target.value)} />
-
-
-
-                  </td>
-
-
-
-                  <td style={td}>
-
-
-
-                    <button style={actionBtn} onClick={() => openLearnerProfile(learner)}>✎</button>
-
-
-
-                  </td>
-
-
-
+          {attendanceNotice ? (
+            <div style={{ marginBottom: "12px", padding: "10px 12px", borderRadius: "10px", background: "rgba(212,175,55,0.15)", border: `1px solid ${GOLD}`, fontWeight: 700, color: "#0f172a" }}>
+              {attendanceNotice}
+            </div>
+          ) : null}
+
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(5, minmax(120px, 1fr))", gap: "10px", marginBottom: "14px" }}>
+            {[
+              { label: "Total learners", value: attendanceSummary.total },
+              { label: "Present", value: attendanceSummary.present },
+              { label: "Absent", value: attendanceSummary.absent },
+              { label: "Late", value: attendanceSummary.late },
+              { label: "Excused", value: attendanceSummary.excused },
+            ].map((item) => (
+              <div
+                key={item.label}
+                style={{
+                  background: "#0f172a",
+                  color: "#f8fafc",
+                  borderRadius: "10px",
+                  padding: "12px",
+                  border: `1px solid rgba(212,175,55,0.35)`,
+                }}
+              >
+                <div style={{ fontSize: "11px", fontWeight: 700, color: "rgba(248,250,252,0.75)" }}>{item.label}</div>
+                <div style={{ fontSize: "22px", fontWeight: 900, color: GOLD, marginTop: "4px" }}>{item.value}</div>
+              </div>
+            ))}
+          </div>
+
+          <div style={{ background: "#fff", border: "1px solid rgba(15,23,42,0.10)", borderTop: `4px solid ${GOLD}`, borderRadius: "12px", overflow: "hidden", boxShadow: "0 18px 40px rgba(15,23,42,0.08)" }}>
+            <div style={{ padding: "12px 14px", borderBottom: "1px solid #e5e7eb", fontWeight: 900, color: "#0f172a" }}>
+              {attendanceSelectedClass} · {attendanceDate}
+              {attendanceLoading ? " · Loading…" : ""}
+            </div>
+
+            <div style={{ padding: "10px", display: "flex", gap: "8px", borderBottom: "1px solid #e5e7eb", alignItems: "center" }}>
+              <input
+                placeholder="Search learners"
+                value={attendanceSearch}
+                onChange={(e) => {
+                  setAttendanceSearch(e.target.value);
+                  setAttendanceCapturePage(1);
+                }}
+                style={{ ...selectStyle, width: "260px" }}
+              />
+            </div>
+
+            <table style={{ width: "100%", borderCollapse: "collapse", fontSize: "13px" }}>
+              <thead>
+                <tr>
+                  <th style={th}>Name</th>
+                  <th style={th}>Surname</th>
+                  <th style={th}>Status</th>
+                  <th style={th}>Reason</th>
                 </tr>
+              </thead>
+              <tbody>
+                {attendanceCapturePaginated.length === 0 ? (
+                  <tr>
+                    <td colSpan={4} style={{ ...td, textAlign: "center", padding: "24px" }}>
+                      {attendanceLoading
+                        ? "Loading learners…"
+                        : "No learners found in this class."}
+                    </td>
+                  </tr>
+                ) : (
+                  attendanceCapturePaginated.map((learner: any, index: number) => {
+                    const id = String(learner.id);
+                    const mark = attendanceMarks[id] || {};
+                    const currentStatus = String(mark.status || "");
+                    return (
+                      <tr
+                        key={id}
+                        style={{ background: index % 2 === 0 ? "#fff" : "rgba(212,175,55,0.07)" }}
+                      >
+                        <td style={{ ...td, padding: "8px 10px" }}>{learner.firstName || "-"}</td>
+                        <td style={{ ...td, padding: "8px 10px" }}>{learner.lastName || learner.surname || "-"}</td>
+                        <td style={{ ...td, padding: "8px 10px" }}>{renderAttendanceStatusButtons(id, currentStatus)}</td>
+                        <td style={{ ...td, padding: "8px 10px" }}>
+                          <input
+                            style={{ ...inputStyle, minWidth: "160px" }}
+                            placeholder="Optional"
+                            value={mark.reason || ""}
+                            onChange={(e) => updateAttendanceMark(id, "reason", e.target.value)}
+                          />
+                        </td>
+                      </tr>
+                    );
+                  })
+                )}
+              </tbody>
+            </table>
 
-
-
-              );
-
-
-
-            })
-
-
-
-          )}
-
-
-
-        </tbody>
-
-
-
-      </table>
-
-
-
-      <div style={{ padding: "10px", display: "flex", justifyContent: "space-between", color: "#64748b", fontSize: "12px", fontWeight: 800 }}>
-
-
-
-        <span>
-
-
-
-          {attendanceLearnersFiltered.length === 0 ? "0" : (attendanceCapturePage - 1) * attendancePerPage + 1} - {Math.min(attendanceCapturePage * attendancePerPage, attendanceLearnersFiltered.length)} / {attendanceLearnersFiltered.length}
-
-
-
-        </span>
-
-
-
-        <div style={{ display: "flex", gap: "6px", alignItems: "center" }}>
-
-
-
-          <button style={actionBtn} disabled={attendanceCapturePage <= 1} onClick={() => setAttendanceCapturePage((p) => Math.max(1, p - 1))}>‹</button>
-
-
-
-          <span>Page {attendanceCapturePage} / {attendanceCaptureTotalPages}</span>
-
-
-
-          <button style={actionBtn} disabled={attendanceCapturePage >= attendanceCaptureTotalPages} onClick={() => setAttendanceCapturePage((p) => Math.min(attendanceCaptureTotalPages, p + 1))}>›</button>
-
-
-
-        </div>
-
-
-
-      </div>
-
-
-
+            {attendanceUsePagination ? (
+              <div style={{ padding: "10px", display: "flex", justifyContent: "space-between", color: "#64748b", fontSize: "12px", fontWeight: 800 }}>
+                <span>
+                  {(attendanceCapturePage - 1) * attendancePerPage + 1} - {Math.min(attendanceCapturePage * attendancePerPage, attendanceLearnersFiltered.length)} / {attendanceLearnersFiltered.length}
+                </span>
+                <div style={{ display: "flex", gap: "6px", alignItems: "center" }}>
+                  <button style={actionBtn} disabled={attendanceCapturePage <= 1} onClick={() => setAttendanceCapturePage((p) => Math.max(1, p - 1))}>‹</button>
+                  <span>Page {attendanceCapturePage} / {attendanceCaptureTotalPages}</span>
+                  <button
+                    style={actionBtn}
+                    disabled={attendanceCapturePage >= attendanceCaptureTotalPages}
+                    onClick={() => setAttendanceCapturePage((p) => Math.min(attendanceCaptureTotalPages, p + 1))}
+                  >
+                    ›
+                  </button>
+                </div>
+              </div>
+            ) : null}
+          </div>
+        </>
+      )}
     </div>
+  );
 
-
-
-  </div>
-
-
-
-);
+  const renderAttendanceManage = () => renderAttendance();
   
 const incidentMenuBtn: React.CSSProperties = {
 
@@ -15832,8 +14880,25 @@ const [invoiceRunEmailDraft, setInvoiceRunEmailDraft] = useState({
 
 
   const renderPage = () => {
-
-
+    if (!canPage(activePage)) {
+      return (
+        <div style={{ padding: "32px", maxWidth: "560px" }}>
+          <h1 className="page-title">Access restricted</h1>
+          <p style={{ color: "#64748b", marginTop: "8px" }}>
+            Your account does not have permission to open this section. Contact your school owner if
+            you need access.
+          </p>
+          <button
+            type="button"
+            className="profile-btn"
+            style={{ marginTop: "16px" }}
+            onClick={() => setActivePage(findFirstAllowedSchoolPage(schoolSessionUser) as PageKey)}
+          >
+            Go to allowed page
+          </button>
+        </div>
+      );
+    }
 
     if (activePage === "addLearner")
       return <AddLearner onBack={() => go("registrations")} schoolParents={parents} />;
@@ -17285,6 +16350,7 @@ return (
   
   
   
+          {canPage("dashboard") ? (
           <div
   
   
@@ -17310,9 +16376,14 @@ return (
   
   
           </div>
+          ) : null}
   
   
   
+          {canViewAnySchoolPage(
+            ["schoolProfile", "schoolPackage", "schoolCredits", "schoolUsers", "schoolSettings", "migrationCentre"],
+            schoolSessionUser
+          ) ? (
           <div className="main-section">
   
   
@@ -17381,23 +16452,33 @@ return (
   
   
   
+                {canPage("schoolProfile") ? (
                 <div className={`submenu-item ${activePage === "schoolProfile" ? "active" : ""}`} onClick={() => go("schoolProfile")}>Profile</div>
+                ) : null}
   
   
   
+                {canPage("schoolPackage") ? (
                 <div className={`submenu-item ${activePage === "schoolPackage" ? "active" : ""}`} onClick={() => go("schoolPackage")}>Package</div>
+                ) : null}
   
   
   
+                {canPage("schoolCredits") ? (
                 <div className={`submenu-item ${activePage === "schoolCredits" ? "active" : ""}`} onClick={() => go("schoolCredits")}>Credits</div>
+                ) : null}
   
   
   
+                {canPage("schoolUsers") ? (
                 <div className={`submenu-item ${activePage === "schoolUsers" ? "active" : ""}`} onClick={() => go("schoolUsers")}>Users</div>
+                ) : null}
   
   
   
+                {canPage("schoolSettings") ? (
                 <div className={`submenu-item ${activePage === "schoolSettings" ? "active" : ""}`} onClick={() => go("schoolSettings")}>Settings</div>
+                ) : null}
 
                 {canAccessMigration() ? (
                   <div
@@ -17422,9 +16503,29 @@ return (
   
   
           </div>
+          ) : null}
   
   
   
+          {canViewAnySchoolPage(
+            [
+              "registrations",
+              "sasamsReportUpload",
+              "parentPortal",
+              "teacherInbox",
+              "addLearner",
+              "classrooms",
+              "groups",
+              "employees",
+              "teacherPerformance",
+              "attendance",
+              "incidents",
+              "lists",
+              "forms",
+              "more",
+            ],
+            schoolSessionUser
+          ) ? (
           <div className="main-section">
   
   
@@ -17493,14 +16594,18 @@ return (
   
   
   
+                {canPage("registrations") ? (
                 <div className={`submenu-item ${activePage === "registrations" ? "active" : ""}`} onClick={() => go("registrations")}>Registrations</div>
+                ) : null}
 
+                {canPage("sasamsReportUpload") ? (
                 <div
                   className={`submenu-item ${activePage === "sasamsReportUpload" ? "active" : ""}`}
                   onClick={() => go("sasamsReportUpload")}
                 >
                   SASAMS Report Upload
                 </div>
+                ) : null}
 
                 {isSuperAdmin() ? (
                   <>
@@ -17519,51 +16624,75 @@ return (
                   </>
                 ) : null}
 
+                {canPage("parentPortal") ? (
                 <div className={`submenu-item ${activePage === "parentPortal" ? "active" : ""}`} onClick={() => go("parentPortal")}>Parent Portal</div>
+                ) : null}
+                {canPage("teacherInbox") ? (
                 <div className={`submenu-item ${activePage === "teacherInbox" ? "active" : ""}`} onClick={() => go("teacherInbox")}>Teacher Inbox</div>
+                ) : null}
   
   
   
+                {canPage("addLearner") ? (
                 <div className={`submenu-item ${activePage === "addLearner" ? "active" : ""}`} onClick={() => go("addLearner")}>Add Learner</div>
+                ) : null}
   
   
   
+                {canPage("classrooms") ? (
                 <div className={`submenu-item ${activePage === "classrooms" ? "active" : ""}`} onClick={() => go("classrooms")}>Classrooms</div>
+                ) : null}
   
   
   
+                {canPage("groups") ? (
                 <div className={`submenu-item ${activePage === "groups" ? "active" : ""}`} onClick={() => go("groups")}>Groups</div>
+                ) : null}
   
   
   
+                {canPage("employees") ? (
                 <div className={`submenu-item ${activePage === "employees" ? "active" : ""}`} onClick={() => go("employees")}>Employees</div>
+                ) : null}
   
   
   
+                {canPage("teacherPerformance") ? (
                 <div className={`submenu-item ${activePage === "teacherPerformance" ? "active" : ""}`} onClick={() => go("teacherPerformance")}>Teacher Performance</div>
+                ) : null}
   
   
   
+                {canPage("attendance") ? (
                 <div className={`submenu-item ${activePage === "attendance" ? "active" : ""}`} onClick={() => go("attendance")}>Attendance</div>
+                ) : null}
   
   
   
+                {canPage("incidents") ? (
                 <div className={`submenu-item ${activePage === "incidents" ? "active" : ""}`} onClick={() => go("incidents")}>Incidents</div>
+                ) : null}
   
   
   
+                {canPage("lists") ? (
                 <div className={`submenu-item ${activePage === "lists" ? "active" : ""}`} onClick={() => go("lists")}>Lists & Registers</div>
+                ) : null}
   
   
   
+                {canPage("forms") ? (
                 <div className={`submenu-item ${activePage === "forms" ? "active" : ""}`} onClick={() => go("forms")}>Forms & Templates</div>
+                ) : null}
   
   
   
   
   
   
+                {canPage("more") ? (
                 <div className={`submenu-item ${activePage === "more" ? "active" : ""}`} onClick={() => go("more")}>More</div>
+                ) : null}
   
   
   
@@ -17576,9 +16705,26 @@ return (
   
   
           </div>
+          ) : null}
   
   
   
+          {canViewAnySchoolPage(
+            [
+              "statements",
+              "invoices",
+              "payments",
+              "plans",
+              "runs",
+              "reports",
+              "documents",
+              "fees",
+              "billingDeposits",
+              "billingSettings",
+              "billing-help",
+            ],
+            schoolSessionUser
+          ) ? (
           <div className="main-section">
   
   
@@ -17636,20 +16782,26 @@ return (
   
   
   
+                {canPage("statements") ? (
                 <div className={`submenu-item ${activePage === "statements" ? "active" : ""}`} onClick={() => go("statements")}>Statements</div>
+                ) : null}
   
   
   
+                {canPage("invoices") ? (
                 <div className={`submenu-item ${activePage === "invoices" ? "active" : ""}`} onClick={() => go("invoices")}>Invoices</div>
+                ) : null}
   
   
   
+                {canPage("payments") ? (
                 <div
                   className={`submenu-item ${activePage === "payments" || activePage === "paymentCreate" ? "active" : ""}`}
                   onClick={() => go("payments")}
                 >
                   Payments
                 </div>
+                ) : null}
 
   
   
@@ -17657,30 +16809,43 @@ return (
   
   
   
+                {canPage("fees") ? (
                 <div className={`submenu-item ${activePage === "fees" ? "active" : ""}`} onClick={() => navigate("/dashboard/billing/fees")}>Fees</div>
+                ) : null}
   
   
   
+                {canPage("plans") ? (
                 <div className={`submenu-item ${activePage === "plans" ? "active" : ""}`} onClick={() => go("plans")}>Billing Plans</div>
+                ) : null}
   
   
   
+                {canPage("runs") ? (
                 <div className={`submenu-item ${activePage === "runs" ? "active" : ""}`} onClick={() => go("runs")}>Invoice Runs</div>
+                ) : null}
   
   
   
+                {canPage("reports") ? (
                 <div className={`submenu-item ${activePage === "reports" ? "active" : ""}`} onClick={() => go("reports")}>Billing Reports</div>
+                ) : null}
   
   
   
+                {canPage("documents") ? (
                 <div className={`submenu-item ${activePage === "documents" ? "active" : ""}`} onClick={() => go("documents")}>Billing Documents</div>
+                ) : null}
   
   
   
+                {canPage("billing-help") ? (
                 <div className={`submenu-item ${activePage === "billing-help" ? "active" : ""}`} onClick={() => go("billing-help")}>Help & Tips</div>
+                ) : null}
   
   
   
+                {canViewAnySchoolPage(["billingDeposits", "billingSettings"], schoolSessionUser) ? (
                 <div
                   className={`submenu-item submenu-expand ${billingMoreOpen ? "open" : ""} ${
                     activePage === "billingDeposits" || activePage === "billingSettings" ? "active" : ""
@@ -17693,20 +16858,25 @@ return (
                   <span>More</span>
                   <span className={`chevron submenu-chevron ${billingMoreOpen ? "open" : ""}`}>⌄</span>
                 </div>
+                ) : null}
                 {billingMoreOpen ? (
                   <>
+                    {canPage("billingDeposits") ? (
                     <div
                       className={`submenu-item submenu-nested ${activePage === "billingDeposits" ? "active" : ""}`}
                       onClick={() => go("billingDeposits")}
                     >
                       Deposits
                     </div>
+                    ) : null}
+                    {canPage("billingSettings") ? (
                     <div
                       className={`submenu-item submenu-nested ${activePage === "billingSettings" ? "active" : ""}`}
                       onClick={() => go("billingSettings")}
                     >
                       Settings
                     </div>
+                    ) : null}
                   </>
                 ) : null}
   
@@ -17721,6 +16891,7 @@ return (
   
   
           </div>
+          ) : null}
 
           <div className="main-section">
             <div

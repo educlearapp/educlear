@@ -48,13 +48,19 @@ export default function SchoolProfilePage({ go }: Props) {
     fetchSchoolProfile(schoolId)
       .then((record) => {
         if (cancelled) return;
+        if (!record) {
+          setForm(createEmptySchoolProfileForm());
+          setLogoUrl("");
+          return;
+        }
         setForm(schoolRecordToForm(record));
-        const url = record?.logoUrl ? absolutizeSchoolLogoUrl(record.logoUrl) : "";
+        const url = record.logoUrl ? absolutizeSchoolLogoUrl(record.logoUrl) : "";
         setLogoUrl(url);
         if (url) cacheSchoolLogoUrl(url);
       })
-      .catch(() => {
+      .catch((err) => {
         if (cancelled) return;
+        console.error("[SchoolProfile] load failed:", err);
         setForm(createEmptySchoolProfileForm());
         setLogoUrl("");
       })
@@ -112,12 +118,20 @@ export default function SchoolProfilePage({ go }: Props) {
 
     setSaving(true);
     try {
-      const payload = mapToApiPayload(form);
-      const updated = await saveSchoolProfile(schoolId, {
+      const payload = mapToApiPayload({
+        ...form,
+        registeredEmail: form.registeredEmail.trim() || form.contactEmail.trim(),
+        contactEmail: form.contactEmail.trim() || form.registeredEmail.trim(),
+      });
+      await saveSchoolProfile(schoolId, {
         ...payload,
         ...(logoUrl ? { logoUrl } : {}),
       });
-      const savedGeneral = schoolRecordToForm(updated);
+      const reloaded = await fetchSchoolProfile(schoolId);
+      if (!reloaded) {
+        throw new Error("Profile saved but could not reload from server");
+      }
+      const savedGeneral = schoolRecordToForm(reloaded);
       setForm((prev) => ({
         ...savedGeneral,
         package: savedGeneral.package || prev.package,
@@ -128,12 +142,12 @@ export default function SchoolProfilePage({ go }: Props) {
         newPassword: "",
         confirmPassword: "",
       }));
-      if (updated.logoUrl) {
-        const url = absolutizeSchoolLogoUrl(updated.logoUrl);
+      if (reloaded.name) localStorage.setItem("schoolName", reloaded.name);
+      if (reloaded.logoUrl) {
+        const url = absolutizeSchoolLogoUrl(reloaded.logoUrl);
         setLogoUrl(url);
         cacheSchoolLogoUrl(url);
       }
-      if (updated.name) localStorage.setItem("schoolName", updated.name);
       if (!form.newPassword && !form.confirmPassword) {
         alert("Profile saved");
       }

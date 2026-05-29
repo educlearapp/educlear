@@ -10,8 +10,14 @@ import {
 } from "../services/authCredentials";
 import { buildAuthDiagnostics } from "../services/authDiagnostics";
 import { seedSchoolEmailDefaults } from "../services/schoolEmailService";
-import { permissionsForRole, prismaRoleForAppRole } from "../utils/userPermissions";
-import { setUserAccessMeta } from "../utils/userAccessStore";
+import {
+  appRoleFromPrismaRole,
+  permissionsForRole,
+  prismaRoleForAppRole,
+  type AppRole,
+  type PermissionMap,
+} from "../utils/userPermissions";
+import { getUserAccessMeta, setUserAccessMeta } from "../utils/userAccessStore";
 import {
   isRegistrationProvisionedOwner,
   isScriptProvisionedOwner,
@@ -43,6 +49,49 @@ function authLog(message: string, extra?: Record<string, unknown>) {
   } else {
     console.log(`[auth] ${message}`);
   }
+}
+
+function resolveUserAccess(user: { id: string; schoolId: string; role: string }) {
+  const meta = getUserAccessMeta(user.id);
+  const appRole = (meta?.appRole || appRoleFromPrismaRole(user.role)) as AppRole;
+  const permissions: PermissionMap =
+    appRole === "Owner"
+      ? permissionsForRole("Owner")
+      : permissionsForRole(appRole, meta?.permissions || null);
+
+  if (meta) {
+    setUserAccessMeta(user.id, {
+      ...meta,
+      schoolId: meta.schoolId || user.schoolId,
+      lastLoginAt: new Date().toISOString(),
+    });
+  }
+
+  return { appRole, permissions, meta };
+}
+
+function serializeAuthUser(
+  user: {
+    id: string;
+    schoolId: string;
+    email: string;
+    fullName: string | null;
+    role: string;
+  },
+  access: ReturnType<typeof resolveUserAccess>,
+  extras?: Record<string, unknown>
+) {
+  return {
+    id: user.id,
+    email: user.email,
+    schoolId: user.schoolId,
+    fullName: user.fullName,
+    role: user.role,
+    prismaRole: user.role,
+    appRole: access.appRole,
+    permissions: access.permissions,
+    ...extras,
+  };
 }
 
 router.post("/login", async (req, res) => {
@@ -129,22 +178,16 @@ router.post("/login", async (req, res) => {
       role: matched.role,
     };
     const canAccessMigrationFlag = canAccessMigration(migrationCtx);
-    const permissions = permissionsForRole(matched.role);
+    const access = resolveUserAccess(matched);
 
     return res.json({
       token,
       ...(educlearRole ? { educlearRole } : {}),
       canAccessMigration: canAccessMigrationFlag,
-      user: {
-        id: matched.id,
-        email: matched.email,
-        schoolId: matched.schoolId,
-        fullName: matched.fullName,
-        role: matched.role,
-        permissions,
+      user: serializeAuthUser(matched, access, {
         canAccessMigration: canAccessMigrationFlag,
         ...(educlearRole ? { educlearRole } : {}),
-      },
+      }),
       school: school
         ? { id: school.id, name: school.name, email: school.email, logoUrl: school.logoUrl }
         : { id: matched.schoolId },
@@ -152,6 +195,64 @@ router.post("/login", async (req, res) => {
   } catch (error) {
     console.error("[auth] POST /login failed:", error);
     return res.status(500).json({ error: "Login failed" });
+  }
+});
+
+router.get("/me", async (req, res) => {
+  const authHeader = String(req.headers.authorization || "");
+  const token = authHeader.startsWith("Bearer ") ? authHeader.slice(7).trim() : "";
+  if (!token) {
+    return res.status(401).json({ error: "Authentication required" });
+  }
+
+  try {
+    const payload = jwt.verify(token, JWT_SECRET) as {
+      userId?: string;
+      schoolId?: string;
+      email?: string;
+      role?: string;
+    };
+
+    const userId = String(payload.userId || "").trim();
+    if (!userId) {
+      return res.status(401).json({ error: "Invalid session" });
+    }
+
+    const user = await prisma.user.findUnique({
+      where: { id: userId },
+      select: {
+        id: true,
+        schoolId: true,
+        email: true,
+        fullName: true,
+        role: true,
+        isActive: true,
+      },
+    });
+
+    if (!user || !user.isActive) {
+      return res.status(401).json({ error: "User not found or inactive" });
+    }
+
+    const access = resolveUserAccess(user);
+    const educlearRole = isPlatformSuperAdminEmail(user.email) ? ("superAdmin" as const) : undefined;
+    const migrationCtx = {
+      userId: user.id,
+      schoolId: user.schoolId,
+      email: normalizeEmail(user.email),
+      role: user.role,
+    };
+
+    return res.json({
+      user: serializeAuthUser(user, access, {
+        isActive: user.isActive,
+        canAccessMigration: canAccessMigration(migrationCtx),
+        ...(educlearRole ? { educlearRole } : {}),
+      }),
+    });
+  } catch (error) {
+    console.error("[auth] GET /me failed:", error);
+    return res.status(401).json({ error: "Invalid or expired session" });
   }
 });
 

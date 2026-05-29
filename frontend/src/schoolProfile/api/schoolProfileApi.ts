@@ -21,6 +21,13 @@ export function mapToApiPayload(form: SchoolProfileFormState): SchoolProfileApiP
   return formToSchoolUpdatePayload(form);
 }
 
+function schoolProfileHeaders(): HeadersInit {
+  const headers: Record<string, string> = { "Content-Type": "application/json" };
+  const token = localStorage.getItem("token");
+  if (token) headers.Authorization = `Bearer ${token}`;
+  return headers;
+}
+
 function parseJsonBody(text: string): unknown {
   if (!text) return null;
   try {
@@ -59,35 +66,35 @@ function recordFromRow(row: Record<string, unknown>, schoolId: string): SchoolPr
   };
 }
 
-/** Loads school profile; returns null on missing school or failed request (no HTML error text). */
-export async function fetchSchoolProfile(schoolId: string): Promise<SchoolProfileRecord | null> {
-  const id = String(schoolId || "").trim();
-  if (!id) return null;
-
-  try {
-    const res = await fetch(`${API_URL}/api/schools/${encodeURIComponent(id)}`, {
-      headers: { "Content-Type": "application/json" },
-    });
-
-    const text = await res.text();
-    const data = parseJsonBody(text);
-
-    if (res.status === 404) return null;
-    if (!res.ok) return null;
-    if (!data || typeof data !== "object") return null;
-
-    return recordFromRow(data as Record<string, unknown>, id);
-  } catch {
-    return null;
-  }
-}
-
 function errorMessageFromResponse(status: number, data: unknown): string {
   if (data && typeof data === "object" && "error" in data) {
     const msg = (data as { error?: unknown }).error;
     if (typeof msg === "string" && msg.trim()) return msg;
   }
   return `Request failed with status ${status}`;
+}
+
+/** Loads school profile from the API; throws on hard failures. */
+export async function fetchSchoolProfile(schoolId: string): Promise<SchoolProfileRecord | null> {
+  const id = String(schoolId || "").trim();
+  if (!id) return null;
+
+  const res = await fetch(`${API_URL}/api/schools/${encodeURIComponent(id)}`, {
+    headers: schoolProfileHeaders(),
+  });
+
+  const text = await res.text();
+  const data = parseJsonBody(text);
+
+  if (res.status === 404) return null;
+  if (!res.ok) {
+    throw new Error(errorMessageFromResponse(res.status, data));
+  }
+  if (!data || typeof data !== "object") {
+    throw new Error("Invalid response from server");
+  }
+
+  return recordFromRow(data as Record<string, unknown>, id);
 }
 
 export async function saveSchoolProfile(
@@ -110,7 +117,7 @@ export async function saveSchoolProfile(
 
   const res = await fetch(`${API_URL}/api/schools/${encodeURIComponent(id)}`, {
     method: "PUT",
-    headers: { "Content-Type": "application/json" },
+    headers: schoolProfileHeaders(),
     body: JSON.stringify(body),
   });
 

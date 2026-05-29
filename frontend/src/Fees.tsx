@@ -40,7 +40,6 @@ function formatFeeType(value?: string | null) {
     case "ONCE_OFF":
       return "Once Off";
     case "ANNUALLY":
-      return "Annually";
     case "YEARLY":
       return "Annually";
     case "TERMLY":
@@ -61,11 +60,10 @@ export default function Fees(props: {
   const [items, setItems] = useState<FeeListItem[]>([]);
   const [total, setTotal] = useState(0);
   const [page, setPage] = useState(1);
-  const [pageSize] = useState(10);
+  const pageSize = 10;
   const [q, setQ] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-
   const [selectedFeeId, setSelectedFeeId] = useState<string | null>(null);
 
   const totalPages = Math.max(1, Math.ceil(total / pageSize));
@@ -100,14 +98,14 @@ export default function Fees(props: {
         if (cancelled) return;
         setItems(Array.isArray(data?.items) ? data.items : []);
         setTotal(Number(data?.total || 0));
-        if (selectedFeeId && !data.items?.some((x: any) => x?.id === selectedFeeId)) {
+        if (selectedFeeId && !data.items?.some((x: FeeListItem) => x?.id === selectedFeeId)) {
           setSelectedFeeId(null);
         }
-      } catch (e: any) {
+      } catch (e: unknown) {
         if (!cancelled) {
           setItems([]);
           setTotal(0);
-          setError(e?.message || "Failed to fetch fees");
+          setError(e instanceof Error ? e.message : "Failed to fetch fees");
         }
       } finally {
         if (!cancelled) setLoading(false);
@@ -122,153 +120,88 @@ export default function Fees(props: {
   const rows = useMemo(() => {
     return items.map((f) => {
       const usedCount = Number(f.usedBillingPlansCount || 0);
-      const feeStatus = usedCount > 0 ? `Used (${usedCount} billing plans)` : "Not used";
+      const isUsed = usedCount > 0;
+      const feeStatus = isUsed ? "Used" : "Not used";
       const category = formatFeeCategory(f.category);
       const type = formatFeeType(f.frequency);
-      return { ...f, feeStatus, category, type };
+      return { ...f, feeStatus, isUsed, usedCount, category, type };
     });
   }, [items]);
 
-  const pageWrap = {
-    padding: "24px",
-    background: "linear-gradient(180deg, #f8fafc 0%, #f3f4f6 45%, #eef2f7 100%)",
-    minHeight: "100%",
-    borderRadius: "28px",
-    border: "1px solid rgba(15, 23, 42, 0.06)",
-    boxShadow: "0 24px 60px rgba(15, 23, 42, 0.08), inset 0 1px 0 rgba(255,255,255,0.8)",
-  } as const;
-
-  const titleStyle = {
-    margin: 0,
-    fontSize: "38px",
+  const btnGold: React.CSSProperties = {
+    background: "#d4af37",
+    color: "#020617",
+    border: "1px solid #d4af37",
+    borderRadius: "9px",
+    padding: "8px 13px",
     fontWeight: 800,
-    letterSpacing: "-0.03em",
-    color: "#0f172a",
-  } as const;
+    cursor: "pointer",
+    fontSize: "13px",
+  };
 
-  const subtitleStyle = {
-    margin: "10px 0 0 0",
-    fontSize: "15px",
-    color: "#475569",
-    fontWeight: 500,
-  } as const;
-
-  const summaryWrap = {
-    display: "grid",
-    gridTemplateColumns: "repeat(1, minmax(220px, 280px))",
-    gap: "10px",
-    marginBottom: "14px",
-  } as const;
-
-  const summaryCard = {
-    background: "linear-gradient(180deg, #ffffff 0%, #f8fafc 100%)",
-    border: "1px solid rgba(15, 23, 42, 0.07)",
-    borderRadius: "16px",
-    padding: "14px 16px",
-    boxShadow: "0 10px 30px rgba(15, 23, 42, 0.06), inset 0 1px 0 rgba(255,255,255,0.8)",
-  } as const;
-
-  const summaryValue = {
-    fontSize: "20px",
-    fontWeight: 900,
-    color: "#0f172a",
-    marginBottom: "4px",
-  } as const;
-
-  const summaryLabel = {
-    fontSize: "12px",
-    fontWeight: 700,
-    color: "#64748b",
-    textTransform: "uppercase" as const,
-    letterSpacing: "0.08em",
-  } as const;
-
-  const tableCard = {
+  const btnLight: React.CSSProperties = {
     background: "#ffffff",
-    borderRadius: "18px",
-    padding: "14px",
-    border: "1px solid rgba(15, 23, 42, 0.07)",
-    boxShadow: "0 14px 44px rgba(15, 23, 42, 0.08)",
-    overflow: "hidden",
-  } as const;
+    color: "#0f172a",
+    border: "1px solid #cbd5e1",
+    borderRadius: "9px",
+    padding: "8px 13px",
+    fontWeight: 700,
+    cursor: "pointer",
+    fontSize: "13px",
+  };
 
-  const th = {
-    textAlign: "left" as const,
+  const th: React.CSSProperties = {
+    textAlign: "left",
     padding: "10px 12px",
-    fontSize: "12px",
+    fontSize: "11px",
     color: "#64748b",
-    fontWeight: 700,
-    textTransform: "uppercase" as const,
-    letterSpacing: "0.08em",
-  } as const;
-
-  const td = {
-    padding: "14px 12px",
-    color: "#0f172a",
-    background: "#ffffff",
-    verticalAlign: "middle" as const,
-  } as const;
-
-  const actionBtn = {
-    padding: "9px 14px",
-    borderRadius: "12px",
-    border: "1px solid rgba(15, 23, 42, 0.10)",
-    background: "#ffffff",
-    fontWeight: 700,
-    fontSize: "13px",
-    color: "#0f172a",
-    boxShadow: "0 4px 12px rgba(15, 23, 42, 0.05)",
-    cursor: "pointer",
-  } as const;
-
-  const primaryBtn = {
-    padding: "9px 16px",
-    borderRadius: "12px",
-    border: "none",
-    background: "linear-gradient(135deg, #d4af37, #f5d06f)",
-    color: "#0f172a",
     fontWeight: 800,
-    fontSize: "13px",
-    boxShadow: "0 6px 18px rgba(212, 175, 55, 0.35)",
-    cursor: "pointer",
-  } as const;
+    textTransform: "uppercase",
+    letterSpacing: "0.06em",
+    borderBottom: "1px solid #e2e8f0",
+  };
 
-  const pagerBtn = (disabled: boolean) =>
-    ({
-      ...actionBtn,
-      opacity: disabled ? 0.55 : 1,
-      cursor: disabled ? "not-allowed" : "pointer",
-    }) as const;
+  const td: React.CSSProperties = {
+    padding: "10px 12px",
+    fontSize: "13px",
+    color: "#0f172a",
+    borderBottom: "1px solid #f1f5f9",
+    verticalAlign: "middle",
+  };
+
+  const pagerBtn = (disabled: boolean): React.CSSProperties => ({
+    ...btnLight,
+    minWidth: "72px",
+    opacity: disabled ? 0.5 : 1,
+    cursor: disabled ? "not-allowed" : "pointer",
+  });
 
   const canManage = Boolean(selectedFeeId);
 
   return (
-    <div style={pageWrap}>
-      <div style={{ marginBottom: "18px" }}>
-        <h1 style={titleStyle}>Fees</h1>
-        <p style={subtitleStyle}>Add and manage fees</p>
-      </div>
+    <div style={{ padding: "20px", background: "#f8fafc", minHeight: "100%" }}>
+      <div style={{ maxWidth: "1500px", margin: "0 auto" }}>
+        <h1 style={{ margin: 0, fontSize: "28px", fontWeight: 900, color: "#0f172a" }}>Fees</h1>
+        <p style={{ margin: "4px 0 14px", color: "#64748b", fontSize: "14px" }}>
+          Add and manage fee items for billing plans
+        </p>
 
-      <div style={summaryWrap}>
-        <div style={summaryCard}>
-          <div style={summaryValue}>{total}</div>
-          <div style={summaryLabel}>Total Fees</div>
-        </div>
-      </div>
-
-      <div style={tableCard}>
         <div
           style={{
+            background: "#fff",
+            padding: "12px",
+            borderRadius: "16px",
             display: "flex",
             justifyContent: "space-between",
             alignItems: "center",
             gap: "12px",
-            marginBottom: "10px",
+            marginBottom: "14px",
+            border: "1px solid rgba(212,175,55,0.18)",
             flexWrap: "wrap",
           }}
         >
-          <div style={{ display: "flex", gap: "10px", alignItems: "center", flexWrap: "wrap" }}>
-            <button type="button" style={primaryBtn} onClick={props.onAdd}>
+          <div style={{ display: "flex", gap: "8px", flexWrap: "wrap" }}>
+            <button type="button" style={btnGold} onClick={props.onAdd}>
               + Add
             </button>
             <button
@@ -279,7 +212,6 @@ export default function Fees(props: {
                 props.onManage(selectedFeeId);
               }}
               disabled={!canManage}
-              aria-disabled={!canManage}
               title={!canManage ? "Select a fee first" : "Manage selected fee"}
             >
               Manage
@@ -292,15 +224,14 @@ export default function Fees(props: {
               setQ(e.target.value);
               setPage(1);
             }}
-            placeholder="Search"
+            placeholder="Search fees…"
             style={{
-              padding: "9px 12px",
-              borderRadius: "12px",
-              border: "1px solid rgba(15, 23, 42, 0.10)",
-              background: "linear-gradient(180deg, #ffffff 0%, #f8fafc 100%)",
+              width: "260px",
+              padding: "9px 13px",
+              borderRadius: "10px",
+              border: "1px solid #cbd5e1",
+              outline: "none",
               fontSize: "13px",
-              width: "280px",
-              boxShadow: "0 4px 12px rgba(15, 23, 42, 0.04)",
             }}
           />
         </div>
@@ -308,123 +239,154 @@ export default function Fees(props: {
         {error ? (
           <div
             style={{
-              padding: "14px 16px",
-              borderRadius: "14px",
+              padding: "12px 14px",
+              borderRadius: "12px",
               background: "#fff7ed",
-              border: "1px solid rgba(234, 88, 12, 0.18)",
+              border: "1px solid rgba(234, 88, 12, 0.2)",
               color: "#9a3412",
-              fontWeight: 650,
+              fontWeight: 600,
               marginBottom: "12px",
+              fontSize: "13px",
             }}
           >
             {error}
           </div>
         ) : null}
 
-        <table
-          style={{
-            width: "100%",
-            borderCollapse: "separate",
-            borderSpacing: "0 8px",
-            fontSize: "14px",
-          }}
-        >
-          <thead>
-            <tr>
-              <th style={{ ...th, width: "34%" }}>Description</th>
-              <th style={{ ...th, width: "16%" }}>Category</th>
-              <th style={{ ...th, width: "20%" }}>Type</th>
-              <th style={{ ...th, textAlign: "right", width: "12%" }}>Amount</th>
-              <th style={{ ...th, width: "18%" }}>Fee Status</th>
-            </tr>
-          </thead>
-
-          <tbody>
-            {loading ? (
-              <tr>
-                <td colSpan={5} style={{ ...td, textAlign: "center", borderRadius: "12px" }}>
-                  Loading…
-                </td>
-              </tr>
-            ) : rows.length === 0 ? (
-              <tr>
-                <td colSpan={5} style={{ ...td, textAlign: "center", borderRadius: "12px" }}>
-                  No fees found
-                </td>
-              </tr>
-            ) : (
-              rows.map((row) => {
-                const selected = row.id === selectedFeeId;
-                return (
-                  <tr
-                    key={row.id}
-                    onClick={() => setSelectedFeeId(row.id)}
-                    style={{
-                      background: selected ? "linear-gradient(180deg, #ffffff 0%, #f8fafc 100%)" : "#ffffff",
-                      boxShadow: selected ? "0 10px 26px rgba(15, 23, 42, 0.10)" : "0 8px 18px rgba(15, 23, 42, 0.06)",
-                      borderRadius: "12px",
-                      overflow: "hidden",
-                      cursor: "pointer",
-                      outline: selected ? "2px solid rgba(212, 175, 55, 0.45)" : "none",
-                      outlineOffset: "2px",
-                      border: "1px solid rgba(15, 23, 42, 0.08)",
-                    }}
-                  >
-                    <td style={{ ...td, fontWeight: 750 }}>{row.name}</td>
-                    <td style={td}>{row.category}</td>
-                    <td style={td}>{row.type}</td>
-                    <td style={{ ...td, textAlign: "right", fontWeight: 800 }}>{formatMoneyZAR(row.amount)}</td>
-                    <td style={td}>
-                      <span
-                        style={{
-                          fontWeight: 850,
-                          color: row.feeStatus === "Not used" ? "#64748b" : "#0f172a",
-                        }}
-                      >
-                        {row.feeStatus}
-                      </span>
-                    </td>
-                  </tr>
-                );
-              })
-            )}
-          </tbody>
-        </table>
-
         <div
           style={{
-            display: "flex",
-            justifyContent: "space-between",
-            alignItems: "center",
-            gap: "12px",
-            marginTop: "14px",
-            flexWrap: "wrap",
+            background: "#fff",
+            borderRadius: "18px",
+            overflow: "hidden",
+            border: "1px solid rgba(15,23,42,0.08)",
           }}
         >
-          <div style={{ color: "#475569", fontWeight: 650, fontSize: "13px" }}>
-            Page {page} of {totalPages} • {total} total
+          <div
+            style={{
+              background: "#020617",
+              color: "#d4af37",
+              padding: "11px 18px",
+              fontWeight: 900,
+              fontSize: "16px",
+              display: "flex",
+              justifyContent: "space-between",
+              alignItems: "center",
+            }}
+          >
+            <span>Fees</span>
+            <span style={{ fontSize: "12px", fontWeight: 700, color: "rgba(212,175,55,0.85)" }}>
+              {total} total
+            </span>
           </div>
-          <div style={{ display: "flex", gap: "10px", alignItems: "center" }}>
-            <button
-              type="button"
-              style={pagerBtn(page <= 1)}
-              disabled={page <= 1}
-              onClick={() => setPage((p) => Math.max(1, p - 1))}
-            >
-              Previous
-            </button>
-            <button
-              type="button"
-              style={pagerBtn(page >= totalPages)}
-              disabled={page >= totalPages}
-              onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
-            >
-              Next
-            </button>
+
+          <table style={{ width: "100%", borderCollapse: "collapse" }}>
+            <thead>
+              <tr>
+                <th style={th}>Description</th>
+                <th style={th}>Category</th>
+                <th style={th}>Type</th>
+                <th style={{ ...th, textAlign: "right" }}>Amount</th>
+                <th style={th}>Status</th>
+              </tr>
+            </thead>
+            <tbody>
+              {loading ? (
+                <tr>
+                  <td colSpan={5} style={{ ...td, textAlign: "center" }}>
+                    Loading…
+                  </td>
+                </tr>
+              ) : rows.length === 0 ? (
+                <tr>
+                  <td colSpan={5} style={{ ...td, textAlign: "center", color: "#64748b" }}>
+                    No fees found
+                  </td>
+                </tr>
+              ) : (
+                rows.map((row) => {
+                  const selected = row.id === selectedFeeId;
+                  return (
+                    <tr
+                      key={row.id}
+                      onClick={() => setSelectedFeeId(row.id)}
+                      style={{
+                        cursor: "pointer",
+                        background: selected ? "rgba(212,175,55,0.08)" : "#fff",
+                      }}
+                    >
+                      <td style={{ ...td, fontWeight: 700 }}>{row.name}</td>
+                      <td style={td}>{row.category}</td>
+                      <td style={td}>{row.type}</td>
+                      <td style={{ ...td, textAlign: "right", fontWeight: 800 }}>
+                        {formatMoneyZAR(row.amount)}
+                      </td>
+                      <td style={td}>
+                        <span
+                          style={{
+                            display: "inline-block",
+                            padding: "3px 10px",
+                            borderRadius: "999px",
+                            fontSize: "11px",
+                            fontWeight: 800,
+                            letterSpacing: "0.04em",
+                            textTransform: "uppercase",
+                            background: row.isUsed ? "rgba(212,175,55,0.18)" : "#f1f5f9",
+                            color: row.isUsed ? "#92400e" : "#64748b",
+                            border: row.isUsed
+                              ? "1px solid rgba(212,175,55,0.35)"
+                              : "1px solid #e2e8f0",
+                          }}
+                        >
+                          {row.feeStatus}
+                        </span>
+                        {row.isUsed && row.usedCount > 0 ? (
+                          <span style={{ marginLeft: 8, fontSize: "11px", color: "#64748b" }}>
+                            ({row.usedCount} plans)
+                          </span>
+                        ) : null}
+                      </td>
+                    </tr>
+                  );
+                })
+              )}
+            </tbody>
+          </table>
+
+          <div
+            style={{
+              display: "flex",
+              justifyContent: "space-between",
+              alignItems: "center",
+              gap: "12px",
+              padding: "12px 16px",
+              borderTop: "1px solid #f1f5f9",
+              flexWrap: "wrap",
+            }}
+          >
+            <div style={{ color: "#64748b", fontWeight: 600, fontSize: "12px" }}>
+              Page {page} of {totalPages} · {total} fees
+            </div>
+            <div style={{ display: "flex", gap: "8px" }}>
+              <button
+                type="button"
+                style={pagerBtn(page <= 1)}
+                disabled={page <= 1}
+                onClick={() => setPage((p) => Math.max(1, p - 1))}
+              >
+                Previous
+              </button>
+              <button
+                type="button"
+                style={pagerBtn(page >= totalPages)}
+                disabled={page >= totalPages}
+                onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
+              >
+                Next
+              </button>
+            </div>
           </div>
         </div>
       </div>
     </div>
   );
 }
-

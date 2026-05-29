@@ -438,20 +438,26 @@ export async function applyMigrationLearnerGenderRepair(opts: {
     throw new Error("No learner updates to apply");
   }
 
-  await prisma.$transaction(async (tx) => {
-    for (const row of updates) {
-      const data: { gender?: string; idNumber?: string; className?: string } = {};
-      if (row.gender) data.gender = row.gender;
-      if (row.idNumber) data.idNumber = row.idNumber;
-      if (row.className) data.className = row.className;
-      if (!Object.keys(data).length) continue;
+  const BATCH_SIZE = 40;
+  const txOptions = { maxWait: 30_000, timeout: 120_000 } as const;
 
-      await tx.learner.update({
-        where: { id: row.learnerId, schoolId },
-        data,
-      });
-    }
-  });
+  for (let offset = 0; offset < updates.length; offset += BATCH_SIZE) {
+    const batch = updates.slice(offset, offset + BATCH_SIZE);
+    await prisma.$transaction(async (tx) => {
+      for (const row of batch) {
+        const data: { gender?: string; idNumber?: string; className?: string } = {};
+        if (row.gender) data.gender = row.gender;
+        if (row.idNumber) data.idNumber = row.idNumber;
+        if (row.className) data.className = row.className;
+        if (!Object.keys(data).length) continue;
+
+        await tx.learner.update({
+          where: { id: row.learnerId, schoolId },
+          data,
+        });
+      }
+    }, txOptions);
+  }
 
   try {
     fs.unlinkSync(file);

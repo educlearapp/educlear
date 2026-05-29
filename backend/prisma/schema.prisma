@@ -129,6 +129,7 @@ learnerReports LearnerReport[]
   schoolNotices SchoolNotice[]
   parentDocuments ParentDocument[]
   learnerIncidents LearnerIncident[]
+  learnerAttendances LearnerAttendance[]
   parentOnboardings ParentOnboarding[]
   parentOutreachQueue ParentOutreachQueue[]
   communicationMessages CommunicationMessage[]
@@ -684,6 +685,7 @@ reports LearnerReport[]
   teacherThreads ParentTeacherThread[]
   homeworkPosts HomeworkPost[]
   incidents LearnerIncident[]
+  attendances LearnerAttendance[]
   communicationMessages CommunicationMessage[]
 
   @@unique([schoolId, admissionNo])
@@ -2700,6 +2702,36 @@ model LearnerIncident {
   learner Learner @relation(fields: [learnerId], references: [id], onDelete: Cascade)
 
   @@index([schoolId, learnerId])
+  @@index([learnerId])
+}
+
+enum AttendanceStatus {
+  PRESENT
+  ABSENT
+  LATE
+  EXCUSED
+}
+
+model LearnerAttendance {
+  id        String           @id @default(cuid())
+  schoolId  String
+  learnerId String
+  className String
+  date      DateTime         @db.Date
+  status    AttendanceStatus
+  arrivedAt String?
+  leftAt    String?
+  reason    String?          @db.Text
+  createdBy String           @default("")
+  createdAt DateTime         @default(now())
+  updatedAt DateTime         @updatedAt
+
+  school  School  @relation(fields: [schoolId], references: [id], onDelete: Cascade)
+  learner Learner @relation(fields: [learnerId], references: [id], onDelete: Cascade)
+
+  @@unique([schoolId, learnerId, date])
+  @@index([schoolId, className, date])
+  @@index([schoolId, date])
   @@index([learnerId])
 }
 

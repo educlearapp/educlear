@@ -177,3 +177,11 @@ export function prismaRoleForAppRole(appRole: string): "SCHOOL_ADMIN" | "FINANCE
   if (appRole === "Finance") return "FINANCE";
   return "STAFF";
 }
+
+/** Default app role when user-access metadata is missing (legacy Prisma `User.role`). */
+export function appRoleFromPrismaRole(prismaRole: string): AppRole {
+  const role = String(prismaRole || "").trim().toUpperCase();
+  if (role === "SCHOOL_ADMIN") return "Admin";
+  if (role === "FINANCE") return "Finance";
+  return "Viewer";
+}

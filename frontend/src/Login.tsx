@@ -5,6 +5,7 @@ import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 
 import { apiFetch } from "./api";
+import { clearSchoolSession, syncSchoolSessionFromLoginResponse } from "./auth/schoolSession";
 import { clearEduClearRole, syncEduClearRoleFromLoginResponse } from "./auth/roles";
 import {
   clearMigrationAccess,
@@ -49,6 +50,7 @@ export default function Login({ onLoggedIn }: Props) {
     setLoading(true);
 
     clearEduClearRole();
+    clearSchoolSession();
     clearMigrationAccess();
 
 
@@ -129,6 +131,7 @@ export default function Login({ onLoggedIn }: Props) {
       }
 
       syncEduClearRoleFromLoginResponse(data);
+      syncSchoolSessionFromLoginResponse(data);
       syncMigrationAccessFromLoginResponse(data);
 
 
