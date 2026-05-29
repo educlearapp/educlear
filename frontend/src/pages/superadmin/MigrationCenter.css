@@ -28,6 +28,10 @@
   margin-bottom: 24px;
 }
 
+.uc-migration-center-nav--in-header {
+  margin-top: 16px;
+}
+
 .uc-migration-center-nav-link {
   padding: 10px 18px;
   border-radius: 10px;

@@ -1,5 +1,4 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import { Link } from "react-router-dom";
 import MigrationSchoolSelect from "../../superAdmin/components/migration/MigrationSchoolSelect";
 import MigrationStubModal, { type StubNotice } from "../../superAdmin/components/migration/MigrationStubModal";
 import type { SchoolOption } from "../../superAdmin/types/migration";
@@ -13,6 +12,7 @@ import {
   fetchMigrationTargetSchools,
   type MigrationTargetSchoolsDebug,
 } from "../../superAdmin/utils/migrationTargetSchools";
+import UniversalMigrationCenterNav from "./UniversalMigrationCenterNav";
 import "../SuperAdminMigrationPage.css";
 
 const ACCEPT = ".xls,.xlsx";
@@ -106,20 +106,7 @@ export default function LiveBillingPlansImportPage() {
           apply — saves to the normal billing plan store. Does not touch statements, payments, invoices,
           or balances.
         </p>
-        <nav className="uc-migration-center-nav" aria-label="Migration navigation" style={{ marginTop: 16 }}>
-          <Link to="/super-admin/migration" className="uc-migration-center-nav-link">
-            Migration Center
-          </Link>
-          <Link
-            to="/super-admin/migration/billing-plans"
-            className="uc-migration-center-nav-link uc-migration-center-nav-link--active"
-          >
-            Billing plans import
-          </Link>
-          <Link to="/super-admin/migration/legacy" className="uc-migration-center-nav-link">
-            Legacy migration
-          </Link>
-        </nav>
+        <UniversalMigrationCenterNav className="uc-migration-center-nav--in-header" />
       </header>
 
       <div className="sa-migration-layout">

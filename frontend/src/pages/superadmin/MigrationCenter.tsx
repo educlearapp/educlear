@@ -1,5 +1,4 @@
 import { useState } from "react";
-import { Link, useLocation } from "react-router-dom";
 import MigrationSystemsRegistry from "../../components/migration/MigrationSystemsRegistry";
 import UniversalMigrationApplySection from "./UniversalMigrationApplySection";
 import UniversalMigrationImportAuditSection from "./UniversalMigrationImportAuditSection";
@@ -10,6 +9,7 @@ import { UniversalMigrationWorkflowProvider } from "./UniversalMigrationWorkflow
 import DaSilvaPilotValidationSection from "./DaSilvaPilotValidationSection";
 import DaSilvaPilotRunbookSection from "./DaSilvaPilotRunbookSection";
 import DaSilvaPreflightDashboardSection from "./DaSilvaPreflightDashboardSection";
+import UniversalMigrationCenterNav from "./UniversalMigrationCenterNav";
 import "./MigrationCenter.css";
 
 const SECTIONS = [
@@ -77,12 +77,6 @@ const SECTIONS = [
 
 export default function MigrationCenter() {
   const [applyNotice, setApplyNotice] = useState<string | null>(null);
-  const location = useLocation();
-  const onCenter =
-    location.pathname.startsWith("/super-admin/migration") &&
-    !location.pathname.includes("/research") &&
-    !location.pathname.includes("/legacy") &&
-    !location.pathname.includes("/billing-plans");
 
   return (
     <UniversalMigrationWorkflowProvider>
@@ -95,32 +89,7 @@ export default function MigrationCenter() {
           </p>
         </header>
 
-        <nav className="uc-migration-center-nav" aria-label="Migration navigation">
-          <Link
-            to="/super-admin/migration"
-            className={`uc-migration-center-nav-link${onCenter ? " uc-migration-center-nav-link--active" : ""}`}
-          >
-            Migration Center
-          </Link>
-          <Link
-            to="/super-admin/migration/research"
-            className={`uc-migration-center-nav-link${!onCenter ? " uc-migration-center-nav-link--active" : ""}`}
-          >
-            Systems Registry
-          </Link>
-          <Link
-            to="/super-admin/migration/billing-plans"
-            className={`uc-migration-center-nav-link${location.pathname.includes("/billing-plans") ? " uc-migration-center-nav-link--active" : ""}`}
-          >
-            Billing plans import
-          </Link>
-          <Link
-            to="/super-admin/migration/legacy"
-            className={`uc-migration-center-nav-link${location.pathname.includes("/legacy") ? " uc-migration-center-nav-link--active" : ""}`}
-          >
-            Legacy migration
-          </Link>
-        </nav>
+        <UniversalMigrationCenterNav />
 
         <div className="uc-migration-center-sections">
           {SECTIONS.map((section) => (

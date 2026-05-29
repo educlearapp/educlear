@@ -12,6 +12,7 @@ import MigrationSummaryCards from "../superAdmin/components/migration/MigrationS
 import { useMigrationCenter } from "../superAdmin/hooks/useMigrationCenter";
 import type { MigrationActionId, MigrationSource } from "../superAdmin/types/migration";
 import { formatValidationReportSummary } from "../superAdmin/utils/migrationCsv";
+import UniversalMigrationCenterNav from "./superadmin/UniversalMigrationCenterNav";
 import "./SuperAdminMigrationPage.css";
 
 function formatNormalizationPreview(
@@ -295,6 +296,7 @@ export default function SuperAdminMigrationPage() {
               : ""}
           </p>
         ) : null}
+        <UniversalMigrationCenterNav className="uc-migration-center-nav--in-header" />
       </header>
 
       <MigrationSummaryCards summary={summary} />

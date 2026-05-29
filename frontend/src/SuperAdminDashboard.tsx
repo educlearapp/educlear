@@ -6,6 +6,7 @@ import MigrationCenter from "./pages/superadmin/MigrationCenter";
 import MigrationResearch from "./pages/superadmin/MigrationResearch";
 import SuperAdminMigrationPage from "./pages/SuperAdminMigrationPage";
 import LiveBillingPlansImportPage from "./pages/superadmin/LiveBillingPlansImportPage";
+import LiveLearnerRepairPage from "./pages/superadmin/LiveLearnerRepairPage";
 import SuperAdminSchoolsPage from "./pages/SuperAdminSchoolsPage";
 import "./App.css";
 import "./SuperAdminDashboard.css";
@@ -82,6 +83,7 @@ export default function SuperAdminDashboard() {
             <Route path="migration" element={<MigrationCenter />} />
             <Route path="migration/research" element={<MigrationResearch />} />
             <Route path="migration/billing-plans" element={<LiveBillingPlansImportPage />} />
+            <Route path="migration/learner-repair" element={<LiveLearnerRepairPage />} />
             <Route path="migration/legacy" element={<SuperAdminMigrationPage />} />
             <Route path="*" element={<Navigate to="schools" replace />} />
           </Routes>

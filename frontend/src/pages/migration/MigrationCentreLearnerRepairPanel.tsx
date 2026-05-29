@@ -99,7 +99,7 @@ export default function MigrationCentreLearnerRepairPanel({ schoolId, onBack }: 
           className="migration-centre-btn migration-centre-btn--outline"
           onClick={onBack}
         >
-          ← Migration Centre
+          ← Universal Migration Center
         </button>
       </div>
 
