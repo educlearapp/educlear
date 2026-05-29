@@ -1,9 +1,11 @@
 import type { DbLearnerForParentMatch } from "../daSilvaMigration/daSilvaParentLearnerMatching";
 import type { SasamsParsedLearner } from "../daSilvaMigration/sasamsParsers";
 import {
+  explainLearnerRepairRejection,
   firstNamesCompatible,
   LEARNER_REPAIR_FUZZY_MIN_RATIO,
   learnerNameSimilarityRatio,
+  learnerRelaxedRepairSimilarity,
   normLearnerCompactName,
   normLearnerFullName,
   normLearnerFullNameFromString,
@@ -11,13 +13,21 @@ import {
   normLearnerPersonText,
   normLearnerRepairClass,
   normLearnerSurname,
-  surnamesCompatible,
+  parseLearnerRepairName,
+  similarityPercent,
 } from "./learnerRepairNormalization";
 
 export type LearnerRepairMatchResult = {
   learnerId: string | null;
   strategy: string | null;
   ambiguous: boolean;
+};
+
+export type LearnerRepairNoMatchDiagnostic = {
+  closestLearnerId: string | null;
+  closestLearnerName: string;
+  similarityPercent: number;
+  rejectionReason: string;
 };
 
 export type LearnerRepairMatchIndexes = {
@@ -167,10 +177,109 @@ function fuzzyNameMatch(
   return null;
 }
 
+function partialRelaxedNameMatch(
+  imported: SasamsParsedLearner,
+  indexes: LearnerRepairMatchIndexes
+): LearnerRepairMatchResult | null {
+  const names = importedNames(imported);
+  if (!names.fullNameCompact && !names.firstName) return null;
+
+  const cls = importedClassKey(imported);
+  const importLabel = imported.fullName || `${imported.firstName} ${imported.lastName}`.trim();
+  const importParts = parseLearnerRepairName(
+    imported.firstName,
+    imported.lastName,
+    imported.fullName
+  );
+  const hits: string[] = [];
+
+  for (const l of indexes.learnersById.values()) {
+    if (cls && normLearnerRepairClass(l.className) !== cls) continue;
+
+    const dbLabel = `${l.firstName} ${l.lastName}`.trim();
+    const dbParts = parseLearnerRepairName(l.firstName, l.lastName, dbLabel);
+    const ratio = learnerRelaxedRepairSimilarity(importParts, dbParts, importLabel, dbLabel);
+
+    if (ratio >= LEARNER_REPAIR_FUZZY_MIN_RATIO) hits.push(l.id);
+  }
+
+  const hit = pickUnique(hits);
+  if (hit.id || hit.ambiguous) {
+    return { learnerId: hit.id, strategy: "relaxed_name", ambiguous: hit.ambiguous };
+  }
+  return null;
+}
+
+/**
+ * Closest live learner for preview when no auto-match (diagnostics only).
+ */
+export function diagnoseLearnerRepairNoMatch(
+  imported: SasamsParsedLearner,
+  indexes: LearnerRepairMatchIndexes
+): LearnerRepairNoMatchDiagnostic {
+  const importLabel = imported.fullName || `${imported.firstName} ${imported.lastName}`.trim();
+  const importParts = parseLearnerRepairName(
+    imported.firstName,
+    imported.lastName,
+    imported.fullName
+  );
+  const cls = importedClassKey(imported);
+
+  let bestId: string | null = null;
+  let bestName = "";
+  let bestRatio = 0;
+  let bestClassMismatch = false;
+  const tiedIds: string[] = [];
+
+  for (const l of indexes.learnersById.values()) {
+    const dbLabel = `${l.firstName} ${l.lastName}`.trim();
+    const dbParts = parseLearnerRepairName(l.firstName, l.lastName, dbLabel);
+    const ratio = learnerRelaxedRepairSimilarity(importParts, dbParts, importLabel, dbLabel);
+    const classMismatch = Boolean(cls && normLearnerRepairClass(l.className) !== cls);
+
+    if (ratio > bestRatio) {
+      bestRatio = ratio;
+      bestId = l.id;
+      bestName = dbLabel;
+      bestClassMismatch = classMismatch;
+      tiedIds.length = 0;
+      tiedIds.push(l.id);
+    } else if (ratio === bestRatio && ratio > 0) {
+      tiedIds.push(l.id);
+    }
+  }
+
+  const ambiguous =
+    tiedIds.length > 1 &&
+    bestRatio >= LEARNER_REPAIR_FUZZY_MIN_RATIO;
+  const closest = bestId ? indexes.learnersById.get(bestId) : null;
+  const dbParts = closest
+    ? parseLearnerRepairName(closest.firstName, closest.lastName, bestName)
+    : importParts;
+
+  const rejectionReason = closest
+    ? explainLearnerRepairRejection({
+        similarity: bestRatio,
+        ambiguous,
+        classMismatch: bestClassMismatch,
+        importParts,
+        dbParts,
+      })
+    : "no live learners to compare";
+
+  return {
+    closestLearnerId: bestId,
+    closestLearnerName: bestName,
+    similarityPercent: similarityPercent(bestRatio),
+    rejectionReason,
+  };
+}
+
 /**
  * Match priority:
  * 1 SA ID → 2 admission → 3 full name + class → 4 first + surname + class
  * → 5 full name → 6 first + surname → 7 surname + class → 8 fuzzy (90%+)
+ * → 9 relaxed partial (90%+, middle ignored / compound surname / reorder)
  */
 export function matchImportedLearnerToLive(
   imported: SasamsParsedLearner,
@@ -245,6 +354,9 @@ export function matchImportedLearnerToLive(
 
   const fuzzy = fuzzyNameMatch(imported, indexes);
   if (fuzzy) return fuzzy;
+
+  const relaxed = partialRelaxedNameMatch(imported, indexes);
+  if (relaxed) return relaxed;
 
   return { learnerId: null, strategy: null, ambiguous: false };
 }

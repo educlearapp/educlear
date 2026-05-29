@@ -10,7 +10,11 @@ import {
   normalizeLearnerGender,
 } from "../../utils/learnerGender";
 import { deduplicateImportedLearners } from "./deduplicateImportedLearners";
-import { buildLearnerRepairIndexes, matchImportedLearnerToLive } from "./learnerRepairMatch";
+import {
+  buildLearnerRepairIndexes,
+  diagnoseLearnerRepairNoMatch,
+  matchImportedLearnerToLive,
+} from "./learnerRepairMatch";
 import {
   buildLearnerRepairWritePatch,
   describeLearnerRepairAction,
@@ -34,6 +38,9 @@ export type LearnerGenderRepairPreviewRow = {
   matchType: string;
   action: string;
   ambiguous: boolean;
+  closestLearnerName?: string | null;
+  closestSimilarityPercent?: number | null;
+  noMatchReason?: string | null;
 };
 
 export type MigrationLearnerGenderRepairPreview = {
@@ -113,6 +120,8 @@ function formatMatchType(strategy: string | null, ambiguous: boolean): string {
       return "Surname + class";
     case "fuzzy_name":
       return "Fuzzy name (90%+)";
+    case "relaxed_name":
+      return "Relaxed name (90%+)";
     default:
       return strategy ? strategy.replace(/_/g, " ") : "—";
   }
@@ -255,6 +264,7 @@ export async function previewMigrationLearnerGenderRepairFromFiles(opts: {
 
     if (!match.learnerId) {
       noMatch += 1;
+      const diagnostic = diagnoseLearnerRepairNoMatch(imported, indexes);
       previewRows.push({
         importKey,
         importedLearnerLabel,
@@ -270,6 +280,9 @@ export async function previewMigrationLearnerGenderRepairFromFiles(opts: {
           patch: {},
         }),
         ambiguous: false,
+        closestLearnerName: diagnostic.closestLearnerName || null,
+        closestSimilarityPercent: diagnostic.similarityPercent,
+        noMatchReason: diagnostic.rejectionReason,
       });
       continue;
     }
@@ -374,7 +387,13 @@ export async function previewMigrationLearnerGenderRepairFromFiles(opts: {
       boysAfter,
       girlsAfter,
     },
-    rows: previewRows.slice(0, PREVIEW_SAMPLE),
+    rows: previewRows
+      .sort((a, b) => {
+        const aNo = a.matchType === "No match" ? 0 : 1;
+        const bNo = b.matchType === "No match" ? 0 : 1;
+        return aNo - bNo;
+      })
+      .slice(0, PREVIEW_SAMPLE),
   };
 }
 
