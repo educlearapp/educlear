@@ -94,6 +94,9 @@ export type MigrationLearnerRepairPreview = {
     matchType: string;
     action: string;
     ambiguous: boolean;
+    closestLearnerName?: string | null;
+    closestSimilarityPercent?: number | null;
+    noMatchReason?: string | null;
   }>;
 };
 

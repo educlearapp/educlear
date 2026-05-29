@@ -207,8 +207,9 @@ export default function MigrationCentreLearnerRepairPanel({ schoolId, onBack }: 
         </p>
         <p className="migration-centre-dropzone-hint">
           Multi-select enabled — one export per class. Match: SA ID → admission → full name + class
-          → first + surname + class → full name → first + surname → surname + class → fuzzy name.
-          Duplicates across files are merged automatically.
+          → first + surname + class → full name → first + surname → surname + class → fuzzy name →
+          relaxed name (middle ignored, compound surname). Duplicates across files are merged
+          automatically.
         </p>
       </div>
 
@@ -319,9 +320,9 @@ export default function MigrationCentreLearnerRepairPanel({ schoolId, onBack }: 
               learner(s) (
               {preview.counts.rawRowsParsed ?? preview.counts.totalRows} rows parsed across files).
               Match order: SA ID → admission → full name + class → first + surname + class → full
-              name → first + surname → surname + class → fuzzy (90%+). Rows show Matched,
-              Ambiguous, or No match with the match type used. Existing Male/Female is not
-              overwritten by blank imports.
+              name → first + surname → surname + class → fuzzy (90%+) → relaxed partial (90%+).
+              No-match rows show closest live learner, similarity %, and rejection reason.
+              Existing Male/Female is not overwritten by blank imports.
             </p>
             <div className="migration-centre-table-wrap">
               <div className="migration-centre-table-scroll">
@@ -334,6 +335,7 @@ export default function MigrationCentreLearnerRepairPanel({ schoolId, onBack }: 
                       <th>Current gender</th>
                       <th>Imported gender</th>
                       <th>Match type</th>
+                      <th>No-match diagnostic</th>
                       <th>Action</th>
                     </tr>
                   </thead>
@@ -346,6 +348,30 @@ export default function MigrationCentreLearnerRepairPanel({ schoolId, onBack }: 
                         <td>{row.currentGender || "—"}</td>
                         <td>{row.importedGender || "—"}</td>
                         <td>{row.matchType}</td>
+                        <td>
+                          {row.matchType === "No match" ? (
+                            <span className="migration-centre-no-match-diag">
+                              {row.closestLearnerName ? (
+                                <>
+                                  <span>
+                                    <strong>Closest:</strong> {row.closestLearnerName}
+                                  </span>
+                                  <span>
+                                    <strong>Similarity:</strong>{" "}
+                                    {row.closestSimilarityPercent ?? 0}%
+                                  </span>
+                                  <span>
+                                    <strong>Reason:</strong> {row.noMatchReason || "—"}
+                                  </span>
+                                </>
+                              ) : (
+                                "—"
+                              )}
+                            </span>
+                          ) : (
+                            "—"
+                          )}
+                        </td>
                         <td>{row.action}</td>
                       </tr>
                     ))}

@@ -287,6 +287,21 @@
   background: rgba(212, 175, 55, 0.06);
 }
 
+.migration-centre-no-match-diag {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 10rem;
+  color: #cbd5e1;
+  font-size: 0.76rem;
+  line-height: 1.35;
+}
+
+.migration-centre-no-match-diag strong {
+  color: #d4af37;
+  font-weight: 600;
+}
+
 .migration-centre-confirm {
   margin-top: 14px;
   padding: 12px 14px;
