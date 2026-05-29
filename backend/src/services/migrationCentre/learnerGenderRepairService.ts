@@ -101,10 +101,18 @@ function formatMatchType(strategy: string | null, ambiguous: boolean): string {
       return "SA ID number";
     case "admission_number":
       return "Admission number";
+    case "full_name_classroom":
+      return "Full name + class";
     case "name_surname_classroom":
-      return "Name + classroom";
+      return "First + surname + class";
+    case "full_name":
+      return "Full name";
     case "name_surname":
-      return "Name + surname";
+      return "First + surname";
+    case "surname_classroom":
+      return "Surname + class";
+    case "fuzzy_name":
+      return "Fuzzy name (90%+)";
     default:
       return strategy ? strategy.replace(/_/g, " ") : "—";
   }
