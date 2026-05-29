@@ -13,7 +13,9 @@ import {
 } from "./auth/migrationAccess";
 import {
   clearSubscriptionGateCache,
-  resolvePostAuthPath,
+  refreshSchoolSubscriptionStatus,
+  resolvePostAuthPathSync,
+  syncSubscriptionFromLoginResponse,
 } from "./subscriptions/subscriptionsApi";
 import { cacheSchoolLogoUrl } from "./utils/schoolLogo";
 
@@ -133,14 +135,13 @@ export default function Login({ onLoggedIn }: Props) {
       syncEduClearRoleFromLoginResponse(data);
       syncSchoolSessionFromLoginResponse(data);
       syncMigrationAccessFromLoginResponse(data);
-
-
+      syncSubscriptionFromLoginResponse(data);
 
       onLoggedIn();
 
       clearSubscriptionGateCache();
-      const nextPath = await resolvePostAuthPath(String(schoolId));
-      navigate(nextPath);
+      navigate(resolvePostAuthPathSync(String(schoolId)));
+      void refreshSchoolSubscriptionStatus(String(schoolId));
 
     } catch (err: any) {
 

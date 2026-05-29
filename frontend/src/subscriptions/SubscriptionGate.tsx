@@ -5,10 +5,10 @@ import { isSuperAdmin } from "../auth/roles";
 import {
   clearSubscriptionGateCache,
   fetchSchoolSubscriptionStatus,
+  getInitialSubscriptionGateState,
   isSubscriptionDashboardUnlocked,
+  type SubscriptionGateState,
 } from "./subscriptionsApi";
-
-type GateState = "loading" | "allowed" | "blocked";
 
 /**
  * Blocks school dashboard routes until subscription status is ACTIVE in the database.
@@ -19,7 +19,9 @@ export default function SubscriptionGate({ children }: { children: React.ReactNo
   const schoolId = String(localStorage.getItem("schoolId") || "").trim();
   const token = String(localStorage.getItem("token") || "").trim();
   const subscriptionGateExempt = isSuperAdmin();
-  const [gate, setGate] = useState<GateState>("loading");
+  const [gate, setGate] = useState<SubscriptionGateState>(() =>
+    subscriptionGateExempt ? "allowed" : getInitialSubscriptionGateState(schoolId)
+  );
 
   useEffect(() => {
     let cancelled = false;
@@ -33,7 +35,10 @@ export default function SubscriptionGate({ children }: { children: React.ReactNo
       return;
     }
 
-    setGate("loading");
+    const initial = getInitialSubscriptionGateState(schoolId);
+    if (initial === "loading") {
+      setGate("loading");
+    }
 
     fetchSchoolSubscriptionStatus(schoolId)
       .then((response) => {
@@ -46,13 +51,19 @@ export default function SubscriptionGate({ children }: { children: React.ReactNo
         setGate("blocked");
       })
       .catch(() => {
-        if (!cancelled) setGate("blocked");
+        if (cancelled) return;
+        const fallback = getInitialSubscriptionGateState(schoolId);
+        if (fallback === "allowed") {
+          setGate("allowed");
+          return;
+        }
+        setGate("blocked");
       });
 
     return () => {
       cancelled = true;
     };
-  }, [schoolId, token, location.pathname, subscriptionGateExempt]);
+  }, [schoolId, token, subscriptionGateExempt]);
 
   if (subscriptionGateExempt) {
     return <>{children}</>;

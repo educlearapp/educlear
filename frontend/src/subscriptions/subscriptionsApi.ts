@@ -139,11 +139,125 @@ export async function activateSubscriptionTestMode(
 }
 
 const SUBSCRIPTION_GATE_CACHE_KEYS = ["educlearSelectedPackageCode"] as const;
+const SUBSCRIPTION_STATUS_CACHE_KEY = "educlearSchoolSubscriptionStatus";
+
+type SubscriptionStatusCacheEntry = {
+  schoolId: string;
+  status: SubscriptionStatusResponse;
+  savedAt: number;
+};
+
+function readRecord(value: unknown): Record<string, unknown> | null {
+  return value !== null && typeof value === "object" ? (value as Record<string, unknown>) : null;
+}
+
+function readSubscriptionStatusCache(): SubscriptionStatusCacheEntry | null {
+  try {
+    const raw = sessionStorage.getItem(SUBSCRIPTION_STATUS_CACHE_KEY);
+    if (!raw) return null;
+    const parsed = JSON.parse(raw) as SubscriptionStatusCacheEntry;
+    if (!parsed?.schoolId || !parsed?.status) return null;
+    return parsed;
+  } catch {
+    return null;
+  }
+}
+
+/** Cached subscription status from login or a prior status fetch (session-scoped). */
+export function getCachedSchoolSubscriptionStatus(
+  schoolId: string
+): SubscriptionStatusResponse | null {
+  const key = String(schoolId || "").trim();
+  if (!key) return null;
+  const entry = readSubscriptionStatusCache();
+  if (!entry || entry.schoolId !== key) return null;
+  return entry.status;
+}
+
+export function cacheSchoolSubscriptionStatus(
+  schoolId: string,
+  status: SubscriptionStatusResponse
+): void {
+  const key = String(schoolId || "").trim();
+  if (!key || !status) return;
+  try {
+    sessionStorage.setItem(
+      SUBSCRIPTION_STATUS_CACHE_KEY,
+      JSON.stringify({
+        schoolId: key,
+        status,
+        savedAt: Date.now(),
+      } satisfies SubscriptionStatusCacheEntry)
+    );
+  } catch {
+    // sessionStorage may be unavailable; gate still works via network
+  }
+}
+
+/** Persist package/subscription fields when present on login or /auth/me. */
+export function syncSubscriptionFromLoginResponse(data: unknown): void {
+  const root = readRecord(data);
+  if (!root) return;
+
+  const schoolId = String(
+    root.schoolId ?? readRecord(root.school)?.id ?? readRecord(root.user)?.schoolId ?? ""
+  ).trim();
+  if (!schoolId) return;
+
+  if (root.success === true && ("dashboardUnlocked" in root || "isActive" in root)) {
+    cacheSchoolSubscriptionStatus(schoolId, root as unknown as SubscriptionStatusResponse);
+    return;
+  }
+
+  const nested =
+    readRecord(root.subscriptionStatus) ||
+    readRecord(root.packageStatus);
+
+  const dashboardUnlocked =
+    root.dashboardUnlocked === true ||
+    root.isActive === true ||
+    nested?.dashboardUnlocked === true ||
+    nested?.isActive === true;
+
+  const subscription =
+    readRecord(root.subscription) ||
+    (nested && (nested.subscription || nested.status) ? nested : null);
+  const subscriptionRecord = subscription
+    ? (readRecord(subscription.subscription) ? readRecord(subscription.subscription) : subscription)
+    : null;
+
+  if (
+    dashboardUnlocked ||
+    subscription ||
+    root.hasSubscription != null ||
+    nested?.hasSubscription != null
+  ) {
+    cacheSchoolSubscriptionStatus(schoolId, {
+      success: true,
+      schoolId,
+      schoolName: String(root.schoolName ?? readRecord(root.school)?.name ?? ""),
+      hasSubscription: Boolean(
+        root.hasSubscription ?? nested?.hasSubscription ?? subscription
+      ),
+      isActive: Boolean(root.isActive ?? nested?.isActive ?? dashboardUnlocked),
+      dashboardUnlocked,
+      subscription: (subscriptionRecord as SchoolSubscription | null) ?? null,
+    });
+  }
+}
 
 /** Clears client-side keys that can keep users on package flows after status is ACTIVE. */
 export function clearSubscriptionGateCache(): void {
   for (const key of SUBSCRIPTION_GATE_CACHE_KEYS) {
     localStorage.removeItem(key);
+  }
+}
+
+export function clearSchoolSubscriptionStatusCache(): void {
+  try {
+    sessionStorage.removeItem(SUBSCRIPTION_STATUS_CACHE_KEY);
+  } catch {
+    // ignore
   }
 }
 
@@ -161,16 +275,49 @@ export function isSubscriptionDashboardUnlocked(
   return false;
 }
 
+export async function refreshSchoolSubscriptionStatus(
+  schoolId: string
+): Promise<SubscriptionStatusResponse | null> {
+  const key = String(schoolId || "").trim();
+  if (!key) return null;
+  try {
+    const fresh = (await apiFetch(
+      `/api/subscriptions/school/${encodeURIComponent(key)}/status`,
+      {
+        cache: "no-store",
+        headers: { "Cache-Control": "no-cache", Pragma: "no-cache" },
+      }
+    )) as SubscriptionStatusResponse;
+    cacheSchoolSubscriptionStatus(key, fresh);
+    return fresh;
+  } catch {
+    return getCachedSchoolSubscriptionStatus(key);
+  }
+}
+
+/** Returns cached status immediately when available; refreshes in the background. */
 export async function fetchSchoolSubscriptionStatus(
   schoolId: string
 ): Promise<SubscriptionStatusResponse> {
-  return apiFetch(
-    `/api/subscriptions/school/${encodeURIComponent(schoolId)}/status`,
-    {
-      cache: "no-store",
-      headers: { "Cache-Control": "no-cache", Pragma: "no-cache" },
-    }
-  ) as Promise<SubscriptionStatusResponse>;
+  const key = String(schoolId || "").trim();
+  const cached = getCachedSchoolSubscriptionStatus(key);
+  if (cached) {
+    void refreshSchoolSubscriptionStatus(key);
+    return cached;
+  }
+  const fresh = await refreshSchoolSubscriptionStatus(key);
+  if (fresh) return fresh;
+  throw new Error("Unable to load subscription status");
+}
+
+export type SubscriptionGateState = "loading" | "allowed" | "blocked";
+
+export function getInitialSubscriptionGateState(schoolId: string): SubscriptionGateState {
+  const key = String(schoolId || "").trim();
+  if (!key) return "blocked";
+  const cached = getCachedSchoolSubscriptionStatus(key);
+  if (!cached) return "loading";
+  return isSubscriptionDashboardUnlocked(cached) ? "allowed" : "blocked";
 }
 
 export function getPackageMonthlyPriceZar(pkg: PackagePriceFields): number | null {
@@ -276,21 +423,32 @@ export async function createSubscriptionCheckout(
   }) as Promise<PayFastCheckoutResponse>;
 }
 
-/** Where to send the user immediately after login or registration. */
-export async function resolvePostAuthPath(schoolId: string): Promise<string> {
+/** Immediate post-login route using cached package status (no network wait). */
+export function resolvePostAuthPathSync(schoolId: string): string {
   if (isSuperAdmin()) {
     return SUPER_ADMIN_ENTRY_PATH;
   }
 
-  clearSubscriptionGateCache();
-  const status = await fetchSchoolSubscriptionStatus(schoolId);
-  if (isSubscriptionDashboardUnlocked(status)) {
-    clearSubscriptionGateCache();
-    return "/dashboard";
+  const key = String(schoolId || "").trim();
+  const cached = getCachedSchoolSubscriptionStatus(key);
+  if (cached) {
+    if (isSubscriptionDashboardUnlocked(cached)) {
+      return "/dashboard";
+    }
+    const sub = cached.subscription;
+    if (sub?.status === "PENDING_PAYMENT" && sub.packageCode) {
+      return "/subscription/status";
+    }
+    return "/subscription/packages";
   }
-  const sub = status.subscription;
-  if (sub?.status === "PENDING_PAYMENT" && sub.packageCode) {
-    return "/subscription/status";
-  }
-  return "/subscription/packages";
+
+  // No cache yet: open dashboard; SubscriptionGate refreshes status in background.
+  return "/dashboard";
+}
+
+/** Where to send the user after login or registration (uses cache, then network). */
+export async function resolvePostAuthPath(schoolId: string): Promise<string> {
+  const syncPath = resolvePostAuthPathSync(schoolId);
+  void refreshSchoolSubscriptionStatus(schoolId);
+  return syncPath;
 }

@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState, type CSSProperties } from "react";
 import { API_URL } from "./api";
 import { useSchoolId } from "./useSchoolId";
 
@@ -31,7 +31,7 @@ type FeeDto = {
 function parseMoneyInput(input: string): number | null {
   const raw = String(input || "").trim();
   if (!raw) return null;
-  const cleaned = raw.replace(/[^\d.,-]/g, "");
+  const cleaned = raw.replace(/[^\d.,\s-]/g, "").replace(/\s+/g, "");
   if (!cleaned) return null;
 
   // If user typed both '.' and ',', assume last occurrence is decimal separator.
@@ -47,6 +47,27 @@ function parseMoneyInput(input: string): number | null {
   if (!Number.isFinite(n)) return null;
   return n;
 }
+
+const FEE_FIELD_TEXT = "#0f172a";
+
+const feeFieldStyle = (invalid: boolean, readOnly = false): CSSProperties => ({
+  padding: "11px 12px",
+  borderRadius: "12px",
+  border: invalid ? "1px solid rgba(239, 68, 68, 0.55)" : "1px solid rgba(15, 23, 42, 0.10)",
+  background: "#ffffff",
+  fontSize: "14px",
+  width: "100%",
+  boxSizing: "border-box",
+  color: FEE_FIELD_TEXT,
+  WebkitTextFillColor: FEE_FIELD_TEXT,
+  caretColor: FEE_FIELD_TEXT,
+  opacity: 1,
+  appearance: "none",
+  WebkitAppearance: "none",
+  boxShadow: "0 4px 12px rgba(15, 23, 42, 0.04)",
+  outline: "none",
+  cursor: readOnly ? "default" : "text",
+});
 
 export default function FeeUpsert(props: { feeId?: string | null; onBack: () => void; onSaved: () => void }) {
   const schoolId = useSchoolId();
@@ -225,18 +246,6 @@ export default function FeeUpsert(props: { feeId?: string | null; onBack: () => 
     marginBottom: "8px",
   } as const;
 
-  const input = (invalid: boolean) =>
-    ({
-      padding: "11px 12px",
-      borderRadius: "12px",
-      border: invalid ? "1px solid rgba(239, 68, 68, 0.55)" : "1px solid rgba(15, 23, 42, 0.10)",
-      background: "linear-gradient(180deg, #ffffff 0%, #f8fafc 100%)",
-      fontSize: "14px",
-      width: "100%",
-      boxShadow: "0 4px 12px rgba(15, 23, 42, 0.04)",
-      outline: "none",
-    }) as const;
-
   const helpError = {
     marginTop: "8px",
     fontSize: "13px",
@@ -398,14 +407,14 @@ export default function FeeUpsert(props: { feeId?: string | null; onBack: () => 
         <div style={{ padding: "18px" }}>
           {loading ? <div style={{ color: "#475569", fontWeight: 800 }}>Loading…</div> : null}
 
-          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "12px", opacity: loading ? 0.55 : 1 }}>
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "12px" }}>
             <div>
               <div style={label}>Category *</div>
               <select
                 value={category}
                 onChange={(e) => setCategory(e.target.value as any)}
-                style={input(Boolean(validation.fieldErrors.category)) as any}
-                disabled={loading || saving}
+                style={feeFieldStyle(Boolean(validation.fieldErrors.category), loading)}
+                disabled={saving}
               >
                 <option value="">Select category</option>
                 {CATEGORY_OPTIONS.map((o) => (
@@ -422,8 +431,8 @@ export default function FeeUpsert(props: { feeId?: string | null; onBack: () => 
               <select
                 value={type}
                 onChange={(e) => setType(e.target.value as any)}
-                style={input(Boolean(validation.fieldErrors.type)) as any}
-                disabled={loading || saving}
+                style={feeFieldStyle(Boolean(validation.fieldErrors.type), loading)}
+                disabled={saving}
               >
                 <option value="">Select type</option>
                 {TYPE_OPTIONS.map((o) => (
@@ -436,15 +445,16 @@ export default function FeeUpsert(props: { feeId?: string | null; onBack: () => 
             </div>
           </div>
 
-          <div style={{ display: "grid", gridTemplateColumns: "1fr 280px", gap: "12px", marginTop: "12px", opacity: loading ? 0.55 : 1 }}>
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 280px", gap: "12px", marginTop: "12px" }}>
             <div>
               <div style={label}>Description *</div>
               <input
                 value={description}
                 onChange={(e) => setDescription(e.target.value)}
                 placeholder="e.g. Tuition fee"
-                style={input(Boolean(validation.fieldErrors.description))}
-                disabled={loading || saving}
+                style={feeFieldStyle(Boolean(validation.fieldErrors.description), loading)}
+                readOnly={loading}
+                disabled={saving}
               />
               {validation.fieldErrors.description ? <div style={helpError}>{validation.fieldErrors.description}</div> : null}
             </div>
@@ -452,30 +462,34 @@ export default function FeeUpsert(props: { feeId?: string | null; onBack: () => 
             <div>
               <div style={label}>Amount *</div>
               <input
+                type="text"
                 value={amount}
                 onChange={(e) => setAmount(e.target.value)}
                 placeholder="0.00"
                 inputMode="decimal"
-                style={input(Boolean(validation.fieldErrors.amount))}
-                disabled={loading || saving}
+                autoComplete="off"
+                style={feeFieldStyle(Boolean(validation.fieldErrors.amount), loading)}
+                readOnly={loading}
+                disabled={saving}
               />
               {validation.fieldErrors.amount ? <div style={helpError}>{validation.fieldErrors.amount}</div> : null}
             </div>
           </div>
 
-          <div style={{ marginTop: "12px", opacity: loading ? 0.55 : 1 }}>
+          <div style={{ marginTop: "12px" }}>
             <div style={label}>Notes</div>
             <textarea
               value={notes}
               onChange={(e) => setNotes(e.target.value)}
               placeholder="Optional notes"
               style={{
-                ...input(false),
+                ...feeFieldStyle(false, loading),
                 minHeight: "170px",
                 resize: "vertical",
                 lineHeight: 1.4,
               }}
-              disabled={loading || saving}
+              readOnly={loading}
+              disabled={saving}
             />
           </div>
         </div>
