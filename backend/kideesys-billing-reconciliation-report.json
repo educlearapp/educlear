@@ -1,0 +1,641 @@
+{
+  "generatedAt": "2026-05-27T14:37:04.316Z",
+  "totalAccounts": 344,
+  "firstPassMatched": 325,
+  "secondPassAutoMatched": 5,
+  "totalMatched": 330,
+  "stillUnmatched": 14,
+  "autoMatched": [
+    {
+      "accountNo": "TSH012",
+      "learnerName": "Tumelo Sizwe Diamond Tshabalala",
+      "siblingFamilyNames": [
+        "Tumelo Sizwe Diamond Tshabalala",
+        "Motheo Divine Tshabalala"
+      ],
+      "balance": 7400,
+      "matchedCandidates": [
+        {
+          "learnerId": "cmpo63mh600cp121g99pntrrj",
+          "fullName": "Motheo Divine Nozizwe TSHABALALA",
+          "className": "Grade 5A",
+          "strategy": "age_analysis_txn_crossref",
+          "confidence": "medium"
+        },
+        {
+          "learnerId": "cmpo63mh600cp121g99pntrrj",
+          "fullName": "Motheo Divine Nozizwe TSHABALALA",
+          "className": "Grade 5A",
+          "strategy": "surname_normalization",
+          "confidence": "high"
+        },
+        {
+          "learnerId": "cmpo63mh600cp121g99pntrrj",
+          "fullName": "Motheo Divine Nozizwe TSHABALALA",
+          "className": "Grade 5A",
+          "strategy": "surname_normalization",
+          "confidence": "high"
+        }
+      ],
+      "reasonNotMatched": "Second pass auto-linked via surname_normalization (high)",
+      "secondPassLearnerId": "cmpo63mh600cp121g99pntrrj",
+      "secondPassStrategy": "surname_normalization",
+      "secondPassConfidence": "high",
+      "disposition": "auto_matched"
+    },
+    {
+      "accountNo": "MOS014",
+      "learnerName": "Omphile Dithole Mosiane Dsa0161",
+      "siblingFamilyNames": [],
+      "balance": 3700,
+      "matchedCandidates": [
+        {
+          "learnerId": "cmpo63mh100c5121gycvoq4g6",
+          "fullName": "Omphile MOSIANE",
+          "className": "Grade 5A",
+          "strategy": "surname_first_name",
+          "confidence": "high"
+        },
+        {
+          "learnerId": "cmpo63mh100c5121gycvoq4g6",
+          "fullName": "Omphile MOSIANE",
+          "className": "Grade 5A",
+          "strategy": "surname_first_name",
+          "confidence": "high"
+        }
+      ],
+      "reasonNotMatched": "Second pass auto-linked via surname_first_name (high)",
+      "secondPassLearnerId": "cmpo63mh100c5121gycvoq4g6",
+      "secondPassStrategy": "surname_first_name",
+      "secondPassConfidence": "high",
+      "disposition": "auto_matched"
+    },
+    {
+      "accountNo": "MSI004",
+      "learnerName": "Snekosi Msimango",
+      "siblingFamilyNames": [],
+      "balance": 8300,
+      "matchedCandidates": [
+        {
+          "learnerId": "cmpo63mj900kt121gpt2gvnbr",
+          "fullName": "Snenkosi MSIMANGO",
+          "className": "Grade 8B",
+          "strategy": "surname_normalization",
+          "confidence": "high"
+        },
+        {
+          "learnerId": "cmpo63mj900kt121gpt2gvnbr",
+          "fullName": "Snenkosi MSIMANGO",
+          "className": "Grade 8B",
+          "strategy": "surname_normalization",
+          "confidence": "high"
+        }
+      ],
+      "reasonNotMatched": "Second pass auto-linked via surname_normalization (high)",
+      "secondPassLearnerId": "cmpo63mj900kt121gpt2gvnbr",
+      "secondPassStrategy": "surname_normalization",
+      "secondPassConfidence": "high",
+      "disposition": "auto_matched"
+    },
+    {
+      "accountNo": "SIL007",
+      "learnerName": "Adrien Martins Da Silva",
+      "siblingFamilyNames": [],
+      "balance": -18000,
+      "matchedCandidates": [
+        {
+          "learnerId": "cmpo63meh004f121gm5f608lw",
+          "fullName": "Adrien MARTINS DA SILVA",
+          "className": "Grade 2A",
+          "strategy": "contact_list",
+          "confidence": "high"
+        },
+        {
+          "learnerId": "cmpo63meh004f121gm5f608lw",
+          "fullName": "Adrien MARTINS DA SILVA",
+          "className": "Grade 2A",
+          "strategy": "contact_list",
+          "confidence": "high"
+        }
+      ],
+      "reasonNotMatched": "Second pass auto-linked via contact_list (high)",
+      "secondPassLearnerId": "cmpo63meh004f121gm5f608lw",
+      "secondPassStrategy": "contact_list",
+      "secondPassConfidence": "high",
+      "disposition": "auto_matched"
+    },
+    {
+      "accountNo": "DUP001",
+      "learnerName": "Aiden Jacques Du Plessis",
+      "siblingFamilyNames": [],
+      "balance": -8700,
+      "matchedCandidates": [
+        {
+          "learnerId": "cmpo63md5001d121gkf321d0y",
+          "fullName": "Aiden DU PLESSIS",
+          "className": "Grade 1A",
+          "strategy": "surname_normalization",
+          "confidence": "high"
+        },
+        {
+          "learnerId": "cmpo63md5001d121gkf321d0y",
+          "fullName": "Aiden DU PLESSIS",
+          "className": "Grade 1A",
+          "strategy": "surname_normalization",
+          "confidence": "high"
+        }
+      ],
+      "reasonNotMatched": "Second pass auto-linked via surname_normalization (high)",
+      "secondPassLearnerId": "cmpo63md5001d121gkf321d0y",
+      "secondPassStrategy": "surname_normalization",
+      "secondPassConfidence": "high",
+      "disposition": "auto_matched"
+    }
+  ],
+  "manualReviewRequired": [],
+  "stillUnmatchedRows": [
+    {
+      "accountNo": "KOR001",
+      "learnerName": "Dagimawit Korabza",
+      "siblingFamilyNames": [],
+      "balance": 6860,
+      "matchedCandidates": [],
+      "reasonNotMatched": "No learner candidate matched name, class, or cross-reference keys",
+      "secondPassLearnerId": null,
+      "secondPassStrategy": null,
+      "secondPassConfidence": null,
+      "disposition": "still_unmatched"
+    },
+    {
+      "accountNo": "MOL040",
+      "learnerName": "Karaboentle Molahlehi",
+      "siblingFamilyNames": [],
+      "balance": 3700,
+      "matchedCandidates": [],
+      "reasonNotMatched": "No learner candidate matched name, class, or cross-reference keys",
+      "secondPassLearnerId": null,
+      "secondPassStrategy": null,
+      "secondPassConfidence": null,
+      "disposition": "still_unmatched"
+    },
+    {
+      "accountNo": "MOE008",
+      "learnerName": "Oteng Okgotlhe Moeng",
+      "siblingFamilyNames": [],
+      "balance": 21990,
+      "matchedCandidates": [],
+      "reasonNotMatched": "No learner candidate matched name, class, or cross-reference keys",
+      "secondPassLearnerId": null,
+      "secondPassStrategy": null,
+      "secondPassConfidence": null,
+      "disposition": "still_unmatched"
+    },
+    {
+      "accountNo": "NZI001",
+      "learnerName": "Amantle Nzimande",
+      "siblingFamilyNames": [],
+      "balance": 3700,
+      "matchedCandidates": [],
+      "reasonNotMatched": "No learner candidate matched name, class, or cross-reference keys",
+      "secondPassLearnerId": null,
+      "secondPassStrategy": null,
+      "secondPassConfidence": null,
+      "disposition": "still_unmatched"
+    },
+    {
+      "accountNo": "MOY004",
+      "learnerName": "Aobakwe Dube Moyo",
+      "siblingFamilyNames": [],
+      "balance": 3000,
+      "matchedCandidates": [],
+      "reasonNotMatched": "No learner candidate matched name, class, or cross-reference keys",
+      "secondPassLearnerId": null,
+      "secondPassStrategy": null,
+      "secondPassConfidence": null,
+      "disposition": "still_unmatched"
+    },
+    {
+      "accountNo": "NGW003",
+      "learnerName": "Athandile Nqobizwe Ngwenya Kunene",
+      "siblingFamilyNames": [],
+      "balance": 4650,
+      "matchedCandidates": [],
+      "reasonNotMatched": "No learner candidate matched name, class, or cross-reference keys",
+      "secondPassLearnerId": null,
+      "secondPassStrategy": null,
+      "secondPassConfidence": null,
+      "disposition": "still_unmatched"
+    },
+    {
+      "accountNo": "HOB002",
+      "learnerName": "Hlulani Bahumi Hobyani",
+      "siblingFamilyNames": [],
+      "balance": 5900,
+      "matchedCandidates": [],
+      "reasonNotMatched": "No learner candidate matched name, class, or cross-reference keys",
+      "secondPassLearnerId": null,
+      "secondPassStrategy": null,
+      "secondPassConfidence": null,
+      "disposition": "still_unmatched"
+    },
+    {
+      "accountNo": "RAM009",
+      "learnerName": "Omatla Malesela Ramagogogdi",
+      "siblingFamilyNames": [],
+      "balance": 4250,
+      "matchedCandidates": [],
+      "reasonNotMatched": "No learner candidate matched name, class, or cross-reference keys",
+      "secondPassLearnerId": null,
+      "secondPassStrategy": null,
+      "secondPassConfidence": null,
+      "disposition": "still_unmatched"
+    },
+    {
+      "accountNo": "RAM020",
+      "learnerName": "Oreabetse Regomoditswe Ramafoko",
+      "siblingFamilyNames": [],
+      "balance": 4450,
+      "matchedCandidates": [],
+      "reasonNotMatched": "No learner candidate matched name, class, or cross-reference keys",
+      "secondPassLearnerId": null,
+      "secondPassStrategy": null,
+      "secondPassConfidence": null,
+      "disposition": "still_unmatched"
+    },
+    {
+      "accountNo": "MAL020",
+      "learnerName": "Palesa Malatji",
+      "siblingFamilyNames": [],
+      "balance": 8550,
+      "matchedCandidates": [],
+      "reasonNotMatched": "No learner candidate matched name, class, or cross-reference keys",
+      "secondPassLearnerId": null,
+      "secondPassStrategy": null,
+      "secondPassConfidence": null,
+      "disposition": "still_unmatched"
+    },
+    {
+      "accountNo": "DIK001",
+      "learnerName": "Sinenhlanhla Dikana Iviwe",
+      "siblingFamilyNames": [],
+      "balance": 4200,
+      "matchedCandidates": [],
+      "reasonNotMatched": "No learner candidate matched name, class, or cross-reference keys",
+      "secondPassLearnerId": null,
+      "secondPassStrategy": null,
+      "secondPassConfidence": null,
+      "disposition": "still_unmatched"
+    },
+    {
+      "accountNo": "MOS021",
+      "learnerName": "Tshepiso Mosiatana",
+      "siblingFamilyNames": [],
+      "balance": 3800,
+      "matchedCandidates": [],
+      "reasonNotMatched": "No learner candidate matched name, class, or cross-reference keys",
+      "secondPassLearnerId": null,
+      "secondPassStrategy": null,
+      "secondPassConfidence": null,
+      "disposition": "still_unmatched"
+    },
+    {
+      "accountNo": "MAH007",
+      "learnerName": "Umme - Haani Mahomed Hoosen",
+      "siblingFamilyNames": [],
+      "balance": 3000,
+      "matchedCandidates": [],
+      "reasonNotMatched": "No learner candidate matched name, class, or cross-reference keys",
+      "secondPassLearnerId": null,
+      "secondPassStrategy": null,
+      "secondPassConfidence": null,
+      "disposition": "still_unmatched"
+    },
+    {
+      "accountNo": "MAS030",
+      "learnerName": "Thoriso Masenamela",
+      "siblingFamilyNames": [],
+      "balance": 0,
+      "matchedCandidates": [],
+      "reasonNotMatched": "No learner candidate matched name, class, or cross-reference keys",
+      "secondPassLearnerId": null,
+      "secondPassStrategy": null,
+      "secondPassConfidence": null,
+      "disposition": "still_unmatched"
+    }
+  ],
+  "reconciliationRows": [
+    {
+      "accountNo": "KOR001",
+      "learnerName": "Dagimawit Korabza",
+      "siblingFamilyNames": [],
+      "balance": 6860,
+      "matchedCandidates": [],
+      "reasonNotMatched": "No learner candidate matched name, class, or cross-reference keys",
+      "secondPassLearnerId": null,
+      "secondPassStrategy": null,
+      "secondPassConfidence": null,
+      "disposition": "still_unmatched"
+    },
+    {
+      "accountNo": "MOL040",
+      "learnerName": "Karaboentle Molahlehi",
+      "siblingFamilyNames": [],
+      "balance": 3700,
+      "matchedCandidates": [],
+      "reasonNotMatched": "No learner candidate matched name, class, or cross-reference keys",
+      "secondPassLearnerId": null,
+      "secondPassStrategy": null,
+      "secondPassConfidence": null,
+      "disposition": "still_unmatched"
+    },
+    {
+      "accountNo": "TSH012",
+      "learnerName": "Tumelo Sizwe Diamond Tshabalala",
+      "siblingFamilyNames": [
+        "Tumelo Sizwe Diamond Tshabalala",
+        "Motheo Divine Tshabalala"
+      ],
+      "balance": 7400,
+      "matchedCandidates": [
+        {
+          "learnerId": "cmpo63mh600cp121g99pntrrj",
+          "fullName": "Motheo Divine Nozizwe TSHABALALA",
+          "className": "Grade 5A",
+          "strategy": "age_analysis_txn_crossref",
+          "confidence": "medium"
+        },
+        {
+          "learnerId": "cmpo63mh600cp121g99pntrrj",
+          "fullName": "Motheo Divine Nozizwe TSHABALALA",
+          "className": "Grade 5A",
+          "strategy": "surname_normalization",
+          "confidence": "high"
+        },
+        {
+          "learnerId": "cmpo63mh600cp121g99pntrrj",
+          "fullName": "Motheo Divine Nozizwe TSHABALALA",
+          "className": "Grade 5A",
+          "strategy": "surname_normalization",
+          "confidence": "high"
+        }
+      ],
+      "reasonNotMatched": "Second pass auto-linked via surname_normalization (high)",
+      "secondPassLearnerId": "cmpo63mh600cp121g99pntrrj",
+      "secondPassStrategy": "surname_normalization",
+      "secondPassConfidence": "high",
+      "disposition": "auto_matched"
+    },
+    {
+      "accountNo": "MOS014",
+      "learnerName": "Omphile Dithole Mosiane Dsa0161",
+      "siblingFamilyNames": [],
+      "balance": 3700,
+      "matchedCandidates": [
+        {
+          "learnerId": "cmpo63mh100c5121gycvoq4g6",
+          "fullName": "Omphile MOSIANE",
+          "className": "Grade 5A",
+          "strategy": "surname_first_name",
+          "confidence": "high"
+        },
+        {
+          "learnerId": "cmpo63mh100c5121gycvoq4g6",
+          "fullName": "Omphile MOSIANE",
+          "className": "Grade 5A",
+          "strategy": "surname_first_name",
+          "confidence": "high"
+        }
+      ],
+      "reasonNotMatched": "Second pass auto-linked via surname_first_name (high)",
+      "secondPassLearnerId": "cmpo63mh100c5121gycvoq4g6",
+      "secondPassStrategy": "surname_first_name",
+      "secondPassConfidence": "high",
+      "disposition": "auto_matched"
+    },
+    {
+      "accountNo": "MOE008",
+      "learnerName": "Oteng Okgotlhe Moeng",
+      "siblingFamilyNames": [],
+      "balance": 21990,
+      "matchedCandidates": [],
+      "reasonNotMatched": "No learner candidate matched name, class, or cross-reference keys",
+      "secondPassLearnerId": null,
+      "secondPassStrategy": null,
+      "secondPassConfidence": null,
+      "disposition": "still_unmatched"
+    },
+    {
+      "accountNo": "MSI004",
+      "learnerName": "Snekosi Msimango",
+      "siblingFamilyNames": [],
+      "balance": 8300,
+      "matchedCandidates": [
+        {
+          "learnerId": "cmpo63mj900kt121gpt2gvnbr",
+          "fullName": "Snenkosi MSIMANGO",
+          "className": "Grade 8B",
+          "strategy": "surname_normalization",
+          "confidence": "high"
+        },
+        {
+          "learnerId": "cmpo63mj900kt121gpt2gvnbr",
+          "fullName": "Snenkosi MSIMANGO",
+          "className": "Grade 8B",
+          "strategy": "surname_normalization",
+          "confidence": "high"
+        }
+      ],
+      "reasonNotMatched": "Second pass auto-linked via surname_normalization (high)",
+      "secondPassLearnerId": "cmpo63mj900kt121gpt2gvnbr",
+      "secondPassStrategy": "surname_normalization",
+      "secondPassConfidence": "high",
+      "disposition": "auto_matched"
+    },
+    {
+      "accountNo": "NZI001",
+      "learnerName": "Amantle Nzimande",
+      "siblingFamilyNames": [],
+      "balance": 3700,
+      "matchedCandidates": [],
+      "reasonNotMatched": "No learner candidate matched name, class, or cross-reference keys",
+      "secondPassLearnerId": null,
+      "secondPassStrategy": null,
+      "secondPassConfidence": null,
+      "disposition": "still_unmatched"
+    },
+    {
+      "accountNo": "MOY004",
+      "learnerName": "Aobakwe Dube Moyo",
+      "siblingFamilyNames": [],
+      "balance": 3000,
+      "matchedCandidates": [],
+      "reasonNotMatched": "No learner candidate matched name, class, or cross-reference keys",
+      "secondPassLearnerId": null,
+      "secondPassStrategy": null,
+      "secondPassConfidence": null,
+      "disposition": "still_unmatched"
+    },
+    {
+      "accountNo": "NGW003",
+      "learnerName": "Athandile Nqobizwe Ngwenya Kunene",
+      "siblingFamilyNames": [],
+      "balance": 4650,
+      "matchedCandidates": [],
+      "reasonNotMatched": "No learner candidate matched name, class, or cross-reference keys",
+      "secondPassLearnerId": null,
+      "secondPassStrategy": null,
+      "secondPassConfidence": null,
+      "disposition": "still_unmatched"
+    },
+    {
+      "accountNo": "HOB002",
+      "learnerName": "Hlulani Bahumi Hobyani",
+      "siblingFamilyNames": [],
+      "balance": 5900,
+      "matchedCandidates": [],
+      "reasonNotMatched": "No learner candidate matched name, class, or cross-reference keys",
+      "secondPassLearnerId": null,
+      "secondPassStrategy": null,
+      "secondPassConfidence": null,
+      "disposition": "still_unmatched"
+    },
+    {
+      "accountNo": "RAM009",
+      "learnerName": "Omatla Malesela Ramagogogdi",
+      "siblingFamilyNames": [],
+      "balance": 4250,
+      "matchedCandidates": [],
+      "reasonNotMatched": "No learner candidate matched name, class, or cross-reference keys",
+      "secondPassLearnerId": null,
+      "secondPassStrategy": null,
+      "secondPassConfidence": null,
+      "disposition": "still_unmatched"
+    },
+    {
+      "accountNo": "RAM020",
+      "learnerName": "Oreabetse Regomoditswe Ramafoko",
+      "siblingFamilyNames": [],
+      "balance": 4450,
+      "matchedCandidates": [],
+      "reasonNotMatched": "No learner candidate matched name, class, or cross-reference keys",
+      "secondPassLearnerId": null,
+      "secondPassStrategy": null,
+      "secondPassConfidence": null,
+      "disposition": "still_unmatched"
+    },
+    {
+      "accountNo": "MAL020",
+      "learnerName": "Palesa Malatji",
+      "siblingFamilyNames": [],
+      "balance": 8550,
+      "matchedCandidates": [],
+      "reasonNotMatched": "No learner candidate matched name, class, or cross-reference keys",
+      "secondPassLearnerId": null,
+      "secondPassStrategy": null,
+      "secondPassConfidence": null,
+      "disposition": "still_unmatched"
+    },
+    {
+      "accountNo": "DIK001",
+      "learnerName": "Sinenhlanhla Dikana Iviwe",
+      "siblingFamilyNames": [],
+      "balance": 4200,
+      "matchedCandidates": [],
+      "reasonNotMatched": "No learner candidate matched name, class, or cross-reference keys",
+      "secondPassLearnerId": null,
+      "secondPassStrategy": null,
+      "secondPassConfidence": null,
+      "disposition": "still_unmatched"
+    },
+    {
+      "accountNo": "MOS021",
+      "learnerName": "Tshepiso Mosiatana",
+      "siblingFamilyNames": [],
+      "balance": 3800,
+      "matchedCandidates": [],
+      "reasonNotMatched": "No learner candidate matched name, class, or cross-reference keys",
+      "secondPassLearnerId": null,
+      "secondPassStrategy": null,
+      "secondPassConfidence": null,
+      "disposition": "still_unmatched"
+    },
+    {
+      "accountNo": "MAH007",
+      "learnerName": "Umme - Haani Mahomed Hoosen",
+      "siblingFamilyNames": [],
+      "balance": 3000,
+      "matchedCandidates": [],
+      "reasonNotMatched": "No learner candidate matched name, class, or cross-reference keys",
+      "secondPassLearnerId": null,
+      "secondPassStrategy": null,
+      "secondPassConfidence": null,
+      "disposition": "still_unmatched"
+    },
+    {
+      "accountNo": "MAS030",
+      "learnerName": "Thoriso Masenamela",
+      "siblingFamilyNames": [],
+      "balance": 0,
+      "matchedCandidates": [],
+      "reasonNotMatched": "No learner candidate matched name, class, or cross-reference keys",
+      "secondPassLearnerId": null,
+      "secondPassStrategy": null,
+      "secondPassConfidence": null,
+      "disposition": "still_unmatched"
+    },
+    {
+      "accountNo": "SIL007",
+      "learnerName": "Adrien Martins Da Silva",
+      "siblingFamilyNames": [],
+      "balance": -18000,
+      "matchedCandidates": [
+        {
+          "learnerId": "cmpo63meh004f121gm5f608lw",
+          "fullName": "Adrien MARTINS DA SILVA",
+          "className": "Grade 2A",
+          "strategy": "contact_list",
+          "confidence": "high"
+        },
+        {
+          "learnerId": "cmpo63meh004f121gm5f608lw",
+          "fullName": "Adrien MARTINS DA SILVA",
+          "className": "Grade 2A",
+          "strategy": "contact_list",
+          "confidence": "high"
+        }
+      ],
+      "reasonNotMatched": "Second pass auto-linked via contact_list (high)",
+      "secondPassLearnerId": "cmpo63meh004f121gm5f608lw",
+      "secondPassStrategy": "contact_list",
+      "secondPassConfidence": "high",
+      "disposition": "auto_matched"
+    },
+    {
+      "accountNo": "DUP001",
+      "learnerName": "Aiden Jacques Du Plessis",
+      "siblingFamilyNames": [],
+      "balance": -8700,
+      "matchedCandidates": [
+        {
+          "learnerId": "cmpo63md5001d121gkf321d0y",
+          "fullName": "Aiden DU PLESSIS",
+          "className": "Grade 1A",
+          "strategy": "surname_normalization",
+          "confidence": "high"
+        },
+        {
+          "learnerId": "cmpo63md5001d121gkf321d0y",
+          "fullName": "Aiden DU PLESSIS",
+          "className": "Grade 1A",
+          "strategy": "surname_normalization",
+          "confidence": "high"
+        }
+      ],
+      "reasonNotMatched": "Second pass auto-linked via surname_normalization (high)",
+      "secondPassLearnerId": "cmpo63md5001d121gkf321d0y",
+      "secondPassStrategy": "surname_normalization",
+      "secondPassConfidence": "high",
+      "disposition": "auto_matched"
+    }
+  ]
+}

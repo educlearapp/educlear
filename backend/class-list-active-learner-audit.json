@@ -1,0 +1,352 @@
+{
+  "generatedAt": "2026-05-27T17:33:37.614Z",
+  "mode": "audit-only",
+  "schoolId": "cmpideqeq0000108xb6ouv9zi",
+  "classListDir": "/Users/dasilvaacademy/Desktop/05_class_list",
+  "liveSnapshot536": null,
+  "classListFiles": 21,
+  "missingClassListFiles": [],
+  "classListParse": {
+    "rawRows": 396,
+    "uniqueActiveMatchKeys": 396,
+    "expectedActive": 396,
+    "classroomsFromFiles": 21,
+    "perFile": [
+      {
+        "className": "Creche",
+        "sourceFile": "creche.xls",
+        "rawCount": 8
+      },
+      {
+        "className": "Grade RA",
+        "sourceFile": "Grade_RA.xls",
+        "rawCount": 16
+      },
+      {
+        "className": "Grade RB",
+        "sourceFile": "Grade_RB.xls",
+        "rawCount": 16
+      },
+      {
+        "className": "Grade 1A",
+        "sourceFile": "Grade_1A.xls",
+        "rawCount": 19
+      },
+      {
+        "className": "Grade 1B",
+        "sourceFile": "Grade_1B.xls",
+        "rawCount": 18
+      },
+      {
+        "className": "Grade 1C",
+        "sourceFile": "Grade_1C.xls",
+        "rawCount": 16
+      },
+      {
+        "className": "Grade 2A",
+        "sourceFile": "Grade_2A.xls",
+        "rawCount": 24
+      },
+      {
+        "className": "Grade 2B",
+        "sourceFile": "Grade_2B.xls",
+        "rawCount": 21
+      },
+      {
+        "className": "GRADE 3A",
+        "sourceFile": "Grade_3A.xls",
+        "rawCount": 22
+      },
+      {
+        "className": "GRADE 3B",
+        "sourceFile": "Grade_3B.xls",
+        "rawCount": 20
+      },
+      {
+        "className": "Grade 4A",
+        "sourceFile": "Grade_4A.xls",
+        "rawCount": 22
+      },
+      {
+        "className": "Grade 4B",
+        "sourceFile": "Grade_4B.xls",
+        "rawCount": 23
+      },
+      {
+        "className": "Grade 5A",
+        "sourceFile": "Grade_5A.xls",
+        "rawCount": 23
+      },
+      {
+        "className": "Grade 5B",
+        "sourceFile": "Grade_5B.xls",
+        "rawCount": 19
+      },
+      {
+        "className": "GRADE 6A",
+        "sourceFile": "Grade_6A.xls",
+        "rawCount": 23
+      },
+      {
+        "className": "GRADE 6B",
+        "sourceFile": "Grade-6B.xls",
+        "rawCount": 10
+      },
+      {
+        "className": "GRADE 6C",
+        "sourceFile": "Grade_6C.xls",
+        "rawCount": 22
+      },
+      {
+        "className": "GRADE 7A",
+        "sourceFile": "Grade_7A.xls",
+        "rawCount": 19
+      },
+      {
+        "className": "GRADE 7B",
+        "sourceFile": "Grade_7B.xls",
+        "rawCount": 20
+      },
+      {
+        "className": "GRADE 8A",
+        "sourceFile": "Grade_8A.xls",
+        "rawCount": 17
+      },
+      {
+        "className": "GRADE 8B",
+        "sourceFile": "Grade_8B.xls",
+        "rawCount": 18
+      }
+    ]
+  },
+  "production": {
+    "totalLearners": 1993,
+    "totalClassrooms": 22,
+    "parentLinks": 1933,
+    "ledgerEntries": 133091,
+    "kidesysHistoryRows": 40916,
+    "billingPlanLearners": 540
+  },
+  "summary": {
+    "totalProductionLearners": 1993,
+    "totalActiveFromClassLists": 396,
+    "totalActiveInProduction": 369,
+    "totalHistorical": 1409,
+    "totalDuplicateOrphan": 215,
+    "checksum": 1993,
+    "projectedDashboardLearnerCount": 396,
+    "projectedDashboardLearnerCountStrictMatchKeyOnly": 369,
+    "projectedClassroomCount": 22,
+    "whyNot396": "See breakdown — counts may overlap sub-reasons",
+    "excessOverActive": 1624,
+    "duplicateExtraActiveSlots": 160,
+    "classListKeysMissingFromProduction": 27,
+    "activeWithClassNameMismatch": 0,
+    "productionRowsWithCorruptClassLabel": 0
+  },
+  "breakdown": {
+    "duplicateSubReasons": {
+      "No class-list match and no billing/history": 33,
+      "Duplicate import row": 160,
+      "Orphan": 22
+    },
+    "historicalWithOrphanClass": 1251,
+    "historicalWithParentLinks": 1361,
+    "activeMismatchByCorruptClassroom": {}
+  },
+  "samples": {
+    "ACTIVE": [
+      "Masego DINALE (Grade 1A) [1908010668088] — Matches uploaded class list (matchKey)",
+      "Refentje MAMPA (Grade 1A) [1909300289080] — Matches uploaded class list (matchKey)",
+      "Bandile MKHWAYIMBA (Grade 1A) [1905045363081] — Matches uploaded class list (matchKey)",
+      "Phetogo MOGOLOLA (Grade 1A) [1809145448083] — Matches uploaded class list (matchKey)",
+      "Tshimologo MONYAMA (Grade 1A) [1903265765085] — Matches uploaded class list (matchKey)",
+      "Kgaogelo MOSWEU (Grade 1A) [1907170601087] — Matches uploaded class list (matchKey)",
+      "Remmogo MOTLHAMME (Grade 1A) [1906260740086] — Matches uploaded class list (matchKey)",
+      "Muso SELLO (Grade 1A) [1906195250086] — Matches uploaded class list (matchKey)",
+      "Omaatla KEKANA (Grade 1B) [1811045416087] — Matches uploaded class list (matchKey)",
+      "Arefa LEKAOWA (Grade 1B) [1911190609088] — Matches uploaded class list (matchKey)",
+      "Boiketlo LETEBELE (Grade 1B) [1909160582087] — Matches uploaded class list (matchKey)",
+      "Tlotliso MAKGALE (Grade 1B) [1901230543082] — Matches uploaded class list (matchKey)"
+    ],
+    "HISTORICAL": [
+      "Aviella CHIUTSI (Grade 1A) [633561765R47] — Not on current class lists; 67 ledger row(s)",
+      "Bohlale DIKGALE (Grade 1A) [200615281089] — Not on current class lists; 41 ledger row(s)",
+      "Aiden DU PLESSIS (Grade 1A) [1903065487088] — Not on current class lists; 14 ledger row(s)",
+      "Leano KALUNGA (Grade 1A) [1901135272081] — Not on current class lists; 53 ledger row(s)",
+      "Atlegang KGWATHISI (Grade 1A) [2004170756084] — Not on current class lists; 65 ledger row(s)",
+      "Lesego MAPELANE (Grade 1A) [1910180752080] — Not on current class lists; 45 ledger row(s)",
+      "Kamano MODISE (Grade 1A) [1908115383088] — Not on current class lists; 27 ledger row(s)",
+      "Amogelang RABORIFE (Grade 1A) [2004175681089] — Not on current class lists; 26 ledger row(s)",
+      "Ndzalo RIKHOTSO (Grade 1A) [1907221477081] — Not on current class lists; 100 ledger row(s)",
+      "Annaya SEPATO (Grade 1A) [2004201281086] — Not on current class lists; 220 ledger row(s)",
+      "Vuyolwethu JACK (Grade 1B) [1909035287086] — Not on current class lists; 88 ledger row(s)",
+      "Leago MODISAKENG (Grade 1B) [1904285219087] — Not on current class lists; 63 ledger row(s)"
+    ],
+    "DUPLICATE_ORPHAN": [
+      "Bontle MOLAHLEHI (Grade 1A) [1910241041085] — No class-list match and no billing/history — import artifact",
+      "Kufeziweokuhle MDLULI (Grade 1B) [2002260588086] — No class-list match and no billing/history — import artifact",
+      "Aobakwe DUBE (Grade 2B) [1812070737082] — No class-list match and no billing/history — import artifact",
+      "Eleora HAILE (Grade 2B) [71818357] — No class-list match and no billing/history — import artifact",
+      "Sizwe TSHABALALA (Grade 3A) [1708236084080] — No class-list match and no billing/history — import artifact",
+      "Angelique MOSIBI (Grade 3B) [1709060238081] — No class-list match and no billing/history — import artifact",
+      "Oreabetse RAMOFOKO (Grade 3B) [20170312] — No class-list match and no billing/history — import artifact",
+      "Oboikanyo KGASOANE (Grade 4A) [1606295383080] — No class-list match and no billing/history — import artifact",
+      "Otlotleng LETSHOLO (Grade 4A) [1607275305085] — No class-list match and no billing/history — import artifact",
+      "Refiloe MALATJI (Grade 4A) [1607110583086] — No class-list match and no billing/history — import artifact",
+      "Sinenhlanhla DIKANA (Grade 5A) [1506120968081] — No class-list match and no billing/history — import artifact",
+      "Zemeriyas ADAMU (Grade 6A) [140902] — No class-list match and no billing/history — import artifact"
+    ],
+    "classListNotInProduction": [
+      "Okuhle Mthethwa (Grade RA) — okuhle mthethwa||grade ra",
+      "Khumo-entle Bokang Mokala (Grade RB) — khumoentle bokang mokala||grade rb",
+      "Ntsako Segokotlo (Grade RB) — ntsako segokotlo||grade rb",
+      "Onkgopotse Leago Maapoga (Grade RB) — onkgopotse leago maapoga||grade rb",
+      "Rethabile Leseilane Mankgane (Grade RB) — rethabile leseilane mankgane||grade rb",
+      "Amogelang Letlotlo Raborife (Grade 1A) — amogelang letlotlo raborife|1|a",
+      "Annaya Maria Christina Sepato (Grade 1A) — annaya maria christina sepato|1|a",
+      "Kufeziweokuhle Mashela Mdluli (Grade 1B) — kufeziweokuhle mashela mdluli|1|b",
+      "Amanhle Ntokozo Maphisa (Grade 1C) — amanhle ntokozo maphisa|1|c",
+      "Arella Chiutsi (Grade 2A) — arella chiutsi|2|a",
+      "Junior Pebane (Grade 2A) — junior pebane|2|a",
+      "Ntandoyenkosi Ethan Masilela (Grade 2A) — ntandoyenkosi ethan masilela|2|a",
+      "Eleora Teklezghi Haile (Grade 2B) — eleora teklezghi haile|2|b",
+      "Kgato Fenyang Moeng (GRADE 3A) — kgato fenyang moeng|3|a",
+      "Angelique Kahina Mosibi (GRADE 3B) — angelique kahina mosibi|3|b"
+    ]
+  },
+  "classroomProductionVsActive": [
+    {
+      "classroom": "Creche",
+      "productionRows": 11,
+      "activeRows": 8,
+      "classListRows": 8
+    },
+    {
+      "classroom": "Grade 1A",
+      "productionRows": 35,
+      "activeRows": 17,
+      "classListRows": 19
+    },
+    {
+      "classroom": "Grade 1B",
+      "productionRows": 33,
+      "activeRows": 17,
+      "classListRows": 18
+    },
+    {
+      "classroom": "Grade 1C",
+      "productionRows": 30,
+      "activeRows": 15,
+      "classListRows": 16
+    },
+    {
+      "classroom": "Grade 2A",
+      "productionRows": 39,
+      "activeRows": 21,
+      "classListRows": 24
+    },
+    {
+      "classroom": "Grade 2B",
+      "productionRows": 38,
+      "activeRows": 20,
+      "classListRows": 21
+    },
+    {
+      "classroom": "Grade 3A",
+      "productionRows": 42,
+      "activeRows": 21,
+      "classListRows": 22
+    },
+    {
+      "classroom": "Grade 3B",
+      "productionRows": 32,
+      "activeRows": 16,
+      "classListRows": 20
+    },
+    {
+      "classroom": "Grade 4A",
+      "productionRows": 42,
+      "activeRows": 21,
+      "classListRows": 22
+    },
+    {
+      "classroom": "Grade 4B",
+      "productionRows": 42,
+      "activeRows": 21,
+      "classListRows": 23
+    },
+    {
+      "classroom": "Grade 5A",
+      "productionRows": 44,
+      "activeRows": 22,
+      "classListRows": 23
+    },
+    {
+      "classroom": "Grade 5B",
+      "productionRows": 34,
+      "activeRows": 17,
+      "classListRows": 19
+    },
+    {
+      "classroom": "Grade 6A",
+      "productionRows": 42,
+      "activeRows": 23,
+      "classListRows": 23
+    },
+    {
+      "classroom": "Grade 6B",
+      "productionRows": 19,
+      "activeRows": 10,
+      "classListRows": 10
+    },
+    {
+      "classroom": "Grade 6C",
+      "productionRows": 40,
+      "activeRows": 20,
+      "classListRows": 22
+    },
+    {
+      "classroom": "Grade 7A",
+      "productionRows": 35,
+      "activeRows": 18,
+      "classListRows": 19
+    },
+    {
+      "classroom": "Grade 7B",
+      "productionRows": 36,
+      "activeRows": 20,
+      "classListRows": 20
+    },
+    {
+      "classroom": "Grade 8A",
+      "productionRows": 33,
+      "activeRows": 17,
+      "classListRows": 17
+    },
+    {
+      "classroom": "Grade 8B",
+      "productionRows": 34,
+      "activeRows": 18,
+      "classListRows": 18
+    },
+    {
+      "classroom": "Grade Ra",
+      "productionRows": 30,
+      "activeRows": 15,
+      "classListRows": 16
+    },
+    {
+      "classroom": "Grade Rb",
+      "productionRows": 28,
+      "activeRows": 12,
+      "classListRows": 16
+    },
+    {
+      "classroom": "No Classroom",
+      "productionRows": 0,
+      "activeRows": 0,
+      "classListRows": 0
+    }
+  ]
+}

@@ -1,0 +1,510 @@
+=== Unallocated payment deep dive (79 rows, audit only — no import) ===
+Generated: 2026-05-23T12:37:49.513Z
+Desktop: /Users/dasilvaacademy/Desktop
+Accounts: 79 | Sum |adjustment|: R189844.45
+Accounts with payment/receipt unallocated signals: 79
+
+Likely cause summary:
+  normal Kid-e-Sys allocation gap: 79
+  missing invoice item: 0
+  missing payment item: 0
+  historical cutover/opening balance needed: 0
+  manual review: 0
+
+Top 15 by |adjustmentAmount|:
+accountNo | cause | conf | age | ledger | adj | invR | payR | cov% | signals | learner
+--------- | ----- | ---- | --- | ------ | --- | ---- | ---- | ---- | ------- | -------
+TLA001    | normal Kid-e-Sys allocation gap     | medium | 10790 |   2010 |  8780 | 126875 | 124865 |   98 | yes     | Neo Kearabilwe Tladi
+MOL018    | normal Kid-e-Sys allocation gap     | medium |  6500 |   1085 |  5415 | 129160 | 128075 |   99 | yes     | Hailey Molema
+TSH017    | normal Kid-e-Sys allocation gap     | medium |  5290 |    860 |  4430 | 149865 | 149005 |   99 | yes     | Onthatile Tshose
+FRE001    | normal Kid-e-Sys allocation gap     | medium |  9500 |   5100 |  4400 | 218140 | 213040 |   98 | yes     | Oatlegile Frederick
+MAT022    | normal Kid-e-Sys allocation gap     | medium |  6100 |   1700 |  4400 | 151410 | 149710 |   99 | yes     | Phemelo Reotshepile Mats
+NAS001    | normal Kid-e-Sys allocation gap     | medium |  7800 |   3905 |  3895 | 23750 | 19845 |   84 | yes     | Samira Nasere
+MAB011    | normal Kid-e-Sys allocation gap     | medium |  5000 |   1240 |  3760 | 129775 | 128535 |   99 | yes     | Thandekile Princess Mabu
+TLH005    | normal Kid-e-Sys allocation gap     | medium |  4350 |    750 |  3600 | 166825 | 166075 |  100 | yes     | Oletilwe Tlhame
+WOL001    | normal Kid-e-Sys allocation gap     | medium |  7370 |   3870 |  3500 | 123410 | 119540 |   97 | yes     | Elleliyon Wolebo
+SEP899    | normal Kid-e-Sys allocation gap     | medium |  3700 |    500 |  3200 | 135520 | 135020 |  100 | yes     | Omogolo Sepadile
+MAB004    | normal Kid-e-Sys allocation gap     | medium |  3700 |    605 |  3095 | 132625 | 132020 |  100 | yes     | Gosego Mabale
+KHU005    | normal Kid-e-Sys allocation gap     | medium |  3550 |    500 |  3050 | 159545 | 159045 |  100 | yes     | Elethu Entle Khunou
+GEB002    | normal Kid-e-Sys allocation gap     | medium |  3700 |    700 |  3000 | 148710 | 148010 |  100 | yes     | Benyis Geber
+BUY001    | normal Kid-e-Sys allocation gap     | medium |  2900 |    150 |  2750 | 134820 | 134670 |  100 | yes     | Kim Omontle Buys
+GAA001    | normal Kid-e-Sys allocation gap     | medium |  3500 |    750 |  2750 | 142510 | 141760 |   99 | yes     | Didintle Nyeko Gaasenwe
+
+Per-account detail (all 79):
+
+--- TLA001 Neo Kearabilwe Tladi ---
+  age R10790 | ledger R2010 | adjustment R8780 | section: Bad Debt
+  total invoices: R126875 (60) | total payments: R124865 (32) | coverage: 98.42%
+  unallocated signals: yes — 27 payment(s) with blank notes (Kid-e-Sys receipt export)
+  likely cause: normal Kid-e-Sys allocation gap (medium) — Both invoices and payments present; age R10790 > ledger R2010 with payment/export skew (unallocatedPaymentPattern).
+
+--- MOL018 Hailey Molema ---
+  age R6500 | ledger R1085 | adjustment R5415 | section: Bad Debt
+  total invoices: R129160 (59) | total payments: R128075 (47) | coverage: 99.16%
+  unallocated signals: yes — 44 payment(s) with blank notes (Kid-e-Sys receipt export)
+  likely cause: normal Kid-e-Sys allocation gap (medium) — Both invoices and payments present; age R6500 > ledger R1085 with payment/export skew (unallocatedPaymentPattern).
+
+--- TSH017 Onthatile Tshose ---
+  age R5290 | ledger R860 | adjustment R4430 | section: Recently Owing
+  total invoices: R149865 (48) | total payments: R149005 (46) | coverage: 99.43%
+  unallocated signals: yes — 42 payment(s) with blank notes (Kid-e-Sys receipt export)
+  likely cause: normal Kid-e-Sys allocation gap (medium) — Both invoices and payments present; age R5290 > ledger R860 with payment/export skew (unallocatedPaymentPattern).
+
+--- FRE001 Oatlegile Frederick ---
+  age R9500 | ledger R5100 | adjustment R4400 | section: Bad Debt
+  total invoices: R218140 (54) | total payments: R213040 (50) | coverage: 97.66%
+  unallocated signals: yes — 43 payment(s) with blank notes (Kid-e-Sys receipt export)
+  likely cause: normal Kid-e-Sys allocation gap (medium) — Both invoices and payments present; age R9500 > ledger R5100 with payment/export skew (unallocatedPaymentPattern).
+
+--- MAT022 Phemelo Reotshepile Matsheka ---
+  age R6100 | ledger R1700 | adjustment R4400 | section: Bad Debt
+  total invoices: R151410 (46) | total payments: R149710 (49) | coverage: 98.88%
+  unallocated signals: yes — 45 payment(s) with blank notes (Kid-e-Sys receipt export)
+  likely cause: normal Kid-e-Sys allocation gap (medium) — Both invoices and payments present; age R6100 > ledger R1700 with payment/export skew (unallocatedPaymentPattern).
+
+--- NAS001 Samira Nasere ---
+  age R7800 | ledger R3905 | adjustment R3895 | section: Bad Debt
+  total invoices: R23750 (9) | total payments: R19845 (4) | coverage: 83.56%
+  unallocated signals: yes — 3 payment(s) with blank notes (Kid-e-Sys receipt export)
+  likely cause: normal Kid-e-Sys allocation gap (medium) — Both invoices and payments present; age R7800 > ledger R3905 with payment/export skew (unallocatedPaymentPattern).
+
+--- MAB011 Thandekile Princess Mabuza ---
+  age R5000 | ledger R1240 | adjustment R3760 | section: Recently Owing
+  total invoices: R129775 (54) | total payments: R128535 (38) | coverage: 99.04%
+  unallocated signals: yes — 31 payment(s) with blank notes (Kid-e-Sys receipt export)
+  likely cause: normal Kid-e-Sys allocation gap (medium) — Both invoices and payments present; age R5000 > ledger R1240 with payment/export skew (unallocatedPaymentPattern).
+
+--- TLH005 Oletilwe Tlhame ---
+  age R4350 | ledger R750 | adjustment R3600 | section: Recently Owing
+  total invoices: R166825 (47) | total payments: R166075 (43) | coverage: 99.55%
+  unallocated signals: yes — 41 payment(s) with blank notes (Kid-e-Sys receipt export)
+  likely cause: normal Kid-e-Sys allocation gap (medium) — Both invoices and payments present; age R4350 > ledger R750 with payment/export skew (unallocatedPaymentPattern).
+
+--- WOL001 Elleliyon Wolebo ---
+  age R7370 | ledger R3870 | adjustment R3500 | section: Bad Debt
+  total invoices: R123410 (49) | total payments: R119540 (51) | coverage: 96.86%
+  unallocated signals: yes — 43 payment(s) with blank notes (Kid-e-Sys receipt export)
+  likely cause: normal Kid-e-Sys allocation gap (medium) — Both invoices and payments present; age R7370 > ledger R3870 with payment/export skew (unallocatedPaymentPattern).
+
+--- SEP899 Omogolo Sepadile ---
+  age R3700 | ledger R500 | adjustment R3200 | section: Bad Debt
+  total invoices: R135520 (51) | total payments: R135020 (54) | coverage: 99.63%
+  unallocated signals: yes — 51 payment(s) with blank notes (Kid-e-Sys receipt export)
+  likely cause: normal Kid-e-Sys allocation gap (medium) — Both invoices and payments present; age R3700 > ledger R500 with payment/export skew (unallocatedPaymentPattern).
+
+--- MAB004 Gosego Mabale ---
+  age R3700 | ledger R605 | adjustment R3095 | section: Recently Owing
+  total invoices: R132625 (49) | total payments: R132020 (56) | coverage: 99.54%
+  unallocated signals: yes — 52 payment(s) with blank notes (Kid-e-Sys receipt export)
+  likely cause: normal Kid-e-Sys allocation gap (medium) — Both invoices and payments present; age R3700 > ledger R605 with payment/export skew (unallocatedPaymentPattern).
+
+--- KHU005 Elethu Entle Khunou ---
+  age R3550 | ledger R500 | adjustment R3050 | section: Recently Owing
+  total invoices: R159545 (46) | total payments: R159045 (50) | coverage: 99.69%
+  unallocated signals: yes — 46 payment(s) with blank notes (Kid-e-Sys receipt export)
+  likely cause: normal Kid-e-Sys allocation gap (medium) — Both invoices and payments present; age R3550 > ledger R500 with payment/export skew (unallocatedPaymentPattern).
+
+--- GEB002 Benyis Geber ---
+  age R3700 | ledger R700 | adjustment R3000 | section: Recently Owing
+  total invoices: R148710 (44) | total payments: R148010 (48) | coverage: 99.53%
+  unallocated signals: yes — 43 payment(s) with blank notes (Kid-e-Sys receipt export)
+  likely cause: normal Kid-e-Sys allocation gap (medium) — Both invoices and payments present; age R3700 > ledger R700 with payment/export skew (unallocatedPaymentPattern).
+
+--- BUY001 Kim Omontle Buys ---
+  age R2900 | ledger R150 | adjustment R2750 | section: Recently Owing
+  total invoices: R134820 (47) | total payments: R134670 (55) | coverage: 99.89%
+  unallocated signals: yes — 51 payment(s) with blank notes (Kid-e-Sys receipt export)
+  likely cause: normal Kid-e-Sys allocation gap (medium) — Both invoices and payments present; age R2900 > ledger R150 with payment/export skew (unallocatedPaymentPattern).
+
+--- GAA001 Didintle Nyeko Gaasenwe ---
+  age R3500 | ledger R750 | adjustment R2750 | section: Recently Owing
+  total invoices: R142510 (43) | total payments: R141760 (46) | coverage: 99.47%
+  unallocated signals: yes — 44 payment(s) with blank notes (Kid-e-Sys receipt export)
+  likely cause: normal Kid-e-Sys allocation gap (medium) — Both invoices and payments present; age R3500 > ledger R750 with payment/export skew (unallocatedPaymentPattern).
+
+--- KOR001 Dagimawit Korabza ---
+  age R6860 | ledger R4110 | adjustment R2750 | section: Bad Debt
+  total invoices: R123510 (43) | total payments: R119400 (37) | coverage: 96.67%
+  unallocated signals: yes — 32 payment(s) with blank notes (Kid-e-Sys receipt export)
+  likely cause: normal Kid-e-Sys allocation gap (medium) — Both invoices and payments present; age R6860 > ledger R4110 with payment/export skew (unallocatedPaymentPattern).
+
+--- MOD010 Reatlegile Modibedi ---
+  age R6200 | ledger R3450 | adjustment R2750 | section: Recently Owing
+  total invoices: R146910 (49) | total payments: R143460 (53) | coverage: 97.65%
+  unallocated signals: yes — 48 payment(s) with blank notes (Kid-e-Sys receipt export)
+  likely cause: normal Kid-e-Sys allocation gap (medium) — Both invoices and payments present; age R6200 > ledger R3450 with payment/export skew (unallocatedPaymentPattern).
+
+--- MOS009 Wandile Mosito ---
+  age R3700 | ledger R950 | adjustment R2750 | section: Recently Owing
+  total invoices: R130710 (46) | total payments: R129760 (66) | coverage: 99.27%
+  unallocated signals: yes — 61 payment(s) with blank notes (Kid-e-Sys receipt export)
+  likely cause: normal Kid-e-Sys allocation gap (medium) — Both invoices and payments present; age R3700 > ledger R950 with payment/export skew (unallocatedPaymentPattern).
+
+--- MOT016 Thoriso Mothibedi ---
+  age R3000 | ledger R250 | adjustment R2750 | section: Recently Owing
+  total invoices: R123910 (42) | total payments: R123660 (44) | coverage: 99.8%
+  unallocated signals: yes — 42 payment(s) with blank notes (Kid-e-Sys receipt export)
+  likely cause: normal Kid-e-Sys allocation gap (medium) — Both invoices and payments present; age R3000 > ledger R250 with payment/export skew (unallocatedPaymentPattern).
+
+--- NTS008 Inkosinam Ntshanga ---
+  age R3950 | ledger R1200 | adjustment R2750 | section: Recently Owing
+  total invoices: R172490 (54) | total payments: R171290 (56) | coverage: 99.3%
+  unallocated signals: yes — 51 payment(s) with blank notes (Kid-e-Sys receipt export)
+  likely cause: normal Kid-e-Sys allocation gap (medium) — Both invoices and payments present; age R3950 > ledger R1200 with payment/export skew (unallocatedPaymentPattern).
+
+--- SEN959 Tshiamo Will Senne ---
+  age R3000 | ledger R250 | adjustment R2750 | section: Recently Owing
+  total invoices: R137075 (47) | total payments: R136825 (41) | coverage: 99.82%
+  unallocated signals: yes — 38 payment(s) with blank notes (Kid-e-Sys receipt export)
+  likely cause: normal Kid-e-Sys allocation gap (medium) — Both invoices and payments present; age R3000 > ledger R250 with payment/export skew (unallocatedPaymentPattern).
+
+--- TAK001 Kagiso Unathi Takata ---
+  age R6800 | ledger R4050 | adjustment R2750 | section: Bad Debt
+  total invoices: R125660 (44) | total payments: R121610 (45) | coverage: 96.78%
+  unallocated signals: yes — 1 receipt-style payment note(s); 42 payment(s) with blank notes (Kid-e-Sys receipt export)
+  likely cause: normal Kid-e-Sys allocation gap (medium) — Both invoices and payments present; age R6800 > ledger R4050 with payment/export skew (unallocatedPaymentPattern).
+
+--- VUT001 Vutlhari Botake ---
+  age R3850 | ledger R1100 | adjustment R2750 | section: Recently Owing
+  total invoices: R139525 (44) | total payments: R138425 (46) | coverage: 99.21%
+  unallocated signals: yes — 45 payment(s) with blank notes (Kid-e-Sys receipt export)
+  likely cause: normal Kid-e-Sys allocation gap (medium) — Both invoices and payments present; age R3850 > ledger R1100 with payment/export skew (unallocatedPaymentPattern).
+
+--- THO004 Ofentse Koketso Thompo ---
+  age R4000 | ledger R1320 | adjustment R2680 | section: Recently Owing
+  total invoices: R166505 (48) | total payments: R165185 (52) | coverage: 99.21%
+  unallocated signals: yes — 48 payment(s) with blank notes (Kid-e-Sys receipt export)
+  likely cause: normal Kid-e-Sys allocation gap (medium) — Both invoices and payments present; age R4000 > ledger R1320 with payment/export skew (unallocatedPaymentPattern).
+
+--- SER001 Oletilwe Serutle ---
+  age R3700 | ledger R1150 | adjustment R2550 | section: Bad Debt
+  total invoices: R131110 (45) | total payments: R129960 (53) | coverage: 99.12%
+  unallocated signals: yes — 47 payment(s) with blank notes (Kid-e-Sys receipt export)
+  likely cause: normal Kid-e-Sys allocation gap (medium) — Both invoices and payments present; age R3700 > ledger R1150 with payment/export skew (unallocatedPaymentPattern).
+
+--- KAL001 Bohlokwa Kalosane ---
+  age R4500 | ledger R2100 | adjustment R2400 | section: Recently Owing
+  total invoices: R194320 (49) | total payments: R192220 (68) | coverage: 98.92%
+  unallocated signals: yes — 63 payment(s) with blank notes (Kid-e-Sys receipt export)
+  likely cause: normal Kid-e-Sys allocation gap (medium) — Both invoices and payments present; age R4500 > ledger R2100 with payment/export skew (unallocatedPaymentPattern).
+
+--- MOL020 Rekgabile Molefe ---
+  age R3700 | ledger R1350 | adjustment R2350 | section: Recently Owing
+  total invoices: R119985 (48) | total payments: R118635 (55) | coverage: 98.87%
+  unallocated signals: yes — 53 payment(s) with blank notes (Kid-e-Sys receipt export)
+  likely cause: normal Kid-e-Sys allocation gap (medium) — Both invoices and payments present; age R3700 > ledger R1350 with payment/export skew (unallocatedPaymentPattern).
+
+--- MOG013 Chantelle Otlotleng Mogafe ---
+  age R6800 | ledger R4550 | adjustment R2250 | section: Bad Debt
+  total invoices: R138360 (45) | total payments: R133810 (60) | coverage: 96.71%
+  unallocated signals: yes — 55 payment(s) with blank notes (Kid-e-Sys receipt export)
+  likely cause: normal Kid-e-Sys allocation gap (medium) — Both invoices and payments present; age R6800 > ledger R4550 with payment/export skew (unallocatedPaymentPattern).
+
+--- WIL002 Rishon Kyle Williams ---
+  age R3150 | ledger R900 | adjustment R2250 | section: Recently Owing
+  total invoices: R160260 (44) | total payments: R159360 (43) | coverage: 99.44%
+  unallocated signals: yes — 42 payment(s) with blank notes (Kid-e-Sys receipt export)
+  likely cause: normal Kid-e-Sys allocation gap (medium) — Both invoices and payments present; age R3150 > ledger R900 with payment/export skew (unallocatedPaymentPattern).
+
+--- NZI001 Amantle Nzimande ---
+  age R3700 | ledger R1470 | adjustment R2230 | section: Recently Owing
+  total invoices: R132620 (53) | total payments: R131150 (57) | coverage: 98.89%
+  unallocated signals: yes — 53 payment(s) with blank notes (Kid-e-Sys receipt export)
+  likely cause: normal Kid-e-Sys allocation gap (medium) — Both invoices and payments present; age R3700 > ledger R1470 with payment/export skew (unallocatedPaymentPattern).
+
+--- DIK001 Sinenhlanhla Dikana Iviwe ---
+  age R4200 | ledger R2000 | adjustment R2200 | section: Recently Owing
+  total invoices: R120645 (55) | total payments: R118645 (36) | coverage: 98.34%
+  unallocated signals: yes — 32 payment(s) with blank notes (Kid-e-Sys receipt export)
+  likely cause: normal Kid-e-Sys allocation gap (medium) — Both invoices and payments present; age R4200 > ledger R2000 with payment/export skew (unallocatedPaymentPattern).
+
+--- KGO002 Warona Kgonothi ---
+  age R3696 | ledger R1496 | adjustment R2200 | section: Bad Debt
+  total invoices: R125895 (51) | total payments: R124399 (59) | coverage: 98.81%
+  unallocated signals: yes — 55 payment(s) with blank notes (Kid-e-Sys receipt export)
+  likely cause: normal Kid-e-Sys allocation gap (medium) — Both invoices and payments present; age R3696 > ledger R1496 with payment/export skew (unallocatedPaymentPattern).
+
+--- KOB001 Njabulo Kobo ---
+  age R2350 | ledger R150 | adjustment R2200 | section: Recently Owing
+  total invoices: R134710 (47) | total payments: R134560 (50) | coverage: 99.89%
+  unallocated signals: yes — 45 payment(s) with blank notes (Kid-e-Sys receipt export)
+  likely cause: normal Kid-e-Sys allocation gap (medium) — Both invoices and payments present; age R2350 > ledger R150 with payment/export skew (unallocatedPaymentPattern).
+
+--- MAK013 Rethabile Roland Makgae ---
+  age R10750 | ledger R8550 | adjustment R2200 | section: Bad Debt
+  total invoices: R129250 (50) | total payments: R120700 (44) | coverage: 93.38%
+  unallocated signals: yes — 40 payment(s) with blank notes (Kid-e-Sys receipt export)
+  likely cause: normal Kid-e-Sys allocation gap (medium) — Both invoices and payments present; age R10750 > ledger R8550 with payment/export skew (unallocatedPaymentPattern).
+
+--- MAO001 Amohelang Ororiseng Maoba ---
+  age R3000 | ledger R800 | adjustment R2200 | section: Recently Owing
+  total invoices: R119560 (43) | total payments: R118760 (53) | coverage: 99.33%
+  unallocated signals: yes — 51 payment(s) with blank notes (Kid-e-Sys receipt export)
+  likely cause: normal Kid-e-Sys allocation gap (medium) — Both invoices and payments present; age R3000 > ledger R800 with payment/export skew (unallocatedPaymentPattern).
+
+--- MAT021 Reatlegile Kaone Matabane ---
+  age R14850 | ledger R12650 | adjustment R2200 | section: Bad Debt
+  total invoices: R131210 (48) | total payments: R118560 (32) | coverage: 90.36%
+  unallocated signals: yes — 28 payment(s) with blank notes (Kid-e-Sys receipt export)
+  likely cause: normal Kid-e-Sys allocation gap (medium) — Both invoices and payments present; age R14850 > ledger R12650 with payment/export skew (unallocatedPaymentPattern).
+
+--- MOD005 Kgolagano Kekaona Modise ---
+  age R3950 | ledger R1750 | adjustment R2200 | section: Recently Owing
+  total invoices: R117960 (43) | total payments: R116210 (49) | coverage: 98.52%
+  unallocated signals: yes — 46 payment(s) with blank notes (Kid-e-Sys receipt export)
+  likely cause: normal Kid-e-Sys allocation gap (medium) — Both invoices and payments present; age R3950 > ledger R1750 with payment/export skew (unallocatedPaymentPattern).
+
+--- MOD006 Tswelopele Botshelo Modisane ---
+  age R3500 | ledger R1300 | adjustment R2200 | section: Recently Owing
+  total invoices: R136725 (48) | total payments: R135425 (60) | coverage: 99.05%
+  unallocated signals: yes — 54 payment(s) with blank notes (Kid-e-Sys receipt export)
+  likely cause: normal Kid-e-Sys allocation gap (medium) — Both invoices and payments present; age R3500 > ledger R1300 with payment/export skew (unallocatedPaymentPattern).
+
+--- MOE003 Owethu Moeng ---
+  age R6300 | ledger R4100 | adjustment R2200 | section: Bad Debt
+  total invoices: R125560 (45) | total payments: R121460 (47) | coverage: 96.73%
+  unallocated signals: yes — 45 payment(s) with blank notes (Kid-e-Sys receipt export)
+  likely cause: normal Kid-e-Sys allocation gap (medium) — Both invoices and payments present; age R6300 > ledger R4100 with payment/export skew (unallocatedPaymentPattern).
+
+--- MOS008 Bokang Mosegedi ---
+  age R3200 | ledger R1000 | adjustment R2200 | section: Recently Owing
+  total invoices: R136810 (44) | total payments: R135810 (47) | coverage: 99.27%
+  unallocated signals: yes — 43 payment(s) with blank notes (Kid-e-Sys receipt export)
+  likely cause: normal Kid-e-Sys allocation gap (medium) — Both invoices and payments present; age R3200 > ledger R1000 with payment/export skew (unallocatedPaymentPattern).
+
+--- MOT017 Onkokeditse Motlhajwa ---
+  age R3700 | ledger R1500 | adjustment R2200 | section: Bad Debt
+  total invoices: R119180 (44) | total payments: R117680 (48) | coverage: 98.74%
+  unallocated signals: yes — 45 payment(s) with blank notes (Kid-e-Sys receipt export)
+  likely cause: normal Kid-e-Sys allocation gap (medium) — Both invoices and payments present; age R3700 > ledger R1500 with payment/export skew (unallocatedPaymentPattern).
+
+--- MPA001 Misokuhle Lathitha Mpangeva ---
+  age R6800 | ledger R4600 | adjustment R2200 | section: Bad Debt
+  total invoices: R130690 (48) | total payments: R126090 (43) | coverage: 96.48%
+  unallocated signals: yes — 41 payment(s) with blank notes (Kid-e-Sys receipt export)
+  likely cause: normal Kid-e-Sys allocation gap (medium) — Both invoices and payments present; age R6800 > ledger R4600 with payment/export skew (unallocatedPaymentPattern).
+
+--- MPO001 Kabo Mpodi ---
+  age R3700 | ledger R1500 | adjustment R2200 | section: Recently Owing
+  total invoices: R125385 (47) | total payments: R123885 (62) | coverage: 98.8%
+  unallocated signals: yes — 58 payment(s) with blank notes (Kid-e-Sys receipt export)
+  likely cause: normal Kid-e-Sys allocation gap (medium) — Both invoices and payments present; age R3700 > ledger R1500 with payment/export skew (unallocatedPaymentPattern).
+
+--- MSI003 Somusa Sibani Msimango ---
+  age R3700 | ledger R1500 | adjustment R2200 | section: Recently Owing
+  total invoices: R119530 (43) | total payments: R118030 (48) | coverage: 98.75%
+  unallocated signals: yes — 47 payment(s) with blank notes (Kid-e-Sys receipt export)
+  likely cause: normal Kid-e-Sys allocation gap (medium) — Both invoices and payments present; age R3700 > ledger R1500 with payment/export skew (unallocatedPaymentPattern).
+
+--- MSI004 Snekosi Msimango ---
+  age R8300 | ledger R6100 | adjustment R2200 | section: Bad Debt
+  total invoices: R127280 (45) | total payments: R121180 (52) | coverage: 95.21%
+  unallocated signals: yes — 49 payment(s) with blank notes (Kid-e-Sys receipt export)
+  likely cause: normal Kid-e-Sys allocation gap (medium) — Both invoices and payments present; age R8300 > ledger R6100 with payment/export skew (unallocatedPaymentPattern).
+
+--- NTO003 Phenyo Ntoula ---
+  age R3200 | ledger R1000 | adjustment R2200 | section: Recently Owing
+  total invoices: R142260 (45) | total payments: R141260 (50) | coverage: 99.3%
+  unallocated signals: yes — 46 payment(s) with blank notes (Kid-e-Sys receipt export)
+  likely cause: normal Kid-e-Sys allocation gap (medium) — Both invoices and payments present; age R3200 > ledger R1000 with payment/export skew (unallocatedPaymentPattern).
+
+--- OSE001 Osego Makgale ---
+  age R4500 | ledger R2300 | adjustment R2200 | section: Bad Debt
+  total invoices: R136015 (49) | total payments: R133715 (49) | coverage: 98.31%
+  unallocated signals: yes — 47 payment(s) with blank notes (Kid-e-Sys receipt export)
+  likely cause: normal Kid-e-Sys allocation gap (medium) — Both invoices and payments present; age R4500 > ledger R2300 with payment/export skew (unallocatedPaymentPattern).
+
+--- PET002 Obatlilwe Petlale ---
+  age R8600 | ledger R6400 | adjustment R2200 | section: Bad Debt
+  total invoices: R135975 (49) | total payments: R129575 (49) | coverage: 95.29%
+  unallocated signals: yes — 47 payment(s) with blank notes (Kid-e-Sys receipt export)
+  likely cause: normal Kid-e-Sys allocation gap (medium) — Both invoices and payments present; age R8600 > ledger R6400 with payment/export skew (unallocatedPaymentPattern).
+
+--- RAM011 Rethabile Ramalete ---
+  age R3550 | ledger R1350 | adjustment R2200 | section: Recently Owing
+  total invoices: R129410 (52) | total payments: R128060 (34) | coverage: 98.96%
+  unallocated signals: yes — 32 payment(s) with blank notes (Kid-e-Sys receipt export)
+  likely cause: normal Kid-e-Sys allocation gap (medium) — Both invoices and payments present; age R3550 > ledger R1350 with payment/export skew (unallocatedPaymentPattern).
+
+--- RAM015 Remoneilwe Johanna Mothuloe ---
+  age R3550 | ledger R1350 | adjustment R2200 | section: Recently Owing
+  total invoices: R136330 (45) | total payments: R134980 (45) | coverage: 99.01%
+  unallocated signals: yes — 42 payment(s) with blank notes (Kid-e-Sys receipt export)
+  likely cause: normal Kid-e-Sys allocation gap (medium) — Both invoices and payments present; age R3550 > ledger R1350 with payment/export skew (unallocatedPaymentPattern).
+
+--- RAN002 Omaatla Tlotlo Ranta ---
+  age R2800 | ledger R600 | adjustment R2200 | section: Recently Owing
+  total invoices: R126810 (46) | total payments: R126210 (57) | coverage: 99.53%
+  unallocated signals: yes — 54 payment(s) with blank notes (Kid-e-Sys receipt export)
+  likely cause: normal Kid-e-Sys allocation gap (medium) — Both invoices and payments present; age R2800 > ledger R600 with payment/export skew (unallocatedPaymentPattern).
+
+--- TAU003 Unathi Tause ---
+  age R6300 | ledger R4100 | adjustment R2200 | section: Bad Debt
+  total invoices: R122405 (46) | total payments: R118305 (40) | coverage: 96.65%
+  unallocated signals: yes — 39 payment(s) with blank notes (Kid-e-Sys receipt export)
+  likely cause: normal Kid-e-Sys allocation gap (medium) — Both invoices and payments present; age R6300 > ledger R4100 with payment/export skew (unallocatedPaymentPattern).
+
+--- THA003 Omogolo Thakadu ---
+  age R3200 | ledger R1000 | adjustment R2200 | section: Recently Owing
+  total invoices: R122010 (45) | total payments: R121010 (48) | coverage: 99.18%
+  unallocated signals: yes — 40 payment(s) with blank notes (Kid-e-Sys receipt export)
+  likely cause: normal Kid-e-Sys allocation gap (medium) — Both invoices and payments present; age R3200 > ledger R1000 with payment/export skew (unallocatedPaymentPattern).
+
+--- XAB001 Paballo Pearl Xaba ---
+  age R4250 | ledger R2050 | adjustment R2200 | section: Bad Debt
+  total invoices: R153810 (48) | total payments: R151760 (54) | coverage: 98.67%
+  unallocated signals: yes — 50 payment(s) with blank notes (Kid-e-Sys receipt export)
+  likely cause: normal Kid-e-Sys allocation gap (medium) — Both invoices and payments present; age R4250 > ledger R2050 with payment/export skew (unallocatedPaymentPattern).
+
+--- RAM009 Omatla Malesela Ramagogogdi ---
+  age R4250 | ledger R2070 | adjustment R2180 | section: Recently Owing
+  total invoices: R135535 (47) | total payments: R133465 (82) | coverage: 98.47%
+  unallocated signals: yes — 1 receipt-style payment note(s); 75 payment(s) with blank notes (Kid-e-Sys receipt export)
+  likely cause: normal Kid-e-Sys allocation gap (medium) — Both invoices and payments present; age R4250 > ledger R2070 with payment/export skew (unallocatedPaymentPattern).
+
+--- MAL006 Reboikantse Omosa Mayana ---
+  age R5150 | ledger R3000 | adjustment R2150 | section: Recently Owing
+  total invoices: R153710 (47) | total payments: R150710 (51) | coverage: 98.05%
+  unallocated signals: yes — 49 payment(s) with blank notes (Kid-e-Sys receipt export)
+  likely cause: normal Kid-e-Sys allocation gap (medium) — Both invoices and payments present; age R5150 > ledger R3000 with payment/export skew (unallocatedPaymentPattern).
+
+--- MOT007 Bokamoso Menyatswe ---
+  age R8019.45 | ledger R5920 | adjustment R2099.45 | section: Bad Debt
+  total invoices: R135400 (59) | total payments: R129480 (36) | coverage: 95.63%
+  unallocated signals: yes — 29 payment(s) with blank notes (Kid-e-Sys receipt export)
+  likely cause: normal Kid-e-Sys allocation gap (medium) — Both invoices and payments present; age R8019.45 > ledger R5920 with payment/export skew (unallocatedPaymentPattern).
+
+--- TSA001 Omphile Tsame ---
+  age R3000 | ledger R950 | adjustment R2050 | section: Recently Owing
+  total invoices: R119360 (43) | total payments: R118410 (44) | coverage: 99.2%
+  unallocated signals: yes — 2 receipt-style payment note(s); 41 payment(s) with blank notes (Kid-e-Sys receipt export)
+  likely cause: normal Kid-e-Sys allocation gap (medium) — Both invoices and payments present; age R3000 > ledger R950 with payment/export skew (unallocatedPaymentPattern).
+
+--- MAS021 Kamohelo Masilo ---
+  age R3700 | ledger R1700 | adjustment R2000 | section: Bad Debt
+  total invoices: R118360 (43) | total payments: R116660 (49) | coverage: 98.56%
+  unallocated signals: yes — 45 payment(s) with blank notes (Kid-e-Sys receipt export)
+  likely cause: normal Kid-e-Sys allocation gap (medium) — Both invoices and payments present; age R3700 > ledger R1700 with payment/export skew (unallocatedPaymentPattern).
+
+--- MOK025 Tshegofatso Remoratile Mokgatlhe ---
+  age R4900 | ledger R2900 | adjustment R2000 | section: Bad Debt
+  total invoices: R150960 (47) | total payments: R148060 (48) | coverage: 98.08%
+  unallocated signals: yes — 46 payment(s) with blank notes (Kid-e-Sys receipt export)
+  likely cause: normal Kid-e-Sys allocation gap (medium) — Both invoices and payments present; age R4900 > ledger R2900 with payment/export skew (unallocatedPaymentPattern).
+
+--- NKO004 Kabo Kealeboga Nkonyane ---
+  age R3700 | ledger R1700 | adjustment R2000 | section: Bad Debt
+  total invoices: R136160 (44) | total payments: R134460 (51) | coverage: 98.75%
+  unallocated signals: yes — 47 payment(s) with blank notes (Kid-e-Sys receipt export)
+  likely cause: normal Kid-e-Sys allocation gap (medium) — Both invoices and payments present; age R3700 > ledger R1700 with payment/export skew (unallocatedPaymentPattern).
+
+--- MAP006 Mvuselelo Jasper Maphumulo ---
+  age R8420 | ledger R6485 | adjustment R1935 | section: Bad Debt
+  total invoices: R146000 (49) | total payments: R139515 (58) | coverage: 95.56%
+  unallocated signals: yes — 52 payment(s) with blank notes (Kid-e-Sys receipt export)
+  likely cause: normal Kid-e-Sys allocation gap (medium) — Both invoices and payments present; age R8420 > ledger R6485 with payment/export skew (unallocatedPaymentPattern).
+
+--- MAT016 Otshepeng Matsietsa ---
+  age R6400 | ledger R4500 | adjustment R1900 | section: Bad Debt
+  total invoices: R124760 (45) | total payments: R120260 (32) | coverage: 96.39%
+  unallocated signals: yes — 30 payment(s) with blank notes (Kid-e-Sys receipt export)
+  likely cause: normal Kid-e-Sys allocation gap (medium) — Both invoices and payments present; age R6400 > ledger R4500 with payment/export skew (unallocatedPaymentPattern).
+
+--- MKH002 Ntsako Mkhasi ---
+  age R3700 | ledger R1800 | adjustment R1900 | section: Bad Debt
+  total invoices: R124810 (45) | total payments: R123010 (44) | coverage: 98.56%
+  unallocated signals: yes — 43 payment(s) with blank notes (Kid-e-Sys receipt export)
+  likely cause: normal Kid-e-Sys allocation gap (medium) — Both invoices and payments present; age R3700 > ledger R1800 with payment/export skew (unallocatedPaymentPattern).
+
+--- SIN001 Reneilwe Sindale ---
+  age R6700 | ledger R4800 | adjustment R1900 | section: Recently Owing
+  total invoices: R133160 (44) | total payments: R128360 (50) | coverage: 96.4%
+  unallocated signals: yes — 48 payment(s) with blank notes (Kid-e-Sys receipt export)
+  likely cause: normal Kid-e-Sys allocation gap (medium) — Both invoices and payments present; age R6700 > ledger R4800 with payment/export skew (unallocatedPaymentPattern).
+
+--- KIN001 Omatla Sensation Kwele ---
+  age R3200 | ledger R1500 | adjustment R1700 | section: Recently Owing
+  total invoices: R123260 (45) | total payments: R121760 (46) | coverage: 98.78%
+  unallocated signals: yes — 41 payment(s) with blank notes (Kid-e-Sys receipt export)
+  likely cause: normal Kid-e-Sys allocation gap (medium) — Both invoices and payments present; age R3200 > ledger R1500 with payment/export skew (unallocatedPaymentPattern).
+
+--- MOD004 Tshimologo Modise ---
+  age R2300 | ledger R600 | adjustment R1700 | section: Recently Owing
+  total invoices: R128825 (49) | total payments: R128225 (49) | coverage: 99.53%
+  unallocated signals: yes — 47 payment(s) with blank notes (Kid-e-Sys receipt export)
+  likely cause: normal Kid-e-Sys allocation gap (medium) — Both invoices and payments present; age R2300 > ledger R600 with payment/export skew (unallocatedPaymentPattern).
+
+--- PHI003 Ethan Jacobus Phillips ---
+  age R3000 | ledger R1300 | adjustment R1700 | section: Recently Owing
+  total invoices: R151570 (45) | total payments: R150270 (48) | coverage: 99.14%
+  unallocated signals: yes — 44 payment(s) with blank notes (Kid-e-Sys receipt export)
+  likely cause: normal Kid-e-Sys allocation gap (medium) — Both invoices and payments present; age R3000 > ledger R1300 with payment/export skew (unallocatedPaymentPattern).
+
+--- LEG003 Thato Legari ---
+  age R4350 | ledger R2750 | adjustment R1600 | section: Recently Owing
+  total invoices: R155470 (49) | total payments: R152720 (36) | coverage: 98.23%
+  unallocated signals: yes — 34 payment(s) with blank notes (Kid-e-Sys receipt export)
+  likely cause: normal Kid-e-Sys allocation gap (medium) — Both invoices and payments present; age R4350 > ledger R2750 with payment/export skew (unallocatedPaymentPattern).
+
+--- MAB008 Tlotlego Mabena ---
+  age R2500 | ledger R900 | adjustment R1600 | section: Recently Owing
+  total invoices: R125430 (48) | total payments: R124530 (52) | coverage: 99.28%
+  unallocated signals: yes — 48 payment(s) with blank notes (Kid-e-Sys receipt export)
+  likely cause: normal Kid-e-Sys allocation gap (medium) — Both invoices and payments present; age R2500 > ledger R900 with payment/export skew (unallocatedPaymentPattern).
+
+--- MOK028 Ofentse Mokua ---
+  age R3550 | ledger R2100 | adjustment R1450 | section: Recently Owing
+  total invoices: R135210 (48) | total payments: R133110 (44) | coverage: 98.45%
+  unallocated signals: yes — 40 payment(s) with blank notes (Kid-e-Sys receipt export)
+  likely cause: normal Kid-e-Sys allocation gap (medium) — Both invoices and payments present; age R3550 > ledger R2100 with payment/export skew (unallocatedPaymentPattern).
+
+--- SEN002 Peoentle Senne ---
+  age R7150 | ledger R5715 | adjustment R1435 | section: Recently Owing
+  total invoices: R130010 (43) | total payments: R124295 (62) | coverage: 95.6%
+  unallocated signals: yes — 60 payment(s) with blank notes (Kid-e-Sys receipt export)
+  likely cause: normal Kid-e-Sys allocation gap (medium) — Both invoices and payments present; age R7150 > ledger R5715 with payment/export skew (unallocatedPaymentPattern).
+
+--- LEK003 Phetogo Lekgetho Moruledi ---
+  age R7200 | ledger R6145 | adjustment R1055 | section: Bad Debt
+  total invoices: R118860 (43) | total payments: R112715 (43) | coverage: 94.83%
+  unallocated signals: yes — 41 payment(s) with blank notes (Kid-e-Sys receipt export)
+  likely cause: normal Kid-e-Sys allocation gap (medium) — Both invoices and payments present; age R7200 > ledger R6145 with payment/export skew (unallocatedPaymentPattern, crossAccountCreditOnLinked).
+  siblings: MOR013
+
+--- GOV001 Caleb Nathan Govender ---
+  age R1000 | ledger R0 | adjustment R1000 | section: Recently Owing
+  total invoices: R51010 (41) | total payments: R51010 (48) | coverage: 100%
+  unallocated signals: yes — 41 payment(s) with blank notes (Kid-e-Sys receipt export)
+  likely cause: normal Kid-e-Sys allocation gap (medium) — Both invoices and payments present; age R1000 > ledger R0 with payment/export skew (unallocatedPaymentPattern).
+
+--- DIA003 Amogelang Warona Diatshwana ---
+  age R2500 | ledger R1600 | adjustment R900 | section: Recently Owing
+  total invoices: R124660 (46) | total payments: R123060 (48) | coverage: 98.72%
+  unallocated signals: yes — 44 payment(s) with blank notes (Kid-e-Sys receipt export)
+  likely cause: normal Kid-e-Sys allocation gap (medium) — Both invoices and payments present; age R2500 > ledger R1600 with payment/export skew (unallocatedPaymentPattern).
+
+--- TSH006 Reitumetse Naledi Njabulo Tshiponyane Setae ---
+  age R2850 | ledger R2160 | adjustment R690 | section: Recently Owing
+  total invoices: R146515 (55) | total payments: R144355 (52) | coverage: 98.53%
+  unallocated signals: yes — 47 payment(s) with blank notes (Kid-e-Sys receipt export)
+  likely cause: normal Kid-e-Sys allocation gap (medium) — Both invoices and payments present; age R2850 > ledger R2160 with payment/export skew (unallocatedPaymentPattern).
+
+--- MOL010 Oagile Kabo Molete ---
+  age R3700 | ledger R3030 | adjustment R670 | section: Recently Owing
+  total invoices: R131010 (44) | total payments: R127980 (32) | coverage: 97.69%
+  unallocated signals: yes — 25 payment(s) with blank notes (Kid-e-Sys receipt export)
+  likely cause: normal Kid-e-Sys allocation gap (medium) — Both invoices and payments present; age R3700 > ledger R3030 with payment/export skew (unallocatedPaymentPattern).
+
+--- MOK019 Keitumetse Mokgotho ---
+  age R4500 | ledger R4150 | adjustment R350 | section: Recently Owing
+  total invoices: R154410 (47) | total payments: R150260 (45) | coverage: 97.31%
+  unallocated signals: yes — 42 payment(s) with blank notes (Kid-e-Sys receipt export)
+  likely cause: normal Kid-e-Sys allocation gap (medium) — Both invoices and payments present; age R4500 > ledger R4150 with payment/export skew (unallocatedPaymentPattern).
+
+--- GAE001 Orateng Gaebolae ---
+  age R6800 | ledger R6455 | adjustment R345 | section: Bad Debt
+  total invoices: R125605 (50) | total payments: R119150 (56) | coverage: 94.86%
+  unallocated signals: yes — 1 receipt-style payment note(s); 54 payment(s) with blank notes (Kid-e-Sys receipt export)
+  likely cause: normal Kid-e-Sys allocation gap (medium) — Both invoices and payments present; age R6800 > ledger R6455 with payment/export skew (unallocatedPaymentPattern).
+
+Full JSON: unallocated-payment-deep-dive.json

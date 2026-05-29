@@ -1,0 +1,509 @@
+{
+  "generatedAt": "2026-05-24T17:36:09.465Z",
+  "mode": "apply",
+  "schoolId": "cmpideqeq0000108xb6ouv9zi",
+  "classListDir": "/Users/dasilvaacademy/Desktop/05_class_list",
+  "before": {
+    "classroomCount": 21,
+    "learnerTotal": 396,
+    "learnersByClass": {
+      "|grade Ra": 16,
+      "|grade Rb": 16,
+      "Grade 1A": 19,
+      "Grade 1B": 18,
+      "Grade 1C": 16,
+      "Grade 2A": 24,
+      "Grade 2B": 21,
+      "Grade 3A": 22,
+      "Grade 3B": 20,
+      "Grade 4A": 22,
+      "Grade 4B": 23,
+      "Grade 5A": 23,
+      "Grade 5B": 19,
+      "Grade 6A": 23,
+      "Grade 6B": 10,
+      "Grade 6C": 22,
+      "Grade 7A": 19,
+      "Grade 7B": 20,
+      "Grade 8A": 17,
+      "Grade 8B": 18,
+      "Pre-School Creche": 8
+    }
+  },
+  "plannedUpdates": {
+    "total": 40,
+    "byFromTo": {
+      "|grade Ra → Grade RA": 16,
+      "|grade Rb → Grade RB": 16,
+      "Pre-School Creche → Creche": 8
+    },
+    "byTargetClass": {
+      "Grade RA": 16,
+      "Grade RB": 16,
+      "Creche": 8
+    },
+    "rows": [
+      {
+        "id": "cmpindicg00kn5wx6uidvcze5",
+        "fullName": "Yaone Dire",
+        "from": "|grade Ra",
+        "to": "Grade RA",
+        "reason": "class-list matchKey"
+      },
+      {
+        "id": "cmpindicc00jz5wx62ri7fqbp",
+        "fullName": "Hlulani Bahumi Hobyani",
+        "from": "|grade Ra",
+        "to": "Grade RA",
+        "reason": "class-list matchKey"
+      },
+      {
+        "id": "cmpindicf00kh5wx6bcwuofkk",
+        "fullName": "Ovayo Mani",
+        "from": "|grade Ra",
+        "to": "Grade RA",
+        "reason": "class-list matchKey"
+      },
+      {
+        "id": "cmpindicc00k15wx61d7h0ay0",
+        "fullName": "Khabane Metswamere",
+        "from": "|grade Ra",
+        "to": "Grade RA",
+        "reason": "class-list matchKey"
+      },
+      {
+        "id": "cmpindicf00kd5wx6ok3kymk3",
+        "fullName": "Oreabetse Moabi",
+        "from": "|grade Ra",
+        "to": "Grade RA",
+        "reason": "class-list matchKey"
+      },
+      {
+        "id": "cmpindica00jt5wx6appysglx",
+        "fullName": "Amahle Lisa Mokotedi",
+        "from": "|grade Ra",
+        "to": "Grade RA",
+        "reason": "class-list matchKey"
+      },
+      {
+        "id": "cmpindicf00kf5wx6n2lqmucz",
+        "fullName": "Osego Molosiwa",
+        "from": "|grade Ra",
+        "to": "Grade RA",
+        "reason": "class-list matchKey"
+      },
+      {
+        "id": "cmpindicg00kl5wx6sst4uiui",
+        "fullName": "Tshimologo Genesis Moreriane",
+        "from": "|grade Ra",
+        "to": "Grade RA",
+        "reason": "class-list matchKey"
+      },
+      {
+        "id": "cmpindicd00k35wx6a9wr7unb",
+        "fullName": "Ledile Keamogetswe Mothotse",
+        "from": "|grade Ra",
+        "to": "Grade RA",
+        "reason": "class-list matchKey"
+      },
+      {
+        "id": "cmpindice00k95wx6menp9v8g",
+        "fullName": "Ofentse Kabelo Mpete",
+        "from": "|grade Ra",
+        "to": "Grade RA",
+        "reason": "class-list matchKey"
+      },
+      {
+        "id": "cmpindice00kb5wx67xo9krmr",
+        "fullName": "Okuhle Mthethwa",
+        "from": "|grade Ra",
+        "to": "Grade RA",
+        "reason": "class-list matchKey"
+      },
+      {
+        "id": "cmpindicb00jv5wx6rc3btl8s",
+        "fullName": "Evalynn Pereira",
+        "from": "|grade Ra",
+        "to": "Grade RA",
+        "reason": "class-list matchKey"
+      },
+      {
+        "id": "cmpindicd00k55wx6hux07r9k",
+        "fullName": "Loatile Nicole Ramokoka",
+        "from": "|grade Ra",
+        "to": "Grade RA",
+        "reason": "class-list matchKey"
+      },
+      {
+        "id": "cmpindicb00jx5wx6mkiuwj3z",
+        "fullName": "Favour Ranthitong",
+        "from": "|grade Ra",
+        "to": "Grade RA",
+        "reason": "class-list matchKey"
+      },
+      {
+        "id": "cmpindicd00k75wx66sm5uiys",
+        "fullName": "Oaratwa Seema",
+        "from": "|grade Ra",
+        "to": "Grade RA",
+        "reason": "class-list matchKey"
+      },
+      {
+        "id": "cmpindicg00kj5wx655dyvz45",
+        "fullName": "Tirelo Tau Tsibane",
+        "from": "|grade Ra",
+        "to": "Grade RA",
+        "reason": "class-list matchKey"
+      },
+      {
+        "id": "cmpindicl00lf5wx6clyjxtpj",
+        "fullName": "Sthandiwe Kearabilwe Kobo",
+        "from": "|grade Rb",
+        "to": "Grade RB",
+        "reason": "class-list matchKey"
+      },
+      {
+        "id": "cmpindick00l75wx6lf8yzi93",
+        "fullName": "Onkgopotse Leago Maapoga",
+        "from": "|grade Rb",
+        "to": "Grade RB",
+        "reason": "class-list matchKey"
+      },
+      {
+        "id": "cmpindicj00l55wx60g88vwrk",
+        "fullName": "Olwethu Amahle Makhathini",
+        "from": "|grade Rb",
+        "to": "Grade RB",
+        "reason": "class-list matchKey"
+      },
+      {
+        "id": "cmpindicl00ld5wx6olr8z0wr",
+        "fullName": "Rethabile Leseilane Mankgane",
+        "from": "|grade Rb",
+        "to": "Grade RB",
+        "reason": "class-list matchKey"
+      },
+      {
+        "id": "cmpindici00kx5wx6b6yryxp1",
+        "fullName": "Leago Refilwe Marema",
+        "from": "|grade Rb",
+        "to": "Grade RB",
+        "reason": "class-list matchKey"
+      },
+      {
+        "id": "cmpindicj00l15wx6hwps58qt",
+        "fullName": "Noluntu Chantelle Mkandla",
+        "from": "|grade Rb",
+        "to": "Grade RB",
+        "reason": "class-list matchKey"
+      },
+      {
+        "id": "cmpindicm00lj5wx6xbz7mmk6",
+        "fullName": "Yaone Naledi Modisakeng",
+        "from": "|grade Rb",
+        "to": "Grade RB",
+        "reason": "class-list matchKey"
+      },
+      {
+        "id": "cmpindici00kv5wx6o5dxcajg",
+        "fullName": "Khumoentle Bokang Mokala",
+        "from": "|grade Rb",
+        "to": "Grade RB",
+        "reason": "class-list matchKey"
+      },
+      {
+        "id": "cmpindich00kp5wx61ynpisji",
+        "fullName": "Alibongwe Mthembu",
+        "from": "|grade Rb",
+        "to": "Grade RB",
+        "reason": "class-list matchKey"
+      },
+      {
+        "id": "cmpindicl00lh5wx67cepmpnc",
+        "fullName": "Tlotso Ditheto Kaone Phalane",
+        "from": "|grade Rb",
+        "to": "Grade RB",
+        "reason": "class-list matchKey"
+      },
+      {
+        "id": "cmpindick00l95wx6uzhxexlj",
+        "fullName": "Onthatile Sebico",
+        "from": "|grade Rb",
+        "to": "Grade RB",
+        "reason": "class-list matchKey"
+      },
+      {
+        "id": "cmpindich00kt5wx6ouui0ux9",
+        "fullName": "Keabetswe Nkateko Gontse Segokotlo",
+        "from": "|grade Rb",
+        "to": "Grade RB",
+        "reason": "class-list matchKey"
+      },
+      {
+        "id": "cmpindicj00l35wx6nlmpb11h",
+        "fullName": "Ntsako Segokotlo",
+        "from": "|grade Rb",
+        "to": "Grade RB",
+        "reason": "class-list matchKey"
+      },
+      {
+        "id": "cmpindich00kr5wx68vnw1fl2",
+        "fullName": "Junior Tshwetso Setibane",
+        "from": "|grade Rb",
+        "to": "Grade RB",
+        "reason": "class-list matchKey"
+      },
+      {
+        "id": "cmpindick00lb5wx6kza3xzi5",
+        "fullName": "Onwaba Lathitha Sitwayi",
+        "from": "|grade Rb",
+        "to": "Grade RB",
+        "reason": "class-list matchKey"
+      },
+      {
+        "id": "cmpindici00kz5wx66yk60uel",
+        "fullName": "Lethukukhanya Tshingana",
+        "from": "|grade Rb",
+        "to": "Grade RB",
+        "reason": "class-list matchKey"
+      },
+      {
+        "id": "cmpindicn00lv5wx6s397ixf2",
+        "fullName": "Raorata Oresiametse Mabole",
+        "from": "Pre-School Creche",
+        "to": "Creche",
+        "reason": "class-list matchKey"
+      },
+      {
+        "id": "cmpindicm00ln5wx6d99cgczc",
+        "fullName": "Grace Monaise",
+        "from": "Pre-School Creche",
+        "to": "Creche",
+        "reason": "class-list matchKey"
+      },
+      {
+        "id": "cmpindicm00ll5wx6p6yawyxy",
+        "fullName": "Atang Mothotse",
+        "from": "Pre-School Creche",
+        "to": "Creche",
+        "reason": "class-list matchKey"
+      },
+      {
+        "id": "cmpindicn00lt5wx6e6c034l7",
+        "fullName": "Ntsika Mncedisi Mpu",
+        "from": "Pre-School Creche",
+        "to": "Creche",
+        "reason": "class-list matchKey"
+      },
+      {
+        "id": "cmpindicn00lr5wx675metyjz",
+        "fullName": "Muneiwa Mulaudzi",
+        "from": "Pre-School Creche",
+        "to": "Creche",
+        "reason": "class-list matchKey"
+      },
+      {
+        "id": "cmpindicm00lp5wx6vcdw4bky",
+        "fullName": "Katlego Einstein Pilane",
+        "from": "Pre-School Creche",
+        "to": "Creche",
+        "reason": "class-list matchKey"
+      },
+      {
+        "id": "cmpindico00lx5wx6if3x54q9",
+        "fullName": "Tlotlego Omogolo Raborife",
+        "from": "Pre-School Creche",
+        "to": "Creche",
+        "reason": "class-list matchKey"
+      },
+      {
+        "id": "cmpindico00lz5wx6607uwtin",
+        "fullName": "Vutivi Sibiya",
+        "from": "Pre-School Creche",
+        "to": "Creche",
+        "reason": "class-list matchKey"
+      }
+    ]
+  },
+  "after": {
+    "classroomCount": 21,
+    "learnerTotal": 396,
+    "learnersByClass": {
+      "Grade 6B": 10,
+      "Grade 1A": 19,
+      "Grade 1B": 18,
+      "Grade 1C": 16,
+      "Grade 2A": 24,
+      "Grade 2B": 21,
+      "Grade 3A": 22,
+      "Grade 3B": 20,
+      "Grade 4A": 22,
+      "Grade 4B": 23,
+      "Grade 5A": 23,
+      "Grade 5B": 19,
+      "Grade 6A": 23,
+      "Grade 6C": 22,
+      "Grade 7A": 19,
+      "Grade 7B": 20,
+      "Grade 8A": 17,
+      "Grade 8B": 18,
+      "Grade RA": 16,
+      "Grade RB": 16,
+      "Creche": 8
+    }
+  },
+  "classListCanonicalClassrooms": [
+    {
+      "className": "Creche",
+      "canonical": "Creche",
+      "sourceFile": "creche.xls",
+      "rawCount": 8
+    },
+    {
+      "className": "Grade RA",
+      "canonical": "Grade RA",
+      "sourceFile": "Grade_RA.xls",
+      "rawCount": 16
+    },
+    {
+      "className": "Grade RB",
+      "canonical": "Grade RB",
+      "sourceFile": "Grade_RB.xls",
+      "rawCount": 16
+    },
+    {
+      "className": "Grade 1A",
+      "canonical": "Grade 1A",
+      "sourceFile": "Grade_1A.xls",
+      "rawCount": 19
+    },
+    {
+      "className": "Grade 1B",
+      "canonical": "Grade 1B",
+      "sourceFile": "Grade_1B.xls",
+      "rawCount": 18
+    },
+    {
+      "className": "Grade 1C",
+      "canonical": "Grade 1C",
+      "sourceFile": "Grade_1C.xls",
+      "rawCount": 16
+    },
+    {
+      "className": "Grade 2A",
+      "canonical": "Grade 2A",
+      "sourceFile": "Grade_2A.xls",
+      "rawCount": 24
+    },
+    {
+      "className": "Grade 2B",
+      "canonical": "Grade 2B",
+      "sourceFile": "Grade_2B.xls",
+      "rawCount": 21
+    },
+    {
+      "className": "GRADE 3A",
+      "canonical": "Grade 3A",
+      "sourceFile": "Grade_3A.xls",
+      "rawCount": 22
+    },
+    {
+      "className": "GRADE 3B",
+      "canonical": "Grade 3B",
+      "sourceFile": "Grade_3B.xls",
+      "rawCount": 20
+    },
+    {
+      "className": "Grade 4A",
+      "canonical": "Grade 4A",
+      "sourceFile": "Grade_4A.xls",
+      "rawCount": 22
+    },
+    {
+      "className": "Grade 4B",
+      "canonical": "Grade 4B",
+      "sourceFile": "Grade_4B.xls",
+      "rawCount": 23
+    },
+    {
+      "className": "Grade 5A",
+      "canonical": "Grade 5A",
+      "sourceFile": "Grade_5A.xls",
+      "rawCount": 23
+    },
+    {
+      "className": "Grade 5B",
+      "canonical": "Grade 5B",
+      "sourceFile": "Grade_5B.xls",
+      "rawCount": 19
+    },
+    {
+      "className": "GRADE 6A",
+      "canonical": "Grade 6A",
+      "sourceFile": "Grade_6A.xls",
+      "rawCount": 23
+    },
+    {
+      "className": "GRADE 6B",
+      "canonical": "Grade 6B",
+      "sourceFile": "Grade-6B.xls",
+      "rawCount": 10
+    },
+    {
+      "className": "GRADE 6C",
+      "canonical": "Grade 6C",
+      "sourceFile": "Grade_6C.xls",
+      "rawCount": 22
+    },
+    {
+      "className": "GRADE 7A",
+      "canonical": "Grade 7A",
+      "sourceFile": "Grade_7A.xls",
+      "rawCount": 19
+    },
+    {
+      "className": "GRADE 7B",
+      "canonical": "Grade 7B",
+      "sourceFile": "Grade_7B.xls",
+      "rawCount": 20
+    },
+    {
+      "className": "GRADE 8A",
+      "canonical": "Grade 8A",
+      "sourceFile": "Grade_8A.xls",
+      "rawCount": 17
+    },
+    {
+      "className": "GRADE 8B",
+      "canonical": "Grade 8B",
+      "sourceFile": "Grade_8B.xls",
+      "rawCount": 18
+    }
+  ],
+  "billingUntouched": {
+    "ledgerEntries": {
+      "before": 337,
+      "after": 337
+    },
+    "billingPlanLearners": {
+      "before": 396,
+      "after": 396
+    },
+    "kidesysHistoryRows": {
+      "before": 40916,
+      "after": 40916
+    },
+    "billingPlanItems": {
+      "before": 549,
+      "after": 549
+    }
+  },
+  "verification": {
+    "learnerCount396": true,
+    "classroomCount21": true,
+    "noBillingTouch": true,
+    "classListCovers396": true,
+    "allUpdatesMapped": true
+  },
+  "passed": true
+}

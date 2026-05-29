@@ -1,0 +1,4668 @@
+{
+  "generatedAt": "2026-05-23T12:23:25.325Z",
+  "desktopRoot": "/Users/dasilvaacademy/Desktop",
+  "auditOnly": true,
+  "openingBalanceLabel": "Kid-e-Sys opening balance adjustment",
+  "cutoverDate": "2026-05-23",
+  "adjustmentCount": 112,
+  "totalAbsAdjustmentValue": 299303.45,
+  "openingBalanceSummary": {
+    "cutoverDate": "2026-05-23",
+    "adjustmentCount": 112,
+    "totalAdjustmentValue": 299303.45,
+    "netAdjustmentValue": 276993.45,
+    "totalBeforeBalance": 268372,
+    "totalAfterBalance": 545365.45,
+    "ageAnalysisRemainingVarianceCount": 0
+  },
+  "reasonGroupCounts": {
+    "needsOpeningBalanceAdjustment": 0,
+    "possibleUnallocatedPayment": 79,
+    "possibleDuplicatedHistoricalCredit": 26,
+    "inverseProblemLedgerGreaterThanAge": 6,
+    "needsManualKideSysReview": 1
+  },
+  "reasonGroupAbsAdjustmentTotals": {
+    "needsOpeningBalanceAdjustment": 0,
+    "possibleUnallocatedPayment": 189844.45,
+    "possibleDuplicatedHistoricalCredit": 98304,
+    "inverseProblemLedgerGreaterThanAge": 9455,
+    "needsManualKideSysReview": 1700
+  },
+  "paymentMatchConfidenceCounts": {
+    "high": 1,
+    "medium": 104,
+    "none": 7
+  },
+  "reductionSummary": {
+    "accountsWithAlternativeFixHypothesis": 112,
+    "accountsStrictlyNeedingOpeningBalanceOnly": 0,
+    "note": "All 84 trueBalanceMismatch rows match a loose unallocated-payment pattern (medium confidence). None have a tight payment-to-variance match; inverse/duplicate/manual rows should be fixed before import. needsOpeningBalanceAdjustment is reserved for true gaps with no payment/credit/inverse explanation."
+  },
+  "accountsByReasonGroup": {
+    "needsOpeningBalanceAdjustment": [],
+    "possibleUnallocatedPayment": [
+      {
+        "accountNo": "TLA001",
+        "fullName": "Neo Kearabilwe Tladi",
+        "ageAnalysisBalance": 10790,
+        "ledgerBalanceFromImport": 2010,
+        "adjustmentAmount": 8780,
+        "absAdjustmentAmount": 8780,
+        "variance": 8780,
+        "entryType": "invoice",
+        "reasonGroup": "possibleUnallocatedPayment",
+        "reasonDetail": "Payment/export skew (unallocatedPaymentPattern); fix allocation before relying on opening balance.",
+        "priorActiveMismatchReason": "trueBalanceMismatch",
+        "paymentPatterns": [
+          "unallocatedPaymentPattern"
+        ],
+        "explainedByPaymentTheory": true,
+        "paymentMatchConfidence": "medium"
+      },
+      {
+        "accountNo": "MOL018",
+        "fullName": "Hailey Molema",
+        "ageAnalysisBalance": 6500,
+        "ledgerBalanceFromImport": 1085,
+        "adjustmentAmount": 5415,
+        "absAdjustmentAmount": 5415,
+        "variance": 5415,
+        "entryType": "invoice",
+        "reasonGroup": "possibleUnallocatedPayment",
+        "reasonDetail": "Payment/export skew (unallocatedPaymentPattern); fix allocation before relying on opening balance.",
+        "priorActiveMismatchReason": "trueBalanceMismatch",
+        "paymentPatterns": [
+          "unallocatedPaymentPattern"
+        ],
+        "explainedByPaymentTheory": true,
+        "paymentMatchConfidence": "medium"
+      },
+      {
+        "accountNo": "TSH017",
+        "fullName": "Onthatile Tshose",
+        "ageAnalysisBalance": 5290,
+        "ledgerBalanceFromImport": 860,
+        "adjustmentAmount": 4430,
+        "absAdjustmentAmount": 4430,
+        "variance": 4430,
+        "entryType": "invoice",
+        "reasonGroup": "possibleUnallocatedPayment",
+        "reasonDetail": "Payment/export skew (unallocatedPaymentPattern); fix allocation before relying on opening balance.",
+        "priorActiveMismatchReason": "trueBalanceMismatch",
+        "paymentPatterns": [
+          "unallocatedPaymentPattern"
+        ],
+        "explainedByPaymentTheory": true,
+        "paymentMatchConfidence": "medium"
+      },
+      {
+        "accountNo": "FRE001",
+        "fullName": "Oatlegile Frederick",
+        "ageAnalysisBalance": 9500,
+        "ledgerBalanceFromImport": 5100,
+        "adjustmentAmount": 4400,
+        "absAdjustmentAmount": 4400,
+        "variance": 4400,
+        "entryType": "invoice",
+        "reasonGroup": "possibleUnallocatedPayment",
+        "reasonDetail": "Payment/export skew (unallocatedPaymentPattern); fix allocation before relying on opening balance.",
+        "priorActiveMismatchReason": "trueBalanceMismatch",
+        "paymentPatterns": [
+          "unallocatedPaymentPattern"
+        ],
+        "explainedByPaymentTheory": true,
+        "paymentMatchConfidence": "medium"
+      },
+      {
+        "accountNo": "MAT022",
+        "fullName": "Phemelo Reotshepile Matsheka",
+        "ageAnalysisBalance": 6100,
+        "ledgerBalanceFromImport": 1700,
+        "adjustmentAmount": 4400,
+        "absAdjustmentAmount": 4400,
+        "variance": 4400,
+        "entryType": "invoice",
+        "reasonGroup": "possibleUnallocatedPayment",
+        "reasonDetail": "Payment/export skew (unallocatedPaymentPattern); fix allocation before relying on opening balance.",
+        "priorActiveMismatchReason": "trueBalanceMismatch",
+        "paymentPatterns": [
+          "unallocatedPaymentPattern"
+        ],
+        "explainedByPaymentTheory": true,
+        "paymentMatchConfidence": "medium"
+      },
+      {
+        "accountNo": "NAS001",
+        "fullName": "Samira Nasere",
+        "ageAnalysisBalance": 7800,
+        "ledgerBalanceFromImport": 3905,
+        "adjustmentAmount": 3895,
+        "absAdjustmentAmount": 3895,
+        "variance": 3895,
+        "entryType": "invoice",
+        "reasonGroup": "possibleUnallocatedPayment",
+        "reasonDetail": "Payment/export skew (unallocatedPaymentPattern); fix allocation before relying on opening balance.",
+        "priorActiveMismatchReason": "trueBalanceMismatch",
+        "paymentPatterns": [
+          "unallocatedPaymentPattern"
+        ],
+        "explainedByPaymentTheory": true,
+        "paymentMatchConfidence": "medium"
+      },
+      {
+        "accountNo": "MAB011",
+        "fullName": "Thandekile Princess Mabuza",
+        "ageAnalysisBalance": 5000,
+        "ledgerBalanceFromImport": 1240,
+        "adjustmentAmount": 3760,
+        "absAdjustmentAmount": 3760,
+        "variance": 3760,
+        "entryType": "invoice",
+        "reasonGroup": "possibleUnallocatedPayment",
+        "reasonDetail": "Payment/export skew (unallocatedPaymentPattern); fix allocation before relying on opening balance.",
+        "priorActiveMismatchReason": "trueBalanceMismatch",
+        "paymentPatterns": [
+          "unallocatedPaymentPattern"
+        ],
+        "explainedByPaymentTheory": true,
+        "paymentMatchConfidence": "medium"
+      },
+      {
+        "accountNo": "TLH005",
+        "fullName": "Oletilwe Tlhame",
+        "ageAnalysisBalance": 4350,
+        "ledgerBalanceFromImport": 750,
+        "adjustmentAmount": 3600,
+        "absAdjustmentAmount": 3600,
+        "variance": 3600,
+        "entryType": "invoice",
+        "reasonGroup": "possibleUnallocatedPayment",
+        "reasonDetail": "Payment/export skew (unallocatedPaymentPattern); fix allocation before relying on opening balance.",
+        "priorActiveMismatchReason": "trueBalanceMismatch",
+        "paymentPatterns": [
+          "unallocatedPaymentPattern"
+        ],
+        "explainedByPaymentTheory": true,
+        "paymentMatchConfidence": "medium"
+      },
+      {
+        "accountNo": "WOL001",
+        "fullName": "Elleliyon Wolebo",
+        "ageAnalysisBalance": 7370,
+        "ledgerBalanceFromImport": 3870,
+        "adjustmentAmount": 3500,
+        "absAdjustmentAmount": 3500,
+        "variance": 3500,
+        "entryType": "invoice",
+        "reasonGroup": "possibleUnallocatedPayment",
+        "reasonDetail": "Payment/export skew (unallocatedPaymentPattern); fix allocation before relying on opening balance.",
+        "priorActiveMismatchReason": "trueBalanceMismatch",
+        "paymentPatterns": [
+          "unallocatedPaymentPattern"
+        ],
+        "explainedByPaymentTheory": true,
+        "paymentMatchConfidence": "medium"
+      },
+      {
+        "accountNo": "SEP899",
+        "fullName": "Omogolo Sepadile",
+        "ageAnalysisBalance": 3700,
+        "ledgerBalanceFromImport": 500,
+        "adjustmentAmount": 3200,
+        "absAdjustmentAmount": 3200,
+        "variance": 3200,
+        "entryType": "invoice",
+        "reasonGroup": "possibleUnallocatedPayment",
+        "reasonDetail": "Payment/export skew (unallocatedPaymentPattern); fix allocation before relying on opening balance.",
+        "priorActiveMismatchReason": "trueBalanceMismatch",
+        "paymentPatterns": [
+          "unallocatedPaymentPattern"
+        ],
+        "explainedByPaymentTheory": true,
+        "paymentMatchConfidence": "medium"
+      },
+      {
+        "accountNo": "MAB004",
+        "fullName": "Gosego Mabale",
+        "ageAnalysisBalance": 3700,
+        "ledgerBalanceFromImport": 605,
+        "adjustmentAmount": 3095,
+        "absAdjustmentAmount": 3095,
+        "variance": 3095,
+        "entryType": "invoice",
+        "reasonGroup": "possibleUnallocatedPayment",
+        "reasonDetail": "Payment/export skew (unallocatedPaymentPattern); fix allocation before relying on opening balance.",
+        "priorActiveMismatchReason": "trueBalanceMismatch",
+        "paymentPatterns": [
+          "unallocatedPaymentPattern"
+        ],
+        "explainedByPaymentTheory": true,
+        "paymentMatchConfidence": "medium"
+      },
+      {
+        "accountNo": "KHU005",
+        "fullName": "Elethu Entle Khunou",
+        "ageAnalysisBalance": 3550,
+        "ledgerBalanceFromImport": 500,
+        "adjustmentAmount": 3050,
+        "absAdjustmentAmount": 3050,
+        "variance": 3050,
+        "entryType": "invoice",
+        "reasonGroup": "possibleUnallocatedPayment",
+        "reasonDetail": "Payment/export skew (unallocatedPaymentPattern); fix allocation before relying on opening balance.",
+        "priorActiveMismatchReason": "trueBalanceMismatch",
+        "paymentPatterns": [
+          "unallocatedPaymentPattern"
+        ],
+        "explainedByPaymentTheory": true,
+        "paymentMatchConfidence": "medium"
+      },
+      {
+        "accountNo": "GEB002",
+        "fullName": "Benyis Geber",
+        "ageAnalysisBalance": 3700,
+        "ledgerBalanceFromImport": 700,
+        "adjustmentAmount": 3000,
+        "absAdjustmentAmount": 3000,
+        "variance": 3000,
+        "entryType": "invoice",
+        "reasonGroup": "possibleUnallocatedPayment",
+        "reasonDetail": "Payment/export skew (unallocatedPaymentPattern); fix allocation before relying on opening balance.",
+        "priorActiveMismatchReason": "trueBalanceMismatch",
+        "paymentPatterns": [
+          "unallocatedPaymentPattern"
+        ],
+        "explainedByPaymentTheory": true,
+        "paymentMatchConfidence": "medium"
+      },
+      {
+        "accountNo": "BUY001",
+        "fullName": "Kim Omontle Buys",
+        "ageAnalysisBalance": 2900,
+        "ledgerBalanceFromImport": 150,
+        "adjustmentAmount": 2750,
+        "absAdjustmentAmount": 2750,
+        "variance": 2750,
+        "entryType": "invoice",
+        "reasonGroup": "possibleUnallocatedPayment",
+        "reasonDetail": "Payment/export skew (unallocatedPaymentPattern); fix allocation before relying on opening balance.",
+        "priorActiveMismatchReason": "trueBalanceMismatch",
+        "paymentPatterns": [
+          "unallocatedPaymentPattern"
+        ],
+        "explainedByPaymentTheory": true,
+        "paymentMatchConfidence": "medium"
+      },
+      {
+        "accountNo": "GAA001",
+        "fullName": "Didintle Nyeko Gaasenwe",
+        "ageAnalysisBalance": 3500,
+        "ledgerBalanceFromImport": 750,
+        "adjustmentAmount": 2750,
+        "absAdjustmentAmount": 2750,
+        "variance": 2750,
+        "entryType": "invoice",
+        "reasonGroup": "possibleUnallocatedPayment",
+        "reasonDetail": "Payment/export skew (unallocatedPaymentPattern); fix allocation before relying on opening balance.",
+        "priorActiveMismatchReason": "trueBalanceMismatch",
+        "paymentPatterns": [
+          "unallocatedPaymentPattern"
+        ],
+        "explainedByPaymentTheory": true,
+        "paymentMatchConfidence": "medium"
+      },
+      {
+        "accountNo": "KOR001",
+        "fullName": "Dagimawit Korabza",
+        "ageAnalysisBalance": 6860,
+        "ledgerBalanceFromImport": 4110,
+        "adjustmentAmount": 2750,
+        "absAdjustmentAmount": 2750,
+        "variance": 2750,
+        "entryType": "invoice",
+        "reasonGroup": "possibleUnallocatedPayment",
+        "reasonDetail": "Payment/export skew (unallocatedPaymentPattern); fix allocation before relying on opening balance.",
+        "priorActiveMismatchReason": "trueBalanceMismatch",
+        "paymentPatterns": [
+          "unallocatedPaymentPattern"
+        ],
+        "explainedByPaymentTheory": true,
+        "paymentMatchConfidence": "medium"
+      },
+      {
+        "accountNo": "MOD010",
+        "fullName": "Reatlegile Modibedi",
+        "ageAnalysisBalance": 6200,
+        "ledgerBalanceFromImport": 3450,
+        "adjustmentAmount": 2750,
+        "absAdjustmentAmount": 2750,
+        "variance": 2750,
+        "entryType": "invoice",
+        "reasonGroup": "possibleUnallocatedPayment",
+        "reasonDetail": "Payment/export skew (unallocatedPaymentPattern); fix allocation before relying on opening balance.",
+        "priorActiveMismatchReason": "trueBalanceMismatch",
+        "paymentPatterns": [
+          "unallocatedPaymentPattern"
+        ],
+        "explainedByPaymentTheory": true,
+        "paymentMatchConfidence": "medium"
+      },
+      {
+        "accountNo": "MOS009",
+        "fullName": "Wandile Mosito",
+        "ageAnalysisBalance": 3700,
+        "ledgerBalanceFromImport": 950,
+        "adjustmentAmount": 2750,
+        "absAdjustmentAmount": 2750,
+        "variance": 2750,
+        "entryType": "invoice",
+        "reasonGroup": "possibleUnallocatedPayment",
+        "reasonDetail": "Payment/export skew (unallocatedPaymentPattern); fix allocation before relying on opening balance.",
+        "priorActiveMismatchReason": "trueBalanceMismatch",
+        "paymentPatterns": [
+          "unallocatedPaymentPattern"
+        ],
+        "explainedByPaymentTheory": true,
+        "paymentMatchConfidence": "medium"
+      },
+      {
+        "accountNo": "MOT016",
+        "fullName": "Thoriso Mothibedi",
+        "ageAnalysisBalance": 3000,
+        "ledgerBalanceFromImport": 250,
+        "adjustmentAmount": 2750,
+        "absAdjustmentAmount": 2750,
+        "variance": 2750,
+        "entryType": "invoice",
+        "reasonGroup": "possibleUnallocatedPayment",
+        "reasonDetail": "Payment/export skew (unallocatedPaymentPattern); fix allocation before relying on opening balance.",
+        "priorActiveMismatchReason": "trueBalanceMismatch",
+        "paymentPatterns": [
+          "unallocatedPaymentPattern"
+        ],
+        "explainedByPaymentTheory": true,
+        "paymentMatchConfidence": "medium"
+      },
+      {
+        "accountNo": "NTS008",
+        "fullName": "Inkosinam Ntshanga",
+        "ageAnalysisBalance": 3950,
+        "ledgerBalanceFromImport": 1200,
+        "adjustmentAmount": 2750,
+        "absAdjustmentAmount": 2750,
+        "variance": 2750,
+        "entryType": "invoice",
+        "reasonGroup": "possibleUnallocatedPayment",
+        "reasonDetail": "Payment/export skew (unallocatedPaymentPattern); fix allocation before relying on opening balance.",
+        "priorActiveMismatchReason": "trueBalanceMismatch",
+        "paymentPatterns": [
+          "unallocatedPaymentPattern"
+        ],
+        "explainedByPaymentTheory": true,
+        "paymentMatchConfidence": "medium"
+      },
+      {
+        "accountNo": "SEN959",
+        "fullName": "Tshiamo Will Senne",
+        "ageAnalysisBalance": 3000,
+        "ledgerBalanceFromImport": 250,
+        "adjustmentAmount": 2750,
+        "absAdjustmentAmount": 2750,
+        "variance": 2750,
+        "entryType": "invoice",
+        "reasonGroup": "possibleUnallocatedPayment",
+        "reasonDetail": "Payment/export skew (unallocatedPaymentPattern); fix allocation before relying on opening balance.",
+        "priorActiveMismatchReason": "trueBalanceMismatch",
+        "paymentPatterns": [
+          "unallocatedPaymentPattern"
+        ],
+        "explainedByPaymentTheory": true,
+        "paymentMatchConfidence": "medium"
+      },
+      {
+        "accountNo": "TAK001",
+        "fullName": "Kagiso Unathi Takata",
+        "ageAnalysisBalance": 6800,
+        "ledgerBalanceFromImport": 4050,
+        "adjustmentAmount": 2750,
+        "absAdjustmentAmount": 2750,
+        "variance": 2750,
+        "entryType": "invoice",
+        "reasonGroup": "possibleUnallocatedPayment",
+        "reasonDetail": "Payment/export skew (unallocatedPaymentPattern); fix allocation before relying on opening balance.",
+        "priorActiveMismatchReason": "trueBalanceMismatch",
+        "paymentPatterns": [
+          "unallocatedPaymentPattern"
+        ],
+        "explainedByPaymentTheory": true,
+        "paymentMatchConfidence": "medium"
+      },
+      {
+        "accountNo": "VUT001",
+        "fullName": "Vutlhari Botake",
+        "ageAnalysisBalance": 3850,
+        "ledgerBalanceFromImport": 1100,
+        "adjustmentAmount": 2750,
+        "absAdjustmentAmount": 2750,
+        "variance": 2750,
+        "entryType": "invoice",
+        "reasonGroup": "possibleUnallocatedPayment",
+        "reasonDetail": "Payment/export skew (unallocatedPaymentPattern); fix allocation before relying on opening balance.",
+        "priorActiveMismatchReason": "trueBalanceMismatch",
+        "paymentPatterns": [
+          "unallocatedPaymentPattern"
+        ],
+        "explainedByPaymentTheory": true,
+        "paymentMatchConfidence": "medium"
+      },
+      {
+        "accountNo": "THO004",
+        "fullName": "Ofentse Koketso Thompo",
+        "ageAnalysisBalance": 4000,
+        "ledgerBalanceFromImport": 1320,
+        "adjustmentAmount": 2680,
+        "absAdjustmentAmount": 2680,
+        "variance": 2680,
+        "entryType": "invoice",
+        "reasonGroup": "possibleUnallocatedPayment",
+        "reasonDetail": "Payment/export skew (unallocatedPaymentPattern); fix allocation before relying on opening balance.",
+        "priorActiveMismatchReason": "trueBalanceMismatch",
+        "paymentPatterns": [
+          "unallocatedPaymentPattern"
+        ],
+        "explainedByPaymentTheory": true,
+        "paymentMatchConfidence": "medium"
+      },
+      {
+        "accountNo": "SER001",
+        "fullName": "Oletilwe Serutle",
+        "ageAnalysisBalance": 3700,
+        "ledgerBalanceFromImport": 1150,
+        "adjustmentAmount": 2550,
+        "absAdjustmentAmount": 2550,
+        "variance": 2550,
+        "entryType": "invoice",
+        "reasonGroup": "possibleUnallocatedPayment",
+        "reasonDetail": "Payment/export skew (unallocatedPaymentPattern); fix allocation before relying on opening balance.",
+        "priorActiveMismatchReason": "trueBalanceMismatch",
+        "paymentPatterns": [
+          "unallocatedPaymentPattern"
+        ],
+        "explainedByPaymentTheory": true,
+        "paymentMatchConfidence": "medium"
+      },
+      {
+        "accountNo": "KAL001",
+        "fullName": "Bohlokwa Kalosane",
+        "ageAnalysisBalance": 4500,
+        "ledgerBalanceFromImport": 2100,
+        "adjustmentAmount": 2400,
+        "absAdjustmentAmount": 2400,
+        "variance": 2400,
+        "entryType": "invoice",
+        "reasonGroup": "possibleUnallocatedPayment",
+        "reasonDetail": "Payment/export skew (unallocatedPaymentPattern); fix allocation before relying on opening balance.",
+        "priorActiveMismatchReason": "trueBalanceMismatch",
+        "paymentPatterns": [
+          "unallocatedPaymentPattern"
+        ],
+        "explainedByPaymentTheory": true,
+        "paymentMatchConfidence": "medium"
+      },
+      {
+        "accountNo": "MOL020",
+        "fullName": "Rekgabile Molefe",
+        "ageAnalysisBalance": 3700,
+        "ledgerBalanceFromImport": 1350,
+        "adjustmentAmount": 2350,
+        "absAdjustmentAmount": 2350,
+        "variance": 2350,
+        "entryType": "invoice",
+        "reasonGroup": "possibleUnallocatedPayment",
+        "reasonDetail": "Payment/export skew (unallocatedPaymentPattern); fix allocation before relying on opening balance.",
+        "priorActiveMismatchReason": "trueBalanceMismatch",
+        "paymentPatterns": [
+          "unallocatedPaymentPattern"
+        ],
+        "explainedByPaymentTheory": true,
+        "paymentMatchConfidence": "medium"
+      },
+      {
+        "accountNo": "MOG013",
+        "fullName": "Chantelle Otlotleng Mogafe",
+        "ageAnalysisBalance": 6800,
+        "ledgerBalanceFromImport": 4550,
+        "adjustmentAmount": 2250,
+        "absAdjustmentAmount": 2250,
+        "variance": 2250,
+        "entryType": "invoice",
+        "reasonGroup": "possibleUnallocatedPayment",
+        "reasonDetail": "Payment/export skew (unallocatedPaymentPattern); fix allocation before relying on opening balance.",
+        "priorActiveMismatchReason": "trueBalanceMismatch",
+        "paymentPatterns": [
+          "unallocatedPaymentPattern"
+        ],
+        "explainedByPaymentTheory": true,
+        "paymentMatchConfidence": "medium"
+      },
+      {
+        "accountNo": "WIL002",
+        "fullName": "Rishon Kyle Williams",
+        "ageAnalysisBalance": 3150,
+        "ledgerBalanceFromImport": 900,
+        "adjustmentAmount": 2250,
+        "absAdjustmentAmount": 2250,
+        "variance": 2250,
+        "entryType": "invoice",
+        "reasonGroup": "possibleUnallocatedPayment",
+        "reasonDetail": "Payment/export skew (unallocatedPaymentPattern); fix allocation before relying on opening balance.",
+        "priorActiveMismatchReason": "trueBalanceMismatch",
+        "paymentPatterns": [
+          "unallocatedPaymentPattern"
+        ],
+        "explainedByPaymentTheory": true,
+        "paymentMatchConfidence": "medium"
+      },
+      {
+        "accountNo": "NZI001",
+        "fullName": "Amantle Nzimande",
+        "ageAnalysisBalance": 3700,
+        "ledgerBalanceFromImport": 1470,
+        "adjustmentAmount": 2230,
+        "absAdjustmentAmount": 2230,
+        "variance": 2230,
+        "entryType": "invoice",
+        "reasonGroup": "possibleUnallocatedPayment",
+        "reasonDetail": "Payment/export skew (unallocatedPaymentPattern); fix allocation before relying on opening balance.",
+        "priorActiveMismatchReason": "trueBalanceMismatch",
+        "paymentPatterns": [
+          "unallocatedPaymentPattern"
+        ],
+        "explainedByPaymentTheory": true,
+        "paymentMatchConfidence": "medium"
+      },
+      {
+        "accountNo": "DIK001",
+        "fullName": "Sinenhlanhla Dikana Iviwe",
+        "ageAnalysisBalance": 4200,
+        "ledgerBalanceFromImport": 2000,
+        "adjustmentAmount": 2200,
+        "absAdjustmentAmount": 2200,
+        "variance": 2200,
+        "entryType": "invoice",
+        "reasonGroup": "possibleUnallocatedPayment",
+        "reasonDetail": "Payment/export skew (unallocatedPaymentPattern); fix allocation before relying on opening balance.",
+        "priorActiveMismatchReason": "trueBalanceMismatch",
+        "paymentPatterns": [
+          "unallocatedPaymentPattern"
+        ],
+        "explainedByPaymentTheory": true,
+        "paymentMatchConfidence": "medium"
+      },
+      {
+        "accountNo": "KGO002",
+        "fullName": "Warona Kgonothi",
+        "ageAnalysisBalance": 3696,
+        "ledgerBalanceFromImport": 1496,
+        "adjustmentAmount": 2200,
+        "absAdjustmentAmount": 2200,
+        "variance": 2200,
+        "entryType": "invoice",
+        "reasonGroup": "possibleUnallocatedPayment",
+        "reasonDetail": "Payment/export skew (unallocatedPaymentPattern); fix allocation before relying on opening balance.",
+        "priorActiveMismatchReason": "trueBalanceMismatch",
+        "paymentPatterns": [
+          "unallocatedPaymentPattern"
+        ],
+        "explainedByPaymentTheory": true,
+        "paymentMatchConfidence": "medium"
+      },
+      {
+        "accountNo": "KOB001",
+        "fullName": "Njabulo Kobo",
+        "ageAnalysisBalance": 2350,
+        "ledgerBalanceFromImport": 150,
+        "adjustmentAmount": 2200,
+        "absAdjustmentAmount": 2200,
+        "variance": 2200,
+        "entryType": "invoice",
+        "reasonGroup": "possibleUnallocatedPayment",
+        "reasonDetail": "Payment/export skew (unallocatedPaymentPattern); fix allocation before relying on opening balance.",
+        "priorActiveMismatchReason": "trueBalanceMismatch",
+        "paymentPatterns": [
+          "unallocatedPaymentPattern"
+        ],
+        "explainedByPaymentTheory": true,
+        "paymentMatchConfidence": "medium"
+      },
+      {
+        "accountNo": "MAK013",
+        "fullName": "Rethabile Roland Makgae",
+        "ageAnalysisBalance": 10750,
+        "ledgerBalanceFromImport": 8550,
+        "adjustmentAmount": 2200,
+        "absAdjustmentAmount": 2200,
+        "variance": 2200,
+        "entryType": "invoice",
+        "reasonGroup": "possibleUnallocatedPayment",
+        "reasonDetail": "Payment/export skew (unallocatedPaymentPattern); fix allocation before relying on opening balance.",
+        "priorActiveMismatchReason": "trueBalanceMismatch",
+        "paymentPatterns": [
+          "unallocatedPaymentPattern"
+        ],
+        "explainedByPaymentTheory": true,
+        "paymentMatchConfidence": "medium"
+      },
+      {
+        "accountNo": "MAO001",
+        "fullName": "Amohelang Ororiseng Maoba",
+        "ageAnalysisBalance": 3000,
+        "ledgerBalanceFromImport": 800,
+        "adjustmentAmount": 2200,
+        "absAdjustmentAmount": 2200,
+        "variance": 2200,
+        "entryType": "invoice",
+        "reasonGroup": "possibleUnallocatedPayment",
+        "reasonDetail": "Payment/export skew (unallocatedPaymentPattern); fix allocation before relying on opening balance.",
+        "priorActiveMismatchReason": "trueBalanceMismatch",
+        "paymentPatterns": [
+          "unallocatedPaymentPattern"
+        ],
+        "explainedByPaymentTheory": true,
+        "paymentMatchConfidence": "medium"
+      },
+      {
+        "accountNo": "MAT021",
+        "fullName": "Reatlegile Kaone Matabane",
+        "ageAnalysisBalance": 14850,
+        "ledgerBalanceFromImport": 12650,
+        "adjustmentAmount": 2200,
+        "absAdjustmentAmount": 2200,
+        "variance": 2200,
+        "entryType": "invoice",
+        "reasonGroup": "possibleUnallocatedPayment",
+        "reasonDetail": "Payment/export skew (unallocatedPaymentPattern); fix allocation before relying on opening balance.",
+        "priorActiveMismatchReason": "trueBalanceMismatch",
+        "paymentPatterns": [
+          "unallocatedPaymentPattern"
+        ],
+        "explainedByPaymentTheory": true,
+        "paymentMatchConfidence": "medium"
+      },
+      {
+        "accountNo": "MOD005",
+        "fullName": "Kgolagano Kekaona Modise",
+        "ageAnalysisBalance": 3950,
+        "ledgerBalanceFromImport": 1750,
+        "adjustmentAmount": 2200,
+        "absAdjustmentAmount": 2200,
+        "variance": 2200,
+        "entryType": "invoice",
+        "reasonGroup": "possibleUnallocatedPayment",
+        "reasonDetail": "Payment/export skew (unallocatedPaymentPattern); fix allocation before relying on opening balance.",
+        "priorActiveMismatchReason": "trueBalanceMismatch",
+        "paymentPatterns": [
+          "unallocatedPaymentPattern"
+        ],
+        "explainedByPaymentTheory": true,
+        "paymentMatchConfidence": "medium"
+      },
+      {
+        "accountNo": "MOD006",
+        "fullName": "Tswelopele Botshelo Modisane",
+        "ageAnalysisBalance": 3500,
+        "ledgerBalanceFromImport": 1300,
+        "adjustmentAmount": 2200,
+        "absAdjustmentAmount": 2200,
+        "variance": 2200,
+        "entryType": "invoice",
+        "reasonGroup": "possibleUnallocatedPayment",
+        "reasonDetail": "Payment/export skew (unallocatedPaymentPattern); fix allocation before relying on opening balance.",
+        "priorActiveMismatchReason": "trueBalanceMismatch",
+        "paymentPatterns": [
+          "unallocatedPaymentPattern"
+        ],
+        "explainedByPaymentTheory": true,
+        "paymentMatchConfidence": "medium"
+      },
+      {
+        "accountNo": "MOE003",
+        "fullName": "Owethu Moeng",
+        "ageAnalysisBalance": 6300,
+        "ledgerBalanceFromImport": 4100,
+        "adjustmentAmount": 2200,
+        "absAdjustmentAmount": 2200,
+        "variance": 2200,
+        "entryType": "invoice",
+        "reasonGroup": "possibleUnallocatedPayment",
+        "reasonDetail": "Payment/export skew (unallocatedPaymentPattern); fix allocation before relying on opening balance.",
+        "priorActiveMismatchReason": "trueBalanceMismatch",
+        "paymentPatterns": [
+          "unallocatedPaymentPattern"
+        ],
+        "explainedByPaymentTheory": true,
+        "paymentMatchConfidence": "medium"
+      },
+      {
+        "accountNo": "MOS008",
+        "fullName": "Bokang Mosegedi",
+        "ageAnalysisBalance": 3200,
+        "ledgerBalanceFromImport": 1000,
+        "adjustmentAmount": 2200,
+        "absAdjustmentAmount": 2200,
+        "variance": 2200,
+        "entryType": "invoice",
+        "reasonGroup": "possibleUnallocatedPayment",
+        "reasonDetail": "Payment/export skew (unallocatedPaymentPattern); fix allocation before relying on opening balance.",
+        "priorActiveMismatchReason": "trueBalanceMismatch",
+        "paymentPatterns": [
+          "unallocatedPaymentPattern"
+        ],
+        "explainedByPaymentTheory": true,
+        "paymentMatchConfidence": "medium"
+      },
+      {
+        "accountNo": "MOT017",
+        "fullName": "Onkokeditse Motlhajwa",
+        "ageAnalysisBalance": 3700,
+        "ledgerBalanceFromImport": 1500,
+        "adjustmentAmount": 2200,
+        "absAdjustmentAmount": 2200,
+        "variance": 2200,
+        "entryType": "invoice",
+        "reasonGroup": "possibleUnallocatedPayment",
+        "reasonDetail": "Payment/export skew (unallocatedPaymentPattern); fix allocation before relying on opening balance.",
+        "priorActiveMismatchReason": "trueBalanceMismatch",
+        "paymentPatterns": [
+          "unallocatedPaymentPattern"
+        ],
+        "explainedByPaymentTheory": true,
+        "paymentMatchConfidence": "medium"
+      },
+      {
+        "accountNo": "MPA001",
+        "fullName": "Misokuhle Lathitha Mpangeva",
+        "ageAnalysisBalance": 6800,
+        "ledgerBalanceFromImport": 4600,
+        "adjustmentAmount": 2200,
+        "absAdjustmentAmount": 2200,
+        "variance": 2200,
+        "entryType": "invoice",
+        "reasonGroup": "possibleUnallocatedPayment",
+        "reasonDetail": "Payment/export skew (unallocatedPaymentPattern); fix allocation before relying on opening balance.",
+        "priorActiveMismatchReason": "trueBalanceMismatch",
+        "paymentPatterns": [
+          "unallocatedPaymentPattern"
+        ],
+        "explainedByPaymentTheory": true,
+        "paymentMatchConfidence": "medium"
+      },
+      {
+        "accountNo": "MPO001",
+        "fullName": "Kabo Mpodi",
+        "ageAnalysisBalance": 3700,
+        "ledgerBalanceFromImport": 1500,
+        "adjustmentAmount": 2200,
+        "absAdjustmentAmount": 2200,
+        "variance": 2200,
+        "entryType": "invoice",
+        "reasonGroup": "possibleUnallocatedPayment",
+        "reasonDetail": "Payment/export skew (unallocatedPaymentPattern); fix allocation before relying on opening balance.",
+        "priorActiveMismatchReason": "trueBalanceMismatch",
+        "paymentPatterns": [
+          "unallocatedPaymentPattern"
+        ],
+        "explainedByPaymentTheory": true,
+        "paymentMatchConfidence": "medium"
+      },
+      {
+        "accountNo": "MSI003",
+        "fullName": "Somusa Sibani Msimango",
+        "ageAnalysisBalance": 3700,
+        "ledgerBalanceFromImport": 1500,
+        "adjustmentAmount": 2200,
+        "absAdjustmentAmount": 2200,
+        "variance": 2200,
+        "entryType": "invoice",
+        "reasonGroup": "possibleUnallocatedPayment",
+        "reasonDetail": "Payment/export skew (unallocatedPaymentPattern); fix allocation before relying on opening balance.",
+        "priorActiveMismatchReason": "trueBalanceMismatch",
+        "paymentPatterns": [
+          "unallocatedPaymentPattern"
+        ],
+        "explainedByPaymentTheory": true,
+        "paymentMatchConfidence": "medium"
+      },
+      {
+        "accountNo": "MSI004",
+        "fullName": "Snekosi Msimango",
+        "ageAnalysisBalance": 8300,
+        "ledgerBalanceFromImport": 6100,
+        "adjustmentAmount": 2200,
+        "absAdjustmentAmount": 2200,
+        "variance": 2200,
+        "entryType": "invoice",
+        "reasonGroup": "possibleUnallocatedPayment",
+        "reasonDetail": "Payment/export skew (unallocatedPaymentPattern); fix allocation before relying on opening balance.",
+        "priorActiveMismatchReason": "trueBalanceMismatch",
+        "paymentPatterns": [
+          "unallocatedPaymentPattern"
+        ],
+        "explainedByPaymentTheory": true,
+        "paymentMatchConfidence": "medium"
+      },
+      {
+        "accountNo": "NTO003",
+        "fullName": "Phenyo Ntoula",
+        "ageAnalysisBalance": 3200,
+        "ledgerBalanceFromImport": 1000,
+        "adjustmentAmount": 2200,
+        "absAdjustmentAmount": 2200,
+        "variance": 2200,
+        "entryType": "invoice",
+        "reasonGroup": "possibleUnallocatedPayment",
+        "reasonDetail": "Payment/export skew (unallocatedPaymentPattern); fix allocation before relying on opening balance.",
+        "priorActiveMismatchReason": "trueBalanceMismatch",
+        "paymentPatterns": [
+          "unallocatedPaymentPattern"
+        ],
+        "explainedByPaymentTheory": true,
+        "paymentMatchConfidence": "medium"
+      },
+      {
+        "accountNo": "OSE001",
+        "fullName": "Osego Makgale",
+        "ageAnalysisBalance": 4500,
+        "ledgerBalanceFromImport": 2300,
+        "adjustmentAmount": 2200,
+        "absAdjustmentAmount": 2200,
+        "variance": 2200,
+        "entryType": "invoice",
+        "reasonGroup": "possibleUnallocatedPayment",
+        "reasonDetail": "Payment/export skew (unallocatedPaymentPattern); fix allocation before relying on opening balance.",
+        "priorActiveMismatchReason": "trueBalanceMismatch",
+        "paymentPatterns": [
+          "unallocatedPaymentPattern"
+        ],
+        "explainedByPaymentTheory": true,
+        "paymentMatchConfidence": "medium"
+      },
+      {
+        "accountNo": "PET002",
+        "fullName": "Obatlilwe Petlale",
+        "ageAnalysisBalance": 8600,
+        "ledgerBalanceFromImport": 6400,
+        "adjustmentAmount": 2200,
+        "absAdjustmentAmount": 2200,
+        "variance": 2200,
+        "entryType": "invoice",
+        "reasonGroup": "possibleUnallocatedPayment",
+        "reasonDetail": "Payment/export skew (unallocatedPaymentPattern); fix allocation before relying on opening balance.",
+        "priorActiveMismatchReason": "trueBalanceMismatch",
+        "paymentPatterns": [
+          "unallocatedPaymentPattern"
+        ],
+        "explainedByPaymentTheory": true,
+        "paymentMatchConfidence": "medium"
+      },
+      {
+        "accountNo": "RAM011",
+        "fullName": "Rethabile Ramalete",
+        "ageAnalysisBalance": 3550,
+        "ledgerBalanceFromImport": 1350,
+        "adjustmentAmount": 2200,
+        "absAdjustmentAmount": 2200,
+        "variance": 2200,
+        "entryType": "invoice",
+        "reasonGroup": "possibleUnallocatedPayment",
+        "reasonDetail": "Payment/export skew (unallocatedPaymentPattern); fix allocation before relying on opening balance.",
+        "priorActiveMismatchReason": "trueBalanceMismatch",
+        "paymentPatterns": [
+          "unallocatedPaymentPattern"
+        ],
+        "explainedByPaymentTheory": true,
+        "paymentMatchConfidence": "medium"
+      },
+      {
+        "accountNo": "RAM015",
+        "fullName": "Remoneilwe Johanna Mothuloe",
+        "ageAnalysisBalance": 3550,
+        "ledgerBalanceFromImport": 1350,
+        "adjustmentAmount": 2200,
+        "absAdjustmentAmount": 2200,
+        "variance": 2200,
+        "entryType": "invoice",
+        "reasonGroup": "possibleUnallocatedPayment",
+        "reasonDetail": "Payment/export skew (unallocatedPaymentPattern); fix allocation before relying on opening balance.",
+        "priorActiveMismatchReason": "trueBalanceMismatch",
+        "paymentPatterns": [
+          "unallocatedPaymentPattern"
+        ],
+        "explainedByPaymentTheory": true,
+        "paymentMatchConfidence": "medium"
+      },
+      {
+        "accountNo": "RAN002",
+        "fullName": "Omaatla Tlotlo Ranta",
+        "ageAnalysisBalance": 2800,
+        "ledgerBalanceFromImport": 600,
+        "adjustmentAmount": 2200,
+        "absAdjustmentAmount": 2200,
+        "variance": 2200,
+        "entryType": "invoice",
+        "reasonGroup": "possibleUnallocatedPayment",
+        "reasonDetail": "Payment/export skew (unallocatedPaymentPattern); fix allocation before relying on opening balance.",
+        "priorActiveMismatchReason": "trueBalanceMismatch",
+        "paymentPatterns": [
+          "unallocatedPaymentPattern"
+        ],
+        "explainedByPaymentTheory": true,
+        "paymentMatchConfidence": "medium"
+      },
+      {
+        "accountNo": "TAU003",
+        "fullName": "Unathi Tause",
+        "ageAnalysisBalance": 6300,
+        "ledgerBalanceFromImport": 4100,
+        "adjustmentAmount": 2200,
+        "absAdjustmentAmount": 2200,
+        "variance": 2200,
+        "entryType": "invoice",
+        "reasonGroup": "possibleUnallocatedPayment",
+        "reasonDetail": "Payment/export skew (unallocatedPaymentPattern); fix allocation before relying on opening balance.",
+        "priorActiveMismatchReason": "trueBalanceMismatch",
+        "paymentPatterns": [
+          "unallocatedPaymentPattern"
+        ],
+        "explainedByPaymentTheory": true,
+        "paymentMatchConfidence": "medium"
+      },
+      {
+        "accountNo": "THA003",
+        "fullName": "Omogolo Thakadu",
+        "ageAnalysisBalance": 3200,
+        "ledgerBalanceFromImport": 1000,
+        "adjustmentAmount": 2200,
+        "absAdjustmentAmount": 2200,
+        "variance": 2200,
+        "entryType": "invoice",
+        "reasonGroup": "possibleUnallocatedPayment",
+        "reasonDetail": "Payment/export skew (unallocatedPaymentPattern); fix allocation before relying on opening balance.",
+        "priorActiveMismatchReason": "trueBalanceMismatch",
+        "paymentPatterns": [
+          "unallocatedPaymentPattern"
+        ],
+        "explainedByPaymentTheory": true,
+        "paymentMatchConfidence": "medium"
+      },
+      {
+        "accountNo": "XAB001",
+        "fullName": "Paballo Pearl Xaba",
+        "ageAnalysisBalance": 4250,
+        "ledgerBalanceFromImport": 2050,
+        "adjustmentAmount": 2200,
+        "absAdjustmentAmount": 2200,
+        "variance": 2200,
+        "entryType": "invoice",
+        "reasonGroup": "possibleUnallocatedPayment",
+        "reasonDetail": "Payment/export skew (unallocatedPaymentPattern); fix allocation before relying on opening balance.",
+        "priorActiveMismatchReason": "trueBalanceMismatch",
+        "paymentPatterns": [
+          "unallocatedPaymentPattern"
+        ],
+        "explainedByPaymentTheory": true,
+        "paymentMatchConfidence": "medium"
+      },
+      {
+        "accountNo": "RAM009",
+        "fullName": "Omatla Malesela Ramagogogdi",
+        "ageAnalysisBalance": 4250,
+        "ledgerBalanceFromImport": 2070,
+        "adjustmentAmount": 2180,
+        "absAdjustmentAmount": 2180,
+        "variance": 2180,
+        "entryType": "invoice",
+        "reasonGroup": "possibleUnallocatedPayment",
+        "reasonDetail": "Payment/export skew (unallocatedPaymentPattern); fix allocation before relying on opening balance.",
+        "priorActiveMismatchReason": "trueBalanceMismatch",
+        "paymentPatterns": [
+          "unallocatedPaymentPattern"
+        ],
+        "explainedByPaymentTheory": true,
+        "paymentMatchConfidence": "medium"
+      },
+      {
+        "accountNo": "MAL006",
+        "fullName": "Reboikantse Omosa Mayana",
+        "ageAnalysisBalance": 5150,
+        "ledgerBalanceFromImport": 3000,
+        "adjustmentAmount": 2150,
+        "absAdjustmentAmount": 2150,
+        "variance": 2150,
+        "entryType": "invoice",
+        "reasonGroup": "possibleUnallocatedPayment",
+        "reasonDetail": "Payment/export skew (unallocatedPaymentPattern); fix allocation before relying on opening balance.",
+        "priorActiveMismatchReason": "trueBalanceMismatch",
+        "paymentPatterns": [
+          "unallocatedPaymentPattern"
+        ],
+        "explainedByPaymentTheory": true,
+        "paymentMatchConfidence": "medium"
+      },
+      {
+        "accountNo": "MOT007",
+        "fullName": "Bokamoso Menyatswe",
+        "ageAnalysisBalance": 8019.45,
+        "ledgerBalanceFromImport": 5920,
+        "adjustmentAmount": 2099.45,
+        "absAdjustmentAmount": 2099.45,
+        "variance": 2099.45,
+        "entryType": "invoice",
+        "reasonGroup": "possibleUnallocatedPayment",
+        "reasonDetail": "Payment/export skew (unallocatedPaymentPattern); fix allocation before relying on opening balance.",
+        "priorActiveMismatchReason": "trueBalanceMismatch",
+        "paymentPatterns": [
+          "unallocatedPaymentPattern"
+        ],
+        "explainedByPaymentTheory": true,
+        "paymentMatchConfidence": "medium"
+      },
+      {
+        "accountNo": "TSA001",
+        "fullName": "Omphile Tsame",
+        "ageAnalysisBalance": 3000,
+        "ledgerBalanceFromImport": 950,
+        "adjustmentAmount": 2050,
+        "absAdjustmentAmount": 2050,
+        "variance": 2050,
+        "entryType": "invoice",
+        "reasonGroup": "possibleUnallocatedPayment",
+        "reasonDetail": "Payment/export skew (unallocatedPaymentPattern); fix allocation before relying on opening balance.",
+        "priorActiveMismatchReason": "trueBalanceMismatch",
+        "paymentPatterns": [
+          "unallocatedPaymentPattern"
+        ],
+        "explainedByPaymentTheory": true,
+        "paymentMatchConfidence": "medium"
+      },
+      {
+        "accountNo": "MAS021",
+        "fullName": "Kamohelo Masilo",
+        "ageAnalysisBalance": 3700,
+        "ledgerBalanceFromImport": 1700,
+        "adjustmentAmount": 2000,
+        "absAdjustmentAmount": 2000,
+        "variance": 2000,
+        "entryType": "invoice",
+        "reasonGroup": "possibleUnallocatedPayment",
+        "reasonDetail": "Payment/export skew (unallocatedPaymentPattern); fix allocation before relying on opening balance.",
+        "priorActiveMismatchReason": "trueBalanceMismatch",
+        "paymentPatterns": [
+          "unallocatedPaymentPattern"
+        ],
+        "explainedByPaymentTheory": true,
+        "paymentMatchConfidence": "medium"
+      },
+      {
+        "accountNo": "MOK025",
+        "fullName": "Tshegofatso Remoratile Mokgatlhe",
+        "ageAnalysisBalance": 4900,
+        "ledgerBalanceFromImport": 2900,
+        "adjustmentAmount": 2000,
+        "absAdjustmentAmount": 2000,
+        "variance": 2000,
+        "entryType": "invoice",
+        "reasonGroup": "possibleUnallocatedPayment",
+        "reasonDetail": "Payment/export skew (unallocatedPaymentPattern); fix allocation before relying on opening balance.",
+        "priorActiveMismatchReason": "trueBalanceMismatch",
+        "paymentPatterns": [
+          "unallocatedPaymentPattern"
+        ],
+        "explainedByPaymentTheory": true,
+        "paymentMatchConfidence": "medium"
+      },
+      {
+        "accountNo": "NKO004",
+        "fullName": "Kabo Kealeboga Nkonyane",
+        "ageAnalysisBalance": 3700,
+        "ledgerBalanceFromImport": 1700,
+        "adjustmentAmount": 2000,
+        "absAdjustmentAmount": 2000,
+        "variance": 2000,
+        "entryType": "invoice",
+        "reasonGroup": "possibleUnallocatedPayment",
+        "reasonDetail": "Payment/export skew (unallocatedPaymentPattern); fix allocation before relying on opening balance.",
+        "priorActiveMismatchReason": "trueBalanceMismatch",
+        "paymentPatterns": [
+          "unallocatedPaymentPattern"
+        ],
+        "explainedByPaymentTheory": true,
+        "paymentMatchConfidence": "medium"
+      },
+      {
+        "accountNo": "MAP006",
+        "fullName": "Mvuselelo Jasper Maphumulo",
+        "ageAnalysisBalance": 8420,
+        "ledgerBalanceFromImport": 6485,
+        "adjustmentAmount": 1935,
+        "absAdjustmentAmount": 1935,
+        "variance": 1935,
+        "entryType": "invoice",
+        "reasonGroup": "possibleUnallocatedPayment",
+        "reasonDetail": "Payment/export skew (unallocatedPaymentPattern); fix allocation before relying on opening balance.",
+        "priorActiveMismatchReason": "trueBalanceMismatch",
+        "paymentPatterns": [
+          "unallocatedPaymentPattern"
+        ],
+        "explainedByPaymentTheory": true,
+        "paymentMatchConfidence": "medium"
+      },
+      {
+        "accountNo": "MAT016",
+        "fullName": "Otshepeng Matsietsa",
+        "ageAnalysisBalance": 6400,
+        "ledgerBalanceFromImport": 4500,
+        "adjustmentAmount": 1900,
+        "absAdjustmentAmount": 1900,
+        "variance": 1900,
+        "entryType": "invoice",
+        "reasonGroup": "possibleUnallocatedPayment",
+        "reasonDetail": "Payment/export skew (unallocatedPaymentPattern); fix allocation before relying on opening balance.",
+        "priorActiveMismatchReason": "trueBalanceMismatch",
+        "paymentPatterns": [
+          "unallocatedPaymentPattern"
+        ],
+        "explainedByPaymentTheory": true,
+        "paymentMatchConfidence": "medium"
+      },
+      {
+        "accountNo": "MKH002",
+        "fullName": "Ntsako Mkhasi",
+        "ageAnalysisBalance": 3700,
+        "ledgerBalanceFromImport": 1800,
+        "adjustmentAmount": 1900,
+        "absAdjustmentAmount": 1900,
+        "variance": 1900,
+        "entryType": "invoice",
+        "reasonGroup": "possibleUnallocatedPayment",
+        "reasonDetail": "Payment/export skew (unallocatedPaymentPattern); fix allocation before relying on opening balance.",
+        "priorActiveMismatchReason": "trueBalanceMismatch",
+        "paymentPatterns": [
+          "unallocatedPaymentPattern"
+        ],
+        "explainedByPaymentTheory": true,
+        "paymentMatchConfidence": "medium"
+      },
+      {
+        "accountNo": "SIN001",
+        "fullName": "Reneilwe Sindale",
+        "ageAnalysisBalance": 6700,
+        "ledgerBalanceFromImport": 4800,
+        "adjustmentAmount": 1900,
+        "absAdjustmentAmount": 1900,
+        "variance": 1900,
+        "entryType": "invoice",
+        "reasonGroup": "possibleUnallocatedPayment",
+        "reasonDetail": "Payment/export skew (unallocatedPaymentPattern); fix allocation before relying on opening balance.",
+        "priorActiveMismatchReason": "trueBalanceMismatch",
+        "paymentPatterns": [
+          "unallocatedPaymentPattern"
+        ],
+        "explainedByPaymentTheory": true,
+        "paymentMatchConfidence": "medium"
+      },
+      {
+        "accountNo": "KIN001",
+        "fullName": "Omatla Sensation Kwele",
+        "ageAnalysisBalance": 3200,
+        "ledgerBalanceFromImport": 1500,
+        "adjustmentAmount": 1700,
+        "absAdjustmentAmount": 1700,
+        "variance": 1700,
+        "entryType": "invoice",
+        "reasonGroup": "possibleUnallocatedPayment",
+        "reasonDetail": "Payment/export skew (unallocatedPaymentPattern); fix allocation before relying on opening balance.",
+        "priorActiveMismatchReason": "trueBalanceMismatch",
+        "paymentPatterns": [
+          "unallocatedPaymentPattern"
+        ],
+        "explainedByPaymentTheory": true,
+        "paymentMatchConfidence": "medium"
+      },
+      {
+        "accountNo": "MOD004",
+        "fullName": "Tshimologo Modise",
+        "ageAnalysisBalance": 2300,
+        "ledgerBalanceFromImport": 600,
+        "adjustmentAmount": 1700,
+        "absAdjustmentAmount": 1700,
+        "variance": 1700,
+        "entryType": "invoice",
+        "reasonGroup": "possibleUnallocatedPayment",
+        "reasonDetail": "Payment/export skew (unallocatedPaymentPattern); fix allocation before relying on opening balance.",
+        "priorActiveMismatchReason": "trueBalanceMismatch",
+        "paymentPatterns": [
+          "unallocatedPaymentPattern"
+        ],
+        "explainedByPaymentTheory": true,
+        "paymentMatchConfidence": "medium"
+      },
+      {
+        "accountNo": "PHI003",
+        "fullName": "Ethan Jacobus Phillips",
+        "ageAnalysisBalance": 3000,
+        "ledgerBalanceFromImport": 1300,
+        "adjustmentAmount": 1700,
+        "absAdjustmentAmount": 1700,
+        "variance": 1700,
+        "entryType": "invoice",
+        "reasonGroup": "possibleUnallocatedPayment",
+        "reasonDetail": "Payment/export skew (unallocatedPaymentPattern); fix allocation before relying on opening balance.",
+        "priorActiveMismatchReason": "trueBalanceMismatch",
+        "paymentPatterns": [
+          "unallocatedPaymentPattern"
+        ],
+        "explainedByPaymentTheory": true,
+        "paymentMatchConfidence": "medium"
+      },
+      {
+        "accountNo": "LEG003",
+        "fullName": "Thato Legari",
+        "ageAnalysisBalance": 4350,
+        "ledgerBalanceFromImport": 2750,
+        "adjustmentAmount": 1600,
+        "absAdjustmentAmount": 1600,
+        "variance": 1600,
+        "entryType": "invoice",
+        "reasonGroup": "possibleUnallocatedPayment",
+        "reasonDetail": "Payment/export skew (unallocatedPaymentPattern); fix allocation before relying on opening balance.",
+        "priorActiveMismatchReason": "trueBalanceMismatch",
+        "paymentPatterns": [
+          "unallocatedPaymentPattern"
+        ],
+        "explainedByPaymentTheory": true,
+        "paymentMatchConfidence": "medium"
+      },
+      {
+        "accountNo": "MAB008",
+        "fullName": "Tlotlego Mabena",
+        "ageAnalysisBalance": 2500,
+        "ledgerBalanceFromImport": 900,
+        "adjustmentAmount": 1600,
+        "absAdjustmentAmount": 1600,
+        "variance": 1600,
+        "entryType": "invoice",
+        "reasonGroup": "possibleUnallocatedPayment",
+        "reasonDetail": "Payment/export skew (unallocatedPaymentPattern); fix allocation before relying on opening balance.",
+        "priorActiveMismatchReason": "trueBalanceMismatch",
+        "paymentPatterns": [
+          "unallocatedPaymentPattern"
+        ],
+        "explainedByPaymentTheory": true,
+        "paymentMatchConfidence": "medium"
+      },
+      {
+        "accountNo": "MOK028",
+        "fullName": "Ofentse Mokua",
+        "ageAnalysisBalance": 3550,
+        "ledgerBalanceFromImport": 2100,
+        "adjustmentAmount": 1450,
+        "absAdjustmentAmount": 1450,
+        "variance": 1450,
+        "entryType": "invoice",
+        "reasonGroup": "possibleUnallocatedPayment",
+        "reasonDetail": "Payment/export skew (unallocatedPaymentPattern); fix allocation before relying on opening balance.",
+        "priorActiveMismatchReason": "trueBalanceMismatch",
+        "paymentPatterns": [
+          "unallocatedPaymentPattern"
+        ],
+        "explainedByPaymentTheory": true,
+        "paymentMatchConfidence": "medium"
+      },
+      {
+        "accountNo": "SEN002",
+        "fullName": "Peoentle Senne",
+        "ageAnalysisBalance": 7150,
+        "ledgerBalanceFromImport": 5715,
+        "adjustmentAmount": 1435,
+        "absAdjustmentAmount": 1435,
+        "variance": 1435,
+        "entryType": "invoice",
+        "reasonGroup": "possibleUnallocatedPayment",
+        "reasonDetail": "Payment/export skew (unallocatedPaymentPattern); fix allocation before relying on opening balance.",
+        "priorActiveMismatchReason": "trueBalanceMismatch",
+        "paymentPatterns": [
+          "unallocatedPaymentPattern"
+        ],
+        "explainedByPaymentTheory": true,
+        "paymentMatchConfidence": "medium"
+      },
+      {
+        "accountNo": "LEK003",
+        "fullName": "Phetogo Lekgetho Moruledi",
+        "ageAnalysisBalance": 7200,
+        "ledgerBalanceFromImport": 6145,
+        "adjustmentAmount": 1055,
+        "absAdjustmentAmount": 1055,
+        "variance": 1055,
+        "entryType": "invoice",
+        "reasonGroup": "possibleUnallocatedPayment",
+        "reasonDetail": "Payment/export skew (unallocatedPaymentPattern, crossAccountCreditOnLinked); fix allocation before relying on opening balance.",
+        "priorActiveMismatchReason": "trueBalanceMismatch",
+        "paymentPatterns": [
+          "unallocatedPaymentPattern",
+          "crossAccountCreditOnLinked"
+        ],
+        "explainedByPaymentTheory": true,
+        "paymentMatchConfidence": "medium"
+      },
+      {
+        "accountNo": "GOV001",
+        "fullName": "Caleb Nathan Govender",
+        "ageAnalysisBalance": 1000,
+        "ledgerBalanceFromImport": 0,
+        "adjustmentAmount": 1000,
+        "absAdjustmentAmount": 1000,
+        "variance": 1000,
+        "entryType": "invoice",
+        "reasonGroup": "possibleUnallocatedPayment",
+        "reasonDetail": "Payment/export skew (unallocatedPaymentPattern); fix allocation before relying on opening balance.",
+        "priorActiveMismatchReason": "trueBalanceMismatch",
+        "paymentPatterns": [
+          "unallocatedPaymentPattern"
+        ],
+        "explainedByPaymentTheory": true,
+        "paymentMatchConfidence": "medium"
+      },
+      {
+        "accountNo": "DIA003",
+        "fullName": "Amogelang Warona Diatshwana",
+        "ageAnalysisBalance": 2500,
+        "ledgerBalanceFromImport": 1600,
+        "adjustmentAmount": 900,
+        "absAdjustmentAmount": 900,
+        "variance": 900,
+        "entryType": "invoice",
+        "reasonGroup": "possibleUnallocatedPayment",
+        "reasonDetail": "Payment/export skew (unallocatedPaymentPattern); fix allocation before relying on opening balance.",
+        "priorActiveMismatchReason": "trueBalanceMismatch",
+        "paymentPatterns": [
+          "unallocatedPaymentPattern"
+        ],
+        "explainedByPaymentTheory": true,
+        "paymentMatchConfidence": "medium"
+      },
+      {
+        "accountNo": "TSH006",
+        "fullName": "Reitumetse Naledi Njabulo Tshiponyane Setae",
+        "ageAnalysisBalance": 2850,
+        "ledgerBalanceFromImport": 2160,
+        "adjustmentAmount": 690,
+        "absAdjustmentAmount": 690,
+        "variance": 690,
+        "entryType": "invoice",
+        "reasonGroup": "possibleUnallocatedPayment",
+        "reasonDetail": "Payment/export skew (unallocatedPaymentPattern); fix allocation before relying on opening balance.",
+        "priorActiveMismatchReason": "trueBalanceMismatch",
+        "paymentPatterns": [
+          "unallocatedPaymentPattern"
+        ],
+        "explainedByPaymentTheory": true,
+        "paymentMatchConfidence": "medium"
+      },
+      {
+        "accountNo": "MOL010",
+        "fullName": "Oagile Kabo Molete",
+        "ageAnalysisBalance": 3700,
+        "ledgerBalanceFromImport": 3030,
+        "adjustmentAmount": 670,
+        "absAdjustmentAmount": 670,
+        "variance": 670,
+        "entryType": "invoice",
+        "reasonGroup": "possibleUnallocatedPayment",
+        "reasonDetail": "Payment/export skew (unallocatedPaymentPattern); fix allocation before relying on opening balance.",
+        "priorActiveMismatchReason": "trueBalanceMismatch",
+        "paymentPatterns": [
+          "unallocatedPaymentPattern"
+        ],
+        "explainedByPaymentTheory": true,
+        "paymentMatchConfidence": "medium"
+      },
+      {
+        "accountNo": "MOK019",
+        "fullName": "Keitumetse Mokgotho",
+        "ageAnalysisBalance": 4500,
+        "ledgerBalanceFromImport": 4150,
+        "adjustmentAmount": 350,
+        "absAdjustmentAmount": 350,
+        "variance": 350,
+        "entryType": "invoice",
+        "reasonGroup": "possibleUnallocatedPayment",
+        "reasonDetail": "Payment/export skew (unallocatedPaymentPattern); fix allocation before relying on opening balance.",
+        "priorActiveMismatchReason": "trueBalanceMismatch",
+        "paymentPatterns": [
+          "unallocatedPaymentPattern"
+        ],
+        "explainedByPaymentTheory": true,
+        "paymentMatchConfidence": "medium"
+      },
+      {
+        "accountNo": "GAE001",
+        "fullName": "Orateng Gaebolae",
+        "ageAnalysisBalance": 6800,
+        "ledgerBalanceFromImport": 6455,
+        "adjustmentAmount": 345,
+        "absAdjustmentAmount": 345,
+        "variance": 345,
+        "entryType": "invoice",
+        "reasonGroup": "possibleUnallocatedPayment",
+        "reasonDetail": "Payment/export skew (unallocatedPaymentPattern); fix allocation before relying on opening balance.",
+        "priorActiveMismatchReason": "trueBalanceMismatch",
+        "paymentPatterns": [
+          "unallocatedPaymentPattern"
+        ],
+        "explainedByPaymentTheory": true,
+        "paymentMatchConfidence": "medium"
+      }
+    ],
+    "possibleDuplicatedHistoricalCredit": [
+      {
+        "accountNo": "MOE004",
+        "fullName": "Kgato Fenyang Moeng",
+        "ageAnalysisBalance": 3850,
+        "ledgerBalanceFromImport": -9080,
+        "adjustmentAmount": 12930,
+        "absAdjustmentAmount": 12930,
+        "variance": 12930,
+        "entryType": "invoice",
+        "reasonGroup": "possibleDuplicatedHistoricalCredit",
+        "reasonDetail": "Prior audit: duplicate name, overpaid section, or ledger credit vs age debt.",
+        "priorActiveMismatchReason": "possibleDuplicateOrHistoricalCredit",
+        "paymentPatterns": [
+          "negativeLedgerPositiveAge",
+          "paymentsWithoutInvoiceCoverage",
+          "unallocatedPaymentPattern"
+        ],
+        "explainedByPaymentTheory": true,
+        "paymentMatchConfidence": "medium"
+      },
+      {
+        "accountNo": "NDL008",
+        "fullName": "Amukelani Gift Ndlovu",
+        "ageAnalysisBalance": 4305,
+        "ledgerBalanceFromImport": -2610,
+        "adjustmentAmount": 6915,
+        "absAdjustmentAmount": 6915,
+        "variance": 6915,
+        "entryType": "invoice",
+        "reasonGroup": "possibleDuplicatedHistoricalCredit",
+        "reasonDetail": "Prior audit: duplicate name, overpaid section, or ledger credit vs age debt.",
+        "priorActiveMismatchReason": "possibleDuplicateOrHistoricalCredit",
+        "paymentPatterns": [
+          "negativeLedgerPositiveAge",
+          "paymentsWithoutInvoiceCoverage",
+          "unallocatedPaymentPattern"
+        ],
+        "explainedByPaymentTheory": true,
+        "paymentMatchConfidence": "medium"
+      },
+      {
+        "accountNo": "NGA002",
+        "fullName": "Bonang Mmokwa",
+        "ageAnalysisBalance": 9200,
+        "ledgerBalanceFromImport": 3025,
+        "adjustmentAmount": 6175,
+        "absAdjustmentAmount": 6175,
+        "variance": 6175,
+        "entryType": "invoice",
+        "reasonGroup": "possibleDuplicatedHistoricalCredit",
+        "reasonDetail": "Prior audit: duplicate name, overpaid section, or ledger credit vs age debt.",
+        "priorActiveMismatchReason": "possibleDuplicateOrHistoricalCredit",
+        "paymentPatterns": [
+          "unallocatedPaymentPattern"
+        ],
+        "explainedByPaymentTheory": true,
+        "paymentMatchConfidence": "medium"
+      },
+      {
+        "accountNo": "NHL001",
+        "fullName": "Rorisang Nhlapo",
+        "ageAnalysisBalance": 3800,
+        "ledgerBalanceFromImport": -1700,
+        "adjustmentAmount": 5500,
+        "absAdjustmentAmount": 5500,
+        "variance": 5500,
+        "entryType": "invoice",
+        "reasonGroup": "possibleDuplicatedHistoricalCredit",
+        "reasonDetail": "Prior audit: duplicate name, overpaid section, or ledger credit vs age debt.",
+        "priorActiveMismatchReason": "possibleDuplicateOrHistoricalCredit",
+        "paymentPatterns": [
+          "negativeLedgerPositiveAge",
+          "paymentsWithoutInvoiceCoverage",
+          "unallocatedPaymentPattern"
+        ],
+        "explainedByPaymentTheory": true,
+        "paymentMatchConfidence": "medium"
+      },
+      {
+        "accountNo": "NDL009",
+        "fullName": "Goitseone Ndlovu",
+        "ageAnalysisBalance": 3700,
+        "ledgerBalanceFromImport": -1600,
+        "adjustmentAmount": 5300,
+        "absAdjustmentAmount": 5300,
+        "variance": 5300,
+        "entryType": "invoice",
+        "reasonGroup": "possibleDuplicatedHistoricalCredit",
+        "reasonDetail": "Prior audit: duplicate name, overpaid section, or ledger credit vs age debt.",
+        "priorActiveMismatchReason": "possibleDuplicateOrHistoricalCredit",
+        "paymentPatterns": [
+          "negativeLedgerPositiveAge",
+          "paymentsWithoutInvoiceCoverage",
+          "unallocatedPaymentPattern"
+        ],
+        "explainedByPaymentTheory": true,
+        "paymentMatchConfidence": "medium"
+      },
+      {
+        "accountNo": "MON006",
+        "fullName": "Oboitshepo Monewe",
+        "ageAnalysisBalance": 4400,
+        "ledgerBalanceFromImport": -670,
+        "adjustmentAmount": 5070,
+        "absAdjustmentAmount": 5070,
+        "variance": 5070,
+        "entryType": "invoice",
+        "reasonGroup": "possibleDuplicatedHistoricalCredit",
+        "reasonDetail": "Prior audit: duplicate name, overpaid section, or ledger credit vs age debt.",
+        "priorActiveMismatchReason": "possibleDuplicateOrHistoricalCredit",
+        "paymentPatterns": [
+          "negativeLedgerPositiveAge",
+          "paymentsWithoutInvoiceCoverage",
+          "unallocatedPaymentPattern"
+        ],
+        "explainedByPaymentTheory": true,
+        "paymentMatchConfidence": "medium"
+      },
+      {
+        "accountNo": "MOT010",
+        "fullName": "Tokelo Motshwanedi",
+        "ageAnalysisBalance": 3000,
+        "ledgerBalanceFromImport": -1965,
+        "adjustmentAmount": 4965,
+        "absAdjustmentAmount": 4965,
+        "variance": 4965,
+        "entryType": "invoice",
+        "reasonGroup": "possibleDuplicatedHistoricalCredit",
+        "reasonDetail": "Prior audit: duplicate name, overpaid section, or ledger credit vs age debt.",
+        "priorActiveMismatchReason": "possibleDuplicateOrHistoricalCredit",
+        "paymentPatterns": [
+          "negativeLedgerPositiveAge",
+          "paymentsWithoutInvoiceCoverage",
+          "unallocatedPaymentPattern"
+        ],
+        "explainedByPaymentTheory": true,
+        "paymentMatchConfidence": "medium"
+      },
+      {
+        "accountNo": "MAT020",
+        "fullName": "Bokamoso Matima",
+        "ageAnalysisBalance": 4250,
+        "ledgerBalanceFromImport": -700,
+        "adjustmentAmount": 4950,
+        "absAdjustmentAmount": 4950,
+        "variance": 4950,
+        "entryType": "invoice",
+        "reasonGroup": "possibleDuplicatedHistoricalCredit",
+        "reasonDetail": "Prior audit: duplicate name, overpaid section, or ledger credit vs age debt.",
+        "priorActiveMismatchReason": "possibleDuplicateOrHistoricalCredit",
+        "paymentPatterns": [
+          "negativeLedgerPositiveAge",
+          "paymentsWithoutInvoiceCoverage",
+          "unallocatedPaymentPattern"
+        ],
+        "explainedByPaymentTheory": true,
+        "paymentMatchConfidence": "medium"
+      },
+      {
+        "accountNo": "LAN002",
+        "fullName": "Obakeng Langeni",
+        "ageAnalysisBalance": 2920,
+        "ledgerBalanceFromImport": -1630,
+        "adjustmentAmount": 4550,
+        "absAdjustmentAmount": 4550,
+        "variance": 4550,
+        "entryType": "invoice",
+        "reasonGroup": "possibleDuplicatedHistoricalCredit",
+        "reasonDetail": "Prior audit: duplicate name, overpaid section, or ledger credit vs age debt.",
+        "priorActiveMismatchReason": "possibleDuplicateOrHistoricalCredit",
+        "paymentPatterns": [
+          "negativeLedgerPositiveAge",
+          "paymentsWithoutInvoiceCoverage",
+          "unallocatedPaymentPattern"
+        ],
+        "explainedByPaymentTheory": true,
+        "paymentMatchConfidence": "medium"
+      },
+      {
+        "accountNo": "TSH003",
+        "fullName": "Amphe Lily Tsholoba",
+        "ageAnalysisBalance": 3550,
+        "ledgerBalanceFromImport": -950,
+        "adjustmentAmount": 4500,
+        "absAdjustmentAmount": 4500,
+        "variance": 4500,
+        "entryType": "invoice",
+        "reasonGroup": "possibleDuplicatedHistoricalCredit",
+        "reasonDetail": "Prior audit: duplicate name, overpaid section, or ledger credit vs age debt.",
+        "priorActiveMismatchReason": "possibleDuplicateOrHistoricalCredit",
+        "paymentPatterns": [
+          "negativeLedgerPositiveAge",
+          "paymentsWithoutInvoiceCoverage",
+          "unallocatedPaymentPattern"
+        ],
+        "explainedByPaymentTheory": true,
+        "paymentMatchConfidence": "medium"
+      },
+      {
+        "accountNo": "MAK014",
+        "fullName": "Reitumetse Makwakwa",
+        "ageAnalysisBalance": 3950,
+        "ledgerBalanceFromImport": -515,
+        "adjustmentAmount": 4465,
+        "absAdjustmentAmount": 4465,
+        "variance": 4465,
+        "entryType": "invoice",
+        "reasonGroup": "possibleDuplicatedHistoricalCredit",
+        "reasonDetail": "Prior audit: duplicate name, overpaid section, or ledger credit vs age debt.",
+        "priorActiveMismatchReason": "possibleDuplicateOrHistoricalCredit",
+        "paymentPatterns": [
+          "negativeLedgerPositiveAge",
+          "paymentsWithoutInvoiceCoverage",
+          "unallocatedPaymentPattern"
+        ],
+        "explainedByPaymentTheory": true,
+        "paymentMatchConfidence": "medium"
+      },
+      {
+        "accountNo": "SEI859",
+        "fullName": "Leano Seichokelo",
+        "ageAnalysisBalance": 3800,
+        "ledgerBalanceFromImport": -359,
+        "adjustmentAmount": 4159,
+        "absAdjustmentAmount": 4159,
+        "variance": 4159,
+        "entryType": "invoice",
+        "reasonGroup": "possibleDuplicatedHistoricalCredit",
+        "reasonDetail": "Prior audit: duplicate name, overpaid section, or ledger credit vs age debt.",
+        "priorActiveMismatchReason": "possibleDuplicateOrHistoricalCredit",
+        "paymentPatterns": [
+          "negativeLedgerPositiveAge",
+          "unallocatedPaymentPattern"
+        ],
+        "explainedByPaymentTheory": true,
+        "paymentMatchConfidence": "medium"
+      },
+      {
+        "accountNo": "MPI102",
+        "fullName": "Neo Lethabo Mpiko",
+        "ageAnalysisBalance": 3800,
+        "ledgerBalanceFromImport": 205,
+        "adjustmentAmount": 3595,
+        "absAdjustmentAmount": 3595,
+        "variance": 3595,
+        "entryType": "invoice",
+        "reasonGroup": "possibleDuplicatedHistoricalCredit",
+        "reasonDetail": "Prior audit: duplicate name, overpaid section, or ledger credit vs age debt.",
+        "priorActiveMismatchReason": "possibleDuplicateOrHistoricalCredit",
+        "paymentPatterns": [
+          "unallocatedPaymentPattern"
+        ],
+        "explainedByPaymentTheory": true,
+        "paymentMatchConfidence": "medium"
+      },
+      {
+        "accountNo": "MQA001",
+        "fullName": "Shaun Vuyolwethu Mqali",
+        "ageAnalysisBalance": 4700,
+        "ledgerBalanceFromImport": 1950,
+        "adjustmentAmount": 2750,
+        "absAdjustmentAmount": 2750,
+        "variance": 2750,
+        "entryType": "invoice",
+        "reasonGroup": "possibleDuplicatedHistoricalCredit",
+        "reasonDetail": "Prior audit: duplicate name, overpaid section, or ledger credit vs age debt.",
+        "priorActiveMismatchReason": "possibleDuplicateOrHistoricalCredit",
+        "paymentPatterns": [
+          "unallocatedPaymentPattern"
+        ],
+        "explainedByPaymentTheory": true,
+        "paymentMatchConfidence": "medium"
+      },
+      {
+        "accountNo": "GAE002",
+        "fullName": "Reitumetse Gaebone",
+        "ageAnalysisBalance": 4520,
+        "ledgerBalanceFromImport": 2320,
+        "adjustmentAmount": 2200,
+        "absAdjustmentAmount": 2200,
+        "variance": 2200,
+        "entryType": "invoice",
+        "reasonGroup": "possibleDuplicatedHistoricalCredit",
+        "reasonDetail": "Prior audit: duplicate name, overpaid section, or ledger credit vs age debt.",
+        "priorActiveMismatchReason": "possibleDuplicateOrHistoricalCredit",
+        "paymentPatterns": [
+          "unallocatedPaymentPattern"
+        ],
+        "explainedByPaymentTheory": true,
+        "paymentMatchConfidence": "medium"
+      },
+      {
+        "accountNo": "KGO003",
+        "fullName": "Refiloe Kgokong",
+        "ageAnalysisBalance": 5000,
+        "ledgerBalanceFromImport": 2800,
+        "adjustmentAmount": 2200,
+        "absAdjustmentAmount": 2200,
+        "variance": 2200,
+        "entryType": "invoice",
+        "reasonGroup": "possibleDuplicatedHistoricalCredit",
+        "reasonDetail": "Prior audit: duplicate name, overpaid section, or ledger credit vs age debt.",
+        "priorActiveMismatchReason": "possibleDuplicateOrHistoricalCredit",
+        "paymentPatterns": [
+          "unallocatedPaymentPattern"
+        ],
+        "explainedByPaymentTheory": true,
+        "paymentMatchConfidence": "medium"
+      },
+      {
+        "accountNo": "MOR008",
+        "fullName": "Keitumetse Morwe",
+        "ageAnalysisBalance": 450,
+        "ledgerBalanceFromImport": -1750,
+        "adjustmentAmount": 2200,
+        "absAdjustmentAmount": 2200,
+        "variance": 2200,
+        "entryType": "invoice",
+        "reasonGroup": "possibleDuplicatedHistoricalCredit",
+        "reasonDetail": "Prior audit: duplicate name, overpaid section, or ledger credit vs age debt.",
+        "priorActiveMismatchReason": "possibleDuplicateOrHistoricalCredit",
+        "paymentPatterns": [
+          "negativeLedgerPositiveAge",
+          "paymentsWithoutInvoiceCoverage",
+          "unallocatedPaymentPattern"
+        ],
+        "explainedByPaymentTheory": true,
+        "paymentMatchConfidence": "medium"
+      },
+      {
+        "accountNo": "MOT026",
+        "fullName": "Kamogelo Junior Motlhoki",
+        "ageAnalysisBalance": 11400,
+        "ledgerBalanceFromImport": 9200,
+        "adjustmentAmount": 2200,
+        "absAdjustmentAmount": 2200,
+        "variance": 2200,
+        "entryType": "invoice",
+        "reasonGroup": "possibleDuplicatedHistoricalCredit",
+        "reasonDetail": "Prior audit: duplicate name, overpaid section, or ledger credit vs age debt.",
+        "priorActiveMismatchReason": "possibleDuplicateOrHistoricalCredit",
+        "paymentPatterns": [
+          "unallocatedPaymentPattern"
+        ],
+        "explainedByPaymentTheory": true,
+        "paymentMatchConfidence": "medium"
+      },
+      {
+        "accountNo": "NKA003",
+        "fullName": "Ngcebo Sindiso Nkabane",
+        "ageAnalysisBalance": 4500,
+        "ledgerBalanceFromImport": 2300,
+        "adjustmentAmount": 2200,
+        "absAdjustmentAmount": 2200,
+        "variance": 2200,
+        "entryType": "invoice",
+        "reasonGroup": "possibleDuplicatedHistoricalCredit",
+        "reasonDetail": "Prior audit: duplicate name, overpaid section, or ledger credit vs age debt.",
+        "priorActiveMismatchReason": "possibleDuplicateOrHistoricalCredit",
+        "paymentPatterns": [
+          "unallocatedPaymentPattern"
+        ],
+        "explainedByPaymentTheory": true,
+        "paymentMatchConfidence": "medium"
+      },
+      {
+        "accountNo": "SES001",
+        "fullName": "Osego Seswai",
+        "ageAnalysisBalance": 4200,
+        "ledgerBalanceFromImport": 2000,
+        "adjustmentAmount": 2200,
+        "absAdjustmentAmount": 2200,
+        "variance": 2200,
+        "entryType": "invoice",
+        "reasonGroup": "possibleDuplicatedHistoricalCredit",
+        "reasonDetail": "Prior audit: duplicate name, overpaid section, or ledger credit vs age debt.",
+        "priorActiveMismatchReason": "possibleDuplicateOrHistoricalCredit",
+        "paymentPatterns": [
+          "unallocatedPaymentPattern"
+        ],
+        "explainedByPaymentTheory": true,
+        "paymentMatchConfidence": "medium"
+      },
+      {
+        "accountNo": "TLH003",
+        "fullName": "Whisper Oreneile Rethabile Tlhabanelo",
+        "ageAnalysisBalance": 6800,
+        "ledgerBalanceFromImport": 4600,
+        "adjustmentAmount": 2200,
+        "absAdjustmentAmount": 2200,
+        "variance": 2200,
+        "entryType": "invoice",
+        "reasonGroup": "possibleDuplicatedHistoricalCredit",
+        "reasonDetail": "Prior audit: duplicate name, overpaid section, or ledger credit vs age debt.",
+        "priorActiveMismatchReason": "possibleDuplicateOrHistoricalCredit",
+        "paymentPatterns": [
+          "unallocatedPaymentPattern"
+        ],
+        "explainedByPaymentTheory": true,
+        "paymentMatchConfidence": "medium"
+      },
+      {
+        "accountNo": "CET001",
+        "fullName": "Yonwaba Cetshane",
+        "ageAnalysisBalance": 6250,
+        "ledgerBalanceFromImport": 4090,
+        "adjustmentAmount": 2160,
+        "absAdjustmentAmount": 2160,
+        "variance": 2160,
+        "entryType": "invoice",
+        "reasonGroup": "possibleDuplicatedHistoricalCredit",
+        "reasonDetail": "Prior audit: duplicate name, overpaid section, or ledger credit vs age debt.",
+        "priorActiveMismatchReason": "possibleDuplicateOrHistoricalCredit",
+        "paymentPatterns": [
+          "unallocatedPaymentPattern"
+        ],
+        "explainedByPaymentTheory": true,
+        "paymentMatchConfidence": "medium"
+      },
+      {
+        "accountNo": "MOK020",
+        "fullName": "Emmanuella Nyakallo Mokoena",
+        "ageAnalysisBalance": 3700,
+        "ledgerBalanceFromImport": 1650,
+        "adjustmentAmount": 2050,
+        "absAdjustmentAmount": 2050,
+        "variance": 2050,
+        "entryType": "invoice",
+        "reasonGroup": "possibleDuplicatedHistoricalCredit",
+        "reasonDetail": "Prior audit: duplicate name, overpaid section, or ledger credit vs age debt.",
+        "priorActiveMismatchReason": "possibleDuplicateOrHistoricalCredit",
+        "paymentPatterns": [
+          "unallocatedPaymentPattern"
+        ],
+        "explainedByPaymentTheory": true,
+        "paymentMatchConfidence": "medium"
+      },
+      {
+        "accountNo": "LER002",
+        "fullName": "Realeboga Leroke",
+        "ageAnalysisBalance": 3450,
+        "ledgerBalanceFromImport": 1450,
+        "adjustmentAmount": 2000,
+        "absAdjustmentAmount": 2000,
+        "variance": 2000,
+        "entryType": "invoice",
+        "reasonGroup": "possibleDuplicatedHistoricalCredit",
+        "reasonDetail": "Prior audit: duplicate name, overpaid section, or ledger credit vs age debt.",
+        "priorActiveMismatchReason": "possibleDuplicateOrHistoricalCredit",
+        "paymentPatterns": [
+          "unallocatedPaymentPattern"
+        ],
+        "explainedByPaymentTheory": true,
+        "paymentMatchConfidence": "medium"
+      },
+      {
+        "accountNo": "POO002",
+        "fullName": "Tshenolo Emmanuel Poo",
+        "ageAnalysisBalance": 19350,
+        "ledgerBalanceFromImport": 18550,
+        "adjustmentAmount": 800,
+        "absAdjustmentAmount": 800,
+        "variance": 800,
+        "entryType": "invoice",
+        "reasonGroup": "possibleDuplicatedHistoricalCredit",
+        "reasonDetail": "Prior audit: duplicate name, overpaid section, or ledger credit vs age debt.",
+        "priorActiveMismatchReason": "possibleDuplicateOrHistoricalCredit",
+        "paymentPatterns": [
+          "unallocatedPaymentPattern"
+        ],
+        "explainedByPaymentTheory": true,
+        "paymentMatchConfidence": "medium"
+      },
+      {
+        "accountNo": "MOR004",
+        "fullName": "Onthatile Morobane",
+        "ageAnalysisBalance": 7100,
+        "ledgerBalanceFromImport": 7030,
+        "adjustmentAmount": 70,
+        "absAdjustmentAmount": 70,
+        "variance": 70,
+        "entryType": "invoice",
+        "reasonGroup": "possibleDuplicatedHistoricalCredit",
+        "reasonDetail": "Prior audit: duplicate name, overpaid section, or ledger credit vs age debt.",
+        "priorActiveMismatchReason": "possibleDuplicateOrHistoricalCredit",
+        "paymentPatterns": [
+          "unallocatedPaymentPattern"
+        ],
+        "explainedByPaymentTheory": true,
+        "paymentMatchConfidence": "high"
+      }
+    ],
+    "inverseProblemLedgerGreaterThanAge": [
+      {
+        "accountNo": "MOL003",
+        "fullName": "Molebogeng Maselela",
+        "ageAnalysisBalance": 4710,
+        "ledgerBalanceFromImport": 7910,
+        "adjustmentAmount": -3200,
+        "absAdjustmentAmount": 3200,
+        "variance": -3200,
+        "entryType": "credit",
+        "reasonGroup": "inverseProblemLedgerGreaterThanAge",
+        "reasonDetail": "Ledger R7910 exceeds age R4710; opening credit R3200 may mask export over-statement.",
+        "priorActiveMismatchReason": "possibleDuplicateOrHistoricalCredit",
+        "paymentPatterns": [],
+        "explainedByPaymentTheory": false,
+        "paymentMatchConfidence": "none"
+      },
+      {
+        "accountNo": "MOL044",
+        "fullName": "Omontle Molefe",
+        "ageAnalysisBalance": 3450,
+        "ledgerBalanceFromImport": 5580,
+        "adjustmentAmount": -2130,
+        "absAdjustmentAmount": 2130,
+        "variance": -2130,
+        "entryType": "credit",
+        "reasonGroup": "inverseProblemLedgerGreaterThanAge",
+        "reasonDetail": "Ledger R5580 exceeds age R3450; opening credit R2130 may mask export over-statement.",
+        "priorActiveMismatchReason": "trueBalanceMismatch",
+        "paymentPatterns": [],
+        "explainedByPaymentTheory": false,
+        "paymentMatchConfidence": "none"
+      },
+      {
+        "accountNo": "JEC002",
+        "fullName": "Nelisiwe Jeche",
+        "ageAnalysisBalance": 1965,
+        "ledgerBalanceFromImport": 3890,
+        "adjustmentAmount": -1925,
+        "absAdjustmentAmount": 1925,
+        "variance": -1925,
+        "entryType": "credit",
+        "reasonGroup": "inverseProblemLedgerGreaterThanAge",
+        "reasonDetail": "Ledger R3890 exceeds age R1965; opening credit R1925 may mask export over-statement.",
+        "priorActiveMismatchReason": "trueBalanceMismatch",
+        "paymentPatterns": [],
+        "explainedByPaymentTheory": false,
+        "paymentMatchConfidence": "none"
+      },
+      {
+        "accountNo": "MAN010",
+        "fullName": "Nhlulo Xihluke Manabe",
+        "ageAnalysisBalance": 7600,
+        "ledgerBalanceFromImport": 8900,
+        "adjustmentAmount": -1300,
+        "absAdjustmentAmount": 1300,
+        "variance": -1300,
+        "entryType": "credit",
+        "reasonGroup": "inverseProblemLedgerGreaterThanAge",
+        "reasonDetail": "Ledger R8900 exceeds age R7600; opening credit R1300 may mask export over-statement.",
+        "priorActiveMismatchReason": "trueBalanceMismatch",
+        "paymentPatterns": [],
+        "explainedByPaymentTheory": false,
+        "paymentMatchConfidence": "none"
+      },
+      {
+        "accountNo": "MAH004",
+        "fullName": "Mayani Daniel Mahango",
+        "ageAnalysisBalance": 3200,
+        "ledgerBalanceFromImport": 3750,
+        "adjustmentAmount": -550,
+        "absAdjustmentAmount": 550,
+        "variance": -550,
+        "entryType": "credit",
+        "reasonGroup": "inverseProblemLedgerGreaterThanAge",
+        "reasonDetail": "Ledger R3750 exceeds age R3200; opening credit R550 may mask export over-statement.",
+        "priorActiveMismatchReason": "trueBalanceMismatch",
+        "paymentPatterns": [],
+        "explainedByPaymentTheory": false,
+        "paymentMatchConfidence": "none"
+      },
+      {
+        "accountNo": "RAM010",
+        "fullName": "Keitumetsi Ramasika",
+        "ageAnalysisBalance": 3350,
+        "ledgerBalanceFromImport": 3700,
+        "adjustmentAmount": -350,
+        "absAdjustmentAmount": 350,
+        "variance": -350,
+        "entryType": "credit",
+        "reasonGroup": "inverseProblemLedgerGreaterThanAge",
+        "reasonDetail": "Ledger R3700 exceeds age R3350; opening credit R350 may mask export over-statement.",
+        "priorActiveMismatchReason": "trueBalanceMismatch",
+        "paymentPatterns": [],
+        "explainedByPaymentTheory": false,
+        "paymentMatchConfidence": "none"
+      }
+    ],
+    "needsManualKideSysReview": [
+      {
+        "accountNo": "MAR005",
+        "fullName": "Alunamda Luyamkela Marman",
+        "ageAnalysisBalance": 0,
+        "ledgerBalanceFromImport": 1700,
+        "adjustmentAmount": -1700,
+        "absAdjustmentAmount": 1700,
+        "variance": -1700,
+        "entryType": "credit",
+        "reasonGroup": "needsManualKideSysReview",
+        "reasonDetail": "Account not in age analysis but ledger carries balance.",
+        "priorActiveMismatchReason": "orphanLedgerOnly",
+        "paymentPatterns": [],
+        "explainedByPaymentTheory": false,
+        "paymentMatchConfidence": "none"
+      }
+    ]
+  },
+  "adjustmentsSortedByAbsAmount": [
+    {
+      "accountNo": "MOE004",
+      "fullName": "Kgato Fenyang Moeng",
+      "ageAnalysisBalance": 3850,
+      "ledgerBalanceFromImport": -9080,
+      "adjustmentAmount": 12930,
+      "absAdjustmentAmount": 12930,
+      "variance": 12930,
+      "entryType": "invoice",
+      "reasonGroup": "possibleDuplicatedHistoricalCredit",
+      "reasonDetail": "Prior audit: duplicate name, overpaid section, or ledger credit vs age debt.",
+      "priorActiveMismatchReason": "possibleDuplicateOrHistoricalCredit",
+      "paymentPatterns": [
+        "negativeLedgerPositiveAge",
+        "paymentsWithoutInvoiceCoverage",
+        "unallocatedPaymentPattern"
+      ],
+      "explainedByPaymentTheory": true,
+      "paymentMatchConfidence": "medium"
+    },
+    {
+      "accountNo": "TLA001",
+      "fullName": "Neo Kearabilwe Tladi",
+      "ageAnalysisBalance": 10790,
+      "ledgerBalanceFromImport": 2010,
+      "adjustmentAmount": 8780,
+      "absAdjustmentAmount": 8780,
+      "variance": 8780,
+      "entryType": "invoice",
+      "reasonGroup": "possibleUnallocatedPayment",
+      "reasonDetail": "Payment/export skew (unallocatedPaymentPattern); fix allocation before relying on opening balance.",
+      "priorActiveMismatchReason": "trueBalanceMismatch",
+      "paymentPatterns": [
+        "unallocatedPaymentPattern"
+      ],
+      "explainedByPaymentTheory": true,
+      "paymentMatchConfidence": "medium"
+    },
+    {
+      "accountNo": "NDL008",
+      "fullName": "Amukelani Gift Ndlovu",
+      "ageAnalysisBalance": 4305,
+      "ledgerBalanceFromImport": -2610,
+      "adjustmentAmount": 6915,
+      "absAdjustmentAmount": 6915,
+      "variance": 6915,
+      "entryType": "invoice",
+      "reasonGroup": "possibleDuplicatedHistoricalCredit",
+      "reasonDetail": "Prior audit: duplicate name, overpaid section, or ledger credit vs age debt.",
+      "priorActiveMismatchReason": "possibleDuplicateOrHistoricalCredit",
+      "paymentPatterns": [
+        "negativeLedgerPositiveAge",
+        "paymentsWithoutInvoiceCoverage",
+        "unallocatedPaymentPattern"
+      ],
+      "explainedByPaymentTheory": true,
+      "paymentMatchConfidence": "medium"
+    },
+    {
+      "accountNo": "NGA002",
+      "fullName": "Bonang Mmokwa",
+      "ageAnalysisBalance": 9200,
+      "ledgerBalanceFromImport": 3025,
+      "adjustmentAmount": 6175,
+      "absAdjustmentAmount": 6175,
+      "variance": 6175,
+      "entryType": "invoice",
+      "reasonGroup": "possibleDuplicatedHistoricalCredit",
+      "reasonDetail": "Prior audit: duplicate name, overpaid section, or ledger credit vs age debt.",
+      "priorActiveMismatchReason": "possibleDuplicateOrHistoricalCredit",
+      "paymentPatterns": [
+        "unallocatedPaymentPattern"
+      ],
+      "explainedByPaymentTheory": true,
+      "paymentMatchConfidence": "medium"
+    },
+    {
+      "accountNo": "NHL001",
+      "fullName": "Rorisang Nhlapo",
+      "ageAnalysisBalance": 3800,
+      "ledgerBalanceFromImport": -1700,
+      "adjustmentAmount": 5500,
+      "absAdjustmentAmount": 5500,
+      "variance": 5500,
+      "entryType": "invoice",
+      "reasonGroup": "possibleDuplicatedHistoricalCredit",
+      "reasonDetail": "Prior audit: duplicate name, overpaid section, or ledger credit vs age debt.",
+      "priorActiveMismatchReason": "possibleDuplicateOrHistoricalCredit",
+      "paymentPatterns": [
+        "negativeLedgerPositiveAge",
+        "paymentsWithoutInvoiceCoverage",
+        "unallocatedPaymentPattern"
+      ],
+      "explainedByPaymentTheory": true,
+      "paymentMatchConfidence": "medium"
+    },
+    {
+      "accountNo": "MOL018",
+      "fullName": "Hailey Molema",
+      "ageAnalysisBalance": 6500,
+      "ledgerBalanceFromImport": 1085,
+      "adjustmentAmount": 5415,
+      "absAdjustmentAmount": 5415,
+      "variance": 5415,
+      "entryType": "invoice",
+      "reasonGroup": "possibleUnallocatedPayment",
+      "reasonDetail": "Payment/export skew (unallocatedPaymentPattern); fix allocation before relying on opening balance.",
+      "priorActiveMismatchReason": "trueBalanceMismatch",
+      "paymentPatterns": [
+        "unallocatedPaymentPattern"
+      ],
+      "explainedByPaymentTheory": true,
+      "paymentMatchConfidence": "medium"
+    },
+    {
+      "accountNo": "NDL009",
+      "fullName": "Goitseone Ndlovu",
+      "ageAnalysisBalance": 3700,
+      "ledgerBalanceFromImport": -1600,
+      "adjustmentAmount": 5300,
+      "absAdjustmentAmount": 5300,
+      "variance": 5300,
+      "entryType": "invoice",
+      "reasonGroup": "possibleDuplicatedHistoricalCredit",
+      "reasonDetail": "Prior audit: duplicate name, overpaid section, or ledger credit vs age debt.",
+      "priorActiveMismatchReason": "possibleDuplicateOrHistoricalCredit",
+      "paymentPatterns": [
+        "negativeLedgerPositiveAge",
+        "paymentsWithoutInvoiceCoverage",
+        "unallocatedPaymentPattern"
+      ],
+      "explainedByPaymentTheory": true,
+      "paymentMatchConfidence": "medium"
+    },
+    {
+      "accountNo": "MON006",
+      "fullName": "Oboitshepo Monewe",
+      "ageAnalysisBalance": 4400,
+      "ledgerBalanceFromImport": -670,
+      "adjustmentAmount": 5070,
+      "absAdjustmentAmount": 5070,
+      "variance": 5070,
+      "entryType": "invoice",
+      "reasonGroup": "possibleDuplicatedHistoricalCredit",
+      "reasonDetail": "Prior audit: duplicate name, overpaid section, or ledger credit vs age debt.",
+      "priorActiveMismatchReason": "possibleDuplicateOrHistoricalCredit",
+      "paymentPatterns": [
+        "negativeLedgerPositiveAge",
+        "paymentsWithoutInvoiceCoverage",
+        "unallocatedPaymentPattern"
+      ],
+      "explainedByPaymentTheory": true,
+      "paymentMatchConfidence": "medium"
+    },
+    {
+      "accountNo": "MOT010",
+      "fullName": "Tokelo Motshwanedi",
+      "ageAnalysisBalance": 3000,
+      "ledgerBalanceFromImport": -1965,
+      "adjustmentAmount": 4965,
+      "absAdjustmentAmount": 4965,
+      "variance": 4965,
+      "entryType": "invoice",
+      "reasonGroup": "possibleDuplicatedHistoricalCredit",
+      "reasonDetail": "Prior audit: duplicate name, overpaid section, or ledger credit vs age debt.",
+      "priorActiveMismatchReason": "possibleDuplicateOrHistoricalCredit",
+      "paymentPatterns": [
+        "negativeLedgerPositiveAge",
+        "paymentsWithoutInvoiceCoverage",
+        "unallocatedPaymentPattern"
+      ],
+      "explainedByPaymentTheory": true,
+      "paymentMatchConfidence": "medium"
+    },
+    {
+      "accountNo": "MAT020",
+      "fullName": "Bokamoso Matima",
+      "ageAnalysisBalance": 4250,
+      "ledgerBalanceFromImport": -700,
+      "adjustmentAmount": 4950,
+      "absAdjustmentAmount": 4950,
+      "variance": 4950,
+      "entryType": "invoice",
+      "reasonGroup": "possibleDuplicatedHistoricalCredit",
+      "reasonDetail": "Prior audit: duplicate name, overpaid section, or ledger credit vs age debt.",
+      "priorActiveMismatchReason": "possibleDuplicateOrHistoricalCredit",
+      "paymentPatterns": [
+        "negativeLedgerPositiveAge",
+        "paymentsWithoutInvoiceCoverage",
+        "unallocatedPaymentPattern"
+      ],
+      "explainedByPaymentTheory": true,
+      "paymentMatchConfidence": "medium"
+    },
+    {
+      "accountNo": "LAN002",
+      "fullName": "Obakeng Langeni",
+      "ageAnalysisBalance": 2920,
+      "ledgerBalanceFromImport": -1630,
+      "adjustmentAmount": 4550,
+      "absAdjustmentAmount": 4550,
+      "variance": 4550,
+      "entryType": "invoice",
+      "reasonGroup": "possibleDuplicatedHistoricalCredit",
+      "reasonDetail": "Prior audit: duplicate name, overpaid section, or ledger credit vs age debt.",
+      "priorActiveMismatchReason": "possibleDuplicateOrHistoricalCredit",
+      "paymentPatterns": [
+        "negativeLedgerPositiveAge",
+        "paymentsWithoutInvoiceCoverage",
+        "unallocatedPaymentPattern"
+      ],
+      "explainedByPaymentTheory": true,
+      "paymentMatchConfidence": "medium"
+    },
+    {
+      "accountNo": "TSH003",
+      "fullName": "Amphe Lily Tsholoba",
+      "ageAnalysisBalance": 3550,
+      "ledgerBalanceFromImport": -950,
+      "adjustmentAmount": 4500,
+      "absAdjustmentAmount": 4500,
+      "variance": 4500,
+      "entryType": "invoice",
+      "reasonGroup": "possibleDuplicatedHistoricalCredit",
+      "reasonDetail": "Prior audit: duplicate name, overpaid section, or ledger credit vs age debt.",
+      "priorActiveMismatchReason": "possibleDuplicateOrHistoricalCredit",
+      "paymentPatterns": [
+        "negativeLedgerPositiveAge",
+        "paymentsWithoutInvoiceCoverage",
+        "unallocatedPaymentPattern"
+      ],
+      "explainedByPaymentTheory": true,
+      "paymentMatchConfidence": "medium"
+    },
+    {
+      "accountNo": "MAK014",
+      "fullName": "Reitumetse Makwakwa",
+      "ageAnalysisBalance": 3950,
+      "ledgerBalanceFromImport": -515,
+      "adjustmentAmount": 4465,
+      "absAdjustmentAmount": 4465,
+      "variance": 4465,
+      "entryType": "invoice",
+      "reasonGroup": "possibleDuplicatedHistoricalCredit",
+      "reasonDetail": "Prior audit: duplicate name, overpaid section, or ledger credit vs age debt.",
+      "priorActiveMismatchReason": "possibleDuplicateOrHistoricalCredit",
+      "paymentPatterns": [
+        "negativeLedgerPositiveAge",
+        "paymentsWithoutInvoiceCoverage",
+        "unallocatedPaymentPattern"
+      ],
+      "explainedByPaymentTheory": true,
+      "paymentMatchConfidence": "medium"
+    },
+    {
+      "accountNo": "TSH017",
+      "fullName": "Onthatile Tshose",
+      "ageAnalysisBalance": 5290,
+      "ledgerBalanceFromImport": 860,
+      "adjustmentAmount": 4430,
+      "absAdjustmentAmount": 4430,
+      "variance": 4430,
+      "entryType": "invoice",
+      "reasonGroup": "possibleUnallocatedPayment",
+      "reasonDetail": "Payment/export skew (unallocatedPaymentPattern); fix allocation before relying on opening balance.",
+      "priorActiveMismatchReason": "trueBalanceMismatch",
+      "paymentPatterns": [
+        "unallocatedPaymentPattern"
+      ],
+      "explainedByPaymentTheory": true,
+      "paymentMatchConfidence": "medium"
+    },
+    {
+      "accountNo": "FRE001",
+      "fullName": "Oatlegile Frederick",
+      "ageAnalysisBalance": 9500,
+      "ledgerBalanceFromImport": 5100,
+      "adjustmentAmount": 4400,
+      "absAdjustmentAmount": 4400,
+      "variance": 4400,
+      "entryType": "invoice",
+      "reasonGroup": "possibleUnallocatedPayment",
+      "reasonDetail": "Payment/export skew (unallocatedPaymentPattern); fix allocation before relying on opening balance.",
+      "priorActiveMismatchReason": "trueBalanceMismatch",
+      "paymentPatterns": [
+        "unallocatedPaymentPattern"
+      ],
+      "explainedByPaymentTheory": true,
+      "paymentMatchConfidence": "medium"
+    },
+    {
+      "accountNo": "MAT022",
+      "fullName": "Phemelo Reotshepile Matsheka",
+      "ageAnalysisBalance": 6100,
+      "ledgerBalanceFromImport": 1700,
+      "adjustmentAmount": 4400,
+      "absAdjustmentAmount": 4400,
+      "variance": 4400,
+      "entryType": "invoice",
+      "reasonGroup": "possibleUnallocatedPayment",
+      "reasonDetail": "Payment/export skew (unallocatedPaymentPattern); fix allocation before relying on opening balance.",
+      "priorActiveMismatchReason": "trueBalanceMismatch",
+      "paymentPatterns": [
+        "unallocatedPaymentPattern"
+      ],
+      "explainedByPaymentTheory": true,
+      "paymentMatchConfidence": "medium"
+    },
+    {
+      "accountNo": "SEI859",
+      "fullName": "Leano Seichokelo",
+      "ageAnalysisBalance": 3800,
+      "ledgerBalanceFromImport": -359,
+      "adjustmentAmount": 4159,
+      "absAdjustmentAmount": 4159,
+      "variance": 4159,
+      "entryType": "invoice",
+      "reasonGroup": "possibleDuplicatedHistoricalCredit",
+      "reasonDetail": "Prior audit: duplicate name, overpaid section, or ledger credit vs age debt.",
+      "priorActiveMismatchReason": "possibleDuplicateOrHistoricalCredit",
+      "paymentPatterns": [
+        "negativeLedgerPositiveAge",
+        "unallocatedPaymentPattern"
+      ],
+      "explainedByPaymentTheory": true,
+      "paymentMatchConfidence": "medium"
+    },
+    {
+      "accountNo": "NAS001",
+      "fullName": "Samira Nasere",
+      "ageAnalysisBalance": 7800,
+      "ledgerBalanceFromImport": 3905,
+      "adjustmentAmount": 3895,
+      "absAdjustmentAmount": 3895,
+      "variance": 3895,
+      "entryType": "invoice",
+      "reasonGroup": "possibleUnallocatedPayment",
+      "reasonDetail": "Payment/export skew (unallocatedPaymentPattern); fix allocation before relying on opening balance.",
+      "priorActiveMismatchReason": "trueBalanceMismatch",
+      "paymentPatterns": [
+        "unallocatedPaymentPattern"
+      ],
+      "explainedByPaymentTheory": true,
+      "paymentMatchConfidence": "medium"
+    },
+    {
+      "accountNo": "MAB011",
+      "fullName": "Thandekile Princess Mabuza",
+      "ageAnalysisBalance": 5000,
+      "ledgerBalanceFromImport": 1240,
+      "adjustmentAmount": 3760,
+      "absAdjustmentAmount": 3760,
+      "variance": 3760,
+      "entryType": "invoice",
+      "reasonGroup": "possibleUnallocatedPayment",
+      "reasonDetail": "Payment/export skew (unallocatedPaymentPattern); fix allocation before relying on opening balance.",
+      "priorActiveMismatchReason": "trueBalanceMismatch",
+      "paymentPatterns": [
+        "unallocatedPaymentPattern"
+      ],
+      "explainedByPaymentTheory": true,
+      "paymentMatchConfidence": "medium"
+    },
+    {
+      "accountNo": "TLH005",
+      "fullName": "Oletilwe Tlhame",
+      "ageAnalysisBalance": 4350,
+      "ledgerBalanceFromImport": 750,
+      "adjustmentAmount": 3600,
+      "absAdjustmentAmount": 3600,
+      "variance": 3600,
+      "entryType": "invoice",
+      "reasonGroup": "possibleUnallocatedPayment",
+      "reasonDetail": "Payment/export skew (unallocatedPaymentPattern); fix allocation before relying on opening balance.",
+      "priorActiveMismatchReason": "trueBalanceMismatch",
+      "paymentPatterns": [
+        "unallocatedPaymentPattern"
+      ],
+      "explainedByPaymentTheory": true,
+      "paymentMatchConfidence": "medium"
+    },
+    {
+      "accountNo": "MPI102",
+      "fullName": "Neo Lethabo Mpiko",
+      "ageAnalysisBalance": 3800,
+      "ledgerBalanceFromImport": 205,
+      "adjustmentAmount": 3595,
+      "absAdjustmentAmount": 3595,
+      "variance": 3595,
+      "entryType": "invoice",
+      "reasonGroup": "possibleDuplicatedHistoricalCredit",
+      "reasonDetail": "Prior audit: duplicate name, overpaid section, or ledger credit vs age debt.",
+      "priorActiveMismatchReason": "possibleDuplicateOrHistoricalCredit",
+      "paymentPatterns": [
+        "unallocatedPaymentPattern"
+      ],
+      "explainedByPaymentTheory": true,
+      "paymentMatchConfidence": "medium"
+    },
+    {
+      "accountNo": "WOL001",
+      "fullName": "Elleliyon Wolebo",
+      "ageAnalysisBalance": 7370,
+      "ledgerBalanceFromImport": 3870,
+      "adjustmentAmount": 3500,
+      "absAdjustmentAmount": 3500,
+      "variance": 3500,
+      "entryType": "invoice",
+      "reasonGroup": "possibleUnallocatedPayment",
+      "reasonDetail": "Payment/export skew (unallocatedPaymentPattern); fix allocation before relying on opening balance.",
+      "priorActiveMismatchReason": "trueBalanceMismatch",
+      "paymentPatterns": [
+        "unallocatedPaymentPattern"
+      ],
+      "explainedByPaymentTheory": true,
+      "paymentMatchConfidence": "medium"
+    },
+    {
+      "accountNo": "MOL003",
+      "fullName": "Molebogeng Maselela",
+      "ageAnalysisBalance": 4710,
+      "ledgerBalanceFromImport": 7910,
+      "adjustmentAmount": -3200,
+      "absAdjustmentAmount": 3200,
+      "variance": -3200,
+      "entryType": "credit",
+      "reasonGroup": "inverseProblemLedgerGreaterThanAge",
+      "reasonDetail": "Ledger R7910 exceeds age R4710; opening credit R3200 may mask export over-statement.",
+      "priorActiveMismatchReason": "possibleDuplicateOrHistoricalCredit",
+      "paymentPatterns": [],
+      "explainedByPaymentTheory": false,
+      "paymentMatchConfidence": "none"
+    },
+    {
+      "accountNo": "SEP899",
+      "fullName": "Omogolo Sepadile",
+      "ageAnalysisBalance": 3700,
+      "ledgerBalanceFromImport": 500,
+      "adjustmentAmount": 3200,
+      "absAdjustmentAmount": 3200,
+      "variance": 3200,
+      "entryType": "invoice",
+      "reasonGroup": "possibleUnallocatedPayment",
+      "reasonDetail": "Payment/export skew (unallocatedPaymentPattern); fix allocation before relying on opening balance.",
+      "priorActiveMismatchReason": "trueBalanceMismatch",
+      "paymentPatterns": [
+        "unallocatedPaymentPattern"
+      ],
+      "explainedByPaymentTheory": true,
+      "paymentMatchConfidence": "medium"
+    },
+    {
+      "accountNo": "MAB004",
+      "fullName": "Gosego Mabale",
+      "ageAnalysisBalance": 3700,
+      "ledgerBalanceFromImport": 605,
+      "adjustmentAmount": 3095,
+      "absAdjustmentAmount": 3095,
+      "variance": 3095,
+      "entryType": "invoice",
+      "reasonGroup": "possibleUnallocatedPayment",
+      "reasonDetail": "Payment/export skew (unallocatedPaymentPattern); fix allocation before relying on opening balance.",
+      "priorActiveMismatchReason": "trueBalanceMismatch",
+      "paymentPatterns": [
+        "unallocatedPaymentPattern"
+      ],
+      "explainedByPaymentTheory": true,
+      "paymentMatchConfidence": "medium"
+    },
+    {
+      "accountNo": "KHU005",
+      "fullName": "Elethu Entle Khunou",
+      "ageAnalysisBalance": 3550,
+      "ledgerBalanceFromImport": 500,
+      "adjustmentAmount": 3050,
+      "absAdjustmentAmount": 3050,
+      "variance": 3050,
+      "entryType": "invoice",
+      "reasonGroup": "possibleUnallocatedPayment",
+      "reasonDetail": "Payment/export skew (unallocatedPaymentPattern); fix allocation before relying on opening balance.",
+      "priorActiveMismatchReason": "trueBalanceMismatch",
+      "paymentPatterns": [
+        "unallocatedPaymentPattern"
+      ],
+      "explainedByPaymentTheory": true,
+      "paymentMatchConfidence": "medium"
+    },
+    {
+      "accountNo": "GEB002",
+      "fullName": "Benyis Geber",
+      "ageAnalysisBalance": 3700,
+      "ledgerBalanceFromImport": 700,
+      "adjustmentAmount": 3000,
+      "absAdjustmentAmount": 3000,
+      "variance": 3000,
+      "entryType": "invoice",
+      "reasonGroup": "possibleUnallocatedPayment",
+      "reasonDetail": "Payment/export skew (unallocatedPaymentPattern); fix allocation before relying on opening balance.",
+      "priorActiveMismatchReason": "trueBalanceMismatch",
+      "paymentPatterns": [
+        "unallocatedPaymentPattern"
+      ],
+      "explainedByPaymentTheory": true,
+      "paymentMatchConfidence": "medium"
+    },
+    {
+      "accountNo": "BUY001",
+      "fullName": "Kim Omontle Buys",
+      "ageAnalysisBalance": 2900,
+      "ledgerBalanceFromImport": 150,
+      "adjustmentAmount": 2750,
+      "absAdjustmentAmount": 2750,
+      "variance": 2750,
+      "entryType": "invoice",
+      "reasonGroup": "possibleUnallocatedPayment",
+      "reasonDetail": "Payment/export skew (unallocatedPaymentPattern); fix allocation before relying on opening balance.",
+      "priorActiveMismatchReason": "trueBalanceMismatch",
+      "paymentPatterns": [
+        "unallocatedPaymentPattern"
+      ],
+      "explainedByPaymentTheory": true,
+      "paymentMatchConfidence": "medium"
+    },
+    {
+      "accountNo": "GAA001",
+      "fullName": "Didintle Nyeko Gaasenwe",
+      "ageAnalysisBalance": 3500,
+      "ledgerBalanceFromImport": 750,
+      "adjustmentAmount": 2750,
+      "absAdjustmentAmount": 2750,
+      "variance": 2750,
+      "entryType": "invoice",
+      "reasonGroup": "possibleUnallocatedPayment",
+      "reasonDetail": "Payment/export skew (unallocatedPaymentPattern); fix allocation before relying on opening balance.",
+      "priorActiveMismatchReason": "trueBalanceMismatch",
+      "paymentPatterns": [
+        "unallocatedPaymentPattern"
+      ],
+      "explainedByPaymentTheory": true,
+      "paymentMatchConfidence": "medium"
+    },
+    {
+      "accountNo": "KOR001",
+      "fullName": "Dagimawit Korabza",
+      "ageAnalysisBalance": 6860,
+      "ledgerBalanceFromImport": 4110,
+      "adjustmentAmount": 2750,
+      "absAdjustmentAmount": 2750,
+      "variance": 2750,
+      "entryType": "invoice",
+      "reasonGroup": "possibleUnallocatedPayment",
+      "reasonDetail": "Payment/export skew (unallocatedPaymentPattern); fix allocation before relying on opening balance.",
+      "priorActiveMismatchReason": "trueBalanceMismatch",
+      "paymentPatterns": [
+        "unallocatedPaymentPattern"
+      ],
+      "explainedByPaymentTheory": true,
+      "paymentMatchConfidence": "medium"
+    },
+    {
+      "accountNo": "MOD010",
+      "fullName": "Reatlegile Modibedi",
+      "ageAnalysisBalance": 6200,
+      "ledgerBalanceFromImport": 3450,
+      "adjustmentAmount": 2750,
+      "absAdjustmentAmount": 2750,
+      "variance": 2750,
+      "entryType": "invoice",
+      "reasonGroup": "possibleUnallocatedPayment",
+      "reasonDetail": "Payment/export skew (unallocatedPaymentPattern); fix allocation before relying on opening balance.",
+      "priorActiveMismatchReason": "trueBalanceMismatch",
+      "paymentPatterns": [
+        "unallocatedPaymentPattern"
+      ],
+      "explainedByPaymentTheory": true,
+      "paymentMatchConfidence": "medium"
+    },
+    {
+      "accountNo": "MOS009",
+      "fullName": "Wandile Mosito",
+      "ageAnalysisBalance": 3700,
+      "ledgerBalanceFromImport": 950,
+      "adjustmentAmount": 2750,
+      "absAdjustmentAmount": 2750,
+      "variance": 2750,
+      "entryType": "invoice",
+      "reasonGroup": "possibleUnallocatedPayment",
+      "reasonDetail": "Payment/export skew (unallocatedPaymentPattern); fix allocation before relying on opening balance.",
+      "priorActiveMismatchReason": "trueBalanceMismatch",
+      "paymentPatterns": [
+        "unallocatedPaymentPattern"
+      ],
+      "explainedByPaymentTheory": true,
+      "paymentMatchConfidence": "medium"
+    },
+    {
+      "accountNo": "MOT016",
+      "fullName": "Thoriso Mothibedi",
+      "ageAnalysisBalance": 3000,
+      "ledgerBalanceFromImport": 250,
+      "adjustmentAmount": 2750,
+      "absAdjustmentAmount": 2750,
+      "variance": 2750,
+      "entryType": "invoice",
+      "reasonGroup": "possibleUnallocatedPayment",
+      "reasonDetail": "Payment/export skew (unallocatedPaymentPattern); fix allocation before relying on opening balance.",
+      "priorActiveMismatchReason": "trueBalanceMismatch",
+      "paymentPatterns": [
+        "unallocatedPaymentPattern"
+      ],
+      "explainedByPaymentTheory": true,
+      "paymentMatchConfidence": "medium"
+    },
+    {
+      "accountNo": "MQA001",
+      "fullName": "Shaun Vuyolwethu Mqali",
+      "ageAnalysisBalance": 4700,
+      "ledgerBalanceFromImport": 1950,
+      "adjustmentAmount": 2750,
+      "absAdjustmentAmount": 2750,
+      "variance": 2750,
+      "entryType": "invoice",
+      "reasonGroup": "possibleDuplicatedHistoricalCredit",
+      "reasonDetail": "Prior audit: duplicate name, overpaid section, or ledger credit vs age debt.",
+      "priorActiveMismatchReason": "possibleDuplicateOrHistoricalCredit",
+      "paymentPatterns": [
+        "unallocatedPaymentPattern"
+      ],
+      "explainedByPaymentTheory": true,
+      "paymentMatchConfidence": "medium"
+    },
+    {
+      "accountNo": "NTS008",
+      "fullName": "Inkosinam Ntshanga",
+      "ageAnalysisBalance": 3950,
+      "ledgerBalanceFromImport": 1200,
+      "adjustmentAmount": 2750,
+      "absAdjustmentAmount": 2750,
+      "variance": 2750,
+      "entryType": "invoice",
+      "reasonGroup": "possibleUnallocatedPayment",
+      "reasonDetail": "Payment/export skew (unallocatedPaymentPattern); fix allocation before relying on opening balance.",
+      "priorActiveMismatchReason": "trueBalanceMismatch",
+      "paymentPatterns": [
+        "unallocatedPaymentPattern"
+      ],
+      "explainedByPaymentTheory": true,
+      "paymentMatchConfidence": "medium"
+    },
+    {
+      "accountNo": "SEN959",
+      "fullName": "Tshiamo Will Senne",
+      "ageAnalysisBalance": 3000,
+      "ledgerBalanceFromImport": 250,
+      "adjustmentAmount": 2750,
+      "absAdjustmentAmount": 2750,
+      "variance": 2750,
+      "entryType": "invoice",
+      "reasonGroup": "possibleUnallocatedPayment",
+      "reasonDetail": "Payment/export skew (unallocatedPaymentPattern); fix allocation before relying on opening balance.",
+      "priorActiveMismatchReason": "trueBalanceMismatch",
+      "paymentPatterns": [
+        "unallocatedPaymentPattern"
+      ],
+      "explainedByPaymentTheory": true,
+      "paymentMatchConfidence": "medium"
+    },
+    {
+      "accountNo": "TAK001",
+      "fullName": "Kagiso Unathi Takata",
+      "ageAnalysisBalance": 6800,
+      "ledgerBalanceFromImport": 4050,
+      "adjustmentAmount": 2750,
+      "absAdjustmentAmount": 2750,
+      "variance": 2750,
+      "entryType": "invoice",
+      "reasonGroup": "possibleUnallocatedPayment",
+      "reasonDetail": "Payment/export skew (unallocatedPaymentPattern); fix allocation before relying on opening balance.",
+      "priorActiveMismatchReason": "trueBalanceMismatch",
+      "paymentPatterns": [
+        "unallocatedPaymentPattern"
+      ],
+      "explainedByPaymentTheory": true,
+      "paymentMatchConfidence": "medium"
+    },
+    {
+      "accountNo": "VUT001",
+      "fullName": "Vutlhari Botake",
+      "ageAnalysisBalance": 3850,
+      "ledgerBalanceFromImport": 1100,
+      "adjustmentAmount": 2750,
+      "absAdjustmentAmount": 2750,
+      "variance": 2750,
+      "entryType": "invoice",
+      "reasonGroup": "possibleUnallocatedPayment",
+      "reasonDetail": "Payment/export skew (unallocatedPaymentPattern); fix allocation before relying on opening balance.",
+      "priorActiveMismatchReason": "trueBalanceMismatch",
+      "paymentPatterns": [
+        "unallocatedPaymentPattern"
+      ],
+      "explainedByPaymentTheory": true,
+      "paymentMatchConfidence": "medium"
+    },
+    {
+      "accountNo": "THO004",
+      "fullName": "Ofentse Koketso Thompo",
+      "ageAnalysisBalance": 4000,
+      "ledgerBalanceFromImport": 1320,
+      "adjustmentAmount": 2680,
+      "absAdjustmentAmount": 2680,
+      "variance": 2680,
+      "entryType": "invoice",
+      "reasonGroup": "possibleUnallocatedPayment",
+      "reasonDetail": "Payment/export skew (unallocatedPaymentPattern); fix allocation before relying on opening balance.",
+      "priorActiveMismatchReason": "trueBalanceMismatch",
+      "paymentPatterns": [
+        "unallocatedPaymentPattern"
+      ],
+      "explainedByPaymentTheory": true,
+      "paymentMatchConfidence": "medium"
+    },
+    {
+      "accountNo": "SER001",
+      "fullName": "Oletilwe Serutle",
+      "ageAnalysisBalance": 3700,
+      "ledgerBalanceFromImport": 1150,
+      "adjustmentAmount": 2550,
+      "absAdjustmentAmount": 2550,
+      "variance": 2550,
+      "entryType": "invoice",
+      "reasonGroup": "possibleUnallocatedPayment",
+      "reasonDetail": "Payment/export skew (unallocatedPaymentPattern); fix allocation before relying on opening balance.",
+      "priorActiveMismatchReason": "trueBalanceMismatch",
+      "paymentPatterns": [
+        "unallocatedPaymentPattern"
+      ],
+      "explainedByPaymentTheory": true,
+      "paymentMatchConfidence": "medium"
+    },
+    {
+      "accountNo": "KAL001",
+      "fullName": "Bohlokwa Kalosane",
+      "ageAnalysisBalance": 4500,
+      "ledgerBalanceFromImport": 2100,
+      "adjustmentAmount": 2400,
+      "absAdjustmentAmount": 2400,
+      "variance": 2400,
+      "entryType": "invoice",
+      "reasonGroup": "possibleUnallocatedPayment",
+      "reasonDetail": "Payment/export skew (unallocatedPaymentPattern); fix allocation before relying on opening balance.",
+      "priorActiveMismatchReason": "trueBalanceMismatch",
+      "paymentPatterns": [
+        "unallocatedPaymentPattern"
+      ],
+      "explainedByPaymentTheory": true,
+      "paymentMatchConfidence": "medium"
+    },
+    {
+      "accountNo": "MOL020",
+      "fullName": "Rekgabile Molefe",
+      "ageAnalysisBalance": 3700,
+      "ledgerBalanceFromImport": 1350,
+      "adjustmentAmount": 2350,
+      "absAdjustmentAmount": 2350,
+      "variance": 2350,
+      "entryType": "invoice",
+      "reasonGroup": "possibleUnallocatedPayment",
+      "reasonDetail": "Payment/export skew (unallocatedPaymentPattern); fix allocation before relying on opening balance.",
+      "priorActiveMismatchReason": "trueBalanceMismatch",
+      "paymentPatterns": [
+        "unallocatedPaymentPattern"
+      ],
+      "explainedByPaymentTheory": true,
+      "paymentMatchConfidence": "medium"
+    },
+    {
+      "accountNo": "MOG013",
+      "fullName": "Chantelle Otlotleng Mogafe",
+      "ageAnalysisBalance": 6800,
+      "ledgerBalanceFromImport": 4550,
+      "adjustmentAmount": 2250,
+      "absAdjustmentAmount": 2250,
+      "variance": 2250,
+      "entryType": "invoice",
+      "reasonGroup": "possibleUnallocatedPayment",
+      "reasonDetail": "Payment/export skew (unallocatedPaymentPattern); fix allocation before relying on opening balance.",
+      "priorActiveMismatchReason": "trueBalanceMismatch",
+      "paymentPatterns": [
+        "unallocatedPaymentPattern"
+      ],
+      "explainedByPaymentTheory": true,
+      "paymentMatchConfidence": "medium"
+    },
+    {
+      "accountNo": "WIL002",
+      "fullName": "Rishon Kyle Williams",
+      "ageAnalysisBalance": 3150,
+      "ledgerBalanceFromImport": 900,
+      "adjustmentAmount": 2250,
+      "absAdjustmentAmount": 2250,
+      "variance": 2250,
+      "entryType": "invoice",
+      "reasonGroup": "possibleUnallocatedPayment",
+      "reasonDetail": "Payment/export skew (unallocatedPaymentPattern); fix allocation before relying on opening balance.",
+      "priorActiveMismatchReason": "trueBalanceMismatch",
+      "paymentPatterns": [
+        "unallocatedPaymentPattern"
+      ],
+      "explainedByPaymentTheory": true,
+      "paymentMatchConfidence": "medium"
+    },
+    {
+      "accountNo": "NZI001",
+      "fullName": "Amantle Nzimande",
+      "ageAnalysisBalance": 3700,
+      "ledgerBalanceFromImport": 1470,
+      "adjustmentAmount": 2230,
+      "absAdjustmentAmount": 2230,
+      "variance": 2230,
+      "entryType": "invoice",
+      "reasonGroup": "possibleUnallocatedPayment",
+      "reasonDetail": "Payment/export skew (unallocatedPaymentPattern); fix allocation before relying on opening balance.",
+      "priorActiveMismatchReason": "trueBalanceMismatch",
+      "paymentPatterns": [
+        "unallocatedPaymentPattern"
+      ],
+      "explainedByPaymentTheory": true,
+      "paymentMatchConfidence": "medium"
+    },
+    {
+      "accountNo": "DIK001",
+      "fullName": "Sinenhlanhla Dikana Iviwe",
+      "ageAnalysisBalance": 4200,
+      "ledgerBalanceFromImport": 2000,
+      "adjustmentAmount": 2200,
+      "absAdjustmentAmount": 2200,
+      "variance": 2200,
+      "entryType": "invoice",
+      "reasonGroup": "possibleUnallocatedPayment",
+      "reasonDetail": "Payment/export skew (unallocatedPaymentPattern); fix allocation before relying on opening balance.",
+      "priorActiveMismatchReason": "trueBalanceMismatch",
+      "paymentPatterns": [
+        "unallocatedPaymentPattern"
+      ],
+      "explainedByPaymentTheory": true,
+      "paymentMatchConfidence": "medium"
+    },
+    {
+      "accountNo": "GAE002",
+      "fullName": "Reitumetse Gaebone",
+      "ageAnalysisBalance": 4520,
+      "ledgerBalanceFromImport": 2320,
+      "adjustmentAmount": 2200,
+      "absAdjustmentAmount": 2200,
+      "variance": 2200,
+      "entryType": "invoice",
+      "reasonGroup": "possibleDuplicatedHistoricalCredit",
+      "reasonDetail": "Prior audit: duplicate name, overpaid section, or ledger credit vs age debt.",
+      "priorActiveMismatchReason": "possibleDuplicateOrHistoricalCredit",
+      "paymentPatterns": [
+        "unallocatedPaymentPattern"
+      ],
+      "explainedByPaymentTheory": true,
+      "paymentMatchConfidence": "medium"
+    },
+    {
+      "accountNo": "KGO002",
+      "fullName": "Warona Kgonothi",
+      "ageAnalysisBalance": 3696,
+      "ledgerBalanceFromImport": 1496,
+      "adjustmentAmount": 2200,
+      "absAdjustmentAmount": 2200,
+      "variance": 2200,
+      "entryType": "invoice",
+      "reasonGroup": "possibleUnallocatedPayment",
+      "reasonDetail": "Payment/export skew (unallocatedPaymentPattern); fix allocation before relying on opening balance.",
+      "priorActiveMismatchReason": "trueBalanceMismatch",
+      "paymentPatterns": [
+        "unallocatedPaymentPattern"
+      ],
+      "explainedByPaymentTheory": true,
+      "paymentMatchConfidence": "medium"
+    },
+    {
+      "accountNo": "KGO003",
+      "fullName": "Refiloe Kgokong",
+      "ageAnalysisBalance": 5000,
+      "ledgerBalanceFromImport": 2800,
+      "adjustmentAmount": 2200,
+      "absAdjustmentAmount": 2200,
+      "variance": 2200,
+      "entryType": "invoice",
+      "reasonGroup": "possibleDuplicatedHistoricalCredit",
+      "reasonDetail": "Prior audit: duplicate name, overpaid section, or ledger credit vs age debt.",
+      "priorActiveMismatchReason": "possibleDuplicateOrHistoricalCredit",
+      "paymentPatterns": [
+        "unallocatedPaymentPattern"
+      ],
+      "explainedByPaymentTheory": true,
+      "paymentMatchConfidence": "medium"
+    },
+    {
+      "accountNo": "KOB001",
+      "fullName": "Njabulo Kobo",
+      "ageAnalysisBalance": 2350,
+      "ledgerBalanceFromImport": 150,
+      "adjustmentAmount": 2200,
+      "absAdjustmentAmount": 2200,
+      "variance": 2200,
+      "entryType": "invoice",
+      "reasonGroup": "possibleUnallocatedPayment",
+      "reasonDetail": "Payment/export skew (unallocatedPaymentPattern); fix allocation before relying on opening balance.",
+      "priorActiveMismatchReason": "trueBalanceMismatch",
+      "paymentPatterns": [
+        "unallocatedPaymentPattern"
+      ],
+      "explainedByPaymentTheory": true,
+      "paymentMatchConfidence": "medium"
+    },
+    {
+      "accountNo": "MAK013",
+      "fullName": "Rethabile Roland Makgae",
+      "ageAnalysisBalance": 10750,
+      "ledgerBalanceFromImport": 8550,
+      "adjustmentAmount": 2200,
+      "absAdjustmentAmount": 2200,
+      "variance": 2200,
+      "entryType": "invoice",
+      "reasonGroup": "possibleUnallocatedPayment",
+      "reasonDetail": "Payment/export skew (unallocatedPaymentPattern); fix allocation before relying on opening balance.",
+      "priorActiveMismatchReason": "trueBalanceMismatch",
+      "paymentPatterns": [
+        "unallocatedPaymentPattern"
+      ],
+      "explainedByPaymentTheory": true,
+      "paymentMatchConfidence": "medium"
+    },
+    {
+      "accountNo": "MAO001",
+      "fullName": "Amohelang Ororiseng Maoba",
+      "ageAnalysisBalance": 3000,
+      "ledgerBalanceFromImport": 800,
+      "adjustmentAmount": 2200,
+      "absAdjustmentAmount": 2200,
+      "variance": 2200,
+      "entryType": "invoice",
+      "reasonGroup": "possibleUnallocatedPayment",
+      "reasonDetail": "Payment/export skew (unallocatedPaymentPattern); fix allocation before relying on opening balance.",
+      "priorActiveMismatchReason": "trueBalanceMismatch",
+      "paymentPatterns": [
+        "unallocatedPaymentPattern"
+      ],
+      "explainedByPaymentTheory": true,
+      "paymentMatchConfidence": "medium"
+    },
+    {
+      "accountNo": "MAT021",
+      "fullName": "Reatlegile Kaone Matabane",
+      "ageAnalysisBalance": 14850,
+      "ledgerBalanceFromImport": 12650,
+      "adjustmentAmount": 2200,
+      "absAdjustmentAmount": 2200,
+      "variance": 2200,
+      "entryType": "invoice",
+      "reasonGroup": "possibleUnallocatedPayment",
+      "reasonDetail": "Payment/export skew (unallocatedPaymentPattern); fix allocation before relying on opening balance.",
+      "priorActiveMismatchReason": "trueBalanceMismatch",
+      "paymentPatterns": [
+        "unallocatedPaymentPattern"
+      ],
+      "explainedByPaymentTheory": true,
+      "paymentMatchConfidence": "medium"
+    },
+    {
+      "accountNo": "MOD005",
+      "fullName": "Kgolagano Kekaona Modise",
+      "ageAnalysisBalance": 3950,
+      "ledgerBalanceFromImport": 1750,
+      "adjustmentAmount": 2200,
+      "absAdjustmentAmount": 2200,
+      "variance": 2200,
+      "entryType": "invoice",
+      "reasonGroup": "possibleUnallocatedPayment",
+      "reasonDetail": "Payment/export skew (unallocatedPaymentPattern); fix allocation before relying on opening balance.",
+      "priorActiveMismatchReason": "trueBalanceMismatch",
+      "paymentPatterns": [
+        "unallocatedPaymentPattern"
+      ],
+      "explainedByPaymentTheory": true,
+      "paymentMatchConfidence": "medium"
+    },
+    {
+      "accountNo": "MOD006",
+      "fullName": "Tswelopele Botshelo Modisane",
+      "ageAnalysisBalance": 3500,
+      "ledgerBalanceFromImport": 1300,
+      "adjustmentAmount": 2200,
+      "absAdjustmentAmount": 2200,
+      "variance": 2200,
+      "entryType": "invoice",
+      "reasonGroup": "possibleUnallocatedPayment",
+      "reasonDetail": "Payment/export skew (unallocatedPaymentPattern); fix allocation before relying on opening balance.",
+      "priorActiveMismatchReason": "trueBalanceMismatch",
+      "paymentPatterns": [
+        "unallocatedPaymentPattern"
+      ],
+      "explainedByPaymentTheory": true,
+      "paymentMatchConfidence": "medium"
+    },
+    {
+      "accountNo": "MOE003",
+      "fullName": "Owethu Moeng",
+      "ageAnalysisBalance": 6300,
+      "ledgerBalanceFromImport": 4100,
+      "adjustmentAmount": 2200,
+      "absAdjustmentAmount": 2200,
+      "variance": 2200,
+      "entryType": "invoice",
+      "reasonGroup": "possibleUnallocatedPayment",
+      "reasonDetail": "Payment/export skew (unallocatedPaymentPattern); fix allocation before relying on opening balance.",
+      "priorActiveMismatchReason": "trueBalanceMismatch",
+      "paymentPatterns": [
+        "unallocatedPaymentPattern"
+      ],
+      "explainedByPaymentTheory": true,
+      "paymentMatchConfidence": "medium"
+    },
+    {
+      "accountNo": "MOR008",
+      "fullName": "Keitumetse Morwe",
+      "ageAnalysisBalance": 450,
+      "ledgerBalanceFromImport": -1750,
+      "adjustmentAmount": 2200,
+      "absAdjustmentAmount": 2200,
+      "variance": 2200,
+      "entryType": "invoice",
+      "reasonGroup": "possibleDuplicatedHistoricalCredit",
+      "reasonDetail": "Prior audit: duplicate name, overpaid section, or ledger credit vs age debt.",
+      "priorActiveMismatchReason": "possibleDuplicateOrHistoricalCredit",
+      "paymentPatterns": [
+        "negativeLedgerPositiveAge",
+        "paymentsWithoutInvoiceCoverage",
+        "unallocatedPaymentPattern"
+      ],
+      "explainedByPaymentTheory": true,
+      "paymentMatchConfidence": "medium"
+    },
+    {
+      "accountNo": "MOS008",
+      "fullName": "Bokang Mosegedi",
+      "ageAnalysisBalance": 3200,
+      "ledgerBalanceFromImport": 1000,
+      "adjustmentAmount": 2200,
+      "absAdjustmentAmount": 2200,
+      "variance": 2200,
+      "entryType": "invoice",
+      "reasonGroup": "possibleUnallocatedPayment",
+      "reasonDetail": "Payment/export skew (unallocatedPaymentPattern); fix allocation before relying on opening balance.",
+      "priorActiveMismatchReason": "trueBalanceMismatch",
+      "paymentPatterns": [
+        "unallocatedPaymentPattern"
+      ],
+      "explainedByPaymentTheory": true,
+      "paymentMatchConfidence": "medium"
+    },
+    {
+      "accountNo": "MOT017",
+      "fullName": "Onkokeditse Motlhajwa",
+      "ageAnalysisBalance": 3700,
+      "ledgerBalanceFromImport": 1500,
+      "adjustmentAmount": 2200,
+      "absAdjustmentAmount": 2200,
+      "variance": 2200,
+      "entryType": "invoice",
+      "reasonGroup": "possibleUnallocatedPayment",
+      "reasonDetail": "Payment/export skew (unallocatedPaymentPattern); fix allocation before relying on opening balance.",
+      "priorActiveMismatchReason": "trueBalanceMismatch",
+      "paymentPatterns": [
+        "unallocatedPaymentPattern"
+      ],
+      "explainedByPaymentTheory": true,
+      "paymentMatchConfidence": "medium"
+    },
+    {
+      "accountNo": "MOT026",
+      "fullName": "Kamogelo Junior Motlhoki",
+      "ageAnalysisBalance": 11400,
+      "ledgerBalanceFromImport": 9200,
+      "adjustmentAmount": 2200,
+      "absAdjustmentAmount": 2200,
+      "variance": 2200,
+      "entryType": "invoice",
+      "reasonGroup": "possibleDuplicatedHistoricalCredit",
+      "reasonDetail": "Prior audit: duplicate name, overpaid section, or ledger credit vs age debt.",
+      "priorActiveMismatchReason": "possibleDuplicateOrHistoricalCredit",
+      "paymentPatterns": [
+        "unallocatedPaymentPattern"
+      ],
+      "explainedByPaymentTheory": true,
+      "paymentMatchConfidence": "medium"
+    },
+    {
+      "accountNo": "MPA001",
+      "fullName": "Misokuhle Lathitha Mpangeva",
+      "ageAnalysisBalance": 6800,
+      "ledgerBalanceFromImport": 4600,
+      "adjustmentAmount": 2200,
+      "absAdjustmentAmount": 2200,
+      "variance": 2200,
+      "entryType": "invoice",
+      "reasonGroup": "possibleUnallocatedPayment",
+      "reasonDetail": "Payment/export skew (unallocatedPaymentPattern); fix allocation before relying on opening balance.",
+      "priorActiveMismatchReason": "trueBalanceMismatch",
+      "paymentPatterns": [
+        "unallocatedPaymentPattern"
+      ],
+      "explainedByPaymentTheory": true,
+      "paymentMatchConfidence": "medium"
+    },
+    {
+      "accountNo": "MPO001",
+      "fullName": "Kabo Mpodi",
+      "ageAnalysisBalance": 3700,
+      "ledgerBalanceFromImport": 1500,
+      "adjustmentAmount": 2200,
+      "absAdjustmentAmount": 2200,
+      "variance": 2200,
+      "entryType": "invoice",
+      "reasonGroup": "possibleUnallocatedPayment",
+      "reasonDetail": "Payment/export skew (unallocatedPaymentPattern); fix allocation before relying on opening balance.",
+      "priorActiveMismatchReason": "trueBalanceMismatch",
+      "paymentPatterns": [
+        "unallocatedPaymentPattern"
+      ],
+      "explainedByPaymentTheory": true,
+      "paymentMatchConfidence": "medium"
+    },
+    {
+      "accountNo": "MSI003",
+      "fullName": "Somusa Sibani Msimango",
+      "ageAnalysisBalance": 3700,
+      "ledgerBalanceFromImport": 1500,
+      "adjustmentAmount": 2200,
+      "absAdjustmentAmount": 2200,
+      "variance": 2200,
+      "entryType": "invoice",
+      "reasonGroup": "possibleUnallocatedPayment",
+      "reasonDetail": "Payment/export skew (unallocatedPaymentPattern); fix allocation before relying on opening balance.",
+      "priorActiveMismatchReason": "trueBalanceMismatch",
+      "paymentPatterns": [
+        "unallocatedPaymentPattern"
+      ],
+      "explainedByPaymentTheory": true,
+      "paymentMatchConfidence": "medium"
+    },
+    {
+      "accountNo": "MSI004",
+      "fullName": "Snekosi Msimango",
+      "ageAnalysisBalance": 8300,
+      "ledgerBalanceFromImport": 6100,
+      "adjustmentAmount": 2200,
+      "absAdjustmentAmount": 2200,
+      "variance": 2200,
+      "entryType": "invoice",
+      "reasonGroup": "possibleUnallocatedPayment",
+      "reasonDetail": "Payment/export skew (unallocatedPaymentPattern); fix allocation before relying on opening balance.",
+      "priorActiveMismatchReason": "trueBalanceMismatch",
+      "paymentPatterns": [
+        "unallocatedPaymentPattern"
+      ],
+      "explainedByPaymentTheory": true,
+      "paymentMatchConfidence": "medium"
+    },
+    {
+      "accountNo": "NKA003",
+      "fullName": "Ngcebo Sindiso Nkabane",
+      "ageAnalysisBalance": 4500,
+      "ledgerBalanceFromImport": 2300,
+      "adjustmentAmount": 2200,
+      "absAdjustmentAmount": 2200,
+      "variance": 2200,
+      "entryType": "invoice",
+      "reasonGroup": "possibleDuplicatedHistoricalCredit",
+      "reasonDetail": "Prior audit: duplicate name, overpaid section, or ledger credit vs age debt.",
+      "priorActiveMismatchReason": "possibleDuplicateOrHistoricalCredit",
+      "paymentPatterns": [
+        "unallocatedPaymentPattern"
+      ],
+      "explainedByPaymentTheory": true,
+      "paymentMatchConfidence": "medium"
+    },
+    {
+      "accountNo": "NTO003",
+      "fullName": "Phenyo Ntoula",
+      "ageAnalysisBalance": 3200,
+      "ledgerBalanceFromImport": 1000,
+      "adjustmentAmount": 2200,
+      "absAdjustmentAmount": 2200,
+      "variance": 2200,
+      "entryType": "invoice",
+      "reasonGroup": "possibleUnallocatedPayment",
+      "reasonDetail": "Payment/export skew (unallocatedPaymentPattern); fix allocation before relying on opening balance.",
+      "priorActiveMismatchReason": "trueBalanceMismatch",
+      "paymentPatterns": [
+        "unallocatedPaymentPattern"
+      ],
+      "explainedByPaymentTheory": true,
+      "paymentMatchConfidence": "medium"
+    },
+    {
+      "accountNo": "OSE001",
+      "fullName": "Osego Makgale",
+      "ageAnalysisBalance": 4500,
+      "ledgerBalanceFromImport": 2300,
+      "adjustmentAmount": 2200,
+      "absAdjustmentAmount": 2200,
+      "variance": 2200,
+      "entryType": "invoice",
+      "reasonGroup": "possibleUnallocatedPayment",
+      "reasonDetail": "Payment/export skew (unallocatedPaymentPattern); fix allocation before relying on opening balance.",
+      "priorActiveMismatchReason": "trueBalanceMismatch",
+      "paymentPatterns": [
+        "unallocatedPaymentPattern"
+      ],
+      "explainedByPaymentTheory": true,
+      "paymentMatchConfidence": "medium"
+    },
+    {
+      "accountNo": "PET002",
+      "fullName": "Obatlilwe Petlale",
+      "ageAnalysisBalance": 8600,
+      "ledgerBalanceFromImport": 6400,
+      "adjustmentAmount": 2200,
+      "absAdjustmentAmount": 2200,
+      "variance": 2200,
+      "entryType": "invoice",
+      "reasonGroup": "possibleUnallocatedPayment",
+      "reasonDetail": "Payment/export skew (unallocatedPaymentPattern); fix allocation before relying on opening balance.",
+      "priorActiveMismatchReason": "trueBalanceMismatch",
+      "paymentPatterns": [
+        "unallocatedPaymentPattern"
+      ],
+      "explainedByPaymentTheory": true,
+      "paymentMatchConfidence": "medium"
+    },
+    {
+      "accountNo": "RAM011",
+      "fullName": "Rethabile Ramalete",
+      "ageAnalysisBalance": 3550,
+      "ledgerBalanceFromImport": 1350,
+      "adjustmentAmount": 2200,
+      "absAdjustmentAmount": 2200,
+      "variance": 2200,
+      "entryType": "invoice",
+      "reasonGroup": "possibleUnallocatedPayment",
+      "reasonDetail": "Payment/export skew (unallocatedPaymentPattern); fix allocation before relying on opening balance.",
+      "priorActiveMismatchReason": "trueBalanceMismatch",
+      "paymentPatterns": [
+        "unallocatedPaymentPattern"
+      ],
+      "explainedByPaymentTheory": true,
+      "paymentMatchConfidence": "medium"
+    },
+    {
+      "accountNo": "RAM015",
+      "fullName": "Remoneilwe Johanna Mothuloe",
+      "ageAnalysisBalance": 3550,
+      "ledgerBalanceFromImport": 1350,
+      "adjustmentAmount": 2200,
+      "absAdjustmentAmount": 2200,
+      "variance": 2200,
+      "entryType": "invoice",
+      "reasonGroup": "possibleUnallocatedPayment",
+      "reasonDetail": "Payment/export skew (unallocatedPaymentPattern); fix allocation before relying on opening balance.",
+      "priorActiveMismatchReason": "trueBalanceMismatch",
+      "paymentPatterns": [
+        "unallocatedPaymentPattern"
+      ],
+      "explainedByPaymentTheory": true,
+      "paymentMatchConfidence": "medium"
+    },
+    {
+      "accountNo": "RAN002",
+      "fullName": "Omaatla Tlotlo Ranta",
+      "ageAnalysisBalance": 2800,
+      "ledgerBalanceFromImport": 600,
+      "adjustmentAmount": 2200,
+      "absAdjustmentAmount": 2200,
+      "variance": 2200,
+      "entryType": "invoice",
+      "reasonGroup": "possibleUnallocatedPayment",
+      "reasonDetail": "Payment/export skew (unallocatedPaymentPattern); fix allocation before relying on opening balance.",
+      "priorActiveMismatchReason": "trueBalanceMismatch",
+      "paymentPatterns": [
+        "unallocatedPaymentPattern"
+      ],
+      "explainedByPaymentTheory": true,
+      "paymentMatchConfidence": "medium"
+    },
+    {
+      "accountNo": "SES001",
+      "fullName": "Osego Seswai",
+      "ageAnalysisBalance": 4200,
+      "ledgerBalanceFromImport": 2000,
+      "adjustmentAmount": 2200,
+      "absAdjustmentAmount": 2200,
+      "variance": 2200,
+      "entryType": "invoice",
+      "reasonGroup": "possibleDuplicatedHistoricalCredit",
+      "reasonDetail": "Prior audit: duplicate name, overpaid section, or ledger credit vs age debt.",
+      "priorActiveMismatchReason": "possibleDuplicateOrHistoricalCredit",
+      "paymentPatterns": [
+        "unallocatedPaymentPattern"
+      ],
+      "explainedByPaymentTheory": true,
+      "paymentMatchConfidence": "medium"
+    },
+    {
+      "accountNo": "TAU003",
+      "fullName": "Unathi Tause",
+      "ageAnalysisBalance": 6300,
+      "ledgerBalanceFromImport": 4100,
+      "adjustmentAmount": 2200,
+      "absAdjustmentAmount": 2200,
+      "variance": 2200,
+      "entryType": "invoice",
+      "reasonGroup": "possibleUnallocatedPayment",
+      "reasonDetail": "Payment/export skew (unallocatedPaymentPattern); fix allocation before relying on opening balance.",
+      "priorActiveMismatchReason": "trueBalanceMismatch",
+      "paymentPatterns": [
+        "unallocatedPaymentPattern"
+      ],
+      "explainedByPaymentTheory": true,
+      "paymentMatchConfidence": "medium"
+    },
+    {
+      "accountNo": "THA003",
+      "fullName": "Omogolo Thakadu",
+      "ageAnalysisBalance": 3200,
+      "ledgerBalanceFromImport": 1000,
+      "adjustmentAmount": 2200,
+      "absAdjustmentAmount": 2200,
+      "variance": 2200,
+      "entryType": "invoice",
+      "reasonGroup": "possibleUnallocatedPayment",
+      "reasonDetail": "Payment/export skew (unallocatedPaymentPattern); fix allocation before relying on opening balance.",
+      "priorActiveMismatchReason": "trueBalanceMismatch",
+      "paymentPatterns": [
+        "unallocatedPaymentPattern"
+      ],
+      "explainedByPaymentTheory": true,
+      "paymentMatchConfidence": "medium"
+    },
+    {
+      "accountNo": "TLH003",
+      "fullName": "Whisper Oreneile Rethabile Tlhabanelo",
+      "ageAnalysisBalance": 6800,
+      "ledgerBalanceFromImport": 4600,
+      "adjustmentAmount": 2200,
+      "absAdjustmentAmount": 2200,
+      "variance": 2200,
+      "entryType": "invoice",
+      "reasonGroup": "possibleDuplicatedHistoricalCredit",
+      "reasonDetail": "Prior audit: duplicate name, overpaid section, or ledger credit vs age debt.",
+      "priorActiveMismatchReason": "possibleDuplicateOrHistoricalCredit",
+      "paymentPatterns": [
+        "unallocatedPaymentPattern"
+      ],
+      "explainedByPaymentTheory": true,
+      "paymentMatchConfidence": "medium"
+    },
+    {
+      "accountNo": "XAB001",
+      "fullName": "Paballo Pearl Xaba",
+      "ageAnalysisBalance": 4250,
+      "ledgerBalanceFromImport": 2050,
+      "adjustmentAmount": 2200,
+      "absAdjustmentAmount": 2200,
+      "variance": 2200,
+      "entryType": "invoice",
+      "reasonGroup": "possibleUnallocatedPayment",
+      "reasonDetail": "Payment/export skew (unallocatedPaymentPattern); fix allocation before relying on opening balance.",
+      "priorActiveMismatchReason": "trueBalanceMismatch",
+      "paymentPatterns": [
+        "unallocatedPaymentPattern"
+      ],
+      "explainedByPaymentTheory": true,
+      "paymentMatchConfidence": "medium"
+    },
+    {
+      "accountNo": "RAM009",
+      "fullName": "Omatla Malesela Ramagogogdi",
+      "ageAnalysisBalance": 4250,
+      "ledgerBalanceFromImport": 2070,
+      "adjustmentAmount": 2180,
+      "absAdjustmentAmount": 2180,
+      "variance": 2180,
+      "entryType": "invoice",
+      "reasonGroup": "possibleUnallocatedPayment",
+      "reasonDetail": "Payment/export skew (unallocatedPaymentPattern); fix allocation before relying on opening balance.",
+      "priorActiveMismatchReason": "trueBalanceMismatch",
+      "paymentPatterns": [
+        "unallocatedPaymentPattern"
+      ],
+      "explainedByPaymentTheory": true,
+      "paymentMatchConfidence": "medium"
+    },
+    {
+      "accountNo": "CET001",
+      "fullName": "Yonwaba Cetshane",
+      "ageAnalysisBalance": 6250,
+      "ledgerBalanceFromImport": 4090,
+      "adjustmentAmount": 2160,
+      "absAdjustmentAmount": 2160,
+      "variance": 2160,
+      "entryType": "invoice",
+      "reasonGroup": "possibleDuplicatedHistoricalCredit",
+      "reasonDetail": "Prior audit: duplicate name, overpaid section, or ledger credit vs age debt.",
+      "priorActiveMismatchReason": "possibleDuplicateOrHistoricalCredit",
+      "paymentPatterns": [
+        "unallocatedPaymentPattern"
+      ],
+      "explainedByPaymentTheory": true,
+      "paymentMatchConfidence": "medium"
+    },
+    {
+      "accountNo": "MAL006",
+      "fullName": "Reboikantse Omosa Mayana",
+      "ageAnalysisBalance": 5150,
+      "ledgerBalanceFromImport": 3000,
+      "adjustmentAmount": 2150,
+      "absAdjustmentAmount": 2150,
+      "variance": 2150,
+      "entryType": "invoice",
+      "reasonGroup": "possibleUnallocatedPayment",
+      "reasonDetail": "Payment/export skew (unallocatedPaymentPattern); fix allocation before relying on opening balance.",
+      "priorActiveMismatchReason": "trueBalanceMismatch",
+      "paymentPatterns": [
+        "unallocatedPaymentPattern"
+      ],
+      "explainedByPaymentTheory": true,
+      "paymentMatchConfidence": "medium"
+    },
+    {
+      "accountNo": "MOL044",
+      "fullName": "Omontle Molefe",
+      "ageAnalysisBalance": 3450,
+      "ledgerBalanceFromImport": 5580,
+      "adjustmentAmount": -2130,
+      "absAdjustmentAmount": 2130,
+      "variance": -2130,
+      "entryType": "credit",
+      "reasonGroup": "inverseProblemLedgerGreaterThanAge",
+      "reasonDetail": "Ledger R5580 exceeds age R3450; opening credit R2130 may mask export over-statement.",
+      "priorActiveMismatchReason": "trueBalanceMismatch",
+      "paymentPatterns": [],
+      "explainedByPaymentTheory": false,
+      "paymentMatchConfidence": "none"
+    },
+    {
+      "accountNo": "MOT007",
+      "fullName": "Bokamoso Menyatswe",
+      "ageAnalysisBalance": 8019.45,
+      "ledgerBalanceFromImport": 5920,
+      "adjustmentAmount": 2099.45,
+      "absAdjustmentAmount": 2099.45,
+      "variance": 2099.45,
+      "entryType": "invoice",
+      "reasonGroup": "possibleUnallocatedPayment",
+      "reasonDetail": "Payment/export skew (unallocatedPaymentPattern); fix allocation before relying on opening balance.",
+      "priorActiveMismatchReason": "trueBalanceMismatch",
+      "paymentPatterns": [
+        "unallocatedPaymentPattern"
+      ],
+      "explainedByPaymentTheory": true,
+      "paymentMatchConfidence": "medium"
+    },
+    {
+      "accountNo": "MOK020",
+      "fullName": "Emmanuella Nyakallo Mokoena",
+      "ageAnalysisBalance": 3700,
+      "ledgerBalanceFromImport": 1650,
+      "adjustmentAmount": 2050,
+      "absAdjustmentAmount": 2050,
+      "variance": 2050,
+      "entryType": "invoice",
+      "reasonGroup": "possibleDuplicatedHistoricalCredit",
+      "reasonDetail": "Prior audit: duplicate name, overpaid section, or ledger credit vs age debt.",
+      "priorActiveMismatchReason": "possibleDuplicateOrHistoricalCredit",
+      "paymentPatterns": [
+        "unallocatedPaymentPattern"
+      ],
+      "explainedByPaymentTheory": true,
+      "paymentMatchConfidence": "medium"
+    },
+    {
+      "accountNo": "TSA001",
+      "fullName": "Omphile Tsame",
+      "ageAnalysisBalance": 3000,
+      "ledgerBalanceFromImport": 950,
+      "adjustmentAmount": 2050,
+      "absAdjustmentAmount": 2050,
+      "variance": 2050,
+      "entryType": "invoice",
+      "reasonGroup": "possibleUnallocatedPayment",
+      "reasonDetail": "Payment/export skew (unallocatedPaymentPattern); fix allocation before relying on opening balance.",
+      "priorActiveMismatchReason": "trueBalanceMismatch",
+      "paymentPatterns": [
+        "unallocatedPaymentPattern"
+      ],
+      "explainedByPaymentTheory": true,
+      "paymentMatchConfidence": "medium"
+    },
+    {
+      "accountNo": "LER002",
+      "fullName": "Realeboga Leroke",
+      "ageAnalysisBalance": 3450,
+      "ledgerBalanceFromImport": 1450,
+      "adjustmentAmount": 2000,
+      "absAdjustmentAmount": 2000,
+      "variance": 2000,
+      "entryType": "invoice",
+      "reasonGroup": "possibleDuplicatedHistoricalCredit",
+      "reasonDetail": "Prior audit: duplicate name, overpaid section, or ledger credit vs age debt.",
+      "priorActiveMismatchReason": "possibleDuplicateOrHistoricalCredit",
+      "paymentPatterns": [
+        "unallocatedPaymentPattern"
+      ],
+      "explainedByPaymentTheory": true,
+      "paymentMatchConfidence": "medium"
+    },
+    {
+      "accountNo": "MAS021",
+      "fullName": "Kamohelo Masilo",
+      "ageAnalysisBalance": 3700,
+      "ledgerBalanceFromImport": 1700,
+      "adjustmentAmount": 2000,
+      "absAdjustmentAmount": 2000,
+      "variance": 2000,
+      "entryType": "invoice",
+      "reasonGroup": "possibleUnallocatedPayment",
+      "reasonDetail": "Payment/export skew (unallocatedPaymentPattern); fix allocation before relying on opening balance.",
+      "priorActiveMismatchReason": "trueBalanceMismatch",
+      "paymentPatterns": [
+        "unallocatedPaymentPattern"
+      ],
+      "explainedByPaymentTheory": true,
+      "paymentMatchConfidence": "medium"
+    },
+    {
+      "accountNo": "MOK025",
+      "fullName": "Tshegofatso Remoratile Mokgatlhe",
+      "ageAnalysisBalance": 4900,
+      "ledgerBalanceFromImport": 2900,
+      "adjustmentAmount": 2000,
+      "absAdjustmentAmount": 2000,
+      "variance": 2000,
+      "entryType": "invoice",
+      "reasonGroup": "possibleUnallocatedPayment",
+      "reasonDetail": "Payment/export skew (unallocatedPaymentPattern); fix allocation before relying on opening balance.",
+      "priorActiveMismatchReason": "trueBalanceMismatch",
+      "paymentPatterns": [
+        "unallocatedPaymentPattern"
+      ],
+      "explainedByPaymentTheory": true,
+      "paymentMatchConfidence": "medium"
+    },
+    {
+      "accountNo": "NKO004",
+      "fullName": "Kabo Kealeboga Nkonyane",
+      "ageAnalysisBalance": 3700,
+      "ledgerBalanceFromImport": 1700,
+      "adjustmentAmount": 2000,
+      "absAdjustmentAmount": 2000,
+      "variance": 2000,
+      "entryType": "invoice",
+      "reasonGroup": "possibleUnallocatedPayment",
+      "reasonDetail": "Payment/export skew (unallocatedPaymentPattern); fix allocation before relying on opening balance.",
+      "priorActiveMismatchReason": "trueBalanceMismatch",
+      "paymentPatterns": [
+        "unallocatedPaymentPattern"
+      ],
+      "explainedByPaymentTheory": true,
+      "paymentMatchConfidence": "medium"
+    },
+    {
+      "accountNo": "MAP006",
+      "fullName": "Mvuselelo Jasper Maphumulo",
+      "ageAnalysisBalance": 8420,
+      "ledgerBalanceFromImport": 6485,
+      "adjustmentAmount": 1935,
+      "absAdjustmentAmount": 1935,
+      "variance": 1935,
+      "entryType": "invoice",
+      "reasonGroup": "possibleUnallocatedPayment",
+      "reasonDetail": "Payment/export skew (unallocatedPaymentPattern); fix allocation before relying on opening balance.",
+      "priorActiveMismatchReason": "trueBalanceMismatch",
+      "paymentPatterns": [
+        "unallocatedPaymentPattern"
+      ],
+      "explainedByPaymentTheory": true,
+      "paymentMatchConfidence": "medium"
+    },
+    {
+      "accountNo": "JEC002",
+      "fullName": "Nelisiwe Jeche",
+      "ageAnalysisBalance": 1965,
+      "ledgerBalanceFromImport": 3890,
+      "adjustmentAmount": -1925,
+      "absAdjustmentAmount": 1925,
+      "variance": -1925,
+      "entryType": "credit",
+      "reasonGroup": "inverseProblemLedgerGreaterThanAge",
+      "reasonDetail": "Ledger R3890 exceeds age R1965; opening credit R1925 may mask export over-statement.",
+      "priorActiveMismatchReason": "trueBalanceMismatch",
+      "paymentPatterns": [],
+      "explainedByPaymentTheory": false,
+      "paymentMatchConfidence": "none"
+    },
+    {
+      "accountNo": "MAT016",
+      "fullName": "Otshepeng Matsietsa",
+      "ageAnalysisBalance": 6400,
+      "ledgerBalanceFromImport": 4500,
+      "adjustmentAmount": 1900,
+      "absAdjustmentAmount": 1900,
+      "variance": 1900,
+      "entryType": "invoice",
+      "reasonGroup": "possibleUnallocatedPayment",
+      "reasonDetail": "Payment/export skew (unallocatedPaymentPattern); fix allocation before relying on opening balance.",
+      "priorActiveMismatchReason": "trueBalanceMismatch",
+      "paymentPatterns": [
+        "unallocatedPaymentPattern"
+      ],
+      "explainedByPaymentTheory": true,
+      "paymentMatchConfidence": "medium"
+    },
+    {
+      "accountNo": "MKH002",
+      "fullName": "Ntsako Mkhasi",
+      "ageAnalysisBalance": 3700,
+      "ledgerBalanceFromImport": 1800,
+      "adjustmentAmount": 1900,
+      "absAdjustmentAmount": 1900,
+      "variance": 1900,
+      "entryType": "invoice",
+      "reasonGroup": "possibleUnallocatedPayment",
+      "reasonDetail": "Payment/export skew (unallocatedPaymentPattern); fix allocation before relying on opening balance.",
+      "priorActiveMismatchReason": "trueBalanceMismatch",
+      "paymentPatterns": [
+        "unallocatedPaymentPattern"
+      ],
+      "explainedByPaymentTheory": true,
+      "paymentMatchConfidence": "medium"
+    },
+    {
+      "accountNo": "SIN001",
+      "fullName": "Reneilwe Sindale",
+      "ageAnalysisBalance": 6700,
+      "ledgerBalanceFromImport": 4800,
+      "adjustmentAmount": 1900,
+      "absAdjustmentAmount": 1900,
+      "variance": 1900,
+      "entryType": "invoice",
+      "reasonGroup": "possibleUnallocatedPayment",
+      "reasonDetail": "Payment/export skew (unallocatedPaymentPattern); fix allocation before relying on opening balance.",
+      "priorActiveMismatchReason": "trueBalanceMismatch",
+      "paymentPatterns": [
+        "unallocatedPaymentPattern"
+      ],
+      "explainedByPaymentTheory": true,
+      "paymentMatchConfidence": "medium"
+    },
+    {
+      "accountNo": "KIN001",
+      "fullName": "Omatla Sensation Kwele",
+      "ageAnalysisBalance": 3200,
+      "ledgerBalanceFromImport": 1500,
+      "adjustmentAmount": 1700,
+      "absAdjustmentAmount": 1700,
+      "variance": 1700,
+      "entryType": "invoice",
+      "reasonGroup": "possibleUnallocatedPayment",
+      "reasonDetail": "Payment/export skew (unallocatedPaymentPattern); fix allocation before relying on opening balance.",
+      "priorActiveMismatchReason": "trueBalanceMismatch",
+      "paymentPatterns": [
+        "unallocatedPaymentPattern"
+      ],
+      "explainedByPaymentTheory": true,
+      "paymentMatchConfidence": "medium"
+    },
+    {
+      "accountNo": "MAR005",
+      "fullName": "Alunamda Luyamkela Marman",
+      "ageAnalysisBalance": 0,
+      "ledgerBalanceFromImport": 1700,
+      "adjustmentAmount": -1700,
+      "absAdjustmentAmount": 1700,
+      "variance": -1700,
+      "entryType": "credit",
+      "reasonGroup": "needsManualKideSysReview",
+      "reasonDetail": "Account not in age analysis but ledger carries balance.",
+      "priorActiveMismatchReason": "orphanLedgerOnly",
+      "paymentPatterns": [],
+      "explainedByPaymentTheory": false,
+      "paymentMatchConfidence": "none"
+    },
+    {
+      "accountNo": "MOD004",
+      "fullName": "Tshimologo Modise",
+      "ageAnalysisBalance": 2300,
+      "ledgerBalanceFromImport": 600,
+      "adjustmentAmount": 1700,
+      "absAdjustmentAmount": 1700,
+      "variance": 1700,
+      "entryType": "invoice",
+      "reasonGroup": "possibleUnallocatedPayment",
+      "reasonDetail": "Payment/export skew (unallocatedPaymentPattern); fix allocation before relying on opening balance.",
+      "priorActiveMismatchReason": "trueBalanceMismatch",
+      "paymentPatterns": [
+        "unallocatedPaymentPattern"
+      ],
+      "explainedByPaymentTheory": true,
+      "paymentMatchConfidence": "medium"
+    },
+    {
+      "accountNo": "PHI003",
+      "fullName": "Ethan Jacobus Phillips",
+      "ageAnalysisBalance": 3000,
+      "ledgerBalanceFromImport": 1300,
+      "adjustmentAmount": 1700,
+      "absAdjustmentAmount": 1700,
+      "variance": 1700,
+      "entryType": "invoice",
+      "reasonGroup": "possibleUnallocatedPayment",
+      "reasonDetail": "Payment/export skew (unallocatedPaymentPattern); fix allocation before relying on opening balance.",
+      "priorActiveMismatchReason": "trueBalanceMismatch",
+      "paymentPatterns": [
+        "unallocatedPaymentPattern"
+      ],
+      "explainedByPaymentTheory": true,
+      "paymentMatchConfidence": "medium"
+    },
+    {
+      "accountNo": "LEG003",
+      "fullName": "Thato Legari",
+      "ageAnalysisBalance": 4350,
+      "ledgerBalanceFromImport": 2750,
+      "adjustmentAmount": 1600,
+      "absAdjustmentAmount": 1600,
+      "variance": 1600,
+      "entryType": "invoice",
+      "reasonGroup": "possibleUnallocatedPayment",
+      "reasonDetail": "Payment/export skew (unallocatedPaymentPattern); fix allocation before relying on opening balance.",
+      "priorActiveMismatchReason": "trueBalanceMismatch",
+      "paymentPatterns": [
+        "unallocatedPaymentPattern"
+      ],
+      "explainedByPaymentTheory": true,
+      "paymentMatchConfidence": "medium"
+    },
+    {
+      "accountNo": "MAB008",
+      "fullName": "Tlotlego Mabena",
+      "ageAnalysisBalance": 2500,
+      "ledgerBalanceFromImport": 900,
+      "adjustmentAmount": 1600,
+      "absAdjustmentAmount": 1600,
+      "variance": 1600,
+      "entryType": "invoice",
+      "reasonGroup": "possibleUnallocatedPayment",
+      "reasonDetail": "Payment/export skew (unallocatedPaymentPattern); fix allocation before relying on opening balance.",
+      "priorActiveMismatchReason": "trueBalanceMismatch",
+      "paymentPatterns": [
+        "unallocatedPaymentPattern"
+      ],
+      "explainedByPaymentTheory": true,
+      "paymentMatchConfidence": "medium"
+    },
+    {
+      "accountNo": "MOK028",
+      "fullName": "Ofentse Mokua",
+      "ageAnalysisBalance": 3550,
+      "ledgerBalanceFromImport": 2100,
+      "adjustmentAmount": 1450,
+      "absAdjustmentAmount": 1450,
+      "variance": 1450,
+      "entryType": "invoice",
+      "reasonGroup": "possibleUnallocatedPayment",
+      "reasonDetail": "Payment/export skew (unallocatedPaymentPattern); fix allocation before relying on opening balance.",
+      "priorActiveMismatchReason": "trueBalanceMismatch",
+      "paymentPatterns": [
+        "unallocatedPaymentPattern"
+      ],
+      "explainedByPaymentTheory": true,
+      "paymentMatchConfidence": "medium"
+    },
+    {
+      "accountNo": "SEN002",
+      "fullName": "Peoentle Senne",
+      "ageAnalysisBalance": 7150,
+      "ledgerBalanceFromImport": 5715,
+      "adjustmentAmount": 1435,
+      "absAdjustmentAmount": 1435,
+      "variance": 1435,
+      "entryType": "invoice",
+      "reasonGroup": "possibleUnallocatedPayment",
+      "reasonDetail": "Payment/export skew (unallocatedPaymentPattern); fix allocation before relying on opening balance.",
+      "priorActiveMismatchReason": "trueBalanceMismatch",
+      "paymentPatterns": [
+        "unallocatedPaymentPattern"
+      ],
+      "explainedByPaymentTheory": true,
+      "paymentMatchConfidence": "medium"
+    },
+    {
+      "accountNo": "MAN010",
+      "fullName": "Nhlulo Xihluke Manabe",
+      "ageAnalysisBalance": 7600,
+      "ledgerBalanceFromImport": 8900,
+      "adjustmentAmount": -1300,
+      "absAdjustmentAmount": 1300,
+      "variance": -1300,
+      "entryType": "credit",
+      "reasonGroup": "inverseProblemLedgerGreaterThanAge",
+      "reasonDetail": "Ledger R8900 exceeds age R7600; opening credit R1300 may mask export over-statement.",
+      "priorActiveMismatchReason": "trueBalanceMismatch",
+      "paymentPatterns": [],
+      "explainedByPaymentTheory": false,
+      "paymentMatchConfidence": "none"
+    },
+    {
+      "accountNo": "LEK003",
+      "fullName": "Phetogo Lekgetho Moruledi",
+      "ageAnalysisBalance": 7200,
+      "ledgerBalanceFromImport": 6145,
+      "adjustmentAmount": 1055,
+      "absAdjustmentAmount": 1055,
+      "variance": 1055,
+      "entryType": "invoice",
+      "reasonGroup": "possibleUnallocatedPayment",
+      "reasonDetail": "Payment/export skew (unallocatedPaymentPattern, crossAccountCreditOnLinked); fix allocation before relying on opening balance.",
+      "priorActiveMismatchReason": "trueBalanceMismatch",
+      "paymentPatterns": [
+        "unallocatedPaymentPattern",
+        "crossAccountCreditOnLinked"
+      ],
+      "explainedByPaymentTheory": true,
+      "paymentMatchConfidence": "medium"
+    },
+    {
+      "accountNo": "GOV001",
+      "fullName": "Caleb Nathan Govender",
+      "ageAnalysisBalance": 1000,
+      "ledgerBalanceFromImport": 0,
+      "adjustmentAmount": 1000,
+      "absAdjustmentAmount": 1000,
+      "variance": 1000,
+      "entryType": "invoice",
+      "reasonGroup": "possibleUnallocatedPayment",
+      "reasonDetail": "Payment/export skew (unallocatedPaymentPattern); fix allocation before relying on opening balance.",
+      "priorActiveMismatchReason": "trueBalanceMismatch",
+      "paymentPatterns": [
+        "unallocatedPaymentPattern"
+      ],
+      "explainedByPaymentTheory": true,
+      "paymentMatchConfidence": "medium"
+    },
+    {
+      "accountNo": "DIA003",
+      "fullName": "Amogelang Warona Diatshwana",
+      "ageAnalysisBalance": 2500,
+      "ledgerBalanceFromImport": 1600,
+      "adjustmentAmount": 900,
+      "absAdjustmentAmount": 900,
+      "variance": 900,
+      "entryType": "invoice",
+      "reasonGroup": "possibleUnallocatedPayment",
+      "reasonDetail": "Payment/export skew (unallocatedPaymentPattern); fix allocation before relying on opening balance.",
+      "priorActiveMismatchReason": "trueBalanceMismatch",
+      "paymentPatterns": [
+        "unallocatedPaymentPattern"
+      ],
+      "explainedByPaymentTheory": true,
+      "paymentMatchConfidence": "medium"
+    },
+    {
+      "accountNo": "POO002",
+      "fullName": "Tshenolo Emmanuel Poo",
+      "ageAnalysisBalance": 19350,
+      "ledgerBalanceFromImport": 18550,
+      "adjustmentAmount": 800,
+      "absAdjustmentAmount": 800,
+      "variance": 800,
+      "entryType": "invoice",
+      "reasonGroup": "possibleDuplicatedHistoricalCredit",
+      "reasonDetail": "Prior audit: duplicate name, overpaid section, or ledger credit vs age debt.",
+      "priorActiveMismatchReason": "possibleDuplicateOrHistoricalCredit",
+      "paymentPatterns": [
+        "unallocatedPaymentPattern"
+      ],
+      "explainedByPaymentTheory": true,
+      "paymentMatchConfidence": "medium"
+    },
+    {
+      "accountNo": "TSH006",
+      "fullName": "Reitumetse Naledi Njabulo Tshiponyane Setae",
+      "ageAnalysisBalance": 2850,
+      "ledgerBalanceFromImport": 2160,
+      "adjustmentAmount": 690,
+      "absAdjustmentAmount": 690,
+      "variance": 690,
+      "entryType": "invoice",
+      "reasonGroup": "possibleUnallocatedPayment",
+      "reasonDetail": "Payment/export skew (unallocatedPaymentPattern); fix allocation before relying on opening balance.",
+      "priorActiveMismatchReason": "trueBalanceMismatch",
+      "paymentPatterns": [
+        "unallocatedPaymentPattern"
+      ],
+      "explainedByPaymentTheory": true,
+      "paymentMatchConfidence": "medium"
+    },
+    {
+      "accountNo": "MOL010",
+      "fullName": "Oagile Kabo Molete",
+      "ageAnalysisBalance": 3700,
+      "ledgerBalanceFromImport": 3030,
+      "adjustmentAmount": 670,
+      "absAdjustmentAmount": 670,
+      "variance": 670,
+      "entryType": "invoice",
+      "reasonGroup": "possibleUnallocatedPayment",
+      "reasonDetail": "Payment/export skew (unallocatedPaymentPattern); fix allocation before relying on opening balance.",
+      "priorActiveMismatchReason": "trueBalanceMismatch",
+      "paymentPatterns": [
+        "unallocatedPaymentPattern"
+      ],
+      "explainedByPaymentTheory": true,
+      "paymentMatchConfidence": "medium"
+    },
+    {
+      "accountNo": "MAH004",
+      "fullName": "Mayani Daniel Mahango",
+      "ageAnalysisBalance": 3200,
+      "ledgerBalanceFromImport": 3750,
+      "adjustmentAmount": -550,
+      "absAdjustmentAmount": 550,
+      "variance": -550,
+      "entryType": "credit",
+      "reasonGroup": "inverseProblemLedgerGreaterThanAge",
+      "reasonDetail": "Ledger R3750 exceeds age R3200; opening credit R550 may mask export over-statement.",
+      "priorActiveMismatchReason": "trueBalanceMismatch",
+      "paymentPatterns": [],
+      "explainedByPaymentTheory": false,
+      "paymentMatchConfidence": "none"
+    },
+    {
+      "accountNo": "MOK019",
+      "fullName": "Keitumetse Mokgotho",
+      "ageAnalysisBalance": 4500,
+      "ledgerBalanceFromImport": 4150,
+      "adjustmentAmount": 350,
+      "absAdjustmentAmount": 350,
+      "variance": 350,
+      "entryType": "invoice",
+      "reasonGroup": "possibleUnallocatedPayment",
+      "reasonDetail": "Payment/export skew (unallocatedPaymentPattern); fix allocation before relying on opening balance.",
+      "priorActiveMismatchReason": "trueBalanceMismatch",
+      "paymentPatterns": [
+        "unallocatedPaymentPattern"
+      ],
+      "explainedByPaymentTheory": true,
+      "paymentMatchConfidence": "medium"
+    },
+    {
+      "accountNo": "RAM010",
+      "fullName": "Keitumetsi Ramasika",
+      "ageAnalysisBalance": 3350,
+      "ledgerBalanceFromImport": 3700,
+      "adjustmentAmount": -350,
+      "absAdjustmentAmount": 350,
+      "variance": -350,
+      "entryType": "credit",
+      "reasonGroup": "inverseProblemLedgerGreaterThanAge",
+      "reasonDetail": "Ledger R3700 exceeds age R3350; opening credit R350 may mask export over-statement.",
+      "priorActiveMismatchReason": "trueBalanceMismatch",
+      "paymentPatterns": [],
+      "explainedByPaymentTheory": false,
+      "paymentMatchConfidence": "none"
+    },
+    {
+      "accountNo": "GAE001",
+      "fullName": "Orateng Gaebolae",
+      "ageAnalysisBalance": 6800,
+      "ledgerBalanceFromImport": 6455,
+      "adjustmentAmount": 345,
+      "absAdjustmentAmount": 345,
+      "variance": 345,
+      "entryType": "invoice",
+      "reasonGroup": "possibleUnallocatedPayment",
+      "reasonDetail": "Payment/export skew (unallocatedPaymentPattern); fix allocation before relying on opening balance.",
+      "priorActiveMismatchReason": "trueBalanceMismatch",
+      "paymentPatterns": [
+        "unallocatedPaymentPattern"
+      ],
+      "explainedByPaymentTheory": true,
+      "paymentMatchConfidence": "medium"
+    },
+    {
+      "accountNo": "MOR004",
+      "fullName": "Onthatile Morobane",
+      "ageAnalysisBalance": 7100,
+      "ledgerBalanceFromImport": 7030,
+      "adjustmentAmount": 70,
+      "absAdjustmentAmount": 70,
+      "variance": 70,
+      "entryType": "invoice",
+      "reasonGroup": "possibleDuplicatedHistoricalCredit",
+      "reasonDetail": "Prior audit: duplicate name, overpaid section, or ledger credit vs age debt.",
+      "priorActiveMismatchReason": "possibleDuplicateOrHistoricalCredit",
+      "paymentPatterns": [
+        "unallocatedPaymentPattern"
+      ],
+      "explainedByPaymentTheory": true,
+      "paymentMatchConfidence": "high"
+    }
+  ],
+  "top30ByAbsAdjustment": [
+    {
+      "accountNo": "MOE004",
+      "fullName": "Kgato Fenyang Moeng",
+      "ageAnalysisBalance": 3850,
+      "ledgerBalanceFromImport": -9080,
+      "adjustmentAmount": 12930,
+      "absAdjustmentAmount": 12930,
+      "variance": 12930,
+      "entryType": "invoice",
+      "reasonGroup": "possibleDuplicatedHistoricalCredit",
+      "reasonDetail": "Prior audit: duplicate name, overpaid section, or ledger credit vs age debt.",
+      "priorActiveMismatchReason": "possibleDuplicateOrHistoricalCredit",
+      "paymentPatterns": [
+        "negativeLedgerPositiveAge",
+        "paymentsWithoutInvoiceCoverage",
+        "unallocatedPaymentPattern"
+      ],
+      "explainedByPaymentTheory": true,
+      "paymentMatchConfidence": "medium"
+    },
+    {
+      "accountNo": "TLA001",
+      "fullName": "Neo Kearabilwe Tladi",
+      "ageAnalysisBalance": 10790,
+      "ledgerBalanceFromImport": 2010,
+      "adjustmentAmount": 8780,
+      "absAdjustmentAmount": 8780,
+      "variance": 8780,
+      "entryType": "invoice",
+      "reasonGroup": "possibleUnallocatedPayment",
+      "reasonDetail": "Payment/export skew (unallocatedPaymentPattern); fix allocation before relying on opening balance.",
+      "priorActiveMismatchReason": "trueBalanceMismatch",
+      "paymentPatterns": [
+        "unallocatedPaymentPattern"
+      ],
+      "explainedByPaymentTheory": true,
+      "paymentMatchConfidence": "medium"
+    },
+    {
+      "accountNo": "NDL008",
+      "fullName": "Amukelani Gift Ndlovu",
+      "ageAnalysisBalance": 4305,
+      "ledgerBalanceFromImport": -2610,
+      "adjustmentAmount": 6915,
+      "absAdjustmentAmount": 6915,
+      "variance": 6915,
+      "entryType": "invoice",
+      "reasonGroup": "possibleDuplicatedHistoricalCredit",
+      "reasonDetail": "Prior audit: duplicate name, overpaid section, or ledger credit vs age debt.",
+      "priorActiveMismatchReason": "possibleDuplicateOrHistoricalCredit",
+      "paymentPatterns": [
+        "negativeLedgerPositiveAge",
+        "paymentsWithoutInvoiceCoverage",
+        "unallocatedPaymentPattern"
+      ],
+      "explainedByPaymentTheory": true,
+      "paymentMatchConfidence": "medium"
+    },
+    {
+      "accountNo": "NGA002",
+      "fullName": "Bonang Mmokwa",
+      "ageAnalysisBalance": 9200,
+      "ledgerBalanceFromImport": 3025,
+      "adjustmentAmount": 6175,
+      "absAdjustmentAmount": 6175,
+      "variance": 6175,
+      "entryType": "invoice",
+      "reasonGroup": "possibleDuplicatedHistoricalCredit",
+      "reasonDetail": "Prior audit: duplicate name, overpaid section, or ledger credit vs age debt.",
+      "priorActiveMismatchReason": "possibleDuplicateOrHistoricalCredit",
+      "paymentPatterns": [
+        "unallocatedPaymentPattern"
+      ],
+      "explainedByPaymentTheory": true,
+      "paymentMatchConfidence": "medium"
+    },
+    {
+      "accountNo": "NHL001",
+      "fullName": "Rorisang Nhlapo",
+      "ageAnalysisBalance": 3800,
+      "ledgerBalanceFromImport": -1700,
+      "adjustmentAmount": 5500,
+      "absAdjustmentAmount": 5500,
+      "variance": 5500,
+      "entryType": "invoice",
+      "reasonGroup": "possibleDuplicatedHistoricalCredit",
+      "reasonDetail": "Prior audit: duplicate name, overpaid section, or ledger credit vs age debt.",
+      "priorActiveMismatchReason": "possibleDuplicateOrHistoricalCredit",
+      "paymentPatterns": [
+        "negativeLedgerPositiveAge",
+        "paymentsWithoutInvoiceCoverage",
+        "unallocatedPaymentPattern"
+      ],
+      "explainedByPaymentTheory": true,
+      "paymentMatchConfidence": "medium"
+    },
+    {
+      "accountNo": "MOL018",
+      "fullName": "Hailey Molema",
+      "ageAnalysisBalance": 6500,
+      "ledgerBalanceFromImport": 1085,
+      "adjustmentAmount": 5415,
+      "absAdjustmentAmount": 5415,
+      "variance": 5415,
+      "entryType": "invoice",
+      "reasonGroup": "possibleUnallocatedPayment",
+      "reasonDetail": "Payment/export skew (unallocatedPaymentPattern); fix allocation before relying on opening balance.",
+      "priorActiveMismatchReason": "trueBalanceMismatch",
+      "paymentPatterns": [
+        "unallocatedPaymentPattern"
+      ],
+      "explainedByPaymentTheory": true,
+      "paymentMatchConfidence": "medium"
+    },
+    {
+      "accountNo": "NDL009",
+      "fullName": "Goitseone Ndlovu",
+      "ageAnalysisBalance": 3700,
+      "ledgerBalanceFromImport": -1600,
+      "adjustmentAmount": 5300,
+      "absAdjustmentAmount": 5300,
+      "variance": 5300,
+      "entryType": "invoice",
+      "reasonGroup": "possibleDuplicatedHistoricalCredit",
+      "reasonDetail": "Prior audit: duplicate name, overpaid section, or ledger credit vs age debt.",
+      "priorActiveMismatchReason": "possibleDuplicateOrHistoricalCredit",
+      "paymentPatterns": [
+        "negativeLedgerPositiveAge",
+        "paymentsWithoutInvoiceCoverage",
+        "unallocatedPaymentPattern"
+      ],
+      "explainedByPaymentTheory": true,
+      "paymentMatchConfidence": "medium"
+    },
+    {
+      "accountNo": "MON006",
+      "fullName": "Oboitshepo Monewe",
+      "ageAnalysisBalance": 4400,
+      "ledgerBalanceFromImport": -670,
+      "adjustmentAmount": 5070,
+      "absAdjustmentAmount": 5070,
+      "variance": 5070,
+      "entryType": "invoice",
+      "reasonGroup": "possibleDuplicatedHistoricalCredit",
+      "reasonDetail": "Prior audit: duplicate name, overpaid section, or ledger credit vs age debt.",
+      "priorActiveMismatchReason": "possibleDuplicateOrHistoricalCredit",
+      "paymentPatterns": [
+        "negativeLedgerPositiveAge",
+        "paymentsWithoutInvoiceCoverage",
+        "unallocatedPaymentPattern"
+      ],
+      "explainedByPaymentTheory": true,
+      "paymentMatchConfidence": "medium"
+    },
+    {
+      "accountNo": "MOT010",
+      "fullName": "Tokelo Motshwanedi",
+      "ageAnalysisBalance": 3000,
+      "ledgerBalanceFromImport": -1965,
+      "adjustmentAmount": 4965,
+      "absAdjustmentAmount": 4965,
+      "variance": 4965,
+      "entryType": "invoice",
+      "reasonGroup": "possibleDuplicatedHistoricalCredit",
+      "reasonDetail": "Prior audit: duplicate name, overpaid section, or ledger credit vs age debt.",
+      "priorActiveMismatchReason": "possibleDuplicateOrHistoricalCredit",
+      "paymentPatterns": [
+        "negativeLedgerPositiveAge",
+        "paymentsWithoutInvoiceCoverage",
+        "unallocatedPaymentPattern"
+      ],
+      "explainedByPaymentTheory": true,
+      "paymentMatchConfidence": "medium"
+    },
+    {
+      "accountNo": "MAT020",
+      "fullName": "Bokamoso Matima",
+      "ageAnalysisBalance": 4250,
+      "ledgerBalanceFromImport": -700,
+      "adjustmentAmount": 4950,
+      "absAdjustmentAmount": 4950,
+      "variance": 4950,
+      "entryType": "invoice",
+      "reasonGroup": "possibleDuplicatedHistoricalCredit",
+      "reasonDetail": "Prior audit: duplicate name, overpaid section, or ledger credit vs age debt.",
+      "priorActiveMismatchReason": "possibleDuplicateOrHistoricalCredit",
+      "paymentPatterns": [
+        "negativeLedgerPositiveAge",
+        "paymentsWithoutInvoiceCoverage",
+        "unallocatedPaymentPattern"
+      ],
+      "explainedByPaymentTheory": true,
+      "paymentMatchConfidence": "medium"
+    },
+    {
+      "accountNo": "LAN002",
+      "fullName": "Obakeng Langeni",
+      "ageAnalysisBalance": 2920,
+      "ledgerBalanceFromImport": -1630,
+      "adjustmentAmount": 4550,
+      "absAdjustmentAmount": 4550,
+      "variance": 4550,
+      "entryType": "invoice",
+      "reasonGroup": "possibleDuplicatedHistoricalCredit",
+      "reasonDetail": "Prior audit: duplicate name, overpaid section, or ledger credit vs age debt.",
+      "priorActiveMismatchReason": "possibleDuplicateOrHistoricalCredit",
+      "paymentPatterns": [
+        "negativeLedgerPositiveAge",
+        "paymentsWithoutInvoiceCoverage",
+        "unallocatedPaymentPattern"
+      ],
+      "explainedByPaymentTheory": true,
+      "paymentMatchConfidence": "medium"
+    },
+    {
+      "accountNo": "TSH003",
+      "fullName": "Amphe Lily Tsholoba",
+      "ageAnalysisBalance": 3550,
+      "ledgerBalanceFromImport": -950,
+      "adjustmentAmount": 4500,
+      "absAdjustmentAmount": 4500,
+      "variance": 4500,
+      "entryType": "invoice",
+      "reasonGroup": "possibleDuplicatedHistoricalCredit",
+      "reasonDetail": "Prior audit: duplicate name, overpaid section, or ledger credit vs age debt.",
+      "priorActiveMismatchReason": "possibleDuplicateOrHistoricalCredit",
+      "paymentPatterns": [
+        "negativeLedgerPositiveAge",
+        "paymentsWithoutInvoiceCoverage",
+        "unallocatedPaymentPattern"
+      ],
+      "explainedByPaymentTheory": true,
+      "paymentMatchConfidence": "medium"
+    },
+    {
+      "accountNo": "MAK014",
+      "fullName": "Reitumetse Makwakwa",
+      "ageAnalysisBalance": 3950,
+      "ledgerBalanceFromImport": -515,
+      "adjustmentAmount": 4465,
+      "absAdjustmentAmount": 4465,
+      "variance": 4465,
+      "entryType": "invoice",
+      "reasonGroup": "possibleDuplicatedHistoricalCredit",
+      "reasonDetail": "Prior audit: duplicate name, overpaid section, or ledger credit vs age debt.",
+      "priorActiveMismatchReason": "possibleDuplicateOrHistoricalCredit",
+      "paymentPatterns": [
+        "negativeLedgerPositiveAge",
+        "paymentsWithoutInvoiceCoverage",
+        "unallocatedPaymentPattern"
+      ],
+      "explainedByPaymentTheory": true,
+      "paymentMatchConfidence": "medium"
+    },
+    {
+      "accountNo": "TSH017",
+      "fullName": "Onthatile Tshose",
+      "ageAnalysisBalance": 5290,
+      "ledgerBalanceFromImport": 860,
+      "adjustmentAmount": 4430,
+      "absAdjustmentAmount": 4430,
+      "variance": 4430,
+      "entryType": "invoice",
+      "reasonGroup": "possibleUnallocatedPayment",
+      "reasonDetail": "Payment/export skew (unallocatedPaymentPattern); fix allocation before relying on opening balance.",
+      "priorActiveMismatchReason": "trueBalanceMismatch",
+      "paymentPatterns": [
+        "unallocatedPaymentPattern"
+      ],
+      "explainedByPaymentTheory": true,
+      "paymentMatchConfidence": "medium"
+    },
+    {
+      "accountNo": "FRE001",
+      "fullName": "Oatlegile Frederick",
+      "ageAnalysisBalance": 9500,
+      "ledgerBalanceFromImport": 5100,
+      "adjustmentAmount": 4400,
+      "absAdjustmentAmount": 4400,
+      "variance": 4400,
+      "entryType": "invoice",
+      "reasonGroup": "possibleUnallocatedPayment",
+      "reasonDetail": "Payment/export skew (unallocatedPaymentPattern); fix allocation before relying on opening balance.",
+      "priorActiveMismatchReason": "trueBalanceMismatch",
+      "paymentPatterns": [
+        "unallocatedPaymentPattern"
+      ],
+      "explainedByPaymentTheory": true,
+      "paymentMatchConfidence": "medium"
+    },
+    {
+      "accountNo": "MAT022",
+      "fullName": "Phemelo Reotshepile Matsheka",
+      "ageAnalysisBalance": 6100,
+      "ledgerBalanceFromImport": 1700,
+      "adjustmentAmount": 4400,
+      "absAdjustmentAmount": 4400,
+      "variance": 4400,
+      "entryType": "invoice",
+      "reasonGroup": "possibleUnallocatedPayment",
+      "reasonDetail": "Payment/export skew (unallocatedPaymentPattern); fix allocation before relying on opening balance.",
+      "priorActiveMismatchReason": "trueBalanceMismatch",
+      "paymentPatterns": [
+        "unallocatedPaymentPattern"
+      ],
+      "explainedByPaymentTheory": true,
+      "paymentMatchConfidence": "medium"
+    },
+    {
+      "accountNo": "SEI859",
+      "fullName": "Leano Seichokelo",
+      "ageAnalysisBalance": 3800,
+      "ledgerBalanceFromImport": -359,
+      "adjustmentAmount": 4159,
+      "absAdjustmentAmount": 4159,
+      "variance": 4159,
+      "entryType": "invoice",
+      "reasonGroup": "possibleDuplicatedHistoricalCredit",
+      "reasonDetail": "Prior audit: duplicate name, overpaid section, or ledger credit vs age debt.",
+      "priorActiveMismatchReason": "possibleDuplicateOrHistoricalCredit",
+      "paymentPatterns": [
+        "negativeLedgerPositiveAge",
+        "unallocatedPaymentPattern"
+      ],
+      "explainedByPaymentTheory": true,
+      "paymentMatchConfidence": "medium"
+    },
+    {
+      "accountNo": "NAS001",
+      "fullName": "Samira Nasere",
+      "ageAnalysisBalance": 7800,
+      "ledgerBalanceFromImport": 3905,
+      "adjustmentAmount": 3895,
+      "absAdjustmentAmount": 3895,
+      "variance": 3895,
+      "entryType": "invoice",
+      "reasonGroup": "possibleUnallocatedPayment",
+      "reasonDetail": "Payment/export skew (unallocatedPaymentPattern); fix allocation before relying on opening balance.",
+      "priorActiveMismatchReason": "trueBalanceMismatch",
+      "paymentPatterns": [
+        "unallocatedPaymentPattern"
+      ],
+      "explainedByPaymentTheory": true,
+      "paymentMatchConfidence": "medium"
+    },
+    {
+      "accountNo": "MAB011",
+      "fullName": "Thandekile Princess Mabuza",
+      "ageAnalysisBalance": 5000,
+      "ledgerBalanceFromImport": 1240,
+      "adjustmentAmount": 3760,
+      "absAdjustmentAmount": 3760,
+      "variance": 3760,
+      "entryType": "invoice",
+      "reasonGroup": "possibleUnallocatedPayment",
+      "reasonDetail": "Payment/export skew (unallocatedPaymentPattern); fix allocation before relying on opening balance.",
+      "priorActiveMismatchReason": "trueBalanceMismatch",
+      "paymentPatterns": [
+        "unallocatedPaymentPattern"
+      ],
+      "explainedByPaymentTheory": true,
+      "paymentMatchConfidence": "medium"
+    },
+    {
+      "accountNo": "TLH005",
+      "fullName": "Oletilwe Tlhame",
+      "ageAnalysisBalance": 4350,
+      "ledgerBalanceFromImport": 750,
+      "adjustmentAmount": 3600,
+      "absAdjustmentAmount": 3600,
+      "variance": 3600,
+      "entryType": "invoice",
+      "reasonGroup": "possibleUnallocatedPayment",
+      "reasonDetail": "Payment/export skew (unallocatedPaymentPattern); fix allocation before relying on opening balance.",
+      "priorActiveMismatchReason": "trueBalanceMismatch",
+      "paymentPatterns": [
+        "unallocatedPaymentPattern"
+      ],
+      "explainedByPaymentTheory": true,
+      "paymentMatchConfidence": "medium"
+    },
+    {
+      "accountNo": "MPI102",
+      "fullName": "Neo Lethabo Mpiko",
+      "ageAnalysisBalance": 3800,
+      "ledgerBalanceFromImport": 205,
+      "adjustmentAmount": 3595,
+      "absAdjustmentAmount": 3595,
+      "variance": 3595,
+      "entryType": "invoice",
+      "reasonGroup": "possibleDuplicatedHistoricalCredit",
+      "reasonDetail": "Prior audit: duplicate name, overpaid section, or ledger credit vs age debt.",
+      "priorActiveMismatchReason": "possibleDuplicateOrHistoricalCredit",
+      "paymentPatterns": [
+        "unallocatedPaymentPattern"
+      ],
+      "explainedByPaymentTheory": true,
+      "paymentMatchConfidence": "medium"
+    },
+    {
+      "accountNo": "WOL001",
+      "fullName": "Elleliyon Wolebo",
+      "ageAnalysisBalance": 7370,
+      "ledgerBalanceFromImport": 3870,
+      "adjustmentAmount": 3500,
+      "absAdjustmentAmount": 3500,
+      "variance": 3500,
+      "entryType": "invoice",
+      "reasonGroup": "possibleUnallocatedPayment",
+      "reasonDetail": "Payment/export skew (unallocatedPaymentPattern); fix allocation before relying on opening balance.",
+      "priorActiveMismatchReason": "trueBalanceMismatch",
+      "paymentPatterns": [
+        "unallocatedPaymentPattern"
+      ],
+      "explainedByPaymentTheory": true,
+      "paymentMatchConfidence": "medium"
+    },
+    {
+      "accountNo": "MOL003",
+      "fullName": "Molebogeng Maselela",
+      "ageAnalysisBalance": 4710,
+      "ledgerBalanceFromImport": 7910,
+      "adjustmentAmount": -3200,
+      "absAdjustmentAmount": 3200,
+      "variance": -3200,
+      "entryType": "credit",
+      "reasonGroup": "inverseProblemLedgerGreaterThanAge",
+      "reasonDetail": "Ledger R7910 exceeds age R4710; opening credit R3200 may mask export over-statement.",
+      "priorActiveMismatchReason": "possibleDuplicateOrHistoricalCredit",
+      "paymentPatterns": [],
+      "explainedByPaymentTheory": false,
+      "paymentMatchConfidence": "none"
+    },
+    {
+      "accountNo": "SEP899",
+      "fullName": "Omogolo Sepadile",
+      "ageAnalysisBalance": 3700,
+      "ledgerBalanceFromImport": 500,
+      "adjustmentAmount": 3200,
+      "absAdjustmentAmount": 3200,
+      "variance": 3200,
+      "entryType": "invoice",
+      "reasonGroup": "possibleUnallocatedPayment",
+      "reasonDetail": "Payment/export skew (unallocatedPaymentPattern); fix allocation before relying on opening balance.",
+      "priorActiveMismatchReason": "trueBalanceMismatch",
+      "paymentPatterns": [
+        "unallocatedPaymentPattern"
+      ],
+      "explainedByPaymentTheory": true,
+      "paymentMatchConfidence": "medium"
+    },
+    {
+      "accountNo": "MAB004",
+      "fullName": "Gosego Mabale",
+      "ageAnalysisBalance": 3700,
+      "ledgerBalanceFromImport": 605,
+      "adjustmentAmount": 3095,
+      "absAdjustmentAmount": 3095,
+      "variance": 3095,
+      "entryType": "invoice",
+      "reasonGroup": "possibleUnallocatedPayment",
+      "reasonDetail": "Payment/export skew (unallocatedPaymentPattern); fix allocation before relying on opening balance.",
+      "priorActiveMismatchReason": "trueBalanceMismatch",
+      "paymentPatterns": [
+        "unallocatedPaymentPattern"
+      ],
+      "explainedByPaymentTheory": true,
+      "paymentMatchConfidence": "medium"
+    },
+    {
+      "accountNo": "KHU005",
+      "fullName": "Elethu Entle Khunou",
+      "ageAnalysisBalance": 3550,
+      "ledgerBalanceFromImport": 500,
+      "adjustmentAmount": 3050,
+      "absAdjustmentAmount": 3050,
+      "variance": 3050,
+      "entryType": "invoice",
+      "reasonGroup": "possibleUnallocatedPayment",
+      "reasonDetail": "Payment/export skew (unallocatedPaymentPattern); fix allocation before relying on opening balance.",
+      "priorActiveMismatchReason": "trueBalanceMismatch",
+      "paymentPatterns": [
+        "unallocatedPaymentPattern"
+      ],
+      "explainedByPaymentTheory": true,
+      "paymentMatchConfidence": "medium"
+    },
+    {
+      "accountNo": "GEB002",
+      "fullName": "Benyis Geber",
+      "ageAnalysisBalance": 3700,
+      "ledgerBalanceFromImport": 700,
+      "adjustmentAmount": 3000,
+      "absAdjustmentAmount": 3000,
+      "variance": 3000,
+      "entryType": "invoice",
+      "reasonGroup": "possibleUnallocatedPayment",
+      "reasonDetail": "Payment/export skew (unallocatedPaymentPattern); fix allocation before relying on opening balance.",
+      "priorActiveMismatchReason": "trueBalanceMismatch",
+      "paymentPatterns": [
+        "unallocatedPaymentPattern"
+      ],
+      "explainedByPaymentTheory": true,
+      "paymentMatchConfidence": "medium"
+    },
+    {
+      "accountNo": "BUY001",
+      "fullName": "Kim Omontle Buys",
+      "ageAnalysisBalance": 2900,
+      "ledgerBalanceFromImport": 150,
+      "adjustmentAmount": 2750,
+      "absAdjustmentAmount": 2750,
+      "variance": 2750,
+      "entryType": "invoice",
+      "reasonGroup": "possibleUnallocatedPayment",
+      "reasonDetail": "Payment/export skew (unallocatedPaymentPattern); fix allocation before relying on opening balance.",
+      "priorActiveMismatchReason": "trueBalanceMismatch",
+      "paymentPatterns": [
+        "unallocatedPaymentPattern"
+      ],
+      "explainedByPaymentTheory": true,
+      "paymentMatchConfidence": "medium"
+    },
+    {
+      "accountNo": "GAA001",
+      "fullName": "Didintle Nyeko Gaasenwe",
+      "ageAnalysisBalance": 3500,
+      "ledgerBalanceFromImport": 750,
+      "adjustmentAmount": 2750,
+      "absAdjustmentAmount": 2750,
+      "variance": 2750,
+      "entryType": "invoice",
+      "reasonGroup": "possibleUnallocatedPayment",
+      "reasonDetail": "Payment/export skew (unallocatedPaymentPattern); fix allocation before relying on opening balance.",
+      "priorActiveMismatchReason": "trueBalanceMismatch",
+      "paymentPatterns": [
+        "unallocatedPaymentPattern"
+      ],
+      "explainedByPaymentTheory": true,
+      "paymentMatchConfidence": "medium"
+    },
+    {
+      "accountNo": "KOR001",
+      "fullName": "Dagimawit Korabza",
+      "ageAnalysisBalance": 6860,
+      "ledgerBalanceFromImport": 4110,
+      "adjustmentAmount": 2750,
+      "absAdjustmentAmount": 2750,
+      "variance": 2750,
+      "entryType": "invoice",
+      "reasonGroup": "possibleUnallocatedPayment",
+      "reasonDetail": "Payment/export skew (unallocatedPaymentPattern); fix allocation before relying on opening balance.",
+      "priorActiveMismatchReason": "trueBalanceMismatch",
+      "paymentPatterns": [
+        "unallocatedPaymentPattern"
+      ],
+      "explainedByPaymentTheory": true,
+      "paymentMatchConfidence": "medium"
+    }
+  ]
+}

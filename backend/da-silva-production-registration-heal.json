@@ -1,0 +1,52 @@
+{
+  "mode": "dry-run",
+  "schoolId": "cmpideqeq0000108xb6ouv9zi",
+  "sourceDir": "/Users/dasilvaacademy/EduClear/backend",
+  "dataRoot": "/Users/dasilvaacademy/EduClear/backend",
+  "dryRunBefore": {
+    "learnersMissingGender": 0,
+    "learnersMissingIdNumber": 25,
+    "parentsMissingIdNumber": 333,
+    "preSchoolCreche": 0,
+    "billingPlansCount": 393,
+    "statementAccounts": 344
+  },
+  "applied": [
+    "sasams staging skipped (No Da Silva manifest in staging — upload SA-SAMS + Kid-e-Sys files first)",
+    "would normalize creche (0)",
+    "would remap billing plans (0)"
+  ],
+  "after": {
+    "children": 397,
+    "boys": 189,
+    "girls": 208,
+    "parents": 629,
+    "parentsWithId": 296,
+    "learnersWithBillingPlans": 393,
+    "preSchoolCreche": 0,
+    "statementAccounts": 344
+  },
+  "billingBefore": {
+    "familyAccountCount": 821,
+    "accountRefDigest": "083d72d156075214",
+    "ageAnalysisAccountCount": 344,
+    "ageAnalysisNetOutstanding": 1228655.42,
+    "ledgerEntryCount": 40928,
+    "ledgerInvoiceCount": 20683,
+    "ledgerPaymentCount": 20245,
+    "historyRowCount": 40916
+  },
+  "billingAfter": {
+    "familyAccountCount": 821,
+    "accountRefDigest": "083d72d156075214",
+    "ageAnalysisAccountCount": 344,
+    "ageAnalysisNetOutstanding": 1228655.42,
+    "ledgerEntryCount": 40928,
+    "ledgerInvoiceCount": 20683,
+    "ledgerPaymentCount": 20245,
+    "historyRowCount": 40916
+  },
+  "billingUntouched": true,
+  "auditPass": true,
+  "auditNotes": []
+}

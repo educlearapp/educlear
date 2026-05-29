@@ -1,0 +1,48 @@
+Da Silva live snapshot replace — APPLY
+Generated: 2026-05-24T16:38:23.180Z
+
+School: Da Silva Academy (cmphx5cc00001kedqeq3pe0jx) found by email
+Snapshot: /Users/dasilvaacademy/EduClear/backend
+
+=== SNAPSHOT BLOCKERS ===
+  ! Snapshot manifest missing
+  ! Snapshot learners=0, expected 396
+  ! Snapshot parents=0, expected 290
+  ! Snapshot parentLinks=0, expected 330
+  ! Snapshot familyAccounts=0, expected 344
+
+=== PROTECTION NOTES ===
+  Other schools present (untouched): EduClear Demo School
+
+=== LIVE BEFORE ===
+{
+  "learners": 536,
+  "parents": 523,
+  "parentLinks": 577,
+  "classrooms": 21,
+  "familyAccounts": 344,
+  "statementAccounts": 344,
+  "billingPlanLearners": 0,
+  "ledgerEntries": 0,
+  "historyRows": 0,
+  "netOutstanding": 0,
+  "overPaid": 0,
+  "subscriptionStatus": "ACTIVE",
+  "subscriptionPackage": "UNLIMITED",
+  "dashboardUnlocked": true,
+  "ownerEmail": "dasilvaacademy@gmail.com",
+  "ownerPresent": true
+}
+
+=== LIVE VALIDATION GAPS ===
+  ! live learners=536, expected 396
+  ! live parents=523, expected 290
+  ! live parentLinks=577, expected 330
+  ! live billingPlanLearners=0, expected 396
+  ! live ledgerEntries=0, expected 337
+  ! live historyRows=0, expected 40916
+  ! live netOutstanding=0, expected 1228655.42
+  ! live overPaid=0, expected 490355.03
+
+=== VERDICT ===
+BLOCKER: snapshot invalid — fix snapshot before apply

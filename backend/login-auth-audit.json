@@ -1,0 +1,95 @@
+{
+  "generatedAt": "2026-05-24T13:16:23.691Z",
+  "email": "dasilvaacademy@gmail.com",
+  "schoolId": "cmpideqeq0000108xb6ouv9zi",
+  "apiBase": "http://localhost:3000",
+  "loginVerified": false,
+  "goLiveBlocker": true,
+  "checks": [
+    {
+      "id": "1-school",
+      "title": "Linked school exists",
+      "status": "pass",
+      "detail": "Da Silva Academy (cmpideqeq0000108xb6ouv9zi)"
+    },
+    {
+      "id": "1-user",
+      "title": "Owner user record exists",
+      "status": "pass",
+      "detail": "1 user(s) with this email"
+    },
+    {
+      "id": "1-provenance",
+      "title": "Owner provisioning source",
+      "status": "pass",
+      "detail": "registration (school.email=dasilvaacademy@gmail.com, fullName=Da Silva Academy)"
+    },
+    {
+      "id": "1-schoolId",
+      "title": "schoolId linked to Da Silva Academy",
+      "status": "pass",
+      "detail": "user cmpimyjkj00013lhz6kkxr9xu schoolId=cmpideqeq0000108xb6ouv9zi"
+    },
+    {
+      "id": "1-active",
+      "title": "User isActive",
+      "status": "pass",
+      "detail": "user cmpimyjkj00013lhz6kkxr9xu isActive=true"
+    },
+    {
+      "id": "1-role",
+      "title": "Prisma role present",
+      "status": "pass",
+      "detail": "user cmpimyjkj00013lhz6kkxr9xu role=SCHOOL_ADMIN"
+    },
+    {
+      "id": "3-hash",
+      "title": "Password hash format (bcrypt)",
+      "status": "pass",
+      "detail": "length=60 prefix=$2b$10$"
+    },
+    {
+      "id": "3-compare",
+      "title": "bcrypt.compare(DA_SILVA_OWNER_PASSWORD)",
+      "status": "skip",
+      "detail": "Set DA_SILVA_OWNER_PASSWORD in env to test hash match"
+    },
+    {
+      "id": "1-permissions",
+      "title": "user-access.json Owner permissions",
+      "status": "pass",
+      "detail": "appRole=Owner schoolId=cmpideqeq0000108xb6ouv9zi"
+    },
+    {
+      "id": "1-perm-map",
+      "title": "Owner permission map populated",
+      "status": "pass",
+      "detail": "modules in meta: 20, expected: 20"
+    },
+    {
+      "id": "5-jwt",
+      "title": "JWT_SECRET configured",
+      "status": "pass",
+      "detail": "JWT_SECRET is set"
+    },
+    {
+      "id": "4-auth-route",
+      "title": "POST /auth/login reachable",
+      "status": "pass",
+      "detail": "status=401 body={\"error\":\"Invalid credentials\"}"
+    },
+    {
+      "id": "4-api-alias",
+      "title": "POST /api/auth/login reachable (alias)",
+      "status": "pass",
+      "detail": "status=401 body={\"error\":\"Invalid credentials\"}"
+    },
+    {
+      "id": "7-verify",
+      "title": "LOGIN VERIFIED",
+      "status": "skip",
+      "detail": "Re-run with DA_SILVA_OWNER_PASSWORD=... --verify-login after password reset"
+    }
+  ],
+  "recovery": "REGISTRATION_EMAIL=dasilvaacademy@gmail.com REGISTRATION_PASSWORD='...' npx tsx scripts/verify-school-registration-auth.ts --apply-reclaim --verify-login (preferred — restores registration password, not a reset)"
+}

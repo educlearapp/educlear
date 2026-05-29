@@ -1,0 +1,33 @@
+EduClear school data cleanup — APPLY
+Generated: 2026-05-24T16:17:14.267Z
+
+=== PROTECTED (no changes) ===
+  EduClear Platform (cmpi4coo7000067p0xxhr8yyo)
+
+=== DEMO / TEST SCHOOLS (full delete) ===
+
+=== DA SILVA ACADEMY (purge import, keep school) ===
+  School id: cmpideqeq0000108xb6ouv9zi
+  Prisma rows to delete: 1
+    user: 1
+  Owner dasilvaacademy@gmail.com: exists
+  On apply: no change
+
+=== JSON FILE STORES ===
+  billing-ledger.json: remove school key — cmpideqeq0000108xb6ouv9zi: 337 ledger entries
+  learner-billing-plans.json: remove school key — cmpideqeq0000108xb6ouv9zi: 396 learner plan(s)
+  kidesys-transaction-history.json: remove school key — cmpideqeq0000108xb6ouv9zi: 40916 history row(s)
+  user-access.json: remove user meta — 1 user access record(s) for target school(s)
+
+=== MIGRATION STAGING ===
+  /Users/dasilvaacademy/EduClear/backend/uploads/migration-staging/cmpideqeq0000108xb6ouv9zi: 1 file(s), 102.2 KB
+
+=== APPLY RESULTS ===
+  Purged Da Silva imported data (0 deleteMany total)
+  Preserved registration owner(s): dasilvaacademy@gmail.com
+  Owner: owner user already exists (unchanged) (dasilvaacademy@gmail.com)
+  JSON billing-ledger.json: cmpideqeq0000108xb6ouv9zi: 337 ledger entries
+  JSON learner-billing-plans.json: cmpideqeq0000108xb6ouv9zi: 396 learner plan(s)
+  JSON kidesys-transaction-history.json: cmpideqeq0000108xb6ouv9zi: 40916 history row(s)
+  JSON user-access.json: 1 user access record(s)
+  Staging removed: /Users/dasilvaacademy/EduClear/backend/uploads/migration-staging/cmpideqeq0000108xb6ouv9zi (1 files)

@@ -24,6 +24,7 @@ import {
   upsertSchoolEntries,
 } from "../../utils/billingLedgerStore";
 import { normalizeClassroomInput } from "../../utils/classroomNormalization";
+import { pickLearnerGenderForWrite, resolveGenderFromSources } from "../../utils/learnerGender";
 import { normalizeMatchText } from "../../utils/kideesysSpreadsheet";
 import { buildLearnerMatchKey } from "./parsers";
 import {
@@ -1737,7 +1738,7 @@ function sasamsLearnerToImportRow(
     admissionNo: learner.admissionNo,
     idNumber: learner.idNumber,
     birthDate: learner.birthDate,
-    gender: learner.gender,
+    gender: resolveGenderFromSources({ gender: learner.gender, idNumber: learner.idNumber }),
     homeLanguage: learner.language,
     citizenship: learner.citizenship,
     enrichedFromRegister,
@@ -2072,7 +2073,11 @@ export async function commitDaSilvaLearnersOnly(opts: {
       }
 
       const norm = normalizeClassroomInput(row.canonicalClassName);
-      const learnerData = {
+      const genderValue = resolveGenderFromSources({
+        gender: row.gender,
+        idNumber: row.idNumber,
+      });
+      const baseLearnerData = {
         schoolId: opts.schoolId,
         firstName: row.firstName,
         lastName: row.lastName,
@@ -2081,7 +2086,6 @@ export async function commitDaSilvaLearnersOnly(opts: {
         admissionNo: row.admissionNo,
         idNumber: row.idNumber,
         birthDate: row.birthDate,
-        gender: row.gender,
         homeLanguage: row.homeLanguage,
         citizenship: row.citizenship,
         enrollmentStatus: "ACTIVE" as const,
@@ -2093,8 +2097,17 @@ export async function commitDaSilvaLearnersOnly(opts: {
         if (learnerId) {
           const existing = await prisma.learner.findUnique({
             where: { id: learnerId },
-            select: { className: true },
+            select: { className: true, gender: true, idNumber: true },
           });
+          const genderToWrite = pickLearnerGenderForWrite({
+            existingGender: existing?.gender,
+            gender: row.gender,
+            idNumber: row.idNumber ?? existing?.idNumber,
+          });
+          const updateData = {
+            ...baseLearnerData,
+            ...(genderToWrite !== undefined ? { gender: genderToWrite } : {}),
+          };
           if (
             existing &&
             existing.className === row.canonicalClassName &&
@@ -2108,12 +2121,14 @@ export async function commitDaSilvaLearnersOnly(opts: {
           } else {
             await prisma.learner.update({
               where: { id: learnerId },
-              data: learnerData,
+              data: updateData,
             });
             learnersUpdated += 1;
           }
         } else {
-          const created = await prisma.learner.create({ data: learnerData });
+          const created = await prisma.learner.create({
+            data: { ...baseLearnerData, gender: genderValue },
+          });
           learnerId = created.id;
           learnersCreated += 1;
         }

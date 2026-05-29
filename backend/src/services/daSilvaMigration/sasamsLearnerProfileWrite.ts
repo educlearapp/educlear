@@ -1,5 +1,9 @@
 import { normalizeMatchText } from "../../utils/kideesysSpreadsheet";
-import { normalizeLearnerGender, resolveLearnerGender } from "../../utils/learnerGender";
+import {
+  pickLearnerGenderForWrite,
+  resolveGenderFromSources,
+  resolveLearnerGender,
+} from "../../utils/learnerGender";
 import type { SasamsParsedLearner } from "./sasamsParsers";
 
 export type SasamsLearnerProfileFields = {
@@ -168,7 +172,7 @@ export function sasamsParsedToProfileFields(row: SasamsParsedLearner): SasamsLea
     admissionNo: row.admissionNo,
     idNumber: row.idNumber,
     birthDate: row.birthDate,
-    gender: resolveLearnerGender({ gender: row.gender, idNumber: row.idNumber }),
+    gender: resolveGenderFromSources({ gender: row.gender, idNumber: row.idNumber }),
     homeLanguage: row.language,
     citizenship: row.citizenship,
   };
@@ -199,10 +203,6 @@ export function buildSasamsLearnerProfileWriteData(
   incoming: SasamsLearnerProfileFields,
   existing?: Partial<SasamsLearnerProfileFields>
 ): Partial<SasamsLearnerProfileFields> {
-  const genderIncoming =
-    normalizeLearnerGender(incoming.gender) ||
-    resolveLearnerGender({ gender: incoming.gender, idNumber: incoming.idNumber });
-
   const data: Partial<SasamsLearnerProfileFields> = {};
   const admissionNo = pickString(incoming.admissionNo, existing?.admissionNo);
   if (admissionNo) data.admissionNo = admissionNo;
@@ -212,7 +212,11 @@ export function buildSasamsLearnerProfileWriteData(
   if (homeLanguage) data.homeLanguage = homeLanguage;
   const citizenship = pickString(incoming.citizenship, existing?.citizenship);
   if (citizenship) data.citizenship = citizenship;
-  const gender = pickString(genderIncoming, existing?.gender);
+  const gender = pickLearnerGenderForWrite({
+    existingGender: existing?.gender,
+    gender: incoming.gender,
+    idNumber: incoming.idNumber ?? existing?.idNumber,
+  });
   if (gender) data.gender = gender;
   const birthDate = pickDate(incoming.birthDate, existing?.birthDate ?? null);
   if (birthDate) data.birthDate = birthDate;

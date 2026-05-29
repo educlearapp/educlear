@@ -1,0 +1,50 @@
+=== Da Silva classroom label normalization (learner.className only) ===
+Generated: 2026-05-24T17:36:09.465Z
+Mode: apply
+School: cmpideqeq0000108xb6ouv9zi
+
+--- Before ---
+Classroom count (distinct learner.className): 21
+Learner total: 396
+
+--- Updates ---
+Learners to update: 40
+  |grade Ra → Grade RA: 16
+  |grade Rb → Grade RB: 16
+  Pre-School Creche → Creche: 8
+
+--- After (projected) ---
+Classroom count: 21
+Learner total: 396
+
+Learners per class (after):
+  Creche: 8
+  Grade 1A: 19
+  Grade 1B: 18
+  Grade 1C: 16
+  Grade 2A: 24
+  Grade 2B: 21
+  Grade 3A: 22
+  Grade 3B: 20
+  Grade 4A: 22
+  Grade 4B: 23
+  Grade 5A: 23
+  Grade 5B: 19
+  Grade 6A: 23
+  Grade 6B: 10
+  Grade 6C: 22
+  Grade 7A: 19
+  Grade 7B: 20
+  Grade 8A: 17
+  Grade 8B: 18
+  Grade RA: 16
+  Grade RB: 16
+
+--- Verification ---
+  learnerCount396: PASS
+  classroomCount21: PASS
+  noBillingTouch: PASS
+  classListCovers396: PASS
+  allUpdatesMapped: PASS
+
+Overall: PASS

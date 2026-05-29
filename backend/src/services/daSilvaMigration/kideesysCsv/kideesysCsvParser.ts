@@ -4,7 +4,7 @@ import { execSync } from "child_process";
 import os from "os";
 
 import { parseCsvText } from "../../../utils/migrationLearnerFileParser";
-import { resolveLearnerGender } from "../../../utils/learnerGender";
+import { resolveGenderFromSources } from "../../../utils/learnerGender";
 import { classifyKidESysChildRow } from "./kideesysChildClassifier";
 
 /** Canonical Kid-e-Sys export file suffixes (also matched with school prefix). */
@@ -342,8 +342,9 @@ function parseChildRows(rows: Record<string, string>[]): ParsedKidESysChild[] {
     const idNumber =
       pickCsvField(row, ["child_id_no", "id_number", "identity_number", "id_no", "sa_id"]) ||
       null;
-    const gender = resolveLearnerGender({
-      gender: pickCsvField(row, ["gender", "sex", "learner_gender"]),
+    const gender = resolveGenderFromSources({
+      gender: pickCsvField(row, ["gender", "learner_gender"]),
+      sex: pickCsvField(row, ["sex"]),
       idNumber,
     });
     const classification = classifyKidESysChildRow(row);

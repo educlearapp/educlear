@@ -1,0 +1,50 @@
+{
+  "projectId": "dasilva-mpo6388e-1w4xbq",
+  "learners": {
+    "sourceRows": 388,
+    "matched": 388,
+    "updated": 0,
+    "created": 0,
+    "skippedBlankOverwrite": 388,
+    "unmatched": []
+  },
+  "parents": {
+    "sourceRows": 653,
+    "matchedLinks": 647,
+    "parentsCreated": 0,
+    "parentsUpdated": 22,
+    "linksUpserted": 647,
+    "unmatchedParents": 6
+  },
+  "billing": {
+    "historyEntries": 40916,
+    "historyWritten": true,
+    "reconcileMode": "db-relink",
+    "ledgerInvoices": 68938,
+    "ledgerPayments": 63816,
+    "statementAccounts": 2195,
+    "accountsWithLastInvoice": 1581,
+    "accountsWithLastPayment": 1581
+  },
+  "audit": {
+    "learnersRepaired": 2895,
+    "parentsRepaired": 3597,
+    "profilesShowing": true,
+    "invoicesShowing": true,
+    "paymentsShowing": true,
+    "statementsShowing": true,
+    "auditPass": true,
+    "details": {
+      "totalLearners": 2895,
+      "withDob": 388,
+      "withGender": 619,
+      "withClass": 784,
+      "withHomeLanguage": 388,
+      "parentLinks": 3622,
+      "statementAccounts": 2195,
+      "learnerFillRate": 100,
+      "sasamsCohort": 388,
+      "sasamsUnmatched": 0
+    }
+  }
+}

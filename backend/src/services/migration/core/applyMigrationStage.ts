@@ -1,5 +1,6 @@
 import { prisma } from "../../../prisma";
 import { normalizeClassroomInput } from "../../../utils/classroomNormalization";
+import { resolveGenderFromSources } from "../../../utils/learnerGender";
 import { normalizeSaPhone } from "../../parentPortalService";
 import {
   createMigrationImportBatch,
@@ -1050,7 +1051,10 @@ export async function applyMigrationStage(
                 className: canonicalClass,
                 idNumber,
                 admissionNo: cleanString(mapped.learnerNumber) || accountNumber || null,
-                gender: cleanString(mapped.gender) || null,
+                gender: resolveGenderFromSources({
+                  gender: cleanString(mapped.gender) || null,
+                  idNumber,
+                }),
                 birthDate:
                   birthDate && !Number.isNaN(birthDate.getTime()) ? birthDate : null,
                 homeLanguage:

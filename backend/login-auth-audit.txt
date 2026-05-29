@@ -1,0 +1,23 @@
+Da Silva owner login authentication audit
+Generated: 2026-05-24T13:16:23.691Z
+
+LOGIN VERIFIED: NO — GO-LIVE BLOCKER
+
+[PASS] Linked school exists: Da Silva Academy (cmpideqeq0000108xb6ouv9zi)
+[PASS] Owner user record exists: 1 user(s) with this email
+[PASS] Owner provisioning source: registration (school.email=dasilvaacademy@gmail.com, fullName=Da Silva Academy)
+[PASS] schoolId linked to Da Silva Academy: user cmpimyjkj00013lhz6kkxr9xu schoolId=cmpideqeq0000108xb6ouv9zi
+[PASS] User isActive: user cmpimyjkj00013lhz6kkxr9xu isActive=true
+[PASS] Prisma role present: user cmpimyjkj00013lhz6kkxr9xu role=SCHOOL_ADMIN
+[PASS] Password hash format (bcrypt): length=60 prefix=$2b$10$
+[SKIP] bcrypt.compare(DA_SILVA_OWNER_PASSWORD): Set DA_SILVA_OWNER_PASSWORD in env to test hash match
+[PASS] user-access.json Owner permissions: appRole=Owner schoolId=cmpideqeq0000108xb6ouv9zi
+[PASS] Owner permission map populated: modules in meta: 20, expected: 20
+[PASS] JWT_SECRET configured: JWT_SECRET is set
+[PASS] POST /auth/login reachable: status=401 body={"error":"Invalid credentials"}
+[PASS] POST /api/auth/login reachable (alias): status=401 body={"error":"Invalid credentials"}
+[SKIP] LOGIN VERIFIED: Re-run with DA_SILVA_OWNER_PASSWORD=... --verify-login after password reset
+
+No failed checks (login may still need --verify-login)
+
+Recovery: REGISTRATION_EMAIL=dasilvaacademy@gmail.com REGISTRATION_PASSWORD='...' npx tsx scripts/verify-school-registration-auth.ts --apply-reclaim --verify-login (preferred — restores registration password, not a reset)

@@ -1,0 +1,19 @@
+{
+  "systemId": "staffroom",
+  "systemName": "Staffroom",
+  "vendor": "Staffroom",
+  "country": "ZA",
+  "website": "",
+  "exportTypes": [
+    "unknown"
+  ],
+  "supportsLearners": false,
+  "supportsParents": false,
+  "supportsBilling": false,
+  "supportsTransactions": false,
+  "supportsStaff": false,
+  "notes": "Planned for registry coverage. No export specification or adapter contract yet.",
+  "adapterStatus": "planned",
+  "templateCount": 0,
+  "lastReviewedAt": "2026-05-25T00:00:00.000Z"
+}

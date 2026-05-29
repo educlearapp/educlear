@@ -1,0 +1,6866 @@
+{
+  "generatedAt": "2026-05-23T12:44:05.302Z",
+  "desktopRoot": "/Users/dasilvaacademy/Desktop",
+  "auditOnly": true,
+  "noDbWrites": true,
+  "sourceReview": "opening-balance-adjustment-review.json",
+  "inverseAccountCount": 6,
+  "manualAccountCount": 1,
+  "totalAccountCount": 7,
+  "totalAbsAdjustment": 11155,
+  "likelyCauseCounts": {
+    "duplicatedInvoice": 0,
+    "extraLedgerChargesNotReflectedInAge": 1,
+    "agePaidUpOrZeroedLedgerResidual": 1,
+    "misPostedTransaction": 0,
+    "ledgerExportOverstatement": 5,
+    "historicalOrSectionSkew": 0,
+    "cannotDetermine": 0
+  },
+  "openingBalanceSafetyCounts": {
+    "safe": 1,
+    "caution": 5,
+    "unsafe": 1
+  },
+  "accounts": [
+    {
+      "accountNo": "MOL003",
+      "fullName": "Molebogeng Maselela",
+      "ageAnalysisBalance": 4710,
+      "ledgerBalanceFromImport": 7910,
+      "adjustmentAmount": -3200,
+      "category": "inverseProblemLedgerGreaterThanAge",
+      "ledgerExcessOverAge": 3200,
+      "timelineSummary": "93 txn(s): 50 invoice(s) R131970, 43 payment(s) R-124060. Span 2023-01-13 → 2026-05-22; running ledger R7910. Section \"Recently Owing\". 2 flagged row(s) (dup/mispost/hist/jnl). Recent: 2026-04-30 payment R-12000; 2026-05-15 invoice R3800; 2026-05-22 invoice R210.",
+      "likelyCause": "extraLedgerChargesNotReflectedInAge",
+      "likelyCauseConfidence": "medium",
+      "likelyCauseDetail": "Pair of invoices (R2900 + R300) sums to ledger excess R3200.",
+      "openingBalanceAdjustmentSafe": true,
+      "openingBalanceAdjustmentSafety": "safe",
+      "openingBalanceSafetyRationale": "Ledger excess matches identifiable invoice(s) with no dup/mispost signals; opening credit R3200 aligns ledger to age R4710.",
+      "section": "Recently Owing",
+      "priorActiveMismatchReason": "possibleDuplicateOrHistoricalCredit",
+      "metrics": {
+        "invoiceCount": 50,
+        "paymentCount": 43,
+        "invoiceSum": 131970,
+        "paymentSum": -124060,
+        "computedLedgerFromTxns": 7910,
+        "ledgerMatchesImport": true,
+        "duplicateInvoiceFingerprints": [],
+        "duplicatePaymentFingerprints": [],
+        "misPostedTxnCount": 0,
+        "crossAccountInboundPaymentTotal": 0,
+        "crossAccountOutboundPaymentTotal": 0,
+        "journalOrHistoricalTxnCount": 2,
+        "activeLearnerCount": 1,
+        "inAgeAnalysis": true
+      },
+      "timeline": [
+        {
+          "date": "2023-01-13",
+          "kind": "invoice",
+          "transactionNo": "42365",
+          "reference": "Invoice 42365",
+          "signedAmount": 1500,
+          "runningBalance": 1500,
+          "notes": "",
+          "flags": []
+        },
+        {
+          "date": "2023-01-16",
+          "kind": "invoice",
+          "transactionNo": "42502",
+          "reference": "Invoice 42502",
+          "signedAmount": 3500,
+          "runningBalance": 5000,
+          "notes": "",
+          "flags": []
+        },
+        {
+          "date": "2023-01-19",
+          "kind": "invoice",
+          "transactionNo": "42985",
+          "reference": "Invoice 42985",
+          "signedAmount": 1100,
+          "runningBalance": 6100,
+          "notes": "",
+          "flags": []
+        },
+        {
+          "date": "2023-01-27",
+          "kind": "payment",
+          "transactionNo": "34220",
+          "reference": "Payment 34220",
+          "signedAmount": -2500,
+          "runningBalance": 3600,
+          "notes": "",
+          "flags": []
+        },
+        {
+          "date": "2023-02-16",
+          "kind": "invoice",
+          "transactionNo": "43394",
+          "reference": "Invoice 43394",
+          "signedAmount": 3550,
+          "runningBalance": 7150,
+          "notes": "",
+          "flags": []
+        },
+        {
+          "date": "2023-03-02",
+          "kind": "payment",
+          "transactionNo": "34945",
+          "reference": "Payment 34945",
+          "signedAmount": -2300,
+          "runningBalance": 4850,
+          "notes": "",
+          "flags": []
+        },
+        {
+          "date": "2023-03-15",
+          "kind": "invoice",
+          "transactionNo": "44054",
+          "reference": "Invoice 44054",
+          "signedAmount": 2750,
+          "runningBalance": 7600,
+          "notes": "",
+          "flags": []
+        },
+        {
+          "date": "2023-04-04",
+          "kind": "payment",
+          "transactionNo": "35434",
+          "reference": "Payment 35434",
+          "signedAmount": -2200,
+          "runningBalance": 5400,
+          "notes": "",
+          "flags": []
+        },
+        {
+          "date": "2023-04-18",
+          "kind": "invoice",
+          "transactionNo": "44670",
+          "reference": "Invoice 44670",
+          "signedAmount": 2750,
+          "runningBalance": 8150,
+          "notes": "",
+          "flags": []
+        },
+        {
+          "date": "2023-05-02",
+          "kind": "payment",
+          "transactionNo": "35835",
+          "reference": "Payment 35835",
+          "signedAmount": -2200,
+          "runningBalance": 5950,
+          "notes": "",
+          "flags": []
+        },
+        {
+          "date": "2023-05-15",
+          "kind": "invoice",
+          "transactionNo": "45314",
+          "reference": "Invoice 45314",
+          "signedAmount": 2950,
+          "runningBalance": 8900,
+          "notes": "",
+          "flags": []
+        },
+        {
+          "date": "2023-06-03",
+          "kind": "payment",
+          "transactionNo": "36698",
+          "reference": "Payment 36698",
+          "signedAmount": -2300,
+          "runningBalance": 6600,
+          "notes": "",
+          "flags": []
+        },
+        {
+          "date": "2023-06-13",
+          "kind": "invoice",
+          "transactionNo": "45835",
+          "reference": "Invoice 45835",
+          "signedAmount": 2750,
+          "runningBalance": 9350,
+          "notes": "",
+          "flags": []
+        },
+        {
+          "date": "2023-06-15",
+          "kind": "payment",
+          "transactionNo": "36923",
+          "reference": "Payment 36923",
+          "signedAmount": -3850,
+          "runningBalance": 5500,
+          "notes": "Aftercare removed",
+          "flags": [
+            "HIST",
+            "JNL"
+          ]
+        },
+        {
+          "date": "2023-07-05",
+          "kind": "payment",
+          "transactionNo": "37206",
+          "reference": "Payment 37206",
+          "signedAmount": -2300,
+          "runningBalance": 3200,
+          "notes": "",
+          "flags": []
+        },
+        {
+          "date": "2023-07-19",
+          "kind": "invoice",
+          "transactionNo": "46320",
+          "reference": "Invoice 46320",
+          "signedAmount": 2200,
+          "runningBalance": 5400,
+          "notes": "",
+          "flags": []
+        },
+        {
+          "date": "2023-08-01",
+          "kind": "payment",
+          "transactionNo": "37818",
+          "reference": "Payment 37818",
+          "signedAmount": -2200,
+          "runningBalance": 3200,
+          "notes": "",
+          "flags": []
+        },
+        {
+          "date": "2023-08-16",
+          "kind": "invoice",
+          "transactionNo": "46876",
+          "reference": "Invoice 46876",
+          "signedAmount": 2200,
+          "runningBalance": 5400,
+          "notes": "",
+          "flags": []
+        },
+        {
+          "date": "2023-09-04",
+          "kind": "payment",
+          "transactionNo": "38310",
+          "reference": "Payment 38310",
+          "signedAmount": -2300,
+          "runningBalance": 3100,
+          "notes": "",
+          "flags": []
+        },
+        {
+          "date": "2023-09-20",
+          "kind": "invoice",
+          "transactionNo": "47568",
+          "reference": "Invoice 47568",
+          "signedAmount": 2200,
+          "runningBalance": 5300,
+          "notes": "",
+          "flags": []
+        },
+        {
+          "date": "2023-10-10",
+          "kind": "payment",
+          "transactionNo": "38984",
+          "reference": "Payment 38984",
+          "signedAmount": -2300,
+          "runningBalance": 3000,
+          "notes": "",
+          "flags": []
+        },
+        {
+          "date": "2023-10-17",
+          "kind": "invoice",
+          "transactionNo": "48137",
+          "reference": "Invoice 48137",
+          "signedAmount": 2200,
+          "runningBalance": 5200,
+          "notes": "",
+          "flags": []
+        },
+        {
+          "date": "2023-11-01",
+          "kind": "payment",
+          "transactionNo": "39378",
+          "reference": "Payment 39378",
+          "signedAmount": -2000,
+          "runningBalance": 3200,
+          "notes": "",
+          "flags": []
+        },
+        {
+          "date": "2023-11-16",
+          "kind": "invoice",
+          "transactionNo": "48748",
+          "reference": "Invoice 48748",
+          "signedAmount": 2200,
+          "runningBalance": 5400,
+          "notes": "",
+          "flags": []
+        },
+        {
+          "date": "2023-12-03",
+          "kind": "payment",
+          "transactionNo": "39969",
+          "reference": "Payment 39969",
+          "signedAmount": -2200,
+          "runningBalance": 3200,
+          "notes": "",
+          "flags": []
+        },
+        {
+          "date": "2023-12-18",
+          "kind": "invoice",
+          "transactionNo": "49458",
+          "reference": "Invoice 49458",
+          "signedAmount": 4000,
+          "runningBalance": 7200,
+          "notes": "",
+          "flags": []
+        },
+        {
+          "date": "2024-01-24",
+          "kind": "invoice",
+          "transactionNo": "50139",
+          "reference": "Invoice 50139",
+          "signedAmount": 3150,
+          "runningBalance": 10350,
+          "notes": "",
+          "flags": []
+        },
+        {
+          "date": "2024-01-31",
+          "kind": "payment",
+          "transactionNo": "41120",
+          "reference": "Payment 41120",
+          "signedAmount": -2500,
+          "runningBalance": 7850,
+          "notes": "",
+          "flags": []
+        },
+        {
+          "date": "2024-02-19",
+          "kind": "invoice",
+          "transactionNo": "51401",
+          "reference": "Invoice 51401",
+          "signedAmount": 3300,
+          "runningBalance": 11150,
+          "notes": "",
+          "flags": []
+        },
+        {
+          "date": "2024-03-07",
+          "kind": "invoice",
+          "transactionNo": "51798",
+          "reference": "Invoice 51798",
+          "signedAmount": 2900,
+          "runningBalance": 14050,
+          "notes": "",
+          "flags": []
+        },
+        {
+          "date": "2024-03-07",
+          "kind": "payment",
+          "transactionNo": "41936",
+          "reference": "Payment 41936",
+          "signedAmount": -3000,
+          "runningBalance": 11050,
+          "notes": "",
+          "flags": []
+        },
+        {
+          "date": "2024-03-19",
+          "kind": "invoice",
+          "transactionNo": "52088",
+          "reference": "Invoice 52088",
+          "signedAmount": 2400,
+          "runningBalance": 13450,
+          "notes": "",
+          "flags": []
+        },
+        {
+          "date": "2024-04-01",
+          "kind": "payment",
+          "transactionNo": "42111",
+          "reference": "Payment 42111",
+          "signedAmount": -2400,
+          "runningBalance": 11050,
+          "notes": "",
+          "flags": []
+        },
+        {
+          "date": "2024-04-15",
+          "kind": "invoice",
+          "transactionNo": "52561",
+          "reference": "Invoice 52561",
+          "signedAmount": 2400,
+          "runningBalance": 13450,
+          "notes": "",
+          "flags": []
+        },
+        {
+          "date": "2024-05-02",
+          "kind": "payment",
+          "transactionNo": "42860",
+          "reference": "Payment 42860",
+          "signedAmount": -3000,
+          "runningBalance": 10450,
+          "notes": "",
+          "flags": []
+        },
+        {
+          "date": "2024-05-09",
+          "kind": "payment",
+          "transactionNo": "43070",
+          "reference": "Payment 43070",
+          "signedAmount": -2350,
+          "runningBalance": 8100,
+          "notes": "",
+          "flags": []
+        },
+        {
+          "date": "2024-05-15",
+          "kind": "invoice",
+          "transactionNo": "53150",
+          "reference": "Invoice 53150",
+          "signedAmount": 2400,
+          "runningBalance": 10500,
+          "notes": "",
+          "flags": []
+        },
+        {
+          "date": "2024-06-04",
+          "kind": "payment",
+          "transactionNo": "43520",
+          "reference": "Payment 43520",
+          "signedAmount": -4400,
+          "runningBalance": 6100,
+          "notes": "",
+          "flags": []
+        },
+        {
+          "date": "2024-06-15",
+          "kind": "invoice",
+          "transactionNo": "53675",
+          "reference": "Invoice 53675",
+          "signedAmount": 2400,
+          "runningBalance": 8500,
+          "notes": "",
+          "flags": []
+        },
+        {
+          "date": "2024-07-02",
+          "kind": "payment",
+          "transactionNo": "43889",
+          "reference": "Payment 43889",
+          "signedAmount": -2400,
+          "runningBalance": 6100,
+          "notes": "",
+          "flags": []
+        },
+        {
+          "date": "2024-07-17",
+          "kind": "invoice",
+          "transactionNo": "54135",
+          "reference": "Invoice 54135",
+          "signedAmount": 4960,
+          "runningBalance": 11060,
+          "notes": "",
+          "flags": []
+        },
+        {
+          "date": "2024-08-01",
+          "kind": "payment",
+          "transactionNo": "44319",
+          "reference": "Payment 44319",
+          "signedAmount": -2400,
+          "runningBalance": 8660,
+          "notes": "",
+          "flags": []
+        },
+        {
+          "date": "2024-08-15",
+          "kind": "invoice",
+          "transactionNo": "54610",
+          "reference": "Invoice 54610",
+          "signedAmount": 2400,
+          "runningBalance": 11060,
+          "notes": "",
+          "flags": []
+        },
+        {
+          "date": "2024-08-27",
+          "kind": "payment",
+          "transactionNo": "44585",
+          "reference": "Payment 44585",
+          "signedAmount": -2900,
+          "runningBalance": 8160,
+          "notes": "",
+          "flags": []
+        },
+        {
+          "date": "2024-09-02",
+          "kind": "payment",
+          "transactionNo": "44783",
+          "reference": "Payment 44783",
+          "signedAmount": -2400,
+          "runningBalance": 5760,
+          "notes": "",
+          "flags": []
+        },
+        {
+          "date": "2024-09-17",
+          "kind": "invoice",
+          "transactionNo": "55066",
+          "reference": "Invoice 55066",
+          "signedAmount": 2400,
+          "runningBalance": 8160,
+          "notes": "",
+          "flags": []
+        },
+        {
+          "date": "2024-10-03",
+          "kind": "payment",
+          "transactionNo": "45313",
+          "reference": "Payment 45313",
+          "signedAmount": -2400,
+          "runningBalance": 5760,
+          "notes": "",
+          "flags": []
+        },
+        {
+          "date": "2024-10-15",
+          "kind": "invoice",
+          "transactionNo": "55520",
+          "reference": "Invoice 55520",
+          "signedAmount": 2400,
+          "runningBalance": 8160,
+          "notes": "",
+          "flags": []
+        },
+        {
+          "date": "2024-10-16",
+          "kind": "payment",
+          "transactionNo": "45525",
+          "reference": "Payment 45525",
+          "signedAmount": -2900,
+          "runningBalance": 5260,
+          "notes": "LEADERSHIP CAMP REMOVED",
+          "flags": [
+            "HIST",
+            "JNL"
+          ]
+        },
+        {
+          "date": "2024-10-29",
+          "kind": "payment",
+          "transactionNo": "45615",
+          "reference": "Payment 45615",
+          "signedAmount": -2400,
+          "runningBalance": 2860,
+          "notes": "",
+          "flags": []
+        },
+        {
+          "date": "2024-11-15",
+          "kind": "invoice",
+          "transactionNo": "56030",
+          "reference": "Invoice 56030",
+          "signedAmount": 2400,
+          "runningBalance": 5260,
+          "notes": "",
+          "flags": []
+        },
+        {
+          "date": "2024-12-02",
+          "kind": "payment",
+          "transactionNo": "46308",
+          "reference": "Payment 46308",
+          "signedAmount": -2060,
+          "runningBalance": 3200,
+          "notes": "",
+          "flags": []
+        },
+        {
+          "date": "2024-12-14",
+          "kind": "invoice",
+          "transactionNo": "56596",
+          "reference": "Invoice 56596",
+          "signedAmount": 4500,
+          "runningBalance": 7700,
+          "notes": "",
+          "flags": []
+        },
+        {
+          "date": "2025-01-23",
+          "kind": "invoice",
+          "transactionNo": "57098",
+          "reference": "Invoice 57098",
+          "signedAmount": 2700,
+          "runningBalance": 10400,
+          "notes": "",
+          "flags": []
+        },
+        {
+          "date": "2025-01-30",
+          "kind": "payment",
+          "transactionNo": "47447",
+          "reference": "Payment 47447",
+          "signedAmount": -5000,
+          "runningBalance": 5400,
+          "notes": "",
+          "flags": []
+        },
+        {
+          "date": "2025-02-21",
+          "kind": "invoice",
+          "transactionNo": "57534",
+          "reference": "Invoice 57534",
+          "signedAmount": 350,
+          "runningBalance": 5750,
+          "notes": "",
+          "flags": []
+        },
+        {
+          "date": "2025-02-21",
+          "kind": "invoice",
+          "transactionNo": "57647",
+          "reference": "Invoice 57647",
+          "signedAmount": 2700,
+          "runningBalance": 8450,
+          "notes": "",
+          "flags": []
+        },
+        {
+          "date": "2025-03-03",
+          "kind": "payment",
+          "transactionNo": "47945",
+          "reference": "Payment 47945",
+          "signedAmount": -3250,
+          "runningBalance": 5200,
+          "notes": "",
+          "flags": []
+        },
+        {
+          "date": "2025-03-03",
+          "kind": "payment",
+          "transactionNo": "47972",
+          "reference": "Payment 47972",
+          "signedAmount": -2000,
+          "runningBalance": 3200,
+          "notes": "",
+          "flags": []
+        },
+        {
+          "date": "2025-03-18",
+          "kind": "invoice",
+          "transactionNo": "58953",
+          "reference": "Invoice 58953",
+          "signedAmount": 3400,
+          "runningBalance": 6600,
+          "notes": "",
+          "flags": []
+        },
+        {
+          "date": "2025-04-01",
+          "kind": "payment",
+          "transactionNo": "48509",
+          "reference": "Payment 48509",
+          "signedAmount": -2700,
+          "runningBalance": 3900,
+          "notes": "",
+          "flags": []
+        },
+        {
+          "date": "2025-04-15",
+          "kind": "invoice",
+          "transactionNo": "59750",
+          "reference": "Invoice 59750",
+          "signedAmount": 2700,
+          "runningBalance": 6600,
+          "notes": "",
+          "flags": []
+        },
+        {
+          "date": "2025-05-03",
+          "kind": "payment",
+          "transactionNo": "48943",
+          "reference": "Payment 48943",
+          "signedAmount": -2700,
+          "runningBalance": 3900,
+          "notes": "",
+          "flags": []
+        },
+        {
+          "date": "2025-05-15",
+          "kind": "invoice",
+          "transactionNo": "60144",
+          "reference": "Invoice 60144",
+          "signedAmount": 2700,
+          "runningBalance": 6600,
+          "notes": "",
+          "flags": []
+        },
+        {
+          "date": "2025-06-03",
+          "kind": "payment",
+          "transactionNo": "49461",
+          "reference": "Payment 49461",
+          "signedAmount": -2700,
+          "runningBalance": 3900,
+          "notes": "",
+          "flags": []
+        },
+        {
+          "date": "2025-06-04",
+          "kind": "payment",
+          "transactionNo": "49508",
+          "reference": "Payment 49508",
+          "signedAmount": -700,
+          "runningBalance": 3200,
+          "notes": "",
+          "flags": []
+        },
+        {
+          "date": "2025-06-17",
+          "kind": "invoice",
+          "transactionNo": "60640",
+          "reference": "Invoice 60640",
+          "signedAmount": 2700,
+          "runningBalance": 5900,
+          "notes": "",
+          "flags": []
+        },
+        {
+          "date": "2025-06-27",
+          "kind": "payment",
+          "transactionNo": "49649",
+          "reference": "Payment 49649",
+          "signedAmount": -2700,
+          "runningBalance": 3200,
+          "notes": "",
+          "flags": []
+        },
+        {
+          "date": "2025-07-22",
+          "kind": "invoice",
+          "transactionNo": "61023",
+          "reference": "Invoice 61023",
+          "signedAmount": 2700,
+          "runningBalance": 5900,
+          "notes": "",
+          "flags": []
+        },
+        {
+          "date": "2025-08-01",
+          "kind": "payment",
+          "transactionNo": "50204",
+          "reference": "Payment 50204",
+          "signedAmount": -2700,
+          "runningBalance": 3200,
+          "notes": "",
+          "flags": []
+        },
+        {
+          "date": "2025-08-15",
+          "kind": "invoice",
+          "transactionNo": "61413",
+          "reference": "Invoice 61413",
+          "signedAmount": 2700,
+          "runningBalance": 5900,
+          "notes": "",
+          "flags": []
+        },
+        {
+          "date": "2025-09-02",
+          "kind": "payment",
+          "transactionNo": "50625",
+          "reference": "Payment 50625",
+          "signedAmount": -2700,
+          "runningBalance": 3200,
+          "notes": "",
+          "flags": []
+        },
+        {
+          "date": "2025-09-16",
+          "kind": "invoice",
+          "transactionNo": "62267",
+          "reference": "Invoice 62267",
+          "signedAmount": 3050,
+          "runningBalance": 6250,
+          "notes": "",
+          "flags": []
+        },
+        {
+          "date": "2025-09-25",
+          "kind": "payment",
+          "transactionNo": "50865",
+          "reference": "Payment 50865",
+          "signedAmount": -2700,
+          "runningBalance": 3550,
+          "notes": "",
+          "flags": []
+        },
+        {
+          "date": "2025-10-15",
+          "kind": "invoice",
+          "transactionNo": "62681",
+          "reference": "Invoice 62681",
+          "signedAmount": 2700,
+          "runningBalance": 6250,
+          "notes": "",
+          "flags": []
+        },
+        {
+          "date": "2025-10-22",
+          "kind": "invoice",
+          "transactionNo": "62895",
+          "reference": "Invoice 62895",
+          "signedAmount": 500,
+          "runningBalance": 6750,
+          "notes": "",
+          "flags": []
+        },
+        {
+          "date": "2025-10-31",
+          "kind": "payment",
+          "transactionNo": "51494",
+          "reference": "Payment 51494",
+          "signedAmount": -3200,
+          "runningBalance": 3550,
+          "notes": "",
+          "flags": []
+        },
+        {
+          "date": "2025-11-03",
+          "kind": "payment",
+          "transactionNo": "51502",
+          "reference": "Payment 51502",
+          "signedAmount": -350,
+          "runningBalance": 3200,
+          "notes": "",
+          "flags": []
+        },
+        {
+          "date": "2025-11-17",
+          "kind": "invoice",
+          "transactionNo": "63128",
+          "reference": "Invoice 63128",
+          "signedAmount": 2700,
+          "runningBalance": 5900,
+          "notes": "",
+          "flags": []
+        },
+        {
+          "date": "2025-11-28",
+          "kind": "payment",
+          "transactionNo": "51952",
+          "reference": "Payment 51952",
+          "signedAmount": -2700,
+          "runningBalance": 3200,
+          "notes": "",
+          "flags": []
+        },
+        {
+          "date": "2025-12-15",
+          "kind": "invoice",
+          "transactionNo": "63759",
+          "reference": "Invoice 63759",
+          "signedAmount": 3800,
+          "runningBalance": 7000,
+          "notes": "",
+          "flags": []
+        },
+        {
+          "date": "2026-01-12",
+          "kind": "payment",
+          "transactionNo": "53350",
+          "reference": "Payment 53350",
+          "signedAmount": -3800,
+          "runningBalance": 3200,
+          "notes": "",
+          "flags": []
+        },
+        {
+          "date": "2026-01-21",
+          "kind": "invoice",
+          "transactionNo": "64059",
+          "reference": "Invoice 64059",
+          "signedAmount": 5800,
+          "runningBalance": 9000,
+          "notes": "",
+          "flags": []
+        },
+        {
+          "date": "2026-02-06",
+          "kind": "invoice",
+          "transactionNo": "64390",
+          "reference": "Invoice 64390",
+          "signedAmount": 300,
+          "runningBalance": 9300,
+          "notes": "",
+          "flags": []
+        },
+        {
+          "date": "2026-02-17",
+          "kind": "invoice",
+          "transactionNo": "64595",
+          "reference": "Invoice 64595",
+          "signedAmount": 4500,
+          "runningBalance": 13800,
+          "notes": "",
+          "flags": []
+        },
+        {
+          "date": "2026-03-04",
+          "kind": "payment",
+          "transactionNo": "53345",
+          "reference": "Payment 53345",
+          "signedAmount": -6000,
+          "runningBalance": 7800,
+          "notes": "",
+          "flags": []
+        },
+        {
+          "date": "2026-03-16",
+          "kind": "invoice",
+          "transactionNo": "65105",
+          "reference": "Invoice 65105",
+          "signedAmount": 3800,
+          "runningBalance": 11600,
+          "notes": "",
+          "flags": []
+        },
+        {
+          "date": "2026-04-10",
+          "kind": "invoice",
+          "transactionNo": "65332",
+          "reference": "Invoice 65332",
+          "signedAmount": 300,
+          "runningBalance": 11900,
+          "notes": "",
+          "flags": []
+        },
+        {
+          "date": "2026-04-15",
+          "kind": "invoice",
+          "transactionNo": "65469",
+          "reference": "Invoice 65469",
+          "signedAmount": 200,
+          "runningBalance": 12100,
+          "notes": "",
+          "flags": []
+        },
+        {
+          "date": "2026-04-15",
+          "kind": "invoice",
+          "transactionNo": "65639",
+          "reference": "Invoice 65639",
+          "signedAmount": 3800,
+          "runningBalance": 15900,
+          "notes": "",
+          "flags": []
+        },
+        {
+          "date": "2026-04-30",
+          "kind": "payment",
+          "transactionNo": "54062",
+          "reference": "Payment 54062",
+          "signedAmount": -12000,
+          "runningBalance": 3900,
+          "notes": "",
+          "flags": []
+        },
+        {
+          "date": "2026-05-15",
+          "kind": "invoice",
+          "transactionNo": "67075",
+          "reference": "Invoice 67075",
+          "signedAmount": 3800,
+          "runningBalance": 7700,
+          "notes": "",
+          "flags": []
+        },
+        {
+          "date": "2026-05-22",
+          "kind": "invoice",
+          "transactionNo": "67255",
+          "reference": "Invoice 67255",
+          "signedAmount": 210,
+          "runningBalance": 7910,
+          "notes": "",
+          "flags": []
+        }
+      ]
+    },
+    {
+      "accountNo": "MOL044",
+      "fullName": "Omontle Molefe",
+      "ageAnalysisBalance": 3450,
+      "ledgerBalanceFromImport": 5580,
+      "adjustmentAmount": -2130,
+      "category": "inverseProblemLedgerGreaterThanAge",
+      "ledgerExcessOverAge": 2130,
+      "timelineSummary": "94 txn(s): 46 invoice(s) R123175, 48 payment(s) R-117595. Span 2023-01-11 → 2026-05-15; running ledger R5580. Section \"Recently Owing\". 2 flagged row(s) (dup/mispost/hist/jnl). Recent: 2026-04-15 invoice R3000; 2026-04-25 payment R-3450; 2026-05-15 invoice R3000.",
+      "likelyCause": "ledgerExportOverstatement",
+      "likelyCauseConfidence": "medium",
+      "likelyCauseDetail": "Lifetime invoices R123175 + payments R-117595 reconcile to ledger R5580; age R3450 is R2130 lower — export/age skew, not missing payments.",
+      "openingBalanceAdjustmentSafe": false,
+      "openingBalanceAdjustmentSafety": "caution",
+      "openingBalanceSafetyRationale": "Section \"Recently Owing\" / export skew — opening credit R2130 may align EduClear to age but should be confirmed in Kid-e-Sys (age is lower than ledger by design).",
+      "section": "Recently Owing",
+      "priorActiveMismatchReason": "trueBalanceMismatch",
+      "metrics": {
+        "invoiceCount": 46,
+        "paymentCount": 48,
+        "invoiceSum": 123175,
+        "paymentSum": -117595,
+        "computedLedgerFromTxns": 5580,
+        "ledgerMatchesImport": true,
+        "duplicateInvoiceFingerprints": [],
+        "duplicatePaymentFingerprints": [],
+        "misPostedTxnCount": 0,
+        "crossAccountInboundPaymentTotal": 0,
+        "crossAccountOutboundPaymentTotal": 0,
+        "journalOrHistoricalTxnCount": 2,
+        "activeLearnerCount": 1,
+        "inAgeAnalysis": true
+      },
+      "timeline": [
+        {
+          "date": "2023-01-11",
+          "kind": "invoice",
+          "transactionNo": "42333",
+          "reference": "Invoice 42333",
+          "signedAmount": 550,
+          "runningBalance": 550,
+          "notes": "",
+          "flags": []
+        },
+        {
+          "date": "2023-01-16",
+          "kind": "invoice",
+          "transactionNo": "42501",
+          "reference": "Invoice 42501",
+          "signedAmount": 3850,
+          "runningBalance": 4400,
+          "notes": "",
+          "flags": []
+        },
+        {
+          "date": "2023-01-31",
+          "kind": "payment",
+          "transactionNo": "34260",
+          "reference": "Payment 34260",
+          "signedAmount": -2270,
+          "runningBalance": 2130,
+          "notes": "",
+          "flags": []
+        },
+        {
+          "date": "2023-02-16",
+          "kind": "invoice",
+          "transactionNo": "43393",
+          "reference": "Invoice 43393",
+          "signedAmount": 3350,
+          "runningBalance": 5480,
+          "notes": "",
+          "flags": []
+        },
+        {
+          "date": "2023-02-28",
+          "kind": "payment",
+          "transactionNo": "34847",
+          "reference": "Payment 34847",
+          "signedAmount": -2550,
+          "runningBalance": 2930,
+          "notes": "",
+          "flags": []
+        },
+        {
+          "date": "2023-03-15",
+          "kind": "invoice",
+          "transactionNo": "44053",
+          "reference": "Invoice 44053",
+          "signedAmount": 2550,
+          "runningBalance": 5480,
+          "notes": "",
+          "flags": []
+        },
+        {
+          "date": "2023-04-03",
+          "kind": "payment",
+          "transactionNo": "35361",
+          "reference": "Payment 35361",
+          "signedAmount": -2550,
+          "runningBalance": 2930,
+          "notes": "",
+          "flags": []
+        },
+        {
+          "date": "2023-04-18",
+          "kind": "invoice",
+          "transactionNo": "44669",
+          "reference": "Invoice 44669",
+          "signedAmount": 2550,
+          "runningBalance": 5480,
+          "notes": "",
+          "flags": []
+        },
+        {
+          "date": "2023-05-02",
+          "kind": "payment",
+          "transactionNo": "35822",
+          "reference": "Payment 35822",
+          "signedAmount": -2550,
+          "runningBalance": 2930,
+          "notes": "",
+          "flags": []
+        },
+        {
+          "date": "2023-05-10",
+          "kind": "payment",
+          "transactionNo": "36228",
+          "reference": "Payment 36228",
+          "signedAmount": -200,
+          "runningBalance": 2730,
+          "notes": "ROBOTICS WORKBOOK",
+          "flags": []
+        },
+        {
+          "date": "2023-05-15",
+          "kind": "invoice",
+          "transactionNo": "45312",
+          "reference": "Invoice 45312",
+          "signedAmount": 2750,
+          "runningBalance": 5480,
+          "notes": "",
+          "flags": []
+        },
+        {
+          "date": "2023-05-29",
+          "kind": "payment",
+          "transactionNo": "36487",
+          "reference": "Payment 36487",
+          "signedAmount": -3350,
+          "runningBalance": 2130,
+          "notes": "",
+          "flags": []
+        },
+        {
+          "date": "2023-06-13",
+          "kind": "invoice",
+          "transactionNo": "45833",
+          "reference": "Invoice 45833",
+          "signedAmount": 2000,
+          "runningBalance": 4130,
+          "notes": "",
+          "flags": []
+        },
+        {
+          "date": "2023-07-19",
+          "kind": "invoice",
+          "transactionNo": "46318",
+          "reference": "Invoice 46318",
+          "signedAmount": 2000,
+          "runningBalance": 6130,
+          "notes": "",
+          "flags": []
+        },
+        {
+          "date": "2023-07-20",
+          "kind": "payment",
+          "transactionNo": "37505",
+          "reference": "Payment 37505",
+          "signedAmount": -2000,
+          "runningBalance": 4130,
+          "notes": "",
+          "flags": []
+        },
+        {
+          "date": "2023-07-31",
+          "kind": "payment",
+          "transactionNo": "37771",
+          "reference": "Payment 37771",
+          "signedAmount": -2000,
+          "runningBalance": 2130,
+          "notes": "",
+          "flags": []
+        },
+        {
+          "date": "2023-08-16",
+          "kind": "invoice",
+          "transactionNo": "46874",
+          "reference": "Invoice 46874",
+          "signedAmount": 2000,
+          "runningBalance": 4130,
+          "notes": "",
+          "flags": []
+        },
+        {
+          "date": "2023-08-29",
+          "kind": "invoice",
+          "transactionNo": "47264",
+          "reference": "Invoice 47264",
+          "signedAmount": 1400,
+          "runningBalance": 5530,
+          "notes": "",
+          "flags": []
+        },
+        {
+          "date": "2023-08-29",
+          "kind": "payment",
+          "transactionNo": "38279",
+          "reference": "Payment 38279",
+          "signedAmount": -2000,
+          "runningBalance": 3530,
+          "notes": "",
+          "flags": []
+        },
+        {
+          "date": "2023-08-29",
+          "kind": "payment",
+          "transactionNo": "38286",
+          "reference": "Payment 38286",
+          "signedAmount": -1400,
+          "runningBalance": 2130,
+          "notes": "TEXTBOOKS 2024",
+          "flags": []
+        },
+        {
+          "date": "2023-09-11",
+          "kind": "payment",
+          "transactionNo": "38513",
+          "reference": "Payment 38513",
+          "signedAmount": -250,
+          "runningBalance": 1880,
+          "notes": "",
+          "flags": []
+        },
+        {
+          "date": "2023-09-20",
+          "kind": "invoice",
+          "transactionNo": "47566",
+          "reference": "Invoice 47566",
+          "signedAmount": 2250,
+          "runningBalance": 4130,
+          "notes": "",
+          "flags": []
+        },
+        {
+          "date": "2023-10-16",
+          "kind": "invoice",
+          "transactionNo": "47986",
+          "reference": "Invoice 47986",
+          "signedAmount": 265,
+          "runningBalance": 4395,
+          "notes": "",
+          "flags": []
+        },
+        {
+          "date": "2023-10-17",
+          "kind": "invoice",
+          "transactionNo": "48135",
+          "reference": "Invoice 48135",
+          "signedAmount": 2000,
+          "runningBalance": 6395,
+          "notes": "",
+          "flags": []
+        },
+        {
+          "date": "2023-10-27",
+          "kind": "payment",
+          "transactionNo": "39171",
+          "reference": "Payment 39171",
+          "signedAmount": -4265,
+          "runningBalance": 2130,
+          "notes": "",
+          "flags": []
+        },
+        {
+          "date": "2023-11-16",
+          "kind": "invoice",
+          "transactionNo": "48746",
+          "reference": "Invoice 48746",
+          "signedAmount": 2000,
+          "runningBalance": 4130,
+          "notes": "",
+          "flags": []
+        },
+        {
+          "date": "2023-12-04",
+          "kind": "payment",
+          "transactionNo": "40035",
+          "reference": "Payment 40035",
+          "signedAmount": -2000,
+          "runningBalance": 2130,
+          "notes": "",
+          "flags": []
+        },
+        {
+          "date": "2023-12-18",
+          "kind": "invoice",
+          "transactionNo": "49455",
+          "reference": "Invoice 49455",
+          "signedAmount": 4000,
+          "runningBalance": 6130,
+          "notes": "",
+          "flags": []
+        },
+        {
+          "date": "2023-12-20",
+          "kind": "payment",
+          "transactionNo": "40452",
+          "reference": "Payment 40452",
+          "signedAmount": -2400,
+          "runningBalance": 3730,
+          "notes": "",
+          "flags": []
+        },
+        {
+          "date": "2024-01-24",
+          "kind": "invoice",
+          "transactionNo": "50136",
+          "reference": "Invoice 50136",
+          "signedAmount": 3150,
+          "runningBalance": 6880,
+          "notes": "",
+          "flags": []
+        },
+        {
+          "date": "2024-01-29",
+          "kind": "payment",
+          "transactionNo": "41037",
+          "reference": "Payment 41037",
+          "signedAmount": -4750,
+          "runningBalance": 2130,
+          "notes": "",
+          "flags": []
+        },
+        {
+          "date": "2024-02-19",
+          "kind": "invoice",
+          "transactionNo": "51398",
+          "reference": "Invoice 51398",
+          "signedAmount": 3300,
+          "runningBalance": 5430,
+          "notes": "",
+          "flags": []
+        },
+        {
+          "date": "2024-02-28",
+          "kind": "payment",
+          "transactionNo": "41780",
+          "reference": "Payment 41780",
+          "signedAmount": -2400,
+          "runningBalance": 3030,
+          "notes": "",
+          "flags": []
+        },
+        {
+          "date": "2024-03-19",
+          "kind": "invoice",
+          "transactionNo": "52086",
+          "reference": "Invoice 52086",
+          "signedAmount": 2400,
+          "runningBalance": 5430,
+          "notes": "",
+          "flags": []
+        },
+        {
+          "date": "2024-04-01",
+          "kind": "payment",
+          "transactionNo": "42268",
+          "reference": "Payment 42268",
+          "signedAmount": -2400,
+          "runningBalance": 3030,
+          "notes": "",
+          "flags": []
+        },
+        {
+          "date": "2024-04-15",
+          "kind": "invoice",
+          "transactionNo": "52559",
+          "reference": "Invoice 52559",
+          "signedAmount": 2400,
+          "runningBalance": 5430,
+          "notes": "",
+          "flags": []
+        },
+        {
+          "date": "2024-05-06",
+          "kind": "payment",
+          "transactionNo": "43006",
+          "reference": "Payment 43006",
+          "signedAmount": -2400,
+          "runningBalance": 3030,
+          "notes": "",
+          "flags": []
+        },
+        {
+          "date": "2024-05-15",
+          "kind": "invoice",
+          "transactionNo": "53147",
+          "reference": "Invoice 53147",
+          "signedAmount": 2400,
+          "runningBalance": 5430,
+          "notes": "",
+          "flags": []
+        },
+        {
+          "date": "2024-06-03",
+          "kind": "payment",
+          "transactionNo": "43471",
+          "reference": "Payment 43471",
+          "signedAmount": -3300,
+          "runningBalance": 2130,
+          "notes": "",
+          "flags": []
+        },
+        {
+          "date": "2024-06-15",
+          "kind": "invoice",
+          "transactionNo": "53672",
+          "reference": "Invoice 53672",
+          "signedAmount": 2400,
+          "runningBalance": 4530,
+          "notes": "",
+          "flags": []
+        },
+        {
+          "date": "2024-06-28",
+          "kind": "payment",
+          "transactionNo": "43771",
+          "reference": "Payment 43771",
+          "signedAmount": -2000,
+          "runningBalance": 2530,
+          "notes": "",
+          "flags": []
+        },
+        {
+          "date": "2024-07-15",
+          "kind": "payment",
+          "transactionNo": "44020",
+          "reference": "Payment 44020",
+          "signedAmount": -400,
+          "runningBalance": 2130,
+          "notes": "",
+          "flags": []
+        },
+        {
+          "date": "2024-07-17",
+          "kind": "invoice",
+          "transactionNo": "54132",
+          "reference": "Invoice 54132",
+          "signedAmount": 4060,
+          "runningBalance": 6190,
+          "notes": "",
+          "flags": []
+        },
+        {
+          "date": "2024-07-30",
+          "kind": "payment",
+          "transactionNo": "44302",
+          "reference": "Payment 44302",
+          "signedAmount": -2400,
+          "runningBalance": 3790,
+          "notes": "",
+          "flags": []
+        },
+        {
+          "date": "2024-08-15",
+          "kind": "invoice",
+          "transactionNo": "54607",
+          "reference": "Invoice 54607",
+          "signedAmount": 2400,
+          "runningBalance": 6190,
+          "notes": "",
+          "flags": []
+        },
+        {
+          "date": "2024-09-02",
+          "kind": "payment",
+          "transactionNo": "44809",
+          "reference": "Payment 44809",
+          "signedAmount": -2400,
+          "runningBalance": 3790,
+          "notes": "",
+          "flags": []
+        },
+        {
+          "date": "2024-09-17",
+          "kind": "invoice",
+          "transactionNo": "55063",
+          "reference": "Invoice 55063",
+          "signedAmount": 2400,
+          "runningBalance": 6190,
+          "notes": "",
+          "flags": []
+        },
+        {
+          "date": "2024-10-01",
+          "kind": "payment",
+          "transactionNo": "45135",
+          "reference": "Payment 45135",
+          "signedAmount": -2400,
+          "runningBalance": 3790,
+          "notes": "",
+          "flags": []
+        },
+        {
+          "date": "2024-10-15",
+          "kind": "invoice",
+          "transactionNo": "55517",
+          "reference": "Invoice 55517",
+          "signedAmount": 2400,
+          "runningBalance": 6190,
+          "notes": "",
+          "flags": []
+        },
+        {
+          "date": "2024-11-04",
+          "kind": "payment",
+          "transactionNo": "45917",
+          "reference": "Payment 45917",
+          "signedAmount": -2400,
+          "runningBalance": 3790,
+          "notes": "",
+          "flags": []
+        },
+        {
+          "date": "2024-11-15",
+          "kind": "invoice",
+          "transactionNo": "56027",
+          "reference": "Invoice 56027",
+          "signedAmount": 2400,
+          "runningBalance": 6190,
+          "notes": "",
+          "flags": []
+        },
+        {
+          "date": "2024-12-02",
+          "kind": "payment",
+          "transactionNo": "46395",
+          "reference": "Payment 46395",
+          "signedAmount": -2400,
+          "runningBalance": 3790,
+          "notes": "",
+          "flags": []
+        },
+        {
+          "date": "2024-12-14",
+          "kind": "invoice",
+          "transactionNo": "56594",
+          "reference": "Invoice 56594",
+          "signedAmount": 4500,
+          "runningBalance": 8290,
+          "notes": "",
+          "flags": []
+        },
+        {
+          "date": "2025-01-16",
+          "kind": "payment",
+          "transactionNo": "47504",
+          "reference": "Payment 47504",
+          "signedAmount": -1660,
+          "runningBalance": 6630,
+          "notes": "",
+          "flags": []
+        },
+        {
+          "date": "2025-01-22",
+          "kind": "invoice",
+          "transactionNo": "56992",
+          "reference": "Invoice 56992",
+          "signedAmount": 450,
+          "runningBalance": 7080,
+          "notes": "",
+          "flags": []
+        },
+        {
+          "date": "2025-01-23",
+          "kind": "invoice",
+          "transactionNo": "57095",
+          "reference": "Invoice 57095",
+          "signedAmount": 2700,
+          "runningBalance": 9780,
+          "notes": "",
+          "flags": []
+        },
+        {
+          "date": "2025-01-25",
+          "kind": "payment",
+          "transactionNo": "47360",
+          "reference": "Payment 47360",
+          "signedAmount": -2700,
+          "runningBalance": 7080,
+          "notes": "",
+          "flags": []
+        },
+        {
+          "date": "2025-01-27",
+          "kind": "payment",
+          "transactionNo": "47321",
+          "reference": "Payment 47321",
+          "signedAmount": -160,
+          "runningBalance": 6920,
+          "notes": "",
+          "flags": []
+        },
+        {
+          "date": "2025-01-29",
+          "kind": "payment",
+          "transactionNo": "47359",
+          "reference": "Payment 47359",
+          "signedAmount": -1660,
+          "runningBalance": 5260,
+          "notes": "Grade 2 Textbooks removed",
+          "flags": [
+            "HIST",
+            "JNL"
+          ]
+        },
+        {
+          "date": "2025-01-29",
+          "kind": "payment",
+          "transactionNo": "47399",
+          "reference": "Payment 47399",
+          "signedAmount": -430,
+          "runningBalance": 4830,
+          "notes": "",
+          "flags": []
+        },
+        {
+          "date": "2025-01-29",
+          "kind": "payment",
+          "transactionNo": "47402",
+          "reference": "Payment 47402",
+          "signedAmount": -2700,
+          "runningBalance": 2130,
+          "notes": "",
+          "flags": []
+        },
+        {
+          "date": "2025-02-21",
+          "kind": "invoice",
+          "transactionNo": "57644",
+          "reference": "Invoice 57644",
+          "signedAmount": 2700,
+          "runningBalance": 4830,
+          "notes": "",
+          "flags": []
+        },
+        {
+          "date": "2025-02-26",
+          "kind": "payment",
+          "transactionNo": "47838",
+          "reference": "Payment 47838",
+          "signedAmount": -2700,
+          "runningBalance": 2130,
+          "notes": "",
+          "flags": []
+        },
+        {
+          "date": "2025-03-18",
+          "kind": "invoice",
+          "transactionNo": "58950",
+          "reference": "Invoice 58950",
+          "signedAmount": 3400,
+          "runningBalance": 5530,
+          "notes": "",
+          "flags": []
+        },
+        {
+          "date": "2025-03-27",
+          "kind": "payment",
+          "transactionNo": "48365",
+          "reference": "Payment 48365",
+          "signedAmount": -2700,
+          "runningBalance": 2830,
+          "notes": "",
+          "flags": []
+        },
+        {
+          "date": "2025-04-15",
+          "kind": "invoice",
+          "transactionNo": "59747",
+          "reference": "Invoice 59747",
+          "signedAmount": 2700,
+          "runningBalance": 5530,
+          "notes": "",
+          "flags": []
+        },
+        {
+          "date": "2025-05-03",
+          "kind": "payment",
+          "transactionNo": "48838",
+          "reference": "Payment 48838",
+          "signedAmount": -3400,
+          "runningBalance": 2130,
+          "notes": "",
+          "flags": []
+        },
+        {
+          "date": "2025-05-15",
+          "kind": "invoice",
+          "transactionNo": "60141",
+          "reference": "Invoice 60141",
+          "signedAmount": 2700,
+          "runningBalance": 4830,
+          "notes": "",
+          "flags": []
+        },
+        {
+          "date": "2025-05-27",
+          "kind": "payment",
+          "transactionNo": "49277",
+          "reference": "Payment 49277",
+          "signedAmount": -2700,
+          "runningBalance": 2130,
+          "notes": "",
+          "flags": []
+        },
+        {
+          "date": "2025-06-17",
+          "kind": "invoice",
+          "transactionNo": "60637",
+          "reference": "Invoice 60637",
+          "signedAmount": 2700,
+          "runningBalance": 4830,
+          "notes": "",
+          "flags": []
+        },
+        {
+          "date": "2025-06-30",
+          "kind": "payment",
+          "transactionNo": "49729",
+          "reference": "Payment 49729",
+          "signedAmount": -2700,
+          "runningBalance": 2130,
+          "notes": "",
+          "flags": []
+        },
+        {
+          "date": "2025-07-22",
+          "kind": "invoice",
+          "transactionNo": "61020",
+          "reference": "Invoice 61020",
+          "signedAmount": 2700,
+          "runningBalance": 4830,
+          "notes": "",
+          "flags": []
+        },
+        {
+          "date": "2025-07-28",
+          "kind": "payment",
+          "transactionNo": "50077",
+          "reference": "Payment 50077",
+          "signedAmount": -2700,
+          "runningBalance": 2130,
+          "notes": "",
+          "flags": []
+        },
+        {
+          "date": "2025-08-15",
+          "kind": "invoice",
+          "transactionNo": "61410",
+          "reference": "Invoice 61410",
+          "signedAmount": 2700,
+          "runningBalance": 4830,
+          "notes": "",
+          "flags": []
+        },
+        {
+          "date": "2025-08-26",
+          "kind": "payment",
+          "transactionNo": "50459",
+          "reference": "Payment 50459",
+          "signedAmount": -2700,
+          "runningBalance": 2130,
+          "notes": "",
+          "flags": []
+        },
+        {
+          "date": "2025-09-16",
+          "kind": "invoice",
+          "transactionNo": "62264",
+          "reference": "Invoice 62264",
+          "signedAmount": 3050,
+          "runningBalance": 5180,
+          "notes": "",
+          "flags": []
+        },
+        {
+          "date": "2025-09-25",
+          "kind": "payment",
+          "transactionNo": "50874",
+          "reference": "Payment 50874",
+          "signedAmount": -3950,
+          "runningBalance": 1230,
+          "notes": "",
+          "flags": []
+        },
+        {
+          "date": "2025-10-15",
+          "kind": "invoice",
+          "transactionNo": "62678",
+          "reference": "Invoice 62678",
+          "signedAmount": 2700,
+          "runningBalance": 3930,
+          "notes": "",
+          "flags": []
+        },
+        {
+          "date": "2025-10-27",
+          "kind": "payment",
+          "transactionNo": "51316",
+          "reference": "Payment 51316",
+          "signedAmount": -2700,
+          "runningBalance": 1230,
+          "notes": "",
+          "flags": []
+        },
+        {
+          "date": "2025-11-17",
+          "kind": "invoice",
+          "transactionNo": "63125",
+          "reference": "Invoice 63125",
+          "signedAmount": 2700,
+          "runningBalance": 3930,
+          "notes": "",
+          "flags": []
+        },
+        {
+          "date": "2025-11-25",
+          "kind": "payment",
+          "transactionNo": "51835",
+          "reference": "Payment 51835",
+          "signedAmount": -2700,
+          "runningBalance": 1230,
+          "notes": "",
+          "flags": []
+        },
+        {
+          "date": "2025-12-15",
+          "kind": "invoice",
+          "transactionNo": "63475",
+          "reference": "Invoice 63475",
+          "signedAmount": 6350,
+          "runningBalance": 7580,
+          "notes": "",
+          "flags": []
+        },
+        {
+          "date": "2026-01-02",
+          "kind": "payment",
+          "transactionNo": "52254",
+          "reference": "Payment 52254",
+          "signedAmount": -3350,
+          "runningBalance": 4230,
+          "notes": "Invoice removed  -learner not attending in 2026",
+          "flags": [
+            "HIST",
+            "JNL"
+          ]
+        },
+        {
+          "date": "2026-01-02",
+          "kind": "payment",
+          "transactionNo": "52280",
+          "reference": "Payment 52280",
+          "signedAmount": -3000,
+          "runningBalance": 1230,
+          "notes": "",
+          "flags": []
+        },
+        {
+          "date": "2026-01-21",
+          "kind": "invoice",
+          "transactionNo": "63968",
+          "reference": "Invoice 63968",
+          "signedAmount": 5000,
+          "runningBalance": 6230,
+          "notes": "",
+          "flags": []
+        },
+        {
+          "date": "2026-01-24",
+          "kind": "payment",
+          "transactionNo": "52627",
+          "reference": "Payment 52627",
+          "signedAmount": -4100,
+          "runningBalance": 2130,
+          "notes": "",
+          "flags": []
+        },
+        {
+          "date": "2026-02-17",
+          "kind": "invoice",
+          "transactionNo": "64509",
+          "reference": "Invoice 64509",
+          "signedAmount": 3700,
+          "runningBalance": 5830,
+          "notes": "",
+          "flags": []
+        },
+        {
+          "date": "2026-02-25",
+          "kind": "payment",
+          "transactionNo": "53128",
+          "reference": "Payment 53128",
+          "signedAmount": -3000,
+          "runningBalance": 2830,
+          "notes": "",
+          "flags": []
+        },
+        {
+          "date": "2026-03-16",
+          "kind": "invoice",
+          "transactionNo": "65019",
+          "reference": "Invoice 65019",
+          "signedAmount": 3000,
+          "runningBalance": 5830,
+          "notes": "",
+          "flags": []
+        },
+        {
+          "date": "2026-03-25",
+          "kind": "payment",
+          "transactionNo": "53565",
+          "reference": "Payment 53565",
+          "signedAmount": -3000,
+          "runningBalance": 2830,
+          "notes": "",
+          "flags": []
+        },
+        {
+          "date": "2026-04-15",
+          "kind": "invoice",
+          "transactionNo": "65384",
+          "reference": "Invoice 65384",
+          "signedAmount": 200,
+          "runningBalance": 3030,
+          "notes": "",
+          "flags": []
+        },
+        {
+          "date": "2026-04-15",
+          "kind": "invoice",
+          "transactionNo": "65553",
+          "reference": "Invoice 65553",
+          "signedAmount": 3000,
+          "runningBalance": 6030,
+          "notes": "",
+          "flags": []
+        },
+        {
+          "date": "2026-04-25",
+          "kind": "payment",
+          "transactionNo": "53950",
+          "reference": "Payment 53950",
+          "signedAmount": -3450,
+          "runningBalance": 2580,
+          "notes": "",
+          "flags": []
+        },
+        {
+          "date": "2026-05-15",
+          "kind": "invoice",
+          "transactionNo": "66989",
+          "reference": "Invoice 66989",
+          "signedAmount": 3000,
+          "runningBalance": 5580,
+          "notes": "",
+          "flags": []
+        }
+      ]
+    },
+    {
+      "accountNo": "JEC002",
+      "fullName": "Nelisiwe Jeche",
+      "ageAnalysisBalance": 1965,
+      "ledgerBalanceFromImport": 3890,
+      "adjustmentAmount": -1925,
+      "category": "inverseProblemLedgerGreaterThanAge",
+      "ledgerExcessOverAge": 1925,
+      "timelineSummary": "95 txn(s): 48 invoice(s) R131090, 47 payment(s) R-127200. Span 2023-01-13 → 2026-05-15; running ledger R3890. Section \"Recently Owing\". Recent: 2026-04-15 invoice R3800; 2026-05-04 payment R-4800; 2026-05-15 invoice R3800.",
+      "likelyCause": "ledgerExportOverstatement",
+      "likelyCauseConfidence": "medium",
+      "likelyCauseDetail": "Lifetime invoices R131090 + payments R-127200 reconcile to ledger R3890; age R1965 is R1925 lower — export/age skew, not missing payments.",
+      "openingBalanceAdjustmentSafe": false,
+      "openingBalanceAdjustmentSafety": "caution",
+      "openingBalanceSafetyRationale": "Section \"Recently Owing\" / export skew — opening credit R1925 may align EduClear to age but should be confirmed in Kid-e-Sys (age is lower than ledger by design).",
+      "section": "Recently Owing",
+      "priorActiveMismatchReason": "trueBalanceMismatch",
+      "metrics": {
+        "invoiceCount": 48,
+        "paymentCount": 47,
+        "invoiceSum": 131090,
+        "paymentSum": -127200,
+        "computedLedgerFromTxns": 3890,
+        "ledgerMatchesImport": true,
+        "duplicateInvoiceFingerprints": [],
+        "duplicatePaymentFingerprints": [],
+        "misPostedTxnCount": 0,
+        "crossAccountInboundPaymentTotal": 0,
+        "crossAccountOutboundPaymentTotal": 0,
+        "journalOrHistoricalTxnCount": 0,
+        "activeLearnerCount": 1,
+        "inAgeAnalysis": true
+      },
+      "timeline": [
+        {
+          "date": "2023-01-13",
+          "kind": "invoice",
+          "transactionNo": "42366",
+          "reference": "Invoice 42366",
+          "signedAmount": 1500,
+          "runningBalance": 1500,
+          "notes": "",
+          "flags": []
+        },
+        {
+          "date": "2023-01-16",
+          "kind": "invoice",
+          "transactionNo": "42513",
+          "reference": "Invoice 42513",
+          "signedAmount": 3500,
+          "runningBalance": 5000,
+          "notes": "",
+          "flags": []
+        },
+        {
+          "date": "2023-01-27",
+          "kind": "payment",
+          "transactionNo": "34192",
+          "reference": "Payment 34192",
+          "signedAmount": -2000,
+          "runningBalance": 3000,
+          "notes": "",
+          "flags": []
+        },
+        {
+          "date": "2023-02-06",
+          "kind": "invoice",
+          "transactionNo": "43160",
+          "reference": "Invoice 43160",
+          "signedAmount": 265,
+          "runningBalance": 3265,
+          "notes": "",
+          "flags": []
+        },
+        {
+          "date": "2023-02-16",
+          "kind": "invoice",
+          "transactionNo": "43405",
+          "reference": "Invoice 43405",
+          "signedAmount": 3000,
+          "runningBalance": 6265,
+          "notes": "",
+          "flags": []
+        },
+        {
+          "date": "2023-03-02",
+          "kind": "payment",
+          "transactionNo": "34980",
+          "reference": "Payment 34980",
+          "signedAmount": -2000,
+          "runningBalance": 4265,
+          "notes": "",
+          "flags": []
+        },
+        {
+          "date": "2023-03-06",
+          "kind": "invoice",
+          "transactionNo": "43857",
+          "reference": "Invoice 43857",
+          "signedAmount": 265,
+          "runningBalance": 4530,
+          "notes": "",
+          "flags": []
+        },
+        {
+          "date": "2023-03-15",
+          "kind": "invoice",
+          "transactionNo": "44065",
+          "reference": "Invoice 44065",
+          "signedAmount": 2200,
+          "runningBalance": 6730,
+          "notes": "",
+          "flags": []
+        },
+        {
+          "date": "2023-04-04",
+          "kind": "payment",
+          "transactionNo": "35394",
+          "reference": "Payment 35394",
+          "signedAmount": -3500,
+          "runningBalance": 3230,
+          "notes": "",
+          "flags": []
+        },
+        {
+          "date": "2023-04-14",
+          "kind": "payment",
+          "transactionNo": "35547",
+          "reference": "Payment 35547",
+          "signedAmount": -1500,
+          "runningBalance": 1730,
+          "notes": "",
+          "flags": []
+        },
+        {
+          "date": "2023-04-18",
+          "kind": "invoice",
+          "transactionNo": "44681",
+          "reference": "Invoice 44681",
+          "signedAmount": 2200,
+          "runningBalance": 3930,
+          "notes": "",
+          "flags": []
+        },
+        {
+          "date": "2023-05-02",
+          "kind": "payment",
+          "transactionNo": "35852",
+          "reference": "Payment 35852",
+          "signedAmount": -2200,
+          "runningBalance": 1730,
+          "notes": "",
+          "flags": []
+        },
+        {
+          "date": "2023-05-08",
+          "kind": "payment",
+          "transactionNo": "36089",
+          "reference": "Payment 36089",
+          "signedAmount": -200,
+          "runningBalance": 1530,
+          "notes": "ROBOTICS WORKOBOOK",
+          "flags": []
+        },
+        {
+          "date": "2023-05-15",
+          "kind": "invoice",
+          "transactionNo": "45325",
+          "reference": "Invoice 45325",
+          "signedAmount": 2400,
+          "runningBalance": 3930,
+          "notes": "",
+          "flags": []
+        },
+        {
+          "date": "2023-05-29",
+          "kind": "payment",
+          "transactionNo": "36508",
+          "reference": "Payment 36508",
+          "signedAmount": -2200,
+          "runningBalance": 1730,
+          "notes": "",
+          "flags": []
+        },
+        {
+          "date": "2023-06-13",
+          "kind": "invoice",
+          "transactionNo": "45846",
+          "reference": "Invoice 45846",
+          "signedAmount": 2200,
+          "runningBalance": 3930,
+          "notes": "",
+          "flags": []
+        },
+        {
+          "date": "2023-07-04",
+          "kind": "payment",
+          "transactionNo": "37039",
+          "reference": "Payment 37039",
+          "signedAmount": -2500,
+          "runningBalance": 1430,
+          "notes": "",
+          "flags": []
+        },
+        {
+          "date": "2023-07-19",
+          "kind": "invoice",
+          "transactionNo": "46331",
+          "reference": "Invoice 46331",
+          "signedAmount": 2200,
+          "runningBalance": 3630,
+          "notes": "",
+          "flags": []
+        },
+        {
+          "date": "2023-07-31",
+          "kind": "payment",
+          "transactionNo": "37790",
+          "reference": "Payment 37790",
+          "signedAmount": -2500,
+          "runningBalance": 1130,
+          "notes": "",
+          "flags": []
+        },
+        {
+          "date": "2023-08-16",
+          "kind": "invoice",
+          "transactionNo": "46887",
+          "reference": "Invoice 46887",
+          "signedAmount": 2200,
+          "runningBalance": 3330,
+          "notes": "",
+          "flags": []
+        },
+        {
+          "date": "2023-08-29",
+          "kind": "payment",
+          "transactionNo": "38273",
+          "reference": "Payment 38273",
+          "signedAmount": -2500,
+          "runningBalance": 830,
+          "notes": "",
+          "flags": []
+        },
+        {
+          "date": "2023-09-07",
+          "kind": "invoice",
+          "transactionNo": "47422",
+          "reference": "Invoice 47422",
+          "signedAmount": 1900,
+          "runningBalance": 2730,
+          "notes": "",
+          "flags": []
+        },
+        {
+          "date": "2023-09-07",
+          "kind": "payment",
+          "transactionNo": "38500",
+          "reference": "Payment 38500",
+          "signedAmount": -1900,
+          "runningBalance": 830,
+          "notes": "TEXTBOOKS AND ROBOTICS 2024",
+          "flags": []
+        },
+        {
+          "date": "2023-09-20",
+          "kind": "invoice",
+          "transactionNo": "47579",
+          "reference": "Invoice 47579",
+          "signedAmount": 2200,
+          "runningBalance": 3030,
+          "notes": "",
+          "flags": []
+        },
+        {
+          "date": "2023-10-10",
+          "kind": "payment",
+          "transactionNo": "38900",
+          "reference": "Payment 38900",
+          "signedAmount": -2500,
+          "runningBalance": 530,
+          "notes": "",
+          "flags": []
+        },
+        {
+          "date": "2023-10-17",
+          "kind": "invoice",
+          "transactionNo": "48148",
+          "reference": "Invoice 48148",
+          "signedAmount": 2200,
+          "runningBalance": 2730,
+          "notes": "",
+          "flags": []
+        },
+        {
+          "date": "2023-10-27",
+          "kind": "payment",
+          "transactionNo": "39207",
+          "reference": "Payment 39207",
+          "signedAmount": -2500,
+          "runningBalance": 230,
+          "notes": "",
+          "flags": []
+        },
+        {
+          "date": "2023-11-16",
+          "kind": "invoice",
+          "transactionNo": "48759",
+          "reference": "Invoice 48759",
+          "signedAmount": 2200,
+          "runningBalance": 2430,
+          "notes": "",
+          "flags": []
+        },
+        {
+          "date": "2023-11-29",
+          "kind": "payment",
+          "transactionNo": "39934",
+          "reference": "Payment 39934",
+          "signedAmount": -2500,
+          "runningBalance": -70,
+          "notes": "",
+          "flags": []
+        },
+        {
+          "date": "2023-12-18",
+          "kind": "invoice",
+          "transactionNo": "49467",
+          "reference": "Invoice 49467",
+          "signedAmount": 4000,
+          "runningBalance": 3930,
+          "notes": "",
+          "flags": []
+        },
+        {
+          "date": "2023-12-29",
+          "kind": "payment",
+          "transactionNo": "40410",
+          "reference": "Payment 40410",
+          "signedAmount": -2500,
+          "runningBalance": 1430,
+          "notes": "",
+          "flags": []
+        },
+        {
+          "date": "2024-01-24",
+          "kind": "invoice",
+          "transactionNo": "50150",
+          "reference": "Invoice 50150",
+          "signedAmount": 2950,
+          "runningBalance": 4380,
+          "notes": "",
+          "flags": []
+        },
+        {
+          "date": "2024-01-31",
+          "kind": "payment",
+          "transactionNo": "41158",
+          "reference": "Payment 41158",
+          "signedAmount": -500,
+          "runningBalance": 3880,
+          "notes": "",
+          "flags": []
+        },
+        {
+          "date": "2024-02-19",
+          "kind": "invoice",
+          "transactionNo": "51410",
+          "reference": "Invoice 51410",
+          "signedAmount": 3300,
+          "runningBalance": 7180,
+          "notes": "",
+          "flags": []
+        },
+        {
+          "date": "2024-02-27",
+          "kind": "invoice",
+          "transactionNo": "51764",
+          "reference": "Invoice 51764",
+          "signedAmount": 2900,
+          "runningBalance": 10080,
+          "notes": "",
+          "flags": []
+        },
+        {
+          "date": "2024-02-29",
+          "kind": "payment",
+          "transactionNo": "41812",
+          "reference": "Payment 41812",
+          "signedAmount": -2500,
+          "runningBalance": 7580,
+          "notes": "",
+          "flags": []
+        },
+        {
+          "date": "2024-03-01",
+          "kind": "payment",
+          "transactionNo": "41851",
+          "reference": "Payment 41851",
+          "signedAmount": -1600,
+          "runningBalance": 5980,
+          "notes": "",
+          "flags": []
+        },
+        {
+          "date": "2024-03-19",
+          "kind": "invoice",
+          "transactionNo": "52097",
+          "reference": "Invoice 52097",
+          "signedAmount": 2400,
+          "runningBalance": 8380,
+          "notes": "",
+          "flags": []
+        },
+        {
+          "date": "2024-04-01",
+          "kind": "payment",
+          "transactionNo": "42239",
+          "reference": "Payment 42239",
+          "signedAmount": -2500,
+          "runningBalance": 5880,
+          "notes": "",
+          "flags": []
+        },
+        {
+          "date": "2024-04-03",
+          "kind": "payment",
+          "transactionNo": "42395",
+          "reference": "Payment 42395",
+          "signedAmount": -2500,
+          "runningBalance": 3380,
+          "notes": "",
+          "flags": []
+        },
+        {
+          "date": "2024-04-15",
+          "kind": "invoice",
+          "transactionNo": "52570",
+          "reference": "Invoice 52570",
+          "signedAmount": 2400,
+          "runningBalance": 5780,
+          "notes": "",
+          "flags": []
+        },
+        {
+          "date": "2024-04-30",
+          "kind": "payment",
+          "transactionNo": "42818",
+          "reference": "Payment 42818",
+          "signedAmount": -2500,
+          "runningBalance": 3280,
+          "notes": "",
+          "flags": []
+        },
+        {
+          "date": "2024-05-15",
+          "kind": "invoice",
+          "transactionNo": "53159",
+          "reference": "Invoice 53159",
+          "signedAmount": 2400,
+          "runningBalance": 5680,
+          "notes": "",
+          "flags": []
+        },
+        {
+          "date": "2024-05-28",
+          "kind": "payment",
+          "transactionNo": "43309",
+          "reference": "Payment 43309",
+          "signedAmount": -2500,
+          "runningBalance": 3180,
+          "notes": "",
+          "flags": []
+        },
+        {
+          "date": "2024-06-15",
+          "kind": "invoice",
+          "transactionNo": "53684",
+          "reference": "Invoice 53684",
+          "signedAmount": 2400,
+          "runningBalance": 5580,
+          "notes": "",
+          "flags": []
+        },
+        {
+          "date": "2024-06-27",
+          "kind": "payment",
+          "transactionNo": "43763",
+          "reference": "Payment 43763",
+          "signedAmount": -2500,
+          "runningBalance": 3080,
+          "notes": "",
+          "flags": []
+        },
+        {
+          "date": "2024-07-17",
+          "kind": "invoice",
+          "transactionNo": "54144",
+          "reference": "Invoice 54144",
+          "signedAmount": 4960,
+          "runningBalance": 8040,
+          "notes": "",
+          "flags": []
+        },
+        {
+          "date": "2024-07-30",
+          "kind": "payment",
+          "transactionNo": "44305",
+          "reference": "Payment 44305",
+          "signedAmount": -2500,
+          "runningBalance": 5540,
+          "notes": "",
+          "flags": []
+        },
+        {
+          "date": "2024-08-15",
+          "kind": "invoice",
+          "transactionNo": "54619",
+          "reference": "Invoice 54619",
+          "signedAmount": 2400,
+          "runningBalance": 7940,
+          "notes": "",
+          "flags": []
+        },
+        {
+          "date": "2024-08-28",
+          "kind": "payment",
+          "transactionNo": "44742",
+          "reference": "Payment 44742",
+          "signedAmount": -4500,
+          "runningBalance": 3440,
+          "notes": "",
+          "flags": []
+        },
+        {
+          "date": "2024-09-17",
+          "kind": "invoice",
+          "transactionNo": "55075",
+          "reference": "Invoice 55075",
+          "signedAmount": 2400,
+          "runningBalance": 5840,
+          "notes": "",
+          "flags": []
+        },
+        {
+          "date": "2024-10-01",
+          "kind": "payment",
+          "transactionNo": "45117",
+          "reference": "Payment 45117",
+          "signedAmount": -4500,
+          "runningBalance": 1340,
+          "notes": "",
+          "flags": []
+        },
+        {
+          "date": "2024-10-15",
+          "kind": "invoice",
+          "transactionNo": "55529",
+          "reference": "Invoice 55529",
+          "signedAmount": 2400,
+          "runningBalance": 3740,
+          "notes": "",
+          "flags": []
+        },
+        {
+          "date": "2024-10-29",
+          "kind": "payment",
+          "transactionNo": "45721",
+          "reference": "Payment 45721",
+          "signedAmount": -2500,
+          "runningBalance": 1240,
+          "notes": "",
+          "flags": []
+        },
+        {
+          "date": "2024-11-15",
+          "kind": "invoice",
+          "transactionNo": "56039",
+          "reference": "Invoice 56039",
+          "signedAmount": 2400,
+          "runningBalance": 3640,
+          "notes": "",
+          "flags": []
+        },
+        {
+          "date": "2024-12-02",
+          "kind": "payment",
+          "transactionNo": "46392",
+          "reference": "Payment 46392",
+          "signedAmount": -2500,
+          "runningBalance": 1140,
+          "notes": "",
+          "flags": []
+        },
+        {
+          "date": "2024-12-03",
+          "kind": "invoice",
+          "transactionNo": "56381",
+          "reference": "Invoice 56381",
+          "signedAmount": 2100,
+          "runningBalance": 3240,
+          "notes": "",
+          "flags": []
+        },
+        {
+          "date": "2024-12-14",
+          "kind": "invoice",
+          "transactionNo": "56603",
+          "reference": "Invoice 56603",
+          "signedAmount": 4500,
+          "runningBalance": 7740,
+          "notes": "",
+          "flags": []
+        },
+        {
+          "date": "2024-12-19",
+          "kind": "payment",
+          "transactionNo": "46863",
+          "reference": "Payment 46863",
+          "signedAmount": -2500,
+          "runningBalance": 5240,
+          "notes": "",
+          "flags": []
+        },
+        {
+          "date": "2025-01-23",
+          "kind": "invoice",
+          "transactionNo": "57105",
+          "reference": "Invoice 57105",
+          "signedAmount": 2700,
+          "runningBalance": 7940,
+          "notes": "",
+          "flags": []
+        },
+        {
+          "date": "2025-01-30",
+          "kind": "payment",
+          "transactionNo": "47433",
+          "reference": "Payment 47433",
+          "signedAmount": -3500,
+          "runningBalance": 4440,
+          "notes": "",
+          "flags": []
+        },
+        {
+          "date": "2025-01-30",
+          "kind": "payment",
+          "transactionNo": "47434",
+          "reference": "Payment 47434",
+          "signedAmount": -2600,
+          "runningBalance": 1840,
+          "notes": "",
+          "flags": []
+        },
+        {
+          "date": "2025-02-21",
+          "kind": "invoice",
+          "transactionNo": "57654",
+          "reference": "Invoice 57654",
+          "signedAmount": 2700,
+          "runningBalance": 4540,
+          "notes": "",
+          "flags": []
+        },
+        {
+          "date": "2025-03-03",
+          "kind": "payment",
+          "transactionNo": "48026",
+          "reference": "Payment 48026",
+          "signedAmount": -2700,
+          "runningBalance": 1840,
+          "notes": "",
+          "flags": []
+        },
+        {
+          "date": "2025-03-18",
+          "kind": "invoice",
+          "transactionNo": "58960",
+          "reference": "Invoice 58960",
+          "signedAmount": 3400,
+          "runningBalance": 5240,
+          "notes": "",
+          "flags": []
+        },
+        {
+          "date": "2025-03-31",
+          "kind": "payment",
+          "transactionNo": "48462",
+          "reference": "Payment 48462",
+          "signedAmount": -2700,
+          "runningBalance": 2540,
+          "notes": "",
+          "flags": []
+        },
+        {
+          "date": "2025-04-15",
+          "kind": "invoice",
+          "transactionNo": "59757",
+          "reference": "Invoice 59757",
+          "signedAmount": 2700,
+          "runningBalance": 5240,
+          "notes": "",
+          "flags": []
+        },
+        {
+          "date": "2025-05-03",
+          "kind": "payment",
+          "transactionNo": "48773",
+          "reference": "Payment 48773",
+          "signedAmount": -2700,
+          "runningBalance": 2540,
+          "notes": "",
+          "flags": []
+        },
+        {
+          "date": "2025-05-15",
+          "kind": "invoice",
+          "transactionNo": "60151",
+          "reference": "Invoice 60151",
+          "signedAmount": 2700,
+          "runningBalance": 5240,
+          "notes": "",
+          "flags": []
+        },
+        {
+          "date": "2025-05-29",
+          "kind": "payment",
+          "transactionNo": "49316",
+          "reference": "Payment 49316",
+          "signedAmount": -2700,
+          "runningBalance": 2540,
+          "notes": "",
+          "flags": []
+        },
+        {
+          "date": "2025-06-02",
+          "kind": "payment",
+          "transactionNo": "49408",
+          "reference": "Payment 49408",
+          "signedAmount": -700,
+          "runningBalance": 1840,
+          "notes": "",
+          "flags": []
+        },
+        {
+          "date": "2025-06-17",
+          "kind": "invoice",
+          "transactionNo": "60650",
+          "reference": "Invoice 60650",
+          "signedAmount": 2700,
+          "runningBalance": 4540,
+          "notes": "",
+          "flags": []
+        },
+        {
+          "date": "2025-07-01",
+          "kind": "payment",
+          "transactionNo": "49810",
+          "reference": "Payment 49810",
+          "signedAmount": -2800,
+          "runningBalance": 1740,
+          "notes": "",
+          "flags": []
+        },
+        {
+          "date": "2025-07-22",
+          "kind": "invoice",
+          "transactionNo": "61033",
+          "reference": "Invoice 61033",
+          "signedAmount": 2700,
+          "runningBalance": 4440,
+          "notes": "",
+          "flags": []
+        },
+        {
+          "date": "2025-07-29",
+          "kind": "payment",
+          "transactionNo": "50138",
+          "reference": "Payment 50138",
+          "signedAmount": -3800,
+          "runningBalance": 640,
+          "notes": "",
+          "flags": []
+        },
+        {
+          "date": "2025-08-15",
+          "kind": "invoice",
+          "transactionNo": "61423",
+          "reference": "Invoice 61423",
+          "signedAmount": 2700,
+          "runningBalance": 3340,
+          "notes": "",
+          "flags": []
+        },
+        {
+          "date": "2025-09-01",
+          "kind": "payment",
+          "transactionNo": "50570",
+          "reference": "Payment 50570",
+          "signedAmount": -3800,
+          "runningBalance": -460,
+          "notes": "",
+          "flags": []
+        },
+        {
+          "date": "2025-09-16",
+          "kind": "invoice",
+          "transactionNo": "62277",
+          "reference": "Invoice 62277",
+          "signedAmount": 3050,
+          "runningBalance": 2590,
+          "notes": "",
+          "flags": []
+        },
+        {
+          "date": "2025-09-30",
+          "kind": "payment",
+          "transactionNo": "50994",
+          "reference": "Payment 50994",
+          "signedAmount": -2800,
+          "runningBalance": -210,
+          "notes": "",
+          "flags": []
+        },
+        {
+          "date": "2025-10-15",
+          "kind": "invoice",
+          "transactionNo": "62691",
+          "reference": "Invoice 62691",
+          "signedAmount": 2700,
+          "runningBalance": 2490,
+          "notes": "",
+          "flags": []
+        },
+        {
+          "date": "2025-10-22",
+          "kind": "invoice",
+          "transactionNo": "62889",
+          "reference": "Invoice 62889",
+          "signedAmount": 500,
+          "runningBalance": 2990,
+          "notes": "",
+          "flags": []
+        },
+        {
+          "date": "2025-10-24",
+          "kind": "payment",
+          "transactionNo": "51242",
+          "reference": "Payment 51242",
+          "signedAmount": -500,
+          "runningBalance": 2490,
+          "notes": "",
+          "flags": []
+        },
+        {
+          "date": "2025-10-28",
+          "kind": "payment",
+          "transactionNo": "51376",
+          "reference": "Payment 51376",
+          "signedAmount": -3800,
+          "runningBalance": -1310,
+          "notes": "",
+          "flags": []
+        },
+        {
+          "date": "2025-11-17",
+          "kind": "invoice",
+          "transactionNo": "63138",
+          "reference": "Invoice 63138",
+          "signedAmount": 2700,
+          "runningBalance": 1390,
+          "notes": "",
+          "flags": []
+        },
+        {
+          "date": "2025-12-15",
+          "kind": "invoice",
+          "transactionNo": "63767",
+          "reference": "Invoice 63767",
+          "signedAmount": 3800,
+          "runningBalance": 5190,
+          "notes": "",
+          "flags": []
+        },
+        {
+          "date": "2025-12-23",
+          "kind": "payment",
+          "transactionNo": "52247",
+          "reference": "Payment 52247",
+          "signedAmount": -3800,
+          "runningBalance": 1390,
+          "notes": "",
+          "flags": []
+        },
+        {
+          "date": "2026-01-21",
+          "kind": "invoice",
+          "transactionNo": "64070",
+          "reference": "Invoice 64070",
+          "signedAmount": 5800,
+          "runningBalance": 7190,
+          "notes": "",
+          "flags": []
+        },
+        {
+          "date": "2026-01-28",
+          "kind": "payment",
+          "transactionNo": "52763",
+          "reference": "Payment 52763",
+          "signedAmount": -5300,
+          "runningBalance": 1890,
+          "notes": "",
+          "flags": []
+        },
+        {
+          "date": "2026-02-17",
+          "kind": "invoice",
+          "transactionNo": "64605",
+          "reference": "Invoice 64605",
+          "signedAmount": 4500,
+          "runningBalance": 6390,
+          "notes": "",
+          "flags": []
+        },
+        {
+          "date": "2026-03-02",
+          "kind": "payment",
+          "transactionNo": "53258",
+          "reference": "Payment 53258",
+          "signedAmount": -4300,
+          "runningBalance": 2090,
+          "notes": "",
+          "flags": []
+        },
+        {
+          "date": "2026-03-16",
+          "kind": "invoice",
+          "transactionNo": "65115",
+          "reference": "Invoice 65115",
+          "signedAmount": 3800,
+          "runningBalance": 5890,
+          "notes": "",
+          "flags": []
+        },
+        {
+          "date": "2026-04-01",
+          "kind": "payment",
+          "transactionNo": "53703",
+          "reference": "Payment 53703",
+          "signedAmount": -4800,
+          "runningBalance": 1090,
+          "notes": "",
+          "flags": []
+        },
+        {
+          "date": "2026-04-15",
+          "kind": "invoice",
+          "transactionNo": "65649",
+          "reference": "Invoice 65649",
+          "signedAmount": 3800,
+          "runningBalance": 4890,
+          "notes": "",
+          "flags": []
+        },
+        {
+          "date": "2026-05-04",
+          "kind": "payment",
+          "transactionNo": "54115",
+          "reference": "Payment 54115",
+          "signedAmount": -4800,
+          "runningBalance": 90,
+          "notes": "",
+          "flags": []
+        },
+        {
+          "date": "2026-05-15",
+          "kind": "invoice",
+          "transactionNo": "67085",
+          "reference": "Invoice 67085",
+          "signedAmount": 3800,
+          "runningBalance": 3890,
+          "notes": "",
+          "flags": []
+        }
+      ]
+    },
+    {
+      "accountNo": "MAR005",
+      "fullName": "Alunamda Luyamkela Marman",
+      "ageAnalysisBalance": 0,
+      "ledgerBalanceFromImport": 1700,
+      "adjustmentAmount": -1700,
+      "category": "needsManualKideSysReview",
+      "ledgerExcessOverAge": 1700,
+      "timelineSummary": "91 txn(s): 45 invoice(s) R135790, 46 payment(s) R-134090. Span 2023-01-16 → 2026-05-22; running ledger R1700. Section \"Paid Up\". 1 flagged row(s) (dup/mispost/hist/jnl). Recent: 2026-04-24 payment R-4400; 2026-05-15 invoice R4350; 2026-05-22 payment R-4300.",
+      "likelyCause": "agePaidUpOrZeroedLedgerResidual",
+      "likelyCauseConfidence": "high",
+      "likelyCauseDetail": "Age analysis R0 (Paid Up) but import ledger R1700 — residual ledger balance after age cleared/paid up.",
+      "openingBalanceAdjustmentSafe": false,
+      "openingBalanceAdjustmentSafety": "unsafe",
+      "openingBalanceSafetyRationale": "Age is R0 (Paid Up) while ledger still shows R1700 — opening credit would hide a Kid-e-Sys residual; reconcile or write off in source system first.",
+      "section": "Paid Up",
+      "priorActiveMismatchReason": "orphanLedgerOnly",
+      "metrics": {
+        "invoiceCount": 45,
+        "paymentCount": 46,
+        "invoiceSum": 135790,
+        "paymentSum": -134090,
+        "computedLedgerFromTxns": 1700,
+        "ledgerMatchesImport": true,
+        "duplicateInvoiceFingerprints": [],
+        "duplicatePaymentFingerprints": [],
+        "misPostedTxnCount": 0,
+        "crossAccountInboundPaymentTotal": 0,
+        "crossAccountOutboundPaymentTotal": 0,
+        "journalOrHistoricalTxnCount": 1,
+        "activeLearnerCount": 1,
+        "inAgeAnalysis": true
+      },
+      "timeline": [
+        {
+          "date": "2023-01-16",
+          "kind": "invoice",
+          "transactionNo": "42766",
+          "reference": "Invoice 42766",
+          "signedAmount": 3300,
+          "runningBalance": 3300,
+          "notes": "",
+          "flags": []
+        },
+        {
+          "date": "2023-01-24",
+          "kind": "payment",
+          "transactionNo": "34062",
+          "reference": "Payment 34062",
+          "signedAmount": -1600,
+          "runningBalance": 1700,
+          "notes": "",
+          "flags": []
+        },
+        {
+          "date": "2023-02-16",
+          "kind": "invoice",
+          "transactionNo": "43657",
+          "reference": "Invoice 43657",
+          "signedAmount": 2800,
+          "runningBalance": 4500,
+          "notes": "",
+          "flags": []
+        },
+        {
+          "date": "2023-02-27",
+          "kind": "payment",
+          "transactionNo": "34771",
+          "reference": "Payment 34771",
+          "signedAmount": -2800,
+          "runningBalance": 1700,
+          "notes": "",
+          "flags": []
+        },
+        {
+          "date": "2023-03-15",
+          "kind": "invoice",
+          "transactionNo": "44318",
+          "reference": "Invoice 44318",
+          "signedAmount": 2000,
+          "runningBalance": 3700,
+          "notes": "",
+          "flags": []
+        },
+        {
+          "date": "2023-04-04",
+          "kind": "payment",
+          "transactionNo": "35419",
+          "reference": "Payment 35419",
+          "signedAmount": -2000,
+          "runningBalance": 1700,
+          "notes": "",
+          "flags": []
+        },
+        {
+          "date": "2023-04-18",
+          "kind": "invoice",
+          "transactionNo": "44932",
+          "reference": "Invoice 44932",
+          "signedAmount": 2000,
+          "runningBalance": 3700,
+          "notes": "",
+          "flags": []
+        },
+        {
+          "date": "2023-04-24",
+          "kind": "payment",
+          "transactionNo": "35664",
+          "reference": "Payment 35664",
+          "signedAmount": -2000,
+          "runningBalance": 1700,
+          "notes": "",
+          "flags": []
+        },
+        {
+          "date": "2023-05-15",
+          "kind": "invoice",
+          "transactionNo": "45580",
+          "reference": "Invoice 45580",
+          "signedAmount": 2200,
+          "runningBalance": 3900,
+          "notes": "",
+          "flags": []
+        },
+        {
+          "date": "2023-05-29",
+          "kind": "payment",
+          "transactionNo": "36542",
+          "reference": "Payment 36542",
+          "signedAmount": -2200,
+          "runningBalance": 1700,
+          "notes": "",
+          "flags": []
+        },
+        {
+          "date": "2023-06-13",
+          "kind": "invoice",
+          "transactionNo": "46096",
+          "reference": "Invoice 46096",
+          "signedAmount": 2000,
+          "runningBalance": 3700,
+          "notes": "",
+          "flags": []
+        },
+        {
+          "date": "2023-07-04",
+          "kind": "payment",
+          "transactionNo": "37161",
+          "reference": "Payment 37161",
+          "signedAmount": -2000,
+          "runningBalance": 1700,
+          "notes": "",
+          "flags": []
+        },
+        {
+          "date": "2023-07-19",
+          "kind": "invoice",
+          "transactionNo": "46581",
+          "reference": "Invoice 46581",
+          "signedAmount": 2000,
+          "runningBalance": 3700,
+          "notes": "",
+          "flags": []
+        },
+        {
+          "date": "2023-07-25",
+          "kind": "payment",
+          "transactionNo": "37597",
+          "reference": "Payment 37597",
+          "signedAmount": -2000,
+          "runningBalance": 1700,
+          "notes": "",
+          "flags": []
+        },
+        {
+          "date": "2023-08-16",
+          "kind": "invoice",
+          "transactionNo": "47137",
+          "reference": "Invoice 47137",
+          "signedAmount": 2000,
+          "runningBalance": 3700,
+          "notes": "",
+          "flags": []
+        },
+        {
+          "date": "2023-08-28",
+          "kind": "payment",
+          "transactionNo": "38191",
+          "reference": "Payment 38191",
+          "signedAmount": -2000,
+          "runningBalance": 1700,
+          "notes": "",
+          "flags": []
+        },
+        {
+          "date": "2023-09-06",
+          "kind": "invoice",
+          "transactionNo": "47401",
+          "reference": "Invoice 47401",
+          "signedAmount": 1250,
+          "runningBalance": 2950,
+          "notes": "",
+          "flags": []
+        },
+        {
+          "date": "2023-09-06",
+          "kind": "payment",
+          "transactionNo": "38479",
+          "reference": "Payment 38479",
+          "signedAmount": -1250,
+          "runningBalance": 1700,
+          "notes": "TEXTBOOKS GRADE R 2024",
+          "flags": []
+        },
+        {
+          "date": "2023-09-20",
+          "kind": "invoice",
+          "transactionNo": "47828",
+          "reference": "Invoice 47828",
+          "signedAmount": 2000,
+          "runningBalance": 3700,
+          "notes": "",
+          "flags": []
+        },
+        {
+          "date": "2023-09-26",
+          "kind": "payment",
+          "transactionNo": "38736",
+          "reference": "Payment 38736",
+          "signedAmount": -2000,
+          "runningBalance": 1700,
+          "notes": "",
+          "flags": []
+        },
+        {
+          "date": "2023-10-17",
+          "kind": "invoice",
+          "transactionNo": "48398",
+          "reference": "Invoice 48398",
+          "signedAmount": 2000,
+          "runningBalance": 3700,
+          "notes": "",
+          "flags": []
+        },
+        {
+          "date": "2023-10-27",
+          "kind": "payment",
+          "transactionNo": "39268",
+          "reference": "Payment 39268",
+          "signedAmount": -2000,
+          "runningBalance": 1700,
+          "notes": "",
+          "flags": []
+        },
+        {
+          "date": "2023-11-16",
+          "kind": "invoice",
+          "transactionNo": "49009",
+          "reference": "Invoice 49009",
+          "signedAmount": 2000,
+          "runningBalance": 3700,
+          "notes": "",
+          "flags": []
+        },
+        {
+          "date": "2023-11-27",
+          "kind": "payment",
+          "transactionNo": "39824",
+          "reference": "Payment 39824",
+          "signedAmount": -2000,
+          "runningBalance": 1700,
+          "notes": "",
+          "flags": []
+        },
+        {
+          "date": "2023-12-18",
+          "kind": "invoice",
+          "transactionNo": "49705",
+          "reference": "Invoice 49705",
+          "signedAmount": 3800,
+          "runningBalance": 5500,
+          "notes": "",
+          "flags": []
+        },
+        {
+          "date": "2024-01-03",
+          "kind": "payment",
+          "transactionNo": "40471",
+          "reference": "Payment 40471",
+          "signedAmount": -2200,
+          "runningBalance": 3300,
+          "notes": "",
+          "flags": []
+        },
+        {
+          "date": "2024-01-20",
+          "kind": "invoice",
+          "transactionNo": "49962",
+          "reference": "Invoice 49962",
+          "signedAmount": 200,
+          "runningBalance": 3500,
+          "notes": "",
+          "flags": []
+        },
+        {
+          "date": "2024-01-24",
+          "kind": "invoice",
+          "transactionNo": "50388",
+          "reference": "Invoice 50388",
+          "signedAmount": 4100,
+          "runningBalance": 7600,
+          "notes": "",
+          "flags": []
+        },
+        {
+          "date": "2024-01-26",
+          "kind": "payment",
+          "transactionNo": "40992",
+          "reference": "Payment 40992",
+          "signedAmount": -5900,
+          "runningBalance": 1700,
+          "notes": "",
+          "flags": []
+        },
+        {
+          "date": "2024-02-19",
+          "kind": "invoice",
+          "transactionNo": "51649",
+          "reference": "Invoice 51649",
+          "signedAmount": 4450,
+          "runningBalance": 6150,
+          "notes": "",
+          "flags": []
+        },
+        {
+          "date": "2024-02-23",
+          "kind": "payment",
+          "transactionNo": "41589",
+          "reference": "Payment 41589",
+          "signedAmount": -3550,
+          "runningBalance": 2600,
+          "notes": "",
+          "flags": []
+        },
+        {
+          "date": "2024-03-19",
+          "kind": "invoice",
+          "transactionNo": "52329",
+          "reference": "Invoice 52329",
+          "signedAmount": 3550,
+          "runningBalance": 6150,
+          "notes": "",
+          "flags": []
+        },
+        {
+          "date": "2024-04-01",
+          "kind": "payment",
+          "transactionNo": "42305",
+          "reference": "Payment 42305",
+          "signedAmount": -4450,
+          "runningBalance": 1700,
+          "notes": "",
+          "flags": []
+        },
+        {
+          "date": "2024-04-15",
+          "kind": "invoice",
+          "transactionNo": "52801",
+          "reference": "Invoice 52801",
+          "signedAmount": 3550,
+          "runningBalance": 5250,
+          "notes": "",
+          "flags": []
+        },
+        {
+          "date": "2024-04-26",
+          "kind": "payment",
+          "transactionNo": "42677",
+          "reference": "Payment 42677",
+          "signedAmount": -3550,
+          "runningBalance": 1700,
+          "notes": "",
+          "flags": []
+        },
+        {
+          "date": "2024-04-29",
+          "kind": "payment",
+          "transactionNo": "42778",
+          "reference": "Payment 42778",
+          "signedAmount": -400,
+          "runningBalance": 1300,
+          "notes": "2 weeks transport refunded",
+          "flags": []
+        },
+        {
+          "date": "2024-05-15",
+          "kind": "invoice",
+          "transactionNo": "53391",
+          "reference": "Invoice 53391",
+          "signedAmount": 3550,
+          "runningBalance": 4850,
+          "notes": "",
+          "flags": []
+        },
+        {
+          "date": "2024-05-28",
+          "kind": "payment",
+          "transactionNo": "43322",
+          "reference": "Payment 43322",
+          "signedAmount": -3150,
+          "runningBalance": 1700,
+          "notes": "",
+          "flags": []
+        },
+        {
+          "date": "2024-06-15",
+          "kind": "invoice",
+          "transactionNo": "53915",
+          "reference": "Invoice 53915",
+          "signedAmount": 3550,
+          "runningBalance": 5250,
+          "notes": "",
+          "flags": []
+        },
+        {
+          "date": "2024-06-21",
+          "kind": "payment",
+          "transactionNo": "43618",
+          "reference": "Payment 43618",
+          "signedAmount": -3550,
+          "runningBalance": 1700,
+          "notes": "",
+          "flags": []
+        },
+        {
+          "date": "2024-07-17",
+          "kind": "invoice",
+          "transactionNo": "54376",
+          "reference": "Invoice 54376",
+          "signedAmount": 5210,
+          "runningBalance": 6910,
+          "notes": "",
+          "flags": []
+        },
+        {
+          "date": "2024-07-29",
+          "kind": "payment",
+          "transactionNo": "44211",
+          "reference": "Payment 44211",
+          "signedAmount": -5300,
+          "runningBalance": 1610,
+          "notes": "",
+          "flags": []
+        },
+        {
+          "date": "2024-08-15",
+          "kind": "invoice",
+          "transactionNo": "54850",
+          "reference": "Invoice 54850",
+          "signedAmount": 3550,
+          "runningBalance": 5160,
+          "notes": "",
+          "flags": []
+        },
+        {
+          "date": "2024-08-27",
+          "kind": "payment",
+          "transactionNo": "44644",
+          "reference": "Payment 44644",
+          "signedAmount": -3500,
+          "runningBalance": 1660,
+          "notes": "",
+          "flags": []
+        },
+        {
+          "date": "2024-09-17",
+          "kind": "invoice",
+          "transactionNo": "55301",
+          "reference": "Invoice 55301",
+          "signedAmount": 3550,
+          "runningBalance": 5210,
+          "notes": "",
+          "flags": []
+        },
+        {
+          "date": "2024-10-01",
+          "kind": "payment",
+          "transactionNo": "45144",
+          "reference": "Payment 45144",
+          "signedAmount": -3510,
+          "runningBalance": 1700,
+          "notes": "",
+          "flags": []
+        },
+        {
+          "date": "2024-10-15",
+          "kind": "invoice",
+          "transactionNo": "55756",
+          "reference": "Invoice 55756",
+          "signedAmount": 3850,
+          "runningBalance": 5550,
+          "notes": "",
+          "flags": []
+        },
+        {
+          "date": "2024-10-29",
+          "kind": "payment",
+          "transactionNo": "45745",
+          "reference": "Payment 45745",
+          "signedAmount": -3850,
+          "runningBalance": 1700,
+          "notes": "",
+          "flags": []
+        },
+        {
+          "date": "2024-11-15",
+          "kind": "invoice",
+          "transactionNo": "56270",
+          "reference": "Invoice 56270",
+          "signedAmount": 3000,
+          "runningBalance": 4700,
+          "notes": "",
+          "flags": []
+        },
+        {
+          "date": "2024-12-02",
+          "kind": "payment",
+          "transactionNo": "46428",
+          "reference": "Payment 46428",
+          "signedAmount": -3000,
+          "runningBalance": 1700,
+          "notes": "",
+          "flags": []
+        },
+        {
+          "date": "2024-12-14",
+          "kind": "invoice",
+          "transactionNo": "56805",
+          "reference": "Invoice 56805",
+          "signedAmount": 5050,
+          "runningBalance": 6750,
+          "notes": "",
+          "flags": []
+        },
+        {
+          "date": "2025-01-16",
+          "kind": "payment",
+          "transactionNo": "47148",
+          "reference": "Payment 47148",
+          "signedAmount": -2700,
+          "runningBalance": 4050,
+          "notes": "",
+          "flags": []
+        },
+        {
+          "date": "2025-01-16",
+          "kind": "payment",
+          "transactionNo": "47149",
+          "reference": "Payment 47149",
+          "signedAmount": -550,
+          "runningBalance": 3500,
+          "notes": "Aftercare removed as per parent email",
+          "flags": [
+            "HIST",
+            "JNL"
+          ]
+        },
+        {
+          "date": "2025-01-23",
+          "kind": "invoice",
+          "transactionNo": "57305",
+          "reference": "Invoice 57305",
+          "signedAmount": 2700,
+          "runningBalance": 6200,
+          "notes": "",
+          "flags": []
+        },
+        {
+          "date": "2025-01-27",
+          "kind": "payment",
+          "transactionNo": "47336",
+          "reference": "Payment 47336",
+          "signedAmount": -4500,
+          "runningBalance": 1700,
+          "notes": "",
+          "flags": []
+        },
+        {
+          "date": "2025-02-21",
+          "kind": "invoice",
+          "transactionNo": "57852",
+          "reference": "Invoice 57852",
+          "signedAmount": 2700,
+          "runningBalance": 4400,
+          "notes": "",
+          "flags": []
+        },
+        {
+          "date": "2025-02-25",
+          "kind": "payment",
+          "transactionNo": "47820",
+          "reference": "Payment 47820",
+          "signedAmount": -2700,
+          "runningBalance": 1700,
+          "notes": "",
+          "flags": []
+        },
+        {
+          "date": "2025-03-07",
+          "kind": "invoice",
+          "transactionNo": "58047",
+          "reference": "Invoice 58047",
+          "signedAmount": 130,
+          "runningBalance": 1830,
+          "notes": "",
+          "flags": []
+        },
+        {
+          "date": "2025-03-10",
+          "kind": "payment",
+          "transactionNo": "48199",
+          "reference": "Payment 48199",
+          "signedAmount": -130,
+          "runningBalance": 1700,
+          "notes": "READING COMPETITION",
+          "flags": []
+        },
+        {
+          "date": "2025-03-18",
+          "kind": "invoice",
+          "transactionNo": "59157",
+          "reference": "Invoice 59157",
+          "signedAmount": 3400,
+          "runningBalance": 5100,
+          "notes": "",
+          "flags": []
+        },
+        {
+          "date": "2025-03-27",
+          "kind": "payment",
+          "transactionNo": "48355",
+          "reference": "Payment 48355",
+          "signedAmount": -3700,
+          "runningBalance": 1400,
+          "notes": "",
+          "flags": []
+        },
+        {
+          "date": "2025-04-15",
+          "kind": "invoice",
+          "transactionNo": "59952",
+          "reference": "Invoice 59952",
+          "signedAmount": 2700,
+          "runningBalance": 4100,
+          "notes": "",
+          "flags": []
+        },
+        {
+          "date": "2025-05-03",
+          "kind": "payment",
+          "transactionNo": "48877",
+          "reference": "Payment 48877",
+          "signedAmount": -2400,
+          "runningBalance": 1700,
+          "notes": "",
+          "flags": []
+        },
+        {
+          "date": "2025-05-15",
+          "kind": "invoice",
+          "transactionNo": "60344",
+          "reference": "Invoice 60344",
+          "signedAmount": 2700,
+          "runningBalance": 4400,
+          "notes": "",
+          "flags": []
+        },
+        {
+          "date": "2025-05-26",
+          "kind": "payment",
+          "transactionNo": "49210",
+          "reference": "Payment 49210",
+          "signedAmount": -2700,
+          "runningBalance": 1700,
+          "notes": "",
+          "flags": []
+        },
+        {
+          "date": "2025-06-17",
+          "kind": "invoice",
+          "transactionNo": "60674",
+          "reference": "Invoice 60674",
+          "signedAmount": 2700,
+          "runningBalance": 4400,
+          "notes": "",
+          "flags": []
+        },
+        {
+          "date": "2025-07-03",
+          "kind": "payment",
+          "transactionNo": "49868",
+          "reference": "Payment 49868",
+          "signedAmount": -2700,
+          "runningBalance": 1700,
+          "notes": "",
+          "flags": []
+        },
+        {
+          "date": "2025-07-22",
+          "kind": "invoice",
+          "transactionNo": "61057",
+          "reference": "Invoice 61057",
+          "signedAmount": 2700,
+          "runningBalance": 4400,
+          "notes": "",
+          "flags": []
+        },
+        {
+          "date": "2025-07-25",
+          "kind": "payment",
+          "transactionNo": "49993",
+          "reference": "Payment 49993",
+          "signedAmount": -2700,
+          "runningBalance": 1700,
+          "notes": "",
+          "flags": []
+        },
+        {
+          "date": "2025-08-15",
+          "kind": "invoice",
+          "transactionNo": "61447",
+          "reference": "Invoice 61447",
+          "signedAmount": 2700,
+          "runningBalance": 4400,
+          "notes": "",
+          "flags": []
+        },
+        {
+          "date": "2025-08-25",
+          "kind": "payment",
+          "transactionNo": "50402",
+          "reference": "Payment 50402",
+          "signedAmount": -2700,
+          "runningBalance": 1700,
+          "notes": "",
+          "flags": []
+        },
+        {
+          "date": "2025-09-16",
+          "kind": "invoice",
+          "transactionNo": "62301",
+          "reference": "Invoice 62301",
+          "signedAmount": 3050,
+          "runningBalance": 4750,
+          "notes": "",
+          "flags": []
+        },
+        {
+          "date": "2025-09-26",
+          "kind": "payment",
+          "transactionNo": "50920",
+          "reference": "Payment 50920",
+          "signedAmount": -3100,
+          "runningBalance": 1650,
+          "notes": "",
+          "flags": []
+        },
+        {
+          "date": "2025-10-15",
+          "kind": "invoice",
+          "transactionNo": "62715",
+          "reference": "Invoice 62715",
+          "signedAmount": 2700,
+          "runningBalance": 4350,
+          "notes": "",
+          "flags": []
+        },
+        {
+          "date": "2025-10-24",
+          "kind": "payment",
+          "transactionNo": "51240",
+          "reference": "Payment 51240",
+          "signedAmount": -2650,
+          "runningBalance": 1700,
+          "notes": "",
+          "flags": []
+        },
+        {
+          "date": "2025-11-17",
+          "kind": "invoice",
+          "transactionNo": "63162",
+          "reference": "Invoice 63162",
+          "signedAmount": 2700,
+          "runningBalance": 4400,
+          "notes": "",
+          "flags": []
+        },
+        {
+          "date": "2025-11-28",
+          "kind": "payment",
+          "transactionNo": "51906",
+          "reference": "Payment 51906",
+          "signedAmount": -2700,
+          "runningBalance": 1700,
+          "notes": "",
+          "flags": []
+        },
+        {
+          "date": "2025-12-15",
+          "kind": "invoice",
+          "transactionNo": "63603",
+          "reference": "Invoice 63603",
+          "signedAmount": 3000,
+          "runningBalance": 4700,
+          "notes": "",
+          "flags": []
+        },
+        {
+          "date": "2025-12-23",
+          "kind": "payment",
+          "transactionNo": "52244",
+          "reference": "Payment 52244",
+          "signedAmount": -3000,
+          "runningBalance": 1700,
+          "notes": "",
+          "flags": []
+        },
+        {
+          "date": "2026-01-13",
+          "kind": "invoice",
+          "transactionNo": "63843",
+          "reference": "Invoice 63843",
+          "signedAmount": 950,
+          "runningBalance": 2650,
+          "notes": "",
+          "flags": []
+        },
+        {
+          "date": "2026-01-13",
+          "kind": "payment",
+          "transactionNo": "52467",
+          "reference": "Payment 52467",
+          "signedAmount": -1350,
+          "runningBalance": 1300,
+          "notes": "",
+          "flags": []
+        },
+        {
+          "date": "2026-01-21",
+          "kind": "invoice",
+          "transactionNo": "64098",
+          "reference": "Invoice 64098",
+          "signedAmount": 6350,
+          "runningBalance": 7650,
+          "notes": "",
+          "flags": []
+        },
+        {
+          "date": "2026-01-24",
+          "kind": "payment",
+          "transactionNo": "52635",
+          "reference": "Payment 52635",
+          "signedAmount": -5950,
+          "runningBalance": 1700,
+          "notes": "",
+          "flags": []
+        },
+        {
+          "date": "2026-02-17",
+          "kind": "invoice",
+          "transactionNo": "64633",
+          "reference": "Invoice 64633",
+          "signedAmount": 5050,
+          "runningBalance": 6750,
+          "notes": "",
+          "flags": []
+        },
+        {
+          "date": "2026-02-20",
+          "kind": "payment",
+          "transactionNo": "53416",
+          "reference": "Payment 53416",
+          "signedAmount": -5100,
+          "runningBalance": 1650,
+          "notes": "",
+          "flags": []
+        },
+        {
+          "date": "2026-03-16",
+          "kind": "invoice",
+          "transactionNo": "65143",
+          "reference": "Invoice 65143",
+          "signedAmount": 4350,
+          "runningBalance": 6000,
+          "notes": "",
+          "flags": []
+        },
+        {
+          "date": "2026-03-20",
+          "kind": "payment",
+          "transactionNo": "53543",
+          "reference": "Payment 53543",
+          "signedAmount": -4300,
+          "runningBalance": 1700,
+          "notes": "",
+          "flags": []
+        },
+        {
+          "date": "2026-04-15",
+          "kind": "invoice",
+          "transactionNo": "65677",
+          "reference": "Invoice 65677",
+          "signedAmount": 4350,
+          "runningBalance": 6050,
+          "notes": "",
+          "flags": []
+        },
+        {
+          "date": "2026-04-24",
+          "kind": "payment",
+          "transactionNo": "53912",
+          "reference": "Payment 53912",
+          "signedAmount": -4400,
+          "runningBalance": 1650,
+          "notes": "",
+          "flags": []
+        },
+        {
+          "date": "2026-05-15",
+          "kind": "invoice",
+          "transactionNo": "67114",
+          "reference": "Invoice 67114",
+          "signedAmount": 4350,
+          "runningBalance": 6000,
+          "notes": "",
+          "flags": []
+        },
+        {
+          "date": "2026-05-22",
+          "kind": "payment",
+          "transactionNo": "54249",
+          "reference": "Payment 54249",
+          "signedAmount": -4300,
+          "runningBalance": 1700,
+          "notes": "",
+          "flags": []
+        }
+      ]
+    },
+    {
+      "accountNo": "MAN010",
+      "fullName": "Nhlulo Xihluke Manabe",
+      "ageAnalysisBalance": 7600,
+      "ledgerBalanceFromImport": 8900,
+      "adjustmentAmount": -1300,
+      "category": "inverseProblemLedgerGreaterThanAge",
+      "ledgerExcessOverAge": 1300,
+      "timelineSummary": "104 txn(s): 52 invoice(s) R126850, 52 payment(s) R-117950. Span 2023-01-03 → 2026-05-15; running ledger R8900. Section \"Bad Debt\". 2 flagged row(s) (dup/mispost/hist/jnl). Recent: 2026-04-15 invoice R3000; 2026-05-15 invoice R300; 2026-05-15 invoice R3000.",
+      "likelyCause": "ledgerExportOverstatement",
+      "likelyCauseConfidence": "medium",
+      "likelyCauseDetail": "Lifetime invoices R126850 + payments R-117950 reconcile to ledger R8900; age R7600 is R1300 lower — export/age skew, not missing payments.",
+      "openingBalanceAdjustmentSafe": false,
+      "openingBalanceAdjustmentSafety": "caution",
+      "openingBalanceSafetyRationale": "Section \"Bad Debt\" / export skew — opening credit R1300 may align EduClear to age but should be confirmed in Kid-e-Sys (age is lower than ledger by design).",
+      "section": "Bad Debt",
+      "priorActiveMismatchReason": "trueBalanceMismatch",
+      "metrics": {
+        "invoiceCount": 52,
+        "paymentCount": 52,
+        "invoiceSum": 126850,
+        "paymentSum": -117950,
+        "computedLedgerFromTxns": 8900,
+        "ledgerMatchesImport": true,
+        "duplicateInvoiceFingerprints": [],
+        "duplicatePaymentFingerprints": [],
+        "misPostedTxnCount": 0,
+        "crossAccountInboundPaymentTotal": 0,
+        "crossAccountOutboundPaymentTotal": 0,
+        "journalOrHistoricalTxnCount": 2,
+        "activeLearnerCount": 1,
+        "inAgeAnalysis": true
+      },
+      "timeline": [
+        {
+          "date": "2023-01-03",
+          "kind": "invoice",
+          "transactionNo": "42226",
+          "reference": "Invoice 42226",
+          "signedAmount": 5000,
+          "runningBalance": 5000,
+          "notes": "",
+          "flags": []
+        },
+        {
+          "date": "2023-01-03",
+          "kind": "payment",
+          "transactionNo": "33594",
+          "reference": "Payment 33594",
+          "signedAmount": -1300,
+          "runningBalance": 3700,
+          "notes": "",
+          "flags": []
+        },
+        {
+          "date": "2023-01-09",
+          "kind": "payment",
+          "transactionNo": "33704",
+          "reference": "Payment 33704",
+          "signedAmount": -2400,
+          "runningBalance": 1300,
+          "notes": "",
+          "flags": []
+        },
+        {
+          "date": "2023-01-16",
+          "kind": "invoice",
+          "transactionNo": "42609",
+          "reference": "Invoice 42609",
+          "signedAmount": 3500,
+          "runningBalance": 4800,
+          "notes": "",
+          "flags": []
+        },
+        {
+          "date": "2023-02-03",
+          "kind": "payment",
+          "transactionNo": "34487",
+          "reference": "Payment 34487",
+          "signedAmount": -2200,
+          "runningBalance": 2600,
+          "notes": "",
+          "flags": []
+        },
+        {
+          "date": "2023-02-09",
+          "kind": "payment",
+          "transactionNo": "34621",
+          "reference": "Payment 34621",
+          "signedAmount": -1565,
+          "runningBalance": 1035,
+          "notes": "",
+          "flags": []
+        },
+        {
+          "date": "2023-02-16",
+          "kind": "invoice",
+          "transactionNo": "43501",
+          "reference": "Invoice 43501",
+          "signedAmount": 3000,
+          "runningBalance": 4035,
+          "notes": "",
+          "flags": []
+        },
+        {
+          "date": "2023-03-02",
+          "kind": "payment",
+          "transactionNo": "34970",
+          "reference": "Payment 34970",
+          "signedAmount": -2200,
+          "runningBalance": 1835,
+          "notes": "",
+          "flags": []
+        },
+        {
+          "date": "2023-03-15",
+          "kind": "invoice",
+          "transactionNo": "44162",
+          "reference": "Invoice 44162",
+          "signedAmount": 2200,
+          "runningBalance": 4035,
+          "notes": "",
+          "flags": []
+        },
+        {
+          "date": "2023-04-18",
+          "kind": "invoice",
+          "transactionNo": "44778",
+          "reference": "Invoice 44778",
+          "signedAmount": 2200,
+          "runningBalance": 6235,
+          "notes": "",
+          "flags": []
+        },
+        {
+          "date": "2023-05-04",
+          "kind": "payment",
+          "transactionNo": "36008",
+          "reference": "Payment 36008",
+          "signedAmount": -1800,
+          "runningBalance": 4435,
+          "notes": "",
+          "flags": []
+        },
+        {
+          "date": "2023-05-15",
+          "kind": "invoice",
+          "transactionNo": "45423",
+          "reference": "Invoice 45423",
+          "signedAmount": 2400,
+          "runningBalance": 6835,
+          "notes": "",
+          "flags": []
+        },
+        {
+          "date": "2023-06-05",
+          "kind": "payment",
+          "transactionNo": "36769",
+          "reference": "Payment 36769",
+          "signedAmount": -1530,
+          "runningBalance": 5305,
+          "notes": "",
+          "flags": []
+        },
+        {
+          "date": "2023-06-06",
+          "kind": "payment",
+          "transactionNo": "36816",
+          "reference": "Payment 36816",
+          "signedAmount": -2000,
+          "runningBalance": 3305,
+          "notes": "",
+          "flags": []
+        },
+        {
+          "date": "2023-06-06",
+          "kind": "payment",
+          "transactionNo": "36822",
+          "reference": "Payment 36822",
+          "signedAmount": -800,
+          "runningBalance": 2505,
+          "notes": "Registration removed - Parent will reapply as per email.",
+          "flags": [
+            "HIST",
+            "JNL"
+          ]
+        },
+        {
+          "date": "2023-06-06",
+          "kind": "payment",
+          "transactionNo": "36833",
+          "reference": "Payment 36833",
+          "signedAmount": -1000,
+          "runningBalance": 1505,
+          "notes": "",
+          "flags": []
+        },
+        {
+          "date": "2023-06-06",
+          "kind": "payment",
+          "transactionNo": "36840",
+          "reference": "Payment 36840",
+          "signedAmount": -450,
+          "runningBalance": 1055,
+          "notes": "",
+          "flags": []
+        },
+        {
+          "date": "2023-06-13",
+          "kind": "invoice",
+          "transactionNo": "45943",
+          "reference": "Invoice 45943",
+          "signedAmount": 2200,
+          "runningBalance": 3255,
+          "notes": "",
+          "flags": []
+        },
+        {
+          "date": "2023-07-18",
+          "kind": "payment",
+          "transactionNo": "37438",
+          "reference": "Payment 37438",
+          "signedAmount": -1750,
+          "runningBalance": 1505,
+          "notes": "",
+          "flags": []
+        },
+        {
+          "date": "2023-07-18",
+          "kind": "payment",
+          "transactionNo": "37440",
+          "reference": "Payment 37440",
+          "signedAmount": -1000,
+          "runningBalance": 505,
+          "notes": "",
+          "flags": []
+        },
+        {
+          "date": "2023-07-19",
+          "kind": "invoice",
+          "transactionNo": "46428",
+          "reference": "Invoice 46428",
+          "signedAmount": 2200,
+          "runningBalance": 2705,
+          "notes": "",
+          "flags": []
+        },
+        {
+          "date": "2023-08-10",
+          "kind": "payment",
+          "transactionNo": "37981",
+          "reference": "Payment 37981",
+          "signedAmount": -2200,
+          "runningBalance": 505,
+          "notes": "",
+          "flags": []
+        },
+        {
+          "date": "2023-08-16",
+          "kind": "invoice",
+          "transactionNo": "46984",
+          "reference": "Invoice 46984",
+          "signedAmount": 2200,
+          "runningBalance": 2705,
+          "notes": "",
+          "flags": []
+        },
+        {
+          "date": "2023-09-11",
+          "kind": "payment",
+          "transactionNo": "38514",
+          "reference": "Payment 38514",
+          "signedAmount": -2200,
+          "runningBalance": 505,
+          "notes": "",
+          "flags": []
+        },
+        {
+          "date": "2023-09-20",
+          "kind": "invoice",
+          "transactionNo": "47676",
+          "reference": "Invoice 47676",
+          "signedAmount": 2200,
+          "runningBalance": 2705,
+          "notes": "",
+          "flags": []
+        },
+        {
+          "date": "2023-10-17",
+          "kind": "invoice",
+          "transactionNo": "48245",
+          "reference": "Invoice 48245",
+          "signedAmount": 2200,
+          "runningBalance": 4905,
+          "notes": "",
+          "flags": []
+        },
+        {
+          "date": "2023-11-07",
+          "kind": "payment",
+          "transactionNo": "39593",
+          "reference": "Payment 39593",
+          "signedAmount": -800,
+          "runningBalance": 4105,
+          "notes": "",
+          "flags": []
+        },
+        {
+          "date": "2023-11-08",
+          "kind": "payment",
+          "transactionNo": "39626",
+          "reference": "Payment 39626",
+          "signedAmount": -2200,
+          "runningBalance": 1905,
+          "notes": "",
+          "flags": []
+        },
+        {
+          "date": "2023-11-13",
+          "kind": "payment",
+          "transactionNo": "39638",
+          "reference": "Payment 39638",
+          "signedAmount": -800,
+          "runningBalance": 1105,
+          "notes": "",
+          "flags": []
+        },
+        {
+          "date": "2023-11-13",
+          "kind": "payment",
+          "transactionNo": "39642",
+          "reference": "Payment 39642",
+          "signedAmount": -1900,
+          "runningBalance": -795,
+          "notes": "",
+          "flags": []
+        },
+        {
+          "date": "2023-11-16",
+          "kind": "invoice",
+          "transactionNo": "48856",
+          "reference": "Invoice 48856",
+          "signedAmount": 2200,
+          "runningBalance": 1405,
+          "notes": "",
+          "flags": []
+        },
+        {
+          "date": "2023-12-18",
+          "kind": "invoice",
+          "transactionNo": "49554",
+          "reference": "Invoice 49554",
+          "signedAmount": 1600,
+          "runningBalance": 3005,
+          "notes": "",
+          "flags": []
+        },
+        {
+          "date": "2023-12-18",
+          "kind": "invoice",
+          "transactionNo": "49804",
+          "reference": "Invoice 49804",
+          "signedAmount": 2400,
+          "runningBalance": 5405,
+          "notes": "",
+          "flags": []
+        },
+        {
+          "date": "2024-01-10",
+          "kind": "payment",
+          "transactionNo": "40495",
+          "reference": "Payment 40495",
+          "signedAmount": -800,
+          "runningBalance": 4605,
+          "notes": "",
+          "flags": []
+        },
+        {
+          "date": "2024-01-16",
+          "kind": "payment",
+          "transactionNo": "40650",
+          "reference": "Payment 40650",
+          "signedAmount": -800,
+          "runningBalance": 3805,
+          "notes": "",
+          "flags": []
+        },
+        {
+          "date": "2024-01-24",
+          "kind": "invoice",
+          "transactionNo": "50236",
+          "reference": "Invoice 50236",
+          "signedAmount": 3150,
+          "runningBalance": 6955,
+          "notes": "",
+          "flags": []
+        },
+        {
+          "date": "2024-02-19",
+          "kind": "invoice",
+          "transactionNo": "51495",
+          "reference": "Invoice 51495",
+          "signedAmount": 3300,
+          "runningBalance": 10255,
+          "notes": "",
+          "flags": []
+        },
+        {
+          "date": "2024-03-19",
+          "kind": "invoice",
+          "transactionNo": "52179",
+          "reference": "Invoice 52179",
+          "signedAmount": 2400,
+          "runningBalance": 12655,
+          "notes": "",
+          "flags": []
+        },
+        {
+          "date": "2024-04-15",
+          "kind": "invoice",
+          "transactionNo": "52652",
+          "reference": "Invoice 52652",
+          "signedAmount": 2400,
+          "runningBalance": 15055,
+          "notes": "",
+          "flags": []
+        },
+        {
+          "date": "2024-04-22",
+          "kind": "payment",
+          "transactionNo": "42577",
+          "reference": "Payment 42577",
+          "signedAmount": -500,
+          "runningBalance": 14555,
+          "notes": "",
+          "flags": []
+        },
+        {
+          "date": "2024-05-07",
+          "kind": "invoice",
+          "transactionNo": "52983",
+          "reference": "Invoice 52983",
+          "signedAmount": 320,
+          "runningBalance": 14875,
+          "notes": "",
+          "flags": []
+        },
+        {
+          "date": "2024-05-15",
+          "kind": "invoice",
+          "transactionNo": "53240",
+          "reference": "Invoice 53240",
+          "signedAmount": 2400,
+          "runningBalance": 17275,
+          "notes": "",
+          "flags": []
+        },
+        {
+          "date": "2024-06-04",
+          "kind": "invoice",
+          "transactionNo": "53529",
+          "reference": "Invoice 53529",
+          "signedAmount": 320,
+          "runningBalance": 17595,
+          "notes": "",
+          "flags": []
+        },
+        {
+          "date": "2024-06-15",
+          "kind": "invoice",
+          "transactionNo": "53764",
+          "reference": "Invoice 53764",
+          "signedAmount": 2400,
+          "runningBalance": 19995,
+          "notes": "",
+          "flags": []
+        },
+        {
+          "date": "2024-07-09",
+          "kind": "payment",
+          "transactionNo": "43854",
+          "reference": "Payment 43854",
+          "signedAmount": -1500,
+          "runningBalance": 18495,
+          "notes": "",
+          "flags": []
+        },
+        {
+          "date": "2024-07-17",
+          "kind": "invoice",
+          "transactionNo": "54226",
+          "reference": "Invoice 54226",
+          "signedAmount": 4360,
+          "runningBalance": 22855,
+          "notes": "",
+          "flags": []
+        },
+        {
+          "date": "2024-07-22",
+          "kind": "payment",
+          "transactionNo": "44081",
+          "reference": "Payment 44081",
+          "signedAmount": -10229,
+          "runningBalance": 12626,
+          "notes": "",
+          "flags": []
+        },
+        {
+          "date": "2024-08-15",
+          "kind": "invoice",
+          "transactionNo": "54700",
+          "reference": "Invoice 54700",
+          "signedAmount": 2400,
+          "runningBalance": 15026,
+          "notes": "",
+          "flags": []
+        },
+        {
+          "date": "2024-09-09",
+          "kind": "payment",
+          "transactionNo": "44878",
+          "reference": "Payment 44878",
+          "signedAmount": -4000,
+          "runningBalance": 11026,
+          "notes": "",
+          "flags": []
+        },
+        {
+          "date": "2024-09-17",
+          "kind": "invoice",
+          "transactionNo": "55155",
+          "reference": "Invoice 55155",
+          "signedAmount": 2400,
+          "runningBalance": 13426,
+          "notes": "",
+          "flags": []
+        },
+        {
+          "date": "2024-10-08",
+          "kind": "payment",
+          "transactionNo": "45383",
+          "reference": "Payment 45383",
+          "signedAmount": -1500,
+          "runningBalance": 11926,
+          "notes": "",
+          "flags": []
+        },
+        {
+          "date": "2024-10-14",
+          "kind": "payment",
+          "transactionNo": "45488",
+          "reference": "Payment 45488",
+          "signedAmount": -6000,
+          "runningBalance": 5926,
+          "notes": "",
+          "flags": []
+        },
+        {
+          "date": "2024-10-15",
+          "kind": "invoice",
+          "transactionNo": "55609",
+          "reference": "Invoice 55609",
+          "signedAmount": 2400,
+          "runningBalance": 8326,
+          "notes": "",
+          "flags": []
+        },
+        {
+          "date": "2024-10-15",
+          "kind": "payment",
+          "transactionNo": "45493",
+          "reference": "Payment 45493",
+          "signedAmount": -400,
+          "runningBalance": 7926,
+          "notes": "",
+          "flags": []
+        },
+        {
+          "date": "2024-11-15",
+          "kind": "invoice",
+          "transactionNo": "56120",
+          "reference": "Invoice 56120",
+          "signedAmount": 2400,
+          "runningBalance": 10326,
+          "notes": "",
+          "flags": []
+        },
+        {
+          "date": "2024-11-15",
+          "kind": "payment",
+          "transactionNo": "46144",
+          "reference": "Payment 46144",
+          "signedAmount": -1282,
+          "runningBalance": 9044,
+          "notes": "",
+          "flags": []
+        },
+        {
+          "date": "2024-12-01",
+          "kind": "payment",
+          "transactionNo": "46174",
+          "reference": "Payment 46174",
+          "signedAmount": -218,
+          "runningBalance": 8826,
+          "notes": "",
+          "flags": []
+        },
+        {
+          "date": "2024-12-01",
+          "kind": "payment",
+          "transactionNo": "46175",
+          "reference": "Payment 46175",
+          "signedAmount": -1500,
+          "runningBalance": 7326,
+          "notes": "",
+          "flags": []
+        },
+        {
+          "date": "2024-12-03",
+          "kind": "payment",
+          "transactionNo": "46501",
+          "reference": "Payment 46501",
+          "signedAmount": -1910,
+          "runningBalance": 5416,
+          "notes": "Book fee removed as per parent email.",
+          "flags": [
+            "HIST",
+            "JNL"
+          ]
+        },
+        {
+          "date": "2024-12-14",
+          "kind": "invoice",
+          "transactionNo": "56667",
+          "reference": "Invoice 56667",
+          "signedAmount": 4500,
+          "runningBalance": 9916,
+          "notes": "",
+          "flags": []
+        },
+        {
+          "date": "2025-01-23",
+          "kind": "invoice",
+          "transactionNo": "57168",
+          "reference": "Invoice 57168",
+          "signedAmount": 2700,
+          "runningBalance": 12616,
+          "notes": "",
+          "flags": []
+        },
+        {
+          "date": "2025-02-21",
+          "kind": "invoice",
+          "transactionNo": "57719",
+          "reference": "Invoice 57719",
+          "signedAmount": 2700,
+          "runningBalance": 15316,
+          "notes": "",
+          "flags": []
+        },
+        {
+          "date": "2025-02-21",
+          "kind": "invoice",
+          "transactionNo": "57933",
+          "reference": "Invoice 57933",
+          "signedAmount": 2950,
+          "runningBalance": 18266,
+          "notes": "",
+          "flags": []
+        },
+        {
+          "date": "2025-03-03",
+          "kind": "payment",
+          "transactionNo": "48003",
+          "reference": "Payment 48003",
+          "signedAmount": -8000,
+          "runningBalance": 10266,
+          "notes": "",
+          "flags": []
+        },
+        {
+          "date": "2025-03-04",
+          "kind": "invoice",
+          "transactionNo": "58003",
+          "reference": "Invoice 58003",
+          "signedAmount": 300,
+          "runningBalance": 10566,
+          "notes": "",
+          "flags": []
+        },
+        {
+          "date": "2025-03-04",
+          "kind": "payment",
+          "transactionNo": "48120",
+          "reference": "Payment 48120",
+          "signedAmount": -500,
+          "runningBalance": 10066,
+          "notes": "camp deposit",
+          "flags": []
+        },
+        {
+          "date": "2025-03-10",
+          "kind": "payment",
+          "transactionNo": "48210",
+          "reference": "Payment 48210",
+          "signedAmount": -1800,
+          "runningBalance": 8266,
+          "notes": "",
+          "flags": []
+        },
+        {
+          "date": "2025-03-10",
+          "kind": "payment",
+          "transactionNo": "48211",
+          "reference": "Payment 48211",
+          "signedAmount": -3000,
+          "runningBalance": 5266,
+          "notes": "",
+          "flags": []
+        },
+        {
+          "date": "2025-03-13",
+          "kind": "payment",
+          "transactionNo": "48235",
+          "reference": "Payment 48235",
+          "signedAmount": -1540,
+          "runningBalance": 3726,
+          "notes": "",
+          "flags": []
+        },
+        {
+          "date": "2025-03-18",
+          "kind": "invoice",
+          "transactionNo": "59027",
+          "reference": "Invoice 59027",
+          "signedAmount": 3400,
+          "runningBalance": 7126,
+          "notes": "",
+          "flags": []
+        },
+        {
+          "date": "2025-04-11",
+          "kind": "payment",
+          "transactionNo": "48682",
+          "reference": "Payment 48682",
+          "signedAmount": -3000,
+          "runningBalance": 4126,
+          "notes": "",
+          "flags": []
+        },
+        {
+          "date": "2025-04-15",
+          "kind": "invoice",
+          "transactionNo": "59823",
+          "reference": "Invoice 59823",
+          "signedAmount": 2700,
+          "runningBalance": 6826,
+          "notes": "",
+          "flags": []
+        },
+        {
+          "date": "2025-05-15",
+          "kind": "invoice",
+          "transactionNo": "60217",
+          "reference": "Invoice 60217",
+          "signedAmount": 2700,
+          "runningBalance": 9526,
+          "notes": "",
+          "flags": []
+        },
+        {
+          "date": "2025-06-17",
+          "kind": "invoice",
+          "transactionNo": "60773",
+          "reference": "Invoice 60773",
+          "signedAmount": 2700,
+          "runningBalance": 12226,
+          "notes": "",
+          "flags": []
+        },
+        {
+          "date": "2025-07-22",
+          "kind": "invoice",
+          "transactionNo": "61156",
+          "reference": "Invoice 61156",
+          "signedAmount": 2700,
+          "runningBalance": 14926,
+          "notes": "",
+          "flags": []
+        },
+        {
+          "date": "2025-07-29",
+          "kind": "payment",
+          "transactionNo": "50143",
+          "reference": "Payment 50143",
+          "signedAmount": -6000,
+          "runningBalance": 8926,
+          "notes": "",
+          "flags": []
+        },
+        {
+          "date": "2025-07-29",
+          "kind": "payment",
+          "transactionNo": "50144",
+          "reference": "Payment 50144",
+          "signedAmount": -226,
+          "runningBalance": 8700,
+          "notes": "",
+          "flags": []
+        },
+        {
+          "date": "2025-08-15",
+          "kind": "invoice",
+          "transactionNo": "61547",
+          "reference": "Invoice 61547",
+          "signedAmount": 2700,
+          "runningBalance": 11400,
+          "notes": "",
+          "flags": []
+        },
+        {
+          "date": "2025-09-04",
+          "kind": "invoice",
+          "transactionNo": "61644",
+          "reference": "Invoice 61644",
+          "signedAmount": 300,
+          "runningBalance": 11700,
+          "notes": "",
+          "flags": []
+        },
+        {
+          "date": "2025-09-05",
+          "kind": "payment",
+          "transactionNo": "50717",
+          "reference": "Payment 50717",
+          "signedAmount": -3500,
+          "runningBalance": 8200,
+          "notes": "",
+          "flags": []
+        },
+        {
+          "date": "2025-09-15",
+          "kind": "payment",
+          "transactionNo": "50792",
+          "reference": "Payment 50792",
+          "signedAmount": -5400,
+          "runningBalance": 2800,
+          "notes": "",
+          "flags": []
+        },
+        {
+          "date": "2025-09-16",
+          "kind": "invoice",
+          "transactionNo": "62400",
+          "reference": "Invoice 62400",
+          "signedAmount": 3050,
+          "runningBalance": 5850,
+          "notes": "",
+          "flags": []
+        },
+        {
+          "date": "2025-09-17",
+          "kind": "payment",
+          "transactionNo": "50832",
+          "reference": "Payment 50832",
+          "signedAmount": -600,
+          "runningBalance": 5250,
+          "notes": "",
+          "flags": []
+        },
+        {
+          "date": "2025-10-15",
+          "kind": "invoice",
+          "transactionNo": "62814",
+          "reference": "Invoice 62814",
+          "signedAmount": 2700,
+          "runningBalance": 7950,
+          "notes": "",
+          "flags": []
+        },
+        {
+          "date": "2025-11-17",
+          "kind": "invoice",
+          "transactionNo": "63259",
+          "reference": "Invoice 63259",
+          "signedAmount": 2700,
+          "runningBalance": 10650,
+          "notes": "",
+          "flags": []
+        },
+        {
+          "date": "2025-11-18",
+          "kind": "payment",
+          "transactionNo": "51792",
+          "reference": "Payment 51792",
+          "signedAmount": -1000,
+          "runningBalance": 9650,
+          "notes": "",
+          "flags": []
+        },
+        {
+          "date": "2025-11-18",
+          "kind": "payment",
+          "transactionNo": "51793",
+          "reference": "Payment 51793",
+          "signedAmount": -1500,
+          "runningBalance": 8150,
+          "notes": "",
+          "flags": []
+        },
+        {
+          "date": "2025-11-18",
+          "kind": "payment",
+          "transactionNo": "51794",
+          "reference": "Payment 51794",
+          "signedAmount": -2000,
+          "runningBalance": 6150,
+          "notes": "",
+          "flags": []
+        },
+        {
+          "date": "2025-11-18",
+          "kind": "payment",
+          "transactionNo": "51795",
+          "reference": "Payment 51795",
+          "signedAmount": -750,
+          "runningBalance": 5400,
+          "notes": "",
+          "flags": []
+        },
+        {
+          "date": "2025-12-15",
+          "kind": "invoice",
+          "transactionNo": "63697",
+          "reference": "Invoice 63697",
+          "signedAmount": 3000,
+          "runningBalance": 8400,
+          "notes": "",
+          "flags": []
+        },
+        {
+          "date": "2026-01-12",
+          "kind": "payment",
+          "transactionNo": "52407",
+          "reference": "Payment 52407",
+          "signedAmount": -1500,
+          "runningBalance": 6900,
+          "notes": "",
+          "flags": []
+        },
+        {
+          "date": "2026-01-12",
+          "kind": "payment",
+          "transactionNo": "52414",
+          "reference": "Payment 52414",
+          "signedAmount": -2700,
+          "runningBalance": 4200,
+          "notes": "",
+          "flags": []
+        },
+        {
+          "date": "2026-01-13",
+          "kind": "payment",
+          "transactionNo": "52468",
+          "reference": "Payment 52468",
+          "signedAmount": -2900,
+          "runningBalance": 1300,
+          "notes": "",
+          "flags": []
+        },
+        {
+          "date": "2026-01-21",
+          "kind": "invoice",
+          "transactionNo": "64193",
+          "reference": "Invoice 64193",
+          "signedAmount": 5000,
+          "runningBalance": 6300,
+          "notes": "",
+          "flags": []
+        },
+        {
+          "date": "2026-02-06",
+          "kind": "invoice",
+          "transactionNo": "64382",
+          "reference": "Invoice 64382",
+          "signedAmount": 300,
+          "runningBalance": 6600,
+          "notes": "",
+          "flags": []
+        },
+        {
+          "date": "2026-02-17",
+          "kind": "invoice",
+          "transactionNo": "64727",
+          "reference": "Invoice 64727",
+          "signedAmount": 3700,
+          "runningBalance": 10300,
+          "notes": "",
+          "flags": []
+        },
+        {
+          "date": "2026-03-04",
+          "kind": "invoice",
+          "transactionNo": "64880",
+          "reference": "Invoice 64880",
+          "signedAmount": 300,
+          "runningBalance": 10600,
+          "notes": "",
+          "flags": []
+        },
+        {
+          "date": "2026-03-10",
+          "kind": "payment",
+          "transactionNo": "53471",
+          "reference": "Payment 53471",
+          "signedAmount": -8000,
+          "runningBalance": 2600,
+          "notes": "",
+          "flags": []
+        },
+        {
+          "date": "2026-03-16",
+          "kind": "invoice",
+          "transactionNo": "65237",
+          "reference": "Invoice 65237",
+          "signedAmount": 3000,
+          "runningBalance": 5600,
+          "notes": "",
+          "flags": []
+        },
+        {
+          "date": "2026-04-10",
+          "kind": "invoice",
+          "transactionNo": "65328",
+          "reference": "Invoice 65328",
+          "signedAmount": 300,
+          "runningBalance": 5900,
+          "notes": "",
+          "flags": []
+        },
+        {
+          "date": "2026-04-13",
+          "kind": "payment",
+          "transactionNo": "53866",
+          "reference": "Payment 53866",
+          "signedAmount": -3300,
+          "runningBalance": 2600,
+          "notes": "",
+          "flags": []
+        },
+        {
+          "date": "2026-04-15",
+          "kind": "invoice",
+          "transactionNo": "65769",
+          "reference": "Invoice 65769",
+          "signedAmount": 3000,
+          "runningBalance": 5600,
+          "notes": "",
+          "flags": []
+        },
+        {
+          "date": "2026-05-15",
+          "kind": "invoice",
+          "transactionNo": "66901",
+          "reference": "Invoice 66901",
+          "signedAmount": 300,
+          "runningBalance": 5900,
+          "notes": "",
+          "flags": []
+        },
+        {
+          "date": "2026-05-15",
+          "kind": "invoice",
+          "transactionNo": "67207",
+          "reference": "Invoice 67207",
+          "signedAmount": 3000,
+          "runningBalance": 8900,
+          "notes": "",
+          "flags": []
+        }
+      ]
+    },
+    {
+      "accountNo": "MAH004",
+      "fullName": "Mayani Daniel Mahango",
+      "ageAnalysisBalance": 3200,
+      "ledgerBalanceFromImport": 3750,
+      "adjustmentAmount": -550,
+      "category": "inverseProblemLedgerGreaterThanAge",
+      "ledgerExcessOverAge": 550,
+      "timelineSummary": "87 txn(s): 46 invoice(s) R131010, 41 payment(s) R-127260. Span 2023-01-03 → 2026-05-15; running ledger R3750. Section \"Recently Owing\". 1 flagged row(s) (dup/mispost/hist/jnl). Recent: 2026-04-15 invoice R200; 2026-04-15 invoice R3000; 2026-05-15 invoice R3000.",
+      "likelyCause": "ledgerExportOverstatement",
+      "likelyCauseConfidence": "medium",
+      "likelyCauseDetail": "Lifetime invoices R131010 + payments R-127260 reconcile to ledger R3750; age R3200 is R550 lower — export/age skew, not missing payments.",
+      "openingBalanceAdjustmentSafe": false,
+      "openingBalanceAdjustmentSafety": "caution",
+      "openingBalanceSafetyRationale": "Section \"Recently Owing\" / export skew — opening credit R550 may align EduClear to age but should be confirmed in Kid-e-Sys (age is lower than ledger by design).",
+      "section": "Recently Owing",
+      "priorActiveMismatchReason": "trueBalanceMismatch",
+      "metrics": {
+        "invoiceCount": 46,
+        "paymentCount": 41,
+        "invoiceSum": 131010,
+        "paymentSum": -127260,
+        "computedLedgerFromTxns": 3750,
+        "ledgerMatchesImport": true,
+        "duplicateInvoiceFingerprints": [],
+        "duplicatePaymentFingerprints": [],
+        "misPostedTxnCount": 0,
+        "crossAccountInboundPaymentTotal": 0,
+        "crossAccountOutboundPaymentTotal": 0,
+        "journalOrHistoricalTxnCount": 1,
+        "activeLearnerCount": 1,
+        "inAgeAnalysis": true
+      },
+      "timeline": [
+        {
+          "date": "2023-01-03",
+          "kind": "payment",
+          "transactionNo": "33536",
+          "reference": "Payment 33536",
+          "signedAmount": -1500,
+          "runningBalance": -1500,
+          "notes": "",
+          "flags": []
+        },
+        {
+          "date": "2023-01-16",
+          "kind": "invoice",
+          "transactionNo": "42806",
+          "reference": "Invoice 42806",
+          "signedAmount": 3500,
+          "runningBalance": 2000,
+          "notes": "",
+          "flags": []
+        },
+        {
+          "date": "2023-02-02",
+          "kind": "payment",
+          "transactionNo": "34448",
+          "reference": "Payment 34448",
+          "signedAmount": -1500,
+          "runningBalance": 500,
+          "notes": "",
+          "flags": []
+        },
+        {
+          "date": "2023-02-16",
+          "kind": "invoice",
+          "transactionNo": "43695",
+          "reference": "Invoice 43695",
+          "signedAmount": 3000,
+          "runningBalance": 3500,
+          "notes": "",
+          "flags": []
+        },
+        {
+          "date": "2023-02-28",
+          "kind": "payment",
+          "transactionNo": "34917",
+          "reference": "Payment 34917",
+          "signedAmount": -3000,
+          "runningBalance": 500,
+          "notes": "",
+          "flags": []
+        },
+        {
+          "date": "2023-03-15",
+          "kind": "invoice",
+          "transactionNo": "44356",
+          "reference": "Invoice 44356",
+          "signedAmount": 2200,
+          "runningBalance": 2700,
+          "notes": "",
+          "flags": []
+        },
+        {
+          "date": "2023-04-03",
+          "kind": "payment",
+          "transactionNo": "35323",
+          "reference": "Payment 35323",
+          "signedAmount": -2500,
+          "runningBalance": 200,
+          "notes": "",
+          "flags": []
+        },
+        {
+          "date": "2023-04-18",
+          "kind": "invoice",
+          "transactionNo": "44970",
+          "reference": "Invoice 44970",
+          "signedAmount": 2200,
+          "runningBalance": 2400,
+          "notes": "",
+          "flags": []
+        },
+        {
+          "date": "2023-05-02",
+          "kind": "payment",
+          "transactionNo": "35829",
+          "reference": "Payment 35829",
+          "signedAmount": -2500,
+          "runningBalance": -100,
+          "notes": "",
+          "flags": []
+        },
+        {
+          "date": "2023-05-15",
+          "kind": "invoice",
+          "transactionNo": "45618",
+          "reference": "Invoice 45618",
+          "signedAmount": 2400,
+          "runningBalance": 2300,
+          "notes": "",
+          "flags": []
+        },
+        {
+          "date": "2023-06-04",
+          "kind": "payment",
+          "transactionNo": "36743",
+          "reference": "Payment 36743",
+          "signedAmount": -1800,
+          "runningBalance": 500,
+          "notes": "",
+          "flags": []
+        },
+        {
+          "date": "2023-06-13",
+          "kind": "invoice",
+          "transactionNo": "46134",
+          "reference": "Invoice 46134",
+          "signedAmount": 2200,
+          "runningBalance": 2700,
+          "notes": "",
+          "flags": []
+        },
+        {
+          "date": "2023-07-05",
+          "kind": "payment",
+          "transactionNo": "38554",
+          "reference": "Payment 38554",
+          "signedAmount": -2150,
+          "runningBalance": 550,
+          "notes": "",
+          "flags": []
+        },
+        {
+          "date": "2023-07-19",
+          "kind": "invoice",
+          "transactionNo": "46619",
+          "reference": "Invoice 46619",
+          "signedAmount": 2200,
+          "runningBalance": 2750,
+          "notes": "",
+          "flags": []
+        },
+        {
+          "date": "2023-08-02",
+          "kind": "payment",
+          "transactionNo": "37853",
+          "reference": "Payment 37853",
+          "signedAmount": -2300,
+          "runningBalance": 450,
+          "notes": "",
+          "flags": []
+        },
+        {
+          "date": "2023-08-16",
+          "kind": "invoice",
+          "transactionNo": "47175",
+          "reference": "Invoice 47175",
+          "signedAmount": 2200,
+          "runningBalance": 2650,
+          "notes": "",
+          "flags": []
+        },
+        {
+          "date": "2023-09-04",
+          "kind": "payment",
+          "transactionNo": "38327",
+          "reference": "Payment 38327",
+          "signedAmount": -2500,
+          "runningBalance": 150,
+          "notes": "",
+          "flags": []
+        },
+        {
+          "date": "2023-09-20",
+          "kind": "invoice",
+          "transactionNo": "47867",
+          "reference": "Invoice 47867",
+          "signedAmount": 2200,
+          "runningBalance": 2350,
+          "notes": "",
+          "flags": []
+        },
+        {
+          "date": "2023-10-10",
+          "kind": "payment",
+          "transactionNo": "38932",
+          "reference": "Payment 38932",
+          "signedAmount": -2000,
+          "runningBalance": 350,
+          "notes": "",
+          "flags": []
+        },
+        {
+          "date": "2023-10-17",
+          "kind": "invoice",
+          "transactionNo": "48437",
+          "reference": "Invoice 48437",
+          "signedAmount": 2200,
+          "runningBalance": 2550,
+          "notes": "",
+          "flags": []
+        },
+        {
+          "date": "2023-11-06",
+          "kind": "payment",
+          "transactionNo": "39432",
+          "reference": "Payment 39432",
+          "signedAmount": -2000,
+          "runningBalance": 550,
+          "notes": "",
+          "flags": []
+        },
+        {
+          "date": "2023-11-16",
+          "kind": "invoice",
+          "transactionNo": "49048",
+          "reference": "Invoice 49048",
+          "signedAmount": 2200,
+          "runningBalance": 2750,
+          "notes": "",
+          "flags": []
+        },
+        {
+          "date": "2023-12-04",
+          "kind": "payment",
+          "transactionNo": "40027",
+          "reference": "Payment 40027",
+          "signedAmount": -3100,
+          "runningBalance": -350,
+          "notes": "",
+          "flags": []
+        },
+        {
+          "date": "2023-12-18",
+          "kind": "invoice",
+          "transactionNo": "49741",
+          "reference": "Invoice 49741",
+          "signedAmount": 4000,
+          "runningBalance": 3650,
+          "notes": "",
+          "flags": []
+        },
+        {
+          "date": "2024-01-24",
+          "kind": "invoice",
+          "transactionNo": "50026",
+          "reference": "Invoice 50026",
+          "signedAmount": 1400,
+          "runningBalance": 5050,
+          "notes": "",
+          "flags": []
+        },
+        {
+          "date": "2024-01-24",
+          "kind": "invoice",
+          "transactionNo": "50421",
+          "reference": "Invoice 50421",
+          "signedAmount": 4500,
+          "runningBalance": 9550,
+          "notes": "",
+          "flags": []
+        },
+        {
+          "date": "2024-01-24",
+          "kind": "payment",
+          "transactionNo": "40864",
+          "reference": "Payment 40864",
+          "signedAmount": -1400,
+          "runningBalance": 8150,
+          "notes": "TEXTBOOKS GRADE 2",
+          "flags": []
+        },
+        {
+          "date": "2024-01-26",
+          "kind": "payment",
+          "transactionNo": "40951",
+          "reference": "Payment 40951",
+          "signedAmount": -3100,
+          "runningBalance": 5050,
+          "notes": "",
+          "flags": []
+        },
+        {
+          "date": "2024-02-02",
+          "kind": "payment",
+          "transactionNo": "41260",
+          "reference": "Payment 41260",
+          "signedAmount": -4000,
+          "runningBalance": 1050,
+          "notes": "",
+          "flags": []
+        },
+        {
+          "date": "2024-02-19",
+          "kind": "invoice",
+          "transactionNo": "51681",
+          "reference": "Invoice 51681",
+          "signedAmount": 4650,
+          "runningBalance": 5700,
+          "notes": "",
+          "flags": []
+        },
+        {
+          "date": "2024-03-06",
+          "kind": "payment",
+          "transactionNo": "41878",
+          "reference": "Payment 41878",
+          "signedAmount": -400,
+          "runningBalance": 5300,
+          "notes": "March Half Transport Fee Refund (Only afternoon)",
+          "flags": [
+            "HIST",
+            "JNL"
+          ]
+        },
+        {
+          "date": "2024-03-07",
+          "kind": "payment",
+          "transactionNo": "41914",
+          "reference": "Payment 41914",
+          "signedAmount": -5000,
+          "runningBalance": 300,
+          "notes": "",
+          "flags": []
+        },
+        {
+          "date": "2024-03-19",
+          "kind": "invoice",
+          "transactionNo": "52360",
+          "reference": "Invoice 52360",
+          "signedAmount": 3350,
+          "runningBalance": 3650,
+          "notes": "",
+          "flags": []
+        },
+        {
+          "date": "2024-04-03",
+          "kind": "payment",
+          "transactionNo": "42372",
+          "reference": "Payment 42372",
+          "signedAmount": -3500,
+          "runningBalance": 150,
+          "notes": "",
+          "flags": []
+        },
+        {
+          "date": "2024-04-15",
+          "kind": "invoice",
+          "transactionNo": "52831",
+          "reference": "Invoice 52831",
+          "signedAmount": 3350,
+          "runningBalance": 3500,
+          "notes": "",
+          "flags": []
+        },
+        {
+          "date": "2024-05-06",
+          "kind": "payment",
+          "transactionNo": "42953",
+          "reference": "Payment 42953",
+          "signedAmount": -3500,
+          "runningBalance": 0,
+          "notes": "",
+          "flags": []
+        },
+        {
+          "date": "2024-05-15",
+          "kind": "invoice",
+          "transactionNo": "53421",
+          "reference": "Invoice 53421",
+          "signedAmount": 3350,
+          "runningBalance": 3350,
+          "notes": "",
+          "flags": []
+        },
+        {
+          "date": "2024-06-03",
+          "kind": "payment",
+          "transactionNo": "43436",
+          "reference": "Payment 43436",
+          "signedAmount": -3000,
+          "runningBalance": 350,
+          "notes": "",
+          "flags": []
+        },
+        {
+          "date": "2024-06-15",
+          "kind": "invoice",
+          "transactionNo": "53945",
+          "reference": "Invoice 53945",
+          "signedAmount": 3350,
+          "runningBalance": 3700,
+          "notes": "",
+          "flags": []
+        },
+        {
+          "date": "2024-07-11",
+          "kind": "payment",
+          "transactionNo": "44001",
+          "reference": "Payment 44001",
+          "signedAmount": -3200,
+          "runningBalance": 500,
+          "notes": "",
+          "flags": []
+        },
+        {
+          "date": "2024-07-17",
+          "kind": "invoice",
+          "transactionNo": "54407",
+          "reference": "Invoice 54407",
+          "signedAmount": 5010,
+          "runningBalance": 5510,
+          "notes": "",
+          "flags": []
+        },
+        {
+          "date": "2024-08-08",
+          "kind": "payment",
+          "transactionNo": "44467",
+          "reference": "Payment 44467",
+          "signedAmount": -4000,
+          "runningBalance": 1510,
+          "notes": "",
+          "flags": []
+        },
+        {
+          "date": "2024-08-15",
+          "kind": "invoice",
+          "transactionNo": "54882",
+          "reference": "Invoice 54882",
+          "signedAmount": 3350,
+          "runningBalance": 4860,
+          "notes": "",
+          "flags": []
+        },
+        {
+          "date": "2024-09-09",
+          "kind": "payment",
+          "transactionNo": "44929",
+          "reference": "Payment 44929",
+          "signedAmount": -4000,
+          "runningBalance": 860,
+          "notes": "",
+          "flags": []
+        },
+        {
+          "date": "2024-09-17",
+          "kind": "invoice",
+          "transactionNo": "55333",
+          "reference": "Invoice 55333",
+          "signedAmount": 3350,
+          "runningBalance": 4210,
+          "notes": "",
+          "flags": []
+        },
+        {
+          "date": "2024-10-04",
+          "kind": "payment",
+          "transactionNo": "45347",
+          "reference": "Payment 45347",
+          "signedAmount": -4000,
+          "runningBalance": 210,
+          "notes": "",
+          "flags": []
+        },
+        {
+          "date": "2024-10-15",
+          "kind": "invoice",
+          "transactionNo": "55789",
+          "reference": "Invoice 55789",
+          "signedAmount": 3350,
+          "runningBalance": 3560,
+          "notes": "",
+          "flags": []
+        },
+        {
+          "date": "2024-11-05",
+          "kind": "payment",
+          "transactionNo": "46000",
+          "reference": "Payment 46000",
+          "signedAmount": -3010,
+          "runningBalance": 550,
+          "notes": "",
+          "flags": []
+        },
+        {
+          "date": "2024-11-15",
+          "kind": "invoice",
+          "transactionNo": "56303",
+          "reference": "Invoice 56303",
+          "signedAmount": 2800,
+          "runningBalance": 3350,
+          "notes": "",
+          "flags": []
+        },
+        {
+          "date": "2024-12-14",
+          "kind": "invoice",
+          "transactionNo": "56832",
+          "reference": "Invoice 56832",
+          "signedAmount": 4500,
+          "runningBalance": 7850,
+          "notes": "",
+          "flags": []
+        },
+        {
+          "date": "2025-01-15",
+          "kind": "payment",
+          "transactionNo": "47093",
+          "reference": "Payment 47093",
+          "signedAmount": -2900,
+          "runningBalance": 4950,
+          "notes": "",
+          "flags": []
+        },
+        {
+          "date": "2025-01-23",
+          "kind": "invoice",
+          "transactionNo": "57333",
+          "reference": "Invoice 57333",
+          "signedAmount": 2700,
+          "runningBalance": 7650,
+          "notes": "",
+          "flags": []
+        },
+        {
+          "date": "2025-02-05",
+          "kind": "payment",
+          "transactionNo": "47590",
+          "reference": "Payment 47590",
+          "signedAmount": -3000,
+          "runningBalance": 4650,
+          "notes": "",
+          "flags": []
+        },
+        {
+          "date": "2025-02-12",
+          "kind": "invoice",
+          "transactionNo": "57469",
+          "reference": "Invoice 57469",
+          "signedAmount": 300,
+          "runningBalance": 4950,
+          "notes": "",
+          "flags": []
+        },
+        {
+          "date": "2025-02-14",
+          "kind": "payment",
+          "transactionNo": "47764",
+          "reference": "Payment 47764",
+          "signedAmount": -4000,
+          "runningBalance": 950,
+          "notes": "",
+          "flags": []
+        },
+        {
+          "date": "2025-02-21",
+          "kind": "invoice",
+          "transactionNo": "57878",
+          "reference": "Invoice 57878",
+          "signedAmount": 2700,
+          "runningBalance": 3650,
+          "notes": "",
+          "flags": []
+        },
+        {
+          "date": "2025-03-04",
+          "kind": "payment",
+          "transactionNo": "48100",
+          "reference": "Payment 48100",
+          "signedAmount": -3100,
+          "runningBalance": 550,
+          "notes": "",
+          "flags": []
+        },
+        {
+          "date": "2025-03-18",
+          "kind": "invoice",
+          "transactionNo": "59183",
+          "reference": "Invoice 59183",
+          "signedAmount": 3400,
+          "runningBalance": 3950,
+          "notes": "",
+          "flags": []
+        },
+        {
+          "date": "2025-04-04",
+          "kind": "payment",
+          "transactionNo": "48602",
+          "reference": "Payment 48602",
+          "signedAmount": -2700,
+          "runningBalance": 1250,
+          "notes": "",
+          "flags": []
+        },
+        {
+          "date": "2025-04-15",
+          "kind": "invoice",
+          "transactionNo": "59978",
+          "reference": "Invoice 59978",
+          "signedAmount": 2700,
+          "runningBalance": 3950,
+          "notes": "",
+          "flags": []
+        },
+        {
+          "date": "2025-05-05",
+          "kind": "payment",
+          "transactionNo": "49004",
+          "reference": "Payment 49004",
+          "signedAmount": -3400,
+          "runningBalance": 550,
+          "notes": "",
+          "flags": []
+        },
+        {
+          "date": "2025-05-15",
+          "kind": "invoice",
+          "transactionNo": "60370",
+          "reference": "Invoice 60370",
+          "signedAmount": 2700,
+          "runningBalance": 3250,
+          "notes": "",
+          "flags": []
+        },
+        {
+          "date": "2025-06-04",
+          "kind": "payment",
+          "transactionNo": "49500",
+          "reference": "Payment 49500",
+          "signedAmount": -2700,
+          "runningBalance": 550,
+          "notes": "",
+          "flags": []
+        },
+        {
+          "date": "2025-06-17",
+          "kind": "invoice",
+          "transactionNo": "60728",
+          "reference": "Invoice 60728",
+          "signedAmount": 2700,
+          "runningBalance": 3250,
+          "notes": "",
+          "flags": []
+        },
+        {
+          "date": "2025-07-22",
+          "kind": "invoice",
+          "transactionNo": "61111",
+          "reference": "Invoice 61111",
+          "signedAmount": 2700,
+          "runningBalance": 5950,
+          "notes": "",
+          "flags": []
+        },
+        {
+          "date": "2025-07-22",
+          "kind": "payment",
+          "transactionNo": "49907",
+          "reference": "Payment 49907",
+          "signedAmount": -2700,
+          "runningBalance": 3250,
+          "notes": "",
+          "flags": []
+        },
+        {
+          "date": "2025-08-04",
+          "kind": "payment",
+          "transactionNo": "50235",
+          "reference": "Payment 50235",
+          "signedAmount": -2700,
+          "runningBalance": 550,
+          "notes": "",
+          "flags": []
+        },
+        {
+          "date": "2025-08-15",
+          "kind": "invoice",
+          "transactionNo": "61502",
+          "reference": "Invoice 61502",
+          "signedAmount": 2700,
+          "runningBalance": 3250,
+          "notes": "",
+          "flags": []
+        },
+        {
+          "date": "2025-09-04",
+          "kind": "payment",
+          "transactionNo": "50676",
+          "reference": "Payment 50676",
+          "signedAmount": -2700,
+          "runningBalance": 550,
+          "notes": "",
+          "flags": []
+        },
+        {
+          "date": "2025-09-16",
+          "kind": "invoice",
+          "transactionNo": "62356",
+          "reference": "Invoice 62356",
+          "signedAmount": 4700,
+          "runningBalance": 5250,
+          "notes": "",
+          "flags": []
+        },
+        {
+          "date": "2025-10-06",
+          "kind": "payment",
+          "transactionNo": "51124",
+          "reference": "Payment 51124",
+          "signedAmount": -2700,
+          "runningBalance": 2550,
+          "notes": "",
+          "flags": []
+        },
+        {
+          "date": "2025-10-15",
+          "kind": "invoice",
+          "transactionNo": "62770",
+          "reference": "Invoice 62770",
+          "signedAmount": 2700,
+          "runningBalance": 5250,
+          "notes": "",
+          "flags": []
+        },
+        {
+          "date": "2025-11-04",
+          "kind": "payment",
+          "transactionNo": "51628",
+          "reference": "Payment 51628",
+          "signedAmount": -4700,
+          "runningBalance": 550,
+          "notes": "",
+          "flags": []
+        },
+        {
+          "date": "2025-11-17",
+          "kind": "invoice",
+          "transactionNo": "63217",
+          "reference": "Invoice 63217",
+          "signedAmount": 2700,
+          "runningBalance": 3250,
+          "notes": "",
+          "flags": []
+        },
+        {
+          "date": "2025-12-15",
+          "kind": "invoice",
+          "transactionNo": "63659",
+          "reference": "Invoice 63659",
+          "signedAmount": 3000,
+          "runningBalance": 6250,
+          "notes": "",
+          "flags": []
+        },
+        {
+          "date": "2026-01-21",
+          "kind": "invoice",
+          "transactionNo": "64155",
+          "reference": "Invoice 64155",
+          "signedAmount": 5000,
+          "runningBalance": 11250,
+          "notes": "",
+          "flags": []
+        },
+        {
+          "date": "2026-02-06",
+          "kind": "invoice",
+          "transactionNo": "64353",
+          "reference": "Invoice 64353",
+          "signedAmount": 300,
+          "runningBalance": 11550,
+          "notes": "",
+          "flags": []
+        },
+        {
+          "date": "2026-02-06",
+          "kind": "payment",
+          "transactionNo": "53008",
+          "reference": "Payment 53008",
+          "signedAmount": -6000,
+          "runningBalance": 5550,
+          "notes": "",
+          "flags": []
+        },
+        {
+          "date": "2026-02-17",
+          "kind": "invoice",
+          "transactionNo": "64689",
+          "reference": "Invoice 64689",
+          "signedAmount": 3700,
+          "runningBalance": 9250,
+          "notes": "",
+          "flags": []
+        },
+        {
+          "date": "2026-02-24",
+          "kind": "payment",
+          "transactionNo": "53112",
+          "reference": "Payment 53112",
+          "signedAmount": -5000,
+          "runningBalance": 4250,
+          "notes": "",
+          "flags": []
+        },
+        {
+          "date": "2026-03-04",
+          "kind": "invoice",
+          "transactionNo": "64851",
+          "reference": "Invoice 64851",
+          "signedAmount": 300,
+          "runningBalance": 4550,
+          "notes": "",
+          "flags": []
+        },
+        {
+          "date": "2026-03-09",
+          "kind": "payment",
+          "transactionNo": "53431",
+          "reference": "Payment 53431",
+          "signedAmount": -4000,
+          "runningBalance": 550,
+          "notes": "",
+          "flags": []
+        },
+        {
+          "date": "2026-03-16",
+          "kind": "invoice",
+          "transactionNo": "65198",
+          "reference": "Invoice 65198",
+          "signedAmount": 3000,
+          "runningBalance": 3550,
+          "notes": "",
+          "flags": []
+        },
+        {
+          "date": "2026-04-08",
+          "kind": "payment",
+          "transactionNo": "53816",
+          "reference": "Payment 53816",
+          "signedAmount": -6000,
+          "runningBalance": -2450,
+          "notes": "",
+          "flags": []
+        },
+        {
+          "date": "2026-04-15",
+          "kind": "invoice",
+          "transactionNo": "65410",
+          "reference": "Invoice 65410",
+          "signedAmount": 200,
+          "runningBalance": -2250,
+          "notes": "",
+          "flags": []
+        },
+        {
+          "date": "2026-04-15",
+          "kind": "invoice",
+          "transactionNo": "65731",
+          "reference": "Invoice 65731",
+          "signedAmount": 3000,
+          "runningBalance": 750,
+          "notes": "",
+          "flags": []
+        },
+        {
+          "date": "2026-05-15",
+          "kind": "invoice",
+          "transactionNo": "67168",
+          "reference": "Invoice 67168",
+          "signedAmount": 3000,
+          "runningBalance": 3750,
+          "notes": "",
+          "flags": []
+        }
+      ]
+    },
+    {
+      "accountNo": "RAM010",
+      "fullName": "Keitumetsi Ramasika",
+      "ageAnalysisBalance": 3350,
+      "ledgerBalanceFromImport": 3700,
+      "adjustmentAmount": -350,
+      "category": "inverseProblemLedgerGreaterThanAge",
+      "ledgerExcessOverAge": 350,
+      "timelineSummary": "92 txn(s): 43 invoice(s) R118760, 49 payment(s) R-115060. Span 2023-01-16 → 2026-05-15; running ledger R3700. Section \"Recently Owing\". 1 flagged row(s) (dup/mispost/hist/jnl). Recent: 2026-04-15 invoice R3000; 2026-04-24 payment R-3350; 2026-05-15 invoice R3000.",
+      "likelyCause": "ledgerExportOverstatement",
+      "likelyCauseConfidence": "medium",
+      "likelyCauseDetail": "Lifetime invoices R118760 + payments R-115060 reconcile to ledger R3700; age R3350 is R350 lower — export/age skew, not missing payments.",
+      "openingBalanceAdjustmentSafe": false,
+      "openingBalanceAdjustmentSafety": "caution",
+      "openingBalanceSafetyRationale": "Section \"Recently Owing\" / export skew — opening credit R350 may align EduClear to age but should be confirmed in Kid-e-Sys (age is lower than ledger by design).",
+      "section": "Recently Owing",
+      "priorActiveMismatchReason": "trueBalanceMismatch",
+      "metrics": {
+        "invoiceCount": 43,
+        "paymentCount": 49,
+        "invoiceSum": 118760,
+        "paymentSum": -115060,
+        "computedLedgerFromTxns": 3700,
+        "ledgerMatchesImport": true,
+        "duplicateInvoiceFingerprints": [],
+        "duplicatePaymentFingerprints": [],
+        "misPostedTxnCount": 0,
+        "crossAccountInboundPaymentTotal": 0,
+        "crossAccountOutboundPaymentTotal": 0,
+        "journalOrHistoricalTxnCount": 1,
+        "activeLearnerCount": 1,
+        "inAgeAnalysis": true
+      },
+      "timeline": [
+        {
+          "date": "2023-01-16",
+          "kind": "invoice",
+          "transactionNo": "42672",
+          "reference": "Invoice 42672",
+          "signedAmount": 3500,
+          "runningBalance": 3500,
+          "notes": "",
+          "flags": []
+        },
+        {
+          "date": "2023-01-23",
+          "kind": "payment",
+          "transactionNo": "34048",
+          "reference": "Payment 34048",
+          "signedAmount": -3150,
+          "runningBalance": 350,
+          "notes": "",
+          "flags": []
+        },
+        {
+          "date": "2023-02-16",
+          "kind": "invoice",
+          "transactionNo": "43559",
+          "reference": "Invoice 43559",
+          "signedAmount": 3000,
+          "runningBalance": 3350,
+          "notes": "",
+          "flags": []
+        },
+        {
+          "date": "2023-02-21",
+          "kind": "payment",
+          "transactionNo": "34704",
+          "reference": "Payment 34704",
+          "signedAmount": -2200,
+          "runningBalance": 1150,
+          "notes": "",
+          "flags": []
+        },
+        {
+          "date": "2023-03-15",
+          "kind": "invoice",
+          "transactionNo": "44220",
+          "reference": "Invoice 44220",
+          "signedAmount": 2200,
+          "runningBalance": 3350,
+          "notes": "",
+          "flags": []
+        },
+        {
+          "date": "2023-04-03",
+          "kind": "payment",
+          "transactionNo": "35166",
+          "reference": "Payment 35166",
+          "signedAmount": -2200,
+          "runningBalance": 1150,
+          "notes": "",
+          "flags": []
+        },
+        {
+          "date": "2023-04-18",
+          "kind": "invoice",
+          "transactionNo": "44835",
+          "reference": "Invoice 44835",
+          "signedAmount": 2200,
+          "runningBalance": 3350,
+          "notes": "",
+          "flags": []
+        },
+        {
+          "date": "2023-05-02",
+          "kind": "payment",
+          "transactionNo": "35890",
+          "reference": "Payment 35890",
+          "signedAmount": -2200,
+          "runningBalance": 1150,
+          "notes": "",
+          "flags": []
+        },
+        {
+          "date": "2023-05-05",
+          "kind": "payment",
+          "transactionNo": "36052",
+          "reference": "Payment 36052",
+          "signedAmount": -200,
+          "runningBalance": 950,
+          "notes": "ROBOTICS AND CODING WORKBOOK",
+          "flags": []
+        },
+        {
+          "date": "2023-05-15",
+          "kind": "invoice",
+          "transactionNo": "45482",
+          "reference": "Invoice 45482",
+          "signedAmount": 2400,
+          "runningBalance": 3350,
+          "notes": "",
+          "flags": []
+        },
+        {
+          "date": "2023-05-23",
+          "kind": "payment",
+          "transactionNo": "36339",
+          "reference": "Payment 36339",
+          "signedAmount": -3000,
+          "runningBalance": 350,
+          "notes": "",
+          "flags": []
+        },
+        {
+          "date": "2023-06-13",
+          "kind": "invoice",
+          "transactionNo": "46000",
+          "reference": "Invoice 46000",
+          "signedAmount": 2200,
+          "runningBalance": 2550,
+          "notes": "",
+          "flags": []
+        },
+        {
+          "date": "2023-07-04",
+          "kind": "payment",
+          "transactionNo": "37132",
+          "reference": "Payment 37132",
+          "signedAmount": -2200,
+          "runningBalance": 350,
+          "notes": "",
+          "flags": []
+        },
+        {
+          "date": "2023-07-19",
+          "kind": "invoice",
+          "transactionNo": "46485",
+          "reference": "Invoice 46485",
+          "signedAmount": 2200,
+          "runningBalance": 2550,
+          "notes": "",
+          "flags": []
+        },
+        {
+          "date": "2023-07-24",
+          "kind": "payment",
+          "transactionNo": "37552",
+          "reference": "Payment 37552",
+          "signedAmount": -2200,
+          "runningBalance": 350,
+          "notes": "",
+          "flags": []
+        },
+        {
+          "date": "2023-08-16",
+          "kind": "invoice",
+          "transactionNo": "47041",
+          "reference": "Invoice 47041",
+          "signedAmount": 2200,
+          "runningBalance": 2550,
+          "notes": "",
+          "flags": []
+        },
+        {
+          "date": "2023-08-21",
+          "kind": "payment",
+          "transactionNo": "38067",
+          "reference": "Payment 38067",
+          "signedAmount": -2200,
+          "runningBalance": 350,
+          "notes": "",
+          "flags": []
+        },
+        {
+          "date": "2023-09-20",
+          "kind": "invoice",
+          "transactionNo": "47733",
+          "reference": "Invoice 47733",
+          "signedAmount": 2200,
+          "runningBalance": 2550,
+          "notes": "",
+          "flags": []
+        },
+        {
+          "date": "2023-09-28",
+          "kind": "payment",
+          "transactionNo": "38816",
+          "reference": "Payment 38816",
+          "signedAmount": -2200,
+          "runningBalance": 350,
+          "notes": "",
+          "flags": []
+        },
+        {
+          "date": "2023-10-17",
+          "kind": "invoice",
+          "transactionNo": "48302",
+          "reference": "Invoice 48302",
+          "signedAmount": 2200,
+          "runningBalance": 2550,
+          "notes": "",
+          "flags": []
+        },
+        {
+          "date": "2023-11-06",
+          "kind": "payment",
+          "transactionNo": "39491",
+          "reference": "Payment 39491",
+          "signedAmount": -2200,
+          "runningBalance": 350,
+          "notes": "",
+          "flags": []
+        },
+        {
+          "date": "2023-11-16",
+          "kind": "invoice",
+          "transactionNo": "48913",
+          "reference": "Invoice 48913",
+          "signedAmount": 2200,
+          "runningBalance": 2550,
+          "notes": "",
+          "flags": []
+        },
+        {
+          "date": "2023-11-27",
+          "kind": "payment",
+          "transactionNo": "39769",
+          "reference": "Payment 39769",
+          "signedAmount": -2200,
+          "runningBalance": 350,
+          "notes": "",
+          "flags": []
+        },
+        {
+          "date": "2023-12-18",
+          "kind": "invoice",
+          "transactionNo": "49613",
+          "reference": "Invoice 49613",
+          "signedAmount": 4000,
+          "runningBalance": 4350,
+          "notes": "",
+          "flags": []
+        },
+        {
+          "date": "2023-12-26",
+          "kind": "payment",
+          "transactionNo": "40323",
+          "reference": "Payment 40323",
+          "signedAmount": -2400,
+          "runningBalance": 1950,
+          "notes": "",
+          "flags": []
+        },
+        {
+          "date": "2024-01-24",
+          "kind": "invoice",
+          "transactionNo": "50297",
+          "reference": "Invoice 50297",
+          "signedAmount": 3150,
+          "runningBalance": 5100,
+          "notes": "",
+          "flags": []
+        },
+        {
+          "date": "2024-01-26",
+          "kind": "payment",
+          "transactionNo": "40953",
+          "reference": "Payment 40953",
+          "signedAmount": -1800,
+          "runningBalance": 3300,
+          "notes": "",
+          "flags": []
+        },
+        {
+          "date": "2024-01-26",
+          "kind": "payment",
+          "transactionNo": "40978",
+          "reference": "Payment 40978",
+          "signedAmount": -2400,
+          "runningBalance": 900,
+          "notes": "",
+          "flags": []
+        },
+        {
+          "date": "2024-02-19",
+          "kind": "invoice",
+          "transactionNo": "51559",
+          "reference": "Invoice 51559",
+          "signedAmount": 3300,
+          "runningBalance": 4200,
+          "notes": "",
+          "flags": []
+        },
+        {
+          "date": "2024-02-28",
+          "kind": "payment",
+          "transactionNo": "41752",
+          "reference": "Payment 41752",
+          "signedAmount": -750,
+          "runningBalance": 3450,
+          "notes": "",
+          "flags": []
+        },
+        {
+          "date": "2024-02-29",
+          "kind": "payment",
+          "transactionNo": "41809",
+          "reference": "Payment 41809",
+          "signedAmount": -2400,
+          "runningBalance": 1050,
+          "notes": "",
+          "flags": []
+        },
+        {
+          "date": "2024-03-19",
+          "kind": "invoice",
+          "transactionNo": "52241",
+          "reference": "Invoice 52241",
+          "signedAmount": 2400,
+          "runningBalance": 3450,
+          "notes": "",
+          "flags": []
+        },
+        {
+          "date": "2024-04-02",
+          "kind": "payment",
+          "transactionNo": "43098",
+          "reference": "Payment 43098",
+          "signedAmount": -2400,
+          "runningBalance": 1050,
+          "notes": "",
+          "flags": []
+        },
+        {
+          "date": "2024-04-15",
+          "kind": "invoice",
+          "transactionNo": "52714",
+          "reference": "Invoice 52714",
+          "signedAmount": 2400,
+          "runningBalance": 3450,
+          "notes": "",
+          "flags": []
+        },
+        {
+          "date": "2024-04-30",
+          "kind": "payment",
+          "transactionNo": "42813",
+          "reference": "Payment 42813",
+          "signedAmount": -2400,
+          "runningBalance": 1050,
+          "notes": "",
+          "flags": []
+        },
+        {
+          "date": "2024-05-15",
+          "kind": "invoice",
+          "transactionNo": "53303",
+          "reference": "Invoice 53303",
+          "signedAmount": 2400,
+          "runningBalance": 3450,
+          "notes": "",
+          "flags": []
+        },
+        {
+          "date": "2024-05-24",
+          "kind": "payment",
+          "transactionNo": "43173",
+          "reference": "Payment 43173",
+          "signedAmount": -2400,
+          "runningBalance": 1050,
+          "notes": "",
+          "flags": []
+        },
+        {
+          "date": "2024-05-28",
+          "kind": "payment",
+          "transactionNo": "43261",
+          "reference": "Payment 43261",
+          "signedAmount": -700,
+          "runningBalance": 350,
+          "notes": "",
+          "flags": []
+        },
+        {
+          "date": "2024-06-15",
+          "kind": "invoice",
+          "transactionNo": "53827",
+          "reference": "Invoice 53827",
+          "signedAmount": 2400,
+          "runningBalance": 2750,
+          "notes": "",
+          "flags": []
+        },
+        {
+          "date": "2024-06-28",
+          "kind": "payment",
+          "transactionNo": "43769",
+          "reference": "Payment 43769",
+          "signedAmount": -2400,
+          "runningBalance": 350,
+          "notes": "",
+          "flags": []
+        },
+        {
+          "date": "2024-07-17",
+          "kind": "invoice",
+          "transactionNo": "54289",
+          "reference": "Invoice 54289",
+          "signedAmount": 4060,
+          "runningBalance": 4410,
+          "notes": "",
+          "flags": []
+        },
+        {
+          "date": "2024-07-29",
+          "kind": "payment",
+          "transactionNo": "44168",
+          "reference": "Payment 44168",
+          "signedAmount": -2400,
+          "runningBalance": 2010,
+          "notes": "",
+          "flags": []
+        },
+        {
+          "date": "2024-08-15",
+          "kind": "invoice",
+          "transactionNo": "54761",
+          "reference": "Invoice 54761",
+          "signedAmount": 2400,
+          "runningBalance": 4410,
+          "notes": "",
+          "flags": []
+        },
+        {
+          "date": "2024-08-27",
+          "kind": "payment",
+          "transactionNo": "44630",
+          "reference": "Payment 44630",
+          "signedAmount": -2400,
+          "runningBalance": 2010,
+          "notes": "",
+          "flags": []
+        },
+        {
+          "date": "2024-09-17",
+          "kind": "invoice",
+          "transactionNo": "55214",
+          "reference": "Invoice 55214",
+          "signedAmount": 2400,
+          "runningBalance": 4410,
+          "notes": "",
+          "flags": []
+        },
+        {
+          "date": "2024-10-01",
+          "kind": "payment",
+          "transactionNo": "45095",
+          "reference": "Payment 45095",
+          "signedAmount": -2400,
+          "runningBalance": 2010,
+          "notes": "",
+          "flags": []
+        },
+        {
+          "date": "2024-10-15",
+          "kind": "invoice",
+          "transactionNo": "55668",
+          "reference": "Invoice 55668",
+          "signedAmount": 2400,
+          "runningBalance": 4410,
+          "notes": "",
+          "flags": []
+        },
+        {
+          "date": "2024-10-29",
+          "kind": "payment",
+          "transactionNo": "45651",
+          "reference": "Payment 45651",
+          "signedAmount": -2400,
+          "runningBalance": 2010,
+          "notes": "",
+          "flags": []
+        },
+        {
+          "date": "2024-11-04",
+          "kind": "invoice",
+          "transactionNo": "55885",
+          "reference": "Invoice 55885",
+          "signedAmount": 450,
+          "runningBalance": 2460,
+          "notes": "",
+          "flags": []
+        },
+        {
+          "date": "2024-11-04",
+          "kind": "payment",
+          "transactionNo": "45872",
+          "reference": "Payment 45872",
+          "signedAmount": -1660,
+          "runningBalance": 800,
+          "notes": "2025 TEXTBOOK FEE REMOVED AS PER PARENT EMAIL",
+          "flags": [
+            "HIST",
+            "JNL"
+          ]
+        },
+        {
+          "date": "2024-11-15",
+          "kind": "invoice",
+          "transactionNo": "56180",
+          "reference": "Invoice 56180",
+          "signedAmount": 2400,
+          "runningBalance": 3200,
+          "notes": "",
+          "flags": []
+        },
+        {
+          "date": "2024-12-01",
+          "kind": "payment",
+          "transactionNo": "46235",
+          "reference": "Payment 46235",
+          "signedAmount": -2400,
+          "runningBalance": 800,
+          "notes": "",
+          "flags": []
+        },
+        {
+          "date": "2024-12-01",
+          "kind": "payment",
+          "transactionNo": "46265",
+          "reference": "Payment 46265",
+          "signedAmount": -450,
+          "runningBalance": 350,
+          "notes": "",
+          "flags": []
+        },
+        {
+          "date": "2024-12-14",
+          "kind": "invoice",
+          "transactionNo": "56717",
+          "reference": "Invoice 56717",
+          "signedAmount": 4500,
+          "runningBalance": 4850,
+          "notes": "",
+          "flags": []
+        },
+        {
+          "date": "2025-01-02",
+          "kind": "payment",
+          "transactionNo": "46825",
+          "reference": "Payment 46825",
+          "signedAmount": -1800,
+          "runningBalance": 3050,
+          "notes": "",
+          "flags": []
+        },
+        {
+          "date": "2025-01-13",
+          "kind": "payment",
+          "transactionNo": "46977",
+          "reference": "Payment 46977",
+          "signedAmount": -2700,
+          "runningBalance": 350,
+          "notes": "",
+          "flags": []
+        },
+        {
+          "date": "2025-01-23",
+          "kind": "invoice",
+          "transactionNo": "57218",
+          "reference": "Invoice 57218",
+          "signedAmount": 2700,
+          "runningBalance": 3050,
+          "notes": "",
+          "flags": []
+        },
+        {
+          "date": "2025-01-27",
+          "kind": "payment",
+          "transactionNo": "47279",
+          "reference": "Payment 47279",
+          "signedAmount": -2700,
+          "runningBalance": 350,
+          "notes": "",
+          "flags": []
+        },
+        {
+          "date": "2025-02-21",
+          "kind": "invoice",
+          "transactionNo": "57770",
+          "reference": "Invoice 57770",
+          "signedAmount": 2700,
+          "runningBalance": 3050,
+          "notes": "",
+          "flags": []
+        },
+        {
+          "date": "2025-02-27",
+          "kind": "payment",
+          "transactionNo": "47895",
+          "reference": "Payment 47895",
+          "signedAmount": -2700,
+          "runningBalance": 350,
+          "notes": "",
+          "flags": []
+        },
+        {
+          "date": "2025-03-18",
+          "kind": "invoice",
+          "transactionNo": "59075",
+          "reference": "Invoice 59075",
+          "signedAmount": 3400,
+          "runningBalance": 3750,
+          "notes": "",
+          "flags": []
+        },
+        {
+          "date": "2025-03-27",
+          "kind": "payment",
+          "transactionNo": "48320",
+          "reference": "Payment 48320",
+          "signedAmount": -2700,
+          "runningBalance": 1050,
+          "notes": "",
+          "flags": []
+        },
+        {
+          "date": "2025-04-15",
+          "kind": "invoice",
+          "transactionNo": "59871",
+          "reference": "Invoice 59871",
+          "signedAmount": 2700,
+          "runningBalance": 3750,
+          "notes": "",
+          "flags": []
+        },
+        {
+          "date": "2025-05-03",
+          "kind": "payment",
+          "transactionNo": "48812",
+          "reference": "Payment 48812",
+          "signedAmount": -2700,
+          "runningBalance": 1050,
+          "notes": "",
+          "flags": []
+        },
+        {
+          "date": "2025-05-15",
+          "kind": "invoice",
+          "transactionNo": "60264",
+          "reference": "Invoice 60264",
+          "signedAmount": 2700,
+          "runningBalance": 3750,
+          "notes": "",
+          "flags": []
+        },
+        {
+          "date": "2025-05-26",
+          "kind": "payment",
+          "transactionNo": "49179",
+          "reference": "Payment 49179",
+          "signedAmount": -2700,
+          "runningBalance": 1050,
+          "notes": "",
+          "flags": []
+        },
+        {
+          "date": "2025-06-02",
+          "kind": "payment",
+          "transactionNo": "49405",
+          "reference": "Payment 49405",
+          "signedAmount": -700,
+          "runningBalance": 350,
+          "notes": "",
+          "flags": []
+        },
+        {
+          "date": "2025-06-17",
+          "kind": "invoice",
+          "transactionNo": "60502",
+          "reference": "Invoice 60502",
+          "signedAmount": 2700,
+          "runningBalance": 3050,
+          "notes": "",
+          "flags": []
+        },
+        {
+          "date": "2025-06-30",
+          "kind": "payment",
+          "transactionNo": "49674",
+          "reference": "Payment 49674",
+          "signedAmount": -2700,
+          "runningBalance": 350,
+          "notes": "",
+          "flags": []
+        },
+        {
+          "date": "2025-07-22",
+          "kind": "invoice",
+          "transactionNo": "60888",
+          "reference": "Invoice 60888",
+          "signedAmount": 2700,
+          "runningBalance": 3050,
+          "notes": "",
+          "flags": []
+        },
+        {
+          "date": "2025-07-28",
+          "kind": "payment",
+          "transactionNo": "50046",
+          "reference": "Payment 50046",
+          "signedAmount": -2700,
+          "runningBalance": 350,
+          "notes": "",
+          "flags": []
+        },
+        {
+          "date": "2025-08-15",
+          "kind": "invoice",
+          "transactionNo": "61280",
+          "reference": "Invoice 61280",
+          "signedAmount": 2700,
+          "runningBalance": 3050,
+          "notes": "",
+          "flags": []
+        },
+        {
+          "date": "2025-08-27",
+          "kind": "payment",
+          "transactionNo": "50471",
+          "reference": "Payment 50471",
+          "signedAmount": -2700,
+          "runningBalance": 350,
+          "notes": "",
+          "flags": []
+        },
+        {
+          "date": "2025-09-16",
+          "kind": "invoice",
+          "transactionNo": "62134",
+          "reference": "Invoice 62134",
+          "signedAmount": 4700,
+          "runningBalance": 5050,
+          "notes": "",
+          "flags": []
+        },
+        {
+          "date": "2025-09-26",
+          "kind": "payment",
+          "transactionNo": "50878",
+          "reference": "Payment 50878",
+          "signedAmount": -2700,
+          "runningBalance": 2350,
+          "notes": "",
+          "flags": []
+        },
+        {
+          "date": "2025-10-15",
+          "kind": "invoice",
+          "transactionNo": "62548",
+          "reference": "Invoice 62548",
+          "signedAmount": 2700,
+          "runningBalance": 5050,
+          "notes": "",
+          "flags": []
+        },
+        {
+          "date": "2025-10-27",
+          "kind": "payment",
+          "transactionNo": "51291",
+          "reference": "Payment 51291",
+          "signedAmount": -2700,
+          "runningBalance": 2350,
+          "notes": "",
+          "flags": []
+        },
+        {
+          "date": "2025-11-17",
+          "kind": "invoice",
+          "transactionNo": "62996",
+          "reference": "Invoice 62996",
+          "signedAmount": 2700,
+          "runningBalance": 5050,
+          "notes": "",
+          "flags": []
+        },
+        {
+          "date": "2025-11-20",
+          "kind": "payment",
+          "transactionNo": "51820",
+          "reference": "Payment 51820",
+          "signedAmount": -2000,
+          "runningBalance": 3050,
+          "notes": "parent will purchase own books",
+          "flags": []
+        },
+        {
+          "date": "2025-11-28",
+          "kind": "payment",
+          "transactionNo": "51944",
+          "reference": "Payment 51944",
+          "signedAmount": -2700,
+          "runningBalance": 350,
+          "notes": "",
+          "flags": []
+        },
+        {
+          "date": "2025-12-15",
+          "kind": "invoice",
+          "transactionNo": "63444",
+          "reference": "Invoice 63444",
+          "signedAmount": 3000,
+          "runningBalance": 3350,
+          "notes": "",
+          "flags": []
+        },
+        {
+          "date": "2025-12-15",
+          "kind": "payment",
+          "transactionNo": "52173",
+          "reference": "Payment 52173",
+          "signedAmount": -3000,
+          "runningBalance": 350,
+          "notes": "",
+          "flags": []
+        },
+        {
+          "date": "2026-01-21",
+          "kind": "invoice",
+          "transactionNo": "63940",
+          "reference": "Invoice 63940",
+          "signedAmount": 5000,
+          "runningBalance": 5350,
+          "notes": "",
+          "flags": []
+        },
+        {
+          "date": "2026-01-22",
+          "kind": "payment",
+          "transactionNo": "52604",
+          "reference": "Payment 52604",
+          "signedAmount": -5000,
+          "runningBalance": 350,
+          "notes": "",
+          "flags": []
+        },
+        {
+          "date": "2026-02-17",
+          "kind": "invoice",
+          "transactionNo": "64411",
+          "reference": "Invoice 64411",
+          "signedAmount": 500,
+          "runningBalance": 850,
+          "notes": "",
+          "flags": []
+        },
+        {
+          "date": "2026-02-17",
+          "kind": "invoice",
+          "transactionNo": "64480",
+          "reference": "Invoice 64480",
+          "signedAmount": 3700,
+          "runningBalance": 4550,
+          "notes": "",
+          "flags": []
+        },
+        {
+          "date": "2026-03-02",
+          "kind": "payment",
+          "transactionNo": "53202",
+          "reference": "Payment 53202",
+          "signedAmount": -3500,
+          "runningBalance": 1050,
+          "notes": "",
+          "flags": []
+        },
+        {
+          "date": "2026-03-16",
+          "kind": "invoice",
+          "transactionNo": "64990",
+          "reference": "Invoice 64990",
+          "signedAmount": 3000,
+          "runningBalance": 4050,
+          "notes": "",
+          "flags": []
+        },
+        {
+          "date": "2026-04-01",
+          "kind": "payment",
+          "transactionNo": "53709",
+          "reference": "Payment 53709",
+          "signedAmount": -3000,
+          "runningBalance": 1050,
+          "notes": "",
+          "flags": []
+        },
+        {
+          "date": "2026-04-15",
+          "kind": "invoice",
+          "transactionNo": "65524",
+          "reference": "Invoice 65524",
+          "signedAmount": 3000,
+          "runningBalance": 4050,
+          "notes": "",
+          "flags": []
+        },
+        {
+          "date": "2026-04-24",
+          "kind": "payment",
+          "transactionNo": "53918",
+          "reference": "Payment 53918",
+          "signedAmount": -3350,
+          "runningBalance": 700,
+          "notes": "",
+          "flags": []
+        },
+        {
+          "date": "2026-05-15",
+          "kind": "invoice",
+          "transactionNo": "66960",
+          "reference": "Invoice 66960",
+          "signedAmount": 3000,
+          "runningBalance": 3700,
+          "notes": "",
+          "flags": []
+        }
+      ]
+    }
+  ]
+}

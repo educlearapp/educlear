@@ -1,0 +1,910 @@
+{
+  "mode": "dry-run",
+  "schoolId": "cmpideqeq0000108xb6ouv9zi",
+  "desktopRoot": "/Users/dasilvaacademy/Desktop",
+  "paths": {
+    "billingPlan": "/Users/dasilvaacademy/Desktop/03_billing_plan_summary_by_child/billing_plan_summary_by_child.xls",
+    "classListDir": "/Users/dasilvaacademy/Desktop/sasams/class_lists"
+  },
+  "counts": {
+    "dbLearners": 397,
+    "billingFileLearners": 396,
+    "matched": 341,
+    "unmatchedBilling": 55,
+    "learnersWithoutPlan": 56,
+    "plansToWrite": 341,
+    "existingJsonPlans": 393
+  },
+  "unmatchedBilling": [
+    {
+      "billingMatchKey": "grace monaise|ps|creche",
+      "fullName": "Grace Monaise",
+      "className": "Creche",
+      "feeLineCount": 1,
+      "learnerId": null,
+      "strategy": null,
+      "ambiguous": false
+    },
+    {
+      "billingMatchKey": "katlego einstein pilane|ps|creche",
+      "fullName": "Katlego Einstein Pilane",
+      "className": "Creche",
+      "feeLineCount": 1,
+      "learnerId": null,
+      "strategy": null,
+      "ambiguous": false
+    },
+    {
+      "billingMatchKey": "raorata oresiametse mabole|ps|creche",
+      "fullName": "Raorata Oresiametse Mabole",
+      "className": "Creche",
+      "feeLineCount": 2,
+      "learnerId": null,
+      "strategy": null,
+      "ambiguous": false
+    },
+    {
+      "billingMatchKey": "tlotlego omogolo raborife|ps|creche",
+      "fullName": "Tlotlego Omogolo Raborife",
+      "className": "Creche",
+      "feeLineCount": 1,
+      "learnerId": null,
+      "strategy": null,
+      "ambiguous": false
+    },
+    {
+      "billingMatchKey": "kaone tinashe chinyenye|3|a",
+      "fullName": "Kaone Tinashe Chinyenye",
+      "className": "GRADE 3A",
+      "feeLineCount": 1,
+      "learnerId": null,
+      "strategy": null,
+      "ambiguous": false
+    },
+    {
+      "billingMatchKey": "tshegofatso remoratile mokgatlhe|3|a",
+      "fullName": "Tshegofatso Remoratile Mokgatlhe",
+      "className": "GRADE 3A",
+      "feeLineCount": 2,
+      "learnerId": null,
+      "strategy": null,
+      "ambiguous": false
+    },
+    {
+      "billingMatchKey": "tumelo sizwe diamond tshabalala|3|a",
+      "fullName": "Tumelo Sizwe Diamond Tshabalala",
+      "className": "GRADE 3A",
+      "feeLineCount": 1,
+      "learnerId": null,
+      "strategy": null,
+      "ambiguous": false
+    },
+    {
+      "billingMatchKey": "oreabetse regomoditswe ramafoko|3|b",
+      "fullName": "Oreabetse Regomoditswe Ramafoko",
+      "className": "GRADE 3B",
+      "feeLineCount": 3,
+      "learnerId": null,
+      "strategy": null,
+      "ambiguous": false
+    },
+    {
+      "billingMatchKey": "oteng okgotlhe moeng|3|b",
+      "fullName": "Oteng Okgotlhe Moeng",
+      "className": "GRADE 3B",
+      "feeLineCount": 1,
+      "learnerId": null,
+      "strategy": null,
+      "ambiguous": false
+    },
+    {
+      "billingMatchKey": "skyla hope prangley|3|b",
+      "fullName": "Skyla Hope Prangley",
+      "className": "GRADE 3B",
+      "feeLineCount": 2,
+      "learnerId": null,
+      "strategy": null,
+      "ambiguous": false
+    },
+    {
+      "billingMatchKey": "umme  haani mahomed hoosen|3|b",
+      "fullName": "Umme - Haani Mahomed Hoosen",
+      "className": "GRADE 3B",
+      "feeLineCount": 1,
+      "learnerId": null,
+      "strategy": null,
+      "ambiguous": false
+    },
+    {
+      "billingMatchKey": "tshegofatso kayla dinale|6|a",
+      "fullName": "Tshegofatso Kayla Dinale",
+      "className": "GRADE 6A",
+      "feeLineCount": 2,
+      "learnerId": null,
+      "strategy": null,
+      "ambiguous": false
+    },
+    {
+      "billingMatchKey": "zem adamu|6|a",
+      "fullName": "Zem Adamu",
+      "className": "GRADE 6A",
+      "feeLineCount": 1,
+      "learnerId": null,
+      "strategy": null,
+      "ambiguous": false
+    },
+    {
+      "billingMatchKey": "athandile nqobizwe ngwenya kunene|6|b",
+      "fullName": "Athandile Nqobizwe Ngwenya Kunene",
+      "className": "GRADE 6B",
+      "feeLineCount": 3,
+      "learnerId": null,
+      "strategy": null,
+      "ambiguous": false
+    },
+    {
+      "billingMatchKey": "hailey molema|6|c",
+      "fullName": "Hailey Molema",
+      "className": "GRADE 6C",
+      "feeLineCount": 1,
+      "learnerId": null,
+      "strategy": null,
+      "ambiguous": false
+    },
+    {
+      "billingMatchKey": "ndaloenhle nkanyezi dhlamini|6|c",
+      "fullName": "Ndalo-enhle Nkanyezi Dhlamini",
+      "className": "GRADE 6C",
+      "feeLineCount": 1,
+      "learnerId": null,
+      "strategy": null,
+      "ambiguous": false
+    },
+    {
+      "billingMatchKey": "thoriso masenamela|6|c",
+      "fullName": "Thoriso Masenamela",
+      "className": "GRADE 6C",
+      "feeLineCount": 2,
+      "learnerId": null,
+      "strategy": null,
+      "ambiguous": false
+    },
+    {
+      "billingMatchKey": "kamogelo junior motlhoki|7|a",
+      "fullName": "Kamogelo Junior Motlhoki",
+      "className": "GRADE 7A",
+      "feeLineCount": 1,
+      "learnerId": null,
+      "strategy": null,
+      "ambiguous": false
+    },
+    {
+      "billingMatchKey": "mashudu tsoane molusi|7|a",
+      "fullName": "Mashudu Tsoane Molusi",
+      "className": "GRADE 7A",
+      "feeLineCount": 1,
+      "learnerId": null,
+      "strategy": null,
+      "ambiguous": false
+    },
+    {
+      "billingMatchKey": "amantle nzimande|7|b",
+      "fullName": "Amantle Nzimande",
+      "className": "GRADE 7B",
+      "feeLineCount": 1,
+      "learnerId": null,
+      "strategy": null,
+      "ambiguous": false
+    },
+    {
+      "billingMatchKey": "hikateekile mokategi michelle mtebule|7|b",
+      "fullName": "Hikateekile Mokategi Michelle Mtebule",
+      "className": "GRADE 7B",
+      "feeLineCount": 1,
+      "learnerId": null,
+      "strategy": null,
+      "ambiguous": false
+    },
+    {
+      "billingMatchKey": "omatla malesela ramagogogdi|7|b",
+      "fullName": "Omatla Malesela Ramagogogdi",
+      "className": "GRADE 7B",
+      "feeLineCount": 2,
+      "learnerId": null,
+      "strategy": null,
+      "ambiguous": false
+    },
+    {
+      "billingMatchKey": "paballo pearl xaba|7|b",
+      "fullName": "Paballo Pearl Xaba",
+      "className": "GRADE 7B",
+      "feeLineCount": 2,
+      "learnerId": null,
+      "strategy": null,
+      "ambiguous": false
+    },
+    {
+      "billingMatchKey": "dagimawit korabza|8|a",
+      "fullName": "Dagimawit Korabza",
+      "className": "GRADE 8A",
+      "feeLineCount": 1,
+      "learnerId": null,
+      "strategy": null,
+      "ambiguous": false
+    },
+    {
+      "billingMatchKey": "gosiame khumoetsile mathe|8|a",
+      "fullName": "Gosiame Khumoetsile Mathe",
+      "className": "GRADE 8A",
+      "feeLineCount": 1,
+      "learnerId": null,
+      "strategy": null,
+      "ambiguous": false
+    },
+    {
+      "billingMatchKey": "snekosi msimango|8|b",
+      "fullName": "Snekosi Msimango",
+      "className": "GRADE 8B",
+      "feeLineCount": 1,
+      "learnerId": null,
+      "strategy": null,
+      "ambiguous": false
+    },
+    {
+      "billingMatchKey": "tshepiso mosiatana|8|b",
+      "fullName": "Tshepiso Mosiatana",
+      "className": "GRADE 8B",
+      "feeLineCount": 1,
+      "learnerId": null,
+      "strategy": null,
+      "ambiguous": false
+    },
+    {
+      "billingMatchKey": "aiden jacques du plessis|1|a",
+      "fullName": "Aiden Jacques Du Plessis",
+      "className": "Grade 1A",
+      "feeLineCount": 2,
+      "learnerId": null,
+      "strategy": null,
+      "ambiguous": false
+    },
+    {
+      "billingMatchKey": "karaboentle molahlehi|1|a",
+      "fullName": "Karaboentle Molahlehi",
+      "className": "Grade 1A",
+      "feeLineCount": 1,
+      "learnerId": null,
+      "strategy": null,
+      "ambiguous": false
+    },
+    {
+      "billingMatchKey": "mokgadi lesego mapelane|1|a",
+      "fullName": "Mokgadi Lesego Mapelane",
+      "className": "Grade 1A",
+      "feeLineCount": 1,
+      "learnerId": null,
+      "strategy": null,
+      "ambiguous": false
+    },
+    {
+      "billingMatchKey": "amanhle ntokozo maphisa|1|c",
+      "fullName": "Amanhle Ntokozo Maphisa",
+      "className": "Grade 1C",
+      "feeLineCount": 1,
+      "learnerId": null,
+      "strategy": null,
+      "ambiguous": false
+    },
+    {
+      "billingMatchKey": "mpoentle lebudi|1|c",
+      "fullName": "Mpoentle Lebudi",
+      "className": "Grade 1C",
+      "feeLineCount": 1,
+      "learnerId": null,
+      "strategy": null,
+      "ambiguous": false
+    },
+    {
+      "billingMatchKey": "oartwa refentse kgatshe|1|c",
+      "fullName": "Oartwa Refentse Kgatshe",
+      "className": "Grade 1C",
+      "feeLineCount": 1,
+      "learnerId": null,
+      "strategy": null,
+      "ambiguous": false
+    },
+    {
+      "billingMatchKey": "oratile charmila meno|1|c",
+      "fullName": "Oratile Charmila Meno",
+      "className": "Grade 1C",
+      "feeLineCount": 1,
+      "learnerId": null,
+      "strategy": null,
+      "ambiguous": false
+    },
+    {
+      "billingMatchKey": "junior pebane|2|a",
+      "fullName": "Junior Pebane",
+      "className": "Grade 2A",
+      "feeLineCount": 2,
+      "learnerId": null,
+      "strategy": null,
+      "ambiguous": false
+    },
+    {
+      "billingMatchKey": "aobakwe dube moyo|2|b",
+      "fullName": "Aobakwe Dube Moyo",
+      "className": "Grade 2B",
+      "feeLineCount": 1,
+      "learnerId": null,
+      "strategy": null,
+      "ambiguous": false
+    },
+    {
+      "billingMatchKey": "keamogetswe naledi makhasi|4|a",
+      "fullName": "Keamogetswe Naledi Makhasi",
+      "className": "Grade 4A",
+      "feeLineCount": 1,
+      "learnerId": null,
+      "strategy": null,
+      "ambiguous": false
+    },
+    {
+      "billingMatchKey": "orearabetse kaone tshukudu|4|a",
+      "fullName": "Orearabetse Kaone Tshukudu",
+      "className": "Grade 4A",
+      "feeLineCount": 1,
+      "learnerId": null,
+      "strategy": null,
+      "ambiguous": false
+    },
+    {
+      "billingMatchKey": "palesa malatji|4|a",
+      "fullName": "Palesa Malatji",
+      "className": "Grade 4A",
+      "feeLineCount": 3,
+      "learnerId": null,
+      "strategy": null,
+      "ambiguous": false
+    },
+    {
+      "billingMatchKey": "rearabile oreratile moruane|4|a",
+      "fullName": "Rearabile Oreratile Moruane",
+      "className": "Grade 4A",
+      "feeLineCount": 2,
+      "learnerId": null,
+      "strategy": null,
+      "ambiguous": false
+    },
+    {
+      "billingMatchKey": "reatlegile kaone matabane|4|a",
+      "fullName": "Reatlegile Kaone Matabane",
+      "className": "Grade 4A",
+      "feeLineCount": 1,
+      "learnerId": null,
+      "strategy": null,
+      "ambiguous": false
+    },
+    {
+      "billingMatchKey": "keitumetsi ramasika|4|b",
+      "fullName": "Keitumetsi Ramasika",
+      "className": "Grade 4B",
+      "feeLineCount": 1,
+      "learnerId": null,
+      "strategy": null,
+      "ambiguous": false
+    },
+    {
+      "billingMatchKey": "mayani daniel mahango|4|b",
+      "fullName": "Mayani Daniel Mahango",
+      "className": "Grade 4B",
+      "feeLineCount": 1,
+      "learnerId": null,
+      "strategy": null,
+      "ambiguous": false
+    },
+    {
+      "billingMatchKey": "nyakalo naledi dikotsi|4|b",
+      "fullName": "Nyakalo Naledi Dikotsi",
+      "className": "Grade 4B",
+      "feeLineCount": 1,
+      "learnerId": null,
+      "strategy": null,
+      "ambiguous": false
+    },
+    {
+      "billingMatchKey": "elethu entle khunou|5|a",
+      "fullName": "Elethu Entle Khunou",
+      "className": "Grade 5A",
+      "feeLineCount": 2,
+      "learnerId": null,
+      "strategy": null,
+      "ambiguous": false
+    },
+    {
+      "billingMatchKey": "motheo divine tshabalala|5|a",
+      "fullName": "Motheo Divine Tshabalala",
+      "className": "Grade 5A",
+      "feeLineCount": 1,
+      "learnerId": null,
+      "strategy": null,
+      "ambiguous": false
+    },
+    {
+      "billingMatchKey": "musa makamu|5|a",
+      "fullName": "Musa Makamu",
+      "className": "Grade 5A",
+      "feeLineCount": 2,
+      "learnerId": null,
+      "strategy": null,
+      "ambiguous": false
+    },
+    {
+      "billingMatchKey": "omphile dithole mosiane dsa0161|5|a",
+      "fullName": "Omphile Dithole Mosiane Dsa0161",
+      "className": "Grade 5A",
+      "feeLineCount": 1,
+      "learnerId": null,
+      "strategy": null,
+      "ambiguous": false
+    },
+    {
+      "billingMatchKey": "sinenhlanhla dikana iviwe|5|a",
+      "fullName": "Sinenhlanhla Dikana Iviwe",
+      "className": "Grade 5A",
+      "feeLineCount": 1,
+      "learnerId": null,
+      "strategy": null,
+      "ambiguous": false
+    },
+    {
+      "billingMatchKey": "remofeilwe keneilwe|5|b",
+      "fullName": "Remofeilwe Keneilwe",
+      "className": "Grade 5B",
+      "feeLineCount": 1,
+      "learnerId": null,
+      "strategy": null,
+      "ambiguous": false
+    },
+    {
+      "billingMatchKey": "hlulani bahumi hobyani||grade ra",
+      "fullName": "Hlulani Bahumi Hobyani",
+      "className": "Grade RA",
+      "feeLineCount": 1,
+      "learnerId": null,
+      "strategy": null,
+      "ambiguous": false
+    },
+    {
+      "billingMatchKey": "ofentse kabelo mpete||grade ra",
+      "fullName": "Ofentse Kabelo Mpete",
+      "className": "Grade RA",
+      "feeLineCount": 1,
+      "learnerId": null,
+      "strategy": null,
+      "ambiguous": false
+    },
+    {
+      "billingMatchKey": "okuhle mthethwa||grade ra",
+      "fullName": "Okuhle Mthethwa",
+      "className": "Grade RA",
+      "feeLineCount": 1,
+      "learnerId": null,
+      "strategy": null,
+      "ambiguous": false
+    },
+    {
+      "billingMatchKey": "ntsako segokotlo||grade rb",
+      "fullName": "Ntsako Segokotlo",
+      "className": "Grade RB",
+      "feeLineCount": 1,
+      "learnerId": null,
+      "strategy": null,
+      "ambiguous": false
+    },
+    {
+      "billingMatchKey": "rethabile leseilane mankgane||grade rb",
+      "fullName": "Rethabile Leseilane Mankgane",
+      "className": "Grade RB",
+      "feeLineCount": 1,
+      "learnerId": null,
+      "strategy": null,
+      "ambiguous": false
+    }
+  ],
+  "learnersWithoutPlan": [
+    {
+      "id": "cmpp2ez2y00drtxyzjxd3h8ig",
+      "name": "Zemeriyas ADAMU",
+      "className": "Grade 6A",
+      "admissionNo": "140902",
+      "idNumber": null
+    },
+    {
+      "id": "cmpp2ez0b006rtxyzzp1ht51e",
+      "name": "Tinashe CHINYENYE",
+      "className": "Grade 3A",
+      "admissionNo": "1709135316086",
+      "idNumber": "1709135316086"
+    },
+    {
+      "id": "cmpp2ez3i00fptxyz61vlepta",
+      "name": "Ndalo - Enhle DHLAMINI",
+      "className": "Grade 6C",
+      "admissionNo": "1406030513087",
+      "idNumber": "1406030513087"
+    },
+    {
+      "id": "cmpp2ez2900bhtxyz1m2v65p2",
+      "name": "Sinenhlanhla DIKANA",
+      "className": "Grade 5A",
+      "admissionNo": "1506120968081",
+      "idNumber": "1506120968081"
+    },
+    {
+      "id": "cmpp2ez1r00a5txyzvcr17pav",
+      "name": "Nyakallo DIKOTSI",
+      "className": "Grade 4B",
+      "admissionNo": "1702220526081",
+      "idNumber": "1702220526081"
+    },
+    {
+      "id": "cmpp2ez2z00dvtxyzj6hn5ja7",
+      "name": "Tshegofatjo DINALE",
+      "className": "Grade 6A",
+      "admissionNo": "1411170795080",
+      "idNumber": "1411170795080"
+    },
+    {
+      "id": "cmpp2eyy0001btxyzgsv47ugb",
+      "name": "Aiden DU PLESSIS",
+      "className": "Grade 1A",
+      "admissionNo": "1903065487088",
+      "idNumber": "1903065487088"
+    },
+    {
+      "id": "cmpp2eyzv005ftxyzln53t9xs",
+      "name": "Aobakwe DUBE",
+      "className": "Grade 2B",
+      "admissionNo": "1812070737082",
+      "idNumber": "1812070737082"
+    },
+    {
+      "id": "cmpp2ez2o00crtxyziw4q1m29",
+      "name": "Remofilwe KENEILWE",
+      "className": "Grade 5B",
+      "admissionNo": "1502120433085",
+      "idNumber": "1502120433085"
+    },
+    {
+      "id": "cmpp2eyyz003btxyz06r1otx8",
+      "name": "Oaratwa KGATSHE",
+      "className": "Grade 1C",
+      "admissionNo": "1911240828084",
+      "idNumber": "1911240828084"
+    },
+    {
+      "id": "cmpp2ez2a00bjtxyznxssue7v",
+      "name": "Entle  Elethu KHUNOU",
+      "className": "Grade 5A",
+      "admissionNo": "1502130284080",
+      "idNumber": "1502130284080"
+    },
+    {
+      "id": "cmpp2ez4i00j5txyzhasj0ihv",
+      "name": "Dagimawit KOROBZA",
+      "className": "Grade 8A",
+      "admissionNo": "111208",
+      "idNumber": null
+    },
+    {
+      "id": "cmpp2eyz0003dtxyzersbqdg8",
+      "name": "Mphoentle LEBUDI",
+      "className": "Grade 1C",
+      "admissionNo": "1902126113089",
+      "idNumber": "1902126113089"
+    },
+    {
+      "id": "cmpp2ez1a008ztxyzq0ogxbe1",
+      "name": "Otlotleng LETSHOLO",
+      "className": "Grade 4A",
+      "admissionNo": "1607275305085",
+      "idNumber": "1607275305085"
+    },
+    {
+      "id": "cmpp7cf9p00139ue5bj38mdgd",
+      "name": "RAORATA ORESIAMETSE MABOLE",
+      "className": "CRECHE",
+      "admissionNo": "MAB001",
+      "idNumber": "2205065281084"
+    },
+    {
+      "id": "cmpp2ez1u00adtxyz95ix85j1",
+      "name": "Daniel MAHANGO",
+      "className": "Grade 4B",
+      "admissionNo": "20161010",
+      "idNumber": null
+    },
+    {
+      "id": "cmpp2ez0v007ztxyzkqws376f",
+      "name": "Umme-Haani MAHOMED HOOSEN",
+      "className": "Grade 3B",
+      "admissionNo": "1702100320084",
+      "idNumber": "1702100320084"
+    },
+    {
+      "id": "cmpp73htz000h9ue5sb9iwal4",
+      "name": "KGOTLELLO MAJWAFI",
+      "className": "CRECHE",
+      "admissionNo": "MAJ001",
+      "idNumber": "2111175747081"
+    },
+    {
+      "id": "cmpp2ez2b00bptxyziehqdam6",
+      "name": "Omphemetse MAKAMU",
+      "className": "Grade 5A",
+      "admissionNo": "1507315269087",
+      "idNumber": "1507315269087"
+    },
+    {
+      "id": "cmpp2ez1a0091txyzqbge0198",
+      "name": "Naledi MAKHASI",
+      "className": "Grade 4A",
+      "admissionNo": "1602100207085",
+      "idNumber": "1602100207085"
+    },
+    {
+      "id": "cmpp2ez1c0095txyzilrecz47",
+      "name": "Refiloe MALATJI",
+      "className": "Grade 4A",
+      "admissionNo": "1607110583086",
+      "idNumber": "1607110583086"
+    },
+    {
+      "id": "cmpp2ez5c00lztxyzhilh1fuv",
+      "name": "Leseilane MANKGANE",
+      "className": "Grade Rb",
+      "admissionNo": "2101145675082",
+      "idNumber": "2101145675082"
+    },
+    {
+      "id": "cmpp2eyy5001jtxyzgen5ydoe",
+      "name": "Lesego MAPELANE",
+      "className": "Grade 1A",
+      "admissionNo": "1910180752080",
+      "idNumber": "1910180752080"
+    },
+    {
+      "id": "cmpp2eyz3003jtxyzii1zoays",
+      "name": "Amahle MAPHISA",
+      "className": "Grade 1C",
+      "admissionNo": "1905130513087",
+      "idNumber": "1905130513087"
+    },
+    {
+      "id": "cmpp2ez1d0099txyz8melk9w4",
+      "name": "Kaone MATABANE",
+      "className": "Grade 4A",
+      "admissionNo": "1612185365088",
+      "idNumber": "1612185365088"
+    },
+    {
+      "id": "cmpp2ez5200l1txyzalhxn0t3",
+      "name": "Hlulani MATHE",
+      "className": "Grade Ra",
+      "admissionNo": "2008235310084",
+      "idNumber": "2008235310084"
+    },
+    {
+      "id": "cmpp2ez4l00jhtxyz1xvmczqv",
+      "name": "Khumoetsile MATHE",
+      "className": "Grade 8A",
+      "admissionNo": "1101146222083",
+      "idNumber": "1101146222083"
+    },
+    {
+      "id": "cmpp2eyz4003ltxyzeghnoppy",
+      "name": "Charmila MENO",
+      "className": "Grade 1C",
+      "admissionNo": "1904061000081",
+      "idNumber": "1904061000081"
+    },
+    {
+      "id": "cmpp2ez4a00idtxyzyfy4kwo2",
+      "name": "Amantle MODISE",
+      "className": "Grade 7B",
+      "admissionNo": "1302190314087",
+      "idNumber": "1302190314087"
+    },
+    {
+      "id": "cmpp2ez0l007dtxyz7fnrw8f7",
+      "name": "Remoratile MOKGATLHE",
+      "className": "Grade 3A",
+      "admissionNo": "1801035303080",
+      "idNumber": "1801035303080"
+    },
+    {
+      "id": "cmpp2eyy9001rtxyz3k4avn3k",
+      "name": "Bontle MOLAHLEHI",
+      "className": "Grade 1A",
+      "admissionNo": "1910241041085",
+      "idNumber": "1910241041085"
+    },
+    {
+      "id": "cmpp2ez3o00g9txyzxu2vez5u",
+      "name": "Remoneilwe MOLEMA",
+      "className": "Grade 6C",
+      "admissionNo": "1411180550087",
+      "idNumber": "1411180550087"
+    },
+    {
+      "id": "cmpp2ez3y00h9txyznwcmlawl",
+      "name": "Tsaone MOLUSI",
+      "className": "Grade 7A",
+      "admissionNo": "1310141117087",
+      "idNumber": "1310141117087"
+    },
+    {
+      "id": "cmpp7op5c001x9ue5ygliiw89",
+      "name": "GRACE OBOITSHEPO MONAISE",
+      "className": "CRECHE",
+      "admissionNo": "MON001",
+      "idNumber": "2207200997087"
+    },
+    {
+      "id": "cmpp2ez1j009ntxyze3l5rb5x",
+      "name": "Rearabilwe MORUANE",
+      "className": "Grade 4A",
+      "admissionNo": "1612190485087",
+      "idNumber": "1612190485087"
+    },
+    {
+      "id": "cmpp2ez2g00c3txyz6n6fcgjl",
+      "name": "Omphile MOSIANE",
+      "className": "Grade 5A",
+      "admissionNo": "1509165603084",
+      "idNumber": "1509165603084"
+    },
+    {
+      "id": "cmpp2ez4z00kptxyzh4ufrem6",
+      "name": "Tshepiso MOSIANTANA",
+      "className": "Grade 8B",
+      "admissionNo": "1207091101089",
+      "idNumber": "1207091101089"
+    },
+    {
+      "id": "cmpp2ez4000hftxyztbav4f0e",
+      "name": "Walter MOTLHOKI",
+      "className": "Grade 7A",
+      "admissionNo": "1306045257086",
+      "idNumber": "1306045257086"
+    },
+    {
+      "id": "cmpp2ez3q00ghtxyz9afnnpek",
+      "name": "Thoriso MOTSHWAEDI",
+      "className": "Grade 6C",
+      "admissionNo": "1411065294082",
+      "idNumber": "1411065294082"
+    },
+    {
+      "id": "cmpp2ez5700lftxyz9x7kai3n",
+      "name": "Kabelo MPETE",
+      "className": "Grade Ra",
+      "admissionNo": "2007095353085",
+      "idNumber": "2007095353085"
+    },
+    {
+      "id": "cmpp2ez4z00krtxyzylmniu3u",
+      "name": "Snenkosi MSIMANGO",
+      "className": "Grade 8B",
+      "admissionNo": "1203280293084",
+      "idNumber": "1203280293084"
+    },
+    {
+      "id": "cmpp2ez4c00iltxyz9tqxrqi8",
+      "name": "Hikatekile MTEBULE",
+      "className": "Grade 7B",
+      "admissionNo": "1401141029081",
+      "idNumber": "1401141029081"
+    },
+    {
+      "id": "cmpp2ez5700lhtxyz0vv5tz60",
+      "name": "Okuhle MTHETWA",
+      "className": "Grade Ra",
+      "admissionNo": "2007260279081",
+      "idNumber": "2007260279081"
+    },
+    {
+      "id": "cmpp2ez3g00fjtxyzcgmc0y5c",
+      "name": "Athandile NGWENYA",
+      "className": "Grade 6B",
+      "admissionNo": "AE237655",
+      "idNumber": null
+    },
+    {
+      "id": "cmpp2eyzp004ztxyzhh77vkm5",
+      "name": "Pebane PEBANE",
+      "className": "Grade 2A",
+      "admissionNo": "1808045460081",
+      "idNumber": "1808045460081"
+    },
+    {
+      "id": "cmpp6p4mw00079ue5t73i6umm",
+      "name": "KATLEGO EINSTEIN PILANE",
+      "className": "CRECHE",
+      "admissionNo": "PIL001",
+      "idNumber": "2204026089082"
+    },
+    {
+      "id": "cmpp2ez16008rtxyznr1lk2pf",
+      "name": "Skyla-Hope PRANGLEY",
+      "className": "Grade 3B",
+      "admissionNo": "20160730",
+      "idNumber": "1607300888089"
+    },
+    {
+      "id": "cmpp76ucj000t9ue56h5hgjfw",
+      "name": "TLOTLEGO OMOGOLO RABORIFE",
+      "className": "CRECHE",
+      "admissionNo": "RAB001",
+      "idNumber": "2308010708084"
+    },
+    {
+      "id": "cmpp2ez4d00iptxyz86wok7up",
+      "name": "Omatla RAMAGOGODI",
+      "className": "Grade 7B",
+      "admissionNo": "1201065425087",
+      "idNumber": "1201065425087"
+    },
+    {
+      "id": "cmpp2ez2600b9txyz8mxkeufe",
+      "name": "Keitumetse RAMASIKA",
+      "className": "Grade 4B",
+      "admissionNo": "1607070511085",
+      "idNumber": "1607070511085"
+    },
+    {
+      "id": "cmpp2ez17008ttxyzswh4dzxp",
+      "name": "Oreabetse RAMOFOKO",
+      "className": "Grade 3B",
+      "admissionNo": "20170312",
+      "idNumber": "1703120943087"
+    },
+    {
+      "id": "cmpp2ez5i00mhtxyzl3lwwslv",
+      "name": "Reabetswe SEGOKOTLO",
+      "className": "Grade Rb",
+      "admissionNo": "2009280345082",
+      "idNumber": "2009280345082"
+    },
+    {
+      "id": "cmpp2ez2m00cntxyz3llblir7",
+      "name": "Motheo Divine Nozizwe TSHABALALA",
+      "className": "Grade 5A",
+      "admissionNo": "1511060506081",
+      "idNumber": "1511060506081"
+    },
+    {
+      "id": "cmpp2ez0q007ptxyzoru08y1h",
+      "name": "Sizwe TSHABALALA",
+      "className": "Grade 3A",
+      "admissionNo": "1708236084080",
+      "idNumber": "1708236084080"
+    },
+    {
+      "id": "cmpp2ez1q00a3txyzk0rb2l6v",
+      "name": "Oreabetse TSHUKUDU",
+      "className": "Grade 4A",
+      "admissionNo": "20161022",
+      "idNumber": "1610220548080"
+    },
+    {
+      "id": "cmpp2ez4g00ixtxyz6vf99neh",
+      "name": "Pearl XABA",
+      "className": "Grade 7B",
+      "admissionNo": "1303190364080",
+      "idNumber": "1303190364080"
+    }
+  ],
+  "duplicateLearnerWarnings": []
+}

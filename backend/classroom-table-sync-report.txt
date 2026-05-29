@@ -1,0 +1,72 @@
+=== Da Silva classroom table sync (classroom rows only) ===
+Generated: 2026-05-24T17:42:08.883Z
+Mode: apply
+School: cmpideqeq0000108xb6ouv9zi
+
+--- Before classroom names ---
+  |grade Ra
+  |grade Rb
+  Grade 1A
+  Grade 1B
+  Grade 1C
+  Grade 2A
+  Grade 2B
+  Grade 3A
+  Grade 3B
+  Grade 4A
+  Grade 4B
+  Grade 5A
+  Grade 5B
+  Grade 6A
+  Grade 6B
+  Grade 6C
+  Grade 7A
+  Grade 7B
+  Grade 8A
+  Grade 8B
+  Pre-School Creche
+Classroom total: 21
+Learner total: 396
+Orphan learners: 40
+
+--- Planned renames ---
+  |grade Ra → Grade RA (id: cmpjzelhk0011zncsrjoef7l3)
+  |grade Rb → Grade RB (id: cmpjzelhl0013zncsnpeb57jc)
+  Pre-School Creche → Creche (id: cmpjzelhl0015zncsiq8e0xs4)
+
+--- After classroom names ---
+  Creche
+  Grade 1A
+  Grade 1B
+  Grade 1C
+  Grade 2A
+  Grade 2B
+  Grade 3A
+  Grade 3B
+  Grade 4A
+  Grade 4B
+  Grade 5A
+  Grade 5B
+  Grade 6A
+  Grade 6B
+  Grade 6C
+  Grade 7A
+  Grade 7B
+  Grade 8A
+  Grade 8B
+  Grade RA
+  Grade RB
+Classroom total: 21
+Learner total: 396
+Orphan learners: 0
+
+--- Verification ---
+  learnerCount396: PASS
+  classroomCount21: PASS
+  orphanLearners0: PASS
+  dashboardClassroomJoin: PASS
+  noBillingTouch: PASS
+  idsPreserved: PASS
+  onlyPlannedRenames: PASS
+
+Overall: PASS

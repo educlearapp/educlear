@@ -1,0 +1,5 @@
+Phase 5 Kid-e-Sys transaction history — APPLIED
+Passed: true
+Rows: 40916
+Net outstanding: R1228655.42
+Overpaid: R490355.03

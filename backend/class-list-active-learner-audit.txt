@@ -1,0 +1,61 @@
+=== Da Silva class-list ACTIVE learner audit (read-only) ===
+Generated: 2026-05-27T17:33:37.614Z
+School: cmpideqeq0000108xb6ouv9zi
+Class lists: /Users/dasilvaacademy/Desktop/05_class_list
+
+--- Totals ---
+Production learners (dashboard today): 1993
+ACTIVE from class lists (unique):     396
+ACTIVE matched in production:         369
+HISTORICAL (off list, has history): 1409
+DUPLICATE / ORPHAN:                 215
+Checksum (must equal production):   1993
+
+--- Projected (if only ACTIVE counted) ---
+Dashboard learners: 396
+Classrooms:         22
+
+Class-list mismatch ACTIVE recoveries: 0
+Corrupt |grade* class labels in DB: 0
+
+--- Samples: ACTIVE ---
+  • Masego DINALE (Grade 1A) [1908010668088] — Matches uploaded class list (matchKey)
+  • Refentje MAMPA (Grade 1A) [1909300289080] — Matches uploaded class list (matchKey)
+  • Bandile MKHWAYIMBA (Grade 1A) [1905045363081] — Matches uploaded class list (matchKey)
+  • Phetogo MOGOLOLA (Grade 1A) [1809145448083] — Matches uploaded class list (matchKey)
+  • Tshimologo MONYAMA (Grade 1A) [1903265765085] — Matches uploaded class list (matchKey)
+  • Kgaogelo MOSWEU (Grade 1A) [1907170601087] — Matches uploaded class list (matchKey)
+  • Remmogo MOTLHAMME (Grade 1A) [1906260740086] — Matches uploaded class list (matchKey)
+  • Muso SELLO (Grade 1A) [1906195250086] — Matches uploaded class list (matchKey)
+  • Omaatla KEKANA (Grade 1B) [1811045416087] — Matches uploaded class list (matchKey)
+  • Arefa LEKAOWA (Grade 1B) [1911190609088] — Matches uploaded class list (matchKey)
+  • Boiketlo LETEBELE (Grade 1B) [1909160582087] — Matches uploaded class list (matchKey)
+  • Tlotliso MAKGALE (Grade 1B) [1901230543082] — Matches uploaded class list (matchKey)
+
+--- Samples: HISTORICAL ---
+  • Aviella CHIUTSI (Grade 1A) [633561765R47] — Not on current class lists; 67 ledger row(s)
+  • Bohlale DIKGALE (Grade 1A) [200615281089] — Not on current class lists; 41 ledger row(s)
+  • Aiden DU PLESSIS (Grade 1A) [1903065487088] — Not on current class lists; 14 ledger row(s)
+  • Leano KALUNGA (Grade 1A) [1901135272081] — Not on current class lists; 53 ledger row(s)
+  • Atlegang KGWATHISI (Grade 1A) [2004170756084] — Not on current class lists; 65 ledger row(s)
+  • Lesego MAPELANE (Grade 1A) [1910180752080] — Not on current class lists; 45 ledger row(s)
+  • Kamano MODISE (Grade 1A) [1908115383088] — Not on current class lists; 27 ledger row(s)
+  • Amogelang RABORIFE (Grade 1A) [2004175681089] — Not on current class lists; 26 ledger row(s)
+  • Ndzalo RIKHOTSO (Grade 1A) [1907221477081] — Not on current class lists; 100 ledger row(s)
+  • Annaya SEPATO (Grade 1A) [2004201281086] — Not on current class lists; 220 ledger row(s)
+  • Vuyolwethu JACK (Grade 1B) [1909035287086] — Not on current class lists; 88 ledger row(s)
+  • Leago MODISAKENG (Grade 1B) [1904285219087] — Not on current class lists; 63 ledger row(s)
+
+--- Samples: DUPLICATE / ORPHAN ---
+  • Bontle MOLAHLEHI (Grade 1A) [1910241041085] — No class-list match and no billing/history — import artifact
+  • Kufeziweokuhle MDLULI (Grade 1B) [2002260588086] — No class-list match and no billing/history — import artifact
+  • Aobakwe DUBE (Grade 2B) [1812070737082] — No class-list match and no billing/history — import artifact
+  • Eleora HAILE (Grade 2B) [71818357] — No class-list match and no billing/history — import artifact
+  • Sizwe TSHABALALA (Grade 3A) [1708236084080] — No class-list match and no billing/history — import artifact
+  • Angelique MOSIBI (Grade 3B) [1709060238081] — No class-list match and no billing/history — import artifact
+  • Oreabetse RAMOFOKO (Grade 3B) [20170312] — No class-list match and no billing/history — import artifact
+  • Oboikanyo KGASOANE (Grade 4A) [1606295383080] — No class-list match and no billing/history — import artifact
+  • Otlotleng LETSHOLO (Grade 4A) [1607275305085] — No class-list match and no billing/history — import artifact
+  • Refiloe MALATJI (Grade 4A) [1607110583086] — No class-list match and no billing/history — import artifact
+  • Sinenhlanhla DIKANA (Grade 5A) [1506120968081] — No class-list match and no billing/history — import artifact
+  • Zemeriyas ADAMU (Grade 6A) [140902] — No class-list match and no billing/history — import artifact

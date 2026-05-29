@@ -1,0 +1,65 @@
+{
+  "mode": "APPLY",
+  "generatedAt": "2026-05-24T16:38:23.180Z",
+  "school": {
+    "id": "cmphx5cc00001kedqeq3pe0jx",
+    "name": "Da Silva Academy",
+    "foundBy": "email"
+  },
+  "snapshotDir": "/Users/dasilvaacademy/EduClear/backend",
+  "liveRoot": "/Users/dasilvaacademy/EduClear/backend",
+  "expected": {
+    "learners": 396,
+    "parents": 290,
+    "parentLinks": 330,
+    "classrooms": 21,
+    "familyAccounts": 344,
+    "statementAccounts": 344,
+    "billingPlanLearners": 396,
+    "ledgerEntries": 337,
+    "historyRows": 40916,
+    "netOutstanding": 1228655.42,
+    "overPaid": 490355.03,
+    "subscriptionStatus": "ACTIVE",
+    "subscriptionPackage": "UNLIMITED"
+  },
+  "snapshot": {
+    "learners": 0,
+    "parents": 0,
+    "parentLinks": 0,
+    "familyAccounts": 0,
+    "billingPlanLearners": 396,
+    "ledgerEntries": 337,
+    "historyRows": 40916,
+    "manifestPresent": false,
+    "logoPresent": true
+  },
+  "snapshotBlockers": [
+    "Snapshot manifest missing",
+    "Snapshot learners=0, expected 396",
+    "Snapshot parents=0, expected 290",
+    "Snapshot parentLinks=0, expected 330",
+    "Snapshot familyAccounts=0, expected 344"
+  ],
+  "liveBefore": {
+    "learners": 536,
+    "parents": 523,
+    "parentLinks": 577,
+    "classrooms": 21,
+    "familyAccounts": 344,
+    "statementAccounts": 344,
+    "billingPlanLearners": 0,
+    "ledgerEntries": 0,
+    "historyRows": 0,
+    "netOutstanding": 0,
+    "overPaid": 0,
+    "subscriptionStatus": "ACTIVE",
+    "subscriptionPackage": "UNLIMITED",
+    "dashboardUnlocked": true,
+    "ownerEmail": "dasilvaacademy@gmail.com",
+    "ownerPresent": true
+  },
+  "protectionWarnings": [
+    "Other schools present (untouched): EduClear Demo School"
+  ]
+}

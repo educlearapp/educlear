@@ -1,0 +1,81 @@
+{
+  "schoolId": "cmpideqeq0000108xb6ouv9zi",
+  "auditedAt": "2026-05-28T15:45:00.295Z",
+  "sourcePath": "/Users/dasilvaacademy/Desktop",
+  "apply": false,
+  "csvProof": {
+    "headers": [
+      "child_id",
+      "account_no",
+      "child_active",
+      "child_name",
+      "child_surname",
+      "child_id_no",
+      "classroom",
+      "enrollment_date",
+      "monthly_fees",
+      "doctor_info",
+      "medical_aid_info",
+      "allergies",
+      "height",
+      "weight"
+    ],
+    "columnMeanings": {
+      "child_id": "Stable Kid-e-Sys learner key",
+      "account_no": "Billing account reference",
+      "child_active": "Enrolment flag: \"Yes\" = active, \"No\" = historical",
+      "child_name": "First name",
+      "child_surname": "Surname",
+      "child_id_no": "SA ID (optional; used for gender inference)",
+      "classroom": "Class label or \"No Classroom\" for inactive",
+      "enrollment_date": "Enrolment date (not date of birth)"
+    },
+    "totalRows": 2507,
+    "childActiveYes": 397,
+    "childActiveNo": 2110,
+    "noClassroom": 2045,
+    "classifiedActive": 396,
+    "classifiedHistorical": 2111
+  },
+  "reclassify": null,
+  "totals": {
+    "learners": 397,
+    "active": 397,
+    "inactive": 0,
+    "noClassroom": 0,
+    "boys": 189,
+    "girls": 208,
+    "activeClassrooms": 21,
+    "averageClassroomSize": 19,
+    "genderNormalized": 397
+  },
+  "profileCoverage": {
+    "activeLearners": 397,
+    "fields": {
+      "firstName": 397,
+      "lastName": 397,
+      "idNumber": 372,
+      "birthDate": 397,
+      "gender": 397,
+      "className": 397,
+      "homeLanguage": 388,
+      "citizenship": 388
+    }
+  },
+  "statements": {
+    "familyAccounts": 821,
+    "accountsWithLastInvoice": 805,
+    "accountsWithLastPayment": 808,
+    "ledgerRows": 40928,
+    "historyRows": 40916
+  },
+  "gate": {
+    "csvDbCountMatch": false,
+    "csvDbDelta": -2110,
+    "csvMapped": 0,
+    "boysGirlsNonZero": true,
+    "activeRealistic": false,
+    "activeNearCsv": true,
+    "pass": false
+  }
+}

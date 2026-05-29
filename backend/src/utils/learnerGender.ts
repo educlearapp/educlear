@@ -55,6 +55,30 @@ export function resolveLearnerGender(opts: {
   return normalizeLearnerGender(opts.gender) || inferGenderFromSouthAfricanId(opts.idNumber);
 }
 
+/** Resolve gender from explicit gender/sex source fields, then SA ID digits when needed. */
+export function resolveGenderFromSources(opts: {
+  gender?: string | null;
+  sex?: string | null;
+  idNumber?: string | null;
+}): "Male" | "Female" | null {
+  const raw = String(opts.gender ?? "").trim() || String(opts.sex ?? "").trim();
+  return resolveLearnerGender({ gender: raw || null, idNumber: opts.idNumber });
+}
+
+/**
+ * Gender to persist on import/repair, or undefined when an update should omit the field.
+ * Never replaces an existing normalized Male/Female unless existing is blank/null.
+ */
+export function pickLearnerGenderForWrite(opts: {
+  existingGender?: string | null;
+  gender?: string | null;
+  sex?: string | null;
+  idNumber?: string | null;
+}): "Male" | "Female" | undefined {
+  if (normalizeLearnerGender(opts.existingGender)) return undefined;
+  return resolveGenderFromSources(opts) ?? undefined;
+}
+
 export function isMaleGender(raw: string | null | undefined): boolean {
   return normalizeLearnerGender(raw) === "Male";
 }

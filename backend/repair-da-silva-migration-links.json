@@ -1,0 +1,31 @@
+{
+  "mode": "dry-run",
+  "schoolId": "cmpmlumtf012tog1statoipz2",
+  "schoolName": "Da Silva Academy",
+  "schemaNotes": [
+    "Learner.enrollmentStatus not available in schema"
+  ],
+  "omitEnrollmentStatus": true,
+  "stagingProjectId": null,
+  "hasStagingBundle": false,
+  "before": {
+    "learnersWithFamilyAccountId": 344,
+    "learnersWithAdmissionNo": 344,
+    "ledgerMissingLearnerId": 0
+  },
+  "actions": [
+    "Learner.enrollmentStatus not available in schema — display status defaults to Enrolled; writes skipped",
+    "Would relink learners using database name/admission matching (no staging bundle)",
+    "Would backfill ledger learnerId from accountToLearnerId map"
+  ],
+  "afterEstimate": {
+    "learnersWithFamilyAccountId": 344,
+    "learnersWithAdmissionNo": 344,
+    "ledgerMissingLearnerId": 0
+  },
+  "after": {
+    "learnersWithFamilyAccountId": 344,
+    "learnersWithAdmissionNo": 344,
+    "ledgerMissingLearnerId": 0
+  }
+}

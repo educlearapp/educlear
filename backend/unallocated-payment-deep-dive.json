@@ -1,0 +1,3182 @@
+{
+  "generatedAt": "2026-05-23T12:37:49.513Z",
+  "desktopRoot": "/Users/dasilvaacademy/Desktop",
+  "auditOnly": true,
+  "sourceReview": "opening-balance-adjustment-review.json",
+  "reasonGroup": "possibleUnallocatedPayment",
+  "accountCount": 79,
+  "totalAbsAdjustment": 189844.45,
+  "likelyCauseCounts": {
+    "normalKidESysAllocationGap": 79,
+    "missingInvoiceItem": 0,
+    "missingPaymentItem": 0,
+    "historicalCutoverOpeningBalanceNeeded": 0,
+    "manualReview": 0
+  },
+  "accountsWithUnallocatedSignals": 79,
+  "accounts": [
+    {
+      "accountNo": "TLA001",
+      "fullName": "Neo Kearabilwe Tladi",
+      "ageAnalysisBalance": 10790,
+      "ledgerBalanceFromImport": 2010,
+      "adjustmentAmount": 8780,
+      "totalInvoices": 126875,
+      "totalPayments": 124865,
+      "invoiceCount": 60,
+      "paymentCount": 32,
+      "paymentCoveragePercent": 98.42,
+      "hasUnallocatedPaymentSignals": true,
+      "unallocatedSignalDetail": "27 payment(s) with blank notes (Kid-e-Sys receipt export)",
+      "likelyCause": "normalKidESysAllocationGap",
+      "causeConfidence": "medium",
+      "causeDetail": "Both invoices and payments present; age R10790 > ledger R2010 with payment/export skew (unallocatedPaymentPattern).",
+      "section": "Bad Debt",
+      "metrics": {
+        "invoiceSum": 126875,
+        "paymentSum": -124865,
+        "computedLedgerFromTxns": 2010,
+        "variance": 8780,
+        "lifetimeOverpayment": -2010,
+        "crossAccountOutboundPaymentTotal": 0,
+        "crossAccountInboundPaymentTotal": 0,
+        "misPostedTxnCount": 0,
+        "receiptStylePaymentCount": 0,
+        "unallocatedNotePaymentCount": 0,
+        "historicalNoteTxnCount": 2,
+        "duplicateNameAccountNos": [
+          "TLA001"
+        ],
+        "siblingAccountNos": [],
+        "activeLearnerCount": 1,
+        "paymentPatterns": [
+          "unallocatedPaymentPattern"
+        ],
+        "paymentMatchConfidence": "medium"
+      }
+    },
+    {
+      "accountNo": "MOL018",
+      "fullName": "Hailey Molema",
+      "ageAnalysisBalance": 6500,
+      "ledgerBalanceFromImport": 1085,
+      "adjustmentAmount": 5415,
+      "totalInvoices": 129160,
+      "totalPayments": 128075,
+      "invoiceCount": 59,
+      "paymentCount": 47,
+      "paymentCoveragePercent": 99.16,
+      "hasUnallocatedPaymentSignals": true,
+      "unallocatedSignalDetail": "44 payment(s) with blank notes (Kid-e-Sys receipt export)",
+      "likelyCause": "normalKidESysAllocationGap",
+      "causeConfidence": "medium",
+      "causeDetail": "Both invoices and payments present; age R6500 > ledger R1085 with payment/export skew (unallocatedPaymentPattern).",
+      "section": "Bad Debt",
+      "metrics": {
+        "invoiceSum": 129160,
+        "paymentSum": -128075,
+        "computedLedgerFromTxns": 1085,
+        "variance": 5415,
+        "lifetimeOverpayment": -1085,
+        "crossAccountOutboundPaymentTotal": 0,
+        "crossAccountInboundPaymentTotal": 0,
+        "misPostedTxnCount": 0,
+        "receiptStylePaymentCount": 0,
+        "unallocatedNotePaymentCount": 0,
+        "historicalNoteTxnCount": 1,
+        "duplicateNameAccountNos": [
+          "MOL018"
+        ],
+        "siblingAccountNos": [],
+        "activeLearnerCount": 1,
+        "paymentPatterns": [
+          "unallocatedPaymentPattern"
+        ],
+        "paymentMatchConfidence": "medium"
+      }
+    },
+    {
+      "accountNo": "TSH017",
+      "fullName": "Onthatile Tshose",
+      "ageAnalysisBalance": 5290,
+      "ledgerBalanceFromImport": 860,
+      "adjustmentAmount": 4430,
+      "totalInvoices": 149865,
+      "totalPayments": 149005,
+      "invoiceCount": 48,
+      "paymentCount": 46,
+      "paymentCoveragePercent": 99.43,
+      "hasUnallocatedPaymentSignals": true,
+      "unallocatedSignalDetail": "42 payment(s) with blank notes (Kid-e-Sys receipt export)",
+      "likelyCause": "normalKidESysAllocationGap",
+      "causeConfidence": "medium",
+      "causeDetail": "Both invoices and payments present; age R5290 > ledger R860 with payment/export skew (unallocatedPaymentPattern).",
+      "section": "Recently Owing",
+      "metrics": {
+        "invoiceSum": 149865,
+        "paymentSum": -149005,
+        "computedLedgerFromTxns": 860,
+        "variance": 4430,
+        "lifetimeOverpayment": -860,
+        "crossAccountOutboundPaymentTotal": 0,
+        "crossAccountInboundPaymentTotal": 0,
+        "misPostedTxnCount": 0,
+        "receiptStylePaymentCount": 0,
+        "unallocatedNotePaymentCount": 0,
+        "historicalNoteTxnCount": 2,
+        "duplicateNameAccountNos": [
+          "TSH017"
+        ],
+        "siblingAccountNos": [],
+        "activeLearnerCount": 1,
+        "paymentPatterns": [
+          "unallocatedPaymentPattern"
+        ],
+        "paymentMatchConfidence": "medium"
+      }
+    },
+    {
+      "accountNo": "FRE001",
+      "fullName": "Oatlegile Frederick",
+      "ageAnalysisBalance": 9500,
+      "ledgerBalanceFromImport": 5100,
+      "adjustmentAmount": 4400,
+      "totalInvoices": 218140,
+      "totalPayments": 213040,
+      "invoiceCount": 54,
+      "paymentCount": 50,
+      "paymentCoveragePercent": 97.66,
+      "hasUnallocatedPaymentSignals": true,
+      "unallocatedSignalDetail": "43 payment(s) with blank notes (Kid-e-Sys receipt export)",
+      "likelyCause": "normalKidESysAllocationGap",
+      "causeConfidence": "medium",
+      "causeDetail": "Both invoices and payments present; age R9500 > ledger R5100 with payment/export skew (unallocatedPaymentPattern).",
+      "section": "Bad Debt",
+      "metrics": {
+        "invoiceSum": 218140,
+        "paymentSum": -213040,
+        "computedLedgerFromTxns": 5100,
+        "variance": 4400,
+        "lifetimeOverpayment": -5100,
+        "crossAccountOutboundPaymentTotal": 0,
+        "crossAccountInboundPaymentTotal": 0,
+        "misPostedTxnCount": 0,
+        "receiptStylePaymentCount": 0,
+        "unallocatedNotePaymentCount": 0,
+        "historicalNoteTxnCount": 5,
+        "duplicateNameAccountNos": [
+          "FRE001"
+        ],
+        "siblingAccountNos": [],
+        "activeLearnerCount": 1,
+        "paymentPatterns": [
+          "unallocatedPaymentPattern"
+        ],
+        "paymentMatchConfidence": "medium"
+      }
+    },
+    {
+      "accountNo": "MAT022",
+      "fullName": "Phemelo Reotshepile Matsheka",
+      "ageAnalysisBalance": 6100,
+      "ledgerBalanceFromImport": 1700,
+      "adjustmentAmount": 4400,
+      "totalInvoices": 151410,
+      "totalPayments": 149710,
+      "invoiceCount": 46,
+      "paymentCount": 49,
+      "paymentCoveragePercent": 98.88,
+      "hasUnallocatedPaymentSignals": true,
+      "unallocatedSignalDetail": "45 payment(s) with blank notes (Kid-e-Sys receipt export)",
+      "likelyCause": "normalKidESysAllocationGap",
+      "causeConfidence": "medium",
+      "causeDetail": "Both invoices and payments present; age R6100 > ledger R1700 with payment/export skew (unallocatedPaymentPattern).",
+      "section": "Bad Debt",
+      "metrics": {
+        "invoiceSum": 151410,
+        "paymentSum": -149710,
+        "computedLedgerFromTxns": 1700,
+        "variance": 4400,
+        "lifetimeOverpayment": -1700,
+        "crossAccountOutboundPaymentTotal": 0,
+        "crossAccountInboundPaymentTotal": 0,
+        "misPostedTxnCount": 0,
+        "receiptStylePaymentCount": 0,
+        "unallocatedNotePaymentCount": 0,
+        "historicalNoteTxnCount": 2,
+        "duplicateNameAccountNos": [
+          "MAT022"
+        ],
+        "siblingAccountNos": [],
+        "activeLearnerCount": 1,
+        "paymentPatterns": [
+          "unallocatedPaymentPattern"
+        ],
+        "paymentMatchConfidence": "medium"
+      }
+    },
+    {
+      "accountNo": "NAS001",
+      "fullName": "Samira Nasere",
+      "ageAnalysisBalance": 7800,
+      "ledgerBalanceFromImport": 3905,
+      "adjustmentAmount": 3895,
+      "totalInvoices": 23750,
+      "totalPayments": 19845,
+      "invoiceCount": 9,
+      "paymentCount": 4,
+      "paymentCoveragePercent": 83.56,
+      "hasUnallocatedPaymentSignals": true,
+      "unallocatedSignalDetail": "3 payment(s) with blank notes (Kid-e-Sys receipt export)",
+      "likelyCause": "normalKidESysAllocationGap",
+      "causeConfidence": "medium",
+      "causeDetail": "Both invoices and payments present; age R7800 > ledger R3905 with payment/export skew (unallocatedPaymentPattern).",
+      "section": "Bad Debt",
+      "metrics": {
+        "invoiceSum": 23750,
+        "paymentSum": -19845,
+        "computedLedgerFromTxns": 3905,
+        "variance": 3895,
+        "lifetimeOverpayment": -3905,
+        "crossAccountOutboundPaymentTotal": 0,
+        "crossAccountInboundPaymentTotal": 0,
+        "misPostedTxnCount": 0,
+        "receiptStylePaymentCount": 0,
+        "unallocatedNotePaymentCount": 0,
+        "historicalNoteTxnCount": 0,
+        "duplicateNameAccountNos": [
+          "NAS001"
+        ],
+        "siblingAccountNos": [],
+        "activeLearnerCount": 1,
+        "paymentPatterns": [
+          "unallocatedPaymentPattern"
+        ],
+        "paymentMatchConfidence": "medium"
+      }
+    },
+    {
+      "accountNo": "MAB011",
+      "fullName": "Thandekile Princess Mabuza",
+      "ageAnalysisBalance": 5000,
+      "ledgerBalanceFromImport": 1240,
+      "adjustmentAmount": 3760,
+      "totalInvoices": 129775,
+      "totalPayments": 128535,
+      "invoiceCount": 54,
+      "paymentCount": 38,
+      "paymentCoveragePercent": 99.04,
+      "hasUnallocatedPaymentSignals": true,
+      "unallocatedSignalDetail": "31 payment(s) with blank notes (Kid-e-Sys receipt export)",
+      "likelyCause": "normalKidESysAllocationGap",
+      "causeConfidence": "medium",
+      "causeDetail": "Both invoices and payments present; age R5000 > ledger R1240 with payment/export skew (unallocatedPaymentPattern).",
+      "section": "Recently Owing",
+      "metrics": {
+        "invoiceSum": 129775,
+        "paymentSum": -128535,
+        "computedLedgerFromTxns": 1240,
+        "variance": 3760,
+        "lifetimeOverpayment": -1240,
+        "crossAccountOutboundPaymentTotal": 0,
+        "crossAccountInboundPaymentTotal": 0,
+        "misPostedTxnCount": 0,
+        "receiptStylePaymentCount": 0,
+        "unallocatedNotePaymentCount": 0,
+        "historicalNoteTxnCount": 1,
+        "duplicateNameAccountNos": [
+          "MAB011"
+        ],
+        "siblingAccountNos": [],
+        "activeLearnerCount": 1,
+        "paymentPatterns": [
+          "unallocatedPaymentPattern"
+        ],
+        "paymentMatchConfidence": "medium"
+      }
+    },
+    {
+      "accountNo": "TLH005",
+      "fullName": "Oletilwe Tlhame",
+      "ageAnalysisBalance": 4350,
+      "ledgerBalanceFromImport": 750,
+      "adjustmentAmount": 3600,
+      "totalInvoices": 166825,
+      "totalPayments": 166075,
+      "invoiceCount": 47,
+      "paymentCount": 43,
+      "paymentCoveragePercent": 99.55,
+      "hasUnallocatedPaymentSignals": true,
+      "unallocatedSignalDetail": "41 payment(s) with blank notes (Kid-e-Sys receipt export)",
+      "likelyCause": "normalKidESysAllocationGap",
+      "causeConfidence": "medium",
+      "causeDetail": "Both invoices and payments present; age R4350 > ledger R750 with payment/export skew (unallocatedPaymentPattern).",
+      "section": "Recently Owing",
+      "metrics": {
+        "invoiceSum": 166825,
+        "paymentSum": -166075,
+        "computedLedgerFromTxns": 750,
+        "variance": 3600,
+        "lifetimeOverpayment": -750,
+        "crossAccountOutboundPaymentTotal": 0,
+        "crossAccountInboundPaymentTotal": 0,
+        "misPostedTxnCount": 0,
+        "receiptStylePaymentCount": 0,
+        "unallocatedNotePaymentCount": 0,
+        "historicalNoteTxnCount": 0,
+        "duplicateNameAccountNos": [
+          "TLH005"
+        ],
+        "siblingAccountNos": [],
+        "activeLearnerCount": 1,
+        "paymentPatterns": [
+          "unallocatedPaymentPattern"
+        ],
+        "paymentMatchConfidence": "medium"
+      }
+    },
+    {
+      "accountNo": "WOL001",
+      "fullName": "Elleliyon Wolebo",
+      "ageAnalysisBalance": 7370,
+      "ledgerBalanceFromImport": 3870,
+      "adjustmentAmount": 3500,
+      "totalInvoices": 123410,
+      "totalPayments": 119540,
+      "invoiceCount": 49,
+      "paymentCount": 51,
+      "paymentCoveragePercent": 96.86,
+      "hasUnallocatedPaymentSignals": true,
+      "unallocatedSignalDetail": "43 payment(s) with blank notes (Kid-e-Sys receipt export)",
+      "likelyCause": "normalKidESysAllocationGap",
+      "causeConfidence": "medium",
+      "causeDetail": "Both invoices and payments present; age R7370 > ledger R3870 with payment/export skew (unallocatedPaymentPattern).",
+      "section": "Bad Debt",
+      "metrics": {
+        "invoiceSum": 123410,
+        "paymentSum": -119540,
+        "computedLedgerFromTxns": 3870,
+        "variance": 3500,
+        "lifetimeOverpayment": -3870,
+        "crossAccountOutboundPaymentTotal": 0,
+        "crossAccountInboundPaymentTotal": 0,
+        "misPostedTxnCount": 0,
+        "receiptStylePaymentCount": 0,
+        "unallocatedNotePaymentCount": 0,
+        "historicalNoteTxnCount": 4,
+        "duplicateNameAccountNos": [
+          "WOL001"
+        ],
+        "siblingAccountNos": [],
+        "activeLearnerCount": 1,
+        "paymentPatterns": [
+          "unallocatedPaymentPattern"
+        ],
+        "paymentMatchConfidence": "medium"
+      }
+    },
+    {
+      "accountNo": "SEP899",
+      "fullName": "Omogolo Sepadile",
+      "ageAnalysisBalance": 3700,
+      "ledgerBalanceFromImport": 500,
+      "adjustmentAmount": 3200,
+      "totalInvoices": 135520,
+      "totalPayments": 135020,
+      "invoiceCount": 51,
+      "paymentCount": 54,
+      "paymentCoveragePercent": 99.63,
+      "hasUnallocatedPaymentSignals": true,
+      "unallocatedSignalDetail": "51 payment(s) with blank notes (Kid-e-Sys receipt export)",
+      "likelyCause": "normalKidESysAllocationGap",
+      "causeConfidence": "medium",
+      "causeDetail": "Both invoices and payments present; age R3700 > ledger R500 with payment/export skew (unallocatedPaymentPattern).",
+      "section": "Bad Debt",
+      "metrics": {
+        "invoiceSum": 135520,
+        "paymentSum": -135020,
+        "computedLedgerFromTxns": 500,
+        "variance": 3200,
+        "lifetimeOverpayment": -500,
+        "crossAccountOutboundPaymentTotal": 0,
+        "crossAccountInboundPaymentTotal": 0,
+        "misPostedTxnCount": 0,
+        "receiptStylePaymentCount": 0,
+        "unallocatedNotePaymentCount": 0,
+        "historicalNoteTxnCount": 1,
+        "duplicateNameAccountNos": [
+          "SEP899"
+        ],
+        "siblingAccountNos": [],
+        "activeLearnerCount": 1,
+        "paymentPatterns": [
+          "unallocatedPaymentPattern"
+        ],
+        "paymentMatchConfidence": "medium"
+      }
+    },
+    {
+      "accountNo": "MAB004",
+      "fullName": "Gosego Mabale",
+      "ageAnalysisBalance": 3700,
+      "ledgerBalanceFromImport": 605,
+      "adjustmentAmount": 3095,
+      "totalInvoices": 132625,
+      "totalPayments": 132020,
+      "invoiceCount": 49,
+      "paymentCount": 56,
+      "paymentCoveragePercent": 99.54,
+      "hasUnallocatedPaymentSignals": true,
+      "unallocatedSignalDetail": "52 payment(s) with blank notes (Kid-e-Sys receipt export)",
+      "likelyCause": "normalKidESysAllocationGap",
+      "causeConfidence": "medium",
+      "causeDetail": "Both invoices and payments present; age R3700 > ledger R605 with payment/export skew (unallocatedPaymentPattern).",
+      "section": "Recently Owing",
+      "metrics": {
+        "invoiceSum": 132625,
+        "paymentSum": -132020,
+        "computedLedgerFromTxns": 605,
+        "variance": 3095,
+        "lifetimeOverpayment": -605,
+        "crossAccountOutboundPaymentTotal": 0,
+        "crossAccountInboundPaymentTotal": 0,
+        "misPostedTxnCount": 0,
+        "receiptStylePaymentCount": 0,
+        "unallocatedNotePaymentCount": 0,
+        "historicalNoteTxnCount": 1,
+        "duplicateNameAccountNos": [
+          "MAB004"
+        ],
+        "siblingAccountNos": [],
+        "activeLearnerCount": 1,
+        "paymentPatterns": [
+          "unallocatedPaymentPattern"
+        ],
+        "paymentMatchConfidence": "medium"
+      }
+    },
+    {
+      "accountNo": "KHU005",
+      "fullName": "Elethu Entle Khunou",
+      "ageAnalysisBalance": 3550,
+      "ledgerBalanceFromImport": 500,
+      "adjustmentAmount": 3050,
+      "totalInvoices": 159545,
+      "totalPayments": 159045,
+      "invoiceCount": 46,
+      "paymentCount": 50,
+      "paymentCoveragePercent": 99.69,
+      "hasUnallocatedPaymentSignals": true,
+      "unallocatedSignalDetail": "46 payment(s) with blank notes (Kid-e-Sys receipt export)",
+      "likelyCause": "normalKidESysAllocationGap",
+      "causeConfidence": "medium",
+      "causeDetail": "Both invoices and payments present; age R3550 > ledger R500 with payment/export skew (unallocatedPaymentPattern).",
+      "section": "Recently Owing",
+      "metrics": {
+        "invoiceSum": 159545,
+        "paymentSum": -159045,
+        "computedLedgerFromTxns": 500,
+        "variance": 3050,
+        "lifetimeOverpayment": -500,
+        "crossAccountOutboundPaymentTotal": 0,
+        "crossAccountInboundPaymentTotal": 0,
+        "misPostedTxnCount": 0,
+        "receiptStylePaymentCount": 0,
+        "unallocatedNotePaymentCount": 0,
+        "historicalNoteTxnCount": 0,
+        "duplicateNameAccountNos": [
+          "KHU005"
+        ],
+        "siblingAccountNos": [],
+        "activeLearnerCount": 1,
+        "paymentPatterns": [
+          "unallocatedPaymentPattern"
+        ],
+        "paymentMatchConfidence": "medium"
+      }
+    },
+    {
+      "accountNo": "GEB002",
+      "fullName": "Benyis Geber",
+      "ageAnalysisBalance": 3700,
+      "ledgerBalanceFromImport": 700,
+      "adjustmentAmount": 3000,
+      "totalInvoices": 148710,
+      "totalPayments": 148010,
+      "invoiceCount": 44,
+      "paymentCount": 48,
+      "paymentCoveragePercent": 99.53,
+      "hasUnallocatedPaymentSignals": true,
+      "unallocatedSignalDetail": "43 payment(s) with blank notes (Kid-e-Sys receipt export)",
+      "likelyCause": "normalKidESysAllocationGap",
+      "causeConfidence": "medium",
+      "causeDetail": "Both invoices and payments present; age R3700 > ledger R700 with payment/export skew (unallocatedPaymentPattern).",
+      "section": "Recently Owing",
+      "metrics": {
+        "invoiceSum": 148710,
+        "paymentSum": -148010,
+        "computedLedgerFromTxns": 700,
+        "variance": 3000,
+        "lifetimeOverpayment": -700,
+        "crossAccountOutboundPaymentTotal": 0,
+        "crossAccountInboundPaymentTotal": 0,
+        "misPostedTxnCount": 0,
+        "receiptStylePaymentCount": 0,
+        "unallocatedNotePaymentCount": 0,
+        "historicalNoteTxnCount": 1,
+        "duplicateNameAccountNos": [
+          "GEB002"
+        ],
+        "siblingAccountNos": [],
+        "activeLearnerCount": 1,
+        "paymentPatterns": [
+          "unallocatedPaymentPattern"
+        ],
+        "paymentMatchConfidence": "medium"
+      }
+    },
+    {
+      "accountNo": "BUY001",
+      "fullName": "Kim Omontle Buys",
+      "ageAnalysisBalance": 2900,
+      "ledgerBalanceFromImport": 150,
+      "adjustmentAmount": 2750,
+      "totalInvoices": 134820,
+      "totalPayments": 134670,
+      "invoiceCount": 47,
+      "paymentCount": 55,
+      "paymentCoveragePercent": 99.89,
+      "hasUnallocatedPaymentSignals": true,
+      "unallocatedSignalDetail": "51 payment(s) with blank notes (Kid-e-Sys receipt export)",
+      "likelyCause": "normalKidESysAllocationGap",
+      "causeConfidence": "medium",
+      "causeDetail": "Both invoices and payments present; age R2900 > ledger R150 with payment/export skew (unallocatedPaymentPattern).",
+      "section": "Recently Owing",
+      "metrics": {
+        "invoiceSum": 134820,
+        "paymentSum": -134670,
+        "computedLedgerFromTxns": 150,
+        "variance": 2750,
+        "lifetimeOverpayment": -150,
+        "crossAccountOutboundPaymentTotal": 0,
+        "crossAccountInboundPaymentTotal": 0,
+        "misPostedTxnCount": 0,
+        "receiptStylePaymentCount": 0,
+        "unallocatedNotePaymentCount": 0,
+        "historicalNoteTxnCount": 3,
+        "duplicateNameAccountNos": [
+          "BUY001"
+        ],
+        "siblingAccountNos": [],
+        "activeLearnerCount": 1,
+        "paymentPatterns": [
+          "unallocatedPaymentPattern"
+        ],
+        "paymentMatchConfidence": "medium"
+      }
+    },
+    {
+      "accountNo": "GAA001",
+      "fullName": "Didintle Nyeko Gaasenwe",
+      "ageAnalysisBalance": 3500,
+      "ledgerBalanceFromImport": 750,
+      "adjustmentAmount": 2750,
+      "totalInvoices": 142510,
+      "totalPayments": 141760,
+      "invoiceCount": 43,
+      "paymentCount": 46,
+      "paymentCoveragePercent": 99.47,
+      "hasUnallocatedPaymentSignals": true,
+      "unallocatedSignalDetail": "44 payment(s) with blank notes (Kid-e-Sys receipt export)",
+      "likelyCause": "normalKidESysAllocationGap",
+      "causeConfidence": "medium",
+      "causeDetail": "Both invoices and payments present; age R3500 > ledger R750 with payment/export skew (unallocatedPaymentPattern).",
+      "section": "Recently Owing",
+      "metrics": {
+        "invoiceSum": 142510,
+        "paymentSum": -141760,
+        "computedLedgerFromTxns": 750,
+        "variance": 2750,
+        "lifetimeOverpayment": -750,
+        "crossAccountOutboundPaymentTotal": 0,
+        "crossAccountInboundPaymentTotal": 0,
+        "misPostedTxnCount": 0,
+        "receiptStylePaymentCount": 0,
+        "unallocatedNotePaymentCount": 0,
+        "historicalNoteTxnCount": 0,
+        "duplicateNameAccountNos": [
+          "GAA001"
+        ],
+        "siblingAccountNos": [],
+        "activeLearnerCount": 1,
+        "paymentPatterns": [
+          "unallocatedPaymentPattern"
+        ],
+        "paymentMatchConfidence": "medium"
+      }
+    },
+    {
+      "accountNo": "KOR001",
+      "fullName": "Dagimawit Korabza",
+      "ageAnalysisBalance": 6860,
+      "ledgerBalanceFromImport": 4110,
+      "adjustmentAmount": 2750,
+      "totalInvoices": 123510,
+      "totalPayments": 119400,
+      "invoiceCount": 43,
+      "paymentCount": 37,
+      "paymentCoveragePercent": 96.67,
+      "hasUnallocatedPaymentSignals": true,
+      "unallocatedSignalDetail": "32 payment(s) with blank notes (Kid-e-Sys receipt export)",
+      "likelyCause": "normalKidESysAllocationGap",
+      "causeConfidence": "medium",
+      "causeDetail": "Both invoices and payments present; age R6860 > ledger R4110 with payment/export skew (unallocatedPaymentPattern).",
+      "section": "Bad Debt",
+      "metrics": {
+        "invoiceSum": 123510,
+        "paymentSum": -119400,
+        "computedLedgerFromTxns": 4110,
+        "variance": 2750,
+        "lifetimeOverpayment": -4110,
+        "crossAccountOutboundPaymentTotal": 0,
+        "crossAccountInboundPaymentTotal": 0,
+        "misPostedTxnCount": 0,
+        "receiptStylePaymentCount": 0,
+        "unallocatedNotePaymentCount": 0,
+        "historicalNoteTxnCount": 4,
+        "duplicateNameAccountNos": [
+          "KOR001"
+        ],
+        "siblingAccountNos": [],
+        "activeLearnerCount": 1,
+        "paymentPatterns": [
+          "unallocatedPaymentPattern"
+        ],
+        "paymentMatchConfidence": "medium"
+      }
+    },
+    {
+      "accountNo": "MOD010",
+      "fullName": "Reatlegile Modibedi",
+      "ageAnalysisBalance": 6200,
+      "ledgerBalanceFromImport": 3450,
+      "adjustmentAmount": 2750,
+      "totalInvoices": 146910,
+      "totalPayments": 143460,
+      "invoiceCount": 49,
+      "paymentCount": 53,
+      "paymentCoveragePercent": 97.65,
+      "hasUnallocatedPaymentSignals": true,
+      "unallocatedSignalDetail": "48 payment(s) with blank notes (Kid-e-Sys receipt export)",
+      "likelyCause": "normalKidESysAllocationGap",
+      "causeConfidence": "medium",
+      "causeDetail": "Both invoices and payments present; age R6200 > ledger R3450 with payment/export skew (unallocatedPaymentPattern).",
+      "section": "Recently Owing",
+      "metrics": {
+        "invoiceSum": 146910,
+        "paymentSum": -143460,
+        "computedLedgerFromTxns": 3450,
+        "variance": 2750,
+        "lifetimeOverpayment": -3450,
+        "crossAccountOutboundPaymentTotal": 0,
+        "crossAccountInboundPaymentTotal": 0,
+        "misPostedTxnCount": 0,
+        "receiptStylePaymentCount": 0,
+        "unallocatedNotePaymentCount": 0,
+        "historicalNoteTxnCount": 2,
+        "duplicateNameAccountNos": [
+          "MOD010"
+        ],
+        "siblingAccountNos": [],
+        "activeLearnerCount": 1,
+        "paymentPatterns": [
+          "unallocatedPaymentPattern"
+        ],
+        "paymentMatchConfidence": "medium"
+      }
+    },
+    {
+      "accountNo": "MOS009",
+      "fullName": "Wandile Mosito",
+      "ageAnalysisBalance": 3700,
+      "ledgerBalanceFromImport": 950,
+      "adjustmentAmount": 2750,
+      "totalInvoices": 130710,
+      "totalPayments": 129760,
+      "invoiceCount": 46,
+      "paymentCount": 66,
+      "paymentCoveragePercent": 99.27,
+      "hasUnallocatedPaymentSignals": true,
+      "unallocatedSignalDetail": "61 payment(s) with blank notes (Kid-e-Sys receipt export)",
+      "likelyCause": "normalKidESysAllocationGap",
+      "causeConfidence": "medium",
+      "causeDetail": "Both invoices and payments present; age R3700 > ledger R950 with payment/export skew (unallocatedPaymentPattern).",
+      "section": "Recently Owing",
+      "metrics": {
+        "invoiceSum": 130710,
+        "paymentSum": -129760,
+        "computedLedgerFromTxns": 950,
+        "variance": 2750,
+        "lifetimeOverpayment": -950,
+        "crossAccountOutboundPaymentTotal": 0,
+        "crossAccountInboundPaymentTotal": 0,
+        "misPostedTxnCount": 0,
+        "receiptStylePaymentCount": 0,
+        "unallocatedNotePaymentCount": 0,
+        "historicalNoteTxnCount": 1,
+        "duplicateNameAccountNos": [
+          "MOS009"
+        ],
+        "siblingAccountNos": [],
+        "activeLearnerCount": 1,
+        "paymentPatterns": [
+          "unallocatedPaymentPattern"
+        ],
+        "paymentMatchConfidence": "medium"
+      }
+    },
+    {
+      "accountNo": "MOT016",
+      "fullName": "Thoriso Mothibedi",
+      "ageAnalysisBalance": 3000,
+      "ledgerBalanceFromImport": 250,
+      "adjustmentAmount": 2750,
+      "totalInvoices": 123910,
+      "totalPayments": 123660,
+      "invoiceCount": 42,
+      "paymentCount": 44,
+      "paymentCoveragePercent": 99.8,
+      "hasUnallocatedPaymentSignals": true,
+      "unallocatedSignalDetail": "42 payment(s) with blank notes (Kid-e-Sys receipt export)",
+      "likelyCause": "normalKidESysAllocationGap",
+      "causeConfidence": "medium",
+      "causeDetail": "Both invoices and payments present; age R3000 > ledger R250 with payment/export skew (unallocatedPaymentPattern).",
+      "section": "Recently Owing",
+      "metrics": {
+        "invoiceSum": 123910,
+        "paymentSum": -123660,
+        "computedLedgerFromTxns": 250,
+        "variance": 2750,
+        "lifetimeOverpayment": -250,
+        "crossAccountOutboundPaymentTotal": 0,
+        "crossAccountInboundPaymentTotal": 0,
+        "misPostedTxnCount": 0,
+        "receiptStylePaymentCount": 0,
+        "unallocatedNotePaymentCount": 0,
+        "historicalNoteTxnCount": 1,
+        "duplicateNameAccountNos": [
+          "MOT016"
+        ],
+        "siblingAccountNos": [],
+        "activeLearnerCount": 1,
+        "paymentPatterns": [
+          "unallocatedPaymentPattern"
+        ],
+        "paymentMatchConfidence": "medium"
+      }
+    },
+    {
+      "accountNo": "NTS008",
+      "fullName": "Inkosinam Ntshanga",
+      "ageAnalysisBalance": 3950,
+      "ledgerBalanceFromImport": 1200,
+      "adjustmentAmount": 2750,
+      "totalInvoices": 172490,
+      "totalPayments": 171290,
+      "invoiceCount": 54,
+      "paymentCount": 56,
+      "paymentCoveragePercent": 99.3,
+      "hasUnallocatedPaymentSignals": true,
+      "unallocatedSignalDetail": "51 payment(s) with blank notes (Kid-e-Sys receipt export)",
+      "likelyCause": "normalKidESysAllocationGap",
+      "causeConfidence": "medium",
+      "causeDetail": "Both invoices and payments present; age R3950 > ledger R1200 with payment/export skew (unallocatedPaymentPattern).",
+      "section": "Recently Owing",
+      "metrics": {
+        "invoiceSum": 172490,
+        "paymentSum": -171290,
+        "computedLedgerFromTxns": 1200,
+        "variance": 2750,
+        "lifetimeOverpayment": -1200,
+        "crossAccountOutboundPaymentTotal": 0,
+        "crossAccountInboundPaymentTotal": 0,
+        "misPostedTxnCount": 0,
+        "receiptStylePaymentCount": 0,
+        "unallocatedNotePaymentCount": 0,
+        "historicalNoteTxnCount": 3,
+        "duplicateNameAccountNos": [
+          "NTS008"
+        ],
+        "siblingAccountNos": [],
+        "activeLearnerCount": 1,
+        "paymentPatterns": [
+          "unallocatedPaymentPattern"
+        ],
+        "paymentMatchConfidence": "medium"
+      }
+    },
+    {
+      "accountNo": "SEN959",
+      "fullName": "Tshiamo Will Senne",
+      "ageAnalysisBalance": 3000,
+      "ledgerBalanceFromImport": 250,
+      "adjustmentAmount": 2750,
+      "totalInvoices": 137075,
+      "totalPayments": 136825,
+      "invoiceCount": 47,
+      "paymentCount": 41,
+      "paymentCoveragePercent": 99.82,
+      "hasUnallocatedPaymentSignals": true,
+      "unallocatedSignalDetail": "38 payment(s) with blank notes (Kid-e-Sys receipt export)",
+      "likelyCause": "normalKidESysAllocationGap",
+      "causeConfidence": "medium",
+      "causeDetail": "Both invoices and payments present; age R3000 > ledger R250 with payment/export skew (unallocatedPaymentPattern).",
+      "section": "Recently Owing",
+      "metrics": {
+        "invoiceSum": 137075,
+        "paymentSum": -136825,
+        "computedLedgerFromTxns": 250,
+        "variance": 2750,
+        "lifetimeOverpayment": -250,
+        "crossAccountOutboundPaymentTotal": 0,
+        "crossAccountInboundPaymentTotal": 0,
+        "misPostedTxnCount": 0,
+        "receiptStylePaymentCount": 0,
+        "unallocatedNotePaymentCount": 0,
+        "historicalNoteTxnCount": 1,
+        "duplicateNameAccountNos": [
+          "SEN959"
+        ],
+        "siblingAccountNos": [],
+        "activeLearnerCount": 1,
+        "paymentPatterns": [
+          "unallocatedPaymentPattern"
+        ],
+        "paymentMatchConfidence": "medium"
+      }
+    },
+    {
+      "accountNo": "TAK001",
+      "fullName": "Kagiso Unathi Takata",
+      "ageAnalysisBalance": 6800,
+      "ledgerBalanceFromImport": 4050,
+      "adjustmentAmount": 2750,
+      "totalInvoices": 125660,
+      "totalPayments": 121610,
+      "invoiceCount": 44,
+      "paymentCount": 45,
+      "paymentCoveragePercent": 96.78,
+      "hasUnallocatedPaymentSignals": true,
+      "unallocatedSignalDetail": "1 receipt-style payment note(s); 42 payment(s) with blank notes (Kid-e-Sys receipt export)",
+      "likelyCause": "normalKidESysAllocationGap",
+      "causeConfidence": "medium",
+      "causeDetail": "Both invoices and payments present; age R6800 > ledger R4050 with payment/export skew (unallocatedPaymentPattern).",
+      "section": "Bad Debt",
+      "metrics": {
+        "invoiceSum": 125660,
+        "paymentSum": -121610,
+        "computedLedgerFromTxns": 4050,
+        "variance": 2750,
+        "lifetimeOverpayment": -4050,
+        "crossAccountOutboundPaymentTotal": 0,
+        "crossAccountInboundPaymentTotal": 0,
+        "misPostedTxnCount": 0,
+        "receiptStylePaymentCount": 1,
+        "unallocatedNotePaymentCount": 0,
+        "historicalNoteTxnCount": 0,
+        "duplicateNameAccountNos": [
+          "TAK001"
+        ],
+        "siblingAccountNos": [],
+        "activeLearnerCount": 1,
+        "paymentPatterns": [
+          "unallocatedPaymentPattern"
+        ],
+        "paymentMatchConfidence": "medium"
+      }
+    },
+    {
+      "accountNo": "VUT001",
+      "fullName": "Vutlhari Botake",
+      "ageAnalysisBalance": 3850,
+      "ledgerBalanceFromImport": 1100,
+      "adjustmentAmount": 2750,
+      "totalInvoices": 139525,
+      "totalPayments": 138425,
+      "invoiceCount": 44,
+      "paymentCount": 46,
+      "paymentCoveragePercent": 99.21,
+      "hasUnallocatedPaymentSignals": true,
+      "unallocatedSignalDetail": "45 payment(s) with blank notes (Kid-e-Sys receipt export)",
+      "likelyCause": "normalKidESysAllocationGap",
+      "causeConfidence": "medium",
+      "causeDetail": "Both invoices and payments present; age R3850 > ledger R1100 with payment/export skew (unallocatedPaymentPattern).",
+      "section": "Recently Owing",
+      "metrics": {
+        "invoiceSum": 139525,
+        "paymentSum": -138425,
+        "computedLedgerFromTxns": 1100,
+        "variance": 2750,
+        "lifetimeOverpayment": -1100,
+        "crossAccountOutboundPaymentTotal": 0,
+        "crossAccountInboundPaymentTotal": 0,
+        "misPostedTxnCount": 0,
+        "receiptStylePaymentCount": 0,
+        "unallocatedNotePaymentCount": 0,
+        "historicalNoteTxnCount": 0,
+        "duplicateNameAccountNos": [
+          "VUT001"
+        ],
+        "siblingAccountNos": [],
+        "activeLearnerCount": 1,
+        "paymentPatterns": [
+          "unallocatedPaymentPattern"
+        ],
+        "paymentMatchConfidence": "medium"
+      }
+    },
+    {
+      "accountNo": "THO004",
+      "fullName": "Ofentse Koketso Thompo",
+      "ageAnalysisBalance": 4000,
+      "ledgerBalanceFromImport": 1320,
+      "adjustmentAmount": 2680,
+      "totalInvoices": 166505,
+      "totalPayments": 165185,
+      "invoiceCount": 48,
+      "paymentCount": 52,
+      "paymentCoveragePercent": 99.21,
+      "hasUnallocatedPaymentSignals": true,
+      "unallocatedSignalDetail": "48 payment(s) with blank notes (Kid-e-Sys receipt export)",
+      "likelyCause": "normalKidESysAllocationGap",
+      "causeConfidence": "medium",
+      "causeDetail": "Both invoices and payments present; age R4000 > ledger R1320 with payment/export skew (unallocatedPaymentPattern).",
+      "section": "Recently Owing",
+      "metrics": {
+        "invoiceSum": 166505,
+        "paymentSum": -165185,
+        "computedLedgerFromTxns": 1320,
+        "variance": 2680,
+        "lifetimeOverpayment": -1320,
+        "crossAccountOutboundPaymentTotal": 0,
+        "crossAccountInboundPaymentTotal": 0,
+        "misPostedTxnCount": 0,
+        "receiptStylePaymentCount": 0,
+        "unallocatedNotePaymentCount": 0,
+        "historicalNoteTxnCount": 0,
+        "duplicateNameAccountNos": [
+          "THO004"
+        ],
+        "siblingAccountNos": [],
+        "activeLearnerCount": 1,
+        "paymentPatterns": [
+          "unallocatedPaymentPattern"
+        ],
+        "paymentMatchConfidence": "medium"
+      }
+    },
+    {
+      "accountNo": "SER001",
+      "fullName": "Oletilwe Serutle",
+      "ageAnalysisBalance": 3700,
+      "ledgerBalanceFromImport": 1150,
+      "adjustmentAmount": 2550,
+      "totalInvoices": 131110,
+      "totalPayments": 129960,
+      "invoiceCount": 45,
+      "paymentCount": 53,
+      "paymentCoveragePercent": 99.12,
+      "hasUnallocatedPaymentSignals": true,
+      "unallocatedSignalDetail": "47 payment(s) with blank notes (Kid-e-Sys receipt export)",
+      "likelyCause": "normalKidESysAllocationGap",
+      "causeConfidence": "medium",
+      "causeDetail": "Both invoices and payments present; age R3700 > ledger R1150 with payment/export skew (unallocatedPaymentPattern).",
+      "section": "Bad Debt",
+      "metrics": {
+        "invoiceSum": 131110,
+        "paymentSum": -129960,
+        "computedLedgerFromTxns": 1150,
+        "variance": 2550,
+        "lifetimeOverpayment": -1150,
+        "crossAccountOutboundPaymentTotal": 0,
+        "crossAccountInboundPaymentTotal": 0,
+        "misPostedTxnCount": 0,
+        "receiptStylePaymentCount": 0,
+        "unallocatedNotePaymentCount": 0,
+        "historicalNoteTxnCount": 2,
+        "duplicateNameAccountNos": [
+          "SER001"
+        ],
+        "siblingAccountNos": [],
+        "activeLearnerCount": 1,
+        "paymentPatterns": [
+          "unallocatedPaymentPattern"
+        ],
+        "paymentMatchConfidence": "medium"
+      }
+    },
+    {
+      "accountNo": "KAL001",
+      "fullName": "Bohlokwa Kalosane",
+      "ageAnalysisBalance": 4500,
+      "ledgerBalanceFromImport": 2100,
+      "adjustmentAmount": 2400,
+      "totalInvoices": 194320,
+      "totalPayments": 192220,
+      "invoiceCount": 49,
+      "paymentCount": 68,
+      "paymentCoveragePercent": 98.92,
+      "hasUnallocatedPaymentSignals": true,
+      "unallocatedSignalDetail": "63 payment(s) with blank notes (Kid-e-Sys receipt export)",
+      "likelyCause": "normalKidESysAllocationGap",
+      "causeConfidence": "medium",
+      "causeDetail": "Both invoices and payments present; age R4500 > ledger R2100 with payment/export skew (unallocatedPaymentPattern).",
+      "section": "Recently Owing",
+      "metrics": {
+        "invoiceSum": 194320,
+        "paymentSum": -192220,
+        "computedLedgerFromTxns": 2100,
+        "variance": 2400,
+        "lifetimeOverpayment": -2100,
+        "crossAccountOutboundPaymentTotal": 0,
+        "crossAccountInboundPaymentTotal": 0,
+        "misPostedTxnCount": 0,
+        "receiptStylePaymentCount": 0,
+        "unallocatedNotePaymentCount": 0,
+        "historicalNoteTxnCount": 1,
+        "duplicateNameAccountNos": [
+          "KAL001"
+        ],
+        "siblingAccountNos": [],
+        "activeLearnerCount": 1,
+        "paymentPatterns": [
+          "unallocatedPaymentPattern"
+        ],
+        "paymentMatchConfidence": "medium"
+      }
+    },
+    {
+      "accountNo": "MOL020",
+      "fullName": "Rekgabile Molefe",
+      "ageAnalysisBalance": 3700,
+      "ledgerBalanceFromImport": 1350,
+      "adjustmentAmount": 2350,
+      "totalInvoices": 119985,
+      "totalPayments": 118635,
+      "invoiceCount": 48,
+      "paymentCount": 55,
+      "paymentCoveragePercent": 98.87,
+      "hasUnallocatedPaymentSignals": true,
+      "unallocatedSignalDetail": "53 payment(s) with blank notes (Kid-e-Sys receipt export)",
+      "likelyCause": "normalKidESysAllocationGap",
+      "causeConfidence": "medium",
+      "causeDetail": "Both invoices and payments present; age R3700 > ledger R1350 with payment/export skew (unallocatedPaymentPattern).",
+      "section": "Recently Owing",
+      "metrics": {
+        "invoiceSum": 119985,
+        "paymentSum": -118635,
+        "computedLedgerFromTxns": 1350,
+        "variance": 2350,
+        "lifetimeOverpayment": -1350,
+        "crossAccountOutboundPaymentTotal": 0,
+        "crossAccountInboundPaymentTotal": 0,
+        "misPostedTxnCount": 0,
+        "receiptStylePaymentCount": 0,
+        "unallocatedNotePaymentCount": 0,
+        "historicalNoteTxnCount": 1,
+        "duplicateNameAccountNos": [
+          "MOL020"
+        ],
+        "siblingAccountNos": [],
+        "activeLearnerCount": 1,
+        "paymentPatterns": [
+          "unallocatedPaymentPattern"
+        ],
+        "paymentMatchConfidence": "medium"
+      }
+    },
+    {
+      "accountNo": "MOG013",
+      "fullName": "Chantelle Otlotleng Mogafe",
+      "ageAnalysisBalance": 6800,
+      "ledgerBalanceFromImport": 4550,
+      "adjustmentAmount": 2250,
+      "totalInvoices": 138360,
+      "totalPayments": 133810,
+      "invoiceCount": 45,
+      "paymentCount": 60,
+      "paymentCoveragePercent": 96.71,
+      "hasUnallocatedPaymentSignals": true,
+      "unallocatedSignalDetail": "55 payment(s) with blank notes (Kid-e-Sys receipt export)",
+      "likelyCause": "normalKidESysAllocationGap",
+      "causeConfidence": "medium",
+      "causeDetail": "Both invoices and payments present; age R6800 > ledger R4550 with payment/export skew (unallocatedPaymentPattern).",
+      "section": "Bad Debt",
+      "metrics": {
+        "invoiceSum": 138360,
+        "paymentSum": -133810,
+        "computedLedgerFromTxns": 4550,
+        "variance": 2250,
+        "lifetimeOverpayment": -4550,
+        "crossAccountOutboundPaymentTotal": 0,
+        "crossAccountInboundPaymentTotal": 0,
+        "misPostedTxnCount": 0,
+        "receiptStylePaymentCount": 0,
+        "unallocatedNotePaymentCount": 0,
+        "historicalNoteTxnCount": 4,
+        "duplicateNameAccountNos": [
+          "MOG013"
+        ],
+        "siblingAccountNos": [],
+        "activeLearnerCount": 1,
+        "paymentPatterns": [
+          "unallocatedPaymentPattern"
+        ],
+        "paymentMatchConfidence": "medium"
+      }
+    },
+    {
+      "accountNo": "WIL002",
+      "fullName": "Rishon Kyle Williams",
+      "ageAnalysisBalance": 3150,
+      "ledgerBalanceFromImport": 900,
+      "adjustmentAmount": 2250,
+      "totalInvoices": 160260,
+      "totalPayments": 159360,
+      "invoiceCount": 44,
+      "paymentCount": 43,
+      "paymentCoveragePercent": 99.44,
+      "hasUnallocatedPaymentSignals": true,
+      "unallocatedSignalDetail": "42 payment(s) with blank notes (Kid-e-Sys receipt export)",
+      "likelyCause": "normalKidESysAllocationGap",
+      "causeConfidence": "medium",
+      "causeDetail": "Both invoices and payments present; age R3150 > ledger R900 with payment/export skew (unallocatedPaymentPattern).",
+      "section": "Recently Owing",
+      "metrics": {
+        "invoiceSum": 160260,
+        "paymentSum": -159360,
+        "computedLedgerFromTxns": 900,
+        "variance": 2250,
+        "lifetimeOverpayment": -900,
+        "crossAccountOutboundPaymentTotal": 0,
+        "crossAccountInboundPaymentTotal": 0,
+        "misPostedTxnCount": 0,
+        "receiptStylePaymentCount": 0,
+        "unallocatedNotePaymentCount": 0,
+        "historicalNoteTxnCount": 0,
+        "duplicateNameAccountNos": [
+          "WIL002"
+        ],
+        "siblingAccountNos": [],
+        "activeLearnerCount": 1,
+        "paymentPatterns": [
+          "unallocatedPaymentPattern"
+        ],
+        "paymentMatchConfidence": "medium"
+      }
+    },
+    {
+      "accountNo": "NZI001",
+      "fullName": "Amantle Nzimande",
+      "ageAnalysisBalance": 3700,
+      "ledgerBalanceFromImport": 1470,
+      "adjustmentAmount": 2230,
+      "totalInvoices": 132620,
+      "totalPayments": 131150,
+      "invoiceCount": 53,
+      "paymentCount": 57,
+      "paymentCoveragePercent": 98.89,
+      "hasUnallocatedPaymentSignals": true,
+      "unallocatedSignalDetail": "53 payment(s) with blank notes (Kid-e-Sys receipt export)",
+      "likelyCause": "normalKidESysAllocationGap",
+      "causeConfidence": "medium",
+      "causeDetail": "Both invoices and payments present; age R3700 > ledger R1470 with payment/export skew (unallocatedPaymentPattern).",
+      "section": "Recently Owing",
+      "metrics": {
+        "invoiceSum": 132620,
+        "paymentSum": -131150,
+        "computedLedgerFromTxns": 1470,
+        "variance": 2230,
+        "lifetimeOverpayment": -1470,
+        "crossAccountOutboundPaymentTotal": 0,
+        "crossAccountInboundPaymentTotal": 0,
+        "misPostedTxnCount": 0,
+        "receiptStylePaymentCount": 0,
+        "unallocatedNotePaymentCount": 0,
+        "historicalNoteTxnCount": 0,
+        "duplicateNameAccountNos": [
+          "NZI001"
+        ],
+        "siblingAccountNos": [],
+        "activeLearnerCount": 1,
+        "paymentPatterns": [
+          "unallocatedPaymentPattern"
+        ],
+        "paymentMatchConfidence": "medium"
+      }
+    },
+    {
+      "accountNo": "DIK001",
+      "fullName": "Sinenhlanhla Dikana Iviwe",
+      "ageAnalysisBalance": 4200,
+      "ledgerBalanceFromImport": 2000,
+      "adjustmentAmount": 2200,
+      "totalInvoices": 120645,
+      "totalPayments": 118645,
+      "invoiceCount": 55,
+      "paymentCount": 36,
+      "paymentCoveragePercent": 98.34,
+      "hasUnallocatedPaymentSignals": true,
+      "unallocatedSignalDetail": "32 payment(s) with blank notes (Kid-e-Sys receipt export)",
+      "likelyCause": "normalKidESysAllocationGap",
+      "causeConfidence": "medium",
+      "causeDetail": "Both invoices and payments present; age R4200 > ledger R2000 with payment/export skew (unallocatedPaymentPattern).",
+      "section": "Recently Owing",
+      "metrics": {
+        "invoiceSum": 120645,
+        "paymentSum": -118645,
+        "computedLedgerFromTxns": 2000,
+        "variance": 2200,
+        "lifetimeOverpayment": -2000,
+        "crossAccountOutboundPaymentTotal": 0,
+        "crossAccountInboundPaymentTotal": 0,
+        "misPostedTxnCount": 0,
+        "receiptStylePaymentCount": 0,
+        "unallocatedNotePaymentCount": 0,
+        "historicalNoteTxnCount": 2,
+        "duplicateNameAccountNos": [
+          "DIK001"
+        ],
+        "siblingAccountNos": [],
+        "activeLearnerCount": 1,
+        "paymentPatterns": [
+          "unallocatedPaymentPattern"
+        ],
+        "paymentMatchConfidence": "medium"
+      }
+    },
+    {
+      "accountNo": "KGO002",
+      "fullName": "Warona Kgonothi",
+      "ageAnalysisBalance": 3696,
+      "ledgerBalanceFromImport": 1496,
+      "adjustmentAmount": 2200,
+      "totalInvoices": 125895,
+      "totalPayments": 124399,
+      "invoiceCount": 51,
+      "paymentCount": 59,
+      "paymentCoveragePercent": 98.81,
+      "hasUnallocatedPaymentSignals": true,
+      "unallocatedSignalDetail": "55 payment(s) with blank notes (Kid-e-Sys receipt export)",
+      "likelyCause": "normalKidESysAllocationGap",
+      "causeConfidence": "medium",
+      "causeDetail": "Both invoices and payments present; age R3696 > ledger R1496 with payment/export skew (unallocatedPaymentPattern).",
+      "section": "Bad Debt",
+      "metrics": {
+        "invoiceSum": 125895,
+        "paymentSum": -124399,
+        "computedLedgerFromTxns": 1496,
+        "variance": 2200,
+        "lifetimeOverpayment": -1496,
+        "crossAccountOutboundPaymentTotal": 0,
+        "crossAccountInboundPaymentTotal": 0,
+        "misPostedTxnCount": 0,
+        "receiptStylePaymentCount": 0,
+        "unallocatedNotePaymentCount": 0,
+        "historicalNoteTxnCount": 0,
+        "duplicateNameAccountNos": [
+          "KGO002"
+        ],
+        "siblingAccountNos": [],
+        "activeLearnerCount": 1,
+        "paymentPatterns": [
+          "unallocatedPaymentPattern"
+        ],
+        "paymentMatchConfidence": "medium"
+      }
+    },
+    {
+      "accountNo": "KOB001",
+      "fullName": "Njabulo Kobo",
+      "ageAnalysisBalance": 2350,
+      "ledgerBalanceFromImport": 150,
+      "adjustmentAmount": 2200,
+      "totalInvoices": 134710,
+      "totalPayments": 134560,
+      "invoiceCount": 47,
+      "paymentCount": 50,
+      "paymentCoveragePercent": 99.89,
+      "hasUnallocatedPaymentSignals": true,
+      "unallocatedSignalDetail": "45 payment(s) with blank notes (Kid-e-Sys receipt export)",
+      "likelyCause": "normalKidESysAllocationGap",
+      "causeConfidence": "medium",
+      "causeDetail": "Both invoices and payments present; age R2350 > ledger R150 with payment/export skew (unallocatedPaymentPattern).",
+      "section": "Recently Owing",
+      "metrics": {
+        "invoiceSum": 134710,
+        "paymentSum": -134560,
+        "computedLedgerFromTxns": 150,
+        "variance": 2200,
+        "lifetimeOverpayment": -150,
+        "crossAccountOutboundPaymentTotal": 0,
+        "crossAccountInboundPaymentTotal": 0,
+        "misPostedTxnCount": 0,
+        "receiptStylePaymentCount": 0,
+        "unallocatedNotePaymentCount": 0,
+        "historicalNoteTxnCount": 3,
+        "duplicateNameAccountNos": [
+          "KOB001"
+        ],
+        "siblingAccountNos": [],
+        "activeLearnerCount": 1,
+        "paymentPatterns": [
+          "unallocatedPaymentPattern"
+        ],
+        "paymentMatchConfidence": "medium"
+      }
+    },
+    {
+      "accountNo": "MAK013",
+      "fullName": "Rethabile Roland Makgae",
+      "ageAnalysisBalance": 10750,
+      "ledgerBalanceFromImport": 8550,
+      "adjustmentAmount": 2200,
+      "totalInvoices": 129250,
+      "totalPayments": 120700,
+      "invoiceCount": 50,
+      "paymentCount": 44,
+      "paymentCoveragePercent": 93.38,
+      "hasUnallocatedPaymentSignals": true,
+      "unallocatedSignalDetail": "40 payment(s) with blank notes (Kid-e-Sys receipt export)",
+      "likelyCause": "normalKidESysAllocationGap",
+      "causeConfidence": "medium",
+      "causeDetail": "Both invoices and payments present; age R10750 > ledger R8550 with payment/export skew (unallocatedPaymentPattern).",
+      "section": "Bad Debt",
+      "metrics": {
+        "invoiceSum": 129250,
+        "paymentSum": -120700,
+        "computedLedgerFromTxns": 8550,
+        "variance": 2200,
+        "lifetimeOverpayment": -8550,
+        "crossAccountOutboundPaymentTotal": 0,
+        "crossAccountInboundPaymentTotal": 0,
+        "misPostedTxnCount": 0,
+        "receiptStylePaymentCount": 0,
+        "unallocatedNotePaymentCount": 0,
+        "historicalNoteTxnCount": 2,
+        "duplicateNameAccountNos": [
+          "MAK013"
+        ],
+        "siblingAccountNos": [],
+        "activeLearnerCount": 1,
+        "paymentPatterns": [
+          "unallocatedPaymentPattern"
+        ],
+        "paymentMatchConfidence": "medium"
+      }
+    },
+    {
+      "accountNo": "MAO001",
+      "fullName": "Amohelang Ororiseng Maoba",
+      "ageAnalysisBalance": 3000,
+      "ledgerBalanceFromImport": 800,
+      "adjustmentAmount": 2200,
+      "totalInvoices": 119560,
+      "totalPayments": 118760,
+      "invoiceCount": 43,
+      "paymentCount": 53,
+      "paymentCoveragePercent": 99.33,
+      "hasUnallocatedPaymentSignals": true,
+      "unallocatedSignalDetail": "51 payment(s) with blank notes (Kid-e-Sys receipt export)",
+      "likelyCause": "normalKidESysAllocationGap",
+      "causeConfidence": "medium",
+      "causeDetail": "Both invoices and payments present; age R3000 > ledger R800 with payment/export skew (unallocatedPaymentPattern).",
+      "section": "Recently Owing",
+      "metrics": {
+        "invoiceSum": 119560,
+        "paymentSum": -118760,
+        "computedLedgerFromTxns": 800,
+        "variance": 2200,
+        "lifetimeOverpayment": -800,
+        "crossAccountOutboundPaymentTotal": 0,
+        "crossAccountInboundPaymentTotal": 0,
+        "misPostedTxnCount": 0,
+        "receiptStylePaymentCount": 0,
+        "unallocatedNotePaymentCount": 0,
+        "historicalNoteTxnCount": 1,
+        "duplicateNameAccountNos": [
+          "MAO001"
+        ],
+        "siblingAccountNos": [],
+        "activeLearnerCount": 1,
+        "paymentPatterns": [
+          "unallocatedPaymentPattern"
+        ],
+        "paymentMatchConfidence": "medium"
+      }
+    },
+    {
+      "accountNo": "MAT021",
+      "fullName": "Reatlegile Kaone Matabane",
+      "ageAnalysisBalance": 14850,
+      "ledgerBalanceFromImport": 12650,
+      "adjustmentAmount": 2200,
+      "totalInvoices": 131210,
+      "totalPayments": 118560,
+      "invoiceCount": 48,
+      "paymentCount": 32,
+      "paymentCoveragePercent": 90.36,
+      "hasUnallocatedPaymentSignals": true,
+      "unallocatedSignalDetail": "28 payment(s) with blank notes (Kid-e-Sys receipt export)",
+      "likelyCause": "normalKidESysAllocationGap",
+      "causeConfidence": "medium",
+      "causeDetail": "Both invoices and payments present; age R14850 > ledger R12650 with payment/export skew (unallocatedPaymentPattern).",
+      "section": "Bad Debt",
+      "metrics": {
+        "invoiceSum": 131210,
+        "paymentSum": -118560,
+        "computedLedgerFromTxns": 12650,
+        "variance": 2200,
+        "lifetimeOverpayment": -12650,
+        "crossAccountOutboundPaymentTotal": 0,
+        "crossAccountInboundPaymentTotal": 0,
+        "misPostedTxnCount": 0,
+        "receiptStylePaymentCount": 0,
+        "unallocatedNotePaymentCount": 0,
+        "historicalNoteTxnCount": 1,
+        "duplicateNameAccountNos": [
+          "MAT021"
+        ],
+        "siblingAccountNos": [],
+        "activeLearnerCount": 1,
+        "paymentPatterns": [
+          "unallocatedPaymentPattern"
+        ],
+        "paymentMatchConfidence": "medium"
+      }
+    },
+    {
+      "accountNo": "MOD005",
+      "fullName": "Kgolagano Kekaona Modise",
+      "ageAnalysisBalance": 3950,
+      "ledgerBalanceFromImport": 1750,
+      "adjustmentAmount": 2200,
+      "totalInvoices": 117960,
+      "totalPayments": 116210,
+      "invoiceCount": 43,
+      "paymentCount": 49,
+      "paymentCoveragePercent": 98.52,
+      "hasUnallocatedPaymentSignals": true,
+      "unallocatedSignalDetail": "46 payment(s) with blank notes (Kid-e-Sys receipt export)",
+      "likelyCause": "normalKidESysAllocationGap",
+      "causeConfidence": "medium",
+      "causeDetail": "Both invoices and payments present; age R3950 > ledger R1750 with payment/export skew (unallocatedPaymentPattern).",
+      "section": "Recently Owing",
+      "metrics": {
+        "invoiceSum": 117960,
+        "paymentSum": -116210,
+        "computedLedgerFromTxns": 1750,
+        "variance": 2200,
+        "lifetimeOverpayment": -1750,
+        "crossAccountOutboundPaymentTotal": 0,
+        "crossAccountInboundPaymentTotal": 0,
+        "misPostedTxnCount": 0,
+        "receiptStylePaymentCount": 0,
+        "unallocatedNotePaymentCount": 0,
+        "historicalNoteTxnCount": 0,
+        "duplicateNameAccountNos": [
+          "MOD005"
+        ],
+        "siblingAccountNos": [],
+        "activeLearnerCount": 1,
+        "paymentPatterns": [
+          "unallocatedPaymentPattern"
+        ],
+        "paymentMatchConfidence": "medium"
+      }
+    },
+    {
+      "accountNo": "MOD006",
+      "fullName": "Tswelopele Botshelo Modisane",
+      "ageAnalysisBalance": 3500,
+      "ledgerBalanceFromImport": 1300,
+      "adjustmentAmount": 2200,
+      "totalInvoices": 136725,
+      "totalPayments": 135425,
+      "invoiceCount": 48,
+      "paymentCount": 60,
+      "paymentCoveragePercent": 99.05,
+      "hasUnallocatedPaymentSignals": true,
+      "unallocatedSignalDetail": "54 payment(s) with blank notes (Kid-e-Sys receipt export)",
+      "likelyCause": "normalKidESysAllocationGap",
+      "causeConfidence": "medium",
+      "causeDetail": "Both invoices and payments present; age R3500 > ledger R1300 with payment/export skew (unallocatedPaymentPattern).",
+      "section": "Recently Owing",
+      "metrics": {
+        "invoiceSum": 136725,
+        "paymentSum": -135425,
+        "computedLedgerFromTxns": 1300,
+        "variance": 2200,
+        "lifetimeOverpayment": -1300,
+        "crossAccountOutboundPaymentTotal": 0,
+        "crossAccountInboundPaymentTotal": 0,
+        "misPostedTxnCount": 0,
+        "receiptStylePaymentCount": 0,
+        "unallocatedNotePaymentCount": 0,
+        "historicalNoteTxnCount": 1,
+        "duplicateNameAccountNos": [
+          "MOD006"
+        ],
+        "siblingAccountNos": [],
+        "activeLearnerCount": 1,
+        "paymentPatterns": [
+          "unallocatedPaymentPattern"
+        ],
+        "paymentMatchConfidence": "medium"
+      }
+    },
+    {
+      "accountNo": "MOE003",
+      "fullName": "Owethu Moeng",
+      "ageAnalysisBalance": 6300,
+      "ledgerBalanceFromImport": 4100,
+      "adjustmentAmount": 2200,
+      "totalInvoices": 125560,
+      "totalPayments": 121460,
+      "invoiceCount": 45,
+      "paymentCount": 47,
+      "paymentCoveragePercent": 96.73,
+      "hasUnallocatedPaymentSignals": true,
+      "unallocatedSignalDetail": "45 payment(s) with blank notes (Kid-e-Sys receipt export)",
+      "likelyCause": "normalKidESysAllocationGap",
+      "causeConfidence": "medium",
+      "causeDetail": "Both invoices and payments present; age R6300 > ledger R4100 with payment/export skew (unallocatedPaymentPattern).",
+      "section": "Bad Debt",
+      "metrics": {
+        "invoiceSum": 125560,
+        "paymentSum": -121460,
+        "computedLedgerFromTxns": 4100,
+        "variance": 2200,
+        "lifetimeOverpayment": -4100,
+        "crossAccountOutboundPaymentTotal": 0,
+        "crossAccountInboundPaymentTotal": 0,
+        "misPostedTxnCount": 0,
+        "receiptStylePaymentCount": 0,
+        "unallocatedNotePaymentCount": 0,
+        "historicalNoteTxnCount": 0,
+        "duplicateNameAccountNos": [
+          "MOE003"
+        ],
+        "siblingAccountNos": [],
+        "activeLearnerCount": 1,
+        "paymentPatterns": [
+          "unallocatedPaymentPattern"
+        ],
+        "paymentMatchConfidence": "medium"
+      }
+    },
+    {
+      "accountNo": "MOS008",
+      "fullName": "Bokang Mosegedi",
+      "ageAnalysisBalance": 3200,
+      "ledgerBalanceFromImport": 1000,
+      "adjustmentAmount": 2200,
+      "totalInvoices": 136810,
+      "totalPayments": 135810,
+      "invoiceCount": 44,
+      "paymentCount": 47,
+      "paymentCoveragePercent": 99.27,
+      "hasUnallocatedPaymentSignals": true,
+      "unallocatedSignalDetail": "43 payment(s) with blank notes (Kid-e-Sys receipt export)",
+      "likelyCause": "normalKidESysAllocationGap",
+      "causeConfidence": "medium",
+      "causeDetail": "Both invoices and payments present; age R3200 > ledger R1000 with payment/export skew (unallocatedPaymentPattern).",
+      "section": "Recently Owing",
+      "metrics": {
+        "invoiceSum": 136810,
+        "paymentSum": -135810,
+        "computedLedgerFromTxns": 1000,
+        "variance": 2200,
+        "lifetimeOverpayment": -1000,
+        "crossAccountOutboundPaymentTotal": 0,
+        "crossAccountInboundPaymentTotal": 0,
+        "misPostedTxnCount": 0,
+        "receiptStylePaymentCount": 0,
+        "unallocatedNotePaymentCount": 0,
+        "historicalNoteTxnCount": 0,
+        "duplicateNameAccountNos": [
+          "MOS008"
+        ],
+        "siblingAccountNos": [],
+        "activeLearnerCount": 1,
+        "paymentPatterns": [
+          "unallocatedPaymentPattern"
+        ],
+        "paymentMatchConfidence": "medium"
+      }
+    },
+    {
+      "accountNo": "MOT017",
+      "fullName": "Onkokeditse Motlhajwa",
+      "ageAnalysisBalance": 3700,
+      "ledgerBalanceFromImport": 1500,
+      "adjustmentAmount": 2200,
+      "totalInvoices": 119180,
+      "totalPayments": 117680,
+      "invoiceCount": 44,
+      "paymentCount": 48,
+      "paymentCoveragePercent": 98.74,
+      "hasUnallocatedPaymentSignals": true,
+      "unallocatedSignalDetail": "45 payment(s) with blank notes (Kid-e-Sys receipt export)",
+      "likelyCause": "normalKidESysAllocationGap",
+      "causeConfidence": "medium",
+      "causeDetail": "Both invoices and payments present; age R3700 > ledger R1500 with payment/export skew (unallocatedPaymentPattern).",
+      "section": "Bad Debt",
+      "metrics": {
+        "invoiceSum": 119180,
+        "paymentSum": -117680,
+        "computedLedgerFromTxns": 1500,
+        "variance": 2200,
+        "lifetimeOverpayment": -1500,
+        "crossAccountOutboundPaymentTotal": 0,
+        "crossAccountInboundPaymentTotal": 0,
+        "misPostedTxnCount": 0,
+        "receiptStylePaymentCount": 0,
+        "unallocatedNotePaymentCount": 0,
+        "historicalNoteTxnCount": 0,
+        "duplicateNameAccountNos": [
+          "MOT017"
+        ],
+        "siblingAccountNos": [],
+        "activeLearnerCount": 1,
+        "paymentPatterns": [
+          "unallocatedPaymentPattern"
+        ],
+        "paymentMatchConfidence": "medium"
+      }
+    },
+    {
+      "accountNo": "MPA001",
+      "fullName": "Misokuhle Lathitha Mpangeva",
+      "ageAnalysisBalance": 6800,
+      "ledgerBalanceFromImport": 4600,
+      "adjustmentAmount": 2200,
+      "totalInvoices": 130690,
+      "totalPayments": 126090,
+      "invoiceCount": 48,
+      "paymentCount": 43,
+      "paymentCoveragePercent": 96.48,
+      "hasUnallocatedPaymentSignals": true,
+      "unallocatedSignalDetail": "41 payment(s) with blank notes (Kid-e-Sys receipt export)",
+      "likelyCause": "normalKidESysAllocationGap",
+      "causeConfidence": "medium",
+      "causeDetail": "Both invoices and payments present; age R6800 > ledger R4600 with payment/export skew (unallocatedPaymentPattern).",
+      "section": "Bad Debt",
+      "metrics": {
+        "invoiceSum": 130690,
+        "paymentSum": -126090,
+        "computedLedgerFromTxns": 4600,
+        "variance": 2200,
+        "lifetimeOverpayment": -4600,
+        "crossAccountOutboundPaymentTotal": 0,
+        "crossAccountInboundPaymentTotal": 0,
+        "misPostedTxnCount": 0,
+        "receiptStylePaymentCount": 0,
+        "unallocatedNotePaymentCount": 0,
+        "historicalNoteTxnCount": 1,
+        "duplicateNameAccountNos": [
+          "MPA001"
+        ],
+        "siblingAccountNos": [],
+        "activeLearnerCount": 1,
+        "paymentPatterns": [
+          "unallocatedPaymentPattern"
+        ],
+        "paymentMatchConfidence": "medium"
+      }
+    },
+    {
+      "accountNo": "MPO001",
+      "fullName": "Kabo Mpodi",
+      "ageAnalysisBalance": 3700,
+      "ledgerBalanceFromImport": 1500,
+      "adjustmentAmount": 2200,
+      "totalInvoices": 125385,
+      "totalPayments": 123885,
+      "invoiceCount": 47,
+      "paymentCount": 62,
+      "paymentCoveragePercent": 98.8,
+      "hasUnallocatedPaymentSignals": true,
+      "unallocatedSignalDetail": "58 payment(s) with blank notes (Kid-e-Sys receipt export)",
+      "likelyCause": "normalKidESysAllocationGap",
+      "causeConfidence": "medium",
+      "causeDetail": "Both invoices and payments present; age R3700 > ledger R1500 with payment/export skew (unallocatedPaymentPattern).",
+      "section": "Recently Owing",
+      "metrics": {
+        "invoiceSum": 125385,
+        "paymentSum": -123885,
+        "computedLedgerFromTxns": 1500,
+        "variance": 2200,
+        "lifetimeOverpayment": -1500,
+        "crossAccountOutboundPaymentTotal": 0,
+        "crossAccountInboundPaymentTotal": 0,
+        "misPostedTxnCount": 0,
+        "receiptStylePaymentCount": 0,
+        "unallocatedNotePaymentCount": 0,
+        "historicalNoteTxnCount": 2,
+        "duplicateNameAccountNos": [
+          "MPO001"
+        ],
+        "siblingAccountNos": [],
+        "activeLearnerCount": 1,
+        "paymentPatterns": [
+          "unallocatedPaymentPattern"
+        ],
+        "paymentMatchConfidence": "medium"
+      }
+    },
+    {
+      "accountNo": "MSI003",
+      "fullName": "Somusa Sibani Msimango",
+      "ageAnalysisBalance": 3700,
+      "ledgerBalanceFromImport": 1500,
+      "adjustmentAmount": 2200,
+      "totalInvoices": 119530,
+      "totalPayments": 118030,
+      "invoiceCount": 43,
+      "paymentCount": 48,
+      "paymentCoveragePercent": 98.75,
+      "hasUnallocatedPaymentSignals": true,
+      "unallocatedSignalDetail": "47 payment(s) with blank notes (Kid-e-Sys receipt export)",
+      "likelyCause": "normalKidESysAllocationGap",
+      "causeConfidence": "medium",
+      "causeDetail": "Both invoices and payments present; age R3700 > ledger R1500 with payment/export skew (unallocatedPaymentPattern).",
+      "section": "Recently Owing",
+      "metrics": {
+        "invoiceSum": 119530,
+        "paymentSum": -118030,
+        "computedLedgerFromTxns": 1500,
+        "variance": 2200,
+        "lifetimeOverpayment": -1500,
+        "crossAccountOutboundPaymentTotal": 0,
+        "crossAccountInboundPaymentTotal": 0,
+        "misPostedTxnCount": 0,
+        "receiptStylePaymentCount": 0,
+        "unallocatedNotePaymentCount": 0,
+        "historicalNoteTxnCount": 0,
+        "duplicateNameAccountNos": [
+          "MSI003"
+        ],
+        "siblingAccountNos": [],
+        "activeLearnerCount": 1,
+        "paymentPatterns": [
+          "unallocatedPaymentPattern"
+        ],
+        "paymentMatchConfidence": "medium"
+      }
+    },
+    {
+      "accountNo": "MSI004",
+      "fullName": "Snekosi Msimango",
+      "ageAnalysisBalance": 8300,
+      "ledgerBalanceFromImport": 6100,
+      "adjustmentAmount": 2200,
+      "totalInvoices": 127280,
+      "totalPayments": 121180,
+      "invoiceCount": 45,
+      "paymentCount": 52,
+      "paymentCoveragePercent": 95.21,
+      "hasUnallocatedPaymentSignals": true,
+      "unallocatedSignalDetail": "49 payment(s) with blank notes (Kid-e-Sys receipt export)",
+      "likelyCause": "normalKidESysAllocationGap",
+      "causeConfidence": "medium",
+      "causeDetail": "Both invoices and payments present; age R8300 > ledger R6100 with payment/export skew (unallocatedPaymentPattern).",
+      "section": "Bad Debt",
+      "metrics": {
+        "invoiceSum": 127280,
+        "paymentSum": -121180,
+        "computedLedgerFromTxns": 6100,
+        "variance": 2200,
+        "lifetimeOverpayment": -6100,
+        "crossAccountOutboundPaymentTotal": 0,
+        "crossAccountInboundPaymentTotal": 0,
+        "misPostedTxnCount": 0,
+        "receiptStylePaymentCount": 0,
+        "unallocatedNotePaymentCount": 0,
+        "historicalNoteTxnCount": 0,
+        "duplicateNameAccountNos": [
+          "MSI004"
+        ],
+        "siblingAccountNos": [],
+        "activeLearnerCount": 1,
+        "paymentPatterns": [
+          "unallocatedPaymentPattern"
+        ],
+        "paymentMatchConfidence": "medium"
+      }
+    },
+    {
+      "accountNo": "NTO003",
+      "fullName": "Phenyo Ntoula",
+      "ageAnalysisBalance": 3200,
+      "ledgerBalanceFromImport": 1000,
+      "adjustmentAmount": 2200,
+      "totalInvoices": 142260,
+      "totalPayments": 141260,
+      "invoiceCount": 45,
+      "paymentCount": 50,
+      "paymentCoveragePercent": 99.3,
+      "hasUnallocatedPaymentSignals": true,
+      "unallocatedSignalDetail": "46 payment(s) with blank notes (Kid-e-Sys receipt export)",
+      "likelyCause": "normalKidESysAllocationGap",
+      "causeConfidence": "medium",
+      "causeDetail": "Both invoices and payments present; age R3200 > ledger R1000 with payment/export skew (unallocatedPaymentPattern).",
+      "section": "Recently Owing",
+      "metrics": {
+        "invoiceSum": 142260,
+        "paymentSum": -141260,
+        "computedLedgerFromTxns": 1000,
+        "variance": 2200,
+        "lifetimeOverpayment": -1000,
+        "crossAccountOutboundPaymentTotal": 0,
+        "crossAccountInboundPaymentTotal": 0,
+        "misPostedTxnCount": 0,
+        "receiptStylePaymentCount": 0,
+        "unallocatedNotePaymentCount": 0,
+        "historicalNoteTxnCount": 2,
+        "duplicateNameAccountNos": [
+          "NTO003"
+        ],
+        "siblingAccountNos": [],
+        "activeLearnerCount": 1,
+        "paymentPatterns": [
+          "unallocatedPaymentPattern"
+        ],
+        "paymentMatchConfidence": "medium"
+      }
+    },
+    {
+      "accountNo": "OSE001",
+      "fullName": "Osego Makgale",
+      "ageAnalysisBalance": 4500,
+      "ledgerBalanceFromImport": 2300,
+      "adjustmentAmount": 2200,
+      "totalInvoices": 136015,
+      "totalPayments": 133715,
+      "invoiceCount": 49,
+      "paymentCount": 49,
+      "paymentCoveragePercent": 98.31,
+      "hasUnallocatedPaymentSignals": true,
+      "unallocatedSignalDetail": "47 payment(s) with blank notes (Kid-e-Sys receipt export)",
+      "likelyCause": "normalKidESysAllocationGap",
+      "causeConfidence": "medium",
+      "causeDetail": "Both invoices and payments present; age R4500 > ledger R2300 with payment/export skew (unallocatedPaymentPattern).",
+      "section": "Bad Debt",
+      "metrics": {
+        "invoiceSum": 136015,
+        "paymentSum": -133715,
+        "computedLedgerFromTxns": 2300,
+        "variance": 2200,
+        "lifetimeOverpayment": -2300,
+        "crossAccountOutboundPaymentTotal": 0,
+        "crossAccountInboundPaymentTotal": 0,
+        "misPostedTxnCount": 0,
+        "receiptStylePaymentCount": 0,
+        "unallocatedNotePaymentCount": 0,
+        "historicalNoteTxnCount": 0,
+        "duplicateNameAccountNos": [
+          "OSE001"
+        ],
+        "siblingAccountNos": [],
+        "activeLearnerCount": 1,
+        "paymentPatterns": [
+          "unallocatedPaymentPattern"
+        ],
+        "paymentMatchConfidence": "medium"
+      }
+    },
+    {
+      "accountNo": "PET002",
+      "fullName": "Obatlilwe Petlale",
+      "ageAnalysisBalance": 8600,
+      "ledgerBalanceFromImport": 6400,
+      "adjustmentAmount": 2200,
+      "totalInvoices": 135975,
+      "totalPayments": 129575,
+      "invoiceCount": 49,
+      "paymentCount": 49,
+      "paymentCoveragePercent": 95.29,
+      "hasUnallocatedPaymentSignals": true,
+      "unallocatedSignalDetail": "47 payment(s) with blank notes (Kid-e-Sys receipt export)",
+      "likelyCause": "normalKidESysAllocationGap",
+      "causeConfidence": "medium",
+      "causeDetail": "Both invoices and payments present; age R8600 > ledger R6400 with payment/export skew (unallocatedPaymentPattern).",
+      "section": "Bad Debt",
+      "metrics": {
+        "invoiceSum": 135975,
+        "paymentSum": -129575,
+        "computedLedgerFromTxns": 6400,
+        "variance": 2200,
+        "lifetimeOverpayment": -6400,
+        "crossAccountOutboundPaymentTotal": 0,
+        "crossAccountInboundPaymentTotal": 0,
+        "misPostedTxnCount": 0,
+        "receiptStylePaymentCount": 0,
+        "unallocatedNotePaymentCount": 0,
+        "historicalNoteTxnCount": 1,
+        "duplicateNameAccountNos": [
+          "PET002"
+        ],
+        "siblingAccountNos": [],
+        "activeLearnerCount": 1,
+        "paymentPatterns": [
+          "unallocatedPaymentPattern"
+        ],
+        "paymentMatchConfidence": "medium"
+      }
+    },
+    {
+      "accountNo": "RAM011",
+      "fullName": "Rethabile Ramalete",
+      "ageAnalysisBalance": 3550,
+      "ledgerBalanceFromImport": 1350,
+      "adjustmentAmount": 2200,
+      "totalInvoices": 129410,
+      "totalPayments": 128060,
+      "invoiceCount": 52,
+      "paymentCount": 34,
+      "paymentCoveragePercent": 98.96,
+      "hasUnallocatedPaymentSignals": true,
+      "unallocatedSignalDetail": "32 payment(s) with blank notes (Kid-e-Sys receipt export)",
+      "likelyCause": "normalKidESysAllocationGap",
+      "causeConfidence": "medium",
+      "causeDetail": "Both invoices and payments present; age R3550 > ledger R1350 with payment/export skew (unallocatedPaymentPattern).",
+      "section": "Recently Owing",
+      "metrics": {
+        "invoiceSum": 129410,
+        "paymentSum": -128060,
+        "computedLedgerFromTxns": 1350,
+        "variance": 2200,
+        "lifetimeOverpayment": -1350,
+        "crossAccountOutboundPaymentTotal": 0,
+        "crossAccountInboundPaymentTotal": 0,
+        "misPostedTxnCount": 0,
+        "receiptStylePaymentCount": 0,
+        "unallocatedNotePaymentCount": 0,
+        "historicalNoteTxnCount": 1,
+        "duplicateNameAccountNos": [
+          "RAM011"
+        ],
+        "siblingAccountNos": [],
+        "activeLearnerCount": 1,
+        "paymentPatterns": [
+          "unallocatedPaymentPattern"
+        ],
+        "paymentMatchConfidence": "medium"
+      }
+    },
+    {
+      "accountNo": "RAM015",
+      "fullName": "Remoneilwe Johanna Mothuloe",
+      "ageAnalysisBalance": 3550,
+      "ledgerBalanceFromImport": 1350,
+      "adjustmentAmount": 2200,
+      "totalInvoices": 136330,
+      "totalPayments": 134980,
+      "invoiceCount": 45,
+      "paymentCount": 45,
+      "paymentCoveragePercent": 99.01,
+      "hasUnallocatedPaymentSignals": true,
+      "unallocatedSignalDetail": "42 payment(s) with blank notes (Kid-e-Sys receipt export)",
+      "likelyCause": "normalKidESysAllocationGap",
+      "causeConfidence": "medium",
+      "causeDetail": "Both invoices and payments present; age R3550 > ledger R1350 with payment/export skew (unallocatedPaymentPattern).",
+      "section": "Recently Owing",
+      "metrics": {
+        "invoiceSum": 136330,
+        "paymentSum": -134980,
+        "computedLedgerFromTxns": 1350,
+        "variance": 2200,
+        "lifetimeOverpayment": -1350,
+        "crossAccountOutboundPaymentTotal": 0,
+        "crossAccountInboundPaymentTotal": 0,
+        "misPostedTxnCount": 0,
+        "receiptStylePaymentCount": 0,
+        "unallocatedNotePaymentCount": 0,
+        "historicalNoteTxnCount": 0,
+        "duplicateNameAccountNos": [
+          "RAM015"
+        ],
+        "siblingAccountNos": [],
+        "activeLearnerCount": 1,
+        "paymentPatterns": [
+          "unallocatedPaymentPattern"
+        ],
+        "paymentMatchConfidence": "medium"
+      }
+    },
+    {
+      "accountNo": "RAN002",
+      "fullName": "Omaatla Tlotlo Ranta",
+      "ageAnalysisBalance": 2800,
+      "ledgerBalanceFromImport": 600,
+      "adjustmentAmount": 2200,
+      "totalInvoices": 126810,
+      "totalPayments": 126210,
+      "invoiceCount": 46,
+      "paymentCount": 57,
+      "paymentCoveragePercent": 99.53,
+      "hasUnallocatedPaymentSignals": true,
+      "unallocatedSignalDetail": "54 payment(s) with blank notes (Kid-e-Sys receipt export)",
+      "likelyCause": "normalKidESysAllocationGap",
+      "causeConfidence": "medium",
+      "causeDetail": "Both invoices and payments present; age R2800 > ledger R600 with payment/export skew (unallocatedPaymentPattern).",
+      "section": "Recently Owing",
+      "metrics": {
+        "invoiceSum": 126810,
+        "paymentSum": -126210,
+        "computedLedgerFromTxns": 600,
+        "variance": 2200,
+        "lifetimeOverpayment": -600,
+        "crossAccountOutboundPaymentTotal": 0,
+        "crossAccountInboundPaymentTotal": 0,
+        "misPostedTxnCount": 0,
+        "receiptStylePaymentCount": 0,
+        "unallocatedNotePaymentCount": 0,
+        "historicalNoteTxnCount": 2,
+        "duplicateNameAccountNos": [
+          "RAN002"
+        ],
+        "siblingAccountNos": [],
+        "activeLearnerCount": 1,
+        "paymentPatterns": [
+          "unallocatedPaymentPattern"
+        ],
+        "paymentMatchConfidence": "medium"
+      }
+    },
+    {
+      "accountNo": "TAU003",
+      "fullName": "Unathi Tause",
+      "ageAnalysisBalance": 6300,
+      "ledgerBalanceFromImport": 4100,
+      "adjustmentAmount": 2200,
+      "totalInvoices": 122405,
+      "totalPayments": 118305,
+      "invoiceCount": 46,
+      "paymentCount": 40,
+      "paymentCoveragePercent": 96.65,
+      "hasUnallocatedPaymentSignals": true,
+      "unallocatedSignalDetail": "39 payment(s) with blank notes (Kid-e-Sys receipt export)",
+      "likelyCause": "normalKidESysAllocationGap",
+      "causeConfidence": "medium",
+      "causeDetail": "Both invoices and payments present; age R6300 > ledger R4100 with payment/export skew (unallocatedPaymentPattern).",
+      "section": "Bad Debt",
+      "metrics": {
+        "invoiceSum": 122405,
+        "paymentSum": -118305,
+        "computedLedgerFromTxns": 4100,
+        "variance": 2200,
+        "lifetimeOverpayment": -4100,
+        "crossAccountOutboundPaymentTotal": 0,
+        "crossAccountInboundPaymentTotal": 0,
+        "misPostedTxnCount": 0,
+        "receiptStylePaymentCount": 0,
+        "unallocatedNotePaymentCount": 0,
+        "historicalNoteTxnCount": 0,
+        "duplicateNameAccountNos": [
+          "TAU003"
+        ],
+        "siblingAccountNos": [],
+        "activeLearnerCount": 1,
+        "paymentPatterns": [
+          "unallocatedPaymentPattern"
+        ],
+        "paymentMatchConfidence": "medium"
+      }
+    },
+    {
+      "accountNo": "THA003",
+      "fullName": "Omogolo Thakadu",
+      "ageAnalysisBalance": 3200,
+      "ledgerBalanceFromImport": 1000,
+      "adjustmentAmount": 2200,
+      "totalInvoices": 122010,
+      "totalPayments": 121010,
+      "invoiceCount": 45,
+      "paymentCount": 48,
+      "paymentCoveragePercent": 99.18,
+      "hasUnallocatedPaymentSignals": true,
+      "unallocatedSignalDetail": "40 payment(s) with blank notes (Kid-e-Sys receipt export)",
+      "likelyCause": "normalKidESysAllocationGap",
+      "causeConfidence": "medium",
+      "causeDetail": "Both invoices and payments present; age R3200 > ledger R1000 with payment/export skew (unallocatedPaymentPattern).",
+      "section": "Recently Owing",
+      "metrics": {
+        "invoiceSum": 122010,
+        "paymentSum": -121010,
+        "computedLedgerFromTxns": 1000,
+        "variance": 2200,
+        "lifetimeOverpayment": -1000,
+        "crossAccountOutboundPaymentTotal": 0,
+        "crossAccountInboundPaymentTotal": 0,
+        "misPostedTxnCount": 0,
+        "receiptStylePaymentCount": 0,
+        "unallocatedNotePaymentCount": 0,
+        "historicalNoteTxnCount": 0,
+        "duplicateNameAccountNos": [
+          "THA003"
+        ],
+        "siblingAccountNos": [],
+        "activeLearnerCount": 1,
+        "paymentPatterns": [
+          "unallocatedPaymentPattern"
+        ],
+        "paymentMatchConfidence": "medium"
+      }
+    },
+    {
+      "accountNo": "XAB001",
+      "fullName": "Paballo Pearl Xaba",
+      "ageAnalysisBalance": 4250,
+      "ledgerBalanceFromImport": 2050,
+      "adjustmentAmount": 2200,
+      "totalInvoices": 153810,
+      "totalPayments": 151760,
+      "invoiceCount": 48,
+      "paymentCount": 54,
+      "paymentCoveragePercent": 98.67,
+      "hasUnallocatedPaymentSignals": true,
+      "unallocatedSignalDetail": "50 payment(s) with blank notes (Kid-e-Sys receipt export)",
+      "likelyCause": "normalKidESysAllocationGap",
+      "causeConfidence": "medium",
+      "causeDetail": "Both invoices and payments present; age R4250 > ledger R2050 with payment/export skew (unallocatedPaymentPattern).",
+      "section": "Bad Debt",
+      "metrics": {
+        "invoiceSum": 153810,
+        "paymentSum": -151760,
+        "computedLedgerFromTxns": 2050,
+        "variance": 2200,
+        "lifetimeOverpayment": -2050,
+        "crossAccountOutboundPaymentTotal": 0,
+        "crossAccountInboundPaymentTotal": 0,
+        "misPostedTxnCount": 0,
+        "receiptStylePaymentCount": 0,
+        "unallocatedNotePaymentCount": 0,
+        "historicalNoteTxnCount": 0,
+        "duplicateNameAccountNos": [
+          "XAB001"
+        ],
+        "siblingAccountNos": [],
+        "activeLearnerCount": 1,
+        "paymentPatterns": [
+          "unallocatedPaymentPattern"
+        ],
+        "paymentMatchConfidence": "medium"
+      }
+    },
+    {
+      "accountNo": "RAM009",
+      "fullName": "Omatla Malesela Ramagogogdi",
+      "ageAnalysisBalance": 4250,
+      "ledgerBalanceFromImport": 2070,
+      "adjustmentAmount": 2180,
+      "totalInvoices": 135535,
+      "totalPayments": 133465,
+      "invoiceCount": 47,
+      "paymentCount": 82,
+      "paymentCoveragePercent": 98.47,
+      "hasUnallocatedPaymentSignals": true,
+      "unallocatedSignalDetail": "1 receipt-style payment note(s); 75 payment(s) with blank notes (Kid-e-Sys receipt export)",
+      "likelyCause": "normalKidESysAllocationGap",
+      "causeConfidence": "medium",
+      "causeDetail": "Both invoices and payments present; age R4250 > ledger R2070 with payment/export skew (unallocatedPaymentPattern).",
+      "section": "Recently Owing",
+      "metrics": {
+        "invoiceSum": 135535,
+        "paymentSum": -133465,
+        "computedLedgerFromTxns": 2070,
+        "variance": 2180,
+        "lifetimeOverpayment": -2070,
+        "crossAccountOutboundPaymentTotal": 0,
+        "crossAccountInboundPaymentTotal": 0,
+        "misPostedTxnCount": 0,
+        "receiptStylePaymentCount": 1,
+        "unallocatedNotePaymentCount": 0,
+        "historicalNoteTxnCount": 1,
+        "duplicateNameAccountNos": [
+          "RAM009"
+        ],
+        "siblingAccountNos": [],
+        "activeLearnerCount": 1,
+        "paymentPatterns": [
+          "unallocatedPaymentPattern"
+        ],
+        "paymentMatchConfidence": "medium"
+      }
+    },
+    {
+      "accountNo": "MAL006",
+      "fullName": "Reboikantse Omosa Mayana",
+      "ageAnalysisBalance": 5150,
+      "ledgerBalanceFromImport": 3000,
+      "adjustmentAmount": 2150,
+      "totalInvoices": 153710,
+      "totalPayments": 150710,
+      "invoiceCount": 47,
+      "paymentCount": 51,
+      "paymentCoveragePercent": 98.05,
+      "hasUnallocatedPaymentSignals": true,
+      "unallocatedSignalDetail": "49 payment(s) with blank notes (Kid-e-Sys receipt export)",
+      "likelyCause": "normalKidESysAllocationGap",
+      "causeConfidence": "medium",
+      "causeDetail": "Both invoices and payments present; age R5150 > ledger R3000 with payment/export skew (unallocatedPaymentPattern).",
+      "section": "Recently Owing",
+      "metrics": {
+        "invoiceSum": 153710,
+        "paymentSum": -150710,
+        "computedLedgerFromTxns": 3000,
+        "variance": 2150,
+        "lifetimeOverpayment": -3000,
+        "crossAccountOutboundPaymentTotal": 0,
+        "crossAccountInboundPaymentTotal": 0,
+        "misPostedTxnCount": 0,
+        "receiptStylePaymentCount": 0,
+        "unallocatedNotePaymentCount": 0,
+        "historicalNoteTxnCount": 0,
+        "duplicateNameAccountNos": [
+          "MAL006"
+        ],
+        "siblingAccountNos": [],
+        "activeLearnerCount": 1,
+        "paymentPatterns": [
+          "unallocatedPaymentPattern"
+        ],
+        "paymentMatchConfidence": "medium"
+      }
+    },
+    {
+      "accountNo": "MOT007",
+      "fullName": "Bokamoso Menyatswe",
+      "ageAnalysisBalance": 8019.45,
+      "ledgerBalanceFromImport": 5920,
+      "adjustmentAmount": 2099.45,
+      "totalInvoices": 135400,
+      "totalPayments": 129480,
+      "invoiceCount": 59,
+      "paymentCount": 36,
+      "paymentCoveragePercent": 95.63,
+      "hasUnallocatedPaymentSignals": true,
+      "unallocatedSignalDetail": "29 payment(s) with blank notes (Kid-e-Sys receipt export)",
+      "likelyCause": "normalKidESysAllocationGap",
+      "causeConfidence": "medium",
+      "causeDetail": "Both invoices and payments present; age R8019.45 > ledger R5920 with payment/export skew (unallocatedPaymentPattern).",
+      "section": "Bad Debt",
+      "metrics": {
+        "invoiceSum": 135400,
+        "paymentSum": -129480,
+        "computedLedgerFromTxns": 5920,
+        "variance": 2099.45,
+        "lifetimeOverpayment": -5920,
+        "crossAccountOutboundPaymentTotal": 0,
+        "crossAccountInboundPaymentTotal": 0,
+        "misPostedTxnCount": 0,
+        "receiptStylePaymentCount": 0,
+        "unallocatedNotePaymentCount": 0,
+        "historicalNoteTxnCount": 5,
+        "duplicateNameAccountNos": [
+          "MOT007"
+        ],
+        "siblingAccountNos": [],
+        "activeLearnerCount": 1,
+        "paymentPatterns": [
+          "unallocatedPaymentPattern"
+        ],
+        "paymentMatchConfidence": "medium"
+      }
+    },
+    {
+      "accountNo": "TSA001",
+      "fullName": "Omphile Tsame",
+      "ageAnalysisBalance": 3000,
+      "ledgerBalanceFromImport": 950,
+      "adjustmentAmount": 2050,
+      "totalInvoices": 119360,
+      "totalPayments": 118410,
+      "invoiceCount": 43,
+      "paymentCount": 44,
+      "paymentCoveragePercent": 99.2,
+      "hasUnallocatedPaymentSignals": true,
+      "unallocatedSignalDetail": "2 receipt-style payment note(s); 41 payment(s) with blank notes (Kid-e-Sys receipt export)",
+      "likelyCause": "normalKidESysAllocationGap",
+      "causeConfidence": "medium",
+      "causeDetail": "Both invoices and payments present; age R3000 > ledger R950 with payment/export skew (unallocatedPaymentPattern).",
+      "section": "Recently Owing",
+      "metrics": {
+        "invoiceSum": 119360,
+        "paymentSum": -118410,
+        "computedLedgerFromTxns": 950,
+        "variance": 2050,
+        "lifetimeOverpayment": -950,
+        "crossAccountOutboundPaymentTotal": 0,
+        "crossAccountInboundPaymentTotal": 0,
+        "misPostedTxnCount": 0,
+        "receiptStylePaymentCount": 2,
+        "unallocatedNotePaymentCount": 0,
+        "historicalNoteTxnCount": 1,
+        "duplicateNameAccountNos": [
+          "TSA001"
+        ],
+        "siblingAccountNos": [],
+        "activeLearnerCount": 1,
+        "paymentPatterns": [
+          "unallocatedPaymentPattern"
+        ],
+        "paymentMatchConfidence": "medium"
+      }
+    },
+    {
+      "accountNo": "MAS021",
+      "fullName": "Kamohelo Masilo",
+      "ageAnalysisBalance": 3700,
+      "ledgerBalanceFromImport": 1700,
+      "adjustmentAmount": 2000,
+      "totalInvoices": 118360,
+      "totalPayments": 116660,
+      "invoiceCount": 43,
+      "paymentCount": 49,
+      "paymentCoveragePercent": 98.56,
+      "hasUnallocatedPaymentSignals": true,
+      "unallocatedSignalDetail": "45 payment(s) with blank notes (Kid-e-Sys receipt export)",
+      "likelyCause": "normalKidESysAllocationGap",
+      "causeConfidence": "medium",
+      "causeDetail": "Both invoices and payments present; age R3700 > ledger R1700 with payment/export skew (unallocatedPaymentPattern).",
+      "section": "Bad Debt",
+      "metrics": {
+        "invoiceSum": 118360,
+        "paymentSum": -116660,
+        "computedLedgerFromTxns": 1700,
+        "variance": 2000,
+        "lifetimeOverpayment": -1700,
+        "crossAccountOutboundPaymentTotal": 0,
+        "crossAccountInboundPaymentTotal": 0,
+        "misPostedTxnCount": 0,
+        "receiptStylePaymentCount": 0,
+        "unallocatedNotePaymentCount": 0,
+        "historicalNoteTxnCount": 1,
+        "duplicateNameAccountNos": [
+          "MAS021"
+        ],
+        "siblingAccountNos": [],
+        "activeLearnerCount": 1,
+        "paymentPatterns": [
+          "unallocatedPaymentPattern"
+        ],
+        "paymentMatchConfidence": "medium"
+      }
+    },
+    {
+      "accountNo": "MOK025",
+      "fullName": "Tshegofatso Remoratile Mokgatlhe",
+      "ageAnalysisBalance": 4900,
+      "ledgerBalanceFromImport": 2900,
+      "adjustmentAmount": 2000,
+      "totalInvoices": 150960,
+      "totalPayments": 148060,
+      "invoiceCount": 47,
+      "paymentCount": 48,
+      "paymentCoveragePercent": 98.08,
+      "hasUnallocatedPaymentSignals": true,
+      "unallocatedSignalDetail": "46 payment(s) with blank notes (Kid-e-Sys receipt export)",
+      "likelyCause": "normalKidESysAllocationGap",
+      "causeConfidence": "medium",
+      "causeDetail": "Both invoices and payments present; age R4900 > ledger R2900 with payment/export skew (unallocatedPaymentPattern).",
+      "section": "Bad Debt",
+      "metrics": {
+        "invoiceSum": 150960,
+        "paymentSum": -148060,
+        "computedLedgerFromTxns": 2900,
+        "variance": 2000,
+        "lifetimeOverpayment": -2900,
+        "crossAccountOutboundPaymentTotal": 0,
+        "crossAccountInboundPaymentTotal": 0,
+        "misPostedTxnCount": 0,
+        "receiptStylePaymentCount": 0,
+        "unallocatedNotePaymentCount": 0,
+        "historicalNoteTxnCount": 0,
+        "duplicateNameAccountNos": [
+          "MOK025"
+        ],
+        "siblingAccountNos": [],
+        "activeLearnerCount": 1,
+        "paymentPatterns": [
+          "unallocatedPaymentPattern"
+        ],
+        "paymentMatchConfidence": "medium"
+      }
+    },
+    {
+      "accountNo": "NKO004",
+      "fullName": "Kabo Kealeboga Nkonyane",
+      "ageAnalysisBalance": 3700,
+      "ledgerBalanceFromImport": 1700,
+      "adjustmentAmount": 2000,
+      "totalInvoices": 136160,
+      "totalPayments": 134460,
+      "invoiceCount": 44,
+      "paymentCount": 51,
+      "paymentCoveragePercent": 98.75,
+      "hasUnallocatedPaymentSignals": true,
+      "unallocatedSignalDetail": "47 payment(s) with blank notes (Kid-e-Sys receipt export)",
+      "likelyCause": "normalKidESysAllocationGap",
+      "causeConfidence": "medium",
+      "causeDetail": "Both invoices and payments present; age R3700 > ledger R1700 with payment/export skew (unallocatedPaymentPattern).",
+      "section": "Bad Debt",
+      "metrics": {
+        "invoiceSum": 136160,
+        "paymentSum": -134460,
+        "computedLedgerFromTxns": 1700,
+        "variance": 2000,
+        "lifetimeOverpayment": -1700,
+        "crossAccountOutboundPaymentTotal": 0,
+        "crossAccountInboundPaymentTotal": 0,
+        "misPostedTxnCount": 0,
+        "receiptStylePaymentCount": 0,
+        "unallocatedNotePaymentCount": 0,
+        "historicalNoteTxnCount": 2,
+        "duplicateNameAccountNos": [
+          "NKO004"
+        ],
+        "siblingAccountNos": [],
+        "activeLearnerCount": 1,
+        "paymentPatterns": [
+          "unallocatedPaymentPattern"
+        ],
+        "paymentMatchConfidence": "medium"
+      }
+    },
+    {
+      "accountNo": "MAP006",
+      "fullName": "Mvuselelo Jasper Maphumulo",
+      "ageAnalysisBalance": 8420,
+      "ledgerBalanceFromImport": 6485,
+      "adjustmentAmount": 1935,
+      "totalInvoices": 146000,
+      "totalPayments": 139515,
+      "invoiceCount": 49,
+      "paymentCount": 58,
+      "paymentCoveragePercent": 95.56,
+      "hasUnallocatedPaymentSignals": true,
+      "unallocatedSignalDetail": "52 payment(s) with blank notes (Kid-e-Sys receipt export)",
+      "likelyCause": "normalKidESysAllocationGap",
+      "causeConfidence": "medium",
+      "causeDetail": "Both invoices and payments present; age R8420 > ledger R6485 with payment/export skew (unallocatedPaymentPattern).",
+      "section": "Bad Debt",
+      "metrics": {
+        "invoiceSum": 146000,
+        "paymentSum": -139515,
+        "computedLedgerFromTxns": 6485,
+        "variance": 1935,
+        "lifetimeOverpayment": -6485,
+        "crossAccountOutboundPaymentTotal": 0,
+        "crossAccountInboundPaymentTotal": 0,
+        "misPostedTxnCount": 0,
+        "receiptStylePaymentCount": 0,
+        "unallocatedNotePaymentCount": 0,
+        "historicalNoteTxnCount": 4,
+        "duplicateNameAccountNos": [
+          "MAP006"
+        ],
+        "siblingAccountNos": [],
+        "activeLearnerCount": 1,
+        "paymentPatterns": [
+          "unallocatedPaymentPattern"
+        ],
+        "paymentMatchConfidence": "medium"
+      }
+    },
+    {
+      "accountNo": "MAT016",
+      "fullName": "Otshepeng Matsietsa",
+      "ageAnalysisBalance": 6400,
+      "ledgerBalanceFromImport": 4500,
+      "adjustmentAmount": 1900,
+      "totalInvoices": 124760,
+      "totalPayments": 120260,
+      "invoiceCount": 45,
+      "paymentCount": 32,
+      "paymentCoveragePercent": 96.39,
+      "hasUnallocatedPaymentSignals": true,
+      "unallocatedSignalDetail": "30 payment(s) with blank notes (Kid-e-Sys receipt export)",
+      "likelyCause": "normalKidESysAllocationGap",
+      "causeConfidence": "medium",
+      "causeDetail": "Both invoices and payments present; age R6400 > ledger R4500 with payment/export skew (unallocatedPaymentPattern).",
+      "section": "Bad Debt",
+      "metrics": {
+        "invoiceSum": 124760,
+        "paymentSum": -120260,
+        "computedLedgerFromTxns": 4500,
+        "variance": 1900,
+        "lifetimeOverpayment": -4500,
+        "crossAccountOutboundPaymentTotal": 0,
+        "crossAccountInboundPaymentTotal": 0,
+        "misPostedTxnCount": 0,
+        "receiptStylePaymentCount": 0,
+        "unallocatedNotePaymentCount": 0,
+        "historicalNoteTxnCount": 1,
+        "duplicateNameAccountNos": [
+          "MAT016"
+        ],
+        "siblingAccountNos": [],
+        "activeLearnerCount": 1,
+        "paymentPatterns": [
+          "unallocatedPaymentPattern"
+        ],
+        "paymentMatchConfidence": "medium"
+      }
+    },
+    {
+      "accountNo": "MKH002",
+      "fullName": "Ntsako Mkhasi",
+      "ageAnalysisBalance": 3700,
+      "ledgerBalanceFromImport": 1800,
+      "adjustmentAmount": 1900,
+      "totalInvoices": 124810,
+      "totalPayments": 123010,
+      "invoiceCount": 45,
+      "paymentCount": 44,
+      "paymentCoveragePercent": 98.56,
+      "hasUnallocatedPaymentSignals": true,
+      "unallocatedSignalDetail": "43 payment(s) with blank notes (Kid-e-Sys receipt export)",
+      "likelyCause": "normalKidESysAllocationGap",
+      "causeConfidence": "medium",
+      "causeDetail": "Both invoices and payments present; age R3700 > ledger R1800 with payment/export skew (unallocatedPaymentPattern).",
+      "section": "Bad Debt",
+      "metrics": {
+        "invoiceSum": 124810,
+        "paymentSum": -123010,
+        "computedLedgerFromTxns": 1800,
+        "variance": 1900,
+        "lifetimeOverpayment": -1800,
+        "crossAccountOutboundPaymentTotal": 0,
+        "crossAccountInboundPaymentTotal": 0,
+        "misPostedTxnCount": 0,
+        "receiptStylePaymentCount": 0,
+        "unallocatedNotePaymentCount": 0,
+        "historicalNoteTxnCount": 0,
+        "duplicateNameAccountNos": [
+          "MKH002"
+        ],
+        "siblingAccountNos": [],
+        "activeLearnerCount": 1,
+        "paymentPatterns": [
+          "unallocatedPaymentPattern"
+        ],
+        "paymentMatchConfidence": "medium"
+      }
+    },
+    {
+      "accountNo": "SIN001",
+      "fullName": "Reneilwe Sindale",
+      "ageAnalysisBalance": 6700,
+      "ledgerBalanceFromImport": 4800,
+      "adjustmentAmount": 1900,
+      "totalInvoices": 133160,
+      "totalPayments": 128360,
+      "invoiceCount": 44,
+      "paymentCount": 50,
+      "paymentCoveragePercent": 96.4,
+      "hasUnallocatedPaymentSignals": true,
+      "unallocatedSignalDetail": "48 payment(s) with blank notes (Kid-e-Sys receipt export)",
+      "likelyCause": "normalKidESysAllocationGap",
+      "causeConfidence": "medium",
+      "causeDetail": "Both invoices and payments present; age R6700 > ledger R4800 with payment/export skew (unallocatedPaymentPattern).",
+      "section": "Recently Owing",
+      "metrics": {
+        "invoiceSum": 133160,
+        "paymentSum": -128360,
+        "computedLedgerFromTxns": 4800,
+        "variance": 1900,
+        "lifetimeOverpayment": -4800,
+        "crossAccountOutboundPaymentTotal": 0,
+        "crossAccountInboundPaymentTotal": 0,
+        "misPostedTxnCount": 0,
+        "receiptStylePaymentCount": 0,
+        "unallocatedNotePaymentCount": 0,
+        "historicalNoteTxnCount": 0,
+        "duplicateNameAccountNos": [
+          "SIN001"
+        ],
+        "siblingAccountNos": [],
+        "activeLearnerCount": 1,
+        "paymentPatterns": [
+          "unallocatedPaymentPattern"
+        ],
+        "paymentMatchConfidence": "medium"
+      }
+    },
+    {
+      "accountNo": "KIN001",
+      "fullName": "Omatla Sensation Kwele",
+      "ageAnalysisBalance": 3200,
+      "ledgerBalanceFromImport": 1500,
+      "adjustmentAmount": 1700,
+      "totalInvoices": 123260,
+      "totalPayments": 121760,
+      "invoiceCount": 45,
+      "paymentCount": 46,
+      "paymentCoveragePercent": 98.78,
+      "hasUnallocatedPaymentSignals": true,
+      "unallocatedSignalDetail": "41 payment(s) with blank notes (Kid-e-Sys receipt export)",
+      "likelyCause": "normalKidESysAllocationGap",
+      "causeConfidence": "medium",
+      "causeDetail": "Both invoices and payments present; age R3200 > ledger R1500 with payment/export skew (unallocatedPaymentPattern).",
+      "section": "Recently Owing",
+      "metrics": {
+        "invoiceSum": 123260,
+        "paymentSum": -121760,
+        "computedLedgerFromTxns": 1500,
+        "variance": 1700,
+        "lifetimeOverpayment": -1500,
+        "crossAccountOutboundPaymentTotal": 0,
+        "crossAccountInboundPaymentTotal": 0,
+        "misPostedTxnCount": 0,
+        "receiptStylePaymentCount": 0,
+        "unallocatedNotePaymentCount": 0,
+        "historicalNoteTxnCount": 0,
+        "duplicateNameAccountNos": [
+          "KIN001"
+        ],
+        "siblingAccountNos": [],
+        "activeLearnerCount": 1,
+        "paymentPatterns": [
+          "unallocatedPaymentPattern"
+        ],
+        "paymentMatchConfidence": "medium"
+      }
+    },
+    {
+      "accountNo": "MOD004",
+      "fullName": "Tshimologo Modise",
+      "ageAnalysisBalance": 2300,
+      "ledgerBalanceFromImport": 600,
+      "adjustmentAmount": 1700,
+      "totalInvoices": 128825,
+      "totalPayments": 128225,
+      "invoiceCount": 49,
+      "paymentCount": 49,
+      "paymentCoveragePercent": 99.53,
+      "hasUnallocatedPaymentSignals": true,
+      "unallocatedSignalDetail": "47 payment(s) with blank notes (Kid-e-Sys receipt export)",
+      "likelyCause": "normalKidESysAllocationGap",
+      "causeConfidence": "medium",
+      "causeDetail": "Both invoices and payments present; age R2300 > ledger R600 with payment/export skew (unallocatedPaymentPattern).",
+      "section": "Recently Owing",
+      "metrics": {
+        "invoiceSum": 128825,
+        "paymentSum": -128225,
+        "computedLedgerFromTxns": 600,
+        "variance": 1700,
+        "lifetimeOverpayment": -600,
+        "crossAccountOutboundPaymentTotal": 0,
+        "crossAccountInboundPaymentTotal": 0,
+        "misPostedTxnCount": 0,
+        "receiptStylePaymentCount": 0,
+        "unallocatedNotePaymentCount": 0,
+        "historicalNoteTxnCount": 0,
+        "duplicateNameAccountNos": [
+          "MOD004"
+        ],
+        "siblingAccountNos": [],
+        "activeLearnerCount": 1,
+        "paymentPatterns": [
+          "unallocatedPaymentPattern"
+        ],
+        "paymentMatchConfidence": "medium"
+      }
+    },
+    {
+      "accountNo": "PHI003",
+      "fullName": "Ethan Jacobus Phillips",
+      "ageAnalysisBalance": 3000,
+      "ledgerBalanceFromImport": 1300,
+      "adjustmentAmount": 1700,
+      "totalInvoices": 151570,
+      "totalPayments": 150270,
+      "invoiceCount": 45,
+      "paymentCount": 48,
+      "paymentCoveragePercent": 99.14,
+      "hasUnallocatedPaymentSignals": true,
+      "unallocatedSignalDetail": "44 payment(s) with blank notes (Kid-e-Sys receipt export)",
+      "likelyCause": "normalKidESysAllocationGap",
+      "causeConfidence": "medium",
+      "causeDetail": "Both invoices and payments present; age R3000 > ledger R1300 with payment/export skew (unallocatedPaymentPattern).",
+      "section": "Recently Owing",
+      "metrics": {
+        "invoiceSum": 151570,
+        "paymentSum": -150270,
+        "computedLedgerFromTxns": 1300,
+        "variance": 1700,
+        "lifetimeOverpayment": -1300,
+        "crossAccountOutboundPaymentTotal": 0,
+        "crossAccountInboundPaymentTotal": 0,
+        "misPostedTxnCount": 0,
+        "receiptStylePaymentCount": 0,
+        "unallocatedNotePaymentCount": 0,
+        "historicalNoteTxnCount": 3,
+        "duplicateNameAccountNos": [
+          "PHI003"
+        ],
+        "siblingAccountNos": [],
+        "activeLearnerCount": 1,
+        "paymentPatterns": [
+          "unallocatedPaymentPattern"
+        ],
+        "paymentMatchConfidence": "medium"
+      }
+    },
+    {
+      "accountNo": "LEG003",
+      "fullName": "Thato Legari",
+      "ageAnalysisBalance": 4350,
+      "ledgerBalanceFromImport": 2750,
+      "adjustmentAmount": 1600,
+      "totalInvoices": 155470,
+      "totalPayments": 152720,
+      "invoiceCount": 49,
+      "paymentCount": 36,
+      "paymentCoveragePercent": 98.23,
+      "hasUnallocatedPaymentSignals": true,
+      "unallocatedSignalDetail": "34 payment(s) with blank notes (Kid-e-Sys receipt export)",
+      "likelyCause": "normalKidESysAllocationGap",
+      "causeConfidence": "medium",
+      "causeDetail": "Both invoices and payments present; age R4350 > ledger R2750 with payment/export skew (unallocatedPaymentPattern).",
+      "section": "Recently Owing",
+      "metrics": {
+        "invoiceSum": 155470,
+        "paymentSum": -152720,
+        "computedLedgerFromTxns": 2750,
+        "variance": 1600,
+        "lifetimeOverpayment": -2750,
+        "crossAccountOutboundPaymentTotal": 0,
+        "crossAccountInboundPaymentTotal": 0,
+        "misPostedTxnCount": 0,
+        "receiptStylePaymentCount": 0,
+        "unallocatedNotePaymentCount": 0,
+        "historicalNoteTxnCount": 1,
+        "duplicateNameAccountNos": [
+          "LEG003"
+        ],
+        "siblingAccountNos": [],
+        "activeLearnerCount": 1,
+        "paymentPatterns": [
+          "unallocatedPaymentPattern"
+        ],
+        "paymentMatchConfidence": "medium"
+      }
+    },
+    {
+      "accountNo": "MAB008",
+      "fullName": "Tlotlego Mabena",
+      "ageAnalysisBalance": 2500,
+      "ledgerBalanceFromImport": 900,
+      "adjustmentAmount": 1600,
+      "totalInvoices": 125430,
+      "totalPayments": 124530,
+      "invoiceCount": 48,
+      "paymentCount": 52,
+      "paymentCoveragePercent": 99.28,
+      "hasUnallocatedPaymentSignals": true,
+      "unallocatedSignalDetail": "48 payment(s) with blank notes (Kid-e-Sys receipt export)",
+      "likelyCause": "normalKidESysAllocationGap",
+      "causeConfidence": "medium",
+      "causeDetail": "Both invoices and payments present; age R2500 > ledger R900 with payment/export skew (unallocatedPaymentPattern).",
+      "section": "Recently Owing",
+      "metrics": {
+        "invoiceSum": 125430,
+        "paymentSum": -124530,
+        "computedLedgerFromTxns": 900,
+        "variance": 1600,
+        "lifetimeOverpayment": -900,
+        "crossAccountOutboundPaymentTotal": 0,
+        "crossAccountInboundPaymentTotal": 0,
+        "misPostedTxnCount": 0,
+        "receiptStylePaymentCount": 0,
+        "unallocatedNotePaymentCount": 0,
+        "historicalNoteTxnCount": 1,
+        "duplicateNameAccountNos": [
+          "MAB008"
+        ],
+        "siblingAccountNos": [],
+        "activeLearnerCount": 1,
+        "paymentPatterns": [
+          "unallocatedPaymentPattern"
+        ],
+        "paymentMatchConfidence": "medium"
+      }
+    },
+    {
+      "accountNo": "MOK028",
+      "fullName": "Ofentse Mokua",
+      "ageAnalysisBalance": 3550,
+      "ledgerBalanceFromImport": 2100,
+      "adjustmentAmount": 1450,
+      "totalInvoices": 135210,
+      "totalPayments": 133110,
+      "invoiceCount": 48,
+      "paymentCount": 44,
+      "paymentCoveragePercent": 98.45,
+      "hasUnallocatedPaymentSignals": true,
+      "unallocatedSignalDetail": "40 payment(s) with blank notes (Kid-e-Sys receipt export)",
+      "likelyCause": "normalKidESysAllocationGap",
+      "causeConfidence": "medium",
+      "causeDetail": "Both invoices and payments present; age R3550 > ledger R2100 with payment/export skew (unallocatedPaymentPattern).",
+      "section": "Recently Owing",
+      "metrics": {
+        "invoiceSum": 135210,
+        "paymentSum": -133110,
+        "computedLedgerFromTxns": 2100,
+        "variance": 1450,
+        "lifetimeOverpayment": -2100,
+        "crossAccountOutboundPaymentTotal": 0,
+        "crossAccountInboundPaymentTotal": 0,
+        "misPostedTxnCount": 0,
+        "receiptStylePaymentCount": 0,
+        "unallocatedNotePaymentCount": 0,
+        "historicalNoteTxnCount": 1,
+        "duplicateNameAccountNos": [
+          "MOK028"
+        ],
+        "siblingAccountNos": [],
+        "activeLearnerCount": 1,
+        "paymentPatterns": [
+          "unallocatedPaymentPattern"
+        ],
+        "paymentMatchConfidence": "medium"
+      }
+    },
+    {
+      "accountNo": "SEN002",
+      "fullName": "Peoentle Senne",
+      "ageAnalysisBalance": 7150,
+      "ledgerBalanceFromImport": 5715,
+      "adjustmentAmount": 1435,
+      "totalInvoices": 130010,
+      "totalPayments": 124295,
+      "invoiceCount": 43,
+      "paymentCount": 62,
+      "paymentCoveragePercent": 95.6,
+      "hasUnallocatedPaymentSignals": true,
+      "unallocatedSignalDetail": "60 payment(s) with blank notes (Kid-e-Sys receipt export)",
+      "likelyCause": "normalKidESysAllocationGap",
+      "causeConfidence": "medium",
+      "causeDetail": "Both invoices and payments present; age R7150 > ledger R5715 with payment/export skew (unallocatedPaymentPattern).",
+      "section": "Recently Owing",
+      "metrics": {
+        "invoiceSum": 130010,
+        "paymentSum": -124295,
+        "computedLedgerFromTxns": 5715,
+        "variance": 1435,
+        "lifetimeOverpayment": -5715,
+        "crossAccountOutboundPaymentTotal": 0,
+        "crossAccountInboundPaymentTotal": 0,
+        "misPostedTxnCount": 0,
+        "receiptStylePaymentCount": 0,
+        "unallocatedNotePaymentCount": 0,
+        "historicalNoteTxnCount": 1,
+        "duplicateNameAccountNos": [
+          "SEN002"
+        ],
+        "siblingAccountNos": [],
+        "activeLearnerCount": 1,
+        "paymentPatterns": [
+          "unallocatedPaymentPattern"
+        ],
+        "paymentMatchConfidence": "medium"
+      }
+    },
+    {
+      "accountNo": "LEK003",
+      "fullName": "Phetogo Lekgetho Moruledi",
+      "ageAnalysisBalance": 7200,
+      "ledgerBalanceFromImport": 6145,
+      "adjustmentAmount": 1055,
+      "totalInvoices": 118860,
+      "totalPayments": 112715,
+      "invoiceCount": 43,
+      "paymentCount": 43,
+      "paymentCoveragePercent": 94.83,
+      "hasUnallocatedPaymentSignals": true,
+      "unallocatedSignalDetail": "41 payment(s) with blank notes (Kid-e-Sys receipt export)",
+      "likelyCause": "normalKidESysAllocationGap",
+      "causeConfidence": "medium",
+      "causeDetail": "Both invoices and payments present; age R7200 > ledger R6145 with payment/export skew (unallocatedPaymentPattern, crossAccountCreditOnLinked).",
+      "section": "Bad Debt",
+      "metrics": {
+        "invoiceSum": 118860,
+        "paymentSum": -112715,
+        "computedLedgerFromTxns": 6145,
+        "variance": 1055,
+        "lifetimeOverpayment": -6145,
+        "crossAccountOutboundPaymentTotal": 0,
+        "crossAccountInboundPaymentTotal": 0,
+        "misPostedTxnCount": 0,
+        "receiptStylePaymentCount": 0,
+        "unallocatedNotePaymentCount": 0,
+        "historicalNoteTxnCount": 0,
+        "duplicateNameAccountNos": [
+          "LEK003"
+        ],
+        "siblingAccountNos": [
+          "MOR013"
+        ],
+        "activeLearnerCount": 1,
+        "paymentPatterns": [
+          "unallocatedPaymentPattern",
+          "crossAccountCreditOnLinked"
+        ],
+        "paymentMatchConfidence": "medium"
+      }
+    },
+    {
+      "accountNo": "GOV001",
+      "fullName": "Caleb Nathan Govender",
+      "ageAnalysisBalance": 1000,
+      "ledgerBalanceFromImport": 0,
+      "adjustmentAmount": 1000,
+      "totalInvoices": 51010,
+      "totalPayments": 51010,
+      "invoiceCount": 41,
+      "paymentCount": 48,
+      "paymentCoveragePercent": 100,
+      "hasUnallocatedPaymentSignals": true,
+      "unallocatedSignalDetail": "41 payment(s) with blank notes (Kid-e-Sys receipt export)",
+      "likelyCause": "normalKidESysAllocationGap",
+      "causeConfidence": "medium",
+      "causeDetail": "Both invoices and payments present; age R1000 > ledger R0 with payment/export skew (unallocatedPaymentPattern).",
+      "section": "Recently Owing",
+      "metrics": {
+        "invoiceSum": 51010,
+        "paymentSum": -51010,
+        "computedLedgerFromTxns": 0,
+        "variance": 1000,
+        "lifetimeOverpayment": 0,
+        "crossAccountOutboundPaymentTotal": 0,
+        "crossAccountInboundPaymentTotal": 0,
+        "misPostedTxnCount": 0,
+        "receiptStylePaymentCount": 0,
+        "unallocatedNotePaymentCount": 0,
+        "historicalNoteTxnCount": 1,
+        "duplicateNameAccountNos": [
+          "GOV001"
+        ],
+        "siblingAccountNos": [],
+        "activeLearnerCount": 1,
+        "paymentPatterns": [
+          "unallocatedPaymentPattern"
+        ],
+        "paymentMatchConfidence": "medium"
+      }
+    },
+    {
+      "accountNo": "DIA003",
+      "fullName": "Amogelang Warona Diatshwana",
+      "ageAnalysisBalance": 2500,
+      "ledgerBalanceFromImport": 1600,
+      "adjustmentAmount": 900,
+      "totalInvoices": 124660,
+      "totalPayments": 123060,
+      "invoiceCount": 46,
+      "paymentCount": 48,
+      "paymentCoveragePercent": 98.72,
+      "hasUnallocatedPaymentSignals": true,
+      "unallocatedSignalDetail": "44 payment(s) with blank notes (Kid-e-Sys receipt export)",
+      "likelyCause": "normalKidESysAllocationGap",
+      "causeConfidence": "medium",
+      "causeDetail": "Both invoices and payments present; age R2500 > ledger R1600 with payment/export skew (unallocatedPaymentPattern).",
+      "section": "Recently Owing",
+      "metrics": {
+        "invoiceSum": 124660,
+        "paymentSum": -123060,
+        "computedLedgerFromTxns": 1600,
+        "variance": 900,
+        "lifetimeOverpayment": -1600,
+        "crossAccountOutboundPaymentTotal": 0,
+        "crossAccountInboundPaymentTotal": 0,
+        "misPostedTxnCount": 0,
+        "receiptStylePaymentCount": 0,
+        "unallocatedNotePaymentCount": 0,
+        "historicalNoteTxnCount": 0,
+        "duplicateNameAccountNos": [
+          "DIA003"
+        ],
+        "siblingAccountNos": [],
+        "activeLearnerCount": 1,
+        "paymentPatterns": [
+          "unallocatedPaymentPattern"
+        ],
+        "paymentMatchConfidence": "medium"
+      }
+    },
+    {
+      "accountNo": "TSH006",
+      "fullName": "Reitumetse Naledi Njabulo Tshiponyane Setae",
+      "ageAnalysisBalance": 2850,
+      "ledgerBalanceFromImport": 2160,
+      "adjustmentAmount": 690,
+      "totalInvoices": 146515,
+      "totalPayments": 144355,
+      "invoiceCount": 55,
+      "paymentCount": 52,
+      "paymentCoveragePercent": 98.53,
+      "hasUnallocatedPaymentSignals": true,
+      "unallocatedSignalDetail": "47 payment(s) with blank notes (Kid-e-Sys receipt export)",
+      "likelyCause": "normalKidESysAllocationGap",
+      "causeConfidence": "medium",
+      "causeDetail": "Both invoices and payments present; age R2850 > ledger R2160 with payment/export skew (unallocatedPaymentPattern).",
+      "section": "Recently Owing",
+      "metrics": {
+        "invoiceSum": 146515,
+        "paymentSum": -144355,
+        "computedLedgerFromTxns": 2160,
+        "variance": 690,
+        "lifetimeOverpayment": -2160,
+        "crossAccountOutboundPaymentTotal": 0,
+        "crossAccountInboundPaymentTotal": 0,
+        "misPostedTxnCount": 0,
+        "receiptStylePaymentCount": 0,
+        "unallocatedNotePaymentCount": 0,
+        "historicalNoteTxnCount": 2,
+        "duplicateNameAccountNos": [
+          "TSH006"
+        ],
+        "siblingAccountNos": [],
+        "activeLearnerCount": 1,
+        "paymentPatterns": [
+          "unallocatedPaymentPattern"
+        ],
+        "paymentMatchConfidence": "medium"
+      }
+    },
+    {
+      "accountNo": "MOL010",
+      "fullName": "Oagile Kabo Molete",
+      "ageAnalysisBalance": 3700,
+      "ledgerBalanceFromImport": 3030,
+      "adjustmentAmount": 670,
+      "totalInvoices": 131010,
+      "totalPayments": 127980,
+      "invoiceCount": 44,
+      "paymentCount": 32,
+      "paymentCoveragePercent": 97.69,
+      "hasUnallocatedPaymentSignals": true,
+      "unallocatedSignalDetail": "25 payment(s) with blank notes (Kid-e-Sys receipt export)",
+      "likelyCause": "normalKidESysAllocationGap",
+      "causeConfidence": "medium",
+      "causeDetail": "Both invoices and payments present; age R3700 > ledger R3030 with payment/export skew (unallocatedPaymentPattern).",
+      "section": "Recently Owing",
+      "metrics": {
+        "invoiceSum": 131010,
+        "paymentSum": -127980,
+        "computedLedgerFromTxns": 3030,
+        "variance": 670,
+        "lifetimeOverpayment": -3030,
+        "crossAccountOutboundPaymentTotal": 0,
+        "crossAccountInboundPaymentTotal": 0,
+        "misPostedTxnCount": 0,
+        "receiptStylePaymentCount": 0,
+        "unallocatedNotePaymentCount": 0,
+        "historicalNoteTxnCount": 1,
+        "duplicateNameAccountNos": [
+          "MOL010"
+        ],
+        "siblingAccountNos": [],
+        "activeLearnerCount": 1,
+        "paymentPatterns": [
+          "unallocatedPaymentPattern"
+        ],
+        "paymentMatchConfidence": "medium"
+      }
+    },
+    {
+      "accountNo": "MOK019",
+      "fullName": "Keitumetse Mokgotho",
+      "ageAnalysisBalance": 4500,
+      "ledgerBalanceFromImport": 4150,
+      "adjustmentAmount": 350,
+      "totalInvoices": 154410,
+      "totalPayments": 150260,
+      "invoiceCount": 47,
+      "paymentCount": 45,
+      "paymentCoveragePercent": 97.31,
+      "hasUnallocatedPaymentSignals": true,
+      "unallocatedSignalDetail": "42 payment(s) with blank notes (Kid-e-Sys receipt export)",
+      "likelyCause": "normalKidESysAllocationGap",
+      "causeConfidence": "medium",
+      "causeDetail": "Both invoices and payments present; age R4500 > ledger R4150 with payment/export skew (unallocatedPaymentPattern).",
+      "section": "Recently Owing",
+      "metrics": {
+        "invoiceSum": 154410,
+        "paymentSum": -150260,
+        "computedLedgerFromTxns": 4150,
+        "variance": 350,
+        "lifetimeOverpayment": -4150,
+        "crossAccountOutboundPaymentTotal": 0,
+        "crossAccountInboundPaymentTotal": 0,
+        "misPostedTxnCount": 0,
+        "receiptStylePaymentCount": 0,
+        "unallocatedNotePaymentCount": 0,
+        "historicalNoteTxnCount": 1,
+        "duplicateNameAccountNos": [
+          "MOK019"
+        ],
+        "siblingAccountNos": [],
+        "activeLearnerCount": 1,
+        "paymentPatterns": [
+          "unallocatedPaymentPattern"
+        ],
+        "paymentMatchConfidence": "medium"
+      }
+    },
+    {
+      "accountNo": "GAE001",
+      "fullName": "Orateng Gaebolae",
+      "ageAnalysisBalance": 6800,
+      "ledgerBalanceFromImport": 6455,
+      "adjustmentAmount": 345,
+      "totalInvoices": 125605,
+      "totalPayments": 119150,
+      "invoiceCount": 50,
+      "paymentCount": 56,
+      "paymentCoveragePercent": 94.86,
+      "hasUnallocatedPaymentSignals": true,
+      "unallocatedSignalDetail": "1 receipt-style payment note(s); 54 payment(s) with blank notes (Kid-e-Sys receipt export)",
+      "likelyCause": "normalKidESysAllocationGap",
+      "causeConfidence": "medium",
+      "causeDetail": "Both invoices and payments present; age R6800 > ledger R6455 with payment/export skew (unallocatedPaymentPattern).",
+      "section": "Bad Debt",
+      "metrics": {
+        "invoiceSum": 125605,
+        "paymentSum": -119150,
+        "computedLedgerFromTxns": 6455,
+        "variance": 345,
+        "lifetimeOverpayment": -6455,
+        "crossAccountOutboundPaymentTotal": 0,
+        "crossAccountInboundPaymentTotal": 0,
+        "misPostedTxnCount": 0,
+        "receiptStylePaymentCount": 1,
+        "unallocatedNotePaymentCount": 0,
+        "historicalNoteTxnCount": 0,
+        "duplicateNameAccountNos": [
+          "GAE001"
+        ],
+        "siblingAccountNos": [],
+        "activeLearnerCount": 1,
+        "paymentPatterns": [
+          "unallocatedPaymentPattern"
+        ],
+        "paymentMatchConfidence": "medium"
+      }
+    }
+  ]
+}

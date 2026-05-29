@@ -1,0 +1,290 @@
+=== Kid-e-Sys billing reconciliation report ===
+School: Da Silva Academy
+Generated: 2026-05-27T14:37:04.316Z
+Total accounts: 344
+First pass matched: 325
+Second pass auto-matched: 5
+Total matched: 330/344
+Still unmatched: 14
+
+--- Auto matched (5) ---
+1. TSH012
+   Learner name: Tumelo Sizwe Diamond Tshabalala
+   Sibling/family names: Tumelo Sizwe Diamond Tshabalala | Motheo Divine Tshabalala
+   Balance: R7400.00
+   Matched candidates: Motheo Divine Nozizwe TSHABALALA [age_analysis_txn_crossref/medium] class=Grade 5A; Motheo Divine Nozizwe TSHABALALA [surname_normalization/high] class=Grade 5A; Motheo Divine Nozizwe TSHABALALA [surname_normalization/high] class=Grade 5A
+   Reason not matched: Second pass auto-linked via surname_normalization (high)
+   Second pass: auto_matched → surname_normalization (high) learnerId=cmpo63mh600cp121g99pntrrj
+
+2. MOS014
+   Learner name: Omphile Dithole Mosiane Dsa0161
+   Sibling/family names: (single learner account)
+   Balance: R3700.00
+   Matched candidates: Omphile MOSIANE [surname_first_name/high] class=Grade 5A; Omphile MOSIANE [surname_first_name/high] class=Grade 5A
+   Reason not matched: Second pass auto-linked via surname_first_name (high)
+   Second pass: auto_matched → surname_first_name (high) learnerId=cmpo63mh100c5121gycvoq4g6
+
+3. MSI004
+   Learner name: Snekosi Msimango
+   Sibling/family names: (single learner account)
+   Balance: R8300.00
+   Matched candidates: Snenkosi MSIMANGO [surname_normalization/high] class=Grade 8B; Snenkosi MSIMANGO [surname_normalization/high] class=Grade 8B
+   Reason not matched: Second pass auto-linked via surname_normalization (high)
+   Second pass: auto_matched → surname_normalization (high) learnerId=cmpo63mj900kt121gpt2gvnbr
+
+4. SIL007
+   Learner name: Adrien Martins Da Silva
+   Sibling/family names: (single learner account)
+   Balance: R-18000.00
+   Matched candidates: Adrien MARTINS DA SILVA [contact_list/high] class=Grade 2A; Adrien MARTINS DA SILVA [contact_list/high] class=Grade 2A
+   Reason not matched: Second pass auto-linked via contact_list (high)
+   Second pass: auto_matched → contact_list (high) learnerId=cmpo63meh004f121gm5f608lw
+
+5. DUP001
+   Learner name: Aiden Jacques Du Plessis
+   Sibling/family names: (single learner account)
+   Balance: R-8700.00
+   Matched candidates: Aiden DU PLESSIS [surname_normalization/high] class=Grade 1A; Aiden DU PLESSIS [surname_normalization/high] class=Grade 1A
+   Reason not matched: Second pass auto-linked via surname_normalization (high)
+   Second pass: auto_matched → surname_normalization (high) learnerId=cmpo63md5001d121gkf321d0y
+
+--- Manual review required (0) ---
+(none)
+
+--- Still unmatched (14) ---
+1. KOR001
+   Learner name: Dagimawit Korabza
+   Sibling/family names: (single learner account)
+   Balance: R6860.00
+   Matched candidates: (none)
+   Reason not matched: No learner candidate matched name, class, or cross-reference keys
+
+2. MOL040
+   Learner name: Karaboentle Molahlehi
+   Sibling/family names: (single learner account)
+   Balance: R3700.00
+   Matched candidates: (none)
+   Reason not matched: No learner candidate matched name, class, or cross-reference keys
+
+3. MOE008
+   Learner name: Oteng Okgotlhe Moeng
+   Sibling/family names: (single learner account)
+   Balance: R21990.00
+   Matched candidates: (none)
+   Reason not matched: No learner candidate matched name, class, or cross-reference keys
+
+4. NZI001
+   Learner name: Amantle Nzimande
+   Sibling/family names: (single learner account)
+   Balance: R3700.00
+   Matched candidates: (none)
+   Reason not matched: No learner candidate matched name, class, or cross-reference keys
+
+5. MOY004
+   Learner name: Aobakwe Dube Moyo
+   Sibling/family names: (single learner account)
+   Balance: R3000.00
+   Matched candidates: (none)
+   Reason not matched: No learner candidate matched name, class, or cross-reference keys
+
+6. NGW003
+   Learner name: Athandile Nqobizwe Ngwenya Kunene
+   Sibling/family names: (single learner account)
+   Balance: R4650.00
+   Matched candidates: (none)
+   Reason not matched: No learner candidate matched name, class, or cross-reference keys
+
+7. HOB002
+   Learner name: Hlulani Bahumi Hobyani
+   Sibling/family names: (single learner account)
+   Balance: R5900.00
+   Matched candidates: (none)
+   Reason not matched: No learner candidate matched name, class, or cross-reference keys
+
+8. RAM009
+   Learner name: Omatla Malesela Ramagogogdi
+   Sibling/family names: (single learner account)
+   Balance: R4250.00
+   Matched candidates: (none)
+   Reason not matched: No learner candidate matched name, class, or cross-reference keys
+
+9. RAM020
+   Learner name: Oreabetse Regomoditswe Ramafoko
+   Sibling/family names: (single learner account)
+   Balance: R4450.00
+   Matched candidates: (none)
+   Reason not matched: No learner candidate matched name, class, or cross-reference keys
+
+10. MAL020
+   Learner name: Palesa Malatji
+   Sibling/family names: (single learner account)
+   Balance: R8550.00
+   Matched candidates: (none)
+   Reason not matched: No learner candidate matched name, class, or cross-reference keys
+
+11. DIK001
+   Learner name: Sinenhlanhla Dikana Iviwe
+   Sibling/family names: (single learner account)
+   Balance: R4200.00
+   Matched candidates: (none)
+   Reason not matched: No learner candidate matched name, class, or cross-reference keys
+
+12. MOS021
+   Learner name: Tshepiso Mosiatana
+   Sibling/family names: (single learner account)
+   Balance: R3800.00
+   Matched candidates: (none)
+   Reason not matched: No learner candidate matched name, class, or cross-reference keys
+
+13. MAH007
+   Learner name: Umme - Haani Mahomed Hoosen
+   Sibling/family names: (single learner account)
+   Balance: R3000.00
+   Matched candidates: (none)
+   Reason not matched: No learner candidate matched name, class, or cross-reference keys
+
+14. MAS030
+   Learner name: Thoriso Masenamela
+   Sibling/family names: (single learner account)
+   Balance: R0.00
+   Matched candidates: (none)
+   Reason not matched: No learner candidate matched name, class, or cross-reference keys
+
+--- Full unmatched reconciliation (all first-pass misses) ---
+1. KOR001
+   Learner name: Dagimawit Korabza
+   Sibling/family names: (single learner account)
+   Balance: R6860.00
+   Matched candidates: (none)
+   Reason not matched: No learner candidate matched name, class, or cross-reference keys
+
+2. MOL040
+   Learner name: Karaboentle Molahlehi
+   Sibling/family names: (single learner account)
+   Balance: R3700.00
+   Matched candidates: (none)
+   Reason not matched: No learner candidate matched name, class, or cross-reference keys
+
+3. TSH012
+   Learner name: Tumelo Sizwe Diamond Tshabalala
+   Sibling/family names: Tumelo Sizwe Diamond Tshabalala | Motheo Divine Tshabalala
+   Balance: R7400.00
+   Matched candidates: Motheo Divine Nozizwe TSHABALALA [age_analysis_txn_crossref/medium] class=Grade 5A; Motheo Divine Nozizwe TSHABALALA [surname_normalization/high] class=Grade 5A; Motheo Divine Nozizwe TSHABALALA [surname_normalization/high] class=Grade 5A
+   Reason not matched: Second pass auto-linked via surname_normalization (high)
+   Second pass: auto_matched → surname_normalization (high) learnerId=cmpo63mh600cp121g99pntrrj
+
+4. MOS014
+   Learner name: Omphile Dithole Mosiane Dsa0161
+   Sibling/family names: (single learner account)
+   Balance: R3700.00
+   Matched candidates: Omphile MOSIANE [surname_first_name/high] class=Grade 5A; Omphile MOSIANE [surname_first_name/high] class=Grade 5A
+   Reason not matched: Second pass auto-linked via surname_first_name (high)
+   Second pass: auto_matched → surname_first_name (high) learnerId=cmpo63mh100c5121gycvoq4g6
+
+5. MOE008
+   Learner name: Oteng Okgotlhe Moeng
+   Sibling/family names: (single learner account)
+   Balance: R21990.00
+   Matched candidates: (none)
+   Reason not matched: No learner candidate matched name, class, or cross-reference keys
+
+6. MSI004
+   Learner name: Snekosi Msimango
+   Sibling/family names: (single learner account)
+   Balance: R8300.00
+   Matched candidates: Snenkosi MSIMANGO [surname_normalization/high] class=Grade 8B; Snenkosi MSIMANGO [surname_normalization/high] class=Grade 8B
+   Reason not matched: Second pass auto-linked via surname_normalization (high)
+   Second pass: auto_matched → surname_normalization (high) learnerId=cmpo63mj900kt121gpt2gvnbr
+
+7. NZI001
+   Learner name: Amantle Nzimande
+   Sibling/family names: (single learner account)
+   Balance: R3700.00
+   Matched candidates: (none)
+   Reason not matched: No learner candidate matched name, class, or cross-reference keys
+
+8. MOY004
+   Learner name: Aobakwe Dube Moyo
+   Sibling/family names: (single learner account)
+   Balance: R3000.00
+   Matched candidates: (none)
+   Reason not matched: No learner candidate matched name, class, or cross-reference keys
+
+9. NGW003
+   Learner name: Athandile Nqobizwe Ngwenya Kunene
+   Sibling/family names: (single learner account)
+   Balance: R4650.00
+   Matched candidates: (none)
+   Reason not matched: No learner candidate matched name, class, or cross-reference keys
+
+10. HOB002
+   Learner name: Hlulani Bahumi Hobyani
+   Sibling/family names: (single learner account)
+   Balance: R5900.00
+   Matched candidates: (none)
+   Reason not matched: No learner candidate matched name, class, or cross-reference keys
+
+11. RAM009
+   Learner name: Omatla Malesela Ramagogogdi
+   Sibling/family names: (single learner account)
+   Balance: R4250.00
+   Matched candidates: (none)
+   Reason not matched: No learner candidate matched name, class, or cross-reference keys
+
+12. RAM020
+   Learner name: Oreabetse Regomoditswe Ramafoko
+   Sibling/family names: (single learner account)
+   Balance: R4450.00
+   Matched candidates: (none)
+   Reason not matched: No learner candidate matched name, class, or cross-reference keys
+
+13. MAL020
+   Learner name: Palesa Malatji
+   Sibling/family names: (single learner account)
+   Balance: R8550.00
+   Matched candidates: (none)
+   Reason not matched: No learner candidate matched name, class, or cross-reference keys
+
+14. DIK001
+   Learner name: Sinenhlanhla Dikana Iviwe
+   Sibling/family names: (single learner account)
+   Balance: R4200.00
+   Matched candidates: (none)
+   Reason not matched: No learner candidate matched name, class, or cross-reference keys
+
+15. MOS021
+   Learner name: Tshepiso Mosiatana
+   Sibling/family names: (single learner account)
+   Balance: R3800.00
+   Matched candidates: (none)
+   Reason not matched: No learner candidate matched name, class, or cross-reference keys
+
+16. MAH007
+   Learner name: Umme - Haani Mahomed Hoosen
+   Sibling/family names: (single learner account)
+   Balance: R3000.00
+   Matched candidates: (none)
+   Reason not matched: No learner candidate matched name, class, or cross-reference keys
+
+17. MAS030
+   Learner name: Thoriso Masenamela
+   Sibling/family names: (single learner account)
+   Balance: R0.00
+   Matched candidates: (none)
+   Reason not matched: No learner candidate matched name, class, or cross-reference keys
+
+18. SIL007
+   Learner name: Adrien Martins Da Silva
+   Sibling/family names: (single learner account)
+   Balance: R-18000.00
+   Matched candidates: Adrien MARTINS DA SILVA [contact_list/high] class=Grade 2A; Adrien MARTINS DA SILVA [contact_list/high] class=Grade 2A
+   Reason not matched: Second pass auto-linked via contact_list (high)
+   Second pass: auto_matched → contact_list (high) learnerId=cmpo63meh004f121gm5f608lw
+
+19. DUP001
+   Learner name: Aiden Jacques Du Plessis
+   Sibling/family names: (single learner account)
+   Balance: R-8700.00
+   Matched candidates: Aiden DU PLESSIS [surname_normalization/high] class=Grade 1A; Aiden DU PLESSIS [surname_normalization/high] class=Grade 1A
+   Reason not matched: Second pass auto-linked via surname_normalization (high)
+   Second pass: auto_matched → surname_normalization (high) learnerId=cmpo63md5001d121gkf321d0y

@@ -1,0 +1,250 @@
+{
+  "templateId": "readiness-edadmin",
+  "systemId": "edadmin",
+  "systemName": "Ed-admin",
+  "version": "1.0.0",
+  "requiredFiles": [
+    {
+      "fileKey": "learners",
+      "label": "Learners / class list",
+      "description": "Spreadsheet or export listing pupils with name and grade or class. Filename hints: learner, student, class list.",
+      "required": true,
+      "acceptedTypes": [
+        "csv",
+        "xls",
+        "xlsx"
+      ],
+      "category": "learners"
+    },
+    {
+      "fileKey": "parents",
+      "label": "Parents / contacts",
+      "description": "Guardian or contact export with at least a contact name. Filename hints: parent, guardian, contact.",
+      "required": true,
+      "acceptedTypes": [
+        "csv",
+        "xls",
+        "xlsx"
+      ],
+      "category": "parents"
+    },
+    {
+      "fileKey": "billing",
+      "label": "Billing / accounts",
+      "description": "Fee or account balances if available. Filename hints: billing, fee, age analysis. Optional until adapter is signed off.",
+      "required": false,
+      "acceptedTypes": [
+        "csv",
+        "xls",
+        "xlsx"
+      ],
+      "category": "billing"
+    },
+    {
+      "fileKey": "transactions",
+      "label": "Transactions / payments",
+      "description": "Payment or ledger history if available. Filename hints: transaction, payment, receipt. Optional until adapter is signed off.",
+      "required": false,
+      "acceptedTypes": [
+        "csv",
+        "xls",
+        "xlsx"
+      ],
+      "category": "transactions"
+    }
+  ],
+  "requiredFields": [
+    {
+      "fieldKey": "learner-name",
+      "label": "Learner name",
+      "targetField": "fullName",
+      "required": true,
+      "category": "learners",
+      "aliases": [
+        "learner",
+        "student",
+        "pupil",
+        "child",
+        "name",
+        "full name"
+      ]
+    },
+    {
+      "fieldKey": "grade-or-class",
+      "label": "Grade or class",
+      "targetField": "grade",
+      "required": true,
+      "category": "learners",
+      "aliases": [
+        "grade",
+        "year",
+        "form",
+        "class",
+        "classroom"
+      ]
+    },
+    {
+      "fieldKey": "parent-name",
+      "label": "Parent / guardian name",
+      "targetField": "parentName",
+      "required": true,
+      "category": "parents",
+      "aliases": [
+        "parent",
+        "guardian",
+        "contact",
+        "mother",
+        "father"
+      ]
+    }
+  ],
+  "optionalFields": [
+    {
+      "fieldKey": "learner-status",
+      "label": "Learner status",
+      "targetField": "status",
+      "required": false,
+      "category": "learners",
+      "aliases": [
+        "status",
+        "active",
+        "enrolment",
+        "enrollment"
+      ]
+    },
+    {
+      "fieldKey": "classroom",
+      "label": "Classroom",
+      "targetField": "classroom",
+      "required": false,
+      "category": "learners",
+      "aliases": [
+        "class",
+        "classroom",
+        "register class"
+      ]
+    },
+    {
+      "fieldKey": "parent-email",
+      "label": "Parent email",
+      "targetField": "parentEmail",
+      "required": false,
+      "category": "parents",
+      "aliases": [
+        "email",
+        "e-mail"
+      ]
+    },
+    {
+      "fieldKey": "parent-phone",
+      "label": "Parent phone",
+      "targetField": "parentPhone",
+      "required": false,
+      "category": "parents",
+      "aliases": [
+        "phone",
+        "mobile",
+        "cell",
+        "tel"
+      ]
+    },
+    {
+      "fieldKey": "account-number",
+      "label": "Account number",
+      "targetField": "accountNumber",
+      "required": false,
+      "category": "billing",
+      "aliases": [
+        "account",
+        "account no",
+        "debtor"
+      ]
+    },
+    {
+      "fieldKey": "account-name",
+      "label": "Account name",
+      "targetField": "accountName",
+      "required": false,
+      "category": "billing",
+      "aliases": [
+        "account name",
+        "debtor name"
+      ]
+    },
+    {
+      "fieldKey": "balance",
+      "label": "Balance",
+      "targetField": "currentBalance",
+      "required": false,
+      "category": "billing",
+      "aliases": [
+        "balance",
+        "outstanding",
+        "amount owing"
+      ]
+    },
+    {
+      "fieldKey": "transaction-date",
+      "label": "Transaction date",
+      "targetField": "transactionDate",
+      "required": false,
+      "category": "transactions",
+      "aliases": [
+        "date",
+        "transaction date",
+        "posted"
+      ]
+    },
+    {
+      "fieldKey": "transaction-type",
+      "label": "Transaction type",
+      "targetField": "transactionType",
+      "required": false,
+      "category": "transactions",
+      "aliases": [
+        "type",
+        "transaction type"
+      ]
+    },
+    {
+      "fieldKey": "reference",
+      "label": "Reference",
+      "targetField": "reference",
+      "required": false,
+      "category": "transactions",
+      "aliases": [
+        "reference",
+        "ref",
+        "receipt"
+      ]
+    },
+    {
+      "fieldKey": "amount",
+      "label": "Amount",
+      "targetField": "amount",
+      "required": false,
+      "category": "transactions",
+      "aliases": [
+        "amount",
+        "debit",
+        "credit",
+        "value"
+      ]
+    },
+    {
+      "fieldKey": "transaction-account-link",
+      "label": "Account / learner link",
+      "targetField": "accountNumber",
+      "required": false,
+      "category": "transactions",
+      "aliases": [
+        "account",
+        "learner",
+        "student",
+        "debtor"
+      ]
+    }
+  ],
+  "notes": "Per-module exports may be supplied separately. Billing and transactions optional until Ed-admin layouts are signed off.",
+  "lastReviewedAt": "2026-05-25T00:00:00.000Z"
+}

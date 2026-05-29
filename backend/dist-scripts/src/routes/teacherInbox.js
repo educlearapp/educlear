@@ -1,0 +1,332 @@
+"use strict";
+var __importDefault = (this && this.__importDefault) || function (mod) {
+    return (mod && mod.__esModule) ? mod : { "default": mod };
+};
+Object.defineProperty(exports, "__esModule", { value: true });
+const express_1 = require("express");
+const multer_1 = __importDefault(require("multer"));
+const path_1 = __importDefault(require("path"));
+const fs_1 = __importDefault(require("fs"));
+const prisma_1 = require("../prisma");
+const parentPortalService_1 = require("../services/parentPortalService");
+const staffJwt_1 = require("../utils/staffJwt");
+const uploadDir = path_1.default.join(process.cwd(), "uploads/parent-messages");
+try {
+    if (!fs_1.default.existsSync(uploadDir))
+        fs_1.default.mkdirSync(uploadDir, { recursive: true });
+}
+catch (e) {
+    console.warn("[teacher-inbox] Could not ensure upload directory exists; file uploads may fail until it is writable:", uploadDir, e);
+}
+const storage = multer_1.default.diskStorage({
+    destination: (_req, _file, cb) => cb(null, uploadDir),
+    filename: (_req, file, cb) => {
+        const unique = Date.now() + "-" + Math.round(Math.random() * 1e9);
+        cb(null, unique + path_1.default.extname(file.originalname));
+    },
+});
+const upload = (0, multer_1.default)({ storage, limits: { fileSize: 8 * 1024 * 1024 } });
+const router = (0, express_1.Router)();
+function normalizeEmail(email) {
+    return (0, parentPortalService_1.normalizeTeacherEmail)(email);
+}
+function userCanAdminInbox(jwtUser) {
+    return jwtUser.role === "SCHOOL_ADMIN";
+}
+/**
+ * Teacher inbox is staff-JWT only. Teacher email is always taken from the token (normalized)
+ * for non-admin views so it matches `classroom.teacherEmail` / thread records from the parent portal.
+ * Query/body `teacherEmail` is intentionally ignored to prevent spoofing.
+ */
+async function resolveInboxFromQuery(req) {
+    const jwtUser = (0, staffJwt_1.verifyStaffJwt)(req.headers.authorization);
+    if (!jwtUser) {
+        const tried = Boolean(typeof req.headers.authorization === "string" && req.headers.authorization.startsWith("Bearer "));
+        return {
+            ok: false,
+            status: 401,
+            error: tried ? "Invalid or expired session" : "Authentication required",
+        };
+    }
+    const schoolId = String(req.query.schoolId || "").trim();
+    const adminView = String(req.query.adminView || "") === "true";
+    if (!schoolId)
+        return { ok: false, status: 400, error: "schoolId required" };
+    if (jwtUser.schoolId !== schoolId) {
+        return { ok: false, status: 403, error: "schoolId mismatch or missing" };
+    }
+    let teacherEmail = "";
+    if (adminView) {
+        if (!userCanAdminInbox(jwtUser)) {
+            return { ok: false, status: 403, error: "adminView requires school admin or owner" };
+        }
+    }
+    else {
+        teacherEmail = normalizeEmail(jwtUser.email);
+        if (!teacherEmail) {
+            return { ok: false, status: 403, error: "Your account has no email on record" };
+        }
+    }
+    return { ok: true, schoolId, adminView, teacherEmail };
+}
+async function resolveInboxFromBody(req) {
+    const jwtUser = (0, staffJwt_1.verifyStaffJwt)(req.headers.authorization);
+    if (!jwtUser) {
+        const tried = Boolean(typeof req.headers.authorization === "string" && req.headers.authorization.startsWith("Bearer "));
+        return {
+            ok: false,
+            status: 401,
+            error: tried ? "Invalid or expired session" : "Authentication required",
+        };
+    }
+    const schoolId = String(req.body?.schoolId || "").trim();
+    const adminView = String(req.body?.adminView || "") === "true";
+    if (!schoolId)
+        return { ok: false, status: 400, error: "schoolId required" };
+    if (jwtUser.schoolId !== schoolId) {
+        return { ok: false, status: 403, error: "schoolId mismatch or missing" };
+    }
+    let teacherEmail = "";
+    if (adminView) {
+        if (!userCanAdminInbox(jwtUser)) {
+            return { ok: false, status: 403, error: "adminView requires school admin or owner" };
+        }
+    }
+    else {
+        teacherEmail = normalizeEmail(jwtUser.email);
+        if (!teacherEmail) {
+            return { ok: false, status: 403, error: "Your account has no email on record" };
+        }
+    }
+    return { ok: true, schoolId, adminView, teacherEmail };
+}
+router.get("/debug-resolution", async (req, res) => {
+    try {
+        const auth = await resolveInboxFromQuery(req);
+        if (!auth.ok) {
+            return res.status(auth.status).json({ success: false, error: auth.error });
+        }
+        const { schoolId, adminView, teacherEmail } = auth;
+        const learnerId = String(req.query.learnerId || "").trim();
+        const parentId = String(req.query.parentId || "").trim();
+        const threadId = String(req.query.threadId || "").trim();
+        if (!learnerId) {
+            return res.status(400).json({ success: false, error: "learnerId required" });
+        }
+        const debug = await (0, parentPortalService_1.debugParentThreadResolution)({
+            schoolId,
+            learnerId,
+            parentId: parentId || undefined,
+            loggedInTeacherEmail: teacherEmail || undefined,
+        });
+        if (!debug) {
+            return res.status(404).json({ success: false, error: "Learner not found" });
+        }
+        let threadAccess = adminView;
+        if (!adminView && debug.threadTeacherEmail) {
+            threadAccess = debug.threadTeacherEmail === teacherEmail;
+        }
+        return res.json({
+            success: true,
+            debug: {
+                ...debug,
+                loggedInTeacherEmail: teacherEmail || null,
+                threadAccess,
+                threadId: threadId || debug.threadId,
+            },
+        });
+    }
+    catch (e) {
+        console.error("debug-resolution", e);
+        return res.status(500).json({ success: false, error: "Debug failed" });
+    }
+});
+router.post("/repair-threads", async (req, res) => {
+    try {
+        const jwtUser = (0, staffJwt_1.verifyStaffJwt)(req.headers.authorization);
+        if (!jwtUser) {
+            return res.status(401).json({ success: false, error: "Authentication required" });
+        }
+        if (!userCanAdminInbox(jwtUser)) {
+            return res.status(403).json({ success: false, error: "Admin or owner required" });
+        }
+        const schoolId = String(req.body?.schoolId || req.query.schoolId || jwtUser.schoolId).trim();
+        if (jwtUser.schoolId !== schoolId) {
+            return res.status(403).json({ success: false, error: "schoolId mismatch" });
+        }
+        const result = await (0, parentPortalService_1.repairAllParentTeacherThreads)({ schoolId });
+        return res.json({ success: true, ...result });
+    }
+    catch (e) {
+        console.error("repair-threads", e);
+        return res.status(500).json({ success: false, error: "Repair failed" });
+    }
+});
+router.get("/threads", async (req, res) => {
+    try {
+        const auth = await resolveInboxFromQuery(req);
+        if (!auth.ok) {
+            return res.status(auth.status).json({ success: false, error: auth.error });
+        }
+        const { schoolId, adminView, teacherEmail } = auth;
+        const where = { schoolId };
+        if (!adminView) {
+            where.teacherEmail = { equals: teacherEmail, mode: "insensitive" };
+        }
+        const threads = await prisma_1.prisma.parentTeacherThread.findMany({
+            where,
+            include: {
+                learner: { select: { id: true, firstName: true, lastName: true, grade: true, className: true } },
+                parent: { select: { id: true, firstName: true, surname: true, cellNo: true } },
+                messages: { orderBy: { createdAt: "desc" }, take: 1 },
+            },
+            orderBy: { updatedAt: "desc" },
+        });
+        const enriched = await Promise.all(threads.map(async (t) => {
+            const last = t.messages[0];
+            const unread = await prisma_1.prisma.parentTeacherMessage.count({
+                where: { threadId: t.id, senderType: "PARENT", isRead: false },
+            });
+            return {
+                id: t.id,
+                status: t.status,
+                teacherName: t.teacherName,
+                teacherEmail: t.teacherEmail,
+                learner: t.learner,
+                parent: t.parent,
+                lastMessage: last ? (0, parentPortalService_1.mapThreadMessage)(last) : null,
+                unreadCount: unread,
+                updatedAt: t.updatedAt,
+            };
+        }));
+        return res.json({ success: true, threads: enriched });
+    }
+    catch (e) {
+        console.error("teacher threads", e);
+        return res.status(500).json({ success: false, error: "Failed to load inbox" });
+    }
+});
+router.get("/threads/:threadId", async (req, res) => {
+    try {
+        const auth = await resolveInboxFromQuery(req);
+        if (!auth.ok) {
+            return res.status(auth.status).json({ success: false, error: auth.error });
+        }
+        const { schoolId, adminView, teacherEmail } = auth;
+        const threadId = String(req.params.threadId);
+        const thread = await prisma_1.prisma.parentTeacherThread.findFirst({
+            where: { id: threadId, schoolId },
+            include: {
+                messages: { orderBy: { createdAt: "asc" } },
+                learner: true,
+                parent: true,
+            },
+        });
+        if (!thread)
+            return res.status(404).json({ success: false, error: "Thread not found" });
+        if (!adminView && normalizeEmail(thread.teacherEmail) !== teacherEmail) {
+            return res.status(403).json({ success: false, error: "Access denied" });
+        }
+        return res.json({
+            success: true,
+            thread: {
+                ...thread,
+                messages: thread.messages.map(parentPortalService_1.mapThreadMessage),
+            },
+        });
+    }
+    catch (e) {
+        return res.status(500).json({ success: false, error: "Failed to load thread" });
+    }
+});
+router.post("/threads/:threadId/reply", upload.array("files", 5), async (req, res) => {
+    try {
+        const auth = await resolveInboxFromBody(req);
+        if (!auth.ok) {
+            return res.status(auth.status).json({ success: false, error: auth.error });
+        }
+        const { schoolId, adminView, teacherEmail } = auth;
+        const teacherName = String(req.body?.teacherName || "Teacher").trim();
+        const body = String(req.body?.body || "").trim();
+        const threadId = String(req.params.threadId);
+        if (!body) {
+            return res.status(400).json({ success: false, error: "body required" });
+        }
+        const thread = await prisma_1.prisma.parentTeacherThread.findFirst({
+            where: { id: threadId, schoolId },
+        });
+        if (!thread)
+            return res.status(404).json({ success: false, error: "Thread not found" });
+        if (!adminView && normalizeEmail(thread.teacherEmail) !== teacherEmail) {
+            return res.status(403).json({ success: false, error: "Access denied" });
+        }
+        const files = req.files || [];
+        const base = process.env.PUBLIC_API_URL?.replace(/\/$/, "") ||
+            `${req.protocol}://${req.get("host")}`;
+        const attachments = files.map((f) => ({
+            name: f.originalname,
+            url: `${base}/uploads/parent-messages/${f.filename}`,
+            mimeType: f.mimetype,
+        }));
+        const senderType = adminView && !teacherEmail ? "ADMIN" : "TEACHER";
+        const msg = await prisma_1.prisma.parentTeacherMessage.create({
+            data: {
+                threadId,
+                schoolId,
+                senderType,
+                senderName: teacherName,
+                body,
+                attachments: attachments.length ? attachments : undefined,
+            },
+        });
+        await prisma_1.prisma.parentTeacherThread.update({
+            where: { id: threadId },
+            data: { updatedAt: new Date() },
+        });
+        await (0, parentPortalService_1.createParentNotification)({
+            schoolId,
+            parentId: thread.parentId,
+            learnerId: thread.learnerId,
+            type: "TEACHER_MESSAGE",
+            title: "New message from teacher",
+            message: body.slice(0, 200),
+            metadata: { threadId },
+        });
+        return res.json({ success: true, message: (0, parentPortalService_1.mapThreadMessage)(msg) });
+    }
+    catch (e) {
+        console.error("teacher reply", e);
+        return res.status(500).json({ success: false, error: "Failed to send reply" });
+    }
+});
+router.patch("/threads/:threadId/read", async (req, res) => {
+    try {
+        const auth = await resolveInboxFromBody(req);
+        if (!auth.ok) {
+            return res.status(auth.status).json({ success: false, error: auth.error });
+        }
+        const { schoolId, adminView, teacherEmail } = auth;
+        const threadId = String(req.params.threadId);
+        const thread = await prisma_1.prisma.parentTeacherThread.findFirst({
+            where: { id: threadId, schoolId },
+        });
+        if (!thread)
+            return res.status(404).json({ success: false, error: "Thread not found" });
+        if (!adminView && normalizeEmail(thread.teacherEmail) !== teacherEmail) {
+            return res.status(403).json({ success: false, error: "Access denied" });
+        }
+        await prisma_1.prisma.parentTeacherMessage.updateMany({
+            where: {
+                threadId,
+                senderType: "PARENT",
+                isRead: false,
+            },
+            data: { isRead: true, readAt: new Date() },
+        });
+        return res.json({ success: true });
+    }
+    catch (e) {
+        return res.status(500).json({ success: false, error: "Failed to mark read" });
+    }
+});
+exports.default = router;

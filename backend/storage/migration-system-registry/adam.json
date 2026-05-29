@@ -1,0 +1,20 @@
+{
+  "systemId": "adam",
+  "systemName": "ADAM",
+  "vendor": "ADAM",
+  "country": "ZA",
+  "website": "",
+  "exportTypes": [
+    "unknown",
+    "mixed"
+  ],
+  "supportsLearners": false,
+  "supportsParents": false,
+  "supportsBilling": false,
+  "supportsTransactions": false,
+  "supportsStaff": false,
+  "notes": "Independent-school focused platform. Pupil, contact, and fee export patterns being documented.",
+  "adapterStatus": "researching",
+  "templateCount": 0,
+  "lastReviewedAt": "2026-05-25T00:00:00.000Z"
+}

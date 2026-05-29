@@ -1,0 +1,20 @@
+{
+  "systemId": "sasams",
+  "systemName": "SA-SAMS",
+  "vendor": "SA-SAMS",
+  "country": "ZA",
+  "website": "",
+  "exportTypes": [
+    "unknown",
+    "mixed"
+  ],
+  "supportsLearners": false,
+  "supportsParents": false,
+  "supportsBilling": false,
+  "supportsTransactions": false,
+  "supportsStaff": false,
+  "notes": "Adapter v1: conservative filename and header detection, SA-SAMS column normalization, administrative identifier recognition, and readiness testing. Parse/stage not enabled; export layouts vary by province.",
+  "adapterStatus": "researching",
+  "templateCount": 0,
+  "lastReviewedAt": "2026-05-25T00:00:00.000Z"
+}

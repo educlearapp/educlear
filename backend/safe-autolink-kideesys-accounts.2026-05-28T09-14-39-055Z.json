@@ -1,0 +1,527 @@
+{
+  "mode": "dry-run",
+  "schoolId": "cmpideqeq0000108xb6ouv9zi",
+  "schoolName": "Da Silva Academy",
+  "auditedAt": "2026-05-28T09:14:39.055Z",
+  "safeLinks": [
+    {
+      "accountRef": "KOR001",
+      "learnerId": "cmpp2ez4i00j5txyzhasj0ihv"
+    },
+    {
+      "accountRef": "MOY004",
+      "learnerId": "cmpp2eyzv005ftxyzln53t9xs"
+    },
+    {
+      "accountRef": "NGW003",
+      "learnerId": "cmpp2ez3g00fjtxyzcgmc0y5c"
+    },
+    {
+      "accountRef": "DIK001",
+      "learnerId": "cmpp2ez2900bhtxyz1m2v65p2"
+    },
+    {
+      "accountRef": "MOS021",
+      "learnerId": "cmpp2ez4z00kptxyzh4ufrem6"
+    },
+    {
+      "accountRef": "MAH007",
+      "learnerId": "cmpp2ez0v007ztxyzkqws376f"
+    }
+  ],
+  "ambiguousAccountRefs": [
+    "MOL040",
+    "MOE008",
+    "NZI001",
+    "HOB002",
+    "RAM009",
+    "RAM020",
+    "MAL020",
+    "MAS030"
+  ],
+  "linkResults": [],
+  "auditBefore": {
+    "schoolId": "cmpideqeq0000108xb6ouv9zi",
+    "auditedAt": "2026-05-28T09:14:37.224Z",
+    "learnersTotal": 397,
+    "learnersWithAdmissionNo": 397,
+    "learnersWithResolvableAccountNo": 397,
+    "learnersWithFamilyAccountId": 155,
+    "activeLearnersTotal": 397,
+    "activeLearnersMissingAccountWhenSourceHas": 0,
+    "familyAccountsTotal": 352,
+    "familyAccountsLinkedToLearners": 155,
+    "familyAccountsOrphaned": 197,
+    "ledgerRowsTotal": 40916,
+    "ledgerRowsLinkedByAccountNo": 9985,
+    "ledgerRowsLinkedByLearnerId": 11973,
+    "ledgerRowsUnresolvable": 28848,
+    "kidesysHistoryRowsTotal": 0,
+    "statementRowsWithAccountDash": 0,
+    "duplicateStatementAccountKeys": 0,
+    "duplicatePaymentLedgerIds": 0,
+    "nonZeroBalanceAccountCount": 177,
+    "sourceAccountNumbersInBundle": 0,
+    "brokenSamples": [
+      {
+        "kind": "familyAccount",
+        "reason": "197 family account(s) have no linked learners"
+      },
+      {
+        "kind": "ledger",
+        "id": "kidesys-invoice-d3dbab925289d019211f",
+        "accountNo": "MOT004",
+        "learnerId": "",
+        "reason": "Ledger row cannot be resolved to a learner or billing account"
+      },
+      {
+        "kind": "ledger",
+        "id": "kidesys-invoice-fa671587e49e8b8c991c",
+        "accountNo": "MAN010",
+        "learnerId": "",
+        "reason": "Ledger row cannot be resolved to a learner or billing account"
+      },
+      {
+        "kind": "ledger",
+        "id": "kidesys-invoice-079b8ba5615b2ebf0b8d",
+        "accountNo": "LET008",
+        "learnerId": "",
+        "reason": "Ledger row cannot be resolved to a learner or billing account"
+      },
+      {
+        "kind": "ledger",
+        "id": "kidesys-invoice-fb4873989442e3500cc5",
+        "accountNo": "MOH003",
+        "learnerId": "",
+        "reason": "Ledger row cannot be resolved to a learner or billing account"
+      },
+      {
+        "kind": "ledger",
+        "id": "kidesys-invoice-f575823ca8b486ec2ce9",
+        "accountNo": "NTO002",
+        "learnerId": "",
+        "reason": "Ledger row cannot be resolved to a learner or billing account"
+      },
+      {
+        "kind": "ledger",
+        "id": "kidesys-invoice-bfa07372eb07f5525a96",
+        "accountNo": "MAD001",
+        "learnerId": "",
+        "reason": "Ledger row cannot be resolved to a learner or billing account"
+      },
+      {
+        "kind": "ledger",
+        "id": "kidesys-invoice-f9ec45db794c1b7855d9",
+        "accountNo": "MAT023",
+        "learnerId": "",
+        "reason": "Ledger row cannot be resolved to a learner or billing account"
+      },
+      {
+        "kind": "ledger",
+        "id": "kidesys-invoice-cc1ffce55f9be0f690a8",
+        "accountNo": "LET010",
+        "learnerId": "",
+        "reason": "Ledger row cannot be resolved to a learner or billing account"
+      },
+      {
+        "kind": "ledger",
+        "id": "kidesys-invoice-ff050f5002c9308ef999",
+        "accountNo": "MAE001",
+        "learnerId": "",
+        "reason": "Ledger row cannot be resolved to a learner or billing account"
+      },
+      {
+        "kind": "ledger",
+        "id": "kidesys-invoice-83ddb67688d71f7176f7",
+        "accountNo": "TAP001",
+        "learnerId": "",
+        "reason": "Ledger row cannot be resolved to a learner or billing account"
+      },
+      {
+        "kind": "ledger",
+        "id": "kidesys-invoice-1294d1758a25a6a61a6c",
+        "accountNo": "PEL002",
+        "learnerId": "",
+        "reason": "Ledger row cannot be resolved to a learner or billing account"
+      },
+      {
+        "kind": "ledger",
+        "id": "kidesys-invoice-bf3299649918b1433128",
+        "accountNo": "TAU005",
+        "learnerId": "",
+        "reason": "Ledger row cannot be resolved to a learner or billing account"
+      },
+      {
+        "kind": "ledger",
+        "id": "kidesys-invoice-7bb0e3d573981635e094",
+        "accountNo": "KHO002",
+        "learnerId": "",
+        "reason": "Ledger row cannot be resolved to a learner or billing account"
+      },
+      {
+        "kind": "ledger",
+        "id": "kidesys-invoice-766b80d31b61e516f2ce",
+        "accountNo": "KHO002",
+        "learnerId": "",
+        "reason": "Ledger row cannot be resolved to a learner or billing account"
+      },
+      {
+        "kind": "ledger",
+        "id": "kidesys-invoice-9e29681c20ebf2d5b86e",
+        "accountNo": "MOE004",
+        "learnerId": "",
+        "reason": "Ledger row cannot be resolved to a learner or billing account"
+      },
+      {
+        "kind": "ledger",
+        "id": "kidesys-invoice-4ddde2ab2c52ce3e97e9",
+        "accountNo": "BOG003",
+        "learnerId": "",
+        "reason": "Ledger row cannot be resolved to a learner or billing account"
+      },
+      {
+        "kind": "ledger",
+        "id": "kidesys-invoice-696631ef926ae1cdd528",
+        "accountNo": "MOK790",
+        "learnerId": "",
+        "reason": "Ledger row cannot be resolved to a learner or billing account"
+      },
+      {
+        "kind": "ledger",
+        "id": "kidesys-invoice-94abfb3431b0796c3e42",
+        "accountNo": "TAU005",
+        "learnerId": "",
+        "reason": "Ledger row cannot be resolved to a learner or billing account"
+      },
+      {
+        "kind": "ledger",
+        "id": "kidesys-invoice-d570fda9387ef8cda419",
+        "accountNo": "MPO002",
+        "learnerId": "",
+        "reason": "Ledger row cannot be resolved to a learner or billing account"
+      }
+    ],
+    "gatePassed": false,
+    "gateErrors": [
+      "28848 ledger/history row(s) cannot be resolved to learners or accounts"
+    ]
+  },
+  "auditAfter": {
+    "schoolId": "cmpideqeq0000108xb6ouv9zi",
+    "auditedAt": "2026-05-28T09:14:38.178Z",
+    "learnersTotal": 397,
+    "learnersWithAdmissionNo": 397,
+    "learnersWithResolvableAccountNo": 397,
+    "learnersWithFamilyAccountId": 155,
+    "activeLearnersTotal": 397,
+    "activeLearnersMissingAccountWhenSourceHas": 0,
+    "familyAccountsTotal": 352,
+    "familyAccountsLinkedToLearners": 155,
+    "familyAccountsOrphaned": 197,
+    "ledgerRowsTotal": 40916,
+    "ledgerRowsLinkedByAccountNo": 9985,
+    "ledgerRowsLinkedByLearnerId": 11973,
+    "ledgerRowsUnresolvable": 28848,
+    "kidesysHistoryRowsTotal": 0,
+    "statementRowsWithAccountDash": 0,
+    "duplicateStatementAccountKeys": 0,
+    "duplicatePaymentLedgerIds": 0,
+    "nonZeroBalanceAccountCount": 177,
+    "sourceAccountNumbersInBundle": 0,
+    "brokenSamples": [
+      {
+        "kind": "familyAccount",
+        "reason": "197 family account(s) have no linked learners"
+      },
+      {
+        "kind": "ledger",
+        "id": "kidesys-invoice-d3dbab925289d019211f",
+        "accountNo": "MOT004",
+        "learnerId": "",
+        "reason": "Ledger row cannot be resolved to a learner or billing account"
+      },
+      {
+        "kind": "ledger",
+        "id": "kidesys-invoice-fa671587e49e8b8c991c",
+        "accountNo": "MAN010",
+        "learnerId": "",
+        "reason": "Ledger row cannot be resolved to a learner or billing account"
+      },
+      {
+        "kind": "ledger",
+        "id": "kidesys-invoice-079b8ba5615b2ebf0b8d",
+        "accountNo": "LET008",
+        "learnerId": "",
+        "reason": "Ledger row cannot be resolved to a learner or billing account"
+      },
+      {
+        "kind": "ledger",
+        "id": "kidesys-invoice-fb4873989442e3500cc5",
+        "accountNo": "MOH003",
+        "learnerId": "",
+        "reason": "Ledger row cannot be resolved to a learner or billing account"
+      },
+      {
+        "kind": "ledger",
+        "id": "kidesys-invoice-f575823ca8b486ec2ce9",
+        "accountNo": "NTO002",
+        "learnerId": "",
+        "reason": "Ledger row cannot be resolved to a learner or billing account"
+      },
+      {
+        "kind": "ledger",
+        "id": "kidesys-invoice-bfa07372eb07f5525a96",
+        "accountNo": "MAD001",
+        "learnerId": "",
+        "reason": "Ledger row cannot be resolved to a learner or billing account"
+      },
+      {
+        "kind": "ledger",
+        "id": "kidesys-invoice-f9ec45db794c1b7855d9",
+        "accountNo": "MAT023",
+        "learnerId": "",
+        "reason": "Ledger row cannot be resolved to a learner or billing account"
+      },
+      {
+        "kind": "ledger",
+        "id": "kidesys-invoice-cc1ffce55f9be0f690a8",
+        "accountNo": "LET010",
+        "learnerId": "",
+        "reason": "Ledger row cannot be resolved to a learner or billing account"
+      },
+      {
+        "kind": "ledger",
+        "id": "kidesys-invoice-ff050f5002c9308ef999",
+        "accountNo": "MAE001",
+        "learnerId": "",
+        "reason": "Ledger row cannot be resolved to a learner or billing account"
+      },
+      {
+        "kind": "ledger",
+        "id": "kidesys-invoice-83ddb67688d71f7176f7",
+        "accountNo": "TAP001",
+        "learnerId": "",
+        "reason": "Ledger row cannot be resolved to a learner or billing account"
+      },
+      {
+        "kind": "ledger",
+        "id": "kidesys-invoice-1294d1758a25a6a61a6c",
+        "accountNo": "PEL002",
+        "learnerId": "",
+        "reason": "Ledger row cannot be resolved to a learner or billing account"
+      },
+      {
+        "kind": "ledger",
+        "id": "kidesys-invoice-bf3299649918b1433128",
+        "accountNo": "TAU005",
+        "learnerId": "",
+        "reason": "Ledger row cannot be resolved to a learner or billing account"
+      },
+      {
+        "kind": "ledger",
+        "id": "kidesys-invoice-7bb0e3d573981635e094",
+        "accountNo": "KHO002",
+        "learnerId": "",
+        "reason": "Ledger row cannot be resolved to a learner or billing account"
+      },
+      {
+        "kind": "ledger",
+        "id": "kidesys-invoice-766b80d31b61e516f2ce",
+        "accountNo": "KHO002",
+        "learnerId": "",
+        "reason": "Ledger row cannot be resolved to a learner or billing account"
+      },
+      {
+        "kind": "ledger",
+        "id": "kidesys-invoice-9e29681c20ebf2d5b86e",
+        "accountNo": "MOE004",
+        "learnerId": "",
+        "reason": "Ledger row cannot be resolved to a learner or billing account"
+      },
+      {
+        "kind": "ledger",
+        "id": "kidesys-invoice-4ddde2ab2c52ce3e97e9",
+        "accountNo": "BOG003",
+        "learnerId": "",
+        "reason": "Ledger row cannot be resolved to a learner or billing account"
+      },
+      {
+        "kind": "ledger",
+        "id": "kidesys-invoice-696631ef926ae1cdd528",
+        "accountNo": "MOK790",
+        "learnerId": "",
+        "reason": "Ledger row cannot be resolved to a learner or billing account"
+      },
+      {
+        "kind": "ledger",
+        "id": "kidesys-invoice-94abfb3431b0796c3e42",
+        "accountNo": "TAU005",
+        "learnerId": "",
+        "reason": "Ledger row cannot be resolved to a learner or billing account"
+      },
+      {
+        "kind": "ledger",
+        "id": "kidesys-invoice-d570fda9387ef8cda419",
+        "accountNo": "MPO002",
+        "learnerId": "",
+        "reason": "Ledger row cannot be resolved to a learner or billing account"
+      }
+    ],
+    "gatePassed": false,
+    "gateErrors": [
+      "28848 ledger/history row(s) cannot be resolved to learners or accounts"
+    ]
+  },
+  "learnersBefore": [
+    {
+      "id": "cmpp2eyzv005ftxyzln53t9xs",
+      "firstName": "Aobakwe",
+      "lastName": "DUBE",
+      "admissionNo": "1812070737082",
+      "enrollmentStatus": "ACTIVE",
+      "familyAccountId": null,
+      "familyAccount": null,
+      "createdAt": "2026-05-28T05:41:20.683Z"
+    },
+    {
+      "id": "cmpp2ez0v007ztxyzkqws376f",
+      "firstName": "Umme-Haani",
+      "lastName": "MAHOMED HOOSEN",
+      "admissionNo": "1702100320084",
+      "enrollmentStatus": "ACTIVE",
+      "familyAccountId": null,
+      "familyAccount": null,
+      "createdAt": "2026-05-28T05:41:20.719Z"
+    },
+    {
+      "id": "cmpp2ez2900bhtxyz1m2v65p2",
+      "firstName": "Sinenhlanhla",
+      "lastName": "DIKANA",
+      "admissionNo": "1506120968081",
+      "enrollmentStatus": "ACTIVE",
+      "familyAccountId": null,
+      "familyAccount": null,
+      "createdAt": "2026-05-28T05:41:20.769Z"
+    },
+    {
+      "id": "cmpp2ez3g00fjtxyzcgmc0y5c",
+      "firstName": "Athandile",
+      "lastName": "NGWENYA",
+      "admissionNo": "AE237655",
+      "enrollmentStatus": "ACTIVE",
+      "familyAccountId": null,
+      "familyAccount": null,
+      "createdAt": "2026-05-28T05:41:20.813Z"
+    },
+    {
+      "id": "cmpp2ez4i00j5txyzhasj0ihv",
+      "firstName": "Dagimawit",
+      "lastName": "KOROBZA",
+      "admissionNo": "111208",
+      "enrollmentStatus": "ACTIVE",
+      "familyAccountId": null,
+      "familyAccount": null,
+      "createdAt": "2026-05-28T05:41:20.851Z"
+    },
+    {
+      "id": "cmpp2ez4z00kptxyzh4ufrem6",
+      "firstName": "Tshepiso",
+      "lastName": "MOSIANTANA",
+      "admissionNo": "1207091101089",
+      "enrollmentStatus": "ACTIVE",
+      "familyAccountId": null,
+      "familyAccount": null,
+      "createdAt": "2026-05-28T05:41:20.867Z"
+    }
+  ],
+  "learnersAfter": [
+    {
+      "id": "cmpp2eyzv005ftxyzln53t9xs",
+      "firstName": "Aobakwe",
+      "lastName": "DUBE",
+      "admissionNo": "1812070737082",
+      "enrollmentStatus": "ACTIVE",
+      "familyAccountId": null,
+      "familyAccount": null,
+      "createdAt": "2026-05-28T05:41:20.683Z"
+    },
+    {
+      "id": "cmpp2ez0v007ztxyzkqws376f",
+      "firstName": "Umme-Haani",
+      "lastName": "MAHOMED HOOSEN",
+      "admissionNo": "1702100320084",
+      "enrollmentStatus": "ACTIVE",
+      "familyAccountId": null,
+      "familyAccount": null,
+      "createdAt": "2026-05-28T05:41:20.719Z"
+    },
+    {
+      "id": "cmpp2ez2900bhtxyz1m2v65p2",
+      "firstName": "Sinenhlanhla",
+      "lastName": "DIKANA",
+      "admissionNo": "1506120968081",
+      "enrollmentStatus": "ACTIVE",
+      "familyAccountId": null,
+      "familyAccount": null,
+      "createdAt": "2026-05-28T05:41:20.769Z"
+    },
+    {
+      "id": "cmpp2ez3g00fjtxyzcgmc0y5c",
+      "firstName": "Athandile",
+      "lastName": "NGWENYA",
+      "admissionNo": "AE237655",
+      "enrollmentStatus": "ACTIVE",
+      "familyAccountId": null,
+      "familyAccount": null,
+      "createdAt": "2026-05-28T05:41:20.813Z"
+    },
+    {
+      "id": "cmpp2ez4i00j5txyzhasj0ihv",
+      "firstName": "Dagimawit",
+      "lastName": "KOROBZA",
+      "admissionNo": "111208",
+      "enrollmentStatus": "ACTIVE",
+      "familyAccountId": null,
+      "familyAccount": null,
+      "createdAt": "2026-05-28T05:41:20.851Z"
+    },
+    {
+      "id": "cmpp2ez4z00kptxyzh4ufrem6",
+      "firstName": "Tshepiso",
+      "lastName": "MOSIANTANA",
+      "admissionNo": "1207091101089",
+      "enrollmentStatus": "ACTIVE",
+      "familyAccountId": null,
+      "familyAccount": null,
+      "createdAt": "2026-05-28T05:41:20.867Z"
+    }
+  ],
+  "reconciliationSummary": {
+    "linked": [],
+    "stillUnmatched": [
+      "DIK001",
+      "HOB002",
+      "KOR001",
+      "MAH007",
+      "MAL020",
+      "MAS030",
+      "MOE008",
+      "MOL040",
+      "MOS021",
+      "MOY004",
+      "NGW003",
+      "NZI001",
+      "RAM009",
+      "RAM020"
+    ],
+    "statementsWithBalance": 177,
+    "statementsWithLastInvoice": 179,
+    "statementsWithLastPayment": 179,
+    "audit": {
+      "pass": false,
+      "gateErrors": [
+        "28848 ledger/history row(s) cannot be resolved to learners or accounts"
+      ]
+    }
+  }
+}

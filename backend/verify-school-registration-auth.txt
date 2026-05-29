@@ -1,0 +1,24 @@
+School registration auth verification
+Generated: 2026-05-24T12:31:26.027Z
+Email: dasilvaacademy@gmail.com
+
+LOGIN VERIFIED: YES
+Password matches hash: YES
+Provisioning: script
+
+[PASS] User row exists: 1 row(s)
+[PASS] Duplicate email users: single user
+[WARN] Owner provisioning source: script (fullName=Da Silva Academy Owner, school.email=null)
+[PASS] schoolId: cmpideqeq0000108xb6ouv9zi (Da Silva Academy)
+[PASS] Prisma role: SCHOOL_ADMIN
+[PASS] isActive: true
+[PASS] bcrypt hash format: len=60 prefix=$2b$10$
+[FAIL] bcrypt.compare(REGISTRATION_PASSWORD): password does NOT match stored hash
+[FAIL] Registration password never stored: Owner was created by migration/repair script — use register-school reclaim (not password reset)
+[PASS] user-access Owner meta: appRole=Owner
+[PASS] Owner permission map: 20 modules
+[PASS] register-school reclaim: status=200 body={"token":"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VySWQiOiJjbXBpbXlqa2owMDAxM2xoejZra3hyOXh1Iiwic2Nob29sSWQiOiJjbXBpZGVxZXEwMDAwMTA4eGI2b3V2OXppIiwiZW1haWwiOiJkYXNpbHZhYWNhZGVteUBnbWFpbC5jb20iLCJyb2xlIjoiU0NIT09MX0FETUlOIiwiaWF0IjoxNzc5NjI1ODg2LCJleHAiOjE3ODAyMzA2ODZ9.l5dLvihwNwJQbyDnke4wOnZOjJwMERtLV-9uxato7lc","user":{"id":"cmpimyjkj00013lhz6kkxr9xu","schoolId":"cmpideqeq0000108xb6ouv9zi","email":"dasilvaacademy@gmail.com","fullName":"Da Silva Academy","role":"SCHOOL_ADMIN"},"school":{"id":"cmpideqeq0000108xb6ouv9zi","name":"Da Silva Academy","email":"dasilvaacademy@gmail.com","logoUrl":"/uploads/school-logos/da-silva-academy-logo.png"},"reclaimed":true}
+[PASS] bcrypt.compare after reclaim: hash updated from registration password
+[PASS] POST /auth/login success: 200 token issued schoolId=cmpideqeq0000108xb6ouv9zi
+
+Recovery: Login should succeed — run with --verify-login

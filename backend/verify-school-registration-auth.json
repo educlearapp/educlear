@@ -1,0 +1,96 @@
+{
+  "generatedAt": "2026-05-24T12:31:26.027Z",
+  "email": "dasilvaacademy@gmail.com",
+  "apiBase": "http://localhost:3000",
+  "provisioning": "script",
+  "passwordMatches": true,
+  "loginVerified": true,
+  "goLiveBlocker": false,
+  "checks": [
+    {
+      "id": "user",
+      "title": "User row exists",
+      "status": "pass",
+      "detail": "1 row(s)"
+    },
+    {
+      "id": "dup",
+      "title": "Duplicate email users",
+      "status": "pass",
+      "detail": "single user"
+    },
+    {
+      "id": "provenance",
+      "title": "Owner provisioning source",
+      "status": "warn",
+      "detail": "script (fullName=Da Silva Academy Owner, school.email=null)"
+    },
+    {
+      "id": "schoolId",
+      "title": "schoolId",
+      "status": "pass",
+      "detail": "cmpideqeq0000108xb6ouv9zi (Da Silva Academy)"
+    },
+    {
+      "id": "role",
+      "title": "Prisma role",
+      "status": "pass",
+      "detail": "SCHOOL_ADMIN"
+    },
+    {
+      "id": "active",
+      "title": "isActive",
+      "status": "pass",
+      "detail": "true"
+    },
+    {
+      "id": "hash",
+      "title": "bcrypt hash format",
+      "status": "pass",
+      "detail": "len=60 prefix=$2b$10$"
+    },
+    {
+      "id": "compare",
+      "title": "bcrypt.compare(REGISTRATION_PASSWORD)",
+      "status": "fail",
+      "detail": "password does NOT match stored hash"
+    },
+    {
+      "id": "lost",
+      "title": "Registration password never stored",
+      "status": "fail",
+      "detail": "Owner was created by migration/repair script — use register-school reclaim (not password reset)"
+    },
+    {
+      "id": "access",
+      "title": "user-access Owner meta",
+      "status": "pass",
+      "detail": "appRole=Owner"
+    },
+    {
+      "id": "perms",
+      "title": "Owner permission map",
+      "status": "pass",
+      "detail": "20 modules"
+    },
+    {
+      "id": "reclaim",
+      "title": "register-school reclaim",
+      "status": "pass",
+      "detail": "status=200 body={\"token\":\"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VySWQiOiJjbXBpbXlqa2owMDAxM2xoejZra3hyOXh1Iiwic2Nob29sSWQiOiJjbXBpZGVxZXEwMDAwMTA4eGI2b3V2OXppIiwiZW1haWwiOiJkYXNpbHZhYWNhZGVteUBnbWFpbC5jb20iLCJyb2xlIjoiU0NIT09MX0FETUlOIiwiaWF0IjoxNzc5NjI1ODg2LCJleHAiOjE3ODAyMzA2ODZ9.l5dLvihwNwJQbyDnke4wOnZOjJwMERtLV-9uxato7lc\",\"user\":{\"id\":\"cmpimyjkj00013lhz6kkxr9xu\",\"schoolId\":\"cmpideqeq0000108xb6ouv9zi\",\"email\":\"dasilvaacademy@gmail.com\",\"fullName\":\"Da Silva Academy\",\"role\":\"SCHOOL_ADMIN\"},\"school\":{\"id\":\"cmpideqeq0000108xb6ouv9zi\",\"name\":\"Da Silva Academy\",\"email\":\"dasilvaacademy@gmail.com\",\"logoUrl\":\"/uploads/school-logos/da-silva-academy-logo.png\"},\"reclaimed\":true}"
+    },
+    {
+      "id": "compare-after",
+      "title": "bcrypt.compare after reclaim",
+      "status": "pass",
+      "detail": "hash updated from registration password"
+    },
+    {
+      "id": "login",
+      "title": "POST /auth/login success",
+      "status": "pass",
+      "detail": "200 token issued schoolId=cmpideqeq0000108xb6ouv9zi"
+    }
+  ],
+  "recovery": "Login should succeed — run with --verify-login"
+}

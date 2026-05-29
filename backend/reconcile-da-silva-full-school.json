@@ -1,0 +1,33 @@
+{
+  "projectId": "dasilva-mpo6388e-1w4xbq",
+  "mode": "apply",
+  "totals": {
+    "learnersInDbBefore": 1993,
+    "learnersInDbAfter": 1993,
+    "matchedToSasams": 386,
+    "historicalBillingOnly": 1599,
+    "duplicatesMerged": 5,
+    "duplicatesFlagged": 188,
+    "orphansRemoved": 5,
+    "activeFinal": 394,
+    "historicalFinal": 1599,
+    "sasamsSourceRows": 388,
+    "sasamsCreated": 2,
+    "crecheActiveAssigned": 8
+  },
+  "parents": {
+    "sourceRows": 653,
+    "parentsRepaired": 645,
+    "linksRepaired": 645,
+    "unmatchedParents": 8
+  },
+  "uiAligned": true,
+  "auditPass": true,
+  "auditDetails": {
+    "expectedActive": 396,
+    "expectedSasams": 388,
+    "expectedParentLinks": 653,
+    "registrationsActive": 394,
+    "statementAccounts": 1629
+  }
+}

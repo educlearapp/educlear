@@ -1,0 +1,148 @@
+{
+  "mode": "APPLY",
+  "generatedAt": "2026-05-24T16:17:14.267Z",
+  "protected": {
+    "platformSchools": [
+      {
+        "id": "cmpi4coo7000067p0xxhr8yyo",
+        "name": "EduClear Platform"
+      }
+    ],
+    "note": "EduClear Platform will not be modified"
+  },
+  "demoSchools": [],
+  "daSilva": {
+    "id": "cmpideqeq0000108xb6ouv9zi",
+    "name": "Da Silva Academy",
+    "action": "PURGE imported data only — keep School row",
+    "prismaRowCounts": {
+      "user": 1,
+      "userPermissionOverride": 0,
+      "schoolRole": 0,
+      "rolePermission": 0,
+      "parentLearnerLink": 0,
+      "parentTeacherThread": 0,
+      "parentTeacherMessage": 0,
+      "learner": 0,
+      "parent": 0,
+      "familyAccount": 0,
+      "classroom": 0,
+      "employee": 0,
+      "feeStructure": 0,
+      "schoolFeeSetting": 0,
+      "letter": 0,
+      "letterTemplate": 0,
+      "learnerIncident": 0,
+      "learnerResult": 0,
+      "learnerReport": 0,
+      "billingDeposit": 0,
+      "bankStatementImport": 0,
+      "bankTransaction": 0,
+      "billingSettings": 0,
+      "supplier": 0,
+      "supplierInvoice": 0,
+      "expenseCategory": 0,
+      "accountingJournal": 0,
+      "payrollRun": 0,
+      "payslip": 0,
+      "payrollSetting": 0,
+      "teacherPerformance": 0,
+      "homeworkPost": 0,
+      "schoolNotice": 0,
+      "parentDocument": 0,
+      "parentOnboarding": 0,
+      "parentOutreachQueue": 0,
+      "parentNotification": 0,
+      "communicationMessage": 0,
+      "communicationCampaign": 0,
+      "communicationTemplate": 0,
+      "communicationLog": 0,
+      "pushSubscription": 0,
+      "schoolEmailSettings": 0,
+      "schoolCommunicationProfile": 0
+    },
+    "prismaRowsTotal": 1,
+    "ownerAdmin": {
+      "email": "dasilvaacademy@gmail.com",
+      "exists": true,
+      "onApply": "no change"
+    }
+  },
+  "unclassifiedSchools": [],
+  "jsonStores": [
+    {
+      "file": "billing-ledger.json",
+      "action": "remove school key",
+      "detail": "cmpideqeq0000108xb6ouv9zi: 337 ledger entries"
+    },
+    {
+      "file": "learner-billing-plans.json",
+      "action": "remove school key",
+      "detail": "cmpideqeq0000108xb6ouv9zi: 396 learner plan(s)"
+    },
+    {
+      "file": "kidesys-transaction-history.json",
+      "action": "remove school key",
+      "detail": "cmpideqeq0000108xb6ouv9zi: 40916 history row(s)"
+    },
+    {
+      "file": "user-access.json",
+      "action": "remove user meta",
+      "detail": "1 user access record(s) for target school(s)"
+    }
+  ],
+  "migrationStaging": [
+    {
+      "path": "/Users/dasilvaacademy/EduClear/backend/uploads/migration-staging/cmpideqeq0000108xb6ouv9zi",
+      "files": 1,
+      "bytes": 104654
+    }
+  ],
+  "warnings": [
+    "Preserved 1 registration-provisioned owner user(s) — not deleted"
+  ],
+  "applyResults": {
+    "demo": [],
+    "daSilva": {
+      "purged": {},
+      "usersDeleted": 0,
+      "rolesDeleted": 0,
+      "ownerResult": {
+        "action": "owner user already exists (unchanged)",
+        "email": "dasilvaacademy@gmail.com"
+      },
+      "schoolKept": true,
+      "preservedRegistrationOwners": [
+        "dasilvaacademy@gmail.com"
+      ]
+    },
+    "json": [
+      {
+        "file": "billing-ledger.json",
+        "action": "removed",
+        "detail": "cmpideqeq0000108xb6ouv9zi: 337 ledger entries"
+      },
+      {
+        "file": "learner-billing-plans.json",
+        "action": "removed",
+        "detail": "cmpideqeq0000108xb6ouv9zi: 396 learner plan(s)"
+      },
+      {
+        "file": "kidesys-transaction-history.json",
+        "action": "removed",
+        "detail": "cmpideqeq0000108xb6ouv9zi: 40916 history row(s)"
+      },
+      {
+        "file": "user-access.json",
+        "action": "removed",
+        "detail": "1 user access record(s)"
+      }
+    ],
+    "staging": [
+      {
+        "path": "/Users/dasilvaacademy/EduClear/backend/uploads/migration-staging/cmpideqeq0000108xb6ouv9zi",
+        "files": 1
+      }
+    ]
+  }
+}

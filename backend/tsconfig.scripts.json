@@ -1,0 +1,10 @@
+{
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "rootDir": ".",
+    "outDir": "./dist-scripts"
+  },
+  "include": ["src", "scripts/safe-autolink-kideesys-accounts.ts"],
+  "exclude": ["node_modules", "dist", "dist-scripts"]
+}
+

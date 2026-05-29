@@ -2,7 +2,14 @@ import fs from "fs";
 import path from "path";
 
 import { prisma } from "../../prisma";
-import { normalizeLearnerGender } from "../../utils/learnerGender";
+import {
+  inferGenderFromSouthAfricanId,
+  isFemaleGender,
+  isMaleGender,
+  isValidSouthAfricanIdNumber,
+  pickLearnerGenderForWrite,
+  resolveGenderFromSources,
+} from "../../utils/learnerGender";
 import {
   readSchoolKidesysHistory,
   writeSchoolKidesysHistory,
@@ -124,6 +131,42 @@ export function resolveLatestDaSilvaStagingProject(schoolId: string): {
   return { projectId, manifestPath };
 }
 
+/** Returns null when no Da Silva staging manifest exists (non-throwing). */
+export function tryResolveLatestDaSilvaStagingProject(schoolId: string): {
+  projectId: string;
+  manifestPath: string;
+} | null {
+  try {
+    return resolveLatestDaSilvaStagingProject(schoolId);
+  } catch {
+    return null;
+  }
+}
+
+/** Resolve SA ID from learner record fields (DB column + legacy/alternate keys). */
+export function resolveLearnerIdNumberFromRecord(
+  learner: Record<string, unknown>
+): string | null {
+  const candidates = [
+    learner.idNumber,
+    learner.id_number,
+    learner.saId,
+    learner.identityNumber,
+  ];
+  for (const candidate of candidates) {
+    const value = String(candidate ?? "").trim();
+    if (value) return value;
+  }
+  return null;
+}
+
+export type DaSilvaLearnerGenderPreviewUpdate = {
+  learnerId: string;
+  fullName: string;
+  idNumber: string;
+  gender: "Male" | "Female";
+};
+
 export type DaSilvaSasamsRepairResult = {
   sourceRows: number;
   matched: number;
@@ -132,6 +175,220 @@ export type DaSilvaSasamsRepairResult = {
   skippedBlankOverwrite: number;
   unmatched: Array<{ matchKey: string; fullName: string }>;
 };
+
+export type DaSilvaLearnerGenderRepairResult = {
+  mode: "staging" | "live-fallback";
+  sourceRows: number;
+  matched: number;
+  genderBackfilled: number;
+  skippedExistingGender: number;
+  skippedNoSourceGender: number;
+  unmatched: Array<{ matchKey: string; fullName: string }>;
+  previewUpdates: DaSilvaLearnerGenderPreviewUpdate[];
+  audit: {
+    totalActive: number;
+    boys: number;
+    girls: number;
+    missingGender: number;
+  };
+};
+
+async function auditDaSilvaLearnerGenderCounts(schoolId: string): Promise<{
+  totalActive: number;
+  boys: number;
+  girls: number;
+  missingGender: number;
+}> {
+  const active = await prisma.learner.findMany({
+    where: { schoolId, enrollmentStatus: "ACTIVE" },
+    select: { gender: true },
+  });
+  const boys = active.filter((l) => isMaleGender(l.gender)).length;
+  const girls = active.filter((l) => isFemaleGender(l.gender)).length;
+  const missingGender = active.length - boys - girls;
+  return {
+    totalActive: active.length,
+    boys,
+    girls,
+    missingGender,
+  };
+}
+
+/** One-time gender backfill from staged SA-SAMS import source — never overwrites valid gender. */
+export async function repairDaSilvaLearnerGender(opts: {
+  schoolId: string;
+  projectId: string;
+  apply: boolean;
+}): Promise<DaSilvaLearnerGenderRepairResult> {
+  const staged = resolveDaSilvaStagedPaths(opts.schoolId, opts.projectId);
+  const sasamsPaths = {
+    classListDir: staged.classListDir,
+    learnerRegister: staged.learnerRegister,
+    parentRegister: staged.parentRegister,
+  };
+  if (!fs.existsSync(sasamsPaths.classListDir)) {
+    throw new Error(`Missing SA-SAMS class lists: ${sasamsPaths.classListDir}`);
+  }
+
+  const rows = parseDaSilvaLearnersFromSasams(sasamsPaths);
+  const manifest = loadDaSilvaManifest(opts.schoolId, opts.projectId);
+  const matchKeyToLearnerId = manifest?.matchKeyToLearnerId || {};
+
+  const result: DaSilvaLearnerGenderRepairResult = {
+    mode: "staging",
+    sourceRows: rows.length,
+    matched: 0,
+    genderBackfilled: 0,
+    skippedExistingGender: 0,
+    skippedNoSourceGender: 0,
+    unmatched: [],
+    previewUpdates: [],
+    audit: await auditDaSilvaLearnerGenderCounts(opts.schoolId),
+  };
+
+  for (const row of rows) {
+    const learnerId = await findLearnerIdForRow(
+      opts.schoolId,
+      row,
+      matchKeyToLearnerId[row.matchKey]
+    );
+    if (!learnerId) {
+      result.unmatched.push({ matchKey: row.matchKey, fullName: row.fullName });
+      continue;
+    }
+    result.matched += 1;
+
+    const existing = await prisma.learner.findUnique({
+      where: { id: learnerId },
+      select: { gender: true, idNumber: true },
+    });
+    if (!existing) continue;
+
+    const genderToWrite = pickLearnerGenderForWrite({
+      existingGender: existing.gender,
+      gender: row.gender,
+      idNumber: row.idNumber ?? existing.idNumber,
+    });
+    if (!genderToWrite) {
+      if (
+        isMaleGender(existing.gender) ||
+        isFemaleGender(existing.gender)
+      ) {
+        result.skippedExistingGender += 1;
+      } else {
+        result.skippedNoSourceGender += 1;
+      }
+      continue;
+    }
+
+    result.previewUpdates.push({
+      learnerId,
+      fullName: row.fullName,
+      idNumber: String(row.idNumber ?? existing.idNumber ?? "").trim(),
+      gender: genderToWrite,
+    });
+
+    if (opts.apply) {
+      await prisma.learner.update({
+        where: { id: learnerId },
+        data: { gender: genderToWrite },
+      });
+    }
+    result.genderBackfilled += 1;
+  }
+
+  result.audit = await auditDaSilvaLearnerGenderCounts(opts.schoolId);
+  return result;
+}
+
+/**
+ * Gender backfill from live DB active learners + SA ID inference when staging is unavailable.
+ * Never overwrites an existing valid Male/Female gender.
+ */
+export async function repairDaSilvaLearnerGenderFromLiveDb(opts: {
+  schoolId: string;
+  apply: boolean;
+}): Promise<DaSilvaLearnerGenderRepairResult> {
+  const learners = await prisma.learner.findMany({
+    where: { schoolId: opts.schoolId, enrollmentStatus: "ACTIVE" },
+    select: {
+      id: true,
+      firstName: true,
+      lastName: true,
+      gender: true,
+      idNumber: true,
+    },
+  });
+
+  const result: DaSilvaLearnerGenderRepairResult = {
+    mode: "live-fallback",
+    sourceRows: learners.length,
+    matched: 0,
+    genderBackfilled: 0,
+    skippedExistingGender: 0,
+    skippedNoSourceGender: 0,
+    unmatched: [],
+    previewUpdates: [],
+    audit: await auditDaSilvaLearnerGenderCounts(opts.schoolId),
+  };
+
+  for (const learner of learners) {
+    const fullName = `${learner.firstName} ${learner.lastName}`.trim();
+    const idNumber = resolveLearnerIdNumberFromRecord(
+      learner as unknown as Record<string, unknown>
+    );
+
+    if (isMaleGender(learner.gender) || isFemaleGender(learner.gender)) {
+      result.skippedExistingGender += 1;
+      if (idNumber && isValidSouthAfricanIdNumber(idNumber)) {
+        result.matched += 1;
+      }
+      continue;
+    }
+
+    if (!idNumber || !isValidSouthAfricanIdNumber(idNumber)) {
+      result.skippedNoSourceGender += 1;
+      result.unmatched.push({ matchKey: learner.id, fullName });
+      continue;
+    }
+
+    const inferredGender = inferGenderFromSouthAfricanId(idNumber);
+    if (!inferredGender) {
+      result.skippedNoSourceGender += 1;
+      result.unmatched.push({ matchKey: learner.id, fullName });
+      continue;
+    }
+
+    result.matched += 1;
+
+    const genderToWrite = pickLearnerGenderForWrite({
+      existingGender: learner.gender,
+      idNumber,
+    });
+    if (!genderToWrite) {
+      result.skippedNoSourceGender += 1;
+      continue;
+    }
+
+    result.previewUpdates.push({
+      learnerId: learner.id,
+      fullName,
+      idNumber,
+      gender: genderToWrite,
+    });
+
+    if (opts.apply) {
+      await prisma.learner.update({
+        where: { id: learner.id },
+        data: { gender: genderToWrite },
+      });
+    }
+    result.genderBackfilled += 1;
+  }
+
+  result.audit = await auditDaSilvaLearnerGenderCounts(opts.schoolId);
+  return result;
+}
 
 export async function repairDaSilvaSasamsLearners(opts: {
   schoolId: string;
@@ -193,7 +450,6 @@ export async function repairDaSilvaSasamsLearners(opts: {
     });
     if (!existing) continue;
 
-    const genderNorm = normalizeLearnerGender(row.gender) || row.gender;
     const data: Record<string, unknown> = {};
     const firstName = pickString(row.firstName, existing.firstName);
     const lastName = pickString(row.lastName, existing.lastName);
@@ -209,8 +465,12 @@ export async function repairDaSilvaSasamsLearners(opts: {
     if (homeLanguage) data.homeLanguage = homeLanguage;
     const citizenship = pickString(row.citizenship, existing.citizenship);
     if (citizenship) data.citizenship = citizenship;
-    const gender = pickString(genderNorm, existing.gender);
-    if (gender) data.gender = gender;
+    const genderToWrite = pickLearnerGenderForWrite({
+      existingGender: existing.gender,
+      gender: row.gender,
+      idNumber: row.idNumber ?? existing.idNumber,
+    });
+    if (genderToWrite) data.gender = genderToWrite;
     const birthDate = pickDate(row.birthDate, existing.birthDate);
     if (birthDate) data.birthDate = birthDate;
     if (row.admissionNo) {

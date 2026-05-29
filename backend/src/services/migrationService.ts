@@ -8,6 +8,7 @@ import {
 } from "../utils/classroomNormalization";
 import { normalizeSaPhone } from "./parentPortalService";
 import { normalizeStaffEmail } from "../utils/staffJwt";
+import { resolveGenderFromSources } from "../utils/learnerGender";
 import { syncParentThreadsForClassroom } from "./parentPortalService";
 
 const STAGING_ROOT = path.join(process.cwd(), "uploads", "migration-staging");
@@ -772,7 +773,10 @@ export async function commitMigrationImport(opts: {
         className: canonicalClass,
         idNumber: cleanString(row.idNumber) || null,
         birthDate: row.birthDate ? new Date(row.birthDate) : null,
-        gender: cleanString(row.gender) || null,
+        gender: resolveGenderFromSources({
+          gender: cleanString(row.gender) || null,
+          idNumber: cleanString(row.idNumber) || null,
+        }),
       };
 
       let learner;

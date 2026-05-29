@@ -1,0 +1,309 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<?mso-application progid="Excel.Sheet"?>
+
+<Workbook xmlns="urn:schemas-microsoft-com:office:spreadsheet" xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:x="urn:schemas-microsoft-com:office:excel" xmlns:ss="urn:schemas-microsoft-com:office:spreadsheet" xmlns:html="http://www.w3.org/TR/REC-html40">
+	<DocumentProperties xmlns="urn:schemas-microsoft-com:office:office">
+		<Author/>
+		<Title/>
+		<Description/>
+		<Subject/>
+	</DocumentProperties>
+	<Styles>
+		<Style ss:ID="HyperlinkId" ss:Name="Hyperlink">
+			<Font ss:Color="#0000ff"/>
+		</Style>
+		<Style ss:ID="1">
+			<NumberFormat ss:Format="yyyy-M-d HH:mm:ss AM/PM"/>
+		</Style>
+		<Style ss:ID="21">
+			<Alignment ss:Horizontal="Left" ss:Vertical="Top" ss:WrapText="1"/>
+			<Borders>
+				<Border ss:Position="Bottom"/>
+				<Border ss:Position="Top"/>
+				<Border ss:Position="Left"/>
+				<Border ss:Position="Right"/>
+				<Border ss:Position="DiagonalLeft"/>
+			</Borders>
+			<Font ss:FontName="sans-serif" ss:Size="10.0" ss:Color="#000000"/>
+		</Style>
+		<Style ss:ID="20">
+			<Alignment ss:Horizontal="Center" ss:Vertical="Top" ss:WrapText="1"/>
+			<Borders>
+				<Border ss:Position="Bottom" ss:LineStyle="Continuous" ss:Weight="1" ss:Color="#000000"/>
+				<Border ss:Position="Top" ss:LineStyle="Continuous" ss:Weight="1" ss:Color="#000000"/>
+				<Border ss:Position="Left" ss:LineStyle="Continuous" ss:Weight="1" ss:Color="#000000"/>
+				<Border ss:Position="Right" ss:LineStyle="Continuous" ss:Weight="1" ss:Color="#000000"/>
+				<Border ss:Position="DiagonalLeft"/>
+			</Borders>
+			<Font ss:FontName="Arial" ss:Size="18.0" ss:Bold="1" ss:Color="#000000"/>
+		</Style>
+		<Style ss:ID="22">
+			<Alignment ss:Horizontal="Left" ss:Vertical="Top" ss:WrapText="1"/>
+			<Borders>
+				<Border ss:Position="Bottom"/>
+				<Border ss:Position="Top"/>
+				<Border ss:Position="Left"/>
+				<Border ss:Position="Right"/>
+				<Border ss:Position="DiagonalLeft"/>
+			</Borders>
+			<Font ss:FontName="Arial" ss:Size="12.0" ss:Color="#000000"/>
+		</Style>
+		<Style ss:ID="23">
+			<Alignment ss:Horizontal="Left" ss:Vertical="Top" ss:WrapText="1"/>
+			<Borders>
+				<Border ss:Position="Bottom"/>
+				<Border ss:Position="Top"/>
+				<Border ss:Position="Left"/>
+				<Border ss:Position="Right"/>
+				<Border ss:Position="DiagonalLeft"/>
+			</Borders>
+			<Font ss:FontName="Arial" ss:Size="12.0" ss:Color="#000000"/>
+		</Style>
+	</Styles>
+	<Names>
+		<NamedRange ss:Name="__bookmark_1" ss:RefersTo="Report!R1C1:R24C4"/>
+	</Names>
+
+<Worksheet ss:Name="Report">
+	<ss:Table>
+		<ss:Column ss:Width="55.808" ss:AutoFitWidth="0"/>
+		<ss:Column ss:Width="167.808" ss:AutoFitWidth="0"/>
+		<ss:Column ss:Width="167.808" ss:AutoFitWidth="0"/>
+		<ss:Column ss:Width="167.808" ss:AutoFitWidth="0"/>
+		<Row ss:AutoFitHeight="1">
+			<Cell ss:Index="1" ss:StyleID="20" ss:MergeAcross="3">
+				<Data ss:Type="String">GRADE 7B  2026</Data>
+			</Cell>
+		</Row>
+		<Row ss:AutoFitHeight="1">
+			<Cell ss:Index="1" ss:StyleID="21"/>
+			<Cell ss:Index="2" ss:StyleID="21"/>
+			<Cell ss:Index="3" ss:StyleID="21"/>
+			<Cell ss:Index="4" ss:StyleID="21"/>
+		</Row>
+		<Row ss:AutoFitHeight="1">
+			<Cell ss:Index="1" ss:StyleID="22">
+				<Data ss:Type="Number">1</Data>
+			</Cell>
+			<Cell ss:Index="2" ss:StyleID="23">
+				<Data ss:Type="String">Amantle Moabi</Data>
+			</Cell>
+			<Cell ss:Index="3" ss:StyleID="21"/>
+			<Cell ss:Index="4" ss:StyleID="21"/>
+		</Row>
+		<Row ss:AutoFitHeight="1">
+			<Cell ss:Index="1" ss:StyleID="22">
+				<Data ss:Type="Number">2</Data>
+			</Cell>
+			<Cell ss:Index="2" ss:StyleID="23">
+				<Data ss:Type="String">Amantle Nzimande</Data>
+			</Cell>
+			<Cell ss:Index="3" ss:StyleID="21"/>
+			<Cell ss:Index="4" ss:StyleID="21"/>
+		</Row>
+		<Row ss:AutoFitHeight="1">
+			<Cell ss:Index="1" ss:StyleID="22">
+				<Data ss:Type="Number">3</Data>
+			</Cell>
+			<Cell ss:Index="2" ss:StyleID="23">
+				<Data ss:Type="String">Atlegang Jantjie</Data>
+			</Cell>
+			<Cell ss:Index="3" ss:StyleID="21"/>
+			<Cell ss:Index="4" ss:StyleID="21"/>
+		</Row>
+		<Row ss:AutoFitHeight="1">
+			<Cell ss:Index="1" ss:StyleID="22">
+				<Data ss:Type="Number">4</Data>
+			</Cell>
+			<Cell ss:Index="2" ss:StyleID="23">
+				<Data ss:Type="String">Eldadi Adamu</Data>
+			</Cell>
+			<Cell ss:Index="3" ss:StyleID="21"/>
+			<Cell ss:Index="4" ss:StyleID="21"/>
+		</Row>
+		<Row ss:AutoFitHeight="1">
+			<Cell ss:Index="1" ss:StyleID="22">
+				<Data ss:Type="Number">5</Data>
+			</Cell>
+			<Cell ss:Index="2" ss:StyleID="23">
+				<Data ss:Type="String">Hikateekile Mokategi Michelle Mtebule</Data>
+			</Cell>
+			<Cell ss:Index="3" ss:StyleID="21"/>
+			<Cell ss:Index="4" ss:StyleID="21"/>
+		</Row>
+		<Row ss:AutoFitHeight="1">
+			<Cell ss:Index="1" ss:StyleID="22">
+				<Data ss:Type="Number">6</Data>
+			</Cell>
+			<Cell ss:Index="2" ss:StyleID="23">
+				<Data ss:Type="String">Kamogelo Calvin Tivane</Data>
+			</Cell>
+			<Cell ss:Index="3" ss:StyleID="21"/>
+			<Cell ss:Index="4" ss:StyleID="21"/>
+		</Row>
+		<Row ss:AutoFitHeight="1">
+			<Cell ss:Index="1" ss:StyleID="22">
+				<Data ss:Type="Number">7</Data>
+			</Cell>
+			<Cell ss:Index="2" ss:StyleID="23">
+				<Data ss:Type="String">Kanku Kis Katshay</Data>
+			</Cell>
+			<Cell ss:Index="3" ss:StyleID="21"/>
+			<Cell ss:Index="4" ss:StyleID="21"/>
+		</Row>
+		<Row ss:AutoFitHeight="1">
+			<Cell ss:Index="1" ss:StyleID="22">
+				<Data ss:Type="Number">8</Data>
+			</Cell>
+			<Cell ss:Index="2" ss:StyleID="23">
+				<Data ss:Type="String">Kitso-entle Lephoto</Data>
+			</Cell>
+			<Cell ss:Index="3" ss:StyleID="21"/>
+			<Cell ss:Index="4" ss:StyleID="21"/>
+		</Row>
+		<Row ss:AutoFitHeight="1">
+			<Cell ss:Index="1" ss:StyleID="22">
+				<Data ss:Type="Number">9</Data>
+			</Cell>
+			<Cell ss:Index="2" ss:StyleID="23">
+				<Data ss:Type="String">Nhlulo Xihluke Manabe</Data>
+			</Cell>
+			<Cell ss:Index="3" ss:StyleID="21"/>
+			<Cell ss:Index="4" ss:StyleID="21"/>
+		</Row>
+		<Row ss:AutoFitHeight="1">
+			<Cell ss:Index="1" ss:StyleID="22">
+				<Data ss:Type="Number">10</Data>
+			</Cell>
+			<Cell ss:Index="2" ss:StyleID="23">
+				<Data ss:Type="String">Nikitah Moonsammy</Data>
+			</Cell>
+			<Cell ss:Index="3" ss:StyleID="21"/>
+			<Cell ss:Index="4" ss:StyleID="21"/>
+		</Row>
+		<Row ss:AutoFitHeight="1">
+			<Cell ss:Index="1" ss:StyleID="22">
+				<Data ss:Type="Number">11</Data>
+			</Cell>
+			<Cell ss:Index="2" ss:StyleID="23">
+				<Data ss:Type="String">Ntsako Mkhasi</Data>
+			</Cell>
+			<Cell ss:Index="3" ss:StyleID="21"/>
+			<Cell ss:Index="4" ss:StyleID="21"/>
+		</Row>
+		<Row ss:AutoFitHeight="1">
+			<Cell ss:Index="1" ss:StyleID="22">
+				<Data ss:Type="Number">12</Data>
+			</Cell>
+			<Cell ss:Index="2" ss:StyleID="23">
+				<Data ss:Type="String">Ofentse Mokua</Data>
+			</Cell>
+			<Cell ss:Index="3" ss:StyleID="21"/>
+			<Cell ss:Index="4" ss:StyleID="21"/>
+		</Row>
+		<Row ss:AutoFitHeight="1">
+			<Cell ss:Index="1" ss:StyleID="22">
+				<Data ss:Type="Number">13</Data>
+			</Cell>
+			<Cell ss:Index="2" ss:StyleID="23">
+				<Data ss:Type="String">Omaatla Tlotlo Ranta</Data>
+			</Cell>
+			<Cell ss:Index="3" ss:StyleID="21"/>
+			<Cell ss:Index="4" ss:StyleID="21"/>
+		</Row>
+		<Row ss:AutoFitHeight="1">
+			<Cell ss:Index="1" ss:StyleID="22">
+				<Data ss:Type="Number">14</Data>
+			</Cell>
+			<Cell ss:Index="2" ss:StyleID="23">
+				<Data ss:Type="String">Omatla Malesela Ramagogogdi</Data>
+			</Cell>
+			<Cell ss:Index="3" ss:StyleID="21"/>
+			<Cell ss:Index="4" ss:StyleID="21"/>
+		</Row>
+		<Row ss:AutoFitHeight="1">
+			<Cell ss:Index="1" ss:StyleID="22">
+				<Data ss:Type="Number">15</Data>
+			</Cell>
+			<Cell ss:Index="2" ss:StyleID="23">
+				<Data ss:Type="String">Omogolo Sepadile</Data>
+			</Cell>
+			<Cell ss:Index="3" ss:StyleID="21"/>
+			<Cell ss:Index="4" ss:StyleID="21"/>
+		</Row>
+		<Row ss:AutoFitHeight="1">
+			<Cell ss:Index="1" ss:StyleID="22">
+				<Data ss:Type="Number">16</Data>
+			</Cell>
+			<Cell ss:Index="2" ss:StyleID="23">
+				<Data ss:Type="String">Orefilwe Phakedi</Data>
+			</Cell>
+			<Cell ss:Index="3" ss:StyleID="21"/>
+			<Cell ss:Index="4" ss:StyleID="21"/>
+		</Row>
+		<Row ss:AutoFitHeight="1">
+			<Cell ss:Index="1" ss:StyleID="22">
+				<Data ss:Type="Number">17</Data>
+			</Cell>
+			<Cell ss:Index="2" ss:StyleID="23">
+				<Data ss:Type="String">Paballo Pearl Xaba</Data>
+			</Cell>
+			<Cell ss:Index="3" ss:StyleID="21"/>
+			<Cell ss:Index="4" ss:StyleID="21"/>
+		</Row>
+		<Row ss:AutoFitHeight="1">
+			<Cell ss:Index="1" ss:StyleID="22">
+				<Data ss:Type="Number">18</Data>
+			</Cell>
+			<Cell ss:Index="2" ss:StyleID="23">
+				<Data ss:Type="String">Phiko Hlaba</Data>
+			</Cell>
+			<Cell ss:Index="3" ss:StyleID="21"/>
+			<Cell ss:Index="4" ss:StyleID="21"/>
+		</Row>
+		<Row ss:AutoFitHeight="1">
+			<Cell ss:Index="1" ss:StyleID="22">
+				<Data ss:Type="Number">19</Data>
+			</Cell>
+			<Cell ss:Index="2" ss:StyleID="23">
+				<Data ss:Type="String">Shaun Vuyolwethu Mqali</Data>
+			</Cell>
+			<Cell ss:Index="3" ss:StyleID="21"/>
+			<Cell ss:Index="4" ss:StyleID="21"/>
+		</Row>
+		<Row ss:AutoFitHeight="1">
+			<Cell ss:Index="1" ss:StyleID="22">
+				<Data ss:Type="Number">20</Data>
+			</Cell>
+			<Cell ss:Index="2" ss:StyleID="23">
+				<Data ss:Type="String">Vutlhari Botake</Data>
+			</Cell>
+			<Cell ss:Index="3" ss:StyleID="21"/>
+			<Cell ss:Index="4" ss:StyleID="21"/>
+		</Row>
+		<Row ss:AutoFitHeight="1">
+			<Cell ss:Index="1" ss:StyleID="21"/>
+			<Cell ss:Index="2" ss:StyleID="21"/>
+			<Cell ss:Index="3" ss:StyleID="21"/>
+			<Cell ss:Index="4" ss:StyleID="21"/>
+		</Row>
+		<Row ss:AutoFitHeight="1">
+			<Cell ss:Index="1" ss:StyleID="21"/>
+			<Cell ss:Index="2" ss:StyleID="21"/>
+			<Cell ss:Index="3" ss:StyleID="21"/>
+			<Cell ss:Index="4" ss:StyleID="21"/>
+		</Row>
+	</ss:Table>
+	<WorksheetOptions xmlns="urn:schemas-microsoft-com:office:excel">
+		<PageSetup>
+			<PageMargins x:Bottom="0.25" x:Left="0.25" x:Right="0.25" x:Top="0.25"/>
+			<Layout x:Orientation="Portrait"/>
+			<Header x:Data="&amp;L&amp;&#34;sans-serif&#34;&amp;14&amp;K000000Class List&amp;C&amp;&#34;Arial&#34;&amp;14&amp;K000000Da Silva Academy"/>
+			<Footer x:Data="&amp;L&amp;&#34;Arial&#34;&amp;10&amp;K0000002026/05/23 09:41"/>
+		</PageSetup>
+		<Print>
+			<PaperSizeIndex>9</PaperSizeIndex>
+		</Print>
+	</WorksheetOptions>
+</Worksheet>
+</Workbook>

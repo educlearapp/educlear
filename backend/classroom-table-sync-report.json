@@ -1,0 +1,88 @@
+{
+  "generatedAt": "2026-05-24T17:42:08.883Z",
+  "mode": "apply",
+  "schoolId": "cmpideqeq0000108xb6ouv9zi",
+  "before": {
+    "classroomNames": [
+      "|grade Ra",
+      "|grade Rb",
+      "Grade 1A",
+      "Grade 1B",
+      "Grade 1C",
+      "Grade 2A",
+      "Grade 2B",
+      "Grade 3A",
+      "Grade 3B",
+      "Grade 4A",
+      "Grade 4B",
+      "Grade 5A",
+      "Grade 5B",
+      "Grade 6A",
+      "Grade 6B",
+      "Grade 6C",
+      "Grade 7A",
+      "Grade 7B",
+      "Grade 8A",
+      "Grade 8B",
+      "Pre-School Creche"
+    ],
+    "classroomTotal": 21,
+    "learnerTotal": 396,
+    "orphanLearners": 40
+  },
+  "plannedRenames": [
+    {
+      "id": "cmpjzelhk0011zncsrjoef7l3",
+      "from": "|grade Ra",
+      "to": "Grade RA"
+    },
+    {
+      "id": "cmpjzelhl0013zncsnpeb57jc",
+      "from": "|grade Rb",
+      "to": "Grade RB"
+    },
+    {
+      "id": "cmpjzelhl0015zncsiq8e0xs4",
+      "from": "Pre-School Creche",
+      "to": "Creche"
+    }
+  ],
+  "after": {
+    "classroomNames": [
+      "Creche",
+      "Grade 1A",
+      "Grade 1B",
+      "Grade 1C",
+      "Grade 2A",
+      "Grade 2B",
+      "Grade 3A",
+      "Grade 3B",
+      "Grade 4A",
+      "Grade 4B",
+      "Grade 5A",
+      "Grade 5B",
+      "Grade 6A",
+      "Grade 6B",
+      "Grade 6C",
+      "Grade 7A",
+      "Grade 7B",
+      "Grade 8A",
+      "Grade 8B",
+      "Grade RA",
+      "Grade RB"
+    ],
+    "classroomTotal": 21,
+    "learnerTotal": 396,
+    "orphanLearners": 0
+  },
+  "verification": {
+    "learnerCount396": true,
+    "classroomCount21": true,
+    "orphanLearners0": true,
+    "dashboardClassroomJoin": true,
+    "noBillingTouch": true,
+    "idsPreserved": true,
+    "onlyPlannedRenames": true
+  },
+  "passed": true
+}

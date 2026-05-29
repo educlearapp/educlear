@@ -1,0 +1,39 @@
+Da Silva linked-data audit
+Generated: 2026-05-27T07:41:04.344Z
+School: Da Silva Academy (cmpnpupuh000013kudv687rx9)
+
+Learners: 396
+Parents: 290
+Family accounts: 344
+Learners with familyAccountId: 173
+Learners with admissionNo: 0
+Family accounts with ≥1 learner: 160
+Parent–learner links: 152
+
+Ledger entries: 0
+Ledger rows missing learnerId: 0
+Ledger by source:
+
+Sample learners:
+  Eldadi Adamu | status=Enrolled | class=Grade 7B | adm=- | acct=- | parents=0
+  Zem Adamu | status=Enrolled | class=Grade 6A | adm=- | acct=- | parents=0
+  Jordan-leigh Africa | status=Enrolled | class=Grade 3A | adm=- | acct=AFR002 | parents=1
+  Alizain Ali | status=Enrolled | class=Grade 5B | adm=- | acct=- | parents=0
+  Boitumelo Moses Banda | status=Enrolled | class=Grade 3A | adm=- | acct=BAN001 | parents=1
+  Reotshepile Matlhasedi Bogatsu | status=Enrolled | class=Grade 3A | adm=- | acct=BOG005 | parents=1
+  Vutlhari Botake | status=Enrolled | class=Grade 7B | adm=- | acct=- | parents=0
+  Kim Omontle Buys | status=Enrolled | class=Grade 6C | adm=- | acct=- | parents=0
+  Yonwaba Cetshane | status=Enrolled | class=Grade 6C | adm=- | acct=- | parents=0
+  Kaone Tinashe Chinyenye | status=Enrolled | class=Grade 3A | adm=- | acct=CHI004 | parents=1
+
+Sample family accounts:
+  ADA004 Adamu | balance=0 | learners=0
+  AFR002 Africa | balance=0 | learners=1
+  ALI002 Ali | balance=0 | learners=0
+  BAN001 Banda | balance=0 | learners=1
+  BOG005 Bogatsu | balance=0 | learners=1
+  BUY001 Buys | balance=0 | learners=0
+  CET001 Cetshane | balance=0 | learners=0
+  CHI002 Nkabinde | balance=0 | learners=0
+  CHI004 Chinyenye | balance=0 | learners=1
+  CHI005 Chiutsi | balance=0 | learners=2

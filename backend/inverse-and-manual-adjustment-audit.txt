@@ -1,0 +1,739 @@
+=== Inverse + manual adjustment audit (7 accounts, audit only — no import) ===
+Generated: 2026-05-23T12:44:05.302Z
+Desktop: /Users/dasilvaacademy/Desktop
+Inverse ledger>age: 6 | Manual (MAR005): 1
+Sum |adjustment|: R11155.00
+
+Likely cause:
+  ledger export overstatement: 5
+  extra ledger charges not in age: 1
+  age paid up / zeroed ledger residual: 1
+
+Opening balance safety:
+  safe: 1 | caution: 5 | unsafe: 1
+
+accountNo | category | safety | cause | age | ledger | adj | learner
+--------- | -------- | ------ | ----- | --- | ------ | --- | -------
+MOL003    | inverse  | safe   | extra ledger charges not in  |  4710 |   7910 | -3200 | Molebogeng Maselela
+MOL044    | inverse  | caution | ledger export overstatement  |  3450 |   5580 | -2130 | Omontle Molefe
+JEC002    | inverse  | caution | ledger export overstatement  |  1965 |   3890 | -1925 | Nelisiwe Jeche
+MAR005    | manual   | unsafe | age paid up / zeroed ledger  |     0 |   1700 | -1700 | Alunamda Luyamkela Marman
+MAN010    | inverse  | caution | ledger export overstatement  |  7600 |   8900 | -1300 | Nhlulo Xihluke Manabe
+MAH004    | inverse  | caution | ledger export overstatement  |  3200 |   3750 |  -550 | Mayani Daniel Mahango
+RAM010    | inverse  | caution | ledger export overstatement  |  3350 |   3700 |  -350 | Keitumetsi Ramasika
+
+Per-account detail:
+
+--- MOL003 Molebogeng Maselela ---
+  age R4710 | ledger R7910 | adjustment R-3200 | excess R3200
+  category: inverseProblemLedgerGreaterThanAge | section: Recently Owing | prior: possibleDuplicateOrHistoricalCredit
+  timeline: 93 txn(s): 50 invoice(s) R131970, 43 payment(s) R-124060. Span 2023-01-13 → 2026-05-22; running ledger R7910. Section "Recently Owing". 2 flagged row(s) (dup/mispost/hist/jnl). Recent: 2026-04-30 payment R-12000; 2026-05-15 invoice R3800; 2026-05-22 invoice R210.
+  likely cause: extra ledger charges not in age (medium) — Pair of invoices (R2900 + R300) sums to ledger excess R3200.
+  opening balance safe: true [safe] — Ledger excess matches identifiable invoice(s) with no dup/mispost signals; opening credit R3200 aligns ledger to age R4710.
+  full timeline:
+    2023-01-13 invoice #42365 R1500.00 bal R1500.00
+    2023-01-16 invoice #42502 R3500.00 bal R5000.00
+    2023-01-19 invoice #42985 R1100.00 bal R6100.00
+    2023-01-27 payment #34220 R-2500.00 bal R3600.00
+    2023-02-16 invoice #43394 R3550.00 bal R7150.00
+    2023-03-02 payment #34945 R-2300.00 bal R4850.00
+    2023-03-15 invoice #44054 R2750.00 bal R7600.00
+    2023-04-04 payment #35434 R-2200.00 bal R5400.00
+    2023-04-18 invoice #44670 R2750.00 bal R8150.00
+    2023-05-02 payment #35835 R-2200.00 bal R5950.00
+    2023-05-15 invoice #45314 R2950.00 bal R8900.00
+    2023-06-03 payment #36698 R-2300.00 bal R6600.00
+    2023-06-13 invoice #45835 R2750.00 bal R9350.00
+    2023-06-15 payment #36923 R-3850.00 bal R5500.00 [HIST,JNL] — Aftercare removed
+    2023-07-05 payment #37206 R-2300.00 bal R3200.00
+    2023-07-19 invoice #46320 R2200.00 bal R5400.00
+    2023-08-01 payment #37818 R-2200.00 bal R3200.00
+    2023-08-16 invoice #46876 R2200.00 bal R5400.00
+    2023-09-04 payment #38310 R-2300.00 bal R3100.00
+    2023-09-20 invoice #47568 R2200.00 bal R5300.00
+    2023-10-10 payment #38984 R-2300.00 bal R3000.00
+    2023-10-17 invoice #48137 R2200.00 bal R5200.00
+    2023-11-01 payment #39378 R-2000.00 bal R3200.00
+    2023-11-16 invoice #48748 R2200.00 bal R5400.00
+    2023-12-03 payment #39969 R-2200.00 bal R3200.00
+    2023-12-18 invoice #49458 R4000.00 bal R7200.00
+    2024-01-24 invoice #50139 R3150.00 bal R10350.00
+    2024-01-31 payment #41120 R-2500.00 bal R7850.00
+    2024-02-19 invoice #51401 R3300.00 bal R11150.00
+    2024-03-07 invoice #51798 R2900.00 bal R14050.00
+    2024-03-07 payment #41936 R-3000.00 bal R11050.00
+    2024-03-19 invoice #52088 R2400.00 bal R13450.00
+    2024-04-01 payment #42111 R-2400.00 bal R11050.00
+    2024-04-15 invoice #52561 R2400.00 bal R13450.00
+    2024-05-02 payment #42860 R-3000.00 bal R10450.00
+    2024-05-09 payment #43070 R-2350.00 bal R8100.00
+    2024-05-15 invoice #53150 R2400.00 bal R10500.00
+    2024-06-04 payment #43520 R-4400.00 bal R6100.00
+    2024-06-15 invoice #53675 R2400.00 bal R8500.00
+    2024-07-02 payment #43889 R-2400.00 bal R6100.00
+    2024-07-17 invoice #54135 R4960.00 bal R11060.00
+    2024-08-01 payment #44319 R-2400.00 bal R8660.00
+    2024-08-15 invoice #54610 R2400.00 bal R11060.00
+    2024-08-27 payment #44585 R-2900.00 bal R8160.00
+    2024-09-02 payment #44783 R-2400.00 bal R5760.00
+    2024-09-17 invoice #55066 R2400.00 bal R8160.00
+    2024-10-03 payment #45313 R-2400.00 bal R5760.00
+    2024-10-15 invoice #55520 R2400.00 bal R8160.00
+    2024-10-16 payment #45525 R-2900.00 bal R5260.00 [HIST,JNL] — LEADERSHIP CAMP REMOVED
+    2024-10-29 payment #45615 R-2400.00 bal R2860.00
+    2024-11-15 invoice #56030 R2400.00 bal R5260.00
+    2024-12-02 payment #46308 R-2060.00 bal R3200.00
+    2024-12-14 invoice #56596 R4500.00 bal R7700.00
+    2025-01-23 invoice #57098 R2700.00 bal R10400.00
+    2025-01-30 payment #47447 R-5000.00 bal R5400.00
+    2025-02-21 invoice #57534 R350.00 bal R5750.00
+    2025-02-21 invoice #57647 R2700.00 bal R8450.00
+    2025-03-03 payment #47945 R-3250.00 bal R5200.00
+    2025-03-03 payment #47972 R-2000.00 bal R3200.00
+    2025-03-18 invoice #58953 R3400.00 bal R6600.00
+    2025-04-01 payment #48509 R-2700.00 bal R3900.00
+    2025-04-15 invoice #59750 R2700.00 bal R6600.00
+    2025-05-03 payment #48943 R-2700.00 bal R3900.00
+    2025-05-15 invoice #60144 R2700.00 bal R6600.00
+    2025-06-03 payment #49461 R-2700.00 bal R3900.00
+    2025-06-04 payment #49508 R-700.00 bal R3200.00
+    2025-06-17 invoice #60640 R2700.00 bal R5900.00
+    2025-06-27 payment #49649 R-2700.00 bal R3200.00
+    2025-07-22 invoice #61023 R2700.00 bal R5900.00
+    2025-08-01 payment #50204 R-2700.00 bal R3200.00
+    2025-08-15 invoice #61413 R2700.00 bal R5900.00
+    2025-09-02 payment #50625 R-2700.00 bal R3200.00
+    2025-09-16 invoice #62267 R3050.00 bal R6250.00
+    2025-09-25 payment #50865 R-2700.00 bal R3550.00
+    2025-10-15 invoice #62681 R2700.00 bal R6250.00
+    2025-10-22 invoice #62895 R500.00 bal R6750.00
+    2025-10-31 payment #51494 R-3200.00 bal R3550.00
+    2025-11-03 payment #51502 R-350.00 bal R3200.00
+    2025-11-17 invoice #63128 R2700.00 bal R5900.00
+    2025-11-28 payment #51952 R-2700.00 bal R3200.00
+    2025-12-15 invoice #63759 R3800.00 bal R7000.00
+    2026-01-12 payment #53350 R-3800.00 bal R3200.00
+    2026-01-21 invoice #64059 R5800.00 bal R9000.00
+    2026-02-06 invoice #64390 R300.00 bal R9300.00
+    2026-02-17 invoice #64595 R4500.00 bal R13800.00
+    2026-03-04 payment #53345 R-6000.00 bal R7800.00
+    2026-03-16 invoice #65105 R3800.00 bal R11600.00
+    2026-04-10 invoice #65332 R300.00 bal R11900.00
+    2026-04-15 invoice #65469 R200.00 bal R12100.00
+    2026-04-15 invoice #65639 R3800.00 bal R15900.00
+    2026-04-30 payment #54062 R-12000.00 bal R3900.00
+    2026-05-15 invoice #67075 R3800.00 bal R7700.00
+    2026-05-22 invoice #67255 R210.00 bal R7910.00
+
+--- MOL044 Omontle Molefe ---
+  age R3450 | ledger R5580 | adjustment R-2130 | excess R2130
+  category: inverseProblemLedgerGreaterThanAge | section: Recently Owing | prior: trueBalanceMismatch
+  timeline: 94 txn(s): 46 invoice(s) R123175, 48 payment(s) R-117595. Span 2023-01-11 → 2026-05-15; running ledger R5580. Section "Recently Owing". 2 flagged row(s) (dup/mispost/hist/jnl). Recent: 2026-04-15 invoice R3000; 2026-04-25 payment R-3450; 2026-05-15 invoice R3000.
+  likely cause: ledger export overstatement (medium) — Lifetime invoices R123175 + payments R-117595 reconcile to ledger R5580; age R3450 is R2130 lower — export/age skew, not missing payments.
+  opening balance safe: false [caution] — Section "Recently Owing" / export skew — opening credit R2130 may align EduClear to age but should be confirmed in Kid-e-Sys (age is lower than ledger by design).
+  full timeline:
+    2023-01-11 invoice #42333 R550.00 bal R550.00
+    2023-01-16 invoice #42501 R3850.00 bal R4400.00
+    2023-01-31 payment #34260 R-2270.00 bal R2130.00
+    2023-02-16 invoice #43393 R3350.00 bal R5480.00
+    2023-02-28 payment #34847 R-2550.00 bal R2930.00
+    2023-03-15 invoice #44053 R2550.00 bal R5480.00
+    2023-04-03 payment #35361 R-2550.00 bal R2930.00
+    2023-04-18 invoice #44669 R2550.00 bal R5480.00
+    2023-05-02 payment #35822 R-2550.00 bal R2930.00
+    2023-05-10 payment #36228 R-200.00 bal R2730.00 — ROBOTICS WORKBOOK
+    2023-05-15 invoice #45312 R2750.00 bal R5480.00
+    2023-05-29 payment #36487 R-3350.00 bal R2130.00
+    2023-06-13 invoice #45833 R2000.00 bal R4130.00
+    2023-07-19 invoice #46318 R2000.00 bal R6130.00
+    2023-07-20 payment #37505 R-2000.00 bal R4130.00
+    2023-07-31 payment #37771 R-2000.00 bal R2130.00
+    2023-08-16 invoice #46874 R2000.00 bal R4130.00
+    2023-08-29 invoice #47264 R1400.00 bal R5530.00
+    2023-08-29 payment #38279 R-2000.00 bal R3530.00
+    2023-08-29 payment #38286 R-1400.00 bal R2130.00 — TEXTBOOKS 2024
+    2023-09-11 payment #38513 R-250.00 bal R1880.00
+    2023-09-20 invoice #47566 R2250.00 bal R4130.00
+    2023-10-16 invoice #47986 R265.00 bal R4395.00
+    2023-10-17 invoice #48135 R2000.00 bal R6395.00
+    2023-10-27 payment #39171 R-4265.00 bal R2130.00
+    2023-11-16 invoice #48746 R2000.00 bal R4130.00
+    2023-12-04 payment #40035 R-2000.00 bal R2130.00
+    2023-12-18 invoice #49455 R4000.00 bal R6130.00
+    2023-12-20 payment #40452 R-2400.00 bal R3730.00
+    2024-01-24 invoice #50136 R3150.00 bal R6880.00
+    2024-01-29 payment #41037 R-4750.00 bal R2130.00
+    2024-02-19 invoice #51398 R3300.00 bal R5430.00
+    2024-02-28 payment #41780 R-2400.00 bal R3030.00
+    2024-03-19 invoice #52086 R2400.00 bal R5430.00
+    2024-04-01 payment #42268 R-2400.00 bal R3030.00
+    2024-04-15 invoice #52559 R2400.00 bal R5430.00
+    2024-05-06 payment #43006 R-2400.00 bal R3030.00
+    2024-05-15 invoice #53147 R2400.00 bal R5430.00
+    2024-06-03 payment #43471 R-3300.00 bal R2130.00
+    2024-06-15 invoice #53672 R2400.00 bal R4530.00
+    2024-06-28 payment #43771 R-2000.00 bal R2530.00
+    2024-07-15 payment #44020 R-400.00 bal R2130.00
+    2024-07-17 invoice #54132 R4060.00 bal R6190.00
+    2024-07-30 payment #44302 R-2400.00 bal R3790.00
+    2024-08-15 invoice #54607 R2400.00 bal R6190.00
+    2024-09-02 payment #44809 R-2400.00 bal R3790.00
+    2024-09-17 invoice #55063 R2400.00 bal R6190.00
+    2024-10-01 payment #45135 R-2400.00 bal R3790.00
+    2024-10-15 invoice #55517 R2400.00 bal R6190.00
+    2024-11-04 payment #45917 R-2400.00 bal R3790.00
+    2024-11-15 invoice #56027 R2400.00 bal R6190.00
+    2024-12-02 payment #46395 R-2400.00 bal R3790.00
+    2024-12-14 invoice #56594 R4500.00 bal R8290.00
+    2025-01-16 payment #47504 R-1660.00 bal R6630.00
+    2025-01-22 invoice #56992 R450.00 bal R7080.00
+    2025-01-23 invoice #57095 R2700.00 bal R9780.00
+    2025-01-25 payment #47360 R-2700.00 bal R7080.00
+    2025-01-27 payment #47321 R-160.00 bal R6920.00
+    2025-01-29 payment #47359 R-1660.00 bal R5260.00 [HIST,JNL] — Grade 2 Textbooks removed
+    2025-01-29 payment #47399 R-430.00 bal R4830.00
+    2025-01-29 payment #47402 R-2700.00 bal R2130.00
+    2025-02-21 invoice #57644 R2700.00 bal R4830.00
+    2025-02-26 payment #47838 R-2700.00 bal R2130.00
+    2025-03-18 invoice #58950 R3400.00 bal R5530.00
+    2025-03-27 payment #48365 R-2700.00 bal R2830.00
+    2025-04-15 invoice #59747 R2700.00 bal R5530.00
+    2025-05-03 payment #48838 R-3400.00 bal R2130.00
+    2025-05-15 invoice #60141 R2700.00 bal R4830.00
+    2025-05-27 payment #49277 R-2700.00 bal R2130.00
+    2025-06-17 invoice #60637 R2700.00 bal R4830.00
+    2025-06-30 payment #49729 R-2700.00 bal R2130.00
+    2025-07-22 invoice #61020 R2700.00 bal R4830.00
+    2025-07-28 payment #50077 R-2700.00 bal R2130.00
+    2025-08-15 invoice #61410 R2700.00 bal R4830.00
+    2025-08-26 payment #50459 R-2700.00 bal R2130.00
+    2025-09-16 invoice #62264 R3050.00 bal R5180.00
+    2025-09-25 payment #50874 R-3950.00 bal R1230.00
+    2025-10-15 invoice #62678 R2700.00 bal R3930.00
+    2025-10-27 payment #51316 R-2700.00 bal R1230.00
+    2025-11-17 invoice #63125 R2700.00 bal R3930.00
+    2025-11-25 payment #51835 R-2700.00 bal R1230.00
+    2025-12-15 invoice #63475 R6350.00 bal R7580.00
+    2026-01-02 payment #52254 R-3350.00 bal R4230.00 [HIST,JNL] — Invoice removed  -learner not attending in 2026
+    2026-01-02 payment #52280 R-3000.00 bal R1230.00
+    2026-01-21 invoice #63968 R5000.00 bal R6230.00
+    2026-01-24 payment #52627 R-4100.00 bal R2130.00
+    2026-02-17 invoice #64509 R3700.00 bal R5830.00
+    2026-02-25 payment #53128 R-3000.00 bal R2830.00
+    2026-03-16 invoice #65019 R3000.00 bal R5830.00
+    2026-03-25 payment #53565 R-3000.00 bal R2830.00
+    2026-04-15 invoice #65384 R200.00 bal R3030.00
+    2026-04-15 invoice #65553 R3000.00 bal R6030.00
+    2026-04-25 payment #53950 R-3450.00 bal R2580.00
+    2026-05-15 invoice #66989 R3000.00 bal R5580.00
+
+--- JEC002 Nelisiwe Jeche ---
+  age R1965 | ledger R3890 | adjustment R-1925 | excess R1925
+  category: inverseProblemLedgerGreaterThanAge | section: Recently Owing | prior: trueBalanceMismatch
+  timeline: 95 txn(s): 48 invoice(s) R131090, 47 payment(s) R-127200. Span 2023-01-13 → 2026-05-15; running ledger R3890. Section "Recently Owing". Recent: 2026-04-15 invoice R3800; 2026-05-04 payment R-4800; 2026-05-15 invoice R3800.
+  likely cause: ledger export overstatement (medium) — Lifetime invoices R131090 + payments R-127200 reconcile to ledger R3890; age R1965 is R1925 lower — export/age skew, not missing payments.
+  opening balance safe: false [caution] — Section "Recently Owing" / export skew — opening credit R1925 may align EduClear to age but should be confirmed in Kid-e-Sys (age is lower than ledger by design).
+  full timeline:
+    2023-01-13 invoice #42366 R1500.00 bal R1500.00
+    2023-01-16 invoice #42513 R3500.00 bal R5000.00
+    2023-01-27 payment #34192 R-2000.00 bal R3000.00
+    2023-02-06 invoice #43160 R265.00 bal R3265.00
+    2023-02-16 invoice #43405 R3000.00 bal R6265.00
+    2023-03-02 payment #34980 R-2000.00 bal R4265.00
+    2023-03-06 invoice #43857 R265.00 bal R4530.00
+    2023-03-15 invoice #44065 R2200.00 bal R6730.00
+    2023-04-04 payment #35394 R-3500.00 bal R3230.00
+    2023-04-14 payment #35547 R-1500.00 bal R1730.00
+    2023-04-18 invoice #44681 R2200.00 bal R3930.00
+    2023-05-02 payment #35852 R-2200.00 bal R1730.00
+    2023-05-08 payment #36089 R-200.00 bal R1530.00 — ROBOTICS WORKOBOOK
+    2023-05-15 invoice #45325 R2400.00 bal R3930.00
+    2023-05-29 payment #36508 R-2200.00 bal R1730.00
+    2023-06-13 invoice #45846 R2200.00 bal R3930.00
+    2023-07-04 payment #37039 R-2500.00 bal R1430.00
+    2023-07-19 invoice #46331 R2200.00 bal R3630.00
+    2023-07-31 payment #37790 R-2500.00 bal R1130.00
+    2023-08-16 invoice #46887 R2200.00 bal R3330.00
+    2023-08-29 payment #38273 R-2500.00 bal R830.00
+    2023-09-07 invoice #47422 R1900.00 bal R2730.00
+    2023-09-07 payment #38500 R-1900.00 bal R830.00 — TEXTBOOKS AND ROBOTICS 2024
+    2023-09-20 invoice #47579 R2200.00 bal R3030.00
+    2023-10-10 payment #38900 R-2500.00 bal R530.00
+    2023-10-17 invoice #48148 R2200.00 bal R2730.00
+    2023-10-27 payment #39207 R-2500.00 bal R230.00
+    2023-11-16 invoice #48759 R2200.00 bal R2430.00
+    2023-11-29 payment #39934 R-2500.00 bal R-70.00
+    2023-12-18 invoice #49467 R4000.00 bal R3930.00
+    2023-12-29 payment #40410 R-2500.00 bal R1430.00
+    2024-01-24 invoice #50150 R2950.00 bal R4380.00
+    2024-01-31 payment #41158 R-500.00 bal R3880.00
+    2024-02-19 invoice #51410 R3300.00 bal R7180.00
+    2024-02-27 invoice #51764 R2900.00 bal R10080.00
+    2024-02-29 payment #41812 R-2500.00 bal R7580.00
+    2024-03-01 payment #41851 R-1600.00 bal R5980.00
+    2024-03-19 invoice #52097 R2400.00 bal R8380.00
+    2024-04-01 payment #42239 R-2500.00 bal R5880.00
+    2024-04-03 payment #42395 R-2500.00 bal R3380.00
+    2024-04-15 invoice #52570 R2400.00 bal R5780.00
+    2024-04-30 payment #42818 R-2500.00 bal R3280.00
+    2024-05-15 invoice #53159 R2400.00 bal R5680.00
+    2024-05-28 payment #43309 R-2500.00 bal R3180.00
+    2024-06-15 invoice #53684 R2400.00 bal R5580.00
+    2024-06-27 payment #43763 R-2500.00 bal R3080.00
+    2024-07-17 invoice #54144 R4960.00 bal R8040.00
+    2024-07-30 payment #44305 R-2500.00 bal R5540.00
+    2024-08-15 invoice #54619 R2400.00 bal R7940.00
+    2024-08-28 payment #44742 R-4500.00 bal R3440.00
+    2024-09-17 invoice #55075 R2400.00 bal R5840.00
+    2024-10-01 payment #45117 R-4500.00 bal R1340.00
+    2024-10-15 invoice #55529 R2400.00 bal R3740.00
+    2024-10-29 payment #45721 R-2500.00 bal R1240.00
+    2024-11-15 invoice #56039 R2400.00 bal R3640.00
+    2024-12-02 payment #46392 R-2500.00 bal R1140.00
+    2024-12-03 invoice #56381 R2100.00 bal R3240.00
+    2024-12-14 invoice #56603 R4500.00 bal R7740.00
+    2024-12-19 payment #46863 R-2500.00 bal R5240.00
+    2025-01-23 invoice #57105 R2700.00 bal R7940.00
+    2025-01-30 payment #47433 R-3500.00 bal R4440.00
+    2025-01-30 payment #47434 R-2600.00 bal R1840.00
+    2025-02-21 invoice #57654 R2700.00 bal R4540.00
+    2025-03-03 payment #48026 R-2700.00 bal R1840.00
+    2025-03-18 invoice #58960 R3400.00 bal R5240.00
+    2025-03-31 payment #48462 R-2700.00 bal R2540.00
+    2025-04-15 invoice #59757 R2700.00 bal R5240.00
+    2025-05-03 payment #48773 R-2700.00 bal R2540.00
+    2025-05-15 invoice #60151 R2700.00 bal R5240.00
+    2025-05-29 payment #49316 R-2700.00 bal R2540.00
+    2025-06-02 payment #49408 R-700.00 bal R1840.00
+    2025-06-17 invoice #60650 R2700.00 bal R4540.00
+    2025-07-01 payment #49810 R-2800.00 bal R1740.00
+    2025-07-22 invoice #61033 R2700.00 bal R4440.00
+    2025-07-29 payment #50138 R-3800.00 bal R640.00
+    2025-08-15 invoice #61423 R2700.00 bal R3340.00
+    2025-09-01 payment #50570 R-3800.00 bal R-460.00
+    2025-09-16 invoice #62277 R3050.00 bal R2590.00
+    2025-09-30 payment #50994 R-2800.00 bal R-210.00
+    2025-10-15 invoice #62691 R2700.00 bal R2490.00
+    2025-10-22 invoice #62889 R500.00 bal R2990.00
+    2025-10-24 payment #51242 R-500.00 bal R2490.00
+    2025-10-28 payment #51376 R-3800.00 bal R-1310.00
+    2025-11-17 invoice #63138 R2700.00 bal R1390.00
+    2025-12-15 invoice #63767 R3800.00 bal R5190.00
+    2025-12-23 payment #52247 R-3800.00 bal R1390.00
+    2026-01-21 invoice #64070 R5800.00 bal R7190.00
+    2026-01-28 payment #52763 R-5300.00 bal R1890.00
+    2026-02-17 invoice #64605 R4500.00 bal R6390.00
+    2026-03-02 payment #53258 R-4300.00 bal R2090.00
+    2026-03-16 invoice #65115 R3800.00 bal R5890.00
+    2026-04-01 payment #53703 R-4800.00 bal R1090.00
+    2026-04-15 invoice #65649 R3800.00 bal R4890.00
+    2026-05-04 payment #54115 R-4800.00 bal R90.00
+    2026-05-15 invoice #67085 R3800.00 bal R3890.00
+
+--- MAR005 Alunamda Luyamkela Marman ---
+  age R0 | ledger R1700 | adjustment R-1700 | excess R1700
+  category: needsManualKideSysReview | section: Paid Up | prior: orphanLedgerOnly
+  timeline: 91 txn(s): 45 invoice(s) R135790, 46 payment(s) R-134090. Span 2023-01-16 → 2026-05-22; running ledger R1700. Section "Paid Up". 1 flagged row(s) (dup/mispost/hist/jnl). Recent: 2026-04-24 payment R-4400; 2026-05-15 invoice R4350; 2026-05-22 payment R-4300.
+  likely cause: age paid up / zeroed ledger residual (high) — Age analysis R0 (Paid Up) but import ledger R1700 — residual ledger balance after age cleared/paid up.
+  opening balance safe: false [unsafe] — Age is R0 (Paid Up) while ledger still shows R1700 — opening credit would hide a Kid-e-Sys residual; reconcile or write off in source system first.
+  full timeline:
+    2023-01-16 invoice #42766 R3300.00 bal R3300.00
+    2023-01-24 payment #34062 R-1600.00 bal R1700.00
+    2023-02-16 invoice #43657 R2800.00 bal R4500.00
+    2023-02-27 payment #34771 R-2800.00 bal R1700.00
+    2023-03-15 invoice #44318 R2000.00 bal R3700.00
+    2023-04-04 payment #35419 R-2000.00 bal R1700.00
+    2023-04-18 invoice #44932 R2000.00 bal R3700.00
+    2023-04-24 payment #35664 R-2000.00 bal R1700.00
+    2023-05-15 invoice #45580 R2200.00 bal R3900.00
+    2023-05-29 payment #36542 R-2200.00 bal R1700.00
+    2023-06-13 invoice #46096 R2000.00 bal R3700.00
+    2023-07-04 payment #37161 R-2000.00 bal R1700.00
+    2023-07-19 invoice #46581 R2000.00 bal R3700.00
+    2023-07-25 payment #37597 R-2000.00 bal R1700.00
+    2023-08-16 invoice #47137 R2000.00 bal R3700.00
+    2023-08-28 payment #38191 R-2000.00 bal R1700.00
+    2023-09-06 invoice #47401 R1250.00 bal R2950.00
+    2023-09-06 payment #38479 R-1250.00 bal R1700.00 — TEXTBOOKS GRADE R 2024
+    2023-09-20 invoice #47828 R2000.00 bal R3700.00
+    2023-09-26 payment #38736 R-2000.00 bal R1700.00
+    2023-10-17 invoice #48398 R2000.00 bal R3700.00
+    2023-10-27 payment #39268 R-2000.00 bal R1700.00
+    2023-11-16 invoice #49009 R2000.00 bal R3700.00
+    2023-11-27 payment #39824 R-2000.00 bal R1700.00
+    2023-12-18 invoice #49705 R3800.00 bal R5500.00
+    2024-01-03 payment #40471 R-2200.00 bal R3300.00
+    2024-01-20 invoice #49962 R200.00 bal R3500.00
+    2024-01-24 invoice #50388 R4100.00 bal R7600.00
+    2024-01-26 payment #40992 R-5900.00 bal R1700.00
+    2024-02-19 invoice #51649 R4450.00 bal R6150.00
+    2024-02-23 payment #41589 R-3550.00 bal R2600.00
+    2024-03-19 invoice #52329 R3550.00 bal R6150.00
+    2024-04-01 payment #42305 R-4450.00 bal R1700.00
+    2024-04-15 invoice #52801 R3550.00 bal R5250.00
+    2024-04-26 payment #42677 R-3550.00 bal R1700.00
+    2024-04-29 payment #42778 R-400.00 bal R1300.00 — 2 weeks transport refunded
+    2024-05-15 invoice #53391 R3550.00 bal R4850.00
+    2024-05-28 payment #43322 R-3150.00 bal R1700.00
+    2024-06-15 invoice #53915 R3550.00 bal R5250.00
+    2024-06-21 payment #43618 R-3550.00 bal R1700.00
+    2024-07-17 invoice #54376 R5210.00 bal R6910.00
+    2024-07-29 payment #44211 R-5300.00 bal R1610.00
+    2024-08-15 invoice #54850 R3550.00 bal R5160.00
+    2024-08-27 payment #44644 R-3500.00 bal R1660.00
+    2024-09-17 invoice #55301 R3550.00 bal R5210.00
+    2024-10-01 payment #45144 R-3510.00 bal R1700.00
+    2024-10-15 invoice #55756 R3850.00 bal R5550.00
+    2024-10-29 payment #45745 R-3850.00 bal R1700.00
+    2024-11-15 invoice #56270 R3000.00 bal R4700.00
+    2024-12-02 payment #46428 R-3000.00 bal R1700.00
+    2024-12-14 invoice #56805 R5050.00 bal R6750.00
+    2025-01-16 payment #47148 R-2700.00 bal R4050.00
+    2025-01-16 payment #47149 R-550.00 bal R3500.00 [HIST,JNL] — Aftercare removed as per parent email
+    2025-01-23 invoice #57305 R2700.00 bal R6200.00
+    2025-01-27 payment #47336 R-4500.00 bal R1700.00
+    2025-02-21 invoice #57852 R2700.00 bal R4400.00
+    2025-02-25 payment #47820 R-2700.00 bal R1700.00
+    2025-03-07 invoice #58047 R130.00 bal R1830.00
+    2025-03-10 payment #48199 R-130.00 bal R1700.00 — READING COMPETITION
+    2025-03-18 invoice #59157 R3400.00 bal R5100.00
+    2025-03-27 payment #48355 R-3700.00 bal R1400.00
+    2025-04-15 invoice #59952 R2700.00 bal R4100.00
+    2025-05-03 payment #48877 R-2400.00 bal R1700.00
+    2025-05-15 invoice #60344 R2700.00 bal R4400.00
+    2025-05-26 payment #49210 R-2700.00 bal R1700.00
+    2025-06-17 invoice #60674 R2700.00 bal R4400.00
+    2025-07-03 payment #49868 R-2700.00 bal R1700.00
+    2025-07-22 invoice #61057 R2700.00 bal R4400.00
+    2025-07-25 payment #49993 R-2700.00 bal R1700.00
+    2025-08-15 invoice #61447 R2700.00 bal R4400.00
+    2025-08-25 payment #50402 R-2700.00 bal R1700.00
+    2025-09-16 invoice #62301 R3050.00 bal R4750.00
+    2025-09-26 payment #50920 R-3100.00 bal R1650.00
+    2025-10-15 invoice #62715 R2700.00 bal R4350.00
+    2025-10-24 payment #51240 R-2650.00 bal R1700.00
+    2025-11-17 invoice #63162 R2700.00 bal R4400.00
+    2025-11-28 payment #51906 R-2700.00 bal R1700.00
+    2025-12-15 invoice #63603 R3000.00 bal R4700.00
+    2025-12-23 payment #52244 R-3000.00 bal R1700.00
+    2026-01-13 invoice #63843 R950.00 bal R2650.00
+    2026-01-13 payment #52467 R-1350.00 bal R1300.00
+    2026-01-21 invoice #64098 R6350.00 bal R7650.00
+    2026-01-24 payment #52635 R-5950.00 bal R1700.00
+    2026-02-17 invoice #64633 R5050.00 bal R6750.00
+    2026-02-20 payment #53416 R-5100.00 bal R1650.00
+    2026-03-16 invoice #65143 R4350.00 bal R6000.00
+    2026-03-20 payment #53543 R-4300.00 bal R1700.00
+    2026-04-15 invoice #65677 R4350.00 bal R6050.00
+    2026-04-24 payment #53912 R-4400.00 bal R1650.00
+    2026-05-15 invoice #67114 R4350.00 bal R6000.00
+    2026-05-22 payment #54249 R-4300.00 bal R1700.00
+
+--- MAN010 Nhlulo Xihluke Manabe ---
+  age R7600 | ledger R8900 | adjustment R-1300 | excess R1300
+  category: inverseProblemLedgerGreaterThanAge | section: Bad Debt | prior: trueBalanceMismatch
+  timeline: 104 txn(s): 52 invoice(s) R126850, 52 payment(s) R-117950. Span 2023-01-03 → 2026-05-15; running ledger R8900. Section "Bad Debt". 2 flagged row(s) (dup/mispost/hist/jnl). Recent: 2026-04-15 invoice R3000; 2026-05-15 invoice R300; 2026-05-15 invoice R3000.
+  likely cause: ledger export overstatement (medium) — Lifetime invoices R126850 + payments R-117950 reconcile to ledger R8900; age R7600 is R1300 lower — export/age skew, not missing payments.
+  opening balance safe: false [caution] — Section "Bad Debt" / export skew — opening credit R1300 may align EduClear to age but should be confirmed in Kid-e-Sys (age is lower than ledger by design).
+  full timeline:
+    2023-01-03 invoice #42226 R5000.00 bal R5000.00
+    2023-01-03 payment #33594 R-1300.00 bal R3700.00
+    2023-01-09 payment #33704 R-2400.00 bal R1300.00
+    2023-01-16 invoice #42609 R3500.00 bal R4800.00
+    2023-02-03 payment #34487 R-2200.00 bal R2600.00
+    2023-02-09 payment #34621 R-1565.00 bal R1035.00
+    2023-02-16 invoice #43501 R3000.00 bal R4035.00
+    2023-03-02 payment #34970 R-2200.00 bal R1835.00
+    2023-03-15 invoice #44162 R2200.00 bal R4035.00
+    2023-04-18 invoice #44778 R2200.00 bal R6235.00
+    2023-05-04 payment #36008 R-1800.00 bal R4435.00
+    2023-05-15 invoice #45423 R2400.00 bal R6835.00
+    2023-06-05 payment #36769 R-1530.00 bal R5305.00
+    2023-06-06 payment #36816 R-2000.00 bal R3305.00
+    2023-06-06 payment #36822 R-800.00 bal R2505.00 [HIST,JNL] — Registration removed - Parent will reapply as per email
+    2023-06-06 payment #36833 R-1000.00 bal R1505.00
+    2023-06-06 payment #36840 R-450.00 bal R1055.00
+    2023-06-13 invoice #45943 R2200.00 bal R3255.00
+    2023-07-18 payment #37438 R-1750.00 bal R1505.00
+    2023-07-18 payment #37440 R-1000.00 bal R505.00
+    2023-07-19 invoice #46428 R2200.00 bal R2705.00
+    2023-08-10 payment #37981 R-2200.00 bal R505.00
+    2023-08-16 invoice #46984 R2200.00 bal R2705.00
+    2023-09-11 payment #38514 R-2200.00 bal R505.00
+    2023-09-20 invoice #47676 R2200.00 bal R2705.00
+    2023-10-17 invoice #48245 R2200.00 bal R4905.00
+    2023-11-07 payment #39593 R-800.00 bal R4105.00
+    2023-11-08 payment #39626 R-2200.00 bal R1905.00
+    2023-11-13 payment #39638 R-800.00 bal R1105.00
+    2023-11-13 payment #39642 R-1900.00 bal R-795.00
+    2023-11-16 invoice #48856 R2200.00 bal R1405.00
+    2023-12-18 invoice #49554 R1600.00 bal R3005.00
+    2023-12-18 invoice #49804 R2400.00 bal R5405.00
+    2024-01-10 payment #40495 R-800.00 bal R4605.00
+    2024-01-16 payment #40650 R-800.00 bal R3805.00
+    2024-01-24 invoice #50236 R3150.00 bal R6955.00
+    2024-02-19 invoice #51495 R3300.00 bal R10255.00
+    2024-03-19 invoice #52179 R2400.00 bal R12655.00
+    2024-04-15 invoice #52652 R2400.00 bal R15055.00
+    2024-04-22 payment #42577 R-500.00 bal R14555.00
+    2024-05-07 invoice #52983 R320.00 bal R14875.00
+    2024-05-15 invoice #53240 R2400.00 bal R17275.00
+    2024-06-04 invoice #53529 R320.00 bal R17595.00
+    2024-06-15 invoice #53764 R2400.00 bal R19995.00
+    2024-07-09 payment #43854 R-1500.00 bal R18495.00
+    2024-07-17 invoice #54226 R4360.00 bal R22855.00
+    2024-07-22 payment #44081 R-10229.00 bal R12626.00
+    2024-08-15 invoice #54700 R2400.00 bal R15026.00
+    2024-09-09 payment #44878 R-4000.00 bal R11026.00
+    2024-09-17 invoice #55155 R2400.00 bal R13426.00
+    2024-10-08 payment #45383 R-1500.00 bal R11926.00
+    2024-10-14 payment #45488 R-6000.00 bal R5926.00
+    2024-10-15 invoice #55609 R2400.00 bal R8326.00
+    2024-10-15 payment #45493 R-400.00 bal R7926.00
+    2024-11-15 invoice #56120 R2400.00 bal R10326.00
+    2024-11-15 payment #46144 R-1282.00 bal R9044.00
+    2024-12-01 payment #46174 R-218.00 bal R8826.00
+    2024-12-01 payment #46175 R-1500.00 bal R7326.00
+    2024-12-03 payment #46501 R-1910.00 bal R5416.00 [HIST,JNL] — Book fee removed as per parent email.
+    2024-12-14 invoice #56667 R4500.00 bal R9916.00
+    2025-01-23 invoice #57168 R2700.00 bal R12616.00
+    2025-02-21 invoice #57719 R2700.00 bal R15316.00
+    2025-02-21 invoice #57933 R2950.00 bal R18266.00
+    2025-03-03 payment #48003 R-8000.00 bal R10266.00
+    2025-03-04 invoice #58003 R300.00 bal R10566.00
+    2025-03-04 payment #48120 R-500.00 bal R10066.00 — camp deposit
+    2025-03-10 payment #48210 R-1800.00 bal R8266.00
+    2025-03-10 payment #48211 R-3000.00 bal R5266.00
+    2025-03-13 payment #48235 R-1540.00 bal R3726.00
+    2025-03-18 invoice #59027 R3400.00 bal R7126.00
+    2025-04-11 payment #48682 R-3000.00 bal R4126.00
+    2025-04-15 invoice #59823 R2700.00 bal R6826.00
+    2025-05-15 invoice #60217 R2700.00 bal R9526.00
+    2025-06-17 invoice #60773 R2700.00 bal R12226.00
+    2025-07-22 invoice #61156 R2700.00 bal R14926.00
+    2025-07-29 payment #50143 R-6000.00 bal R8926.00
+    2025-07-29 payment #50144 R-226.00 bal R8700.00
+    2025-08-15 invoice #61547 R2700.00 bal R11400.00
+    2025-09-04 invoice #61644 R300.00 bal R11700.00
+    2025-09-05 payment #50717 R-3500.00 bal R8200.00
+    2025-09-15 payment #50792 R-5400.00 bal R2800.00
+    2025-09-16 invoice #62400 R3050.00 bal R5850.00
+    2025-09-17 payment #50832 R-600.00 bal R5250.00
+    2025-10-15 invoice #62814 R2700.00 bal R7950.00
+    2025-11-17 invoice #63259 R2700.00 bal R10650.00
+    2025-11-18 payment #51792 R-1000.00 bal R9650.00
+    2025-11-18 payment #51793 R-1500.00 bal R8150.00
+    2025-11-18 payment #51794 R-2000.00 bal R6150.00
+    2025-11-18 payment #51795 R-750.00 bal R5400.00
+    2025-12-15 invoice #63697 R3000.00 bal R8400.00
+    2026-01-12 payment #52407 R-1500.00 bal R6900.00
+    2026-01-12 payment #52414 R-2700.00 bal R4200.00
+    2026-01-13 payment #52468 R-2900.00 bal R1300.00
+    2026-01-21 invoice #64193 R5000.00 bal R6300.00
+    2026-02-06 invoice #64382 R300.00 bal R6600.00
+    2026-02-17 invoice #64727 R3700.00 bal R10300.00
+    2026-03-04 invoice #64880 R300.00 bal R10600.00
+    2026-03-10 payment #53471 R-8000.00 bal R2600.00
+    2026-03-16 invoice #65237 R3000.00 bal R5600.00
+    2026-04-10 invoice #65328 R300.00 bal R5900.00
+    2026-04-13 payment #53866 R-3300.00 bal R2600.00
+    2026-04-15 invoice #65769 R3000.00 bal R5600.00
+    2026-05-15 invoice #66901 R300.00 bal R5900.00
+    2026-05-15 invoice #67207 R3000.00 bal R8900.00
+
+--- MAH004 Mayani Daniel Mahango ---
+  age R3200 | ledger R3750 | adjustment R-550 | excess R550
+  category: inverseProblemLedgerGreaterThanAge | section: Recently Owing | prior: trueBalanceMismatch
+  timeline: 87 txn(s): 46 invoice(s) R131010, 41 payment(s) R-127260. Span 2023-01-03 → 2026-05-15; running ledger R3750. Section "Recently Owing". 1 flagged row(s) (dup/mispost/hist/jnl). Recent: 2026-04-15 invoice R200; 2026-04-15 invoice R3000; 2026-05-15 invoice R3000.
+  likely cause: ledger export overstatement (medium) — Lifetime invoices R131010 + payments R-127260 reconcile to ledger R3750; age R3200 is R550 lower — export/age skew, not missing payments.
+  opening balance safe: false [caution] — Section "Recently Owing" / export skew — opening credit R550 may align EduClear to age but should be confirmed in Kid-e-Sys (age is lower than ledger by design).
+  full timeline:
+    2023-01-03 payment #33536 R-1500.00 bal R-1500.00
+    2023-01-16 invoice #42806 R3500.00 bal R2000.00
+    2023-02-02 payment #34448 R-1500.00 bal R500.00
+    2023-02-16 invoice #43695 R3000.00 bal R3500.00
+    2023-02-28 payment #34917 R-3000.00 bal R500.00
+    2023-03-15 invoice #44356 R2200.00 bal R2700.00
+    2023-04-03 payment #35323 R-2500.00 bal R200.00
+    2023-04-18 invoice #44970 R2200.00 bal R2400.00
+    2023-05-02 payment #35829 R-2500.00 bal R-100.00
+    2023-05-15 invoice #45618 R2400.00 bal R2300.00
+    2023-06-04 payment #36743 R-1800.00 bal R500.00
+    2023-06-13 invoice #46134 R2200.00 bal R2700.00
+    2023-07-05 payment #38554 R-2150.00 bal R550.00
+    2023-07-19 invoice #46619 R2200.00 bal R2750.00
+    2023-08-02 payment #37853 R-2300.00 bal R450.00
+    2023-08-16 invoice #47175 R2200.00 bal R2650.00
+    2023-09-04 payment #38327 R-2500.00 bal R150.00
+    2023-09-20 invoice #47867 R2200.00 bal R2350.00
+    2023-10-10 payment #38932 R-2000.00 bal R350.00
+    2023-10-17 invoice #48437 R2200.00 bal R2550.00
+    2023-11-06 payment #39432 R-2000.00 bal R550.00
+    2023-11-16 invoice #49048 R2200.00 bal R2750.00
+    2023-12-04 payment #40027 R-3100.00 bal R-350.00
+    2023-12-18 invoice #49741 R4000.00 bal R3650.00
+    2024-01-24 invoice #50026 R1400.00 bal R5050.00
+    2024-01-24 invoice #50421 R4500.00 bal R9550.00
+    2024-01-24 payment #40864 R-1400.00 bal R8150.00 — TEXTBOOKS GRADE 2
+    2024-01-26 payment #40951 R-3100.00 bal R5050.00
+    2024-02-02 payment #41260 R-4000.00 bal R1050.00
+    2024-02-19 invoice #51681 R4650.00 bal R5700.00
+    2024-03-06 payment #41878 R-400.00 bal R5300.00 [HIST,JNL] — March Half Transport Fee Refund (Only afternoon)
+    2024-03-07 payment #41914 R-5000.00 bal R300.00
+    2024-03-19 invoice #52360 R3350.00 bal R3650.00
+    2024-04-03 payment #42372 R-3500.00 bal R150.00
+    2024-04-15 invoice #52831 R3350.00 bal R3500.00
+    2024-05-06 payment #42953 R-3500.00 bal R0.00
+    2024-05-15 invoice #53421 R3350.00 bal R3350.00
+    2024-06-03 payment #43436 R-3000.00 bal R350.00
+    2024-06-15 invoice #53945 R3350.00 bal R3700.00
+    2024-07-11 payment #44001 R-3200.00 bal R500.00
+    2024-07-17 invoice #54407 R5010.00 bal R5510.00
+    2024-08-08 payment #44467 R-4000.00 bal R1510.00
+    2024-08-15 invoice #54882 R3350.00 bal R4860.00
+    2024-09-09 payment #44929 R-4000.00 bal R860.00
+    2024-09-17 invoice #55333 R3350.00 bal R4210.00
+    2024-10-04 payment #45347 R-4000.00 bal R210.00
+    2024-10-15 invoice #55789 R3350.00 bal R3560.00
+    2024-11-05 payment #46000 R-3010.00 bal R550.00
+    2024-11-15 invoice #56303 R2800.00 bal R3350.00
+    2024-12-14 invoice #56832 R4500.00 bal R7850.00
+    2025-01-15 payment #47093 R-2900.00 bal R4950.00
+    2025-01-23 invoice #57333 R2700.00 bal R7650.00
+    2025-02-05 payment #47590 R-3000.00 bal R4650.00
+    2025-02-12 invoice #57469 R300.00 bal R4950.00
+    2025-02-14 payment #47764 R-4000.00 bal R950.00
+    2025-02-21 invoice #57878 R2700.00 bal R3650.00
+    2025-03-04 payment #48100 R-3100.00 bal R550.00
+    2025-03-18 invoice #59183 R3400.00 bal R3950.00
+    2025-04-04 payment #48602 R-2700.00 bal R1250.00
+    2025-04-15 invoice #59978 R2700.00 bal R3950.00
+    2025-05-05 payment #49004 R-3400.00 bal R550.00
+    2025-05-15 invoice #60370 R2700.00 bal R3250.00
+    2025-06-04 payment #49500 R-2700.00 bal R550.00
+    2025-06-17 invoice #60728 R2700.00 bal R3250.00
+    2025-07-22 invoice #61111 R2700.00 bal R5950.00
+    2025-07-22 payment #49907 R-2700.00 bal R3250.00
+    2025-08-04 payment #50235 R-2700.00 bal R550.00
+    2025-08-15 invoice #61502 R2700.00 bal R3250.00
+    2025-09-04 payment #50676 R-2700.00 bal R550.00
+    2025-09-16 invoice #62356 R4700.00 bal R5250.00
+    2025-10-06 payment #51124 R-2700.00 bal R2550.00
+    2025-10-15 invoice #62770 R2700.00 bal R5250.00
+    2025-11-04 payment #51628 R-4700.00 bal R550.00
+    2025-11-17 invoice #63217 R2700.00 bal R3250.00
+    2025-12-15 invoice #63659 R3000.00 bal R6250.00
+    2026-01-21 invoice #64155 R5000.00 bal R11250.00
+    2026-02-06 invoice #64353 R300.00 bal R11550.00
+    2026-02-06 payment #53008 R-6000.00 bal R5550.00
+    2026-02-17 invoice #64689 R3700.00 bal R9250.00
+    2026-02-24 payment #53112 R-5000.00 bal R4250.00
+    2026-03-04 invoice #64851 R300.00 bal R4550.00
+    2026-03-09 payment #53431 R-4000.00 bal R550.00
+    2026-03-16 invoice #65198 R3000.00 bal R3550.00
+    2026-04-08 payment #53816 R-6000.00 bal R-2450.00
+    2026-04-15 invoice #65410 R200.00 bal R-2250.00
+    2026-04-15 invoice #65731 R3000.00 bal R750.00
+    2026-05-15 invoice #67168 R3000.00 bal R3750.00
+
+--- RAM010 Keitumetsi Ramasika ---
+  age R3350 | ledger R3700 | adjustment R-350 | excess R350
+  category: inverseProblemLedgerGreaterThanAge | section: Recently Owing | prior: trueBalanceMismatch
+  timeline: 92 txn(s): 43 invoice(s) R118760, 49 payment(s) R-115060. Span 2023-01-16 → 2026-05-15; running ledger R3700. Section "Recently Owing". 1 flagged row(s) (dup/mispost/hist/jnl). Recent: 2026-04-15 invoice R3000; 2026-04-24 payment R-3350; 2026-05-15 invoice R3000.
+  likely cause: ledger export overstatement (medium) — Lifetime invoices R118760 + payments R-115060 reconcile to ledger R3700; age R3350 is R350 lower — export/age skew, not missing payments.
+  opening balance safe: false [caution] — Section "Recently Owing" / export skew — opening credit R350 may align EduClear to age but should be confirmed in Kid-e-Sys (age is lower than ledger by design).
+  full timeline:
+    2023-01-16 invoice #42672 R3500.00 bal R3500.00
+    2023-01-23 payment #34048 R-3150.00 bal R350.00
+    2023-02-16 invoice #43559 R3000.00 bal R3350.00
+    2023-02-21 payment #34704 R-2200.00 bal R1150.00
+    2023-03-15 invoice #44220 R2200.00 bal R3350.00
+    2023-04-03 payment #35166 R-2200.00 bal R1150.00
+    2023-04-18 invoice #44835 R2200.00 bal R3350.00
+    2023-05-02 payment #35890 R-2200.00 bal R1150.00
+    2023-05-05 payment #36052 R-200.00 bal R950.00 — ROBOTICS AND CODING WORKBOOK
+    2023-05-15 invoice #45482 R2400.00 bal R3350.00
+    2023-05-23 payment #36339 R-3000.00 bal R350.00
+    2023-06-13 invoice #46000 R2200.00 bal R2550.00
+    2023-07-04 payment #37132 R-2200.00 bal R350.00
+    2023-07-19 invoice #46485 R2200.00 bal R2550.00
+    2023-07-24 payment #37552 R-2200.00 bal R350.00
+    2023-08-16 invoice #47041 R2200.00 bal R2550.00
+    2023-08-21 payment #38067 R-2200.00 bal R350.00
+    2023-09-20 invoice #47733 R2200.00 bal R2550.00
+    2023-09-28 payment #38816 R-2200.00 bal R350.00
+    2023-10-17 invoice #48302 R2200.00 bal R2550.00
+    2023-11-06 payment #39491 R-2200.00 bal R350.00
+    2023-11-16 invoice #48913 R2200.00 bal R2550.00
+    2023-11-27 payment #39769 R-2200.00 bal R350.00
+    2023-12-18 invoice #49613 R4000.00 bal R4350.00
+    2023-12-26 payment #40323 R-2400.00 bal R1950.00
+    2024-01-24 invoice #50297 R3150.00 bal R5100.00
+    2024-01-26 payment #40953 R-1800.00 bal R3300.00
+    2024-01-26 payment #40978 R-2400.00 bal R900.00
+    2024-02-19 invoice #51559 R3300.00 bal R4200.00
+    2024-02-28 payment #41752 R-750.00 bal R3450.00
+    2024-02-29 payment #41809 R-2400.00 bal R1050.00
+    2024-03-19 invoice #52241 R2400.00 bal R3450.00
+    2024-04-02 payment #43098 R-2400.00 bal R1050.00
+    2024-04-15 invoice #52714 R2400.00 bal R3450.00
+    2024-04-30 payment #42813 R-2400.00 bal R1050.00
+    2024-05-15 invoice #53303 R2400.00 bal R3450.00
+    2024-05-24 payment #43173 R-2400.00 bal R1050.00
+    2024-05-28 payment #43261 R-700.00 bal R350.00
+    2024-06-15 invoice #53827 R2400.00 bal R2750.00
+    2024-06-28 payment #43769 R-2400.00 bal R350.00
+    2024-07-17 invoice #54289 R4060.00 bal R4410.00
+    2024-07-29 payment #44168 R-2400.00 bal R2010.00
+    2024-08-15 invoice #54761 R2400.00 bal R4410.00
+    2024-08-27 payment #44630 R-2400.00 bal R2010.00
+    2024-09-17 invoice #55214 R2400.00 bal R4410.00
+    2024-10-01 payment #45095 R-2400.00 bal R2010.00
+    2024-10-15 invoice #55668 R2400.00 bal R4410.00
+    2024-10-29 payment #45651 R-2400.00 bal R2010.00
+    2024-11-04 invoice #55885 R450.00 bal R2460.00
+    2024-11-04 payment #45872 R-1660.00 bal R800.00 [HIST,JNL] — 2025 TEXTBOOK FEE REMOVED AS PER PARENT EMAIL
+    2024-11-15 invoice #56180 R2400.00 bal R3200.00
+    2024-12-01 payment #46235 R-2400.00 bal R800.00
+    2024-12-01 payment #46265 R-450.00 bal R350.00
+    2024-12-14 invoice #56717 R4500.00 bal R4850.00
+    2025-01-02 payment #46825 R-1800.00 bal R3050.00
+    2025-01-13 payment #46977 R-2700.00 bal R350.00
+    2025-01-23 invoice #57218 R2700.00 bal R3050.00
+    2025-01-27 payment #47279 R-2700.00 bal R350.00
+    2025-02-21 invoice #57770 R2700.00 bal R3050.00
+    2025-02-27 payment #47895 R-2700.00 bal R350.00
+    2025-03-18 invoice #59075 R3400.00 bal R3750.00
+    2025-03-27 payment #48320 R-2700.00 bal R1050.00
+    2025-04-15 invoice #59871 R2700.00 bal R3750.00
+    2025-05-03 payment #48812 R-2700.00 bal R1050.00
+    2025-05-15 invoice #60264 R2700.00 bal R3750.00
+    2025-05-26 payment #49179 R-2700.00 bal R1050.00
+    2025-06-02 payment #49405 R-700.00 bal R350.00
+    2025-06-17 invoice #60502 R2700.00 bal R3050.00
+    2025-06-30 payment #49674 R-2700.00 bal R350.00
+    2025-07-22 invoice #60888 R2700.00 bal R3050.00
+    2025-07-28 payment #50046 R-2700.00 bal R350.00
+    2025-08-15 invoice #61280 R2700.00 bal R3050.00
+    2025-08-27 payment #50471 R-2700.00 bal R350.00
+    2025-09-16 invoice #62134 R4700.00 bal R5050.00
+    2025-09-26 payment #50878 R-2700.00 bal R2350.00
+    2025-10-15 invoice #62548 R2700.00 bal R5050.00
+    2025-10-27 payment #51291 R-2700.00 bal R2350.00
+    2025-11-17 invoice #62996 R2700.00 bal R5050.00
+    2025-11-20 payment #51820 R-2000.00 bal R3050.00 — parent will purchase own books
+    2025-11-28 payment #51944 R-2700.00 bal R350.00
+    2025-12-15 invoice #63444 R3000.00 bal R3350.00
+    2025-12-15 payment #52173 R-3000.00 bal R350.00
+    2026-01-21 invoice #63940 R5000.00 bal R5350.00
+    2026-01-22 payment #52604 R-5000.00 bal R350.00
+    2026-02-17 invoice #64411 R500.00 bal R850.00
+    2026-02-17 invoice #64480 R3700.00 bal R4550.00
+    2026-03-02 payment #53202 R-3500.00 bal R1050.00
+    2026-03-16 invoice #64990 R3000.00 bal R4050.00
+    2026-04-01 payment #53709 R-3000.00 bal R1050.00
+    2026-04-15 invoice #65524 R3000.00 bal R4050.00
+    2026-04-24 payment #53918 R-3350.00 bal R700.00
+    2026-05-15 invoice #66960 R3000.00 bal R3700.00
+
+Full JSON: inverse-and-manual-adjustment-audit.json

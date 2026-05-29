@@ -1,0 +1,57 @@
+=== Opening balance adjustment review (audit only — no import) ===
+Generated: 2026-05-23T12:23:25.325Z
+Desktop root: /Users/dasilvaacademy/Desktop
+Cutover date: 2026-05-23
+Adjustment accounts: 112
+Sum |adjustment|: R299303.45
+
+Grouped by likely fix type (before final import):
+  needs opening balance adjustment: 0 accounts (|adj| R0.00)
+  possible unallocated payment: 79 accounts (|adj| R189844.45)
+  possible duplicated/historical credit: 26 accounts (|adj| R98304.00)
+  inverse problem ledger > age: 6 accounts (|adj| R9455.00)
+  needs manual Kid-e-Sys review: 1 accounts (|adj| R1700.00)
+
+Reduction potential (before final import):
+  Alternative-fix candidates: 112/112
+  Strict opening-balance-only: 0/112
+  Payment match: high=1 medium=104 none=7
+  Note: All 84 trueBalanceMismatch rows match a loose unallocated-payment pattern (medium confidence). None have a tight payment-to-variance match; inverse/duplicate/manual rows should be fixed before import. needsOpeningBalanceAdjustment is reserved for true gaps with no payment/credit/inverse explanation.
+
+
+Top 30 by |adjustmentAmount|:
+
+accountNo | reason group | age | ledger | adjustment | learner
+--------- | ------------ | --- | ------ | ---------- | ------
+MOE004    | possible duplicated/historical credit |     3850 |    -9080 |      12930 | Kgato Fenyang Moeng
+TLA001    | possible unallocated payment        |    10790 |     2010 |       8780 | Neo Kearabilwe Tladi
+NDL008    | possible duplicated/historical credit |     4305 |    -2610 |       6915 | Amukelani Gift Ndlovu
+NGA002    | possible duplicated/historical credit |     9200 |     3025 |       6175 | Bonang Mmokwa
+NHL001    | possible duplicated/historical credit |     3800 |    -1700 |       5500 | Rorisang Nhlapo
+MOL018    | possible unallocated payment        |     6500 |     1085 |       5415 | Hailey Molema
+NDL009    | possible duplicated/historical credit |     3700 |    -1600 |       5300 | Goitseone Ndlovu
+MON006    | possible duplicated/historical credit |     4400 |     -670 |       5070 | Oboitshepo Monewe
+MOT010    | possible duplicated/historical credit |     3000 |    -1965 |       4965 | Tokelo Motshwanedi
+MAT020    | possible duplicated/historical credit |     4250 |     -700 |       4950 | Bokamoso Matima
+LAN002    | possible duplicated/historical credit |     2920 |    -1630 |       4550 | Obakeng Langeni
+TSH003    | possible duplicated/historical credit |     3550 |     -950 |       4500 | Amphe Lily Tsholoba
+MAK014    | possible duplicated/historical credit |     3950 |     -515 |       4465 | Reitumetse Makwakwa
+TSH017    | possible unallocated payment        |     5290 |      860 |       4430 | Onthatile Tshose
+FRE001    | possible unallocated payment        |     9500 |     5100 |       4400 | Oatlegile Frederick
+MAT022    | possible unallocated payment        |     6100 |     1700 |       4400 | Phemelo Reotshepile Matsheka
+SEI859    | possible duplicated/historical credit |     3800 |     -359 |       4159 | Leano Seichokelo
+NAS001    | possible unallocated payment        |     7800 |     3905 |       3895 | Samira Nasere
+MAB011    | possible unallocated payment        |     5000 |     1240 |       3760 | Thandekile Princess Mabuza
+TLH005    | possible unallocated payment        |     4350 |      750 |       3600 | Oletilwe Tlhame
+MPI102    | possible duplicated/historical credit |     3800 |      205 |       3595 | Neo Lethabo Mpiko
+WOL001    | possible unallocated payment        |     7370 |     3870 |       3500 | Elleliyon Wolebo
+MOL003    | inverse problem ledger > age        |     4710 |     7910 |      -3200 | Molebogeng Maselela
+SEP899    | possible unallocated payment        |     3700 |      500 |       3200 | Omogolo Sepadile
+MAB004    | possible unallocated payment        |     3700 |      605 |       3095 | Gosego Mabale
+KHU005    | possible unallocated payment        |     3550 |      500 |       3050 | Elethu Entle Khunou
+GEB002    | possible unallocated payment        |     3700 |      700 |       3000 | Benyis Geber
+BUY001    | possible unallocated payment        |     2900 |      150 |       2750 | Kim Omontle Buys
+GAA001    | possible unallocated payment        |     3500 |      750 |       2750 | Didintle Nyeko Gaasenwe
+KOR001    | possible unallocated payment        |     6860 |     4110 |       2750 | Dagimawit Korabza
+
+Full detail in opening-balance-adjustment-review.json

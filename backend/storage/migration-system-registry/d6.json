@@ -1,0 +1,20 @@
+{
+  "systemId": "d6",
+  "systemName": "d6",
+  "vendor": "d6 Technology",
+  "country": "ZA",
+  "website": "",
+  "exportTypes": [
+    "unknown",
+    "mixed"
+  ],
+  "supportsLearners": false,
+  "supportsParents": false,
+  "supportsBilling": false,
+  "supportsTransactions": false,
+  "supportsStaff": false,
+  "notes": "School management and communication platform. Export modules and field mappings under review.",
+  "adapterStatus": "researching",
+  "templateCount": 0,
+  "lastReviewedAt": "2026-05-25T00:00:00.000Z"
+}

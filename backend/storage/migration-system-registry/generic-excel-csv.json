@@ -1,0 +1,22 @@
+{
+  "systemId": "generic-excel-csv",
+  "systemName": "Generic Excel/CSV",
+  "vendor": "Various / school-provided",
+  "country": "ZA",
+  "website": "",
+  "exportTypes": [
+    "csv",
+    "xls",
+    "xlsx",
+    "mixed"
+  ],
+  "supportsLearners": true,
+  "supportsParents": true,
+  "supportsBilling": true,
+  "supportsTransactions": true,
+  "supportsStaff": false,
+  "notes": "Adapter v1: conservative spreadsheet detection, generic column normalization, ambiguity warnings, and readiness testing. Parse/stage not enabled; ambiguous headers require manual review.",
+  "adapterStatus": "partial",
+  "templateCount": 0,
+  "lastReviewedAt": "2026-05-25T00:00:00.000Z"
+}

@@ -1,0 +1,21 @@
+{
+  "systemId": "isams",
+  "systemName": "iSAMS",
+  "vendor": "iSAMS",
+  "country": "ZA",
+  "website": "",
+  "exportTypes": [
+    "api",
+    "unknown",
+    "mixed"
+  ],
+  "supportsLearners": false,
+  "supportsParents": false,
+  "supportsBilling": false,
+  "supportsTransactions": false,
+  "supportsStaff": false,
+  "notes": "Cloud MIS with API and export options. Integration approach not yet scoped for EduClear migration.",
+  "adapterStatus": "planned",
+  "templateCount": 0,
+  "lastReviewedAt": "2026-05-25T00:00:00.000Z"
+}

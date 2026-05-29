@@ -1,0 +1,225 @@
+{
+  "generatedAt": "2026-05-27T07:41:04.344Z",
+  "schoolId": "cmpnpupuh000013kudv687rx9",
+  "schoolName": "Da Silva Academy",
+  "schemaNotes": [],
+  "learnersCount": 396,
+  "parentsCount": 290,
+  "familyAccountCount": 344,
+  "learnersWithFamilyAccountId": 173,
+  "learnersWithAdmissionNo": 0,
+  "familyAccountsWithLearnerLinks": 160,
+  "parentLearnerLinks": 152,
+  "ledgerEntriesCount": 0,
+  "ledgerEntriesMissingLearnerId": 0,
+  "transactionEntriesBySource": {},
+  "sampleLearners": [
+    {
+      "firstName": "Eldadi",
+      "lastName": "Adamu",
+      "className": "Grade 7B",
+      "admissionNo": null,
+      "familyAccountId": null,
+      "displayStatus": "Enrolled",
+      "accountRef": null,
+      "parentLinkCount": 0,
+      "relationsNote": null
+    },
+    {
+      "firstName": "Zem",
+      "lastName": "Adamu",
+      "className": "Grade 6A",
+      "admissionNo": null,
+      "familyAccountId": null,
+      "displayStatus": "Enrolled",
+      "accountRef": null,
+      "parentLinkCount": 0,
+      "relationsNote": null
+    },
+    {
+      "firstName": "Jordan-leigh",
+      "lastName": "Africa",
+      "className": "Grade 3A",
+      "admissionNo": null,
+      "familyAccountId": "cmpnqlj260067u9zxd8mazv10",
+      "displayStatus": "Enrolled",
+      "accountRef": "AFR002",
+      "parentLinkCount": 1,
+      "relationsNote": null
+    },
+    {
+      "firstName": "Alizain",
+      "lastName": "Ali",
+      "className": "Grade 5B",
+      "admissionNo": null,
+      "familyAccountId": null,
+      "displayStatus": "Enrolled",
+      "accountRef": null,
+      "parentLinkCount": 0,
+      "relationsNote": null
+    },
+    {
+      "firstName": "Boitumelo Moses",
+      "lastName": "Banda",
+      "className": "Grade 3A",
+      "admissionNo": null,
+      "familyAccountId": "cmpnqle45005zu9zx50rlgziz",
+      "displayStatus": "Enrolled",
+      "accountRef": "BAN001",
+      "parentLinkCount": 1,
+      "relationsNote": null
+    },
+    {
+      "firstName": "Reotshepile Matlhasedi",
+      "lastName": "Bogatsu",
+      "className": "Grade 3A",
+      "admissionNo": null,
+      "familyAccountId": "cmpnqlw51006tu9zxz018krhu",
+      "displayStatus": "Enrolled",
+      "accountRef": "BOG005",
+      "parentLinkCount": 1,
+      "relationsNote": null
+    },
+    {
+      "firstName": "Vutlhari",
+      "lastName": "Botake",
+      "className": "Grade 7B",
+      "admissionNo": null,
+      "familyAccountId": null,
+      "displayStatus": "Enrolled",
+      "accountRef": null,
+      "parentLinkCount": 0,
+      "relationsNote": null
+    },
+    {
+      "firstName": "Kim Omontle",
+      "lastName": "Buys",
+      "className": "Grade 6C",
+      "admissionNo": null,
+      "familyAccountId": null,
+      "displayStatus": "Enrolled",
+      "accountRef": null,
+      "parentLinkCount": 0,
+      "relationsNote": null
+    },
+    {
+      "firstName": "Yonwaba",
+      "lastName": "Cetshane",
+      "className": "Grade 6C",
+      "admissionNo": null,
+      "familyAccountId": null,
+      "displayStatus": "Enrolled",
+      "accountRef": null,
+      "parentLinkCount": 0,
+      "relationsNote": null
+    },
+    {
+      "firstName": "Kaone Tinashe",
+      "lastName": "Chinyenye",
+      "className": "Grade 3A",
+      "admissionNo": null,
+      "familyAccountId": "cmpnqlmna006du9zxne6xgid7",
+      "displayStatus": "Enrolled",
+      "accountRef": "CHI004",
+      "parentLinkCount": 1,
+      "relationsNote": null
+    }
+  ],
+  "sampleFamilyAccounts": [
+    {
+      "accountNumber": "ADA004",
+      "name": "Adamu",
+      "balance": 0,
+      "linkedLearners": []
+    },
+    {
+      "accountNumber": "AFR002",
+      "name": "Africa",
+      "balance": 0,
+      "linkedLearners": [
+        {
+          "id": "cmpnq7jes006d4zbtvsoxkiuz",
+          "name": "Jordan-leigh Africa",
+          "admissionNo": null
+        }
+      ]
+    },
+    {
+      "accountNumber": "ALI002",
+      "name": "Ali",
+      "balance": 0,
+      "linkedLearners": []
+    },
+    {
+      "accountNumber": "BAN001",
+      "name": "Banda",
+      "balance": 0,
+      "linkedLearners": [
+        {
+          "id": "cmpnq7hbt00654zbt4efvhqhw",
+          "name": "Boitumelo Moses Banda",
+          "admissionNo": null
+        }
+      ]
+    },
+    {
+      "accountNumber": "BOG005",
+      "name": "Bogatsu",
+      "balance": 0,
+      "linkedLearners": [
+        {
+          "id": "cmpnq7pbf00734zbtcxllxek7",
+          "name": "Reotshepile Matlhasedi Bogatsu",
+          "admissionNo": null
+        }
+      ]
+    },
+    {
+      "accountNumber": "BUY001",
+      "name": "Buys",
+      "balance": 0,
+      "linkedLearners": []
+    },
+    {
+      "accountNumber": "CET001",
+      "name": "Cetshane",
+      "balance": 0,
+      "linkedLearners": []
+    },
+    {
+      "accountNumber": "CHI002",
+      "name": "Nkabinde",
+      "balance": 0,
+      "linkedLearners": []
+    },
+    {
+      "accountNumber": "CHI004",
+      "name": "Chinyenye",
+      "balance": 0,
+      "linkedLearners": [
+        {
+          "id": "cmpnq7krg006j4zbtb1oh98hc",
+          "name": "Kaone Tinashe Chinyenye",
+          "admissionNo": null
+        }
+      ]
+    },
+    {
+      "accountNumber": "CHI005",
+      "name": "Chiutsi",
+      "balance": 0,
+      "linkedLearners": [
+        {
+          "id": "cmpnq67cm000t4zbteoxb3ly0",
+          "name": "Aviella Tinevimbo Chiutsi",
+          "admissionNo": null
+        },
+        {
+          "id": "cmpnq6w03003n4zbtheri61dk",
+          "name": "Arella Chiutsi",
+          "admissionNo": null
+        }
+      ]
+    }
+  ]
+}

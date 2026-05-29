@@ -1,0 +1,48 @@
+Da Silva learner classification audit
+====================================
+School:     cmpideqeq0000108xb6ouv9zi
+Source:     /Users/dasilvaacademy/Desktop
+Applied:    no (pass --apply to reclassify DB)
+
+child.csv proof
+  headers:    child_id, account_no, child_active, child_name, child_surname, child_id_no, classroom, enrollment_date, monthly_fees, doctor_info, medical_aid_info, allergies, height, weight
+  rows:       2507
+  active Yes: 397
+  active No:  2110
+  No Classroom: 2045
+  classified ACTIVE: 396
+  classified HISTORICAL: 2111
+
+Database (after apply)
+  total learners:     397
+  active:             397
+  inactive:           0
+  No Classroom:       0
+  boys (active):      189
+  girls (active):     208
+  active classrooms:  21
+  avg class size:     19
+
+Profile coverage (active)
+  firstName: 397/397
+  lastName: 397/397
+  idNumber: 372/397
+  birthDate: 397/397
+  gender: 397/397
+  className: 397/397
+  homeLanguage: 388/397
+  citizenship: 388/397
+
+Statements / billing preserved
+  family accounts:      821
+  w/ invoice signal:   805
+  w/ payment signal:   808
+  ledger rows:          40928
+  history rows:         40916
+
+Gate
+  CSV vs DB count:     MISMATCH (delta -2110)
+  boys/girls non-zero: true
+  active realistic:    false
+  active ~ csv:        true
+  AUDIT:               FAIL

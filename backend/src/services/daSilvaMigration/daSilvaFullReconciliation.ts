@@ -5,7 +5,10 @@
 import fs from "fs";
 
 import { prisma } from "../../prisma";
-import { normalizeLearnerGender } from "../../utils/learnerGender";
+import {
+  pickLearnerGenderForWrite,
+  resolveGenderFromSources,
+} from "../../utils/learnerGender";
 import {
   backfillLedgerLearnerIds,
   readSchoolLedger,
@@ -763,7 +766,15 @@ async function applySasamsProfileToActive(opts: {
     }
     if (!learnerId) continue;
 
-    const genderNorm = normalizeLearnerGender(row.gender) || row.gender;
+    const existing = await prisma.learner.findUnique({
+      where: { id: learnerId },
+      select: { gender: true, idNumber: true },
+    });
+    const genderToWrite = pickLearnerGenderForWrite({
+      existingGender: existing?.gender,
+      gender: row.gender,
+      idNumber: row.idNumber ?? existing?.idNumber,
+    });
     await prisma.learner.update({
       where: { id: learnerId },
       data: {
@@ -774,7 +785,7 @@ async function applySasamsProfileToActive(opts: {
         idNumber: row.idNumber,
         homeLanguage: row.homeLanguage,
         citizenship: row.citizenship,
-        gender: genderNorm,
+        ...(genderToWrite !== undefined ? { gender: genderToWrite } : {}),
         birthDate: row.birthDate,
         admissionNo: row.admissionNo || undefined,
         enrollmentStatus: "ACTIVE",
@@ -930,7 +941,10 @@ export async function runDaSilvaFullSchoolReconciliation(opts: {
     const usedLearnerIds = new Set<string>();
 
     for (const sasamsRow of sasamsRows) {
-      const genderNorm = normalizeLearnerGender(sasamsRow.gender) || sasamsRow.gender;
+      const genderNorm = resolveGenderFromSources({
+        gender: sasamsRow.gender,
+        idNumber: sasamsRow.idNumber,
+      });
       const activeData = {
         firstName: sasamsRow.firstName,
         lastName: sasamsRow.lastName,
@@ -939,7 +953,6 @@ export async function runDaSilvaFullSchoolReconciliation(opts: {
         idNumber: sasamsRow.idNumber,
         homeLanguage: sasamsRow.homeLanguage,
         citizenship: sasamsRow.citizenship,
-        gender: genderNorm,
         birthDate: sasamsRow.birthDate,
         enrollmentStatus: "ACTIVE" as const,
       };
@@ -954,6 +967,7 @@ export async function runDaSilvaFullSchoolReconciliation(opts: {
             data: {
               schoolId: opts.schoolId,
               ...activeData,
+              gender: genderNorm,
               admissionNo: sasamsRow.admissionNo,
               tuitionFee: 0,
               transportFee: 0,
@@ -969,10 +983,21 @@ export async function runDaSilvaFullSchoolReconciliation(opts: {
         usedLearnerIds.add(learnerId);
       }
 
+      const existingGender = await prisma.learner.findUnique({
+        where: { id: learnerId },
+        select: { gender: true, idNumber: true },
+      });
+      const genderToWrite = pickLearnerGenderForWrite({
+        existingGender: existingGender?.gender,
+        gender: sasamsRow.gender,
+        idNumber: sasamsRow.idNumber ?? existingGender?.idNumber,
+      });
+
       await prisma.learner.update({
         where: { id: learnerId },
         data: {
           ...activeData,
+          ...(genderToWrite !== undefined ? { gender: genderToWrite } : {}),
           admissionNo: sasamsRow.admissionNo || undefined,
         },
       });
