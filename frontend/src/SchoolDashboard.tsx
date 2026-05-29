@@ -1343,10 +1343,11 @@ const [selectedLearnerReport, setSelectedLearnerReport] = useState<any>(null);
 
 
   const learnerClassroom = (learner: any) =>
-
-
-
-    learner?.grade || learner?.className || learner?.classroom || "";
+    learner?.classroom ||
+    learner?.classroomName ||
+    learner?.className ||
+    learner?.grade ||
+    "";
 
 
 
@@ -2089,7 +2090,7 @@ const [selectedLearnerReport, setSelectedLearnerReport] = useState<any>(null);
 
 
 
-      : learners.filter((learner: any) => (learner.childStatus || "Enrolled") === "Enrolled");
+      : learners.filter((learner: any) => isActiveEnrollment(learner));
 
 
 
@@ -3034,14 +3035,11 @@ const [selectedLearnerReport, setSelectedLearnerReport] = useState<any>(null);
   
   
     learners.forEach((learner: any) => {
-  
-  
-  
+      if (!isActiveEnrollment(learner)) return;
+
       const className = getClassValue(learner);
-  
-  
-  
-      if (!className) return;
+
+      if (!className || /no classroom/i.test(className)) return;
   
   
   

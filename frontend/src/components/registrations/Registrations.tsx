@@ -137,7 +137,13 @@ function learnerClass(l: AnyRecord) {
 
 
 
-  return l.classroom || l.className || l.grade || "";
+  return (
+    l.classroom ||
+    l.classroomName ||
+    l.className ||
+    l.grade ||
+    ""
+  );
 
 
 

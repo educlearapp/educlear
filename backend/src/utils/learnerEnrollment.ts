@@ -14,3 +14,29 @@ export function isHistoricalEnrollmentStatus(
 ): boolean {
   return String(status || "").toUpperCase() === "HISTORICAL";
 }
+
+/** Same class label logic as registration stats (className, then grade). */
+export function resolveLearnerClassroomLabel(learner: {
+  className?: string | null;
+  grade?: string | null;
+}): string {
+  return String(learner.className || learner.grade || "").trim();
+}
+
+export function registrationEnrollmentFields(enrollmentStatus: string | null | undefined): {
+  enrollmentStatus: string;
+  childStatus: string;
+  status: string;
+  enrolled: boolean;
+  isEnrolled: boolean;
+} {
+  const tier = String(enrollmentStatus || "ACTIVE").toUpperCase();
+  const active = tier === "ACTIVE";
+  return {
+    enrollmentStatus: active ? "ACTIVE" : tier,
+    childStatus: active ? "Enrolled" : "Historical",
+    status: active ? "Enrolled" : "Historical",
+    enrolled: active,
+    isEnrolled: active,
+  };
+}

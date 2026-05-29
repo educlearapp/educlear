@@ -80,11 +80,16 @@ export function isActiveEnrollment(learner: {
   enrollmentStatus?: string | null;
   status?: string | null;
   childStatus?: string | null;
+  enrolled?: boolean | null;
+  isEnrolled?: boolean | null;
 }): boolean {
+  if (learner.isEnrolled === true || learner.enrolled === true) return true;
+
   const tier = String(learner.enrollmentStatus || "").toUpperCase();
   if (tier === "HISTORICAL") return false;
   if (tier === "ACTIVE") return true;
+
   const status = String(learner.status || learner.childStatus || "").toLowerCase();
   if (/historical|inactive|withdrawn|unenrolled|former|archived/.test(status)) return false;
-  return status === "enrolled" || status === "active" || learner.enrollmentStatus == null;
+  return status === "enrolled" || status === "active";
 }

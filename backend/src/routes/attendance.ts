@@ -1,7 +1,10 @@
 import { Router } from "express";
 import { AttendanceStatus, Prisma } from "@prisma/client";
 import { prisma } from "../prisma";
-import { activeLearnerWhere } from "../utils/learnerEnrollment";
+import {
+  activeLearnerWhere,
+  resolveLearnerClassroomLabel,
+} from "../utils/learnerEnrollment";
 
 const router = Router();
 
@@ -114,19 +117,25 @@ router.get("/classes", async (req, res) => {
     const schoolId = String(req.query.schoolId || "").trim();
     if (!schoolId) return res.status(400).json({ success: false, error: "schoolId required" });
 
-    const grouped = await prisma.learner.groupBy({
-      by: ["className"],
-      where: { ...activeLearnerWhere(schoolId), className: { not: "" } },
-      _count: { _all: true },
+    const activeLearners = await prisma.learner.findMany({
+      where: activeLearnerWhere(schoolId),
+      select: { className: true, grade: true },
     });
 
-    const classes = grouped
-      .map((g) => ({
-        name: String(g.className || "").trim(),
-        learnerCount: g._count._all,
-      }))
-      .filter((c) => c.name)
+    const classCounts = new Map<string, number>();
+    for (const learner of activeLearners) {
+      const name = resolveLearnerClassroomLabel(learner);
+      if (!name || /no classroom/i.test(name)) continue;
+      classCounts.set(name, (classCounts.get(name) || 0) + 1);
+    }
+
+    const classes = [...classCounts.entries()]
+      .map(([name, learnerCount]) => ({ name, learnerCount }))
       .sort((a, b) => a.name.localeCompare(b.name, undefined, { numeric: true }));
+
+    console.log(
+      `[attendanceClasses] schoolId=${schoolId} learnerCount=${activeLearners.length} classCount=${classes.length}`
+    );
 
     return res.json({ success: true, classes });
   } catch (e) {

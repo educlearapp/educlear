@@ -6,6 +6,11 @@ import {
   resolveLearnerBillingPlanItems,
 } from "../utils/learnerBillingPlanStore";
 import { buildRegistrationStats } from "../services/registrationStatsService";
+import {
+  activeLearnerWhere,
+  registrationEnrollmentFields,
+  resolveLearnerClassroomLabel,
+} from "../utils/learnerEnrollment";
 
 import { PrismaClient } from "@prisma/client";
 
@@ -72,13 +77,18 @@ router.get("/learners", async (req, res) => {
 
 
 
-    const billingPlansByLearner = await readSchoolBillingPlansResolved(schoolId);
+    let billingPlansByLearner: Awaited<ReturnType<typeof readSchoolBillingPlansResolved>> = {};
+    try {
+      billingPlansByLearner = await readSchoolBillingPlansResolved(schoolId);
+    } catch (billingErr) {
+      console.error("[liveLearnerList] billingPlans read failed", billingErr);
+    }
 
     const learners = await prisma.learner.findMany({
 
 
 
-      where: { schoolId },
+      where: activeLearnerWhere(schoolId),
 
 
 
@@ -106,11 +116,13 @@ router.get("/learners", async (req, res) => {
 
 
 
-      orderBy: { createdAt: "desc" },
+      orderBy: [{ lastName: "asc" }, { firstName: "asc" }],
 
 
 
     });
+
+    console.log(`[liveLearnerList] schoolId=${schoolId} count=${learners.length}`);
 
     const learnerIds = new Set(learners.map((l) => l.id));
     const orphanPlanKeys = Object.keys(billingPlansByLearner).filter((id) => !learnerIds.has(id));
@@ -142,6 +154,9 @@ router.get("/learners", async (req, res) => {
 
 
       const accountNo = resolveLearnerAccountNo(learner);
+
+      const classroomLabel = resolveLearnerClassroomLabel(learner);
+      const enrollmentFields = registrationEnrollmentFields(learner.enrollmentStatus);
 
 
 
@@ -217,31 +232,19 @@ router.get("/learners", async (req, res) => {
 
 
 
-        classroom: learner.className || learner.grade || "",
+        classroom: classroomLabel,
 
 
 
-        classroomName: learner.className || learner.grade || "",
+        classroomName: classroomLabel,
 
 
 
-        className: learner.className || "",
+        className: learner.className || classroomLabel,
 
 
 
-        childStatus: "Enrolled",
-
-
-
-        status: "Enrolled",
-
-
-
-        enrolled: true,
-
-
-
-        isEnrolled: true,
+        ...enrollmentFields,
 
 
 

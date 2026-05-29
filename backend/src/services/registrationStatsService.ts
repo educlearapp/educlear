@@ -1,5 +1,9 @@
 import { prisma } from "../prisma";
 import { resolveLearnerGender } from "../utils/learnerGender";
+import {
+  activeLearnerWhere,
+  resolveLearnerClassroomLabel,
+} from "../utils/learnerEnrollment";
 
 export type RegistrationStats = {
   children: number;
@@ -70,7 +74,7 @@ export async function countDistinctLinkedParents(schoolId: string): Promise<numb
  */
 export async function buildRegistrationStats(schoolId: string): Promise<RegistrationStatsResult> {
   const activeLearners = await prisma.learner.findMany({
-    where: { schoolId, enrollmentStatus: "ACTIVE" },
+    where: activeLearnerWhere(schoolId),
     select: {
       firstName: true,
       lastName: true,
@@ -95,7 +99,7 @@ export async function buildRegistrationStats(schoolId: string): Promise<Registra
     if (resolved === "Male") boys += 1;
     else if (resolved === "Female") girls += 1;
 
-    const classroom = String(learner.className || learner.grade || "").trim();
+    const classroom = resolveLearnerClassroomLabel(learner);
     if (classroom && !/no classroom/i.test(classroom)) {
       classroomSet.add(classroom);
     }
