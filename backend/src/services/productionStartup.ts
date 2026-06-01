@@ -5,6 +5,7 @@ import {
 import { ensureDaSilvaAcademyLogin } from "./ensureDaSilvaAcademyLogin";
 import { ensureDaSilvaAcademyProduction } from "./ensureDaSilvaAcademyProduction";
 import { healDaSilvaProductionDataIfCorrupted } from "./daSilvaProductionHeal";
+import { removeStuckAli002ManualTestPayments } from "./repairStuckManualBillingEntries";
 import { ensureEduClearPackages } from "./ensureEduClearPackages";
 import { runPrismaMigrateDeployWithRecovery } from "./prismaMigrationRecovery";
 import { prisma } from "../prisma";
@@ -74,6 +75,17 @@ export async function runProductionStartup(): Promise<void> {
     await healDaSilvaProductionDataIfCorrupted();
   } catch (error) {
     console.error("[startup] Da Silva production heal failed:", error);
+  }
+
+  try {
+    const removedStuckPayments = removeStuckAli002ManualTestPayments();
+    if (removedStuckPayments.length > 0) {
+      console.log(
+        `[startup] Removed ${removedStuckPayments.length} stuck ALI002 manual test payment(s): ${removedStuckPayments.join(", ")}`
+      );
+    }
+  } catch (error) {
+    console.error("[startup] ALI002 stuck manual payment cleanup failed:", error);
   }
 
   console.log("[startup] Da Silva subscription activation starting");

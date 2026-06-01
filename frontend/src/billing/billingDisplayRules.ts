@@ -99,25 +99,20 @@ export function isKidesysHistoryTypeLabel(typeLabel?: string | null): boolean {
   return /\bKid-e-Sys\b[^\w]*History\b/i.test(String(typeLabel || ""));
 }
 
-function isTodayBillingDate(date?: string | null, createdAt?: string | null): boolean {
-  const dateStr = String(date || createdAt || "").slice(0, 10);
-  const today = new Date().toISOString().slice(0, 10);
-  return Boolean(dateStr && dateStr === today);
-}
-
-/** EduClear manual payment rows (POST /api/payments or pay-* ledger ids). */
+/** EduClear manual payment rows — includes legacy rows saved before source:"manual". */
 export function isManualLedgerPayment(
-  entry: Pick<BillingLedgerEntry, "source" | "id" | "type" | "reference" | "date" | "createdAt">
+  entry: Pick<
+    BillingLedgerEntry,
+    "source" | "id" | "type" | "reference" | "description" | "date" | "createdAt"
+  >
 ): boolean {
   if (entry.type !== "payment") return false;
+  if (isKidesysBlockedBillingSource(entry.source)) return false;
+  if (isKidesysHistoryIdOrReference(entry.id, entry.reference)) return false;
+  if (isNonPostingImportedLedgerEntry(entry)) return false;
   if (String(entry.source || "").trim().toLowerCase() === "manual") return true;
   if (String(entry.id || "").trim().startsWith("pay-")) return true;
-  if (
-    String(entry.reference || "").trim().toUpperCase() === "EFT" &&
-    isTodayBillingDate(entry.date, entry.createdAt)
-  ) {
-    return true;
-  }
+  if (String(entry.reference || "").trim().toUpperCase() === "EFT") return true;
   return false;
 }
 
@@ -142,6 +137,7 @@ export function isStatementKidesysUndoBlocked(
   if (isKidesysHistoryRow) return true;
   if (isKidesysHistoryTypeLabel(typeLabel)) return true;
   if (!entry) return false;
+  if (isManualLedgerPayment(entry)) return false;
   const source = String(entry.source || "").trim().toLowerCase();
   if (source && source !== "manual") {
     if (source === "migration" || source === "history") return true;

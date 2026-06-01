@@ -1,5 +1,8 @@
 import { buildAccountsFromAgeAnalysisSnapshots } from "./statementAccounts";
-import { isEduClearUndoableLedgerEntry } from "../utils/billingDisplayRules";
+import {
+  isEduClearUndoableLedgerEntry,
+  isStatementKidesysUndoBlocked,
+} from "../utils/billingDisplayRules";
 import {
   readSchoolLedger,
   removeSchoolEntry,
@@ -78,7 +81,10 @@ export async function undoBillingTransaction(
   }
 
   if (!isEduClearUndoableLedgerEntry(entry)) {
-    throw new Error("Imported Kid-e-Sys history cannot be undone.");
+    if (isStatementKidesysUndoBlocked(entry, undefined, false)) {
+      throw new Error("Imported Kid-e-Sys history cannot be undone.");
+    }
+    throw new Error("This transaction cannot be undone.");
   }
 
   const removed = removeSchoolEntry(schoolId, entry.id);

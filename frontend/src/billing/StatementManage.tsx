@@ -1142,7 +1142,14 @@ export default function StatementManage({
 
   const handleUndoSelectedTransaction = async () => {
     if (!selectedTransaction) return;
-    console.log("UNDO ROW DEBUG", selectedTransaction);
+
+    if (
+      selectedTransaction.isKidesysHistory ||
+      isKidesysHistoryTypeLabel(selectedTransaction.type)
+    ) {
+      setUndoNotice("Imported Kid-e-Sys history cannot be undone.");
+      return;
+    }
 
     const ledgerEntry = selectedTransaction.ledgerEntryId
       ? ledger.find((e) => e.id === selectedTransaction.ledgerEntryId) ?? null
@@ -1192,11 +1199,7 @@ export default function StatementManage({
       notifyLearnersRefresh();
     } catch (error) {
       const message = error instanceof Error ? error.message : "Failed to undo transaction.";
-      setUndoNotice(
-        message.includes("cannot be undone")
-          ? "Imported Kid-e-Sys history cannot be undone."
-          : sanitizeUserFacingError(message, "Failed to undo transaction.")
-      );
+      setUndoNotice(sanitizeUserFacingError(message, "Failed to undo transaction."));
     } finally {
       setUndoBusy(false);
     }
@@ -1474,7 +1477,11 @@ export default function StatementManage({
             </button>
           </div>
         </div>
-        {undoNotice ? (
+        {selectedTransaction?.isKidesysHistory ? (
+          <div style={{ padding: "8px 12px", color: "#b45309", fontWeight: 700, fontSize: 13 }}>
+            Imported Kid-e-Sys history cannot be undone.
+          </div>
+        ) : undoNotice ? (
           <div style={{ padding: "8px 12px", color: "#b45309", fontWeight: 700, fontSize: 13 }}>{undoNotice}</div>
         ) : null}
         <div style={{ overflowX: "auto" }}>
