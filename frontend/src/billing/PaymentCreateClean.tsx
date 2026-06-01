@@ -920,6 +920,7 @@ export default function PaymentCreateClean({
         ...prev,
         amount: "",
         description: "Payment",
+        message: "",
       }));
       await onSaved();
     } catch (error) {

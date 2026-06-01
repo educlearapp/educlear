@@ -36,7 +36,8 @@ import {
   formatLedgerDescriptionDisplay,
   formatLedgerReferenceDisplay,
   formatLedgerTypeLabel,
-  isEduClearUndoableLedgerEntry,
+  canUndoStatementPostingEntry,
+  isKidesysHistoryTypeLabel,
   isKidesysOpeningBalanceEntry,
   isMigratedOpeningBalanceOverviewLabel,
   MIGRATED_OPENING_BALANCE_OVERVIEW,
@@ -616,7 +617,7 @@ export default function StatementManage({
         balance: running,
         isKidesysHistory: false,
         isOpeningBalance,
-        canUndo: isEduClearUndoableLedgerEntry(entry),
+        canUndo: canUndoStatementPostingEntry(entry, typeLabel),
         sortTime: Number.isNaN(sortTime) ? 0 : sortTime,
       });
     });
@@ -1139,7 +1140,18 @@ export default function StatementManage({
 
   const handleUndoSelectedTransaction = async () => {
     if (!selectedTransaction) return;
-    if (!selectedTransaction.canUndo || !selectedTransaction.ledgerEntryId) {
+    if (
+      selectedTransaction.isKidesysHistory ||
+      isKidesysHistoryTypeLabel(selectedTransaction.type)
+    ) {
+      setUndoNotice("Imported Kid-e-Sys history cannot be undone.");
+      return;
+    }
+    if (!selectedTransaction.ledgerEntryId) {
+      setUndoNotice("Imported Kid-e-Sys history cannot be undone.");
+      return;
+    }
+    if (!selectedTransaction.canUndo) {
       setUndoNotice("Imported Kid-e-Sys history cannot be undone.");
       return;
     }

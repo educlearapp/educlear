@@ -155,7 +155,13 @@ function mapApiRowToLedgerEntry(sid: string, row: any): BillingLedgerEntry {
     date: String(row.date || row.invoiceDate || row.paymentDate || "").slice(0, 10),
     dueDate: row.dueDate ? String(row.dueDate).slice(0, 10) : undefined,
     reference: String(row.reference || row.invoiceNumber || ""),
-    description: String(row.description || row.type || "Entry"),
+    description: String(
+      row.description ||
+        row.message ||
+        row.note ||
+        row.notes ||
+        (entryType === "payment" ? "Payment" : row.type || "Entry")
+    ).trim(),
     method: row.method ? String(row.method) : undefined,
     runId: row.runId ? String(row.runId) : undefined,
     bankTransactionId: row.bankTransactionId ? String(row.bankTransactionId) : undefined,
