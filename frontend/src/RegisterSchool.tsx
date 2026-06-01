@@ -103,7 +103,7 @@ export default function RegisterSchool() {
 
 
   const [showForm, setShowForm] = useState(false);
-
+  const [showTerms, setShowTerms] = useState(false);
 
 
   const [form, setForm] = useState({
@@ -1809,7 +1809,159 @@ style={{
 
                 </div>
 
+                <div
 
+
+
+style={{
+
+
+
+  display: "flex",
+
+
+
+  alignItems: "flex-start",
+
+
+
+  gap: 10,
+
+
+
+  marginTop: 16,
+
+
+
+  marginBottom: 14,
+
+
+
+  color: "#d4af37",
+
+
+
+  fontSize: 13,
+
+
+
+  lineHeight: 1.5,
+
+
+
+}}
+
+
+
+>
+
+
+
+<input
+
+
+
+  type="checkbox"
+
+
+
+  required
+
+
+
+  style={{
+
+
+
+    marginTop: 3,
+
+
+
+    cursor: "pointer",
+
+
+
+  }}
+
+
+
+/>
+
+
+
+<span>
+
+
+
+  I have read and agree to the{" "}
+
+
+
+  <button
+
+
+
+    type="button"
+    onClick={() => setShowTerms(true)}
+
+
+    style={{
+
+
+
+      background: "none",
+
+
+
+      border: "none",
+
+
+
+      color: "#d4af37",
+
+
+
+      textDecoration: "underline",
+
+
+
+      cursor: "pointer",
+
+
+
+      padding: 0,
+
+
+
+      fontWeight: 700,
+
+
+
+    }}
+
+
+
+  >
+
+
+
+    Terms & Conditions
+
+
+
+  </button>{" "}
+
+
+
+  and Privacy / POPIA Policy.
+
+
+
+</span>
+
+
+
+</div>
 
                 <button
 
@@ -1889,6 +2041,7 @@ style={{
 
                   {status.type === "loading" ? "Registering..." : "Register Your School"}
 
+                
 
 
                 </button>
@@ -1957,6 +2110,330 @@ style={{
 
         )}
 
+           {showTerms && (
+
+
+
+<div
+
+
+
+  style={{
+
+
+
+    position: "fixed",
+
+
+
+    inset: 0,
+
+
+
+    background: "rgba(0,0,0,0.7)",
+
+
+
+    display: "flex",
+
+
+
+    justifyContent: "center",
+
+
+
+    alignItems: "center",
+
+
+
+    zIndex: 9999,
+
+
+
+    padding: 20,
+
+
+
+  }}
+
+
+
+>
+
+
+
+  <div
+
+
+
+    style={{
+
+
+
+      background: "#ffffff",
+
+
+
+      borderRadius: 18,
+
+
+
+      width: "100%",
+
+
+
+      maxWidth: 850,
+
+
+
+      maxHeight: "85vh",
+
+
+
+      overflowY: "auto",
+
+
+
+      padding: 28,
+
+
+
+      boxShadow: "0 18px 50px rgba(0,0,0,0.35)",
+
+
+
+    }}
+
+
+
+  >
+
+
+
+    <h2
+
+
+
+      style={{
+
+
+
+        marginTop: 0,
+
+
+
+        color: "#1a1a22",
+
+
+
+        fontSize: 28,
+
+
+
+        fontWeight: 800,
+
+
+
+      }}
+
+
+
+    >
+
+
+
+      EduClear Terms & Conditions
+
+
+
+    </h2>
+
+
+
+    <p style={{ color: "#444", lineHeight: 1.7 }}>
+
+
+
+      By registering with EduClear, schools agree to comply with EduClear
+
+
+
+      Terms & Conditions, Privacy Policy and POPIA requirements.
+
+
+
+    </p>
+
+
+
+    <h3 style={{ color: "#d4af37" }}>Data & Privacy</h3>
+
+
+
+    <p style={{ color: "#444", lineHeight: 1.7 }}>
+
+
+
+      EduClear processes school, learner, parent and staff information in
+
+
+
+      accordance with South African POPIA requirements.
+
+
+
+    </p>
+
+
+
+    <h3 style={{ color: "#d4af37" }}>Subscription & Payments</h3>
+
+
+
+    <p style={{ color: "#444", lineHeight: 1.7 }}>
+
+
+
+      Schools acknowledge EduClear subscription packages and payment terms.
+
+
+
+    </p>
+
+
+
+    <h3 style={{ color: "#d4af37" }}>Intellectual Property</h3>
+
+
+
+    <p style={{ color: "#444", lineHeight: 1.7 }}>
+
+
+
+      EduClear Group retains ownership of EduClear software, branding,
+
+
+
+      workflows and intellectual property.
+
+
+
+    </p>
+
+
+
+    <div
+
+
+
+      style={{
+
+
+
+        display: "flex",
+
+
+
+        justifyContent: "flex-end",
+
+
+
+        marginTop: 24,
+
+
+
+      }}
+
+
+
+    >
+
+
+
+<button
+
+
+
+type="button"
+
+
+
+onClick={(event) => {
+
+
+
+  event.preventDefault();
+
+
+
+  event.stopPropagation();
+
+
+
+  setShowTerms(false);
+
+
+
+}}
+
+
+
+style={{
+
+
+
+  background: "#d4af37",
+
+
+
+  border: "none",
+
+
+
+  padding: "10px 22px",
+
+
+
+  borderRadius: "10px",
+
+
+
+  cursor: "pointer",
+
+
+
+  fontWeight: 600,
+
+
+
+}}
+
+
+
+>
+
+
+
+Close
+
+
+
+</button>
+
+
+
+    </div>
+
+
+
+  </div>
+
+
+
+</div>
+
+
+)}
 
 
         <div className="reg-school-footer">
@@ -1977,14 +2454,13 @@ style={{
 
       </div>
 
-
+    
 
     </>
 
 
 
   );
-
 
 
 }

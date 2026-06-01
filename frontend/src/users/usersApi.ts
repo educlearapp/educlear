@@ -1,6 +1,30 @@
 import { API_URL } from "../api";
 import type { PermissionMap, SchoolUser } from "./permissions";
 
+function countGrantedPermissions(permissions: PermissionMap | undefined): number {
+  if (!permissions) return 0;
+  let count = 0;
+  for (const mod of Object.values(permissions)) {
+    if (!mod) continue;
+    for (const allowed of Object.values(mod)) {
+      if (allowed) count += 1;
+    }
+  }
+  return count;
+}
+
+function logRbacLoad(user: SchoolUser) {
+  console.log(
+    `[rbacLoad] userId=${user.id} role=${user.appRole} permissionsCount=${countGrantedPermissions(user.permissions)}`
+  );
+}
+
+function logRbacSave(user: SchoolUser) {
+  console.log(
+    `[rbacSave] userId=${user.id} role=${user.appRole} permissionsCount=${countGrantedPermissions(user.permissions)}`
+  );
+}
+
 function errorFromBody(data: unknown, status: number) {
   if (data && typeof data === "object") {
     const row = data as Record<string, unknown>;
@@ -50,7 +74,11 @@ async function parseJson(response: Response) {
 export async function fetchSchoolUsers(schoolId: string): Promise<SchoolUser[]> {
   const params = new URLSearchParams({ schoolId });
   const data = await parseJson(await fetch(`${API_URL}/api/users?${params.toString()}`));
-  return Array.isArray(data.users) ? data.users : [];
+  const users = Array.isArray(data.users) ? (data.users as SchoolUser[]) : [];
+  for (const user of users) {
+    logRbacLoad(user);
+  }
+  return users;
 }
 
 export async function createSchoolUser(payload: Record<string, unknown>): Promise<SchoolUser> {
@@ -97,7 +125,9 @@ export async function patchUserPermissions(
       body: JSON.stringify(payload),
     })
   );
-  return data.user as SchoolUser;
+  const user = data.user as SchoolUser;
+  logRbacSave(user);
+  return user;
 }
 
 export async function resetUserPassword(id: string, password: string): Promise<void> {

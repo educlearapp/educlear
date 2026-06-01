@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 
 
 
@@ -110,13 +110,28 @@ export default function BillingPlans({
 
   const [feeSearch, setFeeSearch] = useState("");
   const [feePickerPage, setFeePickerPage] = useState(1);
+  const [selectedFeeIds, setSelectedFeeIds] = useState<Set<string>>(() => new Set());
+  const [feeOptionsTick, setFeeOptionsTick] = useState(0);
+  const feePickerWasOpenRef = useRef(false);
 
   useEffect(() => {
-    if (showFeePicker) {
+    const opening = showFeePicker && !feePickerWasOpenRef.current;
+    if (opening) {
       setFeeSearch("");
       setFeePickerPage(1);
+      setSelectedFeeIds(new Set());
     }
+    feePickerWasOpenRef.current = showFeePicker;
   }, [showFeePicker]);
+
+  const toggleFeeSelected = (feeId: string, checked: boolean) => {
+    setSelectedFeeIds((prev) => {
+      const next = new Set(prev);
+      if (checked) next.add(feeId);
+      else next.delete(feeId);
+      return next;
+    });
+  };
 
   const getName = (learner: any) =>
 
@@ -456,6 +471,8 @@ export default function BillingPlans({
     );
 
 
+
+    setFeeOptionsTick((tick) => tick + 1);
 
     setShowFeePicker(true);
 
@@ -905,7 +922,7 @@ export default function BillingPlans({
 
 
 
-  const feeOptions = getFeeOptions();
+  const feeOptions = useMemo(() => getFeeOptions(), [feeOptionsTick]);
 
   const filteredFeeOptions = useMemo(() => {
     const q = feeSearch.trim().toLowerCase();
@@ -920,17 +937,25 @@ export default function BillingPlans({
   }, [feeOptions, feeSearch]);
 
   const feePickerTotalPages = Math.max(1, Math.ceil(filteredFeeOptions.length / feePickerPageSize));
-  const feePickerPageSafe = Math.min(Math.max(1, feePickerPage), feePickerTotalPages);
-  const pagedFeeOptions = filteredFeeOptions.slice(
-    (feePickerPageSafe - 1) * feePickerPageSize,
-    feePickerPageSafe * feePickerPageSize
+  const feePickerCurrentPage = Math.min(Math.max(1, feePickerPage), feePickerTotalPages);
+  const pagedFeeOptions = useMemo(
+    () =>
+      filteredFeeOptions.slice(
+        (feePickerCurrentPage - 1) * feePickerPageSize,
+        feePickerCurrentPage * feePickerPageSize
+      ),
+    [filteredFeeOptions, feePickerCurrentPage, feePickerPageSize]
+  );
+  const pagedFeeIdSet = useMemo(
+    () => new Set(pagedFeeOptions.map((fee: any) => String(fee.id))),
+    [pagedFeeOptions]
   );
   const feePickerRangeStart =
-    filteredFeeOptions.length === 0 ? 0 : (feePickerPageSafe - 1) * feePickerPageSize + 1;
+    filteredFeeOptions.length === 0 ? 0 : (feePickerCurrentPage - 1) * feePickerPageSize + 1;
   const feePickerRangeEnd =
     filteredFeeOptions.length === 0
       ? 0
-      : Math.min(feePickerPageSafe * feePickerPageSize, filteredFeeOptions.length);
+      : Math.min(feePickerCurrentPage * feePickerPageSize, filteredFeeOptions.length);
 
   const learnersForPlans = Array.isArray(learners)
 
@@ -1663,7 +1688,75 @@ Add fees to billing plan
 
 
 
-  pagedFeeOptions.map((fee: any) => (
+  <>
+
+
+
+  {feeOptions
+
+
+
+    .filter(
+
+
+
+      (fee: any) => selectedFeeIds.has(String(fee.id)) && !pagedFeeIdSet.has(String(fee.id))
+
+
+
+    )
+
+
+
+    .map((fee: any) => (
+
+
+
+      <input
+
+
+
+        key={`hidden-fee-check-${fee.id}`}
+
+
+
+        id={`fee-check-${fee.id}`}
+
+
+
+        type="checkbox"
+
+
+
+        checked
+
+
+
+        readOnly
+
+
+
+        tabIndex={-1}
+
+
+
+        aria-hidden="true"
+
+
+
+        style={{ display: "none" }}
+
+
+
+      />
+
+
+
+    ))}
+
+
+
+  {pagedFeeOptions.map((fee: any) => (
 
 
 
@@ -1735,6 +1828,14 @@ Add fees to billing plan
 
 
 
+        checked={selectedFeeIds.has(String(fee.id))}
+
+
+
+        onChange={(e) => toggleFeeSelected(String(fee.id), e.target.checked)}
+
+
+
         style={{ width: "18px", height: "18px", cursor: "pointer" }}
 
 
@@ -1791,7 +1892,11 @@ Add fees to billing plan
 
 
 
-  ))
+  ))}
+
+
+
+  </>
 
 
 
@@ -1831,15 +1936,51 @@ Add fees to billing plan
 
 
 
-      style={{ ...btnLight, padding: "6px 12px", opacity: feePickerPageSafe <= 1 ? 0.55 : 1 }}
+      style={{ ...btnLight, padding: "6px 12px", opacity: feePickerCurrentPage <= 1 ? 0.55 : 1 }}
 
 
 
-      disabled={feePickerPageSafe <= 1}
+      disabled={feePickerCurrentPage <= 1}
 
 
 
-      onClick={() => setFeePickerPage(feePickerPageSafe - 1)}
+      onClick={() => setFeePickerPage(1)}
+
+
+
+      aria-label="First page"
+
+
+
+    >
+
+
+
+      {"<<"}
+
+
+
+    </button>
+
+
+
+    <button
+
+
+
+      type="button"
+
+
+
+      style={{ ...btnLight, padding: "6px 12px", opacity: feePickerCurrentPage <= 1 ? 0.55 : 1 }}
+
+
+
+      disabled={feePickerCurrentPage <= 1}
+
+
+
+      onClick={() => setFeePickerPage((page) => Math.max(1, page - 1))}
 
 
 
@@ -1851,7 +1992,7 @@ Add fees to billing plan
 
 
 
-      ‹
+      {"<"}
 
 
 
@@ -1863,7 +2004,7 @@ Add fees to billing plan
 
 
 
-      Page {feePickerPageSafe} / {feePickerTotalPages}
+      Page {feePickerCurrentPage} / {feePickerTotalPages}
 
 
 
@@ -1879,15 +2020,15 @@ Add fees to billing plan
 
 
 
-      style={{ ...btnLight, padding: "6px 12px", opacity: feePickerPageSafe >= feePickerTotalPages ? 0.55 : 1 }}
+      style={{ ...btnLight, padding: "6px 12px", opacity: feePickerCurrentPage >= feePickerTotalPages ? 0.55 : 1 }}
 
 
 
-      disabled={feePickerPageSafe >= feePickerTotalPages}
+      disabled={feePickerCurrentPage >= feePickerTotalPages}
 
 
 
-      onClick={() => setFeePickerPage(feePickerPageSafe + 1)}
+      onClick={() => setFeePickerPage((page) => Math.min(feePickerTotalPages, page + 1))}
 
 
 
@@ -1899,7 +2040,43 @@ Add fees to billing plan
 
 
 
-      ›
+      {">"}
+
+
+
+    </button>
+
+
+
+    <button
+
+
+
+      type="button"
+
+
+
+      style={{ ...btnLight, padding: "6px 12px", opacity: feePickerCurrentPage >= feePickerTotalPages ? 0.55 : 1 }}
+
+
+
+      disabled={feePickerCurrentPage >= feePickerTotalPages}
+
+
+
+      onClick={() => setFeePickerPage(feePickerTotalPages)}
+
+
+
+      aria-label="Last page"
+
+
+
+    >
+
+
+
+      {">>"}
 
 
 

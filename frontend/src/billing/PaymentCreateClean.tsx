@@ -792,7 +792,19 @@ export default function PaymentCreateClean({
         amount: paymentAmount,
         date: paymentDate,
         reference: paymentType,
-        description: draft.description.trim() || "Payment",
+        description:
+
+
+
+  draft.message.trim() ||
+
+
+
+  draft.description.trim() ||
+
+
+
+  "Payment",
         method: paymentType,
       })) as { payment?: Record<string, unknown> };
       console.log("CREATE PAYMENT RESULT", result);
@@ -832,7 +844,22 @@ export default function PaymentCreateClean({
         date: paymentDate,
         reference: paymentType,
         description: draft.description.trim() || "Payment",
-        method: paymentType,
+
+
+
+           message: draft.message.trim(),
+
+
+
+            note: draft.message.trim(),
+
+
+
+              notes: draft.message.trim(),
+
+
+
+             method: paymentType,      
       });
 
       await syncBillingLedgerFromApi(schoolId);
