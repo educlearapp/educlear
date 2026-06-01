@@ -83,10 +83,6 @@ function Home() {
 
 
 
-        overflow: "hidden",
-
-
-
       }}
 
 
