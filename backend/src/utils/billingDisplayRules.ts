@@ -11,6 +11,14 @@ export const EDUCLEAR_LIVE_BILLING_DISPLAY_FROM = "2026-05-24";
 export const OPENING_BALANCE_MIGRATION_TYPE = "Opening Balance Migration";
 export const MIGRATED_OPENING_BALANCE_OVERVIEW = "Migrated Opening Balance";
 
+export type BillingDisplayEntry = Pick<
+  BillingLedgerEntry,
+  "id" | "createdAt" | "description" | "type" | "source" | "reference" | "date"
+>;
+
+export type BillingUndoableDisplayEntry = BillingDisplayEntry &
+  Pick<BillingLedgerEntry, "bankTransactionId" | "bankImportId">;
+
 const MIGRATION_SOURCES = new Set([
   "kidesys_migration",
   "kidesys_migration_opening_balance",
@@ -99,12 +107,7 @@ export function isKidesysBlockedBillingSource(source?: string | null): boolean {
 }
 
 /** EduClear manual payment rows — includes legacy rows saved before source:"manual". */
-export function isManualLedgerPayment(
-  entry: Pick<
-    BillingLedgerEntry,
-    "source" | "id" | "type" | "reference" | "description" | "date" | "createdAt"
-  >
-): boolean {
+export function isManualLedgerPayment(entry: BillingDisplayEntry): boolean {
   if (entry.type !== "payment") return false;
   if (isKidesysBlockedBillingSource(entry.source)) return false;
   if (isKidesysHistoryIdOrReference(entry.id, entry.reference)) return false;
@@ -117,7 +120,7 @@ export function isManualLedgerPayment(
 
 /** Kid-e-Sys / migration rows only — not EduClear manual payments. */
 export function isStatementKidesysUndoBlocked(
-  entry: Pick<BillingLedgerEntry, "source" | "id" | "reference"> | null | undefined,
+  entry: BillingDisplayEntry | null | undefined,
   typeLabel: string | undefined,
   isKidesysHistoryRow: boolean
 ): boolean {
@@ -142,36 +145,19 @@ export function isStatementKidesysUndoBlocked(
 }
 
 /** Ledger rows that must not change Age Analysis balances (already in snapshot / display history). */
-export function isNonPostingImportedLedgerEntry(
-  entry: Pick<BillingLedgerEntry, "source" | "reference" | "description" | "type" | "date" | "createdAt">
-): boolean {
+export function isNonPostingImportedLedgerEntry(entry: BillingDisplayEntry): boolean {
   if (isImportedBillingLedgerEntry(entry)) return true;
   if (isKidesysImportedLedgerSource(entry.source)) return true;
   return false;
 }
 
 /** Post-import balance delta: EduClear-created invoice/payment/penalty/credit only. */
-export function countsTowardPostImportBalanceDelta(
-  entry: Pick<BillingLedgerEntry, "source" | "reference" | "description" | "type" | "date" | "createdAt">
-): boolean {
+export function countsTowardPostImportBalanceDelta(entry: BillingDisplayEntry): boolean {
   return !isNonPostingImportedLedgerEntry(entry);
 }
 
 /** Undo allowed only for EduClear-created posting ledger rows. */
-export function isEduClearUndoableLedgerEntry(
-  entry: Pick<
-    BillingLedgerEntry,
-    | "id"
-    | "source"
-    | "reference"
-    | "description"
-    | "type"
-    | "date"
-    | "createdAt"
-    | "bankTransactionId"
-    | "bankImportId"
-  >
-): boolean {
+export function isEduClearUndoableLedgerEntry(entry: BillingUndoableDisplayEntry): boolean {
   if (entry.type !== "invoice" && entry.type !== "payment" && entry.type !== "penalty") {
     return false;
   }
@@ -184,9 +170,7 @@ export function isEduClearUndoableLedgerEntry(
   return true;
 }
 
-export function isImportedBillingLedgerEntry(
-  entry: Pick<BillingLedgerEntry, "source" | "reference" | "description" | "type" | "date" | "createdAt">
-): boolean {
+export function isImportedBillingLedgerEntry(entry: BillingDisplayEntry): boolean {
   if (isKidesysOpeningBalanceEntry(entry)) return true;
   if (isMigrationBillingSource(entry.source)) return true;
   return false;
