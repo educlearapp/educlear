@@ -8,6 +8,7 @@ import {
   getPackageDisplayPrice,
   submitPayFastCheckout,
 } from "./payfastCheckout";
+import TermsAgreementCheckbox from "../components/legal/TermsAgreementCheckbox";
 import {
   type EduClearPackage,
   activateSubscriptionTestMode,
@@ -147,12 +148,14 @@ function StarterPackageCard({
   isCurrent,
   checkoutBusy,
   payfastEnabled,
+  termsAccepted,
   onSelect,
 }: {
   pkg: EduClearPackage;
   isCurrent: boolean;
   checkoutBusy: boolean;
   payfastEnabled: boolean;
+  termsAccepted: boolean;
   onSelect: (pkg: EduClearPackage) => void;
 }) {
   const displayPrice = getPackageDisplayPrice(pkg.code);
@@ -195,7 +198,7 @@ function StarterPackageCard({
       {payfastEnabled ? (
         <button
           type="button"
-          disabled={checkoutBusy || isCurrent}
+          disabled={checkoutBusy || isCurrent || !termsAccepted}
           onClick={() => onSelect(pkg)}
           style={{
             ...actionBtn,
@@ -203,14 +206,20 @@ function StarterPackageCard({
             width: "100%",
             border: `1px solid ${GOLD}`,
             background: isCurrent ? GOLD : "#fff",
-            opacity: checkoutBusy ? 0.7 : 1,
-            cursor: checkoutBusy ? "wait" : isCurrent ? "default" : "pointer",
+            opacity: checkoutBusy || isCurrent || !termsAccepted ? 0.7 : 1,
+            cursor: checkoutBusy
+              ? "wait"
+              : isCurrent || !termsAccepted
+                ? "not-allowed"
+                : "pointer",
           }}
         >
           {checkoutBusy
             ? "Opening PayFast..."
             : isCurrent
               ? "Current Package"
+              : !termsAccepted
+                ? "Accept Terms to Continue"
               : "Pay with PayFast — Starter"}
         </button>
       ) : null}
@@ -223,12 +232,14 @@ function UnlimitedPackageCard({
   isCurrent,
   checkoutBusy,
   payfastEnabled,
+  termsAccepted,
   onSelect,
 }: {
   pkg: EduClearPackage;
   isCurrent: boolean;
   checkoutBusy: boolean;
   payfastEnabled: boolean;
+  termsAccepted: boolean;
   onSelect: (pkg: EduClearPackage) => void;
 }) {
   const displayPrice = getPackageDisplayPrice(pkg.code);
@@ -275,20 +286,26 @@ function UnlimitedPackageCard({
       {payfastEnabled ? (
         <button
           type="button"
-          disabled={checkoutBusy || isCurrent}
+          disabled={checkoutBusy || isCurrent || !termsAccepted}
           onClick={() => onSelect(pkg)}
           style={{
             ...goldBtn,
             marginTop: "24px",
             width: "100%",
-            opacity: checkoutBusy || isCurrent ? 0.75 : 1,
-            cursor: checkoutBusy ? "wait" : isCurrent ? "default" : "pointer",
+            opacity: checkoutBusy || isCurrent || !termsAccepted ? 0.75 : 1,
+            cursor: checkoutBusy
+              ? "wait"
+              : isCurrent || !termsAccepted
+                ? "not-allowed"
+                : "pointer",
           }}
         >
           {checkoutBusy
             ? "Opening PayFast..."
             : isCurrent
               ? "Current Package"
+              : !termsAccepted
+                ? "Accept Terms to Continue"
               : "Pay with PayFast — Unlimited"}
         </button>
       ) : null}
@@ -308,6 +325,7 @@ export default function SubscriptionPackages() {
   const [testModeAvailable, setTestModeAvailable] = useState(false);
   const [missingPayFastEnv, setMissingPayFastEnv] = useState<string[]>([]);
   const [testModeBusy, setTestModeBusy] = useState(false);
+  const [agreedToTerms, setAgreedToTerms] = useState(false);
 
   useEffect(() => {
     let cancelled = false;
@@ -367,6 +385,11 @@ export default function SubscriptionPackages() {
   }, [dashboardUnlocked, navigate]);
 
   async function handleSelect(pkg: EduClearPackage) {
+    if (!agreedToTerms) {
+      setError("You must agree to the EduClear Terms & Conditions before payment.");
+      return;
+    }
+
     const schoolId = String(localStorage.getItem("schoolId") || "").trim();
     if (!schoolId) {
       setError("Please log in or register your school before choosing a package.");
@@ -406,6 +429,11 @@ export default function SubscriptionPackages() {
   }
 
   async function handleTestModeActivate() {
+    if (!agreedToTerms) {
+      setError("You must agree to the EduClear Terms & Conditions before activating a package.");
+      return;
+    }
+
     const schoolId = String(localStorage.getItem("schoolId") || "").trim();
     if (!schoolId) {
       setError("Please log in or register your school before continuing.");
@@ -478,6 +506,24 @@ export default function SubscriptionPackages() {
           </p>
         ) : null}
 
+        {!loading ? (
+          <div
+            style={{
+              marginTop: 24,
+              padding: "16px 18px",
+              borderRadius: 14,
+              border: "1px solid rgba(212, 175, 55, 0.35)",
+              background: "#fff",
+            }}
+          >
+            <TermsAgreementCheckbox
+              checked={agreedToTerms}
+              onChange={setAgreedToTerms}
+              id="subscription-package-terms"
+            />
+          </div>
+        ) : null}
+
         {!loading && !payfastConfigured ? (
           <div
             style={{
@@ -503,16 +549,20 @@ export default function SubscriptionPackages() {
             {testModeAvailable ? (
               <button
                 type="button"
-                disabled={testModeBusy}
+                disabled={testModeBusy || !agreedToTerms}
                 onClick={handleTestModeActivate}
                 style={{
                   ...goldBtn,
                   marginTop: 16,
-                  opacity: testModeBusy ? 0.75 : 1,
-                  cursor: testModeBusy ? "wait" : "pointer",
+                  opacity: testModeBusy || !agreedToTerms ? 0.75 : 1,
+                  cursor: testModeBusy || !agreedToTerms ? "not-allowed" : "pointer",
                 }}
               >
-                {testModeBusy ? "Activating test mode..." : "Continue in Test Mode"}
+                {testModeBusy
+                  ? "Activating test mode..."
+                  : !agreedToTerms
+                    ? "Accept Terms to Continue"
+                    : "Continue in Test Mode"}
               </button>
             ) : null}
           </div>
@@ -566,6 +616,7 @@ export default function SubscriptionPackages() {
                 isCurrent={currentPackageCode === "STARTER"}
                 checkoutBusy={checkoutCode === "STARTER"}
                 payfastEnabled={payfastConfigured}
+                termsAccepted={agreedToTerms}
                 onSelect={handleSelect}
               />
             ) : null}
@@ -575,6 +626,7 @@ export default function SubscriptionPackages() {
                 isCurrent={currentPackageCode === "UNLIMITED"}
                 checkoutBusy={checkoutCode === "UNLIMITED"}
                 payfastEnabled={payfastConfigured}
+                termsAccepted={agreedToTerms}
                 onSelect={handleSelect}
               />
             ) : null}

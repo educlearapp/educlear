@@ -26,6 +26,9 @@ import LearnerDigitalReport from "./LearnerDigitalReport";
 
 
 import RegisterSchool from "./RegisterSchool";
+import TermsAndConditions from "./pages/TermsAndConditions";
+import PrivacyPolicy from "./pages/PrivacyPolicy";
+import SiteFooter from "./components/legal/SiteFooter";
 import SubscriptionPackages from "./subscriptions/SubscriptionPackages";
 import SubscriptionGate from "./subscriptions/SubscriptionGate";
 import SubscriptionStatus from "./subscriptions/SubscriptionStatus";
@@ -56,6 +59,14 @@ function Home() {
 
 
         minHeight: "100vh",
+
+
+
+        display: "flex",
+
+
+
+        flexDirection: "column",
 
 
 
@@ -556,6 +567,10 @@ style={{
 
 
 
+      <SiteFooter variant="dark" />
+
+
+
     </div>
 
 
@@ -593,6 +608,9 @@ export default function App() {
 
 
         <Route path="/register-school" element={<RegisterSchool />} />
+
+        <Route path="/terms-and-conditions" element={<TermsAndConditions />} />
+        <Route path="/privacy-policy" element={<PrivacyPolicy />} />
 
         <Route path="/subscription/packages" element={<SubscriptionPackages />} />
         <Route path="/subscription/status" element={<SubscriptionStatus />} />

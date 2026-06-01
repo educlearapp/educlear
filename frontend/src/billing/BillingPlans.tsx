@@ -4,6 +4,7 @@ import { flushSync } from "react-dom";
 
 
 import { API_URL } from "../api";
+import { notifyLearnersRefresh } from "./billingLedger";
 import { clearEduClearMigrationCache } from "../utils/educlearStorageDebug";
 
 const isDev = import.meta.env.DEV;
@@ -118,6 +119,29 @@ export default function BillingPlans({
   const [saveError, setSaveError] = useState("");
   const prevPlanLearnerKeyRef = useRef<string | null>(null);
   const savedResetTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const diagLearnerIdRef = useRef<string | null>(null);
+
+  const getDiagLearnerId = () =>
+    diagLearnerIdRef.current ||
+    (typeof sessionStorage !== "undefined"
+      ? sessionStorage.getItem("billingPlanDiagLearnerId")
+      : null);
+
+  const markDiagLearner = (learnerKey: string) => {
+    diagLearnerIdRef.current = learnerKey;
+    try {
+      sessionStorage.setItem("billingPlanDiagLearnerId", learnerKey);
+    } catch {
+      // ignore storage error
+    }
+  };
+
+  const isDiagLearner = (learner: any) => {
+    const diagId = getDiagLearnerId();
+    if (!diagId) return false;
+    const rowId = String(learner?.id || learner?.learnerId || "");
+    return rowId === diagId;
+  };
 
   useEffect(() => {
     const learnerKey = selectedPlanLearner
@@ -255,6 +279,18 @@ export default function BillingPlans({
 
   const hasBillingPlanSetup = (learner: any) =>
     Array.isArray(learner?.billingPlan) && learner.billingPlan.length > 0;
+
+  /** Main list status/totals: API `billingPlan` lines only (no localStorage). */
+  const getRowBillingPlan = (learner: any) => {
+    if (!Array.isArray(learner?.billingPlan)) return [];
+    return learner.billingPlan.map(normalizeFee);
+  };
+
+  const getRowPlanTotal = (learner: any) =>
+    getRowBillingPlan(learner).reduce(
+      (sum: number, fee: any) => sum + Number(fee.amount || 0),
+      0
+    );
 
   const resolveLearnerFromList = (learner: any) => {
     const learnerKey = String(learner?.id || learner?.learnerId || "");
@@ -475,67 +511,109 @@ export default function BillingPlans({
     return { learnerKey, updatedLearner };
   };
 
-  const refreshLearnerFromApi = async (learnerKey: string) => {
-    if (!learnerKey) return null;
+  const getSchoolIdForPlans = () =>
+    localStorage.getItem("schoolId") ||
+    localStorage.getItem("selectedSchoolId") ||
+    localStorage.getItem("currentSchoolId") ||
+    "";
 
+  const extractSavedBillingPlan = (data: unknown, fallback: any[]): any[] => {
+    const payload = data && typeof data === "object" ? (data as Record<string, unknown>) : {};
+    const fromRoot = payload.billingPlan;
+    const learner = payload.learner;
+    const fromLearner =
+      learner && typeof learner === "object"
+        ? (learner as Record<string, unknown>).billingPlan
+        : undefined;
+    const saved = Array.isArray(fromRoot)
+      ? fromRoot
+      : Array.isArray(fromLearner)
+        ? fromLearner
+        : fallback;
+    return saved.map(normalizeFee);
+  };
+
+  const reloadLearnersWithBillingPlans = async (
+    schoolIdOverride?: string
+  ): Promise<any[]> => {
+    const schoolId = schoolIdOverride || getSchoolIdForPlans();
+    if (!schoolId) {
+      console.log("RELOADED BILLING PLANS", learners);
+      return learners;
+    }
+
+    const diagId = getDiagLearnerId();
+    const diagQuery = diagId
+      ? `&diagLearnerId=${encodeURIComponent(diagId)}`
+      : "";
     const response = await fetch(
-      `${API_URL}/api/learners/${encodeURIComponent(learnerKey)}`
+      `${API_URL}/api/registrations/learners?schoolId=${encodeURIComponent(
+        schoolId
+      )}${diagQuery}&_t=${Date.now()}`
     );
-    const payload = await response.json().catch(() => ({}));
+    const data = await response.json().catch(() => ({}));
     if (!response.ok) {
       throw new Error(
-        String((payload as { error?: string })?.error || "Failed to refresh billing plan")
+        String((data as { error?: string })?.error || "Failed to reload billing plans")
       );
     }
 
-    const loaded = (payload as { learner?: any })?.learner || payload;
-    const refreshedLearner = {
-      ...loaded,
-      billingPlan: Array.isArray(loaded?.billingPlan) ? loaded.billingPlan : [],
-    };
+    const plans = Array.isArray((data as { learners?: unknown })?.learners)
+      ? (data as { learners: any[] }).learners
+      : [];
+    console.log("RELOADED BILLING PLANS", plans);
+    setLearners(plans);
+    notifyLearnersRefresh();
+    return plans;
+  };
 
-    setLearners((prev: any[]) =>
-      prev.map((item: any) =>
-        String(item?.id || item?.learnerId) === learnerKey ? refreshedLearner : item
-      )
-    );
-    setSelectedPlanLearner(refreshedLearner);
-
+  const syncLearnerBillingPlanCache = (learnerKey: string, plan: any[], learnerRow: any) => {
     try {
       const savedPlans = JSON.parse(
         localStorage.getItem("educlearBillingPlans") || "{}"
       );
       const updatedPlans = { ...savedPlans };
-      if (refreshedLearner.billingPlan.length === 0) {
+      if (plan.length === 0) {
         delete updatedPlans[learnerKey];
       } else {
-        updatedPlans[learnerKey] = refreshedLearner.billingPlan;
+        updatedPlans[learnerKey] = plan;
       }
       localStorage.setItem("educlearBillingPlans", JSON.stringify(updatedPlans));
-      localStorage.setItem(
-        "selectedBillingPlanLearner",
-        JSON.stringify(refreshedLearner)
-      );
+      localStorage.setItem("selectedBillingPlanLearner", JSON.stringify(learnerRow));
     } catch {
       // ignore storage error
     }
+  };
 
-    return refreshedLearner;
+  const mergeLearnerIntoList = (learnerKey: string, learnerRow: any) => {
+    setLearners((prev: any[]) =>
+      prev.map((item: any) =>
+        String(item?.id || item?.learnerId || "") === learnerKey ? learnerRow : item
+      )
+    );
+    setSelectedPlanLearner((prev: any | null) => {
+      if (!prev) return learnerRow;
+      const prevKey = String(prev?.id || prev?.learnerId || "");
+      return prevKey === learnerKey ? learnerRow : prev;
+    });
   };
 
   const savePlan = async (
     learner: any,
     plan: any[],
-    options?: { refreshFromApi?: boolean }
+    options?: { reloadList?: boolean }
   ): Promise<{ ok: boolean; error?: string }> => {
-    const { learnerKey, updatedLearner } = applyLearnerPlanLocally(learner, plan);
+    const learnerKey = String(learner?.id || learner?.learnerId || "");
+    const normalizedPlan = plan.map(normalizeFee);
+    const updatedLearner = {
+      ...learner,
+      billingPlan: normalizedPlan,
+    };
 
     if (!learnerKey) {
+      applyLearnerPlanLocally(learner, normalizedPlan);
       return { ok: true };
     }
-
-    let apiOk = true;
-    let apiError = "";
 
     try {
       const response = await fetch(
@@ -547,40 +625,69 @@ export default function BillingPlans({
         }
       );
 
+      const data = await response.json().catch(() => ({}));
+      console.log("SAVE PLAN RESPONSE", data);
+
       if (!response.ok) {
-        apiOk = false;
-        const payload = await response.json().catch(() => ({}));
-        apiError = String(
-          (payload as { error?: string })?.error || `Save failed (${response.status})`
+        return {
+          ok: false,
+          error: String(
+            (data as { error?: string })?.error || `Save failed (${response.status})`
+          ),
+        };
+      }
+
+      const savedPlan = extractSavedBillingPlan(data, normalizedPlan);
+      const mergedLearner = {
+        ...learner,
+        ...(data as { learner?: any })?.learner,
+        billingPlan: savedPlan,
+      };
+
+      markDiagLearner(learnerKey);
+      console.log("BILLING PLAN SAVE DIAG (after save)", {
+        learnerId: learnerKey,
+        savedResponseBillingPlan: savedPlan,
+        selectedLearnerBillingPlan: mergedLearner.billingPlan,
+      });
+
+      mergeLearnerIntoList(learnerKey, mergedLearner);
+      syncLearnerBillingPlanCache(learnerKey, savedPlan, mergedLearner);
+
+      if (options?.reloadList) {
+        const reloadSchoolId =
+          String(learner?.schoolId || mergedLearner?.schoolId || "").trim() ||
+          getSchoolIdForPlans();
+        const reloaded = await reloadLearnersWithBillingPlans(reloadSchoolId);
+        const fromList = reloaded.find(
+          (row: any) => String(row?.id || row?.learnerId || "") === learnerKey
         );
+        if (fromList) {
+          const apiPlan = Array.isArray(fromList.billingPlan)
+            ? fromList.billingPlan.map(normalizeFee)
+            : [];
+          const planToUse = apiPlan.length > 0 ? apiPlan : savedPlan;
+          const mergedRow = { ...fromList, billingPlan: planToUse };
+          console.log("BILLING PLAN SAVE DIAG (after list reload)", {
+            learnerId: learnerKey,
+            reloadedRowBillingPlan: fromList.billingPlan,
+            reloadedRowBillingPlanCount: Array.isArray(fromList.billingPlan)
+              ? fromList.billingPlan.length
+              : 0,
+            planToUseCount: planToUse.length,
+          });
+          mergeLearnerIntoList(learnerKey, mergedRow);
+          syncLearnerBillingPlanCache(learnerKey, planToUse, mergedRow);
+        }
       }
+
+      return { ok: true };
     } catch (error) {
-      apiOk = false;
-      apiError =
-        error instanceof Error ? error.message : "Failed to save billing plan";
+      return {
+        ok: false,
+        error: error instanceof Error ? error.message : "Failed to save billing plan",
+      };
     }
-
-    if (options?.refreshFromApi) {
-      if (apiOk) {
-        try {
-          await refreshLearnerFromApi(learnerKey);
-        } catch (error) {
-          apiOk = false;
-          apiError =
-            error instanceof Error
-              ? error.message
-              : "Saved but could not refresh billing plan";
-        }
-      } else {
-        try {
-          await refreshLearnerFromApi(learnerKey);
-        } catch {
-          // keep displayed error from failed save
-        }
-      }
-    }
-
-    return { ok: apiOk, error: apiOk ? undefined : apiError };
   };
 
   const handleExplicitSave = async (learner: any) => {
@@ -594,7 +701,7 @@ export default function BillingPlans({
     });
 
     const plan = getPlan(learner);
-    const result = await savePlan(learner, plan, { refreshFromApi: true });
+    const result = await savePlan(learner, plan, { reloadList: true });
 
     if (result.ok) {
       setSaveStatus("saved");
@@ -619,6 +726,30 @@ export default function BillingPlans({
   const onVisibleBillingPlanSave = (learner: any) => {
     console.log("VISIBLE BILLING PLAN SAVE CLICKED", new Date().toISOString());
     void handleExplicitSave(learner);
+  };
+
+  const handleBackToList = async () => {
+    if (selectedPlanLearner && isDiagLearner(selectedPlanLearner)) {
+      console.log("BILLING PLAN SAVE DIAG (before Back)", {
+        learnerId: String(
+          selectedPlanLearner?.id || selectedPlanLearner?.learnerId || ""
+        ),
+        selectedLearnerBillingPlan: selectedPlanLearner?.billingPlan,
+        selectedLearnerBillingPlanCount: Array.isArray(
+          selectedPlanLearner?.billingPlan
+        )
+          ? selectedPlanLearner.billingPlan.length
+          : 0,
+      });
+    }
+    const reloadSchoolId =
+      String(selectedPlanLearner?.schoolId || "").trim() || getSchoolIdForPlans();
+    try {
+      await reloadLearnersWithBillingPlans(reloadSchoolId);
+    } catch (error) {
+      console.error("Failed to reload billing plans on back", error);
+    }
+    setSelectedPlanLearner(null);
   };
 
 
@@ -1082,7 +1213,9 @@ export default function BillingPlans({
                 <button
                   type="button"
                   style={btnLight}
-                  onClick={() => setSelectedPlanLearner(null)}
+                  onClick={() => {
+                    void handleBackToList();
+                  }}
                 >
                   ← Back
                 </button>
@@ -2524,11 +2657,18 @@ outline: "none",
 
 
       pageLearners.map((learner: any, index: number) => {
-
-
-
-        const plan = getPlan(learner);
-        const total = getPlanTotal(learner);
+        if (isDiagLearner(learner)) {
+          console.log("AFFECTED LEARNER ROW", {
+            id: learner.id,
+            name:
+              learner.name ||
+              `${getName(learner)} ${getSurname(learner)}`.trim(),
+            billingPlan: learner.billingPlan,
+            total: learner.billingPlan?.length,
+          });
+        }
+        const plan = getRowBillingPlan(learner);
+        const total = getRowPlanTotal(learner);
         const hasPlan = plan.length > 0;
 
 
