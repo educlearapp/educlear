@@ -14,6 +14,7 @@ export default function SiteFooter({ variant = "dark" }: SiteFooterProps) {
     <footer className={`site-footer site-footer--${variant}`}>
       <nav className="site-footer-links" aria-label="Legal and support">
         <Link to="/terms-and-conditions">Terms &amp; Conditions</Link>
+        <Link to="/refund-and-cancellation-policy">Refund &amp; Cancellation Policy</Link>
         <Link to="/privacy-policy">Privacy Policy</Link>
         <a href={`mailto:${email}`}>Contact</a>
         <a href={`mailto:${email}?subject=EduClear%20Support`}>Support</a>

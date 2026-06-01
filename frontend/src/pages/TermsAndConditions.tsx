@@ -138,7 +138,8 @@ export default function TermsAndConditions() {
           <p>
             These Terms and Conditions govern access to and use of the EduClear school
             management platform. Please read them carefully before registering, subscribing,
-            or making payments through EduClear.
+            or making payments through EduClear. See also our{" "}
+            <Link to="/refund-and-cancellation-policy">Refund &amp; Cancellation Policy</Link>.
           </p>
           <nav className="terms-legal-toc" aria-label="Terms sections">
             <ul>

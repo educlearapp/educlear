@@ -27,6 +27,7 @@ import LearnerDigitalReport from "./LearnerDigitalReport";
 
 import RegisterSchool from "./RegisterSchool";
 import TermsAndConditions from "./pages/TermsAndConditions";
+import RefundAndCancellationPolicy from "./pages/RefundAndCancellationPolicy";
 import PrivacyPolicy from "./pages/PrivacyPolicy";
 import SiteFooter from "./components/legal/SiteFooter";
 import SubscriptionPackages from "./subscriptions/SubscriptionPackages";
@@ -567,6 +568,10 @@ export default function App() {
         <Route path="/register-school" element={<RegisterSchool />} />
 
         <Route path="/terms-and-conditions" element={<TermsAndConditions />} />
+        <Route
+          path="/refund-and-cancellation-policy"
+          element={<RefundAndCancellationPolicy />}
+        />
         <Route path="/privacy-policy" element={<PrivacyPolicy />} />
 
         <Route path="/subscription/packages" element={<SubscriptionPackages />} />
