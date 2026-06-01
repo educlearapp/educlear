@@ -26,10 +26,11 @@ const STATUS_VALUES = new Set<string>(["Active", "Trial", "Suspended"]);
 
 function asPackage(value: unknown): SchoolPackage {
   const label = String(value || "").trim();
+  if (!label || label === "—") return "—";
   if (PACKAGE_VALUES.has(label)) return label as SchoolPackage;
   if (label.toLowerCase() === "unlimited") return "Unlimited";
   if (label.toLowerCase() === "starter") return "Starter";
-  return "Starter";
+  return "—";
 }
 
 function asStatus(value: unknown): SchoolRecord["status"] {

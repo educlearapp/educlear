@@ -1,7 +1,4 @@
 import type { SchoolRecord } from "../types/schools";
 
-/**
- * Platform schools list — empty until the Super Admin API is connected.
- * Replace `fetchSchools` in the hook with a real request; keep this shape.
- */
+/** Legacy export — schools load from GET /api/super-admin/schools via useSchoolsManagement. */
 export const INITIAL_SCHOOLS: SchoolRecord[] = [];

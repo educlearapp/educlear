@@ -1,5 +1,4 @@
 import { useCallback, useState } from "react";
-import { useNavigate } from "react-router-dom";
 import SchoolsSummaryCards from "../superAdmin/components/SchoolsSummaryCards";
 import SchoolsTable from "../superAdmin/components/SchoolsTable";
 import SchoolsToolbar from "../superAdmin/components/SchoolsToolbar";
@@ -57,7 +56,6 @@ function schoolDetailMessage(school: SchoolRecord): string {
 }
 
 export default function SuperAdminSchoolsPage() {
-  const navigate = useNavigate();
   const {
     filteredSchools,
     summary,
@@ -138,8 +136,11 @@ export default function SuperAdminSchoolsPage() {
 
   const handleAddSchool = useCallback(() => {
     onAddSchool();
-    navigate("/register-school");
-  }, [onAddSchool, navigate]);
+    showNotice(
+      "Add School",
+      "Schools are added automatically when they complete school registration."
+    );
+  }, [onAddSchool, showNotice]);
 
   const handleOpenDashboard = useCallback(
     (school: SchoolRecord) => {
