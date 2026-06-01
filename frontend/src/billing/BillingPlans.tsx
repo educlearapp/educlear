@@ -609,6 +609,18 @@ export default function BillingPlans({
     }
   };
 
+  const saveStatusLabel =
+    saveStatus === "saving"
+      ? "Saving..."
+      : saveStatus === "saved"
+        ? "Saved ✓"
+        : "";
+
+  const onVisibleBillingPlanSave = (learner: any) => {
+    console.log("VISIBLE BILLING PLAN SAVE CLICKED", new Date().toISOString());
+    void handleExplicitSave(learner);
+  };
+
 
 
   const selectLearnerRow = (learner: any, event: any) => {
@@ -1060,45 +1072,56 @@ export default function BillingPlans({
 
 
 
-              <div style={{ display: "flex", gap: "8px" }}>
-
-
-
-              <button style={btnLight} onClick={() => setSelectedPlanLearner(null)}>
-
-
-
-                ← Back
-
-
-
-              </button>
-
-
-
-              <button
-                type="button"
-                style={{
-                  ...btnGold,
-                  opacity: saveStatus === "saving" ? 0.85 : 1,
-                  cursor: saveStatus === "saving" ? "wait" : "pointer",
-                }}
-                disabled={saveStatus === "saving"}
-                onClick={() => {
-                  console.log("BILLING PLAN SAVE BUTTON CLICKED");
-                  void handleExplicitSave(activePlanLearner);
+              <form
+                style={{ display: "flex", gap: "8px", alignItems: "center", flexWrap: "wrap" }}
+                onSubmit={(event) => {
+                  event.preventDefault();
+                  onVisibleBillingPlanSave(activePlanLearner);
                 }}
               >
-                {saveStatus === "saving"
-                  ? "Saving..."
-                  : saveStatus === "saved"
-                    ? "Saved ✓"
-                    : "Save"}
-              </button>
+                <button
+                  type="button"
+                  style={btnLight}
+                  onClick={() => setSelectedPlanLearner(null)}
+                >
+                  ← Back
+                </button>
 
+                <button
+                  type="submit"
+                  style={{
+                    ...btnGold,
+                    opacity: saveStatus === "saving" ? 0.85 : 1,
+                    cursor: saveStatus === "saving" ? "wait" : "pointer",
+                  }}
+                  disabled={saveStatus === "saving"}
+                >
+                  {saveStatusLabel || "Save"}
+                </button>
 
+                <span
+                  aria-live="polite"
+                  style={{
+                    fontSize: "13px",
+                    fontWeight: 800,
+                    color: saveStatus === "saved" ? "#15803d" : "#334155",
+                    minWidth: "72px",
+                  }}
+                >
+                  {saveStatusLabel}
+                </span>
 
-              </div>
+                <span
+                  style={{
+                    fontSize: "11px",
+                    fontWeight: 700,
+                    color: "#64748b",
+                    whiteSpace: "nowrap",
+                  }}
+                >
+                  Build marker: d36b316-save-feedback
+                </span>
+              </form>
 
 
 
