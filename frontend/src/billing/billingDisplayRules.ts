@@ -11,6 +11,14 @@ export const KIDESYS_HISTORY_INVOICE_TYPE = "Invoice · Kid-e-Sys History · non
 export const KIDESYS_HISTORY_PAYMENT_TYPE = "Payment · Kid-e-Sys History · non-posting";
 export const KIDESYS_HISTORY_DESCRIPTION_FALLBACK = "Kid-e-Sys History · non-posting";
 
+export type BillingDisplayEntry = Pick<
+  BillingLedgerEntry,
+  "id" | "date" | "type" | "createdAt" | "source" | "description" | "reference"
+>;
+
+export type BillingUndoableDisplayEntry = BillingDisplayEntry &
+  Pick<BillingLedgerEntry, "bankTransactionId" | "bankImportId">;
+
 const MIGRATION_SOURCES = new Set([
   "kidesys_migration",
   "kidesys_migration_opening_balance",
@@ -100,12 +108,7 @@ export function isKidesysHistoryTypeLabel(typeLabel?: string | null): boolean {
 }
 
 /** EduClear manual payment rows — includes legacy rows saved before source:"manual". */
-export function isManualLedgerPayment(
-  entry: Pick<
-    BillingLedgerEntry,
-    "source" | "id" | "type" | "reference" | "description" | "date" | "createdAt"
-  >
-): boolean {
+export function isManualLedgerPayment(entry: BillingDisplayEntry): boolean {
   if (entry.type !== "payment") return false;
   if (isKidesysBlockedBillingSource(entry.source)) return false;
   if (isKidesysHistoryIdOrReference(entry.id, entry.reference)) return false;
@@ -118,10 +121,7 @@ export function isManualLedgerPayment(
 
 /** Statement Manage — manual payment undo (checked before Kid-e-Sys block). */
 export function isStatementManualUndoableEntry(
-  entry: Pick<
-    BillingLedgerEntry,
-    "source" | "id" | "type" | "reference" | "date" | "createdAt"
-  >,
+  entry: BillingDisplayEntry,
   typeLabel?: string
 ): boolean {
   if (isKidesysHistoryTypeLabel(typeLabel)) return false;
@@ -130,7 +130,7 @@ export function isStatementManualUndoableEntry(
 
 /** Statement Manage — Kid-e-Sys / migration rows only (not all type=payment). */
 export function isStatementKidesysUndoBlocked(
-  entry: Pick<BillingLedgerEntry, "source" | "id" | "reference"> | null | undefined,
+  entry: BillingDisplayEntry | null | undefined,
   typeLabel: string | undefined,
   isKidesysHistoryRow: boolean
 ): boolean {
@@ -154,29 +154,14 @@ export function isStatementKidesysUndoBlocked(
   return isKidesysHistoryIdOrReference(entry.id, entry.reference);
 }
 
-export function isNonPostingImportedLedgerEntry(
-  entry: Pick<BillingLedgerEntry, "source" | "reference" | "description" | "type" | "date" | "createdAt">
-): boolean {
+export function isNonPostingImportedLedgerEntry(entry: BillingDisplayEntry): boolean {
   if (isImportedBillingLedgerEntry(entry)) return true;
   if (isKidesysImportedLedgerSource(entry.source)) return true;
   return false;
 }
 
 /** Undo allowed only for EduClear-created posting ledger rows. */
-export function isEduClearUndoableLedgerEntry(
-  entry: Pick<
-    BillingLedgerEntry,
-    | "id"
-    | "source"
-    | "reference"
-    | "description"
-    | "type"
-    | "date"
-    | "createdAt"
-    | "bankTransactionId"
-    | "bankImportId"
-  >
-): boolean {
+export function isEduClearUndoableLedgerEntry(entry: BillingUndoableDisplayEntry): boolean {
   if (entry.type !== "invoice" && entry.type !== "payment" && entry.type !== "penalty") {
     return false;
   }
@@ -191,18 +176,7 @@ export function isEduClearUndoableLedgerEntry(
 
 /** Statement Manage posting row — undo when not Kid-e-Sys history and ledger row is undoable. */
 export function canUndoStatementPostingEntry(
-  entry: Pick<
-    BillingLedgerEntry,
-    | "id"
-    | "source"
-    | "reference"
-    | "description"
-    | "type"
-    | "date"
-    | "createdAt"
-    | "bankTransactionId"
-    | "bankImportId"
-  >,
+  entry: BillingUndoableDisplayEntry,
   typeLabel?: string
 ): boolean {
   if (isStatementManualUndoableEntry(entry, typeLabel)) return true;
@@ -211,9 +185,7 @@ export function canUndoStatementPostingEntry(
 }
 
 /** Imported Kid-e-Sys / migration ledger row — show migration wording in the UI. */
-export function isImportedBillingLedgerEntry(
-  entry: Pick<BillingLedgerEntry, "source" | "reference" | "description" | "type" | "date" | "createdAt">
-): boolean {
+export function isImportedBillingLedgerEntry(entry: BillingDisplayEntry): boolean {
   if (isKidesysOpeningBalanceEntry(entry)) return true;
   if (isMigrationBillingSource(entry.source)) return true;
   return false;
