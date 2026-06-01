@@ -182,6 +182,7 @@ export default function ParentPortalApp() {
   const [cellNo, setCellNo] = useState("");
   const [otpCode, setOtpCode] = useState("");
   const [otpSent, setOtpSent] = useState(false);
+  const [otpTestCode, setOtpTestCode] = useState<string | null>(null);
   const [loginSuccess, setLoginSuccess] = useState<string | null>(null);
   const [sendOtpLoading, setSendOtpLoading] = useState(false);
   const [verifyOtpLoading, setVerifyOtpLoading] = useState(false);
@@ -437,16 +438,31 @@ export default function ParentPortalApp() {
     setSendOtpLoading(true);
     setError(null);
     setLoginSuccess(null);
+    setOtpTestCode(null);
     try {
       const data = await apiFetch("/api/parent-portal/auth/request-otp", {
         method: "POST",
         body: JSON.stringify({ schoolId, idNumber, cellNo: cellNo.trim() }),
       });
-      setOtpSent(true);
-      setLoginSuccess(String(data?.message || "Verification code sent"));
-      if (data?.devOtp) setOtpCode(String(data.devOtp));
+      const testOtp = String(data?.testOtp || data?.devOtp || "").trim();
+      const delivery = String(data?.delivery || "");
+      const smsNotConfigured =
+        data?.smsConfigured === false || delivery === "not_configured";
+
+      if (testOtp) {
+        setOtpCode(testOtp);
+        setOtpTestCode(testOtp);
+        setLoginSuccess(null);
+      } else if (!smsNotConfigured) {
+        setLoginSuccess(String(data?.message || "Verification code requested."));
+      } else {
+        setLoginSuccess(String(data?.message || "SMS provider not configured yet."));
+      }
+
+      setOtpSent(Boolean(data?.success));
     } catch (e: any) {
       setOtpSent(false);
+      setOtpTestCode(null);
       setError(e?.message || "OTP request failed");
     } finally {
       setSendOtpLoading(false);
@@ -464,7 +480,7 @@ export default function ParentPortalApp() {
     }
     const code = otpCode.trim();
     if (!code) {
-      setError("Enter the verification code sent to your mobile.");
+      setError("Enter the verification code.");
       return;
     }
     setVerifyOtpLoading(true);
@@ -721,6 +737,16 @@ export default function ParentPortalApp() {
               autoComplete="tel"
               placeholder="e.g. 0821234567"
             />
+            {otpTestCode && (
+              <div className="parent-portal-otp-test-notice" role="status">
+                <p className="parent-portal-login-success parent-portal-otp-test-label">
+                  SMS provider not configured yet.
+                </p>
+                <p className="parent-portal-login-success">
+                  Verification code generated for testing: {otpTestCode}
+                </p>
+              </div>
+            )}
             {loginSuccess && <p className="parent-portal-login-success">{loginSuccess}</p>}
             {error && <p className="parent-portal-login-error">{error}</p>}
             <button

@@ -747,6 +747,20 @@
   font-size: 13px;
 }
 
+.parent-portal-otp-test-notice {
+  margin-top: 10px;
+}
+
+.parent-portal-otp-test-notice .parent-portal-login-success {
+  margin-top: 0;
+}
+
+.parent-portal-otp-test-label {
+  color: #92400e;
+  font-weight: 600;
+  margin-bottom: 4px;
+}
+
 .parent-portal-spinner {
   display: inline-block;
   width: 14px;
