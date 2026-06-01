@@ -377,6 +377,7 @@ export default function PaymentCreateClean({
   const [ledgerTick, setLedgerTick] = useState(0);
   const [savedAccountNote, setSavedAccountNote] = useState("");
   const [saving, setSaving] = useState(false);
+  const [saveJustSucceeded, setSaveJustSucceeded] = useState(false);
   const [saveError, setSaveError] = useState("");
   const [selectedPaymentId, setSelectedPaymentId] = useState<string | null>(null);
   const [allocationModal, setAllocationModal] = useState<{
@@ -396,10 +397,13 @@ export default function PaymentCreateClean({
     [selectedAccount, learners, accountNo]
   );
 
-  const refreshLedger = useCallback(async () => {
+  const refreshLedger = useCallback(async (opts?: { silent?: boolean }) => {
     if (!schoolId) return;
-    setLoadingDetails(true);
-    setDetailsError("");
+    const silent = Boolean(opts?.silent);
+    if (!silent) {
+      setLoadingDetails(true);
+      setDetailsError("");
+    }
     try {
       await syncBillingLedgerFromApi(schoolId);
       if (accountNo) {
@@ -422,11 +426,52 @@ export default function PaymentCreateClean({
       setLedgerTick((v) => v + 1);
     } catch (error) {
       console.error(error);
-      setDetailsError("Could not load open invoices for this account.");
+      if (!silent) {
+        setDetailsError("Could not load open invoices for this account.");
+      }
     } finally {
-      setLoadingDetails(false);
+      if (!silent) setLoadingDetails(false);
     }
   }, [schoolId, accountNo]);
+
+  const runBackgroundBillingSync = useCallback(
+    async (
+      paymentId: string,
+      allocationPayload: {
+        schoolId: string;
+        learnerId: string;
+        accountNo: string;
+        paymentAmount: number;
+        lines: AllocationLine[];
+        allocatedBy: string;
+      } | null
+    ) => {
+      if (!schoolId) return;
+      try {
+        if (paymentId && allocationPayload) {
+          await savePaymentAllocations(paymentId, allocationPayload);
+        }
+        await syncBillingLedgerFromApi(schoolId);
+        await syncStatementSummariesFromApi(schoolId);
+        await refreshLedger({ silent: true });
+        notifyBillingUpdated();
+      } catch (error) {
+        console.error(error);
+        setSaveError(
+          error instanceof Error
+            ? error.message
+            : "Payment saved, but sync or allocation failed. Refresh billing and verify."
+        );
+      }
+    },
+    [schoolId, refreshLedger]
+  );
+
+  useEffect(() => {
+    if (!saveJustSucceeded) return;
+    const timer = window.setTimeout(() => setSaveJustSucceeded(false), 2000);
+    return () => window.clearTimeout(timer);
+  }, [saveJustSucceeded]);
 
   useEffect(() => {
     void refreshLedger();
@@ -843,6 +888,8 @@ export default function PaymentCreateClean({
     }
 
     setSaving(true);
+    setSaveJustSucceeded(false);
+    setSaveError("");
     try {
       const paymentAmount = normaliseBillingAmount(amount);
       const paymentNote =
@@ -884,32 +931,14 @@ export default function PaymentCreateClean({
           invoiceId,
           allocatedAmount: roundMoney(Number(allocatedAmount)),
         }));
-      if (paymentId && allocationLines.length) {
-        await savePaymentAllocations(paymentId, {
-          schoolId,
-          learnerId,
-          accountNo: resolvedAccountNo,
-          paymentAmount,
-          lines: allocationLines,
-          allocatedBy: localStorage.getItem("userEmail") || "Billing",
-        });
-      } else if (paymentId && amountUnallocated > 0.001) {
-        await savePaymentAllocations(paymentId, {
-          schoolId,
-          learnerId,
-          accountNo: resolvedAccountNo,
-          paymentAmount,
-          lines: [{ feeCategory: "account_credit", allocatedAmount: amountUnallocated }],
-          allocatedBy: localStorage.getItem("userEmail") || "Billing",
-        });
-      }
+      const unallocatedCredit = amountUnallocated;
 
-      await syncBillingLedgerFromApi(schoolId);
-      await syncStatementSummariesFromApi(schoolId);
       if (typeof result.balance === "number" && Number.isFinite(result.balance)) {
         setApiBalance(result.balance);
+      } else if (apiBalance !== null) {
+        setApiBalance(roundMoney(apiBalance - paymentAmount));
       }
-      await refreshLedger();
+
       notifyBillingUpdated();
       setLedgerTick((v) => v + 1);
       setRowAllocations({});
@@ -922,7 +951,38 @@ export default function PaymentCreateClean({
         description: "Payment",
         message: "",
       }));
-      await onSaved();
+
+      setSaving(false);
+      setSaveJustSucceeded(true);
+
+      const allocationPayload =
+        paymentId && allocationLines.length
+          ? {
+              schoolId,
+              learnerId,
+              accountNo: resolvedAccountNo,
+              paymentAmount,
+              lines: allocationLines,
+              allocatedBy: localStorage.getItem("userEmail") || "Billing",
+            }
+          : paymentId && unallocatedCredit > 0.001
+            ? {
+                schoolId,
+                learnerId,
+                accountNo: resolvedAccountNo,
+                paymentAmount,
+                lines: [
+                  {
+                    feeCategory: "account_credit" as const,
+                    allocatedAmount: unallocatedCredit,
+                  },
+                ],
+                allocatedBy: localStorage.getItem("userEmail") || "Billing",
+              }
+            : null;
+
+      void runBackgroundBillingSync(paymentId, allocationPayload);
+      void Promise.resolve(onSaved()).catch(() => {});
     } catch (error) {
       console.error(error);
       setSaveError(
@@ -930,7 +990,6 @@ export default function PaymentCreateClean({
           ? error.message
           : "Payment could not be saved. Check your connection and try again."
       );
-    } finally {
       setSaving(false);
     }
   }, [
@@ -942,8 +1001,8 @@ export default function PaymentCreateClean({
     rowAllocations,
     amountUnallocated,
     onSaved,
-    refreshLedger,
-    amountUnallocated,
+    apiBalance,
+    runBackgroundBillingSync,
     learnerId,
   ]);
 
@@ -994,7 +1053,7 @@ export default function PaymentCreateClean({
           onClick={savePayment}
           disabled={saving}
         >
-          {saving ? "Saving…" : "Save Payment"}
+          {saving ? "Saving…" : saveJustSucceeded ? "Saved ✓" : "Save Payment"}
         </button>
       </div>
 
