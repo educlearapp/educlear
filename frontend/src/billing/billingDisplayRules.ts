@@ -99,13 +99,63 @@ export function isKidesysHistoryTypeLabel(typeLabel?: string | null): boolean {
   return /\bKid-e-Sys\b[^\w]*History\b/i.test(String(typeLabel || ""));
 }
 
+function isTodayBillingDate(date?: string | null, createdAt?: string | null): boolean {
+  const dateStr = String(date || createdAt || "").slice(0, 10);
+  const today = new Date().toISOString().slice(0, 10);
+  return Boolean(dateStr && dateStr === today);
+}
+
 /** EduClear manual payment rows (POST /api/payments or pay-* ledger ids). */
 export function isManualLedgerPayment(
-  entry: Pick<BillingLedgerEntry, "source" | "id" | "type">
+  entry: Pick<BillingLedgerEntry, "source" | "id" | "type" | "reference" | "date" | "createdAt">
 ): boolean {
   if (entry.type !== "payment") return false;
   if (String(entry.source || "").trim().toLowerCase() === "manual") return true;
-  return String(entry.id || "").trim().startsWith("pay-");
+  if (String(entry.id || "").trim().startsWith("pay-")) return true;
+  if (
+    String(entry.reference || "").trim().toUpperCase() === "EFT" &&
+    isTodayBillingDate(entry.date, entry.createdAt)
+  ) {
+    return true;
+  }
+  return false;
+}
+
+/** Statement Manage — manual payment undo (checked before Kid-e-Sys block). */
+export function isStatementManualUndoableEntry(
+  entry: Pick<
+    BillingLedgerEntry,
+    "source" | "id" | "type" | "reference" | "date" | "createdAt"
+  >,
+  typeLabel?: string
+): boolean {
+  if (isKidesysHistoryTypeLabel(typeLabel)) return false;
+  return isManualLedgerPayment(entry);
+}
+
+/** Statement Manage — Kid-e-Sys / migration rows only (not all type=payment). */
+export function isStatementKidesysUndoBlocked(
+  entry: Pick<BillingLedgerEntry, "source" | "id" | "reference"> | null | undefined,
+  typeLabel: string | undefined,
+  isKidesysHistoryRow: boolean
+): boolean {
+  if (isKidesysHistoryRow) return true;
+  if (isKidesysHistoryTypeLabel(typeLabel)) return true;
+  if (!entry) return false;
+  const source = String(entry.source || "").trim().toLowerCase();
+  if (source && source !== "manual") {
+    if (source === "migration" || source === "history") return true;
+    if (isMigrationBillingSource(entry.source)) return true;
+    if (isKidesysImportedLedgerSource(entry.source)) return true;
+    if (
+      source.includes("kidesys") ||
+      source.includes("kid-e-sys") ||
+      source.includes("kideesys")
+    ) {
+      return true;
+    }
+  }
+  return isKidesysHistoryIdOrReference(entry.id, entry.reference);
 }
 
 export function isNonPostingImportedLedgerEntry(
@@ -159,7 +209,8 @@ export function canUndoStatementPostingEntry(
   >,
   typeLabel?: string
 ): boolean {
-  if (isKidesysHistoryTypeLabel(typeLabel)) return false;
+  if (isStatementManualUndoableEntry(entry, typeLabel)) return true;
+  if (isStatementKidesysUndoBlocked(entry, typeLabel, false)) return false;
   return isEduClearUndoableLedgerEntry(entry);
 }
 

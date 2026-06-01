@@ -66,6 +66,59 @@ function isKidesysImportedLedgerSource(source: string | undefined | null): boole
   return KIDESYS_IMPORTED_LEDGER_SOURCES.has(normalized);
 }
 
+export function isKidesysHistoryIdOrReference(
+  id?: string | null,
+  reference?: string | null
+): boolean {
+  const idStr = String(id || "").trim();
+  const ref = String(reference || "").trim();
+  if (/^kidesys[-_/]/i.test(idStr) || /^kideesys[-_/]/i.test(idStr)) return true;
+  if (/^kidesys[-_/]/i.test(ref) || /^kideesys[-_/]/i.test(ref)) return true;
+  if (/^imported[-_/]/i.test(idStr) || /^imported[-_/]/i.test(ref)) return true;
+  if (idStr.toUpperCase().startsWith("KIDESYS-") || ref.toUpperCase().startsWith("KIDESYS-")) {
+    return true;
+  }
+  return false;
+}
+
+export function isKidesysBlockedBillingSource(source?: string | null): boolean {
+  const normalized = String(source || "").trim().toLowerCase();
+  if (!normalized || normalized === "manual") return false;
+  if (isMigrationBillingSource(source)) return true;
+  if (isKidesysImportedLedgerSource(source)) return true;
+  if (normalized === "history") return true;
+  if (normalized.includes("migration")) return true;
+  if (
+    normalized.includes("kid-e-sys") ||
+    normalized.includes("kidesys") ||
+    normalized.includes("kideesys")
+  ) {
+    return true;
+  }
+  return false;
+}
+
+function isTodayBillingDate(date?: string | null, createdAt?: string | null): boolean {
+  const dateStr = String(date || createdAt || "").slice(0, 10);
+  const today = new Date().toISOString().slice(0, 10);
+  return Boolean(dateStr && dateStr === today);
+}
+
+export function isManualLedgerPayment(
+  entry: Pick<BillingLedgerEntry, "source" | "id" | "type" | "reference" | "date" | "createdAt">
+): boolean {
+  if (entry.type !== "payment") return false;
+  if (String(entry.source || "").trim().toLowerCase() === "manual") return true;
+  if (String(entry.id || "").trim().startsWith("pay-")) return true;
+  if (
+    String(entry.reference || "").trim().toUpperCase() === "EFT" &&
+    isTodayBillingDate(entry.date, entry.createdAt)
+  ) {
+    return true;
+  }
+  return false;
+}
+
 /** Ledger rows that must not change Age Analysis balances (already in snapshot / display history). */
 export function isNonPostingImportedLedgerEntry(
   entry: Pick<BillingLedgerEntry, "source" | "reference" | "description" | "type" | "date" | "createdAt">
@@ -86,6 +139,7 @@ export function countsTowardPostImportBalanceDelta(
 export function isEduClearUndoableLedgerEntry(
   entry: Pick<
     BillingLedgerEntry,
+    | "id"
     | "source"
     | "reference"
     | "description"
@@ -99,19 +153,12 @@ export function isEduClearUndoableLedgerEntry(
   if (entry.type !== "invoice" && entry.type !== "payment" && entry.type !== "penalty") {
     return false;
   }
-  const source = String(entry.source || "").trim().toLowerCase();
-  if (source === "manual") return true;
   if (entry.bankTransactionId || entry.bankImportId) return false;
+  if (isKidesysBlockedBillingSource(entry.source)) return false;
+  if (isKidesysHistoryIdOrReference(entry.id, entry.reference)) return false;
   if (isNonPostingImportedLedgerEntry(entry)) return false;
-  if (isKidesysImportedLedgerSource(entry.source)) return false;
-  if (isMigrationBillingSource(entry.source)) return false;
-  if (
-    source === "kideesys" ||
-    source.startsWith("kideesys-") ||
-    source.startsWith("kidesys")
-  ) {
-    return false;
-  }
+  if (isManualLedgerPayment(entry)) return true;
+  if (entry.type === "payment") return false;
   return true;
 }
 

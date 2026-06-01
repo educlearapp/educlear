@@ -37,6 +37,8 @@ import {
   formatLedgerReferenceDisplay,
   formatLedgerTypeLabel,
   canUndoStatementPostingEntry,
+  isStatementKidesysUndoBlocked,
+  isStatementManualUndoableEntry,
   isKidesysHistoryTypeLabel,
   isKidesysOpeningBalanceEntry,
   isMigratedOpeningBalanceOverviewLabel,
@@ -1140,21 +1142,39 @@ export default function StatementManage({
 
   const handleUndoSelectedTransaction = async () => {
     if (!selectedTransaction) return;
-    if (
-      selectedTransaction.isKidesysHistory ||
-      isKidesysHistoryTypeLabel(selectedTransaction.type)
+    console.log("UNDO ROW DEBUG", selectedTransaction);
+
+    const ledgerEntry = selectedTransaction.ledgerEntryId
+      ? ledger.find((e) => e.id === selectedTransaction.ledgerEntryId) ?? null
+      : null;
+
+    const isManualUndoable = ledgerEntry
+      ? isStatementManualUndoableEntry(ledgerEntry, selectedTransaction.type)
+      : Boolean(
+          selectedTransaction.ledgerEntryId?.startsWith("pay-") &&
+            !selectedTransaction.isKidesysHistory &&
+            !isKidesysHistoryTypeLabel(selectedTransaction.type)
+        );
+
+    if (isManualUndoable) {
+      if (!selectedTransaction.ledgerEntryId) {
+        setUndoNotice("This transaction cannot be undone.");
+        return;
+      }
+    } else if (
+      isStatementKidesysUndoBlocked(
+        ledgerEntry ?? undefined,
+        selectedTransaction.type,
+        selectedTransaction.isKidesysHistory
+      )
     ) {
       setUndoNotice("Imported Kid-e-Sys history cannot be undone.");
       return;
-    }
-    if (!selectedTransaction.ledgerEntryId) {
-      setUndoNotice("Imported Kid-e-Sys history cannot be undone.");
+    } else if (!selectedTransaction.ledgerEntryId || !selectedTransaction.canUndo) {
+      setUndoNotice("This transaction cannot be undone.");
       return;
     }
-    if (!selectedTransaction.canUndo) {
-      setUndoNotice("Imported Kid-e-Sys history cannot be undone.");
-      return;
-    }
+
     setUndoBusy(true);
     setUndoNotice("");
     try {
