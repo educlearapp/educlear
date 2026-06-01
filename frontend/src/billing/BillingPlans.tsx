@@ -111,7 +111,7 @@ export default function BillingPlans({
   const [feeSearch, setFeeSearch] = useState("");
   const [feePickerPage, setFeePickerPage] = useState(1);
   const [selectedFeeIds, setSelectedFeeIds] = useState<Set<string>>(() => new Set());
-  const [feeOptionsTick, setFeeOptionsTick] = useState(0);
+  const [allFees, setAllFees] = useState<any[]>([]);
   const feePickerWasOpenRef = useRef(false);
 
   useEffect(() => {
@@ -322,162 +322,87 @@ export default function BillingPlans({
 
 
   };
+
+  const parseFeesApiList = (data: unknown): any[] => {
+    if (!data || typeof data !== "object") return [];
+    const payload = data as Record<string, unknown>;
+    if (Array.isArray(data)) return data;
+    if (Array.isArray(payload.fees)) return payload.fees;
+    if (Array.isArray(payload.data)) return payload.data;
+    if (Array.isArray(payload.items)) return payload.items;
+    return [];
+  };
+
   const loadFeesThenOpen = async () => {
-
-
+    try {
+      localStorage.removeItem("billingPlanFeeOptions");
+    } catch {
+      // ignore storage errors
+    }
+    setAllFees([]);
 
     let loadedFees: any[] = [];
 
-
-
     const schoolIdForPlans =
-
-
-
       localStorage.getItem("schoolId") ||
-
-
-
       localStorage.getItem("selectedSchoolId") ||
-
-
-
       localStorage.getItem("currentSchoolId") ||
-
-
-
       "";
 
-
-
-    
-
-
-
-        const endpoints = [
-
-
-
-            `${API_URL}/api/fees?schoolId=${encodeURIComponent(schoolIdForPlans)}`,
-          
-          
-          
-          ];
-
-
-
-
-
-    for (const url of endpoints) {
-
-
+    if (schoolIdForPlans) {
+      const apiPageSize = 100;
+      let page = 1;
+      let totalFromApi = 0;
 
       try {
+        while (true) {
+          const url = `${API_URL}/api/fees?schoolId=${encodeURIComponent(
+            schoolIdForPlans
+          )}&page=${page}&pageSize=${apiPageSize}`;
+          const response = await fetch(url);
+          if (!response.ok) break;
 
+          const data = await response.json();
+          const list = parseFeesApiList(data);
+          const reportedTotal = Number((data as { total?: unknown })?.total);
+          if (Number.isFinite(reportedTotal) && reportedTotal > 0) {
+            totalFromApi = reportedTotal;
+          }
 
+          if (list.length > 0) {
+            loadedFees = loadedFees.concat(list);
+          }
 
-        const response = await fetch(url);
-
-
-
-        if (!response.ok) continue;
-
-
-
-        const data = await response.json();
-
-
-
-        const list = Array.isArray(data)
-
-
-
-          ? data
-
-
-
-          : Array.isArray(data?.fees)
-
-
-
-          ? data.fees
-
-
-
-          : Array.isArray(data?.data)
-
-
-
-          ? data.data
-
-
-
-          : Array.isArray(data?.items)
-
-
-
-          ? data.items
-
-
-
-          : [];
-
-
-
-        if (list.length > 0) {
-
-
-
-          loadedFees = list.map(normalizeFee);
-
-
-
-          break;
-
-
-
+          if (list.length === 0) break;
+          if (totalFromApi > 0 && loadedFees.length >= totalFromApi) break;
+          const responsePageSize = Number((data as { pageSize?: unknown })?.pageSize);
+          const effectivePageSize =
+            Number.isFinite(responsePageSize) && responsePageSize > 0
+              ? responsePageSize
+              : apiPageSize;
+          if (totalFromApi <= 0 && list.length < effectivePageSize) break;
+          page += 1;
         }
-
-
-
       } catch {
-
-
-
-        // try next endpoint
-
-
-
+        // API unavailable; loadedFees may stay empty
       }
-
-
-
     }
 
+    if (loadedFees.length > 0) {
+      loadedFees = loadedFees.map(normalizeFee);
+    }
 
+    console.log("FEE PICKER LOADED FEES", loadedFees.length, loadedFees);
 
-    localStorage.setItem(
+    setAllFees(loadedFees);
 
-
-
-      "billingPlanFeeOptions",
-
-
-
-      JSON.stringify(loadedFees)
-
-
-
-    );
-
-
-
-    setFeeOptionsTick((tick) => tick + 1);
+    try {
+      localStorage.setItem("billingPlanFeeOptions", JSON.stringify(loadedFees));
+    } catch {
+      // ignore storage errors
+    }
 
     setShowFeePicker(true);
-
-
-
   };
 
 
@@ -922,7 +847,7 @@ export default function BillingPlans({
 
 
 
-  const feeOptions = useMemo(() => getFeeOptions(), [feeOptionsTick]);
+  const feeOptions = allFees;
 
   const filteredFeeOptions = useMemo(() => {
     const q = feeSearch.trim().toLowerCase();
@@ -1916,7 +1841,7 @@ Add fees to billing plan
 
 
 
-    {feePickerRangeStart === 0 ? "0" : `${feePickerRangeStart} - ${feePickerRangeEnd}`} / {filteredFeeOptions.length}
+    {feePickerRangeStart === 0 ? "0" : `${feePickerRangeStart} - ${feePickerRangeEnd}`} / {allFees.length}
 
 
 
