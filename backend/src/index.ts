@@ -66,7 +66,6 @@ import superAdminSchoolsRoutes from "./routes/superAdminSchools";
 import { prisma } from "./prisma";
 import { bootstrapDevTestSchoolEmail } from "./dev/devTestSchoolEmail";
 import { ensureSuperAdminOnStartup } from "./services/ensureSuperAdmin";
-import { ensureDaSilvaSchoolRegistryRow } from "./services/ensureDaSilvaAcademyProduction";
 import { runProductionStartup } from "./services/productionStartup";
 
 type OtpRecord = {
@@ -901,12 +900,6 @@ app.get("/api/parent-portal/lookup", async (req, res) => {
 });
 async function startServer() {
   await runProductionStartup();
-  try {
-    const daSilvaSchoolId = await ensureDaSilvaSchoolRegistryRow();
-    console.log(`[startup] Da Silva school registry ensured: ${daSilvaSchoolId}`);
-  } catch (error) {
-    console.error("[startup] Da Silva school registry ensure failed:", error);
-  }
   await ensureSuperAdminOnStartup();
   await bootstrapDevTestSchoolEmail();
 
