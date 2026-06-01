@@ -1,6 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useState } from "react";
 import {
-  appendPaymentTransaction,
   BILLING_UPDATED_EVENT,
   calculateAccountBalance,
   computeOpenInvoiceLines,
@@ -11,7 +10,13 @@ import {
   type OpenInvoiceLine,
 } from "./billingLedger";
 import { formatLedgerTypeLabel, isKidesysOpeningBalanceEntry } from "./billingDisplayRules";
-import { createPayment, fetchOpenInvoices, syncBillingLedgerFromApi } from "./billingApi";
+import {
+  createPayment,
+  fetchOpenInvoices,
+  syncBillingLedgerFromApi,
+  syncStatementSummariesFromApi,
+  upsertPaymentFromApiResponse,
+} from "./billingApi";
 import {
   normalizeKidESysAccountRef,
   resolveKidESysAccountRefFromLearner,
@@ -97,15 +102,17 @@ function findLearnerRecord(learnerId: string, accountNo: string, learners: any[]
 function resolveParentNames(
   selectedAccount: PaymentAccountContext,
   learners: any[],
-  parents: any[]
+  parents: any[],
+  statementRows: any[] = []
 ): string[] {
   const fromAccount = String(selectedAccount?.parentName || "").trim();
-  if (fromAccount) return [fromAccount];
+  const names = new Set<string>();
+  if (fromAccount) names.add(fromAccount);
 
   const learnerId = String(selectedAccount?.learnerId || "").trim();
   const accountNo = String(selectedAccount?.accountNo || "").trim();
-  const learner = findLearnerRecord(learnerId, accountNo, learners);
-  const names = new Set<string>();
+  const familyAccountId = String(selectedAccount?.familyAccountId || "").trim();
+  const accountRef = normalizeKidESysAccountRef(accountNo);
 
   const pushParent = (p: any) => {
     if (!p) return;
@@ -115,16 +122,47 @@ function resolveParentNames(
     if (full) names.add(full);
   };
 
-  if (learner) {
+  const collectFromLearner = (learner: any) => {
+    if (!learner) return;
     for (const p of Array.isArray(learner?.parents) ? learner.parents : []) pushParent(p);
     for (const link of Array.isArray(learner?.parentLinks) ? learner.parentLinks : []) {
       pushParent(link?.parent || link);
+    }
+    for (const link of Array.isArray(learner?.links) ? learner.links : []) {
+      pushParent(link?.parent || link);
+    }
+    for (const p of Array.isArray(learner?.familyAccount?.parents)
+      ? learner.familyAccount.parents
+      : []) {
+      pushParent(p);
     }
     pushParent(learner?.parent);
     pushParent(learner?.primaryParent);
     pushParent(learner?.guardian);
     const legacy = String(learner?.parentName || learner?.guardianName || "").trim();
     if (legacy) names.add(legacy);
+  };
+
+  const learner = findLearnerRecord(learnerId, accountNo, learners);
+  collectFromLearner(learner);
+
+  for (const l of learners) {
+    const fid = String(l?.familyAccountId || l?.familyAccount?.id || "").trim();
+    const ref = resolveKidESysAccountRefFromLearner(l);
+    const sameFamily = Boolean(familyAccountId && fid === familyAccountId);
+    const sameAccount = Boolean(accountRef && ref === accountRef);
+    if (!sameFamily && !sameAccount) continue;
+    collectFromLearner(l);
+  }
+
+  for (const row of statementRows) {
+    const rowAcct = normalizeKidESysAccountRef(String(row?.accountNo || ""));
+    const rowFamily = String(row?.familyAccountId || "").trim();
+    const matchesFamily = Boolean(familyAccountId && rowFamily === familyAccountId);
+    const matchesAcct = Boolean(accountRef && rowAcct === accountRef);
+    if (!matchesFamily && !matchesAcct) continue;
+    const rowParent = String(row?.parentName || "").trim();
+    if (rowParent) names.add(rowParent);
   }
 
   if (names.size === 0 && learner) {
@@ -337,6 +375,7 @@ export default function PaymentCreateClean({
   };
 
   const [ledgerTick, setLedgerTick] = useState(0);
+  const [savedAccountNote, setSavedAccountNote] = useState("");
   const [saving, setSaving] = useState(false);
   const [saveError, setSaveError] = useState("");
   const [selectedPaymentId, setSelectedPaymentId] = useState<string | null>(null);
@@ -408,13 +447,15 @@ export default function PaymentCreateClean({
 
   const accountBalance = useMemo(() => {
     if (apiBalance !== null) return apiBalance;
-    return calculateAccountBalance(accountLedger, learnerId, accountNo);
-  }, [apiBalance, accountLedger, learnerId, accountNo]);
+    const fromStatement = normaliseBillingAmount(selectedAccount?.balance);
+    if (Number.isFinite(fromStatement)) return fromStatement;
+    return calculateAccountBalance(accountLedger, "", accountNo);
+  }, [apiBalance, selectedAccount?.balance, accountLedger, accountNo]);
 
   const invoiceRows = useMemo(() => {
     if (apiOpenInvoices.length) return apiOpenInvoices;
     void ledgerTick;
-    const lines = computeOpenInvoiceLines(accountLedger, learnerId, accountNo);
+    const lines = computeOpenInvoiceLines(accountLedger, "", accountNo);
     return lines.map((row) => {
       const entry = accountLedger.find((e) => e.id === row.id);
       const isOb = entry ? isKidesysOpeningBalanceEntry(entry) : false;
@@ -438,12 +479,13 @@ export default function PaymentCreateClean({
 
   const parentNames = useMemo(() => {
     if (!selectedAccount) return [];
-    return resolveParentNames(selectedAccount, learners, parents);
-  }, [selectedAccount, learners, parents]);
+    return resolveParentNames(selectedAccount, learners, parents, statementRows);
+  }, [selectedAccount, learners, parents, statementRows]);
 
   useEffect(() => {
     setRowAllocations({});
     setSelectedDetailId(null);
+    setSavedAccountNote("");
   }, [selectedAccount?.learnerId, selectedAccount?.accountNo, schoolId]);
 
   useEffect(() => {
@@ -466,17 +508,22 @@ export default function PaymentCreateClean({
     const next: Record<string, number> = {};
     for (const row of invoiceRows) {
       if (remaining <= 0.001) break;
+      const rowId = String(row.id || "").trim();
+      if (!rowId) continue;
       const unpaid = Number(row.unpaid || 0);
       const alloc = roundMoney(Math.min(unpaid, remaining));
       if (alloc > 0.001) {
-        next[row.id] = alloc;
+        next[rowId] = alloc;
         remaining = roundMoney(remaining - alloc);
       }
     }
     setRowAllocations(next);
+    const allocatedTotal = roundMoney(
+      Object.values(next).reduce((sum, value) => sum + Number(value || 0), 0)
+    );
     setTxnActionMsg(
-      Object.keys(next).length
-        ? "Payment allocated to oldest unpaid rows."
+      allocatedTotal > 0.001
+        ? `Allocated ${formatMoney(allocatedTotal)} across ${Object.keys(next).length} row(s).`
         : "No unpaid rows to allocate."
     );
   }, [paymentAmount, invoiceRows]);
@@ -545,8 +592,9 @@ export default function PaymentCreateClean({
         id: row.id,
         date: String(row.date || "").slice(0, 10),
         type: row.method || row.reference || "EFT",
-        description: row.description || "Payment",
+        description: String(row.description || "Payment").trim() || "Payment",
         amount: normaliseBillingAmount(row.amount),
+        source: row.source,
       }));
   }, [accountLedger]);
 
@@ -584,6 +632,19 @@ export default function PaymentCreateClean({
     () => savedPayments.find((p) => p.id === selectedPaymentId) || null,
     [savedPayments, selectedPaymentId]
   );
+
+  const accountNotesDisplay = useMemo(() => {
+    const draftMsg = draft.message.trim();
+    if (draftMsg) return draftMsg;
+    const saved = savedAccountNote.trim();
+    if (saved) return saved;
+    const latest = savedPayments[0];
+    const latestDesc = String(latest?.description || "").trim();
+    if (latestDesc && latestDesc !== "Payment") return latestDesc;
+    const selectedDesc = String(selectedPayment?.description || "").trim();
+    if (selectedDesc && selectedDesc !== "Payment") return selectedDesc;
+    return "";
+  }, [draft.message, savedAccountNote, savedPayments, selectedPayment]);
 
   const payerLabel = useMemo(() => {
     const name = `${selectedAccount?.name || ""} ${selectedAccount?.surname || ""}`.trim();
@@ -784,6 +845,8 @@ export default function PaymentCreateClean({
     setSaving(true);
     try {
       const paymentAmount = normaliseBillingAmount(amount);
+      const paymentNote =
+        draft.message.trim() || draft.description.trim() || "Payment";
       const result = (await createPayment({
         schoolId,
         // Billing identity is accountRef only (FamilyAccount.accountRef / Kid-e-Sys accountRef).
@@ -792,24 +855,29 @@ export default function PaymentCreateClean({
         amount: paymentAmount,
         date: paymentDate,
         reference: paymentType,
-        description:
-
-
-
-  draft.message.trim() ||
-
-
-
-  draft.description.trim() ||
-
-
-
-  "Payment",
+        description: paymentNote,
+        message: draft.message.trim(),
+        note: draft.message.trim(),
+        notes: draft.message.trim(),
         method: paymentType,
-      })) as { payment?: Record<string, unknown> };
+      })) as { payment?: Record<string, unknown>; balance?: number };
       console.log("CREATE PAYMENT RESULT", result);
 
-      const paymentId = String((result as any)?.payment?.id || "").trim();
+      const paymentRow = (result as any)?.payment;
+      const paymentId = String(paymentRow?.id || "").trim();
+      if (paymentRow) {
+        upsertPaymentFromApiResponse(schoolId, paymentRow, {
+          learnerId: "",
+          accountNo: resolvedAccountNo,
+          amount: paymentAmount,
+          date: paymentDate,
+          reference: paymentType,
+          description: paymentNote,
+          method: paymentType,
+          source: "manual",
+        });
+      }
+
       const allocationLines: AllocationLine[] = Object.entries(rowAllocations)
         .filter(([, amt]) => Number(amt || 0) > 0.001)
         .map(([invoiceId, allocatedAmount]) => ({
@@ -836,28 +904,22 @@ export default function PaymentCreateClean({
         });
       }
 
-      appendPaymentTransaction({
-        schoolId,
-        learnerId: "",
-        accountNo: resolvedAccountNo,
-        amount: paymentAmount,
-        date: paymentDate,
-        reference: paymentType,
-        description: draft.description.trim() || "Payment",
-
-             method: paymentType,      
-      });
-
       await syncBillingLedgerFromApi(schoolId);
+      await syncStatementSummariesFromApi(schoolId);
+      if (typeof result.balance === "number" && Number.isFinite(result.balance)) {
+        setApiBalance(result.balance);
+      }
+      await refreshLedger();
       notifyBillingUpdated();
       setLedgerTick((v) => v + 1);
       setRowAllocations({});
       setSelectedDetailId(null);
+      setSavedAccountNote(paymentNote);
+      if (paymentId) setSelectedPaymentId(paymentId);
       setDraft((prev: PaymentFormState) => ({
         ...prev,
         amount: "",
         description: "Payment",
-        message: "",
       }));
       await onSaved();
     } catch (error) {
@@ -879,6 +941,9 @@ export default function PaymentCreateClean({
     rowAllocations,
     amountUnallocated,
     onSaved,
+    refreshLedger,
+    amountUnallocated,
+    learnerId,
   ]);
 
   if (!selectedAccount) {
@@ -1120,7 +1185,7 @@ export default function PaymentCreateClean({
               Notes
             </div>
             <div style={{ color: "#64748b", fontWeight: 600, fontSize: 13 }}>
-              {draft.message.trim() || "No notes captured."}
+              {accountNotesDisplay || "No notes captured."}
             </div>
             <div style={{ marginTop: 8, color: "#64748b", fontSize: 12 }}>
               Last payment: {lastPaymentLabel}

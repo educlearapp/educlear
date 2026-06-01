@@ -177,7 +177,19 @@ export function applyApiLedgerEntries(schoolId: string, rows: any[]) {
 export function upsertPaymentFromApiResponse(
   schoolId: string,
   payment: any,
-  overrides?: Partial<Pick<BillingLedgerEntry, "learnerId" | "accountNo" | "amount" | "date" | "reference" | "description" | "method">>
+  overrides?: Partial<
+    Pick<
+      BillingLedgerEntry,
+      | "learnerId"
+      | "accountNo"
+      | "amount"
+      | "date"
+      | "reference"
+      | "description"
+      | "method"
+      | "source"
+    >
+  >
 ) {
   const sid = String(schoolId || "").trim();
   if (!sid || !payment) return;

@@ -69,10 +69,32 @@ export function isNonPostingImportedLedgerEntry(
 
 /** Undo allowed only for EduClear-created posting ledger rows. */
 export function isEduClearUndoableLedgerEntry(
-  entry: Pick<BillingLedgerEntry, "source" | "reference" | "description" | "type" | "date" | "createdAt">
+  entry: Pick<
+    BillingLedgerEntry,
+    | "source"
+    | "reference"
+    | "description"
+    | "type"
+    | "date"
+    | "createdAt"
+    | "bankTransactionId"
+    | "bankImportId"
+  >
 ): boolean {
-  if (isNonPostingImportedLedgerEntry(entry)) return false;
   if (entry.type !== "invoice" && entry.type !== "payment" && entry.type !== "penalty") {
+    return false;
+  }
+  const source = String(entry.source || "").trim().toLowerCase();
+  if (source === "manual") return true;
+  if (entry.bankTransactionId || entry.bankImportId) return false;
+  if (isNonPostingImportedLedgerEntry(entry)) return false;
+  if (isKidesysImportedLedgerSource(entry.source)) return false;
+  if (isMigrationBillingSource(entry.source)) return false;
+  if (
+    source === "kideesys" ||
+    source.startsWith("kideesys-") ||
+    source.startsWith("kidesys")
+  ) {
     return false;
   }
   return true;

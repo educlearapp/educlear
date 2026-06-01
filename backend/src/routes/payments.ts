@@ -31,6 +31,9 @@ router.get("/", async (req, res) => {
       method: entry.method,
       reference: entry.reference,
       description: entry.description,
+      message: entry.description,
+      note: entry.description,
+      notes: entry.description,
       type: entry.type,
       bankTransactionId: entry.bankTransactionId,
       bankImportId: entry.bankImportId,
@@ -108,6 +111,10 @@ router.post("/", async (req, res) => {
       });
     }
 
+    const paymentNote = String(
+      body.message || body.note || body.notes || body.description || "Payment"
+    ).trim();
+
     const entry: BillingLedgerEntry = {
       id: String(body.id || `pay-${Date.now()}`),
       schoolId,
@@ -117,13 +124,27 @@ router.post("/", async (req, res) => {
       amount,
       date: String(body.date || body.paidAt || new Date().toISOString()).slice(0, 10),
       reference: String(body.reference || "").trim(),
-      description: String(body.description || "Payment").trim(),
+      description: paymentNote || "Payment",
       method: String(body.method || body.type || "").trim() || undefined,
+      source: "manual",
       createdAt: new Date().toISOString(),
     };
 
     appendSchoolEntry(schoolId, entry);
-    return res.json({ success: true, payment: entry });
+    await relinkSchoolBillingLedger(schoolId);
+    const ledger = readSchoolLedger(schoolId);
+    const balance = calculateBalanceForAccount(ledger, "", resolved.accountRef);
+
+    return res.json({
+      success: true,
+      payment: {
+        ...entry,
+        message: entry.description,
+        note: entry.description,
+        notes: entry.description,
+      },
+      balance,
+    });
   } catch (error) {
     console.error("[payments] POST / failed:", error);
     return res.status(500).json({ success: false, error: "Server error" });
