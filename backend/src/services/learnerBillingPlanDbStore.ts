@@ -1,5 +1,9 @@
 import { prisma } from "../prisma";
 import {
+  isDaSilvaSchoolId,
+  refreshDaSilvaSchoolIdCache,
+} from "./daSilvaSchoolResolve";
+import {
   readSchoolBillingPlans as readSchoolBillingPlansFromJson,
   type StoredBillingPlanItem,
 } from "../utils/learnerBillingPlanStore";
@@ -32,6 +36,31 @@ function groupLinesByLearner(
     });
   }
   return grouped;
+}
+
+export async function readLearnerBillingPlanFromDb(
+  schoolId: string,
+  learnerId: string
+): Promise<StoredBillingPlanItem[]> {
+  const schoolKey = String(schoolId || "").trim();
+  const learnerKey = String(learnerId || "").trim();
+  if (!schoolKey || !learnerKey) return [];
+
+  const lines = await prisma.learnerBillingPlanLine.findMany({
+    where: { schoolId: schoolKey, learnerId: learnerKey },
+    orderBy: [{ sortOrder: "asc" }],
+    select: {
+      feeDescription: true,
+      amount: true,
+    },
+  });
+
+  return normalizeItems(
+    lines.map((line) => ({
+      feeDescription: line.feeDescription,
+      amount: line.amount,
+    }))
+  );
 }
 
 export async function readSchoolBillingPlansFromDb(
@@ -143,6 +172,33 @@ export async function upsertSchoolBillingPlansToDb(
   return savedCount;
 }
 
+function mergeSchoolBillingPlanMaps(
+  target: Record<string, StoredBillingPlanItem[]>,
+  source: Record<string, StoredBillingPlanItem[]>
+): void {
+  for (const [learnerId, items] of Object.entries(source)) {
+    if (items?.length) target[learnerId] = items;
+  }
+}
+
+async function readSchoolBillingPlansFromDbResolved(
+  schoolId: string
+): Promise<Record<string, StoredBillingPlanItem[]>> {
+  const key = String(schoolId || "").trim();
+  if (!key) return {};
+
+  if (isDaSilvaSchoolId(key)) {
+    const schoolIds = await refreshDaSilvaSchoolIdCache();
+    const merged: Record<string, StoredBillingPlanItem[]> = {};
+    for (const sid of schoolIds) {
+      mergeSchoolBillingPlanMaps(merged, await readSchoolBillingPlansFromDb(sid));
+    }
+    return merged;
+  }
+
+  return readSchoolBillingPlansFromDb(key);
+}
+
 /** DB is source of truth; JSON is legacy fallback with one-time migration into DB. */
 export async function readSchoolBillingPlansResolved(
   schoolId: string
@@ -150,7 +206,7 @@ export async function readSchoolBillingPlansResolved(
   const key = String(schoolId || "").trim();
   if (!key) return {};
 
-  const fromDb = await readSchoolBillingPlansFromDb(key);
+  const fromDb = await readSchoolBillingPlansFromDbResolved(key);
   const dbLearnerCount = Object.keys(fromDb).length;
   if (dbLearnerCount > 0) return fromDb;
 
