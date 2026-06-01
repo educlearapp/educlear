@@ -62,9 +62,11 @@ import payfastRoutes from "./routes/payfast";
 import creditsRoutes from "./routes/credits";
 import { requireMigrationAccess } from "./middleware/requireMigrationAccess";
 import { requireSuperAdmin } from "./middleware/requireSuperAdmin";
+import superAdminSchoolsRoutes from "./routes/superAdminSchools";
 import { prisma } from "./prisma";
 import { bootstrapDevTestSchoolEmail } from "./dev/devTestSchoolEmail";
 import { ensureSuperAdminOnStartup } from "./services/ensureSuperAdmin";
+import { ensureDaSilvaSchoolRegistryRow } from "./services/ensureDaSilvaAcademyProduction";
 import { runProductionStartup } from "./services/productionStartup";
 
 type OtpRecord = {
@@ -343,6 +345,7 @@ app.use(
   migrationUploadRouter,
   migrationUploadErrorHandler
 );
+app.use("/api/super-admin/schools", requireSuperAdmin, superAdminSchoolsRoutes);
 app.use("/api/super-admin/migration", requireMigrationAccess, migrationRoutes, migrationErrorHandler);
 app.use(
   "/api/super-admin/migration/da-silva",
@@ -898,6 +901,12 @@ app.get("/api/parent-portal/lookup", async (req, res) => {
 });
 async function startServer() {
   await runProductionStartup();
+  try {
+    const daSilvaSchoolId = await ensureDaSilvaSchoolRegistryRow();
+    console.log(`[startup] Da Silva school registry ensured: ${daSilvaSchoolId}`);
+  } catch (error) {
+    console.error("[startup] Da Silva school registry ensure failed:", error);
+  }
   await ensureSuperAdminOnStartup();
   await bootstrapDevTestSchoolEmail();
 

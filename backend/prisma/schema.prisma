@@ -451,9 +451,31 @@ model User {
 
   permissionOverrides UserPermissionOverride[]
 
+  rbacMeta UserRbacMeta?
+
   @@unique([schoolId, email])
   @@index([schoolId])
   @@index([roleId])
+}
+
+/// Persisted school-user RBAC (app role + permission map). Replaces legacy user-access.json for durability.
+model UserRbacMeta {
+  userId String @id
+
+  schoolId String
+
+  firstName String @default("")
+  surname String @default("")
+
+  appRole String @default("Viewer")
+
+  permissions Json
+
+  lastLoginAt DateTime?
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([schoolId])
 }
 
 /// Global permission catalog (keys are stable across schools)
