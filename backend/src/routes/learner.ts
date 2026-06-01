@@ -7,11 +7,15 @@ import { PrismaClient } from "@prisma/client";
 import { getSurnamePrefix, resolveLearnerAccountNo } from "../utils/learnerIdentity";
 import { normalizeLearnerGender } from "../utils/learnerGender";
 import {
+  readLearnerBillingPlanFromDb,
+  readSchoolBillingPlansResolved,
   removeLearnerBillingPlanFromDb,
   upsertLearnerBillingPlanToDb,
 } from "../services/learnerBillingPlanDbStore";
 import {
+  buildBillingPlanLookupIndexes,
   removeLearnerBillingPlan,
+  resolveLearnerBillingPlanItems,
   upsertLearnerBillingPlan,
   type StoredBillingPlanItem,
 } from "../utils/learnerBillingPlanStore";
@@ -402,9 +406,37 @@ router.get("/:id", async (req, res) => {
       return res.status(404).json({ success: false, error: "Learner not found" });
     }
 
+    const accountNo = resolveLearnerAccountNo(learner);
+    let billingPlansByLearner: Awaited<ReturnType<typeof readSchoolBillingPlansResolved>> = {};
+    try {
+      billingPlansByLearner = await readSchoolBillingPlansResolved(learner.schoolId);
+    } catch (billingErr) {
+      console.error("[GET /api/learners/:id] billingPlans read failed", billingErr);
+    }
+    const billingPlanIndexes = buildBillingPlanLookupIndexes(billingPlansByLearner, [
+      {
+        id: learner.id,
+        admissionNo: learner.admissionNo || accountNo,
+        idNumber: learner.idNumber,
+      },
+    ]);
+    const billingPlan = resolveLearnerBillingPlanItems(
+      {
+        id: learner.id,
+        admissionNo: learner.admissionNo || accountNo,
+        idNumber: learner.idNumber,
+      },
+      billingPlansByLearner,
+      billingPlanIndexes
+    );
+
     return res.status(200).json({
       success: true,
-      learner: mapLearnerDetailForClient(learner),
+      billingPlan,
+      learner: {
+        ...mapLearnerDetailForClient(learner),
+        billingPlan,
+      },
     });
   } catch (error) {
     console.error("GET LEARNER ERROR:", error);
@@ -438,6 +470,13 @@ router.get("/", async (req, res) => {
 
     const includeHistorical =
       String(req.query.includeHistorical || "").toLowerCase() === "true";
+
+    let billingPlansByLearner: Awaited<ReturnType<typeof readSchoolBillingPlansResolved>> = {};
+    try {
+      billingPlansByLearner = await readSchoolBillingPlansResolved(String(schoolId));
+    } catch (billingErr) {
+      console.error("[GET /api/learners] billingPlans read failed", billingErr);
+    }
 
     const learners = await prisma.learner.findMany({
 
@@ -488,15 +527,28 @@ router.get("/", async (req, res) => {
 
     });
 
-
+    const billingPlanIndexes = buildBillingPlanLookupIndexes(billingPlansByLearner, [
+      ...learners.map((l) => ({
+        id: l.id,
+        admissionNo: l.admissionNo,
+        idNumber: l.idNumber,
+      })),
+    ]);
 
     const learnersWithParents = learners.map((learner) => {
 
 
 
       const accountNo = resolveLearnerAccountNo(learner);
-
-
+      const billingPlan = resolveLearnerBillingPlanItems(
+        {
+          id: learner.id,
+          admissionNo: learner.admissionNo || accountNo,
+          idNumber: learner.idNumber,
+        },
+        billingPlansByLearner,
+        billingPlanIndexes
+      );
 
       return {
 
@@ -590,15 +642,13 @@ router.get("/", async (req, res) => {
 
         parents: learner.links?.map((link) => mapParentForClient(link)) || [],
 
-
+        billingPlan,
 
       };
 
 
 
     });
-
-
 
     return res.status(200).json({
 
@@ -1423,6 +1473,7 @@ router.put("/:id", async (req, res) => {
 
     });
 
+    let billingPlan: StoredBillingPlanItem[] = [];
     if (Array.isArray(req.body?.billingPlan)) {
       const items: StoredBillingPlanItem[] = req.body.billingPlan
         .map((fee: any) => ({
@@ -1435,10 +1486,20 @@ router.put("/:id", async (req, res) => {
       if (items.length === 0) {
         await removeLearnerBillingPlanFromDb(updatedLearner.schoolId, updatedLearner.id);
         removeLearnerBillingPlan(updatedLearner.schoolId, updatedLearner.id);
+        billingPlan = [];
       } else {
         await upsertLearnerBillingPlanToDb(updatedLearner.schoolId, updatedLearner.id, items);
         upsertLearnerBillingPlan(updatedLearner.schoolId, updatedLearner.id, items);
+        billingPlan = await readLearnerBillingPlanFromDb(
+          updatedLearner.schoolId,
+          updatedLearner.id
+        );
       }
+    } else {
+      billingPlan = await readLearnerBillingPlanFromDb(
+        updatedLearner.schoolId,
+        updatedLearner.id
+      );
     }
 
 
@@ -1487,14 +1548,17 @@ router.put("/:id", async (req, res) => {
 
 
 
-    const accountNo = resolveLearnerAccountNo(refreshedLearner);
+    if (!refreshedLearner) {
+      return res.status(500).json({ success: false, error: "Failed to refresh learner" });
+    }
+
     return res.json({
       success: true,
+      billingPlan,
       learner: {
-        ...refreshedLearner,
-        accountNo,
-        accountNumber: accountNo,
-        parents: refreshedLearner?.links?.map((link) => mapParentForClient(link)) || [],
+        ...mapLearnerDetailForClient(refreshedLearner),
+        billingPlan,
+        parents: refreshedLearner.links?.map((link) => mapParentForClient(link)) || [],
       },
     });
 
