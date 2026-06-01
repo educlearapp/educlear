@@ -182,6 +182,9 @@ export default function ParentPortalApp() {
   const [cellNo, setCellNo] = useState("");
   const [otpCode, setOtpCode] = useState("");
   const [otpSent, setOtpSent] = useState(false);
+  const [loginSuccess, setLoginSuccess] = useState<string | null>(null);
+  const [sendOtpLoading, setSendOtpLoading] = useState(false);
+  const [verifyOtpLoading, setVerifyOtpLoading] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [shellView, setShellView] = useState<"login" | "pwa" | "app">(getParentToken() ? "app" : "login");
@@ -270,6 +273,13 @@ export default function ParentPortalApp() {
       })
       .catch(() => {});
   }, []);
+
+  useEffect(() => {
+    setOtpSent(false);
+    setOtpCode("");
+    setLoginSuccess(null);
+    setError(null);
+  }, [schoolId, idNumber, cellNo]);
 
   const sid = session?.parent?.school?.id || "";
   const parentId = session?.parent?.id || "";
@@ -421,31 +431,48 @@ export default function ParentPortalApp() {
   async function requestOtp() {
     if (!schoolId || !idNumber) {
       setError("Select your school and enter your ID number.");
+      setLoginSuccess(null);
       return;
     }
-    setLoading(true);
+    setSendOtpLoading(true);
     setError(null);
+    setLoginSuccess(null);
     try {
       const data = await apiFetch("/api/parent-portal/auth/request-otp", {
         method: "POST",
-        body: JSON.stringify({ schoolId, idNumber, cellNo }),
+        body: JSON.stringify({ schoolId, idNumber, cellNo: cellNo.trim() }),
       });
       setOtpSent(true);
+      setLoginSuccess(String(data?.message || "Verification code sent"));
       if (data?.devOtp) setOtpCode(String(data.devOtp));
     } catch (e: any) {
+      setOtpSent(false);
       setError(e?.message || "OTP request failed");
     } finally {
-      setLoading(false);
+      setSendOtpLoading(false);
     }
   }
 
   async function verifyOtp() {
-    setLoading(true);
+    if (!schoolId || !idNumber) {
+      setError("Select your school and enter your ID number.");
+      return;
+    }
+    if (!otpSent) {
+      setError("Tap Send OTP to receive a verification code first.");
+      return;
+    }
+    const code = otpCode.trim();
+    if (!code) {
+      setError("Enter the verification code sent to your mobile.");
+      return;
+    }
+    setVerifyOtpLoading(true);
     setError(null);
     try {
       const data = await apiFetch("/api/parent-portal/auth/verify-otp", {
         method: "POST",
-        body: JSON.stringify({ schoolId, idNumber, cellNo, code: otpCode }),
+        body: JSON.stringify({ schoolId, idNumber, cellNo: cellNo.trim(), code }),
       });
       setParentSession(data.token, { parent: data.parent, learners: data.learners });
       setSession({ parent: data.parent, learners: data.learners });
@@ -455,7 +482,7 @@ export default function ParentPortalApp() {
     } catch (e: any) {
       setError(e?.message || "Verification failed");
     } finally {
-      setLoading(false);
+      setVerifyOtpLoading(false);
     }
   }
 
@@ -678,33 +705,59 @@ export default function ParentPortalApp() {
               ))}
             </select>
             <label className="parent-portal-field-label">ID number</label>
-            <input className="parent-portal-input" value={idNumber} onChange={(e) => setIdNumber(e.target.value)} />
-            <label className="parent-portal-field-label">Mobile (optional)</label>
-            <input className="parent-portal-input" value={cellNo} onChange={(e) => setCellNo(e.target.value)} />
+            <input
+              className="parent-portal-input"
+              value={idNumber}
+              onChange={(e) => setIdNumber(e.target.value)}
+              autoComplete="off"
+              inputMode="numeric"
+            />
+            <label className="parent-portal-field-label">Mobile (optional if on file at school)</label>
+            <input
+              className="parent-portal-input"
+              value={cellNo}
+              onChange={(e) => setCellNo(e.target.value)}
+              type="tel"
+              autoComplete="tel"
+              placeholder="e.g. 0821234567"
+            />
+            {loginSuccess && <p className="parent-portal-login-success">{loginSuccess}</p>}
             {error && <p className="parent-portal-login-error">{error}</p>}
-            {!otpSent ? (
-              <button
-                type="button"
-                className="parent-portal-btn-primary parent-portal-full-width mt12"
-                onClick={() => void requestOtp()}
-                disabled={loading}
-              >
-                {loading ? "Sending…" : "Send OTP"}
-              </button>
-            ) : (
-              <>
-                <label className="parent-portal-field-label">OTP code</label>
-                <input className="parent-portal-input" value={otpCode} onChange={(e) => setOtpCode(e.target.value)} />
-                <button
-                  type="button"
-                  className="parent-portal-btn-primary parent-portal-full-width mt12"
-                  onClick={() => void verifyOtp()}
-                  disabled={loading}
-                >
-                  {loading ? "Verifying…" : "Verify & enter"}
-                </button>
-              </>
-            )}
+            <button
+              type="button"
+              className="parent-portal-btn-primary parent-portal-full-width mt12"
+              onClick={() => void requestOtp()}
+              disabled={sendOtpLoading || verifyOtpLoading || !schoolId || !idNumber}
+            >
+              {sendOtpLoading && <span className="parent-portal-spinner" aria-hidden />}
+              {sendOtpLoading ? "Sending…" : "Send OTP"}
+            </button>
+            <label className="parent-portal-field-label">OTP code</label>
+            <input
+              className="parent-portal-input"
+              value={otpCode}
+              onChange={(e) => setOtpCode(e.target.value.replace(/\D/g, "").slice(0, 6))}
+              inputMode="numeric"
+              autoComplete="one-time-code"
+              placeholder={otpSent ? "6-digit code" : "Send OTP first"}
+              disabled={!otpSent || sendOtpLoading || verifyOtpLoading}
+            />
+            <button
+              type="button"
+              className="parent-portal-btn-primary parent-portal-full-width mt12"
+              onClick={() => void verifyOtp()}
+              disabled={
+                !otpSent ||
+                sendOtpLoading ||
+                verifyOtpLoading ||
+                otpCode.trim().length < 6 ||
+                !schoolId ||
+                !idNumber
+              }
+            >
+              {verifyOtpLoading && <span className="parent-portal-spinner" aria-hidden />}
+              {verifyOtpLoading ? "Verifying…" : "Verify & enter"}
+            </button>
             {isMobile() && (
               <button
                 type="button"

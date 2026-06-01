@@ -741,6 +741,35 @@
   font-size: 13px;
 }
 
+.parent-portal-login-success {
+  color: #166534;
+  margin-top: 10px;
+  font-size: 13px;
+}
+
+.parent-portal-spinner {
+  display: inline-block;
+  width: 14px;
+  height: 14px;
+  margin-right: 8px;
+  vertical-align: -2px;
+  border: 2px solid rgba(255, 255, 255, 0.35);
+  border-top-color: #fff;
+  border-radius: 50%;
+  animation: parent-portal-spin 0.7s linear infinite;
+}
+
+@keyframes parent-portal-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.parent-portal-input:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
 .parent-portal-full-width {
   width: 100%;
   margin-top: 8px;
