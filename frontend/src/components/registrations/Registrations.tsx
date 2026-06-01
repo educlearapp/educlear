@@ -1,4 +1,5 @@
 import React, { useEffect, useMemo, useState } from "react";
+import "./Registrations.css";
 import { API_URL } from "../../api";
 import { calculateLearnerAge } from "../../learner/learnerIdentity";
 import { isActiveEnrollment, isFemaleLearnerForStats, isMaleLearnerForStats } from "../../utils/learnerGender";
@@ -374,7 +375,7 @@ export default function Registrations(props: AnyRecord) {
     onOpenLearner,
   } = props;
 
-  const [search, setSearch] = useState("");
+  const [childrenSearch, setChildrenSearch] = useState("");
 
 
 
@@ -545,7 +546,7 @@ setLocalLearners(mergedLearners);
 
 
 
-    const q = search.trim().toLowerCase();
+    const q = childrenSearch.trim().toLowerCase();
 
 
 
@@ -613,7 +614,7 @@ setLocalLearners(mergedLearners);
 
 
 
-  }, [localLearners, search, showUnenrolled]);
+  }, [localLearners, childrenSearch, showUnenrolled]);
 
 
 
@@ -1018,39 +1019,22 @@ setLocalLearners(mergedLearners);
 
 
 
-            <input
-
-
-
-              style={{ ...inputStyle, gridColumn: "1 / -1", maxWidth: 360 }}
-
-
-
-              value={search}
-
-
-
-              onChange={(e) => {
-
-
-
-                setSearch(e.target.value);
-
-
-
-                setPage(1);
-
-
-
-              }}
-
-
-
-              placeholder="Search"
-
-
-
-            />
+            <div style={{ gridColumn: "1 / -1" }}>
+              <input
+                type="text"
+                value={childrenSearch}
+                onChange={(e) => {
+                  const value = e.currentTarget.value;
+                  console.log("CHILDREN SEARCH VALUE:", value);
+                  setChildrenSearch(value);
+                }}
+                placeholder="Search learner…"
+                className="children-search-input-fixed"
+              />
+              <div style={{ fontSize: 12, color: "#111827", marginTop: 4, fontWeight: 600 }}>
+                Search value: {childrenSearch || "(empty)"}
+              </div>
+            </div>
 
 
 
