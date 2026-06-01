@@ -51,6 +51,7 @@ function Home() {
 
 
     <div
+      className="landing-home"
 
 
 
@@ -211,47 +212,7 @@ EduClear
 
 
 
-      <main
-
-
-
-        style={{
-
-
-
-          minHeight: "calc(100vh - 140px)",
-
-
-
-          display: "flex",
-
-
-
-          flexDirection: "column",
-
-
-
-          alignItems: "center",
-
-
-
-          justifyContent: "center",
-
-
-
-          textAlign: "center",
-
-
-
-          padding: "40px 20px",
-
-
-
-        }}
-
-
-
-      >
+      <main className="landing-home__main" style={{ textAlign: "center" }}>
 
 
 
