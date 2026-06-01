@@ -1,4 +1,5 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
+import { flushSync } from "react-dom";
 
 
 
@@ -113,6 +114,36 @@ export default function BillingPlans({
   const [selectedFeeIds, setSelectedFeeIds] = useState<Set<string>>(() => new Set());
   const [allFees, setAllFees] = useState<any[]>([]);
   const feePickerWasOpenRef = useRef(false);
+  const [saveStatus, setSaveStatus] = useState<"idle" | "saving" | "saved">("idle");
+  const [saveError, setSaveError] = useState("");
+  const prevPlanLearnerKeyRef = useRef<string | null>(null);
+  const savedResetTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  useEffect(() => {
+    const learnerKey = selectedPlanLearner
+      ? String(selectedPlanLearner?.id || selectedPlanLearner?.learnerId || "")
+      : "";
+    if (
+      prevPlanLearnerKeyRef.current !== null &&
+      prevPlanLearnerKeyRef.current !== learnerKey
+    ) {
+      if (savedResetTimerRef.current) {
+        clearTimeout(savedResetTimerRef.current);
+        savedResetTimerRef.current = null;
+      }
+      setSaveStatus("idle");
+      setSaveError("");
+    }
+    prevPlanLearnerKeyRef.current = learnerKey || null;
+  }, [selectedPlanLearner?.id, selectedPlanLearner?.learnerId]);
+
+  useEffect(() => {
+    return () => {
+      if (savedResetTimerRef.current) {
+        clearTimeout(savedResetTimerRef.current);
+      }
+    };
+  }, []);
 
   useEffect(() => {
     const opening = showFeePicker && !feePickerWasOpenRef.current;
@@ -407,164 +438,175 @@ export default function BillingPlans({
 
 
 
-  const savePlan = async (learner: any, plan: any[]) => {
-
-
-
+  const applyLearnerPlanLocally = (learner: any, plan: any[]) => {
     const learnerKey = String(learner?.id || learner?.learnerId || "");
-
-
-
     const updatedLearner = {
-
-
-
       ...learner,
-
-
-
       billingPlan: plan,
-
-
-
     };
 
-
-
     setLearners((prev: any[]) =>
-
-
-
       prev.map((item: any) =>
-
-
-
-        String(item?.id || item?.learnerId) === learnerKey
-
-
-
-          ? updatedLearner
-
-
-
-          : item
-
-
-
+        String(item?.id || item?.learnerId) === learnerKey ? updatedLearner : item
       )
-
-
-
     );
-
-
 
     setSelectedPlanLearner(updatedLearner);
 
-
-
     try {
-
-
-
       const savedPlans = JSON.parse(
-
-
-
         localStorage.getItem("educlearBillingPlans") || "{}"
-
-
-
       );
-
-
-
       const updatedPlans = { ...savedPlans };
       if (plan.length === 0) {
         delete updatedPlans[learnerKey];
       } else {
         updatedPlans[learnerKey] = plan;
       }
-
+      localStorage.setItem("educlearBillingPlans", JSON.stringify(updatedPlans));
       localStorage.setItem(
-        "educlearBillingPlans",
-        JSON.stringify(updatedPlans)
-      );
-
-
-
-      localStorage.setItem(
-
-
-
         "selectedBillingPlanLearner",
-
-
-
         JSON.stringify(updatedLearner)
-
-
-
       );
-
-
-
     } catch {
-
-
-
       // ignore storage error
-
-
-
     }
 
+    return { learnerKey, updatedLearner };
+  };
 
+  const refreshLearnerFromApi = async (learnerKey: string) => {
+    if (!learnerKey) return null;
+
+    const response = await fetch(
+      `${API_URL}/api/learners/${encodeURIComponent(learnerKey)}`
+    );
+    const payload = await response.json().catch(() => ({}));
+    if (!response.ok) {
+      throw new Error(
+        String((payload as { error?: string })?.error || "Failed to refresh billing plan")
+      );
+    }
+
+    const loaded = (payload as { learner?: any })?.learner || payload;
+    const refreshedLearner = {
+      ...loaded,
+      billingPlan: Array.isArray(loaded?.billingPlan) ? loaded.billingPlan : [],
+    };
+
+    setLearners((prev: any[]) =>
+      prev.map((item: any) =>
+        String(item?.id || item?.learnerId) === learnerKey ? refreshedLearner : item
+      )
+    );
+    setSelectedPlanLearner(refreshedLearner);
 
     try {
-
-
-
-      if (learnerKey) {
-
-
-
-        await fetch(`${API_URL}/api/learners/${learnerKey}`, {
-
-
-
-          method: "PUT",
-
-
-
-          headers: { "Content-Type": "application/json" },
-
-
-
-          body: JSON.stringify(updatedLearner),
-
-
-
-        });
-
-
-
+      const savedPlans = JSON.parse(
+        localStorage.getItem("educlearBillingPlans") || "{}"
+      );
+      const updatedPlans = { ...savedPlans };
+      if (refreshedLearner.billingPlan.length === 0) {
+        delete updatedPlans[learnerKey];
+      } else {
+        updatedPlans[learnerKey] = refreshedLearner.billingPlan;
       }
-
-
-
+      localStorage.setItem("educlearBillingPlans", JSON.stringify(updatedPlans));
+      localStorage.setItem(
+        "selectedBillingPlanLearner",
+        JSON.stringify(refreshedLearner)
+      );
     } catch {
-
-
-
-      // local save already done
-
-
-
+      // ignore storage error
     }
 
+    return refreshedLearner;
+  };
 
+  const savePlan = async (
+    learner: any,
+    plan: any[],
+    options?: { refreshFromApi?: boolean }
+  ): Promise<{ ok: boolean; error?: string }> => {
+    const { learnerKey, updatedLearner } = applyLearnerPlanLocally(learner, plan);
 
+    if (!learnerKey) {
+      return { ok: true };
+    }
+
+    let apiOk = true;
+    let apiError = "";
+
+    try {
+      const response = await fetch(
+        `${API_URL}/api/learners/${encodeURIComponent(learnerKey)}`,
+        {
+          method: "PUT",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(updatedLearner),
+        }
+      );
+
+      if (!response.ok) {
+        apiOk = false;
+        const payload = await response.json().catch(() => ({}));
+        apiError = String(
+          (payload as { error?: string })?.error || `Save failed (${response.status})`
+        );
+      }
+    } catch (error) {
+      apiOk = false;
+      apiError =
+        error instanceof Error ? error.message : "Failed to save billing plan";
+    }
+
+    if (options?.refreshFromApi) {
+      if (apiOk) {
+        try {
+          await refreshLearnerFromApi(learnerKey);
+        } catch (error) {
+          apiOk = false;
+          apiError =
+            error instanceof Error
+              ? error.message
+              : "Saved but could not refresh billing plan";
+        }
+      } else {
+        try {
+          await refreshLearnerFromApi(learnerKey);
+        } catch {
+          // keep displayed error from failed save
+        }
+      }
+    }
+
+    return { ok: apiOk, error: apiOk ? undefined : apiError };
+  };
+
+  const handleExplicitSave = async (learner: any) => {
+    if (savedResetTimerRef.current) {
+      clearTimeout(savedResetTimerRef.current);
+      savedResetTimerRef.current = null;
+    }
+    setSaveError("");
+    flushSync(() => {
+      setSaveStatus("saving");
+    });
+
+    const plan = getPlan(learner);
+    const result = await savePlan(learner, plan, { refreshFromApi: true });
+
+    if (result.ok) {
+      setSaveStatus("saved");
+      setSaveError("");
+      savedResetTimerRef.current = setTimeout(() => {
+        setSaveStatus("idle");
+        savedResetTimerRef.current = null;
+      }, 2000);
+    } else {
+      setSaveStatus("idle");
+      setSaveError(result.error || "Failed to save billing plan");
+    }
   };
 
 
@@ -1003,7 +1045,22 @@ export default function BillingPlans({
 
 
 
-            <div style={{ display: "flex", gap: "8px" }}>
+            <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-end", gap: "6px" }}>
+
+
+
+              {saveError ? (
+                <div
+                  role="alert"
+                  style={{ color: "#b91c1c", fontSize: "13px", fontWeight: 700, textAlign: "right" }}
+                >
+                  {saveError}
+                </div>
+              ) : null}
+
+
+
+              <div style={{ display: "flex", gap: "8px" }}>
 
 
 
@@ -1020,11 +1077,28 @@ export default function BillingPlans({
 
 
               <button
-                style={btnGold}
-                onClick={() => savePlan(activePlanLearner, getPlan(activePlanLearner))}
+                type="button"
+                style={{
+                  ...btnGold,
+                  opacity: saveStatus === "saving" ? 0.85 : 1,
+                  cursor: saveStatus === "saving" ? "wait" : "pointer",
+                }}
+                disabled={saveStatus === "saving"}
+                onClick={() => {
+                  console.log("BILLING PLAN SAVE BUTTON CLICKED");
+                  void handleExplicitSave(activePlanLearner);
+                }}
               >
-                Save
+                {saveStatus === "saving"
+                  ? "Saving..."
+                  : saveStatus === "saved"
+                    ? "Saved ✓"
+                    : "Save"}
               </button>
+
+
+
+              </div>
 
 
 
