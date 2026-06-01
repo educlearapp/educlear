@@ -1,17 +1,19 @@
 import { useCallback, useState } from "react";
+import { useNavigate } from "react-router-dom";
 import SchoolsSummaryCards from "../superAdmin/components/SchoolsSummaryCards";
 import SchoolsTable from "../superAdmin/components/SchoolsTable";
 import SchoolsToolbar from "../superAdmin/components/SchoolsToolbar";
 import { useSchoolsManagement } from "../superAdmin/hooks/useSchoolsManagement";
 import type { SchoolRecord } from "../superAdmin/types/schools";
+import { formatSchoolDate, formatSchoolDateTime } from "../superAdmin/utils/formatSchoolDates";
 import "./SuperAdminSchoolsPage.css";
 
-type StubNotice = {
+type Notice = {
   title: string;
   message: string;
 };
 
-function StubModal({ notice, onClose }: { notice: StubNotice; onClose: () => void }) {
+function NoticeModal({ notice, onClose }: { notice: Notice; onClose: () => void }) {
   const handleBackdropClick = (e: React.MouseEvent<HTMLDivElement>) => {
     if (e.target === e.currentTarget) onClose();
   };
@@ -40,10 +42,28 @@ function StubModal({ notice, onClose }: { notice: StubNotice; onClose: () => voi
   );
 }
 
+function schoolDetailMessage(school: SchoolRecord): string {
+  const lines = [
+    `Owner: ${school.ownerName}`,
+    `Email: ${school.email}`,
+    `Package: ${school.package}`,
+    `Status: ${school.status}${school.isActive ? "" : " (inactive)"}`,
+    `Learners: ${school.learnerCount}`,
+    `Parents: ${school.parentCount}`,
+    `Registered: ${formatSchoolDate(school.registeredAt)}`,
+    `Last login: ${formatSchoolDateTime(school.lastLoginAt)}`,
+  ];
+  return lines.join("\n");
+}
+
 export default function SuperAdminSchoolsPage() {
+  const navigate = useNavigate();
   const {
     filteredSchools,
     summary,
+    loading,
+    error,
+    reload,
     search,
     setSearch,
     statusFilter,
@@ -51,79 +71,105 @@ export default function SuperAdminSchoolsPage() {
     packageFilter,
     setPackageFilter,
     hasRegisteredSchools,
-    onViewSchool,
     onActivateSchool,
     onSuspendSchool,
     onChangePackage,
     onResetPassword,
     onAddSchool,
+    onOpenDashboard,
   } = useSchoolsManagement();
 
-  const [notice, setNotice] = useState<StubNotice | null>(null);
+  const [notice, setNotice] = useState<Notice | null>(null);
 
-  const showStub = useCallback((title: string, message: string) => {
+  const showNotice = useCallback((title: string, message: string) => {
     setNotice({ title, message });
   }, []);
 
   const handleView = useCallback(
     (school: SchoolRecord) => {
-      onViewSchool(school);
-      showStub("View School", `School profile for “${school.schoolName}” will open here once connected.`);
+      showNotice(school.schoolName, schoolDetailMessage(school));
     },
-    [onViewSchool, showStub]
+    [showNotice]
   );
 
   const handleActivate = useCallback(
     (school: SchoolRecord) => {
       onActivateSchool(school);
-      showStub("Activate School", `Activation for “${school.schoolName}” will be available when the API is connected.`);
+      showNotice(
+        "Activate School",
+        `Activation for “${school.schoolName}” will be available in a future release.`
+      );
     },
-    [onActivateSchool, showStub]
+    [onActivateSchool, showNotice]
   );
 
   const handleSuspend = useCallback(
     (school: SchoolRecord) => {
       onSuspendSchool(school);
-      showStub("Suspend School", `Suspension for “${school.schoolName}” will be available when the API is connected.`);
+      showNotice(
+        "Suspend School",
+        `Suspension for “${school.schoolName}” will be available in a future release.`
+      );
     },
-    [onSuspendSchool, showStub]
+    [onSuspendSchool, showNotice]
   );
 
   const handleChangePackage = useCallback(
     (school: SchoolRecord) => {
       onChangePackage(school);
-      showStub(
+      showNotice(
         "Change Package",
-        `Package changes for “${school.schoolName}” will be available when the API is connected.`
+        `Package changes for “${school.schoolName}” will be available in a future release.`
       );
     },
-    [onChangePackage, showStub]
+    [onChangePackage, showNotice]
   );
 
   const handleResetPassword = useCallback(
     (school: SchoolRecord) => {
       onResetPassword(school);
-      showStub(
+      showNotice(
         "Reset Password",
-        `Owner password reset for “${school.schoolName}” will be available when the API is connected.`
+        `Owner password reset for “${school.schoolName}” will be available in a future release.`
       );
     },
-    [onResetPassword, showStub]
+    [onResetPassword, showNotice]
   );
 
   const handleAddSchool = useCallback(() => {
     onAddSchool();
-    showStub("Add School", "School onboarding will be available when the Super Admin API is connected.");
-  }, [onAddSchool, showStub]);
+    navigate("/register-school");
+  }, [onAddSchool, navigate]);
+
+  const handleOpenDashboard = useCallback(
+    (school: SchoolRecord) => {
+      onOpenDashboard(school);
+    },
+    [onOpenDashboard]
+  );
 
   return (
     <div className="sa-schools-page">
       <header className="sa-schools-header">
         <h1 className="page-title">Schools Management</h1>
         <p className="sa-schools-subtitle">
-          Manage all registered schools on the EduClear platform.
+          Monitor all registered schools on the EduClear platform.
         </p>
       </header>
+
+      {error ? (
+        <div className="sa-schools-alert sa-schools-alert--error" role="alert">
+          <p className="sa-schools-alert-title">Could not load schools</p>
+          <p className="sa-schools-alert-text">{error}</p>
+          <button
+            type="button"
+            className="sa-schools-btn sa-schools-btn--gold"
+            onClick={() => void reload()}
+          >
+            Retry
+          </button>
+        </div>
+      ) : null}
 
       <SchoolsSummaryCards summary={summary} />
 
@@ -140,14 +186,16 @@ export default function SuperAdminSchoolsPage() {
       <SchoolsTable
         schools={filteredSchools}
         hasRegisteredSchools={hasRegisteredSchools}
+        loading={loading}
         onView={handleView}
         onActivate={handleActivate}
         onSuspend={handleSuspend}
         onChangePackage={handleChangePackage}
         onResetPassword={handleResetPassword}
+        onOpenDashboard={handleOpenDashboard}
       />
 
-      {notice ? <StubModal notice={notice} onClose={() => setNotice(null)} /> : null}
+      {notice ? <NoticeModal notice={notice} onClose={() => setNotice(null)} /> : null}
     </div>
   );
 }

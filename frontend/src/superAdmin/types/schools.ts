@@ -10,8 +10,13 @@ export type SchoolRecord = {
   package: SchoolPackage;
   status: SchoolStatus;
   learnerCount: number;
+  parentCount: number;
   registeredAt: string | null;
   lastLoginAt: string | null;
+  /** Subscription / account active when known from API. */
+  isActive: boolean;
+  /** True when the signed-in session belongs to this school (can open /dashboard). */
+  canOpenDashboard: boolean;
 };
 
 export type SchoolsSummary = {

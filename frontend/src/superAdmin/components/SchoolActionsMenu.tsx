@@ -8,6 +8,7 @@ type Props = {
   onSuspend: (school: SchoolRecord) => void;
   onChangePackage: (school: SchoolRecord) => void;
   onResetPassword: (school: SchoolRecord) => void;
+  onOpenDashboard?: (school: SchoolRecord) => void;
 };
 
 export default function SchoolActionsMenu({
@@ -17,6 +18,7 @@ export default function SchoolActionsMenu({
   onSuspend,
   onChangePackage,
   onResetPassword,
+  onOpenDashboard,
 }: Props) {
   const [open, setOpen] = useState(false);
   const menuId = useId();
@@ -67,8 +69,13 @@ export default function SchoolActionsMenu({
       {open ? (
         <div id={menuId} className="sa-schools-actions-menu" role="menu">
           <button type="button" role="menuitem" onClick={() => run(onView)}>
-            View School
+            View
           </button>
+          {school.canOpenDashboard && onOpenDashboard ? (
+            <button type="button" role="menuitem" onClick={() => run(onOpenDashboard)}>
+              Open school dashboard
+            </button>
+          ) : null}
           {school.status !== "Active" ? (
             <button type="button" role="menuitem" onClick={() => run(onActivate)}>
               Activate

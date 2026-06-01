@@ -9,6 +9,12 @@ const SUPER_ADMIN_ROLE_VALUE: EduClearRole = "superAdmin";
 /** Platform super-admin login — always exempt from school subscription gate. */
 export const PLATFORM_SUPER_ADMIN_EMAIL = "info@educlear.co.za";
 
+/** Emails always treated as platform super admin (matches backend SUPER_ADMIN defaults). */
+export const PLATFORM_SUPER_ADMIN_EMAILS = [
+  PLATFORM_SUPER_ADMIN_EMAIL,
+  "dasilvaacademy@gmail.com",
+] as const;
+
 /** Default route after super-admin login (Migration Center). */
 export const SUPER_ADMIN_ENTRY_PATH = "/super-admin/migration";
 
@@ -48,10 +54,8 @@ export function isExplicitSuperAdminLoginPayload(data: unknown): boolean {
     return true;
   }
 
-  if (
-    normalizeSessionEmail(user?.email) === PLATFORM_SUPER_ADMIN_EMAIL ||
-    normalizeSessionEmail(root.email) === PLATFORM_SUPER_ADMIN_EMAIL
-  ) {
+  const sessionEmail = normalizeSessionEmail(user?.email) || normalizeSessionEmail(root.email);
+  if (PLATFORM_SUPER_ADMIN_EMAILS.some((allowed) => sessionEmail === allowed)) {
     return true;
   }
 
@@ -83,7 +87,8 @@ export function isSuperAdmin(): boolean {
   if (isSuperAdminUserRole(localStorage.getItem("userRole"))) {
     return true;
   }
-  return normalizeSessionEmail(localStorage.getItem("userEmail")) === PLATFORM_SUPER_ADMIN_EMAIL;
+  const sessionEmail = normalizeSessionEmail(localStorage.getItem("userEmail"));
+  return PLATFORM_SUPER_ADMIN_EMAILS.some((allowed) => sessionEmail === allowed);
 }
 
 export function getEduClearRole(): string | null {

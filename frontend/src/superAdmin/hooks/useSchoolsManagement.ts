@@ -1,18 +1,16 @@
-import { useCallback, useMemo, useState } from "react";
-import { INITIAL_SCHOOLS } from "../data/schoolsData";
+import { useCallback, useEffect, useMemo, useState } from "react";
+import { fetchSuperAdminSchools } from "../api/schoolsApi";
 import type { SchoolPackage, SchoolRecord, SchoolStatus, SchoolsSummary } from "../types/schools";
 
 export type SchoolsStatusFilter = "all" | SchoolStatus;
 export type SchoolsPackageFilter = "all" | SchoolPackage;
 
-function computeSummary(schools: SchoolRecord[]): SchoolsSummary {
-  return {
-    total: schools.length,
-    active: schools.filter((s) => s.status === "Active").length,
-    suspended: schools.filter((s) => s.status === "Suspended").length,
-    trial: schools.filter((s) => s.status === "Trial").length,
-  };
-}
+const EMPTY_SUMMARY: SchoolsSummary = {
+  total: 0,
+  active: 0,
+  suspended: 0,
+  trial: 0,
+};
 
 function matchesSearch(school: SchoolRecord, query: string) {
   const q = query.trim().toLowerCase();
@@ -25,12 +23,35 @@ function matchesSearch(school: SchoolRecord, query: string) {
 }
 
 export function useSchoolsManagement() {
-  const [schools] = useState<SchoolRecord[]>(INITIAL_SCHOOLS);
+  const [schools, setSchools] = useState<SchoolRecord[]>([]);
+  const [summary, setSummary] = useState<SchoolsSummary>(EMPTY_SUMMARY);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState<SchoolsStatusFilter>("all");
   const [packageFilter, setPackageFilter] = useState<SchoolsPackageFilter>("all");
 
-  const summary = useMemo(() => computeSummary(schools), [schools]);
+  const loadSchools = useCallback(async () => {
+    setLoading(true);
+    setError(null);
+    try {
+      const result = await fetchSuperAdminSchools();
+      setSchools(result.schools);
+      setSummary(result.summary);
+    } catch (err: unknown) {
+      const message =
+        err instanceof Error ? err.message : "Could not load registered schools. Please try again.";
+      setSchools([]);
+      setSummary(EMPTY_SUMMARY);
+      setError(message);
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    void loadSchools();
+  }, [loadSchools]);
 
   const filteredSchools = useMemo(() => {
     return schools.filter((school) => {
@@ -43,7 +64,7 @@ export function useSchoolsManagement() {
   const hasRegisteredSchools = schools.length > 0;
 
   const onViewSchool = useCallback((_school: SchoolRecord) => {
-    /* API: navigate to school detail */
+    /* handled in page */
   }, []);
 
   const onActivateSchool = useCallback((_school: SchoolRecord) => {
@@ -66,10 +87,19 @@ export function useSchoolsManagement() {
     /* API: open create-school flow */
   }, []);
 
+  const onOpenDashboard = useCallback((school: SchoolRecord) => {
+    if (school.canOpenDashboard) {
+      window.location.assign("/dashboard");
+    }
+  }, []);
+
   return {
     schools,
     filteredSchools,
     summary,
+    loading,
+    error,
+    reload: loadSchools,
     search,
     setSearch,
     statusFilter,
@@ -83,5 +113,6 @@ export function useSchoolsManagement() {
     onChangePackage,
     onResetPassword,
     onAddSchool,
+    onOpenDashboard,
   };
 }

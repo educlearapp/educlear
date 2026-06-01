@@ -1,4 +1,4 @@
-import { isSuperAdmin, PLATFORM_SUPER_ADMIN_EMAIL } from "./roles";
+import { isSuperAdmin, PLATFORM_SUPER_ADMIN_EMAILS } from "./roles";
 
 const MIGRATION_ACCESS_STORAGE_KEY = "educlearMigrationAccess";
 const MIGRATION_ALLOWED_ROLES = new Set([
@@ -43,7 +43,7 @@ export function migrationAccessDeniedDebug(): MigrationAccessDeniedDebug {
   const role = normalizeRole(localStorage.getItem("userRole"));
   const email = normalizeEmail(localStorage.getItem("userEmail"));
   let missingPermission = "migration_center";
-  if (isSuperAdmin() || email === PLATFORM_SUPER_ADMIN_EMAIL) {
+  if (isSuperAdmin() || PLATFORM_SUPER_ADMIN_EMAILS.some((allowed) => email === allowed)) {
     missingPermission = "none";
   } else if (!role) {
     missingPermission = "role_missing";

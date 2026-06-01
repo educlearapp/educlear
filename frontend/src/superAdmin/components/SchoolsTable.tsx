@@ -10,6 +10,7 @@ const TABLE_COLUMNS = [
   "Package",
   "Status",
   "Learners",
+  "Parents",
   "Registration Date",
   "Last Login",
   "Actions",
@@ -18,21 +19,25 @@ const TABLE_COLUMNS = [
 type Props = {
   schools: SchoolRecord[];
   hasRegisteredSchools: boolean;
+  loading?: boolean;
   onView: (school: SchoolRecord) => void;
   onActivate: (school: SchoolRecord) => void;
   onSuspend: (school: SchoolRecord) => void;
   onChangePackage: (school: SchoolRecord) => void;
   onResetPassword: (school: SchoolRecord) => void;
+  onOpenDashboard?: (school: SchoolRecord) => void;
 };
 
 export default function SchoolsTable({
   schools,
   hasRegisteredSchools,
+  loading = false,
   onView,
   onActivate,
   onSuspend,
   onChangePackage,
   onResetPassword,
+  onOpenDashboard,
 }: Props) {
   const colSpan = TABLE_COLUMNS.length;
 
@@ -50,7 +55,15 @@ export default function SchoolsTable({
             </tr>
           </thead>
           <tbody>
-            {!hasRegisteredSchools ? (
+            {loading ? (
+              <tr>
+                <td colSpan={colSpan} className="sa-schools-table-empty">
+                  <div className="sa-schools-empty-state">
+                    <p className="sa-schools-empty-title">Loading schools…</p>
+                  </div>
+                </td>
+              </tr>
+            ) : !hasRegisteredSchools ? (
               <tr>
                 <td colSpan={colSpan} className="sa-schools-table-empty">
                   <div className="sa-schools-empty-state">
@@ -80,6 +93,7 @@ export default function SchoolsTable({
                     <SchoolStatusBadge status={school.status} />
                   </td>
                   <td className="sa-schools-cell sa-schools-cell--numeric">{school.learnerCount}</td>
+                  <td className="sa-schools-cell sa-schools-cell--numeric">{school.parentCount}</td>
                   <td>{formatSchoolDate(school.registeredAt)}</td>
                   <td>{formatSchoolDateTime(school.lastLoginAt)}</td>
                   <td className="sa-schools-cell sa-schools-cell--actions">
@@ -90,6 +104,7 @@ export default function SchoolsTable({
                       onSuspend={onSuspend}
                       onChangePackage={onChangePackage}
                       onResetPassword={onResetPassword}
+                      onOpenDashboard={onOpenDashboard}
                     />
                   </td>
                 </tr>
