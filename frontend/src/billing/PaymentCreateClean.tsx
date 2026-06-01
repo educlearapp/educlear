@@ -845,20 +845,6 @@ export default function PaymentCreateClean({
         reference: paymentType,
         description: draft.description.trim() || "Payment",
 
-
-
-           message: draft.message.trim(),
-
-
-
-            note: draft.message.trim(),
-
-
-
-              notes: draft.message.trim(),
-
-
-
              method: paymentType,      
       });
 
