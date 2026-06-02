@@ -10,7 +10,8 @@ export default function UniversalMigrationCenterNav({ className }: { className?:
     !path.includes("/research") &&
     !path.includes("/legacy") &&
     !path.includes("/billing-plans") &&
-    !path.includes("/learner-repair");
+    !path.includes("/learner-repair") &&
+    !path.includes("/topup-payments");
 
   return (
     <nav
@@ -34,6 +35,12 @@ export default function UniversalMigrationCenterNav({ className }: { className?:
         className={`uc-migration-center-nav-link${path.includes("/billing-plans") ? " uc-migration-center-nav-link--active" : ""}`}
       >
         Billing plans import
+      </Link>
+      <Link
+        to="/super-admin/migration/topup-payments"
+        className={`uc-migration-center-nav-link${path.includes("/topup-payments") ? " uc-migration-center-nav-link--active" : ""}`}
+      >
+        Top-Up Payments
       </Link>
       <Link
         to="/super-admin/migration/learner-repair"
