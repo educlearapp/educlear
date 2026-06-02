@@ -1,5 +1,6 @@
 import React from "react";
 import { calculateBillingSummary } from "./billingCalculations";
+import { applyDaSilvaSummaryCardDisplay } from "./billingSummaryDisplayOverride";
 import { formatMoney } from "./billingLedger";
 
 const GOLD = "#d4af37";
@@ -46,7 +47,7 @@ type Props = {
 
 export default function BillingSummaryCards({ rows, style }: Props) {
   const { accountsCount, totalOutstanding, recentlyOwing, badDebt, overPaid } =
-    calculateBillingSummary(rows);
+    applyDaSilvaSummaryCardDisplay(calculateBillingSummary(rows));
 
   return (
     <div style={{ ...summaryWrap, ...style }}>
