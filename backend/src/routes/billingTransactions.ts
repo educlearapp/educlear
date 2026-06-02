@@ -29,7 +29,10 @@ router.post("/:id/undo", async (req, res) => {
 
     return res.json({
       success: true,
-      removed: result.removed,
+      original: result.original,
+      correction: result.correction,
+      alreadyUndone: result.alreadyUndone,
+      ledgerEntries: result.ledgerEntries,
       accounts: result.accounts,
       statements: result.accounts,
     });

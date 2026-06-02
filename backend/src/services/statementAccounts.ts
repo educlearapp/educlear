@@ -20,6 +20,7 @@ import {
   MIGRATED_OPENING_BALANCE_OVERVIEW,
   countsTowardPostImportBalanceDelta,
   isKidesysOpeningBalanceEntry,
+  shouldShowLedgerEntryOnStatement,
 } from "../utils/billingDisplayRules";
 import { normalizeKidesysBillingSection } from "./billingSummary";
 import {
@@ -117,7 +118,12 @@ function resolveBillingGroupKey(learner: {
 
 function lastRealInvoice(entries: BillingLedgerEntry[]) {
   return entries
-    .filter((e) => e.type === "invoice" && !isKidesysOpeningBalanceEntry(e))
+    .filter(
+      (e) =>
+        e.type === "invoice" &&
+        !isKidesysOpeningBalanceEntry(e) &&
+        shouldShowLedgerEntryOnStatement(e, false)
+    )
     .sort(
       (a, b) =>
         new Date(b.date || b.createdAt).getTime() - new Date(a.date || a.createdAt).getTime()
@@ -172,7 +178,7 @@ function resolveLastPaymentFields(
 ) {
   const histPay = historySummary?.lastPayment;
   const lastPayment = accountEntries
-    .filter((e) => e.type === "payment")
+    .filter((e) => e.type === "payment" && shouldShowLedgerEntryOnStatement(e, false))
     .sort(
       (a, b) =>
         new Date(b.date || b.createdAt).getTime() - new Date(a.date || a.createdAt).getTime()

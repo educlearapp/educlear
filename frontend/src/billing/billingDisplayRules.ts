@@ -17,7 +17,42 @@ export type BillingDisplayEntry = Pick<
 >;
 
 export type BillingUndoableDisplayEntry = BillingDisplayEntry &
-  Pick<BillingLedgerEntry, "bankTransactionId" | "bankImportId">;
+  Pick<
+    BillingLedgerEntry,
+    | "bankTransactionId"
+    | "bankImportId"
+    | "statementHidden"
+    | "undoneAt"
+    | "undoneByCorrectionId"
+    | "correctsEntryId"
+  >;
+
+export const EDUCLEAR_UNDO_CORRECTION_SOURCE = "educlear_undo_correction";
+export const EDUCLEAR_CORRECTION_JOURNAL_TYPE = "Correction Journal";
+
+export function isEduClearUndoCorrectionEntry(
+  entry: Pick<BillingLedgerEntry, "source" | "correctsEntryId">
+): boolean {
+  if (String(entry.correctsEntryId || "").trim()) return true;
+  return String(entry.source || "").trim() === EDUCLEAR_UNDO_CORRECTION_SOURCE;
+}
+
+export function isUndoneLedgerEntry(
+  entry: Pick<BillingLedgerEntry, "undoneAt" | "undoneByCorrectionId">
+): boolean {
+  if (String(entry.undoneAt || "").trim()) return true;
+  return Boolean(String(entry.undoneByCorrectionId || "").trim());
+}
+
+export function shouldShowLedgerEntryOnStatement(
+  entry: Pick<BillingLedgerEntry, "statementHidden" | "source" | "correctsEntryId">,
+  showCorrectionsAudit = false
+): boolean {
+  if (showCorrectionsAudit) return true;
+  if (entry.statementHidden) return false;
+  if (isEduClearUndoCorrectionEntry(entry)) return false;
+  return true;
+}
 
 const MIGRATION_SOURCES = new Set([
   "kidesys_migration",
@@ -162,6 +197,7 @@ export function isNonPostingImportedLedgerEntry(entry: BillingDisplayEntry): boo
 
 /** Undo allowed only for EduClear-created posting ledger rows. */
 export function isEduClearUndoableLedgerEntry(entry: BillingUndoableDisplayEntry): boolean {
+  if (isUndoneLedgerEntry(entry) || isEduClearUndoCorrectionEntry(entry)) return false;
   if (entry.type !== "invoice" && entry.type !== "payment" && entry.type !== "penalty") {
     return false;
   }
@@ -207,6 +243,7 @@ export function sanitizeLiveBillingText(text: string | undefined | null): string
 }
 
 export function formatLedgerTypeLabel(entry: BillingLedgerEntry): string {
+  if (isEduClearUndoCorrectionEntry(entry)) return EDUCLEAR_CORRECTION_JOURNAL_TYPE;
   if (isKidesysOpeningBalanceEntry(entry)) return OPENING_BALANCE_MIGRATION_TYPE;
   switch (entry.type) {
     case "invoice":

@@ -47,6 +47,7 @@ import {
   isKidesysOpeningBalanceEntry,
   isMigratedOpeningBalanceOverviewLabel,
   MIGRATED_OPENING_BALANCE_OVERVIEW,
+  shouldShowLedgerEntryOnStatement,
 } from "./billingDisplayRules";
 import type { KidesysHistoryEntry } from "./kidesysTransactionHistory";
 import {
@@ -101,6 +102,7 @@ const TRANSACTIONS_PER_PAGE = 10;
 
 type ModalKind =
   | "pending"
+  | "undoConfirm"
   | "journal"
   | "unallocateConfirm"
   | "unallocatePending"
@@ -296,6 +298,7 @@ export default function StatementManage({
   const [selectedTransactionKey, setSelectedTransactionKey] = useState<string | null>(null);
   const [undoBusy, setUndoBusy] = useState(false);
   const [undoNotice, setUndoNotice] = useState("");
+  const [showCorrectionsAudit, setShowCorrectionsAudit] = useState(false);
   const [pdfDownloading, setPdfDownloading] = useState(false);
   const emailReady = isSchoolEmailReadyForUi(emailReadiness);
 
@@ -634,6 +637,7 @@ export default function StatementManage({
     );
     let running = 0;
     sortedPosting.forEach((entry, index) => {
+      if (!shouldShowLedgerEntryOnStatement(entry, showCorrectionsAudit)) return;
       if (!shouldShowOpeningBalanceMigration(period, entry) && isKidesysOpeningBalanceEntry(entry)) {
         return;
       }
@@ -695,7 +699,7 @@ export default function StatementManage({
       if (a.isKidesysHistory !== b.isKidesysHistory) return a.isKidesysHistory ? 1 : -1;
       return String(a.key).localeCompare(String(b.key));
     });
-  }, [ledger, filteredKidesysHistory, learnerNameById, accountRef, accountNo, period]);
+  }, [ledger, filteredKidesysHistory, learnerNameById, accountRef, accountNo, period, showCorrectionsAudit]);
 
   const openingBalanceRows = useMemo(
     () => transactions.filter((row) => row.isOpeningBalance),
@@ -1188,15 +1192,14 @@ export default function StatementManage({
     );
   };
 
-  const handleUndoSelectedTransaction = async () => {
-    if (!selectedTransaction) return;
+  const validateUndoSelectedTransaction = (): string | null => {
+    if (!selectedTransaction) return "Select a transaction to undo.";
 
     if (
       selectedTransaction.isKidesysHistory ||
       isKidesysHistoryTypeLabel(selectedTransaction.type)
     ) {
-      setUndoNotice("Imported Kid-e-Sys history cannot be undone.");
-      return;
+      return "Imported Kid-e-Sys history cannot be undone.";
     }
 
     const ledgerEntry = selectedTransaction.ledgerEntryId
@@ -1213,41 +1216,76 @@ export default function StatementManage({
 
     if (isManualUndoable) {
       if (!selectedTransaction.ledgerEntryId) {
-        setUndoNotice("This transaction cannot be undone.");
-        return;
+        return "This transaction cannot be undone.";
       }
-    } else if (
+      return null;
+    }
+    if (
       isStatementKidesysUndoBlocked(
         ledgerEntry ?? undefined,
         selectedTransaction.type,
         selectedTransaction.isKidesysHistory
       )
     ) {
-      setUndoNotice("Imported Kid-e-Sys history cannot be undone.");
+      return "Imported Kid-e-Sys history cannot be undone.";
+    }
+    if (!selectedTransaction.ledgerEntryId || !selectedTransaction.canUndo) {
+      return "This transaction cannot be undone.";
+    }
+    return null;
+  };
+
+  const openUndoConfirmModal = () => {
+    const error = validateUndoSelectedTransaction();
+    if (error) {
+      setUndoNotice(error);
       return;
-    } else if (!selectedTransaction.ledgerEntryId || !selectedTransaction.canUndo) {
-      setUndoNotice("This transaction cannot be undone.");
+    }
+    setUndoNotice("");
+    setModalKind("undoConfirm");
+  };
+
+  const confirmUndoSelectedTransaction = async () => {
+    if (!selectedTransaction?.ledgerEntryId || undoBusy) return;
+    const error = validateUndoSelectedTransaction();
+    if (error) {
+      setUndoNotice(error);
+      setModalKind(null);
       return;
     }
 
     setUndoBusy(true);
     setUndoNotice("");
     try {
-      await undoBillingTransaction(
+      const result = await undoBillingTransaction(
         schoolId,
         selectedTransaction.ledgerEntryId,
         accountRef || accountNo,
         selectedTransaction.auditNo
       );
-      await syncBillingLedgerFromApi(schoolId);
-      await refreshBillingFromApi(schoolId);
+      const ref = accountRef || accountNo;
+      const updatedRow = Array.isArray(result?.accounts)
+        ? result.accounts.find(
+            (row: { accountNo?: string }) =>
+              String(row?.accountNo || "").trim().toUpperCase() === String(ref || "").trim().toUpperCase()
+          )
+        : null;
+      if (updatedRow && selected) {
+        persistBillingAccount("selectedInvoiceAccount", { ...selected, ...updatedRow });
+        persistBillingAccount("selectedPaymentAccount", { ...selected, ...updatedRow });
+      }
+      setModalKind(null);
       setSelectedTransactionKey(null);
-      setActionNotice("Transaction undone. Balances updated.");
-      notifyBillingUpdated();
+      setActionNotice(
+        result?.alreadyUndone
+          ? "Transaction was already undone. Balances are up to date."
+          : "Transaction undone. A correction journal was created and both entries are hidden from the normal statement."
+      );
       notifyLearnersRefresh();
-    } catch (error) {
-      const message = error instanceof Error ? error.message : "Failed to undo transaction.";
+    } catch (err) {
+      const message = err instanceof Error ? err.message : "Failed to undo transaction.";
       setUndoNotice(sanitizeUserFacingError(message, "Failed to undo transaction."));
+      setModalKind(null);
     } finally {
       setUndoBusy(false);
     }
@@ -1516,7 +1554,25 @@ export default function StatementManage({
           }}
         >
           <span>Transactions</span>
-          <div style={{ display: "flex", gap: 8 }}>
+          <div style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" }}>
+            <label
+              style={{
+                display: "inline-flex",
+                alignItems: "center",
+                gap: 6,
+                fontSize: 12,
+                fontWeight: 700,
+                color: "#e2e8f0",
+                cursor: "pointer",
+              }}
+            >
+              <input
+                type="checkbox"
+                checked={showCorrectionsAudit}
+                onChange={(e) => setShowCorrectionsAudit(e.target.checked)}
+              />
+              Show corrections / audit
+            </label>
             <button
               type="button"
               style={{
@@ -1542,10 +1598,10 @@ export default function StatementManage({
               disabled={!selectedTransaction || undoBusy}
               onClick={(e) => {
                 e.stopPropagation();
-                void handleUndoSelectedTransaction();
+                openUndoConfirmModal();
               }}
             >
-              {undoBusy ? "Undoing…" : "Undo"}
+              Undo
             </button>
           </div>
         </div>
@@ -1950,6 +2006,49 @@ export default function StatementManage({
               {familyActionSuccess || "Unmerge completed."}
             </p>
           )}
+        </StatementModal>
+      ) : null}
+
+      {modalKind === "undoConfirm" ? (
+        <StatementModal
+          title="Undo transaction"
+          onClose={undoBusy ? undefined : () => setModalKind(null)}
+          footer={
+            <>
+              <button
+                type="button"
+                style={modalBtn}
+                onClick={() => setModalKind(null)}
+                disabled={undoBusy}
+              >
+                No
+              </button>
+              <button
+                type="button"
+                style={modalGoldBtn}
+                onClick={() => void confirmUndoSelectedTransaction()}
+                disabled={undoBusy}
+              >
+                {undoBusy ? "Undoing…" : "Yes"}
+              </button>
+            </>
+          }
+        >
+          <p style={{ margin: 0, lineHeight: 1.7, color: "#334155", fontWeight: 600 }}>
+            Do you want to undo the selected transaction?
+          </p>
+          <p style={{ margin: "12px 0 0", lineHeight: 1.7, color: "#64748b", fontWeight: 600 }}>
+            This will NOT delete the transaction.
+          </p>
+          <p style={{ margin: "8px 0 0", lineHeight: 1.7, color: "#64748b", fontWeight: 600 }}>
+            Instead a correction journal will be created and both this transaction and the correction
+            journal will be hidden from view.
+          </p>
+          {undoNotice ? (
+            <p style={{ margin: "12px 0 0", color: "#b91c1c", fontWeight: 700, lineHeight: 1.6 }}>
+              {undoNotice}
+            </p>
+          ) : null}
         </StatementModal>
       ) : null}
 

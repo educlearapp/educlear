@@ -6,6 +6,7 @@ import {
   formatLedgerReferenceDisplay,
   formatLedgerTypeLabel,
   isKidesysOpeningBalanceEntry,
+  shouldShowLedgerEntryOnStatement,
 } from "../utils/billingDisplayRules";
 import {
   normaliseAmount,
@@ -28,6 +29,8 @@ type BuildStatementTransactionsInput = {
   ledgerEntries: BillingLedgerEntry[];
   period: string;
   nameByLearnerId: Map<string, string>;
+  /** When true, include undone rows and correction journals (admin audit). */
+  showCorrectionsAudit?: boolean;
 };
 
 function resolveEntryLearnerLabel(
@@ -53,6 +56,7 @@ export function buildStatementTransactions(
   input: BuildStatementTransactionsInput
 ): StatementPdfTransaction[] {
   const { schoolId, accountRef, ledgerEntries, period, nameByLearnerId } = input;
+  const showCorrectionsAudit = Boolean(input.showCorrectionsAudit);
 
   type DisplayRow = Omit<StatementPdfTransaction, "balance"> & {
     key: string;
@@ -68,6 +72,7 @@ export function buildStatementTransactions(
   );
   let running = 0;
   sortedPosting.forEach((entry) => {
+    if (!shouldShowLedgerEntryOnStatement(entry, showCorrectionsAudit)) return;
     if (!shouldShowOpeningBalanceMigration(period, entry) && isKidesysOpeningBalanceEntry(entry)) {
       return;
     }

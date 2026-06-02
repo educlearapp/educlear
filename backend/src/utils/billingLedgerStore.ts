@@ -23,6 +23,14 @@ export type BillingLedgerEntry = {
   bankImportId?: string;
   source?: string;
   createdAt: string;
+  /** Hidden from parent/normal statement & PDF when true. */
+  statementHidden?: boolean;
+  /** ISO timestamp when undone via correction journal. */
+  undoneAt?: string;
+  /** Correction journal entry id that offsets this row. */
+  undoneByCorrectionId?: string;
+  /** Original ledger entry id this correction journal reverses. */
+  correctsEntryId?: string;
 };
 
 export { isKidesysOpeningBalanceEntry } from "./billingDisplayRules";

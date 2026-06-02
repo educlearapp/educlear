@@ -168,6 +168,12 @@ function mapApiRowToLedgerEntry(sid: string, row: any): BillingLedgerEntry {
     bankImportId: row.bankImportId ? String(row.bankImportId) : undefined,
     source: row.source ? String(row.source) : undefined,
     createdAt: String(row.createdAt || new Date().toISOString()),
+    statementHidden: row.statementHidden === true ? true : undefined,
+    undoneAt: row.undoneAt ? String(row.undoneAt) : undefined,
+    undoneByCorrectionId: row.undoneByCorrectionId
+      ? String(row.undoneByCorrectionId)
+      : undefined,
+    correctsEntryId: row.correctsEntryId ? String(row.correctsEntryId) : undefined,
   };
 }
 
@@ -307,6 +313,14 @@ export const undoBillingTransaction = async (
   const body = await response.json().catch(() => ({}));
   if (!response.ok) {
     throw new Error(String(body?.error || "Failed to undo transaction"));
+  }
+  if (Array.isArray(body?.ledgerEntries) && body.ledgerEntries.length) {
+    applyApiLedgerEntries(sid, body.ledgerEntries);
+  } else if (body?.original || body?.correction) {
+    applyApiLedgerEntries(
+      sid,
+      [body.original, body.correction].filter(Boolean)
+    );
   }
   if (Array.isArray(body?.accounts)) {
     writeStatementApiAccounts(sid, body.accounts);

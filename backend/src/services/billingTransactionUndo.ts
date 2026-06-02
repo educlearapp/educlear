@@ -1,12 +1,14 @@
 import { buildAccountsFromAgeAnalysisSnapshots } from "./statementAccounts";
 import {
+  EDUCLEAR_UNDO_CORRECTION_SOURCE,
   isEduClearUndoableLedgerEntry,
   isStatementKidesysUndoBlocked,
 } from "../utils/billingDisplayRules";
 import {
   readSchoolLedger,
-  removeSchoolEntry,
+  upsertSchoolEntries,
   type BillingLedgerEntry,
+  type BillingLedgerEntryType,
 } from "../utils/billingLedgerStore";
 import { clearPaymentAllocations } from "../utils/paymentAllocationStore";
 
@@ -18,9 +20,41 @@ export type UndoBillingTransactionInput = {
 };
 
 export type UndoBillingTransactionResult = {
-  removed: BillingLedgerEntry;
+  original: BillingLedgerEntry;
+  correction: BillingLedgerEntry;
+  alreadyUndone: boolean;
   accounts: Awaited<ReturnType<typeof buildAccountsFromAgeAnalysisSnapshots>>;
+  ledgerEntries: BillingLedgerEntry[];
 };
+
+export function undoCorrectionEntryId(originalId: string): string {
+  const safe = String(originalId || "")
+    .trim()
+    .replace(/[^a-zA-Z0-9_-]/g, "_")
+    .slice(0, 96);
+  return `undo-corr-${safe}`;
+}
+
+export function correctionReversalType(
+  originalType: BillingLedgerEntryType
+): BillingLedgerEntryType {
+  switch (originalType) {
+    case "invoice":
+    case "penalty":
+      return "credit";
+    case "payment":
+      return "invoice";
+    case "credit":
+    default:
+      return "invoice";
+  }
+}
+
+function buildCorrectionReference(original: BillingLedgerEntry): string {
+  const base = String(original.reference || original.id || "TXN").trim() || "TXN";
+  const prefixed = `CORRECTION-${base}`;
+  return prefixed.length > 120 ? `${prefixed.slice(0, 117)}...` : prefixed;
+}
 
 function resolveLedgerEntry(
   entries: BillingLedgerEntry[],
@@ -60,6 +94,15 @@ function resolveLedgerEntry(
   return null;
 }
 
+function collectAccountLedgerSlice(
+  entries: BillingLedgerEntry[],
+  accountNo: string
+): BillingLedgerEntry[] {
+  const ref = String(accountNo || "").trim().toUpperCase();
+  if (!ref) return [];
+  return entries.filter((e) => String(e.accountNo || "").trim().toUpperCase() === ref);
+}
+
 export async function undoBillingTransaction(
   input: UndoBillingTransactionInput
 ): Promise<UndoBillingTransactionResult> {
@@ -80,6 +123,31 @@ export async function undoBillingTransaction(
     throw new Error("Transaction not found");
   }
 
+  const correctionId = undoCorrectionEntryId(entry.id);
+  const existingCorrection = ledger.find((e) => e.id === correctionId) ?? null;
+
+  if (entry.undoneByCorrectionId || entry.undoneAt) {
+    const correction =
+      existingCorrection ||
+      ledger.find((e) => e.id === String(entry.undoneByCorrectionId || "").trim()) ||
+      null;
+    if (!correction) {
+      throw new Error("This transaction was already undone but the correction journal is missing.");
+    }
+    const accounts = await buildAccountsFromAgeAnalysisSnapshots(schoolId);
+    return {
+      original: entry,
+      correction,
+      alreadyUndone: true,
+      accounts,
+      ledgerEntries: collectAccountLedgerSlice(readSchoolLedger(schoolId), entry.accountNo),
+    };
+  }
+
+  if (existingCorrection) {
+    throw new Error("A correction journal already exists for this transaction.");
+  }
+
   if (!isEduClearUndoableLedgerEntry(entry)) {
     if (isStatementKidesysUndoBlocked(entry, undefined, false)) {
       throw new Error("Imported Kid-e-Sys history cannot be undone.");
@@ -87,15 +155,46 @@ export async function undoBillingTransaction(
     throw new Error("This transaction cannot be undone.");
   }
 
-  const removed = removeSchoolEntry(schoolId, entry.id);
-  if (!removed) {
-    throw new Error("Transaction not found");
-  }
+  const now = new Date().toISOString();
+  const reversalType = correctionReversalType(entry.type);
+  const correction: BillingLedgerEntry = {
+    id: correctionId,
+    schoolId,
+    learnerId: entry.learnerId,
+    accountNo: entry.accountNo,
+    type: reversalType,
+    amount: entry.amount,
+    date: entry.date,
+    dueDate: entry.dueDate,
+    reference: buildCorrectionReference(entry),
+    description: `Correction journal (undo ${entry.type})`,
+    source: EDUCLEAR_UNDO_CORRECTION_SOURCE,
+    correctsEntryId: entry.id,
+    statementHidden: true,
+    createdAt: now,
+  };
 
-  if (removed.type === "payment") {
-    clearPaymentAllocations(schoolId, removed.id);
+  const original: BillingLedgerEntry = {
+    ...entry,
+    statementHidden: true,
+    undoneAt: now,
+    undoneByCorrectionId: correctionId,
+  };
+
+  upsertSchoolEntries(schoolId, [original, correction]);
+
+  if (entry.type === "payment") {
+    clearPaymentAllocations(schoolId, entry.id);
   }
 
   const accounts = await buildAccountsFromAgeAnalysisSnapshots(schoolId);
-  return { removed, accounts };
+  const updatedLedger = readSchoolLedger(schoolId);
+
+  return {
+    original,
+    correction,
+    alreadyUndone: false,
+    accounts,
+    ledgerEntries: collectAccountLedgerSlice(updatedLedger, entry.accountNo),
+  };
 }

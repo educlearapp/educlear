@@ -62,6 +62,10 @@ export type BillingLedgerEntry = {
   bankImportId?: string;
   source?: string;
   createdAt: string;
+  statementHidden?: boolean;
+  undoneAt?: string;
+  undoneByCorrectionId?: string;
+  correctsEntryId?: string;
 };
 
 export type BillingAccountRow = {
