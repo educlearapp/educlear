@@ -62,11 +62,17 @@ function isSasamsNumericAccount(value: unknown): boolean {
 function buildAccountScopeFromLearners(learners: LearnerRow[], accountRef: string) {
   const ref = normalizeKidESysAccountRef(accountRef);
   if (!ref) return null;
-  const group = learners.filter(
+  let group = learners.filter(
     (l) => normalizeKidESysAccountRef(l.familyAccount?.accountRef) === ref
   );
   if (!group.length) return null;
   const familyId = String(group[0]?.familyAccountId || group[0]?.familyAccount?.id || "").trim();
+  if (familyId) {
+    const byFamilyId = learners.filter(
+      (l) => String(l.familyAccountId || l.familyAccount?.id || "").trim() === familyId
+    );
+    if (byFamilyId.length > group.length) group = byFamilyId;
+  }
   return {
     accountRef: ref,
     learners: group,
@@ -374,7 +380,7 @@ export async function buildStatementPdfInput(
 
   const anchor = scope.learners[0];
   const accountLabel = scope.isFamilyAccount
-    ? `Family account ${scope.accountRef || "—"}`
+    ? `Family Account ${scope.accountRef || "—"}`
     : `${anchor.firstName} ${anchor.lastName}`.trim();
 
   const contact = await resolveStatementContactForDisplay(

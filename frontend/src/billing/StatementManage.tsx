@@ -404,7 +404,8 @@ export default function StatementManage({
       for (const learner of learners) {
         if (resolveFamilyAccountId(learner) === familyAccountId) addChild(learner);
       }
-    } else if (ref) {
+    }
+    if (ref) {
       for (const learner of learners) {
         if (resolveLearnerAccountRef(learner) === ref) addChild(learner);
       }
@@ -907,7 +908,7 @@ export default function StatementManage({
   const sourceAccountLabel = `${accountNo || "-"} — ${selected?.name || ""} ${selected?.surname || ""}`.trim();
 
   const accountDisplayLabel = isFamilyBillingAccount
-    ? `Family account ${accountRef || accountNo}`
+    ? `Family Account ${accountRef || accountNo}`
     : `${selected?.name || ""} ${selected?.surname || ""}`.trim() || sourceAccountLabel;
 
   const statementChildren = useMemo(
@@ -1366,10 +1367,28 @@ export default function StatementManage({
                 <div style={compactField}>{value}</div>
               </div>
             ))}
-            {accountChildren.length > 0 ? (
+            {isFamilyBillingAccount ? (
               <div style={{ display: "grid", gridTemplateColumns: "120px 1fr", gap: 8, alignItems: "start" }}>
                 <div style={{ textAlign: "right", fontWeight: 800, color: "#64748b", fontSize: 12 }}>
-                  {accountChildren.length > 1 ? "Children" : "Learner"}
+                  Family
+                </div>
+                <div style={compactField}>
+                  <div style={{ fontWeight: 900 }}>Family Account {accountRef || accountNo}</div>
+                  <div style={{ marginTop: 8, fontSize: 12, fontWeight: 900, color: "#64748b" }}>Learners:</div>
+                  <ul style={{ margin: "6px 0 0", paddingLeft: 18, display: "grid", gap: 4 }}>
+                    {accountChildren.map((child) => (
+                      <li key={child.id} style={{ fontWeight: 700 }}>
+                        {child.firstName} {child.lastName}
+                        <span style={{ color: "#64748b", fontWeight: 600 }}> – Grade {child.grade}</span>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              </div>
+            ) : accountChildren.length > 0 ? (
+              <div style={{ display: "grid", gridTemplateColumns: "120px 1fr", gap: 8, alignItems: "start" }}>
+                <div style={{ textAlign: "right", fontWeight: 800, color: "#64748b", fontSize: 12 }}>
+                  Learner
                 </div>
                 <div style={{ display: "grid", gap: 6 }}>
                   {accountChildren.map((child) => (
@@ -1377,17 +1396,11 @@ export default function StatementManage({
                       {child.firstName} {child.lastName}
                       <span style={{ color: "#64748b", fontWeight: 600, fontSize: 13 }}>
                         {" "}
-                        · Grade {child.grade}
+                        – Grade {child.grade}
                       </span>
                     </div>
                   ))}
                 </div>
-              </div>
-            ) : null}
-            {isFamilyBillingAccount ? (
-              <div style={{ fontSize: 12, color: "#64748b", fontWeight: 700, textAlign: "right" }}>
-                Family account · {accountChildren.length} learner{accountChildren.length === 1 ? "" : "s"} on{" "}
-                {accountRef || accountNo || "this account"}
               </div>
             ) : null}
           </div>
@@ -1395,15 +1408,17 @@ export default function StatementManage({
         <section style={{ background: "#fff", border: `1px solid ${GOLD}`, borderRadius: 8, padding: 12 }}>
           <div style={{ fontWeight: 900, fontSize: 15, marginBottom: 6 }}>Summary</div>
           <div style={{ fontWeight: 700, lineHeight: 1.55, fontSize: 13 }}>
-            {accountChildren.length > 1 ? (
+            {isFamilyBillingAccount ? (
               <div style={{ marginBottom: 8 }}>
+                <div style={{ fontWeight: 900, marginBottom: 6 }}>Family Account {accountRef || accountNo}</div>
                 <div style={{ fontSize: 12, fontWeight: 900, color: "#64748b", letterSpacing: 0.4, marginBottom: 6 }}>
-                  Children
+                  Learners:
                 </div>
                 <ul style={{ margin: 0, paddingLeft: 18, display: "grid", gap: 4 }}>
                   {accountChildren.map((child) => (
                     <li key={child.id}>
                       {child.firstName} {child.lastName}
+                      <span style={{ color: "#64748b", fontWeight: 600 }}> – Grade {child.grade}</span>
                     </li>
                   ))}
                 </ul>
@@ -1417,7 +1432,7 @@ export default function StatementManage({
               {formatMoney(balance)}
             </div>
             <div style={{ color: "#64748b" }}>{selected?.status || "Up To Date"}</div>
-            {accountRef && accountChildren.length > 1 ? (
+            {isFamilyBillingAccount && accountRef ? (
               <div style={{ color: "#64748b", fontSize: 13 }}>Account {accountRef}</div>
             ) : null}
             {statementNote ? (

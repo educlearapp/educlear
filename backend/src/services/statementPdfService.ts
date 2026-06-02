@@ -8,9 +8,11 @@ const GOLD = "#d4af37";
 const TABLE_HEAD = "#111827";
 const ROW_ALT = "#faf8f0";
 const ROW_BORDER = "#e5e7eb";
-/** Max logo dimension in PDF points (~100×100 px at 96 dpi). Aspect ratio preserved via fit. */
-const STATEMENT_LOGO_MAX_PT = 100;
-const STATEMENT_LOGO_GAP_PT = 6;
+/** Max logo dimension in PDF points (~72×72 px at 96 dpi). Aspect ratio preserved via fit. */
+const STATEMENT_LOGO_MAX_PT = 72;
+const STATEMENT_LOGO_GAP_PT = 8;
+/** ~14 mm side margins on A4 portrait */
+const PAGE_MARGIN_PT = 40;
 
 function formatMoney(value: number): string {
   const n = Number.isFinite(value) ? value : 0;
@@ -22,12 +24,13 @@ function formatBalance(value: number | null | undefined): string {
   return formatMoney(value);
 }
 
-function formatSchoolContactLine(school: StatementPdfInput["school"]): string {
-  const parts: string[] = [];
-  if (school.phone) parts.push(`Tel: ${school.phone}`);
-  if (school.cellNo) parts.push(`Cell: ${school.cellNo}`);
-  if (school.email) parts.push(school.email);
-  return parts.join(" | ");
+function schoolContactLines(school: StatementPdfInput["school"]): string[] {
+  const lines: string[] = [];
+  if (school.address) lines.push(String(school.address));
+  if (school.phone) lines.push(`Tel: ${school.phone}`);
+  if (school.cellNo) lines.push(`Cell: ${school.cellNo}`);
+  if (school.email) lines.push(String(school.email));
+  return lines;
 }
 
 function sanitizeFilename(filename: string): string {
@@ -96,56 +99,73 @@ function drawTableRow(
   });
 }
 
+function measureAccountBoxHeight(input: StatementPdfInput): number {
+  const learnerCount = input.children.length;
+  const showLearnersList = input.isFamilyAccount || learnerCount > 1;
+  let h = 52;
+  if (showLearnersList) h += 14 + learnerCount * 11;
+  else if (learnerCount === 1) h += 11;
+  return Math.max(72, h);
+}
+
 /**
  * Generates a valid PDF buffer (%PDF header) for account statements.
  */
 export async function generateStatementPdfBuffer(input: StatementPdfInput): Promise<Buffer> {
-  const layout = input.isFamilyAccount ? "landscape" : "portrait";
-  const doc = new PDFDocument({ size: "A4", layout, margin: 40 });
+  const doc = new PDFDocument({ size: "A4", layout: "portrait", margin: 0 });
   const chunks: Buffer[] = [];
 
   const pageW = doc.page.width;
-  const margin = 40;
+  const pageH = doc.page.height;
+  const margin = PAGE_MARGIN_PT;
   const contentW = pageW - margin * 2;
-  let y = margin;
+  const leftW = contentW * 0.58;
+  const rightW = contentW - leftW - 14;
+  const leftX = margin;
+  const rightX = margin + leftW + 14;
+
+  let leftY = margin;
+  let rightY = margin;
 
   const logoBuf = await loadSchoolLogoBuffer(input.school.logoUrl);
   if (logoBuf) {
     try {
-      doc.image(logoBuf, margin, y, { fit: [STATEMENT_LOGO_MAX_PT, STATEMENT_LOGO_MAX_PT] });
-      y += STATEMENT_LOGO_MAX_PT + STATEMENT_LOGO_GAP_PT;
+      doc.image(logoBuf, leftX, leftY, { fit: [STATEMENT_LOGO_MAX_PT, STATEMENT_LOGO_MAX_PT] });
+      leftY += STATEMENT_LOGO_MAX_PT + STATEMENT_LOGO_GAP_PT;
     } catch (err) {
       console.warn("[statement-pdf] school logo embed failed:", err);
     }
   }
 
-  doc.fillColor(INK).font("Helvetica-Bold").fontSize(16);
-  doc.text(String(input.school.name || "School").trim() || "School", margin, y, { width: contentW * 0.55 });
-  doc.fontSize(20).text("STATEMENT", margin, y, { width: contentW, align: "right" });
-  y += 22;
+  const schoolName = String(input.school.name || "School").trim() || "School";
+  doc.fillColor(INK).font("Helvetica-Bold").fontSize(15);
+  doc.text(schoolName, leftX, leftY, { width: leftW });
+  leftY += doc.heightOfString(schoolName, { width: leftW }) + 6;
 
   doc.font("Helvetica").fontSize(8.5).fillColor(MUTED);
-  if (input.school.address) {
-    doc.text(input.school.address, margin, y);
-    y += 12;
-  }
-  const schoolContact = formatSchoolContactLine(input.school);
-  if (schoolContact) {
-    doc.text(schoolContact, margin, y);
-    y += 12;
+  for (const line of schoolContactLines(input.school)) {
+    doc.text(line, leftX, leftY, { width: leftW });
+    leftY += 12;
   }
 
-  doc.text(`Account: ${input.accountNo}`, margin, y, { width: contentW, align: "right" });
-  y += 12;
-  doc.text(`Period: ${input.period}`, margin, y, { width: contentW, align: "right" });
-  y += 12;
-  doc.text(`Date: ${input.statementDate}`, margin, y, { width: contentW, align: "right" });
-  y += 16;
+  doc.fillColor(INK).font("Helvetica-Bold").fontSize(20);
+  doc.text("STATEMENT", rightX, rightY, { width: rightW, align: "right" });
+  rightY += 28;
+
+  doc.font("Helvetica").fontSize(8.5).fillColor(MUTED);
+  doc.text(`Account: ${input.accountNo}`, rightX, rightY, { width: rightW, align: "right" });
+  rightY += 12;
+  doc.text(`Period: ${input.period}`, rightX, rightY, { width: rightW, align: "right" });
+  rightY += 12;
+  doc.text(`Date: ${input.statementDate}`, rightX, rightY, { width: rightW, align: "right" });
+  rightY += 12;
+
+  let y = Math.max(leftY, rightY) + 14;
 
   doc.strokeColor(GOLD).lineWidth(1.5).moveTo(margin, y).lineTo(pageW - margin, y).stroke();
   y += 14;
 
-  const boxH = 82;
+  const boxH = measureAccountBoxHeight(input);
   const boxW = (contentW - 12) / 2;
   doc.roundedRect(margin, y, boxW, boxH, 4).strokeColor(ROW_BORDER).stroke();
   doc.roundedRect(margin + boxW + 12, y, boxW, boxH, 4).strokeColor(ROW_BORDER).stroke();
@@ -158,12 +178,20 @@ export async function generateStatementPdfBuffer(input: StatementPdfInput): Prom
   let boxY = y + 20;
   doc.text(`Account holder: ${input.accountLabel}`, margin + 8, boxY, { width: boxW - 16 });
   boxY += 12;
-  for (const child of input.children.slice(0, 3)) {
-    doc.text(`${child.name} · Grade ${child.grade}`, margin + 8, boxY, { width: boxW - 16 });
-    boxY += 12;
-  }
-  if (input.children.length > 3) {
-    doc.text(`+${input.children.length - 3} more learner(s)`, margin + 8, boxY);
+
+  const showLearnersList = input.isFamilyAccount || input.children.length > 1;
+  if (showLearnersList) {
+    doc.font("Helvetica-Bold").fontSize(8);
+    doc.text("Learners:", margin + 8, boxY);
+    boxY += 11;
+    doc.font("Helvetica").fontSize(8.5);
+    for (const child of input.children) {
+      doc.text(`– ${child.name} – Grade ${child.grade}`, margin + 8, boxY, { width: boxW - 16 });
+      boxY += 11;
+    }
+  } else if (input.children.length === 1) {
+    const child = input.children[0];
+    doc.text(`– ${child.name} – Grade ${child.grade}`, margin + 8, boxY, { width: boxW - 16 });
   }
 
   const contactName = input.contact?.name || input.accountLabel;
@@ -171,6 +199,7 @@ export async function generateStatementPdfBuffer(input: StatementPdfInput): Prom
   const contactCell = input.contact?.cellphone || "—";
   const contactRel = input.contact?.relationship || "Parent";
   const contactAccountNo = input.contact?.accountNo || input.accountNo || "—";
+  doc.font("Helvetica").fontSize(8.5);
   doc.text(`Name: ${contactName}`, margin + boxW + 20, y + 20, { width: boxW - 16 });
   doc.text(`Email: ${contactEmail}`, margin + boxW + 20, y + 32, { width: boxW - 16 });
   doc.text(`Cell: ${contactCell}`, margin + boxW + 20, y + 44, { width: boxW - 16 });
@@ -182,15 +211,15 @@ export async function generateStatementPdfBuffer(input: StatementPdfInput): Prom
     ? ["Date", "Type", "Learner", "Reference", "Description", "In", "Out", "Balance"]
     : ["Date", "Type", "Reference", "Description", "In", "Out", "Balance"];
 
-  const fixedCols = input.isFamilyAccount ? [52, 44, 68, 62, 0, 52, 52, 68] : [56, 48, 72, 0, 56, 56, 72];
+  const fixedCols = input.isFamilyAccount ? [48, 40, 60, 56, 0, 48, 48, 60] : [52, 44, 68, 0, 50, 50, 64];
   const fixedSum = fixedCols.reduce((s, w) => s + (w || 0), 0);
-  const descW = Math.max(80, contentW - fixedSum);
+  const descW = Math.max(72, contentW - fixedSum);
   const colWidths = input.isFamilyAccount
-    ? [52, 44, 68, 62, descW, 52, 52, 68]
-    : [56, 48, 72, descW, 56, 56, 72];
+    ? [48, 40, 60, 56, descW, 48, 48, 60]
+    : [52, 44, 68, descW, 50, 50, 64];
 
   const rowH = 16;
-  const bottomLimit = doc.page.height - 50;
+  const bottomLimit = pageH - margin - 10;
 
   const ensureSpace = (needed: number) => {
     if (y + needed <= bottomLimit) return;
@@ -261,7 +290,7 @@ export async function generateStatementPdfBuffer(input: StatementPdfInput): Prom
   doc.text(
     `Statement generated for ${input.school.name || "School"} via EduClear.`,
     margin,
-    doc.page.height - 36,
+    pageH - margin,
     { width: contentW, align: "center" }
   );
 

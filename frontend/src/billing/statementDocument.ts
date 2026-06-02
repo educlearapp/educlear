@@ -30,6 +30,7 @@ export type StatementSchoolBranding = {
   name: string;
   email?: string;
   phone?: string;
+  cellNo?: string;
   address?: string;
   logoUrl?: string;
 };
@@ -177,7 +178,8 @@ export async function loadStatementSchoolBranding(schoolId: string): Promise<Sta
     return {
       name: String(match.name || fallbackName).trim() || fallbackName,
       email: String(match.email || "").trim() || undefined,
-      phone: String(match.phone || match.cellNo || match.telephone || "").trim() || undefined,
+      phone: String(match.phone || match.telephone || "").trim() || undefined,
+      cellNo: String(match.cellNo || "").trim() || undefined,
       address: String(match.address || match.physicalAddress || "").trim() || undefined,
       logoUrl: logoUrl || undefined,
     };
@@ -352,12 +354,28 @@ function pdfArrayBufferToBase64(buffer: ArrayBuffer): string {
   return btoa(binary);
 }
 
+function schoolBrandingLines(school: StatementSchoolBranding): string[] {
+  const lines: string[] = [];
+  if (school.address) lines.push(String(school.address));
+  if (school.phone) lines.push(`Tel: ${school.phone}`);
+  if (school.cellNo) lines.push(`Cell: ${school.cellNo}`);
+  if (school.email) lines.push(String(school.email));
+  return lines;
+}
+
+function measureAccountBoxHeightMm(input: AccountStatementDocumentInput): number {
+  const showLearnersList = input.isFamilyAccount || input.children.length > 1;
+  if (showLearnersList) return 22 + 6 + input.children.length * 5;
+  if (input.children.length === 1) return 22 + 5;
+  return 22;
+}
+
 /** Builds a valid PDF (jsPDF) matching the account statement layout used for email attachments. */
 export function generateAccountStatementPdf(input: AccountStatementDocumentInput): jsPDF {
   const { school, accountNo, accountLabel, children, contact, period, statementDate, balance, transactions, statementNote, isFamilyAccount } =
     input;
   const doc = new jsPDF({
-    orientation: isFamilyAccount ? "landscape" : "portrait",
+    orientation: "portrait",
     unit: "mm",
     format: "a4",
   });
@@ -365,6 +383,10 @@ export function generateAccountStatementPdf(input: AccountStatementDocumentInput
   const pageH = doc.internal.pageSize.getHeight();
   const margin = 14;
   const contentW = pageW - margin * 2;
+  const leftW = contentW * 0.58;
+  const rightW = contentW - leftW - 4;
+  const leftX = margin;
+  const rightX = margin + leftW + 4;
   let y = margin;
 
   const ensureSpace = (needed: number) => {
@@ -378,49 +400,51 @@ export function generateAccountStatementPdf(input: AccountStatementDocumentInput
   doc.setFillColor(...PDF_GOLD);
   doc.rect(0, 7, pageW, 1.2, "F");
 
+  let leftY = margin;
   if (school.logoUrl) {
-    const logoAdvance = embedStatementLogoInPdf(doc, school.logoUrl, margin, y);
-    if (logoAdvance > 0) y += logoAdvance;
+    const logoAdvance = embedStatementLogoInPdf(doc, school.logoUrl, leftX, leftY);
+    if (logoAdvance > 0) leftY += logoAdvance;
   }
 
   doc.setTextColor(...PDF_INK);
   doc.setFont("helvetica", "bold");
-  doc.setFontSize(16);
-  doc.text(String(school.name || "School").trim() || "School", margin, y + 10);
-
-  doc.setFont("helvetica", "bold");
-  doc.setFontSize(20);
-  doc.text("STATEMENT", pageW - margin, y + 10, { align: "right" });
-  y += 16;
+  doc.setFontSize(15);
+  const schoolName = String(school.name || "School").trim() || "School";
+  doc.text(schoolName, leftX, leftY);
+  leftY += 7;
 
   doc.setFont("helvetica", "normal");
   doc.setFontSize(8.5);
   doc.setTextColor(...PDF_MUTED);
-  const schoolLines: string[] = [];
-  if (school.address) schoolLines.push(String(school.address));
-  const contactLine = [school.email, school.phone].filter(Boolean).join(" | ");
-  if (contactLine) schoolLines.push(contactLine);
-  for (const line of schoolLines) {
-    ensureSpace(5);
-    doc.text(line, margin, y);
-    y += 4.5;
+  for (const line of schoolBrandingLines(school)) {
+    doc.text(line, leftX, leftY, { maxWidth: leftW });
+    leftY += 4.8;
   }
 
-  ensureSpace(14);
+  let rightY = margin;
+  doc.setTextColor(...PDF_INK);
+  doc.setFont("helvetica", "bold");
+  doc.setFontSize(20);
+  doc.text("STATEMENT", rightX + rightW, rightY, { align: "right" });
+  rightY += 10;
+  doc.setFont("helvetica", "normal");
+  doc.setFontSize(8.5);
   doc.setTextColor(...PDF_MUTED);
-  doc.text(`Account: ${accountNo}`, pageW - margin, y, { align: "right" });
-  y += 4.5;
-  doc.text(`Period: ${period}`, pageW - margin, y, { align: "right" });
-  y += 4.5;
-  doc.text(`Date: ${statementDate}`, pageW - margin, y, { align: "right" });
-  y += 8;
+  doc.text(`Account: ${accountNo}`, rightX + rightW, rightY, { align: "right" });
+  rightY += 4.8;
+  doc.text(`Period: ${period}`, rightX + rightW, rightY, { align: "right" });
+  rightY += 4.8;
+  doc.text(`Date: ${statementDate}`, rightX + rightW, rightY, { align: "right" });
+  rightY += 4.8;
+
+  y = Math.max(leftY, rightY) + 6;
 
   doc.setDrawColor(...PDF_GOLD);
   doc.setLineWidth(0.6);
   doc.line(margin, y, pageW - margin, y);
   y += 8;
 
-  const boxH = 28;
+  const boxH = measureAccountBoxHeightMm(input);
   ensureSpace(boxH + 4);
   const boxW = (contentW - 6) / 2;
   doc.setDrawColor(229, 231, 235);
@@ -439,12 +463,21 @@ export function generateAccountStatementPdf(input: AccountStatementDocumentInput
   let boxY = y + 12;
   doc.text(`Account holder: ${accountLabel}`, margin + 4, boxY);
   boxY += 5;
-  for (const child of children.slice(0, 3)) {
-    doc.text(`${child.name} · Grade ${child.grade}`, margin + 4, boxY);
+  const showLearnersList = isFamilyAccount || children.length > 1;
+  if (showLearnersList) {
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(8);
+    doc.text("Learners:", margin + 4, boxY);
     boxY += 4.5;
-  }
-  if (children.length > 3) {
-    doc.text(`+${children.length - 3} more learner(s)`, margin + 4, boxY);
+    doc.setFont("helvetica", "normal");
+    doc.setFontSize(8.5);
+    for (const child of children) {
+      doc.text(`– ${child.name} – Grade ${child.grade}`, margin + 4, boxY);
+      boxY += 4.5;
+    }
+  } else if (children.length === 1) {
+    const child = children[0];
+    doc.text(`– ${child.name} – Grade ${child.grade}`, margin + 4, boxY);
   }
 
   const contactName = contact?.name || accountLabel;
@@ -597,12 +630,17 @@ export function buildAccountStatementHtml(input: AccountStatementDocumentInput):
     ? `<img src="${escapeHtml(school.logoUrl)}" alt="" style="${STATEMENT_LOGO_IMG_STYLE}" />`
     : "";
 
-  const childLines = children
-    .map(
-      (c) =>
-        `<div>${escapeHtml(c.name)} <span style="color:#64748b;font-weight:600">· Grade ${escapeHtml(c.grade)}</span></div>`
-    )
-    .join("");
+  const showLearnersList = isFamilyAccount || children.length > 1;
+  const childLines = showLearnersList
+    ? `<div style="margin-top:8px;font-size:12px;font-weight:900;color:#64748b">Learners:</div><ul style="margin:6px 0 0;padding-left:18px">${children
+        .map(
+          (c) =>
+            `<li>${escapeHtml(c.name)} <span style="color:#64748b;font-weight:600">– Grade ${escapeHtml(c.grade)}</span></li>`
+        )
+        .join("")}</ul>`
+    : children.length === 1
+      ? `<div style="margin-top:8px">${escapeHtml(children[0].name)} <span style="color:#64748b;font-weight:600">– Grade ${escapeHtml(children[0].grade)}</span></div>`
+      : "";
 
   const txRows = transactions.length
     ? transactions
@@ -632,11 +670,15 @@ export function buildAccountStatementHtml(input: AccountStatementDocumentInput):
   <meta charset="utf-8" />
   <title>Statement - ${escapeHtml(accountNo)}</title>
   <style>
-    body { font-family: Arial, sans-serif; color: #111827; margin: 0; padding: 32px; background: #fff; }
-    .header { display: flex; justify-content: space-between; align-items: flex-start; border-bottom: 3px solid #d4af37; padding-bottom: 18px; margin-bottom: 24px; gap: 20px; }
-    .school-name { font-size: 26px; font-weight: 900; margin: 0 0 6px; }
-    .muted { color: #6b7280; font-size: 12px; line-height: 1.5; }
-    .title { text-align: right; font-size: 28px; font-weight: 900; }
+    @page { size: A4 portrait; margin: 14mm; }
+    body { font-family: Arial, sans-serif; color: #111827; margin: 0; padding: 14mm; background: #fff; max-width: 210mm; box-sizing: border-box; }
+    .header { display: flex; justify-content: space-between; align-items: flex-start; border-bottom: 3px solid #d4af37; padding-bottom: 18px; margin-bottom: 24px; gap: 24px; }
+    .header-left { flex: 1 1 58%; min-width: 0; }
+    .header-right { flex: 0 0 auto; text-align: right; }
+    .school-name { font-size: 22px; font-weight: 900; margin: 0 0 8px; line-height: 1.25; }
+    .muted { color: #6b7280; font-size: 12px; line-height: 1.65; }
+    .muted p { margin: 0 0 4px; }
+    .title { font-size: 26px; font-weight: 900; margin: 0 0 10px; }
     .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 20px; }
     .box { border: 1px solid #e5e7eb; border-radius: 12px; padding: 14px; background: #fafafa; }
     .box-title { font-size: 13px; font-weight: 900; margin-bottom: 8px; text-transform: uppercase; }
@@ -660,16 +702,17 @@ export function buildAccountStatementHtml(input: AccountStatementDocumentInput):
 </head>
 <body>
   <div class="header">
-    <div>
+    <div class="header-left">
       ${logoBlock}
       <div class="school-name">${escapeHtml(school.name)}</div>
       <div class="muted">
-        ${school.address ? `${escapeHtml(school.address)}<br />` : ""}
-        ${school.email ? escapeHtml(school.email) : ""}
-        ${school.phone ? ` | ${escapeHtml(school.phone)}` : ""}
+        ${school.address ? `<p>${escapeHtml(school.address)}</p>` : ""}
+        ${school.phone ? `<p>Tel: ${escapeHtml(school.phone)}</p>` : ""}
+        ${school.cellNo ? `<p>Cell: ${escapeHtml(school.cellNo)}</p>` : ""}
+        ${school.email ? `<p>${escapeHtml(school.email)}</p>` : ""}
       </div>
     </div>
-    <div>
+    <div class="header-right">
       <div class="title">STATEMENT</div>
       <div class="muted">
         Account: ${escapeHtml(accountNo)}<br />
