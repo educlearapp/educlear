@@ -583,6 +583,8 @@ export default function App() {
 
         <Route path="/parent" element={<ParentPortalApp />} />
         <Route path="/parent/*" element={<ParentPortalApp />} />
+        <Route path="/parent-portal" element={<Navigate to="/parent" replace />} />
+        <Route path="/parent-portal/*" element={<Navigate to="/parent" replace />} />
 
         <Route
           path="/dashboard/*"
@@ -593,6 +595,8 @@ export default function App() {
           }
         />
         <Route path="/teacher-inbox" element={<TeacherInbox />} />
+        <Route path="/teacher-portal/dashboard" element={<Navigate to="/teacher/home" replace />} />
+        <Route path="/teacher-portal/*" element={<Navigate to="/teacher/home" replace />} />
         <Route path="/teacher/*" element={<TeacherApp />} />
 
         <Route path="/migration" element={<Navigate to="/super-admin/migration" replace />} />

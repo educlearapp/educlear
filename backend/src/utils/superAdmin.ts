@@ -1,7 +1,6 @@
 /** Built-in platform super admins — always honored in addition to SUPER_ADMIN_EMAILS. */
 export const DEFAULT_PLATFORM_SUPER_ADMIN_EMAILS = [
   "info@educlear.co.za",
-  "dasilvaacademy@gmail.com",
 ] as const;
 
 export function normalizeSuperAdminEmail(email: unknown): string {

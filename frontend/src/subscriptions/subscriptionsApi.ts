@@ -1,5 +1,6 @@
 import { apiFetch } from "../api";
 import { isSuperAdmin, SUPER_ADMIN_ENTRY_PATH } from "../auth/roles";
+import { USER_APP_ROLE_STORAGE_KEY } from "../auth/schoolSession";
 import type { PayFastCheckoutResponse } from "./payfastCheckout";
 
 export type EduClearPackage = {
@@ -427,6 +428,17 @@ export async function createSubscriptionCheckout(
 export function resolvePostAuthPathSync(schoolId: string): string {
   if (isSuperAdmin()) {
     return SUPER_ADMIN_ENTRY_PATH;
+  }
+
+  const appRole = String(localStorage.getItem(USER_APP_ROLE_STORAGE_KEY) || "").trim();
+  const prismaRole = String(localStorage.getItem("userRole") || "").trim().toUpperCase();
+
+  if (appRole === "Teacher") {
+    return "/teacher-portal/dashboard";
+  }
+
+  if (appRole === "Parent" || prismaRole === "PARENT") {
+    return "/parent-portal";
   }
 
   const key = String(schoolId || "").trim();

@@ -1,4 +1,4 @@
-/** localStorage key for the signed-in user's platform role (temporary until server RBAC). */
+/** localStorage key for the signed-in user's platform role (set from login /auth/me only). */
 export const EDUCLEAR_ROLE_STORAGE_KEY = "educlearRole";
 
 /** Known platform roles — extend when RBAC is wired to the API. */
@@ -9,14 +9,8 @@ const SUPER_ADMIN_ROLE_VALUE: EduClearRole = "superAdmin";
 /** Platform super-admin login — always exempt from school subscription gate. */
 export const PLATFORM_SUPER_ADMIN_EMAIL = "info@educlear.co.za";
 
-/** Emails always treated as platform super admin (matches backend SUPER_ADMIN defaults). */
-export const PLATFORM_SUPER_ADMIN_EMAILS = [
-  PLATFORM_SUPER_ADMIN_EMAIL,
-  "dasilvaacademy@gmail.com",
-] as const;
-
-/** Default route after super-admin login (Migration Center). */
-export const SUPER_ADMIN_ENTRY_PATH = "/super-admin/migration";
+/** Default route after super-admin login. */
+export const SUPER_ADMIN_ENTRY_PATH = "/super-admin/schools";
 
 function readRecord(value: unknown): Record<string, unknown> | null {
   return value !== null && typeof value === "object" ? (value as Record<string, unknown>) : null;
@@ -30,10 +24,6 @@ function isSuperAdminRoleValue(value: unknown): boolean {
   return value === SUPER_ADMIN_ROLE_VALUE;
 }
 
-function isSuperAdminUserRole(value: unknown): boolean {
-  return String(value || "").trim().toUpperCase() === "SUPER_ADMIN";
-}
-
 /** True only when the login payload explicitly marks the account as a platform super admin. */
 export function isExplicitSuperAdminLoginPayload(data: unknown): boolean {
   const root = readRecord(data);
@@ -41,25 +31,12 @@ export function isExplicitSuperAdminLoginPayload(data: unknown): boolean {
 
   const user = readRecord(root.user);
 
-  if (
+  return (
     isSuperAdminRoleValue(root.educlearRole) ||
     isSuperAdminRoleValue(root.platformRole) ||
     isSuperAdminRoleValue(user?.educlearRole) ||
     isSuperAdminRoleValue(user?.platformRole)
-  ) {
-    return true;
-  }
-
-  if (isSuperAdminUserRole(user?.role) || isSuperAdminUserRole(root.role)) {
-    return true;
-  }
-
-  const sessionEmail = normalizeSessionEmail(user?.email) || normalizeSessionEmail(root.email);
-  if (PLATFORM_SUPER_ADMIN_EMAILS.some((allowed) => sessionEmail === allowed)) {
-    return true;
-  }
-
-  return root.isSuperAdmin === true || user?.isSuperAdmin === true;
+  );
 }
 
 export function clearEduClearRole(): void {
@@ -77,20 +54,36 @@ export function syncEduClearRoleFromLoginResponse(data: unknown): void {
 }
 
 /**
- * Temporary super-admin check via localStorage.
- * Replace with token claims / API permissions when RBAC is integrated.
+ * Platform super-admin session — requires backend `educlearRole` from login,
+ * with a stale-session guard so legacy email-only flags cannot persist.
  */
 export function isSuperAdmin(): boolean {
-  if (localStorage.getItem(EDUCLEAR_ROLE_STORAGE_KEY) === SUPER_ADMIN_ROLE_VALUE) {
-    return true;
+  if (localStorage.getItem(EDUCLEAR_ROLE_STORAGE_KEY) !== SUPER_ADMIN_ROLE_VALUE) {
+    return false;
   }
-  if (isSuperAdminUserRole(localStorage.getItem("userRole"))) {
-    return true;
-  }
+
   const sessionEmail = normalizeSessionEmail(localStorage.getItem("userEmail"));
-  return PLATFORM_SUPER_ADMIN_EMAILS.some((allowed) => sessionEmail === allowed);
+  if (sessionEmail && sessionEmail !== normalizeSessionEmail(PLATFORM_SUPER_ADMIN_EMAIL)) {
+    clearEduClearRole();
+    return false;
+  }
+
+  return true;
 }
 
 export function getEduClearRole(): string | null {
   return localStorage.getItem(EDUCLEAR_ROLE_STORAGE_KEY);
+}
+
+/** Dev-only: log current session identity for routing/access debugging. */
+export function logAuthSessionDebug(context: string): void {
+  if (!import.meta.env.DEV) return;
+
+  console.log("[auth-session]", context, {
+    email: localStorage.getItem("userEmail"),
+    prismaRole: localStorage.getItem("userRole"),
+    appRole: localStorage.getItem("userAppRole"),
+    educlearRole: localStorage.getItem(EDUCLEAR_ROLE_STORAGE_KEY),
+    isSuperAdmin: isSuperAdmin(),
+  });
 }
