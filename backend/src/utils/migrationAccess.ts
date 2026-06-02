@@ -1,14 +1,5 @@
 import { isPlatformSuperAdminEmail, normalizeSuperAdminEmail } from "./superAdmin";
 
-/** Roles allowed to use Migration Center (JWT `role` string, case-insensitive). */
-export const MIGRATION_ALLOWED_ROLES = new Set([
-  "SUPER_ADMIN",
-  "OWNER",
-  "SCHOOL_OWNER",
-  "SCHOOL_ADMIN",
-  "PLATFORM_ADMIN",
-]);
-
 export type MigrationAccessContext = {
   userId: string;
   schoolId: string;
@@ -20,14 +11,11 @@ export function normalizeMigrationRole(role: unknown): string {
   return String(role || "").trim().toUpperCase();
 }
 
-export function isMigrationAllowedRole(role: unknown): boolean {
-  return MIGRATION_ALLOWED_ROLES.has(normalizeMigrationRole(role));
-}
-
+/** Platform super admin only — same allowlist as Schools Management (`requireSuperAdmin`). */
 export function canAccessMigration(ctx: MigrationAccessContext): boolean {
   const email = normalizeSuperAdminEmail(ctx.email);
   if (isPlatformSuperAdminEmail(email)) return true;
-  return isMigrationAllowedRole(ctx.role);
+  return normalizeMigrationRole(ctx.role) === "SUPER_ADMIN";
 }
 
 export function migrationAccessDeniedDebug(ctx: Partial<MigrationAccessContext>): {
@@ -38,13 +26,16 @@ export function migrationAccessDeniedDebug(ctx: Partial<MigrationAccessContext>)
 } {
   const role = normalizeMigrationRole(ctx.role);
   const email = normalizeSuperAdminEmail(ctx.email);
-  let missingPermission = "migration_center";
-  if (isPlatformSuperAdminEmail(email)) {
+  let missingPermission = "migration_center_super_admin_required";
+  if (canAccessMigration({
+    userId: String(ctx.userId || ""),
+    schoolId: String(ctx.schoolId || ""),
+    email,
+    role,
+  })) {
     missingPermission = "none";
-  } else if (!role) {
-    missingPermission = "role_missing";
-  } else if (!isMigrationAllowedRole(role)) {
-    missingPermission = `role_${role.toLowerCase()}_not_permitted`;
+  } else if (!email && !role) {
+    missingPermission = "platform_super_admin_required";
   }
   return {
     userId: ctx.userId ? String(ctx.userId) : null,

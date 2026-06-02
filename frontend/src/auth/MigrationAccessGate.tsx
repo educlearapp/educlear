@@ -7,13 +7,13 @@ type Props = {
   children: ReactNode;
 };
 
-/** Migration Center — platform super admin or school owner/admin only. */
+/** Migration Center — platform super admin only (same as Schools Management). */
 export default function MigrationAccessGate({ children }: Props) {
   if (!canAccessMigration()) {
     const debug = migrationAccessDeniedDebug();
     return (
       <AccessDenied
-        message="Access denied — Migration Center requires a school owner or platform admin account."
+        message="Access denied — Migration Center requires a platform super admin account."
         debug={debug}
       />
     );

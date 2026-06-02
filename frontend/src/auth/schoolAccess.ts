@@ -1,4 +1,3 @@
-import { canAccessMigration } from "./migrationAccess";
 import { isSuperAdmin } from "./roles";
 import {
   hasPermission,
@@ -101,7 +100,7 @@ export function canAccessSchoolPage(
   if (user.appRole === "Owner") return true;
 
   if (page === "migrationCentre") {
-    return canAccessMigration();
+    return isSuperAdmin();
   }
 
   const rule = PAGE_RULES[page];

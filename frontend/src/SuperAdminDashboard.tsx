@@ -1,6 +1,6 @@
 import { Navigate, Route, Routes, useLocation, useNavigate } from "react-router-dom";
 import AccessDenied from "./auth/AccessDenied";
-import { canAccessMigration, migrationAccessDeniedDebug } from "./auth/migrationAccess";
+import { migrationAccessDeniedDebug } from "./auth/migrationAccess";
 import { isSuperAdmin } from "./auth/roles";
 import SuperAdminGate from "./auth/SuperAdminGate";
 import logo from "./assets/logo.png";
@@ -29,7 +29,6 @@ const NAV_ITEMS: NavItem[] = [
 export default function SuperAdminDashboard() {
   const navigate = useNavigate();
   const location = useLocation();
-  const migrationAccess = canAccessMigration();
   const platformSuperAdmin = isSuperAdmin();
 
   const onMigrationRoute =
@@ -47,10 +46,10 @@ export default function SuperAdminDashboard() {
     );
   }
 
-  if (!migrationAccess) {
+  if (!platformSuperAdmin) {
     return (
       <AccessDenied
-        message="Access denied — Migration Center requires a school owner or platform admin account."
+        message="Access denied — Migration Center requires a platform super admin account."
         debug={migrationAccessDeniedDebug()}
       />
     );
@@ -66,8 +65,8 @@ export default function SuperAdminDashboard() {
 
         <div className="sa-admin-sidebar-label">Super Admin</div>
 
-        {migrationAccess &&
-          NAV_ITEMS.filter((item) => item.key !== "schools" || platformSuperAdmin).map((item) => (
+        {platformSuperAdmin &&
+          NAV_ITEMS.map((item) => (
             <div
               key={item.key}
               className={`top-dashboard ${activeKey === item.key ? "active" : ""}`}
@@ -99,12 +98,12 @@ export default function SuperAdminDashboard() {
                 </SuperAdminGate>
               }
             />
-            <Route path="migration" element={<MigrationCenter />} />
-            <Route path="migration/research" element={<MigrationResearch />} />
-            <Route path="migration/billing-plans" element={<LiveBillingPlansImportPage />} />
-            <Route path="migration/topup-payments" element={<LiveTopupPaymentsImportPage />} />
-            <Route path="migration/learner-repair" element={<LiveLearnerRepairPage />} />
-            <Route path="migration/legacy" element={<SuperAdminMigrationPage />} />
+            <Route path="migration" element={<SuperAdminGate><MigrationCenter /></SuperAdminGate>} />
+            <Route path="migration/research" element={<SuperAdminGate><MigrationResearch /></SuperAdminGate>} />
+            <Route path="migration/billing-plans" element={<SuperAdminGate><LiveBillingPlansImportPage /></SuperAdminGate>} />
+            <Route path="migration/topup-payments" element={<SuperAdminGate><LiveTopupPaymentsImportPage /></SuperAdminGate>} />
+            <Route path="migration/learner-repair" element={<SuperAdminGate><LiveLearnerRepairPage /></SuperAdminGate>} />
+            <Route path="migration/legacy" element={<SuperAdminGate><SuperAdminMigrationPage /></SuperAdminGate>} />
             <Route path="*" element={<Navigate to="schools" replace />} />
           </Routes>
         </div>

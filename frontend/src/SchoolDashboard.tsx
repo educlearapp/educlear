@@ -93,7 +93,7 @@ import SchoolCreditsPage from "./pages/SchoolCreditsPage";
 import SchoolSasamsReportUploadPage from "./pages/SchoolSasamsReportUploadPage";
 import SchoolSettingsPage from "./pages/SchoolSettingsPage";
 import MigrationCentrePage from "./pages/migration/MigrationCentrePage";
-import { canAccessMigration } from "./auth/migrationAccess";
+import AccessDenied from "./auth/AccessDenied";
 import BillingDepositsPage from "./pages/BillingDepositsPage";
 import BillingSettingsPage from "./pages/BillingSettingsPage";
 import { isSuperAdmin } from "./auth/roles";
@@ -16217,9 +16217,11 @@ return (
 
 
         case "migrationCentre":
-
-
-
+          if (!isSuperAdmin()) {
+            return (
+              <AccessDenied message="Access denied — Migration Center requires a platform super admin account." />
+            );
+          }
           return <MigrationCentrePage />;
   
   
@@ -16349,7 +16351,7 @@ return (
   
   
           {canViewAnySchoolPage(
-            ["schoolProfile", "schoolPackage", "schoolCredits", "schoolUsers", "schoolSettings", "migrationCentre"],
+            ["schoolProfile", "schoolPackage", "schoolCredits", "schoolUsers", "schoolSettings"],
             schoolSessionUser
           ) ? (
           <div className="main-section">
@@ -16447,17 +16449,6 @@ return (
                 {canPage("schoolSettings") ? (
                 <div className={`submenu-item ${activePage === "schoolSettings" ? "active" : ""}`} onClick={() => go("schoolSettings")}>Settings</div>
                 ) : null}
-
-                {canAccessMigration() ? (
-                  <div
-                    className={`submenu-item ${activePage === "migrationCentre" ? "active" : ""}`}
-                    onClick={() => go("migrationCentre")}
-                  >
-                    Migration Centre
-                  </div>
-                ) : null}
-
-
 
   
   
@@ -16573,15 +16564,6 @@ return (
                 >
                   SASAMS Report Upload
                 </div>
-                ) : null}
-
-                {isSuperAdmin() ? (
-                  <div
-                    className={`submenu-item${location.pathname.startsWith("/super-admin/migration") || location.pathname === "/migration" ? " active" : ""}`}
-                    onClick={() => navigate("/super-admin/migration")}
-                  >
-                    Migration Center
-                  </div>
                 ) : null}
 
                 {canPage("parentPortal") ? (

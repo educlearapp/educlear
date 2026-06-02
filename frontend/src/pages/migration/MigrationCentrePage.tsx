@@ -1,5 +1,6 @@
 import { useState } from "react";
-import { canAccessMigration } from "../../auth/migrationAccess";
+import AccessDenied from "../../auth/AccessDenied";
+import { isSuperAdmin } from "../../auth/roles";
 import { useSchoolId } from "../../useSchoolId";
 import MigrationCentreBillingPlansPanel from "./MigrationCentreBillingPlansPanel";
 import MigrationCentreTopupPaymentsPanel from "./MigrationCentreTopupPaymentsPanel";
@@ -12,14 +13,9 @@ export default function MigrationCentrePage() {
   const [view, setView] = useState<ToolView>("dashboard");
   const [billingStatus, setBillingStatus] = useState("No file uploaded yet.");
 
-  if (!canAccessMigration()) {
+  if (!isSuperAdmin()) {
     return (
-      <div className="migration-centre-page">
-        <h1 className="page-title">Migration Centre</h1>
-        <p className="migration-centre-denied">
-          Migration Centre requires a school owner or admin account.
-        </p>
-      </div>
+      <AccessDenied message="Access denied — Migration Center requires a platform super admin account." />
     );
   }
 

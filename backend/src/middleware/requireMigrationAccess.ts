@@ -11,7 +11,7 @@ export type MigrationAccessRequest = import("express").Request & {
   migrationAuth?: StaffJwtPayload;
 };
 
-/** Platform super admin or school owner/admin roles — not teachers/parents. */
+/** Platform super admin only — same allowlist as Schools Management. */
 export function requireMigrationAccess(
   req: MigrationAccessRequest,
   res: Response,
