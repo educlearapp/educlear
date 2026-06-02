@@ -118,6 +118,8 @@ learnerReports LearnerReport[]
   billingDeposits BillingDeposit[]
   bankStatementImports BankStatementImport[]
   bankTransactions BankTransaction[]
+  migrationTopupPaymentBatches MigrationTopupPaymentBatch[]
+  migrationTopupPaymentRows MigrationTopupPaymentRow[]
   suppliers Supplier[]
   supplierInvoices SupplierInvoice[]
   expenseCategories ExpenseCategory[]
@@ -2374,6 +2376,56 @@ model BankTransaction {
   @@index([schoolId, matchStatus])
   @@index([importId])
   @@index([importId, matchStatus])
+}
+
+model MigrationTopupPaymentBatch {
+  id            String   @id @default(cuid())
+  schoolId      String
+  uploadedAt    DateTime @default(now())
+  uploadedBy    String   @default("")
+  sourceFilename String  @default("")
+
+  rowsImported  Int      @default(0)
+  rowsSkipped   Int      @default(0)
+  totalAmount   Float    @default(0)
+
+  rolledBackAt  DateTime?
+  rolledBackBy  String?
+
+  school School @relation(fields: [schoolId], references: [id], onDelete: Cascade)
+  rows   MigrationTopupPaymentRow[]
+
+  @@index([schoolId])
+  @@index([schoolId, uploadedAt])
+}
+
+model MigrationTopupPaymentRow {
+  id             String   @id @default(cuid())
+  schoolId       String
+  batchId        String
+
+  fingerprint    String
+  accountNo      String   @default("")
+  receiptNo      String   @default("")
+  transactionDate String  @default("")
+  amount         Float    @default(0)
+  paymentType    String   @default("")
+  ledgerEntryId  String   @default("")
+
+  status         String   @default("preview")
+  reason         String   @default("")
+  rawRow         Json?
+
+  createdAt      DateTime @default(now())
+
+  school School @relation(fields: [schoolId], references: [id], onDelete: Cascade)
+  batch  MigrationTopupPaymentBatch @relation(fields: [batchId], references: [id], onDelete: Cascade)
+
+  @@unique([schoolId, fingerprint])
+  @@index([schoolId])
+  @@index([batchId])
+  @@index([schoolId, transactionDate])
+  @@index([schoolId, ledgerEntryId])
 }
 
 enum SupplierStatus {

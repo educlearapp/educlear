@@ -55,6 +55,7 @@ import kideesysMigrationRoutes, {
   kideesysMigrationErrorHandler,
 } from "./routes/kideesysMigration";
 import migrationBillingPlansRoutes from "./routes/migrationBillingPlans";
+import migrationTopupPaymentsRoutes from "./routes/migrationTopupPayments";
 import migrationLearnerRepairRoutes from "./routes/migrationLearnerRepair";
 import migrationLearnersRoutes from "./routes/migrationLearners";
 import subscriptionsRoutes from "./routes/subscriptions";
@@ -361,6 +362,11 @@ app.use(
   "/api/migration/billing-plans",
   requireMigrationAccess,
   migrationBillingPlansRoutes
+);
+app.use(
+  "/api/migration/topup-payments",
+  requireMigrationAccess,
+  migrationTopupPaymentsRoutes
 );
 app.use(
   "/api/super-admin/migration/learner-repair",

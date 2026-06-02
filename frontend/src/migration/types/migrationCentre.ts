@@ -57,6 +57,61 @@ export type MigrationBillingPlansApplyResult = {
   fileName: string;
 };
 
+export type MigrationTopupPaymentsPreview = {
+  success: boolean;
+  schoolId: string;
+  schoolName: string;
+  sessionId: string;
+  fileName: string;
+  canApply: boolean;
+  totals: {
+    totalRows: number;
+    newPayments: number;
+    duplicatesSkipped: number;
+    unmatchedRows: number;
+    accountsAffected: number;
+    totalPaymentAmount: number;
+  };
+  rows: Array<{
+    rowNumber: number;
+    accountNo: string;
+    receiptNo: string;
+    transactionDate: string;
+    amount: number;
+    paymentType: string;
+    description: string;
+    status: "new" | "duplicate" | "unmatched";
+    reason: string;
+    fingerprint: string;
+  }>;
+};
+
+export type MigrationTopupPaymentsApplyResult = {
+  success: boolean;
+  schoolId: string;
+  batchId: string;
+  fileName: string;
+  uploadedAt: string;
+  uploadedBy: string;
+  rowsImported: number;
+  rowsSkipped: number;
+  totalAmount: number;
+  ledgerEntryIds: string[];
+};
+
+export type MigrationTopupPaymentBatchSummary = {
+  id: string;
+  schoolId: string;
+  uploadedAt: string;
+  uploadedBy: string;
+  sourceFilename: string;
+  rowsImported: number;
+  rowsSkipped: number;
+  totalAmount: number;
+  rolledBackAt?: string | null;
+  rolledBackBy?: string | null;
+};
+
 export type MigrationLearnerRepairPreview = {
   success: boolean;
   schoolId: string;

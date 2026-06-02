@@ -4,6 +4,9 @@ import type {
   MigrationBillingPlansPreview,
   MigrationLearnerRepairApplyResult,
   MigrationLearnerRepairPreview,
+  MigrationTopupPaymentBatchSummary,
+  MigrationTopupPaymentsApplyResult,
+  MigrationTopupPaymentsPreview,
 } from "./types/migrationCentre";
 
 export function formatMigrationMoney(amount: number): string {
@@ -31,6 +34,39 @@ export async function applyMigrationBillingPlans(opts: {
     method: "POST",
     body: JSON.stringify(opts),
   })) as MigrationBillingPlansApplyResult;
+}
+
+export async function previewMigrationTopupPayments(opts: {
+  schoolId: string;
+  file: File;
+}): Promise<MigrationTopupPaymentsPreview> {
+  const form = new FormData();
+  form.append("schoolId", opts.schoolId);
+  form.append("file", opts.file, opts.file.name);
+  return (await staffFormPost(
+    "/api/migration/topup-payments/preview",
+    form
+  )) as MigrationTopupPaymentsPreview;
+}
+
+export async function applyMigrationTopupPayments(opts: {
+  schoolId: string;
+  sessionId: string;
+}): Promise<MigrationTopupPaymentsApplyResult> {
+  return (await staffApiFetch("/api/migration/topup-payments/apply", {
+    method: "POST",
+    body: JSON.stringify(opts),
+  })) as MigrationTopupPaymentsApplyResult;
+}
+
+export async function listMigrationTopupPaymentBatches(opts: {
+  schoolId: string;
+}): Promise<{ success: boolean; batches: MigrationTopupPaymentBatchSummary[] }> {
+  const qs = new URLSearchParams({ schoolId: opts.schoolId });
+  return (await staffApiFetch(`/api/migration/topup-payments/batches?${qs.toString()}`)) as {
+    success: boolean;
+    batches: MigrationTopupPaymentBatchSummary[];
+  };
 }
 
 const LEARNER_GENDER_REPAIR_BASE = "/api/super-admin/migration/learner-repair";

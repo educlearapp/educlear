@@ -2,9 +2,10 @@ import { useState } from "react";
 import { canAccessMigration } from "../../auth/migrationAccess";
 import { useSchoolId } from "../../useSchoolId";
 import MigrationCentreBillingPlansPanel from "./MigrationCentreBillingPlansPanel";
+import MigrationCentreTopupPaymentsPanel from "./MigrationCentreTopupPaymentsPanel";
 import "./MigrationCentre.css";
 
-type ToolView = "dashboard" | "billing";
+type ToolView = "dashboard" | "billing" | "topupPayments";
 
 export default function MigrationCentrePage() {
   const schoolId = useSchoolId() || "";
@@ -34,14 +35,17 @@ export default function MigrationCentrePage() {
   if (view === "billing") {
     return <MigrationCentreBillingPlansPanel schoolId={schoolId} onBack={() => setView("dashboard")} />;
   }
+  if (view === "topupPayments") {
+    return <MigrationCentreTopupPaymentsPanel schoolId={schoolId} onBack={() => setView("dashboard")} />;
+  }
 
   return (
     <div className="migration-centre-page">
       <header className="migration-centre-header">
         <h1 className="page-title">Migration Centre</h1>
         <p className="migration-centre-subtitle">
-          Import billing plans from Kid-e-Sys exports. Preview every change before apply — nothing is
-          saved automatically.
+          Controlled imports that help keep EduClear matched with the live school system. Preview every
+          change before apply — nothing is saved automatically.
         </p>
       </header>
 
@@ -65,6 +69,29 @@ export default function MigrationCentrePage() {
                   setBillingStatus("Open the billing import tool to upload and preview.");
                   setView("billing");
                 }}
+              >
+                Open
+              </button>
+            </div>
+          </div>
+        </article>
+
+        <article className="migration-centre-card">
+          <div className="migration-centre-card-accent" aria-hidden="true" />
+          <div className="migration-centre-card-body">
+            <h2 className="migration-centre-card-title">Top-Up Payments</h2>
+            <p className="migration-centre-card-desc">
+              Upload Kid-e-Sys Transaction List export to import NEW payments captured after the original
+              migration. Strong duplicate detection prevents double-posting and preserves audit history.
+            </p>
+            <p className="migration-centre-status" role="status">
+              Dry run first — apply only after confirmation.
+            </p>
+            <div className="migration-centre-card-actions">
+              <button
+                type="button"
+                className="migration-centre-btn migration-centre-btn--gold"
+                onClick={() => setView("topupPayments")}
               >
                 Open
               </button>
