@@ -108,6 +108,29 @@ export async function fetchSuperAdminSchools(): Promise<{
   return { schools, summary };
 }
 
+export async function updateSuperAdminSchool(
+  schoolId: string,
+  input: { status?: SchoolRecord["status"]; package?: SchoolPackage }
+): Promise<void> {
+  const id = String(schoolId || "").trim();
+  if (!id) throw new Error("Missing schoolId");
+
+  const payload: Record<string, unknown> = {};
+  if (input.status) payload.status = input.status;
+
+  const pkg = String(input.package || "").trim();
+  if (pkg && pkg !== "—") payload.package = pkg;
+
+  const res = (await superAdminApiFetch(`/api/super-admin/schools/${encodeURIComponent(id)}`, {
+    method: "PATCH",
+    body: JSON.stringify(payload),
+  })) as { success?: boolean; error?: string };
+
+  if (res && res.success === false) {
+    throw new Error(String(res.error || "Failed to update school"));
+  }
+}
+
 function computeSummaryFromSchools(schools: SchoolRecord[]): SchoolsSummary {
   if (!schools.length) return emptySummary();
   return {

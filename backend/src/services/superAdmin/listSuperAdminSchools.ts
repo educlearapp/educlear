@@ -36,6 +36,15 @@ export type SuperAdminSchoolsListResult = {
   summary: SuperAdminSchoolSummary;
 };
 
+const INTERNAL_SCHOOL_NAMES = new Set<string>([
+  "educlear demo school",
+  "educlear platform",
+]);
+
+function isInternalSchoolName(name: string): boolean {
+  return INTERNAL_SCHOOL_NAMES.has(String(name || "").trim().toLowerCase());
+}
+
 const PACKAGE_LABEL: Record<EduClearPackageCode, string> = {
   STARTER: "Starter",
   UNLIMITED: "Unlimited",
@@ -209,7 +218,7 @@ export async function listSuperAdminSchools(): Promise<SuperAdminSchoolsListResu
     orderBy: { name: "asc" },
   });
 
-  const schools = rows.map(mapSchoolRow);
+  const schools = rows.filter((row) => !isInternalSchoolName(row.name)).map(mapSchoolRow);
   return {
     schools,
     summary: computeSummary(schools),

@@ -177,6 +177,9 @@
   cursor: pointer;
   white-space: nowrap;
   transition: background 0.2s ease, border-color 0.2s ease, color 0.2s ease;
+  border: 1px solid #cbd5e1;
+  background: #ffffff;
+  color: #1d2736;
 }
 
 .sa-schools-btn--gold {
@@ -250,6 +253,30 @@
 
 .sa-schools-cell--actions {
   width: 120px;
+}
+
+.sa-schools-manage-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  margin-bottom: 8px;
+  padding: 9px 12px;
+  border-radius: 8px;
+  border: 1px solid rgba(212, 175, 55, 0.75);
+  background: rgba(212, 175, 55, 0.12);
+  color: #8b6b16;
+  font-size: 0.85rem;
+  font-weight: 800;
+  font-family: inherit;
+  cursor: pointer;
+  transition: background 0.2s ease, border-color 0.2s ease, color 0.2s ease;
+}
+
+.sa-schools-manage-btn:hover {
+  background: rgba(212, 175, 55, 0.18);
+  border-color: #d4af37;
+  color: #0a0a0a;
 }
 
 .sa-schools-table-empty {

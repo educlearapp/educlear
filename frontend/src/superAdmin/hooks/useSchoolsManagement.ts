@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { fetchSuperAdminSchools } from "../api/schoolsApi";
+import { fetchSuperAdminSchools, updateSuperAdminSchool } from "../api/schoolsApi";
 import type { SchoolPackage, SchoolRecord, SchoolStatus, SchoolsSummary } from "../types/schools";
 
 export type SchoolsStatusFilter = "all" | SchoolStatus;
@@ -68,17 +68,22 @@ export function useSchoolsManagement() {
     /* handled in page */
   }, []);
 
-  const onActivateSchool = useCallback((_school: SchoolRecord) => {
-    /* API: PATCH status → Active */
-  }, []);
+  const onActivateSchool = useCallback(async (school: SchoolRecord) => {
+    await updateSuperAdminSchool(school.id, { status: "Active" });
+    await loadSchools();
+  }, [loadSchools]);
 
-  const onSuspendSchool = useCallback((_school: SchoolRecord) => {
-    /* API: PATCH status → Suspended */
-  }, []);
+  const onSuspendSchool = useCallback(async (school: SchoolRecord) => {
+    await updateSuperAdminSchool(school.id, { status: "Suspended" });
+    await loadSchools();
+  }, [loadSchools]);
 
-  const onChangePackage = useCallback((_school: SchoolRecord) => {
-    /* API: open change-package flow */
-  }, []);
+  const onChangePackage = useCallback(async (school: SchoolRecord) => {
+    const current = String(school.package || "").trim();
+    const next = current === "Starter" ? "Unlimited" : "Starter";
+    await updateSuperAdminSchool(school.id, { package: next as SchoolPackage });
+    await loadSchools();
+  }, [loadSchools]);
 
   const onResetPassword = useCallback((_school: SchoolRecord) => {
     /* API: trigger owner password reset */

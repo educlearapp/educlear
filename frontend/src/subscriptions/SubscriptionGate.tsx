@@ -7,6 +7,7 @@ import {
   fetchSchoolSubscriptionStatus,
   getInitialSubscriptionGateState,
   isSubscriptionDashboardUnlocked,
+  type SchoolSubscriptionStatus,
   type SubscriptionGateState,
 } from "./subscriptionsApi";
 
@@ -22,6 +23,7 @@ export default function SubscriptionGate({ children }: { children: React.ReactNo
   const [gate, setGate] = useState<SubscriptionGateState>(() =>
     subscriptionGateExempt ? "allowed" : getInitialSubscriptionGateState(schoolId)
   );
+  const [blockedStatus, setBlockedStatus] = useState<SchoolSubscriptionStatus | null>(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -32,6 +34,7 @@ export default function SubscriptionGate({ children }: { children: React.ReactNo
 
     if (!token || !schoolId) {
       setGate("blocked");
+      setBlockedStatus(null);
       return;
     }
 
@@ -46,8 +49,10 @@ export default function SubscriptionGate({ children }: { children: React.ReactNo
         if (isSubscriptionDashboardUnlocked(response)) {
           clearSubscriptionGateCache();
           setGate("allowed");
+          setBlockedStatus(null);
           return;
         }
+        setBlockedStatus(response.subscription?.status ?? null);
         setGate("blocked");
       })
       .catch(() => {
@@ -55,9 +60,11 @@ export default function SubscriptionGate({ children }: { children: React.ReactNo
         const fallback = getInitialSubscriptionGateState(schoolId);
         if (fallback === "allowed") {
           setGate("allowed");
+          setBlockedStatus(null);
           return;
         }
         setGate("blocked");
+        setBlockedStatus(null);
       });
 
     return () => {
@@ -92,6 +99,41 @@ export default function SubscriptionGate({ children }: { children: React.ReactNo
   }
 
   if (gate === "blocked") {
+    if (blockedStatus === "SUSPENDED") {
+      return (
+        <div
+          style={{
+            minHeight: "100vh",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            padding: 24,
+            background: "#050505",
+            color: "#ffffff",
+            fontFamily: "Arial, sans-serif",
+          }}
+        >
+          <div
+            style={{
+              width: "min(560px, 100%)",
+              borderRadius: 14,
+              border: "2px solid #d4af37",
+              padding: "26px 22px",
+              background: "#0a0a0a",
+              boxShadow: "0 0 24px rgba(212, 175, 55, 0.25), 0 24px 60px rgba(0,0,0,0.5)",
+            }}
+          >
+            <h1 style={{ margin: "0 0 12px", color: "#d4af37", fontSize: "1.35rem" }}>
+              Account suspended
+            </h1>
+            <p style={{ margin: 0, lineHeight: 1.55, color: "rgba(255,255,255,0.85)" }}>
+              Your EduClear account has been suspended. Please contact EduClear support to reactivate
+              your account.
+            </p>
+          </div>
+        </div>
+      );
+    }
     return <Navigate to="/subscription/packages" replace />;
   }
 

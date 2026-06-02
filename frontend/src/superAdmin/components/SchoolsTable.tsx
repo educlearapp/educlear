@@ -22,6 +22,7 @@ type Props = {
   hasRegisteredSchools: boolean;
   loadError?: string | null;
   loading?: boolean;
+  onManage: (school: SchoolRecord) => void;
   onView: (school: SchoolRecord) => void;
   onActivate: (school: SchoolRecord) => void;
   onSuspend: (school: SchoolRecord) => void;
@@ -35,6 +36,7 @@ export default function SchoolsTable({
   hasRegisteredSchools,
   loadError = null,
   loading = false,
+  onManage,
   onView,
   onActivate,
   onSuspend,
@@ -111,6 +113,13 @@ export default function SchoolsTable({
                   <td>{formatSchoolDate(school.registeredAt)}</td>
                   <td>{formatSchoolDateTime(school.lastLoginAt)}</td>
                   <td className="sa-schools-cell sa-schools-cell--actions">
+                    <button
+                      type="button"
+                      className="sa-schools-manage-btn"
+                      onClick={() => onManage(school)}
+                    >
+                      Manage
+                    </button>
                     <SchoolActionsMenu
                       school={school}
                       onView={onView}
