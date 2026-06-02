@@ -68,12 +68,13 @@ export default function SchoolActionsMenu({
 
       const rect = trigger.getBoundingClientRect();
       const viewportPadding = 10;
-      const gap = 6;
+      const gap = 10;
+      const rowEdgeInset = 8;
 
       // Measure after it has layout.
       const menuRect = menu.getBoundingClientRect();
 
-      const desiredRight = rect.right;
+      const desiredRight = rect.right - rowEdgeInset;
       const minLeft = viewportPadding;
       const maxLeft = window.innerWidth - viewportPadding - menuRect.width;
       const left = Math.min(Math.max(desiredRight - menuRect.width, minLeft), maxLeft);

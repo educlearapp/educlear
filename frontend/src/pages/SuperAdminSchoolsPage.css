@@ -380,12 +380,15 @@
   /* Positioned by portal inline styles (fixed to viewport). */
   z-index: 99999;
   right: auto;
-  min-width: 240px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  min-width: 272px;
   width: max-content;
   max-width: none;
   height: auto;
   max-height: none;
-  padding: 10px;
+  padding: 12px;
   border-radius: 10px;
   border: 2px solid rgba(212, 175, 55, 0.55);
   background: #0a0a0a;
@@ -396,7 +399,7 @@
 .sa-schools-actions-menu button {
   display: block;
   width: 100%;
-  padding: 10px 12px;
+  padding: 11px 14px;
   border: none;
   border-radius: 6px;
   background: transparent;
