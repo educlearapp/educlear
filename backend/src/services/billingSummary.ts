@@ -120,21 +120,14 @@ export function normalizeKidesysBillingSection(value: unknown): string {
   return hit || raw;
 }
 
-/** Kid-e-Sys age-analysis section drives summary cards; never balance thresholds. */
+const KIDESYS_SUMMARY_SECTIONS = new Set<string>(Object.values(KIDESYS_BILLING_SECTION));
+
+/** Summary cards: prefer live status (post-import), then age-analysis section. */
 export function resolveRowKidesysSection(row: BillingSummaryRow): string {
+  const fromStatus = normalizeKidesysBillingSection(row?.status);
+  if (fromStatus && KIDESYS_SUMMARY_SECTIONS.has(fromStatus)) return fromStatus;
   const fromField = normalizeKidesysBillingSection(row?.kidesysSection);
   if (fromField) return fromField;
-  const fromStatus = normalizeKidesysBillingSection(row?.status);
-  if (
-    fromStatus === KIDESYS_BILLING_SECTION.RECENTLY_OWING ||
-    fromStatus === KIDESYS_BILLING_SECTION.BAD_DEBT ||
-    fromStatus === KIDESYS_BILLING_SECTION.PAID_UP ||
-    fromStatus === KIDESYS_BILLING_SECTION.OVER_PAID ||
-    fromStatus === KIDESYS_BILLING_SECTION.UP_TO_DATE ||
-    fromStatus === KIDESYS_BILLING_SECTION.INACTIVE
-  ) {
-    return fromStatus;
-  }
   return "";
 }
 

@@ -304,6 +304,10 @@ export async function buildAccountsFromAgeAnalysisSnapshots(
     const deltaBalance = calculateBalanceFromEntries(postImportEntries);
     const balance = ageBalance + deltaBalance;
     const kidesysSection = normalizeKidesysBillingSection(snap.kidesysSection);
+    const hasLiveLedgerDelta = postImportEntries.length > 0;
+    const accountStatus = hasLiveLedgerDelta
+      ? statusFromBalance(balance)
+      : displayStatusFromKidesysSection(kidesysSection, balance);
 
     return {
       accountNo: accountRef || "-",
@@ -317,7 +321,7 @@ export async function buildAccountsFromAgeAnalysisSnapshots(
       lastInvoiceLabel: invoiceFields.lastInvoiceLabel,
       lastPayment: paymentFields.lastPayment,
       lastPaymentDate: paymentFields.lastPaymentDate,
-      status: displayStatusFromKidesysSection(kidesysSection, balance),
+      status: accountStatus,
       kidesysSection,
       familyAccountId: family?.id || null,
       familyName: family?.familyName ?? null,

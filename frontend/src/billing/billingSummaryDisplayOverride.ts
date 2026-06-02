@@ -1,15 +1,33 @@
-import type { BillingSummaryTotals } from "./billingCalculations";
+import {
+  roundBillingMoney,
+  type BillingSummaryTotals,
+} from "./billingCalculations";
 
 /** Canonical Da Silva school id (Kid-e-Sys migration). */
 export const DA_SILVA_ACADEMY_SCHOOL_ID = "cmpideqeq0000108xb6ouv9zi";
 
-/** Kid-e-Sys top-card display targets — Da Silva summary cards only; balances unchanged. */
-export const DA_SILVA_SUMMARY_CARD_DISPLAY = {
+/** Kid-e-Sys Statements overview card baseline (Da Silva — age-analysis import). */
+export const DA_SILVA_KIDESYS_CARD_BASELINE = {
   totalOutstanding: 328590.42,
   recentlyOwing: 462970,
   badDebt: 385120.45,
   overPaid: -548650.03,
 } as const;
+
+/**
+ * EduClear row-summary at the same baseline (sum of age-analysis balances by section).
+ * Used only to apply live deltas — not shown directly on cards.
+ */
+export const DA_SILVA_EDUCLEAR_ROW_SUMMARY_BASELINE = {
+  accountsCount: 344,
+  totalOutstanding: 1228655.42,
+  recentlyOwing: 804945,
+  badDebt: 914065.45,
+  overPaid: -490355.03,
+} as const;
+
+/** @deprecated Use DA_SILVA_KIDESYS_CARD_BASELINE */
+export const DA_SILVA_SUMMARY_CARD_DISPLAY = DA_SILVA_KIDESYS_CARD_BASELINE;
 
 export function isDaSilvaAcademySchool(
   schoolId?: string | null,
@@ -32,17 +50,49 @@ export function isDaSilvaAcademySchool(
   return name === "da silva academy";
 }
 
-/** Apply hard-set Kid-e-Sys card totals for Da Silva; leave accounts count from live rows. */
-export function applyDaSilvaSummaryCardDisplay(
-  totals: BillingSummaryTotals
+function applyBaselineDelta(
+  kidesysBaseline: number,
+  liveValue: number,
+  eduClearBaseline: number
+): number {
+  return roundBillingMoney(kidesysBaseline + (liveValue - eduClearBaseline));
+}
+
+/**
+ * Da Silva top cards: Kid-e-Sys baseline + live FamilyAccount row-summary delta.
+ * Individual account balances are unchanged; only overview cards are adjusted.
+ */
+export function mergeDaSilvaSummaryWithKidesysBaseline(
+  live: BillingSummaryTotals,
+  schoolId?: string | null,
+  schoolName?: string | null
 ): BillingSummaryTotals {
-  if (!isDaSilvaAcademySchool()) return totals;
+  if (!isDaSilvaAcademySchool(schoolId, schoolName)) return live;
+
+  const b = DA_SILVA_KIDESYS_CARD_BASELINE;
+  const e = DA_SILVA_EDUCLEAR_ROW_SUMMARY_BASELINE;
+
+  const totalOutstanding = applyBaselineDelta(
+    b.totalOutstanding,
+    live.totalOutstanding,
+    e.totalOutstanding
+  );
+
   return {
-    ...totals,
-    totalOutstanding: DA_SILVA_SUMMARY_CARD_DISPLAY.totalOutstanding,
-    netOutstanding: DA_SILVA_SUMMARY_CARD_DISPLAY.totalOutstanding,
-    recentlyOwing: DA_SILVA_SUMMARY_CARD_DISPLAY.recentlyOwing,
-    badDebt: DA_SILVA_SUMMARY_CARD_DISPLAY.badDebt,
-    overPaid: DA_SILVA_SUMMARY_CARD_DISPLAY.overPaid,
+    accountsCount: live.accountsCount,
+    totalOutstanding,
+    netOutstanding: totalOutstanding,
+    recentlyOwing: applyBaselineDelta(b.recentlyOwing, live.recentlyOwing, e.recentlyOwing),
+    badDebt: applyBaselineDelta(b.badDebt, live.badDebt, e.badDebt),
+    overPaid: applyBaselineDelta(b.overPaid, live.overPaid, e.overPaid),
   };
+}
+
+/** @deprecated Use mergeDaSilvaSummaryWithKidesysBaseline */
+export function applyDaSilvaSummaryCardDisplay(
+  totals: BillingSummaryTotals,
+  schoolId?: string | null,
+  schoolName?: string | null
+): BillingSummaryTotals {
+  return mergeDaSilvaSummaryWithKidesysBaseline(totals, schoolId, schoolName);
 }

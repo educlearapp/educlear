@@ -153,6 +153,8 @@ export function isNonPostingImportedLedgerEntry(entry: BillingDisplayEntry): boo
 
 /** Post-import balance delta: EduClear-created invoice/payment/penalty/credit only. */
 export function countsTowardPostImportBalanceDelta(entry: BillingDisplayEntry): boolean {
+  const source = String(entry.source || "").trim().toLowerCase();
+  if (source === "kidesys_topup") return false;
   return !isNonPostingImportedLedgerEntry(entry);
 }
 
