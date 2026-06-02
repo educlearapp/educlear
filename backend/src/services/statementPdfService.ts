@@ -8,11 +8,15 @@ const GOLD = "#d4af37";
 const TABLE_HEAD = "#111827";
 const ROW_ALT = "#faf8f0";
 const ROW_BORDER = "#e5e7eb";
-/** Max logo dimension in PDF points (~72×72 px at 96 dpi). Aspect ratio preserved via fit. */
-const STATEMENT_LOGO_MAX_PT = 72;
-const STATEMENT_LOGO_GAP_PT = 8;
+/** Max logo dimension in PDF points. Aspect ratio preserved via fit. */
+const STATEMENT_LOGO_MAX_PT = 52;
+const STATEMENT_LOGO_GAP_PT = 6;
 /** ~14 mm side margins on A4 portrait */
 const PAGE_MARGIN_PT = 40;
+const SCHOOL_NAME_FONT_SIZE = 14;
+const CONTACT_FONT_SIZE = 8;
+const SCHOOL_NAME_LINE_GAP_PT = 8;
+const CONTACT_LINE_GAP_PT = 5;
 
 function formatMoney(value: number): string {
   const n = Number.isFinite(value) ? value : 0;
@@ -24,13 +28,40 @@ function formatBalance(value: number | null | undefined): string {
   return formatMoney(value);
 }
 
-function schoolContactLines(school: StatementPdfInput["school"]): string[] {
+function splitNonEmptyLines(value: string | null | undefined): string[] {
+  return String(value ?? "")
+    .split(/\r?\n/)
+    .map((line) => line.trim())
+    .filter((line) => line.length > 0);
+}
+
+/** One PDF line per address / contact field — no combined multiline blocks. */
+function schoolHeaderContactLines(school: StatementPdfInput["school"]): string[] {
   const lines: string[] = [];
-  if (school.address) lines.push(String(school.address));
+  lines.push(...splitNonEmptyLines(school.address));
+  const postal = splitNonEmptyLines(school.postalAddress);
+  const physicalKey = lines.join("|");
+  const postalKey = postal.join("|");
+  if (postal.length && postalKey !== physicalKey) {
+    lines.push(...postal);
+  }
   if (school.phone) lines.push(`Tel: ${school.phone}`);
   if (school.cellNo) lines.push(`Cell: ${school.cellNo}`);
   if (school.email) lines.push(String(school.email));
   return lines;
+}
+
+function drawStackedTextLine(
+  doc: InstanceType<typeof PDFDocument>,
+  text: string,
+  x: number,
+  y: number,
+  width: number,
+  gapAfter: number
+): number {
+  const h = doc.heightOfString(text, { width });
+  doc.text(text, x, y, { width, lineGap: 1 });
+  return y + h + gapAfter;
 }
 
 function sanitizeFilename(filename: string): string {
@@ -138,14 +169,12 @@ export async function generateStatementPdfBuffer(input: StatementPdfInput): Prom
   }
 
   const schoolName = String(input.school.name || "School").trim() || "School";
-  doc.fillColor(INK).font("Helvetica-Bold").fontSize(15);
-  doc.text(schoolName, leftX, leftY, { width: leftW });
-  leftY += doc.heightOfString(schoolName, { width: leftW }) + 6;
+  doc.fillColor(INK).font("Helvetica-Bold").fontSize(SCHOOL_NAME_FONT_SIZE);
+  leftY = drawStackedTextLine(doc, schoolName, leftX, leftY, leftW, SCHOOL_NAME_LINE_GAP_PT);
 
-  doc.font("Helvetica").fontSize(8.5).fillColor(MUTED);
-  for (const line of schoolContactLines(input.school)) {
-    doc.text(line, leftX, leftY, { width: leftW });
-    leftY += 12;
+  doc.font("Helvetica").fontSize(CONTACT_FONT_SIZE).fillColor(MUTED);
+  for (const line of schoolHeaderContactLines(input.school)) {
+    leftY = drawStackedTextLine(doc, line, leftX, leftY, leftW, CONTACT_LINE_GAP_PT);
   }
 
   doc.fillColor(INK).font("Helvetica-Bold").fontSize(20);

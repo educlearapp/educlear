@@ -32,6 +32,7 @@ export type StatementSchoolBranding = {
   phone?: string;
   cellNo?: string;
   address?: string;
+  postalAddress?: string;
   logoUrl?: string;
 };
 
@@ -181,6 +182,7 @@ export async function loadStatementSchoolBranding(schoolId: string): Promise<Sta
       phone: String(match.phone || match.telephone || "").trim() || undefined,
       cellNo: String(match.cellNo || "").trim() || undefined,
       address: String(match.address || match.physicalAddress || "").trim() || undefined,
+      postalAddress: String(match.postalAddress || "").trim() || undefined,
       logoUrl: logoUrl || undefined,
     };
   } catch {
@@ -354,9 +356,22 @@ function pdfArrayBufferToBase64(buffer: ArrayBuffer): string {
   return btoa(binary);
 }
 
+function splitNonEmptyLines(value: string | null | undefined): string[] {
+  return String(value ?? "")
+    .split(/\r?\n/)
+    .map((line) => line.trim())
+    .filter((line) => line.length > 0);
+}
+
 function schoolBrandingLines(school: StatementSchoolBranding): string[] {
   const lines: string[] = [];
-  if (school.address) lines.push(String(school.address));
+  lines.push(...splitNonEmptyLines(school.address));
+  const postal = splitNonEmptyLines(school.postalAddress);
+  const physicalKey = lines.join("|");
+  const postalKey = postal.join("|");
+  if (postal.length && postalKey !== physicalKey) {
+    lines.push(...postal);
+  }
   if (school.phone) lines.push(`Tel: ${school.phone}`);
   if (school.cellNo) lines.push(`Cell: ${school.cellNo}`);
   if (school.email) lines.push(String(school.email));
@@ -417,8 +432,9 @@ export function generateAccountStatementPdf(input: AccountStatementDocumentInput
   doc.setFontSize(8.5);
   doc.setTextColor(...PDF_MUTED);
   for (const line of schoolBrandingLines(school)) {
-    doc.text(line, leftX, leftY, { maxWidth: leftW });
-    leftY += 4.8;
+    const wrapped = doc.splitTextToSize(line, leftW);
+    doc.text(wrapped, leftX, leftY);
+    leftY += wrapped.length * 4.2 + 1.2;
   }
 
   let rightY = margin;
@@ -676,8 +692,9 @@ export function buildAccountStatementHtml(input: AccountStatementDocumentInput):
     .header-left { flex: 1 1 58%; min-width: 0; }
     .header-right { flex: 0 0 auto; text-align: right; }
     .school-name { font-size: 22px; font-weight: 900; margin: 0 0 8px; line-height: 1.25; }
-    .muted { color: #6b7280; font-size: 12px; line-height: 1.65; }
-    .muted p { margin: 0 0 4px; }
+    .muted { color: #6b7280; font-size: 12px; line-height: 1.75; }
+    .muted p { margin: 0 0 6px; display: block; }
+    .school-contact { display: flex; flex-direction: column; gap: 4px; }
     .title { font-size: 26px; font-weight: 900; margin: 0 0 10px; }
     .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 20px; }
     .box { border: 1px solid #e5e7eb; border-radius: 12px; padding: 14px; background: #fafafa; }
@@ -705,11 +722,10 @@ export function buildAccountStatementHtml(input: AccountStatementDocumentInput):
     <div class="header-left">
       ${logoBlock}
       <div class="school-name">${escapeHtml(school.name)}</div>
-      <div class="muted">
-        ${school.address ? `<p>${escapeHtml(school.address)}</p>` : ""}
-        ${school.phone ? `<p>Tel: ${escapeHtml(school.phone)}</p>` : ""}
-        ${school.cellNo ? `<p>Cell: ${escapeHtml(school.cellNo)}</p>` : ""}
-        ${school.email ? `<p>${escapeHtml(school.email)}</p>` : ""}
+      <div class="muted school-contact">
+        ${schoolBrandingLines(school)
+          .map((line) => `<p>${escapeHtml(line)}</p>`)
+          .join("")}
       </div>
     </div>
     <div class="header-right">

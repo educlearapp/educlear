@@ -23,6 +23,7 @@ export type StatementPdfSchoolBranding = {
   phone?: string;
   cellNo?: string;
   address?: string;
+  postalAddress?: string;
   logoUrl?: string;
 };
 

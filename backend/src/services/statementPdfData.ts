@@ -362,7 +362,15 @@ export async function resolveStatementBillingContact(
 async function loadSchoolBranding(schoolId: string) {
   const school = await prisma.school.findUnique({
     where: { id: schoolId },
-    select: { name: true, email: true, phone: true, cellNo: true, address: true, logoUrl: true },
+    select: {
+      name: true,
+      email: true,
+      phone: true,
+      cellNo: true,
+      address: true,
+      postalAddress: true,
+      logoUrl: true,
+    },
   });
   return {
     name: String(school?.name || "School").trim() || "School",
@@ -370,6 +378,7 @@ async function loadSchoolBranding(schoolId: string) {
     phone: String(school?.phone || "").trim() || undefined,
     cellNo: String(school?.cellNo || "").trim() || undefined,
     address: String(school?.address || "").trim() || undefined,
+    postalAddress: String(school?.postalAddress || "").trim() || undefined,
     logoUrl: String(school?.logoUrl || "").trim() || undefined,
   };
 }
