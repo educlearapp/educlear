@@ -18,7 +18,8 @@ function matchesSearch(school: SchoolRecord, query: string) {
   return (
     school.schoolName.toLowerCase().includes(q) ||
     school.ownerName.toLowerCase().includes(q) ||
-    school.email.toLowerCase().includes(q)
+    school.email.toLowerCase().includes(q) ||
+    String(school.contactPhone || "").toLowerCase().includes(q)
   );
 }
 

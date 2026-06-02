@@ -45,6 +45,7 @@ function schoolDetailMessage(school: SchoolRecord): string {
   const lines = [
     `Owner: ${school.ownerName}`,
     `Email: ${school.email}`,
+    `Contact: ${school.contactPhone || "—"}`,
     `Package: ${school.package}`,
     `Status: ${school.status}${school.isActive ? "" : " (inactive)"}`,
     `Learners: ${school.learnerCount}`,
@@ -187,6 +188,7 @@ export default function SuperAdminSchoolsPage() {
       <SchoolsTable
         schools={filteredSchools}
         hasRegisteredSchools={hasRegisteredSchools}
+        loadError={error}
         loading={loading}
         onView={handleView}
         onActivate={handleActivate}

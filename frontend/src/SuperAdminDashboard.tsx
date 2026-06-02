@@ -1,6 +1,8 @@
 import { Navigate, Route, Routes, useLocation, useNavigate } from "react-router-dom";
 import AccessDenied from "./auth/AccessDenied";
 import { canAccessMigration, migrationAccessDeniedDebug } from "./auth/migrationAccess";
+import { isSuperAdmin } from "./auth/roles";
+import SuperAdminGate from "./auth/SuperAdminGate";
 import logo from "./assets/logo.png";
 import MigrationCenter from "./pages/superadmin/MigrationCenter";
 import MigrationResearch from "./pages/superadmin/MigrationResearch";
@@ -26,7 +28,8 @@ const NAV_ITEMS: NavItem[] = [
 export default function SuperAdminDashboard() {
   const navigate = useNavigate();
   const location = useLocation();
-  const superAdmin = canAccessMigration();
+  const migrationAccess = canAccessMigration();
+  const platformSuperAdmin = isSuperAdmin();
 
   const onMigrationRoute =
     location.pathname.startsWith("/super-admin/migration") || location.pathname === "/migration";
@@ -35,7 +38,15 @@ export default function SuperAdminDashboard() {
     ? "migration"
     : (NAV_ITEMS.find((item) => location.pathname.startsWith(item.path))?.key ?? "schools");
 
-  if (!superAdmin) {
+  const onSchoolsRoute = location.pathname.includes("/schools");
+
+  if (onSchoolsRoute && !platformSuperAdmin) {
+    return (
+      <AccessDenied message="Access denied — Schools Management requires a platform super admin account." />
+    );
+  }
+
+  if (!migrationAccess) {
     return (
       <AccessDenied
         message="Access denied — Migration Center requires a school owner or platform admin account."
@@ -54,8 +65,8 @@ export default function SuperAdminDashboard() {
 
         <div className="sa-admin-sidebar-label">Super Admin</div>
 
-        {superAdmin &&
-          NAV_ITEMS.map((item) => (
+        {migrationAccess &&
+          NAV_ITEMS.filter((item) => item.key !== "schools" || platformSuperAdmin).map((item) => (
             <div
               key={item.key}
               className={`top-dashboard ${activeKey === item.key ? "active" : ""}`}
@@ -79,7 +90,14 @@ export default function SuperAdminDashboard() {
         <div className="page-area">
           <Routes>
             <Route path="/" element={<Navigate to="schools" replace />} />
-            <Route path="schools" element={<SuperAdminSchoolsPage />} />
+            <Route
+              path="schools"
+              element={
+                <SuperAdminGate>
+                  <SuperAdminSchoolsPage />
+                </SuperAdminGate>
+              }
+            />
             <Route path="migration" element={<MigrationCenter />} />
             <Route path="migration/research" element={<MigrationResearch />} />
             <Route path="migration/billing-plans" element={<LiveBillingPlansImportPage />} />

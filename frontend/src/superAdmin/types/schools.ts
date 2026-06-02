@@ -1,12 +1,13 @@
 export type SchoolStatus = "Active" | "Trial" | "Suspended";
 
-export type SchoolPackage = "Starter" | "Growth" | "Professional" | "Unlimited" | "—";
+export type SchoolPackage = "Starter" | "Growth" | "Professional" | "Unlimited" | "—" | (string & {});
 
 export type SchoolRecord = {
   id: string;
   schoolName: string;
   ownerName: string;
   email: string;
+  contactPhone: string | null;
   package: SchoolPackage;
   status: SchoolStatus;
   learnerCount: number;

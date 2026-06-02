@@ -1,3 +1,9 @@
+/** Built-in platform super admins — always honored in addition to SUPER_ADMIN_EMAILS. */
+export const DEFAULT_PLATFORM_SUPER_ADMIN_EMAILS = [
+  "info@educlear.co.za",
+  "dasilvaacademy@gmail.com",
+] as const;
+
 export function normalizeSuperAdminEmail(email: unknown): string {
   return String(email || "").trim().toLowerCase();
 }
@@ -14,10 +20,12 @@ function stripEnvQuotes(value: string): string {
 }
 
 export function parseSuperAdminEmails(raw?: string): string[] {
-  return stripEnvQuotes(String(raw ?? process.env.SUPER_ADMIN_EMAILS ?? ""))
+  const fromEnv = stripEnvQuotes(String(raw ?? process.env.SUPER_ADMIN_EMAILS ?? ""))
     .split(",")
     .map((entry) => normalizeSuperAdminEmail(stripEnvQuotes(entry)))
     .filter(Boolean);
+  const merged = new Set<string>([...DEFAULT_PLATFORM_SUPER_ADMIN_EMAILS, ...fromEnv]);
+  return [...merged];
 }
 
 export function isPlatformSuperAdminEmail(email: string): boolean {

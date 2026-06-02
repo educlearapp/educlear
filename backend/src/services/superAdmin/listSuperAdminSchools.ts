@@ -19,6 +19,7 @@ export type SuperAdminSchoolListItem = {
   schoolName: string;
   ownerName: string;
   ownerEmail: string;
+  contactPhone: string | null;
   package: string;
   packageCode: EduClearPackageCode | null;
   subscriptionStatus: SchoolSubscriptionStatus | null;
@@ -119,10 +120,19 @@ function computeSummary(schools: SuperAdminSchoolListItem[]): SuperAdminSchoolSu
   };
 }
 
+function schoolContactPhone(phone: string | null | undefined, cellNo: string | null | undefined): string | null {
+  const landline = String(phone || "").trim();
+  const mobile = String(cellNo || "").trim();
+  if (landline && mobile) return `${landline} · ${mobile}`;
+  return landline || mobile || null;
+}
+
 const schoolListSelect = {
   id: true,
   name: true,
   email: true,
+  phone: true,
+  cellNo: true,
   createdAt: true,
   schoolSubscription: {
     select: {
@@ -179,6 +189,7 @@ function mapSchoolRow(row: SchoolListRow): SuperAdminSchoolListItem {
     schoolName: row.name,
     ownerName,
     ownerEmail,
+    contactPhone: schoolContactPhone(row.phone, row.cellNo),
     package: packageLabel(subscription?.packageCode, subscription?.package?.name),
     packageCode: subscription?.packageCode ?? null,
     subscriptionStatus: subscription?.status ?? null,

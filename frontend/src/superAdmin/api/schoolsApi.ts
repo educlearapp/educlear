@@ -7,6 +7,7 @@ type ApiSchoolRow = {
   ownerName?: string;
   ownerEmail?: string;
   email?: string;
+  contactPhone?: string | null;
   package?: string;
   status?: string;
   learnerCount?: number;
@@ -21,16 +22,18 @@ type ApiSchoolsResponse = {
   summary?: Partial<SchoolsSummary>;
 };
 
-const PACKAGE_VALUES = new Set<string>(["Starter", "Growth", "Professional", "Unlimited"]);
+const KNOWN_PACKAGES = new Set<string>(["Starter", "Growth", "Professional", "Unlimited"]);
 const STATUS_VALUES = new Set<string>(["Active", "Trial", "Suspended"]);
 
 function asPackage(value: unknown): SchoolPackage {
   const label = String(value || "").trim();
   if (!label || label === "—") return "—";
-  if (PACKAGE_VALUES.has(label)) return label as SchoolPackage;
+  if (KNOWN_PACKAGES.has(label)) return label as SchoolPackage;
   if (label.toLowerCase() === "unlimited") return "Unlimited";
   if (label.toLowerCase() === "starter") return "Starter";
-  return "—";
+  if (label.toLowerCase() === "growth") return "Growth";
+  if (label.toLowerCase() === "professional") return "Professional";
+  return label;
 }
 
 function asStatus(value: unknown): SchoolRecord["status"] {
@@ -42,11 +45,13 @@ function asStatus(value: unknown): SchoolRecord["status"] {
 function mapSchoolRow(row: ApiSchoolRow, sessionSchoolId: string | null): SchoolRecord {
   const id = String(row.id || "").trim();
   const ownerEmail = String(row.ownerEmail || row.email || "").trim();
+  const contactRaw = row.contactPhone != null ? String(row.contactPhone).trim() : "";
   return {
     id,
     schoolName: String(row.schoolName || "—").trim() || "—",
     ownerName: String(row.ownerName || ownerEmail || "—").trim() || "—",
     email: ownerEmail || "—",
+    contactPhone: contactRaw || null,
     package: asPackage(row.package),
     status: asStatus(row.status),
     learnerCount: Number.isFinite(row.learnerCount) ? Number(row.learnerCount) : 0,
@@ -67,7 +72,22 @@ export async function fetchSuperAdminSchools(): Promise<{
   summary: SchoolsSummary;
 }> {
   const sessionSchoolId = localStorage.getItem("schoolId");
-  const data = (await superAdminApiFetch("/api/super-admin/schools")) as ApiSchoolsResponse;
+  let data: ApiSchoolsResponse;
+  try {
+    data = (await superAdminApiFetch("/api/super-admin/schools")) as ApiSchoolsResponse;
+  } catch (err: unknown) {
+    const message = err instanceof Error ? err.message : "Could not load registered schools.";
+    if (/super admin access required/i.test(message)) {
+      throw new Error(
+        "Super admin access required. Sign in with a platform super admin account (e.g. info@educlear.co.za)."
+      );
+    }
+    if (/authentication required|401/i.test(message)) {
+      throw new Error("Your session expired. Sign in again as a platform super admin.");
+    }
+    throw new Error(message || "Could not load registered schools. Please try again.");
+  }
+
   const rows = Array.isArray(data?.schools) ? data.schools : [];
   const schools = rows.map((row) => mapSchoolRow(row, sessionSchoolId));
 

@@ -7,11 +7,12 @@ const TABLE_COLUMNS = [
   "School Name",
   "Owner",
   "Email",
+  "Contact",
   "Package",
   "Status",
   "Learners",
   "Parents",
-  "Registration Date",
+  "Registered",
   "Last Login",
   "Actions",
 ] as const;
@@ -19,6 +20,7 @@ const TABLE_COLUMNS = [
 type Props = {
   schools: SchoolRecord[];
   hasRegisteredSchools: boolean;
+  loadError?: string | null;
   loading?: boolean;
   onView: (school: SchoolRecord) => void;
   onActivate: (school: SchoolRecord) => void;
@@ -31,6 +33,7 @@ type Props = {
 export default function SchoolsTable({
   schools,
   hasRegisteredSchools,
+  loadError = null,
   loading = false,
   onView,
   onActivate,
@@ -60,6 +63,16 @@ export default function SchoolsTable({
                 <td colSpan={colSpan} className="sa-schools-table-empty">
                   <div className="sa-schools-empty-state">
                     <p className="sa-schools-empty-title">Loading schools…</p>
+                    <p className="sa-schools-empty-text">Fetching registered schools from the database.</p>
+                  </div>
+                </td>
+              </tr>
+            ) : loadError ? (
+              <tr>
+                <td colSpan={colSpan} className="sa-schools-table-empty">
+                  <div className="sa-schools-empty-state">
+                    <p className="sa-schools-empty-title">Schools could not be loaded</p>
+                    <p className="sa-schools-empty-text">Use the Retry button above to try again.</p>
                   </div>
                 </td>
               </tr>
@@ -86,6 +99,7 @@ export default function SchoolsTable({
                   <td className="sa-schools-cell sa-schools-cell--name">{school.schoolName}</td>
                   <td>{school.ownerName}</td>
                   <td className="sa-schools-cell sa-schools-cell--email">{school.email}</td>
+                  <td className="sa-schools-cell">{school.contactPhone || "—"}</td>
                   <td>
                     <span className="sa-schools-package-pill">{school.package}</span>
                   </td>
