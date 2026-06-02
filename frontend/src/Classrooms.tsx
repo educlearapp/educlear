@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import type { CSSProperties } from "react";
 import { apiFetch, API_URL } from "./api";
 import "./Classrooms.css";
@@ -826,6 +826,48 @@ function ClassroomManage(props: {
   const [moveOpen, setMoveOpen] = useState(false);
   const [moveTo, setMoveTo] = useState("");
 
+  const menuWrapRef = useRef<HTMLDivElement | null>(null);
+
+  type EmailPreview = {
+    classroomName: string;
+    learnerCount: number;
+    parentEmailCount: number;
+    learnersWithoutEmail: Array<{ id: string; name: string }>;
+  };
+
+  type EmailSendSummary = {
+    sentCount: number;
+    failedCount: number;
+    missingEmailCount: number;
+    errors: Array<{ learnerId: string; learnerName: string; reason: string }>;
+  };
+
+  const [emailAllOpen, setEmailAllOpen] = useState(false);
+  const [emailAllPreview, setEmailAllPreview] = useState<EmailPreview | null>(null);
+  const [emailAllPreviewLoading, setEmailAllPreviewLoading] = useState(false);
+  const [emailAllSending, setEmailAllSending] = useState(false);
+  const [emailAllResult, setEmailAllResult] = useState<EmailSendSummary | null>(null);
+  const [emailSingleSending, setEmailSingleSending] = useState(false);
+  const emailSendTokenRef = useRef(0);
+
+  useEffect(() => {
+    function onDocClick(e: MouseEvent) {
+      if (!menuWrapRef.current) return;
+      if (!menuWrapRef.current.contains(e.target as Node)) setMenuOpen(false);
+    }
+    document.addEventListener("mousedown", onDocClick);
+    return () => document.removeEventListener("mousedown", onDocClick);
+  }, []);
+
+  useEffect(() => {
+    if (!menuOpen) return;
+    function onKey(e: KeyboardEvent) {
+      if (e.key === "Escape") setMenuOpen(false);
+    }
+    document.addEventListener("keydown", onKey);
+    return () => document.removeEventListener("keydown", onKey);
+  }, [menuOpen]);
+
   const load = async () => {
     if (!props.schoolId || !props.classroomId) return;
     setLoading(true);
@@ -1228,6 +1270,108 @@ function ClassroomManage(props: {
     }
   };
 
+  const classroomDisplayName = String(form.name || classroom?.name || "this class").trim() || "this class";
+
+  const openEmailAllModal = async () => {
+    setMenuOpen(false);
+    setEmailAllResult(null);
+    setEmailAllOpen(true);
+    setEmailAllPreview(null);
+    setEmailAllPreviewLoading(true);
+    try {
+      const data = await apiFetch(
+        `/api/classes/${encodeURIComponent(props.classroomId)}/email-reports/preview?schoolId=${encodeURIComponent(props.schoolId)}`
+      );
+      setEmailAllPreview({
+        classroomName: String(data?.classroomName || classroomDisplayName),
+        learnerCount: Number(data?.learnerCount || classroomChildren.length) || 0,
+        parentEmailCount: Number(data?.parentEmailCount || 0) || 0,
+        learnersWithoutEmail: Array.isArray(data?.learnersWithoutEmail) ? data.learnersWithoutEmail : [],
+      });
+    } catch (e: any) {
+      setEmailAllOpen(false);
+      setMessage(e?.message || "Could not load email preview.");
+    } finally {
+      setEmailAllPreviewLoading(false);
+    }
+  };
+
+  const confirmEmailAll = async () => {
+    if (emailAllSending) return;
+    const token = ++emailSendTokenRef.current;
+    setEmailAllSending(true);
+    setEmailAllResult(null);
+    try {
+      const data = await apiFetch(
+        `/api/classes/${encodeURIComponent(props.classroomId)}/email-reports`,
+        {
+          method: "POST",
+          body: JSON.stringify({
+            schoolId: props.schoolId,
+            idempotencyKey: `class-all-${props.classroomId}-${token}`,
+          }),
+        }
+      );
+      if (emailSendTokenRef.current !== token) return;
+      setEmailAllResult({
+        sentCount: Number(data?.sentCount || 0) || 0,
+        failedCount: Number(data?.failedCount || 0) || 0,
+        missingEmailCount: Number(data?.missingEmailCount || 0) || 0,
+        errors: Array.isArray(data?.errors) ? data.errors : [],
+      });
+    } catch (e: any) {
+      if (emailSendTokenRef.current !== token) return;
+      setMessage(e?.message || "Failed to email reports.");
+      setEmailAllOpen(false);
+    } finally {
+      if (emailSendTokenRef.current === token) setEmailAllSending(false);
+    }
+  };
+
+  const emailSelectedLearnerReport = async () => {
+    setMenuOpen(false);
+    const ids = Array.from(selectedChildIds);
+    if (ids.length === 0 || ids.length > 1) {
+      setMessage("Please select only one learner to send an individual report.");
+      return;
+    }
+    if (emailSingleSending) return;
+    const learnerId = ids[0];
+    const token = ++emailSendTokenRef.current;
+    setEmailSingleSending(true);
+    setMessage(null);
+    try {
+      const data = await apiFetch(
+        `/api/classes/${encodeURIComponent(props.classroomId)}/learners/${encodeURIComponent(learnerId)}/email-report`,
+        {
+          method: "POST",
+          body: JSON.stringify({
+            schoolId: props.schoolId,
+            idempotencyKey: `class-one-${props.classroomId}-${learnerId}-${token}`,
+          }),
+        }
+      );
+      const summary: EmailSendSummary = {
+        sentCount: Number(data?.sentCount || 0) || 0,
+        failedCount: Number(data?.failedCount || 0) || 0,
+        missingEmailCount: Number(data?.missingEmailCount || 0) || 0,
+        errors: Array.isArray(data?.errors) ? data.errors : [],
+      };
+      if (summary.sentCount > 0) {
+        setMessage(`Report emailed successfully (${summary.sentCount} sent).`);
+      } else if (summary.missingEmailCount > 0) {
+        setMessage("No parent/guardian email on file for this learner.");
+      } else {
+        const reason = summary.errors[0]?.reason || "Failed to send report.";
+        setMessage(reason);
+      }
+    } catch (e: any) {
+      setMessage(e?.message || "Failed to email report.");
+    } finally {
+      setEmailSingleSending(false);
+    }
+  };
+
   return (
     <div className="classrooms-manage-shell">
       <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12, flexWrap: "wrap" }}>
@@ -1240,43 +1384,37 @@ function ClassroomManage(props: {
           </button>
         </div>
 
-        <div style={{ position: "relative" }}>
-          <button type="button" className="ec-page-btn" onClick={() => setMenuOpen((v) => !v)}>
-            More Actions
+        <div className="classrooms-more-actions-wrap" ref={menuWrapRef}>
+          <button
+            type="button"
+            className="ec-page-btn"
+            onClick={() => setMenuOpen((v) => !v)}
+            aria-haspopup="menu"
+            aria-expanded={menuOpen}
+            disabled={emailSingleSending}
+          >
+            More Actions ▾
           </button>
           {menuOpen ? (
-            <div
-              style={{
-                position: "absolute",
-                right: 0,
-                top: 44,
-                width: 220,
-                background: "#ffffff",
-                border: "1px solid rgba(15, 23, 42, 0.14)",
-                borderRadius: 14,
-                boxShadow: "0 18px 48px rgba(15, 23, 42, 0.16)",
-                overflow: "hidden",
-                zIndex: 5,
-              }}
-              onMouseLeave={() => setMenuOpen(false)}
-            >
-              <button
-                type="button"
-                style={{ width: "100%", textAlign: "left", padding: "10px 12px", border: 0, background: "transparent", fontWeight: 900, cursor: "pointer" }}
-                onClick={() => {
-                  setMenuOpen(false);
-                  void deleteClassroom();
-                }}
-              >
-                Delete classroom
+            <div className="classrooms-more-actions-menu" role="menu">
+              <button type="button" role="menuitem" onClick={() => void openEmailAllModal()}>
+                Email reports to all parents
               </button>
               <button
                 type="button"
-                style={{ width: "100%", textAlign: "left", padding: "10px 12px", border: 0, background: "transparent", fontWeight: 900, cursor: "pointer" }}
+                role="menuitem"
+                disabled={emailSingleSending}
+                onClick={() => void emailSelectedLearnerReport()}
+              >
+                {emailSingleSending ? "Sending report…" : "Email report for selected learner"}
+              </button>
+              <div className="classrooms-more-actions-divider" />
+              <button
+                type="button"
+                role="menuitem"
                 onClick={() => {
                   setMenuOpen(false);
                   const merged: ClassroomForm = { ...props.classroomForm, teacher: "", teacherEmail: "" };
-                  console.log("BEFORE SET FORM:", merged);
                   const selected = classroom;
                   const finalMerged: ClassroomForm = {
                     ...merged,
@@ -1286,12 +1424,8 @@ function ClassroomManage(props: {
                       merged.name !== merged.id &&
                       merged.name.length < 30
                         ? merged.name
-                        : (selected?.name || ""),
+                        : selected?.name || "",
                   };
-                  if (finalMerged?.name && finalMerged?.id && finalMerged.name === finalMerged.id) {
-                    console.error("INVALID NAME SOURCE");
-                  }
-                  console.log("FINAL SET FORM:", finalMerged);
                   props.setClassroomForm(finalMerged);
                   setMessage("Teacher cleared. Click Save to persist.");
                 }}
@@ -1300,7 +1434,7 @@ function ClassroomManage(props: {
               </button>
               <button
                 type="button"
-                style={{ width: "100%", textAlign: "left", padding: "10px 12px", border: 0, background: "transparent", fontWeight: 900, cursor: "pointer" }}
+                role="menuitem"
                 onClick={() => {
                   setMenuOpen(false);
                   window.open(
@@ -1310,6 +1444,18 @@ function ClassroomManage(props: {
                 }}
               >
                 Export class list
+              </button>
+              <div className="classrooms-more-actions-divider" />
+              <button
+                type="button"
+                role="menuitem"
+                className="classrooms-more-actions-menu__danger"
+                onClick={() => {
+                  setMenuOpen(false);
+                  void deleteClassroom();
+                }}
+              >
+                Delete classroom
               </button>
             </div>
           ) : null}
@@ -1668,6 +1814,119 @@ function ClassroomManage(props: {
 
         <SimplePagination page={safeChildPage} totalPages={childTotalPages} onPageChange={setChildPage} />
       </div>
+
+      {emailAllOpen ? (
+        <div
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="email-all-reports-title"
+          style={{
+            position: "fixed",
+            inset: 0,
+            background: "rgba(0,0,0,0.55)",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            padding: 18,
+            zIndex: 80,
+          }}
+          onMouseDown={() => {
+            if (!emailAllSending) setEmailAllOpen(false);
+          }}
+        >
+          <div
+            onMouseDown={(e) => e.stopPropagation()}
+            style={{
+              width: "min(560px, 100%)",
+              ...premiumCardStyle(),
+              border: "1px solid rgba(212,175,55,0.22)",
+              padding: 18,
+            }}
+          >
+            <div id="email-all-reports-title" style={{ fontWeight: 900, fontSize: 18, color: "#0f172a" }}>
+              {emailAllResult
+                ? "Report email summary"
+                : `Send reports to all parents in ${emailAllPreview?.classroomName || classroomDisplayName}?`}
+            </div>
+
+            {emailAllPreviewLoading ? (
+              <div style={{ marginTop: 14, color: "#475569", fontWeight: 800 }}>Loading preview…</div>
+            ) : emailAllResult ? (
+              <div style={{ marginTop: 14, fontWeight: 700, fontSize: 14, color: "#334155", lineHeight: 1.6 }}>
+                <div>
+                  Sent: <strong>{emailAllResult.sentCount}</strong>
+                </div>
+                <div>
+                  Failed: <strong>{emailAllResult.failedCount}</strong>
+                </div>
+                <div>
+                  Missing emails: <strong>{emailAllResult.missingEmailCount}</strong>
+                </div>
+                {emailAllResult.errors.length ? (
+                  <ul style={{ marginTop: 10, paddingLeft: 18, maxHeight: 160, overflow: "auto" }}>
+                    {emailAllResult.errors.slice(0, 12).map((err) => (
+                      <li key={`${err.learnerId}-${err.reason}`}>
+                        {err.learnerName || "Learner"}: {err.reason}
+                      </li>
+                    ))}
+                  </ul>
+                ) : null}
+              </div>
+            ) : emailAllPreview ? (
+              <div style={{ marginTop: 14, fontWeight: 700, fontSize: 14, color: "#334155", lineHeight: 1.6 }}>
+                <div>
+                  Learners: <strong>{emailAllPreview.learnerCount}</strong>
+                </div>
+                <div>
+                  Parent emails: <strong>{emailAllPreview.parentEmailCount}</strong>
+                </div>
+                {emailAllPreview.learnersWithoutEmail.length ? (
+                  <div
+                    style={{
+                      marginTop: 12,
+                      padding: "10px 12px",
+                      borderRadius: 12,
+                      background: "rgba(234, 179, 8, 0.12)",
+                      border: "1px solid rgba(202, 138, 4, 0.35)",
+                      color: "#854d0e",
+                      fontWeight: 800,
+                      fontSize: 13,
+                    }}
+                  >
+                    {emailAllPreview.learnersWithoutEmail.length} learner(s) have no parent email on file.
+                    <ul style={{ margin: "8px 0 0", paddingLeft: 18, fontWeight: 700 }}>
+                      {emailAllPreview.learnersWithoutEmail.slice(0, 8).map((row) => (
+                        <li key={row.id}>{row.name}</li>
+                      ))}
+                    </ul>
+                  </div>
+                ) : null}
+              </div>
+            ) : null}
+
+            <div style={{ display: "flex", justifyContent: "flex-end", gap: 10, marginTop: 16 }}>
+              <button
+                type="button"
+                className="ec-page-btn"
+                disabled={emailAllSending}
+                onClick={() => setEmailAllOpen(false)}
+              >
+                {emailAllResult ? "Close" : "Cancel"}
+              </button>
+              {!emailAllResult ? (
+                <button
+                  type="button"
+                  className="ec-page-btn ec-page-btn--gold"
+                  disabled={emailAllSending || emailAllPreviewLoading || !emailAllPreview}
+                  onClick={() => void confirmEmailAll()}
+                >
+                  {emailAllSending ? "Sending…" : "Confirm send"}
+                </button>
+              ) : null}
+            </div>
+          </div>
+        </div>
+      ) : null}
 
       {moveOpen ? (
         <div

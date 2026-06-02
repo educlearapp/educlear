@@ -277,3 +277,59 @@
   border-radius: 999px;
   background: linear-gradient(90deg, #d4af37, rgba(212, 175, 55, 0.08));
 }
+
+.classrooms-more-actions-wrap {
+  position: relative;
+}
+
+.classrooms-more-actions-menu {
+  position: absolute;
+  right: 0;
+  top: calc(100% + 10px);
+  min-width: 280px;
+  background: linear-gradient(180deg, #0f172a 0%, #111827 100%);
+  border: 1px solid rgba(212, 175, 55, 0.45);
+  border-radius: 14px;
+  box-shadow: 0 22px 60px rgba(0, 0, 0, 0.35);
+  padding: 8px;
+  z-index: 120;
+  overflow: hidden;
+}
+
+.classrooms-more-actions-menu button {
+  width: 100%;
+  text-align: left;
+  padding: 11px 12px;
+  border: none;
+  border-radius: 10px;
+  background: transparent;
+  color: #f8fafc;
+  font-weight: 800;
+  font-size: 13px;
+  cursor: pointer;
+}
+
+.classrooms-more-actions-menu button:hover:not(:disabled) {
+  background: rgba(212, 175, 55, 0.14);
+  color: #f5d06f;
+}
+
+.classrooms-more-actions-menu button:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+.classrooms-more-actions-menu button.classrooms-more-actions-menu__danger {
+  color: #fca5a5;
+}
+
+.classrooms-more-actions-menu button.classrooms-more-actions-menu__danger:hover:not(:disabled) {
+  background: rgba(239, 68, 68, 0.12);
+  color: #fecaca;
+}
+
+.classrooms-more-actions-divider {
+  height: 1px;
+  margin: 6px 4px;
+  background: rgba(212, 175, 55, 0.22);
+}
