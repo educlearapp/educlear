@@ -7,6 +7,8 @@ export type FamilyAccountAgeAnalysisSnapshot = {
   schoolId: string;
   accountRef: string;
   accountHolder: string;
+  /** Kid-e-Sys age-analysis section (Recently Owing, Bad Debt, Paid Up, Over Paid). */
+  kidesysSection?: string;
   balance: number;
   buckets: {
     current: number;
@@ -67,5 +69,28 @@ export function upsertSchoolFamilyAccountAgeAnalysisSnapshots(
   const all = readAll();
   all[key] = { ...(all[key] || {}), ...snapshots };
   writeAll(all);
+}
+
+/** Merge Kid-e-Sys age-analysis section labels into existing snapshots (no balance changes). */
+export function backfillKidesysSectionsInSnapshots(
+  schoolId: string,
+  sectionsByAccountRef: Record<string, string>
+) {
+  const key = String(schoolId || "").trim();
+  if (!key) return { updated: 0 };
+  const all = readAll();
+  const existing = { ...(all[key] || {}) };
+  let updated = 0;
+  for (const [rawRef, section] of Object.entries(sectionsByAccountRef || {})) {
+    const accountRef = String(rawRef || "").trim().toUpperCase();
+    const kidesysSection = String(section || "").trim();
+    if (!accountRef || !kidesysSection || !existing[accountRef]) continue;
+    if (existing[accountRef].kidesysSection === kidesysSection) continue;
+    existing[accountRef] = { ...existing[accountRef], kidesysSection };
+    updated += 1;
+  }
+  all[key] = existing;
+  writeAll(all);
+  return { updated };
 }
 

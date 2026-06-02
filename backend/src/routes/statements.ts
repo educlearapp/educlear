@@ -1,5 +1,9 @@
 import { Router } from "express";
 
+import {
+  buildBillingSummaryValidationReport,
+  calculateBillingSummary,
+} from "../services/billingSummary";
 import { buildAndGenerateStatementPdf } from "../services/statementPdfData";
 import { buildAccountsFromAgeAnalysisSnapshots } from "../services/statementAccounts";
 import {
@@ -48,6 +52,22 @@ router.get("/pdf", async (req, res) => {
     console.error("[statements] GET /pdf failed:", error);
     const message = error instanceof Error ? error.message : "Server error";
     return res.status(500).json({ success: false, error: message });
+  }
+});
+
+// GET /api/statements/summary-validation?schoolId=
+router.get("/summary-validation", async (req, res) => {
+  try {
+    const schoolId = typeof req.query?.schoolId === "string" ? String(req.query.schoolId) : "";
+    if (!schoolId) return res.status(400).json({ success: false, error: "Missing schoolId" });
+
+    const accounts = await buildAccountsFromAgeAnalysisSnapshots(schoolId);
+    const summary = calculateBillingSummary(accounts);
+    const report = buildBillingSummaryValidationReport(schoolId, accounts);
+    return res.json({ success: true, summary, report });
+  } catch (error) {
+    console.error("[statements] GET /summary-validation failed:", error);
+    return res.status(500).json({ success: false, error: "Server error" });
   }
 });
 

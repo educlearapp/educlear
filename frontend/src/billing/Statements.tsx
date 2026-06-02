@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useState } from "react";
 import BillingSummaryCards from "./BillingSummaryCards";
-import { formatMoney, normaliseBillingAmount } from "./billingLedger";
+import { buildBillingRowSearchText, formatMoney, normaliseBillingAmount } from "./billingLedger";
 import { isMigratedOpeningBalanceOverviewLabel } from "./billingDisplayRules";
 import { refreshBillingFromApi } from "./billingApi";
 
@@ -231,67 +231,7 @@ export default function Statements({
 
 
 
-    return rows.filter((row) =>
-
-
-
-      [
-
-
-
-        row.accountNo,
-
-
-
-        row.name,
-
-
-
-        row.surname,
-
-
-
-        row.balance,
-
-
-
-        row.lastInvoice,
-
-
-
-        row.lastInvoiceDate,
-
-
-
-        row.lastPayment,
-
-
-
-        row.lastPaymentDate,
-
-
-
-        row.status,
-
-
-
-      ]
-
-
-
-        .join(" ")
-
-
-
-        .toLowerCase()
-
-
-
-        .includes(q)
-
-
-
-    );
+    return rows.filter((row) => buildBillingRowSearchText(row).includes(q));
 
 
 

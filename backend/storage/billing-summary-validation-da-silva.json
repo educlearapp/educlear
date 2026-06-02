@@ -1,0 +1,2125 @@
+{
+  "schoolId": "cmpideqeq0000108xb6ouv9zi",
+  "generatedAt": "2026-06-02T14:48:05.216Z",
+  "targets": {
+    "accountsCount": 344,
+    "totalOutstanding": 1228655.42,
+    "recentlyOwing": 804945,
+    "badDebt": 914065.45,
+    "overPaid": -490355.03
+  },
+  "actual": {
+    "accountsCount": 344,
+    "totalOutstanding": 1228655.42,
+    "recentlyOwing": 804945,
+    "badDebt": 914065.45,
+    "overPaid": -490355.03
+  },
+  "variance": {
+    "accounts": 0,
+    "totalOutstanding": 0,
+    "recentlyOwing": 0,
+    "badDebt": 0,
+    "overPaid": 0
+  },
+  "matches": {
+    "accounts": true,
+    "totalOutstanding": true,
+    "recentlyOwing": true,
+    "badDebt": true,
+    "overPaid": true
+  },
+  "passed": true,
+  "includedAccounts": [
+    {
+      "accountNo": "ADA004",
+      "balance": 7350,
+      "kidesysSection": "Recently Owing",
+      "status": "Recently Owing"
+    },
+    {
+      "accountNo": "AFR002",
+      "balance": 4350,
+      "kidesysSection": "Recently Owing",
+      "status": "Recently Owing"
+    },
+    {
+      "accountNo": "ALI002",
+      "balance": 7000,
+      "kidesysSection": "Bad Debt",
+      "status": "Bad Debt"
+    },
+    {
+      "accountNo": "BAN001",
+      "balance": 3550,
+      "kidesysSection": "Recently Owing",
+      "status": "Recently Owing"
+    },
+    {
+      "accountNo": "BOG005",
+      "balance": 4600,
+      "kidesysSection": "Bad Debt",
+      "status": "Bad Debt"
+    },
+    {
+      "accountNo": "BUY001",
+      "balance": 2900,
+      "kidesysSection": "Recently Owing",
+      "status": "Recently Owing"
+    },
+    {
+      "accountNo": "CET001",
+      "balance": 6250,
+      "kidesysSection": "Bad Debt",
+      "status": "Bad Debt"
+    },
+    {
+      "accountNo": "CHI002",
+      "balance": 0,
+      "kidesysSection": "Paid Up",
+      "status": "Paid Up"
+    },
+    {
+      "accountNo": "CHI004",
+      "balance": 3000,
+      "kidesysSection": "Recently Owing",
+      "status": "Recently Owing"
+    },
+    {
+      "accountNo": "CHI005",
+      "balance": 7400,
+      "kidesysSection": "Bad Debt",
+      "status": "Bad Debt"
+    },
+    {
+      "accountNo": "DHL002",
+      "balance": 4730,
+      "kidesysSection": "Bad Debt",
+      "status": "Bad Debt"
+    },
+    {
+      "accountNo": "DHL003",
+      "balance": 6000,
+      "kidesysSection": "Recently Owing",
+      "status": "Recently Owing"
+    },
+    {
+      "accountNo": "DIA003",
+      "balance": 2500,
+      "kidesysSection": "Recently Owing",
+      "status": "Recently Owing"
+    },
+    {
+      "accountNo": "DIA006",
+      "balance": 3000,
+      "kidesysSection": "Recently Owing",
+      "status": "Recently Owing"
+    },
+    {
+      "accountNo": "DIK001",
+      "balance": 4200,
+      "kidesysSection": "Recently Owing",
+      "status": "Recently Owing"
+    },
+    {
+      "accountNo": "DIK002",
+      "balance": 3450,
+      "kidesysSection": "Recently Owing",
+      "status": "Recently Owing"
+    },
+    {
+      "accountNo": "DIK003",
+      "balance": 3000,
+      "kidesysSection": "Recently Owing",
+      "status": "Recently Owing"
+    },
+    {
+      "accountNo": "DIK004",
+      "balance": 4250,
+      "kidesysSection": "Bad Debt",
+      "status": "Bad Debt"
+    },
+    {
+      "accountNo": "DIM002",
+      "balance": 18900,
+      "kidesysSection": "Bad Debt",
+      "status": "Bad Debt"
+    },
+    {
+      "accountNo": "DIN002",
+      "balance": 6900,
+      "kidesysSection": "Recently Owing",
+      "status": "Recently Owing"
+    },
+    {
+      "accountNo": "DIR001",
+      "balance": -16800,
+      "kidesysSection": "Over Paid",
+      "status": "Over Paid"
+    },
+    {
+      "accountNo": "DUP001",
+      "balance": -8700,
+      "kidesysSection": "Over Paid",
+      "status": "Over Paid"
+    },
+    {
+      "accountNo": "FRE001",
+      "balance": 9500,
+      "kidesysSection": "Bad Debt",
+      "status": "Bad Debt"
+    },
+    {
+      "accountNo": "GAA001",
+      "balance": 3500,
+      "kidesysSection": "Recently Owing",
+      "status": "Recently Owing"
+    },
+    {
+      "accountNo": "GAE001",
+      "balance": 6800,
+      "kidesysSection": "Bad Debt",
+      "status": "Bad Debt"
+    },
+    {
+      "accountNo": "GAE002",
+      "balance": 4520,
+      "kidesysSection": "Recently Owing",
+      "status": "Recently Owing"
+    },
+    {
+      "accountNo": "GEB002",
+      "balance": 3700,
+      "kidesysSection": "Recently Owing",
+      "status": "Recently Owing"
+    },
+    {
+      "accountNo": "GOI001",
+      "balance": 3700,
+      "kidesysSection": "Recently Owing",
+      "status": "Recently Owing"
+    },
+    {
+      "accountNo": "GOV001",
+      "balance": 1000,
+      "kidesysSection": "Recently Owing",
+      "status": "Recently Owing"
+    },
+    {
+      "accountNo": "HAI002",
+      "balance": 8400,
+      "kidesysSection": "Recently Owing",
+      "status": "Recently Owing"
+    },
+    {
+      "accountNo": "HAM002",
+      "balance": 10050,
+      "kidesysSection": "Recently Owing",
+      "status": "Recently Owing"
+    },
+    {
+      "accountNo": "HKA001",
+      "balance": 3700,
+      "kidesysSection": "Bad Debt",
+      "status": "Bad Debt"
+    },
+    {
+      "accountNo": "HLA001",
+      "balance": 5050,
+      "kidesysSection": "Bad Debt",
+      "status": "Bad Debt"
+    },
+    {
+      "accountNo": "HOB001",
+      "balance": 2650,
+      "kidesysSection": "Recently Owing",
+      "status": "Recently Owing"
+    },
+    {
+      "accountNo": "HOB002",
+      "balance": 5900,
+      "kidesysSection": "Recently Owing",
+      "status": "Recently Owing"
+    },
+    {
+      "accountNo": "HOM001",
+      "balance": 3700,
+      "kidesysSection": "Recently Owing",
+      "status": "Recently Owing"
+    },
+    {
+      "accountNo": "JAM001",
+      "balance": 1200,
+      "kidesysSection": "Recently Owing",
+      "status": "Recently Owing"
+    },
+    {
+      "accountNo": "JAN003",
+      "balance": 11000,
+      "kidesysSection": "Recently Owing",
+      "status": "Recently Owing"
+    },
+    {
+      "accountNo": "JEC002",
+      "balance": 1965,
+      "kidesysSection": "Recently Owing",
+      "status": "Recently Owing"
+    },
+    {
+      "accountNo": "KAL001",
+      "balance": 4500,
+      "kidesysSection": "Recently Owing",
+      "status": "Recently Owing"
+    },
+    {
+      "accountNo": "KAL002",
+      "balance": 4700,
+      "kidesysSection": "Recently Owing",
+      "status": "Recently Owing"
+    },
+    {
+      "accountNo": "KAT002",
+      "balance": 15400,
+      "kidesysSection": "Bad Debt",
+      "status": "Bad Debt"
+    },
+    {
+      "accountNo": "KEK003",
+      "balance": 2400,
+      "kidesysSection": "Recently Owing",
+      "status": "Recently Owing"
+    },
+    {
+      "accountNo": "KEM002",
+      "balance": 7950,
+      "kidesysSection": "Bad Debt",
+      "status": "Bad Debt"
+    },
+    {
+      "accountNo": "KEN001",
+      "balance": 3000,
+      "kidesysSection": "Recently Owing",
+      "status": "Recently Owing"
+    },
+    {
+      "accountNo": "KER001",
+      "balance": 3000,
+      "kidesysSection": "Recently Owing",
+      "status": "Recently Owing"
+    },
+    {
+      "accountNo": "KGA004",
+      "balance": -35290,
+      "kidesysSection": "Over Paid",
+      "status": "Over Paid"
+    },
+    {
+      "accountNo": "KGA006",
+      "balance": 3700,
+      "kidesysSection": "Bad Debt",
+      "status": "Bad Debt"
+    },
+    {
+      "accountNo": "KGO002",
+      "balance": 3696,
+      "kidesysSection": "Bad Debt",
+      "status": "Bad Debt"
+    },
+    {
+      "accountNo": "KGO003",
+      "balance": 5000,
+      "kidesysSection": "Bad Debt",
+      "status": "Bad Debt"
+    },
+    {
+      "accountNo": "KHU005",
+      "balance": 3550,
+      "kidesysSection": "Recently Owing",
+      "status": "Recently Owing"
+    },
+    {
+      "accountNo": "KHU006",
+      "balance": 3200,
+      "kidesysSection": "Recently Owing",
+      "status": "Recently Owing"
+    },
+    {
+      "accountNo": "KHU007",
+      "balance": 4700,
+      "kidesysSection": "Bad Debt",
+      "status": "Bad Debt"
+    },
+    {
+      "accountNo": "KIN001",
+      "balance": 3200,
+      "kidesysSection": "Recently Owing",
+      "status": "Recently Owing"
+    },
+    {
+      "accountNo": "KOB001",
+      "balance": 2350,
+      "kidesysSection": "Recently Owing",
+      "status": "Recently Owing"
+    },
+    {
+      "accountNo": "KOB002",
+      "balance": 3700,
+      "kidesysSection": "Bad Debt",
+      "status": "Bad Debt"
+    },
+    {
+      "accountNo": "KOR001",
+      "balance": 6860,
+      "kidesysSection": "Bad Debt",
+      "status": "Bad Debt"
+    },
+    {
+      "accountNo": "LAN002",
+      "balance": 2920,
+      "kidesysSection": "Recently Owing",
+      "status": "Recently Owing"
+    },
+    {
+      "accountNo": "LEB005",
+      "balance": 7400,
+      "kidesysSection": "Bad Debt",
+      "status": "Bad Debt"
+    },
+    {
+      "accountNo": "LEG001",
+      "balance": 6000,
+      "kidesysSection": "Recently Owing",
+      "status": "Recently Owing"
+    },
+    {
+      "accountNo": "LEG003",
+      "balance": 4350,
+      "kidesysSection": "Recently Owing",
+      "status": "Recently Owing"
+    },
+    {
+      "accountNo": "LEK003",
+      "balance": 7200,
+      "kidesysSection": "Bad Debt",
+      "status": "Bad Debt"
+    },
+    {
+      "accountNo": "LEK007",
+      "balance": 2650,
+      "kidesysSection": "Recently Owing",
+      "status": "Recently Owing"
+    },
+    {
+      "accountNo": "LEK008",
+      "balance": 4250,
+      "kidesysSection": "Recently Owing",
+      "status": "Recently Owing"
+    },
+    {
+      "accountNo": "LEP003",
+      "balance": -2100,
+      "kidesysSection": "Over Paid",
+      "status": "Over Paid"
+    },
+    {
+      "accountNo": "LER002",
+      "balance": 3450,
+      "kidesysSection": "Recently Owing",
+      "status": "Recently Owing"
+    },
+    {
+      "accountNo": "LET009",
+      "balance": -20300,
+      "kidesysSection": "Over Paid",
+      "status": "Over Paid"
+    },
+    {
+      "accountNo": "LET012",
+      "balance": 3000,
+      "kidesysSection": "Recently Owing",
+      "status": "Recently Owing"
+    },
+    {
+      "accountNo": "LET013",
+      "balance": 7600,
+      "kidesysSection": "Recently Owing",
+      "status": "Recently Owing"
+    },
+    {
+      "accountNo": "MAB004",
+      "balance": 3700,
+      "kidesysSection": "Recently Owing",
+      "status": "Recently Owing"
+    },
+    {
+      "accountNo": "MAB005",
+      "balance": 18400,
+      "kidesysSection": "Bad Debt",
+      "status": "Bad Debt"
+    },
+    {
+      "accountNo": "MAB008",
+      "balance": 2500,
+      "kidesysSection": "Recently Owing",
+      "status": "Recently Owing"
+    },
+    {
+      "accountNo": "MAB011",
+      "balance": 5000,
+      "kidesysSection": "Recently Owing",
+      "status": "Recently Owing"
+    },
+    {
+      "accountNo": "MAF003",
+      "balance": 4550,
+      "kidesysSection": "Bad Debt",
+      "status": "Bad Debt"
+    },
+    {
+      "accountNo": "MAG006",
+      "balance": 3500,
+      "kidesysSection": "Bad Debt",
+      "status": "Bad Debt"
+    },
+    {
+      "accountNo": "MAG007",
+      "balance": -26901,
+      "kidesysSection": "Over Paid",
+      "status": "Over Paid"
+    },
+    {
+      "accountNo": "MAH004",
+      "balance": 3200,
+      "kidesysSection": "Recently Owing",
+      "status": "Recently Owing"
+    },
+    {
+      "accountNo": "MAH007",
+      "balance": 3000,
+      "kidesysSection": "Recently Owing",
+      "status": "Recently Owing"
+    },
+    {
+      "accountNo": "MAK013",
+      "balance": 10750,
+      "kidesysSection": "Bad Debt",
+      "status": "Bad Debt"
+    },
+    {
+      "accountNo": "MAK014",
+      "balance": 3950,
+      "kidesysSection": "Bad Debt",
+      "status": "Bad Debt"
+    },
+    {
+      "accountNo": "MAK018",
+      "balance": -16250,
+      "kidesysSection": "Over Paid",
+      "status": "Over Paid"
+    },
+    {
+      "accountNo": "MAK019",
+      "balance": 3700,
+      "kidesysSection": "Bad Debt",
+      "status": "Bad Debt"
+    },
+    {
+      "accountNo": "MAK020",
+      "balance": 9250,
+      "kidesysSection": "Recently Owing",
+      "status": "Recently Owing"
+    },
+    {
+      "accountNo": "MAK021",
+      "balance": -10833.95,
+      "kidesysSection": "Over Paid",
+      "status": "Over Paid"
+    },
+    {
+      "accountNo": "MAK022",
+      "balance": 2250,
+      "kidesysSection": "Recently Owing",
+      "status": "Recently Owing"
+    },
+    {
+      "accountNo": "MAK023",
+      "balance": 6200,
+      "kidesysSection": "Recently Owing",
+      "status": "Recently Owing"
+    },
+    {
+      "accountNo": "MAK024",
+      "balance": 3700,
+      "kidesysSection": "Bad Debt",
+      "status": "Bad Debt"
+    },
+    {
+      "accountNo": "MAK025",
+      "balance": -5160,
+      "kidesysSection": "Over Paid",
+      "status": "Over Paid"
+    },
+    {
+      "accountNo": "MAL006",
+      "balance": 5150,
+      "kidesysSection": "Recently Owing",
+      "status": "Recently Owing"
+    },
+    {
+      "accountNo": "MAL018",
+      "balance": 750,
+      "kidesysSection": "Recently Owing",
+      "status": "Recently Owing"
+    },
+    {
+      "accountNo": "MAL019",
+      "balance": 640,
+      "kidesysSection": "Recently Owing",
+      "status": "Recently Owing"
+    },
+    {
+      "accountNo": "MAL020",
+      "balance": 8550,
+      "kidesysSection": "Recently Owing",
+      "status": "Recently Owing"
+    },
+    {
+      "accountNo": "MAL022",
+      "balance": 3550,
+      "kidesysSection": "Recently Owing",
+      "status": "Recently Owing"
+    },
+    {
+      "accountNo": "MAM004",
+      "balance": 4500,
+      "kidesysSection": "Bad Debt",
+      "status": "Bad Debt"
+    },
+    {
+      "accountNo": "MAM005",
+      "balance": 1200,
+      "kidesysSection": "Recently Owing",
+      "status": "Recently Owing"
+    },
+    {
+      "accountNo": "MAM007",
+      "balance": 3000,
+      "kidesysSection": "Recently Owing",
+      "status": "Recently Owing"
+    },
+    {
+      "accountNo": "MAN010",
+      "balance": 7600,
+      "kidesysSection": "Bad Debt",
+      "status": "Bad Debt"
+    },
+    {
+      "accountNo": "MAN011",
+      "balance": 3000,
+      "kidesysSection": "Recently Owing",
+      "status": "Recently Owing"
+    },
+    {
+      "accountNo": "MAN012",
+      "balance": -48600,
+      "kidesysSection": "Over Paid",
+      "status": "Over Paid"
+    },
+    {
+      "accountNo": "MAN013",
+      "balance": 2800,
+      "kidesysSection": "Recently Owing",
+      "status": "Recently Owing"
+    },
+    {
+      "accountNo": "MAO001",
+      "balance": 3000,
+      "kidesysSection": "Recently Owing",
+      "status": "Recently Owing"
+    },
+    {
+      "accountNo": "MAO002",
+      "balance": 7200,
+      "kidesysSection": "Bad Debt",
+      "status": "Bad Debt"
+    },
+    {
+      "accountNo": "MAP001",
+      "balance": 10000,
+      "kidesysSection": "Bad Debt",
+      "status": "Bad Debt"
+    },
+    {
+      "accountNo": "MAP006",
+      "balance": 8420,
+      "kidesysSection": "Bad Debt",
+      "status": "Bad Debt"
+    },
+    {
+      "accountNo": "MAP008",
+      "balance": 8200,
+      "kidesysSection": "Recently Owing",
+      "status": "Recently Owing"
+    },
+    {
+      "accountNo": "MAP009",
+      "balance": -11550,
+      "kidesysSection": "Over Paid",
+      "status": "Over Paid"
+    },
+    {
+      "accountNo": "MAR005",
+      "balance": 0,
+      "kidesysSection": "Paid Up",
+      "status": "Paid Up"
+    },
+    {
+      "accountNo": "MAR008",
+      "balance": 4300,
+      "kidesysSection": "Recently Owing",
+      "status": "Recently Owing"
+    },
+    {
+      "accountNo": "MAR009",
+      "balance": 4050,
+      "kidesysSection": "Recently Owing",
+      "status": "Recently Owing"
+    },
+    {
+      "accountNo": "MAS001",
+      "balance": -19510,
+      "kidesysSection": "Over Paid",
+      "status": "Over Paid"
+    },
+    {
+      "accountNo": "MAS012",
+      "balance": 7100,
+      "kidesysSection": "Recently Owing",
+      "status": "Recently Owing"
+    },
+    {
+      "accountNo": "MAS017",
+      "balance": 3600,
+      "kidesysSection": "Recently Owing",
+      "status": "Recently Owing"
+    },
+    {
+      "accountNo": "MAS021",
+      "balance": 3700,
+      "kidesysSection": "Bad Debt",
+      "status": "Bad Debt"
+    },
+    {
+      "accountNo": "MAS024",
+      "balance": 4350,
+      "kidesysSection": "Recently Owing",
+      "status": "Recently Owing"
+    },
+    {
+      "accountNo": "MAS028",
+      "balance": 3750,
+      "kidesysSection": "Recently Owing",
+      "status": "Recently Owing"
+    },
+    {
+      "accountNo": "MAS030",
+      "balance": 0,
+      "kidesysSection": "Paid Up",
+      "status": "Paid Up"
+    },
+    {
+      "accountNo": "MAS031",
+      "balance": 4700,
+      "kidesysSection": "Bad Debt",
+      "status": "Bad Debt"
+    },
+    {
+      "accountNo": "MAT010",
+      "balance": 8750,
+      "kidesysSection": "Bad Debt",
+      "status": "Bad Debt"
+    },
+    {
+      "accountNo": "MAT016",
+      "balance": 6400,
+      "kidesysSection": "Bad Debt",
+      "status": "Bad Debt"
+    },
+    {
+      "accountNo": "MAT020",
+      "balance": 4250,
+      "kidesysSection": "Recently Owing",
+      "status": "Recently Owing"
+    },
+    {
+      "accountNo": "MAT021",
+      "balance": 14850,
+      "kidesysSection": "Bad Debt",
+      "status": "Bad Debt"
+    },
+    {
+      "accountNo": "MAT022",
+      "balance": 6100,
+      "kidesysSection": "Bad Debt",
+      "status": "Bad Debt"
+    },
+    {
+      "accountNo": "MAT024",
+      "balance": 3550,
+      "kidesysSection": "Recently Owing",
+      "status": "Recently Owing"
+    },
+    {
+      "accountNo": "MAT031",
+      "balance": 5100,
+      "kidesysSection": "Recently Owing",
+      "status": "Recently Owing"
+    },
+    {
+      "accountNo": "MBO004",
+      "balance": 4250,
+      "kidesysSection": "Recently Owing",
+      "status": "Recently Owing"
+    },
+    {
+      "accountNo": "MDU001",
+      "balance": 11600,
+      "kidesysSection": "Bad Debt",
+      "status": "Bad Debt"
+    },
+    {
+      "accountNo": "MDU002",
+      "balance": 8200,
+      "kidesysSection": "Bad Debt",
+      "status": "Bad Debt"
+    },
+    {
+      "accountNo": "MEK003",
+      "balance": 3700,
+      "kidesysSection": "Bad Debt",
+      "status": "Bad Debt"
+    },
+    {
+      "accountNo": "MEN002",
+      "balance": 3000,
+      "kidesysSection": "Recently Owing",
+      "status": "Recently Owing"
+    },
+    {
+      "accountNo": "MET001",
+      "balance": 4150,
+      "kidesysSection": "Recently Owing",
+      "status": "Recently Owing"
+    },
+    {
+      "accountNo": "MET002",
+      "balance": -11600,
+      "kidesysSection": "Over Paid",
+      "status": "Over Paid"
+    },
+    {
+      "accountNo": "MFE002",
+      "balance": 12800,
+      "kidesysSection": "Recently Owing",
+      "status": "Recently Owing"
+    },
+    {
+      "accountNo": "MFU002",
+      "balance": 10900,
+      "kidesysSection": "Bad Debt",
+      "status": "Bad Debt"
+    },
+    {
+      "accountNo": "MIR001",
+      "balance": 7400,
+      "kidesysSection": "Bad Debt",
+      "status": "Bad Debt"
+    },
+    {
+      "accountNo": "MKA001",
+      "balance": 4750,
+      "kidesysSection": "Bad Debt",
+      "status": "Bad Debt"
+    },
+    {
+      "accountNo": "MKH002",
+      "balance": 3700,
+      "kidesysSection": "Bad Debt",
+      "status": "Bad Debt"
+    },
+    {
+      "accountNo": "MKH005",
+      "balance": 5300,
+      "kidesysSection": "Bad Debt",
+      "status": "Bad Debt"
+    },
+    {
+      "accountNo": "MKH006",
+      "balance": 3550,
+      "kidesysSection": "Recently Owing",
+      "status": "Recently Owing"
+    },
+    {
+      "accountNo": "MKH007",
+      "balance": 3700,
+      "kidesysSection": "Bad Debt",
+      "status": "Bad Debt"
+    },
+    {
+      "accountNo": "MLA002",
+      "balance": 0,
+      "kidesysSection": "Paid Up",
+      "status": "Paid Up"
+    },
+    {
+      "accountNo": "MOA006",
+      "balance": 5800,
+      "kidesysSection": "Recently Owing",
+      "status": "Recently Owing"
+    },
+    {
+      "accountNo": "MOA007",
+      "balance": 3700,
+      "kidesysSection": "Bad Debt",
+      "status": "Bad Debt"
+    },
+    {
+      "accountNo": "MOD004",
+      "balance": 2300,
+      "kidesysSection": "Recently Owing",
+      "status": "Recently Owing"
+    },
+    {
+      "accountNo": "MOD005",
+      "balance": 3950,
+      "kidesysSection": "Recently Owing",
+      "status": "Recently Owing"
+    },
+    {
+      "accountNo": "MOD006",
+      "balance": 3500,
+      "kidesysSection": "Recently Owing",
+      "status": "Recently Owing"
+    },
+    {
+      "accountNo": "MOD010",
+      "balance": 6200,
+      "kidesysSection": "Recently Owing",
+      "status": "Recently Owing"
+    },
+    {
+      "accountNo": "MOD012",
+      "balance": 3000,
+      "kidesysSection": "Recently Owing",
+      "status": "Recently Owing"
+    },
+    {
+      "accountNo": "MOD014",
+      "balance": 3700,
+      "kidesysSection": "Bad Debt",
+      "status": "Bad Debt"
+    },
+    {
+      "accountNo": "MOD015",
+      "balance": 3700,
+      "kidesysSection": "Bad Debt",
+      "status": "Bad Debt"
+    },
+    {
+      "accountNo": "MOD017",
+      "balance": 700,
+      "kidesysSection": "Bad Debt",
+      "status": "Bad Debt"
+    },
+    {
+      "accountNo": "MOD018",
+      "balance": 3500,
+      "kidesysSection": "Recently Owing",
+      "status": "Recently Owing"
+    },
+    {
+      "accountNo": "MOD019",
+      "balance": 5300,
+      "kidesysSection": "Recently Owing",
+      "status": "Recently Owing"
+    },
+    {
+      "accountNo": "MOE003",
+      "balance": 6300,
+      "kidesysSection": "Bad Debt",
+      "status": "Bad Debt"
+    },
+    {
+      "accountNo": "MOE004",
+      "balance": 3850,
+      "kidesysSection": "Recently Owing",
+      "status": "Recently Owing"
+    },
+    {
+      "accountNo": "MOE006",
+      "balance": 4500,
+      "kidesysSection": "Bad Debt",
+      "status": "Bad Debt"
+    },
+    {
+      "accountNo": "MOE008",
+      "balance": 21990,
+      "kidesysSection": "Bad Debt",
+      "status": "Bad Debt"
+    },
+    {
+      "accountNo": "MOE009",
+      "balance": 3550,
+      "kidesysSection": "Recently Owing",
+      "status": "Recently Owing"
+    },
+    {
+      "accountNo": "MOE010",
+      "balance": -15700,
+      "kidesysSection": "Over Paid",
+      "status": "Over Paid"
+    },
+    {
+      "accountNo": "MOE011",
+      "balance": 6700,
+      "kidesysSection": "Recently Owing",
+      "status": "Recently Owing"
+    },
+    {
+      "accountNo": "MOF002",
+      "balance": 3000,
+      "kidesysSection": "Recently Owing",
+      "status": "Recently Owing"
+    },
+    {
+      "accountNo": "MOG001",
+      "balance": -500,
+      "kidesysSection": "Over Paid",
+      "status": "Over Paid"
+    },
+    {
+      "accountNo": "MOG013",
+      "balance": 6800,
+      "kidesysSection": "Bad Debt",
+      "status": "Bad Debt"
+    },
+    {
+      "accountNo": "MOG017",
+      "balance": -2750,
+      "kidesysSection": "Over Paid",
+      "status": "Over Paid"
+    },
+    {
+      "accountNo": "MOG018",
+      "balance": 3750,
+      "kidesysSection": "Recently Owing",
+      "status": "Recently Owing"
+    },
+    {
+      "accountNo": "MOI002",
+      "balance": 2300,
+      "kidesysSection": "Recently Owing",
+      "status": "Recently Owing"
+    },
+    {
+      "accountNo": "MOK019",
+      "balance": 4500,
+      "kidesysSection": "Recently Owing",
+      "status": "Recently Owing"
+    },
+    {
+      "accountNo": "MOK020",
+      "balance": 3700,
+      "kidesysSection": "Recently Owing",
+      "status": "Recently Owing"
+    },
+    {
+      "accountNo": "MOK025",
+      "balance": 4900,
+      "kidesysSection": "Bad Debt",
+      "status": "Bad Debt"
+    },
+    {
+      "accountNo": "MOK028",
+      "balance": 3550,
+      "kidesysSection": "Recently Owing",
+      "status": "Recently Owing"
+    },
+    {
+      "accountNo": "MOK033",
+      "balance": 7650,
+      "kidesysSection": "Bad Debt",
+      "status": "Bad Debt"
+    },
+    {
+      "accountNo": "MOK034",
+      "balance": 6200,
+      "kidesysSection": "Recently Owing",
+      "status": "Recently Owing"
+    },
+    {
+      "accountNo": "MOK035",
+      "balance": 7200,
+      "kidesysSection": "Recently Owing",
+      "status": "Recently Owing"
+    },
+    {
+      "accountNo": "MOK036",
+      "balance": 4450,
+      "kidesysSection": "Recently Owing",
+      "status": "Recently Owing"
+    },
+    {
+      "accountNo": "MOK037",
+      "balance": -13850,
+      "kidesysSection": "Over Paid",
+      "status": "Over Paid"
+    },
+    {
+      "accountNo": "MOK038",
+      "balance": 9900,
+      "kidesysSection": "Bad Debt",
+      "status": "Bad Debt"
+    },
+    {
+      "accountNo": "MOK040",
+      "balance": 5700,
+      "kidesysSection": "Recently Owing",
+      "status": "Recently Owing"
+    },
+    {
+      "accountNo": "MOL003",
+      "balance": 4710,
+      "kidesysSection": "Recently Owing",
+      "status": "Recently Owing"
+    },
+    {
+      "accountNo": "MOL010",
+      "balance": 3700,
+      "kidesysSection": "Recently Owing",
+      "status": "Recently Owing"
+    },
+    {
+      "accountNo": "MOL017",
+      "balance": -300,
+      "kidesysSection": "Over Paid",
+      "status": "Over Paid"
+    },
+    {
+      "accountNo": "MOL018",
+      "balance": 6500,
+      "kidesysSection": "Bad Debt",
+      "status": "Bad Debt"
+    },
+    {
+      "accountNo": "MOL019",
+      "balance": -34500,
+      "kidesysSection": "Over Paid",
+      "status": "Over Paid"
+    },
+    {
+      "accountNo": "MOL020",
+      "balance": 3700,
+      "kidesysSection": "Recently Owing",
+      "status": "Recently Owing"
+    },
+    {
+      "accountNo": "MOL024",
+      "balance": 24350,
+      "kidesysSection": "Bad Debt",
+      "status": "Bad Debt"
+    },
+    {
+      "accountNo": "MOL039",
+      "balance": 3400,
+      "kidesysSection": "Recently Owing",
+      "status": "Recently Owing"
+    },
+    {
+      "accountNo": "MOL040",
+      "balance": 3700,
+      "kidesysSection": "Bad Debt",
+      "status": "Bad Debt"
+    },
+    {
+      "accountNo": "MOL043",
+      "balance": 4050,
+      "kidesysSection": "Bad Debt",
+      "status": "Bad Debt"
+    },
+    {
+      "accountNo": "MOL044",
+      "balance": 3450,
+      "kidesysSection": "Recently Owing",
+      "status": "Recently Owing"
+    },
+    {
+      "accountNo": "MON006",
+      "balance": 4400,
+      "kidesysSection": "Recently Owing",
+      "status": "Recently Owing"
+    },
+    {
+      "accountNo": "MON012",
+      "balance": 0,
+      "kidesysSection": "Paid Up",
+      "status": "Paid Up"
+    },
+    {
+      "accountNo": "MON013",
+      "balance": 4250,
+      "kidesysSection": "Bad Debt",
+      "status": "Bad Debt"
+    },
+    {
+      "accountNo": "MON014",
+      "balance": 0,
+      "kidesysSection": "Paid Up",
+      "status": "Paid Up"
+    },
+    {
+      "accountNo": "MOO003",
+      "balance": 6000,
+      "kidesysSection": "Recently Owing",
+      "status": "Recently Owing"
+    },
+    {
+      "accountNo": "MOO004",
+      "balance": 8540,
+      "kidesysSection": "Recently Owing",
+      "status": "Recently Owing"
+    },
+    {
+      "accountNo": "MOO005",
+      "balance": 4300,
+      "kidesysSection": "Recently Owing",
+      "status": "Recently Owing"
+    },
+    {
+      "accountNo": "MOO006",
+      "balance": 6400,
+      "kidesysSection": "Recently Owing",
+      "status": "Recently Owing"
+    },
+    {
+      "accountNo": "MOP003",
+      "balance": 3750,
+      "kidesysSection": "Recently Owing",
+      "status": "Recently Owing"
+    },
+    {
+      "accountNo": "MOR004",
+      "balance": 7100,
+      "kidesysSection": "Recently Owing",
+      "status": "Recently Owing"
+    },
+    {
+      "accountNo": "MOR008",
+      "balance": 450,
+      "kidesysSection": "Recently Owing",
+      "status": "Recently Owing"
+    },
+    {
+      "accountNo": "MOR010",
+      "balance": 2860,
+      "kidesysSection": "Recently Owing",
+      "status": "Recently Owing"
+    },
+    {
+      "accountNo": "MOR011",
+      "balance": 3550,
+      "kidesysSection": "Recently Owing",
+      "status": "Recently Owing"
+    },
+    {
+      "accountNo": "MOR013",
+      "balance": 9700,
+      "kidesysSection": "Bad Debt",
+      "status": "Bad Debt"
+    },
+    {
+      "accountNo": "MOR015",
+      "balance": 3350,
+      "kidesysSection": "Recently Owing",
+      "status": "Recently Owing"
+    },
+    {
+      "accountNo": "MOS008",
+      "balance": 3200,
+      "kidesysSection": "Recently Owing",
+      "status": "Recently Owing"
+    },
+    {
+      "accountNo": "MOS009",
+      "balance": 3700,
+      "kidesysSection": "Recently Owing",
+      "status": "Recently Owing"
+    },
+    {
+      "accountNo": "MOS014",
+      "balance": 3700,
+      "kidesysSection": "Bad Debt",
+      "status": "Bad Debt"
+    },
+    {
+      "accountNo": "MOS018",
+      "balance": -18300,
+      "kidesysSection": "Over Paid",
+      "status": "Over Paid"
+    },
+    {
+      "accountNo": "MOS019",
+      "balance": -0.08,
+      "kidesysSection": "Over Paid",
+      "status": "Over Paid"
+    },
+    {
+      "accountNo": "MOS021",
+      "balance": 3800,
+      "kidesysSection": "Recently Owing",
+      "status": "Recently Owing"
+    },
+    {
+      "accountNo": "MOS022",
+      "balance": 7400,
+      "kidesysSection": "Recently Owing",
+      "status": "Recently Owing"
+    },
+    {
+      "accountNo": "MOS023",
+      "balance": 5650,
+      "kidesysSection": "Recently Owing",
+      "status": "Recently Owing"
+    },
+    {
+      "accountNo": "MOT007",
+      "balance": 8019.45,
+      "kidesysSection": "Bad Debt",
+      "status": "Bad Debt"
+    },
+    {
+      "accountNo": "MOT008",
+      "balance": 7400,
+      "kidesysSection": "Bad Debt",
+      "status": "Bad Debt"
+    },
+    {
+      "accountNo": "MOT010",
+      "balance": 3000,
+      "kidesysSection": "Recently Owing",
+      "status": "Recently Owing"
+    },
+    {
+      "accountNo": "MOT013",
+      "balance": 6600,
+      "kidesysSection": "Recently Owing",
+      "status": "Recently Owing"
+    },
+    {
+      "accountNo": "MOT016",
+      "balance": 3000,
+      "kidesysSection": "Recently Owing",
+      "status": "Recently Owing"
+    },
+    {
+      "accountNo": "MOT017",
+      "balance": 3700,
+      "kidesysSection": "Bad Debt",
+      "status": "Bad Debt"
+    },
+    {
+      "accountNo": "MOT026",
+      "balance": 11400,
+      "kidesysSection": "Bad Debt",
+      "status": "Bad Debt"
+    },
+    {
+      "accountNo": "MOT028",
+      "balance": 3000,
+      "kidesysSection": "Recently Owing",
+      "status": "Recently Owing"
+    },
+    {
+      "accountNo": "MOT032",
+      "balance": 7400,
+      "kidesysSection": "Bad Debt",
+      "status": "Bad Debt"
+    },
+    {
+      "accountNo": "MOT033",
+      "balance": 3900,
+      "kidesysSection": "Bad Debt",
+      "status": "Bad Debt"
+    },
+    {
+      "accountNo": "MOT034",
+      "balance": 3000,
+      "kidesysSection": "Recently Owing",
+      "status": "Recently Owing"
+    },
+    {
+      "accountNo": "MOT036",
+      "balance": 5600,
+      "kidesysSection": "Recently Owing",
+      "status": "Recently Owing"
+    },
+    {
+      "accountNo": "MOY004",
+      "balance": 3000,
+      "kidesysSection": "Recently Owing",
+      "status": "Recently Owing"
+    },
+    {
+      "accountNo": "MOY005",
+      "balance": 3750,
+      "kidesysSection": "Recently Owing",
+      "status": "Recently Owing"
+    },
+    {
+      "accountNo": "MPA001",
+      "balance": 6800,
+      "kidesysSection": "Bad Debt",
+      "status": "Bad Debt"
+    },
+    {
+      "accountNo": "MPE002",
+      "balance": 900,
+      "kidesysSection": "Recently Owing",
+      "status": "Recently Owing"
+    },
+    {
+      "accountNo": "MPI102",
+      "balance": 3800,
+      "kidesysSection": "Recently Owing",
+      "status": "Recently Owing"
+    },
+    {
+      "accountNo": "MPO001",
+      "balance": 3700,
+      "kidesysSection": "Recently Owing",
+      "status": "Recently Owing"
+    },
+    {
+      "accountNo": "MPU004",
+      "balance": 930,
+      "kidesysSection": "Bad Debt",
+      "status": "Bad Debt"
+    },
+    {
+      "accountNo": "MPU005",
+      "balance": 4500,
+      "kidesysSection": "Recently Owing",
+      "status": "Recently Owing"
+    },
+    {
+      "accountNo": "MPU007",
+      "balance": 6900,
+      "kidesysSection": "Recently Owing",
+      "status": "Recently Owing"
+    },
+    {
+      "accountNo": "MQA001",
+      "balance": 4700,
+      "kidesysSection": "Bad Debt",
+      "status": "Bad Debt"
+    },
+    {
+      "accountNo": "MSI003",
+      "balance": 3700,
+      "kidesysSection": "Recently Owing",
+      "status": "Recently Owing"
+    },
+    {
+      "accountNo": "MSI004",
+      "balance": 8300,
+      "kidesysSection": "Bad Debt",
+      "status": "Bad Debt"
+    },
+    {
+      "accountNo": "MTE001",
+      "balance": 3900,
+      "kidesysSection": "Bad Debt",
+      "status": "Bad Debt"
+    },
+    {
+      "accountNo": "MTH003",
+      "balance": -32100,
+      "kidesysSection": "Over Paid",
+      "status": "Over Paid"
+    },
+    {
+      "accountNo": "MTH004",
+      "balance": 2800,
+      "kidesysSection": "Recently Owing",
+      "status": "Recently Owing"
+    },
+    {
+      "accountNo": "MTS001",
+      "balance": 17050,
+      "kidesysSection": "Bad Debt",
+      "status": "Bad Debt"
+    },
+    {
+      "accountNo": "MUF001",
+      "balance": 21400,
+      "kidesysSection": "Bad Debt",
+      "status": "Bad Debt"
+    },
+    {
+      "accountNo": "MUL001",
+      "balance": 5800,
+      "kidesysSection": "Recently Owing",
+      "status": "Recently Owing"
+    },
+    {
+      "accountNo": "MUR001",
+      "balance": 38100,
+      "kidesysSection": "Bad Debt",
+      "status": "Bad Debt"
+    },
+    {
+      "accountNo": "NAS001",
+      "balance": 7800,
+      "kidesysSection": "Bad Debt",
+      "status": "Bad Debt"
+    },
+    {
+      "accountNo": "NDA001",
+      "balance": 5000,
+      "kidesysSection": "Recently Owing",
+      "status": "Recently Owing"
+    },
+    {
+      "accountNo": "NDL008",
+      "balance": 4305,
+      "kidesysSection": "Recently Owing",
+      "status": "Recently Owing"
+    },
+    {
+      "accountNo": "NDL009",
+      "balance": 3700,
+      "kidesysSection": "Recently Owing",
+      "status": "Recently Owing"
+    },
+    {
+      "accountNo": "NDL013",
+      "balance": 1700,
+      "kidesysSection": "Recently Owing",
+      "status": "Recently Owing"
+    },
+    {
+      "accountNo": "NDL611",
+      "balance": -5750,
+      "kidesysSection": "Over Paid",
+      "status": "Over Paid"
+    },
+    {
+      "accountNo": "NEL001",
+      "balance": 3700,
+      "kidesysSection": "Bad Debt",
+      "status": "Bad Debt"
+    },
+    {
+      "accountNo": "NGA002",
+      "balance": 9200,
+      "kidesysSection": "Bad Debt",
+      "status": "Bad Debt"
+    },
+    {
+      "accountNo": "NGW003",
+      "balance": 4650,
+      "kidesysSection": "Recently Owing",
+      "status": "Recently Owing"
+    },
+    {
+      "accountNo": "NHL001",
+      "balance": 3800,
+      "kidesysSection": "Recently Owing",
+      "status": "Recently Owing"
+    },
+    {
+      "accountNo": "NHL002",
+      "balance": 3800,
+      "kidesysSection": "Recently Owing",
+      "status": "Recently Owing"
+    },
+    {
+      "accountNo": "NKA003",
+      "balance": 4500,
+      "kidesysSection": "Recently Owing",
+      "status": "Recently Owing"
+    },
+    {
+      "accountNo": "NKA004",
+      "balance": 4450,
+      "kidesysSection": "Bad Debt",
+      "status": "Bad Debt"
+    },
+    {
+      "accountNo": "NKO004",
+      "balance": 3700,
+      "kidesysSection": "Bad Debt",
+      "status": "Bad Debt"
+    },
+    {
+      "accountNo": "NTO003",
+      "balance": 3200,
+      "kidesysSection": "Recently Owing",
+      "status": "Recently Owing"
+    },
+    {
+      "accountNo": "NTS008",
+      "balance": 3950,
+      "kidesysSection": "Recently Owing",
+      "status": "Recently Owing"
+    },
+    {
+      "accountNo": "NTU001",
+      "balance": -850,
+      "kidesysSection": "Over Paid",
+      "status": "Over Paid"
+    },
+    {
+      "accountNo": "NZI001",
+      "balance": 3700,
+      "kidesysSection": "Recently Owing",
+      "status": "Recently Owing"
+    },
+    {
+      "accountNo": "OSE001",
+      "balance": 4500,
+      "kidesysSection": "Bad Debt",
+      "status": "Bad Debt"
+    },
+    {
+      "accountNo": "PEB002",
+      "balance": 12600,
+      "kidesysSection": "Recently Owing",
+      "status": "Recently Owing"
+    },
+    {
+      "accountNo": "PER001",
+      "balance": -27900,
+      "kidesysSection": "Over Paid",
+      "status": "Over Paid"
+    },
+    {
+      "accountNo": "PET002",
+      "balance": 8600,
+      "kidesysSection": "Bad Debt",
+      "status": "Bad Debt"
+    },
+    {
+      "accountNo": "PHA008",
+      "balance": 3500,
+      "kidesysSection": "Bad Debt",
+      "status": "Bad Debt"
+    },
+    {
+      "accountNo": "PHA009",
+      "balance": -34600,
+      "kidesysSection": "Over Paid",
+      "status": "Over Paid"
+    },
+    {
+      "accountNo": "PHA010",
+      "balance": 10200,
+      "kidesysSection": "Bad Debt",
+      "status": "Bad Debt"
+    },
+    {
+      "accountNo": "PHI003",
+      "balance": 3000,
+      "kidesysSection": "Recently Owing",
+      "status": "Recently Owing"
+    },
+    {
+      "accountNo": "PHI004",
+      "balance": 0,
+      "kidesysSection": "Paid Up",
+      "status": "Paid Up"
+    },
+    {
+      "accountNo": "PIL003",
+      "balance": 10650,
+      "kidesysSection": "Recently Owing",
+      "status": "Recently Owing"
+    },
+    {
+      "accountNo": "POG001",
+      "balance": 4855,
+      "kidesysSection": "Recently Owing",
+      "status": "Recently Owing"
+    },
+    {
+      "accountNo": "POO002",
+      "balance": 19350,
+      "kidesysSection": "Bad Debt",
+      "status": "Bad Debt"
+    },
+    {
+      "accountNo": "POO003",
+      "balance": 5100,
+      "kidesysSection": "Recently Owing",
+      "status": "Recently Owing"
+    },
+    {
+      "accountNo": "PRA001",
+      "balance": 22700,
+      "kidesysSection": "Bad Debt",
+      "status": "Bad Debt"
+    },
+    {
+      "accountNo": "RAB003",
+      "balance": 4250,
+      "kidesysSection": "Recently Owing",
+      "status": "Recently Owing"
+    },
+    {
+      "accountNo": "RAK004",
+      "balance": 3900,
+      "kidesysSection": "Bad Debt",
+      "status": "Bad Debt"
+    },
+    {
+      "accountNo": "RAK005",
+      "balance": 900,
+      "kidesysSection": "Recently Owing",
+      "status": "Recently Owing"
+    },
+    {
+      "accountNo": "RAM009",
+      "balance": 4250,
+      "kidesysSection": "Recently Owing",
+      "status": "Recently Owing"
+    },
+    {
+      "accountNo": "RAM010",
+      "balance": 3350,
+      "kidesysSection": "Recently Owing",
+      "status": "Recently Owing"
+    },
+    {
+      "accountNo": "RAM011",
+      "balance": 3550,
+      "kidesysSection": "Recently Owing",
+      "status": "Recently Owing"
+    },
+    {
+      "accountNo": "RAM014",
+      "balance": -29260,
+      "kidesysSection": "Over Paid",
+      "status": "Over Paid"
+    },
+    {
+      "accountNo": "RAM015",
+      "balance": 3550,
+      "kidesysSection": "Recently Owing",
+      "status": "Recently Owing"
+    },
+    {
+      "accountNo": "RAM019",
+      "balance": 2800,
+      "kidesysSection": "Recently Owing",
+      "status": "Recently Owing"
+    },
+    {
+      "accountNo": "RAM020",
+      "balance": 4450,
+      "kidesysSection": "Recently Owing",
+      "status": "Recently Owing"
+    },
+    {
+      "accountNo": "RAM021",
+      "balance": 10960,
+      "kidesysSection": "Bad Debt",
+      "status": "Bad Debt"
+    },
+    {
+      "accountNo": "RAM022",
+      "balance": 2750,
+      "kidesysSection": "Recently Owing",
+      "status": "Recently Owing"
+    },
+    {
+      "accountNo": "RAN002",
+      "balance": 2800,
+      "kidesysSection": "Recently Owing",
+      "status": "Recently Owing"
+    },
+    {
+      "accountNo": "RAN007",
+      "balance": 3350,
+      "kidesysSection": "Recently Owing",
+      "status": "Recently Owing"
+    },
+    {
+      "accountNo": "RAN008",
+      "balance": 3000,
+      "kidesysSection": "Recently Owing",
+      "status": "Recently Owing"
+    },
+    {
+      "accountNo": "RAS004",
+      "balance": 3500,
+      "kidesysSection": "Recently Owing",
+      "status": "Recently Owing"
+    },
+    {
+      "accountNo": "RIK001",
+      "balance": 7900,
+      "kidesysSection": "Recently Owing",
+      "status": "Recently Owing"
+    },
+    {
+      "accountNo": "SEB005",
+      "balance": -16100,
+      "kidesysSection": "Over Paid",
+      "status": "Over Paid"
+    },
+    {
+      "accountNo": "SEE002",
+      "balance": 1000,
+      "kidesysSection": "Recently Owing",
+      "status": "Recently Owing"
+    },
+    {
+      "accountNo": "SEG007",
+      "balance": 1000,
+      "kidesysSection": "Recently Owing",
+      "status": "Recently Owing"
+    },
+    {
+      "accountNo": "SEG008",
+      "balance": 7000,
+      "kidesysSection": "Bad Debt",
+      "status": "Bad Debt"
+    },
+    {
+      "accountNo": "SEI859",
+      "balance": 3800,
+      "kidesysSection": "Recently Owing",
+      "status": "Recently Owing"
+    },
+    {
+      "accountNo": "SEL009",
+      "balance": 6750,
+      "kidesysSection": "Bad Debt",
+      "status": "Bad Debt"
+    },
+    {
+      "accountNo": "SEN002",
+      "balance": 7150,
+      "kidesysSection": "Recently Owing",
+      "status": "Recently Owing"
+    },
+    {
+      "accountNo": "SEN959",
+      "balance": 3000,
+      "kidesysSection": "Recently Owing",
+      "status": "Recently Owing"
+    },
+    {
+      "accountNo": "SEP002",
+      "balance": 39400,
+      "kidesysSection": "Bad Debt",
+      "status": "Bad Debt"
+    },
+    {
+      "accountNo": "SEP899",
+      "balance": 3700,
+      "kidesysSection": "Bad Debt",
+      "status": "Bad Debt"
+    },
+    {
+      "accountNo": "SER001",
+      "balance": 3700,
+      "kidesysSection": "Bad Debt",
+      "status": "Bad Debt"
+    },
+    {
+      "accountNo": "SES001",
+      "balance": 4200,
+      "kidesysSection": "Recently Owing",
+      "status": "Recently Owing"
+    },
+    {
+      "accountNo": "SET003",
+      "balance": 4250,
+      "kidesysSection": "Recently Owing",
+      "status": "Recently Owing"
+    },
+    {
+      "accountNo": "SET005",
+      "balance": -6300,
+      "kidesysSection": "Over Paid",
+      "status": "Over Paid"
+    },
+    {
+      "accountNo": "SIB003",
+      "balance": 4800,
+      "kidesysSection": "Recently Owing",
+      "status": "Recently Owing"
+    },
+    {
+      "accountNo": "SIL007",
+      "balance": -18000,
+      "kidesysSection": "Over Paid",
+      "status": "Over Paid"
+    },
+    {
+      "accountNo": "SIM002",
+      "balance": 5700,
+      "kidesysSection": "Recently Owing",
+      "status": "Recently Owing"
+    },
+    {
+      "accountNo": "SIN001",
+      "balance": 6700,
+      "kidesysSection": "Recently Owing",
+      "status": "Recently Owing"
+    },
+    {
+      "accountNo": "SIT003",
+      "balance": 4450,
+      "kidesysSection": "Bad Debt",
+      "status": "Bad Debt"
+    },
+    {
+      "accountNo": "SIT004",
+      "balance": 2800,
+      "kidesysSection": "Recently Owing",
+      "status": "Recently Owing"
+    },
+    {
+      "accountNo": "SWA001",
+      "balance": 2800,
+      "kidesysSection": "Recently Owing",
+      "status": "Recently Owing"
+    },
+    {
+      "accountNo": "TAK001",
+      "balance": 6800,
+      "kidesysSection": "Bad Debt",
+      "status": "Bad Debt"
+    },
+    {
+      "accountNo": "TAN001",
+      "balance": 15100,
+      "kidesysSection": "Bad Debt",
+      "status": "Bad Debt"
+    },
+    {
+      "accountNo": "TAU003",
+      "balance": 6300,
+      "kidesysSection": "Bad Debt",
+      "status": "Bad Debt"
+    },
+    {
+      "accountNo": "THA003",
+      "balance": 3200,
+      "kidesysSection": "Recently Owing",
+      "status": "Recently Owing"
+    },
+    {
+      "accountNo": "THE002",
+      "balance": 21550,
+      "kidesysSection": "Bad Debt",
+      "status": "Bad Debt"
+    },
+    {
+      "accountNo": "THE003",
+      "balance": 5800,
+      "kidesysSection": "Bad Debt",
+      "status": "Bad Debt"
+    },
+    {
+      "accountNo": "THO004",
+      "balance": 4000,
+      "kidesysSection": "Recently Owing",
+      "status": "Recently Owing"
+    },
+    {
+      "accountNo": "TIV001",
+      "balance": 8450,
+      "kidesysSection": "Bad Debt",
+      "status": "Bad Debt"
+    },
+    {
+      "accountNo": "TLA001",
+      "balance": 10790,
+      "kidesysSection": "Bad Debt",
+      "status": "Bad Debt"
+    },
+    {
+      "accountNo": "TLH003",
+      "balance": 6800,
+      "kidesysSection": "Bad Debt",
+      "status": "Bad Debt"
+    },
+    {
+      "accountNo": "TLH005",
+      "balance": 4350,
+      "kidesysSection": "Recently Owing",
+      "status": "Recently Owing"
+    },
+    {
+      "accountNo": "TLH006",
+      "balance": 6000,
+      "kidesysSection": "Recently Owing",
+      "status": "Recently Owing"
+    },
+    {
+      "accountNo": "TSA001",
+      "balance": 3000,
+      "kidesysSection": "Recently Owing",
+      "status": "Recently Owing"
+    },
+    {
+      "accountNo": "TSE002",
+      "balance": 3550,
+      "kidesysSection": "Recently Owing",
+      "status": "Recently Owing"
+    },
+    {
+      "accountNo": "TSH003",
+      "balance": 3550,
+      "kidesysSection": "Recently Owing",
+      "status": "Recently Owing"
+    },
+    {
+      "accountNo": "TSH006",
+      "balance": 2850,
+      "kidesysSection": "Recently Owing",
+      "status": "Recently Owing"
+    },
+    {
+      "accountNo": "TSH012",
+      "balance": 7400,
+      "kidesysSection": "Bad Debt",
+      "status": "Bad Debt"
+    },
+    {
+      "accountNo": "TSH016",
+      "balance": 7400,
+      "kidesysSection": "Recently Owing",
+      "status": "Recently Owing"
+    },
+    {
+      "accountNo": "TSH017",
+      "balance": 5290,
+      "kidesysSection": "Recently Owing",
+      "status": "Recently Owing"
+    },
+    {
+      "accountNo": "TSH018",
+      "balance": 4500,
+      "kidesysSection": "Bad Debt",
+      "status": "Bad Debt"
+    },
+    {
+      "accountNo": "TSH019",
+      "balance": 3000,
+      "kidesysSection": "Recently Owing",
+      "status": "Recently Owing"
+    },
+    {
+      "accountNo": "TSH020",
+      "balance": 2890,
+      "kidesysSection": "Recently Owing",
+      "status": "Recently Owing"
+    },
+    {
+      "accountNo": "TSH021",
+      "balance": 3700,
+      "kidesysSection": "Bad Debt",
+      "status": "Bad Debt"
+    },
+    {
+      "accountNo": "TSH022",
+      "balance": 2750,
+      "kidesysSection": "Recently Owing",
+      "status": "Recently Owing"
+    },
+    {
+      "accountNo": "TSH023",
+      "balance": 9700,
+      "kidesysSection": "Bad Debt",
+      "status": "Bad Debt"
+    },
+    {
+      "accountNo": "TSI002",
+      "balance": 3700,
+      "kidesysSection": "Bad Debt",
+      "status": "Bad Debt"
+    },
+    {
+      "accountNo": "VUS001",
+      "balance": 3200,
+      "kidesysSection": "Recently Owing",
+      "status": "Recently Owing"
+    },
+    {
+      "accountNo": "VUT001",
+      "balance": 3850,
+      "kidesysSection": "Recently Owing",
+      "status": "Recently Owing"
+    },
+    {
+      "accountNo": "WIL002",
+      "balance": 3150,
+      "kidesysSection": "Recently Owing",
+      "status": "Recently Owing"
+    },
+    {
+      "accountNo": "WOL001",
+      "balance": 7370,
+      "kidesysSection": "Bad Debt",
+      "status": "Bad Debt"
+    },
+    {
+      "accountNo": "XAB001",
+      "balance": 4250,
+      "kidesysSection": "Bad Debt",
+      "status": "Bad Debt"
+    },
+    {
+      "accountNo": "ZON001",
+      "balance": 3700,
+      "kidesysSection": "Bad Debt",
+      "status": "Bad Debt"
+    },
+    {
+      "accountNo": "ZON002",
+      "balance": 3700,
+      "kidesysSection": "Bad Debt",
+      "status": "Bad Debt"
+    }
+  ],
+  "excludedAccounts": [],
+  "accountsInTargetsNotInSummary": [],
+  "sectionBreakdown": {
+    "Bad Debt": {
+      "count": 116,
+      "balanceTotal": 914065.45
+    },
+    "Recently Owing": {
+      "count": 191,
+      "balanceTotal": 804945
+    },
+    "Paid Up": {
+      "count": 7,
+      "balanceTotal": 0
+    },
+    "Over Paid": {
+      "count": 30,
+      "balanceTotal": -490355.03
+    }
+  },
+  "ageAnalysisXls": "/Users/dasilvaacademy/EduClear/backend/uploads/migration-staging/tmp/1779892585109-account_list__age_analysis_.xls",
+  "ageAnalysisAccountCount": 344,
+  "snapshotCount": 344,
+  "inAgeAnalysisNotInEduClearSnapshots": [],
+  "inEduClearSnapshotsNotInAgeAnalysis": [],
+  "accountCountGapVsKidESys": 0
+}

@@ -32,6 +32,10 @@ import {
 } from "./billingDisplayRules";
 
 export { isKidesysOpeningBalanceEntry } from "./billingDisplayRules";
+import {
+  buildBillingRowSearchText,
+  formatBillingRowLearnerDisplay,
+} from "./billingFamilyDisplay";
 import type { BillingSettingsState } from "../billingSettings/types/billingSettings";
 import {
   buildInvoiceReference,
@@ -65,6 +69,9 @@ export type BillingAccountRow = {
   learnerId: string;
   accountNo: string;
   familyAccountId?: string;
+  memberLearnerIds?: string[];
+  memberNames?: string[];
+  accountHolder?: string;
   name: string;
   surname: string;
   balance: number;
@@ -77,6 +84,7 @@ export type BillingAccountRow = {
   lastPayment: string;
   lastPaymentDate: string;
   status: string;
+  kidesysSection?: string;
 };
 
 const LEDGER_STORAGE_KEY = "educlearBillingLedger";
@@ -582,15 +590,39 @@ export function mapApiStatementRowToBillingAccountRow(row: any): BillingAccountR
     lastPayment = "No payments";
   }
 
-  const status = String(row?.status || "").trim() || statusFromBalance(balance);
+  const kidesysSection = String(row?.kidesysSection || "").trim();
+  const status =
+    String(row?.status || "").trim() ||
+    kidesysSection ||
+    statusFromBalance(balance);
+
+  const memberLearnerIds = Array.isArray(row?.memberLearnerIds)
+    ? row.memberLearnerIds.map((id: unknown) => String(id || "").trim()).filter(Boolean)
+    : learnerId
+      ? [learnerId]
+      : [];
+  const memberNames = Array.isArray(row?.memberNames)
+    ? row.memberNames.map((name: unknown) => String(name || "").trim()).filter(Boolean)
+    : [];
+  const accountHolder = String(row?.accountHolder || row?.ageAnalysis?.accountHolder || "").trim();
+  const display = formatBillingRowLearnerDisplay({
+    name: String(row?.name || row?.firstName || "").trim() || "-",
+    surname: String(row?.surname || row?.lastName || "").trim() || "-",
+    memberNames,
+    accountHolder,
+  });
 
   return {
     id: familyAccountId || learnerId || accountNo,
     learnerId,
     accountNo,
     familyAccountId,
-    name: String(row?.name || row?.firstName || "").trim() || "-",
-    surname: String(row?.surname || row?.lastName || "").trim() || "-",
+    memberLearnerIds,
+    memberNames,
+    accountHolder,
+    kidesysSection: kidesysSection || undefined,
+    name: display.name,
+    surname: display.surname,
     balance,
     invoiceTotal: 0,
     penaltyTotal: 0,
@@ -707,23 +739,42 @@ function buildLearnerBillingDisplayIndex(learners: any[]) {
 
 function enrichBillingRowDisplay(
   row: BillingAccountRow,
-  index: ReturnType<typeof buildLearnerBillingDisplayIndex>
+  index: ReturnType<typeof buildLearnerBillingDisplayIndex>,
+  learners: any[]
 ): BillingAccountRow {
   const accountRef = normalizeKidESysAccountRef(row.accountNo);
+  const memberIds = new Set(
+    (row.memberLearnerIds || []).map((id) => String(id || "").trim()).filter(Boolean)
+  );
+  if (row.learnerId) memberIds.add(String(row.learnerId));
+
+  const memberNames = [...(row.memberNames || [])];
+  for (const id of memberIds) {
+    const learner = learners.find((l) => String(l?.id || l?.learnerId) === id);
+    if (!learner) continue;
+    const full = `${String(learner.firstName || learner.name || "").trim()} ${String(
+      learner.lastName || learner.surname || ""
+    ).trim()}`.trim();
+    if (full && !memberNames.includes(full)) memberNames.push(full);
+  }
+
   const anchor =
     (accountRef ? index.byAccountRef.get(accountRef) : null) ||
     (row.familyAccountId ? index.byFamilyId.get(String(row.familyAccountId)) : null) ||
     (row.learnerId ? index.byLearnerId.get(String(row.learnerId)) : null);
 
-  if (!anchor) return row;
-
-  const displayName = String(anchor?.firstName || anchor?.name || "").trim();
-  const displaySurname = String(anchor?.lastName || anchor?.surname || "").trim();
+  const display = formatBillingRowLearnerDisplay({
+    name: String(anchor?.firstName || anchor?.name || row.name || "").trim() || row.name,
+    surname: String(anchor?.lastName || anchor?.surname || row.surname || "").trim() || row.surname,
+    memberNames,
+    accountHolder: row.accountHolder,
+  });
 
   return {
     ...row,
-    name: displayName || (row.name !== "-" ? row.name : "-"),
-    surname: displaySurname || (row.surname !== "-" ? row.surname : "-"),
+    memberNames,
+    name: display.name,
+    surname: display.surname,
   };
 }
 
@@ -739,10 +790,12 @@ export function getBillingRows(learners: any[], schoolId: string): BillingAccoun
 
   return filterKidESysBillingRows(
     apiCached.map((row) =>
-      enrichBillingRowDisplay(mapApiStatementRowToBillingAccountRow(row), index)
+      enrichBillingRowDisplay(mapApiStatementRowToBillingAccountRow(row), index, learners)
     )
   ).sort((a, b) => String(a.accountNo).localeCompare(String(b.accountNo)));
 }
+
+export { buildBillingRowSearchText, formatBillingRowLearnerDisplay } from "./billingFamilyDisplay";
 
 export function appendInvoiceTransaction(input: {
   schoolId: string;

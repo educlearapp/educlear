@@ -1,5 +1,7 @@
 import { prisma } from "../prisma";
+import { matchLearnersToAccountHolder } from "./familyAccountMembers";
 import { buildAccountsFromAgeAnalysisSnapshots } from "./statementAccounts";
+import { readSchoolFamilyAccountAgeAnalysisSnapshots } from "../utils/familyAccountAgeAnalysisStore";
 import { resolveBillingAccountRef } from "./resolveBillingAccountRef";
 import {
   calculateBalanceFromEntries,
@@ -93,23 +95,51 @@ const learnerSelectForStatement = {
 async function loadLearnersForAccountRef(schoolId: string, accountRef: string): Promise<LearnerRow[]> {
   const ref = normalizeKidESysAccountRef(accountRef);
   if (!ref) return [];
+
+  const mergeUnique = (rows: LearnerRow[]) => {
+    const seen = new Set<string>();
+    return rows.filter((row) => {
+      if (seen.has(row.id)) return false;
+      seen.add(row.id);
+      return true;
+    });
+  };
+
   const rows = await prisma.learner.findMany({
     where: { schoolId, familyAccount: { accountRef: ref } },
     select: learnerSelectForStatement,
     orderBy: { lastName: "asc" },
   });
-  if (rows.length) return rows as LearnerRow[];
-  const family = await prisma.familyAccount.findFirst({
-    where: { schoolId, accountRef: ref },
-    select: { id: true },
-  });
-  if (!family) return [];
-  const byFamilyId = await prisma.learner.findMany({
-    where: { schoolId, familyAccountId: family.id },
-    select: learnerSelectForStatement,
-    orderBy: { lastName: "asc" },
-  });
-  return byFamilyId as LearnerRow[];
+  let group = mergeUnique(rows as LearnerRow[]);
+
+  if (!group.length) {
+    const family = await prisma.familyAccount.findFirst({
+      where: { schoolId, accountRef: ref },
+      select: { id: true },
+    });
+    if (family) {
+      const byFamilyId = await prisma.learner.findMany({
+        where: { schoolId, familyAccountId: family.id },
+        select: learnerSelectForStatement,
+        orderBy: { lastName: "asc" },
+      });
+      group = mergeUnique(byFamilyId as LearnerRow[]);
+    }
+  }
+
+  const snapshots = readSchoolFamilyAccountAgeAnalysisSnapshots(schoolId);
+  const accountHolder = String(snapshots[ref]?.accountHolder || "").trim();
+  if (accountHolder) {
+    const allSchoolLearners = await prisma.learner.findMany({
+      where: { schoolId },
+      select: learnerSelectForStatement,
+      orderBy: { lastName: "asc" },
+    });
+    const matched = matchLearnersToAccountHolder(allSchoolLearners, accountHolder);
+    group = mergeUnique([...group, ...(matched as LearnerRow[])]);
+  }
+
+  return group;
 }
 
 /** Resolve Kid-e-Sys billing identity (FamilyAccount.accountRef) — never admissionNo / idNumber. */

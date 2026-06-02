@@ -45,7 +45,7 @@ type Props = {
 };
 
 export default function BillingSummaryCards({ rows, style }: Props) {
-  const { accountsCount, netOutstanding, recentlyOwing, badDebt, overPaid } =
+  const { accountsCount, totalOutstanding, recentlyOwing, badDebt, overPaid } =
     calculateBillingSummary(rows);
 
   return (
@@ -55,8 +55,8 @@ export default function BillingSummaryCards({ rows, style }: Props) {
         <div style={summaryLabel}>Accounts</div>
       </div>
       <div style={summaryCard}>
-        <div style={summaryValue}>{formatMoney(netOutstanding)}</div>
-        <div style={summaryLabel}>Net Outstanding</div>
+        <div style={summaryValue}>{formatMoney(totalOutstanding)}</div>
+        <div style={summaryLabel}>Total Outstanding</div>
       </div>
       <div style={summaryCard}>
         <div style={summaryValue}>{formatMoney(recentlyOwing)}</div>

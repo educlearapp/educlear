@@ -13,7 +13,8 @@
         "d120": -6000
       },
       "source": "kideesys-age-analysis",
-      "importedAt": "2026-05-28T08:38:50.245Z"
+      "importedAt": "2026-05-28T08:38:50.245Z",
+      "kidesysSection": "Bad Debt"
     },
     "MAO002": {
       "schoolId": "cmpideqeq0000108xb6ouv9zi",
@@ -28,7 +29,8 @@
         "d120": 0
       },
       "source": "kideesys-age-analysis",
-      "importedAt": "2026-05-28T08:38:50.245Z"
+      "importedAt": "2026-05-28T08:38:50.245Z",
+      "kidesysSection": "Bad Debt"
     },
     "MDU001": {
       "schoolId": "cmpideqeq0000108xb6ouv9zi",
@@ -43,7 +45,8 @@
         "d120": -2760
       },
       "source": "kideesys-age-analysis",
-      "importedAt": "2026-05-28T08:38:50.245Z"
+      "importedAt": "2026-05-28T08:38:50.245Z",
+      "kidesysSection": "Bad Debt"
     },
     "CHI005": {
       "schoolId": "cmpideqeq0000108xb6ouv9zi",
@@ -58,7 +61,8 @@
         "d120": -100
       },
       "source": "kideesys-age-analysis",
-      "importedAt": "2026-05-28T08:38:50.245Z"
+      "importedAt": "2026-05-28T08:38:50.245Z",
+      "kidesysSection": "Bad Debt"
     },
     "MOD014": {
       "schoolId": "cmpideqeq0000108xb6ouv9zi",
@@ -73,7 +77,8 @@
         "d120": 0
       },
       "source": "kideesys-age-analysis",
-      "importedAt": "2026-05-28T08:38:50.245Z"
+      "importedAt": "2026-05-28T08:38:50.245Z",
+      "kidesysSection": "Bad Debt"
     },
     "DIK004": {
       "schoolId": "cmpideqeq0000108xb6ouv9zi",
@@ -88,7 +93,8 @@
         "d120": 0
       },
       "source": "kideesys-age-analysis",
-      "importedAt": "2026-05-28T08:38:50.245Z"
+      "importedAt": "2026-05-28T08:38:50.245Z",
+      "kidesysSection": "Bad Debt"
     },
     "MOT007": {
       "schoolId": "cmpideqeq0000108xb6ouv9zi",
@@ -103,7 +109,8 @@
         "d120": -2600.55
       },
       "source": "kideesys-age-analysis",
-      "importedAt": "2026-05-28T08:38:50.245Z"
+      "importedAt": "2026-05-28T08:38:50.245Z",
+      "kidesysSection": "Bad Debt"
     },
     "NGA002": {
       "schoolId": "cmpideqeq0000108xb6ouv9zi",
@@ -118,7 +125,8 @@
         "d120": -6925
       },
       "source": "kideesys-age-analysis",
-      "importedAt": "2026-05-28T08:38:50.245Z"
+      "importedAt": "2026-05-28T08:38:50.245Z",
+      "kidesysSection": "Bad Debt"
     },
     "DHL002": {
       "schoolId": "cmpideqeq0000108xb6ouv9zi",
@@ -133,7 +141,8 @@
         "d120": -520
       },
       "source": "kideesys-age-analysis",
-      "importedAt": "2026-05-28T08:38:50.245Z"
+      "importedAt": "2026-05-28T08:38:50.245Z",
+      "kidesysSection": "Bad Debt"
     },
     "RAM021": {
       "schoolId": "cmpideqeq0000108xb6ouv9zi",
@@ -148,7 +157,8 @@
         "d120": 960
       },
       "source": "kideesys-age-analysis",
-      "importedAt": "2026-05-28T08:38:50.245Z"
+      "importedAt": "2026-05-28T08:38:50.245Z",
+      "kidesysSection": "Bad Debt"
     },
     "MOG013": {
       "schoolId": "cmpideqeq0000108xb6ouv9zi",
@@ -163,7 +173,8 @@
         "d120": -2900
       },
       "source": "kideesys-age-analysis",
-      "importedAt": "2026-05-28T08:38:50.245Z"
+      "importedAt": "2026-05-28T08:38:50.245Z",
+      "kidesysSection": "Bad Debt"
     },
     "MUR001": {
       "schoolId": "cmpideqeq0000108xb6ouv9zi",
@@ -178,7 +189,8 @@
         "d120": 12300
       },
       "source": "kideesys-age-analysis",
-      "importedAt": "2026-05-28T08:38:50.245Z"
+      "importedAt": "2026-05-28T08:38:50.245Z",
+      "kidesysSection": "Bad Debt"
     },
     "KOR001": {
       "schoolId": "cmpideqeq0000108xb6ouv9zi",
@@ -193,7 +205,8 @@
         "d120": -2840
       },
       "source": "kideesys-age-analysis",
-      "importedAt": "2026-05-28T08:38:50.245Z"
+      "importedAt": "2026-05-28T08:38:50.245Z",
+      "kidesysSection": "Bad Debt"
     },
     "MAF003": {
       "schoolId": "cmpideqeq0000108xb6ouv9zi",
@@ -208,7 +221,8 @@
         "d120": -1400
       },
       "source": "kideesys-age-analysis",
-      "importedAt": "2026-05-28T08:38:50.245Z"
+      "importedAt": "2026-05-28T08:38:50.245Z",
+      "kidesysSection": "Bad Debt"
     },
     "WOL001": {
       "schoolId": "cmpideqeq0000108xb6ouv9zi",
@@ -223,7 +237,8 @@
         "d120": -2870
       },
       "source": "kideesys-age-analysis",
-      "importedAt": "2026-05-28T08:38:50.245Z"
+      "importedAt": "2026-05-28T08:38:50.245Z",
+      "kidesysSection": "Bad Debt"
     },
     "MAT010": {
       "schoolId": "cmpideqeq0000108xb6ouv9zi",
@@ -238,7 +253,8 @@
         "d120": -4540
       },
       "source": "kideesys-age-analysis",
-      "importedAt": "2026-05-28T08:38:50.245Z"
+      "importedAt": "2026-05-28T08:38:50.245Z",
+      "kidesysSection": "Bad Debt"
     },
     "MOL018": {
       "schoolId": "cmpideqeq0000108xb6ouv9zi",
@@ -253,7 +269,8 @@
         "d120": -475
       },
       "source": "kideesys-age-analysis",
-      "importedAt": "2026-05-28T08:38:50.245Z"
+      "importedAt": "2026-05-28T08:38:50.245Z",
+      "kidesysSection": "Bad Debt"
     },
     "MTE001": {
       "schoolId": "cmpideqeq0000108xb6ouv9zi",
@@ -268,7 +285,8 @@
         "d120": -750
       },
       "source": "kideesys-age-analysis",
-      "importedAt": "2026-05-28T08:38:50.245Z"
+      "importedAt": "2026-05-28T08:38:50.245Z",
+      "kidesysSection": "Bad Debt"
     },
     "MFU002": {
       "schoolId": "cmpideqeq0000108xb6ouv9zi",
@@ -283,7 +301,8 @@
         "d120": 0
       },
       "source": "kideesys-age-analysis",
-      "importedAt": "2026-05-28T08:38:50.245Z"
+      "importedAt": "2026-05-28T08:38:50.245Z",
+      "kidesysSection": "Bad Debt"
     },
     "KEM002": {
       "schoolId": "cmpideqeq0000108xb6ouv9zi",
@@ -298,7 +317,8 @@
         "d120": -3320
       },
       "source": "kideesys-age-analysis",
-      "importedAt": "2026-05-28T08:38:50.245Z"
+      "importedAt": "2026-05-28T08:38:50.245Z",
+      "kidesysSection": "Bad Debt"
     },
     "NKO004": {
       "schoolId": "cmpideqeq0000108xb6ouv9zi",
@@ -313,7 +333,8 @@
         "d120": -250
       },
       "source": "kideesys-age-analysis",
-      "importedAt": "2026-05-28T08:38:50.245Z"
+      "importedAt": "2026-05-28T08:38:50.245Z",
+      "kidesysSection": "Bad Debt"
     },
     "TAK001": {
       "schoolId": "cmpideqeq0000108xb6ouv9zi",
@@ -328,7 +349,8 @@
         "d120": -800
       },
       "source": "kideesys-age-analysis",
-      "importedAt": "2026-05-28T08:38:50.245Z"
+      "importedAt": "2026-05-28T08:38:50.245Z",
+      "kidesysSection": "Bad Debt"
     },
     "THE003": {
       "schoolId": "cmpideqeq0000108xb6ouv9zi",
@@ -343,7 +365,8 @@
         "d120": 0
       },
       "source": "kideesys-age-analysis",
-      "importedAt": "2026-05-28T08:38:50.245Z"
+      "importedAt": "2026-05-28T08:38:50.245Z",
+      "kidesysSection": "Bad Debt"
     },
     "TIV001": {
       "schoolId": "cmpideqeq0000108xb6ouv9zi",
@@ -358,7 +381,8 @@
         "d120": -5450
       },
       "source": "kideesys-age-analysis",
-      "importedAt": "2026-05-28T08:38:50.245Z"
+      "importedAt": "2026-05-28T08:38:50.245Z",
+      "kidesysSection": "Bad Debt"
     },
     "MOT026": {
       "schoolId": "cmpideqeq0000108xb6ouv9zi",
@@ -373,7 +397,8 @@
         "d120": -2410
       },
       "source": "kideesys-age-analysis",
-      "importedAt": "2026-05-28T08:38:50.245Z"
+      "importedAt": "2026-05-28T08:38:50.245Z",
+      "kidesysSection": "Bad Debt"
     },
     "MAS021": {
       "schoolId": "cmpideqeq0000108xb6ouv9zi",
@@ -388,7 +413,8 @@
         "d120": -3000
       },
       "source": "kideesys-age-analysis",
-      "importedAt": "2026-05-28T08:38:50.245Z"
+      "importedAt": "2026-05-28T08:38:50.245Z",
+      "kidesysSection": "Bad Debt"
     },
     "KAT002": {
       "schoolId": "cmpideqeq0000108xb6ouv9zi",
@@ -403,7 +429,8 @@
         "d120": -5550
       },
       "source": "kideesys-age-analysis",
-      "importedAt": "2026-05-28T08:38:50.245Z"
+      "importedAt": "2026-05-28T08:38:50.245Z",
+      "kidesysSection": "Bad Debt"
     },
     "MOL040": {
       "schoolId": "cmpideqeq0000108xb6ouv9zi",
@@ -418,7 +445,8 @@
         "d120": -650
       },
       "source": "kideesys-age-analysis",
-      "importedAt": "2026-05-28T08:38:50.245Z"
+      "importedAt": "2026-05-28T08:38:50.245Z",
+      "kidesysSection": "Bad Debt"
     },
     "SEG008": {
       "schoolId": "cmpideqeq0000108xb6ouv9zi",
@@ -433,7 +461,8 @@
         "d120": 0
       },
       "source": "kideesys-age-analysis",
-      "importedAt": "2026-05-28T08:38:50.245Z"
+      "importedAt": "2026-05-28T08:38:50.245Z",
+      "kidesysSection": "Bad Debt"
     },
     "MDU002": {
       "schoolId": "cmpideqeq0000108xb6ouv9zi",
@@ -448,7 +477,8 @@
         "d120": -2000
       },
       "source": "kideesys-age-analysis",
-      "importedAt": "2026-05-28T08:38:50.245Z"
+      "importedAt": "2026-05-28T08:38:50.245Z",
+      "kidesysSection": "Bad Debt"
     },
     "MPU004": {
       "schoolId": "cmpideqeq0000108xb6ouv9zi",
@@ -463,7 +493,8 @@
         "d120": -3000
       },
       "source": "kideesys-age-analysis",
-      "importedAt": "2026-05-28T08:38:50.245Z"
+      "importedAt": "2026-05-28T08:38:50.245Z",
+      "kidesysSection": "Bad Debt"
     },
     "MAG006": {
       "schoolId": "cmpideqeq0000108xb6ouv9zi",
@@ -478,7 +509,8 @@
         "d120": -2200
       },
       "source": "kideesys-age-analysis",
-      "importedAt": "2026-05-28T08:38:50.245Z"
+      "importedAt": "2026-05-28T08:38:50.245Z",
+      "kidesysSection": "Bad Debt"
     },
     "MOD015": {
       "schoolId": "cmpideqeq0000108xb6ouv9zi",
@@ -493,7 +525,8 @@
         "d120": -150
       },
       "source": "kideesys-age-analysis",
-      "importedAt": "2026-05-28T08:38:50.245Z"
+      "importedAt": "2026-05-28T08:38:50.245Z",
+      "kidesysSection": "Bad Debt"
     },
     "HKA001": {
       "schoolId": "cmpideqeq0000108xb6ouv9zi",
@@ -508,7 +541,8 @@
         "d120": 0
       },
       "source": "kideesys-age-analysis",
-      "importedAt": "2026-05-28T08:38:50.245Z"
+      "importedAt": "2026-05-28T08:38:50.245Z",
+      "kidesysSection": "Bad Debt"
     },
     "KHU007": {
       "schoolId": "cmpideqeq0000108xb6ouv9zi",
@@ -523,7 +557,8 @@
         "d120": -2390
       },
       "source": "kideesys-age-analysis",
-      "importedAt": "2026-05-28T08:38:50.245Z"
+      "importedAt": "2026-05-28T08:38:50.245Z",
+      "kidesysSection": "Bad Debt"
     },
     "TSH023": {
       "schoolId": "cmpideqeq0000108xb6ouv9zi",
@@ -538,7 +573,8 @@
         "d120": 0
       },
       "source": "kideesys-age-analysis",
-      "importedAt": "2026-05-28T08:38:50.245Z"
+      "importedAt": "2026-05-28T08:38:50.245Z",
+      "kidesysSection": "Bad Debt"
     },
     "MKH007": {
       "schoolId": "cmpideqeq0000108xb6ouv9zi",
@@ -553,7 +589,8 @@
         "d120": -550
       },
       "source": "kideesys-age-analysis",
-      "importedAt": "2026-05-28T08:38:50.245Z"
+      "importedAt": "2026-05-28T08:38:50.245Z",
+      "kidesysSection": "Bad Debt"
     },
     "SEP002": {
       "schoolId": "cmpideqeq0000108xb6ouv9zi",
@@ -568,7 +605,8 @@
         "d120": -1300
       },
       "source": "kideesys-age-analysis",
-      "importedAt": "2026-05-28T08:38:50.245Z"
+      "importedAt": "2026-05-28T08:38:50.245Z",
+      "kidesysSection": "Bad Debt"
     },
     "TAN001": {
       "schoolId": "cmpideqeq0000108xb6ouv9zi",
@@ -583,7 +621,8 @@
         "d120": -300
       },
       "source": "kideesys-age-analysis",
-      "importedAt": "2026-05-28T08:38:50.245Z"
+      "importedAt": "2026-05-28T08:38:50.245Z",
+      "kidesysSection": "Bad Debt"
     },
     "MOL024": {
       "schoolId": "cmpideqeq0000108xb6ouv9zi",
@@ -598,7 +637,8 @@
         "d120": 10450
       },
       "source": "kideesys-age-analysis",
-      "importedAt": "2026-05-28T08:38:50.245Z"
+      "importedAt": "2026-05-28T08:38:50.245Z",
+      "kidesysSection": "Bad Debt"
     },
     "NEL001": {
       "schoolId": "cmpideqeq0000108xb6ouv9zi",
@@ -613,7 +653,8 @@
         "d120": 0
       },
       "source": "kideesys-age-analysis",
-      "importedAt": "2026-05-28T08:38:50.245Z"
+      "importedAt": "2026-05-28T08:38:50.245Z",
+      "kidesysSection": "Bad Debt"
     },
     "MPA001": {
       "schoolId": "cmpideqeq0000108xb6ouv9zi",
@@ -628,7 +669,8 @@
         "d120": -705
       },
       "source": "kideesys-age-analysis",
-      "importedAt": "2026-05-28T08:38:50.245Z"
+      "importedAt": "2026-05-28T08:38:50.245Z",
+      "kidesysSection": "Bad Debt"
     },
     "TSH012": {
       "schoolId": "cmpideqeq0000108xb6ouv9zi",
@@ -643,7 +685,8 @@
         "d120": -6000
       },
       "source": "kideesys-age-analysis",
-      "importedAt": "2026-05-28T08:38:50.245Z"
+      "importedAt": "2026-05-28T08:38:50.245Z",
+      "kidesysSection": "Bad Debt"
     },
     "LEB005": {
       "schoolId": "cmpideqeq0000108xb6ouv9zi",
@@ -658,7 +701,8 @@
         "d120": 0
       },
       "source": "kideesys-age-analysis",
-      "importedAt": "2026-05-28T08:38:50.245Z"
+      "importedAt": "2026-05-28T08:38:50.245Z",
+      "kidesysSection": "Bad Debt"
     },
     "ZON001": {
       "schoolId": "cmpideqeq0000108xb6ouv9zi",
@@ -673,7 +717,8 @@
         "d120": -2700
       },
       "source": "kideesys-age-analysis",
-      "importedAt": "2026-05-28T08:38:50.245Z"
+      "importedAt": "2026-05-28T08:38:50.245Z",
+      "kidesysSection": "Bad Debt"
     },
     "SEL009": {
       "schoolId": "cmpideqeq0000108xb6ouv9zi",
@@ -688,7 +733,8 @@
         "d120": 0
       },
       "source": "kideesys-age-analysis",
-      "importedAt": "2026-05-28T08:38:50.245Z"
+      "importedAt": "2026-05-28T08:38:50.245Z",
+      "kidesysSection": "Bad Debt"
     },
     "MAP006": {
       "schoolId": "cmpideqeq0000108xb6ouv9zi",
@@ -703,7 +749,8 @@
         "d120": -1055
       },
       "source": "kideesys-age-analysis",
-      "importedAt": "2026-05-28T08:38:50.245Z"
+      "importedAt": "2026-05-28T08:38:50.245Z",
+      "kidesysSection": "Bad Debt"
     },
     "TLA001": {
       "schoolId": "cmpideqeq0000108xb6ouv9zi",
@@ -718,7 +765,8 @@
         "d120": -2560
       },
       "source": "kideesys-age-analysis",
-      "importedAt": "2026-05-28T08:38:50.245Z"
+      "importedAt": "2026-05-28T08:38:50.245Z",
+      "kidesysSection": "Bad Debt"
     },
     "MAN010": {
       "schoolId": "cmpideqeq0000108xb6ouv9zi",
@@ -733,7 +781,8 @@
         "d120": -5030
       },
       "source": "kideesys-age-analysis",
-      "importedAt": "2026-05-28T08:38:50.245Z"
+      "importedAt": "2026-05-28T08:38:50.245Z",
+      "kidesysSection": "Bad Debt"
     },
     "DIM002": {
       "schoolId": "cmpideqeq0000108xb6ouv9zi",
@@ -748,7 +797,8 @@
         "d120": 9000
       },
       "source": "kideesys-age-analysis",
-      "importedAt": "2026-05-28T08:38:50.245Z"
+      "importedAt": "2026-05-28T08:38:50.245Z",
+      "kidesysSection": "Bad Debt"
     },
     "MKH005": {
       "schoolId": "cmpideqeq0000108xb6ouv9zi",
@@ -763,7 +813,8 @@
         "d120": 0
       },
       "source": "kideesys-age-analysis",
-      "importedAt": "2026-05-28T08:38:50.245Z"
+      "importedAt": "2026-05-28T08:38:50.245Z",
+      "kidesysSection": "Bad Debt"
     },
     "MIR001": {
       "schoolId": "cmpideqeq0000108xb6ouv9zi",
@@ -778,7 +829,8 @@
         "d120": 0
       },
       "source": "kideesys-age-analysis",
-      "importedAt": "2026-05-28T08:38:50.245Z"
+      "importedAt": "2026-05-28T08:38:50.245Z",
+      "kidesysSection": "Bad Debt"
     },
     "MKA001": {
       "schoolId": "cmpideqeq0000108xb6ouv9zi",
@@ -793,7 +845,8 @@
         "d120": 0
       },
       "source": "kideesys-age-analysis",
-      "importedAt": "2026-05-28T08:38:50.245Z"
+      "importedAt": "2026-05-28T08:38:50.245Z",
+      "kidesysSection": "Bad Debt"
     },
     "MTS001": {
       "schoolId": "cmpideqeq0000108xb6ouv9zi",
@@ -808,7 +861,8 @@
         "d120": 2950
       },
       "source": "kideesys-age-analysis",
-      "importedAt": "2026-05-28T08:38:50.245Z"
+      "importedAt": "2026-05-28T08:38:50.245Z",
+      "kidesysSection": "Bad Debt"
     },
     "MKH002": {
       "schoolId": "cmpideqeq0000108xb6ouv9zi",
@@ -823,7 +877,8 @@
         "d120": -2550
       },
       "source": "kideesys-age-analysis",
-      "importedAt": "2026-05-28T08:38:50.245Z"
+      "importedAt": "2026-05-28T08:38:50.245Z",
+      "kidesysSection": "Bad Debt"
     },
     "KGA006": {
       "schoolId": "cmpideqeq0000108xb6ouv9zi",
@@ -838,7 +893,8 @@
         "d120": 0
       },
       "source": "kideesys-age-analysis",
-      "importedAt": "2026-05-28T08:38:50.245Z"
+      "importedAt": "2026-05-28T08:38:50.245Z",
+      "kidesysSection": "Bad Debt"
     },
     "FRE001": {
       "schoolId": "cmpideqeq0000108xb6ouv9zi",
@@ -853,7 +909,8 @@
         "d120": -3370
       },
       "source": "kideesys-age-analysis",
-      "importedAt": "2026-05-28T08:38:50.245Z"
+      "importedAt": "2026-05-28T08:38:50.245Z",
+      "kidesysSection": "Bad Debt"
     },
     "PET002": {
       "schoolId": "cmpideqeq0000108xb6ouv9zi",
@@ -868,7 +925,8 @@
         "d120": -3050
       },
       "source": "kideesys-age-analysis",
-      "importedAt": "2026-05-28T08:38:50.245Z"
+      "importedAt": "2026-05-28T08:38:50.245Z",
+      "kidesysSection": "Bad Debt"
     },
     "MAS031": {
       "schoolId": "cmpideqeq0000108xb6ouv9zi",
@@ -883,7 +941,8 @@
         "d120": 0
       },
       "source": "kideesys-age-analysis",
-      "importedAt": "2026-05-28T08:38:50.245Z"
+      "importedAt": "2026-05-28T08:38:50.245Z",
+      "kidesysSection": "Bad Debt"
     },
     "SER001": {
       "schoolId": "cmpideqeq0000108xb6ouv9zi",
@@ -898,7 +957,8 @@
         "d120": -3000
       },
       "source": "kideesys-age-analysis",
-      "importedAt": "2026-05-28T08:38:50.245Z"
+      "importedAt": "2026-05-28T08:38:50.245Z",
+      "kidesysSection": "Bad Debt"
     },
     "THE002": {
       "schoolId": "cmpideqeq0000108xb6ouv9zi",
@@ -913,7 +973,8 @@
         "d120": 7650
       },
       "source": "kideesys-age-analysis",
-      "importedAt": "2026-05-28T08:38:50.245Z"
+      "importedAt": "2026-05-28T08:38:50.245Z",
+      "kidesysSection": "Bad Debt"
     },
     "SEP899": {
       "schoolId": "cmpideqeq0000108xb6ouv9zi",
@@ -928,7 +989,8 @@
         "d120": -3500
       },
       "source": "kideesys-age-analysis",
-      "importedAt": "2026-05-28T08:38:50.245Z"
+      "importedAt": "2026-05-28T08:38:50.245Z",
+      "kidesysSection": "Bad Debt"
     },
     "MOA007": {
       "schoolId": "cmpideqeq0000108xb6ouv9zi",
@@ -943,7 +1005,8 @@
         "d120": 0
       },
       "source": "kideesys-age-analysis",
-      "importedAt": "2026-05-28T08:38:50.245Z"
+      "importedAt": "2026-05-28T08:38:50.245Z",
+      "kidesysSection": "Bad Debt"
     },
     "MOE006": {
       "schoolId": "cmpideqeq0000108xb6ouv9zi",
@@ -958,7 +1021,8 @@
         "d120": -2800
       },
       "source": "kideesys-age-analysis",
-      "importedAt": "2026-05-28T08:38:50.245Z"
+      "importedAt": "2026-05-28T08:38:50.245Z",
+      "kidesysSection": "Bad Debt"
     },
     "TSH021": {
       "schoolId": "cmpideqeq0000108xb6ouv9zi",
@@ -973,7 +1037,8 @@
         "d120": -550
       },
       "source": "kideesys-age-analysis",
-      "importedAt": "2026-05-28T08:38:50.245Z"
+      "importedAt": "2026-05-28T08:38:50.245Z",
+      "kidesysSection": "Bad Debt"
     },
     "MOS014": {
       "schoolId": "cmpideqeq0000108xb6ouv9zi",
@@ -988,7 +1053,8 @@
         "d120": -3000
       },
       "source": "kideesys-age-analysis",
-      "importedAt": "2026-05-28T08:38:50.245Z"
+      "importedAt": "2026-05-28T08:38:50.245Z",
+      "kidesysSection": "Bad Debt"
     },
     "MOT017": {
       "schoolId": "cmpideqeq0000108xb6ouv9zi",
@@ -1003,7 +1069,8 @@
         "d120": -1300
       },
       "source": "kideesys-age-analysis",
-      "importedAt": "2026-05-28T08:38:50.245Z"
+      "importedAt": "2026-05-28T08:38:50.245Z",
+      "kidesysSection": "Bad Debt"
     },
     "MOT008": {
       "schoolId": "cmpideqeq0000108xb6ouv9zi",
@@ -1018,7 +1085,8 @@
         "d120": -1500
       },
       "source": "kideesys-age-analysis",
-      "importedAt": "2026-05-28T08:38:50.245Z"
+      "importedAt": "2026-05-28T08:38:50.245Z",
+      "kidesysSection": "Bad Debt"
     },
     "MAK024": {
       "schoolId": "cmpideqeq0000108xb6ouv9zi",
@@ -1033,7 +1101,8 @@
         "d120": 0
       },
       "source": "kideesys-age-analysis",
-      "importedAt": "2026-05-28T08:38:50.245Z"
+      "importedAt": "2026-05-28T08:38:50.245Z",
+      "kidesysSection": "Bad Debt"
     },
     "GAE001": {
       "schoolId": "cmpideqeq0000108xb6ouv9zi",
@@ -1048,7 +1117,8 @@
         "d120": -3280
       },
       "source": "kideesys-age-analysis",
-      "importedAt": "2026-05-28T08:38:50.245Z"
+      "importedAt": "2026-05-28T08:38:50.245Z",
+      "kidesysSection": "Bad Debt"
     },
     "MAB005": {
       "schoolId": "cmpideqeq0000108xb6ouv9zi",
@@ -1063,7 +1133,8 @@
         "d120": -6650
       },
       "source": "kideesys-age-analysis",
-      "importedAt": "2026-05-28T08:38:50.245Z"
+      "importedAt": "2026-05-28T08:38:50.245Z",
+      "kidesysSection": "Bad Debt"
     },
     "PHA010": {
       "schoolId": "cmpideqeq0000108xb6ouv9zi",
@@ -1078,7 +1149,8 @@
         "d120": 0
       },
       "source": "kideesys-age-analysis",
-      "importedAt": "2026-05-28T08:38:50.245Z"
+      "importedAt": "2026-05-28T08:38:50.245Z",
+      "kidesysSection": "Bad Debt"
     },
     "OSE001": {
       "schoolId": "cmpideqeq0000108xb6ouv9zi",
@@ -1093,7 +1165,8 @@
         "d120": -2025
       },
       "source": "kideesys-age-analysis",
-      "importedAt": "2026-05-28T08:38:50.245Z"
+      "importedAt": "2026-05-28T08:38:50.245Z",
+      "kidesysSection": "Bad Debt"
     },
     "MOL043": {
       "schoolId": "cmpideqeq0000108xb6ouv9zi",
@@ -1108,7 +1181,8 @@
         "d120": 0
       },
       "source": "kideesys-age-analysis",
-      "importedAt": "2026-05-28T08:38:50.245Z"
+      "importedAt": "2026-05-28T08:38:50.245Z",
+      "kidesysSection": "Bad Debt"
     },
     "MOE008": {
       "schoolId": "cmpideqeq0000108xb6ouv9zi",
@@ -1123,7 +1197,8 @@
         "d120": 8190
       },
       "source": "kideesys-age-analysis",
-      "importedAt": "2026-05-28T08:38:50.245Z"
+      "importedAt": "2026-05-28T08:38:50.245Z",
+      "kidesysSection": "Bad Debt"
     },
     "MAT016": {
       "schoolId": "cmpideqeq0000108xb6ouv9zi",
@@ -1138,7 +1213,8 @@
         "d120": -7100
       },
       "source": "kideesys-age-analysis",
-      "importedAt": "2026-05-28T08:38:50.245Z"
+      "importedAt": "2026-05-28T08:38:50.245Z",
+      "kidesysSection": "Bad Debt"
     },
     "MOE003": {
       "schoolId": "cmpideqeq0000108xb6ouv9zi",
@@ -1153,7 +1229,8 @@
         "d120": -10000
       },
       "source": "kideesys-age-analysis",
-      "importedAt": "2026-05-28T08:38:50.245Z"
+      "importedAt": "2026-05-28T08:38:50.245Z",
+      "kidesysSection": "Bad Debt"
     },
     "MOR013": {
       "schoolId": "cmpideqeq0000108xb6ouv9zi",
@@ -1168,7 +1245,8 @@
         "d120": -1600
       },
       "source": "kideesys-age-analysis",
-      "importedAt": "2026-05-28T08:38:50.245Z"
+      "importedAt": "2026-05-28T08:38:50.245Z",
+      "kidesysSection": "Bad Debt"
     },
     "XAB001": {
       "schoolId": "cmpideqeq0000108xb6ouv9zi",
@@ -1183,7 +1261,8 @@
         "d120": -1700
       },
       "source": "kideesys-age-analysis",
-      "importedAt": "2026-05-28T08:38:50.245Z"
+      "importedAt": "2026-05-28T08:38:50.245Z",
+      "kidesysSection": "Bad Debt"
     },
     "MOK038": {
       "schoolId": "cmpideqeq0000108xb6ouv9zi",
@@ -1198,7 +1277,8 @@
         "d120": -890
       },
       "source": "kideesys-age-analysis",
-      "importedAt": "2026-05-28T08:38:50.245Z"
+      "importedAt": "2026-05-28T08:38:50.245Z",
+      "kidesysSection": "Bad Debt"
     },
     "MAT022": {
       "schoolId": "cmpideqeq0000108xb6ouv9zi",
@@ -1213,7 +1293,8 @@
         "d120": -1600
       },
       "source": "kideesys-age-analysis",
-      "importedAt": "2026-05-28T08:38:50.245Z"
+      "importedAt": "2026-05-28T08:38:50.245Z",
+      "kidesysSection": "Bad Debt"
     },
     "LEK003": {
       "schoolId": "cmpideqeq0000108xb6ouv9zi",
@@ -1228,7 +1309,8 @@
         "d120": -5500
       },
       "source": "kideesys-age-analysis",
-      "importedAt": "2026-05-28T08:38:50.245Z"
+      "importedAt": "2026-05-28T08:38:50.245Z",
+      "kidesysSection": "Bad Debt"
     },
     "MOK033": {
       "schoolId": "cmpideqeq0000108xb6ouv9zi",
@@ -1243,7 +1325,8 @@
         "d120": -2860
       },
       "source": "kideesys-age-analysis",
-      "importedAt": "2026-05-28T08:38:50.245Z"
+      "importedAt": "2026-05-28T08:38:50.245Z",
+      "kidesysSection": "Bad Debt"
     },
     "HLA001": {
       "schoolId": "cmpideqeq0000108xb6ouv9zi",
@@ -1258,7 +1341,8 @@
         "d120": -5150
       },
       "source": "kideesys-age-analysis",
-      "importedAt": "2026-05-28T08:38:50.245Z"
+      "importedAt": "2026-05-28T08:38:50.245Z",
+      "kidesysSection": "Bad Debt"
     },
     "TSH018": {
       "schoolId": "cmpideqeq0000108xb6ouv9zi",
@@ -1273,7 +1357,8 @@
         "d120": -2400
       },
       "source": "kideesys-age-analysis",
-      "importedAt": "2026-05-28T08:38:50.245Z"
+      "importedAt": "2026-05-28T08:38:50.245Z",
+      "kidesysSection": "Bad Debt"
     },
     "NKA004": {
       "schoolId": "cmpideqeq0000108xb6ouv9zi",
@@ -1288,7 +1373,8 @@
         "d120": 0
       },
       "source": "kideesys-age-analysis",
-      "importedAt": "2026-05-28T08:38:50.245Z"
+      "importedAt": "2026-05-28T08:38:50.245Z",
+      "kidesysSection": "Bad Debt"
     },
     "MEK003": {
       "schoolId": "cmpideqeq0000108xb6ouv9zi",
@@ -1303,7 +1389,8 @@
         "d120": 0
       },
       "source": "kideesys-age-analysis",
-      "importedAt": "2026-05-28T08:38:50.245Z"
+      "importedAt": "2026-05-28T08:38:50.245Z",
+      "kidesysSection": "Bad Debt"
     },
     "ZON002": {
       "schoolId": "cmpideqeq0000108xb6ouv9zi",
@@ -1318,7 +1405,8 @@
         "d120": 0
       },
       "source": "kideesys-age-analysis",
-      "importedAt": "2026-05-28T08:38:50.245Z"
+      "importedAt": "2026-05-28T08:38:50.245Z",
+      "kidesysSection": "Bad Debt"
     },
     "MAT021": {
       "schoolId": "cmpideqeq0000108xb6ouv9zi",
@@ -1333,7 +1421,8 @@
         "d120": -3150
       },
       "source": "kideesys-age-analysis",
-      "importedAt": "2026-05-28T08:38:50.245Z"
+      "importedAt": "2026-05-28T08:38:50.245Z",
+      "kidesysSection": "Bad Debt"
     },
     "MAM004": {
       "schoolId": "cmpideqeq0000108xb6ouv9zi",
@@ -1348,7 +1437,8 @@
         "d120": 0
       },
       "source": "kideesys-age-analysis",
-      "importedAt": "2026-05-28T08:38:50.245Z"
+      "importedAt": "2026-05-28T08:38:50.245Z",
+      "kidesysSection": "Bad Debt"
     },
     "KGO003": {
       "schoolId": "cmpideqeq0000108xb6ouv9zi",
@@ -1363,7 +1453,8 @@
         "d120": -2650
       },
       "source": "kideesys-age-analysis",
-      "importedAt": "2026-05-28T08:38:50.245Z"
+      "importedAt": "2026-05-28T08:38:50.245Z",
+      "kidesysSection": "Bad Debt"
     },
     "MAK014": {
       "schoolId": "cmpideqeq0000108xb6ouv9zi",
@@ -1378,7 +1469,8 @@
         "d120": -2950
       },
       "source": "kideesys-age-analysis",
-      "importedAt": "2026-05-28T08:38:50.245Z"
+      "importedAt": "2026-05-28T08:38:50.245Z",
+      "kidesysSection": "Bad Debt"
     },
     "MOT033": {
       "schoolId": "cmpideqeq0000108xb6ouv9zi",
@@ -1393,7 +1485,8 @@
         "d120": -2500
       },
       "source": "kideesys-age-analysis",
-      "importedAt": "2026-05-28T08:38:50.245Z"
+      "importedAt": "2026-05-28T08:38:50.245Z",
+      "kidesysSection": "Bad Debt"
     },
     "BOG005": {
       "schoolId": "cmpideqeq0000108xb6ouv9zi",
@@ -1408,7 +1501,8 @@
         "d120": -2100
       },
       "source": "kideesys-age-analysis",
-      "importedAt": "2026-05-28T08:38:50.245Z"
+      "importedAt": "2026-05-28T08:38:50.245Z",
+      "kidesysSection": "Bad Debt"
     },
     "MAK013": {
       "schoolId": "cmpideqeq0000108xb6ouv9zi",
@@ -1423,7 +1517,8 @@
         "d120": -2550
       },
       "source": "kideesys-age-analysis",
-      "importedAt": "2026-05-28T08:38:50.245Z"
+      "importedAt": "2026-05-28T08:38:50.245Z",
+      "kidesysSection": "Bad Debt"
     },
     "NAS001": {
       "schoolId": "cmpideqeq0000108xb6ouv9zi",
@@ -1438,7 +1533,8 @@
         "d120": -265
       },
       "source": "kideesys-age-analysis",
-      "importedAt": "2026-05-28T08:38:50.245Z"
+      "importedAt": "2026-05-28T08:38:50.245Z",
+      "kidesysSection": "Bad Debt"
     },
     "MAP001": {
       "schoolId": "cmpideqeq0000108xb6ouv9zi",
@@ -1453,7 +1549,8 @@
         "d120": -800
       },
       "source": "kideesys-age-analysis",
-      "importedAt": "2026-05-28T08:38:50.245Z"
+      "importedAt": "2026-05-28T08:38:50.245Z",
+      "kidesysSection": "Bad Debt"
     },
     "MQA001": {
       "schoolId": "cmpideqeq0000108xb6ouv9zi",
@@ -1468,7 +1565,8 @@
         "d120": -585
       },
       "source": "kideesys-age-analysis",
-      "importedAt": "2026-05-28T08:38:50.245Z"
+      "importedAt": "2026-05-28T08:38:50.245Z",
+      "kidesysSection": "Bad Debt"
     },
     "SIT003": {
       "schoolId": "cmpideqeq0000108xb6ouv9zi",
@@ -1483,7 +1581,8 @@
         "d120": -3250
       },
       "source": "kideesys-age-analysis",
-      "importedAt": "2026-05-28T08:38:50.245Z"
+      "importedAt": "2026-05-28T08:38:50.245Z",
+      "kidesysSection": "Bad Debt"
     },
     "PRA001": {
       "schoolId": "cmpideqeq0000108xb6ouv9zi",
@@ -1498,7 +1597,8 @@
         "d120": 14900
       },
       "source": "kideesys-age-analysis",
-      "importedAt": "2026-05-28T08:38:50.245Z"
+      "importedAt": "2026-05-28T08:38:50.245Z",
+      "kidesysSection": "Bad Debt"
     },
     "MSI004": {
       "schoolId": "cmpideqeq0000108xb6ouv9zi",
@@ -1513,7 +1613,8 @@
         "d120": -2700
       },
       "source": "kideesys-age-analysis",
-      "importedAt": "2026-05-28T08:38:50.245Z"
+      "importedAt": "2026-05-28T08:38:50.245Z",
+      "kidesysSection": "Bad Debt"
     },
     "KOB002": {
       "schoolId": "cmpideqeq0000108xb6ouv9zi",
@@ -1528,7 +1629,8 @@
         "d120": 0
       },
       "source": "kideesys-age-analysis",
-      "importedAt": "2026-05-28T08:38:50.245Z"
+      "importedAt": "2026-05-28T08:38:50.245Z",
+      "kidesysSection": "Bad Debt"
     },
     "MUF001": {
       "schoolId": "cmpideqeq0000108xb6ouv9zi",
@@ -1543,7 +1645,8 @@
         "d120": -2200
       },
       "source": "kideesys-age-analysis",
-      "importedAt": "2026-05-28T08:38:50.245Z"
+      "importedAt": "2026-05-28T08:38:50.245Z",
+      "kidesysSection": "Bad Debt"
     },
     "TSI002": {
       "schoolId": "cmpideqeq0000108xb6ouv9zi",
@@ -1558,7 +1661,8 @@
         "d120": 0
       },
       "source": "kideesys-age-analysis",
-      "importedAt": "2026-05-28T08:38:50.245Z"
+      "importedAt": "2026-05-28T08:38:50.245Z",
+      "kidesysSection": "Bad Debt"
     },
     "MAK019": {
       "schoolId": "cmpideqeq0000108xb6ouv9zi",
@@ -1573,7 +1677,8 @@
         "d120": -1350
       },
       "source": "kideesys-age-analysis",
-      "importedAt": "2026-05-28T08:38:50.245Z"
+      "importedAt": "2026-05-28T08:38:50.245Z",
+      "kidesysSection": "Bad Debt"
     },
     "PHA008": {
       "schoolId": "cmpideqeq0000108xb6ouv9zi",
@@ -1588,7 +1693,8 @@
         "d120": 0
       },
       "source": "kideesys-age-analysis",
-      "importedAt": "2026-05-28T08:38:50.245Z"
+      "importedAt": "2026-05-28T08:38:50.245Z",
+      "kidesysSection": "Bad Debt"
     },
     "MOK025": {
       "schoolId": "cmpideqeq0000108xb6ouv9zi",
@@ -1603,7 +1709,8 @@
         "d120": 0
       },
       "source": "kideesys-age-analysis",
-      "importedAt": "2026-05-28T08:38:50.245Z"
+      "importedAt": "2026-05-28T08:38:50.245Z",
+      "kidesysSection": "Bad Debt"
     },
     "POO002": {
       "schoolId": "cmpideqeq0000108xb6ouv9zi",
@@ -1618,7 +1725,8 @@
         "d120": 6650
       },
       "source": "kideesys-age-analysis",
-      "importedAt": "2026-05-28T08:38:50.245Z"
+      "importedAt": "2026-05-28T08:38:50.245Z",
+      "kidesysSection": "Bad Debt"
     },
     "MOT032": {
       "schoolId": "cmpideqeq0000108xb6ouv9zi",
@@ -1633,7 +1741,8 @@
         "d120": 0
       },
       "source": "kideesys-age-analysis",
-      "importedAt": "2026-05-28T08:38:50.245Z"
+      "importedAt": "2026-05-28T08:38:50.245Z",
+      "kidesysSection": "Bad Debt"
     },
     "MON013": {
       "schoolId": "cmpideqeq0000108xb6ouv9zi",
@@ -1648,7 +1757,8 @@
         "d120": 0
       },
       "source": "kideesys-age-analysis",
-      "importedAt": "2026-05-28T08:38:50.245Z"
+      "importedAt": "2026-05-28T08:38:50.245Z",
+      "kidesysSection": "Bad Debt"
     },
     "TAU003": {
       "schoolId": "cmpideqeq0000108xb6ouv9zi",
@@ -1663,7 +1773,8 @@
         "d120": -7000
       },
       "source": "kideesys-age-analysis",
-      "importedAt": "2026-05-28T08:38:50.245Z"
+      "importedAt": "2026-05-28T08:38:50.245Z",
+      "kidesysSection": "Bad Debt"
     },
     "KGO002": {
       "schoolId": "cmpideqeq0000108xb6ouv9zi",
@@ -1678,7 +1789,8 @@
         "d120": -3604
       },
       "source": "kideesys-age-analysis",
-      "importedAt": "2026-05-28T08:38:50.245Z"
+      "importedAt": "2026-05-28T08:38:50.245Z",
+      "kidesysSection": "Bad Debt"
     },
     "TLH003": {
       "schoolId": "cmpideqeq0000108xb6ouv9zi",
@@ -1693,7 +1805,8 @@
         "d120": -1600
       },
       "source": "kideesys-age-analysis",
-      "importedAt": "2026-05-28T08:38:50.245Z"
+      "importedAt": "2026-05-28T08:38:50.245Z",
+      "kidesysSection": "Bad Debt"
     },
     "MOD017": {
       "schoolId": "cmpideqeq0000108xb6ouv9zi",
@@ -1708,7 +1821,8 @@
         "d120": 0
       },
       "source": "kideesys-age-analysis",
-      "importedAt": "2026-05-28T08:38:50.245Z"
+      "importedAt": "2026-05-28T08:38:50.245Z",
+      "kidesysSection": "Bad Debt"
     },
     "CET001": {
       "schoolId": "cmpideqeq0000108xb6ouv9zi",
@@ -1723,7 +1837,8 @@
         "d120": -2740
       },
       "source": "kideesys-age-analysis",
-      "importedAt": "2026-05-28T08:38:50.245Z"
+      "importedAt": "2026-05-28T08:38:50.245Z",
+      "kidesysSection": "Bad Debt"
     },
     "RAK004": {
       "schoolId": "cmpideqeq0000108xb6ouv9zi",
@@ -1738,7 +1853,8 @@
         "d120": 0
       },
       "source": "kideesys-age-analysis",
-      "importedAt": "2026-05-28T08:38:50.245Z"
+      "importedAt": "2026-05-28T08:38:50.245Z",
+      "kidesysSection": "Bad Debt"
     },
     "MTH004": {
       "schoolId": "cmpideqeq0000108xb6ouv9zi",
@@ -1753,7 +1869,8 @@
         "d120": 0
       },
       "source": "kideesys-age-analysis",
-      "importedAt": "2026-05-28T08:38:50.245Z"
+      "importedAt": "2026-05-28T08:38:50.245Z",
+      "kidesysSection": "Recently Owing"
     },
     "MOK040": {
       "schoolId": "cmpideqeq0000108xb6ouv9zi",
@@ -1768,7 +1885,8 @@
         "d120": 0
       },
       "source": "kideesys-age-analysis",
-      "importedAt": "2026-05-28T08:38:50.245Z"
+      "importedAt": "2026-05-28T08:38:50.245Z",
+      "kidesysSection": "Recently Owing"
     },
     "MOA006": {
       "schoolId": "cmpideqeq0000108xb6ouv9zi",
@@ -1783,7 +1901,8 @@
         "d120": -19800
       },
       "source": "kideesys-age-analysis",
-      "importedAt": "2026-05-28T08:38:50.245Z"
+      "importedAt": "2026-05-28T08:38:50.245Z",
+      "kidesysSection": "Recently Owing"
     },
     "NZI001": {
       "schoolId": "cmpideqeq0000108xb6ouv9zi",
@@ -1798,7 +1917,8 @@
         "d120": -6220
       },
       "source": "kideesys-age-analysis",
-      "importedAt": "2026-05-28T08:38:50.245Z"
+      "importedAt": "2026-05-28T08:38:50.245Z",
+      "kidesysSection": "Recently Owing"
     },
     "RAB003": {
       "schoolId": "cmpideqeq0000108xb6ouv9zi",
@@ -1813,7 +1933,8 @@
         "d120": -1800
       },
       "source": "kideesys-age-analysis",
-      "importedAt": "2026-05-28T08:38:50.245Z"
+      "importedAt": "2026-05-28T08:38:50.245Z",
+      "kidesysSection": "Recently Owing"
     },
     "DIA003": {
       "schoolId": "cmpideqeq0000108xb6ouv9zi",
@@ -1828,7 +1949,8 @@
         "d120": -5500
       },
       "source": "kideesys-age-analysis",
-      "importedAt": "2026-05-28T08:38:50.245Z"
+      "importedAt": "2026-05-28T08:38:50.245Z",
+      "kidesysSection": "Recently Owing"
     },
     "MAO001": {
       "schoolId": "cmpideqeq0000108xb6ouv9zi",
@@ -1843,7 +1965,8 @@
         "d120": -1665
       },
       "source": "kideesys-age-analysis",
-      "importedAt": "2026-05-28T08:38:50.245Z"
+      "importedAt": "2026-05-28T08:38:50.245Z",
+      "kidesysSection": "Recently Owing"
     },
     "TSH003": {
       "schoolId": "cmpideqeq0000108xb6ouv9zi",
@@ -1858,7 +1981,8 @@
         "d120": -12150
       },
       "source": "kideesys-age-analysis",
-      "importedAt": "2026-05-28T08:38:50.245Z"
+      "importedAt": "2026-05-28T08:38:50.245Z",
+      "kidesysSection": "Recently Owing"
     },
     "NDL008": {
       "schoolId": "cmpideqeq0000108xb6ouv9zi",
@@ -1873,7 +1997,8 @@
         "d120": -265
       },
       "source": "kideesys-age-analysis",
-      "importedAt": "2026-05-28T08:38:50.245Z"
+      "importedAt": "2026-05-28T08:38:50.245Z",
+      "kidesysSection": "Recently Owing"
     },
     "MOS022": {
       "schoolId": "cmpideqeq0000108xb6ouv9zi",
@@ -1888,7 +2013,8 @@
         "d120": -9200
       },
       "source": "kideesys-age-analysis",
-      "importedAt": "2026-05-28T08:38:50.245Z"
+      "importedAt": "2026-05-28T08:38:50.245Z",
+      "kidesysSection": "Recently Owing"
     },
     "MOY004": {
       "schoolId": "cmpideqeq0000108xb6ouv9zi",
@@ -1903,7 +2029,8 @@
         "d120": -3340
       },
       "source": "kideesys-age-analysis",
-      "importedAt": "2026-05-28T08:38:50.245Z"
+      "importedAt": "2026-05-28T08:38:50.245Z",
+      "kidesysSection": "Recently Owing"
     },
     "LEK007": {
       "schoolId": "cmpideqeq0000108xb6ouv9zi",
@@ -1918,7 +2045,8 @@
         "d120": -3650
       },
       "source": "kideesys-age-analysis",
-      "importedAt": "2026-05-28T08:38:50.245Z"
+      "importedAt": "2026-05-28T08:38:50.245Z",
+      "kidesysSection": "Recently Owing"
     },
     "MPU007": {
       "schoolId": "cmpideqeq0000108xb6ouv9zi",
@@ -1933,7 +2061,8 @@
         "d120": -6500
       },
       "source": "kideesys-age-analysis",
-      "importedAt": "2026-05-28T08:38:50.245Z"
+      "importedAt": "2026-05-28T08:38:50.245Z",
+      "kidesysSection": "Recently Owing"
     },
     "NGW003": {
       "schoolId": "cmpideqeq0000108xb6ouv9zi",
@@ -1948,7 +2077,8 @@
         "d120": 0
       },
       "source": "kideesys-age-analysis",
-      "importedAt": "2026-05-28T08:38:50.245Z"
+      "importedAt": "2026-05-28T08:38:50.245Z",
+      "kidesysSection": "Recently Owing"
     },
     "JAN003": {
       "schoolId": "cmpideqeq0000108xb6ouv9zi",
@@ -1963,7 +2093,8 @@
         "d120": -5670
       },
       "source": "kideesys-age-analysis",
-      "importedAt": "2026-05-28T08:38:50.245Z"
+      "importedAt": "2026-05-28T08:38:50.245Z",
+      "kidesysSection": "Recently Owing"
     },
     "MOO005": {
       "schoolId": "cmpideqeq0000108xb6ouv9zi",
@@ -1978,7 +2109,8 @@
         "d120": -3050
       },
       "source": "kideesys-age-analysis",
-      "importedAt": "2026-05-28T08:38:50.245Z"
+      "importedAt": "2026-05-28T08:38:50.245Z",
+      "kidesysSection": "Recently Owing"
     },
     "POG001": {
       "schoolId": "cmpideqeq0000108xb6ouv9zi",
@@ -1993,7 +2125,8 @@
         "d120": 0
       },
       "source": "kideesys-age-analysis",
-      "importedAt": "2026-05-28T08:38:50.245Z"
+      "importedAt": "2026-05-28T08:38:50.245Z",
+      "kidesysSection": "Recently Owing"
     },
     "MOS023": {
       "schoolId": "cmpideqeq0000108xb6ouv9zi",
@@ -2008,7 +2141,8 @@
         "d120": 0
       },
       "source": "kideesys-age-analysis",
-      "importedAt": "2026-05-28T08:38:50.245Z"
+      "importedAt": "2026-05-28T08:38:50.245Z",
+      "kidesysSection": "Recently Owing"
     },
     "MKH006": {
       "schoolId": "cmpideqeq0000108xb6ouv9zi",
@@ -2023,7 +2157,8 @@
         "d120": -550
       },
       "source": "kideesys-age-analysis",
-      "importedAt": "2026-05-28T08:38:50.245Z"
+      "importedAt": "2026-05-28T08:38:50.245Z",
+      "kidesysSection": "Recently Owing"
     },
     "MAL019": {
       "schoolId": "cmpideqeq0000108xb6ouv9zi",
@@ -2038,7 +2173,8 @@
         "d120": -6500
       },
       "source": "kideesys-age-analysis",
-      "importedAt": "2026-05-28T08:38:50.245Z"
+      "importedAt": "2026-05-28T08:38:50.245Z",
+      "kidesysSection": "Recently Owing"
     },
     "GEB002": {
       "schoolId": "cmpideqeq0000108xb6ouv9zi",
@@ -2053,7 +2189,8 @@
         "d120": -4525
       },
       "source": "kideesys-age-analysis",
-      "importedAt": "2026-05-28T08:38:50.245Z"
+      "importedAt": "2026-05-28T08:38:50.245Z",
+      "kidesysSection": "Recently Owing"
     },
     "KAL001": {
       "schoolId": "cmpideqeq0000108xb6ouv9zi",
@@ -2068,7 +2205,8 @@
         "d120": -5480
       },
       "source": "kideesys-age-analysis",
-      "importedAt": "2026-05-28T08:38:50.245Z"
+      "importedAt": "2026-05-28T08:38:50.245Z",
+      "kidesysSection": "Recently Owing"
     },
     "LET013": {
       "schoolId": "cmpideqeq0000108xb6ouv9zi",
@@ -2083,7 +2221,8 @@
         "d120": -900
       },
       "source": "kideesys-age-analysis",
-      "importedAt": "2026-05-28T08:38:50.245Z"
+      "importedAt": "2026-05-28T08:38:50.245Z",
+      "kidesysSection": "Recently Owing"
     },
     "BAN001": {
       "schoolId": "cmpideqeq0000108xb6ouv9zi",
@@ -2098,7 +2237,8 @@
         "d120": 0
       },
       "source": "kideesys-age-analysis",
-      "importedAt": "2026-05-28T08:38:50.245Z"
+      "importedAt": "2026-05-28T08:38:50.245Z",
+      "kidesysSection": "Recently Owing"
     },
     "MAT020": {
       "schoolId": "cmpideqeq0000108xb6ouv9zi",
@@ -2113,7 +2253,8 @@
         "d120": -7600
       },
       "source": "kideesys-age-analysis",
-      "importedAt": "2026-05-28T08:38:50.245Z"
+      "importedAt": "2026-05-28T08:38:50.245Z",
+      "kidesysSection": "Recently Owing"
     },
     "SET003": {
       "schoolId": "cmpideqeq0000108xb6ouv9zi",
@@ -2128,7 +2269,8 @@
         "d120": -4300
       },
       "source": "kideesys-age-analysis",
-      "importedAt": "2026-05-28T08:38:50.245Z"
+      "importedAt": "2026-05-28T08:38:50.245Z",
+      "kidesysSection": "Recently Owing"
     },
     "MOS008": {
       "schoolId": "cmpideqeq0000108xb6ouv9zi",
@@ -2143,7 +2285,8 @@
         "d120": -2600
       },
       "source": "kideesys-age-analysis",
-      "importedAt": "2026-05-28T08:38:50.245Z"
+      "importedAt": "2026-05-28T08:38:50.245Z",
+      "kidesysSection": "Recently Owing"
     },
     "MUL001": {
       "schoolId": "cmpideqeq0000108xb6ouv9zi",
@@ -2158,7 +2301,8 @@
         "d120": 0
       },
       "source": "kideesys-age-analysis",
-      "importedAt": "2026-05-28T08:38:50.245Z"
+      "importedAt": "2026-05-28T08:38:50.245Z",
+      "kidesysSection": "Recently Owing"
     },
     "RAM022": {
       "schoolId": "cmpideqeq0000108xb6ouv9zi",
@@ -2173,7 +2317,8 @@
         "d120": -750
       },
       "source": "kideesys-age-analysis",
-      "importedAt": "2026-05-28T08:38:50.245Z"
+      "importedAt": "2026-05-28T08:38:50.245Z",
+      "kidesysSection": "Recently Owing"
     },
     "MPU005": {
       "schoolId": "cmpideqeq0000108xb6ouv9zi",
@@ -2188,7 +2333,8 @@
         "d120": -10600
       },
       "source": "kideesys-age-analysis",
-      "importedAt": "2026-05-28T08:38:50.245Z"
+      "importedAt": "2026-05-28T08:38:50.245Z",
+      "kidesysSection": "Recently Owing"
     },
     "TSE002": {
       "schoolId": "cmpideqeq0000108xb6ouv9zi",
@@ -2203,7 +2349,8 @@
         "d120": -700
       },
       "source": "kideesys-age-analysis",
-      "importedAt": "2026-05-28T08:38:50.245Z"
+      "importedAt": "2026-05-28T08:38:50.245Z",
+      "kidesysSection": "Recently Owing"
     },
     "MAP008": {
       "schoolId": "cmpideqeq0000108xb6ouv9zi",
@@ -2218,7 +2365,8 @@
         "d120": -10405
       },
       "source": "kideesys-age-analysis",
-      "importedAt": "2026-05-28T08:38:50.245Z"
+      "importedAt": "2026-05-28T08:38:50.245Z",
+      "kidesysSection": "Recently Owing"
     },
     "GOV001": {
       "schoolId": "cmpideqeq0000108xb6ouv9zi",
@@ -2233,7 +2381,8 @@
         "d120": -2000
       },
       "source": "kideesys-age-analysis",
-      "importedAt": "2026-05-28T08:38:50.245Z"
+      "importedAt": "2026-05-28T08:38:50.245Z",
+      "kidesysSection": "Recently Owing"
     },
     "MBO004": {
       "schoolId": "cmpideqeq0000108xb6ouv9zi",
@@ -2248,7 +2397,8 @@
         "d120": -2950
       },
       "source": "kideesys-age-analysis",
-      "importedAt": "2026-05-28T08:38:50.245Z"
+      "importedAt": "2026-05-28T08:38:50.245Z",
+      "kidesysSection": "Recently Owing"
     },
     "MOO006": {
       "schoolId": "cmpideqeq0000108xb6ouv9zi",
@@ -2263,7 +2413,8 @@
         "d120": -3000
       },
       "source": "kideesys-age-analysis",
-      "importedAt": "2026-05-28T08:38:50.245Z"
+      "importedAt": "2026-05-28T08:38:50.245Z",
+      "kidesysSection": "Recently Owing"
     },
     "GAA001": {
       "schoolId": "cmpideqeq0000108xb6ouv9zi",
@@ -2278,7 +2429,8 @@
         "d120": -2950
       },
       "source": "kideesys-age-analysis",
-      "importedAt": "2026-05-28T08:38:50.245Z"
+      "importedAt": "2026-05-28T08:38:50.245Z",
+      "kidesysSection": "Recently Owing"
     },
     "ADA004": {
       "schoolId": "cmpideqeq0000108xb6ouv9zi",
@@ -2293,7 +2445,8 @@
         "d120": -8270
       },
       "source": "kideesys-age-analysis",
-      "importedAt": "2026-05-28T08:38:50.245Z"
+      "importedAt": "2026-05-28T08:38:50.245Z",
+      "kidesysSection": "Recently Owing"
     },
     "KHU005": {
       "schoolId": "cmpideqeq0000108xb6ouv9zi",
@@ -2308,7 +2461,8 @@
         "d120": -200
       },
       "source": "kideesys-age-analysis",
-      "importedAt": "2026-05-28T08:38:50.245Z"
+      "importedAt": "2026-05-28T08:38:50.245Z",
+      "kidesysSection": "Recently Owing"
     },
     "HAM002": {
       "schoolId": "cmpideqeq0000108xb6ouv9zi",
@@ -2323,7 +2477,8 @@
         "d120": -1450
       },
       "source": "kideesys-age-analysis",
-      "importedAt": "2026-05-28T08:38:50.245Z"
+      "importedAt": "2026-05-28T08:38:50.245Z",
+      "kidesysSection": "Recently Owing"
     },
     "MOK020": {
       "schoolId": "cmpideqeq0000108xb6ouv9zi",
@@ -2338,7 +2493,8 @@
         "d120": -6800
       },
       "source": "kideesys-age-analysis",
-      "importedAt": "2026-05-28T08:38:50.245Z"
+      "importedAt": "2026-05-28T08:38:50.245Z",
+      "kidesysSection": "Recently Owing"
     },
     "MAS017": {
       "schoolId": "cmpideqeq0000108xb6ouv9zi",
@@ -2353,7 +2509,8 @@
         "d120": -6270
       },
       "source": "kideesys-age-analysis",
-      "importedAt": "2026-05-28T08:38:50.245Z"
+      "importedAt": "2026-05-28T08:38:50.245Z",
+      "kidesysSection": "Recently Owing"
     },
     "NDA001": {
       "schoolId": "cmpideqeq0000108xb6ouv9zi",
@@ -2368,7 +2525,8 @@
         "d120": -18400
       },
       "source": "kideesys-age-analysis",
-      "importedAt": "2026-05-28T08:38:50.245Z"
+      "importedAt": "2026-05-28T08:38:50.245Z",
+      "kidesysSection": "Recently Owing"
     },
     "MAK022": {
       "schoolId": "cmpideqeq0000108xb6ouv9zi",
@@ -2383,7 +2541,8 @@
         "d120": -12850
       },
       "source": "kideesys-age-analysis",
-      "importedAt": "2026-05-28T08:38:50.245Z"
+      "importedAt": "2026-05-28T08:38:50.245Z",
+      "kidesysSection": "Recently Owing"
     },
     "HAI002": {
       "schoolId": "cmpideqeq0000108xb6ouv9zi",
@@ -2398,7 +2557,8 @@
         "d120": -100
       },
       "source": "kideesys-age-analysis",
-      "importedAt": "2026-05-28T08:38:50.245Z"
+      "importedAt": "2026-05-28T08:38:50.245Z",
+      "kidesysSection": "Recently Owing"
     },
     "PHI003": {
       "schoolId": "cmpideqeq0000108xb6ouv9zi",
@@ -2413,7 +2573,8 @@
         "d120": -9700
       },
       "source": "kideesys-age-analysis",
-      "importedAt": "2026-05-28T08:38:50.245Z"
+      "importedAt": "2026-05-28T08:38:50.245Z",
+      "kidesysSection": "Recently Owing"
     },
     "RAN007": {
       "schoolId": "cmpideqeq0000108xb6ouv9zi",
@@ -2428,7 +2589,8 @@
         "d120": 0
       },
       "source": "kideesys-age-analysis",
-      "importedAt": "2026-05-28T08:38:50.245Z"
+      "importedAt": "2026-05-28T08:38:50.245Z",
+      "kidesysSection": "Recently Owing"
     },
     "NDL009": {
       "schoolId": "cmpideqeq0000108xb6ouv9zi",
@@ -2443,7 +2605,8 @@
         "d120": -6000
       },
       "source": "kideesys-age-analysis",
-      "importedAt": "2026-05-28T08:38:50.245Z"
+      "importedAt": "2026-05-28T08:38:50.245Z",
+      "kidesysSection": "Recently Owing"
     },
     "MAB004": {
       "schoolId": "cmpideqeq0000108xb6ouv9zi",
@@ -2458,7 +2621,8 @@
         "d120": -2400
       },
       "source": "kideesys-age-analysis",
-      "importedAt": "2026-05-28T08:38:50.245Z"
+      "importedAt": "2026-05-28T08:38:50.245Z",
+      "kidesysSection": "Recently Owing"
     },
     "HOB002": {
       "schoolId": "cmpideqeq0000108xb6ouv9zi",
@@ -2473,7 +2637,8 @@
         "d120": 0
       },
       "source": "kideesys-age-analysis",
-      "importedAt": "2026-05-28T08:38:50.245Z"
+      "importedAt": "2026-05-28T08:38:50.245Z",
+      "kidesysSection": "Recently Owing"
     },
     "NDL013": {
       "schoolId": "cmpideqeq0000108xb6ouv9zi",
@@ -2488,7 +2653,8 @@
         "d120": 0
       },
       "source": "kideesys-age-analysis",
-      "importedAt": "2026-05-28T08:38:50.245Z"
+      "importedAt": "2026-05-28T08:38:50.245Z",
+      "kidesysSection": "Recently Owing"
     },
     "NTS008": {
       "schoolId": "cmpideqeq0000108xb6ouv9zi",
@@ -2503,7 +2669,8 @@
         "d120": -4700
       },
       "source": "kideesys-age-analysis",
-      "importedAt": "2026-05-28T08:38:50.245Z"
+      "importedAt": "2026-05-28T08:38:50.245Z",
+      "kidesysSection": "Recently Owing"
     },
     "MOP003": {
       "schoolId": "cmpideqeq0000108xb6ouv9zi",
@@ -2518,7 +2685,8 @@
         "d120": -300
       },
       "source": "kideesys-age-analysis",
-      "importedAt": "2026-05-28T08:38:50.245Z"
+      "importedAt": "2026-05-28T08:38:50.245Z",
+      "kidesysSection": "Recently Owing"
     },
     "AFR002": {
       "schoolId": "cmpideqeq0000108xb6ouv9zi",
@@ -2533,7 +2701,8 @@
         "d120": -400
       },
       "source": "kideesys-age-analysis",
-      "importedAt": "2026-05-28T08:38:50.245Z"
+      "importedAt": "2026-05-28T08:38:50.245Z",
+      "kidesysSection": "Recently Owing"
     },
     "MOT013": {
       "schoolId": "cmpideqeq0000108xb6ouv9zi",
@@ -2548,7 +2717,8 @@
         "d120": -4000
       },
       "source": "kideesys-age-analysis",
-      "importedAt": "2026-05-28T08:38:50.245Z"
+      "importedAt": "2026-05-28T08:38:50.245Z",
+      "kidesysSection": "Recently Owing"
     },
     "MPO001": {
       "schoolId": "cmpideqeq0000108xb6ouv9zi",
@@ -2563,7 +2733,8 @@
         "d120": -6000
       },
       "source": "kideesys-age-analysis",
-      "importedAt": "2026-05-28T08:38:50.245Z"
+      "importedAt": "2026-05-28T08:38:50.245Z",
+      "kidesysSection": "Recently Owing"
     },
     "MOD018": {
       "schoolId": "cmpideqeq0000108xb6ouv9zi",
@@ -2578,7 +2749,8 @@
         "d120": -3000
       },
       "source": "kideesys-age-analysis",
-      "importedAt": "2026-05-28T08:38:50.245Z"
+      "importedAt": "2026-05-28T08:38:50.245Z",
+      "kidesysSection": "Recently Owing"
     },
     "MOE011": {
       "schoolId": "cmpideqeq0000108xb6ouv9zi",
@@ -2593,7 +2765,8 @@
         "d120": -17600
       },
       "source": "kideesys-age-analysis",
-      "importedAt": "2026-05-28T08:38:50.245Z"
+      "importedAt": "2026-05-28T08:38:50.245Z",
+      "kidesysSection": "Recently Owing"
     },
     "GOI001": {
       "schoolId": "cmpideqeq0000108xb6ouv9zi",
@@ -2608,7 +2781,8 @@
         "d120": -3150
       },
       "source": "kideesys-age-analysis",
-      "importedAt": "2026-05-28T08:38:50.245Z"
+      "importedAt": "2026-05-28T08:38:50.245Z",
+      "kidesysSection": "Recently Owing"
     },
     "CHI004": {
       "schoolId": "cmpideqeq0000108xb6ouv9zi",
@@ -2623,7 +2797,8 @@
         "d120": -900
       },
       "source": "kideesys-age-analysis",
-      "importedAt": "2026-05-28T08:38:50.245Z"
+      "importedAt": "2026-05-28T08:38:50.245Z",
+      "kidesysSection": "Recently Owing"
     },
     "MOE009": {
       "schoolId": "cmpideqeq0000108xb6ouv9zi",
@@ -2638,7 +2813,8 @@
         "d120": 0
       },
       "source": "kideesys-age-analysis",
-      "importedAt": "2026-05-28T08:38:50.245Z"
+      "importedAt": "2026-05-28T08:38:50.245Z",
+      "kidesysSection": "Recently Owing"
     },
     "MOK019": {
       "schoolId": "cmpideqeq0000108xb6ouv9zi",
@@ -2653,7 +2829,8 @@
         "d120": -12700
       },
       "source": "kideesys-age-analysis",
-      "importedAt": "2026-05-28T08:38:50.245Z"
+      "importedAt": "2026-05-28T08:38:50.245Z",
+      "kidesysSection": "Recently Owing"
     },
     "MOR008": {
       "schoolId": "cmpideqeq0000108xb6ouv9zi",
@@ -2668,7 +2845,8 @@
         "d120": -3495
       },
       "source": "kideesys-age-analysis",
-      "importedAt": "2026-05-28T08:38:50.245Z"
+      "importedAt": "2026-05-28T08:38:50.245Z",
+      "kidesysSection": "Recently Owing"
     },
     "RAM010": {
       "schoolId": "cmpideqeq0000108xb6ouv9zi",
@@ -2683,7 +2861,8 @@
         "d120": -5250
       },
       "source": "kideesys-age-analysis",
-      "importedAt": "2026-05-28T08:38:50.245Z"
+      "importedAt": "2026-05-28T08:38:50.245Z",
+      "kidesysSection": "Recently Owing"
     },
     "MOE004": {
       "schoolId": "cmpideqeq0000108xb6ouv9zi",
@@ -2698,7 +2877,8 @@
         "d120": -1800
       },
       "source": "kideesys-age-analysis",
-      "importedAt": "2026-05-28T08:38:50.245Z"
+      "importedAt": "2026-05-28T08:38:50.245Z",
+      "kidesysSection": "Recently Owing"
     },
     "MOD005": {
       "schoolId": "cmpideqeq0000108xb6ouv9zi",
@@ -2713,7 +2893,8 @@
         "d120": -4900
       },
       "source": "kideesys-age-analysis",
-      "importedAt": "2026-05-28T08:38:50.245Z"
+      "importedAt": "2026-05-28T08:38:50.245Z",
+      "kidesysSection": "Recently Owing"
     },
     "MOK034": {
       "schoolId": "cmpideqeq0000108xb6ouv9zi",
@@ -2728,7 +2909,8 @@
         "d120": -2950
       },
       "source": "kideesys-age-analysis",
-      "importedAt": "2026-05-28T08:38:50.245Z"
+      "importedAt": "2026-05-28T08:38:50.245Z",
+      "kidesysSection": "Recently Owing"
     },
     "MET001": {
       "schoolId": "cmpideqeq0000108xb6ouv9zi",
@@ -2743,7 +2925,8 @@
         "d120": -5850
       },
       "source": "kideesys-age-analysis",
-      "importedAt": "2026-05-28T08:38:50.245Z"
+      "importedAt": "2026-05-28T08:38:50.245Z",
+      "kidesysSection": "Recently Owing"
     },
     "MOK035": {
       "schoolId": "cmpideqeq0000108xb6ouv9zi",
@@ -2758,7 +2941,8 @@
         "d120": -2400
       },
       "source": "kideesys-age-analysis",
-      "importedAt": "2026-05-28T08:38:50.245Z"
+      "importedAt": "2026-05-28T08:38:50.245Z",
+      "kidesysSection": "Recently Owing"
     },
     "DIK003": {
       "schoolId": "cmpideqeq0000108xb6ouv9zi",
@@ -2773,7 +2957,8 @@
         "d120": -200
       },
       "source": "kideesys-age-analysis",
-      "importedAt": "2026-05-28T08:38:50.245Z"
+      "importedAt": "2026-05-28T08:38:50.245Z",
+      "kidesysSection": "Recently Owing"
     },
     "TSH022": {
       "schoolId": "cmpideqeq0000108xb6ouv9zi",
@@ -2788,7 +2973,8 @@
         "d120": -1450
       },
       "source": "kideesys-age-analysis",
-      "importedAt": "2026-05-28T08:38:50.245Z"
+      "importedAt": "2026-05-28T08:38:50.245Z",
+      "kidesysSection": "Recently Owing"
     },
     "BUY001": {
       "schoolId": "cmpideqeq0000108xb6ouv9zi",
@@ -2803,7 +2989,8 @@
         "d120": -2300
       },
       "source": "kideesys-age-analysis",
-      "importedAt": "2026-05-28T08:38:50.245Z"
+      "importedAt": "2026-05-28T08:38:50.245Z",
+      "kidesysSection": "Recently Owing"
     },
     "MAS024": {
       "schoolId": "cmpideqeq0000108xb6ouv9zi",
@@ -2818,7 +3005,8 @@
         "d120": -400
       },
       "source": "kideesys-age-analysis",
-      "importedAt": "2026-05-28T08:38:50.245Z"
+      "importedAt": "2026-05-28T08:38:50.245Z",
+      "kidesysSection": "Recently Owing"
     },
     "MAR008": {
       "schoolId": "cmpideqeq0000108xb6ouv9zi",
@@ -2833,7 +3021,8 @@
         "d120": 0
       },
       "source": "kideesys-age-analysis",
-      "importedAt": "2026-05-28T08:38:50.245Z"
+      "importedAt": "2026-05-28T08:38:50.245Z",
+      "kidesysSection": "Recently Owing"
     },
     "KHU006": {
       "schoolId": "cmpideqeq0000108xb6ouv9zi",
@@ -2848,7 +3037,8 @@
         "d120": -3000
       },
       "source": "kideesys-age-analysis",
-      "importedAt": "2026-05-28T08:38:50.245Z"
+      "importedAt": "2026-05-28T08:38:50.245Z",
+      "kidesysSection": "Recently Owing"
     },
     "SEI859": {
       "schoolId": "cmpideqeq0000108xb6ouv9zi",
@@ -2863,7 +3053,8 @@
         "d120": -5700
       },
       "source": "kideesys-age-analysis",
-      "importedAt": "2026-05-28T08:38:50.245Z"
+      "importedAt": "2026-05-28T08:38:50.245Z",
+      "kidesysSection": "Recently Owing"
     },
     "KAL002": {
       "schoolId": "cmpideqeq0000108xb6ouv9zi",
@@ -2878,7 +3069,8 @@
         "d120": -3000
       },
       "source": "kideesys-age-analysis",
-      "importedAt": "2026-05-28T08:38:50.245Z"
+      "importedAt": "2026-05-28T08:38:50.245Z",
+      "kidesysSection": "Recently Owing"
     },
     "MOT036": {
       "schoolId": "cmpideqeq0000108xb6ouv9zi",
@@ -2893,7 +3085,8 @@
         "d120": 0
       },
       "source": "kideesys-age-analysis",
-      "importedAt": "2026-05-28T08:38:50.245Z"
+      "importedAt": "2026-05-28T08:38:50.245Z",
+      "kidesysSection": "Recently Owing"
     },
     "SWA001": {
       "schoolId": "cmpideqeq0000108xb6ouv9zi",
@@ -2908,7 +3101,8 @@
         "d120": 0
       },
       "source": "kideesys-age-analysis",
-      "importedAt": "2026-05-28T08:38:50.245Z"
+      "importedAt": "2026-05-28T08:38:50.245Z",
+      "kidesysSection": "Recently Owing"
     },
     "LEG001": {
       "schoolId": "cmpideqeq0000108xb6ouv9zi",
@@ -2923,7 +3117,8 @@
         "d120": -1100
       },
       "source": "kideesys-age-analysis",
-      "importedAt": "2026-05-28T08:38:50.245Z"
+      "importedAt": "2026-05-28T08:38:50.245Z",
+      "kidesysSection": "Recently Owing"
     },
     "MOI002": {
       "schoolId": "cmpideqeq0000108xb6ouv9zi",
@@ -2938,7 +3133,8 @@
         "d120": -10400
       },
       "source": "kideesys-age-analysis",
-      "importedAt": "2026-05-28T08:38:50.245Z"
+      "importedAt": "2026-05-28T08:38:50.245Z",
+      "kidesysSection": "Recently Owing"
     },
     "MOF002": {
       "schoolId": "cmpideqeq0000108xb6ouv9zi",
@@ -2953,7 +3149,8 @@
         "d120": -250
       },
       "source": "kideesys-age-analysis",
-      "importedAt": "2026-05-28T08:38:50.245Z"
+      "importedAt": "2026-05-28T08:38:50.245Z",
+      "kidesysSection": "Recently Owing"
     },
     "RAM019": {
       "schoolId": "cmpideqeq0000108xb6ouv9zi",
@@ -2968,7 +3165,8 @@
         "d120": 0
       },
       "source": "kideesys-age-analysis",
-      "importedAt": "2026-05-28T08:38:50.245Z"
+      "importedAt": "2026-05-28T08:38:50.245Z",
+      "kidesysSection": "Recently Owing"
     },
     "MAS012": {
       "schoolId": "cmpideqeq0000108xb6ouv9zi",
@@ -2983,7 +3181,8 @@
         "d120": -12150
       },
       "source": "kideesys-age-analysis",
-      "importedAt": "2026-05-28T08:38:50.245Z"
+      "importedAt": "2026-05-28T08:38:50.245Z",
+      "kidesysSection": "Recently Owing"
     },
     "MOT034": {
       "schoolId": "cmpideqeq0000108xb6ouv9zi",
@@ -2998,7 +3197,8 @@
         "d120": -1000
       },
       "source": "kideesys-age-analysis",
-      "importedAt": "2026-05-28T08:38:50.245Z"
+      "importedAt": "2026-05-28T08:38:50.245Z",
+      "kidesysSection": "Recently Owing"
     },
     "MAM005": {
       "schoolId": "cmpideqeq0000108xb6ouv9zi",
@@ -3013,7 +3213,8 @@
         "d120": 0
       },
       "source": "kideesys-age-analysis",
-      "importedAt": "2026-05-28T08:38:50.245Z"
+      "importedAt": "2026-05-28T08:38:50.245Z",
+      "kidesysSection": "Recently Owing"
     },
     "MAH004": {
       "schoolId": "cmpideqeq0000108xb6ouv9zi",
@@ -3028,7 +3229,8 @@
         "d120": -5000
       },
       "source": "kideesys-age-analysis",
-      "importedAt": "2026-05-28T08:38:50.245Z"
+      "importedAt": "2026-05-28T08:38:50.245Z",
+      "kidesysSection": "Recently Owing"
     },
     "MAT031": {
       "schoolId": "cmpideqeq0000108xb6ouv9zi",
@@ -3043,7 +3245,8 @@
         "d120": -2000
       },
       "source": "kideesys-age-analysis",
-      "importedAt": "2026-05-28T08:38:50.245Z"
+      "importedAt": "2026-05-28T08:38:50.245Z",
+      "kidesysSection": "Recently Owing"
     },
     "HOB001": {
       "schoolId": "cmpideqeq0000108xb6ouv9zi",
@@ -3058,7 +3261,8 @@
         "d120": -10050
       },
       "source": "kideesys-age-analysis",
-      "importedAt": "2026-05-28T08:38:50.245Z"
+      "importedAt": "2026-05-28T08:38:50.245Z",
+      "kidesysSection": "Recently Owing"
     },
     "MOL003": {
       "schoolId": "cmpideqeq0000108xb6ouv9zi",
@@ -3073,7 +3277,8 @@
         "d120": -6090
       },
       "source": "kideesys-age-analysis",
-      "importedAt": "2026-05-28T08:38:50.245Z"
+      "importedAt": "2026-05-28T08:38:50.245Z",
+      "kidesysSection": "Recently Owing"
     },
     "HOM001": {
       "schoolId": "cmpideqeq0000108xb6ouv9zi",
@@ -3088,7 +3293,8 @@
         "d120": -6300
       },
       "source": "kideesys-age-analysis",
-      "importedAt": "2026-05-28T08:38:50.245Z"
+      "importedAt": "2026-05-28T08:38:50.245Z",
+      "kidesysSection": "Recently Owing"
     },
     "MOO004": {
       "schoolId": "cmpideqeq0000108xb6ouv9zi",
@@ -3103,7 +3309,8 @@
         "d120": -8580
       },
       "source": "kideesys-age-analysis",
-      "importedAt": "2026-05-28T08:38:50.245Z"
+      "importedAt": "2026-05-28T08:38:50.245Z",
+      "kidesysSection": "Recently Owing"
     },
     "DHL003": {
       "schoolId": "cmpideqeq0000108xb6ouv9zi",
@@ -3118,7 +3325,8 @@
         "d120": 0
       },
       "source": "kideesys-age-analysis",
-      "importedAt": "2026-05-28T08:38:50.245Z"
+      "importedAt": "2026-05-28T08:38:50.245Z",
+      "kidesysSection": "Recently Owing"
     },
     "RIK001": {
       "schoolId": "cmpideqeq0000108xb6ouv9zi",
@@ -3133,7 +3341,8 @@
         "d120": -1470
       },
       "source": "kideesys-age-analysis",
-      "importedAt": "2026-05-28T08:38:50.245Z"
+      "importedAt": "2026-05-28T08:38:50.245Z",
+      "kidesysSection": "Recently Owing"
     },
     "JEC002": {
       "schoolId": "cmpideqeq0000108xb6ouv9zi",
@@ -3148,7 +3357,8 @@
         "d120": -4445
       },
       "source": "kideesys-age-analysis",
-      "importedAt": "2026-05-28T08:38:50.245Z"
+      "importedAt": "2026-05-28T08:38:50.245Z",
+      "kidesysSection": "Recently Owing"
     },
     "MPI102": {
       "schoolId": "cmpideqeq0000108xb6ouv9zi",
@@ -3163,7 +3373,8 @@
         "d120": -6100
       },
       "source": "kideesys-age-analysis",
-      "importedAt": "2026-05-28T08:38:50.245Z"
+      "importedAt": "2026-05-28T08:38:50.245Z",
+      "kidesysSection": "Recently Owing"
     },
     "NKA003": {
       "schoolId": "cmpideqeq0000108xb6ouv9zi",
@@ -3178,7 +3389,8 @@
         "d120": -7600
       },
       "source": "kideesys-age-analysis",
-      "importedAt": "2026-05-28T08:38:50.245Z"
+      "importedAt": "2026-05-28T08:38:50.245Z",
+      "kidesysSection": "Recently Owing"
     },
     "MOO003": {
       "schoolId": "cmpideqeq0000108xb6ouv9zi",
@@ -3193,7 +3405,8 @@
         "d120": -2800
       },
       "source": "kideesys-age-analysis",
-      "importedAt": "2026-05-28T08:38:50.245Z"
+      "importedAt": "2026-05-28T08:38:50.245Z",
+      "kidesysSection": "Recently Owing"
     },
     "KOB001": {
       "schoolId": "cmpideqeq0000108xb6ouv9zi",
@@ -3208,7 +3421,8 @@
         "d120": -550
       },
       "source": "kideesys-age-analysis",
-      "importedAt": "2026-05-28T08:38:50.245Z"
+      "importedAt": "2026-05-28T08:38:50.245Z",
+      "kidesysSection": "Recently Owing"
     },
     "SIB003": {
       "schoolId": "cmpideqeq0000108xb6ouv9zi",
@@ -3223,7 +3437,8 @@
         "d120": -800
       },
       "source": "kideesys-age-analysis",
-      "importedAt": "2026-05-28T08:38:50.245Z"
+      "importedAt": "2026-05-28T08:38:50.245Z",
+      "kidesysSection": "Recently Owing"
     },
     "MAK020": {
       "schoolId": "cmpideqeq0000108xb6ouv9zi",
@@ -3238,7 +3453,8 @@
         "d120": -5050
       },
       "source": "kideesys-age-analysis",
-      "importedAt": "2026-05-28T08:38:50.245Z"
+      "importedAt": "2026-05-28T08:38:50.245Z",
+      "kidesysSection": "Recently Owing"
     },
     "DIK002": {
       "schoolId": "cmpideqeq0000108xb6ouv9zi",
@@ -3253,7 +3469,8 @@
         "d120": -6550
       },
       "source": "kideesys-age-analysis",
-      "importedAt": "2026-05-28T08:38:50.245Z"
+      "importedAt": "2026-05-28T08:38:50.245Z",
+      "kidesysSection": "Recently Owing"
     },
     "DIA006": {
       "schoolId": "cmpideqeq0000108xb6ouv9zi",
@@ -3268,7 +3485,8 @@
         "d120": -100
       },
       "source": "kideesys-age-analysis",
-      "importedAt": "2026-05-28T08:38:50.245Z"
+      "importedAt": "2026-05-28T08:38:50.245Z",
+      "kidesysSection": "Recently Owing"
     },
     "SIM002": {
       "schoolId": "cmpideqeq0000108xb6ouv9zi",
@@ -3283,7 +3501,8 @@
         "d120": -3300
       },
       "source": "kideesys-age-analysis",
-      "importedAt": "2026-05-28T08:38:50.245Z"
+      "importedAt": "2026-05-28T08:38:50.245Z",
+      "kidesysSection": "Recently Owing"
     },
     "MOL010": {
       "schoolId": "cmpideqeq0000108xb6ouv9zi",
@@ -3298,7 +3517,8 @@
         "d120": -3000
       },
       "source": "kideesys-age-analysis",
-      "importedAt": "2026-05-28T08:38:50.245Z"
+      "importedAt": "2026-05-28T08:38:50.245Z",
+      "kidesysSection": "Recently Owing"
     },
     "TLH006": {
       "schoolId": "cmpideqeq0000108xb6ouv9zi",
@@ -3313,7 +3533,8 @@
         "d120": -2600
       },
       "source": "kideesys-age-analysis",
-      "importedAt": "2026-05-28T08:38:50.245Z"
+      "importedAt": "2026-05-28T08:38:50.245Z",
+      "kidesysSection": "Recently Owing"
     },
     "LEK008": {
       "schoolId": "cmpideqeq0000108xb6ouv9zi",
@@ -3328,7 +3549,8 @@
         "d120": 0
       },
       "source": "kideesys-age-analysis",
-      "importedAt": "2026-05-28T08:38:50.245Z"
+      "importedAt": "2026-05-28T08:38:50.245Z",
+      "kidesysSection": "Recently Owing"
     },
     "MOK036": {
       "schoolId": "cmpideqeq0000108xb6ouv9zi",
@@ -3343,7 +3565,8 @@
         "d120": -3250
       },
       "source": "kideesys-age-analysis",
-      "importedAt": "2026-05-28T08:38:50.245Z"
+      "importedAt": "2026-05-28T08:38:50.245Z",
+      "kidesysSection": "Recently Owing"
     },
     "SEE002": {
       "schoolId": "cmpideqeq0000108xb6ouv9zi",
@@ -3358,7 +3581,8 @@
         "d120": 0
       },
       "source": "kideesys-age-analysis",
-      "importedAt": "2026-05-28T08:38:50.245Z"
+      "importedAt": "2026-05-28T08:38:50.245Z",
+      "kidesysSection": "Recently Owing"
     },
     "LAN002": {
       "schoolId": "cmpideqeq0000108xb6ouv9zi",
@@ -3373,7 +3597,8 @@
         "d120": -5500
       },
       "source": "kideesys-age-analysis",
-      "importedAt": "2026-05-28T08:38:50.245Z"
+      "importedAt": "2026-05-28T08:38:50.245Z",
+      "kidesysSection": "Recently Owing"
     },
     "TSH016": {
       "schoolId": "cmpideqeq0000108xb6ouv9zi",
@@ -3388,7 +3613,8 @@
         "d120": -4700
       },
       "source": "kideesys-age-analysis",
-      "importedAt": "2026-05-28T08:38:50.245Z"
+      "importedAt": "2026-05-28T08:38:50.245Z",
+      "kidesysSection": "Recently Owing"
     },
     "MON006": {
       "schoolId": "cmpideqeq0000108xb6ouv9zi",
@@ -3403,7 +3629,8 @@
         "d120": -6000
       },
       "source": "kideesys-age-analysis",
-      "importedAt": "2026-05-28T08:38:50.245Z"
+      "importedAt": "2026-05-28T08:38:50.245Z",
+      "kidesysSection": "Recently Owing"
     },
     "MPE002": {
       "schoolId": "cmpideqeq0000108xb6ouv9zi",
@@ -3418,7 +3645,8 @@
         "d120": -5600
       },
       "source": "kideesys-age-analysis",
-      "importedAt": "2026-05-28T08:38:50.245Z"
+      "importedAt": "2026-05-28T08:38:50.245Z",
+      "kidesysSection": "Recently Owing"
     },
     "THO004": {
       "schoolId": "cmpideqeq0000108xb6ouv9zi",
@@ -3433,7 +3661,8 @@
         "d120": -8800
       },
       "source": "kideesys-age-analysis",
-      "importedAt": "2026-05-28T08:38:50.245Z"
+      "importedAt": "2026-05-28T08:38:50.245Z",
+      "kidesysSection": "Recently Owing"
     },
     "MOK028": {
       "schoolId": "cmpideqeq0000108xb6ouv9zi",
@@ -3448,7 +3677,8 @@
         "d120": -7800
       },
       "source": "kideesys-age-analysis",
-      "importedAt": "2026-05-28T08:38:50.245Z"
+      "importedAt": "2026-05-28T08:38:50.245Z",
+      "kidesysSection": "Recently Owing"
     },
     "MAN011": {
       "schoolId": "cmpideqeq0000108xb6ouv9zi",
@@ -3463,7 +3693,8 @@
         "d120": 0
       },
       "source": "kideesys-age-analysis",
-      "importedAt": "2026-05-28T08:38:50.245Z"
+      "importedAt": "2026-05-28T08:38:50.245Z",
+      "kidesysSection": "Recently Owing"
     },
     "TLH005": {
       "schoolId": "cmpideqeq0000108xb6ouv9zi",
@@ -3478,7 +3709,8 @@
         "d120": -3400
       },
       "source": "kideesys-age-analysis",
-      "importedAt": "2026-05-28T08:38:50.245Z"
+      "importedAt": "2026-05-28T08:38:50.245Z",
+      "kidesysSection": "Recently Owing"
     },
     "MAK023": {
       "schoolId": "cmpideqeq0000108xb6ouv9zi",
@@ -3493,7 +3725,8 @@
         "d120": 0
       },
       "source": "kideesys-age-analysis",
-      "importedAt": "2026-05-28T08:38:50.245Z"
+      "importedAt": "2026-05-28T08:38:50.245Z",
+      "kidesysSection": "Recently Owing"
     },
     "KEK003": {
       "schoolId": "cmpideqeq0000108xb6ouv9zi",
@@ -3508,7 +3741,8 @@
         "d120": 0
       },
       "source": "kideesys-age-analysis",
-      "importedAt": "2026-05-28T08:38:50.245Z"
+      "importedAt": "2026-05-28T08:38:50.245Z",
+      "kidesysSection": "Recently Owing"
     },
     "RAN002": {
       "schoolId": "cmpideqeq0000108xb6ouv9zi",
@@ -3523,7 +3757,8 @@
         "d120": -2300
       },
       "source": "kideesys-age-analysis",
-      "importedAt": "2026-05-28T08:38:50.245Z"
+      "importedAt": "2026-05-28T08:38:50.245Z",
+      "kidesysSection": "Recently Owing"
     },
     "RAM009": {
       "schoolId": "cmpideqeq0000108xb6ouv9zi",
@@ -3538,7 +3773,8 @@
         "d120": -3400
       },
       "source": "kideesys-age-analysis",
-      "importedAt": "2026-05-28T08:38:50.245Z"
+      "importedAt": "2026-05-28T08:38:50.245Z",
+      "kidesysSection": "Recently Owing"
     },
     "KIN001": {
       "schoolId": "cmpideqeq0000108xb6ouv9zi",
@@ -3553,7 +3789,8 @@
         "d120": -2650
       },
       "source": "kideesys-age-analysis",
-      "importedAt": "2026-05-28T08:38:50.245Z"
+      "importedAt": "2026-05-28T08:38:50.245Z",
+      "kidesysSection": "Recently Owing"
     },
     "MOT028": {
       "schoolId": "cmpideqeq0000108xb6ouv9zi",
@@ -3568,7 +3805,8 @@
         "d120": -2000
       },
       "source": "kideesys-age-analysis",
-      "importedAt": "2026-05-28T08:38:50.245Z"
+      "importedAt": "2026-05-28T08:38:50.245Z",
+      "kidesysSection": "Recently Owing"
     },
     "THA003": {
       "schoolId": "cmpideqeq0000108xb6ouv9zi",
@@ -3583,7 +3821,8 @@
         "d120": -4200
       },
       "source": "kideesys-age-analysis",
-      "importedAt": "2026-05-28T08:38:50.245Z"
+      "importedAt": "2026-05-28T08:38:50.245Z",
+      "kidesysSection": "Recently Owing"
     },
     "MOL044": {
       "schoolId": "cmpideqeq0000108xb6ouv9zi",
@@ -3598,7 +3837,8 @@
         "d120": -4130
       },
       "source": "kideesys-age-analysis",
-      "importedAt": "2026-05-28T08:38:50.245Z"
+      "importedAt": "2026-05-28T08:38:50.245Z",
+      "kidesysSection": "Recently Owing"
     },
     "TSA001": {
       "schoolId": "cmpideqeq0000108xb6ouv9zi",
@@ -3613,7 +3853,8 @@
         "d120": -1905
       },
       "source": "kideesys-age-analysis",
-      "importedAt": "2026-05-28T08:38:50.245Z"
+      "importedAt": "2026-05-28T08:38:50.245Z",
+      "kidesysSection": "Recently Owing"
     },
     "MOR010": {
       "schoolId": "cmpideqeq0000108xb6ouv9zi",
@@ -3628,7 +3869,8 @@
         "d120": -820
       },
       "source": "kideesys-age-analysis",
-      "importedAt": "2026-05-28T08:38:50.245Z"
+      "importedAt": "2026-05-28T08:38:50.245Z",
+      "kidesysSection": "Recently Owing"
     },
     "MAM007": {
       "schoolId": "cmpideqeq0000108xb6ouv9zi",
@@ -3643,7 +3885,8 @@
         "d120": 0
       },
       "source": "kideesys-age-analysis",
-      "importedAt": "2026-05-28T08:38:50.245Z"
+      "importedAt": "2026-05-28T08:38:50.245Z",
+      "kidesysSection": "Recently Owing"
     },
     "MOR004": {
       "schoolId": "cmpideqeq0000108xb6ouv9zi",
@@ -3658,7 +3901,8 @@
         "d120": -9900
       },
       "source": "kideesys-age-analysis",
-      "importedAt": "2026-05-28T08:38:50.245Z"
+      "importedAt": "2026-05-28T08:38:50.245Z",
+      "kidesysSection": "Recently Owing"
     },
     "TSH017": {
       "schoolId": "cmpideqeq0000108xb6ouv9zi",
@@ -3673,7 +3917,8 @@
         "d120": -3520
       },
       "source": "kideesys-age-analysis",
-      "importedAt": "2026-05-28T08:38:50.245Z"
+      "importedAt": "2026-05-28T08:38:50.245Z",
+      "kidesysSection": "Recently Owing"
     },
     "SIT004": {
       "schoolId": "cmpideqeq0000108xb6ouv9zi",
@@ -3688,7 +3933,8 @@
         "d120": -150
       },
       "source": "kideesys-age-analysis",
-      "importedAt": "2026-05-28T08:38:50.245Z"
+      "importedAt": "2026-05-28T08:38:50.245Z",
+      "kidesysSection": "Recently Owing"
     },
     "MAR009": {
       "schoolId": "cmpideqeq0000108xb6ouv9zi",
@@ -3703,7 +3949,8 @@
         "d120": 0
       },
       "source": "kideesys-age-analysis",
-      "importedAt": "2026-05-28T08:38:50.245Z"
+      "importedAt": "2026-05-28T08:38:50.245Z",
+      "kidesysSection": "Recently Owing"
     },
     "MEN002": {
       "schoolId": "cmpideqeq0000108xb6ouv9zi",
@@ -3718,7 +3965,8 @@
         "d120": 0
       },
       "source": "kideesys-age-analysis",
-      "importedAt": "2026-05-28T08:38:50.245Z"
+      "importedAt": "2026-05-28T08:38:50.245Z",
+      "kidesysSection": "Recently Owing"
     },
     "RAM020": {
       "schoolId": "cmpideqeq0000108xb6ouv9zi",
@@ -3733,7 +3981,8 @@
         "d120": 0
       },
       "source": "kideesys-age-analysis",
-      "importedAt": "2026-05-28T08:38:50.245Z"
+      "importedAt": "2026-05-28T08:38:50.245Z",
+      "kidesysSection": "Recently Owing"
     },
     "TSH020": {
       "schoolId": "cmpideqeq0000108xb6ouv9zi",
@@ -3748,7 +3997,8 @@
         "d120": -2500
       },
       "source": "kideesys-age-analysis",
-      "importedAt": "2026-05-28T08:38:50.245Z"
+      "importedAt": "2026-05-28T08:38:50.245Z",
+      "kidesysSection": "Recently Owing"
     },
     "SEG007": {
       "schoolId": "cmpideqeq0000108xb6ouv9zi",
@@ -3763,7 +4013,8 @@
         "d120": -300
       },
       "source": "kideesys-age-analysis",
-      "importedAt": "2026-05-28T08:38:50.245Z"
+      "importedAt": "2026-05-28T08:38:50.245Z",
+      "kidesysSection": "Recently Owing"
     },
     "MAL022": {
       "schoolId": "cmpideqeq0000108xb6ouv9zi",
@@ -3778,7 +4029,8 @@
         "d120": -550
       },
       "source": "kideesys-age-analysis",
-      "importedAt": "2026-05-28T08:38:50.245Z"
+      "importedAt": "2026-05-28T08:38:50.245Z",
+      "kidesysSection": "Recently Owing"
     },
     "SES001": {
       "schoolId": "cmpideqeq0000108xb6ouv9zi",
@@ -3793,7 +4045,8 @@
         "d120": -1700
       },
       "source": "kideesys-age-analysis",
-      "importedAt": "2026-05-28T08:38:50.245Z"
+      "importedAt": "2026-05-28T08:38:50.245Z",
+      "kidesysSection": "Recently Owing"
     },
     "PIL003": {
       "schoolId": "cmpideqeq0000108xb6ouv9zi",
@@ -3808,7 +4061,8 @@
         "d120": 0
       },
       "source": "kideesys-age-analysis",
-      "importedAt": "2026-05-28T08:38:50.245Z"
+      "importedAt": "2026-05-28T08:38:50.245Z",
+      "kidesysSection": "Recently Owing"
     },
     "MAN013": {
       "schoolId": "cmpideqeq0000108xb6ouv9zi",
@@ -3823,7 +4077,8 @@
         "d120": 0
       },
       "source": "kideesys-age-analysis",
-      "importedAt": "2026-05-28T08:38:50.245Z"
+      "importedAt": "2026-05-28T08:38:50.245Z",
+      "kidesysSection": "Recently Owing"
     },
     "MAL020": {
       "schoolId": "cmpideqeq0000108xb6ouv9zi",
@@ -3838,7 +4093,8 @@
         "d120": -400
       },
       "source": "kideesys-age-analysis",
-      "importedAt": "2026-05-28T08:38:50.245Z"
+      "importedAt": "2026-05-28T08:38:50.245Z",
+      "kidesysSection": "Recently Owing"
     },
     "SEN002": {
       "schoolId": "cmpideqeq0000108xb6ouv9zi",
@@ -3853,7 +4109,8 @@
         "d120": -4190
       },
       "source": "kideesys-age-analysis",
-      "importedAt": "2026-05-28T08:38:50.245Z"
+      "importedAt": "2026-05-28T08:38:50.245Z",
+      "kidesysSection": "Recently Owing"
     },
     "NTO003": {
       "schoolId": "cmpideqeq0000108xb6ouv9zi",
@@ -3868,7 +4125,8 @@
         "d120": -2400
       },
       "source": "kideesys-age-analysis",
-      "importedAt": "2026-05-28T08:38:50.245Z"
+      "importedAt": "2026-05-28T08:38:50.245Z",
+      "kidesysSection": "Recently Owing"
     },
     "MOG018": {
       "schoolId": "cmpideqeq0000108xb6ouv9zi",
@@ -3883,7 +4141,8 @@
         "d120": -400
       },
       "source": "kideesys-age-analysis",
-      "importedAt": "2026-05-28T08:38:50.245Z"
+      "importedAt": "2026-05-28T08:38:50.245Z",
+      "kidesysSection": "Recently Owing"
     },
     "RAS004": {
       "schoolId": "cmpideqeq0000108xb6ouv9zi",
@@ -3898,7 +4157,8 @@
         "d120": 0
       },
       "source": "kideesys-age-analysis",
-      "importedAt": "2026-05-28T08:38:50.245Z"
+      "importedAt": "2026-05-28T08:38:50.245Z",
+      "kidesysSection": "Recently Owing"
     },
     "LER002": {
       "schoolId": "cmpideqeq0000108xb6ouv9zi",
@@ -3913,7 +4173,8 @@
         "d120": -4500
       },
       "source": "kideesys-age-analysis",
-      "importedAt": "2026-05-28T08:38:50.245Z"
+      "importedAt": "2026-05-28T08:38:50.245Z",
+      "kidesysSection": "Recently Owing"
     },
     "MAT024": {
       "schoolId": "cmpideqeq0000108xb6ouv9zi",
@@ -3928,7 +4189,8 @@
         "d120": -2000
       },
       "source": "kideesys-age-analysis",
-      "importedAt": "2026-05-28T08:38:50.245Z"
+      "importedAt": "2026-05-28T08:38:50.245Z",
+      "kidesysSection": "Recently Owing"
     },
     "MOR011": {
       "schoolId": "cmpideqeq0000108xb6ouv9zi",
@@ -3943,7 +4205,8 @@
         "d120": -200
       },
       "source": "kideesys-age-analysis",
-      "importedAt": "2026-05-28T08:38:50.245Z"
+      "importedAt": "2026-05-28T08:38:50.245Z",
+      "kidesysSection": "Recently Owing"
     },
     "MOL039": {
       "schoolId": "cmpideqeq0000108xb6ouv9zi",
@@ -3958,7 +4221,8 @@
         "d120": -6500
       },
       "source": "kideesys-age-analysis",
-      "importedAt": "2026-05-28T08:38:50.245Z"
+      "importedAt": "2026-05-28T08:38:50.245Z",
+      "kidesysSection": "Recently Owing"
     },
     "MOD010": {
       "schoolId": "cmpideqeq0000108xb6ouv9zi",
@@ -3973,7 +4237,8 @@
         "d120": -1960
       },
       "source": "kideesys-age-analysis",
-      "importedAt": "2026-05-28T08:38:50.245Z"
+      "importedAt": "2026-05-28T08:38:50.245Z",
+      "kidesysSection": "Recently Owing"
     },
     "POO003": {
       "schoolId": "cmpideqeq0000108xb6ouv9zi",
@@ -3988,7 +4253,8 @@
         "d120": -850
       },
       "source": "kideesys-age-analysis",
-      "importedAt": "2026-05-28T08:38:50.245Z"
+      "importedAt": "2026-05-28T08:38:50.245Z",
+      "kidesysSection": "Recently Owing"
     },
     "MAL006": {
       "schoolId": "cmpideqeq0000108xb6ouv9zi",
@@ -4003,7 +4269,8 @@
         "d120": -3100
       },
       "source": "kideesys-age-analysis",
-      "importedAt": "2026-05-28T08:38:50.245Z"
+      "importedAt": "2026-05-28T08:38:50.245Z",
+      "kidesysSection": "Recently Owing"
     },
     "GAE002": {
       "schoolId": "cmpideqeq0000108xb6ouv9zi",
@@ -4018,7 +4285,8 @@
         "d120": -6240
       },
       "source": "kideesys-age-analysis",
-      "importedAt": "2026-05-28T08:38:50.245Z"
+      "importedAt": "2026-05-28T08:38:50.245Z",
+      "kidesysSection": "Recently Owing"
     },
     "TSH006": {
       "schoolId": "cmpideqeq0000108xb6ouv9zi",
@@ -4033,7 +4301,8 @@
         "d120": -7350
       },
       "source": "kideesys-age-analysis",
-      "importedAt": "2026-05-28T08:38:50.245Z"
+      "importedAt": "2026-05-28T08:38:50.245Z",
+      "kidesysSection": "Recently Owing"
     },
     "MOL020": {
       "schoolId": "cmpideqeq0000108xb6ouv9zi",
@@ -4048,7 +4317,8 @@
         "d120": -250
       },
       "source": "kideesys-age-analysis",
-      "importedAt": "2026-05-28T08:38:50.245Z"
+      "importedAt": "2026-05-28T08:38:50.245Z",
+      "kidesysSection": "Recently Owing"
     },
     "TSH019": {
       "schoolId": "cmpideqeq0000108xb6ouv9zi",
@@ -4063,7 +4333,8 @@
         "d120": 0
       },
       "source": "kideesys-age-analysis",
-      "importedAt": "2026-05-28T08:38:50.245Z"
+      "importedAt": "2026-05-28T08:38:50.245Z",
+      "kidesysSection": "Recently Owing"
     },
     "KEN001": {
       "schoolId": "cmpideqeq0000108xb6ouv9zi",
@@ -4078,7 +4349,8 @@
         "d120": -2785
       },
       "source": "kideesys-age-analysis",
-      "importedAt": "2026-05-28T08:38:50.245Z"
+      "importedAt": "2026-05-28T08:38:50.245Z",
+      "kidesysSection": "Recently Owing"
     },
     "MAL018": {
       "schoolId": "cmpideqeq0000108xb6ouv9zi",
@@ -4093,7 +4365,8 @@
         "d120": -2700
       },
       "source": "kideesys-age-analysis",
-      "importedAt": "2026-05-28T08:38:50.245Z"
+      "importedAt": "2026-05-28T08:38:50.245Z",
+      "kidesysSection": "Recently Owing"
     },
     "RAM015": {
       "schoolId": "cmpideqeq0000108xb6ouv9zi",
@@ -4108,7 +4381,8 @@
         "d120": -2600
       },
       "source": "kideesys-age-analysis",
-      "importedAt": "2026-05-28T08:38:50.245Z"
+      "importedAt": "2026-05-28T08:38:50.245Z",
+      "kidesysSection": "Recently Owing"
     },
     "RAN008": {
       "schoolId": "cmpideqeq0000108xb6ouv9zi",
@@ -4123,7 +4397,8 @@
         "d120": 0
       },
       "source": "kideesys-age-analysis",
-      "importedAt": "2026-05-28T08:38:50.245Z"
+      "importedAt": "2026-05-28T08:38:50.245Z",
+      "kidesysSection": "Recently Owing"
     },
     "SIN001": {
       "schoolId": "cmpideqeq0000108xb6ouv9zi",
@@ -4138,7 +4413,8 @@
         "d120": -3500
       },
       "source": "kideesys-age-analysis",
-      "importedAt": "2026-05-28T08:38:50.245Z"
+      "importedAt": "2026-05-28T08:38:50.245Z",
+      "kidesysSection": "Recently Owing"
     },
     "NHL002": {
       "schoolId": "cmpideqeq0000108xb6ouv9zi",
@@ -4153,7 +4429,8 @@
         "d120": -11300
       },
       "source": "kideesys-age-analysis",
-      "importedAt": "2026-05-28T08:38:50.245Z"
+      "importedAt": "2026-05-28T08:38:50.245Z",
+      "kidesysSection": "Recently Owing"
     },
     "RAM011": {
       "schoolId": "cmpideqeq0000108xb6ouv9zi",
@@ -4168,7 +4445,8 @@
         "d120": -1860
       },
       "source": "kideesys-age-analysis",
-      "importedAt": "2026-05-28T08:38:50.245Z"
+      "importedAt": "2026-05-28T08:38:50.245Z",
+      "kidesysSection": "Recently Owing"
     },
     "KER001": {
       "schoolId": "cmpideqeq0000108xb6ouv9zi",
@@ -4183,7 +4461,8 @@
         "d120": 0
       },
       "source": "kideesys-age-analysis",
-      "importedAt": "2026-05-28T08:38:50.245Z"
+      "importedAt": "2026-05-28T08:38:50.245Z",
+      "kidesysSection": "Recently Owing"
     },
     "WIL002": {
       "schoolId": "cmpideqeq0000108xb6ouv9zi",
@@ -4198,7 +4477,8 @@
         "d120": -11750
       },
       "source": "kideesys-age-analysis",
-      "importedAt": "2026-05-28T08:38:50.245Z"
+      "importedAt": "2026-05-28T08:38:50.245Z",
+      "kidesysSection": "Recently Owing"
     },
     "NHL001": {
       "schoolId": "cmpideqeq0000108xb6ouv9zi",
@@ -4213,7 +4493,8 @@
         "d120": -8100
       },
       "source": "kideesys-age-analysis",
-      "importedAt": "2026-05-28T08:38:50.245Z"
+      "importedAt": "2026-05-28T08:38:50.245Z",
+      "kidesysSection": "Recently Owing"
     },
     "JAM001": {
       "schoolId": "cmpideqeq0000108xb6ouv9zi",
@@ -4228,7 +4509,8 @@
         "d120": -2700
       },
       "source": "kideesys-age-analysis",
-      "importedAt": "2026-05-28T08:38:50.245Z"
+      "importedAt": "2026-05-28T08:38:50.245Z",
+      "kidesysSection": "Recently Owing"
     },
     "DIK001": {
       "schoolId": "cmpideqeq0000108xb6ouv9zi",
@@ -4243,7 +4525,8 @@
         "d120": -2700
       },
       "source": "kideesys-age-analysis",
-      "importedAt": "2026-05-28T08:38:50.245Z"
+      "importedAt": "2026-05-28T08:38:50.245Z",
+      "kidesysSection": "Recently Owing"
     },
     "MSI003": {
       "schoolId": "cmpideqeq0000108xb6ouv9zi",
@@ -4258,7 +4541,8 @@
         "d120": -2700
       },
       "source": "kideesys-age-analysis",
-      "importedAt": "2026-05-28T08:38:50.245Z"
+      "importedAt": "2026-05-28T08:38:50.245Z",
+      "kidesysSection": "Recently Owing"
     },
     "PEB002": {
       "schoolId": "cmpideqeq0000108xb6ouv9zi",
@@ -4273,7 +4557,8 @@
         "d120": -2285
       },
       "source": "kideesys-age-analysis",
-      "importedAt": "2026-05-28T08:38:50.245Z"
+      "importedAt": "2026-05-28T08:38:50.245Z",
+      "kidesysSection": "Recently Owing"
     },
     "MAB011": {
       "schoolId": "cmpideqeq0000108xb6ouv9zi",
@@ -4288,7 +4573,8 @@
         "d120": -2700
       },
       "source": "kideesys-age-analysis",
-      "importedAt": "2026-05-28T08:38:50.245Z"
+      "importedAt": "2026-05-28T08:38:50.245Z",
+      "kidesysSection": "Recently Owing"
     },
     "LEG003": {
       "schoolId": "cmpideqeq0000108xb6ouv9zi",
@@ -4303,7 +4589,8 @@
         "d120": -4395
       },
       "source": "kideesys-age-analysis",
-      "importedAt": "2026-05-28T08:38:50.245Z"
+      "importedAt": "2026-05-28T08:38:50.245Z",
+      "kidesysSection": "Recently Owing"
     },
     "MOT016": {
       "schoolId": "cmpideqeq0000108xb6ouv9zi",
@@ -4318,7 +4605,8 @@
         "d120": -3750
       },
       "source": "kideesys-age-analysis",
-      "importedAt": "2026-05-28T08:38:50.245Z"
+      "importedAt": "2026-05-28T08:38:50.245Z",
+      "kidesysSection": "Recently Owing"
     },
     "LET012": {
       "schoolId": "cmpideqeq0000108xb6ouv9zi",
@@ -4333,7 +4621,8 @@
         "d120": -1400
       },
       "source": "kideesys-age-analysis",
-      "importedAt": "2026-05-28T08:38:50.245Z"
+      "importedAt": "2026-05-28T08:38:50.245Z",
+      "kidesysSection": "Recently Owing"
     },
     "MAB008": {
       "schoolId": "cmpideqeq0000108xb6ouv9zi",
@@ -4348,7 +4637,8 @@
         "d120": -2470
       },
       "source": "kideesys-age-analysis",
-      "importedAt": "2026-05-28T08:38:50.245Z"
+      "importedAt": "2026-05-28T08:38:50.245Z",
+      "kidesysSection": "Recently Owing"
     },
     "MOD019": {
       "schoolId": "cmpideqeq0000108xb6ouv9zi",
@@ -4363,7 +4653,8 @@
         "d120": -1800
       },
       "source": "kideesys-age-analysis",
-      "importedAt": "2026-05-28T08:38:50.245Z"
+      "importedAt": "2026-05-28T08:38:50.245Z",
+      "kidesysSection": "Recently Owing"
     },
     "MOT010": {
       "schoolId": "cmpideqeq0000108xb6ouv9zi",
@@ -4378,7 +4669,8 @@
         "d120": -2700
       },
       "source": "kideesys-age-analysis",
-      "importedAt": "2026-05-28T08:38:50.245Z"
+      "importedAt": "2026-05-28T08:38:50.245Z",
+      "kidesysSection": "Recently Owing"
     },
     "MOY005": {
       "schoolId": "cmpideqeq0000108xb6ouv9zi",
@@ -4393,7 +4685,8 @@
         "d120": -50
       },
       "source": "kideesys-age-analysis",
-      "importedAt": "2026-05-28T08:38:50.245Z"
+      "importedAt": "2026-05-28T08:38:50.245Z",
+      "kidesysSection": "Recently Owing"
     },
     "DIN002": {
       "schoolId": "cmpideqeq0000108xb6ouv9zi",
@@ -4408,7 +4701,8 @@
         "d120": -3100
       },
       "source": "kideesys-age-analysis",
-      "importedAt": "2026-05-28T08:38:50.245Z"
+      "importedAt": "2026-05-28T08:38:50.245Z",
+      "kidesysSection": "Recently Owing"
     },
     "MOS021": {
       "schoolId": "cmpideqeq0000108xb6ouv9zi",
@@ -4423,7 +4717,8 @@
         "d120": 0
       },
       "source": "kideesys-age-analysis",
-      "importedAt": "2026-05-28T08:38:50.245Z"
+      "importedAt": "2026-05-28T08:38:50.245Z",
+      "kidesysSection": "Recently Owing"
     },
     "SEN959": {
       "schoolId": "cmpideqeq0000108xb6ouv9zi",
@@ -4438,7 +4733,8 @@
         "d120": -6700
       },
       "source": "kideesys-age-analysis",
-      "importedAt": "2026-05-28T08:38:50.245Z"
+      "importedAt": "2026-05-28T08:38:50.245Z",
+      "kidesysSection": "Recently Owing"
     },
     "MAS028": {
       "schoolId": "cmpideqeq0000108xb6ouv9zi",
@@ -4453,7 +4749,8 @@
         "d120": -1600
       },
       "source": "kideesys-age-analysis",
-      "importedAt": "2026-05-28T08:38:50.245Z"
+      "importedAt": "2026-05-28T08:38:50.245Z",
+      "kidesysSection": "Recently Owing"
     },
     "MOR015": {
       "schoolId": "cmpideqeq0000108xb6ouv9zi",
@@ -4468,7 +4765,8 @@
         "d120": 0
       },
       "source": "kideesys-age-analysis",
-      "importedAt": "2026-05-28T08:38:50.245Z"
+      "importedAt": "2026-05-28T08:38:50.245Z",
+      "kidesysSection": "Recently Owing"
     },
     "MOD004": {
       "schoolId": "cmpideqeq0000108xb6ouv9zi",
@@ -4483,7 +4781,8 @@
         "d120": -2000
       },
       "source": "kideesys-age-analysis",
-      "importedAt": "2026-05-28T08:38:50.245Z"
+      "importedAt": "2026-05-28T08:38:50.245Z",
+      "kidesysSection": "Recently Owing"
     },
     "MOD012": {
       "schoolId": "cmpideqeq0000108xb6ouv9zi",
@@ -4498,7 +4797,8 @@
         "d120": -2700
       },
       "source": "kideesys-age-analysis",
-      "importedAt": "2026-05-28T08:38:50.245Z"
+      "importedAt": "2026-05-28T08:38:50.245Z",
+      "kidesysSection": "Recently Owing"
     },
     "MOD006": {
       "schoolId": "cmpideqeq0000108xb6ouv9zi",
@@ -4513,7 +4813,8 @@
         "d120": -9600
       },
       "source": "kideesys-age-analysis",
-      "importedAt": "2026-05-28T08:38:50.245Z"
+      "importedAt": "2026-05-28T08:38:50.245Z",
+      "kidesysSection": "Recently Owing"
     },
     "MAH007": {
       "schoolId": "cmpideqeq0000108xb6ouv9zi",
@@ -4528,7 +4829,8 @@
         "d120": -3000
       },
       "source": "kideesys-age-analysis",
-      "importedAt": "2026-05-28T08:38:50.245Z"
+      "importedAt": "2026-05-28T08:38:50.245Z",
+      "kidesysSection": "Recently Owing"
     },
     "MFE002": {
       "schoolId": "cmpideqeq0000108xb6ouv9zi",
@@ -4543,7 +4845,8 @@
         "d120": -19600
       },
       "source": "kideesys-age-analysis",
-      "importedAt": "2026-05-28T08:38:50.245Z"
+      "importedAt": "2026-05-28T08:38:50.245Z",
+      "kidesysSection": "Recently Owing"
     },
     "VUT001": {
       "schoolId": "cmpideqeq0000108xb6ouv9zi",
@@ -4558,7 +4861,8 @@
         "d120": -250
       },
       "source": "kideesys-age-analysis",
-      "importedAt": "2026-05-28T08:38:50.245Z"
+      "importedAt": "2026-05-28T08:38:50.245Z",
+      "kidesysSection": "Recently Owing"
     },
     "VUS001": {
       "schoolId": "cmpideqeq0000108xb6ouv9zi",
@@ -4573,7 +4877,8 @@
         "d120": -930
       },
       "source": "kideesys-age-analysis",
-      "importedAt": "2026-05-28T08:38:50.245Z"
+      "importedAt": "2026-05-28T08:38:50.245Z",
+      "kidesysSection": "Recently Owing"
     },
     "MOS009": {
       "schoolId": "cmpideqeq0000108xb6ouv9zi",
@@ -4588,7 +4893,8 @@
         "d120": -3590
       },
       "source": "kideesys-age-analysis",
-      "importedAt": "2026-05-28T08:38:50.245Z"
+      "importedAt": "2026-05-28T08:38:50.245Z",
+      "kidesysSection": "Recently Owing"
     },
     "RAK005": {
       "schoolId": "cmpideqeq0000108xb6ouv9zi",
@@ -4603,7 +4909,8 @@
         "d120": 0
       },
       "source": "kideesys-age-analysis",
-      "importedAt": "2026-05-28T08:38:50.245Z"
+      "importedAt": "2026-05-28T08:38:50.245Z",
+      "kidesysSection": "Recently Owing"
     },
     "MAR005": {
       "schoolId": "cmpideqeq0000108xb6ouv9zi",
@@ -4618,7 +4925,8 @@
         "d120": -3700
       },
       "source": "kideesys-age-analysis",
-      "importedAt": "2026-05-28T08:38:50.245Z"
+      "importedAt": "2026-05-28T08:38:50.245Z",
+      "kidesysSection": "Paid Up"
     },
     "MON014": {
       "schoolId": "cmpideqeq0000108xb6ouv9zi",
@@ -4633,7 +4941,8 @@
         "d120": -11800
       },
       "source": "kideesys-age-analysis",
-      "importedAt": "2026-05-28T08:38:50.245Z"
+      "importedAt": "2026-05-28T08:38:50.245Z",
+      "kidesysSection": "Paid Up"
     },
     "MON012": {
       "schoolId": "cmpideqeq0000108xb6ouv9zi",
@@ -4648,7 +4957,8 @@
         "d120": -14900
       },
       "source": "kideesys-age-analysis",
-      "importedAt": "2026-05-28T08:38:50.245Z"
+      "importedAt": "2026-05-28T08:38:50.245Z",
+      "kidesysSection": "Paid Up"
     },
     "MLA002": {
       "schoolId": "cmpideqeq0000108xb6ouv9zi",
@@ -4663,7 +4973,8 @@
         "d120": -3000
       },
       "source": "kideesys-age-analysis",
-      "importedAt": "2026-05-28T08:38:50.245Z"
+      "importedAt": "2026-05-28T08:38:50.245Z",
+      "kidesysSection": "Paid Up"
     },
     "PHI004": {
       "schoolId": "cmpideqeq0000108xb6ouv9zi",
@@ -4678,7 +4989,8 @@
         "d120": -850
       },
       "source": "kideesys-age-analysis",
-      "importedAt": "2026-05-28T08:38:50.245Z"
+      "importedAt": "2026-05-28T08:38:50.245Z",
+      "kidesysSection": "Paid Up"
     },
     "MAS030": {
       "schoolId": "cmpideqeq0000108xb6ouv9zi",
@@ -4693,7 +5005,8 @@
         "d120": -3610
       },
       "source": "kideesys-age-analysis",
-      "importedAt": "2026-05-28T08:38:50.245Z"
+      "importedAt": "2026-05-28T08:38:50.245Z",
+      "kidesysSection": "Paid Up"
     },
     "CHI002": {
       "schoolId": "cmpideqeq0000108xb6ouv9zi",
@@ -4708,7 +5021,8 @@
         "d120": -10000
       },
       "source": "kideesys-age-analysis",
-      "importedAt": "2026-05-28T08:38:50.245Z"
+      "importedAt": "2026-05-28T08:38:50.245Z",
+      "kidesysSection": "Paid Up"
     },
     "SIL007": {
       "schoolId": "cmpideqeq0000108xb6ouv9zi",
@@ -4723,7 +5037,8 @@
         "d120": -30700
       },
       "source": "kideesys-age-analysis",
-      "importedAt": "2026-05-28T08:38:50.245Z"
+      "importedAt": "2026-05-28T08:38:50.245Z",
+      "kidesysSection": "Over Paid"
     },
     "DUP001": {
       "schoolId": "cmpideqeq0000108xb6ouv9zi",
@@ -4738,7 +5053,8 @@
         "d120": 0
       },
       "source": "kideesys-age-analysis",
-      "importedAt": "2026-05-28T08:38:50.245Z"
+      "importedAt": "2026-05-28T08:38:50.245Z",
+      "kidesysSection": "Over Paid"
     },
     "KGA004": {
       "schoolId": "cmpideqeq0000108xb6ouv9zi",
@@ -4753,7 +5069,8 @@
         "d120": -46190
       },
       "source": "kideesys-age-analysis",
-      "importedAt": "2026-05-28T08:38:50.245Z"
+      "importedAt": "2026-05-28T08:38:50.245Z",
+      "kidesysSection": "Over Paid"
     },
     "MOL017": {
       "schoolId": "cmpideqeq0000108xb6ouv9zi",
@@ -4768,7 +5085,8 @@
         "d120": -2000
       },
       "source": "kideesys-age-analysis",
-      "importedAt": "2026-05-28T08:38:50.245Z"
+      "importedAt": "2026-05-28T08:38:50.245Z",
+      "kidesysSection": "Over Paid"
     },
     "MAK025": {
       "schoolId": "cmpideqeq0000108xb6ouv9zi",
@@ -4783,7 +5101,8 @@
         "d120": -14510
       },
       "source": "kideesys-age-analysis",
-      "importedAt": "2026-05-28T08:38:50.245Z"
+      "importedAt": "2026-05-28T08:38:50.245Z",
+      "kidesysSection": "Over Paid"
     },
     "PER001": {
       "schoolId": "cmpideqeq0000108xb6ouv9zi",
@@ -4798,7 +5117,8 @@
         "d120": -32600
       },
       "source": "kideesys-age-analysis",
-      "importedAt": "2026-05-28T08:38:50.245Z"
+      "importedAt": "2026-05-28T08:38:50.245Z",
+      "kidesysSection": "Over Paid"
     },
     "MOK037": {
       "schoolId": "cmpideqeq0000108xb6ouv9zi",
@@ -4813,7 +5133,8 @@
         "d120": -32150
       },
       "source": "kideesys-age-analysis",
-      "importedAt": "2026-05-28T08:38:50.245Z"
+      "importedAt": "2026-05-28T08:38:50.245Z",
+      "kidesysSection": "Over Paid"
     },
     "SET005": {
       "schoolId": "cmpideqeq0000108xb6ouv9zi",
@@ -4828,7 +5149,8 @@
         "d120": -3600
       },
       "source": "kideesys-age-analysis",
-      "importedAt": "2026-05-28T08:38:50.245Z"
+      "importedAt": "2026-05-28T08:38:50.245Z",
+      "kidesysSection": "Over Paid"
     },
     "MAK021": {
       "schoolId": "cmpideqeq0000108xb6ouv9zi",
@@ -4843,7 +5165,8 @@
         "d120": -16122.11
       },
       "source": "kideesys-age-analysis",
-      "importedAt": "2026-05-28T08:38:50.245Z"
+      "importedAt": "2026-05-28T08:38:50.245Z",
+      "kidesysSection": "Over Paid"
     },
     "MOG001": {
       "schoolId": "cmpideqeq0000108xb6ouv9zi",
@@ -4858,7 +5181,8 @@
         "d120": -9800
       },
       "source": "kideesys-age-analysis",
-      "importedAt": "2026-05-28T08:38:50.245Z"
+      "importedAt": "2026-05-28T08:38:50.245Z",
+      "kidesysSection": "Over Paid"
     },
     "MAS001": {
       "schoolId": "cmpideqeq0000108xb6ouv9zi",
@@ -4873,7 +5197,8 @@
         "d120": -35810
       },
       "source": "kideesys-age-analysis",
-      "importedAt": "2026-05-28T08:38:50.245Z"
+      "importedAt": "2026-05-28T08:38:50.245Z",
+      "kidesysSection": "Over Paid"
     },
     "MOS019": {
       "schoolId": "cmpideqeq0000108xb6ouv9zi",
@@ -4888,7 +5213,8 @@
         "d120": 0
       },
       "source": "kideesys-age-analysis",
-      "importedAt": "2026-05-28T08:38:50.245Z"
+      "importedAt": "2026-05-28T08:38:50.245Z",
+      "kidesysSection": "Over Paid"
     },
     "LEP003": {
       "schoolId": "cmpideqeq0000108xb6ouv9zi",
@@ -4903,7 +5229,8 @@
         "d120": -3170
       },
       "source": "kideesys-age-analysis",
-      "importedAt": "2026-05-28T08:38:50.245Z"
+      "importedAt": "2026-05-28T08:38:50.245Z",
+      "kidesysSection": "Over Paid"
     },
     "PHA009": {
       "schoolId": "cmpideqeq0000108xb6ouv9zi",
@@ -4918,7 +5245,8 @@
         "d120": -60000
       },
       "source": "kideesys-age-analysis",
-      "importedAt": "2026-05-28T08:38:50.245Z"
+      "importedAt": "2026-05-28T08:38:50.245Z",
+      "kidesysSection": "Over Paid"
     },
     "LET009": {
       "schoolId": "cmpideqeq0000108xb6ouv9zi",
@@ -4933,7 +5261,8 @@
         "d120": -33000
       },
       "source": "kideesys-age-analysis",
-      "importedAt": "2026-05-28T08:38:50.245Z"
+      "importedAt": "2026-05-28T08:38:50.245Z",
+      "kidesysSection": "Over Paid"
     },
     "MAN012": {
       "schoolId": "cmpideqeq0000108xb6ouv9zi",
@@ -4948,7 +5277,8 @@
         "d120": -88550
       },
       "source": "kideesys-age-analysis",
-      "importedAt": "2026-05-28T08:38:50.245Z"
+      "importedAt": "2026-05-28T08:38:50.245Z",
+      "kidesysSection": "Over Paid"
     },
     "MAP009": {
       "schoolId": "cmpideqeq0000108xb6ouv9zi",
@@ -4963,7 +5293,8 @@
         "d120": -15500
       },
       "source": "kideesys-age-analysis",
-      "importedAt": "2026-05-28T08:38:50.245Z"
+      "importedAt": "2026-05-28T08:38:50.245Z",
+      "kidesysSection": "Over Paid"
     },
     "MOE010": {
       "schoolId": "cmpideqeq0000108xb6ouv9zi",
@@ -4978,7 +5309,8 @@
         "d120": -34400
       },
       "source": "kideesys-age-analysis",
-      "importedAt": "2026-05-28T08:38:50.245Z"
+      "importedAt": "2026-05-28T08:38:50.245Z",
+      "kidesysSection": "Over Paid"
     },
     "MAK018": {
       "schoolId": "cmpideqeq0000108xb6ouv9zi",
@@ -4993,7 +5325,8 @@
         "d120": -31150
       },
       "source": "kideesys-age-analysis",
-      "importedAt": "2026-05-28T08:38:50.245Z"
+      "importedAt": "2026-05-28T08:38:50.245Z",
+      "kidesysSection": "Over Paid"
     },
     "NDL611": {
       "schoolId": "cmpideqeq0000108xb6ouv9zi",
@@ -5008,7 +5341,8 @@
         "d120": -24350
       },
       "source": "kideesys-age-analysis",
-      "importedAt": "2026-05-28T08:38:50.245Z"
+      "importedAt": "2026-05-28T08:38:50.245Z",
+      "kidesysSection": "Over Paid"
     },
     "NTU001": {
       "schoolId": "cmpideqeq0000108xb6ouv9zi",
@@ -5023,7 +5357,8 @@
         "d120": -6050
       },
       "source": "kideesys-age-analysis",
-      "importedAt": "2026-05-28T08:38:50.245Z"
+      "importedAt": "2026-05-28T08:38:50.245Z",
+      "kidesysSection": "Over Paid"
     },
     "MOL019": {
       "schoolId": "cmpideqeq0000108xb6ouv9zi",
@@ -5038,7 +5373,8 @@
         "d120": -50400
       },
       "source": "kideesys-age-analysis",
-      "importedAt": "2026-05-28T08:38:50.245Z"
+      "importedAt": "2026-05-28T08:38:50.245Z",
+      "kidesysSection": "Over Paid"
     },
     "SEB005": {
       "schoolId": "cmpideqeq0000108xb6ouv9zi",
@@ -5053,7 +5389,8 @@
         "d120": -26000
       },
       "source": "kideesys-age-analysis",
-      "importedAt": "2026-05-28T08:38:50.245Z"
+      "importedAt": "2026-05-28T08:38:50.245Z",
+      "kidesysSection": "Over Paid"
     },
     "MOS018": {
       "schoolId": "cmpideqeq0000108xb6ouv9zi",
@@ -5068,7 +5405,8 @@
         "d120": 0
       },
       "source": "kideesys-age-analysis",
-      "importedAt": "2026-05-28T08:38:50.245Z"
+      "importedAt": "2026-05-28T08:38:50.245Z",
+      "kidesysSection": "Over Paid"
     },
     "MET002": {
       "schoolId": "cmpideqeq0000108xb6ouv9zi",
@@ -5083,7 +5421,8 @@
         "d120": -29300
       },
       "source": "kideesys-age-analysis",
-      "importedAt": "2026-05-28T08:38:50.245Z"
+      "importedAt": "2026-05-28T08:38:50.245Z",
+      "kidesysSection": "Over Paid"
     },
     "MOG017": {
       "schoolId": "cmpideqeq0000108xb6ouv9zi",
@@ -5098,7 +5437,8 @@
         "d120": -6650
       },
       "source": "kideesys-age-analysis",
-      "importedAt": "2026-05-28T08:38:50.245Z"
+      "importedAt": "2026-05-28T08:38:50.245Z",
+      "kidesysSection": "Over Paid"
     },
     "RAM014": {
       "schoolId": "cmpideqeq0000108xb6ouv9zi",
@@ -5113,7 +5453,8 @@
         "d120": -43060
       },
       "source": "kideesys-age-analysis",
-      "importedAt": "2026-05-28T08:38:50.245Z"
+      "importedAt": "2026-05-28T08:38:50.245Z",
+      "kidesysSection": "Over Paid"
     },
     "MAG007": {
       "schoolId": "cmpideqeq0000108xb6ouv9zi",
@@ -5128,7 +5469,8 @@
         "d120": 0
       },
       "source": "kideesys-age-analysis",
-      "importedAt": "2026-05-28T08:38:50.245Z"
+      "importedAt": "2026-05-28T08:38:50.245Z",
+      "kidesysSection": "Over Paid"
     },
     "MTH003": {
       "schoolId": "cmpideqeq0000108xb6ouv9zi",
@@ -5143,7 +5485,8 @@
         "d120": -61300
       },
       "source": "kideesys-age-analysis",
-      "importedAt": "2026-05-28T08:38:50.245Z"
+      "importedAt": "2026-05-28T08:38:50.245Z",
+      "kidesysSection": "Over Paid"
     },
     "DIR001": {
       "schoolId": "cmpideqeq0000108xb6ouv9zi",
@@ -5158,7 +5501,8 @@
         "d120": -28700
       },
       "source": "kideesys-age-analysis",
-      "importedAt": "2026-05-28T08:38:50.245Z"
+      "importedAt": "2026-05-28T08:38:50.245Z",
+      "kidesysSection": "Over Paid"
     }
   }
 }

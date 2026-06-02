@@ -20,6 +20,7 @@ import {
   type FamilyAccountAgeAnalysisSnapshot,
 } from "../utils/familyAccountAgeAnalysisStore";
 import { materializeKidesysDisplayHistory } from "./kidesysDisplayHistoryMaterializer";
+import { normalizeKidesysBillingSection } from "./billingSummary";
 import { buildAccountsFromAgeAnalysisSnapshots } from "./statementAccounts";
 import type { ParsedTransaction } from "./daSilvaMigration/parsers";
 
@@ -296,6 +297,7 @@ async function upsertFamilyAccountsFromAgeAnalysis(opts: {
       schoolId,
       accountRef,
       accountHolder,
+      kidesysSection: normalizeKidesysBillingSection(account.section),
       balance: money(account.balance),
       buckets: {
         current: money(account.current),

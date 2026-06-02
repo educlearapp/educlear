@@ -10,6 +10,7 @@ import {
   getAccountLedger,
   entryMatchesAccount,
 } from "./billingLedger";
+import { isKidESysAccountRef } from "./billingAccountRef";
 
 export {
   formatMoney,
@@ -19,6 +20,24 @@ export {
   getLastInvoice,
   getLastPayment,
   getAccountLedger,
+};
+
+export const KIDESYS_BILLING_SECTION = {
+  RECENTLY_OWING: "Recently Owing",
+  BAD_DEBT: "Bad Debt",
+  PAID_UP: "Paid Up",
+  OVER_PAID: "Over Paid",
+  UP_TO_DATE: "Up To Date",
+  INACTIVE: "Inactive",
+} as const;
+
+const SECTION_ALIASES: Record<string, string> = {
+  recentlyowing: KIDESYS_BILLING_SECTION.RECENTLY_OWING,
+  baddebt: KIDESYS_BILLING_SECTION.BAD_DEBT,
+  paidup: KIDESYS_BILLING_SECTION.PAID_UP,
+  overpaid: KIDESYS_BILLING_SECTION.OVER_PAID,
+  uptodate: KIDESYS_BILLING_SECTION.UP_TO_DATE,
+  inactive: KIDESYS_BILLING_SECTION.INACTIVE,
 };
 
 const getLearnerKey = (value: any) =>
@@ -65,29 +84,79 @@ export const calculateLastPayment = (payments: Payment[], learnerId: string, acc
 
 export type BillingSummaryTotals = {
   accountsCount: number;
+  /** Net sum of all FamilyAccount statement balances (Kid-e-Sys Total Outstanding). */
+  totalOutstanding: number;
+  /** @deprecated Use totalOutstanding — kept for callers expecting netOutstanding. */
   netOutstanding: number;
   recentlyOwing: number;
   badDebt: number;
+  /** Signed total for Over Paid section (negative when credits exceed debits). */
   overPaid: number;
 };
 
+export function roundBillingMoney(value: unknown): number {
+  const n = Number(value);
+  if (!Number.isFinite(n)) return 0;
+  return Math.round(n * 100) / 100;
+}
+
+export function normalizeKidesysBillingSection(value: unknown): string {
+  const raw = String(value ?? "").trim();
+  if (!raw) return "";
+  const key = raw.toLowerCase().replace(/[^a-z0-9]/g, "");
+  if (SECTION_ALIASES[key]) return SECTION_ALIASES[key];
+  const known = Object.values(KIDESYS_BILLING_SECTION);
+  const hit = known.find((s) => s.toLowerCase() === raw.toLowerCase());
+  return hit || raw;
+}
+
+export function resolveRowKidesysSection(row: any): string {
+  const fromField = normalizeKidesysBillingSection(row?.kidesysSection);
+  if (fromField) return fromField;
+  const fromStatus = normalizeKidesysBillingSection(row?.status);
+  if (
+    fromStatus === KIDESYS_BILLING_SECTION.RECENTLY_OWING ||
+    fromStatus === KIDESYS_BILLING_SECTION.BAD_DEBT ||
+    fromStatus === KIDESYS_BILLING_SECTION.PAID_UP ||
+    fromStatus === KIDESYS_BILLING_SECTION.OVER_PAID ||
+    fromStatus === KIDESYS_BILLING_SECTION.UP_TO_DATE ||
+    fromStatus === KIDESYS_BILLING_SECTION.INACTIVE
+  ) {
+    return fromStatus;
+  }
+  return "";
+}
+
+function isSummaryEligibleBillingRow(row: any): boolean {
+  const accountNo = String(row?.accountNo ?? "").trim();
+  if (!accountNo || accountNo === "-") return false;
+  return isKidESysAccountRef(accountNo);
+}
+
+/** Kid-e-Sys overview cards — section totals use age-analysis section, not balance thresholds. */
 export const calculateBillingSummary = (rows: any[]): BillingSummaryTotals => {
-  const rowBalance = (row: any) => normaliseBillingAmount(row?.balance);
+  const included = (rows || []).filter(isSummaryEligibleBillingRow);
+  const rowBalance = (row: any) => roundBillingMoney(row?.balance);
+  const section = (row: any) => resolveRowKidesysSection(row);
+
+  const sumSection = (label: string) =>
+    roundBillingMoney(
+      included
+        .filter((row) => section(row) === label)
+        .reduce((sum, row) => sum + rowBalance(row), 0)
+    );
+
+  const totalOutstanding = roundBillingMoney(
+    included.reduce((sum, row) => sum + rowBalance(row), 0)
+  );
 
   return {
-    accountsCount: rows.length,
-    netOutstanding: rows.reduce((sum, row) => sum + rowBalance(row), 0),
-    recentlyOwing: rows
-      .filter((row) => row.status === "Recently Owing")
-      .reduce((sum, row) => sum + rowBalance(row), 0),
-    badDebt: rows
-      .filter((row) => row.status === "Bad Debt")
-      .reduce((sum, row) => sum + rowBalance(row), 0),
-    overPaid: Math.abs(
-      rows
-        .filter((row) => row.status === "Over Paid")
-        .reduce((sum, row) => sum + rowBalance(row), 0)
-    ),
+    accountsCount: included.length,
+    totalOutstanding,
+    netOutstanding: totalOutstanding,
+    recentlyOwing: sumSection(KIDESYS_BILLING_SECTION.RECENTLY_OWING),
+    badDebt: sumSection(KIDESYS_BILLING_SECTION.BAD_DEBT),
+    overPaid: sumSection(KIDESYS_BILLING_SECTION.OVER_PAID),
   };
 };
 

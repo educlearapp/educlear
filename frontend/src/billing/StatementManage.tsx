@@ -30,6 +30,10 @@ import {
   resolveKidESysAccountRefFromLearner,
 } from "./billingAccountRef";
 import {
+  accountChildrenFromBillingRow,
+  splitAccountHolderNames,
+} from "./billingFamilyDisplay";
+import {
   formatKidesysHistoryDescriptionDisplay,
   formatKidesysHistoryReferenceDisplay,
   formatKidesysHistoryTypeLabel,
@@ -426,6 +430,41 @@ export default function StatementManage({
       addChild(selected);
     }
 
+    const fromBillingRow = accountChildrenFromBillingRow(
+      selected,
+      learners,
+      mapToAccountChild,
+      ref || accountNo
+    );
+    for (const child of fromBillingRow) {
+      if (seen.has(child.id)) continue;
+      seen.add(child.id);
+      children.push(child);
+    }
+
+    const holderOnly = splitAccountHolderNames(
+      String(selected?.accountHolder || "").trim()
+    );
+    for (const fullName of holderOnly) {
+      const parts = fullName.split(/\s+/).filter(Boolean);
+      if (!parts.length) continue;
+      const syntheticId = `holder:${ref || accountNo}:${fullName}`;
+      if (seen.has(syntheticId)) continue;
+      const alreadyListed = children.some((child) => {
+        const label = `${child.firstName} ${child.lastName}`.trim().toLowerCase();
+        return label === fullName.toLowerCase();
+      });
+      if (alreadyListed) continue;
+      seen.add(syntheticId);
+      children.push({
+        id: syntheticId,
+        firstName: parts.slice(0, -1).join(" ") || parts[0],
+        lastName: parts.length > 1 ? parts[parts.length - 1] : "-",
+        grade: "-",
+        accountNo: ref || accountNo || "-",
+      });
+    }
+
     children.sort((a, b) =>
       `${a.lastName} ${a.firstName}`.localeCompare(`${b.lastName} ${b.firstName}`)
     );
@@ -433,7 +472,10 @@ export default function StatementManage({
   }, [familyAccountId, accountRef, learners, statementRows, learnerId, selected, accountNo]);
 
   const isFamilyBillingAccount = accountChildren.length > 1 || Boolean(familyAccountId);
-  const familyLearnerIds = useMemo(() => accountChildren.map((c) => c.id), [accountChildren]);
+  const familyLearnerIds = useMemo(
+    () => accountChildren.map((c) => c.id).filter((id) => !id.startsWith("holder:")),
+    [accountChildren]
+  );
 
   const learnerNameById = useMemo(() => {
     const map = new Map<string, string>();

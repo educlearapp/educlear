@@ -21,6 +21,13 @@ import {
   countsTowardPostImportBalanceDelta,
   isKidesysOpeningBalanceEntry,
 } from "../utils/billingDisplayRules";
+import { normalizeKidesysBillingSection } from "./billingSummary";
+import {
+  learnerFullName,
+  matchLearnersToAccountHolder,
+  resolveMemberNames,
+  splitAccountHolderNames,
+} from "./familyAccountMembers";
 
 export type BillingStatementAccountRow = {
   accountNo: string;
@@ -35,9 +42,12 @@ export type BillingStatementAccountRow = {
   lastPayment: number;
   lastPaymentDate: string;
   status: string;
+  kidesysSection: string;
   familyAccountId: string | null;
   familyName: string | null;
   memberLearnerIds: string[];
+  memberNames: string[];
+  accountHolder: string;
   ageAnalysis?: {
     accountHolder: string;
     buckets: FamilyAccountAgeAnalysisSnapshot["buckets"];
@@ -67,6 +77,12 @@ function statusFromBalance(balance: number) {
   if (balance > 0) return "Recently Owing";
   if (balance < 0) return "Over Paid";
   return "Up To Date";
+}
+
+function displayStatusFromKidesysSection(kidesysSection: string, balance: number) {
+  const section = normalizeKidesysBillingSection(kidesysSection);
+  if (section) return section;
+  return statusFromBalance(balance);
 }
 
 type BillingIdentityMode = "legacy" | "kidesys_accountRef_only";
@@ -208,32 +224,33 @@ export async function buildAccountsFromAgeAnalysisSnapshots(
     familyAccounts.map((fa) => [String(fa.accountRef).trim().toUpperCase(), fa])
   );
 
-  const learners = await prisma.learner.findMany({
-    where: { schoolId: sid, familyAccount: { accountRef: { in: accountRefs } } },
+  const schoolLearners = await prisma.learner.findMany({
+    where: { schoolId: sid },
     orderBy: { createdAt: "desc" },
     select: {
       id: true,
       firstName: true,
       lastName: true,
+      familyAccountId: true,
       familyAccount: { select: { accountRef: true } },
     },
   });
-  const learnerByRef = new Map<
+
+  const learnersByRef = new Map<
     string,
-    { id: string; firstName: string; lastName: string; fullName: string }
+    { id: string; firstName: string; lastName: string; fullName: string }[]
   >();
-  for (const l of learners) {
+  for (const l of schoolLearners) {
     const ref = String(l.familyAccount?.accountRef || "").trim().toUpperCase();
-    if (!ref || learnerByRef.has(ref)) continue;
+    if (!ref || !accountRefs.includes(ref)) continue;
     const firstName = String(l.firstName || "").trim();
     const lastName = String(l.lastName || "").trim();
-    const fullName = `${firstName} ${lastName}`.trim();
-    learnerByRef.set(ref, {
-      id: l.id,
-      firstName,
-      lastName,
-      fullName: fullName || ref,
-    });
+    const fullName = learnerFullName({ id: l.id, firstName, lastName }) || ref;
+    const bucket = learnersByRef.get(ref) || [];
+    if (!bucket.some((row) => row.id === l.id)) {
+      bucket.push({ id: l.id, firstName, lastName, fullName });
+      learnersByRef.set(ref, bucket);
+    }
   }
 
   const ledger = opts.ledger ?? readSchoolLedger(sid);
@@ -244,16 +261,32 @@ export async function buildAccountsFromAgeAnalysisSnapshots(
     const accountRef = String(snap.accountRef || "").trim().toUpperCase();
     const ageBalance = Number(snap.balance) || 0;
     const family = familyByRef.get(accountRef);
-    const learner = learnerByRef.get(accountRef);
+    const accountHolder = String(snap.accountHolder || family?.familyName || "").trim();
+    const linkedLearners = learnersByRef.get(accountRef) || [];
+    const matchedByHolder = matchLearnersToAccountHolder(schoolLearners, accountHolder);
+    const memberLearnerMap = new Map<string, { id: string; firstName: string; lastName: string; fullName: string }>();
+    for (const row of [...linkedLearners, ...matchedByHolder.map((l) => ({
+      id: l.id,
+      firstName: String(l.firstName || "").trim(),
+      lastName: String(l.lastName || "").trim(),
+      fullName: learnerFullName(l),
+    }))]) {
+      if (!row.id || memberLearnerMap.has(row.id)) continue;
+      memberLearnerMap.set(row.id, row);
+    }
+    const memberLearners = Array.from(memberLearnerMap.values());
+    const memberNames = resolveMemberNames(accountHolder, memberLearners);
+    const anchor = memberLearners[0];
+    const holderNames = splitAccountHolderNames(accountHolder);
     const label =
+      memberNames.join(" · ") ||
       String(family?.familyName || "").trim() ||
-      String(learner?.fullName || "").trim() ||
-      String(snap.accountHolder || "").trim() ||
+      String(anchor?.fullName || "").trim() ||
       accountRef ||
       "-";
-    const split = splitDisplayName(label);
-    const name = String(learner?.firstName || "").trim() || split.name;
-    const surname = String(learner?.lastName || "").trim() || split.surname;
+    const split = splitDisplayName(holderNames[0] || label);
+    const name = String(anchor?.firstName || "").trim() || split.name;
+    const surname = String(anchor?.lastName || "").trim() || split.surname;
 
     const accountEntries = ledger.filter(
       (e) => String(e.accountNo || "").trim().toUpperCase() === accountRef
@@ -270,10 +303,11 @@ export async function buildAccountsFromAgeAnalysisSnapshots(
     });
     const deltaBalance = calculateBalanceFromEntries(postImportEntries);
     const balance = ageBalance + deltaBalance;
+    const kidesysSection = normalizeKidesysBillingSection(snap.kidesysSection);
 
     return {
       accountNo: accountRef || "-",
-      learnerId: learner?.id || "",
+      learnerId: anchor?.id || "",
       schoolId: sid,
       name,
       surname,
@@ -283,10 +317,13 @@ export async function buildAccountsFromAgeAnalysisSnapshots(
       lastInvoiceLabel: invoiceFields.lastInvoiceLabel,
       lastPayment: paymentFields.lastPayment,
       lastPaymentDate: paymentFields.lastPaymentDate,
-      status: statusFromBalance(balance),
+      status: displayStatusFromKidesysSection(kidesysSection, balance),
+      kidesysSection,
       familyAccountId: family?.id || null,
       familyName: family?.familyName ?? null,
-      memberLearnerIds: learner?.id ? [learner.id] : [],
+      memberLearnerIds: memberLearners.map((l) => l.id),
+      memberNames,
+      accountHolder,
       ageAnalysis: {
         accountHolder: snap.accountHolder,
         buckets: snap.buckets,
@@ -352,6 +389,7 @@ export async function buildAccountsFromLearners(
     };
     const invoiceFields = resolveLastInvoiceFields(accountEntries, historySummary);
     const paymentFields = resolveLastPaymentFields(accountEntries, historySummary);
+    const kidesysSection = "";
 
     return {
       accountNo,
@@ -365,7 +403,8 @@ export async function buildAccountsFromLearners(
       lastInvoiceLabel: invoiceFields.lastInvoiceLabel,
       lastPayment: paymentFields.lastPayment,
       lastPaymentDate: paymentFields.lastPaymentDate,
-      status: statusFromBalance(balance),
+      status: displayStatusFromKidesysSection(kidesysSection, balance),
+      kidesysSection,
       familyAccountId: anchor.familyAccountId,
       familyName: anchor.familyAccount?.familyName ?? null,
       memberLearnerIds: memberIds,
