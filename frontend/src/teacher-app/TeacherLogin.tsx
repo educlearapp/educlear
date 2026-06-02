@@ -1,6 +1,7 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { apiFetch } from "../api";
+import { consumeInactivityLogoutMessage } from "../auth/sessionLogout";
 import { clearEduClearRole, syncEduClearRoleFromLoginResponse } from "../auth/roles";
 import { cacheSchoolLogoUrl } from "../utils/schoolLogo";
 
@@ -10,6 +11,11 @@ export default function TeacherLogin() {
   const [password, setPassword] = useState("");
   const [status, setStatus] = useState("");
   const [loading, setLoading] = useState(false);
+
+  useEffect(() => {
+    const inactivityMessage = consumeInactivityLogoutMessage();
+    if (inactivityMessage) setStatus(inactivityMessage);
+  }, []);
 
   async function onSubmit(e: React.FormEvent) {
     e.preventDefault();

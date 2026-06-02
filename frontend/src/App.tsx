@@ -1,4 +1,5 @@
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
+import InactivityLogoutManager from "./auth/InactivityLogoutManager";
 
 
 
@@ -550,8 +551,7 @@ export default function App() {
 
 
     <BrowserRouter>
-
-
+      <InactivityLogoutManager />
 
       <Routes>
 

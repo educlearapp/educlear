@@ -804,6 +804,8 @@ export async function downloadAccountStatementPdf(
   throw new Error("Use downloadSchoolStatementPdf instead — PDFs are generated on the server.");
 }
 
+const statementPdfDownloadInflight = new Map<string, Promise<void>>();
+
 function triggerBlobDownload(blob: Blob, filename: string) {
   const safe = sanitizeStatementFilename(filename);
   const url = URL.createObjectURL(blob);
@@ -815,6 +817,16 @@ function triggerBlobDownload(blob: Blob, filename: string) {
   anchor.click();
   anchor.remove();
   setTimeout(() => URL.revokeObjectURL(url), 2000);
+}
+
+function runSingleStatementPdfDownload(key: string, task: () => Promise<void>): Promise<void> {
+  const existing = statementPdfDownloadInflight.get(key);
+  if (existing) return existing;
+  const promise = task().finally(() => {
+    statementPdfDownloadInflight.delete(key);
+  });
+  statementPdfDownloadInflight.set(key, promise);
+  return promise;
 }
 
 /** Validates %PDF magic even when the server sends application/octet-stream. */
@@ -860,8 +872,11 @@ export async function downloadSchoolStatementPdf(
   statementNote?: string,
   accountNo?: string
 ): Promise<void> {
-  const blob = await fetchSchoolStatementPdfBlob(schoolId, learnerId, period, statementNote, accountNo);
-  triggerBlobDownload(blob, filename);
+  const key = ["school", schoolId, learnerId, normalizeStatementPeriod(period), accountNo || ""].join("|");
+  return runSingleStatementPdfDownload(key, async () => {
+    const blob = await fetchSchoolStatementPdfBlob(schoolId, learnerId, period, statementNote, accountNo);
+    triggerBlobDownload(blob, filename);
+  });
 }
 
 export async function openSchoolStatementPdfPrint(
@@ -911,8 +926,11 @@ export async function downloadParentStatementPdf(
   filename: string,
   token: string
 ): Promise<void> {
-  const blob = await fetchParentStatementPdfBlob(learnerId, token);
-  triggerBlobDownload(blob, filename);
+  const key = ["parent", learnerId, token.slice(0, 12)].join("|");
+  return runSingleStatementPdfDownload(key, async () => {
+    const blob = await fetchParentStatementPdfBlob(learnerId, token);
+    triggerBlobDownload(blob, filename);
+  });
 }
 
 export async function openParentStatementPdfPrint(learnerId: string, token: string): Promise<boolean> {

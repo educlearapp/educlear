@@ -10,6 +10,7 @@ import {
   openParentStatementPdfPrint,
   type StatementSchoolBranding,
 } from "../billing/statementDocument";
+import { consumeInactivityLogoutMessage } from "../auth/sessionLogout";
 import {
   clearParentSession,
   getParentSession,
@@ -207,6 +208,7 @@ export default function ParentPortalApp() {
   const [statementBranding, setStatementBranding] = useState<StatementSchoolBranding | null>(null);
   const [statementNotice, setStatementNotice] = useState<string | null>(null);
   const [statementActionBusy, setStatementActionBusy] = useState(false);
+  const [inactivityNotice, setInactivityNotice] = useState<string | null>(null);
 
   const learners: LinkRow[] = useMemo(() => {
     const rows = (session?.learners || dashboard?.learners || []) as any[];
@@ -302,6 +304,18 @@ export default function ParentPortalApp() {
       })
       .catch(() => {});
   }, [sid]);
+
+  useEffect(() => {
+    const inactivityMessage = consumeInactivityLogoutMessage();
+    if (inactivityMessage) {
+      clearParentSession();
+      setSession(null);
+      setDashboard(null);
+      setSelectedLearnerId("");
+      setShellView("login");
+      setInactivityNotice(inactivityMessage);
+    }
+  }, []);
 
   useEffect(() => {
     if (!getParentToken()) return;
@@ -593,6 +607,7 @@ export default function ParentPortalApp() {
   }, [familyBilling?.accountRef]);
 
   async function handleDownloadStatement() {
+    if (statementActionBusy) return;
     setStatementNotice(null);
     const anchorId = selectedLearnerId || activeLearner?.id || learners[0]?.learner?.id || "";
     const token = getParentToken();
@@ -600,10 +615,13 @@ export default function ParentPortalApp() {
       setStatementNotice("Select a learner to download your statement.");
       return;
     }
+    setStatementActionBusy(true);
     try {
       await downloadParentStatementPdf(anchorId, statementPdfFilename, token);
     } catch (e: unknown) {
       setStatementNotice((e as Error).message || "Could not download your statement PDF.");
+    } finally {
+      setStatementActionBusy(false);
     }
   }
 
@@ -746,6 +764,11 @@ export default function ParentPortalApp() {
                   Verification code generated for testing: {otpTestCode}
                 </p>
               </div>
+            )}
+            {inactivityNotice && (
+              <p className="parent-portal-login-error" role="status">
+                {inactivityNotice}
+              </p>
             )}
             {loginSuccess && <p className="parent-portal-login-success">{loginSuccess}</p>}
             {error && <p className="parent-portal-login-error">{error}</p>}
@@ -1202,9 +1225,16 @@ export default function ParentPortalApp() {
                   type="button"
                   className="parent-portal-btn-primary parent-portal-statement-btn"
                   disabled={statementActionBusy}
-                  onClick={handleDownloadStatement}
+                  aria-busy={statementActionBusy}
+                  onClick={() => void handleDownloadStatement()}
                 >
-                  Download Statement PDF
+                  {statementActionBusy ? (
+                    <>
+                      <span className="parent-portal-spinner" aria-hidden /> Generating PDF…
+                    </>
+                  ) : (
+                    "Download Statement PDF"
+                  )}
                 </button>
                 <button
                   type="button"

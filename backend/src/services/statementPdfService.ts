@@ -8,15 +8,23 @@ const GOLD = "#d4af37";
 const TABLE_HEAD = "#111827";
 const ROW_ALT = "#faf8f0";
 const ROW_BORDER = "#e5e7eb";
-/** Max logo dimension in PDF points. Aspect ratio preserved via fit. */
-const STATEMENT_LOGO_MAX_PT = 52;
+const CARD_FILL = "#fafafa";
+
+const STATEMENT_LOGO_MAX_PT = 48;
 const STATEMENT_LOGO_GAP_PT = 6;
-/** ~14 mm side margins on A4 portrait */
-const PAGE_MARGIN_PT = 40;
-const SCHOOL_NAME_FONT_SIZE = 14;
+/** ~12.7 mm side margins on A4 portrait */
+const PAGE_MARGIN_PT = 36;
+const FOOTER_RESERVE_PT = 88;
+const TABLE_ROW_MIN_PT = 16;
+const TABLE_ROW_PAD_PT = 4;
+const TABLE_HEADER_H_PT = 18;
+const SCHOOL_NAME_FONT_SIZE = 13;
 const CONTACT_FONT_SIZE = 8;
-const SCHOOL_NAME_LINE_GAP_PT = 8;
-const CONTACT_LINE_GAP_PT = 5;
+const SCHOOL_NAME_LINE_GAP_PT = 6;
+const CONTACT_LINE_GAP_PT = 4;
+const CARD_PAD_PT = 10;
+const CARD_TITLE_GAP_PT = 14;
+const CARD_LINE_GAP_PT = 5;
 
 function formatMoney(value: number): string {
   const n = Number.isFinite(value) ? value : 0;
@@ -35,7 +43,6 @@ function splitNonEmptyLines(value: string | null | undefined): string[] {
     .filter((line) => line.length > 0);
 }
 
-/** One PDF line per address / contact field — no combined multiline blocks. */
 function schoolHeaderContactLines(school: StatementPdfInput["school"]): string[] {
   const lines: string[] = [];
   lines.push(...splitNonEmptyLines(school.address));
@@ -57,11 +64,31 @@ function drawStackedTextLine(
   x: number,
   y: number,
   width: number,
-  gapAfter: number
+  gapAfter: number,
+  options?: { font?: string; fontSize?: number; color?: string; bold?: boolean }
 ): number {
-  const h = doc.heightOfString(text, { width });
+  if (options?.bold) doc.font("Helvetica-Bold");
+  else doc.font(options?.font || "Helvetica");
+  if (options?.fontSize) doc.fontSize(options.fontSize);
+  if (options?.color) doc.fillColor(options.color);
+  const h = doc.heightOfString(text, { width, lineGap: 1 });
   doc.text(text, x, y, { width, lineGap: 1 });
   return y + h + gapAfter;
+}
+
+function measureStackedLines(
+  doc: InstanceType<typeof PDFDocument>,
+  lines: string[],
+  width: number,
+  gapAfter: number,
+  fontSize = 8.5
+): number {
+  doc.font("Helvetica").fontSize(fontSize);
+  let h = 0;
+  for (const line of lines) {
+    h += doc.heightOfString(line, { width, lineGap: 1 }) + gapAfter;
+  }
+  return h;
 }
 
 function sanitizeFilename(filename: string): string {
@@ -73,30 +100,66 @@ export function statementPdfFilename(accountNo: string): string {
   return sanitizeFilename(`${(accountNo || "statement").replace(/[^\w.-]+/g, "_")}-statement.pdf`);
 }
 
+type ColLayout = { headers: string[]; colWidths: number[] };
+
+function buildColumnLayout(contentW: number, isFamilyAccount: boolean): ColLayout {
+  if (isFamilyAccount) {
+    const fixed = [42, 38, 58, 52, 50, 50, 58];
+    const fixedSum = fixed.reduce((s, w) => s + w, 0);
+    const descW = Math.max(80, contentW - fixedSum);
+    return {
+      headers: ["Date", "Type", "Learner", "Reference", "Description", "Amount In", "Amount Out", "Running Balance"],
+      colWidths: [42, 38, 58, 52, descW, 50, 50, 58],
+    };
+  }
+  const fixed = [46, 40, 58, 50, 50, 58];
+  const fixedSum = fixed.reduce((s, w) => s + w, 0);
+  const descW = Math.max(90, contentW - fixedSum);
+  return {
+    headers: ["Date", "Type", "Reference", "Description", "Amount In", "Amount Out", "Running Balance"],
+    colWidths: [46, 40, 58, descW, 50, 50, 58],
+  };
+}
+
 function drawTableHeader(
   doc: InstanceType<typeof PDFDocument>,
   headers: string[],
   colWidths: number[],
   x0: number,
-  y: number,
-  rowH: number
-) {
+  y: number
+): number {
   const totalW = colWidths.reduce((s, w) => s + w, 0);
   doc.save();
-  doc.rect(x0, y, totalW, rowH).fill(TABLE_HEAD);
-  doc.fillColor("#ffffff").font("Helvetica-Bold").fontSize(7.5);
+  doc.rect(x0, y, totalW, TABLE_HEADER_H_PT).fill(TABLE_HEAD);
+  doc.fillColor("#ffffff").font("Helvetica-Bold").fontSize(7);
   let x = x0 + 4;
   headers.forEach((label, i) => {
     const w = colWidths[i];
     const alignRight = i >= headers.length - 3;
-    doc.text(label, alignRight ? x + w - 4 : x, y + 4, {
+    doc.text(label, alignRight ? x + w - 4 : x, y + 5, {
       width: w - 8,
       align: alignRight ? "right" : "left",
-      lineBreak: false,
+      lineGap: 0,
     });
     x += w;
   });
   doc.restore();
+  return y + TABLE_HEADER_H_PT;
+}
+
+function measureRowHeight(
+  doc: InstanceType<typeof PDFDocument>,
+  values: string[],
+  colWidths: number[]
+): number {
+  doc.font("Helvetica").fontSize(7);
+  let maxH = TABLE_ROW_MIN_PT;
+  values.forEach((value, i) => {
+    const w = Math.max(12, colWidths[i] - 8);
+    const h = doc.heightOfString(String(value || "—"), { width: w, lineGap: 1 });
+    maxH = Math.max(maxH, h + TABLE_ROW_PAD_PT * 2);
+  });
+  return maxH;
 }
 
 function drawTableRow(
@@ -120,24 +183,86 @@ function drawTableRow(
   values.forEach((value, i) => {
     const w = colWidths[i];
     const alignRight = i >= values.length - 3;
-    const text = String(value || "").slice(0, 80);
-    doc.text(text, alignRight ? x + w - 4 : x, y + 3, {
-      width: w - 8,
+    const innerW = Math.max(12, w - 8);
+    doc.text(String(value || "—"), alignRight ? x + w - 4 - innerW : x, y + TABLE_ROW_PAD_PT, {
+      width: innerW,
       align: alignRight ? "right" : "left",
-      lineBreak: false,
+      lineGap: 1,
     });
     x += w;
   });
 }
 
-function measureAccountBoxHeight(input: StatementPdfInput): number {
-  const learnerCount = input.children.length;
-  const showLearnersList = input.isFamilyAccount || learnerCount > 1;
-  let h = 52;
-  if (showLearnersList) h += 14 + learnerCount * 11;
-  else if (learnerCount === 1) h += 11;
-  return Math.max(72, h);
+function accountCardLines(input: StatementPdfInput): string[] {
+  const lines: string[] = [`Family account: ${input.accountLabel}`];
+  const showLearnersList = input.isFamilyAccount || input.children.length > 1;
+  if (showLearnersList) {
+    lines.push("All learners / siblings:");
+    for (const child of input.children) {
+      lines.push(`• ${child.name} — Grade ${child.grade}`);
+    }
+  } else if (input.children.length === 1) {
+    const child = input.children[0];
+    lines.push(`• ${child.name} — Grade ${child.grade}`);
+  }
+  return lines;
 }
+
+function contactCardLines(input: StatementPdfInput): string[] {
+  const contactName = input.contact?.name || input.accountLabel;
+  const contactEmail = input.contact?.email || "—";
+  const contactCell = input.contact?.cellphone || "—";
+  const contactRel = input.contact?.relationship || "Parent";
+  const contactAccountNo = input.contact?.accountNo || input.accountNo || "—";
+  return [
+    `Parent/guardian: ${contactName}`,
+    `Email: ${contactEmail}`,
+    `Cell: ${contactCell}`,
+    `Relationship: ${contactRel}`,
+    `Account no: ${contactAccountNo}`,
+  ];
+}
+
+function measureCardHeight(
+  doc: InstanceType<typeof PDFDocument>,
+  lines: string[],
+  innerW: number
+): number {
+  doc.font("Helvetica-Bold").fontSize(8);
+  let h = CARD_PAD_PT + 10 + CARD_TITLE_GAP_PT;
+  h += measureStackedLines(doc, lines, innerW, CARD_LINE_GAP_PT, 8.5);
+  return h + CARD_PAD_PT;
+}
+
+function drawInfoCard(
+  doc: InstanceType<typeof PDFDocument>,
+  title: string,
+  lines: string[],
+  x: number,
+  y: number,
+  width: number,
+  height: number
+) {
+  doc.save();
+  doc.roundedRect(x, y, width, height, 4).fill(CARD_FILL).strokeColor(ROW_BORDER).stroke();
+  doc.restore();
+  doc.fillColor(INK).font("Helvetica-Bold").fontSize(8);
+  doc.text(title, x + CARD_PAD_PT, y + CARD_PAD_PT);
+  let lineY = y + CARD_PAD_PT + CARD_TITLE_GAP_PT;
+  doc.font("Helvetica").fontSize(8.5).fillColor(INK);
+  const innerW = width - CARD_PAD_PT * 2;
+  for (const line of lines) {
+    lineY = drawStackedTextLine(doc, line, x + CARD_PAD_PT, lineY, innerW, CARD_LINE_GAP_PT);
+  }
+}
+
+type PageLayout = {
+  pageW: number;
+  pageH: number;
+  margin: number;
+  contentW: number;
+  bottomLimit: number;
+};
 
 /**
  * Generates a valid PDF buffer (%PDF header) for account statements.
@@ -146,142 +271,124 @@ export async function generateStatementPdfBuffer(input: StatementPdfInput): Prom
   const doc = new PDFDocument({ size: "A4", layout: "portrait", margin: 0 });
   const chunks: Buffer[] = [];
 
-  const pageW = doc.page.width;
-  const pageH = doc.page.height;
-  const margin = PAGE_MARGIN_PT;
-  const contentW = pageW - margin * 2;
-  const leftW = contentW * 0.58;
-  const rightW = contentW - leftW - 14;
-  const leftX = margin;
-  const rightX = margin + leftW + 14;
-
-  let leftY = margin;
-  let rightY = margin;
-
-  const logoBuf = await loadSchoolLogoBuffer(input.school.logoUrl);
-  if (logoBuf) {
-    try {
-      doc.image(logoBuf, leftX, leftY, { fit: [STATEMENT_LOGO_MAX_PT, STATEMENT_LOGO_MAX_PT] });
-      leftY += STATEMENT_LOGO_MAX_PT + STATEMENT_LOGO_GAP_PT;
-    } catch (err) {
-      console.warn("[statement-pdf] school logo embed failed:", err);
-    }
-  }
-
-  const schoolName = String(input.school.name || "School").trim() || "School";
-  doc.fillColor(INK).font("Helvetica-Bold").fontSize(SCHOOL_NAME_FONT_SIZE);
-  leftY = drawStackedTextLine(doc, schoolName, leftX, leftY, leftW, SCHOOL_NAME_LINE_GAP_PT);
-
-  doc.font("Helvetica").fontSize(CONTACT_FONT_SIZE).fillColor(MUTED);
-  for (const line of schoolHeaderContactLines(input.school)) {
-    leftY = drawStackedTextLine(doc, line, leftX, leftY, leftW, CONTACT_LINE_GAP_PT);
-  }
-
-  doc.fillColor(INK).font("Helvetica-Bold").fontSize(20);
-  doc.text("STATEMENT", rightX, rightY, { width: rightW, align: "right" });
-  rightY += 28;
-
-  doc.font("Helvetica").fontSize(8.5).fillColor(MUTED);
-  doc.text(`Account: ${input.accountNo}`, rightX, rightY, { width: rightW, align: "right" });
-  rightY += 12;
-  doc.text(`Period: ${input.period}`, rightX, rightY, { width: rightW, align: "right" });
-  rightY += 12;
-  doc.text(`Date: ${input.statementDate}`, rightX, rightY, { width: rightW, align: "right" });
-  rightY += 12;
-
-  let y = Math.max(leftY, rightY) + 14;
-
-  doc.strokeColor(GOLD).lineWidth(1.5).moveTo(margin, y).lineTo(pageW - margin, y).stroke();
-  y += 14;
-
-  const boxH = measureAccountBoxHeight(input);
-  const boxW = (contentW - 12) / 2;
-  doc.roundedRect(margin, y, boxW, boxH, 4).strokeColor(ROW_BORDER).stroke();
-  doc.roundedRect(margin + boxW + 12, y, boxW, boxH, 4).strokeColor(ROW_BORDER).stroke();
-
-  doc.fillColor(INK).font("Helvetica-Bold").fontSize(8);
-  doc.text("ACCOUNT", margin + 8, y + 8);
-  doc.text("CONTACT", margin + boxW + 20, y + 8);
-
-  doc.font("Helvetica").fontSize(8.5);
-  let boxY = y + 20;
-  doc.text(`Account holder: ${input.accountLabel}`, margin + 8, boxY, { width: boxW - 16 });
-  boxY += 12;
-
-  const showLearnersList = input.isFamilyAccount || input.children.length > 1;
-  if (showLearnersList) {
-    doc.font("Helvetica-Bold").fontSize(8);
-    doc.text("Learners:", margin + 8, boxY);
-    boxY += 11;
-    doc.font("Helvetica").fontSize(8.5);
-    for (const child of input.children) {
-      doc.text(`– ${child.name} – Grade ${child.grade}`, margin + 8, boxY, { width: boxW - 16 });
-      boxY += 11;
-    }
-  } else if (input.children.length === 1) {
-    const child = input.children[0];
-    doc.text(`– ${child.name} – Grade ${child.grade}`, margin + 8, boxY, { width: boxW - 16 });
-  }
-
-  const contactName = input.contact?.name || input.accountLabel;
-  const contactEmail = input.contact?.email || "—";
-  const contactCell = input.contact?.cellphone || "—";
-  const contactRel = input.contact?.relationship || "Parent";
-  const contactAccountNo = input.contact?.accountNo || input.accountNo || "—";
-  doc.font("Helvetica").fontSize(8.5);
-  doc.text(`Name: ${contactName}`, margin + boxW + 20, y + 20, { width: boxW - 16 });
-  doc.text(`Email: ${contactEmail}`, margin + boxW + 20, y + 32, { width: boxW - 16 });
-  doc.text(`Cell: ${contactCell}`, margin + boxW + 20, y + 44, { width: boxW - 16 });
-  doc.text(`Relationship: ${contactRel}`, margin + boxW + 20, y + 56, { width: boxW - 16 });
-  doc.text(`Account No: ${contactAccountNo}`, margin + boxW + 20, y + 68, { width: boxW - 16 });
-  y += boxH + 16;
-
-  const headers = input.isFamilyAccount
-    ? ["Date", "Type", "Learner", "Reference", "Description", "In", "Out", "Balance"]
-    : ["Date", "Type", "Reference", "Description", "In", "Out", "Balance"];
-
-  const fixedCols = input.isFamilyAccount ? [48, 40, 60, 56, 0, 48, 48, 60] : [52, 44, 68, 0, 50, 50, 64];
-  const fixedSum = fixedCols.reduce((s, w) => s + (w || 0), 0);
-  const descW = Math.max(72, contentW - fixedSum);
-  const colWidths = input.isFamilyAccount
-    ? [48, 40, 60, 56, descW, 48, 48, 60]
-    : [52, 44, 68, descW, 50, 50, 64];
-
-  const rowH = 16;
-  const bottomLimit = pageH - margin - 10;
-
-  const ensureSpace = (needed: number) => {
-    if (y + needed <= bottomLimit) return;
-    doc.addPage();
-    y = margin;
-    drawTableHeader(doc, headers, colWidths, margin, y, rowH);
-    y += rowH;
+  const layout: PageLayout = {
+    pageW: doc.page.width,
+    pageH: doc.page.height,
+    margin: PAGE_MARGIN_PT,
+    contentW: doc.page.width - PAGE_MARGIN_PT * 2,
+    bottomLimit: doc.page.height - PAGE_MARGIN_PT - FOOTER_RESERVE_PT,
   };
 
-  drawTableHeader(doc, headers, colWidths, margin, y, rowH);
-  y += rowH;
+  const { headers, colWidths } = buildColumnLayout(layout.contentW, input.isFamilyAccount);
+  const leftW = layout.contentW * 0.55;
+  const rightW = layout.contentW - leftW - 12;
+  const leftX = layout.margin;
+  const rightX = layout.margin + leftW + 12;
+
+  let y = layout.margin;
+
+  const logoBuf = await loadSchoolLogoBuffer(input.school.logoUrl);
+
+  const drawCompactContinuationHeader = () => {
+    const schoolName = String(input.school.name || "School").trim() || "School";
+    doc.fillColor(INK).font("Helvetica-Bold").fontSize(10);
+    doc.text(schoolName, leftX, y, { width: layout.contentW * 0.6 });
+    doc.text("STATEMENT (continued)", rightX, y, { width: rightW, align: "right" });
+    y += 16;
+    doc.strokeColor(GOLD).lineWidth(0.75).moveTo(layout.margin, y).lineTo(layout.pageW - layout.margin, y).stroke();
+    y += 10;
+    y = drawTableHeader(doc, headers, colWidths, layout.margin, y);
+  };
+
+  const drawFullHeader = () => {
+    let leftY = layout.margin;
+    let rightY = layout.margin;
+
+    if (logoBuf) {
+      try {
+        doc.image(logoBuf, leftX, leftY, { fit: [STATEMENT_LOGO_MAX_PT, STATEMENT_LOGO_MAX_PT] });
+        leftY += STATEMENT_LOGO_MAX_PT + STATEMENT_LOGO_GAP_PT;
+      } catch (err) {
+        console.warn("[statement-pdf] school logo embed failed:", err);
+      }
+    }
+
+    const schoolName = String(input.school.name || "School").trim() || "School";
+    doc.fillColor(INK).font("Helvetica-Bold").fontSize(SCHOOL_NAME_FONT_SIZE);
+    leftY = drawStackedTextLine(doc, schoolName, leftX, leftY, leftW, SCHOOL_NAME_LINE_GAP_PT, { bold: true });
+
+    doc.font("Helvetica").fontSize(CONTACT_FONT_SIZE).fillColor(MUTED);
+    for (const line of schoolHeaderContactLines(input.school)) {
+      leftY = drawStackedTextLine(doc, line, leftX, leftY, leftW, CONTACT_LINE_GAP_PT, { color: MUTED });
+    }
+
+    doc.fillColor(INK).font("Helvetica-Bold").fontSize(18);
+    doc.text("STATEMENT", rightX, rightY, { width: rightW, align: "right" });
+    rightY += 24;
+
+    doc.font("Helvetica").fontSize(8.5).fillColor(MUTED);
+    doc.text(`Account number: ${input.accountNo}`, rightX, rightY, { width: rightW, align: "right" });
+    rightY += 11;
+    doc.text(`Statement period: ${input.period}`, rightX, rightY, { width: rightW, align: "right" });
+    rightY += 11;
+    doc.text(`Statement date: ${input.statementDate}`, rightX, rightY, { width: rightW, align: "right" });
+    rightY += 11;
+
+    y = Math.max(leftY, rightY) + 12;
+    doc.strokeColor(GOLD).lineWidth(1).moveTo(layout.margin, y).lineTo(layout.pageW - layout.margin, y).stroke();
+    y += 14;
+  };
+
+  const ensureSpace = (needed: number, repeatTableHeader = true) => {
+    if (y + needed <= layout.bottomLimit) return;
+    doc.addPage();
+    y = layout.margin;
+    if (repeatTableHeader) {
+      drawCompactContinuationHeader();
+    }
+  };
+
+  drawFullHeader();
+
+  const boxGap = 12;
+  const boxW = (layout.contentW - boxGap) / 2;
+  const accountLines = accountCardLines(input);
+  const contactLines = contactCardLines(input);
+  const innerCardW = boxW - CARD_PAD_PT * 2;
+  const boxH = Math.max(
+    measureCardHeight(doc, accountLines, innerCardW),
+    measureCardHeight(doc, contactLines, innerCardW)
+  );
+
+  ensureSpace(boxH + 16, false);
+  drawInfoCard(doc, "ACCOUNT", accountLines, layout.margin, y, boxW, boxH);
+  drawInfoCard(doc, "CONTACT", contactLines, layout.margin + boxW + boxGap, y, boxW, boxH);
+  y += boxH + 16;
+
+  y = drawTableHeader(doc, headers, colWidths, layout.margin, y);
 
   const transactions = input.transactions || [];
   if (!transactions.length) {
-    ensureSpace(rowH + 4);
+    ensureSpace(TABLE_ROW_MIN_PT + 8);
+    const emptyH = TABLE_ROW_MIN_PT + 6;
+    doc.strokeColor(ROW_BORDER).rect(layout.margin, y, layout.contentW, emptyH).stroke();
     doc.fillColor(MUTED).font("Helvetica").fontSize(8);
-    doc.text("No transactions for the selected period.", margin, y + 4, {
-      width: contentW,
+    doc.text("No transactions for the selected period.", layout.margin, y + 6, {
+      width: layout.contentW,
       align: "center",
     });
-    y += rowH + 8;
+    y += emptyH + 8;
   } else {
     transactions.forEach((row, index) => {
-      ensureSpace(rowH + 2);
       const values = input.isFamilyAccount
         ? [
             row.date,
             row.type,
-            row.learner || "-",
+            row.learner || "—",
             row.reference,
             row.description,
-            row.amountIn ? formatMoney(row.amountIn) : "-",
-            row.amountOut ? formatMoney(row.amountOut) : "-",
+            row.amountIn ? formatMoney(row.amountIn) : "—",
+            row.amountOut ? formatMoney(row.amountOut) : "—",
             formatBalance(row.balance),
           ]
         : [
@@ -289,38 +396,48 @@ export async function generateStatementPdfBuffer(input: StatementPdfInput): Prom
             row.type,
             row.reference,
             row.description,
-            row.amountIn ? formatMoney(row.amountIn) : "-",
-            row.amountOut ? formatMoney(row.amountOut) : "-",
+            row.amountIn ? formatMoney(row.amountIn) : "—",
+            row.amountOut ? formatMoney(row.amountOut) : "—",
             formatBalance(row.balance),
           ];
-      drawTableRow(doc, values, colWidths, margin, y, rowH, index % 2 === 1);
+
+      const rowH = measureRowHeight(doc, values, colWidths);
+      ensureSpace(rowH + 2);
+      drawTableRow(doc, values, colWidths, layout.margin, y, rowH, index % 2 === 1);
       y += rowH;
     });
   }
 
-  ensureSpace(50);
-  y += 10;
-  const totalW = 200;
-  const totalX = pageW - margin - totalW;
-  doc.roundedRect(totalX, y, totalW, 36, 4).strokeColor(GOLD).stroke();
-  doc.fillColor("#991b1b").font("Helvetica-Bold").fontSize(11);
-  doc.text("Closing balance", totalX + 8, y + 12);
-  doc.text(formatMoney(input.balance), totalX + 8, y + 12, { width: totalW - 16, align: "right" });
-  y += 48;
+  const closingCardH = 40;
+  const closingGap = 12;
+  ensureSpace(closingCardH + closingGap + 20, false);
+
+  y += closingGap;
+  const totalW = Math.min(220, layout.contentW * 0.45);
+  const totalX = layout.pageW - layout.margin - totalW;
+  doc.save();
+  doc.roundedRect(totalX, y, totalW, closingCardH, 4).fill("#fff8e6").strokeColor(GOLD).lineWidth(1.25).stroke();
+  doc.restore();
+  doc.fillColor(INK).font("Helvetica-Bold").fontSize(10);
+  doc.text("Closing balance", totalX + 10, y + 14);
+  doc.font("Helvetica-Bold").fontSize(12).fillColor("#991b1b");
+  doc.text(formatMoney(input.balance), totalX + 10, y + 14, { width: totalW - 20, align: "right" });
+  y += closingCardH + 16;
 
   if (input.statementNote) {
-    ensureSpace(30);
+    ensureSpace(36, false);
     doc.fillColor(INK).font("Helvetica").fontSize(8.5);
-    doc.text(input.statementNote, margin, y, { width: contentW });
-    y += 24;
+    const noteH = doc.heightOfString(input.statementNote, { width: layout.contentW, lineGap: 1 });
+    doc.text(input.statementNote, layout.margin, y, { width: layout.contentW, lineGap: 1 });
+    y += noteH + 12;
   }
 
   doc.fillColor(MUTED).font("Helvetica").fontSize(7.5);
   doc.text(
     `Statement generated for ${input.school.name || "School"} via EduClear.`,
-    margin,
-    pageH - margin,
-    { width: contentW, align: "center" }
+    layout.margin,
+    layout.pageH - layout.margin - 10,
+    { width: layout.contentW, align: "center" }
   );
 
   return new Promise((resolve, reject) => {

@@ -1,8 +1,9 @@
 import * as React from "react";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 
 import { useNavigate } from "react-router-dom";
+import { consumeInactivityLogoutMessage } from "./auth/sessionLogout";
 
 import { apiFetch } from "./api";
 import { clearSchoolSession, syncSchoolSessionFromLoginResponse } from "./auth/schoolSession";
@@ -41,7 +42,10 @@ export default function Login({ onLoggedIn }: Props) {
 
   const [loading, setLoading] = useState(false);
 
-
+  useEffect(() => {
+    const inactivityMessage = consumeInactivityLogoutMessage();
+    if (inactivityMessage) setStatus(inactivityMessage);
+  }, []);
 
   const handleLogin = async (e: React.FormEvent<HTMLFormElement>) => {
 

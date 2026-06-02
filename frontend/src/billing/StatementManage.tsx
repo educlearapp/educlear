@@ -1340,7 +1340,7 @@ export default function StatementManage({
           disabled={pdfDownloading}
           aria-busy={pdfDownloading}
         >
-          {pdfDownloading ? "Generating PDF..." : "Download PDF"}
+          {pdfDownloading ? "Generating PDF…" : "Download PDF"}
         </button>
         <span
           style={{ position: "relative", display: "inline-flex", alignItems: "center" }}
