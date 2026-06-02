@@ -1,6 +1,7 @@
 import { Router } from "express";
 import {
   EMAIL_PROVIDER_PRESETS,
+  formatSmtpError,
   getPublicSchoolEmailSettings,
   saveSchoolEmailSettings,
   testSchoolEmailConnection,
@@ -93,8 +94,9 @@ router.post("/test", async (req, res) => {
       settings,
     });
   } catch (error) {
+    const message = formatSmtpError(error);
     console.error("[school-email-settings] POST test failed:", error);
-    return res.status(500).json({ success: false, error: "Test email failed" });
+    return res.status(500).json({ success: false, error: message });
   }
 });
 

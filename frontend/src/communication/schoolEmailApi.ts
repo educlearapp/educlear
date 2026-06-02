@@ -2,6 +2,30 @@ import { API_URL } from "../api";
 
 const BASE = `${API_URL}/api/school-email-settings`;
 
+function normalizeFetchError(error: unknown, context: string): Error {
+  if (error instanceof Error) {
+    if (error.name === "AbortError") {
+      return new Error(
+        `${context} timed out. The server may be blocked from reaching your SMTP host (common on Render free tier). Check host, port, and credentials.`
+      );
+    }
+    const msg = String(error.message || "").trim();
+    if (
+      !msg ||
+      msg === "Load failed" ||
+      msg === "Failed to fetch" ||
+      msg === "NetworkError when attempting to fetch resource." ||
+      msg === "Network request failed"
+    ) {
+      return new Error(
+        `${context} could not reach the EduClear server (${API_URL}). Check your connection, or retry — if SMTP is blocked in production, the backend will return a detailed error after connecting.`
+      );
+    }
+    return error;
+  }
+  return new Error(`${context} failed`);
+}
+
 async function request<T>(
   path: string,
   options: RequestInit = {},
@@ -12,23 +36,40 @@ async function request<T>(
   let res: Response;
   try {
     res = await fetch(`${BASE}${path}`, {
+      ...options,
       headers: { "Content-Type": "application/json", ...(options.headers || {}) },
       signal: controller.signal,
-      ...options,
     });
   } catch (e: unknown) {
-    if (e instanceof Error && e.name === "AbortError") {
-      throw new Error("Email request timed out. Check SMTP host, port, and credentials.");
-    }
-    throw e;
+    throw normalizeFetchError(e, "Email request");
   } finally {
     window.clearTimeout(timer);
   }
-  const data = await res.json().catch(() => ({}));
+  const text = await res.text();
+  let data: Record<string, unknown> = {};
+  if (text) {
+    try {
+      data = JSON.parse(text) as Record<string, unknown>;
+    } catch {
+      if (!res.ok) {
+        throw new Error(
+          text.trim().slice(0, 300) || `Request failed (${res.status})`
+        );
+      }
+    }
+  }
   if (!res.ok) {
-    const err = new Error(String((data as { error?: string; errors?: string[] })?.error || (data as any)?.errors?.join?.(", ") || `Request failed (${res.status})`));
-    (err as any).setupRequired = Boolean((data as { setupRequired?: boolean }).setupRequired);
-    (err as any).errors = (data as { errors?: string[] }).errors;
+    const err = new Error(
+      String(
+        data.error ||
+          (Array.isArray(data.errors) ? data.errors.join(", ") : "") ||
+          `Request failed (${res.status})`
+      )
+    );
+    (err as { setupRequired?: boolean }).setupRequired = Boolean(data.setupRequired);
+    (err as { errors?: string[] }).errors = Array.isArray(data.errors)
+      ? (data.errors as string[])
+      : undefined;
     throw err;
   }
   return data as T;
@@ -113,7 +154,7 @@ export async function testSchoolEmailConnection(schoolId: string, testTo?: strin
       method: "POST",
       body: JSON.stringify({ schoolId, testTo }),
     },
-    45_000
+    30_000
   );
 }
 

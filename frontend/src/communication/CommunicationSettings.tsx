@@ -316,13 +316,21 @@ export default function CommunicationSettings({
     setError("");
     setMessage("");
     try {
-      await persistSmtpSettings({ quiet: true });
+      try {
+        await persistSmtpSettings({ quiet: true });
+      } catch (saveErr: unknown) {
+        const saveMessage =
+          saveErr instanceof Error
+            ? saveErr.message
+            : "Could not save SMTP settings before sending the test email.";
+        throw new Error(`Save before test failed: ${saveMessage}`);
+      }
+
       const res = await testSchoolEmailConnection(schoolId, testEmailTo.trim() || undefined);
-      let nextSmtp: SmtpSettings | null = null;
       if (res.settings) {
-        nextSmtp = applySmtpFromServer(res.settings);
+        applySmtpFromServer(res.settings);
       } else if (res.lastTestedAt && smtpSettings) {
-        nextSmtp = applySmtpFromServer(
+        applySmtpFromServer(
           normalizeSchoolEmailSettings({
             ...smtpSettings,
             tested: true,
@@ -333,26 +341,20 @@ export default function CommunicationSettings({
           })
         );
       }
-      const fresh = await fetchSchoolEmailSettings(schoolId).catch(() => null);
-      if (fresh?.settings) {
-        nextSmtp = applySmtpFromServer(fresh.settings);
-      }
-      if (!isSchoolEmailReadyForUi(nextSmtp)) {
-        setError("Test email was sent but setup status did not update. Save SMTP settings and try again.");
-        return;
-      }
+
       setMessage(
         res.sentTo
-          ? `Test email sent to ${res.sentTo}. Email setup is complete.`
-          : res.message || "Test email sent. Email setup is complete."
+          ? `Test email sent successfully to ${res.sentTo}.`
+          : res.message || "Test email sent successfully."
       );
-    } catch (e: any) {
-      if (e?.setupRequired) {
+    } catch (e: unknown) {
+      const err = e as { setupRequired?: boolean; message?: string };
+      if (err?.setupRequired) {
         setError(
           "Email not configured: enter SMTP host, username, and app password, save, then send a test email."
         );
       } else {
-        setError(e?.message || "Test email failed");
+        setError(err?.message || "Test email failed");
       }
     } finally {
       setSmtpTestLoading(false);

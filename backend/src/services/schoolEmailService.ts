@@ -1,6 +1,8 @@
 import nodemailer from "nodemailer";
 import type { SchoolEmailSettings } from "@prisma/client";
+import type SMTPTransport from "nodemailer/lib/smtp-transport";
 import { prisma } from "../prisma";
+import { isProductionRuntime } from "./runtime";
 import {
   resolveSchoolReplyToEmail,
   smtpSenderFromPublic,
@@ -84,9 +86,26 @@ export const EMAIL_PROVIDER_PRESETS: Record<
 };
 
 const MASKED_PASSWORD = "********";
-const SMTP_TRANSPORT_TIMEOUT_MS = 15_000;
+const SMTP_TRANSPORT_TIMEOUT_MS = 12_000;
+const SMTP_SEND_DEADLINE_MS = 20_000;
 const SETUP_REQUIRED_MESSAGE =
   "Email is not configured for this school. Open Communication → Email (SMTP), save your provider settings, then use Send Test Email.";
+
+const RENDER_SMTP_BLOCKED_HINT =
+  "Outbound SMTP (ports 587/465/25) may be blocked on Render free-tier web services. Upgrade to a paid Render instance, or verify SMTP from localhost.";
+
+function isLikelySmtpNetworkFailure(code: string, message: string): boolean {
+  const normalized = `${code} ${message}`.toUpperCase();
+  return (
+    normalized.includes("ETIMEDOUT") ||
+    normalized.includes("ECONNREFUSED") ||
+    normalized.includes("ECONNRESET") ||
+    normalized.includes("ESOCKET") ||
+    normalized.includes("ETIMEOUT") ||
+    normalized.includes("CONNECTION TIMED OUT") ||
+    normalized.includes("CONNECTION TIMEOUT")
+  );
+}
 
 export function formatSmtpError(e: unknown): string {
   if (!e) return "SMTP error";
@@ -97,9 +116,34 @@ export function formatSmtpError(e: unknown): string {
     if (err.responseCode) parts.push(`SMTP ${err.responseCode}`);
     const response = String(err.response || "").trim();
     if (response) parts.push(response.slice(0, 240));
+    if (isLikelySmtpNetworkFailure(String(err.code || ""), err.message) && isProductionRuntime()) {
+      parts.push(RENDER_SMTP_BLOCKED_HINT);
+    }
     return parts.join(" — ");
   }
   return String(e);
+}
+
+function withSendDeadline<T>(promise: Promise<T>, label: string, deadlineMs = SMTP_SEND_DEADLINE_MS): Promise<T> {
+  return new Promise<T>((resolve, reject) => {
+    const timer = setTimeout(() => {
+      reject(
+        new Error(
+          `${label} timed out after ${Math.round(deadlineMs / 1000)}s. Check SMTP host, port, TLS mode, and credentials.`
+        )
+      );
+    }, deadlineMs);
+    promise.then(
+      (value) => {
+        clearTimeout(timer);
+        resolve(value);
+      },
+      (error) => {
+        clearTimeout(timer);
+        reject(error);
+      }
+    );
+  });
 }
 
 /** Gmail/Outlook/etc. typically authenticate with the school From address. */
@@ -435,7 +479,7 @@ function formatFromAddress(fromName: string, fromEmail: string) {
 export function createTransportFromSettings(row: SchoolEmailSettings) {
   const port = row.smtpPort;
   const secure = row.smtpSecure || port === 465;
-  return nodemailer.createTransport({
+  const transportOptions: SMTPTransport.Options = {
     host: row.smtpHost,
     port,
     secure,
@@ -447,7 +491,23 @@ export function createTransportFromSettings(row: SchoolEmailSettings) {
     connectionTimeout: SMTP_TRANSPORT_TIMEOUT_MS,
     greetingTimeout: SMTP_TRANSPORT_TIMEOUT_MS,
     socketTimeout: SMTP_TRANSPORT_TIMEOUT_MS,
-  });
+    tls: {
+      minVersion: "TLSv1.2",
+    },
+  };
+  return nodemailer.createTransport(transportOptions);
+}
+
+export async function sendMailWithSettings(
+  row: SchoolEmailSettings,
+  mail: Parameters<ReturnType<typeof nodemailer.createTransport>["sendMail"]>[0]
+) {
+  const transporter = createTransportFromSettings(row);
+  try {
+    return await withSendDeadline(transporter.sendMail(mail), "SMTP send");
+  } finally {
+    transporter.close();
+  }
 }
 
 export type SendSchoolEmailInput = {
@@ -482,11 +542,10 @@ export async function sendSchoolEmail(schoolId: string, input: SendSchoolEmailIn
     throw err;
   }
 
-  const transporter = createTransportFromSettings(row);
   const from = formatFromAddress(row.fromName, row.fromEmail);
   const replyTo = await resolveReplyToForSchoolSend(schoolId);
 
-  return transporter.sendMail({
+  return sendMailWithSettings(row, {
     from,
     to: input.to,
     subject: input.subject,
@@ -508,6 +567,7 @@ export async function testSchoolEmailConnection(schoolId: string, testTo?: strin
   }
 
   try {
+    console.info(`[school-email] sending test email schoolId=${schoolId} to=${to} host=${row.smtpHost}:${row.smtpPort}`);
     const result = await sendSchoolEmail(schoolId, {
       to,
       subject: "EduClear — Test Email",
@@ -516,6 +576,7 @@ export async function testSchoolEmailConnection(schoolId: string, testTo?: strin
         <p>If you received this email, your school's SMTP settings are working.</p>
       </div>`,
     });
+    console.info(`[school-email] test email sent schoolId=${schoolId} messageId=${result.messageId || "n/a"}`);
     const passedAt = new Date();
     const updated = await prisma.schoolEmailSettings.update({
       where: { schoolId },
