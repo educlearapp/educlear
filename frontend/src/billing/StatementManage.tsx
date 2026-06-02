@@ -296,6 +296,7 @@ export default function StatementManage({
   const [selectedTransactionKey, setSelectedTransactionKey] = useState<string | null>(null);
   const [undoBusy, setUndoBusy] = useState(false);
   const [undoNotice, setUndoNotice] = useState("");
+  const [pdfDownloading, setPdfDownloading] = useState(false);
   const emailReady = isSchoolEmailReadyForUi(emailReadiness);
 
   const loadEmailReadiness = useCallback(async () => {
@@ -991,6 +992,7 @@ export default function StatementManage({
   };
 
   const handleDownloadStatement = async () => {
+    if (pdfDownloading) return;
     setActionNotice("");
     const anchorId = familyLearnerIds[0] || learnerId;
     if (!schoolId || !anchorId) {
@@ -998,6 +1000,7 @@ export default function StatementManage({
       return;
     }
     const filename = `${(accountRef || accountNo || "statement").replace(/[^\w.-]+/g, "_")}-statement.pdf`;
+    setPdfDownloading(true);
     try {
       await downloadSchoolStatementPdf(
         schoolId,
@@ -1009,6 +1012,8 @@ export default function StatementManage({
       );
     } catch (e: unknown) {
       setActionNotice((e as Error).message || "Could not download statement PDF.");
+    } finally {
+      setPdfDownloading(false);
     }
   };
 
@@ -1324,8 +1329,18 @@ export default function StatementManage({
         <button type="button" style={buttonStyle} onClick={() => void handlePrintStatement()}>
           Print Statement
         </button>
-        <button type="button" style={buttonStyle} onClick={() => void handleDownloadStatement()}>
-          Download PDF
+        <button
+          type="button"
+          style={{
+            ...buttonStyle,
+            opacity: pdfDownloading ? 0.72 : 1,
+            cursor: pdfDownloading ? "not-allowed" : "pointer",
+          }}
+          onClick={() => void handleDownloadStatement()}
+          disabled={pdfDownloading}
+          aria-busy={pdfDownloading}
+        >
+          {pdfDownloading ? "Generating PDF..." : "Download PDF"}
         </button>
         <span
           style={{ position: "relative", display: "inline-flex", alignItems: "center" }}

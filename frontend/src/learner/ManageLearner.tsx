@@ -10,6 +10,7 @@ import {
   normaliseDateForInput,
 } from "./learnerIdentity";
 import "../AddLearner.css";
+import LearnerBillingPlanTab from "./LearnerBillingPlanTab";
 
 const GOLD = "#d4af37";
 
@@ -180,6 +181,7 @@ function normalizeLearnerForManage(raw: any) {
     nationality: raw.citizenship || raw.nationality || "",
     enrollmentStatus: raw.enrollmentStatus || "",
     parents: Array.isArray(raw.parents) ? raw.parents : [],
+    billingPlan: Array.isArray(raw.billingPlan) ? raw.billingPlan : [],
   };
 }
 
@@ -1535,18 +1537,14 @@ export default function ManageLearner({
   
   
   
+            ) : profileTab === "billing" ? (
+              <LearnerBillingPlanTab
+                learner={learner}
+                onLearnerUpdated={persistLearner}
+                setLearners={setLearners}
+              />
             ) : (
-  
-  
-  
               <div style={{ padding: "28px", color: "#64748b", fontWeight: 900 }}>
-  
-  
-  
-                {profileTab === "billing" && "Billing plan information will be connected here."}
-  
-  
-  
                 {profileTab === "medical" && "Medical information will be connected here."}
   
   
