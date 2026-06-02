@@ -84,8 +84,35 @@ export const EMAIL_PROVIDER_PRESETS: Record<
 };
 
 const MASKED_PASSWORD = "********";
+const SMTP_TRANSPORT_TIMEOUT_MS = 15_000;
 const SETUP_REQUIRED_MESSAGE =
   "Email is not configured for this school. Open Communication → Email (SMTP), save your provider settings, then use Send Test Email.";
+
+export function formatSmtpError(e: unknown): string {
+  if (!e) return "SMTP error";
+  if (e instanceof Error) {
+    const err = e as Error & { code?: string; response?: string; responseCode?: number };
+    const parts = [err.message].filter(Boolean);
+    if (err.code) parts.push(`(${err.code})`);
+    if (err.responseCode) parts.push(`SMTP ${err.responseCode}`);
+    const response = String(err.response || "").trim();
+    if (response) parts.push(response.slice(0, 240));
+    return parts.join(" — ");
+  }
+  return String(e);
+}
+
+/** Gmail/Outlook/etc. typically authenticate with the school From address. */
+function defaultSmtpUserFromFromEmail(
+  provider: EmailProviderType,
+  smtpUser: string,
+  fromEmail: string
+): string {
+  const user = String(smtpUser || "").trim();
+  if (user) return user;
+  if (provider === "custom") return "";
+  return String(fromEmail || "").trim();
+}
 
 export function normalizeProvider(raw: string): EmailProviderType | null {
   const p = String(raw || "")
@@ -261,6 +288,7 @@ export function toPublicSettings(row: SchoolEmailSettings | null, schoolId: stri
 
 /** Build public SMTP settings from DB — does not mutate rows (avoids clearing test status on read). */
 export async function buildPublicSchoolEmailSettings(schoolId: string): Promise<SchoolEmailSettingsPublic> {
+  await seedSchoolEmailDefaults(schoolId);
   const [row, branding] = await Promise.all([
     getSchoolEmailSettingsRow(schoolId),
     loadSchoolEmailBranding(schoolId),
@@ -360,7 +388,11 @@ export async function saveSchoolEmailSettings(schoolId: string, input: SchoolEma
     mergedInput.smtpPass = existing?.smtpPass || "";
   }
 
-  const resolved = applyProviderDefaults(provider, mergedInput);
+  let resolved = applyProviderDefaults(provider, mergedInput);
+  const smtpUser = defaultSmtpUserFromFromEmail(provider, resolved.smtpUser, resolved.fromEmail);
+  if (smtpUser !== resolved.smtpUser) {
+    resolved = { ...resolved, smtpUser };
+  }
   const errors = validateSchoolEmailSettings(resolved, {
     requirePassword: true,
     existingPass: existing?.smtpPass,
@@ -412,6 +444,9 @@ export function createTransportFromSettings(row: SchoolEmailSettings) {
       user: row.smtpUser,
       pass: row.smtpPass,
     },
+    connectionTimeout: SMTP_TRANSPORT_TIMEOUT_MS,
+    greetingTimeout: SMTP_TRANSPORT_TIMEOUT_MS,
+    socketTimeout: SMTP_TRANSPORT_TIMEOUT_MS,
   });
 }
 
@@ -497,7 +532,8 @@ export async function testSchoolEmailConnection(schoolId: string, testTo?: strin
       lastTestedAt: passedAt.toISOString(),
     };
   } catch (e: unknown) {
-    const message = e instanceof Error ? e.message : String(e);
+    const message = formatSmtpError(e);
+    console.error(`[school-email] test failed schoolId=${schoolId} to=${to}:`, e);
     return { ok: false as const, error: message };
   }
 }

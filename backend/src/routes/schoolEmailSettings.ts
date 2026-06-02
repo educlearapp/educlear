@@ -71,6 +71,10 @@ router.post("/test", async (req, res) => {
 
     const result = await testSchoolEmailConnection(schoolId, testTo || undefined);
     if (!result.ok) {
+      console.error(
+        `[school-email-settings] test failed schoolId=${schoolId}:`,
+        result.error
+      );
       const status = result.setupRequired ? 409 : 400;
       return res.status(status).json({
         success: false,

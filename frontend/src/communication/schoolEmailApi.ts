@@ -2,11 +2,28 @@ import { API_URL } from "../api";
 
 const BASE = `${API_URL}/api/school-email-settings`;
 
-async function request<T>(path: string, options: RequestInit = {}): Promise<T> {
-  const res = await fetch(`${BASE}${path}`, {
-    headers: { "Content-Type": "application/json", ...(options.headers || {}) },
-    ...options,
-  });
+async function request<T>(
+  path: string,
+  options: RequestInit = {},
+  timeoutMs = 60_000
+): Promise<T> {
+  const controller = new AbortController();
+  const timer = window.setTimeout(() => controller.abort(), timeoutMs);
+  let res: Response;
+  try {
+    res = await fetch(`${BASE}${path}`, {
+      headers: { "Content-Type": "application/json", ...(options.headers || {}) },
+      signal: controller.signal,
+      ...options,
+    });
+  } catch (e: unknown) {
+    if (e instanceof Error && e.name === "AbortError") {
+      throw new Error("Email request timed out. Check SMTP host, port, and credentials.");
+    }
+    throw e;
+  } finally {
+    window.clearTimeout(timer);
+  }
   const data = await res.json().catch(() => ({}));
   if (!res.ok) {
     const err = new Error(String((data as { error?: string; errors?: string[] })?.error || (data as any)?.errors?.join?.(", ") || `Request failed (${res.status})`));
@@ -90,10 +107,14 @@ export async function testSchoolEmailConnection(schoolId: string, testTo?: strin
     sentTo?: string;
     lastTestedAt?: string | null;
     settings: SchoolEmailSettings;
-  }>("/test", {
-    method: "POST",
-    body: JSON.stringify({ schoolId, testTo }),
-  });
+  }>(
+    "/test",
+    {
+      method: "POST",
+      body: JSON.stringify({ schoolId, testTo }),
+    },
+    45_000
+  );
 }
 
 /**
