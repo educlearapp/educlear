@@ -873,7 +873,7 @@ const [selectedLearnerReport, setSelectedLearnerReport] = useState<any>(null);
 
 
 
-  const [feeSchool, setFeeSchool] = useState("No record found");
+  const [feeSchool, setFeeSchool] = useState("-");
 
 
 
@@ -886,6 +886,23 @@ const [selectedLearnerReport, setSelectedLearnerReport] = useState<any>(null);
 
 
   const [feeLoading, setFeeLoading] = useState(false);
+
+
+
+  const [feeLookupDone, setFeeLookupDone] = useState(false);
+
+
+
+  type FeeCheckResultCard = {
+    parentName: string;
+    schoolName: string;
+    familyAccountNumber: string;
+    outstandingAmount: number;
+    status: "GREEN" | "AMBER" | "RED";
+    learners: Array<{ id: string; name: string }>;
+  };
+
+  const [feeResults, setFeeResults] = useState<FeeCheckResultCard[]>([]);
 
 
 
@@ -1987,93 +2004,64 @@ const [selectedLearnerReport, setSelectedLearnerReport] = useState<any>(null);
 
 
   const handleFeeCheck = async () => {
+    const raw = parentIdInput.trim();
+    if (!raw || feeLoading) return;
 
-
+    setFeeLoading(true);
+    setFeeLookupDone(false);
+    setFeeMessage("");
+    setFeeResults([]);
 
     try {
-
-
-
-      if (!parentIdInput.trim()) return;
-
-
-
-      setFeeLoading(true);
-
-
-
-      const res = await fetch(`${API_URL}/api/parents/fee-check/${parentIdInput}`);
-
-
-
+      const res = await fetch(`${API_URL}/api/parents/fee-check/${encodeURIComponent(raw)}`);
       const data = await res.json();
+      const rows: FeeCheckResultCard[] = Array.isArray(data?.results)
+        ? data.results.map((row: FeeCheckResultCard) => ({
+            parentName: String(row.parentName || data.parentName || "-"),
+            schoolName: String(row.schoolName || data.school || "-"),
+            familyAccountNumber: String(row.familyAccountNumber || "—"),
+            outstandingAmount: Number(row.outstandingAmount || 0),
+            status: row.status === "RED" || row.status === "AMBER" ? row.status : "GREEN",
+            learners: Array.isArray(row.learners) ? row.learners : [],
+          }))
+        : [];
 
+      setFeeLookupDone(true);
 
-
-      setFeeStatus(data.status || "GREEN");
-
-
-
-      setFeeOutstandingAmount(Number(data.outstandingAmount || 0));
-
-
-
-      setFeeSchool(data.school || "No record found");
-
-
-
-      setFeeParentName(data.parentName || "-");
-
-
-
-      if (data.status === "RED") {
-
-
-
-        setFeeMessage("Immediate action required – high outstanding balance");
-
-
-
-      } else if (data.status === "AMBER") {
-
-
-
-        setFeeMessage("Payment arrangement required");
-
-
-
-      } else {
-
-
-
-        setFeeMessage("Account in good standing");
-
-
-
+      if (!data?.found || !rows.length) {
+        setFeeStatus("GREEN");
+        setFeeOutstandingAmount(0);
+        setFeeSchool("No record found");
+        setFeeParentName("-");
+        setFeeMessage("No record found");
+        setFeeResults([]);
+        return;
       }
 
+      const aggregateStatus =
+        data.status === "RED" || data.status === "AMBER" ? data.status : "GREEN";
+      setFeeStatus(aggregateStatus);
+      setFeeOutstandingAmount(Number(data.totalOutstanding ?? data.outstandingAmount ?? 0));
+      setFeeSchool(rows.length === 1 ? rows[0].schoolName : `${rows.length} accounts`);
+      setFeeParentName(rows[0].parentName || "-");
+      setFeeResults(rows);
 
-
+      if (aggregateStatus === "RED") {
+        setFeeMessage("Immediate action required – high outstanding balance");
+      } else if (aggregateStatus === "AMBER") {
+        setFeeMessage("Payment arrangement required");
+      } else {
+        setFeeMessage("Account in good standing");
+      }
     } catch {
-
-
-
-      setFeeMessage("");
-
-
-
+      setFeeLookupDone(true);
+      setFeeMessage("Unable to complete fee check. Please try again.");
+      setFeeSchool("-");
+      setFeeParentName("-");
+      setFeeResults([]);
     } finally {
-
-
-
       setFeeLoading(false);
-
-
-
     }
-
-
-
   };
 
 
@@ -14136,213 +14124,105 @@ const renderMoreSettings = () => {
 
 
           <div className="fees-status-results">
-
-
-
-            <div className="fees-status-line">
-
-
-
-              <span className="fees-label">Status:</span>
-
-
-
-              <span
-
-
-
-                className={`status-pill ${
-
-
-
-                  feeStatus === "RED"
-
-
-
-                    ? "status-red"
-
-
-
-                    : feeStatus === "AMBER"
-
-
-
-                    ? "status-amber"
-
-
-
-                    : "status-green"
-
-
-
-                }`}
-
-
-
-              >
-
-
-
-                {feeStatus}
-
-
-
-              </span>
-
-
-
-            </div>
-
-
-
-            {feeMessage && (
-
-
-
-              <div
-
-
-
-                style={{
-
-
-
-                  marginTop: "10px",
-
-
-
-                  padding: "12px 16px",
-
-
-
-                  borderRadius: "10px",
-
-
-
-                  fontWeight: 700,
-
-
-
-                  width: "fit-content",
-
-
-
-                  backgroundColor:
-
-
-
-                    feeStatus === "RED"
-
-
-
-                      ? "#ffe5e5"
-
-
-
-                      : feeStatus === "AMBER"
-
-
-
-                      ? "#fff4e5"
-
-
-
-                      : "#e6f7ec",
-
-
-
-                  color:
-
-
-
-                    feeStatus === "RED"
-
-
-
-                      ? "#cc0000"
-
-
-
-                      : feeStatus === "AMBER"
-
-
-
-                      ? "#b36b00"
-
-
-
-                      : "#1e7e34",
-
-
-
-                }}
-
-
-
-              >
-
-
-
-                {feeMessage}
-
-
-
-              </div>
-
-
-
-            )}
-
-
-
-            <div className="fees-status-line">
-
-
-
-              <span className="fees-label">Outstanding Amount:</span>
-
-
-
-              <strong>R {feeOutstandingAmount.toLocaleString()}</strong>
-
-
-
-            </div>
-
-
-
-            <div className="fees-status-line">
-
-
-
-              <span className="fees-label">School:</span>
-
-
-
-              <span>{feeSchool}</span>
-
-
-
-            </div>
-
-
-
-            <div className="fees-status-line">
-
-
-
-              <span className="fees-label">Parent:</span>
-
-
-
-              <span>{feeParentName}</span>
-
-
-
-            </div>
-
-
-
+            {feeLoading ? (
+              <p style={{ marginTop: 12, fontWeight: 700, color: "#6b7280" }}>Checking fee status…</p>
+            ) : null}
+
+            {!feeLoading && feeLookupDone && feeResults.length === 0 ? (
+              <p style={{ marginTop: 12, fontWeight: 800, color: "#6b7280" }}>No record found</p>
+            ) : null}
+
+            {!feeLoading && feeResults.length > 0 ? (
+              <>
+                {feeResults.length > 1 ? (
+                  <div className="fees-status-line" style={{ marginTop: 12 }}>
+                    <span className="fees-label">Total outstanding (all accounts):</span>
+                    <strong>R {feeOutstandingAmount.toLocaleString()}</strong>
+                  </div>
+                ) : null}
+
+                {feeResults.map((row, index) => (
+                  <div
+                    key={`${row.schoolName}-${row.familyAccountNumber}-${index}`}
+                    style={{
+                      marginTop: 14,
+                      padding: "14px 16px",
+                      borderRadius: 12,
+                      border: "1px solid #e5e7eb",
+                      background: "#fafafa",
+                    }}
+                  >
+                    <div className="fees-status-line">
+                      <span className="fees-label">Status:</span>
+                      <span
+                        className={`status-pill ${
+                          row.status === "RED"
+                            ? "status-red"
+                            : row.status === "AMBER"
+                              ? "status-amber"
+                              : "status-green"
+                        }`}
+                      >
+                        {row.status}
+                      </span>
+                    </div>
+
+                    <div className="fees-status-line">
+                      <span className="fees-label">Outstanding:</span>
+                      <strong>R {row.outstandingAmount.toLocaleString()}</strong>
+                    </div>
+
+                    <div className="fees-status-line">
+                      <span className="fees-label">School:</span>
+                      <span>{row.schoolName}</span>
+                    </div>
+
+                    <div className="fees-status-line">
+                      <span className="fees-label">Parent / guardian:</span>
+                      <span>{row.parentName}</span>
+                    </div>
+
+                    <div className="fees-status-line">
+                      <span className="fees-label">Family account:</span>
+                      <span>{row.familyAccountNumber}</span>
+                    </div>
+
+                    {row.learners.length > 0 ? (
+                      <div className="fees-status-line">
+                        <span className="fees-label">Learner(s):</span>
+                        <span>{row.learners.map((l) => l.name).join(", ")}</span>
+                      </div>
+                    ) : null}
+                  </div>
+                ))}
+
+                {feeMessage && feeMessage !== "No record found" ? (
+                  <div
+                    style={{
+                      marginTop: "10px",
+                      padding: "12px 16px",
+                      borderRadius: "10px",
+                      fontWeight: 700,
+                      width: "fit-content",
+                      backgroundColor:
+                        feeStatus === "RED"
+                          ? "#ffe5e5"
+                          : feeStatus === "AMBER"
+                            ? "#fff4e5"
+                            : "#e6f7ec",
+                      color:
+                        feeStatus === "RED"
+                          ? "#cc0000"
+                          : feeStatus === "AMBER"
+                            ? "#b36b00"
+                            : "#1e7e34",
+                    }}
+                  >
+                    {feeMessage}
+                  </div>
+                ) : null}
+              </>
+            ) : null}
           </div>
 
 
@@ -16696,20 +16576,12 @@ return (
                 ) : null}
 
                 {isSuperAdmin() ? (
-                  <>
-                    <div
-                      className={`submenu-item${location.pathname.startsWith("/super-admin/schools") ? " active" : ""}`}
-                      onClick={() => navigate("/super-admin/schools")}
-                    >
-                      Schools Management
-                    </div>
-                    <div
-                      className={`submenu-item${location.pathname.startsWith("/super-admin/migration") || location.pathname === "/migration" ? " active" : ""}`}
-                      onClick={() => navigate("/super-admin/migration")}
-                    >
-                      Migration Center
-                    </div>
-                  </>
+                  <div
+                    className={`submenu-item${location.pathname.startsWith("/super-admin/migration") || location.pathname === "/migration" ? " active" : ""}`}
+                    onClick={() => navigate("/super-admin/migration")}
+                  >
+                    Migration Center
+                  </div>
                 ) : null}
 
                 {canPage("parentPortal") ? (

@@ -1,5 +1,6 @@
 import { Router } from "express";
 import { PrismaClient } from "@prisma/client";
+import { lookupParentFeesBySaId, normalizeSaIdNumber } from "../services/parentFeeCheckService";
 
 const router = Router();
 const prisma = new PrismaClient();
@@ -12,6 +13,54 @@ function cleanBool(value: unknown, fallback: boolean) {
   if (value === undefined || value === null) return fallback;
   return Boolean(value);
 }
+
+/** GET /api/parents/fee-check/:idNumber — cross-school guardian ID fee lookup (dashboard). */
+router.get("/fee-check/:idNumber", async (req, res) => {
+  try {
+    const raw = cleanString(req.params?.idNumber);
+    if (!normalizeSaIdNumber(raw)) {
+      return res.status(400).json({
+        found: false,
+        error: "Enter a valid South African ID number",
+        results: [],
+        totalOutstanding: 0,
+        status: "GREEN",
+      });
+    }
+
+    const payload = await lookupParentFeesBySaId(raw);
+    if (!payload.found) {
+      return res.json({
+        ...payload,
+        school: "No record found",
+        parentName: "-",
+        outstandingAmount: 0,
+        message: "No record found",
+      });
+    }
+
+    const primary = payload.results[0];
+    return res.json({
+      ...payload,
+      school: primary.schoolName,
+      parentName: primary.parentName,
+      outstandingAmount: payload.totalOutstanding,
+      message: null,
+    });
+  } catch (error: unknown) {
+    console.error("PARENT FEE CHECK ERROR:", error);
+    return res.status(500).json({
+      found: false,
+      error: "Fee check failed",
+      results: [],
+      totalOutstanding: 0,
+      status: "GREEN",
+      school: "No record found",
+      parentName: "-",
+      outstandingAmount: 0,
+    });
+  }
+});
 
 router.post("/", async (req, res) => {
   try {
