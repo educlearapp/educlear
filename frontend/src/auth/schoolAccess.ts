@@ -97,11 +97,12 @@ export function canAccessSchoolPage(
 ): boolean {
   if (isSuperAdmin()) return true;
   if (!user) return false;
-  if (user.appRole === "Owner") return true;
 
   if (page === "migrationCentre") {
-    return isSuperAdmin();
+    return false;
   }
+
+  if (user.appRole === "Owner") return true;
 
   const rule = PAGE_RULES[page];
   if (!rule) return false;
