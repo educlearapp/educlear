@@ -1,4 +1,4 @@
-import { useCallback, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import SchoolsSummaryCards from "../superAdmin/components/SchoolsSummaryCards";
 import SchoolsTable from "../superAdmin/components/SchoolsTable";
 import SchoolsToolbar from "../superAdmin/components/SchoolsToolbar";
@@ -223,6 +223,9 @@ export default function SuperAdminSchoolsPage() {
     onOpenDashboard,
   } = useSchoolsManagement();
 
+  const PAGE_SIZE = 10;
+  const [page, setPage] = useState(1);
+
   const [notice, setNotice] = useState<Notice | null>(null);
   const [manageSchool, setManageSchool] = useState<SchoolRecord | null>(null);
   const [savingManage, setSavingManage] = useState(false);
@@ -232,6 +235,29 @@ export default function SuperAdminSchoolsPage() {
     confirmLabel: string;
     run: () => void;
   } | null>(null);
+
+  const totalFilteredSchools = filteredSchools.length;
+  const totalPages = Math.max(1, Math.ceil(totalFilteredSchools / PAGE_SIZE));
+
+  useEffect(() => {
+    setPage(1);
+  }, [search, statusFilter, packageFilter]);
+
+  useEffect(() => {
+    setPage((current) => Math.min(Math.max(1, current), totalPages));
+  }, [totalPages]);
+
+  const paginatedSchools = useMemo(() => {
+    const start = (page - 1) * PAGE_SIZE;
+    return filteredSchools.slice(start, start + PAGE_SIZE);
+  }, [filteredSchools, page]);
+
+  const pageRangeLabel = useMemo(() => {
+    if (totalFilteredSchools === 0) return "Showing 0 of 0";
+    const start = (page - 1) * PAGE_SIZE + 1;
+    const end = Math.min(page * PAGE_SIZE, totalFilteredSchools);
+    return `Showing ${start}–${end} of ${totalFilteredSchools}`;
+  }, [page, totalFilteredSchools]);
 
   const showNotice = useCallback((title: string, message: string) => {
     setNotice({ title, message });
@@ -414,8 +440,35 @@ export default function SuperAdminSchoolsPage() {
         onAddSchool={handleAddSchool}
       />
 
+      <div className="sa-schools-pagination" role="navigation" aria-label="Schools pagination">
+        <div className="sa-schools-pagination-meta" aria-live="polite">
+          <span className="sa-schools-pagination-range">{pageRangeLabel}</span>
+          <span className="sa-schools-pagination-page">
+            Page {page} of {totalPages}
+          </span>
+        </div>
+        <div className="sa-schools-pagination-actions">
+          <button
+            type="button"
+            className="sa-schools-btn"
+            onClick={() => setPage((p) => Math.max(1, p - 1))}
+            disabled={page <= 1}
+          >
+            Previous
+          </button>
+          <button
+            type="button"
+            className="sa-schools-btn"
+            onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
+            disabled={page >= totalPages}
+          >
+            Next
+          </button>
+        </div>
+      </div>
+
       <SchoolsTable
-        schools={filteredSchools}
+        schools={paginatedSchools}
         hasRegisteredSchools={hasRegisteredSchools}
         loadError={error}
         loading={loading}
