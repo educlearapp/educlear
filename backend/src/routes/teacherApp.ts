@@ -9,6 +9,18 @@ import {
   createParentNotification,
   notifyParentsForLearner,
 } from "../services/parentPortalService";
+import {
+  assignedClassroomIdsForTeacher,
+  listTeachersForClassroom,
+} from "../utils/classroomTeachers";
+import {
+  isSchoolAdminRole,
+  normalizeTeacherVisibility,
+  shouldNotifyParents,
+  teacherCanViewItem,
+  teacherVisibilityWhere,
+  type TeacherVisibilityContext,
+} from "../utils/teacherVisibility";
 
 const uploadDir = path.join(process.cwd(), "uploads/teacher-app");
 try {
@@ -35,6 +47,8 @@ export type AssignedClassroomRow = {
   teacherEmail: string;
   learnerCount: number;
   classNameVariants: string[];
+  role: "PRIMARY" | "CO_TEACHER" | "ASSISTANT" | "LEGACY";
+  coTeacherCount: number;
 };
 
 export type TeacherAppContext = {
@@ -105,19 +119,28 @@ function allClassNameVariants(assigned: AssignedClassroomRow[]): string[] {
   return [...out];
 }
 
+function visibilityCtx(req: any): TeacherVisibilityContext {
+  const c = ctx(req);
+  return { userId: c.userId, email: c.email, role: c.role };
+}
+
 async function loadAssignedClassrooms(
   schoolId: string,
+  userId: string,
   teacherEmail: string
 ): Promise<AssignedClassroomRow[]> {
   const norm = normalizeStaffEmail(teacherEmail);
-  if (!norm) return [];
+  const classroomIds = await assignedClassroomIdsForTeacher(schoolId, userId, teacherEmail);
+  if (!classroomIds.length) return [];
 
   const rooms = await prisma.classroom.findMany({
-    where: {
-      schoolId,
-      teacherEmail: { equals: norm, mode: "insensitive" },
-    },
+    where: { schoolId, id: { in: classroomIds } },
     orderBy: { name: "asc" },
+  });
+
+  const assignments = await prisma.classroomTeacher.findMany({
+    where: { schoolId, classroomId: { in: classroomIds } },
+    select: { classroomId: true, role: true, teacherEmail: true, userId: true },
   });
 
   return Promise.all(
@@ -130,6 +153,15 @@ async function loadAssignedClassrooms(
           className: { in: classNameVariants },
         },
       });
+      const roomAssignments = assignments.filter((a) => a.classroomId === c.id);
+      const mine = roomAssignments.find(
+        (a) =>
+          a.userId === userId ||
+          (norm && normalizeStaffEmail(a.teacherEmail) === norm)
+      );
+      const legacyMatch =
+        !mine && norm && normalizeStaffEmail(c.teacherEmail) === norm;
+      const coTeacherCount = Math.max(0, roomAssignments.length - 1);
       return {
         id: c.id,
         name: c.name,
@@ -137,6 +169,8 @@ async function loadAssignedClassrooms(
         teacherEmail: c.teacherEmail,
         learnerCount,
         classNameVariants,
+        role: mine?.role ?? (legacyMatch ? "LEGACY" : "CO_TEACHER"),
+        coTeacherCount,
       };
     })
   );
@@ -154,7 +188,11 @@ async function teacherAppMiddleware(req: any, res: any, next: any) {
     });
   }
   try {
-    const assignedClassrooms = await loadAssignedClassrooms(payload.schoolId, payload.email);
+    const assignedClassrooms = await loadAssignedClassrooms(
+      payload.schoolId,
+      payload.userId,
+      payload.email
+    );
     const assignedClassNames = assignedClassrooms.map((c) => c.name);
     req.teacherCtx = {
       userId: payload.userId,
@@ -209,12 +247,21 @@ router.get("/me", async (req, res) => {
       teacherName: c.teacherName,
       teacherEmail: c.teacherEmail,
       learnerCount: c.learnerCount,
+      role: c.role,
+      coTeacherCount: c.coTeacherCount,
     }));
 
     let unreadInbox = 0;
     const normEmail = normalizeStaffEmail(email);
+    const threadWhere: Record<string, unknown> = { schoolId };
+    if (!isSchoolAdminRole(role)) {
+      threadWhere.OR = [
+        ...(normEmail ? [{ teacherEmail: { equals: normEmail, mode: "insensitive" } }] : []),
+        { assignedTeacherId: userId },
+      ];
+    }
     const threads = await prisma.parentTeacherThread.findMany({
-      where: { schoolId, teacherEmail: { equals: normEmail, mode: "insensitive" } },
+      where: threadWhere,
       select: { id: true },
     });
     for (const t of threads) {
@@ -274,13 +321,28 @@ router.get("/learners", async (req, res) => {
 
 router.get("/homework", async (req, res) => {
   try {
-    const { schoolId, assignedClassrooms } = ctx(req);
+    const teacherCtx = ctx(req);
+    const { schoolId, assignedClassrooms } = teacherCtx;
+    const vctx = visibilityCtx(req);
+    const scope = String(req.query.scope || "all").trim().toLowerCase();
     const classVariants = allClassNameVariants(assignedClassrooms);
     if (!classVariants.length) return res.json({ success: true, posts: [] });
-    const posts = await prisma.homeworkPost.findMany({
-      where: { schoolId, className: { in: classVariants } },
+    const rows = await prisma.homeworkPost.findMany({
+      where: {
+        schoolId,
+        className: { in: classVariants },
+        isDraft: false,
+        ...teacherVisibilityWhere(vctx),
+      },
       orderBy: { createdAt: "desc" },
-      take: 80,
+      take: 120,
+    });
+    const posts = rows.filter((p) => {
+      if (!teacherCanViewItem(p, vctx)) return false;
+      const mine = p.createdByTeacherId === vctx.userId || normalizeStaffEmail(p.createdBy) === normalizeStaffEmail(vctx.email);
+      if (scope === "mine") return mine;
+      if (scope === "shared") return !mine && p.visibility === "CLASS_TEACHERS";
+      return true;
     });
     return res.json({ success: true, posts });
   } catch (e) {
@@ -291,9 +353,14 @@ router.get("/homework", async (req, res) => {
 router.post("/homework", upload.array("files", 5), async (req, res) => {
   try {
     const teacherCtx = ctx(req);
-    const { schoolId, assignedClassrooms, email } = teacherCtx;
+    const { schoolId, assignedClassrooms, email, userId } = teacherCtx;
     const className = String(req.body?.className || "").trim();
     const title = String(req.body?.title || "").trim();
+    const visibility = normalizeTeacherVisibility(req.body?.visibility);
+    const isDraft =
+      req.body?.isDraft === true ||
+      req.body?.isDraft === "true" ||
+      visibility === "PRIVATE" && req.body?.publish !== "true";
     if (!title) return res.status(400).json({ success: false, error: "title required" });
     if (!assertClassAllowed(res, className, assignedClassrooms)) return;
 
@@ -314,23 +381,28 @@ router.post("/homework", upload.array("files", 5), async (req, res) => {
         dueDate: req.body?.dueDate ? new Date(String(req.body.dueDate)) : null,
         attachments: attachments.length ? attachments : undefined,
         createdBy: normalizeStaffEmail(email),
+        createdByTeacherId: userId,
+        visibility,
+        isDraft,
       },
     });
 
-    const links = await prisma.parentLearnerLink.findMany({
-      where: { schoolId, learner: { className } },
-      select: { parentId: true, learnerId: true },
-    });
-    for (const link of links) {
-      await createParentNotification({
-        schoolId,
-        parentId: link.parentId,
-        learnerId: link.learnerId,
-        type: "HOMEWORK",
-        title: "Homework uploaded",
-        message: title,
-        metadata: { homeworkId: post.id, className },
+    if (shouldNotifyParents(visibility, isDraft)) {
+      const links = await prisma.parentLearnerLink.findMany({
+        where: { schoolId, learner: { className } },
+        select: { parentId: true, learnerId: true },
       });
+      for (const link of links) {
+        await createParentNotification({
+          schoolId,
+          parentId: link.parentId,
+          learnerId: link.learnerId,
+          type: "HOMEWORK",
+          title: "Homework uploaded",
+          message: title,
+          metadata: { homeworkId: post.id, className },
+        });
+      }
     }
 
     return res.json({ success: true, post });
@@ -342,13 +414,30 @@ router.post("/homework", upload.array("files", 5), async (req, res) => {
 
 router.get("/notices", async (req, res) => {
   try {
-    const { schoolId, assignedClassrooms } = ctx(req);
+    const teacherCtx = ctx(req);
+    const { schoolId, assignedClassrooms } = teacherCtx;
+    const vctx = visibilityCtx(req);
+    const scope = String(req.query.scope || "all").trim().toLowerCase();
     const classVariants = allClassNameVariants(assignedClassrooms);
     if (!classVariants.length) return res.json({ success: true, notices: [] });
-    const notices = await prisma.schoolNotice.findMany({
-      where: { schoolId, className: { in: classVariants } },
+    const rows = await prisma.schoolNotice.findMany({
+      where: {
+        schoolId,
+        className: { in: classVariants },
+        isDraft: false,
+        ...teacherVisibilityWhere(vctx),
+      },
       orderBy: { publishedAt: "desc" },
-      take: 80,
+      take: 120,
+    });
+    const notices = rows.filter((n) => {
+      if (!teacherCanViewItem(n, vctx)) return false;
+      const mine =
+        n.createdByTeacherId === vctx.userId ||
+        normalizeStaffEmail(n.createdBy) === normalizeStaffEmail(vctx.email);
+      if (scope === "mine") return mine;
+      if (scope === "shared") return !mine && n.visibility === "CLASS_TEACHERS";
+      return true;
     });
     return res.json({ success: true, notices });
   } catch (e) {
@@ -359,11 +448,16 @@ router.get("/notices", async (req, res) => {
 router.post("/notices", upload.array("files", 5), async (req, res) => {
   try {
     const teacherCtx = ctx(req);
-    const { schoolId, email } = teacherCtx;
+    const { schoolId, email, userId } = teacherCtx;
     const className = String(req.body?.className || "").trim();
     const title = String(req.body?.title || "").trim();
     const body = String(req.body?.body || "").trim();
     const noticeTypeRaw = String(req.body?.noticeType || "CLASS").toUpperCase();
+    const visibility = normalizeTeacherVisibility(req.body?.visibility);
+    const isDraft =
+      req.body?.isDraft === true ||
+      req.body?.isDraft === "true" ||
+      (visibility === "PRIVATE" && req.body?.publish !== "true");
     if (!title) return res.status(400).json({ success: false, error: "title required" });
     if (!assertClassAllowed(res, className, teacherCtx.assignedClassrooms)) return;
 
@@ -392,33 +486,38 @@ router.post("/notices", upload.array("files", 5), async (req, res) => {
         className,
         attachments: attachments.length ? attachments : undefined,
         createdBy: normalizeStaffEmail(email),
+        createdByTeacherId: userId,
+        visibility,
+        isDraft,
       },
     });
 
-    const notifType =
-      noticeType === "ASSESSMENT"
-        ? ("ASSESSMENT" as const)
-        : noticeType === "EXAM"
-          ? ("EXAM" as const)
-          : ("SCHOOL_NOTICE" as const);
+    if (shouldNotifyParents(visibility, isDraft)) {
+      const notifType =
+        noticeType === "ASSESSMENT"
+          ? ("ASSESSMENT" as const)
+          : noticeType === "EXAM"
+            ? ("EXAM" as const)
+            : ("SCHOOL_NOTICE" as const);
 
-    const links = await prisma.parentLearnerLink.findMany({
-      where: { schoolId },
-      include: { learner: true },
-    });
-
-    for (const link of links) {
-      if (!learnerMatchesClassFilter(link.learner, { learnerId: null, grade: null, className }))
-        continue;
-      await createParentNotification({
-        schoolId,
-        parentId: link.parentId,
-        learnerId: link.learnerId,
-        type: notifType,
-        title,
-        message: fullBody.slice(0, 500),
-        metadata: { noticeId: notice.id, className },
+      const links = await prisma.parentLearnerLink.findMany({
+        where: { schoolId },
+        include: { learner: true },
       });
+
+      for (const link of links) {
+        if (!learnerMatchesClassFilter(link.learner, { learnerId: null, grade: null, className }))
+          continue;
+        await createParentNotification({
+          schoolId,
+          parentId: link.parentId,
+          learnerId: link.learnerId,
+          type: notifType,
+          title,
+          message: fullBody.slice(0, 500),
+          metadata: { noticeId: notice.id, className },
+        });
+      }
     }
 
     return res.json({ success: true, notice });
@@ -430,13 +529,29 @@ router.post("/notices", upload.array("files", 5), async (req, res) => {
 
 router.get("/documents", async (req, res) => {
   try {
-    const { schoolId, assignedClassrooms } = ctx(req);
+    const teacherCtx = ctx(req);
+    const { schoolId, assignedClassrooms } = teacherCtx;
+    const vctx = visibilityCtx(req);
+    const scope = String(req.query.scope || "all").trim().toLowerCase();
     const classVariants = allClassNameVariants(assignedClassrooms);
     if (!classVariants.length) return res.json({ success: true, documents: [] });
-    const documents = await prisma.parentDocument.findMany({
-      where: { schoolId, className: { in: classVariants } },
+    const rows = await prisma.parentDocument.findMany({
+      where: {
+        schoolId,
+        className: { in: classVariants },
+        ...teacherVisibilityWhere(vctx),
+      },
       orderBy: { createdAt: "desc" },
-      take: 80,
+      take: 120,
+    });
+    const documents = rows.filter((d) => {
+      if (!teacherCanViewItem(d, vctx)) return false;
+      const mine =
+        d.createdByTeacherId === vctx.userId ||
+        normalizeStaffEmail(d.createdBy) === normalizeStaffEmail(vctx.email);
+      if (scope === "mine") return mine;
+      if (scope === "shared") return !mine && d.visibility === "CLASS_TEACHERS";
+      return true;
     });
     return res.json({ success: true, documents });
   } catch (e) {
@@ -447,9 +562,10 @@ router.get("/documents", async (req, res) => {
 router.post("/documents", upload.single("file"), async (req, res) => {
   try {
     const teacherCtx = ctx(req);
-    const { schoolId, assignedClassrooms, email } = teacherCtx;
+    const { schoolId, assignedClassrooms, email, userId } = teacherCtx;
     const className = String(req.body?.className || "").trim();
     const title = String(req.body?.title || "").trim();
+    const visibility = normalizeTeacherVisibility(req.body?.visibility);
     if (!title) return res.status(400).json({ success: false, error: "title required" });
     if (!assertClassAllowed(res, className, assignedClassrooms)) return;
     const file = req.file as Express.Multer.File | undefined;
@@ -466,28 +582,33 @@ router.post("/documents", upload.single("file"), async (req, res) => {
         className,
         fileUrl,
         fileName: file.originalname,
+        createdBy: normalizeStaffEmail(email),
+        createdByTeacherId: userId,
+        visibility,
       },
     });
 
-    const links = await prisma.parentLearnerLink.findMany({
-      where: { schoolId },
-      include: { learner: true },
-    });
-    for (const link of links) {
-      if (!learnerMatchesClassFilter(link.learner, { learnerId: null, grade: null, className }))
-        continue;
-      await createParentNotification({
-        schoolId,
-        parentId: link.parentId,
-        learnerId: link.learnerId,
-        type: "DOCUMENT",
-        title: "New document",
-        message: title,
-        metadata: { documentId: doc.id, fileUrl },
+    if (shouldNotifyParents(visibility, false)) {
+      const links = await prisma.parentLearnerLink.findMany({
+        where: { schoolId },
+        include: { learner: true },
       });
+      for (const link of links) {
+        if (!learnerMatchesClassFilter(link.learner, { learnerId: null, grade: null, className }))
+          continue;
+        await createParentNotification({
+          schoolId,
+          parentId: link.parentId,
+          learnerId: link.learnerId,
+          type: "DOCUMENT",
+          title: "New document",
+          message: title,
+          metadata: { documentId: doc.id, fileUrl },
+        });
+      }
     }
 
-    return res.json({ success: true, document: doc, createdBy: email });
+    return res.json({ success: true, document: doc });
   } catch (e) {
     console.error("teacher-app documents", e);
     return res.status(500).json({ success: false, error: "Failed to upload document" });
@@ -496,20 +617,33 @@ router.post("/documents", upload.single("file"), async (req, res) => {
 
 router.get("/incidents", async (req, res) => {
   try {
-    const { schoolId, assignedClassrooms } = ctx(req);
+    const teacherCtx = ctx(req);
+    const { schoolId, assignedClassrooms } = teacherCtx;
+    const vctx = visibilityCtx(req);
+    const scope = String(req.query.scope || "all").trim().toLowerCase();
     const classVariants = allClassNameVariants(assignedClassrooms);
     if (!classVariants.length) return res.json({ success: true, incidents: [] });
-    const incidents = await prisma.learnerIncident.findMany({
-      where: { schoolId },
+    const rows = await prisma.learnerIncident.findMany({
+      where: {
+        schoolId,
+        ...teacherVisibilityWhere(vctx),
+      },
       include: {
         learner: { select: { id: true, firstName: true, lastName: true, className: true, grade: true } },
       },
       orderBy: { incidentDate: "desc" },
-      take: 120,
+      take: 160,
     });
-    const filtered = incidents.filter(
-      (i) => i.learner.className && classVariants.includes(i.learner.className)
-    );
+    const filtered = rows.filter((i) => {
+      if (!i.learner.className || !classVariants.includes(i.learner.className)) return false;
+      if (!teacherCanViewItem(i, vctx)) return false;
+      const mine =
+        i.createdByTeacherId === vctx.userId ||
+        normalizeStaffEmail(i.createdBy) === normalizeStaffEmail(vctx.email);
+      if (scope === "mine") return mine;
+      if (scope === "shared") return !mine && i.visibility === "CLASS_TEACHERS";
+      return true;
+    });
     return res.json({ success: true, incidents: filtered });
   } catch (e) {
     return res.status(500).json({ success: false, error: "Failed to load incidents" });
@@ -518,13 +652,14 @@ router.get("/incidents", async (req, res) => {
 
 router.post("/incidents", async (req, res) => {
   try {
-    const { schoolId, assignedClassrooms, email } = ctx(req);
+    const { schoolId, assignedClassrooms, email, userId } = ctx(req);
     const classVariants = allClassNameVariants(assignedClassrooms);
     const learnerId = String(req.body?.learnerId || "").trim();
     const summary = String(req.body?.summary || "").trim();
     const severity = String(req.body?.severity || "MEDIUM").trim().toUpperCase();
     const parentVisible = req.body?.parentVisible !== false && req.body?.parentVisible !== "false";
     const notifyParent = req.body?.notifyParent !== false && req.body?.notifyParent !== "false";
+    const visibility = normalizeTeacherVisibility(req.body?.visibility ?? "CLASS_TEACHERS");
 
     if (!learnerId || !summary) {
       return res.status(400).json({ success: false, error: "learnerId and summary required" });
@@ -549,6 +684,8 @@ router.post("/incidents", async (req, res) => {
         internalNotes: parentVisible ? null : summary,
         incidentDate: req.body?.incidentDate ? new Date(String(req.body.incidentDate)) : new Date(),
         createdBy: normalizeStaffEmail(email),
+        createdByTeacherId: userId,
+        visibility,
       },
     });
 
@@ -567,6 +704,287 @@ router.post("/incidents", async (req, res) => {
   } catch (e) {
     console.error("teacher-app incidents", e);
     return res.status(500).json({ success: false, error: "Failed to save incident" });
+  }
+});
+
+router.get("/classroom/:classroomId", async (req, res) => {
+  try {
+    const teacherCtx = ctx(req);
+    const { schoolId, assignedClassrooms } = teacherCtx;
+    const vctx = visibilityCtx(req);
+    const classroomId = String(req.params.classroomId || "").trim();
+    const room = assignedClassrooms.find((c) => c.id === classroomId);
+    if (!room) {
+      return res.status(403).json({ success: false, error: "You are not assigned to this class" });
+    }
+    const classVariants = room.classNameVariants.length ? room.classNameVariants : [room.name];
+    const teachers = await listTeachersForClassroom(schoolId, classroomId);
+
+    const [myHomework, sharedHomework, sharedNotices, myMessages, incidents, learners] =
+      await Promise.all([
+        prisma.homeworkPost.findMany({
+          where: {
+            schoolId,
+            className: { in: classVariants },
+            createdByTeacherId: vctx.userId,
+            isDraft: false,
+          },
+          orderBy: { createdAt: "desc" },
+          take: 20,
+        }),
+        prisma.homeworkPost.findMany({
+          where: {
+            schoolId,
+            className: { in: classVariants },
+            visibility: "CLASS_TEACHERS",
+            isDraft: false,
+            NOT: { createdByTeacherId: vctx.userId },
+          },
+          orderBy: { createdAt: "desc" },
+          take: 20,
+        }),
+        prisma.schoolNotice.findMany({
+          where: {
+            schoolId,
+            className: { in: classVariants },
+            visibility: "CLASS_TEACHERS",
+            isDraft: false,
+          },
+          orderBy: { publishedAt: "desc" },
+          take: 20,
+        }),
+        prisma.parentTeacherThread.findMany({
+          where: {
+            schoolId,
+            classroomId,
+            OR: [
+              { assignedTeacherId: vctx.userId },
+              {
+                teacherEmail: {
+                  equals: normalizeStaffEmail(vctx.email),
+                  mode: "insensitive",
+                },
+              },
+            ],
+          },
+          include: {
+            learner: { select: { id: true, firstName: true, lastName: true } },
+            parent: { select: { id: true, firstName: true, surname: true } },
+          },
+          orderBy: { updatedAt: "desc" },
+          take: 20,
+        }),
+        prisma.learnerIncident.findMany({
+          where: { schoolId, ...teacherVisibilityWhere(vctx) },
+          include: {
+            learner: { select: { id: true, firstName: true, lastName: true, className: true } },
+          },
+          orderBy: { incidentDate: "desc" },
+          take: 40,
+        }),
+        prisma.learner.findMany({
+          where: { schoolId, enrollmentStatus: "ACTIVE", className: { in: classVariants } },
+          orderBy: [{ lastName: "asc" }, { firstName: "asc" }],
+          select: {
+            id: true,
+            firstName: true,
+            lastName: true,
+            grade: true,
+            className: true,
+            admissionNo: true,
+          },
+        }),
+      ]);
+
+    const classIncidents = incidents.filter(
+      (i) => i.learner.className && classVariants.includes(i.learner.className)
+    );
+
+    return res.json({
+      success: true,
+      classroom: {
+        id: room.id,
+        name: room.name,
+        learnerCount: room.learnerCount,
+        role: room.role,
+        coTeacherCount: room.coTeacherCount,
+        teachers,
+      },
+      learners,
+      myHomework,
+      sharedHomework,
+      sharedNotices,
+      myMessages,
+      incidents: classIncidents,
+    });
+  } catch (e) {
+    console.error("teacher-app classroom overview", e);
+    return res.status(500).json({ success: false, error: "Failed to load classroom" });
+  }
+});
+
+router.get("/attendance", async (req, res) => {
+  try {
+    const teacherCtx = ctx(req);
+    const { schoolId, assignedClassrooms } = teacherCtx;
+    const className = String(req.query.className || "").trim();
+    const dateRaw = String(req.query.date || new Date().toISOString().slice(0, 10)).trim();
+    if (!assertClassAllowed(res, className, assignedClassrooms)) return;
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(dateRaw)) {
+      return res.status(400).json({ success: false, error: "Valid date required (YYYY-MM-DD)" });
+    }
+    const date = new Date(`${dateRaw}T12:00:00.000Z`);
+    const room = assignedClassrooms.find(
+      (c) => c.name === className || c.classNameVariants.includes(className)
+    );
+    const variants = room?.classNameVariants.length ? room.classNameVariants : [className];
+    const learners = await prisma.learner.findMany({
+      where: { schoolId, enrollmentStatus: "ACTIVE", className: { in: variants } },
+      orderBy: [{ lastName: "asc" }, { firstName: "asc" }],
+      select: {
+        id: true,
+        firstName: true,
+        lastName: true,
+        grade: true,
+        className: true,
+        admissionNo: true,
+      },
+    });
+    const learnerIds = learners.map((l) => l.id);
+    const marks =
+      learnerIds.length === 0
+        ? []
+        : await prisma.learnerAttendance.findMany({
+            where: { schoolId, learnerId: { in: learnerIds }, date },
+          });
+    return res.json({ success: true, learners, marks, date: dateRaw, className });
+  } catch (e) {
+    return res.status(500).json({ success: false, error: "Failed to load attendance" });
+  }
+});
+
+router.get("/study-notes", async (req, res) => {
+  try {
+    const teacherCtx = ctx(req);
+    const { schoolId, assignedClassrooms } = teacherCtx;
+    const vctx = visibilityCtx(req);
+    const scope = String(req.query.scope || "all").trim().toLowerCase();
+    const classVariants = allClassNameVariants(assignedClassrooms);
+    const rows = await prisma.teacherStudyNote.findMany({
+      where: {
+        schoolId,
+        OR: [{ className: { in: classVariants } }, { className: null }],
+        ...teacherVisibilityWhere(vctx),
+      },
+      orderBy: { updatedAt: "desc" },
+      take: 80,
+    });
+    const notes = rows.filter((n) => {
+      if (!teacherCanViewItem(n, vctx)) return false;
+      const mine = n.createdByTeacherId === vctx.userId;
+      if (scope === "mine") return mine;
+      if (scope === "shared") return !mine && n.visibility === "CLASS_TEACHERS";
+      return true;
+    });
+    return res.json({ success: true, notes });
+  } catch (e) {
+    return res.status(500).json({ success: false, error: "Failed to load study notes" });
+  }
+});
+
+router.post("/study-notes", async (req, res) => {
+  try {
+    const { schoolId, assignedClassrooms, email, userId } = ctx(req);
+    const className = String(req.body?.className || "").trim();
+    const title = String(req.body?.title || "").trim();
+    const body = String(req.body?.body || "").trim();
+    const visibility = normalizeTeacherVisibility(req.body?.visibility ?? "PRIVATE");
+    const isDraft = req.body?.isDraft === true || req.body?.isDraft === "true";
+    if (!title || !body) {
+      return res.status(400).json({ success: false, error: "title and body required" });
+    }
+    if (className && !assertClassAllowed(res, className, assignedClassrooms)) return;
+
+    const note = await prisma.teacherStudyNote.create({
+      data: {
+        schoolId,
+        className: className || null,
+        title,
+        body,
+        createdByTeacherId: userId,
+        createdBy: normalizeStaffEmail(email),
+        visibility,
+        isDraft,
+      },
+    });
+    return res.json({ success: true, note });
+  } catch (e) {
+    return res.status(500).json({ success: false, error: "Failed to save study note" });
+  }
+});
+
+router.get("/learner-notes", async (req, res) => {
+  try {
+    const teacherCtx = ctx(req);
+    const { schoolId, assignedClassrooms } = teacherCtx;
+    const vctx = visibilityCtx(req);
+    const learnerId = String(req.query.learnerId || "").trim();
+    const classVariants = allClassNameVariants(assignedClassrooms);
+    const where: Record<string, unknown> = {
+      schoolId,
+      ...teacherVisibilityWhere(vctx),
+    };
+    if (learnerId) where.learnerId = learnerId;
+    const rows = await prisma.teacherLearnerNote.findMany({
+      where,
+      orderBy: { updatedAt: "desc" },
+      take: 80,
+      include: {
+        learner: { select: { id: true, firstName: true, lastName: true, className: true } },
+      },
+    });
+    const notes = rows.filter(
+      (n) =>
+        teacherCanViewItem(n, vctx) &&
+        (!n.learner.className || classVariants.includes(n.learner.className))
+    );
+    return res.json({ success: true, notes });
+  } catch (e) {
+    return res.status(500).json({ success: false, error: "Failed to load learner notes" });
+  }
+});
+
+router.post("/learner-notes", async (req, res) => {
+  try {
+    const { schoolId, assignedClassrooms, email, userId } = ctx(req);
+    const learnerId = String(req.body?.learnerId || "").trim();
+    const body = String(req.body?.body || "").trim();
+    const visibility = normalizeTeacherVisibility(req.body?.visibility ?? "PRIVATE");
+    if (!learnerId || !body) {
+      return res.status(400).json({ success: false, error: "learnerId and body required" });
+    }
+    const classVariants = allClassNameVariants(assignedClassrooms);
+    const learner = await prisma.learner.findFirst({
+      where: { id: learnerId, schoolId },
+      select: { id: true, className: true },
+    });
+    if (!learner?.className || !classVariants.includes(learner.className)) {
+      return res.status(403).json({ success: false, error: "Learner not in your classes" });
+    }
+    const note = await prisma.teacherLearnerNote.create({
+      data: {
+        schoolId,
+        learnerId,
+        className: learner.className,
+        body,
+        createdByTeacherId: userId,
+        createdBy: normalizeStaffEmail(email),
+        visibility,
+      },
+    });
+    return res.json({ success: true, note });
+  } catch (e) {
+    return res.status(500).json({ success: false, error: "Failed to save learner note" });
   }
 });
 

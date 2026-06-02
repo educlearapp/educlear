@@ -1,9 +1,23 @@
 import { useEffect, useState } from "react";
+import { useSearchParams } from "react-router-dom";
 import { staffApiFetch, staffFormPost } from "../staffApi";
 import {
   NO_ASSIGNED_CLASSROOMS_MSG,
   useTeacherAssignedClassrooms,
 } from "./useTeacherAssignedClassrooms";
+import TeacherVisibilitySelect, {
+  visibilityBadge,
+  type TeacherVisibility,
+} from "./TeacherVisibilitySelect";
+
+type HomeworkPost = {
+  id: string;
+  title: string;
+  className?: string | null;
+  createdAt: string;
+  visibility?: string;
+  createdBy?: string;
+};
 
 export default function TeacherHomeworkPage() {
   const { classrooms, className, setClassName, loading, err: loadErr, noAssigned } =
@@ -11,15 +25,24 @@ export default function TeacherHomeworkPage() {
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
   const [dueDate, setDueDate] = useState("");
+  const [visibility, setVisibility] = useState<TeacherVisibility>("CLASS_TEACHERS");
   const [files, setFiles] = useState<FileList | null>(null);
-  const [posts, setPosts] = useState<unknown[]>([]);
+  const [posts, setPosts] = useState<HomeworkPost[]>([]);
+  const [listScope, setListScope] = useState<"all" | "mine" | "shared">("all");
   const [err, setErr] = useState<string | null>(null);
   const [ok, setOk] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
+  const [searchParams] = useSearchParams();
 
-  async function loadPosts() {
+  useEffect(() => {
+    const fromUrl = searchParams.get("class");
+    if (fromUrl) setClassName(fromUrl);
+  }, [searchParams, setClassName]);
+
+  async function loadPosts(scope = listScope) {
     try {
-      const hw = (await staffApiFetch("/api/teacher-app/homework")) as { posts?: unknown[] };
+      const qs = scope !== "all" ? `?scope=${scope}` : "";
+      const hw = (await staffApiFetch(`/api/teacher-app/homework${qs}`)) as { posts?: HomeworkPost[] };
       setPosts(hw.posts || []);
     } catch (e: unknown) {
       console.error("[teacher-app] Failed to load homework:", e instanceof Error ? e.message : e);
@@ -27,8 +50,8 @@ export default function TeacherHomeworkPage() {
   }
 
   useEffect(() => {
-    void loadPosts();
-  }, []);
+    void loadPosts(listScope);
+  }, [listScope]);
 
   async function submit(e: React.FormEvent) {
     e.preventDefault();
@@ -39,16 +62,22 @@ export default function TeacherHomeworkPage() {
       const form = new FormData();
       form.append("className", className);
       form.append("title", title.trim());
+      form.append("visibility", visibility);
+      if (visibility === "CLASS_TEACHERS") form.append("publish", "true");
       if (description.trim()) form.append("description", description.trim());
       if (dueDate) form.append("dueDate", new Date(dueDate).toISOString());
       if (files) Array.from(files).forEach((f) => form.append("files", f));
       await staffFormPost("/api/teacher-app/homework", form);
-      setOk("Homework posted. Parents were notified through the Communication Engine.");
+      setOk(
+        visibility === "CLASS_TEACHERS"
+          ? "Homework posted. Parents were notified through the Communication Engine."
+          : "Homework saved with your chosen visibility."
+      );
       setTitle("");
       setDescription("");
       setDueDate("");
       setFiles(null);
-      void loadPosts();
+      void loadPosts(listScope);
     } catch (e: unknown) {
       setErr(e instanceof Error ? e.message : "Save failed");
     } finally {
@@ -61,7 +90,10 @@ export default function TeacherHomeworkPage() {
   return (
     <div>
       <h1 className="teacher-page-heading">Homework</h1>
-      <p className="teacher-muted">Create homework for an assigned class. Parents receive in-app notifications.</p>
+      <p className="teacher-muted">
+        Create homework for an assigned class. Choose who can see it among teachers; parents are notified
+        only for shared class homework.
+      </p>
       {displayErr && <p className="teacher-error">{displayErr}</p>}
       {noAssigned && <p className="teacher-pwa-hint">{NO_ASSIGNED_CLASSROOMS_MSG}</p>}
       {ok && <p style={{ color: "var(--t-gold)" }}>{ok}</p>}
@@ -95,6 +127,7 @@ export default function TeacherHomeworkPage() {
             <label>Due date</label>
             <input type="datetime-local" value={dueDate} onChange={(e) => setDueDate(e.target.value)} />
           </div>
+          <TeacherVisibilitySelect value={visibility} onChange={setVisibility} />
           <div className="teacher-field">
             <label>Attachments (PDF / images)</label>
             <input type="file" accept="application/pdf,image/*" multiple onChange={(e) => setFiles(e.target.files)} />
@@ -106,12 +139,24 @@ export default function TeacherHomeworkPage() {
           </div>
         </form>
       )}
+      <div style={{ display: "flex", gap: 8, marginTop: 24, marginBottom: 8, flexWrap: "wrap" }}>
+        {(["all", "mine", "shared"] as const).map((s) => (
+          <button
+            key={s}
+            type="button"
+            className={`teacher-touch-btn${listScope === s ? " primary" : ""}`}
+            onClick={() => setListScope(s)}
+          >
+            {s === "all" ? "All visible" : s === "mine" ? "My homework" : "Shared class"}
+          </button>
+        ))}
+      </div>
       <h2 className="teacher-section-title">Recent (your classes)</h2>
       <ul className="teacher-record-list">
-        {(posts as { id: string; title: string; className?: string | null; createdAt: string }[]).map((p) => (
+        {posts.map((p) => (
           <li key={p.id} className="teacher-record-card">
             <strong>{p.title}</strong>
-            {p.className || "—"} · {new Date(p.createdAt).toLocaleString()}
+            {p.className || "—"} · {visibilityBadge(p.visibility)} · {new Date(p.createdAt).toLocaleString()}
           </li>
         ))}
       </ul>

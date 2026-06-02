@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { useSearchParams } from "react-router-dom";
 import { staffApiFetch } from "../staffApi";
 import {
   NO_ASSIGNED_CLASSROOMS_MSG,
@@ -10,8 +11,14 @@ type Learner = { id: string; firstName: string; lastName: string; grade: string;
 export default function TeacherLearnersPage() {
   const { classrooms, className, setClassName, loading, err: loadErr, noAssigned } =
     useTeacherAssignedClassrooms();
+  const [searchParams] = useSearchParams();
   const [learners, setLearners] = useState<Learner[]>([]);
   const [err, setErr] = useState<string | null>(null);
+
+  useEffect(() => {
+    const fromUrl = searchParams.get("class");
+    if (fromUrl) setClassName(fromUrl);
+  }, [searchParams, setClassName]);
 
   useEffect(() => {
     if (!className) {

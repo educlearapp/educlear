@@ -7,6 +7,8 @@ export type AssignedClassroom = {
   teacherName?: string | null;
   teacherEmail?: string | null;
   learnerCount: number;
+  role?: string;
+  coTeacherCount?: number;
 };
 
 export type TeacherMeResponse = {

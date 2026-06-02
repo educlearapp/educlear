@@ -7,7 +7,7 @@ type MeResponse = {
   success?: boolean;
   unreadInbox?: number;
   assignedClassNames?: string[];
-  assignedClassrooms?: { id: string; name: string; learnerCount?: number }[];
+  assignedClassrooms?: { id: string; name: string; learnerCount?: number; role?: string; coTeacherCount?: number }[];
   user?: { fullName?: string | null; email?: string };
   school?: { name?: string | null };
 };
@@ -88,6 +88,28 @@ export default function TeacherDashboard() {
         </p>
       ) : null}
 
+      {me?.assignedClassrooms?.length ? (
+        <div style={{ marginTop: 20, marginBottom: 8 }}>
+          <h2 className="teacher-section-title">Your classrooms</h2>
+          <div className="teacher-card-grid">
+            {me.assignedClassrooms.map((c) => (
+              <Link
+                key={c.id}
+                className="teacher-dash-card"
+                to={`/teacher/classroom/${encodeURIComponent(c.id)}`}
+              >
+                <span className="icon">🏫</span>
+                {c.name}
+                <span style={{ color: "var(--t-gold)", fontSize: "0.8rem" }}>
+                  {c.learnerCount ?? 0} learners
+                  {c.coTeacherCount ? ` · ${c.coTeacherCount + 1} teachers` : ""}
+                </span>
+              </Link>
+            ))}
+          </div>
+        </div>
+      ) : null}
+
       <div className="teacher-stats-row" aria-label="Quick stats">
         <div className="teacher-stat-card">
           <p className="teacher-stat-card-label">Assigned Learners</p>
@@ -142,6 +164,10 @@ export default function TeacherDashboard() {
         <Link className="teacher-dash-card" to="/teacher/learners">
           <span className="icon">🎓</span>
           Learners
+        </Link>
+        <Link className="teacher-dash-card" to="/teacher/attendance">
+          <span className="icon">📋</span>
+          Attendance
         </Link>
         <Link className="teacher-dash-card" to="/teacher/notifications">
           <span className="icon">🔔</span>

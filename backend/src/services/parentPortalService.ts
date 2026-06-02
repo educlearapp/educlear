@@ -1,5 +1,6 @@
 import type { ParentNotificationType, ParentMessageSenderType } from "@prisma/client";
 import { prisma } from "../prisma";
+import { primaryTeacherUserIdForClassroom } from "../utils/classroomTeachers";
 import { normalizeStaffEmail } from "../utils/staffJwt";
 import {
   ensureDefaultCommunicationTemplates,
@@ -193,16 +194,21 @@ export function logParentThreadResolution(
 
 async function syncThreadTeacherFromClassroom(
   threadId: string,
+  schoolId: string,
   classroom: { id: string; teacherName: string; teacherEmail: string } | null
 ) {
   const teacherName = String(classroom?.teacherName || "").trim() || "Class Teacher";
   const teacherEmail = normalizeTeacherEmail(classroom?.teacherEmail || "");
+  const assignedTeacherId = classroom?.id
+    ? await primaryTeacherUserIdForClassroom(schoolId, classroom.id)
+    : null;
   return prisma.parentTeacherThread.update({
     where: { id: threadId },
     data: {
       classroomId: classroom?.id ?? null,
       teacherName,
       teacherEmail,
+      assignedTeacherId,
     },
     include: { messages: { orderBy: { createdAt: "asc" } } },
   });
@@ -228,6 +234,9 @@ export async function repairAllParentTeacherThreads(opts?: { schoolId?: string }
     const teacherName = String(classroom?.teacherName || "").trim() || "Class Teacher";
     const teacherEmail = normalizeTeacherEmail(classroom?.teacherEmail || "");
     const classroomId = classroom?.id ?? null;
+    const assignedTeacherId = classroomId
+      ? await primaryTeacherUserIdForClassroom(thread.schoolId, classroomId)
+      : null;
 
     if (
       thread.classroomId !== classroomId ||
@@ -236,7 +245,7 @@ export async function repairAllParentTeacherThreads(opts?: { schoolId?: string }
     ) {
       await prisma.parentTeacherThread.update({
         where: { id: thread.id },
-        data: { classroomId, teacherName, teacherEmail },
+        data: { classroomId, teacherName, teacherEmail, assignedTeacherId },
       });
       updated += 1;
     }
@@ -261,9 +270,10 @@ export async function syncParentThreadsForClassroom(schoolId: string, classroomI
 
   const teacherName = String(classroom.teacherName || "").trim() || "Class Teacher";
   const teacherEmail = normalizeTeacherEmail(classroom.teacherEmail);
+  const assignedTeacherId = await primaryTeacherUserIdForClassroom(schoolId, classroom.id);
   const result = await prisma.parentTeacherThread.updateMany({
     where: { schoolId, learnerId: { in: learnerIds } },
-    data: { classroomId: classroom.id, teacherName, teacherEmail },
+    data: { classroomId: classroom.id, teacherName, teacherEmail, assignedTeacherId },
   });
   return { updated: result.count };
 }
@@ -281,6 +291,9 @@ export async function getOrCreateThread(opts: {
   const classroom = await resolveClassroomForLearner(opts.schoolId, learner);
   const teacherName = String(classroom?.teacherName || "").trim() || "Class Teacher";
   const teacherEmail = normalizeTeacherEmail(classroom?.teacherEmail || "");
+  const assignedTeacherId = classroom?.id
+    ? await primaryTeacherUserIdForClassroom(opts.schoolId, classroom.id)
+    : null;
 
   const existing = await prisma.parentTeacherThread.findUnique({
     where: {
@@ -299,7 +312,7 @@ export async function getOrCreateThread(opts: {
       normalizeTeacherEmail(existing.teacherEmail) !== teacherEmail ||
       String(existing.teacherName || "").trim() !== teacherName;
     if (needsSync) {
-      const thread = await syncThreadTeacherFromClassroom(existing.id, classroom);
+      const thread = await syncThreadTeacherFromClassroom(existing.id, opts.schoolId, classroom);
       return { thread, classroom, learner };
     }
     return { thread: existing, classroom, learner };
@@ -313,6 +326,7 @@ export async function getOrCreateThread(opts: {
       classroomId: classroom?.id || null,
       teacherName,
       teacherEmail,
+      assignedTeacherId,
     },
     include: { messages: { orderBy: { createdAt: "asc" } } },
   });

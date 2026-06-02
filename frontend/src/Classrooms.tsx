@@ -826,6 +826,13 @@ function ClassroomManage(props: {
   const [moveOpen, setMoveOpen] = useState(false);
   const [moveTo, setMoveTo] = useState("");
 
+  type CoTeacherRow = { teacherEmail: string; teacherName: string; role: string };
+  const [coTeachers, setCoTeachers] = useState<CoTeacherRow[]>([]);
+  const [coDraftEmail, setCoDraftEmail] = useState("");
+  const [coDraftName, setCoDraftName] = useState("");
+  const [coDraftRole, setCoDraftRole] = useState("CO_TEACHER");
+  const [coTeachersSaving, setCoTeachersSaving] = useState(false);
+
   const menuWrapRef = useRef<HTMLDivElement | null>(null);
 
   type EmailPreview = {
@@ -912,6 +919,22 @@ function ClassroomManage(props: {
 
       console.log("Loaded classroom for manage:", c);
       if (c) setClassroom(c);
+
+      try {
+        const teachersData = await apiFetch(
+          `/api/classrooms/${encodeURIComponent(props.classroomId)}/teachers?schoolId=${encodeURIComponent(props.schoolId)}`
+        );
+        const rows = Array.isArray(teachersData?.teachers) ? teachersData.teachers : [];
+        setCoTeachers(
+          rows.map((t: { teacherEmail?: string; teacherName?: string; role?: string }) => ({
+            teacherEmail: String(t.teacherEmail || "").trim().toLowerCase(),
+            teacherName: String(t.teacherName || "").trim(),
+            role: String(t.role || "CO_TEACHER").toUpperCase(),
+          }))
+        );
+      } catch {
+        setCoTeachers([]);
+      }
 
       if (c) {
         const apiTeacher = String(c?.teacher ?? (c as { teacherName?: string })?.teacherName ?? "").trim();
@@ -1179,11 +1202,67 @@ function ClassroomManage(props: {
       }
       await props.onRefreshList();
       await load();
+      await saveCoTeachers();
       setMessage("Classroom saved.");
     } catch (e: any) {
       setMessage(e?.message || "Failed to save classroom.");
     } finally {
       setSaving(false);
+    }
+  };
+
+  const saveCoTeachers = async () => {
+    const primaryEmail = String(props.classroomForm.teacherEmail ?? "").trim().toLowerCase();
+    const primaryName = String(props.classroomForm.teacher ?? "").trim();
+    const teachers = [
+      ...(primaryEmail
+        ? [{ teacherEmail: primaryEmail, teacherName: primaryName || "Class Teacher", role: "PRIMARY" }]
+        : []),
+      ...coTeachers.filter((t) => t.teacherEmail && t.teacherEmail !== primaryEmail),
+    ];
+    if (!teachers.length) return;
+    setCoTeachersSaving(true);
+    try {
+      await apiFetch(`/api/classrooms/${encodeURIComponent(props.classroomId)}/teachers`, {
+        method: "PUT",
+        body: JSON.stringify({ schoolId: props.schoolId, teachers }),
+      });
+    } finally {
+      setCoTeachersSaving(false);
+    }
+  };
+
+  const addCoTeacher = () => {
+    const email = coDraftEmail.trim().toLowerCase();
+    if (!email) return;
+    if (coTeachers.some((t) => t.teacherEmail === email)) return;
+    setCoTeachers((prev) => [
+      ...prev,
+      {
+        teacherEmail: email,
+        teacherName: coDraftName.trim() || email,
+        role: coDraftRole,
+      },
+    ]);
+    setCoDraftEmail("");
+    setCoDraftName("");
+  };
+
+  const removeCoTeacher = (email: string) => {
+    setCoTeachers((prev) => prev.filter((t) => t.teacherEmail !== email));
+  };
+
+  const persistCoTeachersOnly = async () => {
+    setCoTeachersSaving(true);
+    setMessage(null);
+    try {
+      await saveCoTeachers();
+      await load();
+      setMessage("Class teachers updated.");
+    } catch (e: any) {
+      setMessage(e?.message || "Failed to update class teachers.");
+    } finally {
+      setCoTeachersSaving(false);
     }
   };
 
@@ -1565,6 +1644,63 @@ function ClassroomManage(props: {
                 type="email"
                 autoComplete="email"
               />
+            </div>
+
+            <div style={{ gridColumn: "1 / -1", marginTop: 4 }}>
+              <div style={fieldLabelStyle()}>Co-teachers & assistants</div>
+              <p style={{ margin: "0 0 10px", fontSize: 12, color: "#64748b", fontWeight: 700 }}>
+                Primary teacher uses the name and email above. Add co-teachers who share the learner list and
+                attendance; their private work stays separate in the Teacher Portal.
+              </p>
+              <ul style={{ margin: "0 0 10px", paddingLeft: 18 }}>
+                {coTeachers
+                  .filter((t) => t.role !== "PRIMARY")
+                  .map((t) => (
+                    <li key={t.teacherEmail} style={{ marginBottom: 6, fontWeight: 700, color: "#0f172a" }}>
+                      {t.teacherName || t.teacherEmail} ({t.role.replace(/_/g, " ").toLowerCase()}) ·{" "}
+                      {t.teacherEmail}
+                      <button
+                        type="button"
+                        className="ec-page-btn"
+                        style={{ marginLeft: 8 }}
+                        onClick={() => removeCoTeacher(t.teacherEmail)}
+                      >
+                        Remove
+                      </button>
+                    </li>
+                  ))}
+              </ul>
+              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 140px auto", gap: 8 }}>
+                <input
+                  value={coDraftName}
+                  onChange={(e) => setCoDraftName(e.target.value)}
+                  style={inputStyle()}
+                  placeholder="Teacher name"
+                />
+                <input
+                  value={coDraftEmail}
+                  onChange={(e) => setCoDraftEmail(e.target.value)}
+                  style={inputStyle()}
+                  placeholder="teacher@school.com"
+                  type="email"
+                />
+                <select value={coDraftRole} onChange={(e) => setCoDraftRole(e.target.value)} style={inputStyle()}>
+                  <option value="CO_TEACHER">Co-teacher</option>
+                  <option value="ASSISTANT">Assistant</option>
+                </select>
+                <button type="button" className="ec-page-btn ec-page-btn--gold" onClick={addCoTeacher}>
+                  Add
+                </button>
+              </div>
+              <button
+                type="button"
+                className="ec-page-btn"
+                style={{ marginTop: 10 }}
+                disabled={coTeachersSaving}
+                onClick={() => void persistCoTeachersOnly()}
+              >
+                {coTeachersSaving ? "Saving teachers…" : "Save class teachers"}
+              </button>
             </div>
 
             <div>

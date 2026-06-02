@@ -5,6 +5,12 @@ import {
   syncParentThreadsForClassroom,
 } from "../services/parentPortalService";
 import { normalizeStaffEmail } from "../utils/staffJwt";
+import {
+  listTeachersForClassroom,
+  resolveUserIdForTeacherEmail,
+  syncLegacyPrimaryTeacherAssignment,
+} from "../utils/classroomTeachers";
+import type { ClassroomTeacherRole } from "@prisma/client";
 import { activeLearnerWhere } from "../utils/learnerEnrollment";
 
 const UNREGISTERED_PREFIX = "__learner_class__:";
@@ -289,6 +295,7 @@ router.post("/", async (req, res) => {
     });
 
     await syncParentThreadsForClassroom(schoolId, classroom.id);
+    await syncLegacyPrimaryTeacherAssignment(schoolId, classroom.id, teacher, teacherEmail);
 
     return res.json({ success: true, classroom: formatClassroomRow(classroom) });
   } catch (e) {
@@ -340,6 +347,7 @@ router.put("/:id", async (req, res) => {
     }
 
     await syncParentThreadsForClassroom(schoolId, classroom.id);
+    await syncLegacyPrimaryTeacherAssignment(schoolId, classroom.id, teacherName, teacherEmail);
 
     return res.json({ success: true, classroom: formatClassroomRow(classroom) });
   } catch (e) {
@@ -418,6 +426,86 @@ router.post("/:id/move-learners", async (req, res) => {
     return res.json({ success: true });
   } catch (e) {
     return res.status(500).json({ error: "Failed to move learners" });
+  }
+});
+
+router.get("/:id/teachers", async (req, res) => {
+  try {
+    const schoolId = String(req.query.schoolId || "").trim();
+    const id = String(req.params.id);
+    if (isUnregisteredClassroomId(id)) {
+      return res.json({ success: true, teachers: [] });
+    }
+    const classroom = await prisma.classroom.findFirst({ where: { id, schoolId } });
+    if (!classroom) return res.status(404).json({ error: "Classroom not found" });
+    const teachers = await listTeachersForClassroom(schoolId, id);
+    return res.json({ success: true, teachers, primaryTeacherEmail: classroom.teacherEmail });
+  } catch (e) {
+    return res.status(500).json({ error: "Failed to load teachers" });
+  }
+});
+
+router.put("/:id/teachers", async (req, res) => {
+  try {
+    const schoolId = String(req.body?.schoolId || req.query.schoolId || "").trim();
+    const id = String(req.params.id);
+    if (isUnregisteredClassroomId(id)) {
+      return res.status(400).json({ error: "Register this classroom before assigning teachers" });
+    }
+    const classroom = await prisma.classroom.findFirst({ where: { id, schoolId } });
+    if (!classroom) return res.status(404).json({ error: "Classroom not found" });
+
+    const teachersIn: Array<{
+      teacherEmail?: string;
+      teacherName?: string;
+      role?: string;
+      userId?: string;
+    }> = Array.isArray(req.body?.teachers) ? req.body.teachers : [];
+
+    const allowedRoles = new Set(["PRIMARY", "CO_TEACHER", "ASSISTANT"]);
+    const normalized = teachersIn
+      .map((t) => ({
+        teacherEmail: normalizeTeacherEmail(t.teacherEmail),
+        teacherName: normalizeTeacherName(t.teacherName),
+        role: (allowedRoles.has(String(t.role || "").toUpperCase())
+          ? String(t.role).toUpperCase()
+          : "CO_TEACHER") as ClassroomTeacherRole,
+        userId: t.userId ? String(t.userId) : null,
+      }))
+      .filter((t) => t.teacherEmail);
+
+    const primary = normalized.find((t) => t.role === "PRIMARY") || normalized[0];
+    if (primary) {
+      await prisma.classroom.update({
+        where: { id },
+        data: {
+          teacherName: primary.teacherName || classroom.teacherName,
+          teacherEmail: primary.teacherEmail,
+        },
+      });
+    }
+
+    await prisma.classroomTeacher.deleteMany({ where: { classroomId: id, schoolId } });
+    for (const t of normalized) {
+      const userId = t.userId || (await resolveUserIdForTeacherEmail(schoolId, t.teacherEmail));
+      await prisma.classroomTeacher.create({
+        data: {
+          schoolId,
+          classroomId: id,
+          userId,
+          teacherEmail: t.teacherEmail,
+          teacherName: t.teacherName || "Teacher",
+          role: t.role,
+        },
+      });
+    }
+
+    await syncParentThreadsForClassroom(schoolId, id);
+    const teachers = await listTeachersForClassroom(schoolId, id);
+    return res.json({ success: true, teachers });
+  } catch (e) {
+    console.error("update classroom teachers", e);
+    return res.status(500).json({ error: "Failed to update teachers" });
   }
 });
 

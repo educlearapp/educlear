@@ -11,6 +11,7 @@ const SIDEBAR_LINKS = [
   { to: "/teacher/incidents", label: "Incidents", icon: "⚠️" },
   { to: "/teacher/documents", label: "Documents", icon: "📎" },
   { to: "/teacher/learners", label: "Learners", icon: "🎓" },
+  { to: "/teacher/attendance", label: "Attendance", icon: "📋" },
 ] as const;
 
 export default function TeacherShell() {

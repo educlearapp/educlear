@@ -4,6 +4,10 @@ import {
   NO_ASSIGNED_CLASSROOMS_MSG,
   useTeacherAssignedClassrooms,
 } from "./useTeacherAssignedClassrooms";
+import TeacherVisibilitySelect, {
+  visibilityBadge,
+  type TeacherVisibility,
+} from "./TeacherVisibilitySelect";
 
 type Learner = { id: string; firstName: string; lastName: string; className: string | null };
 
@@ -17,14 +21,17 @@ export default function TeacherIncidentsPage() {
   const [subject, setSubject] = useState("Class incident");
   const [parentVisible, setParentVisible] = useState(true);
   const [notifyParent, setNotifyParent] = useState(true);
+  const [visibility, setVisibility] = useState<TeacherVisibility>("CLASS_TEACHERS");
+  const [listScope, setListScope] = useState<"all" | "mine" | "shared">("all");
   const [incidents, setIncidents] = useState<unknown[]>([]);
   const [err, setErr] = useState<string | null>(null);
   const [ok, setOk] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
 
-  async function loadIncidents() {
+  async function loadIncidents(scope = listScope) {
     try {
-      const data = (await staffApiFetch("/api/teacher-app/incidents")) as { incidents?: unknown[] };
+      const qs = scope !== "all" ? `?scope=${scope}` : "";
+      const data = (await staffApiFetch(`/api/teacher-app/incidents${qs}`)) as { incidents?: unknown[] };
       setIncidents(data.incidents || []);
     } catch (e: unknown) {
       console.error("[teacher-app] Failed to load incidents:", e instanceof Error ? e.message : e);
@@ -32,8 +39,8 @@ export default function TeacherIncidentsPage() {
   }
 
   useEffect(() => {
-    void loadIncidents();
-  }, []);
+    void loadIncidents(listScope);
+  }, [listScope]);
 
   useEffect(() => {
     if (!className) {
@@ -68,12 +75,13 @@ export default function TeacherIncidentsPage() {
           subject: subject.trim() || "Class incident",
           parentVisible,
           notifyParent: parentVisible ? notifyParent : false,
+          visibility,
         }),
       });
       setOk("Incident saved. Parents are notified when visible and “notify parent” is on.");
       setSummary("");
       setLearnerId("");
-      void loadIncidents();
+      void loadIncidents(listScope);
     } catch (e: unknown) {
       setErr(e instanceof Error ? e.message : "Save failed");
     } finally {
@@ -149,6 +157,11 @@ export default function TeacherIncidentsPage() {
               </label>
             </div>
           )}
+          <TeacherVisibilitySelect
+            value={visibility}
+            onChange={setVisibility}
+            id="incident-visibility"
+          />
           <div className="teacher-form-actions">
             <button type="submit" className="teacher-touch-btn primary" disabled={submitting || !className}>
               Save incident
@@ -156,13 +169,34 @@ export default function TeacherIncidentsPage() {
           </div>
         </form>
       )}
+      <div style={{ display: "flex", gap: 8, marginTop: 24, marginBottom: 8, flexWrap: "wrap" }}>
+        {(["all", "mine", "shared"] as const).map((s) => (
+          <button
+            key={s}
+            type="button"
+            className={`teacher-touch-btn${listScope === s ? " primary" : ""}`}
+            onClick={() => setListScope(s)}
+          >
+            {s === "all" ? "All visible" : s === "mine" ? "My incidents" : "Shared with teachers"}
+          </button>
+        ))}
+      </div>
       <h2 className="teacher-section-title">Recent (your classes)</h2>
       <ul className="teacher-record-list">
-        {(incidents as { id: string; summary: string; type: string; parentVisible: boolean; incidentDate: string }[]).map(
-          (i) => (
-            <li key={i.id} className="teacher-record-card">
-              <strong>{i.type}</strong>
-              {i.parentVisible ? "Visible to parents" : "Internal"} · {new Date(i.incidentDate).toLocaleString()}
+        {(
+          incidents as {
+            id: string;
+            summary: string;
+            type: string;
+            parentVisible: boolean;
+            incidentDate: string;
+            visibility?: string;
+          }[]
+        ).map((i) => (
+          <li key={i.id} className="teacher-record-card">
+            <strong>{i.type}</strong>
+            {i.parentVisible ? "Visible to parents" : "Internal"} · {visibilityBadge(i.visibility)} ·{" "}
+            {new Date(i.incidentDate).toLocaleString()}
               <div style={{ marginTop: 6 }}>
                 {i.summary.slice(0, 120)}
                 {i.summary.length > 120 ? "…" : ""}

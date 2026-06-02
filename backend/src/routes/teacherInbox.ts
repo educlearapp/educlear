@@ -12,6 +12,7 @@ import {
 } from "../services/parentPortalService";
 import { normalizeStaffEmail, verifyStaffJwt } from "../utils/staffJwt";
 import type { StaffJwtPayload } from "../utils/staffJwt";
+import { assignedClassroomIdsForTeacher } from "../utils/classroomTeachers";
 
 const uploadDir = path.join(process.cwd(), "uploads/parent-messages");
 try {
@@ -43,13 +44,32 @@ function userCanAdminInbox(jwtUser: StaffJwtPayload): boolean {
   return jwtUser.role === "SCHOOL_ADMIN";
 }
 
+async function teacherCanAccessThread(
+  jwtUser: StaffJwtPayload,
+  thread: { teacherEmail: string; assignedTeacherId?: string | null; classroomId?: string | null }
+): Promise<boolean> {
+  if (userCanAdminInbox(jwtUser)) return true;
+  const teacherEmail = normalizeEmail(jwtUser.email);
+  if (thread.assignedTeacherId && thread.assignedTeacherId === jwtUser.userId) return true;
+  if (teacherEmail && normalizeEmail(thread.teacherEmail) === teacherEmail) return true;
+  if (thread.classroomId) {
+    const assigned = await assignedClassroomIdsForTeacher(
+      jwtUser.schoolId,
+      jwtUser.userId,
+      jwtUser.email
+    );
+    if (assigned.includes(thread.classroomId) && !thread.assignedTeacherId) return true;
+  }
+  return false;
+}
+
 /**
  * Teacher inbox is staff-JWT only. Teacher email is always taken from the token (normalized)
  * for non-admin views so it matches `classroom.teacherEmail` / thread records from the parent portal.
  * Query/body `teacherEmail` is intentionally ignored to prevent spoofing.
  */
 async function resolveInboxFromQuery(req: any): Promise<
-  | { ok: true; schoolId: string; adminView: boolean; teacherEmail: string }
+  | { ok: true; schoolId: string; adminView: boolean; teacherEmail: string; jwtUser: StaffJwtPayload }
   | { ok: false; status: number; error: string }
 > {
   const jwtUser = verifyStaffJwt(req.headers.authorization);
@@ -83,11 +103,11 @@ async function resolveInboxFromQuery(req: any): Promise<
     }
   }
 
-  return { ok: true, schoolId, adminView, teacherEmail };
+  return { ok: true, schoolId, adminView, teacherEmail, jwtUser };
 }
 
 async function resolveInboxFromBody(req: any): Promise<
-  | { ok: true; schoolId: string; adminView: boolean; teacherEmail: string }
+  | { ok: true; schoolId: string; adminView: boolean; teacherEmail: string; jwtUser: StaffJwtPayload }
   | { ok: false; status: number; error: string }
 > {
   const jwtUser = verifyStaffJwt(req.headers.authorization);
@@ -121,7 +141,7 @@ async function resolveInboxFromBody(req: any): Promise<
     }
   }
 
-  return { ok: true, schoolId, adminView, teacherEmail };
+  return { ok: true, schoolId, adminView, teacherEmail, jwtUser };
 }
 
 router.get("/debug-resolution", async (req, res) => {
@@ -195,11 +215,17 @@ router.get("/threads", async (req, res) => {
     if (!auth.ok) {
       return res.status(auth.status).json({ success: false, error: auth.error });
     }
-    const { schoolId, adminView, teacherEmail } = auth;
+    const { schoolId, adminView, teacherEmail, jwtUser } = auth;
 
-    const where: any = { schoolId };
+    const where: Record<string, unknown> = { schoolId };
     if (!adminView) {
-      where.teacherEmail = { equals: teacherEmail, mode: "insensitive" };
+      where.OR = [
+        { assignedTeacherId: jwtUser.userId },
+        {
+          teacherEmail: { equals: teacherEmail, mode: "insensitive" },
+          assignedTeacherId: null,
+        },
+      ];
     }
 
     const threads = await prisma.parentTeacherThread.findMany({
@@ -245,7 +271,7 @@ router.get("/threads/:threadId", async (req, res) => {
     if (!auth.ok) {
       return res.status(auth.status).json({ success: false, error: auth.error });
     }
-    const { schoolId, adminView, teacherEmail } = auth;
+    const { schoolId, adminView, jwtUser } = auth;
     const threadId = String(req.params.threadId);
     const thread = await prisma.parentTeacherThread.findFirst({
       where: { id: threadId, schoolId },
@@ -257,7 +283,7 @@ router.get("/threads/:threadId", async (req, res) => {
     });
 
     if (!thread) return res.status(404).json({ success: false, error: "Thread not found" });
-    if (!adminView && normalizeEmail(thread.teacherEmail) !== teacherEmail) {
+    if (!adminView && !(await teacherCanAccessThread(jwtUser, thread))) {
       return res.status(403).json({ success: false, error: "Access denied" });
     }
 
@@ -279,7 +305,7 @@ router.post("/threads/:threadId/reply", upload.array("files", 5), async (req, re
     if (!auth.ok) {
       return res.status(auth.status).json({ success: false, error: auth.error });
     }
-    const { schoolId, adminView, teacherEmail } = auth;
+    const { schoolId, adminView, teacherEmail, jwtUser } = auth;
     const teacherName = String(req.body?.teacherName || "Teacher").trim();
     const body = String(req.body?.body || "").trim();
     const threadId = String(req.params.threadId);
@@ -292,7 +318,7 @@ router.post("/threads/:threadId/reply", upload.array("files", 5), async (req, re
       where: { id: threadId, schoolId },
     });
     if (!thread) return res.status(404).json({ success: false, error: "Thread not found" });
-    if (!adminView && normalizeEmail(thread.teacherEmail) !== teacherEmail) {
+    if (!adminView && !(await teacherCanAccessThread(jwtUser, thread))) {
       return res.status(403).json({ success: false, error: "Access denied" });
     }
 
@@ -347,14 +373,14 @@ router.patch("/threads/:threadId/read", async (req, res) => {
     if (!auth.ok) {
       return res.status(auth.status).json({ success: false, error: auth.error });
     }
-    const { schoolId, adminView, teacherEmail } = auth;
+    const { schoolId, adminView, jwtUser } = auth;
     const threadId = String(req.params.threadId);
 
     const thread = await prisma.parentTeacherThread.findFirst({
       where: { id: threadId, schoolId },
     });
     if (!thread) return res.status(404).json({ success: false, error: "Thread not found" });
-    if (!adminView && normalizeEmail(thread.teacherEmail) !== teacherEmail) {
+    if (!adminView && !(await teacherCanAccessThread(jwtUser, thread))) {
       return res.status(403).json({ success: false, error: "Access denied" });
     }
 

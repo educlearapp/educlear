@@ -125,6 +125,9 @@ learnerReports LearnerReport[]
   expenseCategories ExpenseCategory[]
   accountingJournals AccountingJournal[]
   classrooms Classroom[]
+  classroomTeachers ClassroomTeacher[]
+  teacherLearnerNotes TeacherLearnerNote[]
+  teacherStudyNotes TeacherStudyNote[]
   parentNotifications ParentNotification[]
   parentTeacherThreads ParentTeacherThread[]
   homeworkPosts HomeworkPost[]
@@ -454,6 +457,7 @@ model User {
   permissionOverrides UserPermissionOverride[]
 
   rbacMeta UserRbacMeta?
+  classroomAssignments ClassroomTeacher[]
 
   @@unique([schoolId, email])
   @@index([schoolId])
@@ -711,6 +715,7 @@ reports LearnerReport[]
   teacherThreads ParentTeacherThread[]
   homeworkPosts HomeworkPost[]
   incidents LearnerIncident[]
+  teacherLearnerNotes TeacherLearnerNote[]
   attendances LearnerAttendance[]
   communicationMessages CommunicationMessage[]
 
@@ -2632,6 +2637,18 @@ enum ParentOutreachStatus {
   FAILED
 }
 
+enum ClassroomTeacherRole {
+  PRIMARY
+  CO_TEACHER
+  ASSISTANT
+}
+
+enum TeacherContentVisibility {
+  PRIVATE
+  CLASS_TEACHERS
+  ADMIN
+}
+
 model Classroom {
   id            String   @id @default(cuid())
   schoolId      String
@@ -2644,11 +2661,34 @@ model Classroom {
   createdAt     DateTime @default(now())
   updatedAt     DateTime @updatedAt
 
-  school  School               @relation(fields: [schoolId], references: [id], onDelete: Cascade)
-  threads ParentTeacherThread[]
+  school   School              @relation(fields: [schoolId], references: [id], onDelete: Cascade)
+  threads  ParentTeacherThread[]
+  teachers ClassroomTeacher[]
 
   @@unique([schoolId, name])
   @@index([schoolId])
+}
+
+model ClassroomTeacher {
+  id           String               @id @default(cuid())
+  schoolId     String
+  classroomId  String
+  userId       String?
+  teacherEmail String               @default("")
+  teacherName  String               @default("")
+  role         ClassroomTeacherRole @default(CO_TEACHER)
+  createdAt    DateTime             @default(now())
+  updatedAt    DateTime             @updatedAt
+
+  school    School    @relation(fields: [schoolId], references: [id], onDelete: Cascade)
+  classroom Classroom @relation(fields: [classroomId], references: [id], onDelete: Cascade)
+  user      User?     @relation(fields: [userId], references: [id], onDelete: SetNull)
+
+  @@unique([classroomId, teacherEmail])
+  @@index([schoolId])
+  @@index([classroomId])
+  @@index([userId])
+  @@index([teacherEmail])
 }
 
 model ParentNotification {
@@ -2680,12 +2720,13 @@ model ParentTeacherThread {
   parentId     String
   learnerId    String
   classroomId  String?
-  teacherId    String?
-  teacherName  String                    @default("")
-  teacherEmail String                    @default("")
-  status       ParentTeacherThreadStatus @default(OPEN)
-  createdAt    DateTime                  @default(now())
-  updatedAt    DateTime                  @updatedAt
+  teacherId          String?
+  assignedTeacherId  String?
+  teacherName        String                    @default("")
+  teacherEmail       String                    @default("")
+  status             ParentTeacherThreadStatus @default(OPEN)
+  createdAt          DateTime                  @default(now())
+  updatedAt          DateTime                  @updatedAt
 
   school    School                @relation(fields: [schoolId], references: [id], onDelete: Cascade)
   parent    Parent                @relation(fields: [parentId], references: [id], onDelete: Cascade)
@@ -2695,6 +2736,7 @@ model ParentTeacherThread {
 
   @@unique([schoolId, parentId, learnerId])
   @@index([schoolId, teacherEmail])
+  @@index([schoolId, assignedTeacherId])
   @@index([learnerId])
 }
 
@@ -2717,84 +2759,139 @@ model ParentTeacherMessage {
 }
 
 model HomeworkPost {
-  id          String    @id @default(cuid())
-  schoolId    String
-  learnerId   String?
-  grade       String?
-  className   String?
-  title       String
-  description String?   @db.Text
-  dueDate     DateTime?
-  attachments Json?
-  createdBy   String    @default("")
-  createdAt   DateTime  @default(now())
+  id                 String                   @id @default(cuid())
+  schoolId           String
+  learnerId          String?
+  grade              String?
+  className          String?
+  title              String
+  description        String?                  @db.Text
+  dueDate            DateTime?
+  attachments        Json?
+  createdBy          String                   @default("")
+  createdByTeacherId String?
+  visibility         TeacherContentVisibility @default(CLASS_TEACHERS)
+  isDraft            Boolean                  @default(false)
+  createdAt          DateTime                 @default(now())
 
   school  School  @relation(fields: [schoolId], references: [id], onDelete: Cascade)
   learner Learner? @relation(fields: [learnerId], references: [id], onDelete: SetNull)
 
   @@index([schoolId, grade])
   @@index([schoolId, className])
+  @@index([schoolId, createdByTeacherId])
   @@index([learnerId])
 }
 
 model SchoolNotice {
-  id          String           @id @default(cuid())
-  schoolId    String
-  noticeType  SchoolNoticeType
-  title       String
-  body        String           @db.Text
-  grade       String?
-  className   String?
-  learnerId   String?
-  attachments Json?
-  publishedAt DateTime         @default(now())
-  createdBy   String           @default("")
-  createdAt   DateTime         @default(now())
+  id                 String                   @id @default(cuid())
+  schoolId           String
+  noticeType         SchoolNoticeType
+  title              String
+  body               String                   @db.Text
+  grade              String?
+  className          String?
+  learnerId          String?
+  attachments        Json?
+  publishedAt        DateTime                 @default(now())
+  createdBy          String                   @default("")
+  createdByTeacherId String?
+  visibility         TeacherContentVisibility @default(CLASS_TEACHERS)
+  isDraft            Boolean                  @default(false)
+  createdAt          DateTime                 @default(now())
 
   school School @relation(fields: [schoolId], references: [id], onDelete: Cascade)
 
   @@index([schoolId, noticeType])
   @@index([schoolId, grade])
   @@index([schoolId, className])
+  @@index([schoolId, createdByTeacherId])
 }
 
 model ParentDocument {
-  id          String   @id @default(cuid())
-  schoolId    String
-  title       String
-  description String?  @db.Text
-  grade       String?
-  className   String?
-  learnerId   String?
-  fileUrl     String
-  fileName    String   @default("")
-  createdAt   DateTime @default(now())
+  id                 String                   @id @default(cuid())
+  schoolId           String
+  title              String
+  description        String?                  @db.Text
+  grade              String?
+  className          String?
+  learnerId          String?
+  fileUrl            String
+  fileName           String                   @default("")
+  createdBy          String                   @default("")
+  createdByTeacherId String?
+  visibility         TeacherContentVisibility @default(CLASS_TEACHERS)
+  createdAt          DateTime                 @default(now())
 
   school School @relation(fields: [schoolId], references: [id], onDelete: Cascade)
 
   @@index([schoolId])
   @@index([schoolId, grade])
+  @@index([schoolId, createdByTeacherId])
 }
 
 model LearnerIncident {
-  id                String   @id @default(cuid())
-  schoolId          String
-  learnerId         String
-  type              String   @default("General")
-  subject           String   @default("General")
-  summary           String   @db.Text
-  parentVisible     Boolean  @default(true)
-  internalNotes     String?  @db.Text
-  incidentDate      DateTime @default(now())
-  createdBy         String   @default("")
-  createdAt         DateTime @default(now())
-  updatedAt         DateTime @updatedAt
+  id                 String                   @id @default(cuid())
+  schoolId           String
+  learnerId          String
+  type               String                   @default("General")
+  subject            String                   @default("General")
+  summary            String                   @db.Text
+  parentVisible      Boolean                  @default(true)
+  internalNotes      String?                  @db.Text
+  incidentDate       DateTime                 @default(now())
+  createdBy          String                   @default("")
+  createdByTeacherId String?
+  visibility         TeacherContentVisibility @default(CLASS_TEACHERS)
+  createdAt          DateTime                 @default(now())
+  updatedAt          DateTime                 @updatedAt
 
   school  School  @relation(fields: [schoolId], references: [id], onDelete: Cascade)
   learner Learner @relation(fields: [learnerId], references: [id], onDelete: Cascade)
 
   @@index([schoolId, learnerId])
+  @@index([schoolId, createdByTeacherId])
   @@index([learnerId])
+}
+
+model TeacherLearnerNote {
+  id                 String                   @id @default(cuid())
+  schoolId           String
+  learnerId          String
+  classroomId        String?
+  className          String?
+  body               String                   @db.Text
+  createdByTeacherId String
+  createdBy          String                   @default("")
+  visibility         TeacherContentVisibility @default(PRIVATE)
+  createdAt          DateTime                 @default(now())
+  updatedAt          DateTime                 @updatedAt
+
+  school  School  @relation(fields: [schoolId], references: [id], onDelete: Cascade)
+  learner Learner @relation(fields: [learnerId], references: [id], onDelete: Cascade)
+
+  @@index([schoolId, learnerId])
+  @@index([schoolId, createdByTeacherId])
+  @@index([learnerId])
+}
+
+model TeacherStudyNote {
+  id                 String                   @id @default(cuid())
+  schoolId           String
+  className          String?
+  title              String
+  body               String                   @db.Text
+  createdByTeacherId String
+  createdBy          String                   @default("")
+  visibility         TeacherContentVisibility @default(PRIVATE)
+  isDraft            Boolean                  @default(false)
+  createdAt          DateTime                 @default(now())
+  updatedAt          DateTime                 @updatedAt
+
+  school School @relation(fields: [schoolId], references: [id], onDelete: Cascade)
+
+  @@index([schoolId, className])
+  @@index([schoolId, createdByTeacherId])
 }
 
 enum AttendanceStatus {
