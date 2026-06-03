@@ -1,12 +1,15 @@
 import type { BillingLedgerEntry } from "./billingLedger";
 import type { KidesysHistoryEntry } from "./kidesysTransactionHistory";
-import { isKidesysOpeningBalanceEntry } from "./billingDisplayRules";
+import { isKidesysOpeningBalanceEntry, shouldShowLedgerEntryOnStatement } from "./billingDisplayRules";
+import { normaliseBillingAmount } from "./billingLedger";
 
-export const DEFAULT_STATEMENT_PERIOD = "Last 3 Months";
+export const DEFAULT_STATEMENT_PERIOD = "All Time";
 
 export const STATEMENT_PERIOD_OPTIONS = [
+  "Last 1 Month",
   "Last 3 Months",
   "Last 6 Months",
+  "Last 9 Months",
   "Last 12 Months",
   "Last 18 Months",
   "Last 24 Months",
@@ -16,8 +19,10 @@ export const STATEMENT_PERIOD_OPTIONS = [
 export type StatementPeriodOption = (typeof STATEMENT_PERIOD_OPTIONS)[number];
 
 const MONTHS_BY_PERIOD: Record<string, number> = {
+  "Last 1 Month": 1,
   "Last 3 Months": 3,
   "Last 6 Months": 6,
+  "Last 9 Months": 9,
   "Last 12 Months": 12,
   "Last 18 Months": 18,
   "Last 24 Months": 24,
@@ -25,7 +30,6 @@ const MONTHS_BY_PERIOD: Record<string, number> = {
 
 const LEGACY_PERIOD_MAP: Record<string, StatementPeriodOption> = {
   "Last 10 Transactions": "Last 3 Months",
-  "Last 9 Months": "Last 12 Months",
   "This Year": "Last 12 Months",
 };
 
@@ -37,7 +41,7 @@ function formatDisplayDate(date: Date): string {
   });
 }
 
-/** Normalises period query/state; empty or unknown values default to Last 3 Months. */
+/** Normalises period query/state; empty or unknown values default to All Time. */
 export function normalizeStatementPeriod(period?: string | null): StatementPeriodOption {
   const raw = String(period || "").trim();
   if (!raw) return DEFAULT_STATEMENT_PERIOD;
@@ -89,6 +93,21 @@ export function formatStatementPeriodHeaderLabel(period: string, now: Date = new
   return `${normalized} (${formatDisplayDate(cutoff)} – ${formatDisplayDate(end)})`;
 }
 
+/** Filename slug, e.g. 3months, 6months, alltime. */
+export function formatStatementPeriodFilenameSlug(period: string): string {
+  const normalized = normalizeStatementPeriod(period);
+  if (normalized === "All Time") return "alltime";
+  const months = MONTHS_BY_PERIOD[normalized];
+  if (months) return `${months}months`;
+  return normalized.toLowerCase().replace(/\s+/g, "");
+}
+
+export function buildStatementPdfFilename(accountNo: string, period: string): string {
+  const ref = String(accountNo || "statement").replace(/[^\w.-]+/g, "_");
+  const slug = formatStatementPeriodFilenameSlug(period);
+  return `${ref}-statement-${slug}.pdf`;
+}
+
 export function filterLedgerByStatementPeriod(
   entries: BillingLedgerEntry[],
   period: string
@@ -123,4 +142,33 @@ export function shouldShowOpeningBalanceMigration(
   const normalized = normalizeStatementPeriod(period);
   if (normalized === "All Time") return true;
   return isDateInStatementPeriod(entry.date || entry.createdAt, normalized);
+}
+
+/** Ledger balance from transactions strictly before the selected period cutoff. */
+export function computeStatementOpeningBalance(
+  entries: BillingLedgerEntry[],
+  period: string,
+  options?: { showCorrectionsAudit?: boolean }
+): number {
+  const normalized = normalizeStatementPeriod(period);
+  if (normalized === "All Time") return 0;
+
+  const cutoff = resolveStatementPeriodCutoff(normalized);
+  if (!cutoff) return 0;
+
+  const showCorrectionsAudit = Boolean(options?.showCorrectionsAudit);
+  const sorted = [...entries].sort(
+    (a, b) => new Date(a.date || a.createdAt).getTime() - new Date(b.date || b.createdAt).getTime()
+  );
+
+  let balance = 0;
+  for (const entry of sorted) {
+    const entryDate = new Date(entry.date || entry.createdAt);
+    if (Number.isNaN(entryDate.getTime()) || entryDate >= cutoff) continue;
+    if (!shouldShowLedgerEntryOnStatement(entry, showCorrectionsAudit)) continue;
+    const amount = normaliseBillingAmount(entry.amount);
+    const isDebit = entry.type === "invoice" || entry.type === "penalty";
+    balance += isDebit ? amount : -amount;
+  }
+  return balance;
 }

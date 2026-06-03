@@ -96,8 +96,10 @@ function sanitizeFilename(filename: string): string {
   return safe.endsWith(".pdf") ? safe : `${safe || "statement"}.pdf`;
 }
 
-export function statementPdfFilename(accountNo: string): string {
-  return sanitizeFilename(`${(accountNo || "statement").replace(/[^\w.-]+/g, "_")}-statement.pdf`);
+import { buildStatementPdfFilename } from "../utils/statementPeriod";
+
+export function statementPdfFilename(accountNo: string, period?: string): string {
+  return sanitizeFilename(buildStatementPdfFilename(accountNo, period || "All Time"));
 }
 
 type ColLayout = { headers: string[]; colWidths: number[] };

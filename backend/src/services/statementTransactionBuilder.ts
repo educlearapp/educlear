@@ -29,6 +29,8 @@ type BuildStatementTransactionsInput = {
   ledgerEntries: BillingLedgerEntry[];
   period: string;
   nameByLearnerId: Map<string, string>;
+  /** Running balance offset for transactions before the selected period. */
+  openingBalance?: number;
   /** When true, include undone rows and correction journals (admin audit). */
   showCorrectionsAudit?: boolean;
 };
@@ -57,6 +59,7 @@ export function buildStatementTransactions(
 ): StatementPdfTransaction[] {
   const { schoolId, accountRef, ledgerEntries, period, nameByLearnerId } = input;
   const showCorrectionsAudit = Boolean(input.showCorrectionsAudit);
+  const openingBalance = normaliseAmount(input.openingBalance ?? 0);
 
   type DisplayRow = Omit<StatementPdfTransaction, "balance"> & {
     key: string;
@@ -70,7 +73,7 @@ export function buildStatementTransactions(
   const sortedPosting = [...ledgerEntries].sort(
     (a, b) => new Date(a.date || a.createdAt).getTime() - new Date(b.date || b.createdAt).getTime()
   );
-  let running = 0;
+  let running = openingBalance;
   sortedPosting.forEach((entry) => {
     if (!shouldShowLedgerEntryOnStatement(entry, showCorrectionsAudit)) return;
     if (!shouldShowOpeningBalanceMigration(period, entry) && isKidesysOpeningBalanceEntry(entry)) {

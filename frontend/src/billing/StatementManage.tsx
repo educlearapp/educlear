@@ -77,12 +77,18 @@ import {
 } from "./statementDocument";
 import {
   DEFAULT_STATEMENT_PERIOD,
+  buildStatementPdfFilename,
+  computeStatementOpeningBalance,
   filterKidesysHistoryByStatementPeriod,
   filterLedgerByStatementPeriod,
   normalizeStatementPeriod,
   shouldShowOpeningBalanceMigration,
   STATEMENT_PERIOD_OPTIONS,
 } from "./statementPeriod";
+import StatementPeriodModal, {
+  persistStatementExportPeriod,
+  readRememberedStatementExportPeriod,
+} from "./StatementPeriodModal";
 
 type Props = {
   selected: any;
@@ -110,6 +116,8 @@ type ModalKind =
   | "mergePending"
   | "unmerge"
   | "unmergePending";
+
+type ExportAction = "print" | "download" | "email";
 
 type PendingModal = {
   title: string;
@@ -300,6 +308,10 @@ export default function StatementManage({
   const [undoNotice, setUndoNotice] = useState("");
   const [showCorrectionsAudit, setShowCorrectionsAudit] = useState(false);
   const [pdfDownloading, setPdfDownloading] = useState(false);
+  const [statementExportBusy, setStatementExportBusy] = useState(false);
+  const [exportPeriodModal, setExportPeriodModal] = useState<ExportAction | null>(null);
+  const [exportPeriod, setExportPeriod] = useState(readRememberedStatementExportPeriod);
+  const [emailExportPeriod, setEmailExportPeriod] = useState<string | null>(null);
   const emailReady = isSchoolEmailReadyForUi(emailReadiness);
 
   const loadEmailReadiness = useCallback(async () => {
@@ -544,12 +556,13 @@ export default function StatementManage({
     });
   }, [statementRows, mergeSearch, learnerId, accountNo, familyAccountId, learners]);
 
-  const ledger = useMemo(() => {
-    const entries = isFamilyBillingAccount
+  const fullLedger = useMemo(() => {
+    return isFamilyBillingAccount
       ? getFamilyAccountLedger(schoolId, familyLedgerScope)
       : getAccountLedger(schoolId, learnerId, accountRef || accountNo);
-    return filterLedgerByStatementPeriod(entries, period);
-  }, [schoolId, isFamilyBillingAccount, familyLedgerScope, learnerId, accountRef, accountNo, period]);
+  }, [schoolId, isFamilyBillingAccount, familyLedgerScope, learnerId, accountRef, accountNo]);
+
+  const ledger = useMemo(() => filterLedgerByStatementPeriod(fullLedger, period), [fullLedger, period]);
 
   const kidesysHistoryForAccount = useMemo(() => {
     const ref = accountRef || accountNo;
@@ -598,6 +611,11 @@ export default function StatementManage({
     [kidesysHistoryForAccount, period]
   );
 
+  const statementOpeningBalance = useMemo(
+    () => computeStatementOpeningBalance(fullLedger, period, { showCorrectionsAudit }),
+    [fullLedger, period, showCorrectionsAudit]
+  );
+
   const balance = useMemo(() => {
     // Statement list uses Age Analysis (accountRef) balances. Manage view must match list exactly.
     const fromRow = normaliseBillingAmount(selected?.balance);
@@ -635,7 +653,7 @@ export default function StatementManage({
       (a, b) =>
         new Date(a.date || a.createdAt).getTime() - new Date(b.date || b.createdAt).getTime()
     );
-    let running = 0;
+    let running = statementOpeningBalance;
     sortedPosting.forEach((entry, index) => {
       if (!shouldShowLedgerEntryOnStatement(entry, showCorrectionsAudit)) return;
       if (!shouldShowOpeningBalanceMigration(period, entry) && isKidesysOpeningBalanceEntry(entry)) {
@@ -699,7 +717,7 @@ export default function StatementManage({
       if (a.isKidesysHistory !== b.isKidesysHistory) return a.isKidesysHistory ? 1 : -1;
       return String(a.key).localeCompare(String(b.key));
     });
-  }, [ledger, filteredKidesysHistory, learnerNameById, accountRef, accountNo, period, showCorrectionsAudit]);
+  }, [ledger, filteredKidesysHistory, learnerNameById, accountRef, accountNo, period, showCorrectionsAudit, statementOpeningBalance]);
 
   const openingBalanceRows = useMemo(
     () => transactions.filter((row) => row.isOpeningBalance),
@@ -941,16 +959,6 @@ export default function StatementManage({
   };
 
   const periods = [...STATEMENT_PERIOD_OPTIONS];
-  const statementPeriodForExport = normalizeStatementPeriod(period);
-
-  const moreActions = [
-    "Create Invoice",
-    "Create Payment",
-    "Create Journal",
-    "Unallocate All Transactions",
-    "Merge With Another Account",
-    "Unmerge Child From Account",
-  ];
 
   const sourceAccountLabel = `${accountNo || "-"} — ${selected?.name || ""} ${selected?.surname || ""}`.trim();
 
@@ -967,50 +975,62 @@ export default function StatementManage({
     [accountChildren]
   );
 
-  const handlePrintStatement = async () => {
+  const exportPeriodActionLabel = (action: ExportAction) => {
+    if (action === "print") return "Print Statement";
+    if (action === "download") return "Download PDF";
+    return "Continue to Email";
+  };
+
+  const openExportPeriodModal = (action: ExportAction) => {
+    if (statementExportBusy || pdfDownloading) return;
+    setExportPeriod(readRememberedStatementExportPeriod());
+    setExportPeriodModal(action);
+  };
+
+  const closeExportPeriodModal = () => {
+    if (statementExportBusy) return;
+    setExportPeriodModal(null);
+  };
+
+  const runPrintStatement = async (selectedPeriod: string) => {
     setActionNotice("");
     const anchorId = familyLearnerIds[0] || learnerId;
     if (!schoolId || !anchorId) {
       setActionNotice("School or learner context is missing.");
       return;
     }
-    try {
-      const opened = await openSchoolStatementPdfPrint(
-        schoolId,
-        anchorId,
-        statementPeriodForExport,
-        statementNote,
-        accountRef || undefined
-      );
-      if (!opened) {
-        setActionNotice("Please allow pop-ups to print the statement.");
-        setModalKind("pending");
-        setPendingModal({
-          title: "Print Statement",
-          body: "Your browser blocked the print window. Allow pop-ups for this site, then try Print Statement again.",
-        });
-      }
-    } catch (e: unknown) {
-      setActionNotice((e as Error).message || "Could not generate statement PDF.");
+    const opened = await openSchoolStatementPdfPrint(
+      schoolId,
+      anchorId,
+      selectedPeriod,
+      statementNote,
+      accountRef || undefined
+    );
+    if (!opened) {
+      setActionNotice("Please allow pop-ups to print the statement.");
+      setModalKind("pending");
+      setPendingModal({
+        title: "Print Statement",
+        body: "Your browser blocked the print window. Allow pop-ups for this site, then try Print Statement again.",
+      });
     }
   };
 
-  const handleDownloadStatement = async () => {
-    if (pdfDownloading) return;
+  const runDownloadStatement = async (selectedPeriod: string) => {
     setActionNotice("");
     const anchorId = familyLearnerIds[0] || learnerId;
     if (!schoolId || !anchorId) {
       setActionNotice("School or learner context is missing.");
       return;
     }
-    const filename = `${(accountRef || accountNo || "statement").replace(/[^\w.-]+/g, "_")}-statement.pdf`;
+    const filename = buildStatementPdfFilename(accountRef || accountNo || "statement", selectedPeriod);
     setPdfDownloading(true);
     try {
       await downloadSchoolStatementPdf(
         schoolId,
         anchorId,
         filename,
-        statementPeriodForExport,
+        selectedPeriod,
         statementNote,
         accountRef || undefined
       );
@@ -1021,13 +1041,82 @@ export default function StatementManage({
     }
   };
 
+  const openSendStatementModal = async (selectedPeriod: string) => {
+    const targetIds = familyLearnerIds.length ? familyLearnerIds : learnerId ? [learnerId] : [];
+    const contact = resolveStatementBillingContact(learners, parents, targetIds);
+    if (!contact?.email || !schoolId) return;
+    const defaults = await buildStatementEmailDefaults(
+      schoolId,
+      schoolBranding.name,
+      accountDisplayLabel,
+      contact.name
+    );
+    setEmailExportPeriod(selectedPeriod);
+    setSendContact(contact);
+    setSendSubject(defaults.subject);
+    setSendMessage(defaults.message);
+    setSendError("");
+    setSendOpen(true);
+  };
+
+  const confirmExportPeriod = async () => {
+    if (statementExportBusy || !exportPeriodModal) return;
+    const selectedPeriod = normalizeStatementPeriod(exportPeriod);
+    persistStatementExportPeriod(selectedPeriod);
+    const action = exportPeriodModal;
+
+    if (action === "email") {
+      setExportPeriodModal(null);
+      await openSendStatementModal(selectedPeriod);
+      return;
+    }
+
+    setStatementExportBusy(true);
+    try {
+      if (action === "print") {
+        await runPrintStatement(selectedPeriod);
+      } else {
+        await runDownloadStatement(selectedPeriod);
+      }
+      setExportPeriodModal(null);
+    } catch (e: unknown) {
+      setActionNotice((e as Error).message || "Could not generate statement PDF.");
+    } finally {
+      setStatementExportBusy(false);
+    }
+  };
+
+  const handlePrintStatement = () => {
+    if (statementExportBusy || pdfDownloading) return;
+    setActionNotice("");
+    const anchorId = familyLearnerIds[0] || learnerId;
+    if (!schoolId || !anchorId) {
+      setActionNotice("School or learner context is missing.");
+      return;
+    }
+    openExportPeriodModal("print");
+  };
+
+  const handleDownloadStatement = () => {
+    if (statementExportBusy || pdfDownloading) return;
+    setActionNotice("");
+    const anchorId = familyLearnerIds[0] || learnerId;
+    if (!schoolId || !anchorId) {
+      setActionNotice("School or learner context is missing.");
+      return;
+    }
+    openExportPeriodModal("download");
+  };
+
   const closeSendModal = () => {
     setSendOpen(false);
     setSendError("");
     setSendBusy(false);
+    setEmailExportPeriod(null);
   };
 
   const handleSendStatement = async () => {
+    if (statementExportBusy || pdfDownloading) return;
     setActionNotice("");
     const targetIds = familyLearnerIds.length ? familyLearnerIds : learnerId ? [learnerId] : [];
     const contact = resolveStatementBillingContact(learners, parents, targetIds);
@@ -1059,17 +1148,7 @@ export default function StatementManage({
       });
       return;
     }
-    const defaults = await buildStatementEmailDefaults(
-      schoolId,
-      schoolBranding.name,
-      accountDisplayLabel,
-      contact.name
-    );
-    setSendContact(contact);
-    setSendSubject(defaults.subject);
-    setSendMessage(defaults.message);
-    setSendError("");
-    setSendOpen(true);
+    openExportPeriodModal("email");
   };
 
   const confirmSendStatement = async () => {
@@ -1078,6 +1157,7 @@ export default function StatementManage({
       setSendError("Please enter an email subject.");
       return;
     }
+    const periodForSend = normalizeStatementPeriod(emailExportPeriod || exportPeriod);
     setSendBusy(true);
     setSendError("");
     try {
@@ -1094,9 +1174,9 @@ export default function StatementManage({
         html: emailHtml,
         learnerId: anchorId,
         accountNo: accountRef || undefined,
-        period: statementPeriodForExport,
+        period: periodForSend,
         statementNote,
-        filename: `${(accountRef || accountNo || "statement").replace(/[^\w.-]+/g, "_")}-statement.pdf`,
+        filename: buildStatementPdfFilename(accountRef || accountNo || "statement", periodForSend),
       });
       closeSendModal();
       setModalKind("pending");
@@ -1119,6 +1199,15 @@ export default function StatementManage({
       setSendBusy(false);
     }
   };
+
+  const moreActions = [
+    "Create Invoice",
+    "Create Payment",
+    "Create Journal",
+    "Unallocate All Transactions",
+    "Merge With Another Account",
+    "Unmerge Child From Account",
+  ];
 
   const goldButtonStyle: React.CSSProperties = {
     ...buttonStyle,
@@ -1364,18 +1453,28 @@ export default function StatementManage({
         <button type="button" style={buttonStyle} onClick={openCreatePayment}>
           + Payment
         </button>
-        <button type="button" style={buttonStyle} onClick={() => void handlePrintStatement()}>
-          Print Statement
+        <button
+          type="button"
+          style={{
+            ...buttonStyle,
+            opacity: statementExportBusy || pdfDownloading ? 0.72 : 1,
+            cursor: statementExportBusy || pdfDownloading ? "not-allowed" : "pointer",
+          }}
+          onClick={handlePrintStatement}
+          disabled={statementExportBusy || pdfDownloading}
+          aria-busy={statementExportBusy}
+        >
+          {statementExportBusy ? "Generating…" : "Print Statement"}
         </button>
         <button
           type="button"
           style={{
             ...buttonStyle,
-            opacity: pdfDownloading ? 0.72 : 1,
-            cursor: pdfDownloading ? "not-allowed" : "pointer",
+            opacity: statementExportBusy || pdfDownloading ? 0.72 : 1,
+            cursor: statementExportBusy || pdfDownloading ? "not-allowed" : "pointer",
           }}
-          onClick={() => void handleDownloadStatement()}
-          disabled={pdfDownloading}
+          onClick={handleDownloadStatement}
+          disabled={statementExportBusy || pdfDownloading}
           aria-busy={pdfDownloading}
         >
           {pdfDownloading ? "Generating PDF…" : "Download PDF"}
@@ -1384,8 +1483,17 @@ export default function StatementManage({
           style={{ position: "relative", display: "inline-flex", alignItems: "center" }}
           title={emailReady ? "Send statement by email" : "Email setup required"}
         >
-          <button type="button" style={goldButtonStyle} onClick={() => void handleSendStatement()}>
-            Send Statement
+          <button
+            type="button"
+            style={{
+              ...goldButtonStyle,
+              opacity: statementExportBusy || pdfDownloading || sendBusy ? 0.72 : 1,
+              cursor: statementExportBusy || pdfDownloading || sendBusy ? "not-allowed" : "pointer",
+            }}
+            onClick={() => void handleSendStatement()}
+            disabled={statementExportBusy || pdfDownloading || sendBusy}
+          >
+            {sendBusy ? "Sending…" : "Send Statement"}
           </button>
           {!emailReady ? (
             <span
@@ -2119,14 +2227,33 @@ export default function StatementManage({
               />
             </div>
             <p style={{ margin: 0, color: "#64748b", fontSize: 13, fontWeight: 600 }}>
-              The statement PDF for account {accountRef || accountNo} is attached. Email is sent using your school&apos;s
-              saved SMTP settings (From / Reply-To from Communication settings).
+              The statement PDF ({normalizeStatementPeriod(emailExportPeriod || exportPeriod)}) for account{" "}
+              {accountRef || accountNo} is attached. Email is sent using your school&apos;s saved SMTP settings (From /
+              Reply-To from Communication settings).
             </p>
             {sendError ? (
               <p style={{ margin: 0, color: "#b91c1c", fontWeight: 700, lineHeight: 1.6 }}>{sendError}</p>
             ) : null}
           </div>
         </StatementModal>
+      ) : null}
+
+      {exportPeriodModal ? (
+        <StatementPeriodModal
+          title={
+            exportPeriodModal === "print"
+              ? "Print Statement"
+              : exportPeriodModal === "download"
+                ? "Download Statement PDF"
+                : "Send Statement"
+          }
+          actionLabel={exportPeriodActionLabel(exportPeriodModal)}
+          period={exportPeriod}
+          busy={statementExportBusy}
+          onPeriodChange={setExportPeriod}
+          onConfirm={() => void confirmExportPeriod()}
+          onClose={closeExportPeriodModal}
+        />
       ) : null}
     </div>
   );

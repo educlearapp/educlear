@@ -22,6 +22,7 @@ import {
 import { sendStatementEmail } from "../services/statementEmailService";
 import { buildSetupRequiredPayload } from "../services/schoolEmailService";
 import { buildAndGenerateStatementPdf } from "../services/statementPdfData";
+import { normalizeStatementPeriod } from "../utils/statementPeriod";
 
 const router = Router();
 
@@ -455,10 +456,14 @@ async function serveParentStatementPdf(
 
   console.log("[PDF] generating", learnerId, { schoolId: auth.schoolId, parentId: auth.parentId });
 
+  const period = normalizeStatementPeriod(
+    typeof req.query?.period === "string" ? String(req.query.period).trim() : undefined
+  );
+
   const { buffer, filename } = await buildAndGenerateStatementPdf({
     schoolId: auth.schoolId,
     learnerId,
-    period: "All Time",
+    period,
   });
 
   res.setHeader("Content-Type", "application/pdf");
@@ -535,7 +540,9 @@ router.post("/billing/email-statement", parentAuthMiddleware, async (req, res) =
       subject,
       html,
       learnerId,
-      period: "All Time",
+      period: normalizeStatementPeriod(
+        typeof req.body?.period === "string" ? String(req.body.period).trim() : undefined
+      ),
     });
 
     return res.json({ success: true, messageId: result.messageId });

@@ -10,6 +10,14 @@ import {
   openParentStatementPdfPrint,
   type StatementSchoolBranding,
 } from "../billing/statementDocument";
+import {
+  buildStatementPdfFilename,
+  normalizeStatementPeriod,
+} from "../billing/statementPeriod";
+import StatementPeriodModal, {
+  persistStatementExportPeriod,
+  readRememberedStatementExportPeriod,
+} from "../billing/StatementPeriodModal";
 import { consumeInactivityLogoutMessage } from "../auth/sessionLogout";
 import {
   clearParentSession,
@@ -176,6 +184,8 @@ function nextDueHomework(homework: any[]): { title: string; due: string } | null
   return { title: first.h.title, due: `Due ${new Date(first.h.dueDate).toLocaleDateString()}` };
 }
 
+type ParentExportAction = "print" | "download" | "email";
+
 export default function ParentPortalApp() {
   const [schools, setSchools] = useState<{ id: string; name: string }[]>([]);
   const [schoolId, setSchoolId] = useState("");
@@ -208,6 +218,8 @@ export default function ParentPortalApp() {
   const [statementBranding, setStatementBranding] = useState<StatementSchoolBranding | null>(null);
   const [statementNotice, setStatementNotice] = useState<string | null>(null);
   const [statementActionBusy, setStatementActionBusy] = useState(false);
+  const [statementExportModal, setStatementExportModal] = useState<ParentExportAction | null>(null);
+  const [statementExportPeriod, setStatementExportPeriod] = useState(readRememberedStatementExportPeriod);
   const [inactivityNotice, setInactivityNotice] = useState<string | null>(null);
 
   const learners: LinkRow[] = useMemo(() => {
@@ -601,23 +613,34 @@ export default function ParentPortalApp() {
     );
   }, [familyBilling, familyBillingLearners, parentDisplayName]);
 
-  const statementPdfFilename = useMemo(() => {
-    const ref = (familyBilling?.accountRef || "statement").replace(/[^\w.-]+/g, "_");
-    return `${ref}-statement.pdf`;
-  }, [familyBilling?.accountRef]);
+  const parentExportPeriodActionLabel = (action: ParentExportAction) => {
+    if (action === "print") return "Print Statement";
+    if (action === "download") return "Download PDF";
+    return "Email Statement";
+  };
 
-  async function handleDownloadStatement() {
+  const openStatementExportModal = (action: ParentExportAction) => {
     if (statementActionBusy) return;
-    setStatementNotice(null);
+    setStatementExportPeriod(readRememberedStatementExportPeriod());
+    setStatementExportModal(action);
+  };
+
+  const closeStatementExportModal = () => {
+    if (statementActionBusy) return;
+    setStatementExportModal(null);
+  };
+
+  async function runParentDownloadStatement(selectedPeriod: string) {
     const anchorId = selectedLearnerId || activeLearner?.id || learners[0]?.learner?.id || "";
     const token = getParentToken();
     if (!anchorId) {
       setStatementNotice("Select a learner to download your statement.");
       return;
     }
+    const filename = buildStatementPdfFilename(familyBilling?.accountRef || "statement", selectedPeriod);
     setStatementActionBusy(true);
     try {
-      await downloadParentStatementPdf(anchorId, statementPdfFilename, token);
+      await downloadParentStatementPdf(anchorId, filename, token, selectedPeriod);
     } catch (e: unknown) {
       setStatementNotice((e as Error).message || "Could not download your statement PDF.");
     } finally {
@@ -625,26 +648,27 @@ export default function ParentPortalApp() {
     }
   }
 
-  async function handlePrintStatement() {
-    setStatementNotice(null);
+  async function runParentPrintStatement(selectedPeriod: string) {
     const anchorId = selectedLearnerId || activeLearner?.id || learners[0]?.learner?.id || "";
     const token = getParentToken();
     if (!anchorId) {
       setStatementNotice("Billing details are still loading. Please try again in a moment.");
       return;
     }
+    setStatementActionBusy(true);
     try {
-      const opened = await openParentStatementPdfPrint(anchorId, token);
+      const opened = await openParentStatementPdfPrint(anchorId, token, selectedPeriod);
       if (!opened) {
         setStatementNotice("Please allow pop-ups to print your statement.");
       }
     } catch (e: unknown) {
       setStatementNotice((e as Error).message || "Could not generate your statement PDF.");
+    } finally {
+      setStatementActionBusy(false);
     }
   }
 
-  async function handleEmailStatement() {
-    setStatementNotice(null);
+  async function runParentEmailStatement(selectedPeriod: string) {
     const anchorId = selectedLearnerId || activeLearner?.id || learners[0]?.learner?.id || "";
     if (!anchorId) {
       setStatementNotice("Select a learner to email your statement.");
@@ -674,6 +698,7 @@ export default function ParentPortalApp() {
           learnerId: anchorId,
           subject: defaults.subject,
           html: emailHtml,
+          period: normalizeStatementPeriod(selectedPeriod),
         }),
       });
       setStatementNotice(`Statement emailed to ${email}.`);
@@ -688,6 +713,65 @@ export default function ParentPortalApp() {
     } finally {
       setStatementActionBusy(false);
     }
+  }
+
+  async function confirmStatementExportPeriod() {
+    if (statementActionBusy || !statementExportModal) return;
+    const selectedPeriod = normalizeStatementPeriod(statementExportPeriod);
+    persistStatementExportPeriod(selectedPeriod);
+    const action = statementExportModal;
+    setStatementExportModal(null);
+    setStatementNotice(null);
+
+    if (action === "download") {
+      await runParentDownloadStatement(selectedPeriod);
+    } else if (action === "print") {
+      await runParentPrintStatement(selectedPeriod);
+    } else {
+      await runParentEmailStatement(selectedPeriod);
+    }
+  }
+
+  function handleDownloadStatement() {
+    if (statementActionBusy) return;
+    setStatementNotice(null);
+    const anchorId = selectedLearnerId || activeLearner?.id || learners[0]?.learner?.id || "";
+    if (!anchorId) {
+      setStatementNotice("Select a learner to download your statement.");
+      return;
+    }
+    openStatementExportModal("download");
+  }
+
+  function handlePrintStatement() {
+    if (statementActionBusy) return;
+    setStatementNotice(null);
+    const anchorId = selectedLearnerId || activeLearner?.id || learners[0]?.learner?.id || "";
+    if (!anchorId) {
+      setStatementNotice("Billing details are still loading. Please try again in a moment.");
+      return;
+    }
+    openStatementExportModal("print");
+  }
+
+  function handleEmailStatement() {
+    if (statementActionBusy) return;
+    setStatementNotice(null);
+    const anchorId = selectedLearnerId || activeLearner?.id || learners[0]?.learner?.id || "";
+    if (!anchorId) {
+      setStatementNotice("Select a learner to email your statement.");
+      return;
+    }
+    const email = String(session?.parent?.email || "").trim();
+    if (!email) {
+      setStatementNotice("No email on your profile. Contact the school to add your email address.");
+      return;
+    }
+    if (!familyBilling || !parentAccountLabel) {
+      setStatementNotice("Billing details are still loading. Please try again in a moment.");
+      return;
+    }
+    openStatementExportModal("email");
   }
 
   const latestStatement = useMemo(() => {
@@ -1374,6 +1458,24 @@ export default function ParentPortalApp() {
           </nav>
         </div>
       </div>
+
+      {statementExportModal ? (
+        <StatementPeriodModal
+          title={
+            statementExportModal === "print"
+              ? "Print Statement"
+              : statementExportModal === "download"
+                ? "Download Statement PDF"
+                : "Email Statement"
+          }
+          actionLabel={parentExportPeriodActionLabel(statementExportModal)}
+          period={statementExportPeriod}
+          busy={statementActionBusy}
+          onPeriodChange={setStatementExportPeriod}
+          onConfirm={() => void confirmStatementExportPeriod()}
+          onClose={closeStatementExportModal}
+        />
+      ) : null}
     </div>
   );
 }

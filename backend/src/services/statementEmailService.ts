@@ -48,7 +48,7 @@ export async function sendStatementEmail(input: SendStatementEmailInput) {
       statementNote: input.statementNote,
     });
     pdfBuffer = generated.buffer;
-    filename = filename || generated.filename;
+    filename = generated.filename;
   } else {
     const pdfBase64 = String(input.pdfBase64 || "").trim();
     if (!pdfBase64) {

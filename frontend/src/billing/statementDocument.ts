@@ -905,8 +905,15 @@ export async function openSchoolStatementPdfPrint(
   return true;
 }
 
-export async function fetchParentStatementPdfBlob(learnerId: string, token: string): Promise<Blob> {
-  const params = new URLSearchParams({ learnerId });
+export async function fetchParentStatementPdfBlob(
+  learnerId: string,
+  token: string,
+  period = DEFAULT_STATEMENT_PERIOD
+): Promise<Blob> {
+  const params = new URLSearchParams({
+    learnerId,
+    period: normalizeStatementPeriod(period),
+  });
   const res = await fetch(`${API_URL}/api/parent-portal/billing/statement.pdf?${params.toString()}`, {
     headers: token ? { Authorization: `Bearer ${token}` } : {},
   });
@@ -924,17 +931,22 @@ export async function fetchParentStatementPdfBlob(learnerId: string, token: stri
 export async function downloadParentStatementPdf(
   learnerId: string,
   filename: string,
-  token: string
+  token: string,
+  period = DEFAULT_STATEMENT_PERIOD
 ): Promise<void> {
-  const key = ["parent", learnerId, token.slice(0, 12)].join("|");
+  const key = ["parent", learnerId, normalizeStatementPeriod(period), token.slice(0, 12)].join("|");
   return runSingleStatementPdfDownload(key, async () => {
-    const blob = await fetchParentStatementPdfBlob(learnerId, token);
+    const blob = await fetchParentStatementPdfBlob(learnerId, token, period);
     triggerBlobDownload(blob, filename);
   });
 }
 
-export async function openParentStatementPdfPrint(learnerId: string, token: string): Promise<boolean> {
-  const blob = await fetchParentStatementPdfBlob(learnerId, token);
+export async function openParentStatementPdfPrint(
+  learnerId: string,
+  token: string,
+  period = DEFAULT_STATEMENT_PERIOD
+): Promise<boolean> {
+  const blob = await fetchParentStatementPdfBlob(learnerId, token, period);
   const url = URL.createObjectURL(blob);
   const win = window.open(url, "_blank");
   if (!win) {

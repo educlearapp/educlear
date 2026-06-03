@@ -17,6 +17,7 @@ import type {
 import { generateStatementPdfBuffer, statementPdfFilename } from "./statementPdfService";
 import { buildStatementTransactions } from "./statementTransactionBuilder";
 import {
+  computeStatementOpeningBalance,
   DEFAULT_STATEMENT_PERIOD,
   filterLedgerByStatementPeriod,
   formatStatementPeriodHeaderLabel,
@@ -408,6 +409,7 @@ export async function buildStatementPdfInput(
     learnerIds: scope.learnerIds,
   });
   const filtered = filterLedgerByStatementPeriod(scopedEntries, period);
+  const openingBalance = computeStatementOpeningBalance(scopedEntries, period);
   // Balance source of truth: Age Analysis (Kid-e-Sys accountRef) snapshot.
   const accounts = await buildAccountsFromAgeAnalysisSnapshots(schoolId);
   const snapshot = accounts.find((row: any) => String(row?.accountNo || "").trim() === scope.accountRef);
@@ -434,6 +436,7 @@ export async function buildStatementPdfInput(
     accountRef: scope.accountRef,
     ledgerEntries: filtered,
     period,
+    openingBalance,
     nameByLearnerId,
   });
 
@@ -464,7 +467,7 @@ export async function buildAndGenerateStatementPdf(options: BuildStatementPdfOpt
   const buffer = await generateStatementPdfBuffer(input);
   return {
     buffer,
-    filename: statementPdfFilename(input.accountNo),
+    filename: statementPdfFilename(input.accountNo, options.period),
     input,
   };
 }
