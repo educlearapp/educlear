@@ -3,8 +3,8 @@ import PDFDocument from "pdfkit";
 
 import { resolveBillingAccountRef } from "../services/resolveBillingAccountRef";
 import { relinkSchoolBillingLedger } from "../services/billingLedgerRelink";
+import { resolveAuthoritativeAccountBalance } from "../services/statementAccounts";
 import {
-  calculateBalanceForAccount,
   computeOpenInvoiceLines,
   listPayments,
   normaliseAmount,
@@ -140,11 +140,7 @@ router.get("/targets", async (req, res) => {
     const existingAllocations = paymentId
       ? listPaymentAllocations(schoolId, paymentId)
       : [];
-    const balance = calculateBalanceForAccount(
-      readSchoolLedger(schoolId),
-      "",
-      account.accountRef
-    );
+    const balance = await resolveAuthoritativeAccountBalance(schoolId, account.accountRef);
 
     return res.json({
       success: true,

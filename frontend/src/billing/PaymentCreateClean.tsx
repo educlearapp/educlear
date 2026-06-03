@@ -1,7 +1,6 @@
-import React, { useCallback, useEffect, useMemo, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   BILLING_UPDATED_EVENT,
-  calculateAccountBalance,
   computeOpenInvoiceLines,
   formatMoney,
   getAccountLedger,
@@ -10,12 +9,13 @@ import {
   type OpenInvoiceLine,
 } from "./billingLedger";
 import { formatLedgerTypeLabel, isKidesysOpeningBalanceEntry } from "./billingDisplayRules";
+import BillingEnvDebug from "./BillingEnvDebug";
 import {
+  applyPaymentSaveResponse,
   createPayment,
   fetchOpenInvoices,
+  refreshBillingFromApi,
   syncBillingLedgerFromApi,
-  syncStatementSummariesFromApi,
-  upsertPaymentFromApiResponse,
 } from "./billingApi";
 import {
   normalizeKidESysAccountRef,
@@ -379,6 +379,7 @@ export default function PaymentCreateClean({
   const [saving, setSaving] = useState(false);
   const [saveJustSucceeded, setSaveJustSucceeded] = useState(false);
   const [saveError, setSaveError] = useState("");
+  const paymentIdempotencyKeyRef = useRef<string | null>(null);
   const [selectedPaymentId, setSelectedPaymentId] = useState<string | null>(null);
   const [allocationModal, setAllocationModal] = useState<{
     paymentId: string;
@@ -451,8 +452,6 @@ export default function PaymentCreateClean({
         if (paymentId && allocationPayload) {
           await savePaymentAllocations(paymentId, allocationPayload);
         }
-        await syncBillingLedgerFromApi(schoolId);
-        await syncStatementSummariesFromApi(schoolId);
         await refreshLedger({ silent: true });
         notifyBillingUpdated();
       } catch (error) {
@@ -491,11 +490,11 @@ export default function PaymentCreateClean({
   }, [schoolId, learnerId, accountNo, ledgerTick]);
 
   const accountBalance = useMemo(() => {
-    if (apiBalance !== null) return apiBalance;
-    const fromStatement = normaliseBillingAmount(selectedAccount?.balance);
+    if (apiBalance !== null && Number.isFinite(apiBalance)) return apiBalance;
+    const fromStatement = Number(selectedAccount?.balance);
     if (Number.isFinite(fromStatement)) return fromStatement;
-    return calculateAccountBalance(accountLedger, "", accountNo);
-  }, [apiBalance, selectedAccount?.balance, accountLedger, accountNo]);
+    return 0;
+  }, [apiBalance, selectedAccount?.balance]);
 
   const invoiceRows = useMemo(() => {
     if (apiOpenInvoices.length) return apiOpenInvoices;
@@ -887,6 +886,8 @@ export default function PaymentCreateClean({
       return;
     }
 
+    if (saving) return;
+
     setSaving(true);
     setSaveJustSucceeded(false);
     setSaveError("");
@@ -894,8 +895,16 @@ export default function PaymentCreateClean({
       const paymentAmount = normaliseBillingAmount(amount);
       const paymentNote =
         draft.message.trim() || draft.description.trim() || "Payment";
+      if (!paymentIdempotencyKeyRef.current) {
+        paymentIdempotencyKeyRef.current =
+          typeof crypto !== "undefined" && crypto.randomUUID
+            ? crypto.randomUUID()
+            : `idem-${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
+      }
+      const idempotencyKey = paymentIdempotencyKeyRef.current;
       const result = (await createPayment({
         schoolId,
+        idempotencyKey,
         // Billing identity is accountRef only (FamilyAccount.accountRef / Kid-e-Sys accountRef).
         learnerId: "",
         accountNo: resolvedAccountNo,
@@ -907,23 +916,27 @@ export default function PaymentCreateClean({
         note: draft.message.trim(),
         notes: draft.message.trim(),
         method: paymentType,
-      })) as { payment?: Record<string, unknown>; balance?: number };
-      console.log("CREATE PAYMENT RESULT", result);
+      })) as {
+        success?: boolean;
+        error?: string;
+        payment?: Record<string, unknown>;
+        balance?: number;
+        duplicate?: boolean;
+      };
 
-      const paymentRow = (result as any)?.payment;
-      const paymentId = String(paymentRow?.id || "").trim();
-      if (paymentRow) {
-        upsertPaymentFromApiResponse(schoolId, paymentRow, {
-          learnerId: "",
-          accountNo: resolvedAccountNo,
-          amount: paymentAmount,
-          date: paymentDate,
-          reference: paymentType,
-          description: paymentNote,
-          method: paymentType,
-          source: "manual",
-        });
+      if (result?.success === false) {
+        throw new Error(String(result.error || "Payment was not saved on the server."));
       }
+
+      const paymentRow = result?.payment;
+      const paymentId = String(paymentRow?.id || "").trim();
+      if (!paymentId || !paymentRow) {
+        throw new Error("Payment was not saved. No payment record returned from the server.");
+      }
+
+      applyPaymentSaveResponse(schoolId, result as Record<string, unknown>);
+
+      await refreshBillingFromApi(schoolId);
 
       const allocationLines: AllocationLine[] = Object.entries(rowAllocations)
         .filter(([, amt]) => Number(amt || 0) > 0.001)
@@ -933,12 +946,33 @@ export default function PaymentCreateClean({
         }));
       const unallocatedCredit = amountUnallocated;
 
-      if (typeof result.balance === "number" && Number.isFinite(result.balance)) {
-        setApiBalance(result.balance);
-      } else if (apiBalance !== null) {
-        setApiBalance(roundMoney(apiBalance - paymentAmount));
+      try {
+        const { openInvoices, balance } = await fetchOpenInvoices(schoolId, "", resolvedAccountNo);
+        setApiOpenInvoices(
+          openInvoices.map((row: any) => ({
+            id: String(row.id || ""),
+            audit: String(row.audit || row.id || ""),
+            type: String(row.type || "Invoice"),
+            date: String(row.date || "").slice(0, 10),
+            reference: String(row.reference || ""),
+            description: String(row.description || ""),
+            unpaid: Number(row.unpaid || 0),
+            amount: Number(row.amount || row.unpaid || 0),
+          }))
+        );
+        if (typeof balance === "number" && Number.isFinite(balance)) {
+          setApiBalance(balance);
+        } else if (typeof result.balance === "number" && Number.isFinite(result.balance)) {
+          setApiBalance(result.balance);
+        }
+      } catch (refreshError) {
+        console.error(refreshError);
+        if (typeof result.balance === "number" && Number.isFinite(result.balance)) {
+          setApiBalance(result.balance);
+        }
       }
 
+      paymentIdempotencyKeyRef.current = null;
       notifyBillingUpdated();
       setLedgerTick((v) => v + 1);
       setRowAllocations({});
@@ -993,6 +1027,7 @@ export default function PaymentCreateClean({
       setSaving(false);
     }
   }, [
+    saving,
     draft,
     selectedAccount,
     schoolId,
@@ -1029,6 +1064,7 @@ export default function PaymentCreateClean({
         boxSizing: "border-box",
       }}
     >
+      <BillingEnvDebug schoolId={schoolId} />
       <h1 style={{ margin: 0, fontSize: 30, fontWeight: 900, color: "#111827" }}>
         Create Payment
       </h1>

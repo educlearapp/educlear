@@ -1,4 +1,5 @@
 import React, { useEffect, useMemo, useState } from "react";
+import BillingEnvDebug from "./BillingEnvDebug";
 import BillingSummaryCards from "./BillingSummaryCards";
 import {
   accountsFromStatementRows,
@@ -126,6 +127,7 @@ export default function Payments({
         border: "1px solid rgba(15,23,42,0.08)",
       }}
     >
+      <BillingEnvDebug />
       <div style={{ marginBottom: 18 }}>
         <h1 style={{ margin: 0, fontSize: 34, fontWeight: 900, color: "#0f172a" }}>
           New Payment

@@ -2,9 +2,11 @@ import { API_URL } from "../api";
 import {
   mergeApiLedger,
   notifyBillingUpdated,
+  replaceSchoolLedgerFromApi,
   type BillingLedgerEntry,
   upsertSchoolEntries,
 } from "./billingLedger";
+import { clearSchoolBillingDisplayCache } from "./kidesysTransactionHistory";
 import {
   mapApiRowToHistoryEntry,
   readSchoolKidesysHistory,
@@ -46,9 +48,13 @@ const postJson = async (url: string, data: any, fallback = "Request failed") => 
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(data),
+    cache: "no-store",
   });
   const body = await response.json().catch(() => ({}));
   if (!response.ok) {
+    throw new Error(readApiErrorMessage(response, body, fallback));
+  }
+  if (body && typeof body === "object" && (body as { success?: boolean }).success === false) {
     throw new Error(readApiErrorMessage(response, body, fallback));
   }
   return body;
@@ -235,7 +241,8 @@ export const syncBillingLedgerFromApi = async (schoolId: string) => {
 
   const ledgerRows = await fetchLedger(sid);
   if (ledgerRows.length) {
-    applyApiLedgerEntries(sid, ledgerRows);
+    const entries = ledgerRows.map((row: any) => mapApiRowToLedgerEntry(sid, row));
+    replaceSchoolLedgerFromApi(sid, entries);
     return;
   }
 
@@ -248,7 +255,7 @@ export const syncBillingLedgerFromApi = async (schoolId: string) => {
   ];
 
   if (entries.length) {
-    mergeApiLedger(sid, entries);
+    replaceSchoolLedgerFromApi(sid, entries);
   }
 };
 
@@ -344,11 +351,15 @@ export const undoBillingTransaction = async (
 export async function refreshBillingFromApi(schoolId: string) {
   const sid = String(schoolId || "").trim();
   if (!sid) return;
+  clearSchoolBillingDisplayCache(sid);
   await syncStatementSummariesFromApi(sid).catch(() => {});
   await syncKidesysHistoryFromApi(sid).catch(() => {});
   await syncBillingLedgerFromApi(sid);
   notifyBillingUpdated();
 }
+
+export const fetchBillingServerEnv = async () =>
+  getJson(`${API_URL}/api/payments/env`);
 
 export const fetchBillingDocuments = async (schoolId: string) =>
   getJson(`${API_URL}/api/billing-documents?schoolId=${encodeURIComponent(schoolId)}`);
@@ -433,8 +444,47 @@ export const fetchLegalDocumentHistory = async (schoolId: string, documentType?:
 export const createInvoice = async (data: any) =>
   postJson(`${API_URL}/api/invoices`, data, "Failed to create invoice");
 
-export const createPayment = async (data: any) =>
+export const createPayment = async (data: Record<string, unknown>) =>
   postJson(`${API_URL}/api/payments`, data, "Failed to create payment");
+
+/** Apply payment POST response (balance, statements, ledger) without stale local merges. */
+export function applyPaymentSaveResponse(
+  schoolId: string,
+  body: Record<string, unknown> | null | undefined
+) {
+  const sid = String(schoolId || "").trim();
+  if (!sid || !body) return;
+
+  const payment = body.payment;
+  if (payment && typeof payment === "object") {
+    upsertPaymentFromApiResponse(sid, payment);
+  }
+
+  const ledgerEntries = body.ledgerEntries;
+  if (Array.isArray(ledgerEntries) && ledgerEntries.length) {
+    mergeApiLedger(
+      sid,
+      ledgerEntries.map((row) => mapApiRowToLedgerEntry(sid, row))
+    );
+  }
+
+  const statements = body.statements ?? body.accounts;
+  if (Array.isArray(statements) && statements.length) {
+    writeStatementApiAccounts(sid, statements);
+    writeStatementApiSummaries(
+      sid,
+      statements.map((row: any) => ({
+        accountNo: String(row.accountNo || ""),
+        lastInvoice: Number.isFinite(Number(row.lastInvoice)) ? Number(row.lastInvoice) : 0,
+        lastInvoiceDate: String(row.lastInvoiceDate || ""),
+        lastInvoiceLabel: row.lastInvoiceLabel ?? null,
+        lastPayment: Number.isFinite(Number(row.lastPayment)) ? Number(row.lastPayment) : 0,
+        lastPaymentDate: String(row.lastPaymentDate || ""),
+      }))
+    );
+  }
+  notifyBillingUpdated();
+}
 
 export const mergeFamilyAccount = async (payload: {
   schoolId: string;

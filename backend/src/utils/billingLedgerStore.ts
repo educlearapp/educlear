@@ -39,10 +39,57 @@ type LedgerFile = Record<string, BillingLedgerEntry[]>;
 
 const DATA_DIR = path.join(process.cwd(), "data");
 const LEDGER_FILE = path.join(DATA_DIR, "billing-ledger.json");
+const LEDGER_LOCK_FILE = path.join(DATA_DIR, ".billing-ledger.lock");
+const DEFAULT_PAYMENT_DUPLICATE_WINDOW_MS = 120_000;
+const LEDGER_LOCK_MAX_WAIT_MS = 20_000;
+const LEDGER_LOCK_STALE_MS = 30_000;
 
 function ensureStore() {
   if (!fs.existsSync(DATA_DIR)) fs.mkdirSync(DATA_DIR, { recursive: true });
   if (!fs.existsSync(LEDGER_FILE)) fs.writeFileSync(LEDGER_FILE, JSON.stringify({}, null, 2), "utf8");
+}
+
+function sleepMs(ms: number) {
+  const end = Date.now() + ms;
+  while (Date.now() < end) {
+    /* spin-wait for short lock contention */
+  }
+}
+
+function clearStaleLedgerLock() {
+  try {
+    const stat = fs.statSync(LEDGER_LOCK_FILE);
+    if (Date.now() - stat.mtimeMs > LEDGER_LOCK_STALE_MS) {
+      fs.unlinkSync(LEDGER_LOCK_FILE);
+    }
+  } catch {
+    /* no lock */
+  }
+}
+
+/** Process-wide exclusive lock for billing-ledger.json read-modify-write. */
+export function withBillingLedgerLock<T>(fn: () => T): T {
+  const started = Date.now();
+  while (Date.now() - started < LEDGER_LOCK_MAX_WAIT_MS) {
+    try {
+      fs.writeFileSync(LEDGER_LOCK_FILE, String(process.pid), { flag: "wx" });
+      try {
+        return fn();
+      } finally {
+        try {
+          fs.unlinkSync(LEDGER_LOCK_FILE);
+        } catch {
+          /* ignore */
+        }
+      }
+    } catch (error: unknown) {
+      const code = (error as NodeJS.ErrnoException)?.code;
+      if (code !== "EEXIST") throw error;
+      clearStaleLedgerLock();
+      sleepMs(40 + Math.floor(Math.random() * 40));
+    }
+  }
+  throw new Error("Billing ledger is busy. Please retry in a moment.");
 }
 
 function readAll(): LedgerFile {
@@ -58,7 +105,126 @@ function readAll(): LedgerFile {
 
 function writeAll(data: LedgerFile) {
   ensureStore();
-  fs.writeFileSync(LEDGER_FILE, JSON.stringify(data, null, 2), "utf8");
+  const tmp = `${LEDGER_FILE}.${process.pid}.${Date.now()}.tmp`;
+  fs.writeFileSync(tmp, JSON.stringify(data, null, 2), "utf8");
+  fs.renameSync(tmp, LEDGER_FILE);
+}
+
+export type PaymentDuplicateFingerprint = {
+  accountNo: string;
+  amount: number;
+  date: string;
+  method?: string;
+  reference?: string;
+};
+
+export function paymentDuplicateFingerprint(
+  schoolId: string,
+  input: PaymentDuplicateFingerprint
+): string {
+  const accountRef = String(input.accountNo || "").trim().toUpperCase();
+  const amount = normaliseAmount(input.amount).toFixed(2);
+  const date = String(input.date || "").slice(0, 10);
+  const method = String(input.method || "").trim().toLowerCase();
+  const reference = String(input.reference || "").trim().toLowerCase();
+  return [
+    String(schoolId || "").trim(),
+    accountRef,
+    amount,
+    date,
+    method,
+    reference,
+  ].join("|");
+}
+
+function findRecentDuplicatePayment(
+  entries: BillingLedgerEntry[],
+  fingerprint: string,
+  windowMs: number,
+  excludeId?: string
+): BillingLedgerEntry | null {
+  const now = Date.now();
+  for (let i = entries.length - 1; i >= 0; i -= 1) {
+    const entry = entries[i];
+    if (entry.type !== "payment") continue;
+    if (excludeId && entry.id === excludeId) continue;
+    const createdMs = new Date(entry.createdAt || 0).getTime();
+    if (!Number.isFinite(createdMs) || now - createdMs > windowMs) continue;
+    const entryFingerprint = paymentDuplicateFingerprint(entry.schoolId, {
+      accountNo: entry.accountNo,
+      amount: entry.amount,
+      date: entry.date,
+      method: entry.method,
+      reference: entry.reference,
+    });
+    if (entryFingerprint === fingerprint) return entry;
+  }
+  return null;
+}
+
+export type AppendSchoolEntryResult = {
+  entry: BillingLedgerEntry;
+  created: boolean;
+  duplicateReason?: "id" | "fingerprint" | "idempotencyKey";
+};
+
+/**
+ * Atomic append with duplicate protection (double-click / concurrent save).
+ */
+export function appendSchoolEntrySafe(
+  schoolId: string,
+  entry: BillingLedgerEntry,
+  opts: {
+    idempotencyKey?: string;
+    duplicateWindowMs?: number;
+  } = {}
+): AppendSchoolEntryResult {
+  const sid = String(schoolId || "").trim();
+  if (!sid) throw new Error("Missing schoolId");
+
+  return withBillingLedgerLock(() => {
+    const storeKey = resolveBillingLedgerStoreKey(sid);
+    if (!storeKey) throw new Error("Invalid school ledger key");
+
+    const all = readAll();
+    const current = Array.isArray(all[storeKey]) ? [...all[storeKey]] : [];
+    const idempotencyKey = String(opts.idempotencyKey || "").trim();
+    const entryId = String(entry.id || "").trim();
+
+    if (entryId) {
+      const byId = current.find((e) => e.id === entryId);
+      if (byId) {
+        return { entry: byId, created: false, duplicateReason: "id" };
+      }
+    }
+
+    if (idempotencyKey) {
+      const stableId = `pay-${idempotencyKey.replace(/[^a-zA-Z0-9_-]/g, "_").slice(0, 80)}`;
+      const byKey = current.find((e) => e.id === stableId);
+      if (byKey) {
+        return { entry: byKey, created: false, duplicateReason: "idempotencyKey" };
+      }
+      entry = { ...entry, id: stableId };
+    }
+
+    const fingerprint = paymentDuplicateFingerprint(sid, {
+      accountNo: entry.accountNo,
+      amount: entry.amount,
+      date: entry.date,
+      method: entry.method,
+      reference: entry.reference,
+    });
+    const windowMs = opts.duplicateWindowMs ?? DEFAULT_PAYMENT_DUPLICATE_WINDOW_MS;
+    const duplicate = findRecentDuplicatePayment(current, fingerprint, windowMs, entry.id);
+    if (duplicate) {
+      return { entry: duplicate, created: false, duplicateReason: "fingerprint" };
+    }
+
+    current.push(entry);
+    all[storeKey] = current;
+    writeAll(all);
+    return { entry, created: true };
+  });
 }
 
 export function normaliseAmount(value: unknown): number {
@@ -83,36 +249,52 @@ export function readSchoolLedger(schoolId: string): BillingLedgerEntry[] {
 }
 
 export function writeSchoolLedger(schoolId: string, entries: BillingLedgerEntry[]) {
-  const storeKey = resolveBillingLedgerStoreKey(schoolId);
-  if (!storeKey) return;
-  const all = readAll();
-  all[storeKey] = entries;
-  writeAll(all);
+  const key = String(schoolId || "").trim();
+  if (!key) return;
+  withBillingLedgerLock(() => {
+    const storeKey = resolveBillingLedgerStoreKey(key);
+    if (!storeKey) return;
+    const all = readAll();
+    all[storeKey] = entries;
+    writeAll(all);
+  });
 }
 
 export function upsertSchoolEntries(schoolId: string, entries: BillingLedgerEntry[]) {
   const key = String(schoolId || "").trim();
   if (!key || !entries.length) return;
-  const current = readSchoolLedger(key);
-  const byId = new Map(current.map((e) => [e.id, e]));
-  for (const entry of entries) byId.set(entry.id, entry);
-  writeSchoolLedger(key, Array.from(byId.values()));
+  withBillingLedgerLock(() => {
+    const storeKey = resolveBillingLedgerStoreKey(key);
+    if (!storeKey) return;
+    const all = readAll();
+    const current = Array.isArray(all[storeKey]) ? [...all[storeKey]] : [];
+    const byId = new Map(current.map((e) => [e.id, e]));
+    for (const entry of entries) byId.set(entry.id, entry);
+    all[storeKey] = Array.from(byId.values());
+    writeAll(all);
+  });
 }
 
 export function appendSchoolEntry(schoolId: string, entry: BillingLedgerEntry) {
-  upsertSchoolEntries(schoolId, [entry]);
+  appendSchoolEntrySafe(schoolId, entry);
 }
 
 export function removeSchoolEntry(schoolId: string, entryId: string): BillingLedgerEntry | null {
   const sid = String(schoolId || "").trim();
   const id = String(entryId || "").trim();
   if (!sid || !id) return null;
-  const entries = readSchoolLedger(sid);
-  const index = entries.findIndex((e) => e.id === id);
-  if (index < 0) return null;
-  const [removed] = entries.splice(index, 1);
-  writeSchoolLedger(sid, entries);
-  return removed;
+  return withBillingLedgerLock(() => {
+    const storeKey = resolveBillingLedgerStoreKey(sid);
+    if (!storeKey) return null;
+    const all = readAll();
+    const entries = Array.isArray(all[storeKey]) ? [...all[storeKey]] : [];
+    const index = entries.findIndex((e) => e.id === id);
+    if (index < 0) return null;
+    const [removed] = entries.splice(index, 1);
+    all[storeKey] = entries;
+    writeAll(all);
+    return removed;
+  });
 }
 
 export function listInvoices(schoolId: string) {

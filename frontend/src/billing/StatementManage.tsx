@@ -1365,6 +1365,7 @@ export default function StatementManage({
       }
       setModalKind(null);
       setSelectedTransactionKey(null);
+      await refreshBillingFromApi(schoolId);
       setActionNotice(
         result?.alreadyUndone
           ? "Transaction was already undone. Balances are up to date."

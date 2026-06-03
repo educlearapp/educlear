@@ -2,10 +2,17 @@ import { Router } from "express";
 
 import { relinkSchoolBillingLedger } from "../services/billingLedgerRelink";
 import { resolveBillingAccountRef } from "../services/resolveBillingAccountRef";
-import { buildAccountsFromAgeAnalysisSnapshots } from "../services/statementAccounts";
 import {
-  appendSchoolEntry,
-  calculateBalanceForAccount,
+  buildAccountsFromAgeAnalysisSnapshots,
+  resolveAuthoritativeAccountBalance,
+  type BillingStatementAccountRow,
+} from "../services/statementAccounts";
+import {
+  isEduClearUndoCorrectionEntry,
+  isUndoneLedgerEntry,
+} from "../utils/billingDisplayRules";
+import {
+  appendSchoolEntrySafe,
   computeOpenInvoiceLines,
   listPayments,
   normaliseAmount,
@@ -13,7 +20,67 @@ import {
   type BillingLedgerEntry,
 } from "../utils/billingLedgerStore";
 
+function activeLedgerEntriesForAccount(
+  ledger: BillingLedgerEntry[],
+  accountRef: string
+): BillingLedgerEntry[] {
+  const ref = String(accountRef || "").trim().toUpperCase();
+  return ledger.filter((entry) => {
+    if (String(entry.accountNo || "").trim().toUpperCase() !== ref) return false;
+    if (isUndoneLedgerEntry(entry)) return false;
+    if (isEduClearUndoCorrectionEntry(entry)) return false;
+    return true;
+  });
+}
+
 const router = Router();
+
+function collectAccountLedgerSlice(
+  ledger: BillingLedgerEntry[],
+  accountRef: string
+): BillingLedgerEntry[] {
+  const ref = String(accountRef || "").trim().toUpperCase();
+  return ledger.filter(
+    (entry) => String(entry.accountNo || "").trim().toUpperCase() === ref
+  );
+}
+
+function findAccountRow(
+  accounts: BillingStatementAccountRow[],
+  accountRef: string
+): BillingStatementAccountRow | null {
+  const ref = String(accountRef || "").trim().toUpperCase();
+  return (
+    accounts.find((row) => String(row.accountNo || "").trim().toUpperCase() === ref) ??
+    null
+  );
+}
+
+// GET /api/payments/env — cross-device billing diagnostics
+router.get("/env", async (_req, res) => {
+  try {
+    const dbUrl = String(process.env.DATABASE_URL || "").trim();
+    let databaseHost = "—";
+    if (dbUrl) {
+      try {
+        databaseHost = new URL(dbUrl.replace(/^postgres(ql)?:\/\//i, "https://")).hostname;
+      } catch {
+        databaseHost = "configured";
+      }
+    }
+    return res.json({
+      success: true,
+      nodeEnv: process.env.NODE_ENV || "development",
+      databaseHost,
+      gitCommit: process.env.GIT_COMMIT || process.env.RENDER_GIT_COMMIT || "—",
+      ledgerStore: "billing-ledger.json",
+      serverTime: new Date().toISOString(),
+    });
+  } catch (error) {
+    console.error("[payments] GET /env failed:", error);
+    return res.status(500).json({ success: false, error: "Server error" });
+  }
+});
 
 // GET /api/payments?schoolId=...
 router.get("/", async (req, res) => {
@@ -63,9 +130,10 @@ router.get("/open-invoices", async (req, res) => {
 
     await relinkSchoolBillingLedger(schoolId);
     const ledger = readSchoolLedger(schoolId);
-    // Identity is accountRef only for open invoice allocation + balance snapshots.
-    const openInvoices = computeOpenInvoiceLines(ledger, "", accountNo);
-    const balance = calculateBalanceForAccount(ledger, "", accountNo);
+    const accountRef = String(accountNo || "").trim().toUpperCase();
+    const scoped = activeLedgerEntriesForAccount(ledger, accountRef);
+    const openInvoices = computeOpenInvoiceLines(scoped, "", accountRef);
+    const balance = await resolveAuthoritativeAccountBalance(schoolId, accountRef, { ledger });
 
     return res.json({ success: true, openInvoices, balance });
   } catch (error) {
@@ -115,39 +183,83 @@ router.post("/", async (req, res) => {
       body.message || body.note || body.notes || body.description || "Payment"
     ).trim();
 
+    const paymentDate = String(body.date || body.paidAt || new Date().toISOString()).slice(0, 10);
+    const paymentMethod = String(body.method || body.type || "").trim() || undefined;
+    const paymentReference = String(body.reference || "").trim();
+    const idempotencyKey = String(body.idempotencyKey || "").trim();
+
     const entry: BillingLedgerEntry = {
-      id: String(body.id || `pay-${Date.now()}`),
+      id: String(body.id || "").trim() || `pay-${Date.now()}`,
       schoolId,
       learnerId: "",
       accountNo: resolved.accountRef,
       type: "payment",
       amount,
-      date: String(body.date || body.paidAt || new Date().toISOString()).slice(0, 10),
-      reference: String(body.reference || "").trim(),
+      date: paymentDate,
+      reference: paymentReference,
       description: paymentNote || "Payment",
-      method: String(body.method || body.type || "").trim() || undefined,
+      method: paymentMethod,
       source: "manual",
       createdAt: new Date().toISOString(),
     };
 
-    appendSchoolEntry(schoolId, entry);
+    const appendResult = appendSchoolEntrySafe(schoolId, entry, { idempotencyKey });
+    const savedEntry = appendResult.entry;
+
     await relinkSchoolBillingLedger(schoolId);
     const ledger = readSchoolLedger(schoolId);
-    const balance = calculateBalanceForAccount(ledger, "", resolved.accountRef);
+    const accountRef = resolved.accountRef;
+    const balance = await resolveAuthoritativeAccountBalance(schoolId, accountRef, {
+      ledger,
+    });
+    const accounts = await buildAccountsFromAgeAnalysisSnapshots(schoolId);
+    const account = findAccountRow(accounts, accountRef);
+    const ledgerEntries = collectAccountLedgerSlice(ledger, accountRef);
+    const openInvoices = computeOpenInvoiceLines(
+      activeLedgerEntriesForAccount(ledger, accountRef),
+      "",
+      accountRef
+    );
+
+    const outstandingTotal = accounts.reduce(
+      (sum, row) => sum + (Number(row.balance) > 0 ? Number(row.balance) : 0),
+      0
+    );
+    const recentlyOwing = accounts.filter((row) => {
+      const b = Number(row.balance) || 0;
+      return b > 0 && b <= 10000;
+    }).length;
+    const badDebt = accounts.filter((row) => (Number(row.balance) || 0) > 10000).length;
 
     return res.json({
       success: true,
+      duplicate: !appendResult.created,
+      duplicateReason: appendResult.duplicateReason,
       payment: {
-        ...entry,
-        message: entry.description,
-        note: entry.description,
-        notes: entry.description,
+        ...savedEntry,
+        message: savedEntry.description,
+        note: savedEntry.description,
+        notes: savedEntry.description,
       },
       balance,
+      account,
+      lastPayment: account?.lastPayment ?? 0,
+      lastPaymentDate: account?.lastPaymentDate ?? "",
+      ledgerEntries,
+      openInvoices,
+      statements: accounts,
+      summary: {
+        accountsCount: accounts.length,
+        totalOutstanding: Math.round(outstandingTotal * 100) / 100,
+        recentlyOwing,
+        badDebt,
+      },
     });
   } catch (error) {
+    const message = error instanceof Error ? error.message : "Server error";
     console.error("[payments] POST / failed:", error);
-    return res.status(500).json({ success: false, error: "Server error" });
+    const busy = message.includes("Billing ledger is busy");
+    return res.status(busy ? 503 : 500).json({ success: false, error: message });
   }
 });
 

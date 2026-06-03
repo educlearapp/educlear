@@ -19,7 +19,9 @@ import {
 import {
   MIGRATED_OPENING_BALANCE_OVERVIEW,
   countsTowardPostImportBalanceDelta,
+  isEduClearUndoCorrectionEntry,
   isKidesysOpeningBalanceEntry,
+  isUndoneLedgerEntry,
   shouldShowLedgerEntryOnStatement,
 } from "../utils/billingDisplayRules";
 import { normalizeKidesysBillingSection } from "./billingSummary";
@@ -29,6 +31,70 @@ import {
   resolveMemberNames,
   splitAccountHolderNames,
 } from "./familyAccountMembers";
+
+export function roundStatementMoney(value: unknown): number {
+  const n = Number(value);
+  if (!Number.isFinite(n)) return 0;
+  return Math.round(n * 100) / 100;
+}
+
+/** Ledger rows that change live FamilyAccount balance (age-analysis baseline + delta). */
+export function filterPostImportBalanceEntries(
+  accountEntries: BillingLedgerEntry[],
+  importedAt: string
+): BillingLedgerEntry[] {
+  return accountEntries.filter((entry) => {
+    if (!countsTowardPostImportBalanceDelta(entry)) return false;
+    if (isUndoneLedgerEntry(entry)) return false;
+    if (isEduClearUndoCorrectionEntry(entry)) return false;
+    if (!importedAt) return true;
+    return String(entry.createdAt || "") >= importedAt;
+  });
+}
+
+export function resolveAuthoritativeAccountBalanceFromSnapshot(
+  snap: FamilyAccountAgeAnalysisSnapshot | undefined,
+  accountEntries: BillingLedgerEntry[]
+): number {
+  if (!snap) {
+    const active = accountEntries.filter(
+      (entry) =>
+        !isUndoneLedgerEntry(entry) &&
+        !isEduClearUndoCorrectionEntry(entry) &&
+        countsTowardPostImportBalanceDelta(entry)
+    );
+    return roundStatementMoney(calculateBalanceFromEntries(active));
+  }
+
+  const ageBalance = Number(snap.balance) || 0;
+  const importedAt = String(snap.importedAt || "").trim();
+  const postImportEntries = filterPostImportBalanceEntries(accountEntries, importedAt);
+  return roundStatementMoney(ageBalance + calculateBalanceFromEntries(postImportEntries));
+}
+
+/** Authoritative balance: Kid-e-Sys age-analysis baseline + live EduClear ledger delta. */
+export async function resolveAuthoritativeAccountBalance(
+  schoolId: string,
+  accountRef: string,
+  opts: { ledger?: BillingLedgerEntry[] } = {}
+): Promise<number> {
+  const sid = String(schoolId || "").trim();
+  const ref = String(accountRef || "").trim().toUpperCase();
+  if (!sid || !ref) return 0;
+
+  const snapshotsByRef = readSchoolFamilyAccountAgeAnalysisSnapshots(sid);
+  const snap =
+    snapshotsByRef[ref] ??
+    Object.values(snapshotsByRef).find(
+      (row) => String(row.accountRef || "").trim().toUpperCase() === ref
+    );
+
+  const ledger = opts.ledger ?? readSchoolLedger(sid);
+  const accountEntries = ledger.filter(
+    (entry) => String(entry.accountNo || "").trim().toUpperCase() === ref
+  );
+  return resolveAuthoritativeAccountBalanceFromSnapshot(snap, accountEntries);
+}
 
 export type BillingStatementAccountRow = {
   accountNo: string;
@@ -302,11 +368,7 @@ export async function buildAccountsFromAgeAnalysisSnapshots(
     const paymentFields = resolveLastPaymentFields(accountEntries, hist);
 
     const importedAt = String(snap.importedAt || "").trim();
-    const postImportEntries = accountEntries.filter((e) => {
-      if (!countsTowardPostImportBalanceDelta(e)) return false;
-      if (!importedAt) return true;
-      return String(e.createdAt || "") >= importedAt;
-    });
+    const postImportEntries = filterPostImportBalanceEntries(accountEntries, importedAt);
     const deltaBalance = calculateBalanceFromEntries(postImportEntries);
     const balance = ageBalance + deltaBalance;
     const kidesysSection = normalizeKidesysBillingSection(snap.kidesysSection);

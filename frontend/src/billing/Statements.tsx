@@ -1,4 +1,5 @@
 import React, { useEffect, useMemo, useState } from "react";
+import BillingEnvDebug from "./BillingEnvDebug";
 import BillingSummaryCards from "./BillingSummaryCards";
 import { buildBillingRowSearchText, formatMoney, normaliseBillingAmount } from "./billingLedger";
 import { isMigratedOpeningBalanceOverviewLabel } from "./billingDisplayRules";
@@ -305,7 +306,7 @@ export default function Statements({
 
     >
 
-
+      <BillingEnvDebug />
 
       <div style={{ marginBottom: 18 }}>
 

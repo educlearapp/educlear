@@ -996,6 +996,13 @@ export function mergeApiLedger(schoolId: string, entries: BillingLedgerEntry[]) 
   upsertSchoolEntries(schoolId, entries);
 }
 
+/** Replace local ledger cache with server rows (prevents stale device-only payments). */
+export function replaceSchoolLedgerFromApi(schoolId: string, entries: BillingLedgerEntry[]) {
+  const key = String(schoolId || "").trim();
+  if (!key) return;
+  writeSchoolLedger(key, entries);
+}
+
 function migrateLegacyLedgerIfNeeded(schoolId: string) {
   const flag = `${MIGRATED_FLAG_PREFIX}${schoolId}`;
   if (localStorage.getItem(flag) === "1") return;
