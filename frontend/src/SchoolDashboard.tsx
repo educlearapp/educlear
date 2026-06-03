@@ -112,6 +112,7 @@ import {
 } from "./auth/schoolSession";
 import { getPackageDisplayPrice } from "./subscriptions/payfastCheckout";
 import { API_URL, apiFetch } from "./api";
+import { normalizeSaIdNumber } from "./utils/normalizeSaIdNumber";
 
 
 
@@ -890,6 +891,10 @@ const [selectedLearnerReport, setSelectedLearnerReport] = useState<any>(null);
 
 
   const [feeLookupDone, setFeeLookupDone] = useState(false);
+
+  const [feeCheckError, setFeeCheckError] = useState("");
+
+  const [feeLookupNotFound, setFeeLookupNotFound] = useState(false);
 
 
 
@@ -2004,21 +2009,64 @@ const [selectedLearnerReport, setSelectedLearnerReport] = useState<any>(null);
 
 
   const handleFeeCheck = async () => {
-    const raw = parentIdInput.trim();
-    if (!raw || feeLoading) return;
+    const normalizedId = normalizeSaIdNumber(parentIdInput);
+    if (!normalizedId || feeLoading) return;
+
+    if (normalizedId !== parentIdInput) {
+      setParentIdInput(normalizedId);
+    }
 
     setFeeLoading(true);
     setFeeLookupDone(false);
+    setFeeLookupNotFound(false);
+    setFeeCheckError("");
     setFeeMessage("");
     setFeeResults([]);
+    setFeeSchool("-");
+    setFeeParentName("-");
+
+    if (normalizedId.length < 6) {
+      setFeeLoading(false);
+      setFeeCheckError("Enter a valid ID number (at least 6 digits, numbers only).");
+      return;
+    }
+
+    const buildId = import.meta.env.VITE_FEE_CHECK_BUILD_ID || "dev";
+    const feeCheckUrl = `${API_URL}/api/parents/fee-check/${encodeURIComponent(normalizedId)}?_=${encodeURIComponent(buildId)}`;
 
     try {
-      const res = await fetch(`${API_URL}/api/parents/fee-check/${encodeURIComponent(raw)}`);
-      const data = await res.json();
+      const res = await fetch(feeCheckUrl, {
+        method: "GET",
+        cache: "no-store",
+        headers: {
+          Accept: "application/json",
+          "Cache-Control": "no-cache",
+          Pragma: "no-cache",
+        },
+      });
+
+      let data: Record<string, unknown> | null = null;
+      try {
+        data = (await res.json()) as Record<string, unknown>;
+      } catch {
+        data = null;
+      }
+
+      if (!res.ok) {
+        const apiError =
+          (typeof data?.error === "string" && data.error) ||
+          (typeof data?.message === "string" && data.message) ||
+          `Fee check failed (${res.status})`;
+        setFeeCheckError(apiError);
+        return;
+      }
+
+      setFeeLookupDone(true);
+
       const rows: FeeCheckResultCard[] = Array.isArray(data?.results)
-        ? data.results.map((row: FeeCheckResultCard) => ({
-            parentName: String(row.parentName || data.parentName || "-"),
-            schoolName: String(row.schoolName || data.school || "-"),
+        ? (data.results as FeeCheckResultCard[]).map((row) => ({
+            parentName: String(row.parentName || data?.parentName || "-"),
+            schoolName: String(row.schoolName || data?.school || "-"),
             familyAccountNumber: String(row.familyAccountNumber || "—"),
             outstandingAmount: Number(row.outstandingAmount || 0),
             status: row.status === "RED" || row.status === "AMBER" ? row.status : "GREEN",
@@ -2026,18 +2074,18 @@ const [selectedLearnerReport, setSelectedLearnerReport] = useState<any>(null);
           }))
         : [];
 
-      setFeeLookupDone(true);
-
       if (!data?.found || !rows.length) {
+        setFeeLookupNotFound(true);
         setFeeStatus("GREEN");
         setFeeOutstandingAmount(0);
-        setFeeSchool("No record found");
+        setFeeSchool("-");
         setFeeParentName("-");
-        setFeeMessage("No record found");
+        setFeeMessage("");
         setFeeResults([]);
         return;
       }
 
+      setFeeLookupNotFound(false);
       const aggregateStatus =
         data.status === "RED" || data.status === "AMBER" ? data.status : "GREEN";
       setFeeStatus(aggregateStatus);
@@ -2053,12 +2101,12 @@ const [selectedLearnerReport, setSelectedLearnerReport] = useState<any>(null);
       } else {
         setFeeMessage("Account in good standing");
       }
-    } catch {
-      setFeeLookupDone(true);
-      setFeeMessage("Unable to complete fee check. Please try again.");
-      setFeeSchool("-");
-      setFeeParentName("-");
-      setFeeResults([]);
+    } catch (err: unknown) {
+      const message =
+        err instanceof Error && err.message
+          ? err.message
+          : "Unable to complete fee check. Check your connection and try again.";
+      setFeeCheckError(message);
     } finally {
       setFeeLoading(false);
     }
@@ -14128,7 +14176,11 @@ const renderMoreSettings = () => {
               <p style={{ marginTop: 12, fontWeight: 700, color: "#6b7280" }}>Checking fee status…</p>
             ) : null}
 
-            {!feeLoading && feeLookupDone && feeResults.length === 0 ? (
+            {!feeLoading && feeCheckError ? (
+              <p style={{ marginTop: 12, fontWeight: 800, color: "#b91c1c" }}>{feeCheckError}</p>
+            ) : null}
+
+            {!feeLoading && !feeCheckError && feeLookupDone && feeLookupNotFound ? (
               <p style={{ marginTop: 12, fontWeight: 800, color: "#6b7280" }}>No record found</p>
             ) : null}
 

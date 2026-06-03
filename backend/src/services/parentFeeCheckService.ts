@@ -88,6 +88,10 @@ type FamilyAccountBundle = {
 
 export async function lookupParentFeesBySaId(rawId: string): Promise<ParentFeeCheckResponse> {
   const normalizedId = normalizeSaIdNumber(rawId);
+  console.info("[fee-check] lookupParentFeesBySaId", {
+    rawId: String(rawId || "").trim(),
+    normalizedId,
+  });
   if (!normalizedId || normalizedId.length < 6) {
     return {
       found: false,

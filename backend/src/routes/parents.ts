@@ -16,24 +16,44 @@ function cleanBool(value: unknown, fallback: boolean) {
 
 /** GET /api/parents/fee-check/:idNumber — cross-school guardian ID fee lookup (dashboard). */
 router.get("/fee-check/:idNumber", async (req, res) => {
+  res.setHeader("Cache-Control", "no-store, no-cache, must-revalidate");
+  res.setHeader("Pragma", "no-cache");
+
+  const raw = cleanString(req.params?.idNumber);
+  const normalizedId = normalizeSaIdNumber(raw);
+
   try {
-    const raw = cleanString(req.params?.idNumber);
-    if (!normalizeSaIdNumber(raw)) {
+    console.info("[fee-check] lookup", {
+      rawInput: raw,
+      normalizedId,
+      schoolIdQuery: cleanString((req.query as { schoolId?: unknown })?.schoolId) || null,
+    });
+
+    if (!normalizedId || normalizedId.length < 6) {
       return res.status(400).json({
         found: false,
-        error: "Enter a valid South African ID number",
+        normalizedId,
+        error: "Enter a valid South African ID number (at least 6 digits)",
         results: [],
         totalOutstanding: 0,
         status: "GREEN",
       });
     }
 
-    const payload = await lookupParentFeesBySaId(raw);
+    const payload = await lookupParentFeesBySaId(normalizedId);
+
+    console.info("[fee-check] result", {
+      normalizedId: payload.normalizedId,
+      found: payload.found,
+      matchCount: payload.results.length,
+      totalOutstanding: payload.totalOutstanding,
+    });
+
     if (!payload.found) {
       return res.json({
         ...payload,
-        school: "No record found",
-        parentName: "-",
+        school: null,
+        parentName: null,
         outstandingAmount: 0,
         message: "No record found",
       });
@@ -48,16 +68,14 @@ router.get("/fee-check/:idNumber", async (req, res) => {
       message: null,
     });
   } catch (error: unknown) {
-    console.error("PARENT FEE CHECK ERROR:", error);
+    console.error("PARENT FEE CHECK ERROR:", { rawInput: raw, normalizedId, error });
     return res.status(500).json({
       found: false,
-      error: "Fee check failed",
+      normalizedId,
+      error: "Fee check failed. Please try again.",
       results: [],
       totalOutstanding: 0,
       status: "GREEN",
-      school: "No record found",
-      parentName: "-",
-      outstandingAmount: 0,
     });
   }
 });
