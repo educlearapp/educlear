@@ -1,5 +1,7 @@
 import { useEffect, useState } from "react";
 import { NavLink, Navigate, Outlet, useLocation, useNavigate } from "react-router-dom";
+import { teacherPortalPwaHead } from "../pwa/pwaIconConfig";
+import { usePortalPwaHead } from "../pwa/usePortalPwaHead";
 import { resolveSchoolLogoUrl } from "../utils/schoolLogo";
 import { staffApiFetch } from "../staffApi";
 
@@ -26,30 +28,7 @@ export default function TeacherShell() {
   const onLogin = path.endsWith("/login");
   const onHome = path === "/teacher" || path.endsWith("/home");
 
-  useEffect(() => {
-    const link = document.createElement("link");
-    link.rel = "manifest";
-    link.href = "/teacher-manifest.webmanifest";
-    document.head.appendChild(link);
-    const theme = document.createElement("meta");
-    theme.name = "theme-color";
-    theme.content = "#f7f4ef";
-    document.head.appendChild(theme);
-    const apple = document.createElement("meta");
-    apple.name = "apple-mobile-web-app-capable";
-    apple.content = "yes";
-    document.head.appendChild(apple);
-    return () => {
-      document.head.removeChild(link);
-      document.head.removeChild(theme);
-      document.head.removeChild(apple);
-    };
-  }, []);
-
-  useEffect(() => {
-    if (!("serviceWorker" in navigator)) return;
-    void navigator.serviceWorker.register("/teacher-sw.js").catch(() => {});
-  }, []);
+  usePortalPwaHead(teacherPortalPwaHead);
 
   useEffect(() => {
     if (!token || !schoolId) return;

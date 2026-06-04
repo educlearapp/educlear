@@ -1,18 +1,32 @@
 {
-  "name": "EduClear Teacher",
-  "short_name": "Teacher",
+  "id": "/teacher/",
+  "name": "EduClear Teacher Portal",
+  "short_name": "EduClear Teacher",
   "description": "EduClear Teacher Portal — class communication, homework, and parent messaging on any device.",
   "start_url": "/teacher/home",
   "scope": "/teacher/",
   "display": "standalone",
-  "background_color": "#050505",
+  "display_override": ["standalone", "minimal-ui"],
+  "background_color": "#121c2e",
   "theme_color": "#0a0a0a",
   "icons": [
     {
-      "src": "/teacher-app-icon.png",
+      "src": "/teacher-pwa/educlear-teacher-icon-v2-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/teacher-pwa/educlear-teacher-icon-v2-512.png",
       "sizes": "512x512",
       "type": "image/png",
-      "purpose": "any maskable"
+      "purpose": "any"
+    },
+    {
+      "src": "/teacher-pwa/educlear-teacher-icon-v2-512-maskable.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "maskable"
     }
   ]
 }
