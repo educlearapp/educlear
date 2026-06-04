@@ -106,7 +106,27 @@ Production `School` row was updated (likely via unauthenticated or test **`PUT /
 
 ## Follow-on incident (2026-06-04): Top-up ledger wiped on backend deploy
 
-Deploying backend commit **`62f1b5e`** (`fix(billing): count top-up payments in balance delta`) replaced the **runtime** `backend/data/billing-ledger.json` with the **git-bundled** copy. The Render web service **`educlear-backend`** has **no persistent disk**; billing data is still **JSON file–based** under `process.cwd()/data/`. The previous container held **92** live `kidesys_topup` payment rows (batch `cmpzmiq970029wh6arh0iq3lj` in Postgres); the new container started from repo JSON with **0** top-up rows. **Postgres batch metadata survived**; only the ledger file state was lost. Recovery path: idempotent restore from `MigrationTopupPaymentRow` via `backend/scripts/restore-topup-payments-from-batch.ts` (dry-run first). **Prevention:** attach a persistent disk for `data/`, pre-deploy ledger backup, and/or migrate billing ledger off JSON.
+### What happened
+
+Deploying backend commit **`62f1b5e`** (`fix(billing): count top-up payments in balance delta`) replaced the **runtime** `backend/data/billing-ledger.json` with the **git-bundled** copy. The Render web service **`educlear-backend`** has **no persistent disk**; billing data is still **JSON file–based** under `process.cwd()/data/`. The previous container held **92** live `kidesys_topup` payment rows (batch `cmpzmiq970029wh6arh0iq3lj` in Postgres); the new container started from repo JSON with **0** top-up rows. **Postgres batch metadata survived**; only the ledger file state was lost.
+
+**Root cause:** Billing ledger stored on **non-persistent Render container filesystem** — deploy/restart replaces runtime JSON with the repo copy.
+
+### Recovery (completed)
+
+| Step | Result |
+|------|--------|
+| Detection | Top-up payments missing from runtime ledger after backend deploy; batch row still in Postgres |
+| Restore | **`92` top-up payments** re-imported via idempotent `backend/scripts/restore-topup-payments-from-batch.ts` from `MigrationTopupPaymentRow` / batch `cmpzmiq970029wh6arh0iq3lj` (dry-run before apply) |
+| Post-restore verification | **DUP001:** balance **R-12,200**, last payment **R3,500** on **2026-06-03** |
+| Post-restore verification | **ALI002:** balance **R4,000**, last payment **R3,000** on **2026-06-04** |
+| Manual corrections | Operator fixed additional payments **after** restore — **do not** re-run restore, re-import, recalculate, or overwrite ledger/payment rows |
+
+### Prevention (documented, not all implemented)
+
+- [Permanent Deployment Rules](./permanent-deployment-rules.md) — ledger backup + post-deploy `kidesys_topup` checks
+- [Billing ledger persistence plan](./billing-ledger-persistence-plan.md) — Render persistent disk (short term), PostgreSQL (long term)
+- **Never deploy backend** while runtime ledger is unprotected (no disk mount and no pre-deploy `billing-ledger.json` backup)
 
 ---
 

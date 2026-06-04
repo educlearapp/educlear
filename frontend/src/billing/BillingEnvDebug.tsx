@@ -7,12 +7,35 @@ const BUILD_LABEL =
   import.meta.env.VITE_APP_VERSION ||
   "dev";
 
+/** Visible only with `?debug=true` or `localStorage.showBillingDebug=true`. */
+export function isBillingDebugVisible(): boolean {
+  if (typeof window === "undefined") return false;
+  try {
+    if (new URLSearchParams(window.location.search).get("debug") === "true") {
+      return true;
+    }
+    return localStorage.getItem("showBillingDebug") === "true";
+  } catch {
+    return false;
+  }
+}
+
 type BillingEnvDebugProps = {
   schoolId?: string | null;
 };
 
 /** Temporary cross-device billing/API diagnostics (payments regression). */
 export default function BillingEnvDebug({ schoolId }: BillingEnvDebugProps) {
+  const [visible, setVisible] = useState(isBillingDebugVisible);
+
+  useEffect(() => {
+    const sync = () => setVisible(isBillingDebugVisible());
+    sync();
+    window.addEventListener("popstate", sync);
+    return () => window.removeEventListener("popstate", sync);
+  }, []);
+
+  if (!visible) return null;
   const email = String(localStorage.getItem("userEmail") || "").trim() || "—";
   const role = String(localStorage.getItem("userRole") || "").trim() || "—";
   const sid = String(schoolId || localStorage.getItem("schoolId") || "").trim() || "—";

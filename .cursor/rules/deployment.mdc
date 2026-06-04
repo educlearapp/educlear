@@ -1,0 +1,46 @@
+---
+description: Mandatory EduClear production deploy, rollback, and smoke-test rules
+alwaysApply: true
+---
+
+# EduClear Permanent Deployment Rules
+
+Follow `docs/permanent-deployment-rules.md` for full detail. These rules are binding for deploys, rollbacks, production scripts, and smoke tests.
+
+## Production writes
+
+- **Never** test invoices, payments, profile updates, users, or billing changes on Da Silva production (`cmpideqeq0000108xb6ouv9zi`) unless the user explicitly approves that specific operation.
+- All write smoke tests use an **EduClear Test School**, not Da Silva.
+- Prefer read-only production checks; require `CONFIRM_PRODUCTION_WRITE=true` when adding production write scripts.
+
+## Deploy pairs
+
+- Deploy or roll back **backend and frontend together** unless the user confirms a one-sided change is safe.
+- Record commit SHAs and frontend build id before and after deploy.
+
+## Billing / statements UI
+
+- **No cache clearing before successful fetch** — keep last-good data.
+- **Never show 0 accounts** from a failed sync; show an error unless API confirms 0 real accounts.
+- Do not apply Da Silva baseline overlay when `accountsCount === 0` from failed/empty API.
+- Da Silva healthy production: **344** statement accounts; verify totals and profile after deploy.
+
+## Production data hygiene
+
+- **No dummy data** in production: no `"x"`, `prod-smoke`, R0.01 test payments, fake profile fields, or test PUTs to live schools.
+
+## When production breaks
+
+- **Stop** — do not stack fixes on broken production.
+- **Roll back** first, then investigate on staging/local.
+- Rollback plan (stable commit + steps) must exist **before** any deploy.
+
+## Billing ledger (backend deploys)
+
+- Before backend deploy: backup `billing-ledger.json`; never deploy while runtime ledger is unprotected (no persistent disk + no backup).
+- After backend deploy: verify `kidesys_topup` count (~92 post-recovery), 344 accounts, DUP001 (R-12,200) and ALI002 (R4,000) spot-checks.
+- Do not re-run top-up restore after manual payment fixes.
+
+## Post-deploy verification (read-only first)
+
+Backend commit, frontend build, 344 accounts, correct totals, profile name/email/logo, payment balance spot-check.
