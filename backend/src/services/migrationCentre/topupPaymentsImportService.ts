@@ -4,7 +4,7 @@ import path from "path";
 
 import { prisma } from "../../prisma";
 import { resolveBillingAccountRef } from "../resolveBillingAccountRef";
-import { relinkSchoolBillingLedger } from "../billingLedgerRelink";
+import { finalizeSchoolBillingLedgerAfterPaymentWrites } from "../billingPaymentPostService";
 import {
   normaliseAmount,
   normaliseIsoDate,
@@ -616,7 +616,7 @@ export async function applyMigrationTopupPaymentsImport(opts: {
     });
   }
 
-  await relinkSchoolBillingLedger(schoolId);
+  await finalizeSchoolBillingLedgerAfterPaymentWrites(schoolId);
 
   try {
     fs.unlinkSync(file);
@@ -684,7 +684,7 @@ export async function rollbackTopupPaymentBatch(opts: {
     data: { status: "rolled_back", reason: "Rolled back" },
   });
 
-  await relinkSchoolBillingLedger(schoolId);
+  await finalizeSchoolBillingLedgerAfterPaymentWrites(schoolId);
 
   return { success: true, batchId, removed: Math.max(0, before - next.length) };
 }

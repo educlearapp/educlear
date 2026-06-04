@@ -182,10 +182,15 @@ export function isNonPostingImportedLedgerEntry(entry: BillingDisplayEntry): boo
   return false;
 }
 
+/** Live payment sources that post against the age-analysis baseline (same as manual Create Payment). */
+const LIVE_POSTING_PAYMENT_SOURCES = new Set(["manual", "bank_import", "kidesys_topup"]);
+
 /** Post-import balance delta: EduClear-created invoice/payment/penalty/credit only. */
 export function countsTowardPostImportBalanceDelta(entry: BillingDisplayEntry): boolean {
   const source = String(entry.source || "").trim().toLowerCase();
-  if (source === "kidesys_topup") return false;
+  if (entry.type === "payment" && LIVE_POSTING_PAYMENT_SOURCES.has(source)) {
+    return true;
+  }
   return !isNonPostingImportedLedgerEntry(entry);
 }
 
