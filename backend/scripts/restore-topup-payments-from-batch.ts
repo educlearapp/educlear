@@ -1,3 +1,5 @@
+import "dotenv/config";
+
 /**
  * Restore missing kidesys_topup ledger rows from Postgres MigrationTopupPaymentRow.
  *
@@ -114,7 +116,27 @@ async function main() {
   });
 
   if (!batch) {
-    console.error(`Batch not found: ${batchId} for school ${schoolId}`);
+    let dbHint = "unknown";
+    try {
+      const u = new URL(String(process.env.DATABASE_URL || "").replace(/^postgres(ql)?:\/\//i, "https://"));
+      dbHint = u.hostname || "unknown";
+    } catch {
+      dbHint = "invalid DATABASE_URL";
+    }
+    console.error(
+      JSON.stringify(
+        {
+          error: "Batch not found",
+          batchId,
+          schoolId,
+          databaseHost: dbHint,
+          hint:
+            "Use production DATABASE_URL (Render educlear-backend env) — local .env often points at localhost.",
+        },
+        null,
+        2
+      )
+    );
     process.exit(1);
   }
 
