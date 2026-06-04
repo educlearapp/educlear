@@ -1,4 +1,5 @@
 import { API_URL } from "../../api";
+import { getSuperAdminToken } from "../../auth/superAdminSession";
 
 export type MigrationPreflightStatus = "ready" | "warning" | "blocked" | "unknown";
 
@@ -34,7 +35,7 @@ export type MigrationPreflightSummary = {
 };
 
 function authHeaders(): Record<string, string> {
-  const token = localStorage.getItem("token");
+  const token = getSuperAdminToken();
   return token ? { Authorization: `Bearer ${token}` } : {};
 }
 

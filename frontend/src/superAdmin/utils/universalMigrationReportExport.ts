@@ -1,11 +1,12 @@
 import { API_URL } from "../../api";
+import { getSuperAdminToken } from "../../auth/superAdminSession";
 import type {
   MigrationValidationIssue,
   MigrationValidationSummary,
 } from "./universalMigrationValidate";
 
 function authHeaders(): Record<string, string> {
-  const token = localStorage.getItem("token");
+  const token = getSuperAdminToken();
   return token ? { Authorization: `Bearer ${token}` } : {};
 }
 

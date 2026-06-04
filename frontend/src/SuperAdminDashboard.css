@@ -1,3 +1,90 @@
+.sa-login-shell {
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+  background: #0a0a0a;
+  color: #fff;
+}
+
+.sa-login-card {
+  width: min(440px, 100%);
+  border-radius: 14px;
+  border: 2px solid rgba(212, 175, 55, 0.35);
+  background: #111;
+  padding: 28px 24px;
+  box-shadow: 0 0 24px rgba(212, 175, 55, 0.12);
+}
+
+.sa-login-brand {
+  text-align: center;
+  margin-bottom: 24px;
+}
+
+.sa-login-logo {
+  width: 56px;
+  height: 56px;
+  margin-bottom: 12px;
+}
+
+.sa-login-brand h1 {
+  margin: 0 0 8px;
+  color: #d4af37;
+  font-size: 1.35rem;
+}
+
+.sa-login-brand p {
+  margin: 0;
+  font-size: 0.9rem;
+  color: rgba(255, 255, 255, 0.75);
+  line-height: 1.45;
+}
+
+.sa-login-form {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.sa-login-form label {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  font-size: 0.9rem;
+  color: rgba(255, 255, 255, 0.9);
+}
+
+.sa-login-form input {
+  padding: 10px 12px;
+  border-radius: 8px;
+  border: 1px solid rgba(212, 175, 55, 0.35);
+  background: #0a0a0a;
+  color: #fff;
+}
+
+.sa-login-status {
+  margin: 0;
+  color: #f5c76b;
+  font-size: 0.9rem;
+}
+
+.sa-login-submit {
+  margin-top: 4px;
+  padding: 12px 16px;
+  border: none;
+  border-radius: 10px;
+  background: #d4af37;
+  color: #111;
+  font-weight: 800;
+  cursor: pointer;
+}
+
+.sa-login-submit:disabled {
+  opacity: 0.65;
+  cursor: not-allowed;
+}
+
 .sa-admin-sidebar-label {
   margin: 12px 22px 8px;
   padding: 8px 12px;

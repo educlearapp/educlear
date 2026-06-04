@@ -1,4 +1,5 @@
 import { API_URL } from "../../api";
+import { getSuperAdminToken } from "../../auth/superAdminSession";
 
 export type MigrationApplyCounts = {
   learners: number;
@@ -60,7 +61,7 @@ export async function applyUniversalMigrationStage(input: {
   confirmationText: string;
   proceedWithEligibleActiveOnly?: boolean;
 }): Promise<MigrationApplyResult> {
-  const token = localStorage.getItem("token");
+  const token = getSuperAdminToken();
   const res = await fetch(`${API_URL}/api/migration/apply`, {
     method: "POST",
     headers: {

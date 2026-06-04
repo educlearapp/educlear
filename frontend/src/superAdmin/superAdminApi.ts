@@ -1,9 +1,10 @@
 import { apiFetch, API_URL } from "../api";
+import { getSuperAdminToken } from "../auth/superAdminSession";
 
 const MIGRATION_UPLOAD_TIMEOUT_MS = 15 * 60 * 1000;
 
 function authHeaders(): Record<string, string> {
-  const token = localStorage.getItem("token");
+  const token = getSuperAdminToken();
   return token ? { Authorization: `Bearer ${token}` } : {};
 }
 
@@ -13,7 +14,7 @@ export async function superAdminApiFetch(path: string, options: RequestInit = {}
   const auth = authHeaders();
   if (!auth.Authorization && import.meta.env.DEV) {
     console.warn(
-      "[superAdminApiFetch] No staff token in localStorage — super-admin migration APIs will return 401:",
+      "[superAdminApiFetch] No super-admin token — super-admin APIs will return 401:",
       path
     );
   }
@@ -40,7 +41,7 @@ export function superAdminApiUpload(
     xhr.open("POST", `${API_URL}${path}`);
     xhr.timeout = MIGRATION_UPLOAD_TIMEOUT_MS;
 
-    const token = localStorage.getItem("token");
+    const token = getSuperAdminToken();
     if (token) xhr.setRequestHeader("Authorization", `Bearer ${token}`);
 
     xhr.upload.onprogress = (event) => {

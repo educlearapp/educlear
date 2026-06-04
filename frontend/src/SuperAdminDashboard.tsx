@@ -1,6 +1,4 @@
 import { Navigate, Route, Routes, useLocation, useNavigate } from "react-router-dom";
-import AccessDenied from "./auth/AccessDenied";
-import { migrationAccessDeniedDebug } from "./auth/migrationAccess";
 import { isSuperAdmin } from "./auth/roles";
 import SuperAdminGate from "./auth/SuperAdminGate";
 import logo from "./assets/logo.png";
@@ -37,23 +35,6 @@ export default function SuperAdminDashboard() {
   const activeKey = onMigrationRoute
     ? "migration"
     : (NAV_ITEMS.find((item) => location.pathname.startsWith(item.path))?.key ?? "schools");
-
-  const onSchoolsRoute = location.pathname.includes("/schools");
-
-  if (onSchoolsRoute && !platformSuperAdmin) {
-    return (
-      <AccessDenied message="Access denied — Schools Management requires a platform super admin account." />
-    );
-  }
-
-  if (!platformSuperAdmin) {
-    return (
-      <AccessDenied
-        message="Access denied — Migration Center requires a platform super admin account."
-        debug={migrationAccessDeniedDebug()}
-      />
-    );
-  }
 
   return (
     <div className="school-shell">

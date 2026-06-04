@@ -9,8 +9,9 @@ import Login from "./Login";
 
 import SchoolDashboard from "./SchoolDashboard";
 
-import MigrationAccessGate from "./auth/MigrationAccessGate";
+import SuperAdminRouteGuard from "./auth/SuperAdminRouteGuard";
 import SuperAdminDashboard from "./SuperAdminDashboard";
+import SuperAdminLogin from "./SuperAdminLogin";
 
 
 
@@ -599,14 +600,18 @@ export default function App() {
         <Route path="/teacher-portal/*" element={<Navigate to="/teacher/home" replace />} />
         <Route path="/teacher/*" element={<TeacherApp />} />
 
+        <Route path="/superadmin" element={<Navigate to="/super-admin/schools" replace />} />
+        <Route path="/superadmin/*" element={<Navigate to="/super-admin/schools" replace />} />
+        <Route path="/super-admin" element={<Navigate to="/super-admin/schools" replace />} />
         <Route path="/migration" element={<Navigate to="/super-admin/migration" replace />} />
 
+        <Route path="/super-admin/login" element={<SuperAdminLogin />} />
         <Route
           path="/super-admin/*"
           element={
-            <MigrationAccessGate>
+            <SuperAdminRouteGuard>
               <SuperAdminDashboard />
-            </MigrationAccessGate>
+            </SuperAdminRouteGuard>
           }
         />
 

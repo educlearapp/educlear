@@ -1,6 +1,7 @@
 import { clearEduClearRole } from "./roles";
 import { clearSchoolSession } from "./schoolSession";
 import { clearMigrationAccess } from "./migrationAccess";
+import { clearSuperAdminSession, getSuperAdminToken } from "./superAdminSession";
 import {
   clearSchoolSubscriptionStatusCache,
   clearSubscriptionGateCache,
@@ -10,7 +11,7 @@ import { clearParentSession, getParentToken } from "../parent/parentApi";
 export const INACTIVITY_LOGOUT_MESSAGE = "You were logged out due to inactivity.";
 export const INACTIVITY_LOGOUT_STORAGE_KEY = "educlearLogoutReason";
 
-export type ActiveSessionKind = "parent" | "teacher" | "staff";
+export type ActiveSessionKind = "parent" | "teacher" | "staff" | "superAdmin";
 
 const STAFF_AUTH_KEYS = [
   "token",
@@ -36,6 +37,9 @@ export function clearStaffAuthSession(): void {
 }
 
 export function detectActiveSessionKind(pathname: string): ActiveSessionKind | null {
+  if (pathname.startsWith("/super-admin")) {
+    return getSuperAdminToken() ? "superAdmin" : null;
+  }
   if (getParentToken()) return "parent";
   const token = String(localStorage.getItem("token") || "").trim();
   const schoolId = String(localStorage.getItem("schoolId") || "").trim();
@@ -64,6 +68,13 @@ export function performInactivityLogout(kind: ActiveSessionKind): void {
   if (kind === "parent") {
     clearParentSession();
     window.location.assign("/parent");
+    return;
+  }
+
+  if (kind === "superAdmin") {
+    clearSuperAdminSession();
+    clearEduClearRole();
+    window.location.assign("/super-admin/login");
     return;
   }
 

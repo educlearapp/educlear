@@ -1,4 +1,5 @@
 import { API_URL } from "../../api";
+import { getSuperAdminToken } from "../../auth/superAdminSession";
 import type { MigrationApplyCounts, MigrationImportReportRow } from "./universalMigrationApply";
 
 export type MigrationImportBatchStatus =
@@ -113,7 +114,7 @@ export type MigrationReconciliationResult = {
 };
 
 function authHeaders(): Record<string, string> {
-  const token = localStorage.getItem("token");
+  const token = getSuperAdminToken();
   return token ? { Authorization: `Bearer ${token}` } : {};
 }
 
