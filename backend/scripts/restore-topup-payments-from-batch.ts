@@ -1,5 +1,3 @@
-import "dotenv/config";
-
 /**
  * Restore missing kidesys_topup ledger rows from Postgres MigrationTopupPaymentRow.
  *
@@ -9,12 +7,15 @@ import "dotenv/config";
  * Run dry-run:
  *   cd backend && npx ts-node --transpile-only scripts/restore-topup-payments-from-batch.ts
  *
+ * School/batch resolution (CLI and shell env beat backend/.env):
+ *   --school-id=<id>  or  SCHOOL_ID=<id>
+ *   --batch-id=<id>   or  BATCH_ID=<id>
+ *
  * Optional env:
- *   BATCH_ID=cmpzmiq970029wh6arh0iq3lj
- *   SCHOOL_ID=cmpideqeq0000108xb6ouv9zi
  *   LEDGER_FILE=/path/to/billing-ledger.json
  *   API_BASE=https://educlear-backend.onrender.com  (cross-check live ledger via API)
  */
+import { config as loadDotenv } from "dotenv";
 import crypto from "crypto";
 import fs from "fs";
 import path from "path";
@@ -28,11 +29,53 @@ import {
   type BillingLedgerEntry,
 } from "../src/utils/billingLedgerStore";
 
+/** Captured before dotenv — Render/shell exports must not lose to backend/.env SCHOOL_ID. */
+const shellSchoolId = process.env.SCHOOL_ID;
+const shellBatchId = process.env.BATCH_ID;
+
+loadDotenv();
+
 const prisma = new PrismaClient();
 
 const DEFAULT_SCHOOL_ID = "cmpideqeq0000108xb6ouv9zi";
 const DEFAULT_BATCH_ID = "cmpzmiq970029wh6arh0iq3lj";
 const SAMPLE_ACCOUNTS = ["DUP001", "ALI002", "ADA004"] as const;
+
+function parseCliFlag(flag: string): string {
+  const prefix = `--${flag}=`;
+  const eq = process.argv.find((a) => a.startsWith(prefix));
+  if (eq) return (eq.slice(prefix.length) || "").trim();
+  const i = process.argv.indexOf(`--${flag}`);
+  if (i >= 0) return String(process.argv[i + 1] || "").trim();
+  return "";
+}
+
+function databaseHostFromUrl(): string {
+  try {
+    return (
+      new URL(String(process.env.DATABASE_URL || "").replace(/^postgres(ql)?:\/\//i, "https://"))
+        .hostname || "unknown"
+    );
+  } catch {
+    return "invalid DATABASE_URL";
+  }
+}
+
+function resolveSchoolId(): { requestedSchoolId: string; effectiveSchoolId: string } {
+  const fromCli = parseCliFlag("school-id");
+  const fromShell = String(shellSchoolId || "").trim();
+  const requestedSchoolId = fromCli || fromShell;
+  const effectiveSchoolId = requestedSchoolId || DEFAULT_SCHOOL_ID;
+  return { requestedSchoolId, effectiveSchoolId };
+}
+
+function resolveBatchId(): { requestedBatchId: string; effectiveBatchId: string } {
+  const fromCli = parseCliFlag("batch-id");
+  const fromShell = String(shellBatchId || "").trim();
+  const requestedBatchId = fromCli || fromShell;
+  const effectiveBatchId = requestedBatchId || DEFAULT_BATCH_ID;
+  return { requestedBatchId, effectiveBatchId };
+}
 
 function ledgerEntryIdFromFingerprint(fingerprint: string): string {
   return `kidesys-topup-payment-${String(fingerprint || "").slice(0, 40)}`;
@@ -93,11 +136,31 @@ async function fetchLiveLedgerIdsViaApi(apiBase: string, schoolId: string): Prom
 async function main() {
   const apply = process.argv.includes("--apply");
   const dryRun = !apply;
-  const schoolId = String(process.env.SCHOOL_ID || DEFAULT_SCHOOL_ID).trim();
-  const batchId = String(process.env.BATCH_ID || DEFAULT_BATCH_ID).trim();
+  const { requestedSchoolId, effectiveSchoolId } = resolveSchoolId();
+  const { requestedBatchId, effectiveBatchId } = resolveBatchId();
+  const schoolId = effectiveSchoolId;
+  const batchId = effectiveBatchId;
+  const databaseHost = databaseHostFromUrl();
   const apiBase = String(process.env.API_BASE || "").trim();
   const ledgerFile = path.resolve(
     process.env.LEDGER_FILE || path.join(process.cwd(), "data", "billing-ledger.json")
+  );
+
+  console.log(
+    JSON.stringify(
+      {
+        startup: {
+          requestedSchoolId: requestedSchoolId || null,
+          effectiveSchoolId: schoolId,
+          requestedBatchId: requestedBatchId || null,
+          effectiveBatchId: batchId,
+          batchId,
+          databaseHost,
+        },
+      },
+      null,
+      2
+    )
   );
 
   if (apply && process.env.CONFIRM_TOPUP_LEDGER_RESTORE !== "true") {
@@ -116,20 +179,13 @@ async function main() {
   });
 
   if (!batch) {
-    let dbHint = "unknown";
-    try {
-      const u = new URL(String(process.env.DATABASE_URL || "").replace(/^postgres(ql)?:\/\//i, "https://"));
-      dbHint = u.hostname || "unknown";
-    } catch {
-      dbHint = "invalid DATABASE_URL";
-    }
     console.error(
       JSON.stringify(
         {
           error: "Batch not found",
           batchId,
           schoolId,
-          databaseHost: dbHint,
+          databaseHost,
           hint:
             "Use production DATABASE_URL (Render educlear-backend env) — local .env often points at localhost.",
         },
