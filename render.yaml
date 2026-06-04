@@ -10,3 +10,14 @@ services:
     envVars:
       - key: NODE_VERSION
         value: "22"
+  - type: web
+    name: educlear-frontend
+    runtime: static
+    rootDir: frontend
+    buildCommand: npm ci && npm run build
+    staticPublishPath: dist
+    envVars:
+      - key: VITE_FEE_CHECK_BUILD_ID
+        value: 32715bd-rollback
+      - key: VITE_API_URL
+        value: https://educlear-backend.onrender.com
