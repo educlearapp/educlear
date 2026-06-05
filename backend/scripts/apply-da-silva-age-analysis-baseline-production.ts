@@ -1,5 +1,6 @@
 /**
  * Production: refresh Da Silva age-analysis opening balance baselines (no transaction import).
+ * Uses exact per-account Kid-e-Sys Age Analysis balances — no proportional scaling.
  *
  *   CONFIRM_DA_SILVA_AGE_BASELINE_REFRESH=true \
  *   SUPER_ADMIN_PASSWORD="..." \
@@ -10,15 +11,13 @@ import fs from "fs";
 import path from "path";
 
 import {
-  buildKidesysSummaryTargetsFromAgeAnalysis,
-  calculateBillingSummary,
-  type BillingSummaryTotals,
-} from "../src/services/billingSummary";
+  buildExactAgeAnalysisSnapshots,
+  compareExactAgeAnalysisBalances,
+  DA_SILVA_AGE_BASELINE_IMPORTED_AT,
+} from "../src/services/migrationCentre/ageAnalysisExactBaseline";
+import { calculateBillingSummary } from "../src/services/billingSummary";
 import { buildAccountsFromAgeAnalysisSnapshots } from "../src/services/statementAccounts";
-import {
-  readSchoolFamilyAccountAgeAnalysisSnapshots,
-  type FamilyAccountAgeAnalysisSnapshot,
-} from "../src/utils/familyAccountAgeAnalysisStore";
+import { readSchoolFamilyAccountAgeAnalysisSnapshots } from "../src/utils/familyAccountAgeAnalysisStore";
 
 loadDotenv();
 
@@ -28,45 +27,6 @@ const API_BASE = String(process.env.API_BASE || "https://educlear-backend.onrend
   /\/$/,
   ""
 );
-
-/** Kid-e-Sys latest age-analysis statement card targets (346 accounts). */
-const KIDESYS_TARGETS: BillingSummaryTotals = {
-  accountsCount: 346,
-  totalOutstanding: -6669.58,
-  recentlyOwing: 285530,
-  badDebt: 270010.45,
-  overPaid: -561160.03,
-};
-
-const SECTION_TARGETS: Record<string, number> = {
-  "Recently Owing": KIDESYS_TARGETS.recentlyOwing,
-  "Bad Debt": KIDESYS_TARGETS.badDebt,
-  "Over Paid": KIDESYS_TARGETS.overPaid,
-  "Paid Up": 0,
-};
-
-/** Post top-up import cutoff — preserves ledger payments without balance double-count. */
-const IMPORTED_AT = "2099-12-31T23:59:59.999Z";
-
-const EXTRA_ACCOUNTS: Array<{
-  accountRef: string;
-  accountHolder: string;
-  kidesysSection: string;
-  balance: number;
-}> = [
-  {
-    accountRef: "JAC001",
-    accountHolder: "Jason - Lee Jacobs",
-    kidesysSection: "Paid Up",
-    balance: -1050.02,
-  },
-  {
-    accountRef: "LET007",
-    accountHolder: "Otlotleng Letsholo",
-    kidesysSection: "Paid Up",
-    balance: 0,
-  },
-];
 
 async function fetchJson(url: string, init?: RequestInit): Promise<unknown> {
   const res = await fetch(url, init);
@@ -97,91 +57,63 @@ async function loginSuperAdmin(): Promise<string> {
   return token;
 }
 
-function round2(n: number): number {
-  return Math.round(n * 100) / 100;
-}
-
-function buildScaledSnapshots(
-  existing: Record<string, FamilyAccountAgeAnalysisSnapshot>
-): FamilyAccountAgeAnalysisSnapshot[] {
-  const alreadyRefreshed = Object.values(existing).every(
-    (snap) => String(snap.importedAt || "").trim() === IMPORTED_AT
-  );
-  if (alreadyRefreshed && Object.keys(existing).length >= KIDESYS_TARGETS.accountsCount - 1) {
-    return Object.values(existing);
-  }
-  const sectionSums: Record<string, number> = {};
-  for (const snap of Object.values(existing)) {
-    const sec = String(snap.kidesysSection || "").trim();
-    sectionSums[sec] = (sectionSums[sec] || 0) + Number(snap.balance || 0);
-  }
-
-  const scaled: FamilyAccountAgeAnalysisSnapshot[] = [];
-  for (const snap of Object.values(existing)) {
-    const sec = String(snap.kidesysSection || "").trim();
-    const oldBalance = Number(snap.balance || 0);
-    const oldSum = sectionSums[sec] || 0;
-    const target = SECTION_TARGETS[sec];
-    let newBalance = oldBalance;
-    if (target !== undefined && Math.abs(oldSum) > 0.001) {
-      newBalance = oldBalance * (target / oldSum);
-    }
-    scaled.push({
-      ...snap,
-      balance: round2(newBalance),
-      importedAt: IMPORTED_AT,
-      source: "kideesys-age-analysis",
-    });
-  }
-
-  for (const extra of EXTRA_ACCOUNTS) {
-    scaled.push({
-      schoolId: SCHOOL_ID,
-      accountRef: extra.accountRef,
-      accountHolder: extra.accountHolder,
-      kidesysSection: extra.kidesysSection,
-      balance: round2(extra.balance),
-      buckets: { current: 0, d30: 0, d60: 0, d90: 0, d120: 0 },
-      source: "kideesys-age-analysis",
-      importedAt: IMPORTED_AT,
-    });
-  }
-
-  return scaled;
-}
-
-async function fetchLiveSummary(): Promise<BillingSummaryTotals> {
+async function fetchLiveBalances(): Promise<Record<string, number>> {
   const data = (await fetchJson(
     `${API_BASE}/api/statements/accounts?schoolId=${encodeURIComponent(SCHOOL_ID)}`
-  )) as { accounts?: Array<{ accountNo?: string; balance?: number; status?: string; kidesysSection?: string }> };
-  const rows = (data.accounts || []).map((a) => ({
-    accountNo: a.accountNo,
-    balance: a.balance,
-    status: a.status,
-    kidesysSection: a.kidesysSection,
-  }));
-  return calculateBillingSummary(rows);
+  )) as { accounts?: Array<{ accountNo?: string; balance?: number }> };
+  const out: Record<string, number> = {};
+  for (const row of data.accounts || []) {
+    const acct = String(row.accountNo || "").trim().toUpperCase();
+    if (!acct) continue;
+    out[acct] = Number(row.balance) || 0;
+  }
+  return out;
 }
 
 async function main() {
   const apply = process.argv.includes("--apply");
-  const existing = readSchoolFamilyAccountAgeAnalysisSnapshots(SCHOOL_ID);
-  const scaled = buildScaledSnapshots(existing);
+  const beforeSnapshots = readSchoolFamilyAccountAgeAnalysisSnapshots(SCHOOL_ID);
+  const beforeLocalRows = await buildAccountsFromAgeAnalysisSnapshots(SCHOOL_ID);
+  const beforeLocalByAccount = Object.fromEntries(
+    beforeLocalRows.map((row) => [String(row.accountNo).toUpperCase(), Number(row.balance) || 0])
+  );
 
-  const localRows = await buildAccountsFromAgeAnalysisSnapshots(SCHOOL_ID);
-  const localSummary = calculateBillingSummary(localRows);
+  const { ageAnalysisXls, snapshots, parsedAccountCount } = buildExactAgeAnalysisSnapshots({
+    schoolId: SCHOOL_ID,
+    importedAt: DA_SILVA_AGE_BASELINE_IMPORTED_AT,
+  });
 
-  let beforeLive: BillingSummaryTotals | null = null;
-  try {
-    beforeLive = await fetchLiveSummary();
-  } catch (e) {
-    console.warn("Could not fetch live summary (pre-apply):", e);
+  const kidesysBalanceByAccount: Record<string, number> = {};
+  for (const [acct, snap] of Object.entries(snapshots)) {
+    kidesysBalanceByAccount[acct] = Number(snap.balance) || 0;
   }
+
+  const { resolveAuthoritativeAccountBalanceFromSnapshot } = await import(
+    "../src/services/statementAccounts"
+  );
+  const { readSchoolLedger } = await import("../src/utils/billingLedgerStore");
+  const ledger = readSchoolLedger(SCHOOL_ID);
+  const afterLocalByAccount: Record<string, number> = {};
+  for (const [acct, snap] of Object.entries(snapshots)) {
+    const entries = ledger.filter(
+      (e) => String(e.accountNo || "").trim().toUpperCase() === acct
+    );
+    afterLocalByAccount[acct] = resolveAuthoritativeAccountBalanceFromSnapshot(snap, entries);
+  }
+
+  const beforeMatch = compareExactAgeAnalysisBalances({
+    kidesysBalanceByAccount,
+    eduClearBalanceByAccount: beforeLocalByAccount,
+  });
+  const afterLocalMatch = compareExactAgeAnalysisBalances({
+    kidesysBalanceByAccount,
+    eduClearBalanceByAccount: afterLocalByAccount,
+  });
 
   const payload = {
     schoolId: SCHOOL_ID,
-    importedAt: IMPORTED_AT,
-    snapshots: scaled.map((s) => ({
+    importedAt: DA_SILVA_AGE_BASELINE_IMPORTED_AT,
+    snapshots: Object.values(snapshots).map((s) => ({
       accountRef: s.accountRef,
       accountHolder: s.accountHolder,
       kidesysSection: s.kidesysSection,
@@ -198,12 +130,30 @@ async function main() {
     JSON.stringify(
       {
         mode: apply ? "apply" : "plan",
-        kidesysTargets: KIDESYS_TARGETS,
-        beforeLive,
-        afterLocalPreview: localSummary,
-        snapshotCount: scaled.length,
-        importedAt: IMPORTED_AT,
-        extraAccounts: EXTRA_ACCOUNTS.map((a) => a.accountRef),
+        ageAnalysisXls,
+        parsedAccountCount,
+        snapshotCount: Object.keys(snapshots).length,
+        importedAt: DA_SILVA_AGE_BASELINE_IMPORTED_AT,
+        ali002: {
+          kidesysBalance: kidesysBalanceByAccount.ALI002 ?? null,
+          eduClearBefore: beforeLocalByAccount.ALI002 ?? null,
+          eduClearAfter: afterLocalByAccount.ALI002 ?? null,
+        },
+        beforeFix: {
+          matchingExactlyCount: beforeMatch.matchingExactly.length,
+          unmatchedCount: beforeMatch.unmatched.length,
+        },
+        afterLocalPreview: {
+          matchingExactlyCount: afterLocalMatch.matchingExactly.length,
+          unmatchedCount: afterLocalMatch.unmatched.length,
+          unmatchedAccounts: afterLocalMatch.unmatched,
+          summary: calculateBillingSummary(
+            Object.entries(afterLocalByAccount).map(([accountNo, balance]) => ({
+              accountNo,
+              balance,
+            }))
+          ),
+        },
       },
       null,
       2
@@ -215,10 +165,15 @@ async function main() {
       {
         mode: apply ? "apply" : "plan",
         outDir,
-        beforeLive,
-        afterLocalPreview: localSummary,
-        kidesysTargets: KIDESYS_TARGETS,
-        snapshotCount: scaled.length,
+        ageAnalysisXls,
+        ali002: {
+          kidesysBalance: kidesysBalanceByAccount.ALI002 ?? null,
+          eduClearBefore: beforeLocalByAccount.ALI002 ?? null,
+          eduClearAfter: afterLocalByAccount.ALI002 ?? null,
+        },
+        matchingExactlyCount: afterLocalMatch.matchingExactly.length,
+        unmatchedCount: afterLocalMatch.unmatched.length,
+        unmatchedAccounts: afterLocalMatch.unmatched,
       },
       null,
       2
@@ -261,8 +216,29 @@ async function main() {
   }
   if (lastError) throw lastError;
 
-  const afterLive = await fetchLiveSummary();
-  console.log(JSON.stringify({ applyResult: result, afterLive, kidesysTargets: KIDESYS_TARGETS }, null, 2));
+  const afterLiveByAccount = await fetchLiveBalances();
+  const afterLiveMatch = compareExactAgeAnalysisBalances({
+    kidesysBalanceByAccount,
+    eduClearBalanceByAccount: afterLiveByAccount,
+  });
+
+  console.log(
+    JSON.stringify(
+      {
+        applyResult: result,
+        ali002: {
+          kidesysBalance: kidesysBalanceByAccount.ALI002 ?? null,
+          eduClearBefore: beforeLocalByAccount.ALI002 ?? null,
+          eduClearAfter: afterLiveByAccount.ALI002 ?? null,
+        },
+        matchingExactlyCount: afterLiveMatch.matchingExactly.length,
+        unmatchedCount: afterLiveMatch.unmatched.length,
+        unmatchedAccounts: afterLiveMatch.unmatched,
+      },
+      null,
+      2
+    )
+  );
 }
 
 main().catch((e) => {
