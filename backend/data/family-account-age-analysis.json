@@ -4,7 +4,8 @@
       "schoolId": "cmpideqeq0000108xb6ouv9zi",
       "accountRef": "ALI002",
       "accountHolder": "Alizain Ali",
-      "balance": 7000,
+      "kidesysSection": "Bad Debt",
+      "balance": 2067.77,
       "buckets": {
         "current": 3300,
         "d30": 3000,
@@ -13,14 +14,14 @@
         "d120": -6000
       },
       "source": "kideesys-age-analysis",
-      "importedAt": "2026-05-28T08:38:50.245Z",
-      "kidesysSection": "Bad Debt"
+      "importedAt": "2099-12-31T23:59:59.999Z"
     },
     "MAO002": {
       "schoolId": "cmpideqeq0000108xb6ouv9zi",
       "accountRef": "MAO002",
       "accountHolder": "Amogelang Maapoga\nOnkgopotse Leago Maapoga",
-      "balance": 7200,
+      "kidesysSection": "Bad Debt",
+      "balance": 2126.84,
       "buckets": {
         "current": 5800,
         "d30": 0,
@@ -29,14 +30,14 @@
         "d120": 0
       },
       "source": "kideesys-age-analysis",
-      "importedAt": "2026-05-28T08:38:50.245Z",
-      "kidesysSection": "Bad Debt"
+      "importedAt": "2099-12-31T23:59:59.999Z"
     },
     "MDU001": {
       "schoolId": "cmpideqeq0000108xb6ouv9zi",
       "accountRef": "MDU001",
       "accountHolder": "Andzani Vukosi Mdumela",
-      "balance": 11600,
+      "kidesysSection": "Bad Debt",
+      "balance": 3426.58,
       "buckets": {
         "current": 4350,
         "d30": 5211,
@@ -45,14 +46,14 @@
         "d120": -2760
       },
       "source": "kideesys-age-analysis",
-      "importedAt": "2026-05-28T08:38:50.245Z",
-      "kidesysSection": "Bad Debt"
+      "importedAt": "2099-12-31T23:59:59.999Z"
     },
     "CHI005": {
       "schoolId": "cmpideqeq0000108xb6ouv9zi",
       "accountRef": "CHI005",
       "accountHolder": "Aviella Tinevimbo Chiutsi\nArella Chiutsi",
-      "balance": 7400,
+      "kidesysSection": "Bad Debt",
+      "balance": 2185.92,
       "buckets": {
         "current": 6000,
         "d30": 0,
@@ -61,14 +62,14 @@
         "d120": -100
       },
       "source": "kideesys-age-analysis",
-      "importedAt": "2026-05-28T08:38:50.245Z",
-      "kidesysSection": "Bad Debt"
+      "importedAt": "2099-12-31T23:59:59.999Z"
     },
     "MOD014": {
       "schoolId": "cmpideqeq0000108xb6ouv9zi",
       "accountRef": "MOD014",
       "accountHolder": "Atisang Modisane",
-      "balance": 3700,
+      "kidesysSection": "Bad Debt",
+      "balance": 1092.96,
       "buckets": {
         "current": 3000,
         "d30": 0,
@@ -77,14 +78,14 @@
         "d120": 0
       },
       "source": "kideesys-age-analysis",
-      "importedAt": "2026-05-28T08:38:50.245Z",
-      "kidesysSection": "Bad Debt"
+      "importedAt": "2099-12-31T23:59:59.999Z"
     },
     "DIK004": {
       "schoolId": "cmpideqeq0000108xb6ouv9zi",
       "accountRef": "DIK004",
       "accountHolder": "Bohlale Levy Dikgale",
-      "balance": 4250,
+      "kidesysSection": "Bad Debt",
+      "balance": 1255.43,
       "buckets": {
         "current": 3550,
         "d30": 0,
@@ -93,14 +94,14 @@
         "d120": 0
       },
       "source": "kideesys-age-analysis",
-      "importedAt": "2026-05-28T08:38:50.245Z",
-      "kidesysSection": "Bad Debt"
+      "importedAt": "2099-12-31T23:59:59.999Z"
     },
     "MOT007": {
       "schoolId": "cmpideqeq0000108xb6ouv9zi",
       "accountRef": "MOT007",
       "accountHolder": "Bokamoso Menyatswe",
-      "balance": 8019.45,
+      "kidesysSection": "Bad Debt",
+      "balance": 2368.91,
       "buckets": {
         "current": 3300,
         "d30": 3000,
@@ -109,14 +110,14 @@
         "d120": -2600.55
       },
       "source": "kideesys-age-analysis",
-      "importedAt": "2026-05-28T08:38:50.245Z",
-      "kidesysSection": "Bad Debt"
+      "importedAt": "2099-12-31T23:59:59.999Z"
     },
     "NGA002": {
       "schoolId": "cmpideqeq0000108xb6ouv9zi",
       "accountRef": "NGA002",
       "accountHolder": "Bonang Mmokwa",
-      "balance": 9200,
+      "kidesysSection": "Bad Debt",
+      "balance": 2717.63,
       "buckets": {
         "current": 3850,
         "d30": 3550,
@@ -125,14 +126,14 @@
         "d120": -6925
       },
       "source": "kideesys-age-analysis",
-      "importedAt": "2026-05-28T08:38:50.245Z",
-      "kidesysSection": "Bad Debt"
+      "importedAt": "2099-12-31T23:59:59.999Z"
     },
     "DHL002": {
       "schoolId": "cmpideqeq0000108xb6ouv9zi",
       "accountRef": "DHL002",
       "accountHolder": "Bontle Dhladhla",
-      "balance": 4730,
+      "kidesysSection": "Bad Debt",
+      "balance": 1397.22,
       "buckets": {
         "current": 3000,
         "d30": 0,
@@ -141,14 +142,14 @@
         "d120": -520
       },
       "source": "kideesys-age-analysis",
-      "importedAt": "2026-05-28T08:38:50.245Z",
-      "kidesysSection": "Bad Debt"
+      "importedAt": "2099-12-31T23:59:59.999Z"
     },
     "RAM021": {
       "schoolId": "cmpideqeq0000108xb6ouv9zi",
       "accountRef": "RAM021",
       "accountHolder": "Bophelo Patience  Ref:(l Moreki) Ramaboa",
-      "balance": 10960,
+      "kidesysSection": "Bad Debt",
+      "balance": 3237.53,
       "buckets": {
         "current": 3300,
         "d30": 3000,
@@ -157,14 +158,14 @@
         "d120": 960
       },
       "source": "kideesys-age-analysis",
-      "importedAt": "2026-05-28T08:38:50.245Z",
-      "kidesysSection": "Bad Debt"
+      "importedAt": "2099-12-31T23:59:59.999Z"
     },
     "MOG013": {
       "schoolId": "cmpideqeq0000108xb6ouv9zi",
       "accountRef": "MOG013",
       "accountHolder": "Chantelle Otlotleng Mogafe",
-      "balance": 6800,
+      "kidesysSection": "Bad Debt",
+      "balance": 2008.69,
       "buckets": {
         "current": 3000,
         "d30": 3000,
@@ -173,14 +174,14 @@
         "d120": -2900
       },
       "source": "kideesys-age-analysis",
-      "importedAt": "2026-05-28T08:38:50.245Z",
-      "kidesysSection": "Bad Debt"
+      "importedAt": "2099-12-31T23:59:59.999Z"
     },
     "MUR001": {
       "schoolId": "cmpideqeq0000108xb6ouv9zi",
       "accountRef": "MUR001",
       "accountHolder": "Conor Murdoch\nRonan Murdoch",
-      "balance": 38100,
+      "kidesysSection": "Bad Debt",
+      "balance": 11254.55,
       "buckets": {
         "current": 6000,
         "d30": 6400,
@@ -189,14 +190,14 @@
         "d120": 12300
       },
       "source": "kideesys-age-analysis",
-      "importedAt": "2026-05-28T08:38:50.245Z",
-      "kidesysSection": "Bad Debt"
+      "importedAt": "2099-12-31T23:59:59.999Z"
     },
     "KOR001": {
       "schoolId": "cmpideqeq0000108xb6ouv9zi",
       "accountRef": "KOR001",
       "accountHolder": "Dagimawit Korabza",
-      "balance": 6860,
+      "kidesysSection": "Bad Debt",
+      "balance": 2026.41,
       "buckets": {
         "current": 3000,
         "d30": 3000,
@@ -205,14 +206,14 @@
         "d120": -2840
       },
       "source": "kideesys-age-analysis",
-      "importedAt": "2026-05-28T08:38:50.245Z",
-      "kidesysSection": "Bad Debt"
+      "importedAt": "2099-12-31T23:59:59.999Z"
     },
     "MAF003": {
       "schoolId": "cmpideqeq0000108xb6ouv9zi",
       "accountRef": "MAF003",
       "accountHolder": "Daniel Refentse Mafora",
-      "balance": 4550,
+      "kidesysSection": "Bad Debt",
+      "balance": 1344.05,
       "buckets": {
         "current": 3550,
         "d30": 0,
@@ -221,14 +222,14 @@
         "d120": -1400
       },
       "source": "kideesys-age-analysis",
-      "importedAt": "2026-05-28T08:38:50.245Z",
-      "kidesysSection": "Bad Debt"
+      "importedAt": "2099-12-31T23:59:59.999Z"
     },
     "WOL001": {
       "schoolId": "cmpideqeq0000108xb6ouv9zi",
       "accountRef": "WOL001",
       "accountHolder": "Elleliyon Wolebo",
-      "balance": 7370,
+      "kidesysSection": "Bad Debt",
+      "balance": 2177.06,
       "buckets": {
         "current": 3300,
         "d30": 3500,
@@ -237,14 +238,14 @@
         "d120": -2870
       },
       "source": "kideesys-age-analysis",
-      "importedAt": "2026-05-28T08:38:50.245Z",
-      "kidesysSection": "Bad Debt"
+      "importedAt": "2099-12-31T23:59:59.999Z"
     },
     "MAT010": {
       "schoolId": "cmpideqeq0000108xb6ouv9zi",
       "accountRef": "MAT010",
       "accountHolder": "Gosiame Khumoetsile Mathe\nOnalenna Oreratile Mathe",
-      "balance": 8750,
+      "kidesysSection": "Bad Debt",
+      "balance": 2584.71,
       "buckets": {
         "current": 7350,
         "d30": 0,
@@ -253,14 +254,14 @@
         "d120": -4540
       },
       "source": "kideesys-age-analysis",
-      "importedAt": "2026-05-28T08:38:50.245Z",
-      "kidesysSection": "Bad Debt"
+      "importedAt": "2099-12-31T23:59:59.999Z"
     },
     "MOL018": {
       "schoolId": "cmpideqeq0000108xb6ouv9zi",
       "accountRef": "MOL018",
       "accountHolder": "Hailey Molema",
-      "balance": 6500,
+      "kidesysSection": "Bad Debt",
+      "balance": 1920.07,
       "buckets": {
         "current": 3000,
         "d30": 3200,
@@ -269,14 +270,14 @@
         "d120": -475
       },
       "source": "kideesys-age-analysis",
-      "importedAt": "2026-05-28T08:38:50.245Z",
-      "kidesysSection": "Bad Debt"
+      "importedAt": "2099-12-31T23:59:59.999Z"
     },
     "MTE001": {
       "schoolId": "cmpideqeq0000108xb6ouv9zi",
       "accountRef": "MTE001",
       "accountHolder": "Hikateekile Mokategi Michelle Mtebule",
-      "balance": 3900,
+      "kidesysSection": "Bad Debt",
+      "balance": 1152.04,
       "buckets": {
         "current": 3000,
         "d30": 200,
@@ -285,14 +286,14 @@
         "d120": -750
       },
       "source": "kideesys-age-analysis",
-      "importedAt": "2026-05-28T08:38:50.245Z",
-      "kidesysSection": "Bad Debt"
+      "importedAt": "2099-12-31T23:59:59.999Z"
     },
     "MFU002": {
       "schoolId": "cmpideqeq0000108xb6ouv9zi",
       "accountRef": "MFU002",
       "accountHolder": "Inathi Tlhompo Mfundisi",
-      "balance": 10900,
+      "kidesysSection": "Bad Debt",
+      "balance": 3219.81,
       "buckets": {
         "current": 4100,
         "d30": 4100,
@@ -301,14 +302,14 @@
         "d120": 0
       },
       "source": "kideesys-age-analysis",
-      "importedAt": "2026-05-28T08:38:50.245Z",
-      "kidesysSection": "Bad Debt"
+      "importedAt": "2099-12-31T23:59:59.999Z"
     },
     "KEM002": {
       "schoolId": "cmpideqeq0000108xb6ouv9zi",
       "accountRef": "KEM002",
       "accountHolder": "Johannes Joshua Kemp\nGrace Kemp",
-      "balance": 7950,
+      "kidesysSection": "Bad Debt",
+      "balance": 2348.39,
       "buckets": {
         "current": 6550,
         "d30": 0,
@@ -317,14 +318,14 @@
         "d120": -3320
       },
       "source": "kideesys-age-analysis",
-      "importedAt": "2026-05-28T08:38:50.245Z",
-      "kidesysSection": "Bad Debt"
+      "importedAt": "2099-12-31T23:59:59.999Z"
     },
     "NKO004": {
       "schoolId": "cmpideqeq0000108xb6ouv9zi",
       "accountRef": "NKO004",
       "accountHolder": "Kabo Kealeboga Nkonyane",
-      "balance": 3700,
+      "kidesysSection": "Bad Debt",
+      "balance": 1092.96,
       "buckets": {
         "current": 3000,
         "d30": 0,
@@ -333,14 +334,14 @@
         "d120": -250
       },
       "source": "kideesys-age-analysis",
-      "importedAt": "2026-05-28T08:38:50.245Z",
-      "kidesysSection": "Bad Debt"
+      "importedAt": "2099-12-31T23:59:59.999Z"
     },
     "TAK001": {
       "schoolId": "cmpideqeq0000108xb6ouv9zi",
       "accountRef": "TAK001",
       "accountHolder": "Kagiso Unathi Takata",
-      "balance": 6800,
+      "kidesysSection": "Bad Debt",
+      "balance": 2008.69,
       "buckets": {
         "current": 3000,
         "d30": 3000,
@@ -349,14 +350,14 @@
         "d120": -800
       },
       "source": "kideesys-age-analysis",
-      "importedAt": "2026-05-28T08:38:50.245Z",
-      "kidesysSection": "Bad Debt"
+      "importedAt": "2099-12-31T23:59:59.999Z"
     },
     "THE003": {
       "schoolId": "cmpideqeq0000108xb6ouv9zi",
       "accountRef": "THE003",
       "accountHolder": "Kagoentle Thebeame",
-      "balance": 5800,
+      "kidesysSection": "Bad Debt",
+      "balance": 1713.29,
       "buckets": {
         "current": 3300,
         "d30": -100,
@@ -365,14 +366,14 @@
         "d120": 0
       },
       "source": "kideesys-age-analysis",
-      "importedAt": "2026-05-28T08:38:50.245Z",
-      "kidesysSection": "Bad Debt"
+      "importedAt": "2099-12-31T23:59:59.999Z"
     },
     "TIV001": {
       "schoolId": "cmpideqeq0000108xb6ouv9zi",
       "accountRef": "TIV001",
       "accountHolder": "Kamogelo Calvin Tivane",
-      "balance": 8450,
+      "kidesysSection": "Bad Debt",
+      "balance": 2496.09,
       "buckets": {
         "current": 3300,
         "d30": 3300,
@@ -381,14 +382,14 @@
         "d120": -5450
       },
       "source": "kideesys-age-analysis",
-      "importedAt": "2026-05-28T08:38:50.245Z",
-      "kidesysSection": "Bad Debt"
+      "importedAt": "2099-12-31T23:59:59.999Z"
     },
     "MOT026": {
       "schoolId": "cmpideqeq0000108xb6ouv9zi",
       "accountRef": "MOT026",
       "accountHolder": "Kamogelo Junior Motlhoki",
-      "balance": 11400,
+      "kidesysSection": "Bad Debt",
+      "balance": 3367.5,
       "buckets": {
         "current": 3300,
         "d30": 3300,
@@ -397,14 +398,14 @@
         "d120": -2410
       },
       "source": "kideesys-age-analysis",
-      "importedAt": "2026-05-28T08:38:50.245Z",
-      "kidesysSection": "Bad Debt"
+      "importedAt": "2099-12-31T23:59:59.999Z"
     },
     "MAS021": {
       "schoolId": "cmpideqeq0000108xb6ouv9zi",
       "accountRef": "MAS021",
       "accountHolder": "Kamohelo Masilo",
-      "balance": 3700,
+      "kidesysSection": "Bad Debt",
+      "balance": 1092.96,
       "buckets": {
         "current": 3000,
         "d30": 0,
@@ -413,14 +414,14 @@
         "d120": -3000
       },
       "source": "kideesys-age-analysis",
-      "importedAt": "2026-05-28T08:38:50.245Z",
-      "kidesysSection": "Bad Debt"
+      "importedAt": "2099-12-31T23:59:59.999Z"
     },
     "KAT002": {
       "schoolId": "cmpideqeq0000108xb6ouv9zi",
       "accountRef": "KAT002",
       "accountHolder": "Kanku Kis Katshay\nLois Mulanga Katshay",
-      "balance": 15400,
+      "kidesysSection": "Bad Debt",
+      "balance": 4549.08,
       "buckets": {
         "current": 7100,
         "d30": 7100,
@@ -429,14 +430,14 @@
         "d120": -5550
       },
       "source": "kideesys-age-analysis",
-      "importedAt": "2026-05-28T08:38:50.245Z",
-      "kidesysSection": "Bad Debt"
+      "importedAt": "2099-12-31T23:59:59.999Z"
     },
     "MOL040": {
       "schoolId": "cmpideqeq0000108xb6ouv9zi",
       "accountRef": "MOL040",
       "accountHolder": "Karaboentle Molahlehi",
-      "balance": 3700,
+      "kidesysSection": "Bad Debt",
+      "balance": 1092.96,
       "buckets": {
         "current": 3000,
         "d30": 0,
@@ -445,14 +446,14 @@
         "d120": -650
       },
       "source": "kideesys-age-analysis",
-      "importedAt": "2026-05-28T08:38:50.245Z",
-      "kidesysSection": "Bad Debt"
+      "importedAt": "2099-12-31T23:59:59.999Z"
     },
     "SEG008": {
       "schoolId": "cmpideqeq0000108xb6ouv9zi",
       "accountRef": "SEG008",
       "accountHolder": "Keabetswe Nkateko Gontse Segokotlo\nNtsako Segokotlo",
-      "balance": 7000,
+      "kidesysSection": "Bad Debt",
+      "balance": 2067.77,
       "buckets": {
         "current": 5600,
         "d30": 0,
@@ -461,14 +462,14 @@
         "d120": 0
       },
       "source": "kideesys-age-analysis",
-      "importedAt": "2026-05-28T08:38:50.245Z",
-      "kidesysSection": "Bad Debt"
+      "importedAt": "2099-12-31T23:59:59.999Z"
     },
     "MDU002": {
       "schoolId": "cmpideqeq0000108xb6ouv9zi",
       "accountRef": "MDU002",
       "accountHolder": "Kealeboga Lesetja Mdluli\nKufeziweokuhle Mashela Mdluli",
-      "balance": 8200,
+      "kidesysSection": "Bad Debt",
+      "balance": 2422.24,
       "buckets": {
         "current": 7100,
         "d30": 0,
@@ -477,14 +478,14 @@
         "d120": -2000
       },
       "source": "kideesys-age-analysis",
-      "importedAt": "2026-05-28T08:38:50.245Z",
-      "kidesysSection": "Bad Debt"
+      "importedAt": "2099-12-31T23:59:59.999Z"
     },
     "MPU004": {
       "schoolId": "cmpideqeq0000108xb6ouv9zi",
       "accountRef": "MPU004",
       "accountHolder": "Ketshepaona Mpudi",
-      "balance": 930,
+      "kidesysSection": "Bad Debt",
+      "balance": 274.72,
       "buckets": {
         "current": 30,
         "d30": 200,
@@ -493,14 +494,14 @@
         "d120": -3000
       },
       "source": "kideesys-age-analysis",
-      "importedAt": "2026-05-28T08:38:50.245Z",
-      "kidesysSection": "Bad Debt"
+      "importedAt": "2099-12-31T23:59:59.999Z"
     },
     "MAG006": {
       "schoolId": "cmpideqeq0000108xb6ouv9zi",
       "accountRef": "MAG006",
       "accountHolder": "Kganya Magagae",
-      "balance": 3500,
+      "kidesysSection": "Bad Debt",
+      "balance": 1033.88,
       "buckets": {
         "current": 3000,
         "d30": 0,
@@ -509,14 +510,14 @@
         "d120": -2200
       },
       "source": "kideesys-age-analysis",
-      "importedAt": "2026-05-28T08:38:50.245Z",
-      "kidesysSection": "Bad Debt"
+      "importedAt": "2099-12-31T23:59:59.999Z"
     },
     "MOD015": {
       "schoolId": "cmpideqeq0000108xb6ouv9zi",
       "accountRef": "MOD015",
       "accountHolder": "Leago Pelonomi Modisakeng",
-      "balance": 3700,
+      "kidesysSection": "Bad Debt",
+      "balance": 1092.96,
       "buckets": {
         "current": 3000,
         "d30": 0,
@@ -525,14 +526,14 @@
         "d120": -150
       },
       "source": "kideesys-age-analysis",
-      "importedAt": "2026-05-28T08:38:50.245Z",
-      "kidesysSection": "Bad Debt"
+      "importedAt": "2099-12-31T23:59:59.999Z"
     },
     "HKA001": {
       "schoolId": "cmpideqeq0000108xb6ouv9zi",
       "accountRef": "HKA001",
       "accountHolder": "Legae Nkawe",
-      "balance": 3700,
+      "kidesysSection": "Bad Debt",
+      "balance": 1092.96,
       "buckets": {
         "current": 3000,
         "d30": 0,
@@ -541,14 +542,14 @@
         "d120": 0
       },
       "source": "kideesys-age-analysis",
-      "importedAt": "2026-05-28T08:38:50.245Z",
-      "kidesysSection": "Bad Debt"
+      "importedAt": "2099-12-31T23:59:59.999Z"
     },
     "KHU007": {
       "schoolId": "cmpideqeq0000108xb6ouv9zi",
       "accountRef": "KHU007",
       "accountHolder": "Lemogang Khutoane",
-      "balance": 4700,
+      "kidesysSection": "Bad Debt",
+      "balance": 1388.36,
       "buckets": {
         "current": 3800,
         "d30": 200,
@@ -557,14 +558,14 @@
         "d120": -2390
       },
       "source": "kideesys-age-analysis",
-      "importedAt": "2026-05-28T08:38:50.245Z",
-      "kidesysSection": "Bad Debt"
+      "importedAt": "2099-12-31T23:59:59.999Z"
     },
     "TSH023": {
       "schoolId": "cmpideqeq0000108xb6ouv9zi",
       "accountRef": "TSH023",
       "accountHolder": "Lethukukhanya Tshingana",
-      "balance": 9700,
+      "kidesysSection": "Bad Debt",
+      "balance": 2865.33,
       "buckets": {
         "current": 3100,
         "d30": 2800,
@@ -573,14 +574,14 @@
         "d120": 0
       },
       "source": "kideesys-age-analysis",
-      "importedAt": "2026-05-28T08:38:50.245Z",
-      "kidesysSection": "Bad Debt"
+      "importedAt": "2099-12-31T23:59:59.999Z"
     },
     "MKH007": {
       "schoolId": "cmpideqeq0000108xb6ouv9zi",
       "accountRef": "MKH007",
       "accountHolder": "Lubanzi Emihle Mkhatshwa",
-      "balance": 3700,
+      "kidesysSection": "Bad Debt",
+      "balance": 1092.96,
       "buckets": {
         "current": 3000,
         "d30": 0,
@@ -589,14 +590,14 @@
         "d120": -550
       },
       "source": "kideesys-age-analysis",
-      "importedAt": "2026-05-28T08:38:50.245Z",
-      "kidesysSection": "Bad Debt"
+      "importedAt": "2099-12-31T23:59:59.999Z"
     },
     "SEP002": {
       "schoolId": "cmpideqeq0000108xb6ouv9zi",
       "accountRef": "SEP002",
       "accountHolder": "Maatla Patrick Sepato\nNeelo Sepato\nAnnaya Maria Christina Sepato",
-      "balance": 39400,
+      "kidesysSection": "Bad Debt",
+      "balance": 11638.57,
       "buckets": {
         "current": 9300,
         "d30": 8400,
@@ -605,14 +606,14 @@
         "d120": -1300
       },
       "source": "kideesys-age-analysis",
-      "importedAt": "2026-05-28T08:38:50.245Z",
-      "kidesysSection": "Bad Debt"
+      "importedAt": "2099-12-31T23:59:59.999Z"
     },
     "TAN001": {
       "schoolId": "cmpideqeq0000108xb6ouv9zi",
       "accountRef": "TAN001",
       "accountHolder": "Manase Tanga",
-      "balance": 15100,
+      "kidesysSection": "Bad Debt",
+      "balance": 4460.47,
       "buckets": {
         "current": 3850,
         "d30": 4050,
@@ -621,14 +622,14 @@
         "d120": -300
       },
       "source": "kideesys-age-analysis",
-      "importedAt": "2026-05-28T08:38:50.245Z",
-      "kidesysSection": "Bad Debt"
+      "importedAt": "2099-12-31T23:59:59.999Z"
     },
     "MOL024": {
       "schoolId": "cmpideqeq0000108xb6ouv9zi",
       "accountRef": "MOL024",
       "accountHolder": "Mashudu Tsoane Molusi",
-      "balance": 24350,
+      "kidesysSection": "Bad Debt",
+      "balance": 7192.87,
       "buckets": {
         "current": 3300,
         "d30": 3300,
@@ -637,14 +638,14 @@
         "d120": 10450
       },
       "source": "kideesys-age-analysis",
-      "importedAt": "2026-05-28T08:38:50.245Z",
-      "kidesysSection": "Bad Debt"
+      "importedAt": "2099-12-31T23:59:59.999Z"
     },
     "NEL001": {
       "schoolId": "cmpideqeq0000108xb6ouv9zi",
       "accountRef": "NEL001",
       "accountHolder": "Michal Hadassah Nelson",
-      "balance": 3700,
+      "kidesysSection": "Bad Debt",
+      "balance": 1092.96,
       "buckets": {
         "current": 3000,
         "d30": 0,
@@ -653,14 +654,14 @@
         "d120": 0
       },
       "source": "kideesys-age-analysis",
-      "importedAt": "2026-05-28T08:38:50.245Z",
-      "kidesysSection": "Bad Debt"
+      "importedAt": "2099-12-31T23:59:59.999Z"
     },
     "MPA001": {
       "schoolId": "cmpideqeq0000108xb6ouv9zi",
       "accountRef": "MPA001",
       "accountHolder": "Misokuhle Lathitha Mpangeva",
-      "balance": 6800,
+      "kidesysSection": "Bad Debt",
+      "balance": 2008.69,
       "buckets": {
         "current": 3000,
         "d30": 3000,
@@ -669,14 +670,14 @@
         "d120": -705
       },
       "source": "kideesys-age-analysis",
-      "importedAt": "2026-05-28T08:38:50.245Z",
-      "kidesysSection": "Bad Debt"
+      "importedAt": "2099-12-31T23:59:59.999Z"
     },
     "TSH012": {
       "schoolId": "cmpideqeq0000108xb6ouv9zi",
       "accountRef": "TSH012",
       "accountHolder": "Tumelo Sizwe Diamond Tshabalala\nMotheo Divine Tshabalala",
-      "balance": 7400,
+      "kidesysSection": "Bad Debt",
+      "balance": 2185.92,
       "buckets": {
         "current": 6000,
         "d30": 0,
@@ -685,14 +686,14 @@
         "d120": -6000
       },
       "source": "kideesys-age-analysis",
-      "importedAt": "2026-05-28T08:38:50.245Z",
-      "kidesysSection": "Bad Debt"
+      "importedAt": "2099-12-31T23:59:59.999Z"
     },
     "LEB005": {
       "schoolId": "cmpideqeq0000108xb6ouv9zi",
       "accountRef": "LEB005",
       "accountHolder": "Mpoentle Lebudi",
-      "balance": 7400,
+      "kidesysSection": "Bad Debt",
+      "balance": 2185.92,
       "buckets": {
         "current": 3300,
         "d30": 300,
@@ -701,14 +702,14 @@
         "d120": 0
       },
       "source": "kideesys-age-analysis",
-      "importedAt": "2026-05-28T08:38:50.245Z",
-      "kidesysSection": "Bad Debt"
+      "importedAt": "2099-12-31T23:59:59.999Z"
     },
     "ZON001": {
       "schoolId": "cmpideqeq0000108xb6ouv9zi",
       "accountRef": "ZON001",
       "accountHolder": "Musawenkosi Reatile Zondi",
-      "balance": 3700,
+      "kidesysSection": "Bad Debt",
+      "balance": 1092.96,
       "buckets": {
         "current": 3000,
         "d30": 0,
@@ -717,14 +718,14 @@
         "d120": -2700
       },
       "source": "kideesys-age-analysis",
-      "importedAt": "2026-05-28T08:38:50.245Z",
-      "kidesysSection": "Bad Debt"
+      "importedAt": "2099-12-31T23:59:59.999Z"
     },
     "SEL009": {
       "schoolId": "cmpideqeq0000108xb6ouv9zi",
       "accountRef": "SEL009",
       "accountHolder": "Muso Sello",
-      "balance": 6750,
+      "kidesysSection": "Bad Debt",
+      "balance": 1993.92,
       "buckets": {
         "current": 3300,
         "d30": 3200,
@@ -733,14 +734,14 @@
         "d120": 0
       },
       "source": "kideesys-age-analysis",
-      "importedAt": "2026-05-28T08:38:50.245Z",
-      "kidesysSection": "Bad Debt"
+      "importedAt": "2099-12-31T23:59:59.999Z"
     },
     "MAP006": {
       "schoolId": "cmpideqeq0000108xb6ouv9zi",
       "accountRef": "MAP006",
       "accountHolder": "Mvuselelo Jasper Maphumulo",
-      "balance": 8420,
+      "kidesysSection": "Bad Debt",
+      "balance": 2487.23,
       "buckets": {
         "current": 4100,
         "d30": 3800,
@@ -749,14 +750,14 @@
         "d120": -1055
       },
       "source": "kideesys-age-analysis",
-      "importedAt": "2026-05-28T08:38:50.245Z",
-      "kidesysSection": "Bad Debt"
+      "importedAt": "2099-12-31T23:59:59.999Z"
     },
     "TLA001": {
       "schoolId": "cmpideqeq0000108xb6ouv9zi",
       "accountRef": "TLA001",
       "accountHolder": "Neo Kearabilwe Tladi",
-      "balance": 10790,
+      "kidesysSection": "Bad Debt",
+      "balance": 3187.31,
       "buckets": {
         "current": 3300,
         "d30": 3500,
@@ -765,14 +766,14 @@
         "d120": -2560
       },
       "source": "kideesys-age-analysis",
-      "importedAt": "2026-05-28T08:38:50.245Z",
-      "kidesysSection": "Bad Debt"
+      "importedAt": "2099-12-31T23:59:59.999Z"
     },
     "MAN010": {
       "schoolId": "cmpideqeq0000108xb6ouv9zi",
       "accountRef": "MAN010",
       "accountHolder": "Nhlulo Xihluke Manabe",
-      "balance": 7600,
+      "kidesysSection": "Bad Debt",
+      "balance": 2245,
       "buckets": {
         "current": 3300,
         "d30": 3300,
@@ -781,14 +782,14 @@
         "d120": -5030
       },
       "source": "kideesys-age-analysis",
-      "importedAt": "2026-05-28T08:38:50.245Z",
-      "kidesysSection": "Bad Debt"
+      "importedAt": "2099-12-31T23:59:59.999Z"
     },
     "DIM002": {
       "schoolId": "cmpideqeq0000108xb6ouv9zi",
       "accountRef": "DIM002",
       "accountHolder": "Nkazimulo Dimema",
-      "balance": 18900,
+      "kidesysSection": "Bad Debt",
+      "balance": 5582.97,
       "buckets": {
         "current": 3000,
         "d30": 3200,
@@ -797,14 +798,14 @@
         "d120": 9000
       },
       "source": "kideesys-age-analysis",
-      "importedAt": "2026-05-28T08:38:50.245Z",
-      "kidesysSection": "Bad Debt"
+      "importedAt": "2099-12-31T23:59:59.999Z"
     },
     "MKH005": {
       "schoolId": "cmpideqeq0000108xb6ouv9zi",
       "accountRef": "MKH005",
       "accountHolder": "Nkosenhle Mkhize",
-      "balance": 5300,
+      "kidesysSection": "Bad Debt",
+      "balance": 1565.59,
       "buckets": {
         "current": 3300,
         "d30": 200,
@@ -813,14 +814,14 @@
         "d120": 0
       },
       "source": "kideesys-age-analysis",
-      "importedAt": "2026-05-28T08:38:50.245Z",
-      "kidesysSection": "Bad Debt"
+      "importedAt": "2099-12-31T23:59:59.999Z"
     },
     "MIR001": {
       "schoolId": "cmpideqeq0000108xb6ouv9zi",
       "accountRef": "MIR001",
       "accountHolder": "Letlotlo Mbasa Mira\nNkosi Mira",
-      "balance": 7400,
+      "kidesysSection": "Bad Debt",
+      "balance": 2185.92,
       "buckets": {
         "current": 6000,
         "d30": 0,
@@ -829,14 +830,14 @@
         "d120": 0
       },
       "source": "kideesys-age-analysis",
-      "importedAt": "2026-05-28T08:38:50.245Z",
-      "kidesysSection": "Bad Debt"
+      "importedAt": "2099-12-31T23:59:59.999Z"
     },
     "MKA001": {
       "schoolId": "cmpideqeq0000108xb6ouv9zi",
       "accountRef": "MKA001",
       "accountHolder": "Noluntu Chantelle Mkandla",
-      "balance": 4750,
+      "kidesysSection": "Bad Debt",
+      "balance": 1403.13,
       "buckets": {
         "current": 3350,
         "d30": 200,
@@ -845,14 +846,14 @@
         "d120": 0
       },
       "source": "kideesys-age-analysis",
-      "importedAt": "2026-05-28T08:38:50.245Z",
-      "kidesysSection": "Bad Debt"
+      "importedAt": "2099-12-31T23:59:59.999Z"
     },
     "MTS001": {
       "schoolId": "cmpideqeq0000108xb6ouv9zi",
       "accountRef": "MTS001",
       "accountHolder": "Nompumelelo Mtshweni",
-      "balance": 17050,
+      "kidesysSection": "Bad Debt",
+      "balance": 5036.49,
       "buckets": {
         "current": 3300,
         "d30": 3500,
@@ -861,14 +862,14 @@
         "d120": 2950
       },
       "source": "kideesys-age-analysis",
-      "importedAt": "2026-05-28T08:38:50.245Z",
-      "kidesysSection": "Bad Debt"
+      "importedAt": "2099-12-31T23:59:59.999Z"
     },
     "MKH002": {
       "schoolId": "cmpideqeq0000108xb6ouv9zi",
       "accountRef": "MKH002",
       "accountHolder": "Ntsako Mkhasi",
-      "balance": 3700,
+      "kidesysSection": "Bad Debt",
+      "balance": 1092.96,
       "buckets": {
         "current": 3000,
         "d30": 0,
@@ -877,14 +878,14 @@
         "d120": -2550
       },
       "source": "kideesys-age-analysis",
-      "importedAt": "2026-05-28T08:38:50.245Z",
-      "kidesysSection": "Bad Debt"
+      "importedAt": "2099-12-31T23:59:59.999Z"
     },
     "KGA006": {
       "schoolId": "cmpideqeq0000108xb6ouv9zi",
       "accountRef": "KGA006",
       "accountHolder": "Oartwa Refentse Kgatshe",
-      "balance": 3700,
+      "kidesysSection": "Bad Debt",
+      "balance": 1092.96,
       "buckets": {
         "current": 3000,
         "d30": 0,
@@ -893,14 +894,14 @@
         "d120": 0
       },
       "source": "kideesys-age-analysis",
-      "importedAt": "2026-05-28T08:38:50.245Z",
-      "kidesysSection": "Bad Debt"
+      "importedAt": "2099-12-31T23:59:59.999Z"
     },
     "FRE001": {
       "schoolId": "cmpideqeq0000108xb6ouv9zi",
       "accountRef": "FRE001",
       "accountHolder": "Oatlegile Frederick",
-      "balance": 9500,
+      "kidesysSection": "Bad Debt",
+      "balance": 2806.25,
       "buckets": {
         "current": 3300,
         "d30": 3200,
@@ -909,14 +910,14 @@
         "d120": -3370
       },
       "source": "kideesys-age-analysis",
-      "importedAt": "2026-05-28T08:38:50.245Z",
-      "kidesysSection": "Bad Debt"
+      "importedAt": "2099-12-31T23:59:59.999Z"
     },
     "PET002": {
       "schoolId": "cmpideqeq0000108xb6ouv9zi",
       "accountRef": "PET002",
       "accountHolder": "Obatlilwe Petlale",
-      "balance": 8600,
+      "kidesysSection": "Bad Debt",
+      "balance": 2540.4,
       "buckets": {
         "current": 4100,
         "d30": 3800,
@@ -925,14 +926,14 @@
         "d120": -3050
       },
       "source": "kideesys-age-analysis",
-      "importedAt": "2026-05-28T08:38:50.245Z",
-      "kidesysSection": "Bad Debt"
+      "importedAt": "2099-12-31T23:59:59.999Z"
     },
     "MAS031": {
       "schoolId": "cmpideqeq0000108xb6ouv9zi",
       "accountRef": "MAS031",
       "accountHolder": "Olerato Masimong",
-      "balance": 4700,
+      "kidesysSection": "Bad Debt",
+      "balance": 1388.36,
       "buckets": {
         "current": 3800,
         "d30": 200,
@@ -941,14 +942,14 @@
         "d120": 0
       },
       "source": "kideesys-age-analysis",
-      "importedAt": "2026-05-28T08:38:50.245Z",
-      "kidesysSection": "Bad Debt"
+      "importedAt": "2099-12-31T23:59:59.999Z"
     },
     "SER001": {
       "schoolId": "cmpideqeq0000108xb6ouv9zi",
       "accountRef": "SER001",
       "accountHolder": "Oletilwe Serutle",
-      "balance": 3700,
+      "kidesysSection": "Bad Debt",
+      "balance": 1092.96,
       "buckets": {
         "current": 3000,
         "d30": 0,
@@ -957,14 +958,14 @@
         "d120": -3000
       },
       "source": "kideesys-age-analysis",
-      "importedAt": "2026-05-28T08:38:50.245Z",
-      "kidesysSection": "Bad Debt"
+      "importedAt": "2099-12-31T23:59:59.999Z"
     },
     "THE002": {
       "schoolId": "cmpideqeq0000108xb6ouv9zi",
       "accountRef": "THE002",
       "accountHolder": "Omaatla Phenyo Thejane",
-      "balance": 21550,
+      "kidesysSection": "Bad Debt",
+      "balance": 6365.76,
       "buckets": {
         "current": 3300,
         "d30": 3300,
@@ -973,14 +974,14 @@
         "d120": 7650
       },
       "source": "kideesys-age-analysis",
-      "importedAt": "2026-05-28T08:38:50.245Z",
-      "kidesysSection": "Bad Debt"
+      "importedAt": "2099-12-31T23:59:59.999Z"
     },
     "SEP899": {
       "schoolId": "cmpideqeq0000108xb6ouv9zi",
       "accountRef": "SEP899",
       "accountHolder": "Omogolo Sepadile",
-      "balance": 3700,
+      "kidesysSection": "Bad Debt",
+      "balance": 1092.96,
       "buckets": {
         "current": 3000,
         "d30": 0,
@@ -989,14 +990,14 @@
         "d120": -3500
       },
       "source": "kideesys-age-analysis",
-      "importedAt": "2026-05-28T08:38:50.245Z",
-      "kidesysSection": "Bad Debt"
+      "importedAt": "2099-12-31T23:59:59.999Z"
     },
     "MOA007": {
       "schoolId": "cmpideqeq0000108xb6ouv9zi",
       "accountRef": "MOA007",
       "accountHolder": "Omolemo Okhule Moatlhodi",
-      "balance": 3700,
+      "kidesysSection": "Bad Debt",
+      "balance": 1092.96,
       "buckets": {
         "current": 3000,
         "d30": 0,
@@ -1005,14 +1006,14 @@
         "d120": 0
       },
       "source": "kideesys-age-analysis",
-      "importedAt": "2026-05-28T08:38:50.245Z",
-      "kidesysSection": "Bad Debt"
+      "importedAt": "2099-12-31T23:59:59.999Z"
     },
     "MOE006": {
       "schoolId": "cmpideqeq0000108xb6ouv9zi",
       "accountRef": "MOE006",
       "accountHolder": "Omontle Moeng",
-      "balance": 4500,
+      "kidesysSection": "Bad Debt",
+      "balance": 1329.28,
       "buckets": {
         "current": 3000,
         "d30": 0,
@@ -1021,14 +1022,14 @@
         "d120": -2800
       },
       "source": "kideesys-age-analysis",
-      "importedAt": "2026-05-28T08:38:50.245Z",
-      "kidesysSection": "Bad Debt"
+      "importedAt": "2099-12-31T23:59:59.999Z"
     },
     "TSH021": {
       "schoolId": "cmpideqeq0000108xb6ouv9zi",
       "accountRef": "TSH021",
       "accountHolder": "Omphemetse Faith Tshisano",
-      "balance": 3700,
+      "kidesysSection": "Bad Debt",
+      "balance": 1092.96,
       "buckets": {
         "current": 3000,
         "d30": 0,
@@ -1037,14 +1038,14 @@
         "d120": -550
       },
       "source": "kideesys-age-analysis",
-      "importedAt": "2026-05-28T08:38:50.245Z",
-      "kidesysSection": "Bad Debt"
+      "importedAt": "2099-12-31T23:59:59.999Z"
     },
     "MOS014": {
       "schoolId": "cmpideqeq0000108xb6ouv9zi",
       "accountRef": "MOS014",
       "accountHolder": "Omphile Dithole Mosiane Dsa0161",
-      "balance": 3700,
+      "kidesysSection": "Bad Debt",
+      "balance": 1092.96,
       "buckets": {
         "current": 3000,
         "d30": 0,
@@ -1053,14 +1054,14 @@
         "d120": -3000
       },
       "source": "kideesys-age-analysis",
-      "importedAt": "2026-05-28T08:38:50.245Z",
-      "kidesysSection": "Bad Debt"
+      "importedAt": "2099-12-31T23:59:59.999Z"
     },
     "MOT017": {
       "schoolId": "cmpideqeq0000108xb6ouv9zi",
       "accountRef": "MOT017",
       "accountHolder": "Onkokeditse Motlhajwa",
-      "balance": 3700,
+      "kidesysSection": "Bad Debt",
+      "balance": 1092.96,
       "buckets": {
         "current": 3000,
         "d30": 0,
@@ -1069,14 +1070,14 @@
         "d120": -1300
       },
       "source": "kideesys-age-analysis",
-      "importedAt": "2026-05-28T08:38:50.245Z",
-      "kidesysSection": "Bad Debt"
+      "importedAt": "2099-12-31T23:59:59.999Z"
     },
     "MOT008": {
       "schoolId": "cmpideqeq0000108xb6ouv9zi",
       "accountRef": "MOT008",
       "accountHolder": "Ontlametse Resego Mothoagae\nMmakgwai Mothoagae",
-      "balance": 7400,
+      "kidesysSection": "Bad Debt",
+      "balance": 2185.92,
       "buckets": {
         "current": 6000,
         "d30": 0,
@@ -1085,14 +1086,14 @@
         "d120": -1500
       },
       "source": "kideesys-age-analysis",
-      "importedAt": "2026-05-28T08:38:50.245Z",
-      "kidesysSection": "Bad Debt"
+      "importedAt": "2099-12-31T23:59:59.999Z"
     },
     "MAK024": {
       "schoolId": "cmpideqeq0000108xb6ouv9zi",
       "accountRef": "MAK024",
       "accountHolder": "Opelong Olive Makhalanyane",
-      "balance": 3700,
+      "kidesysSection": "Bad Debt",
+      "balance": 1092.96,
       "buckets": {
         "current": 3000,
         "d30": 0,
@@ -1101,14 +1102,14 @@
         "d120": 0
       },
       "source": "kideesys-age-analysis",
-      "importedAt": "2026-05-28T08:38:50.245Z",
-      "kidesysSection": "Bad Debt"
+      "importedAt": "2099-12-31T23:59:59.999Z"
     },
     "GAE001": {
       "schoolId": "cmpideqeq0000108xb6ouv9zi",
       "accountRef": "GAE001",
       "accountHolder": "Orateng Gaebolae",
-      "balance": 6800,
+      "kidesysSection": "Bad Debt",
+      "balance": 2008.69,
       "buckets": {
         "current": 3000,
         "d30": 3000,
@@ -1117,14 +1118,14 @@
         "d120": -3280
       },
       "source": "kideesys-age-analysis",
-      "importedAt": "2026-05-28T08:38:50.245Z",
-      "kidesysSection": "Bad Debt"
+      "importedAt": "2099-12-31T23:59:59.999Z"
     },
     "MAB005": {
       "schoolId": "cmpideqeq0000108xb6ouv9zi",
       "accountRef": "MAB005",
       "accountHolder": "Orefile Mabole\nRaorata Oresiametse Mabole",
-      "balance": 18400,
+      "kidesysSection": "Bad Debt",
+      "balance": 5435.27,
       "buckets": {
         "current": 8800,
         "d30": 8200,
@@ -1133,14 +1134,14 @@
         "d120": -6650
       },
       "source": "kideesys-age-analysis",
-      "importedAt": "2026-05-28T08:38:50.245Z",
-      "kidesysSection": "Bad Debt"
+      "importedAt": "2099-12-31T23:59:59.999Z"
     },
     "PHA010": {
       "schoolId": "cmpideqeq0000108xb6ouv9zi",
       "accountRef": "PHA010",
       "accountHolder": "Orefilwe Phakedi",
-      "balance": 10200,
+      "kidesysSection": "Bad Debt",
+      "balance": 3013.03,
       "buckets": {
         "current": 3300,
         "d30": 3500,
@@ -1149,14 +1150,14 @@
         "d120": 0
       },
       "source": "kideesys-age-analysis",
-      "importedAt": "2026-05-28T08:38:50.245Z",
-      "kidesysSection": "Bad Debt"
+      "importedAt": "2099-12-31T23:59:59.999Z"
     },
     "OSE001": {
       "schoolId": "cmpideqeq0000108xb6ouv9zi",
       "accountRef": "OSE001",
       "accountHolder": "Osego Makgale",
-      "balance": 4500,
+      "kidesysSection": "Bad Debt",
+      "balance": 1329.28,
       "buckets": {
         "current": 3800,
         "d30": 0,
@@ -1165,14 +1166,14 @@
         "d120": -2025
       },
       "source": "kideesys-age-analysis",
-      "importedAt": "2026-05-28T08:38:50.245Z",
-      "kidesysSection": "Bad Debt"
+      "importedAt": "2099-12-31T23:59:59.999Z"
     },
     "MOL043": {
       "schoolId": "cmpideqeq0000108xb6ouv9zi",
       "accountRef": "MOL043",
       "accountHolder": "Osego Molosiwa",
-      "balance": 4050,
+      "kidesysSection": "Bad Debt",
+      "balance": 1196.35,
       "buckets": {
         "current": 3350,
         "d30": 0,
@@ -1181,14 +1182,14 @@
         "d120": 0
       },
       "source": "kideesys-age-analysis",
-      "importedAt": "2026-05-28T08:38:50.245Z",
-      "kidesysSection": "Bad Debt"
+      "importedAt": "2099-12-31T23:59:59.999Z"
     },
     "MOE008": {
       "schoolId": "cmpideqeq0000108xb6ouv9zi",
       "accountRef": "MOE008",
       "accountHolder": "Oteng Okgotlhe Moeng",
-      "balance": 21990,
+      "kidesysSection": "Bad Debt",
+      "balance": 6495.74,
       "buckets": {
         "current": 3300,
         "d30": 3500,
@@ -1197,14 +1198,14 @@
         "d120": 8190
       },
       "source": "kideesys-age-analysis",
-      "importedAt": "2026-05-28T08:38:50.245Z",
-      "kidesysSection": "Bad Debt"
+      "importedAt": "2099-12-31T23:59:59.999Z"
     },
     "MAT016": {
       "schoolId": "cmpideqeq0000108xb6ouv9zi",
       "accountRef": "MAT016",
       "accountHolder": "Otshepeng Matsietsa",
-      "balance": 6400,
+      "kidesysSection": "Bad Debt",
+      "balance": 1890.53,
       "buckets": {
         "current": 3000,
         "d30": 3200,
@@ -1213,14 +1214,14 @@
         "d120": -7100
       },
       "source": "kideesys-age-analysis",
-      "importedAt": "2026-05-28T08:38:50.245Z",
-      "kidesysSection": "Bad Debt"
+      "importedAt": "2099-12-31T23:59:59.999Z"
     },
     "MOE003": {
       "schoolId": "cmpideqeq0000108xb6ouv9zi",
       "accountRef": "MOE003",
       "accountHolder": "Owethu Moeng",
-      "balance": 6300,
+      "kidesysSection": "Bad Debt",
+      "balance": 1860.99,
       "buckets": {
         "current": 3000,
         "d30": 3000,
@@ -1229,14 +1230,14 @@
         "d120": -10000
       },
       "source": "kideesys-age-analysis",
-      "importedAt": "2026-05-28T08:38:50.245Z",
-      "kidesysSection": "Bad Debt"
+      "importedAt": "2099-12-31T23:59:59.999Z"
     },
     "MOR013": {
       "schoolId": "cmpideqeq0000108xb6ouv9zi",
       "accountRef": "MOR013",
       "accountHolder": "Paballo Moruledi",
-      "balance": 9700,
+      "kidesysSection": "Bad Debt",
+      "balance": 2865.33,
       "buckets": {
         "current": 3300,
         "d30": 3500,
@@ -1245,14 +1246,14 @@
         "d120": -1600
       },
       "source": "kideesys-age-analysis",
-      "importedAt": "2026-05-28T08:38:50.245Z",
-      "kidesysSection": "Bad Debt"
+      "importedAt": "2099-12-31T23:59:59.999Z"
     },
     "XAB001": {
       "schoolId": "cmpideqeq0000108xb6ouv9zi",
       "accountRef": "XAB001",
       "accountHolder": "Paballo Pearl Xaba",
-      "balance": 4250,
+      "kidesysSection": "Bad Debt",
+      "balance": 1255.43,
       "buckets": {
         "current": 3550,
         "d30": 0,
@@ -1261,14 +1262,14 @@
         "d120": -1700
       },
       "source": "kideesys-age-analysis",
-      "importedAt": "2026-05-28T08:38:50.245Z",
-      "kidesysSection": "Bad Debt"
+      "importedAt": "2099-12-31T23:59:59.999Z"
     },
     "MOK038": {
       "schoolId": "cmpideqeq0000108xb6ouv9zi",
       "accountRef": "MOK038",
       "accountHolder": "Phehello Charlotte Mokgalaka",
-      "balance": 9900,
+      "kidesysSection": "Bad Debt",
+      "balance": 2924.41,
       "buckets": {
         "current": 4650,
         "d30": 4850,
@@ -1277,14 +1278,14 @@
         "d120": -890
       },
       "source": "kideesys-age-analysis",
-      "importedAt": "2026-05-28T08:38:50.245Z",
-      "kidesysSection": "Bad Debt"
+      "importedAt": "2099-12-31T23:59:59.999Z"
     },
     "MAT022": {
       "schoolId": "cmpideqeq0000108xb6ouv9zi",
       "accountRef": "MAT022",
       "accountHolder": "Phemelo Reotshepile Matsheka",
-      "balance": 6100,
+      "kidesysSection": "Bad Debt",
+      "balance": 1801.91,
       "buckets": {
         "current": 3000,
         "d30": 3000,
@@ -1293,14 +1294,14 @@
         "d120": -1600
       },
       "source": "kideesys-age-analysis",
-      "importedAt": "2026-05-28T08:38:50.245Z",
-      "kidesysSection": "Bad Debt"
+      "importedAt": "2099-12-31T23:59:59.999Z"
     },
     "LEK003": {
       "schoolId": "cmpideqeq0000108xb6ouv9zi",
       "accountRef": "LEK003",
       "accountHolder": "Phetogo Lekgetho Moruledi",
-      "balance": 7200,
+      "kidesysSection": "Bad Debt",
+      "balance": 2126.84,
       "buckets": {
         "current": 3000,
         "d30": 3000,
@@ -1309,14 +1310,14 @@
         "d120": -5500
       },
       "source": "kideesys-age-analysis",
-      "importedAt": "2026-05-28T08:38:50.245Z",
-      "kidesysSection": "Bad Debt"
+      "importedAt": "2099-12-31T23:59:59.999Z"
     },
     "MOK033": {
       "schoolId": "cmpideqeq0000108xb6ouv9zi",
       "accountRef": "MOK033",
       "accountHolder": "Phetolo Mokoena",
-      "balance": 7650,
+      "kidesysSection": "Bad Debt",
+      "balance": 2259.77,
       "buckets": {
         "current": 3300,
         "d30": 3200,
@@ -1325,14 +1326,14 @@
         "d120": -2860
       },
       "source": "kideesys-age-analysis",
-      "importedAt": "2026-05-28T08:38:50.245Z",
-      "kidesysSection": "Bad Debt"
+      "importedAt": "2099-12-31T23:59:59.999Z"
     },
     "HLA001": {
       "schoolId": "cmpideqeq0000108xb6ouv9zi",
       "accountRef": "HLA001",
       "accountHolder": "Phiko Hlaba",
-      "balance": 5050,
+      "kidesysSection": "Bad Debt",
+      "balance": 1491.75,
       "buckets": {
         "current": 4350,
         "d30": 0,
@@ -1341,14 +1342,14 @@
         "d120": -5150
       },
       "source": "kideesys-age-analysis",
-      "importedAt": "2026-05-28T08:38:50.245Z",
-      "kidesysSection": "Bad Debt"
+      "importedAt": "2099-12-31T23:59:59.999Z"
     },
     "TSH018": {
       "schoolId": "cmpideqeq0000108xb6ouv9zi",
       "accountRef": "TSH018",
       "accountHolder": "Qhawe Davi Tshabalala",
-      "balance": 4500,
+      "kidesysSection": "Bad Debt",
+      "balance": 1329.28,
       "buckets": {
         "current": 3800,
         "d30": 0,
@@ -1357,14 +1358,14 @@
         "d120": -2400
       },
       "source": "kideesys-age-analysis",
-      "importedAt": "2026-05-28T08:38:50.245Z",
-      "kidesysSection": "Bad Debt"
+      "importedAt": "2099-12-31T23:59:59.999Z"
     },
     "NKA004": {
       "schoolId": "cmpideqeq0000108xb6ouv9zi",
       "accountRef": "NKA004",
       "accountHolder": "Reabetswe Nkada",
-      "balance": 4450,
+      "kidesysSection": "Bad Debt",
+      "balance": 1314.51,
       "buckets": {
         "current": 3550,
         "d30": 200,
@@ -1373,14 +1374,14 @@
         "d120": 0
       },
       "source": "kideesys-age-analysis",
-      "importedAt": "2026-05-28T08:38:50.245Z",
-      "kidesysSection": "Bad Debt"
+      "importedAt": "2099-12-31T23:59:59.999Z"
     },
     "MEK003": {
       "schoolId": "cmpideqeq0000108xb6ouv9zi",
       "accountRef": "MEK003",
       "accountHolder": "Reamoleboga Mekgwe",
-      "balance": 3700,
+      "kidesysSection": "Bad Debt",
+      "balance": 1092.96,
       "buckets": {
         "current": 3000,
         "d30": 0,
@@ -1389,14 +1390,14 @@
         "d120": 0
       },
       "source": "kideesys-age-analysis",
-      "importedAt": "2026-05-28T08:38:50.245Z",
-      "kidesysSection": "Bad Debt"
+      "importedAt": "2099-12-31T23:59:59.999Z"
     },
     "ZON002": {
       "schoolId": "cmpideqeq0000108xb6ouv9zi",
       "accountRef": "ZON002",
       "accountHolder": "Reaoleboga Halala Zondo",
-      "balance": 3700,
+      "kidesysSection": "Bad Debt",
+      "balance": 1092.96,
       "buckets": {
         "current": 3000,
         "d30": 0,
@@ -1405,14 +1406,14 @@
         "d120": 0
       },
       "source": "kideesys-age-analysis",
-      "importedAt": "2026-05-28T08:38:50.245Z",
-      "kidesysSection": "Bad Debt"
+      "importedAt": "2099-12-31T23:59:59.999Z"
     },
     "MAT021": {
       "schoolId": "cmpideqeq0000108xb6ouv9zi",
       "accountRef": "MAT021",
       "accountHolder": "Reatlegile Kaone Matabane",
-      "balance": 14850,
+      "kidesysSection": "Bad Debt",
+      "balance": 4386.62,
       "buckets": {
         "current": 3300,
         "d30": 3500,
@@ -1421,14 +1422,14 @@
         "d120": -3150
       },
       "source": "kideesys-age-analysis",
-      "importedAt": "2026-05-28T08:38:50.245Z",
-      "kidesysSection": "Bad Debt"
+      "importedAt": "2099-12-31T23:59:59.999Z"
     },
     "MAM004": {
       "schoolId": "cmpideqeq0000108xb6ouv9zi",
       "accountRef": "MAM004",
       "accountHolder": "Refentje Mampa",
-      "balance": 4500,
+      "kidesysSection": "Bad Debt",
+      "balance": 1329.28,
       "buckets": {
         "current": 3000,
         "d30": 200,
@@ -1437,14 +1438,14 @@
         "d120": 0
       },
       "source": "kideesys-age-analysis",
-      "importedAt": "2026-05-28T08:38:50.245Z",
-      "kidesysSection": "Bad Debt"
+      "importedAt": "2099-12-31T23:59:59.999Z"
     },
     "KGO003": {
       "schoolId": "cmpideqeq0000108xb6ouv9zi",
       "accountRef": "KGO003",
       "accountHolder": "Refiloe Kgokong",
-      "balance": 5000,
+      "kidesysSection": "Bad Debt",
+      "balance": 1476.98,
       "buckets": {
         "current": 3800,
         "d30": 500,
@@ -1453,14 +1454,14 @@
         "d120": -2650
       },
       "source": "kideesys-age-analysis",
-      "importedAt": "2026-05-28T08:38:50.245Z",
-      "kidesysSection": "Bad Debt"
+      "importedAt": "2099-12-31T23:59:59.999Z"
     },
     "MAK014": {
       "schoolId": "cmpideqeq0000108xb6ouv9zi",
       "accountRef": "MAK014",
       "accountHolder": "Reitumetse Makwakwa",
-      "balance": 3950,
+      "kidesysSection": "Bad Debt",
+      "balance": 1166.81,
       "buckets": {
         "current": 3000,
         "d30": 200,
@@ -1469,14 +1470,14 @@
         "d120": -2950
       },
       "source": "kideesys-age-analysis",
-      "importedAt": "2026-05-28T08:38:50.245Z",
-      "kidesysSection": "Bad Debt"
+      "importedAt": "2099-12-31T23:59:59.999Z"
     },
     "MOT033": {
       "schoolId": "cmpideqeq0000108xb6ouv9zi",
       "accountRef": "MOT033",
       "accountHolder": "Remmogo Motlhamme",
-      "balance": 3900,
+      "kidesysSection": "Bad Debt",
+      "balance": 1152.04,
       "buckets": {
         "current": 3000,
         "d30": 200,
@@ -1485,14 +1486,14 @@
         "d120": -2500
       },
       "source": "kideesys-age-analysis",
-      "importedAt": "2026-05-28T08:38:50.245Z",
-      "kidesysSection": "Bad Debt"
+      "importedAt": "2099-12-31T23:59:59.999Z"
     },
     "BOG005": {
       "schoolId": "cmpideqeq0000108xb6ouv9zi",
       "accountRef": "BOG005",
       "accountHolder": "Reotshepile Matlhasedi Bogatsu",
-      "balance": 4600,
+      "kidesysSection": "Bad Debt",
+      "balance": 1358.82,
       "buckets": {
         "current": 3000,
         "d30": 0,
@@ -1501,14 +1502,14 @@
         "d120": -2100
       },
       "source": "kideesys-age-analysis",
-      "importedAt": "2026-05-28T08:38:50.245Z",
-      "kidesysSection": "Bad Debt"
+      "importedAt": "2099-12-31T23:59:59.999Z"
     },
     "MAK013": {
       "schoolId": "cmpideqeq0000108xb6ouv9zi",
       "accountRef": "MAK013",
       "accountHolder": "Rethabile Roland Makgae",
-      "balance": 10750,
+      "kidesysSection": "Bad Debt",
+      "balance": 3175.5,
       "buckets": {
         "current": 3300,
         "d30": 3000,
@@ -1517,14 +1518,14 @@
         "d120": -2550
       },
       "source": "kideesys-age-analysis",
-      "importedAt": "2026-05-28T08:38:50.245Z",
-      "kidesysSection": "Bad Debt"
+      "importedAt": "2099-12-31T23:59:59.999Z"
     },
     "NAS001": {
       "schoolId": "cmpideqeq0000108xb6ouv9zi",
       "accountRef": "NAS001",
       "accountHolder": "Samira Nasere",
-      "balance": 7800,
+      "kidesysSection": "Bad Debt",
+      "balance": 2304.08,
       "buckets": {
         "current": 3300,
         "d30": 3000,
@@ -1533,14 +1534,14 @@
         "d120": -265
       },
       "source": "kideesys-age-analysis",
-      "importedAt": "2026-05-28T08:38:50.245Z",
-      "kidesysSection": "Bad Debt"
+      "importedAt": "2099-12-31T23:59:59.999Z"
     },
     "MAP001": {
       "schoolId": "cmpideqeq0000108xb6ouv9zi",
       "accountRef": "MAP001",
       "accountHolder": "Samkelo Mapingana",
-      "balance": 10000,
+      "kidesysSection": "Bad Debt",
+      "balance": 2953.95,
       "buckets": {
         "current": 3800,
         "d30": 4100,
@@ -1549,14 +1550,14 @@
         "d120": -800
       },
       "source": "kideesys-age-analysis",
-      "importedAt": "2026-05-28T08:38:50.245Z",
-      "kidesysSection": "Bad Debt"
+      "importedAt": "2099-12-31T23:59:59.999Z"
     },
     "MQA001": {
       "schoolId": "cmpideqeq0000108xb6ouv9zi",
       "accountRef": "MQA001",
       "accountHolder": "Shaun Vuyolwethu Mqali",
-      "balance": 4700,
+      "kidesysSection": "Bad Debt",
+      "balance": 1388.36,
       "buckets": {
         "current": 3000,
         "d30": 200,
@@ -1565,14 +1566,14 @@
         "d120": -585
       },
       "source": "kideesys-age-analysis",
-      "importedAt": "2026-05-28T08:38:50.245Z",
-      "kidesysSection": "Bad Debt"
+      "importedAt": "2099-12-31T23:59:59.999Z"
     },
     "SIT003": {
       "schoolId": "cmpideqeq0000108xb6ouv9zi",
       "accountRef": "SIT003",
       "accountHolder": "Sibahle Olwethu Sitole",
-      "balance": 4450,
+      "kidesysSection": "Bad Debt",
+      "balance": 1314.51,
       "buckets": {
         "current": 3550,
         "d30": 200,
@@ -1581,14 +1582,14 @@
         "d120": -3250
       },
       "source": "kideesys-age-analysis",
-      "importedAt": "2026-05-28T08:38:50.245Z",
-      "kidesysSection": "Bad Debt"
+      "importedAt": "2099-12-31T23:59:59.999Z"
     },
     "PRA001": {
       "schoolId": "cmpideqeq0000108xb6ouv9zi",
       "accountRef": "PRA001",
       "accountHolder": "Skyla Hope Prangley",
-      "balance": 22700,
+      "kidesysSection": "Bad Debt",
+      "balance": 6705.47,
       "buckets": {
         "current": 3550,
         "d30": 0,
@@ -1597,14 +1598,14 @@
         "d120": 14900
       },
       "source": "kideesys-age-analysis",
-      "importedAt": "2026-05-28T08:38:50.245Z",
-      "kidesysSection": "Bad Debt"
+      "importedAt": "2099-12-31T23:59:59.999Z"
     },
     "MSI004": {
       "schoolId": "cmpideqeq0000108xb6ouv9zi",
       "accountRef": "MSI004",
       "accountHolder": "Snekosi Msimango",
-      "balance": 8300,
+      "kidesysSection": "Bad Debt",
+      "balance": 2451.78,
       "buckets": {
         "current": 3800,
         "d30": 3800,
@@ -1613,14 +1614,14 @@
         "d120": -2700
       },
       "source": "kideesys-age-analysis",
-      "importedAt": "2026-05-28T08:38:50.245Z",
-      "kidesysSection": "Bad Debt"
+      "importedAt": "2099-12-31T23:59:59.999Z"
     },
     "KOB002": {
       "schoolId": "cmpideqeq0000108xb6ouv9zi",
       "accountRef": "KOB002",
       "accountHolder": "Sthandiwe Kearabilwe Kobo",
-      "balance": 3700,
+      "kidesysSection": "Bad Debt",
+      "balance": 1092.96,
       "buckets": {
         "current": 2800,
         "d30": 200,
@@ -1629,14 +1630,14 @@
         "d120": 0
       },
       "source": "kideesys-age-analysis",
-      "importedAt": "2026-05-28T08:38:50.245Z",
-      "kidesysSection": "Bad Debt"
+      "importedAt": "2099-12-31T23:59:59.999Z"
     },
     "MUF001": {
       "schoolId": "cmpideqeq0000108xb6ouv9zi",
       "accountRef": "MUF001",
       "accountHolder": "Tafadzwa Shane Mufandaedza\nTakunda Brandon Mufandaedza",
-      "balance": 21400,
+      "kidesysSection": "Bad Debt",
+      "balance": 6321.46,
       "buckets": {
         "current": 8100,
         "d30": 8300,
@@ -1645,14 +1646,14 @@
         "d120": -2200
       },
       "source": "kideesys-age-analysis",
-      "importedAt": "2026-05-28T08:38:50.245Z",
-      "kidesysSection": "Bad Debt"
+      "importedAt": "2099-12-31T23:59:59.999Z"
     },
     "TSI002": {
       "schoolId": "cmpideqeq0000108xb6ouv9zi",
       "accountRef": "TSI002",
       "accountHolder": "Tirelo Tau Tsibane",
-      "balance": 3700,
+      "kidesysSection": "Bad Debt",
+      "balance": 1092.96,
       "buckets": {
         "current": 2800,
         "d30": 200,
@@ -1661,14 +1662,14 @@
         "d120": 0
       },
       "source": "kideesys-age-analysis",
-      "importedAt": "2026-05-28T08:38:50.245Z",
-      "kidesysSection": "Bad Debt"
+      "importedAt": "2099-12-31T23:59:59.999Z"
     },
     "MAK019": {
       "schoolId": "cmpideqeq0000108xb6ouv9zi",
       "accountRef": "MAK019",
       "accountHolder": "Tlotliso Makgale",
-      "balance": 3700,
+      "kidesysSection": "Bad Debt",
+      "balance": 1092.96,
       "buckets": {
         "current": 3000,
         "d30": 0,
@@ -1677,14 +1678,14 @@
         "d120": -1350
       },
       "source": "kideesys-age-analysis",
-      "importedAt": "2026-05-28T08:38:50.245Z",
-      "kidesysSection": "Bad Debt"
+      "importedAt": "2099-12-31T23:59:59.999Z"
     },
     "PHA008": {
       "schoolId": "cmpideqeq0000108xb6ouv9zi",
       "accountRef": "PHA008",
       "accountHolder": "Tlotso Ditheto Kaone Phalane",
-      "balance": 3500,
+      "kidesysSection": "Bad Debt",
+      "balance": 1033.88,
       "buckets": {
         "current": 2800,
         "d30": 0,
@@ -1693,14 +1694,14 @@
         "d120": 0
       },
       "source": "kideesys-age-analysis",
-      "importedAt": "2026-05-28T08:38:50.245Z",
-      "kidesysSection": "Bad Debt"
+      "importedAt": "2099-12-31T23:59:59.999Z"
     },
     "MOK025": {
       "schoolId": "cmpideqeq0000108xb6ouv9zi",
       "accountRef": "MOK025",
       "accountHolder": "Tshegofatso Remoratile Mokgatlhe",
-      "balance": 4900,
+      "kidesysSection": "Bad Debt",
+      "balance": 1447.44,
       "buckets": {
         "current": 3550,
         "d30": 500,
@@ -1709,14 +1710,14 @@
         "d120": 0
       },
       "source": "kideesys-age-analysis",
-      "importedAt": "2026-05-28T08:38:50.245Z",
-      "kidesysSection": "Bad Debt"
+      "importedAt": "2099-12-31T23:59:59.999Z"
     },
     "POO002": {
       "schoolId": "cmpideqeq0000108xb6ouv9zi",
       "accountRef": "POO002",
       "accountHolder": "Tshenolo Emmanuel Poo",
-      "balance": 19350,
+      "kidesysSection": "Bad Debt",
+      "balance": 5715.9,
       "buckets": {
         "current": 3000,
         "d30": 3000,
@@ -1725,14 +1726,14 @@
         "d120": 6650
       },
       "source": "kideesys-age-analysis",
-      "importedAt": "2026-05-28T08:38:50.245Z",
-      "kidesysSection": "Bad Debt"
+      "importedAt": "2099-12-31T23:59:59.999Z"
     },
     "MOT032": {
       "schoolId": "cmpideqeq0000108xb6ouv9zi",
       "accountRef": "MOT032",
       "accountHolder": "Thato Tshenolo Motsisi\nTshepo Junior Motsisi",
-      "balance": 7400,
+      "kidesysSection": "Bad Debt",
+      "balance": 2185.92,
       "buckets": {
         "current": 6000,
         "d30": 0,
@@ -1741,14 +1742,14 @@
         "d120": 0
       },
       "source": "kideesys-age-analysis",
-      "importedAt": "2026-05-28T08:38:50.245Z",
-      "kidesysSection": "Bad Debt"
+      "importedAt": "2099-12-31T23:59:59.999Z"
     },
     "MON013": {
       "schoolId": "cmpideqeq0000108xb6ouv9zi",
       "accountRef": "MON013",
       "accountHolder": "Tshimologo Monyama",
-      "balance": 4250,
+      "kidesysSection": "Bad Debt",
+      "balance": 1255.43,
       "buckets": {
         "current": 3550,
         "d30": 0,
@@ -1757,14 +1758,14 @@
         "d120": 0
       },
       "source": "kideesys-age-analysis",
-      "importedAt": "2026-05-28T08:38:50.245Z",
-      "kidesysSection": "Bad Debt"
+      "importedAt": "2099-12-31T23:59:59.999Z"
     },
     "TAU003": {
       "schoolId": "cmpideqeq0000108xb6ouv9zi",
       "accountRef": "TAU003",
       "accountHolder": "Unathi Tause",
-      "balance": 6300,
+      "kidesysSection": "Bad Debt",
+      "balance": 1860.99,
       "buckets": {
         "current": 3000,
         "d30": 3000,
@@ -1773,14 +1774,14 @@
         "d120": -7000
       },
       "source": "kideesys-age-analysis",
-      "importedAt": "2026-05-28T08:38:50.245Z",
-      "kidesysSection": "Bad Debt"
+      "importedAt": "2099-12-31T23:59:59.999Z"
     },
     "KGO002": {
       "schoolId": "cmpideqeq0000108xb6ouv9zi",
       "accountRef": "KGO002",
       "accountHolder": "Warona Kgonothi",
-      "balance": 3696,
+      "kidesysSection": "Bad Debt",
+      "balance": 1091.78,
       "buckets": {
         "current": 3000,
         "d30": 0,
@@ -1789,14 +1790,14 @@
         "d120": -3604
       },
       "source": "kideesys-age-analysis",
-      "importedAt": "2026-05-28T08:38:50.245Z",
-      "kidesysSection": "Bad Debt"
+      "importedAt": "2099-12-31T23:59:59.999Z"
     },
     "TLH003": {
       "schoolId": "cmpideqeq0000108xb6ouv9zi",
       "accountRef": "TLH003",
       "accountHolder": "Whisper Oreneile Rethabile Tlhabanelo",
-      "balance": 6800,
+      "kidesysSection": "Bad Debt",
+      "balance": 2008.69,
       "buckets": {
         "current": 3000,
         "d30": 3000,
@@ -1805,14 +1806,14 @@
         "d120": -1600
       },
       "source": "kideesys-age-analysis",
-      "importedAt": "2026-05-28T08:38:50.245Z",
-      "kidesysSection": "Bad Debt"
+      "importedAt": "2099-12-31T23:59:59.999Z"
     },
     "MOD017": {
       "schoolId": "cmpideqeq0000108xb6ouv9zi",
       "accountRef": "MOD017",
       "accountHolder": "Yaone Naledi Modisakeng",
-      "balance": 700,
+      "kidesysSection": "Bad Debt",
+      "balance": 206.78,
       "buckets": {
         "current": 0,
         "d30": 0,
@@ -1821,14 +1822,14 @@
         "d120": 0
       },
       "source": "kideesys-age-analysis",
-      "importedAt": "2026-05-28T08:38:50.245Z",
-      "kidesysSection": "Bad Debt"
+      "importedAt": "2099-12-31T23:59:59.999Z"
     },
     "CET001": {
       "schoolId": "cmpideqeq0000108xb6ouv9zi",
       "accountRef": "CET001",
       "accountHolder": "Yonwaba Cetshane",
-      "balance": 6250,
+      "kidesysSection": "Bad Debt",
+      "balance": 1846.22,
       "buckets": {
         "current": 3000,
         "d30": 3000,
@@ -1837,14 +1838,14 @@
         "d120": -2740
       },
       "source": "kideesys-age-analysis",
-      "importedAt": "2026-05-28T08:38:50.245Z",
-      "kidesysSection": "Bad Debt"
+      "importedAt": "2099-12-31T23:59:59.999Z"
     },
     "RAK004": {
       "schoolId": "cmpideqeq0000108xb6ouv9zi",
       "accountRef": "RAK004",
       "accountHolder": "Zayd Oarerata Rakgokong",
-      "balance": 3900,
+      "kidesysSection": "Bad Debt",
+      "balance": 1152.04,
       "buckets": {
         "current": 3000,
         "d30": 200,
@@ -1853,14 +1854,14 @@
         "d120": 0
       },
       "source": "kideesys-age-analysis",
-      "importedAt": "2026-05-28T08:38:50.245Z",
-      "kidesysSection": "Bad Debt"
+      "importedAt": "2099-12-31T23:59:59.999Z"
     },
     "MTH004": {
       "schoolId": "cmpideqeq0000108xb6ouv9zi",
       "accountRef": "MTH004",
       "accountHolder": "Alibongwe Mthembu",
-      "balance": 2800,
+      "kidesysSection": "Recently Owing",
+      "balance": 993.22,
       "buckets": {
         "current": 2800,
         "d30": 0,
@@ -1869,14 +1870,14 @@
         "d120": 0
       },
       "source": "kideesys-age-analysis",
-      "importedAt": "2026-05-28T08:38:50.245Z",
-      "kidesysSection": "Recently Owing"
+      "importedAt": "2099-12-31T23:59:59.999Z"
     },
     "MOK040": {
       "schoolId": "cmpideqeq0000108xb6ouv9zi",
       "accountRef": "MOK040",
       "accountHolder": "Amahle Lisa Mokotedi",
-      "balance": 5700,
+      "kidesysSection": "Recently Owing",
+      "balance": 2021.9,
       "buckets": {
         "current": 3100,
         "d30": 2600,
@@ -1885,14 +1886,14 @@
         "d120": 0
       },
       "source": "kideesys-age-analysis",
-      "importedAt": "2026-05-28T08:38:50.245Z",
-      "kidesysSection": "Recently Owing"
+      "importedAt": "2099-12-31T23:59:59.999Z"
     },
     "MOA006": {
       "schoolId": "cmpideqeq0000108xb6ouv9zi",
       "accountRef": "MOA006",
       "accountHolder": "Amantle Moabi\nOreabetse Moabi",
-      "balance": 5800,
+      "kidesysSection": "Recently Owing",
+      "balance": 2057.38,
       "buckets": {
         "current": 5800,
         "d30": 6800,
@@ -1901,14 +1902,14 @@
         "d120": -19800
       },
       "source": "kideesys-age-analysis",
-      "importedAt": "2026-05-28T08:38:50.245Z",
-      "kidesysSection": "Recently Owing"
+      "importedAt": "2099-12-31T23:59:59.999Z"
     },
     "NZI001": {
       "schoolId": "cmpideqeq0000108xb6ouv9zi",
       "accountRef": "NZI001",
       "accountHolder": "Amantle Nzimande",
-      "balance": 3700,
+      "kidesysSection": "Recently Owing",
+      "balance": 1312.46,
       "buckets": {
         "current": 3000,
         "d30": 3200,
@@ -1917,14 +1918,14 @@
         "d120": -6220
       },
       "source": "kideesys-age-analysis",
-      "importedAt": "2026-05-28T08:38:50.245Z",
-      "kidesysSection": "Recently Owing"
+      "importedAt": "2099-12-31T23:59:59.999Z"
     },
     "RAB003": {
       "schoolId": "cmpideqeq0000108xb6ouv9zi",
       "accountRef": "RAB003",
       "accountHolder": "Tlotlego Omogolo Raborife\nAmogelang Letlotlo Raborife",
-      "balance": 4250,
+      "kidesysSection": "Recently Owing",
+      "balance": 1507.56,
       "buckets": {
         "current": 6350,
         "d30": -300,
@@ -1933,14 +1934,14 @@
         "d120": -1800
       },
       "source": "kideesys-age-analysis",
-      "importedAt": "2026-05-28T08:38:50.245Z",
-      "kidesysSection": "Recently Owing"
+      "importedAt": "2099-12-31T23:59:59.999Z"
     },
     "DIA003": {
       "schoolId": "cmpideqeq0000108xb6ouv9zi",
       "accountRef": "DIA003",
       "accountHolder": "Amogelang Warona Diatshwana",
-      "balance": 2500,
+      "kidesysSection": "Recently Owing",
+      "balance": 886.8,
       "buckets": {
         "current": 3000,
         "d30": 3000,
@@ -1949,14 +1950,14 @@
         "d120": -5500
       },
       "source": "kideesys-age-analysis",
-      "importedAt": "2026-05-28T08:38:50.245Z",
-      "kidesysSection": "Recently Owing"
+      "importedAt": "2099-12-31T23:59:59.999Z"
     },
     "MAO001": {
       "schoolId": "cmpideqeq0000108xb6ouv9zi",
       "accountRef": "MAO001",
       "accountHolder": "Amohelang Ororiseng Maoba",
-      "balance": 3000,
+      "kidesysSection": "Recently Owing",
+      "balance": 1064.16,
       "buckets": {
         "current": 3000,
         "d30": 0,
@@ -1965,14 +1966,14 @@
         "d120": -1665
       },
       "source": "kideesys-age-analysis",
-      "importedAt": "2026-05-28T08:38:50.245Z",
-      "kidesysSection": "Recently Owing"
+      "importedAt": "2099-12-31T23:59:59.999Z"
     },
     "TSH003": {
       "schoolId": "cmpideqeq0000108xb6ouv9zi",
       "accountRef": "TSH003",
       "accountHolder": "Amphe Lily Tsholoba",
-      "balance": 3550,
+      "kidesysSection": "Recently Owing",
+      "balance": 1259.26,
       "buckets": {
         "current": 3550,
         "d30": 3750,
@@ -1981,14 +1982,14 @@
         "d120": -12150
       },
       "source": "kideesys-age-analysis",
-      "importedAt": "2026-05-28T08:38:50.245Z",
-      "kidesysSection": "Recently Owing"
+      "importedAt": "2099-12-31T23:59:59.999Z"
     },
     "NDL008": {
       "schoolId": "cmpideqeq0000108xb6ouv9zi",
       "accountRef": "NDL008",
       "accountHolder": "Amukelani Gift Ndlovu",
-      "balance": 4305,
+      "kidesysSection": "Recently Owing",
+      "balance": 1527.07,
       "buckets": {
         "current": 3000,
         "d30": 1570,
@@ -1997,14 +1998,14 @@
         "d120": -265
       },
       "source": "kideesys-age-analysis",
-      "importedAt": "2026-05-28T08:38:50.245Z",
-      "kidesysSection": "Recently Owing"
+      "importedAt": "2099-12-31T23:59:59.999Z"
     },
     "MOS022": {
       "schoolId": "cmpideqeq0000108xb6ouv9zi",
       "accountRef": "MOS022",
       "accountHolder": "Dehbia Mosibi\nAngelique Kahina Mosibi",
-      "balance": 7400,
+      "kidesysSection": "Recently Owing",
+      "balance": 2624.93,
       "buckets": {
         "current": 6000,
         "d30": 6000,
@@ -2013,14 +2014,14 @@
         "d120": -9200
       },
       "source": "kideesys-age-analysis",
-      "importedAt": "2026-05-28T08:38:50.245Z",
-      "kidesysSection": "Recently Owing"
+      "importedAt": "2099-12-31T23:59:59.999Z"
     },
     "MOY004": {
       "schoolId": "cmpideqeq0000108xb6ouv9zi",
       "accountRef": "MOY004",
       "accountHolder": "Aobakwe Dube Moyo",
-      "balance": 3000,
+      "kidesysSection": "Recently Owing",
+      "balance": 1064.16,
       "buckets": {
         "current": 3000,
         "d30": 3000,
@@ -2029,14 +2030,14 @@
         "d120": -3340
       },
       "source": "kideesys-age-analysis",
-      "importedAt": "2026-05-28T08:38:50.245Z",
-      "kidesysSection": "Recently Owing"
+      "importedAt": "2099-12-31T23:59:59.999Z"
     },
     "LEK007": {
       "schoolId": "cmpideqeq0000108xb6ouv9zi",
       "accountRef": "LEK007",
       "accountHolder": "Arefa Lekaowa",
-      "balance": 2650,
+      "kidesysSection": "Recently Owing",
+      "balance": 940.01,
       "buckets": {
         "current": 3550,
         "d30": 2750,
@@ -2045,14 +2046,14 @@
         "d120": -3650
       },
       "source": "kideesys-age-analysis",
-      "importedAt": "2026-05-28T08:38:50.245Z",
-      "kidesysSection": "Recently Owing"
+      "importedAt": "2099-12-31T23:59:59.999Z"
     },
     "MPU007": {
       "schoolId": "cmpideqeq0000108xb6ouv9zi",
       "accountRef": "MPU007",
       "accountHolder": "Ntsika Mncedisi Mpu\nAsemahle Mpu",
-      "balance": 6900,
+      "kidesysSection": "Recently Owing",
+      "balance": 2447.57,
       "buckets": {
         "current": 6900,
         "d30": 6900,
@@ -2061,14 +2062,14 @@
         "d120": -6500
       },
       "source": "kideesys-age-analysis",
-      "importedAt": "2026-05-28T08:38:50.245Z",
-      "kidesysSection": "Recently Owing"
+      "importedAt": "2099-12-31T23:59:59.999Z"
     },
     "NGW003": {
       "schoolId": "cmpideqeq0000108xb6ouv9zi",
       "accountRef": "NGW003",
       "accountHolder": "Athandile Nqobizwe Ngwenya Kunene",
-      "balance": 4650,
+      "kidesysSection": "Recently Owing",
+      "balance": 1649.45,
       "buckets": {
         "current": 4350,
         "d30": 300,
@@ -2077,14 +2078,14 @@
         "d120": 0
       },
       "source": "kideesys-age-analysis",
-      "importedAt": "2026-05-28T08:38:50.245Z",
-      "kidesysSection": "Recently Owing"
+      "importedAt": "2099-12-31T23:59:59.999Z"
     },
     "JAN003": {
       "schoolId": "cmpideqeq0000108xb6ouv9zi",
       "accountRef": "JAN003",
       "accountHolder": "Letlotlo Madikhukhu Jantjie\nAtlegang Jantjie",
-      "balance": 11000,
+      "kidesysSection": "Recently Owing",
+      "balance": 3901.92,
       "buckets": {
         "current": 6000,
         "d30": 6000,
@@ -2093,14 +2094,14 @@
         "d120": -5670
       },
       "source": "kideesys-age-analysis",
-      "importedAt": "2026-05-28T08:38:50.245Z",
-      "kidesysSection": "Recently Owing"
+      "importedAt": "2099-12-31T23:59:59.999Z"
     },
     "MOO005": {
       "schoolId": "cmpideqeq0000108xb6ouv9zi",
       "accountRef": "MOO005",
       "accountHolder": "Atlegang Mooketsi Kgwathisi",
-      "balance": 4300,
+      "kidesysSection": "Recently Owing",
+      "balance": 1525.3,
       "buckets": {
         "current": 3550,
         "d30": 3550,
@@ -2109,14 +2110,14 @@
         "d120": -3050
       },
       "source": "kideesys-age-analysis",
-      "importedAt": "2026-05-28T08:38:50.245Z",
-      "kidesysSection": "Recently Owing"
+      "importedAt": "2099-12-31T23:59:59.999Z"
     },
     "POG001": {
       "schoolId": "cmpideqeq0000108xb6ouv9zi",
       "accountRef": "POG001",
       "accountHolder": "Atlegang Pogiso",
-      "balance": 4855,
+      "kidesysSection": "Recently Owing",
+      "balance": 1722.17,
       "buckets": {
         "current": 3605,
         "d30": 1250,
@@ -2125,14 +2126,14 @@
         "d120": 0
       },
       "source": "kideesys-age-analysis",
-      "importedAt": "2026-05-28T08:38:50.245Z",
-      "kidesysSection": "Recently Owing"
+      "importedAt": "2099-12-31T23:59:59.999Z"
     },
     "MOS023": {
       "schoolId": "cmpideqeq0000108xb6ouv9zi",
       "accountRef": "MOS023",
       "accountHolder": "Avuyile Mosesane",
-      "balance": 5650,
+      "kidesysSection": "Recently Owing",
+      "balance": 2004.17,
       "buckets": {
         "current": 3800,
         "d30": 1850,
@@ -2141,14 +2142,14 @@
         "d120": 0
       },
       "source": "kideesys-age-analysis",
-      "importedAt": "2026-05-28T08:38:50.245Z",
-      "kidesysSection": "Recently Owing"
+      "importedAt": "2099-12-31T23:59:59.999Z"
     },
     "MKH006": {
       "schoolId": "cmpideqeq0000108xb6ouv9zi",
       "accountRef": "MKH006",
       "accountHolder": "Bandile Mkhwayimba",
-      "balance": 3550,
+      "kidesysSection": "Recently Owing",
+      "balance": 1259.26,
       "buckets": {
         "current": 3550,
         "d30": 0,
@@ -2157,14 +2158,14 @@
         "d120": -550
       },
       "source": "kideesys-age-analysis",
-      "importedAt": "2026-05-28T08:38:50.245Z",
-      "kidesysSection": "Recently Owing"
+      "importedAt": "2099-12-31T23:59:59.999Z"
     },
     "MAL019": {
       "schoolId": "cmpideqeq0000108xb6ouv9zi",
       "accountRef": "MAL019",
       "accountHolder": "Bathabile Malatji",
-      "balance": 640,
+      "kidesysSection": "Recently Owing",
+      "balance": 227.02,
       "buckets": {
         "current": 3550,
         "d30": 3590,
@@ -2173,14 +2174,14 @@
         "d120": -6500
       },
       "source": "kideesys-age-analysis",
-      "importedAt": "2026-05-28T08:38:50.245Z",
-      "kidesysSection": "Recently Owing"
+      "importedAt": "2099-12-31T23:59:59.999Z"
     },
     "GEB002": {
       "schoolId": "cmpideqeq0000108xb6ouv9zi",
       "accountRef": "GEB002",
       "accountHolder": "Benyis Geber",
-      "balance": 3700,
+      "kidesysSection": "Recently Owing",
+      "balance": 1312.46,
       "buckets": {
         "current": 3000,
         "d30": 3300,
@@ -2189,14 +2190,14 @@
         "d120": -4525
       },
       "source": "kideesys-age-analysis",
-      "importedAt": "2026-05-28T08:38:50.245Z",
-      "kidesysSection": "Recently Owing"
+      "importedAt": "2099-12-31T23:59:59.999Z"
     },
     "KAL001": {
       "schoolId": "cmpideqeq0000108xb6ouv9zi",
       "accountRef": "KAL001",
       "accountHolder": "Bohlokwa Kalosane",
-      "balance": 4500,
+      "kidesysSection": "Recently Owing",
+      "balance": 1596.24,
       "buckets": {
         "current": 3800,
         "d30": 3800,
@@ -2205,14 +2206,14 @@
         "d120": -5480
       },
       "source": "kideesys-age-analysis",
-      "importedAt": "2026-05-28T08:38:50.245Z",
-      "kidesysSection": "Recently Owing"
+      "importedAt": "2099-12-31T23:59:59.999Z"
     },
     "LET013": {
       "schoolId": "cmpideqeq0000108xb6ouv9zi",
       "accountRef": "LET013",
       "accountHolder": "Boiketlo Letebele",
-      "balance": 7600,
+      "kidesysSection": "Recently Owing",
+      "balance": 2695.87,
       "buckets": {
         "current": 3850,
         "d30": 3750,
@@ -2221,14 +2222,14 @@
         "d120": -900
       },
       "source": "kideesys-age-analysis",
-      "importedAt": "2026-05-28T08:38:50.245Z",
-      "kidesysSection": "Recently Owing"
+      "importedAt": "2099-12-31T23:59:59.999Z"
     },
     "BAN001": {
       "schoolId": "cmpideqeq0000108xb6ouv9zi",
       "accountRef": "BAN001",
       "accountHolder": "Boitumelo Moses Banda",
-      "balance": 3550,
+      "kidesysSection": "Recently Owing",
+      "balance": 1259.26,
       "buckets": {
         "current": 3550,
         "d30": 0,
@@ -2237,14 +2238,14 @@
         "d120": 0
       },
       "source": "kideesys-age-analysis",
-      "importedAt": "2026-05-28T08:38:50.245Z",
-      "kidesysSection": "Recently Owing"
+      "importedAt": "2099-12-31T23:59:59.999Z"
     },
     "MAT020": {
       "schoolId": "cmpideqeq0000108xb6ouv9zi",
       "accountRef": "MAT020",
       "accountHolder": "Bokamoso Matima",
-      "balance": 4250,
+      "kidesysSection": "Recently Owing",
+      "balance": 1507.56,
       "buckets": {
         "current": 3550,
         "d30": 3550,
@@ -2253,14 +2254,14 @@
         "d120": -7600
       },
       "source": "kideesys-age-analysis",
-      "importedAt": "2026-05-28T08:38:50.245Z",
-      "kidesysSection": "Recently Owing"
+      "importedAt": "2099-12-31T23:59:59.999Z"
     },
     "SET003": {
       "schoolId": "cmpideqeq0000108xb6ouv9zi",
       "accountRef": "SET003",
       "accountHolder": "Bokamoso Setsome",
-      "balance": 4250,
+      "kidesysSection": "Recently Owing",
+      "balance": 1507.56,
       "buckets": {
         "current": 3550,
         "d30": 3550,
@@ -2269,14 +2270,14 @@
         "d120": -4300
       },
       "source": "kideesys-age-analysis",
-      "importedAt": "2026-05-28T08:38:50.245Z",
-      "kidesysSection": "Recently Owing"
+      "importedAt": "2099-12-31T23:59:59.999Z"
     },
     "MOS008": {
       "schoolId": "cmpideqeq0000108xb6ouv9zi",
       "accountRef": "MOS008",
       "accountHolder": "Bokang Mosegedi",
-      "balance": 3200,
+      "kidesysSection": "Recently Owing",
+      "balance": 1135.1,
       "buckets": {
         "current": 3000,
         "d30": 200,
@@ -2285,14 +2286,14 @@
         "d120": -2600
       },
       "source": "kideesys-age-analysis",
-      "importedAt": "2026-05-28T08:38:50.245Z",
-      "kidesysSection": "Recently Owing"
+      "importedAt": "2099-12-31T23:59:59.999Z"
     },
     "MUL001": {
       "schoolId": "cmpideqeq0000108xb6ouv9zi",
       "accountRef": "MUL001",
       "accountHolder": "Bono Allan Mulaudzi\nMuneiwa Mulaudzi",
-      "balance": 5800,
+      "kidesysSection": "Recently Owing",
+      "balance": 2057.38,
       "buckets": {
         "current": 5800,
         "d30": 0,
@@ -2301,14 +2302,14 @@
         "d120": 0
       },
       "source": "kideesys-age-analysis",
-      "importedAt": "2026-05-28T08:38:50.245Z",
-      "kidesysSection": "Recently Owing"
+      "importedAt": "2099-12-31T23:59:59.999Z"
     },
     "RAM022": {
       "schoolId": "cmpideqeq0000108xb6ouv9zi",
       "accountRef": "RAM022",
       "accountHolder": "Bonolo Grace Ramatete",
-      "balance": 2750,
+      "kidesysSection": "Recently Owing",
+      "balance": 975.48,
       "buckets": {
         "current": 3000,
         "d30": 0,
@@ -2317,14 +2318,14 @@
         "d120": -750
       },
       "source": "kideesys-age-analysis",
-      "importedAt": "2026-05-28T08:38:50.245Z",
-      "kidesysSection": "Recently Owing"
+      "importedAt": "2099-12-31T23:59:59.999Z"
     },
     "MPU005": {
       "schoolId": "cmpideqeq0000108xb6ouv9zi",
       "accountRef": "MPU005",
       "accountHolder": "Bonolo Mpuru",
-      "balance": 4500,
+      "kidesysSection": "Recently Owing",
+      "balance": 1596.24,
       "buckets": {
         "current": 3550,
         "d30": 3750,
@@ -2333,14 +2334,14 @@
         "d120": -10600
       },
       "source": "kideesys-age-analysis",
-      "importedAt": "2026-05-28T08:38:50.245Z",
-      "kidesysSection": "Recently Owing"
+      "importedAt": "2099-12-31T23:59:59.999Z"
     },
     "TSE002": {
       "schoolId": "cmpideqeq0000108xb6ouv9zi",
       "accountRef": "TSE002",
       "accountHolder": "Botshelo Tselapedi",
-      "balance": 3550,
+      "kidesysSection": "Recently Owing",
+      "balance": 1259.26,
       "buckets": {
         "current": 3550,
         "d30": 700,
@@ -2349,14 +2350,14 @@
         "d120": -700
       },
       "source": "kideesys-age-analysis",
-      "importedAt": "2026-05-28T08:38:50.245Z",
-      "kidesysSection": "Recently Owing"
+      "importedAt": "2099-12-31T23:59:59.999Z"
     },
     "MAP008": {
       "schoolId": "cmpideqeq0000108xb6ouv9zi",
       "accountRef": "MAP008",
       "accountHolder": "Busisiwe Maphisa\nAmanhle Ntokozo Maphisa",
-      "balance": 8200,
+      "kidesysSection": "Recently Owing",
+      "balance": 2908.7,
       "buckets": {
         "current": 6800,
         "d30": 6800,
@@ -2365,14 +2366,14 @@
         "d120": -10405
       },
       "source": "kideesys-age-analysis",
-      "importedAt": "2026-05-28T08:38:50.245Z",
-      "kidesysSection": "Recently Owing"
+      "importedAt": "2099-12-31T23:59:59.999Z"
     },
     "GOV001": {
       "schoolId": "cmpideqeq0000108xb6ouv9zi",
       "accountRef": "GOV001",
       "accountHolder": "Caleb Nathan Govender",
-      "balance": 1000,
+      "kidesysSection": "Recently Owing",
+      "balance": 354.72,
       "buckets": {
         "current": 1000,
         "d30": 1000,
@@ -2381,14 +2382,14 @@
         "d120": -2000
       },
       "source": "kideesys-age-analysis",
-      "importedAt": "2026-05-28T08:38:50.245Z",
-      "kidesysSection": "Recently Owing"
+      "importedAt": "2099-12-31T23:59:59.999Z"
     },
     "MBO004": {
       "schoolId": "cmpideqeq0000108xb6ouv9zi",
       "accountRef": "MBO004",
       "accountHolder": "Christian Siyanda Thahla Mboni",
-      "balance": 4250,
+      "kidesysSection": "Recently Owing",
+      "balance": 1507.56,
       "buckets": {
         "current": 3550,
         "d30": 3550,
@@ -2397,14 +2398,14 @@
         "d120": -2950
       },
       "source": "kideesys-age-analysis",
-      "importedAt": "2026-05-28T08:38:50.245Z",
-      "kidesysSection": "Recently Owing"
+      "importedAt": "2099-12-31T23:59:59.999Z"
     },
     "MOO006": {
       "schoolId": "cmpideqeq0000108xb6ouv9zi",
       "accountRef": "MOO006",
       "accountHolder": "Zaydene Leigh-chandre Moodley\nDevandre Luciano Moodley",
-      "balance": 6400,
+      "kidesysSection": "Recently Owing",
+      "balance": 2270.21,
       "buckets": {
         "current": 7100,
         "d30": 2300,
@@ -2413,14 +2414,14 @@
         "d120": -3000
       },
       "source": "kideesys-age-analysis",
-      "importedAt": "2026-05-28T08:38:50.245Z",
-      "kidesysSection": "Recently Owing"
+      "importedAt": "2099-12-31T23:59:59.999Z"
     },
     "GAA001": {
       "schoolId": "cmpideqeq0000108xb6ouv9zi",
       "accountRef": "GAA001",
       "accountHolder": "Didintle Nyeko Gaasenwe",
-      "balance": 3500,
+      "kidesysSection": "Recently Owing",
+      "balance": 1241.52,
       "buckets": {
         "current": 3550,
         "d30": 2900,
@@ -2429,14 +2430,14 @@
         "d120": -2950
       },
       "source": "kideesys-age-analysis",
-      "importedAt": "2026-05-28T08:38:50.245Z",
-      "kidesysSection": "Recently Owing"
+      "importedAt": "2099-12-31T23:59:59.999Z"
     },
     "ADA004": {
       "schoolId": "cmpideqeq0000108xb6ouv9zi",
       "accountRef": "ADA004",
       "accountHolder": "Zem Adamu\nEldadi Adamu",
-      "balance": 7350,
+      "kidesysSection": "Recently Owing",
+      "balance": 2607.19,
       "buckets": {
         "current": 6650,
         "d30": 6550,
@@ -2445,14 +2446,14 @@
         "d120": -8270
       },
       "source": "kideesys-age-analysis",
-      "importedAt": "2026-05-28T08:38:50.245Z",
-      "kidesysSection": "Recently Owing"
+      "importedAt": "2099-12-31T23:59:59.999Z"
     },
     "KHU005": {
       "schoolId": "cmpideqeq0000108xb6ouv9zi",
       "accountRef": "KHU005",
       "accountHolder": "Elethu Entle Khunou",
-      "balance": 3550,
+      "kidesysSection": "Recently Owing",
+      "balance": 1259.26,
       "buckets": {
         "current": 3550,
         "d30": 0,
@@ -2461,14 +2462,14 @@
         "d120": -200
       },
       "source": "kideesys-age-analysis",
-      "importedAt": "2026-05-28T08:38:50.245Z",
-      "kidesysSection": "Recently Owing"
+      "importedAt": "2099-12-31T23:59:59.999Z"
     },
     "HAM002": {
       "schoolId": "cmpideqeq0000108xb6ouv9zi",
       "accountRef": "HAM002",
       "accountHolder": "Elhadi Hamel\nAya Hamel",
-      "balance": 10050,
+      "kidesysSection": "Recently Owing",
+      "balance": 3564.93,
       "buckets": {
         "current": 7350,
         "d30": 4150,
@@ -2477,14 +2478,14 @@
         "d120": -1450
       },
       "source": "kideesys-age-analysis",
-      "importedAt": "2026-05-28T08:38:50.245Z",
-      "kidesysSection": "Recently Owing"
+      "importedAt": "2099-12-31T23:59:59.999Z"
     },
     "MOK020": {
       "schoolId": "cmpideqeq0000108xb6ouv9zi",
       "accountRef": "MOK020",
       "accountHolder": "Emmanuella Nyakallo Mokoena",
-      "balance": 3700,
+      "kidesysSection": "Recently Owing",
+      "balance": 1312.46,
       "buckets": {
         "current": 3000,
         "d30": 3000,
@@ -2493,14 +2494,14 @@
         "d120": -6800
       },
       "source": "kideesys-age-analysis",
-      "importedAt": "2026-05-28T08:38:50.245Z",
-      "kidesysSection": "Recently Owing"
+      "importedAt": "2099-12-31T23:59:59.999Z"
     },
     "MAS017": {
       "schoolId": "cmpideqeq0000108xb6ouv9zi",
       "accountRef": "MAS017",
       "accountHolder": "Emuhle Maseko",
-      "balance": 3600,
+      "kidesysSection": "Recently Owing",
+      "balance": 1276.99,
       "buckets": {
         "current": 3550,
         "d30": 3750,
@@ -2509,14 +2510,14 @@
         "d120": -6270
       },
       "source": "kideesys-age-analysis",
-      "importedAt": "2026-05-28T08:38:50.245Z",
-      "kidesysSection": "Recently Owing"
+      "importedAt": "2099-12-31T23:59:59.999Z"
     },
     "NDA001": {
       "schoolId": "cmpideqeq0000108xb6ouv9zi",
       "accountRef": "NDA001",
       "accountHolder": "Entle Ndamase\nNtando Ndamase",
-      "balance": 5000,
+      "kidesysSection": "Recently Owing",
+      "balance": 1773.6,
       "buckets": {
         "current": 5500,
         "d30": 5500,
@@ -2525,14 +2526,14 @@
         "d120": -18400
       },
       "source": "kideesys-age-analysis",
-      "importedAt": "2026-05-28T08:38:50.245Z",
-      "kidesysSection": "Recently Owing"
+      "importedAt": "2099-12-31T23:59:59.999Z"
     },
     "MAK022": {
       "schoolId": "cmpideqeq0000108xb6ouv9zi",
       "accountRef": "MAK022",
       "accountHolder": "Ese Lesedi Makhathini",
-      "balance": 2250,
+      "kidesysSection": "Recently Owing",
+      "balance": 798.12,
       "buckets": {
         "current": 3550,
         "d30": 3750,
@@ -2541,14 +2542,14 @@
         "d120": -12850
       },
       "source": "kideesys-age-analysis",
-      "importedAt": "2026-05-28T08:38:50.245Z",
-      "kidesysSection": "Recently Owing"
+      "importedAt": "2099-12-31T23:59:59.999Z"
     },
     "HAI002": {
       "schoolId": "cmpideqeq0000108xb6ouv9zi",
       "accountRef": "HAI002",
       "accountHolder": "Esrom Teklezghi Haile\nEliana Haile\nEleora Teklezghi Haile",
-      "balance": 8400,
+      "kidesysSection": "Recently Owing",
+      "balance": 2979.65,
       "buckets": {
         "current": 8400,
         "d30": 0,
@@ -2557,14 +2558,14 @@
         "d120": -100
       },
       "source": "kideesys-age-analysis",
-      "importedAt": "2026-05-28T08:38:50.245Z",
-      "kidesysSection": "Recently Owing"
+      "importedAt": "2099-12-31T23:59:59.999Z"
     },
     "PHI003": {
       "schoolId": "cmpideqeq0000108xb6ouv9zi",
       "accountRef": "PHI003",
       "accountHolder": "Ethan Jacobus Phillips",
-      "balance": 3000,
+      "kidesysSection": "Recently Owing",
+      "balance": 1064.16,
       "buckets": {
         "current": 3000,
         "d30": 3000,
@@ -2573,14 +2574,14 @@
         "d120": -9700
       },
       "source": "kideesys-age-analysis",
-      "importedAt": "2026-05-28T08:38:50.245Z",
-      "kidesysSection": "Recently Owing"
+      "importedAt": "2099-12-31T23:59:59.999Z"
     },
     "RAN007": {
       "schoolId": "cmpideqeq0000108xb6ouv9zi",
       "accountRef": "RAN007",
       "accountHolder": "Favour Ranthitong",
-      "balance": 3350,
+      "kidesysSection": "Recently Owing",
+      "balance": 1188.31,
       "buckets": {
         "current": 3350,
         "d30": 0,
@@ -2589,14 +2590,14 @@
         "d120": 0
       },
       "source": "kideesys-age-analysis",
-      "importedAt": "2026-05-28T08:38:50.245Z",
-      "kidesysSection": "Recently Owing"
+      "importedAt": "2099-12-31T23:59:59.999Z"
     },
     "NDL009": {
       "schoolId": "cmpideqeq0000108xb6ouv9zi",
       "accountRef": "NDL009",
       "accountHolder": "Goitseone Ndlovu",
-      "balance": 3700,
+      "kidesysSection": "Recently Owing",
+      "balance": 1312.46,
       "buckets": {
         "current": 3000,
         "d30": 3000,
@@ -2605,14 +2606,14 @@
         "d120": -6000
       },
       "source": "kideesys-age-analysis",
-      "importedAt": "2026-05-28T08:38:50.245Z",
-      "kidesysSection": "Recently Owing"
+      "importedAt": "2099-12-31T23:59:59.999Z"
     },
     "MAB004": {
       "schoolId": "cmpideqeq0000108xb6ouv9zi",
       "accountRef": "MAB004",
       "accountHolder": "Gosego Mabale",
-      "balance": 3700,
+      "kidesysSection": "Recently Owing",
+      "balance": 1312.46,
       "buckets": {
         "current": 3000,
         "d30": 3000,
@@ -2621,14 +2622,14 @@
         "d120": -2400
       },
       "source": "kideesys-age-analysis",
-      "importedAt": "2026-05-28T08:38:50.245Z",
-      "kidesysSection": "Recently Owing"
+      "importedAt": "2099-12-31T23:59:59.999Z"
     },
     "HOB002": {
       "schoolId": "cmpideqeq0000108xb6ouv9zi",
       "accountRef": "HOB002",
       "accountHolder": "Hlulani Bahumi Hobyani",
-      "balance": 5900,
+      "kidesysSection": "Recently Owing",
+      "balance": 2092.85,
       "buckets": {
         "current": 3100,
         "d30": 2800,
@@ -2637,14 +2638,14 @@
         "d120": 0
       },
       "source": "kideesys-age-analysis",
-      "importedAt": "2026-05-28T08:38:50.245Z",
-      "kidesysSection": "Recently Owing"
+      "importedAt": "2099-12-31T23:59:59.999Z"
     },
     "NDL013": {
       "schoolId": "cmpideqeq0000108xb6ouv9zi",
       "accountRef": "NDL013",
       "accountHolder": "Inami Ndlovu",
-      "balance": 1700,
+      "kidesysSection": "Recently Owing",
+      "balance": 603.02,
       "buckets": {
         "current": 3000,
         "d30": 0,
@@ -2653,14 +2654,14 @@
         "d120": 0
       },
       "source": "kideesys-age-analysis",
-      "importedAt": "2026-05-28T08:38:50.245Z",
-      "kidesysSection": "Recently Owing"
+      "importedAt": "2099-12-31T23:59:59.999Z"
     },
     "NTS008": {
       "schoolId": "cmpideqeq0000108xb6ouv9zi",
       "accountRef": "NTS008",
       "accountHolder": "Inkosinam Ntshanga",
-      "balance": 3950,
+      "kidesysSection": "Recently Owing",
+      "balance": 1401.14,
       "buckets": {
         "current": 3550,
         "d30": 3750,
@@ -2669,14 +2670,14 @@
         "d120": -4700
       },
       "source": "kideesys-age-analysis",
-      "importedAt": "2026-05-28T08:38:50.245Z",
-      "kidesysSection": "Recently Owing"
+      "importedAt": "2099-12-31T23:59:59.999Z"
     },
     "MOP003": {
       "schoolId": "cmpideqeq0000108xb6ouv9zi",
       "accountRef": "MOP003",
       "accountHolder": "Isago Mophareng",
-      "balance": 3750,
+      "kidesysSection": "Recently Owing",
+      "balance": 1330.2,
       "buckets": {
         "current": 3000,
         "d30": 1050,
@@ -2685,14 +2686,14 @@
         "d120": -300
       },
       "source": "kideesys-age-analysis",
-      "importedAt": "2026-05-28T08:38:50.245Z",
-      "kidesysSection": "Recently Owing"
+      "importedAt": "2099-12-31T23:59:59.999Z"
     },
     "AFR002": {
       "schoolId": "cmpideqeq0000108xb6ouv9zi",
       "accountRef": "AFR002",
       "accountHolder": "Jordan-leigh Africa",
-      "balance": 4350,
+      "kidesysSection": "Recently Owing",
+      "balance": 1543.03,
       "buckets": {
         "current": 4350,
         "d30": 0,
@@ -2701,14 +2702,14 @@
         "d120": -400
       },
       "source": "kideesys-age-analysis",
-      "importedAt": "2026-05-28T08:38:50.245Z",
-      "kidesysSection": "Recently Owing"
+      "importedAt": "2099-12-31T23:59:59.999Z"
     },
     "MOT013": {
       "schoolId": "cmpideqeq0000108xb6ouv9zi",
       "accountRef": "MOT013",
       "accountHolder": "Kabelo Motau\nKarabo Motau",
-      "balance": 6600,
+      "kidesysSection": "Recently Owing",
+      "balance": 2341.15,
       "buckets": {
         "current": 7100,
         "d30": 0,
@@ -2717,14 +2718,14 @@
         "d120": -4000
       },
       "source": "kideesys-age-analysis",
-      "importedAt": "2026-05-28T08:38:50.245Z",
-      "kidesysSection": "Recently Owing"
+      "importedAt": "2099-12-31T23:59:59.999Z"
     },
     "MPO001": {
       "schoolId": "cmpideqeq0000108xb6ouv9zi",
       "accountRef": "MPO001",
       "accountHolder": "Kabo Mpodi",
-      "balance": 3700,
+      "kidesysSection": "Recently Owing",
+      "balance": 1312.46,
       "buckets": {
         "current": 3000,
         "d30": 3000,
@@ -2733,14 +2734,14 @@
         "d120": -6000
       },
       "source": "kideesys-age-analysis",
-      "importedAt": "2026-05-28T08:38:50.245Z",
-      "kidesysSection": "Recently Owing"
+      "importedAt": "2099-12-31T23:59:59.999Z"
     },
     "MOD018": {
       "schoolId": "cmpideqeq0000108xb6ouv9zi",
       "accountRef": "MOD018",
       "accountHolder": "Kamano Omogolo Modise",
-      "balance": 3500,
+      "kidesysSection": "Recently Owing",
+      "balance": 1241.52,
       "buckets": {
         "current": 3000,
         "d30": 3200,
@@ -2749,14 +2750,14 @@
         "d120": -3000
       },
       "source": "kideesys-age-analysis",
-      "importedAt": "2026-05-28T08:38:50.245Z",
-      "kidesysSection": "Recently Owing"
+      "importedAt": "2099-12-31T23:59:59.999Z"
     },
     "MOE011": {
       "schoolId": "cmpideqeq0000108xb6ouv9zi",
       "accountRef": "MOE011",
       "accountHolder": "Bokang Moemi\nKamogelo Moemi",
-      "balance": 6700,
+      "kidesysSection": "Recently Owing",
+      "balance": 2376.62,
       "buckets": {
         "current": 6000,
         "d30": 6000,
@@ -2765,14 +2766,14 @@
         "d120": -17600
       },
       "source": "kideesys-age-analysis",
-      "importedAt": "2026-05-28T08:38:50.245Z",
-      "kidesysSection": "Recently Owing"
+      "importedAt": "2099-12-31T23:59:59.999Z"
     },
     "GOI001": {
       "schoolId": "cmpideqeq0000108xb6ouv9zi",
       "accountRef": "GOI001",
       "accountHolder": "Kamogelo Ntlafatso Goitsilwe",
-      "balance": 3700,
+      "kidesysSection": "Recently Owing",
+      "balance": 1312.46,
       "buckets": {
         "current": 3000,
         "d30": 3000,
@@ -2781,14 +2782,14 @@
         "d120": -3150
       },
       "source": "kideesys-age-analysis",
-      "importedAt": "2026-05-28T08:38:50.245Z",
-      "kidesysSection": "Recently Owing"
+      "importedAt": "2099-12-31T23:59:59.999Z"
     },
     "CHI004": {
       "schoolId": "cmpideqeq0000108xb6ouv9zi",
       "accountRef": "CHI004",
       "accountHolder": "Kaone Tinashe Chinyenye",
-      "balance": 3000,
+      "kidesysSection": "Recently Owing",
+      "balance": 1064.16,
       "buckets": {
         "current": 3000,
         "d30": 0,
@@ -2797,14 +2798,14 @@
         "d120": -900
       },
       "source": "kideesys-age-analysis",
-      "importedAt": "2026-05-28T08:38:50.245Z",
-      "kidesysSection": "Recently Owing"
+      "importedAt": "2099-12-31T23:59:59.999Z"
     },
     "MOE009": {
       "schoolId": "cmpideqeq0000108xb6ouv9zi",
       "accountRef": "MOE009",
       "accountHolder": "Katlego Moeti",
-      "balance": 3550,
+      "kidesysSection": "Recently Owing",
+      "balance": 1259.26,
       "buckets": {
         "current": 3550,
         "d30": 0,
@@ -2813,14 +2814,14 @@
         "d120": 0
       },
       "source": "kideesys-age-analysis",
-      "importedAt": "2026-05-28T08:38:50.245Z",
-      "kidesysSection": "Recently Owing"
+      "importedAt": "2099-12-31T23:59:59.999Z"
     },
     "MOK019": {
       "schoolId": "cmpideqeq0000108xb6ouv9zi",
       "accountRef": "MOK019",
       "accountHolder": "Keitumetse Mokgotho",
-      "balance": 4500,
+      "kidesysSection": "Recently Owing",
+      "balance": 1596.24,
       "buckets": {
         "current": 3800,
         "d30": 4000,
@@ -2829,14 +2830,14 @@
         "d120": -12700
       },
       "source": "kideesys-age-analysis",
-      "importedAt": "2026-05-28T08:38:50.245Z",
-      "kidesysSection": "Recently Owing"
+      "importedAt": "2099-12-31T23:59:59.999Z"
     },
     "MOR008": {
       "schoolId": "cmpideqeq0000108xb6ouv9zi",
       "accountRef": "MOR008",
       "accountHolder": "Keitumetse Morwe",
-      "balance": 450,
+      "kidesysSection": "Recently Owing",
+      "balance": 159.62,
       "buckets": {
         "current": 3945,
         "d30": 0,
@@ -2845,14 +2846,14 @@
         "d120": -3495
       },
       "source": "kideesys-age-analysis",
-      "importedAt": "2026-05-28T08:38:50.245Z",
-      "kidesysSection": "Recently Owing"
+      "importedAt": "2099-12-31T23:59:59.999Z"
     },
     "RAM010": {
       "schoolId": "cmpideqeq0000108xb6ouv9zi",
       "accountRef": "RAM010",
       "accountHolder": "Keitumetsi Ramasika",
-      "balance": 3350,
+      "kidesysSection": "Recently Owing",
+      "balance": 1188.31,
       "buckets": {
         "current": 3000,
         "d30": 3000,
@@ -2861,14 +2862,14 @@
         "d120": -5250
       },
       "source": "kideesys-age-analysis",
-      "importedAt": "2026-05-28T08:38:50.245Z",
-      "kidesysSection": "Recently Owing"
+      "importedAt": "2099-12-31T23:59:59.999Z"
     },
     "MOE004": {
       "schoolId": "cmpideqeq0000108xb6ouv9zi",
       "accountRef": "MOE004",
       "accountHolder": "Kgato Fenyang Moeng",
-      "balance": 3850,
+      "kidesysSection": "Recently Owing",
+      "balance": 1365.67,
       "buckets": {
         "current": 3550,
         "d30": 2100,
@@ -2877,14 +2878,14 @@
         "d120": -1800
       },
       "source": "kideesys-age-analysis",
-      "importedAt": "2026-05-28T08:38:50.245Z",
-      "kidesysSection": "Recently Owing"
+      "importedAt": "2099-12-31T23:59:59.999Z"
     },
     "MOD005": {
       "schoolId": "cmpideqeq0000108xb6ouv9zi",
       "accountRef": "MOD005",
       "accountHolder": "Kgolagano Kekaona Modise",
-      "balance": 3950,
+      "kidesysSection": "Recently Owing",
+      "balance": 1401.14,
       "buckets": {
         "current": 3550,
         "d30": 3550,
@@ -2893,14 +2894,14 @@
         "d120": -4900
       },
       "source": "kideesys-age-analysis",
-      "importedAt": "2026-05-28T08:38:50.245Z",
-      "kidesysSection": "Recently Owing"
+      "importedAt": "2099-12-31T23:59:59.999Z"
     },
     "MOK034": {
       "schoolId": "cmpideqeq0000108xb6ouv9zi",
       "accountRef": "MOK034",
       "accountHolder": "Kgothalo Ontshireleditse Mokone\nKgololo Hope Mokone",
-      "balance": 6200,
+      "kidesysSection": "Recently Owing",
+      "balance": 2199.26,
       "buckets": {
         "current": 6000,
         "d30": 200,
@@ -2909,14 +2910,14 @@
         "d120": -2950
       },
       "source": "kideesys-age-analysis",
-      "importedAt": "2026-05-28T08:38:50.245Z",
-      "kidesysSection": "Recently Owing"
+      "importedAt": "2099-12-31T23:59:59.999Z"
     },
     "MET001": {
       "schoolId": "cmpideqeq0000108xb6ouv9zi",
       "accountRef": "MET001",
       "accountHolder": "Khabane Metswamere",
-      "balance": 4150,
+      "kidesysSection": "Recently Owing",
+      "balance": 1472.09,
       "buckets": {
         "current": 4150,
         "d30": 0,
@@ -2925,14 +2926,14 @@
         "d120": -5850
       },
       "source": "kideesys-age-analysis",
-      "importedAt": "2026-05-28T08:38:50.245Z",
-      "kidesysSection": "Recently Owing"
+      "importedAt": "2099-12-31T23:59:59.999Z"
     },
     "MOK035": {
       "schoolId": "cmpideqeq0000108xb6ouv9zi",
       "accountRef": "MOK035",
       "accountHolder": "Khanya Mphoentle Mokala\nKhumo-entle Bokang Mokala",
-      "balance": 7200,
+      "kidesysSection": "Recently Owing",
+      "balance": 2553.98,
       "buckets": {
         "current": 5800,
         "d30": 3800,
@@ -2941,14 +2942,14 @@
         "d120": -2400
       },
       "source": "kideesys-age-analysis",
-      "importedAt": "2026-05-28T08:38:50.245Z",
-      "kidesysSection": "Recently Owing"
+      "importedAt": "2099-12-31T23:59:59.999Z"
     },
     "DIK003": {
       "schoolId": "cmpideqeq0000108xb6ouv9zi",
       "accountRef": "DIK003",
       "accountHolder": "Khumo Dikale",
-      "balance": 3000,
+      "kidesysSection": "Recently Owing",
+      "balance": 1064.16,
       "buckets": {
         "current": 3000,
         "d30": 0,
@@ -2957,14 +2958,14 @@
         "d120": -200
       },
       "source": "kideesys-age-analysis",
-      "importedAt": "2026-05-28T08:38:50.245Z",
-      "kidesysSection": "Recently Owing"
+      "importedAt": "2099-12-31T23:59:59.999Z"
     },
     "TSH022": {
       "schoolId": "cmpideqeq0000108xb6ouv9zi",
       "accountRef": "TSH022",
       "accountHolder": "Khumo Goitseona Tshegameno",
-      "balance": 2750,
+      "kidesysSection": "Recently Owing",
+      "balance": 975.48,
       "buckets": {
         "current": 3550,
         "d30": 650,
@@ -2973,14 +2974,14 @@
         "d120": -1450
       },
       "source": "kideesys-age-analysis",
-      "importedAt": "2026-05-28T08:38:50.245Z",
-      "kidesysSection": "Recently Owing"
+      "importedAt": "2099-12-31T23:59:59.999Z"
     },
     "BUY001": {
       "schoolId": "cmpideqeq0000108xb6ouv9zi",
       "accountRef": "BUY001",
       "accountHolder": "Kim Omontle Buys",
-      "balance": 2900,
+      "kidesysSection": "Recently Owing",
+      "balance": 1028.69,
       "buckets": {
         "current": 3000,
         "d30": 2200,
@@ -2989,14 +2990,14 @@
         "d120": -2300
       },
       "source": "kideesys-age-analysis",
-      "importedAt": "2026-05-28T08:38:50.245Z",
-      "kidesysSection": "Recently Owing"
+      "importedAt": "2099-12-31T23:59:59.999Z"
     },
     "MAS024": {
       "schoolId": "cmpideqeq0000108xb6ouv9zi",
       "accountRef": "MAS024",
       "accountHolder": "Langelihle Yiujune Maseko",
-      "balance": 4350,
+      "kidesysSection": "Recently Owing",
+      "balance": 1543.03,
       "buckets": {
         "current": 4350,
         "d30": 0,
@@ -3005,14 +3006,14 @@
         "d120": -400
       },
       "source": "kideesys-age-analysis",
-      "importedAt": "2026-05-28T08:38:50.245Z",
-      "kidesysSection": "Recently Owing"
+      "importedAt": "2099-12-31T23:59:59.999Z"
     },
     "MAR008": {
       "schoolId": "cmpideqeq0000108xb6ouv9zi",
       "accountRef": "MAR008",
       "accountHolder": "Leago Refilwe Marema",
-      "balance": 4300,
+      "kidesysSection": "Recently Owing",
+      "balance": 1525.3,
       "buckets": {
         "current": 4300,
         "d30": 0,
@@ -3021,14 +3022,14 @@
         "d120": 0
       },
       "source": "kideesys-age-analysis",
-      "importedAt": "2026-05-28T08:38:50.245Z",
-      "kidesysSection": "Recently Owing"
+      "importedAt": "2099-12-31T23:59:59.999Z"
     },
     "KHU006": {
       "schoolId": "cmpideqeq0000108xb6ouv9zi",
       "accountRef": "KHU006",
       "accountHolder": "Leano Lesedi Khuduge",
-      "balance": 3200,
+      "kidesysSection": "Recently Owing",
+      "balance": 1135.1,
       "buckets": {
         "current": 3000,
         "d30": 3200,
@@ -3037,14 +3038,14 @@
         "d120": -3000
       },
       "source": "kideesys-age-analysis",
-      "importedAt": "2026-05-28T08:38:50.245Z",
-      "kidesysSection": "Recently Owing"
+      "importedAt": "2099-12-31T23:59:59.999Z"
     },
     "SEI859": {
       "schoolId": "cmpideqeq0000108xb6ouv9zi",
       "accountRef": "SEI859",
       "accountHolder": "Leano Seichokelo",
-      "balance": 3800,
+      "kidesysSection": "Recently Owing",
+      "balance": 1347.94,
       "buckets": {
         "current": 3800,
         "d30": 3800,
@@ -3053,14 +3054,14 @@
         "d120": -5700
       },
       "source": "kideesys-age-analysis",
-      "importedAt": "2026-05-28T08:38:50.245Z",
-      "kidesysSection": "Recently Owing"
+      "importedAt": "2099-12-31T23:59:59.999Z"
     },
     "KAL002": {
       "schoolId": "cmpideqeq0000108xb6ouv9zi",
       "accountRef": "KAL002",
       "accountHolder": "Leano Shaun Kalunga",
-      "balance": 4700,
+      "kidesysSection": "Recently Owing",
+      "balance": 1667.18,
       "buckets": {
         "current": 3000,
         "d30": 3000,
@@ -3069,14 +3070,14 @@
         "d120": -3000
       },
       "source": "kideesys-age-analysis",
-      "importedAt": "2026-05-28T08:38:50.245Z",
-      "kidesysSection": "Recently Owing"
+      "importedAt": "2099-12-31T23:59:59.999Z"
     },
     "MOT036": {
       "schoolId": "cmpideqeq0000108xb6ouv9zi",
       "accountRef": "MOT036",
       "accountHolder": "Ledile Keamogetswe Mothotse\nAtang Mothotse",
-      "balance": 5600,
+      "kidesysSection": "Recently Owing",
+      "balance": 1986.43,
       "buckets": {
         "current": 5600,
         "d30": 0,
@@ -3085,14 +3086,14 @@
         "d120": 0
       },
       "source": "kideesys-age-analysis",
-      "importedAt": "2026-05-28T08:38:50.245Z",
-      "kidesysSection": "Recently Owing"
+      "importedAt": "2099-12-31T23:59:59.999Z"
     },
     "SWA001": {
       "schoolId": "cmpideqeq0000108xb6ouv9zi",
       "accountRef": "SWA001",
       "accountHolder": "Leigham Jayden Thiago Swartz",
-      "balance": 2800,
+      "kidesysSection": "Recently Owing",
+      "balance": 993.22,
       "buckets": {
         "current": 2800,
         "d30": 0,
@@ -3101,14 +3102,14 @@
         "d120": 0
       },
       "source": "kideesys-age-analysis",
-      "importedAt": "2026-05-28T08:38:50.245Z",
-      "kidesysSection": "Recently Owing"
+      "importedAt": "2099-12-31T23:59:59.999Z"
     },
     "LEG001": {
       "schoolId": "cmpideqeq0000108xb6ouv9zi",
       "accountRef": "LEG001",
       "accountHolder": "Lesedi Legare\nNaledi Legare",
-      "balance": 6000,
+      "kidesysSection": "Recently Owing",
+      "balance": 2128.32,
       "buckets": {
         "current": 7100,
         "d30": 0,
@@ -3117,14 +3118,14 @@
         "d120": -1100
       },
       "source": "kideesys-age-analysis",
-      "importedAt": "2026-05-28T08:38:50.245Z",
-      "kidesysSection": "Recently Owing"
+      "importedAt": "2099-12-31T23:59:59.999Z"
     },
     "MOI002": {
       "schoolId": "cmpideqeq0000108xb6ouv9zi",
       "accountRef": "MOI002",
       "accountHolder": "Lesedi Osego Moinwe",
-      "balance": 2300,
+      "kidesysSection": "Recently Owing",
+      "balance": 815.86,
       "buckets": {
         "current": 3000,
         "d30": 3000,
@@ -3133,14 +3134,14 @@
         "d120": -10400
       },
       "source": "kideesys-age-analysis",
-      "importedAt": "2026-05-28T08:38:50.245Z",
-      "kidesysSection": "Recently Owing"
+      "importedAt": "2099-12-31T23:59:59.999Z"
     },
     "MOF002": {
       "schoolId": "cmpideqeq0000108xb6ouv9zi",
       "accountRef": "MOF002",
       "accountHolder": "Letlotlo Mofuoa",
-      "balance": 3000,
+      "kidesysSection": "Recently Owing",
+      "balance": 1064.16,
       "buckets": {
         "current": 3000,
         "d30": 250,
@@ -3149,14 +3150,14 @@
         "d120": -250
       },
       "source": "kideesys-age-analysis",
-      "importedAt": "2026-05-28T08:38:50.245Z",
-      "kidesysSection": "Recently Owing"
+      "importedAt": "2099-12-31T23:59:59.999Z"
     },
     "RAM019": {
       "schoolId": "cmpideqeq0000108xb6ouv9zi",
       "accountRef": "RAM019",
       "accountHolder": "Loatile Nicole Ramokoka",
-      "balance": 2800,
+      "kidesysSection": "Recently Owing",
+      "balance": 993.22,
       "buckets": {
         "current": 2800,
         "d30": 200,
@@ -3165,14 +3166,14 @@
         "d120": 0
       },
       "source": "kideesys-age-analysis",
-      "importedAt": "2026-05-28T08:38:50.245Z",
-      "kidesysSection": "Recently Owing"
+      "importedAt": "2099-12-31T23:59:59.999Z"
     },
     "MAS012": {
       "schoolId": "cmpideqeq0000108xb6ouv9zi",
       "accountRef": "MAS012",
       "accountHolder": "Lwazi Perez Masilela\nNtandoyenkosi Ethan Masilela",
-      "balance": 7100,
+      "kidesysSection": "Recently Owing",
+      "balance": 2518.51,
       "buckets": {
         "current": 7100,
         "d30": 7100,
@@ -3181,14 +3182,14 @@
         "d120": -12150
       },
       "source": "kideesys-age-analysis",
-      "importedAt": "2026-05-28T08:38:50.245Z",
-      "kidesysSection": "Recently Owing"
+      "importedAt": "2099-12-31T23:59:59.999Z"
     },
     "MOT034": {
       "schoolId": "cmpideqeq0000108xb6ouv9zi",
       "accountRef": "MOT034",
       "accountHolder": "Mahase Mothibeli",
-      "balance": 3000,
+      "kidesysSection": "Recently Owing",
+      "balance": 1064.16,
       "buckets": {
         "current": 3550,
         "d30": 750,
@@ -3197,14 +3198,14 @@
         "d120": -1000
       },
       "source": "kideesys-age-analysis",
-      "importedAt": "2026-05-28T08:38:50.245Z",
-      "kidesysSection": "Recently Owing"
+      "importedAt": "2099-12-31T23:59:59.999Z"
     },
     "MAM005": {
       "schoolId": "cmpideqeq0000108xb6ouv9zi",
       "accountRef": "MAM005",
       "accountHolder": "Masego Mamabolo",
-      "balance": 1200,
+      "kidesysSection": "Recently Owing",
+      "balance": 425.66,
       "buckets": {
         "current": 1400,
         "d30": -200,
@@ -3213,14 +3214,14 @@
         "d120": 0
       },
       "source": "kideesys-age-analysis",
-      "importedAt": "2026-05-28T08:38:50.245Z",
-      "kidesysSection": "Recently Owing"
+      "importedAt": "2099-12-31T23:59:59.999Z"
     },
     "MAH004": {
       "schoolId": "cmpideqeq0000108xb6ouv9zi",
       "accountRef": "MAH004",
       "accountHolder": "Mayani Daniel Mahango",
-      "balance": 3200,
+      "kidesysSection": "Recently Owing",
+      "balance": 1135.1,
       "buckets": {
         "current": 3000,
         "d30": 3200,
@@ -3229,14 +3230,14 @@
         "d120": -5000
       },
       "source": "kideesys-age-analysis",
-      "importedAt": "2026-05-28T08:38:50.245Z",
-      "kidesysSection": "Recently Owing"
+      "importedAt": "2099-12-31T23:59:59.999Z"
     },
     "MAT031": {
       "schoolId": "cmpideqeq0000108xb6ouv9zi",
       "accountRef": "MAT031",
       "accountHolder": "Mikateko Mathebula",
-      "balance": 5100,
+      "kidesysSection": "Recently Owing",
+      "balance": 1809.07,
       "buckets": {
         "current": 4600,
         "d30": 4600,
@@ -3245,14 +3246,14 @@
         "d120": -2000
       },
       "source": "kideesys-age-analysis",
-      "importedAt": "2026-05-28T08:38:50.245Z",
-      "kidesysSection": "Recently Owing"
+      "importedAt": "2099-12-31T23:59:59.999Z"
     },
     "HOB001": {
       "schoolId": "cmpideqeq0000108xb6ouv9zi",
       "accountRef": "HOB001",
       "accountHolder": "Mkateko Lowerence Junior Hobyani Mathe",
-      "balance": 2650,
+      "kidesysSection": "Recently Owing",
+      "balance": 940.01,
       "buckets": {
         "current": 3000,
         "d30": 3000,
@@ -3261,14 +3262,14 @@
         "d120": -10050
       },
       "source": "kideesys-age-analysis",
-      "importedAt": "2026-05-28T08:38:50.245Z",
-      "kidesysSection": "Recently Owing"
+      "importedAt": "2099-12-31T23:59:59.999Z"
     },
     "MOL003": {
       "schoolId": "cmpideqeq0000108xb6ouv9zi",
       "accountRef": "MOL003",
       "accountHolder": "Molebogeng Maselela",
-      "balance": 4710,
+      "kidesysSection": "Recently Owing",
+      "balance": 1670.73,
       "buckets": {
         "current": 4010,
         "d30": 4300,
@@ -3277,14 +3278,14 @@
         "d120": -6090
       },
       "source": "kideesys-age-analysis",
-      "importedAt": "2026-05-28T08:38:50.245Z",
-      "kidesysSection": "Recently Owing"
+      "importedAt": "2099-12-31T23:59:59.999Z"
     },
     "HOM001": {
       "schoolId": "cmpideqeq0000108xb6ouv9zi",
       "accountRef": "HOM001",
       "accountHolder": "Mpiloentle Nomzanga",
-      "balance": 3700,
+      "kidesysSection": "Recently Owing",
+      "balance": 1312.46,
       "buckets": {
         "current": 3000,
         "d30": 3000,
@@ -3293,14 +3294,14 @@
         "d120": -6300
       },
       "source": "kideesys-age-analysis",
-      "importedAt": "2026-05-28T08:38:50.245Z",
-      "kidesysSection": "Recently Owing"
+      "importedAt": "2099-12-31T23:59:59.999Z"
     },
     "MOO004": {
       "schoolId": "cmpideqeq0000108xb6ouv9zi",
       "accountRef": "MOO004",
       "accountHolder": "Ronisha Moodley\nNathan Moodley",
-      "balance": 8540,
+      "kidesysSection": "Recently Owing",
+      "balance": 3029.31,
       "buckets": {
         "current": 7100,
         "d30": 10020,
@@ -3309,14 +3310,14 @@
         "d120": -8580
       },
       "source": "kideesys-age-analysis",
-      "importedAt": "2026-05-28T08:38:50.245Z",
-      "kidesysSection": "Recently Owing"
+      "importedAt": "2099-12-31T23:59:59.999Z"
     },
     "DHL003": {
       "schoolId": "cmpideqeq0000108xb6ouv9zi",
       "accountRef": "DHL003",
       "accountHolder": "Ndalo-enhle Nkanyezi Dhlamini",
-      "balance": 6000,
+      "kidesysSection": "Recently Owing",
+      "balance": 2128.32,
       "buckets": {
         "current": 3000,
         "d30": 3000,
@@ -3325,14 +3326,14 @@
         "d120": 0
       },
       "source": "kideesys-age-analysis",
-      "importedAt": "2026-05-28T08:38:50.245Z",
-      "kidesysSection": "Recently Owing"
+      "importedAt": "2099-12-31T23:59:59.999Z"
     },
     "RIK001": {
       "schoolId": "cmpideqeq0000108xb6ouv9zi",
       "accountRef": "RIK001",
       "accountHolder": "Ndzalo Enelo Rikhotso",
-      "balance": 7900,
+      "kidesysSection": "Recently Owing",
+      "balance": 2802.29,
       "buckets": {
         "current": 4350,
         "d30": 4350,
@@ -3341,14 +3342,14 @@
         "d120": -1470
       },
       "source": "kideesys-age-analysis",
-      "importedAt": "2026-05-28T08:38:50.245Z",
-      "kidesysSection": "Recently Owing"
+      "importedAt": "2099-12-31T23:59:59.999Z"
     },
     "JEC002": {
       "schoolId": "cmpideqeq0000108xb6ouv9zi",
       "accountRef": "JEC002",
       "accountHolder": "Nelisiwe Jeche",
-      "balance": 1965,
+      "kidesysSection": "Recently Owing",
+      "balance": 697.02,
       "buckets": {
         "current": 3800,
         "d30": 2610,
@@ -3357,14 +3358,14 @@
         "d120": -4445
       },
       "source": "kideesys-age-analysis",
-      "importedAt": "2026-05-28T08:38:50.245Z",
-      "kidesysSection": "Recently Owing"
+      "importedAt": "2099-12-31T23:59:59.999Z"
     },
     "MPI102": {
       "schoolId": "cmpideqeq0000108xb6ouv9zi",
       "accountRef": "MPI102",
       "accountHolder": "Neo Lethabo Mpiko",
-      "balance": 3800,
+      "kidesysSection": "Recently Owing",
+      "balance": 1347.94,
       "buckets": {
         "current": 3000,
         "d30": 3200,
@@ -3373,14 +3374,14 @@
         "d120": -6100
       },
       "source": "kideesys-age-analysis",
-      "importedAt": "2026-05-28T08:38:50.245Z",
-      "kidesysSection": "Recently Owing"
+      "importedAt": "2099-12-31T23:59:59.999Z"
     },
     "NKA003": {
       "schoolId": "cmpideqeq0000108xb6ouv9zi",
       "accountRef": "NKA003",
       "accountHolder": "Ngcebo Sindiso Nkabane",
-      "balance": 4500,
+      "kidesysSection": "Recently Owing",
+      "balance": 1596.24,
       "buckets": {
         "current": 3800,
         "d30": 3800,
@@ -3389,14 +3390,14 @@
         "d120": -7600
       },
       "source": "kideesys-age-analysis",
-      "importedAt": "2026-05-28T08:38:50.245Z",
-      "kidesysSection": "Recently Owing"
+      "importedAt": "2099-12-31T23:59:59.999Z"
     },
     "MOO003": {
       "schoolId": "cmpideqeq0000108xb6ouv9zi",
       "accountRef": "MOO003",
       "accountHolder": "Nikitah Moonsammy\nCaige Moonsammy",
-      "balance": 6000,
+      "kidesysSection": "Recently Owing",
+      "balance": 2128.32,
       "buckets": {
         "current": 6000,
         "d30": 0,
@@ -3405,14 +3406,14 @@
         "d120": -2800
       },
       "source": "kideesys-age-analysis",
-      "importedAt": "2026-05-28T08:38:50.245Z",
-      "kidesysSection": "Recently Owing"
+      "importedAt": "2099-12-31T23:59:59.999Z"
     },
     "KOB001": {
       "schoolId": "cmpideqeq0000108xb6ouv9zi",
       "accountRef": "KOB001",
       "accountHolder": "Njabulo Kobo",
-      "balance": 2350,
+      "kidesysSection": "Recently Owing",
+      "balance": 833.59,
       "buckets": {
         "current": 3000,
         "d30": -100,
@@ -3421,14 +3422,14 @@
         "d120": -550
       },
       "source": "kideesys-age-analysis",
-      "importedAt": "2026-05-28T08:38:50.245Z",
-      "kidesysSection": "Recently Owing"
+      "importedAt": "2099-12-31T23:59:59.999Z"
     },
     "SIB003": {
       "schoolId": "cmpideqeq0000108xb6ouv9zi",
       "accountRef": "SIB003",
       "accountHolder": "Nsovo Sibiya\nVutivi Sibiya",
-      "balance": 4800,
+      "kidesysSection": "Recently Owing",
+      "balance": 1702.66,
       "buckets": {
         "current": 5600,
         "d30": 0,
@@ -3437,14 +3438,14 @@
         "d120": -800
       },
       "source": "kideesys-age-analysis",
-      "importedAt": "2026-05-28T08:38:50.245Z",
-      "kidesysSection": "Recently Owing"
+      "importedAt": "2099-12-31T23:59:59.999Z"
     },
     "MAK020": {
       "schoolId": "cmpideqeq0000108xb6ouv9zi",
       "accountRef": "MAK020",
       "accountHolder": "Loanolwaone Makhubela\nNtengo Ntshangase\nLoapi Makhubela",
-      "balance": 9250,
+      "kidesysSection": "Recently Owing",
+      "balance": 3281.16,
       "buckets": {
         "current": 8900,
         "d30": 5400,
@@ -3453,14 +3454,14 @@
         "d120": -5050
       },
       "source": "kideesys-age-analysis",
-      "importedAt": "2026-05-28T08:38:50.245Z",
-      "kidesysSection": "Recently Owing"
+      "importedAt": "2099-12-31T23:59:59.999Z"
     },
     "DIK002": {
       "schoolId": "cmpideqeq0000108xb6ouv9zi",
       "accountRef": "DIK002",
       "accountHolder": "Nyakalo Naledi Dikotsi",
-      "balance": 3450,
+      "kidesysSection": "Recently Owing",
+      "balance": 1223.78,
       "buckets": {
         "current": 3000,
         "d30": 3300,
@@ -3469,14 +3470,14 @@
         "d120": -6550
       },
       "source": "kideesys-age-analysis",
-      "importedAt": "2026-05-28T08:38:50.245Z",
-      "kidesysSection": "Recently Owing"
+      "importedAt": "2099-12-31T23:59:59.999Z"
     },
     "DIA006": {
       "schoolId": "cmpideqeq0000108xb6ouv9zi",
       "accountRef": "DIA006",
       "accountHolder": "Oabile Diale",
-      "balance": 3000,
+      "kidesysSection": "Recently Owing",
+      "balance": 1064.16,
       "buckets": {
         "current": 3000,
         "d30": 0,
@@ -3485,14 +3486,14 @@
         "d120": -100
       },
       "source": "kideesys-age-analysis",
-      "importedAt": "2026-05-28T08:38:50.245Z",
-      "kidesysSection": "Recently Owing"
+      "importedAt": "2099-12-31T23:59:59.999Z"
     },
     "SIM002": {
       "schoolId": "cmpideqeq0000108xb6ouv9zi",
       "accountRef": "SIM002",
       "accountHolder": "Oageng Simelane\nOlerato Simelane",
-      "balance": 5700,
+      "kidesysSection": "Recently Owing",
+      "balance": 2021.9,
       "buckets": {
         "current": 7100,
         "d30": 1900,
@@ -3501,14 +3502,14 @@
         "d120": -3300
       },
       "source": "kideesys-age-analysis",
-      "importedAt": "2026-05-28T08:38:50.245Z",
-      "kidesysSection": "Recently Owing"
+      "importedAt": "2099-12-31T23:59:59.999Z"
     },
     "MOL010": {
       "schoolId": "cmpideqeq0000108xb6ouv9zi",
       "accountRef": "MOL010",
       "accountHolder": "Oagile Kabo Molete",
-      "balance": 3700,
+      "kidesysSection": "Recently Owing",
+      "balance": 1312.46,
       "buckets": {
         "current": 3000,
         "d30": 3000,
@@ -3517,14 +3518,14 @@
         "d120": -3000
       },
       "source": "kideesys-age-analysis",
-      "importedAt": "2026-05-28T08:38:50.245Z",
-      "kidesysSection": "Recently Owing"
+      "importedAt": "2099-12-31T23:59:59.999Z"
     },
     "TLH006": {
       "schoolId": "cmpideqeq0000108xb6ouv9zi",
       "accountRef": "TLH006",
       "accountHolder": "Oagile Tlhabane\nOreneile Tlhabane",
-      "balance": 6000,
+      "kidesysSection": "Recently Owing",
+      "balance": 2128.32,
       "buckets": {
         "current": 6000,
         "d30": 0,
@@ -3533,14 +3534,14 @@
         "d120": -2600
       },
       "source": "kideesys-age-analysis",
-      "importedAt": "2026-05-28T08:38:50.245Z",
-      "kidesysSection": "Recently Owing"
+      "importedAt": "2099-12-31T23:59:59.999Z"
     },
     "LEK008": {
       "schoolId": "cmpideqeq0000108xb6ouv9zi",
       "accountRef": "LEK008",
       "accountHolder": "Oarabile Lekwane",
-      "balance": 4250,
+      "kidesysSection": "Recently Owing",
+      "balance": 1507.56,
       "buckets": {
         "current": 3550,
         "d30": 700,
@@ -3549,14 +3550,14 @@
         "d120": 0
       },
       "source": "kideesys-age-analysis",
-      "importedAt": "2026-05-28T08:38:50.245Z",
-      "kidesysSection": "Recently Owing"
+      "importedAt": "2099-12-31T23:59:59.999Z"
     },
     "MOK036": {
       "schoolId": "cmpideqeq0000108xb6ouv9zi",
       "accountRef": "MOK036",
       "accountHolder": "Oarabile Mokwena",
-      "balance": 4450,
+      "kidesysSection": "Recently Owing",
+      "balance": 1578.5,
       "buckets": {
         "current": 3550,
         "d30": 3750,
@@ -3565,14 +3566,14 @@
         "d120": -3250
       },
       "source": "kideesys-age-analysis",
-      "importedAt": "2026-05-28T08:38:50.245Z",
-      "kidesysSection": "Recently Owing"
+      "importedAt": "2099-12-31T23:59:59.999Z"
     },
     "SEE002": {
       "schoolId": "cmpideqeq0000108xb6ouv9zi",
       "accountRef": "SEE002",
       "accountHolder": "Oaratwa Seema",
-      "balance": 1000,
+      "kidesysSection": "Recently Owing",
+      "balance": 354.72,
       "buckets": {
         "current": 1000,
         "d30": 0,
@@ -3581,14 +3582,14 @@
         "d120": 0
       },
       "source": "kideesys-age-analysis",
-      "importedAt": "2026-05-28T08:38:50.245Z",
-      "kidesysSection": "Recently Owing"
+      "importedAt": "2099-12-31T23:59:59.999Z"
     },
     "LAN002": {
       "schoolId": "cmpideqeq0000108xb6ouv9zi",
       "accountRef": "LAN002",
       "accountHolder": "Obakeng Langeni",
-      "balance": 2920,
+      "kidesysSection": "Recently Owing",
+      "balance": 1035.78,
       "buckets": {
         "current": 3000,
         "d30": 3000,
@@ -3597,14 +3598,14 @@
         "d120": -5500
       },
       "source": "kideesys-age-analysis",
-      "importedAt": "2026-05-28T08:38:50.245Z",
-      "kidesysSection": "Recently Owing"
+      "importedAt": "2099-12-31T23:59:59.999Z"
     },
     "TSH016": {
       "schoolId": "cmpideqeq0000108xb6ouv9zi",
       "accountRef": "TSH016",
       "accountHolder": "Omosa Aobakwe Tshwaane (kgasoane)\nOboikanyo Kgatoentle Tshwaane (kgasoane)",
-      "balance": 7400,
+      "kidesysSection": "Recently Owing",
+      "balance": 2624.93,
       "buckets": {
         "current": 6550,
         "d30": 5550,
@@ -3613,14 +3614,14 @@
         "d120": -4700
       },
       "source": "kideesys-age-analysis",
-      "importedAt": "2026-05-28T08:38:50.245Z",
-      "kidesysSection": "Recently Owing"
+      "importedAt": "2099-12-31T23:59:59.999Z"
     },
     "MON006": {
       "schoolId": "cmpideqeq0000108xb6ouv9zi",
       "accountRef": "MON006",
       "accountHolder": "Oboitshepo Monewe",
-      "balance": 4400,
+      "kidesysSection": "Recently Owing",
+      "balance": 1560.77,
       "buckets": {
         "current": 3000,
         "d30": 3200,
@@ -3629,14 +3630,14 @@
         "d120": -6000
       },
       "source": "kideesys-age-analysis",
-      "importedAt": "2026-05-28T08:38:50.245Z",
-      "kidesysSection": "Recently Owing"
+      "importedAt": "2099-12-31T23:59:59.999Z"
     },
     "MPE002": {
       "schoolId": "cmpideqeq0000108xb6ouv9zi",
       "accountRef": "MPE002",
       "accountHolder": "Ofentse Kabelo Mpete",
-      "balance": 900,
+      "kidesysSection": "Recently Owing",
+      "balance": 319.25,
       "buckets": {
         "current": 2800,
         "d30": 200,
@@ -3645,14 +3646,14 @@
         "d120": -5600
       },
       "source": "kideesys-age-analysis",
-      "importedAt": "2026-05-28T08:38:50.245Z",
-      "kidesysSection": "Recently Owing"
+      "importedAt": "2099-12-31T23:59:59.999Z"
     },
     "THO004": {
       "schoolId": "cmpideqeq0000108xb6ouv9zi",
       "accountRef": "THO004",
       "accountHolder": "Ofentse Koketso Thompo",
-      "balance": 4000,
+      "kidesysSection": "Recently Owing",
+      "balance": 1418.88,
       "buckets": {
         "current": 4350,
         "d30": 4350,
@@ -3661,14 +3662,14 @@
         "d120": -8800
       },
       "source": "kideesys-age-analysis",
-      "importedAt": "2026-05-28T08:38:50.245Z",
-      "kidesysSection": "Recently Owing"
+      "importedAt": "2099-12-31T23:59:59.999Z"
     },
     "MOK028": {
       "schoolId": "cmpideqeq0000108xb6ouv9zi",
       "accountRef": "MOK028",
       "accountHolder": "Ofentse Mokua",
-      "balance": 3550,
+      "kidesysSection": "Recently Owing",
+      "balance": 1259.26,
       "buckets": {
         "current": 3550,
         "d30": 3550,
@@ -3677,14 +3678,14 @@
         "d120": -7800
       },
       "source": "kideesys-age-analysis",
-      "importedAt": "2026-05-28T08:38:50.245Z",
-      "kidesysSection": "Recently Owing"
+      "importedAt": "2099-12-31T23:59:59.999Z"
     },
     "MAN011": {
       "schoolId": "cmpideqeq0000108xb6ouv9zi",
       "accountRef": "MAN011",
       "accountHolder": "Okuhle Maninela",
-      "balance": 3000,
+      "kidesysSection": "Recently Owing",
+      "balance": 1064.16,
       "buckets": {
         "current": 3000,
         "d30": 3000,
@@ -3693,14 +3694,14 @@
         "d120": 0
       },
       "source": "kideesys-age-analysis",
-      "importedAt": "2026-05-28T08:38:50.245Z",
-      "kidesysSection": "Recently Owing"
+      "importedAt": "2099-12-31T23:59:59.999Z"
     },
     "TLH005": {
       "schoolId": "cmpideqeq0000108xb6ouv9zi",
       "accountRef": "TLH005",
       "accountHolder": "Oletilwe Tlhame",
-      "balance": 4350,
+      "kidesysSection": "Recently Owing",
+      "balance": 1543.03,
       "buckets": {
         "current": 4350,
         "d30": 3400,
@@ -3709,14 +3710,14 @@
         "d120": -3400
       },
       "source": "kideesys-age-analysis",
-      "importedAt": "2026-05-28T08:38:50.245Z",
-      "kidesysSection": "Recently Owing"
+      "importedAt": "2099-12-31T23:59:59.999Z"
     },
     "MAK023": {
       "schoolId": "cmpideqeq0000108xb6ouv9zi",
       "accountRef": "MAK023",
       "accountHolder": "Olwethu Amahle Makhathini",
-      "balance": 6200,
+      "kidesysSection": "Recently Owing",
+      "balance": 2199.26,
       "buckets": {
         "current": 3100,
         "d30": 3100,
@@ -3725,14 +3726,14 @@
         "d120": 0
       },
       "source": "kideesys-age-analysis",
-      "importedAt": "2026-05-28T08:38:50.245Z",
-      "kidesysSection": "Recently Owing"
+      "importedAt": "2099-12-31T23:59:59.999Z"
     },
     "KEK003": {
       "schoolId": "cmpideqeq0000108xb6ouv9zi",
       "accountRef": "KEK003",
       "accountHolder": "Omaatla Kekana",
-      "balance": 2400,
+      "kidesysSection": "Recently Owing",
+      "balance": 851.33,
       "buckets": {
         "current": 2700,
         "d30": -300,
@@ -3741,14 +3742,14 @@
         "d120": 0
       },
       "source": "kideesys-age-analysis",
-      "importedAt": "2026-05-28T08:38:50.245Z",
-      "kidesysSection": "Recently Owing"
+      "importedAt": "2099-12-31T23:59:59.999Z"
     },
     "RAN002": {
       "schoolId": "cmpideqeq0000108xb6ouv9zi",
       "accountRef": "RAN002",
       "accountHolder": "Omaatla Tlotlo Ranta",
-      "balance": 2800,
+      "kidesysSection": "Recently Owing",
+      "balance": 993.22,
       "buckets": {
         "current": 3000,
         "d30": 2100,
@@ -3757,14 +3758,14 @@
         "d120": -2300
       },
       "source": "kideesys-age-analysis",
-      "importedAt": "2026-05-28T08:38:50.245Z",
-      "kidesysSection": "Recently Owing"
+      "importedAt": "2099-12-31T23:59:59.999Z"
     },
     "RAM009": {
       "schoolId": "cmpideqeq0000108xb6ouv9zi",
       "accountRef": "RAM009",
       "accountHolder": "Omatla Malesela Ramagogogdi",
-      "balance": 4250,
+      "kidesysSection": "Recently Owing",
+      "balance": 1507.56,
       "buckets": {
         "current": 3550,
         "d30": 3550,
@@ -3773,14 +3774,14 @@
         "d120": -3400
       },
       "source": "kideesys-age-analysis",
-      "importedAt": "2026-05-28T08:38:50.245Z",
-      "kidesysSection": "Recently Owing"
+      "importedAt": "2099-12-31T23:59:59.999Z"
     },
     "KIN001": {
       "schoolId": "cmpideqeq0000108xb6ouv9zi",
       "accountRef": "KIN001",
       "accountHolder": "Omatla Sensation Kwele",
-      "balance": 3200,
+      "kidesysSection": "Recently Owing",
+      "balance": 1135.1,
       "buckets": {
         "current": 3000,
         "d30": 200,
@@ -3789,14 +3790,14 @@
         "d120": -2650
       },
       "source": "kideesys-age-analysis",
-      "importedAt": "2026-05-28T08:38:50.245Z",
-      "kidesysSection": "Recently Owing"
+      "importedAt": "2099-12-31T23:59:59.999Z"
     },
     "MOT028": {
       "schoolId": "cmpideqeq0000108xb6ouv9zi",
       "accountRef": "MOT028",
       "accountHolder": "Omogolo Kuthe Motlhake",
-      "balance": 3000,
+      "kidesysSection": "Recently Owing",
+      "balance": 1064.16,
       "buckets": {
         "current": 3000,
         "d30": 2000,
@@ -3805,14 +3806,14 @@
         "d120": -2000
       },
       "source": "kideesys-age-analysis",
-      "importedAt": "2026-05-28T08:38:50.245Z",
-      "kidesysSection": "Recently Owing"
+      "importedAt": "2099-12-31T23:59:59.999Z"
     },
     "THA003": {
       "schoolId": "cmpideqeq0000108xb6ouv9zi",
       "accountRef": "THA003",
       "accountHolder": "Omogolo Thakadu",
-      "balance": 3200,
+      "kidesysSection": "Recently Owing",
+      "balance": 1135.1,
       "buckets": {
         "current": 3000,
         "d30": 200,
@@ -3821,14 +3822,14 @@
         "d120": -4200
       },
       "source": "kideesys-age-analysis",
-      "importedAt": "2026-05-28T08:38:50.245Z",
-      "kidesysSection": "Recently Owing"
+      "importedAt": "2099-12-31T23:59:59.999Z"
     },
     "MOL044": {
       "schoolId": "cmpideqeq0000108xb6ouv9zi",
       "accountRef": "MOL044",
       "accountHolder": "Omontle Molefe",
-      "balance": 3450,
+      "kidesysSection": "Recently Owing",
+      "balance": 1223.78,
       "buckets": {
         "current": 3000,
         "d30": 3200,
@@ -3837,14 +3838,14 @@
         "d120": -4130
       },
       "source": "kideesys-age-analysis",
-      "importedAt": "2026-05-28T08:38:50.245Z",
-      "kidesysSection": "Recently Owing"
+      "importedAt": "2099-12-31T23:59:59.999Z"
     },
     "TSA001": {
       "schoolId": "cmpideqeq0000108xb6ouv9zi",
       "accountRef": "TSA001",
       "accountHolder": "Omphile Tsame",
-      "balance": 3000,
+      "kidesysSection": "Recently Owing",
+      "balance": 1064.16,
       "buckets": {
         "current": 3000,
         "d30": 1905,
@@ -3853,14 +3854,14 @@
         "d120": -1905
       },
       "source": "kideesys-age-analysis",
-      "importedAt": "2026-05-28T08:38:50.245Z",
-      "kidesysSection": "Recently Owing"
+      "importedAt": "2099-12-31T23:59:59.999Z"
     },
     "MOR010": {
       "schoolId": "cmpideqeq0000108xb6ouv9zi",
       "accountRef": "MOR010",
       "accountHolder": "Onkamogetse Kgotatso Morobe",
-      "balance": 2860,
+      "kidesysSection": "Recently Owing",
+      "balance": 1014.5,
       "buckets": {
         "current": 3000,
         "d30": 200,
@@ -3869,14 +3870,14 @@
         "d120": -820
       },
       "source": "kideesys-age-analysis",
-      "importedAt": "2026-05-28T08:38:50.245Z",
-      "kidesysSection": "Recently Owing"
+      "importedAt": "2099-12-31T23:59:59.999Z"
     },
     "MAM007": {
       "schoolId": "cmpideqeq0000108xb6ouv9zi",
       "accountRef": "MAM007",
       "accountHolder": "Onkarabile Mamabolo",
-      "balance": 3000,
+      "kidesysSection": "Recently Owing",
+      "balance": 1064.16,
       "buckets": {
         "current": 2700,
         "d30": 600,
@@ -3885,14 +3886,14 @@
         "d120": 0
       },
       "source": "kideesys-age-analysis",
-      "importedAt": "2026-05-28T08:38:50.245Z",
-      "kidesysSection": "Recently Owing"
+      "importedAt": "2099-12-31T23:59:59.999Z"
     },
     "MOR004": {
       "schoolId": "cmpideqeq0000108xb6ouv9zi",
       "accountRef": "MOR004",
       "accountHolder": "Onthatile Morobane",
-      "balance": 7100,
+      "kidesysSection": "Recently Owing",
+      "balance": 2518.51,
       "buckets": {
         "current": 4100,
         "d30": 4300,
@@ -3901,14 +3902,14 @@
         "d120": -9900
       },
       "source": "kideesys-age-analysis",
-      "importedAt": "2026-05-28T08:38:50.245Z",
-      "kidesysSection": "Recently Owing"
+      "importedAt": "2099-12-31T23:59:59.999Z"
     },
     "TSH017": {
       "schoolId": "cmpideqeq0000108xb6ouv9zi",
       "accountRef": "TSH017",
       "accountHolder": "Onthatile Tshose",
-      "balance": 5290,
+      "kidesysSection": "Recently Owing",
+      "balance": 1876.47,
       "buckets": {
         "current": 3550,
         "d30": 3850,
@@ -3917,14 +3918,14 @@
         "d120": -3520
       },
       "source": "kideesys-age-analysis",
-      "importedAt": "2026-05-28T08:38:50.245Z",
-      "kidesysSection": "Recently Owing"
+      "importedAt": "2099-12-31T23:59:59.999Z"
     },
     "SIT004": {
       "schoolId": "cmpideqeq0000108xb6ouv9zi",
       "accountRef": "SIT004",
       "accountHolder": "Onwaba Lathitha Sitwayi",
-      "balance": 2800,
+      "kidesysSection": "Recently Owing",
+      "balance": 993.22,
       "buckets": {
         "current": 2800,
         "d30": 300,
@@ -3933,14 +3934,14 @@
         "d120": -150
       },
       "source": "kideesys-age-analysis",
-      "importedAt": "2026-05-28T08:38:50.245Z",
-      "kidesysSection": "Recently Owing"
+      "importedAt": "2099-12-31T23:59:59.999Z"
     },
     "MAR009": {
       "schoolId": "cmpideqeq0000108xb6ouv9zi",
       "accountRef": "MAR009",
       "accountHolder": "Opelong Lesedi Mariri",
-      "balance": 4050,
+      "kidesysSection": "Recently Owing",
+      "balance": 1436.62,
       "buckets": {
         "current": 3550,
         "d30": 500,
@@ -3949,14 +3950,14 @@
         "d120": 0
       },
       "source": "kideesys-age-analysis",
-      "importedAt": "2026-05-28T08:38:50.245Z",
-      "kidesysSection": "Recently Owing"
+      "importedAt": "2099-12-31T23:59:59.999Z"
     },
     "MEN002": {
       "schoolId": "cmpideqeq0000108xb6ouv9zi",
       "accountRef": "MEN002",
       "accountHolder": "Oratile Charmila Meno",
-      "balance": 3000,
+      "kidesysSection": "Recently Owing",
+      "balance": 1064.16,
       "buckets": {
         "current": 3000,
         "d30": 0,
@@ -3965,14 +3966,14 @@
         "d120": 0
       },
       "source": "kideesys-age-analysis",
-      "importedAt": "2026-05-28T08:38:50.245Z",
-      "kidesysSection": "Recently Owing"
+      "importedAt": "2099-12-31T23:59:59.999Z"
     },
     "RAM020": {
       "schoolId": "cmpideqeq0000108xb6ouv9zi",
       "accountRef": "RAM020",
       "accountHolder": "Oreabetse Regomoditswe Ramafoko",
-      "balance": 4450,
+      "kidesysSection": "Recently Owing",
+      "balance": 1578.5,
       "buckets": {
         "current": 4350,
         "d30": 400,
@@ -3981,14 +3982,14 @@
         "d120": 0
       },
       "source": "kideesys-age-analysis",
-      "importedAt": "2026-05-28T08:38:50.245Z",
-      "kidesysSection": "Recently Owing"
+      "importedAt": "2099-12-31T23:59:59.999Z"
     },
     "TSH020": {
       "schoolId": "cmpideqeq0000108xb6ouv9zi",
       "accountRef": "TSH020",
       "accountHolder": "Orearabetse Kaone Tshukudu",
-      "balance": 2890,
+      "kidesysSection": "Recently Owing",
+      "balance": 1025.14,
       "buckets": {
         "current": 3000,
         "d30": 2390,
@@ -3997,14 +3998,14 @@
         "d120": -2500
       },
       "source": "kideesys-age-analysis",
-      "importedAt": "2026-05-28T08:38:50.245Z",
-      "kidesysSection": "Recently Owing"
+      "importedAt": "2099-12-31T23:59:59.999Z"
     },
     "SEG007": {
       "schoolId": "cmpideqeq0000108xb6ouv9zi",
       "accountRef": "SEG007",
       "accountHolder": "Oreratile Segobaetso",
-      "balance": 1000,
+      "kidesysSection": "Recently Owing",
+      "balance": 354.72,
       "buckets": {
         "current": 1000,
         "d30": 0,
@@ -4013,14 +4014,14 @@
         "d120": -300
       },
       "source": "kideesys-age-analysis",
-      "importedAt": "2026-05-28T08:38:50.245Z",
-      "kidesysSection": "Recently Owing"
+      "importedAt": "2099-12-31T23:59:59.999Z"
     },
     "MAL022": {
       "schoolId": "cmpideqeq0000108xb6ouv9zi",
       "accountRef": "MAL022",
       "accountHolder": "Osego Ntshembo Malati",
-      "balance": 3550,
+      "kidesysSection": "Recently Owing",
+      "balance": 1259.26,
       "buckets": {
         "current": 3550,
         "d30": 0,
@@ -4029,14 +4030,14 @@
         "d120": -550
       },
       "source": "kideesys-age-analysis",
-      "importedAt": "2026-05-28T08:38:50.245Z",
-      "kidesysSection": "Recently Owing"
+      "importedAt": "2099-12-31T23:59:59.999Z"
     },
     "SES001": {
       "schoolId": "cmpideqeq0000108xb6ouv9zi",
       "accountRef": "SES001",
       "accountHolder": "Osego Seswai",
-      "balance": 4200,
+      "kidesysSection": "Recently Owing",
+      "balance": 1489.82,
       "buckets": {
         "current": 3000,
         "d30": 2900,
@@ -4045,14 +4046,14 @@
         "d120": -1700
       },
       "source": "kideesys-age-analysis",
-      "importedAt": "2026-05-28T08:38:50.245Z",
-      "kidesysSection": "Recently Owing"
+      "importedAt": "2099-12-31T23:59:59.999Z"
     },
     "PIL003": {
       "schoolId": "cmpideqeq0000108xb6ouv9zi",
       "accountRef": "PIL003",
       "accountHolder": "Otlotleng Pilane\nKatlego Einstein Pilane",
-      "balance": 10650,
+      "kidesysSection": "Recently Owing",
+      "balance": 3777.77,
       "buckets": {
         "current": 6400,
         "d30": 4250,
@@ -4061,14 +4062,14 @@
         "d120": 0
       },
       "source": "kideesys-age-analysis",
-      "importedAt": "2026-05-28T08:38:50.245Z",
-      "kidesysSection": "Recently Owing"
+      "importedAt": "2099-12-31T23:59:59.999Z"
     },
     "MAN013": {
       "schoolId": "cmpideqeq0000108xb6ouv9zi",
       "accountRef": "MAN013",
       "accountHolder": "Ovayo Mani",
-      "balance": 2800,
+      "kidesysSection": "Recently Owing",
+      "balance": 993.22,
       "buckets": {
         "current": 2800,
         "d30": 0,
@@ -4077,14 +4078,14 @@
         "d120": 0
       },
       "source": "kideesys-age-analysis",
-      "importedAt": "2026-05-28T08:38:50.245Z",
-      "kidesysSection": "Recently Owing"
+      "importedAt": "2099-12-31T23:59:59.999Z"
     },
     "MAL020": {
       "schoolId": "cmpideqeq0000108xb6ouv9zi",
       "accountRef": "MAL020",
       "accountHolder": "Palesa Malatji",
-      "balance": 8550,
+      "kidesysSection": "Recently Owing",
+      "balance": 3032.86,
       "buckets": {
         "current": 4350,
         "d30": 4350,
@@ -4093,14 +4094,14 @@
         "d120": -400
       },
       "source": "kideesys-age-analysis",
-      "importedAt": "2026-05-28T08:38:50.245Z",
-      "kidesysSection": "Recently Owing"
+      "importedAt": "2099-12-31T23:59:59.999Z"
     },
     "SEN002": {
       "schoolId": "cmpideqeq0000108xb6ouv9zi",
       "accountRef": "SEN002",
       "accountHolder": "Peoentle Senne",
-      "balance": 7150,
+      "kidesysSection": "Recently Owing",
+      "balance": 2536.25,
       "buckets": {
         "current": 3550,
         "d30": 3750,
@@ -4109,14 +4110,14 @@
         "d120": -4190
       },
       "source": "kideesys-age-analysis",
-      "importedAt": "2026-05-28T08:38:50.245Z",
-      "kidesysSection": "Recently Owing"
+      "importedAt": "2099-12-31T23:59:59.999Z"
     },
     "NTO003": {
       "schoolId": "cmpideqeq0000108xb6ouv9zi",
       "accountRef": "NTO003",
       "accountHolder": "Phenyo Ntoula",
-      "balance": 3200,
+      "kidesysSection": "Recently Owing",
+      "balance": 1135.1,
       "buckets": {
         "current": 3000,
         "d30": 2600,
@@ -4125,14 +4126,14 @@
         "d120": -2400
       },
       "source": "kideesys-age-analysis",
-      "importedAt": "2026-05-28T08:38:50.245Z",
-      "kidesysSection": "Recently Owing"
+      "importedAt": "2099-12-31T23:59:59.999Z"
     },
     "MOG018": {
       "schoolId": "cmpideqeq0000108xb6ouv9zi",
       "accountRef": "MOG018",
       "accountHolder": "Phetogo Mogolola",
-      "balance": 3750,
+      "kidesysSection": "Recently Owing",
+      "balance": 1330.2,
       "buckets": {
         "current": 3550,
         "d30": 200,
@@ -4141,14 +4142,14 @@
         "d120": -400
       },
       "source": "kideesys-age-analysis",
-      "importedAt": "2026-05-28T08:38:50.245Z",
-      "kidesysSection": "Recently Owing"
+      "importedAt": "2099-12-31T23:59:59.999Z"
     },
     "RAS004": {
       "schoolId": "cmpideqeq0000108xb6ouv9zi",
       "accountRef": "RAS004",
       "accountHolder": "Pholoso Rasetlola",
-      "balance": 3500,
+      "kidesysSection": "Recently Owing",
+      "balance": 1241.52,
       "buckets": {
         "current": 3000,
         "d30": 500,
@@ -4157,14 +4158,14 @@
         "d120": 0
       },
       "source": "kideesys-age-analysis",
-      "importedAt": "2026-05-28T08:38:50.245Z",
-      "kidesysSection": "Recently Owing"
+      "importedAt": "2099-12-31T23:59:59.999Z"
     },
     "LER002": {
       "schoolId": "cmpideqeq0000108xb6ouv9zi",
       "accountRef": "LER002",
       "accountHolder": "Realeboga Leroke",
-      "balance": 3450,
+      "kidesysSection": "Recently Owing",
+      "balance": 1223.78,
       "buckets": {
         "current": 3550,
         "d30": 3550,
@@ -4173,14 +4174,14 @@
         "d120": -4500
       },
       "source": "kideesys-age-analysis",
-      "importedAt": "2026-05-28T08:38:50.245Z",
-      "kidesysSection": "Recently Owing"
+      "importedAt": "2099-12-31T23:59:59.999Z"
     },
     "MAT024": {
       "schoolId": "cmpideqeq0000108xb6ouv9zi",
       "accountRef": "MAT024",
       "accountHolder": "Realeboga Matshego",
-      "balance": 3550,
+      "kidesysSection": "Recently Owing",
+      "balance": 1259.26,
       "buckets": {
         "current": 3550,
         "d30": 0,
@@ -4189,14 +4190,14 @@
         "d120": -2000
       },
       "source": "kideesys-age-analysis",
-      "importedAt": "2026-05-28T08:38:50.245Z",
-      "kidesysSection": "Recently Owing"
+      "importedAt": "2099-12-31T23:59:59.999Z"
     },
     "MOR011": {
       "schoolId": "cmpideqeq0000108xb6ouv9zi",
       "accountRef": "MOR011",
       "accountHolder": "Rearabile Oreratile Moruane",
-      "balance": 3550,
+      "kidesysSection": "Recently Owing",
+      "balance": 1259.26,
       "buckets": {
         "current": 3550,
         "d30": 200,
@@ -4205,14 +4206,14 @@
         "d120": -200
       },
       "source": "kideesys-age-analysis",
-      "importedAt": "2026-05-28T08:38:50.245Z",
-      "kidesysSection": "Recently Owing"
+      "importedAt": "2099-12-31T23:59:59.999Z"
     },
     "MOL039": {
       "schoolId": "cmpideqeq0000108xb6ouv9zi",
       "accountRef": "MOL039",
       "accountHolder": "Reatlegile Faith Molefi",
-      "balance": 3400,
+      "kidesysSection": "Recently Owing",
+      "balance": 1206.05,
       "buckets": {
         "current": 3550,
         "d30": 3550,
@@ -4221,14 +4222,14 @@
         "d120": -6500
       },
       "source": "kideesys-age-analysis",
-      "importedAt": "2026-05-28T08:38:50.245Z",
-      "kidesysSection": "Recently Owing"
+      "importedAt": "2099-12-31T23:59:59.999Z"
     },
     "MOD010": {
       "schoolId": "cmpideqeq0000108xb6ouv9zi",
       "accountRef": "MOD010",
       "accountHolder": "Reatlegile Modibedi",
-      "balance": 6200,
+      "kidesysSection": "Recently Owing",
+      "balance": 2199.26,
       "buckets": {
         "current": 3550,
         "d30": 3550,
@@ -4237,14 +4238,14 @@
         "d120": -1960
       },
       "source": "kideesys-age-analysis",
-      "importedAt": "2026-05-28T08:38:50.245Z",
-      "kidesysSection": "Recently Owing"
+      "importedAt": "2099-12-31T23:59:59.999Z"
     },
     "POO003": {
       "schoolId": "cmpideqeq0000108xb6ouv9zi",
       "accountRef": "POO003",
       "accountHolder": "Reatlegile Reoikantse Poone",
-      "balance": 5100,
+      "kidesysSection": "Recently Owing",
+      "balance": 1809.07,
       "buckets": {
         "current": 4100,
         "d30": 1850,
@@ -4253,14 +4254,14 @@
         "d120": -850
       },
       "source": "kideesys-age-analysis",
-      "importedAt": "2026-05-28T08:38:50.245Z",
-      "kidesysSection": "Recently Owing"
+      "importedAt": "2099-12-31T23:59:59.999Z"
     },
     "MAL006": {
       "schoolId": "cmpideqeq0000108xb6ouv9zi",
       "accountRef": "MAL006",
       "accountHolder": "Reboikantse Omosa Mayana",
-      "balance": 5150,
+      "kidesysSection": "Recently Owing",
+      "balance": 1826.81,
       "buckets": {
         "current": 5150,
         "d30": 0,
@@ -4269,14 +4270,14 @@
         "d120": -3100
       },
       "source": "kideesys-age-analysis",
-      "importedAt": "2026-05-28T08:38:50.245Z",
-      "kidesysSection": "Recently Owing"
+      "importedAt": "2099-12-31T23:59:59.999Z"
     },
     "GAE002": {
       "schoolId": "cmpideqeq0000108xb6ouv9zi",
       "accountRef": "GAE002",
       "accountHolder": "Reitumetse Gaebone",
-      "balance": 4520,
+      "kidesysSection": "Recently Owing",
+      "balance": 1603.33,
       "buckets": {
         "current": 3800,
         "d30": 4000,
@@ -4285,14 +4286,14 @@
         "d120": -6240
       },
       "source": "kideesys-age-analysis",
-      "importedAt": "2026-05-28T08:38:50.245Z",
-      "kidesysSection": "Recently Owing"
+      "importedAt": "2099-12-31T23:59:59.999Z"
     },
     "TSH006": {
       "schoolId": "cmpideqeq0000108xb6ouv9zi",
       "accountRef": "TSH006",
       "accountHolder": "Reitumetse Naledi Njabulo Tshiponyane Setae",
-      "balance": 2850,
+      "kidesysSection": "Recently Owing",
+      "balance": 1010.95,
       "buckets": {
         "current": 3000,
         "d30": 3000,
@@ -4301,14 +4302,14 @@
         "d120": -7350
       },
       "source": "kideesys-age-analysis",
-      "importedAt": "2026-05-28T08:38:50.245Z",
-      "kidesysSection": "Recently Owing"
+      "importedAt": "2099-12-31T23:59:59.999Z"
     },
     "MOL020": {
       "schoolId": "cmpideqeq0000108xb6ouv9zi",
       "accountRef": "MOL020",
       "accountHolder": "Rekgabile Molefe",
-      "balance": 3700,
+      "kidesysSection": "Recently Owing",
+      "balance": 1312.46,
       "buckets": {
         "current": 3000,
         "d30": 950,
@@ -4317,14 +4318,14 @@
         "d120": -250
       },
       "source": "kideesys-age-analysis",
-      "importedAt": "2026-05-28T08:38:50.245Z",
-      "kidesysSection": "Recently Owing"
+      "importedAt": "2099-12-31T23:59:59.999Z"
     },
     "TSH019": {
       "schoolId": "cmpideqeq0000108xb6ouv9zi",
       "accountRef": "TSH019",
       "accountHolder": "Relesego Ontiretse Tsheloane",
-      "balance": 3000,
+      "kidesysSection": "Recently Owing",
+      "balance": 1064.16,
       "buckets": {
         "current": 3000,
         "d30": 0,
@@ -4333,14 +4334,14 @@
         "d120": 0
       },
       "source": "kideesys-age-analysis",
-      "importedAt": "2026-05-28T08:38:50.245Z",
-      "kidesysSection": "Recently Owing"
+      "importedAt": "2099-12-31T23:59:59.999Z"
     },
     "KEN001": {
       "schoolId": "cmpideqeq0000108xb6ouv9zi",
       "accountRef": "KEN001",
       "accountHolder": "Remofeilwe Keneilwe",
-      "balance": 3000,
+      "kidesysSection": "Recently Owing",
+      "balance": 1064.16,
       "buckets": {
         "current": 3000,
         "d30": 0,
@@ -4349,14 +4350,14 @@
         "d120": -2785
       },
       "source": "kideesys-age-analysis",
-      "importedAt": "2026-05-28T08:38:50.245Z",
-      "kidesysSection": "Recently Owing"
+      "importedAt": "2099-12-31T23:59:59.999Z"
     },
     "MAL018": {
       "schoolId": "cmpideqeq0000108xb6ouv9zi",
       "accountRef": "MAL018",
       "accountHolder": "Remoneilwe Daniel Maloma",
-      "balance": 750,
+      "kidesysSection": "Recently Owing",
+      "balance": 266.04,
       "buckets": {
         "current": 3450,
         "d30": 0,
@@ -4365,14 +4366,14 @@
         "d120": -2700
       },
       "source": "kideesys-age-analysis",
-      "importedAt": "2026-05-28T08:38:50.245Z",
-      "kidesysSection": "Recently Owing"
+      "importedAt": "2099-12-31T23:59:59.999Z"
     },
     "RAM015": {
       "schoolId": "cmpideqeq0000108xb6ouv9zi",
       "accountRef": "RAM015",
       "accountHolder": "Remoneilwe Johanna Mothuloe",
-      "balance": 3550,
+      "kidesysSection": "Recently Owing",
+      "balance": 1259.26,
       "buckets": {
         "current": 3550,
         "d30": 2600,
@@ -4381,14 +4382,14 @@
         "d120": -2600
       },
       "source": "kideesys-age-analysis",
-      "importedAt": "2026-05-28T08:38:50.245Z",
-      "kidesysSection": "Recently Owing"
+      "importedAt": "2099-12-31T23:59:59.999Z"
     },
     "RAN008": {
       "schoolId": "cmpideqeq0000108xb6ouv9zi",
       "accountRef": "RAN008",
       "accountHolder": "Reneilwe Kemelo Rangaka",
-      "balance": 3000,
+      "kidesysSection": "Recently Owing",
+      "balance": 1064.16,
       "buckets": {
         "current": 3000,
         "d30": 0,
@@ -4397,14 +4398,14 @@
         "d120": 0
       },
       "source": "kideesys-age-analysis",
-      "importedAt": "2026-05-28T08:38:50.245Z",
-      "kidesysSection": "Recently Owing"
+      "importedAt": "2099-12-31T23:59:59.999Z"
     },
     "SIN001": {
       "schoolId": "cmpideqeq0000108xb6ouv9zi",
       "accountRef": "SIN001",
       "accountHolder": "Reneilwe Sindale",
-      "balance": 6700,
+      "kidesysSection": "Recently Owing",
+      "balance": 2376.62,
       "buckets": {
         "current": 3550,
         "d30": 3550,
@@ -4413,14 +4414,14 @@
         "d120": -3500
       },
       "source": "kideesys-age-analysis",
-      "importedAt": "2026-05-28T08:38:50.245Z",
-      "kidesysSection": "Recently Owing"
+      "importedAt": "2099-12-31T23:59:59.999Z"
     },
     "NHL002": {
       "schoolId": "cmpideqeq0000108xb6ouv9zi",
       "accountRef": "NHL002",
       "accountHolder": "Rethabile Nhlapo",
-      "balance": 3800,
+      "kidesysSection": "Recently Owing",
+      "balance": 1347.94,
       "buckets": {
         "current": 3550,
         "d30": 3750,
@@ -4429,14 +4430,14 @@
         "d120": -11300
       },
       "source": "kideesys-age-analysis",
-      "importedAt": "2026-05-28T08:38:50.245Z",
-      "kidesysSection": "Recently Owing"
+      "importedAt": "2099-12-31T23:59:59.999Z"
     },
     "RAM011": {
       "schoolId": "cmpideqeq0000108xb6ouv9zi",
       "accountRef": "RAM011",
       "accountHolder": "Rethabile Ramalete",
-      "balance": 3550,
+      "kidesysSection": "Recently Owing",
+      "balance": 1259.26,
       "buckets": {
         "current": 3550,
         "d30": 1860,
@@ -4445,14 +4446,14 @@
         "d120": -1860
       },
       "source": "kideesys-age-analysis",
-      "importedAt": "2026-05-28T08:38:50.245Z",
-      "kidesysSection": "Recently Owing"
+      "importedAt": "2099-12-31T23:59:59.999Z"
     },
     "KER001": {
       "schoolId": "cmpideqeq0000108xb6ouv9zi",
       "accountRef": "KER001",
       "accountHolder": "Retshegofetse Keretetse",
-      "balance": 3000,
+      "kidesysSection": "Recently Owing",
+      "balance": 1064.16,
       "buckets": {
         "current": 3000,
         "d30": 0,
@@ -4461,14 +4462,14 @@
         "d120": 0
       },
       "source": "kideesys-age-analysis",
-      "importedAt": "2026-05-28T08:38:50.245Z",
-      "kidesysSection": "Recently Owing"
+      "importedAt": "2099-12-31T23:59:59.999Z"
     },
     "WIL002": {
       "schoolId": "cmpideqeq0000108xb6ouv9zi",
       "accountRef": "WIL002",
       "accountHolder": "Rishon Kyle Williams",
-      "balance": 3150,
+      "kidesysSection": "Recently Owing",
+      "balance": 1117.37,
       "buckets": {
         "current": 3550,
         "d30": 3550,
@@ -4477,14 +4478,14 @@
         "d120": -11750
       },
       "source": "kideesys-age-analysis",
-      "importedAt": "2026-05-28T08:38:50.245Z",
-      "kidesysSection": "Recently Owing"
+      "importedAt": "2099-12-31T23:59:59.999Z"
     },
     "NHL001": {
       "schoolId": "cmpideqeq0000108xb6ouv9zi",
       "accountRef": "NHL001",
       "accountHolder": "Rorisang Nhlapo",
-      "balance": 3800,
+      "kidesysSection": "Recently Owing",
+      "balance": 1347.94,
       "buckets": {
         "current": 3550,
         "d30": 3750,
@@ -4493,14 +4494,14 @@
         "d120": -8100
       },
       "source": "kideesys-age-analysis",
-      "importedAt": "2026-05-28T08:38:50.245Z",
-      "kidesysSection": "Recently Owing"
+      "importedAt": "2099-12-31T23:59:59.999Z"
     },
     "JAM001": {
       "schoolId": "cmpideqeq0000108xb6ouv9zi",
       "accountRef": "JAM001",
       "accountHolder": "Shadreck James",
-      "balance": 1200,
+      "kidesysSection": "Recently Owing",
+      "balance": 425.66,
       "buckets": {
         "current": 1200,
         "d30": 1200,
@@ -4509,14 +4510,14 @@
         "d120": -2700
       },
       "source": "kideesys-age-analysis",
-      "importedAt": "2026-05-28T08:38:50.245Z",
-      "kidesysSection": "Recently Owing"
+      "importedAt": "2099-12-31T23:59:59.999Z"
     },
     "DIK001": {
       "schoolId": "cmpideqeq0000108xb6ouv9zi",
       "accountRef": "DIK001",
       "accountHolder": "Sinenhlanhla Dikana Iviwe",
-      "balance": 4200,
+      "kidesysSection": "Recently Owing",
+      "balance": 1489.82,
       "buckets": {
         "current": 3000,
         "d30": 3500,
@@ -4525,14 +4526,14 @@
         "d120": -2700
       },
       "source": "kideesys-age-analysis",
-      "importedAt": "2026-05-28T08:38:50.245Z",
-      "kidesysSection": "Recently Owing"
+      "importedAt": "2099-12-31T23:59:59.999Z"
     },
     "MSI003": {
       "schoolId": "cmpideqeq0000108xb6ouv9zi",
       "accountRef": "MSI003",
       "accountHolder": "Somusa Sibani Msimango",
-      "balance": 3700,
+      "kidesysSection": "Recently Owing",
+      "balance": 1312.46,
       "buckets": {
         "current": 3000,
         "d30": 3000,
@@ -4541,14 +4542,14 @@
         "d120": -2700
       },
       "source": "kideesys-age-analysis",
-      "importedAt": "2026-05-28T08:38:50.245Z",
-      "kidesysSection": "Recently Owing"
+      "importedAt": "2099-12-31T23:59:59.999Z"
     },
     "PEB002": {
       "schoolId": "cmpideqeq0000108xb6ouv9zi",
       "accountRef": "PEB002",
       "accountHolder": "Teboho Pebane\nJunior Pebane",
-      "balance": 12600,
+      "kidesysSection": "Recently Owing",
+      "balance": 4469.47,
       "buckets": {
         "current": 7700,
         "d30": 7185,
@@ -4557,14 +4558,14 @@
         "d120": -2285
       },
       "source": "kideesys-age-analysis",
-      "importedAt": "2026-05-28T08:38:50.245Z",
-      "kidesysSection": "Recently Owing"
+      "importedAt": "2099-12-31T23:59:59.999Z"
     },
     "MAB011": {
       "schoolId": "cmpideqeq0000108xb6ouv9zi",
       "accountRef": "MAB011",
       "accountHolder": "Thandekile Princess Mabuza",
-      "balance": 5000,
+      "kidesysSection": "Recently Owing",
+      "balance": 1773.6,
       "buckets": {
         "current": 3000,
         "d30": 3300,
@@ -4573,14 +4574,14 @@
         "d120": -2700
       },
       "source": "kideesys-age-analysis",
-      "importedAt": "2026-05-28T08:38:50.245Z",
-      "kidesysSection": "Recently Owing"
+      "importedAt": "2099-12-31T23:59:59.999Z"
     },
     "LEG003": {
       "schoolId": "cmpideqeq0000108xb6ouv9zi",
       "accountRef": "LEG003",
       "accountHolder": "Thato Legari",
-      "balance": 4350,
+      "kidesysSection": "Recently Owing",
+      "balance": 1543.03,
       "buckets": {
         "current": 4350,
         "d30": 4395,
@@ -4589,14 +4590,14 @@
         "d120": -4395
       },
       "source": "kideesys-age-analysis",
-      "importedAt": "2026-05-28T08:38:50.245Z",
-      "kidesysSection": "Recently Owing"
+      "importedAt": "2099-12-31T23:59:59.999Z"
     },
     "MOT016": {
       "schoolId": "cmpideqeq0000108xb6ouv9zi",
       "accountRef": "MOT016",
       "accountHolder": "Thoriso Mothibedi",
-      "balance": 3000,
+      "kidesysSection": "Recently Owing",
+      "balance": 1064.16,
       "buckets": {
         "current": 3000,
         "d30": 3000,
@@ -4605,14 +4606,14 @@
         "d120": -3750
       },
       "source": "kideesys-age-analysis",
-      "importedAt": "2026-05-28T08:38:50.245Z",
-      "kidesysSection": "Recently Owing"
+      "importedAt": "2099-12-31T23:59:59.999Z"
     },
     "LET012": {
       "schoolId": "cmpideqeq0000108xb6ouv9zi",
       "accountRef": "LET012",
       "accountHolder": "Tlhokomelo Letsoalo",
-      "balance": 3000,
+      "kidesysSection": "Recently Owing",
+      "balance": 1064.16,
       "buckets": {
         "current": 3000,
         "d30": 0,
@@ -4621,14 +4622,14 @@
         "d120": -1400
       },
       "source": "kideesys-age-analysis",
-      "importedAt": "2026-05-28T08:38:50.245Z",
-      "kidesysSection": "Recently Owing"
+      "importedAt": "2099-12-31T23:59:59.999Z"
     },
     "MAB008": {
       "schoolId": "cmpideqeq0000108xb6ouv9zi",
       "accountRef": "MAB008",
       "accountHolder": "Tlotlego Mabena",
-      "balance": 2500,
+      "kidesysSection": "Recently Owing",
+      "balance": 886.8,
       "buckets": {
         "current": 3000,
         "d30": 0,
@@ -4637,14 +4638,14 @@
         "d120": -2470
       },
       "source": "kideesys-age-analysis",
-      "importedAt": "2026-05-28T08:38:50.245Z",
-      "kidesysSection": "Recently Owing"
+      "importedAt": "2099-12-31T23:59:59.999Z"
     },
     "MOD019": {
       "schoolId": "cmpideqeq0000108xb6ouv9zi",
       "accountRef": "MOD019",
       "accountHolder": "Tlotso Modisane",
-      "balance": 5300,
+      "kidesysSection": "Recently Owing",
+      "balance": 1880.02,
       "buckets": {
         "current": 4350,
         "d30": 2750,
@@ -4653,14 +4654,14 @@
         "d120": -1800
       },
       "source": "kideesys-age-analysis",
-      "importedAt": "2026-05-28T08:38:50.245Z",
-      "kidesysSection": "Recently Owing"
+      "importedAt": "2099-12-31T23:59:59.999Z"
     },
     "MOT010": {
       "schoolId": "cmpideqeq0000108xb6ouv9zi",
       "accountRef": "MOT010",
       "accountHolder": "Tokelo Motshwanedi",
-      "balance": 3000,
+      "kidesysSection": "Recently Owing",
+      "balance": 1064.16,
       "buckets": {
         "current": 3000,
         "d30": 0,
@@ -4669,14 +4670,14 @@
         "d120": -2700
       },
       "source": "kideesys-age-analysis",
-      "importedAt": "2026-05-28T08:38:50.245Z",
-      "kidesysSection": "Recently Owing"
+      "importedAt": "2099-12-31T23:59:59.999Z"
     },
     "MOY005": {
       "schoolId": "cmpideqeq0000108xb6ouv9zi",
       "accountRef": "MOY005",
       "accountHolder": "Trevor Moyambo",
-      "balance": 3750,
+      "kidesysSection": "Recently Owing",
+      "balance": 1330.2,
       "buckets": {
         "current": 3550,
         "d30": 250,
@@ -4685,14 +4686,14 @@
         "d120": -50
       },
       "source": "kideesys-age-analysis",
-      "importedAt": "2026-05-28T08:38:50.245Z",
-      "kidesysSection": "Recently Owing"
+      "importedAt": "2099-12-31T23:59:59.999Z"
     },
     "DIN002": {
       "schoolId": "cmpideqeq0000108xb6ouv9zi",
       "accountRef": "DIN002",
       "accountHolder": "Tshegofatso Kayla Dinale\nMasego Dinale",
-      "balance": 6900,
+      "kidesysSection": "Recently Owing",
+      "balance": 2447.57,
       "buckets": {
         "current": 7100,
         "d30": 2900,
@@ -4701,14 +4702,14 @@
         "d120": -3100
       },
       "source": "kideesys-age-analysis",
-      "importedAt": "2026-05-28T08:38:50.245Z",
-      "kidesysSection": "Recently Owing"
+      "importedAt": "2099-12-31T23:59:59.999Z"
     },
     "MOS021": {
       "schoolId": "cmpideqeq0000108xb6ouv9zi",
       "accountRef": "MOS021",
       "accountHolder": "Tshepiso Mosiatana",
-      "balance": 3800,
+      "kidesysSection": "Recently Owing",
+      "balance": 1347.94,
       "buckets": {
         "current": 3800,
         "d30": 0,
@@ -4717,14 +4718,14 @@
         "d120": 0
       },
       "source": "kideesys-age-analysis",
-      "importedAt": "2026-05-28T08:38:50.245Z",
-      "kidesysSection": "Recently Owing"
+      "importedAt": "2099-12-31T23:59:59.999Z"
     },
     "SEN959": {
       "schoolId": "cmpideqeq0000108xb6ouv9zi",
       "accountRef": "SEN959",
       "accountHolder": "Tshiamo Will Senne",
-      "balance": 3000,
+      "kidesysSection": "Recently Owing",
+      "balance": 1064.16,
       "buckets": {
         "current": 3000,
         "d30": 3000,
@@ -4733,14 +4734,14 @@
         "d120": -6700
       },
       "source": "kideesys-age-analysis",
-      "importedAt": "2026-05-28T08:38:50.245Z",
-      "kidesysSection": "Recently Owing"
+      "importedAt": "2099-12-31T23:59:59.999Z"
     },
     "MAS028": {
       "schoolId": "cmpideqeq0000108xb6ouv9zi",
       "accountRef": "MAS028",
       "accountHolder": "Tshimologo Botlhale Maseko",
-      "balance": 3750,
+      "kidesysSection": "Recently Owing",
+      "balance": 1330.2,
       "buckets": {
         "current": 3550,
         "d30": 1800,
@@ -4749,14 +4750,14 @@
         "d120": -1600
       },
       "source": "kideesys-age-analysis",
-      "importedAt": "2026-05-28T08:38:50.245Z",
-      "kidesysSection": "Recently Owing"
+      "importedAt": "2099-12-31T23:59:59.999Z"
     },
     "MOR015": {
       "schoolId": "cmpideqeq0000108xb6ouv9zi",
       "accountRef": "MOR015",
       "accountHolder": "Tshimologo Genesis Moreriane",
-      "balance": 3350,
+      "kidesysSection": "Recently Owing",
+      "balance": 1188.31,
       "buckets": {
         "current": 3350,
         "d30": 0,
@@ -4765,14 +4766,14 @@
         "d120": 0
       },
       "source": "kideesys-age-analysis",
-      "importedAt": "2026-05-28T08:38:50.245Z",
-      "kidesysSection": "Recently Owing"
+      "importedAt": "2099-12-31T23:59:59.999Z"
     },
     "MOD004": {
       "schoolId": "cmpideqeq0000108xb6ouv9zi",
       "accountRef": "MOD004",
       "accountHolder": "Tshimologo Modise",
-      "balance": 2300,
+      "kidesysSection": "Recently Owing",
+      "balance": 815.86,
       "buckets": {
         "current": 3000,
         "d30": 1300,
@@ -4781,14 +4782,14 @@
         "d120": -2000
       },
       "source": "kideesys-age-analysis",
-      "importedAt": "2026-05-28T08:38:50.245Z",
-      "kidesysSection": "Recently Owing"
+      "importedAt": "2099-12-31T23:59:59.999Z"
     },
     "MOD012": {
       "schoolId": "cmpideqeq0000108xb6ouv9zi",
       "accountRef": "MOD012",
       "accountHolder": "Tshireletso Kgato Modise",
-      "balance": 3000,
+      "kidesysSection": "Recently Owing",
+      "balance": 1064.16,
       "buckets": {
         "current": 3000,
         "d30": 0,
@@ -4797,14 +4798,14 @@
         "d120": -2700
       },
       "source": "kideesys-age-analysis",
-      "importedAt": "2026-05-28T08:38:50.245Z",
-      "kidesysSection": "Recently Owing"
+      "importedAt": "2099-12-31T23:59:59.999Z"
     },
     "MOD006": {
       "schoolId": "cmpideqeq0000108xb6ouv9zi",
       "accountRef": "MOD006",
       "accountHolder": "Tswelopele Botshelo Modisane",
-      "balance": 3500,
+      "kidesysSection": "Recently Owing",
+      "balance": 1241.52,
       "buckets": {
         "current": 3550,
         "d30": 3550,
@@ -4813,14 +4814,14 @@
         "d120": -9600
       },
       "source": "kideesys-age-analysis",
-      "importedAt": "2026-05-28T08:38:50.245Z",
-      "kidesysSection": "Recently Owing"
+      "importedAt": "2099-12-31T23:59:59.999Z"
     },
     "MAH007": {
       "schoolId": "cmpideqeq0000108xb6ouv9zi",
       "accountRef": "MAH007",
       "accountHolder": "Umme - Haani Mahomed Hoosen",
-      "balance": 3000,
+      "kidesysSection": "Recently Owing",
+      "balance": 1064.16,
       "buckets": {
         "current": 3000,
         "d30": 3000,
@@ -4829,14 +4830,14 @@
         "d120": -3000
       },
       "source": "kideesys-age-analysis",
-      "importedAt": "2026-05-28T08:38:50.245Z",
-      "kidesysSection": "Recently Owing"
+      "importedAt": "2099-12-31T23:59:59.999Z"
     },
     "MFE002": {
       "schoolId": "cmpideqeq0000108xb6ouv9zi",
       "accountRef": "MFE002",
       "accountHolder": "Uyanda Mfene\nAyanda Mfene",
-      "balance": 12800,
+      "kidesysSection": "Recently Owing",
+      "balance": 4540.41,
       "buckets": {
         "current": 8200,
         "d30": 7600,
@@ -4845,14 +4846,14 @@
         "d120": -19600
       },
       "source": "kideesys-age-analysis",
-      "importedAt": "2026-05-28T08:38:50.245Z",
-      "kidesysSection": "Recently Owing"
+      "importedAt": "2099-12-31T23:59:59.999Z"
     },
     "VUT001": {
       "schoolId": "cmpideqeq0000108xb6ouv9zi",
       "accountRef": "VUT001",
       "accountHolder": "Vutlhari Botake",
-      "balance": 3850,
+      "kidesysSection": "Recently Owing",
+      "balance": 1365.67,
       "buckets": {
         "current": 3850,
         "d30": 250,
@@ -4861,14 +4862,14 @@
         "d120": -250
       },
       "source": "kideesys-age-analysis",
-      "importedAt": "2026-05-28T08:38:50.245Z",
-      "kidesysSection": "Recently Owing"
+      "importedAt": "2099-12-31T23:59:59.999Z"
     },
     "VUS001": {
       "schoolId": "cmpideqeq0000108xb6ouv9zi",
       "accountRef": "VUS001",
       "accountHolder": "Vuyolwethu Vusumzi Jack",
-      "balance": 3200,
+      "kidesysSection": "Recently Owing",
+      "balance": 1135.1,
       "buckets": {
         "current": 3550,
         "d30": 950,
@@ -4877,14 +4878,14 @@
         "d120": -930
       },
       "source": "kideesys-age-analysis",
-      "importedAt": "2026-05-28T08:38:50.245Z",
-      "kidesysSection": "Recently Owing"
+      "importedAt": "2099-12-31T23:59:59.999Z"
     },
     "MOS009": {
       "schoolId": "cmpideqeq0000108xb6ouv9zi",
       "accountRef": "MOS009",
       "accountHolder": "Wandile Mosito",
-      "balance": 3700,
+      "kidesysSection": "Recently Owing",
+      "balance": 1312.46,
       "buckets": {
         "current": 3000,
         "d30": 3000,
@@ -4893,14 +4894,14 @@
         "d120": -3590
       },
       "source": "kideesys-age-analysis",
-      "importedAt": "2026-05-28T08:38:50.245Z",
-      "kidesysSection": "Recently Owing"
+      "importedAt": "2099-12-31T23:59:59.999Z"
     },
     "RAK005": {
       "schoolId": "cmpideqeq0000108xb6ouv9zi",
       "accountRef": "RAK005",
       "accountHolder": "Zaina Rakgokong",
-      "balance": 900,
+      "kidesysSection": "Recently Owing",
+      "balance": 319.25,
       "buckets": {
         "current": 900,
         "d30": 0,
@@ -4909,13 +4910,13 @@
         "d120": 0
       },
       "source": "kideesys-age-analysis",
-      "importedAt": "2026-05-28T08:38:50.245Z",
-      "kidesysSection": "Recently Owing"
+      "importedAt": "2099-12-31T23:59:59.999Z"
     },
     "MAR005": {
       "schoolId": "cmpideqeq0000108xb6ouv9zi",
       "accountRef": "MAR005",
       "accountHolder": "Alunamda Luyamkela Marman",
+      "kidesysSection": "Paid Up",
       "balance": 0,
       "buckets": {
         "current": 3700,
@@ -4925,13 +4926,13 @@
         "d120": -3700
       },
       "source": "kideesys-age-analysis",
-      "importedAt": "2026-05-28T08:38:50.245Z",
-      "kidesysSection": "Paid Up"
+      "importedAt": "2099-12-31T23:59:59.999Z"
     },
     "MON014": {
       "schoolId": "cmpideqeq0000108xb6ouv9zi",
       "accountRef": "MON014",
       "accountHolder": "Grace Monaise",
+      "kidesysSection": "Paid Up",
       "balance": 0,
       "buckets": {
         "current": 2800,
@@ -4941,13 +4942,13 @@
         "d120": -11800
       },
       "source": "kideesys-age-analysis",
-      "importedAt": "2026-05-28T08:38:50.245Z",
-      "kidesysSection": "Paid Up"
+      "importedAt": "2099-12-31T23:59:59.999Z"
     },
     "MON012": {
       "schoolId": "cmpideqeq0000108xb6ouv9zi",
       "accountRef": "MON012",
       "accountHolder": "Lethabo Lincoln Monaise",
+      "kidesysSection": "Paid Up",
       "balance": 0,
       "buckets": {
         "current": 3550,
@@ -4957,13 +4958,13 @@
         "d120": -14900
       },
       "source": "kideesys-age-analysis",
-      "importedAt": "2026-05-28T08:38:50.245Z",
-      "kidesysSection": "Paid Up"
+      "importedAt": "2099-12-31T23:59:59.999Z"
     },
     "MLA002": {
       "schoolId": "cmpideqeq0000108xb6ouv9zi",
       "accountRef": "MLA002",
       "accountHolder": "Mohau Mlambo",
+      "kidesysSection": "Paid Up",
       "balance": 0,
       "buckets": {
         "current": 3000,
@@ -4973,13 +4974,13 @@
         "d120": -3000
       },
       "source": "kideesys-age-analysis",
-      "importedAt": "2026-05-28T08:38:50.245Z",
-      "kidesysSection": "Paid Up"
+      "importedAt": "2099-12-31T23:59:59.999Z"
     },
     "PHI004": {
       "schoolId": "cmpideqeq0000108xb6ouv9zi",
       "accountRef": "PHI004",
       "accountHolder": "Opelong Wame Fortunate Phiri",
+      "kidesysSection": "Paid Up",
       "balance": 0,
       "buckets": {
         "current": 0,
@@ -4989,13 +4990,13 @@
         "d120": -850
       },
       "source": "kideesys-age-analysis",
-      "importedAt": "2026-05-28T08:38:50.245Z",
-      "kidesysSection": "Paid Up"
+      "importedAt": "2099-12-31T23:59:59.999Z"
     },
     "MAS030": {
       "schoolId": "cmpideqeq0000108xb6ouv9zi",
       "accountRef": "MAS030",
       "accountHolder": "Thoriso Masenamela",
+      "kidesysSection": "Paid Up",
       "balance": 0,
       "buckets": {
         "current": 3550,
@@ -5005,13 +5006,13 @@
         "d120": -3610
       },
       "source": "kideesys-age-analysis",
-      "importedAt": "2026-05-28T08:38:50.245Z",
-      "kidesysSection": "Paid Up"
+      "importedAt": "2099-12-31T23:59:59.999Z"
     },
     "CHI002": {
       "schoolId": "cmpideqeq0000108xb6ouv9zi",
       "accountRef": "CHI002",
       "accountHolder": "Wesley Unathi Nkabinde",
+      "kidesysSection": "Paid Up",
       "balance": 0,
       "buckets": {
         "current": 3000,
@@ -5021,14 +5022,14 @@
         "d120": -10000
       },
       "source": "kideesys-age-analysis",
-      "importedAt": "2026-05-28T08:38:50.245Z",
-      "kidesysSection": "Paid Up"
+      "importedAt": "2099-12-31T23:59:59.999Z"
     },
     "SIL007": {
       "schoolId": "cmpideqeq0000108xb6ouv9zi",
       "accountRef": "SIL007",
       "accountHolder": "Adrien Martins Da Silva",
-      "balance": -18000,
+      "kidesysSection": "Over Paid",
+      "balance": -20599.12,
       "buckets": {
         "current": 3000,
         "d30": 3000,
@@ -5037,14 +5038,14 @@
         "d120": -30700
       },
       "source": "kideesys-age-analysis",
-      "importedAt": "2026-05-28T08:38:50.245Z",
-      "kidesysSection": "Over Paid"
+      "importedAt": "2099-12-31T23:59:59.999Z"
     },
     "DUP001": {
       "schoolId": "cmpideqeq0000108xb6ouv9zi",
       "accountRef": "DUP001",
       "accountHolder": "Aiden Jacques Du Plessis",
-      "balance": -8700,
+      "kidesysSection": "Over Paid",
+      "balance": -9956.24,
       "buckets": {
         "current": 3550,
         "d30": 3000,
@@ -5053,14 +5054,14 @@
         "d120": 0
       },
       "source": "kideesys-age-analysis",
-      "importedAt": "2026-05-28T08:38:50.245Z",
-      "kidesysSection": "Over Paid"
+      "importedAt": "2099-12-31T23:59:59.999Z"
     },
     "KGA004": {
       "schoolId": "cmpideqeq0000108xb6ouv9zi",
       "accountRef": "KGA004",
       "accountHolder": "Boikanyego Masego Kgang",
-      "balance": -35290,
+      "kidesysSection": "Over Paid",
+      "balance": -40385.71,
       "buckets": {
         "current": 4350,
         "d30": 3550,
@@ -5069,14 +5070,14 @@
         "d120": -46190
       },
       "source": "kideesys-age-analysis",
-      "importedAt": "2026-05-28T08:38:50.245Z",
-      "kidesysSection": "Over Paid"
+      "importedAt": "2099-12-31T23:59:59.999Z"
     },
     "MOL017": {
       "schoolId": "cmpideqeq0000108xb6ouv9zi",
       "accountRef": "MOL017",
       "accountHolder": "Dintle Grace Molahlehi",
-      "balance": -300,
+      "kidesysSection": "Over Paid",
+      "balance": -343.32,
       "buckets": {
         "current": 1000,
         "d30": 0,
@@ -5085,14 +5086,14 @@
         "d120": -2000
       },
       "source": "kideesys-age-analysis",
-      "importedAt": "2026-05-28T08:38:50.245Z",
-      "kidesysSection": "Over Paid"
+      "importedAt": "2099-12-31T23:59:59.999Z"
     },
     "MAK025": {
       "schoolId": "cmpideqeq0000108xb6ouv9zi",
       "accountRef": "MAK025",
       "accountHolder": "Enough Makeleni",
-      "balance": -5160,
+      "kidesysSection": "Over Paid",
+      "balance": -5905.08,
       "buckets": {
         "current": 3000,
         "d30": 3550,
@@ -5101,14 +5102,14 @@
         "d120": -14510
       },
       "source": "kideesys-age-analysis",
-      "importedAt": "2026-05-28T08:38:50.245Z",
-      "kidesysSection": "Over Paid"
+      "importedAt": "2099-12-31T23:59:59.999Z"
     },
     "PER001": {
       "schoolId": "cmpideqeq0000108xb6ouv9zi",
       "accountRef": "PER001",
       "accountHolder": "Evalynn Pereira",
-      "balance": -27900,
+      "kidesysSection": "Over Paid",
+      "balance": -31928.63,
       "buckets": {
         "current": 1000,
         "d30": 1000,
@@ -5117,14 +5118,14 @@
         "d120": -32600
       },
       "source": "kideesys-age-analysis",
-      "importedAt": "2026-05-28T08:38:50.245Z",
-      "kidesysSection": "Over Paid"
+      "importedAt": "2099-12-31T23:59:59.999Z"
     },
     "MOK037": {
       "schoolId": "cmpideqeq0000108xb6ouv9zi",
       "accountRef": "MOK037",
       "accountHolder": "Imani Mokaleng",
-      "balance": -13850,
+      "kidesysSection": "Over Paid",
+      "balance": -15849.88,
       "buckets": {
         "current": 4350,
         "d30": 4550,
@@ -5133,14 +5134,14 @@
         "d120": -32150
       },
       "source": "kideesys-age-analysis",
-      "importedAt": "2026-05-28T08:38:50.245Z",
-      "kidesysSection": "Over Paid"
+      "importedAt": "2099-12-31T23:59:59.999Z"
     },
     "SET005": {
       "schoolId": "cmpideqeq0000108xb6ouv9zi",
       "accountRef": "SET005",
       "accountHolder": "Junior Tshwetso Setibane",
-      "balance": -6300,
+      "kidesysSection": "Over Paid",
+      "balance": -7209.69,
       "buckets": {
         "current": 3350,
         "d30": -3350,
@@ -5149,14 +5150,14 @@
         "d120": -3600
       },
       "source": "kideesys-age-analysis",
-      "importedAt": "2026-05-28T08:38:50.245Z",
-      "kidesysSection": "Over Paid"
+      "importedAt": "2099-12-31T23:59:59.999Z"
     },
     "MAK021": {
       "schoolId": "cmpideqeq0000108xb6ouv9zi",
       "accountRef": "MAK021",
       "accountHolder": "Keamogetswe Naledi Makhasi",
-      "balance": -10833.95,
+      "kidesysSection": "Over Paid",
+      "balance": -12398.32,
       "buckets": {
         "current": 3550,
         "d30": 3550,
@@ -5165,14 +5166,14 @@
         "d120": -16122.11
       },
       "source": "kideesys-age-analysis",
-      "importedAt": "2026-05-28T08:38:50.245Z",
-      "kidesysSection": "Over Paid"
+      "importedAt": "2099-12-31T23:59:59.999Z"
     },
     "MOG001": {
       "schoolId": "cmpideqeq0000108xb6ouv9zi",
       "accountRef": "MOG001",
       "accountHolder": "Kgabiso Mogwera Masilela",
-      "balance": -500,
+      "kidesysSection": "Over Paid",
+      "balance": -572.2,
       "buckets": {
         "current": 2150,
         "d30": 2150,
@@ -5181,14 +5182,14 @@
         "d120": -9800
       },
       "source": "kideesys-age-analysis",
-      "importedAt": "2026-05-28T08:38:50.245Z",
-      "kidesysSection": "Over Paid"
+      "importedAt": "2099-12-31T23:59:59.999Z"
     },
     "MAS001": {
       "schoolId": "cmpideqeq0000108xb6ouv9zi",
       "accountRef": "MAS001",
       "accountHolder": "Kgantso Masilela",
-      "balance": -19510,
+      "kidesysSection": "Over Paid",
+      "balance": -22327.15,
       "buckets": {
         "current": 3000,
         "d30": 3000,
@@ -5197,14 +5198,14 @@
         "d120": -35810
       },
       "source": "kideesys-age-analysis",
-      "importedAt": "2026-05-28T08:38:50.245Z",
-      "kidesysSection": "Over Paid"
+      "importedAt": "2099-12-31T23:59:59.999Z"
     },
     "MOS019": {
       "schoolId": "cmpideqeq0000108xb6ouv9zi",
       "accountRef": "MOS019",
       "accountHolder": "Kgaogelo Mosweu",
-      "balance": -0.08,
+      "kidesysSection": "Over Paid",
+      "balance": -0.09,
       "buckets": {
         "current": 3000,
         "d30": -3000.08,
@@ -5213,14 +5214,14 @@
         "d120": 0
       },
       "source": "kideesys-age-analysis",
-      "importedAt": "2026-05-28T08:38:50.245Z",
-      "kidesysSection": "Over Paid"
+      "importedAt": "2099-12-31T23:59:59.999Z"
     },
     "LEP003": {
       "schoolId": "cmpideqeq0000108xb6ouv9zi",
       "accountRef": "LEP003",
       "accountHolder": "Kitso-entle Lephoto",
-      "balance": -2100,
+      "kidesysSection": "Over Paid",
+      "balance": -2403.23,
       "buckets": {
         "current": 3000,
         "d30": -1930,
@@ -5229,14 +5230,14 @@
         "d120": -3170
       },
       "source": "kideesys-age-analysis",
-      "importedAt": "2026-05-28T08:38:50.245Z",
-      "kidesysSection": "Over Paid"
+      "importedAt": "2099-12-31T23:59:59.999Z"
     },
     "PHA009": {
       "schoolId": "cmpideqeq0000108xb6ouv9zi",
       "accountRef": "PHA009",
       "accountHolder": "Kopano Phakati\nKgatoentle Phakati",
-      "balance": -34600,
+      "kidesysSection": "Over Paid",
+      "balance": -39596.08,
       "buckets": {
         "current": 6000,
         "d30": 6000,
@@ -5245,14 +5246,14 @@
         "d120": -60000
       },
       "source": "kideesys-age-analysis",
-      "importedAt": "2026-05-28T08:38:50.245Z",
-      "kidesysSection": "Over Paid"
+      "importedAt": "2099-12-31T23:59:59.999Z"
     },
     "LET009": {
       "schoolId": "cmpideqeq0000108xb6ouv9zi",
       "accountRef": "LET009",
       "accountHolder": "Lesedi Olerato Letlape",
-      "balance": -20300,
+      "kidesysSection": "Over Paid",
+      "balance": -23231.23,
       "buckets": {
         "current": 3000,
         "d30": 3000,
@@ -5261,14 +5262,14 @@
         "d120": -33000
       },
       "source": "kideesys-age-analysis",
-      "importedAt": "2026-05-28T08:38:50.245Z",
-      "kidesysSection": "Over Paid"
+      "importedAt": "2099-12-31T23:59:59.999Z"
     },
     "MAN012": {
       "schoolId": "cmpideqeq0000108xb6ouv9zi",
       "accountRef": "MAN012",
       "accountHolder": "Mathokge Reamogetse Mankgane\nNtjebe Rekgopetse Mankgane\nRethabile Leseilane Mankgane",
-      "balance": -48600,
+      "kidesysSection": "Over Paid",
+      "balance": -55617.62,
       "buckets": {
         "current": 9850,
         "d30": 9850,
@@ -5277,14 +5278,14 @@
         "d120": -88550
       },
       "source": "kideesys-age-analysis",
-      "importedAt": "2026-05-28T08:38:50.245Z",
-      "kidesysSection": "Over Paid"
+      "importedAt": "2099-12-31T23:59:59.999Z"
     },
     "MAP009": {
       "schoolId": "cmpideqeq0000108xb6ouv9zi",
       "accountRef": "MAP009",
       "accountHolder": "Mokgadi Lesego Mapelane",
-      "balance": -11550,
+      "kidesysSection": "Over Paid",
+      "balance": -13217.77,
       "buckets": {
         "current": 3000,
         "d30": 950,
@@ -5293,14 +5294,14 @@
         "d120": -15500
       },
       "source": "kideesys-age-analysis",
-      "importedAt": "2026-05-28T08:38:50.245Z",
-      "kidesysSection": "Over Paid"
+      "importedAt": "2099-12-31T23:59:59.999Z"
     },
     "MOE010": {
       "schoolId": "cmpideqeq0000108xb6ouv9zi",
       "accountRef": "MOE010",
       "accountHolder": "Motebang Lethabo Moetsi",
-      "balance": -15700,
+      "kidesysSection": "Over Paid",
+      "balance": -17967.01,
       "buckets": {
         "current": 3550,
         "d30": 3750,
@@ -5309,14 +5310,14 @@
         "d120": -34400
       },
       "source": "kideesys-age-analysis",
-      "importedAt": "2026-05-28T08:38:50.245Z",
-      "kidesysSection": "Over Paid"
+      "importedAt": "2099-12-31T23:59:59.999Z"
     },
     "MAK018": {
       "schoolId": "cmpideqeq0000108xb6ouv9zi",
       "accountRef": "MAK018",
       "accountHolder": "Musa Makamu",
-      "balance": -16250,
+      "kidesysSection": "Over Paid",
+      "balance": -18596.42,
       "buckets": {
         "current": 3550,
         "d30": 3550,
@@ -5325,14 +5326,14 @@
         "d120": -31150
       },
       "source": "kideesys-age-analysis",
-      "importedAt": "2026-05-28T08:38:50.245Z",
-      "kidesysSection": "Over Paid"
+      "importedAt": "2099-12-31T23:59:59.999Z"
     },
     "NDL611": {
       "schoolId": "cmpideqeq0000108xb6ouv9zi",
       "accountRef": "NDL611",
       "accountHolder": "Oarabile Molete",
-      "balance": -5750,
+      "kidesysSection": "Over Paid",
+      "balance": -6580.27,
       "buckets": {
         "current": 4350,
         "d30": 4550,
@@ -5341,14 +5342,14 @@
         "d120": -24350
       },
       "source": "kideesys-age-analysis",
-      "importedAt": "2026-05-28T08:38:50.245Z",
-      "kidesysSection": "Over Paid"
+      "importedAt": "2099-12-31T23:59:59.999Z"
     },
     "NTU001": {
       "schoolId": "cmpideqeq0000108xb6ouv9zi",
       "accountRef": "NTU001",
       "accountHolder": "Onkarabile Mitchell Ntuane Moloko",
-      "balance": -850,
+      "kidesysSection": "Over Paid",
+      "balance": -972.74,
       "buckets": {
         "current": 3550,
         "d30": 0,
@@ -5357,14 +5358,14 @@
         "d120": -6050
       },
       "source": "kideesys-age-analysis",
-      "importedAt": "2026-05-28T08:38:50.245Z",
-      "kidesysSection": "Over Paid"
+      "importedAt": "2099-12-31T23:59:59.999Z"
     },
     "MOL019": {
       "schoolId": "cmpideqeq0000108xb6ouv9zi",
       "accountRef": "MOL019",
       "accountHolder": "Onkarabile Molefe",
-      "balance": -34500,
+      "kidesysSection": "Over Paid",
+      "balance": -39481.64,
       "buckets": {
         "current": 3800,
         "d30": 3800,
@@ -5373,14 +5374,14 @@
         "d120": -50400
       },
       "source": "kideesys-age-analysis",
-      "importedAt": "2026-05-28T08:38:50.245Z",
-      "kidesysSection": "Over Paid"
+      "importedAt": "2099-12-31T23:59:59.999Z"
     },
     "SEB005": {
       "schoolId": "cmpideqeq0000108xb6ouv9zi",
       "accountRef": "SEB005",
       "accountHolder": "Onthatile Sebico",
-      "balance": -16100,
+      "kidesysSection": "Over Paid",
+      "balance": -18424.77,
       "buckets": {
         "current": 2800,
         "d30": 2800,
@@ -5389,14 +5390,14 @@
         "d120": -26000
       },
       "source": "kideesys-age-analysis",
-      "importedAt": "2026-05-28T08:38:50.245Z",
-      "kidesysSection": "Over Paid"
+      "importedAt": "2099-12-31T23:59:59.999Z"
     },
     "MOS018": {
       "schoolId": "cmpideqeq0000108xb6ouv9zi",
       "accountRef": "MOS018",
       "accountHolder": "Orefile Rethabile Moshenyane",
-      "balance": -18300,
+      "kidesysSection": "Over Paid",
+      "balance": -20942.44,
       "buckets": {
         "current": 3000,
         "d30": 3000,
@@ -5405,14 +5406,14 @@
         "d120": 0
       },
       "source": "kideesys-age-analysis",
-      "importedAt": "2026-05-28T08:38:50.245Z",
-      "kidesysSection": "Over Paid"
+      "importedAt": "2099-12-31T23:59:59.999Z"
     },
     "MET002": {
       "schoolId": "cmpideqeq0000108xb6ouv9zi",
       "accountRef": "MET002",
       "accountHolder": "Palesa Metswamere",
-      "balance": -11600,
+      "kidesysSection": "Over Paid",
+      "balance": -13274.99,
       "buckets": {
         "current": 4350,
         "d30": 4350,
@@ -5421,14 +5422,14 @@
         "d120": -29300
       },
       "source": "kideesys-age-analysis",
-      "importedAt": "2026-05-28T08:38:50.245Z",
-      "kidesysSection": "Over Paid"
+      "importedAt": "2099-12-31T23:59:59.999Z"
     },
     "MOG017": {
       "schoolId": "cmpideqeq0000108xb6ouv9zi",
       "accountRef": "MOG017",
       "accountHolder": "Pelontle Mogoregi",
-      "balance": -2750,
+      "kidesysSection": "Over Paid",
+      "balance": -3147.09,
       "buckets": {
         "current": 3000,
         "d30": 200,
@@ -5437,14 +5438,14 @@
         "d120": -6650
       },
       "source": "kideesys-age-analysis",
-      "importedAt": "2026-05-28T08:38:50.245Z",
-      "kidesysSection": "Over Paid"
+      "importedAt": "2099-12-31T23:59:59.999Z"
     },
     "RAM014": {
       "schoolId": "cmpideqeq0000108xb6ouv9zi",
       "accountRef": "RAM014",
       "accountHolder": "Reabetswe Patience Ramela Motshoane",
-      "balance": -29260,
+      "kidesysSection": "Over Paid",
+      "balance": -33485.01,
       "buckets": {
         "current": 3550,
         "d30": 3550,
@@ -5453,14 +5454,14 @@
         "d120": -43060
       },
       "source": "kideesys-age-analysis",
-      "importedAt": "2026-05-28T08:38:50.245Z",
-      "kidesysSection": "Over Paid"
+      "importedAt": "2099-12-31T23:59:59.999Z"
     },
     "MAG007": {
       "schoolId": "cmpideqeq0000108xb6ouv9zi",
       "accountRef": "MAG007",
       "accountHolder": "Sipho Nqobile Magaxa",
-      "balance": -26901,
+      "kidesysSection": "Over Paid",
+      "balance": -30785.38,
       "buckets": {
         "current": -26901,
         "d30": 0,
@@ -5469,14 +5470,14 @@
         "d120": 0
       },
       "source": "kideesys-age-analysis",
-      "importedAt": "2026-05-28T08:38:50.245Z",
-      "kidesysSection": "Over Paid"
+      "importedAt": "2099-12-31T23:59:59.999Z"
     },
     "MTH003": {
       "schoolId": "cmpideqeq0000108xb6ouv9zi",
       "accountRef": "MTH003",
       "accountHolder": "Thandolwakhe Mthethwa\nOkuhle Mthethwa",
-      "balance": -32100,
+      "kidesysSection": "Over Paid",
+      "balance": -36735.09,
       "buckets": {
         "current": 6900,
         "d30": 7100,
@@ -5485,14 +5486,14 @@
         "d120": -61300
       },
       "source": "kideesys-age-analysis",
-      "importedAt": "2026-05-28T08:38:50.245Z",
-      "kidesysSection": "Over Paid"
+      "importedAt": "2099-12-31T23:59:59.999Z"
     },
     "DIR001": {
       "schoolId": "cmpideqeq0000108xb6ouv9zi",
       "accountRef": "DIR001",
       "accountHolder": "Yaone Dire",
-      "balance": -16800,
+      "kidesysSection": "Over Paid",
+      "balance": -19225.84,
       "buckets": {
         "current": 2800,
         "d30": 2800,
@@ -5501,8 +5502,39 @@
         "d120": -28700
       },
       "source": "kideesys-age-analysis",
-      "importedAt": "2026-05-28T08:38:50.245Z",
-      "kidesysSection": "Over Paid"
+      "importedAt": "2099-12-31T23:59:59.999Z"
+    },
+    "JAC001": {
+      "schoolId": "cmpideqeq0000108xb6ouv9zi",
+      "accountRef": "JAC001",
+      "accountHolder": "Jason - Lee Jacobs",
+      "kidesysSection": "Paid Up",
+      "balance": -1050.02,
+      "buckets": {
+        "current": 0,
+        "d30": 0,
+        "d60": 0,
+        "d90": 0,
+        "d120": 0
+      },
+      "source": "kideesys-age-analysis",
+      "importedAt": "2099-12-31T23:59:59.999Z"
+    },
+    "LET007": {
+      "schoolId": "cmpideqeq0000108xb6ouv9zi",
+      "accountRef": "LET007",
+      "accountHolder": "Otlotleng Letsholo",
+      "kidesysSection": "Paid Up",
+      "balance": 0,
+      "buckets": {
+        "current": 0,
+        "d30": 0,
+        "d60": 0,
+        "d90": 0,
+        "d120": 0
+      },
+      "source": "kideesys-age-analysis",
+      "importedAt": "2099-12-31T23:59:59.999Z"
     }
   }
 }

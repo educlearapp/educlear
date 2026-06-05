@@ -18,6 +18,7 @@ import billingTransactionsRoutes from "./routes/billingTransactions";
 import invoicesRoutes from "./routes/invoices";
 import billingDocumentsRoutes from "./routes/billingDocuments";
 import billingPenaltiesRoutes from "./routes/billingPenalties";
+import billingReportsRoutes from "./routes/billingReports";
 import legalBillingDocumentsRoutes from "./routes/legalBillingDocuments";
 import communicationRoutes from "./routes/communication";
 import communicationEngineRoutes from "./routes/communicationEngine";
@@ -57,6 +58,7 @@ import kideesysMigrationRoutes, {
 } from "./routes/kideesysMigration";
 import migrationBillingPlansRoutes from "./routes/migrationBillingPlans";
 import migrationTopupPaymentsRoutes from "./routes/migrationTopupPayments";
+import migrationAgeAnalysisBaselineRoutes from "./routes/migrationAgeAnalysisBaseline";
 import migrationLearnerRepairRoutes from "./routes/migrationLearnerRepair";
 import migrationLearnersRoutes from "./routes/migrationLearners";
 import subscriptionsRoutes from "./routes/subscriptions";
@@ -325,6 +327,7 @@ app.use("/api/deposits", depositsRoutes);
 app.use("/api/banking", bankingRoutes);
 app.use("/api/accounting", accountingRoutes);
 app.use("/api/billing/late-penalties", billingPenaltiesRoutes);
+app.use("/api/billing/reports", billingReportsRoutes);
 app.use("/api/teacher-performance", teacherPerformanceRoutes);
 app.use("/api/payroll", payrollRoutes);
 app.use("/api/fees", feesRoutes);
@@ -369,6 +372,11 @@ app.use(
   "/api/migration/topup-payments",
   requireMigrationAccess,
   migrationTopupPaymentsRoutes
+);
+app.use(
+  "/api/migration/age-analysis-baseline",
+  requireMigrationAccess,
+  migrationAgeAnalysisBaselineRoutes
 );
 app.use(
   "/api/super-admin/migration/learner-repair",
