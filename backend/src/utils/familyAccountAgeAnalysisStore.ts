@@ -71,6 +71,18 @@ export function upsertSchoolFamilyAccountAgeAnalysisSnapshots(
   writeAll(all);
 }
 
+/** Replace the full snapshot map for a school (drops accounts not in the payload). */
+export function replaceSchoolFamilyAccountAgeAnalysisSnapshots(
+  schoolId: string,
+  snapshots: Record<string, FamilyAccountAgeAnalysisSnapshot>
+) {
+  const key = String(schoolId || "").trim();
+  if (!key) return;
+  const all = readAll();
+  all[key] = { ...snapshots };
+  writeAll(all);
+}
+
 /** Merge Kid-e-Sys age-analysis section labels into existing snapshots (no balance changes). */
 export function backfillKidesysSectionsInSnapshots(
   schoolId: string,
