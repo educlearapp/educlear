@@ -1,4 +1,5 @@
 import { staffApiFetch, staffFormPost } from "../staffApi";
+import { superAdminApiUpload } from "../superAdmin/superAdminApi";
 import type {
   MigrationBillingPlansApplyResult,
   MigrationBillingPlansPreview,
@@ -39,13 +40,15 @@ export async function applyMigrationBillingPlans(opts: {
 export async function previewMigrationTopupPayments(opts: {
   schoolId: string;
   file: File;
+  onProgress?: (percent: number) => void;
 }): Promise<MigrationTopupPaymentsPreview> {
   const form = new FormData();
   form.append("schoolId", opts.schoolId);
   form.append("file", opts.file, opts.file.name);
-  return (await staffFormPost(
+  return (await superAdminApiUpload(
     "/api/migration/topup-payments/preview",
-    form
+    form,
+    opts.onProgress
   )) as MigrationTopupPaymentsPreview;
 }
 
