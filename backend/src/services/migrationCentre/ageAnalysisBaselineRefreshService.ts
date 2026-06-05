@@ -1,6 +1,6 @@
 import { prisma } from "../../prisma";
 import {
-  upsertSchoolFamilyAccountAgeAnalysisSnapshots,
+  replaceSchoolFamilyAccountAgeAnalysisSnapshots,
   type FamilyAccountAgeAnalysisSnapshot,
 } from "../../utils/familyAccountAgeAnalysisStore";
 import { roundBillingMoney } from "../billingSummary";
@@ -87,7 +87,7 @@ export async function refreshAgeAnalysisBaseline(opts: {
     familyAccountsUpserted += 1;
   }
 
-  upsertSchoolFamilyAccountAgeAnalysisSnapshots(schoolId, store);
+  replaceSchoolFamilyAccountAgeAnalysisSnapshots(schoolId, store);
 
   return {
     success: true,
