@@ -12,6 +12,7 @@ import {
   previewMigrationTopupPaymentsImport,
   rollbackTopupPaymentBatch,
 } from "../services/migrationCentre/topupPaymentsImportService";
+import { refreshAgeAnalysisBaseline } from "../services/migrationCentre/ageAnalysisBaselineRefreshService";
 
 const router = Router();
 const tmpDir = path.join(process.cwd(), "uploads", "migration-centre", "tmp");
@@ -114,6 +115,27 @@ router.get("/batches", async (req, res) => {
     console.error("[migration/topup-payments] batches", e);
     const message = e instanceof Error ? e.message : "Failed to list batches";
     return jsonError(res, 500, message);
+  }
+});
+
+router.post("/age-baseline-refresh", async (req, res) => {
+  try {
+    const migrationReq = req as MigrationAccessRequest;
+    const schoolId = resolveMigrationSchoolId(migrationReq, req.body?.schoolId);
+    const importedAt = String(req.body?.importedAt || "").trim();
+    const snapshots = Array.isArray(req.body?.snapshots) ? req.body.snapshots : [];
+
+    if (!schoolId) return jsonError(res, 400, "schoolId required");
+    if (!assertMigrationSchoolScope(migrationReq, schoolId, res)) return;
+    if (!importedAt) return jsonError(res, 400, "importedAt required");
+    if (!snapshots.length) return jsonError(res, 400, "snapshots required");
+
+    const result = await refreshAgeAnalysisBaseline({ schoolId, importedAt, snapshots });
+    return res.json(result);
+  } catch (e: unknown) {
+    console.error("[migration/topup-payments] age-baseline-refresh", e);
+    const message = e instanceof Error ? e.message : "Baseline refresh failed";
+    return jsonError(res, 400, message);
   }
 });
 

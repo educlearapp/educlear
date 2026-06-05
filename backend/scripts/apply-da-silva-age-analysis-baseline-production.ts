@@ -104,6 +104,12 @@ function round2(n: number): number {
 function buildScaledSnapshots(
   existing: Record<string, FamilyAccountAgeAnalysisSnapshot>
 ): FamilyAccountAgeAnalysisSnapshot[] {
+  const alreadyRefreshed = Object.values(existing).every(
+    (snap) => String(snap.importedAt || "").trim() === IMPORTED_AT
+  );
+  if (alreadyRefreshed && Object.keys(existing).length >= KIDESYS_TARGETS.accountsCount - 1) {
+    return Object.values(existing);
+  }
   const sectionSums: Record<string, number> = {};
   for (const snap of Object.values(existing)) {
     const sec = String(snap.kidesysSection || "").trim();
@@ -230,14 +236,30 @@ async function main() {
   }
 
   const token = await loginSuperAdmin();
-  const result = await fetchJson(`${API_BASE}/api/migration/age-analysis-baseline/refresh`, {
-    method: "POST",
-    headers: {
-      Authorization: `Bearer ${token}`,
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify(payload),
-  });
+  const authHeaders = {
+    Authorization: `Bearer ${token}`,
+    "Content-Type": "application/json",
+  };
+  const refreshPaths = [
+    "/api/migration/age-analysis-baseline/refresh",
+    "/api/migration/topup-payments/age-baseline-refresh",
+  ];
+  let result: unknown = null;
+  let lastError: unknown = null;
+  for (const refreshPath of refreshPaths) {
+    try {
+      result = await fetchJson(`${API_BASE}${refreshPath}`, {
+        method: "POST",
+        headers: authHeaders,
+        body: JSON.stringify(payload),
+      });
+      lastError = null;
+      break;
+    } catch (e) {
+      lastError = e;
+    }
+  }
+  if (lastError) throw lastError;
 
   const afterLive = await fetchLiveSummary();
   console.log(JSON.stringify({ applyResult: result, afterLive, kidesysTargets: KIDESYS_TARGETS }, null, 2));
