@@ -42,6 +42,7 @@ import {
   computeInvoiceDueDate,
   resolveInvoiceMessage,
 } from "./billingSettingsEngine";
+import { resolveInvoiceRunAccountRef } from "./officialBillingAccountRef";
 
 export type BillingLedgerEntryType = "invoice" | "payment" | "credit" | "penalty";
 
@@ -958,7 +959,16 @@ export function appendInvoiceRunTransactions(
       );
       if (!amount) return null;
       const learnerId = String(row?.id || row?.learnerId || "").trim();
-      const accountNo = String(row?.accountNo || getLearnerAccountNo(row) || "").trim();
+      const accountNo = resolveInvoiceRunAccountRef(row, sid);
+      if (!accountNo) {
+        if (typeof console !== "undefined" && console.warn) {
+          console.warn(
+            `[BillingLedger] Skipping invoice run row — no official billing account ref`,
+            { learnerId, rowAccountNo: row?.accountNo }
+          );
+        }
+        return null;
+      }
       const rowDueDate = settings
         ? computeInvoiceDueDate(
             invoiceDate,
@@ -1024,7 +1034,8 @@ function migrateLegacyLedgerIfNeeded(schoolId: string) {
       );
       if (!amount) continue;
       const learnerId = String(row?.id || row?.learnerId || "").trim();
-      const accountNo = String(row?.accountNo || getLearnerAccountNo(row) || "").trim();
+      const accountNo = resolveInvoiceRunAccountRef(row, schoolId);
+      if (!accountNo) continue;
       const rowDueDate = String(row?.dueDate || runDueDate || "").trim() || invoiceDate;
       const id = `invoice-${runId}-${learnerId || accountNo}`;
       byId.set(id, {

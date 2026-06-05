@@ -9,6 +9,10 @@ import {
 } from "../utils/billingSettingsEngine";
 import { relinkSchoolBillingLedger } from "../services/billingLedgerRelink";
 import {
+  assertOfficialBillingAccountRef,
+  resolveOfficialBillingAccountRef,
+} from "../services/officialBillingAccountRef";
+import {
   appendSchoolEntry,
   listInvoices,
   normaliseAmount,
@@ -53,14 +57,28 @@ router.post("/", async (req, res) => {
     const body = (req.body ?? {}) as Record<string, unknown>;
     const schoolId = String(body.schoolId || "").trim();
     const learnerId = String(body.learnerId || "").trim();
-    const accountNo = String(body.accountNo || body.accountRef || "").trim();
     const amount = normaliseAmount(body.amount);
 
     if (!schoolId || !amount) {
       return res.status(400).json({ success: false, error: "Missing schoolId or amount" });
     }
+
+    const accountNo = await resolveOfficialBillingAccountRef(schoolId, {
+      learnerId,
+      accountNo: String(body.accountNo || body.accountRef || "").trim(),
+    });
     if (!accountNo) {
-      return res.status(400).json({ success: false, error: "Missing accountNo" });
+      return res.status(400).json({
+        success: false,
+        error:
+          "Could not resolve an official billing account ref for this learner. Link the learner to a Kid-e-Sys family account before invoicing.",
+      });
+    }
+    try {
+      assertOfficialBillingAccountRef(schoolId, accountNo);
+    } catch (guardError) {
+      const message = guardError instanceof Error ? guardError.message : "Invalid billing account ref";
+      return res.status(400).json({ success: false, error: message });
     }
 
     const settings = await loadSchoolBillingSettings(schoolId);
