@@ -1,5 +1,5 @@
 import { staffApiFetch, staffFormPost } from "../staffApi";
-import { superAdminApiUpload } from "../superAdmin/superAdminApi";
+import { superAdminApiFetch, superAdminApiUpload } from "../superAdmin/superAdminApi";
 import type {
   MigrationBillingPlansApplyResult,
   MigrationBillingPlansPreview,
@@ -56,7 +56,7 @@ export async function applyMigrationTopupPayments(opts: {
   schoolId: string;
   sessionId: string;
 }): Promise<MigrationTopupPaymentsApplyResult> {
-  return (await staffApiFetch("/api/migration/topup-payments/apply", {
+  return (await superAdminApiFetch("/api/migration/topup-payments/apply", {
     method: "POST",
     body: JSON.stringify(opts),
   })) as MigrationTopupPaymentsApplyResult;
@@ -66,7 +66,7 @@ export async function listMigrationTopupPaymentBatches(opts: {
   schoolId: string;
 }): Promise<{ success: boolean; batches: MigrationTopupPaymentBatchSummary[] }> {
   const qs = new URLSearchParams({ schoolId: opts.schoolId });
-  return (await staffApiFetch(`/api/migration/topup-payments/batches?${qs.toString()}`)) as {
+  return (await superAdminApiFetch(`/api/migration/topup-payments/batches?${qs.toString()}`)) as {
     success: boolean;
     batches: MigrationTopupPaymentBatchSummary[];
   };
