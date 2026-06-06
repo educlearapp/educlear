@@ -17,6 +17,7 @@
  */
 import fs from "fs";
 import path from "path";
+import { spawnSync } from "child_process";
 
 import type { FamilyAccountAgeAnalysisSnapshot } from "../src/utils/familyAccountAgeAnalysisStore";
 import type { BillingLedgerEntry } from "../src/utils/billingLedgerStore";
@@ -272,6 +273,19 @@ async function main() {
   writeJsonAtomic(plan.ledgerFile, ledgerFile);
   console.log(`Wrote ${plan.ageFile}`);
   console.log(`Wrote ${plan.ledgerFile}`);
+
+  const supportResult = spawnSync(
+    "node",
+    ["scripts/repair-billing-disk-support-files.mjs", "--overwrite-support"],
+    {
+      cwd: process.cwd(),
+      stdio: "inherit",
+      env: process.env,
+    }
+  );
+  if (supportResult.status !== 0) {
+    throw new Error("Support file seed failed");
+  }
 
   if (writeRepoData) {
     const repoDataDir = path.join(process.cwd(), "data");

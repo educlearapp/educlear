@@ -5,6 +5,7 @@
 import fs from "fs";
 import path from "path";
 import { fileURLToPath } from "url";
+import { seedSupportFilesToDisk } from "./lib/billingDiskSupportFiles.mjs";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const BACKEND_ROOT = path.resolve(__dirname, "..");
@@ -204,6 +205,15 @@ function main() {
 
   writeJsonAtomic(path.join(targetDir, "family-account-age-analysis.json"), ageFile);
   writeJsonAtomic(path.join(targetDir, "billing-ledger.json"), ledgerFile);
+
+  const support = seedSupportFilesToDisk(BACKEND_ROOT, targetDir);
+  console.log(
+    `[phase1-seed] Support files on disk: ${support.created.length} written, ${support.skipped.length} skipped`
+  );
+  for (const row of support.created) {
+    console.log(`[phase1-seed]   ${row.file} ← ${row.source}`);
+  }
+
   console.log("Phase-1 billing disk seed complete.");
 }
 

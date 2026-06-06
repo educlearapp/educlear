@@ -2,3 +2,6 @@ node_modules
 dist
 
 /src/generated/prisma
+
+# Build-time copies of data/ support JSON for persistent disk repair (see stage-billing-disk-support-templates.mjs)
+storage/billing-disk-support-templates/
