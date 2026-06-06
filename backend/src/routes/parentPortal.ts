@@ -23,19 +23,17 @@ import { sendStatementEmail } from "../services/statementEmailService";
 import { buildSetupRequiredPayload } from "../services/schoolEmailService";
 import { buildAndGenerateStatementPdf } from "../services/statementPdfData";
 import { normalizeStatementPeriod } from "../utils/statementPeriod";
+import {
+  buildOtpStoreKey,
+  consumeStoredOtp,
+  deliverOtpSms,
+  generateOtpCode,
+  isSchoolSmsConfiguredForOtp,
+  storeOtp,
+  type OtpPurpose,
+} from "../services/otpSmsService";
 
 const router = Router();
-
-type OtpRecord = { code: string; expiresAt: number };
-const otpStore = new Map<string, OtpRecord>();
-
-function otpKey(schoolId: string, idNumber: string) {
-  return `${schoolId}:${idNumber}`;
-}
-
-function generateOtp() {
-  return Math.floor(100000 + Math.random() * 900000).toString();
-}
 
 async function parentWithLearners(parentId: string, schoolId: string) {
   return prisma.parent.findFirst({
@@ -140,17 +138,44 @@ router.post("/auth/request-otp", async (req, res) => {
       return res.status(404).json({ success: false, error: "Parent not found for this school" });
     }
 
-    const code = generateOtp();
-    otpStore.set(otpKey(schoolId, idNumber), {
+    const onboarding = await prisma.parentOnboarding.findUnique({
+      where: { parentId: parent.id },
+      select: { status: true },
+    });
+    const purpose: OtpPurpose =
+      onboarding?.status === "REGISTERED" ? "parent_login" : "parent_registration";
+
+    const code = generateOtpCode();
+    const otpKey = buildOtpStoreKey(`parent:${schoolId}`, idNumber);
+    storeOtp(otpKey, code, purpose);
+
+    const smsCell = cellNo || parent.cellNo || "";
+    const smsConfigured = await isSchoolSmsConfiguredForOtp(schoolId);
+    const deliveryResult = await deliverOtpSms({
+      schoolId,
+      cellNo: smsCell,
+      purpose,
       code,
-      expiresAt: Date.now() + 10 * 60 * 1000,
+      schoolName: parent.school?.name || undefined,
+      clientMessageIdPrefix: `parent-${purpose}`,
     });
 
     const devMode = process.env.NODE_ENV !== "production";
+    const includeDevOtp = devMode && (!smsConfigured || !deliveryResult.delivered);
+
     return res.json({
       success: true,
-      message: "OTP sent (dev: check response if enabled)",
-      ...(devMode ? { devOtp: code } : {}),
+      message: deliveryResult.delivered
+        ? "Verification code sent by SMS."
+        : deliveryResult.delivery === "not_configured"
+          ? "SMS provider not configured for this school."
+          : deliveryResult.delivery === "missing_mobile"
+            ? "No mobile number on file to send SMS."
+            : "Could not send SMS. Try again or contact the school.",
+      smsConfigured,
+      delivery: deliveryResult.delivery,
+      purpose,
+      ...(includeDevOtp ? { devOtp: code, testOtp: code } : {}),
     });
   } catch (e) {
     console.error("request-otp", e);
@@ -169,18 +194,15 @@ router.post("/auth/verify-otp", async (req, res) => {
       return res.status(400).json({ success: false, error: "schoolId, idNumber and code are required" });
     }
 
-    const record = otpStore.get(otpKey(schoolId, idNumber));
-    const devBypass = code === "000000" && process.env.NODE_ENV !== "production";
-    if (!devBypass) {
-      if (!record || record.expiresAt < Date.now() || record.code !== code) {
-        return res.status(401).json({ success: false, error: "Invalid or expired OTP" });
-      }
-      otpStore.delete(otpKey(schoolId, idNumber));
-    }
-
     const parent = await findParentByCredentials({ schoolId, idNumber, cellNo });
     if (!parent) {
       return res.status(404).json({ success: false, error: "Parent not found" });
+    }
+
+    const otpKey = buildOtpStoreKey(`parent:${schoolId}`, idNumber);
+    const devBypass = code === "000000" && process.env.NODE_ENV !== "production";
+    if (!devBypass && !consumeStoredOtp(otpKey, code)) {
+      return res.status(401).json({ success: false, error: "Invalid or expired OTP" });
     }
 
     await prisma.parentOnboarding.upsert({

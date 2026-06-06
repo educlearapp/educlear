@@ -13,6 +13,10 @@ import {
   smtpSenderFromPublic,
 } from "../communication/schoolSender";
 
+import {
+  testSchoolSmsConnection,
+} from "../services/schoolSmsService";
+
 const router = Router();
 const DATA_FILE = path.join(process.cwd(), "data", "communication-store.json");
 
@@ -270,21 +274,29 @@ router.put("/settings", async (req, res) => {
   }
 });
 
-router.post("/settings/test-sms", (req, res) => {
+router.post("/settings/test-sms", async (req, res) => {
   try {
     const schoolId = String(req.body?.schoolId || "").trim();
     if (!schoolId) return res.status(400).json({ success: false, error: "Missing schoolId" });
-    const store = ensureStore();
-    const school = getSchoolStore(store, schoolId);
-    const username = String(req.body?.winSmsUsername || school.settings.winSmsUsername || "").trim();
-    if (!username) {
-      return res.status(400).json({ success: false, error: "WinSMS username is required" });
+
+    const apiKey = String(req.body?.apiKey || req.body?.winSmsApiKey || "").trim();
+    const result = await testSchoolSmsConnection(schoolId, apiKey || undefined);
+    if (!result.ok) {
+      return res.status(400).json({
+        success: false,
+        ok: false,
+        error: result.error,
+        settings: result.settings,
+      });
     }
+
     return res.json({
       success: true,
       ok: true,
-      message: "Credentials validated (simulated). Live SMS delivery is not enabled yet.",
-      provider: school.settings.smsProvider,
+      message: result.message,
+      creditBalance: result.creditBalance,
+      provider: "WinSMS",
+      settings: result.settings,
     });
   } catch (error) {
     console.error("[communication] test-sms failed:", error);

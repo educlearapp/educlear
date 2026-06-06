@@ -145,6 +145,7 @@ learnerReports LearnerReport[]
   pushSubscriptions PushSubscription[]
   schoolCommunicationProfile SchoolCommunicationProfile?
   schoolEmailSettings SchoolEmailSettings?
+  schoolSmsSettings SchoolSmsSettings?
   schoolSubscription SchoolSubscription?
   subscriptionInvoices SubscriptionInvoice[]
   subscriptionPaymentLogs SubscriptionPaymentLog[]
@@ -3033,6 +3034,22 @@ model SchoolCommunicationProfile {
   replyToEmail        String   @default("")
   createdAt           DateTime @default(now())
   updatedAt           DateTime @updatedAt
+
+  school School @relation(fields: [schoolId], references: [id], onDelete: Cascade)
+}
+
+model SchoolSmsSettings {
+  id                     String    @id @default(cuid())
+  schoolId               String    @unique
+  provider               String    @default("WinSMS")
+  apiKeyEncrypted        String    @default("")
+  connectionStatus       String    @default("not_configured")
+  creditBalance          Float?
+  creditBalanceCheckedAt DateTime?
+  connectionTestedAt     DateTime?
+  lastConnectionError    String?
+  createdAt              DateTime  @default(now())
+  updatedAt              DateTime  @updatedAt
 
   school School @relation(fields: [schoolId], references: [id], onDelete: Cascade)
 }

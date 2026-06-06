@@ -37,6 +37,7 @@ import feesRoutes from "./routes/fees";
 import registrationsRoutes from "./routes/registrations";
 import emailRoutes from "./routes/emails";
 import schoolEmailSettingsRoutes from "./routes/schoolEmailSettings";
+import schoolSmsSettingsRoutes from "./routes/schoolSmsSettings";
 import parentPortalRoutes from "./routes/parentPortal";
 import classroomsRoutes from "./routes/classrooms";
 import classesRoutes from "./routes/classes";
@@ -276,6 +277,7 @@ app.use("/learner", learnerRoutes);
 app.use("/api/schools", schoolsRoutes);
 app.use("/api/emails", emailRoutes);
 app.use("/api/school-email-settings", schoolEmailSettingsRoutes);
+app.use("/api/school-sms-settings", schoolSmsSettingsRoutes);
 app.use("/api/users", usersRoutes);
 app.post("/api/upload-logo", upload.single("logo"), (req, res) => {
 

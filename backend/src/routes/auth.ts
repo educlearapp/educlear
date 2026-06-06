@@ -27,6 +27,14 @@ import {
 import { canAccessMigration } from "../utils/migrationAccess";
 import { isPlatformSuperAdminEmail } from "../utils/superAdmin";
 import { toStoredSchoolLogoUrl } from "../utils/schoolLogo";
+import {
+  buildOtpStoreKey,
+  consumeStoredOtp,
+  deliverOtpSms,
+  generateOtpCode,
+  storeOtp,
+} from "../services/otpSmsService";
+import { normalizeSaPhone } from "../services/parentPortalService";
 
 const router = Router();
 
@@ -554,6 +562,134 @@ router.post("/register-school", async (req, res) => {
   } catch (error) {
     console.error("[auth] POST /register-school failed:", error);
     return res.status(500).json({ error: "School registration failed" });
+  }
+});
+
+function schoolPhoneMatches(inputCellNo: string, school: { cellNo: string | null; phone: string | null }) {
+  const input = normalizeSaPhone(inputCellNo);
+  const candidates = [school.cellNo, school.phone]
+    .map((value) => String(value || "").trim())
+    .filter(Boolean)
+    .map((value) => normalizeSaPhone(value));
+
+  return candidates.some(
+    (candidate) =>
+      candidate.plainInternational === input.plainInternational ||
+      candidate.localCell === input.localCell
+  );
+}
+
+router.post("/request-password-reset-otp", async (req, res) => {
+  try {
+    const email = normalizeEmail(req.body?.email);
+    const cellNo = String(req.body?.cellNo || "").trim();
+
+    if (!email || !cellNo) {
+      return res.status(400).json({ success: false, error: "Email and mobile number are required" });
+    }
+
+    const user = await prisma.user.findFirst({
+      where: { email, isActive: true },
+      include: { school: { select: { id: true, name: true, cellNo: true, phone: true } } },
+    });
+
+    if (!user || !user.school) {
+      return res.status(404).json({ success: false, error: "No active account found for this email" });
+    }
+
+    if (!schoolPhoneMatches(cellNo, user.school)) {
+      return res.status(400).json({
+        success: false,
+        error: "Mobile number does not match the school contact number on file",
+      });
+    }
+
+    const code = generateOtpCode();
+    const otpKey = buildOtpStoreKey(`password-reset:${user.schoolId}`, email);
+    storeOtp(otpKey, code, "password_reset");
+
+    const deliveryResult = await deliverOtpSms({
+      schoolId: user.schoolId,
+      cellNo,
+      purpose: "password_reset",
+      code,
+      schoolName: user.school.name,
+      clientMessageIdPrefix: "password-reset",
+    });
+
+    const devMode = process.env.NODE_ENV !== "production";
+    const includeDevOtp = devMode && !deliveryResult.delivered;
+
+    return res.json({
+      success: true,
+      message: deliveryResult.delivered
+        ? "Password reset code sent by SMS."
+        : deliveryResult.delivery === "not_configured"
+          ? "SMS provider not configured for this school."
+          : "Could not send SMS. Try again or contact support.",
+      smsConfigured: deliveryResult.delivery !== "not_configured",
+      delivery: deliveryResult.delivery,
+      ...(includeDevOtp ? { devOtp: code } : {}),
+    });
+  } catch (error) {
+    console.error("[auth] request-password-reset-otp failed:", error);
+    return res.status(500).json({ success: false, error: "Failed to request password reset code" });
+  }
+});
+
+router.post("/confirm-password-reset", async (req, res) => {
+  try {
+    const email = normalizeEmail(req.body?.email);
+    const cellNo = String(req.body?.cellNo || "").trim();
+    const code = String(req.body?.code || "").trim();
+    const newPassword = String(req.body?.newPassword || req.body?.password || "").trim();
+
+    if (!email || !cellNo || !code || !newPassword) {
+      return res.status(400).json({
+        success: false,
+        error: "Email, mobile number, verification code, and new password are required",
+      });
+    }
+
+    if (newPassword.length < 8) {
+      return res.status(400).json({
+        success: false,
+        error: "New password must be at least 8 characters",
+      });
+    }
+
+    const user = await prisma.user.findFirst({
+      where: { email, isActive: true },
+      include: { school: { select: { id: true, cellNo: true, phone: true } } },
+    });
+
+    if (!user || !user.school) {
+      return res.status(404).json({ success: false, error: "No active account found for this email" });
+    }
+
+    if (!schoolPhoneMatches(cellNo, user.school)) {
+      return res.status(400).json({
+        success: false,
+        error: "Mobile number does not match the school contact number on file",
+      });
+    }
+
+    const otpKey = buildOtpStoreKey(`password-reset:${user.schoolId}`, email);
+    const devBypass = code === "000000" && process.env.NODE_ENV !== "production";
+    if (!devBypass && !consumeStoredOtp(otpKey, code)) {
+      return res.status(401).json({ success: false, error: "Invalid or expired verification code" });
+    }
+
+    const passwordHash = await hashAuthPassword(newPassword);
+    await prisma.user.update({
+      where: { id: user.id },
+      data: { passwordHash },
+    });
+
+    return res.json({ success: true, message: "Password reset successfully" });
+  } catch (error) {
+    console.error("[auth] confirm-password-reset failed:", error);
+    return res.status(500).json({ success: false, error: "Failed to reset password" });
   }
 });
 

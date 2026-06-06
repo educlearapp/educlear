@@ -6,10 +6,18 @@ import {
   resolveSchoolReplyToEmail,
   saveCommunicationSettings,
   smtpSenderFromSettings,
-  testSmsCredentials,
   type CommunicationSettings as Settings,
   type SchoolSenderContext,
 } from "./communicationApi";
+import {
+  checkSchoolSmsCreditBalance,
+  fetchSchoolSmsSettings,
+  isSchoolSmsReadyForUi,
+  notifySchoolSmsReadinessUpdated,
+  saveSchoolSmsSettings,
+  testSchoolSmsConnection,
+  type SchoolSmsSettings,
+} from "./schoolSmsApi";
 import {
   applySchoolSenderDefaults,
   fetchEmailProviderPresets,
@@ -100,6 +108,85 @@ function EmailSetupStatusPanel({ smtp }: { smtp: SmtpSettings }) {
   );
 }
 
+function SmsSetupStatusPanel({ sms }: { sms: SchoolSmsSettings }) {
+  const ready = isSchoolSmsReadyForUi(sms);
+  const statusChip = (label: string, ok: boolean) => (
+    <span
+      style={{
+        display: "inline-flex",
+        alignItems: "center",
+        gap: 6,
+        padding: "6px 10px",
+        borderRadius: 8,
+        fontSize: 12,
+        fontWeight: 800,
+        background: ok ? "#ecfdf5" : sms.connectionStatus === "failed" ? "#fef2f2" : "#fffbeb",
+        color: ok ? "#15803d" : sms.connectionStatus === "failed" ? "#b91c1c" : "#92400e",
+        border: `1px solid ${ok ? "#86efac" : sms.connectionStatus === "failed" ? "#fecaca" : "#fcd34d"}`,
+      }}
+    >
+      {label}
+    </span>
+  );
+
+  const connectionLabel =
+    sms.connectionStatus === "connected"
+      ? "Connected"
+      : sms.connectionStatus === "failed"
+        ? "Connection failed"
+        : "Not connected";
+
+  return (
+    <div
+      style={{
+        padding: 14,
+        borderRadius: 10,
+        border: "1px solid #e5e7eb",
+        background: ready ? "#f0fdf4" : sms.connectionStatus === "failed" ? "#fef2f2" : "#fffbeb",
+        display: "grid",
+        gap: 10,
+      }}
+    >
+      <div style={{ fontSize: 12, fontWeight: 900, color: "#64748b" }}>SMS SETUP STATUS</div>
+      <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
+        {statusChip(sms.configured ? "API key saved" : "API key not saved", sms.configured)}
+        {statusChip(connectionLabel, sms.connectionStatus === "connected")}
+      </div>
+      {sms.creditBalance !== null ? (
+        <p style={{ margin: 0, fontSize: 13, fontWeight: 700, color: "#0f172a" }}>
+          Available credits: {sms.creditBalance.toLocaleString("en-ZA")}
+        </p>
+      ) : null}
+      {sms.creditBalanceCheckedAt ? (
+        <p style={{ margin: 0, fontSize: 12, color: "#64748b", fontWeight: 600 }}>
+          Last balance check: {new Date(sms.creditBalanceCheckedAt).toLocaleString()}
+        </p>
+      ) : null}
+      {sms.connectionTestedAt ? (
+        <p style={{ margin: 0, fontSize: 12, color: "#64748b", fontWeight: 600 }}>
+          Last connection test: {new Date(sms.connectionTestedAt).toLocaleString()}
+        </p>
+      ) : null}
+      {sms.lastConnectionError ? (
+        <p style={{ margin: 0, fontSize: 12, color: "#b91c1c", fontWeight: 700 }}>
+          {sms.lastConnectionError}
+        </p>
+      ) : null}
+      {!ready ? (
+        <p style={{ margin: 0, fontSize: 13, fontWeight: 700, color: "#92400e" }}>
+          {sms.configured
+            ? "Save your WinSMS API key, then run Test Connection to verify delivery."
+            : "Enter your WinSMS API key, save, then test the connection."}
+        </p>
+      ) : (
+        <p style={{ margin: 0, fontSize: 13, fontWeight: 700, color: "#15803d" }}>
+          WinSMS is connected. Parent Portal OTP and school SMS can be sent from EduClear.
+        </p>
+      )}
+    </div>
+  );
+}
+
 export default function CommunicationSettings({
   schoolId,
   schoolName = "",
@@ -111,7 +198,10 @@ export default function CommunicationSettings({
   const [settings, setSettings] = useState<Settings | null>(null);
   const [resolvedSchoolName, setResolvedSchoolName] = useState(schoolName);
   const [resolvedSchoolEmail, setResolvedSchoolEmail] = useState(schoolEmail);
-  const [winSmsPasswordInput, setWinSmsPasswordInput] = useState("");
+  const [winSmsApiKeyInput, setWinSmsApiKeyInput] = useState("");
+  const [smsSettings, setSmsSettings] = useState<SchoolSmsSettings | null>(null);
+  const [smsTestLoading, setSmsTestLoading] = useState(false);
+  const [smsBalanceLoading, setSmsBalanceLoading] = useState(false);
   const [smtpSettings, setSmtpSettings] = useState<SmtpSettings | null>(null);
   const [smtpPassInput, setSmtpPassInput] = useState("");
   const [smtpPresets, setSmtpPresets] = useState<Record<EmailProviderType, { smtpHost: string; smtpPort: number; smtpSecure: boolean; hint?: string }> | null>(null);
@@ -126,9 +216,10 @@ export default function CommunicationSettings({
     setLoading(true);
     setError("");
     try {
-      const [res, smtpRes, presetRes] = await Promise.all([
+      const [res, smtpRes, smsRes, presetRes] = await Promise.all([
         fetchCommunicationSettings(schoolId),
         fetchSchoolEmailSettings(schoolId).catch(() => null),
+        fetchSchoolSmsSettings(schoolId).catch(() => null),
         fetchEmailProviderPresets().catch(() => null),
       ]);
       setSettings(res.settings);
@@ -136,7 +227,24 @@ export default function CommunicationSettings({
       const loadedSchoolEmail = String(res.schoolEmail || schoolEmail || "").trim();
       setResolvedSchoolName(loadedSchoolName);
       setResolvedSchoolEmail(loadedSchoolEmail);
-      setWinSmsPasswordInput("");
+      setWinSmsApiKeyInput("");
+      setSmsSettings(
+        smsRes?.settings || {
+          schoolId,
+          provider: "WinSMS",
+          apiKeySet: false,
+          configured: false,
+          connectionStatus: "not_configured",
+          creditBalance: null,
+          creditBalanceCheckedAt: null,
+          connectionTestedAt: null,
+          lastConnectionError: null,
+          ready: false,
+        }
+      );
+      if (smsRes?.settings) {
+        notifySchoolSmsReadinessUpdated(schoolId, smsRes.settings);
+      }
       const smtpBase: SmtpSettings = smtpRes?.settings
         ? smtpRes.settings
         : {
@@ -190,9 +298,6 @@ export default function CommunicationSettings({
     setMessage("");
     try {
       const payload: Partial<Settings> = { ...settings };
-      if (winSmsPasswordInput && winSmsPasswordInput !== "********") {
-        payload.winSmsPassword = winSmsPasswordInput;
-      }
       const res = await saveCommunicationSettings(schoolId, payload);
       setSettings(res.settings);
       const nextSchool: SchoolSenderContext = {
@@ -207,7 +312,6 @@ export default function CommunicationSettings({
         nextSchool,
         smtpSettings ? smtpSenderFromSettings(smtpSettings) : null
       );
-      setWinSmsPasswordInput("");
       setMessage("Settings saved. Compose sender updated.");
     } catch (e: any) {
       setError(e?.message || "Failed to save settings");
@@ -361,18 +465,79 @@ export default function CommunicationSettings({
     }
   };
 
-  const handleTestSms = async () => {
+  const handleSaveSms = async () => {
     if (!schoolId) return;
     setLoading(true);
     setError("");
     setMessage("");
     try {
-      const res = await testSmsCredentials(schoolId, settings?.winSmsUsername);
-      setMessage(res.message || "Credentials validated (simulated).");
+      const payload: { schoolId: string; provider?: string; apiKey?: string } = {
+        schoolId,
+        provider: "WinSMS",
+      };
+      if (winSmsApiKeyInput && winSmsApiKeyInput !== "********") {
+        payload.apiKey = winSmsApiKeyInput;
+      } else if (!smsSettings?.apiKeySet) {
+        throw new Error("WinSMS API key is required");
+      }
+      const res = await saveSchoolSmsSettings(payload);
+      setSmsSettings(res.settings);
+      notifySchoolSmsReadinessUpdated(schoolId, res.settings);
+      setWinSmsApiKeyInput("");
+      setMessage("WinSMS settings saved.");
     } catch (e: any) {
-      setError(e?.message || "Test failed");
+      setError(e?.message || "Failed to save SMS settings");
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleTestSms = async () => {
+    if (!schoolId) return;
+    setSmsTestLoading(true);
+    setError("");
+    setMessage("");
+    try {
+      if (winSmsApiKeyInput && winSmsApiKeyInput !== "********") {
+        await saveSchoolSmsSettings({
+          schoolId,
+          provider: "WinSMS",
+          apiKey: winSmsApiKeyInput,
+        });
+      }
+
+      const res = await testSchoolSmsConnection(
+        schoolId,
+        winSmsApiKeyInput && winSmsApiKeyInput !== "********" ? winSmsApiKeyInput : undefined
+      );
+      setSmsSettings(res.settings);
+      notifySchoolSmsReadinessUpdated(schoolId, res.settings);
+      setWinSmsApiKeyInput("");
+      setMessage(
+        res.message ||
+          `Connected to WinSMS. Available credits: ${Number(res.creditBalance || 0).toLocaleString("en-ZA")}`
+      );
+    } catch (e: any) {
+      setError(e?.message || "Connection test failed");
+    } finally {
+      setSmsTestLoading(false);
+    }
+  };
+
+  const handleCheckSmsBalance = async () => {
+    if (!schoolId) return;
+    setSmsBalanceLoading(true);
+    setError("");
+    setMessage("");
+    try {
+      const res = await checkSchoolSmsCreditBalance(schoolId);
+      setSmsSettings(res.settings);
+      notifySchoolSmsReadinessUpdated(schoolId, res.settings);
+      setMessage(`Available credits: ${Number(res.creditBalance || 0).toLocaleString("en-ZA")}`);
+    } catch (e: any) {
+      setError(e?.message || "Failed to check credit balance");
+    } finally {
+      setSmsBalanceLoading(false);
     }
   };
 
@@ -712,45 +877,58 @@ export default function CommunicationSettings({
       ) : null}
 
       {tab === "sms" ? (
-        <div style={{ display: "grid", gap: 16, maxWidth: 480 }}>
-          <label>
-            SMS Provider
-            <select
-              style={fieldStyle}
-              value={settings.smsProvider}
-              onChange={(e) => patch({ smsProvider: e.target.value as Settings["smsProvider"] })}
-            >
-              <option value="WinSMS">WinSMS</option>
-              <option value="SMSPortal">SMSPortal</option>
-              <option value="Other">Other</option>
-            </select>
-          </label>
-          <label>
-            WinSMS Username
-            <input
-              style={fieldStyle}
-              value={settings.winSmsUsername}
-              onChange={(e) => patch({ winSmsUsername: e.target.value })}
-            />
-          </label>
-          <label>
-            WinSMS Password
-            <input
-              type="password"
-              style={fieldStyle}
-              placeholder={settings.winSmsPasswordSet ? "******** (unchanged)" : "Enter password"}
-              value={winSmsPasswordInput}
-              onChange={(e) => setWinSmsPasswordInput(e.target.value)}
-            />
-          </label>
-          <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
-            <button type="button" style={ghostBtn} onClick={handleTestSms} disabled={loading}>
-              Test Credentials
-            </button>
-            <button type="button" style={goldBtn} onClick={handleSave} disabled={loading}>
-              Save
-            </button>
-          </div>
+        <div style={{ display: "grid", gap: 16, maxWidth: 560 }}>
+          {!smsSettings ? (
+            <p style={{ color: "#64748b", fontWeight: 700 }}>Loading SMS settings…</p>
+          ) : (
+            <>
+              <SmsSetupStatusPanel sms={smsSettings} />
+
+              <p style={{ margin: 0, fontSize: 12, color: "#64748b", fontWeight: 600 }}>
+                Each school connects its own WinSMS account using an API key from the WinSMS developer tools.
+                Parent Portal registration and login OTP messages are sent through this integration.
+              </p>
+
+              <label>
+                WinSMS API Key
+                <input
+                  type="password"
+                  style={fieldStyle}
+                  placeholder={smsSettings.apiKeySet ? "******** (unchanged)" : "Paste your WinSMS API key"}
+                  value={winSmsApiKeyInput}
+                  onChange={(e) => setWinSmsApiKeyInput(e.target.value)}
+                  autoComplete="off"
+                />
+              </label>
+
+              <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
+                <button
+                  type="button"
+                  style={ghostBtn}
+                  onClick={handleTestSms}
+                  disabled={loading || smsTestLoading || smsBalanceLoading}
+                >
+                  {smsTestLoading ? "Testing…" : "Test Connection"}
+                </button>
+                <button
+                  type="button"
+                  style={ghostBtn}
+                  onClick={handleCheckSmsBalance}
+                  disabled={loading || smsTestLoading || smsBalanceLoading || !smsSettings.configured}
+                >
+                  {smsBalanceLoading ? "Checking…" : "Check Credit Balance"}
+                </button>
+                <button
+                  type="button"
+                  style={goldBtn}
+                  onClick={handleSaveSms}
+                  disabled={loading || smsTestLoading || smsBalanceLoading}
+                >
+                  Save SMS Settings
+                </button>
+              </div>
+            </>
+          )}
         </div>
       ) : null}
     </div>
