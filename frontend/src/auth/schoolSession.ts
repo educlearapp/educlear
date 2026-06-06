@@ -1,5 +1,5 @@
 import type { PermissionMap } from "../users/permissions";
-import { mergePermissions, permissionsForRole } from "../users/permissions";
+import { mergePermissions, permissionsForRole, resolveStoredPermissions } from "../users/permissions";
 
 export const USER_APP_ROLE_STORAGE_KEY = "userAppRole";
 export const USER_PERMISSIONS_STORAGE_KEY = "userPermissions";
@@ -35,7 +35,7 @@ export function syncSchoolSessionFromLoginResponse(data: unknown): void {
 
   const appRole = String(user.appRole || user.role || "Viewer").trim() || "Viewer";
   const permissions =
-    parsePermissions(user.permissions) || permissionsForRole(appRole);
+    parsePermissions(user.permissions) || resolveStoredPermissions(appRole);
 
   localStorage.setItem(USER_APP_ROLE_STORAGE_KEY, appRole);
   localStorage.setItem(USER_PERMISSIONS_STORAGE_KEY, JSON.stringify(permissions));
@@ -59,7 +59,7 @@ export function getSchoolSessionUser(): SchoolSessionUser {
 
   return {
     appRole,
-    permissions: permissions || permissionsForRole(appRole),
+    permissions: permissions || resolveStoredPermissions(appRole),
     isActive: true,
   };
 }

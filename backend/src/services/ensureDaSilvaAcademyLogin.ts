@@ -11,7 +11,7 @@ import {
 } from "./authCredentials";
 import { buildAuthDiagnostics } from "./authDiagnostics";
 import { isProductionOrGoLive } from "./runtime";
-import { setUserAccessMeta } from "../utils/userAccessStore";
+import { getUserAccessMeta, setUserAccessMeta } from "../utils/userAccessStore";
 import { permissionsForRole, prismaRoleForAppRole } from "../utils/userPermissions";
 
 /** Production owner login for Da Silva Academy dashboard (startup ensure only). */
@@ -156,14 +156,17 @@ export async function ensureDaSilvaAcademyLogin(): Promise<EnsureDaSilvaLoginRes
     base.userFound = true;
   }
 
-  setUserAccessMeta(owner.id, {
-    schoolId,
-    firstName: "Da Silva",
-    surname: "Academy",
-    appRole: "Owner",
-    permissions: permissionsForRole("Owner"),
-    lastLoginAt: null,
-  });
+  const existingMeta = await getUserAccessMeta(owner.id);
+  if (!existingMeta) {
+    await setUserAccessMeta(owner.id, {
+      schoolId,
+      firstName: "Da Silva",
+      surname: "Academy",
+      appRole: "Owner",
+      permissions: permissionsForRole("Owner"),
+      lastLoginAt: null,
+    });
+  }
 
   const passwordOk = await compareAuthPassword(
     DA_SILVA_LOGIN_PASSWORD,

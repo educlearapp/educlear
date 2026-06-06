@@ -14,6 +14,7 @@ import {
   appRoleFromPrismaRole,
   permissionsForRole,
   prismaRoleForAppRole,
+  resolveStoredPermissions,
   type AppRole,
   type PermissionMap,
 } from "../utils/userPermissions";
@@ -51,16 +52,13 @@ function authLog(message: string, extra?: Record<string, unknown>) {
   }
 }
 
-function resolveUserAccess(user: { id: string; schoolId: string; role: string }) {
-  const meta = getUserAccessMeta(user.id);
+async function resolveUserAccess(user: { id: string; schoolId: string; role: string }) {
+  const meta = await getUserAccessMeta(user.id);
   const appRole = (meta?.appRole || appRoleFromPrismaRole(user.role)) as AppRole;
-  const permissions: PermissionMap =
-    appRole === "Owner"
-      ? permissionsForRole("Owner")
-      : permissionsForRole(appRole, meta?.permissions || null);
+  const permissions = resolveStoredPermissions(appRole, meta?.permissions || null);
 
   if (meta) {
-    setUserAccessMeta(user.id, {
+    await setUserAccessMeta(user.id, {
       ...meta,
       schoolId: meta.schoolId || user.schoolId,
       lastLoginAt: new Date().toISOString(),
@@ -78,7 +76,7 @@ function serializeAuthUser(
     fullName: string | null;
     role: string;
   },
-  access: ReturnType<typeof resolveUserAccess>,
+  access: Awaited<ReturnType<typeof resolveUserAccess>>,
   extras?: Record<string, unknown>
 ) {
   return {
@@ -178,7 +176,7 @@ router.post("/login", async (req, res) => {
       role: matched.role,
     };
     const canAccessMigrationFlag = canAccessMigration(migrationCtx);
-    const access = resolveUserAccess(matched);
+    const access = await resolveUserAccess(matched);
 
     return res.json({
       token,
@@ -234,7 +232,7 @@ router.get("/me", async (req, res) => {
       return res.status(401).json({ error: "User not found or inactive" });
     }
 
-    const access = resolveUserAccess(user);
+    const access = await resolveUserAccess(user);
     const educlearRole = isPlatformSuperAdminEmail(user.email) ? ("superAdmin" as const) : undefined;
     const migrationCtx = {
       userId: user.id,
@@ -417,7 +415,7 @@ router.post("/register-school", async (req, res) => {
       const firstName = nameParts[0] || contactPerson;
       const surname = nameParts.slice(1).join(" ");
 
-      setUserAccessMeta(result.user.id, {
+      await setUserAccessMeta(result.user.id, {
         schoolId: result.school.id,
         firstName,
         surname,
@@ -520,7 +518,7 @@ router.post("/register-school", async (req, res) => {
     const firstName = nameParts[0] || contactPerson;
     const surname = nameParts.slice(1).join(" ");
 
-    setUserAccessMeta(result.user.id, {
+    await setUserAccessMeta(result.user.id, {
       schoolId: result.school.id,
       firstName,
       surname,

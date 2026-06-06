@@ -1,0 +1,4 @@
+-- Add audit columns to UserRbacMeta (RBAC persistence)
+ALTER TABLE "UserRbacMeta" ADD COLUMN IF NOT EXISTS "updatedAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP;
+ALTER TABLE "UserRbacMeta" ADD COLUMN IF NOT EXISTS "updatedBy" TEXT;
+ALTER TABLE "UserRbacMeta" ADD COLUMN IF NOT EXISTS "roleChangedAt" TIMESTAMP(3);

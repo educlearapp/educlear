@@ -148,6 +148,16 @@ export function permissionsForRole(appRole: string, custom?: PermissionMap | nul
   return template ? mergePermissions(template) : emptyPermissionMap();
 }
 
+/** Return persisted permissions when present; role templates only for users without saved data. */
+export function resolveStoredPermissions(
+  appRole: string,
+  stored: PermissionMap | null | undefined
+): PermissionMap {
+  if (appRole === "Owner") return allPermissionsTrue();
+  if (stored) return mergePermissions(stored);
+  return permissionsForRole(appRole);
+}
+
 export function mergePermissions(input: PermissionMap): PermissionMap {
   const base = emptyPermissionMap();
   for (const mod of PERMISSION_MODULES) {
@@ -165,10 +175,7 @@ export function hasPermission(
 ): boolean {
   if (user.isActive === false) return false;
   if (user.appRole === "Owner") return true;
-  const perms =
-    user.appRole === "Custom" && user.permissions
-      ? mergePermissions(user.permissions)
-      : permissionsForRole(String(user.appRole || "Viewer"), user.permissions || null);
+  const perms = resolveStoredPermissions(String(user.appRole || "Viewer"), user.permissions || null);
   return Boolean(perms[module]?.[action]);
 }
 

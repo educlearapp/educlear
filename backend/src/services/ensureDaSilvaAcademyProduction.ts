@@ -19,8 +19,8 @@ import { splitFullName } from "../utils/kideesysSpreadsheet";
 import {
   getUserAccessMeta,
   setUserAccessMeta,
-  type UserAccessMeta,
 } from "../utils/userAccessStore";
+import { permissionsForRole } from "../utils/userPermissions";
 import { refreshDaSilvaSchoolIdCache } from "./daSilvaSchoolResolve";
 import { isProductionOrGoLive } from "./runtime";
 
@@ -230,22 +230,17 @@ async function ensureOwnerLink(): Promise<void> {
     );
   }
 
-  const existingMeta = getUserAccessMeta(user.id);
+  const existingMeta = await getUserAccessMeta(user.id);
   if (!existingMeta) {
-    const storePath = path.join(process.cwd(), "data", "user-access.json");
-    if (fs.existsSync(storePath)) {
-      try {
-        const store = JSON.parse(fs.readFileSync(storePath, "utf8")) as {
-          users?: Record<string, UserAccessMeta>;
-        };
-        const fromFile = store.users?.[DA_SILVA_OWNER_USER_ID] || store.users?.[user.id];
-        if (fromFile) {
-          setUserAccessMeta(user.id, { ...fromFile, schoolId });
-        }
-      } catch {
-        // non-fatal
-      }
-    }
+    const parts = splitFullName(DA_SILVA_SCHOOL_NAME);
+    await setUserAccessMeta(user.id, {
+      schoolId,
+      firstName: parts.firstName || "Da Silva",
+      surname: parts.lastName || "Academy",
+      appRole: "Owner",
+      permissions: permissionsForRole("Owner"),
+      lastLoginAt: null,
+    });
   }
 }
 

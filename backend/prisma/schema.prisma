@@ -479,6 +479,10 @@ model UserRbacMeta {
 
   lastLoginAt DateTime?
 
+  updatedAt DateTime @updatedAt
+  updatedBy String?
+  roleChangedAt DateTime?
+
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([schoolId])

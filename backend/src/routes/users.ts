@@ -4,9 +4,11 @@ import bcrypt from "bcryptjs";
 import { prisma } from "../prisma";
 import {
   APP_ROLES,
+  appRoleFromPrismaRole,
   mergePermissions,
   permissionsForRole,
   prismaRoleForAppRole,
+  resolveStoredPermissions,
   type AppRole,
   type PermissionMap,
 } from "../utils/userPermissions";
@@ -55,13 +57,13 @@ function serializeUser(
     role: string;
     createdAt: Date;
   },
-  meta: ReturnType<typeof getUserAccessMeta>
+  meta: Awaited<ReturnType<typeof getUserAccessMeta>>
 ) {
   const fallback = splitFullName(user.fullName);
   const firstName = meta?.firstName || fallback.firstName;
   const surname = meta?.surname || fallback.surname;
-  const appRole = (meta?.appRole || "Viewer") as AppRole;
-  const permissions = permissionsForRole(appRole, meta?.permissions || null);
+  const appRole = (meta?.appRole || appRoleFromPrismaRole(user.role)) as AppRole;
+  const permissions = resolveStoredPermissions(appRole, meta?.permissions || null);
 
   return {
     id: user.id,
@@ -77,6 +79,9 @@ function serializeUser(
     isActive: user.isActive,
     permissions,
     lastLoginAt: meta?.lastLoginAt || null,
+    updatedAt: meta?.updatedAt || null,
+    updatedBy: meta?.updatedBy || null,
+    roleChangedAt: meta?.roleChangedAt || null,
     createdAt: user.createdAt.toISOString(),
   };
 }
@@ -86,7 +91,7 @@ async function countActiveOwners(schoolId: string, excludeUserId?: string) {
     where: { schoolId, isActive: true },
     select: { id: true },
   });
-  const metaMap = listAccessMetaForSchool(schoolId);
+  const metaMap = await listAccessMetaForSchool(schoolId);
   return users.filter((u) => {
     if (excludeUserId && u.id === excludeUserId) return false;
     const meta = metaMap[u.id];
@@ -115,7 +120,7 @@ router.get("/", async (req, res) => {
       },
     });
 
-    const metaMap = listAccessMetaForSchool(schoolId);
+    const metaMap = await listAccessMetaForSchool(schoolId);
     const rows = users.map((user) => serializeUser(user, metaMap[user.id] || null));
 
     return res.json({ success: true, users: rows });
@@ -169,10 +174,9 @@ router.post("/", async (req, res) => {
     }
 
     const passwordHash = await bcrypt.hash(password, 10);
-    const permissions = permissionsForRole(
-      appRole,
-      body.permissions ? mergePermissions(body.permissions as PermissionMap) : null
-    );
+    const permissions = body.permissions
+      ? mergePermissions(body.permissions as PermissionMap)
+      : permissionsForRole(appRole);
 
     const user = await prisma.user.create({
       data: {
@@ -194,7 +198,7 @@ router.post("/", async (req, res) => {
       },
     });
 
-    setUserAccessMeta(user.id, {
+    await setUserAccessMeta(user.id, {
       schoolId,
       firstName,
       surname,
@@ -203,7 +207,7 @@ router.post("/", async (req, res) => {
       lastLoginAt: null,
     });
 
-    const meta = getUserAccessMeta(user.id);
+    const meta = await getUserAccessMeta(user.id);
     return res.status(201).json({ success: true, user: serializeUser(user, meta) });
   } catch (error) {
     console.error("[users] POST / failed:", error);
@@ -228,8 +232,8 @@ router.put("/:id", async (req, res) => {
       return res.status(403).json({ success: false, error: "User does not belong to this school" });
     }
 
-    const meta = getUserAccessMeta(userId);
-    const currentRole = (meta?.appRole || "Viewer") as AppRole;
+    const meta = await getUserAccessMeta(userId);
+    const currentRole = (meta?.appRole || appRoleFromPrismaRole(existing.role)) as AppRole;
 
     const firstName = String(body.firstName ?? meta?.firstName ?? "").trim();
     const surname = String(body.surname ?? meta?.surname ?? "").trim();
@@ -271,10 +275,11 @@ router.put("/:id", async (req, res) => {
       }
     }
 
-    const permissions = permissionsForRole(
-      appRole,
-      body.permissions ? mergePermissions(body.permissions as PermissionMap) : meta?.permissions || null
-    );
+    const permissions = body.permissions
+      ? mergePermissions(body.permissions as PermissionMap)
+      : meta?.permissions
+        ? mergePermissions(meta.permissions)
+        : permissionsForRole(appRole);
 
     const updateData: {
       email: string;
@@ -311,7 +316,7 @@ router.put("/:id", async (req, res) => {
       },
     });
 
-    setUserAccessMeta(userId, {
+    await setUserAccessMeta(userId, {
       schoolId: existing.schoolId,
       firstName,
       surname,
@@ -320,7 +325,7 @@ router.put("/:id", async (req, res) => {
       lastLoginAt: meta?.lastLoginAt || null,
     });
 
-    const savedMeta = getUserAccessMeta(userId);
+    const savedMeta = await getUserAccessMeta(userId);
     return res.json({ success: true, user: serializeUser(user, savedMeta) });
   } catch (error) {
     console.error("[users] PUT /:id failed:", error);
@@ -343,7 +348,7 @@ router.patch("/:id/status", async (req, res) => {
       return res.status(404).json({ success: false, error: "User not found" });
     }
 
-    const meta = getUserAccessMeta(userId);
+    const meta = await getUserAccessMeta(userId);
     if (meta?.appRole === "Owner" && !isActive) {
       const owners = await countActiveOwners(existing.schoolId, userId);
       if (owners < 1) {
@@ -390,8 +395,8 @@ router.patch("/:id/permissions", async (req, res) => {
       return res.status(404).json({ success: false, error: "User not found" });
     }
 
-    const meta = getUserAccessMeta(userId);
-    const resolvedRole = (appRole || meta?.appRole || "Viewer") as AppRole;
+    const meta = await getUserAccessMeta(userId);
+    const resolvedRole = (appRole || meta?.appRole || appRoleFromPrismaRole(existing.role)) as AppRole;
     const permissions =
       resolvedRole === "Owner"
         ? permissionsForRole("Owner")
@@ -399,7 +404,7 @@ router.patch("/:id/permissions", async (req, res) => {
             permissionsInput || meta?.permissions || permissionsForRole(resolvedRole)
           );
 
-    setUserAccessMeta(userId, {
+    await setUserAccessMeta(userId, {
       schoolId: existing.schoolId,
       firstName: meta?.firstName || splitFullName(existing.fullName).firstName,
       surname: meta?.surname || splitFullName(existing.fullName).surname,
@@ -415,7 +420,7 @@ router.patch("/:id/permissions", async (req, res) => {
       });
     }
 
-    const savedMeta = getUserAccessMeta(userId);
+    const savedMeta = await getUserAccessMeta(userId);
     return res.json({
       success: true,
       user: serializeUser(
@@ -477,7 +482,7 @@ router.delete("/:id", async (req, res) => {
       return res.status(404).json({ success: false, error: "User not found" });
     }
 
-    const meta = getUserAccessMeta(userId);
+    const meta = await getUserAccessMeta(userId);
     if (meta?.appRole === "Owner") {
       const owners = await countActiveOwners(existing.schoolId, userId);
       if (owners < 1) {
@@ -489,7 +494,7 @@ router.delete("/:id", async (req, res) => {
     }
 
     await prisma.user.delete({ where: { id: userId } });
-    deleteUserAccessMeta(userId);
+    await deleteUserAccessMeta(userId);
     return res.json({ success: true });
   } catch (error) {
     console.error("[users] DELETE /:id failed:", error);
