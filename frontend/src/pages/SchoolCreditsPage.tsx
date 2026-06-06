@@ -19,18 +19,10 @@ function openWinSms(url: string) {
   window.open(url, "_blank", "noopener,noreferrer");
 }
 
-function WinSmsLinkButton({
-  href,
-  label,
-  variant = "gold",
-}: {
-  href: string;
-  label: string;
-  variant?: "gold" | "outline";
-}) {
+function WinSmsLinkButton({ href, label }: { href: string; label: string }) {
   return (
     <a
-      className={`sms-credits-action-btn sms-credits-action-btn--${variant}`}
+      className="sms-credits-action-btn sms-credits-action-btn--gold"
       href={href}
       target="_blank"
       rel="noopener noreferrer"
@@ -79,7 +71,6 @@ export default function SchoolCreditsPage() {
         <WinSmsLinkButton
           href={WINSMS_URLS.apiIntegration}
           label="WinSMS API / Integration Details"
-          variant="outline"
         />
       </div>
 
