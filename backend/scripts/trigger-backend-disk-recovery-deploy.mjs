@@ -1,5 +1,5 @@
 /**
- * Attach billing disk (if missing) and trigger educlear-backend deploy.
+ * Attach billing disk (if missing), remove AUTO_SEED env, trigger educlear-backend deploy.
  *
  *   RENDER_API_KEY=... node backend/scripts/trigger-backend-disk-recovery-deploy.mjs
  */
@@ -8,6 +8,7 @@ const RENDER_KEY = process.env.RENDER_API_KEY || "";
 const DISK_NAME = "educlear-billing-data";
 const DISK_MOUNT = "/opt/render/project/src/backend/data";
 const DISK_SIZE_GB = 1;
+const AUTO_SEED_ENV = "AUTO_SEED_PHASE1_BILLING_DISK";
 
 async function renderFetch(path, opts = {}) {
   const res = await fetch(`https://api.render.com/v1${path}`, {
@@ -77,6 +78,23 @@ async function ensureDisk(serviceId) {
   return disk;
 }
 
+async function listEnvVars(serviceId) {
+  const data = await renderFetch(`/services/${serviceId}/env-vars`);
+  return Array.isArray(data) ? data.map((row) => row.envVar || row) : [];
+}
+
+async function removeEnvVar(serviceId, key) {
+  const rows = await listEnvVars(serviceId);
+  const existing = rows.find((row) => row.key === key);
+  const id = existing?.id;
+  if (!id) {
+    console.log(`Env var not set (OK): ${key}`);
+    return;
+  }
+  await renderFetch(`/services/${serviceId}/env-vars/${id}`, { method: "DELETE" });
+  console.log(`Removed env var: ${key}`);
+}
+
 async function triggerDeploy(serviceId) {
   console.log("Triggering backend deploy...");
   const result = await renderFetch(`/services/${serviceId}/deploys`, {
@@ -96,8 +114,9 @@ async function main() {
   const serviceId = await findServiceId();
   console.log(`Service: ${SERVICE_NAME} (${serviceId})`);
   await ensureDisk(serviceId);
+  await removeEnvVar(serviceId, AUTO_SEED_ENV);
   await triggerDeploy(serviceId);
-  console.log("Done. Monitor Render dashboard, then run verify-phase1-billing-acceptance.ts");
+  console.log("Done. Poll GET /api/payments/env/full until persistentDiskDetected=true");
 }
 
 main().catch((error) => {

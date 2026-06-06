@@ -10,12 +10,15 @@ import { ensureEduClearPackages } from "./ensureEduClearPackages";
 import { runPrismaMigrateDeployWithRecovery } from "./prismaMigrationRecovery";
 import { prisma } from "../prisma";
 import { refreshDaSilvaSchoolIdCache } from "./daSilvaSchoolResolve";
-import { isProductionOrGoLive, isProductionRuntime } from "./runtime";
+import { assertBillingPersistentDiskForStartup } from "../utils/billingPersistenceDiagnostics";
+import { isProductionOrGoLive } from "./runtime";
 
 /**
  * Production boot tasks before HTTP listen: migrations, package seeds, Da Silva ensure + activation.
  */
 export async function runProductionStartup(): Promise<void> {
+  assertBillingPersistentDiskForStartup();
+
   console.log("[startup] Running migration recovery");
   await runPrismaMigrateDeployWithRecovery();
 

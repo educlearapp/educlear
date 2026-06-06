@@ -19,6 +19,10 @@ import {
   readSchoolLedger,
   type BillingLedgerEntry,
 } from "../utils/billingLedgerStore";
+import {
+  collectBillingPersistenceDiagnostics,
+  getPaymentWriteGuard,
+} from "../utils/billingPersistenceDiagnostics";
 
 function activeLedgerEntriesForAccount(
   ledger: BillingLedgerEntry[],
@@ -56,28 +60,43 @@ function findAccountRow(
   );
 }
 
+function resolveDatabaseHost(): string {
+  const dbUrl = String(process.env.DATABASE_URL || "").trim();
+  if (!dbUrl) return "—";
+  try {
+    return new URL(dbUrl.replace(/^postgres(ql)?:\/\//i, "https://")).hostname;
+  } catch {
+    return "configured";
+  }
+}
+
 // GET /api/payments/env — cross-device billing diagnostics
 router.get("/env", async (_req, res) => {
   try {
-    const dbUrl = String(process.env.DATABASE_URL || "").trim();
-    let databaseHost = "—";
-    if (dbUrl) {
-      try {
-        databaseHost = new URL(dbUrl.replace(/^postgres(ql)?:\/\//i, "https://")).hostname;
-      } catch {
-        databaseHost = "configured";
-      }
-    }
     return res.json({
       success: true,
       nodeEnv: process.env.NODE_ENV || "development",
-      databaseHost,
+      databaseHost: resolveDatabaseHost(),
       gitCommit: process.env.GIT_COMMIT || process.env.RENDER_GIT_COMMIT || "—",
       ledgerStore: "billing-ledger.json",
       serverTime: new Date().toISOString(),
     });
   } catch (error) {
     console.error("[payments] GET /env failed:", error);
+    return res.status(500).json({ success: false, error: "Server error" });
+  }
+});
+
+// GET /api/payments/env/full — billing persistence / disk diagnostics (temporary ops endpoint)
+router.get("/env/full", async (_req, res) => {
+  try {
+    const diagnostics = collectBillingPersistenceDiagnostics();
+    return res.json({
+      ...diagnostics,
+      databaseHost: resolveDatabaseHost(),
+    });
+  } catch (error) {
+    console.error("[payments] GET /env/full failed:", error);
     return res.status(500).json({ success: false, error: "Server error" });
   }
 });
@@ -159,6 +178,20 @@ router.get("/accounts", async (req, res) => {
 
 router.post("/", async (req, res) => {
   try {
+    const writeGuard = getPaymentWriteGuard();
+    if (!writeGuard.allowed) {
+      return res.status(503).json({
+        success: false,
+        error: writeGuard.reason || "Payment writes blocked — billing persistent disk not detected.",
+        persistence: {
+          persistentDiskDetected: writeGuard.diagnostics.persistentDiskDetected,
+          dataDir: writeGuard.diagnostics.dataDir,
+          dataDirResolvedPath: writeGuard.diagnostics.dataDirResolvedPath,
+          expectedRenderMountPath: writeGuard.diagnostics.expectedRenderMountPath,
+        },
+      });
+    }
+
     const body = (req.body ?? {}) as Record<string, unknown>;
     const schoolId = String(body.schoolId || "").trim();
     const accountInput = String(body.accountNo || body.accountRef || "").trim();
