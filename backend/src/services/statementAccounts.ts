@@ -38,15 +38,37 @@ export function roundStatementMoney(value: unknown): number {
   return Math.round(n * 100) / 100;
 }
 
+/** Far-future age-analysis importedAt — baseline is frozen; live EduClear rows still post. */
+const AGE_BASELINE_SENTINEL_CUTOFF_MS = Date.parse("2090-01-01T00:00:00.000Z");
+
+export function isAgeBaselineSentinelImportedAt(importedAt: string): boolean {
+  const raw = String(importedAt || "").trim();
+  if (!raw) return false;
+  const t = new Date(raw).getTime();
+  return Number.isFinite(t) && t >= AGE_BASELINE_SENTINEL_CUTOFF_MS;
+}
+
+function isTopupLedgerPaymentAlreadyInAgeBaseline(
+  entry: BillingLedgerEntry
+): boolean {
+  if (entry.type !== "payment") return false;
+  return String(entry.source || "").trim().toLowerCase() === "kidesys_topup";
+}
+
 /** Ledger rows that change live FamilyAccount balance (age-analysis baseline + delta). */
 export function filterPostImportBalanceEntries(
   accountEntries: BillingLedgerEntry[],
   importedAt: string
 ): BillingLedgerEntry[] {
+  const sentinel = isAgeBaselineSentinelImportedAt(importedAt);
   return accountEntries.filter((entry) => {
     if (!countsTowardPostImportBalanceDelta(entry)) return false;
     if (isUndoneLedgerEntry(entry)) return false;
     if (isEduClearUndoCorrectionEntry(entry)) return false;
+    if (sentinel) {
+      // Age snapshot already includes imported Kid-e-Sys/top-up ledger rows.
+      return !isTopupLedgerPaymentAlreadyInAgeBaseline(entry);
+    }
     if (!importedAt) return true;
     return String(entry.createdAt || "") >= importedAt;
   });
