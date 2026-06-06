@@ -606,3 +606,142 @@ export const fetchOpenInvoices = async (
     balance: Number((data as any)?.balance || 0),
   };
 };
+
+export type TransactionListExportRow = {
+  date: string;
+  type: string;
+  accountNo: string;
+  accountHolder: string;
+  learners: string;
+  description: string;
+  reference: string;
+  amount: number;
+  source: string;
+  createdAt: string;
+};
+
+export type TransactionListExportResponse = {
+  rows: TransactionListExportRow[];
+  generatedAt: string;
+  fromDate: string;
+  toDate: string;
+  count: number;
+  totalAmount: number;
+};
+
+function resolveTransactionListDateRange(config: {
+  dateSelection: string;
+  customFrom: string;
+  customTo: string;
+}): { fromDate: string; toDate: string } {
+  const today = new Date();
+  const iso = (d: Date) => d.toISOString().slice(0, 10);
+  const sel = String(config.dateSelection || "This Month");
+  if (sel === "Today") {
+    const d = iso(today);
+    return { fromDate: d, toDate: d };
+  }
+  if (sel === "Last Month") {
+    const start = new Date(today.getFullYear(), today.getMonth() - 1, 1);
+    const end = new Date(today.getFullYear(), today.getMonth(), 0);
+    return { fromDate: iso(start), toDate: iso(end) };
+  }
+  if (sel === "Custom Dates") {
+    return {
+      fromDate: String(config.customFrom || "").slice(0, 10),
+      toDate: String(config.customTo || "").slice(0, 10),
+    };
+  }
+  const start = new Date(today.getFullYear(), today.getMonth(), 1);
+  const end = new Date(today.getFullYear(), today.getMonth() + 1, 0);
+  return { fromDate: iso(start), toDate: iso(end) };
+}
+
+function entryMatchesTransactionListType(type: string, filter: string): boolean {
+  const t = String(type || "").toLowerCase();
+  const f = String(filter || "All");
+  if (f === "All") return true;
+  if (f === "Payments") return t === "payment";
+  if (f === "Invoices") return t === "invoice";
+  if (f === "Credits") return t === "credit";
+  if (f === "Penalties") return t === "penalty";
+  return true;
+}
+
+/** Transaction list report — reads ledger + statement accounts (read-only). */
+export async function fetchTransactionListExport(
+  schoolId: string,
+  config: {
+    type: string;
+    dateSelection: string;
+    customFrom: string;
+    customTo: string;
+    hideCorrections: boolean;
+  }
+): Promise<TransactionListExportResponse> {
+  const sid = String(schoolId || "").trim();
+  const { fromDate, toDate } = resolveTransactionListDateRange(config);
+  const [ledgerRows, statements] = await Promise.all([
+    fetchLedger(sid),
+    fetchStatements(sid),
+  ]);
+
+  const holderByAccount = new Map<string, string>();
+  const learnersByAccount = new Map<string, string>();
+  for (const row of statements) {
+    const acct = String(row.accountNo || "").trim().toUpperCase();
+    if (!acct) continue;
+    holderByAccount.set(
+      acct,
+      String(row.accountHolder || row.familyName || row.name || acct)
+    );
+    const members = Array.isArray(row.memberNames)
+      ? row.memberNames.join(" · ")
+      : String(row.name || "");
+    learnersByAccount.set(acct, members || "—");
+  }
+
+  const rows: TransactionListExportRow[] = [];
+  let totalAmount = 0;
+
+  for (const row of ledgerRows) {
+    const source = String(row.source || "");
+    if (config.hideCorrections) {
+      if (source === "educlear_undo_correction" || String(row.id || "").startsWith("undo-corr-")) {
+        continue;
+      }
+      if (row.undoneAt || row.statementHidden) continue;
+    }
+    const type = String(row.type || "invoice").toLowerCase();
+    if (!entryMatchesTransactionListType(type, config.type)) continue;
+    const date = String(row.date || row.createdAt || "").slice(0, 10);
+    if (fromDate && date < fromDate) continue;
+    if (toDate && date > toDate) continue;
+    const accountNo = String(row.accountNo || "").trim().toUpperCase();
+    const amount = Math.abs(Number(row.amount) || 0);
+    totalAmount += amount;
+    rows.push({
+      date: date || "—",
+      type: type.charAt(0).toUpperCase() + type.slice(1),
+      accountNo: accountNo || "—",
+      accountHolder: holderByAccount.get(accountNo) || accountNo || "—",
+      learners: learnersByAccount.get(accountNo) || "—",
+      description: String(row.description || "—"),
+      reference: String(row.reference || "—"),
+      amount,
+      source: source || "—",
+      createdAt: String(row.createdAt || "").slice(0, 19) || "—",
+    });
+  }
+
+  rows.sort((a, b) => b.date.localeCompare(a.date) || a.accountNo.localeCompare(b.accountNo));
+
+  return {
+    rows,
+    generatedAt: new Date().toISOString(),
+    fromDate,
+    toDate,
+    count: rows.length,
+    totalAmount: Math.round(totalAmount * 100) / 100,
+  };
+}

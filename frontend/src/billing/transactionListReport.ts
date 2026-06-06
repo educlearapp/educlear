@@ -3,7 +3,11 @@ import {
   payloadFromTable,
   resolveExportBranding,
 } from "../accounting/accountingExportEngine";
-import { fetchTransactionListExport, type TransactionListExportResponse } from "./billingApi";
+import {
+  fetchTransactionListExport,
+  type TransactionListExportResponse,
+  type TransactionListExportRow,
+} from "./billingApi";
 import type { GeneratedBillingReport } from "./billingReportsEngine";
 import { reportTitle } from "./billingReportDefinitions";
 
@@ -92,7 +96,7 @@ export function mapTransactionListToReport(
     "Created At",
   ];
 
-  const rows = (data.rows || []).map((row) => [
+  const rows = (data.rows || []).map((row: TransactionListExportRow) => [
     row.date,
     row.type,
     row.accountNo,
