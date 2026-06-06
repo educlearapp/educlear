@@ -53,7 +53,11 @@ function BundleCard({ bundle }: { bundle: Bundle }) {
   );
 }
 
-export default function SchoolCreditsPage() {
+type Props = {
+  onConnectWinSms?: () => void;
+};
+
+export default function SchoolCreditsPage({ onConnectWinSms }: Props) {
   return (
     <div className="sms-credits-page">
       <header className="sms-credits-header">
@@ -66,6 +70,15 @@ export default function SchoolCreditsPage() {
       </header>
 
       <div className="sms-credits-actions">
+        {onConnectWinSms ? (
+          <button
+            type="button"
+            className="sms-credits-action-btn sms-credits-action-btn--gold"
+            onClick={onConnectWinSms}
+          >
+            Connect WinSMS Account
+          </button>
+        ) : null}
         <WinSmsLinkButton href={WINSMS_URLS.registration} label="Register WinSMS Account" />
         <WinSmsLinkButton href={WINSMS_URLS.buyCredits} label="Buy SMS Credits" />
         <WinSmsLinkButton

@@ -1038,6 +1038,11 @@ const [selectedLearnerReport, setSelectedLearnerReport] = useState<any>(null);
     go("communicationSettings");
   };
 
+  const openCommunicationSmsSetup = () => {
+    setCommunicationSettingsTab("sms");
+    go("communicationSettings");
+  };
+
   const refreshEmailReadiness = async () => {
     if (!schoolId) {
       setEmailReadiness(null);
@@ -16220,6 +16225,7 @@ return (
               learners={learners}
               parents={parents}
               schoolName={schoolBranding.name}
+              onOpenSmsSettings={openCommunicationSmsSetup}
             />
           );
 
@@ -16245,7 +16251,7 @@ return (
   
   
         case "schoolCredits":
-          return <SchoolCreditsPage />;
+          return <SchoolCreditsPage onConnectWinSms={openCommunicationSmsSetup} />;
 
         case "sasamsReportUpload":
           return <SchoolSasamsReportUploadPage />;

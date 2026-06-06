@@ -31,6 +31,7 @@ type Props = {
   learners: any[];
   parents: any[];
   schoolName?: string;
+  onOpenSmsSettings?: () => void;
 };
 
 type View = "list" | "compose";
@@ -38,7 +39,13 @@ type View = "list" | "compose";
 const PAGE_SIZE = 10;
 const SMS_LIMIT = 160;
 
-export default function SMS({ schoolId, learners, parents, schoolName = "School" }: Props) {
+export default function SMS({
+  schoolId,
+  learners,
+  parents,
+  schoolName = "School",
+  onOpenSmsSettings,
+}: Props) {
   const [view, setView] = useState<View>("list");
   const [records, setRecords] = useState<SmsRecord[]>([]);
   const [smsCredits, setSmsCredits] = useState(0);
@@ -390,9 +397,16 @@ export default function SMS({ schoolId, learners, parents, schoolName = "School"
 
   return (
     <div style={pageWrap}>
-      <div style={{ marginBottom: 18 }}>
-        <h1 style={{ margin: 0, fontSize: 34, fontWeight: 900, color: "#0f172a" }}>SMS</h1>
-        <p style={{ margin: "6px 0 0", color: "#64748b", fontWeight: 700 }}>Send and view sms communications</p>
+      <div style={{ marginBottom: 18, display: "flex", justifyContent: "space-between", flexWrap: "wrap", gap: 12 }}>
+        <div>
+          <h1 style={{ margin: 0, fontSize: 34, fontWeight: 900, color: "#0f172a" }}>SMS</h1>
+          <p style={{ margin: "6px 0 0", color: "#64748b", fontWeight: 700 }}>Send and view sms communications</p>
+        </div>
+        {onOpenSmsSettings ? (
+          <button type="button" style={ghostBtn} onClick={onOpenSmsSettings}>
+            SMS Settings / Connect WinSMS
+          </button>
+        ) : null}
       </div>
 
       <div style={{ display: "grid", gridTemplateColumns: "repeat(2, minmax(160px, 1fr))", gap: 16, marginBottom: 22, maxWidth: 520 }}>
