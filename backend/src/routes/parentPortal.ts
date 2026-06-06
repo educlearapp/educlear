@@ -14,8 +14,8 @@ import {
 } from "../services/parentPortalService";
 import { parentAuthMiddleware, signParentToken, verifyParentToken } from "../middleware/parentAuth";
 import { resolveLearnerAccountNo } from "../utils/learnerIdentity";
+import { resolveAuthoritativeAccountBalance } from "../services/statementAccounts";
 import {
-  calculateBalanceFromEntries,
   collectFamilyAccountEntries,
   readSchoolLedger,
 } from "../utils/billingLedgerStore";
@@ -393,7 +393,9 @@ router.get("/billing", parentAuthMiddleware, async (req, res) => {
       accountRef: scope.accountRef,
       learnerIds: scope.learnerIds,
     });
-    const balance = calculateBalanceFromEntries(entries);
+    const balance = await resolveAuthoritativeAccountBalance(auth.schoolId, scope.accountRef, {
+      ledger,
+    });
     const nameByLearnerId = new Map(
       scope.learners.map((l) => [l.id, `${l.firstName} ${l.lastName}`.trim()])
     );
