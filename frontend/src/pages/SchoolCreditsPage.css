@@ -10,11 +10,78 @@
   margin: 0 0 8px;
 }
 
+.sms-credits-header {
+  margin-bottom: 20px;
+}
+
+.sms-credits-intro {
+  margin: 0;
+  max-width: 820px;
+  font-size: 0.95rem;
+  font-weight: 500;
+  line-height: 1.55;
+  color: rgba(255, 255, 255, 0.78);
+}
+
+.sms-credits-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  margin-bottom: 18px;
+}
+
+.sms-credits-action-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 10px 18px;
+  border-radius: 8px;
+  font-size: 0.95rem;
+  font-weight: 600;
+  font-family: inherit;
+  line-height: 1.2;
+  text-decoration: none;
+  cursor: pointer;
+  transition: background 0.2s ease, border-color 0.2s ease, color 0.2s ease, box-shadow 0.2s ease;
+}
+
+.sms-credits-action-btn--gold {
+  border: none;
+  background: #d4af37;
+  color: #0a0a0a;
+}
+
+.sms-credits-action-btn--gold:hover {
+  background: #c9a227;
+}
+
+.sms-credits-action-btn--outline {
+  border: 1px solid rgba(212, 175, 55, 0.55);
+  background: transparent;
+  color: #ffffff;
+}
+
+.sms-credits-action-btn--outline:hover {
+  border-color: #d4af37;
+  background: rgba(212, 175, 55, 0.1);
+}
+
+.sms-credits-notice {
+  margin: 0 0 24px;
+  padding: 14px 16px;
+  border-radius: 8px;
+  border: 1px solid rgba(212, 175, 55, 0.35);
+  background: rgba(212, 175, 55, 0.08);
+  font-size: 0.92rem;
+  font-weight: 500;
+  line-height: 1.5;
+  color: #d4af37;
+}
+
 .sms-credits-grid {
   display: grid;
   grid-template-columns: repeat(4, minmax(0, 1fr));
   gap: 36px;
-  margin-top: 28px;
   align-items: stretch;
 }
 
@@ -95,7 +162,7 @@
   border-radius: 8px;
   background: #d4af37;
   color: #0a0a0a;
-  font-size: 1rem;
+  font-size: 0.95rem;
   font-weight: 600;
   font-family: inherit;
   line-height: 1.2;
@@ -121,144 +188,26 @@
     0 14px 32px rgba(0, 0, 0, 0.42);
 }
 
-/* Purchase confirmation modal */
-.sms-credits-modal-overlay {
-  position: fixed;
-  inset: 0;
-  z-index: 5000;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  padding: 20px;
-  background: rgba(0, 0, 0, 0.72);
-  backdrop-filter: blur(4px);
-}
-
-.sms-credits-modal {
-  position: relative;
-  width: min(440px, 100%);
-  padding: 28px 26px 24px;
-  border-radius: 12px;
-  border: 2px solid #d4af37;
-  background: #0a0a0a;
-  color: #ffffff;
-  box-shadow:
-    0 0 24px rgba(212, 175, 55, 0.35),
-    0 24px 60px rgba(0, 0, 0, 0.5);
-  overflow: hidden;
-}
-
-.sms-credits-modal-accent {
-  position: absolute;
-  top: 0;
-  left: 0;
-  right: 0;
-  height: 3px;
-  background: linear-gradient(135deg, #f7d56a, #d4af37);
-}
-
-.sms-credits-modal-title {
-  margin: 4px 0 22px;
-  padding: 0;
-  font-size: 1.35rem;
-  font-weight: 700;
-  line-height: 1.2;
-  color: #d4af37;
-}
-
-.sms-credits-modal-details {
-  margin: 0 0 20px;
-  padding: 0;
-}
-
-.sms-credits-modal-row {
-  display: flex;
-  justify-content: space-between;
-  align-items: baseline;
-  gap: 16px;
-  margin: 0 0 12px;
-  padding: 0 0 12px;
-  border-bottom: 1px solid rgba(212, 175, 55, 0.2);
-}
-
-.sms-credits-modal-row:last-child {
-  margin-bottom: 0;
-  padding-bottom: 0;
-  border-bottom: none;
-}
-
-.sms-credits-modal-row dt {
-  margin: 0;
-  font-size: 0.9rem;
-  font-weight: 500;
-  color: rgba(255, 255, 255, 0.65);
-}
-
-.sms-credits-modal-row dd {
-  margin: 0;
-  font-size: 1rem;
-  font-weight: 600;
-  color: #ffffff;
-  text-align: right;
-}
-
-.sms-credits-modal-notice {
-  margin: 0 0 24px;
-  padding: 14px 16px;
-  border-radius: 8px;
-  border: 1px solid rgba(212, 175, 55, 0.35);
-  background: rgba(212, 175, 55, 0.08);
-  font-size: 0.95rem;
-  font-weight: 500;
-  line-height: 1.5;
-  color: #d4af37;
-  text-align: center;
-}
-
-.sms-credits-modal-actions {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 12px;
-  justify-content: flex-end;
-}
-
-.sms-credits-modal-btn {
-  padding: 10px 20px;
-  border-radius: 8px;
-  font-size: 1rem;
-  font-weight: 600;
-  font-family: inherit;
-  line-height: 1.2;
-  cursor: pointer;
-  transition: background 0.2s ease, border-color 0.2s ease, color 0.2s ease;
-}
-
-.sms-credits-modal-btn--outline {
-  border: 1px solid rgba(212, 175, 55, 0.55);
-  background: transparent;
-  color: #ffffff;
-}
-
-.sms-credits-modal-btn--outline:hover {
-  border-color: #d4af37;
-  background: rgba(212, 175, 55, 0.1);
-}
-
-.sms-credits-modal-btn--gold {
-  border: none;
-  background: #d4af37;
-  color: #0a0a0a;
-}
-
-.sms-credits-modal-btn--gold:hover {
-  background: #c9a227;
+@media (max-width: 1024px) {
+  .sms-credits-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 24px;
+  }
 }
 
 @media (max-width: 768px) {
+  .sms-credits-actions {
+    flex-direction: column;
+  }
+
+  .sms-credits-action-btn {
+    width: 100%;
+    text-align: center;
+  }
+
   .sms-credits-grid {
     grid-template-columns: 1fr;
     gap: 24px;
-    margin-top: 20px;
   }
 
   .sms-credits-card {
@@ -266,11 +215,7 @@
     width: 100%;
   }
 
-  .sms-credits-modal-actions {
-    flex-direction: column-reverse;
-  }
-
-  .sms-credits-modal-btn {
+  .sms-credits-purchase-btn {
     width: 100%;
   }
 }
