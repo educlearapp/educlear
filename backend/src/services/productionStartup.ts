@@ -8,6 +8,7 @@ import { healDaSilvaProductionDataIfCorrupted } from "./daSilvaProductionHeal";
 import { removeStuckAli002ManualTestPayments } from "./repairStuckManualBillingEntries";
 import { ensureEduClearPackages } from "./ensureEduClearPackages";
 import { runPrismaMigrateDeployWithRecovery } from "./prismaMigrationRecovery";
+import { migrateLegacyJsonToPostgres } from "../utils/userAccessStore";
 import { prisma } from "../prisma";
 import { refreshDaSilvaSchoolIdCache } from "./daSilvaSchoolResolve";
 import { assertBillingPersistentDiskForStartup } from "../utils/billingPersistenceDiagnostics";
@@ -21,6 +22,15 @@ export async function runProductionStartup(): Promise<void> {
 
   console.log("[startup] Running migration recovery");
   await runPrismaMigrateDeployWithRecovery();
+
+  try {
+    const rbacImport = await migrateLegacyJsonToPostgres();
+    console.log(
+      `[startup] User RBAC JSON import: imported=${rbacImport.imported} skipped=${rbacImport.skipped} postgresCount=${rbacImport.postgresCount}`
+    );
+  } catch (error) {
+    console.error("[startup] User RBAC JSON import failed:", error);
+  }
 
   try {
     const codes = await ensureEduClearPackages();
