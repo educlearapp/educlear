@@ -194,6 +194,29 @@ export function countsTowardPostImportBalanceDelta(entry: BillingDisplayEntry): 
   return !isNonPostingImportedLedgerEntry(entry);
 }
 
+export function isKidesysHistoryTypeLabel(typeLabel: string | undefined): boolean {
+  return /\bKid-e-Sys\b[^\w]*History\b/i.test(String(typeLabel || ""));
+}
+
+/** Statement Manage — EduClear manual payment rows only. */
+export function isStatementManualUndoableEntry(
+  entry: BillingDisplayEntry,
+  typeLabel?: string
+): boolean {
+  if (isKidesysHistoryTypeLabel(typeLabel)) return false;
+  return isManualLedgerPayment(entry);
+}
+
+/** Statement Manage posting row — undo when not Kid-e-Sys history and ledger row is undoable. */
+export function canUndoStatementPostingEntry(
+  entry: BillingUndoableDisplayEntry,
+  typeLabel?: string
+): boolean {
+  if (isStatementManualUndoableEntry(entry, typeLabel)) return true;
+  if (isStatementKidesysUndoBlocked(entry, typeLabel, false)) return false;
+  return isEduClearUndoableLedgerEntry(entry);
+}
+
 /** Undo allowed only for EduClear-created posting ledger rows. */
 export function isEduClearUndoableLedgerEntry(entry: BillingUndoableDisplayEntry): boolean {
   if (isUndoneLedgerEntry(entry) || isEduClearUndoCorrectionEntry(entry)) return false;

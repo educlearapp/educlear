@@ -7,9 +7,18 @@ services:
     rootDir: backend
     buildCommand: npm ci && npm run build
     startCommand: npm start
+    # Persistent billing JSON — survives deploys. Seed via scripts/seed-phase1-billing-disk.ts
+    # See docs/emergency-persistent-disk-restore-RUNBOOK.md
+    disk:
+      name: educlear-billing-data
+      mountPath: /opt/render/project/src/backend/data
+      sizeGB: 1
     envVars:
       - key: NODE_VERSION
         value: "22"
+      # Remove after verify-phase1-billing-acceptance passes on production.
+      - key: AUTO_SEED_PHASE1_BILLING_DISK
+        value: "true"
   - type: web
     name: educlear-frontend
     runtime: static

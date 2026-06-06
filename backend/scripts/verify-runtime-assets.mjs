@@ -31,6 +31,8 @@ const REQUIRED_FILES = [
     rel: "data/family-account-age-analysis.json",
     kind: "school-object",
     minCount: 344,
+    exactCount: 344,
+    forbiddenAccountRefs: ["JAC001", "LET007"],
   },
   {
     rel: "data/user-access.json",
@@ -104,6 +106,20 @@ function verifyFile(spec) {
     fail(
       `${spec.rel} school ${DA_SILVA_SCHOOL_ID} count=${count}, expected >= ${spec.minCount}`
     );
+  }
+  if (spec.exactCount != null && count !== spec.exactCount) {
+    fail(
+      `${spec.rel} school ${DA_SILVA_SCHOOL_ID} count=${count}, expected exactly ${spec.exactCount}`
+    );
+  }
+  if (Array.isArray(spec.forbiddenAccountRefs) && spec.kind === "school-object") {
+    const payload = parsed?.[DA_SILVA_SCHOOL_ID];
+    const forbidden = spec.forbiddenAccountRefs.filter(
+      (ref) => payload && typeof payload === "object" && ref in payload
+    );
+    if (forbidden.length) {
+      fail(`${spec.rel} must not contain excluded account(s): ${forbidden.join(", ")}`);
+    }
   }
   if (spec.warnBelowCount != null && count < spec.warnBelowCount) {
     console.warn(

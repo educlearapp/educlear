@@ -5,7 +5,7 @@ import { readSchoolFamilyAccountAgeAnalysisSnapshots } from "../utils/familyAcco
 import { resolveBillingAccountRef } from "./resolveBillingAccountRef";
 import {
   calculateBalanceFromEntries,
-  collectFamilyAccountEntries,
+  collectAccountRefLedgerEntries,
   normaliseAmount,
   readSchoolLedger,
 } from "../utils/billingLedgerStore";
@@ -384,6 +384,25 @@ async function loadSchoolBranding(schoolId: string) {
   };
 }
 
+export async function resolveAccountStatementScope(
+  schoolId: string,
+  opts: { accountNo?: string; learnerId?: string }
+) {
+  const sid = String(schoolId || "").trim();
+  const learnerId = String(opts.learnerId || "").trim();
+  const accountNo = String(opts.accountNo || "").trim();
+  if (!sid || (!accountNo && !learnerId)) return null;
+
+  const accountRef = await resolveStatementAccountRef(sid, { accountNo, learnerId });
+  if (!accountRef) return null;
+
+  const learners = await loadLearnersForAccountRef(sid, accountRef);
+  const scope = buildAccountScopeFromLearners(learners, accountRef);
+  if (!scope) return null;
+
+  return { accountRef, scope };
+}
+
 export async function buildStatementPdfInput(
   options: BuildStatementPdfOptions
 ): Promise<StatementPdfInput> {
@@ -396,18 +415,12 @@ export async function buildStatementPdfInput(
     throw new Error("Missing schoolId and accountNo or learnerId for statement PDF");
   }
 
-  const accountRef = await resolveStatementAccountRef(schoolId, { accountNo, learnerId });
-  if (!accountRef) throw new Error("Account not found for statement PDF");
-
-  const learners = await loadLearnersForAccountRef(schoolId, accountRef);
-  const scope = buildAccountScopeFromLearners(learners, accountRef);
-  if (!scope) throw new Error("Account not found for statement PDF");
+  const resolved = await resolveAccountStatementScope(schoolId, { accountNo, learnerId });
+  if (!resolved) throw new Error("Account not found for statement PDF");
+  const { scope } = resolved;
 
   const ledger = readSchoolLedger(schoolId);
-  const scopedEntries = collectFamilyAccountEntries(ledger, {
-    accountRef: scope.accountRef,
-    learnerIds: scope.learnerIds,
-  });
+  const scopedEntries = collectAccountRefLedgerEntries(ledger, scope.accountRef);
   const filtered = filterLedgerByStatementPeriod(scopedEntries, period);
   const openingBalance = computeStatementOpeningBalance(scopedEntries, period);
   // Balance source of truth: Age Analysis (Kid-e-Sys accountRef) snapshot.

@@ -113,6 +113,50 @@ export const fetchStatements = async (schoolId: string) =>
     "data",
   ]);
 
+export type StatementAccountTransactionRow = {
+  key: string;
+  ledgerEntryId?: string;
+  auditNo: string | number;
+  date: string;
+  type: string;
+  learner: string;
+  reference: string;
+  description: string;
+  amountIn: number;
+  amountOut: number;
+  balance: number | null;
+  isKidesysHistory: boolean;
+  isOpeningBalance: boolean;
+  canUndo: boolean;
+};
+
+export const fetchStatementAccountTransactions = async (
+  schoolId: string,
+  options: {
+    accountNo?: string;
+    learnerId?: string;
+    period?: string;
+    showCorrectionsAudit?: boolean;
+  }
+): Promise<StatementAccountTransactionRow[]> => {
+  const sid = String(schoolId || "").trim();
+  const accountNo = String(options.accountNo || "").trim();
+  const learnerId = String(options.learnerId || "").trim();
+  if (!sid || (!accountNo && !learnerId)) return [];
+
+  const params = new URLSearchParams({ schoolId: sid });
+  if (accountNo) params.set("accountNo", accountNo);
+  if (learnerId) params.set("learnerId", learnerId);
+  if (options.period) params.set("period", String(options.period));
+  if (options.showCorrectionsAudit) params.set("showCorrections", "true");
+
+  const data = await getJson(`${API_URL}/api/statements/transactions?${params.toString()}`);
+  if (!data || (data as { success?: boolean }).success === false) return [];
+  return Array.isArray((data as { transactions?: unknown }).transactions)
+    ? ((data as { transactions: StatementAccountTransactionRow[] }).transactions || [])
+    : [];
+};
+
 function parseKidesysHistoryPayload(data: unknown): any[] {
   return parseArray(data, ["entries", "kidesysHistoryEntries", "history", "items"]);
 }

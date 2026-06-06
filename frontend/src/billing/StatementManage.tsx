@@ -5,25 +5,22 @@ import {
   resolveStatementMessage,
 } from "./billingSettingsEngine";
 import {
+  fetchStatementAccountTransactions,
   mergeFamilyAccount,
   refreshBillingFromApi,
   sanitizeUserFacingError,
   syncBillingLedgerFromApi,
   undoBillingTransaction,
   unmergeFamilyAccount,
+  type StatementAccountTransactionRow,
 } from "./billingApi";
 import {
   BILLING_UPDATED_EVENT,
   LEARNERS_REFRESH_EVENT,
-  calculateAccountBalance,
-  calculateBalanceFromEntries,
   formatMoney,
-  getAccountLedger,
-  getFamilyAccountLedger,
   normaliseBillingAmount,
   notifyBillingUpdated,
   notifyLearnersRefresh,
-  resolveEntryLearnerLabel,
 } from "./billingLedger";
 import {
   normalizeKidESysAccountRef,
@@ -34,20 +31,9 @@ import {
   splitAccountHolderNames,
 } from "./billingFamilyDisplay";
 import {
-  formatKidesysHistoryDescriptionDisplay,
-  formatKidesysHistoryReferenceDisplay,
-  formatKidesysHistoryTypeLabel,
-  formatLedgerDescriptionDisplay,
-  formatLedgerReferenceDisplay,
-  formatLedgerTypeLabel,
-  canUndoStatementPostingEntry,
-  isStatementKidesysUndoBlocked,
-  isStatementManualUndoableEntry,
   isKidesysHistoryTypeLabel,
-  isKidesysOpeningBalanceEntry,
   isMigratedOpeningBalanceOverviewLabel,
   MIGRATED_OPENING_BALANCE_OVERVIEW,
-  shouldShowLedgerEntryOnStatement,
 } from "./billingDisplayRules";
 import type { KidesysHistoryEntry } from "./kidesysTransactionHistory";
 import {
@@ -78,11 +64,7 @@ import {
 import {
   DEFAULT_STATEMENT_PERIOD,
   buildStatementPdfFilename,
-  computeStatementOpeningBalance,
-  filterKidesysHistoryByStatementPeriod,
-  filterLedgerByStatementPeriod,
   normalizeStatementPeriod,
-  shouldShowOpeningBalanceMigration,
   STATEMENT_PERIOD_OPTIONS,
 } from "./statementPeriod";
 import StatementPeriodModal, {
@@ -307,6 +289,9 @@ export default function StatementManage({
   const [undoBusy, setUndoBusy] = useState(false);
   const [undoNotice, setUndoNotice] = useState("");
   const [showCorrectionsAudit, setShowCorrectionsAudit] = useState(false);
+  const [accountTransactions, setAccountTransactions] = useState<StatementAccountTransactionRow[]>([]);
+  const [transactionsLoading, setTransactionsLoading] = useState(false);
+  const [transactionsError, setTransactionsError] = useState("");
   const [pdfDownloading, setPdfDownloading] = useState(false);
   const [statementExportBusy, setStatementExportBusy] = useState(false);
   const [exportPeriodModal, setExportPeriodModal] = useState<ExportAction | null>(null);
@@ -493,22 +478,6 @@ export default function StatementManage({
     [accountChildren]
   );
 
-  const learnerNameById = useMemo(() => {
-    const map = new Map<string, string>();
-    for (const child of accountChildren) {
-      map.set(child.id, `${child.firstName} ${child.lastName}`.trim());
-    }
-    return map;
-  }, [accountChildren]);
-
-  const familyLedgerScope = useMemo(
-    () => ({
-      accountRef: accountRef || accountNo,
-      learnerIds: familyLearnerIds,
-    }),
-    [accountRef, accountNo, familyLearnerIds]
-  );
-
   useEffect(() => {
     const onHistoryUpdated = () => setKidesysHistoryVersion((v) => v + 1);
     window.addEventListener(KIDESYS_HISTORY_UPDATED_EVENT, onHistoryUpdated);
@@ -556,13 +525,45 @@ export default function StatementManage({
     });
   }, [statementRows, mergeSearch, learnerId, accountNo, familyAccountId, learners]);
 
-  const fullLedger = useMemo(() => {
-    return isFamilyBillingAccount
-      ? getFamilyAccountLedger(schoolId, familyLedgerScope)
-      : getAccountLedger(schoolId, learnerId, accountRef || accountNo);
-  }, [schoolId, isFamilyBillingAccount, familyLedgerScope, learnerId, accountRef, accountNo]);
+  const loadAccountTransactions = useCallback(async () => {
+    const ref = accountRef || accountNo;
+    if (!schoolId || !ref) {
+      setAccountTransactions([]);
+      setTransactionsError("");
+      return;
+    }
+    setTransactionsLoading(true);
+    setTransactionsError("");
+    try {
+      const rows = await fetchStatementAccountTransactions(schoolId, {
+        accountNo: ref,
+        learnerId,
+        period,
+        showCorrectionsAudit,
+      });
+      setAccountTransactions(rows);
+    } catch (error) {
+      setAccountTransactions([]);
+      setTransactionsError(
+        sanitizeUserFacingError(
+          error instanceof Error ? error.message : "Failed to load transactions",
+          "Failed to load transactions"
+        )
+      );
+    } finally {
+      setTransactionsLoading(false);
+    }
+  }, [schoolId, accountRef, accountNo, learnerId, period, showCorrectionsAudit]);
 
-  const ledger = useMemo(() => filterLedgerByStatementPeriod(fullLedger, period), [fullLedger, period]);
+  useEffect(() => {
+    void loadAccountTransactions();
+  }, [loadAccountTransactions]);
+
+  useEffect(() => {
+    const refresh = () => void loadAccountTransactions();
+    window.addEventListener(BILLING_UPDATED_EVENT, refresh);
+    return () => window.removeEventListener(BILLING_UPDATED_EVENT, refresh);
+  }, [loadAccountTransactions]);
 
   const kidesysHistoryForAccount = useMemo(() => {
     const ref = accountRef || accountNo;
@@ -606,26 +607,14 @@ export default function StatementManage({
     return "No payments";
   }, [kidesysHistorySummary, selected]);
 
-  const filteredKidesysHistory = useMemo(
-    () => filterKidesysHistoryByStatementPeriod(kidesysHistoryForAccount, period),
-    [kidesysHistoryForAccount, period]
-  );
-
-  const statementOpeningBalance = useMemo(
-    () => computeStatementOpeningBalance(fullLedger, period, { showCorrectionsAudit }),
-    [fullLedger, period, showCorrectionsAudit]
-  );
-
   const balance = useMemo(() => {
-    // Statement list uses Age Analysis (accountRef) balances. Manage view must match list exactly.
+    // Statement list uses Age Analysis (accountRef) balances from GET /api/statements.
     const fromRow = normaliseBillingAmount(selected?.balance);
     if (Number.isFinite(fromRow) && (fromRow !== 0 || Number(selected?.balance) === 0)) {
       return fromRow;
     }
-    return isFamilyBillingAccount
-      ? calculateBalanceFromEntries(ledger)
-      : calculateAccountBalance(ledger, learnerId, accountRef || accountNo);
-  }, [selected?.balance, isFamilyBillingAccount, ledger, learnerId, accountRef, accountNo]);
+    return 0;
+  }, [selected?.balance]);
 
   type TransactionDisplayRow = {
     key: string;
@@ -645,79 +634,7 @@ export default function StatementManage({
     sortTime: number;
   };
 
-  const transactions = useMemo(() => {
-    type DisplayRow = TransactionDisplayRow;
-
-    const postingRows: DisplayRow[] = [];
-    const sortedPosting = [...ledger].sort(
-      (a, b) =>
-        new Date(a.date || a.createdAt).getTime() - new Date(b.date || b.createdAt).getTime()
-    );
-    let running = statementOpeningBalance;
-    sortedPosting.forEach((entry, index) => {
-      if (!shouldShowLedgerEntryOnStatement(entry, showCorrectionsAudit)) return;
-      if (!shouldShowOpeningBalanceMigration(period, entry) && isKidesysOpeningBalanceEntry(entry)) {
-        return;
-      }
-      const amount = normaliseBillingAmount(entry.amount);
-      const isDebit = entry.type === "invoice" || entry.type === "penalty";
-      const signed = isDebit ? amount : -amount;
-      running += signed;
-      const isOpeningBalance = isKidesysOpeningBalanceEntry(entry);
-      const typeLabel = formatLedgerTypeLabel(entry);
-      const learnerLabel = resolveEntryLearnerLabel(
-        entry,
-        learnerNameById,
-        accountRef || accountNo
-      );
-      const sortTime = new Date(entry.date || entry.createdAt).getTime();
-      postingRows.push({
-        key: `posting-${entry.id}`,
-        ledgerEntryId: entry.id,
-        auditNo: index + 1,
-        date: entry.date || "-",
-        type: typeLabel,
-        learner: learnerLabel,
-        reference: formatLedgerReferenceDisplay(entry),
-        description: formatLedgerDescriptionDisplay(entry),
-        amountIn: isDebit ? amount : 0,
-        amountOut: !isDebit ? amount : 0,
-        balance: running,
-        isKidesysHistory: false,
-        isOpeningBalance,
-        canUndo: canUndoStatementPostingEntry(entry, typeLabel),
-        sortTime: Number.isNaN(sortTime) ? 0 : sortTime,
-      });
-    });
-
-    const historyRows: DisplayRow[] = filteredKidesysHistory.map((entry) => {
-      const amount = normaliseBillingAmount(entry.amount);
-      const isDebit = entry.type === "invoice";
-      const sortTime = new Date(entry.date || "").getTime();
-      return {
-        key: `kidesys-${entry.id}`,
-        auditNo: "—",
-        date: entry.date || "-",
-        type: formatKidesysHistoryTypeLabel(entry.type),
-        learner: entry.fullName || "—",
-        reference: formatKidesysHistoryReferenceDisplay(entry),
-        description: formatKidesysHistoryDescriptionDisplay(entry),
-        amountIn: isDebit ? amount : 0,
-        amountOut: !isDebit ? amount : 0,
-        balance: null,
-        isKidesysHistory: true,
-        isOpeningBalance: false,
-        canUndo: false,
-        sortTime: Number.isNaN(sortTime) ? 0 : sortTime,
-      };
-    });
-
-    return [...postingRows, ...historyRows].sort((a, b) => {
-      if (a.sortTime !== b.sortTime) return b.sortTime - a.sortTime;
-      if (a.isKidesysHistory !== b.isKidesysHistory) return a.isKidesysHistory ? 1 : -1;
-      return String(a.key).localeCompare(String(b.key));
-    });
-  }, [ledger, filteredKidesysHistory, learnerNameById, accountRef, accountNo, period, showCorrectionsAudit, statementOpeningBalance]);
+  const transactions = accountTransactions as TransactionDisplayRow[];
 
   const openingBalanceRows = useMemo(
     () => transactions.filter((row) => row.isOpeningBalance),
@@ -1290,34 +1207,6 @@ export default function StatementManage({
     ) {
       return "Imported Kid-e-Sys history cannot be undone.";
     }
-
-    const ledgerEntry = selectedTransaction.ledgerEntryId
-      ? ledger.find((e) => e.id === selectedTransaction.ledgerEntryId) ?? null
-      : null;
-
-    const isManualUndoable = ledgerEntry
-      ? isStatementManualUndoableEntry(ledgerEntry, selectedTransaction.type)
-      : Boolean(
-          selectedTransaction.ledgerEntryId?.startsWith("pay-") &&
-            !selectedTransaction.isKidesysHistory &&
-            !isKidesysHistoryTypeLabel(selectedTransaction.type)
-        );
-
-    if (isManualUndoable) {
-      if (!selectedTransaction.ledgerEntryId) {
-        return "This transaction cannot be undone.";
-      }
-      return null;
-    }
-    if (
-      isStatementKidesysUndoBlocked(
-        ledgerEntry ?? undefined,
-        selectedTransaction.type,
-        selectedTransaction.isKidesysHistory
-      )
-    ) {
-      return "Imported Kid-e-Sys history cannot be undone.";
-    }
     if (!selectedTransaction.ledgerEntryId || !selectedTransaction.canUndo) {
       return "This transaction cannot be undone.";
     }
@@ -1366,6 +1255,7 @@ export default function StatementManage({
       setModalKind(null);
       setSelectedTransactionKey(null);
       await refreshBillingFromApi(schoolId);
+      await loadAccountTransactions();
       setActionNotice(
         result?.alreadyUndone
           ? "Transaction was already undone. Balances are up to date."
@@ -1720,6 +1610,10 @@ export default function StatementManage({
           </div>
         ) : undoNotice ? (
           <div style={{ padding: "8px 12px", color: "#b45309", fontWeight: 700, fontSize: 13 }}>{undoNotice}</div>
+        ) : transactionsError ? (
+          <div style={{ padding: "8px 12px", color: "#b45309", fontWeight: 700, fontSize: 13 }}>
+            {transactionsError}
+          </div>
         ) : null}
         <div style={{ overflowX: "auto" }}>
           <table style={{ width: "100%", borderCollapse: "collapse", minWidth: 880 }}>
@@ -1743,7 +1637,16 @@ export default function StatementManage({
               </tr>
             </thead>
             <tbody>
-              {totalTransactionCount === 0 ? (
+              {transactionsLoading ? (
+                <tr>
+                  <td
+                    colSpan={transactionColumns.length}
+                    style={{ padding: 16, textAlign: "center", color: "#64748b", fontWeight: 700, fontSize: 13 }}
+                  >
+                    Loading transactions…
+                  </td>
+                </tr>
+              ) : totalTransactionCount === 0 ? (
                 <tr>
                   <td
                     colSpan={transactionColumns.length}

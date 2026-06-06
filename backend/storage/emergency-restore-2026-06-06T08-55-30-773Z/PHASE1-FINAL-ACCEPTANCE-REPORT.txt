@@ -1,0 +1,98 @@
+=== EMERGENCY RECOVERY — PHASE 0 + PHASE 1 COMPLETE ===
+Generated: 2026-06-06T08:56:00Z
+Production: https://educlear-backend.onrender.com
+School: cmpideqeq0000108xb6ouv9zi (Da Silva Academy)
+
+----------------------------------------------------------------------
+PHASE 0 — BACKUP (completed before any write)
+----------------------------------------------------------------------
+Backup directory:
+  backend/storage/emergency-restore-2026-06-06T08-55-30-773Z/
+
+Files:
+  billing-ledger-production-backup.json   (41,349 entries)
+  statements-pre-restore.json             (346 accounts pre-restore)
+  payments-env-pre-restore.json
+  phase0-backup-manifest.json
+
+Rollback: restore family-account-age-analysis.json + billing-ledger.json
+          from this backup directory via admin API or Render shell.
+
+----------------------------------------------------------------------
+PHASE 1 — BASELINE RESTORE (completed)
+----------------------------------------------------------------------
+Action: POST /api/migration/age-analysis-baseline/refresh
+Snapshots applied: 344 (Payment Receive List PDF 2026/06/06 10:26)
+Excluded: JAC001, LET007 (removed from baseline)
+importedAt: 2099-12-31T23:59:59.999Z (sentinel — kidesys_topup excluded from delta)
+MAM004 baseline: R4,500 + manual R3,000 delta = live R1,500 (no double-count)
+
+Ledger: NOT modified (no top-up re-import, no duplicate payments created)
+
+----------------------------------------------------------------------
+FINAL ACCEPTANCE — 344 / 344 MATCHED
+----------------------------------------------------------------------
+1. Total PDF accounts:              344
+2. Total EduClear accounts:         344
+3. Matched accounts:                344
+4. Mismatched accounts:             0
+5. Missing accounts:                0
+6. Extra accounts:                  0
+7. Status/category mismatches:      0
+
+TOP CARDS (PDF vs EduClear — exact match at restore)
+  Total Outstanding:   R552,540.45  ✓
+  Recently Owing:      R334,550.45  ✓
+  Bad Debt:            R217,990.00  ✓
+  Over Paid:           R561,160.03  ✓
+  Net Position:        R-8,619.58   ✓
+
+SPOT CHECKS
+  DUP001:  R-12,200  ✓
+  ALI002:  R4,000     ✓
+  MAM004:  R1,500     ✓  | Last payment R3,000 on 2026-06-06 | 1 manual payment only
+  ADA004:  R-50       ✓
+  AFR002:  R-130      ✓
+
+----------------------------------------------------------------------
+LIVE PAYMENT PERSISTENCE TEST (production)
+----------------------------------------------------------------------
+Test account:     DIK001
+Payment amount:   R1.00
+Before balance:   R500.00
+After balance:    R499.00
+Before Outstanding card: R552,540.45
+After Outstanding card:  R552,539.45
+Before Net Position:     R-8,619.58
+After Net Position:      R-8,620.58
+API: POST /api/payments (success, duplicate=false)
+Ledger: 1 entry with idempotency key recovery-persist-test-1780736177726
+Refresh re-fetch: stable (344 accounts, balances unchanged except DIK001 -R1)
+
+Note: R1 test payment on DIK001 remains in production ledger by design (persistence proof).
+      Cards now reflect R552,539.45 outstanding / R-8,620.58 net until that test is reversed.
+
+MAM004 post-restore: still exactly 1 payment on 2026-06-06 (R3,000 manual EFT)
+
+----------------------------------------------------------------------
+DATA STORAGE / DEPLOY SURVIVAL
+----------------------------------------------------------------------
+| Data                         | Storage location                          | Survives deploy? |
+|------------------------------|-------------------------------------------|------------------|
+| Account baselines (344)      | backend/data/family-account-age-analysis.json on Render | NO — unless persistent disk |
+| Payment ledger (41,350+)     | backend/data/billing-ledger.json on Render | NO — unless persistent disk |
+| Learners/parents/classrooms   | PostgreSQL (Render)                       | YES              |
+| Top-up batch metadata        | PostgreSQL                                | YES              |
+
+PERMANENT FIX REQUIRED (P0):
+  Attach Render persistent disk at backend/data/ BEFORE next backend deploy.
+  See docs/billing-ledger-persistence-ACTION.md
+
+----------------------------------------------------------------------
+ARTIFACTS
+----------------------------------------------------------------------
+  phase1-final-report.json
+  payment-persistence-test.json
+  payload.json
+  apply-result.json
+  verification.json

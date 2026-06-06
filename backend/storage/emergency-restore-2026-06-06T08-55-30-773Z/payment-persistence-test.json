@@ -1,0 +1,36 @@
+{
+  "testAccount": "DIK001",
+  "paymentAmount": 1,
+  "idempotencyKey": "recovery-persist-test-1780736177726",
+  "beforeBalance": 500,
+  "afterBalance": 499,
+  "expectedAfterBalance": 499,
+  "balanceUpdatedImmediately": true,
+  "balanceStableAfterDelay": true,
+  "beforeCards": {
+    "totalAccounts": 344,
+    "totalOutstanding": 552540.45,
+    "overPaid": 561160.03,
+    "netPosition": -8619.58,
+    "recentlyOwing": 334550.45,
+    "badDebt": 217990
+  },
+  "afterCards": {
+    "totalAccounts": 344,
+    "totalOutstanding": 552539.45,
+    "overPaid": 561160.03,
+    "netPosition": -8620.58,
+    "recentlyOwing": 334549.45,
+    "badDebt": 217990
+  },
+  "postApiResponse": {
+    "success": true,
+    "duplicate": false,
+    "balance": 499,
+    "lastPayment": 1,
+    "lastPaymentDate": "2026-06-06"
+  },
+  "ledgerPaymentCount": 1,
+  "duplicatePayment": false,
+  "storageNote": "Payments persist in production billing-ledger.json on Render instance; baseline in family-account-age-analysis.json. Without persistent disk, ledger can be lost on deploy — see docs/billing-ledger-persistence-ACTION.md"
+}

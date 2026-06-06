@@ -4,6 +4,7 @@ import {
   buildBillingSummaryValidationReport,
   calculateBillingSummary,
 } from "../services/billingSummary";
+import { buildAccountStatementTransactions } from "../services/statementAccountTransactions";
 import { buildAndGenerateStatementPdf } from "../services/statementPdfData";
 import { buildAccountsFromAgeAnalysisSnapshots } from "../services/statementAccounts";
 import {
@@ -82,6 +83,50 @@ router.get("/", async (req, res) => {
   } catch (error) {
     console.error("[statements] GET / failed:", error);
     return res.status(500).json({ success: false, error: "Server error" });
+  }
+});
+
+// GET /api/statements/transactions?schoolId=&accountNo=&learnerId=&period=&showCorrections=
+router.get("/transactions", async (req, res) => {
+  try {
+    const schoolId = typeof req.query?.schoolId === "string" ? String(req.query.schoolId).trim() : "";
+    const accountNo =
+      typeof req.query?.accountNo === "string" ? String(req.query.accountNo).trim() : "";
+    const learnerId =
+      typeof req.query?.learnerId === "string" ? String(req.query.learnerId).trim() : "";
+    const period = normalizeStatementPeriod(
+      typeof req.query?.period === "string" ? String(req.query.period).trim() : undefined
+    );
+    const showCorrections =
+      req.query?.showCorrections === "true" ||
+      req.query?.showCorrections === "1" ||
+      req.query?.showCorrectionsAudit === "true" ||
+      req.query?.showCorrectionsAudit === "1";
+
+    if (!schoolId || (!accountNo && !learnerId)) {
+      return res.status(400).json({
+        success: false,
+        error: "Missing schoolId and accountNo or learnerId",
+      });
+    }
+
+    const result = await buildAccountStatementTransactions({
+      schoolId,
+      accountNo: accountNo || undefined,
+      learnerId: learnerId || undefined,
+      period,
+      showCorrectionsAudit: showCorrections,
+    });
+
+    if (!result) {
+      return res.status(404).json({ success: false, error: "Account not found" });
+    }
+
+    return res.json({ success: true, ...result });
+  } catch (error) {
+    console.error("[statements] GET /transactions failed:", error);
+    const message = error instanceof Error ? error.message : "Server error";
+    return res.status(500).json({ success: false, error: message });
   }
 });
 

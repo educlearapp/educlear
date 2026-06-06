@@ -526,6 +526,18 @@ export function collectFamilyAccountEntries(
   return result;
 }
 
+/** Ledger rows for a Kid-e-Sys billing accountRef (matches Age Analysis / balance path). */
+export function collectAccountRefLedgerEntries(
+  entries: BillingLedgerEntry[],
+  accountRef: string
+): BillingLedgerEntry[] {
+  const ref = String(accountRef || "").trim().toUpperCase();
+  if (!ref) return [];
+  return entries.filter(
+    (entry) => String(entry.accountNo || "").trim().toUpperCase() === ref
+  );
+}
+
 export function getFamilyAccountLedger(
   schoolId: string,
   scope: FamilyLedgerScope
