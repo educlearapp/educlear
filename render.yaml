@@ -16,9 +16,6 @@ services:
     envVars:
       - key: NODE_VERSION
         value: "22"
-      # Remove after verify-phase1-billing-acceptance passes on production.
-      - key: AUTO_SEED_PHASE1_BILLING_DISK
-        value: "true"
   - type: web
     name: educlear-frontend
     runtime: static
@@ -27,6 +24,6 @@ services:
     staticPublishPath: dist
     envVars:
       - key: VITE_FEE_CHECK_BUILD_ID
-        value: 32715bd-rollback
+        value: 793a652-phase1-recovery
       - key: VITE_API_URL
         value: https://educlear-backend.onrender.com
