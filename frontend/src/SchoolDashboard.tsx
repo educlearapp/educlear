@@ -122,8 +122,13 @@ import logo from "./assets/logo.png";
 
 import { useSchoolId } from "./useSchoolId";
 import {
-  fetchSchoolEmployees,
+  isLocalOnlyEmployee,
+  loadEmployeesForSchool,
   readEmployeesCache,
+  refreshEmployeesCacheFromBackend,
+  reloadEmployeesFromBackend,
+  restoreEmployeesFromBackupToCache,
+  restoreLocalEmployeesToBackend,
   saveSchoolEmployee,
   writeEmployeesCache,
 } from "./employeesApi";
@@ -684,6 +689,11 @@ const [localEmployees, setLocalEmployees] = useState<any[]>(() => readEmployeesC
 const [employeesLoading, setEmployeesLoading] = useState(false);
 
 const [employeesLoadError, setEmployeesLoadError] = useState("");
+const [employeesNeedsSync, setEmployeesNeedsSync] = useState(false);
+const [employeesUnsyncedCount, setEmployeesUnsyncedCount] = useState(0);
+const [canRestoreEmployeesFromBackup, setCanRestoreEmployeesFromBackup] = useState(false);
+const [employeesBackupCount, setEmployeesBackupCount] = useState(0);
+const [employeesRestoring, setEmployeesRestoring] = useState(false);
 const [attendanceSelectedClass, setAttendanceSelectedClass] = useState<string | null>(null);
 const [attendanceSearch, setAttendanceSearch] = useState("");
 const [attendanceCapturePage, setAttendanceCapturePage] = useState(1);
@@ -8064,20 +8074,18 @@ localStorage.setItem(
 
     try {
       const saved = await saveSchoolEmployee(schoolId, updatedEmployee);
+      const reloaded = await reloadEmployeesFromBackend(schoolId);
+      const verified =
+        reloaded.find((row) => String(row.id) === String(saved.id)) || saved;
 
-      setSelectedEmployee(saved);
-      setEmployeeDraft(saved);
+      setSelectedEmployee(verified);
+      setEmployeeDraft(verified);
+      setLocalEmployees(reloaded.length ? reloaded : [verified]);
+      setEmployeesNeedsSync(reloaded.some(isLocalOnlyEmployee));
+      setEmployeesUnsyncedCount(reloaded.filter(isLocalOnlyEmployee).length);
 
-      setLocalEmployees((prev: any[]) => {
-        const next = [
-          saved,
-          ...prev.filter((item) => item.id !== saved.id && item.id !== updatedEmployee.id),
-        ];
-        writeEmployeesCache(next);
-        return next;
-      });
-
-      localStorage.setItem("selectedEmployeeForManage", JSON.stringify(saved));
+      localStorage.setItem("selectedEmployeeForManage", JSON.stringify(verified));
+      return verified;
     } catch (e: any) {
       alert(e?.message || "Failed to save employee");
       throw e;
@@ -8091,17 +8099,68 @@ localStorage.setItem(
     setEmployeesLoadError("");
 
     try {
-      const rows = await fetchSchoolEmployees(schoolId);
-      setLocalEmployees(rows);
-      writeEmployeesCache(rows);
+      const result = await loadEmployeesForSchool(schoolId);
+      setLocalEmployees(result.employees);
+      setEmployeesNeedsSync(result.needsSync);
+      setEmployeesUnsyncedCount(result.unsyncedLocalCount);
+      setCanRestoreEmployeesFromBackup(result.canRestoreFromBackup);
+      setEmployeesBackupCount(result.backupCount);
     } catch (e: any) {
       setEmployeesLoadError(e?.message || "Failed to load employees");
       const cached = readEmployeesCache();
-      if (cached.length) setLocalEmployees(cached);
+      if (cached.length) {
+        setLocalEmployees(cached);
+        setEmployeesNeedsSync(true);
+        setEmployeesUnsyncedCount(cached.length);
+      }
     } finally {
       setEmployeesLoading(false);
     }
   }, [schoolId]);
+
+  const handleRestoreLocalEmployeesToBackend = async () => {
+    if (!schoolId) {
+      alert("School ID is missing. Cannot restore employees.");
+      return;
+    }
+
+    setEmployeesRestoring(true);
+    try {
+      const result = await restoreLocalEmployeesToBackend(schoolId);
+      const backendRows = await refreshEmployeesCacheFromBackend(schoolId);
+      if (backendRows.length > 0) {
+        setLocalEmployees(backendRows);
+        setEmployeesNeedsSync(false);
+        setEmployeesUnsyncedCount(0);
+        setCanRestoreEmployeesFromBackup(false);
+      } else {
+        await loadSchoolEmployees();
+      }
+
+      const errorLines = result.errors.length ? `\n\n${result.errors.slice(0, 5).join("\n")}` : "";
+      alert(
+        `Restore complete.\n\nSynced: ${result.restored}\nFailed: ${result.failed}${errorLines}`
+      );
+    } catch (e: any) {
+      alert(e?.message || "Failed to restore employees to EduClear");
+    } finally {
+      setEmployeesRestoring(false);
+    }
+  };
+
+  const handleLoadEmployeesFromBackup = () => {
+    const restored = restoreEmployeesFromBackupToCache();
+    if (!restored.length) {
+      alert("No employee backup found.");
+      return;
+    }
+
+    setLocalEmployees(restored);
+    setEmployeesNeedsSync(true);
+    setEmployeesUnsyncedCount(restored.length);
+    setCanRestoreEmployeesFromBackup(false);
+    alert(`Loaded ${restored.length} employee(s) from backup. Sync them to EduClear to use Payroll.`);
+  };
 
   useEffect(() => {
     loadSchoolEmployees();
@@ -8165,6 +8224,63 @@ localStorage.setItem(
           <p style={{ margin: "8px 0 0", color: "#b45309", fontWeight: 700, fontSize: "13px" }}>
             {employeesLoadError} (showing cached employees if available)
           </p>
+        ) : null}
+        {employeesNeedsSync ? (
+          <div
+            style={{
+              marginTop: "12px",
+              padding: "12px 14px",
+              borderRadius: "10px",
+              border: "1px solid rgba(180,83,9,0.35)",
+              background: "rgba(254,243,199,0.65)",
+              color: "#92400e",
+              fontWeight: 700,
+              fontSize: "13px",
+            }}
+          >
+            Local employees found. Sync them to EduClear to use Payroll.
+            {employeesUnsyncedCount > 0 ? ` (${employeesUnsyncedCount} not yet on server)` : ""}
+            <div style={{ display: "flex", gap: "8px", flexWrap: "wrap", marginTop: "10px" }}>
+              <button
+                type="button"
+                style={goldBtn}
+                disabled={employeesRestoring}
+                onClick={() => void handleRestoreLocalEmployeesToBackend()}
+              >
+                {employeesRestoring ? "Restoring…" : "Restore local employees to EduClear"}
+              </button>
+              {canRestoreEmployeesFromBackup ? (
+                <button
+                  type="button"
+                  style={actionBtn}
+                  disabled={employeesRestoring}
+                  onClick={handleLoadEmployeesFromBackup}
+                >
+                  Load from backup ({employeesBackupCount})
+                </button>
+              ) : null}
+            </div>
+          </div>
+        ) : canRestoreEmployeesFromBackup ? (
+          <div
+            style={{
+              marginTop: "12px",
+              padding: "12px 14px",
+              borderRadius: "10px",
+              border: "1px solid rgba(180,83,9,0.35)",
+              background: "rgba(254,243,199,0.65)",
+              color: "#92400e",
+              fontWeight: 700,
+              fontSize: "13px",
+            }}
+          >
+            Employee backup found ({employeesBackupCount}). Load it to recover local employees.
+            <div style={{ marginTop: "10px" }}>
+              <button type="button" style={goldBtn} onClick={handleLoadEmployeesFromBackup}>
+                Load employees from backup
+              </button>
+            </div>
+          </div>
         ) : null}
   
   
