@@ -121,6 +121,12 @@ import logo from "./assets/logo.png";
 
 
 import { useSchoolId } from "./useSchoolId";
+import {
+  fetchSchoolEmployees,
+  readEmployeesCache,
+  saveSchoolEmployee,
+  writeEmployeesCache,
+} from "./employeesApi";
 
 import ParentPortal from "./ParentPortal";
 import TeacherInbox from "./teacher/TeacherInbox";
@@ -673,35 +679,11 @@ const [employeeDraft, setEmployeeDraft] = useState<any>({});
 
 
 
-const [localEmployees, setLocalEmployees] = useState<any[]>(() => {
+const [localEmployees, setLocalEmployees] = useState<any[]>(() => readEmployeesCache());
 
+const [employeesLoading, setEmployeesLoading] = useState(false);
 
-
-  try {
-
-
-
-    const saved = localStorage.getItem("educlearEmployees");
-
-
-
-    return saved ? JSON.parse(saved) : [];
-
-
-
-  } catch {
-
-
-
-    return [];
-
-
-
-  }
-
-
-
-});
+const [employeesLoadError, setEmployeesLoadError] = useState("");
 const [attendanceSelectedClass, setAttendanceSelectedClass] = useState<string | null>(null);
 const [attendanceSearch, setAttendanceSearch] = useState("");
 const [attendanceCapturePage, setAttendanceCapturePage] = useState(1);
@@ -8074,95 +8056,56 @@ localStorage.setItem(
   
   
   
-  const saveEmployee = (updatedEmployee: any) => {
-  
-  
-  
-    const cleanEmployee = {
-  
-  
-  
-      ...updatedEmployee,
-  
-  
-  
-      id: updatedEmployee.id || `employee-${Date.now()}`,
-  
-  
-  
-    };
-  
-  
-  
-    setSelectedEmployee(cleanEmployee);
-  
-  
-  
-    setEmployeeDraft(cleanEmployee);
-  
-  
-  
-    setLocalEmployees((prev: any[]) => {
+  const saveEmployee = async (updatedEmployee: any) => {
+    if (!schoolId) {
+      alert("School ID is missing. Cannot save employee.");
+      return;
+    }
 
+    try {
+      const saved = await saveSchoolEmployee(schoolId, updatedEmployee);
 
+      setSelectedEmployee(saved);
+      setEmployeeDraft(saved);
 
-      const updatedEmployees = prev.some(
-    
-    
-    
-        (item) => item.id === cleanEmployee.id
-    
-    
-    
-      )
-    
-    
-    
-        ? prev.map((item) =>
-    
-    
-    
-            item.id === cleanEmployee.id ? cleanEmployee : item
-    
-    
-    
-          )
-    
-    
-    
-        : [cleanEmployee, ...prev];
-    
-    
-    
-      localStorage.setItem(
-    
-    
-    
-        "educlearEmployees",
-    
-    
-    
-        JSON.stringify(updatedEmployees)
-    
-    
-    
-      );
-    
-    
-    
-      return updatedEmployees;
-    
-    
-    
-    });
-  
-  
-  
-    localStorage.setItem("selectedEmployeeForManage", JSON.stringify(cleanEmployee));
-  
-  
-  
+      setLocalEmployees((prev: any[]) => {
+        const next = [
+          saved,
+          ...prev.filter((item) => item.id !== saved.id && item.id !== updatedEmployee.id),
+        ];
+        writeEmployeesCache(next);
+        return next;
+      });
+
+      localStorage.setItem("selectedEmployeeForManage", JSON.stringify(saved));
+    } catch (e: any) {
+      alert(e?.message || "Failed to save employee");
+      throw e;
+    }
   };
+
+  const loadSchoolEmployees = useCallback(async () => {
+    if (!schoolId) return;
+
+    setEmployeesLoading(true);
+    setEmployeesLoadError("");
+
+    try {
+      const rows = await fetchSchoolEmployees(schoolId);
+      setLocalEmployees(rows);
+      writeEmployeesCache(rows);
+    } catch (e: any) {
+      setEmployeesLoadError(e?.message || "Failed to load employees");
+      const cached = readEmployeesCache();
+      if (cached.length) setLocalEmployees(cached);
+    } finally {
+      setEmployeesLoading(false);
+    }
+  }, [schoolId]);
+
+  useEffect(() => {
+    loadSchoolEmployees();
+  }, [loadSchoolEmployees]);
   
   
   
@@ -8215,6 +8158,14 @@ localStorage.setItem(
   
   
         <p style={{ margin: "6px 0 0", color: "#64748b", fontWeight: 700 }}>Manage your employees</p>
+        {employeesLoading ? (
+          <p style={{ margin: "8px 0 0", color: "#64748b", fontWeight: 700, fontSize: "13px" }}>Syncing employees…</p>
+        ) : null}
+        {employeesLoadError ? (
+          <p style={{ margin: "8px 0 0", color: "#b45309", fontWeight: 700, fontSize: "13px" }}>
+            {employeesLoadError} (showing cached employees if available)
+          </p>
+        ) : null}
   
   
   
@@ -8534,7 +8485,7 @@ localStorage.setItem(
   
   
   
-                onClick={() => {
+                onClick={async () => {
   
   
   
@@ -8546,11 +8497,12 @@ localStorage.setItem(
   
   
   
-                  saveEmployee(employeeDraft);
-  
-  
-  
-                  setEmployeeMode("none");
+                  try {
+                    await saveEmployee(employeeDraft);
+                    setEmployeeMode("none");
+                  } catch {
+                    /* alert shown in saveEmployee */
+                  }
   
   
   
@@ -9108,35 +9060,36 @@ localStorage.setItem(
   
   
   
-            onClick={() => {
+            onClick={async () => {
   
   
   
-              saveEmployee({
+              try {
+                await saveEmployee({
   
   
   
-                ...employee,
+                  ...employee,
   
   
   
-                ...employeeDraft,
+                  ...employeeDraft,
   
   
   
-                firstName: employeeDraft.firstName ?? employee.firstName,
+                  firstName: employeeDraft.firstName ?? employee.firstName,
   
   
   
-                surname: employeeDraft.surname ?? employee.surname,
+                  surname: employeeDraft.surname ?? employee.surname,
   
   
   
-              });
-  
-  
-  
-              alert("Employee saved.");
+                });
+                alert("Employee saved.");
+              } catch {
+                /* alert shown in saveEmployee */
+              }
   
   
   

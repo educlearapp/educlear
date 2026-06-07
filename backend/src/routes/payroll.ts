@@ -2,7 +2,7 @@ import { Router } from "express";
 
 import nodemailer from "nodemailer";
 
-import { PrismaClient } from "@prisma/client";
+import { PrismaClient, Prisma } from "@prisma/client";
 
 
 
@@ -66,14 +66,52 @@ function calculatePayroll(payeBase: number, uifBase?: number) {
 }
 
 
+const num = (v: unknown, fallback = 0) =>
+  Number(v === undefined || v === null || v === "" ? fallback : v);
+
+function buildEmployeeData(body: Record<string, unknown>) {
+  const firstName = String(body.firstName ?? "").trim();
+  const lastName = String(body.lastName ?? "").trim();
+  const cleanEmpNo = String(body.employeeNumber ?? "").trim();
+
+  return {
+    firstName,
+    lastName,
+    fullName: `${firstName} ${lastName}`.trim(),
+    email: body.email ? String(body.email).trim() || null : null,
+    idNumber: body.idNumber ? String(body.idNumber).trim() || null : null,
+    mobileNumber: body.mobileNumber ? String(body.mobileNumber).trim() || null : null,
+    basicSalary: num(body.basicSalary),
+    dateOfBirth: body.dateOfBirth ? new Date(String(body.dateOfBirth)) : null,
+    startDate: body.startDate ? new Date(String(body.startDate)) : null,
+    taxNumber: body.taxNumber ? String(body.taxNumber).trim() || null : null,
+    uifApplicable: body.uifApplicable ?? true,
+    incomeTaxApplicable: body.incomeTaxApplicable ?? true,
+    isActive: body.isActive ?? true,
+    physicalAddress: body.physicalAddress ? String(body.physicalAddress).trim() || null : null,
+    bankName: body.bankName ? String(body.bankName).trim() || null : null,
+    bankAccountHolder: body.bankAccountHolder ? String(body.bankAccountHolder).trim() || null : null,
+    bankAccountNumber: body.bankAccountNumber ? String(body.bankAccountNumber).trim() || null : null,
+    bankBranchCode: body.bankBranchCode ? String(body.bankBranchCode).trim() || null : null,
+    employeeNumber: cleanEmpNo || null,
+    jobTitle: body.jobTitle ? String(body.jobTitle).trim() || null : null,
+    employeePension: num(body.employeePension),
+    employeeMedicalAid: num(body.employeeMedicalAid),
+    employerMedicalAid: num(body.employerMedicalAid),
+    overtimeHours: num(body.overtimeHours),
+    overtimeRate: num(body.overtimeRate),
+    notes: body.notes ? String(body.notes).trim() || null : null,
+  };
+}
+
 /**
-
-
-
+ *
+ *
+ *
  * CREATE EMPLOYEE
-
-
-
+ *
+ *
+ *
  */
 
 
@@ -84,62 +122,23 @@ router.post("/employee", async (req, res) => {
 
   try {
 
-    const {
-      schoolId,
-      firstName,
-      lastName,
-      email,
-      idNumber,
-      basicSalary,
-      dateOfBirth,
-      taxNumber,
-      uifApplicable,
-      incomeTaxApplicable,
-      physicalAddress,
-      bankName,
-      bankAccountHolder,
-      bankAccountNumber,
-      bankBranchCode,
-      employeeNumber,
-      jobTitle,
-      employeePension,
-      employeeMedicalAid,
-      employerMedicalAid,
-      overtimeHours,
-      overtimeRate,
-    } = req.body;
+    const { schoolId } = req.body;
 
-    const num = (v: unknown, fallback = 0) =>
-      Number(v === undefined || v === null || v === "" ? fallback : v);
+    if (!schoolId) {
+      return res.status(400).json({ error: "schoolId is required" });
+    }
 
-    const cleanEmpNo = String(employeeNumber ?? "").trim();
+    const data = buildEmployeeData(req.body);
+
+    if (!data.firstName || !data.lastName) {
+      return res.status(400).json({ error: "firstName and lastName are required" });
+    }
 
     const employee = await prisma.employee.create({
       data: {
-        schoolId,
-        firstName,
-        lastName,
-        fullName: `${firstName} ${lastName}`.trim(),
-        email: email || null,
-        idNumber: idNumber || null,
-        basicSalary: num(basicSalary),
-        dateOfBirth: dateOfBirth ? new Date(dateOfBirth) : null,
-        taxNumber: taxNumber || null,
-        uifApplicable: uifApplicable ?? true,
-        incomeTaxApplicable: incomeTaxApplicable ?? true,
-        physicalAddress: physicalAddress || null,
-        bankName: bankName || null,
-        bankAccountHolder: bankAccountHolder || null,
-        bankAccountNumber: bankAccountNumber || null,
-        bankBranchCode: bankBranchCode || null,
-        employeeNumber: cleanEmpNo || null,
-        jobTitle: jobTitle || null,
-        employeePension: num(employeePension),
-        employeeMedicalAid: num(employeeMedicalAid),
-        employerMedicalAid: num(employerMedicalAid),
-        overtimeHours: num(overtimeHours),
-        overtimeRate: num(overtimeRate),
-      },
+        ...data,
+        schoolId: String(schoolId),
+      } as Prisma.EmployeeUncheckedCreateInput,
     });
 
 
@@ -164,6 +163,44 @@ router.post("/employee", async (req, res) => {
 
 
 
+});
+
+/**
+ * UPDATE EMPLOYEE
+ */
+router.put("/employee/:id", async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { schoolId } = req.body;
+
+    if (!schoolId) {
+      return res.status(400).json({ error: "schoolId is required" });
+    }
+
+    const existing = await prisma.employee.findFirst({
+      where: { id, schoolId },
+    });
+
+    if (!existing) {
+      return res.status(404).json({ error: "Employee not found" });
+    }
+
+    const data = buildEmployeeData(req.body);
+
+    if (!data.firstName || !data.lastName) {
+      return res.status(400).json({ error: "firstName and lastName are required" });
+    }
+
+    const employee = await prisma.employee.update({
+      where: { id },
+      data: data as Prisma.EmployeeUpdateInput,
+    });
+
+    res.json(employee);
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ error: "Failed to update employee" });
+  }
 });
 
 
