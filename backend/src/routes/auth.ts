@@ -9,6 +9,7 @@ import {
   normalizeAuthEmail,
 } from "../services/authCredentials";
 import { buildAuthDiagnostics } from "../services/authDiagnostics";
+import { ensureSchoolSubscription } from "../services/ensureSchoolSubscription";
 import { seedSchoolEmailDefaults } from "../services/schoolEmailService";
 import {
   appRoleFromPrismaRole,
@@ -416,6 +417,8 @@ router.post("/register-school", async (req, res) => {
               },
             });
 
+        await ensureSchoolSubscription(school.id, { tx });
+
         return { school, user, reclaimed: Boolean(scriptOwner) };
       });
 
@@ -518,6 +521,8 @@ router.post("/register-school", async (req, res) => {
           role: true,
         },
       });
+
+      await ensureSchoolSubscription(school.id, { tx });
 
       return { school, user };
     });

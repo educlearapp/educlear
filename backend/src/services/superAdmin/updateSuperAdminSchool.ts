@@ -1,6 +1,8 @@
 import { EduClearPackageCode, SchoolSubscriptionStatus } from "@prisma/client";
 
 import { prisma } from "../../prisma";
+import { ensureEduClearPackages } from "../ensureEduClearPackages";
+import { addOneCalendarMonth } from "../payfastService";
 
 export type SuperAdminUpdateSchoolInput = {
   schoolId: string;
@@ -47,31 +49,59 @@ export async function updateSuperAdminSchool(input: SuperAdminUpdateSchoolInput)
     throw new Error("No changes provided");
   }
 
-  const subscription = await prisma.schoolSubscription.findUnique({
+  await ensureEduClearPackages();
+
+  const existing = await prisma.schoolSubscription.findUnique({
     where: { schoolId },
-    select: { id: true },
+    select: { id: true, status: true, packageCode: true },
   });
-  if (!subscription) {
-    throw new Error("School subscription record not found");
-  }
 
-  let packageUpdate:
-    | { packageId: string; packageCode: EduClearPackageCode }
-    | null = null;
-  if (patchPackageCode) {
-    const pkg = await prisma.eduClearPackage.findUnique({
-      where: { code: patchPackageCode },
-      select: { id: true, code: true },
-    });
-    if (!pkg) throw new Error(`Package not found for ${patchPackageCode}`);
-    packageUpdate = { packageId: pkg.id, packageCode: pkg.code };
-  }
+  const targetPackageCode =
+    patchPackageCode ?? existing?.packageCode ?? ("STARTER" as EduClearPackageCode);
+  const pkg = await prisma.eduClearPackage.findUnique({
+    where: { code: targetPackageCode },
+    select: { id: true, code: true },
+  });
+  if (!pkg) throw new Error(`Package not found for ${targetPackageCode}`);
 
-  await prisma.schoolSubscription.update({
+  const targetStatus =
+    patchStatus ?? existing?.status ?? SchoolSubscriptionStatus.PENDING_PAYMENT;
+
+  const activating =
+    targetStatus === SchoolSubscriptionStatus.ACTIVE &&
+    existing?.status !== SchoolSubscriptionStatus.ACTIVE;
+  const activatedAt = activating ? new Date() : undefined;
+  const periodFields =
+    activating && activatedAt
+      ? {
+          currentPeriodStart: new Date(
+            activatedAt.getFullYear(),
+            activatedAt.getMonth(),
+            activatedAt.getDate()
+          ),
+          currentPeriodEnd: addOneCalendarMonth(
+            new Date(activatedAt.getFullYear(), activatedAt.getMonth(), activatedAt.getDate())
+          ),
+          activatedAt,
+          cancelledAt: null,
+        }
+      : {};
+
+  await prisma.schoolSubscription.upsert({
     where: { schoolId },
-    data: {
-      ...(patchStatus ? { status: patchStatus } : {}),
-      ...(packageUpdate ? packageUpdate : {}),
+    create: {
+      schoolId,
+      packageId: pkg.id,
+      packageCode: pkg.code,
+      status: targetStatus,
+      activationSource: "super_admin_manual",
+      ...periodFields,
+    },
+    update: {
+      packageId: pkg.id,
+      packageCode: pkg.code,
+      status: targetStatus,
+      ...periodFields,
     },
   });
 
