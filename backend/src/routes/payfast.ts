@@ -654,84 +654,94 @@ async function handleCreditsItn(
   return "processed";
 }
 
-router.post(
-  "/notify",
-  express.urlencoded({ extended: false }),
-  async (req, res) => {
-    try {
-      const postData: Record<string, string> = {};
-      for (const [key, value] of Object.entries(req.body || {})) {
-        postData[key] = String(value ?? "");
-      }
+const payFastItnMiddleware = express.urlencoded({ extended: false });
 
-      let config;
-      try {
-        config = loadPayFastConfig();
-      } catch (error) {
-        console.error("[payfast] notify config error:", error);
-        return res.status(503).end();
-      }
-
-      const paramString = buildItnParamString(postData);
-      const signatureValid = verifyPayFastItnSignature(postData, config.passphrase);
-      const sourceIpValid = await isPayFastNotifySourceIp(clientIpFromRequest(req));
-      const host = resolvePayFastHost(config.merchantId, config.notifyUrl);
-      const serverValid = await confirmPayFastItnWithServer(paramString, host);
-
-      if (!signatureValid || !sourceIpValid || !serverValid) {
-        console.warn("[payfast] ITN security check failed", {
-          signatureValid,
-          sourceIpValid,
-          serverValid,
-          m_payment_id: postData.m_payment_id,
-        });
-        return res.status(400).end();
-      }
-
-      const merchantPaymentId = String(postData.m_payment_id || "").trim();
-      const gatewayPaymentId = String(postData.pf_payment_id || "").trim() || null;
-      const paymentStatus = String(postData.payment_status || "").trim();
-      const checkoutTypeHint = String(postData.custom_str3 || "").trim().toUpperCase();
-
-      if (!merchantPaymentId) {
-        return res.status(400).end();
-      }
-
-      let result: ItnHandleResult = "not_found";
-
-      if (checkoutTypeHint === "CREDITS" || merchantPaymentId.startsWith("ec-crd-")) {
-        result = await handleCreditsItn(postData, merchantPaymentId, gatewayPaymentId, paymentStatus);
-      } else {
-        result = await handleSubscriptionItn(
-          postData,
-          merchantPaymentId,
-          gatewayPaymentId,
-          paymentStatus,
-        );
-      }
-
-      if (result === "not_found") {
-        result =
-          checkoutTypeHint === "CREDITS" || merchantPaymentId.startsWith("ec-crd-")
-            ? await handleSubscriptionItn(postData, merchantPaymentId, gatewayPaymentId, paymentStatus)
-            : await handleCreditsItn(postData, merchantPaymentId, gatewayPaymentId, paymentStatus);
-      }
-
-      if (result === "amount_mismatch") {
-        return res.status(400).end();
-      }
-
-      if (result === "not_found") {
-        console.warn("[payfast] ITN for unknown merchantPaymentId:", merchantPaymentId);
-        return res.status(404).end();
-      }
-
-      return res.status(200).end();
-    } catch (error) {
-      console.error("[payfast] POST /notify failed:", error);
-      return res.status(500).end();
+async function handlePayFastItn(req: express.Request, res: express.Response): Promise<void> {
+  try {
+    const postData: Record<string, string> = {};
+    for (const [key, value] of Object.entries(req.body || {})) {
+      postData[key] = String(value ?? "");
     }
-  },
-);
+
+    let config;
+    try {
+      config = loadPayFastConfig();
+    } catch (error) {
+      console.error("[payfast] ITN config error:", error);
+      res.status(503).end();
+      return;
+    }
+
+    const itnMerchantId = String(postData.merchant_id || "").trim();
+    const merchantIdValid = itnMerchantId === config.merchantId;
+
+    const paramString = buildItnParamString(postData);
+    const signatureValid = verifyPayFastItnSignature(postData, config.passphrase);
+    const sourceIpValid = await isPayFastNotifySourceIp(clientIpFromRequest(req));
+    const host = resolvePayFastHost(config.merchantId, config.notifyUrl);
+    const serverValid = await confirmPayFastItnWithServer(paramString, host);
+
+    if (!merchantIdValid || !signatureValid || !sourceIpValid || !serverValid) {
+      console.warn("[payfast] ITN security check failed", {
+        merchantIdValid,
+        signatureValid,
+        sourceIpValid,
+        serverValid,
+        m_payment_id: postData.m_payment_id,
+      });
+      res.status(400).end();
+      return;
+    }
+
+    const merchantPaymentId = String(postData.m_payment_id || "").trim();
+    const gatewayPaymentId = String(postData.pf_payment_id || "").trim() || null;
+    const paymentStatus = String(postData.payment_status || "").trim();
+    const checkoutTypeHint = String(postData.custom_str3 || "").trim().toUpperCase();
+
+    if (!merchantPaymentId) {
+      res.status(400).end();
+      return;
+    }
+
+    let result: ItnHandleResult = "not_found";
+
+    if (checkoutTypeHint === "CREDITS" || merchantPaymentId.startsWith("ec-crd-")) {
+      result = await handleCreditsItn(postData, merchantPaymentId, gatewayPaymentId, paymentStatus);
+    } else {
+      result = await handleSubscriptionItn(
+        postData,
+        merchantPaymentId,
+        gatewayPaymentId,
+        paymentStatus,
+      );
+    }
+
+    if (result === "not_found") {
+      result =
+        checkoutTypeHint === "CREDITS" || merchantPaymentId.startsWith("ec-crd-")
+          ? await handleSubscriptionItn(postData, merchantPaymentId, gatewayPaymentId, paymentStatus)
+          : await handleCreditsItn(postData, merchantPaymentId, gatewayPaymentId, paymentStatus);
+    }
+
+    if (result === "amount_mismatch") {
+      res.status(400).end();
+      return;
+    }
+
+    if (result === "not_found") {
+      console.warn("[payfast] ITN for unknown merchantPaymentId:", merchantPaymentId);
+      res.status(404).end();
+      return;
+    }
+
+    res.status(200).end();
+  } catch (error) {
+    console.error("[payfast] ITN handler failed:", error);
+    res.status(500).end();
+  }
+}
+
+router.post("/notify", payFastItnMiddleware, handlePayFastItn);
+router.post("/itn", payFastItnMiddleware, handlePayFastItn);
 
 export default router;
