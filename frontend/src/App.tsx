@@ -35,6 +35,8 @@ import SiteFooter from "./components/legal/SiteFooter";
 import SubscriptionPackages from "./subscriptions/SubscriptionPackages";
 import SubscriptionGate from "./subscriptions/SubscriptionGate";
 import SubscriptionStatus from "./subscriptions/SubscriptionStatus";
+import BillingPaymentSuccess from "./pages/BillingPaymentSuccess";
+import BillingPaymentCancelled from "./pages/BillingPaymentCancelled";
 import ParentPortalApp from "./parent/ParentPortalApp";
 import TeacherInbox from "./teacher/TeacherInbox";
 import TeacherApp from "./teacher-app/TeacherApp";
@@ -581,6 +583,9 @@ export default function App() {
         <Route path="/subscription/cancel" element={<SubscriptionStatus />} />
         <Route path="/subscriptions/return" element={<SubscriptionStatus />} />
         <Route path="/subscriptions/cancel" element={<SubscriptionStatus />} />
+
+        <Route path="/billing/success" element={<BillingPaymentSuccess />} />
+        <Route path="/billing/cancelled" element={<BillingPaymentCancelled />} />
 
         <Route path="/parent" element={<ParentPortalApp />} />
         <Route path="/parent/*" element={<ParentPortalApp />} />
