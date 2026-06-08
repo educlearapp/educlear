@@ -122,11 +122,14 @@ import logo from "./assets/logo.png";
 
 import { useSchoolId } from "./useSchoolId";
 import {
+  deleteSchoolEmployee,
   isLocalOnlyEmployee,
+  isServerEmployeeId,
   loadEmployeesForSchool,
   readEmployeesCache,
   refreshEmployeesCacheFromBackend,
   reloadEmployeesFromBackend,
+  removeEmployeeFromCache,
   restoreEmployeesFromBackupToCache,
   restoreLocalEmployeesToBackend,
   saveSchoolEmployee,
@@ -8168,6 +8171,48 @@ localStorage.setItem(
   
   
   
+  const handleDeleteEmployee = async (employee: any) => {
+    setEmployeeMoreOpen(false);
+
+    const confirmed = window.confirm(
+      "Are you sure you want to delete this employee? This cannot be undone."
+    );
+    if (!confirmed) return;
+
+    if (!schoolId) {
+      alert("School ID is missing. Cannot delete employee.");
+      return;
+    }
+
+    const employeeId = String(employee?.id || "").trim();
+    if (!employeeId) {
+      alert("Employee ID is missing. Cannot delete employee.");
+      return;
+    }
+
+    try {
+      if (isServerEmployeeId(employeeId)) {
+        await deleteSchoolEmployee(schoolId, employeeId);
+        const reloaded = await reloadEmployeesFromBackend(schoolId);
+        setLocalEmployees(reloaded);
+        setEmployeesNeedsSync(reloaded.some(isLocalOnlyEmployee));
+        setEmployeesUnsyncedCount(reloaded.filter(isLocalOnlyEmployee).length);
+      } else {
+        const updated = removeEmployeeFromCache(employeeId);
+        setLocalEmployees(updated);
+        setEmployeesNeedsSync(updated.some(isLocalOnlyEmployee));
+        setEmployeesUnsyncedCount(updated.filter(isLocalOnlyEmployee).length);
+      }
+
+      localStorage.removeItem("selectedEmployeeForManage");
+      setSelectedEmployee(null);
+      setEmployeeDraft({});
+      setActivePage("employees");
+    } catch (e: any) {
+      alert(e?.message || "Failed to delete employee");
+    }
+  };
+
   const openEmployeeManage = (employee: any) => {
   
   
@@ -9297,95 +9342,23 @@ localStorage.setItem(
   
   
   
-              {["Unenrol", "Delete", "Manage Occupations"].map((item) => (
-  
-  
-  
-                <button
-  
-  
-  
-                  key={item}
-  
-  
-  
-                  type="button"
-  
-  
-  
-                  onClick={() => {
-  
-  
-  
-                    setEmployeeMoreOpen(false);
-  
-  
-  
-                    alert(`${item} will be connected in the backend pass.`);
-  
-  
-  
-                  }}
-  
-  
-  
-                  style={{
-  
-  
-  
-                    display: "block",
-  
-  
-  
-                    width: "100%",
-  
-  
-  
-                    textAlign: "left",
-  
-  
-  
-                    padding: "14px 16px",
-  
-  
-  
-                    background: "#ffffff",
-  
-  
-  
-                    border: "none",
-  
-  
-  
-                    borderBottom: "1px solid #e5e7eb",
-  
-  
-  
-                    fontWeight: 800,
-  
-  
-  
-                    cursor: "pointer",
-  
-  
-  
-                  }}
-  
-  
-  
-                >
-  
-  
-  
-                  {item}
-  
-  
-  
-                </button>
-  
-  
-  
-              ))}
+              <button
+                type="button"
+                onClick={() => void handleDeleteEmployee(employee)}
+                style={{
+                  display: "block",
+                  width: "100%",
+                  textAlign: "left",
+                  padding: "14px 16px",
+                  background: "#ffffff",
+                  border: "none",
+                  fontWeight: 800,
+                  cursor: "pointer",
+                  color: "#b91c1c",
+                }}
+              >
+                Delete Employee
+              </button>
   
   
   

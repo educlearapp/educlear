@@ -203,6 +203,35 @@ router.put("/employee/:id", async (req, res) => {
   }
 });
 
+/**
+ * DELETE EMPLOYEE
+ */
+router.delete("/employee/:id", async (req, res) => {
+  try {
+    const { id } = req.params;
+    const schoolId = String(req.query.schoolId ?? req.body?.schoolId ?? "").trim();
+
+    if (!schoolId) {
+      return res.status(400).json({ error: "schoolId is required" });
+    }
+
+    const existing = await prisma.employee.findFirst({
+      where: { id, schoolId },
+    });
+
+    if (!existing) {
+      return res.status(404).json({ error: "Employee not found" });
+    }
+
+    await prisma.employee.delete({ where: { id } });
+
+    res.json({ success: true, id });
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ error: "Failed to delete employee" });
+  }
+});
+
 
 
 /**

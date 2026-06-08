@@ -327,6 +327,20 @@ export async function saveSchoolEmployee(
   return createSchoolEmployee(schoolId, employee);
 }
 
+export async function deleteSchoolEmployee(schoolId: string, employeeId: string): Promise<void> {
+  await apiFetch(
+    `/api/payroll/employee/${encodeURIComponent(employeeId)}?schoolId=${encodeURIComponent(schoolId)}`,
+    { method: "DELETE" }
+  );
+}
+
+export function removeEmployeeFromCache(employeeId: string): AdminEmployee[] {
+  const id = String(employeeId || "").trim();
+  const updated = readEmployeesCache().filter((e) => String(e.id || "").trim() !== id);
+  writeEmployeesCache(updated);
+  return updated;
+}
+
 export type RestoreLocalEmployeesResult = {
   restored: number;
   failed: number;
