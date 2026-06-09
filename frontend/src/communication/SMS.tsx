@@ -52,6 +52,19 @@ function hasUnresolvedManualSmsPlaceholders(message: string): boolean {
   return MANUAL_SMS_BLOCKED_PLACEHOLDERS.test(message);
 }
 
+const legacyTemplateLabelStyle: React.CSSProperties = {
+  display: "inline-block",
+  marginLeft: 8,
+  padding: "2px 8px",
+  borderRadius: 6,
+  background: "#fef3c7",
+  color: "#92400e",
+  fontSize: 11,
+  fontWeight: 800,
+  whiteSpace: "nowrap",
+  verticalAlign: "middle",
+};
+
 export default function SMS({
   schoolId,
   learners,
@@ -348,6 +361,21 @@ export default function SMS({
 
         {error ? <div style={{ marginBottom: 14, padding: 12, borderRadius: 10, background: "#fef2f2", color: "#b91c1c", fontWeight: 700 }}>{error}</div> : null}
 
+        {editId && hasUnresolvedManualSmsPlaceholders(message) ? (
+          <div
+            style={{
+              marginBottom: 14,
+              padding: 12,
+              borderRadius: 10,
+              background: "#fffbeb",
+              color: "#92400e",
+              fontWeight: 700,
+            }}
+          >
+            This is an old template message. Please update the text before sending.
+          </div>
+        ) : null}
+
         <div style={{ display: "grid", gap: 14, maxWidth: 720 }}>
           <label>
             Description
@@ -523,7 +551,23 @@ export default function SMS({
                 <td style={td}>{row.date}</td>
                 <td style={td}>{row.description}</td>
                 <td style={td}>{row.contacts?.length || 0}</td>
-                <td style={{ ...td, maxWidth: 280, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{row.message}</td>
+                <td style={{ ...td, maxWidth: 320 }}>
+                  <span
+                    style={{
+                      display: "inline-block",
+                      maxWidth: hasUnresolvedManualSmsPlaceholders(row.message) ? 200 : 280,
+                      overflow: "hidden",
+                      textOverflow: "ellipsis",
+                      whiteSpace: "nowrap",
+                      verticalAlign: "middle",
+                    }}
+                  >
+                    {row.message}
+                  </span>
+                  {hasUnresolvedManualSmsPlaceholders(row.message) ? (
+                    <span style={legacyTemplateLabelStyle}>Legacy template</span>
+                  ) : null}
+                </td>
                 <td style={td}>
                   <span style={{ color: statusColor(row.status), fontWeight: 800 }}>{row.status}</span>
                 </td>
