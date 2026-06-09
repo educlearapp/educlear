@@ -139,6 +139,11 @@ import { calculateLearnerAge } from "./learner/learnerIdentity";
 import { normalizeKidESysAccountRef, resolveKidESysAccountRefFromLearner } from "./billing/billingAccountRef";
 import { isMigratedOpeningBalanceOverviewLabel } from "./billing/billingDisplayRules";
 import { isActiveEnrollment, isFemaleLearnerForStats, isMaleLearnerForStats } from "./utils/learnerGender";
+import {
+  ATTENDANCE_PERIOD_OPTIONS,
+  DEFAULT_ATTENDANCE_PERIOD,
+  type AttendancePeriodValue,
+} from "./attendance/periodOptions";
 
 
 import "./App.css";
@@ -689,6 +694,7 @@ const [attendanceSelectedClass, setAttendanceSelectedClass] = useState<string | 
 const [attendanceSearch, setAttendanceSearch] = useState("");
 const [attendanceCapturePage, setAttendanceCapturePage] = useState(1);
 const [attendanceDate, setAttendanceDate] = useState(() => new Date().toISOString().slice(0, 10));
+const [attendancePeriod, setAttendancePeriod] = useState<AttendancePeriodValue>(DEFAULT_ATTENDANCE_PERIOD);
 const [attendanceMarks, setAttendanceMarks] = useState<
   Record<string, { status?: string; arrived?: string; left?: string; reason?: string }>
 >({});
@@ -770,6 +776,7 @@ useEffect(() => {
     schoolId,
     className: attendanceSelectedClass,
     date: attendanceDate,
+    period: attendancePeriod,
   });
 
   void apiFetch(`/api/attendance?${qs}`)
@@ -788,7 +795,7 @@ useEffect(() => {
   return () => {
     cancelled = true;
   };
-}, [schoolId, attendanceSelectedClass, attendanceDate, activePage]);
+}, [schoolId, attendanceSelectedClass, attendanceDate, attendancePeriod, activePage]);
 
 const [incidentDraft, setIncidentDraft] = useState<any>({
 
@@ -9851,6 +9858,7 @@ localStorage.setItem(
           schoolId,
           className: attendanceSelectedClass,
           date: attendanceDate,
+          period: attendancePeriod,
           marks,
         }),
       });
@@ -9860,6 +9868,7 @@ localStorage.setItem(
         schoolId,
         className: attendanceSelectedClass,
         date: attendanceDate,
+        period: attendancePeriod,
       });
       const refreshed: any = await apiFetch(`/api/attendance?${qs}`);
       if (refreshed?.success) setAttendanceMarks(refreshed.marks || {});
@@ -9967,6 +9976,24 @@ localStorage.setItem(
                 onChange={(e) => setAttendanceDate(e.target.value)}
               />
             </label>
+            <label style={{ display: "flex", alignItems: "center", gap: "8px", fontWeight: 800, color: "#334155" }}>
+              Register
+              <select
+                style={{ ...selectStyle, width: "170px" }}
+                value={attendancePeriod}
+                onChange={(e) => {
+                  setAttendancePeriod(e.target.value as AttendancePeriodValue);
+                  setAttendanceMarks({});
+                  setAttendanceCapturePage(1);
+                }}
+              >
+                {ATTENDANCE_PERIOD_OPTIONS.map((opt) => (
+                  <option key={opt.value} value={opt.value}>
+                    {opt.label}
+                  </option>
+                ))}
+              </select>
+            </label>
             <div style={{ flex: 1 }} />
             <button type="button" style={goldBtn} onClick={() => void setAllAttendancePresent()}>
               Mark all present
@@ -10016,7 +10043,8 @@ localStorage.setItem(
 
           <div style={{ background: "#fff", border: "1px solid rgba(15,23,42,0.10)", borderTop: `4px solid ${GOLD}`, borderRadius: "12px", overflow: "hidden", boxShadow: "0 18px 40px rgba(15,23,42,0.08)" }}>
             <div style={{ padding: "12px 14px", borderBottom: "1px solid #e5e7eb", fontWeight: 900, color: "#0f172a" }}>
-              {attendanceSelectedClass} · {attendanceDate}
+              {attendanceSelectedClass} · {attendanceDate} ·{" "}
+              {ATTENDANCE_PERIOD_OPTIONS.find((o) => o.value === attendancePeriod)?.label || attendancePeriod}
               {attendanceLoading ? " · Loading…" : ""}
             </div>
 

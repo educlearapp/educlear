@@ -464,6 +464,50 @@
   word-break: break-word;
 }
 
+.teacher-attendance-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 12px;
+}
+
+.teacher-attendance-card {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.teacher-attendance-status-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.teacher-attendance-status-btn {
+  padding: 6px 10px;
+  border-radius: 8px;
+  border: 1px solid var(--t-border-gold);
+  background: #fff;
+  color: var(--t-muted);
+  font-size: 0.8rem;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.teacher-attendance-status-btn.is-active {
+  border-color: var(--t-gold);
+  background: linear-gradient(135deg, #d4af37, #f5d06f);
+  color: #111827;
+}
+
+.teacher-attendance-reason {
+  width: 100%;
+  padding: 8px 10px;
+  border-radius: 8px;
+  border: 1px solid var(--t-border-gold);
+  font-size: 0.85rem;
+}
+
 .teacher-learner-list {
   list-style: none;
   padding: 0;

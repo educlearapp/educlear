@@ -21,6 +21,12 @@ import {
   teacherVisibilityWhere,
   type TeacherVisibilityContext,
 } from "../utils/teacherVisibility";
+import {
+  ATTENDANCE_PERIODS,
+  bulkUpsertAttendance,
+  labelFromStatus,
+  normalizeAttendancePeriod,
+} from "../utils/attendancePeriods";
 
 const uploadDir = path.join(process.cwd(), "uploads/teacher-app");
 export const TEACHER_APP_MAX_FILE_BYTES = 12 * 1024 * 1024;
@@ -885,7 +891,14 @@ router.get("/attendance", async (req, res) => {
     const { schoolId, assignedClassrooms } = teacherCtx;
     const className = String(req.query.className || "").trim();
     const dateRaw = String(req.query.date || new Date().toISOString().slice(0, 10)).trim();
+    const period = normalizeAttendancePeriod(req.query.period);
     if (!assertClassAllowed(res, className, assignedClassrooms)) return;
+    if (period === null) {
+      return res.status(400).json({
+        success: false,
+        error: `Invalid period. Allowed: ${ATTENDANCE_PERIODS.join(", ")}`,
+      });
+    }
     if (!/^\d{4}-\d{2}-\d{2}$/.test(dateRaw)) {
       return res.status(400).json({ success: false, error: "Valid date required (YYYY-MM-DD)" });
     }
@@ -907,15 +920,95 @@ router.get("/attendance", async (req, res) => {
       },
     });
     const learnerIds = learners.map((l) => l.id);
-    const marks =
+    const rows =
       learnerIds.length === 0
         ? []
         : await prisma.learnerAttendance.findMany({
-            where: { schoolId, learnerId: { in: learnerIds }, date },
+            where: { schoolId, learnerId: { in: learnerIds }, date, period },
           });
-    return res.json({ success: true, learners, marks, date: dateRaw, className });
+    const marks = rows.map((row) => ({
+      learnerId: row.learnerId,
+      status: labelFromStatus(row.status),
+      arrived: row.arrivedAt || "",
+      left: row.leftAt || "",
+      reason: row.reason || "",
+    }));
+    return res.json({ success: true, learners, marks, date: dateRaw, className, period });
   } catch (e) {
     return res.status(500).json({ success: false, error: "Failed to load attendance" });
+  }
+});
+
+router.post("/attendance/bulk", async (req, res) => {
+  try {
+    const { schoolId, assignedClassrooms, email } = ctx(req);
+    const className = String(req.body?.className || "").trim();
+    const dateRaw = String(req.body?.date || "").trim();
+    const marks = Array.isArray(req.body?.marks) ? req.body.marks : [];
+    const period = normalizeAttendancePeriod(req.body?.period);
+
+    if (!assertClassAllowed(res, className, assignedClassrooms)) return;
+    if (period === null) {
+      return res.status(400).json({
+        success: false,
+        error: `Invalid period. Allowed: ${ATTENDANCE_PERIODS.join(", ")}`,
+      });
+    }
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(dateRaw)) {
+      return res.status(400).json({ success: false, error: "Valid date required (YYYY-MM-DD)" });
+    }
+    if (!marks.length) {
+      return res.status(400).json({ success: false, error: "At least one attendance mark required" });
+    }
+
+    const date = new Date(`${dateRaw}T12:00:00.000Z`);
+    const room = assignedClassrooms.find(
+      (c) => c.name === className || c.classNameVariants.includes(className)
+    );
+    const variants = room?.classNameVariants.length ? room.classNameVariants : [className];
+    const classLearners = await prisma.learner.findMany({
+      where: { schoolId, enrollmentStatus: "ACTIVE", className: { in: variants } },
+      select: { id: true },
+    });
+    const allowedIds = new Set(classLearners.map((l) => l.id));
+
+    const invalidLearner = marks.some((mark: { learnerId?: unknown }) => {
+      const learnerId = String(mark?.learnerId || "").trim();
+      return learnerId && !allowedIds.has(learnerId);
+    });
+    if (invalidLearner) {
+      return res.status(403).json({ success: false, error: "Learner not in your classes" });
+    }
+
+    try {
+      const result = await bulkUpsertAttendance({
+        schoolId,
+        className,
+        date,
+        period,
+        marks,
+        createdBy: normalizeStaffEmail(email),
+        allowedLearnerIds: allowedIds,
+        totalLearners: classLearners.length,
+      });
+
+      return res.json({
+        success: true,
+        saved: result.saved,
+        summary: result.summary,
+        period,
+        date: dateRaw,
+        className,
+      });
+    } catch (e) {
+      if (e instanceof Error && e.message === "NO_VALID_MARKS") {
+        return res.status(400).json({ success: false, error: "No valid attendance marks to save" });
+      }
+      throw e;
+    }
+  } catch (e) {
+    console.error("teacher-app attendance bulk", e);
+    return res.status(500).json({ success: false, error: "Failed to save attendance" });
   }
 });
 

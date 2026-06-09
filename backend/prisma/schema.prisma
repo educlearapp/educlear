@@ -2912,6 +2912,7 @@ model LearnerAttendance {
   learnerId String
   className String
   date      DateTime         @db.Date
+  period    String           @default("DAILY")
   status    AttendanceStatus
   arrivedAt String?
   leftAt    String?
@@ -2923,8 +2924,8 @@ model LearnerAttendance {
   school  School  @relation(fields: [schoolId], references: [id], onDelete: Cascade)
   learner Learner @relation(fields: [learnerId], references: [id], onDelete: Cascade)
 
-  @@unique([schoolId, learnerId, date])
-  @@index([schoolId, className, date])
+  @@unique([schoolId, learnerId, date, period])
+  @@index([schoolId, className, date, period])
   @@index([schoolId, date])
   @@index([learnerId])
 }

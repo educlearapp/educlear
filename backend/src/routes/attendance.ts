@@ -1,42 +1,18 @@
 import { Router } from "express";
-import { AttendanceStatus, Prisma } from "@prisma/client";
 import { prisma } from "../prisma";
 import {
   activeLearnerWhere,
   resolveLearnerClassroomLabel,
 } from "../utils/learnerEnrollment";
+import {
+  ATTENDANCE_PERIODS,
+  bulkUpsertAttendance,
+  labelFromStatus,
+  normalizeAttendancePeriod,
+  parseDateOnly,
+} from "../utils/attendancePeriods";
 
 const router = Router();
-
-const STATUS_LABEL: Record<AttendanceStatus, string> = {
-  PRESENT: "Present",
-  ABSENT: "Absent",
-  LATE: "Late",
-  EXCUSED: "Excused",
-};
-
-const STATUS_VALUE: Record<string, AttendanceStatus> = {
-  present: "PRESENT",
-  absent: "ABSENT",
-  late: "LATE",
-  excused: "EXCUSED",
-};
-
-function parseDateOnly(raw: string): Date | null {
-  const value = String(raw || "").trim();
-  if (!/^\d{4}-\d{2}-\d{2}$/.test(value)) return null;
-  const date = new Date(`${value}T12:00:00.000Z`);
-  return Number.isNaN(date.getTime()) ? null : date;
-}
-
-function statusFromLabel(raw: unknown): AttendanceStatus | null {
-  const key = String(raw || "").trim().toLowerCase();
-  return STATUS_VALUE[key] || null;
-}
-
-function labelFromStatus(status: AttendanceStatus): string {
-  return STATUS_LABEL[status];
-}
 
 async function learnersForClass(schoolId: string, className: string) {
   return prisma.learner.findMany({
@@ -61,8 +37,15 @@ router.get("/", async (req, res) => {
     const schoolId = String(req.query.schoolId || "").trim();
     const className = String(req.query.className || "").trim();
     const dateRaw = String(req.query.date || "").trim();
+    const period = normalizeAttendancePeriod(req.query.period);
     if (!schoolId || !className) {
       return res.status(400).json({ success: false, error: "schoolId and className required" });
+    }
+    if (period === null) {
+      return res.status(400).json({
+        success: false,
+        error: `Invalid period. Allowed: ${ATTENDANCE_PERIODS.join(", ")}`,
+      });
     }
     const date = parseDateOnly(dateRaw);
     if (!date) {
@@ -79,6 +62,7 @@ router.get("/", async (req, res) => {
             where: {
               schoolId,
               date,
+              period,
               learnerId: { in: learnerIds },
             },
           });
@@ -105,7 +89,7 @@ router.get("/", async (req, res) => {
       saved: rows.length,
     };
 
-    return res.json({ success: true, learners, marks, summary });
+    return res.json({ success: true, learners, marks, summary, period });
   } catch (e) {
     console.error("load attendance", e);
     return res.status(500).json({ success: false, error: "Failed to load attendance" });
@@ -151,9 +135,16 @@ router.post("/bulk", async (req, res) => {
     const dateRaw = String(req.body?.date || "").trim();
     const createdBy = String(req.body?.createdBy || "").trim();
     const marks = Array.isArray(req.body?.marks) ? req.body.marks : [];
+    const period = normalizeAttendancePeriod(req.body?.period);
 
     if (!schoolId || !className) {
       return res.status(400).json({ success: false, error: "schoolId and className required" });
+    }
+    if (period === null) {
+      return res.status(400).json({
+        success: false,
+        error: `Invalid period. Allowed: ${ATTENDANCE_PERIODS.join(", ")}`,
+      });
     }
     const date = parseDateOnly(dateRaw);
     if (!date) {
@@ -166,76 +157,30 @@ router.post("/bulk", async (req, res) => {
     const classLearners = await learnersForClass(schoolId, className);
     const allowedIds = new Set(classLearners.map((l) => l.id));
 
-    const ops: Prisma.PrismaPromise<unknown>[] = [];
-    let saved = 0;
-
-    for (const mark of marks) {
-      const learnerId = String(mark?.learnerId || "").trim();
-      if (!learnerId || !allowedIds.has(learnerId)) continue;
-      const status = statusFromLabel(mark?.status);
-      if (!status) continue;
-
-      const data = {
+    try {
+      const result = await bulkUpsertAttendance({
         schoolId,
-        learnerId,
         className,
         date,
-        status,
-        arrivedAt: mark?.arrived ? String(mark.arrived).trim() || null : null,
-        leftAt: mark?.left ? String(mark.left).trim() || null : null,
-        reason: mark?.reason ? String(mark.reason).trim() || null : null,
+        period,
+        marks,
         createdBy,
-      };
+        allowedLearnerIds: allowedIds,
+        totalLearners: classLearners.length,
+      });
 
-      ops.push(
-        prisma.learnerAttendance.upsert({
-          where: {
-            schoolId_learnerId_date: {
-              schoolId,
-              learnerId,
-              date,
-            },
-          },
-          create: data,
-          update: {
-            className,
-            status: data.status,
-            arrivedAt: data.arrivedAt,
-            leftAt: data.leftAt,
-            reason: data.reason,
-            createdBy: data.createdBy || undefined,
-          },
-        })
-      );
-      saved += 1;
+      return res.json({
+        success: true,
+        saved: result.saved,
+        summary: result.summary,
+        period,
+      });
+    } catch (e) {
+      if (e instanceof Error && e.message === "NO_VALID_MARKS") {
+        return res.status(400).json({ success: false, error: "No valid attendance marks to save" });
+      }
+      throw e;
     }
-
-    if (!ops.length) {
-      return res.status(400).json({ success: false, error: "No valid attendance marks to save" });
-    }
-
-    await prisma.$transaction(ops);
-
-    const rows = await prisma.learnerAttendance.findMany({
-      where: {
-        schoolId,
-        date,
-        learnerId: { in: [...allowedIds] },
-      },
-    });
-
-    return res.json({
-      success: true,
-      saved,
-      summary: {
-        total: classLearners.length,
-        present: rows.filter((r) => r.status === "PRESENT").length,
-        absent: rows.filter((r) => r.status === "ABSENT").length,
-        late: rows.filter((r) => r.status === "LATE").length,
-        excused: rows.filter((r) => r.status === "EXCUSED").length,
-        saved: rows.length,
-      },
-    });
   } catch (e) {
     console.error("save attendance bulk", e);
     return res.status(500).json({ success: false, error: "Failed to save attendance" });
