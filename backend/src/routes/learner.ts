@@ -40,6 +40,18 @@ function cleanString(value: any) {
 
 }
 
+function parseBillingPlanItemsFromBody(raw: unknown): StoredBillingPlanItem[] {
+  if (!Array.isArray(raw)) return [];
+  return raw
+    .map((fee: any) => ({
+      feeDescription: String(
+        fee?.feeDescription || fee?.description || fee?.name || fee?.title || ""
+      ).trim(),
+      amount: Number(fee?.amount ?? fee?.price ?? fee?.value ?? 0),
+    }))
+    .filter((fee: StoredBillingPlanItem) => fee.feeDescription);
+}
+
 function cleanBool(value: any, fallback: boolean) {
   if (value === undefined || value === null) return fallback;
   return Boolean(value);
@@ -1207,6 +1219,49 @@ router.post("/", async (req, res) => {
 
 
 
+router.patch("/:id/billing-plan", async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    const learner = await prisma.learner.findUnique({
+      where: { id },
+      select: { id: true, schoolId: true },
+    });
+
+    if (!learner) {
+      return res.status(404).json({ success: false, error: "Learner not found" });
+    }
+
+    if (!Array.isArray(req.body?.billingPlan)) {
+      return res.status(400).json({ success: false, error: "billingPlan array required" });
+    }
+
+    const linesBefore = (
+      await readLearnerBillingPlanFromDb(learner.schoolId, learner.id)
+    ).length;
+    const items = parseBillingPlanItemsFromBody(req.body.billingPlan);
+
+    if (items.length === 0) {
+      await removeLearnerBillingPlanFromDb(learner.schoolId, learner.id);
+      removeLearnerBillingPlan(learner.schoolId, learner.id);
+    } else {
+      await upsertLearnerBillingPlanToDb(learner.schoolId, learner.id, items);
+      upsertLearnerBillingPlan(learner.schoolId, learner.id, items);
+    }
+
+    const billingPlan = await readLearnerBillingPlanFromDb(learner.schoolId, learner.id);
+
+    console.log(
+      `[billing-plan] PATCH learnerId=${learner.id} schoolId=${learner.schoolId} linesBefore=${linesBefore} linesAfter=${billingPlan.length}`
+    );
+
+    return res.json({ success: true, billingPlan });
+  } catch (error) {
+    console.error("[billing-plan] PATCH failed", error);
+    return res.status(500).json({ success: false, error: "Failed to update billing plan" });
+  }
+});
+
 router.put("/:id", async (req, res) => {
 
 
@@ -1475,14 +1530,7 @@ router.put("/:id", async (req, res) => {
 
     let billingPlan: StoredBillingPlanItem[] = [];
     if (Array.isArray(req.body?.billingPlan)) {
-      const items: StoredBillingPlanItem[] = req.body.billingPlan
-        .map((fee: any) => ({
-          feeDescription: String(
-            fee?.feeDescription || fee?.description || fee?.name || fee?.title || ""
-          ).trim(),
-          amount: Number(fee?.amount ?? fee?.price ?? fee?.value ?? 0),
-        }))
-        .filter((fee: StoredBillingPlanItem) => fee.feeDescription);
+      const items = parseBillingPlanItemsFromBody(req.body.billingPlan);
       if (items.length === 0) {
         await removeLearnerBillingPlanFromDb(updatedLearner.schoolId, updatedLearner.id);
         removeLearnerBillingPlan(updatedLearner.schoolId, updatedLearner.id);

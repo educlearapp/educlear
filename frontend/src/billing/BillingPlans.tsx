@@ -615,10 +615,6 @@ export default function BillingPlans({
   ): Promise<{ ok: boolean; error?: string }> => {
     const learnerKey = String(learner?.id || learner?.learnerId || "");
     const normalizedPlan = plan.map(normalizeFee);
-    const updatedLearner = {
-      ...learner,
-      billingPlan: normalizedPlan,
-    };
 
     if (!learnerKey) {
       applyLearnerPlanLocally(learner, normalizedPlan);
@@ -627,11 +623,11 @@ export default function BillingPlans({
 
     try {
       const response = await fetch(
-        `${API_URL}/api/learners/${encodeURIComponent(learnerKey)}`,
+        `${API_URL}/api/learners/${encodeURIComponent(learnerKey)}/billing-plan`,
         {
-          method: "PUT",
+          method: "PATCH",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(updatedLearner),
+          body: JSON.stringify({ billingPlan: normalizedPlan }),
         }
       );
 
