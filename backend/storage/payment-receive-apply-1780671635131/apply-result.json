@@ -1,0 +1,46 @@
+{
+  "applyResult": {
+    "success": true,
+    "schoolId": "cmpideqeq0000108xb6ouv9zi",
+    "importedAt": "2099-12-31T23:59:59.999Z",
+    "snapshotCount": 344,
+    "familyAccountsUpserted": 344
+  },
+  "accountsMatchingPdf": 344,
+  "accountsNotMatchingPdf": 0,
+  "matchPercent": 100,
+  "spotCheck": {
+    "ALI002": {
+      "pdfBalance": 4000,
+      "eduClearAfter": 4000,
+      "matches": true
+    },
+    "ADA004": {
+      "pdfBalance": -50,
+      "eduClearAfter": -50,
+      "matches": true
+    },
+    "AFR002": {
+      "pdfBalance": -130,
+      "eduClearAfter": -130,
+      "matches": true
+    },
+    "RAM021": {
+      "pdfBalance": 7830,
+      "eduClearAfter": 7830,
+      "matches": true
+    },
+    "MAO002": {
+      "pdfBalance": 1400,
+      "eduClearAfter": 1400,
+      "matches": true
+    },
+    "MDU001": {
+      "pdfBalance": 3000,
+      "eduClearAfter": 3000,
+      "matches": true
+    }
+  },
+  "notMatching": [],
+  "deployBlocked": false
+}

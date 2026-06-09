@@ -1,0 +1,29 @@
+=== Payment reconciliation diff (read-only) ===
+Generated: 2026-06-06T08:32:59.981Z
+
+INPUTS
+  Kid-e-Sys file: /Users/dasilvaacademy/Desktop/transaction_list.xlsx
+  EduClear file:  /Users/dasilvaacademy/EduClear/backend/storage/educlear-payments-from-2026-06-01.csv
+
+TOTALS
+  Kid-e-Sys payments: 347 · R1253325.00
+  EduClear payments:  163 · R576960.00
+
+MISSING
+  In Kid-e-Sys but missing in EduClear: 193 · R711565.00
+  In EduClear but missing in Kid-e-Sys: 9 · R35200.00
+
+MISMATCHES
+  Amount mismatches: 0
+  Date mismatches:   0
+  Ref mismatches:    0
+  Account mismatches:0
+
+DUPLICATES (fingerprint-based)
+  Kid-e-Sys duplicates: 0 · R0.00
+  EduClear duplicates:  0 · R0.00
+  Duplicate total:      0 · R0.00
+
+OUTPUTS
+  Diff CSV:     /Users/dasilvaacademy/EduClear/backend/storage/payment-reconciliation-diff.csv
+  Summary TXT:  /Users/dasilvaacademy/EduClear/backend/storage/payment-reconciliation-summary.txt

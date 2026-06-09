@@ -1,0 +1,53 @@
+=== Da Silva live billing reconciliation (read-only) ===
+Generated: 2026-06-05T06:54:37.668Z
+School: cmpideqeq0000108xb6ouv9zi
+Accounts: 344
+Accounts with |difference| > 0.01: 3
+Accounts with post-import ledger activity: 3
+
+TOTALS
+  Kid-e-Sys baseline balance:  R1228655.42
+  EduClear live balance:         R1281755.42
+  Total difference:              R53100.00
+  Total Over Paid (live status): R-472355.03
+  Total Recently Owing:          R810240.00
+  Total Bad Debt:                R943870.45
+
+TOP 30 BY |DIFFERENCE|
+account  | age bal   | live bal  | diff     | kidesys section  | edu status       | Δ ledger | inv | pay | cr | holder
+---------|-----------|-----------|----------|------------------|------------------|----------|-----|-----|----|------
+SIL007   |    -18000 |      9600 |    27600 | Over Paid        | Recently Owing   |    27600 |   6 |   0 |  0 | Adrien Martins Da Silva
+LEB005   |      7400 |     20900 |    13500 | Bad Debt         | Bad Debt         |    13500 |   3 |   0 |  0 | Mpoentle Lebudi
+NDL008   |      4305 |     16305 |    12000 | Recently Owing   | Bad Debt         |    12000 |   3 |   0 |  0 | Amukelani Gift Ndlovu
+ADA004   |      7350 |      7350 |        0 | Recently Owing   | Recently Owing   |        0 |   0 |   0 |  0 | Zem Adamu
+Eldadi Adamu
+AFR002   |      4350 |      4350 |        0 | Recently Owing   | Recently Owing   |        0 |   0 |   0 |  0 | Jordan-leigh Africa
+ALI002   |      7000 |      7000 |        0 | Bad Debt         | Bad Debt         |        0 |   0 |   0 |  0 | Alizain Ali
+BAN001   |      3550 |      3550 |        0 | Recently Owing   | Recently Owing   |        0 |   0 |   0 |  0 | Boitumelo Moses Banda
+BOG005   |      4600 |      4600 |        0 | Bad Debt         | Bad Debt         |        0 |   0 |   0 |  0 | Reotshepile Matlhasedi Bogatsu
+BUY001   |      2900 |      2900 |        0 | Recently Owing   | Recently Owing   |        0 |   0 |   0 |  0 | Kim Omontle Buys
+CET001   |      6250 |      6250 |        0 | Bad Debt         | Bad Debt         |        0 |   0 |   0 |  0 | Yonwaba Cetshane
+CHI002   |         0 |         0 |        0 | Paid Up          | Paid Up          |        0 |   0 |   0 |  0 | Wesley Unathi Nkabinde
+CHI004   |      3000 |      3000 |        0 | Recently Owing   | Recently Owing   |        0 |   0 |   0 |  0 | Kaone Tinashe Chinyenye
+CHI005   |      7400 |      7400 |        0 | Bad Debt         | Bad Debt         |        0 |   0 |   0 |  0 | Aviella Tinevimbo Chiutsi
+Arella Chiutsi
+DHL002   |      4730 |      4730 |        0 | Bad Debt         | Bad Debt         |        0 |   0 |   0 |  0 | Bontle Dhladhla
+DHL003   |      6000 |      6000 |        0 | Recently Owing   | Recently Owing   |        0 |   0 |   0 |  0 | Ndalo-enhle Nkanyezi Dhlamini
+DIA003   |      2500 |      2500 |        0 | Recently Owing   | Recently Owing   |        0 |   0 |   0 |  0 | Amogelang Warona Diatshwana
+DIA006   |      3000 |      3000 |        0 | Recently Owing   | Recently Owing   |        0 |   0 |   0 |  0 | Oabile Diale
+DIK001   |      4200 |      4200 |        0 | Recently Owing   | Recently Owing   |        0 |   0 |   0 |  0 | Sinenhlanhla Dikana Iviwe
+DIK002   |      3450 |      3450 |        0 | Recently Owing   | Recently Owing   |        0 |   0 |   0 |  0 | Nyakalo Naledi Dikotsi
+DIK003   |      3000 |      3000 |        0 | Recently Owing   | Recently Owing   |        0 |   0 |   0 |  0 | Khumo Dikale
+DIK004   |      4250 |      4250 |        0 | Bad Debt         | Bad Debt         |        0 |   0 |   0 |  0 | Bohlale Levy Dikgale
+DIM002   |     18900 |     18900 |        0 | Bad Debt         | Bad Debt         |        0 |   0 |   0 |  0 | Nkazimulo Dimema
+DIN002   |      6900 |      6900 |        0 | Recently Owing   | Recently Owing   |        0 |   0 |   0 |  0 | Tshegofatso Kayla Dinale
+Masego Dinale
+DIR001   |    -16800 |    -16800 |        0 | Over Paid        | Over Paid        |        0 |   0 |   0 |  0 | Yaone Dire
+DUP001   |     -8700 |     -8700 |        0 | Over Paid        | Over Paid        |        0 |   0 |   0 |  0 | Aiden Jacques Du Plessis
+FRE001   |      9500 |      9500 |        0 | Bad Debt         | Bad Debt         |        0 |   0 |   0 |  0 | Oatlegile Frederick
+GAA001   |      3500 |      3500 |        0 | Recently Owing   | Recently Owing   |        0 |   0 |   0 |  0 | Didintle Nyeko Gaasenwe
+GAE001   |      6800 |      6800 |        0 | Bad Debt         | Bad Debt         |        0 |   0 |   0 |  0 | Orateng Gaebolae
+GAE002   |      4520 |      4520 |        0 | Recently Owing   | Recently Owing   |        0 |   0 |   0 |  0 | Reitumetse Gaebone
+GEB002   |      3700 |      3700 |        0 | Recently Owing   | Recently Owing   |        0 |   0 |   0 |  0 | Benyis Geber
+
+Full JSON: /Users/dasilvaacademy/EduClear/backend/storage/da-silva-live-billing-recon-report.json

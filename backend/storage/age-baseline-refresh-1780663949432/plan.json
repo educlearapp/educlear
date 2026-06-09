@@ -1,0 +1,30 @@
+{
+  "mode": "apply",
+  "kidesysTargets": {
+    "accountsCount": 346,
+    "totalOutstanding": -6669.58,
+    "recentlyOwing": 285530,
+    "badDebt": 270010.45,
+    "overPaid": -561160.03
+  },
+  "beforeLive": {
+    "accountsCount": 344,
+    "totalOutstanding": -213669.58,
+    "recentlyOwing": 233056,
+    "badDebt": 329584.45,
+    "overPaid": -776310.03
+  },
+  "afterLocalPreview": {
+    "accountsCount": 346,
+    "totalOutstanding": -6669.58,
+    "recentlyOwing": 285530.04,
+    "badDebt": 270010.45,
+    "overPaid": -561160.05
+  },
+  "snapshotCount": 348,
+  "importedAt": "2099-12-31T23:59:59.999Z",
+  "extraAccounts": [
+    "JAC001",
+    "LET007"
+  ]
+}

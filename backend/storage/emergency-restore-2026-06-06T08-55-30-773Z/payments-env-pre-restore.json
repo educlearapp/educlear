@@ -1,0 +1,8 @@
+{
+  "success": true,
+  "nodeEnv": "production",
+  "databaseHost": "dpg-d84smqjbc2fs73chlgcg-a.oregon-postgres.render.com",
+  "gitCommit": "e5245bd8a15e7a4f93f4ec762498b8e4c32bae15",
+  "ledgerStore": "billing-ledger.json",
+  "serverTime": "2026-06-06T08:55:36.718Z"
+}

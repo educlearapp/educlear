@@ -1,0 +1,27 @@
+{
+  "pdfAccounts": 344,
+  "eduClearAccounts": 344,
+  "matched": 344,
+  "mismatched": [],
+  "missing": [],
+  "extra": [],
+  "statusMismatches": [],
+  "cardComparison": {
+    "expected": {
+      "totalAccounts": 344,
+      "totalOutstanding": 552540.45,
+      "overPaid": 561160.03,
+      "netPosition": -8619.58,
+      "recentlyOwing": 334550.45,
+      "badDebt": 217990
+    },
+    "live": {
+      "totalAccounts": 344,
+      "totalOutstanding": 552540.45,
+      "overPaid": 561160.03,
+      "netPosition": -8619.58,
+      "recentlyOwing": 334550.45,
+      "badDebt": 217990
+    }
+  }
+}

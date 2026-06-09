@@ -40,6 +40,18 @@ type View = "list" | "compose";
 const PAGE_SIZE = 10;
 const SMS_LIMIT = 160;
 
+/** Plain default for manual compose — automated invoice/statement SMS still use settings placeholders. */
+function manualSmsDefaultMessage(schoolName: string): string {
+  const name = String(schoolName || "School").trim() || "School";
+  return `Dear parent, your document from ${name} is ready. Please contact the school for details.`;
+}
+
+const MANUAL_SMS_BLOCKED_PLACEHOLDERS = /\[contact_name\]|\[document_type\]|\[document_no\]/i;
+
+function hasUnresolvedManualSmsPlaceholders(message: string): boolean {
+  return MANUAL_SMS_BLOCKED_PLACEHOLDERS.test(message);
+}
+
 export default function SMS({
   schoolId,
   learners,
@@ -104,9 +116,6 @@ export default function SMS({
       setRecords(listRes.sms || []);
       setSmsCredits(listRes.smsCredits ?? 0);
       setSettings(settingsRes.settings);
-      if (settingsRes.settings?.standardSmsMessage && !message) {
-        setMessage(settingsRes.settings.standardSmsMessage.replace(/\[school_name\]/g, schoolName));
-      }
       void refreshLiveWinSmsBalance();
     } catch (e: any) {
       setError(e?.message || "Failed to load SMS");
@@ -129,8 +138,8 @@ export default function SMS({
       if (!detail?.settings || detail.schoolId !== schoolId) return;
       setSettings(detail.settings);
       const name = detail.school?.schoolName || schoolName;
-      if (view === "compose" && !editId && detail.settings.standardSmsMessage) {
-        setMessage(detail.settings.standardSmsMessage.replace(/\[school_name\]/g, name));
+      if (view === "compose" && !editId) {
+        setMessage(manualSmsDefaultMessage(name));
       }
     };
     window.addEventListener(COMMUNICATION_SETTINGS_UPDATED, onSettingsUpdated);
@@ -154,9 +163,7 @@ export default function SMS({
   const resetCompose = () => {
     setEditId(null);
     setDescription("");
-    setMessage(
-      (settings?.standardSmsMessage || "").replace(/\[school_name\]/g, schoolName)
-    );
+    setMessage(manualSmsDefaultMessage(schoolName));
     setContacts([]);
     setSelectedContactIds([]);
     setContactSearch("");
@@ -200,6 +207,10 @@ export default function SMS({
   const handleSend = async () => {
     setError("");
     setSendNotice("");
+    if (hasUnresolvedManualSmsPlaceholders(message)) {
+      setError("Please complete or remove placeholder fields before sending.");
+      return;
+    }
     setLoading(true);
     try {
       const saved = await saveDraft();

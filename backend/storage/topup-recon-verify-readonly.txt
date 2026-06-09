@@ -1,0 +1,52 @@
+=== Top-Up Payments READ-ONLY Reconciliation Verification ===
+Generated: 2026-06-05T10:04:22.739Z
+School: cmpideqeq0000108xb6ouv9zi
+
+LIVE PRODUCTION (API)
+  Total payments in ledger:     20409
+  kidesys_topup payments:       92 · R304 660
+  kidesys_topup ref band:       54508–54600
+  Payments from 2026-06-01+:    163 · R576 960
+  Statement accounts:           344
+  Total outstanding balance:    R728 395,42
+  Refs 54255–54506 in ledger:   0
+
+KID-E-SYS SPREADSHEET
+  Total rows:                   345
+  Total value:                  R1 249 925
+  Refs 54255–54506 rows:        247
+
+LIVE UI DRY-RUN (user-reported)
+  New:        6
+  Duplicates: 339
+  Unmatched:  0
+
+LEDGER-ONLY SIMULATION (live API)
+  Would be NEW:        253
+  Would be DUPLICATE:  92
+  Refs 54255–54506 in ledger:   0
+  Refs 54255–54506 missing:     247
+  Implied DB-only duplicates:   247
+
+STALE RECONCILIATION (2026-06-05)
+  Verdict: STALE — generated before top-up batch imports were reflected in EduClear export
+  Reported missing: 191 · R708,165.00
+  EduClear export had: 163 · R576,960.00
+
+BATCH ATTRIBUTION (UI history)
+  2026-06-02 transaction_list.xls:      247 · R923,465.00
+  2026-06-04 transaction_list_topup.xlsx:  92 · R304,660.00
+  Combined:                            339 · R1,228,125.00
+
+SIX NEW PAYMENTS (not in either import batch)
+  Count: 6 · R21 800
+  Payment 54601 · MOR004 · 2026-06-05 · R7000 (row 351)
+  Payment 54602 · KEN001 · 2026-06-05 · R3000 (row 352)
+  Payment 54603 · SIB003 · 2026-06-05 · R1000 (row 353)
+  Payment 54604 · HKA001 · 2026-06-05 · R3000 (row 354)
+  Payment 54605 · MOS023 · 2026-06-05 · R4000 (row 355)
+  Payment 54606 · MAS031 · 2026-06-05 · R3800 (row 356)
+
+RECOMMENDATION: Do NOT apply import until ledger/Postgres alignment is verified. 247 batch rows may exist in Postgres but be absent from live ledger (restore-topup-payments-from-batch.ts documents this gap).
+
+Full JSON: /Users/dasilvaacademy/EduClear/backend/storage/topup-recon-verify-readonly.json

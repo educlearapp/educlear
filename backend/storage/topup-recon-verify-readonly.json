@@ -1,0 +1,136 @@
+{
+  "readOnly": true,
+  "generatedAt": "2026-06-05T10:04:22.739Z",
+  "schoolId": "cmpideqeq0000108xb6ouv9zi",
+  "apiBase": "https://educlear-backend.onrender.com",
+  "kidESysFile": "/Users/dasilvaacademy/EduClear/backend/storage/kideesys-payments-from-2026-06-01.xlsx",
+  "liveProduction": {
+    "totalPaymentsInLedger": 20409,
+    "kidesysTopupCount": 92,
+    "kidesysTopupValue": 304660,
+    "kidesysTopupRefRange": "54508–54600",
+    "paymentsFrom2026_06_01": 163,
+    "paymentsFrom2026_06_01Value": 576960,
+    "statementAccountsCount": 344,
+    "totalOutstandingBalance": 728395.42,
+    "paymentRefs54255_54506InLiveLedger": 0
+  },
+  "kidESysSpreadsheet": {
+    "totalRows": 345,
+    "totalValue": 1249925,
+    "refs54255_54506RowCount": 247
+  },
+  "localDryRunAgainstLocalDb": {
+    "note": "Uses local DATABASE_URL + local ledger — may differ from live UI dry-run",
+    "newPayments": 253,
+    "duplicatesSkipped": 92,
+    "unmatchedRows": 0
+  },
+  "ledgerOnlySimulationAgainstLiveApi": {
+    "note": "Duplicate detection using live ledger only (no Postgres MigrationTopupPaymentRow)",
+    "newPayments": 253,
+    "duplicates": 92,
+    "newPaymentValue": 945265,
+    "refs54255_54506FoundInLedger": 0,
+    "refs54255_54506MissingFromLedger": 247
+  },
+  "userReportedLiveDryRun": {
+    "totalRows": 345,
+    "newPayments": 6,
+    "duplicates": 339,
+    "unmatched": 0,
+    "impliedDbOnlyDuplicates": 247
+  },
+  "staleReconciliationReport": {
+    "verdict": "STALE — generated before top-up batch imports were reflected in EduClear export",
+    "summaryExcerpt": "=== Payment reconciliation diff (read-only) ===\nGenerated: 2026-06-05T07:41:41.623Z\n\nINPUTS\n  Kid-e-Sys file: /Users/dasilvaacademy/EduClear/backend/storage/kideesys-payments-from-2026-06-01.xlsx\n  EduClear file:  /Users/dasilvaacademy/EduClear/backend/storage/educlear-payments-from-2026-06-01.csv\n\nTOTALS\n  Kid-e-Sys payments: 345 · R1249925.00\n  EduClear payments:  163 · R576960.00\n\nMISSING\n  In Kid-e-Sys but missing in EduClear: 191 · R708165.00\n  In EduClear but missing in Kid-e-Sys: 9 · R35200.00\n",
+    "educlearExportUsed": "/Users/dasilvaacademy/EduClear/backend/storage/educlear-payments-from-2026-06-01.csv",
+    "educlearExportPaymentCount": 163,
+    "educlearExportValue": 576960,
+    "reportedMissing": {
+      "count": 191,
+      "value": 708165
+    },
+    "explanation": "The 2026-06-05 reconciliation compared Kid-e-Sys (345 rows) to an EduClear CSV with only 163 June+ payments. It did not include MigrationTopupPaymentRow fingerprints from batch imports. After batches imported 247+92=339 payments into Postgres, dry-run correctly marks them duplicate even when ledger is incomplete."
+  },
+  "refs54255_54506": {
+    "expectedRowCount": 252,
+    "rowsInSpreadsheet": 247,
+    "foundInLiveLedger": 0,
+    "missingFromLiveLedger": 247,
+    "verdict": "Refs exist in batch Postgres records (per live UI duplicate) but most are NOT in live billing ledger API"
+  },
+  "sixNewPayments": {
+    "count": 6,
+    "totalValue": 21800,
+    "note": "Rows outside batch-1 (54255–54506) and batch-2 (54508–54600) ref bands — align with live UI 6 NEW",
+    "rows": [
+      {
+        "rowNumber": 351,
+        "accountNo": "MOR004",
+        "receiptNo": "Payment 54601",
+        "date": "2026-06-05",
+        "amount": 7000,
+        "refNum": 54601
+      },
+      {
+        "rowNumber": 352,
+        "accountNo": "KEN001",
+        "receiptNo": "Payment 54602",
+        "date": "2026-06-05",
+        "amount": 3000,
+        "refNum": 54602
+      },
+      {
+        "rowNumber": 353,
+        "accountNo": "SIB003",
+        "receiptNo": "Payment 54603",
+        "date": "2026-06-05",
+        "amount": 1000,
+        "refNum": 54603
+      },
+      {
+        "rowNumber": 354,
+        "accountNo": "HKA001",
+        "receiptNo": "Payment 54604",
+        "date": "2026-06-05",
+        "amount": 3000,
+        "refNum": 54604
+      },
+      {
+        "rowNumber": 355,
+        "accountNo": "MOS023",
+        "receiptNo": "Payment 54605",
+        "date": "2026-06-05",
+        "amount": 4000,
+        "refNum": 54605
+      },
+      {
+        "rowNumber": 356,
+        "accountNo": "MAS031",
+        "receiptNo": "Payment 54606",
+        "date": "2026-06-05",
+        "amount": 3800,
+        "refNum": 54606
+      }
+    ]
+  },
+  "batchAttribution": {
+    "note": "From UI batch history (user-provided); Postgres batch row attribution requires production DATABASE_URL",
+    "batch2026_06_02": {
+      "file": "transaction_list.xls",
+      "imported": 247,
+      "total": 923465,
+      "likelyCoversRefs": "54255–~54499 (first tranche)"
+    },
+    "batch2026_06_04": {
+      "file": "transaction_list_topup.xlsx",
+      "imported": 92,
+      "total": 304660,
+      "likelyCoversRefs": "54508–54600 (matches live kidesys_topup ledger ref band)"
+    },
+    "combinedImported": 339,
+    "combinedValue": 1228125
+  },
+  "recommendation": "Do NOT apply import until ledger/Postgres alignment is verified. 247 batch rows may exist in Postgres but be absent from live ledger (restore-topup-payments-from-batch.ts documents this gap)."
+}

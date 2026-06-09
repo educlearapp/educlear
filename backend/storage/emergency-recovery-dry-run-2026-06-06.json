@@ -1,0 +1,777 @@
+{
+  "generatedAt": "2026-06-06T08:34:19.624993+00:00",
+  "sources": {
+    "paymentReceiveListPdf": "/Users/dasilvaacademy/Desktop/payment_receive_list.pdf",
+    "transactionListXlsx": "/Users/dasilvaacademy/Desktop/transaction_list.xlsx",
+    "productionApi": "https://educlear-backend.onrender.com",
+    "pdfExportTimestamp": "2026/06/06 10:26"
+  },
+  "accountCounts": {
+    "pdfExpected": 344,
+    "productionFound": 346,
+    "balanceMatches": 118,
+    "balanceMismatches": 226,
+    "extraInProductionNotInPdf": [
+      "JAC001",
+      "LET007"
+    ]
+  },
+  "balanceTotals": {
+    "expectedOutstandingPdf344": 552540.45,
+    "productionOutstanding346": 1494310.45,
+    "outstandingDifference": 941770.0,
+    "expectedNetPositionPdf344": -8619.58,
+    "productionNetPosition346": 998805.4,
+    "netDifference": 1007424.98
+  },
+  "expectedTopCards344": {
+    "totalAccounts": 344,
+    "totalOutstanding": 552540.45,
+    "overPaid": 561160.03,
+    "netPosition": -8619.58,
+    "recentlyOwing": 334550.45,
+    "badDebt": 217990
+  },
+  "currentTopCards346": {
+    "totalAccounts": 346,
+    "totalOutstanding": 1494310.45,
+    "overPaid": 495505.05,
+    "netPosition": 998805.4,
+    "recentlyOwing": 1041915.45,
+    "badDebt": 452395.0
+  },
+  "transactionReconJune2026": {
+    "kidePayments": 347,
+    "productionPayments": 418,
+    "matched": 0,
+    "missingInProduction": 347,
+    "missingInProductionValue": -1253325.0,
+    "extraInProductionNotInKide": 418,
+    "extraInProductionValue": 1525625.0,
+    "duplicateProductionFingerprints": 64,
+    "duplicateExamples": [
+      [
+        "AFR002|2026-06-01|435000",
+        2
+      ],
+      [
+        "MOK040|2026-06-01|280000",
+        2
+      ],
+      [
+        "MAO002|2026-06-01|560000",
+        2
+      ],
+      [
+        "MAO002|2026-06-02|20000",
+        2
+      ],
+      [
+        "RAB003|2026-06-01|1000000",
+        2
+      ],
+      [
+        "CHI005|2026-06-01|600000",
+        2
+      ],
+      [
+        "PIL003|2026-06-01|500000",
+        2
+      ],
+      [
+        "MUL001|2026-06-01|580000",
+        2
+      ],
+      [
+        "SIB003|2026-06-02|430000",
+        2
+      ],
+      [
+        "RAN007|2026-06-02|335000",
+        2
+      ],
+      [
+        "MET001|2026-06-01|415000",
+        2
+      ],
+      [
+        "RAM019|2026-06-01|280000",
+        2
+      ],
+      [
+        "SEE002|2026-06-01|100000",
+        2
+      ],
+      [
+        "MOR004|2026-06-05|700000",
+        2
+      ],
+      [
+        "KEN001|2026-06-05|300000",
+        2
+      ]
+    ]
+  },
+  "spotChecks": {
+    "MAM004": {
+      "pdfBalance": 1500,
+      "prodBalance": 1500,
+      "prodLastPayment": 3000,
+      "prodLastPaymentDate": "2026-06-06",
+      "matchesPdf": true
+    },
+    "DUP001": {
+      "pdfBalance": -12200,
+      "prodBalance": -8700,
+      "prodLastPayment": 3500,
+      "prodLastPaymentDate": "2026-06-03",
+      "matchesPdf": false
+    },
+    "ALI002": {
+      "pdfBalance": 4000,
+      "prodBalance": 7000,
+      "prodLastPayment": 3000,
+      "prodLastPaymentDate": "2026-06-04",
+      "matchesPdf": false
+    },
+    "ADA004": {
+      "pdfBalance": -50,
+      "prodBalance": 7350,
+      "prodLastPayment": 6000,
+      "prodLastPaymentDate": "2026-06-04",
+      "matchesPdf": false
+    },
+    "AFR002": {
+      "pdfBalance": -130,
+      "prodBalance": 0,
+      "prodLastPayment": 130,
+      "prodLastPaymentDate": "2026-06-04",
+      "matchesPdf": false
+    },
+    "RAM021": {
+      "pdfBalance": 7830,
+      "prodBalance": 10960,
+      "prodLastPayment": 130,
+      "prodLastPaymentDate": "2026-06-04",
+      "matchesPdf": false
+    },
+    "MDU001": {
+      "pdfBalance": 3000,
+      "prodBalance": 11600,
+      "prodLastPayment": 7900,
+      "prodLastPaymentDate": "2026-06-01",
+      "matchesPdf": false
+    }
+  },
+  "topBalanceMismatches": [
+    {
+      "account": "SIL007",
+      "pdf": -18000.0,
+      "prod": 9600.0,
+      "diff": 27600.0,
+      "status": "Recently Owing"
+    },
+    {
+      "account": "THE002",
+      "pdf": 50.0,
+      "prod": 21550.0,
+      "diff": 21500.0,
+      "status": "Bad Debt"
+    },
+    {
+      "account": "MTS001",
+      "pdf": -650.0,
+      "prod": 17050.0,
+      "diff": 17700.0,
+      "status": "Bad Debt"
+    },
+    {
+      "account": "LEB005",
+      "pdf": 3400.0,
+      "prod": 20900.0,
+      "diff": 17500.0,
+      "status": "Bad Debt"
+    },
+    {
+      "account": "MUF001",
+      "pdf": 4200.0,
+      "prod": 21400.0,
+      "diff": 17200.0,
+      "status": "Bad Debt"
+    },
+    {
+      "account": "MAB005",
+      "pdf": 3000.0,
+      "prod": 18400.0,
+      "diff": 15400.0,
+      "status": "Bad Debt"
+    },
+    {
+      "account": "NDL008",
+      "pdf": 4305.0,
+      "prod": 16305.0,
+      "diff": 12000.0,
+      "status": "Bad Debt"
+    },
+    {
+      "account": "MOL024",
+      "pdf": 14350.0,
+      "prod": 24350.0,
+      "diff": 10000.0,
+      "status": "Bad Debt"
+    },
+    {
+      "account": "MAK020",
+      "pdf": -130.0,
+      "prod": 9250.0,
+      "diff": 9380.0,
+      "status": "Recently Owing"
+    },
+    {
+      "account": "PEB002",
+      "pdf": 3600.0,
+      "prod": 12600.0,
+      "diff": 9000.0,
+      "status": "Recently Owing"
+    },
+    {
+      "account": "MDU001",
+      "pdf": 3000.0,
+      "prod": 11600.0,
+      "diff": 8600.0,
+      "status": "Bad Debt"
+    },
+    {
+      "account": "MOO004",
+      "pdf": 0.0,
+      "prod": 8540.0,
+      "diff": 8540.0,
+      "status": "Recently Owing"
+    },
+    {
+      "account": "LEG001",
+      "pdf": -2500.0,
+      "prod": 6000.0,
+      "diff": 8500.0,
+      "status": "Recently Owing"
+    },
+    {
+      "account": "JAN003",
+      "pdf": 3000.0,
+      "prod": 11000.0,
+      "diff": 8000.0,
+      "status": "Recently Owing"
+    },
+    {
+      "account": "MFU002",
+      "pdf": 3400.0,
+      "prod": 10900.0,
+      "diff": 7500.0,
+      "status": "Bad Debt"
+    },
+    {
+      "account": "MAP006",
+      "pdf": 1000.0,
+      "prod": 8420.0,
+      "diff": 7420.0,
+      "status": "Bad Debt"
+    },
+    {
+      "account": "MOS022",
+      "pdf": 0.0,
+      "prod": 7400.0,
+      "diff": 7400.0,
+      "status": "Recently Owing"
+    },
+    {
+      "account": "ADA004",
+      "pdf": -50.0,
+      "prod": 7350.0,
+      "diff": 7400.0,
+      "status": "Recently Owing"
+    },
+    {
+      "account": "MAK022",
+      "pdf": -5150.0,
+      "prod": 2250.0,
+      "diff": 7400.0,
+      "status": "Recently Owing"
+    },
+    {
+      "account": "MIR001",
+      "pdf": 0.0,
+      "prod": 7400.0,
+      "diff": 7400.0,
+      "status": "Bad Debt"
+    },
+    {
+      "account": "MOT008",
+      "pdf": 0.0,
+      "prod": 7400.0,
+      "diff": 7400.0,
+      "status": "Bad Debt"
+    },
+    {
+      "account": "NGW003",
+      "pdf": -2700.0,
+      "prod": 4650.0,
+      "diff": 7350.0,
+      "status": "Recently Owing"
+    },
+    {
+      "account": "MAT010",
+      "pdf": 1400.0,
+      "prod": 8750.0,
+      "diff": 7350.0,
+      "status": "Bad Debt"
+    },
+    {
+      "account": "MOT013",
+      "pdf": -500.0,
+      "prod": 6600.0,
+      "diff": 7100.0,
+      "status": "Recently Owing"
+    },
+    {
+      "account": "MAS012",
+      "pdf": 0.0,
+      "prod": 7100.0,
+      "diff": 7100.0,
+      "status": "Recently Owing"
+    },
+    {
+      "account": "DIM002",
+      "pdf": 11900.0,
+      "prod": 18900.0,
+      "diff": 7000.0,
+      "status": "Bad Debt"
+    },
+    {
+      "account": "TIV001",
+      "pdf": 1450.0,
+      "prod": 8450.0,
+      "diff": 7000.0,
+      "status": "Bad Debt"
+    },
+    {
+      "account": "MAL020",
+      "pdf": 1550.0,
+      "prod": 8550.0,
+      "diff": 7000.0,
+      "status": "Recently Owing"
+    },
+    {
+      "account": "MPU007",
+      "pdf": 0.0,
+      "prod": 6900.0,
+      "diff": 6900.0,
+      "status": "Recently Owing"
+    },
+    {
+      "account": "MOE011",
+      "pdf": 0.0,
+      "prod": 6700.0,
+      "diff": 6700.0,
+      "status": "Recently Owing"
+    },
+    {
+      "account": "TLA001",
+      "pdf": 4090.0,
+      "prod": 10790.0,
+      "diff": 6700.0,
+      "status": "Bad Debt"
+    },
+    {
+      "account": "KEM002",
+      "pdf": 1400.0,
+      "prod": 7950.0,
+      "diff": 6550.0,
+      "status": "Bad Debt"
+    },
+    {
+      "account": "MOO006",
+      "pdf": -100.0,
+      "prod": 6400.0,
+      "diff": 6500.0,
+      "status": "Recently Owing"
+    },
+    {
+      "account": "MOK034",
+      "pdf": 0.0,
+      "prod": 6200.0,
+      "diff": 6200.0,
+      "status": "Recently Owing"
+    },
+    {
+      "account": "TSH016",
+      "pdf": 1400.0,
+      "prod": 7400.0,
+      "diff": 6000.0,
+      "status": "Recently Owing"
+    },
+    {
+      "account": "TSH012",
+      "pdf": 1400.0,
+      "prod": 7400.0,
+      "diff": 6000.0,
+      "status": "Bad Debt"
+    },
+    {
+      "account": "NDA001",
+      "pdf": -1000.0,
+      "prod": 5000.0,
+      "diff": 6000.0,
+      "status": "Recently Owing"
+    },
+    {
+      "account": "DHL003",
+      "pdf": 0.0,
+      "prod": 6000.0,
+      "diff": 6000.0,
+      "status": "Recently Owing"
+    },
+    {
+      "account": "MOT032",
+      "pdf": 1400.0,
+      "prod": 7400.0,
+      "diff": 6000.0,
+      "status": "Bad Debt"
+    },
+    {
+      "account": "MOO003",
+      "pdf": 0.0,
+      "prod": 6000.0,
+      "diff": 6000.0,
+      "status": "Recently Owing"
+    }
+  ],
+  "missingPaymentSample": [
+    {
+      "accountNo": "POG001",
+      "date": "2026/06/01",
+      "amount": "-55.00",
+      "reference": "Payment 54255"
+    },
+    {
+      "accountNo": "MAT022",
+      "date": "2026/06/01",
+      "amount": "-3,000.00",
+      "reference": "Payment 54256"
+    },
+    {
+      "accountNo": "MOG013",
+      "date": "2026/06/01",
+      "amount": "-3,350.00",
+      "reference": "Payment 54257"
+    },
+    {
+      "accountNo": "HOM001",
+      "date": "2026/06/01",
+      "amount": "-3,000.00",
+      "reference": "Payment 54258"
+    },
+    {
+      "accountNo": "MOD006",
+      "date": "2026/06/01",
+      "amount": "-3,550.00",
+      "reference": "Payment 54259"
+    },
+    {
+      "accountNo": "NTO003",
+      "date": "2026/06/01",
+      "amount": "-3,200.00",
+      "reference": "Payment 54260"
+    },
+    {
+      "accountNo": "KEM002",
+      "date": "2026/06/01",
+      "amount": "-6,550.00",
+      "reference": "Payment 54261"
+    },
+    {
+      "accountNo": "RAM021",
+      "date": "2026/06/01",
+      "amount": "-3,000.00",
+      "reference": "Payment 54262"
+    },
+    {
+      "accountNo": "MAK018",
+      "date": "2026/06/01",
+      "amount": "-1,100.00",
+      "reference": "Payment 54263"
+    },
+    {
+      "accountNo": "TIV001",
+      "date": "2026/06/01",
+      "amount": "-7,000.00",
+      "reference": "Payment 54264"
+    },
+    {
+      "accountNo": "KER001",
+      "date": "2026/06/01",
+      "amount": "-3,000.00",
+      "reference": "Payment 54265"
+    },
+    {
+      "accountNo": "MAN012",
+      "date": "2026/06/01",
+      "amount": "-1,650.00",
+      "reference": "Payment 54266"
+    },
+    {
+      "accountNo": "LEK007",
+      "date": "2026/06/01",
+      "amount": "-4,000.00",
+      "reference": "Payment 54267"
+    },
+    {
+      "accountNo": "TSH003",
+      "date": "2026/06/01",
+      "amount": "-3,700.00",
+      "reference": "Payment 54268"
+    },
+    {
+      "accountNo": "SEP899",
+      "date": "2026/06/01",
+      "amount": "-3,000.00",
+      "reference": "Payment 54269"
+    },
+    {
+      "accountNo": "BUY001",
+      "date": "2026/06/01",
+      "amount": "-2,900.00",
+      "reference": "Payment 54270"
+    },
+    {
+      "accountNo": "MBO004",
+      "date": "2026/06/01",
+      "amount": "-4,250.00",
+      "reference": "Payment 54271"
+    },
+    {
+      "accountNo": "JAN003",
+      "date": "2026/06/01",
+      "amount": "-8,000.00",
+      "reference": "Payment 54272"
+    },
+    {
+      "accountNo": "LEK003",
+      "date": "2026/06/01",
+      "amount": "-5,000.00",
+      "reference": "Payment 54273"
+    },
+    {
+      "accountNo": "MKH007",
+      "date": "2026/06/01",
+      "amount": "-3,000.00",
+      "reference": "Payment 54274"
+    },
+    {
+      "accountNo": "LET013",
+      "date": "2026/06/01",
+      "amount": "-4,150.00",
+      "reference": "Payment 54275"
+    },
+    {
+      "accountNo": "TSA001",
+      "date": "2026/06/01",
+      "amount": "-3,000.00",
+      "reference": "Payment 54276"
+    },
+    {
+      "accountNo": "NZI001",
+      "date": "2026/06/01",
+      "amount": "-3,000.00",
+      "reference": "Payment 54277"
+    },
+    {
+      "accountNo": "MOS018",
+      "date": "2026/06/01",
+      "amount": "-550.00",
+      "reference": "Payment 54278"
+    },
+    {
+      "accountNo": "MOY004",
+      "date": "2026/06/01",
+      "amount": "-3,200.00",
+      "reference": "Payment 54279"
+    }
+  ],
+  "extraProdPaymentSample": [
+    {
+      "accountNo": "AFR002",
+      "date": "2026-06-01",
+      "amount": 4350,
+      "reference": "EFT",
+      "source": "manual"
+    },
+    {
+      "accountNo": "MOK040",
+      "date": "2026-06-01",
+      "amount": 2800,
+      "reference": "EFT",
+      "source": "manual"
+    },
+    {
+      "accountNo": "MAO002",
+      "date": "2026-06-01",
+      "amount": 5600,
+      "reference": "EFT",
+      "source": "manual"
+    },
+    {
+      "accountNo": "MAO002",
+      "date": "2026-06-02",
+      "amount": 200,
+      "reference": "EFT",
+      "source": "manual"
+    },
+    {
+      "accountNo": "RAB003",
+      "date": "2026-06-01",
+      "amount": 10000,
+      "reference": "EFT",
+      "source": "manual"
+    },
+    {
+      "accountNo": "CHI005",
+      "date": "2026-06-01",
+      "amount": 6000,
+      "reference": "EFT",
+      "source": "manual"
+    },
+    {
+      "accountNo": "PIL003",
+      "date": "2026-06-01",
+      "amount": 5000,
+      "reference": "EFT",
+      "source": "manual"
+    },
+    {
+      "accountNo": "MUL001",
+      "date": "2026-06-01",
+      "amount": 5800,
+      "reference": "EFT",
+      "source": "manual"
+    },
+    {
+      "accountNo": "SIB003",
+      "date": "2026-06-02",
+      "amount": 4300,
+      "reference": "EFT",
+      "source": "manual"
+    },
+    {
+      "accountNo": "RAN007",
+      "date": "2026-06-02",
+      "amount": 3350,
+      "reference": "EFT",
+      "source": "manual"
+    },
+    {
+      "accountNo": "MET001",
+      "date": "2026-06-01",
+      "amount": 4150,
+      "reference": "EFT",
+      "source": "manual"
+    },
+    {
+      "accountNo": "RAM019",
+      "date": "2026-06-01",
+      "amount": 2800,
+      "reference": "EFT",
+      "source": "manual"
+    },
+    {
+      "accountNo": "SEE002",
+      "date": "2026-06-01",
+      "amount": 1000,
+      "reference": "EFT",
+      "source": "manual"
+    },
+    {
+      "accountNo": "MOR004",
+      "date": "2026-06-05",
+      "amount": 7000,
+      "reference": "EFT",
+      "source": "manual"
+    },
+    {
+      "accountNo": "MTH003",
+      "date": "2026-06-05",
+      "amount": 1400,
+      "reference": "EFT",
+      "source": "manual"
+    },
+    {
+      "accountNo": "KEN001",
+      "date": "2026-06-05",
+      "amount": 3000,
+      "reference": "EFT",
+      "source": "manual"
+    },
+    {
+      "accountNo": "MOA006",
+      "date": "2026-06-01",
+      "amount": 5800,
+      "reference": "EFT",
+      "source": "manual"
+    },
+    {
+      "accountNo": "MON013",
+      "date": "2026-06-05",
+      "amount": 700,
+      "reference": "EFT",
+      "source": "manual"
+    },
+    {
+      "accountNo": "SIB003",
+      "date": "2026-06-05",
+      "amount": 1000,
+      "reference": "EFT",
+      "source": "manual"
+    },
+    {
+      "accountNo": "MOL043",
+      "date": "2026-06-01",
+      "amount": 3350,
+      "reference": "EFT",
+      "source": "manual"
+    },
+    {
+      "accountNo": "MAN013",
+      "date": "2026-06-01",
+      "amount": 2800,
+      "reference": "EFT",
+      "source": "manual"
+    },
+    {
+      "accountNo": "HKA001",
+      "date": "2026-06-05",
+      "amount": 3000,
+      "reference": "EFT",
+      "source": "manual"
+    },
+    {
+      "accountNo": "TSI002",
+      "date": "2026-06-01",
+      "amount": 2800,
+      "reference": "EFT",
+      "source": "manual"
+    },
+    {
+      "accountNo": "MOR015",
+      "date": "2026-06-02",
+      "amount": 3350,
+      "reference": "EFT",
+      "source": "manual"
+    },
+    {
+      "accountNo": "MTH004",
+      "date": "2026-06-01",
+      "amount": 2800,
+      "reference": "EFT",
+      "source": "manual"
+    }
+  ]
+}

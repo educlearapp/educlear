@@ -1,0 +1,3816 @@
+{
+  "generatedAt": "2026-06-06T08:32:37.174Z",
+  "mode": "plan",
+  "schoolId": "cmpideqeq0000108xb6ouv9zi",
+  "sources": {
+    "balanceAuthority": "/Users/dasilvaacademy/Desktop/payment_receive_list.pdf",
+    "paymentHistoryOnly": "/Users/dasilvaacademy/Desktop/transaction_list.xlsx",
+    "importedAt": "2099-12-31T23:59:59.999Z"
+  },
+  "pdfParse": {
+    "rawRowCount": 396,
+    "pdfAccountsTotal": 344,
+    "exportDate": "2026/06/06",
+    "duplicateRowCount": 52,
+    "balanceConflictCount": 0,
+    "balanceConflicts": []
+  },
+  "activeFilter": {
+    "activeAccountsTotal": 308,
+    "activeLearnerCount": 351,
+    "familyAccountsCreated": 821,
+    "historicalAccountsIgnored": 2,
+    "pdfAccountsNotActive": 36,
+    "pdfAccountsNotActiveList": [
+      "CHI004",
+      "DHL003",
+      "DIK002",
+      "DUP001",
+      "HOB002",
+      "KEN001",
+      "KGA006",
+      "KHU005",
+      "LEB005",
+      "MAH004",
+      "MAK018",
+      "MAK021",
+      "MAL020",
+      "MAP009",
+      "MAS030",
+      "MAT021",
+      "MEN002",
+      "MOE008",
+      "MOK025",
+      "MOL018",
+      "MOL024",
+      "MOL040",
+      "MOR011",
+      "MOS014",
+      "MOT026",
+      "MPE002",
+      "MSI004",
+      "MTE001",
+      "NZI001",
+      "PRA001",
+      "RAM009",
+      "RAM010",
+      "RAM020",
+      "TSH012",
+      "TSH020",
+      "XAB001"
+    ],
+    "activeAccountsMissingFromPdf": 0,
+    "activeAccountsMissingFromPdfList": []
+  },
+  "juneTransactions": {
+    "juneTransactionsTotal": 350,
+    "junePaymentsImported": 308,
+    "junePaymentsIgnored": 39,
+    "juneInvoicesTotal": 3,
+    "ignoredInactiveAccountRefs": [
+      "CHI004",
+      "DHL003",
+      "DIK002",
+      "DUP001",
+      "HOB002",
+      "JAC001",
+      "KEN001",
+      "KGA006",
+      "KHU005",
+      "LEB005",
+      "LET007",
+      "MAH004",
+      "MAK018",
+      "MAL020",
+      "MAS030",
+      "MEN002",
+      "MOL018",
+      "MOL024",
+      "MOL040",
+      "MOR011",
+      "MOS014",
+      "MOT026",
+      "MSI004",
+      "MTE001",
+      "NZI001",
+      "PRA001",
+      "RAM009",
+      "RAM010",
+      "RAM020",
+      "TSH012",
+      "TSH020",
+      "XAB001"
+    ],
+    "note": "June xlsx is payment history only — NOT used for balance reconstruction"
+  },
+  "cardTotals": {
+    "fromActivePdfAccounts": {
+      "totalAccounts": 308,
+      "totalOutstanding": 451750.45,
+      "overPaid": 505366.08,
+      "netPosition": -53615.63,
+      "recentlyOwing": 304100.45,
+      "badDebt": 147650
+    },
+    "fromAllPdfAccounts": {
+      "totalAccounts": 344,
+      "totalOutstanding": 552540.45,
+      "overPaid": 561160.03,
+      "netPosition": -8619.58,
+      "recentlyOwing": 334550.45,
+      "badDebt": 217990
+    }
+  },
+  "spotCheck": {
+    "ALI002": {
+      "pdfBalance": 4000,
+      "eduClearBefore": 7000,
+      "eduClearAfter": 4000
+    },
+    "ADA004": {
+      "pdfBalance": -50,
+      "eduClearBefore": 7350,
+      "eduClearAfter": -50
+    },
+    "AFR002": {
+      "pdfBalance": -130,
+      "eduClearBefore": 0,
+      "eduClearAfter": -4480
+    },
+    "RAM021": {
+      "pdfBalance": 7830,
+      "eduClearBefore": 10960,
+      "eduClearAfter": 7830
+    },
+    "MAO002": {
+      "pdfBalance": 1400,
+      "eduClearBefore": 1400,
+      "eduClearAfter": -4400
+    },
+    "MDU001": {
+      "pdfBalance": 3000,
+      "eduClearBefore": 11600,
+      "eduClearAfter": 3000
+    }
+  },
+  "verification": {
+    "before": {
+      "accountsMatchingPdf": 112,
+      "accountsNotMatchingPdf": 234,
+      "matchPercent": 36.36,
+      "notMatching": [
+        {
+          "accountNo": "ADA004",
+          "kidESysBalance": -50,
+          "eduClearBalance": 7350,
+          "difference": 7400
+        },
+        {
+          "accountNo": "AFR002",
+          "kidESysBalance": -130,
+          "eduClearBalance": 0,
+          "difference": 130
+        },
+        {
+          "accountNo": "ALI002",
+          "kidESysBalance": 4000,
+          "eduClearBalance": 7000,
+          "difference": 3000
+        },
+        {
+          "accountNo": "BAN001",
+          "kidESysBalance": 0,
+          "eduClearBalance": 3550,
+          "difference": 3550
+        },
+        {
+          "accountNo": "BOG005",
+          "kidESysBalance": 0,
+          "eduClearBalance": 4600,
+          "difference": 4600
+        },
+        {
+          "accountNo": "BUY001",
+          "kidESysBalance": 0,
+          "eduClearBalance": 2900,
+          "difference": 2900
+        },
+        {
+          "accountNo": "CET001",
+          "kidESysBalance": 2550,
+          "eduClearBalance": 6250,
+          "difference": 3700
+        },
+        {
+          "accountNo": "CHI004",
+          "kidESysBalance": 0,
+          "eduClearBalance": 3000,
+          "difference": 3000
+        },
+        {
+          "accountNo": "DHL003",
+          "kidESysBalance": 0,
+          "eduClearBalance": 6000,
+          "difference": 6000
+        },
+        {
+          "accountNo": "DIA003",
+          "kidESysBalance": -1000,
+          "eduClearBalance": 2500,
+          "difference": 3500
+        },
+        {
+          "accountNo": "DIA006",
+          "kidESysBalance": 0,
+          "eduClearBalance": 3000,
+          "difference": 3000
+        },
+        {
+          "accountNo": "DIK001",
+          "kidESysBalance": 500,
+          "eduClearBalance": 4200,
+          "difference": 3700
+        },
+        {
+          "accountNo": "DIK002",
+          "kidESysBalance": 0,
+          "eduClearBalance": 3450,
+          "difference": 3450
+        },
+        {
+          "accountNo": "DIK003",
+          "kidESysBalance": 0,
+          "eduClearBalance": 3000,
+          "difference": 3000
+        },
+        {
+          "accountNo": "DIM002",
+          "kidESysBalance": 11900,
+          "eduClearBalance": 18900,
+          "difference": 7000
+        },
+        {
+          "accountNo": "DUP001",
+          "kidESysBalance": 0,
+          "eduClearBalance": -8700,
+          "difference": -8700
+        },
+        {
+          "accountNo": "GAA001",
+          "kidESysBalance": -100,
+          "eduClearBalance": 3500,
+          "difference": 3600
+        },
+        {
+          "accountNo": "GAE001",
+          "kidESysBalance": 3100,
+          "eduClearBalance": 6800,
+          "difference": 3700
+        },
+        {
+          "accountNo": "GAE002",
+          "kidESysBalance": 20,
+          "eduClearBalance": 4520,
+          "difference": 4500
+        },
+        {
+          "accountNo": "GOI001",
+          "kidESysBalance": 700,
+          "eduClearBalance": 3700,
+          "difference": 3000
+        },
+        {
+          "accountNo": "GOV001",
+          "kidESysBalance": 0,
+          "eduClearBalance": 1000,
+          "difference": 1000
+        },
+        {
+          "accountNo": "HLA001",
+          "kidESysBalance": 700,
+          "eduClearBalance": 5050,
+          "difference": 4350
+        },
+        {
+          "accountNo": "HOB002",
+          "kidESysBalance": 0,
+          "eduClearBalance": 5900,
+          "difference": 5900
+        },
+        {
+          "accountNo": "JAC001",
+          "kidESysBalance": 0,
+          "eduClearBalance": -1050.02,
+          "difference": -1050.02
+        },
+        {
+          "accountNo": "JAM001",
+          "kidESysBalance": -700,
+          "eduClearBalance": 1200,
+          "difference": 1900
+        },
+        {
+          "accountNo": "JAN003",
+          "kidESysBalance": 3000,
+          "eduClearBalance": 11000,
+          "difference": 8000
+        },
+        {
+          "accountNo": "JEC002",
+          "kidESysBalance": -1035,
+          "eduClearBalance": 1965,
+          "difference": 3000
+        },
+        {
+          "accountNo": "KAL001",
+          "kidESysBalance": 1800,
+          "eduClearBalance": 4500,
+          "difference": 2700
+        },
+        {
+          "accountNo": "KAT002",
+          "kidESysBalance": 10400,
+          "eduClearBalance": 15400,
+          "difference": 5000
+        },
+        {
+          "accountNo": "KEM002",
+          "kidESysBalance": 1400,
+          "eduClearBalance": 7950,
+          "difference": 6550
+        },
+        {
+          "accountNo": "KGA004",
+          "kidESysBalance": -36090,
+          "eduClearBalance": -35290,
+          "difference": 800
+        },
+        {
+          "accountNo": "KGA006",
+          "kidESysBalance": 0,
+          "eduClearBalance": 700,
+          "difference": 700
+        },
+        {
+          "accountNo": "KGO002",
+          "kidESysBalance": 696,
+          "eduClearBalance": 3696,
+          "difference": 3000
+        },
+        {
+          "accountNo": "KGO003",
+          "kidESysBalance": 0,
+          "eduClearBalance": 5000,
+          "difference": 5000
+        },
+        {
+          "accountNo": "KHU005",
+          "kidESysBalance": 0,
+          "eduClearBalance": 3550,
+          "difference": 3550
+        },
+        {
+          "accountNo": "KHU006",
+          "kidESysBalance": 0,
+          "eduClearBalance": 3200,
+          "difference": 3200
+        },
+        {
+          "accountNo": "KHU007",
+          "kidESysBalance": 900,
+          "eduClearBalance": 4700,
+          "difference": 3800
+        },
+        {
+          "accountNo": "KIN001",
+          "kidESysBalance": 200,
+          "eduClearBalance": 3200,
+          "difference": 3000
+        },
+        {
+          "accountNo": "KOB001",
+          "kidESysBalance": -1350,
+          "eduClearBalance": 2350,
+          "difference": 3700
+        },
+        {
+          "accountNo": "LAN002",
+          "kidESysBalance": 0,
+          "eduClearBalance": 2920,
+          "difference": 2920
+        },
+        {
+          "accountNo": "LEB005",
+          "kidESysBalance": 0,
+          "eduClearBalance": 20900,
+          "difference": 20900
+        },
+        {
+          "accountNo": "LEG001",
+          "kidESysBalance": -2500,
+          "eduClearBalance": 6000,
+          "difference": 8500
+        },
+        {
+          "accountNo": "LEK003",
+          "kidESysBalance": 2200,
+          "eduClearBalance": 7200,
+          "difference": 5000
+        },
+        {
+          "accountNo": "LEK008",
+          "kidESysBalance": 0,
+          "eduClearBalance": 4250,
+          "difference": 4250
+        },
+        {
+          "accountNo": "LER002",
+          "kidESysBalance": -150,
+          "eduClearBalance": 3450,
+          "difference": 3600
+        },
+        {
+          "accountNo": "LET012",
+          "kidESysBalance": 0,
+          "eduClearBalance": 3000,
+          "difference": 3000
+        },
+        {
+          "accountNo": "MAB004",
+          "kidESysBalance": 700,
+          "eduClearBalance": 3700,
+          "difference": 3000
+        },
+        {
+          "accountNo": "MAB005",
+          "kidESysBalance": 3000,
+          "eduClearBalance": 18400,
+          "difference": 15400
+        },
+        {
+          "accountNo": "MAB008",
+          "kidESysBalance": -500,
+          "eduClearBalance": 2500,
+          "difference": 3000
+        },
+        {
+          "accountNo": "MAB011",
+          "kidESysBalance": 0,
+          "eduClearBalance": 5000,
+          "difference": 5000
+        },
+        {
+          "accountNo": "MAF003",
+          "kidESysBalance": 0,
+          "eduClearBalance": 4550,
+          "difference": 4550
+        },
+        {
+          "accountNo": "MAG006",
+          "kidESysBalance": -200,
+          "eduClearBalance": 3500,
+          "difference": 3700
+        },
+        {
+          "accountNo": "MAH004",
+          "kidESysBalance": 0,
+          "eduClearBalance": 3200,
+          "difference": 3200
+        },
+        {
+          "accountNo": "MAH007",
+          "kidESysBalance": 0,
+          "eduClearBalance": 3000,
+          "difference": 3000
+        },
+        {
+          "accountNo": "MAK014",
+          "kidESysBalance": 950,
+          "eduClearBalance": 3950,
+          "difference": 3000
+        },
+        {
+          "accountNo": "MAK018",
+          "kidESysBalance": 0,
+          "eduClearBalance": -16250,
+          "difference": -16250
+        },
+        {
+          "accountNo": "MAK019",
+          "kidESysBalance": 0,
+          "eduClearBalance": 400,
+          "difference": 400
+        },
+        {
+          "accountNo": "MAK020",
+          "kidESysBalance": -130,
+          "eduClearBalance": 9250,
+          "difference": 9380
+        },
+        {
+          "accountNo": "MAK021",
+          "kidESysBalance": 0,
+          "eduClearBalance": -10833.95,
+          "difference": -10833.95
+        },
+        {
+          "accountNo": "MAK022",
+          "kidESysBalance": -5150,
+          "eduClearBalance": 2250,
+          "difference": 7400
+        },
+        {
+          "accountNo": "MAK025",
+          "kidESysBalance": -10320,
+          "eduClearBalance": -5160,
+          "difference": 5160
+        },
+        {
+          "accountNo": "MAL006",
+          "kidESysBalance": -700,
+          "eduClearBalance": 5150,
+          "difference": 5850
+        },
+        {
+          "accountNo": "MAL018",
+          "kidESysBalance": 50,
+          "eduClearBalance": 750,
+          "difference": 700
+        },
+        {
+          "accountNo": "MAL020",
+          "kidESysBalance": 0,
+          "eduClearBalance": 8550,
+          "difference": 8550
+        },
+        {
+          "accountNo": "MAM004",
+          "kidESysBalance": 1500,
+          "eduClearBalance": 4500,
+          "difference": 3000
+        },
+        {
+          "accountNo": "MAM007",
+          "kidESysBalance": 0,
+          "eduClearBalance": 3000,
+          "difference": 3000
+        },
+        {
+          "accountNo": "MAN010",
+          "kidESysBalance": 4600,
+          "eduClearBalance": 7600,
+          "difference": 3000
+        },
+        {
+          "accountNo": "MAN011",
+          "kidESysBalance": 0,
+          "eduClearBalance": 3000,
+          "difference": 3000
+        },
+        {
+          "accountNo": "MAO001",
+          "kidESysBalance": -700,
+          "eduClearBalance": 3000,
+          "difference": 3700
+        },
+        {
+          "accountNo": "MAP001",
+          "kidESysBalance": 4800,
+          "eduClearBalance": 10000,
+          "difference": 5200
+        },
+        {
+          "accountNo": "MAP006",
+          "kidESysBalance": 1000,
+          "eduClearBalance": 8420,
+          "difference": 7420
+        },
+        {
+          "accountNo": "MAP009",
+          "kidESysBalance": 0,
+          "eduClearBalance": -11550,
+          "difference": -11550
+        },
+        {
+          "accountNo": "MAR008",
+          "kidESysBalance": 0,
+          "eduClearBalance": 4300,
+          "difference": 4300
+        },
+        {
+          "accountNo": "MAR009",
+          "kidESysBalance": 0,
+          "eduClearBalance": 4050,
+          "difference": 4050
+        },
+        {
+          "accountNo": "MAS012",
+          "kidESysBalance": 0,
+          "eduClearBalance": 7100,
+          "difference": 7100
+        },
+        {
+          "accountNo": "MAS017",
+          "kidESysBalance": 0,
+          "eduClearBalance": 3600,
+          "difference": 3600
+        },
+        {
+          "accountNo": "MAS021",
+          "kidESysBalance": 0,
+          "eduClearBalance": 3700,
+          "difference": 3700
+        },
+        {
+          "accountNo": "MAS024",
+          "kidESysBalance": 0,
+          "eduClearBalance": 4350,
+          "difference": 4350
+        },
+        {
+          "accountNo": "MAS028",
+          "kidESysBalance": -700,
+          "eduClearBalance": 3750,
+          "difference": 4450
+        },
+        {
+          "accountNo": "MAT010",
+          "kidESysBalance": 1400,
+          "eduClearBalance": 8750,
+          "difference": 7350
+        },
+        {
+          "accountNo": "MAT016",
+          "kidESysBalance": 1900,
+          "eduClearBalance": 6400,
+          "difference": 4500
+        },
+        {
+          "accountNo": "MAT020",
+          "kidESysBalance": 0,
+          "eduClearBalance": 4250,
+          "difference": 4250
+        },
+        {
+          "accountNo": "MAT021",
+          "kidESysBalance": 0,
+          "eduClearBalance": 14850,
+          "difference": 14850
+        },
+        {
+          "accountNo": "MAT022",
+          "kidESysBalance": 3100,
+          "eduClearBalance": 6100,
+          "difference": 3000
+        },
+        {
+          "accountNo": "MAT024",
+          "kidESysBalance": 0,
+          "eduClearBalance": 3550,
+          "difference": 3550
+        },
+        {
+          "accountNo": "MAT031",
+          "kidESysBalance": 0,
+          "eduClearBalance": 5100,
+          "difference": 5100
+        },
+        {
+          "accountNo": "MBO004",
+          "kidESysBalance": 0,
+          "eduClearBalance": 4250,
+          "difference": 4250
+        },
+        {
+          "accountNo": "MDU001",
+          "kidESysBalance": 3000,
+          "eduClearBalance": 11600,
+          "difference": 8600
+        },
+        {
+          "accountNo": "MDU002",
+          "kidESysBalance": -130,
+          "eduClearBalance": 1100,
+          "difference": 1230
+        },
+        {
+          "accountNo": "MEK003",
+          "kidESysBalance": 700,
+          "eduClearBalance": 3700,
+          "difference": 3000
+        },
+        {
+          "accountNo": "MET002",
+          "kidESysBalance": -13650,
+          "eduClearBalance": -11600,
+          "difference": 2050
+        },
+        {
+          "accountNo": "MFE002",
+          "kidESysBalance": 11000,
+          "eduClearBalance": 12800,
+          "difference": 1800
+        },
+        {
+          "accountNo": "MFU002",
+          "kidESysBalance": 3400,
+          "eduClearBalance": 10900,
+          "difference": 7500
+        },
+        {
+          "accountNo": "MIR001",
+          "kidESysBalance": 0,
+          "eduClearBalance": 7400,
+          "difference": 7400
+        },
+        {
+          "accountNo": "MKA001",
+          "kidESysBalance": 1400,
+          "eduClearBalance": 4750,
+          "difference": 3350
+        },
+        {
+          "accountNo": "MKH002",
+          "kidESysBalance": 700,
+          "eduClearBalance": 3700,
+          "difference": 3000
+        },
+        {
+          "accountNo": "MKH005",
+          "kidESysBalance": 2300,
+          "eduClearBalance": 5300,
+          "difference": 3000
+        },
+        {
+          "accountNo": "MOD004",
+          "kidESysBalance": 0,
+          "eduClearBalance": 2300,
+          "difference": 2300
+        },
+        {
+          "accountNo": "MOD005",
+          "kidESysBalance": 750,
+          "eduClearBalance": 3950,
+          "difference": 3200
+        },
+        {
+          "accountNo": "MOD006",
+          "kidESysBalance": -320,
+          "eduClearBalance": 3500,
+          "difference": 3820
+        },
+        {
+          "accountNo": "MOD010",
+          "kidESysBalance": 2000,
+          "eduClearBalance": 6200,
+          "difference": 4200
+        },
+        {
+          "accountNo": "MOD012",
+          "kidESysBalance": 0,
+          "eduClearBalance": 3000,
+          "difference": 3000
+        },
+        {
+          "accountNo": "MOD014",
+          "kidESysBalance": 0,
+          "eduClearBalance": 3700,
+          "difference": 3700
+        },
+        {
+          "accountNo": "MOD019",
+          "kidESysBalance": 900,
+          "eduClearBalance": 5300,
+          "difference": 4400
+        },
+        {
+          "accountNo": "MOE003",
+          "kidESysBalance": 2800,
+          "eduClearBalance": 6300,
+          "difference": 3500
+        },
+        {
+          "accountNo": "MOE004",
+          "kidESysBalance": -100,
+          "eduClearBalance": 3850,
+          "difference": 3950
+        },
+        {
+          "accountNo": "MOE006",
+          "kidESysBalance": -500,
+          "eduClearBalance": 4500,
+          "difference": 5000
+        },
+        {
+          "accountNo": "MOE008",
+          "kidESysBalance": 0,
+          "eduClearBalance": 21990,
+          "difference": 21990
+        },
+        {
+          "accountNo": "MOE009",
+          "kidESysBalance": 0,
+          "eduClearBalance": 3550,
+          "difference": 3550
+        },
+        {
+          "accountNo": "MOE011",
+          "kidESysBalance": 0,
+          "eduClearBalance": 6700,
+          "difference": 6700
+        },
+        {
+          "accountNo": "MOF002",
+          "kidESysBalance": -700,
+          "eduClearBalance": 3000,
+          "difference": 3700
+        },
+        {
+          "accountNo": "MOG013",
+          "kidESysBalance": 3450,
+          "eduClearBalance": 6800,
+          "difference": 3350
+        },
+        {
+          "accountNo": "MOG017",
+          "kidESysBalance": -5750,
+          "eduClearBalance": -2750,
+          "difference": 3000
+        },
+        {
+          "accountNo": "MOG018",
+          "kidESysBalance": 0,
+          "eduClearBalance": 3750,
+          "difference": 3750
+        },
+        {
+          "accountNo": "MOI002",
+          "kidESysBalance": -1200,
+          "eduClearBalance": 2300,
+          "difference": 3500
+        },
+        {
+          "accountNo": "MOK019",
+          "kidESysBalance": 0,
+          "eduClearBalance": 4500,
+          "difference": 4500
+        },
+        {
+          "accountNo": "MOK020",
+          "kidESysBalance": 700,
+          "eduClearBalance": 3700,
+          "difference": 3000
+        },
+        {
+          "accountNo": "MOK025",
+          "kidESysBalance": 0,
+          "eduClearBalance": 4900,
+          "difference": 4900
+        },
+        {
+          "accountNo": "MOK028",
+          "kidESysBalance": 0,
+          "eduClearBalance": 3550,
+          "difference": 3550
+        },
+        {
+          "accountNo": "MOK033",
+          "kidESysBalance": 2650,
+          "eduClearBalance": 7650,
+          "difference": 5000
+        },
+        {
+          "accountNo": "MOK034",
+          "kidESysBalance": 0,
+          "eduClearBalance": 6200,
+          "difference": 6200
+        },
+        {
+          "accountNo": "MOK036",
+          "kidESysBalance": 900,
+          "eduClearBalance": 4450,
+          "difference": 3550
+        },
+        {
+          "accountNo": "MOK038",
+          "kidESysBalance": 5520,
+          "eduClearBalance": 9900,
+          "difference": 4380
+        },
+        {
+          "accountNo": "MOL003",
+          "kidESysBalance": 4500,
+          "eduClearBalance": 4710,
+          "difference": 210
+        },
+        {
+          "accountNo": "MOL010",
+          "kidESysBalance": 700,
+          "eduClearBalance": 3700,
+          "difference": 3000
+        },
+        {
+          "accountNo": "MOL017",
+          "kidESysBalance": -1300,
+          "eduClearBalance": -300,
+          "difference": 1000
+        },
+        {
+          "accountNo": "MOL018",
+          "kidESysBalance": 0,
+          "eduClearBalance": 6500,
+          "difference": 6500
+        },
+        {
+          "accountNo": "MOL020",
+          "kidESysBalance": 700,
+          "eduClearBalance": 3700,
+          "difference": 3000
+        },
+        {
+          "accountNo": "MOL024",
+          "kidESysBalance": 0,
+          "eduClearBalance": 24350,
+          "difference": 24350
+        },
+        {
+          "accountNo": "MOL039",
+          "kidESysBalance": -100,
+          "eduClearBalance": 3400,
+          "difference": 3500
+        },
+        {
+          "accountNo": "MOL043",
+          "kidESysBalance": 0,
+          "eduClearBalance": 700,
+          "difference": 700
+        },
+        {
+          "accountNo": "MON006",
+          "kidESysBalance": 1400,
+          "eduClearBalance": 4400,
+          "difference": 3000
+        },
+        {
+          "accountNo": "MON013",
+          "kidESysBalance": 0,
+          "eduClearBalance": 700,
+          "difference": 700
+        },
+        {
+          "accountNo": "MOO003",
+          "kidESysBalance": 0,
+          "eduClearBalance": 6000,
+          "difference": 6000
+        },
+        {
+          "accountNo": "MOO004",
+          "kidESysBalance": 0,
+          "eduClearBalance": 8540,
+          "difference": 8540
+        },
+        {
+          "accountNo": "MOO006",
+          "kidESysBalance": -100,
+          "eduClearBalance": 6400,
+          "difference": 6500
+        },
+        {
+          "accountNo": "MOR010",
+          "kidESysBalance": -140,
+          "eduClearBalance": 2860,
+          "difference": 3000
+        },
+        {
+          "accountNo": "MOR011",
+          "kidESysBalance": 0,
+          "eduClearBalance": 3550,
+          "difference": 3550
+        },
+        {
+          "accountNo": "MOS008",
+          "kidESysBalance": 0,
+          "eduClearBalance": 3200,
+          "difference": 3200
+        },
+        {
+          "accountNo": "MOS009",
+          "kidESysBalance": 700,
+          "eduClearBalance": 3700,
+          "difference": 3000
+        },
+        {
+          "accountNo": "MOS014",
+          "kidESysBalance": 0,
+          "eduClearBalance": 3700,
+          "difference": 3700
+        },
+        {
+          "accountNo": "MOS021",
+          "kidESysBalance": 0,
+          "eduClearBalance": 3800,
+          "difference": 3800
+        },
+        {
+          "accountNo": "MOS022",
+          "kidESysBalance": 0,
+          "eduClearBalance": 7400,
+          "difference": 7400
+        },
+        {
+          "accountNo": "MOT008",
+          "kidESysBalance": 0,
+          "eduClearBalance": 7400,
+          "difference": 7400
+        },
+        {
+          "accountNo": "MOT010",
+          "kidESysBalance": 0,
+          "eduClearBalance": 3000,
+          "difference": 3000
+        },
+        {
+          "accountNo": "MOT013",
+          "kidESysBalance": -500,
+          "eduClearBalance": 6600,
+          "difference": 7100
+        },
+        {
+          "accountNo": "MOT016",
+          "kidESysBalance": 0,
+          "eduClearBalance": 3000,
+          "difference": 3000
+        },
+        {
+          "accountNo": "MOT017",
+          "kidESysBalance": 700,
+          "eduClearBalance": 3700,
+          "difference": 3000
+        },
+        {
+          "accountNo": "MOT026",
+          "kidESysBalance": 0,
+          "eduClearBalance": 11400,
+          "difference": 11400
+        },
+        {
+          "accountNo": "MOT028",
+          "kidESysBalance": 0,
+          "eduClearBalance": 3000,
+          "difference": 3000
+        },
+        {
+          "accountNo": "MOT032",
+          "kidESysBalance": 1400,
+          "eduClearBalance": 7400,
+          "difference": 6000
+        },
+        {
+          "accountNo": "MOT034",
+          "kidESysBalance": -1100,
+          "eduClearBalance": 3000,
+          "difference": 4100
+        },
+        {
+          "accountNo": "MOT036",
+          "kidESysBalance": 0,
+          "eduClearBalance": 5600,
+          "difference": 5600
+        },
+        {
+          "accountNo": "MOY004",
+          "kidESysBalance": -200,
+          "eduClearBalance": 3000,
+          "difference": 3200
+        },
+        {
+          "accountNo": "MOY005",
+          "kidESysBalance": 0,
+          "eduClearBalance": 3750,
+          "difference": 3750
+        },
+        {
+          "accountNo": "MPE002",
+          "kidESysBalance": 0,
+          "eduClearBalance": 900,
+          "difference": 900
+        },
+        {
+          "accountNo": "MPO001",
+          "kidESysBalance": 700,
+          "eduClearBalance": 3700,
+          "difference": 3000
+        },
+        {
+          "accountNo": "MPU005",
+          "kidESysBalance": 0,
+          "eduClearBalance": 4500,
+          "difference": 4500
+        },
+        {
+          "accountNo": "MPU007",
+          "kidESysBalance": 0,
+          "eduClearBalance": 6900,
+          "difference": 6900
+        },
+        {
+          "accountNo": "MSI004",
+          "kidESysBalance": 0,
+          "eduClearBalance": 8300,
+          "difference": 8300
+        },
+        {
+          "accountNo": "MTE001",
+          "kidESysBalance": 0,
+          "eduClearBalance": 3900,
+          "difference": 3900
+        },
+        {
+          "accountNo": "MTS001",
+          "kidESysBalance": -650,
+          "eduClearBalance": 17050,
+          "difference": 17700
+        },
+        {
+          "accountNo": "MUF001",
+          "kidESysBalance": 4200,
+          "eduClearBalance": 21400,
+          "difference": 17200
+        },
+        {
+          "accountNo": "MUR001",
+          "kidESysBalance": 36100,
+          "eduClearBalance": 38100,
+          "difference": 2000
+        },
+        {
+          "accountNo": "NDA001",
+          "kidESysBalance": -1000,
+          "eduClearBalance": 5000,
+          "difference": 6000
+        },
+        {
+          "accountNo": "NDL008",
+          "kidESysBalance": 4305,
+          "eduClearBalance": 16305,
+          "difference": 12000
+        },
+        {
+          "accountNo": "NDL009",
+          "kidESysBalance": 0,
+          "eduClearBalance": 3700,
+          "difference": 3700
+        },
+        {
+          "accountNo": "NDL013",
+          "kidESysBalance": -1300,
+          "eduClearBalance": 1700,
+          "difference": 3000
+        },
+        {
+          "accountNo": "NEL001",
+          "kidESysBalance": 700,
+          "eduClearBalance": 3700,
+          "difference": 3000
+        },
+        {
+          "accountNo": "NGA002",
+          "kidESysBalance": 6000,
+          "eduClearBalance": 9200,
+          "difference": 3200
+        },
+        {
+          "accountNo": "NGW003",
+          "kidESysBalance": -2700,
+          "eduClearBalance": 4650,
+          "difference": 7350
+        },
+        {
+          "accountNo": "NHL001",
+          "kidESysBalance": -200,
+          "eduClearBalance": 3800,
+          "difference": 4000
+        },
+        {
+          "accountNo": "NKA003",
+          "kidESysBalance": 700,
+          "eduClearBalance": 4500,
+          "difference": 3800
+        },
+        {
+          "accountNo": "NKA004",
+          "kidESysBalance": 0,
+          "eduClearBalance": 200,
+          "difference": 200
+        },
+        {
+          "accountNo": "NKO004",
+          "kidESysBalance": 0,
+          "eduClearBalance": 3700,
+          "difference": 3700
+        },
+        {
+          "accountNo": "NTO003",
+          "kidESysBalance": 0,
+          "eduClearBalance": 3200,
+          "difference": 3200
+        },
+        {
+          "accountNo": "NTS008",
+          "kidESysBalance": 0,
+          "eduClearBalance": 3950,
+          "difference": 3950
+        },
+        {
+          "accountNo": "NZI001",
+          "kidESysBalance": 0,
+          "eduClearBalance": 3700,
+          "difference": 3700
+        },
+        {
+          "accountNo": "OSE001",
+          "kidESysBalance": 0,
+          "eduClearBalance": 4500,
+          "difference": 4500
+        },
+        {
+          "accountNo": "PEB002",
+          "kidESysBalance": 3600,
+          "eduClearBalance": 12600,
+          "difference": 9000
+        },
+        {
+          "accountNo": "PHA010",
+          "kidESysBalance": 5200,
+          "eduClearBalance": 10200,
+          "difference": 5000
+        },
+        {
+          "accountNo": "PHI003",
+          "kidESysBalance": 0,
+          "eduClearBalance": 3000,
+          "difference": 3000
+        },
+        {
+          "accountNo": "POG001",
+          "kidESysBalance": 0,
+          "eduClearBalance": 4855,
+          "difference": 4855
+        },
+        {
+          "accountNo": "POO003",
+          "kidESysBalance": 700,
+          "eduClearBalance": 5100,
+          "difference": 4400
+        },
+        {
+          "accountNo": "PRA001",
+          "kidESysBalance": 0,
+          "eduClearBalance": 22700,
+          "difference": 22700
+        },
+        {
+          "accountNo": "RAM009",
+          "kidESysBalance": 0,
+          "eduClearBalance": 4250,
+          "difference": 4250
+        },
+        {
+          "accountNo": "RAM010",
+          "kidESysBalance": 0,
+          "eduClearBalance": 3350,
+          "difference": 3350
+        },
+        {
+          "accountNo": "RAM015",
+          "kidESysBalance": 0,
+          "eduClearBalance": 3550,
+          "difference": 3550
+        },
+        {
+          "accountNo": "RAM020",
+          "kidESysBalance": 0,
+          "eduClearBalance": 4450,
+          "difference": 4450
+        },
+        {
+          "accountNo": "RAM021",
+          "kidESysBalance": 7830,
+          "eduClearBalance": 10960,
+          "difference": 3130
+        },
+        {
+          "accountNo": "RAM022",
+          "kidESysBalance": -250,
+          "eduClearBalance": 2750,
+          "difference": 3000
+        },
+        {
+          "accountNo": "RAN002",
+          "kidESysBalance": 0,
+          "eduClearBalance": 2800,
+          "difference": 2800
+        },
+        {
+          "accountNo": "RAS004",
+          "kidESysBalance": -700,
+          "eduClearBalance": 3500,
+          "difference": 4200
+        },
+        {
+          "accountNo": "SEG007",
+          "kidESysBalance": -700,
+          "eduClearBalance": 1000,
+          "difference": 1700
+        },
+        {
+          "accountNo": "SEI859",
+          "kidESysBalance": 0,
+          "eduClearBalance": 3800,
+          "difference": 3800
+        },
+        {
+          "accountNo": "SEN002",
+          "kidESysBalance": 1150,
+          "eduClearBalance": 7150,
+          "difference": 6000
+        },
+        {
+          "accountNo": "SEN959",
+          "kidESysBalance": 0,
+          "eduClearBalance": 3000,
+          "difference": 3000
+        },
+        {
+          "accountNo": "SEP899",
+          "kidESysBalance": 700,
+          "eduClearBalance": 3700,
+          "difference": 3000
+        },
+        {
+          "accountNo": "SER001",
+          "kidESysBalance": 0,
+          "eduClearBalance": 3700,
+          "difference": 3700
+        },
+        {
+          "accountNo": "SES001",
+          "kidESysBalance": 1200,
+          "eduClearBalance": 4200,
+          "difference": 3000
+        },
+        {
+          "accountNo": "SET003",
+          "kidESysBalance": 0,
+          "eduClearBalance": 4250,
+          "difference": 4250
+        },
+        {
+          "accountNo": "SIL007",
+          "kidESysBalance": -18000,
+          "eduClearBalance": 9600,
+          "difference": 27600
+        },
+        {
+          "accountNo": "SIM002",
+          "kidESysBalance": 0,
+          "eduClearBalance": 5700,
+          "difference": 5700
+        },
+        {
+          "accountNo": "SIN001",
+          "kidESysBalance": 2550,
+          "eduClearBalance": 6700,
+          "difference": 4150
+        },
+        {
+          "accountNo": "SIT003",
+          "kidESysBalance": 900,
+          "eduClearBalance": 4450,
+          "difference": 3550
+        },
+        {
+          "accountNo": "SWA001",
+          "kidESysBalance": 0,
+          "eduClearBalance": 2800,
+          "difference": 2800
+        },
+        {
+          "accountNo": "TAK001",
+          "kidESysBalance": 2800,
+          "eduClearBalance": 6800,
+          "difference": 4000
+        },
+        {
+          "accountNo": "TAU003",
+          "kidESysBalance": 3300,
+          "eduClearBalance": 6300,
+          "difference": 3000
+        },
+        {
+          "accountNo": "THA003",
+          "kidESysBalance": 200,
+          "eduClearBalance": 3200,
+          "difference": 3000
+        },
+        {
+          "accountNo": "THE002",
+          "kidESysBalance": 50,
+          "eduClearBalance": 21550,
+          "difference": 21500
+        },
+        {
+          "accountNo": "THE003",
+          "kidESysBalance": 700,
+          "eduClearBalance": 5800,
+          "difference": 5100
+        },
+        {
+          "accountNo": "THO004",
+          "kidESysBalance": 0,
+          "eduClearBalance": 4000,
+          "difference": 4000
+        },
+        {
+          "accountNo": "TIV001",
+          "kidESysBalance": 1450,
+          "eduClearBalance": 8450,
+          "difference": 7000
+        },
+        {
+          "accountNo": "TLA001",
+          "kidESysBalance": 4090,
+          "eduClearBalance": 10790,
+          "difference": 6700
+        },
+        {
+          "accountNo": "TLH003",
+          "kidESysBalance": 3100,
+          "eduClearBalance": 6800,
+          "difference": 3700
+        },
+        {
+          "accountNo": "TLH005",
+          "kidESysBalance": 0,
+          "eduClearBalance": 4350,
+          "difference": 4350
+        },
+        {
+          "accountNo": "TLH006",
+          "kidESysBalance": 0,
+          "eduClearBalance": 6000,
+          "difference": 6000
+        },
+        {
+          "accountNo": "TSA001",
+          "kidESysBalance": 0,
+          "eduClearBalance": 3000,
+          "difference": 3000
+        },
+        {
+          "accountNo": "TSE002",
+          "kidESysBalance": 0,
+          "eduClearBalance": 3550,
+          "difference": 3550
+        },
+        {
+          "accountNo": "TSH003",
+          "kidESysBalance": -150,
+          "eduClearBalance": 3550,
+          "difference": 3700
+        },
+        {
+          "accountNo": "TSH006",
+          "kidESysBalance": -50,
+          "eduClearBalance": 2950,
+          "difference": 3000
+        },
+        {
+          "accountNo": "TSH012",
+          "kidESysBalance": 0,
+          "eduClearBalance": 7400,
+          "difference": 7400
+        },
+        {
+          "accountNo": "TSH016",
+          "kidESysBalance": 1400,
+          "eduClearBalance": 7400,
+          "difference": 6000
+        },
+        {
+          "accountNo": "TSH017",
+          "kidESysBalance": 2290,
+          "eduClearBalance": 5290,
+          "difference": 3000
+        },
+        {
+          "accountNo": "TSH018",
+          "kidESysBalance": 0,
+          "eduClearBalance": 4500,
+          "difference": 4500
+        },
+        {
+          "accountNo": "TSH019",
+          "kidESysBalance": 0,
+          "eduClearBalance": 3000,
+          "difference": 3000
+        },
+        {
+          "accountNo": "TSH020",
+          "kidESysBalance": 0,
+          "eduClearBalance": 2890,
+          "difference": 2890
+        },
+        {
+          "accountNo": "TSH021",
+          "kidESysBalance": 0,
+          "eduClearBalance": 3700,
+          "difference": 3700
+        },
+        {
+          "accountNo": "TSH022",
+          "kidESysBalance": 0,
+          "eduClearBalance": 2750,
+          "difference": 2750
+        },
+        {
+          "accountNo": "WIL002",
+          "kidESysBalance": -350,
+          "eduClearBalance": 3150,
+          "difference": 3500
+        },
+        {
+          "accountNo": "WOL001",
+          "kidESysBalance": 3670,
+          "eduClearBalance": 7370,
+          "difference": 3700
+        },
+        {
+          "accountNo": "XAB001",
+          "kidESysBalance": 0,
+          "eduClearBalance": 4250,
+          "difference": 4250
+        },
+        {
+          "accountNo": "ZON001",
+          "kidESysBalance": 700,
+          "eduClearBalance": 3700,
+          "difference": 3000
+        },
+        {
+          "accountNo": "ZON002",
+          "kidESysBalance": 700,
+          "eduClearBalance": 3700,
+          "difference": 3000
+        }
+      ]
+    },
+    "afterLocalPreview": {
+      "accountsMatchingPdf": 244,
+      "accountsNotMatchingPdf": 64,
+      "matchPercent": 79.22,
+      "activePdfAccountScope": 308,
+      "notMatching": [
+        {
+          "accountNo": "AFR002",
+          "kidESysBalance": -130,
+          "eduClearBalance": -4480,
+          "difference": -4350
+        },
+        {
+          "accountNo": "CHI005",
+          "kidESysBalance": 1400,
+          "eduClearBalance": -4600,
+          "difference": -6000
+        },
+        {
+          "accountNo": "DIK004",
+          "kidESysBalance": 0,
+          "eduClearBalance": -4250,
+          "difference": -4250
+        },
+        {
+          "accountNo": "DIN002",
+          "kidESysBalance": 0,
+          "eduClearBalance": -6900,
+          "difference": -6900
+        },
+        {
+          "accountNo": "HAI002",
+          "kidESysBalance": 0,
+          "eduClearBalance": -8400,
+          "difference": -8400
+        },
+        {
+          "accountNo": "HKA001",
+          "kidESysBalance": 700,
+          "eduClearBalance": -2300,
+          "difference": -3000
+        },
+        {
+          "accountNo": "HOM001",
+          "kidESysBalance": 700,
+          "eduClearBalance": -2300,
+          "difference": -3000
+        },
+        {
+          "accountNo": "KEK003",
+          "kidESysBalance": -1800,
+          "eduClearBalance": -6000,
+          "difference": -4200
+        },
+        {
+          "accountNo": "KER001",
+          "kidESysBalance": 0,
+          "eduClearBalance": -3000,
+          "difference": -3000
+        },
+        {
+          "accountNo": "KOB002",
+          "kidESysBalance": 700,
+          "eduClearBalance": -2300,
+          "difference": -3000
+        },
+        {
+          "accountNo": "LEK007",
+          "kidESysBalance": -1350,
+          "eduClearBalance": -5350,
+          "difference": -4000
+        },
+        {
+          "accountNo": "LET013",
+          "kidESysBalance": 3450,
+          "eduClearBalance": -700,
+          "difference": -4150
+        },
+        {
+          "accountNo": "MAK019",
+          "kidESysBalance": 0,
+          "eduClearBalance": -3300,
+          "difference": -3300
+        },
+        {
+          "accountNo": "MAK024",
+          "kidESysBalance": 700,
+          "eduClearBalance": -2300,
+          "difference": -3000
+        },
+        {
+          "accountNo": "MAL022",
+          "kidESysBalance": 0,
+          "eduClearBalance": -3550,
+          "difference": -3550
+        },
+        {
+          "accountNo": "MAM005",
+          "kidESysBalance": -800,
+          "eduClearBalance": -2800,
+          "difference": -2000
+        },
+        {
+          "accountNo": "MAN012",
+          "kidESysBalance": -50250,
+          "eduClearBalance": -51900,
+          "difference": -1650
+        },
+        {
+          "accountNo": "MAN013",
+          "kidESysBalance": 0,
+          "eduClearBalance": -2800,
+          "difference": -2800
+        },
+        {
+          "accountNo": "MAO002",
+          "kidESysBalance": 1400,
+          "eduClearBalance": -4400,
+          "difference": -5800
+        },
+        {
+          "accountNo": "MAP008",
+          "kidESysBalance": 1400,
+          "eduClearBalance": -5400,
+          "difference": -6800
+        },
+        {
+          "accountNo": "MAS031",
+          "kidESysBalance": 900,
+          "eduClearBalance": -2900,
+          "difference": -3800
+        },
+        {
+          "accountNo": "MDU002",
+          "kidESysBalance": -130,
+          "eduClearBalance": -7230,
+          "difference": -7100
+        },
+        {
+          "accountNo": "MET001",
+          "kidESysBalance": 0,
+          "eduClearBalance": -4150,
+          "difference": -4150
+        },
+        {
+          "accountNo": "MKH006",
+          "kidESysBalance": 0,
+          "eduClearBalance": -3550,
+          "difference": -3550
+        },
+        {
+          "accountNo": "MKH007",
+          "kidESysBalance": 700,
+          "eduClearBalance": -2300,
+          "difference": -3000
+        },
+        {
+          "accountNo": "MOA006",
+          "kidESysBalance": 0,
+          "eduClearBalance": -5800,
+          "difference": -5800
+        },
+        {
+          "accountNo": "MOA007",
+          "kidESysBalance": 700,
+          "eduClearBalance": -2300,
+          "difference": -3000
+        },
+        {
+          "accountNo": "MOD015",
+          "kidESysBalance": 0,
+          "eduClearBalance": -3700,
+          "difference": -3700
+        },
+        {
+          "accountNo": "MOD017",
+          "kidESysBalance": 0,
+          "eduClearBalance": -700,
+          "difference": -700
+        },
+        {
+          "accountNo": "MOD018",
+          "kidESysBalance": 0,
+          "eduClearBalance": -3500,
+          "difference": -3500
+        },
+        {
+          "accountNo": "MOK035",
+          "kidESysBalance": 1400,
+          "eduClearBalance": -4400,
+          "difference": -5800
+        },
+        {
+          "accountNo": "MOK040",
+          "kidESysBalance": 2900,
+          "eduClearBalance": 100,
+          "difference": -2800
+        },
+        {
+          "accountNo": "MOL043",
+          "kidESysBalance": 0,
+          "eduClearBalance": -3350,
+          "difference": -3350
+        },
+        {
+          "accountNo": "MON013",
+          "kidESysBalance": 0,
+          "eduClearBalance": -3550,
+          "difference": -3550
+        },
+        {
+          "accountNo": "MOR004",
+          "kidESysBalance": 100,
+          "eduClearBalance": -6900,
+          "difference": -7000
+        },
+        {
+          "accountNo": "MOR013",
+          "kidESysBalance": 4700,
+          "eduClearBalance": -300,
+          "difference": -5000
+        },
+        {
+          "accountNo": "MOR015",
+          "kidESysBalance": 0,
+          "eduClearBalance": -3350,
+          "difference": -3350
+        },
+        {
+          "accountNo": "MOS023",
+          "kidESysBalance": 1650,
+          "eduClearBalance": -2350,
+          "difference": -4000
+        },
+        {
+          "accountNo": "MOT033",
+          "kidESysBalance": 900,
+          "eduClearBalance": -2100,
+          "difference": -3000
+        },
+        {
+          "accountNo": "MTH003",
+          "kidESysBalance": -33500,
+          "eduClearBalance": -34900,
+          "difference": -1400
+        },
+        {
+          "accountNo": "MTH004",
+          "kidESysBalance": 0,
+          "eduClearBalance": -2800,
+          "difference": -2800
+        },
+        {
+          "accountNo": "MUL001",
+          "kidESysBalance": 0,
+          "eduClearBalance": -5800,
+          "difference": -5800
+        },
+        {
+          "accountNo": "NDL008",
+          "kidESysBalance": 4305,
+          "eduClearBalance": 16305,
+          "difference": 12000
+        },
+        {
+          "accountNo": "NHL002",
+          "kidESysBalance": 0,
+          "eduClearBalance": -3800,
+          "difference": -3800
+        },
+        {
+          "accountNo": "NKA004",
+          "kidESysBalance": 0,
+          "eduClearBalance": -4250,
+          "difference": -4250
+        },
+        {
+          "accountNo": "PHA008",
+          "kidESysBalance": 700,
+          "eduClearBalance": -2100,
+          "difference": -2800
+        },
+        {
+          "accountNo": "PIL003",
+          "kidESysBalance": 5650,
+          "eduClearBalance": 650,
+          "difference": -5000
+        },
+        {
+          "accountNo": "RAB003",
+          "kidESysBalance": -5750,
+          "eduClearBalance": -15750,
+          "difference": -10000
+        },
+        {
+          "accountNo": "RAM019",
+          "kidESysBalance": 0,
+          "eduClearBalance": -2800,
+          "difference": -2800
+        },
+        {
+          "accountNo": "RAN007",
+          "kidESysBalance": 0,
+          "eduClearBalance": -3350,
+          "difference": -3350
+        },
+        {
+          "accountNo": "RAN008",
+          "kidESysBalance": 0,
+          "eduClearBalance": -3000,
+          "difference": -3000
+        },
+        {
+          "accountNo": "RIK001",
+          "kidESysBalance": -700,
+          "eduClearBalance": -9300,
+          "difference": -8600
+        },
+        {
+          "accountNo": "SEB005",
+          "kidESysBalance": -16800,
+          "eduClearBalance": -17500,
+          "difference": -700
+        },
+        {
+          "accountNo": "SEE002",
+          "kidESysBalance": 0,
+          "eduClearBalance": -1000,
+          "difference": -1000
+        },
+        {
+          "accountNo": "SEG008",
+          "kidESysBalance": 0,
+          "eduClearBalance": -7000,
+          "difference": -7000
+        },
+        {
+          "accountNo": "SEL009",
+          "kidESysBalance": -50,
+          "eduClearBalance": -6850,
+          "difference": -6800
+        },
+        {
+          "accountNo": "SEP002",
+          "kidESysBalance": 23000,
+          "eduClearBalance": 6600,
+          "difference": -16400
+        },
+        {
+          "accountNo": "SET005",
+          "kidESysBalance": -13000,
+          "eduClearBalance": -19700,
+          "difference": -6700
+        },
+        {
+          "accountNo": "SIB003",
+          "kidESysBalance": -500,
+          "eduClearBalance": -5800,
+          "difference": -5300
+        },
+        {
+          "accountNo": "SIL007",
+          "kidESysBalance": -18000,
+          "eduClearBalance": 9600,
+          "difference": 27600
+        },
+        {
+          "accountNo": "SIT004",
+          "kidESysBalance": 0,
+          "eduClearBalance": -2800,
+          "difference": -2800
+        },
+        {
+          "accountNo": "TSH006",
+          "kidESysBalance": -50,
+          "eduClearBalance": 50,
+          "difference": 100
+        },
+        {
+          "accountNo": "TSI002",
+          "kidESysBalance": 900,
+          "eduClearBalance": -1900,
+          "difference": -2800
+        },
+        {
+          "accountNo": "VUS001",
+          "kidESysBalance": -700,
+          "eduClearBalance": -4600,
+          "difference": -3900
+        }
+      ]
+    }
+  },
+  "deployBlocked": true,
+  "deployBlockReasons": [
+    "Active PDF accounts not matching: 64",
+    "PDF scope match 79.22% (required 100%)"
+  ],
+  "verificationTable": [
+    {
+      "accountNo": "ADA004",
+      "kidESysBalance": -50,
+      "eduClearBalance": -50,
+      "difference": 0
+    },
+    {
+      "accountNo": "AFR002",
+      "kidESysBalance": -130,
+      "eduClearBalance": -4480,
+      "difference": -4350
+    },
+    {
+      "accountNo": "ALI002",
+      "kidESysBalance": 4000,
+      "eduClearBalance": 4000,
+      "difference": 0
+    },
+    {
+      "accountNo": "BAN001",
+      "kidESysBalance": 0,
+      "eduClearBalance": 0,
+      "difference": 0
+    },
+    {
+      "accountNo": "BOG005",
+      "kidESysBalance": 0,
+      "eduClearBalance": 0,
+      "difference": 0
+    },
+    {
+      "accountNo": "BUY001",
+      "kidESysBalance": 0,
+      "eduClearBalance": 0,
+      "difference": 0
+    },
+    {
+      "accountNo": "CET001",
+      "kidESysBalance": 2550,
+      "eduClearBalance": 2550,
+      "difference": 0
+    },
+    {
+      "accountNo": "CHI002",
+      "kidESysBalance": 0,
+      "eduClearBalance": 0,
+      "difference": 0
+    },
+    {
+      "accountNo": "CHI005",
+      "kidESysBalance": 1400,
+      "eduClearBalance": -4600,
+      "difference": -6000
+    },
+    {
+      "accountNo": "DHL002",
+      "kidESysBalance": 4730,
+      "eduClearBalance": 4730,
+      "difference": 0
+    },
+    {
+      "accountNo": "DIA003",
+      "kidESysBalance": -1000,
+      "eduClearBalance": -1000,
+      "difference": 0
+    },
+    {
+      "accountNo": "DIA006",
+      "kidESysBalance": 0,
+      "eduClearBalance": 0,
+      "difference": 0
+    },
+    {
+      "accountNo": "DIK001",
+      "kidESysBalance": 500,
+      "eduClearBalance": 500,
+      "difference": 0
+    },
+    {
+      "accountNo": "DIK003",
+      "kidESysBalance": 0,
+      "eduClearBalance": 0,
+      "difference": 0
+    },
+    {
+      "accountNo": "DIK004",
+      "kidESysBalance": 0,
+      "eduClearBalance": -4250,
+      "difference": -4250
+    },
+    {
+      "accountNo": "DIM002",
+      "kidESysBalance": 11900,
+      "eduClearBalance": 11900,
+      "difference": 0
+    },
+    {
+      "accountNo": "DIN002",
+      "kidESysBalance": 0,
+      "eduClearBalance": -6900,
+      "difference": -6900
+    },
+    {
+      "accountNo": "DIR001",
+      "kidESysBalance": -16800,
+      "eduClearBalance": -16800,
+      "difference": 0
+    },
+    {
+      "accountNo": "FRE001",
+      "kidESysBalance": 9500,
+      "eduClearBalance": 9500,
+      "difference": 0
+    },
+    {
+      "accountNo": "GAA001",
+      "kidESysBalance": -100,
+      "eduClearBalance": -100,
+      "difference": 0
+    },
+    {
+      "accountNo": "GAE001",
+      "kidESysBalance": 3100,
+      "eduClearBalance": 3100,
+      "difference": 0
+    },
+    {
+      "accountNo": "GAE002",
+      "kidESysBalance": 20,
+      "eduClearBalance": 20,
+      "difference": 0
+    },
+    {
+      "accountNo": "GEB002",
+      "kidESysBalance": 3700,
+      "eduClearBalance": 3700,
+      "difference": 0
+    },
+    {
+      "accountNo": "GOI001",
+      "kidESysBalance": 700,
+      "eduClearBalance": 700,
+      "difference": 0
+    },
+    {
+      "accountNo": "GOV001",
+      "kidESysBalance": 0,
+      "eduClearBalance": 0,
+      "difference": 0
+    },
+    {
+      "accountNo": "HAI002",
+      "kidESysBalance": 0,
+      "eduClearBalance": -8400,
+      "difference": -8400
+    },
+    {
+      "accountNo": "HAM002",
+      "kidESysBalance": 10050,
+      "eduClearBalance": 10050,
+      "difference": 0
+    },
+    {
+      "accountNo": "HKA001",
+      "kidESysBalance": 700,
+      "eduClearBalance": -2300,
+      "difference": -3000
+    },
+    {
+      "accountNo": "HLA001",
+      "kidESysBalance": 700,
+      "eduClearBalance": 700,
+      "difference": 0
+    },
+    {
+      "accountNo": "HOB001",
+      "kidESysBalance": 2650,
+      "eduClearBalance": 2650,
+      "difference": 0
+    },
+    {
+      "accountNo": "HOM001",
+      "kidESysBalance": 700,
+      "eduClearBalance": -2300,
+      "difference": -3000
+    },
+    {
+      "accountNo": "JAM001",
+      "kidESysBalance": -700,
+      "eduClearBalance": -700,
+      "difference": 0
+    },
+    {
+      "accountNo": "JAN003",
+      "kidESysBalance": 3000,
+      "eduClearBalance": 3000,
+      "difference": 0
+    },
+    {
+      "accountNo": "JEC002",
+      "kidESysBalance": -1035,
+      "eduClearBalance": -1035,
+      "difference": 0
+    },
+    {
+      "accountNo": "KAL001",
+      "kidESysBalance": 1800,
+      "eduClearBalance": 1800,
+      "difference": 0
+    },
+    {
+      "accountNo": "KAL002",
+      "kidESysBalance": 4700,
+      "eduClearBalance": 4700,
+      "difference": 0
+    },
+    {
+      "accountNo": "KAT002",
+      "kidESysBalance": 10400,
+      "eduClearBalance": 10400,
+      "difference": 0
+    },
+    {
+      "accountNo": "KEK003",
+      "kidESysBalance": -1800,
+      "eduClearBalance": -6000,
+      "difference": -4200
+    },
+    {
+      "accountNo": "KEM002",
+      "kidESysBalance": 1400,
+      "eduClearBalance": 1400,
+      "difference": 0
+    },
+    {
+      "accountNo": "KER001",
+      "kidESysBalance": 0,
+      "eduClearBalance": -3000,
+      "difference": -3000
+    },
+    {
+      "accountNo": "KGA004",
+      "kidESysBalance": -36090,
+      "eduClearBalance": -36090,
+      "difference": 0
+    },
+    {
+      "accountNo": "KGO002",
+      "kidESysBalance": 696,
+      "eduClearBalance": 696,
+      "difference": 0
+    },
+    {
+      "accountNo": "KGO003",
+      "kidESysBalance": 0,
+      "eduClearBalance": 0,
+      "difference": 0
+    },
+    {
+      "accountNo": "KHU006",
+      "kidESysBalance": 0,
+      "eduClearBalance": 0,
+      "difference": 0
+    },
+    {
+      "accountNo": "KHU007",
+      "kidESysBalance": 900,
+      "eduClearBalance": 900,
+      "difference": 0
+    },
+    {
+      "accountNo": "KIN001",
+      "kidESysBalance": 200,
+      "eduClearBalance": 200,
+      "difference": 0
+    },
+    {
+      "accountNo": "KOB001",
+      "kidESysBalance": -1350,
+      "eduClearBalance": -1350,
+      "difference": 0
+    },
+    {
+      "accountNo": "KOB002",
+      "kidESysBalance": 700,
+      "eduClearBalance": -2300,
+      "difference": -3000
+    },
+    {
+      "accountNo": "KOR001",
+      "kidESysBalance": 6860,
+      "eduClearBalance": 6860,
+      "difference": 0
+    },
+    {
+      "accountNo": "LAN002",
+      "kidESysBalance": 0,
+      "eduClearBalance": 0,
+      "difference": 0
+    },
+    {
+      "accountNo": "LEG001",
+      "kidESysBalance": -2500,
+      "eduClearBalance": -2500,
+      "difference": 0
+    },
+    {
+      "accountNo": "LEG003",
+      "kidESysBalance": 4350,
+      "eduClearBalance": 4350,
+      "difference": 0
+    },
+    {
+      "accountNo": "LEK003",
+      "kidESysBalance": 2200,
+      "eduClearBalance": 2200,
+      "difference": 0
+    },
+    {
+      "accountNo": "LEK007",
+      "kidESysBalance": -1350,
+      "eduClearBalance": -5350,
+      "difference": -4000
+    },
+    {
+      "accountNo": "LEK008",
+      "kidESysBalance": 0,
+      "eduClearBalance": 0,
+      "difference": 0
+    },
+    {
+      "accountNo": "LEP003",
+      "kidESysBalance": -2100,
+      "eduClearBalance": -2100,
+      "difference": 0
+    },
+    {
+      "accountNo": "LER002",
+      "kidESysBalance": -150,
+      "eduClearBalance": -150,
+      "difference": 0
+    },
+    {
+      "accountNo": "LET009",
+      "kidESysBalance": -20300,
+      "eduClearBalance": -20300,
+      "difference": 0
+    },
+    {
+      "accountNo": "LET012",
+      "kidESysBalance": 0,
+      "eduClearBalance": 0,
+      "difference": 0
+    },
+    {
+      "accountNo": "LET013",
+      "kidESysBalance": 3450,
+      "eduClearBalance": -700,
+      "difference": -4150
+    },
+    {
+      "accountNo": "MAB004",
+      "kidESysBalance": 700,
+      "eduClearBalance": 700,
+      "difference": 0
+    },
+    {
+      "accountNo": "MAB005",
+      "kidESysBalance": 3000,
+      "eduClearBalance": 3000,
+      "difference": 0
+    },
+    {
+      "accountNo": "MAB008",
+      "kidESysBalance": -500,
+      "eduClearBalance": -500,
+      "difference": 0
+    },
+    {
+      "accountNo": "MAB011",
+      "kidESysBalance": 0,
+      "eduClearBalance": 0,
+      "difference": 0
+    },
+    {
+      "accountNo": "MAF003",
+      "kidESysBalance": 0,
+      "eduClearBalance": 0,
+      "difference": 0
+    },
+    {
+      "accountNo": "MAG006",
+      "kidESysBalance": -200,
+      "eduClearBalance": -200,
+      "difference": 0
+    },
+    {
+      "accountNo": "MAG007",
+      "kidESysBalance": -26901,
+      "eduClearBalance": -26901,
+      "difference": 0
+    },
+    {
+      "accountNo": "MAH007",
+      "kidESysBalance": 0,
+      "eduClearBalance": 0,
+      "difference": 0
+    },
+    {
+      "accountNo": "MAK013",
+      "kidESysBalance": 10750,
+      "eduClearBalance": 10750,
+      "difference": 0
+    },
+    {
+      "accountNo": "MAK014",
+      "kidESysBalance": 950,
+      "eduClearBalance": 950,
+      "difference": 0
+    },
+    {
+      "accountNo": "MAK019",
+      "kidESysBalance": 0,
+      "eduClearBalance": -3300,
+      "difference": -3300
+    },
+    {
+      "accountNo": "MAK020",
+      "kidESysBalance": -130,
+      "eduClearBalance": -130,
+      "difference": 0
+    },
+    {
+      "accountNo": "MAK022",
+      "kidESysBalance": -5150,
+      "eduClearBalance": -5150,
+      "difference": 0
+    },
+    {
+      "accountNo": "MAK023",
+      "kidESysBalance": 6200,
+      "eduClearBalance": 6200,
+      "difference": 0
+    },
+    {
+      "accountNo": "MAK024",
+      "kidESysBalance": 700,
+      "eduClearBalance": -2300,
+      "difference": -3000
+    },
+    {
+      "accountNo": "MAK025",
+      "kidESysBalance": -10320,
+      "eduClearBalance": -10320,
+      "difference": 0
+    },
+    {
+      "accountNo": "MAL006",
+      "kidESysBalance": -700,
+      "eduClearBalance": -700,
+      "difference": 0
+    },
+    {
+      "accountNo": "MAL018",
+      "kidESysBalance": 50,
+      "eduClearBalance": 50,
+      "difference": 0
+    },
+    {
+      "accountNo": "MAL019",
+      "kidESysBalance": 640,
+      "eduClearBalance": 640,
+      "difference": 0
+    },
+    {
+      "accountNo": "MAL022",
+      "kidESysBalance": 0,
+      "eduClearBalance": -3550,
+      "difference": -3550
+    },
+    {
+      "accountNo": "MAM004",
+      "kidESysBalance": 1500,
+      "eduClearBalance": 1500,
+      "difference": 0
+    },
+    {
+      "accountNo": "MAM005",
+      "kidESysBalance": -800,
+      "eduClearBalance": -2800,
+      "difference": -2000
+    },
+    {
+      "accountNo": "MAM007",
+      "kidESysBalance": 0,
+      "eduClearBalance": 0,
+      "difference": 0
+    },
+    {
+      "accountNo": "MAN010",
+      "kidESysBalance": 4600,
+      "eduClearBalance": 4600,
+      "difference": 0
+    },
+    {
+      "accountNo": "MAN011",
+      "kidESysBalance": 0,
+      "eduClearBalance": 0,
+      "difference": 0
+    },
+    {
+      "accountNo": "MAN012",
+      "kidESysBalance": -50250,
+      "eduClearBalance": -51900,
+      "difference": -1650
+    },
+    {
+      "accountNo": "MAN013",
+      "kidESysBalance": 0,
+      "eduClearBalance": -2800,
+      "difference": -2800
+    },
+    {
+      "accountNo": "MAO001",
+      "kidESysBalance": -700,
+      "eduClearBalance": -700,
+      "difference": 0
+    },
+    {
+      "accountNo": "MAO002",
+      "kidESysBalance": 1400,
+      "eduClearBalance": -4400,
+      "difference": -5800
+    },
+    {
+      "accountNo": "MAP001",
+      "kidESysBalance": 4800,
+      "eduClearBalance": 4800,
+      "difference": 0
+    },
+    {
+      "accountNo": "MAP006",
+      "kidESysBalance": 1000,
+      "eduClearBalance": 1000,
+      "difference": 0
+    },
+    {
+      "accountNo": "MAP008",
+      "kidESysBalance": 1400,
+      "eduClearBalance": -5400,
+      "difference": -6800
+    },
+    {
+      "accountNo": "MAR005",
+      "kidESysBalance": 0,
+      "eduClearBalance": 0,
+      "difference": 0
+    },
+    {
+      "accountNo": "MAR008",
+      "kidESysBalance": 0,
+      "eduClearBalance": 0,
+      "difference": 0
+    },
+    {
+      "accountNo": "MAR009",
+      "kidESysBalance": 0,
+      "eduClearBalance": 0,
+      "difference": 0
+    },
+    {
+      "accountNo": "MAS001",
+      "kidESysBalance": -19510,
+      "eduClearBalance": -19510,
+      "difference": 0
+    },
+    {
+      "accountNo": "MAS012",
+      "kidESysBalance": 0,
+      "eduClearBalance": 0,
+      "difference": 0
+    },
+    {
+      "accountNo": "MAS017",
+      "kidESysBalance": 0,
+      "eduClearBalance": 0,
+      "difference": 0
+    },
+    {
+      "accountNo": "MAS021",
+      "kidESysBalance": 0,
+      "eduClearBalance": 0,
+      "difference": 0
+    },
+    {
+      "accountNo": "MAS024",
+      "kidESysBalance": 0,
+      "eduClearBalance": 0,
+      "difference": 0
+    },
+    {
+      "accountNo": "MAS028",
+      "kidESysBalance": -700,
+      "eduClearBalance": -700,
+      "difference": 0
+    },
+    {
+      "accountNo": "MAS031",
+      "kidESysBalance": 900,
+      "eduClearBalance": -2900,
+      "difference": -3800
+    },
+    {
+      "accountNo": "MAT010",
+      "kidESysBalance": 1400,
+      "eduClearBalance": 1400,
+      "difference": 0
+    },
+    {
+      "accountNo": "MAT016",
+      "kidESysBalance": 1900,
+      "eduClearBalance": 1900,
+      "difference": 0
+    },
+    {
+      "accountNo": "MAT020",
+      "kidESysBalance": 0,
+      "eduClearBalance": 0,
+      "difference": 0
+    },
+    {
+      "accountNo": "MAT022",
+      "kidESysBalance": 3100,
+      "eduClearBalance": 3100,
+      "difference": 0
+    },
+    {
+      "accountNo": "MAT024",
+      "kidESysBalance": 0,
+      "eduClearBalance": 0,
+      "difference": 0
+    },
+    {
+      "accountNo": "MAT031",
+      "kidESysBalance": 0,
+      "eduClearBalance": 0,
+      "difference": 0
+    },
+    {
+      "accountNo": "MBO004",
+      "kidESysBalance": 0,
+      "eduClearBalance": 0,
+      "difference": 0
+    },
+    {
+      "accountNo": "MDU001",
+      "kidESysBalance": 3000,
+      "eduClearBalance": 3000,
+      "difference": 0
+    },
+    {
+      "accountNo": "MDU002",
+      "kidESysBalance": -130,
+      "eduClearBalance": -7230,
+      "difference": -7100
+    },
+    {
+      "accountNo": "MEK003",
+      "kidESysBalance": 700,
+      "eduClearBalance": 700,
+      "difference": 0
+    },
+    {
+      "accountNo": "MET001",
+      "kidESysBalance": 0,
+      "eduClearBalance": -4150,
+      "difference": -4150
+    },
+    {
+      "accountNo": "MET002",
+      "kidESysBalance": -13650,
+      "eduClearBalance": -13650,
+      "difference": 0
+    },
+    {
+      "accountNo": "MFE002",
+      "kidESysBalance": 11000,
+      "eduClearBalance": 11000,
+      "difference": 0
+    },
+    {
+      "accountNo": "MFU002",
+      "kidESysBalance": 3400,
+      "eduClearBalance": 3400,
+      "difference": 0
+    },
+    {
+      "accountNo": "MIR001",
+      "kidESysBalance": 0,
+      "eduClearBalance": 0,
+      "difference": 0
+    },
+    {
+      "accountNo": "MKA001",
+      "kidESysBalance": 1400,
+      "eduClearBalance": 1400,
+      "difference": 0
+    },
+    {
+      "accountNo": "MKH002",
+      "kidESysBalance": 700,
+      "eduClearBalance": 700,
+      "difference": 0
+    },
+    {
+      "accountNo": "MKH005",
+      "kidESysBalance": 2300,
+      "eduClearBalance": 2300,
+      "difference": 0
+    },
+    {
+      "accountNo": "MKH006",
+      "kidESysBalance": 0,
+      "eduClearBalance": -3550,
+      "difference": -3550
+    },
+    {
+      "accountNo": "MKH007",
+      "kidESysBalance": 700,
+      "eduClearBalance": -2300,
+      "difference": -3000
+    },
+    {
+      "accountNo": "MLA002",
+      "kidESysBalance": 0,
+      "eduClearBalance": 0,
+      "difference": 0
+    },
+    {
+      "accountNo": "MOA006",
+      "kidESysBalance": 0,
+      "eduClearBalance": -5800,
+      "difference": -5800
+    },
+    {
+      "accountNo": "MOA007",
+      "kidESysBalance": 700,
+      "eduClearBalance": -2300,
+      "difference": -3000
+    },
+    {
+      "accountNo": "MOD004",
+      "kidESysBalance": 0,
+      "eduClearBalance": 0,
+      "difference": 0
+    },
+    {
+      "accountNo": "MOD005",
+      "kidESysBalance": 750,
+      "eduClearBalance": 750,
+      "difference": 0
+    },
+    {
+      "accountNo": "MOD006",
+      "kidESysBalance": -320,
+      "eduClearBalance": -320,
+      "difference": 0
+    },
+    {
+      "accountNo": "MOD010",
+      "kidESysBalance": 2000,
+      "eduClearBalance": 2000,
+      "difference": 0
+    },
+    {
+      "accountNo": "MOD012",
+      "kidESysBalance": 0,
+      "eduClearBalance": 0,
+      "difference": 0
+    },
+    {
+      "accountNo": "MOD014",
+      "kidESysBalance": 0,
+      "eduClearBalance": 0,
+      "difference": 0
+    },
+    {
+      "accountNo": "MOD015",
+      "kidESysBalance": 0,
+      "eduClearBalance": -3700,
+      "difference": -3700
+    },
+    {
+      "accountNo": "MOD017",
+      "kidESysBalance": 0,
+      "eduClearBalance": -700,
+      "difference": -700
+    },
+    {
+      "accountNo": "MOD018",
+      "kidESysBalance": 0,
+      "eduClearBalance": -3500,
+      "difference": -3500
+    },
+    {
+      "accountNo": "MOD019",
+      "kidESysBalance": 900,
+      "eduClearBalance": 900,
+      "difference": 0
+    },
+    {
+      "accountNo": "MOE003",
+      "kidESysBalance": 2800,
+      "eduClearBalance": 2800,
+      "difference": 0
+    },
+    {
+      "accountNo": "MOE004",
+      "kidESysBalance": -100,
+      "eduClearBalance": -100,
+      "difference": 0
+    },
+    {
+      "accountNo": "MOE006",
+      "kidESysBalance": -500,
+      "eduClearBalance": -500,
+      "difference": 0
+    },
+    {
+      "accountNo": "MOE009",
+      "kidESysBalance": 0,
+      "eduClearBalance": 0,
+      "difference": 0
+    },
+    {
+      "accountNo": "MOE010",
+      "kidESysBalance": -15700,
+      "eduClearBalance": -15700,
+      "difference": 0
+    },
+    {
+      "accountNo": "MOE011",
+      "kidESysBalance": 0,
+      "eduClearBalance": 0,
+      "difference": 0
+    },
+    {
+      "accountNo": "MOF002",
+      "kidESysBalance": -700,
+      "eduClearBalance": -700,
+      "difference": 0
+    },
+    {
+      "accountNo": "MOG001",
+      "kidESysBalance": -500,
+      "eduClearBalance": -500,
+      "difference": 0
+    },
+    {
+      "accountNo": "MOG013",
+      "kidESysBalance": 3450,
+      "eduClearBalance": 3450,
+      "difference": 0
+    },
+    {
+      "accountNo": "MOG017",
+      "kidESysBalance": -5750,
+      "eduClearBalance": -5750,
+      "difference": 0
+    },
+    {
+      "accountNo": "MOG018",
+      "kidESysBalance": 0,
+      "eduClearBalance": 0,
+      "difference": 0
+    },
+    {
+      "accountNo": "MOI002",
+      "kidESysBalance": -1200,
+      "eduClearBalance": -1200,
+      "difference": 0
+    },
+    {
+      "accountNo": "MOK019",
+      "kidESysBalance": 0,
+      "eduClearBalance": 0,
+      "difference": 0
+    },
+    {
+      "accountNo": "MOK020",
+      "kidESysBalance": 700,
+      "eduClearBalance": 700,
+      "difference": 0
+    },
+    {
+      "accountNo": "MOK028",
+      "kidESysBalance": 0,
+      "eduClearBalance": 0,
+      "difference": 0
+    },
+    {
+      "accountNo": "MOK033",
+      "kidESysBalance": 2650,
+      "eduClearBalance": 2650,
+      "difference": 0
+    },
+    {
+      "accountNo": "MOK034",
+      "kidESysBalance": 0,
+      "eduClearBalance": 0,
+      "difference": 0
+    },
+    {
+      "accountNo": "MOK035",
+      "kidESysBalance": 1400,
+      "eduClearBalance": -4400,
+      "difference": -5800
+    },
+    {
+      "accountNo": "MOK036",
+      "kidESysBalance": 900,
+      "eduClearBalance": 900,
+      "difference": 0
+    },
+    {
+      "accountNo": "MOK037",
+      "kidESysBalance": -13850,
+      "eduClearBalance": -13850,
+      "difference": 0
+    },
+    {
+      "accountNo": "MOK038",
+      "kidESysBalance": 5520,
+      "eduClearBalance": 5520,
+      "difference": 0
+    },
+    {
+      "accountNo": "MOK040",
+      "kidESysBalance": 2900,
+      "eduClearBalance": 100,
+      "difference": -2800
+    },
+    {
+      "accountNo": "MOL003",
+      "kidESysBalance": 4500,
+      "eduClearBalance": 4500,
+      "difference": 0
+    },
+    {
+      "accountNo": "MOL010",
+      "kidESysBalance": 700,
+      "eduClearBalance": 700,
+      "difference": 0
+    },
+    {
+      "accountNo": "MOL017",
+      "kidESysBalance": -1300,
+      "eduClearBalance": -1300,
+      "difference": 0
+    },
+    {
+      "accountNo": "MOL019",
+      "kidESysBalance": -34500,
+      "eduClearBalance": -34500,
+      "difference": 0
+    },
+    {
+      "accountNo": "MOL020",
+      "kidESysBalance": 700,
+      "eduClearBalance": 700,
+      "difference": 0
+    },
+    {
+      "accountNo": "MOL039",
+      "kidESysBalance": -100,
+      "eduClearBalance": -100,
+      "difference": 0
+    },
+    {
+      "accountNo": "MOL043",
+      "kidESysBalance": 0,
+      "eduClearBalance": -3350,
+      "difference": -3350
+    },
+    {
+      "accountNo": "MOL044",
+      "kidESysBalance": 3450,
+      "eduClearBalance": 3450,
+      "difference": 0
+    },
+    {
+      "accountNo": "MON006",
+      "kidESysBalance": 1400,
+      "eduClearBalance": 1400,
+      "difference": 0
+    },
+    {
+      "accountNo": "MON012",
+      "kidESysBalance": 0,
+      "eduClearBalance": 0,
+      "difference": 0
+    },
+    {
+      "accountNo": "MON013",
+      "kidESysBalance": 0,
+      "eduClearBalance": -3550,
+      "difference": -3550
+    },
+    {
+      "accountNo": "MON014",
+      "kidESysBalance": 0,
+      "eduClearBalance": 0,
+      "difference": 0
+    },
+    {
+      "accountNo": "MOO003",
+      "kidESysBalance": 0,
+      "eduClearBalance": 0,
+      "difference": 0
+    },
+    {
+      "accountNo": "MOO004",
+      "kidESysBalance": 0,
+      "eduClearBalance": 0,
+      "difference": 0
+    },
+    {
+      "accountNo": "MOO005",
+      "kidESysBalance": 4300,
+      "eduClearBalance": 4300,
+      "difference": 0
+    },
+    {
+      "accountNo": "MOO006",
+      "kidESysBalance": -100,
+      "eduClearBalance": -100,
+      "difference": 0
+    },
+    {
+      "accountNo": "MOP003",
+      "kidESysBalance": 3750,
+      "eduClearBalance": 3750,
+      "difference": 0
+    },
+    {
+      "accountNo": "MOR004",
+      "kidESysBalance": 100,
+      "eduClearBalance": -6900,
+      "difference": -7000
+    },
+    {
+      "accountNo": "MOR008",
+      "kidESysBalance": 450,
+      "eduClearBalance": 450,
+      "difference": 0
+    },
+    {
+      "accountNo": "MOR010",
+      "kidESysBalance": -140,
+      "eduClearBalance": -140,
+      "difference": 0
+    },
+    {
+      "accountNo": "MOR013",
+      "kidESysBalance": 4700,
+      "eduClearBalance": -300,
+      "difference": -5000
+    },
+    {
+      "accountNo": "MOR015",
+      "kidESysBalance": 0,
+      "eduClearBalance": -3350,
+      "difference": -3350
+    },
+    {
+      "accountNo": "MOS008",
+      "kidESysBalance": 0,
+      "eduClearBalance": 0,
+      "difference": 0
+    },
+    {
+      "accountNo": "MOS009",
+      "kidESysBalance": 700,
+      "eduClearBalance": 700,
+      "difference": 0
+    },
+    {
+      "accountNo": "MOS018",
+      "kidESysBalance": -18300,
+      "eduClearBalance": -18300,
+      "difference": 0
+    },
+    {
+      "accountNo": "MOS019",
+      "kidESysBalance": -0.08,
+      "eduClearBalance": -0.08,
+      "difference": 0
+    },
+    {
+      "accountNo": "MOS021",
+      "kidESysBalance": 0,
+      "eduClearBalance": 0,
+      "difference": 0
+    },
+    {
+      "accountNo": "MOS022",
+      "kidESysBalance": 0,
+      "eduClearBalance": 0,
+      "difference": 0
+    },
+    {
+      "accountNo": "MOS023",
+      "kidESysBalance": 1650,
+      "eduClearBalance": -2350,
+      "difference": -4000
+    },
+    {
+      "accountNo": "MOT007",
+      "kidESysBalance": 8019.45,
+      "eduClearBalance": 8019.45,
+      "difference": 0
+    },
+    {
+      "accountNo": "MOT008",
+      "kidESysBalance": 0,
+      "eduClearBalance": 0,
+      "difference": 0
+    },
+    {
+      "accountNo": "MOT010",
+      "kidESysBalance": 0,
+      "eduClearBalance": 0,
+      "difference": 0
+    },
+    {
+      "accountNo": "MOT013",
+      "kidESysBalance": -500,
+      "eduClearBalance": -500,
+      "difference": 0
+    },
+    {
+      "accountNo": "MOT016",
+      "kidESysBalance": 0,
+      "eduClearBalance": 0,
+      "difference": 0
+    },
+    {
+      "accountNo": "MOT017",
+      "kidESysBalance": 700,
+      "eduClearBalance": 700,
+      "difference": 0
+    },
+    {
+      "accountNo": "MOT028",
+      "kidESysBalance": 0,
+      "eduClearBalance": 0,
+      "difference": 0
+    },
+    {
+      "accountNo": "MOT032",
+      "kidESysBalance": 1400,
+      "eduClearBalance": 1400,
+      "difference": 0
+    },
+    {
+      "accountNo": "MOT033",
+      "kidESysBalance": 900,
+      "eduClearBalance": -2100,
+      "difference": -3000
+    },
+    {
+      "accountNo": "MOT034",
+      "kidESysBalance": -1100,
+      "eduClearBalance": -1100,
+      "difference": 0
+    },
+    {
+      "accountNo": "MOT036",
+      "kidESysBalance": 0,
+      "eduClearBalance": 0,
+      "difference": 0
+    },
+    {
+      "accountNo": "MOY004",
+      "kidESysBalance": -200,
+      "eduClearBalance": -200,
+      "difference": 0
+    },
+    {
+      "accountNo": "MOY005",
+      "kidESysBalance": 0,
+      "eduClearBalance": 0,
+      "difference": 0
+    },
+    {
+      "accountNo": "MPA001",
+      "kidESysBalance": 6800,
+      "eduClearBalance": 6800,
+      "difference": 0
+    },
+    {
+      "accountNo": "MPI102",
+      "kidESysBalance": 3800,
+      "eduClearBalance": 3800,
+      "difference": 0
+    },
+    {
+      "accountNo": "MPO001",
+      "kidESysBalance": 700,
+      "eduClearBalance": 700,
+      "difference": 0
+    },
+    {
+      "accountNo": "MPU004",
+      "kidESysBalance": 930,
+      "eduClearBalance": 930,
+      "difference": 0
+    },
+    {
+      "accountNo": "MPU005",
+      "kidESysBalance": 0,
+      "eduClearBalance": 0,
+      "difference": 0
+    },
+    {
+      "accountNo": "MPU007",
+      "kidESysBalance": 0,
+      "eduClearBalance": 0,
+      "difference": 0
+    },
+    {
+      "accountNo": "MQA001",
+      "kidESysBalance": 4700,
+      "eduClearBalance": 4700,
+      "difference": 0
+    },
+    {
+      "accountNo": "MSI003",
+      "kidESysBalance": 3700,
+      "eduClearBalance": 3700,
+      "difference": 0
+    },
+    {
+      "accountNo": "MTH003",
+      "kidESysBalance": -33500,
+      "eduClearBalance": -34900,
+      "difference": -1400
+    },
+    {
+      "accountNo": "MTH004",
+      "kidESysBalance": 0,
+      "eduClearBalance": -2800,
+      "difference": -2800
+    },
+    {
+      "accountNo": "MTS001",
+      "kidESysBalance": -650,
+      "eduClearBalance": -650,
+      "difference": 0
+    },
+    {
+      "accountNo": "MUF001",
+      "kidESysBalance": 4200,
+      "eduClearBalance": 4200,
+      "difference": 0
+    },
+    {
+      "accountNo": "MUL001",
+      "kidESysBalance": 0,
+      "eduClearBalance": -5800,
+      "difference": -5800
+    },
+    {
+      "accountNo": "MUR001",
+      "kidESysBalance": 36100,
+      "eduClearBalance": 36100,
+      "difference": 0
+    },
+    {
+      "accountNo": "NAS001",
+      "kidESysBalance": 7800,
+      "eduClearBalance": 7800,
+      "difference": 0
+    },
+    {
+      "accountNo": "NDA001",
+      "kidESysBalance": -1000,
+      "eduClearBalance": -1000,
+      "difference": 0
+    },
+    {
+      "accountNo": "NDL008",
+      "kidESysBalance": 4305,
+      "eduClearBalance": 16305,
+      "difference": 12000
+    },
+    {
+      "accountNo": "NDL009",
+      "kidESysBalance": 0,
+      "eduClearBalance": 0,
+      "difference": 0
+    },
+    {
+      "accountNo": "NDL013",
+      "kidESysBalance": -1300,
+      "eduClearBalance": -1300,
+      "difference": 0
+    },
+    {
+      "accountNo": "NDL611",
+      "kidESysBalance": -5750,
+      "eduClearBalance": -5750,
+      "difference": 0
+    },
+    {
+      "accountNo": "NEL001",
+      "kidESysBalance": 700,
+      "eduClearBalance": 700,
+      "difference": 0
+    },
+    {
+      "accountNo": "NGA002",
+      "kidESysBalance": 6000,
+      "eduClearBalance": 6000,
+      "difference": 0
+    },
+    {
+      "accountNo": "NGW003",
+      "kidESysBalance": -2700,
+      "eduClearBalance": -2700,
+      "difference": 0
+    },
+    {
+      "accountNo": "NHL001",
+      "kidESysBalance": -200,
+      "eduClearBalance": -200,
+      "difference": 0
+    },
+    {
+      "accountNo": "NHL002",
+      "kidESysBalance": 0,
+      "eduClearBalance": -3800,
+      "difference": -3800
+    },
+    {
+      "accountNo": "NKA003",
+      "kidESysBalance": 700,
+      "eduClearBalance": 700,
+      "difference": 0
+    },
+    {
+      "accountNo": "NKA004",
+      "kidESysBalance": 0,
+      "eduClearBalance": -4250,
+      "difference": -4250
+    },
+    {
+      "accountNo": "NKO004",
+      "kidESysBalance": 0,
+      "eduClearBalance": 0,
+      "difference": 0
+    },
+    {
+      "accountNo": "NTO003",
+      "kidESysBalance": 0,
+      "eduClearBalance": 0,
+      "difference": 0
+    },
+    {
+      "accountNo": "NTS008",
+      "kidESysBalance": 0,
+      "eduClearBalance": 0,
+      "difference": 0
+    },
+    {
+      "accountNo": "NTU001",
+      "kidESysBalance": -850,
+      "eduClearBalance": -850,
+      "difference": 0
+    },
+    {
+      "accountNo": "OSE001",
+      "kidESysBalance": 0,
+      "eduClearBalance": 0,
+      "difference": 0
+    },
+    {
+      "accountNo": "PEB002",
+      "kidESysBalance": 3600,
+      "eduClearBalance": 3600,
+      "difference": 0
+    },
+    {
+      "accountNo": "PER001",
+      "kidESysBalance": -27900,
+      "eduClearBalance": -27900,
+      "difference": 0
+    },
+    {
+      "accountNo": "PET002",
+      "kidESysBalance": 8600,
+      "eduClearBalance": 8600,
+      "difference": 0
+    },
+    {
+      "accountNo": "PHA008",
+      "kidESysBalance": 700,
+      "eduClearBalance": -2100,
+      "difference": -2800
+    },
+    {
+      "accountNo": "PHA009",
+      "kidESysBalance": -34600,
+      "eduClearBalance": -34600,
+      "difference": 0
+    },
+    {
+      "accountNo": "PHA010",
+      "kidESysBalance": 5200,
+      "eduClearBalance": 5200,
+      "difference": 0
+    },
+    {
+      "accountNo": "PHI003",
+      "kidESysBalance": 0,
+      "eduClearBalance": 0,
+      "difference": 0
+    },
+    {
+      "accountNo": "PHI004",
+      "kidESysBalance": 0,
+      "eduClearBalance": 0,
+      "difference": 0
+    },
+    {
+      "accountNo": "PIL003",
+      "kidESysBalance": 5650,
+      "eduClearBalance": 650,
+      "difference": -5000
+    },
+    {
+      "accountNo": "POG001",
+      "kidESysBalance": 0,
+      "eduClearBalance": 0,
+      "difference": 0
+    },
+    {
+      "accountNo": "POO002",
+      "kidESysBalance": 19350,
+      "eduClearBalance": 19350,
+      "difference": 0
+    },
+    {
+      "accountNo": "POO003",
+      "kidESysBalance": 700,
+      "eduClearBalance": 700,
+      "difference": 0
+    },
+    {
+      "accountNo": "RAB003",
+      "kidESysBalance": -5750,
+      "eduClearBalance": -15750,
+      "difference": -10000
+    },
+    {
+      "accountNo": "RAK004",
+      "kidESysBalance": 3900,
+      "eduClearBalance": 3900,
+      "difference": 0
+    },
+    {
+      "accountNo": "RAK005",
+      "kidESysBalance": 900,
+      "eduClearBalance": 900,
+      "difference": 0
+    },
+    {
+      "accountNo": "RAM011",
+      "kidESysBalance": 3550,
+      "eduClearBalance": 3550,
+      "difference": 0
+    },
+    {
+      "accountNo": "RAM014",
+      "kidESysBalance": -29260,
+      "eduClearBalance": -29260,
+      "difference": 0
+    },
+    {
+      "accountNo": "RAM015",
+      "kidESysBalance": 0,
+      "eduClearBalance": 0,
+      "difference": 0
+    },
+    {
+      "accountNo": "RAM019",
+      "kidESysBalance": 0,
+      "eduClearBalance": -2800,
+      "difference": -2800
+    },
+    {
+      "accountNo": "RAM021",
+      "kidESysBalance": 7830,
+      "eduClearBalance": 7830,
+      "difference": 0
+    },
+    {
+      "accountNo": "RAM022",
+      "kidESysBalance": -250,
+      "eduClearBalance": -250,
+      "difference": 0
+    },
+    {
+      "accountNo": "RAN002",
+      "kidESysBalance": 0,
+      "eduClearBalance": 0,
+      "difference": 0
+    },
+    {
+      "accountNo": "RAN007",
+      "kidESysBalance": 0,
+      "eduClearBalance": -3350,
+      "difference": -3350
+    },
+    {
+      "accountNo": "RAN008",
+      "kidESysBalance": 0,
+      "eduClearBalance": -3000,
+      "difference": -3000
+    },
+    {
+      "accountNo": "RAS004",
+      "kidESysBalance": -700,
+      "eduClearBalance": -700,
+      "difference": 0
+    },
+    {
+      "accountNo": "RIK001",
+      "kidESysBalance": -700,
+      "eduClearBalance": -9300,
+      "difference": -8600
+    },
+    {
+      "accountNo": "SEB005",
+      "kidESysBalance": -16800,
+      "eduClearBalance": -17500,
+      "difference": -700
+    },
+    {
+      "accountNo": "SEE002",
+      "kidESysBalance": 0,
+      "eduClearBalance": -1000,
+      "difference": -1000
+    },
+    {
+      "accountNo": "SEG007",
+      "kidESysBalance": -700,
+      "eduClearBalance": -700,
+      "difference": 0
+    },
+    {
+      "accountNo": "SEG008",
+      "kidESysBalance": 0,
+      "eduClearBalance": -7000,
+      "difference": -7000
+    },
+    {
+      "accountNo": "SEI859",
+      "kidESysBalance": 0,
+      "eduClearBalance": 0,
+      "difference": 0
+    },
+    {
+      "accountNo": "SEL009",
+      "kidESysBalance": -50,
+      "eduClearBalance": -6850,
+      "difference": -6800
+    },
+    {
+      "accountNo": "SEN002",
+      "kidESysBalance": 1150,
+      "eduClearBalance": 1150,
+      "difference": 0
+    },
+    {
+      "accountNo": "SEN959",
+      "kidESysBalance": 0,
+      "eduClearBalance": 0,
+      "difference": 0
+    },
+    {
+      "accountNo": "SEP002",
+      "kidESysBalance": 23000,
+      "eduClearBalance": 6600,
+      "difference": -16400
+    },
+    {
+      "accountNo": "SEP899",
+      "kidESysBalance": 700,
+      "eduClearBalance": 700,
+      "difference": 0
+    },
+    {
+      "accountNo": "SER001",
+      "kidESysBalance": 0,
+      "eduClearBalance": 0,
+      "difference": 0
+    },
+    {
+      "accountNo": "SES001",
+      "kidESysBalance": 1200,
+      "eduClearBalance": 1200,
+      "difference": 0
+    },
+    {
+      "accountNo": "SET003",
+      "kidESysBalance": 0,
+      "eduClearBalance": 0,
+      "difference": 0
+    },
+    {
+      "accountNo": "SET005",
+      "kidESysBalance": -13000,
+      "eduClearBalance": -19700,
+      "difference": -6700
+    },
+    {
+      "accountNo": "SIB003",
+      "kidESysBalance": -500,
+      "eduClearBalance": -5800,
+      "difference": -5300
+    },
+    {
+      "accountNo": "SIL007",
+      "kidESysBalance": -18000,
+      "eduClearBalance": 9600,
+      "difference": 27600
+    },
+    {
+      "accountNo": "SIM002",
+      "kidESysBalance": 0,
+      "eduClearBalance": 0,
+      "difference": 0
+    },
+    {
+      "accountNo": "SIN001",
+      "kidESysBalance": 2550,
+      "eduClearBalance": 2550,
+      "difference": 0
+    },
+    {
+      "accountNo": "SIT003",
+      "kidESysBalance": 900,
+      "eduClearBalance": 900,
+      "difference": 0
+    },
+    {
+      "accountNo": "SIT004",
+      "kidESysBalance": 0,
+      "eduClearBalance": -2800,
+      "difference": -2800
+    },
+    {
+      "accountNo": "SWA001",
+      "kidESysBalance": 0,
+      "eduClearBalance": 0,
+      "difference": 0
+    },
+    {
+      "accountNo": "TAK001",
+      "kidESysBalance": 2800,
+      "eduClearBalance": 2800,
+      "difference": 0
+    },
+    {
+      "accountNo": "TAN001",
+      "kidESysBalance": 15100,
+      "eduClearBalance": 15100,
+      "difference": 0
+    },
+    {
+      "accountNo": "TAU003",
+      "kidESysBalance": 3300,
+      "eduClearBalance": 3300,
+      "difference": 0
+    },
+    {
+      "accountNo": "THA003",
+      "kidESysBalance": 200,
+      "eduClearBalance": 200,
+      "difference": 0
+    },
+    {
+      "accountNo": "THE002",
+      "kidESysBalance": 50,
+      "eduClearBalance": 50,
+      "difference": 0
+    },
+    {
+      "accountNo": "THE003",
+      "kidESysBalance": 700,
+      "eduClearBalance": 700,
+      "difference": 0
+    },
+    {
+      "accountNo": "THO004",
+      "kidESysBalance": 0,
+      "eduClearBalance": 0,
+      "difference": 0
+    },
+    {
+      "accountNo": "TIV001",
+      "kidESysBalance": 1450,
+      "eduClearBalance": 1450,
+      "difference": 0
+    },
+    {
+      "accountNo": "TLA001",
+      "kidESysBalance": 4090,
+      "eduClearBalance": 4090,
+      "difference": 0
+    },
+    {
+      "accountNo": "TLH003",
+      "kidESysBalance": 3100,
+      "eduClearBalance": 3100,
+      "difference": 0
+    },
+    {
+      "accountNo": "TLH005",
+      "kidESysBalance": 0,
+      "eduClearBalance": 0,
+      "difference": 0
+    },
+    {
+      "accountNo": "TLH006",
+      "kidESysBalance": 0,
+      "eduClearBalance": 0,
+      "difference": 0
+    },
+    {
+      "accountNo": "TSA001",
+      "kidESysBalance": 0,
+      "eduClearBalance": 0,
+      "difference": 0
+    },
+    {
+      "accountNo": "TSE002",
+      "kidESysBalance": 0,
+      "eduClearBalance": 0,
+      "difference": 0
+    },
+    {
+      "accountNo": "TSH003",
+      "kidESysBalance": -150,
+      "eduClearBalance": -150,
+      "difference": 0
+    },
+    {
+      "accountNo": "TSH006",
+      "kidESysBalance": -50,
+      "eduClearBalance": 50,
+      "difference": 100
+    },
+    {
+      "accountNo": "TSH016",
+      "kidESysBalance": 1400,
+      "eduClearBalance": 1400,
+      "difference": 0
+    },
+    {
+      "accountNo": "TSH017",
+      "kidESysBalance": 2290,
+      "eduClearBalance": 2290,
+      "difference": 0
+    },
+    {
+      "accountNo": "TSH018",
+      "kidESysBalance": 0,
+      "eduClearBalance": 0,
+      "difference": 0
+    },
+    {
+      "accountNo": "TSH019",
+      "kidESysBalance": 0,
+      "eduClearBalance": 0,
+      "difference": 0
+    },
+    {
+      "accountNo": "TSH021",
+      "kidESysBalance": 0,
+      "eduClearBalance": 0,
+      "difference": 0
+    },
+    {
+      "accountNo": "TSH022",
+      "kidESysBalance": 0,
+      "eduClearBalance": 0,
+      "difference": 0
+    },
+    {
+      "accountNo": "TSH023",
+      "kidESysBalance": 9700,
+      "eduClearBalance": 9700,
+      "difference": 0
+    },
+    {
+      "accountNo": "TSI002",
+      "kidESysBalance": 900,
+      "eduClearBalance": -1900,
+      "difference": -2800
+    },
+    {
+      "accountNo": "VUS001",
+      "kidESysBalance": -700,
+      "eduClearBalance": -4600,
+      "difference": -3900
+    },
+    {
+      "accountNo": "VUT001",
+      "kidESysBalance": 3850,
+      "eduClearBalance": 3850,
+      "difference": 0
+    },
+    {
+      "accountNo": "WIL002",
+      "kidESysBalance": -350,
+      "eduClearBalance": -350,
+      "difference": 0
+    },
+    {
+      "accountNo": "WOL001",
+      "kidESysBalance": 3670,
+      "eduClearBalance": 3670,
+      "difference": 0
+    },
+    {
+      "accountNo": "ZON001",
+      "kidESysBalance": 700,
+      "eduClearBalance": 700,
+      "difference": 0
+    },
+    {
+      "accountNo": "ZON002",
+      "kidESysBalance": 700,
+      "eduClearBalance": 700,
+      "difference": 0
+    }
+  ]
+}

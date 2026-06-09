@@ -1,0 +1,7 @@
+EduClear Employee Restore — Apply Result
+batchId: 1780831919216
+school: Da Silva Academy (cmpideqeq0000108xb6ouv9zi)
+staff source rows: 29
+created Employee rows: 29
+skipped duplicates: 0
+manifest: /Users/dasilvaacademy/EduClear/backend/storage/employee-restore-apply-1780831919216/manifest.json

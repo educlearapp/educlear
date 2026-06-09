@@ -25,6 +25,7 @@ export type PortalPwaHeadConfig = {
   appleTouch180: string;
   manifestIcon192: string;
   serviceWorkerPath?: string;
+  serviceWorkerScope?: string;
 };
 
 export const teacherPortalPwaHead: PortalPwaHeadConfig = {
@@ -35,4 +36,5 @@ export const teacherPortalPwaHead: PortalPwaHeadConfig = {
   appleTouch180: teacherPwaIcons.appleTouch180,
   manifestIcon192: teacherPwaIcons.manifestIcon192,
   serviceWorkerPath: "/teacher-sw.js",
+  serviceWorkerScope: "/teacher/",
 };

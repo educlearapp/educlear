@@ -1,0 +1,109 @@
+=== Da Silva Payment Receive List Baseline Reconciliation ===
+Generated: 2026-06-06T08:32:37.174Z
+Mode: plan
+
+SOURCE OF TRUTH
+  PDF (balances):     /Users/dasilvaacademy/Desktop/payment_receive_list.pdf
+  XLSX (history only): /Users/dasilvaacademy/Desktop/transaction_list.xlsx
+
+PDF PARSE
+  PDF Accounts Total:        344
+  Raw learner rows parsed:   396
+  Duplicate sibling rows:    52
+  Balance conflicts:         0
+
+ACTIVE FILTER
+  Active Accounts Total:     308
+  Active learners:           351
+  Family accounts in DB:     821
+  Historical accounts ignored: 2
+  PDF accounts not active:   36
+  Active missing from PDF:   0
+
+JUNE TRANSACTIONS (history only — NOT for balances)
+  Total transactions:        350
+  June payments importable:  308
+  June payments ignored:     39
+
+CARD TOTALS (from active PDF accounts)
+  A. Total Accounts:         308
+  B. Total Outstanding:      R451750.45
+  C. Over Paid:              R505366.08
+  D. Net Position:           R-53615.63
+  E. Recently Owing:         R304100.45
+  F. Bad Debt:               R147650.00
+
+VERIFICATION
+  Before — matching PDF:     112
+  Before — not matching:     234
+  After preview — matching:  244
+  After preview — not matching: 64
+  After preview match %:     79.22%
+
+SPOT CHECK (must match PDF exactly)
+  ALI002: PDF R4000.00 | before R7000.00 | after R4000.00
+  ADA004: PDF R-50.00 | before R7350.00 | after R-50.00
+  AFR002: PDF R-130.00 | before R0.00 | after R-4480.00
+  RAM021: PDF R7830.00 | before R10960.00 | after R7830.00
+  MAO002: PDF R1400.00 | before R1400.00 | after R-4400.00
+  MDU001: PDF R3000.00 | before R11600.00 | after R3000.00
+
+ACCOUNTS NOT MATCHING PDF (after preview):
+AccountNo | KidESysBalance | EduClearBalance | Difference
+AFR002   |           -130 |           -4480 |      -4350
+CHI005   |           1400 |           -4600 |      -6000
+DIK004   |              0 |           -4250 |      -4250
+DIN002   |              0 |           -6900 |      -6900
+HAI002   |              0 |           -8400 |      -8400
+HKA001   |            700 |           -2300 |      -3000
+HOM001   |            700 |           -2300 |      -3000
+KEK003   |          -1800 |           -6000 |      -4200
+KER001   |              0 |           -3000 |      -3000
+KOB002   |            700 |           -2300 |      -3000
+LEK007   |          -1350 |           -5350 |      -4000
+LET013   |           3450 |            -700 |      -4150
+MAK019   |              0 |           -3300 |      -3300
+MAK024   |            700 |           -2300 |      -3000
+MAL022   |              0 |           -3550 |      -3550
+MAM005   |           -800 |           -2800 |      -2000
+MAN012   |         -50250 |          -51900 |      -1650
+MAN013   |              0 |           -2800 |      -2800
+MAO002   |           1400 |           -4400 |      -5800
+MAP008   |           1400 |           -5400 |      -6800
+MAS031   |            900 |           -2900 |      -3800
+MDU002   |           -130 |           -7230 |      -7100
+MET001   |              0 |           -4150 |      -4150
+MKH006   |              0 |           -3550 |      -3550
+MKH007   |            700 |           -2300 |      -3000
+MOA006   |              0 |           -5800 |      -5800
+MOA007   |            700 |           -2300 |      -3000
+MOD015   |              0 |           -3700 |      -3700
+MOD017   |              0 |            -700 |       -700
+MOD018   |              0 |           -3500 |      -3500
+MOK035   |           1400 |           -4400 |      -5800
+MOK040   |           2900 |             100 |      -2800
+MOL043   |              0 |           -3350 |      -3350
+MON013   |              0 |           -3550 |      -3550
+MOR004   |            100 |           -6900 |      -7000
+MOR013   |           4700 |            -300 |      -5000
+MOR015   |              0 |           -3350 |      -3350
+MOS023   |           1650 |           -2350 |      -4000
+MOT033   |            900 |           -2100 |      -3000
+MTH003   |         -33500 |          -34900 |      -1400
+MTH004   |              0 |           -2800 |      -2800
+MUL001   |              0 |           -5800 |      -5800
+NDL008   |           4305 |           16305 |      12000
+NHL002   |              0 |           -3800 |      -3800
+NKA004   |              0 |           -4250 |      -4250
+PHA008   |            700 |           -2100 |      -2800
+PIL003   |           5650 |             650 |      -5000
+RAB003   |          -5750 |          -15750 |     -10000
+RAM019   |              0 |           -2800 |      -2800
+RAN007   |              0 |           -3350 |      -3350
+... and 14 more
+
+DEPLOY BLOCKED: YES
+Reasons: Active PDF accounts not matching: 64; PDF scope match 79.22% (required 100%)
+
+Verification CSV: /Users/dasilvaacademy/EduClear/backend/storage/payment-receive-baseline-verification.csv
+Full JSON: /Users/dasilvaacademy/EduClear/backend/storage/payment-receive-baseline-recon-report.json

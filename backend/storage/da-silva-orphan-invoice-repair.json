@@ -1,0 +1,98 @@
+{
+  "schoolId": "cmpideqeq0000108xb6ouv9zi",
+  "dryRun": false,
+  "updated": 12,
+  "remainingOrphanCount": 0,
+  "changes": [
+    {
+      "id": "invoice-1779970332419",
+      "fromAccount": "SIL004",
+      "toAccount": "SIL007",
+      "fromLearnerId": "cmov5l75c000613nsqb36rr7j",
+      "toLearnerId": "cmpp2eyzh004dtxyzc9cljucn"
+    },
+    {
+      "id": "invoice-1779970332590",
+      "fromAccount": "SIL005",
+      "toAccount": "SIL007",
+      "fromLearnerId": "cmokbh56b000391mp0q2q62r6",
+      "toLearnerId": "cmpp2eyzh004dtxyzc9cljucn"
+    },
+    {
+      "id": "invoice-1779970332742",
+      "fromAccount": "LEB001",
+      "toAccount": "LEB005",
+      "fromLearnerId": "cmojv1nlc0029xi55azpt25ew",
+      "toLearnerId": "cmpp2eyz0003dtxyzersbqdg8"
+    },
+    {
+      "id": "invoice-1779970332901",
+      "fromAccount": "NDL001",
+      "toAccount": "NDL008",
+      "fromLearnerId": "cmojut8bk0021xi558cyoya4j",
+      "toLearnerId": "cmpp2ez4200hltxyzylkqsmg3"
+    },
+    {
+      "id": "invoice-1779970341646",
+      "fromAccount": "SIL002",
+      "toAccount": "SIL007",
+      "fromLearnerId": "cmov5l75c000613nsqb36rr7j",
+      "toLearnerId": "cmpp2eyzh004dtxyzc9cljucn"
+    },
+    {
+      "id": "invoice-1779970341800",
+      "fromAccount": "SIL001",
+      "toAccount": "SIL007",
+      "fromLearnerId": "cmokbh56b000391mp0q2q62r6",
+      "toLearnerId": "cmpp2eyzh004dtxyzc9cljucn"
+    },
+    {
+      "id": "invoice-1779970341954",
+      "fromAccount": "LEB001",
+      "toAccount": "LEB005",
+      "fromLearnerId": "cmojv1nlc0029xi55azpt25ew",
+      "toLearnerId": "cmpp2eyz0003dtxyzersbqdg8"
+    },
+    {
+      "id": "invoice-1779970342108",
+      "fromAccount": "NDL001",
+      "toAccount": "NDL008",
+      "fromLearnerId": "cmojut8bk0021xi558cyoya4j",
+      "toLearnerId": "cmpp2ez4200hltxyzylkqsmg3"
+    },
+    {
+      "id": "invoice-1779970353722",
+      "fromAccount": "SIL002",
+      "toAccount": "SIL007",
+      "fromLearnerId": "cmov5l75c000613nsqb36rr7j",
+      "toLearnerId": "cmpp2eyzh004dtxyzc9cljucn"
+    },
+    {
+      "id": "invoice-1779970353880",
+      "fromAccount": "SIL001",
+      "toAccount": "SIL007",
+      "fromLearnerId": "cmokbh56b000391mp0q2q62r6",
+      "toLearnerId": "cmpp2eyzh004dtxyzc9cljucn"
+    },
+    {
+      "id": "invoice-1779970354042",
+      "fromAccount": "LEB001",
+      "toAccount": "LEB005",
+      "fromLearnerId": "cmojv1nlc0029xi55azpt25ew",
+      "toLearnerId": "cmpp2eyz0003dtxyzersbqdg8"
+    },
+    {
+      "id": "invoice-1779970354205",
+      "fromAccount": "NDL001",
+      "toAccount": "NDL008",
+      "fromLearnerId": "cmojut8bk0021xi558cyoya4j",
+      "toLearnerId": "cmpp2ez4200hltxyzylkqsmg3"
+    }
+  ],
+  "postImportInvoiceCountByAccount": {
+    "SIL007": 6,
+    "LEB005": 3,
+    "NDL008": 3
+  },
+  "backupPath": "/Users/dasilvaacademy/EduClear/backend/storage/billing-ledger-orphan-repair-backup-2026-06-05T07-04-44-135Z.json"
+}

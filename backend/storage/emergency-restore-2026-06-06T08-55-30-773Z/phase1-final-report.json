@@ -1,0 +1,83 @@
+{
+  "phase0": {
+    "outDir": "/Users/dasilvaacademy/EduClear/backend/storage/emergency-restore-2026-06-06T08-55-30-773Z",
+    "ledgerCount": 41349
+  },
+  "applyResult": {
+    "success": true,
+    "schoolId": "cmpideqeq0000108xb6ouv9zi",
+    "importedAt": "2099-12-31T23:59:59.999Z",
+    "snapshotCount": 344,
+    "familyAccountsUpserted": 344
+  },
+  "verification": {
+    "pdfAccounts": 344,
+    "eduClearAccounts": 344,
+    "matched": 344,
+    "mismatched": [],
+    "missing": [],
+    "extra": [],
+    "statusMismatches": [],
+    "cardComparison": {
+      "expected": {
+        "totalAccounts": 344,
+        "totalOutstanding": 552540.45,
+        "overPaid": 561160.03,
+        "netPosition": -8619.58,
+        "recentlyOwing": 334550.45,
+        "badDebt": 217990
+      },
+      "live": {
+        "totalAccounts": 344,
+        "totalOutstanding": 552540.45,
+        "overPaid": 561160.03,
+        "netPosition": -8619.58,
+        "recentlyOwing": 334550.45,
+        "badDebt": 217990
+      }
+    }
+  },
+  "spotCheck": {
+    "MAM004": {
+      "pdf": 1500,
+      "live": 1500,
+      "status": "Recently Owing",
+      "lastPayment": 3000,
+      "lastPaymentDate": "2026-06-06",
+      "matches": true
+    },
+    "DUP001": {
+      "pdf": -12200,
+      "live": -12200,
+      "status": "Over Paid",
+      "lastPayment": 3500,
+      "lastPaymentDate": "2026-06-03",
+      "matches": true
+    },
+    "ALI002": {
+      "pdf": 4000,
+      "live": 4000,
+      "status": "Recently Owing",
+      "lastPayment": 3000,
+      "lastPaymentDate": "2026-06-04",
+      "matches": true
+    },
+    "ADA004": {
+      "pdf": -50,
+      "live": -50,
+      "status": "Over Paid",
+      "lastPayment": 6000,
+      "lastPaymentDate": "2026-06-04",
+      "matches": true
+    },
+    "AFR002": {
+      "pdf": -130,
+      "live": -130,
+      "status": "Over Paid",
+      "lastPayment": 130,
+      "lastPaymentDate": "2026-06-04",
+      "matches": true
+    }
+  },
+  "success": true
+}

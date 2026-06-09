@@ -1,0 +1,761 @@
+{
+  "pdfAccounts": 344,
+  "eduClearAccounts": 344,
+  "matched": 275,
+  "mismatched": [
+    {
+      "accountNo": "AFR002",
+      "pdfBalance": -130,
+      "liveBalance": -4480,
+      "difference": -4350
+    },
+    {
+      "accountNo": "CHI005",
+      "pdfBalance": 1400,
+      "liveBalance": -4600,
+      "difference": -6000
+    },
+    {
+      "accountNo": "DIK004",
+      "pdfBalance": 0,
+      "liveBalance": -4250,
+      "difference": -4250
+    },
+    {
+      "accountNo": "DIN002",
+      "pdfBalance": 0,
+      "liveBalance": -6900,
+      "difference": -6900
+    },
+    {
+      "accountNo": "HAI002",
+      "pdfBalance": 0,
+      "liveBalance": -8400,
+      "difference": -8400
+    },
+    {
+      "accountNo": "HKA001",
+      "pdfBalance": 700,
+      "liveBalance": -2300,
+      "difference": -3000
+    },
+    {
+      "accountNo": "HOM001",
+      "pdfBalance": 700,
+      "liveBalance": -2300,
+      "difference": -3000
+    },
+    {
+      "accountNo": "KEK003",
+      "pdfBalance": -1800,
+      "liveBalance": -6000,
+      "difference": -4200
+    },
+    {
+      "accountNo": "KEN001",
+      "pdfBalance": 0,
+      "liveBalance": -3000,
+      "difference": -3000
+    },
+    {
+      "accountNo": "KER001",
+      "pdfBalance": 0,
+      "liveBalance": -3000,
+      "difference": -3000
+    },
+    {
+      "accountNo": "KGA006",
+      "pdfBalance": 700,
+      "liveBalance": -2300,
+      "difference": -3000
+    },
+    {
+      "accountNo": "KOB002",
+      "pdfBalance": 700,
+      "liveBalance": -2300,
+      "difference": -3000
+    },
+    {
+      "accountNo": "LEB005",
+      "pdfBalance": 3400,
+      "liveBalance": 16900,
+      "difference": 13500
+    },
+    {
+      "accountNo": "LEK007",
+      "pdfBalance": -1350,
+      "liveBalance": -5350,
+      "difference": -4000
+    },
+    {
+      "accountNo": "LET013",
+      "pdfBalance": 3450,
+      "liveBalance": -700,
+      "difference": -4150
+    },
+    {
+      "accountNo": "MAK019",
+      "pdfBalance": 0,
+      "liveBalance": -3300,
+      "difference": -3300
+    },
+    {
+      "accountNo": "MAK024",
+      "pdfBalance": 700,
+      "liveBalance": -2300,
+      "difference": -3000
+    },
+    {
+      "accountNo": "MAL022",
+      "pdfBalance": 0,
+      "liveBalance": -3550,
+      "difference": -3550
+    },
+    {
+      "accountNo": "MAM005",
+      "pdfBalance": -800,
+      "liveBalance": -2800,
+      "difference": -2000
+    },
+    {
+      "accountNo": "MAN012",
+      "pdfBalance": -50250,
+      "liveBalance": -51900,
+      "difference": -1650
+    },
+    {
+      "accountNo": "MAN013",
+      "pdfBalance": 0,
+      "liveBalance": -2800,
+      "difference": -2800
+    },
+    {
+      "accountNo": "MAO002",
+      "pdfBalance": 1400,
+      "liveBalance": -4400,
+      "difference": -5800
+    },
+    {
+      "accountNo": "MAP008",
+      "pdfBalance": 1400,
+      "liveBalance": -5400,
+      "difference": -6800
+    },
+    {
+      "accountNo": "MAS031",
+      "pdfBalance": 900,
+      "liveBalance": -2900,
+      "difference": -3800
+    },
+    {
+      "accountNo": "MDU002",
+      "pdfBalance": -130,
+      "liveBalance": -7230,
+      "difference": -7100
+    },
+    {
+      "accountNo": "MEN002",
+      "pdfBalance": 0,
+      "liveBalance": -3000,
+      "difference": -3000
+    },
+    {
+      "accountNo": "MET001",
+      "pdfBalance": 0,
+      "liveBalance": -4150,
+      "difference": -4150
+    },
+    {
+      "accountNo": "MKH006",
+      "pdfBalance": 0,
+      "liveBalance": -3550,
+      "difference": -3550
+    },
+    {
+      "accountNo": "MKH007",
+      "pdfBalance": 700,
+      "liveBalance": -2300,
+      "difference": -3000
+    },
+    {
+      "accountNo": "MOA006",
+      "pdfBalance": 0,
+      "liveBalance": -5800,
+      "difference": -5800
+    },
+    {
+      "accountNo": "MOA007",
+      "pdfBalance": 700,
+      "liveBalance": -2300,
+      "difference": -3000
+    },
+    {
+      "accountNo": "MOD015",
+      "pdfBalance": 0,
+      "liveBalance": -3700,
+      "difference": -3700
+    },
+    {
+      "accountNo": "MOD017",
+      "pdfBalance": 0,
+      "liveBalance": -700,
+      "difference": -700
+    },
+    {
+      "accountNo": "MOD018",
+      "pdfBalance": 0,
+      "liveBalance": -3500,
+      "difference": -3500
+    },
+    {
+      "accountNo": "MOK035",
+      "pdfBalance": 1400,
+      "liveBalance": -4400,
+      "difference": -5800
+    },
+    {
+      "accountNo": "MOK040",
+      "pdfBalance": 2900,
+      "liveBalance": 100,
+      "difference": -2800
+    },
+    {
+      "accountNo": "MOL040",
+      "pdfBalance": 0,
+      "liveBalance": -3700,
+      "difference": -3700
+    },
+    {
+      "accountNo": "MOL043",
+      "pdfBalance": 0,
+      "liveBalance": -3350,
+      "difference": -3350
+    },
+    {
+      "accountNo": "MON013",
+      "pdfBalance": 0,
+      "liveBalance": -3550,
+      "difference": -3550
+    },
+    {
+      "accountNo": "MOR004",
+      "pdfBalance": 100,
+      "liveBalance": -6900,
+      "difference": -7000
+    },
+    {
+      "accountNo": "MOR013",
+      "pdfBalance": 4700,
+      "liveBalance": -300,
+      "difference": -5000
+    },
+    {
+      "accountNo": "MOR015",
+      "pdfBalance": 0,
+      "liveBalance": -3350,
+      "difference": -3350
+    },
+    {
+      "accountNo": "MOS023",
+      "pdfBalance": 1650,
+      "liveBalance": -2350,
+      "difference": -4000
+    },
+    {
+      "accountNo": "MOT033",
+      "pdfBalance": 900,
+      "liveBalance": -2100,
+      "difference": -3000
+    },
+    {
+      "accountNo": "MTH003",
+      "pdfBalance": -33500,
+      "liveBalance": -34900,
+      "difference": -1400
+    },
+    {
+      "accountNo": "MTH004",
+      "pdfBalance": 0,
+      "liveBalance": -2800,
+      "difference": -2800
+    },
+    {
+      "accountNo": "MUL001",
+      "pdfBalance": 0,
+      "liveBalance": -5800,
+      "difference": -5800
+    },
+    {
+      "accountNo": "NDL008",
+      "pdfBalance": 4305,
+      "liveBalance": 16305,
+      "difference": 12000
+    },
+    {
+      "accountNo": "NHL002",
+      "pdfBalance": 0,
+      "liveBalance": -3800,
+      "difference": -3800
+    },
+    {
+      "accountNo": "NKA004",
+      "pdfBalance": 0,
+      "liveBalance": -4250,
+      "difference": -4250
+    },
+    {
+      "accountNo": "PHA008",
+      "pdfBalance": 700,
+      "liveBalance": -2100,
+      "difference": -2800
+    },
+    {
+      "accountNo": "PIL003",
+      "pdfBalance": 5650,
+      "liveBalance": 650,
+      "difference": -5000
+    },
+    {
+      "accountNo": "RAB003",
+      "pdfBalance": -5750,
+      "liveBalance": -15750,
+      "difference": -10000
+    },
+    {
+      "accountNo": "RAM019",
+      "pdfBalance": 0,
+      "liveBalance": -2800,
+      "difference": -2800
+    },
+    {
+      "accountNo": "RAN007",
+      "pdfBalance": 0,
+      "liveBalance": -3350,
+      "difference": -3350
+    },
+    {
+      "accountNo": "RAN008",
+      "pdfBalance": 0,
+      "liveBalance": -3000,
+      "difference": -3000
+    },
+    {
+      "accountNo": "RIK001",
+      "pdfBalance": -700,
+      "liveBalance": -9300,
+      "difference": -8600
+    },
+    {
+      "accountNo": "SEB005",
+      "pdfBalance": -16800,
+      "liveBalance": -17500,
+      "difference": -700
+    },
+    {
+      "accountNo": "SEE002",
+      "pdfBalance": 0,
+      "liveBalance": -1000,
+      "difference": -1000
+    },
+    {
+      "accountNo": "SEG008",
+      "pdfBalance": 0,
+      "liveBalance": -7000,
+      "difference": -7000
+    },
+    {
+      "accountNo": "SEL009",
+      "pdfBalance": -50,
+      "liveBalance": -6850,
+      "difference": -6800
+    },
+    {
+      "accountNo": "SEP002",
+      "pdfBalance": 23000,
+      "liveBalance": 6600,
+      "difference": -16400
+    },
+    {
+      "accountNo": "SET005",
+      "pdfBalance": -13000,
+      "liveBalance": -19700,
+      "difference": -6700
+    },
+    {
+      "accountNo": "SIB003",
+      "pdfBalance": -500,
+      "liveBalance": -5800,
+      "difference": -5300
+    },
+    {
+      "accountNo": "SIL007",
+      "pdfBalance": -18000,
+      "liveBalance": 9600,
+      "difference": 27600
+    },
+    {
+      "accountNo": "SIT004",
+      "pdfBalance": 0,
+      "liveBalance": -2800,
+      "difference": -2800
+    },
+    {
+      "accountNo": "TSH006",
+      "pdfBalance": -50,
+      "liveBalance": 50,
+      "difference": 100
+    },
+    {
+      "accountNo": "TSI002",
+      "pdfBalance": 900,
+      "liveBalance": -1900,
+      "difference": -2800
+    },
+    {
+      "accountNo": "VUS001",
+      "pdfBalance": -700,
+      "liveBalance": -4600,
+      "difference": -3900
+    }
+  ],
+  "missing": [],
+  "extra": [],
+  "statusMismatches": [
+    {
+      "accountNo": "CHI005",
+      "pdfBalance": 1400,
+      "expectedStatus": "Recently Owing",
+      "liveStatus": "Over Paid"
+    },
+    {
+      "accountNo": "DIK004",
+      "pdfBalance": 0,
+      "expectedStatus": "Up To Date",
+      "liveStatus": "Over Paid"
+    },
+    {
+      "accountNo": "DIN002",
+      "pdfBalance": 0,
+      "expectedStatus": "Up To Date",
+      "liveStatus": "Over Paid"
+    },
+    {
+      "accountNo": "HAI002",
+      "pdfBalance": 0,
+      "expectedStatus": "Up To Date",
+      "liveStatus": "Over Paid"
+    },
+    {
+      "accountNo": "HKA001",
+      "pdfBalance": 700,
+      "expectedStatus": "Recently Owing",
+      "liveStatus": "Over Paid"
+    },
+    {
+      "accountNo": "HOM001",
+      "pdfBalance": 700,
+      "expectedStatus": "Recently Owing",
+      "liveStatus": "Over Paid"
+    },
+    {
+      "accountNo": "KEN001",
+      "pdfBalance": 0,
+      "expectedStatus": "Up To Date",
+      "liveStatus": "Over Paid"
+    },
+    {
+      "accountNo": "KER001",
+      "pdfBalance": 0,
+      "expectedStatus": "Up To Date",
+      "liveStatus": "Over Paid"
+    },
+    {
+      "accountNo": "KGA006",
+      "pdfBalance": 700,
+      "expectedStatus": "Recently Owing",
+      "liveStatus": "Over Paid"
+    },
+    {
+      "accountNo": "KOB002",
+      "pdfBalance": 700,
+      "expectedStatus": "Recently Owing",
+      "liveStatus": "Over Paid"
+    },
+    {
+      "accountNo": "LEB005",
+      "pdfBalance": 3400,
+      "expectedStatus": "Recently Owing",
+      "liveStatus": "Bad Debt"
+    },
+    {
+      "accountNo": "LET013",
+      "pdfBalance": 3450,
+      "expectedStatus": "Recently Owing",
+      "liveStatus": "Over Paid"
+    },
+    {
+      "accountNo": "MAK019",
+      "pdfBalance": 0,
+      "expectedStatus": "Up To Date",
+      "liveStatus": "Over Paid"
+    },
+    {
+      "accountNo": "MAK024",
+      "pdfBalance": 700,
+      "expectedStatus": "Recently Owing",
+      "liveStatus": "Over Paid"
+    },
+    {
+      "accountNo": "MAL022",
+      "pdfBalance": 0,
+      "expectedStatus": "Up To Date",
+      "liveStatus": "Over Paid"
+    },
+    {
+      "accountNo": "MAN013",
+      "pdfBalance": 0,
+      "expectedStatus": "Up To Date",
+      "liveStatus": "Over Paid"
+    },
+    {
+      "accountNo": "MAO002",
+      "pdfBalance": 1400,
+      "expectedStatus": "Recently Owing",
+      "liveStatus": "Over Paid"
+    },
+    {
+      "accountNo": "MAP008",
+      "pdfBalance": 1400,
+      "expectedStatus": "Recently Owing",
+      "liveStatus": "Over Paid"
+    },
+    {
+      "accountNo": "MAS031",
+      "pdfBalance": 900,
+      "expectedStatus": "Recently Owing",
+      "liveStatus": "Over Paid"
+    },
+    {
+      "accountNo": "MEN002",
+      "pdfBalance": 0,
+      "expectedStatus": "Up To Date",
+      "liveStatus": "Over Paid"
+    },
+    {
+      "accountNo": "MET001",
+      "pdfBalance": 0,
+      "expectedStatus": "Up To Date",
+      "liveStatus": "Over Paid"
+    },
+    {
+      "accountNo": "MKH006",
+      "pdfBalance": 0,
+      "expectedStatus": "Up To Date",
+      "liveStatus": "Over Paid"
+    },
+    {
+      "accountNo": "MKH007",
+      "pdfBalance": 700,
+      "expectedStatus": "Recently Owing",
+      "liveStatus": "Over Paid"
+    },
+    {
+      "accountNo": "MOA006",
+      "pdfBalance": 0,
+      "expectedStatus": "Up To Date",
+      "liveStatus": "Over Paid"
+    },
+    {
+      "accountNo": "MOA007",
+      "pdfBalance": 700,
+      "expectedStatus": "Recently Owing",
+      "liveStatus": "Over Paid"
+    },
+    {
+      "accountNo": "MOD015",
+      "pdfBalance": 0,
+      "expectedStatus": "Up To Date",
+      "liveStatus": "Over Paid"
+    },
+    {
+      "accountNo": "MOD017",
+      "pdfBalance": 0,
+      "expectedStatus": "Up To Date",
+      "liveStatus": "Over Paid"
+    },
+    {
+      "accountNo": "MOD018",
+      "pdfBalance": 0,
+      "expectedStatus": "Up To Date",
+      "liveStatus": "Over Paid"
+    },
+    {
+      "accountNo": "MOK035",
+      "pdfBalance": 1400,
+      "expectedStatus": "Recently Owing",
+      "liveStatus": "Over Paid"
+    },
+    {
+      "accountNo": "MOL040",
+      "pdfBalance": 0,
+      "expectedStatus": "Up To Date",
+      "liveStatus": "Over Paid"
+    },
+    {
+      "accountNo": "MOL043",
+      "pdfBalance": 0,
+      "expectedStatus": "Up To Date",
+      "liveStatus": "Over Paid"
+    },
+    {
+      "accountNo": "MON013",
+      "pdfBalance": 0,
+      "expectedStatus": "Up To Date",
+      "liveStatus": "Over Paid"
+    },
+    {
+      "accountNo": "MOR004",
+      "pdfBalance": 100,
+      "expectedStatus": "Recently Owing",
+      "liveStatus": "Over Paid"
+    },
+    {
+      "accountNo": "MOR013",
+      "pdfBalance": 4700,
+      "expectedStatus": "Recently Owing",
+      "liveStatus": "Over Paid"
+    },
+    {
+      "accountNo": "MOR015",
+      "pdfBalance": 0,
+      "expectedStatus": "Up To Date",
+      "liveStatus": "Over Paid"
+    },
+    {
+      "accountNo": "MOS023",
+      "pdfBalance": 1650,
+      "expectedStatus": "Recently Owing",
+      "liveStatus": "Over Paid"
+    },
+    {
+      "accountNo": "MOT033",
+      "pdfBalance": 900,
+      "expectedStatus": "Recently Owing",
+      "liveStatus": "Over Paid"
+    },
+    {
+      "accountNo": "MTH004",
+      "pdfBalance": 0,
+      "expectedStatus": "Up To Date",
+      "liveStatus": "Over Paid"
+    },
+    {
+      "accountNo": "MUL001",
+      "pdfBalance": 0,
+      "expectedStatus": "Up To Date",
+      "liveStatus": "Over Paid"
+    },
+    {
+      "accountNo": "NDL008",
+      "pdfBalance": 4305,
+      "expectedStatus": "Recently Owing",
+      "liveStatus": "Bad Debt"
+    },
+    {
+      "accountNo": "NHL002",
+      "pdfBalance": 0,
+      "expectedStatus": "Up To Date",
+      "liveStatus": "Over Paid"
+    },
+    {
+      "accountNo": "NKA004",
+      "pdfBalance": 0,
+      "expectedStatus": "Up To Date",
+      "liveStatus": "Over Paid"
+    },
+    {
+      "accountNo": "PHA008",
+      "pdfBalance": 700,
+      "expectedStatus": "Recently Owing",
+      "liveStatus": "Over Paid"
+    },
+    {
+      "accountNo": "RAM019",
+      "pdfBalance": 0,
+      "expectedStatus": "Up To Date",
+      "liveStatus": "Over Paid"
+    },
+    {
+      "accountNo": "RAN007",
+      "pdfBalance": 0,
+      "expectedStatus": "Up To Date",
+      "liveStatus": "Over Paid"
+    },
+    {
+      "accountNo": "RAN008",
+      "pdfBalance": 0,
+      "expectedStatus": "Up To Date",
+      "liveStatus": "Over Paid"
+    },
+    {
+      "accountNo": "SEE002",
+      "pdfBalance": 0,
+      "expectedStatus": "Up To Date",
+      "liveStatus": "Over Paid"
+    },
+    {
+      "accountNo": "SEG008",
+      "pdfBalance": 0,
+      "expectedStatus": "Up To Date",
+      "liveStatus": "Over Paid"
+    },
+    {
+      "accountNo": "SEP002",
+      "pdfBalance": 23000,
+      "expectedStatus": "Bad Debt",
+      "liveStatus": "Recently Owing"
+    },
+    {
+      "accountNo": "SIL007",
+      "pdfBalance": -18000,
+      "expectedStatus": "Over Paid",
+      "liveStatus": "Recently Owing"
+    },
+    {
+      "accountNo": "SIT004",
+      "pdfBalance": 0,
+      "expectedStatus": "Up To Date",
+      "liveStatus": "Over Paid"
+    },
+    {
+      "accountNo": "TSH006",
+      "pdfBalance": -50,
+      "expectedStatus": "Over Paid",
+      "liveStatus": "Recently Owing"
+    },
+    {
+      "accountNo": "TSI002",
+      "pdfBalance": 900,
+      "expectedStatus": "Recently Owing",
+      "liveStatus": "Over Paid"
+    }
+  ],
+  "cardComparison": {
+    "expected": {
+      "totalAccounts": 344,
+      "totalOutstanding": 552540.45,
+      "overPaid": 561160.03,
+      "netPosition": -8619.58,
+      "recentlyOwing": 334550.45,
+      "badDebt": 217990
+    },
+    "live": {
+      "totalAccounts": 344,
+      "totalOutstanding": 539690.45,
+      "overPaid": 774110.03,
+      "netPosition": -234419.58,
+      "recentlyOwing": 311495.45,
+      "badDebt": 228195
+    }
+  }
+}

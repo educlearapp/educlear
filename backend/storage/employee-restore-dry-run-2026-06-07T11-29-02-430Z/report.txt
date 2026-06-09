@@ -1,0 +1,47 @@
+EduClear Employee Restore — Dry-run Report (no writes)
+School: Da Silva Academy (cmpideqeq0000108xb6ouv9zi)
+Generated: 2026-06-07T11:29:02.430Z
+
+STAFF source rows: 29
+Existing Employee rows (production): 0
+Would CREATE Employee rows: 29
+Would SKIP (duplicate): 0
+XLS phone enrichments available: 3
+XLS address enrichments available: 0
+
+Fields left blank on create (unless XLS enrichment applies):
+  idNumber, dateOfBirth, gender, jobTitle, department, employeeNumber, startDate, endDate, taxNumber, bankName, bankAccountHolder, bankAccountNumber, bankBranchCode, physicalAddress, mobileNumber
+Defaults applied: basicSalary=0, isActive=true, uifApplicable=true, incomeTaxApplicable=true
+
+Duplicate checks: email (case-insensitive), firstName+lastName (case-insensitive).
+
+Would CREATE:
+ 1. Amanda Coetzee | acoetzeedsa@gmail.com | phone=blank | address=blank
+ 2. Anje Moll | mollanje3@gmail.com | phone=blank | address=blank
+ 3. Belinda Molotsi | belindamolotsi@gmail.com | phone=blank | address=blank
+ 4. Belinda Novela | novelabelinda@gmail.com | phone=0797758703 | address=blank
+ 5. Blommie Grobbelaar | bloms.grob@gmail.com | phone=blank | address=blank
+ 6. Danell Van Wyk | danellb460@gmail.com | phone=blank | address=blank
+ 7. Jemmah Harris | jemmahharris@gmail.com | phone=blank | address=blank
+ 8. Jennifer Pereira | jpereiradsa@gmail.com | phone=0765242135 | address=blank
+ 9. Kagiso Seema | kagilelomo@gmail.com | phone=blank | address=blank
+10. Kamogelo Pasha | missktmpasha@gmail.com | phone=blank | address=blank
+11. Keotshepile Diphoko | keotshepilediphoko126@gmail.com | phone=blank | address=blank
+12. Lesedi Modimakwane | modimakwanelesedi3@gmail.com | phone=blank | address=blank
+13. Micaela Lee Erasmus | micaelalee.erasmus@gmail.com | phone=blank | address=blank
+14. Mirieke Van Heerden | miriekevh@gmail.com | phone=blank | address=blank
+15. Monique Blignaut | deputy@dasilvaacademy.com | phone=0848632155 | address=blank
+16. Natasha Govender | tanzg03@gmail.com | phone=blank | address=blank
+17. Nicole Phuengchaem | nklopperdsa@gmail.com | phone=blank | address=blank
+18. Ofentse Matlakala | matlakalaofentse3@gmail.com | phone=blank | address=blank
+19. Priscilla Molahleli | mpmolahlehidsa@gmail.com | phone=blank | address=blank
+20. Rachelle Van Der Walt | chelvanderwalt@gmail.com | phone=blank | address=blank
+21. Simone Arlow | simone.arlow@gmail.com | phone=blank | address=blank
+22. Suzaan Van Der Westhuizen | sviljoendsa@gmail.com | phone=blank | address=blank
+23. Tammy Hautmaunn | principal@dasilvaacademy.com | phone=blank | address=blank
+24. Tanya Els | tanyajannet1999@gmail.com | phone=blank | address=blank
+25. Tanya Van Der Berg | admin@dasilvaacademy.com | phone=blank | address=blank
+26. Thato Segobaetso | segobaetsodsa@gmail.com | phone=blank | address=blank
+27. Venita Van Der Walt | vsasyman18@gmail.com | phone=blank | address=blank
+28. Zahne Klopper | zahneklopper98@gmail.com | phone=blank | address=blank
+29. Zandri Smith | zandri.smith15@gmail.com | phone=blank | address=blank

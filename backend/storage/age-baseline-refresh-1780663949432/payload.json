@@ -1,0 +1,4530 @@
+{
+  "schoolId": "cmpideqeq0000108xb6ouv9zi",
+  "importedAt": "2099-12-31T23:59:59.999Z",
+  "snapshots": [
+    {
+      "accountRef": "ALI002",
+      "accountHolder": "Alizain Ali",
+      "kidesysSection": "Bad Debt",
+      "balance": 2067.77,
+      "buckets": {
+        "current": 3300,
+        "d30": 3000,
+        "d60": 3000,
+        "d90": 3700,
+        "d120": -6000
+      }
+    },
+    {
+      "accountRef": "MAO002",
+      "accountHolder": "Amogelang Maapoga\nOnkgopotse Leago Maapoga",
+      "kidesysSection": "Bad Debt",
+      "balance": 2126.84,
+      "buckets": {
+        "current": 5800,
+        "d30": 0,
+        "d60": 1400,
+        "d90": 0,
+        "d120": 0
+      }
+    },
+    {
+      "accountRef": "MDU001",
+      "accountHolder": "Andzani Vukosi Mdumela",
+      "kidesysSection": "Bad Debt",
+      "balance": 3426.58,
+      "buckets": {
+        "current": 4350,
+        "d30": 5211,
+        "d60": 4799,
+        "d90": 0,
+        "d120": -2760
+      }
+    },
+    {
+      "accountRef": "CHI005",
+      "accountHolder": "Aviella Tinevimbo Chiutsi\nArella Chiutsi",
+      "kidesysSection": "Bad Debt",
+      "balance": 2185.92,
+      "buckets": {
+        "current": 6000,
+        "d30": 0,
+        "d60": 0,
+        "d90": 1500,
+        "d120": -100
+      }
+    },
+    {
+      "accountRef": "MOD014",
+      "accountHolder": "Atisang Modisane",
+      "kidesysSection": "Bad Debt",
+      "balance": 1092.96,
+      "buckets": {
+        "current": 3000,
+        "d30": 0,
+        "d60": 700,
+        "d90": 0,
+        "d120": 0
+      }
+    },
+    {
+      "accountRef": "DIK004",
+      "accountHolder": "Bohlale Levy Dikgale",
+      "kidesysSection": "Bad Debt",
+      "balance": 1255.43,
+      "buckets": {
+        "current": 3550,
+        "d30": 0,
+        "d60": 0,
+        "d90": 700,
+        "d120": 0
+      }
+    },
+    {
+      "accountRef": "MOT007",
+      "accountHolder": "Bokamoso Menyatswe",
+      "kidesysSection": "Bad Debt",
+      "balance": 2368.91,
+      "buckets": {
+        "current": 3300,
+        "d30": 3000,
+        "d60": 3300,
+        "d90": 1020,
+        "d120": -2600.55
+      }
+    },
+    {
+      "accountRef": "NGA002",
+      "accountHolder": "Bonang Mmokwa",
+      "kidesysSection": "Bad Debt",
+      "balance": 2717.63,
+      "buckets": {
+        "current": 3850,
+        "d30": 3550,
+        "d60": 7150,
+        "d90": 1575,
+        "d120": -6925
+      }
+    },
+    {
+      "accountRef": "DHL002",
+      "accountHolder": "Bontle Dhladhla",
+      "kidesysSection": "Bad Debt",
+      "balance": 1397.22,
+      "buckets": {
+        "current": 3000,
+        "d30": 0,
+        "d60": 2250,
+        "d90": 0,
+        "d120": -520
+      }
+    },
+    {
+      "accountRef": "RAM021",
+      "accountHolder": "Bophelo Patience  Ref:(l Moreki) Ramaboa",
+      "kidesysSection": "Bad Debt",
+      "balance": 3237.53,
+      "buckets": {
+        "current": 3300,
+        "d30": 3000,
+        "d60": 0,
+        "d90": 3700,
+        "d120": 960
+      }
+    },
+    {
+      "accountRef": "MOG013",
+      "accountHolder": "Chantelle Otlotleng Mogafe",
+      "kidesysSection": "Bad Debt",
+      "balance": 2008.69,
+      "buckets": {
+        "current": 3000,
+        "d30": 3000,
+        "d60": 3600,
+        "d90": 100,
+        "d120": -2900
+      }
+    },
+    {
+      "accountRef": "MUR001",
+      "accountHolder": "Conor Murdoch\nRonan Murdoch",
+      "kidesysSection": "Bad Debt",
+      "balance": 11254.55,
+      "buckets": {
+        "current": 6000,
+        "d30": 6400,
+        "d60": 6000,
+        "d90": 7400,
+        "d120": 12300
+      }
+    },
+    {
+      "accountRef": "KOR001",
+      "accountHolder": "Dagimawit Korabza",
+      "kidesysSection": "Bad Debt",
+      "balance": 2026.41,
+      "buckets": {
+        "current": 3000,
+        "d30": 3000,
+        "d60": 0,
+        "d90": 3700,
+        "d120": -2840
+      }
+    },
+    {
+      "accountRef": "MAF003",
+      "accountHolder": "Daniel Refentse Mafora",
+      "kidesysSection": "Bad Debt",
+      "balance": 1344.05,
+      "buckets": {
+        "current": 3550,
+        "d30": 0,
+        "d60": 2400,
+        "d90": 0,
+        "d120": -1400
+      }
+    },
+    {
+      "accountRef": "WOL001",
+      "accountHolder": "Elleliyon Wolebo",
+      "kidesysSection": "Bad Debt",
+      "balance": 2177.06,
+      "buckets": {
+        "current": 3300,
+        "d30": 3500,
+        "d60": 0,
+        "d90": 3440,
+        "d120": -2870
+      }
+    },
+    {
+      "accountRef": "MAT010",
+      "accountHolder": "Gosiame Khumoetsile Mathe\nOnalenna Oreratile Mathe",
+      "kidesysSection": "Bad Debt",
+      "balance": 2584.71,
+      "buckets": {
+        "current": 7350,
+        "d30": 0,
+        "d60": 5940,
+        "d90": 0,
+        "d120": -4540
+      }
+    },
+    {
+      "accountRef": "MOL018",
+      "accountHolder": "Hailey Molema",
+      "kidesysSection": "Bad Debt",
+      "balance": 1920.07,
+      "buckets": {
+        "current": 3000,
+        "d30": 3200,
+        "d60": 4300,
+        "d90": -3525,
+        "d120": -475
+      }
+    },
+    {
+      "accountRef": "MTE001",
+      "accountHolder": "Hikateekile Mokategi Michelle Mtebule",
+      "kidesysSection": "Bad Debt",
+      "balance": 1152.04,
+      "buckets": {
+        "current": 3000,
+        "d30": 200,
+        "d60": 1450,
+        "d90": 0,
+        "d120": -750
+      }
+    },
+    {
+      "accountRef": "MFU002",
+      "accountHolder": "Inathi Tlhompo Mfundisi",
+      "kidesysSection": "Bad Debt",
+      "balance": 3219.81,
+      "buckets": {
+        "current": 4100,
+        "d30": 4100,
+        "d60": 2700,
+        "d90": 0,
+        "d120": 0
+      }
+    },
+    {
+      "accountRef": "KEM002",
+      "accountHolder": "Johannes Joshua Kemp\nGrace Kemp",
+      "kidesysSection": "Bad Debt",
+      "balance": 2348.39,
+      "buckets": {
+        "current": 6550,
+        "d30": 0,
+        "d60": 4720,
+        "d90": 0,
+        "d120": -3320
+      }
+    },
+    {
+      "accountRef": "NKO004",
+      "accountHolder": "Kabo Kealeboga Nkonyane",
+      "kidesysSection": "Bad Debt",
+      "balance": 1092.96,
+      "buckets": {
+        "current": 3000,
+        "d30": 0,
+        "d60": 950,
+        "d90": 0,
+        "d120": -250
+      }
+    },
+    {
+      "accountRef": "TAK001",
+      "accountHolder": "Kagiso Unathi Takata",
+      "kidesysSection": "Bad Debt",
+      "balance": 2008.69,
+      "buckets": {
+        "current": 3000,
+        "d30": 3000,
+        "d60": 1600,
+        "d90": 0,
+        "d120": -800
+      }
+    },
+    {
+      "accountRef": "THE003",
+      "accountHolder": "Kagoentle Thebeame",
+      "kidesysSection": "Bad Debt",
+      "balance": 1713.29,
+      "buckets": {
+        "current": 3300,
+        "d30": -100,
+        "d60": 2600,
+        "d90": 0,
+        "d120": 0
+      }
+    },
+    {
+      "accountRef": "TIV001",
+      "accountHolder": "Kamogelo Calvin Tivane",
+      "kidesysSection": "Bad Debt",
+      "balance": 2496.09,
+      "buckets": {
+        "current": 3300,
+        "d30": 3300,
+        "d60": 3300,
+        "d90": 4000,
+        "d120": -5450
+      }
+    },
+    {
+      "accountRef": "MOT026",
+      "accountHolder": "Kamogelo Junior Motlhoki",
+      "kidesysSection": "Bad Debt",
+      "balance": 3367.5,
+      "buckets": {
+        "current": 3300,
+        "d30": 3300,
+        "d60": 3300,
+        "d90": 3910,
+        "d120": -2410
+      }
+    },
+    {
+      "accountRef": "MAS021",
+      "accountHolder": "Kamohelo Masilo",
+      "kidesysSection": "Bad Debt",
+      "balance": 1092.96,
+      "buckets": {
+        "current": 3000,
+        "d30": 0,
+        "d60": 0,
+        "d90": 3700,
+        "d120": -3000
+      }
+    },
+    {
+      "accountRef": "KAT002",
+      "accountHolder": "Kanku Kis Katshay\nLois Mulanga Katshay",
+      "kidesysSection": "Bad Debt",
+      "balance": 4549.08,
+      "buckets": {
+        "current": 7100,
+        "d30": 7100,
+        "d60": 6750,
+        "d90": 0,
+        "d120": -5550
+      }
+    },
+    {
+      "accountRef": "MOL040",
+      "accountHolder": "Karaboentle Molahlehi",
+      "kidesysSection": "Bad Debt",
+      "balance": 1092.96,
+      "buckets": {
+        "current": 3000,
+        "d30": 0,
+        "d60": 0,
+        "d90": 1350,
+        "d120": -650
+      }
+    },
+    {
+      "accountRef": "SEG008",
+      "accountHolder": "Keabetswe Nkateko Gontse Segokotlo\nNtsako Segokotlo",
+      "kidesysSection": "Bad Debt",
+      "balance": 2067.77,
+      "buckets": {
+        "current": 5600,
+        "d30": 0,
+        "d60": 0,
+        "d90": 1400,
+        "d120": 0
+      }
+    },
+    {
+      "accountRef": "MDU002",
+      "accountHolder": "Kealeboga Lesetja Mdluli\nKufeziweokuhle Mashela Mdluli",
+      "kidesysSection": "Bad Debt",
+      "balance": 2422.24,
+      "buckets": {
+        "current": 7100,
+        "d30": 0,
+        "d60": 0,
+        "d90": 3100,
+        "d120": -2000
+      }
+    },
+    {
+      "accountRef": "MPU004",
+      "accountHolder": "Ketshepaona Mpudi",
+      "kidesysSection": "Bad Debt",
+      "balance": 274.72,
+      "buckets": {
+        "current": 30,
+        "d30": 200,
+        "d60": 0,
+        "d90": 3700,
+        "d120": -3000
+      }
+    },
+    {
+      "accountRef": "MAG006",
+      "accountHolder": "Kganya Magagae",
+      "kidesysSection": "Bad Debt",
+      "balance": 1033.88,
+      "buckets": {
+        "current": 3000,
+        "d30": 0,
+        "d60": 2700,
+        "d90": 0,
+        "d120": -2200
+      }
+    },
+    {
+      "accountRef": "MOD015",
+      "accountHolder": "Leago Pelonomi Modisakeng",
+      "kidesysSection": "Bad Debt",
+      "balance": 1092.96,
+      "buckets": {
+        "current": 3000,
+        "d30": 0,
+        "d60": 0,
+        "d90": 850,
+        "d120": -150
+      }
+    },
+    {
+      "accountRef": "HKA001",
+      "accountHolder": "Legae Nkawe",
+      "kidesysSection": "Bad Debt",
+      "balance": 1092.96,
+      "buckets": {
+        "current": 3000,
+        "d30": 0,
+        "d60": 0,
+        "d90": 700,
+        "d120": 0
+      }
+    },
+    {
+      "accountRef": "KHU007",
+      "accountHolder": "Lemogang Khutoane",
+      "kidesysSection": "Bad Debt",
+      "balance": 1388.36,
+      "buckets": {
+        "current": 3800,
+        "d30": 200,
+        "d60": 3090,
+        "d90": 0,
+        "d120": -2390
+      }
+    },
+    {
+      "accountRef": "TSH023",
+      "accountHolder": "Lethukukhanya Tshingana",
+      "kidesysSection": "Bad Debt",
+      "balance": 2865.33,
+      "buckets": {
+        "current": 3100,
+        "d30": 2800,
+        "d60": 3100,
+        "d90": 700,
+        "d120": 0
+      }
+    },
+    {
+      "accountRef": "MKH007",
+      "accountHolder": "Lubanzi Emihle Mkhatshwa",
+      "kidesysSection": "Bad Debt",
+      "balance": 1092.96,
+      "buckets": {
+        "current": 3000,
+        "d30": 0,
+        "d60": 0,
+        "d90": 1250,
+        "d120": -550
+      }
+    },
+    {
+      "accountRef": "SEP002",
+      "accountHolder": "Maatla Patrick Sepato\nNeelo Sepato\nAnnaya Maria Christina Sepato",
+      "kidesysSection": "Bad Debt",
+      "balance": 11638.57,
+      "buckets": {
+        "current": 9300,
+        "d30": 8400,
+        "d60": 12000,
+        "d90": 11000,
+        "d120": -1300
+      }
+    },
+    {
+      "accountRef": "TAN001",
+      "accountHolder": "Manase Tanga",
+      "kidesysSection": "Bad Debt",
+      "balance": 4460.47,
+      "buckets": {
+        "current": 3850,
+        "d30": 4050,
+        "d60": 3850,
+        "d90": 3650,
+        "d120": -300
+      }
+    },
+    {
+      "accountRef": "MOL024",
+      "accountHolder": "Mashudu Tsoane Molusi",
+      "kidesysSection": "Bad Debt",
+      "balance": 7192.87,
+      "buckets": {
+        "current": 3300,
+        "d30": 3300,
+        "d60": 3300,
+        "d90": 4000,
+        "d120": 10450
+      }
+    },
+    {
+      "accountRef": "NEL001",
+      "accountHolder": "Michal Hadassah Nelson",
+      "kidesysSection": "Bad Debt",
+      "balance": 1092.96,
+      "buckets": {
+        "current": 3000,
+        "d30": 0,
+        "d60": 0,
+        "d90": 700,
+        "d120": 0
+      }
+    },
+    {
+      "accountRef": "MPA001",
+      "accountHolder": "Misokuhle Lathitha Mpangeva",
+      "kidesysSection": "Bad Debt",
+      "balance": 2008.69,
+      "buckets": {
+        "current": 3000,
+        "d30": 3000,
+        "d60": 1505,
+        "d90": 0,
+        "d120": -705
+      }
+    },
+    {
+      "accountRef": "TSH012",
+      "accountHolder": "Tumelo Sizwe Diamond Tshabalala\nMotheo Divine Tshabalala",
+      "kidesysSection": "Bad Debt",
+      "balance": 2185.92,
+      "buckets": {
+        "current": 6000,
+        "d30": 0,
+        "d60": 0,
+        "d90": 7400,
+        "d120": -6000
+      }
+    },
+    {
+      "accountRef": "LEB005",
+      "accountHolder": "Mpoentle Lebudi",
+      "kidesysSection": "Bad Debt",
+      "balance": 2185.92,
+      "buckets": {
+        "current": 3300,
+        "d30": 300,
+        "d60": 300,
+        "d90": 3500,
+        "d120": 0
+      }
+    },
+    {
+      "accountRef": "ZON001",
+      "accountHolder": "Musawenkosi Reatile Zondi",
+      "kidesysSection": "Bad Debt",
+      "balance": 1092.96,
+      "buckets": {
+        "current": 3000,
+        "d30": 0,
+        "d60": 0,
+        "d90": 3400,
+        "d120": -2700
+      }
+    },
+    {
+      "accountRef": "SEL009",
+      "accountHolder": "Muso Sello",
+      "kidesysSection": "Bad Debt",
+      "balance": 1993.92,
+      "buckets": {
+        "current": 3300,
+        "d30": 3200,
+        "d60": 250,
+        "d90": 0,
+        "d120": 0
+      }
+    },
+    {
+      "accountRef": "MAP006",
+      "accountHolder": "Mvuselelo Jasper Maphumulo",
+      "kidesysSection": "Bad Debt",
+      "balance": 2487.23,
+      "buckets": {
+        "current": 4100,
+        "d30": 3800,
+        "d60": 1575,
+        "d90": 0,
+        "d120": -1055
+      }
+    },
+    {
+      "accountRef": "TLA001",
+      "accountHolder": "Neo Kearabilwe Tladi",
+      "kidesysSection": "Bad Debt",
+      "balance": 3187.31,
+      "buckets": {
+        "current": 3300,
+        "d30": 3500,
+        "d60": 3900,
+        "d90": 2650,
+        "d120": -2560
+      }
+    },
+    {
+      "accountRef": "MAN010",
+      "accountHolder": "Nhlulo Xihluke Manabe",
+      "kidesysSection": "Bad Debt",
+      "balance": 2245,
+      "buckets": {
+        "current": 3300,
+        "d30": 3300,
+        "d60": 3300,
+        "d90": 2730,
+        "d120": -5030
+      }
+    },
+    {
+      "accountRef": "DIM002",
+      "accountHolder": "Nkazimulo Dimema",
+      "kidesysSection": "Bad Debt",
+      "balance": 5582.97,
+      "buckets": {
+        "current": 3000,
+        "d30": 3200,
+        "d60": 0,
+        "d90": 3700,
+        "d120": 9000
+      }
+    },
+    {
+      "accountRef": "MKH005",
+      "accountHolder": "Nkosenhle Mkhize",
+      "kidesysSection": "Bad Debt",
+      "balance": 1565.59,
+      "buckets": {
+        "current": 3300,
+        "d30": 200,
+        "d60": 0,
+        "d90": 1800,
+        "d120": 0
+      }
+    },
+    {
+      "accountRef": "MIR001",
+      "accountHolder": "Letlotlo Mbasa Mira\nNkosi Mira",
+      "kidesysSection": "Bad Debt",
+      "balance": 2185.92,
+      "buckets": {
+        "current": 6000,
+        "d30": 0,
+        "d60": 0,
+        "d90": 1400,
+        "d120": 0
+      }
+    },
+    {
+      "accountRef": "MKA001",
+      "accountHolder": "Noluntu Chantelle Mkandla",
+      "kidesysSection": "Bad Debt",
+      "balance": 1403.13,
+      "buckets": {
+        "current": 3350,
+        "d30": 200,
+        "d60": 1200,
+        "d90": 0,
+        "d120": 0
+      }
+    },
+    {
+      "accountRef": "MTS001",
+      "accountHolder": "Nompumelelo Mtshweni",
+      "kidesysSection": "Bad Debt",
+      "balance": 5036.49,
+      "buckets": {
+        "current": 3300,
+        "d30": 3500,
+        "d60": 3300,
+        "d90": 4000,
+        "d120": 2950
+      }
+    },
+    {
+      "accountRef": "MKH002",
+      "accountHolder": "Ntsako Mkhasi",
+      "kidesysSection": "Bad Debt",
+      "balance": 1092.96,
+      "buckets": {
+        "current": 3000,
+        "d30": 0,
+        "d60": 300,
+        "d90": 2950,
+        "d120": -2550
+      }
+    },
+    {
+      "accountRef": "KGA006",
+      "accountHolder": "Oartwa Refentse Kgatshe",
+      "kidesysSection": "Bad Debt",
+      "balance": 1092.96,
+      "buckets": {
+        "current": 3000,
+        "d30": 0,
+        "d60": 0,
+        "d90": 700,
+        "d120": 0
+      }
+    },
+    {
+      "accountRef": "FRE001",
+      "accountHolder": "Oatlegile Frederick",
+      "kidesysSection": "Bad Debt",
+      "balance": 2806.25,
+      "buckets": {
+        "current": 3300,
+        "d30": 3200,
+        "d60": 6370,
+        "d90": 0,
+        "d120": -3370
+      }
+    },
+    {
+      "accountRef": "PET002",
+      "accountHolder": "Obatlilwe Petlale",
+      "kidesysSection": "Bad Debt",
+      "balance": 2540.4,
+      "buckets": {
+        "current": 4100,
+        "d30": 3800,
+        "d60": 3750,
+        "d90": 0,
+        "d120": -3050
+      }
+    },
+    {
+      "accountRef": "MAS031",
+      "accountHolder": "Olerato Masimong",
+      "kidesysSection": "Bad Debt",
+      "balance": 1388.36,
+      "buckets": {
+        "current": 3800,
+        "d30": 200,
+        "d60": 700,
+        "d90": 0,
+        "d120": 0
+      }
+    },
+    {
+      "accountRef": "SER001",
+      "accountHolder": "Oletilwe Serutle",
+      "kidesysSection": "Bad Debt",
+      "balance": 1092.96,
+      "buckets": {
+        "current": 3000,
+        "d30": 0,
+        "d60": 0,
+        "d90": 3700,
+        "d120": -3000
+      }
+    },
+    {
+      "accountRef": "THE002",
+      "accountHolder": "Omaatla Phenyo Thejane",
+      "kidesysSection": "Bad Debt",
+      "balance": 6365.76,
+      "buckets": {
+        "current": 3300,
+        "d30": 3300,
+        "d60": 3300,
+        "d90": 4000,
+        "d120": 7650
+      }
+    },
+    {
+      "accountRef": "SEP899",
+      "accountHolder": "Omogolo Sepadile",
+      "kidesysSection": "Bad Debt",
+      "balance": 1092.96,
+      "buckets": {
+        "current": 3000,
+        "d30": 0,
+        "d60": 500,
+        "d90": 3700,
+        "d120": -3500
+      }
+    },
+    {
+      "accountRef": "MOA007",
+      "accountHolder": "Omolemo Okhule Moatlhodi",
+      "kidesysSection": "Bad Debt",
+      "balance": 1092.96,
+      "buckets": {
+        "current": 3000,
+        "d30": 0,
+        "d60": 700,
+        "d90": 0,
+        "d120": 0
+      }
+    },
+    {
+      "accountRef": "MOE006",
+      "accountHolder": "Omontle Moeng",
+      "kidesysSection": "Bad Debt",
+      "balance": 1329.28,
+      "buckets": {
+        "current": 3000,
+        "d30": 0,
+        "d60": 3600,
+        "d90": 700,
+        "d120": -2800
+      }
+    },
+    {
+      "accountRef": "TSH021",
+      "accountHolder": "Omphemetse Faith Tshisano",
+      "kidesysSection": "Bad Debt",
+      "balance": 1092.96,
+      "buckets": {
+        "current": 3000,
+        "d30": 0,
+        "d60": 0,
+        "d90": 1250,
+        "d120": -550
+      }
+    },
+    {
+      "accountRef": "MOS014",
+      "accountHolder": "Omphile Dithole Mosiane Dsa0161",
+      "kidesysSection": "Bad Debt",
+      "balance": 1092.96,
+      "buckets": {
+        "current": 3000,
+        "d30": 0,
+        "d60": 0,
+        "d90": 3700,
+        "d120": -3000
+      }
+    },
+    {
+      "accountRef": "MOT017",
+      "accountHolder": "Onkokeditse Motlhajwa",
+      "kidesysSection": "Bad Debt",
+      "balance": 1092.96,
+      "buckets": {
+        "current": 3000,
+        "d30": 0,
+        "d60": 0,
+        "d90": 2000,
+        "d120": -1300
+      }
+    },
+    {
+      "accountRef": "MOT008",
+      "accountHolder": "Ontlametse Resego Mothoagae\nMmakgwai Mothoagae",
+      "kidesysSection": "Bad Debt",
+      "balance": 2185.92,
+      "buckets": {
+        "current": 6000,
+        "d30": 0,
+        "d60": 0,
+        "d90": 2900,
+        "d120": -1500
+      }
+    },
+    {
+      "accountRef": "MAK024",
+      "accountHolder": "Opelong Olive Makhalanyane",
+      "kidesysSection": "Bad Debt",
+      "balance": 1092.96,
+      "buckets": {
+        "current": 3000,
+        "d30": 0,
+        "d60": 0,
+        "d90": 700,
+        "d120": 0
+      }
+    },
+    {
+      "accountRef": "GAE001",
+      "accountHolder": "Orateng Gaebolae",
+      "kidesysSection": "Bad Debt",
+      "balance": 2008.69,
+      "buckets": {
+        "current": 3000,
+        "d30": 3000,
+        "d60": 4080,
+        "d90": 0,
+        "d120": -3280
+      }
+    },
+    {
+      "accountRef": "MAB005",
+      "accountHolder": "Orefile Mabole\nRaorata Oresiametse Mabole",
+      "kidesysSection": "Bad Debt",
+      "balance": 5435.27,
+      "buckets": {
+        "current": 8800,
+        "d30": 8200,
+        "d60": 8050,
+        "d90": 0,
+        "d120": -6650
+      }
+    },
+    {
+      "accountRef": "PHA010",
+      "accountHolder": "Orefilwe Phakedi",
+      "kidesysSection": "Bad Debt",
+      "balance": 3013.03,
+      "buckets": {
+        "current": 3300,
+        "d30": 3500,
+        "d60": 3300,
+        "d90": 100,
+        "d120": 0
+      }
+    },
+    {
+      "accountRef": "OSE001",
+      "accountHolder": "Osego Makgale",
+      "kidesysSection": "Bad Debt",
+      "balance": 1329.28,
+      "buckets": {
+        "current": 3800,
+        "d30": 0,
+        "d60": 0,
+        "d90": 2725,
+        "d120": -2025
+      }
+    },
+    {
+      "accountRef": "MOL043",
+      "accountHolder": "Osego Molosiwa",
+      "kidesysSection": "Bad Debt",
+      "balance": 1196.35,
+      "buckets": {
+        "current": 3350,
+        "d30": 0,
+        "d60": 0,
+        "d90": 700,
+        "d120": 0
+      }
+    },
+    {
+      "accountRef": "MOE008",
+      "accountHolder": "Oteng Okgotlhe Moeng",
+      "kidesysSection": "Bad Debt",
+      "balance": 6495.74,
+      "buckets": {
+        "current": 3300,
+        "d30": 3500,
+        "d60": 3300,
+        "d90": 3700,
+        "d120": 8190
+      }
+    },
+    {
+      "accountRef": "MAT016",
+      "accountHolder": "Otshepeng Matsietsa",
+      "kidesysSection": "Bad Debt",
+      "balance": 1890.53,
+      "buckets": {
+        "current": 3000,
+        "d30": 3200,
+        "d60": 3600,
+        "d90": 3700,
+        "d120": -7100
+      }
+    },
+    {
+      "accountRef": "MOE003",
+      "accountHolder": "Owethu Moeng",
+      "kidesysSection": "Bad Debt",
+      "balance": 1860.99,
+      "buckets": {
+        "current": 3000,
+        "d30": 3000,
+        "d60": 6600,
+        "d90": 3700,
+        "d120": -10000
+      }
+    },
+    {
+      "accountRef": "MOR013",
+      "accountHolder": "Paballo Moruledi",
+      "kidesysSection": "Bad Debt",
+      "balance": 2865.33,
+      "buckets": {
+        "current": 3300,
+        "d30": 3500,
+        "d60": 3000,
+        "d90": 1500,
+        "d120": -1600
+      }
+    },
+    {
+      "accountRef": "XAB001",
+      "accountHolder": "Paballo Pearl Xaba",
+      "kidesysSection": "Bad Debt",
+      "balance": 1255.43,
+      "buckets": {
+        "current": 3550,
+        "d30": 0,
+        "d60": 0,
+        "d90": 2400,
+        "d120": -1700
+      }
+    },
+    {
+      "accountRef": "MOK038",
+      "accountHolder": "Phehello Charlotte Mokgalaka",
+      "kidesysSection": "Bad Debt",
+      "balance": 2924.41,
+      "buckets": {
+        "current": 4650,
+        "d30": 4850,
+        "d60": 1290,
+        "d90": 0,
+        "d120": -890
+      }
+    },
+    {
+      "accountRef": "MAT022",
+      "accountHolder": "Phemelo Reotshepile Matsheka",
+      "kidesysSection": "Bad Debt",
+      "balance": 1801.91,
+      "buckets": {
+        "current": 3000,
+        "d30": 3000,
+        "d60": 1700,
+        "d90": 0,
+        "d120": -1600
+      }
+    },
+    {
+      "accountRef": "LEK003",
+      "accountHolder": "Phetogo Lekgetho Moruledi",
+      "kidesysSection": "Bad Debt",
+      "balance": 2126.84,
+      "buckets": {
+        "current": 3000,
+        "d30": 3000,
+        "d60": 3000,
+        "d90": 3700,
+        "d120": -5500
+      }
+    },
+    {
+      "accountRef": "MOK033",
+      "accountHolder": "Phetolo Mokoena",
+      "kidesysSection": "Bad Debt",
+      "balance": 2259.77,
+      "buckets": {
+        "current": 3300,
+        "d30": 3200,
+        "d60": 3000,
+        "d90": 1010,
+        "d120": -2860
+      }
+    },
+    {
+      "accountRef": "HLA001",
+      "accountHolder": "Phiko Hlaba",
+      "kidesysSection": "Bad Debt",
+      "balance": 1491.75,
+      "buckets": {
+        "current": 4350,
+        "d30": 0,
+        "d60": 0,
+        "d90": 5850,
+        "d120": -5150
+      }
+    },
+    {
+      "accountRef": "TSH018",
+      "accountHolder": "Qhawe Davi Tshabalala",
+      "kidesysSection": "Bad Debt",
+      "balance": 1329.28,
+      "buckets": {
+        "current": 3800,
+        "d30": 0,
+        "d60": 0,
+        "d90": 3100,
+        "d120": -2400
+      }
+    },
+    {
+      "accountRef": "NKA004",
+      "accountHolder": "Reabetswe Nkada",
+      "kidesysSection": "Bad Debt",
+      "balance": 1314.51,
+      "buckets": {
+        "current": 3550,
+        "d30": 200,
+        "d60": 700,
+        "d90": 0,
+        "d120": 0
+      }
+    },
+    {
+      "accountRef": "MEK003",
+      "accountHolder": "Reamoleboga Mekgwe",
+      "kidesysSection": "Bad Debt",
+      "balance": 1092.96,
+      "buckets": {
+        "current": 3000,
+        "d30": 0,
+        "d60": 0,
+        "d90": 700,
+        "d120": 0
+      }
+    },
+    {
+      "accountRef": "ZON002",
+      "accountHolder": "Reaoleboga Halala Zondo",
+      "kidesysSection": "Bad Debt",
+      "balance": 1092.96,
+      "buckets": {
+        "current": 3000,
+        "d30": 0,
+        "d60": 0,
+        "d90": 700,
+        "d120": 0
+      }
+    },
+    {
+      "accountRef": "MAT021",
+      "accountHolder": "Reatlegile Kaone Matabane",
+      "kidesysSection": "Bad Debt",
+      "balance": 4386.62,
+      "buckets": {
+        "current": 3300,
+        "d30": 3500,
+        "d60": 3000,
+        "d90": 8200,
+        "d120": -3150
+      }
+    },
+    {
+      "accountRef": "MAM004",
+      "accountHolder": "Refentje Mampa",
+      "kidesysSection": "Bad Debt",
+      "balance": 1329.28,
+      "buckets": {
+        "current": 3000,
+        "d30": 200,
+        "d60": 300,
+        "d90": 1000,
+        "d120": 0
+      }
+    },
+    {
+      "accountRef": "KGO003",
+      "accountHolder": "Refiloe Kgokong",
+      "kidesysSection": "Bad Debt",
+      "balance": 1476.98,
+      "buckets": {
+        "current": 3800,
+        "d30": 500,
+        "d60": 3350,
+        "d90": 0,
+        "d120": -2650
+      }
+    },
+    {
+      "accountRef": "MAK014",
+      "accountHolder": "Reitumetse Makwakwa",
+      "kidesysSection": "Bad Debt",
+      "balance": 1166.81,
+      "buckets": {
+        "current": 3000,
+        "d30": 200,
+        "d60": 0,
+        "d90": 3700,
+        "d120": -2950
+      }
+    },
+    {
+      "accountRef": "MOT033",
+      "accountHolder": "Remmogo Motlhamme",
+      "kidesysSection": "Bad Debt",
+      "balance": 1152.04,
+      "buckets": {
+        "current": 3000,
+        "d30": 200,
+        "d60": 0,
+        "d90": 3200,
+        "d120": -2500
+      }
+    },
+    {
+      "accountRef": "BOG005",
+      "accountHolder": "Reotshepile Matlhasedi Bogatsu",
+      "kidesysSection": "Bad Debt",
+      "balance": 1358.82,
+      "buckets": {
+        "current": 3000,
+        "d30": 0,
+        "d60": 0,
+        "d90": 3700,
+        "d120": -2100
+      }
+    },
+    {
+      "accountRef": "MAK013",
+      "accountHolder": "Rethabile Roland Makgae",
+      "kidesysSection": "Bad Debt",
+      "balance": 3175.5,
+      "buckets": {
+        "current": 3300,
+        "d30": 3000,
+        "d60": 3300,
+        "d90": 3700,
+        "d120": -2550
+      }
+    },
+    {
+      "accountRef": "NAS001",
+      "accountHolder": "Samira Nasere",
+      "kidesysSection": "Bad Debt",
+      "balance": 2304.08,
+      "buckets": {
+        "current": 3300,
+        "d30": 3000,
+        "d60": 1765,
+        "d90": 0,
+        "d120": -265
+      }
+    },
+    {
+      "accountRef": "MAP001",
+      "accountHolder": "Samkelo Mapingana",
+      "kidesysSection": "Bad Debt",
+      "balance": 2953.95,
+      "buckets": {
+        "current": 3800,
+        "d30": 4100,
+        "d60": 2900,
+        "d90": 0,
+        "d120": -800
+      }
+    },
+    {
+      "accountRef": "MQA001",
+      "accountHolder": "Shaun Vuyolwethu Mqali",
+      "kidesysSection": "Bad Debt",
+      "balance": 1388.36,
+      "buckets": {
+        "current": 3000,
+        "d30": 200,
+        "d60": 300,
+        "d90": 1785,
+        "d120": -585
+      }
+    },
+    {
+      "accountRef": "SIT003",
+      "accountHolder": "Sibahle Olwethu Sitole",
+      "kidesysSection": "Bad Debt",
+      "balance": 1314.51,
+      "buckets": {
+        "current": 3550,
+        "d30": 200,
+        "d60": 0,
+        "d90": 3950,
+        "d120": -3250
+      }
+    },
+    {
+      "accountRef": "PRA001",
+      "accountHolder": "Skyla Hope Prangley",
+      "kidesysSection": "Bad Debt",
+      "balance": 6705.47,
+      "buckets": {
+        "current": 3550,
+        "d30": 0,
+        "d60": 0,
+        "d90": 4250,
+        "d120": 14900
+      }
+    },
+    {
+      "accountRef": "MSI004",
+      "accountHolder": "Snekosi Msimango",
+      "kidesysSection": "Bad Debt",
+      "balance": 2451.78,
+      "buckets": {
+        "current": 3800,
+        "d30": 3800,
+        "d60": 3400,
+        "d90": 0,
+        "d120": -2700
+      }
+    },
+    {
+      "accountRef": "KOB002",
+      "accountHolder": "Sthandiwe Kearabilwe Kobo",
+      "kidesysSection": "Bad Debt",
+      "balance": 1092.96,
+      "buckets": {
+        "current": 2800,
+        "d30": 200,
+        "d60": 0,
+        "d90": 700,
+        "d120": 0
+      }
+    },
+    {
+      "accountRef": "MUF001",
+      "accountHolder": "Tafadzwa Shane Mufandaedza\nTakunda Brandon Mufandaedza",
+      "kidesysSection": "Bad Debt",
+      "balance": 6321.46,
+      "buckets": {
+        "current": 8100,
+        "d30": 8300,
+        "d60": 7200,
+        "d90": 0,
+        "d120": -2200
+      }
+    },
+    {
+      "accountRef": "TSI002",
+      "accountHolder": "Tirelo Tau Tsibane",
+      "kidesysSection": "Bad Debt",
+      "balance": 1092.96,
+      "buckets": {
+        "current": 2800,
+        "d30": 200,
+        "d60": 0,
+        "d90": 700,
+        "d120": 0
+      }
+    },
+    {
+      "accountRef": "MAK019",
+      "accountHolder": "Tlotliso Makgale",
+      "kidesysSection": "Bad Debt",
+      "balance": 1092.96,
+      "buckets": {
+        "current": 3000,
+        "d30": 0,
+        "d60": 0,
+        "d90": 2050,
+        "d120": -1350
+      }
+    },
+    {
+      "accountRef": "PHA008",
+      "accountHolder": "Tlotso Ditheto Kaone Phalane",
+      "kidesysSection": "Bad Debt",
+      "balance": 1033.88,
+      "buckets": {
+        "current": 2800,
+        "d30": 0,
+        "d60": 700,
+        "d90": 0,
+        "d120": 0
+      }
+    },
+    {
+      "accountRef": "MOK025",
+      "accountHolder": "Tshegofatso Remoratile Mokgatlhe",
+      "kidesysSection": "Bad Debt",
+      "balance": 1447.44,
+      "buckets": {
+        "current": 3550,
+        "d30": 500,
+        "d60": 850,
+        "d90": 0,
+        "d120": 0
+      }
+    },
+    {
+      "accountRef": "POO002",
+      "accountHolder": "Tshenolo Emmanuel Poo",
+      "kidesysSection": "Bad Debt",
+      "balance": 5715.9,
+      "buckets": {
+        "current": 3000,
+        "d30": 3000,
+        "d60": 3000,
+        "d90": 3700,
+        "d120": 6650
+      }
+    },
+    {
+      "accountRef": "MOT032",
+      "accountHolder": "Thato Tshenolo Motsisi\nTshepo Junior Motsisi",
+      "kidesysSection": "Bad Debt",
+      "balance": 2185.92,
+      "buckets": {
+        "current": 6000,
+        "d30": 0,
+        "d60": 0,
+        "d90": 1400,
+        "d120": 0
+      }
+    },
+    {
+      "accountRef": "MON013",
+      "accountHolder": "Tshimologo Monyama",
+      "kidesysSection": "Bad Debt",
+      "balance": 1255.43,
+      "buckets": {
+        "current": 3550,
+        "d30": 0,
+        "d60": 0,
+        "d90": 700,
+        "d120": 0
+      }
+    },
+    {
+      "accountRef": "TAU003",
+      "accountHolder": "Unathi Tause",
+      "kidesysSection": "Bad Debt",
+      "balance": 1860.99,
+      "buckets": {
+        "current": 3000,
+        "d30": 3000,
+        "d60": 3600,
+        "d90": 3700,
+        "d120": -7000
+      }
+    },
+    {
+      "accountRef": "KGO002",
+      "accountHolder": "Warona Kgonothi",
+      "kidesysSection": "Bad Debt",
+      "balance": 1091.78,
+      "buckets": {
+        "current": 3000,
+        "d30": 0,
+        "d60": 300,
+        "d90": 4000,
+        "d120": -3604
+      }
+    },
+    {
+      "accountRef": "TLH003",
+      "accountHolder": "Whisper Oreneile Rethabile Tlhabanelo",
+      "kidesysSection": "Bad Debt",
+      "balance": 2008.69,
+      "buckets": {
+        "current": 3000,
+        "d30": 3000,
+        "d60": 2400,
+        "d90": 0,
+        "d120": -1600
+      }
+    },
+    {
+      "accountRef": "MOD017",
+      "accountHolder": "Yaone Naledi Modisakeng",
+      "kidesysSection": "Bad Debt",
+      "balance": 206.78,
+      "buckets": {
+        "current": 0,
+        "d30": 0,
+        "d60": 0,
+        "d90": 700,
+        "d120": 0
+      }
+    },
+    {
+      "accountRef": "CET001",
+      "accountHolder": "Yonwaba Cetshane",
+      "kidesysSection": "Bad Debt",
+      "balance": 1846.22,
+      "buckets": {
+        "current": 3000,
+        "d30": 3000,
+        "d60": 2990,
+        "d90": 0,
+        "d120": -2740
+      }
+    },
+    {
+      "accountRef": "RAK004",
+      "accountHolder": "Zayd Oarerata Rakgokong",
+      "kidesysSection": "Bad Debt",
+      "balance": 1152.04,
+      "buckets": {
+        "current": 3000,
+        "d30": 200,
+        "d60": 300,
+        "d90": 400,
+        "d120": 0
+      }
+    },
+    {
+      "accountRef": "MTH004",
+      "accountHolder": "Alibongwe Mthembu",
+      "kidesysSection": "Recently Owing",
+      "balance": 993.22,
+      "buckets": {
+        "current": 2800,
+        "d30": 0,
+        "d60": 0,
+        "d90": 0,
+        "d120": 0
+      }
+    },
+    {
+      "accountRef": "MOK040",
+      "accountHolder": "Amahle Lisa Mokotedi",
+      "kidesysSection": "Recently Owing",
+      "balance": 2021.9,
+      "buckets": {
+        "current": 3100,
+        "d30": 2600,
+        "d60": 0,
+        "d90": 0,
+        "d120": 0
+      }
+    },
+    {
+      "accountRef": "MOA006",
+      "accountHolder": "Amantle Moabi\nOreabetse Moabi",
+      "kidesysSection": "Recently Owing",
+      "balance": 2057.38,
+      "buckets": {
+        "current": 5800,
+        "d30": 6800,
+        "d60": 5800,
+        "d90": 7200,
+        "d120": -19800
+      }
+    },
+    {
+      "accountRef": "NZI001",
+      "accountHolder": "Amantle Nzimande",
+      "kidesysSection": "Recently Owing",
+      "balance": 1312.46,
+      "buckets": {
+        "current": 3000,
+        "d30": 3200,
+        "d60": 3000,
+        "d90": 720,
+        "d120": -6220
+      }
+    },
+    {
+      "accountRef": "RAB003",
+      "accountHolder": "Tlotlego Omogolo Raborife\nAmogelang Letlotlo Raborife",
+      "kidesysSection": "Recently Owing",
+      "balance": 1507.56,
+      "buckets": {
+        "current": 6350,
+        "d30": -300,
+        "d60": 0,
+        "d90": 0,
+        "d120": -1800
+      }
+    },
+    {
+      "accountRef": "DIA003",
+      "accountHolder": "Amogelang Warona Diatshwana",
+      "kidesysSection": "Recently Owing",
+      "balance": 886.8,
+      "buckets": {
+        "current": 3000,
+        "d30": 3000,
+        "d60": 0,
+        "d90": 2000,
+        "d120": -5500
+      }
+    },
+    {
+      "accountRef": "MAO001",
+      "accountHolder": "Amohelang Ororiseng Maoba",
+      "kidesysSection": "Recently Owing",
+      "balance": 1064.16,
+      "buckets": {
+        "current": 3000,
+        "d30": 0,
+        "d60": 1665,
+        "d90": 0,
+        "d120": -1665
+      }
+    },
+    {
+      "accountRef": "TSH003",
+      "accountHolder": "Amphe Lily Tsholoba",
+      "kidesysSection": "Recently Owing",
+      "balance": 1259.26,
+      "buckets": {
+        "current": 3550,
+        "d30": 3750,
+        "d60": 3850,
+        "d90": 4550,
+        "d120": -12150
+      }
+    },
+    {
+      "accountRef": "NDL008",
+      "accountHolder": "Amukelani Gift Ndlovu",
+      "kidesysSection": "Recently Owing",
+      "balance": 1527.07,
+      "buckets": {
+        "current": 3000,
+        "d30": 1570,
+        "d60": 0,
+        "d90": 0,
+        "d120": -265
+      }
+    },
+    {
+      "accountRef": "MOS022",
+      "accountHolder": "Dehbia Mosibi\nAngelique Kahina Mosibi",
+      "kidesysSection": "Recently Owing",
+      "balance": 2624.93,
+      "buckets": {
+        "current": 6000,
+        "d30": 6000,
+        "d60": 600,
+        "d90": 4000,
+        "d120": -9200
+      }
+    },
+    {
+      "accountRef": "MOY004",
+      "accountHolder": "Aobakwe Dube Moyo",
+      "kidesysSection": "Recently Owing",
+      "balance": 1064.16,
+      "buckets": {
+        "current": 3000,
+        "d30": 3000,
+        "d60": 0,
+        "d90": 340,
+        "d120": -3340
+      }
+    },
+    {
+      "accountRef": "LEK007",
+      "accountHolder": "Arefa Lekaowa",
+      "kidesysSection": "Recently Owing",
+      "balance": 940.01,
+      "buckets": {
+        "current": 3550,
+        "d30": 2750,
+        "d60": 0,
+        "d90": 0,
+        "d120": -3650
+      }
+    },
+    {
+      "accountRef": "MPU007",
+      "accountHolder": "Ntsika Mncedisi Mpu\nAsemahle Mpu",
+      "kidesysSection": "Recently Owing",
+      "balance": 2447.57,
+      "buckets": {
+        "current": 6900,
+        "d30": 6900,
+        "d60": -400,
+        "d90": 0,
+        "d120": -6500
+      }
+    },
+    {
+      "accountRef": "NGW003",
+      "accountHolder": "Athandile Nqobizwe Ngwenya Kunene",
+      "kidesysSection": "Recently Owing",
+      "balance": 1649.45,
+      "buckets": {
+        "current": 4350,
+        "d30": 300,
+        "d60": 0,
+        "d90": 0,
+        "d120": 0
+      }
+    },
+    {
+      "accountRef": "JAN003",
+      "accountHolder": "Letlotlo Madikhukhu Jantjie\nAtlegang Jantjie",
+      "kidesysSection": "Recently Owing",
+      "balance": 3901.92,
+      "buckets": {
+        "current": 6000,
+        "d30": 6000,
+        "d60": 4670,
+        "d90": 0,
+        "d120": -5670
+      }
+    },
+    {
+      "accountRef": "MOO005",
+      "accountHolder": "Atlegang Mooketsi Kgwathisi",
+      "kidesysSection": "Recently Owing",
+      "balance": 1525.3,
+      "buckets": {
+        "current": 3550,
+        "d30": 3550,
+        "d60": 0,
+        "d90": 250,
+        "d120": -3050
+      }
+    },
+    {
+      "accountRef": "POG001",
+      "accountHolder": "Atlegang Pogiso",
+      "kidesysSection": "Recently Owing",
+      "balance": 1722.17,
+      "buckets": {
+        "current": 3605,
+        "d30": 1250,
+        "d60": 0,
+        "d90": 0,
+        "d120": 0
+      }
+    },
+    {
+      "accountRef": "MOS023",
+      "accountHolder": "Avuyile Mosesane",
+      "kidesysSection": "Recently Owing",
+      "balance": 2004.17,
+      "buckets": {
+        "current": 3800,
+        "d30": 1850,
+        "d60": 0,
+        "d90": 0,
+        "d120": 0
+      }
+    },
+    {
+      "accountRef": "MKH006",
+      "accountHolder": "Bandile Mkhwayimba",
+      "kidesysSection": "Recently Owing",
+      "balance": 1259.26,
+      "buckets": {
+        "current": 3550,
+        "d30": 0,
+        "d60": 550,
+        "d90": 0,
+        "d120": -550
+      }
+    },
+    {
+      "accountRef": "MAL019",
+      "accountHolder": "Bathabile Malatji",
+      "kidesysSection": "Recently Owing",
+      "balance": 227.02,
+      "buckets": {
+        "current": 3550,
+        "d30": 3590,
+        "d60": 0,
+        "d90": 0,
+        "d120": -6500
+      }
+    },
+    {
+      "accountRef": "GEB002",
+      "accountHolder": "Benyis Geber",
+      "kidesysSection": "Recently Owing",
+      "balance": 1312.46,
+      "buckets": {
+        "current": 3000,
+        "d30": 3300,
+        "d60": 1925,
+        "d90": 0,
+        "d120": -4525
+      }
+    },
+    {
+      "accountRef": "KAL001",
+      "accountHolder": "Bohlokwa Kalosane",
+      "kidesysSection": "Recently Owing",
+      "balance": 1596.24,
+      "buckets": {
+        "current": 3800,
+        "d30": 3800,
+        "d60": 2380,
+        "d90": 0,
+        "d120": -5480
+      }
+    },
+    {
+      "accountRef": "LET013",
+      "accountHolder": "Boiketlo Letebele",
+      "kidesysSection": "Recently Owing",
+      "balance": 2695.87,
+      "buckets": {
+        "current": 3850,
+        "d30": 3750,
+        "d60": 900,
+        "d90": 0,
+        "d120": -900
+      }
+    },
+    {
+      "accountRef": "BAN001",
+      "accountHolder": "Boitumelo Moses Banda",
+      "kidesysSection": "Recently Owing",
+      "balance": 1259.26,
+      "buckets": {
+        "current": 3550,
+        "d30": 0,
+        "d60": 0,
+        "d90": 0,
+        "d120": 0
+      }
+    },
+    {
+      "accountRef": "MAT020",
+      "accountHolder": "Bokamoso Matima",
+      "kidesysSection": "Recently Owing",
+      "balance": 1507.56,
+      "buckets": {
+        "current": 3550,
+        "d30": 3550,
+        "d60": 0,
+        "d90": 4750,
+        "d120": -7600
+      }
+    },
+    {
+      "accountRef": "SET003",
+      "accountHolder": "Bokamoso Setsome",
+      "kidesysSection": "Recently Owing",
+      "balance": 1507.56,
+      "buckets": {
+        "current": 3550,
+        "d30": 3550,
+        "d60": 0,
+        "d90": 1450,
+        "d120": -4300
+      }
+    },
+    {
+      "accountRef": "MOS008",
+      "accountHolder": "Bokang Mosegedi",
+      "kidesysSection": "Recently Owing",
+      "balance": 1135.1,
+      "buckets": {
+        "current": 3000,
+        "d30": 200,
+        "d60": 2600,
+        "d90": 0,
+        "d120": -2600
+      }
+    },
+    {
+      "accountRef": "MUL001",
+      "accountHolder": "Bono Allan Mulaudzi\nMuneiwa Mulaudzi",
+      "kidesysSection": "Recently Owing",
+      "balance": 2057.38,
+      "buckets": {
+        "current": 5800,
+        "d30": 0,
+        "d60": 0,
+        "d90": 0,
+        "d120": 0
+      }
+    },
+    {
+      "accountRef": "RAM022",
+      "accountHolder": "Bonolo Grace Ramatete",
+      "kidesysSection": "Recently Owing",
+      "balance": 975.48,
+      "buckets": {
+        "current": 3000,
+        "d30": 0,
+        "d60": 0,
+        "d90": 500,
+        "d120": -750
+      }
+    },
+    {
+      "accountRef": "MPU005",
+      "accountHolder": "Bonolo Mpuru",
+      "kidesysSection": "Recently Owing",
+      "balance": 1596.24,
+      "buckets": {
+        "current": 3550,
+        "d30": 3750,
+        "d60": 3550,
+        "d90": 4250,
+        "d120": -10600
+      }
+    },
+    {
+      "accountRef": "TSE002",
+      "accountHolder": "Botshelo Tselapedi",
+      "kidesysSection": "Recently Owing",
+      "balance": 1259.26,
+      "buckets": {
+        "current": 3550,
+        "d30": 700,
+        "d60": 0,
+        "d90": 0,
+        "d120": -700
+      }
+    },
+    {
+      "accountRef": "MAP008",
+      "accountHolder": "Busisiwe Maphisa\nAmanhle Ntokozo Maphisa",
+      "kidesysSection": "Recently Owing",
+      "balance": 2908.7,
+      "buckets": {
+        "current": 6800,
+        "d30": 6800,
+        "d60": 600,
+        "d90": 4405,
+        "d120": -10405
+      }
+    },
+    {
+      "accountRef": "GOV001",
+      "accountHolder": "Caleb Nathan Govender",
+      "kidesysSection": "Recently Owing",
+      "balance": 354.72,
+      "buckets": {
+        "current": 1000,
+        "d30": 1000,
+        "d60": -700,
+        "d90": 1700,
+        "d120": -2000
+      }
+    },
+    {
+      "accountRef": "MBO004",
+      "accountHolder": "Christian Siyanda Thahla Mboni",
+      "kidesysSection": "Recently Owing",
+      "balance": 1507.56,
+      "buckets": {
+        "current": 3550,
+        "d30": 3550,
+        "d60": 0,
+        "d90": 100,
+        "d120": -2950
+      }
+    },
+    {
+      "accountRef": "MOO006",
+      "accountHolder": "Zaydene Leigh-chandre Moodley\nDevandre Luciano Moodley",
+      "kidesysSection": "Recently Owing",
+      "balance": 2270.21,
+      "buckets": {
+        "current": 7100,
+        "d30": 2300,
+        "d60": 0,
+        "d90": 0,
+        "d120": -3000
+      }
+    },
+    {
+      "accountRef": "GAA001",
+      "accountHolder": "Didintle Nyeko Gaasenwe",
+      "kidesysSection": "Recently Owing",
+      "balance": 1241.52,
+      "buckets": {
+        "current": 3550,
+        "d30": 2900,
+        "d60": 0,
+        "d90": 0,
+        "d120": -2950
+      }
+    },
+    {
+      "accountRef": "ADA004",
+      "accountHolder": "Zem Adamu\nEldadi Adamu",
+      "kidesysSection": "Recently Owing",
+      "balance": 2607.19,
+      "buckets": {
+        "current": 6650,
+        "d30": 6550,
+        "d60": 2420,
+        "d90": 0,
+        "d120": -8270
+      }
+    },
+    {
+      "accountRef": "KHU005",
+      "accountHolder": "Elethu Entle Khunou",
+      "kidesysSection": "Recently Owing",
+      "balance": 1259.26,
+      "buckets": {
+        "current": 3550,
+        "d30": 0,
+        "d60": 0,
+        "d90": 200,
+        "d120": -200
+      }
+    },
+    {
+      "accountRef": "HAM002",
+      "accountHolder": "Elhadi Hamel\nAya Hamel",
+      "kidesysSection": "Recently Owing",
+      "balance": 3564.93,
+      "buckets": {
+        "current": 7350,
+        "d30": 4150,
+        "d60": 0,
+        "d90": 0,
+        "d120": -1450
+      }
+    },
+    {
+      "accountRef": "MOK020",
+      "accountHolder": "Emmanuella Nyakallo Mokoena",
+      "kidesysSection": "Recently Owing",
+      "balance": 1312.46,
+      "buckets": {
+        "current": 3000,
+        "d30": 3000,
+        "d60": 0,
+        "d90": 4500,
+        "d120": -6800
+      }
+    },
+    {
+      "accountRef": "MAS017",
+      "accountHolder": "Emuhle Maseko",
+      "kidesysSection": "Recently Owing",
+      "balance": 1276.99,
+      "buckets": {
+        "current": 3550,
+        "d30": 3750,
+        "d60": 2570,
+        "d90": 0,
+        "d120": -6270
+      }
+    },
+    {
+      "accountRef": "NDA001",
+      "accountHolder": "Entle Ndamase\nNtando Ndamase",
+      "kidesysSection": "Recently Owing",
+      "balance": 1773.6,
+      "buckets": {
+        "current": 5500,
+        "d30": 5500,
+        "d60": 5500,
+        "d90": 6900,
+        "d120": -18400
+      }
+    },
+    {
+      "accountRef": "MAK022",
+      "accountHolder": "Ese Lesedi Makhathini",
+      "kidesysSection": "Recently Owing",
+      "balance": 798.12,
+      "buckets": {
+        "current": 3550,
+        "d30": 3750,
+        "d60": 3550,
+        "d90": 4250,
+        "d120": -12850
+      }
+    },
+    {
+      "accountRef": "HAI002",
+      "accountHolder": "Esrom Teklezghi Haile\nEliana Haile\nEleora Teklezghi Haile",
+      "kidesysSection": "Recently Owing",
+      "balance": 2979.65,
+      "buckets": {
+        "current": 8400,
+        "d30": 0,
+        "d60": 0,
+        "d90": 100,
+        "d120": -100
+      }
+    },
+    {
+      "accountRef": "PHI003",
+      "accountHolder": "Ethan Jacobus Phillips",
+      "kidesysSection": "Recently Owing",
+      "balance": 1064.16,
+      "buckets": {
+        "current": 3000,
+        "d30": 3000,
+        "d60": 3000,
+        "d90": 3700,
+        "d120": -9700
+      }
+    },
+    {
+      "accountRef": "RAN007",
+      "accountHolder": "Favour Ranthitong",
+      "kidesysSection": "Recently Owing",
+      "balance": 1188.31,
+      "buckets": {
+        "current": 3350,
+        "d30": 0,
+        "d60": 0,
+        "d90": 0,
+        "d120": 0
+      }
+    },
+    {
+      "accountRef": "NDL009",
+      "accountHolder": "Goitseone Ndlovu",
+      "kidesysSection": "Recently Owing",
+      "balance": 1312.46,
+      "buckets": {
+        "current": 3000,
+        "d30": 3000,
+        "d60": 0,
+        "d90": 3700,
+        "d120": -6000
+      }
+    },
+    {
+      "accountRef": "MAB004",
+      "accountHolder": "Gosego Mabale",
+      "kidesysSection": "Recently Owing",
+      "balance": 1312.46,
+      "buckets": {
+        "current": 3000,
+        "d30": 3000,
+        "d60": 0,
+        "d90": 100,
+        "d120": -2400
+      }
+    },
+    {
+      "accountRef": "HOB002",
+      "accountHolder": "Hlulani Bahumi Hobyani",
+      "kidesysSection": "Recently Owing",
+      "balance": 2092.85,
+      "buckets": {
+        "current": 3100,
+        "d30": 2800,
+        "d60": 0,
+        "d90": 0,
+        "d120": 0
+      }
+    },
+    {
+      "accountRef": "NDL013",
+      "accountHolder": "Inami Ndlovu",
+      "kidesysSection": "Recently Owing",
+      "balance": 603.02,
+      "buckets": {
+        "current": 3000,
+        "d30": 0,
+        "d60": -1300,
+        "d90": 0,
+        "d120": 0
+      }
+    },
+    {
+      "accountRef": "NTS008",
+      "accountHolder": "Inkosinam Ntshanga",
+      "kidesysSection": "Recently Owing",
+      "balance": 1401.14,
+      "buckets": {
+        "current": 3550,
+        "d30": 3750,
+        "d60": 0,
+        "d90": 1350,
+        "d120": -4700
+      }
+    },
+    {
+      "accountRef": "MOP003",
+      "accountHolder": "Isago Mophareng",
+      "kidesysSection": "Recently Owing",
+      "balance": 1330.2,
+      "buckets": {
+        "current": 3000,
+        "d30": 1050,
+        "d60": 0,
+        "d90": 0,
+        "d120": -300
+      }
+    },
+    {
+      "accountRef": "AFR002",
+      "accountHolder": "Jordan-leigh Africa",
+      "kidesysSection": "Recently Owing",
+      "balance": 1543.03,
+      "buckets": {
+        "current": 4350,
+        "d30": 0,
+        "d60": 400,
+        "d90": 0,
+        "d120": -400
+      }
+    },
+    {
+      "accountRef": "MOT013",
+      "accountHolder": "Kabelo Motau\nKarabo Motau",
+      "kidesysSection": "Recently Owing",
+      "balance": 2341.15,
+      "buckets": {
+        "current": 7100,
+        "d30": 0,
+        "d60": 3500,
+        "d90": 0,
+        "d120": -4000
+      }
+    },
+    {
+      "accountRef": "MPO001",
+      "accountHolder": "Kabo Mpodi",
+      "kidesysSection": "Recently Owing",
+      "balance": 1312.46,
+      "buckets": {
+        "current": 3000,
+        "d30": 3000,
+        "d60": 0,
+        "d90": 3700,
+        "d120": -6000
+      }
+    },
+    {
+      "accountRef": "MOD018",
+      "accountHolder": "Kamano Omogolo Modise",
+      "kidesysSection": "Recently Owing",
+      "balance": 1241.52,
+      "buckets": {
+        "current": 3000,
+        "d30": 3200,
+        "d60": 300,
+        "d90": 0,
+        "d120": -3000
+      }
+    },
+    {
+      "accountRef": "MOE011",
+      "accountHolder": "Bokang Moemi\nKamogelo Moemi",
+      "kidesysSection": "Recently Owing",
+      "balance": 2376.62,
+      "buckets": {
+        "current": 6000,
+        "d30": 6000,
+        "d60": 6000,
+        "d90": 6300,
+        "d120": -17600
+      }
+    },
+    {
+      "accountRef": "GOI001",
+      "accountHolder": "Kamogelo Ntlafatso Goitsilwe",
+      "kidesysSection": "Recently Owing",
+      "balance": 1312.46,
+      "buckets": {
+        "current": 3000,
+        "d30": 3000,
+        "d60": 0,
+        "d90": 850,
+        "d120": -3150
+      }
+    },
+    {
+      "accountRef": "CHI004",
+      "accountHolder": "Kaone Tinashe Chinyenye",
+      "kidesysSection": "Recently Owing",
+      "balance": 1064.16,
+      "buckets": {
+        "current": 3000,
+        "d30": 0,
+        "d60": 300,
+        "d90": 600,
+        "d120": -900
+      }
+    },
+    {
+      "accountRef": "MOE009",
+      "accountHolder": "Katlego Moeti",
+      "kidesysSection": "Recently Owing",
+      "balance": 1259.26,
+      "buckets": {
+        "current": 3550,
+        "d30": 0,
+        "d60": 0,
+        "d90": 0,
+        "d120": 0
+      }
+    },
+    {
+      "accountRef": "MOK019",
+      "accountHolder": "Keitumetse Mokgotho",
+      "kidesysSection": "Recently Owing",
+      "balance": 1596.24,
+      "buckets": {
+        "current": 3800,
+        "d30": 4000,
+        "d60": 4350,
+        "d90": 5050,
+        "d120": -12700
+      }
+    },
+    {
+      "accountRef": "MOR008",
+      "accountHolder": "Keitumetse Morwe",
+      "kidesysSection": "Recently Owing",
+      "balance": 159.62,
+      "buckets": {
+        "current": 3945,
+        "d30": 0,
+        "d60": 0,
+        "d90": 0,
+        "d120": -3495
+      }
+    },
+    {
+      "accountRef": "RAM010",
+      "accountHolder": "Keitumetsi Ramasika",
+      "kidesysSection": "Recently Owing",
+      "balance": 1188.31,
+      "buckets": {
+        "current": 3000,
+        "d30": 3000,
+        "d60": 0,
+        "d90": 2600,
+        "d120": -5250
+      }
+    },
+    {
+      "accountRef": "MOE004",
+      "accountHolder": "Kgato Fenyang Moeng",
+      "kidesysSection": "Recently Owing",
+      "balance": 1365.67,
+      "buckets": {
+        "current": 3550,
+        "d30": 2100,
+        "d60": 0,
+        "d90": 0,
+        "d120": -1800
+      }
+    },
+    {
+      "accountRef": "MOD005",
+      "accountHolder": "Kgolagano Kekaona Modise",
+      "kidesysSection": "Recently Owing",
+      "balance": 1401.14,
+      "buckets": {
+        "current": 3550,
+        "d30": 3550,
+        "d60": 1750,
+        "d90": 0,
+        "d120": -4900
+      }
+    },
+    {
+      "accountRef": "MOK034",
+      "accountHolder": "Kgothalo Ontshireleditse Mokone\nKgololo Hope Mokone",
+      "kidesysSection": "Recently Owing",
+      "balance": 2199.26,
+      "buckets": {
+        "current": 6000,
+        "d30": 200,
+        "d60": 2950,
+        "d90": 0,
+        "d120": -2950
+      }
+    },
+    {
+      "accountRef": "MET001",
+      "accountHolder": "Khabane Metswamere",
+      "kidesysSection": "Recently Owing",
+      "balance": 1472.09,
+      "buckets": {
+        "current": 4150,
+        "d30": 0,
+        "d60": 0,
+        "d90": 5850,
+        "d120": -5850
+      }
+    },
+    {
+      "accountRef": "MOK035",
+      "accountHolder": "Khanya Mphoentle Mokala\nKhumo-entle Bokang Mokala",
+      "kidesysSection": "Recently Owing",
+      "balance": 2553.98,
+      "buckets": {
+        "current": 5800,
+        "d30": 3800,
+        "d60": 0,
+        "d90": 0,
+        "d120": -2400
+      }
+    },
+    {
+      "accountRef": "DIK003",
+      "accountHolder": "Khumo Dikale",
+      "kidesysSection": "Recently Owing",
+      "balance": 1064.16,
+      "buckets": {
+        "current": 3000,
+        "d30": 0,
+        "d60": 200,
+        "d90": 0,
+        "d120": -200
+      }
+    },
+    {
+      "accountRef": "TSH022",
+      "accountHolder": "Khumo Goitseona Tshegameno",
+      "kidesysSection": "Recently Owing",
+      "balance": 975.48,
+      "buckets": {
+        "current": 3550,
+        "d30": 650,
+        "d60": 0,
+        "d90": 0,
+        "d120": -1450
+      }
+    },
+    {
+      "accountRef": "BUY001",
+      "accountHolder": "Kim Omontle Buys",
+      "kidesysSection": "Recently Owing",
+      "balance": 1028.69,
+      "buckets": {
+        "current": 3000,
+        "d30": 2200,
+        "d60": 0,
+        "d90": 0,
+        "d120": -2300
+      }
+    },
+    {
+      "accountRef": "MAS024",
+      "accountHolder": "Langelihle Yiujune Maseko",
+      "kidesysSection": "Recently Owing",
+      "balance": 1543.03,
+      "buckets": {
+        "current": 4350,
+        "d30": 0,
+        "d60": 0,
+        "d90": 400,
+        "d120": -400
+      }
+    },
+    {
+      "accountRef": "MAR008",
+      "accountHolder": "Leago Refilwe Marema",
+      "kidesysSection": "Recently Owing",
+      "balance": 1525.3,
+      "buckets": {
+        "current": 4300,
+        "d30": 0,
+        "d60": 0,
+        "d90": 0,
+        "d120": 0
+      }
+    },
+    {
+      "accountRef": "KHU006",
+      "accountHolder": "Leano Lesedi Khuduge",
+      "kidesysSection": "Recently Owing",
+      "balance": 1135.1,
+      "buckets": {
+        "current": 3000,
+        "d30": 3200,
+        "d60": 0,
+        "d90": 0,
+        "d120": -3000
+      }
+    },
+    {
+      "accountRef": "SEI859",
+      "accountHolder": "Leano Seichokelo",
+      "kidesysSection": "Recently Owing",
+      "balance": 1347.94,
+      "buckets": {
+        "current": 3800,
+        "d30": 3800,
+        "d60": 0,
+        "d90": 1900,
+        "d120": -5700
+      }
+    },
+    {
+      "accountRef": "KAL002",
+      "accountHolder": "Leano Shaun Kalunga",
+      "kidesysSection": "Recently Owing",
+      "balance": 1667.18,
+      "buckets": {
+        "current": 3000,
+        "d30": 3000,
+        "d60": 1700,
+        "d90": 0,
+        "d120": -3000
+      }
+    },
+    {
+      "accountRef": "MOT036",
+      "accountHolder": "Ledile Keamogetswe Mothotse\nAtang Mothotse",
+      "kidesysSection": "Recently Owing",
+      "balance": 1986.43,
+      "buckets": {
+        "current": 5600,
+        "d30": 0,
+        "d60": 0,
+        "d90": 0,
+        "d120": 0
+      }
+    },
+    {
+      "accountRef": "SWA001",
+      "accountHolder": "Leigham Jayden Thiago Swartz",
+      "kidesysSection": "Recently Owing",
+      "balance": 993.22,
+      "buckets": {
+        "current": 2800,
+        "d30": 0,
+        "d60": 1950,
+        "d90": -1950,
+        "d120": 0
+      }
+    },
+    {
+      "accountRef": "LEG001",
+      "accountHolder": "Lesedi Legare\nNaledi Legare",
+      "kidesysSection": "Recently Owing",
+      "balance": 2128.32,
+      "buckets": {
+        "current": 7100,
+        "d30": 0,
+        "d60": 0,
+        "d90": 0,
+        "d120": -1100
+      }
+    },
+    {
+      "accountRef": "MOI002",
+      "accountHolder": "Lesedi Osego Moinwe",
+      "kidesysSection": "Recently Owing",
+      "balance": 815.86,
+      "buckets": {
+        "current": 3000,
+        "d30": 3000,
+        "d60": 3000,
+        "d90": 3700,
+        "d120": -10400
+      }
+    },
+    {
+      "accountRef": "MOF002",
+      "accountHolder": "Letlotlo Mofuoa",
+      "kidesysSection": "Recently Owing",
+      "balance": 1064.16,
+      "buckets": {
+        "current": 3000,
+        "d30": 250,
+        "d60": 0,
+        "d90": 0,
+        "d120": -250
+      }
+    },
+    {
+      "accountRef": "RAM019",
+      "accountHolder": "Loatile Nicole Ramokoka",
+      "kidesysSection": "Recently Owing",
+      "balance": 993.22,
+      "buckets": {
+        "current": 2800,
+        "d30": 200,
+        "d60": -200,
+        "d90": 0,
+        "d120": 0
+      }
+    },
+    {
+      "accountRef": "MAS012",
+      "accountHolder": "Lwazi Perez Masilela\nNtandoyenkosi Ethan Masilela",
+      "kidesysSection": "Recently Owing",
+      "balance": 2518.51,
+      "buckets": {
+        "current": 7100,
+        "d30": 7100,
+        "d60": 0,
+        "d90": 5050,
+        "d120": -12150
+      }
+    },
+    {
+      "accountRef": "MOT034",
+      "accountHolder": "Mahase Mothibeli",
+      "kidesysSection": "Recently Owing",
+      "balance": 1064.16,
+      "buckets": {
+        "current": 3550,
+        "d30": 750,
+        "d60": 0,
+        "d90": -300,
+        "d120": -1000
+      }
+    },
+    {
+      "accountRef": "MAM005",
+      "accountHolder": "Masego Mamabolo",
+      "kidesysSection": "Recently Owing",
+      "balance": 425.66,
+      "buckets": {
+        "current": 1400,
+        "d30": -200,
+        "d60": 0,
+        "d90": 0,
+        "d120": 0
+      }
+    },
+    {
+      "accountRef": "MAH004",
+      "accountHolder": "Mayani Daniel Mahango",
+      "kidesysSection": "Recently Owing",
+      "balance": 1135.1,
+      "buckets": {
+        "current": 3000,
+        "d30": 3200,
+        "d60": 2000,
+        "d90": 0,
+        "d120": -5000
+      }
+    },
+    {
+      "accountRef": "MAT031",
+      "accountHolder": "Mikateko Mathebula",
+      "kidesysSection": "Recently Owing",
+      "balance": 1809.07,
+      "buckets": {
+        "current": 4600,
+        "d30": 4600,
+        "d60": -1300,
+        "d90": -800,
+        "d120": -2000
+      }
+    },
+    {
+      "accountRef": "HOB001",
+      "accountHolder": "Mkateko Lowerence Junior Hobyani Mathe",
+      "kidesysSection": "Recently Owing",
+      "balance": 940.01,
+      "buckets": {
+        "current": 3000,
+        "d30": 3000,
+        "d60": 3000,
+        "d90": 3700,
+        "d120": -10050
+      }
+    },
+    {
+      "accountRef": "MOL003",
+      "accountHolder": "Molebogeng Maselela",
+      "kidesysSection": "Recently Owing",
+      "balance": 1670.73,
+      "buckets": {
+        "current": 4010,
+        "d30": 4300,
+        "d60": 2490,
+        "d90": 0,
+        "d120": -6090
+      }
+    },
+    {
+      "accountRef": "HOM001",
+      "accountHolder": "Mpiloentle Nomzanga",
+      "kidesysSection": "Recently Owing",
+      "balance": 1312.46,
+      "buckets": {
+        "current": 3000,
+        "d30": 3000,
+        "d60": 0,
+        "d90": 4000,
+        "d120": -6300
+      }
+    },
+    {
+      "accountRef": "MOO004",
+      "accountHolder": "Ronisha Moodley\nNathan Moodley",
+      "kidesysSection": "Recently Owing",
+      "balance": 3029.31,
+      "buckets": {
+        "current": 7100,
+        "d30": 10020,
+        "d60": 0,
+        "d90": 0,
+        "d120": -8580
+      }
+    },
+    {
+      "accountRef": "DHL003",
+      "accountHolder": "Ndalo-enhle Nkanyezi Dhlamini",
+      "kidesysSection": "Recently Owing",
+      "balance": 2128.32,
+      "buckets": {
+        "current": 3000,
+        "d30": 3000,
+        "d60": 0,
+        "d90": 0,
+        "d120": 0
+      }
+    },
+    {
+      "accountRef": "RIK001",
+      "accountHolder": "Ndzalo Enelo Rikhotso",
+      "kidesysSection": "Recently Owing",
+      "balance": 2802.29,
+      "buckets": {
+        "current": 4350,
+        "d30": 4350,
+        "d60": 670,
+        "d90": 0,
+        "d120": -1470
+      }
+    },
+    {
+      "accountRef": "JEC002",
+      "accountHolder": "Nelisiwe Jeche",
+      "kidesysSection": "Recently Owing",
+      "balance": 697.02,
+      "buckets": {
+        "current": 3800,
+        "d30": 2610,
+        "d60": 0,
+        "d90": 0,
+        "d120": -4445
+      }
+    },
+    {
+      "accountRef": "MPI102",
+      "accountHolder": "Neo Lethabo Mpiko",
+      "kidesysSection": "Recently Owing",
+      "balance": 1347.94,
+      "buckets": {
+        "current": 3000,
+        "d30": 3200,
+        "d60": 0,
+        "d90": 3700,
+        "d120": -6100
+      }
+    },
+    {
+      "accountRef": "NKA003",
+      "accountHolder": "Ngcebo Sindiso Nkabane",
+      "kidesysSection": "Recently Owing",
+      "balance": 1596.24,
+      "buckets": {
+        "current": 3800,
+        "d30": 3800,
+        "d60": 0,
+        "d90": 4500,
+        "d120": -7600
+      }
+    },
+    {
+      "accountRef": "MOO003",
+      "accountHolder": "Nikitah Moonsammy\nCaige Moonsammy",
+      "kidesysSection": "Recently Owing",
+      "balance": 2128.32,
+      "buckets": {
+        "current": 6000,
+        "d30": 0,
+        "d60": 0,
+        "d90": 2800,
+        "d120": -2800
+      }
+    },
+    {
+      "accountRef": "KOB001",
+      "accountHolder": "Njabulo Kobo",
+      "kidesysSection": "Recently Owing",
+      "balance": 833.59,
+      "buckets": {
+        "current": 3000,
+        "d30": -100,
+        "d60": 0,
+        "d90": 0,
+        "d120": -550
+      }
+    },
+    {
+      "accountRef": "SIB003",
+      "accountHolder": "Nsovo Sibiya\nVutivi Sibiya",
+      "kidesysSection": "Recently Owing",
+      "balance": 1702.66,
+      "buckets": {
+        "current": 5600,
+        "d30": 0,
+        "d60": 0,
+        "d90": 0,
+        "d120": -800
+      }
+    },
+    {
+      "accountRef": "MAK020",
+      "accountHolder": "Loanolwaone Makhubela\nNtengo Ntshangase\nLoapi Makhubela",
+      "kidesysSection": "Recently Owing",
+      "balance": 3281.16,
+      "buckets": {
+        "current": 8900,
+        "d30": 5400,
+        "d60": 0,
+        "d90": 0,
+        "d120": -5050
+      }
+    },
+    {
+      "accountRef": "DIK002",
+      "accountHolder": "Nyakalo Naledi Dikotsi",
+      "kidesysSection": "Recently Owing",
+      "balance": 1223.78,
+      "buckets": {
+        "current": 3000,
+        "d30": 3300,
+        "d60": 0,
+        "d90": 3700,
+        "d120": -6550
+      }
+    },
+    {
+      "accountRef": "DIA006",
+      "accountHolder": "Oabile Diale",
+      "kidesysSection": "Recently Owing",
+      "balance": 1064.16,
+      "buckets": {
+        "current": 3000,
+        "d30": 0,
+        "d60": 100,
+        "d90": 0,
+        "d120": -100
+      }
+    },
+    {
+      "accountRef": "SIM002",
+      "accountHolder": "Oageng Simelane\nOlerato Simelane",
+      "kidesysSection": "Recently Owing",
+      "balance": 2021.9,
+      "buckets": {
+        "current": 7100,
+        "d30": 1900,
+        "d60": 0,
+        "d90": 0,
+        "d120": -3300
+      }
+    },
+    {
+      "accountRef": "MOL010",
+      "accountHolder": "Oagile Kabo Molete",
+      "kidesysSection": "Recently Owing",
+      "balance": 1312.46,
+      "buckets": {
+        "current": 3000,
+        "d30": 3000,
+        "d60": 0,
+        "d90": 700,
+        "d120": -3000
+      }
+    },
+    {
+      "accountRef": "TLH006",
+      "accountHolder": "Oagile Tlhabane\nOreneile Tlhabane",
+      "kidesysSection": "Recently Owing",
+      "balance": 2128.32,
+      "buckets": {
+        "current": 6000,
+        "d30": 0,
+        "d60": 2600,
+        "d90": 0,
+        "d120": -2600
+      }
+    },
+    {
+      "accountRef": "LEK008",
+      "accountHolder": "Oarabile Lekwane",
+      "kidesysSection": "Recently Owing",
+      "balance": 1507.56,
+      "buckets": {
+        "current": 3550,
+        "d30": 700,
+        "d60": 0,
+        "d90": 0,
+        "d120": 0
+      }
+    },
+    {
+      "accountRef": "MOK036",
+      "accountHolder": "Oarabile Mokwena",
+      "kidesysSection": "Recently Owing",
+      "balance": 1578.5,
+      "buckets": {
+        "current": 3550,
+        "d30": 3750,
+        "d60": 0,
+        "d90": 400,
+        "d120": -3250
+      }
+    },
+    {
+      "accountRef": "SEE002",
+      "accountHolder": "Oaratwa Seema",
+      "kidesysSection": "Recently Owing",
+      "balance": 354.72,
+      "buckets": {
+        "current": 1000,
+        "d30": 0,
+        "d60": 0,
+        "d90": 0,
+        "d120": 0
+      }
+    },
+    {
+      "accountRef": "LAN002",
+      "accountHolder": "Obakeng Langeni",
+      "kidesysSection": "Recently Owing",
+      "balance": 1035.78,
+      "buckets": {
+        "current": 3000,
+        "d30": 3000,
+        "d60": 0,
+        "d90": 2420,
+        "d120": -5500
+      }
+    },
+    {
+      "accountRef": "TSH016",
+      "accountHolder": "Omosa Aobakwe Tshwaane (kgasoane)\nOboikanyo Kgatoentle Tshwaane (kgasoane)",
+      "kidesysSection": "Recently Owing",
+      "balance": 2624.93,
+      "buckets": {
+        "current": 6550,
+        "d30": 5550,
+        "d60": 0,
+        "d90": 0,
+        "d120": -4700
+      }
+    },
+    {
+      "accountRef": "MON006",
+      "accountHolder": "Oboitshepo Monewe",
+      "kidesysSection": "Recently Owing",
+      "balance": 1560.77,
+      "buckets": {
+        "current": 3000,
+        "d30": 3200,
+        "d60": 0,
+        "d90": 4200,
+        "d120": -6000
+      }
+    },
+    {
+      "accountRef": "MPE002",
+      "accountHolder": "Ofentse Kabelo Mpete",
+      "kidesysSection": "Recently Owing",
+      "balance": 319.25,
+      "buckets": {
+        "current": 2800,
+        "d30": 200,
+        "d60": 0,
+        "d90": 3500,
+        "d120": -5600
+      }
+    },
+    {
+      "accountRef": "THO004",
+      "accountHolder": "Ofentse Koketso Thompo",
+      "kidesysSection": "Recently Owing",
+      "balance": 1418.88,
+      "buckets": {
+        "current": 4350,
+        "d30": 4350,
+        "d60": 4100,
+        "d90": 0,
+        "d120": -8800
+      }
+    },
+    {
+      "accountRef": "MOK028",
+      "accountHolder": "Ofentse Mokua",
+      "kidesysSection": "Recently Owing",
+      "balance": 1259.26,
+      "buckets": {
+        "current": 3550,
+        "d30": 3550,
+        "d60": 0,
+        "d90": 4250,
+        "d120": -7800
+      }
+    },
+    {
+      "accountRef": "MAN011",
+      "accountHolder": "Okuhle Maninela",
+      "kidesysSection": "Recently Owing",
+      "balance": 1064.16,
+      "buckets": {
+        "current": 3000,
+        "d30": 3000,
+        "d60": 0,
+        "d90": -3000,
+        "d120": 0
+      }
+    },
+    {
+      "accountRef": "TLH005",
+      "accountHolder": "Oletilwe Tlhame",
+      "kidesysSection": "Recently Owing",
+      "balance": 1543.03,
+      "buckets": {
+        "current": 4350,
+        "d30": 3400,
+        "d60": 0,
+        "d90": 0,
+        "d120": -3400
+      }
+    },
+    {
+      "accountRef": "MAK023",
+      "accountHolder": "Olwethu Amahle Makhathini",
+      "kidesysSection": "Recently Owing",
+      "balance": 2199.26,
+      "buckets": {
+        "current": 3100,
+        "d30": 3100,
+        "d60": 0,
+        "d90": 0,
+        "d120": 0
+      }
+    },
+    {
+      "accountRef": "KEK003",
+      "accountHolder": "Omaatla Kekana",
+      "kidesysSection": "Recently Owing",
+      "balance": 851.33,
+      "buckets": {
+        "current": 2700,
+        "d30": -300,
+        "d60": 0,
+        "d90": 0,
+        "d120": 0
+      }
+    },
+    {
+      "accountRef": "RAN002",
+      "accountHolder": "Omaatla Tlotlo Ranta",
+      "kidesysSection": "Recently Owing",
+      "balance": 993.22,
+      "buckets": {
+        "current": 3000,
+        "d30": 2100,
+        "d60": 0,
+        "d90": 0,
+        "d120": -2300
+      }
+    },
+    {
+      "accountRef": "RAM009",
+      "accountHolder": "Omatla Malesela Ramagogogdi",
+      "kidesysSection": "Recently Owing",
+      "balance": 1507.56,
+      "buckets": {
+        "current": 3550,
+        "d30": 3550,
+        "d60": 0,
+        "d90": 550,
+        "d120": -3400
+      }
+    },
+    {
+      "accountRef": "KIN001",
+      "accountHolder": "Omatla Sensation Kwele",
+      "kidesysSection": "Recently Owing",
+      "balance": 1135.1,
+      "buckets": {
+        "current": 3000,
+        "d30": 200,
+        "d60": 0,
+        "d90": 2650,
+        "d120": -2650
+      }
+    },
+    {
+      "accountRef": "MOT028",
+      "accountHolder": "Omogolo Kuthe Motlhake",
+      "kidesysSection": "Recently Owing",
+      "balance": 1064.16,
+      "buckets": {
+        "current": 3000,
+        "d30": 2000,
+        "d60": 0,
+        "d90": 0,
+        "d120": -2000
+      }
+    },
+    {
+      "accountRef": "THA003",
+      "accountHolder": "Omogolo Thakadu",
+      "kidesysSection": "Recently Owing",
+      "balance": 1135.1,
+      "buckets": {
+        "current": 3000,
+        "d30": 200,
+        "d60": 0,
+        "d90": 4200,
+        "d120": -4200
+      }
+    },
+    {
+      "accountRef": "MOL044",
+      "accountHolder": "Omontle Molefe",
+      "kidesysSection": "Recently Owing",
+      "balance": 1223.78,
+      "buckets": {
+        "current": 3000,
+        "d30": 3200,
+        "d60": 0,
+        "d90": 1380,
+        "d120": -4130
+      }
+    },
+    {
+      "accountRef": "TSA001",
+      "accountHolder": "Omphile Tsame",
+      "kidesysSection": "Recently Owing",
+      "balance": 1064.16,
+      "buckets": {
+        "current": 3000,
+        "d30": 1905,
+        "d60": 0,
+        "d90": 0,
+        "d120": -1905
+      }
+    },
+    {
+      "accountRef": "MOR010",
+      "accountHolder": "Onkamogetse Kgotatso Morobe",
+      "kidesysSection": "Recently Owing",
+      "balance": 1014.5,
+      "buckets": {
+        "current": 3000,
+        "d30": 200,
+        "d60": 480,
+        "d90": 0,
+        "d120": -820
+      }
+    },
+    {
+      "accountRef": "MAM007",
+      "accountHolder": "Onkarabile Mamabolo",
+      "kidesysSection": "Recently Owing",
+      "balance": 1064.16,
+      "buckets": {
+        "current": 2700,
+        "d30": 600,
+        "d60": -300,
+        "d90": 0,
+        "d120": 0
+      }
+    },
+    {
+      "accountRef": "MOR004",
+      "accountHolder": "Onthatile Morobane",
+      "kidesysSection": "Recently Owing",
+      "balance": 2518.51,
+      "buckets": {
+        "current": 4100,
+        "d30": 4300,
+        "d60": 4100,
+        "d90": 4500,
+        "d120": -9900
+      }
+    },
+    {
+      "accountRef": "TSH017",
+      "accountHolder": "Onthatile Tshose",
+      "kidesysSection": "Recently Owing",
+      "balance": 1876.47,
+      "buckets": {
+        "current": 3550,
+        "d30": 3850,
+        "d60": 1410,
+        "d90": 0,
+        "d120": -3520
+      }
+    },
+    {
+      "accountRef": "SIT004",
+      "accountHolder": "Onwaba Lathitha Sitwayi",
+      "kidesysSection": "Recently Owing",
+      "balance": 993.22,
+      "buckets": {
+        "current": 2800,
+        "d30": 300,
+        "d60": 0,
+        "d90": -150,
+        "d120": -150
+      }
+    },
+    {
+      "accountRef": "MAR009",
+      "accountHolder": "Opelong Lesedi Mariri",
+      "kidesysSection": "Recently Owing",
+      "balance": 1436.62,
+      "buckets": {
+        "current": 3550,
+        "d30": 500,
+        "d60": 0,
+        "d90": 0,
+        "d120": 0
+      }
+    },
+    {
+      "accountRef": "MEN002",
+      "accountHolder": "Oratile Charmila Meno",
+      "kidesysSection": "Recently Owing",
+      "balance": 1064.16,
+      "buckets": {
+        "current": 3000,
+        "d30": 0,
+        "d60": 0,
+        "d90": 0,
+        "d120": 0
+      }
+    },
+    {
+      "accountRef": "RAM020",
+      "accountHolder": "Oreabetse Regomoditswe Ramafoko",
+      "kidesysSection": "Recently Owing",
+      "balance": 1578.5,
+      "buckets": {
+        "current": 4350,
+        "d30": 400,
+        "d60": -300,
+        "d90": 0,
+        "d120": 0
+      }
+    },
+    {
+      "accountRef": "TSH020",
+      "accountHolder": "Orearabetse Kaone Tshukudu",
+      "kidesysSection": "Recently Owing",
+      "balance": 1025.14,
+      "buckets": {
+        "current": 3000,
+        "d30": 2390,
+        "d60": 0,
+        "d90": 0,
+        "d120": -2500
+      }
+    },
+    {
+      "accountRef": "SEG007",
+      "accountHolder": "Oreratile Segobaetso",
+      "kidesysSection": "Recently Owing",
+      "balance": 354.72,
+      "buckets": {
+        "current": 1000,
+        "d30": 0,
+        "d60": 300,
+        "d90": 0,
+        "d120": -300
+      }
+    },
+    {
+      "accountRef": "MAL022",
+      "accountHolder": "Osego Ntshembo Malati",
+      "kidesysSection": "Recently Owing",
+      "balance": 1259.26,
+      "buckets": {
+        "current": 3550,
+        "d30": 0,
+        "d60": 0,
+        "d90": 550,
+        "d120": -550
+      }
+    },
+    {
+      "accountRef": "SES001",
+      "accountHolder": "Osego Seswai",
+      "kidesysSection": "Recently Owing",
+      "balance": 1489.82,
+      "buckets": {
+        "current": 3000,
+        "d30": 2900,
+        "d60": 0,
+        "d90": 0,
+        "d120": -1700
+      }
+    },
+    {
+      "accountRef": "PIL003",
+      "accountHolder": "Otlotleng Pilane\nKatlego Einstein Pilane",
+      "kidesysSection": "Recently Owing",
+      "balance": 3777.77,
+      "buckets": {
+        "current": 6400,
+        "d30": 4250,
+        "d60": 0,
+        "d90": 0,
+        "d120": 0
+      }
+    },
+    {
+      "accountRef": "MAN013",
+      "accountHolder": "Ovayo Mani",
+      "kidesysSection": "Recently Owing",
+      "balance": 993.22,
+      "buckets": {
+        "current": 2800,
+        "d30": 0,
+        "d60": 0,
+        "d90": 0,
+        "d120": 0
+      }
+    },
+    {
+      "accountRef": "MAL020",
+      "accountHolder": "Palesa Malatji",
+      "kidesysSection": "Recently Owing",
+      "balance": 3032.86,
+      "buckets": {
+        "current": 4350,
+        "d30": 4350,
+        "d60": 350,
+        "d90": -100,
+        "d120": -400
+      }
+    },
+    {
+      "accountRef": "SEN002",
+      "accountHolder": "Peoentle Senne",
+      "kidesysSection": "Recently Owing",
+      "balance": 2536.25,
+      "buckets": {
+        "current": 3550,
+        "d30": 3750,
+        "d60": 3550,
+        "d90": 490,
+        "d120": -4190
+      }
+    },
+    {
+      "accountRef": "NTO003",
+      "accountHolder": "Phenyo Ntoula",
+      "kidesysSection": "Recently Owing",
+      "balance": 1135.1,
+      "buckets": {
+        "current": 3000,
+        "d30": 2600,
+        "d60": 0,
+        "d90": 0,
+        "d120": -2400
+      }
+    },
+    {
+      "accountRef": "MOG018",
+      "accountHolder": "Phetogo Mogolola",
+      "kidesysSection": "Recently Owing",
+      "balance": 1330.2,
+      "buckets": {
+        "current": 3550,
+        "d30": 200,
+        "d60": 0,
+        "d90": 400,
+        "d120": -400
+      }
+    },
+    {
+      "accountRef": "RAS004",
+      "accountHolder": "Pholoso Rasetlola",
+      "kidesysSection": "Recently Owing",
+      "balance": 1241.52,
+      "buckets": {
+        "current": 3000,
+        "d30": 500,
+        "d60": 0,
+        "d90": 0,
+        "d120": 0
+      }
+    },
+    {
+      "accountRef": "LER002",
+      "accountHolder": "Realeboga Leroke",
+      "kidesysSection": "Recently Owing",
+      "balance": 1223.78,
+      "buckets": {
+        "current": 3550,
+        "d30": 3550,
+        "d60": 850,
+        "d90": 0,
+        "d120": -4500
+      }
+    },
+    {
+      "accountRef": "MAT024",
+      "accountHolder": "Realeboga Matshego",
+      "kidesysSection": "Recently Owing",
+      "balance": 1259.26,
+      "buckets": {
+        "current": 3550,
+        "d30": 0,
+        "d60": 2000,
+        "d90": 0,
+        "d120": -2000
+      }
+    },
+    {
+      "accountRef": "MOR011",
+      "accountHolder": "Rearabile Oreratile Moruane",
+      "kidesysSection": "Recently Owing",
+      "balance": 1259.26,
+      "buckets": {
+        "current": 3550,
+        "d30": 200,
+        "d60": 0,
+        "d90": 0,
+        "d120": -200
+      }
+    },
+    {
+      "accountRef": "MOL039",
+      "accountHolder": "Reatlegile Faith Molefi",
+      "kidesysSection": "Recently Owing",
+      "balance": 1206.05,
+      "buckets": {
+        "current": 3550,
+        "d30": 3550,
+        "d60": -950,
+        "d90": 3750,
+        "d120": -6500
+      }
+    },
+    {
+      "accountRef": "MOD010",
+      "accountHolder": "Reatlegile Modibedi",
+      "kidesysSection": "Recently Owing",
+      "balance": 2199.26,
+      "buckets": {
+        "current": 3550,
+        "d30": 3550,
+        "d60": 1060,
+        "d90": 0,
+        "d120": -1960
+      }
+    },
+    {
+      "accountRef": "POO003",
+      "accountHolder": "Reatlegile Reoikantse Poone",
+      "kidesysSection": "Recently Owing",
+      "balance": 1809.07,
+      "buckets": {
+        "current": 4100,
+        "d30": 1850,
+        "d60": 0,
+        "d90": 0,
+        "d120": -850
+      }
+    },
+    {
+      "accountRef": "MAL006",
+      "accountHolder": "Reboikantse Omosa Mayana",
+      "kidesysSection": "Recently Owing",
+      "balance": 1826.81,
+      "buckets": {
+        "current": 5150,
+        "d30": 0,
+        "d60": 3100,
+        "d90": 0,
+        "d120": -3100
+      }
+    },
+    {
+      "accountRef": "GAE002",
+      "accountHolder": "Reitumetse Gaebone",
+      "kidesysSection": "Recently Owing",
+      "balance": 1603.33,
+      "buckets": {
+        "current": 3800,
+        "d30": 4000,
+        "d60": 2960,
+        "d90": 0,
+        "d120": -6240
+      }
+    },
+    {
+      "accountRef": "TSH006",
+      "accountHolder": "Reitumetse Naledi Njabulo Tshiponyane Setae",
+      "kidesysSection": "Recently Owing",
+      "balance": 1010.95,
+      "buckets": {
+        "current": 3000,
+        "d30": 3000,
+        "d60": 0,
+        "d90": 4200,
+        "d120": -7350
+      }
+    },
+    {
+      "accountRef": "MOL020",
+      "accountHolder": "Rekgabile Molefe",
+      "kidesysSection": "Recently Owing",
+      "balance": 1312.46,
+      "buckets": {
+        "current": 3000,
+        "d30": 950,
+        "d60": 0,
+        "d90": 0,
+        "d120": -250
+      }
+    },
+    {
+      "accountRef": "TSH019",
+      "accountHolder": "Relesego Ontiretse Tsheloane",
+      "kidesysSection": "Recently Owing",
+      "balance": 1064.16,
+      "buckets": {
+        "current": 3000,
+        "d30": 0,
+        "d60": 0,
+        "d90": 0,
+        "d120": 0
+      }
+    },
+    {
+      "accountRef": "KEN001",
+      "accountHolder": "Remofeilwe Keneilwe",
+      "kidesysSection": "Recently Owing",
+      "balance": 1064.16,
+      "buckets": {
+        "current": 3000,
+        "d30": 0,
+        "d60": 1785,
+        "d90": 1000,
+        "d120": -2785
+      }
+    },
+    {
+      "accountRef": "MAL018",
+      "accountHolder": "Remoneilwe Daniel Maloma",
+      "kidesysSection": "Recently Owing",
+      "balance": 266.04,
+      "buckets": {
+        "current": 3450,
+        "d30": 0,
+        "d60": 0,
+        "d90": 0,
+        "d120": -2700
+      }
+    },
+    {
+      "accountRef": "RAM015",
+      "accountHolder": "Remoneilwe Johanna Mothuloe",
+      "kidesysSection": "Recently Owing",
+      "balance": 1259.26,
+      "buckets": {
+        "current": 3550,
+        "d30": 2600,
+        "d60": 0,
+        "d90": 0,
+        "d120": -2600
+      }
+    },
+    {
+      "accountRef": "RAN008",
+      "accountHolder": "Reneilwe Kemelo Rangaka",
+      "kidesysSection": "Recently Owing",
+      "balance": 1064.16,
+      "buckets": {
+        "current": 3000,
+        "d30": 0,
+        "d60": 0,
+        "d90": 0,
+        "d120": 0
+      }
+    },
+    {
+      "accountRef": "SIN001",
+      "accountHolder": "Reneilwe Sindale",
+      "kidesysSection": "Recently Owing",
+      "balance": 2376.62,
+      "buckets": {
+        "current": 3550,
+        "d30": 3550,
+        "d60": 3100,
+        "d90": 0,
+        "d120": -3500
+      }
+    },
+    {
+      "accountRef": "NHL002",
+      "accountHolder": "Rethabile Nhlapo",
+      "kidesysSection": "Recently Owing",
+      "balance": 1347.94,
+      "buckets": {
+        "current": 3550,
+        "d30": 3750,
+        "d60": 4100,
+        "d90": 3700,
+        "d120": -11300
+      }
+    },
+    {
+      "accountRef": "RAM011",
+      "accountHolder": "Rethabile Ramalete",
+      "kidesysSection": "Recently Owing",
+      "balance": 1259.26,
+      "buckets": {
+        "current": 3550,
+        "d30": 1860,
+        "d60": 0,
+        "d90": 0,
+        "d120": -1860
+      }
+    },
+    {
+      "accountRef": "KER001",
+      "accountHolder": "Retshegofetse Keretetse",
+      "kidesysSection": "Recently Owing",
+      "balance": 1064.16,
+      "buckets": {
+        "current": 3000,
+        "d30": 0,
+        "d60": 0,
+        "d90": 0,
+        "d120": 0
+      }
+    },
+    {
+      "accountRef": "WIL002",
+      "accountHolder": "Rishon Kyle Williams",
+      "kidesysSection": "Recently Owing",
+      "balance": 1117.37,
+      "buckets": {
+        "current": 3550,
+        "d30": 3550,
+        "d60": 3550,
+        "d90": 4250,
+        "d120": -11750
+      }
+    },
+    {
+      "accountRef": "NHL001",
+      "accountHolder": "Rorisang Nhlapo",
+      "kidesysSection": "Recently Owing",
+      "balance": 1347.94,
+      "buckets": {
+        "current": 3550,
+        "d30": 3750,
+        "d60": 4100,
+        "d90": 500,
+        "d120": -8100
+      }
+    },
+    {
+      "accountRef": "JAM001",
+      "accountHolder": "Shadreck James",
+      "kidesysSection": "Recently Owing",
+      "balance": 425.66,
+      "buckets": {
+        "current": 1200,
+        "d30": 1200,
+        "d60": 0,
+        "d90": 1500,
+        "d120": -2700
+      }
+    },
+    {
+      "accountRef": "DIK001",
+      "accountHolder": "Sinenhlanhla Dikana Iviwe",
+      "kidesysSection": "Recently Owing",
+      "balance": 1489.82,
+      "buckets": {
+        "current": 3000,
+        "d30": 3500,
+        "d60": 400,
+        "d90": 0,
+        "d120": -2700
+      }
+    },
+    {
+      "accountRef": "MSI003",
+      "accountHolder": "Somusa Sibani Msimango",
+      "kidesysSection": "Recently Owing",
+      "balance": 1312.46,
+      "buckets": {
+        "current": 3000,
+        "d30": 3000,
+        "d60": 0,
+        "d90": 400,
+        "d120": -2700
+      }
+    },
+    {
+      "accountRef": "PEB002",
+      "accountHolder": "Teboho Pebane\nJunior Pebane",
+      "kidesysSection": "Recently Owing",
+      "balance": 4469.47,
+      "buckets": {
+        "current": 7700,
+        "d30": 7185,
+        "d60": 0,
+        "d90": 0,
+        "d120": -2285
+      }
+    },
+    {
+      "accountRef": "MAB011",
+      "accountHolder": "Thandekile Princess Mabuza",
+      "kidesysSection": "Recently Owing",
+      "balance": 1773.6,
+      "buckets": {
+        "current": 3000,
+        "d30": 3300,
+        "d60": 1400,
+        "d90": 0,
+        "d120": -2700
+      }
+    },
+    {
+      "accountRef": "LEG003",
+      "accountHolder": "Thato Legari",
+      "kidesysSection": "Recently Owing",
+      "balance": 1543.03,
+      "buckets": {
+        "current": 4350,
+        "d30": 4395,
+        "d60": 0,
+        "d90": 0,
+        "d120": -4395
+      }
+    },
+    {
+      "accountRef": "MOT016",
+      "accountHolder": "Thoriso Mothibedi",
+      "kidesysSection": "Recently Owing",
+      "balance": 1064.16,
+      "buckets": {
+        "current": 3000,
+        "d30": 3000,
+        "d60": 750,
+        "d90": 0,
+        "d120": -3750
+      }
+    },
+    {
+      "accountRef": "LET012",
+      "accountHolder": "Tlhokomelo Letsoalo",
+      "kidesysSection": "Recently Owing",
+      "balance": 1064.16,
+      "buckets": {
+        "current": 3000,
+        "d30": 0,
+        "d60": 1400,
+        "d90": 0,
+        "d120": -1400
+      }
+    },
+    {
+      "accountRef": "MAB008",
+      "accountHolder": "Tlotlego Mabena",
+      "kidesysSection": "Recently Owing",
+      "balance": 886.8,
+      "buckets": {
+        "current": 3000,
+        "d30": 0,
+        "d60": 1970,
+        "d90": 0,
+        "d120": -2470
+      }
+    },
+    {
+      "accountRef": "MOD019",
+      "accountHolder": "Tlotso Modisane",
+      "kidesysSection": "Recently Owing",
+      "balance": 1880.02,
+      "buckets": {
+        "current": 4350,
+        "d30": 2750,
+        "d60": 0,
+        "d90": 0,
+        "d120": -1800
+      }
+    },
+    {
+      "accountRef": "MOT010",
+      "accountHolder": "Tokelo Motshwanedi",
+      "kidesysSection": "Recently Owing",
+      "balance": 1064.16,
+      "buckets": {
+        "current": 3000,
+        "d30": 0,
+        "d60": 300,
+        "d90": 2400,
+        "d120": -2700
+      }
+    },
+    {
+      "accountRef": "MOY005",
+      "accountHolder": "Trevor Moyambo",
+      "kidesysSection": "Recently Owing",
+      "balance": 1330.2,
+      "buckets": {
+        "current": 3550,
+        "d30": 250,
+        "d60": 0,
+        "d90": 0,
+        "d120": -50
+      }
+    },
+    {
+      "accountRef": "DIN002",
+      "accountHolder": "Tshegofatso Kayla Dinale\nMasego Dinale",
+      "kidesysSection": "Recently Owing",
+      "balance": 2447.57,
+      "buckets": {
+        "current": 7100,
+        "d30": 2900,
+        "d60": 0,
+        "d90": 0,
+        "d120": -3100
+      }
+    },
+    {
+      "accountRef": "MOS021",
+      "accountHolder": "Tshepiso Mosiatana",
+      "kidesysSection": "Recently Owing",
+      "balance": 1347.94,
+      "buckets": {
+        "current": 3800,
+        "d30": 0,
+        "d60": 0,
+        "d90": 0,
+        "d120": 0
+      }
+    },
+    {
+      "accountRef": "SEN959",
+      "accountHolder": "Tshiamo Will Senne",
+      "kidesysSection": "Recently Owing",
+      "balance": 1064.16,
+      "buckets": {
+        "current": 3000,
+        "d30": 3000,
+        "d60": 0,
+        "d90": 3700,
+        "d120": -6700
+      }
+    },
+    {
+      "accountRef": "MAS028",
+      "accountHolder": "Tshimologo Botlhale Maseko",
+      "kidesysSection": "Recently Owing",
+      "balance": 1330.2,
+      "buckets": {
+        "current": 3550,
+        "d30": 1800,
+        "d60": 0,
+        "d90": 0,
+        "d120": -1600
+      }
+    },
+    {
+      "accountRef": "MOR015",
+      "accountHolder": "Tshimologo Genesis Moreriane",
+      "kidesysSection": "Recently Owing",
+      "balance": 1188.31,
+      "buckets": {
+        "current": 3350,
+        "d30": 0,
+        "d60": 0,
+        "d90": 0,
+        "d120": 0
+      }
+    },
+    {
+      "accountRef": "MOD004",
+      "accountHolder": "Tshimologo Modise",
+      "kidesysSection": "Recently Owing",
+      "balance": 815.86,
+      "buckets": {
+        "current": 3000,
+        "d30": 1300,
+        "d60": 0,
+        "d90": 0,
+        "d120": -2000
+      }
+    },
+    {
+      "accountRef": "MOD012",
+      "accountHolder": "Tshireletso Kgato Modise",
+      "kidesysSection": "Recently Owing",
+      "balance": 1064.16,
+      "buckets": {
+        "current": 3000,
+        "d30": 0,
+        "d60": 0,
+        "d90": 2700,
+        "d120": -2700
+      }
+    },
+    {
+      "accountRef": "MOD006",
+      "accountHolder": "Tswelopele Botshelo Modisane",
+      "kidesysSection": "Recently Owing",
+      "balance": 1241.52,
+      "buckets": {
+        "current": 3550,
+        "d30": 3550,
+        "d60": 3600,
+        "d90": 2400,
+        "d120": -9600
+      }
+    },
+    {
+      "accountRef": "MAH007",
+      "accountHolder": "Umme - Haani Mahomed Hoosen",
+      "kidesysSection": "Recently Owing",
+      "balance": 1064.16,
+      "buckets": {
+        "current": 3000,
+        "d30": 3000,
+        "d60": 0,
+        "d90": 0,
+        "d120": -3000
+      }
+    },
+    {
+      "accountRef": "MFE002",
+      "accountHolder": "Uyanda Mfene\nAyanda Mfene",
+      "kidesysSection": "Recently Owing",
+      "balance": 4540.41,
+      "buckets": {
+        "current": 8200,
+        "d30": 7600,
+        "d60": 7600,
+        "d90": 9000,
+        "d120": -19600
+      }
+    },
+    {
+      "accountRef": "VUT001",
+      "accountHolder": "Vutlhari Botake",
+      "kidesysSection": "Recently Owing",
+      "balance": 1365.67,
+      "buckets": {
+        "current": 3850,
+        "d30": 250,
+        "d60": 0,
+        "d90": 0,
+        "d120": -250
+      }
+    },
+    {
+      "accountRef": "VUS001",
+      "accountHolder": "Vuyolwethu Vusumzi Jack",
+      "kidesysSection": "Recently Owing",
+      "balance": 1135.1,
+      "buckets": {
+        "current": 3550,
+        "d30": 950,
+        "d60": -370,
+        "d90": 0,
+        "d120": -930
+      }
+    },
+    {
+      "accountRef": "MOS009",
+      "accountHolder": "Wandile Mosito",
+      "kidesysSection": "Recently Owing",
+      "balance": 1312.46,
+      "buckets": {
+        "current": 3000,
+        "d30": 3000,
+        "d60": 0,
+        "d90": 1290,
+        "d120": -3590
+      }
+    },
+    {
+      "accountRef": "RAK005",
+      "accountHolder": "Zaina Rakgokong",
+      "kidesysSection": "Recently Owing",
+      "balance": 319.25,
+      "buckets": {
+        "current": 900,
+        "d30": 0,
+        "d60": 0,
+        "d90": 0,
+        "d120": 0
+      }
+    },
+    {
+      "accountRef": "MAR005",
+      "accountHolder": "Alunamda Luyamkela Marman",
+      "kidesysSection": "Paid Up",
+      "balance": 0,
+      "buckets": {
+        "current": 3700,
+        "d30": 0,
+        "d60": 0,
+        "d90": 0,
+        "d120": -3700
+      }
+    },
+    {
+      "accountRef": "MON014",
+      "accountHolder": "Grace Monaise",
+      "kidesysSection": "Paid Up",
+      "balance": 0,
+      "buckets": {
+        "current": 2800,
+        "d30": 2800,
+        "d60": 2800,
+        "d90": 3400,
+        "d120": -11800
+      }
+    },
+    {
+      "accountRef": "MON012",
+      "accountHolder": "Lethabo Lincoln Monaise",
+      "kidesysSection": "Paid Up",
+      "balance": 0,
+      "buckets": {
+        "current": 3550,
+        "d30": 3550,
+        "d60": 3550,
+        "d90": 4250,
+        "d120": -14900
+      }
+    },
+    {
+      "accountRef": "MLA002",
+      "accountHolder": "Mohau Mlambo",
+      "kidesysSection": "Paid Up",
+      "balance": 0,
+      "buckets": {
+        "current": 3000,
+        "d30": 0,
+        "d60": 0,
+        "d90": 0,
+        "d120": -3000
+      }
+    },
+    {
+      "accountRef": "PHI004",
+      "accountHolder": "Opelong Wame Fortunate Phiri",
+      "kidesysSection": "Paid Up",
+      "balance": 0,
+      "buckets": {
+        "current": 0,
+        "d30": 0,
+        "d60": 0,
+        "d90": 850,
+        "d120": -850
+      }
+    },
+    {
+      "accountRef": "MAS030",
+      "accountHolder": "Thoriso Masenamela",
+      "kidesysSection": "Paid Up",
+      "balance": 0,
+      "buckets": {
+        "current": 3550,
+        "d30": 60,
+        "d60": 0,
+        "d90": 0,
+        "d120": -3610
+      }
+    },
+    {
+      "accountRef": "CHI002",
+      "accountHolder": "Wesley Unathi Nkabinde",
+      "kidesysSection": "Paid Up",
+      "balance": 0,
+      "buckets": {
+        "current": 3000,
+        "d30": 3000,
+        "d60": 300,
+        "d90": 3700,
+        "d120": -10000
+      }
+    },
+    {
+      "accountRef": "SIL007",
+      "accountHolder": "Adrien Martins Da Silva",
+      "kidesysSection": "Over Paid",
+      "balance": -20599.12,
+      "buckets": {
+        "current": 3000,
+        "d30": 3000,
+        "d60": 3000,
+        "d90": 3700,
+        "d120": -30700
+      }
+    },
+    {
+      "accountRef": "DUP001",
+      "accountHolder": "Aiden Jacques Du Plessis",
+      "kidesysSection": "Over Paid",
+      "balance": -9956.24,
+      "buckets": {
+        "current": 3550,
+        "d30": 3000,
+        "d60": -15250,
+        "d90": 0,
+        "d120": 0
+      }
+    },
+    {
+      "accountRef": "KGA004",
+      "accountHolder": "Boikanyego Masego Kgang",
+      "kidesysSection": "Over Paid",
+      "balance": -40385.71,
+      "buckets": {
+        "current": 4350,
+        "d30": 3550,
+        "d60": 3000,
+        "d90": 0,
+        "d120": -46190
+      }
+    },
+    {
+      "accountRef": "MOL017",
+      "accountHolder": "Dintle Grace Molahlehi",
+      "kidesysSection": "Over Paid",
+      "balance": -343.32,
+      "buckets": {
+        "current": 1000,
+        "d30": 0,
+        "d60": 700,
+        "d90": 0,
+        "d120": -2000
+      }
+    },
+    {
+      "accountRef": "MAK025",
+      "accountHolder": "Enough Makeleni",
+      "kidesysSection": "Over Paid",
+      "balance": -5905.08,
+      "buckets": {
+        "current": 3000,
+        "d30": 3550,
+        "d60": 2800,
+        "d90": 0,
+        "d120": -14510
+      }
+    },
+    {
+      "accountRef": "PER001",
+      "accountHolder": "Evalynn Pereira",
+      "kidesysSection": "Over Paid",
+      "balance": -31928.63,
+      "buckets": {
+        "current": 1000,
+        "d30": 1000,
+        "d60": 1000,
+        "d90": 1700,
+        "d120": -32600
+      }
+    },
+    {
+      "accountRef": "MOK037",
+      "accountHolder": "Imani Mokaleng",
+      "kidesysSection": "Over Paid",
+      "balance": -15849.88,
+      "buckets": {
+        "current": 4350,
+        "d30": 4550,
+        "d60": 4350,
+        "d90": 5050,
+        "d120": -32150
+      }
+    },
+    {
+      "accountRef": "SET005",
+      "accountHolder": "Junior Tshwetso Setibane",
+      "kidesysSection": "Over Paid",
+      "balance": -7209.69,
+      "buckets": {
+        "current": 3350,
+        "d30": -3350,
+        "d60": -2700,
+        "d90": 0,
+        "d120": -3600
+      }
+    },
+    {
+      "accountRef": "MAK021",
+      "accountHolder": "Keamogetswe Naledi Makhasi",
+      "kidesysSection": "Over Paid",
+      "balance": -12398.32,
+      "buckets": {
+        "current": 3550,
+        "d30": 3550,
+        "d60": 0,
+        "d90": -1811.84,
+        "d120": -16122.11
+      }
+    },
+    {
+      "accountRef": "MOG001",
+      "accountHolder": "Kgabiso Mogwera Masilela",
+      "kidesysSection": "Over Paid",
+      "balance": -572.2,
+      "buckets": {
+        "current": 2150,
+        "d30": 2150,
+        "d60": 2150,
+        "d90": 2850,
+        "d120": -9800
+      }
+    },
+    {
+      "accountRef": "MAS001",
+      "accountHolder": "Kgantso Masilela",
+      "kidesysSection": "Over Paid",
+      "balance": -22327.15,
+      "buckets": {
+        "current": 3000,
+        "d30": 3000,
+        "d60": 6600,
+        "d90": 3700,
+        "d120": -35810
+      }
+    },
+    {
+      "accountRef": "MOS019",
+      "accountHolder": "Kgaogelo Mosweu",
+      "kidesysSection": "Over Paid",
+      "balance": -0.09,
+      "buckets": {
+        "current": 3000,
+        "d30": -3000.08,
+        "d60": 0,
+        "d90": 0,
+        "d120": 0
+      }
+    },
+    {
+      "accountRef": "LEP003",
+      "accountHolder": "Kitso-entle Lephoto",
+      "kidesysSection": "Over Paid",
+      "balance": -2403.23,
+      "buckets": {
+        "current": 3000,
+        "d30": -1930,
+        "d60": 0,
+        "d90": 0,
+        "d120": -3170
+      }
+    },
+    {
+      "accountRef": "PHA009",
+      "accountHolder": "Kopano Phakati\nKgatoentle Phakati",
+      "kidesysSection": "Over Paid",
+      "balance": -39596.08,
+      "buckets": {
+        "current": 6000,
+        "d30": 6000,
+        "d60": 6000,
+        "d90": 7400,
+        "d120": -60000
+      }
+    },
+    {
+      "accountRef": "LET009",
+      "accountHolder": "Lesedi Olerato Letlape",
+      "kidesysSection": "Over Paid",
+      "balance": -23231.23,
+      "buckets": {
+        "current": 3000,
+        "d30": 3000,
+        "d60": 3000,
+        "d90": 3700,
+        "d120": -33000
+      }
+    },
+    {
+      "accountRef": "MAN012",
+      "accountHolder": "Mathokge Reamogetse Mankgane\nNtjebe Rekgopetse Mankgane\nRethabile Leseilane Mankgane",
+      "kidesysSection": "Over Paid",
+      "balance": -55617.62,
+      "buckets": {
+        "current": 9850,
+        "d30": 9850,
+        "d60": 9850,
+        "d90": 10400,
+        "d120": -88550
+      }
+    },
+    {
+      "accountRef": "MAP009",
+      "accountHolder": "Mokgadi Lesego Mapelane",
+      "kidesysSection": "Over Paid",
+      "balance": -13217.77,
+      "buckets": {
+        "current": 3000,
+        "d30": 950,
+        "d60": 0,
+        "d90": 0,
+        "d120": -15500
+      }
+    },
+    {
+      "accountRef": "MOE010",
+      "accountHolder": "Motebang Lethabo Moetsi",
+      "kidesysSection": "Over Paid",
+      "balance": -17967.01,
+      "buckets": {
+        "current": 3550,
+        "d30": 3750,
+        "d60": 7150,
+        "d90": 4250,
+        "d120": -34400
+      }
+    },
+    {
+      "accountRef": "MAK018",
+      "accountHolder": "Musa Makamu",
+      "kidesysSection": "Over Paid",
+      "balance": -18596.42,
+      "buckets": {
+        "current": 3550,
+        "d30": 3550,
+        "d60": 3550,
+        "d90": 4250,
+        "d120": -31150
+      }
+    },
+    {
+      "accountRef": "NDL611",
+      "accountHolder": "Oarabile Molete",
+      "kidesysSection": "Over Paid",
+      "balance": -6580.27,
+      "buckets": {
+        "current": 4350,
+        "d30": 4550,
+        "d60": 4650,
+        "d90": 5050,
+        "d120": -24350
+      }
+    },
+    {
+      "accountRef": "NTU001",
+      "accountHolder": "Onkarabile Mitchell Ntuane Moloko",
+      "kidesysSection": "Over Paid",
+      "balance": -972.74,
+      "buckets": {
+        "current": 3550,
+        "d30": 0,
+        "d60": 1650,
+        "d90": 0,
+        "d120": -6050
+      }
+    },
+    {
+      "accountRef": "MOL019",
+      "accountHolder": "Onkarabile Molefe",
+      "kidesysSection": "Over Paid",
+      "balance": -39481.64,
+      "buckets": {
+        "current": 3800,
+        "d30": 3800,
+        "d60": 3800,
+        "d90": 4500,
+        "d120": -50400
+      }
+    },
+    {
+      "accountRef": "SEB005",
+      "accountHolder": "Onthatile Sebico",
+      "kidesysSection": "Over Paid",
+      "balance": -18424.77,
+      "buckets": {
+        "current": 2800,
+        "d30": 2800,
+        "d60": 2800,
+        "d90": 1500,
+        "d120": -26000
+      }
+    },
+    {
+      "accountRef": "MOS018",
+      "accountHolder": "Orefile Rethabile Moshenyane",
+      "kidesysSection": "Over Paid",
+      "balance": -20942.44,
+      "buckets": {
+        "current": 3000,
+        "d30": 3000,
+        "d60": 3000,
+        "d90": -27300,
+        "d120": 0
+      }
+    },
+    {
+      "accountRef": "MET002",
+      "accountHolder": "Palesa Metswamere",
+      "kidesysSection": "Over Paid",
+      "balance": -13274.99,
+      "buckets": {
+        "current": 4350,
+        "d30": 4350,
+        "d60": 4350,
+        "d90": 4650,
+        "d120": -29300
+      }
+    },
+    {
+      "accountRef": "MOG017",
+      "accountHolder": "Pelontle Mogoregi",
+      "kidesysSection": "Over Paid",
+      "balance": -3147.09,
+      "buckets": {
+        "current": 3000,
+        "d30": 200,
+        "d60": 0,
+        "d90": 700,
+        "d120": -6650
+      }
+    },
+    {
+      "accountRef": "RAM014",
+      "accountHolder": "Reabetswe Patience Ramela Motshoane",
+      "kidesysSection": "Over Paid",
+      "balance": -33485.01,
+      "buckets": {
+        "current": 3550,
+        "d30": 3550,
+        "d60": 3000,
+        "d90": 3700,
+        "d120": -43060
+      }
+    },
+    {
+      "accountRef": "MAG007",
+      "accountHolder": "Sipho Nqobile Magaxa",
+      "kidesysSection": "Over Paid",
+      "balance": -30785.38,
+      "buckets": {
+        "current": -26901,
+        "d30": 0,
+        "d60": 0,
+        "d90": 0,
+        "d120": 0
+      }
+    },
+    {
+      "accountRef": "MTH003",
+      "accountHolder": "Thandolwakhe Mthethwa\nOkuhle Mthethwa",
+      "kidesysSection": "Over Paid",
+      "balance": -36735.09,
+      "buckets": {
+        "current": 6900,
+        "d30": 7100,
+        "d60": 6900,
+        "d90": 8300,
+        "d120": -61300
+      }
+    },
+    {
+      "accountRef": "DIR001",
+      "accountHolder": "Yaone Dire",
+      "kidesysSection": "Over Paid",
+      "balance": -19225.84,
+      "buckets": {
+        "current": 2800,
+        "d30": 2800,
+        "d60": 2800,
+        "d90": 3500,
+        "d120": -28700
+      }
+    },
+    {
+      "accountRef": "JAC001",
+      "accountHolder": "Jason - Lee Jacobs",
+      "kidesysSection": "Paid Up",
+      "balance": 0,
+      "buckets": {
+        "current": 0,
+        "d30": 0,
+        "d60": 0,
+        "d90": 0,
+        "d120": 0
+      }
+    },
+    {
+      "accountRef": "LET007",
+      "accountHolder": "Otlotleng Letsholo",
+      "kidesysSection": "Paid Up",
+      "balance": 0,
+      "buckets": {
+        "current": 0,
+        "d30": 0,
+        "d60": 0,
+        "d90": 0,
+        "d120": 0
+      }
+    },
+    {
+      "accountRef": "JAC001",
+      "accountHolder": "Jason - Lee Jacobs",
+      "kidesysSection": "Paid Up",
+      "balance": -1050.02,
+      "buckets": {
+        "current": 0,
+        "d30": 0,
+        "d60": 0,
+        "d90": 0,
+        "d120": 0
+      }
+    },
+    {
+      "accountRef": "LET007",
+      "accountHolder": "Otlotleng Letsholo",
+      "kidesysSection": "Paid Up",
+      "balance": 0,
+      "buckets": {
+        "current": 0,
+        "d30": 0,
+        "d60": 0,
+        "d90": 0,
+        "d120": 0
+      }
+    }
+  ]
+}

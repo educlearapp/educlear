@@ -1,0 +1,20 @@
+{
+  "generatedAt": "2026-06-05T11:44:54.700Z",
+  "apiBase": "https://educlear-backend.onrender.com",
+  "databaseHost": "dpg-d84smqjbc2fs73chlgcg-a.oregon-postgres.render.com",
+  "schoolId": "cmpideqeq0000108xb6ouv9zi",
+  "batchIds": [
+    "cmpwhftui0007z28ytto580dw",
+    "cmpzmiq970029wh6arh0iq3lj"
+  ],
+  "paymentCount": 20656,
+  "kidesysTopupCount": 339,
+  "kidesysTopupValue": 1228125,
+  "manualPaymentCount": 20317,
+  "ledgerEntryCount": 41341,
+  "statementAccountsCount": 344,
+  "totalOutstandingBalance": null,
+  "postgresBatchCount": 2,
+  "postgresRowCount": 339,
+  "postgresImportedRowCount": 339
+}

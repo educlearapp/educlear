@@ -37,13 +37,6 @@ import Email from "./communication/Email";
 import SMS from "./communication/SMS";
 import CommunicationSettings from "./communication/CommunicationSettings";
 import CommunicationCentre from "./communication/CommunicationCentre";
-import {
-  fetchSchoolEmailSettings,
-  isSchoolEmailReadyForUi,
-  normalizeSchoolEmailSettings,
-  SCHOOL_EMAIL_READINESS_UPDATED,
-  type SchoolEmailSettings,
-} from "./communication/schoolEmailApi";
 import AccountingOverview from "./accounting/AccountingOverview";
 import AccountingExportCenter from "./accounting/AccountingExportCenter";
 import AccountingBanking from "./accounting/AccountingBanking";
@@ -540,11 +533,6 @@ const schoolId =
   const [communicationSettingsTab, setCommunicationSettingsTab] = useState<
     "general" | "documents" | "email" | "sms"
   >("general");
-  const [emailReadiness, setEmailReadiness] = useState<SchoolEmailSettings | null>(null);
-  const [emailReadinessLoaded, setEmailReadinessLoaded] = useState(false);
-
-
-
   const [selectedPackage, setSelectedPackage] = useState("starter");
 
 
@@ -1037,24 +1025,6 @@ const [selectedLearnerReport, setSelectedLearnerReport] = useState<any>(null);
     setCommunicationSettingsTab("sms");
     go("communicationSettings");
   };
-
-  const refreshEmailReadiness = async () => {
-    if (!schoolId) {
-      setEmailReadiness(null);
-      setEmailReadinessLoaded(false);
-      return;
-    }
-    try {
-      const res = await fetchSchoolEmailSettings(schoolId);
-      setEmailReadiness(normalizeSchoolEmailSettings(res.settings));
-    } catch {
-      setEmailReadiness(null);
-    } finally {
-      setEmailReadinessLoaded(true);
-    }
-  };
-
-
 
   const actionBtn = {
 
@@ -1718,20 +1688,6 @@ const [selectedLearnerReport, setSelectedLearnerReport] = useState<any>(null);
 
 
   }, [activePage, schoolId]);
-
-  useEffect(() => {
-    void refreshEmailReadiness();
-  }, [schoolId, activePage]);
-
-  useEffect(() => {
-    const onReadinessUpdated = (event: Event) => {
-      const detail = (event as CustomEvent).detail as { schoolId?: string; settings?: SchoolEmailSettings };
-      if (!detail?.settings || detail.schoolId !== schoolId) return;
-      setEmailReadiness(normalizeSchoolEmailSettings(detail.settings));
-    };
-    window.addEventListener(SCHOOL_EMAIL_READINESS_UPDATED, onReadinessUpdated);
-    return () => window.removeEventListener(SCHOOL_EMAIL_READINESS_UPDATED, onReadinessUpdated);
-  }, [schoolId]);
 
   useEffect(() => {
     if (!schoolId) {
@@ -14097,46 +14053,6 @@ const renderMoreSettings = () => {
 
 
       </div>
-
-      {emailReadinessLoaded && !isSchoolEmailReadyForUi(emailReadiness) ? (
-        <div
-          style={{
-            marginBottom: 20,
-            padding: "14px 18px",
-            borderRadius: 12,
-            background: "#fffbeb",
-            border: "1px solid #fcd34d",
-            color: "#92400e",
-            fontWeight: 700,
-            fontSize: 14,
-            display: "flex",
-            flexWrap: "wrap",
-            gap: 12,
-            alignItems: "center",
-            justifyContent: "space-between",
-          }}
-        >
-          <span>
-            Email setup incomplete — configure SMTP and send a test email before statements and billing emails can be
-            sent.
-          </span>
-          <button
-            type="button"
-            onClick={openCommunicationEmailSetup}
-            style={{
-              border: "1px solid #b89329",
-              background: "linear-gradient(135deg, #f7d56a, #d4af37)",
-              color: "#111827",
-              borderRadius: 10,
-              padding: "8px 14px",
-              fontWeight: 900,
-              cursor: "pointer",
-            }}
-          >
-            Open Email (SMTP)
-          </button>
-        </div>
-      ) : null}
 
       <div className="fees-check-card">
 

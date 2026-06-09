@@ -67,6 +67,21 @@ export function usePortalPwaHead(config: PortalPwaHeadConfig): void {
 
   useEffect(() => {
     if (!config.serviceWorkerPath || !("serviceWorker" in navigator)) return;
-    void navigator.serviceWorker.register(config.serviceWorkerPath).catch(() => {});
-  }, [config.serviceWorkerPath]);
+
+    const register = async () => {
+      const regs = await navigator.serviceWorker.getRegistrations();
+      for (const reg of regs) {
+        const script =
+          reg.active?.scriptURL ?? reg.installing?.scriptURL ?? reg.waiting?.scriptURL ?? "";
+        if (script.endsWith("/teacher-sw.js") && reg.scope === `${window.location.origin}/`) {
+          await reg.unregister();
+        }
+      }
+
+      const options = config.serviceWorkerScope ? { scope: config.serviceWorkerScope } : undefined;
+      await navigator.serviceWorker.register(config.serviceWorkerPath!, options);
+    };
+
+    void register().catch(() => {});
+  }, [config.serviceWorkerPath, config.serviceWorkerScope]);
 }

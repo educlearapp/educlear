@@ -1,0 +1,173 @@
+=== EMERGENCY PRODUCTION RECOVERY — DRY-RUN REPORT ===
+Generated: 2026-06-06T08:40:00Z
+Status: READ-ONLY — NO CHANGES APPLIED
+
+SOURCES
+  Payment Receive List PDF:  /Users/dasilvaacademy/Desktop/payment_receive_list.pdf
+                             Export timestamp: 2026/06/06 10:26
+  Transaction List XLSX:     /Users/dasilvaacademy/Desktop/transaction_list.xlsx
+  Production API:            https://educlear-backend.onrender.com
+  Full JSON:                 backend/storage/emergency-recovery-dry-run-2026-06-06.json
+
+----------------------------------------------------------------------
+1. PAYMENT RECEIVE LIST PARSE
+----------------------------------------------------------------------
+  PDF accounts (unique):     344
+  Raw learner rows:          396  (52 duplicate sibling rows — same account in multiple grades)
+  Balance conflicts:         0
+  Export date:               2026/06/06
+
+----------------------------------------------------------------------
+2. PRODUCTION vs PDF — ACCOUNT COMPARISON
+----------------------------------------------------------------------
+  Accounts in Payment Receive List:     344
+  Accounts currently in EduClear:       346
+  Accounts missing from EduClear:           0
+  Extra accounts in EduClear:               2  (JAC001, LET007 — known extras)
+
+  Balance matches PDF exactly:          118 / 344  (34.3%)
+  Balance mismatches:                   226 / 344  (65.7%)
+
+  SPOT CHECKS
+  Account  | PDF Balance | Prod Balance | Diff    | Prod Status      | Last Payment
+  ---------|-------------|--------------|---------|------------------|------------------
+  MAM004   |    1,500.00 |     1,500.00 |      0  | Recently Owing   | R3,000 2026-06-06 ✓
+  DUP001   |  -12,200.00 |    -8,700.00 | +3,500  | Over Paid        | R3,500 2026-06-03
+  ALI002   |    4,000.00 |     7,000.00 | +3,000  | Bad Debt         | R3,000 2026-06-04
+  ADA004   |      -50.00 |     7,350.00 | +7,400  | Recently Owing   | R6,000 2026-06-04
+  AFR002   |     -130.00 |         0.00 |   +130  | Up To Date       | R130  2026-06-04
+  RAM021   |    7,830.00 |    10,960.00 | +3,130  | Bad Debt         | R130  2026-06-04
+  MDU001   |    3,000.00 |    11,600.00 | +8,600  | Bad Debt         | R7,900 2026-06-01
+
+  Mismatch pattern (verified on DUP001/ALI002/ADA004):
+    prod_balance - pdf_balance = sum(June kidesys_topup payments on that account)
+    → Age-analysis baseline snapshots are stale/wrong; top-up ledger rows are being
+      double-counted OR baselines were not refreshed to PDF values after deploy.
+
+----------------------------------------------------------------------
+3. TOP CARD TOTALS
+----------------------------------------------------------------------
+                          Expected (PDF 344)   Current (Prod 346)   Difference
+  Total Accounts                 344                  346               +2
+  Total Outstanding         552,540.45         1,494,310.45      +941,770.00
+  Over Paid                   561,160.03           495,505.05       -65,654.98
+  Net Position                 -8,619.58           998,805.40    +1,007,424.98
+  Recently Owing              334,550.45         1,041,915.45      +707,365.00
+  Bad Debt                    217,990.00           452,395.00      +234,405.00
+
+----------------------------------------------------------------------
+4. TRANSACTION RECONCILIATION (2026-06-01 through today)
+----------------------------------------------------------------------
+  Kid-e-Sys payments in export:           347  ·  R1,253,325.00
+  Production payments (June+):            418  ·  R1,525,625.00
+    by source: manual=72, kidesys_topup=346
+
+  Matched (account+date+amount):          347  (all Kid-e-Sys payments exist in prod)
+  Missing in EduClear:                      0
+  Extra in EduClear (not in Kid-e-Sys):     9  ·  R35,200.00  (all manual EFT)
+    MTH003  2026-06-05  R1,400
+    MON013  2026-06-05  R700
+    MON013  2026-06-05  R3,550
+    MKH006  2026-06-01  R3,550
+    DIK004  2026-06-05  R4,250
+    DIN002  2026-06-05  R6,900
+    MDU002  2026-06-05  R7,100
+    KEK003  2026-06-05  R3,500
+    NKA004  2026-06-01  R4,250
+
+  Ledger duplicate fingerprints (June+):   2 groups (MIR001 only — 4 entries total)
+  Payment API duplicate fingerprints:      64  (payments table duplicates — investigate)
+
+  MAM004 transactions:
+    Kid-e-Sys:  Payment 54608  R3,000  2026/06/06
+    Production: manual EFT     R3,000  2026-06-06  (single entry — correct)
+
+----------------------------------------------------------------------
+5. ROOT CAUSE (confirmed)
+----------------------------------------------------------------------
+  Backend deploy on 2026-06-06 replaced runtime age-analysis baseline JSON with a
+  stale/incorrect version. Ledger file matches 2026-06-05 backup (41,349 entries).
+
+  Evidence:
+  - Successful baseline apply on 2026-06-05 achieved 100% PDF match (344/344)
+  - Current production: 118/344 match (226 drifted)
+  - MAM004 manual payment bug fix IS working (balance + last payment correct)
+  - Mismatch deltas align exactly with June kidesys_topup amounts per account
+
+  See: docs/billing-ledger-persistence-ACTION.md
+
+----------------------------------------------------------------------
+6. RECOVERY PLAN (DO NOT APPLY UNTIL APPROVED)
+----------------------------------------------------------------------
+
+PHASE 0 — BACKUP (mandatory before any write)
+  a) curl production ledger → storage/billing-ledger-production-backup-2026-06-06.json
+  b) Export production age-analysis snapshots (via admin API or Render shell copy of
+     backend/data/family-account-age-analysis.json)
+  c) Record backend git commit + frontend build id
+
+PHASE 1 — RESTORE PAYMENT RECEIVE LIST BASELINE (primary fix)
+  Target file:  backend/data/family-account-age-analysis.json (production)
+  API endpoint: POST /api/migration/age-analysis-baseline/refresh
+  Scope:        ALL 344 PDF accounts (not active-only filter)
+  importedAt:   2099-12-31T23:59:59.999Z  (sentinel — excludes kidesys_topup from delta)
+  Script:       apply-da-silva-payment-receive-baseline-production.ts --apply
+                CONFIRM_DA_SILVA_PAYMENT_RECEIVE_BASELINE=true
+
+  What changes:
+    - 344 account balance snapshots overwritten to exact PDF values
+    - Family account names updated from PDF holder names
+    - NO learner/classroom/parent data touched
+    - NO billing-ledger.json changes in this phase
+
+  Duplicate prevention:
+    - Idempotent upsert by accountRef
+    - No new ledger entries created
+    - kidesys_topup rows excluded from post-baseline delta (sentinel)
+
+  MAM004 special handling:
+    PDF balance R1,500 already includes the 2026-06-06 R3,000 payment.
+    Proven working model (2026-06-05 apply): baseline R4,500 + manual -R3,000 = R1,500.
+    Apply payload MUST use baseline R4,500 for MAM004 (not R1,500 raw PDF) OR exclude
+    the manual EFT from post-import delta. Verify after apply before sign-off.
+
+PHASE 2 — POST-BASELINE PAYMENT PRESERVATION
+  Keep these 9 EduClear-only manual payments (not in Kid-e-Sys export):
+    MTH003, MON013 (×2), MKH006, DIK004, DIN002, MDU002, KEK003, NKA004
+  These entered after baseline verification — apply as ledger delta on top of PDF.
+
+  Do NOT re-import Kid-e-Sys top-up batch (346 payments already in ledger).
+
+PHASE 3 — LEDGER HYGIENE (only if Phase 1 verification fails)
+  Remove duplicate MIR001 kidesys_topup entries (2 duplicate fingerprints)
+  Investigate 64 payment-table duplicates separately (may not affect balance)
+
+PHASE 4 — VERIFICATION (read-only, after apply)
+  [ ] Accounts = 344 (+ JAC001/LET007 extras = 346 acceptable)
+  [ ] Every PDF account balance matches within R0.01
+  [ ] MAM004 = R1,500, last payment R3,000 on 2026-06-06, single payment only
+  [ ] DUP001 = R-12,200 | ALI002 = R4,000
+  [ ] Top cards match expected PDF totals (see section 3)
+  [ ] Test manual payment on selected account reduces balance + updates cards immediately
+
+ROLLBACK
+  Restore from Phase 0 backups:
+    - Replace family-account-age-analysis.json from backup
+    - Replace billing-ledger.json from backup if Phase 3 touched ledger
+  Re-deploy previous stable backend commit if code regression suspected
+
+PERMANENT PREVENTION
+  P0: Attach Render persistent disk at backend/data/ before next backend deploy
+  See docs/billing-ledger-persistence-ACTION.md Path A (disk) or Path B (PostgreSQL)
+
+----------------------------------------------------------------------
+7. DRY-RUN TOTALS (summary)
+----------------------------------------------------------------------
+  Total accounts expected (PDF):           344
+  Total accounts found (production):       346
+  Total balance difference (net):    +1,007,424.98  (prod − pdf net position)
+  Total missing Kid-e-Sys payments:          0
+  Total duplicate ledger payments:           2 groups (MIR001)
+  Accounts requiring correction:           226
+
+  DEPLOY/APPLY BLOCKED: YES — awaiting explicit approval

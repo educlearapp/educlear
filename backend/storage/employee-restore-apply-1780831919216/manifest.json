@@ -1,0 +1,276 @@
+{
+  "batchId": "1780831919216",
+  "schoolId": "cmpideqeq0000108xb6ouv9zi",
+  "schoolName": "Da Silva Academy",
+  "appliedAt": "2026-06-07T11:32:04.230Z",
+  "source": "staff-users",
+  "staffCount": 29,
+  "createdCount": 29,
+  "skippedCount": 0,
+  "createdEmployeeIds": [
+    "cmq3pciyw00013fetmwbm605x",
+    "cmq3pcjfj00033fetof2ess0e",
+    "cmq3pcjnp00053fetky7tqos5",
+    "cmq3pcjvw00073fetxt2yjune",
+    "cmq3pck4f00093fetrptxdac5",
+    "cmq3pckcr000b3fetyusckbk9",
+    "cmq3pckkw000d3fetiljh3rdi",
+    "cmq3pcktr000f3feth2d9qi5g",
+    "cmq3pcl1x000h3fetzy1pblgo",
+    "cmq3pcla4000j3fet65nlm221",
+    "cmq3pcli8000l3fet0wdof4bb",
+    "cmq3pclqd000n3fet872tozx1",
+    "cmq3pclyh000p3fetksddjnmn",
+    "cmq3pcm6n000r3fet1d26lgpe",
+    "cmq3pcmes000t3fetlj6fq68p",
+    "cmq3pcmni000v3fetrxgujnjh",
+    "cmq3pcmvm000x3feth2nljjao",
+    "cmq3pcn3s000z3fetul3pihq5",
+    "cmq3pcnd200113fet266gutdq",
+    "cmq3pcnla00133fet5g0h5xzi",
+    "cmq3pcnu400153fet94918owr",
+    "cmq3pco2n00173fetyzhwkqca",
+    "cmq3pcob300193fet6znqnkic",
+    "cmq3pcolt001b3fetk5wolhqj",
+    "cmq3pcotw001d3fettvgs3idn",
+    "cmq3pcp3m001f3fetk9pc3f1l",
+    "cmq3pcpbr001h3fet4mquky1t",
+    "cmq3pcpjw001j3fethelxnsgm",
+    "cmq3pcps0001l3feteru9blyt"
+  ],
+  "skipped": [],
+  "rows": [
+    {
+      "userId": "cmpqzjdri002n13cnwwwdv6i1",
+      "email": "acoetzeedsa@gmail.com",
+      "firstName": "Amanda",
+      "lastName": "Coetzee",
+      "employeeId": "cmq3pciyw00013fetmwbm605x",
+      "action": "created"
+    },
+    {
+      "userId": "cmpqzqxo4002v13cnfxfgdntc",
+      "email": "mollanje3@gmail.com",
+      "firstName": "Anje",
+      "lastName": "Moll",
+      "employeeId": "cmq3pcjfj00033fetof2ess0e",
+      "action": "created"
+    },
+    {
+      "userId": "cmq2bckzp000bcotczx91h0k4",
+      "email": "belindamolotsi@gmail.com",
+      "firstName": "Belinda",
+      "lastName": "Molotsi",
+      "employeeId": "cmq3pcjnp00053fetky7tqos5",
+      "action": "created"
+    },
+    {
+      "userId": "cmpr182j8000j14bg6mo2vzit",
+      "email": "novelabelinda@gmail.com",
+      "firstName": "Belinda",
+      "lastName": "Novela",
+      "employeeId": "cmq3pcjvw00073fetxt2yjune",
+      "action": "created"
+    },
+    {
+      "userId": "cmpqz8cds002913cnj0dc2ohv",
+      "email": "bloms.grob@gmail.com",
+      "firstName": "Blommie",
+      "lastName": "Grobbelaar",
+      "employeeId": "cmq3pck4f00093fetrptxdac5",
+      "action": "created"
+    },
+    {
+      "userId": "cmpqzddml002f13cnxi2ttn8i",
+      "email": "danellb460@gmail.com",
+      "firstName": "Danell",
+      "lastName": "Van Wyk",
+      "employeeId": "cmq3pckcr000b3fetyusckbk9",
+      "action": "created"
+    },
+    {
+      "userId": "cmpqzs61b002x13cndccj29uz",
+      "email": "jemmahharris@gmail.com",
+      "firstName": "Jemmah",
+      "lastName": "Harris",
+      "employeeId": "cmq3pckkw000d3fetiljh3rdi",
+      "action": "created"
+    },
+    {
+      "userId": "cmpqzc08y002d13cnwm6mb2aq",
+      "email": "jpereiradsa@gmail.com",
+      "firstName": "Jennifer",
+      "lastName": "Pereira",
+      "employeeId": "cmq3pcktr000f3feth2d9qi5g",
+      "action": "created"
+    },
+    {
+      "userId": "cmq3m5vre000h14fjgsvmo0e9",
+      "email": "kagilelomo@gmail.com",
+      "firstName": "Kagiso",
+      "lastName": "Seema",
+      "employeeId": "cmq3pcl1x000h3fetzy1pblgo",
+      "action": "created"
+    },
+    {
+      "userId": "cmpqzi55x002l13cna28c8301",
+      "email": "missktmpasha@gmail.com",
+      "firstName": "Kamogelo",
+      "lastName": "Pasha",
+      "employeeId": "cmq3pcla4000j3fet65nlm221",
+      "action": "created"
+    },
+    {
+      "userId": "cmq2bhzr1000hcotcbayixkwl",
+      "email": "keotshepilediphoko126@gmail.com",
+      "firstName": "Keotshepile",
+      "lastName": "Diphoko",
+      "employeeId": "cmq3pcli8000l3fet0wdof4bb",
+      "action": "created"
+    },
+    {
+      "userId": "cmq2bfegq000fcotcugukxrzz",
+      "email": "modimakwanelesedi3@gmail.com",
+      "firstName": "Lesedi",
+      "lastName": "Modimakwane",
+      "employeeId": "cmq3pclqd000n3fet872tozx1",
+      "action": "created"
+    },
+    {
+      "userId": "cmpqzplg4002t13cn1n5jdmz5",
+      "email": "micaelalee.erasmus@gmail.com",
+      "firstName": "Micaela",
+      "lastName": "Lee Erasmus",
+      "employeeId": "cmq3pclyh000p3fetksddjnmn",
+      "action": "created"
+    },
+    {
+      "userId": "cmpr13xui000d14bg7u1akjrv",
+      "email": "miriekevh@gmail.com",
+      "firstName": "Mirieke",
+      "lastName": "Van Heerden",
+      "employeeId": "cmq3pcm6n000r3fet1d26lgpe",
+      "action": "created"
+    },
+    {
+      "userId": "cmpr15k6r000f14bgpno7mqty",
+      "email": "deputy@dasilvaacademy.com",
+      "firstName": "Monique",
+      "lastName": "Blignaut",
+      "employeeId": "cmq3pcmes000t3fetlj6fq68p",
+      "action": "created"
+    },
+    {
+      "userId": "cmpqzny9l002r13cnzf8nx5w5",
+      "email": "tanzg03@gmail.com",
+      "firstName": "Natasha",
+      "lastName": "Govender",
+      "employeeId": "cmq3pcmni000v3fetrxgujnjh",
+      "action": "created"
+    },
+    {
+      "userId": "cmpqztotu002z13cnwp818uo4",
+      "email": "nklopperdsa@gmail.com",
+      "firstName": "Nicole",
+      "lastName": "Phuengchaem",
+      "employeeId": "cmq3pcmvm000x3feth2nljjao",
+      "action": "created"
+    },
+    {
+      "userId": "cmpqzm17l002p13cnxowzp73g",
+      "email": "matlakalaofentse3@gmail.com",
+      "firstName": "Ofentse",
+      "lastName": "Matlakala",
+      "employeeId": "cmq3pcn3s000z3fetul3pihq5",
+      "action": "created"
+    },
+    {
+      "userId": "cmq2byk3a000tcotczqudpi1v",
+      "email": "mpmolahlehidsa@gmail.com",
+      "firstName": "Priscilla",
+      "lastName": "Molahleli",
+      "employeeId": "cmq3pcnd200113fet266gutdq",
+      "action": "created"
+    },
+    {
+      "userId": "cmpxnn9wm000fbbzbi5k3gct7",
+      "email": "chelvanderwalt@gmail.com",
+      "firstName": "Rachelle",
+      "lastName": "Van Der Walt",
+      "employeeId": "cmq3pcnla00133fet5g0h5xzi",
+      "action": "created"
+    },
+    {
+      "userId": "cmpqzg9n5002j13cnblb3ikr9",
+      "email": "simone.arlow@gmail.com",
+      "firstName": "Simone",
+      "lastName": "Arlow",
+      "employeeId": "cmq3pcnu400153fet94918owr",
+      "action": "created"
+    },
+    {
+      "userId": "cmq2bo988000jcotcsckt8hio",
+      "email": "sviljoendsa@gmail.com",
+      "firstName": "Suzaan",
+      "lastName": "Van Der Westhuizen",
+      "employeeId": "cmq3pco2n00173fetyzhwkqca",
+      "action": "created"
+    },
+    {
+      "userId": "cmpqz692h002713cnhy9b75ew",
+      "email": "principal@dasilvaacademy.com",
+      "firstName": "Tammy",
+      "lastName": "Hautmaunn",
+      "employeeId": "cmq3pcob300193fet6znqnkic",
+      "action": "created"
+    },
+    {
+      "userId": "cmpqzemox002h13cni888ifte",
+      "email": "tanyajannet1999@gmail.com",
+      "firstName": "Tanya",
+      "lastName": "Els",
+      "employeeId": "cmq3pcolt001b3fetk5wolhqj",
+      "action": "created"
+    },
+    {
+      "userId": "cmpqnz30g000vcwkg96g9vai3",
+      "email": "admin@dasilvaacademy.com",
+      "firstName": "Tanya",
+      "lastName": "Van Der Berg",
+      "employeeId": "cmq3pcotw001d3fettvgs3idn",
+      "action": "created"
+    },
+    {
+      "userId": "cmpr16yvt000h14bg9sjttl1h",
+      "email": "segobaetsodsa@gmail.com",
+      "firstName": "Thato",
+      "lastName": "Segobaetso",
+      "employeeId": "cmq3pcp3m001f3fetk9pc3f1l",
+      "action": "created"
+    },
+    {
+      "userId": "cmq2bdro2000dcotc4e7aczhu",
+      "email": "vsasyman18@gmail.com",
+      "firstName": "Venita",
+      "lastName": "Van Der Walt",
+      "employeeId": "cmq3pcpbr001h3fet4mquky1t",
+      "action": "created"
+    },
+    {
+      "userId": "cmpqzanhe002b13cntpm4xbfu",
+      "email": "zahneklopper98@gmail.com",
+      "firstName": "Zahne",
+      "lastName": "Klopper",
+      "employeeId": "cmq3pcpjw001j3fethelxnsgm",
+      "action": "created"
+    },
+    {
+      "userId": "cmpr11la6000b14bg68b0fwj3",
+      "email": "zandri.smith15@gmail.com",
+      "firstName": "Zandri",
+      "lastName": "Smith",
+      "employeeId": "cmq3pcps0001l3feteru9blyt",
+      "action": "created"
+    }
+  ]
+}

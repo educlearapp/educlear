@@ -1,0 +1,89 @@
+{
+  "pdfAccounts": 344,
+  "eduClearAccounts": 344,
+  "matched": 339,
+  "mismatched": [
+    {
+      "accountNo": "LEB005",
+      "pdfBalance": 3400,
+      "liveBalance": 16900,
+      "difference": 13500
+    },
+    {
+      "accountNo": "MON013",
+      "pdfBalance": 0,
+      "liveBalance": 700,
+      "difference": 700
+    },
+    {
+      "accountNo": "NDL008",
+      "pdfBalance": 4305,
+      "liveBalance": 16305,
+      "difference": 12000
+    },
+    {
+      "accountNo": "SIL007",
+      "pdfBalance": -18000,
+      "liveBalance": 9600,
+      "difference": 27600
+    },
+    {
+      "accountNo": "TSH006",
+      "pdfBalance": -50,
+      "liveBalance": 50,
+      "difference": 100
+    }
+  ],
+  "missing": [],
+  "extra": [],
+  "statusMismatches": [
+    {
+      "accountNo": "LEB005",
+      "pdfBalance": 3400,
+      "expectedStatus": "Recently Owing",
+      "liveStatus": "Bad Debt"
+    },
+    {
+      "accountNo": "MON013",
+      "pdfBalance": 0,
+      "expectedStatus": "Up To Date",
+      "liveStatus": "Recently Owing"
+    },
+    {
+      "accountNo": "NDL008",
+      "pdfBalance": 4305,
+      "expectedStatus": "Recently Owing",
+      "liveStatus": "Bad Debt"
+    },
+    {
+      "accountNo": "SIL007",
+      "pdfBalance": -18000,
+      "expectedStatus": "Over Paid",
+      "liveStatus": "Recently Owing"
+    },
+    {
+      "accountNo": "TSH006",
+      "pdfBalance": -50,
+      "expectedStatus": "Over Paid",
+      "liveStatus": "Recently Owing"
+    }
+  ],
+  "cardComparison": {
+    "expected": {
+      "totalAccounts": 344,
+      "totalOutstanding": 552540.45,
+      "overPaid": 561160.03,
+      "netPosition": -8619.58,
+      "recentlyOwing": 334550.45,
+      "badDebt": 217990
+    },
+    "live": {
+      "totalAccounts": 344,
+      "totalOutstanding": 588390.45,
+      "overPaid": 543110.03,
+      "netPosition": 45280.42,
+      "recentlyOwing": 337195.45,
+      "badDebt": 251195
+    }
+  }
+}

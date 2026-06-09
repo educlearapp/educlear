@@ -1,0 +1,19 @@
+{
+  "apply": true,
+  "ageAnalysisXls": "/Users/dasilvaacademy/EduClear/backend/uploads/migration-staging/tmp/1779892585109-account_list__age_analysis_.xls",
+  "parsedAccountCount": 344,
+  "snapshotCount": 346,
+  "importedAt": "2099-12-31T23:59:59.999Z",
+  "ali002": {
+    "kidesysBalance": 7000,
+    "eduClearBefore": 2067.77,
+    "eduClearAfter": 7000
+  },
+  "matchingExactlyCount": 346,
+  "unmatchedCount": 0,
+  "unmatchedAccounts": [],
+  "beforeFix": {
+    "matchingExactlyCount": 10,
+    "unmatchedCount": 336
+  }
+}

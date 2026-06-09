@@ -1,0 +1,26 @@
+[
+  {
+    "id": "cmpwhftui0007z28ytto580dw",
+    "schoolId": "cmpideqeq0000108xb6ouv9zi",
+    "uploadedAt": "2026-06-02T10:15:00.811Z",
+    "uploadedBy": "dasilvaacademy@gmail.com",
+    "sourceFilename": "transaction_list.xls",
+    "rowsImported": 247,
+    "rowsSkipped": 0,
+    "totalAmount": 923465,
+    "rolledBackAt": null,
+    "rolledBackBy": null
+  },
+  {
+    "id": "cmpzmiq970029wh6arh0iq3lj",
+    "schoolId": "cmpideqeq0000108xb6ouv9zi",
+    "uploadedAt": "2026-06-04T15:01:19.887Z",
+    "uploadedBy": "info@educlear.co.za",
+    "sourceFilename": "transaction_list_topup.xlsx",
+    "rowsImported": 92,
+    "rowsSkipped": 0,
+    "totalAmount": 304660,
+    "rolledBackAt": null,
+    "rolledBackBy": null
+  }
+]

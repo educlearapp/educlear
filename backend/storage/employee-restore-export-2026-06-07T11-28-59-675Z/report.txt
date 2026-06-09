@@ -1,0 +1,48 @@
+EduClear Employee Restore — STAFF Export Report (read-only)
+School: Da Silva Academy (cmpideqeq0000108xb6ouv9zi)
+Generated: 2026-06-07T11:28:59.674Z
+STAFF source rows: 29
+
+ # | Full name | Email | Created (UTC) | Proposed firstName | Proposed lastName | XLS match
+------------------------------------------------------------------------------------------------------------------------
+ 1 | Amanda Coetzee | acoetzeedsa@gmail.com | 2026-05-29T13:56:19.950Z | Amanda | Coetzee | AMANDA COETZEE
+ 2 | Anje Moll | mollanje3@gmail.com | 2026-05-29T14:02:12.340Z | Anje | Moll | -
+ 3 | Belinda Molotsi | belindamolotsi@gmail.com | 2026-06-06T12:12:26.054Z | Belinda | Molotsi | -
+ 4 | Belinda Novela | novelabelinda@gmail.com | 2026-05-29T14:43:31.413Z | Belinda | Novela | BELINDA NOVELA
+ 5 | Blommie Grobbelaar | bloms.grob@gmail.com | 2026-05-29T13:47:44.944Z | Blommie | Grobbelaar | -
+ 6 | Danell Van Wyk | danellb460@gmail.com | 2026-05-29T13:51:39.838Z | Danell | Van Wyk | -
+ 7 | Jemmah Harris | jemmahharris@gmail.com | 2026-05-29T14:03:09.839Z | Jemmah | Harris | -
+ 8 | Jennifer Pereira | jpereiradsa@gmail.com | 2026-05-29T13:50:35.843Z | Jennifer | Pereira | JENNIFER PEREIRA
+ 9 | Kagiso Seema | kagilelomo@gmail.com | 2026-06-07T10:02:55.371Z | Kagiso | Seema | -
+10 | Kamogelo Pasha | missktmpasha@gmail.com | 2026-05-29T13:55:22.149Z | Kamogelo | Pasha | KAMOGELO PASHA
+11 | Keotshepile Diphoko | keotshepilediphoko126@gmail.com | 2026-06-06T12:16:38.462Z | Keotshepile | Diphoko | KEOTSHEPILE DIPHOKO
+12 | Lesedi Modimakwane | modimakwanelesedi3@gmail.com | 2026-06-06T12:14:37.562Z | Lesedi | Modimakwane | -
+13 | Micaela Lee Erasmus | micaelalee.erasmus@gmail.com | 2026-05-29T14:01:09.844Z | Micaela | Lee Erasmus | -
+14 | Mirieke VAn Heerden | miriekevh@gmail.com | 2026-05-29T14:40:18.715Z | Mirieke | Van Heerden | -
+15 | Monique Blignaut | deputy@dasilvaacademy.com | 2026-05-29T14:41:34.323Z | Monique | Blignaut | MONIQUE BLIGNAUT
+16 | Natasha Govender | tanzg03@gmail.com | 2026-05-29T13:59:53.145Z | Natasha | Govender | NATASHA GOVENDER
+17 | Nicole Phuengchaem | nklopperdsa@gmail.com | 2026-05-29T14:04:20.851Z | Nicole | Phuengchaem | NICOLE PHUENGCHAEM
+18 | Ofentse Matlakala | matlakalaofentse3@gmail.com | 2026-05-29T13:58:23.650Z | Ofentse | Matlakala | -
+19 | Priscilla Molahleli | mpmolahlehidsa@gmail.com | 2026-06-06T12:29:31.318Z | Priscilla | Molahleli | -
+20 | Rachelle Van der walt | chelvanderwalt@gmail.com | 2026-06-03T05:57:49.415Z | Rachelle | Van Der Walt | RACHELLE VAN DER WALT
+21 | Simone Arlow | simone.arlow@gmail.com | 2026-05-29T13:53:54.642Z | Simone | Arlow | -
+22 | Suzaan Van Der Westhuizen | sviljoendsa@gmail.com | 2026-06-06T12:21:30.680Z | Suzaan | Van Der Westhuizen | -
+23 | Tammy Hautmaunn | principal@dasilvaacademy.com | 2026-05-29T13:46:07.338Z | Tammy | Hautmaunn | -
+24 | Tanya Els | tanyajannet1999@gmail.com | 2026-05-29T13:52:38.242Z | Tanya | Els | TANYA ELS
+25 | Tanya Van Der Berg | admin@dasilvaacademy.com | 2026-05-29T08:32:37.121Z | Tanya | Van Der Berg | -
+26 | Thato Segobaetso | segobaetsodsa@gmail.com | 2026-05-29T14:42:40.025Z | Thato | Segobaetso | -
+27 | Venita Van Der Walt | vsasyman18@gmail.com | 2026-06-06T12:13:21.363Z | Venita | Van Der Walt | -
+28 | Zahne Klopper | zahneklopper98@gmail.com | 2026-05-29T13:49:32.642Z | Zahne | Klopper | ZAHNE KLOPPER
+29 | Zandri Smith | zandri.smith15@gmail.com | 2026-05-29T14:38:29.118Z | Zandri | Smith | -
+
+First 10 names:
+1. Amanda Coetzee <acoetzeedsa@gmail.com>
+2. Anje Moll <mollanje3@gmail.com>
+3. Belinda Molotsi <belindamolotsi@gmail.com>
+4. Belinda Novela <novelabelinda@gmail.com>
+5. Blommie Grobbelaar <bloms.grob@gmail.com>
+6. Danell Van Wyk <danellb460@gmail.com>
+7. Jemmah Harris <jemmahharris@gmail.com>
+8. Jennifer Pereira <jpereiradsa@gmail.com>
+9. Kagiso Seema <kagilelomo@gmail.com>
+10. Kamogelo Pasha <missktmpasha@gmail.com>
