@@ -115,8 +115,9 @@ export default function BillingPlans({
   const [selectedFeeIds, setSelectedFeeIds] = useState<Set<string>>(() => new Set());
   const [allFees, setAllFees] = useState<any[]>([]);
   const feePickerWasOpenRef = useRef(false);
-  const [saveStatus, setSaveStatus] = useState<"idle" | "saving" | "saved">("idle");
+  const [saveStatus, setSaveStatus] = useState<"idle" | "saving" | "saved" | "removing">("idle");
   const [saveError, setSaveError] = useState("");
+  const [detailPlan, setDetailPlan] = useState<any[]>([]);
   const prevPlanLearnerKeyRef = useRef<string | null>(null);
   const savedResetTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const diagLearnerIdRef = useRef<string | null>(null);
@@ -309,7 +310,7 @@ export default function BillingPlans({
   };
 
   const getPlan = (learner: any) => {
-    if (Array.isArray(learner?.billingPlan) && learner.billingPlan.length > 0) {
+    if (Array.isArray(learner?.billingPlan)) {
       return learner.billingPlan.map(normalizeFee);
     }
 
@@ -340,6 +341,15 @@ export default function BillingPlans({
 
     return [];
   };
+
+  useEffect(() => {
+    if (!selectedPlanLearner) {
+      setDetailPlan([]);
+      return;
+    }
+    const active = resolveLearnerFromList(selectedPlanLearner);
+    setDetailPlan(getPlan(active));
+  }, [selectedPlanLearner?.id, selectedPlanLearner?.learnerId, learners]);
 
   const getPlanTotal = (learner: any) =>
     getPlan(learner).reduce((sum: number, fee: any) => sum + Number(fee.amount || 0), 0);
@@ -700,8 +710,7 @@ export default function BillingPlans({
       setSaveStatus("saving");
     });
 
-    const plan = getPlan(learner);
-    const result = await savePlan(learner, plan, { reloadList: true });
+    const result = await savePlan(learner, detailPlan, { reloadList: true });
 
     if (result.ok) {
       setSaveStatus("saved");
@@ -716,12 +725,60 @@ export default function BillingPlans({
     }
   };
 
+  const handlePlanRemove = async (learner: any, nextPlan: any[]) => {
+    if (savedResetTimerRef.current) {
+      clearTimeout(savedResetTimerRef.current);
+      savedResetTimerRef.current = null;
+    }
+
+    const learnerKey = String(learner?.id || learner?.learnerId || "");
+    const normalizedPlan = nextPlan.map(normalizeFee);
+    const previousPlan = detailPlan.map(normalizeFee);
+
+    setSaveError("");
+    setDetailPlan(normalizedPlan);
+
+    const optimisticLearner = { ...learner, billingPlan: normalizedPlan };
+    if (learnerKey) {
+      mergeLearnerIntoList(learnerKey, optimisticLearner);
+      syncLearnerBillingPlanCache(learnerKey, normalizedPlan, optimisticLearner);
+    }
+
+    flushSync(() => {
+      setSaveStatus("removing");
+    });
+
+    const result = await savePlan(learner, normalizedPlan);
+
+    if (result.ok) {
+      setSaveStatus("saved");
+      setSaveError("");
+      savedResetTimerRef.current = setTimeout(() => {
+        setSaveStatus("idle");
+        savedResetTimerRef.current = null;
+      }, 2000);
+    } else {
+      setDetailPlan(previousPlan);
+      const revertedLearner = { ...learner, billingPlan: previousPlan };
+      if (learnerKey) {
+        mergeLearnerIntoList(learnerKey, revertedLearner);
+        syncLearnerBillingPlanCache(learnerKey, previousPlan, revertedLearner);
+      }
+      setSaveStatus("idle");
+      setSaveError(result.error || "Failed to save billing plan");
+    }
+  };
+
+  const planActionBusy = saveStatus === "saving" || saveStatus === "removing";
+
   const saveStatusLabel =
     saveStatus === "saving"
       ? "Saving..."
-      : saveStatus === "saved"
-        ? "Saved ✓"
-        : "";
+      : saveStatus === "removing"
+        ? "Removing..."
+        : saveStatus === "saved"
+          ? "Saved ✓"
+          : "";
 
   const onVisibleBillingPlanSave = (learner: any) => {
     console.log("VISIBLE BILLING PLAN SAVE CLICKED", new Date().toISOString());
@@ -1135,8 +1192,11 @@ export default function BillingPlans({
 
   if (selectedPlanLearner) {
     const activePlanLearner = resolveLearnerFromList(selectedPlanLearner);
-    const plan = getPlan(activePlanLearner);
-    const total = getPlanTotal(activePlanLearner);
+    const plan = detailPlan;
+    const total = detailPlan.reduce(
+      (sum: number, fee: any) => sum + Number(fee.amount || 0),
+      0
+    );
 
 
 
@@ -1224,10 +1284,10 @@ export default function BillingPlans({
                   type="submit"
                   style={{
                     ...btnGold,
-                    opacity: saveStatus === "saving" ? 0.85 : 1,
-                    cursor: saveStatus === "saving" ? "wait" : "pointer",
+                    opacity: planActionBusy ? 0.85 : 1,
+                    cursor: planActionBusy ? "wait" : "pointer",
                   }}
-                  disabled={saveStatus === "saving"}
+                  disabled={planActionBusy}
                 >
                   {saveStatusLabel || "Save"}
                 </button>
@@ -1338,14 +1398,19 @@ export default function BillingPlans({
 
 
 
-                  <button style={btnDanger} onClick={() => savePlan(activePlanLearner, [])}>
-
-
-
-                    Remove All
-
-
-
+                  <button
+                    type="button"
+                    style={{
+                      ...btnDanger,
+                      opacity: planActionBusy ? 0.7 : 1,
+                      cursor: planActionBusy ? "wait" : "pointer",
+                    }}
+                    disabled={planActionBusy}
+                    onClick={() => {
+                      void handlePlanRemove(activePlanLearner, []);
+                    }}
+                  >
+                    {saveStatus === "removing" ? "Removing..." : "Remove All"}
                   </button>
 
 
@@ -1524,45 +1589,21 @@ export default function BillingPlans({
 
 
           <button
-
-
-
-            style={btnDanger}
-
-
-
-            onClick={() => {
-
-
-
-              const updatedPlan = plan.filter(
-
-
-
-                (_: any, itemIndex: number) => itemIndex !== index
-
-
-
-              );
-
-
-
-              savePlan(activePlanLearner, updatedPlan);
-
-
-
+            type="button"
+            style={{
+              ...btnDanger,
+              opacity: planActionBusy ? 0.7 : 1,
+              cursor: planActionBusy ? "wait" : "pointer",
             }}
-
-
-
+            disabled={planActionBusy}
+            onClick={() => {
+              const updatedPlan = plan.filter(
+                (_: any, itemIndex: number) => itemIndex !== index
+              );
+              void handlePlanRemove(activePlanLearner, updatedPlan);
+            }}
           >
-
-
-
-            Remove
-
-
-
+            {saveStatus === "removing" ? "..." : "Remove"}
           </button>
 
 
