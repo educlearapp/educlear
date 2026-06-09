@@ -7,6 +7,9 @@ import { PrismaClient } from "@prisma/client";
 import { getSurnamePrefix, resolveLearnerAccountNo } from "../utils/learnerIdentity";
 import { normalizeLearnerGender } from "../utils/learnerGender";
 import {
+  clearLearnerBillingPlanExplicitlyEmpty,
+  markLearnerBillingPlanExplicitlyEmpty,
+  readExplicitlyEmptyBillingPlanLearnerIds,
   readLearnerBillingPlanFromDb,
   readSchoolBillingPlansResolved,
   removeLearnerBillingPlanFromDb,
@@ -425,6 +428,9 @@ router.get("/:id", async (req, res) => {
     } catch (billingErr) {
       console.error("[GET /api/learners/:id] billingPlans read failed", billingErr);
     }
+    const explicitlyEmptyLearnerIds = await readExplicitlyEmptyBillingPlanLearnerIds(
+      learner.schoolId
+    );
     const billingPlanIndexes = buildBillingPlanLookupIndexes(billingPlansByLearner, [
       {
         id: learner.id,
@@ -439,7 +445,8 @@ router.get("/:id", async (req, res) => {
         idNumber: learner.idNumber,
       },
       billingPlansByLearner,
-      billingPlanIndexes
+      billingPlanIndexes,
+      explicitlyEmptyLearnerIds
     );
 
     return res.status(200).json({
@@ -539,6 +546,9 @@ router.get("/", async (req, res) => {
 
     });
 
+    const explicitlyEmptyLearnerIds = await readExplicitlyEmptyBillingPlanLearnerIds(
+      String(schoolId)
+    );
     const billingPlanIndexes = buildBillingPlanLookupIndexes(billingPlansByLearner, [
       ...learners.map((l) => ({
         id: l.id,
@@ -559,7 +569,8 @@ router.get("/", async (req, res) => {
           idNumber: learner.idNumber,
         },
         billingPlansByLearner,
-        billingPlanIndexes
+        billingPlanIndexes,
+        explicitlyEmptyLearnerIds
       );
 
       return {
@@ -1244,15 +1255,17 @@ router.patch("/:id/billing-plan", async (req, res) => {
     if (items.length === 0) {
       await removeLearnerBillingPlanFromDb(learner.schoolId, learner.id);
       removeLearnerBillingPlan(learner.schoolId, learner.id);
+      await markLearnerBillingPlanExplicitlyEmpty(learner.schoolId, learner.id);
     } else {
       await upsertLearnerBillingPlanToDb(learner.schoolId, learner.id, items);
       upsertLearnerBillingPlan(learner.schoolId, learner.id, items);
+      await clearLearnerBillingPlanExplicitlyEmpty(learner.schoolId, learner.id);
     }
 
     const billingPlan = await readLearnerBillingPlanFromDb(learner.schoolId, learner.id);
 
     console.log(
-      `[billing-plan] PATCH learnerId=${learner.id} schoolId=${learner.schoolId} linesBefore=${linesBefore} linesAfter=${billingPlan.length}`
+      `[billing-plan] PATCH learnerId=${learner.id} schoolId=${learner.schoolId} linesBefore=${linesBefore} linesAfter=${billingPlan.length} explicitlyEmpty=${items.length === 0}`
     );
 
     return res.json({ success: true, billingPlan });
@@ -1534,10 +1547,18 @@ router.put("/:id", async (req, res) => {
       if (items.length === 0) {
         await removeLearnerBillingPlanFromDb(updatedLearner.schoolId, updatedLearner.id);
         removeLearnerBillingPlan(updatedLearner.schoolId, updatedLearner.id);
+        await markLearnerBillingPlanExplicitlyEmpty(
+          updatedLearner.schoolId,
+          updatedLearner.id
+        );
         billingPlan = [];
       } else {
         await upsertLearnerBillingPlanToDb(updatedLearner.schoolId, updatedLearner.id, items);
         upsertLearnerBillingPlan(updatedLearner.schoolId, updatedLearner.id, items);
+        await clearLearnerBillingPlanExplicitlyEmpty(
+          updatedLearner.schoolId,
+          updatedLearner.id
+        );
         billingPlan = await readLearnerBillingPlanFromDb(
           updatedLearner.schoolId,
           updatedLearner.id

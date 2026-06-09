@@ -1,6 +1,9 @@
 import { Router } from "express";
 import { calculateLearnerAge, resolveLearnerAccountNo } from "../utils/learnerIdentity";
-import { readSchoolBillingPlansResolved } from "../services/learnerBillingPlanDbStore";
+import {
+  readExplicitlyEmptyBillingPlanLearnerIds,
+  readSchoolBillingPlansResolved,
+} from "../services/learnerBillingPlanDbStore";
 import {
   buildBillingPlanLookupIndexes,
   resolveLearnerBillingPlanItems,
@@ -134,6 +137,7 @@ router.get("/learners", async (req, res) => {
           })
         : [];
 
+    const explicitlyEmptyLearnerIds = await readExplicitlyEmptyBillingPlanLearnerIds(schoolId);
     const billingPlanIndexes = buildBillingPlanLookupIndexes(billingPlansByLearner, [
       ...learners.map((l) => ({
         id: l.id,
@@ -335,7 +339,8 @@ router.get("/learners", async (req, res) => {
             idNumber: learner.idNumber,
           },
           billingPlansByLearner,
-          billingPlanIndexes
+          billingPlanIndexes,
+          explicitlyEmptyLearnerIds
         ),
 
         tuitionFee: learner.tuitionFee ?? 0,

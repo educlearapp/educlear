@@ -136,6 +136,7 @@ learnerReports LearnerReport[]
   learnerIncidents LearnerIncident[]
   learnerAttendances LearnerAttendance[]
   learnerBillingPlanLines LearnerBillingPlanLine[]
+  learnerBillingPlanClearedMarkers LearnerBillingPlanCleared[]
   parentOnboardings ParentOnboarding[]
   parentOutreachQueue ParentOutreachQueue[]
   communicationMessages CommunicationMessage[]
@@ -716,6 +717,7 @@ reports LearnerReport[]
 
   billingDeposits BillingDeposit[]
   billingPlanLines LearnerBillingPlanLine[]
+  billingPlanClearedMarkers LearnerBillingPlanCleared[]
   notifications ParentNotification[]
   teacherThreads ParentTeacherThread[]
   homeworkPosts HomeworkPost[]
@@ -747,6 +749,19 @@ model LearnerBillingPlanLine {
 
   @@index([schoolId])
   @@index([schoolId, learnerId])
+}
+
+/// User explicitly cleared all billing plan lines; blocks admissionNo/idNumber fallback.
+model LearnerBillingPlanCleared {
+  schoolId  String
+  learnerId String
+  clearedAt DateTime @default(now())
+
+  school  School  @relation(fields: [schoolId], references: [id], onDelete: Cascade)
+  learner Learner @relation(fields: [learnerId], references: [id], onDelete: Cascade)
+
+  @@id([schoolId, learnerId])
+  @@index([schoolId])
 }
 
 model ParentLearnerLink {

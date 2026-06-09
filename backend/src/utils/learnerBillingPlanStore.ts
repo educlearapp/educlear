@@ -259,8 +259,11 @@ export function resolveLearnerBillingPlanItems(
     idNumber?: string | null;
   },
   plansByLearnerId: Record<string, StoredBillingPlanItem[]>,
-  indexes: BillingPlanLookupIndexes
+  indexes: BillingPlanLookupIndexes,
+  explicitlyEmptyLearnerIds?: ReadonlySet<string>
 ): StoredBillingPlanItem[] {
+  if (explicitlyEmptyLearnerIds?.has(learner.id)) return [];
+
   const direct = plansByLearnerId[learner.id];
   if (direct?.length) return direct;
 

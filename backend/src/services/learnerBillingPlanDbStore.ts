@@ -133,6 +133,68 @@ export async function removeLearnerBillingPlanFromDb(
   });
 }
 
+async function resolvedSchoolIdsForBillingPlanReads(schoolId: string): Promise<string[]> {
+  const key = String(schoolId || "").trim();
+  if (!key) return [];
+  if (isDaSilvaSchoolId(key)) {
+    return refreshDaSilvaSchoolIdCache();
+  }
+  return [key];
+}
+
+/** Learners who explicitly removed all plan lines; blocks orphan/admissionNo fallback. */
+export async function readExplicitlyEmptyBillingPlanLearnerIds(
+  schoolId: string
+): Promise<Set<string>> {
+  const schoolIds = await resolvedSchoolIdsForBillingPlanReads(schoolId);
+  if (!schoolIds.length) return new Set();
+
+  const rows = await prisma.learnerBillingPlanCleared.findMany({
+    where: { schoolId: { in: schoolIds } },
+    select: { learnerId: true },
+  });
+
+  return new Set(rows.map((row) => row.learnerId));
+}
+
+export async function markLearnerBillingPlanExplicitlyEmpty(
+  schoolId: string,
+  learnerId: string
+): Promise<void> {
+  const schoolKey = String(schoolId || "").trim();
+  const learnerKey = String(learnerId || "").trim();
+  if (!schoolKey || !learnerKey) return;
+
+  await prisma.learnerBillingPlanCleared.upsert({
+    where: {
+      schoolId_learnerId: {
+        schoolId: schoolKey,
+        learnerId: learnerKey,
+      },
+    },
+    create: {
+      schoolId: schoolKey,
+      learnerId: learnerKey,
+    },
+    update: {
+      clearedAt: new Date(),
+    },
+  });
+}
+
+export async function clearLearnerBillingPlanExplicitlyEmpty(
+  schoolId: string,
+  learnerId: string
+): Promise<void> {
+  const schoolKey = String(schoolId || "").trim();
+  const learnerKey = String(learnerId || "").trim();
+  if (!schoolKey || !learnerKey) return;
+
+  await prisma.learnerBillingPlanCleared.deleteMany({
+    where: { schoolId: schoolKey, learnerId: learnerKey },
+  });
+}
+
 export async function upsertSchoolBillingPlansToDb(
   schoolId: string,
   plans: Record<string, StoredBillingPlanItem[]>
