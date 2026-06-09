@@ -9,6 +9,7 @@ import TeacherVisibilitySelect, {
   visibilityBadge,
   type TeacherVisibility,
 } from "./TeacherVisibilitySelect";
+import { formatTeacherUploadError } from "./teacherUploadErrors";
 
 type HomeworkPost = {
   id: string;
@@ -79,7 +80,8 @@ export default function TeacherHomeworkPage() {
       setFiles(null);
       void loadPosts(listScope);
     } catch (e: unknown) {
-      setErr(e instanceof Error ? e.message : "Save failed");
+      const msg = e instanceof Error ? e.message : "Save failed";
+      setErr(formatTeacherUploadError(msg));
     } finally {
       setSubmitting(false);
     }

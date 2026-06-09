@@ -1,4 +1,4 @@
-import { Router } from "express";
+import { Router, type NextFunction, type Request, type Response } from "express";
 import type { SchoolNoticeType } from "@prisma/client";
 import fs from "fs";
 import multer from "multer";
@@ -23,20 +23,76 @@ import {
 } from "../utils/teacherVisibility";
 
 const uploadDir = path.join(process.cwd(), "uploads/teacher-app");
+export const TEACHER_APP_MAX_FILE_BYTES = 12 * 1024 * 1024;
+export const TEACHER_APP_MAX_FILES = 5;
+
 try {
   if (!fs.existsSync(uploadDir)) fs.mkdirSync(uploadDir, { recursive: true });
 } catch (e) {
   console.warn("[teacher-app] upload dir:", uploadDir, e);
 }
 
+function ensureTeacherAppUploadDir(): void {
+  if (!fs.existsSync(uploadDir)) fs.mkdirSync(uploadDir, { recursive: true });
+}
+
 const storage = multer.diskStorage({
-  destination: (_req, _file, cb) => cb(null, uploadDir),
+  destination: (_req, _file, cb) => {
+    try {
+      ensureTeacherAppUploadDir();
+      cb(null, uploadDir);
+    } catch (e) {
+      cb(e instanceof Error ? e : new Error("Upload failed"), uploadDir);
+    }
+  },
   filename: (_req, file, cb) => {
     const unique = Date.now() + "-" + Math.round(Math.random() * 1e9);
     cb(null, unique + path.extname(file.originalname));
   },
 });
-const upload = multer({ storage, limits: { fileSize: 12 * 1024 * 1024 } });
+const upload = multer({
+  storage,
+  limits: { fileSize: TEACHER_APP_MAX_FILE_BYTES, files: TEACHER_APP_MAX_FILES },
+});
+
+function jsonUploadError(res: Response, status: number, error: string) {
+  return res.status(status).json({ success: false, error });
+}
+
+/** Return JSON for multer / storage errors instead of HTML 500 pages. */
+export function teacherAppUploadErrorHandler(
+  err: unknown,
+  _req: Request,
+  res: Response,
+  next: NextFunction
+) {
+  if (res.headersSent) return next(err);
+
+  if (err instanceof multer.MulterError) {
+    if (err.code === "LIMIT_FILE_SIZE") {
+      return jsonUploadError(res, 413, "File too large. Maximum file size is 12 MB.");
+    }
+    if (err.code === "LIMIT_FILE_COUNT") {
+      return jsonUploadError(res, 400, "You can attach up to 5 files.");
+    }
+    if (err.code === "LIMIT_UNEXPECTED_FILE") {
+      return jsonUploadError(res, 400, "Upload failed. Please try again.");
+    }
+    console.error("[teacher-app] multer upload", err);
+    return jsonUploadError(res, 400, "Upload failed. Please try again.");
+  }
+
+  const code = err && typeof err === "object" ? (err as NodeJS.ErrnoException).code : undefined;
+  if (code === "EACCES" || code === "ENOSPC" || code === "ENOENT") {
+    console.error("[teacher-app] upload storage", err);
+    return jsonUploadError(res, 500, "Upload failed. Please try again.");
+  }
+
+  if (err instanceof Error) {
+    console.error("[teacher-app] upload", err);
+  }
+  return jsonUploadError(res, 500, "Upload failed. Please try again.");
+}
 
 const router = Router();
 
@@ -350,7 +406,7 @@ router.get("/homework", async (req, res) => {
   }
 });
 
-router.post("/homework", upload.array("files", 5), async (req, res) => {
+router.post("/homework", upload.array("files", TEACHER_APP_MAX_FILES), async (req, res) => {
   try {
     const teacherCtx = ctx(req);
     const { schoolId, assignedClassrooms, email, userId } = teacherCtx;
@@ -445,7 +501,7 @@ router.get("/notices", async (req, res) => {
   }
 });
 
-router.post("/notices", upload.array("files", 5), async (req, res) => {
+router.post("/notices", upload.array("files", TEACHER_APP_MAX_FILES), async (req, res) => {
   try {
     const teacherCtx = ctx(req);
     const { schoolId, email, userId } = teacherCtx;

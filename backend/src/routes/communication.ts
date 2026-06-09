@@ -13,9 +13,14 @@ import {
   smtpSenderFromPublic,
 } from "../communication/schoolSender";
 
+import { normalizeSaPhone } from "../services/parentPortalService";
 import {
+  checkSchoolSmsCreditBalance,
+  isSchoolSmsReady,
+  sendSchoolSms,
   testSchoolSmsConnection,
 } from "../services/schoolSmsService";
+import { WinSmsApiError } from "../services/winSmsClient";
 
 const router = Router();
 const DATA_FILE = path.join(process.cwd(), "data", "communication-store.json");
@@ -74,7 +79,7 @@ type SmsRecord = {
   description: string;
   message: string;
   contacts: SmsContact[];
-  status: "Draft" | "Sent";
+  status: "Draft" | "Sent" | "Failed";
   createdAt: string;
   updatedAt: string;
   sentAt?: string;
@@ -563,39 +568,176 @@ router.delete("/sms/:id", (req, res) => {
   }
 });
 
-router.post("/sms/:id/send", (req, res) => {
+router.post("/sms/:id/send", async (req, res) => {
+  const schoolId = String(req.body?.schoolId || "").trim();
+  const id = String(req.params.id || "").trim();
+
   try {
-    const schoolId = String(req.body?.schoolId || "").trim();
-    const id = String(req.params.id || "").trim();
+    if (!schoolId) {
+      return res.status(400).json({ success: false, error: "Missing schoolId", simulated: false });
+    }
+
+    const ready = await isSchoolSmsReady(schoolId);
+    if (!ready) {
+      return res.status(409).json({
+        success: false,
+        simulated: false,
+        error:
+          "WinSMS is not configured or not connected. Open Communication → Settings → SMS, connect your account, and test the connection.",
+      });
+    }
+
     const store = ensureStore();
     const school = getSchoolStore(store, schoolId);
     const idx = school.sms.findIndex((e) => e.id === id);
-    if (idx < 0) return res.status(404).json({ success: false, error: "SMS not found" });
-    const record = school.sms[idx];
+    if (idx < 0) return res.status(404).json({ success: false, error: "SMS not found", simulated: false });
+
+    const record = { ...school.sms[idx], contacts: [...school.sms[idx].contacts] };
     if (!record.contacts.length) {
-      return res.status(400).json({ success: false, error: "Add at least one contact before sending" });
+      return res.status(400).json({
+        success: false,
+        error: "Add at least one contact before sending",
+        simulated: false,
+      });
     }
-    const segments = Math.max(1, Math.ceil(record.message.length / 160));
-    const cost = record.contacts.length * segments;
-    const sentAt = new Date().toISOString();
-    record.contacts = record.contacts.map((c) => ({ ...c, status: "Sent" }));
-    record.status = "Sent";
-    record.sentAt = sentAt;
-    record.updatedAt = sentAt;
+
+    const message = String(record.message || "").trim();
+    if (!message) {
+      return res.status(400).json({
+        success: false,
+        error: "SMS message is required before sending",
+        simulated: false,
+      });
+    }
+
+    const segments = Math.max(1, Math.ceil(message.length / 160));
+    const now = new Date().toISOString();
+    const invalidContactIds = new Set<string>();
+    const prepared: { contact: SmsContact; mobileNumber: string }[] = [];
+
+    for (const contact of record.contacts) {
+      const { plainInternational } = normalizeSaPhone(contact.cellNo);
+      if (plainInternational.length < 10) {
+        invalidContactIds.add(contact.id);
+        continue;
+      }
+      prepared.push({ contact, mobileNumber: plainInternational });
+    }
+
+    console.info("[communication] sms send start", {
+      schoolId,
+      messageId: id,
+      recipientCount: prepared.length,
+      invalidRecipientCount: invalidContactIds.size,
+    });
+
+    let winSmsAccepted = false;
+    let winSmsError = prepared.length ? "" : "No valid mobile numbers on the selected contacts.";
+
+    if (prepared.length > 0) {
+      try {
+        await sendSchoolSms(schoolId, {
+          message,
+          recipients: prepared.map((entry) => ({
+            mobileNumber: entry.mobileNumber,
+            clientMessageId: `${id}-${entry.contact.id}`,
+          })),
+          maxSegments: segments,
+          clientMessageIdPrefix: id,
+        });
+        winSmsAccepted = true;
+        console.info("[communication] sms send winSms result", {
+          schoolId,
+          messageId: id,
+          recipientCount: prepared.length,
+          result: "accepted",
+        });
+      } catch (error) {
+        winSmsError =
+          error instanceof WinSmsApiError
+            ? error.message
+            : error instanceof Error
+              ? error.message
+              : "WinSMS send failed";
+        console.error("[communication] sms send winSms result", {
+          schoolId,
+          messageId: id,
+          recipientCount: prepared.length,
+          result: "failed",
+          error: winSmsError,
+        });
+      }
+    } else {
+      console.error("[communication] sms send winSms result", {
+        schoolId,
+        messageId: id,
+        recipientCount: 0,
+        result: "failed",
+        error: winSmsError,
+      });
+    }
+
+    record.contacts = record.contacts.map((contact) => {
+      if (invalidContactIds.has(contact.id)) {
+        return { ...contact, status: "Failed" };
+      }
+      if (winSmsAccepted) {
+        return { ...contact, status: "Sent" };
+      }
+      return { ...contact, status: "Failed" };
+    });
+
+    const sentCount = record.contacts.filter((contact) => contact.status === "Sent").length;
+    const failedCount = record.contacts.filter((contact) => contact.status === "Failed").length;
+
+    if (sentCount > 0) {
+      record.status = "Sent";
+      record.sentAt = now;
+    } else {
+      record.status = "Failed";
+      record.sentAt = undefined;
+    }
+    record.updatedAt = now;
     school.sms[idx] = record;
-    school.smsCredits = Math.max(0, school.smsCredits - cost);
-    school.winSmsCredits = Math.max(0, school.winSmsCredits - cost);
     writeStore(store);
-    return res.json({
-      success: true,
+
+    let creditBalance: number | undefined;
+    if (winSmsAccepted) {
+      const balanceResult = await checkSchoolSmsCreditBalance(schoolId);
+      if (balanceResult.ok) {
+        creditBalance = balanceResult.creditBalance;
+      }
+    }
+
+    const responseBody = {
       sms: record,
       smsCredits: school.smsCredits,
-      winSmsCredits: school.winSmsCredits,
-      simulated: true,
+      simulated: false as const,
+      ...(creditBalance !== undefined ? { creditBalance } : {}),
+      ...(failedCount > 0 && sentCount > 0
+        ? { warning: `${failedCount} recipient(s) could not be sent.` }
+        : {}),
+    };
+
+    if (sentCount === 0) {
+      return res.status(400).json({
+        success: false,
+        error: winSmsError || "SMS send failed for all recipients.",
+        ...responseBody,
+      });
+    }
+
+    return res.json({
+      success: true,
+      ...responseBody,
     });
   } catch (error) {
-    console.error("[communication] send sms failed:", error);
-    return res.status(500).json({ success: false, error: "Server error" });
+    console.error("[communication] send sms failed", {
+      schoolId,
+      messageId: id,
+      error: error instanceof Error ? error.message : "Server error",
+    });
+    return res.status(500).json({ success: false, error: "Server error", simulated: false });
   }
 });
 

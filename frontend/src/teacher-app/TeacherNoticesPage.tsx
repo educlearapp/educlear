@@ -4,6 +4,7 @@ import {
   NO_ASSIGNED_CLASSROOMS_MSG,
   useTeacherAssignedClassrooms,
 } from "./useTeacherAssignedClassrooms";
+import { formatTeacherUploadError } from "./teacherUploadErrors";
 
 type Props = { defaultNoticeType?: "CLASS" | "ASSESSMENT" | "EXAM" };
 
@@ -58,7 +59,8 @@ export default function TeacherNoticesPage({ defaultNoticeType = "CLASS" }: Prop
       setFiles(null);
       void loadNotices();
     } catch (e: unknown) {
-      setErr(e instanceof Error ? e.message : "Save failed");
+      const msg = e instanceof Error ? e.message : "Save failed";
+      setErr(formatTeacherUploadError(msg));
     } finally {
       setSubmitting(false);
     }

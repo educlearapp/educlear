@@ -14,6 +14,7 @@ import {
   type SmsContact,
   type SmsRecord,
 } from "./communicationApi";
+import { checkSchoolSmsCreditBalance } from "./schoolSmsApi";
 import {
   fieldStyle,
   ghostBtn,
@@ -49,7 +50,9 @@ export default function SMS({
   const [view, setView] = useState<View>("list");
   const [records, setRecords] = useState<SmsRecord[]>([]);
   const [smsCredits, setSmsCredits] = useState(0);
-  const [winSmsCredits, setWinSmsCredits] = useState(0);
+  const [liveWinSmsBalance, setLiveWinSmsBalance] = useState<number | null>(null);
+  const [liveBalanceLoading, setLiveBalanceLoading] = useState(false);
+  const [sendNotice, setSendNotice] = useState("");
   const [search, setSearch] = useState("");
   const [page, setPage] = useState(1);
   const [loading, setLoading] = useState(false);
@@ -73,6 +76,22 @@ export default function SMS({
   const charCount = message.length;
   const segments = Math.max(1, Math.ceil(charCount / SMS_LIMIT));
 
+  const refreshLiveWinSmsBalance = useCallback(async () => {
+    if (!schoolId) {
+      setLiveWinSmsBalance(null);
+      return;
+    }
+    setLiveBalanceLoading(true);
+    try {
+      const res = await checkSchoolSmsCreditBalance(schoolId);
+      setLiveWinSmsBalance(res.creditBalance);
+    } catch {
+      setLiveWinSmsBalance(null);
+    } finally {
+      setLiveBalanceLoading(false);
+    }
+  }, [schoolId]);
+
   const loadList = useCallback(async () => {
     if (!schoolId) return;
     setLoading(true);
@@ -84,17 +103,17 @@ export default function SMS({
       ]);
       setRecords(listRes.sms || []);
       setSmsCredits(listRes.smsCredits ?? 0);
-      setWinSmsCredits(listRes.winSmsCredits ?? 0);
       setSettings(settingsRes.settings);
       if (settingsRes.settings?.standardSmsMessage && !message) {
         setMessage(settingsRes.settings.standardSmsMessage.replace(/\[school_name\]/g, schoolName));
       }
+      void refreshLiveWinSmsBalance();
     } catch (e: any) {
       setError(e?.message || "Failed to load SMS");
     } finally {
       setLoading(false);
     }
-  }, [schoolId, schoolName]);
+  }, [schoolId, schoolName, refreshLiveWinSmsBalance]);
 
   useEffect(() => {
     loadList();
@@ -180,6 +199,7 @@ export default function SMS({
 
   const handleSend = async () => {
     setError("");
+    setSendNotice("");
     setLoading(true);
     try {
       const saved = await saveDraft();
@@ -187,14 +207,34 @@ export default function SMS({
       if (!contacts.length) throw new Error("Add at least one contact before sending");
       const res = await sendSms(schoolId, saved.id);
       setSmsCredits(res.smsCredits ?? smsCredits);
-      setWinSmsCredits(res.winSmsCredits ?? winSmsCredits);
+      if (res.creditBalance != null) {
+        setLiveWinSmsBalance(res.creditBalance);
+      } else {
+        await refreshLiveWinSmsBalance();
+      }
+      const deliveryLabel =
+        res.simulated === false ? "Delivered via WinSMS (live send)." : "SMS send completed.";
+      setSendNotice(res.warning ? `${deliveryLabel} ${res.warning}` : deliveryLabel);
       await loadList();
       setView("list");
     } catch (e: any) {
+      if (e?.sms) {
+        setContacts(e.sms.contacts || []);
+        setEditId(e.sms.id);
+      }
+      if (e?.creditBalance != null) {
+        setLiveWinSmsBalance(e.creditBalance);
+      }
       setError(e?.message || "Failed to send SMS");
     } finally {
       setLoading(false);
     }
+  };
+
+  const statusColor = (status: SmsRecord["status"]) => {
+    if (status === "Sent") return "#15803d";
+    if (status === "Failed") return "#b91c1c";
+    return "#92400e";
   };
 
   const handleDelete = async () => {
@@ -354,7 +394,11 @@ export default function SMS({
                     <td style={td}>{c.contactName}</td>
                     <td style={td}>{c.relationship}</td>
                     <td style={td}>{c.cellNo}</td>
-                    <td style={td}>{c.status}</td>
+                    <td style={td}>
+                      <span style={{ color: statusColor(c.status as SmsRecord["status"]), fontWeight: 800 }}>
+                        {c.status}
+                      </span>
+                    </td>
                   </tr>
                 ))
               )}
@@ -415,10 +459,31 @@ export default function SMS({
           <div style={{ fontSize: 12, fontWeight: 900, color: "#64748b" }}>SMS CREDITS</div>
         </div>
         <div style={summaryCard}>
-          <div style={{ fontSize: 28, fontWeight: 950 }}>{winSmsCredits.toLocaleString()}</div>
-          <div style={{ fontSize: 12, fontWeight: 900, color: "#64748b" }}>WINSMS CREDITS</div>
+          <div style={{ fontSize: 28, fontWeight: 950 }}>
+            {liveBalanceLoading
+              ? "…"
+              : liveWinSmsBalance !== null
+                ? liveWinSmsBalance.toLocaleString("en-ZA")
+                : "—"}
+          </div>
+          <div style={{ fontSize: 12, fontWeight: 900, color: "#64748b" }}>LIVE WINSMS BALANCE</div>
         </div>
       </div>
+
+      {sendNotice ? (
+        <div
+          style={{
+            marginBottom: 14,
+            padding: 12,
+            borderRadius: 10,
+            background: "#ecfdf5",
+            color: "#15803d",
+            fontWeight: 700,
+          }}
+        >
+          {sendNotice}
+        </div>
+      ) : null}
 
       {error ? <div style={{ marginBottom: 14, padding: 12, borderRadius: 10, background: "#fef2f2", color: "#b91c1c", fontWeight: 700 }}>{error}</div> : null}
 
@@ -448,7 +513,9 @@ export default function SMS({
                 <td style={td}>{row.description}</td>
                 <td style={td}>{row.contacts?.length || 0}</td>
                 <td style={{ ...td, maxWidth: 280, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{row.message}</td>
-                <td style={td}><span style={{ color: row.status === "Sent" ? "#15803d" : "#92400e", fontWeight: 800 }}>{row.status}</span></td>
+                <td style={td}>
+                  <span style={{ color: statusColor(row.status), fontWeight: 800 }}>{row.status}</span>
+                </td>
               </tr>
             ))
           )}

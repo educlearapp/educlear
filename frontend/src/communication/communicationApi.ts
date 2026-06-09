@@ -69,7 +69,7 @@ export type SmsRecord = {
   description: string;
   message: string;
   contacts: SmsContact[];
-  status: "Draft" | "Sent";
+  status: "Draft" | "Sent" | "Failed";
   createdAt: string;
   updatedAt: string;
   sentAt?: string;
@@ -170,11 +170,36 @@ export const deleteSms = (schoolId: string, id: string) =>
     method: "DELETE",
   });
 
-export const sendSms = (schoolId: string, id: string) =>
-  request<{ success: boolean; sms: SmsRecord; smsCredits: number; winSmsCredits: number; simulated?: boolean }>(
-    `/sms/${encodeURIComponent(id)}/send`,
-    { method: "POST", body: JSON.stringify({ schoolId }) }
-  );
+export type SendSmsResponse = {
+  success: boolean;
+  sms: SmsRecord;
+  smsCredits: number;
+  simulated: false;
+  creditBalance?: number;
+  warning?: string;
+  error?: string;
+};
+
+export async function sendSms(schoolId: string, id: string): Promise<SendSmsResponse> {
+  const res = await fetch(`${BASE}/sms/${encodeURIComponent(id)}/send`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ schoolId }),
+  });
+  const data = (await res.json().catch(() => ({}))) as SendSmsResponse & { error?: string };
+  if (!res.ok || !data.success) {
+    const err = new Error(String(data.error || `Request failed (${res.status})`)) as Error & {
+      sms?: SmsRecord;
+      creditBalance?: number;
+      simulated?: false;
+    };
+    if (data.sms) err.sms = data.sms;
+    if (data.creditBalance != null) err.creditBalance = data.creditBalance;
+    err.simulated = false;
+    throw err;
+  }
+  return data;
+}
 
 export function newContactId() {
   return `c-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;

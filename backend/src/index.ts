@@ -43,7 +43,7 @@ import classroomsRoutes from "./routes/classrooms";
 import classesRoutes from "./routes/classes";
 import attendanceRoutes from "./routes/attendance";
 import teacherInboxRoutes from "./routes/teacherInbox";
-import teacherAppRoutes from "./routes/teacherApp";
+import teacherAppRoutes, { teacherAppUploadErrorHandler } from "./routes/teacherApp";
 import migrationRoutes, {
   migrationErrorHandler,
   migrationUploadErrorHandler,
@@ -340,7 +340,7 @@ app.use("/api/classrooms", classroomsRoutes);
 app.use("/api/classes", classesRoutes);
 app.use("/api/attendance", attendanceRoutes);
 app.use("/api/teacher-inbox", teacherInboxRoutes);
-app.use("/api/teacher-app", teacherAppRoutes);
+app.use("/api/teacher-app", teacherAppRoutes, teacherAppUploadErrorHandler);
 app.post(
   `/api/migration${KIDESYS_ADAPTER_READINESS_PATH}`,
   requireSuperAdmin,
