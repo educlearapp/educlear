@@ -60,16 +60,25 @@ function main() {
     }
   }
 
-  const needsSeed = count !== 344 || hasForbidden || ledgerHasUndoCorrection();
+  const undoCorr = ledgerHasUndoCorrection();
+  const needsSeed = count !== 344 || hasForbidden;
+
+  if (undoCorr) {
+    console.log(
+      `[bootstrap-phase1] INFO: live undo-correction ledger rows present (undoCorr=true) — not a seed trigger`
+    );
+  }
 
   if (!needsSeed) {
-    console.log(`[bootstrap-phase1] OK age snapshots=${count}, skip seed`);
+    console.log(
+      `[bootstrap-phase1] OK age snapshots=${count}, forbidden=${hasForbidden}, undoCorr=${undoCorr}, skip seed`
+    );
     return;
   }
 
   if (!auto) {
     console.error(
-      `[bootstrap-phase1] Billing data needs Phase-1 seed (age=${count}, forbidden=${hasForbidden}, undoCorr=${ledgerHasUndoCorrection()}). Set ${AUTO_ENV}=true or run seed-phase1-billing-disk.ts on Render Shell.`
+      `[bootstrap-phase1] Billing data needs Phase-1 seed (age=${count}, forbidden=${hasForbidden}, undoCorr=${undoCorr}). Set ${AUTO_ENV}=true or run seed-phase1-billing-disk.ts on Render Shell.`
     );
     process.exit(1);
   }
