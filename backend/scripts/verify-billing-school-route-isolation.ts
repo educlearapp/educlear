@@ -123,10 +123,16 @@ async function verifyApiStatementsReadOnly(): Promise<void> {
     const url = `${apiBase}/api/statements?schoolId=${encodeURIComponent(row.schoolId)}`;
     const res = await fetch(url, { headers: { Accept: "application/json" } });
     const body = (await res.json().catch(() => ({}))) as {
+      statements?: unknown[];
       accounts?: unknown[];
       summary?: Record<string, number>;
     };
-    const count = Array.isArray(body.accounts) ? body.accounts.length : -1;
+    const rows = Array.isArray(body.statements)
+      ? body.statements
+      : Array.isArray(body.accounts)
+        ? body.accounts
+        : [];
+    const count = rows.length;
     console.log(`[INFO] ${row.label}: accountsCount=${count}`);
 
     if (row.schoolId === DA_SILVA) {
