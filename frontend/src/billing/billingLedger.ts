@@ -43,6 +43,7 @@ import {
   resolveInvoiceMessage,
 } from "./billingSettingsEngine";
 import { resolveInvoiceRunAccountRef } from "./officialBillingAccountRef";
+import { isDaSilvaAcademySchool } from "./billingSummaryDisplayOverride";
 
 export type BillingLedgerEntryType = "invoice" | "payment" | "credit" | "penalty";
 
@@ -105,6 +106,7 @@ function resolveLedgerStorageKey(schoolId: string): string {
   const canonical = CANONICAL_BILLING_LEDGER_SCHOOL_ID;
   if (
     key !== canonical &&
+    isDaSilvaAcademySchool(key) &&
     Array.isArray(all[canonical]) &&
     all[canonical].length > 0
   ) {

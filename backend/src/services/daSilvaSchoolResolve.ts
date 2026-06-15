@@ -47,13 +47,6 @@ export function resolveSchoolJsonStoreKey<T>(
   ) {
     return canonical;
   }
-  // Live school row id may not be registered yet; use canonical when it is the only bucket.
-  if (key !== canonical && hasContent(all[canonical])) {
-    const populated = Object.keys(all).filter((k) => hasContent(all[k]));
-    if (populated.length === 1 && populated[0] === canonical) {
-      return canonical;
-    }
-  }
   return key;
 }
 
