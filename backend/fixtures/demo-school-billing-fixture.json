@@ -1,0 +1,47 @@
+{
+  "schoolId": "cmpbdigd00001vuzmxnwkbgiu",
+  "schoolName": "EduClear Demo School",
+  "importedAt": "2099-12-31T23:59:59.999Z",
+  "accounts": [
+    {
+      "accountRef": "TST001",
+      "accountHolder": "TEST Learner Alpha",
+      "balance": 1500,
+      "kidesysSection": "Recently Owing",
+      "buckets": { "current": 1500, "d30": 0, "d60": 0, "d90": 0, "d120": 0 },
+      "learner": {
+        "firstName": "TEST",
+        "lastName": "Alpha",
+        "admissionNo": "EDU-TST-001",
+        "grade": "1"
+      }
+    },
+    {
+      "accountRef": "TST002",
+      "accountHolder": "TEST Learner Beta",
+      "balance": -200,
+      "kidesysSection": "Over Paid",
+      "buckets": { "current": -200, "d30": 0, "d60": 0, "d90": 0, "d120": 0 },
+      "learner": {
+        "firstName": "TEST",
+        "lastName": "Beta",
+        "admissionNo": "EDU-TST-002",
+        "grade": "2"
+      }
+    },
+    {
+      "accountRef": "TST003",
+      "accountHolder": "TEST Learner Gamma",
+      "balance": 500,
+      "kidesysSection": "Recently Owing",
+      "buckets": { "current": 500, "d30": 0, "d60": 0, "d90": 0, "d120": 0 },
+      "learner": {
+        "firstName": "TEST",
+        "lastName": "Gamma",
+        "admissionNo": "EDU-TST-003",
+        "grade": "3"
+      }
+    }
+  ],
+  "ledger": []
+}

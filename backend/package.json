@@ -5,7 +5,7 @@
   "main": "dist/index.js",
   "scripts": {
     "build": "tsc && node scripts/stage-billing-disk-support-templates.mjs && node scripts/verify-runtime-assets.mjs",
-    "start": "node scripts/bootstrap-phase1-billing-disk.mjs && node scripts/repair-billing-disk-support-files.mjs && node scripts/verify-runtime-assets.mjs && node scripts/verify-billing-persistent-disk.mjs && node dist/index.js",
+    "start": "node scripts/bootstrap-phase1-billing-disk.mjs && node scripts/bootstrap-demo-school-billing-fixture.mjs && node scripts/repair-billing-disk-support-files.mjs && node scripts/verify-runtime-assets.mjs && node scripts/verify-billing-persistent-disk.mjs && node dist/index.js",
     "dev": "tsc && node dist/index.js",
     "seed:super-admin": "tsc && node dist/seedSuperAdmin.js",
     "seed:packages": "tsc && node dist/seedEduClearPackages.js",
