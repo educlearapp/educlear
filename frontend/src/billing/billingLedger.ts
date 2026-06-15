@@ -980,8 +980,9 @@ export function appendInvoiceRunTransactions(
       const reference = settings
         ? buildInvoiceReference(settings, invoiceDate, index + 1, fallbackRef)
         : fallbackRef;
+      const lineKey = learnerId || `row-${index}`;
       return {
-        id: `invoice-${runId}-${learnerId || accountNo}`,
+        id: `invoice-${runId}-${lineKey}`,
         schoolId: sid,
         learnerId,
         accountNo,

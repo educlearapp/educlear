@@ -1,14 +1,13 @@
 import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { API_URL } from "../api";
 import {
-  appendInvoiceTransaction,
   BILLING_UPDATED_EVENT,
   calculateAccountBalance,
   formatMoney,
   getAccountLedger,
   notifyBillingUpdated,
 } from "./billingLedger";
-import { createInvoice, syncBillingLedgerFromApi } from "./billingApi";
+import { createInvoicesBatch, applyInvoiceSaveResponse } from "./billingApi";
 import {
   computeInvoiceDueDate,
   loadBillingSettingsForSchool,
@@ -223,15 +222,6 @@ function resolveParentDisplayName(
   return legacy || "Not linked";
 }
 
-function invoiceLineStableKey(line: InvoiceDetailLine): string {
-  if (line.feeId) return `id:${line.feeId}`;
-  return feeStableKey({
-    description: line.description,
-    amount: parseLineAmount(line.amount),
-    dueDate: line.dueDate,
-    type: line.type,
-  });
-}
 
 function getLearnerBillingPlan(learnerId: string, learners: any[]): any[] {
   const learner = learners.find(
@@ -321,12 +311,7 @@ export default function InvoiceCreateClean({
 
   const refreshLedger = useCallback(async () => {
     if (!schoolId) return;
-    try {
-      await syncBillingLedgerFromApi(schoolId);
-      setLedgerTick((v) => v + 1);
-    } catch (error) {
-      console.error(error);
-    }
+    setLedgerTick((v) => v + 1);
   }, [schoolId]);
 
   useEffect(() => {
@@ -502,17 +487,15 @@ export default function InvoiceCreateClean({
       setSaveError("Select at least one fee to add.");
       return;
     }
-    const existingFeeKeys = new Set(
-      lines
-        .filter((line) => String(line.type || "").trim() !== "Manual")
-        .map((line) => invoiceLineStableKey(line))
+    const existingFeeIds = new Set(
+      lines.map((line) => String(line.feeId || "").trim()).filter(Boolean)
     );
-    const toAdd = selected.filter((fee) => !existingFeeKeys.has(fee.stableKey));
+    const invDate = normalizeIsoDate(invoiceDate);
+    const toAdd = selected.filter((fee) => !fee.feeId || !existingFeeIds.has(fee.feeId));
     if (!toAdd.length) {
-      setSaveError("Selected fees are already on this invoice.");
+      setSaveError("Selected catalog fees are already on this invoice.");
       return;
     }
-    const invDate = normalizeIsoDate(invoiceDate);
     const nextLines = toAdd.map((fee) => feeToLine(fee, invDate, settings));
     setLines((prev) => [...prev, ...nextLines]);
     setSelectedLineId(nextLines[nextLines.length - 1]?.id || null);
@@ -625,33 +608,34 @@ export default function InvoiceCreateClean({
     try {
       const settings = billingSettings || (await loadBillingSettingsForSchool(schoolId));
       const baseRef = `INV-${accountNo}-${Date.now()}`;
-
-      for (let i = 0; i < validLines.length; i++) {
-        const line = validLines[i];
+      const invoicePayloads = validLines.map((line, i) => {
         const computedDue = computeInvoiceDueDate(invDate, settings, line.dueDate);
         const reference =
           validLines.length > 1 ? `${baseRef}-L${i + 1}` : baseRef;
-        const description = line.description;
-        const payload = {
+        return {
           schoolId,
-          learnerId: "",
+          learnerId,
           accountNo,
           amount: line.amount,
           date: invDate,
           dueDate: computedDue,
           reference,
-          description,
+          description: line.description,
+          lineKey: `L${i + 1}`,
+          id: `invoice-manual-${accountNo}-${learnerId}-${invDate}-${line.amount.toFixed(2)}-${i}-${reference}`,
         };
+      });
 
-        const record = appendInvoiceTransaction(payload);
-        await createInvoice({
-          ...payload,
-          id: record?.id,
-          invoiceDate: invDate,
-        });
+      const result = (await createInvoicesBatch({
+        schoolId,
+        invoices: invoicePayloads,
+      })) as Record<string, unknown>;
+
+      if (result?.success === false) {
+        throw new Error(String(result.error || "Invoice was not saved on the server."));
       }
 
-      await syncBillingLedgerFromApi(schoolId);
+      applyInvoiceSaveResponse(schoolId, result);
       notifyBillingUpdated();
       setLedgerTick((v) => v + 1);
       const lineLabel = validLines.length === 1 ? "line" : "lines";

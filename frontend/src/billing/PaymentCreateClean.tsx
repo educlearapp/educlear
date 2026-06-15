@@ -14,7 +14,6 @@ import {
   applyPaymentSaveResponse,
   createPayment,
   fetchOpenInvoices,
-  refreshBillingFromApi,
   syncBillingLedgerFromApi,
 } from "./billingApi";
 import {
@@ -935,8 +934,6 @@ export default function PaymentCreateClean({
       }
 
       applyPaymentSaveResponse(schoolId, result as Record<string, unknown>);
-
-      await refreshBillingFromApi(schoolId);
 
       const allocationLines: AllocationLine[] = Object.entries(rowAllocations)
         .filter(([, amt]) => Number(amt || 0) > 0.001)

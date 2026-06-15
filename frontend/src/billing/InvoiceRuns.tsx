@@ -22,7 +22,8 @@ import {
 
 
   fetchPayments,
-  createInvoice,
+  createInvoicesBatch,
+  applyInvoiceSaveResponse,
 } from "./billingApi";
 
 
@@ -1473,31 +1474,63 @@ export default function InvoiceRuns(props: any) {
       const invoiceDate =
         String(run?.invoiceDate || run?.date || "").trim() ||
         new Date().toISOString().slice(0, 10);
-      void Promise.all(
-        rows.map(async (row: any) => {
+      const runId = String(run?.id || "");
+      const invoicePayloads = rows
+        .map((row: any, index: number) => {
           const amount = Number(row?.invoiceAmount ?? row?.amount ?? row?.total ?? 0);
-          if (!amount) return;
-          try {
-            await createInvoice({
-              schoolId,
-              learnerId: String(row?.id || row?.learnerId || ""),
-              accountNo: String(row?.accountNo || ""),
-              amount,
-              date: invoiceDate,
-              dueDate: computeInvoiceDueDate(
-                invoiceDate,
-                billingSettingsRef.current,
-                String(row?.dueDate || run?.dueDate || "")
-              ),
-              reference: String(row?.invoiceNo || row?.statementNo || run?.id || ""),
-              description: String(run?.description || `Invoice Run ${run?.month || ""}`),
-              runId: String(run?.id || ""),
-            });
-          } catch (error) {
-            console.warn("[InvoiceRuns] Server invoice sync failed:", error);
+          if (!amount) return null;
+          const learnerId = String(row?.id || row?.learnerId || "").trim();
+          const lineKey = learnerId || `row-${index}`;
+          return {
+            schoolId,
+            learnerId,
+            accountNo: String(row?.accountNo || ""),
+            amount,
+            date: invoiceDate,
+            dueDate: computeInvoiceDueDate(
+              invoiceDate,
+              billingSettingsRef.current,
+              String(row?.dueDate || run?.dueDate || "")
+            ),
+            reference: String(row?.invoiceNo || row?.statementNo || runId),
+            description: String(run?.description || `Invoice Run ${run?.month || ""}`),
+            runId,
+            lineKey,
+            id: `invoice-${runId}-${lineKey}`,
+          };
+        })
+        .filter(Boolean);
+
+      void createInvoicesBatch({
+        schoolId,
+        runId,
+        invoices: invoicePayloads as Record<string, unknown>[],
+      })
+        .then((result: any) => {
+          applyInvoiceSaveResponse(schoolId, result);
+          const skipped = Array.isArray(result?.skipped) ? result.skipped : [];
+          if (skipped.length) {
+            console.warn("[InvoiceRuns] Invoice run skipped rows:", skipped);
+            const labels = skipped
+              .slice(0, 8)
+              .map(
+                (s: any) =>
+                  s.learnerId || s.accountNo || `row ${Number(s.index) + 1}: ${s.reason}`
+              )
+              .join(", ");
+            window.alert(
+              `Invoice run saved with ${skipped.length} skipped learner(s)/row(s): ${labels}${skipped.length > 8 ? "…" : ""}`
+            );
           }
         })
-      ).then(() => syncBillingLedgerFromApi(schoolId));
+        .catch((error) => {
+          console.error("[InvoiceRuns] Server invoice batch sync failed:", error);
+          window.alert(
+            `Invoice run saved locally but server sync failed: ${
+              error instanceof Error ? error.message : "Unknown error"
+            }`
+          );
+        });
     }
     loadBillingData();
 

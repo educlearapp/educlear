@@ -162,10 +162,84 @@ function findRecentDuplicatePayment(
   return null;
 }
 
+export type InvoiceDuplicateFingerprint = {
+  accountNo: string;
+  learnerId?: string;
+  description?: string;
+  dueDate?: string;
+  amount: number;
+  runId?: string;
+  reference?: string;
+};
+
+/** Composite key — NOT amount-only; siblings differ by learnerId/description/dueDate. */
+export function invoiceDuplicateFingerprint(
+  schoolId: string,
+  input: InvoiceDuplicateFingerprint
+): string {
+  const accountRef = String(input.accountNo || "").trim().toUpperCase();
+  const learnerId = String(input.learnerId || "").trim();
+  const description = String(input.description || "")
+    .trim()
+    .toLowerCase()
+    .replace(/\s+/g, " ");
+  const dueDate = String(input.dueDate || "").slice(0, 10);
+  const amount = normaliseAmount(input.amount).toFixed(2);
+  const runId = String(input.runId || "").trim();
+  const reference = String(input.reference || "").trim().toLowerCase();
+  return [
+    String(schoolId || "").trim(),
+    accountRef,
+    learnerId,
+    description,
+    dueDate,
+    amount,
+    runId,
+    reference,
+  ].join("|");
+}
+
+function findDuplicateInvoice(
+  entries: BillingLedgerEntry[],
+  fingerprint: string,
+  excludeId?: string
+): BillingLedgerEntry | null {
+  for (let i = entries.length - 1; i >= 0; i -= 1) {
+    const entry = entries[i];
+    if (entry.type !== "invoice") continue;
+    if (excludeId && entry.id === excludeId) continue;
+    const entryFingerprint = invoiceDuplicateFingerprint(entry.schoolId, {
+      accountNo: entry.accountNo,
+      learnerId: entry.learnerId,
+      description: entry.description,
+      dueDate: entry.dueDate || entry.date,
+      amount: entry.amount,
+      runId: entry.runId,
+      reference: entry.reference,
+    });
+    if (entryFingerprint === fingerprint) return entry;
+  }
+  return null;
+}
+
+/** Deterministic id for invoice-run rows (one invoice per learner per run). */
+export function buildInvoiceRunEntryId(
+  runId: string,
+  learnerId: string,
+  accountNo: string,
+  lineKey = ""
+): string {
+  const rid = String(runId || "").trim();
+  const lid = String(learnerId || "").trim();
+  const ref = String(accountNo || "").trim().toUpperCase();
+  const suffix = lid || String(lineKey || "").trim() || ref;
+  return `invoice-${rid}-${suffix}`;
+}
+
 export type AppendSchoolEntryResult = {
   entry: BillingLedgerEntry;
   created: boolean;
-  duplicateReason?: "id" | "fingerprint" | "idempotencyKey";
+  duplicateReason?: "id" | "fingerprint" | "idempotencyKey" | "invoiceFingerprint";
 };
 
 /**
@@ -198,7 +272,7 @@ export function appendSchoolEntrySafe(
       }
     }
 
-    if (idempotencyKey) {
+    if (idempotencyKey && entry.type === "payment") {
       const stableId = `pay-${idempotencyKey.replace(/[^a-zA-Z0-9_-]/g, "_").slice(0, 80)}`;
       const byKey = current.find((e) => e.id === stableId);
       if (byKey) {
@@ -207,23 +281,132 @@ export function appendSchoolEntrySafe(
       entry = { ...entry, id: stableId };
     }
 
-    const fingerprint = paymentDuplicateFingerprint(sid, {
-      accountNo: entry.accountNo,
-      amount: entry.amount,
-      date: entry.date,
-      method: entry.method,
-      reference: entry.reference,
-    });
-    const windowMs = opts.duplicateWindowMs ?? DEFAULT_PAYMENT_DUPLICATE_WINDOW_MS;
-    const duplicate = findRecentDuplicatePayment(current, fingerprint, windowMs, entry.id);
-    if (duplicate) {
-      return { entry: duplicate, created: false, duplicateReason: "fingerprint" };
+    if (entry.type === "invoice") {
+      const invoiceFp = invoiceDuplicateFingerprint(sid, {
+        accountNo: entry.accountNo,
+        learnerId: entry.learnerId,
+        description: entry.description,
+        dueDate: entry.dueDate || entry.date,
+        amount: entry.amount,
+        runId: entry.runId,
+        reference: entry.reference,
+      });
+      const invoiceDup = findDuplicateInvoice(current, invoiceFp, entry.id);
+      if (invoiceDup) {
+        return { entry: invoiceDup, created: false, duplicateReason: "invoiceFingerprint" };
+      }
+    } else if (entry.type === "payment") {
+      const fingerprint = paymentDuplicateFingerprint(sid, {
+        accountNo: entry.accountNo,
+        amount: entry.amount,
+        date: entry.date,
+        method: entry.method,
+        reference: entry.reference,
+      });
+      const windowMs = opts.duplicateWindowMs ?? DEFAULT_PAYMENT_DUPLICATE_WINDOW_MS;
+      const duplicate = findRecentDuplicatePayment(current, fingerprint, windowMs, entry.id);
+      if (duplicate) {
+        return { entry: duplicate, created: false, duplicateReason: "fingerprint" };
+      }
     }
 
     current.push(entry);
     all[storeKey] = current;
     writeAll(all);
     return { entry, created: true };
+  });
+}
+
+export type AppendSchoolEntriesBatchResult = {
+  results: AppendSchoolEntryResult[];
+  createdCount: number;
+  duplicateCount: number;
+  skipped: Array<{ index: number; reason: string; learnerId?: string; accountNo?: string }>;
+};
+
+/**
+ * Append multiple ledger rows under a single lock (invoice runs, multi-line manual invoices).
+ */
+export function appendSchoolEntriesSafe(
+  schoolId: string,
+  entries: BillingLedgerEntry[],
+  opts: { duplicateWindowMs?: number } = {}
+): AppendSchoolEntriesBatchResult {
+  const sid = String(schoolId || "").trim();
+  if (!sid) throw new Error("Missing schoolId");
+  if (!entries.length) {
+    return { results: [], createdCount: 0, duplicateCount: 0, skipped: [] };
+  }
+
+  return withBillingLedgerLock(() => {
+    const storeKey = resolveBillingLedgerStoreKey(sid);
+    if (!storeKey) throw new Error("Invalid school ledger key");
+
+    const all = readAll();
+    const current = Array.isArray(all[storeKey]) ? [...all[storeKey]] : [];
+    const results: AppendSchoolEntryResult[] = [];
+    const skipped: AppendSchoolEntriesBatchResult["skipped"] = [];
+    let createdCount = 0;
+    let duplicateCount = 0;
+    const windowMs = opts.duplicateWindowMs ?? DEFAULT_PAYMENT_DUPLICATE_WINDOW_MS;
+
+    for (let index = 0; index < entries.length; index += 1) {
+      let entry = entries[index];
+      const entryId = String(entry.id || "").trim();
+
+      if (entryId) {
+        const byId = current.find((e) => e.id === entryId);
+        if (byId) {
+          results.push({ entry: byId, created: false, duplicateReason: "id" });
+          duplicateCount += 1;
+          continue;
+        }
+      }
+
+      if (entry.type === "invoice") {
+        const invoiceFp = invoiceDuplicateFingerprint(sid, {
+          accountNo: entry.accountNo,
+          learnerId: entry.learnerId,
+          description: entry.description,
+          dueDate: entry.dueDate || entry.date,
+          amount: entry.amount,
+          runId: entry.runId,
+          reference: entry.reference,
+        });
+        const invoiceDup = findDuplicateInvoice(current, invoiceFp, entry.id);
+        if (invoiceDup) {
+          results.push({
+            entry: invoiceDup,
+            created: false,
+            duplicateReason: "invoiceFingerprint",
+          });
+          duplicateCount += 1;
+          continue;
+        }
+      } else if (entry.type === "payment") {
+        const fingerprint = paymentDuplicateFingerprint(sid, {
+          accountNo: entry.accountNo,
+          amount: entry.amount,
+          date: entry.date,
+          method: entry.method,
+          reference: entry.reference,
+        });
+        const duplicate = findRecentDuplicatePayment(current, fingerprint, windowMs, entry.id);
+        if (duplicate) {
+          results.push({ entry: duplicate, created: false, duplicateReason: "fingerprint" });
+          duplicateCount += 1;
+          continue;
+        }
+      }
+
+      current.push(entry);
+      results.push({ entry, created: true });
+      createdCount += 1;
+    }
+
+    all[storeKey] = current;
+    writeAll(all);
+    return { results, createdCount, duplicateCount, skipped };
   });
 }
 

@@ -10,6 +10,7 @@ import { clearSchoolBillingDisplayCache } from "./kidesysTransactionHistory";
 import {
   mapApiRowToHistoryEntry,
   readSchoolKidesysHistory,
+  readStatementApiAccounts,
   writeSchoolKidesysHistory,
   writeStatementApiAccounts,
   writeStatementApiSummaries,
@@ -488,8 +489,92 @@ export const fetchLegalDocumentHistory = async (schoolId: string, documentType?:
 export const createInvoice = async (data: any) =>
   postJson(`${API_URL}/api/invoices`, data, "Failed to create invoice");
 
+export const createInvoicesBatch = async (data: {
+  schoolId: string;
+  runId?: string;
+  invoices: Record<string, unknown>[];
+}) =>
+  postJson(`${API_URL}/api/invoices/batch`, data, "Failed to create invoices");
+
 export const createPayment = async (data: Record<string, unknown>) =>
   postJson(`${API_URL}/api/payments`, data, "Failed to create payment");
+
+/** Merge one updated account row into cached GET /api/statements data. */
+export function patchStatementApiAccount(schoolId: string, accountRow: unknown) {
+  const sid = String(schoolId || "").trim();
+  if (!sid || !accountRow || typeof accountRow !== "object") return;
+  const ref = String((accountRow as { accountNo?: string }).accountNo || "")
+    .trim()
+    .toUpperCase();
+  if (!ref) return;
+
+  const existing = readStatementApiAccounts(sid);
+  const rows = Array.isArray(existing) ? [...existing] : [];
+  const idx = rows.findIndex(
+    (row: any) => String(row?.accountNo || "").trim().toUpperCase() === ref
+  );
+  if (idx >= 0) {
+    rows[idx] = { ...(rows[idx] as object), ...(accountRow as object) };
+  } else {
+    rows.push(accountRow);
+  }
+
+  writeStatementApiAccounts(sid, rows);
+  writeStatementApiSummaries(
+    sid,
+    rows.map((row: any) => ({
+      accountNo: String(row.accountNo || ""),
+      lastInvoice: Number.isFinite(Number(row.lastInvoice)) ? Number(row.lastInvoice) : 0,
+      lastInvoiceDate: String(row.lastInvoiceDate || ""),
+      lastInvoiceLabel: row.lastInvoiceLabel ?? null,
+      lastPayment: Number.isFinite(Number(row.lastPayment)) ? Number(row.lastPayment) : 0,
+      lastPaymentDate: String(row.lastPaymentDate || ""),
+    }))
+  );
+}
+
+/** Apply invoice POST/batch response — authoritative balance + statement cache patch. */
+export function applyInvoiceSaveResponse(
+  schoolId: string,
+  body: Record<string, unknown> | null | undefined
+) {
+  const sid = String(schoolId || "").trim();
+  if (!sid || !body) return;
+
+  const invoice = body.invoice;
+  const invoices = body.invoices;
+  const ledgerEntries = body.ledgerEntries;
+
+  if (invoice && typeof invoice === "object") {
+    mergeApiLedger(sid, [mapApiRowToLedgerEntry(sid, { ...(invoice as object), type: "invoice" })]);
+  }
+  if (Array.isArray(invoices) && invoices.length) {
+    mergeApiLedger(
+      sid,
+      invoices.map((row) => mapApiRowToLedgerEntry(sid, { ...(row as object), type: "invoice" }))
+    );
+  }
+  if (Array.isArray(ledgerEntries) && ledgerEntries.length) {
+    mergeApiLedger(
+      sid,
+      ledgerEntries.map((row) => mapApiRowToLedgerEntry(sid, row))
+    );
+  }
+
+  const account = body.account;
+  if (account && typeof account === "object") {
+    patchStatementApiAccount(sid, account);
+  }
+
+  const accounts = body.accounts ?? body.statements;
+  if (Array.isArray(accounts) && accounts.length) {
+    for (const row of accounts) {
+      patchStatementApiAccount(sid, row);
+    }
+  }
+
+  notifyBillingUpdated();
+}
 
 /** Apply payment POST response (balance, statements, ledger) without stale local merges. */
 export function applyPaymentSaveResponse(
@@ -512,20 +597,25 @@ export function applyPaymentSaveResponse(
     );
   }
 
-  const statements = body.statements ?? body.accounts;
-  if (Array.isArray(statements) && statements.length) {
-    writeStatementApiAccounts(sid, statements);
-    writeStatementApiSummaries(
-      sid,
-      statements.map((row: any) => ({
-        accountNo: String(row.accountNo || ""),
-        lastInvoice: Number.isFinite(Number(row.lastInvoice)) ? Number(row.lastInvoice) : 0,
-        lastInvoiceDate: String(row.lastInvoiceDate || ""),
-        lastInvoiceLabel: row.lastInvoiceLabel ?? null,
-        lastPayment: Number.isFinite(Number(row.lastPayment)) ? Number(row.lastPayment) : 0,
-        lastPaymentDate: String(row.lastPaymentDate || ""),
-      }))
-    );
+  const account = body.account;
+  if (account && typeof account === "object") {
+    patchStatementApiAccount(sid, account);
+  } else {
+    const statements = body.statements ?? body.accounts;
+    if (Array.isArray(statements) && statements.length) {
+      writeStatementApiAccounts(sid, statements);
+      writeStatementApiSummaries(
+        sid,
+        statements.map((row: any) => ({
+          accountNo: String(row.accountNo || ""),
+          lastInvoice: Number.isFinite(Number(row.lastInvoice)) ? Number(row.lastInvoice) : 0,
+          lastInvoiceDate: String(row.lastInvoiceDate || ""),
+          lastInvoiceLabel: row.lastInvoiceLabel ?? null,
+          lastPayment: Number.isFinite(Number(row.lastPayment)) ? Number(row.lastPayment) : 0,
+          lastPaymentDate: String(row.lastPaymentDate || ""),
+        }))
+      );
+    }
   }
   notifyBillingUpdated();
 }

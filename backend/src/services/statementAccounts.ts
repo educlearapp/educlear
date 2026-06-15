@@ -297,13 +297,21 @@ export async function buildAccountsFromAgeAnalysisSnapshots(
   opts: {
     ledger?: BillingLedgerEntry[];
     history?: KidesysHistoryEntry[];
+    /** When set, only rebuild this account (fast path for invoice/payment saves). */
+    accountRef?: string;
   } = {}
 ): Promise<BillingStatementAccountRow[]> {
   const sid = String(schoolId || "").trim();
   if (!sid) return [];
 
   const snapshotsByRef = readSchoolFamilyAccountAgeAnalysisSnapshots(sid);
-  const snapshots: FamilyAccountAgeAnalysisSnapshot[] = Object.values(snapshotsByRef || {});
+  let snapshots: FamilyAccountAgeAnalysisSnapshot[] = Object.values(snapshotsByRef || {});
+  const accountRefFilter = String(opts.accountRef || "").trim().toUpperCase();
+  if (accountRefFilter) {
+    snapshots = snapshots.filter(
+      (s) => String(s.accountRef || "").trim().toUpperCase() === accountRefFilter
+    );
+  }
   const accountRefs = snapshots
     .map((s) => String(s.accountRef || "").trim().toUpperCase())
     .filter(Boolean);
@@ -319,7 +327,12 @@ export async function buildAccountsFromAgeAnalysisSnapshots(
   );
 
   const schoolLearners = await prisma.learner.findMany({
-    where: { schoolId: sid },
+    where: accountRefFilter
+      ? {
+          schoolId: sid,
+          familyAccount: { accountRef: accountRefFilter },
+        }
+      : { schoolId: sid },
     orderBy: { createdAt: "desc" },
     select: {
       id: true,
@@ -426,6 +439,22 @@ export async function buildAccountsFromAgeAnalysisSnapshots(
       },
     };
   });
+}
+
+/** Fast single-account rebuild for post-write responses (invoice/payment saves). */
+export async function buildSingleAccountFromAgeAnalysisSnapshot(
+  schoolId: string,
+  accountRef: string,
+  opts: { ledger?: BillingLedgerEntry[]; history?: KidesysHistoryEntry[] } = {}
+): Promise<BillingStatementAccountRow | null> {
+  const rows = await buildAccountsFromAgeAnalysisSnapshots(schoolId, {
+    ...opts,
+    accountRef,
+  });
+  const ref = String(accountRef || "").trim().toUpperCase();
+  return (
+    rows.find((row) => String(row.accountNo || "").trim().toUpperCase() === ref) ?? null
+  );
 }
 
 /** One row per family billing account (deduped siblings). */

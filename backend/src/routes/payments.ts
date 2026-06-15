@@ -1,11 +1,11 @@
 import { Router } from "express";
 
 import { relinkSchoolBillingLedger } from "../services/billingLedgerRelink";
+import { buildBillingAccountPostResponse } from "../services/billingPostResponse";
 import { resolveBillingAccountRef } from "../services/resolveBillingAccountRef";
 import {
   buildAccountsFromAgeAnalysisSnapshots,
   resolveAuthoritativeAccountBalance,
-  type BillingStatementAccountRow,
 } from "../services/statementAccounts";
 import {
   isEduClearUndoCorrectionEntry,
@@ -24,6 +24,8 @@ import {
   getPaymentWriteGuard,
 } from "../utils/billingPersistenceDiagnostics";
 
+const router = Router();
+
 function activeLedgerEntriesForAccount(
   ledger: BillingLedgerEntry[],
   accountRef: string
@@ -35,29 +37,6 @@ function activeLedgerEntriesForAccount(
     if (isEduClearUndoCorrectionEntry(entry)) return false;
     return true;
   });
-}
-
-const router = Router();
-
-function collectAccountLedgerSlice(
-  ledger: BillingLedgerEntry[],
-  accountRef: string
-): BillingLedgerEntry[] {
-  const ref = String(accountRef || "").trim().toUpperCase();
-  return ledger.filter(
-    (entry) => String(entry.accountNo || "").trim().toUpperCase() === ref
-  );
-}
-
-function findAccountRow(
-  accounts: BillingStatementAccountRow[],
-  accountRef: string
-): BillingStatementAccountRow | null {
-  const ref = String(accountRef || "").trim().toUpperCase();
-  return (
-    accounts.find((row) => String(row.accountNo || "").trim().toUpperCase() === ref) ??
-    null
-  );
 }
 
 function resolveDatabaseHost(): string {
@@ -242,27 +221,7 @@ router.post("/", async (req, res) => {
     await relinkSchoolBillingLedger(schoolId);
     const ledger = readSchoolLedger(schoolId);
     const accountRef = resolved.accountRef;
-    const balance = await resolveAuthoritativeAccountBalance(schoolId, accountRef, {
-      ledger,
-    });
-    const accounts = await buildAccountsFromAgeAnalysisSnapshots(schoolId);
-    const account = findAccountRow(accounts, accountRef);
-    const ledgerEntries = collectAccountLedgerSlice(ledger, accountRef);
-    const openInvoices = computeOpenInvoiceLines(
-      activeLedgerEntriesForAccount(ledger, accountRef),
-      "",
-      accountRef
-    );
-
-    const outstandingTotal = accounts.reduce(
-      (sum, row) => sum + (Number(row.balance) > 0 ? Number(row.balance) : 0),
-      0
-    );
-    const recentlyOwing = accounts.filter((row) => {
-      const b = Number(row.balance) || 0;
-      return b > 0 && b <= 10000;
-    }).length;
-    const badDebt = accounts.filter((row) => (Number(row.balance) || 0) > 10000).length;
+    const post = await buildBillingAccountPostResponse(schoolId, accountRef, { ledger });
 
     return res.json({
       success: true,
@@ -274,19 +233,13 @@ router.post("/", async (req, res) => {
         note: savedEntry.description,
         notes: savedEntry.description,
       },
-      balance,
-      account,
-      lastPayment: account?.lastPayment ?? 0,
-      lastPaymentDate: account?.lastPaymentDate ?? "",
-      ledgerEntries,
-      openInvoices,
-      statements: accounts,
-      summary: {
-        accountsCount: accounts.length,
-        totalOutstanding: Math.round(outstandingTotal * 100) / 100,
-        recentlyOwing,
-        badDebt,
-      },
+      balance: post.balance,
+      account: post.account,
+      lastPayment: post.account?.lastPayment ?? 0,
+      lastPaymentDate: post.account?.lastPaymentDate ?? "",
+      ledgerEntries: post.ledgerEntries,
+      openInvoices: post.openInvoices,
+      statements: post.account ? [post.account] : [],
     });
   } catch (error) {
     const message = error instanceof Error ? error.message : "Server error";
