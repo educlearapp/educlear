@@ -20,7 +20,10 @@ import {
   type PaymentAccountContext,
 } from "./paymentCreateShared";
 import { normalizeKidESysAccountRef, resolveKidESysAccountRefFromLearner } from "./billingAccountRef";
-import { resolvePaymentLearnerId } from "./PaymentCreateClean";
+import {
+  learnerMatchesBillingAccountRef,
+  resolvePaymentLearnerId,
+} from "./paymentLearnerResolver";
 
 export type InvoiceDetailLine = {
   id: string;
@@ -341,6 +344,12 @@ export default function InvoiceCreateClean({
     };
   }, [schoolId, defaultMessage]);
 
+  useEffect(() => {
+    setLines([]);
+    setSelectedLineId(null);
+    setSaveError("");
+  }, [learnerId, accountNo]);
+
   const accountLedger = useMemo(() => {
     void ledgerTick;
     return getAccountLedger(schoolId, learnerId, accountNo);
@@ -574,6 +583,31 @@ export default function InvoiceCreateClean({
       setSaveError("Account number is missing for this learner.");
       return;
     }
+
+    const resolvedLearnerId = resolvePaymentLearnerId(selectedAccount, learners, accountNo);
+    const staleCandidate = String(selectedAccount?.learnerId || "").trim();
+    if (
+      staleCandidate &&
+      resolvedLearnerId &&
+      staleCandidate !== resolvedLearnerId
+    ) {
+      setSaveError(
+        "Account selection is out of date. Go back, re-select the account, and try again."
+      );
+      return;
+    }
+    if (resolvedLearnerId) {
+      const learner = (learners || []).find(
+        (l) => String(l?.id || l?.learnerId || "").trim() === resolvedLearnerId
+      );
+      if (learner && !learnerMatchesBillingAccountRef(learner, accountNo)) {
+        setSaveError(
+          "Selected learner does not belong to this billing account. Re-select the account."
+        );
+        return;
+      }
+    }
+
     // Billing identity is accountRef only (FamilyAccount.accountRef / Kid-e-Sys accountRef).
     // learnerId remains optional for write paths.
     const invDate = normalizeIsoDate(invoiceDate);
@@ -614,7 +648,7 @@ export default function InvoiceCreateClean({
           validLines.length > 1 ? `${baseRef}-L${i + 1}` : baseRef;
         return {
           schoolId,
-          learnerId,
+          learnerId: resolvedLearnerId,
           accountNo,
           amount: line.amount,
           date: invDate,
@@ -622,7 +656,7 @@ export default function InvoiceCreateClean({
           reference,
           description: line.description,
           lineKey: `L${i + 1}`,
-          id: `invoice-manual-${accountNo}-${learnerId}-${invDate}-${line.amount.toFixed(2)}-${i}-${reference}`,
+          id: `invoice-manual-${accountNo}-${resolvedLearnerId}-${invDate}-${line.amount.toFixed(2)}-${i}-${reference}`,
         };
       });
 

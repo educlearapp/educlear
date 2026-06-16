@@ -20,6 +20,7 @@ import {
   normalizeKidESysAccountRef,
   resolveKidESysAccountRefFromLearner,
 } from "./billingAccountRef";
+import { resolvePaymentLearnerId } from "./paymentLearnerResolver";
 import {
   fetchSchoolEmailSettings,
   isSchoolEmailReadyForUi,
@@ -239,32 +240,6 @@ function resolveAccountChildren(
   }
 
   return children;
-}
-
-/** Real learner UUID for ledger rows — never use selectedAccount.id when it is only an account ref. */
-export function resolvePaymentLearnerId(
-  selectedAccount: PaymentAccountContext | null,
-  learners: any[],
-  accountNo: string
-): string {
-  const acct = String(accountNo || selectedAccount?.accountNo || "").trim();
-  const candidate = String(selectedAccount?.learnerId || "").trim();
-  const list = Array.isArray(learners) ? learners : [];
-
-  if (candidate) {
-    const match = list.find(
-      (l) => String(l?.id || l?.learnerId || "").trim() === candidate
-    );
-    if (match) return String(match.id || match.learnerId || "").trim();
-  }
-
-  const kidRef = normalizeKidESysAccountRef(acct);
-  if (kidRef) {
-    const byAccount = list.find((l) => resolveKidESysAccountRefFromLearner(l) === kidRef);
-    if (byAccount) return String(byAccount.id || byAccount.learnerId || "").trim();
-  }
-
-  return candidate;
 }
 
 const payBtn: React.CSSProperties = {

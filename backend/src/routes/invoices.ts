@@ -60,7 +60,11 @@ router.post("/", async (req, res) => {
     const existingInvoices = listInvoices(schoolId);
     const built = await buildInvoiceEntry(schoolId, body, settings, existingInvoices.length);
     if (!built.entry) {
-      return res.status(400).json({ success: false, error: built.error || "Invalid invoice" });
+      return res.status(400).json({
+        success: false,
+        error: built.error || "Invalid invoice",
+        errorCode: built.errorCode,
+      });
     }
 
     const appendResult = appendSchoolEntrySafe(schoolId, built.entry);
@@ -133,6 +137,15 @@ router.post("/batch", async (req, res) => {
       };
       const built = await buildInvoiceEntry(schoolId, merged, settings, existingCount, index);
       if (!built.entry) {
+        if (built.errorCode === "LEARNER_ACCOUNT_MISMATCH") {
+          return res.status(400).json({
+            success: false,
+            error: built.error || "Learner and account do not match",
+            errorCode: built.errorCode,
+            learnerId: String(row.learnerId || row.id || "").trim() || undefined,
+            accountNo: String(row.accountNo || "").trim() || undefined,
+          });
+        }
         skipped.push({
           index,
           learnerId: String(row.learnerId || row.id || "").trim() || undefined,

@@ -17,6 +17,52 @@ import {
 
 export type InvoiceInputBody = Record<string, unknown>;
 
+export type InvoiceBuildResult = {
+  entry?: BillingLedgerEntry;
+  error?: string;
+  errorCode?: string;
+};
+
+/** Pure check used before posting manual invoices when both learnerId and accountNo are present. */
+export function detectLearnerAccountMismatch(
+  learnerResolvedRef: string,
+  accountResolvedRef: string
+): { mismatch: false } | { mismatch: true; message: string } {
+  const fromLearner = String(learnerResolvedRef || "").trim().toUpperCase();
+  const fromAccount = String(accountResolvedRef || "").trim().toUpperCase();
+  if (!fromLearner || !fromAccount || fromLearner === fromAccount) {
+    return { mismatch: false };
+  }
+  return {
+    mismatch: true,
+    message: `Billing account mismatch: learner resolves to ${fromLearner} but accountNo resolves to ${fromAccount}.`,
+  };
+}
+
+export async function validateManualInvoiceLearnerAccount(
+  schoolId: string,
+  body: InvoiceInputBody
+): Promise<{ ok: true } | { ok: false; error: string; errorCode: "LEARNER_ACCOUNT_MISMATCH" }> {
+  const learnerId = String(body.learnerId || "").trim();
+  const accountNo = String(body.accountNo || body.accountRef || "").trim();
+  if (!learnerId || !accountNo) {
+    return { ok: true };
+  }
+
+  const fromLearner = await resolveOfficialBillingAccountRef(schoolId, { learnerId });
+  const fromAccount = await resolveOfficialBillingAccountRef(schoolId, { accountNo });
+  const check = detectLearnerAccountMismatch(fromLearner, fromAccount);
+  if (!check.mismatch) {
+    return { ok: true };
+  }
+
+  return {
+    ok: false,
+    error: `${check.message} (learnerId=${learnerId}, accountNo=${accountNo})`,
+    errorCode: "LEARNER_ACCOUNT_MISMATCH",
+  };
+}
+
 export async function resolveInvoiceAccountNo(
   schoolId: string,
   body: InvoiceInputBody
@@ -49,11 +95,16 @@ export async function buildInvoiceEntry(
   settings: Awaited<ReturnType<typeof loadSchoolBillingSettings>>,
   existingInvoiceCount: number,
   index = 0
-): Promise<{ entry?: BillingLedgerEntry; error?: string }> {
+): Promise<InvoiceBuildResult> {
   const learnerId = String(body.learnerId || "").trim();
   const amount = normaliseAmount(body.amount);
   if (!amount) {
     return { error: "Missing amount" };
+  }
+
+  const consistency = await validateManualInvoiceLearnerAccount(schoolId, body);
+  if (!consistency.ok) {
+    return { error: consistency.error, errorCode: consistency.errorCode };
   }
 
   const resolved = await resolveInvoiceAccountNo(schoolId, body);

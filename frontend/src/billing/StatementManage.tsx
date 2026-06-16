@@ -75,6 +75,7 @@ import StatementPeriodModal, {
 type Props = {
   selected: any;
   setActivePage: React.Dispatch<React.SetStateAction<any>>;
+  onOpenInvoiceCreate?: (account: any) => void;
   onOpenPaymentCreate?: (account: any) => void;
   onOpenEmailSetup?: () => void;
   statementRows?: any[];
@@ -246,6 +247,7 @@ function StatementModal({
 export default function StatementManage({
   selected,
   setActivePage,
+  onOpenInvoiceCreate,
   onOpenPaymentCreate,
   onOpenEmailSetup,
   statementRows = [],
@@ -674,6 +676,10 @@ export default function StatementManage({
 
   const openCreateInvoice = () => {
     persistBillingAccount("selectedInvoiceAccount", selected);
+    if (onOpenInvoiceCreate) {
+      onOpenInvoiceCreate(selected);
+      return;
+    }
     setActivePage("invoiceCreate");
   };
 

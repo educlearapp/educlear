@@ -2309,6 +2309,42 @@ const [selectedLearnerReport, setSelectedLearnerReport] = useState<any>(null);
     [learners, statementRows]
   );
 
+  const openInvoiceCreate = useCallback(
+    (account?: PaymentAccountContext | any | null) => {
+      if (!account) return;
+      let normalized = normalizePaymentAccount(account, statementRows, learners) || account;
+      const accountNo = String(normalized.accountNo || "").trim();
+      const learnerId = String(normalized.learnerId || "").trim();
+      const learnerIdValid = (learners || []).some(
+        (l: any) => String(l?.id || l?.learnerId || "").trim() === learnerId
+      );
+      const kidRef = normalizeKidESysAccountRef(accountNo);
+      if (!learnerIdValid && kidRef) {
+        const match = (learners || []).find(
+          (l: any) => resolveKidESysAccountRefFromLearner(l) === kidRef
+        );
+        if (match) {
+          const resolvedId = String(match.id || match.learnerId || "").trim();
+          normalized = {
+            ...normalized,
+            learnerId: resolvedId,
+            id: resolvedId,
+          };
+        }
+      }
+      const resolvedLearnerId = String(normalized.learnerId || "").trim();
+      const payload = {
+        ...normalized,
+        learnerId: resolvedLearnerId || normalized.accountNo,
+        id: resolvedLearnerId || normalized.accountNo,
+      };
+      localStorage.setItem("selectedInvoiceAccount", JSON.stringify(payload));
+      setSelectedInvoiceAccount(normalized);
+      setActivePage("invoiceCreate");
+    },
+    [learners, statementRows]
+  );
+
   useEffect(() => {
     if (!selectedAccount) return;
     const refreshed = normalizePaymentAccount(selectedAccount, statementRows, learners);
@@ -15628,6 +15664,7 @@ const [invoiceRunEmailDraft, setInvoiceRunEmailDraft] = useState({
             <StatementManage
               selected={liveRow}
               setActivePage={setActivePage}
+              onOpenInvoiceCreate={openInvoiceCreate}
               onOpenPaymentCreate={openPaymentCreate}
               onOpenEmailSetup={openCommunicationEmailSetup}
               statementRows={statementRows}
@@ -15640,22 +15677,20 @@ const [invoiceRunEmailDraft, setInvoiceRunEmailDraft] = useState({
         }
 
         case "invoiceCreate": {
-          const saved = localStorage.getItem("selectedInvoiceAccount");
-          const rawSelected =
-            selectedInvoiceAccount ||
-            (saved
-              ? (() => {
-                  try {
-                    return JSON.parse(saved);
-                  } catch {
-                    return null;
-                  }
-                })()
-              : null);
+          let rawSelected: any = null;
+          try {
+            const saved = localStorage.getItem("selectedInvoiceAccount");
+            if (saved) rawSelected = JSON.parse(saved);
+          } catch {
+            rawSelected = null;
+          }
+          if (!rawSelected) {
+            rawSelected = selectedInvoiceAccount;
+          }
           const invoiceAccount = normalizePaymentAccount(rawSelected, statementRows, learners);
           return (
             <InvoiceCreateClean
-              key={invoiceAccount?.accountNo || invoiceAccount?.learnerId || "invoice-create"}
+              key={`${invoiceAccount?.accountNo || ""}-${invoiceAccount?.learnerId || "invoice-create"}`}
               schoolId={schoolId || ""}
               learners={learners}
               selectedAccount={invoiceAccount}
