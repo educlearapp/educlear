@@ -187,22 +187,30 @@ export function readSchoolLedger(schoolId: string): BillingLedgerEntry[] {
   return readSchoolLedgerRaw(key);
 }
 
-export function writeSchoolLedger(schoolId: string, entries: BillingLedgerEntry[]) {
+export function writeSchoolLedger(
+  schoolId: string,
+  entries: BillingLedgerEntry[],
+  opts?: { notify?: boolean }
+) {
   const storeKey = resolveLedgerStorageKey(schoolId);
   if (!storeKey) return;
   const all = readAllLedgers();
   all[storeKey] = entries;
   writeAllLedgers(all);
-  notifyBillingUpdated();
+  if (opts?.notify !== false) notifyBillingUpdated();
 }
 
-export function upsertSchoolEntries(schoolId: string, entries: BillingLedgerEntry[]) {
+export function upsertSchoolEntries(
+  schoolId: string,
+  entries: BillingLedgerEntry[],
+  opts?: { notify?: boolean }
+) {
   const key = String(schoolId || "").trim();
   if (!key || !entries.length) return;
   const current = readSchoolLedger(key);
   const byId = new Map(current.map((e) => [e.id, e]));
   for (const entry of entries) byId.set(entry.id, entry);
-  writeSchoolLedger(key, Array.from(byId.values()));
+  writeSchoolLedger(key, Array.from(byId.values()), opts);
 }
 
 function accountKeys(learnerId: string, accountNo: string) {

@@ -5,9 +5,8 @@ import {
   calculateAccountBalance,
   formatMoney,
   getAccountLedger,
-  notifyBillingUpdated,
 } from "./billingLedger";
-import { createInvoicesBatch, applyInvoiceSaveResponse } from "./billingApi";
+import { createInvoicesBatch, applyInvoiceSaveResponse, logBillingSaveTiming } from "./billingApi";
 import {
   computeInvoiceDueDate,
   loadBillingSettingsForSchool,
@@ -297,6 +296,7 @@ export default function InvoiceCreateClean({
   const [selectedLineId, setSelectedLineId] = useState<string | null>(null);
   const [ledgerTick, setLedgerTick] = useState(0);
   const [saving, setSaving] = useState(false);
+  const [saveJustSucceeded, setSaveJustSucceeded] = useState(false);
   const [saveError, setSaveError] = useState("");
   const [billingSettings, setBillingSettings] = useState<BillingSettingsState | null>(null);
   const [showFeePicker, setShowFeePicker] = useState(false);
@@ -320,6 +320,12 @@ export default function InvoiceCreateClean({
   useEffect(() => {
     void refreshLedger();
   }, [refreshLedger]);
+
+  useEffect(() => {
+    if (!saveJustSucceeded) return;
+    const timer = window.setTimeout(() => setSaveJustSucceeded(false), 2000);
+    return () => window.clearTimeout(timer);
+  }, [saveJustSucceeded]);
 
   useEffect(() => {
     const onBillingUpdated = () => setLedgerTick((v) => v + 1);
@@ -639,6 +645,8 @@ export default function InvoiceCreateClean({
     }
 
     setSaving(true);
+    setSaveJustSucceeded(false);
+    const saveStarted = performance.now();
     try {
       const settings = billingSettings || (await loadBillingSettingsForSchool(schoolId));
       const baseRef = `INV-${accountNo}-${Date.now()}`;
@@ -660,23 +668,26 @@ export default function InvoiceCreateClean({
         };
       });
 
+      const postStarted = performance.now();
       const result = (await createInvoicesBatch({
         schoolId,
         invoices: invoicePayloads,
       })) as Record<string, unknown>;
+      logBillingSaveTiming("invoice POST", performance.now() - postStarted);
 
       if (result?.success === false) {
         throw new Error(String(result.error || "Invoice was not saved on the server."));
       }
 
+      const patchStarted = performance.now();
       applyInvoiceSaveResponse(schoolId, result);
-      notifyBillingUpdated();
       setLedgerTick((v) => v + 1);
-      const lineLabel = validLines.length === 1 ? "line" : "lines";
-      window.alert(
-        `Invoice saved for ${accountNo}. ${validLines.length} ${lineLabel}, total: ${formatMoney(amount)}`
-      );
-      await onSaved();
+      logBillingSaveTiming("invoice post-response patch", performance.now() - patchStarted);
+
+      setSaving(false);
+      setSaveJustSucceeded(true);
+      logBillingSaveTiming("invoice save total", performance.now() - saveStarted);
+      onSaved();
     } catch (error) {
       console.error(error);
       setSaveError(
@@ -684,7 +695,6 @@ export default function InvoiceCreateClean({
           ? error.message
           : "Invoice could not be saved. Check your connection and try again."
       );
-    } finally {
       setSaving(false);
     }
   }, [
@@ -745,7 +755,7 @@ export default function InvoiceCreateClean({
           onClick={() => void saveInvoice()}
           disabled={saving}
         >
-          {saving ? "Saving…" : "Save Invoice"}
+          {saving ? "Saving…" : saveJustSucceeded ? "Saved ✓" : "Save Invoice"}
         </button>
       </div>
 

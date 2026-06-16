@@ -14,6 +14,8 @@ import {
   applyPaymentSaveResponse,
   createPayment,
   fetchOpenInvoices,
+  logBillingSaveTiming,
+  mapPostOpenInvoiceRows,
   syncBillingLedgerFromApi,
 } from "./billingApi";
 import {
@@ -414,23 +416,19 @@ export default function PaymentCreateClean({
         allocatedBy: string;
       } | null
     ) => {
-      if (!schoolId) return;
+      if (!schoolId || !paymentId || !allocationPayload) return;
       try {
-        if (paymentId && allocationPayload) {
-          await savePaymentAllocations(paymentId, allocationPayload);
-        }
-        await refreshLedger({ silent: true });
-        notifyBillingUpdated();
+        await savePaymentAllocations(paymentId, allocationPayload);
       } catch (error) {
         console.error(error);
         setSaveError(
           error instanceof Error
             ? error.message
-            : "Payment saved, but sync or allocation failed. Refresh billing and verify."
+            : "Payment saved, but allocation failed. Refresh billing and verify."
         );
       }
     },
-    [schoolId, refreshLedger]
+    [schoolId]
   );
 
   useEffect(() => {
@@ -810,7 +808,7 @@ export default function PaymentCreateClean({
   }, [savedPayments]);
 
   const savePayment = useCallback(async () => {
-    console.log("SAVE PAYMENT CLICKED", draft);
+    const saveStarted = performance.now();
     setSaveError("");
     if (!selectedAccount) {
       setSaveError("Account not selected. Go back and choose an account.");
@@ -869,6 +867,7 @@ export default function PaymentCreateClean({
             : `idem-${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
       }
       const idempotencyKey = paymentIdempotencyKeyRef.current;
+      const postStarted = performance.now();
       const result = (await createPayment({
         schoolId,
         idempotencyKey,
@@ -888,8 +887,11 @@ export default function PaymentCreateClean({
         error?: string;
         payment?: Record<string, unknown>;
         balance?: number;
+        openInvoices?: unknown[];
+        account?: { balance?: number };
         duplicate?: boolean;
       };
+      logBillingSaveTiming("payment POST", performance.now() - postStarted);
 
       if (result?.success === false) {
         throw new Error(String(result.error || "Payment was not saved on the server."));
@@ -901,7 +903,23 @@ export default function PaymentCreateClean({
         throw new Error("Payment was not saved. No payment record returned from the server.");
       }
 
+      const patchStarted = performance.now();
       applyPaymentSaveResponse(schoolId, result as Record<string, unknown>);
+
+      const openFromPost = Array.isArray(result.openInvoices) ? result.openInvoices : [];
+      if (openFromPost.length) {
+        setApiOpenInvoices(mapPostOpenInvoiceRows(openFromPost));
+      }
+      const balanceFromPost =
+        typeof result.balance === "number" && Number.isFinite(result.balance)
+          ? result.balance
+          : typeof result.account?.balance === "number" && Number.isFinite(result.account.balance)
+            ? result.account.balance
+            : null;
+      if (balanceFromPost !== null) {
+        setApiBalance(balanceFromPost);
+      }
+      logBillingSaveTiming("payment post-response patch", performance.now() - patchStarted);
 
       const allocationLines: AllocationLine[] = Object.entries(rowAllocations)
         .filter(([, amt]) => Number(amt || 0) > 0.001)
@@ -911,34 +929,7 @@ export default function PaymentCreateClean({
         }));
       const unallocatedCredit = amountUnallocated;
 
-      try {
-        const { openInvoices, balance } = await fetchOpenInvoices(schoolId, "", resolvedAccountNo);
-        setApiOpenInvoices(
-          openInvoices.map((row: any) => ({
-            id: String(row.id || ""),
-            audit: String(row.audit || row.id || ""),
-            type: String(row.type || "Invoice"),
-            date: String(row.date || "").slice(0, 10),
-            reference: String(row.reference || ""),
-            description: String(row.description || ""),
-            unpaid: Number(row.unpaid || 0),
-            amount: Number(row.amount || row.unpaid || 0),
-          }))
-        );
-        if (typeof balance === "number" && Number.isFinite(balance)) {
-          setApiBalance(balance);
-        } else if (typeof result.balance === "number" && Number.isFinite(result.balance)) {
-          setApiBalance(result.balance);
-        }
-      } catch (refreshError) {
-        console.error(refreshError);
-        if (typeof result.balance === "number" && Number.isFinite(result.balance)) {
-          setApiBalance(result.balance);
-        }
-      }
-
       paymentIdempotencyKeyRef.current = null;
-      notifyBillingUpdated();
       setLedgerTick((v) => v + 1);
       setRowAllocations({});
       setSelectedDetailId(null);
@@ -953,6 +944,7 @@ export default function PaymentCreateClean({
 
       setSaving(false);
       setSaveJustSucceeded(true);
+      logBillingSaveTiming("payment save total", performance.now() - saveStarted);
 
       const allocationPayload =
         paymentId && allocationLines.length
@@ -980,8 +972,10 @@ export default function PaymentCreateClean({
               }
             : null;
 
-      void runBackgroundBillingSync(paymentId, allocationPayload);
-      void Promise.resolve(onSaved()).catch(() => {});
+      void onSaved();
+      window.setTimeout(() => {
+        void runBackgroundBillingSync(paymentId, allocationPayload);
+      }, 500);
     } catch (error) {
       console.error(error);
       setSaveError(
@@ -1001,7 +995,6 @@ export default function PaymentCreateClean({
     rowAllocations,
     amountUnallocated,
     onSaved,
-    apiBalance,
     runBackgroundBillingSync,
     learnerId,
   ]);

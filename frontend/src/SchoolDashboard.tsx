@@ -852,6 +852,8 @@ const [selectedLearnerReport, setSelectedLearnerReport] = useState<any>(null);
   const [billingSyncLoading, setBillingSyncLoading] = useState(false);
   const [billingSyncConfirmedEmpty, setBillingSyncConfirmedEmpty] = useState(false);
   const prevSchoolIdRef = useRef(schoolId);
+  const skipNextBillingPageRefreshRef = useRef(false);
+  const billingRefreshInFlightRef = useRef<Promise<void> | null>(null);
   const [billingAccountsSearch, setBillingAccountsSearch] = useState("");
   const [billingAccountsPage, setBillingAccountsPage] = useState(1);
   const [selectedAccount, setSelectedAccount] = useState<PaymentAccountContext | null>(null);
@@ -2215,15 +2217,23 @@ const [selectedLearnerReport, setSelectedLearnerReport] = useState<any>(null);
 
   const refreshBillingRows = useCallback(async () => {
     if (!schoolId) return;
-    setBillingSyncLoading(true);
-    try {
-      await refreshBillingFromApi(schoolId);
-      const syncState = getBillingStatementSyncState(schoolId);
-      setBillingSyncConfirmedEmpty(syncState.confirmedEmpty);
-    } finally {
-      setBillingSyncLoading(false);
-      setBillingVersion((v) => v + 1);
+    if (billingRefreshInFlightRef.current) {
+      return billingRefreshInFlightRef.current;
     }
+    const run = (async () => {
+      setBillingSyncLoading(true);
+      try {
+        await refreshBillingFromApi(schoolId);
+        const syncState = getBillingStatementSyncState(schoolId);
+        setBillingSyncConfirmedEmpty(syncState.confirmedEmpty);
+      } finally {
+        setBillingSyncLoading(false);
+        setBillingVersion((v) => v + 1);
+        billingRefreshInFlightRef.current = null;
+      }
+    })();
+    billingRefreshInFlightRef.current = run;
+    return run;
   }, [schoolId]);
 
   useEffect(() => {
@@ -2269,6 +2279,10 @@ const [selectedLearnerReport, setSelectedLearnerReport] = useState<any>(null);
       "paymentCreate",
     ];
     if (!billingPages.includes(activePage)) return;
+    if (skipNextBillingPageRefreshRef.current) {
+      skipNextBillingPageRefreshRef.current = false;
+      return;
+    }
     refreshBillingRows().catch(() => {});
   }, [activePage, schoolId, refreshBillingRows]);
 
@@ -15696,9 +15710,8 @@ const [invoiceRunEmailDraft, setInvoiceRunEmailDraft] = useState({
               defaultDueDate={quickInvoiceDueDate}
               defaultMessage={quickInvoiceMessage}
               onBack={() => setActivePage("invoices")}
-              onSaved={async () => {
-                await refreshBillingRows();
-                notifyBillingUpdated();
+              onSaved={() => {
+                skipNextBillingPageRefreshRef.current = true;
                 setActivePage("invoices");
               }}
             />
@@ -15852,9 +15865,8 @@ const [invoiceRunEmailDraft, setInvoiceRunEmailDraft] = useState({
               paymentForm={paymentForm}
               onPaymentFormChange={setPaymentForm}
               onBack={() => setActivePage("payments")}
-              onSaved={async () => {
-                await refreshBillingRows();
-                notifyBillingUpdated();
+              onSaved={() => {
+                skipNextBillingPageRefreshRef.current = true;
                 setActivePage("payments");
               }}
             />

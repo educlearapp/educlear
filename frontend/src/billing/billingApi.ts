@@ -24,6 +24,23 @@ const parseArray = (data: any, keys: string[]) => {
   return [];
 };
 
+/** Dev-only save timing (Vite import.meta.env.DEV). */
+export const isBillingSaveTimingEnabled =
+  typeof import.meta !== "undefined" &&
+  Boolean((import.meta as ImportMeta & { env?: { DEV?: boolean } }).env?.DEV);
+
+export function logBillingSaveTiming(phase: string, elapsedMs: number) {
+  if (!isBillingSaveTimingEnabled) return;
+  console.debug(`[billing-save] ${phase}: ${elapsedMs.toFixed(0)}ms`);
+}
+
+const ledgerNotifySilent = { notify: false as const };
+
+function mergeLedgerEntriesSilent(schoolId: string, entries: BillingLedgerEntry[]) {
+  if (!entries.length) return;
+  upsertSchoolEntries(schoolId, entries, ledgerNotifySilent);
+}
+
 const getJson = async (url: string) => {
   const response = await fetch(url, { cache: "no-store" });
   if (!response.ok) {
@@ -252,7 +269,8 @@ export function upsertPaymentFromApiResponse(
       | "method"
       | "source"
     >
-  >
+  >,
+  opts?: { notify?: boolean }
 ) {
   const sid = String(schoolId || "").trim();
   if (!sid || !payment) return;
@@ -266,7 +284,32 @@ export function upsertPaymentFromApiResponse(
     learnerId: String(overrides?.learnerId ?? mapped.learnerId).trim(),
     accountNo: String(overrides?.accountNo ?? mapped.accountNo).trim(),
   };
-  upsertSchoolEntries(sid, [entry]);
+  upsertSchoolEntries(sid, [entry], opts?.notify === false ? ledgerNotifySilent : undefined);
+}
+
+export type PostOpenInvoiceRow = {
+  id: string;
+  audit: string;
+  type: string;
+  date: string;
+  reference: string;
+  description: string;
+  unpaid: number;
+  amount: number;
+};
+
+/** Map open-invoice rows from POST /api/payments (or open-invoices GET). */
+export function mapPostOpenInvoiceRows(rows: unknown[]): PostOpenInvoiceRow[] {
+  return rows.map((row: any) => ({
+    id: String(row.id || ""),
+    audit: String(row.audit || row.id || ""),
+    type: String(row.type || "Invoice"),
+    date: String(row.date || "").slice(0, 10),
+    reference: String(row.reference || ""),
+    description: String(row.description || ""),
+    unpaid: Number(row.unpaid || 0),
+    amount: Number(row.amount || row.unpaid || 0),
+  }));
 }
 
 export const syncKidesysHistoryFromApi = async (schoolId: string) => {
@@ -681,22 +724,26 @@ export function applyInvoiceSaveResponse(
   const invoice = body.invoice;
   const invoices = body.invoices;
   const ledgerEntries = body.ledgerEntries;
+  const ledgerRowsToMerge: BillingLedgerEntry[] = [];
 
   if (invoice && typeof invoice === "object") {
-    mergeApiLedger(sid, [mapApiRowToLedgerEntry(sid, { ...(invoice as object), type: "invoice" })]);
+    ledgerRowsToMerge.push(
+      mapApiRowToLedgerEntry(sid, { ...(invoice as object), type: "invoice" })
+    );
   }
   if (Array.isArray(invoices) && invoices.length) {
-    mergeApiLedger(
-      sid,
-      invoices.map((row) => mapApiRowToLedgerEntry(sid, { ...(row as object), type: "invoice" }))
+    ledgerRowsToMerge.push(
+      ...invoices.map((row) =>
+        mapApiRowToLedgerEntry(sid, { ...(row as object), type: "invoice" })
+      )
     );
   }
   if (Array.isArray(ledgerEntries) && ledgerEntries.length) {
-    mergeApiLedger(
-      sid,
-      ledgerEntries.map((row) => mapApiRowToLedgerEntry(sid, row))
+    ledgerRowsToMerge.push(
+      ...ledgerEntries.map((row) => mapApiRowToLedgerEntry(sid, row))
     );
   }
+  mergeLedgerEntriesSilent(sid, ledgerRowsToMerge);
 
   const account = body.account;
   if (account && typeof account === "object") {
@@ -723,12 +770,12 @@ export function applyPaymentSaveResponse(
 
   const payment = body.payment;
   if (payment && typeof payment === "object") {
-    upsertPaymentFromApiResponse(sid, payment);
+    upsertPaymentFromApiResponse(sid, payment, undefined, { notify: false });
   }
 
   const ledgerEntries = body.ledgerEntries;
   if (Array.isArray(ledgerEntries) && ledgerEntries.length) {
-    mergeApiLedger(
+    mergeLedgerEntriesSilent(
       sid,
       ledgerEntries.map((row) => mapApiRowToLedgerEntry(sid, row))
     );
