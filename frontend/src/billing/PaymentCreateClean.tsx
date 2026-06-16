@@ -39,11 +39,9 @@ import {
 import {
   dateInputValue,
   normalizeIsoDate,
-  normalizePaymentAccount,
   normalizePaymentType,
   parseAmountInput,
   PAYMENT_TYPES,
-  readStoredPaymentAccount,
   type PaymentAccountContext,
   type PaymentFormState,
   type PaymentType,
@@ -317,13 +315,8 @@ export default function PaymentCreateClean({
       setResolvedAccount(selectedAccountProp);
       return;
     }
-    const stored = readStoredPaymentAccount();
-    if (!stored) {
-      setResolvedAccount(null);
-      return;
-    }
-    setResolvedAccount(normalizePaymentAccount(stored, statementRows, learners));
-  }, [selectedAccountProp, statementRows, learners]);
+    setResolvedAccount(null);
+  }, [selectedAccountProp]);
 
   const selectedAccount = resolvedAccount;
 

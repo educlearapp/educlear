@@ -1,9 +1,9 @@
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useMemo, useState } from "react";
 import BillingEnvDebug from "./BillingEnvDebug";
 import BillingSummaryCards from "./BillingSummaryCards";
 import { buildBillingRowSearchText, formatMoney, normaliseBillingAmount } from "./billingLedger";
 import { isMigratedOpeningBalanceOverviewLabel } from "./billingDisplayRules";
-import { refreshBillingFromApi } from "./billingApi";
+import { shouldShowNoAccountsMessage } from "./billingStatementDisplay";
 
 
 
@@ -22,6 +22,14 @@ type Props = {
 
 
   rows: any[];
+
+
+
+  rowsLoading?: boolean;
+
+
+
+  syncConfirmedEmpty?: boolean;
 
 
 
@@ -57,6 +65,14 @@ export default function Statements({
 
 
 
+  rowsLoading = false,
+
+
+
+  syncConfirmedEmpty = false,
+
+
+
   selected,
 
 
@@ -70,14 +86,6 @@ export default function Statements({
 
 
 }: Props) {
-  
-  useEffect(() => {
-    const schoolId = localStorage.getItem("schoolId") || "";
-    if (schoolId) {
-      refreshBillingFromApi(schoolId).catch(() => {});
-    }
-  }, []);
-
   const rowBalance = (row: any) => normaliseBillingAmount(row?.balance);
 
 
@@ -253,18 +261,24 @@ export default function Statements({
 
 
   const currentRows = filteredRows.slice(
-
-
-
     (safePage - 1) * pageSize,
-
-
-
     safePage * pageSize
-
-
-
   );
+
+
+
+  const isSearchFiltered = Boolean(statementSearch.trim());
+  const showNoAccounts = shouldShowNoAccountsMessage({
+    rowsLoading,
+    syncConfirmedEmpty,
+    displayRowCount: currentRows.length,
+    isSearchFiltered,
+  });
+  const emptyMessage = isSearchFiltered
+    ? "No accounts found."
+    : rowsLoading
+      ? "Loading accounts…"
+      : "No accounts found.";
 
 
 
@@ -568,30 +582,18 @@ export default function Statements({
 
 
 
-            {currentRows.length === 0 ? (
-
-
-
+            {showNoAccounts ? (
               <tr>
-
-
-
                 <td colSpan={7} style={{ ...td, textAlign: "center", padding: 24 }}>
-
-
-
-                  No accounts found.
-
-
-
+                  {emptyMessage}
                 </td>
-
-
-
               </tr>
-
-
-
+            ) : currentRows.length === 0 && rowsLoading ? (
+              <tr>
+                <td colSpan={7} style={{ ...td, textAlign: "center", padding: 24 }}>
+                  Loading accounts…
+                </td>
+              </tr>
             ) : (
 
 

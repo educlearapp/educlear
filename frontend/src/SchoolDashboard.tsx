@@ -1,4 +1,4 @@
-import React, { Fragment, useCallback, useEffect, useMemo, useState } from "react";
+import React, { Fragment, useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 
 
@@ -72,8 +72,11 @@ import {
   type PaymentFormState,
 } from "./billing/paymentCreateShared";
 import {
+  clearBillingDisplayCacheForSchoolSwitch,
+  getBillingStatementSyncState,
   refreshBillingFromApi,
 } from "./billing/billingApi";
+import { shouldShowNoAccountsMessage } from "./billing/billingStatementDisplay";
 import { KIDESYS_HISTORY_UPDATED_EVENT } from "./billing/kidesysTransactionHistory";
 import {
   buildInvoiceRunDefaults,
@@ -845,6 +848,10 @@ const [selectedLearnerReport, setSelectedLearnerReport] = useState<any>(null);
 
 
   const [selectedInvoiceAccount, setSelectedInvoiceAccount] = useState<any | null>(null);
+  const [activeBillingAccount, setActiveBillingAccountState] = useState<PaymentAccountContext | null>(null);
+  const [billingSyncLoading, setBillingSyncLoading] = useState(false);
+  const [billingSyncConfirmedEmpty, setBillingSyncConfirmedEmpty] = useState(false);
+  const prevSchoolIdRef = useRef(schoolId);
   const [billingAccountsSearch, setBillingAccountsSearch] = useState("");
   const [billingAccountsPage, setBillingAccountsPage] = useState(1);
   const [selectedAccount, setSelectedAccount] = useState<PaymentAccountContext | null>(null);
@@ -2208,13 +2215,40 @@ const [selectedLearnerReport, setSelectedLearnerReport] = useState<any>(null);
 
   const refreshBillingRows = useCallback(async () => {
     if (!schoolId) return;
-    await refreshBillingFromApi(schoolId);
-    setBillingVersion((v) => v + 1);
+    setBillingSyncLoading(true);
+    try {
+      await refreshBillingFromApi(schoolId);
+      const syncState = getBillingStatementSyncState(schoolId);
+      setBillingSyncConfirmedEmpty(syncState.confirmedEmpty);
+    } finally {
+      setBillingSyncLoading(false);
+      setBillingVersion((v) => v + 1);
+    }
+  }, [schoolId]);
+
+  useEffect(() => {
+    const prev = prevSchoolIdRef.current;
+    if (prev && prev !== schoolId) {
+      clearBillingDisplayCacheForSchoolSwitch(prev);
+      setActiveBillingAccountState(null);
+      setSelectedInvoiceAccount(null);
+      setSelectedAccount(null);
+      setSelectedStatementAccount(null);
+      setBillingSyncConfirmedEmpty(false);
+    }
+    prevSchoolIdRef.current = schoolId;
   }, [schoolId]);
 
   useEffect(() => {
     if (!schoolId) return;
-    refreshBillingFromApi(schoolId).catch(() => {});
+    setBillingSyncLoading(true);
+    refreshBillingFromApi(schoolId)
+      .then(() => {
+        const syncState = getBillingStatementSyncState(schoolId);
+        setBillingSyncConfirmedEmpty(syncState.confirmedEmpty);
+      })
+      .catch(() => {})
+      .finally(() => setBillingSyncLoading(false));
     const onBillingUpdated = () => setBillingVersion((v) => v + 1);
     window.addEventListener(BILLING_UPDATED_EVENT, onBillingUpdated);
     window.addEventListener(KIDESYS_HISTORY_UPDATED_EVENT, onBillingUpdated);
@@ -2264,15 +2298,12 @@ const [selectedLearnerReport, setSelectedLearnerReport] = useState<any>(null);
     [learners, schoolId, billingVersion]
   );
 
-  const selectPaymentAccount = useCallback((account: PaymentAccountContext) => {
-    const normalized = normalizePaymentAccount(account, statementRows, learners) || account;
-    setSelectedAccount(normalized);
-    persistPaymentAccount(normalized);
-  }, [statementRows, learners]);
-
-  const openPaymentCreate = useCallback(
-    (account?: PaymentAccountContext | null) => {
-      if (!account) return;
+  const setActiveBillingAccount = useCallback(
+    (account: PaymentAccountContext | any | null) => {
+      if (!account) {
+        setActiveBillingAccountState(null);
+        return;
+      }
       let normalized = normalizePaymentAccount(account, statementRows, learners) || account;
       const accountNo = String(normalized.accountNo || "").trim();
       const learnerId = String(normalized.learnerId || "").trim();
@@ -2293,9 +2324,35 @@ const [selectedLearnerReport, setSelectedLearnerReport] = useState<any>(null);
           };
         }
       }
-      console.log("OPEN PAYMENT ACCOUNT", normalized);
+      const resolvedLearnerId = String(normalized.learnerId || "").trim();
+      const payload: PaymentAccountContext = {
+        ...normalized,
+        learnerId: resolvedLearnerId || String(normalized.accountNo || "").trim(),
+        id: resolvedLearnerId || String(normalized.accountNo || "").trim(),
+      };
+      setActiveBillingAccountState(payload);
+      persistPaymentAccount(payload);
+      try {
+        localStorage.setItem("selectedInvoiceAccount", JSON.stringify(payload));
+      } catch {
+        /* restore-only persistence */
+      }
+    },
+    [learners, statementRows]
+  );
+
+  const selectPaymentAccount = useCallback((account: PaymentAccountContext) => {
+    const normalized = normalizePaymentAccount(account, statementRows, learners) || account;
+    setSelectedAccount(normalized);
+    persistPaymentAccount(normalized);
+  }, [statementRows, learners]);
+
+  const openPaymentCreate = useCallback(
+    (account?: PaymentAccountContext | null) => {
+      if (!account) return;
+      setActiveBillingAccount(account);
+      const normalized = normalizePaymentAccount(account, statementRows, learners) || account;
       setSelectedAccount(normalized);
-      persistPaymentAccount(normalized);
       setPaymentForm(defaultPaymentForm(normalized));
       const resolvedLearnerId = String(normalized.learnerId || "").trim();
       if (resolvedLearnerId) {
@@ -2306,43 +2363,19 @@ const [selectedLearnerReport, setSelectedLearnerReport] = useState<any>(null);
       }
       setActivePage("paymentCreate");
     },
-    [learners, statementRows]
+    [learners, statementRows, setActiveBillingAccount]
   );
 
   const openInvoiceCreate = useCallback(
     (account?: PaymentAccountContext | any | null) => {
       if (!account) return;
-      let normalized = normalizePaymentAccount(account, statementRows, learners) || account;
-      const accountNo = String(normalized.accountNo || "").trim();
-      const learnerId = String(normalized.learnerId || "").trim();
-      const learnerIdValid = (learners || []).some(
-        (l: any) => String(l?.id || l?.learnerId || "").trim() === learnerId
+      setActiveBillingAccount(account);
+      setSelectedInvoiceAccount(
+        normalizePaymentAccount(account, statementRows, learners) || account
       );
-      const kidRef = normalizeKidESysAccountRef(accountNo);
-      if (!learnerIdValid && kidRef) {
-        const match = (learners || []).find(
-          (l: any) => resolveKidESysAccountRefFromLearner(l) === kidRef
-        );
-        if (match) {
-          const resolvedId = String(match.id || match.learnerId || "").trim();
-          normalized = {
-            ...normalized,
-            learnerId: resolvedId,
-            id: resolvedId,
-          };
-        }
-      }
-      const resolvedLearnerId = String(normalized.learnerId || "").trim();
-      const payload = {
-        ...normalized,
-        learnerId: resolvedLearnerId || normalized.accountNo,
-        id: resolvedLearnerId || normalized.accountNo,
-      };
-      localStorage.setItem("selectedInvoiceAccount", JSON.stringify(payload));
-      setSelectedInvoiceAccount(normalized);
       setActivePage("invoiceCreate");
     },
-    [learners, statementRows]
+    [learners, statementRows, setActiveBillingAccount]
   );
 
   useEffect(() => {
@@ -2462,6 +2495,18 @@ const [selectedLearnerReport, setSelectedLearnerReport] = useState<any>(null);
       billingSafePage * billingPageSize,
       billingFilteredRows.length
     );
+    const billingIsSearchFiltered = Boolean(billingSearchQ);
+    const billingShowNoAccounts = shouldShowNoAccountsMessage({
+      rowsLoading: billingSyncLoading,
+      syncConfirmedEmpty: billingSyncConfirmedEmpty,
+      displayRowCount: billingPagedRows.length,
+      isSearchFiltered: billingIsSearchFiltered,
+    });
+    const billingEmptyMessage = billingIsSearchFiltered
+      ? "No accounts found"
+      : billingSyncLoading
+        ? "Loading accounts…"
+        : "No accounts found";
 
     return (
 
@@ -2609,11 +2654,7 @@ const [selectedLearnerReport, setSelectedLearnerReport] = useState<any>(null);
 
               if (!selected) return alert("Please select an account first.");
 
-
-
-              localStorage.setItem(storageKey, JSON.stringify(selected));
-
-
+              setActiveBillingAccount(selected);
 
               setActivePage(managePage);
 
@@ -2703,30 +2744,18 @@ const [selectedLearnerReport, setSelectedLearnerReport] = useState<any>(null);
 
 
 
-            {billingFilteredRows.length === 0 ? (
-
-
-
+            {billingShowNoAccounts ? (
               <tr>
-
-
-
                 <td colSpan={7} style={{ ...td, textAlign: "center", padding: "20px" }}>
-
-
-
-                  No accounts found
-
-
-
+                  {billingEmptyMessage}
                 </td>
-
-
-
               </tr>
-
-
-
+            ) : billingPagedRows.length === 0 && billingSyncLoading ? (
+              <tr>
+                <td colSpan={7} style={{ ...td, textAlign: "center", padding: "20px" }}>
+                  Loading accounts…
+                </td>
+              </tr>
             ) : (
 
 
@@ -15476,41 +15505,18 @@ const [invoiceRunEmailDraft, setInvoiceRunEmailDraft] = useState({
       
       
             rows={statementRows}
-      
-      
-      
+
+            rowsLoading={billingSyncLoading}
+
+            syncConfirmedEmpty={billingSyncConfirmedEmpty}
+
             selected={selectedStatementAccount}
-      
-      
-      
+
             setSelected={setSelectedStatementAccount}
-      
-      
-      
+
             onManage={(row) => {
-      
-      
-      
-              localStorage.setItem(
-      
-      
-      
-                "selectedStatementAccount",
-      
-      
-      
-                JSON.stringify(row)
-      
-      
-      
-              );
-      
-      
-      
+              setSelectedStatementAccount(row);
               setActivePage("statementManage");
-      
-      
-      
             }}
       
       
@@ -15666,6 +15672,7 @@ const [invoiceRunEmailDraft, setInvoiceRunEmailDraft] = useState({
               setActivePage={setActivePage}
               onOpenInvoiceCreate={openInvoiceCreate}
               onOpenPaymentCreate={openPaymentCreate}
+              setActiveBillingAccount={setActiveBillingAccount}
               onOpenEmailSetup={openCommunicationEmailSetup}
               statementRows={statementRows}
               learners={learners || []}
@@ -15677,17 +15684,9 @@ const [invoiceRunEmailDraft, setInvoiceRunEmailDraft] = useState({
         }
 
         case "invoiceCreate": {
-          let rawSelected: any = null;
-          try {
-            const saved = localStorage.getItem("selectedInvoiceAccount");
-            if (saved) rawSelected = JSON.parse(saved);
-          } catch {
-            rawSelected = null;
-          }
-          if (!rawSelected) {
-            rawSelected = selectedInvoiceAccount;
-          }
-          const invoiceAccount = normalizePaymentAccount(rawSelected, statementRows, learners);
+          const invoiceAccount = activeBillingAccount
+            ? normalizePaymentAccount(activeBillingAccount, statementRows, learners)
+            : null;
           return (
             <InvoiceCreateClean
               key={`${invoiceAccount?.accountNo || ""}-${invoiceAccount?.learnerId || "invoice-create"}`}
@@ -15839,23 +15838,9 @@ const [invoiceRunEmailDraft, setInvoiceRunEmailDraft] = useState({
         
         
         case "paymentCreate": {
-          const savedPaymentRaw = localStorage.getItem(PAYMENT_ACCOUNT_STORAGE_KEY);
-          const rawPaymentSelected =
-            selectedAccount ||
-            (savedPaymentRaw
-              ? (() => {
-                  try {
-                    return JSON.parse(savedPaymentRaw);
-                  } catch {
-                    return null;
-                  }
-                })()
-              : null);
-          const paymentAccount = normalizePaymentAccount(
-            rawPaymentSelected,
-            statementRows,
-            learners
-          );
+          const paymentAccount = activeBillingAccount
+            ? normalizePaymentAccount(activeBillingAccount, statementRows, learners)
+            : null;
           return (
             <PaymentCreateClean
               key={paymentAccount?.accountNo || paymentAccount?.learnerId || "payment-create"}

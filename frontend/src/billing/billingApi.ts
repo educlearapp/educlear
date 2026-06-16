@@ -304,26 +304,95 @@ export const syncBillingLedgerFromApi = async (schoolId: string) => {
   }
 };
 
-/** Cache full statement rows from GET /api/statements (Age Analysis account list). */
-export const syncStatementSummariesFromApi = async (schoolId: string) => {
-  const sid = String(schoolId || "").trim();
-  if (!sid) return;
-  const rows = await fetchStatements(sid);
-  if (!rows.length) return;
-  writeStatementApiAccounts(sid, rows);
-  writeStatementApiSummaries(
-    sid,
-    rows.map((row: any) => ({
-      accountNo: String(row.accountNo || ""),
-      lastInvoice: Number.isFinite(Number(row.lastInvoice)) ? Number(row.lastInvoice) : 0,
-      lastInvoiceDate: String(row.lastInvoiceDate || ""),
-      lastInvoiceLabel: row.lastInvoiceLabel ?? null,
-      lastPayment: Number.isFinite(Number(row.lastPayment)) ? Number(row.lastPayment) : 0,
-      lastPaymentDate: String(row.lastPaymentDate || ""),
-    }))
-  );
-  notifyBillingUpdated();
+export type BillingStatementSyncState = {
+  loading: boolean;
+  confirmedEmpty: boolean;
+  syncFailed: boolean;
 };
+
+const syncStateBySchool: Record<string, BillingStatementSyncState> = {};
+
+export function getBillingStatementSyncState(schoolId: string): BillingStatementSyncState {
+  const key = String(schoolId || "").trim();
+  return (
+    syncStateBySchool[key] || {
+      loading: false,
+      confirmedEmpty: false,
+      syncFailed: false,
+    }
+  );
+}
+
+function patchBillingStatementSyncState(
+  schoolId: string,
+  patch: Partial<BillingStatementSyncState>
+) {
+  const key = String(schoolId || "").trim();
+  if (!key) return;
+  syncStateBySchool[key] = { ...getBillingStatementSyncState(key), ...patch };
+}
+
+export async function fetchStatementsWithStatus(
+  schoolId: string
+): Promise<{ ok: boolean; rows: any[] }> {
+  const sid = String(schoolId || "").trim();
+  if (!sid) return { ok: false, rows: [] };
+  const url = `${API_URL}/api/statements?schoolId=${encodeURIComponent(sid)}`;
+  try {
+    const data = await getJson(url);
+    if (!data) return { ok: false, rows: [] };
+    return {
+      ok: true,
+      rows: parseArray(data, ["statements", "accounts", "items", "data"]),
+    };
+  } catch (error) {
+    console.warn(`Billing API failed: ${url}`, error);
+    return { ok: false, rows: [] };
+  }
+}
+
+const mapStatementSummaryRows = (rows: any[]) =>
+  rows.map((row: any) => ({
+    accountNo: String(row.accountNo || ""),
+    lastInvoice: Number.isFinite(Number(row.lastInvoice)) ? Number(row.lastInvoice) : 0,
+    lastInvoiceDate: String(row.lastInvoiceDate || ""),
+    lastInvoiceLabel: row.lastInvoiceLabel ?? null,
+    lastPayment: Number.isFinite(Number(row.lastPayment)) ? Number(row.lastPayment) : 0,
+    lastPaymentDate: String(row.lastPaymentDate || ""),
+  }));
+
+/** Cache full statement rows from GET /api/statements (Age Analysis account list). */
+export const syncStatementSummariesFromApi = async (
+  schoolId: string
+): Promise<{ ok: boolean; count: number }> => {
+  const sid = String(schoolId || "").trim();
+  if (!sid) return { ok: false, count: 0 };
+  const { ok, rows } = await fetchStatementsWithStatus(sid);
+  if (!ok) {
+    patchBillingStatementSyncState(sid, { confirmedEmpty: false, syncFailed: true });
+    return { ok: false, count: readStatementApiAccounts(sid).length };
+  }
+  if (!rows.length) {
+    writeStatementApiAccounts(sid, []);
+    writeStatementApiSummaries(sid, []);
+    patchBillingStatementSyncState(sid, { confirmedEmpty: true, syncFailed: false });
+    notifyBillingUpdated();
+    return { ok: true, count: 0 };
+  }
+  writeStatementApiAccounts(sid, rows);
+  writeStatementApiSummaries(sid, mapStatementSummaryRows(rows));
+  patchBillingStatementSyncState(sid, { confirmedEmpty: false, syncFailed: false });
+  notifyBillingUpdated();
+  return { ok: true, count: rows.length };
+};
+
+/** Clear in-memory billing display cache on school switch or logout only. */
+export function clearBillingDisplayCacheForSchoolSwitch(schoolId: string) {
+  const key = String(schoolId || "").trim();
+  if (!key) return;
+  clearSchoolBillingDisplayCache(key);
+  delete syncStateBySchool[key];
+}
 
 export const syncKidesysHistoryForAccountFromApi = async (
   schoolId: string,
@@ -396,11 +465,15 @@ export const undoBillingTransaction = async (
 export async function refreshBillingFromApi(schoolId: string) {
   const sid = String(schoolId || "").trim();
   if (!sid) return;
-  clearSchoolBillingDisplayCache(sid);
-  await syncStatementSummariesFromApi(sid).catch(() => {});
-  await syncKidesysHistoryFromApi(sid).catch(() => {});
-  await syncBillingLedgerFromApi(sid);
-  notifyBillingUpdated();
+  patchBillingStatementSyncState(sid, { loading: true });
+  try {
+    await syncStatementSummariesFromApi(sid).catch(() => {});
+    await syncKidesysHistoryFromApi(sid).catch(() => {});
+    await syncBillingLedgerFromApi(sid);
+    notifyBillingUpdated();
+  } finally {
+    patchBillingStatementSyncState(sid, { loading: false });
+  }
 }
 
 export const fetchBillingServerEnv = async () =>

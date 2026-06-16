@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useMemo, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   loadBillingSettingsForSchool,
   mapStatementHistoryToDefaultPeriod,
@@ -77,6 +77,7 @@ type Props = {
   setActivePage: React.Dispatch<React.SetStateAction<any>>;
   onOpenInvoiceCreate?: (account: any) => void;
   onOpenPaymentCreate?: (account: any) => void;
+  setActiveBillingAccount?: (account: any) => void;
   onOpenEmailSetup?: () => void;
   statementRows?: any[];
   learners?: any[];
@@ -249,6 +250,7 @@ export default function StatementManage({
   setActivePage,
   onOpenInvoiceCreate,
   onOpenPaymentCreate,
+  setActiveBillingAccount,
   onOpenEmailSetup,
   statementRows = [],
   learners = [],
@@ -294,6 +296,9 @@ export default function StatementManage({
   const [accountTransactions, setAccountTransactions] = useState<StatementAccountTransactionRow[]>([]);
   const [transactionsLoading, setTransactionsLoading] = useState(false);
   const [transactionsError, setTransactionsError] = useState("");
+  const txnInflightRef = useRef<Map<string, Promise<StatementAccountTransactionRow[]>>>(new Map());
+  const billingUpdatedTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const hasTransactionsRef = useRef(false);
   const [pdfDownloading, setPdfDownloading] = useState(false);
   const [statementExportBusy, setStatementExportBusy] = useState(false);
   const [exportPeriodModal, setExportPeriodModal] = useState<ExportAction | null>(null);
@@ -531,21 +536,48 @@ export default function StatementManage({
     const ref = accountRef || accountNo;
     if (!schoolId || !ref) {
       setAccountTransactions([]);
+      hasTransactionsRef.current = false;
       setTransactionsError("");
+      return;
+    }
+    const fetchKey = `${schoolId}|${ref}|${learnerId}|${period}|${showCorrectionsAudit}`;
+    const inflight = txnInflightRef.current.get(fetchKey);
+    if (inflight) {
+      setTransactionsLoading(true);
+      try {
+        const rows = await inflight;
+        setAccountTransactions(rows);
+        hasTransactionsRef.current = rows.length > 0;
+        setTransactionsError("");
+      } catch (error) {
+        setTransactionsError(
+          sanitizeUserFacingError(
+            error instanceof Error ? error.message : "Failed to load transactions",
+            "Failed to load transactions"
+          )
+        );
+      } finally {
+        setTransactionsLoading(false);
+      }
       return;
     }
     setTransactionsLoading(true);
     setTransactionsError("");
+    const promise = fetchStatementAccountTransactions(schoolId, {
+      accountNo: ref,
+      learnerId,
+      period,
+      showCorrectionsAudit,
+    });
+    txnInflightRef.current.set(fetchKey, promise);
     try {
-      const rows = await fetchStatementAccountTransactions(schoolId, {
-        accountNo: ref,
-        learnerId,
-        period,
-        showCorrectionsAudit,
-      });
+      const rows = await promise;
       setAccountTransactions(rows);
+      hasTransactionsRef.current = rows.length > 0;
     } catch (error) {
-      setAccountTransactions([]);
+      if (!hasTransactionsRef.current) {
+        setAccountTransactions([]);
+      }
       setTransactionsError(
         sanitizeUserFacingError(
           error instanceof Error ? error.message : "Failed to load transactions",
@@ -553,8 +585,15 @@ export default function StatementManage({
         )
       );
     } finally {
+      txnInflightRef.current.delete(fetchKey);
       setTransactionsLoading(false);
     }
+  }, [schoolId, accountRef, accountNo, learnerId, period, showCorrectionsAudit]);
+
+  useEffect(() => {
+    setAccountTransactions([]);
+    hasTransactionsRef.current = false;
+    setTransactionsError("");
   }, [schoolId, accountRef, accountNo, learnerId, period, showCorrectionsAudit]);
 
   useEffect(() => {
@@ -562,9 +601,21 @@ export default function StatementManage({
   }, [loadAccountTransactions]);
 
   useEffect(() => {
-    const refresh = () => void loadAccountTransactions();
+    const refresh = () => {
+      if (billingUpdatedTimerRef.current) {
+        clearTimeout(billingUpdatedTimerRef.current);
+      }
+      billingUpdatedTimerRef.current = setTimeout(() => {
+        void loadAccountTransactions();
+      }, 400);
+    };
     window.addEventListener(BILLING_UPDATED_EVENT, refresh);
-    return () => window.removeEventListener(BILLING_UPDATED_EVENT, refresh);
+    return () => {
+      window.removeEventListener(BILLING_UPDATED_EVENT, refresh);
+      if (billingUpdatedTimerRef.current) {
+        clearTimeout(billingUpdatedTimerRef.current);
+      }
+    };
   }, [loadAccountTransactions]);
 
   const kidesysHistoryForAccount = useMemo(() => {
@@ -675,7 +726,7 @@ export default function StatementManage({
   };
 
   const openCreateInvoice = () => {
-    persistBillingAccount("selectedInvoiceAccount", selected);
+    setActiveBillingAccount?.(selected);
     if (onOpenInvoiceCreate) {
       onOpenInvoiceCreate(selected);
       return;
@@ -684,22 +735,22 @@ export default function StatementManage({
   };
 
   const openCreatePayment = () => {
-    persistBillingAccount("selectedPaymentAccount", selected);
+    const account = {
+      id: String(selected?.learnerId || selected?.id || "").trim(),
+      learnerId: String(selected?.learnerId || selected?.id || "").trim(),
+      accountNo: String(selected?.accountNo || "").trim(),
+      name: String(selected?.name || selected?.firstName || "").trim(),
+      surname: String(selected?.surname || selected?.lastName || "").trim(),
+      balance: Number(selected?.balance || 0),
+      parentName: selected?.parentName,
+      lastPayment: selected?.lastPayment,
+      lastInvoice: selected?.lastInvoice,
+      status: selected?.status,
+      familyAccountId: selected?.familyAccountId,
+    };
+    setActiveBillingAccount?.(account);
     if (onOpenPaymentCreate) {
-      const account = {
-        id: String(selected?.learnerId || selected?.id || "").trim(),
-        learnerId: String(selected?.learnerId || selected?.id || "").trim(),
-        accountNo: String(selected?.accountNo || "").trim(),
-        name: String(selected?.name || selected?.firstName || "").trim(),
-        surname: String(selected?.surname || selected?.lastName || "").trim(),
-        balance: Number(selected?.balance || 0),
-        parentName: selected?.parentName,
-        lastPayment: selected?.lastPayment,
-        lastInvoice: selected?.lastInvoice,
-        status: selected?.status,
-        familyAccountId: selected?.familyAccountId,
-      };
-      onOpenPaymentCreate(account as any);
+      onOpenPaymentCreate(account);
       return;
     }
     setActivePage("paymentCreate");
@@ -1643,7 +1694,17 @@ export default function StatementManage({
               </tr>
             </thead>
             <tbody>
-              {transactionsLoading ? (
+              {transactionsLoading && accountTransactions.length > 0 ? (
+                <tr>
+                  <td
+                    colSpan={transactionColumns.length}
+                    style={{ padding: 8, textAlign: "center", color: "#64748b", fontWeight: 700, fontSize: 12 }}
+                  >
+                    Refreshing transactions…
+                  </td>
+                </tr>
+              ) : null}
+              {transactionsLoading && accountTransactions.length === 0 ? (
                 <tr>
                   <td
                     colSpan={transactionColumns.length}
