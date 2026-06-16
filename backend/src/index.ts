@@ -16,6 +16,7 @@ import paymentsRoutes from "./routes/payments";
 import paymentAllocationsRoutes from "./routes/paymentAllocations";
 import billingTransactionsRoutes from "./routes/billingTransactions";
 import invoicesRoutes from "./routes/invoices";
+import invoiceRunsRoutes from "./routes/invoiceRuns";
 import billingDocumentsRoutes from "./routes/billingDocuments";
 import billingPenaltiesRoutes from "./routes/billingPenalties";
 import billingReportsRoutes from "./routes/billingReports";
@@ -315,6 +316,7 @@ app.post("/api/upload-logo", upload.single("logo"), (req, res) => {
 });
 app.use("/api/parents", parentsRoutes);
 app.use("/api/invoices", invoicesRoutes);
+app.use("/api/invoice-runs", invoiceRunsRoutes);
 app.use("/api/statements", statementsRoutes);
 app.use("/api/family-accounts", familyAccountsRoutes);
 app.use("/api/payments", paymentsRoutes);

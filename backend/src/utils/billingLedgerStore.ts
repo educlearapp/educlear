@@ -18,6 +18,8 @@ export type BillingLedgerEntry = {
   description: string;
   method?: string;
   runId?: string;
+  /** Normalized billing period key (YYYY-MM) for invoice-run duplicate prevention. */
+  invoicePeriod?: string;
   /** Set when payment was posted from bank reconciliation. */
   bankTransactionId?: string;
   bankImportId?: string;
@@ -486,6 +488,82 @@ export function listInvoices(schoolId: string) {
 
 export function listPayments(schoolId: string) {
   return readSchoolLedger(schoolId).filter((e) => e.type === "payment");
+}
+
+/** Normalize display or ISO period input to YYYY-MM. */
+export function normalizeInvoicePeriod(input: string, invoiceDate?: string): string {
+  const raw = String(input || "").trim();
+  if (/^\d{4}-\d{2}$/.test(raw)) return raw;
+
+  const fromDate = String(invoiceDate || "").trim().slice(0, 7);
+  if (/^\d{4}-\d{2}$/.test(fromDate)) return fromDate;
+
+  const monthNames: Record<string, string> = {
+    january: "01",
+    february: "02",
+    march: "03",
+    april: "04",
+    may: "05",
+    june: "06",
+    july: "07",
+    august: "08",
+    september: "09",
+    october: "10",
+    november: "11",
+    december: "12",
+  };
+
+  const lower = raw.toLowerCase();
+  for (const [name, mm] of Object.entries(monthNames)) {
+    if (!lower.includes(name)) continue;
+    const yearMatch = raw.match(/\b(20\d{2})\b/);
+    const year = yearMatch ? yearMatch[1] : String(invoiceDate || "").slice(0, 4);
+    if (year) return `${year}-${mm}`;
+  }
+
+  const slashMatch = raw.match(/^(\d{4})[/-](\d{1,2})$/);
+  if (slashMatch) {
+    return `${slashMatch[1]}-${slashMatch[2].padStart(2, "0")}`;
+  }
+
+  return fromDate || raw;
+}
+
+function invoiceEntryMatchesPeriod(
+  entry: BillingLedgerEntry,
+  learnerId: string,
+  invoicePeriod: string
+): boolean {
+  if (entry.type !== "invoice") return false;
+  if (String(entry.learnerId || "").trim() !== learnerId) return false;
+  if (entry.undoneAt) return false;
+
+  const period = String(invoicePeriod || "").trim();
+  if (!period) return false;
+
+  if (String(entry.invoicePeriod || "").trim() === period) return true;
+
+  const entryDate = String(entry.date || "").slice(0, 7);
+  return entryDate === period;
+}
+
+export function learnerHasInvoiceForPeriod(
+  entries: BillingLedgerEntry[],
+  learnerId: string,
+  invoicePeriod: string
+): boolean {
+  const lid = String(learnerId || "").trim();
+  const period = String(invoicePeriod || "").trim();
+  if (!lid || !period) return false;
+  return entries.some((entry) => invoiceEntryMatchesPeriod(entry, lid, period));
+}
+
+export function ledgerHasRunId(entries: BillingLedgerEntry[], runId: string): boolean {
+  const rid = String(runId || "").trim();
+  if (!rid) return false;
+  return entries.some(
+    (entry) => entry.type === "invoice" && String(entry.runId || "").trim() === rid
+  );
 }
 
 function admissionBaseFromAccountKey(accountKey: string): string {
