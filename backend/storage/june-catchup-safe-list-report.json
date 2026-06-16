@@ -1,0 +1,1701 @@
+{
+  "meta": {
+    "generatedAt": "2026-06-16T11:41:13.966Z",
+    "mode": "DRY_RUN_ONLY",
+    "schoolId": "cmpideqeq0000108xb6ouv9zi",
+    "schoolName": "Da Silva Academy",
+    "invoicePeriod": "June 2026 / 2026-06",
+    "runId": "SIM-JUNE-CATCHUP-SAFE-READONLY-1781610070813",
+    "dryRun": true,
+    "ledgerCountBefore": 41732,
+    "ledgerCountAfter": 41732,
+    "ledgerUnchanged": true,
+    "apiBase": "https://educlear-backend.onrender.com",
+    "noInvoicesCreated": true,
+    "noProductionDataChanged": true
+  },
+  "source": {
+    "fullCatchupLearners": 104,
+    "fullCatchupAccounts": 99
+  },
+  "categorization": {
+    "A_SAFE_TO_APPLY": {
+      "learnersCount": 54,
+      "accountsCount": 53,
+      "totalInvoiceValue": 171250,
+      "learners": [
+        {
+          "learnerId": "cmpindi8e001d5wx6r8nmssh9",
+          "learnerName": "Ndzalo Enelo Rikhotso",
+          "accountNo": "RIK001",
+          "status": "invoiced",
+          "amount": 4350,
+          "billingGroupKey": "family:cmpozbk47002j106sb0x2c2rh",
+          "category": "A_SAFE_TO_APPLY",
+          "reason": "EduClear short vs Kid-e-Sys — June invoice fully reconciles account"
+        },
+        {
+          "learnerId": "cmpindi8i001r5wx6hzt1a77e",
+          "learnerName": "Botshelo Tselapedi",
+          "accountNo": "TSE002",
+          "status": "invoiced",
+          "amount": 3550,
+          "billingGroupKey": "family:cmpozbl3g0031106s515copyb",
+          "category": "A_SAFE_TO_APPLY",
+          "reason": "EduClear short vs Kid-e-Sys — June invoice fully reconciles account"
+        },
+        {
+          "learnerId": "cmpindi85000l5wx63fm8kxd0",
+          "learnerName": "Aiden Jacques Du Plessis",
+          "accountNo": "DUP001",
+          "status": "invoiced",
+          "amount": 3550,
+          "billingGroupKey": "family:cmpozbilp001t106sl8l30lfd",
+          "category": "A_SAFE_TO_APPLY",
+          "reason": "EduClear short vs Kid-e-Sys — June invoice fully reconciles account"
+        },
+        {
+          "learnerId": "cmpindi9g005b5wx6fg06dmx6",
+          "learnerName": "Khumo Goitseona Tshegameno",
+          "accountNo": "TSH022",
+          "status": "invoiced",
+          "amount": 3550,
+          "billingGroupKey": "family:cmpozbrty006f106setbpljm4",
+          "category": "A_SAFE_TO_APPLY",
+          "reason": "EduClear short vs Kid-e-Sys — June invoice fully reconciles account"
+        },
+        {
+          "learnerId": "cmpindi99004h5wx6f6q086bv",
+          "learnerName": "Omphemetse Faith Tshisano",
+          "accountNo": "TSH021",
+          "status": "invoiced",
+          "amount": 3000,
+          "billingGroupKey": "family:cmpozbqdb005n106sdcax8vqx",
+          "category": "A_SAFE_TO_APPLY",
+          "reason": "EduClear short vs Kid-e-Sys — June invoice fully reconciles account"
+        },
+        {
+          "learnerId": "cmpindi9i005j5wx6kh58hk0m",
+          "learnerName": "Musawenkosi Reatile Zondi",
+          "accountNo": "ZON001",
+          "status": "invoiced",
+          "amount": 3000,
+          "billingGroupKey": "family:cmpozbs1g006j106s7sgl8um8",
+          "category": "A_SAFE_TO_APPLY",
+          "reason": "EduClear short vs Kid-e-Sys — June invoice fully reconciles account"
+        },
+        {
+          "learnerId": "cmpindi8p002f5wx6f8ik2arp",
+          "learnerName": "Rethabile Nhlapo",
+          "accountNo": "NHL002",
+          "status": "invoiced",
+          "amount": 3550,
+          "billingGroupKey": "family:cmpozbmkf003p106suwsww1zx",
+          "category": "A_SAFE_TO_APPLY",
+          "reason": "EduClear short vs Kid-e-Sys — June invoice fully reconciles account"
+        },
+        {
+          "learnerId": "cmpindi8u002v5wx6tyk5zwya",
+          "learnerName": "Manase Tanga",
+          "accountNo": "TAN001",
+          "status": "invoiced",
+          "amount": 3550,
+          "billingGroupKey": "family:cmpozbn2y003z106scsv1x2ev",
+          "category": "A_SAFE_TO_APPLY",
+          "reason": "EduClear short vs Kid-e-Sys — June invoice fully reconciles account"
+        },
+        {
+          "learnerId": "cmpindi93003r5wx658rla6va",
+          "learnerName": "Bokamoso Setsome",
+          "accountNo": "SET003",
+          "status": "invoiced",
+          "amount": 3550,
+          "billingGroupKey": "family:cmpozbote004t106szn3o6m9q",
+          "category": "A_SAFE_TO_APPLY",
+          "reason": "EduClear short vs Kid-e-Sys — June invoice fully reconciles account"
+        },
+        {
+          "learnerId": "cmpindi93003t5wx635gxfxvx",
+          "learnerName": "Bonolo Grace Ramatete",
+          "accountNo": "RAM022",
+          "status": "invoiced",
+          "amount": 3000,
+          "billingGroupKey": "family:cmpozbp0s004x106soupjmywt",
+          "category": "A_SAFE_TO_APPLY",
+          "reason": "EduClear short vs Kid-e-Sys — June invoice fully reconciles account"
+        },
+        {
+          "learnerId": "cmpindi9k005t5wx64o02z2ie",
+          "learnerName": "Reaoleboga Halala Zondo",
+          "accountNo": "ZON002",
+          "status": "invoiced",
+          "amount": 3000,
+          "billingGroupKey": "family:cmpozbsnw006v106shimrfonm",
+          "category": "A_SAFE_TO_APPLY",
+          "reason": "EduClear short vs Kid-e-Sys — June invoice fully reconciles account"
+        },
+        {
+          "learnerId": "cmpindi9v00715wx60ti4lrgp",
+          "learnerName": "Opelong Wame Fortunate Phiri",
+          "accountNo": "PHI004",
+          "status": "invoiced",
+          "amount": 3550,
+          "billingGroupKey": "family:cmpozbv2o0083106scxjt1jo4",
+          "category": "A_SAFE_TO_APPLY",
+          "reason": "EduClear short vs Kid-e-Sys — June invoice fully reconciles account"
+        },
+        {
+          "learnerId": "cmpindi9l005x5wx6sz7afirh",
+          "learnerName": "Relesego Ontiretse Tsheloane",
+          "accountNo": "TSH019",
+          "status": "invoiced",
+          "amount": 3000,
+          "billingGroupKey": "family:cmpozbsrn006x106sh0cho54f",
+          "category": "A_SAFE_TO_APPLY",
+          "reason": "EduClear short vs Kid-e-Sys — June invoice fully reconciles account"
+        },
+        {
+          "learnerId": "cmpindiaa008v5wx6jn6i047h",
+          "learnerName": "Omphile Tsame",
+          "accountNo": "TSA001",
+          "status": "invoiced",
+          "amount": 3000,
+          "billingGroupKey": "family:cmpozbxo1009f106sj53oppw9",
+          "category": "A_SAFE_TO_APPLY",
+          "reason": "EduClear short vs Kid-e-Sys — June invoice fully reconciles account"
+        },
+        {
+          "learnerId": "cmpindian00ax5wx6no6pd9gt",
+          "learnerName": "Conor Murdoch",
+          "accountNo": "MUR001",
+          "status": "invoiced",
+          "amount": 3000,
+          "billingGroupKey": "family:cmpozbqp7005t106sfkaq5wde",
+          "category": "A_SAFE_TO_APPLY",
+          "reason": "EduClear short vs Kid-e-Sys — June invoice fully reconciles account"
+        },
+        {
+          "learnerId": "cmpindial00an5wx6dhcxip1r",
+          "learnerName": "Sibahle Olwethu Sitole",
+          "accountNo": "SIT003",
+          "status": "invoiced",
+          "amount": 3550,
+          "billingGroupKey": "family:cmpozc0ry00b1106scf5kk3pc",
+          "category": "A_SAFE_TO_APPLY",
+          "reason": "EduClear short vs Kid-e-Sys — June invoice fully reconciles account"
+        },
+        {
+          "learnerId": "cmpindiat00bn5wx6ienccm2f",
+          "learnerName": "Omaatla Phenyo Thejane",
+          "accountNo": "THE002",
+          "status": "invoiced",
+          "amount": 3000,
+          "billingGroupKey": "family:cmpozc2bl00bt106ss96p99dm",
+          "category": "A_SAFE_TO_APPLY",
+          "reason": "EduClear short vs Kid-e-Sys — June invoice fully reconciles account"
+        },
+        {
+          "learnerId": "cmpindiaj00ab5wx6akcozvco",
+          "learnerName": "Onthatile Tshose",
+          "accountNo": "TSH017",
+          "status": "invoiced",
+          "amount": 3550,
+          "billingGroupKey": "family:cmpozc09000ar106s6de8i7vv",
+          "category": "A_SAFE_TO_APPLY",
+          "reason": "EduClear short vs Kid-e-Sys — June invoice fully reconciles account"
+        },
+        {
+          "learnerId": "cmpindiap00b35wx69pwddiwz",
+          "learnerName": "Inkosinam Ntshanga",
+          "accountNo": "NTS008",
+          "status": "invoiced",
+          "amount": 3550,
+          "billingGroupKey": "family:cmpozc1n800bh106su7y30py0",
+          "category": "A_SAFE_TO_APPLY",
+          "reason": "EduClear short vs Kid-e-Sys — June invoice fully reconciles account"
+        },
+        {
+          "learnerId": "cmpindiaz00cr5wx61ccev8fk",
+          "learnerName": "Oreneile Tlhabane",
+          "accountNo": "TLH006",
+          "status": "invoiced",
+          "amount": 3000,
+          "billingGroupKey": "family:cmpozc45000cn106sntbngnk8",
+          "category": "A_SAFE_TO_APPLY",
+          "reason": "EduClear short vs Kid-e-Sys — June invoice fully reconciles account"
+        },
+        {
+          "learnerId": "cmpindib800e35wx613mn1ip9",
+          "learnerName": "Pholoso Rasetlola",
+          "accountNo": "RAS004",
+          "status": "invoiced",
+          "amount": 3000,
+          "billingGroupKey": "family:cmpozc70u00e3106sir4d2ijw",
+          "category": "A_SAFE_TO_APPLY",
+          "reason": "EduClear short vs Kid-e-Sys — June invoice fully reconciles account"
+        },
+        {
+          "learnerId": "cmpindib700dz5wx6sb9dd66m",
+          "learnerName": "Phenyo Ntoula",
+          "accountNo": "NTO003",
+          "status": "invoiced",
+          "amount": 3000,
+          "billingGroupKey": "family:cmpozc6t600dz106sttp8uxmq",
+          "category": "A_SAFE_TO_APPLY",
+          "reason": "EduClear short vs Kid-e-Sys — June invoice fully reconciles account"
+        },
+        {
+          "learnerId": "cmpindibo00g95wx6080bddht",
+          "learnerName": "Oageng Simelane",
+          "accountNo": "SIM002",
+          "status": "invoiced",
+          "amount": 3550,
+          "billingGroupKey": "family:cmpozbq2d005h106so46vuh14",
+          "category": "A_SAFE_TO_APPLY",
+          "reason": "EduClear short vs Kid-e-Sys — June invoice fully reconciles account"
+        },
+        {
+          "learnerId": "cmpindibd00et5wx6stjy3qcd",
+          "learnerName": "Kagiso Unathi Takata",
+          "accountNo": "TAK001",
+          "status": "invoiced",
+          "amount": 3000,
+          "billingGroupKey": "family:cmpozc86r00en106s0ehh7012",
+          "category": "A_SAFE_TO_APPLY",
+          "reason": "EduClear short vs Kid-e-Sys — June invoice fully reconciles account"
+        },
+        {
+          "learnerId": "cmpindibq00gn5wx6b020jke5",
+          "learnerName": "Tshiamo Will Senne",
+          "accountNo": "SEN959",
+          "status": "invoiced",
+          "amount": 3000,
+          "billingGroupKey": "family:cmpozcb5w00g3106sh9xy2u5h",
+          "category": "A_SAFE_TO_APPLY",
+          "reason": "EduClear short vs Kid-e-Sys — June invoice fully reconciles account"
+        },
+        {
+          "learnerId": "cmpindibe00ez5wx6t2mdqm2y",
+          "learnerName": "Kopano Phakati",
+          "accountNo": "PHA009",
+          "status": "invoiced",
+          "amount": 3000,
+          "billingGroupKey": "family:cmpozblaq0035106sgxg9brn8",
+          "category": "A_SAFE_TO_APPLY",
+          "reason": "EduClear short vs Kid-e-Sys — June invoice fully reconciles account"
+        },
+        {
+          "learnerId": "cmpindibh00fd5wx66jc0rqvk",
+          "learnerName": "Reneilwe Sindale",
+          "accountNo": "SIN001",
+          "status": "invoiced",
+          "amount": 3550,
+          "billingGroupKey": "family:cmpozc9a400f7106shhb39m0d",
+          "category": "A_SAFE_TO_APPLY",
+          "reason": "EduClear short vs Kid-e-Sys — June invoice fully reconciles account"
+        },
+        {
+          "learnerId": "cmpindibg00f55wx61m3nrn3w",
+          "learnerName": "Oletilwe Tlhame",
+          "accountNo": "TLH005",
+          "status": "invoiced",
+          "amount": 4350,
+          "billingGroupKey": "family:cmpozc8mz00ev106seg9ox945",
+          "category": "A_SAFE_TO_APPLY",
+          "reason": "EduClear short vs Kid-e-Sys — June invoice fully reconciles account"
+        },
+        {
+          "learnerId": "cmpindibp00gf5wx6s6nbwoem",
+          "learnerName": "Osego Seswai",
+          "accountNo": "SES001",
+          "status": "invoiced",
+          "amount": 3000,
+          "billingGroupKey": "family:cmpozcb1v00g1106skmhxh9fe",
+          "category": "A_SAFE_TO_APPLY",
+          "reason": "EduClear short vs Kid-e-Sys — June invoice fully reconciles account"
+        },
+        {
+          "learnerId": "cmpindibr00gt5wx6wmud4vd6",
+          "learnerName": "Amantle Nzimande",
+          "accountNo": "NZI001",
+          "status": "invoiced",
+          "amount": 3000,
+          "billingGroupKey": "family:cmpozcbia00g9106s5ikxmb9y",
+          "category": "A_SAFE_TO_APPLY",
+          "reason": "EduClear short vs Kid-e-Sys — June invoice fully reconciles account"
+        },
+        {
+          "learnerId": "cmpindibx00hn5wx6wakqq8m8",
+          "learnerName": "Paballo Pearl Xaba",
+          "accountNo": "XAB001",
+          "status": "invoiced",
+          "amount": 3550,
+          "billingGroupKey": "family:cmpozccsf00gx106si0ndro33",
+          "category": "A_SAFE_TO_APPLY",
+          "reason": "EduClear short vs Kid-e-Sys — June invoice fully reconciles account"
+        },
+        {
+          "learnerId": "cmpindici00kz5wx66yk60uel",
+          "learnerName": "Lethukukhanya Tshingana",
+          "accountNo": "TSH023",
+          "status": "invoiced",
+          "amount": 2800,
+          "billingGroupKey": "family:cmpozcikb00jt106sfzqhnps7",
+          "category": "A_SAFE_TO_APPLY",
+          "reason": "EduClear short vs Kid-e-Sys — June invoice fully reconciles account"
+        },
+        {
+          "learnerId": "cmpindicb00jv5wx6rc3btl8s",
+          "learnerName": "Evalynn Pereira",
+          "accountNo": "PER001",
+          "status": "invoiced",
+          "amount": 1000,
+          "billingGroupKey": "family:cmpozcgq500ix106sexkaia5o",
+          "category": "A_SAFE_TO_APPLY",
+          "reason": "EduClear short vs Kid-e-Sys — June invoice fully reconciles account"
+        },
+        {
+          "learnerId": "cmpindich00kr5wx68vnw1fl2",
+          "learnerName": "Junior Tshwetso Setibane",
+          "accountNo": "SET005",
+          "status": "invoiced",
+          "amount": 3350,
+          "billingGroupKey": "family:cmpozci8m00jn106s3l3g1d27",
+          "category": "A_SAFE_TO_APPLY",
+          "reason": "EduClear short vs Kid-e-Sys — June invoice fully reconciles account"
+        },
+        {
+          "learnerId": "cmpindi8z003f5wx6873z5uqq",
+          "learnerName": "Reneilwe Kemelo Rangaka",
+          "accountNo": "RAN008",
+          "status": "invoiced",
+          "amount": 3000,
+          "billingGroupKey": "family:cmpozboi9004n106stw8x3rzk",
+          "category": "A_SAFE_TO_APPLY",
+          "reason": "EduClear short vs Kid-e-Sys — June invoice fully reconciles account"
+        },
+        {
+          "learnerId": "cmpindi9500415wx60q84v635",
+          "learnerName": "Kagoentle Thebeame",
+          "accountNo": "THE003",
+          "status": "invoiced",
+          "amount": 3000,
+          "billingGroupKey": "family:cmpozbpjg0057106sjupx32we",
+          "category": "A_SAFE_TO_APPLY",
+          "reason": "EduClear short vs Kid-e-Sys — June invoice fully reconciles account"
+        },
+        {
+          "learnerId": "cmpindiat00br5wx6f198aipn",
+          "learnerName": "Omogolo Thakadu",
+          "accountNo": "THA003",
+          "status": "invoiced",
+          "amount": 3000,
+          "billingGroupKey": "family:cmpozc2sk00c1106so9m3ky5s",
+          "category": "A_SAFE_TO_APPLY",
+          "reason": "EduClear short vs Kid-e-Sys — June invoice fully reconciles account"
+        },
+        {
+          "learnerId": "cmpindias00bl5wx6buzplj35",
+          "learnerName": "Oletilwe Serutle",
+          "accountNo": "SER001",
+          "status": "invoiced",
+          "amount": 3000,
+          "billingGroupKey": "family:cmpozc27s00br106svf0xb7ku",
+          "category": "A_SAFE_TO_APPLY",
+          "reason": "EduClear short vs Kid-e-Sys — June invoice fully reconciles account"
+        },
+        {
+          "learnerId": "cmpindiba00ed5wx65sbn3jvf",
+          "learnerName": "Unathi Tause",
+          "accountNo": "TAU003",
+          "status": "invoiced",
+          "amount": 3000,
+          "billingGroupKey": "family:cmpozc7op00ef106s3nd2ovmz",
+          "category": "A_SAFE_TO_APPLY",
+          "reason": "EduClear short vs Kid-e-Sys — June invoice fully reconciles account"
+        },
+        {
+          "learnerId": "cmpindic100i95wx6ifh7malq",
+          "learnerName": "Leano Seichokelo",
+          "accountNo": "SEI859",
+          "status": "invoiced",
+          "amount": 3800,
+          "billingGroupKey": "family:cmpozcdkf00hb106san4bvhhn",
+          "category": "A_SAFE_TO_APPLY",
+          "reason": "EduClear short vs Kid-e-Sys — June invoice fully reconciles account"
+        },
+        {
+          "learnerId": "cmpindiax00cf5wx65dt61rnn",
+          "learnerName": "Oagile Tlhabane",
+          "accountNo": "TLH006",
+          "status": "invoiced",
+          "amount": 3000,
+          "billingGroupKey": "family:cmpozc45000cn106sntbngnk8",
+          "category": "A_SAFE_TO_APPLY",
+          "reason": "EduClear short vs Kid-e-Sys — June invoice fully reconciles account"
+        },
+        {
+          "learnerId": "cmpindiax00cb5wx6ggp3n8jk",
+          "learnerName": "Elleliyon Wolebo",
+          "accountNo": "WOL001",
+          "status": "invoiced",
+          "amount": 3000,
+          "billingGroupKey": "family:cmpozc3wu00cj106sjlae6vfm",
+          "category": "A_SAFE_TO_APPLY",
+          "reason": "EduClear short vs Kid-e-Sys — June invoice fully reconciles account"
+        },
+        {
+          "learnerId": "cmpindiay00cl5wx6ukum1gtr",
+          "learnerName": "Ofentse Koketso Thompo",
+          "accountNo": "THO004",
+          "status": "invoiced",
+          "amount": 4350,
+          "billingGroupKey": "family:cmpozc4gu00ct106sp5ypqipl",
+          "category": "A_SAFE_TO_APPLY",
+          "reason": "EduClear short vs Kid-e-Sys — June invoice fully reconciles account"
+        },
+        {
+          "learnerId": "cmpindiab00915wx6klt1tsgj",
+          "learnerName": "Orearabetse Kaone Tshukudu",
+          "accountNo": "TSH020",
+          "status": "invoiced",
+          "amount": 3000,
+          "billingGroupKey": "family:cmpozbxzb009l106sc4ar4d3q",
+          "category": "A_SAFE_TO_APPLY",
+          "reason": "EduClear short vs Kid-e-Sys — June invoice fully reconciles account"
+        },
+        {
+          "learnerId": "cmpindic300in5wx6f686m0s7",
+          "learnerName": "Qhawe Davi Tshabalala",
+          "accountNo": "TSH018",
+          "status": "invoiced",
+          "amount": 3800,
+          "billingGroupKey": "family:cmpozceb100hp106spbr52udx",
+          "category": "A_SAFE_TO_APPLY",
+          "reason": "EduClear short vs Kid-e-Sys — June invoice fully reconciles account"
+        },
+        {
+          "learnerId": "cmpindick00l95wx6uzhxexlj",
+          "learnerName": "Onthatile Sebico",
+          "accountNo": "SEB005",
+          "status": "invoiced",
+          "amount": 2800,
+          "billingGroupKey": "family:cmpozcj0700k1106syy7l5r1h",
+          "category": "A_SAFE_TO_APPLY",
+          "reason": "EduClear short vs Kid-e-Sys — June invoice fully reconciles account"
+        },
+        {
+          "learnerId": "cmpindic100ib5wx6u5yvp99m",
+          "learnerName": "Leigham Jayden Thiago Swartz",
+          "accountNo": "SWA001",
+          "status": "invoiced",
+          "amount": 2800,
+          "billingGroupKey": "family:cmpozcdzn00hj106spyt7jpw7",
+          "category": "A_SAFE_TO_APPLY",
+          "reason": "EduClear short vs Kid-e-Sys — June invoice fully reconciles account"
+        },
+        {
+          "learnerId": "cmpindibj00fl5wx6dysu8mgl",
+          "learnerName": "Whisper Oreneile Rethabile Tlhabanelo",
+          "accountNo": "TLH003",
+          "status": "invoiced",
+          "amount": 3000,
+          "billingGroupKey": "family:cmpozc9lp00fd106s7ei6bmer",
+          "category": "A_SAFE_TO_APPLY",
+          "reason": "EduClear short vs Kid-e-Sys — June invoice fully reconciles account"
+        },
+        {
+          "learnerId": "cmpindib000cx5wx63tlt0flu",
+          "learnerName": "Rishon Kyle Williams",
+          "accountNo": "WIL002",
+          "status": "invoiced",
+          "amount": 3550,
+          "billingGroupKey": "family:cmpozc50o00d3106soc4peu7u",
+          "category": "A_SAFE_TO_APPLY",
+          "reason": "EduClear short vs Kid-e-Sys — June invoice fully reconciles account"
+        },
+        {
+          "learnerId": "cmpindibv00hh5wx6bkuxblsd",
+          "learnerName": "Omatla Malesela Ramagogogdi",
+          "accountNo": "RAM009",
+          "status": "invoiced",
+          "amount": 3550,
+          "billingGroupKey": "family:cmpozccgt00gr106sifva12eb",
+          "category": "A_SAFE_TO_APPLY",
+          "reason": "EduClear short vs Kid-e-Sys — June invoice fully reconciles account"
+        },
+        {
+          "learnerId": "cmpindicd00k75wx66sm5uiys",
+          "learnerName": "Oaratwa Seema",
+          "accountNo": "SEE002",
+          "status": "invoiced",
+          "amount": 1000,
+          "billingGroupKey": "family:cmpozchh500jb106slt00tu7u",
+          "category": "A_SAFE_TO_APPLY",
+          "reason": "EduClear short vs Kid-e-Sys — June invoice fully reconciles account"
+        },
+        {
+          "learnerId": "cmpindibs00h15wx6bd7k8e4w",
+          "learnerName": "Kamogelo Calvin Tivane",
+          "accountNo": "TIV001",
+          "status": "invoiced",
+          "amount": 3000,
+          "billingGroupKey": "family:cmpozcbtq00gf106suxrpkot4",
+          "category": "A_SAFE_TO_APPLY",
+          "reason": "EduClear short vs Kid-e-Sys — June invoice fully reconciles account"
+        },
+        {
+          "learnerId": "cmpindick00lb5wx6kza3xzi5",
+          "learnerName": "Onwaba Lathitha Sitwayi",
+          "accountNo": "SIT004",
+          "status": "invoiced",
+          "amount": 2800,
+          "billingGroupKey": "family:cmpozcj8a00k5106szv98lntc",
+          "category": "A_SAFE_TO_APPLY",
+          "reason": "EduClear short vs Kid-e-Sys — June invoice fully reconciles account"
+        },
+        {
+          "learnerId": "cmpindicg00kj5wx655dyvz45",
+          "learnerName": "Tirelo Tau Tsibane",
+          "accountNo": "TSI002",
+          "status": "invoiced",
+          "amount": 2800,
+          "billingGroupKey": "family:cmpozchsi00jh106sg25ej773",
+          "category": "A_SAFE_TO_APPLY",
+          "reason": "EduClear short vs Kid-e-Sys — June invoice fully reconciles account"
+        }
+      ],
+      "accounts": [
+        "DUP001",
+        "MUR001",
+        "NHL002",
+        "NTO003",
+        "NTS008",
+        "NZI001",
+        "PER001",
+        "PHA009",
+        "PHI004",
+        "RAM009",
+        "RAM022",
+        "RAN008",
+        "RAS004",
+        "RIK001",
+        "SEB005",
+        "SEE002",
+        "SEI859",
+        "SEN959",
+        "SER001",
+        "SES001",
+        "SET003",
+        "SET005",
+        "SIM002",
+        "SIN001",
+        "SIT003",
+        "SIT004",
+        "SWA001",
+        "TAK001",
+        "TAN001",
+        "TAU003",
+        "THA003",
+        "THE002",
+        "THE003",
+        "THO004",
+        "TIV001",
+        "TLH003",
+        "TLH005",
+        "TLH006",
+        "TSA001",
+        "TSE002",
+        "TSH017",
+        "TSH018",
+        "TSH019",
+        "TSH020",
+        "TSH021",
+        "TSH022",
+        "TSH023",
+        "TSI002",
+        "WIL002",
+        "WOL001",
+        "XAB001",
+        "ZON001",
+        "ZON002"
+      ],
+      "learnerIds": [
+        "cmpindi8e001d5wx6r8nmssh9",
+        "cmpindi8i001r5wx6hzt1a77e",
+        "cmpindi85000l5wx63fm8kxd0",
+        "cmpindi9g005b5wx6fg06dmx6",
+        "cmpindi99004h5wx6f6q086bv",
+        "cmpindi9i005j5wx6kh58hk0m",
+        "cmpindi8p002f5wx6f8ik2arp",
+        "cmpindi8u002v5wx6tyk5zwya",
+        "cmpindi93003r5wx658rla6va",
+        "cmpindi93003t5wx635gxfxvx",
+        "cmpindi9k005t5wx64o02z2ie",
+        "cmpindi9v00715wx60ti4lrgp",
+        "cmpindi9l005x5wx6sz7afirh",
+        "cmpindiaa008v5wx6jn6i047h",
+        "cmpindian00ax5wx6no6pd9gt",
+        "cmpindial00an5wx6dhcxip1r",
+        "cmpindiat00bn5wx6ienccm2f",
+        "cmpindiaj00ab5wx6akcozvco",
+        "cmpindiap00b35wx69pwddiwz",
+        "cmpindiaz00cr5wx61ccev8fk",
+        "cmpindib800e35wx613mn1ip9",
+        "cmpindib700dz5wx6sb9dd66m",
+        "cmpindibo00g95wx6080bddht",
+        "cmpindibd00et5wx6stjy3qcd",
+        "cmpindibq00gn5wx6b020jke5",
+        "cmpindibe00ez5wx6t2mdqm2y",
+        "cmpindibh00fd5wx66jc0rqvk",
+        "cmpindibg00f55wx61m3nrn3w",
+        "cmpindibp00gf5wx6s6nbwoem",
+        "cmpindibr00gt5wx6wmud4vd6",
+        "cmpindibx00hn5wx6wakqq8m8",
+        "cmpindici00kz5wx66yk60uel",
+        "cmpindicb00jv5wx6rc3btl8s",
+        "cmpindich00kr5wx68vnw1fl2",
+        "cmpindi8z003f5wx6873z5uqq",
+        "cmpindi9500415wx60q84v635",
+        "cmpindiat00br5wx6f198aipn",
+        "cmpindias00bl5wx6buzplj35",
+        "cmpindiba00ed5wx65sbn3jvf",
+        "cmpindic100i95wx6ifh7malq",
+        "cmpindiax00cf5wx65dt61rnn",
+        "cmpindiax00cb5wx6ggp3n8jk",
+        "cmpindiay00cl5wx6ukum1gtr",
+        "cmpindiab00915wx6klt1tsgj",
+        "cmpindic300in5wx6f686m0s7",
+        "cmpindick00l95wx6uzhxexlj",
+        "cmpindic100ib5wx6u5yvp99m",
+        "cmpindibj00fl5wx6dysu8mgl",
+        "cmpindib000cx5wx63tlt0flu",
+        "cmpindibv00hh5wx6bkuxblsd",
+        "cmpindicd00k75wx66sm5uiys",
+        "cmpindibs00h15wx6bd7k8e4w",
+        "cmpindick00lb5wx6kza3xzi5",
+        "cmpindicg00kj5wx655dyvz45"
+      ]
+    },
+    "B_MANUAL_REVIEW": {
+      "learnersCount": 49,
+      "accountsCount": 45,
+      "learners": [
+        {
+          "learnerId": "cmpindi8000055wx6enmk62ha",
+          "learnerName": "Entle Ndamase",
+          "accountNo": "NDA001",
+          "status": "invoiced",
+          "amount": 3550,
+          "billingGroupKey": "family:cmpozbhru001d106s53391tf7",
+          "category": "B_MANUAL_REVIEW",
+          "reason": "Partial fix — R1,600 gap remains"
+        },
+        {
+          "learnerId": "cmpindi8c00175wx688o3qu4n",
+          "learnerName": "Masego Dinale",
+          "accountNo": "DIN002",
+          "status": "invoiced",
+          "amount": 3550,
+          "billingGroupKey": "family:cmpozbjn0002d106s62dxr1yh",
+          "category": "B_MANUAL_REVIEW",
+          "reason": "Account currently matches Kid-e-Sys — catch-up would create new mismatch (sibling allocation)"
+        },
+        {
+          "learnerId": "cmpindib100d15wx6lmj745v2",
+          "learnerName": "Thandolwakhe Mthethwa",
+          "accountNo": "MTH003",
+          "status": "invoiced",
+          "amount": 3550,
+          "billingGroupKey": "family:cmpozc58t00d7106s2xf2njwk",
+          "category": "B_MANUAL_REVIEW",
+          "reason": "Account currently matches Kid-e-Sys — catch-up would create new mismatch (sibling allocation)"
+        },
+        {
+          "learnerId": "cmpindi9h005h5wx6fik6r8dw",
+          "learnerName": "Mmakgwai Mothoagae",
+          "accountNo": "MOT008",
+          "status": "invoiced",
+          "amount": 3000,
+          "billingGroupKey": "family:cmpozbs56006l106sx2txsmjy",
+          "category": "B_MANUAL_REVIEW",
+          "reason": "Account currently matches Kid-e-Sys — catch-up would create new mismatch (sibling allocation)"
+        },
+        {
+          "learnerId": "cmpindi9f00555wx6qe4juve9",
+          "learnerName": "Eleora Teklezghi Haile",
+          "accountNo": "HAI002",
+          "status": "invoiced",
+          "amount": 2800,
+          "billingGroupKey": "family:cmpozbhvo001f106sw7e4vz5j",
+          "category": "B_MANUAL_REVIEW",
+          "reason": "Account currently matches Kid-e-Sys — catch-up would create new mismatch (sibling allocation)"
+        },
+        {
+          "learnerId": "cmpindi92003n5wx66fs68bbq",
+          "learnerName": "Arella Chiutsi",
+          "accountNo": "CHI005",
+          "status": "invoiced",
+          "amount": 3000,
+          "billingGroupKey": "family:cmpozbj0s0021106sptnjaci0",
+          "category": "B_MANUAL_REVIEW",
+          "reason": "Account currently matches Kid-e-Sys — catch-up would create new mismatch (sibling allocation)"
+        },
+        {
+          "learnerId": "cmpindi9f00575wx6g92584sq",
+          "learnerName": "Grace Kemp",
+          "accountNo": "KEM002",
+          "status": "invoiced",
+          "amount": 3000,
+          "billingGroupKey": "family:cmpozbrmi006b106sbskz6jip",
+          "category": "B_MANUAL_REVIEW",
+          "reason": "Account currently matches Kid-e-Sys — catch-up would create new mismatch (sibling allocation)"
+        },
+        {
+          "learnerId": "cmpindi8t002r5wx6hllp26g1",
+          "learnerName": "Eliana Haile",
+          "accountNo": "HAI002",
+          "status": "invoiced",
+          "amount": 2800,
+          "billingGroupKey": "family:cmpozbhvo001f106sw7e4vz5j",
+          "category": "B_MANUAL_REVIEW",
+          "reason": "Account currently matches Kid-e-Sys — catch-up would create new mismatch (sibling allocation)"
+        },
+        {
+          "learnerId": "cmpindibu00h95wx6pxtb0ufq",
+          "learnerName": "Nikitah Moonsammy",
+          "accountNo": "MOO003",
+          "status": "invoiced",
+          "amount": 3000,
+          "billingGroupKey": "family:cmpozbkzr002z106sigfcfmvp",
+          "category": "B_MANUAL_REVIEW",
+          "reason": "Account currently matches Kid-e-Sys — catch-up would create new mismatch (sibling allocation)"
+        },
+        {
+          "learnerId": "cmpindi92003p5wx6wwrsnxvn",
+          "learnerName": "Asemahle Mpu",
+          "accountNo": "MPU007",
+          "status": "invoiced",
+          "amount": 3550,
+          "billingGroupKey": "family:cmpozbox4004v106snbc39z58",
+          "category": "B_MANUAL_REVIEW",
+          "reason": "Account currently matches Kid-e-Sys — catch-up would create new mismatch (sibling allocation)"
+        },
+        {
+          "learnerId": "cmpindi8s002p5wx6hrgk237t",
+          "learnerName": "Dehbia Mosibi",
+          "accountNo": "MOS022",
+          "status": "invoiced",
+          "amount": 3000,
+          "billingGroupKey": "family:cmpozbmzb003x106s1m71be7e",
+          "category": "B_MANUAL_REVIEW",
+          "reason": "Account currently matches Kid-e-Sys — catch-up would create new mismatch (sibling allocation)"
+        },
+        {
+          "learnerId": "cmpindi9d004v5wx6mpy8j6nf",
+          "learnerName": "Amogelang Maapoga",
+          "accountNo": "MAO002",
+          "status": "invoiced",
+          "amount": 3000,
+          "billingGroupKey": "family:cmpozbr0c005z106stiqh42ae",
+          "category": "B_MANUAL_REVIEW",
+          "reason": "Account currently matches Kid-e-Sys — catch-up would create new mismatch (sibling allocation)"
+        },
+        {
+          "learnerId": "cmpindi9n00675wx6j1u983yz",
+          "learnerName": "Bono Allan Mulaudzi",
+          "accountNo": "MUL001",
+          "status": "invoiced",
+          "amount": 3000,
+          "billingGroupKey": "family:cmpozbte80079106s6x75lz87",
+          "category": "B_MANUAL_REVIEW",
+          "reason": "Account currently matches Kid-e-Sys — catch-up would create new mismatch (sibling allocation)"
+        },
+        {
+          "learnerId": "cmpindia1007r5wx6hf0uhxe0",
+          "learnerName": "Ntengo Ntshangase",
+          "accountNo": "MAK020",
+          "status": "invoiced",
+          "amount": 2850,
+          "billingGroupKey": "family:cmpozbrq5006d106s73z32knm",
+          "category": "B_MANUAL_REVIEW",
+          "reason": "Account currently matches Kid-e-Sys — catch-up would create new mismatch (sibling allocation)"
+        },
+        {
+          "learnerId": "cmpindi9r006l5wx6ud42yi8q",
+          "learnerName": "Kealeboga Lesetja Mdluli",
+          "accountNo": "MDU002",
+          "status": "invoiced",
+          "amount": 3550,
+          "billingGroupKey": "family:cmpozblei0037106slzec5157",
+          "category": "B_MANUAL_REVIEW",
+          "reason": "Account currently matches Kid-e-Sys — catch-up would create new mismatch (sibling allocation)"
+        },
+        {
+          "learnerId": "cmpindia1007t5wx6shoj4yme",
+          "learnerName": "Oreabetse Regomoditswe Ramafoko",
+          "accountNo": "RAM020",
+          "status": "invoiced",
+          "amount": 4350,
+          "billingGroupKey": "family:cmpozbvyd008j106swocx89mj",
+          "category": "B_MANUAL_REVIEW",
+          "reason": "Account currently matches Kid-e-Sys — catch-up would create new mismatch (sibling allocation)"
+        },
+        {
+          "learnerId": "cmpindi9z007h5wx6gur0m17z",
+          "learnerName": "Kgololo Hope Mokone",
+          "accountNo": "MOK034",
+          "status": "invoiced",
+          "amount": 3000,
+          "billingGroupKey": "family:cmpozbi34001j106sl3oonxh7",
+          "category": "B_MANUAL_REVIEW",
+          "reason": "Account currently matches Kid-e-Sys — catch-up would create new mismatch (sibling allocation)"
+        },
+        {
+          "learnerId": "cmpindi9y007f5wx69a2fqiow",
+          "learnerName": "Kamogelo Moemi",
+          "accountNo": "MOE011",
+          "status": "invoiced",
+          "amount": 3000,
+          "billingGroupKey": "family:cmpozbr410061106sxaogpkde",
+          "category": "B_MANUAL_REVIEW",
+          "reason": "Account currently matches Kid-e-Sys — catch-up would create new mismatch (sibling allocation)"
+        },
+        {
+          "learnerId": "cmpindi9z007l5wx6s2psit3m",
+          "learnerName": "Loapi Makhubela",
+          "accountNo": "MAK020",
+          "status": "invoiced",
+          "amount": 2850,
+          "billingGroupKey": "family:cmpozbrq5006d106s73z32knm",
+          "category": "B_MANUAL_REVIEW",
+          "reason": "Account currently matches Kid-e-Sys — catch-up would create new mismatch (sibling allocation)"
+        },
+        {
+          "learnerId": "cmpindia400855wx667n9bldd",
+          "learnerName": "Takunda Brandon Mufandaedza",
+          "accountNo": "MUF001",
+          "status": "invoiced",
+          "amount": 3550,
+          "billingGroupKey": "family:cmpozbihu001r106squ5txm21",
+          "category": "B_MANUAL_REVIEW",
+          "reason": "Account currently matches Kid-e-Sys — catch-up would create new mismatch (sibling allocation)"
+        },
+        {
+          "learnerId": "cmpindiae009d5wx6kxnns72p",
+          "learnerName": "Teboho Pebane",
+          "accountNo": "PEB002",
+          "status": "invoiced",
+          "amount": 3550,
+          "billingGroupKey": "family:cmpozbpc10053106s9xcz2mf8",
+          "category": "B_MANUAL_REVIEW",
+          "reason": "Account currently matches Kid-e-Sys — catch-up would create new mismatch (sibling allocation)"
+        },
+        {
+          "learnerId": "cmpindiaq00bb5wx68wobhzpn",
+          "learnerName": "Motheo Divine Tshabalala",
+          "accountNo": "TSH012",
+          "status": "invoiced",
+          "amount": 3000,
+          "billingGroupKey": "family:cmpozbv6t0085106shkyynbv3",
+          "category": "B_MANUAL_REVIEW",
+          "reason": "Account currently matches Kid-e-Sys — catch-up would create new mismatch (sibling allocation)"
+        },
+        {
+          "learnerId": "cmpindiar00bf5wx626np8y2w",
+          "learnerName": "Neelo Sepato",
+          "accountNo": "SEP002",
+          "status": "invoiced",
+          "amount": 2800,
+          "billingGroupKey": "family:cmpozbipe001v106sfzp1jwhs",
+          "category": "B_MANUAL_REVIEW",
+          "reason": "Account currently matches Kid-e-Sys — catch-up would create new mismatch (sibling allocation)"
+        },
+        {
+          "learnerId": "cmpindiaq00b95wx6f9psnmce",
+          "learnerName": "Lwazi Perez Masilela",
+          "accountNo": "MAS012",
+          "status": "invoiced",
+          "amount": 3550,
+          "billingGroupKey": "family:cmpozbput005d106sl187gbup",
+          "category": "B_MANUAL_REVIEW",
+          "reason": "Account currently matches Kid-e-Sys — catch-up would create new mismatch (sibling allocation)"
+        },
+        {
+          "learnerId": "cmpindib500dj5wx6kub1iykq",
+          "learnerName": "Maatla Patrick Sepato",
+          "accountNo": "SEP002",
+          "status": "invoiced",
+          "amount": 2800,
+          "billingGroupKey": "family:cmpozbipe001v106sfzp1jwhs",
+          "category": "B_MANUAL_REVIEW",
+          "reason": "Account currently matches Kid-e-Sys — catch-up would create new mismatch (sibling allocation)"
+        },
+        {
+          "learnerId": "cmpindib400df5wx6jewomciv",
+          "learnerName": "Kabelo Motau",
+          "accountNo": "MOT013",
+          "status": "invoiced",
+          "amount": 3550,
+          "billingGroupKey": "family:cmpozbwwh0091106sgogvvk93",
+          "category": "B_MANUAL_REVIEW",
+          "reason": "Account currently matches Kid-e-Sys — catch-up would create new mismatch (sibling allocation)"
+        },
+        {
+          "learnerId": "cmpindib600dr5wx6axcw3d6b",
+          "learnerName": "Ntjebe Rekgopetse Mankgane",
+          "accountNo": "MAN012",
+          "status": "invoiced",
+          "amount": 3350,
+          "billingGroupKey": "family:cmpozc64w00dn106sa9r82j2l",
+          "category": "B_MANUAL_REVIEW",
+          "reason": "Account currently matches Kid-e-Sys — catch-up would create new mismatch (sibling allocation)"
+        },
+        {
+          "learnerId": "cmpindibb00el5wx6r7n3ijfj",
+          "learnerName": "Devandre Luciano Moodley",
+          "accountNo": "MOO006",
+          "status": "invoiced",
+          "amount": 3550,
+          "billingGroupKey": "family:cmpozbyqm009z106stcwoau1p",
+          "category": "B_MANUAL_REVIEW",
+          "reason": "Account currently matches Kid-e-Sys — catch-up would create new mismatch (sibling allocation)"
+        },
+        {
+          "learnerId": "cmpindibn00g55wx6qhrpwms1",
+          "learnerName": "Nathan Moodley",
+          "accountNo": "MOO004",
+          "status": "invoiced",
+          "amount": 3550,
+          "billingGroupKey": "family:cmpozbw9n008p106spjbs2q1s",
+          "category": "B_MANUAL_REVIEW",
+          "reason": "Account currently matches Kid-e-Sys — catch-up would create new mismatch (sibling allocation)"
+        },
+        {
+          "learnerId": "cmpindibp00gl5wx6njwlbukh",
+          "learnerName": "Tshepo Junior Motsisi",
+          "accountNo": "MOT032",
+          "status": "invoiced",
+          "amount": 3000,
+          "billingGroupKey": "family:cmpozc13p00b7106sddu200v9",
+          "category": "B_MANUAL_REVIEW",
+          "reason": "Account currently matches Kid-e-Sys — catch-up would create new mismatch (sibling allocation)"
+        },
+        {
+          "learnerId": "cmpindibn00g75wx6c185a1dk",
+          "learnerName": "Nkosi Mira",
+          "accountNo": "MIR001",
+          "status": "invoiced",
+          "amount": 3000,
+          "billingGroupKey": "family:cmpozbrxn006h106s22m333k1",
+          "category": "B_MANUAL_REVIEW",
+          "reason": "Account currently matches Kid-e-Sys — catch-up would create new mismatch (sibling allocation)"
+        },
+        {
+          "learnerId": "cmpindibq00gr5wx6zdqf0ii5",
+          "learnerName": "Amantle Moabi",
+          "accountNo": "MOA006",
+          "status": "invoiced",
+          "amount": 3000,
+          "billingGroupKey": "family:cmpozcbee00g7106s5gcl3xbv",
+          "category": "B_MANUAL_REVIEW",
+          "reason": "Account currently matches Kid-e-Sys — catch-up would create new mismatch (sibling allocation)"
+        },
+        {
+          "learnerId": "cmpindibt00h35wx67na2dmlz",
+          "learnerName": "Kanku Kis Katshay",
+          "accountNo": "KAT002",
+          "status": "invoiced",
+          "amount": 3250,
+          "billingGroupKey": "family:cmpozbzht00ad106s1iu87meh",
+          "category": "B_MANUAL_REVIEW",
+          "reason": "Account currently matches Kid-e-Sys — catch-up would create new mismatch (sibling allocation)"
+        },
+        {
+          "learnerId": "cmpindibr00gv5wx6f3pt0vi8",
+          "learnerName": "Atlegang Jantjie",
+          "accountNo": "JAN003",
+          "status": "invoiced",
+          "amount": 3000,
+          "billingGroupKey": "family:cmpozc60y00dl106s8i9v8455",
+          "category": "B_MANUAL_REVIEW",
+          "reason": "Account currently matches Kid-e-Sys — catch-up would create new mismatch (sibling allocation)"
+        },
+        {
+          "learnerId": "cmpindibr00gx5wx6dbckhnac",
+          "learnerName": "Eldadi Adamu",
+          "accountNo": "ADA004",
+          "status": "invoiced",
+          "amount": 3550,
+          "billingGroupKey": "family:cmpozc7gn00eb106s10oyg5xg",
+          "category": "B_MANUAL_REVIEW",
+          "reason": "Account currently matches Kid-e-Sys — catch-up would create new mismatch (sibling allocation)"
+        },
+        {
+          "learnerId": "cmpindibz00hz5wx6ucfu2zs9",
+          "learnerName": "Busisiwe Maphisa",
+          "accountNo": "MAP008",
+          "status": "invoiced",
+          "amount": 3800,
+          "billingGroupKey": "family:cmpozbmvj003v106sliyrebwj",
+          "category": "B_MANUAL_REVIEW",
+          "reason": "Account currently matches Kid-e-Sys — catch-up would create new mismatch (sibling allocation)"
+        },
+        {
+          "learnerId": "cmpindic000i55wx6mq3dwvpk",
+          "learnerName": "Gosiame Khumoetsile Mathe",
+          "accountNo": "MAT010",
+          "status": "invoiced",
+          "amount": 3800,
+          "billingGroupKey": "family:cmpozc4ku00cv106srlgai5wv",
+          "category": "B_MANUAL_REVIEW",
+          "reason": "Account currently matches Kid-e-Sys — catch-up would create new mismatch (sibling allocation)"
+        },
+        {
+          "learnerId": "cmpindic000i35wx66sgsvp5x",
+          "learnerName": "Elhadi Hamel",
+          "accountNo": "HAM002",
+          "status": "invoiced",
+          "amount": 3800,
+          "billingGroupKey": "family:cmpozbr7p0063106subt1mnl2",
+          "category": "B_MANUAL_REVIEW",
+          "reason": "Account currently matches Kid-e-Sys — catch-up would create new mismatch (sibling allocation)"
+        },
+        {
+          "learnerId": "cmpindica00jr5wx6nenyaogk",
+          "learnerName": "Uyanda Mfene",
+          "accountNo": "MFE002",
+          "status": "invoiced",
+          "amount": 3800,
+          "billingGroupKey": "family:cmpozceik00ht106s9ctjog99",
+          "category": "B_MANUAL_REVIEW",
+          "reason": "Account currently matches Kid-e-Sys — catch-up would create new mismatch (sibling allocation)"
+        },
+        {
+          "learnerId": "cmpindicj00l35wx6nlmpb11h",
+          "learnerName": "Ntsako Segokotlo",
+          "accountNo": "SEG008",
+          "status": "invoiced",
+          "amount": 2800,
+          "billingGroupKey": "family:cmpozciga00jr106siavqsmr5",
+          "category": "B_MANUAL_REVIEW",
+          "reason": "Account currently matches Kid-e-Sys — catch-up would create new mismatch (sibling allocation)"
+        },
+        {
+          "learnerId": "cmpindici00kv5wx6o5dxcajg",
+          "learnerName": "Khumoentle Bokang Mokala",
+          "accountNo": "MOK035",
+          "status": "invoiced",
+          "amount": 2800,
+          "billingGroupKey": "family:cmpozbviw008b106s90xonevr",
+          "category": "B_MANUAL_REVIEW",
+          "reason": "Account currently matches Kid-e-Sys — catch-up would create new mismatch (sibling allocation)"
+        },
+        {
+          "learnerId": "cmpindicm00lp5wx6vcdw4bky",
+          "learnerName": "Katlego Einstein Pilane",
+          "accountNo": "PIL003",
+          "status": "invoiced",
+          "amount": 2800,
+          "billingGroupKey": "family:cmpozbm5f003h106sjglm9fuw",
+          "category": "B_MANUAL_REVIEW",
+          "reason": "Account currently matches Kid-e-Sys — catch-up would create new mismatch (sibling allocation)"
+        },
+        {
+          "learnerId": "cmpindicn00lv5wx6s397ixf2",
+          "learnerName": "Raorata Oresiametse Mabole",
+          "accountNo": "MAB005",
+          "status": "invoiced",
+          "amount": 3850,
+          "billingGroupKey": "family:cmpozc4op00cx106st2bgfvyp",
+          "category": "B_MANUAL_REVIEW",
+          "reason": "Account currently matches Kid-e-Sys — catch-up would create new mismatch (sibling allocation)"
+        },
+        {
+          "learnerId": "cmpindico00lx5wx6if3x54q9",
+          "learnerName": "Tlotlego Omogolo Raborife",
+          "accountNo": "RAB003",
+          "status": "invoiced",
+          "amount": 2800,
+          "billingGroupKey": "family:cmpozbit8001x106slamleklg",
+          "category": "B_MANUAL_REVIEW",
+          "reason": "Account currently matches Kid-e-Sys — catch-up would create new mismatch (sibling allocation)"
+        },
+        {
+          "learnerId": "cmpindicm00ll5wx6p6yawyxy",
+          "learnerName": "Atang Mothotse",
+          "accountNo": "MOT036",
+          "status": "invoiced",
+          "amount": 2800,
+          "billingGroupKey": "family:cmpozch5t00j5106s2j0bnn65",
+          "category": "B_MANUAL_REVIEW",
+          "reason": "Account currently matches Kid-e-Sys — catch-up would create new mismatch (sibling allocation)"
+        },
+        {
+          "learnerId": "cmpindico00lz5wx6607uwtin",
+          "learnerName": "Vutivi Sibiya",
+          "accountNo": "SIB003",
+          "status": "invoiced",
+          "amount": 2800,
+          "billingGroupKey": "family:cmpozbs8v006n106sivac2eix",
+          "category": "B_MANUAL_REVIEW",
+          "reason": "Account currently matches Kid-e-Sys — catch-up would create new mismatch (sibling allocation)"
+        },
+        {
+          "learnerId": "cmpindib500dp5wx6nhkqpex5",
+          "learnerName": "Neo Kearabilwe Tladi",
+          "accountNo": "TLA001",
+          "status": "invoiced",
+          "amount": 3000,
+          "billingGroupKey": "family:cmpozc6d000dr106slfvb9j25",
+          "category": "B_MANUAL_REVIEW",
+          "reason": "Account currently matches Kid-e-Sys — catch-up would create new mismatch (sibling allocation)"
+        },
+        {
+          "learnerId": "cmpindi9u006v5wx60ml1wbg4",
+          "learnerName": "Naledi Legare",
+          "accountNo": "LEG001",
+          "status": "invoiced",
+          "amount": 3550,
+          "billingGroupKey": "family:cmpozbu9k007p106sbsfekdlb",
+          "category": "B_MANUAL_REVIEW",
+          "reason": "Account currently matches Kid-e-Sys — catch-up would create new mismatch (sibling allocation)"
+        },
+        {
+          "learnerId": "cmpindicl00ld5wx6olr8z0wr",
+          "learnerName": "Rethabile Leseilane Mankgane",
+          "accountNo": "MAN012",
+          "status": "invoiced",
+          "amount": 3150,
+          "billingGroupKey": "family:cmpozc64w00dn106sa9r82j2l",
+          "category": "B_MANUAL_REVIEW",
+          "reason": "Account currently matches Kid-e-Sys — catch-up would create new mismatch (sibling allocation)"
+        }
+      ],
+      "notes": [
+        "44 accounts currently match Kid-e-Sys — catch-up would create new mismatches (predominantly partial sibling families)",
+        "NDA001 partial fix — R1,600 gap would remain",
+        "MAT012 missing from EduClear — not addressed by catch-up"
+      ]
+    },
+    "C_DO_NOT_APPLY": {
+      "learnersCount": 1,
+      "accountsCount": 1,
+      "learners": [
+        {
+          "learnerId": "cmpindiaa008t5wx6umm5pbc8",
+          "learnerName": "Oboikanyo Kgatoentle Tshwaane Kgasoane",
+          "accountNo": "TSH016",
+          "status": "invoiced",
+          "amount": 3000,
+          "billingGroupKey": "family:cmpozbup4007x106swwtk935k",
+          "category": "C_DO_NOT_APPLY",
+          "reason": "Adding invoice worsens mismatch — EduClear already above Kid-e-Sys"
+        }
+      ]
+    }
+  },
+  "safeDryRun": {
+    "httpStatus": 422,
+    "httpEquivalent": "POST /api/invoice-runs/execute dryRun:true",
+    "success": false,
+    "error": "Sibling validation failed for account MOO003",
+    "errorCode": "INTEGRITY_GATE_FAILED",
+    "runId": "SIM-JUNE-CATCHUP-SAFE-READONLY-1781610070813",
+    "learnersIncluded": 54,
+    "learnersInvoiced": 54,
+    "accountsAffected": 53,
+    "invoiceLinesWouldCreate": 54,
+    "totalValueWouldAdd": 171250,
+    "duplicatesDetected": 0,
+    "skippedLearners": [],
+    "integrity": {
+      "passed": false,
+      "eligibleCount": 54,
+      "invoiceLineCount": 54,
+      "skippedCount": 0,
+      "skipReasonCounts": {},
+      "processedCount": 54
+    },
+    "learners": [
+      {
+        "learnerId": "cmpindi8e001d5wx6r8nmssh9",
+        "learnerName": "Ndzalo Enelo Rikhotso",
+        "accountNo": "RIK001",
+        "status": "invoiced",
+        "amount": 4350,
+        "billingGroupKey": "family:cmpozbk47002j106sb0x2c2rh"
+      },
+      {
+        "learnerId": "cmpindi8i001r5wx6hzt1a77e",
+        "learnerName": "Botshelo Tselapedi",
+        "accountNo": "TSE002",
+        "status": "invoiced",
+        "amount": 3550,
+        "billingGroupKey": "family:cmpozbl3g0031106s515copyb"
+      },
+      {
+        "learnerId": "cmpindi85000l5wx63fm8kxd0",
+        "learnerName": "Aiden Jacques Du Plessis",
+        "accountNo": "DUP001",
+        "status": "invoiced",
+        "amount": 3550,
+        "billingGroupKey": "family:cmpozbilp001t106sl8l30lfd"
+      },
+      {
+        "learnerId": "cmpindi9g005b5wx6fg06dmx6",
+        "learnerName": "Khumo Goitseona Tshegameno",
+        "accountNo": "TSH022",
+        "status": "invoiced",
+        "amount": 3550,
+        "billingGroupKey": "family:cmpozbrty006f106setbpljm4"
+      },
+      {
+        "learnerId": "cmpindi99004h5wx6f6q086bv",
+        "learnerName": "Omphemetse Faith Tshisano",
+        "accountNo": "TSH021",
+        "status": "invoiced",
+        "amount": 3000,
+        "billingGroupKey": "family:cmpozbqdb005n106sdcax8vqx"
+      },
+      {
+        "learnerId": "cmpindi9i005j5wx6kh58hk0m",
+        "learnerName": "Musawenkosi Reatile Zondi",
+        "accountNo": "ZON001",
+        "status": "invoiced",
+        "amount": 3000,
+        "billingGroupKey": "family:cmpozbs1g006j106s7sgl8um8"
+      },
+      {
+        "learnerId": "cmpindi8p002f5wx6f8ik2arp",
+        "learnerName": "Rethabile Nhlapo",
+        "accountNo": "NHL002",
+        "status": "invoiced",
+        "amount": 3550,
+        "billingGroupKey": "family:cmpozbmkf003p106suwsww1zx"
+      },
+      {
+        "learnerId": "cmpindi8u002v5wx6tyk5zwya",
+        "learnerName": "Manase Tanga",
+        "accountNo": "TAN001",
+        "status": "invoiced",
+        "amount": 3550,
+        "billingGroupKey": "family:cmpozbn2y003z106scsv1x2ev"
+      },
+      {
+        "learnerId": "cmpindi93003r5wx658rla6va",
+        "learnerName": "Bokamoso Setsome",
+        "accountNo": "SET003",
+        "status": "invoiced",
+        "amount": 3550,
+        "billingGroupKey": "family:cmpozbote004t106szn3o6m9q"
+      },
+      {
+        "learnerId": "cmpindi93003t5wx635gxfxvx",
+        "learnerName": "Bonolo Grace Ramatete",
+        "accountNo": "RAM022",
+        "status": "invoiced",
+        "amount": 3000,
+        "billingGroupKey": "family:cmpozbp0s004x106soupjmywt"
+      },
+      {
+        "learnerId": "cmpindi9k005t5wx64o02z2ie",
+        "learnerName": "Reaoleboga Halala Zondo",
+        "accountNo": "ZON002",
+        "status": "invoiced",
+        "amount": 3000,
+        "billingGroupKey": "family:cmpozbsnw006v106shimrfonm"
+      },
+      {
+        "learnerId": "cmpindi9v00715wx60ti4lrgp",
+        "learnerName": "Opelong Wame Fortunate Phiri",
+        "accountNo": "PHI004",
+        "status": "invoiced",
+        "amount": 3550,
+        "billingGroupKey": "family:cmpozbv2o0083106scxjt1jo4"
+      },
+      {
+        "learnerId": "cmpindi9l005x5wx6sz7afirh",
+        "learnerName": "Relesego Ontiretse Tsheloane",
+        "accountNo": "TSH019",
+        "status": "invoiced",
+        "amount": 3000,
+        "billingGroupKey": "family:cmpozbsrn006x106sh0cho54f"
+      },
+      {
+        "learnerId": "cmpindiaa008v5wx6jn6i047h",
+        "learnerName": "Omphile Tsame",
+        "accountNo": "TSA001",
+        "status": "invoiced",
+        "amount": 3000,
+        "billingGroupKey": "family:cmpozbxo1009f106sj53oppw9"
+      },
+      {
+        "learnerId": "cmpindian00ax5wx6no6pd9gt",
+        "learnerName": "Conor Murdoch",
+        "accountNo": "MUR001",
+        "status": "invoiced",
+        "amount": 3000,
+        "billingGroupKey": "family:cmpozbqp7005t106sfkaq5wde"
+      },
+      {
+        "learnerId": "cmpindial00an5wx6dhcxip1r",
+        "learnerName": "Sibahle Olwethu Sitole",
+        "accountNo": "SIT003",
+        "status": "invoiced",
+        "amount": 3550,
+        "billingGroupKey": "family:cmpozc0ry00b1106scf5kk3pc"
+      },
+      {
+        "learnerId": "cmpindiat00bn5wx6ienccm2f",
+        "learnerName": "Omaatla Phenyo Thejane",
+        "accountNo": "THE002",
+        "status": "invoiced",
+        "amount": 3000,
+        "billingGroupKey": "family:cmpozc2bl00bt106ss96p99dm"
+      },
+      {
+        "learnerId": "cmpindiaj00ab5wx6akcozvco",
+        "learnerName": "Onthatile Tshose",
+        "accountNo": "TSH017",
+        "status": "invoiced",
+        "amount": 3550,
+        "billingGroupKey": "family:cmpozc09000ar106s6de8i7vv"
+      },
+      {
+        "learnerId": "cmpindiap00b35wx69pwddiwz",
+        "learnerName": "Inkosinam Ntshanga",
+        "accountNo": "NTS008",
+        "status": "invoiced",
+        "amount": 3550,
+        "billingGroupKey": "family:cmpozc1n800bh106su7y30py0"
+      },
+      {
+        "learnerId": "cmpindiaz00cr5wx61ccev8fk",
+        "learnerName": "Oreneile Tlhabane",
+        "accountNo": "TLH006",
+        "status": "invoiced",
+        "amount": 3000,
+        "billingGroupKey": "family:cmpozc45000cn106sntbngnk8"
+      },
+      {
+        "learnerId": "cmpindib800e35wx613mn1ip9",
+        "learnerName": "Pholoso Rasetlola",
+        "accountNo": "RAS004",
+        "status": "invoiced",
+        "amount": 3000,
+        "billingGroupKey": "family:cmpozc70u00e3106sir4d2ijw"
+      },
+      {
+        "learnerId": "cmpindib700dz5wx6sb9dd66m",
+        "learnerName": "Phenyo Ntoula",
+        "accountNo": "NTO003",
+        "status": "invoiced",
+        "amount": 3000,
+        "billingGroupKey": "family:cmpozc6t600dz106sttp8uxmq"
+      },
+      {
+        "learnerId": "cmpindibo00g95wx6080bddht",
+        "learnerName": "Oageng Simelane",
+        "accountNo": "SIM002",
+        "status": "invoiced",
+        "amount": 3550,
+        "billingGroupKey": "family:cmpozbq2d005h106so46vuh14"
+      },
+      {
+        "learnerId": "cmpindibd00et5wx6stjy3qcd",
+        "learnerName": "Kagiso Unathi Takata",
+        "accountNo": "TAK001",
+        "status": "invoiced",
+        "amount": 3000,
+        "billingGroupKey": "family:cmpozc86r00en106s0ehh7012"
+      },
+      {
+        "learnerId": "cmpindibq00gn5wx6b020jke5",
+        "learnerName": "Tshiamo Will Senne",
+        "accountNo": "SEN959",
+        "status": "invoiced",
+        "amount": 3000,
+        "billingGroupKey": "family:cmpozcb5w00g3106sh9xy2u5h"
+      },
+      {
+        "learnerId": "cmpindibe00ez5wx6t2mdqm2y",
+        "learnerName": "Kopano Phakati",
+        "accountNo": "PHA009",
+        "status": "invoiced",
+        "amount": 3000,
+        "billingGroupKey": "family:cmpozblaq0035106sgxg9brn8"
+      },
+      {
+        "learnerId": "cmpindibh00fd5wx66jc0rqvk",
+        "learnerName": "Reneilwe Sindale",
+        "accountNo": "SIN001",
+        "status": "invoiced",
+        "amount": 3550,
+        "billingGroupKey": "family:cmpozc9a400f7106shhb39m0d"
+      },
+      {
+        "learnerId": "cmpindibg00f55wx61m3nrn3w",
+        "learnerName": "Oletilwe Tlhame",
+        "accountNo": "TLH005",
+        "status": "invoiced",
+        "amount": 4350,
+        "billingGroupKey": "family:cmpozc8mz00ev106seg9ox945"
+      },
+      {
+        "learnerId": "cmpindibp00gf5wx6s6nbwoem",
+        "learnerName": "Osego Seswai",
+        "accountNo": "SES001",
+        "status": "invoiced",
+        "amount": 3000,
+        "billingGroupKey": "family:cmpozcb1v00g1106skmhxh9fe"
+      },
+      {
+        "learnerId": "cmpindibr00gt5wx6wmud4vd6",
+        "learnerName": "Amantle Nzimande",
+        "accountNo": "NZI001",
+        "status": "invoiced",
+        "amount": 3000,
+        "billingGroupKey": "family:cmpozcbia00g9106s5ikxmb9y"
+      },
+      {
+        "learnerId": "cmpindibx00hn5wx6wakqq8m8",
+        "learnerName": "Paballo Pearl Xaba",
+        "accountNo": "XAB001",
+        "status": "invoiced",
+        "amount": 3550,
+        "billingGroupKey": "family:cmpozccsf00gx106si0ndro33"
+      },
+      {
+        "learnerId": "cmpindici00kz5wx66yk60uel",
+        "learnerName": "Lethukukhanya Tshingana",
+        "accountNo": "TSH023",
+        "status": "invoiced",
+        "amount": 2800,
+        "billingGroupKey": "family:cmpozcikb00jt106sfzqhnps7"
+      },
+      {
+        "learnerId": "cmpindicb00jv5wx6rc3btl8s",
+        "learnerName": "Evalynn Pereira",
+        "accountNo": "PER001",
+        "status": "invoiced",
+        "amount": 1000,
+        "billingGroupKey": "family:cmpozcgq500ix106sexkaia5o"
+      },
+      {
+        "learnerId": "cmpindich00kr5wx68vnw1fl2",
+        "learnerName": "Junior Tshwetso Setibane",
+        "accountNo": "SET005",
+        "status": "invoiced",
+        "amount": 3350,
+        "billingGroupKey": "family:cmpozci8m00jn106s3l3g1d27"
+      },
+      {
+        "learnerId": "cmpindi8z003f5wx6873z5uqq",
+        "learnerName": "Reneilwe Kemelo Rangaka",
+        "accountNo": "RAN008",
+        "status": "invoiced",
+        "amount": 3000,
+        "billingGroupKey": "family:cmpozboi9004n106stw8x3rzk"
+      },
+      {
+        "learnerId": "cmpindi9500415wx60q84v635",
+        "learnerName": "Kagoentle Thebeame",
+        "accountNo": "THE003",
+        "status": "invoiced",
+        "amount": 3000,
+        "billingGroupKey": "family:cmpozbpjg0057106sjupx32we"
+      },
+      {
+        "learnerId": "cmpindiat00br5wx6f198aipn",
+        "learnerName": "Omogolo Thakadu",
+        "accountNo": "THA003",
+        "status": "invoiced",
+        "amount": 3000,
+        "billingGroupKey": "family:cmpozc2sk00c1106so9m3ky5s"
+      },
+      {
+        "learnerId": "cmpindias00bl5wx6buzplj35",
+        "learnerName": "Oletilwe Serutle",
+        "accountNo": "SER001",
+        "status": "invoiced",
+        "amount": 3000,
+        "billingGroupKey": "family:cmpozc27s00br106svf0xb7ku"
+      },
+      {
+        "learnerId": "cmpindiba00ed5wx65sbn3jvf",
+        "learnerName": "Unathi Tause",
+        "accountNo": "TAU003",
+        "status": "invoiced",
+        "amount": 3000,
+        "billingGroupKey": "family:cmpozc7op00ef106s3nd2ovmz"
+      },
+      {
+        "learnerId": "cmpindic100i95wx6ifh7malq",
+        "learnerName": "Leano Seichokelo",
+        "accountNo": "SEI859",
+        "status": "invoiced",
+        "amount": 3800,
+        "billingGroupKey": "family:cmpozcdkf00hb106san4bvhhn"
+      },
+      {
+        "learnerId": "cmpindiax00cf5wx65dt61rnn",
+        "learnerName": "Oagile Tlhabane",
+        "accountNo": "TLH006",
+        "status": "invoiced",
+        "amount": 3000,
+        "billingGroupKey": "family:cmpozc45000cn106sntbngnk8"
+      },
+      {
+        "learnerId": "cmpindiax00cb5wx6ggp3n8jk",
+        "learnerName": "Elleliyon Wolebo",
+        "accountNo": "WOL001",
+        "status": "invoiced",
+        "amount": 3000,
+        "billingGroupKey": "family:cmpozc3wu00cj106sjlae6vfm"
+      },
+      {
+        "learnerId": "cmpindiay00cl5wx6ukum1gtr",
+        "learnerName": "Ofentse Koketso Thompo",
+        "accountNo": "THO004",
+        "status": "invoiced",
+        "amount": 4350,
+        "billingGroupKey": "family:cmpozc4gu00ct106sp5ypqipl"
+      },
+      {
+        "learnerId": "cmpindiab00915wx6klt1tsgj",
+        "learnerName": "Orearabetse Kaone Tshukudu",
+        "accountNo": "TSH020",
+        "status": "invoiced",
+        "amount": 3000,
+        "billingGroupKey": "family:cmpozbxzb009l106sc4ar4d3q"
+      },
+      {
+        "learnerId": "cmpindic300in5wx6f686m0s7",
+        "learnerName": "Qhawe Davi Tshabalala",
+        "accountNo": "TSH018",
+        "status": "invoiced",
+        "amount": 3800,
+        "billingGroupKey": "family:cmpozceb100hp106spbr52udx"
+      },
+      {
+        "learnerId": "cmpindick00l95wx6uzhxexlj",
+        "learnerName": "Onthatile Sebico",
+        "accountNo": "SEB005",
+        "status": "invoiced",
+        "amount": 2800,
+        "billingGroupKey": "family:cmpozcj0700k1106syy7l5r1h"
+      },
+      {
+        "learnerId": "cmpindic100ib5wx6u5yvp99m",
+        "learnerName": "Leigham Jayden Thiago Swartz",
+        "accountNo": "SWA001",
+        "status": "invoiced",
+        "amount": 2800,
+        "billingGroupKey": "family:cmpozcdzn00hj106spyt7jpw7"
+      },
+      {
+        "learnerId": "cmpindibj00fl5wx6dysu8mgl",
+        "learnerName": "Whisper Oreneile Rethabile Tlhabanelo",
+        "accountNo": "TLH003",
+        "status": "invoiced",
+        "amount": 3000,
+        "billingGroupKey": "family:cmpozc9lp00fd106s7ei6bmer"
+      },
+      {
+        "learnerId": "cmpindib000cx5wx63tlt0flu",
+        "learnerName": "Rishon Kyle Williams",
+        "accountNo": "WIL002",
+        "status": "invoiced",
+        "amount": 3550,
+        "billingGroupKey": "family:cmpozc50o00d3106soc4peu7u"
+      },
+      {
+        "learnerId": "cmpindibv00hh5wx6bkuxblsd",
+        "learnerName": "Omatla Malesela Ramagogogdi",
+        "accountNo": "RAM009",
+        "status": "invoiced",
+        "amount": 3550,
+        "billingGroupKey": "family:cmpozccgt00gr106sifva12eb"
+      },
+      {
+        "learnerId": "cmpindicd00k75wx66sm5uiys",
+        "learnerName": "Oaratwa Seema",
+        "accountNo": "SEE002",
+        "status": "invoiced",
+        "amount": 1000,
+        "billingGroupKey": "family:cmpozchh500jb106slt00tu7u"
+      },
+      {
+        "learnerId": "cmpindibs00h15wx6bd7k8e4w",
+        "learnerName": "Kamogelo Calvin Tivane",
+        "accountNo": "TIV001",
+        "status": "invoiced",
+        "amount": 3000,
+        "billingGroupKey": "family:cmpozcbtq00gf106suxrpkot4"
+      },
+      {
+        "learnerId": "cmpindick00lb5wx6kza3xzi5",
+        "learnerName": "Onwaba Lathitha Sitwayi",
+        "accountNo": "SIT004",
+        "status": "invoiced",
+        "amount": 2800,
+        "billingGroupKey": "family:cmpozcj8a00k5106szv98lntc"
+      },
+      {
+        "learnerId": "cmpindicg00kj5wx655dyvz45",
+        "learnerName": "Tirelo Tau Tsibane",
+        "accountNo": "TSI002",
+        "status": "invoiced",
+        "amount": 2800,
+        "billingGroupKey": "family:cmpozchsi00jh106sg25ej773"
+      }
+    ]
+  },
+  "reconciliationProjection": {
+    "before": {
+      "exactMatches": 288,
+      "mismatchedAccounts": 57,
+      "totalValueOfBalanceDifferences": 182551,
+      "eduClearTotalOutstanding": 1463454.37,
+      "eduClearNetPosition": 1028029.42,
+      "kideSysTotalOutstanding": 1617345.37,
+      "kideSysNetPosition": 1197880.42
+    },
+    "afterSafeCatchUpOnly": {
+      "mismatchesWouldFix": 53,
+      "mismatchesWouldRemain": 4,
+      "mismatchesRemainFromExcludedCatchup": 2,
+      "mismatchesRemainUnrelated": 2,
+      "newlyMismatchAccounts": 0,
+      "exactMatchesProjected": 341,
+      "mismatchedAccountsProjected": 4,
+      "eduClearTotalOutstanding": 1634704.37,
+      "eduClearNetPosition": 1199279.42,
+      "outstandingDelta": 171250,
+      "note": "Excluded: 44 matching accounts (48 learners), NDA001 partial, TSH016 over-balance"
+    },
+    "full104ForComparison": {
+      "mismatchesWouldFix": 53,
+      "mismatchesWouldRemain": 4,
+      "mismatchesRemainFromCatchupAccounts": 2,
+      "mismatchesRemainUnrelated": 2,
+      "eduClearTotalOutstanding": 1795704.37,
+      "eduClearNetPosition": 1360279.42,
+      "outstandingDelta": 332250,
+      "exactMatchesProjected": 297,
+      "mismatchedAccountsProjected": 48,
+      "newlyMismatchAccounts": 44,
+      "newlyMismatchInvoiceValue": 154450
+    },
+    "noNewMismatchesFromSafeList": true
+  },
+    "integrityGateNote": "Dry-run produced 54 invoice lines but integrity gate returned 422 because 46 billing groups include excluded manual-review siblings who remain eligible but outside run scope (e.g. MOO003, DIN002). Safe accounts themselves do not introduce new Kid-e-Sys mismatches.",
+  "approvalRecommendation": "DO NOT APPLY — manual review required first",
+  "criticalNotes": [
+    "48 of 104 catch-up learners sit on 44 accounts that currently MATCH Kid-e-Sys (R154,450 invoice value). These are predominantly partial sibling families where one sibling received June invoice and another was missed. Applying catch-up will post the missed sibling invoices and will change those account balances.",
+    "TSH016 is in the catch-up set but EduClear balance already exceeds Kid-e-Sys by R6,350. June catch-up would widen the gap — manual review required.",
+    "MAT012 appears in Kid-e-Sys PDF but is MISSING from EduClear accounts (0 balance both sides in comparison). Catch-up does not address this."
+  ],
+  "message": "READ-ONLY analysis. Safe list dry-run complete. Await explicit user approval before any write."
+}

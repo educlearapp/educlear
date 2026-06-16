@@ -1,0 +1,298 @@
+{
+  "before": {
+    "capturedAt": "2026-06-16T11:17:35.349Z",
+    "apiBase": "https://educlear-backend.onrender.com",
+    "schoolId": "cmpideqeq0000108xb6ouv9zi",
+    "accountsCount": 344,
+    "cards": {
+      "totalOutstanding": 1463454.37,
+      "recentlyOwing": 1123884.37,
+      "badDebt": 339570,
+      "overPaid": 435424.95,
+      "netPosition": 1028029.42
+    },
+    "kidesysCards": {
+      "totalOutstanding": 1028029.42,
+      "recentlyOwing": 709999.45,
+      "badDebt": 255390,
+      "overPaid": -293110.03
+    },
+    "spotBalances": {
+      "DUP001": -12200,
+      "ALI002": 3700,
+      "MAM004": 4500,
+      "ADA004": 6500,
+      "AFR002": 4220,
+      "DIK001": 3499,
+      "RAM020": 4350
+    },
+    "sampleBalances": [
+      {
+        "accountNo": "ADA004",
+        "balance": 6500,
+        "status": "Recently Owing"
+      },
+      {
+        "accountNo": "AFR002",
+        "balance": 4220,
+        "status": "Recently Owing"
+      },
+      {
+        "accountNo": "ALI002",
+        "balance": 3700,
+        "status": "Recently Owing"
+      },
+      {
+        "accountNo": "BAN001",
+        "balance": 3550,
+        "status": "Recently Owing"
+      },
+      {
+        "accountNo": "BOG005",
+        "balance": 2500,
+        "status": "Recently Owing"
+      },
+      {
+        "accountNo": "BUY001",
+        "balance": 3000,
+        "status": "Recently Owing"
+      },
+      {
+        "accountNo": "CET001",
+        "balance": 5550,
+        "status": "Recently Owing"
+      },
+      {
+        "accountNo": "CHI002",
+        "balance": 3000,
+        "status": "Recently Owing"
+      },
+      {
+        "accountNo": "CHI004",
+        "balance": 3000,
+        "status": "Recently Owing"
+      },
+      {
+        "accountNo": "CHI005",
+        "balance": 7400,
+        "status": "Recently Owing"
+      },
+      {
+        "accountNo": "DIK001",
+        "balance": 3499,
+        "status": "Recently Owing"
+      },
+      {
+        "accountNo": "DIR001",
+        "balance": -14000,
+        "status": "Over Paid"
+      },
+      {
+        "accountNo": "DUP001",
+        "balance": -12200,
+        "status": "Over Paid"
+      },
+      {
+        "accountNo": "KGA004",
+        "balance": -32540,
+        "status": "Over Paid"
+      },
+      {
+        "accountNo": "LET009",
+        "balance": -17300,
+        "status": "Over Paid"
+      },
+      {
+        "accountNo": "MAG007",
+        "balance": -23101,
+        "status": "Over Paid"
+      },
+      {
+        "accountNo": "MAK018",
+        "balance": -13800,
+        "status": "Over Paid"
+      },
+      {
+        "accountNo": "MAK021",
+        "balance": -7833.95,
+        "status": "Over Paid"
+      },
+      {
+        "accountNo": "MAK022",
+        "balance": -2150,
+        "status": "Over Paid"
+      },
+      {
+        "accountNo": "MAK025",
+        "balance": -7320,
+        "status": "Over Paid"
+      },
+      {
+        "accountNo": "MAM004",
+        "balance": 4500,
+        "status": "Recently Owing"
+      },
+      {
+        "accountNo": "MAN012",
+        "balance": -40400,
+        "status": "Over Paid"
+      },
+      {
+        "accountNo": "RAM020",
+        "balance": 4350,
+        "status": "Recently Owing"
+      }
+    ],
+    "ledgerEntryCount": 41732,
+    "ledgerFingerprint": "5abc610eb6909445f02111a6b3fc750d68b1a30b8bc3d25122a52a948d923942"
+  },
+  "after": {
+    "capturedAt": "2026-06-16T11:19:21.144Z",
+    "apiBase": "https://educlear-backend.onrender.com",
+    "schoolId": "cmpideqeq0000108xb6ouv9zi",
+    "accountsCount": 344,
+    "cards": {
+      "totalOutstanding": 1463454.37,
+      "recentlyOwing": 1123884.37,
+      "badDebt": 339570,
+      "overPaid": 435424.95,
+      "netPosition": 1028029.42
+    },
+    "kidesysCards": {
+      "totalOutstanding": 1028029.42,
+      "recentlyOwing": 709999.45,
+      "badDebt": 255390,
+      "overPaid": -293110.03
+    },
+    "spotBalances": {
+      "DUP001": -12200,
+      "ALI002": 3700,
+      "MAM004": 4500,
+      "ADA004": 6500,
+      "AFR002": 4220,
+      "DIK001": 3499,
+      "RAM020": 4350
+    },
+    "sampleBalances": [
+      {
+        "accountNo": "ADA004",
+        "balance": 6500,
+        "status": "Recently Owing"
+      },
+      {
+        "accountNo": "AFR002",
+        "balance": 4220,
+        "status": "Recently Owing"
+      },
+      {
+        "accountNo": "ALI002",
+        "balance": 3700,
+        "status": "Recently Owing"
+      },
+      {
+        "accountNo": "BAN001",
+        "balance": 3550,
+        "status": "Recently Owing"
+      },
+      {
+        "accountNo": "BOG005",
+        "balance": 2500,
+        "status": "Recently Owing"
+      },
+      {
+        "accountNo": "BUY001",
+        "balance": 3000,
+        "status": "Recently Owing"
+      },
+      {
+        "accountNo": "CET001",
+        "balance": 5550,
+        "status": "Recently Owing"
+      },
+      {
+        "accountNo": "CHI002",
+        "balance": 3000,
+        "status": "Recently Owing"
+      },
+      {
+        "accountNo": "CHI004",
+        "balance": 3000,
+        "status": "Recently Owing"
+      },
+      {
+        "accountNo": "CHI005",
+        "balance": 7400,
+        "status": "Recently Owing"
+      },
+      {
+        "accountNo": "DIK001",
+        "balance": 3499,
+        "status": "Recently Owing"
+      },
+      {
+        "accountNo": "DIR001",
+        "balance": -14000,
+        "status": "Over Paid"
+      },
+      {
+        "accountNo": "DUP001",
+        "balance": -12200,
+        "status": "Over Paid"
+      },
+      {
+        "accountNo": "KGA004",
+        "balance": -32540,
+        "status": "Over Paid"
+      },
+      {
+        "accountNo": "LET009",
+        "balance": -17300,
+        "status": "Over Paid"
+      },
+      {
+        "accountNo": "MAG007",
+        "balance": -23101,
+        "status": "Over Paid"
+      },
+      {
+        "accountNo": "MAK018",
+        "balance": -13800,
+        "status": "Over Paid"
+      },
+      {
+        "accountNo": "MAK021",
+        "balance": -7833.95,
+        "status": "Over Paid"
+      },
+      {
+        "accountNo": "MAK022",
+        "balance": -2150,
+        "status": "Over Paid"
+      },
+      {
+        "accountNo": "MAK025",
+        "balance": -7320,
+        "status": "Over Paid"
+      },
+      {
+        "accountNo": "MAM004",
+        "balance": 4500,
+        "status": "Recently Owing"
+      },
+      {
+        "accountNo": "MAN012",
+        "balance": -40400,
+        "status": "Over Paid"
+      },
+      {
+        "accountNo": "RAM020",
+        "balance": 4350,
+        "status": "Recently Owing"
+      }
+    ],
+    "ledgerEntryCount": 41732,
+    "ledgerFingerprint": "5abc610eb6909445f02111a6b3fc750d68b1a30b8bc3d25122a52a948d923942"
+  },
+  "issues": [],
+  "comparedAt": "2026-06-16T11:19:21.165Z"
+}
