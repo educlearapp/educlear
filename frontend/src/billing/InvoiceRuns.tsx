@@ -12,18 +12,12 @@ import {
   resolveStatementMessage,
   substituteBillingTokens,
 } from "./billingSettingsEngine";
-import { appendInvoiceRunTransactions } from "./billingLedger";
 import {
-
-
-
   fetchInvoices,
-
-
-
   fetchPayments,
-  createInvoicesBatch,
-  applyInvoiceSaveResponse,
+  previewInvoiceRun,
+  executeInvoiceRun,
+  applyInvoiceRunExecuteResponse,
 } from "./billingApi";
 
 
@@ -118,6 +112,11 @@ export default function InvoiceRuns(props: any) {
   
   const [billingLoading, setBillingLoading] = useState(false);
   const invoiceRunNotifiedRef = useRef<string>("");
+  const [invoiceRunServerPreview, setInvoiceRunServerPreview] = useState<any | null>(null);
+  const [invoiceRunPreviewLoading, setInvoiceRunPreviewLoading] = useState(false);
+  const [invoiceRunPreviewError, setInvoiceRunPreviewError] = useState("");
+  const [invoiceRunExecuteResult, setInvoiceRunExecuteResult] = useState<any | null>(null);
+  const [invoiceRunExecuteLoading, setInvoiceRunExecuteLoading] = useState(false);
 
   useEffect(() => {
     if (invoiceRunView !== "wizardSummary") return;
@@ -125,6 +124,7 @@ export default function InvoiceRuns(props: any) {
     const run = readJson(["educlearSelectedInvoiceRun"], null);
     const runId = String(run?.id || "");
     if (!schoolId || !runId || invoiceRunNotifiedRef.current === runId) return;
+    if (!run?.executed && !invoiceRunExecuteResult?.success) return;
     invoiceRunNotifiedRef.current = runId;
     const month = String(run?.month || run?.period || "").trim();
     const learnerIds = Array.isArray(run?.rows)
@@ -134,7 +134,7 @@ export default function InvoiceRuns(props: any) {
       method: "POST",
       body: JSON.stringify({ schoolId, month, runId, learnerIds }),
     }).catch((err) => console.warn("[InvoiceRuns] Parent notifications failed:", err));
-  }, [invoiceRunView]);
+  }, [invoiceRunView, invoiceRunExecuteResult?.success]);
 
   const [statementEmailOpen, setStatementEmailOpen] = useState(false);
 
@@ -764,25 +764,12 @@ export default function InvoiceRuns(props: any) {
 
 
   const getLearnerBillingPlan = (learner: any) => {
-
-
-
+    if (Array.isArray(learner?.billingPlan) && learner.billingPlan.length) {
+      return learner.billingPlan;
+    }
     const saved = savedBillingPlans?.[learner?.id];
-
-
-
     if (Array.isArray(saved)) return saved;
-
-
-
-    if (Array.isArray(learner?.billingPlan)) return learner.billingPlan;
-
-
-
     return [];
-
-
-
   };
   const findParent = (learner: any) => {
 
@@ -1404,9 +1391,184 @@ export default function InvoiceRuns(props: any) {
 
   );
 
+  const extractExtraFeesForRow = (row: any) => {
+    const fees = Array.isArray(row?.fees) ? row.fees : [];
+    return fees
+      .filter(
+        (fee: any) =>
+          fee?.type === "EXTRA" || String(fee?.id || "").startsWith("extra-")
+      )
+      .map((fee: any) => ({
+        feeDescription: String(fee.description || fee.name || "Extra fee").trim(),
+        amount: Number(fee.amount || 0),
+      }))
+      .filter((fee: { feeDescription: string; amount: number }) => fee.amount > 0);
+  };
 
+  const buildRunExecutePayload = (run: any) => {
+    const schoolId = localStorage.getItem("schoolId") || "";
+    const invoiceDate =
+      String(run?.invoiceDate || run?.date || invoiceRunSettings?.invoiceDate || "").trim() ||
+      new Date().toISOString().slice(0, 10);
+    const invoicePeriod = String(
+      run?.month || run?.period || invoiceRunSettings?.month || ""
+    ).trim();
+    const rows = Array.isArray(run?.rows) ? run.rows : [];
+    const extraFeesByLearnerId: Record<string, { feeDescription: string; amount: number }[]> =
+      {};
 
-  const saveRun = (run: any) => {
+    for (const row of rows) {
+      const learnerId = String(row?.id || row?.learnerId || "").trim();
+      const extras = extractExtraFeesForRow(row);
+      if (learnerId && extras.length) extraFeesByLearnerId[learnerId] = extras;
+    }
+
+    return {
+      schoolId,
+      runId: String(run?.id || ""),
+      invoicePeriod,
+      invoiceDate,
+      dueDate:
+        String(run?.dueDate || invoiceRunSettings?.dueDate || "").trim() || undefined,
+      description:
+        String(run?.description || `Invoice Run For ${invoicePeriod}`).trim() || undefined,
+      extraFeesByLearnerId: Object.keys(extraFeesByLearnerId).length
+        ? extraFeesByLearnerId
+        : undefined,
+    };
+  };
+
+  const loadInvoiceRunPreview = async (run: any) => {
+    const schoolId = localStorage.getItem("schoolId") || "";
+    if (!schoolId || !run?.id) return null;
+    setInvoiceRunPreviewLoading(true);
+    setInvoiceRunPreviewError("");
+    try {
+      const result = await previewInvoiceRun(buildRunExecutePayload(run));
+      setInvoiceRunServerPreview(result);
+      return result;
+    } catch (error) {
+      const message =
+        error instanceof Error ? error.message : "Invoice run preview failed";
+      setInvoiceRunPreviewError(message);
+      setInvoiceRunServerPreview(null);
+      return null;
+    } finally {
+      setInvoiceRunPreviewLoading(false);
+    }
+  };
+
+  const runInvoiceRunExecute = async (run: any) => {
+    const schoolId = localStorage.getItem("schoolId") || "";
+    if (!schoolId || !run?.id) {
+      throw new Error("Missing school or run");
+    }
+    setInvoiceRunExecuteLoading(true);
+    try {
+      const result = await executeInvoiceRun(buildRunExecutePayload(run));
+      setInvoiceRunExecuteResult(result);
+      if (!result?.success || result?.integrity?.passed === false) {
+        const detail = formatInvoiceRunErrorReport(result);
+        throw new Error(detail || result?.error || "Invoice run execute failed");
+      }
+      applyInvoiceRunExecuteResponse(schoolId, result);
+      const executedRun = {
+        ...run,
+        executed: true,
+        executedAt: new Date().toISOString(),
+        executeResult: {
+          eligibleCount: result?.integrity?.eligibleCount,
+          createdCount: result?.createdCount,
+          skippedCount: result?.integrity?.skippedCount,
+          duplicateCount: result?.duplicateCount,
+        },
+      };
+      saveRunDraft(executedRun);
+      await loadBillingData();
+      return result;
+    } finally {
+      setInvoiceRunExecuteLoading(false);
+    }
+  };
+
+  const formatInvoiceRunErrorReport = (result: any) => {
+    if (!result) return "";
+    const lines: string[] = [];
+    if (result.error) lines.push(String(result.error));
+    if (result.integrity) {
+      lines.push(
+        `Integrity: eligible=${result.integrity.eligibleCount ?? 0}, invoiced=${result.integrity.invoiceLineCount ?? 0}, skipped=${result.integrity.skippedCount ?? 0}`
+      );
+    }
+    const learners = Array.isArray(result.learners) ? result.learners : [];
+    const skipped = learners.filter((row: any) => row.status === "skipped");
+    if (skipped.length) {
+      lines.push(
+        skipped
+          .slice(0, 12)
+          .map(
+            (row: any) =>
+              `${row.learnerName || row.learnerId}: ${row.skipReason || "skipped"}`
+          )
+          .join("\n")
+      );
+    }
+    const accounts = Array.isArray(result.accounts) ? result.accounts : [];
+    for (const account of accounts) {
+      if (account.siblingValidationPassed === false && Array.isArray(account.issues)) {
+        lines.push(`Account ${account.accountNo}: ${account.issues.join("; ")}`);
+      }
+    }
+    return lines.filter(Boolean).join("\n\n");
+  };
+
+  const previewDisplayRows = useMemo(() => {
+    const serverLearners = Array.isArray(invoiceRunServerPreview?.learners)
+      ? invoiceRunServerPreview.learners
+      : [];
+    if (!serverLearners.length) return runRows;
+    const byId = new Map(
+      runRows.map((row: any) => [String(row.id || row.learnerId), row])
+    );
+    return serverLearners.map((learnerRow: any) => {
+      const local: any = byId.get(String(learnerRow.learnerId)) || {};
+      return {
+        ...local,
+        id: learnerRow.learnerId,
+        learnerId: learnerRow.learnerId,
+        learnerName: learnerRow.learnerName,
+        firstName: learnerRow.learnerName?.split(" ")?.[0] || local.firstName,
+        surname: learnerRow.learnerName?.split(" ")?.slice(1).join(" ") || local.surname,
+        accountNo: learnerRow.accountNo || local.accountNo,
+        invoiceAmount: learnerRow.amount ?? local.invoiceAmount ?? 0,
+        serverStatus: learnerRow.status,
+        skipReason: learnerRow.skipReason,
+        skipDetail: learnerRow.skipDetail,
+      };
+    });
+  }, [invoiceRunServerPreview, runRows]);
+
+  const previewInvoiceTotal = useMemo(
+    () =>
+      previewDisplayRows.reduce(
+        (sum: number, row: any) =>
+          sum +
+          (row.serverStatus === "invoiced" || !row.serverStatus
+            ? Number(row.invoiceAmount || 0)
+            : 0),
+        0
+      ),
+    [previewDisplayRows]
+  );
+
+  useEffect(() => {
+    if (invoiceRunView !== "wizardPreview") return;
+    const run = readJson(["educlearSelectedInvoiceRun"], selectedRun);
+    if (!run?.id) return;
+    void loadInvoiceRunPreview(run);
+  }, [invoiceRunView, selectedRun?.id]);
+
+  const saveRunDraft = (run: any) => {
 
 
 
@@ -1467,78 +1629,8 @@ export default function InvoiceRuns(props: any) {
 
 
     setStoredRuns(updatedRuns);
-    const schoolId = localStorage.getItem("schoolId") || "";
-    appendInvoiceRunTransactions(run, schoolId, billingSettingsRef.current);
-    if (schoolId) {
-      const rows = Array.isArray(run?.rows) ? run.rows : [];
-      const invoiceDate =
-        String(run?.invoiceDate || run?.date || "").trim() ||
-        new Date().toISOString().slice(0, 10);
-      const runId = String(run?.id || "");
-      const invoicePayloads = rows
-        .map((row: any, index: number) => {
-          const amount = Number(row?.invoiceAmount ?? row?.amount ?? row?.total ?? 0);
-          if (!amount) return null;
-          const learnerId = String(row?.id || row?.learnerId || "").trim();
-          const lineKey = learnerId || `row-${index}`;
-          return {
-            schoolId,
-            learnerId,
-            accountNo: String(row?.accountNo || ""),
-            amount,
-            date: invoiceDate,
-            dueDate: computeInvoiceDueDate(
-              invoiceDate,
-              billingSettingsRef.current,
-              String(row?.dueDate || run?.dueDate || "")
-            ),
-            reference: String(row?.invoiceNo || row?.statementNo || runId),
-            description: String(run?.description || `Invoice Run ${run?.month || ""}`),
-            runId,
-            lineKey,
-            id: `invoice-${runId}-${lineKey}`,
-          };
-        })
-        .filter(Boolean);
-
-      void createInvoicesBatch({
-        schoolId,
-        runId,
-        invoices: invoicePayloads as Record<string, unknown>[],
-      })
-        .then((result: any) => {
-          applyInvoiceSaveResponse(schoolId, result);
-          const skipped = Array.isArray(result?.skipped) ? result.skipped : [];
-          if (skipped.length) {
-            console.warn("[InvoiceRuns] Invoice run skipped rows:", skipped);
-            const labels = skipped
-              .slice(0, 8)
-              .map(
-                (s: any) =>
-                  s.learnerId || s.accountNo || `row ${Number(s.index) + 1}: ${s.reason}`
-              )
-              .join(", ");
-            window.alert(
-              `Invoice run saved with ${skipped.length} skipped learner(s)/row(s): ${labels}${skipped.length > 8 ? "…" : ""}`
-            );
-          }
-        })
-        .catch((error) => {
-          console.error("[InvoiceRuns] Server invoice batch sync failed:", error);
-          window.alert(
-            `Invoice run saved locally but server sync failed: ${
-              error instanceof Error ? error.message : "Unknown error"
-            }`
-          );
-        });
-    }
     loadBillingData();
-
-
     writeJson("educlearSelectedInvoiceRun", run);
-
-
-
   };
   const createNewRun = (original = false) => {
 
@@ -1666,7 +1758,11 @@ export default function InvoiceRuns(props: any) {
 
 
 
-    saveRun(run);
+    setInvoiceRunServerPreview(null);
+    setInvoiceRunPreviewError("");
+    setInvoiceRunExecuteResult(null);
+
+    saveRunDraft(run);
 
 
 
@@ -1714,7 +1810,7 @@ export default function InvoiceRuns(props: any) {
 
 
 
-    saveRun(run);
+    saveRunDraft(run);
 
 
 
@@ -1854,7 +1950,7 @@ export default function InvoiceRuns(props: any) {
 
 
 
-    saveRun(updated);
+    saveRunDraft(updated);
 
 
 
@@ -3333,7 +3429,7 @@ export default function InvoiceRuns(props: any) {
 
 
 
-    saveRun({
+    saveRunDraft({
 
 
 
@@ -3421,6 +3517,86 @@ export default function InvoiceRuns(props: any) {
 
 
 
+  const InvoiceRunIntegrityReport = ({ preview }: { preview: any }) => {
+    if (!preview && !invoiceRunPreviewLoading && !invoiceRunPreviewError) return null;
+
+    const integrity = preview?.integrity;
+    const learners = Array.isArray(preview?.learners) ? preview.learners : [];
+    const invoiced = learners.filter((row: any) => row.status === "invoiced");
+    const skipped = learners.filter((row: any) => row.status === "skipped");
+    const duplicateSkips = skipped.filter(
+      (row: any) => row.skipReason === "DUPLICATE_INVOICE"
+    );
+    const accounts = Array.isArray(preview?.accounts) ? preview.accounts : [];
+    const siblingIssues = accounts.filter(
+      (account: any) => account.siblingValidationPassed === false
+    );
+    const passed = integrity?.passed === true;
+
+    return (
+      <div
+        style={{
+          marginTop: 16,
+          textAlign: "left",
+          border: `1px solid ${passed ? "#86efac" : "#fca5a5"}`,
+          background: passed ? "rgba(34,197,94,0.08)" : "rgba(239,68,68,0.08)",
+          borderRadius: 12,
+          padding: 16,
+        }}
+      >
+        <div style={{ fontWeight: 900, marginBottom: 8, color: passed ? "#166534" : "#991b1b" }}>
+          {invoiceRunPreviewLoading
+            ? "Loading server preview…"
+            : passed
+              ? "Integrity check passed"
+              : "Integrity check failed"}
+        </div>
+        {invoiceRunPreviewError ? (
+          <div style={{ color: "#991b1b", fontWeight: 700 }}>{invoiceRunPreviewError}</div>
+        ) : null}
+        {integrity ? (
+          <div style={{ display: "grid", gap: 6, fontSize: 13, marginBottom: 10 }}>
+            <div>Eligible learners: {integrity.eligibleCount ?? 0}</div>
+            <div>Invoice lines: {integrity.invoiceLineCount ?? 0}</div>
+            <div>Skipped learners: {integrity.skippedCount ?? 0}</div>
+            <div>Duplicate skips: {duplicateSkips.length}</div>
+          </div>
+        ) : null}
+        {skipped.length ? (
+          <div style={{ marginTop: 8 }}>
+            <div style={{ fontWeight: 800, marginBottom: 4 }}>Skipped learners</div>
+            <div style={{ fontSize: 12, color: "#334155" }}>
+              {skipped.slice(0, 10).map((row: any) => (
+                <div key={String(row.learnerId)}>
+                  {row.learnerName || row.learnerId}: {row.skipReason || "skipped"}
+                </div>
+              ))}
+              {skipped.length > 10 ? <div>…and {skipped.length - 10} more</div> : null}
+            </div>
+          </div>
+        ) : null}
+        {siblingIssues.length ? (
+          <div style={{ marginTop: 8 }}>
+            <div style={{ fontWeight: 800, marginBottom: 4, color: "#991b1b" }}>
+              Sibling validation issues
+            </div>
+            {siblingIssues.map((account: any) => (
+              <div key={String(account.accountNo || account.billingGroupKey)} style={{ fontSize: 12 }}>
+                {account.accountNo || account.billingGroupKey}:{" "}
+                {(account.issues || []).join("; ")}
+              </div>
+            ))}
+          </div>
+        ) : null}
+        {invoiced.length ? (
+          <div style={{ marginTop: 8, fontSize: 12, color: "#475569" }}>
+            {invoiced.length} learner(s) will be invoiced on execute.
+          </div>
+        ) : null}
+      </div>
+    );
+  };
+
   const WizardShell = ({
 
 
@@ -3448,6 +3624,12 @@ export default function InvoiceRuns(props: any) {
     nextLabel = "Next ➜",
 
 
+
+    nextDisabled = false,
+
+    nextLoading = false,
+
+    onNext,
 
     children,
 
@@ -3549,11 +3731,31 @@ export default function InvoiceRuns(props: any) {
 
 
 
-          onClick={() => {
+          disabled={nextDisabled || nextLoading}
+
+
+
+          onClick={async () => {
 
 
 
             if (step === 2) saveSettingsToCurrentRun();
+
+
+
+            if (onNext) {
+
+
+
+              const ok = await onNext();
+
+
+
+              if (!ok) return;
+
+
+
+            }
 
 
 
@@ -5127,7 +5329,7 @@ export default function InvoiceRuns(props: any) {
 
 
 
-        description={`An invoice WILL be made for the following ${runRows.length} children. You can also see what they will be charged for. If you are happy with this click on Next to continue.`}
+        description={`Server preview for ${previewDisplayRows.length} learners. Amounts and eligibility are calculated by the backend.`}
 
 
 
@@ -5136,6 +5338,24 @@ export default function InvoiceRuns(props: any) {
 
 
         next="wizardCreate"
+
+        nextDisabled={
+          invoiceRunPreviewLoading || invoiceRunServerPreview?.integrity?.passed === false
+        }
+
+        onNext={async () => {
+          const run = readJson(["educlearSelectedInvoiceRun"], selectedRun);
+          let preview = invoiceRunServerPreview;
+          if (!preview && run) preview = await loadInvoiceRunPreview(run);
+          if (!preview?.integrity?.passed) {
+            window.alert(
+              formatInvoiceRunErrorReport(preview) ||
+                "Cannot continue — server integrity check failed."
+            );
+            return false;
+          }
+          return true;
+        }}
 
 
 
@@ -5175,7 +5395,7 @@ export default function InvoiceRuns(props: any) {
 
 
 
-          {runRows.length === 0 ? (
+          {previewDisplayRows.length === 0 ? (
 
 
 
@@ -5267,6 +5487,10 @@ export default function InvoiceRuns(props: any) {
 
 
 
+                  <th style={th}>Status</th>
+
+
+
                 </tr>
 
 
@@ -5279,7 +5503,7 @@ export default function InvoiceRuns(props: any) {
 
 
 
-                {runRows.map((row: any, index: number) => (
+                {previewDisplayRows.map((row: any, index: number) => (
 
 
 
@@ -5367,6 +5591,16 @@ export default function InvoiceRuns(props: any) {
 
 
 
+                    <td style={td}>
+                      {row.serverStatus === "skipped"
+                        ? row.skipReason || "skipped"
+                        : row.serverStatus === "invoiced"
+                          ? "invoiced"
+                          : "-"}
+                    </td>
+
+
+
                   </tr>
 
 
@@ -5388,6 +5622,8 @@ export default function InvoiceRuns(props: any) {
 
 
         </div>
+
+        <InvoiceRunIntegrityReport preview={invoiceRunServerPreview} />
 
 
 
@@ -5420,7 +5656,7 @@ export default function InvoiceRuns(props: any) {
 
 
 
-        description="You are now ready to create invoices! When you click on Next invoices will be made."
+        description="When you click Create Invoices, the server will execute this run. No invoices are posted from the browser."
 
 
 
@@ -5429,6 +5665,42 @@ export default function InvoiceRuns(props: any) {
 
 
         next="wizardSummary"
+
+        nextLabel={invoiceRunExecuteLoading ? "Creating invoices…" : "Create Invoices ➜"}
+
+        nextDisabled={
+          invoiceRunExecuteLoading ||
+          invoiceRunServerPreview?.integrity?.passed === false
+        }
+
+        nextLoading={invoiceRunExecuteLoading}
+
+        onNext={async () => {
+          const run = readJson(["educlearSelectedInvoiceRun"], selectedRun);
+          if (!run?.id) {
+            window.alert("No invoice run selected.");
+            return false;
+          }
+          if (!invoiceRunServerPreview?.integrity?.passed) {
+            const refreshed = await loadInvoiceRunPreview(run);
+            if (!refreshed?.integrity?.passed) {
+              window.alert(
+                formatInvoiceRunErrorReport(refreshed) ||
+                  "Server integrity check must pass before creating invoices."
+              );
+              return false;
+            }
+          }
+          try {
+            await runInvoiceRunExecute(run);
+            return true;
+          } catch (error) {
+            const message =
+              error instanceof Error ? error.message : "Invoice run execute failed";
+            window.alert(message);
+            return false;
+          }
+        }}
 
 
 
@@ -5488,7 +5760,9 @@ export default function InvoiceRuns(props: any) {
 
 
 
-          Ready to create {runRows.length} invoices with a total value of{" "}
+          Ready to create{" "}
+          {invoiceRunServerPreview?.integrity?.invoiceLineCount ?? runRows.length} invoice
+          line(s) with a server total of{" "}
 
 
 
@@ -5496,7 +5770,11 @@ export default function InvoiceRuns(props: any) {
 
 
 
-            {money(runTotalAmount)}
+            {money(
+              invoiceRunServerPreview?.integrity?.invoiceLineCount
+                ? previewInvoiceTotal
+                : runTotalAmount
+            )}
 
 
 
@@ -5509,6 +5787,8 @@ export default function InvoiceRuns(props: any) {
 
 
         </div>
+
+        <InvoiceRunIntegrityReport preview={invoiceRunServerPreview} />
 
 
 
@@ -5544,7 +5824,7 @@ export default function InvoiceRuns(props: any) {
 
 
 
-        description={`Invoice run completed successfully! A total of ${runRows.length} invoices were created. Below you can see a list of these invoices.`}
+        description={`Invoice run completed successfully! Server created ${invoiceRunExecuteResult?.createdCount ?? selectedRun?.executeResult?.createdCount ?? 0} invoice line(s).`}
 
 
 
@@ -5557,6 +5837,49 @@ export default function InvoiceRuns(props: any) {
 
 
       >
+
+
+
+        <div
+          style={{
+            marginBottom: 16,
+            padding: 16,
+            borderRadius: 12,
+            border: "1px solid #86efac",
+            background: "rgba(34,197,94,0.08)",
+            textAlign: "left",
+          }}
+        >
+          <div style={{ fontWeight: 900, color: "#166534", marginBottom: 8 }}>
+            Integrity passed — run executed on server
+          </div>
+          <div style={{ fontSize: 13, display: "grid", gap: 4 }}>
+            <div>
+              Eligible:{" "}
+              {invoiceRunExecuteResult?.integrity?.eligibleCount ??
+                selectedRun?.executeResult?.eligibleCount ??
+                0}
+            </div>
+            <div>
+              Created:{" "}
+              {invoiceRunExecuteResult?.createdCount ??
+                selectedRun?.executeResult?.createdCount ??
+                0}
+            </div>
+            <div>
+              Skipped:{" "}
+              {invoiceRunExecuteResult?.integrity?.skippedCount ??
+                selectedRun?.executeResult?.skippedCount ??
+                0}
+            </div>
+            <div>
+              Duplicates:{" "}
+              {invoiceRunExecuteResult?.duplicateCount ??
+                selectedRun?.executeResult?.duplicateCount ??
+                0}
+            </div>
+          </div>
+        </div>
 
 
 
@@ -7174,7 +7497,7 @@ export default function InvoiceRuns(props: any) {
 
 
 
-              saveRun(updatedRun);
+              saveRunDraft(updatedRun);
 
 
 

@@ -496,6 +496,70 @@ export const createInvoicesBatch = async (data: {
 }) =>
   postJson(`${API_URL}/api/invoices/batch`, data, "Failed to create invoices");
 
+export type InvoiceRunExecutePayload = {
+  schoolId: string;
+  runId: string;
+  invoicePeriod: string;
+  invoiceDate: string;
+  dueDate?: string;
+  description?: string;
+  dryRun?: boolean;
+  learnerIds?: string[];
+  extraFeesByLearnerId?: Record<string, { feeDescription: string; amount: number }[]>;
+};
+
+async function postInvoiceRunEndpoint(
+  path: "/api/invoice-runs/preview" | "/api/invoice-runs/execute",
+  payload: InvoiceRunExecutePayload,
+  fallback: string
+) {
+  const response = await fetch(`${API_URL}${path}`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(payload),
+    cache: "no-store",
+  });
+  const body = await response.json().catch(() => ({}));
+  if (response.status === 422) {
+    return body;
+  }
+  if (!response.ok) {
+    throw new Error(readApiErrorMessage(response, body, fallback));
+  }
+  if (body && typeof body === "object" && (body as { success?: boolean }).success === false) {
+    const errorCode = String((body as { errorCode?: string }).errorCode || "");
+    if (errorCode === "INTEGRITY_GATE_FAILED") return body;
+    throw new Error(readApiErrorMessage(response, body, fallback));
+  }
+  return body;
+}
+
+export const previewInvoiceRun = async (payload: InvoiceRunExecutePayload) =>
+  postInvoiceRunEndpoint(
+    "/api/invoice-runs/preview",
+    { ...payload, dryRun: true },
+    "Failed to preview invoice run"
+  );
+
+export const executeInvoiceRun = async (payload: InvoiceRunExecutePayload) =>
+  postInvoiceRunEndpoint(
+    "/api/invoice-runs/execute",
+    { ...payload, dryRun: false },
+    "Failed to execute invoice run"
+  );
+
+export function applyInvoiceRunExecuteResponse(
+  schoolId: string,
+  body: Record<string, unknown> | null | undefined
+) {
+  if (!body) return;
+  applyInvoiceSaveResponse(schoolId, {
+    invoices: body.invoices,
+    accounts: body.accounts,
+    statements: body.accounts,
+  });
+}
+
 export const createPayment = async (data: Record<string, unknown>) =>
   postJson(`${API_URL}/api/payments`, data, "Failed to create payment");
 
