@@ -6,7 +6,7 @@ import {
   formatMoney,
   getAccountLedger,
 } from "./billingLedger";
-import { createInvoicesBatch, applyInvoiceSaveResponse, logBillingSaveTiming } from "./billingApi";
+import { createInvoicesBatch, applyInvoiceSaveResponse, logBillingSaveTiming, assertInvoiceBatchSaveSucceeded } from "./billingApi";
 import {
   computeInvoiceDueDate,
   loadBillingSettingsForSchool,
@@ -21,6 +21,7 @@ import {
 import { normalizeKidESysAccountRef, resolveKidESysAccountRefFromLearner } from "./billingAccountRef";
 import {
   learnerMatchesBillingAccountRef,
+  resolveManualInvoiceLearnerId,
   resolvePaymentLearnerId,
 } from "./paymentLearnerResolver";
 
@@ -590,12 +591,13 @@ export default function InvoiceCreateClean({
       return;
     }
 
-    const resolvedLearnerId = resolvePaymentLearnerId(selectedAccount, learners, accountNo);
+    const resolvedLearnerId = resolveManualInvoiceLearnerId(selectedAccount, learners, accountNo);
     const staleCandidate = String(selectedAccount?.learnerId || "").trim();
+    const selectionResolvedId = resolvePaymentLearnerId(selectedAccount, learners, accountNo);
     if (
       staleCandidate &&
-      resolvedLearnerId &&
-      staleCandidate !== resolvedLearnerId
+      selectionResolvedId &&
+      staleCandidate !== selectionResolvedId
     ) {
       setSaveError(
         "Account selection is out of date. Go back, re-select the account, and try again."
@@ -669,18 +671,16 @@ export default function InvoiceCreateClean({
       });
 
       const postStarted = performance.now();
-      const result = (await createInvoicesBatch({
+      const result = await createInvoicesBatch({
         schoolId,
         invoices: invoicePayloads,
-      })) as Record<string, unknown>;
+      });
       logBillingSaveTiming("invoice POST", performance.now() - postStarted);
 
-      if (result?.success === false) {
-        throw new Error(String(result.error || "Invoice was not saved on the server."));
-      }
+      assertInvoiceBatchSaveSucceeded(result);
 
       const patchStarted = performance.now();
-      applyInvoiceSaveResponse(schoolId, result);
+      applyInvoiceSaveResponse(schoolId, result as Record<string, unknown>);
       setLedgerTick((v) => v + 1);
       logBillingSaveTiming("invoice post-response patch", performance.now() - patchStarted);
 

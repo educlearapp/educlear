@@ -17,6 +17,31 @@ const router = Router();
 
 type InvoiceInputBody = Record<string, unknown>;
 
+type InvoiceBatchSkipped = {
+  index: number;
+  learnerId?: string;
+  accountNo?: string;
+  reason: string;
+};
+
+function sanitizeInvoiceRouteError(error: unknown): { error: string; errorCode: string } {
+  const message = error instanceof Error ? error.message : "Server error";
+  if (message.includes("Billing ledger is busy")) {
+    return { error: message, errorCode: "LEDGER_BUSY" };
+  }
+  if (
+    /Invalid `prisma\./i.test(message) ||
+    /Server has closed the connection/i.test(message) ||
+    /Can't reach database server/i.test(message)
+  ) {
+    return {
+      error: "Billing service temporarily unavailable. Please try again.",
+      errorCode: "BILLING_SERVICE_UNAVAILABLE",
+    };
+  }
+  return { error: message, errorCode: "SERVER_ERROR" };
+}
+
 router.get("/", async (req, res) => {
   try {
     const schoolId = typeof req.query?.schoolId === "string" ? String(req.query.schoolId) : "";
@@ -57,8 +82,7 @@ router.post("/", async (req, res) => {
     }
 
     const settings = await loadSchoolBillingSettings(schoolId);
-    const existingInvoices = listInvoices(schoolId);
-    const built = await buildInvoiceEntry(schoolId, body, settings, existingInvoices.length);
+    const built = await buildInvoiceEntry(schoolId, body, settings, 0, 0);
     if (!built.entry) {
       return res.status(400).json({
         success: false,
@@ -85,10 +109,10 @@ router.post("/", async (req, res) => {
       openInvoices: post.openInvoices,
     });
   } catch (error) {
-    const message = error instanceof Error ? error.message : "Server error";
     console.error("[invoices] POST / failed:", error);
-    const busy = message.includes("Billing ledger is busy");
-    return res.status(busy ? 503 : 500).json({ success: false, error: message });
+    const sanitized = sanitizeInvoiceRouteError(error);
+    const status = sanitized.errorCode === "LEDGER_BUSY" ? 503 : 500;
+    return res.status(status).json({ success: false, ...sanitized, createdCount: 0 });
   }
 });
 
@@ -107,14 +131,8 @@ router.post("/batch", async (req, res) => {
     }
 
     const settings = await loadSchoolBillingSettings(schoolId);
-    const existingCount = listInvoices(schoolId).length;
     const entries: BillingLedgerEntry[] = [];
-    const skipped: Array<{
-      index: number;
-      learnerId?: string;
-      accountNo?: string;
-      reason: string;
-    }> = [];
+    const skipped: InvoiceBatchSkipped[] = [];
 
     for (let index = 0; index < rows.length; index += 1) {
       const row = rows[index];
@@ -135,13 +153,16 @@ router.post("/batch", async (req, res) => {
         runId: runId || row.runId,
         lineKey: row.lineKey || row.lineId || String(index),
       };
-      const built = await buildInvoiceEntry(schoolId, merged, settings, existingCount, index);
+      // Manual batch lines carry explicit reference/id — no full-ledger count scan.
+      const built = await buildInvoiceEntry(schoolId, merged, settings, 0, index);
       if (!built.entry) {
         if (built.errorCode === "LEARNER_ACCOUNT_MISMATCH") {
           return res.status(400).json({
             success: false,
             error: built.error || "Learner and account do not match",
             errorCode: built.errorCode,
+            createdCount: 0,
+            skipped,
             learnerId: String(row.learnerId || row.id || "").trim() || undefined,
             accountNo: String(row.accountNo || "").trim() || undefined,
           });
@@ -157,8 +178,32 @@ router.post("/batch", async (req, res) => {
       entries.push(built.entry);
     }
 
+    if (!entries.length) {
+      const reason =
+        skipped.map((row) => row.reason).find(Boolean) || "No invoice lines could be saved";
+      return res.status(400).json({
+        success: false,
+        error: reason,
+        errorCode: "ALL_INVOICES_SKIPPED",
+        createdCount: 0,
+        skipped,
+      });
+    }
+
     const batch = appendSchoolEntriesSafe(schoolId, entries);
     const invoices = batch.results.map((r) => r.entry);
+
+    if (batch.createdCount === 0) {
+      return res.status(400).json({
+        success: false,
+        error: "Invoice lines were not saved (duplicate or rejected).",
+        errorCode: "NO_INVOICES_CREATED",
+        createdCount: 0,
+        duplicateCount: batch.duplicateCount,
+        skipped: [...skipped, ...batch.skipped],
+        invoices,
+      });
+    }
 
     const ledger = readSchoolLedger(schoolId);
     const affectedRefs = [
@@ -181,10 +226,15 @@ router.post("/batch", async (req, res) => {
       statements: accounts,
     });
   } catch (error) {
-    const message = error instanceof Error ? error.message : "Server error";
     console.error("[invoices] POST /batch failed:", error);
-    const busy = message.includes("Billing ledger is busy");
-    return res.status(busy ? 503 : 500).json({ success: false, error: message });
+    const sanitized = sanitizeInvoiceRouteError(error);
+    const status = sanitized.errorCode === "LEDGER_BUSY" ? 503 : 500;
+    return res.status(status).json({
+      success: false,
+      ...sanitized,
+      createdCount: 0,
+      skipped: [],
+    });
   }
 });
 

@@ -43,3 +43,29 @@ export function resolvePaymentLearnerId(
 
   return "";
 }
+
+/**
+ * Learner id for manual invoice POST — only when exactly one learner belongs to accountNo.
+ * Family/ambiguous accounts post accountNo only (empty learnerId).
+ */
+export function resolveManualInvoiceLearnerId(
+  selectedAccount: PaymentAccountContext | null,
+  learners: any[],
+  accountNo: string
+): string {
+  const acct = normalizeKidESysAccountRef(accountNo);
+  if (!acct) return "";
+
+  const list = Array.isArray(learners) ? learners : [];
+  const onAccount = list.filter((l) => resolveKidESysAccountRefFromLearner(l) === acct);
+  if (onAccount.length !== 1) return "";
+
+  const learner = onAccount[0];
+  const learnerId = String(learner?.id || learner?.learnerId || "").trim();
+  if (!learnerId || !learnerMatchesBillingAccountRef(learner, acct)) return "";
+
+  const resolvedFromSelection = resolvePaymentLearnerId(selectedAccount, learners, acct);
+  if (resolvedFromSelection && resolvedFromSelection !== learnerId) return "";
+
+  return learnerId;
+}

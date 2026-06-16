@@ -4,6 +4,7 @@
  */
 import {
   learnerMatchesBillingAccountRef,
+  resolveManualInvoiceLearnerId,
   resolvePaymentLearnerId,
 } from "./paymentLearnerResolver";
 
@@ -89,11 +90,56 @@ function testLearnerMatchesBillingAccountRef() {
   console.log("✓ learnerMatchesBillingAccountRef");
 }
 
+function testManualInvoiceLearnerIdSingleLearner() {
+  const id = resolveManualInvoiceLearnerId(
+    {
+      id: "learner-a",
+      learnerId: "learner-a",
+      accountNo: "TST001",
+      name: "Alpha",
+      surname: "One",
+      balance: 0,
+    },
+    learners,
+    "TST001"
+  );
+  assert(id === "learner-a", "single learner on account returns learnerId");
+  console.log("✓ resolveManualInvoiceLearnerId includes sole learner");
+}
+
+function testManualInvoiceLearnerIdOmitsWhenAmbiguous() {
+  const siblings = [
+    ...learners,
+    {
+      id: "learner-c",
+      firstName: "Gamma",
+      surname: "One",
+      familyAccount: { accountRef: "TST001" },
+    },
+  ];
+  const id = resolveManualInvoiceLearnerId(
+    {
+      id: "learner-a",
+      learnerId: "learner-a",
+      accountNo: "TST001",
+      name: "Alpha",
+      surname: "One",
+      balance: 0,
+    },
+    siblings,
+    "TST001"
+  );
+  assert(id === "", "multiple learners on account omits learnerId");
+  console.log("✓ resolveManualInvoiceLearnerId omits learnerId when ambiguous");
+}
+
 function main() {
   testCandidateAcceptedWhenAccountMatches();
   testStaleCandidateIgnoredForDifferentAccount();
   testResolveFromAccountWhenNoCandidate();
   testLearnerMatchesBillingAccountRef();
+  testManualInvoiceLearnerIdSingleLearner();
+  testManualInvoiceLearnerIdOmitsWhenAmbiguous();
   console.log("\nAll resolvePaymentLearnerId tests passed.");
 }
 

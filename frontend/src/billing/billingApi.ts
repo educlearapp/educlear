@@ -81,7 +81,14 @@ const postJson = async (url: string, data: any, fallback = "Request failed") => 
 export function sanitizeUserFacingError(message: string, fallback: string): string {
   const raw = String(message || "").trim();
   if (!raw) return fallback;
-  if (/Invalid `prisma\./i.test(raw) || /invocation in/i.test(raw)) return fallback;
+  if (
+    /Invalid `prisma\./i.test(raw) ||
+    /invocation in/i.test(raw) ||
+    /Server has closed the connection/i.test(raw) ||
+    /Can't reach database server/i.test(raw)
+  ) {
+    return "Billing service temporarily unavailable. Please try again.";
+  }
   if (/Unique constraint failed/i.test(raw)) {
     if (/admissionNo/i.test(raw)) {
       return "A learner with this admission number already exists for this school";
@@ -93,11 +100,20 @@ export function sanitizeUserFacingError(message: string, fallback: string): stri
   return firstLine;
 }
 
+function readErrorCode(data: unknown): string {
+  if (!data || typeof data !== "object") return "";
+  return String((data as Record<string, unknown>).errorCode || "").trim();
+}
+
 function readApiErrorMessage(
   response: Response,
   data: unknown,
   fallback: string
 ): string {
+  const errorCode = readErrorCode(data);
+  if (errorCode === "BILLING_SERVICE_UNAVAILABLE") {
+    return "Billing service temporarily unavailable. Please try again.";
+  }
   const obj =
     data && typeof data === "object" ? (data as Record<string, unknown>) : null;
   const fromBody = String(obj?.error || obj?.message || obj?.detail || "").trim();
@@ -108,6 +124,9 @@ function readApiErrorMessage(
   }
   return fallback;
 }
+
+export type { InvoiceBatchSaveResult } from "./invoiceBatchSave";
+export { assertInvoiceBatchSaveSucceeded } from "./invoiceBatchSave";
 
 export const fetchInvoices = async (schoolId: string) =>
   getJsonOrEmptyArray(`${API_URL}/api/invoices?schoolId=${encodeURIComponent(schoolId)}`, [

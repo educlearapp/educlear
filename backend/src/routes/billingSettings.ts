@@ -281,10 +281,28 @@ function parseStoredSettings(value: unknown): Partial<BillingSettingsState> | un
   return value as Partial<BillingSettingsState>;
 }
 
-export async function loadSchoolBillingSettings(schoolId: string): Promise<BillingSettingsState> {
-  const row = await prisma.billingSettings.findUnique({ where: { schoolId } });
+/** Map a DB row (or null) to settings — testable without Prisma. */
+export function billingSettingsFromDbRow(
+  row: { settings: unknown } | null | undefined
+): BillingSettingsState {
   if (!row) return defaultBillingSettings();
   return normalizeSettings(parseStoredSettings(row.settings));
+}
+
+/**
+ * Load school billing settings. On Prisma/connection failure, logs server-side and
+ * returns safe defaults so invoice/payment paths can continue.
+ */
+export async function loadSchoolBillingSettings(schoolId: string): Promise<BillingSettingsState> {
+  const sid = String(schoolId || "").trim();
+  if (!sid) return defaultBillingSettings();
+  try {
+    const row = await prisma.billingSettings.findUnique({ where: { schoolId: sid } });
+    return billingSettingsFromDbRow(row);
+  } catch (error) {
+    console.error(`[billing-settings] loadSchoolBillingSettings failed for ${sid}:`, error);
+    return defaultBillingSettings();
+  }
 }
 
 async function saveSchoolSettings(schoolId: string, settings: BillingSettingsState): Promise<BillingSettingsState> {
