@@ -29,6 +29,11 @@ import {
   splitSchoolContactName,
   verifyPayFastItnSignature,
 } from "../services/payfastService";
+import {
+  readCheckoutTargetPackageCode,
+  resolvePaidPackageFromCheckout,
+  shouldPersistPackageOnSubscriptionBeforePayment,
+} from "../services/subscriptionPayfastCheckout";
 import { grantSmsCreditsToSchool } from "../utils/communicationCreditsStore";
 
 const router = Router();
@@ -181,7 +186,7 @@ async function createSubscriptionCheckout(
         },
       });
     } else if (
-      subscription.status === SchoolSubscriptionStatus.PENDING_PAYMENT &&
+      shouldPersistPackageOnSubscriptionBeforePayment(subscription.status) &&
       (subscription.packageId !== pkg.id || subscription.packageCode !== pkg.code)
     ) {
       subscription = await tx.schoolSubscription.update({
@@ -192,6 +197,15 @@ async function createSubscriptionCheckout(
         },
       });
     }
+
+    const checkoutPackageMeta = {
+      checkoutType: "SUBSCRIPTION",
+      schoolId,
+      packageCode: pkg.code,
+      targetPackageCode: pkg.code,
+      targetPackageId: pkg.id,
+      subscriptionStatusAtCheckout: subscription.status,
+    } satisfies Prisma.InputJsonValue;
 
     const invoice = await tx.subscriptionInvoice.create({
       data: {
@@ -220,9 +234,7 @@ async function createSubscriptionCheckout(
         notifyUrl: config.notifyUrl,
         payerEmail,
         rawRequest: {
-          checkoutType: "SUBSCRIPTION",
-          schoolId,
-          packageCode: pkg.code,
+          ...checkoutPackageMeta,
           invoiceNumber,
         } satisfies Prisma.InputJsonValue,
       },
@@ -246,9 +258,7 @@ async function createSubscriptionCheckout(
       where: { id: paymentLog.id },
       data: {
         rawRequest: {
-          checkoutType: "SUBSCRIPTION",
-          schoolId,
-          packageCode: pkg.code,
+          ...checkoutPackageMeta,
           invoiceNumber,
           checkoutPayload: checkout.payload,
         } satisfies Prisma.InputJsonValue,
@@ -260,6 +270,7 @@ async function createSubscriptionCheckout(
       invoice,
       paymentLog,
       checkout,
+      targetPackageCode: pkg.code,
     };
   });
 
@@ -501,6 +512,22 @@ async function handleSubscriptionItn(
     const currentPeriodStart = activatedAt;
     const currentPeriodEnd = addOneCalendarMonth(activatedAt);
 
+    const activePackages = await prisma.eduClearPackage.findMany({
+      where: { isActive: true },
+      select: { id: true, code: true, monthlyPriceCents: true },
+    });
+    const paidPackage = resolvePaidPackageFromCheckout(
+      paymentLog.rawRequest,
+      paymentLog.amountCents,
+      activePackages,
+    );
+    const fallbackPackageCode = readCheckoutTargetPackageCode(paymentLog.rawRequest);
+    const resolvedPaidPackage =
+      paidPackage ??
+      (fallbackPackageCode
+        ? activePackages.find((pkg) => pkg.code === fallbackPackageCode) ?? null
+        : null);
+
     await prisma.$transaction(async (tx) => {
       await tx.subscriptionPaymentLog.update({
         where: { id: paymentLog.id },
@@ -526,6 +553,12 @@ async function handleSubscriptionItn(
         where: { id: paymentLog.invoice.subscriptionId },
         data: {
           status: SchoolSubscriptionStatus.ACTIVE,
+          ...(resolvedPaidPackage
+            ? {
+                packageId: resolvedPaidPackage.id,
+                packageCode: resolvedPaidPackage.code,
+              }
+            : {}),
           activatedAt,
           currentPeriodStart,
           currentPeriodEnd,

@@ -22,7 +22,7 @@ type ApiSchoolsResponse = {
   summary?: Partial<SchoolsSummary>;
 };
 
-const KNOWN_PACKAGES = new Set<string>(["Starter", "Growth", "Professional", "Unlimited"]);
+const KNOWN_PACKAGES = new Set<string>(["Starter", "Unlimited"]);
 const STATUS_VALUES = new Set<string>(["Active", "Trial", "Suspended"]);
 
 function asPackage(value: unknown): SchoolPackage {
@@ -31,8 +31,6 @@ function asPackage(value: unknown): SchoolPackage {
   if (KNOWN_PACKAGES.has(label)) return label as SchoolPackage;
   if (label.toLowerCase() === "unlimited") return "Unlimited";
   if (label.toLowerCase() === "starter") return "Starter";
-  if (label.toLowerCase() === "growth") return "Growth";
-  if (label.toLowerCase() === "professional") return "Professional";
   return label;
 }
 

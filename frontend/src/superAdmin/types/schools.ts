@@ -29,10 +29,4 @@ export type SchoolsSummary = {
 
 export const SCHOOL_STATUS_OPTIONS: SchoolStatus[] = ["Active", "Trial", "Suspended"];
 
-export const SCHOOL_PACKAGE_OPTIONS: SchoolPackage[] = [
-  "—",
-  "Starter",
-  "Growth",
-  "Professional",
-  "Unlimited",
-];
+export const SCHOOL_PACKAGE_OPTIONS: SchoolPackage[] = ["—", "Starter", "Unlimited"];

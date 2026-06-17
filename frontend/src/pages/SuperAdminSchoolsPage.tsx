@@ -316,11 +316,25 @@ export default function SuperAdminSchoolsPage() {
 
   const handleChangePackage = useCallback(
     (school: SchoolRecord) => {
-      onChangePackage(school);
-      showNotice(
-        "Change Package",
-        `Package changes for “${school.schoolName}” will be available in a future release.`
-      );
+      const current = String(school.package || "").trim();
+      const next = current === "Starter" ? "Unlimited" : "Starter";
+      setConfirm({
+        title: "Change package?",
+        message: `Switch “${school.schoolName}” from ${school.package || "—"} to ${next}?`,
+        confirmLabel: "Change package",
+        run: () => {
+          void onChangePackage(school)
+            .then(() =>
+              showNotice("Package updated", `“${school.schoolName}” is now on ${next}.`)
+            )
+            .catch((err: unknown) =>
+              showNotice(
+                "Could not change package",
+                err instanceof Error ? err.message : "Could not update this school's package."
+              )
+            );
+        },
+      });
     },
     [onChangePackage, showNotice]
   );
