@@ -32,6 +32,8 @@ export type InvoiceDetailLine = {
   dueDate: string;
   amount: string;
   feeId?: string;
+  learnerId?: string;
+  lineKey?: string;
 };
 
 export type InvoiceCreateCleanProps = {
@@ -226,6 +228,85 @@ function resolveParentDisplayName(
 }
 
 
+function resolveAccountChildren(
+  selectedAccount: PaymentAccountContext,
+  learners: any[]
+): { id: string; label: string }[] {
+  const accountNo = String(selectedAccount?.accountNo || "").trim();
+  const familyAccountId = String(selectedAccount?.familyAccountId || "").trim();
+  const seen = new Set<string>();
+  const children: { id: string; label: string }[] = [];
+
+  const addLearner = (l: any) => {
+    const id = String(l?.id || l?.learnerId || "").trim();
+    if (!id || seen.has(id)) return;
+    seen.add(id);
+    const name =
+      `${l?.firstName || l?.name || ""} ${l?.lastName || l?.surname || ""}`.trim() || "Learner";
+    const grade = l?.grade ? ` · Grade ${l.grade}` : "";
+    children.push({ id, label: `${name}${grade}` });
+  };
+
+  if (familyAccountId) {
+    for (const l of learners) {
+      const fid = String(l?.familyAccountId || l?.familyAccount?.id || "").trim();
+      if (fid === familyAccountId) addLearner(l);
+    }
+  } else if (accountNo) {
+    const ref = normalizeKidESysAccountRef(accountNo);
+    if (ref) {
+      for (const l of learners) {
+        if (resolveKidESysAccountRefFromLearner(l) === ref) addLearner(l);
+      }
+    }
+  }
+
+  const anchor = findLearnerRecord(selectedAccount.learnerId, accountNo, learners);
+  if (anchor) addLearner(anchor);
+
+  if (!children.length && selectedAccount.learnerId) {
+    children.push({
+      id: String(selectedAccount.learnerId).trim(),
+      label: `${selectedAccount.name} ${selectedAccount.surname}`.trim() || "Learner",
+    });
+  }
+
+  return children;
+}
+
+/** Per-learner catalog fee key — same fee may repeat for different siblings. */
+function catalogFeeLineKey(line: InvoiceDetailLine): string {
+  const feeId = String(line.feeId || "").trim();
+  if (!feeId) return "";
+  const learnerId = String(line.learnerId || "").trim();
+  const lineKey = String(line.lineKey || line.id || "").trim();
+  return `${feeId}|${learnerId || lineKey}`;
+}
+
+function manualInvoiceDuplicateKey(
+  line: {
+    learnerId: string;
+    lineKey: string;
+    feeId?: string;
+    description: string;
+    amount: number;
+    dueDate: string;
+  },
+  invoiceDate: string
+): string {
+  const learnerKey = String(line.learnerId || "").trim() || String(line.lineKey || "").trim();
+  const feePart = line.feeId
+    ? `fee:${line.feeId}`
+    : `desc:${normalizeFeeText(line.description)}`;
+  return [
+    learnerKey,
+    feePart,
+    invoiceDate,
+    line.dueDate,
+    line.amount.toFixed(2),
+  ].join("|");
+}
+
 function getLearnerBillingPlan(learnerId: string, learners: any[]): any[] {
   const learner = learners.find(
     (row) => String(row?.id || row?.learnerId || "") === String(learnerId || "")
@@ -255,12 +336,16 @@ function lineDueDate(
 function feeToLine(
   fee: FeeOption,
   invoiceDate: string,
-  settings: BillingSettingsState
+  settings: BillingSettingsState,
+  learnerId = ""
 ): InvoiceDetailLine {
   const amount = roundMoney(fee.amount);
+  const id = newLineId();
   return {
-    id: newLineId(),
+    id,
+    lineKey: id,
     feeId: fee.feeId,
+    learnerId: learnerId || undefined,
     description: fee.description,
     type: fee.type,
     dueDate: lineDueDate(invoiceDate, settings, fee.dueDate),
@@ -271,10 +356,14 @@ function feeToLine(
 function newManualLine(
   invoiceDate: string,
   settings: BillingSettingsState,
-  defaultDueDate?: string
+  defaultDueDate?: string,
+  learnerId = ""
 ): InvoiceDetailLine {
+  const id = newLineId();
   return {
-    id: newLineId(),
+    id,
+    lineKey: id,
+    learnerId: learnerId || undefined,
     description: "",
     type: "Manual",
     dueDate: lineDueDate(invoiceDate, settings, defaultDueDate),
@@ -411,6 +500,13 @@ export default function InvoiceCreateClean({
     [selectedAccount, learners]
   );
 
+  const accountChildren = useMemo(() => {
+    if (!selectedAccount) return [];
+    return resolveAccountChildren(selectedAccount, learners);
+  }, [selectedAccount, learners]);
+
+  const isFamilyAccount = accountChildren.length > 1;
+
   const filteredFeeOptions = useMemo(() => {
     const q = feeSearch.trim().toLowerCase();
     if (!q) return feeOptions;
@@ -503,16 +599,21 @@ export default function InvoiceCreateClean({
       setSaveError("Select at least one fee to add.");
       return;
     }
-    const existingFeeIds = new Set(
-      lines.map((line) => String(line.feeId || "").trim()).filter(Boolean)
-    );
     const invDate = normalizeIsoDate(invoiceDate);
-    const toAdd = selected.filter((fee) => !fee.feeId || !existingFeeIds.has(fee.feeId));
-    if (!toAdd.length) {
-      setSaveError("Selected catalog fees are already on this invoice.");
+    const feesToAppend = selected.filter((fee) => {
+      if (!fee.feeId) return true;
+      if (isFamilyAccount) return true;
+      const singleLearnerId = accountChildren.length === 1 ? accountChildren[0].id : "";
+      const key = `${fee.feeId}|${singleLearnerId || "account"}`;
+      return !lines.some((line) => catalogFeeLineKey(line) === key);
+    });
+    if (!feesToAppend.length) {
+      setSaveError("Selected catalog fees are already on this invoice for the same learner.");
       return;
     }
-    const nextLines = toAdd.map((fee) => feeToLine(fee, invDate, settings));
+    const defaultLearnerId =
+      !isFamilyAccount && accountChildren.length === 1 ? accountChildren[0].id : "";
+    const nextLines = feesToAppend.map((fee) => feeToLine(fee, invDate, settings, defaultLearnerId));
     setLines((prev) => [...prev, ...nextLines]);
     setSelectedLineId(nextLines[nextLines.length - 1]?.id || null);
     setShowFeePicker(false);
@@ -626,6 +727,10 @@ export default function InvoiceCreateClean({
 
     const validLines = lines
       .map((line) => ({
+        sourceId: line.id,
+        feeId: line.feeId,
+        learnerId: String(line.learnerId || "").trim(),
+        lineKey: String(line.lineKey || line.id).trim(),
         description: String(line.description || "").trim(),
         type: String(line.type || "").trim() || "Fee",
         dueDate: normalizeIsoDate(line.dueDate),
@@ -638,6 +743,40 @@ export default function InvoiceCreateClean({
         "Add at least one invoice line with description, due date, and amount greater than zero."
       );
       return;
+    }
+
+    if (isFamilyAccount) {
+      const missingLearner = validLines.find((line) => !line.learnerId);
+      if (missingLearner) {
+        setSaveError("Select a learner for each invoice line on family accounts.");
+        return;
+      }
+    }
+
+    const duplicateKeys = new Set<string>();
+    for (const line of validLines) {
+      const lineLearnerId =
+        line.learnerId ||
+        (!isFamilyAccount ? resolvedLearnerId : "") ||
+        line.lineKey;
+      const dupKey = manualInvoiceDuplicateKey(
+        {
+          learnerId: lineLearnerId,
+          lineKey: line.lineKey,
+          feeId: line.feeId,
+          description: line.description,
+          amount: line.amount,
+          dueDate: line.dueDate,
+        },
+        invDate
+      );
+      if (duplicateKeys.has(dupKey)) {
+        setSaveError(
+          "Duplicate fee for the same learner on this invoice. Remove or change the duplicate line."
+        );
+        return;
+      }
+      duplicateKeys.add(dupKey);
     }
 
     const amount = roundMoney(validLines.reduce((sum, line) => sum + line.amount, 0));
@@ -654,19 +793,22 @@ export default function InvoiceCreateClean({
       const baseRef = `INV-${accountNo}-${Date.now()}`;
       const invoicePayloads = validLines.map((line, i) => {
         const computedDue = computeInvoiceDueDate(invDate, settings, line.dueDate);
+        const lineLearnerId =
+          line.learnerId || resolvedLearnerId || "";
+        const stableLineKey = line.learnerId || line.lineKey || `L${i + 1}`;
         const reference =
           validLines.length > 1 ? `${baseRef}-L${i + 1}` : baseRef;
         return {
           schoolId,
-          learnerId: resolvedLearnerId,
+          learnerId: lineLearnerId,
           accountNo,
           amount: line.amount,
           date: invDate,
           dueDate: computedDue,
           reference,
           description: line.description,
-          lineKey: `L${i + 1}`,
-          id: `invoice-manual-${accountNo}-${resolvedLearnerId}-${invDate}-${line.amount.toFixed(2)}-${i}-${reference}`,
+          lineKey: stableLineKey,
+          id: `invoice-manual-${accountNo}-${lineLearnerId || stableLineKey}-${invDate}-${line.amount.toFixed(2)}-${i}`,
         };
       });
 
@@ -707,6 +849,8 @@ export default function InvoiceCreateClean({
     message,
     billingSettings,
     onSaved,
+    isFamilyAccount,
+    accountChildren,
   ]);
 
   if (!selectedAccount) {
@@ -888,14 +1032,16 @@ export default function InvoiceCreateClean({
             </div>
             <table style={{ width: "100%", borderCollapse: "collapse", tableLayout: "fixed" }}>
               <colgroup>
-                <col style={{ width: "36%" }} />
-                <col style={{ width: "22%" }} />
-                <col style={{ width: "140px" }} />
-                <col style={{ width: "120px" }} />
+                {isFamilyAccount ? <col style={{ width: "18%" }} /> : null}
+                <col style={{ width: isFamilyAccount ? "28%" : "36%" }} />
+                <col style={{ width: "20%" }} />
+                <col style={{ width: "130px" }} />
+                <col style={{ width: "110px" }} />
               </colgroup>
               <thead>
                 <tr style={{ background: "#f8fafc" }}>
                   {[
+                    ...(isFamilyAccount ? [{ label: "Learner", align: "left" as const }] : []),
                     { label: "Description", align: "left" as const },
                     { label: "Type", align: "left" as const },
                     { label: "Due Date", align: "left" as const },
@@ -931,6 +1077,27 @@ export default function InvoiceCreateClean({
                           background: isSelected ? "rgba(212, 175, 55, 0.14)" : undefined,
                         }}
                       >
+                        {isFamilyAccount ? (
+                          <td style={invCell}>
+                            <select
+                              style={{ ...invInput, minHeight: 30, padding: "5px 8px", fontSize: 12 }}
+                              value={line.learnerId || ""}
+                              onChange={(e) =>
+                                updateLine(line.id, { learnerId: e.target.value || undefined })
+                              }
+                              onClick={(e) => e.stopPropagation()}
+                            >
+                              <option value="" style={{ color: INV_FIELD_COLOR }}>
+                                Select learner
+                              </option>
+                              {accountChildren.map((child) => (
+                                <option key={child.id} value={child.id} style={{ color: INV_FIELD_COLOR }}>
+                                  {child.label}
+                                </option>
+                              ))}
+                            </select>
+                          </td>
+                        ) : null}
                         <td style={invCell}>
                           <input
                             type="text"
@@ -989,7 +1156,7 @@ export default function InvoiceCreateClean({
                 ) : (
                   <tr>
                     <td
-                      colSpan={4}
+                      colSpan={isFamilyAccount ? 5 : 4}
                       style={{
                         ...invCell,
                         padding: "14px 12px",
@@ -1003,7 +1170,7 @@ export default function InvoiceCreateClean({
                   </tr>
                 )}
                 <tr style={{ fontWeight: 900, background: "#faf9f6" }}>
-                  <td colSpan={3} style={{ ...invCell, paddingLeft: 12 }}>
+                  <td colSpan={isFamilyAccount ? 4 : 3} style={{ ...invCell, paddingLeft: 12 }}>
                     Total
                   </td>
                   <td style={{ ...invCell, textAlign: "right", paddingRight: 12 }}>

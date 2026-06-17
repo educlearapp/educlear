@@ -20,6 +20,8 @@ export type BillingLedgerEntry = {
   runId?: string;
   /** Normalized billing period key (YYYY-MM) for invoice-run duplicate prevention. */
   invoicePeriod?: string;
+  /** Stable per-line identity for manual/family invoices (sibling lines). */
+  lineKey?: string;
   /** Set when payment was posted from bank reconciliation. */
   bankTransactionId?: string;
   bankImportId?: string;
@@ -167,38 +169,58 @@ function findRecentDuplicatePayment(
 export type InvoiceDuplicateFingerprint = {
   accountNo: string;
   learnerId?: string;
+  lineKey?: string;
   description?: string;
+  invoiceDate?: string;
   dueDate?: string;
   amount: number;
+  invoicePeriod?: string;
   runId?: string;
-  reference?: string;
 };
 
-/** Composite key — NOT amount-only; siblings differ by learnerId/description/dueDate. */
+/** Composite key — siblings differ by learnerId and/or lineKey; not account-wide fee alone. */
 export function invoiceDuplicateFingerprint(
   schoolId: string,
   input: InvoiceDuplicateFingerprint
 ): string {
   const accountRef = String(input.accountNo || "").trim().toUpperCase();
   const learnerId = String(input.learnerId || "").trim();
+  const lineKey = String(input.lineKey || "").trim();
   const description = String(input.description || "")
     .trim()
     .toLowerCase()
     .replace(/\s+/g, " ");
+  const invoiceDate = String(input.invoiceDate || "").slice(0, 10);
   const dueDate = String(input.dueDate || "").slice(0, 10);
   const amount = normaliseAmount(input.amount).toFixed(2);
+  const invoicePeriod = String(input.invoicePeriod || "").trim();
   const runId = String(input.runId || "").trim();
-  const reference = String(input.reference || "").trim().toLowerCase();
   return [
     String(schoolId || "").trim(),
     accountRef,
     learnerId,
+    lineKey,
     description,
+    invoiceDate,
     dueDate,
     amount,
+    invoicePeriod,
     runId,
-    reference,
   ].join("|");
+}
+
+function invoiceFingerprintFromEntry(entry: BillingLedgerEntry): string {
+  return invoiceDuplicateFingerprint(entry.schoolId, {
+    accountNo: entry.accountNo,
+    learnerId: entry.learnerId,
+    lineKey: entry.lineKey,
+    description: entry.description,
+    invoiceDate: entry.date,
+    dueDate: entry.dueDate || entry.date,
+    amount: entry.amount,
+    invoicePeriod: entry.invoicePeriod,
+    runId: entry.runId,
+  });
 }
 
 function findDuplicateInvoice(
@@ -210,15 +232,7 @@ function findDuplicateInvoice(
     const entry = entries[i];
     if (entry.type !== "invoice") continue;
     if (excludeId && entry.id === excludeId) continue;
-    const entryFingerprint = invoiceDuplicateFingerprint(entry.schoolId, {
-      accountNo: entry.accountNo,
-      learnerId: entry.learnerId,
-      description: entry.description,
-      dueDate: entry.dueDate || entry.date,
-      amount: entry.amount,
-      runId: entry.runId,
-      reference: entry.reference,
-    });
+    const entryFingerprint = invoiceFingerprintFromEntry(entry);
     if (entryFingerprint === fingerprint) return entry;
   }
   return null;
@@ -284,15 +298,7 @@ export function appendSchoolEntrySafe(
     }
 
     if (entry.type === "invoice") {
-      const invoiceFp = invoiceDuplicateFingerprint(sid, {
-        accountNo: entry.accountNo,
-        learnerId: entry.learnerId,
-        description: entry.description,
-        dueDate: entry.dueDate || entry.date,
-        amount: entry.amount,
-        runId: entry.runId,
-        reference: entry.reference,
-      });
+      const invoiceFp = invoiceFingerprintFromEntry(entry);
       const invoiceDup = findDuplicateInvoice(current, invoiceFp, entry.id);
       if (invoiceDup) {
         return { entry: invoiceDup, created: false, duplicateReason: "invoiceFingerprint" };
@@ -366,15 +372,7 @@ export function appendSchoolEntriesSafe(
       }
 
       if (entry.type === "invoice") {
-        const invoiceFp = invoiceDuplicateFingerprint(sid, {
-          accountNo: entry.accountNo,
-          learnerId: entry.learnerId,
-          description: entry.description,
-          dueDate: entry.dueDate || entry.date,
-          amount: entry.amount,
-          runId: entry.runId,
-          reference: entry.reference,
-        });
+        const invoiceFp = invoiceFingerprintFromEntry(entry);
         const invoiceDup = findDuplicateInvoice(current, invoiceFp, entry.id);
         if (invoiceDup) {
           results.push({

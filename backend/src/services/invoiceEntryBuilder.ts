@@ -153,6 +153,7 @@ export async function buildInvoiceEntry(
     description,
     runId: runId || undefined,
     invoicePeriod,
+    lineKey: lineKey || undefined,
     createdAt: new Date().toISOString(),
   };
 
