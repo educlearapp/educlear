@@ -3,6 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { apiFetch } from "../api";
 import { consumeInactivityLogoutMessage } from "../auth/sessionLogout";
 import { clearEduClearRole, syncEduClearRoleFromLoginResponse } from "../auth/roles";
+import { clearSuperAdminSession } from "../auth/superAdminSession";
 import { cacheSchoolLogoUrl } from "../utils/schoolLogo";
 
 export default function TeacherLogin() {
@@ -22,6 +23,7 @@ export default function TeacherLogin() {
     setStatus("Signing in…");
     setLoading(true);
     clearEduClearRole();
+    clearSuperAdminSession();
     try {
       const data: any = await apiFetch("/auth/login", {
         method: "POST",

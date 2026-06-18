@@ -7,6 +7,7 @@ import { Link, useNavigate } from "react-router-dom";
 
 
 import { API_URL, apiFetch } from "./api";
+import { clearSuperAdminSession } from "./auth/superAdminSession";
 
 
 
@@ -307,6 +308,7 @@ export default function RegisterSchool() {
 
 
     setStatus({ type: "loading", message: "Creating your school..." });
+    clearSuperAdminSession();
 
 
 

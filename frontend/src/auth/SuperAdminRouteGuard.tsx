@@ -1,7 +1,12 @@
 import type { ReactNode } from "react";
 import { Navigate, useLocation } from "react-router-dom";
 
-import { isSuperAdmin } from "./roles";
+import { SUPER_ADMIN_ENTRY_PATH, isSuperAdmin } from "./roles";
+import {
+  clearSuperAdminSession,
+  getCurrentAuthenticatedEmail,
+  isPlatformSuperAdminEmail,
+} from "./superAdminSession";
 
 type Props = {
   children: ReactNode;
@@ -13,9 +18,15 @@ type Props = {
  */
 export default function SuperAdminRouteGuard({ children }: Props) {
   const location = useLocation();
+  const currentEmail = getCurrentAuthenticatedEmail();
 
   if (isSuperAdmin()) {
     return <>{children}</>;
+  }
+
+  if (currentEmail && !isPlatformSuperAdminEmail(currentEmail)) {
+    clearSuperAdminSession();
+    return <Navigate to="/dashboard" replace />;
   }
 
   const hasSchoolSession = Boolean(
@@ -26,7 +37,9 @@ export default function SuperAdminRouteGuard({ children }: Props) {
   }
 
   const returnPath = `${location.pathname}${location.search}`;
-  const loginPath = `/super-admin/login?return=${encodeURIComponent(returnPath)}`;
+  const loginPath = `/super-admin/login?return=${encodeURIComponent(
+    returnPath || SUPER_ADMIN_ENTRY_PATH
+  )}`;
 
   return <Navigate to={loginPath} replace />;
 }

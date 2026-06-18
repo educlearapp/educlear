@@ -3,7 +3,10 @@ import { useEffect, useState } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 
 import { apiFetch } from "./api";
-import { consumeInactivityLogoutMessage } from "./auth/sessionLogout";
+import {
+  clearStaffAuthSession,
+  consumeInactivityLogoutMessage,
+} from "./auth/sessionLogout";
 import { SUPER_ADMIN_ENTRY_PATH } from "./auth/roles";
 import {
   clearSuperAdminSession,
@@ -57,12 +60,14 @@ export default function SuperAdminLogin() {
         }),
       })) as Record<string, unknown>;
 
-      if (!syncSuperAdminSessionFromLoginResponse(data)) {
+      const isAllowedSuperAdmin = syncSuperAdminSessionFromLoginResponse(data);
+      if (!isAllowedSuperAdmin) {
         throw new Error(
           "This account is not authorized for Super Admin. Use a platform super admin email."
         );
       }
 
+      clearStaffAuthSession();
       navigate(returnPath, { replace: true });
     } catch (err: unknown) {
       const message = err instanceof Error ? err.message : "Login failed";

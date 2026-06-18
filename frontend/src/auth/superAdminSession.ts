@@ -1,4 +1,4 @@
-/** Legacy key — kept in sync with super-admin session for older call sites. */
+/** Legacy key — cleared for older call sites; never trusted for access. */
 export const EDUCLEAR_ROLE_STORAGE_KEY = "educlearRole";
 
 /** JWT for platform super-admin APIs — independent from school `token`. */
@@ -19,11 +19,7 @@ function readRecord(value: unknown): Record<string, unknown> | null {
   return value !== null && typeof value === "object" ? (value as Record<string, unknown>) : null;
 }
 
-function isSuperAdminRoleValue(value: unknown): boolean {
-  return value === SUPER_ADMIN_ROLE_VALUE;
-}
-
-/** True only when the login payload explicitly marks the account as a platform super admin. */
+/** Legacy role payload detector — retained only for callers that need to identify old responses. */
 export function isExplicitSuperAdminLoginPayload(data: unknown): boolean {
   const root = readRecord(data);
   if (!root) return false;
@@ -31,10 +27,10 @@ export function isExplicitSuperAdminLoginPayload(data: unknown): boolean {
   const user = readRecord(root.user);
 
   return (
-    isSuperAdminRoleValue(root.educlearRole) ||
-    isSuperAdminRoleValue(root.platformRole) ||
-    isSuperAdminRoleValue(user?.educlearRole) ||
-    isSuperAdminRoleValue(user?.platformRole)
+    root.educlearRole === SUPER_ADMIN_ROLE_VALUE ||
+    root.platformRole === SUPER_ADMIN_ROLE_VALUE ||
+    user?.educlearRole === SUPER_ADMIN_ROLE_VALUE ||
+    user?.platformRole === SUPER_ADMIN_ROLE_VALUE
   );
 }
 
@@ -50,33 +46,41 @@ export function clearSuperAdminSession(): void {
   localStorage.removeItem(EDUCLEAR_ROLE_STORAGE_KEY);
 }
 
+export function getCurrentAuthenticatedEmail(): string {
+  const schoolToken = String(localStorage.getItem("token") || "").trim();
+  if (schoolToken) {
+    return normalizeSuperAdminEmail(localStorage.getItem("userEmail"));
+  }
+
+  return normalizeSuperAdminEmail(localStorage.getItem(SUPER_ADMIN_EMAIL_KEY));
+}
+
+export function isPlatformSuperAdminEmail(value: unknown): boolean {
+  return normalizeSuperAdminEmail(value) === PLATFORM_SUPER_ADMIN_EMAIL;
+}
+
 /** True when a dedicated super-admin login session exists (not school staff session). */
 export function hasSuperAdminSession(): boolean {
   const token = getSuperAdminToken();
-  const role = localStorage.getItem(SUPER_ADMIN_PLATFORM_ROLE_KEY);
-  const email = normalizeSuperAdminEmail(localStorage.getItem(SUPER_ADMIN_EMAIL_KEY));
-  return Boolean(token && role === SUPER_ADMIN_ROLE_VALUE && email === PLATFORM_SUPER_ADMIN_EMAIL);
+  return Boolean(token && isPlatformSuperAdminEmail(getCurrentAuthenticatedEmail()));
 }
 
 /** Persist super-admin session from login — does not modify school `token` / `schoolId`. */
 export function syncSuperAdminSessionFromLoginResponse(data: unknown): boolean {
-  if (!isExplicitSuperAdminLoginPayload(data)) {
-    return false;
-  }
+  clearSuperAdminSession();
 
-  const root = data as Record<string, unknown>;
-  const user = (root.user as Record<string, unknown> | undefined) ?? {};
+  const root = readRecord(data);
+  if (!root) return false;
+
+  const user = readRecord(root.user) ?? {};
   const token = String(root.token || "").trim();
   const email = normalizeSuperAdminEmail(user.email || root.email);
 
-  if (!token || email !== PLATFORM_SUPER_ADMIN_EMAIL) {
+  if (!token || !isPlatformSuperAdminEmail(email)) {
     return false;
   }
 
   localStorage.setItem(SUPER_ADMIN_TOKEN_KEY, token);
-  localStorage.setItem(SUPER_ADMIN_PLATFORM_ROLE_KEY, SUPER_ADMIN_ROLE_VALUE);
-  localStorage.setItem(EDUCLEAR_ROLE_STORAGE_KEY, SUPER_ADMIN_ROLE_VALUE);
-
   localStorage.setItem(SUPER_ADMIN_EMAIL_KEY, email);
 
   const userId = String(user.id || root.userId || "").trim();
