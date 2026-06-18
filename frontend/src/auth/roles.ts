@@ -31,7 +31,10 @@ export function syncEduClearRoleFromLoginResponse(_data: unknown): void {
 
 /** Platform super-admin session — dedicated token, not school staff session. */
 export function isSuperAdmin(): boolean {
-  return hasSuperAdminSession();
+  return (
+    hasSuperAdminSession() &&
+    String(getSuperAdminSessionEmail() || "").trim().toLowerCase() === PLATFORM_SUPER_ADMIN_EMAIL
+  );
 }
 
 export function getEduClearRole(): string | null {

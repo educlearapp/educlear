@@ -1,0 +1,138 @@
+import jwt from "jsonwebtoken";
+
+import { requireSuperAdmin } from "../middleware/requireSuperAdmin";
+import { canAccessMigration } from "../utils/migrationAccess";
+import {
+  isPlatformSuperAdminEmail,
+  parseSuperAdminEmails,
+  PLATFORM_SUPER_ADMIN_EMAIL,
+} from "../utils/superAdmin";
+import { normalizeLearnerEnrollmentStatusUpdate } from "../utils/learnerEnrollment";
+
+function assert(condition: boolean, message: string) {
+  if (!condition) {
+    throw new Error(message);
+  }
+}
+
+function verifyAccessControl() {
+  assert(
+    isPlatformSuperAdminEmail(PLATFORM_SUPER_ADMIN_EMAIL),
+    "info@educlear.co.za must be allowed"
+  );
+  assert(
+    !isPlatformSuperAdminEmail("dasilvaacademy@gmail.com"),
+    "Da Silva Academy email must not be allowed"
+  );
+  assert(
+    !isPlatformSuperAdminEmail("owner@example-school.test"),
+    "Other school user must not be allowed"
+  );
+
+  process.env.SUPER_ADMIN_EMAILS = "dasilvaacademy@gmail.com,owner@example-school.test";
+  assert(
+    parseSuperAdminEmails().length === 1 &&
+      parseSuperAdminEmails()[0] === PLATFORM_SUPER_ADMIN_EMAIL,
+    "environment allowlist must not expand Super Admin access"
+  );
+
+  assert(
+    canAccessMigration({
+      userId: "platform",
+      schoolId: "educlear",
+      email: PLATFORM_SUPER_ADMIN_EMAIL,
+      role: "STAFF",
+    }),
+    "info@educlear.co.za must access Super Admin APIs"
+  );
+  assert(
+    !canAccessMigration({
+      userId: "da-silva",
+      schoolId: "cmpideqeq0000108xb6ouv9zi",
+      email: "dasilvaacademy@gmail.com",
+      role: "SUPER_ADMIN",
+    }),
+    "Da Silva Academy must be rejected even with SUPER_ADMIN role"
+  );
+  assert(
+    !canAccessMigration({
+      userId: "other-school",
+      schoolId: "school-1",
+      email: "owner@example-school.test",
+      role: "SUPER_ADMIN",
+    }),
+    "Other school user must be rejected even with SUPER_ADMIN role"
+  );
+}
+
+async function verifySuperAdminApiGuard() {
+  async function runGuard(email: string) {
+    let statusCode = 200;
+    let body: unknown = null;
+    let nextCalled = false;
+    const token = jwt.sign(
+      { userId: "user-1", schoolId: "school-1", email, role: "SUPER_ADMIN" },
+      process.env.JWT_SECRET || "dev_secret_change_me"
+    );
+
+    await requireSuperAdmin(
+      { headers: { authorization: `Bearer ${token}` } } as any,
+      {
+        status(code: number) {
+          statusCode = code;
+          return this;
+        },
+        json(payload: unknown) {
+          body = payload;
+          return this;
+        },
+      } as any,
+      (() => {
+        nextCalled = true;
+      }) as any
+    );
+
+    return { statusCode, body, nextCalled };
+  }
+
+  const allowed = await runGuard(PLATFORM_SUPER_ADMIN_EMAIL);
+  assert(allowed.nextCalled, "info@educlear.co.za must pass Super Admin API guard");
+
+  const daSilva = await runGuard("dasilvaacademy@gmail.com");
+  assert(daSilva.statusCode === 403 && !daSilva.nextCalled, "Da Silva API access must be 403");
+
+  const other = await runGuard("owner@example-school.test");
+  assert(other.statusCode === 403 && !other.nextCalled, "Other school API access must be 403");
+}
+
+function verifyUnenrolStatus() {
+  assert(
+    normalizeLearnerEnrollmentStatusUpdate("HISTORICAL") === "HISTORICAL",
+    "HISTORICAL status must be accepted"
+  );
+  assert(
+    normalizeLearnerEnrollmentStatusUpdate("unenrolled") === "HISTORICAL",
+    "unenrolled alias must map to HISTORICAL"
+  );
+  assert(
+    normalizeLearnerEnrollmentStatusUpdate("ACTIVE") === "ACTIVE",
+    "ACTIVE status must be accepted"
+  );
+  assert(
+    normalizeLearnerEnrollmentStatusUpdate("DELETE") === null,
+    "invalid status must be rejected"
+  );
+}
+
+async function main() {
+  verifyAccessControl();
+  await verifySuperAdminApiGuard();
+  verifyUnenrolStatus();
+
+  console.log("Access control and unenrol verification passed.");
+}
+
+void main().catch((error) => {
+  console.error(error);
+  process.exit(1);
+});

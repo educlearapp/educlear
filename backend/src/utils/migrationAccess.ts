@@ -14,8 +14,7 @@ export function normalizeMigrationRole(role: unknown): string {
 /** Platform super admin only — same allowlist as Schools Management (`requireSuperAdmin`). */
 export function canAccessMigration(ctx: MigrationAccessContext): boolean {
   const email = normalizeSuperAdminEmail(ctx.email);
-  if (isPlatformSuperAdminEmail(email)) return true;
-  return normalizeMigrationRole(ctx.role) === "SUPER_ADMIN";
+  return isPlatformSuperAdminEmail(email);
 }
 
 export function migrationAccessDeniedDebug(ctx: Partial<MigrationAccessContext>): {

@@ -9,6 +9,11 @@ const SUPER_ADMIN_USER_ID_KEY = "superAdminUserId";
 const SUPER_ADMIN_PLATFORM_ROLE_KEY = "superAdminPlatformRole";
 
 const SUPER_ADMIN_ROLE_VALUE = "superAdmin";
+const PLATFORM_SUPER_ADMIN_EMAIL = "info@educlear.co.za";
+
+function normalizeSuperAdminEmail(value: unknown): string {
+  return String(value || "").trim().toLowerCase();
+}
 
 function readRecord(value: unknown): Record<string, unknown> | null {
   return value !== null && typeof value === "object" ? (value as Record<string, unknown>) : null;
@@ -49,7 +54,8 @@ export function clearSuperAdminSession(): void {
 export function hasSuperAdminSession(): boolean {
   const token = getSuperAdminToken();
   const role = localStorage.getItem(SUPER_ADMIN_PLATFORM_ROLE_KEY);
-  return Boolean(token && role === SUPER_ADMIN_ROLE_VALUE);
+  const email = normalizeSuperAdminEmail(localStorage.getItem(SUPER_ADMIN_EMAIL_KEY));
+  return Boolean(token && role === SUPER_ADMIN_ROLE_VALUE && email === PLATFORM_SUPER_ADMIN_EMAIL);
 }
 
 /** Persist super-admin session from login — does not modify school `token` / `schoolId`. */
@@ -61,8 +67,9 @@ export function syncSuperAdminSessionFromLoginResponse(data: unknown): boolean {
   const root = data as Record<string, unknown>;
   const user = (root.user as Record<string, unknown> | undefined) ?? {};
   const token = String(root.token || "").trim();
+  const email = normalizeSuperAdminEmail(user.email || root.email);
 
-  if (!token) {
+  if (!token || email !== PLATFORM_SUPER_ADMIN_EMAIL) {
     return false;
   }
 
@@ -70,10 +77,7 @@ export function syncSuperAdminSessionFromLoginResponse(data: unknown): boolean {
   localStorage.setItem(SUPER_ADMIN_PLATFORM_ROLE_KEY, SUPER_ADMIN_ROLE_VALUE);
   localStorage.setItem(EDUCLEAR_ROLE_STORAGE_KEY, SUPER_ADMIN_ROLE_VALUE);
 
-  const email = String(user.email || root.email || "").trim();
-  if (email) {
-    localStorage.setItem(SUPER_ADMIN_EMAIL_KEY, email);
-  }
+  localStorage.setItem(SUPER_ADMIN_EMAIL_KEY, email);
 
   const userId = String(user.id || root.userId || "").trim();
   if (userId) {

@@ -18,6 +18,13 @@ export default function SuperAdminRouteGuard({ children }: Props) {
     return <>{children}</>;
   }
 
+  const hasSchoolSession = Boolean(
+    localStorage.getItem("token") && localStorage.getItem("schoolId")
+  );
+  if (hasSchoolSession) {
+    return <Navigate to="/dashboard" replace />;
+  }
+
   const returnPath = `${location.pathname}${location.search}`;
   const loginPath = `/super-admin/login?return=${encodeURIComponent(returnPath)}`;
 

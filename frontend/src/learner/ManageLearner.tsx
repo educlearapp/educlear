@@ -266,6 +266,7 @@ export default function ManageLearner({
   const [detailLoading, setDetailLoading] = useState(false);
   const [detailError, setDetailError] = useState("");
   const [form, setForm] = useState<GeneralFormState>(emptyGeneralForm);
+  const [unenrolling, setUnenrolling] = useState(false);
 
   const seedLearner = useMemo(() => {
     if (learnerProp) return normalizeLearnerForManage(learnerProp);
@@ -510,6 +511,46 @@ export default function ManageLearner({
       }
 
       persistLearner(updated);
+    };
+
+    const handleUnenrolLearner = async () => {
+      if (!learner?.id || unenrolling) return;
+      const confirmed = window.confirm(
+        `Unenrol ${fullName || "this learner"}? Their profile and billing/payment history will be kept.`
+      );
+      if (!confirmed) return;
+
+      setUnenrolling(true);
+      try {
+        const response = await fetch(
+          `${API_URL}/api/learners/${encodeURIComponent(learner.id)}/enrollment-status`,
+          {
+            method: "PATCH",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ enrollmentStatus: "HISTORICAL" }),
+          }
+        );
+        const payload = await response.json().catch(() => ({}));
+        if (!response.ok) {
+          throw new Error(payload?.error || "Failed to unenrol learner");
+        }
+
+        const updatedLearner = normalizeLearnerForManage(payload?.learner || {
+          ...learner,
+          enrollmentStatus: "HISTORICAL",
+        });
+        persistLearner(updatedLearner);
+        setLearners((prevLearners: any[]) =>
+          prevLearners.filter((item: any) => String(item.id) !== String(learner.id))
+        );
+        alert("Learner unenrolled successfully.");
+        onBack();
+      } catch (error) {
+        console.error(error);
+        alert(error instanceof Error ? error.message : "Failed to unenrol learner");
+      } finally {
+        setUnenrolling(false);
+      }
     };
 
     const birthDateField = () => (
@@ -1089,6 +1130,7 @@ export default function ManageLearner({
   
   
   
+                  disabled={item === "Unenrol" && unenrolling}
                   onClick={() => {
   
   
@@ -1097,6 +1139,11 @@ export default function ManageLearner({
   
   
   
+                    if (item === "Unenrol") {
+                      void handleUnenrolLearner();
+                      return;
+                    }
+
                     alert(`${item} will be connected in the next functionality pass.`);
   
   
@@ -1109,7 +1156,7 @@ export default function ManageLearner({
   
   
   
-                  {item}
+                  {item === "Unenrol" && unenrolling ? "Unenrolling..." : item}
   
   
   

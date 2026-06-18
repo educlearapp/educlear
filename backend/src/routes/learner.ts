@@ -5,6 +5,7 @@ import { Router } from "express";
 import { PrismaClient } from "@prisma/client";
 
 import { getSurnamePrefix, resolveLearnerAccountNo } from "../utils/learnerIdentity";
+import { normalizeLearnerEnrollmentStatusUpdate } from "../utils/learnerEnrollment";
 import { normalizeLearnerGender } from "../utils/learnerGender";
 import {
   clearLearnerBillingPlanExplicitlyEmpty,
@@ -1272,6 +1273,49 @@ router.patch("/:id/billing-plan", async (req, res) => {
   } catch (error) {
     console.error("[billing-plan] PATCH failed", error);
     return res.status(500).json({ success: false, error: "Failed to update billing plan" });
+  }
+});
+
+router.patch("/:id/enrollment-status", async (req, res) => {
+  try {
+    const { id } = req.params;
+    const enrollmentStatus = normalizeLearnerEnrollmentStatusUpdate(req.body?.enrollmentStatus);
+
+    if (!enrollmentStatus) {
+      return res.status(400).json({
+        success: false,
+        error: "enrollmentStatus must be ACTIVE or HISTORICAL",
+      });
+    }
+
+    const existingLearner = await prisma.learner.findUnique({
+      where: { id },
+      select: { id: true },
+    });
+
+    if (!existingLearner) {
+      return res.status(404).json({ success: false, error: "Learner not found" });
+    }
+
+    const updatedLearner = await prisma.learner.update({
+      where: { id },
+      data: { enrollmentStatus },
+      include: {
+        familyAccount: true,
+        links: { include: { parent: true } },
+      },
+    });
+
+    return res.json({
+      success: true,
+      learner: mapLearnerDetailForClient(updatedLearner),
+    });
+  } catch (error) {
+    console.error("UPDATE LEARNER ENROLLMENT STATUS ERROR:", error);
+    return res.status(500).json({
+      success: false,
+      error: "Failed to update learner enrollment status",
+    });
   }
 });
 

@@ -15,6 +15,17 @@ export function isHistoricalEnrollmentStatus(
   return String(status || "").toUpperCase() === "HISTORICAL";
 }
 
+export function normalizeLearnerEnrollmentStatusUpdate(
+  status: unknown
+): "ACTIVE" | "HISTORICAL" | null {
+  const normalized = String(status || "").trim().toUpperCase();
+  if (normalized === "ACTIVE" || normalized === "HISTORICAL") return normalized;
+  if (["UNENROLLED", "UNENROL", "WITHDRAWN", "INACTIVE"].includes(normalized)) {
+    return "HISTORICAL";
+  }
+  return null;
+}
+
 /** Same class label logic as registration stats (className, then grade). */
 export function resolveLearnerClassroomLabel(learner: {
   className?: string | null;

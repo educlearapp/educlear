@@ -8,6 +8,7 @@ import { consumeInactivityLogoutMessage } from "./auth/sessionLogout";
 import { apiFetch } from "./api";
 import { clearSchoolSession, syncSchoolSessionFromLoginResponse } from "./auth/schoolSession";
 import { clearEduClearRole, logAuthSessionDebug, syncEduClearRoleFromLoginResponse } from "./auth/roles";
+import { clearSuperAdminSession } from "./auth/superAdminSession";
 import {
   clearMigrationAccess,
   syncMigrationAccessFromLoginResponse,
@@ -56,6 +57,7 @@ export default function Login({ onLoggedIn }: Props) {
     setLoading(true);
 
     clearEduClearRole();
+    clearSuperAdminSession();
     clearSchoolSession();
     clearMigrationAccess();
 

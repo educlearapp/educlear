@@ -1,6 +1,5 @@
 import type { NextFunction, Request, Response } from "express";
 
-import { prisma } from "../prisma";
 import { isPlatformSuperAdminEmail, normalizeSuperAdminEmail } from "../utils/superAdmin";
 import { verifyStaffJwt } from "../utils/staffJwt";
 
@@ -13,31 +12,13 @@ export type SuperAdminRequest = Request & {
   };
 };
 
-async function resolveSuperAdminSessionEmail(payload: {
+function resolveSuperAdminSessionEmail(payload: {
   userId: string;
   email: string;
-}): Promise<string | null> {
+}): string | null {
   const jwtEmail = normalizeSuperAdminEmail(payload.email);
   if (jwtEmail && isPlatformSuperAdminEmail(jwtEmail)) {
     return jwtEmail;
-  }
-
-  const userId = String(payload.userId || "").trim();
-  if (!userId) return null;
-
-  try {
-    const user = await prisma.user.findUnique({
-      where: { id: userId },
-      select: { email: true, isActive: true },
-    });
-    if (!user?.isActive) return null;
-
-    const dbEmail = normalizeSuperAdminEmail(user.email);
-    if (dbEmail && isPlatformSuperAdminEmail(dbEmail)) {
-      return dbEmail;
-    }
-  } catch (error) {
-    console.error("[requireSuperAdmin] user email lookup failed:", error);
   }
 
   return null;
@@ -50,7 +31,7 @@ export async function requireSuperAdmin(req: SuperAdminRequest, res: Response, n
     return res.status(401).json({ error: "Authentication required" });
   }
 
-  const email = await resolveSuperAdminSessionEmail(payload);
+  const email = resolveSuperAdminSessionEmail(payload);
   if (!email) {
     console.warn("[requireSuperAdmin] denied", {
       jwtEmail: normalizeSuperAdminEmail(payload.email) || "(empty)",
