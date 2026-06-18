@@ -3,12 +3,16 @@ import * as React from "react";
 import { useEffect, useState } from "react";
 
 import { useNavigate } from "react-router-dom";
-import { consumeInactivityLogoutMessage } from "./auth/sessionLogout";
+import { clearStaffAuthSession, consumeInactivityLogoutMessage } from "./auth/sessionLogout";
 
 import { apiFetch } from "./api";
 import { clearSchoolSession, syncSchoolSessionFromLoginResponse } from "./auth/schoolSession";
 import { clearEduClearRole, logAuthSessionDebug, syncEduClearRoleFromLoginResponse } from "./auth/roles";
-import { clearSuperAdminSession } from "./auth/superAdminSession";
+import {
+  clearSuperAdminSession,
+  isPlatformSuperAdminEmail,
+  syncSuperAdminSessionFromLoginResponse,
+} from "./auth/superAdminSession";
 import {
   clearMigrationAccess,
   syncMigrationAccessFromLoginResponse,
@@ -83,17 +87,27 @@ export default function Login({ onLoggedIn }: Props) {
 
 
       const token = data?.token;
-
-      const schoolId =
-        data?.schoolId ?? data?.school?.id ?? data?.user?.schoolId;
-
-
+      const u = data?.user;
+      const authenticatedEmail = String(u?.email || data?.email || email).trim().toLowerCase();
 
       if (!token) {
 
         throw new Error("Login response missing token. Please try again.");
 
       }
+
+      if (isPlatformSuperAdminEmail(authenticatedEmail)) {
+        if (!syncSuperAdminSessionFromLoginResponse(data)) {
+          throw new Error("Super Admin session could not be created.");
+        }
+        clearStaffAuthSession();
+        onLoggedIn();
+        navigate("/super-admin", { replace: true });
+        return;
+      }
+
+      const schoolId =
+        data?.schoolId ?? data?.school?.id ?? data?.user?.schoolId;
 
 
 
@@ -113,7 +127,6 @@ export default function Login({ onLoggedIn }: Props) {
 
       localStorage.setItem("schoolId", String(schoolId));
 
-      const u = data?.user;
       if (u?.email) localStorage.setItem("userEmail", String(u.email));
       if (u?.fullName != null) localStorage.setItem("userName", String(u.fullName));
       if (u?.role != null) localStorage.setItem("userRole", String(u.role));

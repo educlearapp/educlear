@@ -70,7 +70,14 @@ export default function SuperAdminDashboard() {
       <main className="main-content">
         <div className="page-area">
           <Routes>
-            <Route path="/" element={<Navigate to="schools" replace />} />
+            <Route
+              path="/"
+              element={
+                <SuperAdminGate>
+                  <SuperAdminSchoolsPage />
+                </SuperAdminGate>
+              }
+            />
             <Route
               path="schools"
               element={

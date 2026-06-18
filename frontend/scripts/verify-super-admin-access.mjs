@@ -36,34 +36,37 @@ function clearSuperAdminSession(storage) {
   storage.removeItem("educlearRole");
 }
 
-function getCurrentAuthenticatedEmail(storage) {
-  const schoolToken = String(storage.getItem("token") || "").trim();
-  if (schoolToken) {
-    return normalizeEmail(storage.getItem("userEmail"));
-  }
-  return normalizeEmail(storage.getItem("superAdminEmail"));
-}
-
-function isSuperAdmin(storage) {
-  return Boolean(
-    String(storage.getItem("superAdminToken") || "").trim() &&
-      getCurrentAuthenticatedEmail(storage) === PLATFORM_SUPER_ADMIN_EMAIL
-  );
-}
-
-function guardSuperAdminRoute(storage) {
-  const currentEmail = getCurrentAuthenticatedEmail(storage);
-  if (isSuperAdmin(storage)) {
-    return "allow";
-  }
-  if (currentEmail && currentEmail !== PLATFORM_SUPER_ADMIN_EMAIL) {
+function guardSuperAdminRoute(storage, authenticatedEmail) {
+  const email = normalizeEmail(authenticatedEmail);
+  if (email !== PLATFORM_SUPER_ADMIN_EMAIL) {
     clearSuperAdminSession(storage);
-    return "dashboard";
+    return "denied";
   }
-  if (storage.getItem("token") && storage.getItem("schoolId")) {
-    return "dashboard";
+  return "allow";
+}
+
+function resolveAppRoute(path) {
+  if (path === "/super-admin" || path.startsWith("/super-admin/")) {
+    return "super-admin-guard";
   }
-  return "super-admin-login";
+  if (path === "/dashboard" || path.startsWith("/dashboard/")) {
+    return "school-dashboard";
+  }
+  return "other";
+}
+
+function resolvePostAuthPath(email) {
+  if (normalizeEmail(email) === PLATFORM_SUPER_ADMIN_EMAIL) {
+    return "/super-admin";
+  }
+  return "/dashboard";
+}
+
+function subscriptionGateRoute(storage) {
+  if (normalizeEmail(storage.getItem("userEmail")) === PLATFORM_SUPER_ADMIN_EMAIL) {
+    return "/super-admin";
+  }
+  return "subscription-check";
 }
 
 function syncSuperAdminSessionFromLoginResponse(storage, data) {
@@ -97,15 +100,41 @@ function verifyDaSilvaBlockedWithStaleSuperAdminState() {
   simulateSchoolLogin(storage, "dasilvaacademy@gmail.com");
 
   assert(!storage.has("superAdminToken"), "Da Silva login must clear stale super admin token");
-  assert(guardSuperAdminRoute(storage) === "dashboard", "Direct /super-admin must redirect Da Silva");
-  assert(guardSuperAdminRoute(storage) === "dashboard", "Refresh /super-admin must redirect Da Silva");
+  assert(resolveAppRoute("/super-admin") === "super-admin-guard", "/super-admin must hit guard");
+  assert(
+    resolveAppRoute("/super-admin/schools") === "super-admin-guard",
+    "/super-admin/schools must hit guard"
+  );
+  assert(
+    resolveAppRoute("/super-admin/users") === "super-admin-guard",
+    "/super-admin/users must hit guard"
+  );
+  assert(
+    resolveAppRoute("/super-admin/settings") === "super-admin-guard",
+    "/super-admin/settings must hit guard"
+  );
+  assert(
+    guardSuperAdminRoute(storage, "dasilvaacademy@gmail.com") === "denied",
+    "Direct /super-admin must deny Da Silva"
+  );
+  assert(
+    guardSuperAdminRoute(storage, "dasilvaacademy@gmail.com") === "denied",
+    "Direct /super-admin/schools must deny Da Silva"
+  );
+  assert(
+    guardSuperAdminRoute(storage, "dasilvaacademy@gmail.com") === "denied",
+    "Refresh /super-admin/schools must deny Da Silva"
+  );
 
   storage.setItem("superAdminToken", "stale-platform-token");
   storage.setItem("superAdminEmail", PLATFORM_SUPER_ADMIN_EMAIL);
   storage.setItem("superAdminPlatformRole", "superAdmin");
   storage.setItem("educlearRole", "superAdmin");
 
-  assert(guardSuperAdminRoute(storage) === "dashboard", "Stale super admin token must not override Da Silva email");
+  assert(
+    guardSuperAdminRoute(storage, "dasilvaacademy@gmail.com") === "denied",
+    "Stale super admin token must not override Da Silva email"
+  );
   assert(!storage.has("superAdminToken"), "Guard must purge stale super admin token for Da Silva");
 }
 
@@ -121,7 +150,23 @@ function verifyEduClearAllowed() {
   });
 
   assert(synced, "EduClear platform login must create a super admin session");
-  assert(guardSuperAdminRoute(storage) === "allow", "EduClear platform email must access /super-admin");
+  assert(
+    guardSuperAdminRoute(storage, PLATFORM_SUPER_ADMIN_EMAIL) === "allow",
+    "EduClear platform email must access /super-admin"
+  );
+  assert(
+    guardSuperAdminRoute(storage, PLATFORM_SUPER_ADMIN_EMAIL) === "allow",
+    "EduClear platform email must access /super-admin/schools"
+  );
+  assert(
+    resolvePostAuthPath(PLATFORM_SUPER_ADMIN_EMAIL) === "/super-admin",
+    "EduClear platform login must go to /super-admin"
+  );
+  storage.setItem("userEmail", PLATFORM_SUPER_ADMIN_EMAIL);
+  assert(
+    subscriptionGateRoute(storage) === "/super-admin",
+    "EduClear platform email must bypass subscription/package gates"
+  );
 }
 
 function verifyRolePayloadIgnored() {
@@ -138,7 +183,10 @@ function verifyRolePayloadIgnored() {
   });
 
   assert(!synced, "Da Silva role payload must not create a super admin session");
-  assert(guardSuperAdminRoute(storage) !== "allow", "Da Silva role payload must not access /super-admin");
+  assert(
+    guardSuperAdminRoute(storage, "dasilvaacademy@gmail.com") === "denied",
+    "Da Silva role payload must not access /super-admin"
+  );
 }
 
 verifyDaSilvaBlockedWithStaleSuperAdminState();

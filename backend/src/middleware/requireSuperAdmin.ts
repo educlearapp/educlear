@@ -1,7 +1,8 @@
 import type { NextFunction, Request, Response } from "express";
 
-import { isPlatformSuperAdminEmail, normalizeSuperAdminEmail } from "../utils/superAdmin";
+import { normalizeSuperAdminEmail } from "../utils/superAdmin";
 import { verifyStaffJwt } from "../utils/staffJwt";
+import { prisma } from "../prisma";
 
 export type SuperAdminRequest = Request & {
   superAdmin?: {
@@ -12,34 +13,41 @@ export type SuperAdminRequest = Request & {
   };
 };
 
-function resolveSuperAdminSessionEmail(payload: {
-  userId: string;
-  email: string;
-}): string | null {
-  const jwtEmail = normalizeSuperAdminEmail(payload.email);
-  if (jwtEmail && isPlatformSuperAdminEmail(jwtEmail)) {
-    return jwtEmail;
-  }
-
-  return null;
+export function isAuthenticatedSuperAdminEmail(
+  authenticatedEmail: unknown,
+  isActive = true
+): boolean {
+  const email = normalizeSuperAdminEmail(authenticatedEmail);
+  if (email !== "info@educlear.co.za") return false;
+  return isActive;
 }
 
-/** Requires a valid staff JWT whose email is a platform super admin (env + built-in defaults). */
+/** Requires the authenticated database user email to be the platform super admin address. */
 export async function requireSuperAdmin(req: SuperAdminRequest, res: Response, next: NextFunction) {
   const payload = verifyStaffJwt(req.headers.authorization);
-  if (!payload) {
+  if (!payload?.userId) {
     return res.status(401).json({ error: "Authentication required" });
   }
 
-  const email = resolveSuperAdminSessionEmail(payload);
-  if (!email) {
+  const user = await prisma.user.findUnique({
+    where: { id: payload.userId },
+    select: { id: true, schoolId: true, email: true, role: true, isActive: true },
+  });
+  const authenticatedEmail = normalizeSuperAdminEmail(user?.email);
+
+  if (!user || !isAuthenticatedSuperAdminEmail(authenticatedEmail, Boolean(user.isActive))) {
     console.warn("[requireSuperAdmin] denied", {
-      jwtEmail: normalizeSuperAdminEmail(payload.email) || "(empty)",
+      authenticatedEmail: authenticatedEmail || "(empty)",
       userId: payload.userId,
     });
     return res.status(403).json({ error: "Super admin access required" });
   }
 
-  req.superAdmin = { ...payload, email };
+  req.superAdmin = {
+    userId: user.id,
+    schoolId: user.schoolId,
+    email: authenticatedEmail,
+    role: user.role,
+  };
   return next();
 }

@@ -1,5 +1,6 @@
 import { apiFetch } from "../api";
 import { isSuperAdmin, SUPER_ADMIN_ENTRY_PATH } from "../auth/roles";
+import { isPlatformSuperAdminEmail } from "../auth/superAdminSession";
 import { USER_APP_ROLE_STORAGE_KEY } from "../auth/schoolSession";
 import type { PayFastCheckoutResponse } from "./payfastCheckout";
 
@@ -426,7 +427,7 @@ export async function createSubscriptionCheckout(
 
 /** Immediate post-login route using cached package status (no network wait). */
 export function resolvePostAuthPathSync(schoolId: string): string {
-  if (isSuperAdmin()) {
+  if (isSuperAdmin() || isPlatformSuperAdminEmail(localStorage.getItem("userEmail"))) {
     return SUPER_ADMIN_ENTRY_PATH;
   }
 

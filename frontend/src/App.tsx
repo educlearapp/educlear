@@ -577,6 +577,28 @@ export default function App() {
         />
         <Route path="/privacy-policy" element={<PrivacyPolicy />} />
 
+        <Route path="/superadmin" element={<Navigate to="/super-admin/schools" replace />} />
+        <Route path="/superadmin/*" element={<Navigate to="/super-admin/schools" replace />} />
+        <Route path="/migration" element={<Navigate to="/super-admin/migration" replace />} />
+
+        <Route path="/super-admin/login" element={<SuperAdminLogin />} />
+        <Route
+          path="/super-admin"
+          element={
+            <SuperAdminRouteGuard>
+              <SuperAdminDashboard />
+            </SuperAdminRouteGuard>
+          }
+        />
+        <Route
+          path="/super-admin/*"
+          element={
+            <SuperAdminRouteGuard>
+              <SuperAdminDashboard />
+            </SuperAdminRouteGuard>
+          }
+        />
+
         <Route path="/subscription/packages" element={<SubscriptionPackages />} />
         <Route path="/subscription/status" element={<SubscriptionStatus />} />
         <Route path="/subscription/return" element={<SubscriptionStatus />} />
@@ -604,21 +626,6 @@ export default function App() {
         <Route path="/teacher-portal/dashboard" element={<Navigate to="/teacher/home" replace />} />
         <Route path="/teacher-portal/*" element={<Navigate to="/teacher/home" replace />} />
         <Route path="/teacher/*" element={<TeacherApp />} />
-
-        <Route path="/superadmin" element={<Navigate to="/super-admin/schools" replace />} />
-        <Route path="/superadmin/*" element={<Navigate to="/super-admin/schools" replace />} />
-        <Route path="/super-admin" element={<Navigate to="/super-admin/schools" replace />} />
-        <Route path="/migration" element={<Navigate to="/super-admin/migration" replace />} />
-
-        <Route path="/super-admin/login" element={<SuperAdminLogin />} />
-        <Route
-          path="/super-admin/*"
-          element={
-            <SuperAdminRouteGuard>
-              <SuperAdminDashboard />
-            </SuperAdminRouteGuard>
-          }
-        />
 
 
 

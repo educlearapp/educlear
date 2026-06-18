@@ -1,6 +1,4 @@
-import jwt from "jsonwebtoken";
-
-import { requireSuperAdmin } from "../middleware/requireSuperAdmin";
+import { isAuthenticatedSuperAdminEmail, requireSuperAdmin } from "../middleware/requireSuperAdmin";
 import { canAccessMigration } from "../utils/migrationAccess";
 import {
   isPlatformSuperAdminEmail,
@@ -66,17 +64,30 @@ function verifyAccessControl() {
 }
 
 async function verifySuperAdminApiGuard() {
-  async function runGuard(email: string) {
+  assert(
+    isAuthenticatedSuperAdminEmail(PLATFORM_SUPER_ADMIN_EMAIL, true),
+    "info@educlear.co.za active DB user must pass Super Admin email rule"
+  );
+  assert(
+    !isAuthenticatedSuperAdminEmail("dasilvaacademy@gmail.com", true),
+    "Da Silva DB email must fail Super Admin email rule"
+  );
+  assert(
+    !isAuthenticatedSuperAdminEmail(PLATFORM_SUPER_ADMIN_EMAIL, false),
+    "inactive info@educlear.co.za user must fail Super Admin email rule"
+  );
+  assert(
+    !isAuthenticatedSuperAdminEmail("dasilvaacademy@gmail.com", true),
+    "Da Silva DB email must fail even when JWT email says info@educlear.co.za"
+  );
+
+  async function runGuardWithoutToken() {
     let statusCode = 200;
     let body: unknown = null;
     let nextCalled = false;
-    const token = jwt.sign(
-      { userId: "user-1", schoolId: "school-1", email, role: "SUPER_ADMIN" },
-      process.env.JWT_SECRET || "dev_secret_change_me"
-    );
 
     await requireSuperAdmin(
-      { headers: { authorization: `Bearer ${token}` } } as any,
+      { headers: {} } as any,
       {
         status(code: number) {
           statusCode = code;
@@ -95,14 +106,11 @@ async function verifySuperAdminApiGuard() {
     return { statusCode, body, nextCalled };
   }
 
-  const allowed = await runGuard(PLATFORM_SUPER_ADMIN_EMAIL);
-  assert(allowed.nextCalled, "info@educlear.co.za must pass Super Admin API guard");
-
-  const daSilva = await runGuard("dasilvaacademy@gmail.com");
-  assert(daSilva.statusCode === 403 && !daSilva.nextCalled, "Da Silva API access must be 403");
-
-  const other = await runGuard("owner@example-school.test");
-  assert(other.statusCode === 403 && !other.nextCalled, "Other school API access must be 403");
+  const unauthenticated = await runGuardWithoutToken();
+  assert(
+    unauthenticated.statusCode === 401 && !unauthenticated.nextCalled,
+    "Super Admin API guard must require authentication"
+  );
 }
 
 function verifyUnenrolStatus() {

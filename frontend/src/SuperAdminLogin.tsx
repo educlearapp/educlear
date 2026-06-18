@@ -10,7 +10,6 @@ import {
 import { SUPER_ADMIN_ENTRY_PATH } from "./auth/roles";
 import {
   clearSuperAdminSession,
-  hasSuperAdminSession,
   syncSuperAdminSessionFromLoginResponse,
 } from "./auth/superAdminSession";
 import logo from "./assets/logo.png";
@@ -38,12 +37,6 @@ export default function SuperAdminLogin() {
     const inactivityMessage = consumeInactivityLogoutMessage();
     if (inactivityMessage) setStatus(inactivityMessage);
   }, []);
-
-  useEffect(() => {
-    if (hasSuperAdminSession()) {
-      navigate(returnPath, { replace: true });
-    }
-  }, [navigate, returnPath]);
 
   const handleLogin = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();

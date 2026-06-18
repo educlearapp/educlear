@@ -15,7 +15,7 @@ export type EduClearRole = "superAdmin";
 export const PLATFORM_SUPER_ADMIN_EMAIL = "info@educlear.co.za";
 
 /** Default route after super-admin login. */
-export const SUPER_ADMIN_ENTRY_PATH = "/super-admin/schools";
+export const SUPER_ADMIN_ENTRY_PATH = "/super-admin";
 
 export function clearEduClearRole(): void {
   localStorage.removeItem(EDUCLEAR_ROLE_STORAGE_KEY);

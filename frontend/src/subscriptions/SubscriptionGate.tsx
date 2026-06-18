@@ -1,7 +1,8 @@
 import { useEffect, useState } from "react";
 import { Navigate, useLocation } from "react-router-dom";
 
-import { isSuperAdmin } from "../auth/roles";
+import { isSuperAdmin, SUPER_ADMIN_ENTRY_PATH } from "../auth/roles";
+import { isPlatformSuperAdminEmail } from "../auth/superAdminSession";
 import {
   clearSubscriptionGateCache,
   fetchSchoolSubscriptionStatus,
@@ -19,7 +20,8 @@ export default function SubscriptionGate({ children }: { children: React.ReactNo
   const location = useLocation();
   const schoolId = String(localStorage.getItem("schoolId") || "").trim();
   const token = String(localStorage.getItem("token") || "").trim();
-  const subscriptionGateExempt = isSuperAdmin();
+  const isPlatformEmailSession = isPlatformSuperAdminEmail(localStorage.getItem("userEmail"));
+  const subscriptionGateExempt = isSuperAdmin() || isPlatformEmailSession;
   const [gate, setGate] = useState<SubscriptionGateState>(() =>
     subscriptionGateExempt ? "allowed" : getInitialSubscriptionGateState(schoolId)
   );
@@ -73,7 +75,7 @@ export default function SubscriptionGate({ children }: { children: React.ReactNo
   }, [schoolId, token, subscriptionGateExempt]);
 
   if (subscriptionGateExempt) {
-    return <>{children}</>;
+    return isPlatformEmailSession ? <Navigate to={SUPER_ADMIN_ENTRY_PATH} replace /> : <>{children}</>;
   }
 
   if (!token || !schoolId) {

@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { Navigate, useNavigate } from "react-router-dom";
 
 import { isSuperAdmin, SUPER_ADMIN_ENTRY_PATH } from "../auth/roles";
+import { isPlatformSuperAdminEmail } from "../auth/superAdminSession";
 import "../App.css";
 import logo from "../assets/logo.png";
 import {
@@ -477,7 +478,7 @@ export default function SubscriptionPackages() {
   const starterPkg = packages.find((pkg) => pkg.code === "STARTER");
   const unlimitedPkg = packages.find((pkg) => pkg.code === "UNLIMITED");
 
-  if (isSuperAdmin()) {
+  if (isSuperAdmin() || isPlatformSuperAdminEmail(localStorage.getItem("userEmail"))) {
     return <Navigate to={SUPER_ADMIN_ENTRY_PATH} replace />;
   }
 

@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { Link, Navigate, useNavigate } from "react-router-dom";
 
 import { isSuperAdmin, SUPER_ADMIN_ENTRY_PATH } from "../auth/roles";
+import { isPlatformSuperAdminEmail } from "../auth/superAdminSession";
 import logoIcon from "../assets/logo.icon.png";
 import {
   getPackageDisplayPrice,
@@ -269,7 +270,7 @@ export default function SubscriptionStatus() {
     }
   }
 
-  if (isSuperAdmin()) {
+  if (isSuperAdmin() || isPlatformSuperAdminEmail(localStorage.getItem("userEmail"))) {
     return <Navigate to={SUPER_ADMIN_ENTRY_PATH} replace />;
   }
 

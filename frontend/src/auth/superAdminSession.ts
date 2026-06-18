@@ -59,6 +59,27 @@ export function isPlatformSuperAdminEmail(value: unknown): boolean {
   return normalizeSuperAdminEmail(value) === PLATFORM_SUPER_ADMIN_EMAIL;
 }
 
+export function setSuperAdminSessionFromAuthenticatedEmail(
+  token: string,
+  email: string,
+  userId?: string
+): boolean {
+  const cleanToken = String(token || "").trim();
+  const cleanEmail = normalizeSuperAdminEmail(email);
+  if (!cleanToken || !isPlatformSuperAdminEmail(cleanEmail)) {
+    clearSuperAdminSession();
+    return false;
+  }
+
+  localStorage.setItem(SUPER_ADMIN_TOKEN_KEY, cleanToken);
+  localStorage.setItem(SUPER_ADMIN_EMAIL_KEY, cleanEmail);
+  const cleanUserId = String(userId || "").trim();
+  if (cleanUserId) {
+    localStorage.setItem(SUPER_ADMIN_USER_ID_KEY, cleanUserId);
+  }
+  return true;
+}
+
 /** True when a dedicated super-admin login session exists (not school staff session). */
 export function hasSuperAdminSession(): boolean {
   const token = getSuperAdminToken();
@@ -80,15 +101,11 @@ export function syncSuperAdminSessionFromLoginResponse(data: unknown): boolean {
     return false;
   }
 
-  localStorage.setItem(SUPER_ADMIN_TOKEN_KEY, token);
-  localStorage.setItem(SUPER_ADMIN_EMAIL_KEY, email);
-
-  const userId = String(user.id || root.userId || "").trim();
-  if (userId) {
-    localStorage.setItem(SUPER_ADMIN_USER_ID_KEY, userId);
-  }
-
-  return true;
+  return setSuperAdminSessionFromAuthenticatedEmail(
+    token,
+    email,
+    String(user.id || root.userId || "").trim()
+  );
 }
 
 export function getSuperAdminSessionEmail(): string | null {

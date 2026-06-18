@@ -1,24 +1,26 @@
 import type { NextFunction, Response } from "express";
 
 import {
-  canAccessMigration,
   migrationAccessDeniedDebug,
   type MigrationAccessContext,
 } from "../utils/migrationAccess";
-import { normalizeStaffEmail, verifyStaffJwt, type StaffJwtPayload } from "../utils/staffJwt";
+import { prisma } from "../prisma";
+import { verifyStaffJwt, type StaffJwtPayload } from "../utils/staffJwt";
+import { normalizeSuperAdminEmail } from "../utils/superAdmin";
+import { isAuthenticatedSuperAdminEmail } from "./requireSuperAdmin";
 
 export type MigrationAccessRequest = import("express").Request & {
   migrationAuth?: StaffJwtPayload;
 };
 
 /** Platform super admin only — same allowlist as Schools Management. */
-export function requireMigrationAccess(
+export async function requireMigrationAccess(
   req: MigrationAccessRequest,
   res: Response,
   next: NextFunction
 ) {
   const payload = verifyStaffJwt(req.headers.authorization);
-  if (!payload?.userId || !payload?.schoolId) {
+  if (!payload?.userId) {
     return res.status(401).json({
       success: false,
       error: "Authentication required",
@@ -26,14 +28,19 @@ export function requireMigrationAccess(
     });
   }
 
+  const user = await prisma.user.findUnique({
+    where: { id: payload.userId },
+    select: { id: true, schoolId: true, email: true, role: true, isActive: true },
+  });
+  const authenticatedEmail = normalizeSuperAdminEmail(user?.email);
   const ctx: MigrationAccessContext = {
     userId: payload.userId,
-    schoolId: payload.schoolId,
-    email: normalizeStaffEmail(payload.email),
-    role: payload.role,
+    schoolId: user?.schoolId || payload.schoolId || "",
+    email: authenticatedEmail,
+    role: user?.role || payload.role || "",
   };
 
-  if (!canAccessMigration(ctx)) {
+  if (!user || !isAuthenticatedSuperAdminEmail(authenticatedEmail, Boolean(user.isActive))) {
     const debug = migrationAccessDeniedDebug(ctx);
     return res.status(403).json({
       success: false,
@@ -43,6 +50,11 @@ export function requireMigrationAccess(
     });
   }
 
-  req.migrationAuth = payload;
+  req.migrationAuth = {
+    userId: user.id,
+    schoolId: user.schoolId,
+    email: authenticatedEmail,
+    role: user.role,
+  };
   return next();
 }
