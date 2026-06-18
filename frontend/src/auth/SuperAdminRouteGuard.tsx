@@ -1,7 +1,8 @@
 import { useEffect, useState, type ReactNode } from "react";
+import { useLocation } from "react-router-dom";
 
 import { apiFetch } from "../api";
-import AccessDenied from "./AccessDenied";
+import SuperAdminLogin from "../SuperAdminLogin";
 import { PLATFORM_SUPER_ADMIN_EMAIL } from "./roles";
 import {
   clearSuperAdminSession,
@@ -31,6 +32,7 @@ function readAuthenticatedUser(data: unknown): { email: string; userId: string }
 
 /** Super Admin is exclusive to the authenticated info@educlear.co.za account. */
 export default function SuperAdminRouteGuard({ children }: Props) {
+  const location = useLocation();
   const [authCheck, setAuthCheck] = useState<AuthCheck>("checking");
 
   useEffect(() => {
@@ -89,5 +91,12 @@ export default function SuperAdminRouteGuard({ children }: Props) {
     return <>{children}</>;
   }
 
-  return <AccessDenied message="Super Admin access is restricted to info@educlear.co.za." />;
+  const returnPath = `${location.pathname}${location.search}`;
+
+  return (
+    <SuperAdminLogin
+      initialStatus="Super Admin access is restricted to info@educlear.co.za."
+      returnPathOverride={returnPath}
+    />
+  );
 }

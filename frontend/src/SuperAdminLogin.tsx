@@ -15,6 +15,11 @@ import {
 import logo from "./assets/logo.png";
 import "./SuperAdminDashboard.css";
 
+type Props = {
+  initialStatus?: string;
+  returnPathOverride?: string;
+};
+
 function safeReturnPath(raw: string | null): string {
   const value = String(raw || "").trim();
   if (!value.startsWith("/super-admin")) {
@@ -23,20 +28,20 @@ function safeReturnPath(raw: string | null): string {
   return value;
 }
 
-export default function SuperAdminLogin() {
+export default function SuperAdminLogin({ initialStatus = "", returnPathOverride }: Props) {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
-  const returnPath = safeReturnPath(searchParams.get("return"));
+  const returnPath = safeReturnPath(returnPathOverride ?? searchParams.get("return"));
 
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
-  const [status, setStatus] = useState("");
+  const [status, setStatus] = useState(initialStatus);
   const [loading, setLoading] = useState(false);
 
   useEffect(() => {
     const inactivityMessage = consumeInactivityLogoutMessage();
-    if (inactivityMessage) setStatus(inactivityMessage);
-  }, []);
+    setStatus(inactivityMessage || initialStatus);
+  }, [initialStatus]);
 
   const handleLogin = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
