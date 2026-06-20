@@ -1,4 +1,5 @@
 import type { MigrationApplyExpectations } from "./MigrationApplyExpectations";
+import type { PaymentReceiveListStageData } from "../core/paymentReceiveListReconciliation";
 import type { MigrationFileColumnMappings } from "./MigrationValidation";
 import type { MigrationValidationSummary } from "./MigrationValidation";
 
@@ -40,6 +41,7 @@ export interface MigrationStage {
   validationSummary: MigrationValidationSummary;
   stagedCounts: MigrationStagedCounts;
   transactionReadiness: MigrationTransactionReadinessCounts;
+  paymentReceiveList?: PaymentReceiveListStageData;
   warnings: string[];
   canApply: boolean;
   /** Populated on GET stage when targetSchoolId query is provided (read-only). */

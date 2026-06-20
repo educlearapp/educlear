@@ -478,6 +478,16 @@ export function suggestColumnMappings(
 
   const systemId = String(input.systemId || "").trim() || undefined;
 
+  if (String(input.category || "").trim() === "payment-receive-list") {
+    return {
+      fileId: input.fileId,
+      filename: input.filename,
+      category: input.category,
+      mappings: [],
+      unmappedColumns: columns,
+    };
+  }
+
   for (const sourceColumn of columns) {
     const match = bestMappingForColumn(sourceColumn, input.category, systemId);
     if (!match) {

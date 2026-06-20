@@ -94,6 +94,13 @@ export function detectMigrationCategory(filename: string): MigrationFileCategory
 
   const basename = fileBasename(filename);
 
+  if (
+    haystack.includes("paymentreceivelist") ||
+    (haystack.includes("payment") && haystack.includes("receive") && haystack.includes("list"))
+  ) {
+    return "payment-receive-list";
+  }
+
   for (const { category, keywords } of CATEGORY_KEYWORDS) {
     if (category === "learners" || category === "parents" || category === "staff") continue;
     if (keywords.some((kw) => haystackIncludesKeyword(haystack, kw))) {

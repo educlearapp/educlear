@@ -5,6 +5,7 @@ export type UniversalMigrationFileCategory =
   | "parents"
   | "billing"
   | "transactions"
+  | "payment-receive-list"
   | "staff"
   | "historical"
   | "unknown";
@@ -16,6 +17,8 @@ export type UniversalMigrationUploadedFile = {
   size: number;
   uploadedAt: string;
   category: UniversalMigrationFileCategory;
+  sourceSystem?: string;
+  purpose?: "import" | "reconciliation";
   path: string;
 };
 

@@ -8,13 +8,14 @@ import UniversalMigrationAdapterTestPanel from "../../components/migration/Unive
 import KidESysMigrationReadinessPanel from "../../components/migration/KidESysMigrationReadinessPanel";
 import { useUniversalMigrationWorkflow } from "./UniversalMigrationWorkflowContext";
 
-const ACCEPTED_EXTENSIONS = [".csv", ".xls", ".xlsx"];
+const ACCEPTED_EXTENSIONS = [".csv", ".xls", ".xlsx", ".pdf"];
 
 const CATEGORY_LABELS: Record<UniversalMigrationFileCategory, string> = {
   learners: "Learners",
   parents: "Parents",
   billing: "Billing",
   transactions: "Transactions",
+  "payment-receive-list": "Payment Receive List",
   staff: "Staff",
   historical: "Historical",
   unknown: "Unknown",
@@ -31,6 +32,7 @@ function mimeLabel(mimeType: string, filename: string): string {
   if (lower.includes("csv") || filename.toLowerCase().endsWith(".csv")) return "CSV";
   if (lower.includes("spreadsheetml") || filename.toLowerCase().endsWith(".xlsx")) return "XLSX";
   if (lower.includes("excel") || filename.toLowerCase().endsWith(".xls")) return "XLS";
+  if (lower.includes("pdf") || filename.toLowerCase().endsWith(".pdf")) return "PDF";
   return mimeType.split("/").pop()?.toUpperCase() || "FILE";
 }
 
@@ -202,7 +204,7 @@ export default function UniversalMigrationUpload() {
         </span>
         <p className="uc-migration-center-dropzone-title">Drag and drop export files</p>
         <p className="uc-migration-center-dropzone-text">
-          CSV, XLS, XLSX — multi-file supported. Files are stored untouched in migration staging.
+          CSV, XLS, XLSX, PDF — multi-file supported. Payment Receive List PDFs are reconciliation only.
         </p>
         {uploadProgress != null ? (
           <p className="uc-migration-upload-progress" aria-live="polite">
@@ -246,6 +248,11 @@ export default function UniversalMigrationUpload() {
                   <span className="uc-migration-upload-badge uc-migration-upload-badge--type">
                     {mimeLabel(file.mimeType, file.filename)}
                   </span>
+                  {file.category === "payment-receive-list" ? (
+                    <span className="uc-migration-upload-badge uc-migration-upload-badge--type">
+                      Reconciliation only — does not affect balances.
+                    </span>
+                  ) : null}
                 </div>
               </li>
             ))}

@@ -18,6 +18,7 @@ import {
   PARENT_TARGET_FIELDS,
   TRANSACTION_TARGET_FIELDS,
 } from "../types/MigrationTargetField";
+import { buildPaymentReceiveListStageData } from "../core/paymentReceiveListReconciliation";
 
 export type BuildMigrationStageInput = {
   sourceSystem: string;
@@ -100,6 +101,8 @@ function computeStagedCounts(previews: MigrationFilePreview[]): MigrationStagedC
       case "transactions":
         counts.transactions += rowCount;
         break;
+      case "payment-receive-list":
+        break;
       case "staff":
         counts.staff += rowCount;
         break;
@@ -164,6 +167,10 @@ export function buildMigrationStage(input: BuildMigrationStageInput): MigrationS
 
   const effectiveMappings = enrichKidESysTransactionDateMappings(previews, mappings);
   const stagedCounts = computeStagedCounts(previews);
+  const paymentReceiveList = buildPaymentReceiveListStageData({
+    previews,
+    rowsByFileId,
+  });
   const transactionReadiness = computeTransactionReadiness({
     previews,
     mappings: effectiveMappings,
@@ -175,6 +182,12 @@ export function buildMigrationStage(input: BuildMigrationStageInput): MigrationS
   if (transactionReadiness.historicalOnlyTransactions > 0) {
     warnings.push(
       "Historical learner transactions are preserved for history only and will not affect active head count or new billing."
+    );
+  }
+
+  if (paymentReceiveList) {
+    warnings.push(
+      "Payment Receive List PDF is optional reconciliation-only reference data and does not affect balances."
     );
   }
 
@@ -197,6 +210,7 @@ export function buildMigrationStage(input: BuildMigrationStageInput): MigrationS
     validationSummary,
     stagedCounts,
     transactionReadiness,
+    ...(paymentReceiveList ? { paymentReceiveList } : {}),
     warnings,
     canApply: validationSummary.canProceed,
   };

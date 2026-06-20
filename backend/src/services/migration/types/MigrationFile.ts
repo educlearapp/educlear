@@ -3,6 +3,7 @@ export type MigrationFileCategory =
   | "parents"
   | "billing"
   | "transactions"
+  | "payment-receive-list"
   | "staff"
   | "historical"
   | "unknown";
@@ -14,5 +15,7 @@ export interface MigrationFile {
   size: number;
   uploadedAt: Date;
   category: MigrationFileCategory;
+  sourceSystem?: string;
+  purpose?: "import" | "reconciliation";
   path: string;
 }

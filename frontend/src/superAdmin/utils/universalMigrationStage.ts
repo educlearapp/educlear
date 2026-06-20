@@ -30,6 +30,47 @@ export type MigrationStageFileSummary = {
   path?: string;
 };
 
+export type PaymentReceiveListBalanceDifference = {
+  accountNumber: string;
+  learnerName?: string;
+  ageAnalysisBalance: number;
+  pdfBalance: number;
+  difference: number;
+};
+
+export type PaymentReceiveListReconciliationSummary = {
+  label: "Reconciliation only — does not affect balances.";
+  optional: true;
+  source: "Kid-e-Sys";
+  category: "payment-receive-list";
+  purpose: "reconciliation-only";
+  pdfFileCount: number;
+  totalPdfAccounts: number;
+  ageAnalysisAccounts: number;
+  totalMatchedAccounts: number;
+  missingInAgeAnalysis: string[];
+  missingInPdf: string[];
+  balanceDifferences: PaymentReceiveListBalanceDifference[];
+  totalOutstanding: number;
+  totalCreditsOverpaid: number;
+  netPosition: number;
+  ageAnalysisNetPosition: number;
+};
+
+export type PaymentReceiveListStageData = {
+  label: "Reconciliation only — does not affect balances.";
+  optional: true;
+  source: "Kid-e-Sys";
+  category: "payment-receive-list";
+  purpose: "reconciliation-only";
+  files: Array<{
+    fileId: string;
+    filename: string;
+    rows: Array<Record<string, unknown>>;
+  }>;
+  reconciliation: PaymentReceiveListReconciliationSummary;
+};
+
 export type MigrationStage = {
   stageId: string;
   createdAt: string;
@@ -40,6 +81,7 @@ export type MigrationStage = {
   validationSummary: MigrationValidationSummary;
   stagedCounts: MigrationStagedCounts;
   transactionReadiness: MigrationTransactionReadinessCounts;
+  paymentReceiveList?: PaymentReceiveListStageData;
   warnings: string[];
   canApply: boolean;
 };

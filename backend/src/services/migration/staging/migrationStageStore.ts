@@ -1,6 +1,10 @@
 import fs from "fs";
 import path from "path";
 import type { MigrationStage, MigrationStageListItem } from "../types/MigrationStage";
+import type {
+  PaymentReceiveListStageData,
+  PaymentReceiveListStagedRow,
+} from "../core/paymentReceiveListReconciliation";
 
 const STAGES_DIR = path.join(process.cwd(), "storage", "migration-stages");
 
@@ -26,6 +30,84 @@ function stageFilePath(id: string): string {
     throw new Error("Invalid stage path");
   }
   return resolved;
+}
+
+function parsePaymentReceiveListStageData(raw: unknown): PaymentReceiveListStageData | undefined {
+  if (!raw || typeof raw !== "object") return undefined;
+  const value = raw as Partial<PaymentReceiveListStageData>;
+  const files = Array.isArray(value.files)
+    ? value.files.map((file) => ({
+        fileId: String((file as { fileId?: string }).fileId || "").trim(),
+        filename: String((file as { filename?: string }).filename || "").trim(),
+        rows: Array.isArray((file as { rows?: unknown[] }).rows)
+          ? ((file as { rows: Partial<PaymentReceiveListStagedRow>[] }).rows)
+              .map((row) => ({
+                source: "Kid-e-Sys" as const,
+                category: "payment-receive-list" as const,
+                purpose: "reconciliation-only" as const,
+                accountNumber: String(row.accountNumber || "").trim().toUpperCase(),
+                learnerName: String(row.learnerName || "").trim(),
+                accountHolderName: String(row.accountHolderName || "").trim(),
+                outstandingBalance: Number(row.outstandingBalance) || 0,
+                creditOverpaidAmount: Number(row.creditOverpaidAmount) || 0,
+                recentOwing:
+                  row.recentOwing == null ? null : Number(row.recentOwing) || 0,
+                badDebt: row.badDebt == null ? null : Number(row.badDebt) || 0,
+                netBalance: Number(row.netBalance) || 0,
+                ...(row.gradeSection ? { gradeSection: String(row.gradeSection).trim() } : {}),
+              }))
+              .filter((row) => row.accountNumber)
+          : [],
+        audit: (file as { audit?: PaymentReceiveListStageData["files"][number]["audit"] })
+          .audit,
+      }))
+    : [];
+
+  const reconciliation = value.reconciliation;
+  if (!reconciliation || typeof reconciliation !== "object") return undefined;
+
+  return {
+    label: "Reconciliation only — does not affect balances.",
+    optional: true,
+    source: "Kid-e-Sys",
+    category: "payment-receive-list",
+    purpose: "reconciliation-only",
+    files,
+    reconciliation: {
+      label: "Reconciliation only — does not affect balances.",
+      optional: true,
+      source: "Kid-e-Sys",
+      category: "payment-receive-list",
+      purpose: "reconciliation-only",
+      pdfFileCount: Number(reconciliation.pdfFileCount) || files.length,
+      totalPdfAccounts: Number(reconciliation.totalPdfAccounts) || 0,
+      ageAnalysisAccounts: Number(reconciliation.ageAnalysisAccounts) || 0,
+      totalMatchedAccounts: Number(reconciliation.totalMatchedAccounts) || 0,
+      missingInAgeAnalysis: Array.isArray(reconciliation.missingInAgeAnalysis)
+        ? reconciliation.missingInAgeAnalysis.map(String)
+        : [],
+      missingInPdf: Array.isArray(reconciliation.missingInPdf)
+        ? reconciliation.missingInPdf.map(String)
+        : [],
+      balanceDifferences: Array.isArray(reconciliation.balanceDifferences)
+        ? reconciliation.balanceDifferences.map((d) => ({
+            accountNumber: String(
+              (d as { accountNumber?: string }).accountNumber || ""
+            ).trim(),
+            learnerName: String((d as { learnerName?: string }).learnerName || "").trim() || undefined,
+            ageAnalysisBalance: Number(
+              (d as { ageAnalysisBalance?: number }).ageAnalysisBalance
+            ) || 0,
+            pdfBalance: Number((d as { pdfBalance?: number }).pdfBalance) || 0,
+            difference: Number((d as { difference?: number }).difference) || 0,
+          }))
+        : [],
+      totalOutstanding: Number(reconciliation.totalOutstanding) || 0,
+      totalCreditsOverpaid: Number(reconciliation.totalCreditsOverpaid) || 0,
+      netPosition: Number(reconciliation.netPosition) || 0,
+      ageAnalysisNetPosition: Number(reconciliation.ageAnalysisNetPosition) || 0,
+    },
+  };
 }
 
 function parseStageFile(raw: string, fileId: string): MigrationStage | null {
@@ -121,6 +203,8 @@ function parseStageFile(raw: string, fileId: string): MigrationStage | null {
       ? parsed.warnings.map((w) => String(w)).filter(Boolean)
       : [];
 
+    const paymentReceiveList = parsePaymentReceiveListStageData(parsed.paymentReceiveList);
+
     return {
       stageId,
       createdAt,
@@ -131,6 +215,7 @@ function parseStageFile(raw: string, fileId: string): MigrationStage | null {
       validationSummary: validationSummary as MigrationStage["validationSummary"],
       stagedCounts: counts,
       transactionReadiness,
+      ...(paymentReceiveList ? { paymentReceiveList } : {}),
       warnings,
       canApply: Boolean(parsed.canApply),
     };

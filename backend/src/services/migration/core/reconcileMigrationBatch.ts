@@ -127,6 +127,10 @@ function pushCheck(
   });
 }
 
+function money(value: number): string {
+  return `R${(Math.round(value * 100) / 100).toFixed(2)}`;
+}
+
 export async function reconcileMigrationBatch(
   input: MigrationReconciliationRequest
 ): Promise<MigrationReconciliationResult> {
@@ -286,6 +290,56 @@ export async function reconcileMigrationBatch(
           : "warning",
     message: "Compares stored batch counters with per-row billing statuses in the apply report.",
   });
+
+  if (stage.paymentReceiveList?.reconciliation) {
+    const prl = stage.paymentReceiveList.reconciliation;
+    pushCheck(checks, {
+      id: "payment_receive_list_reconciliation_only",
+      check: "Payment Receive List PDF purpose",
+      expected: "Reconciliation only — does not affect balances.",
+      actual: stage.paymentReceiveList.label,
+      status: "pass",
+      message:
+        "Optional Kid-e-Sys Payment Receive List PDF was staged as reference data only; it is not a payment import source.",
+    });
+
+    pushCheck(checks, {
+      id: "payment_receive_list_accounts",
+      check: "Payment Receive List accounts vs Age Analysis",
+      expected: `${prl.ageAnalysisAccounts} Age Analysis account(s)`,
+      actual: `${prl.totalPdfAccounts} PDF account(s), ${prl.totalMatchedAccounts} matched`,
+      status:
+        prl.missingInAgeAnalysis.length === 0 && prl.missingInPdf.length === 0
+          ? "pass"
+          : "warning",
+      message: `${prl.missingInAgeAnalysis.length} missing in Age Analysis; ${prl.missingInPdf.length} missing in PDF.`,
+    });
+
+    pushCheck(checks, {
+      id: "payment_receive_list_balance_differences",
+      check: "Payment Receive List balance differences",
+      expected: "0 account balance differences vs Age Analysis",
+      actual: `${prl.balanceDifferences.length} difference(s)`,
+      status: prl.balanceDifferences.length === 0 ? "pass" : "warning",
+      message:
+        prl.balanceDifferences.length === 0
+          ? "PDF balances align with Age Analysis for matched accounts."
+          : `Review first differences: ${prl.balanceDifferences
+              .slice(0, 5)
+              .map((d) => `${d.accountNumber} ${money(d.difference)}`)
+              .join(", ")}.`,
+    });
+
+    pushCheck(checks, {
+      id: "payment_receive_list_totals",
+      check: "Payment Receive List totals",
+      expected: `Age Analysis net ${money(prl.ageAnalysisNetPosition)}`,
+      actual: `PDF outstanding ${money(prl.totalOutstanding)}, credits/overpaid ${money(prl.totalCreditsOverpaid)}, net ${money(prl.netPosition)}`,
+      status: "pass",
+      message:
+        "Read-only reconciliation totals only; final migration does not post payments or change balances from this PDF.",
+    });
+  }
 
   const [actualActiveCount, historicalCount, unenrolledOrOtherCount] = await Promise.all([
     prisma.learner.count({ where: activeLearnerWhere(targetSchoolId) }),

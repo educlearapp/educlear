@@ -6,6 +6,8 @@ import {
 } from "./detectMigrationCategory";
 import type { MigrationParseIssue } from "../../../utils/migrationLearnerFileParser";
 import { parseStagedMigrationFile, resolveSafeMigrationFilePath } from "./parseStagedMigrationFile";
+import { parsePaymentReceiveListPdf } from "../../daSilvaMigration/paymentReceiveListParser";
+import { toPaymentReceiveListStagedRow } from "./paymentReceiveListReconciliation";
 
 function rowRecordsToUnknown(rows: Record<string, string>[]): Record<string, unknown>[] {
   return rows.map((row) => {
@@ -28,6 +30,10 @@ function buildWarnings(columns: string[], rowCount: number): string[] {
     warnings.push("File contains no data rows.");
   }
   return warnings;
+}
+
+function isPaymentReceiveListPdf(filename: string, category: string): boolean {
+  return category === "payment-receive-list" && String(filename || "").toLowerCase().endsWith(".pdf");
 }
 
 export type MigrationFileRowsResult = {
@@ -95,13 +101,24 @@ export async function readMigrationFileRows(
 
   try {
     const sourceSystem = String(options?.sourceSystem || "").trim();
-    const parsedRows = await parseStagedMigrationFile(absolutePath, filename, sourceSystem);
-    rowCount = parsedRows.length;
-    rows = rowRecordsToUnknown(parsedRows);
-    columns =
-      parsedRows.length > 0
-        ? Object.keys(parsedRows[0]).filter((k) => String(k).trim())
-        : [];
+    if (isPaymentReceiveListPdf(filename, category)) {
+      const parsed = await parsePaymentReceiveListPdf(absolutePath);
+      const stagedRows = parsed.rows.map(toPaymentReceiveListStagedRow);
+      rowCount = stagedRows.length;
+      rows = stagedRows;
+      columns =
+        stagedRows.length > 0
+          ? Object.keys(stagedRows[0]).filter((k) => String(k).trim())
+          : [];
+    } else {
+      const parsedRows = await parseStagedMigrationFile(absolutePath, filename, sourceSystem);
+      rowCount = parsedRows.length;
+      rows = rowRecordsToUnknown(parsedRows);
+      columns =
+        parsedRows.length > 0
+          ? Object.keys(parsedRows[0]).filter((k) => String(k).trim())
+          : [];
+    }
   } catch (e: unknown) {
     const message = e instanceof Error ? e.message : "Failed to parse file";
     return {
@@ -154,6 +171,13 @@ export async function readMigrationFileRows(
       classroom
         ? `Kid-e-Sys contact list (${classroom}, ${rowCount} parent contact row(s)).`
         : `Kid-e-Sys contact list (${rowCount} parent contact row(s)).`
+    );
+  }
+
+  if (category === "payment-receive-list") {
+    warnings.push("Reconciliation only — does not affect balances.");
+    warnings.push(
+      "Payment Receive List PDF is optional and will not create ledger rows, payments, invoices, statements, or balance changes."
     );
   }
 

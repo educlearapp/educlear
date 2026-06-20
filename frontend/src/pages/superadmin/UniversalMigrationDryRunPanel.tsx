@@ -38,6 +38,10 @@ function formatCount(n: number): string {
   return n.toLocaleString();
 }
 
+function formatMoney(n: number): string {
+  return `R${n.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+}
+
 export default function UniversalMigrationDryRunPanel({
   sourceSystem,
   previews,
@@ -270,6 +274,53 @@ export default function UniversalMigrationDryRunPanel({
                 Historical learner transactions are preserved for history only and will not affect
                 active head count or new billing.
               </p>
+            </>
+          ) : null}
+
+          {activeStage.paymentReceiveList ? (
+            <>
+              <h5 className="uc-migration-dry-run-subtitle">
+                Payment Receive List reconciliation preview
+              </h5>
+              <p className="uc-migration-dry-run-hint" role="note">
+                Reconciliation only — does not affect balances.
+              </p>
+              <div className="uc-migration-dry-run-counts">
+                <span>
+                  PDF accounts:{" "}
+                  {formatCount(activeStage.paymentReceiveList.reconciliation.totalPdfAccounts)}
+                </span>
+                <span>
+                  Matched accounts:{" "}
+                  {formatCount(activeStage.paymentReceiveList.reconciliation.totalMatchedAccounts)}
+                </span>
+                <span>
+                  Missing in Age Analysis:{" "}
+                  {formatCount(
+                    activeStage.paymentReceiveList.reconciliation.missingInAgeAnalysis.length
+                  )}
+                </span>
+                <span>
+                  Missing in PDF:{" "}
+                  {formatCount(activeStage.paymentReceiveList.reconciliation.missingInPdf.length)}
+                </span>
+                <span>
+                  Balance differences:{" "}
+                  {formatCount(activeStage.paymentReceiveList.reconciliation.balanceDifferences.length)}
+                </span>
+                <span>
+                  Total outstanding:{" "}
+                  {formatMoney(activeStage.paymentReceiveList.reconciliation.totalOutstanding)}
+                </span>
+                <span>
+                  Credits / overpaid:{" "}
+                  {formatMoney(activeStage.paymentReceiveList.reconciliation.totalCreditsOverpaid)}
+                </span>
+                <span>
+                  Net position:{" "}
+                  {formatMoney(activeStage.paymentReceiveList.reconciliation.netPosition)}
+                </span>
+              </div>
             </>
           ) : null}
 

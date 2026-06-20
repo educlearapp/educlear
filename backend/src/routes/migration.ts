@@ -139,9 +139,9 @@ const router = Router();
 
 const UNIVERSAL_UPLOAD_MAX_BYTES = 100 * 1024 * 1024;
 const UNIVERSAL_UPLOAD_MAX_FILES = 50;
-const UNIVERSAL_ACCEPTED_EXT = new Set([".csv", ".xls", ".xlsx"]);
+const UNIVERSAL_ACCEPTED_EXT = new Set([".csv", ".xls", ".xlsx", ".pdf"]);
 
-function isUniversalMigrationUploadFile(file: Express.Multer.File): boolean {
+export function isUniversalMigrationUploadFile(file: Express.Multer.File): boolean {
   const name = String(file.originalname || "").toLowerCase();
   const ext = path.extname(name);
   if (UNIVERSAL_ACCEPTED_EXT.has(ext)) return true;
@@ -150,6 +150,7 @@ function isUniversalMigrationUploadFile(file: Express.Multer.File): boolean {
     mime.includes("csv") ||
     mime.includes("spreadsheet") ||
     mime.includes("excel") ||
+    mime === "application/pdf" ||
     mime === "application/vnd.ms-excel" ||
     mime === "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
   );
@@ -194,7 +195,20 @@ migrationUploadRouter.post(
         return jsonError(
           res,
           400,
-          `Unsupported file type. Accepted: CSV, XLS, XLSX (${rejected.map((f) => f.originalname).join(", ")})`
+          `Unsupported file type. Accepted: CSV, XLS, XLSX, PDF (${rejected.map((f) => f.originalname).join(", ")})`
+        );
+      }
+
+      const unsupportedPdf = uploaded.filter((f) => {
+        const filename = String(f.originalname || f.filename || "");
+        return path.extname(filename).toLowerCase() === ".pdf" &&
+          detectMigrationCategory(filename) !== "payment-receive-list";
+      });
+      if (unsupportedPdf.length > 0) {
+        return jsonError(
+          res,
+          400,
+          `PDF support is limited to Kid-e-Sys Payment Receive List reconciliation files (${unsupportedPdf.map((f) => f.originalname).join(", ")})`
         );
       }
 
@@ -202,13 +216,17 @@ migrationUploadRouter.post(
         const filename = String(file.originalname || file.filename);
         const storedName = String(file.filename);
         const absolutePath = path.join(getUniversalMigrationStagingDir(), storedName);
+        const category = detectMigrationCategory(filename);
         return {
           id: randomUUID(),
           filename,
           mimeType: String(file.mimetype || "application/octet-stream"),
           size: file.size,
           uploadedAt: new Date(),
-          category: detectMigrationCategory(filename),
+          category,
+          ...(category === "payment-receive-list"
+            ? { sourceSystem: "kideesys", purpose: "reconciliation" as const }
+            : {}),
           path: absolutePath,
         };
       });

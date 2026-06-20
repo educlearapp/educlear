@@ -77,12 +77,24 @@ function extractPdfText(pdfPath: string): Promise<string> {
     throw new Error(`Payment Receive List PDF not found: ${pdfPath}`);
   }
   // eslint-disable-next-line @typescript-eslint/no-require-imports
-  const pdfParse = require("pdf-parse") as (buffer: Buffer) => Promise<{ text: string }>;
+  const pdfParse = require("pdf-parse") as
+    | ((buffer: Buffer) => Promise<{ text: string }>)
+    | { PDFParse?: new (input: { data: Buffer }) => { getText(): Promise<{ text: string }>; destroy?: () => Promise<void> | void } };
   const buffer = fs.readFileSync(pdfPath);
-  return pdfParse(buffer).then((data) => String(data.text || ""));
+  if (typeof pdfParse === "function") {
+    return pdfParse(buffer).then((data) => String(data.text || ""));
+  }
+  if (pdfParse && typeof pdfParse.PDFParse === "function") {
+    const parser = new pdfParse.PDFParse({ data: buffer });
+    return parser.getText().then(async (data) => {
+      await parser.destroy?.();
+      return String(data.text || "");
+    });
+  }
+  throw new Error("Unsupported pdf-parse export shape");
 }
 
-/** Parse Kid-e-Sys Payment Receive List PDF — current account balances (source of truth). */
+/** Parse Kid-e-Sys Payment Receive List PDF for reconciliation/audit workflows. */
 export async function parsePaymentReceiveListPdf(pdfPath: string): Promise<{
   rows: ParsedPaymentReceiveRow[];
   uniqueByAccount: Record<string, ParsedPaymentReceiveRow>;

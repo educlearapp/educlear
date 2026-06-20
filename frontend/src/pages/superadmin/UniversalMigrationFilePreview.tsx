@@ -11,6 +11,7 @@ const CATEGORY_LABELS: Record<string, string> = {
   parents: "Parents",
   billing: "Billing",
   transactions: "Transactions",
+  "payment-receive-list": "Payment Receive List",
   staff: "Staff",
   historical: "Historical",
   unknown: "Unknown",
@@ -47,6 +48,7 @@ export default function UniversalMigrationFilePreview({
   const categoryLabel =
     CATEGORY_LABELS[preview.category] ?? preview.category.replace(/_/g, " ");
   const kidESysClassList = isKidESysClassListPreview(preview);
+  const paymentReceiveList = preview.category === "payment-receive-list";
 
   return (
     <article className="uc-migration-preview-card" aria-labelledby={`uc-preview-${preview.fileId}`}>
@@ -76,6 +78,13 @@ export default function UniversalMigrationFilePreview({
         <p className="uc-migration-preview-kideesys-note" role="note">
           Kid-e-Sys class register — title row treated as class name; learner names mapped to{" "}
           <strong>fullName</strong>.
+        </p>
+      ) : null}
+
+      {paymentReceiveList ? (
+        <p className="uc-migration-preview-kideesys-note" role="note">
+          Kid-e-Sys Payment Receive List PDF — optional reconciliation only. It does not affect
+          balances and will not create payments, ledger rows, invoices, or statement changes.
         </p>
       ) : null}
 
@@ -116,7 +125,7 @@ export default function UniversalMigrationFilePreview({
         <p className="uc-migration-preview-empty-rows">No sample rows to display.</p>
       ) : null}
 
-      {mappingSuggestion && onMappingOverrideChange ? (
+      {mappingSuggestion && onMappingOverrideChange && !paymentReceiveList ? (
         <UniversalMigrationMappingSuggestions
           suggestion={mappingSuggestion}
           overrides={mappingOverrides}

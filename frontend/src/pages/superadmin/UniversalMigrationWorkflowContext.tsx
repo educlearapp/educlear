@@ -342,14 +342,14 @@ export function UniversalMigrationWorkflowProvider({ children }: { children: Rea
       const incoming = Array.from(fileList);
       const accepted = incoming.filter((file) => {
         const name = file.name.toLowerCase();
-        return [".csv", ".xls", ".xlsx"].some((ext) => name.endsWith(ext));
+        return [".csv", ".xls", ".xlsx", ".pdf"].some((ext) => name.endsWith(ext));
       });
       if (accepted.length === 0) {
-        setError("No valid files. Accepted formats: CSV, XLS, XLSX.");
+        setError("No valid files. Accepted formats: CSV, XLS, XLSX, PDF.");
         return;
       }
       if (accepted.length < incoming.length) {
-        setError("Some files were skipped. Only CSV, XLS, and XLSX are accepted.");
+        setError("Some files were skipped. Only CSV, XLS, XLSX, and PDF are accepted.");
       } else {
         setError(null);
       }
