@@ -95,10 +95,15 @@ function parseCount(stdout: string, label: string) {
 }
 
 function parseSkippedRows(stdout: string) {
-  return stdout
-    .split(/\r?\n/)
-    .filter((line) => line.startsWith("- "))
-    .map((line) => line.slice(2));
+  const lines = stdout.split(/\r?\n/);
+  const start = lines.findIndex((line) => line.startsWith("Rows skipped with exact reason:"));
+  if (start < 0) return [];
+  const skipped: string[] = [];
+  for (const line of lines.slice(start + 1)) {
+    if (!line.trim()) break;
+    if (line.startsWith("- ")) skipped.push(line.slice(2));
+  }
+  return skipped;
 }
 
 function runImporter(root: string, classDir: string): Promise<{ stdout: string; stderr: string }> {
@@ -147,7 +152,7 @@ router.post("/run", upload.array("files", MAX_FILES), async (req, res) => {
   try {
     const files = Array.isArray(req.files) ? (req.files as Express.Multer.File[]) : [];
     if (!files.length) {
-      return res.status(400).json({ success: false, error: "Upload the MBB Kid-e-Sys files as files[]" });
+      return res.status(400).json({ success: false, error: "Upload the MBB Kid-e-Sys files as files" });
     }
 
     const { root, classDir, missing } = prepareImportFolder(files);
