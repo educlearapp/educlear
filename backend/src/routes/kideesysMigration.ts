@@ -7,7 +7,7 @@ function jsonError(res: import("express").Response, status: number, message: str
   return res.status(status).json({ error: message });
 }
 
-router.all("*", (_req, res) =>
+router.use((_req, res) =>
   jsonError(
     res,
     410,
