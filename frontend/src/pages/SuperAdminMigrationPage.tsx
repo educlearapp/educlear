@@ -6,7 +6,6 @@ import MigrationIssuesTable from "../superAdmin/components/migration/MigrationIs
 import MigrationMappingTable from "../superAdmin/components/migration/MigrationMappingTable";
 import MigrationSchoolSelect from "../superAdmin/components/migration/MigrationSchoolSelect";
 import MigrationSourceSelect from "../superAdmin/components/migration/MigrationSourceSelect";
-import DaSilvaMigrationPanel from "../superAdmin/components/migration/DaSilvaMigrationPanel";
 import MigrationStubModal, { type StubNotice } from "../superAdmin/components/migration/MigrationStubModal";
 import MigrationSummaryCards from "../superAdmin/components/migration/MigrationSummaryCards";
 import { useMigrationCenter } from "../superAdmin/hooks/useMigrationCenter";
@@ -338,11 +337,13 @@ export default function SuperAdminMigrationPage() {
       </div>
 
       {migrationSource === "kideesys" ? (
-        <DaSilvaMigrationPanel
-          schoolId={selectedSchoolId}
-          disabled={!selectedSchoolId || busy}
-          onNotice={showNotice}
-        />
+        <section className="sa-migration-section">
+          <h2 className="sa-migration-section-title">Kid-e-Sys Migration</h2>
+          <p className="sa-migration-section-hint">
+            Use the Universal Migration Center upload, validation, staging, and apply workflow for
+            Kid-e-Sys imports. Legacy school-specific import panels are disabled.
+          </p>
+        </section>
       ) : null}
 
       {notice ? <MigrationStubModal notice={notice} onClose={() => setNotice(null)} /> : null}

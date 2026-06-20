@@ -1,11 +1,16 @@
 import { normalizeClassroomInput } from "../../utils/classroomNormalization";
 import { normalizeMatchText } from "../../utils/kideesysSpreadsheet";
-import {
-  buildLearnerMatchIndexes,
-  type DbLearnerForParentMatch,
-} from "../daSilvaMigration/daSilvaParentLearnerMatching";
-import type { ParsedBillingPlanItem } from "../daSilvaMigration/parsers";
+import type { ParsedBillingPlanItem } from "../migration/adapters/kideesys/parseBillingPlanFile";
 import type { StoredBillingPlanItem } from "../../utils/learnerBillingPlanStore";
+
+export type DbLearnerForParentMatch = {
+  id: string;
+  firstName: string;
+  lastName: string;
+  className: string | null;
+  admissionNo: string | null;
+  idNumber: string | null;
+};
 
 export type BillingPlanMatchRow = {
   billingMatchKey: string;
@@ -99,7 +104,11 @@ function surnamesCompatible(billingSurname: string, dbSurname: string): boolean 
   return false;
 }
 
-type BillingMatchIndexes = ReturnType<typeof buildLearnerMatchIndexes> & {
+type BillingMatchIndexes = {
+  byAdmission: Map<string, string[]>;
+  byIdNumber: Map<string, string[]>;
+  byNameClass: Map<string, string[]>;
+  byNameOnly: Map<string, string[]>;
   bySurnameClass: Map<string, string[]>;
   learnersById: Map<string, DbLearnerForParentMatch>;
 };
@@ -114,16 +123,38 @@ function pushIndex(map: Map<string, string[]>, key: string, id: string): void {
 export function buildBillingPlanMatchIndexes(
   learners: DbLearnerForParentMatch[]
 ): BillingMatchIndexes {
-  const base = buildLearnerMatchIndexes(learners);
+  const byAdmission = new Map<string, string[]>();
+  const byIdNumber = new Map<string, string[]>();
+  const byNameClass = new Map<string, string[]>();
+  const byNameOnly = new Map<string, string[]>();
   const bySurnameClass = new Map<string, string[]>();
   const learnersById = new Map<string, DbLearnerForParentMatch>();
 
   for (const l of learners) {
     learnersById.set(l.id, l);
+    const admission = normId(l.admissionNo);
+    const idNumber = normId(l.idNumber);
+    const firstName = normPersonText(l.firstName);
+    const lastName = normPersonText(l.lastName);
+    const surname = normSurname(l.lastName);
+    const classKey = normClass(l.className);
+    if (admission) pushIndex(byAdmission, admission, l.id);
+    if (idNumber.length >= 6) pushIndex(byIdNumber, idNumber, l.id);
+    if (firstName && lastName && classKey) {
+      pushIndex(byNameClass, `${firstName}|${lastName}|${classKey}`, l.id);
+      pushIndex(byNameClass, `${normalizeMatchText(l.firstName)}|${normalizeMatchText(l.lastName)}|${classKey}`, l.id);
+    }
+    if (firstName && lastName) {
+      pushIndex(byNameOnly, `${lastName}|${firstName}`, l.id);
+      pushIndex(byNameOnly, `${normalizeMatchText(l.lastName)}|${normalizeMatchText(l.firstName)}`, l.id);
+    }
     pushIndex(bySurnameClass, `${normSurname(l.lastName)}|${normClass(l.className)}`, l.id);
+    if (surname && firstName) {
+      pushIndex(byNameOnly, `${surname}|${firstName}`, l.id);
+    }
   }
 
-  return { ...base, bySurnameClass, learnersById };
+  return { byAdmission, byIdNumber, byNameClass, byNameOnly, bySurnameClass, learnersById };
 }
 
 function pickUnique(candidates: string[]): { id: string | null; ambiguous: boolean } {

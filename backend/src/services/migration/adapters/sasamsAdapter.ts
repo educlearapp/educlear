@@ -6,7 +6,6 @@ export { SASAMS_ADAPTER_METADATA };
 
 /**
  * SA-SAMS Adapter v1 — detection and normalization for Universal Migration.
- * Da Silva staged import uses `sasamsParsers.ts` + phased scripts (SA-SAMS base, Kid-e-Sys billing).
  */
 export const sasamsAdapter: MigrationAdapter = {
   source: "sasams",

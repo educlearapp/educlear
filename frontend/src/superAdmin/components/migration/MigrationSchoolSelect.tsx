@@ -48,20 +48,6 @@ export default function MigrationSchoolSelect({
             <dd>
               <code>{debug.schoolNames.join(", ") || "—"}</code>
             </dd>
-            {debug.ensuredDaSilva != null ? (
-              <>
-                <dt>Da Silva ensured</dt>
-                <dd>{debug.ensuredDaSilva ? "yes" : "no"}</dd>
-              </>
-            ) : null}
-            {debug.daSilvaSchoolId ? (
-              <>
-                <dt>Da Silva school id</dt>
-                <dd>
-                  <code>{debug.daSilvaSchoolId}</code>
-                </dd>
-              </>
-            ) : null}
           </dl>
         </details>
       ) : null}

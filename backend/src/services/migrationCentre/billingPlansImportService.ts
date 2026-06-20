@@ -14,11 +14,7 @@ import { prisma } from "../../prisma";
 
 
 
-import { parseBillingPlanFile } from "../daSilvaMigration/parsers";
-
-
-
-import type { DbLearnerForParentMatch } from "../daSilvaMigration/daSilvaParentLearnerMatching";
+import { parseBillingPlanFile } from "../migration/adapters/kideesys/parseBillingPlanFile";
 
 
 
@@ -83,6 +79,16 @@ const PREVIEW_SAMPLE = 80;
 
 
 const AMOUNT_EXAMPLE_COUNT = 12;
+
+
+type DbLearnerForParentMatch = {
+  id: string;
+  firstName: string;
+  lastName: string;
+  className: string | null;
+  admissionNo: string | null;
+  idNumber: string | null;
+};
 
 
 

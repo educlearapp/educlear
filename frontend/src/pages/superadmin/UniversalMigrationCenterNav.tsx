@@ -8,7 +8,6 @@ export default function UniversalMigrationCenterNav({ className }: { className?:
   const onCenter =
     path.startsWith("/super-admin/migration") &&
     !path.includes("/research") &&
-    !path.includes("/legacy") &&
     !path.includes("/billing-plans") &&
     !path.includes("/learner-repair") &&
     !path.includes("/topup-payments");
@@ -47,12 +46,6 @@ export default function UniversalMigrationCenterNav({ className }: { className?:
         className={`uc-migration-center-nav-link${path.includes("/learner-repair") ? " uc-migration-center-nav-link--active" : ""}`}
       >
         Learner Repair
-      </Link>
-      <Link
-        to="/super-admin/migration/legacy"
-        className={`uc-migration-center-nav-link${path.includes("/legacy") ? " uc-migration-center-nav-link--active" : ""}`}
-      >
-        Legacy migration
       </Link>
     </nav>
   );

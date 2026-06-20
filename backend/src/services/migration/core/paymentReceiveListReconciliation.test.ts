@@ -5,7 +5,7 @@ import path from "path";
 import PDFDocument from "pdfkit";
 
 import { isUniversalMigrationUploadFile } from "../../../routes/migration";
-import { parsePaymentReceiveListPdf } from "../../daSilvaMigration/paymentReceiveListParser";
+import { parsePaymentReceiveListPdf } from "../adapters/kideesys/paymentReceiveListParser";
 import { buildMigrationStage } from "../staging/buildMigrationStage";
 import { detectMigrationCategory } from "./detectMigrationCategory";
 import { suggestColumnMappings } from "./suggestColumnMappings";
@@ -199,7 +199,7 @@ async function writeSyntheticPaymentReceivePdf(filePath: string): Promise<void> 
     doc.fontSize(10).text(
       [
         "Payment Receive List",
-        "Da Silva Academy",
+        "Magical Bright Beginnings",
         "2026/06/20",
         "GRADE 1",
         "1",

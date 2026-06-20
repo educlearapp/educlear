@@ -16,7 +16,6 @@ import {
   validateMigrationRows,
   type MigrationLearnerInputRow,
 } from "../services/migrationService";
-import { validateKideesysMigrationUploads } from "../services/kideesysMigrationValidate";
 import {
   isAcceptedLearnerMigrationFileName,
   parseMigrationLearnerFileBuffer,
@@ -113,8 +112,7 @@ import {
   listRunbooks,
   updateRunbook,
 } from "../services/migration/core/migrationRunbookStore";
-import { assertValidRunbookStepStatus } from "../services/migration/core/buildDaSilvaRunbook";
-import { buildMigrationPreflightDashboard } from "../services/migration/core/buildMigrationPreflightDashboard";
+import { assertValidRunbookStepStatus } from "../services/migration/core/buildMigrationRunbook";
 import type {
   MigrationRunbookCreateInput,
   MigrationRunbookPatch,
@@ -1359,7 +1357,7 @@ migrationUploadRouter.get("/signoffs/:signoffId", (req, res) => {
   }
 });
 
-/** Universal Migration Framework — Da Silva pilot validation (read-only, Super Admin only). */
+/** Universal Migration Framework — pilot validation (read-only, Super Admin only). */
 migrationUploadRouter.post("/pilots", async (req, res) => {
   try {
     const body = req.body as MigrationPilotBuildInput;
@@ -1426,21 +1424,7 @@ migrationUploadRouter.get("/pilots/:pilotId", async (req, res) => {
   }
 });
 
-/** Universal Migration Framework — Da Silva pilot preflight dashboard (read-only, Super Admin only). */
-migrationUploadRouter.get("/preflight/:schoolId", async (req, res) => {
-  try {
-    const schoolId = String(req.params.schoolId || "").trim();
-    if (!schoolId) return jsonError(res, 400, "schoolId required");
-    const dashboard = await buildMigrationPreflightDashboard({ schoolId });
-    return res.json({ success: true, dashboard });
-  } catch (e: unknown) {
-    console.error("migration/preflight get", e);
-    const message = e instanceof Error ? e.message : "Failed to build preflight dashboard";
-    return jsonError(res, 500, message);
-  }
-});
-
-/** Universal Migration Framework — Da Silva pilot runbook (read-only tracking, Super Admin only). */
+/** Universal Migration Framework — pilot runbook (read-only tracking, Super Admin only). */
 migrationUploadRouter.post("/runbooks", (req, res) => {
   try {
     const body = req.body as MigrationRunbookCreateInput;
@@ -1736,7 +1720,7 @@ export function migrationErrorHandler(
   return jsonError(res, 500, message);
 }
 
-/** Legacy + universal migration — all real School rows (Da Silva ensured if missing). */
+/** Legacy + universal migration — all real School rows. */
 router.get("/target-schools", async (_req, res) => {
   try {
     const result = await listMigrationTargetSchools();
@@ -1744,8 +1728,6 @@ router.get("/target-schools", async (_req, res) => {
       total: result.debug.total,
       schoolIds: result.debug.schoolIds,
       schoolNames: result.debug.schoolNames,
-      ensuredDaSilva: result.debug.ensuredDaSilva,
-      daSilvaCreated: result.debug.daSilvaCreated,
     });
     return res.json(result);
   } catch (e: unknown) {
@@ -1841,40 +1823,11 @@ router.post(
       if (!schoolId) return jsonError(res, 400, "schoolId required");
 
       if (source === "kideesys" && isMultipartRequest(req)) {
-        const uploaded = collectUploadedFiles(req);
-        if (!uploaded.length) {
-          return jsonError(
-            res,
-            400,
-            "Upload Kid-e-Sys .xls exports (class lists, contacts, billing, age analysis, transactions, employees) before validating."
-          );
-        }
-
-        console.log("[migration/validate] validation started", {
-          schoolId,
-          projectId,
-          fileCount: uploaded.length,
-        });
-
-        const result = await validateKideesysMigrationUploads({
-          schoolId,
-          projectId,
-          files: uploaded,
-        });
-
-        return res.json({
-          success: true,
-          projectId: result.projectId,
-          report: result.report,
-          confirmToken: result.confirmToken,
-          daSilvaConfirmToken: result.daSilvaConfirmToken,
-          stagedRows: result.stagedRows,
-          countValidation: result.countValidation,
-          summary: result.summary,
-          validated: result.report.canImport,
-          fileName: `${uploaded.length} Kid-e-Sys export file(s)`,
-          kideesys: true,
-        });
+        return jsonError(
+          res,
+          410,
+          "Legacy Kid-e-Sys multipart validation is disabled. Use Universal Migration upload, preview, full validation, staging, and apply."
+        );
       }
 
       if (source === "kideesys") {

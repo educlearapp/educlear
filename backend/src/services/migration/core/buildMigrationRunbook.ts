@@ -5,21 +5,20 @@ import type {
   MigrationRunbookStepStatus,
 } from "../types/MigrationRunbook";
 
-/** Steps that must never be auto-marked complete by server logic — operator only. */
-export const DA_SILVA_MANUAL_ONLY_STEP_IDS = new Set([
+export const MIGRATION_MANUAL_ONLY_STEP_IDS = new Set([
   "apply_migration_manual",
   "run_reconciliation",
   "generate_signoff_pack",
 ]);
 
-const DEFAULT_DA_SILVA_STEPS: Array<
+const DEFAULT_MIGRATION_STEPS: Array<
   Pick<MigrationRunbookStep, "stepId" | "title" | "description" | "required">
 > = [
   {
     stepId: "upload_migration_files",
     title: "Upload migration files",
     description:
-      "Upload SA-SAMS class lists, learner register, and parent register plus Kid-e-Sys billing exports (age analysis, billing plan, transactions).",
+      "Upload the export files supplied for this school and source system only.",
     required: true,
   },
   {
@@ -40,7 +39,7 @@ const DEFAULT_DA_SILVA_STEPS: Array<
     stepId: "review_mappings",
     title: "Review mappings",
     description:
-      "Confirm SA-SAMS learner/parent columns and Kid-e-Sys billing columns map to EduClear targets; SA-SAMS owns profiles, Kid-e-Sys owns billing only.",
+      "Confirm uploaded source columns map to EduClear learner, parent, billing, transaction, and staff targets.",
     required: true,
   },
   {
@@ -61,7 +60,7 @@ const DEFAULT_DA_SILVA_STEPS: Array<
     stepId: "create_dry_run",
     title: "Create dry run",
     description:
-      "Create a migration stage (dry run) from validated uploads — JSON staging only, no live apply.",
+      "Create a migration stage from validated uploads. This writes a dry-run package only, not live school data.",
     required: true,
   },
   {
@@ -75,35 +74,35 @@ const DEFAULT_DA_SILVA_STEPS: Array<
     stepId: "review_checklist",
     title: "Review checklist",
     description:
-      "Complete pre-apply migration checklist (head count, historical learners, billing protection).",
+      "Complete pre-apply migration checklist, including backups, warnings, mappings, and transaction readiness.",
     required: true,
   },
   {
     stepId: "create_pilot_record",
     title: "Create pilot record",
     description:
-      "Create a Da Silva pilot validation record linked to stage/batch outputs for audit tracking.",
+      "Create a pilot validation record linked to stage and batch outputs for audit tracking.",
     required: true,
   },
   {
     stepId: "apply_migration_manual",
     title: "Apply migration (manual only)",
     description:
-      "Apply staged migration to the target school only after explicit operator approval — use Apply Migration in section 6.",
+      "Apply staged migration to the target school only after explicit operator approval.",
     required: true,
   },
   {
     stepId: "run_reconciliation",
     title: "Run reconciliation",
     description:
-      "Run import batch reconciliation after apply; review pass/warn/fail checks before sign-off.",
+      "Run import batch reconciliation after apply; review pass, warning, and fail checks before sign-off.",
     required: true,
   },
   {
     stepId: "generate_signoff_pack",
     title: "Generate sign-off pack",
     description:
-      "Generate migration sign-off pack (validation, batch, reconciliation exports) for stakeholder review.",
+      "Generate migration sign-off pack with validation, batch, and reconciliation exports for stakeholder review.",
     required: true,
   },
   {
@@ -125,8 +124,8 @@ function pendingStep(
   };
 }
 
-export function buildDefaultDaSilvaSteps(): MigrationRunbookStep[] {
-  return DEFAULT_DA_SILVA_STEPS.map(pendingStep);
+export function buildDefaultMigrationSteps(): MigrationRunbookStep[] {
+  return DEFAULT_MIGRATION_STEPS.map(pendingStep);
 }
 
 export function computeRunbookOverallStatus(
@@ -134,23 +133,13 @@ export function computeRunbookOverallStatus(
 ): MigrationRunbookOverallStatus {
   const required = steps.filter((s) => s.required);
   if (required.length === 0) return "in_progress";
-
-  if (required.some((s) => s.status === "blocked")) {
-    return "blocked";
-  }
-
-  if (required.every((s) => s.status === "completed")) {
-    return "completed";
-  }
-
-  if (required.every((s) => s.status === "pending")) {
-    return "pending";
-  }
-
+  if (required.some((s) => s.status === "blocked")) return "blocked";
+  if (required.every((s) => s.status === "completed")) return "completed";
+  if (required.every((s) => s.status === "pending")) return "pending";
   return "in_progress";
 }
 
-export function buildDaSilvaRunbook(input: {
+export function buildMigrationRunbook(input: {
   runbookId: string;
   schoolId: string;
   schoolName: string;
@@ -159,7 +148,7 @@ export function buildDaSilvaRunbook(input: {
   pilotId?: string;
   notes?: string;
 }): MigrationRunbook {
-  const steps = buildDefaultDaSilvaSteps();
+  const steps = buildDefaultMigrationSteps();
   return {
     runbookId: input.runbookId,
     schoolId: input.schoolId,
@@ -174,7 +163,7 @@ export function buildDaSilvaRunbook(input: {
 }
 
 export function isManualOnlyRunbookStep(stepId: string): boolean {
-  return DA_SILVA_MANUAL_ONLY_STEP_IDS.has(stepId);
+  return MIGRATION_MANUAL_ONLY_STEP_IDS.has(stepId);
 }
 
 export function assertValidRunbookStepStatus(status: string): status is MigrationRunbookStepStatus {

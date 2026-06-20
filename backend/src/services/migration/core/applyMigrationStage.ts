@@ -30,7 +30,7 @@ import {
 } from "../types/MigrationTargetField";
 import type { MigrationFileColumnMappings } from "../types/MigrationValidation";
 import { migrationTargetCategory } from "../staging/buildMigrationStage";
-import { parseEmployeesFile } from "../../daSilvaMigration/parsers";
+import { parseEmployeesFile } from "../adapters/kideesys/parseEmployeesFile";
 import {
   assertLearnerCreateGuard,
   computeMigrationApplyPreview,

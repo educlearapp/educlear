@@ -1,4 +1,4 @@
-import type { ParsedPaymentReceiveRow, PaymentReceiveListParseAudit } from "../../daSilvaMigration/paymentReceiveListParser";
+import type { ParsedPaymentReceiveRow, PaymentReceiveListParseAudit } from "../adapters/kideesys/paymentReceiveListParser";
 import type { MigrationFilePreview } from "../types/MigrationFilePreview";
 
 export type PaymentReceiveListStagedRow = {

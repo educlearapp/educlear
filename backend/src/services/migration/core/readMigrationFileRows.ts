@@ -6,7 +6,7 @@ import {
 } from "./detectMigrationCategory";
 import type { MigrationParseIssue } from "../../../utils/migrationLearnerFileParser";
 import { parseStagedMigrationFile, resolveSafeMigrationFilePath } from "./parseStagedMigrationFile";
-import { parsePaymentReceiveListPdf } from "../../daSilvaMigration/paymentReceiveListParser";
+import { parsePaymentReceiveListPdf } from "../adapters/kideesys/paymentReceiveListParser";
 import { toPaymentReceiveListStagedRow } from "./paymentReceiveListReconciliation";
 
 function rowRecordsToUnknown(rows: Record<string, string>[]): Record<string, unknown>[] {

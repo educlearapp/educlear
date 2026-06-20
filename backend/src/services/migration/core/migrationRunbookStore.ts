@@ -2,7 +2,7 @@ import fs from "fs";
 import path from "path";
 import { randomUUID } from "crypto";
 import type { MigrationRunbook, MigrationRunbookPatch } from "../types/MigrationRunbook";
-import { buildDaSilvaRunbook, computeRunbookOverallStatus } from "./buildDaSilvaRunbook";
+import { buildMigrationRunbook, computeRunbookOverallStatus } from "./buildMigrationRunbook";
 
 const RUNBOOKS_DIR = path.join(process.cwd(), "storage", "migration-runbooks");
 
@@ -56,7 +56,7 @@ export function createRunbook(input: {
     throw new Error("Runbook id already exists");
   }
 
-  const runbook = buildDaSilvaRunbook({
+  const runbook = buildMigrationRunbook({
     runbookId: safeId,
     schoolId: String(input.schoolId || "").trim(),
     schoolName: String(input.schoolName || "").trim(),

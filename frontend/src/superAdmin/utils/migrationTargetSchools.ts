@@ -5,9 +5,6 @@ export type MigrationTargetSchoolsDebug = {
   total: number;
   schoolIds: string[];
   schoolNames: string[];
-  ensuredDaSilva?: boolean;
-  daSilvaCreated?: boolean;
-  daSilvaSchoolId?: string | null;
 };
 
 export type MigrationTargetSchoolsResponse = {
@@ -37,8 +34,6 @@ export async function fetchMigrationTargetSchools(): Promise<MigrationTargetScho
       total: debug.total,
       schoolIds: debug.schoolIds,
       schoolNames: debug.schoolNames,
-      ensuredDaSilva: debug.ensuredDaSilva,
-      daSilvaCreated: debug.daSilvaCreated,
     });
   }
 

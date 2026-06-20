@@ -6,9 +6,6 @@ import UniversalMigrationUpload from "./UniversalMigrationUpload";
 import UniversalMigrationValidationSection from "./UniversalMigrationValidationSection";
 import UniversalMigrationStagingSection from "./UniversalMigrationStagingSection";
 import { UniversalMigrationWorkflowProvider } from "./UniversalMigrationWorkflowContext";
-import DaSilvaPilotValidationSection from "./DaSilvaPilotValidationSection";
-import DaSilvaPilotRunbookSection from "./DaSilvaPilotRunbookSection";
-import DaSilvaPreflightDashboardSection from "./DaSilvaPreflightDashboardSection";
 import UniversalMigrationCenterNav from "./UniversalMigrationCenterNav";
 import "./MigrationCenter.css";
 
@@ -54,24 +51,6 @@ const SECTIONS = [
     title: "Import Audit & Rollback",
     hint: "Review past universal apply batches and safely roll back records created by a batch.",
     isAudit: true,
-  },
-  {
-    num: 8,
-    title: "Da Silva Pilot Validation",
-    hint: "Track real Da Silva / Kid-e-Sys pilot runs against Universal Migration outputs — validation, dry run, and reconciliation only.",
-    isPilot: true,
-  },
-  {
-    num: 9,
-    title: "Da Silva Pilot Runbook",
-    hint: "Operational checklist for a real Da Silva migration — manual step tracking linked to pilot execution. No automatic apply.",
-    isRunbook: true,
-  },
-  {
-    num: 10,
-    title: "Da Silva Preflight Dashboard",
-    hint: "Single executive view of pilot readiness and go-live status — runbook, pilot, validation, dry run, batch, reconciliation, and sign-off. Read-only aggregation.",
-    isPreflight: true,
   },
 ] as const;
 
@@ -136,14 +115,6 @@ export default function MigrationCenter() {
 
               {"isAudit" in section && section.isAudit ? (
                 <UniversalMigrationImportAuditSection onNotice={setApplyNotice} />
-              ) : null}
-
-              {"isPilot" in section && section.isPilot ? <DaSilvaPilotValidationSection /> : null}
-
-              {"isRunbook" in section && section.isRunbook ? <DaSilvaPilotRunbookSection /> : null}
-
-              {"isPreflight" in section && section.isPreflight ? (
-                <DaSilvaPreflightDashboardSection />
               ) : null}
             </section>
           ))}
