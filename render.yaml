@@ -24,6 +24,6 @@ services:
     staticPublishPath: dist
     envVars:
       - key: VITE_FEE_CHECK_BUILD_ID
-        value: rbac-persist-664269f
+        value: pdf-reconciliation-20260620
       - key: VITE_API_URL
         value: https://educlear-backend.onrender.com
