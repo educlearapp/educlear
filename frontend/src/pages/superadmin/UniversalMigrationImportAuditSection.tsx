@@ -64,6 +64,18 @@ function reconciliationStatusLabel(status: MigrationReconciliationStatus): strin
   return "FAIL";
 }
 
+function parentMatchSignalLabel(signal: string): string {
+  if (signal === "same_cellphone") return "Same cellphone";
+  if (signal === "same_email") return "Same email";
+  if (signal === "same_relationship") return "Same relationship";
+  if (signal === "similar_names") return "Similar names";
+  return signal;
+}
+
+function formatParentLearners(names: string[]): string {
+  return names.length > 0 ? names.join(", ") : "No linked learners";
+}
+
 function formatSignoffCounts(counts: MigrationSignoffPack["counts"]["created"]): string {
   return [
     `learners ${counts.learners}`,
@@ -600,6 +612,52 @@ export default function UniversalMigrationImportAuditSection({ onNotice }: Props
                           {reconciliation.summary.failed}
                         </span>
                       </div>
+                    </div>
+                    <div className="uc-migration-parent-reconciliation-centre">
+                      <div className="uc-migration-parent-reconciliation-header">
+                        <h5>Parent Reconciliation Centre</h5>
+                        <span>
+                          {reconciliation.parentReconciliation?.totalSuggestedMerges ?? 0} suggested
+                          merge(s)
+                        </span>
+                      </div>
+                      <p className="uc-migration-dry-run-hint">
+                        Parent records were imported faithfully. These are deterministic post-migration
+                        suggestions only; schools can merge or ignore them after review.
+                      </p>
+                      {reconciliation.parentReconciliation?.suggestions.length ? (
+                        <ul className="uc-migration-parent-reconciliation-list">
+                          {reconciliation.parentReconciliation.suggestions.map((suggestion) => (
+                            <li
+                              key={suggestion.suggestionId}
+                              className="uc-migration-parent-reconciliation-item"
+                            >
+                              <div className="uc-migration-parent-reconciliation-pair">
+                                <div>
+                                  <strong>{suggestion.primaryParent.name}</strong>
+                                  <span>{suggestion.primaryParent.relationship ?? "Relationship unknown"}</span>
+                                  <span>{formatParentLearners(suggestion.primaryParent.learnerNames)}</span>
+                                </div>
+                                <div>
+                                  <strong>{suggestion.duplicateParent.name}</strong>
+                                  <span>{suggestion.duplicateParent.relationship ?? "Relationship unknown"}</span>
+                                  <span>{formatParentLearners(suggestion.duplicateParent.learnerNames)}</span>
+                                </div>
+                              </div>
+                              <div className="uc-migration-parent-reconciliation-signals">
+                                {suggestion.matchSignals.map((signal) => (
+                                  <span key={signal}>{parentMatchSignalLabel(signal)}</span>
+                                ))}
+                                <span>{suggestion.confidence.toUpperCase()} confidence</span>
+                              </div>
+                            </li>
+                          ))}
+                        </ul>
+                      ) : (
+                        <p className="uc-migration-dry-run-hint">
+                          No suggested parent merges found for this import batch.
+                        </p>
+                      )}
                     </div>
                     <div className="uc-migration-apply-report-wrap">
                       <table className="uc-migration-apply-report-table uc-migration-reconcile-table">

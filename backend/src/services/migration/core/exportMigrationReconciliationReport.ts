@@ -6,7 +6,7 @@ import { ensureMigrationReportsDir } from "./exportValidationReport";
 
 const REPORTS_DIR = path.join(process.cwd(), "storage", "migration-reports");
 
-const HEADERS = ["Check", "Expected", "Actual", "Status", "Message"];
+const HEADERS = ["Section", "Check", "Expected", "Actual", "Status", "Message"];
 
 function timestampForFilename(date = new Date()): string {
   return date.toISOString().replace(/[:.]/g, "-");
@@ -27,12 +27,24 @@ export function exportMigrationReconciliationReport(
   ensureMigrationReportsDir();
 
   const rows = reconciliation.checks.map((c) => [
+    "Final reconciliation",
     c.check,
     c.expected,
     c.actual,
     c.status.toUpperCase(),
     c.message,
   ]);
+
+  for (const suggestion of reconciliation.parentReconciliation?.suggestions ?? []) {
+    rows.push([
+      "Parent Reconciliation Centre",
+      "Suggested parent merge",
+      suggestion.matchSignals.join(", "),
+      `${suggestion.primaryParent.name} (${suggestion.primaryParent.parentId}) <> ${suggestion.duplicateParent.name} (${suggestion.duplicateParent.parentId})`,
+      suggestion.confidence.toUpperCase(),
+      suggestion.note,
+    ]);
+  }
 
   const csv = buildCsvContent(HEADERS, rows);
   const safeBatch = reconciliation.batchId.replace(/[^a-zA-Z0-9_-]/g, "_").slice(0, 40);

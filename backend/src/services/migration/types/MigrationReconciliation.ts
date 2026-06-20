@@ -26,6 +26,38 @@ export type MigrationReconciliationAccountBalanceImpact = {
   note: string;
 };
 
+export type MigrationParentReconciliationMatchSignal =
+  | "same_cellphone"
+  | "same_email"
+  | "same_relationship"
+  | "similar_names";
+
+export type MigrationParentReconciliationParent = {
+  parentId: string;
+  name: string;
+  relationship: string | null;
+  cellphone: string | null;
+  email: string | null;
+  learnerNames: string[];
+};
+
+export type MigrationParentReconciliationSuggestion = {
+  suggestionId: string;
+  status: "suggested";
+  confidence: "high" | "medium";
+  matchSignals: MigrationParentReconciliationMatchSignal[];
+  primaryParent: MigrationParentReconciliationParent;
+  duplicateParent: MigrationParentReconciliationParent;
+  action: "review_merge_or_ignore";
+  note: string;
+};
+
+export type MigrationParentReconciliationSummary = {
+  totalSuggestedMerges: number;
+  suggestions: MigrationParentReconciliationSuggestion[];
+  note: string;
+};
+
 export type MigrationReconciliationResult = {
   batchId: string;
   stageId: string;
@@ -37,6 +69,7 @@ export type MigrationReconciliationResult = {
   summary: MigrationReconciliationSummary;
   checks: MigrationReconciliationCheck[];
   accountBalanceImpact?: MigrationReconciliationAccountBalanceImpact;
+  parentReconciliation?: MigrationParentReconciliationSummary;
 };
 
 export type MigrationReconciliationRequest = {

@@ -1827,6 +1827,95 @@
   background: rgba(245, 158, 11, 0.05);
 }
 
+.uc-migration-parent-reconciliation-centre {
+  margin: 14px 0;
+  padding: 12px;
+  border-radius: 10px;
+  border: 1px solid rgba(212, 175, 55, 0.35);
+  background: rgba(10, 10, 10, 0.04);
+}
+
+.uc-migration-parent-reconciliation-header {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  gap: 8px;
+  margin-bottom: 8px;
+}
+
+.uc-migration-parent-reconciliation-header h5 {
+  margin: 0;
+  font-size: 0.9rem;
+  color: #0a0a0a;
+}
+
+.uc-migration-parent-reconciliation-header span {
+  font-size: 0.78rem;
+  font-weight: 800;
+  color: #b45309;
+}
+
+.uc-migration-parent-reconciliation-list {
+  list-style: none;
+  margin: 12px 0 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.uc-migration-parent-reconciliation-item {
+  padding: 10px;
+  border-radius: 8px;
+  border: 1px solid rgba(212, 175, 55, 0.22);
+  background: rgba(255, 255, 255, 0.82);
+}
+
+.uc-migration-parent-reconciliation-pair {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.uc-migration-parent-reconciliation-pair div {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.uc-migration-parent-reconciliation-pair strong {
+  color: #0a0a0a;
+  font-size: 0.84rem;
+}
+
+.uc-migration-parent-reconciliation-pair span {
+  color: #64748b;
+  font-size: 0.76rem;
+  font-weight: 600;
+}
+
+.uc-migration-parent-reconciliation-signals {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 10px;
+}
+
+.uc-migration-parent-reconciliation-signals span {
+  padding: 2px 8px;
+  border-radius: 999px;
+  background: rgba(212, 175, 55, 0.18);
+  color: #92400e;
+  font-size: 0.68rem;
+  font-weight: 800;
+}
+
+@media (max-width: 720px) {
+  .uc-migration-parent-reconciliation-pair {
+    grid-template-columns: 1fr;
+  }
+}
+
 /* Phase 17 — migration sign-off pack */
 .uc-migration-signoff-panel {
   margin-top: 16px;

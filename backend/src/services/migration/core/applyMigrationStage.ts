@@ -75,6 +75,10 @@ function cleanString(v: unknown): string {
   return String(v ?? "").trim();
 }
 
+function isMigrationClassroomPlaceholder(value: string | null | undefined): boolean {
+  return cleanString(value).toLowerCase() === "no classroom";
+}
+
 function buildTargetToSource(
   mappings: MigrationFileColumnMappings["mappings"]
 ): Map<MigrationTargetField, string> {
@@ -361,24 +365,6 @@ function learnerDuplicateKey(mapped: MappedRow): string {
   return `name:${names.firstName.toLowerCase()}|${names.lastName.toLowerCase()}|${classLabel.toLowerCase()}`;
 }
 
-function parentDuplicateKey(mapped: MappedRow): string {
-  const idNumber = cleanString(
-    (mapped as MappedRow & { parentIdNumber?: string }).parentIdNumber
-  );
-  if (idNumber) return `id:${idNumber.toLowerCase()}`;
-  const phone = cleanString(mapped.parentPhone);
-  const email = cleanString(mapped.parentEmail).toLowerCase();
-  const name = cleanString(mapped.parentName).toLowerCase();
-  if (phone) return `phone:${phone.replace(/\D/g, "")}`;
-  if (email) return `email:${email}`;
-  if (name) return `name:${name}`;
-  const names = parentNamesFromMapped(mapped);
-  if (names.firstName && names.surname) {
-    return `name:${names.firstName.toLowerCase()}|${names.surname.toLowerCase()}`;
-  }
-  return "";
-}
-
 function billingDuplicateKey(mapped: MappedRow): string {
   const account = cleanString(mapped.accountNumber);
   return account ? `acct:${account.toLowerCase()}` : "";
@@ -547,7 +533,6 @@ export async function applyMigrationStage(
     }
 
     const seenLearners = new Set<string>();
-    const seenParents = new Set<string>();
     const seenBilling = new Set<string>();
     const seenEmployees = new Set<string>();
     const seenClassrooms = new Set<string>();
@@ -761,110 +746,68 @@ export async function applyMigrationStage(
           let parentId: string | null = null;
 
           if (applyParents) {
-            const parentKey = parentDuplicateKey(mapped);
-            if (!parentKey) {
-              pushReport(report, {
-                entityType: "parent",
-                sourceFileId: plan.fileId,
-                sourceFilename: plan.filename,
-                rowNumber,
-                status: "failed",
-                message: "Parent row missing phone, email, or name",
-              });
-              bumpCount(failedCounts, "parent");
-            } else if (seenParents.has(parentKey)) {
+            const parentKey = `source:${plan.fileId}:row:${rowNumber}`;
+            const names = parentNamesFromMapped(mapped);
+            const mobile = cleanString(mapped.parentPhone);
+            const email = cleanString(mapped.parentEmail) || null;
+            const parentIdNumber =
+              cleanString((mapped as MappedRow & { parentIdNumber?: string }).parentIdNumber) ||
+              null;
+            const phone = mobile ? normalizeSaPhone(mobile) : null;
+            const existing = parentIdNumber
+              ? await tx.parent.findFirst({
+                  where: { schoolId: targetSchoolId, idNumber: parentIdNumber },
+                  select: { id: true },
+                })
+              : null;
+
+            if (existing) {
+              parentId = existing.id;
               pushReport(report, {
                 entityType: "parent",
                 sourceFileId: plan.fileId,
                 sourceFilename: plan.filename,
                 rowNumber,
                 status: "skipped",
-                message: "Duplicate parent in import batch",
+                message: "Parent already exists for this school by ID number",
                 key: parentKey,
+                recordId: existing.id,
               });
               bumpCount(skippedCounts, "parent");
             } else {
-              const names = parentNamesFromMapped(mapped);
-              const mobile = cleanString(mapped.parentPhone);
-              const email = cleanString(mapped.parentEmail) || null;
-              const parentIdNumber =
-                cleanString((mapped as MappedRow & { parentIdNumber?: string }).parentIdNumber) ||
-                null;
-              const phone = mobile ? normalizeSaPhone(mobile) : null;
-              const orClause: object[] = [];
-              if (parentIdNumber) orClause.push({ idNumber: parentIdNumber });
-              if (email) orClause.push({ email });
-              if (phone) {
-                orClause.push(
-                  { cellNo: mobile },
-                  { cellNo: phone.localCell },
-                  { cellNo: phone.internationalCell }
-                );
-              }
-              if (!orClause.length && parentKey.startsWith("name:")) {
-                orClause.push({
+              const workPhone = cleanString(
+                (mapped as MappedRow & { parentWorkPhone?: string }).parentWorkPhone
+              );
+              const created = await tx.parent.create({
+                data: {
+                  schoolId: targetSchoolId,
+                  familyAccountId,
                   firstName: names.firstName,
                   surname: names.surname,
-                });
-              }
-
-              const existing = orClause.length
-                ? await tx.parent.findFirst({
-                    where: { schoolId: targetSchoolId, OR: orClause },
-                    select: { id: true },
-                  })
-                : null;
-
-              if (existing) {
-                parentId = existing.id;
-                seenParents.add(parentKey);
-                pushReport(report, {
-                  entityType: "parent",
-                  sourceFileId: plan.fileId,
-                  sourceFilename: plan.filename,
-                  rowNumber,
-                  status: "skipped",
-                  message: "Parent already exists for this school",
-                  key: parentKey,
-                  recordId: existing.id,
-                });
-                bumpCount(skippedCounts, "parent");
-              } else {
-                const workPhone = cleanString(
-                  (mapped as MappedRow & { parentWorkPhone?: string }).parentWorkPhone
-                );
-                const created = await tx.parent.create({
-                  data: {
-                    schoolId: targetSchoolId,
-                    familyAccountId,
-                    firstName: names.firstName,
-                    surname: names.surname,
-                    cellNo: mobile || phone?.localCell || "",
-                    email,
-                    idNumber: parentIdNumber,
-                    relationship: cleanString(mapped.relationship) || null,
-                    homeAddress: cleanString(mapped.address) || null,
-                    workNo: workPhone || null,
-                    notes:
-                      cleanString((mapped as MappedRow & { parentNotes?: string }).parentNotes) ||
-                      null,
-                  },
-                  select: { id: true },
-                });
-                parentId = created.id;
-                seenParents.add(parentKey);
-                pushReport(report, {
-                  entityType: "parent",
-                  sourceFileId: plan.fileId,
-                  sourceFilename: plan.filename,
-                  rowNumber,
-                  status: "created",
-                  message: "Parent created",
-                  key: parentKey,
-                  recordId: created.id,
-                });
-                bumpCount(createdCounts, "parent");
-              }
+                  cellNo: mobile || phone?.localCell || "",
+                  email,
+                  idNumber: parentIdNumber,
+                  relationship: cleanString(mapped.relationship) || null,
+                  homeAddress: cleanString(mapped.address) || null,
+                  workNo: workPhone || null,
+                  notes:
+                    cleanString((mapped as MappedRow & { parentNotes?: string }).parentNotes) ||
+                    null,
+                },
+                select: { id: true },
+              });
+              parentId = created.id;
+              pushReport(report, {
+                entityType: "parent",
+                sourceFileId: plan.fileId,
+                sourceFilename: plan.filename,
+                rowNumber,
+                status: "created",
+                message: "Parent created",
+                key: parentKey,
+                recordId: created.id,
+              });
+              bumpCount(createdCounts, "parent");
             }
 
             if (applyParentLinks && parentId) {
@@ -937,7 +880,11 @@ export async function applyMigrationStage(
             );
             const canonicalClass = classNorm.classroomName || null;
 
-            if (canonicalClass && !seenClassrooms.has(canonicalClass)) {
+            if (
+              canonicalClass &&
+              !isMigrationClassroomPlaceholder(canonicalClass) &&
+              !seenClassrooms.has(canonicalClass)
+            ) {
               const classroom = await tx.classroom.upsert({
                 where: {
                   schoolId_name: { schoolId: targetSchoolId, name: canonicalClass },

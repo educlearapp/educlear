@@ -18,6 +18,7 @@ import type {
   MigrationReconciliationStatus,
   MigrationReconciliationSummary,
 } from "../types/MigrationReconciliation";
+import { buildParentReconciliationCentre } from "./parentReconciliationCentre";
 
 const MIGRATION_LEDGER_SOURCE = "universal_migration_phase14";
 const REVERSAL_SOURCE = "universal_migration_reversal_phase15";
@@ -222,6 +223,23 @@ export async function reconcileMigrationBatch(
       stagedCounts.parents === countReportRows(reportRows, "parent")
         ? "Staged parent count matches parent report rows."
         : `Staged ${stagedCounts.parents} parent(s); report has ${countReportRows(reportRows, "parent")} parent row(s).`,
+  });
+
+  const parentReconciliation = await buildParentReconciliationCentre({
+    targetSchoolId,
+    reportRows,
+  });
+
+  pushCheck(checks, {
+    id: "parent_reconciliation_centre",
+    check: "Parent Reconciliation Centre suggested merges",
+    expected: "Imported parent rows are preserved; likely duplicates are suggested after migration.",
+    actual: `${parentReconciliation.totalSuggestedMerges} suggested merge(s)`,
+    status: parentReconciliation.totalSuggestedMerges > 0 ? "warning" : "pass",
+    message:
+      parentReconciliation.totalSuggestedMerges > 0
+        ? "Review suggested parent merges after migration; merge or ignore manually."
+        : "No deterministic parent merge suggestions found for imported parent records.",
   });
 
   pushCheck(checks, {
@@ -611,5 +629,6 @@ export async function reconcileMigrationBatch(
       reversalCount: batch.status === "rolled_back" ? reversalLedger.length : undefined,
       note: "Signed net on billing-ledger.json; not a live GL balance.",
     },
+    parentReconciliation,
   };
 }

@@ -95,16 +95,6 @@ function learnerDuplicateKey(mapped: MappedRow): string {
   return `name:${names.firstName.toLowerCase()}|${names.lastName.toLowerCase()}|${classLabel.toLowerCase()}`;
 }
 
-function parentDuplicateKey(mapped: MappedRow): string {
-  const phone = cleanString(mapped.parentPhone);
-  const email = cleanString(mapped.parentEmail).toLowerCase();
-  const name = cleanString(mapped.parentName).toLowerCase();
-  if (phone) return `phone:${phone.replace(/\D/g, "")}`;
-  if (email) return `email:${email}`;
-  if (name) return `name:${name}`;
-  return "";
-}
-
 function billingDuplicateKey(mapped: MappedRow): string {
   const account = cleanString(mapped.accountNumber);
   return account ? `acct:${account.toLowerCase()}` : "";
@@ -201,7 +191,6 @@ export async function computeMigrationApplyPreview(
   }
 
   const seenLearners = new Set<string>();
-  const seenParents = new Set<string>();
   const seenBilling = new Set<string>();
   let learnerCreates = 0;
   let parentCreates = 0;
@@ -242,10 +231,6 @@ export async function computeMigrationApplyPreview(
       }
 
       if (applyParents) {
-        const parentKey = parentDuplicateKey(mapped);
-        if (!parentKey) continue;
-        if (seenParents.has(parentKey)) continue;
-        seenParents.add(parentKey);
         parentCreates += 1;
 
         const learnerKey = learnerDuplicateKey(mapped);
