@@ -159,6 +159,7 @@ export default function UniversalMigrationApplySection({ onNotice }: Props) {
     const hasTransactionFiles = (stage.stagedCounts?.transactions ?? 0) > 0;
     return {
       hasTransactionFiles,
+      eligibleActiveTransactions: transactionReadiness?.eligibleActiveTransactions ?? 0,
       blockedTransactions: transactionReadiness?.blockedTransactions ?? 0,
       unmatchedTransactions: transactionReadiness?.unmatchedTransactions ?? 0,
       cutoverDate: stage.cutoverDate ?? null,
@@ -203,7 +204,12 @@ export default function UniversalMigrationApplySection({ onNotice }: Props) {
     }
     if (
       transactionGate?.hasTransactionFiles &&
-      !String(transactionGate.cutoverDate || "").trim()
+      !String(transactionGate.cutoverDate || "").trim() &&
+      !(
+        transactionGate.eligibleActiveTransactions === 0 &&
+        transactionGate.blockedTransactions === 0 &&
+        transactionGate.unmatchedTransactions === 0
+      )
     ) {
       return "Cutover date is required before applying transaction files. Re-stage the dry run with a cutover date.";
     }

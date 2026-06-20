@@ -32,6 +32,7 @@ export const MIGRATION_CHECKLIST_MANUAL_KEYS: MigrationChecklistItemKey[] = [
 
 export type MigrationTransactionReadinessGate = {
   hasTransactionFiles: boolean;
+  eligibleActiveTransactions: number;
   blockedTransactions: number;
   unmatchedTransactions: number;
   cutoverDate?: string | null;
@@ -73,10 +74,18 @@ export function buildMigrationChecklist(
 
   const gate = auto.transactionGate;
   const hasTx = Boolean(gate?.hasTransactionFiles);
-  const needsProceedOverride =
+  const eligibleActiveTransactions = gate?.eligibleActiveTransactions ?? 0;
+  const blockedTransactions = gate?.blockedTransactions ?? 0;
+  const unmatchedTransactions = gate?.unmatchedTransactions ?? 0;
+  const hasNoApplicableTransactions =
     hasTx &&
-    ((gate?.blockedTransactions ?? 0) > 0 || (gate?.unmatchedTransactions ?? 0) > 0);
-  const cutoverOk = !hasTx || Boolean(String(gate?.cutoverDate || "").trim());
+    eligibleActiveTransactions === 0 &&
+    blockedTransactions === 0 &&
+    unmatchedTransactions === 0;
+  const needsProceedOverride =
+    hasTx && !hasNoApplicableTransactions && (blockedTransactions > 0 || unmatchedTransactions > 0);
+  const cutoverOk =
+    !hasTx || hasNoApplicableTransactions || Boolean(String(gate?.cutoverDate || "").trim());
   const proceedAutoOk = !needsProceedOverride && cutoverOk;
 
   const items: MigrationChecklistItems = {
