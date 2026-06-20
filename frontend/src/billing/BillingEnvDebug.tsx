@@ -2,10 +2,14 @@ import { useEffect, useState } from "react";
 import { API_URL } from "../api";
 import { fetchBillingServerEnv } from "./billingApi";
 
+const SOURCE_BUILD_LABEL = "pdf-reconciliation-20260620";
+
 const BUILD_LABEL =
-  import.meta.env.VITE_FEE_CHECK_BUILD_ID ||
-  import.meta.env.VITE_APP_VERSION ||
-  "dev";
+  import.meta.env.VITE_FEE_CHECK_BUILD_ID === "32715bd-rollback"
+    ? SOURCE_BUILD_LABEL
+    : import.meta.env.VITE_FEE_CHECK_BUILD_ID ||
+      import.meta.env.VITE_APP_VERSION ||
+      SOURCE_BUILD_LABEL;
 
 /** Visible only with `?debug=true` or `localStorage.showBillingDebug=true`. */
 export function isBillingDebugVisible(): boolean {
