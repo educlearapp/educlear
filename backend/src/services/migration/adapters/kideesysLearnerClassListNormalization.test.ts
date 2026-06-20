@@ -91,6 +91,47 @@ function testChildListSixExtraFieldsMapsColumnBName(): void {
   assert.strictEqual(parsed.rows[0].classroom, "Grade 2A");
 }
 
+function testNurseryClassTitleDefaultsStatusActive(): void {
+  const matrix = [
+    ["1-2YR DUMBO CLASS 2026"],
+    ["1", "Jane Mary Doe"],
+    ["2", "John James Smith"],
+  ];
+
+  assert.strictEqual(isKidESysLearnerClassListLayout(matrix), true);
+  const parsed = normalizeKidESysLearnerClassListSheet(matrix, "class_list.xls");
+  assert.ok(parsed);
+  assert.deepStrictEqual(parsed.headers, ["fullName", "status", "classroom"]);
+  assert.strictEqual(parsed.rows.length, 2);
+  assert.strictEqual(parsed.rows[0].fullName, "Jane Mary Doe");
+  assert.strictEqual(parsed.rows[0].status, "ACTIVE");
+  assert.strictEqual(parsed.rows[0].classroom, "1-2YR DUMBO CLASS");
+}
+
+function testGradeRAndActiveListTitlesDefaultStatusActive(): void {
+  const gradeR = normalizeKidESysLearnerClassListSheet(
+    [
+      ["6yr olds: GRADE R Bright Bee's"],
+      ["1", "Jane Mary Doe"],
+    ],
+    "class_list.xls"
+  );
+  assert.ok(gradeR);
+  assert.strictEqual(gradeR.rows[0].status, "ACTIVE");
+  assert.strictEqual(gradeR.rows[0].classroom, "6yr olds: GRADE R Bright Bee's");
+
+  const activeList = normalizeKidESysLearnerClassListSheet(
+    [
+      ["ACTIVE OUTSIDER SWIMMING"],
+      ["1", "John James Smith"],
+    ],
+    "class_list.xls"
+  );
+  assert.ok(activeList);
+  assert.strictEqual(activeList.rows[0].status, "ACTIVE");
+  assert.strictEqual(activeList.rows[0].classroom, "ACTIVE OUTSIDER SWIMMING");
+}
+
 function testGrade1AFileIfPresent(): void {
   if (!fs.existsSync(SAMPLE)) return;
   const buffer = fs.readFileSync(SAMPLE);
@@ -105,5 +146,7 @@ function testGrade1AFileIfPresent(): void {
 testSyntheticLayout();
 testStandardHeaderSheetNotNormalized();
 testChildListSixExtraFieldsMapsColumnBName();
+testNurseryClassTitleDefaultsStatusActive();
+testGradeRAndActiveListTitlesDefaultStatusActive();
 testGrade1AFileIfPresent();
 console.log("kideesysLearnerClassListNormalization.test.ts: ok");

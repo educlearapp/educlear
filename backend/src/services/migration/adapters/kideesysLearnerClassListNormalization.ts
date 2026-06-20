@@ -45,11 +45,15 @@ export function isKidESysClassListTitleCell(value: string): boolean {
 
   const withoutYear = v.replace(/\s+20\d{2}\s*$/i, "").trim();
 
+  if (/^no\s+classroom$/i.test(withoutYear)) return true;
   if (/^creche(\s+20\d{2})?$/i.test(v)) return true;
   if (/^reception(\s+20\d{2})?$/i.test(v)) return true;
   if (/^rrr?(\s+20\d{2})?$/i.test(withoutYear)) return true;
   if (/^pre[-\s]?school(\s+20\d{2})?$/i.test(withoutYear)) return true;
   if (/^preschool(\s+20\d{2})?$/i.test(withoutYear)) return true;
+  if (/\bclass$/i.test(withoutYear)) return true;
+  if (/\bgrade\s*r\b/i.test(withoutYear)) return true;
+  if (/^active\b/i.test(withoutYear)) return true;
 
   // Exclude fee descriptions like "GRADE 8" (no class stream letter).
   if (/^grade\s+\d{1,2}$/i.test(withoutYear)) return false;
@@ -177,7 +181,10 @@ function findChildListHeaderRow(
   matrix: string[][],
   titleRowIndex: number
 ): { title: string; headerRowIndex: number; extraHeaders: ChildListExtraHeader[] } | null {
-  const title = childListTitleFromRow(matrix[titleRowIndex] || []);
+  const titleRow = matrix[titleRowIndex] || [];
+  const title =
+    childListTitleFromRow(titleRow) ||
+    (isKidESysChildListTitleCell(rowText(titleRow, 0)) ? rowText(titleRow, 0) : "");
   if (!title) return null;
 
   for (const headerRowIndex of [titleRowIndex, titleRowIndex + 1]) {

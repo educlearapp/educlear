@@ -65,6 +65,15 @@ function getMappedValue(
   return row[source];
 }
 
+function hasMappedStatusValues(
+  rows: Record<string, unknown>[],
+  targetToSource: Map<MigrationTargetField, string>
+): boolean {
+  const source = targetToSource.get("status");
+  if (!source) return false;
+  return rows.some((row) => cellString(row[source]).length > 0);
+}
+
 function hasTransactionMappings(targetToSource: Map<MigrationTargetField, string>): boolean {
   for (const field of TRANSACTION_FIELDS) {
     if (targetToSource.has(field as MigrationTargetField)) return true;
@@ -92,6 +101,7 @@ export function validateLearnerStatusRows(
   const issues: MigrationValidationIssue[] = [];
   const targetToSource = buildTargetToSource(input.fileMappings?.mappings ?? []);
   const statusMapped = targetToSource.has("status");
+  const statusHasValues = hasMappedStatusValues(input.rows, targetToSource);
   const isKidESysClassList =
     input.preview.category === "learners" && isKidESysLearnerClassListPreview(input.preview);
 
@@ -110,7 +120,7 @@ export function validateLearnerStatusRows(
     );
   }
 
-  if (isKidESysClassList && !statusMapped) {
+  if (isKidESysClassList && (!statusMapped || !statusHasValues)) {
     return issues;
   }
 
