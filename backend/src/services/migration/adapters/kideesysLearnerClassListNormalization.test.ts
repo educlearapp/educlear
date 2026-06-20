@@ -36,6 +36,60 @@ function testStandardHeaderSheetNotNormalized(): void {
   assert.strictEqual(normalizeKidESysLearnerClassListSheet(matrix, "learners.csv"), null);
 }
 
+function testChildListSixExtraFieldsMapsColumnBName(): void {
+  const matrix = [
+    [
+      "Grade 2A 2026",
+      "",
+      "Age",
+      "Birth Date",
+      "Gender",
+      "Parent 1 Contact Info",
+      "Parent 2 Contact Info",
+      "Enrolment Date",
+    ],
+    [
+      "1",
+      "Jane Mary Doe",
+      "8",
+      "2018/04/05",
+      "F",
+      "Mother - 0821234567",
+      "Father - 0831234567",
+      "2026/01/10",
+    ],
+    [
+      "2",
+      "John James Smith",
+      "8",
+      "2018/06/12",
+      "M",
+      "Guardian - 0841234567",
+      "",
+      "2026/01/10",
+    ],
+  ];
+
+  assert.strictEqual(isKidESysLearnerClassListLayout(matrix), true);
+  const parsed = normalizeKidESysLearnerClassListSheet(matrix, "child_list.xls");
+  assert.ok(parsed);
+  assert.deepStrictEqual(parsed.headers, [
+    "fullName",
+    "Age",
+    "Birth Date",
+    "Gender",
+    "Parent 1 Contact Info",
+    "Parent 2 Contact Info",
+    "Enrolment Date",
+    "classroom",
+  ]);
+  assert.strictEqual(parsed.rows.length, 2);
+  assert.strictEqual(parsed.rows[0].fullName, "Jane Mary Doe");
+  assert.strictEqual(parsed.rows[0]["Birth Date"], "2018/04/05");
+  assert.strictEqual(parsed.rows[0]["Parent 1 Contact Info"], "Mother - 0821234567");
+  assert.strictEqual(parsed.rows[0].classroom, "Grade 2A");
+}
+
 function testGrade1AFileIfPresent(): void {
   if (!fs.existsSync(SAMPLE)) return;
   const buffer = fs.readFileSync(SAMPLE);
@@ -49,5 +103,6 @@ function testGrade1AFileIfPresent(): void {
 
 testSyntheticLayout();
 testStandardHeaderSheetNotNormalized();
+testChildListSixExtraFieldsMapsColumnBName();
 testGrade1AFileIfPresent();
 console.log("kideesysLearnerClassListNormalization.test.ts: ok");

@@ -145,7 +145,8 @@ export async function readMigrationFileRows(
     category === "learners" &&
     columns.includes("fullName") &&
     rowCount > 0 &&
-    isLearnerClassExportFilename(haystack, basename)
+    (isLearnerClassExportFilename(haystack, basename) ||
+      (haystack.includes("childlist") && columns.includes("classroom")))
   ) {
     const classroom = columns.includes("classroom")
       ? String(rows[0]?.classroom ?? "").trim()

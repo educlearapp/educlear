@@ -46,6 +46,8 @@ const KIDEESYS_EXACT_COLUMN_MAP: Record<string, MigrationTargetField> = {
   credit: "credit",
   description: "description",
   transactiontype: "transactionType",
+  enrolmentdate: "admissionDate",
+  enrollmentdate: "admissionDate",
 };
 
 /**
