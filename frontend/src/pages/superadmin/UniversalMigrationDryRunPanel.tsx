@@ -52,8 +52,14 @@ export default function UniversalMigrationDryRunPanel({
   cutoverDate,
 }: Props) {
   const isKidESys = sourceSystem.trim() === "kideesys";
-  const { kidESysReadiness, kidESysReadinessBusy, kidESysReadinessError } =
-    useUniversalMigrationWorkflow();
+  const {
+    kidESysReadiness,
+    kidESysReadinessBusy,
+    kidESysReadinessError,
+    selectedSessionSchoolId,
+    dryRunStage,
+    setDryRunStage,
+  } = useUniversalMigrationWorkflow();
 
   const [stageBusy, setStageBusy] = useState(false);
   const [listBusy, setListBusy] = useState(false);
@@ -82,6 +88,10 @@ export default function UniversalMigrationDryRunPanel({
     void refreshStageList();
   }, [refreshStageList]);
 
+  useEffect(() => {
+    setActiveStage(dryRunStage);
+  }, [dryRunStage]);
+
   const handleCreateStage = useCallback(async () => {
     if (!canCreateStage) return;
     setStageBusy(true);
@@ -92,6 +102,7 @@ export default function UniversalMigrationDryRunPanel({
       );
       const stage = await createUniversalMigrationStage({
         sourceSystem: sourceSystem.trim() || "unknown",
+        schoolId: selectedSessionSchoolId.trim() || undefined,
         previews,
         filePaths,
         mappings,
@@ -100,6 +111,7 @@ export default function UniversalMigrationDryRunPanel({
         ...(cutoverDate ? { cutoverDate } : {}),
       });
       setActiveStage(stage);
+      setDryRunStage(stage);
       await refreshStageList();
     } catch (e: unknown) {
       setError(e instanceof Error ? e.message : "Failed to create dry run");
@@ -109,12 +121,14 @@ export default function UniversalMigrationDryRunPanel({
   }, [
     canCreateStage,
     sourceSystem,
+    selectedSessionSchoolId,
     previews,
     uploadedFiles,
     mappings,
     validationSummary,
     validationIssues,
     cutoverDate,
+    setDryRunStage,
     refreshStageList,
   ]);
 
@@ -139,6 +153,7 @@ export default function UniversalMigrationDryRunPanel({
       try {
         await deleteUniversalMigrationStage(stageId);
         if (activeStage?.stageId === stageId) setActiveStage(null);
+        if (dryRunStage?.stageId === stageId) setDryRunStage(null);
         await refreshStageList();
       } catch (e: unknown) {
         setError(e instanceof Error ? e.message : "Failed to delete dry run");
@@ -146,7 +161,7 @@ export default function UniversalMigrationDryRunPanel({
         setStageBusy(false);
       }
     },
-    [activeStage?.stageId, refreshStageList]
+    [activeStage?.stageId, dryRunStage?.stageId, setDryRunStage, refreshStageList]
   );
 
   return (

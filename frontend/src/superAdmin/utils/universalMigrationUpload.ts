@@ -29,12 +29,15 @@ export type UniversalMigrationUploadResponse = {
 
 export async function uploadUniversalMigrationFiles(
   files: File[],
+  input?: { schoolId?: string; sourceSystem?: string },
   onProgress?: (percent: number) => void
 ): Promise<UniversalMigrationUploadResponse> {
   const formData = new FormData();
   for (const file of files) {
     formData.append("files", file);
   }
+  if (input?.schoolId?.trim()) formData.append("schoolId", input.schoolId.trim());
+  if (input?.sourceSystem?.trim()) formData.append("sourceSystem", input.sourceSystem.trim());
   const data = (await superAdminApiUpload("/api/migration/upload", formData, onProgress)) as
     | UniversalMigrationUploadResponse
     | { error?: string };

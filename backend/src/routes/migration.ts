@@ -126,6 +126,11 @@ import {
   getStage,
   listStages,
 } from "../services/migration/staging";
+import {
+  clearMigrationSession,
+  getMigrationSession,
+  saveMigrationSession,
+} from "../services/migration/core/migrationSessionStore";
 import type { MigrationFile } from "../services/migration/types/MigrationFile";
 import type { MigrationFilePreview } from "../services/migration/types/MigrationFilePreview";
 import type {
@@ -180,6 +185,45 @@ const universalUploadDisk = multer({
 /** Universal Migration Framework — POST /api/migration/upload */
 export const migrationUploadRouter = Router();
 
+migrationUploadRouter.get("/sessions/:schoolId", (req, res) => {
+  try {
+    const schoolId = String(req.params.schoolId || "").trim();
+    if (!schoolId) return jsonError(res, 400, "schoolId required");
+    const session = getMigrationSession(schoolId);
+    return res.json({ success: true, session });
+  } catch (e: unknown) {
+    console.error("migration/sessions get", e);
+    const message = e instanceof Error ? e.message : "Failed to load migration session";
+    return jsonError(res, 500, message);
+  }
+});
+
+migrationUploadRouter.put("/sessions/:schoolId", (req, res) => {
+  try {
+    const schoolId = String(req.params.schoolId || "").trim();
+    if (!schoolId) return jsonError(res, 400, "schoolId required");
+    const session = saveMigrationSession(schoolId, req.body ?? {});
+    return res.json({ success: true, session });
+  } catch (e: unknown) {
+    console.error("migration/sessions save", e);
+    const message = e instanceof Error ? e.message : "Failed to save migration session";
+    return jsonError(res, 500, message);
+  }
+});
+
+migrationUploadRouter.delete("/sessions/:schoolId", (req, res) => {
+  try {
+    const schoolId = String(req.params.schoolId || "").trim();
+    if (!schoolId) return jsonError(res, 400, "schoolId required");
+    clearMigrationSession(schoolId);
+    return res.json({ success: true, schoolId });
+  } catch (e: unknown) {
+    console.error("migration/sessions clear", e);
+    const message = e instanceof Error ? e.message : "Failed to clear migration session";
+    return jsonError(res, 500, message);
+  }
+});
+
 migrationUploadRouter.post(
   "/upload",
   universalUploadDisk.array("files", UNIVERSAL_UPLOAD_MAX_FILES),
@@ -231,6 +275,22 @@ migrationUploadRouter.post(
         };
       });
 
+      const schoolId = String(req.body?.schoolId || "").trim();
+      if (schoolId) {
+        const sourceSystem = String(req.body?.sourceSystem || "").trim() || undefined;
+        const existing = getMigrationSession(schoolId);
+        saveMigrationSession(schoolId, {
+          ...(sourceSystem ? { sourceSystem } : {}),
+          uploadedFiles: [...files, ...(existing?.uploadedFiles ?? [])],
+          previews: existing?.previews ?? [],
+          mappingSuggestions: existing?.mappingSuggestions ?? [],
+          mappingOverrides: existing?.mappingOverrides ?? {},
+          validationSummary: null,
+          validationIssues: [],
+          dryRunStage: null,
+        });
+      }
+
       return res.json({ success: true, files });
     } catch (e: unknown) {
       console.error("migration/upload", e);
@@ -249,6 +309,7 @@ migrationUploadRouter.post("/preview", async (req, res) => {
     }
 
     const sourceSystem = String(req.body?.sourceSystem || "").trim() || undefined;
+    const schoolId = String(req.body?.schoolId || "").trim();
 
     const previews = [];
     for (const raw of rawFiles) {
@@ -272,6 +333,20 @@ migrationUploadRouter.post("/preview", async (req, res) => {
       previews.push(await readMigrationFilePreview(migrationFile, { sourceSystem }));
     }
 
+    if (schoolId) {
+      const existing = getMigrationSession(schoolId);
+      const byId = new Map((existing?.previews ?? []).map((p) => [p.fileId, p]));
+      for (const preview of previews) byId.set(preview.fileId, preview);
+      saveMigrationSession(schoolId, {
+        ...(sourceSystem ? { sourceSystem } : {}),
+        uploadedFiles: existing?.uploadedFiles ?? [],
+        previews: Array.from(byId.values()),
+        validationSummary: null,
+        validationIssues: [],
+        dryRunStage: null,
+      });
+    }
+
     return res.json({ success: true, previews });
   } catch (e: unknown) {
     console.error("migration/preview", e);
@@ -289,6 +364,7 @@ migrationUploadRouter.post("/mappings/suggest", (req, res) => {
     }
 
     const systemId = String(req.body?.systemId || "").trim() || undefined;
+    const schoolId = String(req.body?.schoolId || "").trim();
 
     const suggestions = [];
     for (const raw of rawPreviews) {
@@ -313,6 +389,24 @@ migrationUploadRouter.post("/mappings/suggest", (req, res) => {
           systemId,
         })
       );
+    }
+
+    if (schoolId) {
+      const existing = getMigrationSession(schoolId);
+      const byId = new Map(
+        (existing?.mappingSuggestions ?? []).map((s) => [
+          String((s as { fileId?: string }).fileId || ""),
+          s,
+        ])
+      );
+      for (const suggestion of suggestions) byId.set(suggestion.fileId, suggestion);
+      saveMigrationSession(schoolId, {
+        ...(systemId ? { sourceSystem: systemId } : {}),
+        mappingSuggestions: Array.from(byId.values()),
+        validationSummary: null,
+        validationIssues: [],
+        dryRunStage: null,
+      });
     }
 
     return res.json({ success: true, suggestions });
@@ -435,6 +529,7 @@ migrationUploadRouter.post("/validate", async (req, res) => {
     const rawMappings = req.body?.mappings;
     const mode = req.body?.mode === "full" ? "full" : "preview";
     const rawFilePaths = req.body?.filePaths;
+    const schoolId = String(req.body?.schoolId || "").trim();
     if (!Array.isArray(rawPreviews) || rawPreviews.length === 0) {
       return jsonError(res, 400, "previews array required");
     }
@@ -497,6 +592,16 @@ migrationUploadRouter.post("/validate", async (req, res) => {
       filePaths,
       cutoverDate,
     });
+    if (schoolId) {
+      saveMigrationSession(schoolId, {
+        previews,
+        validationSummary: summary,
+        validationIssues: issues,
+        validationMode: mode,
+        cutoverDate: cutoverDate ?? "",
+        dryRunStage: null,
+      });
+    }
     return res.json({ success: true, summary, issues });
   } catch (e: unknown) {
     console.error("migration/validate", e);
@@ -750,6 +855,7 @@ migrationUploadRouter.post("/stage", async (req, res) => {
     const rawPreviews = req.body?.previews;
     const rawMappings = req.body?.mappings;
     const rawSummary = req.body?.validationSummary;
+    const schoolId = String(req.body?.schoolId || "").trim();
 
     if (!sourceSystem) return jsonError(res, 400, "sourceSystem is required");
     if (!Array.isArray(rawPreviews) || rawPreviews.length === 0) {
@@ -880,6 +986,18 @@ migrationUploadRouter.post("/stage", async (req, res) => {
     });
 
     createStage(stage);
+    if (schoolId) {
+      saveMigrationSession(schoolId, {
+        sourceSystem,
+        previews,
+        mappingOverrides: getMigrationSession(schoolId)?.mappingOverrides ?? {},
+        validationSummary,
+        validationIssues: issues,
+        validationMode,
+        cutoverDate: cutoverDate ?? "",
+        dryRunStage: stage,
+      });
+    }
     return res.json({ success: true, stage });
   } catch (e: unknown) {
     console.error("migration/stage create", e);
@@ -952,6 +1070,7 @@ migrationUploadRouter.post("/apply", async (req, res) => {
       confirmationText,
       proceedWithEligibleActiveOnly,
     });
+    clearMigrationSession(targetSchoolId);
 
     return res.json({ success: true, result });
   } catch (e: unknown) {

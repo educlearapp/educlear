@@ -56,6 +56,15 @@ import {
   fetchKidESysMigrationReadiness,
   type KidESysMigrationReadinessResult,
 } from "../../superAdmin/utils/universalMigrationKidESysReadiness";
+import {
+  clearUniversalMigrationSession,
+  fetchUniversalMigrationSession,
+  saveUniversalMigrationSession,
+  type PersistentUniversalMigrationSessionPatch,
+} from "../../superAdmin/utils/universalMigrationSession";
+import { fetchMigrationTargetSchools } from "../../superAdmin/utils/migrationTargetSchools";
+import type { SchoolOption } from "../../superAdmin/types/migration";
+import type { MigrationStage } from "../../superAdmin/utils/universalMigrationStage";
 
 export type UniversalMigrationWorkflowContextValue = {
   uploadedFiles: UniversalMigrationUploadedFile[];
@@ -80,6 +89,12 @@ export type UniversalMigrationWorkflowContextValue = {
   setLoadTemplateOpen: (open: boolean) => void;
   sourceSystem: string;
   setSourceSystem: (value: string) => void;
+  selectedSessionSchoolId: string;
+  setSelectedSessionSchoolId: (value: string) => void;
+  targetSchools: SchoolOption[];
+  targetSchoolsLoading: boolean;
+  sessionRestoreBusy: boolean;
+  sessionNotice: string | null;
   registrySystems: MigrationSystemResearch[];
   registrySystemsLoading: boolean;
   registrySystemsError: string | null;
@@ -103,6 +118,8 @@ export type UniversalMigrationWorkflowContextValue = {
   handleApplyTemplate: (template: MigrationMappingTemplate) => void;
   handleExportValidation: () => Promise<void>;
   uploadFiles: (fileList: FileList | File[]) => Promise<void>;
+  dryRunStage: MigrationStage | null;
+  setDryRunStage: (stage: MigrationStage | null) => void;
   kidESysReadiness: KidESysMigrationReadinessResult | null;
   kidESysReadinessBusy: boolean;
   kidESysReadinessError: string | null;
@@ -140,7 +157,12 @@ export function UniversalMigrationWorkflowProvider({ children }: { children: Rea
   const [templateNotice, setTemplateNotice] = useState<string | null>(null);
   const [saveTemplateOpen, setSaveTemplateOpen] = useState(false);
   const [loadTemplateOpen, setLoadTemplateOpen] = useState(false);
-  const [sourceSystem, setSourceSystem] = useState("generic-excel-csv");
+  const [sourceSystem, setSourceSystemState] = useState("generic-excel-csv");
+  const [selectedSessionSchoolId, setSelectedSessionSchoolId] = useState("");
+  const [targetSchools, setTargetSchools] = useState<SchoolOption[]>([]);
+  const [targetSchoolsLoading, setTargetSchoolsLoading] = useState(true);
+  const [sessionRestoreBusy, setSessionRestoreBusy] = useState(false);
+  const [sessionNotice, setSessionNotice] = useState<string | null>(null);
   const [registrySystems, setRegistrySystems] = useState<MigrationSystemResearch[]>([]);
   const [registrySystemsLoading, setRegistrySystemsLoading] = useState(true);
   const [registrySystemsError, setRegistrySystemsError] = useState<string | null>(null);
@@ -154,11 +176,147 @@ export function UniversalMigrationWorkflowProvider({ children }: { children: Rea
   const [exportBusy, setExportBusy] = useState(false);
   const [adapterTestBusy, setAdapterTestBusy] = useState(false);
   const [adapterTestResult, setAdapterTestResult] = useState<MigrationAdapterTestResult | null>(null);
+  const [dryRunStage, setDryRunStage] = useState<MigrationStage | null>(null);
   const [kidESysReadiness, setKidESysReadiness] = useState<KidESysMigrationReadinessResult | null>(
     null
   );
   const [kidESysReadinessBusy, setKidESysReadinessBusy] = useState(false);
   const [kidESysReadinessError, setKidESysReadinessError] = useState<string | null>(null);
+
+  const resetLocalWorkflowState = useCallback(() => {
+    setUploadedFiles([]);
+    setPreviews([]);
+    setMappingSuggestions([]);
+    setMappingOverrides({});
+    setValidationSummary(null);
+    setValidationIssues([]);
+    setValidationNotice(null);
+    setError(null);
+    setTemplateNotice(null);
+    setAdapterTestResult(null);
+    setDryRunStage(null);
+    setKidESysReadiness(null);
+    setKidESysReadinessError(null);
+    clearMigrationAdapterTestSession();
+  }, []);
+
+  const persistSession = useCallback(
+    (patch: PersistentUniversalMigrationSessionPatch) => {
+      const schoolId = selectedSessionSchoolId.trim();
+      if (!schoolId) return;
+      void saveUniversalMigrationSession(schoolId, patch).catch((e: unknown) => {
+        setSessionNotice(e instanceof Error ? e.message : "Migration session save failed");
+      });
+    },
+    [selectedSessionSchoolId]
+  );
+
+  const setSourceSystem = useCallback(
+    (value: string) => {
+      setSourceSystemState(value);
+      setAdapterTestResult((prev) => (prev && prev.systemId !== value.trim() ? null : prev));
+      setDryRunStage(null);
+      persistSession({ sourceSystem: value, dryRunStage: null });
+    },
+    [persistSession]
+  );
+
+  const setCutoverDatePersisted = useCallback(
+    (value: string) => {
+      setCutoverDate(value);
+      setDryRunStage(null);
+      persistSession({ cutoverDate: value, dryRunStage: null });
+    },
+    [persistSession]
+  );
+
+  const setValidationModePersisted = useCallback(
+    (mode: MigrationValidationMode) => {
+      setValidationMode(mode);
+      setDryRunStage(null);
+      persistSession({
+        validationMode: mode,
+        validationSummary: null,
+        validationIssues: [],
+        dryRunStage: null,
+      });
+    },
+    [persistSession]
+  );
+
+  const setDryRunStagePersisted = useCallback(
+    (stage: MigrationStage | null) => {
+      setDryRunStage(stage);
+      persistSession({ dryRunStage: stage });
+    },
+    [persistSession]
+  );
+
+  useEffect(() => {
+    let cancelled = false;
+    void (async () => {
+      setTargetSchoolsLoading(true);
+      try {
+        const { schools } = await fetchMigrationTargetSchools();
+        if (!cancelled) setTargetSchools(schools);
+      } catch {
+        if (!cancelled) setTargetSchools([]);
+      } finally {
+        if (!cancelled) setTargetSchoolsLoading(false);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  useEffect(() => {
+    const schoolId = selectedSessionSchoolId.trim();
+    if (!schoolId) {
+      resetLocalWorkflowState();
+      setSessionNotice(null);
+      return;
+    }
+    let cancelled = false;
+    setSessionRestoreBusy(true);
+    setSessionNotice(null);
+    void (async () => {
+      try {
+        const session = await fetchUniversalMigrationSession(schoolId);
+        if (cancelled) return;
+        if (!session) {
+          resetLocalWorkflowState();
+          setSessionNotice("No saved migration session for this school yet.");
+          return;
+        }
+        setUploadedFiles(session.uploadedFiles ?? []);
+        setPreviews(session.previews ?? []);
+        setMappingSuggestions(session.mappingSuggestions ?? []);
+        setMappingOverrides(session.mappingOverrides ?? {});
+        setValidationSummary(session.validationSummary ?? null);
+        setValidationIssues(session.validationIssues ?? []);
+        setValidationMode(session.validationMode === "full" ? "full" : "preview");
+        setCutoverDate(session.cutoverDate ?? "");
+        setSourceSystemState(session.sourceSystem || "generic-excel-csv");
+        setDryRunStage(session.dryRunStage ?? null);
+        setValidationNotice(null);
+        setError(null);
+        setSessionNotice(
+          `Restored migration session saved ${new Date(session.updatedAt).toLocaleString()}.`
+        );
+      } catch (e: unknown) {
+        if (!cancelled) {
+          resetLocalWorkflowState();
+          setSessionNotice(e instanceof Error ? e.message : "Migration session restore failed");
+        }
+      } finally {
+        if (!cancelled) setSessionRestoreBusy(false);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [selectedSessionSchoolId, resetLocalWorkflowState]);
 
   useEffect(() => {
     let cancelled = false;
@@ -236,7 +394,8 @@ export function UniversalMigrationWorkflowProvider({ children }: { children: Rea
       try {
         const result = await fetchUniversalMigrationMappingSuggestions(
           previewList,
-          sourceSystem.trim() || undefined
+          sourceSystem.trim() || undefined,
+          selectedSessionSchoolId.trim() || undefined
         );
         setMappingSuggestions((prev) => {
           const byId = new Map(prev.map((s) => [s.fileId, s]));
@@ -251,7 +410,7 @@ export function UniversalMigrationWorkflowProvider({ children }: { children: Rea
         setMappingBusy(false);
       }
     },
-    [sourceSystem]
+    [sourceSystem, selectedSessionSchoolId]
   );
 
   const loadPreviews = useCallback(
@@ -259,7 +418,11 @@ export function UniversalMigrationWorkflowProvider({ children }: { children: Rea
       if (files.length === 0) return;
       setPreviewBusy(true);
       try {
-        const result = await fetchUniversalMigrationPreviews(files, sourceSystem.trim() || undefined);
+        const result = await fetchUniversalMigrationPreviews(
+          files,
+          sourceSystem.trim() || undefined,
+          selectedSessionSchoolId.trim() || undefined
+        );
         const merged = (() => {
           const byId = new Map<string, MigrationFilePreview>();
           for (const preview of result.previews) {
@@ -281,23 +444,32 @@ export function UniversalMigrationWorkflowProvider({ children }: { children: Rea
         setPreviewBusy(false);
       }
     },
-    [loadMappingSuggestions, sourceSystem]
+    [loadMappingSuggestions, sourceSystem, selectedSessionSchoolId]
   );
 
   const handleMappingOverride = useCallback(
     (fileId: string, sourceColumn: string, target: string) => {
-      setMappingOverrides((prev) => ({
-        ...prev,
-        [fileId]: {
-          ...(prev[fileId] ?? {}),
-          [sourceColumn]: target,
-        },
-      }));
+      setMappingOverrides((prev) => {
+        const next = {
+          ...prev,
+          [fileId]: {
+            ...(prev[fileId] ?? {}),
+            [sourceColumn]: target,
+          },
+        };
+        persistSession({
+          mappingOverrides: next,
+          validationSummary: null,
+          validationIssues: [],
+          dryRunStage: null,
+        });
+        return next;
+      });
       setValidationSummary(null);
       setValidationIssues([]);
       setValidationNotice(null);
     },
-    []
+    [persistSession]
   );
 
   const handleValidate = useCallback(async () => {
@@ -323,11 +495,13 @@ export function UniversalMigrationWorkflowProvider({ children }: { children: Rea
         previews: previewsWithPaths,
         mappings,
         mode: validationMode,
+        ...(selectedSessionSchoolId.trim() ? { schoolId: selectedSessionSchoolId.trim() } : {}),
         ...(validationMode === "full" ? { filePaths } : {}),
         ...(cutoverDate.trim() ? { cutoverDate: cutoverDate.trim() } : {}),
       });
       setValidationSummary(result.summary);
       setValidationIssues(result.issues);
+      setDryRunStage(null);
     } catch (e: unknown) {
       setError(e instanceof Error ? e.message : "Validation failed");
       setValidationSummary(null);
@@ -335,7 +509,15 @@ export function UniversalMigrationWorkflowProvider({ children }: { children: Rea
     } finally {
       setValidateBusy(false);
     }
-  }, [mappingSuggestions, mappingOverrides, previews, uploadedFiles, validationMode, cutoverDate]);
+  }, [
+    mappingSuggestions,
+    mappingOverrides,
+    previews,
+    uploadedFiles,
+    validationMode,
+    cutoverDate,
+    selectedSessionSchoolId,
+  ]);
 
   const uploadFiles = useCallback(
     async (fileList: FileList | File[]) => {
@@ -348,6 +530,10 @@ export function UniversalMigrationWorkflowProvider({ children }: { children: Rea
         setError("No valid files. Accepted formats: CSV, XLS, XLSX, PDF.");
         return;
       }
+      if (!selectedSessionSchoolId.trim()) {
+        setError("Select the target school for this migration session before uploading files.");
+        return;
+      }
       if (accepted.length < incoming.length) {
         setError("Some files were skipped. Only CSV, XLS, XLSX, and PDF are accepted.");
       } else {
@@ -357,8 +543,16 @@ export function UniversalMigrationWorkflowProvider({ children }: { children: Rea
       setBusy(true);
       setUploadProgress(0);
       try {
-        const result = await uploadUniversalMigrationFiles(accepted, (pct) => setUploadProgress(pct));
+        const result = await uploadUniversalMigrationFiles(
+          accepted,
+          {
+            schoolId: selectedSessionSchoolId.trim(),
+            sourceSystem: sourceSystem.trim() || undefined,
+          },
+          (pct) => setUploadProgress(pct)
+        );
         setUploadedFiles((prev) => [...result.files, ...prev]);
+        setDryRunStage(null);
         await loadPreviews(result.files);
       } catch (e: unknown) {
         setError(e instanceof Error ? e.message : "Upload failed");
@@ -367,7 +561,7 @@ export function UniversalMigrationWorkflowProvider({ children }: { children: Rea
         setUploadProgress(null);
       }
     },
-    [loadPreviews]
+    [loadPreviews, selectedSessionSchoolId, sourceSystem]
   );
 
   const canTestAdapter =
@@ -459,20 +653,17 @@ export function UniversalMigrationWorkflowProvider({ children }: { children: Rea
   ]);
 
   const clearAll = useCallback(() => {
-    setUploadedFiles([]);
-    setPreviews([]);
-    setMappingSuggestions([]);
-    setMappingOverrides({});
-    setValidationSummary(null);
-    setValidationIssues([]);
-    setValidationNotice(null);
-    setError(null);
-    setTemplateNotice(null);
-    setAdapterTestResult(null);
-    setKidESysReadiness(null);
-    setKidESysReadinessError(null);
-    clearMigrationAdapterTestSession();
-  }, []);
+    const schoolId = selectedSessionSchoolId.trim();
+    resetLocalWorkflowState();
+    setSessionNotice(null);
+    if (schoolId) {
+      void clearUniversalMigrationSession(schoolId)
+        .then(() => setSessionNotice("Migration session cleared."))
+        .catch((e: unknown) =>
+          setSessionNotice(e instanceof Error ? e.message : "Failed to clear migration session")
+        );
+    }
+  }, [resetLocalWorkflowState, selectedSessionSchoolId]);
 
   const handleApplyTemplate = useCallback(
     (template: MigrationMappingTemplate) => {
@@ -486,6 +677,12 @@ export function UniversalMigrationWorkflowProvider({ children }: { children: Rea
           for (const [fileId, fileOverrides] of Object.entries(result.overrides)) {
             next[fileId] = { ...(next[fileId] ?? {}), ...fileOverrides };
           }
+          persistSession({
+            mappingOverrides: next,
+            validationSummary: null,
+            validationIssues: [],
+            dryRunStage: null,
+          });
           return next;
         });
         const parts = [`Applied ${result.appliedCount} column mapping(s) from "${template.name}".`];
@@ -503,7 +700,7 @@ export function UniversalMigrationWorkflowProvider({ children }: { children: Rea
         setError(e instanceof Error ? e.message : "Failed to apply template");
       }
     },
-    [previews]
+    [previews, persistSession]
   );
 
   const handleExportValidation = useCallback(async () => {
@@ -532,7 +729,9 @@ export function UniversalMigrationWorkflowProvider({ children }: { children: Rea
     setValidationSummary(null);
     setValidationIssues([]);
     setValidationNotice(null);
-  }, []);
+    setDryRunStage(null);
+    persistSession({ validationSummary: null, validationIssues: [], dryRunStage: null });
+  }, [persistSession]);
 
   const value = useMemo<UniversalMigrationWorkflowContextValue>(
     () => ({
@@ -558,6 +757,12 @@ export function UniversalMigrationWorkflowProvider({ children }: { children: Rea
       setLoadTemplateOpen,
       sourceSystem,
       setSourceSystem,
+      selectedSessionSchoolId,
+      setSelectedSessionSchoolId,
+      targetSchools,
+      targetSchoolsLoading,
+      sessionRestoreBusy,
+      sessionNotice,
       registrySystems,
       registrySystemsLoading,
       registrySystemsError,
@@ -565,9 +770,9 @@ export function UniversalMigrationWorkflowProvider({ children }: { children: Rea
       readinessTemplate,
       readinessLoading,
       cutoverDate,
-      setCutoverDate,
+      setCutoverDate: setCutoverDatePersisted,
       validationMode,
-      setValidationMode,
+      setValidationMode: setValidationModePersisted,
       exportBusy,
       adapterTestBusy,
       adapterTestResult,
@@ -581,6 +786,8 @@ export function UniversalMigrationWorkflowProvider({ children }: { children: Rea
       handleExportValidation,
       uploadFiles,
       resetValidationResults,
+      dryRunStage,
+      setDryRunStage: setDryRunStagePersisted,
       kidESysReadiness,
       kidESysReadinessBusy,
       kidESysReadinessError,
@@ -606,6 +813,11 @@ export function UniversalMigrationWorkflowProvider({ children }: { children: Rea
       saveTemplateOpen,
       loadTemplateOpen,
       sourceSystem,
+      selectedSessionSchoolId,
+      targetSchools,
+      targetSchoolsLoading,
+      sessionRestoreBusy,
+      sessionNotice,
       registrySystems,
       registrySystemsLoading,
       registrySystemsError,
@@ -613,7 +825,9 @@ export function UniversalMigrationWorkflowProvider({ children }: { children: Rea
       readinessTemplate,
       readinessLoading,
       cutoverDate,
+      setCutoverDatePersisted,
       validationMode,
+      setValidationModePersisted,
       exportBusy,
       adapterTestBusy,
       adapterTestResult,
@@ -627,6 +841,8 @@ export function UniversalMigrationWorkflowProvider({ children }: { children: Rea
       handleExportValidation,
       uploadFiles,
       resetValidationResults,
+      dryRunStage,
+      setDryRunStagePersisted,
       kidESysReadiness,
       kidESysReadinessBusy,
       kidESysReadinessError,

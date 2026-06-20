@@ -19,15 +19,18 @@ export type UniversalMigrationPreviewResponse = {
 
 export async function fetchUniversalMigrationPreviews(
   files: UniversalMigrationUploadedFile[],
-  sourceSystem?: string
+  sourceSystem?: string,
+  schoolId?: string
 ): Promise<UniversalMigrationPreviewResponse> {
   const system = String(sourceSystem || "").trim();
+  const sessionSchoolId = String(schoolId || "").trim();
   const data = (await superAdminApiFetch("/api/migration/preview", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({
       files,
       ...(system ? { sourceSystem: system } : {}),
+      ...(sessionSchoolId ? { schoolId: sessionSchoolId } : {}),
     }),
   })) as UniversalMigrationPreviewResponse | { error?: string };
 

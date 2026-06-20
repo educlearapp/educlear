@@ -58,6 +58,12 @@ export default function UniversalMigrationUpload() {
     setLoadTemplateOpen,
     sourceSystem,
     setSourceSystem,
+    selectedSessionSchoolId,
+    setSelectedSessionSchoolId,
+    targetSchools,
+    targetSchoolsLoading,
+    sessionRestoreBusy,
+    sessionNotice,
     registrySystems,
     registrySystemsLoading,
     registrySystemsError,
@@ -101,6 +107,24 @@ export default function UniversalMigrationUpload() {
 
       <div className="uc-migration-upload-source-row">
         <label className="uc-migration-staging-source-label">
+          Target school session
+          <select
+            className="uc-migration-staging-source-input"
+            value={selectedSessionSchoolId}
+            onChange={(e) => setSelectedSessionSchoolId(e.target.value)}
+            disabled={busy || sessionRestoreBusy || targetSchoolsLoading}
+          >
+            <option value="">
+              {targetSchoolsLoading ? "Loading schools…" : "Choose school for this migration session"}
+            </option>
+            {targetSchools.map((school) => (
+              <option key={school.id} value={school.id}>
+                {school.name}
+              </option>
+            ))}
+          </select>
+        </label>
+        <label className="uc-migration-staging-source-label">
           Source system
           <select
             className="uc-migration-staging-source-input"
@@ -121,7 +145,23 @@ export default function UniversalMigrationUpload() {
             )}
           </select>
         </label>
+        {selectedSessionSchoolId ? (
+          <button
+            type="button"
+            className="uc-migration-upload-clear"
+            onClick={() => void clearAll()}
+            disabled={busy || sessionRestoreBusy}
+          >
+            Clear Migration Session
+          </button>
+        ) : null}
       </div>
+
+      {sessionNotice || sessionRestoreBusy ? (
+        <p className="uc-migration-dry-run-hint" role="status">
+          {sessionRestoreBusy ? "Restoring migration session…" : sessionNotice}
+        </p>
+      ) : null}
 
       {registrySystemsError ? (
         <p className="uc-migration-upload-error" role="alert">
@@ -223,8 +263,13 @@ export default function UniversalMigrationUpload() {
         <div className="uc-migration-upload-list-header">
           <h3 className="uc-migration-upload-list-title">Uploaded files</h3>
           {uploadedFiles.length > 0 ? (
-            <button type="button" className="uc-migration-upload-clear" onClick={clearAll} disabled={busy}>
-              Clear list
+            <button
+              type="button"
+              className="uc-migration-upload-clear"
+              onClick={() => void clearAll()}
+              disabled={busy}
+            >
+              Clear Migration Session
             </button>
           ) : null}
         </div>

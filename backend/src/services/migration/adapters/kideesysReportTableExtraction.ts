@@ -69,6 +69,7 @@ const INFERRED_TRANSACTION_HEADERS = [
 ];
 
 const ACCOUNT_CODE_RE = /^[A-Z]{2,5}\d{2,5}$/;
+const ACCOUNT_HEADING_RE = /^account\s+([A-Z0-9][A-Z0-9_-]{1,24})\b/i;
 
 function compactCell(value: string): string {
   return String(value || "")
@@ -107,7 +108,9 @@ export function shouldUseKideesysReportExtraction(
     haystack.includes("transactionlist") ||
     haystack.includes("contactlist") ||
     haystack.includes("ageanalysis") ||
-    haystack.includes("billingplan")
+    haystack.includes("billingplan") ||
+    haystack.includes("siblingaccounts") ||
+    (haystack.includes("sibling") && haystack.includes("account"))
   );
 }
 
@@ -242,6 +245,75 @@ function matrixRowsToRecords(
 function isTransactionExportFilename(filename: string): boolean {
   const haystack = filenameHaystack(filename);
   return haystack.includes("transactionlist") || haystack.includes("transaction");
+}
+
+function isSiblingAccountsExportFilename(filename: string): boolean {
+  const haystack = filenameHaystack(filename);
+  return (
+    haystack.includes("siblingaccounts") ||
+    (haystack.includes("sibling") && haystack.includes("account"))
+  );
+}
+
+function accountHeadingFromRow(row: string[]): string | null {
+  const cells = row.map((cell) => String(cell ?? "").trim()).filter(Boolean);
+  if (cells.length === 0) return null;
+  const joined = cells.join(" ");
+  const match = joined.match(ACCOUNT_HEADING_RE);
+  if (!match) return null;
+  return match[1].toUpperCase();
+}
+
+function learnerNameFromSiblingRow(row: string[]): string {
+  const cells = row.map((cell) => String(cell ?? "").trim()).filter(Boolean);
+  if (cells.length === 0) return "";
+  if (cells.length === 1) return cells[0];
+  if (isNumericIndexCell(cells[0])) return cells.slice(1).join(" ").trim();
+  return cells.join(" ").trim();
+}
+
+function extractSiblingAccountsTable(
+  matrix: string[][],
+  fileName: string
+): ParsedMigrationLearnerTable | null {
+  if (!isSiblingAccountsExportFilename(fileName)) return null;
+
+  const groups: Array<{ accountNumber: string; learners: string[] }> = [];
+  let current: { accountNumber: string; learners: string[] } | null = null;
+
+  for (const row of matrix) {
+    const accountNumber = accountHeadingFromRow(row || []);
+    if (accountNumber) {
+      current = { accountNumber, learners: [] };
+      groups.push(current);
+      continue;
+    }
+
+    if (!current) continue;
+    const learnerName = learnerNameFromSiblingRow(row || []);
+    if (!learnerName) continue;
+    if (/^account\b/i.test(learnerName)) continue;
+    current.learners.push(learnerName);
+  }
+
+  const rows: Record<string, string>[] = [];
+  for (const group of groups) {
+    const accountName = group.learners.join(" / ");
+    for (const learnerName of group.learners) {
+      rows.push({
+        Account: group.accountNumber,
+        "Account Name": accountName || group.accountNumber,
+        "Learner Name": learnerName,
+      });
+    }
+  }
+
+  if (rows.length === 0) return null;
+  return {
+    headers: ["Account", "Account Name", "Learner Name"],
+    rows,
+    fileName,
+  };
 }
 
 function looksLikeTransactionDataRow(row: string[]): boolean {
@@ -391,6 +463,9 @@ export function extractKideesysReportTable(
 
   const contactList = normalizeKidESysContactListSheet(matrix, fileName);
   if (contactList) return contactList;
+
+  const siblingAccounts = extractSiblingAccountsTable(matrix, fileName);
+  if (siblingAccounts) return siblingAccounts;
 
   const headerRowIndex = findBestHeaderRowIndex(matrix);
   if (headerRowIndex !== null) {

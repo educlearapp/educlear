@@ -2,6 +2,7 @@ import assert from "assert";
 import fs from "fs";
 import path from "path";
 import { readMigrationSpreadsheetMatrix } from "../../../utils/migrationLearnerFileParser";
+import { detectKidESysExports } from "./kideesysDetection";
 import { extractKideesysReportTable } from "./kideesysReportTableExtraction";
 
 function testAgeAnalysisSynthetic(): void {
@@ -37,6 +38,34 @@ function testTransactionSynthetic(): void {
   assert.strictEqual(parsed.rows[0]["Reference"], "Invoice 42225");
   assert.strictEqual(parsed.rows[0]["Date"], "2023/01/03");
   assert.strictEqual(parsed.rows[0]["Amount"], "1600.0");
+}
+
+function testSiblingAccountsHeaderlessSynthetic(): void {
+  const matrix = [
+    ["Sibling Accounts"],
+    [],
+    ["Account ALI002"],
+    ["Alizain Ali"],
+    ["Zahra Ali"],
+    [],
+    ["Account MAO002"],
+    ["1", "Amogelang Maapoga"],
+    ["2", "Palesa Maapoga"],
+  ];
+  const parsed = extractKideesysReportTable(matrix, "sibling_accounts.xls");
+  assert.ok(parsed, "expected sibling accounts extraction");
+  assert.ok(detectKidESysExports(["sibling_accounts.xls"]), "expected Kid-e-Sys detection");
+  assert.deepStrictEqual(parsed.headers, ["Account", "Account Name", "Learner Name"]);
+  assert.strictEqual(parsed.rows.length, 4);
+  assert.strictEqual(parsed.rows[0]["Account"], "ALI002");
+  assert.strictEqual(parsed.rows[1]["Account"], "ALI002");
+  assert.strictEqual(parsed.rows[0]["Learner Name"], "Alizain Ali");
+  assert.strictEqual(parsed.rows[1]["Learner Name"], "Zahra Ali");
+  assert.strictEqual(parsed.rows[0]["Account Name"], "Alizain Ali / Zahra Ali");
+  assert.strictEqual(parsed.rows[2]["Account"], "MAO002");
+  assert.strictEqual(parsed.rows[3]["Account"], "MAO002");
+  assert.strictEqual(parsed.rows[2]["Learner Name"], "Amogelang Maapoga");
+  assert.strictEqual(parsed.rows[3]["Learner Name"], "Palesa Maapoga");
 }
 
 function testContactListLeadingOPhoneCorrection(): void {
@@ -130,6 +159,7 @@ function testStagingSamplesIfPresent(): void {
 
 testAgeAnalysisSynthetic();
 testTransactionSynthetic();
+testSiblingAccountsHeaderlessSynthetic();
 testContactListLeadingOPhoneCorrection();
 testContactListSynthetic();
 testClassListSynthetic();

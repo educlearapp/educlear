@@ -95,6 +95,7 @@ export type MigrationStageListItem = Pick<
 
 export async function createUniversalMigrationStage(input: {
   sourceSystem: string;
+  schoolId?: string;
   previews: MigrationFilePreview[];
   mappings: MigrationFileColumnMappings[];
   validationSummary: MigrationValidationSummary;
@@ -112,6 +113,7 @@ export async function createUniversalMigrationStage(input: {
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({
       sourceSystem: input.sourceSystem,
+      ...(input.schoolId ? { schoolId: input.schoolId } : {}),
       previews: previewsWithPaths,
       mappings: input.mappings,
       validationSummary: input.validationSummary,

@@ -41,6 +41,7 @@ export async function fetchUniversalMigrationValidation(input: {
   mappings: MigrationFileColumnMappings[];
   mode?: MigrationValidationMode;
   filePaths?: Record<string, string>;
+  schoolId?: string;
   /** ISO date (YYYY-MM-DD) — transactions before cutover are historical-only. */
   cutoverDate?: string;
 }): Promise<UniversalMigrationValidateResponse> {

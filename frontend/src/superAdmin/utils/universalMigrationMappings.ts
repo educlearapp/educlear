@@ -23,14 +23,17 @@ export type UniversalMigrationMappingSuggestResponse = {
 
 export async function fetchUniversalMigrationMappingSuggestions(
   previews: MigrationFilePreview[],
-  systemId?: string
+  systemId?: string,
+  schoolId?: string
 ): Promise<UniversalMigrationMappingSuggestResponse> {
+  const sessionSchoolId = String(schoolId || "").trim();
   const data = (await superAdminApiFetch("/api/migration/mappings/suggest", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({
       previews,
       ...(systemId?.trim() ? { systemId: systemId.trim() } : {}),
+      ...(sessionSchoolId ? { schoolId: sessionSchoolId } : {}),
     }),
   })) as UniversalMigrationMappingSuggestResponse | { error?: string };
 

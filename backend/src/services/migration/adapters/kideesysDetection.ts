@@ -24,6 +24,7 @@ function scoreFilenameSignals(files: string[]): { score: number; hasStrongBrand:
     }
 
     if (h.includes("accountlist") || (h.includes("account") && h.includes("list"))) score += 2;
+    if (h.includes("siblingaccounts") || (h.includes("sibling") && h.includes("account"))) score += 6;
     if (h.includes("transactionlist") || (h.includes("transaction") && h.includes("list"))) score += 2;
     if (h.includes("contactlist") || (h.includes("contact") && h.includes("list"))) score += 2;
     if (h.includes("billingplan") || (h.includes("billing") && h.includes("plan"))) score += 2;

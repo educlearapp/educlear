@@ -15,6 +15,7 @@ import {
 } from "../../superAdmin/utils/universalMigrationStage";
 import { buildMigrationChecklist } from "../../superAdmin/utils/migrationChecklist";
 import UniversalMigrationReadinessChecklist from "./UniversalMigrationReadinessChecklist";
+import { useUniversalMigrationWorkflow } from "./UniversalMigrationWorkflowContext";
 
 type Props = {
   onNotice?: (message: string) => void;
@@ -39,6 +40,7 @@ function formatApplyCounts(label: string, counts: MigrationApplyResult["createdC
 }
 
 export default function UniversalMigrationApplySection({ onNotice }: Props) {
+  const { selectedSessionSchoolId, clearAll } = useUniversalMigrationWorkflow();
   const [schoolOptions, setSchoolOptions] = useState<SchoolOption[]>([]);
   const [selectedSchoolId, setSelectedSchoolId] = useState("");
   const [stages, setStages] = useState<MigrationStageListItem[]>([]);
@@ -229,6 +231,9 @@ export default function UniversalMigrationApplySection({ onNotice }: Props) {
           proceedWithEligibleActiveOnly,
         });
         setApplyResult(result);
+        if (selectedSessionSchoolId.trim() === selectedSchoolId) {
+          clearAll();
+        }
         onNotice?.(
           `Migration applied to ${result.targetSchoolName}. Batch ${result.batchId}.`
         );
@@ -250,6 +255,8 @@ export default function UniversalMigrationApplySection({ onNotice }: Props) {
       applyBlockedReason,
       readinessChecklist.readyForApply,
       proceedWithEligibleActiveOnly,
+      selectedSessionSchoolId,
+      clearAll,
       onNotice,
     ]
   );
