@@ -10,7 +10,7 @@
  *   cd backend
  *   CONFIRM_PRODUCTION_WRITE=true node scripts/emergency-direct-import-mbb.mjs \
  *     --write \
- *     --approve-school-id cmq4xjckq00at60qgg4eb956h \
+ *     --approve-school-id cmq4xjckq00at60gqg4eb956h \
  *     --confirm-live-write MBB_DIRECT_IMPORT
  */
 import "dotenv/config";
@@ -22,7 +22,7 @@ import path from "path";
 import { PrismaClient } from "@prisma/client";
 import xlsx from "xlsx";
 
-const SCHOOL_ID = "cmq4xjckq00at60qgg4eb956h";
+const SCHOOL_ID = "cmq4xjckq00at60gqg4eb956h";
 const SCHOOL_NAME = "Magical Bright Beginnings";
 const DEFAULT_CLASS_DIR = "/Users/dasilvaacademy/Desktop/MBB class list";
 const DEFAULT_DESKTOP_DIR = "/Users/dasilvaacademy/Desktop";

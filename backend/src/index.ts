@@ -63,6 +63,7 @@ import migrationTopupPaymentsRoutes from "./routes/migrationTopupPayments";
 import migrationAgeAnalysisBaselineRoutes from "./routes/migrationAgeAnalysisBaseline";
 import migrationLearnerRepairRoutes from "./routes/migrationLearnerRepair";
 import migrationLearnersRoutes from "./routes/migrationLearners";
+import mbbDirectImportRoutes from "./routes/mbbDirectImport";
 import subscriptionsRoutes from "./routes/subscriptions";
 import payfastRoutes from "./routes/payfast";
 import creditsRoutes from "./routes/credits";
@@ -391,6 +392,11 @@ app.use(
   "/api/migration/learners",
   requireMigrationAccess,
   migrationLearnersRoutes
+);
+app.use(
+  "/api/super-admin/mbb-direct-import",
+  requireMigrationAccess,
+  mbbDirectImportRoutes
 );
 app.use("/api/subscriptions", subscriptionsRoutes);
 app.use("/api/credits", creditsRoutes);
