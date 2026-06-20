@@ -132,6 +132,23 @@ function testGradeRAndActiveListTitlesDefaultStatusActive(): void {
   assert.strictEqual(activeList.rows[0].classroom, "ACTIVE OUTSIDER SWIMMING");
 }
 
+function testFeeRelatedClassTitleDefaultsStatusActive(): void {
+  const parsed = normalizeKidESysLearnerClassListSheet(
+    [
+      ["OUTSTANDING FEES & LEFT"],
+      ["1", "Jane Mary Doe"],
+      ["2", "John James Smith"],
+    ],
+    "class_list.xls"
+  );
+
+  assert.ok(parsed);
+  assert.deepStrictEqual(parsed.headers, ["fullName", "status", "classroom"]);
+  assert.strictEqual(parsed.rows.length, 2);
+  assert.strictEqual(parsed.rows[0].status, "ACTIVE");
+  assert.strictEqual(parsed.rows[0].classroom, "OUTSTANDING FEES & LEFT");
+}
+
 function testGrade1AFileIfPresent(): void {
   if (!fs.existsSync(SAMPLE)) return;
   const buffer = fs.readFileSync(SAMPLE);
@@ -148,5 +165,6 @@ testStandardHeaderSheetNotNormalized();
 testChildListSixExtraFieldsMapsColumnBName();
 testNurseryClassTitleDefaultsStatusActive();
 testGradeRAndActiveListTitlesDefaultStatusActive();
+testFeeRelatedClassTitleDefaultsStatusActive();
 testGrade1AFileIfPresent();
 console.log("kideesysLearnerClassListNormalization.test.ts: ok");

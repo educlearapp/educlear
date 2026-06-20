@@ -74,6 +74,14 @@ function hasMappedStatusValues(
   return rows.some((row) => cellString(row[source]).length > 0);
 }
 
+function shouldIgnoreKidESysClassListStatusValue(raw: string): boolean {
+  const value = raw.trim();
+  if (!value) return false;
+  if (/\boutstanding\s+fees?\b/i.test(value)) return true;
+  if (/\bfees?\b/i.test(value) && /\bleft\b/i.test(value)) return true;
+  return /\bleft\b/i.test(value) && /[&/+]/.test(value);
+}
+
 function hasTransactionMappings(targetToSource: Map<MigrationTargetField, string>): boolean {
   for (const field of TRANSACTION_FIELDS) {
     if (targetToSource.has(field as MigrationTargetField)) return true;
@@ -131,6 +139,9 @@ export function validateLearnerStatusRows(
   input.rows.forEach((row, idx) => {
     const rowNumber = idx + 1;
     const statusRaw = cellString(getMappedValue(row, targetToSource, "status"));
+    if (isKidESysClassList && shouldIgnoreKidESysClassListStatusValue(statusRaw)) {
+      return;
+    }
     const status = parseMigrationLearnerStatus(statusRaw, {
       fileCategory: input.preview.category,
     });

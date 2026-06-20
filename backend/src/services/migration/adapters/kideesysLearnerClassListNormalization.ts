@@ -54,6 +54,10 @@ export function isKidESysClassListTitleCell(value: string): boolean {
   if (/\bclass$/i.test(withoutYear)) return true;
   if (/\bgrade\s*r\b/i.test(withoutYear)) return true;
   if (/^active\b/i.test(withoutYear)) return true;
+  if (/\boutstanding\s+fees?\b/i.test(withoutYear)) return true;
+  if (/\bleft\b/i.test(withoutYear) && /[&/+]|fees?|outstanding/i.test(withoutYear)) {
+    return true;
+  }
 
   // Exclude fee descriptions like "GRADE 8" (no class stream letter).
   if (/^grade\s+\d{1,2}$/i.test(withoutYear)) return false;

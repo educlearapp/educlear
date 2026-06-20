@@ -61,6 +61,27 @@ function testKidESysClassListWithBadStatusStillBlocks(): void {
   );
 }
 
+function testKidESysClassListIgnoresFeeRelatedStatusText(): void {
+  const issues = validateLearnerStatusRows({
+    preview: {
+      ...classListPreview,
+      columns: ["fullName", "status", "classroom"],
+    },
+    fileMappings: statusMapping,
+    rows: [
+      { fullName: "A Learner", status: "OUTSTANDING FEES & LEFT", classroom: "Grade 1A" },
+    ],
+  });
+
+  assert.strictEqual(issues.length, 1);
+  assert.strictEqual(issues[0].severity, "info");
+  assert.strictEqual(
+    issues[0].message,
+    "Kid-e-Sys Class List has no learner status column; learners default to ACTIVE."
+  );
+}
+
 testKidESysClassListWithoutStatusDefaultsActive();
 testKidESysClassListWithBadStatusStillBlocks();
+testKidESysClassListIgnoresFeeRelatedStatusText();
 console.log("validateTransactionReadiness.test.ts: ok");
