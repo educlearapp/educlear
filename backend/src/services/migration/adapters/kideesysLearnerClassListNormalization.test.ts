@@ -21,9 +21,10 @@ function testSyntheticLayout(): void {
   assert.strictEqual(isKidESysLearnerClassListLayout(matrix), true);
   const parsed = normalizeKidESysLearnerClassListSheet(matrix, "Grade_1A.xls");
   assert.ok(parsed);
-  assert.deepStrictEqual(parsed.headers, ["fullName", "classroom"]);
+  assert.deepStrictEqual(parsed.headers, ["fullName", "status", "classroom"]);
   assert.strictEqual(parsed.rows.length, 2);
   assert.strictEqual(parsed.rows[0].fullName, "Aiden Jacques Du Plessis");
+  assert.strictEqual(parsed.rows[0].status, "ACTIVE");
   assert.strictEqual(parsed.rows[0].classroom, "Grade 1A");
 }
 

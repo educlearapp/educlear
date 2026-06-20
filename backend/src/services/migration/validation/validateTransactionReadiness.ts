@@ -92,10 +92,30 @@ export function validateLearnerStatusRows(
   const issues: MigrationValidationIssue[] = [];
   const targetToSource = buildTargetToSource(input.fileMappings?.mappings ?? []);
   const statusMapped = targetToSource.has("status");
+  const isKidESysClassList =
+    input.preview.category === "learners" && isKidESysLearnerClassListPreview(input.preview);
+
+  if (isKidESysClassList) {
+    issues.push(
+      issue({
+        fileId: input.preview.fileId,
+        filename: input.preview.filename,
+        rowNumber: 0,
+        severity: "info",
+        category: input.preview.category,
+        field: "status",
+        message: "Kid-e-Sys Class List has no learner status column; learners default to ACTIVE.",
+        value: "ACTIVE",
+      })
+    );
+  }
+
+  if (isKidESysClassList && !statusMapped) {
+    return issues;
+  }
+
   if (!statusMapped) {
     if (input.preview.category !== "learners") return issues;
-    // Kid-e-Sys class lists represent active learners unless explicitly marked otherwise.
-    if (isKidESysLearnerClassListPreview(input.preview)) return issues;
   }
 
   input.rows.forEach((row, idx) => {

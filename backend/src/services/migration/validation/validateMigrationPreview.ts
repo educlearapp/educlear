@@ -138,6 +138,51 @@ function buildTargetToSource(
   return map;
 }
 
+function compactColumnKey(value: string): string {
+  return String(value || "")
+    .trim()
+    .toLowerCase()
+    .replace(/[^a-z0-9]/g, "");
+}
+
+function sourceColumnForTarget(
+  preview: MigrationFilePreview,
+  rows: Record<string, unknown>[],
+  aliases: string[]
+): string {
+  const candidates = [
+    ...(Array.isArray(preview.columns) ? preview.columns : []),
+    ...Object.keys(rows[0] ?? {}),
+  ];
+  const aliasKeys = new Set(aliases.map(compactColumnKey));
+  for (const candidate of candidates) {
+    const source = String(candidate || "").trim();
+    if (source && aliasKeys.has(compactColumnKey(source))) return source;
+  }
+  return "";
+}
+
+function applyLearnerAdapterFallbackMappings(
+  preview: MigrationFilePreview,
+  rows: Record<string, unknown>[],
+  targetToSource: Map<MigrationTargetField, string>
+): void {
+  if (String(preview.category || "").trim() !== "learners") return;
+  if (!targetToSource.has("fullName")) {
+    const source = sourceColumnForTarget(preview, rows, ["fullName", "Learner Name", "Child Name"]);
+    if (source) targetToSource.set("fullName", source);
+  }
+  if (!targetToSource.has("classroom")) {
+    const source = sourceColumnForTarget(preview, rows, ["classroom", "Classroom", "Class"]);
+    if (source) targetToSource.set("classroom", source);
+  }
+}
+
+function isSiblingAccountsReport(filename: string): boolean {
+  const haystack = compactColumnKey(filename);
+  return haystack.includes("siblingaccounts") || (haystack.includes("sibling") && haystack.includes("account"));
+}
+
 function getMappedValue(
   row: Record<string, unknown>,
   targetToSource: Map<MigrationTargetField, string>,
@@ -201,6 +246,7 @@ function validateFileRows(input: ValidateFileRowsInput): MigrationValidationIssu
   const issues: MigrationValidationIssue[] = [];
   const mappings = fileMappings?.mappings ?? [];
   const targetToSource = buildTargetToSource(mappings);
+  applyLearnerAdapterFallbackMappings(preview, rows, targetToSource);
 
   if (mappings.length === 0) {
     issues.push(
@@ -458,15 +504,18 @@ function validateFileRows(input: ValidateFileRowsInput): MigrationValidationIssu
 
   const dupAcc = findDuplicates(accountNumbers);
   for (const { value, rows: dupRows } of dupAcc) {
+    const siblingAccounts = isSiblingAccountsReport(preview.filename);
     issues.push(
       issue({
         fileId: preview.fileId,
         filename: preview.filename,
         rowNumber: dupRows[0],
-        severity: "warning",
+        severity: siblingAccounts ? "info" : "warning",
         category: preview.category,
         field: "accountNumber",
-        message: `Duplicate account number in ${scopeLabel} (rows ${dupRows.join(", ")})`,
+        message: siblingAccounts
+          ? `Multiple learners share the same billing account in Sibling Accounts (rows ${dupRows.join(", ")})`
+          : `Duplicate account number in ${scopeLabel} (rows ${dupRows.join(", ")})`,
         value,
       })
     );

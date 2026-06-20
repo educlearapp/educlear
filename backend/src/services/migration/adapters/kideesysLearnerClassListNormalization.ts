@@ -113,13 +113,25 @@ function looksLikeLearnerName(value: string): boolean {
   return /[a-z]/i.test(v);
 }
 
+function learnerNameFromIndexedRow(row: string[]): string {
+  const direct = rowText(row, 1);
+  if (looksLikeLearnerName(direct)) return direct;
+
+  if (!isNumericIndexCell(rowText(row, 0))) return "";
+  for (let i = 2; i < row.length; i++) {
+    const value = rowText(row, i);
+    if (looksLikeLearnerName(value)) return value;
+  }
+  return "";
+}
+
 function countIndexedLearnerRows(matrix: string[][], afterRow: number): number {
   let count = 0;
   for (let i = afterRow + 1; i < matrix.length; i++) {
     const row = matrix[i];
     const c0 = rowText(row, 0);
-    const c1 = rowText(row, 1);
-    if (!c1 || !looksLikeLearnerName(c1)) continue;
+    const fullName = learnerNameFromIndexedRow(row);
+    if (!fullName) continue;
     if (!isNumericIndexCell(c0)) continue;
     count++;
   }
@@ -200,8 +212,8 @@ function normalizeKidESysChildListExtraFieldsSheet(
       const dataRow = matrix[j] || [];
       if (childListTitleFromRow(dataRow)) break;
 
-      const fullName = rowText(dataRow, 1);
-      if (!fullName || !looksLikeLearnerName(fullName)) continue;
+      const fullName = learnerNameFromIndexedRow(dataRow);
+      if (!fullName) continue;
 
       const out: Record<string, string> = {
         fullName,
@@ -224,7 +236,7 @@ function normalizeKidESysChildListExtraFieldsSheet(
 }
 
 /**
- * Normalize Kid-e-Sys class-list sheets to standard preview columns (fullName, classroom).
+ * Normalize Kid-e-Sys class-list sheets to standard preview columns (fullName, status, classroom).
  * Returns null when the sheet does not match the class-list layout.
  */
 export function normalizeKidESysLearnerClassListSheet(
@@ -249,11 +261,12 @@ export function normalizeKidESysLearnerClassListSheet(
   for (let i = titleInfo.rowIndex + 1; i < matrix.length; i++) {
     const row = matrix[i];
     const c0 = rowText(row, 0);
-    const c1 = rowText(row, 1);
-    if (!c1 || !looksLikeLearnerName(c1)) continue;
+    const fullName = learnerNameFromIndexedRow(row);
+    if (!fullName) continue;
     if (!isNumericIndexCell(c0)) continue;
     rows.push({
-      fullName: c1,
+      fullName,
+      status: "ACTIVE",
       classroom,
     });
   }
@@ -261,8 +274,16 @@ export function normalizeKidESysLearnerClassListSheet(
   if (rows.length === 0) return null;
 
   return {
-    headers: ["fullName", "classroom"],
+    headers: ["fullName", "status", "classroom"],
     rows,
     fileName,
+    parseIssues: [
+      {
+        severity: "info",
+        field: "status",
+        message: "Kid-e-Sys Class List has no learner status column; learners default to ACTIVE.",
+        rowNumber: 0,
+      },
+    ],
   };
 }
