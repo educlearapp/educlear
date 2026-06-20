@@ -21,6 +21,18 @@ const CATEGORY_LABELS: Record<UniversalMigrationFileCategory, string> = {
   unknown: "Unknown",
 };
 
+function categoryLabel(category: UniversalMigrationFileCategory, filename: string): string {
+  const haystack = String(filename || "").toLowerCase().replace(/[^a-z0-9]/g, "");
+  if (
+    category === "billing" &&
+    (haystack.includes("siblingaccounts") ||
+      (haystack.includes("sibling") && haystack.includes("account")))
+  ) {
+    return "Sibling Accounts";
+  }
+  return CATEGORY_LABELS[category];
+}
+
 function formatBytes(bytes: number): string {
   if (bytes < 1024) return `${bytes} B`;
   if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
@@ -288,7 +300,7 @@ export default function UniversalMigrationUpload() {
                   <span
                     className={`uc-migration-upload-badge uc-migration-upload-badge--category uc-migration-upload-badge--${file.category}`}
                   >
-                    {CATEGORY_LABELS[file.category]}
+                    {categoryLabel(file.category, file.filename)}
                   </span>
                   <span className="uc-migration-upload-badge uc-migration-upload-badge--type">
                     {mimeLabel(file.mimeType, file.filename)}

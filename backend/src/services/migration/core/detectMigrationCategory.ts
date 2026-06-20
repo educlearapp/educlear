@@ -88,6 +88,10 @@ export function isLearnerClassExportFilename(haystack: string, basename: string)
   return false;
 }
 
+function isSiblingAccountsFilename(haystack: string): boolean {
+  return haystack.includes("siblingaccounts") || (haystack.includes("sibling") && haystack.includes("account"));
+}
+
 export function detectMigrationCategory(filename: string): MigrationFileCategory {
   const haystack = compactAlphanumeric(filename);
   if (!haystack) return "unknown";
@@ -99,6 +103,10 @@ export function detectMigrationCategory(filename: string): MigrationFileCategory
     (haystack.includes("payment") && haystack.includes("receive") && haystack.includes("list"))
   ) {
     return "payment-receive-list";
+  }
+
+  if (isSiblingAccountsFilename(haystack)) {
+    return "billing";
   }
 
   for (const { category, keywords } of CATEGORY_KEYWORDS) {

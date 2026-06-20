@@ -17,6 +17,18 @@ const CATEGORY_LABELS: Record<string, string> = {
   unknown: "Unknown",
 };
 
+function previewCategoryLabel(category: string, filename: string): string {
+  const haystack = String(filename || "").toLowerCase().replace(/[^a-z0-9]/g, "");
+  if (
+    category === "billing" &&
+    (haystack.includes("siblingaccounts") ||
+      (haystack.includes("sibling") && haystack.includes("account")))
+  ) {
+    return "Sibling Accounts";
+  }
+  return CATEGORY_LABELS[category] ?? category.replace(/_/g, " ");
+}
+
 function formatCell(value: unknown): string {
   if (value == null) return "";
   if (typeof value === "object") return JSON.stringify(value);
@@ -45,8 +57,7 @@ export default function UniversalMigrationFilePreview({
         ? Object.keys(preview.sampleRows[0])
         : [];
 
-  const categoryLabel =
-    CATEGORY_LABELS[preview.category] ?? preview.category.replace(/_/g, " ");
+  const categoryLabel = previewCategoryLabel(preview.category, preview.filename);
   const kidESysClassList = isKidESysClassListPreview(preview);
   const paymentReceiveList = preview.category === "payment-receive-list";
 

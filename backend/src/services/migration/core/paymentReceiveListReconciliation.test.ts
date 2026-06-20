@@ -45,6 +45,11 @@ function testPdfUploadAndCategory(): void {
     "existing Age Analysis detection still works"
   );
   assert.strictEqual(
+    detectMigrationCategory("sibling_accounts.xls"),
+    "billing",
+    "Kid-e-Sys sibling accounts should use the billing pipeline category"
+  );
+  assert.strictEqual(
     detectMigrationCategory("Grade_1A.xls"),
     "learners",
     "existing Kid-e-Sys class list detection still works"
