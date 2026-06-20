@@ -589,6 +589,7 @@ migrationUploadRouter.post("/validate", async (req, res) => {
       previews,
       mappings,
       mode,
+      sourceSystem: String(req.body?.sourceSystem || "").trim() || undefined,
       filePaths,
       cutoverDate,
     });

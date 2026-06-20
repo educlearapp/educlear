@@ -28,6 +28,7 @@ function testTransactionSynthetic(): void {
     [],
     ["1", "Invoice 42225", "2023/01/03", "MOT004", "Gofentseone Pico", "", "1600.0"],
     ["2", "Invoice 42226", "2023/01/03", "MAN010", "Nhlulo Xihluke Manabe", "", "5000.0"],
+    ["3", "Invoice 42227", "2023/01/03", "BOI004", "Olaotse Boikanyo", "3250.0"],
   ];
   const parsed = extractKideesysReportTable(matrix, "transaction_list.xls");
   assert.ok(parsed, "expected extraction");
@@ -38,6 +39,8 @@ function testTransactionSynthetic(): void {
   assert.strictEqual(parsed.rows[0]["Reference"], "Invoice 42225");
   assert.strictEqual(parsed.rows[0]["Date"], "2023/01/03");
   assert.strictEqual(parsed.rows[0]["Amount"], "1600.0");
+  assert.strictEqual(parsed.rows[2]["Notes"], "");
+  assert.strictEqual(parsed.rows[2]["Amount"], "3250.0");
 }
 
 function testSiblingAccountsHeaderlessSynthetic(): void {
@@ -124,8 +127,9 @@ function testClassListSynthetic(): void {
   ];
   const parsed = extractKideesysReportTable(matrix, "Grade_1A.xls");
   assert.ok(parsed);
-  assert.deepStrictEqual(parsed.headers, ["fullName", "classroom"]);
+  assert.deepStrictEqual(parsed.headers, ["fullName", "status", "classroom"]);
   assert.strictEqual(parsed.rows[0].fullName, "Aiden Jacques Du Plessis");
+  assert.strictEqual(parsed.rows[0].status, "ACTIVE");
 }
 
 function testStagingSamplesIfPresent(): void {

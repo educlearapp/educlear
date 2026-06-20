@@ -350,6 +350,19 @@ function looksLikeAmountCell(value: string): boolean {
   return /^-?[\d,]+(\.\d+)?$/.test(v.replace(/,/g, ""));
 }
 
+function normalizeInferredTransactionRow(row: Record<string, string>): Record<string, string> {
+  const notes = String(row["Notes"] ?? "").trim();
+  const amount = String(row["Amount"] ?? "").trim();
+  if (!amount && looksLikeAmountCell(notes)) {
+    return {
+      ...row,
+      Notes: "",
+      Amount: notes,
+    };
+  }
+  return row;
+}
+
 function alignKidESysBillingHeaders(headerCells: string[], sampleRow: string[]): string[] {
   const out: string[] = [];
   let di = 0;
@@ -441,7 +454,7 @@ function extractInferredTransactionTable(
     headers.forEach((header, idx) => {
       row[header] = String(cells[idx] ?? "").trim();
     });
-    rows.push(row);
+    rows.push(normalizeInferredTransactionRow(row));
   }
 
   if (rows.length === 0) return null;

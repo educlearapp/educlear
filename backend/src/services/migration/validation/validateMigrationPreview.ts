@@ -16,6 +16,7 @@ export type ValidateMigrationPreviewInput = {
   previews: MigrationFilePreview[];
   mappings: MigrationFileColumnMappings[];
   mode?: MigrationValidationMode;
+  sourceSystem?: string;
   /** Optional fileId → staging path overrides for full-file mode */
   filePaths?: Record<string, string>;
   /** ISO date (YYYY-MM-DD). Transactions before cutover are historical-only. */
@@ -670,7 +671,7 @@ export async function validateMigrationFull(
       path: pathValue,
     };
 
-    const parsed = await readMigrationFileRows(file);
+    const parsed = await readMigrationFileRows(file, { sourceSystem: input.sourceSystem });
     rowsChecked += parsed.rowCount;
     rowsByFileId.set(preview.fileId, parsed.rows);
 

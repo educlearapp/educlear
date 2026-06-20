@@ -209,6 +209,14 @@ function hasTransactionMappings(targetToSource: Map<MigrationTargetField, string
   return false;
 }
 
+function isKidESysTransactionHistoryPreview(preview: MigrationFilePreview): boolean {
+  const filename = String(preview.filename || "").toLowerCase().replace(/[^a-z0-9]/g, "");
+  return (
+    String(preview.category || "").trim() === "transactions" &&
+    (filename.includes("transactionlist") || filename.includes("transactionhistory"))
+  );
+}
+
 export function buildMigrationLearnerMatchIndex(
   previews: MigrationFilePreview[],
   mappingsByFile: Map<string, MigrationFileColumnMappings>,
@@ -343,11 +351,19 @@ export function investigateTransactionReadiness(input: {
 
     hasTransactionFiles = true;
     const rows = input.rowsByFileId.get(preview.fileId) ?? preview.sampleRows;
+    const isKidESysTransactionHistory = isKidESysTransactionHistoryPreview(preview);
 
     rows.forEach((row, rowIndex) => {
       const { entry, matched } = resolveLearnerForRow(row, targetToSource, index);
       const txDate = getMappedValue(row, targetToSource, "transactionDate");
       const datePresent = cellString(txDate).length > 0;
+      const amountValid = rowAmountValid(row, targetToSource);
+
+      if (isKidESysTransactionHistory && datePresent && amountValid) {
+        bumpBucket(counts, "historicalOnly");
+        return;
+      }
+
       const accountStatus =
         cellString(getMappedValue(row, targetToSource, "status")) ||
         entry?.accountStatus ||
@@ -363,7 +379,7 @@ export function investigateTransactionReadiness(input: {
         transactionDate: txDate,
         cutoverDate,
         hasLearnerOrAccountMatch: matched,
-        amountValid: rowAmountValid(row, targetToSource),
+        amountValid,
         datePresent,
       });
 
