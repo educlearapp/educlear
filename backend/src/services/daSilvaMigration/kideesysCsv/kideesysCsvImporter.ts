@@ -491,18 +491,24 @@ export async function importKidESysCsv(opts: {
     for (const account of bundle.accounts) {
       const accountNo = String(account.accountNo || "").trim();
       if (!accountNo) continue;
-      const fa = await prisma.familyAccount.upsert({
-        where: { accountRef: accountNo },
-        create: {
-          schoolId,
-          accountRef: accountNo,
-          familyName: account.familyName || accountNo,
-        },
-        update: {
-          familyName: account.familyName || accountNo,
-        },
+      const existingFa = await prisma.familyAccount.findFirst({
+        where: { schoolId, accountRef: accountNo },
         select: { id: true },
       });
+      const fa = existingFa
+        ? await prisma.familyAccount.update({
+            where: { id: existingFa.id },
+            data: { familyName: account.familyName || accountNo },
+            select: { id: true },
+          })
+        : await prisma.familyAccount.create({
+            data: {
+              schoolId,
+              accountRef: accountNo,
+              familyName: account.familyName || accountNo,
+            },
+            select: { id: true },
+          });
       accountToFamilyId.set(accountNo, fa.id);
       pushUnique(manifest.familyAccountIds, fa.id);
       counts.familyAccounts += 1;

@@ -40,8 +40,8 @@ type GapPlan = {
 async function main() {
   const prisma = new PrismaClient({ datasources: { db: { url: resolveDatabaseUrl() } } });
 
-  const mon014 = await prisma.familyAccount.findUnique({
-    where: { accountRef: "MON014" },
+  const mon014 = await prisma.familyAccount.findFirst({
+    where: { schoolId: SCHOOL_ID, accountRef: "MON014" },
     select: { id: true, accountRef: true, familyName: true, schoolId: true },
   });
   if (!mon014 || mon014.schoolId !== SCHOOL_ID) {
@@ -51,8 +51,8 @@ async function main() {
   const plans: GapPlan[] = [];
 
   for (const accountRef of GAP_REFS) {
-    const fa = await prisma.familyAccount.findUnique({
-      where: { accountRef },
+    const fa = await prisma.familyAccount.findFirst({
+      where: { schoolId: SCHOOL_ID, accountRef },
       include: {
         learners: {
           select: {

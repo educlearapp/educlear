@@ -315,28 +315,24 @@ async function upsertFamilyAccountsFromAgeAnalysis(opts: {
       continue;
     }
 
-    const existing = await prisma.familyAccount.findUnique({
-      where: { accountRef },
-      select: { id: true, schoolId: true, familyName: true },
-    });
-    if (existing && existing.schoolId !== schoolId) {
-      throw new Error(
-        `AccountRef ${accountRef} already exists on another school (${existing.schoolId})`
-      );
-    }
-
-    await prisma.familyAccount.upsert({
-      where: { accountRef },
-      create: {
-        schoolId,
-        accountRef,
-        familyName: accountHolder,
-      },
-      update: {
-        familyName: accountHolder,
-      },
+    const existing = await prisma.familyAccount.findFirst({
+      where: { schoolId, accountRef },
       select: { id: true },
     });
+    const familyAccount = existing
+      ? await prisma.familyAccount.update({
+          where: { id: existing.id },
+          data: { familyName: accountHolder },
+          select: { id: true },
+        })
+      : await prisma.familyAccount.create({
+          data: {
+            schoolId,
+            accountRef,
+            familyName: accountHolder,
+          },
+          select: { id: true },
+        });
     imported += 1;
 
     const learnerId = await resolveUniqueLearnerIdByName(opts.byFullName, accountHolder);
@@ -350,7 +346,7 @@ async function upsertFamilyAccountsFromAgeAnalysis(opts: {
         await prisma.learner.update({
           where: { id: learnerId },
           data: {
-            familyAccount: { connect: { accountRef } },
+            familyAccountId: familyAccount.id,
           },
           select: { id: true },
         });

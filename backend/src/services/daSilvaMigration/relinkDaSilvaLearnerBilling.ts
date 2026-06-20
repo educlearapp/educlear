@@ -129,12 +129,16 @@ export async function relinkDaSilvaLearnerBillingFromBundle(opts: {
   }
 
   for (const [accountNo, familyName] of accountFamilyNames) {
-    const fa = await prisma.familyAccount.upsert({
-      where: { accountRef: accountNo },
-      create: { schoolId, accountRef: accountNo, familyName },
-      update: {},
+    const existingFa = await prisma.familyAccount.findFirst({
+      where: { schoolId, accountRef: accountNo },
       select: { id: true },
     });
+    const fa =
+      existingFa ||
+      (await prisma.familyAccount.create({
+        data: { schoolId, accountRef: accountNo, familyName },
+        select: { id: true },
+      }));
     accountToFamilyId.set(accountNo, fa.id);
     familyAccountsEnsured += 1;
   }

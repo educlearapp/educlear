@@ -297,16 +297,20 @@ async function runRepair(opts: {
   const ensureFamilyAccounts = async (): Promise<void> => {
     for (const [accountNo, familyName] of accountFamilyNames) {
       if (opts.apply) {
-        const fa = await prisma.familyAccount.upsert({
-          where: { accountRef: accountNo },
-          create: {
-            schoolId: opts.schoolId,
-            accountRef: accountNo,
-            familyName,
-          },
-          update: {},
+        const existingFa = await prisma.familyAccount.findFirst({
+          where: { schoolId: opts.schoolId, accountRef: accountNo },
           select: { id: true },
         });
+        const fa =
+          existingFa ||
+          (await prisma.familyAccount.create({
+            data: {
+              schoolId: opts.schoolId,
+              accountRef: accountNo,
+              familyName,
+            },
+            select: { id: true },
+          }));
         accountToFamilyId.set(accountNo, fa.id);
       }
       familyAccountsEnsured += 1;

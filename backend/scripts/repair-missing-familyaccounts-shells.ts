@@ -32,13 +32,14 @@ function chunk<T>(arr: T[], size: number): T[][] {
 }
 
 async function loadExistingFamilyAccountsByRefs(
+  schoolId: string,
   refs: string[]
 ): Promise<Array<{ accountRef: string; schoolId: string }>> {
   if (refs.length === 0) return [];
   const rows: Array<{ accountRef: string; schoolId: string }> = [];
   for (const group of chunk(refs, 500)) {
     const found = await prisma.familyAccount.findMany({
-      where: { accountRef: { in: group } },
+      where: { schoolId, accountRef: { in: group } },
       select: { accountRef: true, schoolId: true },
     });
     rows.push(...found);
@@ -113,7 +114,7 @@ async function main(): Promise<void> {
   }
 
   const allLedgerRefs = Array.from(ledgerRefs.values()).sort();
-  const existingGlobal = await loadExistingFamilyAccountsByRefs(allLedgerRefs);
+  const existingGlobal = await loadExistingFamilyAccountsByRefs(school.id, allLedgerRefs);
   const existingByRef = new Map<string, { accountRef: string; schoolId: string }>();
   for (const row of existingGlobal) existingByRef.set(row.accountRef, row);
 

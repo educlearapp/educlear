@@ -288,15 +288,20 @@ async function importFromManifest(manifest: DaSilvaImportManifest): Promise<void
       ? splitFullName(humanizeNormalizedName(parseStoredMatchKey(matchEntry[0]).fullNameNormalized))
           .lastName
       : accountNo;
-    const fa = await prisma.familyAccount.upsert({
-      where: { accountRef: accountNo },
-      create: {
-        schoolId,
-        accountRef: accountNo,
-        familyName: lastName || accountNo,
-      },
-      update: {},
+    const existingFa = await prisma.familyAccount.findFirst({
+      where: { schoolId, accountRef: accountNo },
+      select: { id: true },
     });
+    const fa =
+      existingFa ||
+      (await prisma.familyAccount.create({
+        data: {
+          schoolId,
+          accountRef: accountNo,
+          familyName: lastName || accountNo,
+        },
+        select: { id: true },
+      }));
     familyIdByAccount.set(accountNo, fa.id);
   }
 

@@ -986,7 +986,7 @@ export async function commitDaSilvaMigration(opts: {
     ];
     if (!accountNos.length) return;
     const rows = await prisma.familyAccount.findMany({
-      where: { accountRef: { in: accountNos } },
+      where: { schoolId: opts.schoolId, accountRef: { in: accountNos } },
       select: { id: true, accountRef: true },
     });
     for (const row of rows) {
@@ -1181,16 +1181,20 @@ export async function commitDaSilvaMigration(opts: {
       const accountNo = String(row.accountNo || "").trim();
       let familyAccountId: string | null = accountNo ? accountToFamilyId.get(accountNo) || null : null;
       if (accountNo && !familyAccountId) {
-        const fa = await prisma.familyAccount.upsert({
-          where: { accountRef: accountNo },
-          create: {
-            schoolId: opts.schoolId,
-            accountRef: accountNo,
-            familyName: row.lastName || row.fullName,
-          },
-          update: {},
+        const existingFa = await prisma.familyAccount.findFirst({
+          where: { schoolId: opts.schoolId, accountRef: accountNo },
           select: { id: true },
         });
+        const fa =
+          existingFa ||
+          (await prisma.familyAccount.create({
+            data: {
+              schoolId: opts.schoolId,
+              accountRef: accountNo,
+              familyName: row.lastName || row.fullName,
+            },
+            select: { id: true },
+          }));
         familyAccountId = fa.id;
         accountToFamilyId.set(accountNo, fa.id);
       }
@@ -2888,16 +2892,20 @@ export async function commitDaSilvaBillingMatchOnly(opts: {
     for (const [accountNo, learnerIds] of siblingGroups) {
       const familyName =
         dbLearners.find((l) => l.id === learnerIds[0])?.lastName || accountNo;
-      const fa = await prisma.familyAccount.upsert({
-        where: { accountRef: accountNo },
-        create: {
-          schoolId: opts.schoolId,
-          accountRef: accountNo,
-          familyName,
-        },
-        update: {},
+      const existingFa = await prisma.familyAccount.findFirst({
+        where: { schoolId: opts.schoolId, accountRef: accountNo },
         select: { id: true },
       });
+      const fa =
+        existingFa ||
+        (await prisma.familyAccount.create({
+          data: {
+            schoolId: opts.schoolId,
+            accountRef: accountNo,
+            familyName,
+          },
+          select: { id: true },
+        }));
 
       for (const learnerId of learnerIds) {
         await prisma.learner.update({

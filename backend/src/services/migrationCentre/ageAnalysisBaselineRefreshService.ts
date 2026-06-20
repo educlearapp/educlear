@@ -70,20 +70,22 @@ export async function refreshAgeAnalysisBaseline(opts: {
       importedAt,
     };
 
-    const existing = await prisma.familyAccount.findUnique({
-      where: { accountRef },
-      select: { id: true, schoolId: true },
-    });
-    if (existing && existing.schoolId !== schoolId) {
-      throw new Error(`AccountRef ${accountRef} belongs to another school (${existing.schoolId})`);
-    }
-
-    await prisma.familyAccount.upsert({
-      where: { accountRef },
-      create: { schoolId, accountRef, familyName: accountHolder },
-      update: { familyName: accountHolder },
+    const existing = await prisma.familyAccount.findFirst({
+      where: { schoolId, accountRef },
       select: { id: true },
     });
+    if (existing) {
+      await prisma.familyAccount.update({
+        where: { id: existing.id },
+        data: { familyName: accountHolder },
+        select: { id: true },
+      });
+    } else {
+      await prisma.familyAccount.create({
+        data: { schoolId, accountRef, familyName: accountHolder },
+        select: { id: true },
+      });
+    }
     familyAccountsUpserted += 1;
   }
 

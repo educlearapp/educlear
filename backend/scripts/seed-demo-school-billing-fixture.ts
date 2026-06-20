@@ -123,8 +123,8 @@ async function upsertDemoLearners(
   let upserted = 0;
   for (const account of accounts) {
     const accountRef = String(account.accountRef || "").trim().toUpperCase();
-    const family = await prisma.familyAccount.findUnique({
-      where: { accountRef },
+    const family = await prisma.familyAccount.findFirst({
+      where: { schoolId, accountRef },
       select: { id: true, schoolId: true },
     });
     if (!family || family.schoolId !== schoolId) {

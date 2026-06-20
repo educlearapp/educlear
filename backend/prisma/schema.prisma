@@ -644,7 +644,7 @@ model FamilyAccount {
 
   schoolId        String
 
-  accountRef      String    @unique
+  accountRef      String
 
   familyName      String
 
@@ -661,6 +661,8 @@ model FamilyAccount {
   billingDeposits BillingDeposit[]
 
 
+
+  @@unique([schoolId, accountRef])
 
   @@index([schoolId])
 
