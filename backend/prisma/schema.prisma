@@ -127,6 +127,7 @@ learnerReports LearnerReport[]
   classrooms Classroom[]
   groups Group[]
   groupLearnerLinks GroupLearner[]
+  groupExternalMembers GroupExternalMember[]
   classroomTeachers ClassroomTeacher[]
   teacherLearnerNotes TeacherLearnerNote[]
   teacherStudyNotes TeacherStudyNote[]
@@ -2704,6 +2705,7 @@ model Group {
 
   school School @relation(fields: [schoolId], references: [id], onDelete: Cascade)
   learnerLinks GroupLearner[]
+  externalMembers GroupExternalMember[]
 
   @@unique([schoolId, name])
   @@index([schoolId])
@@ -2724,6 +2726,26 @@ model GroupLearner {
   @@index([schoolId])
   @@index([groupId])
   @@index([learnerId])
+}
+
+model GroupExternalMember {
+  id             String   @id @default(cuid())
+  schoolId       String
+  groupId        String
+  name           String
+  normalizedName String
+  memberType     String   @default("EXTERNAL")
+  sourceFile     String   @default("")
+  sheetName      String   @default("")
+  rowNumber      Int?
+  createdAt      DateTime @default(now())
+
+  school School @relation(fields: [schoolId], references: [id], onDelete: Cascade)
+  group  Group  @relation(fields: [groupId], references: [id], onDelete: Cascade)
+
+  @@unique([groupId, normalizedName])
+  @@index([schoolId])
+  @@index([groupId])
 }
 
 model ClassroomTeacher {

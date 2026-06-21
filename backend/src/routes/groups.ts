@@ -18,6 +18,7 @@ type GroupRow = {
   createdAt: Date;
   updatedAt: Date;
   learnerIds?: string[];
+  externalMembers?: unknown;
 };
 
 type ParsedGroup = {
@@ -40,8 +41,24 @@ function normalizeKey(value: unknown) {
   return normalizeName(value).toLowerCase();
 }
 
+function normalizeLearnerLookupName(value: unknown) {
+  return String(value ?? "")
+    .replace(/\u00a0/g, " ")
+    .trim()
+    .replace(/\s+/g, " ")
+    .toUpperCase();
+}
+
+function learnerLookupKey(value: unknown) {
+  return normalizeLearnerLookupName(value).replace(/[^\p{L}\p{N}]+/gu, "");
+}
+
 function groupId() {
   return `grp_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 10)}`;
+}
+
+function groupLearnerId() {
+  return `gl_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 10)}`;
 }
 
 function formatGroup(row: GroupRow) {
@@ -51,6 +68,7 @@ function formatGroup(row: GroupRow) {
     name: row.name,
     comments: row.comments || "",
     learnerIds: Array.isArray(row.learnerIds) ? row.learnerIds : [],
+    externalMembers: Array.isArray(row.externalMembers) ? row.externalMembers : [],
     createdAt: row.createdAt,
     updatedAt: row.updatedAt,
   };
@@ -66,15 +84,35 @@ async function listGroups(schoolId: string) {
       g."createdAt",
       g."updatedAt",
       COALESCE(
-        array_agg(gl."learnerId" ORDER BY gl."learnerId") FILTER (WHERE gl."learnerId" IS NOT NULL),
+        (
+          SELECT array_agg(gl."learnerId" ORDER BY gl."learnerId")
+          FROM "GroupLearner" gl
+          WHERE gl."groupId" = g."id"
+            AND gl."schoolId" = g."schoolId"
+        ),
         ARRAY[]::TEXT[]
-      ) AS "learnerIds"
+      ) AS "learnerIds",
+      COALESCE(
+        (
+          SELECT jsonb_agg(
+            jsonb_build_object(
+              'id', gem."id",
+              'name', gem."name",
+              'memberType', gem."memberType",
+              'sourceFile', gem."sourceFile",
+              'sheetName', gem."sheetName",
+              'rowNumber', gem."rowNumber"
+            )
+            ORDER BY lower(gem."name") ASC, gem."createdAt" ASC
+          )
+          FROM "GroupExternalMember" gem
+          WHERE gem."groupId" = g."id"
+            AND gem."schoolId" = g."schoolId"
+        ),
+        '[]'::jsonb
+      ) AS "externalMembers"
     FROM "Group" g
-    LEFT JOIN "GroupLearner" gl
-      ON gl."groupId" = g."id"
-      AND gl."schoolId" = g."schoolId"
     WHERE g."schoolId" = ${schoolId}
-    GROUP BY g."id", g."schoolId", g."name", g."comments", g."createdAt", g."updatedAt"
     ORDER BY lower(g."name") ASC
   `;
   return rows.map(formatGroup);
@@ -202,6 +240,58 @@ router.put("/:id", async (req, res) => {
   } catch (error) {
     console.error("[groups] update", error);
     return jsonError(res, 500, "Failed to save group");
+  }
+});
+
+router.post("/:id/external-members/:externalMemberId/convert", async (req, res) => {
+  try {
+    const groupIdParam = String(req.params.id || "").trim();
+    const externalMemberId = String(req.params.externalMemberId || "").trim();
+    const schoolId = String(req.body?.schoolId || req.query.schoolId || "").trim();
+    if (!groupIdParam || !externalMemberId || !schoolId) {
+      return jsonError(res, 400, "group id, external member id and schoolId required");
+    }
+
+    const externalRows = await prisma.$queryRaw<Array<{ id: string; groupId: string; name: string }>>`
+      SELECT "id", "groupId", "name"
+      FROM "GroupExternalMember"
+      WHERE "id" = ${externalMemberId}
+        AND "groupId" = ${groupIdParam}
+        AND "schoolId" = ${schoolId}
+        AND "memberType" = 'EXTERNAL'
+      LIMIT 1
+    `;
+    const external = externalRows[0];
+    if (!external) return jsonError(res, 404, "External group member not found");
+
+    const learners = await prisma.$queryRaw<Array<{ id: string; firstName: string; lastName: string }>>`
+      SELECT "id", "firstName", "lastName"
+      FROM "Learner"
+      WHERE "schoolId" = ${schoolId}
+    `;
+    const externalKey = learnerLookupKey(external.name);
+    const matches = learners.filter((learner) => learnerLookupKey(`${learner.firstName} ${learner.lastName}`) === externalKey);
+    if (matches.length === 0) return jsonError(res, 404, "No matching EduClear learner found for this external name");
+    if (matches.length > 1) return jsonError(res, 409, "Multiple EduClear learners match this external name");
+
+    const learner = matches[0];
+    await prisma.$queryRaw`
+      INSERT INTO "GroupLearner" ("id", "schoolId", "groupId", "learnerId", "createdAt")
+      VALUES (${groupLearnerId()}, ${schoolId}, ${groupIdParam}, ${learner.id}, CURRENT_TIMESTAMP)
+      ON CONFLICT ("groupId", "learnerId") DO NOTHING
+    `;
+    await prisma.$queryRaw`
+      DELETE FROM "GroupExternalMember"
+      WHERE "id" = ${externalMemberId}
+        AND "groupId" = ${groupIdParam}
+        AND "schoolId" = ${schoolId}
+        AND "memberType" = 'EXTERNAL'
+    `;
+
+    return res.json({ success: true, learnerId: learner.id, groups: await listGroups(schoolId) });
+  } catch (error) {
+    console.error("[groups] convert external member", error);
+    return jsonError(res, 500, "Failed to convert external member");
   }
 });
 

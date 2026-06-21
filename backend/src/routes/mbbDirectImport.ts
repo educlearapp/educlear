@@ -115,6 +115,7 @@ type MbbGroupLinkDebug = {
   learnerNamesRead: number;
   learnerIdsMatched: number;
   learnerLinksCreated: number;
+  externalNamesCreated: number;
 };
 
 function jsonError(res: Response, status: number, message: string) {
@@ -199,6 +200,10 @@ function learnerLookupKey(value: unknown) {
     .trim();
 }
 
+function externalMemberKey(value: unknown) {
+  return learnerLookupKey(value);
+}
+
 function normalizeAdmissionKey(value: unknown) {
   return normalizeName(value).toUpperCase().replace(/[^A-Z0-9]/g, "");
 }
@@ -209,6 +214,10 @@ function groupId() {
 
 function groupLearnerId() {
   return `gl_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 10)}`;
+}
+
+function groupExternalMemberId() {
+  return `gem_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 10)}`;
 }
 
 function isAcceptedGroupsFile(fileName: string) {
@@ -625,11 +634,14 @@ async function buildBadGroupsCleanupPreview() {
       g."name",
       g."comments",
       g."createdAt",
-      COUNT(gl."learnerId") AS "childrenCount"
+      COUNT(DISTINCT gl."learnerId") + COUNT(DISTINCT gem."id") AS "childrenCount"
     FROM "Group" g
     LEFT JOIN "GroupLearner" gl
       ON gl."groupId" = g."id"
       AND gl."schoolId" = g."schoolId"
+    LEFT JOIN "GroupExternalMember" gem
+      ON gem."groupId" = g."id"
+      AND gem."schoolId" = g."schoolId"
     WHERE g."schoolId" = ${SCHOOL_ID}
     GROUP BY g."id", g."name", g."comments", g."createdAt"
     ORDER BY g."createdAt" DESC, g."name" ASC
@@ -698,6 +710,7 @@ async function linkMbbLearnersToGroups(assignments: ParsedMbbGroupAssignment[]) 
         learnerNamesRead: 0,
         learnerIdsMatched: 0,
         learnerLinksCreated: 0,
+        externalNamesCreated: 0,
       };
     current.matchingGroupFound = Boolean(group);
     current.matchingGroupId = group?.id || "";
@@ -746,10 +759,11 @@ async function linkMbbLearnersToGroups(assignments: ParsedMbbGroupAssignment[]) 
   const seenPairs = new Set<string>();
   const updatedGroupIds = new Set<string>();
   const skippedNoGroup: ParsedMbbGroupAssignment[] = [];
-  const skippedNoLearner: ParsedMbbGroupAssignment[] = [];
   const unmatchedLearnerDebug: MbbUnmatchedLearnerDebug[] = [];
   let linkedCount = 0;
   let alreadyLinkedCount = 0;
+  let externalMembersCreated = 0;
+  let externalMembersAlreadyExists = 0;
 
   for (const { assignment, group, learner, debugKey } of plannedLinks) {
     if (!group) {
@@ -758,7 +772,6 @@ async function linkMbbLearnersToGroups(assignments: ParsedMbbGroupAssignment[]) 
     }
 
     if (!learner) {
-      skippedNoLearner.push(assignment);
       unmatchedLearnerDebug.push({
         uploadedFilename: assignment.sourceFile,
         worksheetName: assignment.sheetName,
@@ -769,6 +782,36 @@ async function linkMbbLearnersToGroups(assignments: ParsedMbbGroupAssignment[]) 
         closestLearners: closestLearnersForDebug(assignment.learnerName, learnerIndexes),
         whyMatchFailed: learnerMatchFailureReason(assignment, learnerIndexes),
       });
+      const externalName = normalizeName(assignment.learnerName);
+      const normalizedExternalName = externalMemberKey(externalName);
+      if (!externalName || !normalizedExternalName) continue;
+      const insertedExternal = await prisma.$queryRaw<Array<{ id: string }>>`
+        INSERT INTO "GroupExternalMember" (
+          "id", "schoolId", "groupId", "name", "normalizedName", "memberType", "sourceFile", "sheetName", "rowNumber", "createdAt"
+        )
+        VALUES (
+          ${groupExternalMemberId()},
+          ${SCHOOL_ID},
+          ${group.id},
+          ${externalName},
+          ${normalizedExternalName},
+          'EXTERNAL',
+          ${assignment.sourceFile},
+          ${assignment.sheetName},
+          ${assignment.rowNumber},
+          CURRENT_TIMESTAMP
+        )
+        ON CONFLICT ("groupId", "normalizedName") DO NOTHING
+        RETURNING "id"
+      `;
+      updatedGroupIds.add(group.id);
+      if (insertedExternal.length > 0) {
+        externalMembersCreated += 1;
+        const debugRow = debugByGroup.get(debugKey);
+        if (debugRow) debugRow.externalNamesCreated += 1;
+      } else {
+        externalMembersAlreadyExists += 1;
+      }
       continue;
     }
 
@@ -799,7 +842,9 @@ async function linkMbbLearnersToGroups(assignments: ParsedMbbGroupAssignment[]) 
     learnersLinked: linkedCount,
     learnersAlreadyLinked: alreadyLinkedCount,
     learnersSkippedNoGroup: skippedNoGroup.length,
-    learnersSkippedNoLearner: skippedNoLearner.length,
+    learnersSkippedNoLearner: 0,
+    externalMembersCreated,
+    externalMembersAlreadyExists,
     groupsUpdated: updatedGroupIds.size,
     debug: Array.from(debugByGroup.values()),
     unmatchedLearnerDebug,
@@ -1009,6 +1054,11 @@ router.post("/groups/cleanup-bad-import", async (req, res) => {
             SELECT 1
             FROM "GroupLearner" gl
             WHERE gl."groupId" = "Group"."id"
+          )
+          AND NOT EXISTS (
+            SELECT 1
+            FROM "GroupExternalMember" gem
+            WHERE gem."groupId" = "Group"."id"
           )
         RETURNING "id"
       `;

@@ -94,6 +94,8 @@ type MbbGroupsLearnerLinkResponse = {
   learnersAlreadyLinked?: number;
   learnersSkippedNoGroup?: number;
   learnersSkippedNoLearner?: number;
+  externalMembersCreated?: number;
+  externalMembersAlreadyExists?: number;
   groupsUpdated?: number;
   debug?: Array<{
     uploadedFilename?: string;
@@ -106,6 +108,7 @@ type MbbGroupsLearnerLinkResponse = {
     learnerNamesRead?: number;
     learnerIdsMatched?: number;
     learnerLinksCreated?: number;
+    externalNamesCreated?: number;
   }>;
   unmatchedLearnerDebug?: Array<{
     uploadedFilename?: string;
@@ -377,7 +380,9 @@ function formatMbbGroupsLearnerLinkResult(response: MbbGroupsLearnerLinkResponse
     `Learners skipped (no group): ${response.learnersSkippedNoGroup ?? 0}`,
     `Groups updated: ${response.groupsUpdated ?? 0}`,
     `Already linked: ${response.learnersAlreadyLinked ?? 0}`,
-    `Skipped (learner not found): ${response.learnersSkippedNoLearner ?? 0}`,
+    `External names saved: ${response.externalMembersCreated ?? 0}`,
+    `External names already existed: ${response.externalMembersAlreadyExists ?? 0}`,
+    `Learners not found (saved as external names): ${response.unmatchedLearnerDebug?.length ?? response.learnersSkippedNoLearner ?? 0}`,
   ];
 
   if (response.blocked) {
@@ -390,7 +395,7 @@ function formatMbbGroupsLearnerLinkResult(response: MbbGroupsLearnerLinkResponse
     lines.push("Debug:");
     for (const row of debugRows.slice(0, 20)) {
       lines.push(
-        `- File: ${row.uploadedFilename || "?"} | Sheet: ${row.worksheetName || "?"} | Title row: ${row.detectedTitleRow || "-"} | Detected group: ${row.detectedGroupName || row.derivedGroupName || "?"} | Group found: ${row.matchingGroupFound ? "yes" : "no"} | Group ID: ${row.matchingGroupId || "-"} | Names read: ${row.learnerNamesRead ?? 0} | Learners matched: ${row.learnerIdsMatched ?? 0} | Links created: ${row.learnerLinksCreated ?? 0}`
+        `- File: ${row.uploadedFilename || "?"} | Sheet: ${row.worksheetName || "?"} | Title row: ${row.detectedTitleRow || "-"} | Detected group: ${row.detectedGroupName || row.derivedGroupName || "?"} | Group found: ${row.matchingGroupFound ? "yes" : "no"} | Group ID: ${row.matchingGroupId || "-"} | Names read: ${row.learnerNamesRead ?? 0} | Learners matched: ${row.learnerIdsMatched ?? 0} | Links created: ${row.learnerLinksCreated ?? 0} | External names saved: ${row.externalNamesCreated ?? 0}`
       );
     }
     if (debugRows.length > 20) lines.push(`...and ${debugRows.length - 20} more debug row(s)`);
