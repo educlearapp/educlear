@@ -65,6 +65,25 @@ type MbbCleanupGroup = {
   reason: string;
 };
 
+type ParsedMbbGroupAssignment = {
+  sourceFile: string;
+  sheetName: string;
+  rowNumber: number;
+  groupName: string;
+  learnerName: string;
+  firstName: string;
+  lastName: string;
+  admissionNo: string;
+};
+
+type MbbLearnerIndexRow = {
+  id: string;
+  firstName: string;
+  lastName: string;
+  nickname: string | null;
+  admissionNo: string | null;
+};
+
 function jsonError(res: Response, status: number, message: string) {
   return res.status(status).json({ success: false, error: message });
 }
@@ -133,8 +152,16 @@ function normalizePersonKey(value: unknown) {
   return normalizeName(value).toLowerCase().replace(/[^a-z0-9]+/g, " ").trim();
 }
 
+function normalizeAdmissionKey(value: unknown) {
+  return normalizeName(value).toUpperCase().replace(/[^A-Z0-9]/g, "");
+}
+
 function groupId() {
   return `grp_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 10)}`;
+}
+
+function groupLearnerId() {
+  return `gl_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 10)}`;
 }
 
 function isAcceptedGroupsFile(fileName: string) {
@@ -149,6 +176,15 @@ function assertSelectedMbbSchool(schoolId: string) {
 
 function pickHeaderColumn(headers: string[], labels: string[]) {
   return headers.findIndex((header) => labels.includes(header));
+}
+
+function normalizeHeader(value: unknown) {
+  return normalizeName(value).toLowerCase().replace(/[^a-z0-9]+/g, " ").trim();
+}
+
+function pickHeaderColumnLoose(headers: string[], labels: string[]) {
+  const labelSet = new Set(labels.map(normalizeHeader));
+  return headers.findIndex((header) => labelSet.has(normalizeHeader(header)));
 }
 
 function isNumericGroupName(value: unknown) {
@@ -247,6 +283,65 @@ function parseGroupRowsFromFile(file: Express.Multer.File): ParsedMbbGroup[] {
   return rows;
 }
 
+function parseGroupAssignmentsFromFile(file: Express.Multer.File): ParsedMbbGroupAssignment[] {
+  const workbook = XLSX.readFile(file.path, { raw: false });
+  const rows: ParsedMbbGroupAssignment[] = [];
+  const groupLabels = ["activity group", "class group"];
+  const fullNameLabels = ["learner name", "child name", "full name", "name"];
+  const firstNameLabels = ["first name", "firstname", "name", "learner first name", "child first name"];
+  const lastNameLabels = ["last name", "lastname", "surname", "learner surname", "child surname"];
+  const admissionLabels = ["admission no", "admission number", "admission", "learner number", "student number", "child number"];
+
+  for (const sheetName of workbook.SheetNames) {
+    const sheet = workbook.Sheets[sheetName];
+    if (!sheet) continue;
+
+    const matrix = XLSX.utils.sheet_to_json<unknown[]>(sheet, {
+      header: 1,
+      defval: "",
+      raw: false,
+    });
+    if (!matrix.length) continue;
+
+    for (let headerIndex = 0; headerIndex < Math.min(matrix.length, 12); headerIndex += 1) {
+      const headerRow = Array.isArray(matrix[headerIndex]) ? matrix[headerIndex].map(normalizeHeader) : [];
+      const groupColumn = pickHeaderColumnLoose(headerRow, groupLabels);
+      if (groupColumn < 0) continue;
+
+      const fullNameColumn = pickHeaderColumnLoose(headerRow, fullNameLabels);
+      const firstNameColumn = pickHeaderColumnLoose(headerRow, firstNameLabels);
+      const lastNameColumn = pickHeaderColumnLoose(headerRow, lastNameLabels);
+      const admissionColumn = pickHeaderColumnLoose(headerRow, admissionLabels);
+      const hasLearnerIdentifier = fullNameColumn >= 0 || admissionColumn >= 0 || (firstNameColumn >= 0 && lastNameColumn >= 0);
+      if (!hasLearnerIdentifier) continue;
+
+      matrix.slice(headerIndex + 1).forEach((row, index) => {
+        const cells = Array.isArray(row) ? row : [];
+        const groupName = normalizeName(cells[groupColumn]);
+        const firstName = normalizeName(cells[firstNameColumn]);
+        const lastName = normalizeName(cells[lastNameColumn]);
+        const explicitFullName = normalizeName(cells[fullNameColumn]);
+        const learnerName = explicitFullName || normalizeName(`${firstName} ${lastName}`);
+        const admissionNo = normalizeName(cells[admissionColumn]);
+        if (!groupName && !learnerName && !admissionNo) return;
+        rows.push({
+          sourceFile: safeName(file.originalname),
+          sheetName,
+          rowNumber: headerIndex + index + 2,
+          groupName,
+          learnerName,
+          firstName,
+          lastName,
+          admissionNo,
+        });
+      });
+      break;
+    }
+  }
+
+  return rows;
+}
+
 async function verifyMbbSchool() {
   const rows = await prisma.$queryRaw<Array<{ id: string; name: string }>>`
     SELECT "id", "name"
@@ -267,6 +362,69 @@ async function existingGroupKeys() {
     WHERE "schoolId" = ${SCHOOL_ID}
   `;
   return new Set(existingRows.map((row) => normalizeKey(row.name)));
+}
+
+async function loadMbbGroupsByName() {
+  const groups = await prisma.$queryRaw<Array<{ id: string; name: string }>>`
+    SELECT "id", "name"
+    FROM "Group"
+    WHERE "schoolId" = ${SCHOOL_ID}
+  `;
+  const byName = new Map<string, { id: string; name: string }>();
+  for (const group of groups) byName.set(normalizeKey(group.name), group);
+  return byName;
+}
+
+async function loadMbbLearnersForMatching() {
+  const learners = await prisma.$queryRaw<MbbLearnerIndexRow[]>`
+    SELECT "id", "firstName", "lastName", "nickname", "admissionNo"
+    FROM "Learner"
+    WHERE "schoolId" = ${SCHOOL_ID}
+  `;
+  const byAdmission = new Map<string, MbbLearnerIndexRow>();
+  const byName = new Map<string, MbbLearnerIndexRow>();
+  for (const learner of learners) {
+    const admissionKey = normalizeAdmissionKey(learner.admissionNo);
+    if (admissionKey && !byAdmission.has(admissionKey)) byAdmission.set(admissionKey, learner);
+
+    const first = normalizeName(learner.firstName);
+    const last = normalizeName(learner.lastName);
+    const nickname = normalizeName(learner.nickname);
+    for (const name of [
+      `${first} ${last}`,
+      `${last} ${first}`,
+      nickname && last ? `${nickname} ${last}` : "",
+      nickname && last ? `${last} ${nickname}` : "",
+    ]) {
+      const key = normalizePersonKey(name);
+      if (key && !byName.has(key)) byName.set(key, learner);
+    }
+  }
+  return { byAdmission, byName };
+}
+
+function matchMbbLearner(
+  row: ParsedMbbGroupAssignment,
+  indexes: Awaited<ReturnType<typeof loadMbbLearnersForMatching>>
+) {
+  const admissionKey = normalizeAdmissionKey(row.admissionNo);
+  if (admissionKey) {
+    const byAdmission = indexes.byAdmission.get(admissionKey);
+    if (byAdmission) return byAdmission;
+  }
+
+  for (const candidate of [
+    row.learnerName,
+    `${row.firstName} ${row.lastName}`,
+    `${row.lastName} ${row.firstName}`,
+  ]) {
+    const key = normalizePersonKey(candidate);
+    if (!key) continue;
+    const byName = indexes.byName.get(key);
+    if (byName) return byName;
+  }
+
+  return null;
 }
 
 async function buildGroupsPreview(parsedRows: ParsedMbbGroup[]) {
@@ -302,24 +460,39 @@ async function buildGroupsPreview(parsedRows: ParsedMbbGroup[]) {
 
 async function buildBadGroupsCleanupPreview() {
   await verifyMbbSchool();
-  const rows = await prisma.$queryRaw<Array<{ id: string; name: string; comments: string; createdAt: Date }>>`
-    SELECT "id", "name", "comments", "createdAt"
-    FROM "Group"
-    WHERE "schoolId" = ${SCHOOL_ID}
-    ORDER BY "createdAt" DESC, "name" ASC
+  const rows = await prisma.$queryRaw<Array<{ id: string; name: string; comments: string; createdAt: Date; childrenCount: bigint }>>`
+    SELECT
+      g."id",
+      g."name",
+      g."comments",
+      g."createdAt",
+      COUNT(gl."learnerId") AS "childrenCount"
+    FROM "Group" g
+    LEFT JOIN "GroupLearner" gl
+      ON gl."groupId" = g."id"
+      AND gl."schoolId" = g."schoolId"
+    WHERE g."schoolId" = ${SCHOOL_ID}
+    GROUP BY g."id", g."name", g."comments", g."createdAt"
+    ORDER BY g."createdAt" DESC, g."name" ASC
   `;
 
   const groupsToDelete: MbbCleanupGroup[] = [];
   const protectedGroups: MbbCleanupGroup[] = [];
   for (const row of rows) {
+    const childrenCount = Number(row.childrenCount || 0);
     const item = {
-      ...row,
-      childrenCount: 0,
+      id: row.id,
+      name: row.name,
+      comments: row.comments,
+      createdAt: row.createdAt,
+      childrenCount,
       reason: isNumericGroupName(row.name)
-        ? "Numeric group name from bad import"
+        ? childrenCount === 0
+          ? "Numeric group name from bad import"
+          : "Protected: group has learners linked"
         : "Protected: group name is not numeric",
     };
-    if (isNumericGroupName(row.name)) {
+    if (isNumericGroupName(row.name) && childrenCount === 0) {
       groupsToDelete.push(item);
     } else {
       protectedGroups.push(item);
@@ -334,6 +507,68 @@ async function buildBadGroupsCleanupPreview() {
     protectedGroups,
     deleteCount: groupsToDelete.length,
     protectedCount: protectedGroups.length,
+  };
+}
+
+async function linkMbbLearnersToGroups(assignments: ParsedMbbGroupAssignment[]) {
+  await verifyMbbSchool();
+  const groupsByName = await loadMbbGroupsByName();
+  const learnerIndexes = await loadMbbLearnersForMatching();
+  const seenPairs = new Set<string>();
+  const updatedGroupIds = new Set<string>();
+  const skippedNoGroup: ParsedMbbGroupAssignment[] = [];
+  const skippedNoLearner: ParsedMbbGroupAssignment[] = [];
+  let linkedCount = 0;
+  let alreadyLinkedCount = 0;
+
+  for (const assignment of assignments) {
+    const group = groupsByName.get(normalizeKey(assignment.groupName));
+    if (!group) {
+      skippedNoGroup.push(assignment);
+      continue;
+    }
+
+    const learner = matchMbbLearner(assignment, learnerIndexes);
+    if (!learner) {
+      skippedNoLearner.push(assignment);
+      continue;
+    }
+
+    const pairKey = `${group.id}:${learner.id}`;
+    if (seenPairs.has(pairKey)) continue;
+    seenPairs.add(pairKey);
+
+    const inserted = await prisma.$queryRaw<Array<{ id: string }>>`
+      INSERT INTO "GroupLearner" ("id", "schoolId", "groupId", "learnerId", "createdAt")
+      VALUES (${groupLearnerId()}, ${SCHOOL_ID}, ${group.id}, ${learner.id}, CURRENT_TIMESTAMP)
+      ON CONFLICT ("groupId", "learnerId") DO NOTHING
+      RETURNING "id"
+    `;
+    updatedGroupIds.add(group.id);
+    if (inserted.length > 0) {
+      linkedCount += 1;
+    } else {
+      alreadyLinkedCount += 1;
+    }
+  }
+
+  return {
+    success: true,
+    schoolId: SCHOOL_ID,
+    schoolName: SCHOOL_NAME,
+    learnersLinked: linkedCount,
+    learnersAlreadyLinked: alreadyLinkedCount,
+    learnersSkippedNoGroup: skippedNoGroup.length,
+    learnersSkippedNoLearner: skippedNoLearner.length,
+    groupsUpdated: updatedGroupIds.size,
+    skippedNoGroup: skippedNoGroup.slice(0, 30).map((row) => ({
+      sourceFile: row.sourceFile,
+      sheetName: row.sheetName,
+      rowNumber: row.rowNumber,
+      groupName: row.groupName,
+      learnerName: row.learnerName,
+      admissionNo: row.admissionNo,
+    })),
   };
 }
 
@@ -528,6 +763,11 @@ router.post("/groups/cleanup-bad-import", async (req, res) => {
         WHERE "id" = ${group.id}
           AND "schoolId" = ${SCHOOL_ID}
           AND "name" = ${group.name}
+          AND NOT EXISTS (
+            SELECT 1
+            FROM "GroupLearner" gl
+            WHERE gl."groupId" = "Group"."id"
+          )
         RETURNING "id"
       `;
       if (deleted.length > 0) deletedGroups.push(group);
@@ -544,6 +784,31 @@ router.post("/groups/cleanup-bad-import", async (req, res) => {
     });
   } catch (error: unknown) {
     const message = error instanceof Error ? error.message : "Failed to remove bad MBB groups import";
+    return jsonError(res, 500, message);
+  }
+});
+
+router.post("/groups/link-learners", upload.array("files", MAX_FILES), async (req, res) => {
+  try {
+    const schoolId = String(req.body?.schoolId || "").trim();
+    assertSelectedMbbSchool(schoolId);
+
+    const files = Array.isArray(req.files) ? (req.files as Express.Multer.File[]) : [];
+    if (!files.length) return jsonError(res, 400, "Upload the MBB migration files with Activity Group/Class Group columns.");
+
+    const invalid = files.find((file) => !isAcceptedGroupsFile(file.originalname));
+    if (invalid) {
+      return jsonError(res, 400, `File must be .csv, .xls, or .xlsx: ${safeName(invalid.originalname)}`);
+    }
+
+    const assignments = files.flatMap(parseGroupAssignmentsFromFile).filter((row) => row.groupName);
+    if (!assignments.length) {
+      return jsonError(res, 400, "No Activity Group or Class Group assignments found in the uploaded files.");
+    }
+
+    return res.json(await linkMbbLearnersToGroups(assignments));
+  } catch (error: unknown) {
+    const message = error instanceof Error ? error.message : "Failed to link MBB learners to groups";
     return jsonError(res, 500, message);
   }
 });

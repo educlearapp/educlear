@@ -86,6 +86,17 @@ type MbbGroupsCleanupResponse = {
   error?: string;
 };
 
+type MbbGroupsLearnerLinkResponse = {
+  success?: boolean;
+  schoolName?: string;
+  learnersLinked?: number;
+  learnersAlreadyLinked?: number;
+  learnersSkippedNoGroup?: number;
+  learnersSkippedNoLearner?: number;
+  groupsUpdated?: number;
+  error?: string;
+};
+
 type ConfirmModalProps = {
   title: string;
   message: string;
@@ -324,6 +335,16 @@ function formatMbbGroupsCleanupResult(response: MbbGroupsCleanupResponse): strin
   ].join("\n");
 }
 
+function formatMbbGroupsLearnerLinkResult(response: MbbGroupsLearnerLinkResponse): string {
+  return [
+    `Learners linked: ${response.learnersLinked ?? 0}`,
+    `Learners skipped (no group): ${response.learnersSkippedNoGroup ?? 0}`,
+    `Groups updated: ${response.groupsUpdated ?? 0}`,
+    `Already linked: ${response.learnersAlreadyLinked ?? 0}`,
+    `Skipped (learner not found): ${response.learnersSkippedNoLearner ?? 0}`,
+  ].join("\n");
+}
+
 export default function SuperAdminSchoolsPage() {
   const {
     filteredSchools,
@@ -361,6 +382,9 @@ export default function SuperAdminSchoolsPage() {
   const [mbbGroupsImporting, setMbbGroupsImporting] = useState(false);
   const [mbbGroupsCleaning, setMbbGroupsCleaning] = useState(false);
   const mbbGroupsFileInputRef = useRef<HTMLInputElement | null>(null);
+  const [mbbLinkFiles, setMbbLinkFiles] = useState<File[]>([]);
+  const [mbbLinkingLearners, setMbbLinkingLearners] = useState(false);
+  const mbbLinkFilesInputRef = useRef<HTMLInputElement | null>(null);
   const [confirm, setConfirm] = useState<{
     title: string;
     message: string;
@@ -416,6 +440,17 @@ export default function SuperAdminSchoolsPage() {
     });
     setMbbGroupsPreview(null);
     if (mbbGroupsFileInputRef.current) mbbGroupsFileInputRef.current.value = "";
+  }, []);
+
+  const handleMbbLinkFilesSelected = useCallback((files: FileList | null) => {
+    const nextFiles = Array.from(files || []);
+    if (!nextFiles.length) return;
+    setMbbLinkFiles((current) => {
+      const byKey = new Map(current.map((file) => [`${file.name}:${file.size}`, file]));
+      for (const file of nextFiles) byKey.set(`${file.name}:${file.size}`, file);
+      return Array.from(byKey.values()).sort((a, b) => a.name.localeCompare(b.name));
+    });
+    if (mbbLinkFilesInputRef.current) mbbLinkFilesInputRef.current.value = "";
   }, []);
 
   const handleRepairMissingMbbLearners = useCallback(async () => {
@@ -567,6 +602,7 @@ export default function SuperAdminSchoolsPage() {
               localStorage.removeItem("educlearGroups");
               localStorage.removeItem(`educlearGroups:${MBB_SCHOOL_ID}`);
               localStorage.setItem(`educlearGroups:${MBB_SCHOOL_ID}:refreshRequestedAt`, String(Date.now()));
+              window.dispatchEvent(new CustomEvent("educlear:groups-refresh", { detail: { schoolId: MBB_SCHOOL_ID } }));
               await reload();
               setMbbGroupsPreview(null);
               showNotice(
@@ -593,6 +629,46 @@ export default function SuperAdminSchoolsPage() {
       setMbbGroupsCleaning(false);
     }
   }, [reload, showNotice]);
+
+  const handleLinkMbbLearnersToGroups = useCallback(async () => {
+    if (!mbbLinkFiles.length) {
+      showNotice("Select MBB migration files", "Choose the MBB migration/class-list files that contain Activity Group or Class Group columns.");
+      return;
+    }
+
+    const form = new FormData();
+    form.append("schoolId", MBB_SCHOOL_ID);
+    for (const file of mbbLinkFiles) form.append("files", file, file.name);
+
+    setMbbLinkingLearners(true);
+    try {
+      const response = (await superAdminApiUpload(
+        "/api/super-admin/mbb-direct-import/groups/link-learners",
+        form
+      )) as MbbGroupsLearnerLinkResponse;
+      if (response.success === false) {
+        throw new Error(response.error || "MBB learner-group linking failed.");
+      }
+      localStorage.removeItem("educlearGroups");
+      localStorage.removeItem(`educlearGroups:${MBB_SCHOOL_ID}`);
+      localStorage.setItem(`educlearGroups:${MBB_SCHOOL_ID}:refreshRequestedAt`, String(Date.now()));
+      window.dispatchEvent(new CustomEvent("educlear:groups-refresh", { detail: { schoolId: MBB_SCHOOL_ID } }));
+      await reload();
+      setMbbLinkFiles([]);
+      if (mbbLinkFilesInputRef.current) mbbLinkFilesInputRef.current.value = "";
+      showNotice(
+        "MBB learners linked to groups",
+        `${response.schoolName || "Magical Bright Beginnings"} group links updated.\n\n${formatMbbGroupsLearnerLinkResult(response)}`
+      );
+    } catch (err: unknown) {
+      showNotice(
+        "MBB group linking failed",
+        err instanceof Error ? err.message : "The MBB learner-group linking could not be completed."
+      );
+    } finally {
+      setMbbLinkingLearners(false);
+    }
+  }, [mbbLinkFiles, reload, showNotice]);
 
   const handleView = useCallback(
     (school: SchoolRecord) => {
@@ -914,10 +990,42 @@ export default function SuperAdminSchoolsPage() {
             type="button"
             className="sa-schools-btn sa-schools-btn--danger"
             onClick={() => void handleRemoveBadMbbGroupsImport()}
-            disabled={mbbGroupsPreviewing || mbbGroupsImporting || mbbGroupsCleaning}
+            disabled={mbbGroupsPreviewing || mbbGroupsImporting || mbbGroupsCleaning || mbbLinkingLearners}
           >
             {mbbGroupsCleaning ? "Checking cleanup…" : "Remove Bad MBB Groups Import"}
           </button>
+          <div className="sa-schools-mbb-secondary-tool">
+            <p className="sa-schools-mbb-import-count">
+              Learner link files: <strong>{mbbLinkFiles.length}</strong>
+            </p>
+            <input
+              ref={mbbLinkFilesInputRef}
+              type="file"
+              multiple
+              accept=".csv,.xls,.xlsx"
+              className="sa-schools-mbb-import-input"
+              onChange={(e) => handleMbbLinkFilesSelected(e.target.files)}
+            />
+            <button
+              type="button"
+              className="sa-schools-btn"
+              onClick={() => {
+                setMbbLinkFiles([]);
+                if (mbbLinkFilesInputRef.current) mbbLinkFilesInputRef.current.value = "";
+              }}
+              disabled={mbbLinkingLearners || mbbLinkFiles.length === 0}
+            >
+              Clear link files
+            </button>
+            <button
+              type="button"
+              className="sa-schools-btn sa-schools-btn--gold"
+              onClick={() => void handleLinkMbbLearnersToGroups()}
+              disabled={mbbGroupsPreviewing || mbbGroupsImporting || mbbGroupsCleaning || mbbLinkingLearners || mbbLinkFiles.length === 0}
+            >
+              {mbbLinkingLearners ? "Linking learners…" : "Link Learners to Imported Groups"}
+            </button>
+          </div>
         </div>
       </section>
 

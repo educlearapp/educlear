@@ -17,6 +17,7 @@ type GroupRow = {
   comments: string;
   createdAt: Date;
   updatedAt: Date;
+  learnerIds?: string[];
 };
 
 type ParsedGroup = {
@@ -49,7 +50,7 @@ function formatGroup(row: GroupRow) {
     schoolId: row.schoolId,
     name: row.name,
     comments: row.comments || "",
-    learnerIds: [],
+    learnerIds: Array.isArray(row.learnerIds) ? row.learnerIds : [],
     createdAt: row.createdAt,
     updatedAt: row.updatedAt,
   };
@@ -57,10 +58,24 @@ function formatGroup(row: GroupRow) {
 
 async function listGroups(schoolId: string) {
   const rows = await prisma.$queryRaw<GroupRow[]>`
-    SELECT "id", "schoolId", "name", "comments", "createdAt", "updatedAt"
-    FROM "Group"
-    WHERE "schoolId" = ${schoolId}
-    ORDER BY lower("name") ASC
+    SELECT
+      g."id",
+      g."schoolId",
+      g."name",
+      g."comments",
+      g."createdAt",
+      g."updatedAt",
+      COALESCE(
+        array_agg(gl."learnerId" ORDER BY gl."learnerId") FILTER (WHERE gl."learnerId" IS NOT NULL),
+        ARRAY[]::TEXT[]
+      ) AS "learnerIds"
+    FROM "Group" g
+    LEFT JOIN "GroupLearner" gl
+      ON gl."groupId" = g."id"
+      AND gl."schoolId" = g."schoolId"
+    WHERE g."schoolId" = ${schoolId}
+    GROUP BY g."id", g."schoolId", g."name", g."comments", g."createdAt", g."updatedAt"
+    ORDER BY lower(g."name") ASC
   `;
   return rows.map(formatGroup);
 }

@@ -126,6 +126,7 @@ learnerReports LearnerReport[]
   accountingJournals AccountingJournal[]
   classrooms Classroom[]
   groups Group[]
+  groupLearnerLinks GroupLearner[]
   classroomTeachers ClassroomTeacher[]
   teacherLearnerNotes TeacherLearnerNote[]
   teacherStudyNotes TeacherStudyNote[]
@@ -728,6 +729,7 @@ reports LearnerReport[]
   teacherLearnerNotes TeacherLearnerNote[]
   attendances LearnerAttendance[]
   communicationMessages CommunicationMessage[]
+  groupLinks GroupLearner[]
 
   @@unique([schoolId, admissionNo])
   @@index([schoolId])
@@ -2701,9 +2703,27 @@ model Group {
   updatedAt DateTime @updatedAt
 
   school School @relation(fields: [schoolId], references: [id], onDelete: Cascade)
+  learnerLinks GroupLearner[]
 
   @@unique([schoolId, name])
   @@index([schoolId])
+}
+
+model GroupLearner {
+  id        String   @id @default(cuid())
+  schoolId  String
+  groupId   String
+  learnerId String
+  createdAt DateTime @default(now())
+
+  school  School  @relation(fields: [schoolId], references: [id], onDelete: Cascade)
+  group   Group   @relation(fields: [groupId], references: [id], onDelete: Cascade)
+  learner Learner @relation(fields: [learnerId], references: [id], onDelete: Cascade)
+
+  @@unique([groupId, learnerId])
+  @@index([schoolId])
+  @@index([groupId])
+  @@index([learnerId])
 }
 
 model ClassroomTeacher {

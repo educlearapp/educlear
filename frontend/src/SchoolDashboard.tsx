@@ -829,6 +829,7 @@ const [incidentDraft, setIncidentDraft] = useState<any>({
 
 });
 const [selectedGroupLearnerIds, setSelectedGroupLearnerIds] = useState<string[]>([]);
+const [groupsRefreshToken, setGroupsRefreshToken] = useState(0);
 
 const cacheGroupsForSchool = (groups: any[]) => {
   const payload = JSON.stringify(groups);
@@ -837,6 +838,31 @@ const cacheGroupsForSchool = (groups: any[]) => {
     localStorage.setItem(`educlearGroups:${schoolId}`, payload);
   }
 };
+
+useEffect(() => {
+  if (!schoolId) return;
+
+  const handleGroupsRefresh = (event: Event) => {
+    const detail = (event as CustomEvent<{ schoolId?: string }>).detail;
+    if (!detail?.schoolId || detail.schoolId === schoolId) {
+      setGroupsRefreshToken(Date.now());
+    }
+  };
+
+  const handleStorageRefresh = (event: StorageEvent) => {
+    if (event.key === `educlearGroups:${schoolId}:refreshRequestedAt`) {
+      setGroupsRefreshToken(Date.now());
+    }
+  };
+
+  window.addEventListener("educlear:groups-refresh", handleGroupsRefresh as EventListener);
+  window.addEventListener("storage", handleStorageRefresh);
+
+  return () => {
+    window.removeEventListener("educlear:groups-refresh", handleGroupsRefresh as EventListener);
+    window.removeEventListener("storage", handleStorageRefresh);
+  };
+}, [schoolId]);
 
 useEffect(() => {
   if (!schoolId) return;
@@ -859,7 +885,11 @@ useEffect(() => {
           const localMatch = localByName.get(String(group?.name || "").trim().toLowerCase());
           return {
             ...group,
-            learnerIds: Array.isArray(localMatch?.learnerIds) ? localMatch.learnerIds : [],
+            learnerIds: Array.isArray(group?.learnerIds)
+              ? group.learnerIds
+              : Array.isArray(localMatch?.learnerIds)
+                ? localMatch.learnerIds
+                : [],
           };
         });
         cacheGroupsForSchool(nextGroups);
@@ -878,7 +908,7 @@ useEffect(() => {
   return () => {
     cancelled = true;
   };
-}, [schoolId]);
+}, [schoolId, groupsRefreshToken]);
 
 
 const [learnerGradeOverrides, setLearnerGradeOverrides] = useState<Record<string, string>>({});
