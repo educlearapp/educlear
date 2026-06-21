@@ -7247,7 +7247,7 @@ if (schoolId) {
   
   
   
-              <th style={th}>Children</th>
+              <th style={th}>Children/Members</th>
   
   
   
@@ -7899,7 +7899,7 @@ if (schoolId) {
   
   
   
-            Children
+            Linked EduClear Learners
   
   
   

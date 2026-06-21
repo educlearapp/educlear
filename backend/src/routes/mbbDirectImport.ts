@@ -178,6 +178,10 @@ function normalizeName(value: unknown) {
   return String(value ?? "").trim().replace(/\s+/g, " ");
 }
 
+function copyMemberName(value: unknown) {
+  return String(value ?? "").replace(/\u00a0/g, " ").trim();
+}
+
 function normalizeKey(value: unknown) {
   return normalizeName(value).toLowerCase();
 }
@@ -261,6 +265,10 @@ function detectSheetTitle(matrix: unknown[][], labelsToSkip: string[]) {
     return { titleRow: index + 1, groupName: value };
   }
   return { titleRow: 0, groupName: "" };
+}
+
+function isNumericCellValue(value: unknown) {
+  return /^\d+(?:[.,]\d+)?$/.test(copyMemberName(value));
 }
 
 function isNumericGroupName(value: unknown) {
@@ -386,18 +394,16 @@ function parseGroupAssignmentsFromFile(file: Express.Multer.File): ParsedMbbGrou
       const fullNameColumn = pickHeaderColumnLoose(headerRow, fullNameLabels);
       const firstNameColumn = pickHeaderColumnLoose(headerRow, firstNameLabels);
       const lastNameColumn = pickHeaderColumnLoose(headerRow, lastNameLabels);
-      const admissionColumn = pickHeaderColumnLoose(headerRow, admissionLabels);
-      const hasLearnerIdentifier = fullNameColumn >= 0 || admissionColumn >= 0 || (firstNameColumn >= 0 && lastNameColumn >= 0);
-      if (!hasLearnerIdentifier) continue;
+      const hasMemberName = fullNameColumn >= 0 || (firstNameColumn >= 0 && lastNameColumn >= 0);
+      if (!hasMemberName) continue;
 
       matrix.slice(headerIndex + 1).forEach((row, index) => {
         const cells = Array.isArray(row) ? row : [];
-        const firstName = normalizeName(cells[firstNameColumn]);
-        const lastName = normalizeName(cells[lastNameColumn]);
-        const explicitFullName = normalizeName(cells[fullNameColumn]);
-        const learnerName = explicitFullName || normalizeName(`${firstName} ${lastName}`);
-        const admissionNo = normalizeName(cells[admissionColumn]);
-        if (!groupName || (!learnerName && !admissionNo)) return;
+        const firstName = copyMemberName(cells[firstNameColumn]);
+        const lastName = copyMemberName(cells[lastNameColumn]);
+        const explicitFullName = copyMemberName(cells[fullNameColumn]);
+        const learnerName = explicitFullName || copyMemberName(`${firstName} ${lastName}`);
+        if (!groupName || !learnerName) return;
         rows.push({
           sourceFile: safeName(file.originalname),
           sheetName,
@@ -407,7 +413,7 @@ function parseGroupAssignmentsFromFile(file: Express.Multer.File): ParsedMbbGrou
           learnerName,
           firstName,
           lastName,
-          admissionNo,
+          admissionNo: "",
         });
       });
       parsedSheet = true;
@@ -418,11 +424,11 @@ function parseGroupAssignmentsFromFile(file: Express.Multer.File): ParsedMbbGrou
 
     matrix.slice(Math.max(titleRow, 0)).forEach((row, index) => {
       const cells = Array.isArray(row) ? row : [];
-      const learnerName = normalizeName(cells[0]);
-      const admissionNo = normalizeName(cells[1]);
+      const learnerName = cells
+        .map(copyMemberName)
+        .find((value) => value && !isNumericCellValue(value) && !learnerHeaderLabels.map(normalizeHeader).includes(normalizeHeader(value))) || "";
       if (normalizeKey(learnerName) === normalizeKey(groupName)) return;
-      if (learnerHeaderLabels.map(normalizeHeader).includes(normalizeHeader(learnerName))) return;
-      if (!groupName || (!learnerName && !admissionNo)) return;
+      if (!groupName || !learnerName) return;
       rows.push({
         sourceFile: safeName(file.originalname),
         sheetName,
@@ -432,7 +438,7 @@ function parseGroupAssignmentsFromFile(file: Express.Multer.File): ParsedMbbGrou
         learnerName,
         firstName: "",
         lastName: "",
-        admissionNo,
+        admissionNo: "",
       });
     });
   }
@@ -684,18 +690,15 @@ async function buildBadGroupsCleanupPreview() {
 async function linkMbbLearnersToGroups(assignments: ParsedMbbGroupAssignment[]) {
   await verifyMbbSchool();
   const { groups: existingGroups, byName: groupsByName } = await loadMbbGroupsByName();
-  const learnerIndexes = await loadMbbLearnersForMatching();
   const debugByGroup = new Map<string, MbbGroupLinkDebug>();
-  const plannedLinks: Array<{
+  const plannedCopies: Array<{
     assignment: ParsedMbbGroupAssignment;
     group: { id: string; name: string } | undefined;
-    learner: MbbLearnerIndexRow | null;
     debugKey: string;
   }> = [];
 
   for (const assignment of assignments) {
     const group = groupsByName.get(normalizeKey(assignment.groupName));
-    const learner = matchMbbLearner(assignment, learnerIndexes);
     const debugKey = `${assignment.sourceFile}\u0000${assignment.sheetName}\u0000${assignment.groupName}`;
     const current =
       debugByGroup.get(debugKey) ||
@@ -715,14 +718,13 @@ async function linkMbbLearnersToGroups(assignments: ParsedMbbGroupAssignment[]) 
     current.matchingGroupFound = Boolean(group);
     current.matchingGroupId = group?.id || "";
     current.learnerNamesRead += 1;
-    if (learner) current.learnerIdsMatched += 1;
     debugByGroup.set(debugKey, current);
-    plannedLinks.push({ assignment, group, learner, debugKey });
+    plannedCopies.push({ assignment, group, debugKey });
   }
 
   const debug = Array.from(debugByGroup.values());
   const normalizationUsed =
-    "Group names are derived from the first non-empty title cell at the top of each worksheet; group matching trims/collapses spaces and is case-insensitive. Learner matching replaces NBSP, trims, collapses whitespace, uppercases, removes punctuation for lookup, and compares against stored firstName + surname.";
+    "Group names are derived from the first non-empty title cell at the top of each worksheet; group matching trims/collapses spaces and is case-insensitive. Uploaded member names are copied into external group members only; no EduClear learner matching or admission-number lookup is attempted.";
   const unmatchedGroupDebug = debug.filter((row) => !row.matchingGroupFound);
   if (unmatchedGroupDebug.length) {
     const existingGroupNames = existingGroups.map((group) => group.name).sort((a, b) => a.localeCompare(b));
@@ -739,11 +741,13 @@ async function linkMbbLearnersToGroups(assignments: ParsedMbbGroupAssignment[]) 
       blocked: true,
       schoolId: SCHOOL_ID,
       schoolName: SCHOOL_NAME,
-      error: "No learner-group links were created because one or more uploaded files did not match an existing MBB group.",
+      error: "No external group members were copied because one or more uploaded files did not match an existing MBB group.",
       learnersLinked: 0,
       learnersAlreadyLinked: 0,
       learnersSkippedNoGroup: assignments.length,
       learnersSkippedNoLearner: 0,
+      externalMembersCreated: 0,
+      externalMembersAlreadyExists: 0,
       groupsUpdated: 0,
       debug,
       unmatchedGroupDebug,
@@ -756,82 +760,46 @@ async function linkMbbLearnersToGroups(assignments: ParsedMbbGroupAssignment[]) 
     console.info("[mbb-groups/link-learners] preflight", row);
   }
 
-  const seenPairs = new Set<string>();
   const updatedGroupIds = new Set<string>();
   const skippedNoGroup: ParsedMbbGroupAssignment[] = [];
-  const unmatchedLearnerDebug: MbbUnmatchedLearnerDebug[] = [];
-  let linkedCount = 0;
-  let alreadyLinkedCount = 0;
   let externalMembersCreated = 0;
   let externalMembersAlreadyExists = 0;
 
-  for (const { assignment, group, learner, debugKey } of plannedLinks) {
+  for (const { assignment, group, debugKey } of plannedCopies) {
     if (!group) {
       skippedNoGroup.push(assignment);
       continue;
     }
 
-    if (!learner) {
-      unmatchedLearnerDebug.push({
-        uploadedFilename: assignment.sourceFile,
-        worksheetName: assignment.sheetName,
-        rowNumber: assignment.rowNumber,
-        groupName: assignment.groupName,
-        nameReadFromExcel: assignment.learnerName,
-        normalizedNameUsedForLookup: normalizeLearnerLookupName(assignment.learnerName),
-        closestLearners: closestLearnersForDebug(assignment.learnerName, learnerIndexes),
-        whyMatchFailed: learnerMatchFailureReason(assignment, learnerIndexes),
-      });
-      const externalName = normalizeName(assignment.learnerName);
-      const normalizedExternalName = externalMemberKey(externalName);
-      if (!externalName || !normalizedExternalName) continue;
-      const insertedExternal = await prisma.$queryRaw<Array<{ id: string }>>`
-        INSERT INTO "GroupExternalMember" (
-          "id", "schoolId", "groupId", "name", "normalizedName", "memberType", "sourceFile", "sheetName", "rowNumber", "createdAt"
-        )
-        VALUES (
-          ${groupExternalMemberId()},
-          ${SCHOOL_ID},
-          ${group.id},
-          ${externalName},
-          ${normalizedExternalName},
-          'EXTERNAL',
-          ${assignment.sourceFile},
-          ${assignment.sheetName},
-          ${assignment.rowNumber},
-          CURRENT_TIMESTAMP
-        )
-        ON CONFLICT ("groupId", "normalizedName") DO NOTHING
-        RETURNING "id"
-      `;
-      updatedGroupIds.add(group.id);
-      if (insertedExternal.length > 0) {
-        externalMembersCreated += 1;
-        const debugRow = debugByGroup.get(debugKey);
-        if (debugRow) debugRow.externalNamesCreated += 1;
-      } else {
-        externalMembersAlreadyExists += 1;
-      }
-      continue;
-    }
-
-    const pairKey = `${group.id}:${learner.id}`;
-    if (seenPairs.has(pairKey)) continue;
-    seenPairs.add(pairKey);
-
-    const inserted = await prisma.$queryRaw<Array<{ id: string }>>`
-      INSERT INTO "GroupLearner" ("id", "schoolId", "groupId", "learnerId", "createdAt")
-      VALUES (${groupLearnerId()}, ${SCHOOL_ID}, ${group.id}, ${learner.id}, CURRENT_TIMESTAMP)
-      ON CONFLICT ("groupId", "learnerId") DO NOTHING
+    const externalName = copyMemberName(assignment.learnerName);
+    const normalizedExternalName = externalMemberKey(externalName);
+    if (!externalName || !normalizedExternalName) continue;
+    const insertedExternal = await prisma.$queryRaw<Array<{ id: string }>>`
+      INSERT INTO "GroupExternalMember" (
+        "id", "schoolId", "groupId", "name", "normalizedName", "memberType", "sourceFile", "sheetName", "rowNumber", "createdAt"
+      )
+      VALUES (
+        ${groupExternalMemberId()},
+        ${SCHOOL_ID},
+        ${group.id},
+        ${externalName},
+        ${normalizedExternalName},
+        'EXTERNAL',
+        ${assignment.sourceFile},
+        ${assignment.sheetName},
+        ${assignment.rowNumber},
+        CURRENT_TIMESTAMP
+      )
+      ON CONFLICT ("groupId", "normalizedName") DO NOTHING
       RETURNING "id"
     `;
     updatedGroupIds.add(group.id);
-    if (inserted.length > 0) {
-      linkedCount += 1;
+    if (insertedExternal.length > 0) {
+      externalMembersCreated += 1;
       const debugRow = debugByGroup.get(debugKey);
-      if (debugRow) debugRow.learnerLinksCreated += 1;
+      if (debugRow) debugRow.externalNamesCreated += 1;
     } else {
-      alreadyLinkedCount += 1;
+      externalMembersAlreadyExists += 1;
     }
   }
 
@@ -839,22 +807,22 @@ async function linkMbbLearnersToGroups(assignments: ParsedMbbGroupAssignment[]) 
     success: true,
     schoolId: SCHOOL_ID,
     schoolName: SCHOOL_NAME,
-    learnersLinked: linkedCount,
-    learnersAlreadyLinked: alreadyLinkedCount,
+    learnersLinked: 0,
+    learnersAlreadyLinked: 0,
     learnersSkippedNoGroup: skippedNoGroup.length,
     learnersSkippedNoLearner: 0,
     externalMembersCreated,
     externalMembersAlreadyExists,
     groupsUpdated: updatedGroupIds.size,
     debug: Array.from(debugByGroup.values()),
-    unmatchedLearnerDebug,
+    unmatchedLearnerDebug: [],
     skippedNoGroup: skippedNoGroup.slice(0, 30).map((row) => ({
       sourceFile: row.sourceFile,
       sheetName: row.sheetName,
       rowNumber: row.rowNumber,
       groupName: row.groupName,
       learnerName: row.learnerName,
-      admissionNo: row.admissionNo,
+      admissionNo: "",
     })),
   };
 }

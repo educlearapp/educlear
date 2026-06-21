@@ -376,13 +376,12 @@ function formatMbbGroupsCleanupResult(response: MbbGroupsCleanupResponse): strin
 
 function formatMbbGroupsLearnerLinkResult(response: MbbGroupsLearnerLinkResponse): string {
   const lines = [
-    `Learners linked: ${response.learnersLinked ?? 0}`,
-    `Learners skipped (no group): ${response.learnersSkippedNoGroup ?? 0}`,
+    `External names copied: ${response.externalMembersCreated ?? 0}`,
+    `External names skipped as duplicates: ${response.externalMembersAlreadyExists ?? 0}`,
+    `Names skipped (no group): ${response.learnersSkippedNoGroup ?? 0}`,
     `Groups updated: ${response.groupsUpdated ?? 0}`,
-    `Already linked: ${response.learnersAlreadyLinked ?? 0}`,
-    `External names saved: ${response.externalMembersCreated ?? 0}`,
-    `External names already existed: ${response.externalMembersAlreadyExists ?? 0}`,
-    `Learners not found (saved as external names): ${response.unmatchedLearnerDebug?.length ?? response.learnersSkippedNoLearner ?? 0}`,
+    "EduClear learner matching: not attempted",
+    `Learner links created: ${response.learnersLinked ?? 0}`,
   ];
 
   if (response.blocked) {
@@ -395,7 +394,7 @@ function formatMbbGroupsLearnerLinkResult(response: MbbGroupsLearnerLinkResponse
     lines.push("Debug:");
     for (const row of debugRows.slice(0, 20)) {
       lines.push(
-        `- File: ${row.uploadedFilename || "?"} | Sheet: ${row.worksheetName || "?"} | Title row: ${row.detectedTitleRow || "-"} | Detected group: ${row.detectedGroupName || row.derivedGroupName || "?"} | Group found: ${row.matchingGroupFound ? "yes" : "no"} | Group ID: ${row.matchingGroupId || "-"} | Names read: ${row.learnerNamesRead ?? 0} | Learners matched: ${row.learnerIdsMatched ?? 0} | Links created: ${row.learnerLinksCreated ?? 0} | External names saved: ${row.externalNamesCreated ?? 0}`
+        `- File: ${row.uploadedFilename || "?"} | Sheet: ${row.worksheetName || "?"} | Title row: ${row.detectedTitleRow || "-"} | Detected group: ${row.detectedGroupName || row.derivedGroupName || "?"} | Group found: ${row.matchingGroupFound ? "yes" : "no"} | Group ID: ${row.matchingGroupId || "-"} | Names read: ${row.learnerNamesRead ?? 0} | External names copied: ${row.externalNamesCreated ?? 0}`
       );
     }
     if (debugRows.length > 20) lines.push(`...and ${debugRows.length - 20} more debug row(s)`);
@@ -731,7 +730,7 @@ export default function SuperAdminSchoolsPage() {
 
   const handleLinkMbbLearnersToGroups = useCallback(async () => {
     if (!mbbLinkFiles.length) {
-      showNotice("Select MBB group files", "Choose Paula's MBB group Excel files. Each file or worksheet name is treated as the group.");
+      showNotice("Select MBB group files", "Choose Paula's MBB group Excel files. The title row inside each worksheet is treated as the group.");
       return;
     }
 
@@ -746,7 +745,7 @@ export default function SuperAdminSchoolsPage() {
         form
       )) as MbbGroupsLearnerLinkResponse;
       if (response.success === false) {
-        throw new Error(response.error || "MBB learner-group linking failed.");
+        throw new Error(response.error || "MBB group member copy failed.");
       }
       if (response.blocked) {
         showNotice(
@@ -763,13 +762,13 @@ export default function SuperAdminSchoolsPage() {
       setMbbLinkFiles([]);
       if (mbbLinkFilesInputRef.current) mbbLinkFilesInputRef.current.value = "";
       showNotice(
-        "MBB learners linked to groups",
-        `${response.schoolName || "Magical Bright Beginnings"} group links updated.\n\n${formatMbbGroupsLearnerLinkResult(response)}`
+        "MBB names copied to groups",
+        `${response.schoolName || "Magical Bright Beginnings"} external group members updated.\n\n${formatMbbGroupsLearnerLinkResult(response)}`
       );
     } catch (err: unknown) {
       showNotice(
-        "MBB group linking failed",
-        err instanceof Error ? err.message : "The MBB learner-group linking could not be completed."
+        "MBB group member copy failed",
+        err instanceof Error ? err.message : "The MBB group member copy could not be completed."
       );
     } finally {
       setMbbLinkingLearners(false);
@@ -1102,7 +1101,7 @@ export default function SuperAdminSchoolsPage() {
           </button>
           <div className="sa-schools-mbb-secondary-tool">
             <p className="sa-schools-mbb-import-count">
-              Group learner files: <strong>{mbbLinkFiles.length}</strong>
+              Group member files: <strong>{mbbLinkFiles.length}</strong>
             </p>
             <input
               ref={mbbLinkFilesInputRef}
@@ -1121,7 +1120,7 @@ export default function SuperAdminSchoolsPage() {
               }}
               disabled={mbbLinkingLearners || mbbLinkFiles.length === 0}
             >
-              Clear link files
+              Clear member files
             </button>
             <button
               type="button"
@@ -1129,7 +1128,7 @@ export default function SuperAdminSchoolsPage() {
               onClick={() => void handleLinkMbbLearnersToGroups()}
               disabled={mbbGroupsPreviewing || mbbGroupsImporting || mbbGroupsCleaning || mbbLinkingLearners || mbbLinkFiles.length === 0}
             >
-              {mbbLinkingLearners ? "Linking learners…" : "Link Learners to Imported Groups"}
+              {mbbLinkingLearners ? "Copying names…" : "Copy Names to Imported Groups"}
             </button>
           </div>
         </div>
