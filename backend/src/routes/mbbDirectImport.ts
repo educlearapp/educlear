@@ -85,6 +85,25 @@ type MbbLearnerIndexRow = {
   admissionNo: string | null;
 };
 
+type MbbLearnerCandidateDebug = {
+  storedLearnerFullName: string;
+  storedFirstName: string;
+  storedSurname: string;
+  normalizedStoredName: string;
+  score: number;
+};
+
+type MbbUnmatchedLearnerDebug = {
+  uploadedFilename: string;
+  worksheetName: string;
+  rowNumber: number;
+  groupName: string;
+  nameReadFromExcel: string;
+  normalizedNameUsedForLookup: string;
+  closestLearners: MbbLearnerCandidateDebug[];
+  whyMatchFailed: string;
+};
+
 type MbbGroupLinkDebug = {
   uploadedFilename: string;
   worksheetName: string;
@@ -164,6 +183,20 @@ function normalizeKey(value: unknown) {
 
 function normalizePersonKey(value: unknown) {
   return normalizeName(value).toLowerCase().replace(/[^a-z0-9]+/g, " ").trim();
+}
+
+function normalizeLearnerLookupName(value: unknown) {
+  return String(value ?? "")
+    .replace(/\u00a0/g, " ")
+    .trim()
+    .replace(/\s+/g, " ")
+    .toUpperCase();
+}
+
+function learnerLookupKey(value: unknown) {
+  return normalizeLearnerLookupName(value)
+    .replace(/[^\p{L}\p{N}]+/gu, "")
+    .trim();
 }
 
 function normalizeAdmissionKey(value: unknown) {
@@ -438,7 +471,14 @@ async function loadMbbLearnersForMatching() {
     WHERE "schoolId" = ${SCHOOL_ID}
   `;
   const byAdmission = new Map<string, MbbLearnerIndexRow>();
-  const byName = new Map<string, MbbLearnerIndexRow>();
+  const byName = new Map<string, MbbLearnerIndexRow[]>();
+  const addName = (name: string, learner: MbbLearnerIndexRow) => {
+    const key = learnerLookupKey(name);
+    if (!key) return;
+    const rows = byName.get(key) || [];
+    if (!rows.some((row) => row.id === learner.id)) rows.push(learner);
+    byName.set(key, rows);
+  };
   for (const learner of learners) {
     const admissionKey = normalizeAdmissionKey(learner.admissionNo);
     if (admissionKey && !byAdmission.has(admissionKey)) byAdmission.set(admissionKey, learner);
@@ -452,11 +492,10 @@ async function loadMbbLearnersForMatching() {
       nickname && last ? `${nickname} ${last}` : "",
       nickname && last ? `${last} ${nickname}` : "",
     ]) {
-      const key = normalizePersonKey(name);
-      if (key && !byName.has(key)) byName.set(key, learner);
+      addName(name, learner);
     }
   }
-  return { byAdmission, byName };
+  return { learners, byAdmission, byName };
 }
 
 function matchMbbLearner(
@@ -474,13 +513,77 @@ function matchMbbLearner(
     `${row.firstName} ${row.lastName}`,
     `${row.lastName} ${row.firstName}`,
   ]) {
-    const key = normalizePersonKey(candidate);
+    const key = learnerLookupKey(candidate);
     if (!key) continue;
-    const byName = indexes.byName.get(key);
-    if (byName) return byName;
+    const byName = indexes.byName.get(key) || [];
+    if (byName.length === 1) return byName[0];
   }
 
   return null;
+}
+
+function learnerStoredFullName(learner: MbbLearnerIndexRow) {
+  return normalizeName(`${learner.firstName} ${learner.lastName}`);
+}
+
+function stringSimilarity(a: string, b: string) {
+  const left = learnerLookupKey(a);
+  const right = learnerLookupKey(b);
+  if (!left || !right) return 0;
+  if (left === right) return 1000;
+  const leftParts = new Set(normalizeLearnerLookupName(a).split(" ").filter(Boolean));
+  const rightParts = new Set(normalizeLearnerLookupName(b).split(" ").filter(Boolean));
+  let overlap = 0;
+  for (const part of leftParts) {
+    if (rightParts.has(part)) overlap += 1;
+  }
+  const prefix = left[0] === right[0] ? 1 : 0;
+  const lengthDelta = Math.abs(left.length - right.length);
+  return overlap * 100 + prefix * 10 - lengthDelta;
+}
+
+function closestLearnersForDebug(
+  name: string,
+  indexes: Awaited<ReturnType<typeof loadMbbLearnersForMatching>>,
+  limit = 5
+): MbbLearnerCandidateDebug[] {
+  return indexes.learners
+    .map((learner) => {
+      const storedFullName = learnerStoredFullName(learner);
+      return {
+        storedLearnerFullName: storedFullName,
+        storedFirstName: normalizeName(learner.firstName),
+        storedSurname: normalizeName(learner.lastName),
+        normalizedStoredName: normalizeLearnerLookupName(storedFullName),
+        score: stringSimilarity(name, storedFullName),
+      };
+    })
+    .sort((a, b) => b.score - a.score || a.storedLearnerFullName.localeCompare(b.storedLearnerFullName))
+    .slice(0, limit);
+}
+
+function learnerMatchFailureReason(
+  row: ParsedMbbGroupAssignment,
+  indexes: Awaited<ReturnType<typeof loadMbbLearnersForMatching>>
+) {
+  const admissionKey = normalizeAdmissionKey(row.admissionNo);
+  if (admissionKey && !indexes.byAdmission.has(admissionKey)) {
+    return `No learner found with admission number ${admissionKey}.`;
+  }
+  const lookupKeys = [
+    row.learnerName,
+    `${row.firstName} ${row.lastName}`,
+    `${row.lastName} ${row.firstName}`,
+  ]
+    .map(learnerLookupKey)
+    .filter(Boolean);
+  for (const key of lookupKeys) {
+    const matches = indexes.byName.get(key) || [];
+    if (matches.length > 1) {
+      return `Multiple learners matched normalized key ${key}; automatic linking requires exactly one match.`;
+    }
+  }
+  return `No stored MBB learner matched normalized key(s): ${lookupKeys.join(", ") || "none"}.`;
 }
 
 async function buildGroupsPreview(parsedRows: ParsedMbbGroup[]) {
@@ -606,7 +709,7 @@ async function linkMbbLearnersToGroups(assignments: ParsedMbbGroupAssignment[]) 
 
   const debug = Array.from(debugByGroup.values());
   const normalizationUsed =
-    "Group names are derived from the first non-empty title cell at the top of each worksheet; matching trims and collapses spaces and is case-insensitive.";
+    "Group names are derived from the first non-empty title cell at the top of each worksheet; group matching trims/collapses spaces and is case-insensitive. Learner matching replaces NBSP, trims, collapses whitespace, uppercases, removes punctuation for lookup, and compares against stored firstName + surname.";
   const unmatchedGroupDebug = debug.filter((row) => !row.matchingGroupFound);
   if (unmatchedGroupDebug.length) {
     const existingGroupNames = existingGroups.map((group) => group.name).sort((a, b) => a.localeCompare(b));
@@ -644,6 +747,7 @@ async function linkMbbLearnersToGroups(assignments: ParsedMbbGroupAssignment[]) 
   const updatedGroupIds = new Set<string>();
   const skippedNoGroup: ParsedMbbGroupAssignment[] = [];
   const skippedNoLearner: ParsedMbbGroupAssignment[] = [];
+  const unmatchedLearnerDebug: MbbUnmatchedLearnerDebug[] = [];
   let linkedCount = 0;
   let alreadyLinkedCount = 0;
 
@@ -655,6 +759,16 @@ async function linkMbbLearnersToGroups(assignments: ParsedMbbGroupAssignment[]) 
 
     if (!learner) {
       skippedNoLearner.push(assignment);
+      unmatchedLearnerDebug.push({
+        uploadedFilename: assignment.sourceFile,
+        worksheetName: assignment.sheetName,
+        rowNumber: assignment.rowNumber,
+        groupName: assignment.groupName,
+        nameReadFromExcel: assignment.learnerName,
+        normalizedNameUsedForLookup: normalizeLearnerLookupName(assignment.learnerName),
+        closestLearners: closestLearnersForDebug(assignment.learnerName, learnerIndexes),
+        whyMatchFailed: learnerMatchFailureReason(assignment, learnerIndexes),
+      });
       continue;
     }
 
@@ -688,6 +802,7 @@ async function linkMbbLearnersToGroups(assignments: ParsedMbbGroupAssignment[]) 
     learnersSkippedNoLearner: skippedNoLearner.length,
     groupsUpdated: updatedGroupIds.size,
     debug: Array.from(debugByGroup.values()),
+    unmatchedLearnerDebug,
     skippedNoGroup: skippedNoGroup.slice(0, 30).map((row) => ({
       sourceFile: row.sourceFile,
       sheetName: row.sheetName,

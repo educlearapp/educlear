@@ -107,6 +107,22 @@ type MbbGroupsLearnerLinkResponse = {
     learnerIdsMatched?: number;
     learnerLinksCreated?: number;
   }>;
+  unmatchedLearnerDebug?: Array<{
+    uploadedFilename?: string;
+    worksheetName?: string;
+    rowNumber?: number;
+    groupName?: string;
+    nameReadFromExcel?: string;
+    normalizedNameUsedForLookup?: string;
+    whyMatchFailed?: string;
+    closestLearners?: Array<{
+      storedLearnerFullName?: string;
+      storedFirstName?: string;
+      storedSurname?: string;
+      normalizedStoredName?: string;
+      score?: number;
+    }>;
+  }>;
   unmatchedGroupDebug?: Array<{
     uploadedFilename?: string;
     worksheetName?: string;
@@ -387,6 +403,24 @@ function formatMbbGroupsLearnerLinkResult(response: MbbGroupsLearnerLinkResponse
     for (const row of unmatched.slice(0, 20)) {
       lines.push(`- ${row.derivedGroupName || "?"} (${row.uploadedFilename || "?"} / ${row.worksheetName || "?"})`);
     }
+  }
+
+  const unmatchedLearners = Array.isArray(response.unmatchedLearnerDebug) ? response.unmatchedLearnerDebug : [];
+  if (unmatchedLearners.length) {
+    lines.push("");
+    lines.push("Unmatched learners:");
+    for (const row of unmatchedLearners.slice(0, 20)) {
+      lines.push(
+        `- ${row.nameReadFromExcel || "?"} | Normalized: ${row.normalizedNameUsedForLookup || "?"} | File: ${row.uploadedFilename || "?"} | Sheet: ${row.worksheetName || "?"} | Row: ${row.rowNumber || "?"} | Reason: ${row.whyMatchFailed || "No match"}`
+      );
+      const closest = Array.isArray(row.closestLearners) ? row.closestLearners.slice(0, 3) : [];
+      for (const learner of closest) {
+        lines.push(
+          `  Closest: ${learner.storedLearnerFullName || "?"} | First: ${learner.storedFirstName || "?"} | Surname: ${learner.storedSurname || "?"} | Normalized stored: ${learner.normalizedStoredName || "?"} | Score: ${learner.score ?? 0}`
+        );
+      }
+    }
+    if (unmatchedLearners.length > 20) lines.push(`...and ${unmatchedLearners.length - 20} more unmatched learner(s)`);
   }
 
   if (response.normalizationUsed) {
