@@ -58,6 +58,34 @@ type MbbGroupsImportResponse = {
   error?: string;
 };
 
+type MbbCleanupGroup = {
+  id: string;
+  name: string;
+  comments?: string;
+  childrenCount?: number;
+  reason?: string;
+};
+
+type MbbGroupsCleanupPreviewResponse = {
+  success?: boolean;
+  schoolName?: string;
+  groupsToDelete?: MbbCleanupGroup[];
+  protectedGroups?: MbbCleanupGroup[];
+  deleteCount?: number;
+  protectedCount?: number;
+  error?: string;
+};
+
+type MbbGroupsCleanupResponse = {
+  success?: boolean;
+  schoolName?: string;
+  deletedGroups?: MbbCleanupGroup[];
+  protectedGroups?: MbbCleanupGroup[];
+  deletedCount?: number;
+  protectedCount?: number;
+  error?: string;
+};
+
 type ConfirmModalProps = {
   title: string;
   message: string;
@@ -277,6 +305,25 @@ function formatMbbGroupsImportResult(response: MbbGroupsImportResponse): string 
   ].join("\n");
 }
 
+function formatCleanupGroupNames(groups: MbbCleanupGroup[], limit = 12): string {
+  if (!groups.length) return "None";
+  const names = groups.slice(0, limit).map((group) => `- ${group.name}`);
+  if (groups.length > limit) names.push(`...and ${groups.length - limit} more`);
+  return names.join("\n");
+}
+
+function formatMbbGroupsCleanupResult(response: MbbGroupsCleanupResponse): string {
+  const deleted = Array.isArray(response.deletedGroups) ? response.deletedGroups : [];
+  const protectedGroups = Array.isArray(response.protectedGroups) ? response.protectedGroups : [];
+  return [
+    `Groups deleted: ${response.deletedCount ?? deleted.length}`,
+    `Groups protected/skipped: ${response.protectedCount ?? protectedGroups.length}`,
+    "",
+    "Deleted groups:",
+    formatCleanupGroupNames(deleted),
+  ].join("\n");
+}
+
 export default function SuperAdminSchoolsPage() {
   const {
     filteredSchools,
@@ -312,6 +359,7 @@ export default function SuperAdminSchoolsPage() {
   const [mbbGroupsPreview, setMbbGroupsPreview] = useState<MbbGroupsPreviewResponse | null>(null);
   const [mbbGroupsPreviewing, setMbbGroupsPreviewing] = useState(false);
   const [mbbGroupsImporting, setMbbGroupsImporting] = useState(false);
+  const [mbbGroupsCleaning, setMbbGroupsCleaning] = useState(false);
   const mbbGroupsFileInputRef = useRef<HTMLInputElement | null>(null);
   const [confirm, setConfirm] = useState<{
     title: string;
@@ -471,6 +519,80 @@ export default function SuperAdminSchoolsPage() {
       setMbbGroupsImporting(false);
     }
   }, [mbbGroupsPreview, reload, showNotice]);
+
+  const handleRemoveBadMbbGroupsImport = useCallback(async () => {
+    setMbbGroupsCleaning(true);
+    try {
+      const preview = (await superAdminApiFetch(
+        `/api/super-admin/mbb-direct-import/groups/cleanup-preview?schoolId=${encodeURIComponent(MBB_SCHOOL_ID)}`
+      )) as MbbGroupsCleanupPreviewResponse;
+      if (preview.success === false) {
+        throw new Error(preview.error || "MBB groups cleanup preview failed.");
+      }
+
+      const groupsToDelete = Array.isArray(preview.groupsToDelete) ? preview.groupsToDelete : [];
+      const protectedGroups = Array.isArray(preview.protectedGroups) ? preview.protectedGroups : [];
+      if (!groupsToDelete.length) {
+        showNotice(
+          "No bad MBB groups found",
+          `Groups to delete: 0\nGroups protected/skipped: ${protectedGroups.length}`
+        );
+        return;
+      }
+
+      setConfirm({
+        title: "Remove bad MBB groups import?",
+        message:
+          `This cleanup is MBB-only and will delete only numeric group names with children count 0.\n\n` +
+          `Groups to delete: ${groupsToDelete.length}\n` +
+          `${formatCleanupGroupNames(groupsToDelete)}\n\n` +
+          `Groups protected/skipped: ${protectedGroups.length}\n\n` +
+          `No learners, parents, classrooms, billing, balances, transactions, or statements will be touched.`,
+        confirmLabel: "Remove bad groups",
+        run: () => {
+          void (async () => {
+            setMbbGroupsCleaning(true);
+            try {
+              const response = (await superAdminApiFetch(
+                "/api/super-admin/mbb-direct-import/groups/cleanup-bad-import",
+                {
+                  method: "POST",
+                  headers: { "Content-Type": "application/json" },
+                  body: JSON.stringify({ schoolId: MBB_SCHOOL_ID }),
+                }
+              )) as MbbGroupsCleanupResponse;
+              if (response.success === false) {
+                throw new Error(response.error || "MBB groups cleanup failed.");
+              }
+              localStorage.removeItem("educlearGroups");
+              localStorage.removeItem(`educlearGroups:${MBB_SCHOOL_ID}`);
+              localStorage.setItem(`educlearGroups:${MBB_SCHOOL_ID}:refreshRequestedAt`, String(Date.now()));
+              await reload();
+              setMbbGroupsPreview(null);
+              showNotice(
+                "Bad MBB groups removed",
+                `${response.schoolName || "Magical Bright Beginnings"} cleanup complete.\n\n${formatMbbGroupsCleanupResult(response)}`
+              );
+            } catch (err: unknown) {
+              showNotice(
+                "MBB groups cleanup failed",
+                err instanceof Error ? err.message : "The bad MBB groups cleanup could not be completed."
+              );
+            } finally {
+              setMbbGroupsCleaning(false);
+            }
+          })();
+        },
+      });
+    } catch (err: unknown) {
+      showNotice(
+        "MBB groups cleanup preview failed",
+        err instanceof Error ? err.message : "The MBB groups cleanup preview could not be completed."
+      );
+    } finally {
+      setMbbGroupsCleaning(false);
+    }
+  }, [reload, showNotice]);
 
   const handleView = useCallback(
     (school: SchoolRecord) => {
@@ -784,9 +906,17 @@ export default function SuperAdminSchoolsPage() {
             type="button"
             className="sa-schools-btn sa-schools-btn--gold"
             onClick={() => void handleImportMbbGroups()}
-            disabled={mbbGroupsPreviewing || mbbGroupsImporting || mbbGroupsReadyCount === 0}
+            disabled={mbbGroupsPreviewing || mbbGroupsImporting || mbbGroupsCleaning || mbbGroupsReadyCount === 0}
           >
             {mbbGroupsImporting ? "Importing…" : "Import groups"}
+          </button>
+          <button
+            type="button"
+            className="sa-schools-btn sa-schools-btn--danger"
+            onClick={() => void handleRemoveBadMbbGroupsImport()}
+            disabled={mbbGroupsPreviewing || mbbGroupsImporting || mbbGroupsCleaning}
+          >
+            {mbbGroupsCleaning ? "Checking cleanup…" : "Remove Bad MBB Groups Import"}
           </button>
         </div>
       </section>

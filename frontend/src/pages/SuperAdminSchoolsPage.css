@@ -192,6 +192,18 @@
   background: #c9a227;
 }
 
+.sa-schools-btn--danger {
+  border-color: rgba(220, 80, 80, 0.75);
+  background: rgba(220, 80, 80, 0.14);
+  color: #ffd4d4;
+}
+
+.sa-schools-btn--danger:hover {
+  border-color: rgba(248, 113, 113, 0.95);
+  background: rgba(220, 80, 80, 0.24);
+  color: #ffffff;
+}
+
 /* Temporary MBB direct import */
 .sa-schools-mbb-import {
   display: flex;

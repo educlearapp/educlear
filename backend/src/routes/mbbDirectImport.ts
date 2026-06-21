@@ -56,6 +56,15 @@ type ParsedMbbGroup = {
   reason?: string;
 };
 
+type MbbCleanupGroup = {
+  id: string;
+  name: string;
+  comments: string;
+  createdAt: Date;
+  childrenCount: number;
+  reason: string;
+};
+
 function jsonError(res: Response, status: number, message: string) {
   return res.status(status).json({ success: false, error: message });
 }
@@ -120,6 +129,10 @@ function normalizeKey(value: unknown) {
   return normalizeName(value).toLowerCase();
 }
 
+function normalizePersonKey(value: unknown) {
+  return normalizeName(value).toLowerCase().replace(/[^a-z0-9]+/g, " ").trim();
+}
+
 function groupId() {
   return `grp_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 10)}`;
 }
@@ -136,6 +149,59 @@ function assertSelectedMbbSchool(schoolId: string) {
 
 function pickHeaderColumn(headers: string[], labels: string[]) {
   return headers.findIndex((header) => labels.includes(header));
+}
+
+function isNumericGroupName(value: unknown) {
+  const name = normalizeName(value);
+  return /^\d+(?:[.,]\d+)?$/.test(name);
+}
+
+async function loadMbbLearnerNameKeys() {
+  const learners = await prisma.$queryRaw<Array<{ firstName: string; lastName: string; nickname: string | null }>>`
+    SELECT "firstName", "lastName", "nickname"
+    FROM "Learner"
+    WHERE "schoolId" = ${SCHOOL_ID}
+  `;
+  const keys = new Set<string>();
+  for (const learner of learners) {
+    const first = normalizeName(learner.firstName);
+    const last = normalizeName(learner.lastName);
+    const nickname = normalizeName(learner.nickname);
+    if (first && last) {
+      keys.add(normalizePersonKey(`${first} ${last}`));
+      keys.add(normalizePersonKey(`${last} ${first}`));
+    }
+    if (nickname && last) {
+      keys.add(normalizePersonKey(`${nickname} ${last}`));
+      keys.add(normalizePersonKey(`${last} ${nickname}`));
+    }
+  }
+  keys.delete("");
+  return keys;
+}
+
+function suspiciousGroupNameReason(name: unknown, learnerNameKeys: Set<string>) {
+  const normalized = normalizeName(name);
+  if (!normalized) return "Group name is blank";
+  if (isNumericGroupName(normalized)) return "Group name looks numeric";
+  if (learnerNameKeys.has(normalizePersonKey(normalized))) return "Group name matches an MBB learner name";
+  return "";
+}
+
+async function assertNoSuspiciousGroupNames(rows: Array<{ name?: unknown }>) {
+  const learnerNameKeys = await loadMbbLearnerNameKeys();
+  const suspicious = rows
+    .map((row) => ({
+      name: normalizeName(row?.name),
+      reason: suspiciousGroupNameReason(row?.name, learnerNameKeys),
+    }))
+    .filter((row) => row.reason);
+  if (!suspicious.length) return;
+
+  const examples = suspicious.slice(0, 8).map((row) => `${row.name || "(blank)"} (${row.reason})`);
+  throw new Error(
+    `MBB groups import refused because ${suspicious.length} group name(s) look like wrong-column data: ${examples.join("; ")}`
+  );
 }
 
 function parseGroupRowsFromFile(file: Express.Multer.File): ParsedMbbGroup[] {
@@ -205,6 +271,7 @@ async function existingGroupKeys() {
 
 async function buildGroupsPreview(parsedRows: ParsedMbbGroup[]) {
   await verifyMbbSchool();
+  await assertNoSuspiciousGroupNames(parsedRows);
   const existing = await existingGroupKeys();
   const seen = new Set<string>();
 
@@ -230,6 +297,43 @@ async function buildGroupsPreview(parsedRows: ParsedMbbGroup[]) {
     importedPreviewCount,
     skippedCount,
     totalGroups: groups.length,
+  };
+}
+
+async function buildBadGroupsCleanupPreview() {
+  await verifyMbbSchool();
+  const rows = await prisma.$queryRaw<Array<{ id: string; name: string; comments: string; createdAt: Date }>>`
+    SELECT "id", "name", "comments", "createdAt"
+    FROM "Group"
+    WHERE "schoolId" = ${SCHOOL_ID}
+    ORDER BY "createdAt" DESC, "name" ASC
+  `;
+
+  const groupsToDelete: MbbCleanupGroup[] = [];
+  const protectedGroups: MbbCleanupGroup[] = [];
+  for (const row of rows) {
+    const item = {
+      ...row,
+      childrenCount: 0,
+      reason: isNumericGroupName(row.name)
+        ? "Numeric group name from bad import"
+        : "Protected: group name is not numeric",
+    };
+    if (isNumericGroupName(row.name)) {
+      groupsToDelete.push(item);
+    } else {
+      protectedGroups.push(item);
+    }
+  }
+
+  return {
+    success: true,
+    schoolId: SCHOOL_ID,
+    schoolName: SCHOOL_NAME,
+    groupsToDelete,
+    protectedGroups,
+    deleteCount: groupsToDelete.length,
+    protectedCount: protectedGroups.length,
   };
 }
 
@@ -356,6 +460,7 @@ router.post("/groups/import", async (req, res) => {
     await verifyMbbSchool();
 
     const incomingRows = Array.isArray(req.body?.groups) ? req.body.groups : [];
+    await assertNoSuspiciousGroupNames(incomingRows);
     const existing = await existingGroupKeys();
     const seen = new Set<string>();
     let importedCount = 0;
@@ -395,6 +500,50 @@ router.post("/groups/import", async (req, res) => {
     });
   } catch (error: unknown) {
     const message = error instanceof Error ? error.message : "Failed to import MBB groups";
+    return jsonError(res, 500, message);
+  }
+});
+
+router.get("/groups/cleanup-preview", async (req, res) => {
+  try {
+    const schoolId = String(req.query?.schoolId || "").trim();
+    assertSelectedMbbSchool(schoolId);
+    return res.json(await buildBadGroupsCleanupPreview());
+  } catch (error: unknown) {
+    const message = error instanceof Error ? error.message : "Failed to preview MBB groups cleanup";
+    return jsonError(res, 500, message);
+  }
+});
+
+router.post("/groups/cleanup-bad-import", async (req, res) => {
+  try {
+    const schoolId = String(req.body?.schoolId || "").trim();
+    assertSelectedMbbSchool(schoolId);
+
+    const preview = await buildBadGroupsCleanupPreview();
+    const deletedGroups: MbbCleanupGroup[] = [];
+    for (const group of preview.groupsToDelete) {
+      const deleted = await prisma.$queryRaw<Array<{ id: string }>>`
+        DELETE FROM "Group"
+        WHERE "id" = ${group.id}
+          AND "schoolId" = ${SCHOOL_ID}
+          AND "name" = ${group.name}
+        RETURNING "id"
+      `;
+      if (deleted.length > 0) deletedGroups.push(group);
+    }
+
+    return res.json({
+      success: true,
+      schoolId: SCHOOL_ID,
+      schoolName: SCHOOL_NAME,
+      deletedGroups,
+      protectedGroups: preview.protectedGroups,
+      deletedCount: deletedGroups.length,
+      protectedCount: preview.protectedGroups.length,
+    });
+  } catch (error: unknown) {
+    const message = error instanceof Error ? error.message : "Failed to remove bad MBB groups import";
     return jsonError(res, 500, message);
   }
 });
