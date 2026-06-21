@@ -4,10 +4,12 @@ import SchoolsTable from "../superAdmin/components/SchoolsTable";
 import SchoolsToolbar from "../superAdmin/components/SchoolsToolbar";
 import { updateSuperAdminSchool } from "../superAdmin/api/schoolsApi";
 import { useSchoolsManagement } from "../superAdmin/hooks/useSchoolsManagement";
-import { superAdminApiUpload } from "../superAdmin/superAdminApi";
+import { superAdminApiFetch, superAdminApiUpload } from "../superAdmin/superAdminApi";
 import type { SchoolRecord } from "../superAdmin/types/schools";
 import { formatSchoolDate, formatSchoolDateTime } from "../superAdmin/utils/formatSchoolDates";
 import "./SuperAdminSchoolsPage.css";
+
+const MBB_SCHOOL_ID = "cmq4xjckq00at60gqg4eb956h";
 
 type Notice = {
   title: string;
@@ -24,6 +26,35 @@ type MbbMissingLearnerRepairResponse = {
     accountRef?: string | null;
   }>;
   counts?: Record<string, number>;
+  error?: string;
+};
+
+type MbbGroupPreviewRow = {
+  sourceFile?: string;
+  sheetName?: string;
+  rowNumber?: number;
+  name: string;
+  comments?: string;
+  status?: "ready" | "skip";
+  reason?: string;
+};
+
+type MbbGroupsPreviewResponse = {
+  success?: boolean;
+  schoolName?: string;
+  groups?: MbbGroupPreviewRow[];
+  importedPreviewCount?: number;
+  skippedCount?: number;
+  totalGroups?: number;
+  error?: string;
+};
+
+type MbbGroupsImportResponse = {
+  success?: boolean;
+  schoolName?: string;
+  importedCount?: number;
+  skippedCount?: number;
+  totalGroups?: number;
   error?: string;
 };
 
@@ -238,6 +269,14 @@ function formatMbbRepairResult(response: MbbMissingLearnerRepairResponse): strin
   return lines.join("\n");
 }
 
+function formatMbbGroupsImportResult(response: MbbGroupsImportResponse): string {
+  return [
+    `Imported: ${response.importedCount ?? 0}`,
+    `Skipped: ${response.skippedCount ?? 0}`,
+    `Total Groups: ${response.totalGroups ?? 0}`,
+  ].join("\n");
+}
+
 export default function SuperAdminSchoolsPage() {
   const {
     filteredSchools,
@@ -269,6 +308,11 @@ export default function SuperAdminSchoolsPage() {
   const [mbbFiles, setMbbFiles] = useState<File[]>([]);
   const [mbbRepairing, setMbbRepairing] = useState(false);
   const mbbFileInputRef = useRef<HTMLInputElement | null>(null);
+  const [mbbGroupFiles, setMbbGroupFiles] = useState<File[]>([]);
+  const [mbbGroupsPreview, setMbbGroupsPreview] = useState<MbbGroupsPreviewResponse | null>(null);
+  const [mbbGroupsPreviewing, setMbbGroupsPreviewing] = useState(false);
+  const [mbbGroupsImporting, setMbbGroupsImporting] = useState(false);
+  const mbbGroupsFileInputRef = useRef<HTMLInputElement | null>(null);
   const [confirm, setConfirm] = useState<{
     title: string;
     message: string;
@@ -314,6 +358,18 @@ export default function SuperAdminSchoolsPage() {
     if (mbbFileInputRef.current) mbbFileInputRef.current.value = "";
   }, []);
 
+  const handleMbbGroupFilesSelected = useCallback((files: FileList | null) => {
+    const nextFiles = Array.from(files || []);
+    if (!nextFiles.length) return;
+    setMbbGroupFiles((current) => {
+      const byKey = new Map(current.map((file) => [`${file.name}:${file.size}`, file]));
+      for (const file of nextFiles) byKey.set(`${file.name}:${file.size}`, file);
+      return Array.from(byKey.values()).sort((a, b) => a.name.localeCompare(b.name));
+    });
+    setMbbGroupsPreview(null);
+    if (mbbGroupsFileInputRef.current) mbbGroupsFileInputRef.current.value = "";
+  }, []);
+
   const handleRepairMissingMbbLearners = useCallback(async () => {
     if (!mbbFiles.length) {
       showNotice("Select MBB files", "Choose the MBB Kid-e-Sys export files before repairing learners.");
@@ -346,6 +402,75 @@ export default function SuperAdminSchoolsPage() {
       setMbbRepairing(false);
     }
   }, [mbbFiles, reload, showNotice]);
+
+  const handlePreviewMbbGroups = useCallback(async () => {
+    if (!mbbGroupFiles.length) {
+      showNotice("Select MBB group files", "Choose Paula's MBB Groups Excel/CSV files before previewing.");
+      return;
+    }
+
+    const form = new FormData();
+    form.append("schoolId", MBB_SCHOOL_ID);
+    for (const file of mbbGroupFiles) form.append("files", file, file.name);
+
+    setMbbGroupsPreviewing(true);
+    try {
+      const response = (await superAdminApiUpload(
+        "/api/super-admin/mbb-direct-import/groups/preview",
+        form
+      )) as MbbGroupsPreviewResponse;
+      if (response.success === false) {
+        throw new Error(response.error || "MBB groups preview failed.");
+      }
+      setMbbGroupsPreview(response);
+    } catch (err: unknown) {
+      setMbbGroupsPreview(null);
+      showNotice(
+        "MBB groups preview failed",
+        err instanceof Error ? err.message : "The MBB groups preview could not be completed."
+      );
+    } finally {
+      setMbbGroupsPreviewing(false);
+    }
+  }, [mbbGroupFiles, showNotice]);
+
+  const handleImportMbbGroups = useCallback(async () => {
+    const groups = Array.isArray(mbbGroupsPreview?.groups) ? mbbGroupsPreview.groups : [];
+    if (!groups.length) {
+      showNotice("Preview MBB groups first", "Preview the MBB group files before importing.");
+      return;
+    }
+
+    setMbbGroupsImporting(true);
+    try {
+      const response = (await superAdminApiFetch("/api/super-admin/mbb-direct-import/groups/import", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          schoolId: MBB_SCHOOL_ID,
+          groups,
+        }),
+      })) as MbbGroupsImportResponse;
+      if (response.success === false) {
+        throw new Error(response.error || "MBB groups import failed.");
+      }
+      await reload();
+      setMbbGroupsPreview(null);
+      setMbbGroupFiles([]);
+      if (mbbGroupsFileInputRef.current) mbbGroupsFileInputRef.current.value = "";
+      showNotice(
+        "MBB groups imported",
+        `${response.schoolName || "Magical Bright Beginnings"} group import finished.\n\n${formatMbbGroupsImportResult(response)}`
+      );
+    } catch (err: unknown) {
+      showNotice(
+        "MBB groups import failed",
+        err instanceof Error ? err.message : "The MBB groups import could not be completed."
+      );
+    } finally {
+      setMbbGroupsImporting(false);
+    }
+  }, [mbbGroupsPreview, reload, showNotice]);
 
   const handleView = useCallback(
     (school: SchoolRecord) => {
@@ -503,6 +628,10 @@ export default function SuperAdminSchoolsPage() {
     [reload, showNotice]
   );
 
+  const mbbGroupsPreviewRows = Array.isArray(mbbGroupsPreview?.groups) ? mbbGroupsPreview.groups : [];
+  const mbbGroupsReadyCount = mbbGroupsPreviewRows.filter((row) => row.status === "ready").length;
+  const mbbGroupsSkippedCount = mbbGroupsPreviewRows.filter((row) => row.status === "skip").length;
+
   return (
     <div className="sa-schools-page">
       <header className="sa-schools-header">
@@ -578,6 +707,86 @@ export default function SuperAdminSchoolsPage() {
             disabled={mbbRepairing || mbbFiles.length === 0}
           >
             {mbbRepairing ? "Repairing MBB…" : "Repair Missing 3 MBB Learners"}
+          </button>
+        </div>
+      </section>
+
+      <section className="sa-schools-mbb-import" aria-label="Temporary MBB Groups Import">
+        <div>
+          <p className="sa-schools-mbb-import-kicker">Temporary production tool</p>
+          <h2 className="sa-schools-mbb-import-title">Import MBB Groups</h2>
+          <p className="sa-schools-mbb-import-text">
+            Upload Paula&apos;s MBB Groups Excel/CSV files, preview the group names, then import
+            only new groups into Magical Bright Beginnings. This tool skips duplicate group names
+            and does not modify learners, parents, classrooms, billing, statements, or balances.
+          </p>
+          <p className="sa-schools-mbb-import-count">
+            Selected files: <strong>{mbbGroupFiles.length}</strong>
+          </p>
+          {mbbGroupsPreview ? (
+            <div className="sa-schools-mbb-groups-preview" aria-live="polite">
+              <div className="sa-schools-mbb-groups-stats">
+                <span>Ready: {mbbGroupsReadyCount}</span>
+                <span>Skipped: {mbbGroupsSkippedCount}</span>
+                <span>Total Groups: {mbbGroupsPreviewRows.length}</span>
+              </div>
+              <div className="sa-schools-mbb-groups-list">
+                {mbbGroupsPreviewRows.slice(0, 30).map((group, index) => (
+                  <div
+                    key={`${group.sourceFile || "file"}:${group.sheetName || "sheet"}:${group.rowNumber || index}:${group.name}`}
+                    className="sa-schools-mbb-groups-row"
+                  >
+                    <span className="sa-schools-mbb-groups-name">{group.name}</span>
+                    <span className={group.status === "skip" ? "sa-schools-mbb-groups-skip" : "sa-schools-mbb-groups-ready"}>
+                      {group.status === "skip" ? `Skipped${group.reason ? `: ${group.reason}` : ""}` : "Ready"}
+                    </span>
+                  </div>
+                ))}
+                {mbbGroupsPreviewRows.length > 30 ? (
+                  <p className="sa-schools-mbb-groups-more">
+                    Showing first 30 of {mbbGroupsPreviewRows.length} groups.
+                  </p>
+                ) : null}
+              </div>
+            </div>
+          ) : null}
+        </div>
+        <div className="sa-schools-mbb-import-actions">
+          <input
+            ref={mbbGroupsFileInputRef}
+            type="file"
+            multiple
+            accept=".csv,.xls,.xlsx"
+            className="sa-schools-mbb-import-input"
+            onChange={(e) => handleMbbGroupFilesSelected(e.target.files)}
+          />
+          <button
+            type="button"
+            className="sa-schools-btn"
+            onClick={() => {
+              setMbbGroupFiles([]);
+              setMbbGroupsPreview(null);
+              if (mbbGroupsFileInputRef.current) mbbGroupsFileInputRef.current.value = "";
+            }}
+            disabled={mbbGroupsPreviewing || mbbGroupsImporting || mbbGroupFiles.length === 0}
+          >
+            Clear files
+          </button>
+          <button
+            type="button"
+            className="sa-schools-btn"
+            onClick={() => void handlePreviewMbbGroups()}
+            disabled={mbbGroupsPreviewing || mbbGroupsImporting || mbbGroupFiles.length === 0}
+          >
+            {mbbGroupsPreviewing ? "Previewing…" : "Preview groups"}
+          </button>
+          <button
+            type="button"
+            className="sa-schools-btn sa-schools-btn--gold"
+            onClick={() => void handleImportMbbGroups()}
+            disabled={mbbGroupsPreviewing || mbbGroupsImporting || mbbGroupsReadyCount === 0}
+          >
+            {mbbGroupsImporting ? "Importing…" : "Import groups"}
           </button>
         </div>
       </section>

@@ -252,6 +252,61 @@
   font-weight: 700;
 }
 
+.sa-schools-mbb-groups-preview {
+  margin-top: 14px;
+  padding: 12px;
+  border-radius: 10px;
+  border: 1px solid rgba(212, 175, 55, 0.28);
+  background: rgba(255, 255, 255, 0.06);
+}
+
+.sa-schools-mbb-groups-stats {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 14px;
+  margin-bottom: 10px;
+  color: #d4af37;
+  font-weight: 800;
+}
+
+.sa-schools-mbb-groups-list {
+  display: grid;
+  gap: 6px;
+  max-height: 260px;
+  overflow: auto;
+  padding-right: 4px;
+}
+
+.sa-schools-mbb-groups-row {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 8px 10px;
+  border-radius: 8px;
+  background: rgba(0, 0, 0, 0.22);
+}
+
+.sa-schools-mbb-groups-name {
+  color: rgba(255, 255, 255, 0.92);
+  font-weight: 700;
+}
+
+.sa-schools-mbb-groups-ready {
+  color: #8ee0a1;
+  font-weight: 800;
+}
+
+.sa-schools-mbb-groups-skip {
+  color: #f5c16c;
+  font-weight: 800;
+}
+
+.sa-schools-mbb-groups-more {
+  margin: 4px 0 0;
+  color: rgba(255, 255, 255, 0.72);
+  font-size: 0.9rem;
+}
+
 /* Table */
 .sa-schools-table-wrap {
   border-radius: 12px;

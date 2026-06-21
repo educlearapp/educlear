@@ -5,6 +5,8 @@ import path from "path";
 
 import { type Request, type Response, Router } from "express";
 import multer from "multer";
+import * as XLSX from "xlsx";
+import { prisma } from "../prisma";
 
 const router = Router();
 
@@ -43,6 +45,20 @@ const ROOT_FILES = new Set([
   "transaction_list-2.xls",
   "payment_receive_list.pdf",
 ]);
+
+type ParsedMbbGroup = {
+  sourceFile: string;
+  sheetName: string;
+  rowNumber: number;
+  name: string;
+  comments: string;
+  status?: "ready" | "skip";
+  reason?: string;
+};
+
+function jsonError(res: Response, status: number, message: string) {
+  return res.status(status).json({ success: false, error: message });
+}
 
 function uploadRoot() {
   const root = path.join(process.cwd(), "uploads", "mbb-direct-import");
@@ -93,6 +109,127 @@ function parseCountComparison(stdout: string) {
     schoolId: string;
     schoolName: string;
     counts: Record<string, { imported: number; exported: number }>;
+  };
+}
+
+function normalizeName(value: unknown) {
+  return String(value ?? "").trim().replace(/\s+/g, " ");
+}
+
+function normalizeKey(value: unknown) {
+  return normalizeName(value).toLowerCase();
+}
+
+function groupId() {
+  return `grp_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 10)}`;
+}
+
+function isAcceptedGroupsFile(fileName: string) {
+  return new Set([".csv", ".xls", ".xlsx"]).has(path.extname(fileName).toLowerCase());
+}
+
+function assertSelectedMbbSchool(schoolId: string) {
+  if (schoolId !== SCHOOL_ID) {
+    throw new Error(`Import MBB Groups can only write to ${SCHOOL_NAME}.`);
+  }
+}
+
+function pickHeaderColumn(headers: string[], labels: string[]) {
+  return headers.findIndex((header) => labels.includes(header));
+}
+
+function parseGroupRowsFromFile(file: Express.Multer.File): ParsedMbbGroup[] {
+  const workbook = XLSX.readFile(file.path, { raw: false });
+  const rows: ParsedMbbGroup[] = [];
+  const nameLabels = ["group", "group name", "groups", "name", "class group", "activity group"];
+  const commentLabels = ["comments", "comment", "notes", "note", "description"];
+
+  for (const sheetName of workbook.SheetNames) {
+    const sheet = workbook.Sheets[sheetName];
+    if (!sheet) continue;
+
+    const matrix = XLSX.utils.sheet_to_json<unknown[]>(sheet, {
+      header: 1,
+      defval: "",
+      raw: false,
+    });
+    if (!matrix.length) continue;
+
+    const firstRow = Array.isArray(matrix[0])
+      ? matrix[0].map((cell) => normalizeName(cell).toLowerCase())
+      : [];
+    const nameColumn = pickHeaderColumn(firstRow, nameLabels);
+    const commentsColumn = pickHeaderColumn(firstRow, commentLabels);
+    const hasHeader = nameColumn >= 0 || commentsColumn >= 0;
+    const dataRows = hasHeader ? matrix.slice(1) : matrix;
+
+    dataRows.forEach((row, index) => {
+      const cells = Array.isArray(row) ? row : [];
+      const name = normalizeName(cells[hasHeader && nameColumn >= 0 ? nameColumn : 0]);
+      const comments = normalizeName(cells[hasHeader && commentsColumn >= 0 ? commentsColumn : 1]);
+      if (!name) return;
+      rows.push({
+        sourceFile: safeName(file.originalname),
+        sheetName,
+        rowNumber: index + (hasHeader ? 2 : 1),
+        name,
+        comments,
+      });
+    });
+  }
+
+  return rows;
+}
+
+async function verifyMbbSchool() {
+  const rows = await prisma.$queryRaw<Array<{ id: string; name: string }>>`
+    SELECT "id", "name"
+    FROM "School"
+    WHERE "id" = ${SCHOOL_ID}
+    LIMIT 1
+  `;
+  const school = rows[0];
+  if (!school || school.name !== SCHOOL_NAME) {
+    throw new Error(`${SCHOOL_NAME} school record was not found.`);
+  }
+}
+
+async function existingGroupKeys() {
+  const existingRows = await prisma.$queryRaw<Array<{ name: string }>>`
+    SELECT "name"
+    FROM "Group"
+    WHERE "schoolId" = ${SCHOOL_ID}
+  `;
+  return new Set(existingRows.map((row) => normalizeKey(row.name)));
+}
+
+async function buildGroupsPreview(parsedRows: ParsedMbbGroup[]) {
+  await verifyMbbSchool();
+  const existing = await existingGroupKeys();
+  const seen = new Set<string>();
+
+  const groups = parsedRows.map((row) => {
+    const key = normalizeKey(row.name);
+    if (existing.has(key)) {
+      return { ...row, status: "skip" as const, reason: "Duplicate group name already exists" };
+    }
+    if (seen.has(key)) {
+      return { ...row, status: "skip" as const, reason: "Duplicate group name in uploaded files" };
+    }
+    seen.add(key);
+    return { ...row, status: "ready" as const, reason: "" };
+  });
+
+  const importedPreviewCount = groups.filter((row) => row.status === "ready").length;
+  const skippedCount = groups.length - importedPreviewCount;
+  return {
+    success: true,
+    schoolId: SCHOOL_ID,
+    schoolName: SCHOOL_NAME,
+    groups,
+    importedPreviewCount,
+    skippedCount,
+    totalGroups: groups.length,
   };
 }
 
@@ -187,6 +324,79 @@ router.post("/run", upload.array("files", MAX_FILES), async (req, res) => {
 
 router.post("/repair-missing-learners", upload.array("files", MAX_FILES), async (req, res) => {
   return prepareAndRun(req, res, { repairMissingLearners: true });
+});
+
+router.post("/groups/preview", upload.array("files", MAX_FILES), async (req, res) => {
+  try {
+    const schoolId = String(req.body?.schoolId || "").trim();
+    assertSelectedMbbSchool(schoolId);
+
+    const files = Array.isArray(req.files) ? (req.files as Express.Multer.File[]) : [];
+    if (!files.length) return jsonError(res, 400, "Upload the MBB Groups Excel/CSV files.");
+
+    const invalid = files.find((file) => !isAcceptedGroupsFile(file.originalname));
+    if (invalid) {
+      return jsonError(res, 400, `File must be .csv, .xls, or .xlsx: ${safeName(invalid.originalname)}`);
+    }
+
+    const parsedRows = files.flatMap(parseGroupRowsFromFile);
+    if (!parsedRows.length) return jsonError(res, 400, "No group names found in the uploaded files.");
+
+    return res.json(await buildGroupsPreview(parsedRows));
+  } catch (error: unknown) {
+    const message = error instanceof Error ? error.message : "Failed to preview MBB groups import";
+    return jsonError(res, 500, message);
+  }
+});
+
+router.post("/groups/import", async (req, res) => {
+  try {
+    const schoolId = String(req.body?.schoolId || "").trim();
+    assertSelectedMbbSchool(schoolId);
+    await verifyMbbSchool();
+
+    const incomingRows = Array.isArray(req.body?.groups) ? req.body.groups : [];
+    const existing = await existingGroupKeys();
+    const seen = new Set<string>();
+    let importedCount = 0;
+    let skippedCount = 0;
+
+    for (const row of incomingRows) {
+      const name = normalizeName(row?.name);
+      const comments = normalizeName(row?.comments);
+      const key = normalizeKey(name);
+      if (!name || existing.has(key) || seen.has(key)) {
+        skippedCount += 1;
+        continue;
+      }
+
+      seen.add(key);
+      const inserted = await prisma.$queryRaw<Array<{ id: string }>>`
+        INSERT INTO "Group" ("id", "schoolId", "name", "comments", "createdAt", "updatedAt")
+        VALUES (${groupId()}, ${SCHOOL_ID}, ${name}, ${comments}, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
+        ON CONFLICT ("schoolId", "name") DO NOTHING
+        RETURNING "id"
+      `;
+      existing.add(key);
+      if (inserted.length > 0) {
+        importedCount += 1;
+      } else {
+        skippedCount += 1;
+      }
+    }
+
+    return res.json({
+      success: true,
+      schoolId: SCHOOL_ID,
+      schoolName: SCHOOL_NAME,
+      importedCount,
+      skippedCount,
+      totalGroups: incomingRows.length,
+    });
+  } catch (error: unknown) {
+    const message = error instanceof Error ? error.message : "Failed to import MBB groups";
+    return jsonError(res, 500, message);
+  }
 });
 
 export default router;
