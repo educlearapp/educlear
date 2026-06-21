@@ -467,13 +467,10 @@ function parseGroupAssignmentsFromFile(file: Express.Multer.File): ParsedMbbGrou
 }
 
 async function verifyMbbSchool() {
-  const rows = await prisma.$queryRaw<Array<{ id: string; name: string }>>`
-    SELECT "id", "name"
-    FROM "School"
-    WHERE "id" = ${SCHOOL_ID}
-    LIMIT 1
-  `;
-  const school = rows[0];
+  const school = await prisma.school.findUnique({
+    where: { id: SCHOOL_ID },
+    select: { id: true, name: true },
+  });
   if (!school || school.name !== SCHOOL_NAME) {
     throw new Error(`${SCHOOL_NAME} school record was not found.`);
   }
@@ -489,11 +486,10 @@ async function existingGroupKeys() {
 }
 
 async function loadMbbGroupsByName() {
-  const groups = await prisma.$queryRaw<Array<{ id: string; name: string }>>`
-    SELECT "id", "name"
-    FROM "Group"
-    WHERE "schoolId" = ${SCHOOL_ID}
-  `;
+  const groups = await prisma.group.findMany({
+    where: { schoolId: SCHOOL_ID },
+    select: { id: true, name: true },
+  });
   const byName = new Map<string, { id: string; name: string }>();
   for (const group of groups) byName.set(normalizeKey(group.name), group);
   return { groups, byName };
@@ -606,11 +602,22 @@ async function linkMbbLearnersToGroups(
   const { groups: existingGroups, byName: groupsByName } = await loadMbbGroupsByName();
   const debugByGroup = new Map<string, MbbGroupLinkDebug>();
   const skippedByKey = skippedRowsByDebugKey(skippedRows);
-  const plannedCopies: Array<{
-    assignment: ParsedMbbGroupAssignment;
-    group: { id: string; name: string } | undefined;
-    debugKey: string;
-  }> = [];
+  const copiedMembersByGroup = new Map<
+    string,
+    {
+      group: { id: string; name: string };
+      members: Array<{
+        name: string;
+        normalizedName: string;
+        sourceFile: string;
+        sheetName: string;
+        rowNumber: number;
+        debugKey: string;
+      }>;
+      debugMemberCounts: Map<string, number>;
+      normalizedNames: Set<string>;
+    }
+  >();
 
   for (const assignment of assignments) {
     const group = groupsByName.get(normalizeKey(assignment.groupName));
@@ -636,7 +643,30 @@ async function linkMbbLearnersToGroups(
     current.matchingGroupId = group?.id || "";
     current.learnerNamesRead += 1;
     debugByGroup.set(debugKey, current);
-    plannedCopies.push({ assignment, group, debugKey });
+
+    const externalName = copyMemberName(assignment.learnerName);
+    if (!group || !externalName) continue;
+    const copiedGroup =
+      copiedMembersByGroup.get(group.id) ||
+      {
+        group,
+        members: [],
+        debugMemberCounts: new Map<string, number>(),
+        normalizedNames: new Set<string>(),
+      };
+    const normalizedName = sourceRowExternalMemberKey(assignment, externalName);
+    if (copiedGroup.normalizedNames.has(normalizedName)) continue;
+    copiedGroup.normalizedNames.add(normalizedName);
+    copiedGroup.members.push({
+      name: externalName,
+      normalizedName,
+      sourceFile: assignment.sourceFile,
+      sheetName: assignment.sheetName,
+      rowNumber: assignment.rowNumber,
+      debugKey,
+    });
+    copiedGroup.debugMemberCounts.set(debugKey, (copiedGroup.debugMemberCounts.get(debugKey) || 0) + 1);
+    copiedMembersByGroup.set(group.id, copiedGroup);
   }
 
   const debug = Array.from(debugByGroup.values());
@@ -678,69 +708,54 @@ async function linkMbbLearnersToGroups(
   }
 
   const updatedGroupIds = new Set<string>();
-  const skippedNoGroup: ParsedMbbGroupAssignment[] = [];
   let externalMembersCreated = 0;
-  let externalMembersAlreadyExists = 0;
+  const externalMembersAlreadyExists = 0;
 
-  await prisma.$transaction(async (tx) => {
-    for (const { group } of plannedCopies) {
-      if (group && !updatedGroupIds.has(group.id)) {
-        await tx.$executeRaw`
-          DELETE FROM "GroupExternalMember"
-          WHERE "groupId" = ${group.id}
-            AND "schoolId" = ${SCHOOL_ID}
-        `;
-        const matchingDebugRows = Array.from(debugByGroup.values()).filter((row) => row.matchingGroupId === group.id);
-        const importedMemberCount = matchingDebugRows.reduce((sum, row) => sum + row.learnerNamesRead, 0);
-        await tx.$executeRaw`
-          UPDATE "Group"
-          SET "importedMemberCount" = ${importedMemberCount},
-              "updatedAt" = CURRENT_TIMESTAMP
-          WHERE "id" = ${group.id}
-            AND "schoolId" = ${SCHOOL_ID}
-        `;
-        for (const row of matchingDebugRows) row.totalDisplayed = importedMemberCount;
-        updatedGroupIds.add(group.id);
-      }
+  for (const copiedGroup of copiedMembersByGroup.values()) {
+    await prisma.groupExternalMember.deleteMany({
+      where: {
+        schoolId: SCHOOL_ID,
+        groupId: copiedGroup.group.id,
+        memberType: "EXTERNAL",
+      },
+    });
+
+    if (copiedGroup.members.length) {
+      const inserted = await prisma.groupExternalMember.createMany({
+        data: copiedGroup.members.map((member) => ({
+          id: groupExternalMemberId(),
+          schoolId: SCHOOL_ID,
+          groupId: copiedGroup.group.id,
+          name: member.name,
+          normalizedName: member.normalizedName,
+          memberType: "EXTERNAL",
+          sourceFile: member.sourceFile,
+          sheetName: member.sheetName,
+          rowNumber: member.rowNumber,
+        })),
+        skipDuplicates: true,
+      });
+      externalMembersCreated += inserted.count;
     }
 
-    for (const { assignment, group, debugKey } of plannedCopies) {
-      if (!group) {
-        skippedNoGroup.push(assignment);
-        continue;
-      }
+    await prisma.group.updateMany({
+      where: {
+        id: copiedGroup.group.id,
+        schoolId: SCHOOL_ID,
+      },
+      data: {
+        importedMemberCount: copiedGroup.members.length,
+      },
+    });
 
-      const externalName = copyMemberName(assignment.learnerName);
-      const normalizedExternalName = sourceRowExternalMemberKey(assignment, externalName);
-      if (!externalName || !normalizedExternalName) continue;
-      const insertedExternal = await tx.$queryRaw<Array<{ id: string }>>`
-        INSERT INTO "GroupExternalMember" (
-          "id", "schoolId", "groupId", "name", "normalizedName", "memberType", "sourceFile", "sheetName", "rowNumber", "createdAt"
-        )
-        VALUES (
-          ${groupExternalMemberId()},
-          ${SCHOOL_ID},
-          ${group.id},
-          ${externalName},
-          ${normalizedExternalName},
-          'EXTERNAL',
-          ${assignment.sourceFile},
-          ${assignment.sheetName},
-          ${assignment.rowNumber},
-          CURRENT_TIMESTAMP
-        )
-        ON CONFLICT ("groupId", "normalizedName") DO NOTHING
-        RETURNING "id"
-      `;
-      if (insertedExternal.length > 0) {
-        externalMembersCreated += 1;
-        const debugRow = debugByGroup.get(debugKey);
-        if (debugRow) debugRow.externalNamesCreated += 1;
-      } else {
-        externalMembersAlreadyExists += 1;
-      }
+    for (const row of Array.from(debugByGroup.values()).filter((item) => item.matchingGroupId === copiedGroup.group.id)) {
+      row.externalNamesCreated = copiedGroup.debugMemberCounts.get(
+        `${row.uploadedFilename}\u0000${row.worksheetName}\u0000${row.detectedGroupName}`
+      ) || 0;
+      row.totalDisplayed = copiedGroup.members.length;
     }
-  });
+    updatedGroupIds.add(copiedGroup.group.id);
+  }
 
   const summary = Array.from(debugByGroup.values()).map((row) => ({
     groupName: row.detectedGroupName || row.derivedGroupName,
@@ -755,7 +770,7 @@ async function linkMbbLearnersToGroups(
     schoolName: SCHOOL_NAME,
     learnersLinked: 0,
     learnersAlreadyLinked: 0,
-    learnersSkippedNoGroup: skippedNoGroup.length,
+    learnersSkippedNoGroup: 0,
     learnersSkippedNoLearner: 0,
     externalMembersCreated,
     externalMembersAlreadyExists,
@@ -763,14 +778,7 @@ async function linkMbbLearnersToGroups(
     debug: Array.from(debugByGroup.values()),
     summary,
     unmatchedLearnerDebug: [],
-    skippedNoGroup: skippedNoGroup.slice(0, 30).map((row) => ({
-      sourceFile: row.sourceFile,
-      sheetName: row.sheetName,
-      rowNumber: row.rowNumber,
-      groupName: row.groupName,
-      learnerName: row.learnerName,
-      admissionNo: "",
-    })),
+    skippedNoGroup: [],
   };
 }
 
