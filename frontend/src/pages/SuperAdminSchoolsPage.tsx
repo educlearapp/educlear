@@ -88,12 +88,29 @@ type MbbGroupsCleanupResponse = {
 
 type MbbGroupsLearnerLinkResponse = {
   success?: boolean;
+  blocked?: boolean;
   schoolName?: string;
   learnersLinked?: number;
   learnersAlreadyLinked?: number;
   learnersSkippedNoGroup?: number;
   learnersSkippedNoLearner?: number;
   groupsUpdated?: number;
+  debug?: Array<{
+    uploadedFilename?: string;
+    worksheetName?: string;
+    derivedGroupName?: string;
+    matchingGroupFound?: boolean;
+    matchingGroupId?: string;
+    learnerNamesRead?: number;
+    learnerIdsMatched?: number;
+  }>;
+  unmatchedGroupDebug?: Array<{
+    uploadedFilename?: string;
+    worksheetName?: string;
+    derivedGroupName?: string;
+  }>;
+  existingGroupNames?: string[];
+  normalizationUsed?: string;
   error?: string;
 };
 
@@ -336,13 +353,53 @@ function formatMbbGroupsCleanupResult(response: MbbGroupsCleanupResponse): strin
 }
 
 function formatMbbGroupsLearnerLinkResult(response: MbbGroupsLearnerLinkResponse): string {
-  return [
+  const lines = [
     `Learners linked: ${response.learnersLinked ?? 0}`,
     `Learners skipped (no group): ${response.learnersSkippedNoGroup ?? 0}`,
     `Groups updated: ${response.groupsUpdated ?? 0}`,
     `Already linked: ${response.learnersAlreadyLinked ?? 0}`,
     `Skipped (learner not found): ${response.learnersSkippedNoLearner ?? 0}`,
-  ].join("\n");
+  ];
+
+  if (response.blocked) {
+    lines.unshift(response.error || "No links were created because one or more group names did not match.");
+  }
+
+  const debugRows = Array.isArray(response.debug) ? response.debug : [];
+  if (debugRows.length) {
+    lines.push("");
+    lines.push("Debug:");
+    for (const row of debugRows.slice(0, 20)) {
+      lines.push(
+        `- File: ${row.uploadedFilename || "?"} | Sheet: ${row.worksheetName || "?"} | Derived group: ${row.derivedGroupName || "?"} | Group found: ${row.matchingGroupFound ? "yes" : "no"} | Group ID: ${row.matchingGroupId || "-"} | Names read: ${row.learnerNamesRead ?? 0} | Learners matched: ${row.learnerIdsMatched ?? 0}`
+      );
+    }
+    if (debugRows.length > 20) lines.push(`...and ${debugRows.length - 20} more debug row(s)`);
+  }
+
+  const unmatched = Array.isArray(response.unmatchedGroupDebug) ? response.unmatchedGroupDebug : [];
+  if (unmatched.length) {
+    lines.push("");
+    lines.push("Unmatched derived group names:");
+    for (const row of unmatched.slice(0, 20)) {
+      lines.push(`- ${row.derivedGroupName || "?"} (${row.uploadedFilename || "?"} / ${row.worksheetName || "?"})`);
+    }
+  }
+
+  if (response.normalizationUsed) {
+    lines.push("");
+    lines.push(`Normalization used: ${response.normalizationUsed}`);
+  }
+
+  const existing = Array.isArray(response.existingGroupNames) ? response.existingGroupNames : [];
+  if (existing.length) {
+    lines.push("");
+    lines.push("Existing MBB group names:");
+    for (const name of existing.slice(0, 60)) lines.push(`- ${name}`);
+    if (existing.length > 60) lines.push(`...and ${existing.length - 60} more`);
+  }
+
+  return lines.join("\n");
 }
 
 export default function SuperAdminSchoolsPage() {
@@ -648,6 +705,13 @@ export default function SuperAdminSchoolsPage() {
       )) as MbbGroupsLearnerLinkResponse;
       if (response.success === false) {
         throw new Error(response.error || "MBB learner-group linking failed.");
+      }
+      if (response.blocked) {
+        showNotice(
+          "MBB group matching blocked",
+          formatMbbGroupsLearnerLinkResult(response)
+        );
+        return;
       }
       localStorage.removeItem("educlearGroups");
       localStorage.removeItem(`educlearGroups:${MBB_SCHOOL_ID}`);

@@ -84,6 +84,16 @@ type MbbLearnerIndexRow = {
   admissionNo: string | null;
 };
 
+type MbbGroupLinkDebug = {
+  uploadedFilename: string;
+  worksheetName: string;
+  derivedGroupName: string;
+  matchingGroupFound: boolean;
+  matchingGroupId: string;
+  learnerNamesRead: number;
+  learnerIdsMatched: number;
+};
+
 function jsonError(res: Response, status: number, message: string) {
   return res.status(status).json({ success: false, error: message });
 }
@@ -394,7 +404,7 @@ async function loadMbbGroupsByName() {
   `;
   const byName = new Map<string, { id: string; name: string }>();
   for (const group of groups) byName.set(normalizeKey(group.name), group);
-  return byName;
+  return { groups, byName };
 }
 
 async function loadMbbLearnersForMatching() {
@@ -534,8 +544,74 @@ async function buildBadGroupsCleanupPreview() {
 
 async function linkMbbLearnersToGroups(assignments: ParsedMbbGroupAssignment[]) {
   await verifyMbbSchool();
-  const groupsByName = await loadMbbGroupsByName();
+  const { groups: existingGroups, byName: groupsByName } = await loadMbbGroupsByName();
   const learnerIndexes = await loadMbbLearnersForMatching();
+  const debugByGroup = new Map<string, MbbGroupLinkDebug>();
+  const plannedLinks: Array<{
+    assignment: ParsedMbbGroupAssignment;
+    group: { id: string; name: string } | undefined;
+    learner: MbbLearnerIndexRow | null;
+  }> = [];
+
+  for (const assignment of assignments) {
+    const group = groupsByName.get(normalizeKey(assignment.groupName));
+    const learner = matchMbbLearner(assignment, learnerIndexes);
+    const debugKey = `${assignment.sourceFile}\u0000${assignment.sheetName}\u0000${assignment.groupName}`;
+    const current =
+      debugByGroup.get(debugKey) ||
+      {
+        uploadedFilename: assignment.sourceFile,
+        worksheetName: assignment.sheetName,
+        derivedGroupName: assignment.groupName,
+        matchingGroupFound: Boolean(group),
+        matchingGroupId: group?.id || "",
+        learnerNamesRead: 0,
+        learnerIdsMatched: 0,
+      };
+    current.matchingGroupFound = Boolean(group);
+    current.matchingGroupId = group?.id || "";
+    current.learnerNamesRead += 1;
+    if (learner) current.learnerIdsMatched += 1;
+    debugByGroup.set(debugKey, current);
+    plannedLinks.push({ assignment, group, learner });
+  }
+
+  const debug = Array.from(debugByGroup.values());
+  const normalizationUsed =
+    "Group names are derived from worksheet title for multi-sheet workbooks, otherwise filename with .csv/.xls/.xlsx removed; matching trims and collapses spaces and is case-insensitive.";
+  const unmatchedGroupDebug = debug.filter((row) => !row.matchingGroupFound);
+  if (unmatchedGroupDebug.length) {
+    const existingGroupNames = existingGroups.map((group) => group.name).sort((a, b) => a.localeCompare(b));
+    console.warn("[mbb-groups/link-learners] blocked: unmatched group names", {
+      unmatchedGroupDebug,
+      existingGroupNames,
+      normalizationUsed,
+    });
+    for (const row of debug) {
+      console.info("[mbb-groups/link-learners] preflight", row);
+    }
+    return {
+      success: true,
+      blocked: true,
+      schoolId: SCHOOL_ID,
+      schoolName: SCHOOL_NAME,
+      error: "No learner-group links were created because one or more uploaded files did not match an existing MBB group.",
+      learnersLinked: 0,
+      learnersAlreadyLinked: 0,
+      learnersSkippedNoGroup: assignments.length,
+      learnersSkippedNoLearner: 0,
+      groupsUpdated: 0,
+      debug,
+      unmatchedGroupDebug,
+      existingGroupNames,
+      normalizationUsed,
+    };
+  }
+
+  for (const row of debug) {
+    console.info("[mbb-groups/link-learners] preflight", row);
+  }
+
   const seenPairs = new Set<string>();
   const updatedGroupIds = new Set<string>();
   const skippedNoGroup: ParsedMbbGroupAssignment[] = [];
@@ -543,14 +619,12 @@ async function linkMbbLearnersToGroups(assignments: ParsedMbbGroupAssignment[]) 
   let linkedCount = 0;
   let alreadyLinkedCount = 0;
 
-  for (const assignment of assignments) {
-    const group = groupsByName.get(normalizeKey(assignment.groupName));
+  for (const { assignment, group, learner } of plannedLinks) {
     if (!group) {
       skippedNoGroup.push(assignment);
       continue;
     }
 
-    const learner = matchMbbLearner(assignment, learnerIndexes);
     if (!learner) {
       skippedNoLearner.push(assignment);
       continue;
@@ -583,6 +657,7 @@ async function linkMbbLearnersToGroups(assignments: ParsedMbbGroupAssignment[]) 
     learnersSkippedNoGroup: skippedNoGroup.length,
     learnersSkippedNoLearner: skippedNoLearner.length,
     groupsUpdated: updatedGroupIds.size,
+    debug,
     skippedNoGroup: skippedNoGroup.slice(0, 30).map((row) => ({
       sourceFile: row.sourceFile,
       sheetName: row.sheetName,
