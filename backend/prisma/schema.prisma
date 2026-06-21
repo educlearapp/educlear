@@ -125,6 +125,7 @@ learnerReports LearnerReport[]
   expenseCategories ExpenseCategory[]
   accountingJournals AccountingJournal[]
   classrooms Classroom[]
+  groups Group[]
   classroomTeachers ClassroomTeacher[]
   teacherLearnerNotes TeacherLearnerNote[]
   teacherStudyNotes TeacherStudyNote[]
@@ -2686,6 +2687,20 @@ model Classroom {
   school   School              @relation(fields: [schoolId], references: [id], onDelete: Cascade)
   threads  ParentTeacherThread[]
   teachers ClassroomTeacher[]
+
+  @@unique([schoolId, name])
+  @@index([schoolId])
+}
+
+model Group {
+  id        String   @id @default(cuid())
+  schoolId  String
+  name      String
+  comments  String   @default("") @db.Text
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  school School @relation(fields: [schoolId], references: [id], onDelete: Cascade)
 
   @@unique([schoolId, name])
   @@index([schoolId])

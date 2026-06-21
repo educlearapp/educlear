@@ -652,6 +652,16 @@ const [localGroups, setLocalGroups] = useState<any[]>(() => {
 
 
 });
+const [groupsLoading, setGroupsLoading] = useState(false);
+const [groupsNotice, setGroupsNotice] = useState("");
+const [groupsImportFile, setGroupsImportFile] = useState<File | null>(null);
+const [groupsImportPreview, setGroupsImportPreview] = useState<any[]>([]);
+const [groupsImportResult, setGroupsImportResult] = useState<{
+  importedCount: number;
+  skippedCount: number;
+} | null>(null);
+const [groupsPreviewing, setGroupsPreviewing] = useState(false);
+const [groupsImporting, setGroupsImporting] = useState(false);
 const [selectedEmployee, setSelectedEmployee] = useState<any | null>(null);
 
 
@@ -819,6 +829,56 @@ const [incidentDraft, setIncidentDraft] = useState<any>({
 
 });
 const [selectedGroupLearnerIds, setSelectedGroupLearnerIds] = useState<string[]>([]);
+
+const cacheGroupsForSchool = (groups: any[]) => {
+  const payload = JSON.stringify(groups);
+  localStorage.setItem("educlearGroups", payload);
+  if (schoolId) {
+    localStorage.setItem(`educlearGroups:${schoolId}`, payload);
+  }
+};
+
+useEffect(() => {
+  if (!schoolId) return;
+
+  let cancelled = false;
+  setGroupsLoading(true);
+  setGroupsNotice("");
+
+  apiFetch(`/api/groups?schoolId=${encodeURIComponent(schoolId)}`)
+    .then((data: any) => {
+      if (cancelled || !Array.isArray(data?.groups)) return;
+      setLocalGroups((current) => {
+        const localByName = new Map(
+          current.map((group: any) => [
+            String(group?.name || "").trim().toLowerCase(),
+            group,
+          ])
+        );
+        const nextGroups = data.groups.map((group: any) => {
+          const localMatch = localByName.get(String(group?.name || "").trim().toLowerCase());
+          return {
+            ...group,
+            learnerIds: Array.isArray(localMatch?.learnerIds) ? localMatch.learnerIds : [],
+          };
+        });
+        cacheGroupsForSchool(nextGroups);
+        return nextGroups;
+      });
+    })
+    .catch(() => {
+      if (!cancelled) {
+        setGroupsNotice("Saved groups could not be loaded. Showing local groups only.");
+      }
+    })
+    .finally(() => {
+      if (!cancelled) setGroupsLoading(false);
+    });
+
+  return () => {
+    cancelled = true;
+  };
+}, [schoolId]);
 
 
 const [learnerGradeOverrides, setLearnerGradeOverrides] = useState<Record<string, string>>({});
@@ -6586,22 +6646,42 @@ const updatedGroups =
 
 
 setLocalGroups(updatedGroups);
-
-
-
-localStorage.setItem(
-
-
-
-  "educlearGroups",
-
-
-
-  JSON.stringify(updatedGroups)
-
-
-
-);
+cacheGroupsForSchool(updatedGroups);
+if (schoolId) {
+  const isServerGroup = !String(updatedGroup.id || "").startsWith("group-");
+  apiFetch(
+    isServerGroup
+      ? `/api/groups/${encodeURIComponent(String(updatedGroup.id))}`
+      : "/api/groups",
+    {
+      method: isServerGroup ? "PUT" : "POST",
+      body: JSON.stringify({
+        schoolId,
+        name: updatedGroup.name,
+        comments: updatedGroup.comments || "",
+      }),
+    }
+  )
+    .then((data: any) => {
+      if (!data?.group) return;
+      setLocalGroups((current) => {
+        const savedGroup = {
+          ...data.group,
+          learnerIds: Array.isArray(updatedGroup.learnerIds) ? updatedGroup.learnerIds : [],
+        };
+        const nextGroups = current.map((group: any) =>
+          group.id === updatedGroup.id ? savedGroup : group
+        );
+        cacheGroupsForSchool(nextGroups);
+        if (selectedGroup?.id === updatedGroup.id) {
+          setSelectedGroup(savedGroup);
+          localStorage.setItem("selectedGroupForManage", JSON.stringify(savedGroup));
+        }
+        return nextGroups;
+      });
+    })
+    .catch(() => setGroupsNotice("Group saved locally, but could not be saved to the server."));
+}
   
   
   
@@ -6609,6 +6689,72 @@ localStorage.setItem(
   
   
   
+  };
+
+  const previewGroupsImport = async () => {
+    if (!schoolId) return alert("School ID is missing. Select a school before importing groups.");
+    if (!groupsImportFile) return alert("Choose an Excel or CSV groups file first.");
+
+    const formData = new FormData();
+    formData.append("schoolId", schoolId);
+    formData.append("file", groupsImportFile);
+
+    setGroupsPreviewing(true);
+    setGroupsNotice("");
+    setGroupsImportResult(null);
+
+    try {
+      const data: any = await apiFetch("/api/groups/preview-import", {
+        method: "POST",
+        body: formData,
+      });
+      setGroupsImportPreview(Array.isArray(data?.groups) ? data.groups : []);
+      setGroupsNotice(
+        `Preview ready: ${data?.readyCount || 0} new group(s), ${data?.skippedCount || 0} skipped.`
+      );
+    } catch (error) {
+      setGroupsImportPreview([]);
+      setGroupsNotice(error instanceof Error ? error.message : "Could not preview the groups file.");
+    } finally {
+      setGroupsPreviewing(false);
+    }
+  };
+
+  const importPreviewedGroups = async () => {
+    if (!schoolId) return alert("School ID is missing. Select a school before importing groups.");
+    const readyGroups = groupsImportPreview.filter((group: any) => group.status === "ready");
+    if (readyGroups.length === 0) return alert("There are no new groups ready to import.");
+
+    setGroupsImporting(true);
+    setGroupsNotice("");
+
+    try {
+      const data: any = await apiFetch("/api/groups/import", {
+        method: "POST",
+        body: JSON.stringify({
+          schoolId,
+          groups: readyGroups.map((group: any) => ({
+            name: group.name,
+            comments: group.comments || "",
+          })),
+        }),
+      });
+      const nextGroups = Array.isArray(data?.groups) ? data.groups : [];
+      setLocalGroups(nextGroups);
+      cacheGroupsForSchool(nextGroups);
+      setSelectedGroup(null);
+      setGroupsImportPreview([]);
+      setGroupsImportResult({
+        importedCount: Number(data?.importedCount || 0),
+        skippedCount: Number(data?.skippedCount || 0),
+      });
+      setGroupPage(1);
+      setGroupsNotice("Import complete. The final groups list is shown below.");
+    } catch (error) {
+      setGroupsNotice(error instanceof Error ? error.message : "Could not import groups.");
+    } finally {
+      setGroupsImporting(false);
+    }
   };
   
   
@@ -6937,6 +7083,117 @@ localStorage.setItem(
   
   
   
+        <div style={{ padding: "14px", borderBottom: "1px solid #e5e7eb", background: "#fffdf3" }}>
+          <div style={{ display: "flex", justifyContent: "space-between", gap: "12px", alignItems: "flex-start", flexWrap: "wrap" }}>
+            <div>
+              <div style={{ fontWeight: 900, color: "#0f172a" }}>Import Groups</div>
+              <p style={{ margin: "4px 0 0", color: "#64748b", fontSize: "13px", fontWeight: 700 }}>
+                Upload a CSV or Excel file with a Group Name column. Only groups for this selected school will be created.
+              </p>
+              <p style={{ margin: "4px 0 0", color: "#92400e", fontSize: "12px", fontWeight: 800 }}>
+                This import creates group names only. It does not change learners, parents, billing, balances, transactions, classrooms, or statements.
+              </p>
+            </div>
+            <div style={{ display: "flex", gap: "8px", alignItems: "center", flexWrap: "wrap" }}>
+              <input
+                type="file"
+                accept=".csv,.xls,.xlsx"
+                style={{ ...selectStyle, width: "270px" }}
+                onChange={(event) => {
+                  setGroupsImportFile(event.target.files?.[0] || null);
+                  setGroupsImportPreview([]);
+                  setGroupsImportResult(null);
+                  setGroupsNotice("");
+                }}
+              />
+              <button
+                type="button"
+                style={{ ...actionBtn, opacity: groupsPreviewing || !groupsImportFile ? 0.65 : 1 }}
+                disabled={groupsPreviewing || !groupsImportFile}
+                onClick={() => void previewGroupsImport()}
+              >
+                {groupsPreviewing ? "Previewing..." : "Preview"}
+              </button>
+              <button
+                type="button"
+                style={{
+                  ...goldBtn,
+                  opacity:
+                    groupsImporting || groupsImportPreview.filter((group: any) => group.status === "ready").length === 0
+                      ? 0.65
+                      : 1,
+                }}
+                disabled={
+                  groupsImporting ||
+                  groupsImportPreview.filter((group: any) => group.status === "ready").length === 0
+                }
+                onClick={() => void importPreviewedGroups()}
+              >
+                {groupsImporting ? "Importing..." : "Import"}
+              </button>
+            </div>
+          </div>
+
+          {groupsNotice && (
+            <div style={{ marginTop: "10px", color: "#334155", fontSize: "13px", fontWeight: 800 }}>
+              {groupsNotice}
+            </div>
+          )}
+
+          {groupsImportResult && (
+            <div style={{ marginTop: "10px", display: "flex", gap: "10px", flexWrap: "wrap" }}>
+              <span style={{ padding: "8px 10px", borderRadius: "999px", background: "#dcfce7", color: "#166534", fontWeight: 900, fontSize: "12px" }}>
+                Imported: {groupsImportResult.importedCount}
+              </span>
+              <span style={{ padding: "8px 10px", borderRadius: "999px", background: "#fee2e2", color: "#991b1b", fontWeight: 900, fontSize: "12px" }}>
+                Skipped: {groupsImportResult.skippedCount}
+              </span>
+            </div>
+          )}
+
+          {groupsImportPreview.length > 0 && (
+            <div style={{ marginTop: "12px", border: "1px solid #e5e7eb", borderRadius: "10px", overflow: "hidden", background: "#fff" }}>
+              <table style={{ width: "100%", borderCollapse: "collapse", fontSize: "13px" }}>
+                <thead>
+                  <tr>
+                    <th style={th}>Row</th>
+                    <th style={th}>Group Name</th>
+                    <th style={th}>Comments</th>
+                    <th style={th}>Import Status</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {groupsImportPreview.map((group: any, index: number) => (
+                    <tr key={`${group.rowNumber || index}-${group.name}`}>
+                      <td style={td}>{group.rowNumber || index + 1}</td>
+                      <td style={td}>{group.name}</td>
+                      <td style={td}>{group.comments || "-"}</td>
+                      <td style={td}>
+                        <span
+                          style={{
+                            color: group.status === "ready" ? "#166534" : "#991b1b",
+                            fontWeight: 900,
+                          }}
+                        >
+                          {group.status === "ready" ? "Ready to import" : `Skipped - ${group.reason || "Duplicate"}`}
+                        </span>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </div>
+
+        {groupsLoading && (
+          <div style={{ padding: "10px 14px", borderBottom: "1px solid #e5e7eb", color: "#64748b", fontSize: "12px", fontWeight: 800 }}>
+            Loading saved groups...
+          </div>
+        )}
+
+
+
         <table style={{ width: "100%", borderCollapse: "collapse", fontSize: "13px" }}>
   
   
