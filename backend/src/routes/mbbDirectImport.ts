@@ -70,6 +70,7 @@ type ParsedMbbGroupAssignment = {
   sheetName: string;
   rowNumber: number;
   groupName: string;
+  titleRow: number;
   learnerName: string;
   firstName: string;
   lastName: string;
@@ -88,10 +89,13 @@ type MbbGroupLinkDebug = {
   uploadedFilename: string;
   worksheetName: string;
   derivedGroupName: string;
+  detectedTitleRow: number;
+  detectedGroupName: string;
   matchingGroupFound: boolean;
   matchingGroupId: string;
   learnerNamesRead: number;
   learnerIdsMatched: number;
+  learnerLinksCreated: number;
 };
 
 function jsonError(res: Response, status: number, message: string) {
@@ -174,10 +178,6 @@ function groupLearnerId() {
   return `gl_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 10)}`;
 }
 
-function groupNameFromFileName(fileName: string) {
-  return normalizeName(safeName(fileName).replace(/\.(csv|xls|xlsx)$/i, ""));
-}
-
 function isAcceptedGroupsFile(fileName: string) {
   return new Set([".csv", ".xls", ".xlsx"]).has(path.extname(fileName).toLowerCase());
 }
@@ -199,6 +199,26 @@ function normalizeHeader(value: unknown) {
 function pickHeaderColumnLoose(headers: string[], labels: string[]) {
   const labelSet = new Set(labels.map(normalizeHeader));
   return headers.findIndex((header) => labelSet.has(normalizeHeader(header)));
+}
+
+function firstNonEmptyCell(row: unknown[]) {
+  for (const cell of row) {
+    const value = normalizeName(cell);
+    if (value) return value;
+  }
+  return "";
+}
+
+function detectSheetTitle(matrix: unknown[][], labelsToSkip: string[]) {
+  const labels = new Set(labelsToSkip.map(normalizeHeader));
+  for (let index = 0; index < Math.min(matrix.length, 12); index += 1) {
+    const row = Array.isArray(matrix[index]) ? matrix[index] : [];
+    const value = firstNonEmptyCell(row);
+    if (!value) continue;
+    if (labels.has(normalizeHeader(value))) continue;
+    return { titleRow: index + 1, groupName: value };
+  }
+  return { titleRow: 0, groupName: "" };
 }
 
 function isNumericGroupName(value: unknown) {
@@ -304,7 +324,7 @@ function parseGroupAssignmentsFromFile(file: Express.Multer.File): ParsedMbbGrou
   const firstNameLabels = ["first name", "firstname", "name", "learner first name", "child first name"];
   const lastNameLabels = ["last name", "lastname", "surname", "learner surname", "child surname"];
   const admissionLabels = ["admission no", "admission number", "admission", "learner number", "student number", "child number"];
-  const fallbackGroupName = groupNameFromFileName(file.originalname);
+  const learnerHeaderLabels = [...fullNameLabels, ...firstNameLabels, ...lastNameLabels, ...admissionLabels];
 
   for (const sheetName of workbook.SheetNames) {
     const sheet = workbook.Sheets[sheetName];
@@ -317,9 +337,9 @@ function parseGroupAssignmentsFromFile(file: Express.Multer.File): ParsedMbbGrou
     });
     if (!matrix.length) continue;
 
-    const groupName = workbook.SheetNames.length > 1 && normalizeName(sheetName) ? normalizeName(sheetName) : fallbackGroupName;
+    const { titleRow, groupName } = detectSheetTitle(matrix, learnerHeaderLabels);
     let parsedSheet = false;
-    for (let headerIndex = 0; headerIndex < Math.min(matrix.length, 12); headerIndex += 1) {
+    for (let headerIndex = Math.max(titleRow, 0); headerIndex < Math.min(matrix.length, 18); headerIndex += 1) {
       const headerRow = Array.isArray(matrix[headerIndex]) ? matrix[headerIndex].map(normalizeHeader) : [];
       const fullNameColumn = pickHeaderColumnLoose(headerRow, fullNameLabels);
       const firstNameColumn = pickHeaderColumnLoose(headerRow, firstNameLabels);
@@ -341,6 +361,7 @@ function parseGroupAssignmentsFromFile(file: Express.Multer.File): ParsedMbbGrou
           sheetName,
           rowNumber: headerIndex + index + 2,
           groupName,
+          titleRow,
           learnerName,
           firstName,
           lastName,
@@ -353,16 +374,19 @@ function parseGroupAssignmentsFromFile(file: Express.Multer.File): ParsedMbbGrou
 
     if (parsedSheet) continue;
 
-    matrix.forEach((row, index) => {
+    matrix.slice(Math.max(titleRow, 0)).forEach((row, index) => {
       const cells = Array.isArray(row) ? row : [];
       const learnerName = normalizeName(cells[0]);
       const admissionNo = normalizeName(cells[1]);
+      if (normalizeKey(learnerName) === normalizeKey(groupName)) return;
+      if (learnerHeaderLabels.map(normalizeHeader).includes(normalizeHeader(learnerName))) return;
       if (!groupName || (!learnerName && !admissionNo)) return;
       rows.push({
         sourceFile: safeName(file.originalname),
         sheetName,
-        rowNumber: index + 1,
+        rowNumber: Math.max(titleRow, 0) + index + 1,
         groupName,
+        titleRow,
         learnerName,
         firstName: "",
         lastName: "",
@@ -551,6 +575,7 @@ async function linkMbbLearnersToGroups(assignments: ParsedMbbGroupAssignment[]) 
     assignment: ParsedMbbGroupAssignment;
     group: { id: string; name: string } | undefined;
     learner: MbbLearnerIndexRow | null;
+    debugKey: string;
   }> = [];
 
   for (const assignment of assignments) {
@@ -563,22 +588,25 @@ async function linkMbbLearnersToGroups(assignments: ParsedMbbGroupAssignment[]) 
         uploadedFilename: assignment.sourceFile,
         worksheetName: assignment.sheetName,
         derivedGroupName: assignment.groupName,
+        detectedTitleRow: assignment.titleRow,
+        detectedGroupName: assignment.groupName,
         matchingGroupFound: Boolean(group),
         matchingGroupId: group?.id || "",
         learnerNamesRead: 0,
         learnerIdsMatched: 0,
+        learnerLinksCreated: 0,
       };
     current.matchingGroupFound = Boolean(group);
     current.matchingGroupId = group?.id || "";
     current.learnerNamesRead += 1;
     if (learner) current.learnerIdsMatched += 1;
     debugByGroup.set(debugKey, current);
-    plannedLinks.push({ assignment, group, learner });
+    plannedLinks.push({ assignment, group, learner, debugKey });
   }
 
   const debug = Array.from(debugByGroup.values());
   const normalizationUsed =
-    "Group names are derived from worksheet title for multi-sheet workbooks, otherwise filename with .csv/.xls/.xlsx removed; matching trims and collapses spaces and is case-insensitive.";
+    "Group names are derived from the first non-empty title cell at the top of each worksheet; matching trims and collapses spaces and is case-insensitive.";
   const unmatchedGroupDebug = debug.filter((row) => !row.matchingGroupFound);
   if (unmatchedGroupDebug.length) {
     const existingGroupNames = existingGroups.map((group) => group.name).sort((a, b) => a.localeCompare(b));
@@ -619,7 +647,7 @@ async function linkMbbLearnersToGroups(assignments: ParsedMbbGroupAssignment[]) 
   let linkedCount = 0;
   let alreadyLinkedCount = 0;
 
-  for (const { assignment, group, learner } of plannedLinks) {
+  for (const { assignment, group, learner, debugKey } of plannedLinks) {
     if (!group) {
       skippedNoGroup.push(assignment);
       continue;
@@ -643,6 +671,8 @@ async function linkMbbLearnersToGroups(assignments: ParsedMbbGroupAssignment[]) 
     updatedGroupIds.add(group.id);
     if (inserted.length > 0) {
       linkedCount += 1;
+      const debugRow = debugByGroup.get(debugKey);
+      if (debugRow) debugRow.learnerLinksCreated += 1;
     } else {
       alreadyLinkedCount += 1;
     }
@@ -657,7 +687,7 @@ async function linkMbbLearnersToGroups(assignments: ParsedMbbGroupAssignment[]) 
     learnersSkippedNoGroup: skippedNoGroup.length,
     learnersSkippedNoLearner: skippedNoLearner.length,
     groupsUpdated: updatedGroupIds.size,
-    debug,
+    debug: Array.from(debugByGroup.values()),
     skippedNoGroup: skippedNoGroup.slice(0, 30).map((row) => ({
       sourceFile: row.sourceFile,
       sheetName: row.sheetName,

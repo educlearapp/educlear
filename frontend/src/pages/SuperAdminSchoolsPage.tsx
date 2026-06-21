@@ -99,10 +99,13 @@ type MbbGroupsLearnerLinkResponse = {
     uploadedFilename?: string;
     worksheetName?: string;
     derivedGroupName?: string;
+    detectedTitleRow?: number;
+    detectedGroupName?: string;
     matchingGroupFound?: boolean;
     matchingGroupId?: string;
     learnerNamesRead?: number;
     learnerIdsMatched?: number;
+    learnerLinksCreated?: number;
   }>;
   unmatchedGroupDebug?: Array<{
     uploadedFilename?: string;
@@ -371,7 +374,7 @@ function formatMbbGroupsLearnerLinkResult(response: MbbGroupsLearnerLinkResponse
     lines.push("Debug:");
     for (const row of debugRows.slice(0, 20)) {
       lines.push(
-        `- File: ${row.uploadedFilename || "?"} | Sheet: ${row.worksheetName || "?"} | Derived group: ${row.derivedGroupName || "?"} | Group found: ${row.matchingGroupFound ? "yes" : "no"} | Group ID: ${row.matchingGroupId || "-"} | Names read: ${row.learnerNamesRead ?? 0} | Learners matched: ${row.learnerIdsMatched ?? 0}`
+        `- File: ${row.uploadedFilename || "?"} | Sheet: ${row.worksheetName || "?"} | Title row: ${row.detectedTitleRow || "-"} | Detected group: ${row.detectedGroupName || row.derivedGroupName || "?"} | Group found: ${row.matchingGroupFound ? "yes" : "no"} | Group ID: ${row.matchingGroupId || "-"} | Names read: ${row.learnerNamesRead ?? 0} | Learners matched: ${row.learnerIdsMatched ?? 0} | Links created: ${row.learnerLinksCreated ?? 0}`
       );
     }
     if (debugRows.length > 20) lines.push(`...and ${debugRows.length - 20} more debug row(s)`);
