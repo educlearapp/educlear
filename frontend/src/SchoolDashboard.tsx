@@ -6476,11 +6476,7 @@ const [selectedLearnerReport, setSelectedLearnerReport] = useState<any>(null);
   
   
   
-        children: Array.isArray(group.externalMembers) && group.externalMembers.length > 0
-          ? group.externalMembers.length
-          : Array.isArray(group.learnerIds)
-            ? group.learnerIds.length
-            : 0,
+        children: Number(group.importedMemberCount || 0),
   
   
   
@@ -6597,9 +6593,7 @@ const [selectedLearnerReport, setSelectedLearnerReport] = useState<any>(null);
   
   
   
-  const selectedGroupMemberCount = selectedGroupUsesCopiedMembers
-    ? selectedGroupCopiedMembers.length
-    : selectedGroupLearners.length;
+  const selectedGroupMemberCount = Number(selectedGroup?.importedMemberCount || 0);
   const groupLearnerTotalPages = Math.max(1, Math.ceil(selectedGroupMemberCount / groupLearnerPageSize));
   
   
@@ -6711,6 +6705,7 @@ if (schoolId) {
       setLocalGroups((current) => {
         const savedGroup = {
           ...data.group,
+          importedMemberCount: Number(data.group.importedMemberCount ?? updatedGroup.importedMemberCount ?? 0),
           learnerIds: Array.isArray(updatedGroup.learnerIds) ? updatedGroup.learnerIds : [],
           externalMembers: Array.isArray(updatedGroup.externalMembers) ? updatedGroup.externalMembers : [],
         };
@@ -6905,7 +6900,7 @@ if (schoolId) {
   
   
   
-              setGroupDraft({ name: "", comments: "", learnerIds: [] });
+              setGroupDraft({ name: "", comments: "", importedMemberCount: 0, learnerIds: [] });
   
   
   
@@ -7106,6 +7101,7 @@ if (schoolId) {
   
   
                     comments: groupDraft.comments || "",
+                    importedMemberCount: Number(groupDraft.importedMemberCount || 0),
   
   
   

@@ -97,6 +97,12 @@ type MbbGroupsLearnerLinkResponse = {
   externalMembersCreated?: number;
   externalMembersAlreadyExists?: number;
   groupsUpdated?: number;
+  summary?: Array<{
+    groupName?: string;
+    namesCopied?: number;
+    namesSkipped?: number;
+    totalDisplayed?: number;
+  }>;
   debug?: Array<{
     uploadedFilename?: string;
     worksheetName?: string;
@@ -109,6 +115,8 @@ type MbbGroupsLearnerLinkResponse = {
     learnerIdsMatched?: number;
     learnerLinksCreated?: number;
     externalNamesCreated?: number;
+    namesSkipped?: number;
+    totalDisplayed?: number;
   }>;
   unmatchedLearnerDebug?: Array<{
     uploadedFilename?: string;
@@ -377,14 +385,25 @@ function formatMbbGroupsCleanupResult(response: MbbGroupsCleanupResponse): strin
 function formatMbbGroupsLearnerLinkResult(response: MbbGroupsLearnerLinkResponse): string {
   const lines = [
     `Names copied: ${response.externalMembersCreated ?? 0}`,
-    `Duplicate names skipped: ${response.externalMembersAlreadyExists ?? 0}`,
     `Names skipped (no group): ${response.learnersSkippedNoGroup ?? 0}`,
     `Groups updated: ${response.groupsUpdated ?? 0}`,
+    "Counts displayed from stored imported member totals",
     "Learner matching: not attempted",
   ];
 
   if (response.blocked) {
     lines.unshift(response.error || "No links were created because one or more group names did not match.");
+  }
+
+  const summaryRows = Array.isArray(response.summary) ? response.summary : [];
+  if (summaryRows.length) {
+    lines.push("");
+    lines.push("Group name | names copied | names skipped | total displayed");
+    for (const row of summaryRows) {
+      lines.push(
+        `${row.groupName || "?"} | ${row.namesCopied ?? 0} | ${row.namesSkipped ?? 0} | ${row.totalDisplayed ?? 0}`
+      );
+    }
   }
 
   const debugRows = Array.isArray(response.debug) ? response.debug : [];
@@ -393,7 +412,7 @@ function formatMbbGroupsLearnerLinkResult(response: MbbGroupsLearnerLinkResponse
     lines.push("Debug:");
     for (const row of debugRows.slice(0, 20)) {
       lines.push(
-        `- File: ${row.uploadedFilename || "?"} | Sheet: ${row.worksheetName || "?"} | Title row: ${row.detectedTitleRow || "-"} | Detected group: ${row.detectedGroupName || row.derivedGroupName || "?"} | Group found: ${row.matchingGroupFound ? "yes" : "no"} | Group ID: ${row.matchingGroupId || "-"} | Names read: ${row.learnerNamesRead ?? 0} | Names copied: ${row.externalNamesCreated ?? 0}`
+        `- File: ${row.uploadedFilename || "?"} | Sheet: ${row.worksheetName || "?"} | Title row: ${row.detectedTitleRow || "-"} | Detected group: ${row.detectedGroupName || row.derivedGroupName || "?"} | Group found: ${row.matchingGroupFound ? "yes" : "no"} | Group ID: ${row.matchingGroupId || "-"} | Names read: ${row.learnerNamesRead ?? 0} | Names copied: ${row.externalNamesCreated ?? 0} | Names skipped: ${row.namesSkipped ?? 0} | Stored total: ${row.totalDisplayed ?? 0}`
       );
     }
     if (debugRows.length > 20) lines.push(`...and ${debugRows.length - 20} more debug row(s)`);

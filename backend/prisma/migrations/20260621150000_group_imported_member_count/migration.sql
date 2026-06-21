@@ -1,0 +1,2 @@
+ALTER TABLE "Group"
+ADD COLUMN "importedMemberCount" INTEGER NOT NULL DEFAULT 0;

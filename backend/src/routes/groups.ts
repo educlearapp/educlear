@@ -15,6 +15,7 @@ type GroupRow = {
   schoolId: string;
   name: string;
   comments: string;
+  importedMemberCount: number;
   createdAt: Date;
   updatedAt: Date;
   learnerIds?: string[];
@@ -51,6 +52,7 @@ function formatGroup(row: GroupRow) {
     schoolId: row.schoolId,
     name: row.name,
     comments: row.comments || "",
+    importedMemberCount: Number(row.importedMemberCount || 0),
     learnerIds: Array.isArray(row.learnerIds) ? row.learnerIds : [],
     externalMembers: Array.isArray(row.externalMembers) ? row.externalMembers : [],
     createdAt: row.createdAt,
@@ -65,6 +67,7 @@ async function listGroups(schoolId: string) {
       g."schoolId",
       g."name",
       g."comments",
+      g."importedMemberCount",
       g."createdAt",
       g."updatedAt",
       COALESCE(
@@ -190,11 +193,11 @@ router.post("/", async (req, res) => {
     if (!schoolId || !name) return jsonError(res, 400, "schoolId and name required");
 
     const rows = await prisma.$queryRaw<GroupRow[]>`
-      INSERT INTO "Group" ("id", "schoolId", "name", "comments", "createdAt", "updatedAt")
-      VALUES (${groupId()}, ${schoolId}, ${name}, ${comments}, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
+      INSERT INTO "Group" ("id", "schoolId", "name", "comments", "importedMemberCount", "createdAt", "updatedAt")
+      VALUES (${groupId()}, ${schoolId}, ${name}, ${comments}, 0, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
       ON CONFLICT ("schoolId", "name") DO UPDATE
       SET "comments" = EXCLUDED."comments", "updatedAt" = CURRENT_TIMESTAMP
-      RETURNING "id", "schoolId", "name", "comments", "createdAt", "updatedAt"
+      RETURNING "id", "schoolId", "name", "comments", "importedMemberCount", "createdAt", "updatedAt"
     `;
 
     return res.json({ success: true, group: formatGroup(rows[0]) });
@@ -216,7 +219,7 @@ router.put("/:id", async (req, res) => {
       UPDATE "Group"
       SET "name" = ${name}, "comments" = ${comments}, "updatedAt" = CURRENT_TIMESTAMP
       WHERE "id" = ${id} AND "schoolId" = ${schoolId}
-      RETURNING "id", "schoolId", "name", "comments", "createdAt", "updatedAt"
+      RETURNING "id", "schoolId", "name", "comments", "importedMemberCount", "createdAt", "updatedAt"
     `;
 
     if (!rows[0]) return jsonError(res, 404, "Group not found");
@@ -235,7 +238,7 @@ router.delete("/:id", async (req, res) => {
 
     const deleted = await prisma.$transaction(async (tx) => {
       const existing = await tx.$queryRaw<GroupRow[]>`
-        SELECT "id", "schoolId", "name", "comments", "createdAt", "updatedAt"
+        SELECT "id", "schoolId", "name", "comments", "importedMemberCount", "createdAt", "updatedAt"
         FROM "Group"
         WHERE "id" = ${id} AND "schoolId" = ${schoolId}
       `;
@@ -311,8 +314,8 @@ router.post("/import", async (req, res) => {
 
       seen.add(key);
       const inserted = await prisma.$queryRaw<Array<{ id: string }>>`
-          INSERT INTO "Group" ("id", "schoolId", "name", "comments", "createdAt", "updatedAt")
-          VALUES (${groupId()}, ${schoolId}, ${name}, ${String(row?.comments || "").trim()}, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
+          INSERT INTO "Group" ("id", "schoolId", "name", "comments", "importedMemberCount", "createdAt", "updatedAt")
+          VALUES (${groupId()}, ${schoolId}, ${name}, ${String(row?.comments || "").trim()}, 0, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
           ON CONFLICT ("schoolId", "name") DO NOTHING
           RETURNING "id"
         `;

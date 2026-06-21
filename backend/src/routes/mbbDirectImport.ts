@@ -77,6 +77,19 @@ type ParsedMbbGroupAssignment = {
   admissionNo: string;
 };
 
+type ParsedMbbGroupSkippedRow = {
+  sourceFile: string;
+  sheetName: string;
+  rowNumber: number;
+  groupName: string;
+  reason: "blank" | "row-number-only";
+};
+
+type ParsedMbbGroupFileResult = {
+  assignments: ParsedMbbGroupAssignment[];
+  skippedRows: ParsedMbbGroupSkippedRow[];
+};
+
 type MbbGroupLinkDebug = {
   uploadedFilename: string;
   worksheetName: string;
@@ -89,6 +102,8 @@ type MbbGroupLinkDebug = {
   learnerIdsMatched: number;
   learnerLinksCreated: number;
   externalNamesCreated: number;
+  namesSkipped: number;
+  totalDisplayed: number;
 };
 
 function jsonError(res: Response, status: number, message: string) {
@@ -222,6 +237,15 @@ function isNumericCellValue(value: unknown) {
   return /^\d+(?:[.,]\d+)?$/.test(copyMemberName(value));
 }
 
+function nonEmptyCellValues(row: unknown[]) {
+  return row.map(copyMemberName).filter(Boolean);
+}
+
+function isRowNumberOnlyRow(row: unknown[]) {
+  const values = nonEmptyCellValues(row);
+  return values.length === 1 && isNumericCellValue(values[0]);
+}
+
 function isNumericGroupName(value: unknown) {
   const name = normalizeName(value);
   return /^\d+(?:[.,]\d+)?$/.test(name);
@@ -318,9 +342,10 @@ function parseGroupRowsFromFile(file: Express.Multer.File): ParsedMbbGroup[] {
   return rows;
 }
 
-function parseGroupAssignmentsFromFile(file: Express.Multer.File): ParsedMbbGroupAssignment[] {
+function parseGroupAssignmentsFromFile(file: Express.Multer.File): ParsedMbbGroupFileResult {
   const workbook = XLSX.readFile(file.path, { raw: false });
-  const rows: ParsedMbbGroupAssignment[] = [];
+  const assignments: ParsedMbbGroupAssignment[] = [];
+  const skippedRows: ParsedMbbGroupSkippedRow[] = [];
   const fullNameLabels = ["learner name", "child name", "full name", "name"];
   const firstNameLabels = ["first name", "firstname", "name", "learner first name", "child first name"];
   const lastNameLabels = ["last name", "lastname", "surname", "learner surname", "child surname"];
@@ -350,15 +375,37 @@ function parseGroupAssignmentsFromFile(file: Express.Multer.File): ParsedMbbGrou
 
       matrix.slice(headerIndex + 1).forEach((row, index) => {
         const cells = Array.isArray(row) ? row : [];
+        const rowNumber = headerIndex + index + 2;
+        const values = nonEmptyCellValues(cells);
+        if (!values.length) {
+          skippedRows.push({
+            sourceFile: safeName(file.originalname),
+            sheetName,
+            rowNumber,
+            groupName,
+            reason: "blank",
+          });
+          return;
+        }
+        if (isRowNumberOnlyRow(cells)) {
+          skippedRows.push({
+            sourceFile: safeName(file.originalname),
+            sheetName,
+            rowNumber,
+            groupName,
+            reason: "row-number-only",
+          });
+          return;
+        }
         const firstName = copyMemberName(cells[firstNameColumn]);
         const lastName = copyMemberName(cells[lastNameColumn]);
         const explicitFullName = copyMemberName(cells[fullNameColumn]);
         const learnerName = explicitFullName || copyMemberName(`${firstName} ${lastName}`);
         if (!groupName || !learnerName) return;
-        rows.push({
+        assignments.push({
           sourceFile: safeName(file.originalname),
           sheetName,
-          rowNumber: headerIndex + index + 2,
+          rowNumber,
           groupName,
           titleRow,
           learnerName,
@@ -375,15 +422,37 @@ function parseGroupAssignmentsFromFile(file: Express.Multer.File): ParsedMbbGrou
 
     matrix.slice(Math.max(titleRow, 0)).forEach((row, index) => {
       const cells = Array.isArray(row) ? row : [];
+      const rowNumber = Math.max(titleRow, 0) + index + 1;
+      const values = nonEmptyCellValues(cells);
+      if (!values.length) {
+        skippedRows.push({
+          sourceFile: safeName(file.originalname),
+          sheetName,
+          rowNumber,
+          groupName,
+          reason: "blank",
+        });
+        return;
+      }
+      if (isRowNumberOnlyRow(cells)) {
+        skippedRows.push({
+          sourceFile: safeName(file.originalname),
+          sheetName,
+          rowNumber,
+          groupName,
+          reason: "row-number-only",
+        });
+        return;
+      }
       const learnerName = cells
         .map(copyMemberName)
         .find((value) => value && !isNumericCellValue(value) && !learnerHeaderLabels.map(normalizeHeader).includes(normalizeHeader(value))) || "";
       if (normalizeKey(learnerName) === normalizeKey(groupName)) return;
       if (!groupName || !learnerName) return;
-      rows.push({
+      assignments.push({
         sourceFile: safeName(file.originalname),
         sheetName,
-        rowNumber: Math.max(titleRow, 0) + index + 1,
+        rowNumber,
         groupName,
         titleRow,
         learnerName,
@@ -394,7 +463,7 @@ function parseGroupAssignmentsFromFile(file: Express.Multer.File): ParsedMbbGrou
     });
   }
 
-  return rows;
+  return { assignments, skippedRows };
 }
 
 async function verifyMbbSchool() {
@@ -469,16 +538,10 @@ async function buildBadGroupsCleanupPreview() {
       g."name",
       g."comments",
       g."createdAt",
-      COUNT(DISTINCT gl."learnerId") + COUNT(DISTINCT gem."id") AS "childrenCount"
+      g."importedMemberCount" AS "childrenCount"
     FROM "Group" g
-    LEFT JOIN "GroupLearner" gl
-      ON gl."groupId" = g."id"
-      AND gl."schoolId" = g."schoolId"
-    LEFT JOIN "GroupExternalMember" gem
-      ON gem."groupId" = g."id"
-      AND gem."schoolId" = g."schoolId"
     WHERE g."schoolId" = ${SCHOOL_ID}
-    GROUP BY g."id", g."name", g."comments", g."createdAt"
+    GROUP BY g."id", g."name", g."comments", g."createdAt", g."importedMemberCount"
     ORDER BY g."createdAt" DESC, g."name" ASC
   `;
 
@@ -495,7 +558,7 @@ async function buildBadGroupsCleanupPreview() {
       reason: isNumericGroupName(row.name)
         ? childrenCount === 0
           ? "Numeric group name from bad import"
-          : "Protected: group has learners linked"
+          : "Protected: group has imported member count"
         : "Protected: group name is not numeric",
     };
     if (isNumericGroupName(row.name) && childrenCount === 0) {
@@ -516,10 +579,33 @@ async function buildBadGroupsCleanupPreview() {
   };
 }
 
-async function linkMbbLearnersToGroups(assignments: ParsedMbbGroupAssignment[]) {
+function skippedRowsByDebugKey(skippedRows: ParsedMbbGroupSkippedRow[]) {
+  const counts = new Map<string, number>();
+  for (const row of skippedRows) {
+    const key = `${row.sourceFile}\u0000${row.sheetName}\u0000${row.groupName}`;
+    counts.set(key, (counts.get(key) || 0) + 1);
+  }
+  return counts;
+}
+
+function sourceRowExternalMemberKey(assignment: ParsedMbbGroupAssignment, externalName: string) {
+  return [
+    externalMemberKey(externalName),
+    "source",
+    normalizeKey(assignment.sourceFile),
+    normalizeKey(assignment.sheetName),
+    String(assignment.rowNumber),
+  ].join("|");
+}
+
+async function linkMbbLearnersToGroups(
+  assignments: ParsedMbbGroupAssignment[],
+  skippedRows: ParsedMbbGroupSkippedRow[]
+) {
   await verifyMbbSchool();
   const { groups: existingGroups, byName: groupsByName } = await loadMbbGroupsByName();
   const debugByGroup = new Map<string, MbbGroupLinkDebug>();
+  const skippedByKey = skippedRowsByDebugKey(skippedRows);
   const plannedCopies: Array<{
     assignment: ParsedMbbGroupAssignment;
     group: { id: string; name: string } | undefined;
@@ -543,6 +629,8 @@ async function linkMbbLearnersToGroups(assignments: ParsedMbbGroupAssignment[]) 
         learnerIdsMatched: 0,
         learnerLinksCreated: 0,
         externalNamesCreated: 0,
+        namesSkipped: skippedByKey.get(debugKey) || 0,
+        totalDisplayed: 0,
       };
     current.matchingGroupFound = Boolean(group);
     current.matchingGroupId = group?.id || "";
@@ -553,7 +641,7 @@ async function linkMbbLearnersToGroups(assignments: ParsedMbbGroupAssignment[]) 
 
   const debug = Array.from(debugByGroup.values());
   const normalizationUsed =
-    "Group names are derived from the first non-empty title cell at the top of each worksheet; uploaded names are copied as group members only. Numeric-only rows, blank rows, headers, and duplicate names are skipped.";
+    "Group names are derived from the first non-empty title cell at the top of each worksheet; uploaded names are copied as group members only. Only blank rows and row-number-only rows are skipped. Learner matching is not attempted.";
   const unmatchedGroupDebug = debug.filter((row) => !row.matchingGroupFound);
   if (unmatchedGroupDebug.length) {
     const existingGroupNames = existingGroups.map((group) => group.name).sort((a, b) => a.localeCompare(b));
@@ -594,43 +682,72 @@ async function linkMbbLearnersToGroups(assignments: ParsedMbbGroupAssignment[]) 
   let externalMembersCreated = 0;
   let externalMembersAlreadyExists = 0;
 
-  for (const { assignment, group, debugKey } of plannedCopies) {
-    if (!group) {
-      skippedNoGroup.push(assignment);
-      continue;
+  await prisma.$transaction(async (tx) => {
+    for (const { group } of plannedCopies) {
+      if (group && !updatedGroupIds.has(group.id)) {
+        await tx.$executeRaw`
+          DELETE FROM "GroupExternalMember"
+          WHERE "groupId" = ${group.id}
+            AND "schoolId" = ${SCHOOL_ID}
+        `;
+        const matchingDebugRows = Array.from(debugByGroup.values()).filter((row) => row.matchingGroupId === group.id);
+        const importedMemberCount = matchingDebugRows.reduce((sum, row) => sum + row.learnerNamesRead, 0);
+        await tx.$executeRaw`
+          UPDATE "Group"
+          SET "importedMemberCount" = ${importedMemberCount},
+              "updatedAt" = CURRENT_TIMESTAMP
+          WHERE "id" = ${group.id}
+            AND "schoolId" = ${SCHOOL_ID}
+        `;
+        for (const row of matchingDebugRows) row.totalDisplayed = importedMemberCount;
+        updatedGroupIds.add(group.id);
+      }
     }
 
-    const externalName = copyMemberName(assignment.learnerName);
-    const normalizedExternalName = externalMemberKey(externalName);
-    if (!externalName || !normalizedExternalName) continue;
-    const insertedExternal = await prisma.$queryRaw<Array<{ id: string }>>`
-      INSERT INTO "GroupExternalMember" (
-        "id", "schoolId", "groupId", "name", "normalizedName", "memberType", "sourceFile", "sheetName", "rowNumber", "createdAt"
-      )
-      VALUES (
-        ${groupExternalMemberId()},
-        ${SCHOOL_ID},
-        ${group.id},
-        ${externalName},
-        ${normalizedExternalName},
-        'EXTERNAL',
-        ${assignment.sourceFile},
-        ${assignment.sheetName},
-        ${null},
-        CURRENT_TIMESTAMP
-      )
-      ON CONFLICT ("groupId", "normalizedName") DO NOTHING
-      RETURNING "id"
-    `;
-    updatedGroupIds.add(group.id);
-    if (insertedExternal.length > 0) {
-      externalMembersCreated += 1;
-      const debugRow = debugByGroup.get(debugKey);
-      if (debugRow) debugRow.externalNamesCreated += 1;
-    } else {
-      externalMembersAlreadyExists += 1;
+    for (const { assignment, group, debugKey } of plannedCopies) {
+      if (!group) {
+        skippedNoGroup.push(assignment);
+        continue;
+      }
+
+      const externalName = copyMemberName(assignment.learnerName);
+      const normalizedExternalName = sourceRowExternalMemberKey(assignment, externalName);
+      if (!externalName || !normalizedExternalName) continue;
+      const insertedExternal = await tx.$queryRaw<Array<{ id: string }>>`
+        INSERT INTO "GroupExternalMember" (
+          "id", "schoolId", "groupId", "name", "normalizedName", "memberType", "sourceFile", "sheetName", "rowNumber", "createdAt"
+        )
+        VALUES (
+          ${groupExternalMemberId()},
+          ${SCHOOL_ID},
+          ${group.id},
+          ${externalName},
+          ${normalizedExternalName},
+          'EXTERNAL',
+          ${assignment.sourceFile},
+          ${assignment.sheetName},
+          ${assignment.rowNumber},
+          CURRENT_TIMESTAMP
+        )
+        ON CONFLICT ("groupId", "normalizedName") DO NOTHING
+        RETURNING "id"
+      `;
+      if (insertedExternal.length > 0) {
+        externalMembersCreated += 1;
+        const debugRow = debugByGroup.get(debugKey);
+        if (debugRow) debugRow.externalNamesCreated += 1;
+      } else {
+        externalMembersAlreadyExists += 1;
+      }
     }
-  }
+  });
+
+  const summary = Array.from(debugByGroup.values()).map((row) => ({
+    groupName: row.detectedGroupName || row.derivedGroupName,
+    namesCopied: row.externalNamesCreated,
+    namesSkipped: row.namesSkipped,
+    totalDisplayed: row.totalDisplayed,
+  }));
 
   return {
     success: true,
@@ -644,6 +761,7 @@ async function linkMbbLearnersToGroups(assignments: ParsedMbbGroupAssignment[]) 
     externalMembersAlreadyExists,
     groupsUpdated: updatedGroupIds.size,
     debug: Array.from(debugByGroup.values()),
+    summary,
     unmatchedLearnerDebug: [],
     skippedNoGroup: skippedNoGroup.slice(0, 30).map((row) => ({
       sourceFile: row.sourceFile,
@@ -796,8 +914,8 @@ router.post("/groups/import", async (req, res) => {
 
       seen.add(key);
       const inserted = await prisma.$queryRaw<Array<{ id: string }>>`
-        INSERT INTO "Group" ("id", "schoolId", "name", "comments", "createdAt", "updatedAt")
-        VALUES (${groupId()}, ${SCHOOL_ID}, ${name}, ${comments}, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
+        INSERT INTO "Group" ("id", "schoolId", "name", "comments", "importedMemberCount", "createdAt", "updatedAt")
+        VALUES (${groupId()}, ${SCHOOL_ID}, ${name}, ${comments}, 0, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
         ON CONFLICT ("schoolId", "name") DO NOTHING
         RETURNING "id"
       `;
@@ -890,12 +1008,14 @@ router.post("/groups/link-learners", upload.array("files", MAX_FILES), async (re
       return jsonError(res, 400, `File must be .csv, .xls, or .xlsx: ${safeName(invalid.originalname)}`);
     }
 
-    const assignments = files.flatMap(parseGroupAssignmentsFromFile).filter((row) => row.groupName);
+    const parsedFiles = files.map(parseGroupAssignmentsFromFile);
+    const assignments = parsedFiles.flatMap((file) => file.assignments).filter((row) => row.groupName);
+    const skippedRows = parsedFiles.flatMap((file) => file.skippedRows);
     if (!assignments.length) {
       return jsonError(res, 400, "No learners found in the uploaded group files.");
     }
 
-    return res.json(await linkMbbLearnersToGroups(assignments));
+    return res.json(await linkMbbLearnersToGroups(assignments, skippedRows));
   } catch (error: unknown) {
     const message = error instanceof Error ? error.message : "Failed to link MBB learners to groups";
     return jsonError(res, 500, message);

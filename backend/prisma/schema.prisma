@@ -2696,12 +2696,13 @@ model Classroom {
 }
 
 model Group {
-  id        String   @id @default(cuid())
-  schoolId  String
-  name      String
-  comments  String   @default("") @db.Text
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  id                  String   @id @default(cuid())
+  schoolId            String
+  name                String
+  comments            String   @default("") @db.Text
+  importedMemberCount Int      @default(0)
+  createdAt           DateTime @default(now())
+  updatedAt           DateTime @updatedAt
 
   school School @relation(fields: [schoolId], references: [id], onDelete: Cascade)
   learnerLinks GroupLearner[]
