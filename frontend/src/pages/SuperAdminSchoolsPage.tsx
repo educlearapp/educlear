@@ -632,7 +632,7 @@ export default function SuperAdminSchoolsPage() {
 
   const handleLinkMbbLearnersToGroups = useCallback(async () => {
     if (!mbbLinkFiles.length) {
-      showNotice("Select MBB migration files", "Choose the MBB migration/class-list files that contain Activity Group or Class Group columns.");
+      showNotice("Select MBB group files", "Choose Paula's MBB group Excel files. Each file or worksheet name is treated as the group.");
       return;
     }
 
@@ -996,7 +996,7 @@ export default function SuperAdminSchoolsPage() {
           </button>
           <div className="sa-schools-mbb-secondary-tool">
             <p className="sa-schools-mbb-import-count">
-              Learner link files: <strong>{mbbLinkFiles.length}</strong>
+              Group learner files: <strong>{mbbLinkFiles.length}</strong>
             </p>
             <input
               ref={mbbLinkFilesInputRef}

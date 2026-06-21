@@ -164,6 +164,10 @@ function groupLearnerId() {
   return `gl_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 10)}`;
 }
 
+function groupNameFromFileName(fileName: string) {
+  return normalizeName(safeName(fileName).replace(/\.(csv|xls|xlsx)$/i, ""));
+}
+
 function isAcceptedGroupsFile(fileName: string) {
   return new Set([".csv", ".xls", ".xlsx"]).has(path.extname(fileName).toLowerCase());
 }
@@ -286,11 +290,11 @@ function parseGroupRowsFromFile(file: Express.Multer.File): ParsedMbbGroup[] {
 function parseGroupAssignmentsFromFile(file: Express.Multer.File): ParsedMbbGroupAssignment[] {
   const workbook = XLSX.readFile(file.path, { raw: false });
   const rows: ParsedMbbGroupAssignment[] = [];
-  const groupLabels = ["activity group", "class group"];
   const fullNameLabels = ["learner name", "child name", "full name", "name"];
   const firstNameLabels = ["first name", "firstname", "name", "learner first name", "child first name"];
   const lastNameLabels = ["last name", "lastname", "surname", "learner surname", "child surname"];
   const admissionLabels = ["admission no", "admission number", "admission", "learner number", "student number", "child number"];
+  const fallbackGroupName = groupNameFromFileName(file.originalname);
 
   for (const sheetName of workbook.SheetNames) {
     const sheet = workbook.Sheets[sheetName];
@@ -303,11 +307,10 @@ function parseGroupAssignmentsFromFile(file: Express.Multer.File): ParsedMbbGrou
     });
     if (!matrix.length) continue;
 
+    const groupName = workbook.SheetNames.length > 1 && normalizeName(sheetName) ? normalizeName(sheetName) : fallbackGroupName;
+    let parsedSheet = false;
     for (let headerIndex = 0; headerIndex < Math.min(matrix.length, 12); headerIndex += 1) {
       const headerRow = Array.isArray(matrix[headerIndex]) ? matrix[headerIndex].map(normalizeHeader) : [];
-      const groupColumn = pickHeaderColumnLoose(headerRow, groupLabels);
-      if (groupColumn < 0) continue;
-
       const fullNameColumn = pickHeaderColumnLoose(headerRow, fullNameLabels);
       const firstNameColumn = pickHeaderColumnLoose(headerRow, firstNameLabels);
       const lastNameColumn = pickHeaderColumnLoose(headerRow, lastNameLabels);
@@ -317,13 +320,12 @@ function parseGroupAssignmentsFromFile(file: Express.Multer.File): ParsedMbbGrou
 
       matrix.slice(headerIndex + 1).forEach((row, index) => {
         const cells = Array.isArray(row) ? row : [];
-        const groupName = normalizeName(cells[groupColumn]);
         const firstName = normalizeName(cells[firstNameColumn]);
         const lastName = normalizeName(cells[lastNameColumn]);
         const explicitFullName = normalizeName(cells[fullNameColumn]);
         const learnerName = explicitFullName || normalizeName(`${firstName} ${lastName}`);
         const admissionNo = normalizeName(cells[admissionColumn]);
-        if (!groupName && !learnerName && !admissionNo) return;
+        if (!groupName || (!learnerName && !admissionNo)) return;
         rows.push({
           sourceFile: safeName(file.originalname),
           sheetName,
@@ -335,8 +337,28 @@ function parseGroupAssignmentsFromFile(file: Express.Multer.File): ParsedMbbGrou
           admissionNo,
         });
       });
+      parsedSheet = true;
       break;
     }
+
+    if (parsedSheet) continue;
+
+    matrix.forEach((row, index) => {
+      const cells = Array.isArray(row) ? row : [];
+      const learnerName = normalizeName(cells[0]);
+      const admissionNo = normalizeName(cells[1]);
+      if (!groupName || (!learnerName && !admissionNo)) return;
+      rows.push({
+        sourceFile: safeName(file.originalname),
+        sheetName,
+        rowNumber: index + 1,
+        groupName,
+        learnerName,
+        firstName: "",
+        lastName: "",
+        admissionNo,
+      });
+    });
   }
 
   return rows;
@@ -794,7 +816,7 @@ router.post("/groups/link-learners", upload.array("files", MAX_FILES), async (re
     assertSelectedMbbSchool(schoolId);
 
     const files = Array.isArray(req.files) ? (req.files as Express.Multer.File[]) : [];
-    if (!files.length) return jsonError(res, 400, "Upload the MBB migration files with Activity Group/Class Group columns.");
+    if (!files.length) return jsonError(res, 400, "Upload the MBB group Excel files.");
 
     const invalid = files.find((file) => !isAcceptedGroupsFile(file.originalname));
     if (invalid) {
@@ -803,7 +825,7 @@ router.post("/groups/link-learners", upload.array("files", MAX_FILES), async (re
 
     const assignments = files.flatMap(parseGroupAssignmentsFromFile).filter((row) => row.groupName);
     if (!assignments.length) {
-      return jsonError(res, 400, "No Activity Group or Class Group assignments found in the uploaded files.");
+      return jsonError(res, 400, "No learners found in the uploaded group files.");
     }
 
     return res.json(await linkMbbLearnersToGroups(assignments));
