@@ -73,6 +73,7 @@ function parseArgs(argv) {
     approveSchoolId: "",
     confirmLiveWrite: "",
     countsOnly: false,
+    repairMissingLearners: false,
   };
   for (let i = 0; i < argv.length; i += 1) {
     const key = argv[i];
@@ -83,6 +84,7 @@ function parseArgs(argv) {
     else if (key === "--approve-school-id" && value) args.approveSchoolId = value, i += 1;
     else if (key === "--confirm-live-write" && value) args.confirmLiveWrite = value, i += 1;
     else if (key === "--counts-only") args.countsOnly = true;
+    else if (key === "--repair-missing-learners") args.repairMissingLearners = true;
     else throw new Error(`Unknown or incomplete argument: ${key}`);
   }
   return args;
@@ -990,12 +992,285 @@ async function applyImport(bundle, opts = {}) {
   return buildCountComparison(bundle);
 }
 
+function learnerBirthDateKey(value) {
+  if (!value) return "";
+  if (value instanceof Date && !Number.isNaN(value.getTime())) return value.toISOString().slice(0, 10);
+  return String(value || "").slice(0, 10);
+}
+
+function sourceLearnerIdentityKey(learner) {
+  return normalizeText(`${learner.sourceFullName} ${learner.birthDate || ""}`);
+}
+
+function dbLearnerIdentityKey(learner) {
+  return normalizeText(`${learner.firstName || ""} ${learner.lastName || ""} ${learnerBirthDateKey(learner.birthDate)}`);
+}
+
+async function applyMissingLearnerRepair(bundle) {
+  const existingLearners = await prisma.learner.findMany({
+    where: { schoolId: SCHOOL_ID },
+    select: {
+      id: true,
+      admissionNo: true,
+      firstName: true,
+      lastName: true,
+      birthDate: true,
+    },
+  });
+  const existingAdmissionNos = new Set(
+    existingLearners.map((learner) => String(learner.admissionNo || "").trim()).filter(Boolean)
+  );
+  const existingIdentityKeys = new Set(existingLearners.map(dbLearnerIdentityKey));
+  const missingLearners = bundle.learners.filter((learner) => {
+    if (existingAdmissionNos.has(learner.admissionNo)) return false;
+    if (existingIdentityKeys.has(sourceLearnerIdentityKey(learner))) return false;
+    return true;
+  });
+
+  if (missingLearners.length !== 3) {
+    throw new Error(
+      `MBB missing learner repair blocked: expected exactly 3 missing learners, found ${missingLearners.length}: ${missingLearners.map((l) => `${l.sourceFullName} (${l.admissionNo})`).join(", ")}`
+    );
+  }
+
+  const accountByAdmissionNo = new Map();
+  for (const link of bundle.accountLinks.values()) {
+    for (const admissionNo of link.learnerAdmissionNos) {
+      accountByAdmissionNo.set(admissionNo, link.accountRef);
+    }
+  }
+
+  const neededAccountRefs = new Set(
+    missingLearners
+      .map((learner) => accountByAdmissionNo.get(learner.admissionNo) || "")
+      .filter(Boolean)
+  );
+  const familyAccountIds = new Map();
+  let familyAccountsTouched = 0;
+  for (const accountRef of neededAccountRefs) {
+    const account = bundle.ageAccounts.get(accountRef);
+    const link = bundle.accountLinks.get(accountRef);
+    const familyName = link?.memberNames?.length
+      ? link.memberNames.join(" / ")
+      : account?.familyName || accountRef;
+    const existing = await prisma.familyAccount.findFirst({
+      where: { schoolId: SCHOOL_ID, accountRef },
+      select: { id: true },
+    });
+    const row = existing
+      ? await prisma.familyAccount.update({
+          where: { id: existing.id },
+          data: { familyName },
+          select: { id: true },
+        })
+      : await prisma.familyAccount.create({
+          data: {
+            schoolId: SCHOOL_ID,
+            accountRef,
+            familyName,
+          },
+          select: { id: true },
+        });
+    familyAccountIds.set(accountRef, row.id);
+    familyAccountsTouched += 1;
+  }
+
+  const ageStore = readJsonStore("family-account-age-analysis.json");
+  ageStore[SCHOOL_ID] = ageStore[SCHOOL_ID] || {};
+  let openingBalancesTouched = 0;
+  for (const accountRef of neededAccountRefs) {
+    const account = bundle.ageAccounts.get(accountRef);
+    if (!account) continue;
+    ageStore[SCHOOL_ID][account.accountRef] = {
+      schoolId: SCHOOL_ID,
+      accountRef: account.accountRef,
+      accountHolder: account.accountHolder,
+      kidesysSection: account.kidesysSection,
+      balance: account.balance,
+      buckets: account.buckets,
+      source: "kideesys-age-analysis",
+      importedAt: IMPORTED_AT,
+    };
+    openingBalancesTouched += 1;
+  }
+  if (openingBalancesTouched > 0) writeJsonStore("family-account-age-analysis.json", ageStore);
+
+  for (const learner of missingLearners) {
+    if (learner.className) {
+      await prisma.classroom.upsert({
+        where: { schoolId_name: { schoolId: SCHOOL_ID, name: learner.className } },
+        update: {},
+        create: { schoolId: SCHOOL_ID, name: learner.className },
+      });
+    }
+  }
+
+  const createdLearners = [];
+  let billingPlanLinesCreated = 0;
+  for (const learner of missingLearners) {
+    const accountRef = accountByAdmissionNo.get(learner.admissionNo) || "";
+    const familyAccountId = accountRef ? familyAccountIds.get(accountRef) || null : null;
+    const plan = bundle.billingPlans.get(learner.admissionNo) || [];
+    const totalFee = plan.reduce((sum, item) => sum + item.amount, 0);
+    const notes = [
+      `MBB direct missing learner repair source full name: ${learner.sourceFullName}`,
+      learner.enrollmentDate ? `Kid-e-Sys enrollment date: ${learner.enrollmentDate}` : "",
+      accountRef ? `Kid-e-Sys account: ${accountRef}` : "",
+    ].filter(Boolean).join("\n");
+
+    const row = await prisma.learner.create({
+      data: {
+        schoolId: SCHOOL_ID,
+        familyAccountId,
+        firstName: learner.firstName,
+        lastName: learner.lastName,
+        birthDate: learner.birthDate ? new Date(`${learner.birthDate}T00:00:00.000Z`) : null,
+        gender: learner.gender || null,
+        grade: learner.grade,
+        className: learner.className || null,
+        enrollmentStatus: learner.enrollmentStatus,
+        admissionNo: learner.admissionNo,
+        totalFee,
+        notes,
+      },
+      select: { id: true, admissionNo: true },
+    });
+    createdLearners.push({ ...learner, id: row.id, accountRef });
+
+    for (let i = 0; i < plan.length; i += 1) {
+      await prisma.learnerBillingPlanLine.create({
+        data: {
+          schoolId: SCHOOL_ID,
+          learnerId: row.id,
+          feeDescription: plan[i].description,
+          amount: plan[i].amount,
+          sortOrder: i,
+        },
+      });
+      billingPlanLinesCreated += 1;
+    }
+  }
+
+  const createdByAdmissionNo = new Map(createdLearners.map((learner) => [learner.admissionNo, learner]));
+  const neededContactKeys = new Set(
+    bundle.contactLinks
+      .filter((link) => createdByAdmissionNo.has(link.learnerAdmissionNo))
+      .map((link) => link.contactKey)
+  );
+  const parentIds = new Map();
+  let parentsTouched = 0;
+  for (const contact of bundle.contacts) {
+    if (!neededContactKeys.has(contact.key)) continue;
+    const existing = await prisma.parent.findFirst({
+      where: {
+        schoolId: SCHOOL_ID,
+        firstName: contact.firstName,
+        surname: contact.surname,
+        cellNo: contact.cellNo,
+        email: contact.email,
+      },
+      select: { id: true },
+    });
+    const parent = existing
+      ? await prisma.parent.update({
+          where: { id: existing.id },
+          data: {
+            relationship: contact.relationship || null,
+            workNo: contact.workNo || null,
+            homeNo: contact.homeNo || null,
+          },
+          select: { id: true },
+        })
+      : await prisma.parent.create({
+          data: {
+            schoolId: SCHOOL_ID,
+            relationship: contact.relationship || null,
+            firstName: contact.firstName,
+            surname: contact.surname,
+            cellNo: contact.cellNo,
+            workNo: contact.workNo || null,
+            homeNo: contact.homeNo || null,
+            email: contact.email,
+          },
+          select: { id: true },
+        });
+    parentIds.set(contact.key, parent.id);
+    parentsTouched += 1;
+  }
+
+  let parentLinksTouched = 0;
+  for (const link of bundle.contactLinks) {
+    const learner = createdByAdmissionNo.get(link.learnerAdmissionNo);
+    const parentId = parentIds.get(link.contactKey);
+    if (!learner || !parentId) continue;
+    await prisma.parentLearnerLink.upsert({
+      where: { parentId_learnerId: { parentId, learnerId: learner.id } },
+      update: {
+        relation: link.relation,
+        isPrimary: link.isPrimary,
+      },
+      create: {
+        schoolId: SCHOOL_ID,
+        parentId,
+        learnerId: learner.id,
+        relation: link.relation,
+        isPrimary: link.isPrimary,
+      },
+    });
+    parentLinksTouched += 1;
+  }
+
+  const [afterLearners, afterParents, afterBillingAccounts] = await Promise.all([
+    prisma.learner.count({ where: { schoolId: SCHOOL_ID } }),
+    prisma.parent.count({ where: { schoolId: SCHOOL_ID } }),
+    prisma.familyAccount.count({ where: { schoolId: SCHOOL_ID } }),
+  ]);
+
+  if (afterLearners !== EXPECTED_LEARNERS) {
+    throw new Error(`MBB missing learner repair wrote rows but live learner count is ${afterLearners}, expected ${EXPECTED_LEARNERS}.`);
+  }
+
+  return {
+    success: true,
+    schoolId: SCHOOL_ID,
+    schoolName: SCHOOL_NAME,
+    createdLearners: createdLearners.map((learner) => ({
+      sourceFullName: learner.sourceFullName,
+      admissionNo: learner.admissionNo,
+      className: learner.className,
+      grade: learner.grade,
+      accountRef: learner.accountRef || null,
+    })),
+    counts: {
+      learnersBefore: existingLearners.length,
+      learnersAfter: afterLearners,
+      learnersCreated: createdLearners.length,
+      parentsAfter: afterParents,
+      parentsTouched,
+      parentLinksTouched,
+      billingAccountsAfter: afterBillingAccounts,
+      familyAccountsTouched,
+      billingPlanLinesCreated,
+      openingBalancesTouched,
+    },
+  };
+}
+
 async function main() {
   const args = parseArgs(process.argv.slice(2));
   const bundle = buildImportBundle(args);
   const existing = await readExistingCounts(bundle);
   if (!args.countsOnly) printDryRun(bundle, existing);
   assertLiveApproval(args, existing, bundle);
+
+  if (args.repairMissingLearners) {
+    if (!args.write) {
+      throw new Error("MBB missing learner repair requires --write.");
+    }
+    const result = await applyMissingLearnerRepair(bundle);
+    console.log(JSON.stringify(result, null, 2));
+    return;
+  }
 
   if (!args.write) {
     if (args.countsOnly) {

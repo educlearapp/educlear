@@ -14,11 +14,16 @@ type Notice = {
   message: string;
 };
 
-type MbbDirectImportResponse = {
+type MbbMissingLearnerRepairResponse = {
   success?: boolean;
-  schoolId?: string;
   schoolName?: string;
-  counts?: Record<string, { imported: number; exported: number }>;
+  createdLearners?: Array<{
+    sourceFullName?: string;
+    admissionNo?: string;
+    className?: string;
+    accountRef?: string | null;
+  }>;
+  counts?: Record<string, number>;
   error?: string;
 };
 
@@ -210,43 +215,27 @@ function schoolDetailMessage(school: SchoolRecord): string {
   return lines.join("\n");
 }
 
-function formatMbbImportCounts(response: MbbDirectImportResponse): string {
+function formatMbbRepairResult(response: MbbMissingLearnerRepairResponse): string {
   const counts = response.counts || {};
-  const orderedKeys = [
-    "learners",
-    "parents",
-    "billingAccounts",
-    "staff",
-    "historicalTransactions",
-    "classrooms",
-    "enrolments",
-    "parentLearnerLinks",
-    "siblingLinks",
-    "billingPlanLines",
-    "openingBalances",
+  const learners = Array.isArray(response.createdLearners) ? response.createdLearners : [];
+  const lines = [
+    `Learners before: ${counts.learnersBefore ?? "?"}`,
+    `Learners created: ${counts.learnersCreated ?? learners.length}`,
+    `Learners after: ${counts.learnersAfter ?? "?"}`,
+    `Parents after: ${counts.parentsAfter ?? "?"}`,
+    `Billing accounts after: ${counts.billingAccountsAfter ?? "?"}`,
+    `Billing plan lines created: ${counts.billingPlanLinesCreated ?? 0}`,
   ];
-  const labels: Record<string, string> = {
-    learners: "Learners",
-    parents: "Parents",
-    billingAccounts: "Billing accounts",
-    staff: "Staff",
-    historicalTransactions: "Transactions",
-    classrooms: "Classrooms",
-    enrolments: "Enrolments",
-    parentLearnerLinks: "Parent links",
-    siblingLinks: "Sibling links",
-    billingPlanLines: "Billing plan lines",
-    openingBalances: "Opening balances",
-  };
-
-  const lines = orderedKeys
-    .filter((key) => counts[key])
-    .map((key) => {
-      const row = counts[key];
-      return `${labels[key] || key}: ${row.imported} imported / ${row.exported} exported`;
-    });
-
-  return lines.length ? lines.join("\n") : "Import completed, but no count comparison was returned.";
+  if (learners.length) {
+    lines.push("");
+    lines.push("Created learners:");
+    for (const learner of learners) {
+      lines.push(
+        `- ${learner.sourceFullName || learner.admissionNo || "Learner"} · ${learner.className || "No classroom"} · ${learner.accountRef || "No account"}`
+      );
+    }
+  }
+  return lines.join("\n");
 }
 
 export default function SuperAdminSchoolsPage() {
@@ -278,7 +267,7 @@ export default function SuperAdminSchoolsPage() {
   const [manageSchool, setManageSchool] = useState<SchoolRecord | null>(null);
   const [savingManage, setSavingManage] = useState(false);
   const [mbbFiles, setMbbFiles] = useState<File[]>([]);
-  const [mbbImporting, setMbbImporting] = useState(false);
+  const [mbbRepairing, setMbbRepairing] = useState(false);
   const mbbFileInputRef = useRef<HTMLInputElement | null>(null);
   const [confirm, setConfirm] = useState<{
     title: string;
@@ -325,36 +314,36 @@ export default function SuperAdminSchoolsPage() {
     if (mbbFileInputRef.current) mbbFileInputRef.current.value = "";
   }, []);
 
-  const handleRunMbbDirectImport = useCallback(async () => {
+  const handleRepairMissingMbbLearners = useCallback(async () => {
     if (!mbbFiles.length) {
-      showNotice("Select MBB files", "Choose the MBB Kid-e-Sys export files before running the import.");
+      showNotice("Select MBB files", "Choose the MBB Kid-e-Sys export files before repairing learners.");
       return;
     }
 
     const form = new FormData();
     for (const file of mbbFiles) form.append("files", file, file.name);
 
-    setMbbImporting(true);
+    setMbbRepairing(true);
     try {
       const response = (await superAdminApiUpload(
-        "/api/super-admin/mbb-direct-import/run",
+        "/api/super-admin/mbb-direct-import/repair-missing-learners",
         form
-      )) as MbbDirectImportResponse;
+      )) as MbbMissingLearnerRepairResponse;
       if (response.success === false) {
-        throw new Error(response.error || "MBB Direct Import failed.");
+        throw new Error(response.error || "MBB missing learner repair failed.");
       }
       await reload();
       showNotice(
-        "MBB Direct Import complete",
-        `${response.schoolName || "Magical Bright Beginnings"} has been imported.\n\n${formatMbbImportCounts(response)}`
+        "MBB missing learners repaired",
+        `${response.schoolName || "Magical Bright Beginnings"} now has the repaired learner records.\n\n${formatMbbRepairResult(response)}`
       );
     } catch (err: unknown) {
       showNotice(
-        "MBB Direct Import failed",
-        err instanceof Error ? err.message : "The MBB Direct Import could not be completed."
+        "MBB repair failed",
+        err instanceof Error ? err.message : "The MBB missing learner repair could not be completed."
       );
     } finally {
-      setMbbImporting(false);
+      setMbbRepairing(false);
     }
   }, [mbbFiles, reload, showNotice]);
 
@@ -549,13 +538,14 @@ export default function SuperAdminSchoolsPage() {
         onAddSchool={handleAddSchool}
       />
 
-      <section className="sa-schools-mbb-import" aria-label="Temporary MBB Direct Import">
+      <section className="sa-schools-mbb-import" aria-label="Temporary MBB Missing Learner Repair">
         <div>
           <p className="sa-schools-mbb-import-kicker">Temporary production tool</p>
-          <h2 className="sa-schools-mbb-import-title">Run MBB Direct Import</h2>
+          <h2 className="sa-schools-mbb-import-title">Repair Missing MBB Learners</h2>
           <p className="sa-schools-mbb-import-text">
-            Select the Magical Bright Beginnings Kid-e-Sys export files, then run the direct import
-            with this logged-in Super Admin session. The school list refreshes after completion.
+            Select the Magical Bright Beginnings Kid-e-Sys export files, then run the focused
+            repair with this logged-in Super Admin session. The repair only creates exactly 3
+            missing learners and refreshes the school list after completion.
           </p>
           <p className="sa-schools-mbb-import-count">
             Selected files: <strong>{mbbFiles.length}</strong>
@@ -577,17 +567,17 @@ export default function SuperAdminSchoolsPage() {
               setMbbFiles([]);
               if (mbbFileInputRef.current) mbbFileInputRef.current.value = "";
             }}
-            disabled={mbbImporting || mbbFiles.length === 0}
+            disabled={mbbRepairing || mbbFiles.length === 0}
           >
             Clear files
           </button>
           <button
             type="button"
             className="sa-schools-btn sa-schools-btn--gold"
-            onClick={() => void handleRunMbbDirectImport()}
-            disabled={mbbImporting || mbbFiles.length === 0}
+            onClick={() => void handleRepairMissingMbbLearners()}
+            disabled={mbbRepairing || mbbFiles.length === 0}
           >
-            {mbbImporting ? "Importing MBB…" : "Run Direct MBB Import"}
+            {mbbRepairing ? "Repairing MBB…" : "Repair Missing 3 MBB Learners"}
           </button>
         </div>
       </section>

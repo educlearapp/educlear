@@ -3,7 +3,7 @@ import crypto from "crypto";
 import fs from "fs";
 import path from "path";
 
-import { Router } from "express";
+import { type Request, type Response, Router } from "express";
 import multer from "multer";
 
 const router = Router();
@@ -96,24 +96,31 @@ function parseCountComparison(stdout: string) {
   };
 }
 
-function runImporter(root: string, classDir: string): Promise<{ stdout: string; stderr: string }> {
+function runImporter(
+  root: string,
+  classDir: string,
+  opts: { repairMissingLearners?: boolean } = {}
+): Promise<{ stdout: string; stderr: string }> {
   const script = path.join(process.cwd(), "scripts", "emergency-direct-import-mbb.mjs");
+  const args = [
+    script,
+    "--write",
+    "--desktop-dir",
+    root,
+    "--class-dir",
+    classDir,
+    "--approve-school-id",
+    SCHOOL_ID,
+    "--confirm-live-write",
+    "MBB_DIRECT_IMPORT",
+    "--counts-only",
+  ];
+  if (opts.repairMissingLearners) args.push("--repair-missing-learners");
+
   return new Promise((resolve, reject) => {
     const child = spawn(
       process.execPath,
-      [
-        script,
-        "--write",
-        "--desktop-dir",
-        root,
-        "--class-dir",
-        classDir,
-        "--approve-school-id",
-        SCHOOL_ID,
-        "--confirm-live-write",
-        "MBB_DIRECT_IMPORT",
-        "--counts-only",
-      ],
+      args,
       {
         cwd: process.cwd(),
         env: { ...process.env, CONFIRM_PRODUCTION_WRITE: "true" },
@@ -138,7 +145,11 @@ function runImporter(root: string, classDir: string): Promise<{ stdout: string; 
   });
 }
 
-router.post("/run", upload.array("files", MAX_FILES), async (req, res) => {
+async function prepareAndRun(
+  req: Request,
+  res: Response,
+  opts: { repairMissingLearners?: boolean } = {}
+) {
   const started = Date.now();
   try {
     const files = Array.isArray(req.files) ? (req.files as Express.Multer.File[]) : [];
@@ -151,7 +162,7 @@ router.post("/run", upload.array("files", MAX_FILES), async (req, res) => {
       return res.status(400).json({ success: false, error: "Missing required MBB files", missing });
     }
 
-    const { stdout } = await runImporter(root, classDir);
+    const { stdout } = await runImporter(root, classDir, opts);
     const comparison = parseCountComparison(stdout);
     return res.json({
       success: true,
@@ -168,6 +179,14 @@ router.post("/run", upload.array("files", MAX_FILES), async (req, res) => {
       executionTimeMs: Date.now() - started,
     });
   }
+}
+
+router.post("/run", upload.array("files", MAX_FILES), async (req, res) => {
+  return prepareAndRun(req, res);
+});
+
+router.post("/repair-missing-learners", upload.array("files", MAX_FILES), async (req, res) => {
+  return prepareAndRun(req, res, { repairMissingLearners: true });
 });
 
 export default router;
