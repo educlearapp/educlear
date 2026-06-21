@@ -77,33 +77,6 @@ type ParsedMbbGroupAssignment = {
   admissionNo: string;
 };
 
-type MbbLearnerIndexRow = {
-  id: string;
-  firstName: string;
-  lastName: string;
-  nickname: string | null;
-  admissionNo: string | null;
-};
-
-type MbbLearnerCandidateDebug = {
-  storedLearnerFullName: string;
-  storedFirstName: string;
-  storedSurname: string;
-  normalizedStoredName: string;
-  score: number;
-};
-
-type MbbUnmatchedLearnerDebug = {
-  uploadedFilename: string;
-  worksheetName: string;
-  rowNumber: number;
-  groupName: string;
-  nameReadFromExcel: string;
-  normalizedNameUsedForLookup: string;
-  closestLearners: MbbLearnerCandidateDebug[];
-  whyMatchFailed: string;
-};
-
 type MbbGroupLinkDebug = {
   uploadedFilename: string;
   worksheetName: string;
@@ -190,34 +163,12 @@ function normalizePersonKey(value: unknown) {
   return normalizeName(value).toLowerCase().replace(/[^a-z0-9]+/g, " ").trim();
 }
 
-function normalizeLearnerLookupName(value: unknown) {
-  return String(value ?? "")
-    .replace(/\u00a0/g, " ")
-    .trim()
-    .replace(/\s+/g, " ")
-    .toUpperCase();
-}
-
-function learnerLookupKey(value: unknown) {
-  return normalizeLearnerLookupName(value)
-    .replace(/[^\p{L}\p{N}]+/gu, "")
-    .trim();
-}
-
 function externalMemberKey(value: unknown) {
-  return learnerLookupKey(value);
-}
-
-function normalizeAdmissionKey(value: unknown) {
-  return normalizeName(value).toUpperCase().replace(/[^A-Z0-9]/g, "");
+  return normalizeName(value).toLowerCase();
 }
 
 function groupId() {
   return `grp_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 10)}`;
-}
-
-function groupLearnerId() {
-  return `gl_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 10)}`;
 }
 
 function groupExternalMemberId() {
@@ -479,128 +430,6 @@ async function loadMbbGroupsByName() {
   return { groups, byName };
 }
 
-async function loadMbbLearnersForMatching() {
-  const learners = await prisma.$queryRaw<MbbLearnerIndexRow[]>`
-    SELECT "id", "firstName", "lastName", "nickname", "admissionNo"
-    FROM "Learner"
-    WHERE "schoolId" = ${SCHOOL_ID}
-  `;
-  const byAdmission = new Map<string, MbbLearnerIndexRow>();
-  const byName = new Map<string, MbbLearnerIndexRow[]>();
-  const addName = (name: string, learner: MbbLearnerIndexRow) => {
-    const key = learnerLookupKey(name);
-    if (!key) return;
-    const rows = byName.get(key) || [];
-    if (!rows.some((row) => row.id === learner.id)) rows.push(learner);
-    byName.set(key, rows);
-  };
-  for (const learner of learners) {
-    const admissionKey = normalizeAdmissionKey(learner.admissionNo);
-    if (admissionKey && !byAdmission.has(admissionKey)) byAdmission.set(admissionKey, learner);
-
-    const first = normalizeName(learner.firstName);
-    const last = normalizeName(learner.lastName);
-    const nickname = normalizeName(learner.nickname);
-    for (const name of [
-      `${first} ${last}`,
-      `${last} ${first}`,
-      nickname && last ? `${nickname} ${last}` : "",
-      nickname && last ? `${last} ${nickname}` : "",
-    ]) {
-      addName(name, learner);
-    }
-  }
-  return { learners, byAdmission, byName };
-}
-
-function matchMbbLearner(
-  row: ParsedMbbGroupAssignment,
-  indexes: Awaited<ReturnType<typeof loadMbbLearnersForMatching>>
-) {
-  const admissionKey = normalizeAdmissionKey(row.admissionNo);
-  if (admissionKey) {
-    const byAdmission = indexes.byAdmission.get(admissionKey);
-    if (byAdmission) return byAdmission;
-  }
-
-  for (const candidate of [
-    row.learnerName,
-    `${row.firstName} ${row.lastName}`,
-    `${row.lastName} ${row.firstName}`,
-  ]) {
-    const key = learnerLookupKey(candidate);
-    if (!key) continue;
-    const byName = indexes.byName.get(key) || [];
-    if (byName.length === 1) return byName[0];
-  }
-
-  return null;
-}
-
-function learnerStoredFullName(learner: MbbLearnerIndexRow) {
-  return normalizeName(`${learner.firstName} ${learner.lastName}`);
-}
-
-function stringSimilarity(a: string, b: string) {
-  const left = learnerLookupKey(a);
-  const right = learnerLookupKey(b);
-  if (!left || !right) return 0;
-  if (left === right) return 1000;
-  const leftParts = new Set(normalizeLearnerLookupName(a).split(" ").filter(Boolean));
-  const rightParts = new Set(normalizeLearnerLookupName(b).split(" ").filter(Boolean));
-  let overlap = 0;
-  for (const part of leftParts) {
-    if (rightParts.has(part)) overlap += 1;
-  }
-  const prefix = left[0] === right[0] ? 1 : 0;
-  const lengthDelta = Math.abs(left.length - right.length);
-  return overlap * 100 + prefix * 10 - lengthDelta;
-}
-
-function closestLearnersForDebug(
-  name: string,
-  indexes: Awaited<ReturnType<typeof loadMbbLearnersForMatching>>,
-  limit = 5
-): MbbLearnerCandidateDebug[] {
-  return indexes.learners
-    .map((learner) => {
-      const storedFullName = learnerStoredFullName(learner);
-      return {
-        storedLearnerFullName: storedFullName,
-        storedFirstName: normalizeName(learner.firstName),
-        storedSurname: normalizeName(learner.lastName),
-        normalizedStoredName: normalizeLearnerLookupName(storedFullName),
-        score: stringSimilarity(name, storedFullName),
-      };
-    })
-    .sort((a, b) => b.score - a.score || a.storedLearnerFullName.localeCompare(b.storedLearnerFullName))
-    .slice(0, limit);
-}
-
-function learnerMatchFailureReason(
-  row: ParsedMbbGroupAssignment,
-  indexes: Awaited<ReturnType<typeof loadMbbLearnersForMatching>>
-) {
-  const admissionKey = normalizeAdmissionKey(row.admissionNo);
-  if (admissionKey && !indexes.byAdmission.has(admissionKey)) {
-    return `No learner found with admission number ${admissionKey}.`;
-  }
-  const lookupKeys = [
-    row.learnerName,
-    `${row.firstName} ${row.lastName}`,
-    `${row.lastName} ${row.firstName}`,
-  ]
-    .map(learnerLookupKey)
-    .filter(Boolean);
-  for (const key of lookupKeys) {
-    const matches = indexes.byName.get(key) || [];
-    if (matches.length > 1) {
-      return `Multiple learners matched normalized key ${key}; automatic linking requires exactly one match.`;
-    }
-  }
-  return `No stored MBB learner matched normalized key(s): ${lookupKeys.join(", ") || "none"}.`;
-}
-
 async function buildGroupsPreview(parsedRows: ParsedMbbGroup[]) {
   await verifyMbbSchool();
   await assertNoSuspiciousGroupNames(parsedRows);
@@ -724,7 +553,7 @@ async function linkMbbLearnersToGroups(assignments: ParsedMbbGroupAssignment[]) 
 
   const debug = Array.from(debugByGroup.values());
   const normalizationUsed =
-    "Group names are derived from the first non-empty title cell at the top of each worksheet; group matching trims/collapses spaces and is case-insensitive. Uploaded member names are copied into external group members only; no EduClear learner matching or admission-number lookup is attempted.";
+    "Group names are derived from the first non-empty title cell at the top of each worksheet; uploaded names are copied as group members only. Numeric-only rows, blank rows, headers, and duplicate names are skipped.";
   const unmatchedGroupDebug = debug.filter((row) => !row.matchingGroupFound);
   if (unmatchedGroupDebug.length) {
     const existingGroupNames = existingGroups.map((group) => group.name).sort((a, b) => a.localeCompare(b));
@@ -741,7 +570,7 @@ async function linkMbbLearnersToGroups(assignments: ParsedMbbGroupAssignment[]) 
       blocked: true,
       schoolId: SCHOOL_ID,
       schoolName: SCHOOL_NAME,
-      error: "No external group members were copied because one or more uploaded files did not match an existing MBB group.",
+      error: "No group members were copied because one or more uploaded files did not match an existing MBB group.",
       learnersLinked: 0,
       learnersAlreadyLinked: 0,
       learnersSkippedNoGroup: assignments.length,
@@ -787,7 +616,7 @@ async function linkMbbLearnersToGroups(assignments: ParsedMbbGroupAssignment[]) 
         'EXTERNAL',
         ${assignment.sourceFile},
         ${assignment.sheetName},
-        ${assignment.rowNumber},
+        ${null},
         CURRENT_TIMESTAMP
       )
       ON CONFLICT ("groupId", "normalizedName") DO NOTHING

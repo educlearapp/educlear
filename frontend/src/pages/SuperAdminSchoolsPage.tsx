@@ -376,12 +376,11 @@ function formatMbbGroupsCleanupResult(response: MbbGroupsCleanupResponse): strin
 
 function formatMbbGroupsLearnerLinkResult(response: MbbGroupsLearnerLinkResponse): string {
   const lines = [
-    `External names copied: ${response.externalMembersCreated ?? 0}`,
-    `External names skipped as duplicates: ${response.externalMembersAlreadyExists ?? 0}`,
+    `Names copied: ${response.externalMembersCreated ?? 0}`,
+    `Duplicate names skipped: ${response.externalMembersAlreadyExists ?? 0}`,
     `Names skipped (no group): ${response.learnersSkippedNoGroup ?? 0}`,
     `Groups updated: ${response.groupsUpdated ?? 0}`,
-    "EduClear learner matching: not attempted",
-    `Learner links created: ${response.learnersLinked ?? 0}`,
+    "Learner matching: not attempted",
   ];
 
   if (response.blocked) {
@@ -394,7 +393,7 @@ function formatMbbGroupsLearnerLinkResult(response: MbbGroupsLearnerLinkResponse
     lines.push("Debug:");
     for (const row of debugRows.slice(0, 20)) {
       lines.push(
-        `- File: ${row.uploadedFilename || "?"} | Sheet: ${row.worksheetName || "?"} | Title row: ${row.detectedTitleRow || "-"} | Detected group: ${row.detectedGroupName || row.derivedGroupName || "?"} | Group found: ${row.matchingGroupFound ? "yes" : "no"} | Group ID: ${row.matchingGroupId || "-"} | Names read: ${row.learnerNamesRead ?? 0} | External names copied: ${row.externalNamesCreated ?? 0}`
+        `- File: ${row.uploadedFilename || "?"} | Sheet: ${row.worksheetName || "?"} | Title row: ${row.detectedTitleRow || "-"} | Detected group: ${row.detectedGroupName || row.derivedGroupName || "?"} | Group found: ${row.matchingGroupFound ? "yes" : "no"} | Group ID: ${row.matchingGroupId || "-"} | Names read: ${row.learnerNamesRead ?? 0} | Names copied: ${row.externalNamesCreated ?? 0}`
       );
     }
     if (debugRows.length > 20) lines.push(`...and ${debugRows.length - 20} more debug row(s)`);
@@ -409,27 +408,9 @@ function formatMbbGroupsLearnerLinkResult(response: MbbGroupsLearnerLinkResponse
     }
   }
 
-  const unmatchedLearners = Array.isArray(response.unmatchedLearnerDebug) ? response.unmatchedLearnerDebug : [];
-  if (unmatchedLearners.length) {
-    lines.push("");
-    lines.push("Unmatched learners:");
-    for (const row of unmatchedLearners.slice(0, 20)) {
-      lines.push(
-        `- ${row.nameReadFromExcel || "?"} | Normalized: ${row.normalizedNameUsedForLookup || "?"} | File: ${row.uploadedFilename || "?"} | Sheet: ${row.worksheetName || "?"} | Row: ${row.rowNumber || "?"} | Reason: ${row.whyMatchFailed || "No match"}`
-      );
-      const closest = Array.isArray(row.closestLearners) ? row.closestLearners.slice(0, 3) : [];
-      for (const learner of closest) {
-        lines.push(
-          `  Closest: ${learner.storedLearnerFullName || "?"} | First: ${learner.storedFirstName || "?"} | Surname: ${learner.storedSurname || "?"} | Normalized stored: ${learner.normalizedStoredName || "?"} | Score: ${learner.score ?? 0}`
-        );
-      }
-    }
-    if (unmatchedLearners.length > 20) lines.push(`...and ${unmatchedLearners.length - 20} more unmatched learner(s)`);
-  }
-
   if (response.normalizationUsed) {
     lines.push("");
-    lines.push(`Normalization used: ${response.normalizationUsed}`);
+    lines.push(`Import rule: ${response.normalizationUsed}`);
   }
 
   const existing = Array.isArray(response.existingGroupNames) ? response.existingGroupNames : [];
@@ -763,7 +744,7 @@ export default function SuperAdminSchoolsPage() {
       if (mbbLinkFilesInputRef.current) mbbLinkFilesInputRef.current.value = "";
       showNotice(
         "MBB names copied to groups",
-        `${response.schoolName || "Magical Bright Beginnings"} external group members updated.\n\n${formatMbbGroupsLearnerLinkResult(response)}`
+        `${response.schoolName || "Magical Bright Beginnings"} group members updated.\n\n${formatMbbGroupsLearnerLinkResult(response)}`
       );
     } catch (err: unknown) {
       showNotice(

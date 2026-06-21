@@ -6475,9 +6475,11 @@ const [selectedLearnerReport, setSelectedLearnerReport] = useState<any>(null);
   
   
   
-        children:
-          (Array.isArray(group.learnerIds) ? group.learnerIds.length : 0) +
-          (Array.isArray(group.externalMembers) ? group.externalMembers.length : 0),
+        children: Array.isArray(group.externalMembers) && group.externalMembers.length > 0
+          ? group.externalMembers.length
+          : Array.isArray(group.learnerIds)
+            ? group.learnerIds.length
+            : 0,
   
   
   
@@ -6583,9 +6585,10 @@ const [selectedLearnerReport, setSelectedLearnerReport] = useState<any>(null);
   
     : [];
 
-  const selectedGroupExternalMembers = selectedGroup && Array.isArray(selectedGroup.externalMembers)
+  const selectedGroupCopiedMembers = selectedGroup && Array.isArray(selectedGroup.externalMembers)
     ? selectedGroup.externalMembers
     : [];
+  const selectedGroupUsesCopiedMembers = selectedGroupCopiedMembers.length > 0;
   
   
   
@@ -6593,11 +6596,14 @@ const [selectedLearnerReport, setSelectedLearnerReport] = useState<any>(null);
   
   
   
-  const groupLearnerTotalPages = Math.max(1, Math.ceil(selectedGroupLearners.length / groupLearnerPageSize));
+  const selectedGroupMemberCount = selectedGroupUsesCopiedMembers
+    ? selectedGroupCopiedMembers.length
+    : selectedGroupLearners.length;
+  const groupLearnerTotalPages = Math.max(1, Math.ceil(selectedGroupMemberCount / groupLearnerPageSize));
   
   
   
-  const groupLearnerPagedRows = selectedGroupLearners.slice(
+  const groupLearnerPagedRows = (selectedGroupUsesCopiedMembers ? selectedGroupCopiedMembers : selectedGroupLearners).slice(
   
   
   
@@ -7650,35 +7656,6 @@ if (schoolId) {
   
     };
 
-    const convertExternalMemberToLearner = async (member: any) => {
-      if (!schoolId || !group?.id || !member?.id) return alert("Group or school context is missing.");
-      try {
-        const data: any = await apiFetch(
-          `/api/groups/${encodeURIComponent(String(group.id))}/external-members/${encodeURIComponent(String(member.id))}/convert`,
-          {
-            method: "POST",
-            body: JSON.stringify({ schoolId }),
-          }
-        );
-        const nextGroups = Array.isArray(data?.groups) ? data.groups : [];
-        if (nextGroups.length) {
-          setLocalGroups(nextGroups);
-          cacheGroupsForSchool(nextGroups);
-          const updated = nextGroups.find((item: any) => String(item.id) === String(group.id));
-          if (updated) {
-            setSelectedGroup(updated);
-            setGroupDraft(updated);
-            localStorage.setItem("selectedGroupForManage", JSON.stringify(updated));
-          }
-        }
-        alert("External member converted to a linked EduClear learner.");
-      } catch (error) {
-        alert(error instanceof Error ? error.message : "Could not convert this external member.");
-      }
-    };
-  
-  
-  
     return (
   
   
@@ -7899,7 +7876,7 @@ if (schoolId) {
   
   
   
-            Linked EduClear Learners
+            Members
   
   
   
@@ -7907,6 +7884,32 @@ if (schoolId) {
   
   
   
+          {selectedGroupUsesCopiedMembers ? (
+            <table style={{ width: "100%", borderCollapse: "collapse", fontSize: "13px" }}>
+              <thead>
+                <tr>
+                  <th style={th}>Name</th>
+                </tr>
+              </thead>
+              <tbody>
+                {groupLearnerPagedRows.length === 0 ? (
+                  <tr>
+                    <td style={{ ...td, textAlign: "center", padding: "20px" }}>No members copied to this group yet</td>
+                  </tr>
+                ) : (
+                  groupLearnerPagedRows.map((member: any, index: number) => (
+                    <tr
+                      key={member.id || `${member.name}-${index}`}
+                      style={{ background: index % 2 === 0 ? "#fff" : "rgba(212,175,55,0.06)" }}
+                    >
+                      <td style={td}>{member.name || "-"}</td>
+                    </tr>
+                  ))
+                )}
+              </tbody>
+            </table>
+          ) : (
+            <>
           <div style={{ padding: "10px", display: "flex", gap: "8px", borderBottom: "1px solid #e5e7eb" }}>
   
   
@@ -8220,43 +8223,7 @@ if (schoolId) {
   
   
           </table>
-
-          {selectedGroupExternalMembers.length > 0 && (
-            <div style={{ marginTop: "12px", border: "1px solid #e5e7eb", borderRadius: "10px", overflow: "hidden" }}>
-              <div style={{ padding: "10px 12px", background: "#fff7ed", color: "#92400e", fontWeight: 900, borderBottom: "1px solid #fed7aa" }}>
-                External group members from uploaded list
-              </div>
-              <table style={{ width: "100%", borderCollapse: "collapse", fontSize: "13px" }}>
-                <thead>
-                  <tr>
-                    <th style={th}>Name from file</th>
-                    <th style={th}>Type</th>
-                    <th style={th}>Source</th>
-                    <th style={th}>Row</th>
-                    <th style={th}>Action</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {selectedGroupExternalMembers.map((member: any, index: number) => (
-                    <tr key={member.id || `${member.name}-${index}`}>
-                      <td style={td}>{member.name || "-"}</td>
-                      <td style={td}>
-                        <span style={{ padding: "4px 8px", borderRadius: "999px", background: "#ffedd5", color: "#9a3412", fontWeight: 900 }}>
-                          {member.memberType || "EXTERNAL"}
-                        </span>
-                      </td>
-                      <td style={td}>{[member.sourceFile, member.sheetName].filter(Boolean).join(" / ") || "-"}</td>
-                      <td style={td}>{member.rowNumber || "-"}</td>
-                      <td style={td}>
-                        <button type="button" style={actionBtn} onClick={() => void convertExternalMemberToLearner(member)}>
-                          Convert to linked learner
-                        </button>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
+            </>
           )}
   
   
@@ -8269,7 +8236,7 @@ if (schoolId) {
   
   
   
-              {selectedGroupLearners.length === 0 ? "0" : (groupLearnerPage - 1) * groupLearnerPageSize + 1} - {Math.min(groupLearnerPage * groupLearnerPageSize, selectedGroupLearners.length)} / {selectedGroupLearners.length}
+              {selectedGroupMemberCount === 0 ? "0" : (groupLearnerPage - 1) * groupLearnerPageSize + 1} - {Math.min(groupLearnerPage * groupLearnerPageSize, selectedGroupMemberCount)} / {selectedGroupMemberCount}
   
   
   

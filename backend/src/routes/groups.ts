@@ -41,24 +41,8 @@ function normalizeKey(value: unknown) {
   return normalizeName(value).toLowerCase();
 }
 
-function normalizeLearnerLookupName(value: unknown) {
-  return String(value ?? "")
-    .replace(/\u00a0/g, " ")
-    .trim()
-    .replace(/\s+/g, " ")
-    .toUpperCase();
-}
-
-function learnerLookupKey(value: unknown) {
-  return normalizeLearnerLookupName(value).replace(/[^\p{L}\p{N}]+/gu, "");
-}
-
 function groupId() {
   return `grp_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 10)}`;
-}
-
-function groupLearnerId() {
-  return `gl_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 10)}`;
 }
 
 function formatGroup(row: GroupRow) {
@@ -240,58 +224,6 @@ router.put("/:id", async (req, res) => {
   } catch (error) {
     console.error("[groups] update", error);
     return jsonError(res, 500, "Failed to save group");
-  }
-});
-
-router.post("/:id/external-members/:externalMemberId/convert", async (req, res) => {
-  try {
-    const groupIdParam = String(req.params.id || "").trim();
-    const externalMemberId = String(req.params.externalMemberId || "").trim();
-    const schoolId = String(req.body?.schoolId || req.query.schoolId || "").trim();
-    if (!groupIdParam || !externalMemberId || !schoolId) {
-      return jsonError(res, 400, "group id, external member id and schoolId required");
-    }
-
-    const externalRows = await prisma.$queryRaw<Array<{ id: string; groupId: string; name: string }>>`
-      SELECT "id", "groupId", "name"
-      FROM "GroupExternalMember"
-      WHERE "id" = ${externalMemberId}
-        AND "groupId" = ${groupIdParam}
-        AND "schoolId" = ${schoolId}
-        AND "memberType" = 'EXTERNAL'
-      LIMIT 1
-    `;
-    const external = externalRows[0];
-    if (!external) return jsonError(res, 404, "External group member not found");
-
-    const learners = await prisma.$queryRaw<Array<{ id: string; firstName: string; lastName: string }>>`
-      SELECT "id", "firstName", "lastName"
-      FROM "Learner"
-      WHERE "schoolId" = ${schoolId}
-    `;
-    const externalKey = learnerLookupKey(external.name);
-    const matches = learners.filter((learner) => learnerLookupKey(`${learner.firstName} ${learner.lastName}`) === externalKey);
-    if (matches.length === 0) return jsonError(res, 404, "No matching EduClear learner found for this external name");
-    if (matches.length > 1) return jsonError(res, 409, "Multiple EduClear learners match this external name");
-
-    const learner = matches[0];
-    await prisma.$queryRaw`
-      INSERT INTO "GroupLearner" ("id", "schoolId", "groupId", "learnerId", "createdAt")
-      VALUES (${groupLearnerId()}, ${schoolId}, ${groupIdParam}, ${learner.id}, CURRENT_TIMESTAMP)
-      ON CONFLICT ("groupId", "learnerId") DO NOTHING
-    `;
-    await prisma.$queryRaw`
-      DELETE FROM "GroupExternalMember"
-      WHERE "id" = ${externalMemberId}
-        AND "groupId" = ${groupIdParam}
-        AND "schoolId" = ${schoolId}
-        AND "memberType" = 'EXTERNAL'
-    `;
-
-    return res.json({ success: true, learnerId: learner.id, groups: await listGroups(schoolId) });
-  } catch (error) {
-    console.error("[groups] convert external member", error);
-    return jsonError(res, 500, "Failed to convert external member");
   }
 });
 
