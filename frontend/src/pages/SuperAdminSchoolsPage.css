@@ -192,6 +192,66 @@
   background: #c9a227;
 }
 
+/* Temporary MBB direct import */
+.sa-schools-mbb-import {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 18px;
+  margin: 0 0 20px;
+  padding: 18px 20px;
+  border-radius: 12px;
+  border: 1px solid rgba(212, 175, 55, 0.42);
+  background: linear-gradient(135deg, #0a0a0a 0%, #1a1408 100%);
+  color: #ffffff;
+  box-shadow: 0 10px 28px rgba(15, 15, 15, 0.16);
+}
+
+.sa-schools-mbb-import-kicker {
+  margin: 0 0 6px;
+  font-size: 0.76rem;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: #d4af37;
+}
+
+.sa-schools-mbb-import-title {
+  margin: 0 0 6px;
+  font-size: 1.18rem;
+  color: #ffffff;
+}
+
+.sa-schools-mbb-import-text,
+.sa-schools-mbb-import-count {
+  margin: 0;
+  color: rgba(255, 255, 255, 0.78);
+  line-height: 1.45;
+}
+
+.sa-schools-mbb-import-count {
+  margin-top: 8px;
+}
+
+.sa-schools-mbb-import-actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 10px;
+  min-width: min(100%, 520px);
+}
+
+.sa-schools-mbb-import-input {
+  flex: 1 1 260px;
+  min-width: 240px;
+  padding: 9px 10px;
+  border-radius: 8px;
+  border: 1px solid rgba(212, 175, 55, 0.45);
+  background: rgba(255, 255, 255, 0.08);
+  color: #ffffff;
+  font-weight: 700;
+}
+
 /* Table */
 .sa-schools-table-wrap {
   border-radius: 12px;
@@ -540,6 +600,20 @@
   }
 
   .sa-schools-btn--gold {
+    width: 100%;
+  }
+
+  .sa-schools-mbb-import {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .sa-schools-mbb-import-actions {
+    min-width: 0;
+  }
+
+  .sa-schools-mbb-import-input {
+    min-width: 0;
     width: 100%;
   }
 

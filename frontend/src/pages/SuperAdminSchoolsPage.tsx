@@ -1,9 +1,10 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import SchoolsSummaryCards from "../superAdmin/components/SchoolsSummaryCards";
 import SchoolsTable from "../superAdmin/components/SchoolsTable";
 import SchoolsToolbar from "../superAdmin/components/SchoolsToolbar";
 import { updateSuperAdminSchool } from "../superAdmin/api/schoolsApi";
 import { useSchoolsManagement } from "../superAdmin/hooks/useSchoolsManagement";
+import { superAdminApiUpload } from "../superAdmin/superAdminApi";
 import type { SchoolRecord } from "../superAdmin/types/schools";
 import { formatSchoolDate, formatSchoolDateTime } from "../superAdmin/utils/formatSchoolDates";
 import "./SuperAdminSchoolsPage.css";
@@ -11,6 +12,14 @@ import "./SuperAdminSchoolsPage.css";
 type Notice = {
   title: string;
   message: string;
+};
+
+type MbbDirectImportResponse = {
+  success?: boolean;
+  schoolId?: string;
+  schoolName?: string;
+  counts?: Record<string, { imported: number; exported: number }>;
+  error?: string;
 };
 
 type ConfirmModalProps = {
@@ -201,6 +210,45 @@ function schoolDetailMessage(school: SchoolRecord): string {
   return lines.join("\n");
 }
 
+function formatMbbImportCounts(response: MbbDirectImportResponse): string {
+  const counts = response.counts || {};
+  const orderedKeys = [
+    "learners",
+    "parents",
+    "billingAccounts",
+    "staff",
+    "historicalTransactions",
+    "classrooms",
+    "enrolments",
+    "parentLearnerLinks",
+    "siblingLinks",
+    "billingPlanLines",
+    "openingBalances",
+  ];
+  const labels: Record<string, string> = {
+    learners: "Learners",
+    parents: "Parents",
+    billingAccounts: "Billing accounts",
+    staff: "Staff",
+    historicalTransactions: "Transactions",
+    classrooms: "Classrooms",
+    enrolments: "Enrolments",
+    parentLearnerLinks: "Parent links",
+    siblingLinks: "Sibling links",
+    billingPlanLines: "Billing plan lines",
+    openingBalances: "Opening balances",
+  };
+
+  const lines = orderedKeys
+    .filter((key) => counts[key])
+    .map((key) => {
+      const row = counts[key];
+      return `${labels[key] || key}: ${row.imported} imported / ${row.exported} exported`;
+    });
+
+  return lines.length ? lines.join("\n") : "Import completed, but no count comparison was returned.";
+}
+
 export default function SuperAdminSchoolsPage() {
   const {
     filteredSchools,
@@ -229,6 +277,9 @@ export default function SuperAdminSchoolsPage() {
   const [notice, setNotice] = useState<Notice | null>(null);
   const [manageSchool, setManageSchool] = useState<SchoolRecord | null>(null);
   const [savingManage, setSavingManage] = useState(false);
+  const [mbbFiles, setMbbFiles] = useState<File[]>([]);
+  const [mbbImporting, setMbbImporting] = useState(false);
+  const mbbFileInputRef = useRef<HTMLInputElement | null>(null);
   const [confirm, setConfirm] = useState<{
     title: string;
     message: string;
@@ -262,6 +313,50 @@ export default function SuperAdminSchoolsPage() {
   const showNotice = useCallback((title: string, message: string) => {
     setNotice({ title, message });
   }, []);
+
+  const handleMbbFilesSelected = useCallback((files: FileList | null) => {
+    const nextFiles = Array.from(files || []);
+    if (!nextFiles.length) return;
+    setMbbFiles((current) => {
+      const byKey = new Map(current.map((file) => [`${file.name}:${file.size}`, file]));
+      for (const file of nextFiles) byKey.set(`${file.name}:${file.size}`, file);
+      return Array.from(byKey.values()).sort((a, b) => a.name.localeCompare(b.name));
+    });
+    if (mbbFileInputRef.current) mbbFileInputRef.current.value = "";
+  }, []);
+
+  const handleRunMbbDirectImport = useCallback(async () => {
+    if (!mbbFiles.length) {
+      showNotice("Select MBB files", "Choose the MBB Kid-e-Sys export files before running the import.");
+      return;
+    }
+
+    const form = new FormData();
+    for (const file of mbbFiles) form.append("files", file, file.name);
+
+    setMbbImporting(true);
+    try {
+      const response = (await superAdminApiUpload(
+        "/api/super-admin/mbb-direct-import/run",
+        form
+      )) as MbbDirectImportResponse;
+      if (response.success === false) {
+        throw new Error(response.error || "MBB Direct Import failed.");
+      }
+      await reload();
+      showNotice(
+        "MBB Direct Import complete",
+        `${response.schoolName || "Magical Bright Beginnings"} has been imported.\n\n${formatMbbImportCounts(response)}`
+      );
+    } catch (err: unknown) {
+      showNotice(
+        "MBB Direct Import failed",
+        err instanceof Error ? err.message : "The MBB Direct Import could not be completed."
+      );
+    } finally {
+      setMbbImporting(false);
+    }
+  }, [mbbFiles, reload, showNotice]);
 
   const handleView = useCallback(
     (school: SchoolRecord) => {
@@ -453,6 +548,49 @@ export default function SuperAdminSchoolsPage() {
         onPackageFilterChange={setPackageFilter}
         onAddSchool={handleAddSchool}
       />
+
+      <section className="sa-schools-mbb-import" aria-label="Temporary MBB Direct Import">
+        <div>
+          <p className="sa-schools-mbb-import-kicker">Temporary production tool</p>
+          <h2 className="sa-schools-mbb-import-title">Run MBB Direct Import</h2>
+          <p className="sa-schools-mbb-import-text">
+            Select the Magical Bright Beginnings Kid-e-Sys export files, then run the direct import
+            with this logged-in Super Admin session. The school list refreshes after completion.
+          </p>
+          <p className="sa-schools-mbb-import-count">
+            Selected files: <strong>{mbbFiles.length}</strong>
+          </p>
+        </div>
+        <div className="sa-schools-mbb-import-actions">
+          <input
+            ref={mbbFileInputRef}
+            type="file"
+            multiple
+            accept=".xls,.xlsx,.pdf"
+            className="sa-schools-mbb-import-input"
+            onChange={(e) => handleMbbFilesSelected(e.target.files)}
+          />
+          <button
+            type="button"
+            className="sa-schools-btn"
+            onClick={() => {
+              setMbbFiles([]);
+              if (mbbFileInputRef.current) mbbFileInputRef.current.value = "";
+            }}
+            disabled={mbbImporting || mbbFiles.length === 0}
+          >
+            Clear files
+          </button>
+          <button
+            type="button"
+            className="sa-schools-btn sa-schools-btn--gold"
+            onClick={() => void handleRunMbbDirectImport()}
+            disabled={mbbImporting || mbbFiles.length === 0}
+          >
+            {mbbImporting ? "Importing MBB…" : "Run Direct MBB Import"}
+          </button>
+        </div>
+      </section>
 
       <div className="sa-schools-pagination" role="navigation" aria-label="Schools pagination">
         <div className="sa-schools-pagination-meta" aria-live="polite">
