@@ -227,6 +227,44 @@ router.put("/:id", async (req, res) => {
   }
 });
 
+router.delete("/:id", async (req, res) => {
+  try {
+    const id = String(req.params.id || "").trim();
+    const schoolId = String(req.body?.schoolId || req.query.schoolId || "").trim();
+    if (!id || !schoolId) return jsonError(res, 400, "id and schoolId required");
+
+    const deleted = await prisma.$transaction(async (tx) => {
+      const existing = await tx.$queryRaw<GroupRow[]>`
+        SELECT "id", "schoolId", "name", "comments", "createdAt", "updatedAt"
+        FROM "Group"
+        WHERE "id" = ${id} AND "schoolId" = ${schoolId}
+      `;
+      if (!existing[0]) return null;
+
+      await tx.$executeRaw`
+        DELETE FROM "GroupLearner"
+        WHERE "groupId" = ${id} AND "schoolId" = ${schoolId}
+      `;
+      await tx.$executeRaw`
+        DELETE FROM "GroupExternalMember"
+        WHERE "groupId" = ${id} AND "schoolId" = ${schoolId}
+      `;
+      await tx.$executeRaw`
+        DELETE FROM "Group"
+        WHERE "id" = ${id} AND "schoolId" = ${schoolId}
+      `;
+
+      return formatGroup(existing[0]);
+    });
+
+    if (!deleted) return jsonError(res, 404, "Group not found");
+    return res.json({ success: true, group: deleted });
+  } catch (error) {
+    console.error("[groups] delete", error);
+    return jsonError(res, 500, "Failed to delete group");
+  }
+});
+
 router.post("/preview-import", upload.single("file"), async (req, res) => {
   try {
     const schoolId = String(req.body?.schoolId || "").trim();

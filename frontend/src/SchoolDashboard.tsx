@@ -616,6 +616,7 @@ const [groupLearnerPage, setGroupLearnerPage] = useState(1);
 
 
 const [groupMode, setGroupMode] = useState<"none" | "add" | "manage">("none");
+const [groupMoreOpen, setGroupMoreOpen] = useState(false);
 
 
 
@@ -6628,6 +6629,7 @@ const [selectedLearnerReport, setSelectedLearnerReport] = useState<any>(null);
   
   
     setGroupDraft(group);
+    setGroupMoreOpen(false);
   
   
   
@@ -6732,6 +6734,43 @@ if (schoolId) {
   
   
   
+  };
+
+  const handleDeleteGroup = async (group: any) => {
+    setGroupMoreOpen(false);
+
+    const groupId = String(group?.id || "").trim();
+    const groupName = String(group?.name || "this group").trim() || "this group";
+    if (!groupId) {
+      alert("Group ID is missing. Cannot delete this group.");
+      return;
+    }
+
+    const confirmed = window.confirm(
+      `Delete ${groupName}?\n\nOnly this group will be deleted. Learners, parents, billing, balances, transactions, and statements will not be deleted.`
+    );
+    if (!confirmed) return;
+
+    try {
+      if (schoolId && !groupId.startsWith("group-")) {
+        await apiFetch(
+          `/api/groups/${encodeURIComponent(groupId)}?schoolId=${encodeURIComponent(schoolId)}`,
+          { method: "DELETE" }
+        );
+      }
+
+      const nextGroups = localGroups.filter((item: any) => String(item.id) !== groupId);
+      setLocalGroups(nextGroups);
+      cacheGroupsForSchool(nextGroups);
+      localStorage.removeItem("selectedGroupForManage");
+      setSelectedGroup(null);
+      setGroupDraft({});
+      setSelectedGroupLearnerIds([]);
+      setGroupMode("none");
+      setActivePage("groups");
+    } catch (error) {
+      alert(error instanceof Error ? error.message : "Failed to delete group.");
+    }
   };
 
   const previewGroupsImport = async () => {
@@ -7526,7 +7565,13 @@ if (schoolId) {
   
   
   
-          <button style={actionBtn} onClick={() => setActivePage("groups")}>
+          <button
+            style={actionBtn}
+            onClick={() => {
+              setGroupMoreOpen(false);
+              setActivePage("groups");
+            }}
+          >
   
   
   
@@ -7756,15 +7801,70 @@ if (schoolId) {
   
   
   
-          <button style={actionBtn} onClick={() => alert("More group actions will be connected later.")}>
-  
-  
-  
-            More Actions⌄
-  
-  
-  
-          </button>
+          <div style={{ position: "relative" }}>
+            <button
+              type="button"
+              style={actionBtn}
+              onClick={() => setGroupMoreOpen((v) => !v)}
+            >
+              More Actions⌄
+            </button>
+            {groupMoreOpen && (
+              <div
+                style={{
+                  position: "absolute",
+                  top: "42px",
+                  left: 0,
+                  width: "220px",
+                  background: "#ffffff",
+                  border: "1px solid #e5e7eb",
+                  borderRadius: "12px",
+                  boxShadow: "0 18px 40px rgba(15,23,42,0.18)",
+                  overflow: "hidden",
+                  zIndex: 20,
+                }}
+              >
+                <button
+                  type="button"
+                  onClick={() => void handleDeleteGroup(group)}
+                  style={{
+                    display: "block",
+                    width: "100%",
+                    textAlign: "left",
+                    padding: "14px 16px",
+                    background: "#ffffff",
+                    border: "none",
+                    fontWeight: 800,
+                    cursor: "pointer",
+                    color: "#b91c1c",
+                  }}
+                >
+                  Delete Group
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setGroupMoreOpen(false);
+                    setActivePage("groups");
+                  }}
+                  style={{
+                    display: "block",
+                    width: "100%",
+                    textAlign: "left",
+                    padding: "14px 16px",
+                    background: "#ffffff",
+                    border: "none",
+                    borderTop: "1px solid #f3f4f6",
+                    fontWeight: 800,
+                    cursor: "pointer",
+                    color: "#0f172a",
+                  }}
+                >
+                  Back to Groups
+                </button>
+              </div>
+            )}
+          </div>
   
   
   
