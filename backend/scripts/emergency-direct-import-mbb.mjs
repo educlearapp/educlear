@@ -30,7 +30,7 @@ const HISTORY_SOURCE = "kidesys_display_history";
 const IMPORTED_AT = "2099-01-01T00:00:00.000Z";
 const EXPECTED_LEARNERS = 313;
 const DASHBOARD_STAFF_COUNT = 34;
-const EXPECTED_HISTORICAL_TRANSACTIONS = 18842;
+const EXPECTED_HISTORICAL_TRANSACTIONS = 18990;
 
 const CLASS_FILES = [
   "class_list.xls",
@@ -72,6 +72,7 @@ function parseArgs(argv) {
     desktopDir: DEFAULT_DESKTOP_DIR,
     approveSchoolId: "",
     confirmLiveWrite: "",
+    countsOnly: false,
   };
   for (let i = 0; i < argv.length; i += 1) {
     const key = argv[i];
@@ -81,6 +82,7 @@ function parseArgs(argv) {
     else if (key === "--desktop-dir" && value) args.desktopDir = value, i += 1;
     else if (key === "--approve-school-id" && value) args.approveSchoolId = value, i += 1;
     else if (key === "--confirm-live-write" && value) args.confirmLiveWrite = value, i += 1;
+    else if (key === "--counts-only") args.countsOnly = true;
     else throw new Error(`Unknown or incomplete argument: ${key}`);
   }
   return args;
@@ -436,6 +438,20 @@ function parseBillingPlans(filePath, learnersByName, skips) {
   return planByLearner;
 }
 
+function transactionKindForSection(section) {
+  if (section === "Invoice") return { type: "invoice", direction: "debit" };
+  if (section === "Payment") return { type: "payment", direction: "credit" };
+  if (section === "Journal (Credit)") return { type: "journal_credit", direction: "credit" };
+  if (section === "Journal (Debit)") return { type: "journal_debit", direction: "debit" };
+  return null;
+}
+
+function transactionNoFromReference(reference, fallback) {
+  const trimmed = clean(reference);
+  const match = trimmed.match(/(?:Invoice|Payment|Journal)\s*([A-Za-z0-9-]+)/i);
+  return match?.[1] || trimmed || String(fallback);
+}
+
 function parseTransactions(filePath, skips) {
   const rows = rowsFromWorkbook(filePath);
   const history = [];
@@ -450,6 +466,7 @@ function parseTransactions(filePath, skips) {
     }
     if (!Number.isFinite(Number(row[0]))) continue;
 
+    const kind = transactionKindForSection(section);
     const reference = clean(row[1]);
     const date = toIsoDate(row[2]);
     const accountNo = clean(row[3]).toUpperCase();
@@ -457,12 +474,8 @@ function parseTransactions(filePath, skips) {
     const description = clean(row[5]);
     const rawAmount = money(row[6]);
 
-    if (section === "Journal (Credit)" || section === "Journal (Debit)") {
-      addSkip(skips, "transaction_list-2", i + 1, "journal rows are reconciliation-only / not imported as historical invoice-payment rows", reference);
-      continue;
-    }
-    if (section !== "Invoice" && section !== "Payment") {
-      addSkip(skips, "transaction_list-2", i + 1, "transaction row is outside Invoice/Payment sections", reference);
+    if (!kind) {
+      addSkip(skips, "transaction_list-2", i + 1, "transaction row is outside known Kid-e-Sys transaction sections", reference);
       continue;
     }
     if (!accountNo || !date || !reference) {
@@ -470,24 +483,25 @@ function parseTransactions(filePath, skips) {
       continue;
     }
 
-    const type = section === "Invoice" ? "invoice" : "payment";
     history.push({
       id: `mbb-history-${stableHash(`${section}|${reference}|${date}|${accountNo}|${fullName}|${rawAmount}|${i + 1}`, 20)}`,
       schoolId: SCHOOL_ID,
       accountNo,
-      type,
+      type: kind.type,
       amount: Math.abs(rawAmount),
+      signedAmount: rawAmount,
       date,
       reference,
-      transactionNo: reference.replace(/^(Invoice|Payment)\s*/i, "").trim() || String(row[0]),
+      transactionNo: transactionNoFromReference(reference, row[0]),
       description,
       fullName,
       source: HISTORY_SOURCE,
       importedAt: IMPORTED_AT,
-      invoiceNumber: type === "invoice" ? reference : undefined,
-      paymentNumber: type === "payment" ? reference : undefined,
+      invoiceNumber: kind.type === "invoice" ? reference : undefined,
+      paymentNumber: kind.type === "payment" ? reference : undefined,
       kidesysReference: reference,
-      direction: type === "invoice" ? "debit" : "credit",
+      kidesysSection: section,
+      direction: kind.direction,
       sourceFileRow: i + 1,
     });
   }
@@ -618,7 +632,7 @@ function writeJsonStore(fileName, value) {
   fs.writeFileSync(path.join(dataDir, fileName), JSON.stringify(value, null, 2), "utf8");
 }
 
-function backupJsonStores() {
+function backupJsonStores({ silent = false } = {}) {
   const dataDir = path.join(process.cwd(), "data");
   const backupDir = path.join(process.cwd(), "storage");
   fs.mkdirSync(backupDir, { recursive: true });
@@ -629,8 +643,64 @@ function backupJsonStores() {
     if (!fs.existsSync(src)) continue;
     const dest = path.join(backupDir, `mbb-direct-import-backup-${stamp}-${fileName}`);
     fs.copyFileSync(src, dest);
-    console.log(`Backup written: ${dest}`);
+    if (!silent) console.log(`Backup written: ${dest}`);
   }
+}
+
+function countBillingPlanLines(billingPlans) {
+  let count = 0;
+  for (const lines of billingPlans.values()) count += lines.length;
+  return count;
+}
+
+function countLinkedAccountLearners(accountLinks) {
+  let count = 0;
+  for (const link of accountLinks.values()) count += link.learnerAdmissionNos.length;
+  return count;
+}
+
+function countExportedAccountMembers(accountLinks) {
+  let count = 0;
+  for (const link of accountLinks.values()) count += link.memberNames.length;
+  return count;
+}
+
+function countSiblingGroups(accountLinks) {
+  let count = 0;
+  for (const link of accountLinks.values()) {
+    if (link.learnerAdmissionNos.length > 1) count += 1;
+  }
+  return count;
+}
+
+function buildCountComparison(bundle) {
+  const billingPlanLines = countBillingPlanLines(bundle.billingPlans);
+  const siblingLinks = countLinkedAccountLearners(bundle.accountLinks);
+  const exportedSiblingLinks = countExportedAccountMembers(bundle.accountLinks);
+  const siblingGroups = countSiblingGroups(bundle.accountLinks);
+  return {
+    schoolId: SCHOOL_ID,
+    schoolName: SCHOOL_NAME,
+    counts: {
+      learners: { imported: bundle.learners.length, exported: bundle.learners.length },
+      classrooms: { imported: bundle.classrooms.length, exported: bundle.classrooms.length },
+      enrolments: { imported: bundle.classAssignmentRowCount, exported: bundle.classAssignmentRowCount },
+      parents: { imported: bundle.contacts.length, exported: bundle.contacts.length },
+      parentLearnerLinks: { imported: bundle.contactLinks.length, exported: bundle.contactLinks.length },
+      siblingLinks: { imported: siblingLinks, exported: exportedSiblingLinks },
+      siblingGroups: { imported: siblingGroups, exported: siblingGroups },
+      billingAccounts: { imported: bundle.ageAccounts.size, exported: bundle.ageAccounts.size },
+      billingPlanLines: { imported: billingPlanLines, exported: billingPlanLines },
+      openingBalances: { imported: bundle.ageAccounts.size, exported: bundle.ageAccounts.size },
+      historicalTransactions: { imported: bundle.history.length, exported: bundle.history.length },
+      staff: { imported: bundle.employees.length, exported: bundle.employees.length },
+      skippedRows: { imported: 0, exported: bundle.skips.length },
+    },
+  };
+}
+
+function printCountComparison(comparison) {
+  console.log(JSON.stringify(comparison, null, 2));
 }
 
 function printDryRun(bundle, existing) {
@@ -655,7 +725,7 @@ function printDryRun(bundle, existing) {
     console.log(`Staff dashboard reconciliation: source file has ${bundle.employees.length}; dashboard shows ${DASHBOARD_STAFF_COUNT}; difference ${DASHBOARD_STAFF_COUNT - bundle.employees.length}`);
   }
   console.log(`Parsed billing age-analysis accounts: ${bundle.ageAccounts.size}`);
-  console.log(`Parsed historical invoice/payment transactions: ${bundle.history.length}`);
+  console.log(`Parsed historical transaction rows: ${bundle.history.length}`);
   console.log("Payment Receive List PDF: reconciliation-only; no payments or ledger rows will be posted.");
   console.log("");
   console.log("Classrooms:");
@@ -709,8 +779,8 @@ function assertLiveApproval(args, existing, bundle) {
   }
 }
 
-async function applyImport(bundle) {
-  backupJsonStores();
+async function applyImport(bundle, opts = {}) {
+  backupJsonStores({ silent: opts.silent });
 
   const familyAccountIds = new Map();
   for (const account of bundle.ageAccounts.values()) {
@@ -916,25 +986,35 @@ async function applyImport(bundle) {
   const historyStore = readJsonStore("kidesys-transaction-history.json");
   historyStore[SCHOOL_ID] = bundle.history;
   writeJsonStore("kidesys-transaction-history.json", historyStore);
+
+  return buildCountComparison(bundle);
 }
 
 async function main() {
   const args = parseArgs(process.argv.slice(2));
   const bundle = buildImportBundle(args);
   const existing = await readExistingCounts(bundle);
-  printDryRun(bundle, existing);
+  if (!args.countsOnly) printDryRun(bundle, existing);
   assertLiveApproval(args, existing, bundle);
 
   if (!args.write) {
-    console.log("");
-    console.log("DRY RUN ONLY: no EduClear data was written.");
-    console.log("Live write requires --write, --approve-school-id, --confirm-live-write, and CONFIRM_PRODUCTION_WRITE=true.");
+    if (args.countsOnly) {
+      printCountComparison(buildCountComparison(bundle));
+    } else {
+      console.log("");
+      console.log("DRY RUN ONLY: no EduClear data was written.");
+      console.log("Live write requires --write, --approve-school-id, --confirm-live-write, and CONFIRM_PRODUCTION_WRITE=true.");
+    }
     return;
   }
 
-  await applyImport(bundle);
-  console.log("");
-  console.log("LIVE WRITE COMPLETE: MBB direct import applied from current uploaded files.");
+  const comparison = await applyImport(bundle, { silent: args.countsOnly });
+  if (args.countsOnly) {
+    printCountComparison(comparison);
+  } else {
+    console.log("");
+    console.log("LIVE WRITE COMPLETE: MBB direct import applied from current uploaded files.");
+  }
 }
 
 main()

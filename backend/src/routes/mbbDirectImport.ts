@@ -88,22 +88,12 @@ function prepareImportFolder(files: Express.Multer.File[]) {
   return { root, classDir, missing };
 }
 
-function parseCount(stdout: string, label: string) {
-  const escaped = label.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-  const match = stdout.match(new RegExp(`${escaped}:\\s*([0-9,]+)`));
-  return match ? Number(match[1].replace(/,/g, "")) : 0;
-}
-
-function parseSkippedRows(stdout: string) {
-  const lines = stdout.split(/\r?\n/);
-  const start = lines.findIndex((line) => line.startsWith("Rows skipped with exact reason:"));
-  if (start < 0) return [];
-  const skipped: string[] = [];
-  for (const line of lines.slice(start + 1)) {
-    if (!line.trim()) break;
-    if (line.startsWith("- ")) skipped.push(line.slice(2));
-  }
-  return skipped;
+function parseCountComparison(stdout: string) {
+  return JSON.parse(stdout.trim()) as {
+    schoolId: string;
+    schoolName: string;
+    counts: Record<string, { imported: number; exported: number }>;
+  };
 }
 
 function runImporter(root: string, classDir: string): Promise<{ stdout: string; stderr: string }> {
@@ -122,6 +112,7 @@ function runImporter(root: string, classDir: string): Promise<{ stdout: string; 
         SCHOOL_ID,
         "--confirm-live-write",
         "MBB_DIRECT_IMPORT",
+        "--counts-only",
       ],
       {
         cwd: process.cwd(),
@@ -160,21 +151,12 @@ router.post("/run", upload.array("files", MAX_FILES), async (req, res) => {
       return res.status(400).json({ success: false, error: "Missing required MBB files", missing });
     }
 
-    const { stdout, stderr } = await runImporter(root, classDir);
-    const skippedRows = parseSkippedRows(stdout);
+    const { stdout } = await runImporter(root, classDir);
+    const comparison = parseCountComparison(stdout);
     return res.json({
       success: true,
-      schoolId: SCHOOL_ID,
-      schoolName: SCHOOL_NAME,
-      learnersImported: parseCount(stdout, "Learners to insert"),
-      parentsImported: parseCount(stdout, "Parents/contacts to insert"),
-      staffImported: parseCount(stdout, "Staff to insert"),
-      billingAccountsImported: parseCount(stdout, "Billing accounts to insert"),
-      historicalTransactionsImported: parseCount(stdout, "Historical transactions to insert"),
-      skippedRows,
+      ...comparison,
       executionTimeMs: Date.now() - started,
-      message: "MBB direct import completed successfully",
-      stderr: stderr.trim() || undefined,
     });
   } catch (error: unknown) {
     const err = error as Error & { stdout?: string; stderr?: string };
