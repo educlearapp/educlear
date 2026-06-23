@@ -87,6 +87,9 @@ export function createDefaultBillingSettings(): BillingSettingsState {
       paymentsInfoBlocks: checkboxDefaults(PAYMENTS_INFO_BLOCK_OPTIONS),
       corrections: checkboxDefaults(CORRECTIONS_OPTIONS),
     },
+    uiPreferences: {
+      showBillingSummaryCards: true,
+    },
     statement: {
       statementLayout: STATEMENT_LAYOUT_OPTIONS[0],
       statementHistory: STATEMENT_HISTORY_OPTIONS[0],

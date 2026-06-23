@@ -17,6 +17,10 @@ type BillingGeneralSettings = {
   corrections: CheckboxMap;
 };
 
+type BillingUiPreferences = {
+  showBillingSummaryCards: boolean;
+};
+
 type BillingStatementSettings = {
   statementLayout: string;
   statementHistory: string;
@@ -72,6 +76,7 @@ type BillingReceiptSettings = {
 
 export type BillingSettingsState = {
   general: BillingGeneralSettings;
+  uiPreferences: BillingUiPreferences;
   statement: BillingStatementSettings;
   invoice: BillingInvoiceSettings;
   receipt: BillingReceiptSettings;
@@ -113,6 +118,9 @@ export function defaultBillingSettings(): BillingSettingsState {
       invoicesInfoBlocks: checkboxDefaults(INVOICES_INFO_IDS),
       paymentsInfoBlocks: checkboxDefaults(PAYMENTS_INFO_IDS),
       corrections: checkboxDefaults(CORRECTIONS_IDS),
+    },
+    uiPreferences: {
+      showBillingSummaryCards: true,
     },
     statement: {
       statementLayout: "Standard",
@@ -227,6 +235,15 @@ function mergeSettings(current: BillingSettingsState, incoming: Partial<BillingS
       }
     : current.statement;
 
+  const uiPreferences = incoming.uiPreferences
+    ? {
+        ...current.uiPreferences,
+        ...incoming.uiPreferences,
+        showBillingSummaryCards:
+          incoming.uiPreferences.showBillingSummaryCards !== false,
+      }
+    : current.uiPreferences;
+
   const invoice = incoming.invoice
     ? {
         ...current.invoice,
@@ -269,7 +286,7 @@ function mergeSettings(current: BillingSettingsState, incoming: Partial<BillingS
       }
     : current.receipt;
 
-  return { general, statement, invoice, receipt };
+  return { general, uiPreferences, statement, invoice, receipt };
 }
 
 function normalizeSettings(raw: Partial<BillingSettingsState> | undefined): BillingSettingsState {

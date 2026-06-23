@@ -28,6 +28,7 @@ export default function BillingSettingsPage({ onBack }: Props) {
     error,
     setGeneral,
     setGeneralCheckbox,
+    setUiPreferences,
     setStatement,
     setStatementFeature,
     setStatementDisplay,
@@ -83,8 +84,10 @@ export default function BillingSettingsPage({ onBack }: Props) {
           <BillingGeneralTab
             schoolId={schoolId}
             general={settings.general}
+            uiPreferences={settings.uiPreferences}
             onFieldChange={setGeneral}
             onCheckboxChange={setGeneralCheckbox}
+            onUiPreferencesChange={setUiPreferences}
           />
         ) : null}
 

@@ -13,6 +13,7 @@ type PaymentsProps = {
   onSelectAccount?: (account: PaymentAccountContext) => void;
   onOpenPaymentCreate?: (account: PaymentAccountContext) => void;
   setActivePage: React.Dispatch<React.SetStateAction<any>>;
+  showSummaryCards?: boolean;
 };
 
 const PAGE_SIZE = 10;
@@ -22,6 +23,7 @@ export default function Payments({
   learners = [],
   onOpenPaymentCreate,
   setActivePage,
+  showSummaryCards = true,
 }: PaymentsProps) {
   const [search, setSearch] = useState("");
   const [page, setPage] = useState(1);
@@ -137,7 +139,7 @@ export default function Payments({
         </p>
       </div>
 
-      <BillingSummaryCards rows={statementRows} />
+      {showSummaryCards ? <BillingSummaryCards rows={statementRows} /> : null}
 
       <div style={{ marginBottom: 14 }}>
         <button type="button" style={payBtn} onClick={() => setActivePage("statements")}>

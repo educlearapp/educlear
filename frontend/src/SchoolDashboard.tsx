@@ -939,6 +939,7 @@ const [selectedLearnerReport, setSelectedLearnerReport] = useState<any>(null);
   const [activeBillingAccount, setActiveBillingAccountState] = useState<PaymentAccountContext | null>(null);
   const [billingSyncLoading, setBillingSyncLoading] = useState(false);
   const [billingSyncConfirmedEmpty, setBillingSyncConfirmedEmpty] = useState(false);
+  const [showBillingSummaryCards, setShowBillingSummaryCards] = useState(true);
   const prevSchoolIdRef = useRef(schoolId);
   const skipNextBillingPageRefreshRef = useRef(false);
   const billingRefreshInFlightRef = useRef<Promise<void> | null>(null);
@@ -2674,7 +2675,7 @@ const [selectedLearnerReport, setSelectedLearnerReport] = useState<any>(null);
 
 
 
-      <BillingSummaryCards rows={rows} />
+      {showBillingSummaryCards ? <BillingSummaryCards rows={rows} /> : null}
 
 
 
@@ -15237,13 +15238,17 @@ const renderMoreSettings = () => {
   );
 
   useEffect(() => {
-    const schoolId = hookSchoolId || localStorage.getItem("schoolId") || "";
-    if (!schoolId) return;
+    const activeSchoolId = hookSchoolId || localStorage.getItem("schoolId") || "";
+    if (!activeSchoolId) {
+      setShowBillingSummaryCards(true);
+      return;
+    }
     let cancelled = false;
-    loadBillingSettingsForSchool(schoolId).then((settings) => {
+    loadBillingSettingsForSchool(activeSchoolId).then((settings) => {
       if (cancelled) return;
       const today = new Date().toISOString().split("T")[0];
       const defaults = buildInvoiceRunDefaults(settings, today);
+      setShowBillingSummaryCards(settings.uiPreferences?.showBillingSummaryCards !== false);
       setInvoiceRunSettings((prev) => ({
         ...prev,
         message: prev.message || defaults.message,
@@ -15587,6 +15592,7 @@ const [invoiceRunEmailDraft, setInvoiceRunEmailDraft] = useState({
               setSelectedStatementAccount(row);
               setActivePage("statementManage");
             }}
+            showSummaryCards={showBillingSummaryCards}
       
       
       
@@ -15788,6 +15794,7 @@ const [invoiceRunEmailDraft, setInvoiceRunEmailDraft] = useState({
               onSelectAccount={selectPaymentAccount}
               onOpenPaymentCreate={openPaymentCreate}
               setActivePage={setActivePage}
+              showSummaryCards={showBillingSummaryCards}
             />
         
         

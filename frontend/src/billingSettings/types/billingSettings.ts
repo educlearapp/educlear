@@ -37,6 +37,10 @@ export type BillingGeneralSettings = {
   corrections: CheckboxMap;
 };
 
+export type BillingUiPreferences = {
+  showBillingSummaryCards: boolean;
+};
+
 export type BillingStatementSettings = {
   statementLayout: string;
   statementHistory: string;
@@ -67,6 +71,7 @@ export type BillingReceiptSettings = {
 
 export type BillingSettingsState = {
   general: BillingGeneralSettings;
+  uiPreferences: BillingUiPreferences;
   statement: BillingStatementSettings;
   invoice: BillingInvoiceSettings;
   receipt: BillingReceiptSettings;

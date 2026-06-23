@@ -43,6 +43,8 @@ type Props = {
 
   onManage: (row: any) => void;
 
+  showSummaryCards?: boolean;
+
 
 
 };
@@ -82,6 +84,8 @@ export default function Statements({
 
 
   onManage,
+
+  showSummaryCards = true,
 
 
 
@@ -354,7 +358,7 @@ export default function Statements({
 
 
 
-      <BillingSummaryCards rows={rows} />
+      {showSummaryCards ? <BillingSummaryCards rows={rows} /> : null}
 
 
 

@@ -12,6 +12,7 @@ import type {
   BillingReceiptSettings,
   BillingSettingsState,
   BillingStatementSettings,
+  BillingUiPreferences,
 } from "../types/billingSettings";
 
 export function useBillingSettings(schoolId: string) {
@@ -88,6 +89,16 @@ export function useBillingSettings(schoolId: string) {
           ...current.general,
           [group]: { ...current.general[group], [id]: value },
         },
+      }));
+    },
+    [updateSettings]
+  );
+
+  const setUiPreferences = useCallback(
+    (patch: Partial<BillingUiPreferences>) => {
+      updateSettings((current) => ({
+        ...current,
+        uiPreferences: { ...current.uiPreferences, ...patch },
       }));
     },
     [updateSettings]
@@ -243,6 +254,7 @@ export function useBillingSettings(schoolId: string) {
     error,
     setGeneral,
     setGeneralCheckbox,
+    setUiPreferences,
     setStatement,
     setStatementFeature,
     setStatementDisplay,

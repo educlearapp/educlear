@@ -9,20 +9,32 @@ import {
 } from "../billingSettingsConstants";
 import BillingSettingsCheckboxGroup from "../BillingSettingsCheckboxGroup";
 import BillingSettingsSelect from "../BillingSettingsSelect";
-import type { BillingGeneralSettings } from "../../types/billingSettings";
+import type {
+  BillingGeneralSettings,
+  BillingUiPreferences,
+} from "../../types/billingSettings";
 
 type Props = {
   schoolId: string;
   general: BillingGeneralSettings;
+  uiPreferences: BillingUiPreferences;
   onFieldChange: (patch: Partial<BillingGeneralSettings>) => void;
   onCheckboxChange: (
     group: "quickPopups" | "accountsInfoBlocks" | "invoicesInfoBlocks" | "paymentsInfoBlocks" | "corrections",
     id: string,
     checked: boolean
   ) => void;
+  onUiPreferencesChange: (patch: Partial<BillingUiPreferences>) => void;
 };
 
-export default function BillingGeneralTab({ schoolId, general, onFieldChange, onCheckboxChange }: Props) {
+export default function BillingGeneralTab({
+  schoolId,
+  general,
+  uiPreferences,
+  onFieldChange,
+  onCheckboxChange,
+  onUiPreferencesChange,
+}: Props) {
   return (
     <section
       className="billing-settings-card billing-settings-card--compact"
@@ -58,6 +70,20 @@ export default function BillingGeneralTab({ schoolId, general, onFieldChange, on
         values={general.quickPopups}
         onChange={(id, checked) => onCheckboxChange("quickPopups", id, checked)}
         columns={2}
+      />
+
+      <BillingSettingsCheckboxGroup
+        schoolId={schoolId}
+        prefix="billing-layout"
+        title="Billing Layout"
+        options={[{ id: "showBillingSummaryCards", label: "Show summary cards on Statements, Invoices, and Payments" }]}
+        values={{
+          showBillingSummaryCards: uiPreferences.showBillingSummaryCards !== false,
+        }}
+        onChange={(id, checked) =>
+          onUiPreferencesChange({ [id]: checked } as Partial<BillingUiPreferences>)
+        }
+        columns={1}
       />
 
       <BillingSettingsCheckboxGroup

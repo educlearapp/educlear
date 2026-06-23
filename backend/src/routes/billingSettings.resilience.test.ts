@@ -25,6 +25,10 @@ function testParseStoredRow() {
     settings: { invoice: { invoicePrefix: "DS-" } },
   });
   assert(settings.invoice.invoicePrefix === "DS-", "merges stored invoice prefix");
+  assert(
+    settings.uiPreferences.showBillingSummaryCards === true,
+    "defaults billing summary cards visible"
+  );
   console.log("✓ billingSettingsFromDbRow merges stored settings");
 }
 
