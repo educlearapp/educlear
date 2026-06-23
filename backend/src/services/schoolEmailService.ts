@@ -88,6 +88,7 @@ export const EMAIL_PROVIDER_PRESETS: Record<
 };
 
 const MASKED_PASSWORD = "********";
+const RESEND_EMAIL_API_URL = "https://api.resend.com/emails";
 const SMTP_TRANSPORT_TIMEOUT_MS = 12_000;
 const SMTP_SEND_DEADLINE_MS = 20_000;
 const SETUP_REQUIRED_MESSAGE =
@@ -104,6 +105,14 @@ function platformFromEmail() {
     process.env.SMTP_USER?.trim() ||
     EDUCLEAR_RELAY_FROM_EMAIL
   );
+}
+
+function resendApiKey() {
+  return process.env.RESEND_API_KEY?.trim() || "";
+}
+
+function hasResendProvider() {
+  return Boolean(resendApiKey());
 }
 
 function platformSmtpOptions(): SMTPTransport.Options | null {
@@ -189,6 +198,74 @@ function withSendDeadline<T>(promise: Promise<T>, label: string, deadlineMs = SM
       }
     );
   });
+}
+
+function normalizeResendRecipient(to: SendSchoolEmailInput["to"]): string[] {
+  return Array.isArray(to) ? to.map(String).filter(Boolean) : [String(to || "").trim()].filter(Boolean);
+}
+
+function attachmentContentToBase64(content: Buffer | string) {
+  if (Buffer.isBuffer(content)) return content.toString("base64");
+  return Buffer.from(String(content), "utf8").toString("base64");
+}
+
+function formatResendError(status: number, body: string) {
+  const trimmed = body.trim();
+  if (!trimmed) return `Resend email send failed with HTTP ${status}`;
+  try {
+    const parsed = JSON.parse(trimmed) as { message?: string; name?: string; error?: string };
+    return parsed.message || parsed.error || `${parsed.name || "Resend error"} (HTTP ${status})`;
+  } catch {
+    return `Resend email send failed with HTTP ${status}: ${trimmed.slice(0, 240)}`;
+  }
+}
+
+async function sendWithResend(input: {
+  from: string;
+  to: SendSchoolEmailInput["to"];
+  subject: string;
+  html: string;
+  replyTo?: string;
+  attachments?: SendSchoolEmailInput["attachments"];
+}) {
+  const apiKey = resendApiKey();
+  if (!apiKey) {
+    throw new Error("Resend is not configured. Set RESEND_API_KEY on the server.");
+  }
+
+  const response = await withSendDeadline(
+    fetch(RESEND_EMAIL_API_URL, {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${apiKey}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        from: input.from,
+        to: normalizeResendRecipient(input.to),
+        subject: input.subject,
+        html: input.html,
+        ...(input.replyTo ? { reply_to: input.replyTo } : {}),
+        ...(input.attachments?.length
+          ? {
+              attachments: input.attachments.map((attachment) => ({
+                filename: attachment.filename,
+                content: attachmentContentToBase64(attachment.content),
+                ...(attachment.contentType ? { content_type: attachment.contentType } : {}),
+              })),
+            }
+          : {}),
+      }),
+    }),
+    "EduClear Resend email send"
+  );
+
+  const body = await response.text();
+  if (!response.ok) {
+    throw new Error(formatResendError(response.status, body));
+  }
+  const parsed = body ? (JSON.parse(body) as { id?: string }) : {};
+  return { messageId: parsed.id || "" };
 }
 
 export function normalizeProvider(raw: string): EmailProviderType | null {
@@ -523,6 +600,26 @@ export async function sendMailWithSettings(
   _row: SchoolEmailSettings,
   mail: Parameters<ReturnType<typeof nodemailer.createTransport>["sendMail"]>[0]
 ) {
+  if (hasResendProvider()) {
+    return sendWithResend({
+      from: String(mail.from || platformFromEmail()),
+      to: String(mail.to || ""),
+      subject: String(mail.subject || ""),
+      html: String(mail.html || ""),
+      replyTo: mail.replyTo ? String(mail.replyTo) : undefined,
+      attachments: Array.isArray(mail.attachments)
+        ? mail.attachments.map((attachment) => ({
+            filename: String(attachment.filename || "attachment"),
+            content:
+              typeof attachment.content === "string" || Buffer.isBuffer(attachment.content)
+                ? attachment.content
+                : Buffer.from(String(attachment.content || "")),
+            contentType: attachment.contentType,
+          }))
+        : [],
+    });
+  }
+
   const transporter = createPlatformTransport();
   try {
     return await withSendDeadline(transporter.sendMail(mail), "EduClear email send");
@@ -540,7 +637,7 @@ export type SendSchoolEmailInput = {
     content: Buffer | string;
     contentType?: string;
   }[];
-  /** Ignored — reply-to is resolved server-side per school (SMTP replyTo → registered school email). */
+  /** Ignored — reply-to is resolved server-side per school (saved replyTo → registered school email). */
   replyTo?: string;
 };
 
@@ -567,9 +664,20 @@ export async function sendSchoolEmail(schoolId: string, input: SendSchoolEmailIn
     throw err;
   }
 
-  const fromName = String(row?.fromName || branding.schoolName || "School").trim() || "School";
+  const fromName = String(branding.schoolName || "School").trim() || "School";
   const from = formatFromAddress(fromName, platformFromEmail());
   const replyTo = await resolveReplyToForSchoolSend(schoolId);
+  if (hasResendProvider()) {
+    return sendWithResend({
+      from,
+      to: input.to,
+      subject: input.subject,
+      html: input.html,
+      replyTo,
+      attachments: input.attachments || [],
+    });
+  }
+
   const transporter = createPlatformTransport();
 
   try {
