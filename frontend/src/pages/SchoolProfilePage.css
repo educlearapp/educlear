@@ -110,6 +110,26 @@
   border-bottom: 1px solid rgba(31, 41, 55, 0.1);
 }
 
+.school-profile-page .school-profile-status {
+  margin: 14px 18px 0;
+  padding: 10px 12px;
+  border-radius: 8px;
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.school-profile-page .school-profile-status.success {
+  border: 1px solid #bbf7d0;
+  background: #f0fdf4;
+  color: #166534;
+}
+
+.school-profile-page .school-profile-status.error {
+  border: 1px solid #fecaca;
+  background: #fef2f2;
+  color: #b91c1c;
+}
+
 .school-profile-page .profile-tab {
   min-width: 96px;
   height: 44px;

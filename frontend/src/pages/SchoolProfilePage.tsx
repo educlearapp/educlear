@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState, type ChangeEvent } from "react";
 import {
+  changeSchoolProfilePassword,
   fetchSchoolProfile,
   mapToApiPayload,
   saveSchoolProfile,
@@ -18,6 +19,7 @@ import {
 import "./SchoolProfilePage.css";
 
 type ProfileTab = "general" | "contact" | "address" | "billing" | "password";
+type ProfileStatus = { type: "success" | "error"; message: string } | null;
 
 type Props = {
   go: (page: any) => void;
@@ -34,6 +36,7 @@ export default function SchoolProfilePage({ go }: Props) {
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
   const [logoUploading, setLogoUploading] = useState(false);
+  const [status, setStatus] = useState<ProfileStatus>(null);
 
   useEffect(() => {
     if (!schoolId) {
@@ -85,6 +88,7 @@ export default function SchoolProfilePage({ go }: Props) {
 
       setLogoUploading(true);
       setMenuOpen(false);
+      setStatus(null);
       try {
         const uploaded = await uploadSchoolLogoFile(file);
         const payload = mapToApiPayload(form);
@@ -92,9 +96,12 @@ export default function SchoolProfilePage({ go }: Props) {
         const savedUrl = updated.logoUrl ? absolutizeSchoolLogoUrl(updated.logoUrl) : uploaded;
         setLogoUrl(savedUrl);
         cacheSchoolLogoUrl(savedUrl);
-        alert("School logo saved.");
+        setStatus({ type: "success", message: "School logo saved." });
       } catch (err) {
-        alert(err instanceof Error ? err.message : "Failed to upload logo");
+        setStatus({
+          type: "error",
+          message: err instanceof Error ? err.message : "Failed to upload logo",
+        });
       } finally {
         setLogoUploading(false);
       }
@@ -104,19 +111,24 @@ export default function SchoolProfilePage({ go }: Props) {
 
   const handleSave = useCallback(async () => {
     if (!schoolId) {
-      alert("No school selected. Cannot save profile.");
+      setStatus({ type: "error", message: "No school selected. Cannot save profile." });
       return;
     }
 
-    if (form.newPassword || form.confirmPassword) {
-      if (form.newPassword !== form.confirmPassword) {
-        alert("Passwords do not match.");
-        return;
-      }
-      alert("School profile saved. Password change is not available on this screen yet.");
+    const newPassword = form.newPassword;
+    const confirmPassword = form.confirmPassword;
+    const shouldChangePassword = Boolean(newPassword || confirmPassword);
+    if (shouldChangePassword && newPassword !== confirmPassword) {
+      setStatus({ type: "error", message: "New password and confirm password must match." });
+      return;
+    }
+    if (shouldChangePassword && newPassword.length < 8) {
+      setStatus({ type: "error", message: "New password must be at least 8 characters." });
+      return;
     }
 
     setSaving(true);
+    setStatus(null);
     try {
       const payload = mapToApiPayload({
         ...form,
@@ -127,6 +139,9 @@ export default function SchoolProfilePage({ go }: Props) {
         ...payload,
         ...(logoUrl ? { logoUrl } : {}),
       });
+      if (shouldChangePassword) {
+        await changeSchoolProfilePassword(schoolId, newPassword);
+      }
       const reloaded = await fetchSchoolProfile(schoolId);
       if (!reloaded) {
         throw new Error("Profile saved but could not reload from server");
@@ -148,11 +163,15 @@ export default function SchoolProfilePage({ go }: Props) {
         setLogoUrl(url);
         cacheSchoolLogoUrl(url);
       }
-      if (!form.newPassword && !form.confirmPassword) {
-        alert("Profile saved");
-      }
+      setStatus({
+        type: "success",
+        message: shouldChangePassword ? "Profile saved and password updated." : "Profile saved.",
+      });
     } catch (err) {
-      alert(err instanceof Error ? err.message : "Failed to save profile");
+      setStatus({
+        type: "error",
+        message: err instanceof Error ? err.message : "Failed to save profile",
+      });
     } finally {
       setSaving(false);
     }
@@ -217,7 +236,7 @@ export default function SchoolProfilePage({ go }: Props) {
                 type="button"
                 onClick={() => {
                   if (confirm("Are you sure you want to close this account?")) {
-                    alert("Close account request confirmed");
+                    setStatus({ type: "success", message: "Close account request confirmed." });
                   }
                 }}
               >
@@ -249,6 +268,14 @@ export default function SchoolProfilePage({ go }: Props) {
           <span className="school-profile-side-label">School</span>
         </aside>
         <main className="profile-main">
+          {status && (
+            <div
+              className={`school-profile-status ${status.type}`}
+              role={status.type === "error" ? "alert" : "status"}
+            >
+              {status.message}
+            </div>
+          )}
           <div className="profile-tabs">
             <button type="button" onClick={() => setProfileTab("general")} className={tabClass("general")}>
               General

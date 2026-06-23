@@ -122,6 +122,14 @@ export type PaymentDuplicateFingerprint = {
   reference?: string;
 };
 
+function paymentFingerprintReference(reference: string, method: string): string {
+  const ref = String(reference || "").trim().toLowerCase();
+  if (!ref) return "";
+  if (/^pay-\d{8}-[a-z0-9]+-\d{3}$/i.test(ref)) return "";
+  if (method && ref === method) return "";
+  return ref;
+}
+
 export function paymentDuplicateFingerprint(
   schoolId: string,
   input: PaymentDuplicateFingerprint
@@ -130,7 +138,7 @@ export function paymentDuplicateFingerprint(
   const amount = normaliseAmount(input.amount).toFixed(2);
   const date = String(input.date || "").slice(0, 10);
   const method = String(input.method || "").trim().toLowerCase();
-  const reference = String(input.reference || "").trim().toLowerCase();
+  const reference = paymentFingerprintReference(String(input.reference || ""), method);
   return [
     String(schoolId || "").trim(),
     accountRef,
@@ -258,6 +266,36 @@ export type AppendSchoolEntryResult = {
   duplicateReason?: "id" | "fingerprint" | "idempotencyKey" | "invoiceFingerprint";
 };
 
+function paymentReferenceAccountToken(accountNo: string): string {
+  return (
+    String(accountNo || "")
+      .trim()
+      .toUpperCase()
+      .replace(/[^A-Z0-9]/g, "")
+      .slice(0, 18) || "ACCOUNT"
+  );
+}
+
+function buildNextPaymentReference(
+  entries: BillingLedgerEntry[],
+  paymentDate: string,
+  accountNo: string
+): string {
+  const ymd =
+    normaliseIsoDate(paymentDate).replace(/-/g, "") ||
+    new Date().toISOString().slice(0, 10).replace(/-/g, "");
+  const accountToken = paymentReferenceAccountToken(accountNo);
+  const prefix = `PAY-${ymd}-${accountToken}-`;
+  let maxSequence = 0;
+  for (const entry of entries) {
+    const ref = String(entry.reference || "").trim().toUpperCase();
+    if (!ref.startsWith(prefix)) continue;
+    const seq = Number(ref.slice(prefix.length));
+    if (Number.isInteger(seq) && seq > maxSequence) maxSequence = seq;
+  }
+  return `${prefix}${String(maxSequence + 1).padStart(3, "0")}`;
+}
+
 /**
  * Atomic append with duplicate protection (double-click / concurrent save).
  */
@@ -267,6 +305,7 @@ export function appendSchoolEntrySafe(
   opts: {
     idempotencyKey?: string;
     duplicateWindowMs?: number;
+    generatePaymentReference?: boolean;
   } = {}
 ): AppendSchoolEntryResult {
   const sid = String(schoolId || "").trim();
@@ -315,6 +354,12 @@ export function appendSchoolEntrySafe(
       const duplicate = findRecentDuplicatePayment(current, fingerprint, windowMs, entry.id);
       if (duplicate) {
         return { entry: duplicate, created: false, duplicateReason: "fingerprint" };
+      }
+      if (opts.generatePaymentReference) {
+        entry = {
+          ...entry,
+          reference: buildNextPaymentReference(current, entry.date, entry.accountNo),
+        };
       }
     }
 

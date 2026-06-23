@@ -315,8 +315,9 @@ router.get("/:paymentId/receipt/pdf", async (req, res) => {
     doc.fontSize(11);
     doc.text(`Account: ${payment.accountNo || ""}`);
     doc.text(`Date: ${payment.date || ""}`);
+    doc.text(`Reference: ${payment.reference || payment.id}`);
     doc.text(`Amount: R ${normaliseAmount(payment.amount).toFixed(2)}`);
-    doc.text(`Method: ${payment.method || payment.reference || "Payment"}`);
+    doc.text(`Method: ${payment.method || "Payment"}`);
     doc.moveDown();
     doc.text("Allocations:");
     if (!allocations.length) {

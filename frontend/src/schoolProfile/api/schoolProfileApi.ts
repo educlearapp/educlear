@@ -134,3 +134,30 @@ export async function saveSchoolProfile(
 
   return recordFromRow(data as Record<string, unknown>, id);
 }
+
+export async function changeSchoolProfilePassword(
+  schoolId: string,
+  newPassword: string
+): Promise<string> {
+  const id = String(schoolId || "").trim();
+  if (!id) throw new Error("No school selected");
+
+  const res = await fetch(`${API_URL}/api/schools/${encodeURIComponent(id)}/password`, {
+    method: "POST",
+    headers: schoolProfileHeaders(),
+    body: JSON.stringify({ newPassword }),
+  });
+
+  const text = await res.text();
+  const data = parseJsonBody(text);
+
+  if (!res.ok) {
+    throw new Error(errorMessageFromResponse(res.status, data));
+  }
+
+  if (data && typeof data === "object" && "message" in data) {
+    const message = (data as { message?: unknown }).message;
+    if (typeof message === "string" && message.trim()) return message;
+  }
+  return "Password updated successfully";
+}

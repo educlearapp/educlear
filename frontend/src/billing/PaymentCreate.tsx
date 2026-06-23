@@ -202,6 +202,7 @@ export default function PaymentCreate({
         id: row.id,
         date: row.date,
         type: row.method || "EFT",
+        reference: row.reference || "",
         description: row.description,
         amount: row.amount,
         allocated: row.amount,
@@ -384,6 +385,7 @@ export default function PaymentCreate({
     setSaving(true);
     try {
       const result = await createPayment(paymentPayload);
+      const savedReference = String((result as any)?.payment?.reference || paymentPayload.reference);
       await syncBillingLedgerFromApi(schoolId);
       notifyBillingUpdated();
 
@@ -394,7 +396,7 @@ export default function PaymentCreate({
         amount: normaliseBillingAmount(amount),
         date: paymentDate,
         accountNo,
-        reference: paymentPayload.reference,
+        reference: savedReference,
         createdBy: "Billing",
       });
 
@@ -1174,7 +1176,7 @@ export default function PaymentCreate({
 
 
 
-              {["Date", "Type", "Description", "Amount", "Allocated", "Unallocated"].map((h) => (
+              {["Date", "Type", "Reference", "Description", "Amount", "Allocated", "Unallocated"].map((h) => (
 
 
 
@@ -1206,7 +1208,7 @@ export default function PaymentCreate({
 
 
 
-                <td colSpan={6} style={{ ...payCell, textAlign: "center", color: "#64748b" }}>
+                <td colSpan={7} style={{ ...payCell, textAlign: "center", color: "#64748b" }}>
 
 
 
@@ -1239,6 +1241,10 @@ export default function PaymentCreate({
 
 
                   <td style={payCell}>{row.type}</td>
+
+
+
+                  <td style={payCell}>{row.reference}</td>
 
 
 

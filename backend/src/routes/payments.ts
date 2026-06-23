@@ -197,7 +197,6 @@ router.post("/", async (req, res) => {
 
     const paymentDate = String(body.date || body.paidAt || new Date().toISOString()).slice(0, 10);
     const paymentMethod = String(body.method || body.type || "").trim() || undefined;
-    const paymentReference = String(body.reference || "").trim();
     const idempotencyKey = String(body.idempotencyKey || "").trim();
 
     const entry: BillingLedgerEntry = {
@@ -208,14 +207,17 @@ router.post("/", async (req, res) => {
       type: "payment",
       amount,
       date: paymentDate,
-      reference: paymentReference,
+      reference: paymentMethod || "Payment",
       description: paymentNote || "Payment",
       method: paymentMethod,
       source: "manual",
       createdAt: new Date().toISOString(),
     };
 
-    const appendResult = appendSchoolEntrySafe(schoolId, entry, { idempotencyKey });
+    const appendResult = appendSchoolEntrySafe(schoolId, entry, {
+      idempotencyKey,
+      generatePaymentReference: true,
+    });
     const savedEntry = appendResult.entry;
 
     await relinkSchoolBillingLedger(schoolId);
