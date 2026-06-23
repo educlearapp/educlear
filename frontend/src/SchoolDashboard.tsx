@@ -547,6 +547,7 @@ const schoolId =
 
 
   const [learners, setLearners] = useState<any[]>([]);
+  const [registrationLearners, setRegistrationLearners] = useState<any[]>([]);
   const [billingVersion, setBillingVersion] = useState(0);
   const [learnersVersion, setLearnersVersion] = useState(0);
   const [registrationsDataLoading, setRegistrationsDataLoading] = useState(Boolean(schoolId));
@@ -1797,6 +1798,7 @@ const [selectedLearnerReport, setSelectedLearnerReport] = useState<any>(null);
   useEffect(() => {
     if (!schoolId) {
       setLearners([]);
+      setRegistrationLearners([]);
       setParents([]);
       setRegistrationStats(null);
       setRegistrationsDataLoading(false);
@@ -1810,6 +1812,9 @@ const [selectedLearnerReport, setSelectedLearnerReport] = useState<any>(null);
       fetch(`${API_URL}/api/registrations/learners?schoolId=${encodeURIComponent(schoolId)}`).then((res) =>
         res.json()
       ),
+      fetch(
+        `${API_URL}/api/registrations/learners?schoolId=${encodeURIComponent(schoolId)}&includeHistorical=true`
+      ).then((res) => res.json()),
       fetch(`${API_URL}/api/parents?schoolId=${encodeURIComponent(schoolId)}`).then((res) =>
         res.json()
       ),
@@ -1817,7 +1822,7 @@ const [selectedLearnerReport, setSelectedLearnerReport] = useState<any>(null);
         res.json()
       ),
     ])
-      .then(([learnersData, parentsData, statsData]) => {
+      .then(([learnersData, allLearnersData, parentsData, statsData]) => {
         if (cancelled) return;
 
 
@@ -1919,6 +1924,13 @@ const [selectedLearnerReport, setSelectedLearnerReport] = useState<any>(null);
         
         
         );
+        setRegistrationLearners(
+          Array.isArray(allLearnersData?.learners)
+            ? allLearnersData.learners
+            : Array.isArray(learnersData?.learners)
+              ? learnersData.learners
+              : []
+        );
 
 
 
@@ -1966,6 +1978,7 @@ const [selectedLearnerReport, setSelectedLearnerReport] = useState<any>(null);
       .catch(() => {
         if (cancelled) return;
         setLearners([]);
+        setRegistrationLearners([]);
         setParents([]);
         setRegistrationStats(null);
       })
@@ -15510,7 +15523,7 @@ const [invoiceRunEmailDraft, setInvoiceRunEmailDraft] = useState({
       
       
       
-          learners={learners}
+          learners={registrationLearners}
       
       
       

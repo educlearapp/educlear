@@ -11,6 +11,7 @@ import {
 } from "./learnerIdentity";
 import "../AddLearner.css";
 import LearnerBillingPlanTab from "./LearnerBillingPlanTab";
+import { notifyLearnersRefresh } from "../billing/billingLedger";
 
 const GOLD = "#d4af37";
 
@@ -413,6 +414,9 @@ export default function ManageLearner({
     const fullName = learnerFullName(learner);
     const classroom = learnerClassroom(learner);
     const accountNo = getLearnerAccountNo(learner);
+    const isHistoricalLearner =
+      String(learner?.enrollmentStatus || "").trim().toUpperCase() === "HISTORICAL";
+    const enrollmentAction = isHistoricalLearner ? "Re-enrol" : "Unenrol";
 
     const persistLearner = (updated: any) => {
       setSelectedLearner(updated);
@@ -543,11 +547,52 @@ export default function ManageLearner({
         setLearners((prevLearners: any[]) =>
           prevLearners.filter((item: any) => String(item.id) !== String(learner.id))
         );
+        notifyLearnersRefresh();
         alert("Learner unenrolled successfully.");
         onBack();
       } catch (error) {
         console.error(error);
         alert(error instanceof Error ? error.message : "Failed to unenrol learner");
+      } finally {
+        setUnenrolling(false);
+      }
+    };
+
+    const handleReenrolLearner = async () => {
+      if (!learner?.id || unenrolling) return;
+      const confirmed = window.confirm(`Re-enrol ${fullName || "this learner"} as active?`);
+      if (!confirmed) return;
+
+      setUnenrolling(true);
+      try {
+        const response = await fetch(
+          `${API_URL}/api/learners/${encodeURIComponent(learner.id)}/enrollment-status`,
+          {
+            method: "PATCH",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ enrollmentStatus: "ACTIVE" }),
+          }
+        );
+        const payload = await response.json().catch(() => ({}));
+        if (!response.ok) {
+          throw new Error(payload?.error || "Failed to re-enrol learner");
+        }
+
+        const updatedLearner = normalizeLearnerForManage(payload?.learner || {
+          ...learner,
+          enrollmentStatus: "ACTIVE",
+        });
+        persistLearner(updatedLearner);
+        setLearners((prevLearners: any[]) => [
+          updatedLearner,
+          ...prevLearners.filter((item: any) => String(item.id) !== String(learner.id)),
+        ]);
+        notifyLearnersRefresh();
+        alert("Learner re-enrolled successfully.");
+        onBack();
+      } catch (error) {
+        console.error(error);
+        alert(error instanceof Error ? error.message : "Failed to re-enrol learner");
       } finally {
         setUnenrolling(false);
       }
@@ -1066,7 +1111,7 @@ export default function ManageLearner({
   
   
   
-              {["Send Email", "Send SMS", "Unenrol", "Delete"].map((item) => (
+              {["Send Email", "Send SMS", enrollmentAction, "Delete"].map((item) => (
   
   
   
@@ -1130,7 +1175,7 @@ export default function ManageLearner({
   
   
   
-                  disabled={item === "Unenrol" && unenrolling}
+                  disabled={(item === "Unenrol" || item === "Re-enrol") && unenrolling}
                   onClick={() => {
   
   
@@ -1141,6 +1186,11 @@ export default function ManageLearner({
   
                     if (item === "Unenrol") {
                       void handleUnenrolLearner();
+                      return;
+                    }
+
+                    if (item === "Re-enrol") {
+                      void handleReenrolLearner();
                       return;
                     }
 
@@ -1156,7 +1206,11 @@ export default function ManageLearner({
   
   
   
-                  {item === "Unenrol" && unenrolling ? "Unenrolling..." : item}
+                  {item === "Unenrol" && unenrolling
+                    ? "Unenrolling..."
+                    : item === "Re-enrol" && unenrolling
+                      ? "Re-enrolling..."
+                      : item}
   
   
   

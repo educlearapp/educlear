@@ -53,6 +53,8 @@ router.get("/learners", async (req, res) => {
 
 
     const schoolId = String(req.query.schoolId || "");
+    const includeHistorical =
+      String(req.query.includeHistorical || "").trim().toLowerCase() === "true";
 
 
 
@@ -91,7 +93,7 @@ router.get("/learners", async (req, res) => {
 
 
 
-      where: activeLearnerWhere(schoolId),
+      where: includeHistorical ? { schoolId } : activeLearnerWhere(schoolId),
 
 
 
@@ -125,7 +127,9 @@ router.get("/learners", async (req, res) => {
 
     });
 
-    console.log(`[liveLearnerList] schoolId=${schoolId} count=${learners.length}`);
+    console.log(
+      `[liveLearnerList] schoolId=${schoolId} includeHistorical=${includeHistorical} count=${learners.length}`
+    );
 
     const learnerIds = new Set(learners.map((l) => l.id));
     const orphanPlanKeys = Object.keys(billingPlansByLearner).filter((id) => !learnerIds.has(id));

@@ -108,6 +108,10 @@ function dash(v: any) {
 
 }
 
+function isHistoricalEnrollment(learner: AnyRecord) {
+  return String(learner.enrollmentStatus || "").trim().toUpperCase() === "HISTORICAL";
+}
+
 
 
 function learnerFirstName(l: AnyRecord) {
@@ -554,7 +558,11 @@ setLocalLearners(mergedLearners);
 
 
 
-      if (!showUnenrolled && !isActiveEnrollment(learner)) return false;
+      if (showUnenrolled) {
+        if (!isHistoricalEnrollment(learner)) return false;
+      } else if (!isActiveEnrollment(learner)) {
+        return false;
+      }
 
 
 
@@ -983,11 +991,11 @@ setLocalLearners(mergedLearners);
 
 
 
-              <option value="hide">Hide Unenrolled</option>
+              <option value="hide">Active learners</option>
 
 
 
-              <option value="show">Show Unenrolled</option>
+              <option value="show">Unenrolled learners</option>
 
 
 
