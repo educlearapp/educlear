@@ -30,6 +30,7 @@ export type StatementManageTransactionRow = {
   auditNo: string | number;
   date: string;
   type: string;
+  method: string;
   learner: string;
   reference: string;
   description: string;
@@ -195,6 +196,7 @@ export function buildStatementManageTransactions(
       auditNo: index + 1,
       date: entry.date || "-",
       type: typeLabel,
+      method: entry.type === "payment" ? String(entry.method || "").trim() || "—" : "—",
       learner: learnerLabel,
       reference: formatLedgerReferenceDisplay(entry),
       description: formatLedgerDescriptionDisplay(entry),
@@ -220,6 +222,7 @@ export function buildStatementManageTransactions(
       auditNo: "—",
       date: entry.date || "-",
       type: formatKidesysHistoryTypeLabel(entry.type),
+      method: "—",
       learner: entry.fullName || "—",
       reference: formatKidesysHistoryReferenceDisplay(entry),
       description: formatKidesysHistoryDescriptionDisplay(entry),

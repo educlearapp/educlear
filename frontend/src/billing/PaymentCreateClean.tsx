@@ -600,7 +600,8 @@ export default function PaymentCreateClean({
       .map((row) => ({
         id: row.id,
         date: String(row.date || "").slice(0, 10),
-        type: row.method || row.reference || "EFT",
+        reference: String(row.reference || "").trim() || "—",
+        method: String(row.method || "").trim() || "—",
         description: String(row.description || "Payment").trim() || "Payment",
         amount: normaliseBillingAmount(row.amount),
         source: row.source,
@@ -1413,6 +1414,102 @@ export default function PaymentCreateClean({
                       <td style={payCell}>{row.description}</td>
                       <td style={payCell}>{formatMoney(row.unpaid)}</td>
                       <td style={payCell}>{allocated > 0 ? formatMoney(allocated) : "-"}</td>
+                    </tr>
+                  );
+                })
+              )}
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+      <section
+        style={{
+          marginTop: 16,
+          background: "#fff",
+          border: "1px solid #d6c17a",
+          borderRadius: 14,
+          overflow: "hidden",
+        }}
+      >
+        <div
+          style={{
+            background: "#111827",
+            color: "#d4af37",
+            padding: "11px 15px",
+            fontSize: 18,
+            fontWeight: 900,
+          }}
+        >
+          Recent Payments / Receipts
+        </div>
+        <div style={{ overflowX: "auto" }}>
+          <table style={{ width: "100%", borderCollapse: "collapse", minWidth: 760 }}>
+            <thead>
+              <tr style={{ background: "#f8fafc" }}>
+                {["Date", "Reference", "Method", "Description", "Amount", "Receipt"].map((h) => (
+                  <th
+                    key={h}
+                    style={{
+                      padding: 10,
+                      textAlign: h === "Amount" ? "right" : "left",
+                      fontWeight: 900,
+                      fontSize: 12,
+                    }}
+                  >
+                    {h}
+                  </th>
+                ))}
+              </tr>
+            </thead>
+            <tbody>
+              {savedPayments.length === 0 ? (
+                <tr>
+                  <td colSpan={6} style={{ ...payCell, textAlign: "center", color: "#64748b" }}>
+                    No payments recorded yet.
+                  </td>
+                </tr>
+              ) : (
+                savedPayments.map((row, index) => {
+                  const isSelected = row.id === selectedPaymentId;
+                  return (
+                    <tr
+                      key={row.id}
+                      onClick={() => setSelectedPaymentId(row.id)}
+                      style={{
+                        cursor: "pointer",
+                        background: isSelected
+                          ? "rgba(212, 175, 55, 0.14)"
+                          : index % 2 === 0
+                            ? "#fffdf7"
+                            : "#fff",
+                      }}
+                    >
+                      <td style={payCell}>{row.date}</td>
+                      <td style={{ ...payCell, fontWeight: 900 }}>{row.reference}</td>
+                      <td style={payCell}>{row.method}</td>
+                      <td style={payCell}>{row.description}</td>
+                      <td style={{ ...payCell, textAlign: "right" }}>{formatMoney(row.amount)}</td>
+                      <td style={payCell}>
+                        <button
+                          type="button"
+                          style={paySmallBtn}
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setSelectedPaymentId(row.id);
+                            const opened = window.open(
+                              receiptPdfUrl(schoolId, row.id),
+                              "_blank",
+                              "noopener,noreferrer"
+                            );
+                            if (!opened) {
+                              setTxnActionErr("Pop-up blocked. Allow pop-ups to open the receipt PDF.");
+                            }
+                          }}
+                        >
+                          Print
+                        </button>
+                      </td>
                     </tr>
                   );
                 })

@@ -675,6 +675,7 @@ export default function StatementManage({
     auditNo: string | number;
     date: string;
     type: string;
+    method: string;
     learner: string;
     reference: string;
     description: string;
@@ -713,8 +714,8 @@ export default function StatementManage({
   }, [pageableTransactions, transactionsPage]);
 
   const transactionColumns = isFamilyBillingAccount
-    ? ["Audit No", "Date", "Type", "Learner", "Reference", "Description", "Amount In", "Amount Out", "Balance"]
-    : ["Audit No", "Date", "Type", "Reference", "Description", "Amount In", "Amount Out", "Balance"];
+    ? ["Audit No", "Date", "Type", "Method", "Learner", "Reference", "Description", "Amount In", "Amount Out", "Balance"]
+    : ["Audit No", "Date", "Type", "Method", "Reference", "Description", "Amount In", "Amount Out", "Balance"];
 
   const closeModal = () => {
     setModalKind(null);
@@ -1360,6 +1361,7 @@ export default function StatementManage({
           row.type
         )}
       </td>
+      <td style={compactCell}>{row.method || "—"}</td>
       {isFamilyBillingAccount ? (
         <td style={compactCell}>{row.learner || "-"}</td>
       ) : null}

@@ -156,6 +156,7 @@ export type StatementAccountTransactionRow = {
   auditNo: string | number;
   date: string;
   type: string;
+  method: string;
   learner: string;
   reference: string;
   description: string;
