@@ -1,9 +1,9 @@
 import React, { useCallback, useEffect, useMemo, useState } from "react";
-import { collectParentSmsContacts } from "./contactHelpers";
 import {
   COMMUNICATION_SETTINGS_UPDATED,
   createSms,
   deleteSms,
+  fetchCommunicationContacts,
   fetchCommunicationSettings,
   fetchSms,
   fetchSmsList,
@@ -11,6 +11,7 @@ import {
   sendSms,
   updateSms,
   type CommunicationSettings,
+  type CommunicationRecipientKind,
   type SmsContact,
   type SmsRecord,
 } from "./communicationApi";
@@ -90,6 +91,9 @@ export default function SMS({
   const [contacts, setContacts] = useState<SmsContact[]>([]);
   const [selectedContactIds, setSelectedContactIds] = useState<string[]>([]);
   const [contactSearch, setContactSearch] = useState("");
+  const [recipientKind, setRecipientKind] = useState<CommunicationRecipientKind>("parents");
+  const [classFilter, setClassFilter] = useState("");
+  const [classFilters, setClassFilters] = useState<string[]>([]);
 
   const [contactModalOpen, setContactModalOpen] = useState(false);
   const [previewOpen, setPreviewOpen] = useState(false);
@@ -183,8 +187,16 @@ export default function SMS({
     setMoreOpen(false);
   };
 
-  const openAdd = () => {
+  const openAdd = async () => {
     resetCompose();
+    if (schoolId) {
+      const contactRes = await fetchCommunicationContacts({
+        schoolId,
+        channel: "sms",
+        kind: "parents",
+      }).catch(() => null);
+      if (contactRes?.classFilters) setClassFilters(contactRes.classFilters);
+    }
     setView("compose");
   };
 
@@ -284,20 +296,41 @@ export default function SMS({
     }
   };
 
-  const handleAutoAdd = () => {
-    const added = collectParentSmsContacts(learners, parents);
-    if (!added.length) {
-      setError("No parent cell numbers found.");
-      return;
-    }
-    const existing = new Set(contacts.map((c) => c.cellNo.replace(/\D/g, "")));
-    const merged = [...contacts];
-    for (const c of added) {
-      const key = c.cellNo.replace(/\D/g, "");
-      if (!existing.has(key)) merged.push(c);
-    }
-    setContacts(merged);
+  const handleAutoAdd = async () => {
+    if (!schoolId) return;
+    setLoading(true);
     setError("");
+    try {
+      const res = await fetchCommunicationContacts({
+        schoolId,
+        channel: "sms",
+        kind: recipientKind,
+        className: classFilter,
+      });
+      setClassFilters(res.classFilters || []);
+      const added: SmsContact[] = (res.contacts || []).map((contact) => ({
+        id: contact.id,
+        contactName: contact.contactName,
+        relationship: contact.relationship,
+        cellNo: String(contact.cellNo || "").trim(),
+        status: "Ready",
+      }));
+      if (!added.length) {
+        setError("No valid SMS contacts found for the selected filters.");
+        return;
+      }
+      const existing = new Set(contacts.map((c) => c.cellNo.replace(/\D/g, "")));
+      const merged = [...contacts];
+      for (const c of added) {
+        const key = c.cellNo.replace(/\D/g, "");
+        if (!existing.has(key)) merged.push(c);
+      }
+      setContacts(merged);
+    } catch (e: any) {
+      setError(e?.message || "Failed to load contacts");
+    } finally {
+      setLoading(false);
+    }
   };
 
   const addManualContact = () => {
@@ -398,7 +431,31 @@ export default function SMS({
         <div style={{ marginTop: 22 }}>
           <div style={{ display: "flex", gap: 10, flexWrap: "wrap", marginBottom: 12 }}>
             <button type="button" style={goldBtn} onClick={() => setContactModalOpen(true)}>Add</button>
-            <button type="button" style={ghostBtn} onClick={handleAutoAdd}>Auto Add</button>
+            <select
+              style={{ ...fieldStyle, maxWidth: 180 }}
+              value={recipientKind}
+              onChange={(e) => setRecipientKind(e.target.value as CommunicationRecipientKind)}
+            >
+              <option value="parents">Parents</option>
+              <option value="learners">Learners</option>
+              <option value="teachers">Teachers</option>
+              <option value="employees">Employees</option>
+              <option value="all">All Contacts</option>
+            </select>
+            <select
+              style={{ ...fieldStyle, maxWidth: 180 }}
+              value={classFilter}
+              onChange={(e) => setClassFilter(e.target.value)}
+              disabled={recipientKind === "employees"}
+            >
+              <option value="">All Classes</option>
+              {classFilters.map((name) => (
+                <option key={name} value={name}>{name}</option>
+              ))}
+            </select>
+            <button type="button" style={ghostBtn} onClick={() => void handleAutoAdd()} disabled={loading}>
+              Load Contacts
+            </button>
             <button type="button" style={ghostBtn} onClick={removeSelected}>Remove</button>
             <button type="button" style={ghostBtn} onClick={() => setPreviewOpen(true)}>Preview</button>
             <input placeholder="Search contacts" style={{ ...fieldStyle, maxWidth: 260 }} value={contactSearch} onChange={(e) => setContactSearch(e.target.value)} />
@@ -527,7 +584,7 @@ export default function SMS({
       {error ? <div style={{ marginBottom: 14, padding: 12, borderRadius: 10, background: "#fef2f2", color: "#b91c1c", fontWeight: 700 }}>{error}</div> : null}
 
       <div style={{ display: "flex", gap: 10, flexWrap: "wrap", marginBottom: 14 }}>
-        <button type="button" style={goldBtn} onClick={openAdd}>Add</button>
+            <button type="button" style={goldBtn} onClick={() => void openAdd()}>Add</button>
         <button type="button" style={ghostBtn} onClick={() => pageRows[0] && openManage(pageRows[0].id)} disabled={!pageRows.length}>Manage</button>
         <input placeholder="Search…" style={{ ...fieldStyle, maxWidth: 280, marginLeft: "auto" }} value={search} onChange={(e) => { setSearch(e.target.value); setPage(1); }} />
       </div>

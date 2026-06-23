@@ -6,7 +6,7 @@ function normalizeFetchError(error: unknown, context: string): Error {
   if (error instanceof Error) {
     if (error.name === "AbortError") {
       return new Error(
-        `${context} timed out. The server may be blocked from reaching your SMTP host (common on Render free tier). Check host, port, and credentials.`
+        `${context} timed out while contacting the EduClear email service. Please retry.`
       );
     }
     const msg = String(error.message || "").trim();
@@ -18,7 +18,7 @@ function normalizeFetchError(error: unknown, context: string): Error {
       msg === "Network request failed"
     ) {
       return new Error(
-        `${context} could not reach the EduClear server (${API_URL}). Check your connection, or retry — if SMTP is blocked in production, the backend will return a detailed error after connecting.`
+          `${context} could not reach the EduClear server (${API_URL}). Check your connection and retry.`
       );
     }
     return error;
@@ -75,7 +75,7 @@ async function request<T>(
   return data as T;
 }
 
-export type EmailProviderType = "gmail" | "outlook" | "icloud" | "yahoo" | "custom";
+export type EmailProviderType = "platform" | "gmail" | "outlook" | "icloud" | "yahoo" | "custom";
 
 export type SchoolEmailSettings = {
   schoolId: string;
@@ -86,6 +86,7 @@ export type SchoolEmailSettings = {
   smtpUser: string;
   smtpPass: string;
   smtpPassSet: boolean;
+  schoolEmail: string;
   fromEmail: string;
   fromName: string;
   replyTo: string;
@@ -125,6 +126,7 @@ export async function fetchEmailProviderPresets() {
 
 export async function saveSchoolEmailSettings(payload: {
   schoolId: string;
+  schoolEmail?: string;
   provider: EmailProviderType;
   smtpHost: string;
   smtpPort: number;
@@ -159,14 +161,11 @@ export async function testSchoolEmailConnection(schoolId: string, testTo?: strin
 }
 
 /**
- * Persisted SMTP readiness from the API — requires configured SMTP, a passed test, ready flag, and lastTestedAt.
+ * School email readiness only requires a school email address; EduClear owns the sending provider.
  */
 export function isSchoolEmailReadyForUi(settings: SchoolEmailSettings | null | undefined): boolean {
   if (!settings) return false;
-  const lastTestedAt = settings.lastTestedAt ?? null;
-  const configured = Boolean(settings.configured);
-  const tested = Boolean(settings.testEmailPassed || settings.tested || lastTestedAt);
-  return Boolean(settings.ready && configured && tested && lastTestedAt);
+  return Boolean(settings.ready && settings.configured && String(settings.schoolEmail || settings.replyTo || "").trim());
 }
 
 /** Normalize API settings to persisted readiness fields (does not weaken backend ready state). */
@@ -180,12 +179,13 @@ export function normalizeSchoolEmailSettings(settings: SchoolEmailSettings): Sch
     testEmailPassed: tested,
     configured,
     lastTestedAt,
-    ready: Boolean(settings.ready),
+    ready: Boolean(settings.ready && configured),
   };
   return { ...merged, ready: isSchoolEmailReadyForUi(merged) };
 }
 
 export const PROVIDER_LABELS: Record<EmailProviderType, string> = {
+  platform: "EduClear Platform Email",
   gmail: "Gmail (App Password)",
   outlook: "Outlook / Office 365",
   icloud: "iCloud (App-Specific Password)",
@@ -199,11 +199,12 @@ export function applySchoolSenderDefaults(
   schoolName: string,
   schoolEmail: string
 ): SchoolEmailSettings {
-  const email = String(schoolEmail || "").trim();
+  const email = String(settings.schoolEmail || schoolEmail || "").trim();
   if (!email) return settings;
   const name = String(schoolName || "").trim() || "School";
   return {
     ...settings,
+    schoolEmail: email,
     fromEmail: String(settings.fromEmail || "").trim() || email,
     fromName: String(settings.fromName || "").trim() || name,
     replyTo: String(settings.replyTo || "").trim() || email,

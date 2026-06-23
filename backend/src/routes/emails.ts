@@ -20,7 +20,7 @@ router.post("/send-statement", async (req, res) => {
 
     if (!schoolId) {
       return res.status(400).json({
-        error: "Missing schoolId. Billing emails must be sent using the school's saved SMTP settings.",
+        error: "Missing schoolId. Billing emails must be sent through the EduClear email service.",
         setupRequired: true,
       });
     }

@@ -790,7 +790,7 @@ export default function PaymentCreateClean({
     }
     if (!isSchoolEmailReadyForUi(emailReadiness)) {
       setTxnActionErr(
-        "Email is not configured. Open Communication → Settings → Email (SMTP), save your provider settings, and send a test email."
+        "School email address is missing. Open Communication → Settings → Email and add the school's email address."
       );
       return;
     }

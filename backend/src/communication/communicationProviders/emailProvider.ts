@@ -1,4 +1,4 @@
-import { isSchoolEmailConfigured, sendSchoolEmail } from "../../services/schoolEmailService";
+import { sendSchoolEmail } from "../../services/schoolEmailService";
 
 export type ProviderSendContext = {
   schoolId: string;
@@ -20,15 +20,6 @@ export async function sendEmailPlaceholder(ctx: ProviderSendContext): Promise<Pr
   const recipient = String(ctx.recipient || "").trim();
   if (!recipient) {
     return { ok: false, simulated: false, error: "missing_recipient" };
-  }
-
-  if (!(await isSchoolEmailConfigured(ctx.schoolId))) {
-    return {
-      ok: false,
-      simulated: false,
-      error: "email_setup_required",
-      setupRequired: true,
-    };
   }
 
   try {

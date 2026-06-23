@@ -31,24 +31,13 @@ export function resolveSchoolDisplayName(
   return String(school?.schoolName || "School").trim() || "School";
 }
 
-/** SMTP from → school registration email → administration email; sendViaEduClearDomain always uses EDUCLEAR_RELAY_FROM_EMAIL. */
+/** Outbound mail always uses EduClear's verified sending address. School email is Reply-To only. */
 export function resolveSchoolSenderEmail(
-  settings: Partial<CommunicationSenderSettings> | null | undefined,
-  school?: SchoolBranding | null,
-  smtp?: SchoolSmtpSender | null
+  _settings: Partial<CommunicationSenderSettings> | null | undefined,
+  _school?: SchoolBranding | null,
+  _smtp?: SchoolSmtpSender | null
 ): string {
-  if (settings?.sendViaEduClearDomain) {
-    return EDUCLEAR_RELAY_FROM_EMAIL;
-  }
-  if (smtp?.configured) {
-    const smtpFrom = String(smtp.fromEmail || "").trim();
-    if (smtpFrom) return smtpFrom;
-  }
-  const schoolEmail = String(school?.schoolEmail || "").trim();
-  if (schoolEmail) return schoolEmail;
-  const administration = String(settings?.administrationEmail || "").trim();
-  if (administration) return administration;
-  return "";
+  return EDUCLEAR_RELAY_FROM_EMAIL;
 }
 
 /** Parents reply here: SMTP replyTo → school registration email → SMTP from → no-reply only if no school email. */

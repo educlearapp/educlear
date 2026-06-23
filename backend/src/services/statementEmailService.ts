@@ -18,7 +18,7 @@ export type SendStatementEmailInput = {
 };
 
 /**
- * Sends a statement PDF to one recipient using the school's saved SMTP settings.
+ * Sends a statement PDF to one recipient through EduClear's central email service.
  */
 export async function sendStatementEmail(input: SendStatementEmailInput) {
   const schoolId = String(input.schoolId || "").trim();

@@ -3028,7 +3028,7 @@ export default function InvoiceRuns(props: any) {
           if (err.setupRequired) {
             throw new Error(
               err.message ||
-                "Email setup required. Open Communication → Email (SMTP), save settings, and send a test email."
+                "School email address missing. Open Communication → Email and add the school's email address."
             );
           }
           throw new Error(err.message || "Failed to send statement email");
@@ -3059,7 +3059,7 @@ export default function InvoiceRuns(props: any) {
       const msg =
         error instanceof Error
           ? error.message
-          : "Email sending failed. Configure SMTP under Communication → Email (SMTP).";
+          : "Email sending failed. Check the school email address under Communication → Email.";
       alert(msg);
 
 

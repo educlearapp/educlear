@@ -1118,7 +1118,7 @@ export default function StatementManage({
       setModalKind("pending");
       setPendingModal({
         title: "Send Statement",
-        body: "Email setup required. Open Communication → Settings → Email (SMTP), save your provider settings, and send a test email.",
+        body: "School email address missing. Open Communication → Settings → Email and add the school's email address.",
       });
       return;
     }
@@ -1161,7 +1161,7 @@ export default function StatementManage({
     } catch (e: unknown) {
       const err = e as Error & { setupRequired?: boolean };
       if (err.setupRequired) {
-        setSendError(err.message || "Email setup required.");
+        setSendError(err.message || "School email address missing.");
         if (onOpenEmailSetup) {
           closeSendModal();
           onOpenEmailSetup();
@@ -1429,7 +1429,7 @@ export default function StatementManage({
         </button>
         <span
           style={{ position: "relative", display: "inline-flex", alignItems: "center" }}
-          title={emailReady ? "Send statement by email" : "Email setup required"}
+          title={emailReady ? "Send statement by email" : "School email address missing"}
         >
           <button
             type="button"
@@ -1459,7 +1459,7 @@ export default function StatementManage({
                 pointerEvents: "none",
               }}
             >
-              Email setup required
+              School email missing
             </span>
           ) : null}
         </span>
@@ -2199,8 +2199,7 @@ export default function StatementManage({
             </div>
             <p style={{ margin: 0, color: "#64748b", fontSize: 13, fontWeight: 600 }}>
               The statement PDF ({normalizeStatementPeriod(emailExportPeriod || exportPeriod)}) for account{" "}
-              {accountRef || accountNo} is attached. Email is sent using your school&apos;s saved SMTP settings (From /
-              Reply-To from Communication settings).
+              {accountRef || accountNo} is attached. Email is sent through EduClear&apos;s platform mail service; replies go to the school email address.
             </p>
             {sendError ? (
               <p style={{ margin: 0, color: "#b91c1c", fontWeight: 700, lineHeight: 1.6 }}>{sendError}</p>

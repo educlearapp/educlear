@@ -4,6 +4,12 @@ import path from "path";
 import crypto from "crypto";
 import { prisma } from "../prisma";
 import { getPublicSchoolEmailSettings } from "../services/schoolEmailService";
+import { sendSchoolEmail } from "../services/schoolEmailService";
+import {
+  loadCommunicationRecipients,
+  type CommunicationRecipientChannel,
+  type CommunicationRecipientKind,
+} from "../services/communicationRecipientService";
 import {
   applyEmailTemplateTokens,
   formatComposeSenderLabel,
@@ -309,6 +315,26 @@ router.post("/settings/test-sms", async (req, res) => {
   }
 });
 
+router.get("/contacts", async (req, res) => {
+  try {
+    const schoolId = String(req.query.schoolId || "").trim();
+    if (!schoolId) return res.status(400).json({ success: false, error: "Missing schoolId" });
+    const channel = String(req.query.channel || "email").trim() as CommunicationRecipientChannel;
+    const kind = String(req.query.kind || "parents").trim() as CommunicationRecipientKind;
+    const className = String(req.query.className || "").trim();
+    const result = await loadCommunicationRecipients({
+      schoolId,
+      channel: channel === "sms" ? "sms" : "email",
+      kind,
+      className,
+    });
+    return res.json({ success: true, ...result });
+  } catch (error) {
+    console.error("[communication] GET contacts failed:", error);
+    return res.status(500).json({ success: false, error: "Failed to load contacts" });
+  }
+});
+
 router.get("/emails", (req, res) => {
   try {
     const schoolId = String(req.query.schoolId || "").trim();
@@ -429,7 +455,14 @@ router.delete("/emails/:id", (req, res) => {
   }
 });
 
-router.post("/emails/:id/send", (req, res) => {
+function emailBodyToHtml(body: string) {
+  return `<div style="font-family:Arial,sans-serif;line-height:1.5">${String(body || "")
+    .split("\n")
+    .map((line) => `<p style="margin:0 0 8px">${line}</p>`)
+    .join("")}</div>`;
+}
+
+router.post("/emails/:id/send", async (req, res) => {
   try {
     const schoolId = String(req.body?.schoolId || "").trim();
     const id = String(req.params.id || "").trim();
@@ -442,18 +475,55 @@ router.post("/emails/:id/send", (req, res) => {
       return res.status(400).json({ success: false, error: "Add at least one contact before sending" });
     }
     const sentAt = new Date().toISOString();
-    record.contacts = record.contacts.map((c) => ({ ...c, status: "Sent" }));
-    record.status = "Sent";
-    record.sentAt = sentAt;
+    const html = emailBodyToHtml(record.message);
+    let sentCount = 0;
+    let failedCount = 0;
+    const errors: string[] = [];
+    const contacts = [];
+    for (const contact of record.contacts) {
+      const recipient = String(contact.email || "").trim();
+      if (!recipient) {
+        failedCount += 1;
+        contacts.push({ ...contact, status: "Failed" });
+        errors.push(`${contact.contactName || "Contact"} has no email address.`);
+        continue;
+      }
+      try {
+        await sendSchoolEmail(schoolId, {
+          to: recipient,
+          subject: record.subject || "Message from your school",
+          html,
+        });
+        sentCount += 1;
+        contacts.push({ ...contact, status: "Sent" });
+      } catch (error) {
+        failedCount += 1;
+        contacts.push({ ...contact, status: "Failed" });
+        errors.push(error instanceof Error ? error.message : `Could not send to ${recipient}`);
+      }
+    }
+    record.contacts = contacts;
+    record.status = sentCount > 0 ? "Sent" : "Draft";
+    record.sentAt = sentCount > 0 ? sentAt : undefined;
     record.updatedAt = sentAt;
     school.emails[idx] = record;
-    school.emailBalance = Math.max(0, school.emailBalance - record.contacts.length);
+    school.emailBalance = Math.max(0, school.emailBalance - sentCount);
     writeStore(store);
+    if (sentCount === 0) {
+      return res.status(400).json({
+        success: false,
+        error: errors[0] || "Email send failed for all recipients.",
+        email: record,
+        emailBalance: school.emailBalance,
+        simulated: false,
+      });
+    }
     return res.json({
       success: true,
       email: record,
       emailBalance: school.emailBalance,
-      simulated: true,
+      simulated: false,
+      ...(failedCount > 0 ? { warning: `${failedCount} recipient(s) could not be sent.` } : {}),
     });
   } catch (error) {
     console.error("[communication] send email failed:", error);

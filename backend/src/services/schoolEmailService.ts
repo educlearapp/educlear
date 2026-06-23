@@ -4,21 +4,16 @@ import type SMTPTransport from "nodemailer/lib/smtp-transport";
 import { prisma } from "../prisma";
 import { isProductionRuntime } from "./runtime";
 import {
+  EDUCLEAR_RELAY_FROM_EMAIL,
   resolveSchoolReplyToEmail,
   smtpSenderFromPublic,
 } from "../communication/schoolSender";
-import {
-  applyDevTestSchoolEmailPrefill,
-  ensureDevTestSchoolEmailConfigured,
-  isDevTestSchool,
-  mergeDevTestSchoolSaveInput,
-  devTestSchoolSmtpTemplate,
-} from "../dev/devTestSchoolEmail";
 
-export type EmailProviderType = "gmail" | "outlook" | "icloud" | "yahoo" | "custom";
+export type EmailProviderType = "platform" | "gmail" | "outlook" | "icloud" | "yahoo" | "custom";
 
 export type SchoolEmailSettingsInput = {
   provider?: string;
+  schoolEmail?: string;
   smtpHost?: string;
   smtpPort?: number;
   smtpSecure?: boolean;
@@ -38,6 +33,7 @@ export type SchoolEmailSettingsPublic = {
   smtpUser: string;
   smtpPass: string;
   smtpPassSet: boolean;
+  schoolEmail: string;
   fromEmail: string;
   fromName: string;
   replyTo: string;
@@ -53,6 +49,12 @@ export const EMAIL_PROVIDER_PRESETS: Record<
   EmailProviderType,
   { smtpHost: string; smtpPort: number; smtpSecure: boolean; hint?: string }
 > = {
+  platform: {
+    smtpHost: "",
+    smtpPort: 587,
+    smtpSecure: false,
+    hint: "EduClear sends through the central platform mail service. Schools do not configure SMTP.",
+  },
   gmail: {
     smtpHost: "smtp.gmail.com",
     smtpPort: 587,
@@ -89,10 +91,53 @@ const MASKED_PASSWORD = "********";
 const SMTP_TRANSPORT_TIMEOUT_MS = 12_000;
 const SMTP_SEND_DEADLINE_MS = 20_000;
 const SETUP_REQUIRED_MESSAGE =
-  "Email is not configured for this school. Open Communication → Email (SMTP), save your provider settings, then use Send Test Email.";
+  "School email address is missing. Add the school's email address before sending email.";
 
 const RENDER_SMTP_BLOCKED_HINT =
-  "Outbound SMTP (ports 587/465/25) may be blocked on Render free-tier web services. Upgrade to a paid Render instance, or verify SMTP from localhost.";
+  "EduClear's central email service could not connect to its configured mail provider. Check the platform email provider settings.";
+
+function platformFromEmail() {
+  return (
+    process.env.EDUCLEAR_MAIL_FROM_EMAIL?.trim() ||
+    process.env.EDUCLEAR_SMTP_FROM?.trim() ||
+    process.env.SMTP_FROM?.trim() ||
+    process.env.SMTP_USER?.trim() ||
+    EDUCLEAR_RELAY_FROM_EMAIL
+  );
+}
+
+function platformSmtpOptions(): SMTPTransport.Options | null {
+  const host = process.env.EDUCLEAR_SMTP_HOST?.trim() || process.env.SMTP_HOST?.trim();
+  if (!host) return null;
+  const port = Number(process.env.EDUCLEAR_SMTP_PORT || process.env.SMTP_PORT || "587");
+  const secure =
+    process.env.EDUCLEAR_SMTP_SECURE === "true" ||
+    process.env.SMTP_SECURE === "true" ||
+    port === 465;
+  const user = process.env.EDUCLEAR_SMTP_USER?.trim() || process.env.SMTP_USER?.trim();
+  const pass = process.env.EDUCLEAR_SMTP_PASS || process.env.SMTP_PASS;
+  return {
+    host,
+    port,
+    secure,
+    requireTLS: !secure && port === 587,
+    ...(user && pass ? { auth: { user, pass } } : {}),
+    connectionTimeout: SMTP_TRANSPORT_TIMEOUT_MS,
+    greetingTimeout: SMTP_TRANSPORT_TIMEOUT_MS,
+    socketTimeout: SMTP_TRANSPORT_TIMEOUT_MS,
+    tls: {
+      minVersion: "TLSv1.2",
+    },
+  };
+}
+
+function createPlatformTransport() {
+  const options = platformSmtpOptions();
+  if (!options) {
+    throw new Error("EduClear central email service is not configured. Set platform SMTP settings on the server.");
+  }
+  return nodemailer.createTransport(options);
+}
 
 function isLikelySmtpNetworkFailure(code: string, message: string): boolean {
   const normalized = `${code} ${message}`.toUpperCase();
@@ -146,22 +191,11 @@ function withSendDeadline<T>(promise: Promise<T>, label: string, deadlineMs = SM
   });
 }
 
-/** Gmail/Outlook/etc. typically authenticate with the school From address. */
-function defaultSmtpUserFromFromEmail(
-  provider: EmailProviderType,
-  smtpUser: string,
-  fromEmail: string
-): string {
-  const user = String(smtpUser || "").trim();
-  if (user) return user;
-  if (provider === "custom") return "";
-  return String(fromEmail || "").trim();
-}
-
 export function normalizeProvider(raw: string): EmailProviderType | null {
   const p = String(raw || "")
     .trim()
     .toLowerCase();
+  if (!p || p === "platform" || p === "educlear") return "platform";
   if (p === "gmail" || p === "google") return "gmail";
   if (p === "outlook" || p === "office365" || p === "office_365" || p === "microsoft") return "outlook";
   if (p === "icloud" || p === "apple") return "icloud";
@@ -184,6 +218,19 @@ export function applyProviderDefaults(
   fromName: string;
   replyTo: string;
 } {
+  if (provider === "platform") {
+    return {
+      provider,
+      smtpHost: "",
+      smtpPort: 587,
+      smtpSecure: false,
+      smtpUser: "",
+      smtpPass: "",
+      fromEmail: platformFromEmail(),
+      fromName: String(input.fromName || "").trim(),
+      replyTo: String(input.replyTo || input.schoolEmail || "").trim(),
+    };
+  }
   const preset = EMAIL_PROVIDER_PRESETS[provider];
   const smtpHost =
     provider === "custom"
@@ -217,6 +264,12 @@ export function validateSchoolEmailSettings(
   opts: { requirePassword: boolean; existingPass?: string }
 ): string[] {
   const errors: string[] = [];
+  if (resolved.provider === "platform") {
+    if (resolved.replyTo && !isValidEmail(resolved.replyTo)) {
+      errors.push("Reply-to must be a valid email address when provided.");
+    }
+    return errors;
+  }
   if (!resolved.smtpHost) errors.push("SMTP host is required.");
   if (!resolved.smtpPort || resolved.smtpPort < 1 || resolved.smtpPort > 65535) {
     errors.push("SMTP port must be between 1 and 65535.");
@@ -260,12 +313,16 @@ export function applySchoolSenderDefaults(
   branding: SchoolEmailBranding
 ): SchoolEmailSettingsPublic {
   const schoolEmail = branding.schoolEmail.trim();
-  if (!schoolEmail) return settings;
+  const hasSchoolEmail = isValidEmail(schoolEmail);
   return {
     ...settings,
-    fromEmail: String(settings.fromEmail || "").trim() || schoolEmail,
+    provider: "platform",
+    schoolEmail,
+    fromEmail: platformFromEmail(),
     fromName: String(settings.fromName || "").trim() || branding.schoolName.trim() || "School",
     replyTo: String(settings.replyTo || "").trim() || schoolEmail,
+    configured: hasSchoolEmail,
+    ready: hasSchoolEmail,
   };
 }
 
@@ -273,7 +330,7 @@ export function isSmtpRowConfigured(row: SchoolEmailSettings | null | undefined)
   return Boolean(row?.smtpHost && row?.smtpUser && row?.smtpPass && row?.fromEmail);
 }
 
-/** Persisted readiness: SMTP configured and a successful test timestamp on file. */
+/** Legacy SMTP readiness. School-facing email readiness is based on registered school email. */
 export function isSchoolEmailReadyFromRow(row: SchoolEmailSettings | null | undefined) {
   if (!isSmtpRowConfigured(row)) return false;
   return Boolean(row?.testEmailPassedAt);
@@ -298,6 +355,7 @@ export function toPublicSettings(row: SchoolEmailSettings | null, schoolId: stri
       smtpUser: "",
       smtpPass: "",
       smtpPassSet: false,
+      schoolEmail: "",
       fromEmail: "",
       fromName: "",
       replyTo: "",
@@ -319,6 +377,7 @@ export function toPublicSettings(row: SchoolEmailSettings | null, schoolId: stri
     smtpUser: row.smtpUser,
     smtpPass: maskPassword(row.smtpPass),
     smtpPassSet: Boolean(row.smtpPass),
+    schoolEmail: "",
     fromEmail: row.fromEmail,
     fromName: row.fromName || "",
     replyTo: row.replyTo || "",
@@ -338,7 +397,7 @@ export async function buildPublicSchoolEmailSettings(schoolId: string): Promise<
     loadSchoolEmailBranding(schoolId),
   ]);
   const base = applySchoolSenderDefaults(toPublicSettings(row, schoolId), branding);
-  return applyDevTestSchoolEmailPrefill(schoolId, base);
+  return base;
 }
 
 export async function getPublicSchoolEmailSettings(schoolId: string): Promise<SchoolEmailSettingsPublic> {
@@ -357,104 +416,65 @@ export async function getSchoolEmailSettingsRow(schoolId: string) {
 }
 
 export async function isSchoolEmailConfigured(schoolId: string) {
-  const row = await getSchoolEmailSettingsRow(schoolId);
-  return isSmtpRowConfigured(row);
+  const branding = await loadSchoolEmailBranding(schoolId);
+  return isValidEmail(branding.schoolEmail);
 }
 
 export async function isSchoolEmailReady(schoolId: string) {
-  const row = await getSchoolEmailSettingsRow(schoolId);
-  return isSchoolEmailReadyFromRow(row);
+  return isSchoolEmailConfigured(schoolId);
 }
 
-/** Persist registration email as default From/Reply-To before SMTP credentials are saved. */
+/** Persist registration email as default sender metadata for the platform mail service. */
 export async function seedSchoolEmailDefaults(schoolId: string) {
-  if (await isDevTestSchool(schoolId)) {
-    await ensureDevTestSchoolEmailConfigured(schoolId);
-    return;
-  }
   const branding = await loadSchoolEmailBranding(schoolId);
   if (!branding.schoolEmail) return;
   const existing = await getSchoolEmailSettingsRow(schoolId);
   if (existing) return;
-  const preset = EMAIL_PROVIDER_PRESETS.gmail;
   await prisma.schoolEmailSettings.create({
     data: {
       schoolId,
-      provider: "gmail",
-      smtpHost: preset.smtpHost,
-      smtpPort: preset.smtpPort,
-      smtpSecure: preset.smtpSecure,
+      provider: "platform",
+      smtpHost: "",
+      smtpPort: 587,
+      smtpSecure: false,
       smtpUser: "",
       smtpPass: "",
-      fromEmail: branding.schoolEmail,
+      fromEmail: platformFromEmail(),
       fromName: branding.schoolName,
       replyTo: branding.schoolEmail,
     },
   });
 }
 
-function smtpCredentialsChanged(existing: SchoolEmailSettings, resolved: ReturnType<typeof applyProviderDefaults>) {
-  return (
-    existing.smtpHost !== resolved.smtpHost ||
-    existing.smtpUser !== resolved.smtpUser ||
-    existing.smtpPass !== resolved.smtpPass ||
-    existing.fromEmail !== resolved.fromEmail
-  );
-}
-
 export async function saveSchoolEmailSettings(schoolId: string, input: SchoolEmailSettingsInput) {
-  const mergedDevInput = await mergeDevTestSchoolSaveInput(schoolId, input);
-  const provider = normalizeProvider(String(mergedDevInput.provider || ""));
-  if (!provider) {
-    return { ok: false as const, errors: ["Provider must be gmail, outlook, icloud, yahoo, or custom."] };
-  }
-
   const branding = await loadSchoolEmailBranding(schoolId);
   const existing = await getSchoolEmailSettingsRow(schoolId);
-  const mergedInput: SchoolEmailSettingsInput = { ...mergedDevInput };
-  if (await isDevTestSchool(schoolId)) {
-    const devTemplate = devTestSchoolSmtpTemplate();
-    if (!String(mergedInput.fromEmail || "").trim()) mergedInput.fromEmail = devTemplate.fromEmail;
-    if (!String(mergedInput.fromName || "").trim()) mergedInput.fromName = devTemplate.fromName;
-    if (!String(mergedInput.replyTo || "").trim()) mergedInput.replyTo = devTemplate.replyTo;
-    if (!String(mergedInput.smtpUser || "").trim()) mergedInput.smtpUser = devTemplate.smtpUser;
-  }
-  if (branding.schoolEmail) {
-    if (!String(mergedInput.fromEmail || "").trim()) mergedInput.fromEmail = branding.schoolEmail;
-    if (!String(mergedInput.fromName || "").trim()) mergedInput.fromName = branding.schoolName;
-    if (!String(mergedInput.replyTo || "").trim()) mergedInput.replyTo = branding.schoolEmail;
-  }
-  if (
-    mergedInput.smtpPass === undefined ||
-    mergedInput.smtpPass === MASKED_PASSWORD ||
-    mergedInput.smtpPass === ""
-  ) {
-    mergedInput.smtpPass = existing?.smtpPass || "";
-  }
-
-  let resolved = applyProviderDefaults(provider, mergedInput);
-  const smtpUser = defaultSmtpUserFromFromEmail(provider, resolved.smtpUser, resolved.fromEmail);
-  if (smtpUser !== resolved.smtpUser) {
-    resolved = { ...resolved, smtpUser };
-  }
-  const errors = validateSchoolEmailSettings(resolved, {
-    requirePassword: true,
-    existingPass: existing?.smtpPass,
-  });
+  const schoolEmail = String(input.schoolEmail || input.replyTo || branding.schoolEmail || "").trim();
+  const fromName = String(input.fromName || branding.schoolName || "").trim() || "School";
+  const replyTo = String(input.replyTo || schoolEmail).trim();
+  const errors: string[] = [];
+  if (schoolEmail && !isValidEmail(schoolEmail)) errors.push("School email address must be a valid email address.");
+  if (replyTo && !isValidEmail(replyTo)) errors.push("Reply-to must be a valid email address.");
   if (errors.length) return { ok: false as const, errors };
 
   const data = {
-    provider,
-    smtpHost: resolved.smtpHost,
-    smtpPort: resolved.smtpPort,
-    smtpSecure: resolved.smtpSecure,
-    smtpUser: resolved.smtpUser,
-    smtpPass: resolved.smtpPass,
-    fromEmail: resolved.fromEmail,
-    fromName: resolved.fromName,
-    replyTo: resolved.replyTo || null,
-    ...(existing && smtpCredentialsChanged(existing, resolved) ? { testEmailPassedAt: null } : {}),
+    provider: "platform",
+    smtpHost: "",
+    smtpPort: 587,
+    smtpSecure: false,
+    smtpUser: "",
+    smtpPass: "",
+    fromEmail: platformFromEmail(),
+    fromName,
+    replyTo: replyTo || null,
   };
+
+  if (schoolEmail && schoolEmail !== branding.schoolEmail) {
+    await prisma.school.update({
+      where: { id: schoolId },
+      data: { email: schoolEmail },
+    });
+  }
 
   const row = await prisma.schoolEmailSettings.upsert({
     where: { schoolId },
@@ -462,10 +482,11 @@ export async function saveSchoolEmailSettings(schoolId: string, input: SchoolEma
     update: data,
   });
 
-  const saved = applySchoolSenderDefaults(toPublicSettings(row, schoolId), branding);
+  const updatedBranding = await loadSchoolEmailBranding(schoolId);
+  const saved = applySchoolSenderDefaults(toPublicSettings(row, schoolId), updatedBranding);
   return {
     ok: true as const,
-    settings: await applyDevTestSchoolEmailPrefill(schoolId, saved),
+    settings: saved,
   };
 }
 
@@ -499,12 +520,12 @@ export function createTransportFromSettings(row: SchoolEmailSettings) {
 }
 
 export async function sendMailWithSettings(
-  row: SchoolEmailSettings,
+  _row: SchoolEmailSettings,
   mail: Parameters<ReturnType<typeof nodemailer.createTransport>["sendMail"]>[0]
 ) {
-  const transporter = createTransportFromSettings(row);
+  const transporter = createPlatformTransport();
   try {
-    return await withSendDeadline(transporter.sendMail(mail), "SMTP send");
+    return await withSendDeadline(transporter.sendMail(mail), "EduClear email send");
   } finally {
     transporter.close();
   }
@@ -535,56 +556,84 @@ export async function resolveReplyToForSchoolSend(schoolId: string): Promise<str
 }
 
 export async function sendSchoolEmail(schoolId: string, input: SendSchoolEmailInput) {
-  const row = await getSchoolEmailSettingsRow(schoolId);
-  if (!row || !(await isSchoolEmailConfigured(schoolId))) {
+  await seedSchoolEmailDefaults(schoolId);
+  const [row, branding] = await Promise.all([
+    getSchoolEmailSettingsRow(schoolId),
+    loadSchoolEmailBranding(schoolId),
+  ]);
+  if (!isValidEmail(branding.schoolEmail)) {
     const err = new Error(SETUP_REQUIRED_MESSAGE) as Error & { setupRequired?: boolean };
     err.setupRequired = true;
     throw err;
   }
 
-  const from = formatFromAddress(row.fromName, row.fromEmail);
+  const fromName = String(row?.fromName || branding.schoolName || "School").trim() || "School";
+  const from = formatFromAddress(fromName, platformFromEmail());
   const replyTo = await resolveReplyToForSchoolSend(schoolId);
+  const transporter = createPlatformTransport();
 
-  return sendMailWithSettings(row, {
-    from,
-    to: input.to,
-    subject: input.subject,
-    html: input.html,
-    replyTo,
-    attachments: input.attachments || [],
-  });
+  try {
+    return await withSendDeadline(
+      transporter.sendMail({
+        from,
+        to: input.to,
+        subject: input.subject,
+        html: input.html,
+        replyTo,
+        attachments: input.attachments || [],
+      }),
+      "EduClear email send"
+    );
+  } finally {
+    transporter.close();
+  }
 }
 
 export async function testSchoolEmailConnection(schoolId: string, testTo?: string) {
-  const row = await getSchoolEmailSettingsRow(schoolId);
-  if (!row || !(await isSchoolEmailConfigured(schoolId))) {
+  await seedSchoolEmailDefaults(schoolId);
+  const [, branding] = await Promise.all([
+    getSchoolEmailSettingsRow(schoolId),
+    loadSchoolEmailBranding(schoolId),
+  ]);
+  if (!isValidEmail(branding.schoolEmail)) {
     return { ok: false as const, error: SETUP_REQUIRED_MESSAGE, setupRequired: true };
   }
 
-  const to = String(testTo || row.fromEmail || row.smtpUser).trim();
+  const to = String(testTo || branding.schoolEmail).trim();
   if (!to || !isValidEmail(to)) {
     return { ok: false as const, error: "A valid test recipient email is required." };
   }
 
   try {
-    console.info(`[school-email] sending test email schoolId=${schoolId} to=${to} host=${row.smtpHost}:${row.smtpPort}`);
+    console.info(`[school-email] sending platform test email schoolId=${schoolId} to=${to}`);
     const result = await sendSchoolEmail(schoolId, {
       to,
       subject: "EduClear — Test Email",
       html: `<div style="font-family:Arial,sans-serif;line-height:1.5">
         <p>This is a test message from EduClear.</p>
-        <p>If you received this email, your school's SMTP settings are working.</p>
+        <p>If you received this email, EduClear's central email service is working for ${branding.schoolName}.</p>
       </div>`,
     });
     console.info(`[school-email] test email sent schoolId=${schoolId} messageId=${result.messageId || "n/a"}`);
     const passedAt = new Date();
-    const updated = await prisma.schoolEmailSettings.update({
+    const updated = await prisma.schoolEmailSettings.upsert({
       where: { schoolId },
-      data: { testEmailPassedAt: passedAt },
+      create: {
+        schoolId,
+        provider: "platform",
+        smtpHost: "",
+        smtpPort: 587,
+        smtpSecure: false,
+        smtpUser: "",
+        smtpPass: "",
+        fromEmail: platformFromEmail(),
+        fromName: branding.schoolName,
+        replyTo: branding.schoolEmail,
+        testEmailPassedAt: passedAt,
+      },
+      update: { testEmailPassedAt: passedAt },
     });
-    const branding = await loadSchoolEmailBranding(schoolId);
     let settings = applySchoolSenderDefaults(toPublicSettings(updated, schoolId), branding);
-    settings = await applyDevTestSchoolEmailPrefill(schoolId, settings);
     return {
       ok: true as const,
       messageId: result.messageId,

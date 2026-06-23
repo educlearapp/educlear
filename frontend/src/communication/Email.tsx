@@ -1,5 +1,4 @@
 import React, { useCallback, useEffect, useMemo, useState } from "react";
-import { collectParentEmailContacts } from "./contactHelpers";
 import {
   applyEmailTemplateTokens,
   COMMUNICATION_SETTINGS_UPDATED,
@@ -7,6 +6,7 @@ import {
   formatComposeSenderLabel,
   deleteEmail,
   fetchCommunicationSettings,
+  fetchCommunicationContacts,
   fetchEmail,
   fetchEmails,
   newContactId,
@@ -15,6 +15,7 @@ import {
   smtpSenderFromSettings,
   updateEmail,
   type CommunicationSettings,
+  type CommunicationRecipientKind,
   type EmailContact,
   type EmailRecord,
   type SchoolSenderContext,
@@ -64,6 +65,9 @@ export default function Email({ schoolId, learners, parents, schoolName = "Schoo
   const [contacts, setContacts] = useState<EmailContact[]>([]);
   const [selectedContactIds, setSelectedContactIds] = useState<string[]>([]);
   const [contactSearch, setContactSearch] = useState("");
+  const [recipientKind, setRecipientKind] = useState<CommunicationRecipientKind>("parents");
+  const [classFilter, setClassFilter] = useState("");
+  const [classFilters, setClassFilters] = useState<string[]>([]);
 
   const [contactModalOpen, setContactModalOpen] = useState(false);
   const [attachmentModalOpen, setAttachmentModalOpen] = useState(false);
@@ -212,6 +216,12 @@ export default function Email({ schoolId, learners, parents, schoolName = "Schoo
         setResolvedSchoolEmail(email);
         setServerReplyTo(String(settingsRes.replyToEmail || "").trim());
         setSmtpSender(smtp);
+        const contactRes = await fetchCommunicationContacts({
+          schoolId,
+          channel: "email",
+          kind: "parents",
+        }).catch(() => null);
+        if (contactRes?.classFilters) setClassFilters(contactRes.classFilters);
       } catch {
         /* use cached settings */
       }
@@ -301,19 +311,41 @@ export default function Email({ schoolId, learners, parents, schoolName = "Schoo
     }
   };
 
-  const handleAutoAdd = () => {
-    const added = collectParentEmailContacts(learners, parents);
-    if (!added.length) {
-      setError("No parent emails found on learners or parents.");
-      return;
-    }
-    const existing = new Set(contacts.map((c) => c.email.toLowerCase()));
-    const merged = [...contacts];
-    for (const c of added) {
-      if (!existing.has(c.email.toLowerCase())) merged.push(c);
-    }
-    setContacts(merged);
+  const handleAutoAdd = async () => {
+    if (!schoolId) return;
+    setLoading(true);
     setError("");
+    try {
+      const res = await fetchCommunicationContacts({
+        schoolId,
+        channel: "email",
+        kind: recipientKind,
+        className: classFilter,
+      });
+      setClassFilters(res.classFilters || []);
+      const added: EmailContact[] = (res.contacts || []).map((contact) => ({
+        id: contact.id,
+        contactName: contact.contactName,
+        relationship: contact.relationship,
+        email: String(contact.email || "").trim(),
+        attachments: [],
+        status: "Ready",
+      }));
+      if (!added.length) {
+        setError("No valid email contacts found for the selected filters.");
+        return;
+      }
+      const existing = new Set(contacts.map((c) => c.email.toLowerCase()));
+      const merged = [...contacts];
+      for (const c of added) {
+        if (!existing.has(c.email.toLowerCase())) merged.push(c);
+      }
+      setContacts(merged);
+    } catch (e: any) {
+      setError(e?.message || "Failed to load contacts");
+    } finally {
+      setLoading(false);
+    }
   };
 
   const addManualContact = () => {
@@ -379,7 +411,7 @@ export default function Email({ schoolId, learners, parents, schoolName = "Schoo
               {editId ? "Manage email" : "Compose email"} · {composeSenderLabel}
             </p>
             <p style={{ margin: "4px 0 0", fontSize: 12, color: "#64748b" }}>
-              Parents reply to <strong>{replyToEmail || "your school email (configure in Communication Settings)"}</strong>
+              Parents reply to <strong>{replyToEmail || "your school email"}</strong>
             </p>
           </div>
           <div style={{ display: "flex", gap: 10, flexWrap: "wrap", alignItems: "center" }}>
@@ -432,7 +464,7 @@ export default function Email({ schoolId, learners, parents, schoolName = "Schoo
             From
             <input style={fieldStyle} value={from} readOnly />
             <span style={{ fontSize: 12, color: "#64748b", fontWeight: 600 }}>
-              Sender uses your SMTP From name/email when configured, otherwise your registered school name and email, or Administration Email if no school email is on file. EduClear relay (billing@educlear.co.za) applies only when Send via EduClear Domain is enabled.
+              Sender uses EduClear&apos;s verified platform address. Replies go to the school email address.
             </span>
           </label>
           <label>
@@ -456,7 +488,31 @@ export default function Email({ schoolId, learners, parents, schoolName = "Schoo
         <div style={{ marginTop: 22 }}>
           <div style={{ display: "flex", gap: 10, flexWrap: "wrap", marginBottom: 12 }}>
             <button type="button" style={goldBtn} onClick={() => setContactModalOpen(true)}>Add</button>
-            <button type="button" style={ghostBtn} onClick={handleAutoAdd}>Auto Add</button>
+            <select
+              style={{ ...fieldStyle, maxWidth: 180 }}
+              value={recipientKind}
+              onChange={(e) => setRecipientKind(e.target.value as CommunicationRecipientKind)}
+            >
+              <option value="parents">Parents</option>
+              <option value="learners">Learners</option>
+              <option value="teachers">Teachers</option>
+              <option value="employees">Employees</option>
+              <option value="all">All Contacts</option>
+            </select>
+            <select
+              style={{ ...fieldStyle, maxWidth: 180 }}
+              value={classFilter}
+              onChange={(e) => setClassFilter(e.target.value)}
+              disabled={recipientKind === "employees"}
+            >
+              <option value="">All Classes</option>
+              {classFilters.map((name) => (
+                <option key={name} value={name}>{name}</option>
+              ))}
+            </select>
+            <button type="button" style={ghostBtn} onClick={() => void handleAutoAdd()} disabled={loading}>
+              Load Contacts
+            </button>
             <button type="button" style={ghostBtn} onClick={() => setAttachmentModalOpen(true)}>Add Attachment</button>
             <button type="button" style={ghostBtn} onClick={removeSelected}>Remove</button>
             <button type="button" style={ghostBtn} onClick={() => setPreviewOpen(true)}>Preview</button>

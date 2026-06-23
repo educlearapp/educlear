@@ -20,15 +20,12 @@ import {
 } from "./schoolSmsApi";
 import {
   applySchoolSenderDefaults,
-  fetchEmailProviderPresets,
   fetchSchoolEmailSettings,
   isSchoolEmailReadyForUi,
   normalizeSchoolEmailSettings,
   notifySchoolEmailReadinessUpdated,
-  PROVIDER_LABELS,
   saveSchoolEmailSettings,
   testSchoolEmailConnection,
-  type EmailProviderType,
   type SchoolEmailSettings as SmtpSettings,
 } from "./schoolEmailApi";
 import { fieldStyle, ghostBtn, goldBtn, pageWrap } from "./communicationStyles";
@@ -77,14 +74,14 @@ function EmailSetupStatusPanel({ smtp }: { smtp: SmtpSettings }) {
         gap: 10,
       }}
     >
-      <div style={{ fontSize: 12, fontWeight: 900, color: "#64748b" }}>EMAIL SETUP STATUS</div>
+      <div style={{ fontSize: 12, fontWeight: 900, color: "#64748b" }}>EMAIL STATUS</div>
       <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
         {statusChip(
-          smtp.configured ? "Email configured" : "Email not configured",
+          smtp.configured ? "School email present" : "School email missing",
           smtp.configured
         )}
         {statusChip(
-          ready ? "Test email successful" : "Test email not sent",
+          ready ? "EduClear platform sender enabled" : "Add school email address",
           ready
         )}
       </div>
@@ -96,12 +93,12 @@ function EmailSetupStatusPanel({ smtp }: { smtp: SmtpSettings }) {
       {!ready ? (
         <p style={{ margin: 0, fontSize: 13, fontWeight: 700, color: "#92400e" }}>
           {smtp.configured
-            ? "SMTP is saved — send a test email to confirm delivery before statements and billing emails."
-            : "Email not configured — enter SMTP details below, save, then send a test email."}
+            ? "Send a test email to confirm delivery through EduClear's central mail service."
+            : "Add the school's email address so parent replies go to the correct inbox."}
         </p>
       ) : (
         <p style={{ margin: 0, fontSize: 13, fontWeight: 700, color: "#15803d" }}>
-          Email is ready. Statements, classroom reports, and parent emails can be sent from EduClear.
+          Email is ready. EduClear sends from its verified platform address and replies go to the school.
         </p>
       )}
     </div>
@@ -220,8 +217,6 @@ export default function CommunicationSettings({
   const [smsBalanceLoading, setSmsBalanceLoading] = useState(false);
   const [smsBalanceRefreshing, setSmsBalanceRefreshing] = useState(false);
   const [smtpSettings, setSmtpSettings] = useState<SmtpSettings | null>(null);
-  const [smtpPassInput, setSmtpPassInput] = useState("");
-  const [smtpPresets, setSmtpPresets] = useState<Record<EmailProviderType, { smtpHost: string; smtpPort: number; smtpSecure: boolean; hint?: string }> | null>(null);
   const [testEmailTo, setTestEmailTo] = useState("");
   const [loading, setLoading] = useState(false);
   const [smtpTestLoading, setSmtpTestLoading] = useState(false);
@@ -264,11 +259,10 @@ export default function CommunicationSettings({
     setLoading(true);
     setError("");
     try {
-      const [res, smtpRes, smsRes, presetRes] = await Promise.all([
+      const [res, smtpRes, smsRes] = await Promise.all([
         fetchCommunicationSettings(schoolId),
         fetchSchoolEmailSettings(schoolId).catch(() => null),
         fetchSchoolSmsSettings(schoolId).catch(() => null),
-        fetchEmailProviderPresets().catch(() => null),
       ]);
       setSettings(res.settings);
       const loadedSchoolName = String(res.schoolName || schoolName || "").trim();
@@ -300,13 +294,14 @@ export default function CommunicationSettings({
         ? smtpRes.settings
         : {
             schoolId,
-            provider: "gmail",
-            smtpHost: "smtp.gmail.com",
+            provider: "platform",
+            smtpHost: "",
             smtpPort: 587,
             smtpSecure: false,
             smtpUser: "",
             smtpPass: "",
             smtpPassSet: false,
+            schoolEmail: loadedSchoolEmail,
             fromEmail: "",
             fromName: "",
             replyTo: "",
@@ -321,8 +316,6 @@ export default function CommunicationSettings({
       );
       setSmtpSettings(nextSmtp);
       notifySchoolEmailReadinessUpdated(schoolId, nextSmtp);
-      if (presetRes?.presets) setSmtpPresets(presetRes.presets);
-      setSmtpPassInput("");
     } catch (e: any) {
       setError(e?.message || "Failed to load settings");
     } finally {
@@ -375,45 +368,26 @@ export default function CommunicationSettings({
     setSmtpSettings((prev) => (prev ? { ...prev, ...partial } : prev));
   };
 
-  const applyProviderPreset = (provider: EmailProviderType) => {
-    const preset = smtpPresets?.[provider];
-    if (!preset) {
-      patchSmtp({ provider });
-      return;
-    }
-    patchSmtp({
-      provider,
-      smtpHost: provider === "custom" ? smtpSettings?.smtpHost || "" : preset.smtpHost,
-      smtpPort: preset.smtpPort,
-      smtpSecure: preset.smtpSecure,
-    });
-  };
-
   const buildSmtpSavePayload = (): Parameters<typeof saveSchoolEmailSettings>[0] | null => {
     if (!schoolId || !smtpSettings) return null;
     const payload: Parameters<typeof saveSchoolEmailSettings>[0] = {
       schoolId,
-      provider: smtpSettings.provider,
-      smtpHost: smtpSettings.smtpHost,
-      smtpPort: smtpSettings.smtpPort,
-      smtpSecure: smtpSettings.smtpSecure,
-      smtpUser:
-        smtpSettings.smtpUser.trim() ||
-        smtpSettings.fromEmail.trim() ||
-        (resolvedSchoolEmail || schoolEmail || "").trim(),
+      provider: "platform",
+      schoolEmail: smtpSettings.schoolEmail || resolvedSchoolEmail || schoolEmail,
+      smtpHost: "",
+      smtpPort: 587,
+      smtpSecure: false,
+      smtpUser: "",
       fromEmail: smtpSettings.fromEmail,
       fromName: smtpSettings.fromName,
       replyTo: smtpSettings.replyTo,
     };
-    if (smtpPassInput && smtpPassInput !== "********") {
-      payload.smtpPass = smtpPassInput;
-    }
     return payload;
   };
 
   const persistSmtpSettings = async (opts?: { quiet?: boolean }) => {
     const payload = buildSmtpSavePayload();
-    if (!payload) throw new Error("Missing SMTP settings");
+    if (!payload) throw new Error("Missing email settings");
     const res = await saveSchoolEmailSettings(payload);
     const nextSmtp = normalizeSchoolEmailSettings(
       applySchoolSenderDefaults(
@@ -423,8 +397,8 @@ export default function CommunicationSettings({
       )
     );
     setSmtpSettings(nextSmtp);
+    setResolvedSchoolEmail(nextSmtp.schoolEmail || nextSmtp.replyTo || resolvedSchoolEmail);
     notifySchoolEmailReadinessUpdated(schoolId, nextSmtp);
-    setSmtpPassInput("");
     if (settings) {
       notifyCommunicationSettingsUpdated(
         schoolId,
@@ -437,7 +411,7 @@ export default function CommunicationSettings({
       );
     }
     if (!opts?.quiet) {
-      setMessage("Email (SMTP) settings saved. Compose sender updated.");
+      setMessage("Email settings saved. EduClear will send using the platform email service.");
     }
     return nextSmtp;
   };
@@ -477,7 +451,7 @@ export default function CommunicationSettings({
         const saveMessage =
           saveErr instanceof Error
             ? saveErr.message
-            : "Could not save SMTP settings before sending the test email.";
+            : "Could not save email settings before sending the test email.";
         throw new Error(`Save before test failed: ${saveMessage}`);
       }
 
@@ -506,7 +480,7 @@ export default function CommunicationSettings({
       const err = e as { setupRequired?: boolean; message?: string };
       if (err?.setupRequired) {
         setError(
-          "Email not configured: enter SMTP host, username, and app password, save, then send a test email."
+          "School email address missing: enter the school's email address, save, then send a test email."
         );
       } else {
         setError(err?.message || "Test email failed");
@@ -628,7 +602,7 @@ export default function CommunicationSettings({
   const smtpCtx = smtpSettings ? smtpSenderFromSettings(smtpSettings) : null;
   const senderPreview = formatComposeSenderLabel(settings, schoolCtx, smtpCtx);
   const replyToEmail = resolveSchoolReplyToEmail(settings, schoolCtx, smtpCtx);
-  const emailSetupIncomplete = Boolean(smtpSettings && !isSchoolEmailReadyForUi(smtpSettings));
+  const emailSetupIncomplete = Boolean(smtpSettings && !String(smtpSettings.schoolEmail || resolvedSchoolEmail || schoolEmail).trim());
 
   const tabBtn = (id: Tab, label: string) => (
     <button
@@ -653,7 +627,7 @@ export default function CommunicationSettings({
       <div style={{ display: "flex", gap: 10, marginBottom: 18, flexWrap: "wrap" }}>
         {tabBtn("general", "General")}
         {tabBtn("documents", "Documents")}
-        {tabBtn("email", "Email (SMTP)")}
+        {tabBtn("email", "Email")}
         {tabBtn("sms", "SMS")}
       </div>
 
@@ -682,9 +656,9 @@ export default function CommunicationSettings({
             justifyContent: "space-between",
           }}
         >
-          <span>Email setup incomplete — configure SMTP and pass a test email before sending statements.</span>
+          <span>School email address missing — add it so replies from parents go to the school.</span>
           <button type="button" style={ghostBtn} onClick={() => setTab("email")}>
-            Open Email (SMTP)
+            Open Email
           </button>
         </div>
       ) : null}
@@ -729,7 +703,7 @@ export default function CommunicationSettings({
               onChange={(e) => patch({ administrationEmail: e.target.value })}
             />
             <span style={{ fontSize: 12, color: "#64748b", fontWeight: 600 }}>
-              Used as the compose From address when SMTP is not configured and the school has no registered email on file.
+              Used for administration copies and as a fallback contact address when no school email is on file.
             </span>
           </label>
           <label style={{ display: "flex", alignItems: "center", gap: 10, fontWeight: 700 }}>
@@ -817,96 +791,33 @@ export default function CommunicationSettings({
               <EmailSetupStatusPanel smtp={smtpSettings} />
 
               <label>
-                Email Provider
-                <select
-                  style={fieldStyle}
-                  value={smtpSettings.provider}
-                  onChange={(e) => applyProviderPreset(e.target.value as EmailProviderType)}
-                >
-                  {(Object.keys(PROVIDER_LABELS) as EmailProviderType[]).map((key) => (
-                    <option key={key} value={key}>
-                      {PROVIDER_LABELS[key]}
-                    </option>
-                  ))}
-                </select>
-              </label>
-              {smtpPresets?.[smtpSettings.provider]?.hint ? (
-                <p style={{ margin: 0, fontSize: 12, color: "#64748b" }}>{smtpPresets[smtpSettings.provider].hint}</p>
-              ) : null}
-
-              <label>
-                SMTP Host
+                School Email Address
                 <input
                   style={fieldStyle}
-                  value={smtpSettings.smtpHost}
-                  disabled={smtpSettings.provider !== "custom"}
-                  onChange={(e) => patchSmtp({ smtpHost: e.target.value })}
-                />
-              </label>
-              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
-                <label>
-                  Port
-                  <input
-                    type="number"
-                    style={fieldStyle}
-                    value={smtpSettings.smtpPort}
-                    onChange={(e) => patchSmtp({ smtpPort: Number(e.target.value) || 587 })}
-                  />
-                </label>
-                <label style={{ display: "flex", alignItems: "center", gap: 10, fontWeight: 700, marginTop: 22 }}>
-                  <input
-                    type="checkbox"
-                    checked={smtpSettings.smtpSecure}
-                    onChange={(e) => patchSmtp({ smtpSecure: e.target.checked })}
-                  />
-                  SSL/TLS (port 465)
-                </label>
-              </div>
-              <label>
-                SMTP Username
-                <input
-                  style={fieldStyle}
-                  placeholder={
-                    smtpSettings.fromEmail ||
-                    resolvedSchoolEmail ||
-                    schoolEmail ||
-                    "Usually your school email address"
-                  }
-                  value={smtpSettings.smtpUser}
-                  onChange={(e) => patchSmtp({ smtpUser: e.target.value })}
+                  value={smtpSettings.schoolEmail || resolvedSchoolEmail || schoolEmail}
+                  onChange={(e) => {
+                    const value = e.target.value;
+                    patchSmtp({ schoolEmail: value, replyTo: value });
+                    setResolvedSchoolEmail(value);
+                  }}
                 />
                 <span style={{ fontSize: 12, color: "#64748b", fontWeight: 600 }}>
-                  For Gmail, use the same address as From Email (e.g. your school inbox).
+                  Parent replies are sent to this address. No Gmail, Hotmail, Outlook, SMTP host, port, or app password is required.
                 </span>
               </label>
               <label>
-                Password / App Password
-                <input
-                  type="password"
-                  style={fieldStyle}
-                  placeholder={smtpSettings.smtpPassSet ? "******** (unchanged)" : "Enter password"}
-                  value={smtpPassInput}
-                  onChange={(e) => setSmtpPassInput(e.target.value)}
-                />
-              </label>
-              <label>
-                From Email
-                <input
-                  style={fieldStyle}
-                  value={smtpSettings.fromEmail}
-                  onChange={(e) => patchSmtp({ fromEmail: e.target.value })}
-                />
-              </label>
-              <label>
-                From Name
+                From Name / School Name
                 <input
                   style={fieldStyle}
                   value={smtpSettings.fromName}
                   onChange={(e) => patchSmtp({ fromName: e.target.value })}
                 />
+                <span style={{ fontSize: 12, color: "#64748b", fontWeight: 600 }}>
+                  Emails show this school name as the sender name.
+                </span>
               </label>
               <label>
-                Reply-To
+                Reply-To Email
                 <input
                   style={fieldStyle}
                   value={smtpSettings.replyTo}
@@ -917,11 +828,15 @@ export default function CommunicationSettings({
                 Test recipient (optional)
                 <input
                   style={fieldStyle}
-                  placeholder="Defaults to From Email"
+                  placeholder="Defaults to school email address"
                   value={testEmailTo}
                   onChange={(e) => setTestEmailTo(e.target.value)}
                 />
               </label>
+              <p style={{ margin: 0, fontSize: 12, color: "#64748b", fontWeight: 600, lineHeight: 1.5 }}>
+                From email is EduClear&apos;s verified sending address. Replies go to{" "}
+                <strong>{smtpSettings.replyTo || smtpSettings.schoolEmail || resolvedSchoolEmail || "the school email address"}</strong>.
+              </p>
               <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
                 <button
                   type="button"

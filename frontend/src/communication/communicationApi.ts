@@ -75,6 +75,20 @@ export type SmsRecord = {
   sentAt?: string;
 };
 
+export type CommunicationRecipientKind = "parents" | "learners" | "teachers" | "employees" | "all";
+
+export type CommunicationContact = {
+  id: string;
+  contactName: string;
+  relationship: string;
+  email?: string;
+  cellNo?: string;
+  source: "parent" | "learner" | "teacher" | "employee";
+  sourceId: string;
+  learnerIds: string[];
+  classNames: string[];
+};
+
 export type SchoolSmtpSender = {
   fromEmail?: string;
   fromName?: string;
@@ -109,6 +123,32 @@ export const testSmsCredentials = (schoolId: string, winSmsUsername?: string) =>
     method: "POST",
     body: JSON.stringify({ schoolId, winSmsUsername }),
   });
+
+export const fetchCommunicationContacts = (params: {
+  schoolId: string;
+  channel: "email" | "sms";
+  kind: CommunicationRecipientKind;
+  className?: string;
+}) => {
+  const q = new URLSearchParams({
+    schoolId: params.schoolId,
+    channel: params.channel,
+    kind: params.kind,
+  });
+  if (params.className) q.set("className", params.className);
+  return request<{
+    success: boolean;
+    contacts: CommunicationContact[];
+    classFilters: string[];
+    counts: {
+      parents: number;
+      learners: number;
+      teachers: number;
+      employees: number;
+      total: number;
+    };
+  }>(`/contacts?${q.toString()}`);
+};
 
 export const fetchEmails = (schoolId: string) =>
   request<{ success: boolean; emails: EmailRecord[]; emailBalance: number }>(
@@ -240,24 +280,13 @@ export function resolveSchoolDisplayName(
   return String(school?.schoolName || "School").trim() || "School";
 }
 
-/** SMTP from → school registration email → administration email; sendViaEduClearDomain always uses EDUCLEAR_RELAY_FROM_EMAIL. */
+/** Outbound mail always uses EduClear's verified sending address. School email is Reply-To only. */
 export function resolveSchoolSenderEmail(
-  settings?: Partial<CommunicationSettings> | null,
-  school?: SchoolSenderContext | null,
-  smtp?: SchoolSmtpSender | null
+  _settings?: Partial<CommunicationSettings> | null,
+  _school?: SchoolSenderContext | null,
+  _smtp?: SchoolSmtpSender | null
 ): string {
-  if (settings?.sendViaEduClearDomain) {
-    return EDUCLEAR_RELAY_FROM_EMAIL;
-  }
-  if (smtp?.configured) {
-    const smtpFrom = String(smtp.fromEmail || "").trim();
-    if (smtpFrom) return smtpFrom;
-  }
-  const schoolEmail = String(school?.schoolEmail || "").trim();
-  if (schoolEmail) return schoolEmail;
-  const administration = String(settings?.administrationEmail || "").trim();
-  if (administration) return administration;
-  return "";
+  return EDUCLEAR_RELAY_FROM_EMAIL;
 }
 
 /** Parents reply here: SMTP replyTo → school registration email → SMTP from → no-reply only if no school email. */

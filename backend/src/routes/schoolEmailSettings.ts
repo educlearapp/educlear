@@ -40,6 +40,7 @@ router.put("/", async (req, res) => {
 
     const input: SchoolEmailSettingsInput = {
       provider: req.body?.provider,
+      schoolEmail: req.body?.schoolEmail,
       smtpHost: req.body?.smtpHost,
       smtpPort: req.body?.smtpPort,
       smtpSecure: req.body?.smtpSecure,
