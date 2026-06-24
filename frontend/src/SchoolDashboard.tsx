@@ -15942,7 +15942,6 @@ const [invoiceRunEmailDraft, setInvoiceRunEmailDraft] = useState({
               onBack={() => setActivePage("payments")}
               onSaved={() => {
                 skipNextBillingPageRefreshRef.current = true;
-                setActivePage("payments");
               }}
             />
           );
