@@ -18,6 +18,10 @@ import {
   normalizeIsoDate,
   type PaymentAccountContext,
 } from "./paymentCreateShared";
+import {
+  loadStatementSchoolBranding,
+  type StatementSchoolBranding,
+} from "./statementDocument";
 import { normalizeKidESysAccountRef, resolveKidESysAccountRefFromLearner } from "./billingAccountRef";
 import {
   learnerMatchesBillingAccountRef,
@@ -54,6 +58,10 @@ type FeeOption = {
   amount: number;
   dueDate: string;
   source: "fee" | "plan";
+};
+
+type SavedInvoicePrompt = {
+  invoiceNumber: string;
 };
 
 const INV_FIELD_COLOR = "#111827";
@@ -394,6 +402,11 @@ export default function InvoiceCreateClean({
   const [feeSearch, setFeeSearch] = useState("");
   const [pickerSelected, setPickerSelected] = useState<Record<string, boolean>>({});
   const [loadingFees, setLoadingFees] = useState(false);
+  const [schoolBranding, setSchoolBranding] = useState<StatementSchoolBranding>({
+    name: localStorage.getItem("schoolName") || "School",
+  });
+  const [savedInvoiceNumber, setSavedInvoiceNumber] = useState("");
+  const [savedInvoicePrompt, setSavedInvoicePrompt] = useState<SavedInvoicePrompt | null>(null);
 
   const accountNo = String(selectedAccount?.accountNo || "").trim();
 
@@ -441,9 +454,24 @@ export default function InvoiceCreateClean({
   }, [schoolId, defaultMessage]);
 
   useEffect(() => {
+    if (!schoolId) return;
+    let cancelled = false;
+    void loadStatementSchoolBranding(schoolId)
+      .then((branding) => {
+        if (!cancelled) setSchoolBranding(branding);
+      })
+      .catch(() => {});
+    return () => {
+      cancelled = true;
+    };
+  }, [schoolId]);
+
+  useEffect(() => {
     setLines([]);
     setSelectedLineId(null);
     setSaveError("");
+    setSavedInvoiceNumber("");
+    setSavedInvoicePrompt(null);
   }, [learnerId, accountNo]);
 
   const accountLedger = useMemo(() => {
@@ -828,6 +856,8 @@ export default function InvoiceCreateClean({
 
       setSaving(false);
       setSaveJustSucceeded(true);
+      setSavedInvoiceNumber(baseRef);
+      setSavedInvoicePrompt({ invoiceNumber: baseRef });
       logBillingSaveTiming("invoice save total", performance.now() - saveStarted);
       onSaved();
     } catch (error) {
@@ -876,6 +906,34 @@ export default function InvoiceCreateClean({
         boxSizing: "border-box",
       }}
     >
+      <div
+        style={{
+          display: "flex",
+          alignItems: "center",
+          gap: 12,
+          marginBottom: 12,
+          background: "#fff",
+          border: "1px solid #d6c17a",
+          borderRadius: 14,
+          padding: "10px 14px",
+        }}
+      >
+        {schoolBranding.logoUrl ? (
+          <img
+            src={schoolBranding.logoUrl}
+            alt=""
+            style={{ width: 54, height: 54, objectFit: "contain", borderRadius: 8 }}
+          />
+        ) : null}
+        <div>
+          <div style={{ fontWeight: 900, color: "#111827" }}>
+            {schoolBranding.name || "School"}
+          </div>
+          <div style={{ color: "#64748b", fontWeight: 700, fontSize: 12 }}>
+            Invoice
+          </div>
+        </div>
+      </div>
       <h1 style={{ margin: 0, fontSize: 30, fontWeight: 900, color: "#111827" }}>
         Create Invoice
       </h1>
@@ -902,6 +960,21 @@ export default function InvoiceCreateClean({
           {saving ? "Saving…" : saveJustSucceeded ? "Saved ✓" : "Save Invoice"}
         </button>
       </div>
+      {savedInvoiceNumber ? (
+        <div
+          style={{
+            margin: "0 0 14px",
+            padding: "10px 14px",
+            background: "#f0fdf4",
+            border: "1px solid #bbf7d0",
+            borderRadius: 10,
+            color: "#166534",
+            fontWeight: 900,
+          }}
+        >
+          Saved invoice: {savedInvoiceNumber}
+        </div>
+      ) : null}
 
       <div
         style={{
@@ -1367,6 +1440,61 @@ export default function InvoiceCreateClean({
                 disabled={loadingFees}
               >
                 Add Selected
+              </button>
+            </div>
+          </div>
+        </div>
+      ) : null}
+      {savedInvoicePrompt ? (
+        <div
+          role="dialog"
+          aria-modal="true"
+          style={{
+            position: "fixed",
+            inset: 0,
+            zIndex: 10000,
+            background: "rgba(17,24,39,0.48)",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            padding: 16,
+          }}
+        >
+          <div
+            style={{
+              width: 420,
+              maxWidth: "100%",
+              background: "#fff",
+              border: "2px solid #d4af37",
+              borderRadius: 14,
+              boxShadow: "0 24px 70px rgba(0,0,0,0.28)",
+              overflow: "hidden",
+            }}
+          >
+            <div style={{ background: "#111827", color: "#d4af37", padding: "14px 18px", fontWeight: 900, fontSize: 20 }}>
+              Invoice Saved
+            </div>
+            <div style={{ padding: 18, color: "#111827", fontWeight: 700, lineHeight: 1.65 }}>
+              <p style={{ margin: 0 }}>
+                Invoice {savedInvoicePrompt.invoiceNumber} has been saved.
+              </p>
+              <p style={{ margin: "12px 0 0" }}>
+                Would you like to send this invoice now?
+              </p>
+            </div>
+            <div style={{ display: "flex", justifyContent: "flex-end", gap: 10, padding: "0 18px 18px" }}>
+              <button type="button" style={invBtn} onClick={() => setSavedInvoicePrompt(null)}>
+                No
+              </button>
+              <button
+                type="button"
+                style={invGoldBtn}
+                onClick={() => {
+                  setSavedInvoicePrompt(null);
+                  setSaveError("Invoice email flow is available from Billing -> Invoice Runs.");
+                }}
+              >
+                Yes
               </button>
             </div>
           </div>

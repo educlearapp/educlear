@@ -2,7 +2,9 @@ import { Router } from "express";
 
 import { relinkSchoolBillingLedger } from "../services/billingLedgerRelink";
 import { buildBillingAccountPostResponse } from "../services/billingPostResponse";
+import { sendSavedPaymentReceiptEmail } from "../services/receiptEmailService";
 import { resolveBillingAccountRef } from "../services/resolveBillingAccountRef";
+import { buildSetupRequiredPayload } from "../services/schoolEmailService";
 import {
   buildAccountsFromAgeAnalysisSnapshots,
   resolveAuthoritativeAccountBalance,
@@ -152,6 +154,41 @@ router.get("/accounts", async (req, res) => {
   } catch (error) {
     console.error("[payments] GET /accounts failed:", error);
     return res.status(500).json({ success: false, error: "Server error" });
+  }
+});
+
+// POST /api/payments/:paymentId/send-receipt
+router.post("/:paymentId/send-receipt", async (req, res) => {
+  try {
+    const paymentId = String(req.params.paymentId || "").trim();
+    const schoolId = String(req.body?.schoolId || req.query?.schoolId || "").trim();
+    if (!schoolId || !paymentId) {
+      return res.status(400).json({ success: false, error: "Missing schoolId or paymentId" });
+    }
+
+    const result = await sendSavedPaymentReceiptEmail({ schoolId, paymentId });
+    return res.json({
+      success: true,
+      message: "Receipt sent successfully.",
+      ...result,
+    });
+  } catch (error) {
+    console.error("[payments] POST /:paymentId/send-receipt failed:", error);
+    const err = error as Error & { setupRequired?: boolean; noParentEmail?: boolean };
+    if (err.noParentEmail || err.message === "No parent email found for this account.") {
+      return res.status(404).json({
+        success: false,
+        error: "No parent email found for this account.",
+      });
+    }
+    if (err.setupRequired) {
+      return res.status(409).json({ success: false, ...buildSetupRequiredPayload() });
+    }
+    const status = err.message === "Payment not found" ? 404 : 500;
+    return res.status(status).json({
+      success: false,
+      error: err.message || "Failed to send receipt email",
+    });
   }
 });
 

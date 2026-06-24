@@ -1,9 +1,9 @@
 import { Router } from "express";
-import PDFDocument from "pdfkit";
 
 import { resolveBillingAccountRef } from "../services/resolveBillingAccountRef";
 import { relinkSchoolBillingLedger } from "../services/billingLedgerRelink";
 import { resolveAuthoritativeAccountBalance } from "../services/statementAccounts";
+import { generatePaymentReceiptPdfBuffer } from "../services/receiptEmailService";
 import {
   computeOpenInvoiceLines,
   listPayments,
@@ -303,34 +303,13 @@ router.get("/:paymentId/receipt/pdf", async (req, res) => {
     }
 
     const allocations = listPaymentAllocations(schoolId, paymentId);
-    const doc = new PDFDocument({ margin: 50 });
+    const pdfBuffer = await generatePaymentReceiptPdfBuffer({ schoolId, payment, allocations });
     res.setHeader("Content-Type", "application/pdf");
     res.setHeader(
       "Content-Disposition",
       `inline; filename="receipt-${paymentId}.pdf"`
     );
-    doc.pipe(res);
-    doc.fontSize(18).text("Payment Receipt", { align: "center" });
-    doc.moveDown();
-    doc.fontSize(11);
-    doc.text(`Account: ${payment.accountNo || ""}`);
-    doc.text(`Date: ${payment.date || ""}`);
-    doc.text(`Reference: ${payment.reference || payment.id}`);
-    doc.text(`Amount: R ${normaliseAmount(payment.amount).toFixed(2)}`);
-    doc.text(`Method: ${payment.method || "Payment"}`);
-    doc.moveDown();
-    doc.text("Allocations:");
-    if (!allocations.length) {
-      doc.text("  (No line allocations recorded)");
-    } else {
-      for (const row of allocations) {
-        const label = row.invoiceId
-          ? `Invoice ${row.invoiceId}`
-          : feeCategoryLabel(row.feeCategory);
-        doc.text(`  ${label}: R ${row.allocatedAmount.toFixed(2)}`);
-      }
-    }
-    doc.end();
+    res.end(pdfBuffer);
     return undefined;
   } catch (error) {
     console.error("[payment-allocations] GET receipt/pdf failed:", error);

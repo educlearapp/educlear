@@ -165,16 +165,23 @@ export function resolveStatementBillingContact(
 
 export { absolutizeSchoolLogoUrl, resolveSchoolLogoUrl } from "../utils/schoolLogo";
 
+function cachedSchoolLogoUrl(): string {
+  return resolveSchoolLogoUrl({ logoUrl: localStorage.getItem("schoolLogoUrl") });
+}
+
 export async function loadStatementSchoolBranding(schoolId: string): Promise<StatementSchoolBranding> {
   const fallbackName = String(localStorage.getItem("schoolName") || "School").trim() || "School";
+  const fallbackLogoUrl = cachedSchoolLogoUrl();
   if (!schoolId) {
-    return { name: fallbackName };
+    return { name: fallbackName, logoUrl: fallbackLogoUrl || undefined };
   }
   try {
     const res = await fetch(`${API_URL}/api/schools/${encodeURIComponent(schoolId)}`);
     if (!res.ok) throw new Error("Failed to load school branding");
     const match = (await res.json()) as Record<string, unknown>;
-    const logoUrl = resolveSchoolLogoUrl({ logoUrl: String(match.logoUrl || "").trim() || null });
+    const logoUrl =
+      resolveSchoolLogoUrl({ logoUrl: String(match.logoUrl || "").trim() || null }) ||
+      fallbackLogoUrl;
     if (logoUrl) cacheSchoolLogoUrl(logoUrl);
     return {
       name: String(match.name || fallbackName).trim() || fallbackName,
@@ -186,7 +193,7 @@ export async function loadStatementSchoolBranding(schoolId: string): Promise<Sta
       logoUrl: logoUrl || undefined,
     };
   } catch {
-    return { name: fallbackName };
+    return { name: fallbackName, logoUrl: fallbackLogoUrl || undefined };
   }
 }
 

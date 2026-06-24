@@ -86,6 +86,8 @@ type OtpRecord = {
   
 
   const otpStore = new Map<string, OtpRecord>();
+  const persistentSchoolLogoDir = path.join(process.cwd(), "data", "school-logos");
+  const legacySchoolLogoDir = path.join(process.cwd(), "uploads", "school-logos");
   const storage = multer.diskStorage({
 
 
@@ -107,10 +109,8 @@ type OtpRecord = {
   
   
     ) {
-  
-  
-  
-      cb(null, path.join(process.cwd(), "uploads/school-logos"));
+      fs.mkdirSync(persistentSchoolLogoDir, { recursive: true });
+      cb(null, persistentSchoolLogoDir);
   
   
   
@@ -238,6 +238,8 @@ const PORT = 3000;
 
 */
 app.use(express.json({ limit: "12mb" }));
+app.use("/uploads/school-logos", express.static(persistentSchoolLogoDir));
+app.use("/uploads/school-logos", express.static(legacySchoolLogoDir));
 app.use("/uploads", express.static(path.join(process.cwd(), "uploads")));
 const corsOptions: cors.CorsOptions = {
   origin: (origin, callback) => {

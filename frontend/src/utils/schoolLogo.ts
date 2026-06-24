@@ -1,9 +1,14 @@
 import { API_URL } from "../api";
 
-/** School.logoUrl only — no EduClear or legacy field fallbacks. */
+/** School.logoUrl first, with the last saved profile logo cache as a refresh fallback. */
 export function resolveSchoolLogoUrl(school?: { logoUrl?: string | null } | null): string {
   const fromSchool = String(school?.logoUrl || "").trim();
   if (fromSchool) return absolutizeSchoolLogoUrl(fromSchool);
+  const cached =
+    typeof localStorage !== "undefined"
+      ? String(localStorage.getItem("schoolLogoUrl") || "").trim()
+      : "";
+  if (cached) return absolutizeSchoolLogoUrl(cached);
   return "";
 }
 

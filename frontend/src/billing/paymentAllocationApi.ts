@@ -137,3 +137,20 @@ export async function clearPaymentAllocations(schoolId: string, paymentId: strin
 export function receiptPdfUrl(schoolId: string, paymentId: string): string {
   return `${API_URL}/api/payment-allocations/${encodeURIComponent(paymentId)}/receipt/pdf?schoolId=${encodeURIComponent(schoolId)}`;
 }
+
+export async function sendPaymentReceiptEmail(schoolId: string, paymentId: string) {
+  const data = await parseJson(
+    await fetch(`${API_URL}/api/payments/${encodeURIComponent(paymentId)}/send-receipt`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ schoolId }),
+    })
+  );
+  return data as {
+    success: boolean;
+    message?: string;
+    messageId?: string;
+    to?: string;
+    receiptNumber?: string;
+  };
+}

@@ -63,6 +63,10 @@ export function resolveUploadsFilePath(logoUrl: string): string | null {
   const uploadsIdx = url.indexOf("/uploads/");
   if (uploadsIdx >= 0) {
     const rel = url.slice(uploadsIdx + 1);
+    const dataLogoPath = rel.startsWith("uploads/school-logos/")
+      ? path.join(process.cwd(), "data", "school-logos", path.basename(rel))
+      : "";
+    if (dataLogoPath && fs.existsSync(dataLogoPath)) return dataLogoPath;
     const filePath = path.join(process.cwd(), rel);
     if (fs.existsSync(filePath)) return filePath;
   }
@@ -73,12 +77,18 @@ export function resolveUploadsFilePath(logoUrl: string): string | null {
       ? url
       : null;
   if (relative) {
+    const dataLogoPath = relative.startsWith("uploads/school-logos/")
+      ? path.join(process.cwd(), "data", "school-logos", path.basename(relative))
+      : "";
+    if (dataLogoPath && fs.existsSync(dataLogoPath)) return dataLogoPath;
     const filePath = path.join(process.cwd(), relative);
     if (fs.existsSync(filePath)) return filePath;
   }
 
   const basename = path.basename(url.split("?")[0] || "");
   if (basename && basename !== url) {
+    const persistentLogoPath = path.join(process.cwd(), "data", "school-logos", basename);
+    if (fs.existsSync(persistentLogoPath)) return persistentLogoPath;
     const logoPath = path.join(process.cwd(), "uploads", "school-logos", basename);
     if (fs.existsSync(logoPath)) return logoPath;
   }

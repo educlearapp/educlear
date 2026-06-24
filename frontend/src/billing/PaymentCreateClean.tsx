@@ -23,17 +23,12 @@ import {
   resolveKidESysAccountRefFromLearner,
 } from "./billingAccountRef";
 import { resolvePaymentLearnerId } from "./paymentLearnerResolver";
-import {
-  fetchSchoolEmailSettings,
-  isSchoolEmailReadyForUi,
-  normalizeSchoolEmailSettings,
-  type SchoolEmailSettings,
-} from "../communication/schoolEmailApi";
 import PaymentAllocationModal from "./PaymentAllocationModal";
 import {
   fetchAllocationTargets,
   receiptPdfUrl,
   savePaymentAllocations,
+  sendPaymentReceiptEmail,
   suggestPaymentAllocations,
   type AllocationLine,
   type PaymentAllocationRow,
@@ -48,6 +43,10 @@ import {
   type PaymentFormState,
   type PaymentType,
 } from "./paymentCreateShared";
+import {
+  loadStatementSchoolBranding,
+  type StatementSchoolBranding,
+} from "./statementDocument";
 
 const REVERSE_PAYMENT_API_CONNECTED = false;
 
@@ -297,6 +296,11 @@ const payCell: React.CSSProperties = {
   fontSize: 13,
 };
 
+type SavedReceiptPrompt = {
+  paymentId: string;
+  receiptNumber: string;
+};
+
 export default function PaymentCreateClean({
   schoolId,
   learners = [],
@@ -358,7 +362,12 @@ export default function PaymentCreateClean({
   const [txnActionBusy, setTxnActionBusy] = useState(false);
   const [txnActionMsg, setTxnActionMsg] = useState("");
   const [txnActionErr, setTxnActionErr] = useState("");
-  const [emailReadiness, setEmailReadiness] = useState<SchoolEmailSettings | null>(null);
+  const [schoolBranding, setSchoolBranding] = useState<StatementSchoolBranding>({
+    name: localStorage.getItem("schoolName") || "School",
+  });
+  const [savedReceiptPrompt, setSavedReceiptPrompt] = useState<SavedReceiptPrompt | null>(null);
+  const [receiptSendBusy, setReceiptSendBusy] = useState(false);
+  const [receiptSendError, setReceiptSendError] = useState("");
 
   const accountNo = String(draft.accountNo || selectedAccount?.accountNo || "").trim();
 
@@ -619,20 +628,13 @@ export default function PaymentCreateClean({
   }, [savedPayments, selectedPaymentId]);
 
   useEffect(() => {
-    if (!schoolId) {
-      setEmailReadiness(null);
-      return;
-    }
+    if (!schoolId) return;
     let cancelled = false;
-    void fetchSchoolEmailSettings(schoolId)
-      .then((res) => {
-        if (!cancelled) {
-          setEmailReadiness(normalizeSchoolEmailSettings(res.settings));
-        }
+    void loadStatementSchoolBranding(schoolId)
+      .then((branding) => {
+        if (!cancelled) setSchoolBranding(branding);
       })
-      .catch(() => {
-        if (!cancelled) setEmailReadiness(null);
-      });
+      .catch(() => {});
     return () => {
       cancelled = true;
     };
@@ -782,21 +784,47 @@ export default function PaymentCreateClean({
     }
   }, [schoolId, selectedPayment]);
 
-  const handleEmailReceipt = useCallback(() => {
+  const handleEmailReceiptForPayment = useCallback(async (payment: typeof selectedPayment) => {
     setTxnActionErr("");
     setTxnActionMsg("");
-    if (!selectedPayment) {
+    if (!payment) {
       setTxnActionErr("Select a payment to email a receipt.");
       return;
     }
-    if (!isSchoolEmailReadyForUi(emailReadiness)) {
-      setTxnActionErr(
-        "School email address is missing. Open Communication → Settings → Email and add the school's email address."
-      );
-      return;
+    setTxnActionBusy(true);
+    try {
+      const result = await sendPaymentReceiptEmail(schoolId, payment.id);
+      setTxnActionMsg(result.message || "Receipt sent successfully.");
+    } catch (error) {
+      setTxnActionErr(error instanceof Error ? error.message : "Receipt email could not be sent.");
+    } finally {
+      setTxnActionBusy(false);
     }
-    setTxnActionErr("Payment receipt email API not connected yet.");
-  }, [selectedPayment, emailReadiness]);
+  }, [schoolId]);
+
+  const handleEmailReceipt = useCallback(() => {
+    void handleEmailReceiptForPayment(selectedPayment);
+  }, [handleEmailReceiptForPayment, selectedPayment]);
+
+  const sendSavedReceiptEmail = useCallback(async () => {
+    if (!savedReceiptPrompt) return;
+    setReceiptSendBusy(true);
+    setReceiptSendError("");
+    setTxnActionErr("");
+    setTxnActionMsg("");
+    try {
+      const result = await sendPaymentReceiptEmail(schoolId, savedReceiptPrompt.paymentId);
+      setSelectedPaymentId(savedReceiptPrompt.paymentId);
+      setSavedReceiptPrompt(null);
+      setTxnActionMsg(result.message || "Receipt sent successfully.");
+    } catch (error) {
+      setReceiptSendError(
+        error instanceof Error ? error.message : "Receipt email could not be sent."
+      );
+    } finally {
+      setReceiptSendBusy(false);
+    }
+  }, [schoolId, savedReceiptPrompt]);
 
   const handleReversePayment = useCallback(() => {
     setTxnActionErr("Reverse payment API not connected yet.");
@@ -903,6 +931,9 @@ export default function PaymentCreateClean({
       if (!paymentId || !paymentRow) {
         throw new Error("Payment was not saved. No payment record returned from the server.");
       }
+      const receiptNumber =
+        String(paymentRow.reference || "").trim() ||
+        String(paymentRow.id || paymentId).trim();
 
       const patchStarted = performance.now();
       applyPaymentSaveResponse(schoolId, result as Record<string, unknown>);
@@ -945,6 +976,8 @@ export default function PaymentCreateClean({
 
       setSaving(false);
       setSaveJustSucceeded(true);
+      setReceiptSendError("");
+      setSavedReceiptPrompt({ paymentId, receiptNumber });
       logBillingSaveTiming("payment save total", performance.now() - saveStarted);
 
       const allocationPayload =
@@ -1024,6 +1057,34 @@ export default function PaymentCreateClean({
       }}
     >
       <BillingEnvDebug schoolId={schoolId} />
+      <div
+        style={{
+          display: "flex",
+          alignItems: "center",
+          gap: 12,
+          marginBottom: 12,
+          background: "#fff",
+          border: "1px solid #d6c17a",
+          borderRadius: 14,
+          padding: "10px 14px",
+        }}
+      >
+        {schoolBranding.logoUrl ? (
+          <img
+            src={schoolBranding.logoUrl}
+            alt=""
+            style={{ width: 54, height: 54, objectFit: "contain", borderRadius: 8 }}
+          />
+        ) : null}
+        <div>
+          <div style={{ fontWeight: 900, color: "#111827" }}>
+            {schoolBranding.name || "School"}
+          </div>
+          <div style={{ color: "#64748b", fontWeight: 700, fontSize: 12 }}>
+            Payment receipt
+          </div>
+        </div>
+      </div>
       <h1 style={{ margin: 0, fontSize: 30, fontWeight: 900, color: "#111827" }}>
         Create Payment
       </h1>
@@ -1535,6 +1596,91 @@ export default function PaymentCreateClean({
             await afterAllocationSaved();
           }}
         />
+      ) : null}
+      {savedReceiptPrompt ? (
+        <div
+          role="dialog"
+          aria-modal="true"
+          style={{
+            position: "fixed",
+            inset: 0,
+            zIndex: 10000,
+            background: "rgba(17,24,39,0.48)",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            padding: 16,
+          }}
+        >
+          <div
+            style={{
+              width: 420,
+              maxWidth: "100%",
+              background: "#fff",
+              border: "2px solid #d4af37",
+              borderRadius: 14,
+              boxShadow: "0 24px 70px rgba(0,0,0,0.28)",
+              overflow: "hidden",
+            }}
+          >
+            <div style={{ background: "#111827", color: "#d4af37", padding: "14px 18px", fontWeight: 900, fontSize: 20 }}>
+              Receipt Saved
+            </div>
+            <div style={{ padding: 18, color: "#111827", fontWeight: 700, lineHeight: 1.65 }}>
+              <p style={{ margin: 0 }}>
+                Receipt {savedReceiptPrompt.receiptNumber} has been saved.
+              </p>
+              <p style={{ margin: "12px 0 0" }}>
+                Would you like to send this receipt now?
+              </p>
+            </div>
+            <div style={{ display: "flex", justifyContent: "flex-end", gap: 10, padding: "0 18px 18px" }}>
+              <button
+                type="button"
+                style={{
+                  ...payBtn,
+                  opacity: receiptSendBusy ? 0.6 : 1,
+                  cursor: receiptSendBusy ? "not-allowed" : "pointer",
+                }}
+                disabled={receiptSendBusy}
+                onClick={() => {
+                  setReceiptSendError("");
+                  setSavedReceiptPrompt(null);
+                }}
+              >
+                No
+              </button>
+              <button
+                type="button"
+                style={{
+                  ...payGoldBtn,
+                  opacity: receiptSendBusy ? 0.6 : 1,
+                  cursor: receiptSendBusy ? "not-allowed" : "pointer",
+                }}
+                disabled={receiptSendBusy}
+                onClick={() => void sendSavedReceiptEmail()}
+              >
+                {receiptSendBusy ? "Sending..." : "Yes"}
+              </button>
+            </div>
+            {receiptSendError ? (
+              <p
+                style={{
+                  margin: "0 18px 18px",
+                  padding: "9px 10px",
+                  borderRadius: 8,
+                  background: "#fef2f2",
+                  color: "#b91c1c",
+                  fontWeight: 800,
+                  fontSize: 13,
+                }}
+                role="alert"
+              >
+                {receiptSendError}
+              </p>
+            ) : null}
+          </div>
+        </div>
       ) : null}
     </div>
   );
