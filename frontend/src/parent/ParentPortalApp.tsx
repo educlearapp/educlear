@@ -632,6 +632,14 @@ export default function ParentPortalApp() {
     );
   }, [familyBilling, familyBillingLearners, parentDisplayName]);
 
+  const parentFinanceLearnerLabel = useMemo(() => {
+    const names = familyBillingLearners
+      .map((learner) => `${learner.firstName || ""} ${learner.lastName || ""}`.trim())
+      .filter(Boolean);
+    if (names.length > 1) return names.join(", ");
+    return names[0] || activeLearner?.firstName || "your child";
+  }, [activeLearner?.firstName, familyBillingLearners]);
+
   const parentExportPeriodActionLabel = (action: ParentExportAction) => {
     if (action === "print") return "Print Statement";
     if (action === "download") return "Download PDF";
@@ -1219,7 +1227,7 @@ export default function ParentPortalApp() {
             policy={financePolicy}
             accountLabel={parentAccountLabel}
             parentName={parentDisplayName || "Parent"}
-            learnerName={familyBillingLearners[0]?.firstName || activeLearner?.firstName || "your child"}
+            learnerName={parentFinanceLearnerLabel}
             childrenOnAccount={familyBillingLearners}
             statementNotice={statementNotice}
             statementBusy={statementActionBusy}

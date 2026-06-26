@@ -119,9 +119,9 @@ export default function FinanceHubPage({
               billing={selectedSnapshot.billing}
               loading={false}
               policy={policy}
-              accountLabel={selectedSnapshot.row.accountNo || selectedSnapshot.learnerName}
+              accountLabel={selectedSnapshot.row.accountNo || selectedSnapshot.learnerDisplayName}
               parentName={selectedSnapshot.parentName}
-              learnerName={selectedSnapshot.learnerName}
+              learnerName={selectedSnapshot.learnerDisplayName}
               childrenOnAccount={selectedSnapshot.childrenOnAccount}
               statementBusy={false}
               statementNotice="School preview only. Parent data comes from billing accounts, statements, invoices, payments, payment plans, and finance policy settings."
@@ -155,7 +155,9 @@ export default function FinanceHubPage({
 
 function CommunicationPreview({ snapshot }: { snapshot: FinanceAccountSnapshot | null }) {
   const summary = snapshot?.summary;
-  const learner = snapshot?.learnerName || "your child";
+  const isFamily = (snapshot?.childrenOnAccount.length || 0) > 1 || Boolean(snapshot?.row.familyAccountId);
+  const subject = isFamily ? "Your family account" : `${snapshot?.learnerDisplayName || "Your child"}'s account`;
+  const learnerList = snapshot?.learnerDisplayName || "";
   return (
     <section style={linkCard}>
       <p style={eyebrow}>Communication preview</p>
@@ -164,7 +166,8 @@ function CommunicationPreview({ snapshot }: { snapshot: FinanceAccountSnapshot |
         <strong>Hi {snapshot?.parentName || "Parent"},</strong>
         {summary ? (
           <>
-            <span>{learner}'s account is currently {summary.accountHealth}.</span>
+            <span>{subject} is currently {summary.accountHealth}.</span>
+            {isFamily && learnerList ? <span>Learners: {learnerList}.</span> : null}
             <span>Amount you owe: {formatFinanceMoney(summary.amountYouOwe)}.</span>
             <span>Overdue payments: {formatFinanceMoney(summary.amountOverdue)}.</span>
             <span>Next school fee due: {formatFinanceDate(summary.nextSchoolFeeDueDate)}.</span>

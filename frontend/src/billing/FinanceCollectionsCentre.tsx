@@ -191,7 +191,11 @@ export default function FinanceCollectionsCentre({ schoolId, learners, statement
                     <tr key={`${snapshot.row.learnerId}-${snapshot.row.accountNo}`}>
                       <td style={td}>
                         <strong>{snapshot.row.accountNo || "No account"}</strong>
-                        <small style={muted}>{snapshot.learnerName || "Learner"}</small>
+                        <small style={muted}>
+                          {snapshot.childrenOnAccount.length > 1
+                            ? `Family account · ${snapshot.firstLearnerName}`
+                            : snapshot.learnerDisplayName || "Learner"}
+                        </small>
                       </td>
                       <td style={td}>{snapshot.parentName}</td>
                       <td style={td}>{formatFinanceMoney(snapshot.summary.amountOverdue)}</td>
@@ -314,21 +318,34 @@ function sumSnapshots(rows: FinanceAccountSnapshot[]) {
 }
 
 function accountArrangements(snapshot: FinanceAccountSnapshot, arrangements: PaymentArrangement[]) {
-  const learnerId = String(snapshot.row.learnerId || snapshot.row.id || "").trim();
+  const learnerIds = new Set(
+    [
+      String(snapshot.row.learnerId || snapshot.row.id || "").trim(),
+      ...(snapshot.row.memberLearnerIds || []).map((id) => String(id || "").trim()),
+      ...snapshot.childrenOnAccount.map((child) => String(child.id || "").trim()),
+    ].filter(Boolean)
+  );
   const accountNo = String(snapshot.row.accountNo || "").trim();
+  const familyAccountId = String(snapshot.row.familyAccountId || "").trim();
   return arrangements.filter(
-    (arrangement) =>
-      String(arrangement.learnerId || "").trim() === learnerId &&
-      String(arrangement.accountNo || "").trim() === accountNo
+    (arrangement: any) => {
+      const arrangementAccountNo = String(arrangement.accountNo || "").trim();
+      if (accountNo && arrangementAccountNo === accountNo) return true;
+      if (familyAccountId && String(arrangement.familyAccountId || "").trim() === familyAccountId) return true;
+      return learnerIds.has(String(arrangement.learnerId || "").trim()) && arrangementAccountNo === accountNo;
+    }
   );
 }
 
 function financeUpdateMessage(snapshot: FinanceAccountSnapshot) {
   const summary = snapshot.summary;
-  const learner = snapshot.learnerName || "your child";
+  const isFamily = snapshot.childrenOnAccount.length > 1 || Boolean(snapshot.row.familyAccountId);
+  const subject = isFamily ? "Your family account" : `${snapshot.learnerDisplayName || "Your child"}'s account`;
+  const learnerLine = isFamily && snapshot.learnerDisplayName ? [`Learners: ${snapshot.learnerDisplayName}.`] : [];
   return [
     `Hi ${snapshot.parentName || "Parent"},`,
-    `${learner}'s account is currently ${summary.accountHealth}.`,
+    `${subject} is currently ${summary.accountHealth}.`,
+    ...learnerLine,
     `Amount you owe: ${formatFinanceMoney(summary.amountYouOwe)}.`,
     `Overdue payments: ${formatFinanceMoney(summary.amountOverdue)}.`,
     `Next school fee due: ${formatFinanceDate(summary.nextSchoolFeeDueDate)}.`,
@@ -371,7 +388,21 @@ function ActionPanelModal({
           <div style={detailGrid}>
             <Detail label="Account" value={snapshot.row.accountNo || "No account"} />
             <Detail label="Parent" value={snapshot.parentName} />
-            <Detail label="Learner" value={snapshot.learnerName} />
+            <div style={detailItem}>
+              <span>Learners</span>
+              <div style={learnerDetailList}>
+                {snapshot.learnerDetails.length ? (
+                  snapshot.learnerDetails.map((learner) => (
+                    <strong key={learner.id || learner.name}>
+                      {learner.name}
+                      {learner.grade ? ` — ${learner.grade}` : ""}
+                    </strong>
+                  ))
+                ) : (
+                  <strong>{snapshot.learnerDisplayName || "Learner"}</strong>
+                )}
+              </div>
+            </div>
             <Detail label="Amount You Owe" value={formatFinanceMoney(snapshot.summary.amountYouOwe)} />
             <Detail label="Amount Overdue" value={formatFinanceMoney(snapshot.summary.amountOverdue)} />
             <Detail label="Health" value={snapshot.summary.accountHealth} />
@@ -612,6 +643,12 @@ const detailItem: CSSProperties = {
   border: "1px solid rgba(212, 175, 55, 0.2)",
   fontSize: 12,
   color: "#64748b",
+};
+
+const learnerDetailList: CSSProperties = {
+  display: "grid",
+  gap: 4,
+  color: "#111827",
 };
 
 const planList: CSSProperties = { display: "grid", gap: 10 };

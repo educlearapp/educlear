@@ -13,16 +13,27 @@ import {
   type BillingLedgerEntry,
 } from "../billing/billingLedger";
 import {
+  isEduClearUndoCorrectionEntry,
+  isKidesysBlockedBillingSource,
+  isNonPostingImportedLedgerEntry,
+  isUndoneLedgerEntry,
+  shouldShowLedgerEntryOnStatement,
+} from "../billing/billingDisplayRules";
+import {
   getActiveArrangement,
   loadPaymentArrangements,
 } from "../accounting/accountingDebtorsHelpers";
 import type { ParentFinanceBilling } from "../parent/ParentFinanceHub";
+import { normalizeKidESysAccountRef } from "../billing/billingAccountRef";
 
 export type FinanceAccountSnapshot = {
   row: BillingAccountRow;
   billing: ParentFinanceBilling;
   childrenOnAccount: { id: string; firstName: string; lastName: string; grade?: string }[];
+  learnerDetails: { id: string; name: string; grade: string }[];
   learnerName: string;
+  learnerDisplayName: string;
+  firstLearnerName: string;
   parentName: string;
   summary: FinanceHubSummary;
 };
@@ -42,10 +53,22 @@ export function buildFinanceAccountSnapshots(input: {
   return (input.statementRows || []).map((row) => {
     const childrenOnAccount = resolveChildrenOnAccount(row, input.learners);
     const accountLedger = resolveAccountLedger(schoolId, row, ledger);
-    const transactions = ledgerToFinanceTransactions(accountLedger, row);
-    const learnerName =
-      childrenOnAccount[0]?.firstName ||
-      String(row.name || row.accountHolder || "Learner").trim();
+    const activeLedger = accountLedger.filter(isFinanceHubActiveLedgerEntry);
+    const transactions = ledgerToFinanceTransactions(activeLedger, row);
+    const learnerDetails = childrenOnAccount.map((child) => ({
+      id: child.id,
+      name: `${child.firstName || ""} ${child.lastName || ""}`.trim() || "Learner",
+      grade: child.grade || "",
+    }));
+    const firstLearnerName =
+      learnerDetails[0]?.name ||
+      `${String(row.name || "").trim()} ${String(row.surname || "").trim()}`.trim() ||
+      String(row.accountHolder || "Learner").trim();
+    const learnerDisplayName =
+      learnerDetails.length > 1
+        ? learnerDetails.map((child) => child.name).filter(Boolean).join(", ")
+        : firstLearnerName;
+    const learnerName = learnerDisplayName;
     const parentName = resolveParentName(row, input.learners);
     const activeArrangement = getActiveArrangement(
       arrangements,
@@ -69,7 +92,10 @@ export function buildFinanceAccountSnapshots(input: {
       row,
       billing,
       childrenOnAccount,
+      learnerDetails,
       learnerName,
+      learnerDisplayName,
+      firstLearnerName,
       parentName,
       summary: buildFinanceHubSummary({
         transactions,
@@ -100,6 +126,14 @@ function resolveAccountLedger(
   row: BillingAccountRow,
   ledger: BillingLedgerEntry[]
 ) {
+  const accountRef = normalizeKidESysAccountRef(row.accountNo);
+  if (accountRef) {
+    const accountEntries = ledger.filter(
+      (entry) => normalizeKidESysAccountRef(entry.accountNo) === accountRef
+    );
+    if (accountEntries.length) return dedupeLedgerEntries(accountEntries);
+  }
+
   const learnerIds = [
     ...(row.memberLearnerIds || []),
     String(row.learnerId || row.id || ""),
@@ -111,6 +145,25 @@ function resolveAccountLedger(
     });
   }
   return getAccountLedger(schoolId, String(row.learnerId || row.id || ""), String(row.accountNo || ""));
+}
+
+function isFinanceHubActiveLedgerEntry(entry: BillingLedgerEntry): boolean {
+  if (isUndoneLedgerEntry(entry)) return false;
+  if (isEduClearUndoCorrectionEntry(entry)) return false;
+  if (!shouldShowLedgerEntryOnStatement(entry)) return false;
+  if (isNonPostingImportedLedgerEntry(entry)) return false;
+  if (isKidesysBlockedBillingSource(entry.source)) return false;
+  return true;
+}
+
+function dedupeLedgerEntries(entries: BillingLedgerEntry[]) {
+  const byId = new Map<string, BillingLedgerEntry>();
+  for (const entry of entries) {
+    const id = String(entry.id || "").trim();
+    if (!id || byId.has(id)) continue;
+    byId.set(id, entry);
+  }
+  return Array.from(byId.values());
 }
 
 function ledgerToFinanceTransactions(
@@ -141,6 +194,8 @@ function ledgerToFinanceTransactions(
 }
 
 function resolveChildrenOnAccount(row: BillingAccountRow, learners: unknown[]) {
+  const accountRef = normalizeKidESysAccountRef(row.accountNo);
+  const familyAccountId = String(row.familyAccountId || "").trim();
   const memberIds = new Set(
     [
       ...(row.memberLearnerIds || []),
@@ -148,7 +203,18 @@ function resolveChildrenOnAccount(row: BillingAccountRow, learners: unknown[]) {
     ].filter(Boolean)
   );
   const matched = (learners || [])
-    .filter((learner: any) => memberIds.has(String(learner?.id || learner?.learnerId || "")))
+    .filter((learner: any) => {
+      const learnerId = String(learner?.id || learner?.learnerId || "");
+      const learnerFamilyId = String(learner?.familyAccountId || learner?.familyAccount?.id || "").trim();
+      const learnerAccountRef = normalizeKidESysAccountRef(
+        learner?.accountNo || learner?.accountRef || learner?.familyAccount?.accountRef
+      );
+      return (
+        memberIds.has(learnerId) ||
+        Boolean(familyAccountId && learnerFamilyId === familyAccountId) ||
+        Boolean(accountRef && learnerAccountRef === accountRef)
+      );
+    })
     .map((learner: any) => ({
       id: String(learner?.id || learner?.learnerId || ""),
       firstName: String(learner?.firstName || learner?.name || "").trim() || String(row.name || "Learner"),

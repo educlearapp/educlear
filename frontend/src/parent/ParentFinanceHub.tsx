@@ -89,6 +89,9 @@ export default function ParentFinanceHub({
     .toLowerCase()
     .replace(/\s+/g, "-")}`;
   const childName = learnerName || childrenOnAccount[0]?.firstName || accountLabel || "your child";
+  const accountSubject = childrenOnAccount.length > 1 || billing.isFamilyAccount ? "Your family account" : `${childName}'s account`;
+  const arrangementSubject =
+    childrenOnAccount.length > 1 || billing.isFamilyAccount ? "your family account" : `${childName}'s school fees`;
   const healthIcon = accountHealthIcon(summary.accountHealth);
 
   if (showArrangementPage) {
@@ -100,7 +103,7 @@ export default function ParentFinanceHub({
           settlementDeadlineDate: summary.settlementDeadlineDate,
         }}
         policy={financePolicy}
-        childName={childName}
+        childName={arrangementSubject}
         onBack={() => setShowArrangementPage(false)}
         onNotice={setNotice}
       />
@@ -116,7 +119,7 @@ export default function ParentFinanceHub({
           </div>
           <div>
             <p className="parent-finance-greeting">{greetingForNow()}, {parentName} 👋</p>
-            <h2>{childName}&apos;s account is currently {summary.accountHealth}.</h2>
+            <h2>{accountSubject} is currently {summary.accountHealth}.</h2>
             <p>{summary.nextAction}</p>
           </div>
         </div>
@@ -340,7 +343,7 @@ function PaymentArrangementPage({
             <div className="parent-finance-eyebrow">Payment Plan</div>
             <h2>Let&apos;s help you get back on track.</h2>
             <p>
-              If you need more time with {childName}&apos;s school fees, you can ask the school finance office to review a respectful payment plan.
+              If you need more time with {childName}, you can ask the school finance office to review a respectful payment plan.
             </p>
           </div>
         </div>
