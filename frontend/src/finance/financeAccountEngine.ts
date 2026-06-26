@@ -128,6 +128,7 @@ function ledgerToFinanceTransactions(
       return {
         id: entry.id,
         date: String(entry.date || entry.createdAt || "").slice(0, 10),
+        dueDate: String(entry.dueDate || "").slice(0, 10) || undefined,
         type: entry.type,
         learner: `${row.name || ""} ${row.surname || ""}`.trim(),
         reference: entry.reference,

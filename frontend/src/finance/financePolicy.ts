@@ -23,6 +23,7 @@ export type FinancePolicySettings = {
 export type FinanceTransaction = {
   id: string;
   date: string;
+  dueDate?: string;
   type: string;
   learner?: string;
   reference?: string;
@@ -173,17 +174,28 @@ export function buildFinanceHubSummary(input: {
   const policy = normaliseFinancePolicySettings(input.policy);
   const balance = Math.max(0, roundMoney(input.balance));
   const rows = [...(input.transactions || [])].sort((a, b) => safeDate(a.date).localeCompare(safeDate(b.date)));
-  const currentMonth = today.slice(0, 7);
+  const chargeLines = rows
+    .filter((row) => positive(row.amountOut) > 0)
+    .map((row) => ({
+      row,
+      dueDate: resolveChargeDueDate(row, policy),
+      monthKey: chargePeriodMonth(row, policy),
+    }))
+    .filter((line) => line.dueDate && line.monthKey);
+  const latestChargeMonth = chargeLines.length
+    ? [...chargeLines].sort((a, b) => b.dueDate.localeCompare(a.dueDate))[0].monthKey
+    : today.slice(0, 7);
   const currentMonthFees = roundMoney(
-    rows
-      .filter((row) => safeDate(row.date).slice(0, 7) === currentMonth)
-      .reduce((sum, row) => sum + positive(row.amountOut), 0)
+    chargeLines
+      .filter((line) => line.monthKey === latestChargeMonth)
+      .reduce((sum, line) => sum + positive(line.row.amountOut), 0)
   );
   const lastPayment = [...rows].reverse().find((row) => positive(row.amountIn) > 0);
   const unpaidLines = allocateUnpaidCharges(rows, policy);
   const overdueLines = unpaidLines.filter((line) => line.dueDate < today);
-  const amountOverdue = roundMoney(overdueLines.reduce((sum, line) => sum + line.unpaid, 0));
-  const oldestOutstandingDays = overdueLines.length
+  const rawAmountOverdue = roundMoney(overdueLines.reduce((sum, line) => sum + line.unpaid, 0));
+  const amountOverdue = balance <= 0 ? 0 : roundMoney(Math.min(balance, rawAmountOverdue));
+  const oldestOutstandingDays = amountOverdue > 0 && overdueLines.length
     ? Math.max(...overdueLines.map((line) => daysBetween(line.dueDate, today)))
     : 0;
   const accountHealth = resolveAccountHealth(balance, oldestOutstandingDays, policy);
@@ -266,21 +278,42 @@ function dueDateForMonth(monthKey: string, policy: FinancePolicySettings) {
   return toIsoDate(base);
 }
 
+function chargePeriodMonth(row: FinanceTransaction, policy: FinancePolicySettings) {
+  const dueDate = resolveChargeDueDate(row, policy);
+  if (dueDate) return dueDate.slice(0, 7);
+  const date = safeDate(row.date);
+  return date ? date.slice(0, 7) : "";
+}
+
+function resolveChargeDueDate(row: FinanceTransaction, policy: FinancePolicySettings) {
+  const explicitDueDate = safeDate(row.dueDate);
+  if (explicitDueDate) return explicitDueDate;
+  const date = safeDate(row.date);
+  const monthKey = date ? date.slice(0, 7) : "";
+  return monthKey ? dueDateForMonth(monthKey, policy) : date;
+}
+
 function allocateUnpaidCharges(rows: FinanceTransaction[], policy: FinancePolicySettings) {
   const charges = rows
     .filter((row) => positive(row.amountOut) > 0)
     .map((row) => {
       const date = safeDate(row.date);
-      const monthKey = date ? date.slice(0, 7) : "";
+      const dueDate = resolveChargeDueDate(row, policy);
+      const monthKey = dueDate ? dueDate.slice(0, 7) : date ? date.slice(0, 7) : "";
       return {
         id: row.id,
         monthKey,
         date,
-        dueDate: monthKey ? dueDateForMonth(monthKey, policy) : date,
+        dueDate,
         unpaid: positive(row.amountOut),
       };
     })
-    .filter((line) => line.date && line.dueDate);
+    .filter((line) => line.date && line.dueDate)
+    .sort((a, b) => {
+      const dueCompare = a.dueDate.localeCompare(b.dueDate);
+      if (dueCompare !== 0) return dueCompare;
+      return a.date.localeCompare(b.date);
+    });
   let credit = rows.reduce((sum, row) => sum + positive(row.amountIn), 0);
   for (const charge of charges) {
     const applied = Math.min(charge.unpaid, credit);
@@ -298,18 +331,19 @@ function buildMonthStatuses(
 ): FinanceMonthStatus[] {
   const monthKeys = new Set<string>();
   for (const row of rows) {
-    const date = safeDate(row.date);
-    if (date) monthKeys.add(date.slice(0, 7));
+    const monthKey = chargePeriodMonth(row, policy);
+    if (monthKey) monthKeys.add(monthKey);
   }
   monthKeys.add(today.slice(0, 7));
   return Array.from(monthKeys)
     .sort()
     .slice(-8)
     .map((key) => {
-      const monthRows = rows.filter((row) => safeDate(row.date).slice(0, 7) === key);
+      const monthRows = rows.filter((row) => chargePeriodMonth(row, policy) === key);
       const charged = roundMoney(monthRows.reduce((sum, row) => sum + positive(row.amountOut), 0));
       const paid = roundMoney(monthRows.reduce((sum, row) => sum + positive(row.amountIn), 0));
       const unpaid = roundMoney(unpaidLines.filter((line) => line.monthKey === key).reduce((sum, line) => sum + line.unpaid, 0));
+      const dueDate = unpaidLines.find((line) => line.monthKey === key)?.dueDate || dueDateForMonth(key, policy);
       return {
         key,
         label: monthLabel(key),
@@ -317,7 +351,7 @@ function buildMonthStatuses(
         charged,
         paid,
         unpaid,
-        dueDate: dueDateForMonth(key, policy),
+        dueDate,
       };
     });
 }
