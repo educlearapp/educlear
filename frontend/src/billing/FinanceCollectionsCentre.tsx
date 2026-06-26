@@ -2,17 +2,20 @@ import { useEffect, useMemo, useState } from "react";
 import type { CSSProperties } from "react";
 import {
   loadPaymentArrangements,
+  type PaymentArrangement,
 } from "../accounting/accountingDebtorsHelpers";
 import { fetchBillingSettings } from "../billingSettings/billingSettingsApi";
 import { createDefaultBillingSettings } from "../billingSettings/components/billingSettingsConstants";
 import type { BillingAccountRow } from "./billingLedger";
 import type { AccountHealth, FinancePolicySettings } from "../finance/financePolicy";
-import { formatFinanceMoney } from "../finance/financePolicy";
+import { formatFinanceDate, formatFinanceMoney } from "../finance/financePolicy";
 import {
   buildFinanceAccountSnapshots,
   type FinanceAccountSnapshot,
   groupFinanceSnapshotsByHealth,
 } from "../finance/financeAccountEngine";
+import { downloadSchoolStatementPdf } from "./statementDocument";
+import { DEFAULT_STATEMENT_PERIOD, buildStatementPdfFilename } from "./statementPeriod";
 
 type Props = {
   schoolId: string;
@@ -23,6 +26,7 @@ type Props = {
 type HealthBucket = AccountHealth;
 
 const healthOrder: HealthBucket[] = ["Excellent", "Needs Attention", "Action Required", "Critical"];
+const reviewHealthOrder: HealthBucket[] = ["Critical", "Action Required", "Needs Attention"];
 const arrangementBuckets = [
   "New Payment Plan Requests",
   "Pending Review",
@@ -33,10 +37,18 @@ const arrangementBuckets = [
   "Completed",
 ] as const;
 
+type ActionPanel =
+  | { kind: "finance-update"; snapshot: FinanceAccountSnapshot }
+  | { kind: "account"; snapshot: FinanceAccountSnapshot }
+  | { kind: "payment-plan"; snapshot: FinanceAccountSnapshot };
+
 export default function FinanceCollectionsCentre({ schoolId, learners, statementRows }: Props) {
   const [policy, setPolicy] = useState<FinancePolicySettings>(
     createDefaultBillingSettings().financePolicy
   );
+  const [actionPanel, setActionPanel] = useState<ActionPanel | null>(null);
+  const [statementNotice, setStatementNotice] = useState("");
+  const [statementBusyAccount, setStatementBusyAccount] = useState("");
 
   useEffect(() => {
     if (!schoolId) return;
@@ -63,13 +75,14 @@ export default function FinanceCollectionsCentre({ schoolId, learners, statement
       }),
     [schoolId, learners, statementRows, policy]
   );
-  const healthGroups = useMemo(
-    () => groupFinanceSnapshotsByHealth(financeSnapshots),
-    [financeSnapshots]
-  );
+  const classifiedSnapshots = useMemo(() => uniqueAccountSnapshots(financeSnapshots), [financeSnapshots]);
+  const healthGroups = useMemo(() => groupFinanceSnapshotsByHealth(classifiedSnapshots), [classifiedSnapshots]);
   const reviewSnapshots = useMemo(
-    () => financeSnapshots.filter((snapshot) => snapshot.summary.amountOverdue > 0),
-    [financeSnapshots]
+    () =>
+      classifiedSnapshots
+        .filter((snapshot) => snapshot.summary.accountHealth !== "Excellent")
+        .sort(compareReviewUrgency),
+    [classifiedSnapshots]
   );
 
   const arrangementCounts = useMemo(() => {
@@ -85,7 +98,38 @@ export default function FinanceCollectionsCentre({ schoolId, learners, statement
     return counts;
   }, [schoolId]);
 
-  const totalOutstanding = financeSnapshots.reduce((sum, row) => sum + Math.max(0, Number(row.summary.amountYouOwe) || 0), 0);
+  const totalOutstanding = classifiedSnapshots.reduce(
+    (sum, row) => sum + Math.max(0, Number(row.summary.amountYouOwe) || 0),
+    0
+  );
+  const categoryTotal = healthOrder.reduce((sum, bucket) => sum + healthGroups[bucket].length, 0);
+  const arrangements = useMemo(() => (schoolId ? loadPaymentArrangements(schoolId) : []), [schoolId]);
+
+  const handleGenerateStatement = async (snapshot: FinanceAccountSnapshot) => {
+    const accountNo = String(snapshot.row.accountNo || "").trim();
+    const learnerId = String(snapshot.row.learnerId || snapshot.row.id || "").trim();
+    if (!schoolId || !accountNo) {
+      setStatementNotice("This account does not have enough detail to generate a statement.");
+      return;
+    }
+    setStatementNotice("");
+    setStatementBusyAccount(accountNo);
+    try {
+      await downloadSchoolStatementPdf(
+        schoolId,
+        learnerId,
+        buildStatementPdfFilename(accountNo, DEFAULT_STATEMENT_PERIOD),
+        DEFAULT_STATEMENT_PERIOD,
+        undefined,
+        accountNo
+      );
+      setStatementNotice(`Latest statement opened for account ${accountNo}.`);
+    } catch (error) {
+      setStatementNotice(error instanceof Error ? error.message : "Failed to generate statement.");
+    } finally {
+      setStatementBusyAccount("");
+    }
+  };
 
   return (
     <div style={page}>
@@ -100,6 +144,7 @@ export default function FinanceCollectionsCentre({ schoolId, learners, statement
         <div style={totalCard}>
           <span>Total Amount You Need To Collect</span>
           <strong>{formatFinanceMoney(totalOutstanding)}</strong>
+          <small style={lightMuted}>{categoryTotal} classified accounts</small>
         </div>
       </div>
 
@@ -118,10 +163,13 @@ export default function FinanceCollectionsCentre({ schoolId, learners, statement
         <div style={panelHeader}>
           <div>
             <p style={eyebrow}>Next action</p>
-            <h2 style={sectionTitle}>Accounts To Review</h2>
+            <h2 style={sectionTitle}>Today&apos;s Finance Priorities</h2>
           </div>
-          <span style={muted}>Policy threshold: {policy.arrangementEligibilityDays} days</span>
+          <span style={muted}>
+            Sorted by urgency. Healthy accounts are hidden here unless reviewed from the Healthy card.
+          </span>
         </div>
+        {statementNotice ? <div style={notice}>{statementNotice}</div> : null}
         <div style={tableWrap}>
           <table style={table}>
             <thead>
@@ -151,11 +199,25 @@ export default function FinanceCollectionsCentre({ schoolId, learners, statement
                       <td style={td}>{nextOfficeAction(health)}</td>
                       <td style={td}>
                         <div style={actionGrid}>
-                          {["Send Finance Update", "View Account", "Review Payment Plan", "Generate Statement"].map((label) => (
-                            <button key={label} type="button" style={placeholderActionBtn} aria-disabled="true">
-                              {label}
-                            </button>
-                          ))}
+                          <button type="button" style={actionBtn} onClick={() => setActionPanel({ kind: "finance-update", snapshot })}>
+                            Preview Finance Update
+                          </button>
+                          <button type="button" style={actionBtn} onClick={() => setActionPanel({ kind: "account", snapshot })}>
+                            View Account
+                          </button>
+                          <button type="button" style={actionBtn} onClick={() => setActionPanel({ kind: "payment-plan", snapshot })}>
+                            Review Payment Plan
+                          </button>
+                          <button
+                            type="button"
+                            style={actionBtn}
+                            onClick={() => void handleGenerateStatement(snapshot)}
+                            disabled={statementBusyAccount === String(snapshot.row.accountNo || "").trim()}
+                          >
+                            {statementBusyAccount === String(snapshot.row.accountNo || "").trim()
+                              ? "Generating..."
+                              : "Generate Statement"}
+                          </button>
                         </div>
                       </td>
                     </tr>
@@ -163,6 +225,9 @@ export default function FinanceCollectionsCentre({ schoolId, learners, statement
                 })}
             </tbody>
           </table>
+          {!reviewSnapshots.length ? (
+            <div style={emptyState}>No urgent finance priorities. All accounts are currently Healthy.</div>
+          ) : null}
         </div>
       </section>
 
@@ -182,6 +247,14 @@ export default function FinanceCollectionsCentre({ schoolId, learners, statement
           ))}
         </div>
       </section>
+
+      {actionPanel ? (
+        <ActionPanelModal
+          panel={actionPanel}
+          arrangements={arrangements}
+          onClose={() => setActionPanel(null)}
+        />
+      ) : null}
     </div>
   );
 }
@@ -204,8 +277,145 @@ function nextOfficeAction(health: HealthBucket) {
   return "Prioritise urgent finance office follow-up.";
 }
 
+function uniqueAccountSnapshots(snapshots: FinanceAccountSnapshot[]) {
+  const byAccount = new Map<string, FinanceAccountSnapshot>();
+  for (const snapshot of snapshots) {
+    const key = accountSnapshotKey(snapshot);
+    if (!key || byAccount.has(key)) continue;
+    byAccount.set(key, snapshot);
+  }
+  return Array.from(byAccount.values());
+}
+
+function accountSnapshotKey(snapshot: FinanceAccountSnapshot) {
+  const accountNo = String(snapshot.row.accountNo || "").trim();
+  if (accountNo) return `account:${accountNo}`;
+  const familyId = String(snapshot.row.familyAccountId || "").trim();
+  if (familyId) return `family:${familyId}`;
+  const learnerId = String(snapshot.row.learnerId || snapshot.row.id || "").trim();
+  return learnerId ? `learner:${learnerId}` : "";
+}
+
+function compareReviewUrgency(a: FinanceAccountSnapshot, b: FinanceAccountSnapshot) {
+  const healthDiff = reviewRank(a.summary.accountHealth) - reviewRank(b.summary.accountHealth);
+  if (healthDiff !== 0) return healthDiff;
+  const daysDiff = b.summary.oldestOutstandingDays - a.summary.oldestOutstandingDays;
+  if (daysDiff !== 0) return daysDiff;
+  return b.summary.amountOverdue - a.summary.amountOverdue;
+}
+
+function reviewRank(health: AccountHealth) {
+  const index = reviewHealthOrder.indexOf(health);
+  return index === -1 ? reviewHealthOrder.length : index;
+}
+
 function sumSnapshots(rows: FinanceAccountSnapshot[]) {
   return rows.reduce((sum, row) => sum + Math.max(0, Number(row.summary.amountYouOwe) || 0), 0);
+}
+
+function accountArrangements(snapshot: FinanceAccountSnapshot, arrangements: PaymentArrangement[]) {
+  const learnerId = String(snapshot.row.learnerId || snapshot.row.id || "").trim();
+  const accountNo = String(snapshot.row.accountNo || "").trim();
+  return arrangements.filter(
+    (arrangement) =>
+      String(arrangement.learnerId || "").trim() === learnerId &&
+      String(arrangement.accountNo || "").trim() === accountNo
+  );
+}
+
+function financeUpdateMessage(snapshot: FinanceAccountSnapshot) {
+  const summary = snapshot.summary;
+  const learner = snapshot.learnerName || "your child";
+  return [
+    `Hi ${snapshot.parentName || "Parent"},`,
+    `${learner}'s account is currently ${summary.accountHealth}.`,
+    `Amount you owe: ${formatFinanceMoney(summary.amountYouOwe)}.`,
+    `Overdue payments: ${formatFinanceMoney(summary.amountOverdue)}.`,
+    `Next school fee due: ${formatFinanceDate(summary.nextSchoolFeeDueDate)}.`,
+    summary.nextAction,
+  ].join("\n");
+}
+
+function ActionPanelModal({
+  panel,
+  arrangements,
+  onClose,
+}: {
+  panel: ActionPanel;
+  arrangements: PaymentArrangement[];
+  onClose: () => void;
+}) {
+  const snapshot = panel.snapshot;
+  const plans = accountArrangements(snapshot, arrangements);
+  return (
+    <div style={modalBackdrop} role="dialog" aria-modal="true">
+      <div style={modalCard}>
+        <div style={modalHeader}>
+          <div>
+            <p style={eyebrow}>{snapshot.row.accountNo || "Account"}</p>
+            <h2 style={sectionTitle}>{modalTitle(panel.kind)}</h2>
+          </div>
+          <button type="button" style={closeBtn} onClick={onClose}>
+            Close
+          </button>
+        </div>
+
+        {panel.kind === "finance-update" ? (
+          <div style={phonePreview}>
+            <p style={previewLabel}>WhatsApp preview only. No message has been sent.</p>
+            <pre style={messagePreview}>{financeUpdateMessage(snapshot)}</pre>
+          </div>
+        ) : null}
+
+        {panel.kind === "account" ? (
+          <div style={detailGrid}>
+            <Detail label="Account" value={snapshot.row.accountNo || "No account"} />
+            <Detail label="Parent" value={snapshot.parentName} />
+            <Detail label="Learner" value={snapshot.learnerName} />
+            <Detail label="Amount You Owe" value={formatFinanceMoney(snapshot.summary.amountYouOwe)} />
+            <Detail label="Amount Overdue" value={formatFinanceMoney(snapshot.summary.amountOverdue)} />
+            <Detail label="Health" value={snapshot.summary.accountHealth} />
+            <Detail label="Oldest Outstanding" value={`${snapshot.summary.oldestOutstandingDays} days`} />
+            <Detail label="Next Due Date" value={formatFinanceDate(snapshot.summary.nextSchoolFeeDueDate)} />
+          </div>
+        ) : null}
+
+        {panel.kind === "payment-plan" ? (
+          plans.length ? (
+            <div style={planList}>
+              {plans.map((plan) => (
+                <div key={plan.id} style={planCard}>
+                  <strong>{plan.status}</strong>
+                  <span>{formatFinanceMoney(plan.amount)}</span>
+                  <span>
+                    {formatFinanceDate(plan.startDate)} to {formatFinanceDate(plan.endDate)}
+                  </span>
+                  {plan.notes ? <small style={muted}>{plan.notes}</small> : null}
+                </div>
+              ))}
+            </div>
+          ) : (
+            <div style={emptyState}>No payment plan request for this account yet.</div>
+          )
+        ) : null}
+      </div>
+    </div>
+  );
+}
+
+function Detail({ label, value }: { label: string; value: string | number }) {
+  return (
+    <div style={detailItem}>
+      <span>{label}</span>
+      <strong>{value}</strong>
+    </div>
+  );
+}
+
+function modalTitle(kind: ActionPanel["kind"]) {
+  if (kind === "finance-update") return "Preview Finance Update";
+  if (kind === "payment-plan") return "Payment Plan Review";
+  return "Account Details";
 }
 
 const page: CSSProperties = { display: "grid", gap: 16 };
@@ -257,6 +467,7 @@ const card: CSSProperties = {
 };
 const count: CSSProperties = { display: "block", marginTop: 8, fontSize: "1.8rem" };
 const muted: CSSProperties = { display: "block", color: "#64748b", fontSize: 12, lineHeight: 1.4 };
+const lightMuted: CSSProperties = { display: "block", color: "rgba(255,255,255,0.76)", fontSize: 12, lineHeight: 1.4 };
 const panel: CSSProperties = {
   padding: 20,
   borderRadius: 22,
@@ -295,7 +506,7 @@ const actionGrid: CSSProperties = {
   minWidth: 270,
 };
 
-const placeholderActionBtn: CSSProperties = {
+const actionBtn: CSSProperties = {
   minHeight: 32,
   padding: "7px 9px",
   borderRadius: 999,
@@ -304,7 +515,116 @@ const placeholderActionBtn: CSSProperties = {
   color: "#8b6b16",
   fontSize: 11,
   fontWeight: 900,
-  cursor: "default",
+  cursor: "pointer",
+};
+
+const notice: CSSProperties = {
+  marginBottom: 12,
+  padding: "10px 12px",
+  borderRadius: 14,
+  background: "#fff7ed",
+  border: "1px solid #fed7aa",
+  color: "#9a3412",
+  fontSize: 12,
+  fontWeight: 800,
+};
+
+const emptyState: CSSProperties = {
+  padding: 18,
+  borderRadius: 16,
+  background: "#f8fafc",
+  border: "1px solid #e2e8f0",
+  color: "#64748b",
+  fontWeight: 800,
+};
+
+const modalBackdrop: CSSProperties = {
+  position: "fixed",
+  inset: 0,
+  zIndex: 80,
+  display: "grid",
+  placeItems: "center",
+  padding: 20,
+  background: "rgba(15, 23, 42, 0.48)",
+};
+
+const modalCard: CSSProperties = {
+  width: "min(720px, 100%)",
+  maxHeight: "86vh",
+  overflow: "auto",
+  padding: 20,
+  borderRadius: 24,
+  background: "#ffffff",
+  boxShadow: "0 28px 80px rgba(15, 23, 42, 0.24)",
+  border: "1px solid rgba(212, 175, 55, 0.28)",
+};
+
+const modalHeader: CSSProperties = {
+  display: "flex",
+  justifyContent: "space-between",
+  alignItems: "flex-start",
+  gap: 12,
+  marginBottom: 14,
+};
+
+const closeBtn: CSSProperties = {
+  ...actionBtn,
+  background: "#111827",
+  borderColor: "#111827",
+  color: "#ffffff",
+};
+
+const phonePreview: CSSProperties = {
+  padding: 16,
+  borderRadius: 20,
+  background: "linear-gradient(135deg, #ecfdf5, #ffffff)",
+  border: "1px solid rgba(16, 185, 129, 0.24)",
+};
+
+const previewLabel: CSSProperties = {
+  margin: "0 0 10px",
+  color: "#047857",
+  fontSize: 12,
+  fontWeight: 900,
+};
+
+const messagePreview: CSSProperties = {
+  margin: 0,
+  whiteSpace: "pre-wrap",
+  fontFamily: "inherit",
+  color: "#064e3b",
+  fontWeight: 800,
+  lineHeight: 1.55,
+};
+
+const detailGrid: CSSProperties = {
+  display: "grid",
+  gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))",
+  gap: 10,
+};
+
+const detailItem: CSSProperties = {
+  display: "grid",
+  gap: 5,
+  padding: 12,
+  borderRadius: 14,
+  background: "#fffdf7",
+  border: "1px solid rgba(212, 175, 55, 0.2)",
+  fontSize: 12,
+  color: "#64748b",
+};
+
+const planList: CSSProperties = { display: "grid", gap: 10 };
+
+const planCard: CSSProperties = {
+  display: "grid",
+  gap: 6,
+  padding: 14,
+  borderRadius: 16,
+  background: "#f8fafc",
+  border: "1px solid #e2e8f0",
+  color: "#1f2937",
+  fontSize: 13,
 };
 
 const statusIcon: CSSProperties = {

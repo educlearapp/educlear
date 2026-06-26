@@ -278,7 +278,24 @@ function dueDateForMonth(monthKey: string, policy: FinancePolicySettings) {
   return toIsoDate(base);
 }
 
+const MONTH_NAME_TO_NUMBER: Record<string, number> = {
+  january: 1,
+  february: 2,
+  march: 3,
+  april: 4,
+  may: 5,
+  june: 6,
+  july: 7,
+  august: 8,
+  september: 9,
+  october: 10,
+  november: 11,
+  december: 12,
+};
+
 function chargePeriodMonth(row: FinanceTransaction, policy: FinancePolicySettings) {
+  const billingPeriodMonth = billingPeriodMonthFromDescription(row);
+  if (billingPeriodMonth) return billingPeriodMonth;
   const dueDate = resolveChargeDueDate(row, policy);
   if (dueDate) return dueDate.slice(0, 7);
   const date = safeDate(row.date);
@@ -286,11 +303,25 @@ function chargePeriodMonth(row: FinanceTransaction, policy: FinancePolicySetting
 }
 
 function resolveChargeDueDate(row: FinanceTransaction, policy: FinancePolicySettings) {
+  const billingPeriodMonth = billingPeriodMonthFromDescription(row);
+  if (billingPeriodMonth) return dueDateForMonth(billingPeriodMonth, policy);
   const explicitDueDate = safeDate(row.dueDate);
   if (explicitDueDate) return explicitDueDate;
   const date = safeDate(row.date);
   const monthKey = date ? date.slice(0, 7) : "";
   return monthKey ? dueDateForMonth(monthKey, policy) : date;
+}
+
+function billingPeriodMonthFromDescription(row: FinanceTransaction) {
+  const text = `${row.description || ""} ${row.reference || ""}`.toLowerCase();
+  const match = text.match(
+    /\b(january|february|march|april|may|june|july|august|september|october|november|december)\s+(20\d{2})\b/
+  );
+  if (!match) return "";
+  const month = MONTH_NAME_TO_NUMBER[match[1]];
+  const year = Number(match[2]);
+  if (!month || !Number.isFinite(year)) return "";
+  return `${year}-${String(month).padStart(2, "0")}`;
 }
 
 function allocateUnpaidCharges(rows: FinanceTransaction[], policy: FinancePolicySettings) {
