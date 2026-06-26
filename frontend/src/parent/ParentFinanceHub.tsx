@@ -30,6 +30,8 @@ type Props = {
   onDownloadStatement: () => void;
 };
 
+type FinanceActionModal = "proof" | "history" | null;
+
 const comingSoonMessage =
   "We are currently completing payment gateway approval. Secure online payments will be available soon. In the meantime, please continue making payments via EFT or your school's preferred payment method and upload your proof of payment through the Parent Portal.";
 
@@ -46,7 +48,7 @@ export default function ParentFinanceHub({
   onDownloadStatement,
 }: Props) {
   const [notice, setNotice] = useState<string | null>(null);
-  const [showHistory, setShowHistory] = useState(false);
+  const [actionModal, setActionModal] = useState<FinanceActionModal>(null);
   const [showArrangementPage, setShowArrangementPage] = useState(false);
   const financePolicy = useMemo(
     () => normaliseFinancePolicySettings(policy || DEFAULT_FINANCE_POLICY),
@@ -93,6 +95,10 @@ export default function ParentFinanceHub({
   const arrangementSubject =
     childrenOnAccount.length > 1 || billing.isFamilyAccount ? "your family account" : `${childName}'s school fees`;
   const healthIcon = accountHealthIcon(summary.accountHealth);
+  const paymentRows = billing.transactions
+    .filter((row) => Number(row.amountIn) > 0)
+    .slice()
+    .reverse();
 
   if (showArrangementPage) {
     return (
@@ -231,9 +237,7 @@ export default function ParentFinanceHub({
           <button
             type="button"
             className="parent-finance-action-card"
-            onClick={() =>
-              setNotice("Upload proof of payment will be connected to the school's finance review workflow next.")
-            }
+            onClick={() => setActionModal("proof")}
           >
             <span aria-hidden>📤</span>
             <strong>Upload Proof</strong>
@@ -242,7 +246,7 @@ export default function ParentFinanceHub({
           <button
             type="button"
             className="parent-finance-action-card"
-            onClick={() => setShowHistory((current) => !current)}
+            onClick={() => setActionModal("history")}
           >
             <span aria-hidden>📜</span>
             <strong>Payment History</strong>
@@ -263,35 +267,81 @@ export default function ParentFinanceHub({
         {statementNotice ? <p className="parent-portal-muted parent-finance-arrangement-note">{statementNotice}</p> : null}
       </section>
 
-      {showHistory ? (
-        <section className="parent-portal-card">
-          <div className="parent-finance-section-head">
-            <div>
-              <div className="parent-finance-eyebrow">Your records</div>
-              <h3>Payment History</h3>
-            </div>
-          </div>
-          {billing.transactions.length ? (
-            <div className="parent-finance-history">
-              {billing.transactions
-                .filter((row) => Number(row.amountIn) > 0)
-                .slice()
-                .reverse()
-                .map((row) => (
-                  <div key={row.id} className="parent-finance-history-row">
-                    <div>
-                      <strong>{formatFinanceMoney(row.amountIn)}</strong>
-                      <span>{row.description || row.reference || "Payment"}</span>
-                    </div>
-                    <small>{formatFinanceDate(row.date)}</small>
-                  </div>
-                ))}
-            </div>
-          ) : (
-            <p className="parent-portal-muted">No payments to show yet.</p>
-          )}
-        </section>
+      {actionModal ? (
+        <FinanceActionDialog
+          kind={actionModal}
+          accountRef={billing.accountRef || accountLabel}
+          learnerName={learnerName || childName}
+          paymentRows={paymentRows}
+          onClose={() => setActionModal(null)}
+        />
       ) : null}
+    </div>
+  );
+}
+
+function FinanceActionDialog({
+  kind,
+  accountRef,
+  learnerName,
+  paymentRows,
+  onClose,
+}: {
+  kind: Exclude<FinanceActionModal, null>;
+  accountRef: string;
+  learnerName: string;
+  paymentRows: FinanceTransaction[];
+  onClose: () => void;
+}) {
+  const title = kind === "proof" ? "Upload Proof of Payment" : "Payment History";
+  return (
+    <div className="parent-finance-modal-backdrop" role="dialog" aria-modal="true" aria-label={title}>
+      <div className="parent-finance-modal-card">
+        <div className="parent-finance-modal-head">
+          <div>
+            <div className="parent-finance-eyebrow">Account {accountRef || "billing account"}</div>
+            <h3>{title}</h3>
+          </div>
+          <button type="button" onClick={onClose}>
+            Close
+          </button>
+        </div>
+
+        {kind === "proof" ? (
+          <div className="parent-finance-proof-flow">
+            <p className="parent-portal-muted">
+              Upload proof for {learnerName || "this account"}. This will be linked to account {accountRef || "billing account"}.
+            </p>
+            <label>
+              Proof of payment file
+              <input type="file" accept="image/*,.pdf" />
+            </label>
+            <label>
+              Payment reference
+              <input type="text" placeholder={`Reference for ${accountRef || "account"}`} />
+            </label>
+            <p className="parent-portal-muted">
+              The file picker is scoped to this account. Submitting proof to the finance office will be enabled once the review endpoint is available.
+            </p>
+          </div>
+        ) : (
+          <div className="parent-finance-history">
+            {paymentRows.length ? (
+              paymentRows.map((row) => (
+                <div key={row.id} className="parent-finance-history-row">
+                  <div>
+                    <strong>{formatFinanceMoney(row.amountIn)}</strong>
+                    <span>{row.description || row.reference || "Payment"}</span>
+                  </div>
+                  <small>{formatFinanceDate(row.date)}</small>
+                </div>
+              ))
+            ) : (
+              <p className="parent-portal-muted">No payments to show yet for account {accountRef || "billing account"}.</p>
+            )}
+          </div>
+        )}
+      </div>
     </div>
   );
 }

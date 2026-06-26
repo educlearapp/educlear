@@ -16,6 +16,8 @@ import {
   groupFinanceSnapshotsByHealth,
   type FinanceAccountSnapshot,
 } from "../finance/financeAccountEngine";
+import { downloadSchoolStatementPdf } from "./statementDocument";
+import { DEFAULT_STATEMENT_PERIOD, buildStatementPdfFilename } from "./statementPeriod";
 
 type Props = {
   schoolId: string;
@@ -40,6 +42,8 @@ export default function FinanceHubPage({
     createDefaultBillingSettings().financePolicy
   );
   const [activeHealth, setActiveHealth] = useState<AccountHealth>("Excellent");
+  const [statementBusyAccount, setStatementBusyAccount] = useState("");
+  const [statementNotice, setStatementNotice] = useState("");
 
   useEffect(() => {
     if (!schoolId) return;
@@ -68,6 +72,32 @@ export default function FinanceHubPage({
   );
   const groups = useMemo(() => groupFinanceSnapshotsByHealth(snapshots), [snapshots]);
   const selectedSnapshot = groups[activeHealth][0] || snapshots[0] || null;
+
+  const handleDownloadStatement = async (snapshot: FinanceAccountSnapshot) => {
+    const accountNo = String(snapshot.row.accountNo || "").trim();
+    const learnerId = String(snapshot.row.learnerId || snapshot.row.id || "").trim();
+    if (!schoolId || !accountNo) {
+      setStatementNotice("This account does not have enough detail to generate a statement.");
+      return;
+    }
+    setStatementNotice("");
+    setStatementBusyAccount(accountNo);
+    try {
+      await downloadSchoolStatementPdf(
+        schoolId,
+        learnerId,
+        buildStatementPdfFilename(accountNo, DEFAULT_STATEMENT_PERIOD),
+        DEFAULT_STATEMENT_PERIOD,
+        undefined,
+        accountNo
+      );
+      setStatementNotice(`Latest statement downloaded for account ${accountNo}.`);
+    } catch (error) {
+      setStatementNotice(error instanceof Error ? error.message : "Failed to download statement.");
+    } finally {
+      setStatementBusyAccount("");
+    }
+  };
 
   return (
     <div style={page}>
@@ -123,9 +153,12 @@ export default function FinanceHubPage({
               parentName={selectedSnapshot.parentName}
               learnerName={selectedSnapshot.learnerDisplayName}
               childrenOnAccount={selectedSnapshot.childrenOnAccount}
-              statementBusy={false}
-              statementNotice="School preview only. Parent data comes from billing accounts, statements, invoices, payments, payment plans, and finance policy settings."
-              onDownloadStatement={() => undefined}
+              statementBusy={statementBusyAccount === String(selectedSnapshot.row.accountNo || "").trim()}
+              statementNotice={
+                statementNotice ||
+                "School preview only. Parent data comes from billing accounts, statements, invoices, payments, payment plans, and finance policy settings."
+              }
+              onDownloadStatement={() => void handleDownloadStatement(selectedSnapshot)}
             />
           ) : (
             <div className="parent-portal-card parent-finance-empty">

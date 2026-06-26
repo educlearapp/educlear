@@ -185,11 +185,12 @@ export function buildFinanceHubSummary(input: {
   const latestChargeMonth = chargeLines.length
     ? [...chargeLines].sort((a, b) => b.dueDate.localeCompare(a.dueDate))[0].monthKey
     : today.slice(0, 7);
-  const currentMonthFees = roundMoney(
+  const rawCurrentMonthFees = roundMoney(
     chargeLines
       .filter((line) => line.monthKey === latestChargeMonth)
       .reduce((sum, line) => sum + positive(line.row.amountOut), 0)
   );
+  const currentMonthFees = balance > 0 ? roundMoney(Math.min(balance, rawCurrentMonthFees)) : rawCurrentMonthFees;
   const lastPayment = [...rows].reverse().find((row) => positive(row.amountIn) > 0);
   const unpaidLines = allocateUnpaidCharges(rows, policy);
   const overdueLines = unpaidLines.filter((line) => line.dueDate < today);
@@ -199,9 +200,9 @@ export function buildFinanceHubSummary(input: {
     ? Math.max(...overdueLines.map((line) => daysBetween(line.dueDate, today)))
     : 0;
   const accountHealth = resolveAccountHealth(balance, oldestOutstandingDays, policy);
-  const nextDue = nextSchoolFeeDueDate(today, policy);
+  const nextDue = nextSchoolFeeDueDate(today, policy, unpaidLines);
   const settlementDeadlineDate = nextSettlementDeadline(today, policy.schoolSettlementDeadline);
-  const months = buildMonthStatuses(rows, unpaidLines, policy, today);
+  const months = buildMonthStatuses(rows, unpaidLines, policy, today, balance, nextDue);
   const arrangement = resolveArrangementVisibility({
     amountYouOwe: balance,
     amountOverdue,
@@ -358,14 +359,18 @@ function buildMonthStatuses(
   rows: FinanceTransaction[],
   unpaidLines: ReturnType<typeof allocateUnpaidCharges>,
   policy: FinancePolicySettings,
-  today: string
+  today: string,
+  balance: number,
+  nextDue: string
 ): FinanceMonthStatus[] {
   const monthKeys = new Set<string>();
   for (const row of rows) {
     const monthKey = chargePeriodMonth(row, policy);
     if (monthKey) monthKeys.add(monthKey);
   }
-  monthKeys.add(today.slice(0, 7));
+  const nextDueMonth = nextDue.slice(0, 7);
+  if (nextDueMonth) monthKeys.add(nextDueMonth);
+  let remainingBalance = Math.max(0, roundMoney(balance));
   return Array.from(monthKeys)
     .sort()
     .slice(-8)
@@ -373,12 +378,14 @@ function buildMonthStatuses(
       const monthRows = rows.filter((row) => chargePeriodMonth(row, policy) === key);
       const charged = roundMoney(monthRows.reduce((sum, row) => sum + positive(row.amountOut), 0));
       const paid = roundMoney(monthRows.reduce((sum, row) => sum + positive(row.amountIn), 0));
-      const unpaid = roundMoney(unpaidLines.filter((line) => line.monthKey === key).reduce((sum, line) => sum + line.unpaid, 0));
+      const rawUnpaid = roundMoney(unpaidLines.filter((line) => line.monthKey === key).reduce((sum, line) => sum + line.unpaid, 0));
+      const unpaid = roundMoney(Math.min(rawUnpaid, remainingBalance));
+      remainingBalance = roundMoney(remainingBalance - unpaid);
       const dueDate = unpaidLines.find((line) => line.monthKey === key)?.dueDate || dueDateForMonth(key, policy);
       return {
         key,
         label: monthLabel(key),
-        status: key === today.slice(0, 7) ? "Current" : unpaid > 0 ? "Outstanding" : "Paid",
+        status: key === nextDueMonth ? "Current" : unpaid > 0 ? "Outstanding" : "Paid",
         charged,
         paid,
         unpaid,
@@ -392,7 +399,16 @@ function monthLabel(monthKey: string) {
   return new Date(year, month - 1, 1, 12).toLocaleDateString("en-ZA", { month: "short", year: "numeric" });
 }
 
-function nextSchoolFeeDueDate(today: string, policy: FinancePolicySettings) {
+function nextSchoolFeeDueDate(
+  today: string,
+  policy: FinancePolicySettings,
+  unpaidLines: ReturnType<typeof allocateUnpaidCharges> = []
+) {
+  const nextUnpaidDue = unpaidLines
+    .map((line) => line.dueDate)
+    .filter((dueDate) => dueDate >= today)
+    .sort()[0];
+  if (nextUnpaidDue) return nextUnpaidDue;
   const currentDue = dueDateForMonth(today.slice(0, 7), policy);
   if (currentDue >= today) return currentDue;
   const current = parseIsoDate(`${today.slice(0, 7)}-01`) || new Date();

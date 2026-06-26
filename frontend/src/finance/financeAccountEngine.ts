@@ -36,6 +36,9 @@ export type FinanceAccountSnapshot = {
   firstLearnerName: string;
   parentName: string;
   summary: FinanceHubSummary;
+  collectionsHealth: AccountHealth;
+  collectionsReason: string;
+  collectionsMonthsOutstanding: number;
 };
 
 export function buildFinanceAccountSnapshots(input: {
@@ -88,6 +91,15 @@ export function buildFinanceAccountSnapshots(input: {
       })),
       transactions,
     };
+    const summary = buildFinanceHubSummary({
+      transactions,
+      balance: billing.balance,
+      policy: input.policy,
+      today: input.today,
+      activeArrangementExists: Boolean(activeArrangement),
+    });
+    const collectionsRisk = resolveCollectionsRisk(row, summary, input.policy, input.today);
+
     return {
       row,
       billing,
@@ -97,13 +109,10 @@ export function buildFinanceAccountSnapshots(input: {
       learnerDisplayName,
       firstLearnerName,
       parentName,
-      summary: buildFinanceHubSummary({
-        transactions,
-        balance: billing.balance,
-        policy: input.policy,
-        today: input.today,
-        activeArrangementExists: Boolean(activeArrangement),
-      }),
+      summary,
+      collectionsHealth: collectionsRisk.health,
+      collectionsReason: collectionsRisk.reason,
+      collectionsMonthsOutstanding: collectionsRisk.monthsOutstanding,
     };
   });
 }
@@ -117,6 +126,19 @@ export function groupFinanceSnapshotsByHealth(snapshots: FinanceAccountSnapshot[
   };
   for (const snapshot of snapshots) {
     groups[snapshot.summary.accountHealth].push(snapshot);
+  }
+  return groups;
+}
+
+export function groupCollectionsSnapshotsByHealth(snapshots: FinanceAccountSnapshot[]) {
+  const groups: Record<AccountHealth, FinanceAccountSnapshot[]> = {
+    Excellent: [],
+    "Needs Attention": [],
+    "Action Required": [],
+    Critical: [],
+  };
+  for (const snapshot of snapshots) {
+    groups[snapshot.collectionsHealth].push(snapshot);
   }
   return groups;
 }
@@ -164,6 +186,88 @@ function dedupeLedgerEntries(entries: BillingLedgerEntry[]) {
     byId.set(id, entry);
   }
   return Array.from(byId.values());
+}
+
+function resolveCollectionsRisk(
+  row: BillingAccountRow,
+  summary: FinanceHubSummary,
+  policy: FinancePolicySettings,
+  today?: string
+): { health: AccountHealth; reason: string; monthsOutstanding: number } {
+  const balance = Number(row.balance) || 0;
+  const statementStatus = String(row.status || "").toLowerCase();
+  const legacySection = String(row.kidesysSection || "").toLowerCase();
+  const statusText = `${statementStatus} ${legacySection}`;
+  const buckets = readAgeAnalysisBuckets(row);
+
+  if (balance <= 0) {
+    return { health: "Excellent", reason: "Over Paid / credit balance", monthsOutstanding: 0 };
+  }
+
+  if (statementStatus.includes("over paid") || statementStatus.includes("overpaid")) {
+    return { health: "Excellent", reason: "Statement status is Over Paid", monthsOutstanding: 0 };
+  }
+
+  if (isCurrentInvoiceOnlyBeforeDue(balance, summary)) {
+    return { health: "Excellent", reason: "Current invoice only and not yet due", monthsOutstanding: 0 };
+  }
+
+  const bucketMonths = monthsOutstandingFromBuckets(buckets);
+  if (bucketMonths > 0) {
+    return riskFromMonths(bucketMonths, "Age Analysis bucket");
+  }
+
+  if (statusText.includes("bad debt")) {
+    return riskFromHistoricalBadDebt(balance, summary);
+  }
+
+  const overdueMonths = Math.ceil(Math.max(0, summary.oldestOutstandingDays) / 30);
+  if (overdueMonths > 0) {
+    return riskFromMonths(overdueMonths, "Live overdue age");
+  }
+
+  if (statusText.includes("recently owing")) {
+    return { health: "Needs Attention", reason: "Recently Owing with no older age bucket", monthsOutstanding: 1 };
+  }
+
+  return { health: "Excellent", reason: "No collections risk", monthsOutstanding: 0 };
+}
+
+function readAgeAnalysisBuckets(row: BillingAccountRow) {
+  const buckets = (row as any)?.ageAnalysis?.buckets;
+  return buckets && typeof buckets === "object" ? buckets : {};
+}
+
+function monthsOutstandingFromBuckets(buckets: Record<string, unknown>) {
+  const amount = (key: string) => Math.max(0, Number(buckets[key]) || 0);
+  if (amount("d120") > 0) return 4;
+  if (amount("d90") > 0) return 3;
+  if (amount("d60") > 0) return 2;
+  if (amount("d30") > 0) return 1;
+  return 0;
+}
+
+function riskFromMonths(months: number, reason: string): { health: AccountHealth; reason: string; monthsOutstanding: number } {
+  if (months > 3) return { health: "Critical", reason, monthsOutstanding: months };
+  if (months === 3) return { health: "Action Required", reason, monthsOutstanding: months };
+  return { health: "Needs Attention", reason, monthsOutstanding: months };
+}
+
+function riskFromHistoricalBadDebt(balance: number, summary: FinanceHubSummary) {
+  const currentNotDue = summary.amountOverdue <= 0 ? Math.min(balance, Math.max(0, summary.currentMonthFees)) : 0;
+  const olderOutstanding = Math.max(0, balance - currentNotDue);
+  if (olderOutstanding <= 0.01) {
+    return { health: "Excellent" as const, reason: "Historical Bad Debt cleared; current invoice only", monthsOutstanding: 0 };
+  }
+  if (summary.currentMonthFees > 0 && olderOutstanding < summary.currentMonthFees) {
+    return { health: "Needs Attention" as const, reason: "Historical Bad Debt with small older residual", monthsOutstanding: 1 };
+  }
+  return { health: "Critical" as const, reason: "Historical Bad Debt with old outstanding balance", monthsOutstanding: 4 };
+}
+
+function isCurrentInvoiceOnlyBeforeDue(balance: number, summary: FinanceHubSummary) {
+  if (balance <= 0 || summary.amountOverdue > 0) return false;
+  return summary.currentMonthFees >= balance - 0.01;
 }
 
 function ledgerToFinanceTransactions(

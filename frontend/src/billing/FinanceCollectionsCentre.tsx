@@ -12,7 +12,7 @@ import { formatFinanceDate, formatFinanceMoney } from "../finance/financePolicy"
 import {
   buildFinanceAccountSnapshots,
   type FinanceAccountSnapshot,
-  groupFinanceSnapshotsByHealth,
+  groupCollectionsSnapshotsByHealth,
 } from "../finance/financeAccountEngine";
 import { downloadSchoolStatementPdf } from "./statementDocument";
 import { DEFAULT_STATEMENT_PERIOD, buildStatementPdfFilename } from "./statementPeriod";
@@ -76,11 +76,11 @@ export default function FinanceCollectionsCentre({ schoolId, learners, statement
     [schoolId, learners, statementRows, policy]
   );
   const classifiedSnapshots = useMemo(() => uniqueAccountSnapshots(financeSnapshots), [financeSnapshots]);
-  const healthGroups = useMemo(() => groupFinanceSnapshotsByHealth(classifiedSnapshots), [classifiedSnapshots]);
+  const healthGroups = useMemo(() => groupCollectionsSnapshotsByHealth(classifiedSnapshots), [classifiedSnapshots]);
   const reviewSnapshots = useMemo(
     () =>
       classifiedSnapshots
-        .filter((snapshot) => snapshot.summary.accountHealth !== "Excellent")
+        .filter((snapshot) => snapshot.collectionsHealth !== "Excellent")
         .sort(compareReviewUrgency),
     [classifiedSnapshots]
   );
@@ -186,7 +186,7 @@ export default function FinanceCollectionsCentre({ schoolId, learners, statement
               {reviewSnapshots
                 .slice(0, 20)
                 .map((snapshot) => {
-                  const health = snapshot.summary.accountHealth;
+                  const health = snapshot.collectionsHealth;
                   return (
                     <tr key={`${snapshot.row.learnerId}-${snapshot.row.accountNo}`}>
                       <td style={td}>
@@ -301,10 +301,10 @@ function accountSnapshotKey(snapshot: FinanceAccountSnapshot) {
 }
 
 function compareReviewUrgency(a: FinanceAccountSnapshot, b: FinanceAccountSnapshot) {
-  const healthDiff = reviewRank(a.summary.accountHealth) - reviewRank(b.summary.accountHealth);
+  const healthDiff = reviewRank(a.collectionsHealth) - reviewRank(b.collectionsHealth);
   if (healthDiff !== 0) return healthDiff;
-  const daysDiff = b.summary.oldestOutstandingDays - a.summary.oldestOutstandingDays;
-  if (daysDiff !== 0) return daysDiff;
+  const monthsDiff = b.collectionsMonthsOutstanding - a.collectionsMonthsOutstanding;
+  if (monthsDiff !== 0) return monthsDiff;
   return b.summary.amountOverdue - a.summary.amountOverdue;
 }
 
@@ -405,8 +405,9 @@ function ActionPanelModal({
             </div>
             <Detail label="Amount You Owe" value={formatFinanceMoney(snapshot.summary.amountYouOwe)} />
             <Detail label="Amount Overdue" value={formatFinanceMoney(snapshot.summary.amountOverdue)} />
-            <Detail label="Health" value={snapshot.summary.accountHealth} />
-            <Detail label="Oldest Outstanding" value={`${snapshot.summary.oldestOutstandingDays} days`} />
+            <Detail label="Collections Status" value={snapshot.collectionsHealth} />
+            <Detail label="Collections Basis" value={snapshot.collectionsReason} />
+            <Detail label="Months Outstanding" value={snapshot.collectionsMonthsOutstanding || "Current"} />
             <Detail label="Next Due Date" value={formatFinanceDate(snapshot.summary.nextSchoolFeeDueDate)} />
           </div>
         ) : null}
