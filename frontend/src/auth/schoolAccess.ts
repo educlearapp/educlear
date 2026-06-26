@@ -50,6 +50,8 @@ const PAGE_RULES: Record<string, PageRule> = {
   plans: { module: "billingPlans", action: "view" },
   runs: { module: "invoiceRuns", action: "view" },
   reports: { module: "reports", action: "view" },
+  financeHub: { module: "reports", action: "view" },
+  financeCollections: { module: "reports", action: "view" },
   documents: { module: "billingDocuments", action: "view" },
   "billing-help": { module: "billing", action: "view" },
   "billing-more": { module: "billing", action: "view" },

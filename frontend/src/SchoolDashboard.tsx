@@ -33,6 +33,8 @@ import PaymentCreateClean from "./billing/PaymentCreateClean";
 import InvoiceCreateClean from "./billing/InvoiceCreateClean";
 import BillingDocuments from "./billing/BillingDocuments";
 import BillingReports from "./billing/BillingReports";
+import FinanceHubPage from "./billing/FinanceHubPage";
+import FinanceCollectionsCentre from "./billing/FinanceCollectionsCentre";
 import Email from "./communication/Email";
 import SMS from "./communication/SMS";
 import CommunicationSettings from "./communication/CommunicationSettings";
@@ -286,6 +288,14 @@ type PageKey =
 
 
 
+  | "financeHub"
+
+
+
+  | "financeCollections"
+
+
+
   | "documents"
 
 
@@ -368,6 +378,8 @@ const MOBILE_PAGE_TITLES: Partial<Record<PageKey, string>> = {
   plans: "Billing Plans",
   runs: "Invoice Runs",
   reports: "Billing Reports",
+  financeHub: "Finance Hub",
+  financeCollections: "Collections Centre",
   documents: "Documents",
   "billing-help": "Billing Help",
   "billing-more": "Billing More",
@@ -1108,7 +1120,7 @@ const [selectedLearnerReport, setSelectedLearnerReport] = useState<any>(null);
       setAccountingOpen(false);
     }
 
-    if (page === "billingDeposits" || page === "billingSettings") {
+    if (page === "billingDeposits" || page === "billingSettings" || page === "financeHub" || page === "financeCollections") {
       setBillingOpen(true);
       setBillingMoreOpen(true);
       setSchoolsOpen(false);
@@ -16269,6 +16281,27 @@ return (
               statementRows={statementRows}
             />
           );
+
+        case "financeHub":
+          return (
+            <FinanceHubPage
+              schoolId={schoolId || ""}
+              schoolName={schoolBranding.name}
+              learners={learners || []}
+              statementRows={statementRows}
+              onOpenPolicySettings={() => go("billingSettings")}
+              onOpenCollections={() => go("financeCollections")}
+            />
+          );
+
+        case "financeCollections":
+          return (
+            <FinanceCollectionsCentre
+              schoolId={schoolId || ""}
+              learners={learners || []}
+              statementRows={statementRows}
+            />
+          );
   
   
   
@@ -16809,6 +16842,8 @@ return (
               "plans",
               "runs",
               "reports",
+              "financeHub",
+              "financeCollections",
               "documents",
               "fees",
               "billingDeposits",
@@ -16921,6 +16956,14 @@ return (
   
                 {canPage("reports") ? (
                 <div className={`submenu-item ${activePage === "reports" ? "active" : ""}`} onClick={() => go("reports")}>Billing Reports</div>
+                ) : null}
+
+                {canPage("financeHub") ? (
+                <div className={`submenu-item ${activePage === "financeHub" ? "active" : ""}`} onClick={() => go("financeHub")}>Finance Hub</div>
+                ) : null}
+
+                {canPage("financeCollections") ? (
+                <div className={`submenu-item ${activePage === "financeCollections" ? "active" : ""}`} onClick={() => go("financeCollections")}>Collections Centre</div>
                 ) : null}
   
   

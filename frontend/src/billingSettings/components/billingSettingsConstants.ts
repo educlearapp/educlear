@@ -1,4 +1,5 @@
 import type { BillingSettingsState, CheckboxMap } from "../types/billingSettings";
+import { DEFAULT_FINANCE_POLICY } from "../../finance/financePolicy";
 
 export const ACCOUNT_STYLE_OPTIONS = ["Account", "Oldest Child"] as const;
 export const GENERAL_SHOW_AMOUNTS_OPTIONS = [
@@ -90,6 +91,7 @@ export function createDefaultBillingSettings(): BillingSettingsState {
     uiPreferences: {
       showBillingSummaryCards: true,
     },
+    financePolicy: DEFAULT_FINANCE_POLICY,
     statement: {
       statementLayout: STATEMENT_LAYOUT_OPTIONS[0],
       statementHistory: STATEMENT_HISTORY_OPTIONS[0],

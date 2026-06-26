@@ -13,6 +13,7 @@ import type {
   BillingSettingsState,
   BillingStatementSettings,
   BillingUiPreferences,
+  FinancePolicySettings,
 } from "../types/billingSettings";
 
 export function useBillingSettings(schoolId: string) {
@@ -99,6 +100,16 @@ export function useBillingSettings(schoolId: string) {
       updateSettings((current) => ({
         ...current,
         uiPreferences: { ...current.uiPreferences, ...patch },
+      }));
+    },
+    [updateSettings]
+  );
+
+  const setFinancePolicy = useCallback(
+    (patch: Partial<FinancePolicySettings>) => {
+      updateSettings((current) => ({
+        ...current,
+        financePolicy: { ...current.financePolicy, ...patch },
       }));
     },
     [updateSettings]
@@ -255,6 +266,7 @@ export function useBillingSettings(schoolId: string) {
     setGeneral,
     setGeneralCheckbox,
     setUiPreferences,
+    setFinancePolicy,
     setStatement,
     setStatementFeature,
     setStatementDisplay,

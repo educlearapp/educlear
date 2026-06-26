@@ -21,6 +21,26 @@ type BillingUiPreferences = {
   showBillingSummaryCards: boolean;
 };
 
+type FinancePolicySettings = {
+  monthlyFeeDueDay: number;
+  gracePeriodDays: number;
+  arrangementEligibilityDays: number;
+  maximumArrangementDurationMonths: number;
+  schoolSettlementDeadline: string;
+  minimumMonthlyPayment: number;
+  minimumUpfrontPayment: number;
+  arrangementsAllowed: boolean;
+  requireApproval: boolean;
+  requireSupportingDocuments: boolean;
+  autoCancelAfterMissedInstalments: number;
+  reminderSchedule: string;
+  accountHealthThresholds: {
+    excellentMaxOverdueDays: number;
+    needsAttentionMaxOverdueDays: number;
+    actionRequiredMaxOverdueDays: number;
+  };
+};
+
 type BillingStatementSettings = {
   statementLayout: string;
   statementHistory: string;
@@ -77,6 +97,7 @@ type BillingReceiptSettings = {
 export type BillingSettingsState = {
   general: BillingGeneralSettings;
   uiPreferences: BillingUiPreferences;
+  financePolicy: FinancePolicySettings;
   statement: BillingStatementSettings;
   invoice: BillingInvoiceSettings;
   receipt: BillingReceiptSettings;
@@ -108,6 +129,26 @@ function checkboxDefaults(ids: readonly string[]): CheckboxMap {
   return Object.fromEntries(ids.map((id) => [id, false]));
 }
 
+const DEFAULT_FINANCE_POLICY: FinancePolicySettings = {
+  monthlyFeeDueDay: 3,
+  gracePeriodDays: 0,
+  arrangementEligibilityDays: 60,
+  maximumArrangementDurationMonths: 6,
+  schoolSettlementDeadline: "11-03",
+  minimumMonthlyPayment: 0,
+  minimumUpfrontPayment: 0,
+  arrangementsAllowed: false,
+  requireApproval: true,
+  requireSupportingDocuments: true,
+  autoCancelAfterMissedInstalments: 1,
+  reminderSchedule: "7 days before due date, on due date, 7 days after due date",
+  accountHealthThresholds: {
+    excellentMaxOverdueDays: 0,
+    needsAttentionMaxOverdueDays: 30,
+    actionRequiredMaxOverdueDays: 60,
+  },
+};
+
 export function defaultBillingSettings(): BillingSettingsState {
   return {
     general: {
@@ -122,6 +163,7 @@ export function defaultBillingSettings(): BillingSettingsState {
     uiPreferences: {
       showBillingSummaryCards: true,
     },
+    financePolicy: DEFAULT_FINANCE_POLICY,
     statement: {
       statementLayout: "Standard",
       statementHistory: "Full History",
@@ -188,6 +230,77 @@ function mergeDisplay<T extends Record<string, boolean>>(current: T, incoming: P
   return { ...defaults, ...current, ...(incoming || {}) };
 }
 
+function clampNumber(value: unknown, fallback: number, min: number, max?: number) {
+  const n = Number(value);
+  if (!Number.isFinite(n)) return fallback;
+  const upper = typeof max === "number" ? Math.min(n, max) : n;
+  return Math.max(min, upper);
+}
+
+function normalizeSettlementDeadline(value: unknown) {
+  const raw = String(value || "").trim();
+  const match = raw.match(/^(\d{1,2})-(\d{1,2})$/);
+  if (!match) return DEFAULT_FINANCE_POLICY.schoolSettlementDeadline;
+  const month = Math.min(12, Math.max(1, Number(match[1]))).toString().padStart(2, "0");
+  const day = Math.min(31, Math.max(1, Number(match[2]))).toString().padStart(2, "0");
+  return `${month}-${day}`;
+}
+
+function mergeFinancePolicy(
+  current: FinancePolicySettings,
+  incoming: Partial<FinancePolicySettings> | undefined
+): FinancePolicySettings {
+  if (!incoming) return current;
+  const raw = incoming || {};
+  const thresholds = raw.accountHealthThresholds || current.accountHealthThresholds;
+  return {
+    monthlyFeeDueDay: Math.round(clampNumber(raw.monthlyFeeDueDay, current.monthlyFeeDueDay, 1, 31)),
+    gracePeriodDays: Math.round(clampNumber(raw.gracePeriodDays, current.gracePeriodDays, 0, 31)),
+    arrangementEligibilityDays: Math.round(
+      clampNumber(raw.arrangementEligibilityDays, current.arrangementEligibilityDays, 1, 365)
+    ),
+    maximumArrangementDurationMonths: Math.round(
+      clampNumber(raw.maximumArrangementDurationMonths, current.maximumArrangementDurationMonths, 1, 6)
+    ),
+    schoolSettlementDeadline: normalizeSettlementDeadline(raw.schoolSettlementDeadline || current.schoolSettlementDeadline),
+    minimumMonthlyPayment: clampNumber(raw.minimumMonthlyPayment, current.minimumMonthlyPayment, 0),
+    minimumUpfrontPayment: clampNumber(raw.minimumUpfrontPayment, current.minimumUpfrontPayment, 0),
+    arrangementsAllowed: raw.arrangementsAllowed ?? current.arrangementsAllowed,
+    requireApproval: raw.requireApproval ?? current.requireApproval,
+    requireSupportingDocuments: raw.requireSupportingDocuments ?? current.requireSupportingDocuments,
+    autoCancelAfterMissedInstalments: Math.round(
+      clampNumber(raw.autoCancelAfterMissedInstalments, current.autoCancelAfterMissedInstalments, 1, 12)
+    ),
+    reminderSchedule: String(raw.reminderSchedule ?? current.reminderSchedule ?? ""),
+    accountHealthThresholds: {
+      excellentMaxOverdueDays: Math.round(
+        clampNumber(
+          thresholds.excellentMaxOverdueDays,
+          current.accountHealthThresholds.excellentMaxOverdueDays,
+          0,
+          365
+        )
+      ),
+      needsAttentionMaxOverdueDays: Math.round(
+        clampNumber(
+          thresholds.needsAttentionMaxOverdueDays,
+          current.accountHealthThresholds.needsAttentionMaxOverdueDays,
+          1,
+          365
+        )
+      ),
+      actionRequiredMaxOverdueDays: Math.round(
+        clampNumber(
+          thresholds.actionRequiredMaxOverdueDays,
+          current.accountHealthThresholds.actionRequiredMaxOverdueDays,
+          1,
+          365
+        )
+      ),
+    },
+  };
+}
+
 function mergeSettings(current: BillingSettingsState, incoming: Partial<BillingSettingsState>): BillingSettingsState {
   const defaults = defaultBillingSettings();
   const general = incoming.general
@@ -244,6 +357,11 @@ function mergeSettings(current: BillingSettingsState, incoming: Partial<BillingS
       }
     : current.uiPreferences;
 
+  const financePolicy = mergeFinancePolicy(
+    current.financePolicy || DEFAULT_FINANCE_POLICY,
+    incoming.financePolicy
+  );
+
   const invoice = incoming.invoice
     ? {
         ...current.invoice,
@@ -286,7 +404,7 @@ function mergeSettings(current: BillingSettingsState, incoming: Partial<BillingS
       }
     : current.receipt;
 
-  return { general, uiPreferences, statement, invoice, receipt };
+  return { general, uiPreferences, financePolicy, statement, invoice, receipt };
 }
 
 function normalizeSettings(raw: Partial<BillingSettingsState> | undefined): BillingSettingsState {

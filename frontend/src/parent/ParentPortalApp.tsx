@@ -26,7 +26,10 @@ import {
   parentApiFetch,
   setParentSession,
 } from "./parentApi";
+import ParentFinanceHub from "./ParentFinanceHub";
 import { useParentPortalPushPreparation } from "./useParentPortalPushPreparation";
+import { fetchBillingSettings } from "../billingSettings/billingSettingsApi";
+import type { FinancePolicySettings } from "../finance/financePolicy";
 
 const LAST_VISIT_KEY = "parentPortalLastVisitAt";
 
@@ -109,7 +112,7 @@ const navItems: { key: Panel; label: string; icon: string }[] = [
   { key: "homework", label: "Homework", icon: "📝" },
   { key: "notices", label: "Notices", icon: "📌" },
   { key: "documents", label: "Documents", icon: "📎" },
-  { key: "statements", label: "Statements", icon: "💳" },
+  { key: "statements", label: "Finance Hub", icon: "💳" },
   { key: "incidents", label: "Incidents", icon: "⚠️" },
   { key: "settings", label: "Settings", icon: "⚙️" },
 ];
@@ -117,7 +120,7 @@ const navItems: { key: Panel; label: string; icon: string }[] = [
 const bottomNavItems: { key: Panel; label: string }[] = [
   { key: "dashboard", label: "Home" },
   { key: "messages", label: "Messages" },
-  { key: "statements", label: "Billing" },
+  { key: "statements", label: "Finance" },
   { key: "notifications", label: "Alerts" },
 ];
 
@@ -221,6 +224,7 @@ export default function ParentPortalApp() {
   const [statementExportModal, setStatementExportModal] = useState<ParentExportAction | null>(null);
   const [statementExportPeriod, setStatementExportPeriod] = useState(readRememberedStatementExportPeriod);
   const [inactivityNotice, setInactivityNotice] = useState<string | null>(null);
+  const [financePolicy, setFinancePolicy] = useState<FinancePolicySettings | null>(null);
 
   const learners: LinkRow[] = useMemo(() => {
     const rows = (session?.learners || dashboard?.learners || []) as any[];
@@ -315,6 +319,21 @@ export default function ParentPortalApp() {
         });
       })
       .catch(() => {});
+  }, [sid]);
+
+  useEffect(() => {
+    if (!sid) return;
+    let cancelled = false;
+    void fetchBillingSettings(sid)
+      .then((settings) => {
+        if (!cancelled) setFinancePolicy(settings.financePolicy || null);
+      })
+      .catch(() => {
+        if (!cancelled) setFinancePolicy(null);
+      });
+    return () => {
+      cancelled = true;
+    };
   }, [sid]);
 
   useEffect(() => {
@@ -1194,156 +1213,18 @@ export default function ParentPortalApp() {
         )}
 
         {panel === "statements" && (
-          <div className="parent-portal-card">
-            <PanelHeader title="Statements & invoices" onBack={() => setPanel("dashboard")} />
-            <p className="parent-portal-muted" style={{ fontSize: 13, marginTop: 0 }}>
-              View and download your school billing files. A credit or negative amount on a statement usually means your account is in credit — not
-              necessarily an error.
-            </p>
-            {familyBillingLearners.length > 1 ? (
-              <div className="parent-portal-highlight-box">
-                <div className="parent-portal-notif-type" style={{ marginBottom: 6 }}>
-                  Billing account{" "}
-                  {familyBillingLearners[0]?.familyAccount?.accountRef || "shared"}
-                </div>
-                <div style={{ fontWeight: 800, marginBottom: 4 }}>Children on this account</div>
-                <ul style={{ margin: 0, paddingLeft: 18 }}>
-                  {familyBillingLearners.map((child) => (
-                    <li key={child.id}>
-                      {child.firstName} {child.lastName}
-                      {child.grade ? ` · Grade ${child.grade}` : ""}
-                    </li>
-                  ))}
-                </ul>
-              </div>
-            ) : null}
-            {dashboard?.latestInvoiceNotification && (
-              <div className="parent-portal-highlight-box" style={{ fontSize: 13 }}>
-                <div className="parent-portal-notif-type" style={{ marginBottom: 4 }}>Latest invoice notice</div>
-                {dashboard.latestInvoiceNotification.message}
-              </div>
-            )}
-            {latestStatement && (
-              <div className="parent-portal-highlight-box parent-portal-highlight-box--slate" style={{ fontSize: 13 }}>
-                <div className="parent-portal-muted" style={{ fontSize: 11, fontWeight: 800, marginBottom: 4 }}>Latest statement notice</div>
-                <strong>{latestStatement.title}</strong>
-                <div className="parent-portal-muted" style={{ marginTop: 4 }}>{latestStatement.message}</div>
-              </div>
-            )}
-            {billingLoading ? (
-              <p className="parent-portal-muted" style={{ fontSize: 13 }}>Loading billing…</p>
-            ) : familyBilling ? (
-              <div style={{ marginBottom: 12 }}>
-                <div
-                  style={{
-                    display: "flex",
-                    justifyContent: "space-between",
-                    alignItems: "baseline",
-                    gap: 8,
-                    marginBottom: 10,
-                    flexWrap: "wrap",
-                  }}
-                >
-                  <div>
-                    <div className="parent-portal-notif-type">Account balance</div>
-                    <div
-                      className={`parent-portal-billing-balance${
-                        familyBilling.balance > 0
-                          ? " parent-portal-billing-balance--due"
-                          : " parent-portal-billing-balance--credit"
-                      }`}
-                    >
-                      {formatMoney(familyBilling.balance)}
-                    </div>
-                  </div>
-                  {familyBilling.accountRef ? (
-                    <div className="parent-portal-muted" style={{ fontSize: 12, fontWeight: 700 }}>Ref {familyBilling.accountRef}</div>
-                  ) : null}
-                </div>
-                {familyBilling.transactions.length === 0 ? (
-                  <p className="parent-portal-muted" style={{ fontSize: 13, margin: 0 }}>No transactions on this account yet.</p>
-                ) : (
-                  <div className="parent-portal-table-wrap">
-                    <table className="parent-portal-table parent-portal-table--statement">
-                      <thead>
-                        <tr>
-                          {(familyBilling.isFamilyAccount
-                            ? ["Date", "Type", "Learner", "Description", "In", "Out", "Balance"]
-                            : ["Date", "Type", "Description", "In", "Out", "Balance"]
-                          ).map((h) => (
-                            <th key={h} className={h === "In" || h === "Out" || h === "Balance" ? "num" : undefined}>
-                              {h}
-                            </th>
-                          ))}
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {familyBilling.transactions.map((row) => (
-                          <tr key={row.id}>
-                            <td data-label="Date">{row.date || "—"}</td>
-                            <td data-label="Type">{row.type}</td>
-                            {familyBilling.isFamilyAccount ? (
-                              <td data-label="Learner">{row.learner || "—"}</td>
-                            ) : null}
-                            <td data-label="Description">{row.description || row.reference || "—"}</td>
-                            <td className="num" data-label="In">
-                              {row.amountIn ? formatMoney(row.amountIn) : "—"}
-                            </td>
-                            <td className="num" data-label="Out">
-                              {row.amountOut ? formatMoney(row.amountOut) : "—"}
-                            </td>
-                            <td className="num" data-label="Balance" style={{ fontWeight: 800 }}>
-                              {formatMoney(row.balance)}
-                            </td>
-                          </tr>
-                        ))}
-                      </tbody>
-                    </table>
-                  </div>
-                )}
-              </div>
-            ) : null}
-            {familyBilling && !billingLoading ? (
-              <div className="parent-portal-statement-actions">
-                <button
-                  type="button"
-                  className="parent-portal-btn-primary parent-portal-statement-btn"
-                  disabled={statementActionBusy}
-                  aria-busy={statementActionBusy}
-                  onClick={() => void handleDownloadStatement()}
-                >
-                  {statementActionBusy ? (
-                    <>
-                      <span className="parent-portal-spinner" aria-hidden /> Generating PDF…
-                    </>
-                  ) : (
-                    "Download Statement PDF"
-                  )}
-                </button>
-                <button
-                  type="button"
-                  className="parent-portal-btn-ghost parent-portal-statement-btn parent-portal-btn-ghost--gold-text"
-                  disabled={statementActionBusy}
-                  onClick={handlePrintStatement}
-                >
-                  Print Statement
-                </button>
-                <button
-                  type="button"
-                  className="parent-portal-btn-ghost parent-portal-statement-btn parent-portal-btn-ghost--gold-text"
-                  disabled={statementActionBusy}
-                  onClick={() => void handleEmailStatement()}
-                >
-                  {statementActionBusy ? "Sending…" : "Email Statement"}
-                </button>
-                {statementNotice ? (
-                  <p className="parent-portal-muted" style={{ fontSize: 13, margin: 0 }}>
-                    {statementNotice}
-                  </p>
-                ) : null}
-              </div>
-            ) : null}
-          </div>
+          <ParentFinanceHub
+            billing={familyBilling}
+            loading={billingLoading}
+            policy={financePolicy}
+            accountLabel={parentAccountLabel}
+            parentName={parentDisplayName || "Parent"}
+            learnerName={familyBillingLearners[0]?.firstName || activeLearner?.firstName || "your child"}
+            childrenOnAccount={familyBillingLearners}
+            statementNotice={statementNotice}
+            statementBusy={statementActionBusy}
+            onDownloadStatement={() => void handleDownloadStatement()}
+          />
         )}
 
         {panel === "incidents" && (

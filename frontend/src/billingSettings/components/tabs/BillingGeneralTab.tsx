@@ -9,15 +9,18 @@ import {
 } from "../billingSettingsConstants";
 import BillingSettingsCheckboxGroup from "../BillingSettingsCheckboxGroup";
 import BillingSettingsSelect from "../BillingSettingsSelect";
+import FinancePolicySettingsCard from "../FinancePolicySettingsCard";
 import type {
   BillingGeneralSettings,
   BillingUiPreferences,
+  FinancePolicySettings,
 } from "../../types/billingSettings";
 
 type Props = {
   schoolId: string;
   general: BillingGeneralSettings;
   uiPreferences: BillingUiPreferences;
+  financePolicy: FinancePolicySettings;
   onFieldChange: (patch: Partial<BillingGeneralSettings>) => void;
   onCheckboxChange: (
     group: "quickPopups" | "accountsInfoBlocks" | "invoicesInfoBlocks" | "paymentsInfoBlocks" | "corrections",
@@ -25,15 +28,18 @@ type Props = {
     checked: boolean
   ) => void;
   onUiPreferencesChange: (patch: Partial<BillingUiPreferences>) => void;
+  onFinancePolicyChange: (patch: Partial<FinancePolicySettings>) => void;
 };
 
 export default function BillingGeneralTab({
   schoolId,
   general,
   uiPreferences,
+  financePolicy,
   onFieldChange,
   onCheckboxChange,
   onUiPreferencesChange,
+  onFinancePolicyChange,
 }: Props) {
   return (
     <section
@@ -84,6 +90,12 @@ export default function BillingGeneralTab({
           onUiPreferencesChange({ [id]: checked } as Partial<BillingUiPreferences>)
         }
         columns={1}
+      />
+
+      <FinancePolicySettingsCard
+        schoolId={schoolId}
+        policy={financePolicy}
+        onChange={onFinancePolicyChange}
       />
 
       <BillingSettingsCheckboxGroup

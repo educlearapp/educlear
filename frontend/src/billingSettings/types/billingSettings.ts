@@ -41,6 +41,26 @@ export type BillingUiPreferences = {
   showBillingSummaryCards: boolean;
 };
 
+export type FinancePolicySettings = {
+  monthlyFeeDueDay: number;
+  gracePeriodDays: number;
+  arrangementEligibilityDays: number;
+  maximumArrangementDurationMonths: number;
+  schoolSettlementDeadline: string;
+  minimumMonthlyPayment: number;
+  minimumUpfrontPayment: number;
+  arrangementsAllowed: boolean;
+  requireApproval: boolean;
+  requireSupportingDocuments: boolean;
+  autoCancelAfterMissedInstalments: number;
+  reminderSchedule: string;
+  accountHealthThresholds: {
+    excellentMaxOverdueDays: number;
+    needsAttentionMaxOverdueDays: number;
+    actionRequiredMaxOverdueDays: number;
+  };
+};
+
 export type BillingStatementSettings = {
   statementLayout: string;
   statementHistory: string;
@@ -72,6 +92,7 @@ export type BillingReceiptSettings = {
 export type BillingSettingsState = {
   general: BillingGeneralSettings;
   uiPreferences: BillingUiPreferences;
+  financePolicy: FinancePolicySettings;
   statement: BillingStatementSettings;
   invoice: BillingInvoiceSettings;
   receipt: BillingReceiptSettings;

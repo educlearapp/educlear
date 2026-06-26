@@ -29,6 +29,7 @@ export default function BillingSettingsPage({ onBack }: Props) {
     setGeneral,
     setGeneralCheckbox,
     setUiPreferences,
+    setFinancePolicy,
     setStatement,
     setStatementFeature,
     setStatementDisplay,
@@ -85,9 +86,11 @@ export default function BillingSettingsPage({ onBack }: Props) {
             schoolId={schoolId}
             general={settings.general}
             uiPreferences={settings.uiPreferences}
+            financePolicy={settings.financePolicy}
             onFieldChange={setGeneral}
             onCheckboxChange={setGeneralCheckbox}
             onUiPreferencesChange={setUiPreferences}
+            onFinancePolicyChange={setFinancePolicy}
           />
         ) : null}
 
