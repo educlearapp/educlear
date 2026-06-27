@@ -149,10 +149,15 @@ export async function readExplicitlyEmptyBillingPlanLearnerIds(
   const schoolIds = await resolvedSchoolIdsForBillingPlanReads(schoolId);
   if (!schoolIds.length) return new Set();
 
-  const rows = await prisma.learnerBillingPlanCleared.findMany({
-    where: { schoolId: { in: schoolIds } },
-    select: { learnerId: true },
-  });
+  let rows: Array<{ learnerId: string }> = [];
+  try {
+    rows = await prisma.learnerBillingPlanCleared.findMany({
+      where: { schoolId: { in: schoolIds } },
+      select: { learnerId: true },
+    });
+  } catch (error) {
+    console.warn("[billingPlansReload] cleared-marker DB read failed; treating as none", error);
+  }
 
   return new Set(rows.map((row) => row.learnerId));
 }
@@ -261,14 +266,19 @@ async function readSchoolBillingPlansFromDbResolved(
   return readSchoolBillingPlansFromDb(key);
 }
 
-/** DB is source of truth; JSON is legacy fallback with one-time migration into DB. */
+/** DB is source of truth; JSON is legacy read-only fallback. Writes must be explicit. */
 export async function readSchoolBillingPlansResolved(
   schoolId: string
 ): Promise<Record<string, StoredBillingPlanItem[]>> {
   const key = String(schoolId || "").trim();
   if (!key) return {};
 
-  const fromDb = await readSchoolBillingPlansFromDbResolved(key);
+  let fromDb: Record<string, StoredBillingPlanItem[]> = {};
+  try {
+    fromDb = await readSchoolBillingPlansFromDbResolved(key);
+  } catch (error) {
+    console.warn("[billingPlansReload] DB read failed; falling back to JSON billing plans", error);
+  }
   const dbLearnerCount = Object.keys(fromDb).length;
   if (dbLearnerCount > 0) return fromDb;
 
@@ -276,9 +286,8 @@ export async function readSchoolBillingPlansResolved(
   const jsonLearnerCount = Object.keys(fromJson).length;
   if (jsonLearnerCount === 0) return {};
 
-  const migratedCount = await upsertSchoolBillingPlansToDb(key, fromJson);
   console.log(
-    `[billingPlansReload] schoolId=${key} migratedFromJson=${migratedCount} jsonLearnerCount=${jsonLearnerCount}`
+    `[billingPlansReload] schoolId=${key} usingJsonFallback=${jsonLearnerCount} autoMigrationDisabled=true`
   );
-  return readSchoolBillingPlansFromDb(key);
+  return fromJson;
 }
