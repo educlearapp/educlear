@@ -79,6 +79,20 @@ export default function FinanceCollectionsCentre({ schoolId, learners, statement
       }),
     [schoolId, learners, statementRows, policy]
   );
+
+  useEffect(() => {
+    if (typeof localStorage === "undefined") return;
+    if (localStorage.getItem("financeHealthTrace") !== "1") return;
+    console.table(
+      financeSnapshots.slice(0, 20).map((snapshot) => ({
+        accountRef: snapshot.accountRef,
+        monthsOutstanding: snapshot.monthsOutstanding,
+        engineHealthStatus: snapshot.healthStatus,
+        uiDisplayedStatus: snapshot.collectionsHealth,
+      }))
+    );
+  }, [financeSnapshots]);
+
   const classifiedSnapshots = financeSnapshots;
   const healthGroups = useMemo(() => groupCollectionsSnapshotsByHealth(classifiedSnapshots), [classifiedSnapshots]);
   const filteredSnapshots = useMemo(

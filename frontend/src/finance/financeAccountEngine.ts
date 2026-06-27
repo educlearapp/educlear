@@ -328,7 +328,7 @@ function resolveMonthlyFeeTotal(
   if (planTotal > 0) return roundMoney(planTotal);
 
   const rowInvoiceTotals = accountRows
-    .map((accountRow) => Number(accountRow.lastInvoice || accountRow.invoiceTotal || 0))
+    .map((accountRow) => parseMoneyValue(accountRow.lastInvoice || accountRow.invoiceTotal || 0))
     .filter((value) => Number.isFinite(value) && value > 0);
   if (rowInvoiceTotals.length) return roundMoney(Math.max(...rowInvoiceTotals));
 
@@ -344,9 +344,24 @@ function learnerMonthlyFeeTotal(learner: unknown, savedPlan: unknown) {
       : Array.isArray(savedPlan)
         ? savedPlan
         : [];
-  return roundMoney(
+  const planTotal = roundMoney(
     plan.reduce((sum: number, fee: any) => sum + Math.max(0, Number(fee?.amount ?? fee?.price ?? fee?.value ?? 0) || 0), 0)
   );
+  if (planTotal > 0) return planTotal;
+
+  const totalFee = parseMoneyValue((learner as any)?.totalFee);
+  if (totalFee > 0) return roundMoney(totalFee);
+  const tuitionFee = parseMoneyValue((learner as any)?.tuitionFee);
+  const transportFee = parseMoneyValue((learner as any)?.transportFee);
+  const otherFee = parseMoneyValue((learner as any)?.otherFee);
+  return roundMoney(tuitionFee + transportFee + otherFee);
+}
+
+function parseMoneyValue(value: unknown) {
+  if (typeof value === "number") return Number.isFinite(value) ? value : 0;
+  const cleaned = String(value || "").replace(/[^0-9.-]+/g, "");
+  const parsed = Number(cleaned);
+  return Number.isFinite(parsed) ? parsed : 0;
 }
 
 function readSavedBillingPlans(): Record<string, unknown> {
