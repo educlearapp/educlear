@@ -135,7 +135,7 @@ export default function FinanceHubPage({
               style={activeHealth === health ? activeTab : tab}
               onClick={() => setActiveHealth(health)}
             >
-              <span>{health}</span>
+              <span>{displayHealthBucket(health)}</span>
               <strong>{groups[health].length}</strong>
             </button>
           ))}
@@ -150,9 +150,10 @@ export default function FinanceHubPage({
               loading={false}
               policy={policy}
               accountLabel={selectedSnapshot.row.accountNo || selectedSnapshot.learnerDisplayName}
-              parentName={selectedSnapshot.parentName}
+              parentName={selectedSnapshot.parentGuardianName}
               learnerName={selectedSnapshot.learnerDisplayName}
               childrenOnAccount={selectedSnapshot.childrenOnAccount}
+              summaryOverride={selectedSnapshot.summary}
               statementBusy={statementBusyAccount === String(selectedSnapshot.row.accountNo || "").trim()}
               statementNotice={
                 statementNotice ||
@@ -196,13 +197,14 @@ function CommunicationPreview({ snapshot }: { snapshot: FinanceAccountSnapshot |
       <p style={eyebrow}>Communication preview</p>
       <h3 style={smallTitle}>WhatsApp Finance Update preview</h3>
       <div style={phoneBubble}>
-        <strong>Hi {snapshot?.parentName || "Parent"},</strong>
+        <strong>Hi {snapshot?.parentGuardianName || "Parent"},</strong>
         {summary ? (
           <>
-            <span>{subject} is currently {summary.accountHealth}.</span>
+            <span>{subject} is currently {displayHealthBucket(summary.accountHealth)}.</span>
             {isFamily && learnerList ? <span>Learners: {learnerList}.</span> : null}
-            <span>Amount you owe: {formatFinanceMoney(summary.amountYouOwe)}.</span>
-            <span>Overdue payments: {formatFinanceMoney(summary.amountOverdue)}.</span>
+            <span>Total balance: {formatFinanceMoney(snapshot?.totalBalance || 0)}.</span>
+            <span>Due now / overdue: {formatFinanceMoney(snapshot?.dueNow || 0)}.</span>
+            <span>Monthly fee total: {formatFinanceMoney(snapshot?.monthlyFeeTotal || 0)}.</span>
             <span>Next school fee due: {formatFinanceDate(summary.nextSchoolFeeDueDate)}.</span>
             <span>{summary.nextAction}</span>
           </>
@@ -215,6 +217,10 @@ function CommunicationPreview({ snapshot }: { snapshot: FinanceAccountSnapshot |
       </p>
     </section>
   );
+}
+
+function displayHealthBucket(bucket: AccountHealth) {
+  return bucket === "Excellent" ? "Healthy" : bucket;
 }
 
 const page: CSSProperties = { display: "grid", gap: 18 };

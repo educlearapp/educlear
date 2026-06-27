@@ -5,6 +5,7 @@ import {
   formatFinanceDate,
   formatFinanceMoney,
   normaliseFinancePolicySettings,
+  type FinanceHubSummary,
   type FinancePolicySettings,
   type FinanceTransaction,
 } from "../finance/financePolicy";
@@ -25,6 +26,7 @@ type Props = {
   parentName?: string;
   learnerName?: string;
   childrenOnAccount: { id: string; firstName: string; lastName: string; grade?: string }[];
+  summaryOverride?: FinanceHubSummary;
   statementNotice?: string | null;
   statementBusy: boolean;
   onDownloadStatement: () => void;
@@ -43,6 +45,7 @@ export default function ParentFinanceHub({
   parentName = "Maria",
   learnerName,
   childrenOnAccount,
+  summaryOverride,
   statementNotice,
   statementBusy,
   onDownloadStatement,
@@ -54,7 +57,7 @@ export default function ParentFinanceHub({
     () => normaliseFinancePolicySettings(policy || DEFAULT_FINANCE_POLICY),
     [policy]
   );
-  const summary = useMemo(
+  const computedSummary = useMemo(
     () =>
       buildFinanceHubSummary({
         transactions: billing?.transactions || [],
@@ -63,6 +66,7 @@ export default function ParentFinanceHub({
       }),
     [billing?.balance, billing?.transactions, financePolicy]
   );
+  const summary = summaryOverride || computedSummary;
 
   if (loading) {
     return (
@@ -125,7 +129,7 @@ export default function ParentFinanceHub({
           </div>
           <div>
             <p className="parent-finance-greeting">{greetingForNow()}, {parentName} 👋</p>
-            <h2>{accountSubject} is currently {summary.accountHealth}.</h2>
+            <h2>{accountSubject} is currently {displayAccountHealth(summary.accountHealth)}.</h2>
             <p>{summary.nextAction}</p>
           </div>
         </div>
@@ -456,6 +460,10 @@ function accountHealthIcon(status: string) {
   if (status === "Needs Attention") return "!";
   if (status === "Action Required") return "⚠";
   return "!";
+}
+
+function displayAccountHealth(status: string) {
+  return status === "Excellent" ? "Healthy" : status;
 }
 
 function greetingForNow() {

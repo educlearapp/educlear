@@ -1,8 +1,9 @@
 const PRODUCTION_API_URL = "https://educlear-backend.onrender.com";
+const viteEnv = (import.meta as ImportMeta & { env?: Record<string, string | boolean | undefined> }).env || {};
 
 export const API_URL =
-  import.meta.env.VITE_API_URL ||
-  (import.meta.env.PROD ? PRODUCTION_API_URL : "http://localhost:3000");
+  viteEnv.VITE_API_URL ||
+  (viteEnv.PROD ? PRODUCTION_API_URL : "http://localhost:3000");
 
 export async function apiFetch(path: string, options: RequestInit = {}) {
   const url = `${API_URL}${path}`;

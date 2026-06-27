@@ -27,6 +27,7 @@ type HealthBucket = AccountHealth;
 
 const healthOrder: HealthBucket[] = ["Excellent", "Needs Attention", "Action Required", "Critical"];
 const reviewHealthOrder: HealthBucket[] = ["Critical", "Action Required", "Needs Attention"];
+const pageSizeOptions = [10, 25, 50] as const;
 const arrangementBuckets = [
   "New Payment Plan Requests",
   "Pending Review",
@@ -49,6 +50,9 @@ export default function FinanceCollectionsCentre({ schoolId, learners, statement
   const [actionPanel, setActionPanel] = useState<ActionPanel | null>(null);
   const [statementNotice, setStatementNotice] = useState("");
   const [statementBusyAccount, setStatementBusyAccount] = useState("");
+  const [activeHealth, setActiveHealth] = useState<HealthBucket>("Critical");
+  const [pageSize, setPageSize] = useState<(typeof pageSizeOptions)[number]>(25);
+  const [accountPage, setAccountPage] = useState(1);
 
   useEffect(() => {
     if (!schoolId) return;
@@ -75,14 +79,17 @@ export default function FinanceCollectionsCentre({ schoolId, learners, statement
       }),
     [schoolId, learners, statementRows, policy]
   );
-  const classifiedSnapshots = useMemo(() => uniqueAccountSnapshots(financeSnapshots), [financeSnapshots]);
+  const classifiedSnapshots = financeSnapshots;
   const healthGroups = useMemo(() => groupCollectionsSnapshotsByHealth(classifiedSnapshots), [classifiedSnapshots]);
-  const reviewSnapshots = useMemo(
-    () =>
-      classifiedSnapshots
-        .filter((snapshot) => snapshot.collectionsHealth !== "Excellent")
-        .sort(compareReviewUrgency),
-    [classifiedSnapshots]
+  const filteredSnapshots = useMemo(
+    () => [...healthGroups[activeHealth]].sort(activeHealth === "Excellent" ? compareHealthyAccounts : compareReviewUrgency),
+    [activeHealth, healthGroups]
+  );
+  const totalPages = Math.max(1, Math.ceil(filteredSnapshots.length / pageSize));
+  const currentPage = Math.min(accountPage, totalPages);
+  const pagedSnapshots = useMemo(
+    () => filteredSnapshots.slice((currentPage - 1) * pageSize, currentPage * pageSize),
+    [currentPage, filteredSnapshots, pageSize]
   );
 
   const arrangementCounts = useMemo(() => {
@@ -98,12 +105,17 @@ export default function FinanceCollectionsCentre({ schoolId, learners, statement
     return counts;
   }, [schoolId]);
 
-  const totalOutstanding = classifiedSnapshots.reduce(
-    (sum, row) => sum + Math.max(0, Number(row.summary.amountYouOwe) || 0),
+  const totalCollectable = classifiedSnapshots.reduce(
+    (sum, row) => sum + Math.max(0, Number(row.dueNow) || 0),
     0
   );
   const categoryTotal = healthOrder.reduce((sum, bucket) => sum + healthGroups[bucket].length, 0);
   const arrangements = useMemo(() => (schoolId ? loadPaymentArrangements(schoolId) : []), [schoolId]);
+
+  const selectHealth = (health: HealthBucket) => {
+    setActiveHealth(health);
+    setAccountPage(1);
+  };
 
   const handleGenerateStatement = async (snapshot: FinanceAccountSnapshot) => {
     const accountNo = String(snapshot.row.accountNo || "").trim();
@@ -143,19 +155,24 @@ export default function FinanceCollectionsCentre({ schoolId, learners, statement
         </div>
         <div style={totalCard}>
           <span>Total Amount You Need To Collect</span>
-          <strong>{formatFinanceMoney(totalOutstanding)}</strong>
-          <small style={lightMuted}>{categoryTotal} classified accounts</small>
+          <strong>{formatFinanceMoney(totalCollectable)}</strong>
+          <small style={lightMuted}>Overdue / due-now amount across {categoryTotal} grouped accounts</small>
         </div>
       </div>
 
       <section style={grid}>
         {healthOrder.map((bucket) => (
-          <div key={bucket} style={statusCardStyle(bucket)}>
+          <button
+            key={bucket}
+            type="button"
+            style={statusCardStyle(bucket, activeHealth === bucket)}
+            onClick={() => selectHealth(bucket)}
+          >
             <div style={statusIcon}>{statusIconFor(bucket)}</div>
             <span style={statusLabel}>{displayHealthBucket(bucket)}</span>
             <strong style={statusCount}>{healthGroups[bucket].length}</strong>
             <small style={statusAmount}>{formatFinanceMoney(sumSnapshots(healthGroups[bucket]))}</small>
-          </div>
+          </button>
         ))}
       </section>
 
@@ -163,10 +180,12 @@ export default function FinanceCollectionsCentre({ schoolId, learners, statement
         <div style={panelHeader}>
           <div>
             <p style={eyebrow}>Next action</p>
-            <h2 style={sectionTitle}>Today&apos;s Finance Priorities</h2>
+            <h2 style={sectionTitle}>{displayHealthBucket(activeHealth)} Accounts</h2>
           </div>
           <span style={muted}>
-            Sorted by urgency. Healthy accounts are hidden here unless reviewed from the Healthy card.
+            {activeHealth === "Excellent"
+              ? "Sorted alphabetically by account reference or parent surname."
+              : "Sorted by urgency within the selected status."}
           </span>
         </div>
         {statementNotice ? <div style={notice}>{statementNotice}</div> : null}
@@ -176,29 +195,32 @@ export default function FinanceCollectionsCentre({ schoolId, learners, statement
               <tr>
                 <th style={th}>Account</th>
                 <th style={th}>Parent</th>
-                <th style={th}>Overdue Payments</th>
+                <th style={th}>Total Balance</th>
+                <th style={th}>Due Now</th>
+                <th style={th}>Monthly Fees</th>
                 <th style={th}>Status</th>
                 <th style={th}>What should happen next?</th>
                 <th style={th}>Actions</th>
               </tr>
             </thead>
             <tbody>
-              {reviewSnapshots
-                .slice(0, 20)
+              {pagedSnapshots
                 .map((snapshot) => {
                   const health = snapshot.collectionsHealth;
                   return (
-                    <tr key={`${snapshot.row.learnerId}-${snapshot.row.accountNo}`}>
+                    <tr key={snapshot.accountRef || `${snapshot.row.learnerId}-${snapshot.row.accountNo}`}>
                       <td style={td}>
-                        <strong>{snapshot.row.accountNo || "No account"}</strong>
+                        <strong>{snapshot.billingAccountRef || snapshot.row.accountNo || "No account"}</strong>
                         <small style={muted}>
                           {snapshot.childrenOnAccount.length > 1
                             ? `Family account · ${snapshot.firstLearnerName}`
                             : snapshot.learnerDisplayName || "Learner"}
                         </small>
                       </td>
-                      <td style={td}>{snapshot.parentName}</td>
-                      <td style={td}>{formatFinanceMoney(snapshot.summary.amountOverdue)}</td>
+                      <td style={td}>{snapshot.parentGuardianName}</td>
+                      <td style={td}>{formatFinanceMoney(snapshot.totalBalance)}</td>
+                      <td style={td}>{formatFinanceMoney(snapshot.overdueAmount)}</td>
+                      <td style={td}>{formatFinanceMoney(snapshot.monthlyFeeTotal)}</td>
                       <td style={td}>{health}</td>
                       <td style={td}>{nextOfficeAction(health)}</td>
                       <td style={td}>
@@ -229,9 +251,46 @@ export default function FinanceCollectionsCentre({ schoolId, learners, statement
                 })}
             </tbody>
           </table>
-          {!reviewSnapshots.length ? (
-            <div style={emptyState}>No urgent finance priorities. All accounts are currently Healthy.</div>
+          {!filteredSnapshots.length ? (
+            <div style={emptyState}>No accounts in this status.</div>
           ) : null}
+        </div>
+        <div style={paginationBar}>
+          <label style={pageSizeControl}>
+            Accounts per page
+            <select
+              value={pageSize}
+              onChange={(event) => {
+                setPageSize(Number(event.target.value) as (typeof pageSizeOptions)[number]);
+                setAccountPage(1);
+              }}
+            >
+              {pageSizeOptions.map((option) => (
+                <option key={option} value={option}>
+                  {option}
+                </option>
+              ))}
+            </select>
+          </label>
+          <span style={muted}>Page {currentPage} of {totalPages}</span>
+          <div style={paginationActions}>
+            <button
+              type="button"
+              style={pageBtn}
+              onClick={() => setAccountPage((value) => Math.max(1, value - 1))}
+              disabled={currentPage <= 1}
+            >
+              Previous
+            </button>
+            <button
+              type="button"
+              style={pageBtn}
+              onClick={() => setAccountPage((value) => Math.min(totalPages, value + 1))}
+              disabled={currentPage >= totalPages}
+            >
+              Next
+            </button>
+          </div>
         </div>
       </section>
 
@@ -281,31 +340,25 @@ function nextOfficeAction(health: HealthBucket) {
   return "Prioritise urgent finance office follow-up.";
 }
 
-function uniqueAccountSnapshots(snapshots: FinanceAccountSnapshot[]) {
-  const byAccount = new Map<string, FinanceAccountSnapshot>();
-  for (const snapshot of snapshots) {
-    const key = accountSnapshotKey(snapshot);
-    if (!key || byAccount.has(key)) continue;
-    byAccount.set(key, snapshot);
-  }
-  return Array.from(byAccount.values());
-}
-
-function accountSnapshotKey(snapshot: FinanceAccountSnapshot) {
-  const accountNo = String(snapshot.row.accountNo || "").trim();
-  if (accountNo) return `account:${accountNo}`;
-  const familyId = String(snapshot.row.familyAccountId || "").trim();
-  if (familyId) return `family:${familyId}`;
-  const learnerId = String(snapshot.row.learnerId || snapshot.row.id || "").trim();
-  return learnerId ? `learner:${learnerId}` : "";
-}
-
 function compareReviewUrgency(a: FinanceAccountSnapshot, b: FinanceAccountSnapshot) {
   const healthDiff = reviewRank(a.collectionsHealth) - reviewRank(b.collectionsHealth);
   if (healthDiff !== 0) return healthDiff;
   const monthsDiff = b.collectionsMonthsOutstanding - a.collectionsMonthsOutstanding;
   if (monthsDiff !== 0) return monthsDiff;
-  return b.summary.amountOverdue - a.summary.amountOverdue;
+  return b.overdueAmount - a.overdueAmount;
+}
+
+function compareHealthyAccounts(a: FinanceAccountSnapshot, b: FinanceAccountSnapshot) {
+  const accountCompare = String(a.billingAccountRef || a.row.accountNo || "").localeCompare(
+    String(b.billingAccountRef || b.row.accountNo || ""),
+    undefined,
+    { numeric: true, sensitivity: "base" }
+  );
+  if (accountCompare !== 0) return accountCompare;
+  return String(a.parentGuardianName || "").localeCompare(String(b.parentGuardianName || ""), undefined, {
+    numeric: true,
+    sensitivity: "base",
+  });
 }
 
 function reviewRank(health: AccountHealth) {
@@ -314,7 +367,7 @@ function reviewRank(health: AccountHealth) {
 }
 
 function sumSnapshots(rows: FinanceAccountSnapshot[]) {
-  return rows.reduce((sum, row) => sum + Math.max(0, Number(row.summary.amountYouOwe) || 0), 0);
+  return rows.reduce((sum, row) => sum + Math.max(0, Number(row.dueNow) || 0), 0);
 }
 
 function accountArrangements(snapshot: FinanceAccountSnapshot, arrangements: PaymentArrangement[]) {
@@ -343,11 +396,12 @@ function financeUpdateMessage(snapshot: FinanceAccountSnapshot) {
   const subject = isFamily ? "Your family account" : `${snapshot.learnerDisplayName || "Your child"}'s account`;
   const learnerLine = isFamily && snapshot.learnerDisplayName ? [`Learners: ${snapshot.learnerDisplayName}.`] : [];
   return [
-    `Hi ${snapshot.parentName || "Parent"},`,
-    `${subject} is currently ${summary.accountHealth}.`,
+    `Hi ${snapshot.parentGuardianName || "Parent"},`,
+    `${subject} is currently ${displayHealthBucket(snapshot.healthStatus)}.`,
     ...learnerLine,
-    `Amount you owe: ${formatFinanceMoney(summary.amountYouOwe)}.`,
-    `Overdue payments: ${formatFinanceMoney(summary.amountOverdue)}.`,
+    `Total balance: ${formatFinanceMoney(snapshot.totalBalance)}.`,
+    `Due now / overdue: ${formatFinanceMoney(snapshot.dueNow)}.`,
+    `Monthly fee total: ${formatFinanceMoney(snapshot.monthlyFeeTotal)}.`,
     `Next school fee due: ${formatFinanceDate(summary.nextSchoolFeeDueDate)}.`,
     summary.nextAction,
   ].join("\n");
@@ -386,8 +440,8 @@ function ActionPanelModal({
 
         {panel.kind === "account" ? (
           <div style={detailGrid}>
-            <Detail label="Account" value={snapshot.row.accountNo || "No account"} />
-            <Detail label="Parent" value={snapshot.parentName} />
+            <Detail label="Account" value={snapshot.accountRef || "No account"} />
+            <Detail label="Parent / Guardian" value={snapshot.parentGuardianName} />
             <div style={detailItem}>
               <span>Learners</span>
               <div style={learnerDetailList}>
@@ -403,12 +457,14 @@ function ActionPanelModal({
                 )}
               </div>
             </div>
-            <Detail label="Amount You Owe" value={formatFinanceMoney(snapshot.summary.amountYouOwe)} />
-            <Detail label="Amount Overdue" value={formatFinanceMoney(snapshot.summary.amountOverdue)} />
+            <Detail label="Total Balance" value={formatFinanceMoney(snapshot.totalBalance)} />
+            <Detail label="Overpaid Amount" value={formatFinanceMoney(snapshot.overpaidAmount)} />
+            <Detail label="Monthly Fee Total" value={formatFinanceMoney(snapshot.monthlyFeeTotal)} />
+            <Detail label="Due Now / Overdue" value={formatFinanceMoney(snapshot.dueNow)} />
             <Detail label="Collections Status" value={snapshot.collectionsHealth} />
             <Detail label="Collections Basis" value={snapshot.collectionsReason} />
             <Detail label="Months Outstanding" value={snapshot.collectionsMonthsOutstanding || "Current"} />
-            <Detail label="Next Due Date" value={formatFinanceDate(snapshot.summary.nextSchoolFeeDueDate)} />
+            <Detail label="Next Due Date" value={formatFinanceDate(snapshot.nextDueDate)} />
           </div>
         ) : null}
 
@@ -548,6 +604,31 @@ const actionBtn: CSSProperties = {
   fontSize: 11,
   fontWeight: 900,
   cursor: "pointer",
+};
+
+const paginationBar: CSSProperties = {
+  display: "flex",
+  alignItems: "center",
+  justifyContent: "space-between",
+  gap: 12,
+  flexWrap: "wrap",
+  marginTop: 14,
+};
+
+const pageSizeControl: CSSProperties = {
+  display: "flex",
+  alignItems: "center",
+  gap: 8,
+  color: "#64748b",
+  fontSize: 12,
+  fontWeight: 800,
+};
+
+const paginationActions: CSSProperties = { display: "flex", gap: 8 };
+
+const pageBtn: CSSProperties = {
+  ...actionBtn,
+  minWidth: 92,
 };
 
 const notice: CSSProperties = {
@@ -716,7 +797,7 @@ function displayHealthBucket(bucket: HealthBucket) {
   return bucket === "Excellent" ? "Healthy" : bucket;
 }
 
-function statusCardStyle(bucket: HealthBucket): CSSProperties {
+function statusCardStyle(bucket: HealthBucket, active: boolean): CSSProperties {
   const gradients: Record<HealthBucket, string> = {
     Excellent: "linear-gradient(135deg, #065f46, #10b981)",
     "Needs Attention": "linear-gradient(135deg, #7c4a03, #d4af37)",
@@ -732,5 +813,9 @@ function statusCardStyle(bucket: HealthBucket): CSSProperties {
     boxShadow: "0 18px 46px rgba(15,15,15,0.13)",
     overflow: "hidden",
     position: "relative",
+    textAlign: "left",
+    cursor: "pointer",
+    outline: active ? "3px solid rgba(17, 24, 39, 0.22)" : "none",
+    transform: active ? "translateY(-2px)" : "none",
   };
 }

@@ -91,6 +91,19 @@ export type BillingAccountRow = {
   lastPaymentDate: string;
   status: string;
   kidesysSection?: string;
+  ageAnalysis?: {
+    accountHolder?: string;
+    balance?: number;
+    buckets?: {
+      current?: number;
+      d30?: number;
+      d60?: number;
+      d90?: number;
+      d120?: number;
+    };
+    importedAt?: string;
+    source?: string;
+  };
 };
 
 const LEDGER_STORAGE_KEY = "educlearBillingLedger";
@@ -648,6 +661,7 @@ export function mapApiStatementRowToBillingAccountRow(row: any): BillingAccountR
     lastPayment,
     lastPaymentDate,
     status,
+    ageAnalysis: row?.ageAnalysis,
   };
 }
 
