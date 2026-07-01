@@ -68,6 +68,7 @@ import mbbDirectImportRoutes from "./routes/mbbDirectImport";
 import subscriptionsRoutes from "./routes/subscriptions";
 import payfastRoutes from "./routes/payfast";
 import creditsRoutes from "./routes/credits";
+import daSilvaFinanceExportReadonlyRoutes from "./routes/daSilvaFinanceExportReadonly";
 import { requireMigrationAccess } from "./middleware/requireMigrationAccess";
 import { requireSuperAdmin } from "./middleware/requireSuperAdmin";
 import superAdminSchoolsRoutes from "./routes/superAdminSchools";
@@ -405,6 +406,7 @@ app.use(
 app.use("/api/subscriptions", subscriptionsRoutes);
 app.use("/api/credits", creditsRoutes);
 app.use("/api/payfast", payfastRoutes);
+app.use("/api/ops", daSilvaFinanceExportReadonlyRoutes);
 app.get("/api/parents", async (_req, res) => {
 
 
