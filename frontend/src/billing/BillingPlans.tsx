@@ -1548,7 +1548,11 @@ export default function BillingPlans({
 
 
 
-              savePlan(activePlanLearner, updatedPlan);
+              setDetailPlan(updatedPlan);
+
+
+
+              void savePlan(activePlanLearner, updatedPlan);
 
 
 
@@ -2356,7 +2360,7 @@ Add fees to billing plan
 
 
 
-    savePlan(activePlanLearner, [
+    const nextPlan = [
 
 
 
@@ -2380,7 +2384,15 @@ Add fees to billing plan
 
 
 
-    ]);
+    ];
+
+
+
+    setDetailPlan(nextPlan);
+
+
+
+    void savePlan(activePlanLearner, nextPlan);
 
 
 
