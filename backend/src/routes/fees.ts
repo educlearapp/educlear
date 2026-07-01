@@ -79,7 +79,7 @@ function serializeFee(fee: any, usedBillingPlansCount = 0) {
     schoolId: fee.schoolId,
 
     // New Fees module fields
-    category: meta?.category ?? null,
+    category: meta?.category ?? fee.category ?? null,
     type: meta?.uiType ?? fee.frequency ?? null,
     description: fee.name ?? null,
     amount: fee.amount,

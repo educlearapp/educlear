@@ -237,6 +237,24 @@ export default function BillingPlans({
 
 
 
+  const getLearnerSearchHaystack = (learner: any) =>
+    [
+      getName(learner),
+      getSurname(learner),
+      getClassroom(learner),
+      learner?.admissionNo,
+      learner?.accountNo,
+      learner?.accountNumber,
+      learner?.familyAccount?.accountRef,
+      learner?.idNumber,
+    ]
+      .map((value) => String(value || "").trim())
+      .filter(Boolean)
+      .join(" ")
+      .toLowerCase();
+
+
+
   const money = (value: any) =>
 
 
@@ -1131,21 +1149,7 @@ export default function BillingPlans({
     : [];
 
   const filteredLearners = learnersForPlans.filter((learner: any) =>
-
-
-
-    `${getName(learner)} ${getSurname(learner)} ${getClassroom(learner)}`
-
-
-
-      .toLowerCase()
-
-
-
-      .includes(String(plansSearch || "").toLowerCase())
-
-
-
+    getLearnerSearchHaystack(learner).includes(String(plansSearch || "").toLowerCase())
   );
 
 
@@ -2563,7 +2567,7 @@ setPlansPage(1);
 
 
 
-placeholder="Search learner..."
+placeholder="Search learner, account, or admission…"
 
 
 
