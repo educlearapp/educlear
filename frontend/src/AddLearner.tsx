@@ -18,7 +18,16 @@ type AddLearnerProps = {
 
 
 
+type ClassroomOption = {
+  id: string;
+  name: string;
+};
+
+const NEW_CLASSROOM_VALUE = "__new_classroom__";
+const NO_CLASSROOM_VALUE = "";
+
 type GenderOption = "" | "Male" | "Female" | "Other";
+
 
 
 
@@ -112,6 +121,11 @@ export default function AddLearner({ onBack, schoolParents: schoolParentsProp }:
 
 
   const [className, setClassName] = useState("");
+  const [classroomSelection, setClassroomSelection] = useState(NO_CLASSROOM_VALUE);
+  const [newClassroomName, setNewClassroomName] = useState("");
+  const [classrooms, setClassrooms] = useState<ClassroomOption[]>([]);
+  const [classroomsLoading, setClassroomsLoading] = useState(false);
+  const [classroomsLoaded, setClassroomsLoaded] = useState(false);
 
 
 
@@ -184,6 +198,7 @@ export default function AddLearner({ onBack, schoolParents: schoolParentsProp }:
       if (baseClass) {
         setGrade(baseClass);
         setClassName(baseClass);
+        setClassroomSelection(baseClass);
       }
 
       const prefilled = parentsFromLearner(base);
@@ -204,6 +219,85 @@ export default function AddLearner({ onBack, schoolParents: schoolParentsProp }:
       // ignore invalid stored sibling context
     }
   }, []);
+
+  useEffect(() => {
+    if (!schoolId) {
+      setClassrooms([]);
+      setClassroomsLoading(false);
+      setClassroomsLoaded(false);
+      return;
+    }
+
+    let cancelled = false;
+    setClassroomsLoading(true);
+    setClassroomsLoaded(false);
+    void apiFetch(`/api/classrooms?schoolId=${encodeURIComponent(schoolId)}`)
+      .then((data: any) => {
+        if (cancelled) return;
+        const rows = Array.isArray(data?.classrooms) ? data.classrooms : [];
+        const options = rows
+          .map((row: Record<string, unknown>) => ({
+            id: String(row?.id || ""),
+            name: String(row?.name || row?.className || "").trim(),
+          }))
+          .filter((row: ClassroomOption) => row.name)
+          .sort((a: ClassroomOption, b: ClassroomOption) =>
+            a.name.localeCompare(b.name, undefined, { numeric: true })
+          );
+        setClassrooms(options);
+      })
+      .catch(() => {
+        if (!cancelled) setClassrooms([]);
+      })
+      .finally(() => {
+        if (!cancelled) {
+          setClassroomsLoading(false);
+          setClassroomsLoaded(true);
+        }
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [schoolId]);
+
+  useEffect(() => {
+    if (classroomsLoading || !classroomsLoaded) return;
+    try {
+      const prefill = String(localStorage.getItem("addLearnerPrefillClassName") || "").trim();
+      if (!prefill) return;
+
+      const existing = classrooms.find(
+        (classroom) => classroom.name.toLowerCase() === prefill.toLowerCase()
+      );
+      if (existing) {
+        localStorage.removeItem("addLearnerPrefillClassName");
+        setClassroomSelection(existing.name);
+        setClassName(existing.name);
+        setNewClassroomName("");
+        if (!grade.trim()) setGrade(existing.name);
+        return;
+      }
+
+      localStorage.removeItem("addLearnerPrefillClassName");
+      setClassroomSelection(NEW_CLASSROOM_VALUE);
+      setNewClassroomName(prefill);
+      setClassName(prefill);
+      if (!grade.trim()) setGrade(prefill);
+    } catch {
+      // ignore invalid prefill
+    }
+  }, [classrooms, classroomsLoading, classroomsLoaded, grade]);
+
+  const resolvedClassName = () => {
+    if (classroomSelection === NEW_CLASSROOM_VALUE) {
+      return newClassroomName.trim();
+    }
+    if (classroomSelection) {
+      return classroomSelection.trim();
+    }
+    return className.trim();
+  };
 
   useEffect(() => {
     if (!schoolId) return;
@@ -433,6 +527,13 @@ export default function AddLearner({ onBack, schoolParents: schoolParentsProp }:
 
     const parentPayloads = parents.map((p) => parentToApiPayload(p));
 
+    if (classroomSelection === NEW_CLASSROOM_VALUE && !newClassroomName.trim()) {
+      setMessage("Please enter a name for the new classroom, or select an existing classroom.");
+      return;
+    }
+
+    const savedClassName = resolvedClassName() || null;
+
     setSaving(true);
 
 
@@ -469,7 +570,7 @@ export default function AddLearner({ onBack, schoolParents: schoolParentsProp }:
 
 
 
-          className: className.trim() || null,
+          className: savedClassName,
 
 
 
@@ -589,6 +690,8 @@ export default function AddLearner({ onBack, schoolParents: schoolParentsProp }:
 
 
       setClassName("");
+      setClassroomSelection(NO_CLASSROOM_VALUE);
+      setNewClassroomName("");
 
 
 
@@ -725,14 +828,53 @@ export default function AddLearner({ onBack, schoolParents: schoolParentsProp }:
               />
             </div>
             <div className="add-learner-field">
-              <label className="add-learner-label">Grade / Class (Optional Class Name)</label>
-              <input
-                className="add-learner-input"
-                value={className}
-                onChange={(e) => setClassName(e.target.value)}
-                placeholder="e.g. 3A"
-              />
+              <label className="add-learner-label">Classroom</label>
+              <select
+                className="add-learner-select"
+                value={classroomSelection}
+                onChange={(e) => {
+                  const next = e.target.value;
+                  setClassroomSelection(next);
+                  if (next === NEW_CLASSROOM_VALUE) {
+                    setClassName(newClassroomName);
+                  } else if (next) {
+                    setClassName(next);
+                    if (!grade.trim()) setGrade(next);
+                    setNewClassroomName("");
+                  } else {
+                    setClassName("");
+                    setNewClassroomName("");
+                  }
+                }}
+                disabled={classroomsLoading}
+              >
+                <option value="">
+                  {classroomsLoading ? "Loading classrooms…" : "Select classroom (optional)"}
+                </option>
+                {classrooms.map((classroom) => (
+                  <option key={classroom.id || classroom.name} value={classroom.name}>
+                    {classroom.name}
+                  </option>
+                ))}
+                <option value={NEW_CLASSROOM_VALUE}>+ Create new classroom…</option>
+              </select>
             </div>
+            {classroomSelection === NEW_CLASSROOM_VALUE ? (
+              <div className="add-learner-field">
+                <label className="add-learner-label">New classroom name</label>
+                <input
+                  className="add-learner-input"
+                  value={newClassroomName}
+                  onChange={(e) => {
+                    const next = e.target.value;
+                    setNewClassroomName(next);
+                    setClassName(next);
+                    if (!grade.trim()) setGrade(next);
+                  }}
+                  placeholder="Enter exact classroom name"
+                />
+              </div>
+            ) : null}
             <div className="add-learner-field">
               <label className="add-learner-label">Account / Admission No</label>
               <input
@@ -884,13 +1026,58 @@ export default function AddLearner({ onBack, schoolParents: schoolParentsProp }:
                       />
                     </div>
                     <div className="add-learner-field">
-                      <label className="add-learner-label">Class</label>
-                      <input
-                        className="add-learner-input"
-                        value={s.className}
-                        onChange={(e) => updateSibling(idx, { className: e.target.value })}
-                        placeholder="e.g. 3A"
-                      />
+                      <label className="add-learner-label">Classroom</label>
+                      {(() => {
+                        const siblingClassroomValue = classrooms.some(
+                          (classroom) => classroom.name === s.className
+                        )
+                          ? s.className
+                          : s.className
+                            ? NEW_CLASSROOM_VALUE
+                            : "";
+                        return (
+                          <>
+                            <select
+                              className="add-learner-select"
+                              value={siblingClassroomValue}
+                              onChange={(e) => {
+                                const next = e.target.value;
+                                if (next === NEW_CLASSROOM_VALUE) {
+                                  updateSibling(idx, { className: s.className || "" });
+                                } else {
+                                  updateSibling(idx, { className: next, grade: s.grade || next });
+                                }
+                              }}
+                              disabled={classroomsLoading}
+                            >
+                              <option value="">Select classroom (optional)</option>
+                              {classrooms.map((classroom) => (
+                                <option
+                                  key={`${idx}-${classroom.id || classroom.name}`}
+                                  value={classroom.name}
+                                >
+                                  {classroom.name}
+                                </option>
+                              ))}
+                              <option value={NEW_CLASSROOM_VALUE}>+ Create new classroom…</option>
+                            </select>
+                            {siblingClassroomValue === NEW_CLASSROOM_VALUE ? (
+                              <input
+                                className="add-learner-input"
+                                style={{ marginTop: "8px" }}
+                                value={s.className}
+                                onChange={(e) =>
+                                  updateSibling(idx, {
+                                    className: e.target.value,
+                                    grade: s.grade || e.target.value,
+                                  })
+                                }
+                                placeholder="Enter exact classroom name"
+                              />
+                            ) : null}
+                          </>
+                        );
+                      })()}
                     </div>
                     <div className="add-learner-field">
                       <label className="add-learner-label">Account / Admission No</label>

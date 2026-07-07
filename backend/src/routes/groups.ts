@@ -60,6 +60,11 @@ function formatGroup(row: GroupRow) {
   };
 }
 
+async function findGroupById(schoolId: string, id: string) {
+  const groups = await listGroups(schoolId);
+  return groups.find((group) => group.id === id) || null;
+}
+
 async function listGroups(schoolId: string) {
   const rows = await prisma.$queryRaw<GroupRow[]>`
     SELECT
@@ -207,6 +212,70 @@ router.post("/", async (req, res) => {
   }
 });
 
+function normalizeLearnerIds(value: unknown): string[] {
+  if (!Array.isArray(value)) return [];
+  return [...new Set(value.map((item) => String(item || "").trim()).filter(Boolean))];
+}
+
+router.post("/:id/learners", async (req, res) => {
+  try {
+    const id = String(req.params.id || "").trim();
+    const schoolId = String(req.body?.schoolId || "").trim();
+    const learnerIds = normalizeLearnerIds(req.body?.learnerIds);
+    if (!id || !schoolId) return jsonError(res, 400, "id and schoolId required");
+    if (!learnerIds.length) return jsonError(res, 400, "learnerIds required");
+
+    const group = await prisma.group.findFirst({ where: { id, schoolId }, select: { id: true } });
+    if (!group) return jsonError(res, 404, "Group not found");
+
+    const learners = await prisma.learner.findMany({
+      where: { schoolId, id: { in: learnerIds } },
+      select: { id: true },
+    });
+    const validIds = new Set(learners.map((learner) => learner.id));
+    const missing = learnerIds.filter((learnerId) => !validIds.has(learnerId));
+    if (missing.length) {
+      return jsonError(res, 400, "One or more learners were not found for this school");
+    }
+
+    await prisma.groupLearner.createMany({
+      data: learnerIds.map((learnerId) => ({ schoolId, groupId: id, learnerId })),
+      skipDuplicates: true,
+    });
+
+    const saved = await findGroupById(schoolId, id);
+    if (!saved) return jsonError(res, 404, "Group not found");
+    return res.json({ success: true, group: saved });
+  } catch (error) {
+    console.error("[groups] add learners", error);
+    return jsonError(res, 500, "Failed to add learners to group");
+  }
+});
+
+router.delete("/:id/learners", async (req, res) => {
+  try {
+    const id = String(req.params.id || "").trim();
+    const schoolId = String(req.body?.schoolId || req.query.schoolId || "").trim();
+    const learnerIds = normalizeLearnerIds(req.body?.learnerIds);
+    if (!id || !schoolId) return jsonError(res, 400, "id and schoolId required");
+    if (!learnerIds.length) return jsonError(res, 400, "learnerIds required");
+
+    const group = await prisma.group.findFirst({ where: { id, schoolId }, select: { id: true } });
+    if (!group) return jsonError(res, 404, "Group not found");
+
+    await prisma.groupLearner.deleteMany({
+      where: { schoolId, groupId: id, learnerId: { in: learnerIds } },
+    });
+
+    const saved = await findGroupById(schoolId, id);
+    if (!saved) return jsonError(res, 404, "Group not found");
+    return res.json({ success: true, group: saved });
+  } catch (error) {
+    console.error("[groups] remove learners", error);
+    return jsonError(res, 500, "Failed to remove learners from group");
+  }
+});
+
 router.put("/:id", async (req, res) => {
   try {
     const id = String(req.params.id || "").trim();
@@ -223,7 +292,8 @@ router.put("/:id", async (req, res) => {
     `;
 
     if (!rows[0]) return jsonError(res, 404, "Group not found");
-    return res.json({ success: true, group: formatGroup(rows[0]) });
+    const saved = await findGroupById(schoolId, id);
+    return res.json({ success: true, group: saved || formatGroup(rows[0]) });
   } catch (error) {
     console.error("[groups] update", error);
     return jsonError(res, 500, "Failed to save group");

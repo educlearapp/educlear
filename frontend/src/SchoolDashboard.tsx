@@ -31,6 +31,15 @@ import BillingPlans from "./billing/BillingPlans";
 import Payments from "./billing/Payments";
 import PaymentCreateClean from "./billing/PaymentCreateClean";
 import InvoiceCreateClean from "./billing/InvoiceCreateClean";
+import ReceiptSavedDialog from "./billing/ReceiptSavedDialog";
+import {
+  buildPaymentSaveReturnState,
+  nextBillingSearchFocusToken,
+  shouldFocusBillingSearch,
+  type BillingListPage,
+  type BillingSearchFocusRequest,
+} from "./billing/billingListSearchFocus";
+import { useBillingSearchFocus } from "./billing/useBillingSearchFocus";
 import BillingDocuments from "./billing/BillingDocuments";
 import BillingReports from "./billing/BillingReports";
 import FinanceHubPage from "./billing/FinanceHubPage";
@@ -108,6 +117,7 @@ import {
   syncSchoolSessionFromLoginResponse,
   USER_PERMISSIONS_STORAGE_KEY,
 } from "./auth/schoolSession";
+import { isDemoMode } from "./utils/demoMode";
 import DashboardPackagePanel from "./subscriptions/DashboardPackagePanel";
 import { API_URL, apiFetch } from "./api";
 import { normalizeSaIdNumber } from "./utils/normalizeSaIdNumber";
@@ -140,6 +150,7 @@ import Registrations from "./components/registrations/Registrations";
 import Users from "./users/Users";
 import ManageLearner from "./learner/ManageLearner";
 import Classrooms from "./Classrooms";
+import GroupLearnerPickerModal from "./components/groups/GroupLearnerPickerModal";
 import { calculateLearnerAge } from "./learner/learnerIdentity";
 import { normalizeKidESysAccountRef, resolveKidESysAccountRefFromLearner } from "./billing/billingAccountRef";
 import { isMigratedOpeningBalanceOverviewLabel } from "./billing/billingDisplayRules";
@@ -634,6 +645,8 @@ const [groupMoreOpen, setGroupMoreOpen] = useState(false);
 
 
 const [groupDraft, setGroupDraft] = useState<any>({});
+const [groupLearnerPickerOpen, setGroupLearnerPickerOpen] = useState(false);
+const [groupMembershipSaving, setGroupMembershipSaving] = useState(false);
 
 
 
@@ -725,6 +738,9 @@ const [attendanceMarks, setAttendanceMarks] = useState<
 const [attendanceLoading, setAttendanceLoading] = useState(false);
 const [attendanceSaving, setAttendanceSaving] = useState(false);
 const [attendanceNotice, setAttendanceNotice] = useState<string | null>(null);
+const [attendanceApiClasses, setAttendanceApiClasses] = useState<Array<{ name: string; learnerCount: number }>>([]);
+const [attendanceApiLearners, setAttendanceApiLearners] = useState<any[]>([]);
+const [attendanceClassesLoading, setAttendanceClassesLoading] = useState(false);
 const [incidentSearch, setIncidentSearch] = useState("");
 
 
@@ -789,12 +805,46 @@ useEffect(() => {
 }, [schoolId]);
 
 useEffect(() => {
+  if (!schoolId) {
+    setAttendanceApiClasses([]);
+    return;
+  }
+  if (activePage !== "attendance" && activePage !== "attendanceManage") return;
+
+  let cancelled = false;
+  setAttendanceClassesLoading(true);
+
+  void apiFetch(`/api/attendance/classes?schoolId=${encodeURIComponent(schoolId)}`)
+    .then((data: any) => {
+      if (cancelled || !data?.success) return;
+      const classes = Array.isArray(data?.classes)
+        ? data.classes.map((row: any) => ({
+            name: String(row?.name || "").trim(),
+            learnerCount: Number(row?.learnerCount || 0),
+          }))
+        : [];
+      setAttendanceApiClasses(classes.filter((row: { name: string }) => row.name));
+    })
+    .catch(() => {
+      if (!cancelled) setAttendanceApiClasses([]);
+    })
+    .finally(() => {
+      if (!cancelled) setAttendanceClassesLoading(false);
+    });
+
+  return () => {
+    cancelled = true;
+  };
+}, [schoolId, activePage]);
+
+useEffect(() => {
   if (!schoolId || !attendanceSelectedClass) return;
   if (activePage !== "attendance" && activePage !== "attendanceManage") return;
 
   let cancelled = false;
   setAttendanceLoading(true);
   setAttendanceNotice(null);
+  setAttendanceApiLearners([]);
 
   const qs = new URLSearchParams({
     schoolId,
@@ -807,10 +857,14 @@ useEffect(() => {
     .then((data: any) => {
       if (cancelled || !data?.success) return;
       setAttendanceMarks(data.marks || {});
+      setAttendanceApiLearners(Array.isArray(data?.learners) ? data.learners : []);
       setAttendanceCapturePage(1);
     })
     .catch(() => {
-      if (!cancelled) setAttendanceNotice("Could not load attendance for this class and date.");
+      if (!cancelled) {
+        setAttendanceNotice("Could not load attendance for this class and date.");
+        setAttendanceApiLearners([]);
+      }
     })
     .finally(() => {
       if (!cancelled) setAttendanceLoading(false);
@@ -958,6 +1012,12 @@ const [selectedLearnerReport, setSelectedLearnerReport] = useState<any>(null);
   const billingRefreshInFlightRef = useRef<Promise<void> | null>(null);
   const [billingAccountsSearch, setBillingAccountsSearch] = useState("");
   const [billingAccountsPage, setBillingAccountsPage] = useState(1);
+  const [billingSearchFocus, setBillingSearchFocus] = useState<BillingSearchFocusRequest | null>(null);
+  const [pendingReceiptPrompt, setPendingReceiptPrompt] = useState<{
+    paymentId: string;
+    receiptNumber: string;
+  } | null>(null);
+  const billingAccountsSearchRef = useRef<HTMLInputElement>(null);
   const [selectedAccount, setSelectedAccount] = useState<PaymentAccountContext | null>(null);
   const [paymentForm, setPaymentForm] = useState<PaymentFormState>(() => defaultPaymentForm());
 
@@ -2506,6 +2566,25 @@ const [selectedLearnerReport, setSelectedLearnerReport] = useState<any>(null);
     [learners, statementRows, setActiveBillingAccount]
   );
 
+  const requestBillingSearchFocus = useCallback((page: BillingListPage) => {
+    setBillingSearchFocus((prev) => ({
+      page,
+      token: nextBillingSearchFocusToken(prev?.token ?? 0),
+    }));
+  }, []);
+
+  const invoicesSearchFocusToken = shouldFocusBillingSearch(billingSearchFocus, "invoices")
+    ? billingSearchFocus!.token
+    : undefined;
+  const paymentsSearchFocusToken = shouldFocusBillingSearch(billingSearchFocus, "payments")
+    ? billingSearchFocus!.token
+    : undefined;
+  const statementsSearchFocusToken = shouldFocusBillingSearch(billingSearchFocus, "statements")
+    ? billingSearchFocus!.token
+    : undefined;
+
+  useBillingSearchFocus(invoicesSearchFocusToken, billingAccountsSearchRef);
+
   useEffect(() => {
     if (!selectedAccount) return;
     const refreshed = normalizePaymentAccount(selectedAccount, statementRows, learners);
@@ -2805,6 +2884,7 @@ const [selectedLearnerReport, setSelectedLearnerReport] = useState<any>(null);
 
 
           <input
+            ref={billingAccountsSearchRef}
             placeholder="Search"
             value={billingAccountsSearch}
             onChange={(e) => {
@@ -6502,7 +6582,10 @@ const [selectedLearnerReport, setSelectedLearnerReport] = useState<any>(null);
   
   
   
-        children: Number(group.importedMemberCount || 0),
+        children:
+          (Array.isArray(group.learnerIds) ? group.learnerIds.length : 0) +
+          (Array.isArray(group.externalMembers) ? group.externalMembers.length : 0) ||
+          Number(group.importedMemberCount || 0),
   
   
   
@@ -6608,34 +6691,23 @@ const [selectedLearnerReport, setSelectedLearnerReport] = useState<any>(null);
   
     : [];
 
-  const selectedGroupCopiedMembers = selectedGroup && Array.isArray(selectedGroup.externalMembers)
-    ? selectedGroup.externalMembers
-    : [];
-  const selectedGroupUsesCopiedMembers = selectedGroupCopiedMembers.length > 0;
-  
-  
-  
+  const selectedGroupCopiedMembers =
+    selectedGroup && Array.isArray(selectedGroup.externalMembers) ? selectedGroup.externalMembers : [];
+
+  const selectedGroupLinkedCount = selectedGroupLearners.length;
+  const selectedGroupImportedCount = selectedGroupCopiedMembers.length;
+  const selectedGroupMemberCount = selectedGroupLinkedCount + selectedGroupImportedCount;
+
   const groupLearnerPageSize = 5;
-  
-  
-  
-  const selectedGroupMemberCount = Number(selectedGroup?.importedMemberCount || 0);
-  const groupLearnerTotalPages = Math.max(1, Math.ceil(selectedGroupMemberCount / groupLearnerPageSize));
-  
-  
-  
-  const groupLearnerPagedRows = (selectedGroupUsesCopiedMembers ? selectedGroupCopiedMembers : selectedGroupLearners).slice(
-  
-  
-  
+
+  const groupLinkedLearnerTotalPages = Math.max(
+    1,
+    Math.ceil(selectedGroupLinkedCount / groupLearnerPageSize)
+  );
+
+  const groupLinkedLearnerPagedRows = selectedGroupLearners.slice(
     (groupLearnerPage - 1) * groupLearnerPageSize,
-  
-  
-  
     groupLearnerPage * groupLearnerPageSize
-  
-  
-  
   );
   
   
@@ -6673,6 +6745,20 @@ const [selectedLearnerReport, setSelectedLearnerReport] = useState<any>(null);
   
   
   
+  const applyGroupFromServer = (savedGroup: any) => {
+    if (!savedGroup?.id) return;
+    setLocalGroups((current) => {
+      const nextGroups = current.map((item: any) =>
+        String(item.id) === String(savedGroup.id) ? savedGroup : item
+      );
+      cacheGroupsForSchool(nextGroups);
+      return nextGroups;
+    });
+    setSelectedGroup(savedGroup);
+    setGroupDraft(savedGroup);
+    localStorage.setItem("selectedGroupForManage", JSON.stringify(savedGroup));
+  };
+
   const saveGroup = (updatedGroup: any) => {
   
   
@@ -6728,23 +6814,21 @@ if (schoolId) {
   )
     .then((data: any) => {
       if (!data?.group) return;
-      setLocalGroups((current) => {
-        const savedGroup = {
-          ...data.group,
-          importedMemberCount: Number(data.group.importedMemberCount ?? updatedGroup.importedMemberCount ?? 0),
-          learnerIds: Array.isArray(updatedGroup.learnerIds) ? updatedGroup.learnerIds : [],
-          externalMembers: Array.isArray(updatedGroup.externalMembers) ? updatedGroup.externalMembers : [],
-        };
-        const nextGroups = current.map((group: any) =>
-          group.id === updatedGroup.id ? savedGroup : group
-        );
-        cacheGroupsForSchool(nextGroups);
-        if (selectedGroup?.id === updatedGroup.id) {
-          setSelectedGroup(savedGroup);
-          localStorage.setItem("selectedGroupForManage", JSON.stringify(savedGroup));
-        }
-        return nextGroups;
-      });
+      const savedGroup = {
+        ...data.group,
+        importedMemberCount: Number(data.group.importedMemberCount ?? updatedGroup.importedMemberCount ?? 0),
+        learnerIds: Array.isArray(updatedGroup.learnerIds)
+          ? updatedGroup.learnerIds
+          : Array.isArray(data.group.learnerIds)
+            ? data.group.learnerIds
+            : [],
+        externalMembers: Array.isArray(updatedGroup.externalMembers)
+          ? updatedGroup.externalMembers
+          : Array.isArray(data.group.externalMembers)
+            ? data.group.externalMembers
+            : [],
+      };
+      applyGroupFromServer(savedGroup);
     })
     .catch(() => setGroupsNotice("Group saved locally, but could not be saved to the server."));
 }
@@ -6857,6 +6941,50 @@ if (schoolId) {
       setGroupsNotice(error instanceof Error ? error.message : "Could not import groups.");
     } finally {
       setGroupsImporting(false);
+    }
+  };
+
+  const addLearnersToGroupApi = async (group: any, learnerIds: string[]) => {
+    const groupId = String(group?.id || "").trim();
+    if (!schoolId || !groupId || groupId.startsWith("group-") || !learnerIds.length) {
+      alert("Save the group before adding learners.");
+      return;
+    }
+
+    setGroupMembershipSaving(true);
+    try {
+      const data: any = await apiFetch(`/api/groups/${encodeURIComponent(groupId)}/learners`, {
+        method: "POST",
+        body: JSON.stringify({ schoolId, learnerIds }),
+      });
+      if (!data?.group) throw new Error(data?.error || "Could not add learners to group.");
+      applyGroupFromServer(data.group);
+      setGroupLearnerPickerOpen(false);
+      setSelectedGroupLearnerIds([]);
+    } catch (error) {
+      alert(error instanceof Error ? error.message : "Could not add learners to group.");
+    } finally {
+      setGroupMembershipSaving(false);
+    }
+  };
+
+  const removeLearnersFromGroupApi = async (group: any, learnerIds: string[]) => {
+    const groupId = String(group?.id || "").trim();
+    if (!schoolId || !groupId || groupId.startsWith("group-") || !learnerIds.length) return;
+
+    setGroupMembershipSaving(true);
+    try {
+      const data: any = await apiFetch(`/api/groups/${encodeURIComponent(groupId)}/learners`, {
+        method: "DELETE",
+        body: JSON.stringify({ schoolId, learnerIds }),
+      });
+      if (!data?.group) throw new Error(data?.error || "Could not remove learners from group.");
+      applyGroupFromServer(data.group);
+      setSelectedGroupLearnerIds([]);
+    } catch (error) {
+      alert(error instanceof Error ? error.message : "Could not remove learners from group.");
+    } finally {
+      setGroupMembershipSaving(false);
     }
   };
   
@@ -7617,110 +7745,18 @@ if (schoolId) {
   
   
   
-    const addLearnerToGroup = () => {
-  
-  
-  
-      const typed = window.prompt("Type learner name to add to this group:");
-  
-  
-  
-      if (!typed) return;
-  
-  
-  
-      const found = learners.find((learner: any) =>
-  
-  
-  
-        `${learner.firstName || ""} ${learner.lastName || learner.surname || ""}`
-  
-  
-  
-          .toLowerCase()
-  
-  
-  
-          .includes(typed.toLowerCase())
-  
-  
-  
-      );
-  
-  
-  
-      if (!found) return alert("Learner not found.");
-  
-  
-  
-      if ((group.learnerIds || []).map(String).includes(String(found.id))) {
-  
-  
-  
-        return alert("Learner is already in this group.");
-  
-  
-  
+    const openGroupLearnerPicker = () => {
+      const groupId = String(group?.id || "").trim();
+      if (!groupId || groupId.startsWith("group-")) {
+        alert("Save the group before adding learners.");
+        return;
       }
-  
-  
-  
-      saveGroup({
-  
-  
-  
-        ...group,
-  
-  
-  
-        learnerIds: [...(group.learnerIds || []), String(found.id)],
-  
-  
-  
-      });
-  
-  
-  
+      setGroupLearnerPickerOpen(true);
     };
-  
-  
-  
-    const removeLearnersFromGroup = () => {
-  
-  
-  
+
+    const removeSelectedGroupLearners = () => {
       if (selectedGroupLearnerIds.length === 0) return alert("Select learners first.");
-  
-  
-  
-      saveGroup({
-  
-  
-  
-        ...group,
-  
-  
-  
-        learnerIds: (group.learnerIds || []).filter(
-  
-  
-  
-          (id: string) => !selectedGroupLearnerIds.includes(String(id))
-  
-  
-  
-        ),
-  
-  
-  
-      });
-  
-  
-  
-      setSelectedGroupLearnerIds([]);
-  
-  
-  
+      void removeLearnersFromGroupApi(group, selectedGroupLearnerIds.map(String));
     };
 
     return (
@@ -8006,37 +8042,14 @@ if (schoolId) {
   
   
   
-          {selectedGroupUsesCopiedMembers ? (
-            <table style={{ width: "100%", borderCollapse: "collapse", fontSize: "13px" }}>
-              <thead>
-                <tr>
-                  <th style={th}>Name</th>
-                </tr>
-              </thead>
-              <tbody>
-                {groupLearnerPagedRows.length === 0 ? (
-                  <tr>
-                    <td style={{ ...td, textAlign: "center", padding: "20px" }}>No members copied to this group yet</td>
-                  </tr>
-                ) : (
-                  groupLearnerPagedRows.map((member: any, index: number) => (
-                    <tr
-                      key={member.id || `${member.name}-${index}`}
-                      style={{ background: index % 2 === 0 ? "#fff" : "rgba(212,175,55,0.06)" }}
-                    >
-                      <td style={td}>{member.name || "-"}</td>
-                    </tr>
-                  ))
-                )}
-              </tbody>
-            </table>
-          ) : (
-            <>
+          <div style={{ padding: "10px 14px", borderBottom: "1px solid #e5e7eb", fontWeight: 800, color: "#334155", background: "#fff" }}>
+            Linked learners ({selectedGroupLinkedCount})
+          </div>
           <div style={{ padding: "10px", display: "flex", gap: "8px", borderBottom: "1px solid #e5e7eb" }}>
   
   
   
-            <button style={goldBtn} onClick={addLearnerToGroup}>
+            <button style={goldBtn} onClick={openGroupLearnerPicker} disabled={groupMembershipSaving}>
   
   
   
@@ -8096,7 +8109,7 @@ if (schoolId) {
   
   
   
-            <button style={dangerBtn} onClick={removeLearnersFromGroup}>
+            <button style={dangerBtn} onClick={removeSelectedGroupLearners} disabled={groupMembershipSaving}>
   
   
   
@@ -8160,7 +8173,7 @@ if (schoolId) {
   
   
   
-              {groupLearnerPagedRows.length === 0 ? (
+              {groupLinkedLearnerPagedRows.length === 0 ? (
   
   
   
@@ -8188,7 +8201,7 @@ if (schoolId) {
   
   
   
-                groupLearnerPagedRows.map((learner: any, index: number) => {
+                groupLinkedLearnerPagedRows.map((learner: any, index: number) => {
   
   
   
@@ -8345,8 +8358,30 @@ if (schoolId) {
   
   
           </table>
+          {selectedGroupCopiedMembers.length > 0 ? (
+            <>
+              <div style={{ padding: "10px 14px", borderTop: "1px solid #e5e7eb", borderBottom: "1px solid #e5e7eb", fontWeight: 800, color: "#334155", background: "#f8fafc" }}>
+                Imported members (reference) ({selectedGroupImportedCount})
+              </div>
+              <table style={{ width: "100%", borderCollapse: "collapse", fontSize: "13px" }}>
+                <thead>
+                  <tr>
+                    <th style={th}>Name</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {selectedGroupCopiedMembers.map((member: any, index: number) => (
+                    <tr
+                      key={member.id || `${member.name}-${index}`}
+                      style={{ background: index % 2 === 0 ? "#fff" : "rgba(212,175,55,0.06)" }}
+                    >
+                      <td style={td}>{member.name || "-"}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
             </>
-          )}
+          ) : null}
   
   
   
@@ -8358,7 +8393,7 @@ if (schoolId) {
   
   
   
-              {selectedGroupMemberCount === 0 ? "0" : (groupLearnerPage - 1) * groupLearnerPageSize + 1} - {Math.min(groupLearnerPage * groupLearnerPageSize, selectedGroupMemberCount)} / {selectedGroupMemberCount}
+              {selectedGroupLinkedCount === 0 ? "0" : (groupLearnerPage - 1) * groupLearnerPageSize + 1} - {Math.min(groupLearnerPage * groupLearnerPageSize, selectedGroupLinkedCount)} / {selectedGroupLinkedCount}
   
   
   
@@ -8386,7 +8421,7 @@ if (schoolId) {
   
   
   
-                Page {groupLearnerPage} / {groupLearnerTotalPages}
+                Page {groupLearnerPage} / {groupLinkedLearnerTotalPages}
   
   
   
@@ -8394,7 +8429,7 @@ if (schoolId) {
   
   
   
-              <button style={actionBtn} disabled={groupLearnerPage >= groupLearnerTotalPages} onClick={() => setGroupLearnerPage((p) => Math.min(groupLearnerTotalPages, p + 1))}>
+              <button style={actionBtn} disabled={groupLearnerPage >= groupLinkedLearnerTotalPages} onClick={() => setGroupLearnerPage((p) => Math.min(groupLinkedLearnerTotalPages, p + 1))}>
   
   
   
@@ -8415,6 +8450,22 @@ if (schoolId) {
   
   
         </div>
+
+        <GroupLearnerPickerModal
+          open={groupLearnerPickerOpen}
+          learners={learners
+            .filter((learner: any) => isActiveEnrollment(learner))
+            .map((learner: any) => ({
+              id: String(learner.id),
+              firstName: String(learner.firstName || ""),
+              lastName: String(learner.lastName || learner.surname || ""),
+              grade: String(getLearnerGrade(learner) || ""),
+            }))}
+          excludedLearnerIds={Array.isArray(group.learnerIds) ? group.learnerIds.map(String) : []}
+          saving={groupMembershipSaving}
+          onClose={() => setGroupLearnerPickerOpen(false)}
+          onConfirm={(learnerIds) => addLearnersToGroupApi(group, learnerIds)}
+        />
   
   
   
@@ -10279,18 +10330,7 @@ if (schoolId) {
   const attendancePerPage = 25;
   const attendancePaginationThreshold = 25;
 
-  const learnerMatchesAttendanceClass = (learner: any, className: string) => {
-    const learnerClass = String(getLearnerGrade(learner) || "").trim().toLowerCase();
-    return learnerClass === String(className || "").trim().toLowerCase();
-  };
-
-  const attendanceClassLearners = attendanceSelectedClass
-    ? learners.filter(
-        (learner: any) =>
-          isActiveEnrollment(learner) &&
-          learnerMatchesAttendanceClass(learner, attendanceSelectedClass)
-      )
-    : [];
+  const attendanceClassLearners = attendanceSelectedClass ? attendanceApiLearners : [];
 
   const attendanceLearnersFiltered = attendanceClassLearners.filter((learner: any) => {
     const fullName = `${learner.firstName || ""} ${learner.lastName || ""}`.toLowerCase();
@@ -10395,7 +10435,10 @@ if (schoolId) {
         period: attendancePeriod,
       });
       const refreshed: any = await apiFetch(`/api/attendance?${qs}`);
-      if (refreshed?.success) setAttendanceMarks(refreshed.marks || {});
+      if (refreshed?.success) {
+        setAttendanceMarks(refreshed.marks || {});
+        setAttendanceApiLearners(Array.isArray(refreshed?.learners) ? refreshed.learners : []);
+      }
     } catch (e: unknown) {
       setAttendanceNotice(e instanceof Error ? e.message : "Failed to save attendance.");
     } finally {
@@ -10446,12 +10489,14 @@ if (schoolId) {
         <div style={{ background: "#fff", border: "1px solid rgba(15,23,42,0.10)", borderTop: `4px solid ${GOLD}`, borderRadius: "12px", overflow: "hidden", boxShadow: "0 18px 40px rgba(15,23,42,0.08)" }}>
           <div style={{ padding: "12px 14px", borderBottom: "1px solid #e5e7eb", fontWeight: 900, color: "#0f172a" }}>Select class</div>
           <div style={{ padding: "14px", display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(200px, 1fr))", gap: "12px" }}>
-            {classroomRows.length === 0 ? (
+            {attendanceClassesLoading ? (
+              <div style={{ color: "#64748b", fontWeight: 700, padding: "12px" }}>Loading classes…</div>
+            ) : attendanceApiClasses.length === 0 ? (
               <div style={{ color: "#64748b", fontWeight: 700, padding: "12px" }}>No classes found. Add learners with a class name first.</div>
             ) : (
-              classroomRows.map((row) => (
+              attendanceApiClasses.map((row) => (
                 <button
-                  key={row.id || row.name}
+                  key={row.name}
                   type="button"
                   onClick={() => {
                     setAttendanceSelectedClass(String(row.name));
@@ -10470,7 +10515,7 @@ if (schoolId) {
                 >
                   <div style={{ fontWeight: 900, color: "#0f172a", fontSize: "15px" }}>{row.name}</div>
                   <div style={{ marginTop: "6px", color: "#64748b", fontWeight: 700, fontSize: "12px" }}>
-                    {row.children} learner{row.children === 1 ? "" : "s"}
+                    {row.learnerCount} learner{row.learnerCount === 1 ? "" : "s"}
                   </div>
                 </button>
               ))
@@ -10486,6 +10531,7 @@ if (schoolId) {
               onClick={() => {
                 setAttendanceSelectedClass(null);
                 setAttendanceMarks({});
+                setAttendanceApiLearners([]);
                 setAttendanceNotice(null);
               }}
             >
@@ -15618,6 +15664,7 @@ const [invoiceRunEmailDraft, setInvoiceRunEmailDraft] = useState({
               setActivePage("statementManage");
             }}
             showSummaryCards={showBillingSummaryCards}
+            focusSearchToken={statementsSearchFocusToken}
       
       
       
@@ -15770,6 +15817,10 @@ const [invoiceRunEmailDraft, setInvoiceRunEmailDraft] = useState({
             <StatementManage
               selected={liveRow}
               setActivePage={setActivePage}
+              onBackToList={() => {
+                setActivePage("statements");
+                requestBillingSearchFocus("statements");
+              }}
               onOpenInvoiceCreate={openInvoiceCreate}
               onOpenPaymentCreate={openPaymentCreate}
               setActiveBillingAccount={setActiveBillingAccount}
@@ -15795,10 +15846,14 @@ const [invoiceRunEmailDraft, setInvoiceRunEmailDraft] = useState({
               selectedAccount={invoiceAccount}
               defaultDueDate={quickInvoiceDueDate}
               defaultMessage={quickInvoiceMessage}
-              onBack={() => setActivePage("invoices")}
+              onBack={() => {
+                setActivePage("invoices");
+                requestBillingSearchFocus("invoices");
+              }}
               onSaved={() => {
                 skipNextBillingPageRefreshRef.current = true;
                 setActivePage("invoices");
+                requestBillingSearchFocus("invoices");
               }}
             />
           );
@@ -15820,6 +15875,7 @@ const [invoiceRunEmailDraft, setInvoiceRunEmailDraft] = useState({
               onOpenPaymentCreate={openPaymentCreate}
               setActivePage={setActivePage}
               showSummaryCards={showBillingSummaryCards}
+              focusSearchToken={paymentsSearchFocusToken}
             />
         
         
@@ -15951,9 +16007,21 @@ const [invoiceRunEmailDraft, setInvoiceRunEmailDraft] = useState({
               selectedAccount={paymentAccount}
               paymentForm={paymentForm}
               onPaymentFormChange={setPaymentForm}
-              onBack={() => setActivePage("payments")}
-              onSaved={() => {
+              onBack={() => {
+                setActivePage("payments");
+                requestBillingSearchFocus("payments");
+              }}
+              onSaved={(payload) => {
                 skipNextBillingPageRefreshRef.current = true;
+                const focusToken = nextBillingSearchFocusToken(billingSearchFocus?.token ?? 0);
+                const returnState = buildPaymentSaveReturnState({
+                  paymentId: payload.paymentId,
+                  receiptNumber: payload.receiptNumber,
+                  focusToken,
+                });
+                setPendingReceiptPrompt(returnState.pendingReceiptPrompt);
+                setBillingSearchFocus(returnState.focusRequest);
+                setActivePage(returnState.activePage);
               }}
             />
           );
@@ -17028,6 +17096,7 @@ return (
           </div>
           ) : null}
 
+          {!isDemoMode() ? (
           <div className="main-section">
             <div
               className="section-header"
@@ -17073,6 +17142,7 @@ return (
               </div>
             )}
           </div>
+          ) : null}
 
           <div className="main-section">
             <div
@@ -17393,6 +17463,18 @@ return (
         </main>
 
         </div>
+
+        {pendingReceiptPrompt ? (
+          <ReceiptSavedDialog
+            schoolId={schoolId || ""}
+            paymentId={pendingReceiptPrompt.paymentId}
+            receiptNumber={pendingReceiptPrompt.receiptNumber}
+            onClose={() => {
+              setPendingReceiptPrompt(null);
+              requestBillingSearchFocus("payments");
+            }}
+          />
+        ) : null}
 
       </div>
 
