@@ -31,15 +31,6 @@ import BillingPlans from "./billing/BillingPlans";
 import Payments from "./billing/Payments";
 import PaymentCreateClean from "./billing/PaymentCreateClean";
 import InvoiceCreateClean from "./billing/InvoiceCreateClean";
-import ReceiptSavedDialog from "./billing/ReceiptSavedDialog";
-import {
-  buildPaymentSaveReturnState,
-  nextBillingSearchFocusToken,
-  shouldFocusBillingSearch,
-  type BillingListPage,
-  type BillingSearchFocusRequest,
-} from "./billing/billingListSearchFocus";
-import { useBillingSearchFocus } from "./billing/useBillingSearchFocus";
 import BillingDocuments from "./billing/BillingDocuments";
 import BillingReports from "./billing/BillingReports";
 import FinanceHubPage from "./billing/FinanceHubPage";
@@ -117,7 +108,6 @@ import {
   syncSchoolSessionFromLoginResponse,
   USER_PERMISSIONS_STORAGE_KEY,
 } from "./auth/schoolSession";
-import { isDemoMode } from "./utils/demoMode";
 import DashboardPackagePanel from "./subscriptions/DashboardPackagePanel";
 import { API_URL, apiFetch } from "./api";
 import { normalizeSaIdNumber } from "./utils/normalizeSaIdNumber";
@@ -1012,12 +1002,6 @@ const [selectedLearnerReport, setSelectedLearnerReport] = useState<any>(null);
   const billingRefreshInFlightRef = useRef<Promise<void> | null>(null);
   const [billingAccountsSearch, setBillingAccountsSearch] = useState("");
   const [billingAccountsPage, setBillingAccountsPage] = useState(1);
-  const [billingSearchFocus, setBillingSearchFocus] = useState<BillingSearchFocusRequest | null>(null);
-  const [pendingReceiptPrompt, setPendingReceiptPrompt] = useState<{
-    paymentId: string;
-    receiptNumber: string;
-  } | null>(null);
-  const billingAccountsSearchRef = useRef<HTMLInputElement>(null);
   const [selectedAccount, setSelectedAccount] = useState<PaymentAccountContext | null>(null);
   const [paymentForm, setPaymentForm] = useState<PaymentFormState>(() => defaultPaymentForm());
 
@@ -2566,25 +2550,6 @@ const [selectedLearnerReport, setSelectedLearnerReport] = useState<any>(null);
     [learners, statementRows, setActiveBillingAccount]
   );
 
-  const requestBillingSearchFocus = useCallback((page: BillingListPage) => {
-    setBillingSearchFocus((prev) => ({
-      page,
-      token: nextBillingSearchFocusToken(prev?.token ?? 0),
-    }));
-  }, []);
-
-  const invoicesSearchFocusToken = shouldFocusBillingSearch(billingSearchFocus, "invoices")
-    ? billingSearchFocus!.token
-    : undefined;
-  const paymentsSearchFocusToken = shouldFocusBillingSearch(billingSearchFocus, "payments")
-    ? billingSearchFocus!.token
-    : undefined;
-  const statementsSearchFocusToken = shouldFocusBillingSearch(billingSearchFocus, "statements")
-    ? billingSearchFocus!.token
-    : undefined;
-
-  useBillingSearchFocus(invoicesSearchFocusToken, billingAccountsSearchRef);
-
   useEffect(() => {
     if (!selectedAccount) return;
     const refreshed = normalizePaymentAccount(selectedAccount, statementRows, learners);
@@ -2884,7 +2849,6 @@ const [selectedLearnerReport, setSelectedLearnerReport] = useState<any>(null);
 
 
           <input
-            ref={billingAccountsSearchRef}
             placeholder="Search"
             value={billingAccountsSearch}
             onChange={(e) => {
@@ -15664,7 +15628,6 @@ const [invoiceRunEmailDraft, setInvoiceRunEmailDraft] = useState({
               setActivePage("statementManage");
             }}
             showSummaryCards={showBillingSummaryCards}
-            focusSearchToken={statementsSearchFocusToken}
       
       
       
@@ -15817,10 +15780,6 @@ const [invoiceRunEmailDraft, setInvoiceRunEmailDraft] = useState({
             <StatementManage
               selected={liveRow}
               setActivePage={setActivePage}
-              onBackToList={() => {
-                setActivePage("statements");
-                requestBillingSearchFocus("statements");
-              }}
               onOpenInvoiceCreate={openInvoiceCreate}
               onOpenPaymentCreate={openPaymentCreate}
               setActiveBillingAccount={setActiveBillingAccount}
@@ -15846,14 +15805,10 @@ const [invoiceRunEmailDraft, setInvoiceRunEmailDraft] = useState({
               selectedAccount={invoiceAccount}
               defaultDueDate={quickInvoiceDueDate}
               defaultMessage={quickInvoiceMessage}
-              onBack={() => {
-                setActivePage("invoices");
-                requestBillingSearchFocus("invoices");
-              }}
+              onBack={() => setActivePage("invoices")}
               onSaved={() => {
                 skipNextBillingPageRefreshRef.current = true;
                 setActivePage("invoices");
-                requestBillingSearchFocus("invoices");
               }}
             />
           );
@@ -15875,7 +15830,6 @@ const [invoiceRunEmailDraft, setInvoiceRunEmailDraft] = useState({
               onOpenPaymentCreate={openPaymentCreate}
               setActivePage={setActivePage}
               showSummaryCards={showBillingSummaryCards}
-              focusSearchToken={paymentsSearchFocusToken}
             />
         
         
@@ -16007,21 +15961,9 @@ const [invoiceRunEmailDraft, setInvoiceRunEmailDraft] = useState({
               selectedAccount={paymentAccount}
               paymentForm={paymentForm}
               onPaymentFormChange={setPaymentForm}
-              onBack={() => {
-                setActivePage("payments");
-                requestBillingSearchFocus("payments");
-              }}
-              onSaved={(payload) => {
+              onBack={() => setActivePage("payments")}
+              onSaved={() => {
                 skipNextBillingPageRefreshRef.current = true;
-                const focusToken = nextBillingSearchFocusToken(billingSearchFocus?.token ?? 0);
-                const returnState = buildPaymentSaveReturnState({
-                  paymentId: payload.paymentId,
-                  receiptNumber: payload.receiptNumber,
-                  focusToken,
-                });
-                setPendingReceiptPrompt(returnState.pendingReceiptPrompt);
-                setBillingSearchFocus(returnState.focusRequest);
-                setActivePage(returnState.activePage);
               }}
             />
           );
@@ -17096,7 +17038,6 @@ return (
           </div>
           ) : null}
 
-          {!isDemoMode() ? (
           <div className="main-section">
             <div
               className="section-header"
@@ -17142,7 +17083,6 @@ return (
               </div>
             )}
           </div>
-          ) : null}
 
           <div className="main-section">
             <div
@@ -17463,18 +17403,6 @@ return (
         </main>
 
         </div>
-
-        {pendingReceiptPrompt ? (
-          <ReceiptSavedDialog
-            schoolId={schoolId || ""}
-            paymentId={pendingReceiptPrompt.paymentId}
-            receiptNumber={pendingReceiptPrompt.receiptNumber}
-            onClose={() => {
-              setPendingReceiptPrompt(null);
-              requestBillingSearchFocus("payments");
-            }}
-          />
-        ) : null}
 
       </div>
 
