@@ -644,6 +644,48 @@ export type InvoiceRunExecutePayload = {
   extraFeesByLearnerId?: Record<string, { feeDescription: string; amount: number }[]>;
 };
 
+export type InvoiceRunListItem = {
+  id: string;
+  runId: string;
+  source: "ledger";
+  description: string;
+  period: string;
+  month: string;
+  invoicePeriod: string;
+  date: string;
+  invoiceDate: string;
+  dueDate: string;
+  totalInvoices: number;
+  totalAmount: number;
+  executed: true;
+};
+
+export async function fetchInvoiceRuns(schoolId: string): Promise<{
+  ok: boolean;
+  runs: InvoiceRunListItem[];
+  invoicePeriodCounts: Record<string, number>;
+}> {
+  const sid = String(schoolId || "").trim();
+  if (!sid) return { ok: false, runs: [], invoicePeriodCounts: {} };
+
+  const url = `${API_URL}/api/invoice-runs?schoolId=${encodeURIComponent(sid)}`;
+  try {
+    const data = await getJson(url);
+    if (!data || typeof data !== "object") {
+      return { ok: false, runs: [], invoicePeriodCounts: {} };
+    }
+    const runs = Array.isArray((data as { runs?: unknown }).runs)
+      ? ((data as { runs: InvoiceRunListItem[] }).runs as InvoiceRunListItem[])
+      : [];
+    const invoicePeriodCounts =
+      (data as { invoicePeriodCounts?: Record<string, number> }).invoicePeriodCounts || {};
+    return { ok: true, runs, invoicePeriodCounts };
+  } catch (error) {
+    console.warn(`Billing API failed: ${url}`, error);
+    return { ok: false, runs: [], invoicePeriodCounts: {} };
+  }
+}
+
 async function postInvoiceRunEndpoint(
   path: "/api/invoice-runs/preview" | "/api/invoice-runs/execute",
   payload: InvoiceRunExecutePayload,

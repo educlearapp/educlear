@@ -15302,29 +15302,7 @@ const renderMoreSettings = () => {
     };
   }, [hookSchoolId]);
 
-  const [storedRuns, setStoredRuns] = useState<any[]>(() => {
-    const readJson = (keys: string[], fallback: any) => {
-      for (const key of keys) {
-        try {
-          const raw = localStorage.getItem(key);
-          if (!raw) continue;
-          const parsed = JSON.parse(raw);
-          if (parsed) return parsed;
-        } catch {}
-      }
-      return fallback;
-    };
-    const toArray = (value: any) => {
-      if (Array.isArray(value)) return value;
-      if (Array.isArray(value?.data)) return value.data;
-      if (Array.isArray(value?.learners)) return value.learners;
-      if (Array.isArray(value?.parents)) return value.parents;
-      if (Array.isArray(value?.accounts)) return value.accounts;
-      if (Array.isArray(value?.items)) return value.items;
-      return [];
-    };
-    return toArray(readJson(["educlearInvoiceRuns"], []));
-  });
+  const [storedRuns, setStoredRuns] = useState<any[]>([]);
 
   const [invoiceRunActionsOpen, setInvoiceRunActionsOpen] = useState(false);
   const [invoiceRunActionType, setInvoiceRunActionType] = useState<

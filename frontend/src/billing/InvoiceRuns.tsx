@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useRef, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { API_URL, apiFetch } from "../api";
 import { getLearnerAccountNo } from "../learner/learnerIdentity";
 import { createDefaultBillingSettings } from "../billingSettings/components/billingSettingsConstants";
@@ -15,10 +15,16 @@ import {
 import {
   fetchInvoices,
   fetchPayments,
+  fetchInvoiceRuns,
   previewInvoiceRun,
   executeInvoiceRun,
   applyInvoiceRunExecuteResponse,
 } from "./billingApi";
+import {
+  isLedgerBackedInvoiceRun,
+  mergeInvoiceRunLists,
+  type InvoiceRunListRow,
+} from "./invoiceRunList";
 
 
 
@@ -117,6 +123,12 @@ export default function InvoiceRuns(props: any) {
   const [invoiceRunPreviewError, setInvoiceRunPreviewError] = useState("");
   const [invoiceRunExecuteResult, setInvoiceRunExecuteResult] = useState<any | null>(null);
   const [invoiceRunExecuteLoading, setInvoiceRunExecuteLoading] = useState(false);
+  const [serverInvoiceRuns, setServerInvoiceRuns] = useState<InvoiceRunListRow[]>([]);
+  const [serverInvoicePeriodCounts, setServerInvoicePeriodCounts] = useState<
+    Record<string, number>
+  >({});
+  const [serverRunsLoading, setServerRunsLoading] = useState(false);
+  const [serverRunsError, setServerRunsError] = useState("");
 
   useEffect(() => {
     if (invoiceRunView !== "wizardSummary") return;
@@ -261,6 +273,45 @@ export default function InvoiceRuns(props: any) {
   };
 
   const schoolIdForLedger = localStorage.getItem("schoolId") || "";
+
+  const loadServerInvoiceRuns = useCallback(async () => {
+    const schoolId = localStorage.getItem("schoolId") || "";
+    if (!schoolId) {
+      setServerInvoiceRuns([]);
+      setServerInvoicePeriodCounts({});
+      return { ok: false, runs: [], invoicePeriodCounts: {} };
+    }
+    setServerRunsLoading(true);
+    setServerRunsError("");
+    try {
+      const result = await fetchInvoiceRuns(schoolId);
+      if (result.ok) {
+        setServerInvoiceRuns(result.runs);
+        setServerInvoicePeriodCounts(result.invoicePeriodCounts);
+      } else {
+        setServerRunsError("Could not load invoice runs from server.");
+      }
+      return result;
+    } catch {
+      setServerRunsError("Could not load invoice runs from server.");
+      return { ok: false, runs: [], invoicePeriodCounts: {} };
+    } finally {
+      setServerRunsLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    void loadServerInvoiceRuns();
+    try {
+      const raw = localStorage.getItem("educlearInvoiceRuns");
+      const parsed = raw ? JSON.parse(raw) : [];
+      if (Array.isArray(parsed) && parsed.length) {
+        setStoredRuns(parsed);
+      }
+    } catch {
+      /* ignore invalid browser draft cache */
+    }
+  }, [loadServerInvoiceRuns, setStoredRuns]);
 
   const getLearnerOutstandingBalance = (learnerId: string, accountNo = "") => {
     const ledger = getAccountLedger(schoolIdForLedger, learnerId, accountNo);
@@ -1485,6 +1536,7 @@ export default function InvoiceRuns(props: any) {
       };
       saveRunDraft(executedRun);
       await loadBillingData();
+      await loadServerInvoiceRuns();
       return result;
     } finally {
       setInvoiceRunExecuteLoading(false);
@@ -1996,7 +2048,12 @@ export default function InvoiceRuns(props: any) {
 
     if (!window.confirm("Delete this invoice run?")) return;
 
-
+    if (isLedgerBackedInvoiceRun(current)) {
+      alert(
+        "This invoice run is recorded on the server billing ledger and cannot be deleted from the browser. Remove browser-only drafts below if you still see ghost entries."
+      );
+      return;
+    }
 
     const existingRuns = toArray(
 
@@ -8521,7 +8578,18 @@ export default function InvoiceRuns(props: any) {
 
 
 
-  const visibleRuns = toArray(storedRuns);
+  const mergedInvoiceRuns = useMemo(
+    () =>
+      mergeInvoiceRunLists(
+        serverInvoiceRuns,
+        toArray(storedRuns),
+        serverInvoicePeriodCounts
+      ),
+    [serverInvoiceRuns, storedRuns, serverInvoicePeriodCounts]
+  );
+
+  const visibleRuns = mergedInvoiceRuns.allVisibleRuns;
+  const browserDraftRuns = mergedInvoiceRuns.browserDraftRuns;
 
 
 
@@ -8765,6 +8833,36 @@ export default function InvoiceRuns(props: any) {
 
 
 
+        {serverRunsError ? (
+          <div
+            style={{
+              margin: "0 12px 12px",
+              padding: "10px 12px",
+              borderRadius: 10,
+              border: "1px solid rgba(185,28,28,0.25)",
+              background: "rgba(254,226,226,0.45)",
+              color: "#991b1b",
+              fontWeight: 700,
+              fontSize: 13,
+            }}
+          >
+            {serverRunsError} Browser-only drafts may still appear below if present.
+          </div>
+        ) : null}
+
+        {serverRunsLoading ? (
+          <div
+            style={{
+              padding: "12px 16px",
+              color: "#64748b",
+              fontWeight: 800,
+              fontSize: 13,
+            }}
+          >
+            Loading invoice runs from server…
+          </div>
+        ) : null}
+
         {visibleRuns.length === 0 ? (
 
 
@@ -8801,7 +8899,7 @@ export default function InvoiceRuns(props: any) {
 
 
 
-            No invoice runs yet. Click + Add to create one.
+            No invoice runs on the server yet. Click + Add to create a browser draft.
 
 
 
@@ -8902,13 +9000,23 @@ export default function InvoiceRuns(props: any) {
 
 
                   <td style={td}>
-
-
-
+                    {run.source === "browser-draft" ? (
+                      <span
+                        style={{
+                          display: "inline-block",
+                          marginRight: 8,
+                          padding: "2px 8px",
+                          borderRadius: 999,
+                          background: "rgba(100,116,139,0.12)",
+                          color: "#475569",
+                          fontSize: 11,
+                          fontWeight: 900,
+                        }}
+                      >
+                        Browser draft
+                      </span>
+                    ) : null}
                     {`Invoice Run For ${run.period || run.month || "this period"}`}
-
-
-
                   </td>
 
 
@@ -8958,6 +9066,24 @@ export default function InvoiceRuns(props: any) {
 
 
         )}
+
+
+
+        {browserDraftRuns.length > 0 ? (
+          <div
+            style={{
+              padding: "10px 16px",
+              borderTop: "1px solid #e5e7eb",
+              color: "#64748b",
+              fontSize: 12,
+              fontWeight: 700,
+            }}
+          >
+            {browserDraftRuns.length} browser-only draft
+            {browserDraftRuns.length === 1 ? "" : "s"} shown. These are not the billing source of
+            truth and are hidden when the server already has the same run or period.
+          </div>
+        ) : null}
 
 
 

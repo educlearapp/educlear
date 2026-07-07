@@ -1,8 +1,36 @@
 import { Router } from "express";
 
 import { executeInvoiceRun } from "../services/invoiceRunExecuteService";
+import {
+  countInvoicesByPeriod,
+  listInvoiceRunsFromLedger,
+} from "../services/invoiceRunListService";
 
 const router = Router();
+
+// GET /api/invoice-runs?schoolId= — read-only list derived from billing ledger invoice rows
+router.get("/", async (req, res) => {
+  try {
+    const schoolId = typeof req.query?.schoolId === "string" ? String(req.query.schoolId).trim() : "";
+    if (!schoolId) {
+      return res.status(400).json({ success: false, error: "Missing schoolId" });
+    }
+
+    const runs = listInvoiceRunsFromLedger(schoolId);
+    const invoicePeriodCounts = countInvoicesByPeriod(schoolId);
+
+    return res.json({
+      success: true,
+      runs,
+      invoicePeriodCounts,
+      source: "billing-ledger.json",
+    });
+  } catch (error) {
+    const message = error instanceof Error ? error.message : "Server error";
+    console.error("[invoice-runs] GET / failed:", error);
+    return res.status(500).json({ success: false, error: message });
+  }
+});
 
 async function handleExecute(req: { body?: Record<string, unknown> }, res: any, dryRun: boolean) {
   try {
