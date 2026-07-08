@@ -1,5 +1,5 @@
 import { Router } from "express";
-import { calculateLearnerAge, resolveLearnerAccountNo } from "../utils/learnerIdentity";
+import { calculateLearnerAge } from "../utils/learnerIdentity";
 import {
   readExplicitlyEmptyBillingPlanLearnerIds,
   readSchoolBillingPlansResolved,
@@ -161,7 +161,7 @@ router.get("/learners", async (req, res) => {
 
 
 
-      const accountNo = resolveLearnerAccountNo(learner);
+      const accountNo = String(learner.familyAccount?.accountRef || "").trim();
 
       const classroomLabel = resolveLearnerClassroomLabel(learner);
       const enrollmentFields = registrationEnrollmentFields(learner.enrollmentStatus);
@@ -192,7 +192,7 @@ router.get("/learners", async (req, res) => {
 
 
 
-        admissionNo: learner.admissionNo || accountNo,
+        admissionNo: learner.admissionNo,
 
 
 
@@ -339,7 +339,7 @@ router.get("/learners", async (req, res) => {
         billingPlan: resolveLearnerBillingPlanItems(
           {
             id: learner.id,
-            admissionNo: learner.admissionNo || accountNo,
+            admissionNo: learner.admissionNo,
             idNumber: learner.idNumber,
           },
           billingPlansByLearner,
