@@ -1,4 +1,5 @@
 import type { BillingSettingsState } from "../routes/billingSettings";
+import { normalizeInvoicePeriod } from "./billingLedgerStore";
 
 function isValidCalendarYmd(y: number, m: number, d: number): boolean {
   if (!Number.isFinite(y) || m < 1 || m > 12 || d < 1 || d > 31) return false;
@@ -30,6 +31,49 @@ export function endOfMonthIso(invoiceDateIso: string): string {
   const [y, m] = invoiceDate.split("-").map(Number);
   const lastDay = new Date(y, m, 0).getDate();
   return toIsoYmd(y, m, lastDay);
+}
+
+/** School billing policy: recurring monthly invoice due day (1–31). Default 3 (Da Silva). */
+export function resolveRecurringMonthlyInvoiceDueDay(settings: BillingSettingsState): number {
+  const day = Number(settings?.financePolicy?.monthlyFeeDueDay);
+  if (!Number.isFinite(day)) return 3;
+  return Math.min(31, Math.max(1, Math.round(day)));
+}
+
+/**
+ * Recurring monthly fees: due on the school's configured day in the invoice-run period month
+ * ("For The Month Of"). Invoice date does not affect this calculation.
+ */
+export function computeRecurringMonthlyInvoiceDueDate(
+  invoicePeriod: string,
+  recurringDueDay: number,
+  invoiceDateFallback?: string
+): string {
+  const period = normalizeInvoicePeriod(invoicePeriod, invoiceDateFallback);
+  if (!/^\d{4}-\d{2}$/.test(period)) {
+    return normaliseIsoDate(invoiceDateFallback) || "";
+  }
+  const [year, month] = period.split("-").map(Number);
+  const lastDay = new Date(year, month, 0).getDate();
+  const day = Math.min(Math.max(1, Math.round(recurringDueDay) || 3), lastDay);
+  return toIsoYmd(year, month, day);
+}
+
+/** Invoice-run posting: explicit run due date, else recurring policy day in the invoice period. */
+export function resolveInvoiceRunPostingDueDate(
+  invoicePeriod: string,
+  invoiceDateIso: string,
+  settings: BillingSettingsState,
+  explicitDueDate?: string
+): string {
+  const explicit = normaliseIsoDate(explicitDueDate);
+  if (explicit) return explicit;
+  const dueDay = resolveRecurringMonthlyInvoiceDueDay(settings);
+  return (
+    computeRecurringMonthlyInvoiceDueDate(invoicePeriod, dueDay, invoiceDateIso) ||
+    normaliseIsoDate(invoiceDateIso) ||
+    ""
+  );
 }
 
 export function computeInvoiceDueDate(

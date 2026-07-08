@@ -29,7 +29,11 @@ import {
   readSchoolLedger,
   type BillingLedgerEntry,
 } from "../utils/billingLedgerStore";
-import { normaliseIsoDate, resolveInvoiceMessage } from "../utils/billingSettingsEngine";
+import {
+  normaliseIsoDate,
+  resolveInvoiceMessage,
+  resolveInvoiceRunPostingDueDate,
+} from "../utils/billingSettingsEngine";
 import type { InvoiceRunSkipReason } from "../types/invoiceRunSkipReasons";
 
 const MONEY_TOLERANCE = 0.01;
@@ -690,6 +694,12 @@ export async function executeInvoiceRun(
   }
 
   const settings = await loadSchoolBillingSettings(schoolId);
+  const runDueDate = resolveInvoiceRunPostingDueDate(
+    invoicePeriod,
+    invoiceDate,
+    settings,
+    request.dueDate
+  );
   const existingInvoiceCount = listInvoices(schoolId).length;
   const description =
     String(request.description || "").trim() ||
@@ -707,7 +717,7 @@ export async function executeInvoiceRun(
         accountNo: row.accountNo,
         amount: row.amount,
         date: invoiceDate,
-        dueDate: request.dueDate,
+        dueDate: runDueDate,
         description,
         runId,
         invoicePeriod,

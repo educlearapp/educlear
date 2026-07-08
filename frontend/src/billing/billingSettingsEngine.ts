@@ -35,6 +35,74 @@ export function endOfMonthIso(invoiceDateIso: string): string {
   return `${y}-${String(m).padStart(2, "0")}-${String(lastDay).padStart(2, "0")}`;
 }
 
+const MONTH_NAME_TO_MM: Record<string, string> = {
+  january: "01",
+  february: "02",
+  march: "03",
+  april: "04",
+  may: "05",
+  june: "06",
+  july: "07",
+  august: "08",
+  september: "09",
+  october: "10",
+  november: "11",
+  december: "12",
+};
+
+/** Normalize "August 2026" or YYYY-MM to YYYY-MM for invoice-run due dates. */
+export function normalizeInvoicePeriodForDueDate(
+  input: string,
+  invoiceDateFallback?: string
+): string {
+  const raw = String(input || "").trim();
+  if (/^\d{4}-\d{2}$/.test(raw)) return raw;
+
+  const fromDate = String(invoiceDateFallback || "").trim().slice(0, 7);
+
+  const lower = raw.toLowerCase();
+  for (const [name, mm] of Object.entries(MONTH_NAME_TO_MM)) {
+    const monthPattern = new RegExp(`\\b${name}\\b`, "i");
+    if (!monthPattern.test(lower)) continue;
+    const yearMatch = raw.match(/\b(20\d{2})\b/);
+    const year = yearMatch ? yearMatch[1] : String(invoiceDateFallback || "").slice(0, 4);
+    if (year) return `${year}-${mm}`;
+  }
+
+  if (/^\d{4}-\d{2}$/.test(fromDate)) return fromDate;
+  return fromDate || raw;
+}
+
+export function resolveRecurringMonthlyInvoiceDueDay(settings: BillingSettingsState): number {
+  const day = Number(settings?.financePolicy?.monthlyFeeDueDay);
+  if (!Number.isFinite(day)) return 3;
+  return Math.min(31, Math.max(1, Math.round(day)));
+}
+
+export function computeRecurringMonthlyInvoiceDueDate(
+  invoicePeriod: string,
+  recurringDueDay: number,
+  invoiceDateFallback?: string
+): string {
+  const period = normalizeInvoicePeriodForDueDate(invoicePeriod, invoiceDateFallback);
+  if (!/^\d{4}-\d{2}$/.test(period)) {
+    return normaliseIsoDate(invoiceDateFallback) || "";
+  }
+  const [year, month] = period.split("-").map(Number);
+  const lastDay = new Date(year, month, 0).getDate();
+  const day = Math.min(Math.max(1, Math.round(recurringDueDay) || 3), lastDay);
+  return `${year}-${String(month).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
+}
+
+export function computeInvoiceRunRecurringDueDate(
+  invoicePeriod: string,
+  settings: BillingSettingsState,
+  invoiceDateFallback?: string
+): string {
+  const dueDay = resolveRecurringMonthlyInvoiceDueDay(settings);
+  return computeRecurringMonthlyInvoiceDueDate(invoicePeriod, dueDay, invoiceDateFallback);
+}
+
 export function computeInvoiceDueDate(
   invoiceDateIso: string,
   settings: BillingSettingsState,
@@ -139,9 +207,14 @@ export function substituteBillingTokens(
   return out;
 }
 
-export function buildInvoiceRunDefaults(settings: BillingSettingsState, invoiceDate: string) {
+export function buildInvoiceRunDefaults(
+  settings: BillingSettingsState,
+  invoiceDate: string,
+  invoicePeriod?: string
+) {
   const message = resolveInvoiceMessage(settings);
-  const dueDate = computeInvoiceDueDate(invoiceDate, settings);
+  const period = String(invoicePeriod || "").trim() || invoiceDate.slice(0, 7);
+  const dueDate = computeInvoiceRunRecurringDueDate(period, settings, invoiceDate);
   return {
     message:
       message ||

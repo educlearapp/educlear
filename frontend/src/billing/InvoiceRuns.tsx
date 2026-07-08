@@ -7,6 +7,7 @@ import {
   buildInvoiceReference,
   buildInvoiceRunDefaults,
   computeInvoiceDueDate,
+  computeInvoiceRunRecurringDueDate,
   loadBillingSettingsForSchool,
   resolveEmailTemplate,
   resolveStatementMessage,
@@ -33,6 +34,7 @@ import {
   BILLING_UPDATED_EVENT,
   calculateAccountBalance,
   getAccountLedger,
+  readSchoolLedger,
 } from "./billingLedger";
 import { syncBillingLedgerFromApi } from "./billingApi";
 import { buildStatementCoverEmailHtml, sendStatementEmail, resolveSchoolLogoUrl, STATEMENT_LOGO_IMG_STYLE } from "./statementDocument";
@@ -108,6 +110,8 @@ export default function InvoiceRuns(props: any) {
 
   } = props;
 
+  const [ledgerHydrated, setLedgerHydrated] = useState(false);
+
   const [invoices, setInvoices] = useState<Invoice[]>([]);
 
 
@@ -129,6 +133,11 @@ export default function InvoiceRuns(props: any) {
   >({});
   const [serverRunsLoading, setServerRunsLoading] = useState(false);
   const [serverRunsError, setServerRunsError] = useState("");
+  const [statementEmailOpen, setStatementEmailOpen] = useState(false);
+  const [statementEmailRows, setStatementEmailRows] = useState<any[]>([]);
+  const [statementEmailSubject, setStatementEmailSubject] = useState("");
+  const [statementEmailMessage, setStatementEmailMessage] = useState("");
+  const [statementEmailSending, setStatementEmailSending] = useState(false);
 
   useEffect(() => {
     if (invoiceRunView !== "wizardSummary") return;
@@ -148,23 +157,6 @@ export default function InvoiceRuns(props: any) {
     }).catch((err) => console.warn("[InvoiceRuns] Parent notifications failed:", err));
   }, [invoiceRunView, invoiceRunExecuteResult?.success]);
 
-  const [statementEmailOpen, setStatementEmailOpen] = useState(false);
-
-
-
-  const [statementEmailRows, setStatementEmailRows] = useState<any[]>([]);
-
-
-
-  const [statementEmailSubject, setStatementEmailSubject] = useState("");
-
-
-
-  const [statementEmailMessage, setStatementEmailMessage] = useState("");
-
-
-
-  const [statementEmailSending, setStatementEmailSending] = useState(false);
   const billingSettingsRef = useRef<BillingSettingsState>(createDefaultBillingSettings());
 
   useEffect(() => {
@@ -314,9 +306,19 @@ export default function InvoiceRuns(props: any) {
   }, [loadServerInvoiceRuns, setStoredRuns]);
 
   const getLearnerOutstandingBalance = (learnerId: string, accountNo = "") => {
+    if (!ledgerHydrated) return 0;
     const ledger = getAccountLedger(schoolIdForLedger, learnerId, accountNo);
     return calculateAccountBalance(ledger, learnerId, accountNo);
   };
+
+  useEffect(() => {
+    if (!schoolIdForLedger) {
+      setLedgerHydrated(true);
+      return;
+    }
+    readSchoolLedger(schoolIdForLedger);
+    setLedgerHydrated(true);
+  }, [schoolIdForLedger]);
 
   useEffect(() => {
     if (!schoolIdForLedger) return;
@@ -1613,6 +1615,19 @@ export default function InvoiceRuns(props: any) {
     [previewDisplayRows]
   );
 
+  const mergedInvoiceRuns = useMemo(
+    () =>
+      mergeInvoiceRunLists(
+        serverInvoiceRuns,
+        toArray(storedRuns),
+        serverInvoicePeriodCounts
+      ),
+    [serverInvoiceRuns, storedRuns, serverInvoicePeriodCounts]
+  );
+
+  const visibleRuns = mergedInvoiceRuns.allVisibleRuns;
+  const browserDraftRuns = mergedInvoiceRuns.browserDraftRuns;
+
   useEffect(() => {
     if (invoiceRunView !== "wizardPreview") return;
     const run = readJson(["educlearSelectedInvoiceRun"], selectedRun);
@@ -1752,16 +1767,18 @@ export default function InvoiceRuns(props: any) {
 
 
 
-      dueDate: computeInvoiceDueDate(
+      dueDate: buildInvoiceRunDefaults(
+        billingSettingsRef.current,
         now.toISOString().slice(0, 10),
-        billingSettingsRef.current
-      ),
+        month
+      ).dueDate,
 
 
 
       invoiceMessage: buildInvoiceRunDefaults(
         billingSettingsRef.current,
-        now.toISOString().slice(0, 10)
+        now.toISOString().slice(0, 10),
+        month
       ).message,
 
 
@@ -8575,21 +8592,6 @@ export default function InvoiceRuns(props: any) {
 
 
   }
-
-
-
-  const mergedInvoiceRuns = useMemo(
-    () =>
-      mergeInvoiceRunLists(
-        serverInvoiceRuns,
-        toArray(storedRuns),
-        serverInvoicePeriodCounts
-      ),
-    [serverInvoiceRuns, storedRuns, serverInvoicePeriodCounts]
-  );
-
-  const visibleRuns = mergedInvoiceRuns.allVisibleRuns;
-  const browserDraftRuns = mergedInvoiceRuns.browserDraftRuns;
 
 
 
