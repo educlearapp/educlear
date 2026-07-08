@@ -158,6 +158,24 @@ export default function InvoiceRuns(props: any) {
   }, [invoiceRunView, invoiceRunExecuteResult?.success]);
 
   const billingSettingsRef = useRef<BillingSettingsState>(createDefaultBillingSettings());
+  const dueDateManuallyEditedRef = useRef(false);
+
+  const resolvePolicyDueDate = (month: string, invoiceDate: string) =>
+    buildInvoiceRunDefaults(billingSettingsRef.current, invoiceDate, month).dueDate;
+
+  const applyInvoiceRunMonth = (month: string) => {
+    const invoiceDate =
+      String(invoiceRunSettings?.invoiceDate || "").trim() ||
+      new Date().toISOString().slice(0, 10);
+    setInvoiceRunSettings((prev: any) => ({
+      ...prev,
+      month,
+      description: `Invoice Run For ${month}`,
+      dueDate: dueDateManuallyEditedRef.current
+        ? prev.dueDate
+        : resolvePolicyDueDate(month, invoiceDate),
+    }));
+  };
 
   useEffect(() => {
     const sid = localStorage.getItem("schoolId") || "";
@@ -1702,6 +1720,8 @@ export default function InvoiceRuns(props: any) {
   const createNewRun = (original = false) => {
 
 
+
+    dueDateManuallyEditedRef.current = false;
 
     const now = new Date();
 
@@ -4434,11 +4454,11 @@ export default function InvoiceRuns(props: any) {
 
 
 
-              defaultValue={invoiceRunSettings.invoiceDate || ""}
+              value={invoiceRunSettings.invoiceDate || ""}
 
 
 
-              onBlur={(e) =>
+              onChange={(e) =>
 
 
 
@@ -4490,11 +4510,15 @@ export default function InvoiceRuns(props: any) {
 
 
 
-              defaultValue={invoiceRunSettings.dueDate || ""}
+              value={invoiceRunSettings.dueDate || ""}
 
 
 
-              onBlur={(e) =>
+              onChange={(e) => {
+
+
+
+                dueDateManuallyEditedRef.current = true;
 
 
 
@@ -4510,11 +4534,11 @@ export default function InvoiceRuns(props: any) {
 
 
 
-                })
+                });
 
 
 
-              }
+              }}
 
 
 
@@ -4542,35 +4566,11 @@ export default function InvoiceRuns(props: any) {
 
 
 
-              defaultValue={invoiceRunSettings.month ?? ""}
+              value={invoiceRunSettings.month ?? ""}
 
 
 
-              onBlur={(e) =>
-
-
-
-                setInvoiceRunSettings({
-
-
-
-                  ...invoiceRunSettings,
-
-
-
-                  month: e.target.value,
-
-
-
-                  description: `Invoice Run For ${e.target.value}`,
-
-
-
-                })
-
-
-
-              }
+              onChange={(e) => applyInvoiceRunMonth(e.target.value)}
 
 
 

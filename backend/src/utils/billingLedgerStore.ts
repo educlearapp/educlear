@@ -538,9 +538,6 @@ export function normalizeInvoicePeriod(input: string, invoiceDate?: string): str
   const raw = String(input || "").trim();
   if (/^\d{4}-\d{2}$/.test(raw)) return raw;
 
-  const fromDate = String(invoiceDate || "").trim().slice(0, 7);
-  if (/^\d{4}-\d{2}$/.test(fromDate)) return fromDate;
-
   const monthNames: Record<string, string> = {
     january: "01",
     february: "02",
@@ -568,6 +565,9 @@ export function normalizeInvoicePeriod(input: string, invoiceDate?: string): str
   if (slashMatch) {
     return `${slashMatch[1]}-${slashMatch[2].padStart(2, "0")}`;
   }
+
+  const fromDate = String(invoiceDate || "").trim().slice(0, 7);
+  if (/^\d{4}-\d{2}$/.test(fromDate)) return fromDate;
 
   return fromDate || raw;
 }
