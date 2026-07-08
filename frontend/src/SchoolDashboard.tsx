@@ -154,7 +154,14 @@ import {
 
 import "./App.css";
 
+type BillingSearchFocusRequest = {
+  page: "payments" | "statements" | "invoices";
+  token: number;
+};
 
+function nextBillingSearchFocusToken(current: number): number {
+  return current + 1;
+}
 
 type PageKey =
 
@@ -1004,6 +1011,13 @@ const [selectedLearnerReport, setSelectedLearnerReport] = useState<any>(null);
   const [billingAccountsPage, setBillingAccountsPage] = useState(1);
   const [selectedAccount, setSelectedAccount] = useState<PaymentAccountContext | null>(null);
   const [paymentForm, setPaymentForm] = useState<PaymentFormState>(() => defaultPaymentForm());
+  const [paymentsSearchResetToken, setPaymentsSearchResetToken] = useState(0);
+  const [billingSearchFocusRequest, setBillingSearchFocusRequest] =
+    useState<BillingSearchFocusRequest | null>(null);
+  const [pendingPaymentReceiptPrompt, setPendingPaymentReceiptPrompt] = useState<{
+    paymentId: string;
+    receiptNumber: string;
+  } | null>(null);
 
 
 
@@ -15801,6 +15815,7 @@ const [invoiceRunEmailDraft, setInvoiceRunEmailDraft] = useState({
         
         
             <Payments
+              schoolId={schoolId || ""}
               statementRows={statementRows}
               learners={learners}
               selectedAccount={selectedAccount}
@@ -15808,6 +15823,10 @@ const [invoiceRunEmailDraft, setInvoiceRunEmailDraft] = useState({
               onOpenPaymentCreate={openPaymentCreate}
               setActivePage={setActivePage}
               showSummaryCards={showBillingSummaryCards}
+              searchResetToken={paymentsSearchResetToken}
+              searchFocusRequest={billingSearchFocusRequest}
+              pendingReceiptPrompt={pendingPaymentReceiptPrompt}
+              onDismissReceiptPrompt={() => setPendingPaymentReceiptPrompt(null)}
             />
         
         
@@ -15940,8 +15959,25 @@ const [invoiceRunEmailDraft, setInvoiceRunEmailDraft] = useState({
               paymentForm={paymentForm}
               onPaymentFormChange={setPaymentForm}
               onBack={() => setActivePage("payments")}
-              onSaved={() => {
+              onSaved={(result) => {
                 skipNextBillingPageRefreshRef.current = true;
+                setPendingPaymentReceiptPrompt({
+                  paymentId: result.paymentId,
+                  receiptNumber: result.receiptNumber,
+                });
+                setSelectedAccount(null);
+                setActiveBillingAccountState(null);
+                try {
+                  localStorage.removeItem(PAYMENT_ACCOUNT_STORAGE_KEY);
+                } catch {
+                  /* restore-only persistence */
+                }
+                setPaymentsSearchResetToken((t) => t + 1);
+                setBillingSearchFocusRequest((prev) => ({
+                  page: "payments",
+                  token: nextBillingSearchFocusToken(prev?.token || 0),
+                }));
+                setActivePage("payments");
               }}
             />
           );

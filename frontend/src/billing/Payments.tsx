@@ -1,12 +1,31 @@
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import BillingEnvDebug from "./BillingEnvDebug";
 import BillingSummaryCards from "./BillingSummaryCards";
 import {
   accountsFromStatementRows,
   type PaymentAccountContext,
 } from "./paymentCreateShared";
+import { sendPaymentReceiptEmail } from "./paymentAllocationApi";
+
+type BillingSearchFocusRequest = {
+  page: "payments" | "statements" | "invoices";
+  token: number;
+};
+
+function shouldFocusBillingSearch(
+  focusRequest: BillingSearchFocusRequest | null | undefined,
+  page: BillingSearchFocusRequest["page"]
+): boolean {
+  return Boolean(focusRequest && focusRequest.page === page && focusRequest.token > 0);
+}
+
+type PendingReceiptPrompt = {
+  paymentId: string;
+  receiptNumber: string;
+};
 
 type PaymentsProps = {
+  schoolId?: string;
   statementRows: any[];
   learners?: any[];
   selectedAccount?: PaymentAccountContext | null;
@@ -14,23 +33,68 @@ type PaymentsProps = {
   onOpenPaymentCreate?: (account: PaymentAccountContext) => void;
   setActivePage: React.Dispatch<React.SetStateAction<any>>;
   showSummaryCards?: boolean;
+  searchResetToken?: number;
+  searchFocusRequest?: BillingSearchFocusRequest | null;
+  pendingReceiptPrompt?: PendingReceiptPrompt | null;
+  onDismissReceiptPrompt?: () => void;
 };
 
 const PAGE_SIZE = 10;
 
 export default function Payments({
+  schoolId = "",
   statementRows,
   learners = [],
   onOpenPaymentCreate,
   setActivePage,
   showSummaryCards = true,
+  searchResetToken = 0,
+  searchFocusRequest,
+  pendingReceiptPrompt,
+  onDismissReceiptPrompt,
 }: PaymentsProps) {
   const [search, setSearch] = useState("");
   const [page, setPage] = useState(1);
+  const [receiptSendBusy, setReceiptSendBusy] = useState(false);
+  const [receiptSendError, setReceiptSendError] = useState("");
+  const searchInputRef = useRef<HTMLInputElement>(null);
+  const focusSearchToken = shouldFocusBillingSearch(searchFocusRequest, "payments")
+    ? searchFocusRequest?.token
+    : undefined;
+
+  useEffect(() => {
+    if (pendingReceiptPrompt || !focusSearchToken) return;
+    const frame = window.requestAnimationFrame(() => {
+      searchInputRef.current?.focus();
+    });
+    return () => window.cancelAnimationFrame(frame);
+  }, [pendingReceiptPrompt, focusSearchToken]);
+
+  useEffect(() => {
+    if (!searchResetToken) return;
+    setSearch("");
+    setPage(1);
+  }, [searchResetToken]);
 
   useEffect(() => {
     setPage(1);
   }, [search]);
+
+  const sendSavedReceiptEmail = useCallback(async () => {
+    if (!pendingReceiptPrompt || !schoolId) return;
+    setReceiptSendBusy(true);
+    setReceiptSendError("");
+    try {
+      await sendPaymentReceiptEmail(schoolId, pendingReceiptPrompt.paymentId);
+      onDismissReceiptPrompt?.();
+    } catch (error) {
+      setReceiptSendError(
+        error instanceof Error ? error.message : "Receipt email could not be sent."
+      );
+    } finally {
+      setReceiptSendBusy(false);
+    }
+  }, [pendingReceiptPrompt, schoolId, onDismissReceiptPrompt]);
 
   const payBtn: React.CSSProperties = {
     border: "1px solid #b89329",
@@ -193,6 +257,7 @@ export default function Payments({
             </button>
           </div>
           <input
+            ref={searchInputRef}
             placeholder="Search"
             value={search}
             onChange={(e) => setSearch(e.target.value)}
@@ -298,6 +363,107 @@ export default function Payments({
           </div>
         </div>
       </div>
+
+      {pendingReceiptPrompt ? (
+        <div
+          role="dialog"
+          aria-modal="true"
+          style={{
+            position: "fixed",
+            inset: 0,
+            zIndex: 10000,
+            background: "rgba(17,24,39,0.48)",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            padding: 16,
+          }}
+        >
+          <div
+            style={{
+              width: 420,
+              maxWidth: "100%",
+              background: "#fff",
+              border: "2px solid #d4af37",
+              borderRadius: 14,
+              boxShadow: "0 24px 70px rgba(0,0,0,0.28)",
+              overflow: "hidden",
+            }}
+          >
+            <div
+              style={{
+                background: "#111827",
+                color: "#d4af37",
+                padding: "14px 18px",
+                fontWeight: 900,
+                fontSize: 20,
+              }}
+            >
+              Receipt Saved
+            </div>
+            <div style={{ padding: 18, color: "#111827", fontWeight: 700, lineHeight: 1.65 }}>
+              <p style={{ margin: 0 }}>
+                Receipt {pendingReceiptPrompt.receiptNumber} has been saved.
+              </p>
+              <p style={{ margin: "12px 0 0" }}>
+                Would you like to send this receipt now?
+              </p>
+            </div>
+            <div
+              style={{
+                display: "flex",
+                justifyContent: "flex-end",
+                gap: 10,
+                padding: "0 18px 18px",
+              }}
+            >
+              <button
+                type="button"
+                style={{
+                  ...payBtn,
+                  opacity: receiptSendBusy ? 0.6 : 1,
+                  cursor: receiptSendBusy ? "not-allowed" : "pointer",
+                }}
+                disabled={receiptSendBusy}
+                onClick={() => {
+                  setReceiptSendError("");
+                  onDismissReceiptPrompt?.();
+                }}
+              >
+                No
+              </button>
+              <button
+                type="button"
+                style={{
+                  ...payGoldBtn,
+                  opacity: receiptSendBusy ? 0.6 : 1,
+                  cursor: receiptSendBusy ? "not-allowed" : "pointer",
+                }}
+                disabled={receiptSendBusy}
+                onClick={() => void sendSavedReceiptEmail()}
+              >
+                {receiptSendBusy ? "Sending..." : "Yes"}
+              </button>
+            </div>
+            {receiptSendError ? (
+              <p
+                style={{
+                  margin: "0 18px 18px",
+                  padding: "9px 10px",
+                  borderRadius: 8,
+                  background: "#fef2f2",
+                  color: "#b91c1c",
+                  fontWeight: 800,
+                  fontSize: 13,
+                }}
+                role="alert"
+              >
+                {receiptSendError}
+              </p>
+            ) : null}
+          </div>
+        </div>
+      ) : null}
     </div>
   );
 }
