@@ -7,10 +7,12 @@ import {
   buildDaSilvaPenaltyIdempotencyKey,
   buildDaSilvaPenaltyPreview,
   calculateDaSilvaPenaltyAmount,
+  computePenaltyMonthsBehind,
   evaluateDaSilvaPenaltyAccount,
   isDaSilvaLatePenaltySchoolAllowed,
   isOutstandingEligibleForPenalty,
   sumAccountMonthlyRecurringFees,
+  verifyDaSilvaPenaltyPreviewRow,
   type DaSilvaBillingPlanFee,
   type DaSilvaPenaltyAccountInput,
   type DaSilvaPenaltyLearner,
@@ -218,6 +220,33 @@ function testOneRowPerAccountInPreview() {
   console.log("✓ one row per billing account in preview");
 }
 
+function testExplanationFields() {
+  const row = evaluateDaSilvaPenaltyAccount({
+    schoolId: DA_SILVA_ACADEMY_SCHOOL_ID,
+    penaltyMonth: PENALTY_MONTH,
+    account: account("EXP001", 7200, [learner("l1", [monthlyFee(3000)])]),
+  });
+  assert(row.monthsBehind === 2.4, `monthsBehind = 7200/3000 (got ${row.monthsBehind})`);
+  assert(row.penaltyAmount === 720, "penalty 10%");
+  assert(row.eligibilityReason.includes("Eligible"), "eligibilityReason is operator-facing");
+  assert(row.eligibilityReason.includes("R720"), "eligibilityReason mentions penalty");
+  const verification = verifyDaSilvaPenaltyPreviewRow(row);
+  assert(verification.matches, `rule verification: ${verification.checks.join("; ")}`);
+  console.log("✓ explanation fields and rule verification");
+}
+
+function testMonthsBehindEqualThreshold() {
+  const row = evaluateDaSilvaPenaltyAccount({
+    schoolId: DA_SILVA_ACADEMY_SCHOOL_ID,
+    penaltyMonth: PENALTY_MONTH,
+    account: account("EQ001", 3000, [learner("l1", [monthlyFee(3000)])]),
+  });
+  assert(row.monthsBehind === 1, "exactly one month behind");
+  assert(!row.eligible, "one month exactly is not eligible");
+  assert(verifyDaSilvaPenaltyPreviewRow(row).matches, "rule verification for equal threshold");
+  console.log("✓ exactly one month fees explanation");
+}
+
 function run() {
   testPenaltyAmountExamples();
   testEligibilityThresholdRules();
@@ -229,6 +258,8 @@ function run() {
   testDifferentMonthStillAllowed();
   testSchoolNotAllowed();
   testOneRowPerAccountInPreview();
+  testExplanationFields();
+  testMonthsBehindEqualThreshold();
   console.log("\ndaSilvaLatePenaltyEngine.test.ts: all passed");
 }
 

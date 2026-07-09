@@ -38,11 +38,18 @@ export type DaSilvaPenaltyPreviewRow = {
   accountRef: string;
   accountHolder: string;
   learnerNames: string[];
+  /** Active learners linked to this billing account. */
+  linkedLearnerCount: number;
   outstandingBalance: number;
   monthlyFeeThreshold: number;
+  /** Outstanding divided by combined monthly recurring fees (null when threshold is 0). */
+  monthsBehind: number | null;
   penaltyAmount: number;
   eligible: boolean;
+  /** Machine-readable eligibility code. */
   reason: DaSilvaPenaltyEligibilityReason;
+  /** Operator-facing explanation of eligibility outcome. */
+  eligibilityReason: string;
   alreadyApplied: boolean;
   apply: boolean;
   idempotencyKey: string;
@@ -172,6 +179,106 @@ export function isOutstandingEligibleForPenalty(
   return outstanding > threshold;
 }
 
+/** Months of fees represented by the current outstanding balance. */
+export function computePenaltyMonthsBehind(
+  outstandingBalance: number,
+  monthlyFeeThreshold: number
+): number | null {
+  const outstanding = roundPenaltyMoney(outstandingBalance);
+  const threshold = roundPenaltyMoney(monthlyFeeThreshold);
+  if (threshold <= 0) return null;
+  return roundPenaltyMoney(outstanding / threshold);
+}
+
+export function formatDaSilvaEligibilityReason(
+  reason: DaSilvaPenaltyEligibilityReason,
+  ctx: { outstandingBalance: number; monthlyFeeThreshold: number; penaltyAmount: number }
+): string {
+  const outstanding = roundPenaltyMoney(ctx.outstandingBalance);
+  const threshold = roundPenaltyMoney(ctx.monthlyFeeThreshold);
+  const penalty = roundPenaltyMoney(ctx.penaltyAmount);
+  const monthsBehind = computePenaltyMonthsBehind(outstanding, threshold);
+
+  switch (reason) {
+    case "eligible":
+      return `Eligible: outstanding R${outstanding} is more than one month's fees (R${threshold}); ~${monthsBehind} month(s) behind; penalty 10% = R${penalty}.`;
+    case "school_not_allowed":
+      return "Late penalty preview is only available for Da Silva Academy.";
+    case "already_applied":
+      return "Penalty already applied for this account in the selected penalty month.";
+    case "no_active_learners":
+      return "No active learners are linked to this billing account.";
+    case "no_recurring_monthly_fees":
+      return "No active recurring monthly billing plan fees found for this account.";
+    case "zero_or_negative_balance":
+      return outstanding < 0
+        ? `Account is overpaid (R${outstanding}); no penalty applies.`
+        : "Account has no outstanding balance; no penalty applies.";
+    case "balance_not_above_threshold":
+      return `Outstanding R${outstanding} is not more than one month's fees (R${threshold}); ~${monthsBehind ?? 0} month(s) behind.`;
+    default:
+      return String(reason);
+  }
+}
+
+export function finalizeDaSilvaPenaltyPreviewRow(
+  row: Omit<DaSilvaPenaltyPreviewRow, "monthsBehind" | "eligibilityReason">
+): DaSilvaPenaltyPreviewRow {
+  const monthsBehind = computePenaltyMonthsBehind(row.outstandingBalance, row.monthlyFeeThreshold);
+  return {
+    ...row,
+    monthsBehind,
+    eligibilityReason: formatDaSilvaEligibilityReason(row.reason, {
+      outstandingBalance: row.outstandingBalance,
+      monthlyFeeThreshold: row.monthlyFeeThreshold,
+      penaltyAmount: row.penaltyAmount,
+    }),
+  };
+}
+
+export type DaSilvaPenaltyRuleVerification = {
+  matches: boolean;
+  checks: string[];
+};
+
+/** Verify a preview row still matches the Da Silva penalty business rules. */
+export function verifyDaSilvaPenaltyPreviewRow(row: DaSilvaPenaltyPreviewRow): DaSilvaPenaltyRuleVerification {
+  const checks: string[] = [];
+  const outstanding = roundPenaltyMoney(row.outstandingBalance);
+  const threshold = roundPenaltyMoney(row.monthlyFeeThreshold);
+  const expectedPenalty = calculateDaSilvaPenaltyAmount(outstanding);
+  const expectedMonths = computePenaltyMonthsBehind(outstanding, threshold);
+  const ruleEligible =
+    row.reason !== "school_not_allowed" &&
+    row.reason !== "already_applied" &&
+    row.reason !== "no_active_learners" &&
+    row.reason !== "no_recurring_monthly_fees" &&
+    isOutstandingEligibleForPenalty(outstanding, threshold);
+
+  checks.push(
+    row.penaltyAmount === (row.eligible ? expectedPenalty : 0)
+      ? "penaltyAmount matches 10% rule"
+      : `penaltyAmount mismatch (got R${row.penaltyAmount}, expected R${row.eligible ? expectedPenalty : 0})`
+  );
+  checks.push(
+    row.monthsBehind === expectedMonths
+      ? "monthsBehind matches outstanding/threshold"
+      : `monthsBehind mismatch (got ${row.monthsBehind}, expected ${expectedMonths})`
+  );
+  checks.push(row.eligible === (row.reason === "eligible") ? "eligible flag matches reason" : `eligible=${row.eligible} reason=${row.reason}`);
+  checks.push(
+    row.eligible === ruleEligible || row.reason === "already_applied"
+      ? "eligibility aligns with threshold rule"
+      : `eligibility mismatch (eligible=${row.eligible}, ruleEligible=${ruleEligible})`
+  );
+  if (row.eligible) {
+    checks.push(outstanding > threshold ? "outstanding > monthly threshold" : "FAIL: outstanding not above threshold");
+  }
+
+  const matches = checks.every((c) => !c.startsWith("FAIL") && !c.includes("mismatch"));
+  return { matches, checks };
+}
+
 function normalizeAppliedKeys(applied?: Set<string> | string[]): Set<string> {
   if (!applied) return new Set();
   if (applied instanceof Set) return applied;
@@ -205,12 +312,17 @@ export function evaluateDaSilvaPenaltyAccount(input: {
     accountRef,
     accountHolder,
     learnerNames,
+    linkedLearnerCount: (input.account?.learners || []).filter(isActivePenaltyLearner).length,
     penaltyMonth,
     idempotencyKey,
   };
 
+  const done = (
+    row: Omit<DaSilvaPenaltyPreviewRow, "monthsBehind" | "eligibilityReason">
+  ): DaSilvaPenaltyPreviewRow => finalizeDaSilvaPenaltyPreviewRow(row);
+
   if (!isDaSilvaLatePenaltySchoolAllowed(schoolId)) {
-    return {
+    return done({
       ...baseRow,
       outstandingBalance: roundPenaltyMoney(input.account?.outstandingBalance ?? 0),
       monthlyFeeThreshold: 0,
@@ -219,7 +331,7 @@ export function evaluateDaSilvaPenaltyAccount(input: {
       reason: "school_not_allowed",
       alreadyApplied: false,
       apply: false,
-    };
+    });
   }
 
   const activeLearners = (input.account?.learners || []).filter(isActivePenaltyLearner);
@@ -228,7 +340,7 @@ export function evaluateDaSilvaPenaltyAccount(input: {
   const alreadyApplied = appliedKeys.has(idempotencyKey);
 
   if (alreadyApplied) {
-    return {
+    return done({
       ...baseRow,
       outstandingBalance,
       monthlyFeeThreshold,
@@ -237,11 +349,11 @@ export function evaluateDaSilvaPenaltyAccount(input: {
       reason: "already_applied",
       alreadyApplied: true,
       apply: false,
-    };
+    });
   }
 
   if (!activeLearners.length) {
-    return {
+    return done({
       ...baseRow,
       outstandingBalance,
       monthlyFeeThreshold,
@@ -250,11 +362,11 @@ export function evaluateDaSilvaPenaltyAccount(input: {
       reason: "no_active_learners",
       alreadyApplied: false,
       apply: false,
-    };
+    });
   }
 
   if (monthlyFeeThreshold <= 0) {
-    return {
+    return done({
       ...baseRow,
       outstandingBalance,
       monthlyFeeThreshold,
@@ -263,11 +375,11 @@ export function evaluateDaSilvaPenaltyAccount(input: {
       reason: "no_recurring_monthly_fees",
       alreadyApplied: false,
       apply: false,
-    };
+    });
   }
 
   if (outstandingBalance <= 0) {
-    return {
+    return done({
       ...baseRow,
       outstandingBalance,
       monthlyFeeThreshold,
@@ -276,11 +388,11 @@ export function evaluateDaSilvaPenaltyAccount(input: {
       reason: "zero_or_negative_balance",
       alreadyApplied: false,
       apply: false,
-    };
+    });
   }
 
   if (!isOutstandingEligibleForPenalty(outstandingBalance, monthlyFeeThreshold)) {
-    return {
+    return done({
       ...baseRow,
       outstandingBalance,
       monthlyFeeThreshold,
@@ -289,11 +401,11 @@ export function evaluateDaSilvaPenaltyAccount(input: {
       reason: "balance_not_above_threshold",
       alreadyApplied: false,
       apply: false,
-    };
+    });
   }
 
   const penaltyAmount = calculateDaSilvaPenaltyAmount(outstandingBalance);
-  return {
+  return done({
     ...baseRow,
     outstandingBalance,
     monthlyFeeThreshold,
@@ -302,7 +414,7 @@ export function evaluateDaSilvaPenaltyAccount(input: {
     reason: "eligible",
     alreadyApplied: false,
     apply: true,
-  };
+  });
 }
 
 export function buildDaSilvaPenaltyPreview(input: {
