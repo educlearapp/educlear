@@ -1,7 +1,9 @@
 import React, { useMemo, useState } from "react";
 import BulkStatementSend from "./BulkStatementSend";
+import DaSilvaLatePenaltyPreview from "./DaSilvaLatePenaltyPreview";
 import LatePenaltyFine from "./LatePenaltyFine";
 import LegalBillingDocuments, { type LegalDocMode } from "./LegalBillingDocuments";
+import { isDaSilvaAcademySchool } from "./billingSummaryDisplayOverride";
 import type { LegalDocumentType } from "./billingApi";
 
 type Props = {
@@ -39,6 +41,13 @@ const DOCUMENT_ROWS = [
   },
 ] as const;
 
+const DA_SILVA_PENALTY_PREVIEW_ROW = {
+  id: "da-silva-late-penalty-preview",
+  name: "Late Penalty Review (10%)",
+  description:
+    "Preview percentage-based late penalties for Da Silva — review only, no penalties posted.",
+} as const;
+
 const LEGAL_DOC_IDS = new Set(["section-41-notice", "letter-of-demand", "final-demand"]);
 
 const goldBtn: React.CSSProperties = {
@@ -74,21 +83,29 @@ export default function BillingDocuments({
   const [search, setSearch] = useState("");
   const [bulkSendOpen, setBulkSendOpen] = useState(false);
   const [penaltyOpen, setPenaltyOpen] = useState(false);
+  const [daSilvaPenaltyOpen, setDaSilvaPenaltyOpen] = useState(false);
   const [legalDoc, setLegalDoc] = useState<{
     type: LegalDocumentType;
     mode: LegalDocMode;
   } | null>(null);
 
+  const isDaSilva = isDaSilvaAcademySchool(schoolId);
+
+  const documentRows = useMemo(() => {
+    if (!isDaSilva) return DOCUMENT_ROWS;
+    return [...DOCUMENT_ROWS, DA_SILVA_PENALTY_PREVIEW_ROW];
+  }, [isDaSilva]);
+
   const filtered = useMemo(() => {
     const q = search.trim().toLowerCase();
-    if (!q) return DOCUMENT_ROWS;
-    return DOCUMENT_ROWS.filter(
+    if (!q) return documentRows;
+    return documentRows.filter(
       (row) =>
         row.name.toLowerCase().includes(q) ||
         row.description.toLowerCase().includes(q) ||
         row.id.includes(q)
     );
-  }, [search]);
+  }, [search, documentRows]);
 
   const openLegal = (id: string, mode: LegalDocMode) => {
     if (!LEGAL_DOC_IDS.has(id)) return;
@@ -138,6 +155,10 @@ export default function BillingDocuments({
     }
     if (id === "late-penalty-fine") {
       setPenaltyOpen(true);
+      return;
+    }
+    if (id === "da-silva-late-penalty-preview") {
+      setDaSilvaPenaltyOpen(true);
       return;
     }
     if (LEGAL_DOC_IDS.has(id)) {
@@ -204,14 +225,22 @@ export default function BillingDocuments({
                   <td style={{ padding: 14, fontWeight: 900, color: INK }}>{row.name}</td>
                   <td style={{ padding: 14, color: "#64748b", fontWeight: 600 }}>{row.description}</td>
                   <td style={{ padding: 14 }}>
-                    <button type="button" style={ghostBtn} onClick={() => handlePrint(row.id)}>
-                      Print
-                    </button>
+                    {row.id === "da-silva-late-penalty-preview" ? (
+                      <span style={{ color: "#94a3b8", fontWeight: 700, fontSize: 13 }}>Preview only</span>
+                    ) : (
+                      <button type="button" style={ghostBtn} onClick={() => handlePrint(row.id)}>
+                        Print
+                      </button>
+                    )}
                   </td>
                   <td style={{ padding: 14 }}>
-                    <button type="button" style={goldBtn} onClick={() => handleSend(row.id)}>
-                      Send
-                    </button>
+                    {row.id === "da-silva-late-penalty-preview" ? (
+                      <span style={{ color: "#94a3b8", fontWeight: 700, fontSize: 13 }}>Preview only</span>
+                    ) : (
+                      <button type="button" style={goldBtn} onClick={() => handleSend(row.id)}>
+                        Send
+                      </button>
+                    )}
                   </td>
                   <td style={{ padding: 14 }}>
                     <button type="button" style={ghostBtn} onClick={() => handleManage(row.id)}>
@@ -241,6 +270,13 @@ export default function BillingDocuments({
           statementRows={statementRows}
           onClose={() => setPenaltyOpen(false)}
           onApplied={() => setPenaltyOpen(false)}
+        />
+      )}
+
+      {daSilvaPenaltyOpen && (
+        <DaSilvaLatePenaltyPreview
+          schoolId={schoolId}
+          onClose={() => setDaSilvaPenaltyOpen(false)}
         />
       )}
 

@@ -575,6 +575,60 @@ export const applyLatePenalties = async (payload: Record<string, unknown>) => {
   return response.json();
 };
 
+export type DaSilvaLatePenaltyPreviewRow = {
+  accountRef: string;
+  accountHolder: string;
+  learnerNames: string[];
+  linkedLearnerCount: number;
+  outstandingBalance: number;
+  monthlyFeeThreshold: number;
+  monthsBehind: number | null;
+  penaltyAmount: number;
+  eligible: boolean;
+  reason: string;
+  eligibilityReason: string;
+  alreadyApplied: boolean;
+  apply: boolean;
+  idempotencyKey: string;
+  penaltyMonth?: string;
+};
+
+export type DaSilvaLatePenaltyPreviewResult = {
+  success?: boolean;
+  schoolAllowed?: boolean;
+  previewOnly: true;
+  applyBlocked: true;
+  penaltyMonth: string;
+  rows: DaSilvaLatePenaltyPreviewRow[];
+  summary: {
+    totalAccounts: number;
+    eligibleCount: number;
+    alreadyAppliedCount: number;
+    notEligibleCount: number;
+    totalPenaltyAmount: number;
+  };
+};
+
+/** Da Silva percentage late penalty preview — read-only, no ledger writes. */
+export const previewDaSilvaLatePenalties = async (payload: {
+  schoolId: string;
+  penaltyMonth: string;
+  accountRefs?: string[];
+}) => {
+  const response = await fetch(`${API_URL}/api/billing/da-silva-late-penalties/preview`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(payload),
+  });
+  const data = await response.json().catch(() => ({}));
+  if (!response.ok) {
+    throw new Error(
+      readApiErrorMessage(response, data, "Failed to preview Da Silva late penalties")
+    );
+  }
+  return data as DaSilvaLatePenaltyPreviewResult;
+};
+
 export type LegalDocumentType = "section-41-notice" | "letter-of-demand" | "final-demand";
 
 export const previewLegalDocuments = async (payload: Record<string, unknown>) => {
