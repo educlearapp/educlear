@@ -17,7 +17,10 @@ type FilterKey =
   | "notEligible"
   | "sibling"
   | "largeDebtor"
-  | "alreadyApplied";
+  | "alreadyApplied"
+  | "moreThan1Month"
+  | "moreThan2Months"
+  | "moreThan3Months";
 
 const GOLD = "#d4af37";
 const INK = "#111827";
@@ -99,6 +102,12 @@ const FILTER_OPTIONS: { key: FilterKey; label: string }[] = [
   { key: "alreadyApplied", label: "Already applied" },
 ];
 
+const MONTHS_BEHIND_FILTER_OPTIONS: { key: FilterKey; label: string }[] = [
+  { key: "moreThan1Month", label: "More than 1 month" },
+  { key: "moreThan2Months", label: "More than 2 months" },
+  { key: "moreThan3Months", label: "More than 3 months" },
+];
+
 function schoolDisplayName(): string {
   return (
     String(localStorage.getItem("schoolName") || "").trim() || "Da Silva Academy"
@@ -117,9 +126,48 @@ function matchesFilter(row: DaSilvaLatePenaltyPreviewRow, filter: FilterKey): bo
       return row.outstandingBalance > 20000;
     case "alreadyApplied":
       return row.alreadyApplied;
+    case "moreThan1Month":
+      return row.monthsBehind !== null && row.monthsBehind > 1;
+    case "moreThan2Months":
+      return row.monthsBehind !== null && row.monthsBehind > 2;
+    case "moreThan3Months":
+      return row.monthsBehind !== null && row.monthsBehind > 3;
     default:
       return true;
   }
+}
+
+function outstandingCellStyle(balance: number): React.CSSProperties {
+  if (balance > 0) {
+    return {
+      fontWeight: 900,
+      color: "#92400e",
+      background: "rgba(212,175,55,0.1)",
+    };
+  }
+  return { fontWeight: 600, color: "#64748b" };
+}
+
+function statusBadge(row: DaSilvaLatePenaltyPreviewRow): { label: string; bg: string; color: string } {
+  if (row.alreadyApplied) {
+    return {
+      label: "Already applied",
+      bg: "rgba(212,175,55,0.22)",
+      color: "#92400e",
+    };
+  }
+  if (row.eligible) {
+    return {
+      label: "Eligible",
+      bg: "rgba(22,163,74,0.14)",
+      color: "#166534",
+    };
+  }
+  return {
+    label: "Not eligible",
+    bg: "rgba(100,116,139,0.14)",
+    color: "#475569",
+  };
 }
 
 function formatMonthsBehind(value: number | null): string {
@@ -185,6 +233,13 @@ export default function DaSilvaLatePenaltyPreview({ schoolId, onClose }: Props) 
     [rows]
   );
 
+  const averagePenalty = useMemo(() => {
+    const eligibleCount = preview?.summary?.eligibleCount ?? 0;
+    const totalPenalty = Number(preview?.summary?.totalPenaltyAmount ?? 0);
+    if (eligibleCount <= 0) return 0;
+    return Math.round((totalPenalty / eligibleCount) * 100) / 100;
+  }, [preview]);
+
   if (!daSilvaAllowed) {
     return (
       <div style={overlay}>
@@ -237,18 +292,21 @@ export default function DaSilvaLatePenaltyPreview({ schoolId, onClose }: Props) 
         <div
           style={{
             margin: "16px 24px 0",
-            padding: "12px 16px",
+            padding: "14px 18px",
             borderRadius: 10,
             border: "2px solid #b91c1c",
             background: "#fef2f2",
             color: "#991b1b",
-            fontWeight: 900,
-            fontSize: 14,
             textAlign: "center",
-            letterSpacing: 0.3,
           }}
         >
-          PREVIEW ONLY — NO PENALTIES WILL BE POSTED
+          <div style={{ fontWeight: 900, fontSize: 15, letterSpacing: 0.4, marginBottom: 6 }}>
+            PREVIEW ONLY
+          </div>
+          <div style={{ fontWeight: 700, fontSize: 13, lineHeight: 1.5, color: "#7f1d1d" }}>
+            This is a simulation. No penalties have been added to any customer accounts. Review the
+            calculations carefully before proceeding.
+          </div>
         </div>
 
         <div style={{ padding: "20px 24px" }}>
@@ -316,12 +374,16 @@ export default function DaSilvaLatePenaltyPreview({ schoolId, onClose }: Props) 
                   { label: "Eligible accounts", value: String(preview.summary.eligibleCount) },
                   { label: "Not eligible accounts", value: String(preview.summary.notEligibleCount) },
                   {
-                    label: "Total outstanding (eligible)",
+                    label: "Outstanding balance of eligible accounts",
                     value: formatMoney(totalEligibleOutstanding),
                   },
                   {
                     label: "Total penalties previewed",
                     value: formatMoney(preview.summary.totalPenaltyAmount),
+                  },
+                  {
+                    label: "Average penalty",
+                    value: formatMoney(averagePenalty),
                   },
                 ].map((card) => (
                   <div
@@ -387,6 +449,33 @@ export default function DaSilvaLatePenaltyPreview({ schoolId, onClose }: Props) 
                     </button>
                   ) : null}
                 </div>
+                <div style={{ fontSize: 12, fontWeight: 800, color: "#64748b", margin: "12px 0 8px" }}>
+                  Months behind
+                </div>
+                <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
+                  {MONTHS_BEHIND_FILTER_OPTIONS.map((opt) => {
+                    const active = activeFilters.has(opt.key);
+                    return (
+                      <button
+                        key={opt.key}
+                        type="button"
+                        onClick={() => toggleFilter(opt.key)}
+                        style={{
+                          padding: "8px 12px",
+                          borderRadius: 999,
+                          border: `1px solid ${active ? GOLD : "#cbd5e1"}`,
+                          background: active ? "rgba(212,175,55,0.2)" : "#fff",
+                          color: INK,
+                          fontWeight: 800,
+                          fontSize: 12,
+                          cursor: "pointer",
+                        }}
+                      >
+                        {opt.label}
+                      </button>
+                    );
+                  })}
+                </div>
                 <div style={{ marginTop: 8, fontSize: 12, fontWeight: 700, color: "#64748b" }}>
                   Showing {filteredRows.length} of {rows.length} accounts
                 </div>
@@ -433,26 +522,35 @@ export default function DaSilvaLatePenaltyPreview({ schoolId, onClose }: Props) 
                             </div>
                           </td>
                           <td style={td}>{row.linkedLearnerCount ?? 0}</td>
-                          <td style={td}>{formatMoney(row.outstandingBalance)}</td>
+                          <td style={{ ...td, ...outstandingCellStyle(row.outstandingBalance) }}>
+                            {formatMoney(row.outstandingBalance)}
+                          </td>
                           <td style={td}>{formatMoney(row.monthlyFeeThreshold)}</td>
                           <td style={td}>{formatMonthsBehind(row.monthsBehind)}</td>
                           <td style={{ ...td, fontWeight: 900, color: row.eligible ? INK : "#94a3b8" }}>
                             {formatMoney(row.penaltyAmount)}
                           </td>
                           <td style={td}>
-                            <span
-                              style={{
-                                display: "inline-block",
-                                padding: "4px 8px",
-                                borderRadius: 6,
-                                fontSize: 11,
-                                fontWeight: 900,
-                                background: row.eligible ? "rgba(22,163,74,0.12)" : "rgba(100,116,139,0.12)",
-                                color: row.eligible ? "#166534" : "#475569",
-                              }}
-                            >
-                              {row.eligible ? "Eligible" : "Not eligible"}
-                            </span>
+                            {(() => {
+                              const badge = statusBadge(row);
+                              return (
+                                <span
+                                  style={{
+                                    display: "inline-block",
+                                    padding: "5px 10px",
+                                    borderRadius: 999,
+                                    fontSize: 11,
+                                    fontWeight: 900,
+                                    letterSpacing: 0.2,
+                                    background: badge.bg,
+                                    color: badge.color,
+                                    border: `1px solid ${badge.color}22`,
+                                  }}
+                                >
+                                  {badge.label}
+                                </span>
+                              );
+                            })()}
                           </td>
                           <td style={{ ...td, maxWidth: 280 }}>{row.eligibilityReason}</td>
                           <td style={td}>{row.alreadyApplied ? "Yes" : "No"}</td>
