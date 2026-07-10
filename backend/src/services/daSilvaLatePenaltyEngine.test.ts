@@ -69,9 +69,10 @@ function testPenaltyAmountExamples() {
 function testEligibilityThresholdRules() {
   assert(!isOutstandingEligibleForPenalty(0, 3000), "zero outstanding not eligible");
   assert(!isOutstandingEligibleForPenalty(-50, 3000), "negative outstanding not eligible");
-  assert(!isOutstandingEligibleForPenalty(3000, 3000), "equal to threshold not eligible");
-  assert(isOutstandingEligibleForPenalty(3000.01, 3000), "just above threshold eligible");
+  assert(isOutstandingEligibleForPenalty(3000, 3000), "equal to threshold is eligible");
+  assert(isOutstandingEligibleForPenalty(3000.01, 3000), "above threshold eligible");
   assert(isOutstandingEligibleForPenalty(7200, 3000), "well above threshold eligible");
+  assert(!isOutstandingEligibleForPenalty(2999.99, 3000), "below threshold not eligible");
   console.log("✓ threshold eligibility rules");
 }
 
@@ -114,18 +115,72 @@ function testEligibleAccountPreview() {
   console.log("✓ eligible account preview");
 }
 
-function testNotEligibleEqualThreshold() {
+function testEqualThresholdEligible() {
   const row = evaluateDaSilvaPenaltyAccount({
     schoolId: DA_SILVA_ACADEMY_SCHOOL_ID,
     penaltyMonth: PENALTY_MONTH,
     account: account("TST001", 3000, [learner("l1", [monthlyFee(3000)])]),
   });
 
-  assert(!row.eligible, "equal to threshold is not eligible");
+  assert(row.eligible, "outstanding R3000 equals threshold R3000 is eligible");
+  assert(row.reason === "eligible", "eligible reason");
+  assert(row.penaltyAmount === 300, "penalty is 10% of R3000");
+  assert(row.apply, "apply is true");
+  console.log("✓ equal threshold eligible (R3000 / R3000 → R300)");
+}
+
+function testEqualThreshold6500() {
+  const row = evaluateDaSilvaPenaltyAccount({
+    schoolId: DA_SILVA_ACADEMY_SCHOOL_ID,
+    penaltyMonth: PENALTY_MONTH,
+    account: account("TST650", 6500, [learner("l1", [monthlyFee(6500)])]),
+  });
+
+  assert(row.eligible, "outstanding R6500 equals threshold R6500 is eligible");
+  assert(row.penaltyAmount === 650, "penalty is 10% of R6500");
+  console.log("✓ equal threshold eligible (R6500 / R6500 → R650)");
+}
+
+function testBelowThresholdNotEligible() {
+  const row = evaluateDaSilvaPenaltyAccount({
+    schoolId: DA_SILVA_ACADEMY_SCHOOL_ID,
+    penaltyMonth: PENALTY_MONTH,
+    account: account("TST299", 2999.99, [learner("l1", [monthlyFee(3000)])]),
+  });
+
+  assert(!row.eligible, "R2999.99 below R3000 threshold not eligible");
   assert(row.reason === "balance_not_above_threshold", "balance_not_above_threshold reason");
   assert(row.penaltyAmount === 0, "no penalty when not eligible");
-  assert(!row.apply, "apply is false");
-  console.log("✓ equal threshold not eligible");
+  console.log("✓ below threshold not eligible (R2999.99 / R3000)");
+}
+
+function testOverpaidNotEligible() {
+  const row = evaluateDaSilvaPenaltyAccount({
+    schoolId: DA_SILVA_ACADEMY_SCHOOL_ID,
+    penaltyMonth: PENALTY_MONTH,
+    account: account("OVER001", -500, [learner("l1", [monthlyFee(3000)])]),
+  });
+
+  assert(!row.eligible, "overpaid account not eligible");
+  assert(row.reason === "zero_or_negative_balance", "zero_or_negative_balance reason");
+  console.log("✓ overpaid account not eligible");
+}
+
+function testSiblingEqualThresholdEligible() {
+  const learners = [
+    learner("l1", [monthlyFee(3000, "Primary")], "Sibling A"),
+    learner("l2", [monthlyFee(3000, "Primary")], "Sibling B"),
+  ];
+  const row = evaluateDaSilvaPenaltyAccount({
+    schoolId: DA_SILVA_ACADEMY_SCHOOL_ID,
+    penaltyMonth: PENALTY_MONTH,
+    account: account("SIB600", 6000, learners),
+  });
+
+  assert(row.monthlyFeeThreshold === 6000, "combined sibling threshold R6000");
+  assert(row.eligible, "outstanding equals combined sibling threshold is eligible");
+  assert(row.penaltyAmount === 600, "10% of R6000 = R600");
+  console.log("✓ sibling account equal combined threshold eligible");
 }
 
 function testIdempotencyKey() {
@@ -242,9 +297,10 @@ function testMonthsBehindEqualThreshold() {
     account: account("EQ001", 3000, [learner("l1", [monthlyFee(3000)])]),
   });
   assert(row.monthsBehind === 1, "exactly one month behind");
-  assert(!row.eligible, "one month exactly is not eligible");
+  assert(row.eligible, "one full month outstanding is eligible");
+  assert(row.penaltyAmount === 300, "penalty 10% of R3000");
   assert(verifyDaSilvaPenaltyPreviewRow(row).matches, "rule verification for equal threshold");
-  console.log("✓ exactly one month fees explanation");
+  console.log("✓ exactly one month fees eligible");
 }
 
 function run() {
@@ -252,7 +308,11 @@ function run() {
   testEligibilityThresholdRules();
   testSiblingThresholdSum();
   testEligibleAccountPreview();
-  testNotEligibleEqualThreshold();
+  testEqualThresholdEligible();
+  testEqualThreshold6500();
+  testBelowThresholdNotEligible();
+  testOverpaidNotEligible();
+  testSiblingEqualThresholdEligible();
   testIdempotencyKey();
   testAlreadyAppliedSameMonth();
   testDifferentMonthStillAllowed();

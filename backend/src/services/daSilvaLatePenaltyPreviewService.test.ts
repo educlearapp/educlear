@@ -136,7 +136,8 @@ function testSnapshotPreviewMath() {
   const byRef = new Map(preview.rows.map((row) => [row.accountRef, row]));
   assert(byRef.get("ACC7200")?.penaltyAmount === 720, "R7,200 → R720");
   assert(byRef.get("ACC23000")?.penaltyAmount === 2300, "R23,000 → R2,300");
-  assert(byRef.get("ACC3000")?.eligible === false, "equal to threshold not eligible");
+  assert(byRef.get("ACC3000")?.eligible === true, "equal to threshold is eligible");
+  assert(byRef.get("ACC3000")?.penaltyAmount === 300, "R3,000 → R300");
   assert(byRef.get("OVERPAID")?.reason === "zero_or_negative_balance", "overpaid not eligible");
   assert(preview.applyBlocked && preview.previewOnly, "preview metadata");
   assert(preview.rows.every((row) => row.apply === false), "all rows apply blocked");

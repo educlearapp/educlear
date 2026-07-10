@@ -167,7 +167,7 @@ export function calculateDaSilvaPenaltyAmount(outstandingBalance: number): numbe
   return roundPenaltyMoney(outstanding * DA_SILVA_LATE_PENALTY_RATE);
 }
 
-/** Eligible only when outstanding is strictly greater than one month's recurring fees. */
+/** Eligible when outstanding is at least one full month's combined recurring fees. */
 export function isOutstandingEligibleForPenalty(
   outstandingBalance: number,
   monthlyFeeThreshold: number
@@ -176,7 +176,7 @@ export function isOutstandingEligibleForPenalty(
   const threshold = roundPenaltyMoney(monthlyFeeThreshold);
   if (outstanding <= 0) return false;
   if (threshold <= 0) return false;
-  return outstanding > threshold;
+  return outstanding >= threshold;
 }
 
 /** Months of fees represented by the current outstanding balance. */
@@ -272,7 +272,7 @@ export function verifyDaSilvaPenaltyPreviewRow(row: DaSilvaPenaltyPreviewRow): D
       : `eligibility mismatch (eligible=${row.eligible}, ruleEligible=${ruleEligible})`
   );
   if (row.eligible) {
-    checks.push(outstanding > threshold ? "outstanding > monthly threshold" : "FAIL: outstanding not above threshold");
+    checks.push(outstanding >= threshold ? "outstanding >= monthly threshold" : "FAIL: outstanding below monthly threshold");
   }
 
   const matches = checks.every((c) => !c.startsWith("FAIL") && !c.includes("mismatch"));

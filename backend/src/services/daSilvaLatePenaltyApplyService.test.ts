@@ -197,7 +197,7 @@ function testIneligibleBetweenPreviewAndApplySkipped() {
   const authoritativeIneligible = evaluateDaSilvaPenaltyAccount({
     schoolId: DA_SILVA_ACADEMY_SCHOOL_ID,
     penaltyMonth: PENALTY_MONTH,
-    account: account("CHG001", 3000, [learner("l1", [monthlyFee(3000)])]),
+    account: account("CHG001", 2550, [learner("l1", [monthlyFee(3000)])]),
   });
   assert(!authoritativeIneligible.eligible, "now ineligible");
   const { append } = memoryAppend();
@@ -252,10 +252,10 @@ function testMbbBlocked() {
 
 function testMixedBatchCounts() {
   const accEligible = account("OK001", 7200, [learner("l1", [monthlyFee(3000)])]);
-  const accIneligible = account("NO001", 3000, [learner("l2", [monthlyFee(3000)])]);
+  const accIneligible = account("NO001", 2550, [learner("l2", [monthlyFee(3000)])]);
   const accInvalid = account("ZZ999", 7200, [learner("l3", [monthlyFee(3000)])]);
   const rowOk = buildRow("OK001", 7200, 3000);
-  const rowNo = buildRow("NO001", 3000, 3000);
+  const rowNo = buildRow("NO001", 2550, 3000);
   const { append } = memoryAppend();
 
   const result = runApply(
@@ -271,8 +271,8 @@ function testMixedBatchCounts() {
 }
 
 function testLedgerUnchangedWhenAllSkipped() {
-  const acc = account("NO001", 3000, [learner("l1", [monthlyFee(3000)])]);
-  const row = buildRow("NO001", 3000, 3000);
+  const acc = account("NO001", 2550, [learner("l1", [monthlyFee(3000)])]);
+  const row = buildRow("NO001", 2550, 3000);
   const { ledger, append } = memoryAppend();
 
   const result = runApply(["NO001"], [row], [acc], append);
