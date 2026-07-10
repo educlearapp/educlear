@@ -108,13 +108,25 @@ const MONTHS_BEHIND_FILTER_OPTIONS: { key: FilterKey; label: string }[] = [
   { key: "moreThan3Months", label: "More than 3 months" },
 ];
 
+const MONTHS_BEHIND_FILTER_KEYS = new Set<FilterKey>(
+  MONTHS_BEHIND_FILTER_OPTIONS.map((opt) => opt.key)
+);
+
 function schoolDisplayName(): string {
   return (
     String(localStorage.getItem("schoolName") || "").trim() || "Da Silva Academy"
   );
 }
 
+function normalizeMonthsBehind(value: unknown): number | null {
+  if (value === null || value === undefined) return null;
+  const n = typeof value === "number" ? value : Number(value);
+  if (!Number.isFinite(n)) return null;
+  return n;
+}
+
 function matchesFilter(row: DaSilvaLatePenaltyPreviewRow, filter: FilterKey): boolean {
+  const monthsBehind = normalizeMonthsBehind(row.monthsBehind);
   switch (filter) {
     case "eligible":
       return row.eligible;
@@ -127,11 +139,11 @@ function matchesFilter(row: DaSilvaLatePenaltyPreviewRow, filter: FilterKey): bo
     case "alreadyApplied":
       return row.alreadyApplied;
     case "moreThan1Month":
-      return row.monthsBehind !== null && row.monthsBehind > 1;
+      return monthsBehind !== null && monthsBehind > 1;
     case "moreThan2Months":
-      return row.monthsBehind !== null && row.monthsBehind > 2;
+      return monthsBehind !== null && monthsBehind > 2;
     case "moreThan3Months":
-      return row.monthsBehind !== null && row.monthsBehind > 3;
+      return monthsBehind !== null && monthsBehind > 3;
     default:
       return true;
   }
@@ -170,9 +182,10 @@ function statusBadge(row: DaSilvaLatePenaltyPreviewRow): { label: string; bg: st
   };
 }
 
-function formatMonthsBehind(value: number | null): string {
-  if (value === null || Number.isNaN(value)) return "—";
-  return value.toFixed(2);
+function formatMonthsBehind(value: number | null | undefined): string {
+  const n = normalizeMonthsBehind(value);
+  if (n === null) return "—";
+  return n.toFixed(2);
 }
 
 export default function DaSilvaLatePenaltyPreview({ schoolId, onClose }: Props) {
@@ -183,14 +196,24 @@ export default function DaSilvaLatePenaltyPreview({ schoolId, onClose }: Props) 
   const [error, setError] = useState("");
   const [preview, setPreview] = useState<DaSilvaLatePenaltyPreviewResult | null>(null);
   const [activeFilters, setActiveFilters] = useState<Set<FilterKey>>(new Set());
+  const [monthsBehindFilter, setMonthsBehindFilter] = useState<FilterKey | null>(null);
 
   const toggleFilter = (key: FilterKey) => {
+    if (MONTHS_BEHIND_FILTER_KEYS.has(key)) {
+      setMonthsBehindFilter((prev) => (prev === key ? null : key));
+      return;
+    }
     setActiveFilters((prev) => {
       const next = new Set(prev);
       if (next.has(key)) next.delete(key);
       else next.add(key);
       return next;
     });
+  };
+
+  const clearFilters = () => {
+    setActiveFilters(new Set());
+    setMonthsBehindFilter(null);
   };
 
   const handlePreview = async () => {
@@ -219,11 +242,13 @@ export default function DaSilvaLatePenaltyPreview({ schoolId, onClose }: Props) 
   const rows = preview?.rows || [];
 
   const filteredRows = useMemo(() => {
-    if (!activeFilters.size) return rows;
-    return rows.filter((row) =>
-      Array.from(activeFilters).some((filter) => matchesFilter(row, filter))
-    );
-  }, [rows, activeFilters]);
+    const active: FilterKey[] = Array.from(activeFilters);
+    if (monthsBehindFilter) active.push(monthsBehindFilter);
+    if (!active.length) return rows;
+    return rows.filter((row) => active.every((filter) => matchesFilter(row, filter)));
+  }, [rows, activeFilters, monthsBehindFilter]);
+
+  const hasActiveFilters = activeFilters.size > 0 || monthsBehindFilter !== null;
 
   const totalEligibleOutstanding = useMemo(
     () =>
@@ -430,10 +455,10 @@ export default function DaSilvaLatePenaltyPreview({ schoolId, onClose }: Props) 
                       </button>
                     );
                   })}
-                  {activeFilters.size ? (
+                  {hasActiveFilters ? (
                     <button
                       type="button"
-                      onClick={() => setActiveFilters(new Set())}
+                      onClick={clearFilters}
                       style={{
                         padding: "8px 12px",
                         borderRadius: 999,
@@ -454,7 +479,7 @@ export default function DaSilvaLatePenaltyPreview({ schoolId, onClose }: Props) 
                 </div>
                 <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
                   {MONTHS_BEHIND_FILTER_OPTIONS.map((opt) => {
-                    const active = activeFilters.has(opt.key);
+                    const active = monthsBehindFilter === opt.key;
                     return (
                       <button
                         key={opt.key}
@@ -475,6 +500,24 @@ export default function DaSilvaLatePenaltyPreview({ schoolId, onClose }: Props) 
                       </button>
                     );
                   })}
+                  {hasActiveFilters ? (
+                    <button
+                      type="button"
+                      onClick={clearFilters}
+                      style={{
+                        padding: "8px 12px",
+                        borderRadius: 999,
+                        border: "1px solid #cbd5e1",
+                        background: "#f8fafc",
+                        color: "#64748b",
+                        fontWeight: 800,
+                        fontSize: 12,
+                        cursor: "pointer",
+                      }}
+                    >
+                      Clear filters
+                    </button>
+                  ) : null}
                 </div>
                 <div style={{ marginTop: 8, fontSize: 12, fontWeight: 700, color: "#64748b" }}>
                   Showing {filteredRows.length} of {rows.length} accounts
