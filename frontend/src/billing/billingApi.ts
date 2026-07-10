@@ -609,6 +609,31 @@ export type DaSilvaLatePenaltyPreviewResult = {
   };
 };
 
+export type DaSilvaLatePenaltyApplyRowResult = {
+  accountRef: string;
+  status: "posted" | "skipped" | "error";
+  reason: string;
+  penaltyAmount?: number;
+  idempotencyKey?: string;
+  ledgerEntryId?: string;
+};
+
+export type DaSilvaLatePenaltyApplyResult = {
+  success: boolean;
+  schoolAllowed: boolean;
+  penaltyMonth: string;
+  postedCount: number;
+  skippedCount: number;
+  errorCount: number;
+  totalPostedAmount: number;
+  rows: DaSilvaLatePenaltyApplyRowResult[];
+};
+
+function daSilvaStaffAuthHeaders(): Record<string, string> {
+  const token = String(localStorage.getItem("token") || "").trim();
+  return token ? { Authorization: `Bearer ${token}` } : {};
+}
+
 /** Da Silva percentage late penalty preview — read-only, no ledger writes. */
 export const previewDaSilvaLatePenalties = async (payload: {
   schoolId: string;
@@ -617,7 +642,7 @@ export const previewDaSilvaLatePenalties = async (payload: {
 }) => {
   const response = await fetch(`${API_URL}/api/billing/da-silva-late-penalties/preview`, {
     method: "POST",
-    headers: { "Content-Type": "application/json" },
+    headers: { "Content-Type": "application/json", ...daSilvaStaffAuthHeaders() },
     body: JSON.stringify(payload),
   });
   const data = await response.json().catch(() => ({}));
@@ -627,6 +652,26 @@ export const previewDaSilvaLatePenalties = async (payload: {
     );
   }
   return data as DaSilvaLatePenaltyPreviewResult;
+};
+
+/** Da Silva manual apply — posts selected account penalties (server recalculates amounts). */
+export const applyDaSilvaLatePenalties = async (payload: {
+  schoolId: string;
+  penaltyMonth: string;
+  selectedAccountRefs: string[];
+}) => {
+  const response = await fetch(`${API_URL}/api/billing/da-silva-late-penalties/apply`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json", ...daSilvaStaffAuthHeaders() },
+    body: JSON.stringify(payload),
+  });
+  const data = await response.json().catch(() => ({}));
+  if (!response.ok) {
+    throw new Error(
+      readApiErrorMessage(response, data, "Failed to apply Da Silva late penalties")
+    );
+  }
+  return data as DaSilvaLatePenaltyApplyResult;
 };
 
 export type LegalDocumentType = "section-41-notice" | "letter-of-demand" | "final-demand";

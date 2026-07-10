@@ -1,6 +1,9 @@
 import React, { useMemo, useState } from "react";
 import {
+  applyDaSilvaLatePenalties,
   previewDaSilvaLatePenalties,
+  syncBillingLedgerFromApi,
+  type DaSilvaLatePenaltyApplyResult,
   type DaSilvaLatePenaltyPreviewRow,
   type DaSilvaLatePenaltyPreviewResult,
 } from "./billingApi";
@@ -73,6 +76,36 @@ const ghostBtn: React.CSSProperties = {
   color: INK,
   fontWeight: 800,
   cursor: "pointer",
+};
+
+const dangerBtn: React.CSSProperties = {
+  padding: "10px 18px",
+  borderRadius: 10,
+  border: "1px solid #b91c1c",
+  background: "linear-gradient(135deg, #fca5a5, #ef4444)",
+  color: "#fff",
+  fontWeight: 900,
+  cursor: "pointer",
+};
+
+const modalOverlay: React.CSSProperties = {
+  position: "fixed",
+  inset: 0,
+  background: "rgba(15,23,42,0.65)",
+  zIndex: 6000,
+  display: "flex",
+  alignItems: "center",
+  justifyContent: "center",
+  padding: 20,
+};
+
+const modalPanel: React.CSSProperties = {
+  background: "#fff",
+  border: `2px solid ${GOLD}`,
+  borderRadius: 14,
+  width: "min(520px, 100%)",
+  padding: 24,
+  boxShadow: "0 24px 60px rgba(0,0,0,0.3)",
 };
 
 const th: React.CSSProperties = {
@@ -188,6 +221,14 @@ function formatMonthsBehind(value: number | null | undefined): string {
   return n.toFixed(2);
 }
 
+function isRowSelectable(row: DaSilvaLatePenaltyPreviewRow): boolean {
+  return row.eligible && !row.alreadyApplied;
+}
+
+function defaultEligibleSelection(rows: DaSilvaLatePenaltyPreviewRow[]): Set<string> {
+  return new Set(rows.filter(isRowSelectable).map((row) => row.accountRef));
+}
+
 export default function DaSilvaLatePenaltyPreview({ schoolId, onClose }: Props) {
   const daSilvaAllowed = isDaSilvaAcademySchool(schoolId);
   const defaultMonth = new Date().toISOString().slice(0, 7);
@@ -197,6 +238,10 @@ export default function DaSilvaLatePenaltyPreview({ schoolId, onClose }: Props) 
   const [preview, setPreview] = useState<DaSilvaLatePenaltyPreviewResult | null>(null);
   const [activeFilters, setActiveFilters] = useState<Set<FilterKey>>(new Set());
   const [monthsBehindFilter, setMonthsBehindFilter] = useState<FilterKey | null>(null);
+  const [selectedAccountRefs, setSelectedAccountRefs] = useState<Set<string>>(new Set());
+  const [applyLoading, setApplyLoading] = useState(false);
+  const [showConfirmApply, setShowConfirmApply] = useState(false);
+  const [applyResult, setApplyResult] = useState<DaSilvaLatePenaltyApplyResult | null>(null);
 
   const toggleFilter = (key: FilterKey) => {
     if (MONTHS_BEHIND_FILTER_KEYS.has(key)) {
@@ -230,6 +275,8 @@ export default function DaSilvaLatePenaltyPreview({ schoolId, onClose }: Props) 
         penaltyMonth,
       });
       setPreview(result);
+      setSelectedAccountRefs(defaultEligibleSelection(result.rows || []));
+      setApplyResult(null);
     } catch (e: unknown) {
       const message = e instanceof Error ? e.message : "Preview failed.";
       setError(message);
@@ -249,6 +296,59 @@ export default function DaSilvaLatePenaltyPreview({ schoolId, onClose }: Props) 
   }, [rows, activeFilters, monthsBehindFilter]);
 
   const hasActiveFilters = activeFilters.size > 0 || monthsBehindFilter !== null;
+
+  const selectedStats = useMemo(() => {
+    let count = 0;
+    let total = 0;
+    for (const row of rows) {
+      if (!selectedAccountRefs.has(row.accountRef)) continue;
+      count += 1;
+      if (row.eligible) total += Number(row.penaltyAmount || 0);
+    }
+    return { count, total: Math.round(total * 100) / 100 };
+  }, [rows, selectedAccountRefs]);
+
+  const toggleRowSelection = (accountRef: string) => {
+    setSelectedAccountRefs((prev) => {
+      const next = new Set(prev);
+      if (next.has(accountRef)) next.delete(accountRef);
+      else next.add(accountRef);
+      return next;
+    });
+  };
+
+  const selectAllEligible = () => {
+    setSelectedAccountRefs(defaultEligibleSelection(rows));
+  };
+
+  const clearSelection = () => {
+    setSelectedAccountRefs(new Set());
+  };
+
+  const handleConfirmApply = async () => {
+    if (!preview || !selectedStats.count) return;
+    setApplyLoading(true);
+    setError("");
+    try {
+      const result = await applyDaSilvaLatePenalties({
+        schoolId,
+        penaltyMonth: preview.penaltyMonth,
+        selectedAccountRefs: Array.from(selectedAccountRefs),
+      });
+      setApplyResult(result);
+      setShowConfirmApply(false);
+      await syncBillingLedgerFromApi(schoolId).catch(() => {});
+      const refreshed = await previewDaSilvaLatePenalties({ schoolId, penaltyMonth: preview.penaltyMonth });
+      setPreview(refreshed);
+      setSelectedAccountRefs(defaultEligibleSelection(refreshed.rows || []));
+    } catch (e: unknown) {
+      const message = e instanceof Error ? e.message : "Apply failed.";
+      setError(message);
+      setShowConfirmApply(false);
+    } finally {
+      setApplyLoading(false);
+    }
+  };
 
   const totalEligibleOutstanding = useMemo(
     () =>
@@ -326,11 +426,12 @@ export default function DaSilvaLatePenaltyPreview({ schoolId, onClose }: Props) 
           }}
         >
           <div style={{ fontWeight: 900, fontSize: 15, letterSpacing: 0.4, marginBottom: 6 }}>
-            PREVIEW ONLY
+            {preview ? "REVIEW BEFORE APPLYING" : "PREVIEW ONLY"}
           </div>
           <div style={{ fontWeight: 700, fontSize: 13, lineHeight: 1.5, color: "#7f1d1d" }}>
-            This is a simulation. No penalties have been added to any customer accounts. Review the
-            calculations carefully before proceeding.
+            {preview
+              ? "Penalties are not posted until you confirm Apply Selected Penalties. Only checked accounts will be charged. Amounts are recalculated on the server at apply time."
+              : "This is a simulation. No penalties have been added to any customer accounts. Review the calculations carefully before proceeding."}
           </div>
         </div>
 
@@ -526,6 +627,42 @@ export default function DaSilvaLatePenaltyPreview({ schoolId, onClose }: Props) 
 
               <div
                 style={{
+                  display: "flex",
+                  flexWrap: "wrap",
+                  gap: 12,
+                  alignItems: "center",
+                  marginBottom: 14,
+                  padding: "12px 14px",
+                  borderRadius: 12,
+                  border: `1px solid ${GOLD}`,
+                  background: "rgba(212,175,55,0.06)",
+                }}
+              >
+                <div style={{ fontWeight: 900, color: INK }}>
+                  Selected: {selectedStats.count} account{selectedStats.count === 1 ? "" : "s"} —{" "}
+                  {formatMoney(selectedStats.total)}
+                </div>
+                <button type="button" style={ghostBtn} onClick={selectAllEligible}>
+                  Select all eligible
+                </button>
+                <button type="button" style={ghostBtn} onClick={clearSelection}>
+                  Clear selection
+                </button>
+                <button
+                  type="button"
+                  style={{
+                    ...dangerBtn,
+                    opacity: applyLoading || selectedStats.count === 0 ? 0.6 : 1,
+                  }}
+                  disabled={applyLoading || selectedStats.count === 0}
+                  onClick={() => setShowConfirmApply(true)}
+                >
+                  Apply Selected Penalties
+                </button>
+              </div>
+
+              <div
+                style={{
                   border: `1px solid ${GOLD}`,
                   borderRadius: 12,
                   overflow: "auto",
@@ -536,6 +673,7 @@ export default function DaSilvaLatePenaltyPreview({ schoolId, onClose }: Props) 
                   <thead>
                     <tr style={{ background: "rgba(212,175,55,0.16)" }}>
                       {[
+                        "",
                         "Account",
                         "Holder / learners",
                         "Linked",
@@ -547,7 +685,7 @@ export default function DaSilvaLatePenaltyPreview({ schoolId, onClose }: Props) 
                         "Reason",
                         "Already applied",
                       ].map((h) => (
-                        <th key={h} style={th}>
+                        <th key={h || "select"} style={th}>
                           {h}
                         </th>
                       ))}
@@ -557,6 +695,15 @@ export default function DaSilvaLatePenaltyPreview({ schoolId, onClose }: Props) 
                     {filteredRows.length ? (
                       filteredRows.map((row) => (
                         <tr key={row.idempotencyKey || row.accountRef}>
+                          <td style={td}>
+                            <input
+                              type="checkbox"
+                              checked={selectedAccountRefs.has(row.accountRef)}
+                              disabled={!isRowSelectable(row)}
+                              onChange={() => toggleRowSelection(row.accountRef)}
+                              aria-label={`Select ${row.accountRef}`}
+                            />
+                          </td>
                           <td style={{ ...td, fontWeight: 900 }}>{row.accountRef}</td>
                           <td style={td}>
                             <div style={{ fontWeight: 800 }}>{row.accountHolder}</div>
@@ -601,7 +748,7 @@ export default function DaSilvaLatePenaltyPreview({ schoolId, onClose }: Props) 
                       ))
                     ) : (
                       <tr>
-                        <td colSpan={10} style={{ ...td, textAlign: "center", color: "#64748b" }}>
+                        <td colSpan={11} style={{ ...td, textAlign: "center", color: "#64748b" }}>
                           No accounts match the selected filters.
                         </td>
                       </tr>
@@ -610,11 +757,10 @@ export default function DaSilvaLatePenaltyPreview({ schoolId, onClose }: Props) 
                 </table>
               </div>
 
-              {preview.previewOnly && preview.applyBlocked ? (
-                <p style={{ marginTop: 14, fontSize: 12, fontWeight: 700, color: "#64748b" }}>
-                  Preview-only mode — apply is blocked by the server. No ledger entries will be created.
-                </p>
-              ) : null}
+              <p style={{ marginTop: 14, fontSize: 12, fontWeight: 700, color: "#64748b" }}>
+                Manual apply only — one penalty per account per penalty month. Server recalculates
+                eligibility and amounts at apply time.
+              </p>
             </>
           ) : (
             <p style={{ margin: 0, color: "#64748b", fontWeight: 600 }}>
@@ -623,6 +769,96 @@ export default function DaSilvaLatePenaltyPreview({ schoolId, onClose }: Props) 
           )}
         </div>
       </div>
+
+      {showConfirmApply && preview ? (
+        <div style={modalOverlay}>
+          <div style={modalPanel}>
+            <div style={{ fontWeight: 900, fontSize: 18, color: "#991b1b", marginBottom: 12 }}>
+              Confirm penalty apply
+            </div>
+            <p style={{ margin: "0 0 12px", fontWeight: 700, color: INK, lineHeight: 1.5 }}>
+              This will write penalty charges to customer accounts. Only selected accounts will be
+              charged. Amounts are recalculated on the server immediately before posting.
+            </p>
+            <ul style={{ margin: "0 0 16px", paddingLeft: 20, fontWeight: 700, color: INK }}>
+              <li>Penalty month: {preview.penaltyMonth}</li>
+              <li>Selected accounts: {selectedStats.count}</li>
+              <li>Total penalties to post: {formatMoney(selectedStats.total)}</li>
+            </ul>
+            <div style={{ display: "flex", gap: 10, justifyContent: "flex-end" }}>
+              <button
+                type="button"
+                style={ghostBtn}
+                onClick={() => setShowConfirmApply(false)}
+                disabled={applyLoading}
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                style={{ ...dangerBtn, opacity: applyLoading ? 0.7 : 1 }}
+                onClick={handleConfirmApply}
+                disabled={applyLoading}
+              >
+                {applyLoading ? "Applying…" : "Confirm apply"}
+              </button>
+            </div>
+          </div>
+        </div>
+      ) : null}
+
+      {applyResult ? (
+        <div style={modalOverlay}>
+          <div style={{ ...modalPanel, width: "min(640px, 100%)" }}>
+            <div style={{ fontWeight: 900, fontSize: 18, color: INK, marginBottom: 12 }}>
+              Apply complete
+            </div>
+            <p style={{ margin: "0 0 12px", fontWeight: 700, color: INK }}>
+              Penalty month {applyResult.penaltyMonth}: posted {applyResult.postedCount}, skipped{" "}
+              {applyResult.skippedCount}, errors {applyResult.errorCount}. Total posted:{" "}
+              {formatMoney(applyResult.totalPostedAmount)}.
+            </p>
+            <div
+              style={{
+                maxHeight: 240,
+                overflow: "auto",
+                border: "1px solid #e5e7eb",
+                borderRadius: 10,
+                marginBottom: 16,
+              }}
+            >
+              <table style={{ width: "100%", borderCollapse: "collapse" }}>
+                <thead>
+                  <tr>
+                    {["Account", "Status", "Reason", "Amount"].map((h) => (
+                      <th key={h} style={{ ...th, padding: 8 }}>
+                        {h}
+                      </th>
+                    ))}
+                  </tr>
+                </thead>
+                <tbody>
+                  {applyResult.rows.map((row) => (
+                    <tr key={`${row.accountRef}-${row.status}-${row.reason}`}>
+                      <td style={{ ...td, padding: 8 }}>{row.accountRef}</td>
+                      <td style={{ ...td, padding: 8 }}>{row.status}</td>
+                      <td style={{ ...td, padding: 8 }}>{row.reason}</td>
+                      <td style={{ ...td, padding: 8 }}>
+                        {row.penaltyAmount != null ? formatMoney(row.penaltyAmount) : "—"}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+            <div style={{ display: "flex", justifyContent: "flex-end" }}>
+              <button type="button" style={goldBtn} onClick={() => setApplyResult(null)}>
+                Close report
+              </button>
+            </div>
+          </div>
+        </div>
+      ) : null}
     </div>
   );
 }
