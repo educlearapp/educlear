@@ -825,6 +825,61 @@ export const executeInvoiceRun = async (payload: InvoiceRunExecutePayload) =>
     "Failed to execute invoice run"
   );
 
+export type InvoiceRunUndoPayload = {
+  schoolId: string;
+  runId: string;
+  expectedCount?: number;
+  expectedTotal?: number;
+};
+
+export type InvoiceRunUndoResponse = {
+  success: boolean;
+  alreadyUndone?: boolean;
+  runId?: string;
+  schoolId?: string;
+  removedCount?: number;
+  removedEntryIds?: string[];
+  totalAmount?: number;
+  invoicePeriod?: string;
+  error?: string;
+  errorCode?: string;
+};
+
+export async function undoInvoiceRun(
+  payload: InvoiceRunUndoPayload
+): Promise<InvoiceRunUndoResponse> {
+  const schoolId = String(payload.schoolId || "").trim();
+  const runId = String(payload.runId || "").trim();
+  if (!schoolId || !runId) {
+    return {
+      success: false,
+      error: "Missing schoolId or runId",
+      errorCode: "INVALID_REQUEST",
+    };
+  }
+
+  const response = await fetch(
+    `${API_URL}/api/invoice-runs/${encodeURIComponent(runId)}/undo`,
+    {
+      method: "POST",
+      headers: { "Content-Type": "application/json", ...daSilvaStaffAuthHeaders() },
+      body: JSON.stringify({
+        schoolId,
+        expectedCount: payload.expectedCount,
+        expectedTotal: payload.expectedTotal,
+      }),
+      cache: "no-store",
+    }
+  );
+  const body = (await response.json().catch(() => ({}))) as InvoiceRunUndoResponse;
+  if (!response.ok && !body.success) {
+    throw new Error(
+      readApiErrorMessage(response, body, "Failed to undo invoice run")
+    );
+  }
+  return body;
+}
+
 export function applyInvoiceRunExecuteResponse(
   schoolId: string,
   body: Record<string, unknown> | null | undefined

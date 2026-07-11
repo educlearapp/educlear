@@ -1,10 +1,15 @@
 import { Router } from "express";
 
+import {
+  requireInvoiceRunUndoAuth,
+  type InvoiceRunUndoRequest,
+} from "../middleware/requireInvoiceRunUndoAuth";
 import { executeInvoiceRun } from "../services/invoiceRunExecuteService";
 import {
   countInvoicesByPeriod,
   listInvoiceRunsFromLedger,
 } from "../services/invoiceRunListService";
+import { undoInvoiceRun } from "../services/invoiceRunUndoService";
 
 const router = Router();
 
@@ -78,5 +83,58 @@ async function handleExecute(req: { body?: Record<string, unknown> }, res: any, 
 router.post("/execute", (req, res) => handleExecute(req, res, req.body?.dryRun === true));
 
 router.post("/preview", (req, res) => handleExecute(req, res, true));
+
+router.post("/:runId/undo", requireInvoiceRunUndoAuth, async (req: InvoiceRunUndoRequest, res) => {
+  try {
+    const runId = String(req.params?.runId || "").trim();
+    const schoolId = String(req.invoiceRunUndoAuth?.authorizedSchoolId || "").trim();
+    const body = req.body ?? {};
+    if (!schoolId || !runId) {
+      return res.status(400).json({
+        success: false,
+        error: "Missing schoolId or runId",
+        errorCode: "INVALID_REQUEST",
+      });
+    }
+
+    const result = undoInvoiceRun({
+      schoolId,
+      runId,
+      expectedCount:
+        typeof body.expectedCount === "number" ? Number(body.expectedCount) : undefined,
+      expectedTotal:
+        typeof body.expectedTotal === "number" ? Number(body.expectedTotal) : undefined,
+    });
+
+    if (!result.success) {
+      const status =
+        result.errorCode === "NOT_FOUND"
+          ? 404
+          : result.errorCode === "INVALID_REQUEST"
+            ? 400
+            : result.errorCode === "ALLOCATION_CONFLICT" ||
+                result.errorCode === "AMBIGUOUS_RUN" ||
+                result.errorCode === "COUNT_MISMATCH" ||
+                result.errorCode === "TOTAL_MISMATCH"
+              ? 409
+              : result.errorCode?.includes("PRODUCTION") || result.error?.includes("production")
+                ? 403
+                : 500;
+      return res.status(status).json(result);
+    }
+
+    const status = result.alreadyUndone ? 200 : 200;
+    return res.status(status).json(result);
+  } catch (error) {
+    const message = error instanceof Error ? error.message : "Server error";
+    const productionBlocked = /disabled on production/i.test(message);
+    console.error("[invoice-runs] undo failed:", error);
+    return res.status(productionBlocked ? 403 : 500).json({
+      success: false,
+      error: message,
+      errorCode: productionBlocked ? "PRODUCTION_UNDO_BLOCKED" : "UNDO_FAILED",
+    });
+  }
+});
 
 export default router;

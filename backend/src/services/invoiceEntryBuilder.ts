@@ -136,8 +136,9 @@ export async function buildInvoiceEntry(
   const runId = body.runId ? String(body.runId).trim() : "";
   const lineKey = String(body.lineKey || body.lineId || "").trim();
   const invoicePeriod = String(body.invoicePeriod || "").trim() || undefined;
+  const billedLearnerId = String(body.billedLearnerId || learnerId || lineKey || "").trim() || undefined;
   const defaultId = runId
-    ? buildInvoiceRunEntryId(runId, learnerId, resolved.accountNo, lineKey || String(index))
+    ? buildInvoiceRunEntryId(runId, billedLearnerId || learnerId, resolved.accountNo, lineKey || String(index))
     : `invoice-${Date.now()}-${index}-${Math.random().toString(36).slice(2, 8)}`;
 
   const entry: BillingLedgerEntry = {
@@ -153,7 +154,8 @@ export async function buildInvoiceEntry(
     description,
     runId: runId || undefined,
     invoicePeriod,
-    lineKey: lineKey || undefined,
+    lineKey: lineKey || billedLearnerId || undefined,
+    billedLearnerId,
     createdAt: new Date().toISOString(),
   };
 

@@ -342,6 +342,162 @@ function testSumBillingPlanAmount() {
   console.log("✓ integrity gate equation");
 }
 
+function testSiblingDuplicateAfterAnchorRelink() {
+  const fam = "fam-sibling-dup";
+  const anchor = "anchor1";
+  const sibling = "sibling2";
+  const l1 = learner(anchor, "Anchor", "Child", fam, "FAM100");
+  const l2 = learner(sibling, "Sibling", "Child", fam, "FAM100");
+  const existing: BillingLedgerEntry[] = [
+    {
+      id: "inv-sibling-posted",
+      schoolId: TEST_SCHOOL,
+      learnerId: anchor,
+      billedLearnerId: sibling,
+      lineKey: sibling,
+      accountNo: "FAM100",
+      type: "invoice",
+      amount: 1200,
+      date: "2026-06-01",
+      reference: "INV-SIB",
+      description: "Invoice Run June 2026",
+      invoicePeriod: PERIOD,
+      runId: "RUN-SIB-TEST",
+      createdAt: new Date().toISOString(),
+    },
+  ];
+
+  assert(
+    learnerHasInvoiceForPeriod(existing, sibling, PERIOD),
+    "sibling duplicate: billedLearnerId match after anchor posting"
+  );
+  assert(
+    !learnerHasInvoiceForPeriod(existing, anchor, PERIOD),
+    "sibling duplicate: anchor not duplicate unless billed"
+  );
+
+  const { learnerRows, integrity } = buildInvoiceRunPlanForTest({
+    allActiveLearners: [l1, l2],
+    processedLearners: [l1, l2],
+    plansByLearnerId: { anchor1: plan(1000), sibling2: plan(1200) },
+    explicitlyEmpty: new Set(),
+    accountNoByLearnerId: { anchor1: "FAM100", sibling2: "FAM100" },
+    existingLedger: existing,
+    invoicePeriod: PERIOD,
+  });
+
+  const siblingRow = learnerRows.find((row) => row.learnerId === sibling);
+  assert(siblingRow?.skipReason === "DUPLICATE_INVOICE", "sibling duplicate: skip sibling");
+  assert(integrity.invoiceLineCount === 1, "sibling duplicate: only anchor invoices");
+  assert(integrity.passed, "sibling duplicate: integrity pass");
+  console.log("✓ sibling duplicate after anchor relink (billedLearnerId)");
+}
+
+function testSiblingThreeDuplicateAfterExecute() {
+  const fam = "fam-three-dup";
+  const ids = ["t3a", "t3b", "t3c"];
+  const learners3 = ids.map((id, i) => learner(id, `Child${i}`, "Three", fam, "FAM300"));
+  const existing: BillingLedgerEntry[] = ids.map((id, i) => ({
+    id: `inv-${id}`,
+    schoolId: TEST_SCHOOL,
+    learnerId: ids[0],
+    billedLearnerId: id,
+    lineKey: id,
+    accountNo: "FAM300",
+    type: "invoice" as const,
+    amount: 1000 + i * 100,
+    date: "2026-06-01",
+    reference: `INV-${i}`,
+    description: "Invoice Run June 2026",
+    invoicePeriod: PERIOD,
+    runId: "RUN-THREE",
+    createdAt: new Date().toISOString(),
+  }));
+
+  const { learnerRows, integrity } = buildInvoiceRunPlanForTest({
+    allActiveLearners: learners3,
+    processedLearners: learners3,
+    plansByLearnerId: Object.fromEntries(ids.map((id) => [id, plan(1000)])),
+    explicitlyEmpty: new Set(),
+    accountNoByLearnerId: Object.fromEntries(ids.map((id) => [id, "FAM300"])),
+    existingLedger: existing,
+    invoicePeriod: PERIOD,
+  });
+
+  assert(
+    learnerRows.every((row) => row.status === "skipped" && row.skipReason === "DUPLICATE_INVOICE"),
+    "three siblings: all duplicate after execute"
+  );
+  assert(integrity.invoiceLineCount === 0, "three siblings: zero new lines");
+  assert(integrity.eligibleCount === 3, "three siblings: all eligible bucket");
+  assert(integrity.passed, "three siblings: integrity pass");
+  console.log("✓ three siblings all duplicate after execute");
+}
+
+function testInactiveLearnerExcludedFromDuplicateRerun() {
+  const l1 = learner("inactive1", "Inactive", "Learner", null, "TST099", "HISTORICAL");
+  const { learnerRows, integrity } = buildInvoiceRunPlanForTest({
+    allActiveLearners: [l1],
+    processedLearners: [l1],
+    plansByLearnerId: { inactive1: plan(1000) },
+    explicitlyEmpty: new Set(),
+    accountNoByLearnerId: { inactive1: "TST099" },
+    existingLedger: [],
+    invoicePeriod: PERIOD,
+  });
+  assert(learnerRows[0].skipReason === "INACTIVE_LEARNER", "inactive excluded");
+  assert(integrity.invoiceLineCount === 0, "inactive: no invoice lines");
+  console.log("✓ inactive learner exclusion");
+}
+
+function testUnrelatedAccountUnaffectedBySiblingDuplicate() {
+  const fam = "fam-unrelated";
+  const l1 = learner("sibA", "Sib", "A", fam, "FAM400");
+  const l2 = learner("sibB", "Sib", "B", fam, "FAM400");
+  const other = learner("other1", "Other", "Account", null, "OTH001");
+  const existing: BillingLedgerEntry[] = [
+    {
+      id: "inv-sibA",
+      schoolId: TEST_SCHOOL,
+      learnerId: "sibA",
+      billedLearnerId: "sibA",
+      lineKey: "sibA",
+      accountNo: "FAM400",
+      type: "invoice",
+      amount: 1000,
+      date: "2026-06-01",
+      reference: "INV-A",
+      description: "June",
+      invoicePeriod: PERIOD,
+      createdAt: new Date().toISOString(),
+    },
+  ];
+
+  const { learnerRows } = buildInvoiceRunPlanForTest({
+    allActiveLearners: [l1, l2, other],
+    processedLearners: [l1, l2, other],
+    plansByLearnerId: { sibA: plan(1000), sibB: plan(1000), other1: plan(800) },
+    explicitlyEmpty: new Set(),
+    accountNoByLearnerId: { sibA: "FAM400", sibB: "FAM400", other1: "OTH001" },
+    existingLedger: existing,
+    invoicePeriod: PERIOD,
+  });
+
+  assert(
+    learnerRows.find((row) => row.learnerId === "sibA")?.skipReason === "DUPLICATE_INVOICE",
+    "unrelated: sibling A duplicate"
+  );
+  assert(
+    learnerRows.find((row) => row.learnerId === "sibB")?.status === "invoiced",
+    "unrelated: sibling B still invoices"
+  );
+  assert(
+    learnerRows.find((row) => row.learnerId === "other1")?.status === "invoiced",
+    "unrelated: other account invoices"
+  );
+  console.log("✓ unrelated account unaffected by sibling duplicate");
+}
+
 async function main() {
   testNormalizeInvoicePeriod();
   testSumBillingPlanAmount();
@@ -351,6 +507,10 @@ async function main() {
   testServerPlanDespiteEmptyLocalStorage();
   testMissingBillingPlan();
   testDuplicatePeriodInvoice();
+  testSiblingDuplicateAfterAnchorRelink();
+  testSiblingThreeDuplicateAfterExecute();
+  testInactiveLearnerExcludedFromDuplicateRerun();
+  testUnrelatedAccountUnaffectedBySiblingDuplicate();
   testFailedIntegrityGateSiblingMissed();
   await testIntegrityFailureWritesNothing();
   console.log("invoiceRunExecute.test.ts: OK");

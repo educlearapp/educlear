@@ -20,6 +20,7 @@ import {
   previewInvoiceRun,
   executeInvoiceRun,
   applyInvoiceRunExecuteResponse,
+  undoInvoiceRun,
 } from "./billingApi";
 import {
   isLedgerBackedInvoiceRun,
@@ -2047,7 +2048,7 @@ export default function InvoiceRuns(props: any) {
 
 
 
-  const deleteCurrentRun = () => {
+  const deleteCurrentRun = async () => {
 
 
 
@@ -2083,14 +2084,60 @@ export default function InvoiceRuns(props: any) {
 
 
 
-    if (!window.confirm("Delete this invoice run?")) return;
-
     if (isLedgerBackedInvoiceRun(current)) {
-      alert(
-        "This invoice run is recorded on the server billing ledger and cannot be deleted from the browser. Remove browser-only drafts below if you still see ghost entries."
-      );
+      const runId = String(current.runId || current.id || "").trim();
+      const period =
+        String(current.invoicePeriod || current.period || current.month || "").trim() ||
+        "unknown period";
+      const invoiceCount = Number(current.totalInvoices || 0);
+      const totalAmount = Number(current.totalAmount || 0);
+      const confirmMessage = [
+        "Undo executed invoice run on the server?",
+        "",
+        `Run ID: ${runId}`,
+        `Period: ${period}`,
+        `Invoices: ${invoiceCount || "unknown"}`,
+        `Total: R ${totalAmount.toLocaleString("en-ZA", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`,
+        "",
+        "This permanently removes the invoice ledger rows for this run.",
+      ].join("\n");
+      if (!window.confirm(confirmMessage)) return;
+
+      const schoolId = localStorage.getItem("schoolId") || "";
+      if (!schoolId || !runId) {
+        alert("Missing school or run id for server undo.");
+        return;
+      }
+
+      try {
+        const result = await undoInvoiceRun({
+          schoolId,
+          runId,
+          expectedCount: invoiceCount > 0 ? invoiceCount : undefined,
+          expectedTotal: totalAmount > 0 ? totalAmount : undefined,
+        });
+        if (!result.success) {
+          alert(result.error || "Server undo failed.");
+          return;
+        }
+        await syncBillingLedgerFromApi(schoolId);
+        await loadServerInvoiceRuns();
+        await loadBillingData();
+        window.dispatchEvent(new Event(BILLING_UPDATED_EVENT));
+        localStorage.removeItem("educlearSelectedInvoiceRun");
+        setInvoiceRunView("list");
+        alert(
+          result.alreadyUndone
+            ? "Invoice run was already undone on the server."
+            : `Invoice run undone (${result.removedCount ?? 0} invoice row(s) removed).`
+        );
+      } catch (error) {
+        alert(error instanceof Error ? error.message : "Server undo failed.");
+      }
       return;
     }
+
+    if (!window.confirm("Delete this browser-only invoice run draft?")) return;
 
     const existingRuns = toArray(
 
@@ -7679,7 +7726,7 @@ export default function InvoiceRuns(props: any) {
 
 
 
-            <option value="delete">Undo / Delete</option>
+            <option value="delete">Undo executed run / Delete draft</option>
 
 
 

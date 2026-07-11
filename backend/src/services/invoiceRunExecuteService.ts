@@ -342,6 +342,11 @@ export function validateSiblingAccounts(
         continue;
       }
 
+      if (row.status === "skipped" && row.skipReason === "DUPLICATE_INVOICE") {
+        skippedCount += 1;
+        continue;
+      }
+
       expectedTotal += amount;
       if (row.status === "invoiced") {
         invoicedCount += 1;

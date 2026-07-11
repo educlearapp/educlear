@@ -22,6 +22,8 @@ export type BillingLedgerEntry = {
   invoicePeriod?: string;
   /** Stable per-line identity for manual/family invoices (sibling lines). */
   lineKey?: string;
+  /** Learner actually billed on this invoice line (may differ from posting learnerId on family accounts). */
+  billedLearnerId?: string;
   /** Set when payment was posted from bank reconciliation. */
   bankTransactionId?: string;
   bankImportId?: string;
@@ -220,7 +222,7 @@ export function invoiceDuplicateFingerprint(
 function invoiceFingerprintFromEntry(entry: BillingLedgerEntry): string {
   return invoiceDuplicateFingerprint(entry.schoolId, {
     accountNo: entry.accountNo,
-    learnerId: entry.learnerId,
+    learnerId: resolveInvoiceBilledLearnerId(entry),
     lineKey: entry.lineKey,
     description: entry.description,
     invoiceDate: entry.date,
@@ -525,6 +527,32 @@ export function removeSchoolEntry(schoolId: string, entryId: string): BillingLed
   });
 }
 
+export function removeSchoolEntriesByIds(
+  schoolId: string,
+  entryIds: string[]
+): { removed: BillingLedgerEntry[]; removedCount: number } {
+  const sid = String(schoolId || "").trim();
+  const ids = new Set(entryIds.map((id) => String(id || "").trim()).filter(Boolean));
+  if (!sid || !ids.size) return { removed: [], removedCount: 0 };
+
+  return withBillingLedgerLock(() => {
+    const storeKey = resolveBillingLedgerStoreKey(sid);
+    if (!storeKey) return { removed: [], removedCount: 0 };
+    const all = readAll();
+    const entries = Array.isArray(all[storeKey]) ? [...all[storeKey]] : [];
+    const removed: BillingLedgerEntry[] = [];
+    const kept: BillingLedgerEntry[] = [];
+    for (const entry of entries) {
+      if (ids.has(entry.id)) removed.push(entry);
+      else kept.push(entry);
+    }
+    if (!removed.length) return { removed: [], removedCount: 0 };
+    all[storeKey] = kept;
+    writeAll(all);
+    return { removed, removedCount: removed.length };
+  });
+}
+
 export function listInvoices(schoolId: string) {
   return readSchoolLedger(schoolId).filter((e) => e.type === "invoice");
 }
@@ -572,17 +600,24 @@ export function normalizeInvoicePeriod(input: string, invoiceDate?: string): str
   return fromDate || raw;
 }
 
+/** Identity used for per-learner duplicate detection (siblings share account posting learnerId). */
+export function resolveInvoiceBilledLearnerId(entry: BillingLedgerEntry): string {
+  return String(entry.billedLearnerId || entry.lineKey || entry.learnerId || "").trim();
+}
+
 function invoiceEntryMatchesPeriod(
   entry: BillingLedgerEntry,
   learnerId: string,
   invoicePeriod: string
 ): boolean {
   if (entry.type !== "invoice") return false;
-  if (String(entry.learnerId || "").trim() !== learnerId) return false;
   if (entry.undoneAt) return false;
 
   const period = String(invoicePeriod || "").trim();
   if (!period) return false;
+
+  const billedLearnerId = resolveInvoiceBilledLearnerId(entry);
+  if (billedLearnerId !== String(learnerId || "").trim()) return false;
 
   if (String(entry.invoicePeriod || "").trim() === period) return true;
 
