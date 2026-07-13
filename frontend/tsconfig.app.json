@@ -26,5 +26,5 @@
 "noUncheckedSideEffectImports": true
   },
   "include": ["src"],
-  "exclude": ["src/SchoolDashboard_BACKUP_TODAY.tsx"]
+  "exclude": ["src/SchoolDashboard_BACKUP_TODAY.tsx", "src/**/*.test.ts"]
 }

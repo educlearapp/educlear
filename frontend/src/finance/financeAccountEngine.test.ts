@@ -205,5 +205,75 @@ function testGroupedBalanceHealthClassification() {
   console.log("✓ grouped account health uses positive balance/monthly fee and excludes reliable future invoices");
 }
 
+/** Confirmed Da Silva classifications — statement balance + billing-plan monthly fee only. */
+function testConfirmedActiveAccountClassifications() {
+  installLocalStorageMock();
+  const schoolId = "school-test";
+  const today = "2026-07-13";
+
+  const rows = [
+    statementRow({
+      id: "learner-ram019",
+      learnerId: "learner-ram019",
+      accountNo: "RAM019",
+      balance: 2800,
+      status: "Recently Owing",
+      ageAnalysis: { accountHolder: "Ramokoka", balance: 2800, buckets: { current: 0, d30: 0, d60: 0, d90: 0, d120: 0 } },
+    }),
+    statementRow({
+      id: "learner-leg003",
+      learnerId: "learner-leg003",
+      accountNo: "LEG003",
+      balance: 8700,
+      status: "Recently Owing",
+      ageAnalysis: { accountHolder: "Legari", balance: 8700, buckets: { current: 0, d30: 0, d60: 0, d90: 0, d120: 0 } },
+    }),
+    statementRow({
+      id: "learner-ram011",
+      learnerId: "learner-ram011",
+      accountNo: "RAM011",
+      balance: 7100,
+      status: "Recently Owing",
+      ageAnalysis: { accountHolder: "Ramalete", balance: 7100, buckets: { current: 0, d30: 0, d60: 0, d90: 0, d120: 0 } },
+    }),
+  ];
+
+  const learners = [
+    { id: "learner-ram019", firstName: "Loatile", lastName: "Ramokoka", enrollmentStatus: "ACTIVE", billingPlan: [{ amount: 2800 }] },
+    { id: "learner-leg003", firstName: "Thato", lastName: "Legari", enrollmentStatus: "ACTIVE", billingPlan: [{ amount: 4350 }] },
+    { id: "learner-ram011", firstName: "Rethabile", lastName: "Ramalete", enrollmentStatus: "ACTIVE", billingPlan: [{ amount: 3550 }] },
+  ];
+
+  const snapshots = buildFinanceAccountSnapshots({
+    schoolId,
+    learners,
+    statementRows: rows,
+    policy: DEFAULT_FINANCE_POLICY,
+    today,
+  });
+
+  const ram019 = snapshots.find((s) => s.accountRef === "RAM019");
+  const leg003 = snapshots.find((s) => s.accountRef === "LEG003");
+  const ram011 = snapshots.find((s) => s.accountRef === "RAM011");
+
+  assert(Boolean(ram019), "RAM019 snapshot exists");
+  assert(ram019!.monthsOutstanding === 1, `RAM019 months expected 1 got ${ram019!.monthsOutstanding}`);
+  assert(ram019!.collectionsHealth === "Needs Attention", `RAM019 health expected NA got ${ram019!.collectionsHealth}`);
+  assert(ram019!.dueNow === 2800, `RAM019 dueNow expected 2800 got ${ram019!.dueNow}`);
+
+  assert(Boolean(leg003), "LEG003 snapshot exists");
+  assert(leg003!.monthsOutstanding === 2, `LEG003 months expected 2 got ${leg003!.monthsOutstanding}`);
+  assert(leg003!.collectionsHealth === "Action Required", `LEG003 health expected AR got ${leg003!.collectionsHealth}`);
+  assert(leg003!.dueNow === 8700, `LEG003 dueNow expected 8700 got ${leg003!.dueNow}`);
+
+  assert(Boolean(ram011), "RAM011 snapshot exists");
+  assert(ram011!.monthsOutstanding === 2, `RAM011 months expected 2 got ${ram011!.monthsOutstanding}`);
+  assert(ram011!.collectionsHealth === "Action Required", `RAM011 health expected AR got ${ram011!.collectionsHealth}`);
+  assert(ram011!.dueNow === 7100, `RAM011 dueNow expected 7100 got ${ram011!.dueNow}`);
+
+  console.log("✓ RAM019 / LEG003 / RAM011 confirmed classifications unchanged");
+}
+
 testGroupedBalanceHealthClassification();
+testConfirmedActiveAccountClassifications();
 console.log("\nAll financeAccountEngine tests passed.");

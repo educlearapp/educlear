@@ -14,12 +14,15 @@ import {
   type FinanceAccountSnapshot,
   groupCollectionsSnapshotsByHealth,
 } from "../finance/financeAccountEngine";
+import { filterActiveCollectionsSnapshots } from "../finance/collectionsEnrollment";
 import { downloadSchoolStatementPdf } from "./statementDocument";
 import { DEFAULT_STATEMENT_PERIOD, buildStatementPdfFilename } from "./statementPeriod";
 
 type Props = {
   schoolId: string;
   learners: unknown[];
+  /** All learners including HISTORICAL — used to exclude unenrolled debtor-only accounts. */
+  enrollmentLearners?: unknown[];
   statementRows: BillingAccountRow[];
 };
 
@@ -43,7 +46,12 @@ type ActionPanel =
   | { kind: "account"; snapshot: FinanceAccountSnapshot }
   | { kind: "payment-plan"; snapshot: FinanceAccountSnapshot };
 
-export default function FinanceCollectionsCentre({ schoolId, learners, statementRows }: Props) {
+export default function FinanceCollectionsCentre({
+  schoolId,
+  learners,
+  enrollmentLearners,
+  statementRows,
+}: Props) {
   const [policy, setPolicy] = useState<FinancePolicySettings>(
     createDefaultBillingSettings().financePolicy
   );
@@ -69,16 +77,16 @@ export default function FinanceCollectionsCentre({ schoolId, learners, statement
     };
   }, [schoolId]);
 
-  const financeSnapshots = useMemo(
-    () =>
-      buildFinanceAccountSnapshots({
-        schoolId,
-        learners,
-        statementRows,
-        policy,
-      }),
-    [schoolId, learners, statementRows, policy]
-  );
+  const financeSnapshots = useMemo(() => {
+    const snapshots = buildFinanceAccountSnapshots({
+      schoolId,
+      learners,
+      statementRows,
+      policy,
+    });
+    const roster = enrollmentLearners?.length ? enrollmentLearners : learners;
+    return filterActiveCollectionsSnapshots(snapshots, roster);
+  }, [schoolId, learners, enrollmentLearners, statementRows, policy]);
 
   useEffect(() => {
     if (typeof localStorage === "undefined") return;

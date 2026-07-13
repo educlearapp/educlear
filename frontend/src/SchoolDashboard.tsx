@@ -16323,6 +16323,7 @@ return (
             <FinanceCollectionsCentre
               schoolId={schoolId || ""}
               learners={learners || []}
+              enrollmentLearners={registrationLearners}
               statementRows={statementRows}
             />
           );
