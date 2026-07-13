@@ -5,6 +5,7 @@ import "../parent/parentPortal.css";
 import { fetchBillingSettings } from "../billingSettings/billingSettingsApi";
 import { createDefaultBillingSettings } from "../billingSettings/components/billingSettingsConstants";
 import type { BillingAccountRow } from "./billingLedger";
+import { shouldShowLedgerFallbackWarning } from "./billingLedger";
 import {
   formatFinanceDate,
   formatFinanceMoney,
@@ -70,6 +71,13 @@ export default function FinanceHubPage({
       }),
     [schoolId, learners, statementRows, policy]
   );
+  const ledgerFallbackWarning = useMemo(
+    () => shouldShowLedgerFallbackWarning(schoolId),
+    [schoolId, statementRows]
+  );
+  const ledgerCacheNotice = ledgerFallbackWarning
+    ? "Showing cached billing ledger data. Live sync is unavailable — amounts may be outdated until the connection is restored."
+    : null;
   const groups = useMemo(() => groupFinanceSnapshotsByHealth(snapshots), [snapshots]);
   const selectedSnapshot = groups[activeHealth][0] || snapshots[0] || null;
 
@@ -154,6 +162,7 @@ export default function FinanceHubPage({
               learnerName={selectedSnapshot.learnerDisplayName}
               childrenOnAccount={selectedSnapshot.childrenOnAccount}
               summaryOverride={selectedSnapshot.summary}
+              ledgerCacheNotice={ledgerCacheNotice}
               statementBusy={statementBusyAccount === String(selectedSnapshot.row.accountNo || "").trim()}
               statementNotice={
                 statementNotice ||

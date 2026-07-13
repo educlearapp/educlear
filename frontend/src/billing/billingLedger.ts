@@ -110,6 +110,130 @@ const LEDGER_STORAGE_KEY = "educlearBillingLedger";
 const MIGRATED_FLAG_PREFIX = "educlearBillingLedgerMigrated:";
 /** Canonical JSON ledger bucket when live school id differs (Da Silva). */
 const CANONICAL_BILLING_LEDGER_SCHOOL_ID = "cmpideqeq0000108xb6ouv9zi";
+/** Skip localStorage writes above this size — large ledgers stay in memory only. */
+export const SAFE_LOCAL_LEDGER_CACHE_CHARS = 4 * 1024 * 1024;
+
+export type SchoolLedgerCacheStatus =
+  | "fresh"
+  | "fresh-local"
+  | "memory-only"
+  | "fallback"
+  | "pending"
+  | "empty";
+
+/** Authoritative in-memory ledger from the latest successful API fetch (or local upserts). */
+const memoryLedgerBySchool: Record<string, BillingLedgerEntry[]> = {};
+const ledgerCacheStatusBySchool: Record<string, SchoolLedgerCacheStatus> = {};
+const ledgerApiSyncFailedBySchool: Record<string, boolean> = {};
+const ledgerMemoryFreshBySchool: Record<string, boolean> = {};
+
+function isQuotaExceededError(error: unknown): boolean {
+  if (!error || typeof error !== "object") return false;
+  const name = String((error as { name?: string }).name || "");
+  const code = Number((error as { code?: number }).code);
+  return name === "QuotaExceededError" || code === 22;
+}
+
+export function getSchoolLedgerCacheStatus(schoolId: string): SchoolLedgerCacheStatus {
+  const storeKey = resolveLedgerStorageKey(String(schoolId || "").trim());
+  if (!storeKey) return "empty";
+  return ledgerCacheStatusBySchool[storeKey] || "empty";
+}
+
+export function getSchoolLedgerRuntimeRowCount(schoolId: string): number {
+  const storeKey = resolveLedgerStorageKey(String(schoolId || "").trim());
+  if (!storeKey) return 0;
+  if (Array.isArray(memoryLedgerBySchool[storeKey])) {
+    return memoryLedgerBySchool[storeKey].length;
+  }
+  return readSchoolLedgerRaw(schoolId).length;
+}
+
+export function shouldShowLedgerFallbackWarning(schoolId: string): boolean {
+  const key = String(schoolId || "").trim();
+  if (!key) return false;
+  const status = getSchoolLedgerCacheStatus(key);
+  if (status === "fallback") return true;
+  if (status === "pending" && readSchoolLedgerRaw(key).length > 0) return true;
+  return false;
+}
+
+export function markSchoolLedgerApiSyncPending(schoolId: string) {
+  const key = String(schoolId || "").trim();
+  if (!key) return;
+  const storeKey = resolveLedgerStorageKey(key);
+  if (ledgerMemoryFreshBySchool[storeKey]) return;
+  ledgerCacheStatusBySchool[storeKey] = "pending";
+}
+
+export function markSchoolLedgerApiSyncFailed(schoolId: string) {
+  const key = String(schoolId || "").trim();
+  if (!key) return;
+  const storeKey = resolveLedgerStorageKey(key);
+  ledgerApiSyncFailedBySchool[storeKey] = true;
+  if (ledgerMemoryFreshBySchool[storeKey]) return;
+  ledgerCacheStatusBySchool[storeKey] = readSchoolLedgerRaw(key).length ? "fallback" : "empty";
+}
+
+export function clearSchoolLedgerRuntime(schoolId: string) {
+  const key = String(schoolId || "").trim();
+  if (!key) return;
+  const storeKey = resolveLedgerStorageKey(key);
+  delete memoryLedgerBySchool[storeKey];
+  delete ledgerCacheStatusBySchool[storeKey];
+  delete ledgerApiSyncFailedBySchool[storeKey];
+  delete ledgerMemoryFreshBySchool[storeKey];
+}
+
+/** Test-only reset — not used in production UI. */
+export function resetSchoolLedgerRuntimeForTests() {
+  for (const key of Object.keys(memoryLedgerBySchool)) delete memoryLedgerBySchool[key];
+  for (const key of Object.keys(ledgerCacheStatusBySchool)) delete ledgerCacheStatusBySchool[key];
+  for (const key of Object.keys(ledgerApiSyncFailedBySchool)) delete ledgerApiSyncFailedBySchool[key];
+  for (const key of Object.keys(ledgerMemoryFreshBySchool)) delete ledgerMemoryFreshBySchool[key];
+}
+
+function setMemorySchoolLedger(storeKey: string, entries: BillingLedgerEntry[], fromApi: boolean) {
+  memoryLedgerBySchool[storeKey] = entries;
+  if (fromApi) {
+    ledgerMemoryFreshBySchool[storeKey] = true;
+    ledgerApiSyncFailedBySchool[storeKey] = false;
+  }
+}
+
+type PersistLocalResult =
+  | { ok: true; mode: "local" }
+  | { ok: false; reason: "quota" | "too-large" | "error" };
+
+function removeSchoolLedgerFromLocalStorage(storeKey: string) {
+  const all = readAllLedgers();
+  if (!Object.prototype.hasOwnProperty.call(all, storeKey)) return;
+  delete all[storeKey];
+  try {
+    const payload = JSON.stringify(all);
+    if (payload.length <= SAFE_LOCAL_LEDGER_CACHE_CHARS) {
+      localStorage.setItem(LEDGER_STORAGE_KEY, payload);
+    } else if (Object.keys(all).length === 0) {
+      localStorage.removeItem(LEDGER_STORAGE_KEY);
+    }
+  } catch {
+    // Best-effort stale removal only.
+  }
+}
+
+function persistAllLedgersToLocalStorage(all: Record<string, BillingLedgerEntry[]>): PersistLocalResult {
+  const payload = JSON.stringify(all);
+  if (payload.length > SAFE_LOCAL_LEDGER_CACHE_CHARS) {
+    return { ok: false, reason: "too-large" };
+  }
+  try {
+    localStorage.setItem(LEDGER_STORAGE_KEY, payload);
+    return { ok: true, mode: "local" };
+  } catch (error) {
+    if (isQuotaExceededError(error)) return { ok: false, reason: "quota" };
+    return { ok: false, reason: "error" };
+  }
+}
 
 function resolveLedgerStorageKey(schoolId: string): string {
   const key = String(schoolId || "").trim();
@@ -166,11 +290,28 @@ function readJson<T>(key: string, fallback: T): T {
 }
 
 function writeJson(key: string, value: unknown) {
+  if (key !== LEDGER_STORAGE_KEY) {
+    try {
+      localStorage.setItem(key, JSON.stringify(value));
+    } catch (error) {
+      if (typeof console !== "undefined" && console.warn) {
+        console.warn(`[BillingLedger] localStorage write failed for ${key}`, error);
+      }
+    }
+    return;
+  }
+  const payload = JSON.stringify(value);
+  if (payload.length > SAFE_LOCAL_LEDGER_CACHE_CHARS) {
+    if (typeof console !== "undefined" && console.warn) {
+      console.warn(
+        `[BillingLedger] localStorage write skipped for ${key}: payload ${payload.length} chars exceeds safe limit`
+      );
+    }
+    return;
+  }
   try {
-    localStorage.setItem(key, JSON.stringify(value));
+    localStorage.setItem(key, payload);
   } catch (error) {
-    // Migrated schools can hit localStorage quotas due to large ledgers.
-    // Writes are best-effort: the UI still works from API + in-memory state.
     if (typeof console !== "undefined" && console.warn) {
       console.warn(`[BillingLedger] localStorage write failed for ${key}`, error);
     }
@@ -196,20 +337,50 @@ function readSchoolLedgerRaw(schoolId: string): BillingLedgerEntry[] {
 export function readSchoolLedger(schoolId: string): BillingLedgerEntry[] {
   const key = String(schoolId || "").trim();
   if (!key) return [];
-  migrateLegacyLedgerIfNeeded(resolveLedgerStorageKey(key));
-  return readSchoolLedgerRaw(key);
+  const storeKey = resolveLedgerStorageKey(key);
+  if (Array.isArray(memoryLedgerBySchool[storeKey])) {
+    return memoryLedgerBySchool[storeKey];
+  }
+  migrateLegacyLedgerIfNeeded(storeKey);
+  const cached = readSchoolLedgerRaw(key);
+  if (cached.length) {
+    if (ledgerApiSyncFailedBySchool[storeKey]) {
+      ledgerCacheStatusBySchool[storeKey] = "fallback";
+    } else if (!ledgerCacheStatusBySchool[storeKey]) {
+      ledgerCacheStatusBySchool[storeKey] = "pending";
+    }
+  } else if (!ledgerCacheStatusBySchool[storeKey]) {
+    ledgerCacheStatusBySchool[storeKey] = "empty";
+  }
+  return cached;
 }
 
 export function writeSchoolLedger(
   schoolId: string,
   entries: BillingLedgerEntry[],
-  opts?: { notify?: boolean }
+  opts?: { notify?: boolean; fromApi?: boolean }
 ) {
   const storeKey = resolveLedgerStorageKey(schoolId);
   if (!storeKey) return;
+  setMemorySchoolLedger(storeKey, entries, opts?.fromApi === true);
   const all = readAllLedgers();
   all[storeKey] = entries;
-  writeAllLedgers(all);
+  const persist = persistAllLedgersToLocalStorage(all);
+  if (persist.ok) {
+    if (ledgerMemoryFreshBySchool[storeKey]) {
+      ledgerCacheStatusBySchool[storeKey] = "fresh-local";
+    }
+  } else if (ledgerMemoryFreshBySchool[storeKey]) {
+    ledgerCacheStatusBySchool[storeKey] = "memory-only";
+    removeSchoolLedgerFromLocalStorage(storeKey);
+    if (typeof console !== "undefined" && console.warn) {
+      console.warn(
+        `[BillingLedger] localStorage cache disabled for ${storeKey} (${persist.reason}); using in-memory ledger`
+      );
+    }
+  } else {
+    writeAllLedgers(all);
+  }
   if (opts?.notify !== false) notifyBillingUpdated();
 }
 
@@ -1035,7 +1206,7 @@ export function mergeApiLedger(schoolId: string, entries: BillingLedgerEntry[]) 
 export function replaceSchoolLedgerFromApi(schoolId: string, entries: BillingLedgerEntry[]) {
   const key = String(schoolId || "").trim();
   if (!key) return;
-  writeSchoolLedger(key, entries);
+  writeSchoolLedger(key, entries, { fromApi: true });
 }
 
 function migrateLegacyLedgerIfNeeded(schoolId: string) {

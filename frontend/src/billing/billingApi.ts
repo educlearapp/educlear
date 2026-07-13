@@ -1,6 +1,9 @@
 import { API_URL } from "../api";
 import {
+  clearSchoolLedgerRuntime,
   mergeApiLedger,
+  markSchoolLedgerApiSyncFailed,
+  markSchoolLedgerApiSyncPending,
   notifyBillingUpdated,
   replaceSchoolLedgerFromApi,
   type BillingLedgerEntry,
@@ -346,8 +349,16 @@ export const syncKidesysHistoryFromApi = async (schoolId: string) => {
 export const syncBillingLedgerFromApi = async (schoolId: string) => {
   const sid = String(schoolId || "").trim();
   if (!sid) return;
+  markSchoolLedgerApiSyncPending(sid);
 
-  const ledgerRows = await fetchLedger(sid);
+  const ledgerUrl = `${API_URL}/api/invoices/ledger?schoolId=${encodeURIComponent(sid)}`;
+  const ledgerData = await getJson(ledgerUrl);
+  if (!ledgerData) {
+    markSchoolLedgerApiSyncFailed(sid);
+    return;
+  }
+
+  const ledgerRows = parseArray(ledgerData, ["entries", "ledger", "items"]);
   if (ledgerRows.length) {
     const entries = ledgerRows.map((row: any) => mapApiRowToLedgerEntry(sid, row));
     replaceSchoolLedgerFromApi(sid, entries);
@@ -355,6 +366,11 @@ export const syncBillingLedgerFromApi = async (schoolId: string) => {
   }
 
   const [invoices, payments] = await Promise.all([fetchInvoices(sid), fetchPayments(sid)]);
+  if (!invoices.length && !payments.length) {
+    markSchoolLedgerApiSyncFailed(sid);
+    return;
+  }
+
   const entries: BillingLedgerEntry[] = [
     ...invoices.map((row: any) => mapApiRowToLedgerEntry(sid, { ...row, type: "invoice" })),
     ...payments.map((row: any) =>
@@ -364,6 +380,8 @@ export const syncBillingLedgerFromApi = async (schoolId: string) => {
 
   if (entries.length) {
     replaceSchoolLedgerFromApi(sid, entries);
+  } else {
+    markSchoolLedgerApiSyncFailed(sid);
   }
 };
 
@@ -454,6 +472,7 @@ export function clearBillingDisplayCacheForSchoolSwitch(schoolId: string) {
   const key = String(schoolId || "").trim();
   if (!key) return;
   clearSchoolBillingDisplayCache(key);
+  clearSchoolLedgerRuntime(key);
   delete syncStateBySchool[key];
 }
 

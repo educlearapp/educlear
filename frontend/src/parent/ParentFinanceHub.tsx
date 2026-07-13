@@ -27,6 +27,7 @@ type Props = {
   learnerName?: string;
   childrenOnAccount: { id: string; firstName: string; lastName: string; grade?: string }[];
   summaryOverride?: FinanceHubSummary;
+  ledgerCacheNotice?: string | null;
   statementNotice?: string | null;
   statementBusy: boolean;
   onDownloadStatement: () => void;
@@ -46,6 +47,7 @@ export default function ParentFinanceHub({
   learnerName,
   childrenOnAccount,
   summaryOverride,
+  ledgerCacheNotice,
   statementNotice,
   statementBusy,
   onDownloadStatement,
@@ -138,6 +140,12 @@ export default function ParentFinanceHub({
           <strong>{formatFinanceMoney(summary.amountYouOwe)}</strong>
         </div>
       </section>
+
+      {ledgerCacheNotice ? (
+        <div className="parent-finance-message parent-finance-message--warning" role="status">
+          {ledgerCacheNotice}
+        </div>
+      ) : null}
 
       {notice ? (
         <div className="parent-finance-message" role="status">
