@@ -94,7 +94,8 @@ export async function buildInvoiceEntry(
   body: InvoiceInputBody,
   settings: Awaited<ReturnType<typeof loadSchoolBillingSettings>>,
   existingInvoiceCount: number,
-  index = 0
+  index = 0,
+  opts: { accountPrevalidated?: boolean } = {}
 ): Promise<InvoiceBuildResult> {
   const learnerId = String(body.learnerId || "").trim();
   const amount = normaliseAmount(body.amount);
@@ -102,14 +103,28 @@ export async function buildInvoiceEntry(
     return { error: "Missing amount" };
   }
 
-  const consistency = await validateManualInvoiceLearnerAccount(schoolId, body);
-  if (!consistency.ok) {
-    return { error: consistency.error, errorCode: consistency.errorCode };
-  }
+  let resolvedAccountNo = String(body.accountNo || body.accountRef || "").trim().toUpperCase();
+  if (!opts.accountPrevalidated) {
+    const consistency = await validateManualInvoiceLearnerAccount(schoolId, body);
+    if (!consistency.ok) {
+      return { error: consistency.error, errorCode: consistency.errorCode };
+    }
 
-  const resolved = await resolveInvoiceAccountNo(schoolId, body);
-  if (!resolved.accountNo) {
-    return { error: resolved.error || "Invalid account" };
+    const resolved = await resolveInvoiceAccountNo(schoolId, body);
+    if (!resolved.accountNo) {
+      return { error: resolved.error || "Invalid account" };
+    }
+    resolvedAccountNo = resolved.accountNo;
+  } else if (!resolvedAccountNo) {
+    return { error: "Missing accountNo" };
+  } else {
+    try {
+      assertOfficialBillingAccountRef(schoolId, resolvedAccountNo);
+    } catch (guardError) {
+      const message =
+        guardError instanceof Error ? guardError.message : "Invalid billing account ref";
+      return { error: message };
+    }
   }
 
   const invoiceDate =
@@ -138,14 +153,14 @@ export async function buildInvoiceEntry(
   const invoicePeriod = String(body.invoicePeriod || "").trim() || undefined;
   const billedLearnerId = String(body.billedLearnerId || learnerId || lineKey || "").trim() || undefined;
   const defaultId = runId
-    ? buildInvoiceRunEntryId(runId, billedLearnerId || learnerId, resolved.accountNo, lineKey || String(index))
+    ? buildInvoiceRunEntryId(runId, billedLearnerId || learnerId, resolvedAccountNo, lineKey || String(index))
     : `invoice-${Date.now()}-${index}-${Math.random().toString(36).slice(2, 8)}`;
 
   const entry: BillingLedgerEntry = {
     id: String(body.id || defaultId).trim() || defaultId,
     schoolId,
     learnerId,
-    accountNo: resolved.accountNo,
+    accountNo: resolvedAccountNo,
     type: "invoice",
     amount,
     date: invoiceDate,

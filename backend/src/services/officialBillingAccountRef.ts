@@ -3,6 +3,14 @@ import { isKidESysSourceAccountRef } from "./daSilvaMigration/ageAnalysisParser"
 import { readSchoolFamilyAccountAgeAnalysisSnapshots } from "../utils/familyAccountAgeAnalysisStore";
 import { resolveLearnerAccountNo } from "../utils/learnerIdentity";
 
+const officialRefsBySchool = new Map<string, Set<string>>();
+
+/** @internal Test hook — clears memoized official account ref sets. */
+export function invalidateOfficialBillingAccountRefsCache(schoolId?: string): void {
+  if (schoolId) officialRefsBySchool.delete(String(schoolId || "").trim());
+  else officialRefsBySchool.clear();
+}
+
 export function normaliseOfficialBillingAccountRef(value: unknown): string {
   const ref = String(value ?? "").trim().toUpperCase();
   if (!ref || !isKidESysSourceAccountRef(ref)) return "";
@@ -11,12 +19,17 @@ export function normaliseOfficialBillingAccountRef(value: unknown): string {
 
 /** Kid-e-Sys age-analysis snapshot account refs — authoritative billing list when non-empty. */
 export function readOfficialBillingAccountRefs(schoolId: string): Set<string> {
+  const sid = String(schoolId || "").trim();
+  const cached = officialRefsBySchool.get(sid);
+  if (cached) return cached;
+
   const snapshots = readSchoolFamilyAccountAgeAnalysisSnapshots(schoolId);
   const refs = new Set<string>();
   for (const key of Object.keys(snapshots || {})) {
     const ref = normaliseOfficialBillingAccountRef(key);
     if (ref) refs.add(ref);
   }
+  officialRefsBySchool.set(sid, refs);
   return refs;
 }
 

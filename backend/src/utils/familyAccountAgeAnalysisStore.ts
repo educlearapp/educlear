@@ -31,12 +31,25 @@ function ensureStore() {
   if (!fs.existsSync(STORE_FILE)) fs.writeFileSync(STORE_FILE, JSON.stringify({}, null, 2), "utf8");
 }
 
+let ageAnalysisFileCache: { mtimeMs: number; data: StoreFile } | null = null;
+
+/** @internal Test hook — clears in-process parsed age-analysis cache. */
+export function invalidateFamilyAccountAgeAnalysisFileCache(): void {
+  ageAnalysisFileCache = null;
+}
+
 function readAll(): StoreFile {
   ensureStore();
   try {
+    const stat = fs.statSync(STORE_FILE);
+    if (ageAnalysisFileCache && ageAnalysisFileCache.mtimeMs === stat.mtimeMs) {
+      return ageAnalysisFileCache.data;
+    }
     const raw = fs.readFileSync(STORE_FILE, "utf8");
     const parsed = JSON.parse(raw);
-    return parsed && typeof parsed === "object" ? (parsed as StoreFile) : {};
+    const data = parsed && typeof parsed === "object" ? (parsed as StoreFile) : {};
+    ageAnalysisFileCache = { mtimeMs: stat.mtimeMs, data };
+    return data;
   } catch {
     return {};
   }
@@ -45,6 +58,7 @@ function readAll(): StoreFile {
 function writeAll(data: StoreFile) {
   ensureStore();
   fs.writeFileSync(STORE_FILE, JSON.stringify(data, null, 2), "utf8");
+  ageAnalysisFileCache = null;
 }
 
 export function readSchoolFamilyAccountAgeAnalysisSnapshots(

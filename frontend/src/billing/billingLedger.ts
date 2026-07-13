@@ -140,6 +140,13 @@ export function getSchoolLedgerCacheStatus(schoolId: string): SchoolLedgerCacheS
   return ledgerCacheStatusBySchool[storeKey] || "empty";
 }
 
+/** True when the in-memory ledger was populated by the latest API sync. */
+export function isSchoolLedgerFreshFromApi(schoolId: string): boolean {
+  const storeKey = resolveLedgerStorageKey(String(schoolId || "").trim());
+  if (!storeKey) return false;
+  return ledgerMemoryFreshBySchool[storeKey] === true;
+}
+
 export function getSchoolLedgerRuntimeRowCount(schoolId: string): number {
   const storeKey = resolveLedgerStorageKey(String(schoolId || "").trim());
   if (!storeKey) return 0;

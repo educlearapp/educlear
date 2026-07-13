@@ -10,6 +10,7 @@ import {
   listInvoiceRunsFromLedger,
 } from "../services/invoiceRunListService";
 import { undoInvoiceRun } from "../services/invoiceRunUndoService";
+import { readSchoolLedger } from "../utils/billingLedgerStore";
 
 const router = Router();
 
@@ -21,8 +22,9 @@ router.get("/", async (req, res) => {
       return res.status(400).json({ success: false, error: "Missing schoolId" });
     }
 
-    const runs = listInvoiceRunsFromLedger(schoolId);
-    const invoicePeriodCounts = countInvoicesByPeriod(schoolId);
+    const ledger = readSchoolLedger(schoolId);
+    const runs = listInvoiceRunsFromLedger(schoolId, { ledger });
+    const invoicePeriodCounts = countInvoicesByPeriod(schoolId, { ledger });
 
     return res.json({
       success: true,

@@ -33,11 +33,18 @@ import {
 import { calculateLastPayment } from "./billingCalculations";
 import {
   BILLING_UPDATED_EVENT,
-  calculateAccountBalance,
-  getAccountLedger,
   readSchoolLedger,
 } from "./billingLedger";
-import { syncBillingLedgerFromApi } from "./billingApi";
+import { syncBillingLedgerFromApi, syncStatementSummariesFromApi } from "./billingApi";
+import {
+  formatInvoiceRunBalanceAmount,
+  formatInvoiceRunBalanceResult,
+  invoiceRunBalanceStatusColor,
+  invoiceRunBalanceStatusLabel,
+  invoiceRunBalanceToAmount,
+  resolveInvoiceRunBalance,
+  sumInvoiceRunBalanceAndAmount,
+} from "./invoiceRunBalance";
 import { buildStatementCoverEmailHtml, sendStatementEmail, resolveSchoolLogoUrl, STATEMENT_LOGO_IMG_STYLE } from "./statementDocument";
 
 
@@ -111,7 +118,7 @@ export default function InvoiceRuns(props: any) {
 
   } = props;
 
-  const [ledgerHydrated, setLedgerHydrated] = useState(false);
+  const [balanceDisplayRevision, setBalanceDisplayRevision] = useState(0);
 
   const [invoices, setInvoices] = useState<Invoice[]>([]);
 
@@ -123,6 +130,7 @@ export default function InvoiceRuns(props: any) {
   
   const [billingLoading, setBillingLoading] = useState(false);
   const invoiceRunNotifiedRef = useRef<string>("");
+  const invoiceRunPreviewInFlightRef = useRef(false);
   const [invoiceRunServerPreview, setInvoiceRunServerPreview] = useState<any | null>(null);
   const [invoiceRunPreviewLoading, setInvoiceRunPreviewLoading] = useState(false);
   const [invoiceRunPreviewError, setInvoiceRunPreviewError] = useState("");
@@ -225,19 +233,10 @@ export default function InvoiceRuns(props: any) {
   
   
   
-      const invoicesData =
-  
-  
-  
-        await fetchInvoices(schoolId);
-  
-  
-  
-      const paymentsData =
-  
-  
-  
-        await fetchPayments(schoolId);
+      const [invoicesData, paymentsData] = await Promise.all([
+        fetchInvoices(schoolId),
+        fetchPayments(schoolId),
+      ]);
   
   
   
@@ -325,23 +324,45 @@ export default function InvoiceRuns(props: any) {
   }, [loadServerInvoiceRuns, setStoredRuns]);
 
   const getLearnerOutstandingBalance = (learnerId: string, accountNo = "") => {
-    if (!ledgerHydrated) return 0;
-    const ledger = getAccountLedger(schoolIdForLedger, learnerId, accountNo);
-    return calculateAccountBalance(ledger, learnerId, accountNo);
+    void balanceDisplayRevision;
+    return resolveInvoiceRunBalance(schoolIdForLedger, learnerId, accountNo);
   };
 
+  const getLearnerOutstandingBalanceAmount = (learnerId: string, accountNo = "") =>
+    invoiceRunBalanceToAmount(getLearnerOutstandingBalance(learnerId, accountNo));
+
+  const renderLearnerBalance = (learnerId: string, accountNo = "") =>
+    formatInvoiceRunBalanceResult(
+      getLearnerOutstandingBalance(learnerId, accountNo),
+      (amount) => money(amount)
+    );
+
   useEffect(() => {
-    if (!schoolIdForLedger) {
-      setLedgerHydrated(true);
-      return;
-    }
+    if (!schoolIdForLedger) return;
     readSchoolLedger(schoolIdForLedger);
-    setLedgerHydrated(true);
   }, [schoolIdForLedger]);
 
   useEffect(() => {
     if (!schoolIdForLedger) return;
-    syncBillingLedgerFromApi(schoolIdForLedger).catch(() => {});
+    let cancelled = false;
+    void syncStatementSummariesFromApi(schoolIdForLedger).then(() => {
+      if (!cancelled) setBalanceDisplayRevision((value) => value + 1);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [schoolIdForLedger]);
+
+  useEffect(() => {
+    if (!schoolIdForLedger) return;
+    if (!String(invoiceRunView || "").startsWith("wizard")) return;
+    void syncBillingLedgerFromApi(schoolIdForLedger).then(() => {
+      setBalanceDisplayRevision((value) => value + 1);
+    });
+  }, [schoolIdForLedger, invoiceRunView]);
+
+  useEffect(() => {
+    if (!schoolIdForLedger) return;
     const refresh = () => loadBillingData();
     window.addEventListener(BILLING_UPDATED_EVENT, refresh);
     return () => window.removeEventListener(BILLING_UPDATED_EVENT, refresh);
@@ -1224,7 +1245,7 @@ export default function InvoiceRuns(props: any) {
 
 
 
-        balance: getLearnerOutstandingBalance(
+        balance: getLearnerOutstandingBalanceAmount(
           learner.id || learner.learnerId,
           getLearnerAccountNo(learner)
         ),
@@ -1236,12 +1257,13 @@ export default function InvoiceRuns(props: any) {
 
 
 
-        newBalance:
-
-  getLearnerOutstandingBalance(
-    learner.id || learner.learnerId,
-    getLearnerAccountNo(learner)
-  ) + invoiceAmount,
+        newBalance: sumInvoiceRunBalanceAndAmount(
+          getLearnerOutstandingBalanceAmount(
+            learner.id || learner.learnerId,
+            getLearnerAccountNo(learner)
+          ),
+          invoiceAmount
+        ),
 
 
 
@@ -1513,6 +1535,8 @@ export default function InvoiceRuns(props: any) {
   const loadInvoiceRunPreview = async (run: any) => {
     const schoolId = localStorage.getItem("schoolId") || "";
     if (!schoolId || !run?.id) return null;
+    if (invoiceRunPreviewInFlightRef.current) return invoiceRunServerPreview;
+    invoiceRunPreviewInFlightRef.current = true;
     setInvoiceRunPreviewLoading(true);
     setInvoiceRunPreviewError("");
     try {
@@ -1526,6 +1550,7 @@ export default function InvoiceRuns(props: any) {
       setInvoiceRunServerPreview(null);
       return null;
     } finally {
+      invoiceRunPreviewInFlightRef.current = false;
       setInvoiceRunPreviewLoading(false);
     }
   };
@@ -2892,7 +2917,7 @@ export default function InvoiceRuns(props: any) {
 
 
 
-                <td style="text-align:right;">${money(row.newBalance || 0)}</td>
+                <td style="text-align:right;">${formatInvoiceRunBalanceAmount(row.newBalance, (amount) => money(amount))}</td>
 
 
 
@@ -2924,7 +2949,7 @@ export default function InvoiceRuns(props: any) {
 
 
 
-                <span>${money(row.balance || 0)}</span>
+                <span>${formatInvoiceRunBalanceAmount(row.balance, (amount) => money(amount))}</span>
 
 
 
@@ -2956,7 +2981,7 @@ export default function InvoiceRuns(props: any) {
 
 
 
-                <span>${money(row.newBalance || 0)}</span>
+                <span>${formatInvoiceRunBalanceAmount(row.newBalance, (amount) => money(amount))}</span>
 
 
 
@@ -4993,7 +5018,7 @@ export default function InvoiceRuns(props: any) {
 
 
 
-                    {money(getLearnerOutstandingBalance(row.id || row.learnerId, row.accountNo || getLearnerAccountNo(row)))}
+                    {renderLearnerBalance(row.id || row.learnerId, row.accountNo || getLearnerAccountNo(row))}
 
 
 
@@ -5033,27 +5058,7 @@ export default function InvoiceRuns(props: any) {
 
 
 
-                        color:
-
-
-
-                          row.balance < 0
-
-
-
-                            ? "#15803d"
-
-
-
-                            : row.balance > 5000
-
-
-
-                              ? "#b91c1c"
-
-
-
-                              : "#ca8a04",
+                        color: invoiceRunBalanceStatusColor(row.balance),
 
 
 
@@ -5065,23 +5070,7 @@ export default function InvoiceRuns(props: any) {
 
 
 
-                      {row.balance < 0
-
-
-
-                        ? "Over Paid"
-
-
-
-                        : row.balance > 5000
-
-
-
-                          ? "Bad Debt"
-
-
-
-                          : "Recently Owing"}
+                      {invoiceRunBalanceStatusLabel(row.balance)}
 
 
 
@@ -5370,7 +5359,7 @@ export default function InvoiceRuns(props: any) {
 
 
 
-                    newBalance: Number(row.balance || 0) + invoiceAmount,
+                    newBalance: sumInvoiceRunBalanceAndAmount(row.balance, invoiceAmount),
 
 
 
@@ -5672,7 +5661,7 @@ export default function InvoiceRuns(props: any) {
 
 
 
-                    <td style={{ ...td, textAlign: "right" }}>{money(getLearnerOutstandingBalance(row.id || row.learnerId, row.accountNo || getLearnerAccountNo(row)))}</td>
+                    <td style={{ ...td, textAlign: "right" }}>{renderLearnerBalance(row.id || row.learnerId, row.accountNo || getLearnerAccountNo(row))}</td>
 
 
 
@@ -5704,7 +5693,7 @@ export default function InvoiceRuns(props: any) {
 
 
 
-                      {money(row.newBalance)}
+                      {formatInvoiceRunBalanceAmount(row.newBalance, (amount) => money(amount))}
 
 
 

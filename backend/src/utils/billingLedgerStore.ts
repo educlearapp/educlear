@@ -43,17 +43,38 @@ export { isKidesysOpeningBalanceEntry } from "./billingDisplayRules";
 
 type LedgerFile = Record<string, BillingLedgerEntry[]>;
 
-const DATA_DIR = path.join(process.cwd(), "data");
-const LEDGER_FILE = path.join(DATA_DIR, "billing-ledger.json");
-const LEDGER_LOCK_FILE = path.join(DATA_DIR, ".billing-ledger.lock");
+let billingLedgerTestDataDir: string | null = null;
+
+function getDataDir(): string {
+  return billingLedgerTestDataDir ?? path.join(process.cwd(), "data");
+}
+
+function getLedgerFile(): string {
+  return path.join(getDataDir(), "billing-ledger.json");
+}
+
+function getLedgerLockFile(): string {
+  return path.join(getDataDir(), ".billing-ledger.lock");
+}
+
+/** @internal Test hook — redirect ledger I/O to an isolated fixture directory. */
+export function setBillingLedgerStoreDataDirForTests(dataDir: string | null): void {
+  billingLedgerTestDataDir = dataDir ? path.resolve(dataDir) : null;
+  invalidateBillingLedgerFileCache();
+}
+
+function ensureStore() {
+  const dataDir = getDataDir();
+  const ledgerFile = getLedgerFile();
+  if (!fs.existsSync(dataDir)) fs.mkdirSync(dataDir, { recursive: true });
+  if (!fs.existsSync(ledgerFile)) {
+    fs.writeFileSync(ledgerFile, JSON.stringify({}, null, 2), "utf8");
+  }
+}
+
 const DEFAULT_PAYMENT_DUPLICATE_WINDOW_MS = 120_000;
 const LEDGER_LOCK_MAX_WAIT_MS = 20_000;
 const LEDGER_LOCK_STALE_MS = 30_000;
-
-function ensureStore() {
-  if (!fs.existsSync(DATA_DIR)) fs.mkdirSync(DATA_DIR, { recursive: true });
-  if (!fs.existsSync(LEDGER_FILE)) fs.writeFileSync(LEDGER_FILE, JSON.stringify({}, null, 2), "utf8");
-}
 
 function sleepMs(ms: number) {
   const end = Date.now() + ms;
@@ -63,10 +84,11 @@ function sleepMs(ms: number) {
 }
 
 function clearStaleLedgerLock() {
+  const ledgerLockFile = getLedgerLockFile();
   try {
-    const stat = fs.statSync(LEDGER_LOCK_FILE);
+    const stat = fs.statSync(ledgerLockFile);
     if (Date.now() - stat.mtimeMs > LEDGER_LOCK_STALE_MS) {
-      fs.unlinkSync(LEDGER_LOCK_FILE);
+      fs.unlinkSync(ledgerLockFile);
     }
   } catch {
     /* no lock */
@@ -75,15 +97,16 @@ function clearStaleLedgerLock() {
 
 /** Process-wide exclusive lock for billing-ledger.json read-modify-write. */
 export function withBillingLedgerLock<T>(fn: () => T): T {
+  const ledgerLockFile = getLedgerLockFile();
   const started = Date.now();
   while (Date.now() - started < LEDGER_LOCK_MAX_WAIT_MS) {
     try {
-      fs.writeFileSync(LEDGER_LOCK_FILE, String(process.pid), { flag: "wx" });
+      fs.writeFileSync(ledgerLockFile, String(process.pid), { flag: "wx" });
       try {
         return fn();
       } finally {
         try {
-          fs.unlinkSync(LEDGER_LOCK_FILE);
+          fs.unlinkSync(ledgerLockFile);
         } catch {
           /* ignore */
         }
@@ -98,12 +121,26 @@ export function withBillingLedgerLock<T>(fn: () => T): T {
   throw new Error("Billing ledger is busy. Please retry in a moment.");
 }
 
+let ledgerFileCache: { mtimeMs: number; data: LedgerFile } | null = null;
+
+/** @internal Test hook — clears in-process parsed ledger cache. */
+export function invalidateBillingLedgerFileCache(): void {
+  ledgerFileCache = null;
+}
+
 function readAll(): LedgerFile {
   ensureStore();
+  const ledgerFile = getLedgerFile();
   try {
-    const raw = fs.readFileSync(LEDGER_FILE, "utf8");
+    const stat = fs.statSync(ledgerFile);
+    if (ledgerFileCache && ledgerFileCache.mtimeMs === stat.mtimeMs) {
+      return ledgerFileCache.data;
+    }
+    const raw = fs.readFileSync(ledgerFile, "utf8");
     const parsed = JSON.parse(raw);
-    return parsed && typeof parsed === "object" ? parsed : {};
+    const data = parsed && typeof parsed === "object" ? parsed : {};
+    ledgerFileCache = { mtimeMs: stat.mtimeMs, data };
+    return data;
   } catch {
     return {};
   }
@@ -111,9 +148,11 @@ function readAll(): LedgerFile {
 
 function writeAll(data: LedgerFile) {
   ensureStore();
-  const tmp = `${LEDGER_FILE}.${process.pid}.${Date.now()}.tmp`;
+  const ledgerFile = getLedgerFile();
+  const tmp = `${ledgerFile}.${process.pid}.${Date.now()}.tmp`;
   fs.writeFileSync(tmp, JSON.stringify(data, null, 2), "utf8");
-  fs.renameSync(tmp, LEDGER_FILE);
+  fs.renameSync(tmp, ledgerFile);
+  ledgerFileCache = null;
 }
 
 export type PaymentDuplicateFingerprint = {
@@ -625,14 +664,43 @@ function invoiceEntryMatchesPeriod(
   return entryDate === period;
 }
 
+function learnerInvoicePeriodKey(learnerId: string, invoicePeriod: string): string {
+  return `${String(learnerId || "").trim()}:${String(invoicePeriod || "").trim()}`;
+}
+
+/** O(1) duplicate lookup for invoice-run preview/execute when ledger is already in memory. */
+export function buildLearnerInvoicePeriodIndex(
+  entries: BillingLedgerEntry[]
+): Set<string> {
+  const index = new Set<string>();
+  for (const entry of entries) {
+    if (entry.type !== "invoice" || entry.undoneAt) continue;
+    const billedLearnerId = resolveInvoiceBilledLearnerId(entry);
+    if (!billedLearnerId) continue;
+
+    const explicitPeriod = String(entry.invoicePeriod || "").trim();
+    if (explicitPeriod) {
+      index.add(learnerInvoicePeriodKey(billedLearnerId, explicitPeriod));
+    }
+
+    const fromDate = String(entry.date || "").slice(0, 7);
+    if (/^\d{4}-\d{2}$/.test(fromDate)) {
+      index.add(learnerInvoicePeriodKey(billedLearnerId, fromDate));
+    }
+  }
+  return index;
+}
+
 export function learnerHasInvoiceForPeriod(
   entries: BillingLedgerEntry[],
   learnerId: string,
-  invoicePeriod: string
+  invoicePeriod: string,
+  index?: Set<string>
 ): boolean {
   const lid = String(learnerId || "").trim();
   const period = String(invoicePeriod || "").trim();
   if (!lid || !period) return false;
+  if (index) return index.has(learnerInvoicePeriodKey(lid, period));
   return entries.some((entry) => invoiceEntryMatchesPeriod(entry, lid, period));
 }
 

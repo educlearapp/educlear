@@ -21,9 +21,9 @@ import {
 import {
   appendSchoolEntriesSafe,
   buildInvoiceRunEntryId,
+  buildLearnerInvoicePeriodIndex,
   learnerHasInvoiceForPeriod,
   ledgerHasRunId,
-  listInvoices,
   normaliseAmount,
   normalizeInvoicePeriod,
   readSchoolLedger,
@@ -146,6 +146,7 @@ export type LearnerEligibilityInput = {
   accountError?: string;
   invoicePeriod: string;
   existingLedger: BillingLedgerEntry[];
+  invoicePeriodIndex?: Set<string>;
   extraFees?: StoredBillingPlanItem[];
 };
 
@@ -160,7 +161,7 @@ export type LearnerEligibilityResult = {
 export function evaluateLearnerEligibility(
   input: LearnerEligibilityInput
 ): LearnerEligibilityResult {
-  const { learner, planItems, accountNo, accountError, invoicePeriod, existingLedger, extraFees } =
+  const { learner, planItems, accountNo, accountError, invoicePeriod, existingLedger, invoicePeriodIndex, extraFees } =
     input;
 
   if (String(learner.enrollmentStatus || "").toUpperCase() !== "ACTIVE") {
@@ -206,7 +207,7 @@ export function evaluateLearnerEligibility(
     };
   }
 
-  if (learnerHasInvoiceForPeriod(existingLedger, learner.id, invoicePeriod)) {
+  if (learnerHasInvoiceForPeriod(existingLedger, learner.id, invoicePeriod, invoicePeriodIndex)) {
     return {
       billableEligible: true,
       status: "skipped",
@@ -283,7 +284,8 @@ export function validateSiblingAccounts(
   eligibilityByLearnerId: Map<string, LearnerEligibilityResult>,
   existingLedger: BillingLedgerEntry[],
   invoicePeriod: string,
-  resolveEligibilityForLearner?: (learner: LearnerRecord) => LearnerEligibilityResult
+  resolveEligibilityForLearner?: (learner: LearnerRecord) => LearnerEligibilityResult,
+  invoicePeriodIndex?: Set<string>
 ): InvoiceRunAccountValidation[] {
   const rowsById = new Map(learnerRows.map((row) => [row.learnerId, row]));
   const groupKeys = new Set<string>();
@@ -316,7 +318,7 @@ export function validateSiblingAccounts(
       const evalResult = getEligibility(learner);
       if (evalResult?.billableEligible) return true;
       if (evalResult?.skipReason === "DUPLICATE_INVOICE") return true;
-      if (learnerHasInvoiceForPeriod(existingLedger, learner.id, invoicePeriod)) return true;
+      if (learnerHasInvoiceForPeriod(existingLedger, learner.id, invoicePeriod, invoicePeriodIndex)) return true;
       return false;
     });
 
@@ -332,7 +334,7 @@ export function validateSiblingAccounts(
       const amount = evalResult?.amount || row?.amount || 0;
 
       if (!row) {
-        if (learnerHasInvoiceForPeriod(existingLedger, learner.id, invoicePeriod)) {
+        if (learnerHasInvoiceForPeriod(existingLedger, learner.id, invoicePeriod, invoicePeriodIndex)) {
           skippedCount += 1;
           continue;
         }
@@ -362,7 +364,7 @@ export function validateSiblingAccounts(
           .filter((learner) => {
             const row = rowsById.get(learner.id);
             if (row) return true;
-            return learnerHasInvoiceForPeriod(existingLedger, learner.id, invoicePeriod);
+            return learnerHasInvoiceForPeriod(existingLedger, learner.id, invoicePeriod, invoicePeriodIndex);
           })
           .map((learner) => learner.id)
       );
@@ -523,6 +525,7 @@ export async function executeInvoiceRun(
   }
 
   const existingLedger = readSchoolLedger(schoolId);
+  const invoicePeriodIndex = buildLearnerInvoicePeriodIndex(existingLedger);
   if (!dryRun && ledgerHasRunId(existingLedger, runId)) {
     const failed: InvoiceRunExecuteResult = {
       success: false,
@@ -592,6 +595,7 @@ export async function executeInvoiceRun(
 
   const learnerRows: InvoiceRunLearnerRow[] = [];
   const eligibilityByLearnerId = new Map<string, LearnerEligibilityResult>();
+  const accountResolvedByLearnerId = new Map<string, { accountNo: string; error?: string }>();
 
   for (const learner of allActiveLearners) {
     const planItems = resolveLearnerBillingPlanItems(
@@ -601,6 +605,7 @@ export async function executeInvoiceRun(
       explicitlyEmpty
     );
     const accountResolved = await resolveLearnerAccountForRun(schoolId, learner);
+    accountResolvedByLearnerId.set(learner.id, accountResolved);
     const eligibility = evaluateLearnerEligibility({
       learner,
       planItems,
@@ -608,6 +613,7 @@ export async function executeInvoiceRun(
       accountError: accountResolved.error,
       invoicePeriod,
       existingLedger,
+      invoicePeriodIndex,
       extraFees: extraFeesByLearnerId[learner.id],
     });
     eligibilityByLearnerId.set(learner.id, eligibility);
@@ -615,7 +621,7 @@ export async function executeInvoiceRun(
 
   for (const learner of processedLearners) {
     let eligibility = eligibilityByLearnerId.get(learner.id);
-    let accountNo = String(learner.familyAccount?.accountRef || "").trim().toUpperCase();
+    let accountResolved = accountResolvedByLearnerId.get(learner.id);
 
     if (!eligibility) {
       const planItems = resolveLearnerBillingPlanItems(
@@ -624,8 +630,10 @@ export async function executeInvoiceRun(
         planIndexes,
         explicitlyEmpty
       );
-      const accountResolved = await resolveLearnerAccountForRun(schoolId, learner);
-      accountNo = accountResolved.accountNo;
+      if (!accountResolved) {
+        accountResolved = await resolveLearnerAccountForRun(schoolId, learner);
+        accountResolvedByLearnerId.set(learner.id, accountResolved);
+      }
       eligibility = evaluateLearnerEligibility({
         learner,
         planItems,
@@ -633,13 +641,16 @@ export async function executeInvoiceRun(
         accountError: accountResolved.error,
         invoicePeriod,
         existingLedger,
+        invoicePeriodIndex,
         extraFees: extraFeesByLearnerId[learner.id],
       });
       eligibilityByLearnerId.set(learner.id, eligibility);
-    } else {
-      const accountResolved = await resolveLearnerAccountForRun(schoolId, learner);
-      accountNo = accountResolved.accountNo;
+    } else if (!accountResolved) {
+      accountResolved = await resolveLearnerAccountForRun(schoolId, learner);
+      accountResolvedByLearnerId.set(learner.id, accountResolved);
     }
+
+    const accountNo = accountResolved?.accountNo || "";
 
     learnerRows.push({
       learnerId: learner.id,
@@ -658,7 +669,9 @@ export async function executeInvoiceRun(
     learnerRows,
     eligibilityByLearnerId,
     existingLedger,
-    invoicePeriod
+    invoicePeriod,
+    undefined,
+    invoicePeriodIndex
   );
 
   const integrity = validateIntegrityGate(learnerRows, accounts);
@@ -705,7 +718,7 @@ export async function executeInvoiceRun(
     settings,
     request.dueDate
   );
-  const existingInvoiceCount = listInvoices(schoolId).length;
+  const existingInvoiceCount = existingLedger.filter((entry) => entry.type === "invoice").length;
   const description =
     String(request.description || "").trim() ||
     resolveInvoiceMessage(settings) ||
@@ -731,7 +744,8 @@ export async function executeInvoiceRun(
       },
       settings,
       existingInvoiceCount,
-      index
+      index,
+      { accountPrevalidated: true }
     );
     if (!built.entry) {
       const failed: InvoiceRunExecuteResult = {
