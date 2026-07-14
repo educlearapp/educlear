@@ -131,6 +131,8 @@ export default function InvoiceRuns(props: any) {
   const [billingLoading, setBillingLoading] = useState(false);
   const invoiceRunNotifiedRef = useRef<string>("");
   const invoiceRunPreviewInFlightRef = useRef(false);
+  const wizardLedgerSyncedRef = useRef(false);
+  const invoiceRunPreviewLoadedRunIdRef = useRef("");
   const [invoiceRunServerPreview, setInvoiceRunServerPreview] = useState<any | null>(null);
   const [invoiceRunPreviewLoading, setInvoiceRunPreviewLoading] = useState(false);
   const [invoiceRunPreviewError, setInvoiceRunPreviewError] = useState("");
@@ -355,7 +357,13 @@ export default function InvoiceRuns(props: any) {
 
   useEffect(() => {
     if (!schoolIdForLedger) return;
-    if (!String(invoiceRunView || "").startsWith("wizard")) return;
+    const inWizard = String(invoiceRunView || "").startsWith("wizard");
+    if (!inWizard) {
+      wizardLedgerSyncedRef.current = false;
+      return;
+    }
+    if (wizardLedgerSyncedRef.current) return;
+    wizardLedgerSyncedRef.current = true;
     void syncBillingLedgerFromApi(schoolIdForLedger).then(() => {
       setBalanceDisplayRevision((value) => value + 1);
     });
@@ -363,10 +371,13 @@ export default function InvoiceRuns(props: any) {
 
   useEffect(() => {
     if (!schoolIdForLedger) return;
-    const refresh = () => loadBillingData();
+    const refresh = () => {
+      if (String(invoiceRunView || "").startsWith("wizard")) return;
+      void loadBillingData();
+    };
     window.addEventListener(BILLING_UPDATED_EVENT, refresh);
     return () => window.removeEventListener(BILLING_UPDATED_EVENT, refresh);
-  }, [schoolIdForLedger]);
+  }, [schoolIdForLedger, invoiceRunView]);
   
   
   
@@ -864,6 +875,47 @@ export default function InvoiceRuns(props: any) {
     if (Array.isArray(saved)) return saved;
     return [];
   };
+  const parentLookupIndex = useMemo(() => {
+    const byLearnerId = new Map<string, any>();
+    const byLearnerName = new Map<string, any>();
+    for (const parent of storedParents) {
+      const childIds = [
+        parent?.learnerId,
+        parent?.childId,
+        parent?.studentId,
+        parent?.child?.id,
+        parent?.learner?.id,
+        ...(Array.isArray(parent?.learnerIds) ? parent.learnerIds : []),
+        ...(Array.isArray(parent?.children)
+          ? parent.children.map((child: any) => child?.id)
+          : []),
+        ...(Array.isArray(parent?.learners)
+          ? parent.learners.map((child: any) => child?.id)
+          : []),
+      ]
+        .map((x: any) => String(x || ""))
+        .filter(Boolean);
+      const childNames = [
+        parent?.learnerName,
+        parent?.childName,
+        parent?.studentName,
+        parent?.child?.name,
+        parent?.learner?.name,
+        ...(Array.isArray(parent?.children)
+          ? parent.children.map((child: any) => learnerFullName(child))
+          : []),
+        ...(Array.isArray(parent?.learners)
+          ? parent.learners.map((child: any) => learnerFullName(child))
+          : []),
+      ]
+        .map((x: any) => String(x || "").toLowerCase().trim())
+        .filter(Boolean);
+      for (const id of childIds) byLearnerId.set(id, parent);
+      for (const name of childNames) byLearnerName.set(name, parent);
+    }
+    return { byLearnerId, byLearnerName };
+  }, [storedParents]);
+
   const findParent = (learner: any) => {
 
 
@@ -897,13 +949,18 @@ export default function InvoiceRuns(props: any) {
   
   
     const learnerId = String(learner?.id || "");
-  
-  
-  
+
+
+
     const learnerName = learnerFullName(learner).toLowerCase();
-  
-  
-  
+
+    const indexed =
+      parentLookupIndex.byLearnerId.get(learnerId) ||
+      parentLookupIndex.byLearnerName.get(learnerName);
+    if (indexed) return indexed;
+
+
+
     return (
   
   
@@ -1036,7 +1093,9 @@ export default function InvoiceRuns(props: any) {
 
 
 
-  const selectedRows = normalizedLearners.map(
+  const selectedRows = useMemo(
+    () =>
+      normalizedLearners.map(
 
 
 
@@ -1283,10 +1342,8 @@ export default function InvoiceRuns(props: any) {
 
 
 
-    }
-
-
-
+    }),
+    [normalizedLearners, balanceDisplayRevision, parentLookupIndex]
   );
 
 
@@ -1307,131 +1364,49 @@ export default function InvoiceRuns(props: any) {
 
 
 
-  const runRows = Array.isArray(selectedRun?.rows)
-
-
-
-  ? selectedRun.rows.map((row: any) => {
-
-
-
-      const fresh = selectedRows.find(
-
-
-
-        (item: any) =>
-
-
-
-          String(item.id) === String(row.id) ||
-
-
-
-          String(item.learnerName).toLowerCase() ===
-
-
-
-            String(row.learnerName).toLowerCase()
-
-
-
-      );
-
-
-
-      return fresh
-
-
-
-        ? {
-
-
-
-            ...row,
-
-
-
-            parentName: fresh.parentName,
-
-
-
-            parentEmail: fresh.parentEmail,
-
-
-
-          }
-
-
-
-        : row;
-
-
-
-    })
-
-
-
-  : selectedRows;
-
-
-
-  const filteredRows = runRows.filter((row: any) => {
-
-
-
-    if (!invoiceRunSearch) return true;
-
-
-
-    const q = invoiceRunSearch.toLowerCase();
-
-
-
-    return (
-
-
-
-      String(row?.learnerName || "")
-
-
-
-        .toLowerCase()
-
-
-
-        .includes(q) ||
-
-
-
-      String(row?.parentName || "")
-
-
-
-        .toLowerCase()
-
-
-
-        .includes(q) ||
-
-
-
-      String(row?.accountNo || "")
-
-
-
-        .toLowerCase()
-
-
-
-        .includes(q)
-
-
-
-    );
-
-
-
-  });
+  const runRows = useMemo(
+    () =>
+      Array.isArray(selectedRun?.rows)
+        ? selectedRun.rows.map((row: any) => {
+            const fresh = selectedRows.find(
+              (item: any) =>
+                String(item.id) === String(row.id) ||
+                String(item.learnerName).toLowerCase() ===
+                  String(row.learnerName).toLowerCase()
+            );
+            return fresh
+              ? {
+                  ...row,
+                  parentName: fresh.parentName,
+                  parentEmail: fresh.parentEmail,
+                }
+              : row;
+          })
+        : selectedRows,
+    [selectedRun, selectedRows]
+  );
+
+
+
+  const filteredRows = useMemo(
+    () =>
+      runRows.filter((row: any) => {
+        if (!invoiceRunSearch) return true;
+        const q = invoiceRunSearch.toLowerCase();
+        return (
+          String(row?.learnerName || "")
+            .toLowerCase()
+            .includes(q) ||
+          String(row?.parentName || "")
+            .toLowerCase()
+            .includes(q) ||
+          String(row?.accountNo || "")
+            .toLowerCase()
+            .includes(q)
+        );
+      }),
+    [runRows, invoiceRunSearch]
+  );
 
 
 
@@ -1673,9 +1648,16 @@ export default function InvoiceRuns(props: any) {
   const browserDraftRuns = mergedInvoiceRuns.browserDraftRuns;
 
   useEffect(() => {
-    if (invoiceRunView !== "wizardPreview") return;
     const run = readJson(["educlearSelectedInvoiceRun"], selectedRun);
     if (!run?.id) return;
+    const runId = String(run.id);
+    const shouldPrefetch =
+      invoiceRunView === "wizardFees" || invoiceRunView === "wizardPreview";
+    if (!shouldPrefetch) return;
+    if (invoiceRunPreviewLoadedRunIdRef.current === runId && invoiceRunServerPreview) {
+      return;
+    }
+    invoiceRunPreviewLoadedRunIdRef.current = runId;
     void loadInvoiceRunPreview(run);
   }, [invoiceRunView, selectedRun?.id]);
 
@@ -1740,7 +1722,6 @@ export default function InvoiceRuns(props: any) {
 
 
     setStoredRuns(updatedRuns);
-    loadBillingData();
     writeJson("educlearSelectedInvoiceRun", run);
   };
   const createNewRun = (original = false) => {
@@ -1874,6 +1855,7 @@ export default function InvoiceRuns(props: any) {
 
 
     setInvoiceRunServerPreview(null);
+    invoiceRunPreviewLoadedRunIdRef.current = "";
     setInvoiceRunPreviewError("");
     setInvoiceRunExecuteResult(null);
 

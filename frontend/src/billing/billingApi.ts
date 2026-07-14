@@ -1,6 +1,7 @@
 import { API_URL } from "../api";
 import {
   clearSchoolLedgerRuntime,
+  isSchoolLedgerFreshFromApi,
   mergeApiLedger,
   markSchoolLedgerApiSyncFailed,
   markSchoolLedgerApiSyncPending,
@@ -346,43 +347,60 @@ export const syncKidesysHistoryFromApi = async (schoolId: string) => {
   );
 };
 
-export const syncBillingLedgerFromApi = async (schoolId: string) => {
+const ledgerSyncInFlightBySchool: Record<string, Promise<void>> = {};
+
+export const syncBillingLedgerFromApi = async (
+  schoolId: string,
+  options?: { force?: boolean }
+) => {
   const sid = String(schoolId || "").trim();
   if (!sid) return;
-  markSchoolLedgerApiSyncPending(sid);
+  if (!options?.force && isSchoolLedgerFreshFromApi(sid)) return;
 
-  const ledgerUrl = `${API_URL}/api/invoices/ledger?schoolId=${encodeURIComponent(sid)}`;
-  const ledgerData = await getJson(ledgerUrl);
-  if (!ledgerData) {
-    markSchoolLedgerApiSyncFailed(sid);
-    return;
-  }
+  const inFlight = ledgerSyncInFlightBySchool[sid];
+  if (inFlight) return inFlight;
 
-  const ledgerRows = parseArray(ledgerData, ["entries", "ledger", "items"]);
-  if (ledgerRows.length) {
-    const entries = ledgerRows.map((row: any) => mapApiRowToLedgerEntry(sid, row));
-    replaceSchoolLedgerFromApi(sid, entries);
-    return;
-  }
+  const promise = (async () => {
+    markSchoolLedgerApiSyncPending(sid);
 
-  const [invoices, payments] = await Promise.all([fetchInvoices(sid), fetchPayments(sid)]);
-  if (!invoices.length && !payments.length) {
-    markSchoolLedgerApiSyncFailed(sid);
-    return;
-  }
+    const ledgerUrl = `${API_URL}/api/invoices/ledger?schoolId=${encodeURIComponent(sid)}`;
+    const ledgerData = await getJson(ledgerUrl);
+    if (!ledgerData) {
+      markSchoolLedgerApiSyncFailed(sid);
+      return;
+    }
 
-  const entries: BillingLedgerEntry[] = [
-    ...invoices.map((row: any) => mapApiRowToLedgerEntry(sid, { ...row, type: "invoice" })),
-    ...payments.map((row: any) =>
-      mapApiRowToLedgerEntry(sid, { ...row, type: "payment" })
-    ),
-  ];
+    const ledgerRows = parseArray(ledgerData, ["entries", "ledger", "items"]);
+    if (ledgerRows.length) {
+      const entries = ledgerRows.map((row: any) => mapApiRowToLedgerEntry(sid, row));
+      replaceSchoolLedgerFromApi(sid, entries);
+      return;
+    }
 
-  if (entries.length) {
-    replaceSchoolLedgerFromApi(sid, entries);
-  } else {
-    markSchoolLedgerApiSyncFailed(sid);
-  }
+    const [invoices, payments] = await Promise.all([fetchInvoices(sid), fetchPayments(sid)]);
+    if (!invoices.length && !payments.length) {
+      markSchoolLedgerApiSyncFailed(sid);
+      return;
+    }
+
+    const entries: BillingLedgerEntry[] = [
+      ...invoices.map((row: any) => mapApiRowToLedgerEntry(sid, { ...row, type: "invoice" })),
+      ...payments.map((row: any) =>
+        mapApiRowToLedgerEntry(sid, { ...row, type: "payment" })
+      ),
+    ];
+
+    if (entries.length) {
+      replaceSchoolLedgerFromApi(sid, entries);
+    } else {
+      markSchoolLedgerApiSyncFailed(sid);
+    }
+  })().finally(() => {
+    delete ledgerSyncInFlightBySchool[sid];
+  });
+
+  ledgerSyncInFlightBySchool[sid] = promise;
+  return promise;
 };
 
 export type BillingStatementSyncState = {
