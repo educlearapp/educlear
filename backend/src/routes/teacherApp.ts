@@ -27,6 +27,7 @@ import {
   labelFromStatus,
   normalizeAttendancePeriod,
 } from "../utils/attendancePeriods";
+import homesafeRoutes from "./homesafe";
 
 const uploadDir = path.join(process.cwd(), "uploads/teacher-app");
 export const TEACHER_APP_MAX_FILE_BYTES = 12 * 1024 * 1024;
@@ -290,6 +291,8 @@ function assertClassAllowed(res: any, className: string, assigned: AssignedClass
 }
 
 router.use(teacherAppMiddleware);
+
+router.use("/homesafe", homesafeRoutes);
 
 router.get("/me", async (req, res) => {
   try {

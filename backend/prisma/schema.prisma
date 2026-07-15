@@ -47,6 +47,15 @@ enum LearnerEnrollmentStatus {
   HISTORICAL
 }
 
+enum HomeSafeEventType {
+  DISMISSED
+}
+
+enum HomeSafeCollectionMethod {
+  PARENT
+  TRANSPORT
+}
+
 model School {
   id String @id @default(cuid())
 
@@ -155,6 +164,7 @@ learnerReports LearnerReport[]
   subscriptionPaymentLogs SubscriptionPaymentLog[]
   creditPurchaseInvoices CreditPurchaseInvoice[]
   creditPurchasePaymentLogs CreditPurchasePaymentLog[]
+  homeSafeEvents HomeSafeEvent[]
 }
 
 enum EduClearPackageCode {
@@ -463,6 +473,7 @@ model User {
 
   rbacMeta UserRbacMeta?
   classroomAssignments ClassroomTeacher[]
+  homeSafeEvents HomeSafeEvent[]
 
   @@unique([schoolId, email])
   @@index([schoolId])
@@ -731,6 +742,7 @@ reports LearnerReport[]
   attendances LearnerAttendance[]
   communicationMessages CommunicationMessage[]
   groupLinks GroupLearner[]
+  homeSafeEvents HomeSafeEvent[]
 
   @@unique([schoolId, admissionNo])
   @@index([schoolId])
@@ -3003,6 +3015,32 @@ model LearnerAttendance {
   @@index([schoolId, className, date, period])
   @@index([schoolId, date])
   @@index([learnerId])
+}
+
+/// Teacher Portal HomeSafe dismissal events — server-authoritative school-local timestamps.
+model HomeSafeEvent {
+  id                   String                   @id @default(cuid())
+  schoolId             String
+  learnerId            String
+  teacherId            String
+  eventType            HomeSafeEventType        @default(DISMISSED)
+  collectionMethod     HomeSafeCollectionMethod
+  occurredAt           DateTime
+  schoolLocalDate      String
+  schoolLocalTime      String
+  learnerNameSnapshot  String
+  classroomSnapshot    String
+  createdAt            DateTime                 @default(now())
+  updatedAt            DateTime                 @updatedAt
+
+  school  School  @relation(fields: [schoolId], references: [id], onDelete: Cascade)
+  learner Learner @relation(fields: [learnerId], references: [id], onDelete: Restrict)
+  teacher User    @relation(fields: [teacherId], references: [id], onDelete: Restrict)
+
+  @@unique([schoolId, learnerId, schoolLocalDate])
+  @@index([schoolId, schoolLocalDate])
+  @@index([schoolId, learnerId])
+  @@index([teacherId])
 }
 
 model ParentOnboarding {

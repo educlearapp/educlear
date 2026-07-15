@@ -775,3 +775,154 @@
     grid-template-columns: 1fr;
   }
 }
+
+/* HomeSafe — iPad-friendly dismissal workflow */
+.teacher-homesafe-search-wrap {
+  margin-top: 20px;
+}
+
+.teacher-homesafe-search {
+  width: 100%;
+  font-size: 1.25rem;
+  padding: 16px 18px;
+  border-radius: 14px;
+  border: 2px solid var(--t-border);
+  background: var(--t-page-bg);
+  color: var(--t-ink);
+  min-height: 56px;
+}
+
+.teacher-homesafe-search:focus {
+  outline: none;
+  border-color: var(--t-gold);
+  box-shadow: 0 0 0 3px rgba(212, 175, 55, 0.25);
+}
+
+.teacher-homesafe-hint {
+  margin-top: 8px;
+  font-size: 0.9rem;
+}
+
+.teacher-homesafe-success {
+  margin-top: 16px;
+  padding: 14px 16px;
+  border-radius: 12px;
+  background: rgba(34, 139, 34, 0.12);
+  color: #1b5e20;
+  font-weight: 600;
+}
+
+.teacher-homesafe-results {
+  list-style: none;
+  margin: 16px 0 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.teacher-homesafe-result-btn {
+  width: 100%;
+  text-align: left;
+  padding: 16px 18px;
+  border-radius: 14px;
+  border: 1px solid var(--t-border);
+  background: var(--t-page-bg);
+  cursor: pointer;
+  min-height: 56px;
+  box-shadow: var(--t-card-shadow);
+}
+
+.teacher-homesafe-result-btn:hover,
+.teacher-homesafe-result-btn:focus-visible {
+  border-color: var(--t-gold);
+}
+
+.teacher-homesafe-result-name {
+  display: block;
+  font-size: 1.1rem;
+  font-weight: 700;
+  color: var(--t-ink);
+}
+
+.teacher-homesafe-result-meta {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-top: 4px;
+  font-size: 0.95rem;
+  color: var(--t-muted);
+}
+
+.teacher-homesafe-dismissed-badge {
+  display: inline-block;
+  padding: 2px 8px;
+  border-radius: 999px;
+  background: rgba(212, 175, 55, 0.2);
+  color: var(--t-gold-dim);
+  font-size: 0.8rem;
+  font-weight: 700;
+}
+
+.teacher-homesafe-empty {
+  padding: 12px 4px;
+}
+
+.teacher-homesafe-confirm {
+  margin-top: 20px;
+  padding: 20px;
+  border-radius: 16px;
+  border: 1px solid var(--t-border);
+  background: var(--t-page-bg);
+  box-shadow: var(--t-card-shadow);
+}
+
+.teacher-homesafe-confirm-title {
+  margin: 0 0 4px;
+  font-size: 1.35rem;
+}
+
+.teacher-homesafe-methods {
+  margin: 20px 0;
+  border: none;
+  padding: 0;
+}
+
+.teacher-homesafe-methods legend {
+  font-weight: 700;
+  margin-bottom: 10px;
+}
+
+.teacher-homesafe-method-option {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 12px 0;
+  font-size: 1.05rem;
+  cursor: pointer;
+}
+
+.teacher-homesafe-method-option input {
+  width: 20px;
+  height: 20px;
+  accent-color: var(--t-gold);
+}
+
+.teacher-homesafe-actions {
+  display: flex;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.teacher-homesafe-dismiss-btn {
+  flex: 1 1 200px;
+  min-height: 52px;
+  font-size: 1.05rem;
+}
+
+@media (max-width: 767px) {
+  .teacher-homesafe-actions .teacher-touch-btn {
+    width: 100%;
+  }
+}
+

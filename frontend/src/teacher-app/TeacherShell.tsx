@@ -14,6 +14,7 @@ const SIDEBAR_LINKS = [
   { to: "/teacher/documents", label: "Documents", icon: "📎" },
   { to: "/teacher/learners", label: "Learners", icon: "🎓" },
   { to: "/teacher/attendance", label: "Attendance", icon: "📋" },
+  { to: "/teacher/homesafe", label: "HomeSafe", icon: "🏡" },
 ] as const;
 
 export default function TeacherShell() {
@@ -132,6 +133,9 @@ export default function TeacherShell() {
           </NavLink>
           <NavLink to="/teacher/learners" className={({ isActive }) => (isActive ? "active" : "")}>
             Learners
+          </NavLink>
+          <NavLink to="/teacher/homesafe" className={({ isActive }) => (isActive ? "active" : "")}>
+            HomeSafe
           </NavLink>
         </nav>
       </div>

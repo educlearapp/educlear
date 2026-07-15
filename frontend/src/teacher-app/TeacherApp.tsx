@@ -12,6 +12,7 @@ import TeacherLearnersPage from "./TeacherLearnersPage";
 import TeacherNotificationsPage from "./TeacherNotificationsPage";
 import TeacherClassroomPage from "./TeacherClassroomPage";
 import TeacherAttendancePage from "./TeacherAttendancePage";
+import TeacherHomeSafePage from "./TeacherHomeSafePage";
 import TeacherInbox from "../teacher/TeacherInbox";
 
 function TeacherIndex() {
@@ -70,6 +71,7 @@ export default function TeacherApp() {
             <Route path="learners" element={<TeacherLearnersPage />} />
             <Route path="classroom/:classroomId" element={<TeacherClassroomPage />} />
             <Route path="attendance" element={<TeacherAttendancePage />} />
+            <Route path="homesafe" element={<TeacherHomeSafePage />} />
             <Route path="notifications" element={<TeacherNotificationsPage />} />
             <Route path="assessments" element={<TeacherNoticesPage defaultNoticeType="ASSESSMENT" />} />
           </Route>
