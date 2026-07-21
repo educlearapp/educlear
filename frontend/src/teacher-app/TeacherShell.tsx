@@ -83,7 +83,14 @@ export default function TeacherShell() {
               key={item.to}
               to={item.to}
               end={"end" in item ? item.end : false}
-              className={({ isActive }) => (isActive ? "active" : "")}
+              className={({ isActive }) =>
+                [
+                  isActive ? "active" : "",
+                  item.to === "/teacher/homesafe" ? "teacher-nav-homesafe" : "",
+                ]
+                  .filter(Boolean)
+                  .join(" ")
+              }
             >
               <span className="nav-icon" aria-hidden>
                 {item.icon}
@@ -134,7 +141,12 @@ export default function TeacherShell() {
           <NavLink to="/teacher/learners" className={({ isActive }) => (isActive ? "active" : "")}>
             Learners
           </NavLink>
-          <NavLink to="/teacher/homesafe" className={({ isActive }) => (isActive ? "active" : "")}>
+          <NavLink
+            to="/teacher/homesafe"
+            className={({ isActive }) =>
+              [isActive ? "active" : "", "teacher-nav-homesafe"].filter(Boolean).join(" ")
+            }
+          >
             HomeSafe
           </NavLink>
         </nav>

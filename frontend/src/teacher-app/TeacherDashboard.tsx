@@ -134,6 +134,17 @@ export default function TeacherDashboard() {
       </div>
 
       <div className="teacher-card-grid">
+        <Link
+          className="teacher-dash-card teacher-dash-card-homesafe"
+          to="/teacher/homesafe"
+          aria-label="HomeSafe learner dismissal"
+        >
+          <span className="icon">🏡</span>
+          HomeSafe
+          <span style={{ color: "var(--t-gold)", fontSize: "0.8rem" }}>
+            Dismiss learners at the gate
+          </span>
+        </Link>
         <Link className="teacher-dash-card" to="/teacher/inbox">
           <span className="icon">✉️</span>
           Parents Portal
