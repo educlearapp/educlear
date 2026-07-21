@@ -64,9 +64,11 @@ function main() {
   const needsSeed = count !== 344 || hasForbidden;
 
   if (undoCorr) {
+    // Live corrected ledger must never block boot or trigger a Phase-1 reseed.
     console.log(
-      `[bootstrap-phase1] INFO: live undo-correction ledger rows present (undoCorr=true) — not a seed trigger`
+      `[bootstrap-phase1] INFO: live undo-correction ledger rows present (undoCorr=true) — not a seed trigger; skip seed and continue startup`
     );
+    return;
   }
 
   if (!needsSeed) {
