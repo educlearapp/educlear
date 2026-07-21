@@ -54,6 +54,13 @@ enum HomeSafeEventType {
 enum HomeSafeCollectionMethod {
   PARENT
   TRANSPORT
+  UNCLE
+  SIBLING
+  GRANDPARENT
+  BOLT
+  SCHOOL_TRANSPORT
+  TAXI
+  OTHER
 }
 
 model School {
@@ -3025,6 +3032,7 @@ model HomeSafeEvent {
   teacherId            String
   eventType            HomeSafeEventType        @default(DISMISSED)
   collectionMethod     HomeSafeCollectionMethod
+  collectionNote       String?
   occurredAt           DateTime
   schoolLocalDate      String
   schoolLocalTime      String

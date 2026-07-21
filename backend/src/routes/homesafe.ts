@@ -44,15 +44,19 @@ router.post("/dismiss", async (req, res) => {
     if (!collectionMethod) {
       return res.status(400).json({
         success: false,
-        error: "collectionMethod must be PARENT or TRANSPORT",
+        error:
+          "collectionMethod must be one of PARENT, UNCLE, SIBLING, GRANDPARENT, BOLT, SCHOOL_TRANSPORT, TAXI, OTHER (legacy TRANSPORT still accepted)",
       });
     }
+
+    const collectionNote = String(req.body?.collectionNote || req.body?.staffNote || "").trim();
 
     const result = await dismissHomeSafeLearner({
       schoolId,
       teacherId: userId,
       learnerId,
       collectionMethod,
+      collectionNote: collectionNote || null,
     });
 
     if (!result.ok) {
@@ -69,6 +73,9 @@ router.post("/dismiss", async (req, res) => {
       }
       if (result.code === "INACTIVE") {
         return res.status(409).json({ success: false, error: result.message, code: "INACTIVE" });
+      }
+      if (result.code === "NOTE_REQUIRED") {
+        return res.status(400).json({ success: false, error: result.message, code: result.code });
       }
       return res.status(400).json({ success: false, error: result.message });
     }

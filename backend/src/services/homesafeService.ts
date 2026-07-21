@@ -160,19 +160,60 @@ export async function searchHomeSafeLearners(input: {
   return { learners, schoolLocalDate };
 }
 
+export const HOMESAFE_COLLECTION_METHODS = [
+  "PARENT",
+  "UNCLE",
+  "SIBLING",
+  "GRANDPARENT",
+  "BOLT",
+  "SCHOOL_TRANSPORT",
+  "TAXI",
+  "OTHER",
+] as const;
+
 export function normalizeHomeSafeCollectionMethod(
   raw: unknown
 ): HomeSafeCollectionMethod | null {
   const value = String(raw || "").trim().toUpperCase();
-  if (value === "PARENT" || value === "TRANSPORT") return value;
+  if (value === "TRANSPORT") return "TRANSPORT";
+  if ((HOMESAFE_COLLECTION_METHODS as readonly string[]).includes(value)) {
+    return value as HomeSafeCollectionMethod;
+  }
   return null;
+}
+
+export function collectionMethodLabel(
+  method: HomeSafeCollectionMethod | string | null | undefined
+): string {
+  switch (String(method || "").trim().toUpperCase()) {
+    case "PARENT":
+      return "Parent";
+    case "UNCLE":
+      return "Uncle";
+    case "SIBLING":
+      return "Sibling";
+    case "GRANDPARENT":
+      return "Grandparent";
+    case "BOLT":
+      return "Bolt";
+    case "SCHOOL_TRANSPORT":
+      return "School Transport";
+    case "TAXI":
+      return "Taxi";
+    case "OTHER":
+      return "Other";
+    case "TRANSPORT":
+      return "Transport";
+    default:
+      return method ? String(method) : "—";
+  }
 }
 
 export type DismissHomeSafeResult =
   | { ok: true; dismissal: HomeSafeDismissalSummary }
   | {
       ok: false;
-      code: "NOT_FOUND" | "INACTIVE" | "INVALID_METHOD" | "CONFLICT";
+      code: "NOT_FOUND" | "INACTIVE" | "INVALID_METHOD" | "NOTE_REQUIRED" | "CONFLICT";
       message: string;
       existing?: HomeSafeDismissalSummary;
     };
@@ -182,8 +223,17 @@ export async function dismissHomeSafeLearner(input: {
   teacherId: string;
   learnerId: string;
   collectionMethod: HomeSafeCollectionMethod;
+  collectionNote?: string | null;
   now?: Date;
 }): Promise<DismissHomeSafeResult> {
+  const collectionNote = String(input.collectionNote || "").trim() || null;
+  if (input.collectionMethod === "OTHER" && !collectionNote) {
+    return {
+      ok: false,
+      code: "NOTE_REQUIRED",
+      message: "A short description is required when Collected by is Other.",
+    };
+  }
   const learner = await prisma.learner.findFirst({
     where: { id: input.learnerId, schoolId: input.schoolId },
     select: {
@@ -225,6 +275,7 @@ export async function dismissHomeSafeLearner(input: {
         teacherId: input.teacherId,
         eventType: "DISMISSED",
         collectionMethod: input.collectionMethod,
+        collectionNote: input.collectionMethod === "OTHER" ? collectionNote : null,
         occurredAt,
         schoolLocalDate,
         schoolLocalTime,

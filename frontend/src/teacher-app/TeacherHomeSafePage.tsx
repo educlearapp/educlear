@@ -1,8 +1,13 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { API_URL } from "../api";
 import { getStaffToken } from "../staffApi";
+import {
+  HOMESAFE_COLLECTION_METHODS,
+  collectionMethodLabel,
+  type HomeSafeCollectionMethodValue,
+} from "../homesafe/homesafeShared";
 
-type CollectionMethod = "PARENT" | "TRANSPORT";
+type CollectionMethod = HomeSafeCollectionMethodValue;
 
 type DismissalSummary = {
   displayName: string;
@@ -66,6 +71,7 @@ export default function TeacherHomeSafePage() {
   const [results, setResults] = useState<LearnerResult[]>([]);
   const [selected, setSelected] = useState<LearnerResult | null>(null);
   const [collectionMethod, setCollectionMethod] = useState<CollectionMethod>("PARENT");
+  const [collectionNote, setCollectionNote] = useState("");
   const [searching, setSearching] = useState(false);
   const [dismissing, setDismissing] = useState(false);
   const [err, setErr] = useState<string | null>(null);
@@ -74,6 +80,7 @@ export default function TeacherHomeSafePage() {
   const resetForNext = useCallback(() => {
     setSelected(null);
     setCollectionMethod("PARENT");
+    setCollectionNote("");
     setSearch("");
     setResults([]);
     setErr(null);
@@ -112,6 +119,7 @@ export default function TeacherHomeSafePage() {
   const selectLearner = (learner: LearnerResult) => {
     setSelected(learner);
     setCollectionMethod("PARENT");
+    setCollectionNote("");
     setSuccess(null);
     setErr(null);
   };
@@ -120,6 +128,10 @@ export default function TeacherHomeSafePage() {
     if (!selected || dismissing) return;
     if (selected.dismissedToday) {
       setErr(`${selected.displayName} was already dismissed today.`);
+      return;
+    }
+    if (collectionMethod === "OTHER" && !collectionNote.trim()) {
+      setErr("Enter a short description for Other.");
       return;
     }
 
@@ -135,6 +147,9 @@ export default function TeacherHomeSafePage() {
           body: JSON.stringify({
             learnerId: selected.learnerId,
             collectionMethod,
+            ...(collectionMethod === "OTHER"
+              ? { collectionNote: collectionNote.trim(), staffNote: collectionNote.trim() }
+              : {}),
           }),
         }
       );
@@ -154,7 +169,7 @@ export default function TeacherHomeSafePage() {
         return;
       }
 
-      const methodLabel = data.dismissal.collectionMethod === "TRANSPORT" ? "Transport" : "Parent";
+      const methodLabel = collectionMethodLabel(data.dismissal.collectionMethod);
       setSuccess(
         `${data.dismissal.displayName} dismissed at ${data.dismissal.schoolLocalTimeDisplay} (${methodLabel}).`
       );
@@ -228,31 +243,42 @@ export default function TeacherHomeSafePage() {
             <p className="teacher-error">Already dismissed today — choose another learner.</p>
           )}
 
-          <fieldset className="teacher-homesafe-methods">
-            <legend>Collection method</legend>
-            <label className="teacher-homesafe-method-option">
+          <div className="teacher-field teacher-homesafe-collector">
+            <label htmlFor="homesafe-collected-by">Collected by</label>
+            <select
+              id="homesafe-collected-by"
+              className="teacher-homesafe-select"
+              value={collectionMethod}
+              onChange={(e) => {
+                const next = e.target.value as CollectionMethod;
+                setCollectionMethod(next);
+                if (next !== "OTHER") setCollectionNote("");
+              }}
+              disabled={dismissing || selected.dismissedToday}
+            >
+              {HOMESAFE_COLLECTION_METHODS.map((opt) => (
+                <option key={opt.value} value={opt.value}>
+                  {opt.label}
+                </option>
+              ))}
+            </select>
+          </div>
+
+          {collectionMethod === "OTHER" && (
+            <div className="teacher-field">
+              <label htmlFor="homesafe-other-note">Describe who collected (required)</label>
               <input
-                type="radio"
-                name="collectionMethod"
-                value="PARENT"
-                checked={collectionMethod === "PARENT"}
-                onChange={() => setCollectionMethod("PARENT")}
-                disabled={dismissing}
+                id="homesafe-other-note"
+                type="text"
+                className="teacher-homesafe-search"
+                maxLength={80}
+                placeholder="e.g. Neighbour, Aunt"
+                value={collectionNote}
+                onChange={(e) => setCollectionNote(e.target.value)}
+                disabled={dismissing || selected.dismissedToday}
               />
-              Parent
-            </label>
-            <label className="teacher-homesafe-method-option">
-              <input
-                type="radio"
-                name="collectionMethod"
-                value="TRANSPORT"
-                checked={collectionMethod === "TRANSPORT"}
-                onChange={() => setCollectionMethod("TRANSPORT")}
-                disabled={dismissing}
-              />
-              Transport
-            </label>
-          </fieldset>
+            </div>
+          )}
 
           <div className="teacher-homesafe-actions">
             <button
@@ -271,7 +297,11 @@ export default function TeacherHomeSafePage() {
               type="button"
               className="teacher-touch-btn primary teacher-homesafe-dismiss-btn"
               onClick={() => void dismissLearner()}
-              disabled={dismissing || selected.dismissedToday}
+              disabled={
+                dismissing ||
+                selected.dismissedToday ||
+                (collectionMethod === "OTHER" && !collectionNote.trim())
+              }
             >
               {dismissing ? "Saving…" : "Dismiss Learner"}
             </button>

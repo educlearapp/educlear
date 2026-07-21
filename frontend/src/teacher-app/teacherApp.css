@@ -926,6 +926,29 @@
   margin-bottom: 10px;
 }
 
+.teacher-homesafe-select {
+  width: 100%;
+  min-height: 56px;
+  font-size: 1.15rem;
+  padding: 14px 16px;
+  border-radius: 14px;
+  border: 2px solid var(--t-border);
+  background: var(--t-page-bg);
+  color: var(--t-ink);
+  font-weight: 700;
+}
+
+.teacher-homesafe-select:focus {
+  outline: none;
+  border-color: var(--t-gold);
+  box-shadow: 0 0 0 3px rgba(212, 175, 55, 0.25);
+}
+
+.teacher-homesafe-collector {
+  margin-top: 16px;
+}
+
+
 .teacher-homesafe-method-option {
   display: flex;
   align-items: center;
