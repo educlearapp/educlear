@@ -3,6 +3,8 @@ import path from "path";
 
 import { resolveSchoolJsonStoreKey } from "../services/daSilvaSchoolResolve";
 
+export type FinanceAccountSnapshotSource = "kideesys-age-analysis" | "educlear-registration";
+
 export type FamilyAccountAgeAnalysisSnapshot = {
   schoolId: string;
   accountRef: string;
@@ -17,18 +19,33 @@ export type FamilyAccountAgeAnalysisSnapshot = {
     d90: number;
     d120: number;
   };
-  source: "kideesys-age-analysis";
+  source: FinanceAccountSnapshotSource;
   importedAt: string;
 };
 
 type StoreFile = Record<string, Record<string, FamilyAccountAgeAnalysisSnapshot>>;
 
-const DATA_DIR = path.join(process.cwd(), "data");
-const STORE_FILE = path.join(DATA_DIR, "family-account-age-analysis.json");
+let ageAnalysisTestDataDir: string | null = null;
+
+function getDataDir(): string {
+  return ageAnalysisTestDataDir ?? path.join(process.cwd(), "data");
+}
+
+function getStoreFile(): string {
+  return path.join(getDataDir(), "family-account-age-analysis.json");
+}
+
+/** @internal Test hook — redirect age-analysis I/O to an isolated fixture directory. */
+export function setFamilyAccountAgeAnalysisStoreDataDirForTests(dataDir: string | null): void {
+  ageAnalysisTestDataDir = dataDir ? path.resolve(dataDir) : null;
+  invalidateFamilyAccountAgeAnalysisFileCache();
+}
 
 function ensureStore() {
-  if (!fs.existsSync(DATA_DIR)) fs.mkdirSync(DATA_DIR, { recursive: true });
-  if (!fs.existsSync(STORE_FILE)) fs.writeFileSync(STORE_FILE, JSON.stringify({}, null, 2), "utf8");
+  const dataDir = getDataDir();
+  const storeFile = getStoreFile();
+  if (!fs.existsSync(dataDir)) fs.mkdirSync(dataDir, { recursive: true });
+  if (!fs.existsSync(storeFile)) fs.writeFileSync(storeFile, JSON.stringify({}, null, 2), "utf8");
 }
 
 let ageAnalysisFileCache: { mtimeMs: number; data: StoreFile } | null = null;
@@ -40,12 +57,13 @@ export function invalidateFamilyAccountAgeAnalysisFileCache(): void {
 
 function readAll(): StoreFile {
   ensureStore();
+  const storeFile = getStoreFile();
   try {
-    const stat = fs.statSync(STORE_FILE);
+    const stat = fs.statSync(storeFile);
     if (ageAnalysisFileCache && ageAnalysisFileCache.mtimeMs === stat.mtimeMs) {
       return ageAnalysisFileCache.data;
     }
-    const raw = fs.readFileSync(STORE_FILE, "utf8");
+    const raw = fs.readFileSync(storeFile, "utf8");
     const parsed = JSON.parse(raw);
     const data = parsed && typeof parsed === "object" ? (parsed as StoreFile) : {};
     ageAnalysisFileCache = { mtimeMs: stat.mtimeMs, data };
@@ -57,8 +75,35 @@ function readAll(): StoreFile {
 
 function writeAll(data: StoreFile) {
   ensureStore();
-  fs.writeFileSync(STORE_FILE, JSON.stringify(data, null, 2), "utf8");
+  fs.writeFileSync(getStoreFile(), JSON.stringify(data, null, 2), "utf8");
   ageAnalysisFileCache = null;
+}
+
+/**
+ * Insert a snapshot only when the account ref is absent for the school.
+ * Never overwrites imported Kid-e-Sys balances or buckets.
+ */
+export function insertSchoolFamilyAccountAgeAnalysisSnapshotIfAbsent(
+  schoolId: string,
+  accountRef: string,
+  snapshot: FamilyAccountAgeAnalysisSnapshot
+): "inserted" | "already_exists" {
+  const key = String(schoolId || "").trim();
+  const ref = String(accountRef || "").trim().toUpperCase();
+  if (!key || !ref) return "already_exists";
+
+  const all = readAll();
+  const schoolSnapshots = { ...(all[key] || {}) };
+  if (schoolSnapshots[ref]) return "already_exists";
+
+  schoolSnapshots[ref] = {
+    ...snapshot,
+    schoolId: key,
+    accountRef: ref,
+  };
+  all[key] = schoolSnapshots;
+  writeAll(all);
+  return "inserted";
 }
 
 export function readSchoolFamilyAccountAgeAnalysisSnapshots(

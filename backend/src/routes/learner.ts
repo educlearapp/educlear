@@ -5,6 +5,14 @@ import { Router } from "express";
 import { PrismaClient } from "@prisma/client";
 
 import { getSurnamePrefix, resolveLearnerAccountNo } from "../utils/learnerIdentity";
+import {
+  allocateFamilyAccountRef,
+  isFamilyAccountRefCollision,
+} from "../services/allocateFamilyAccountRef";
+import {
+  FinanceAccountBaselineError,
+  registerFinanceAccountForLearner,
+} from "../services/financeAccountBaseline";
 import { normalizeLearnerEnrollmentStatusUpdate } from "../utils/learnerEnrollment";
 import { normalizeLearnerGender } from "../utils/learnerGender";
 import {
@@ -143,53 +151,76 @@ function mapParentForClient(link: { parent: any; relation?: string | null; isPri
   };
 }
 
-async function createFamilyAccountRef(schoolId: string, surname: string) {
+async function rollbackLearnerRegistration(input: {
+  learnerId?: string;
+  familyAccountId?: string;
+}) {
+  const learnerId = String(input.learnerId || "").trim();
+  const familyAccountId = String(input.familyAccountId || "").trim();
 
+  if (learnerId) {
+    await prisma.learner.delete({ where: { id: learnerId } }).catch(() => undefined);
+  }
 
-
-  const prefix = getSurnamePrefix(surname);
-
-
-
-  const existingCount = await prisma.familyAccount.count({
-
-
-
-    where: {
-
-
-
-      schoolId,
-
-
-
-      accountRef: {
-
-
-
-        startsWith: prefix,
-
-
-
-      },
-
-
-
-    },
-
-
-
-  });
-
-
-
-  return `${prefix}${String(existingCount + 1).padStart(3, "0")}`;
-
-
-
+  if (familyAccountId) {
+    const linkedCount = await prisma.learner.count({ where: { familyAccountId } });
+    if (linkedCount === 0) {
+      await prisma.familyAccount.delete({ where: { id: familyAccountId } }).catch(() => undefined);
+    }
+  }
 }
 
+async function createLearnerOnExistingFamilyAccount({
+  schoolId,
+  learner,
+  familyAccount,
+}: {
+  schoolId: string;
+  learner: any;
+  familyAccount: { id: string; accountRef: string; familyName: string; createdAt?: Date };
+}) {
+  const learnerSurname = cleanString(learner.surname || learner.lastName);
+  const accountNo = String(familyAccount.accountRef || "").trim().toUpperCase();
 
+  const newLearner = await prisma.learner.create({
+    data: {
+      schoolId,
+      familyAccountId: familyAccount.id,
+      firstName: cleanString(learner.firstName),
+      lastName: learnerSurname,
+      birthDate: learner.birthDate ? new Date(learner.birthDate) : null,
+      gender: cleanString(learner.gender),
+      idNumber: cleanString(learner.idNumber) || null,
+      grade: cleanString(learner.grade),
+      className: cleanString(learner.className || learner.classroom || learner.classroomName) || null,
+      admissionNo: accountNo,
+      tuitionFee: Number(learner.tuitionFee) || 0,
+      transportFee: Number(learner.transportFee) || 0,
+      otherFee: Number(learner.otherFee) || 0,
+      totalFee: Number(learner.totalFee) || 0,
+    },
+  });
+
+  try {
+    registerFinanceAccountForLearner({
+      schoolId,
+      learnerId: newLearner.id,
+      familyAccountId: familyAccount.id,
+      accountRef: accountNo,
+      accountHolder: familyAccount.familyName,
+      createdAt: familyAccount.createdAt,
+    });
+  } catch (error) {
+    await rollbackLearnerRegistration({ learnerId: newLearner.id });
+    throw error;
+  }
+
+  return {
+    accountNo,
+    familyAccount,
+    learner: newLearner,
+  };
+}
 
 function normaliseParents(body: any) {
 
@@ -723,164 +754,85 @@ router.get("/", async (req, res) => {
 
 
 async function createLearnerWithAccount({
-
-
-
   schoolId,
-
-
-
   learner,
-
-
-
 }: {
-
-
-
   schoolId: string;
-
-
-
   learner: any;
-
-
-
 }) {
-
-
-
   const learnerSurname = cleanString(learner.surname || learner.lastName);
 
+  let familyAccount: { id: string; accountRef: string; familyName: string; createdAt: Date } | null =
+    null;
+  let accountNo = "";
+  let newLearner: Awaited<ReturnType<typeof prisma.learner.create>> | null = null;
 
+  for (let attempt = 0; attempt < 5; attempt++) {
+    accountNo = await allocateFamilyAccountRef(schoolId, learnerSurname);
+    try {
+      familyAccount = await prisma.familyAccount.create({
+        data: {
+          schoolId,
+          accountRef: accountNo,
+          familyName: learnerSurname,
+        },
+      });
+      break;
+    } catch (error) {
+      if (isFamilyAccountRefCollision(error)) continue;
+      throw error;
+    }
+  }
 
-  const accountNo = await createFamilyAccountRef(schoolId, learnerSurname);
+  if (!familyAccount) {
+    throw new Error(
+      `Failed to create family account for surname prefix ${getSurnamePrefix(learnerSurname)}`
+    );
+  }
 
+  try {
+    newLearner = await prisma.learner.create({
+      data: {
+        schoolId,
+        familyAccountId: familyAccount.id,
+        firstName: cleanString(learner.firstName),
+        lastName: learnerSurname,
+        birthDate: learner.birthDate ? new Date(learner.birthDate) : null,
+        gender: cleanString(learner.gender),
+        idNumber: cleanString(learner.idNumber) || null,
+        grade: cleanString(learner.grade),
+        className:
+          cleanString(learner.className || learner.classroom || learner.classroomName) || null,
+        admissionNo: accountNo,
+        tuitionFee: Number(learner.tuitionFee) || 0,
+        transportFee: Number(learner.transportFee) || 0,
+        otherFee: Number(learner.otherFee) || 0,
+        totalFee: Number(learner.totalFee) || 0,
+      },
+    });
 
-
-  const familyAccount = await prisma.familyAccount.create({
-
-
-
-    data: {
-
-
-
+    registerFinanceAccountForLearner({
       schoolId,
-
-
-
-      accountRef: accountNo,
-
-
-
-      familyName: learnerSurname,
-
-
-
-    },
-
-
-
-  });
-
-
-
-  const newLearner = await prisma.learner.create({
-
-
-
-    data: {
-
-
-
-      schoolId,
-
-
-
+      learnerId: newLearner.id,
       familyAccountId: familyAccount.id,
-
-
-
-      firstName: cleanString(learner.firstName),
-
-
-
-      lastName: learnerSurname,
-
-
-
-      birthDate: learner.birthDate ? new Date(learner.birthDate) : null,
-
-
-
-      gender: cleanString(learner.gender),
-
-
-
-      idNumber: cleanString(learner.idNumber) || null,
-
-
-
-      grade: cleanString(learner.grade),
-
-
-
-      className: cleanString(learner.className || learner.classroom || learner.classroomName) || null,
-
-
-
-      admissionNo: accountNo,
-
-
-
-      tuitionFee: Number(learner.tuitionFee) || 0,
-
-
-
-      transportFee: Number(learner.transportFee) || 0,
-
-
-
-      otherFee: Number(learner.otherFee) || 0,
-
-
-
-      totalFee: Number(learner.totalFee) || 0,
-
-
-
-    },
-
-
-
-  });
-
-
+      accountRef: accountNo,
+      accountHolder: familyAccount.familyName,
+      createdAt: familyAccount.createdAt,
+    });
+  } catch (error) {
+    await rollbackLearnerRegistration({
+      learnerId: newLearner?.id,
+      familyAccountId: familyAccount.id,
+    });
+    throw error;
+  }
 
   return {
-
-
-
     accountNo,
-
-
-
     familyAccount,
-
-
-
     learner: newLearner,
-
-
-
   };
-
-
-
 }
-
-
 
 router.post("/", async (req, res) => {
 
@@ -1055,42 +1007,16 @@ router.post("/", async (req, res) => {
 
 
 
-      const createdSibling = await createLearnerWithAccount({
-
-
-
+      const createdSibling = await createLearnerOnExistingFamilyAccount({
         schoolId: school.id,
-
-
-
         learner: {
-
-
-
           ...sibling,
-
-
-
           schoolId: school.id,
-
-
-
           firstName: siblingFirstName,
-
-
-
           lastName: siblingSurname,
-
-
-
           grade: siblingGrade,
-
-
-
         },
-
-
-
+        familyAccount: main.familyAccount,
       });
 
 
@@ -1200,29 +1126,24 @@ router.post("/", async (req, res) => {
 
 
   } catch (error) {
-
-
-
     console.error("SAVE LEARNER ERROR:", error);
 
-
+    if (error instanceof FinanceAccountBaselineError) {
+      return res.status(500).json({
+        success: false,
+        error: error.message,
+        code: error.code,
+        schoolId: error.schoolId,
+        accountRef: error.accountRef,
+        learnerId: error.learnerId,
+        familyAccountId: error.familyAccountId,
+      });
+    }
 
     return res.status(500).json({
-
-
-
       success: false,
-
-
-
       error: "Failed to save learner",
-
-
-
     });
-
-
-
   }
 
 
