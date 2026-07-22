@@ -152,6 +152,17 @@ import {
   DEFAULT_ATTENDANCE_PERIOD,
   type AttendancePeriodValue,
 } from "./attendance/periodOptions";
+import {
+  getAttendanceCatalogConfig,
+  isLearnerAttendanceRegister,
+  resolveAttendanceReportRange,
+  type AttendanceReportPayload,
+} from "./attendance/attendanceReportCatalog";
+import AttendanceRegisterReportView from "./attendance/AttendanceRegisterReportView";
+import {
+  buildAttendanceReportCsv,
+  downloadCsv,
+} from "./attendance/buildAttendanceReportCsv";
 
 
 import "./App.css";
@@ -810,7 +821,7 @@ useEffect(() => {
     setAttendanceApiClasses([]);
     return;
   }
-  if (activePage !== "attendance" && activePage !== "attendanceManage") return;
+  if (activePage !== "attendance" && activePage !== "attendanceManage" && activePage !== "lists") return;
 
   let cancelled = false;
   setAttendanceClassesLoading(true);
@@ -12095,6 +12106,15 @@ const [listRegisterSortBy, setListRegisterSortBy] =
 
 
   useState("Name");
+  const [listRegisterClassroom, setListRegisterClassroom] = useState("All Classrooms");
+  const [listRegisterPeriod, setListRegisterPeriod] =
+    useState<AttendancePeriodValue>(DEFAULT_ATTENDANCE_PERIOD);
+  const [listRegisterAnchorDate, setListRegisterAnchorDate] = useState(() =>
+    new Date().toISOString().slice(0, 10)
+  );
+  const [listRegisterReport, setListRegisterReport] = useState<AttendanceReportPayload | null>(null);
+  const [listRegisterReportLoading, setListRegisterReportLoading] = useState(false);
+  const [listRegisterReportError, setListRegisterReportError] = useState<string | null>(null);
   const [formsTemplateSearch, setFormsTemplateSearch] = useState("");
 
 
@@ -12279,18 +12299,58 @@ const continueListRegister = () => {
 
 
 
-const openListRegisterView = () => {
+const loadAttendanceRegisterReport = async (): Promise<AttendanceReportPayload | null> => {
+  const config = getAttendanceCatalogConfig(selectedListRegister);
+  if (!config || !schoolId) {
+    setListRegisterReportError("School or report selection is missing.");
+    return null;
+  }
+  setListRegisterReportLoading(true);
+  setListRegisterReportError(null);
+  try {
+    const range = resolveAttendanceReportRange(
+      config.kind,
+      listRegisterAnchorDate,
+      config.includeWeekends
+    );
+    const qs = new URLSearchParams({
+      schoolId,
+      startDate: range.startDate,
+      endDate: range.endDate,
+      period: listRegisterPeriod,
+      includeWeekends: config.includeWeekends ? "true" : "false",
+      groupBy: listRegisterGroupBy === "Groups" ? "groups" : "classrooms",
+      reportKind: config.kind === "list" ? "list" : config.kind,
+    });
+    if (listRegisterClassroom && listRegisterClassroom !== "All Classrooms") {
+      qs.set("className", listRegisterClassroom);
+    }
+    const data: any = await apiFetch(`/api/attendance/report?${qs}`);
+    if (!data?.success || !data?.report) {
+      throw new Error(data?.error || "Failed to load attendance register");
+    }
+    setListRegisterReport(data.report as AttendanceReportPayload);
+    return data.report as AttendanceReportPayload;
+  } catch (e: unknown) {
+    const message = e instanceof Error ? e.message : "Failed to load attendance register";
+    setListRegisterReportError(message);
+    setListRegisterReport(null);
+    return null;
+  } finally {
+    setListRegisterReportLoading(false);
+  }
+};
 
-
-
+const openListRegisterView = async () => {
   setListRegisterActionsOpen(false);
-
-
-
+  if (isLearnerAttendanceRegister(selectedListRegister)) {
+    const report = await loadAttendanceRegisterReport();
+    if (!report) {
+      setListRegisterActionsOpen(true);
+      return;
+    }
+  }
   setListRegisterViewOpen(true);
-
-
-
 };
 
 const renderListsRegisters = () => {
@@ -12333,7 +12393,9 @@ const renderListsRegisters = () => {
 
 
 
-  const exportListRegisterCsv = () => {
+  const attendanceConfig = getAttendanceCatalogConfig(selectedListRegister);
+
+  const exportListRegisterCsv = async () => {
 
 
 
@@ -12349,6 +12411,25 @@ const renderListsRegisters = () => {
 
 
 
+    }
+
+
+
+    if (attendanceConfig) {
+      let report = listRegisterReport;
+      if (!report) {
+        report = await loadAttendanceRegisterReport();
+      }
+      if (!report) {
+        alert(listRegisterReportError || "Could not load attendance register for export.");
+        return;
+      }
+      const csv = buildAttendanceReportCsv(report, attendanceConfig.kind, selectedListRegister);
+      downloadCsv(
+        `${String(selectedListRegister).replace(/\s+/g, "-").toLowerCase()}.csv`,
+        csv
+      );
+      return;
     }
 
 
@@ -12693,7 +12774,7 @@ const renderListsRegisters = () => {
 
 
 
-          <div style={{ width: 500, background: "#fff", borderRadius: 16, border: `2px solid ${GOLD}`, overflow: "hidden", boxShadow: "0 30px 80px rgba(0,0,0,0.25)" }}>
+          <div style={{ width: isLearnerAttendanceRegister(selectedListRegister) ? 560 : 500, background: "#fff", borderRadius: 16, border: `2px solid ${GOLD}`, overflow: "hidden", boxShadow: "0 30px 80px rgba(0,0,0,0.25)" }}>
 
 
 
@@ -12750,6 +12831,90 @@ const renderListsRegisters = () => {
 
 
               </select>
+
+
+
+              {isLearnerAttendanceRegister(selectedListRegister) ? (
+                <>
+                  <label style={labelStyle}>Class Register</label>
+                  <div style={{ fontWeight: 800, color: "#0f172a" }}>Class Register layout</div>
+
+                  <label style={labelStyle}>Classroom</label>
+                  <select
+                    style={inputStyle}
+                    value={listRegisterClassroom}
+                    onChange={(e) => setListRegisterClassroom(e.target.value)}
+                  >
+                    <option>All Classrooms</option>
+                    {(attendanceApiClasses.length
+                      ? attendanceApiClasses.map((c) => c.name)
+                      : Array.from(
+                          new Set(
+                            learners
+                              .map((l: any) => getLearnerGrade(l) || l.classroom || "")
+                              .filter(Boolean)
+                          )
+                        ).sort((a: string, b: string) => a.localeCompare(b, undefined, { numeric: true }))
+                    ).map((name: string) => (
+                      <option key={name} value={name}>
+                        {name}
+                      </option>
+                    ))}
+                  </select>
+
+                  <label style={labelStyle}>Period</label>
+                  <select
+                    style={inputStyle}
+                    value={listRegisterPeriod}
+                    onChange={(e) => setListRegisterPeriod(e.target.value as AttendancePeriodValue)}
+                  >
+                    {ATTENDANCE_PERIOD_OPTIONS.map((opt) => (
+                      <option key={opt.value} value={opt.value}>
+                        {opt.label}
+                      </option>
+                    ))}
+                  </select>
+
+                  <label style={labelStyle}>
+                    {getAttendanceCatalogConfig(selectedListRegister)?.kind === "monthly"
+                      ? "Month"
+                      : getAttendanceCatalogConfig(selectedListRegister)?.kind === "weekly"
+                        ? "Week of"
+                        : "Date"}
+                  </label>
+                  <input
+                    type={
+                      getAttendanceCatalogConfig(selectedListRegister)?.kind === "monthly"
+                        ? "month"
+                        : "date"
+                    }
+                    style={inputStyle}
+                    value={
+                      getAttendanceCatalogConfig(selectedListRegister)?.kind === "monthly"
+                        ? listRegisterAnchorDate.slice(0, 7)
+                        : listRegisterAnchorDate
+                    }
+                    onChange={(e) => {
+                      const v = e.target.value;
+                      if (/^\d{4}-\d{2}$/.test(v)) {
+                        setListRegisterAnchorDate(`${v}-01`);
+                      } else {
+                        setListRegisterAnchorDate(v);
+                      }
+                    }}
+                  />
+
+                  {listRegisterGroupBy === "Groups" ? (
+                    <div style={{ gridColumn: "1 / -1", fontSize: 12, fontWeight: 700, color: "#b45309" }}>
+                      Groups uses real learner group memberships. If none exist, the report falls back to classrooms.
+                    </div>
+                  ) : (
+                    <div style={{ gridColumn: "1 / -1", fontSize: 12, fontWeight: 700, color: "#64748b" }}>
+                      Group By Classrooms creates a Class Register section per classroom when All Classrooms is selected.
+                    </div>
+                  )}
+                </>
+              ) : null}
 
 
 
@@ -12825,11 +12990,17 @@ const renderListsRegisters = () => {
 
 
 
+            {listRegisterReportError ? (
+              <div style={{ padding: "12px 24px 0", color: "#b91c1c", fontWeight: 700 }}>{listRegisterReportError}</div>
+            ) : null}
+            {listRegisterReportLoading ? (
+              <div style={{ padding: "12px 24px 0", fontWeight: 700 }}>Loading Class Register…</div>
+            ) : null}
             <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 20, padding: 24 }}>
 
 
 
-              <button style={goldBtn} onClick={openListRegisterView}>
+              <button style={goldBtn} onClick={() => { void openListRegisterView(); }} disabled={listRegisterReportLoading}>
 
 
 
@@ -12909,6 +13080,14 @@ const renderListsRegisters = () => {
 
 
 
+          {isLearnerAttendanceRegister(selectedListRegister) && listRegisterReport ? (
+            <AttendanceRegisterReportView
+              report={listRegisterReport}
+              kind={getAttendanceCatalogConfig(selectedListRegister)?.kind || "daily"}
+              catalogTitle={selectedListRegister}
+            />
+          ) : (
+            <>
           <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 40 }}>
 
 
@@ -12994,10 +13173,19 @@ const renderListsRegisters = () => {
 
 
           </table>
+            </>
+          )}
 
 
 
-          <div style={{ marginTop: 30 }}>
+          {listRegisterReportError ? (
+            <div style={{ marginTop: 16, color: "#b91c1c", fontWeight: 700 }}>{listRegisterReportError}</div>
+          ) : null}
+          {listRegisterReportLoading ? (
+            <div style={{ marginTop: 16, fontWeight: 700 }}>Loading Class Register…</div>
+          ) : null}
+
+          <div style={{ marginTop: 30 }} className="attendance-register-no-print">
 
 
 

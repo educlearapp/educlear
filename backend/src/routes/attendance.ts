@@ -11,6 +11,8 @@ import {
   normalizeAttendancePeriod,
   parseDateOnly,
 } from "../utils/attendancePeriods";
+import { buildAttendanceReport } from "../services/attendanceReportService";
+
 
 const router = Router();
 
@@ -93,6 +95,68 @@ router.get("/", async (req, res) => {
   } catch (e) {
     console.error("load attendance", e);
     return res.status(500).json({ success: false, error: "Failed to load attendance" });
+  }
+});
+
+/**
+ * Learner attendance class register report (daily / weekly / monthly range).
+ * Query: schoolId, startDate, endDate, period?, className? (omit/ALL = all classrooms),
+ * includeWeekends?, groupBy?=classrooms|groups
+ */
+router.get("/report", async (req, res) => {
+  try {
+    const schoolId = String(req.query.schoolId || "").trim();
+    const startDate = String(req.query.startDate || "").trim();
+    const endDate = String(req.query.endDate || "").trim();
+    const className = String(req.query.className || "").trim();
+    const includeWeekends =
+      String(req.query.includeWeekends || "").toLowerCase() === "true" ||
+      String(req.query.includeWeekends || "") === "1";
+    const groupBy = String(req.query.groupBy || "classrooms").trim();
+
+    if (!schoolId) {
+      return res.status(400).json({ success: false, error: "schoolId required" });
+    }
+    if (!startDate || !endDate) {
+      return res.status(400).json({ success: false, error: "startDate and endDate required (YYYY-MM-DD)" });
+    }
+
+    const period = normalizeAttendancePeriod(req.query.period);
+    if (period === null) {
+      return res.status(400).json({
+        success: false,
+        error: `Invalid period. Allowed: ${ATTENDANCE_PERIODS.join(", ")}`,
+      });
+    }
+
+    const report = await buildAttendanceReport({
+      schoolId,
+      startDate,
+      endDate,
+      period,
+      className: className || null,
+      includeWeekends,
+      groupBy: groupBy === "groups" ? "groups" : "classrooms",
+      reportKind: (() => {
+        const kind = String(req.query.reportKind || "").trim().toLowerCase();
+        if (kind === "daily" || kind === "weekly" || kind === "monthly" || kind === "list") {
+          return kind;
+        }
+        return undefined;
+      })(),
+    });
+
+    return res.json({ success: true, report });
+  } catch (e) {
+    const message = e instanceof Error ? e.message : "Failed to build attendance report";
+    if (
+      /required|Invalid|must be|not found/i.test(message) &&
+      !/Failed to/i.test(message)
+    ) {
+      return res.status(400).json({ success: false, error: message });
+    }
+    console.error("attendance report", e);
+    return res.status(500).json({ success: false, error: "Failed to build attendance report" });
   }
 });
 
