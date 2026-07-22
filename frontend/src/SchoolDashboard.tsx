@@ -91,6 +91,8 @@ import SchoolCreditsPage from "./pages/SchoolCreditsPage";
 import SchoolSasamsReportUploadPage from "./pages/SchoolSasamsReportUploadPage";
 import SchoolSettingsPage from "./pages/SchoolSettingsPage";
 import MigrationCentrePage from "./pages/migration/MigrationCentrePage";
+import AdminHomeSafePage from "./homesafe/AdminHomeSafePage";
+import AdminHomeSafePwaHead from "./homesafe/AdminHomeSafePwaHead";
 import AccessDenied from "./auth/AccessDenied";
 import BillingDepositsPage from "./pages/BillingDepositsPage";
 import BillingSettingsPage from "./pages/BillingSettingsPage";
@@ -231,6 +233,7 @@ type PageKey =
 
   | "attendance"
   | "attendanceManage"
+  | "homesafe"
 
 
   | "incidents"
@@ -368,6 +371,7 @@ const MOBILE_PAGE_TITLES: Partial<Record<PageKey, string>> = {
   teacherPerformance: "Teacher Performance",
   attendance: "Attendance",
   attendanceManage: "Attendance",
+  homesafe: "HomeSafe Admin",
   incidents: "Incidents",
   incidentManage: "Incidents",
   lists: "Lists",
@@ -1134,6 +1138,18 @@ const [selectedLearnerReport, setSelectedLearnerReport] = useState<any>(null);
     setActivePage(page);
     if (isMobileViewport) setMobileNavOpen(false);
 
+    if (page === "homesafe") {
+      setAdminOpen(true);
+      setSchoolsOpen(false);
+      setBillingOpen(false);
+      setAccountingOpen(false);
+      setCommunicationOpen(false);
+      if (location.pathname !== "/admin/homesafe") {
+        navigate("/admin/homesafe");
+      }
+      return;
+    }
+
     const isAccountingPage =
       page === "payroll" ||
       page === "bankStatementImport" ||
@@ -1187,7 +1203,9 @@ const [selectedLearnerReport, setSelectedLearnerReport] = useState<any>(null);
       setCommunicationOpen(false);
     }
 
-    if (location.pathname.startsWith("/dashboard/billing/")) {
+    if (location.pathname === "/admin/homesafe" || location.pathname.startsWith("/admin/homesafe/")) {
+      navigate("/dashboard");
+    } else if (location.pathname.startsWith("/dashboard/billing/")) {
       navigate("/dashboard");
     }
   };
@@ -2076,6 +2094,18 @@ const [selectedLearnerReport, setSelectedLearnerReport] = useState<any>(null);
     const path = location.pathname || "";
 
 
+
+    if (path === "/admin/homesafe" || path === "/admin/homesafe/") {
+      if (!canPage("homesafe")) {
+        setActivePage(findFirstAllowedSchoolPage(schoolSessionUser) as PageKey);
+        navigate("/dashboard", { replace: true });
+        return;
+      }
+      setAdminOpen(true);
+      setSchoolsOpen(false);
+      setActivePage("homesafe");
+      return;
+    }
 
     if (!path.startsWith("/dashboard/billing/fees")) return;
 
@@ -16114,7 +16144,13 @@ case "attendanceManage":
   
   
      
-  case "incidents":
+  case "homesafe":
+
+  return <AdminHomeSafePage />;
+
+
+
+case "incidents":
 
 
 
@@ -16493,12 +16529,15 @@ return (
     }
 
     const mobilePageTitle = MOBILE_PAGE_TITLES[activePage] || "EduClear";
+    const isAdminHomeSafeRoute =
+      location.pathname === "/admin/homesafe" || location.pathname === "/admin/homesafe/";
 
     return (
 
 
 
       <div className={`school-shell${mobileNavOpen ? " mobile-nav-open" : ""}`}>
+        {isAdminHomeSafeRoute ? <AdminHomeSafePwaHead /> : null}
         {isMobileViewport && mobileNavOpen ? (
           <button
             type="button"
@@ -16686,6 +16725,7 @@ return (
               "employees",
               "teacherPerformance",
               "attendance",
+              "homesafe",
               "incidents",
               "lists",
               "forms",
@@ -16815,6 +16855,10 @@ return (
   
                 {canPage("attendance") ? (
                 <div className={`submenu-item ${activePage === "attendance" ? "active" : ""}`} onClick={() => go("attendance")}>Attendance</div>
+                ) : null}
+
+                {canPage("homesafe") ? (
+                <div className={`submenu-item ${activePage === "homesafe" ? "active" : ""}`} onClick={() => go("homesafe")}>HomeSafe</div>
                 ) : null}
   
   
@@ -17295,6 +17339,9 @@ return (
 
 
           >
+            {isAdminHomeSafeRoute ? (
+              renderPage()
+            ) : (
             <Routes>
   
   
@@ -17408,6 +17455,7 @@ return (
   
   
             </Routes>
+            )}
   
   
   

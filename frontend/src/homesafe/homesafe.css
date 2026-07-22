@@ -1,0 +1,61 @@
+.admin-homesafe {
+  padding: 26px;
+  background: #f8fafc;
+  min-height: 100%;
+  border-radius: 20px;
+  border: 1px solid rgba(15, 23, 42, 0.08);
+}
+
+.admin-homesafe-head h1 {
+  margin: 0;
+  font-size: 30px;
+  font-weight: 900;
+  color: #0f172a;
+}
+
+.admin-homesafe-muted {
+  margin: 6px 0 18px;
+  color: #64748b;
+  font-weight: 700;
+}
+
+.admin-homesafe-reason-grid {
+  display: grid;
+  gap: 8px;
+  margin: 14px 0;
+}
+
+.admin-homesafe-reason-grid label {
+  font-weight: 800;
+  color: #334155;
+}
+
+.admin-homesafe-reason-grid select,
+.admin-homesafe-reason-grid textarea {
+  width: 100%;
+  max-width: 480px;
+  padding: 12px 14px;
+  border-radius: 10px;
+  border: 1px solid rgba(15, 23, 42, 0.14);
+  font-size: 16px;
+}
+
+.admin-homesafe .teacher-homesafe-search {
+  max-width: 520px;
+}
+
+.admin-homesafe .teacher-homesafe-results {
+  max-width: 640px;
+}
+
+.admin-homesafe .teacher-homesafe-confirm {
+  max-width: 640px;
+}
+
+@media (min-width: 768px) {
+  .admin-homesafe-reason-grid select,
+  .admin-homesafe-reason-grid textarea {
+    font-size: 17px;
+    min-height: 48px;
+  }
+}

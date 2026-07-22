@@ -38,3 +38,13 @@ export const teacherPortalPwaHead: PortalPwaHeadConfig = {
   serviceWorkerPath: "/teacher-sw.js",
   serviceWorkerScope: "/teacher/",
 };
+
+/** Admin HomeSafe Home Screen shortcut — reuses main EduClear icon; no separate app SW. */
+export const adminHomeSafePwaHead: PortalPwaHeadConfig = {
+  documentTitle: "HomeSafe Admin",
+  appleWebAppTitle: "HomeSafe Admin",
+  themeColor: "#0f0f0f",
+  manifestHref: `/admin-homesafe.webmanifest?${v}`,
+  appleTouch180: mainEduClearIcon,
+  manifestIcon192: mainEduClearIcon,
+};

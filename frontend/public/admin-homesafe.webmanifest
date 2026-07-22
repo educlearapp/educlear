@@ -1,0 +1,18 @@
+{
+  "name": "HomeSafe Admin",
+  "short_name": "HomeSafe Admin",
+  "description": "EduClear Admin HomeSafe",
+  "start_url": "/admin/homesafe",
+  "scope": "/admin/homesafe",
+  "display": "standalone",
+  "background_color": "#0f0f0f",
+  "theme_color": "#0f0f0f",
+  "icons": [
+    {
+      "src": "/educlear-main-icon-v2-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any"
+    }
+  ]
+}

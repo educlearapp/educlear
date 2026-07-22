@@ -32,6 +32,7 @@ const PAGE_RULES: Record<string, PageRule> = {
   teacherPerformance: { module: "teachers", action: "view" },
   attendance: { module: "attendance", action: "view" },
   attendanceManage: { module: "attendance", action: "edit" },
+  homesafe: { module: "attendance", action: "view" },
   incidents: { module: "learners", action: "view" },
   incidentManage: { module: "learners", action: "edit" },
   lists: { module: "reports", action: "view" },
@@ -102,6 +103,14 @@ export function canAccessSchoolPage(
 
   if (page === "migrationCentre") {
     return false;
+  }
+
+  // Admin HomeSafe is staff-dashboard only (not Teacher portal / Finance-only).
+  if (page === "homesafe") {
+    const role = String(user.appRole || "").trim();
+    if (role === "Teacher" || role === "Finance") {
+      return false;
+    }
   }
 
   if (user.appRole === "Owner") return true;

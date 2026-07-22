@@ -2,11 +2,11 @@ import * as React from "react";
 
 import { useEffect, useState } from "react";
 
-import { useNavigate } from "react-router-dom";
+import { useLocation, useNavigate } from "react-router-dom";
 import { clearStaffAuthSession, consumeInactivityLogoutMessage } from "./auth/sessionLogout";
 
 import { apiFetch } from "./api";
-import { clearSchoolSession, syncSchoolSessionFromLoginResponse } from "./auth/schoolSession";
+import { clearSchoolSession, syncSchoolSessionFromLoginResponse, USER_APP_ROLE_STORAGE_KEY } from "./auth/schoolSession";
 import { clearEduClearRole, logAuthSessionDebug, syncEduClearRoleFromLoginResponse } from "./auth/roles";
 import {
   clearSuperAdminSession,
@@ -17,6 +17,7 @@ import {
   clearMigrationAccess,
   syncMigrationAccessFromLoginResponse,
 } from "./auth/migrationAccess";
+import { safeStaffReturnPath } from "./auth/staffReturnPath";
 import {
   clearSubscriptionGateCache,
   refreshSchoolSubscriptionStatus,
@@ -38,6 +39,7 @@ type Props = {
 export default function Login({ onLoggedIn }: Props) {
 
   const navigate = useNavigate();
+  const location = useLocation();
 
   const [email, setEmail] = useState("");
 
@@ -161,7 +163,18 @@ export default function Login({ onLoggedIn }: Props) {
       onLoggedIn();
 
       clearSubscriptionGateCache();
-      navigate(resolvePostAuthPathSync(String(schoolId)));
+      const defaultPath = resolvePostAuthPathSync(String(schoolId));
+      const appRole = String(localStorage.getItem(USER_APP_ROLE_STORAGE_KEY) || "").trim();
+      const intended = safeStaffReturnPath(
+        (location.state as { from?: unknown } | null)?.from
+      );
+      // Teachers/Parents keep portal destinations; staff deep links (e.g. /admin/homesafe) are restored.
+      const canHonorReturn =
+        Boolean(intended) &&
+        appRole !== "Teacher" &&
+        appRole !== "Parent" &&
+        (defaultPath === "/dashboard" || defaultPath.startsWith("/dashboard"));
+      navigate(canHonorReturn && intended ? intended : defaultPath);
       void refreshSchoolSubscriptionStatus(String(schoolId));
 
     } catch (err: any) {

@@ -622,6 +622,15 @@ export default function App() {
             </SubscriptionGate>
           }
         />
+        {/* Permanent Admin HomeSafe deep link (iPad / Home Screen) — reuses SchoolDashboard + AdminHomeSafePage */}
+        <Route
+          path="/admin/homesafe"
+          element={
+            <SubscriptionGate>
+              <SchoolDashboard />
+            </SubscriptionGate>
+          }
+        />
         <Route path="/teacher-inbox" element={<TeacherInbox />} />
         <Route path="/teacher-portal/dashboard" element={<Navigate to="/teacher/home" replace />} />
         <Route path="/teacher-portal/*" element={<Navigate to="/teacher/home" replace />} />
