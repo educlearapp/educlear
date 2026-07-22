@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { API_URL } from "../api";
 import { getStaffToken } from "../staffApi";
 import {
@@ -9,10 +9,13 @@ import {
 
 type CollectionMethod = HomeSafeCollectionMethodValue;
 
+/** Includes legacy TRANSPORT that may be stored on today's dismissal. */
+type StoredCollectionMethod = CollectionMethod | "TRANSPORT";
+
 type DismissalSummary = {
   displayName: string;
   schoolLocalTimeDisplay: string;
-  collectionMethod: CollectionMethod;
+  collectionMethod: StoredCollectionMethod | string;
 };
 
 type LearnerResult = {
@@ -24,6 +27,27 @@ type LearnerResult = {
   dismissedToday: boolean;
   dismissalToday: DismissalSummary | null;
 };
+
+/**
+ * Dropdown value when opening a learner card.
+ * Already-dismissed learners must show today's stored method — never reset to PARENT.
+ */
+export function collectionMethodForTeacherHomeSafeSelection(
+  learner: Pick<LearnerResult, "dismissedToday" | "dismissalToday">
+): StoredCollectionMethod {
+  if (!learner.dismissedToday) return "PARENT";
+  const raw = String(learner.dismissalToday?.collectionMethod || "")
+    .trim()
+    .toUpperCase();
+  if (!raw) return "PARENT";
+  if (raw === "TRANSPORT") return "TRANSPORT";
+  if ((HOMESAFE_COLLECTION_METHODS as readonly { value: string }[]).some((m) => m.value === raw)) {
+    return raw as CollectionMethod;
+  }
+  // Unknown non-empty value: keep raw out of the controlled select by falling back
+  // only when we cannot render it — still never invent Parent for a known selectable.
+  return "PARENT";
+}
 
 type SearchResponse = {
   success?: boolean;
@@ -70,22 +94,20 @@ export default function TeacherHomeSafePage() {
   const [search, setSearch] = useState("");
   const [results, setResults] = useState<LearnerResult[]>([]);
   const [selected, setSelected] = useState<LearnerResult | null>(null);
-  const [collectionMethod, setCollectionMethod] = useState<CollectionMethod>("PARENT");
+  const [collectionMethod, setCollectionMethod] = useState<StoredCollectionMethod>("PARENT");
   const [collectionNote, setCollectionNote] = useState("");
   const [searching, setSearching] = useState(false);
   const [dismissing, setDismissing] = useState(false);
   const [err, setErr] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
 
-  const resetForNext = useCallback(() => {
-    setSelected(null);
-    setCollectionMethod("PARENT");
-    setCollectionNote("");
-    setSearch("");
-    setResults([]);
-    setErr(null);
-    window.setTimeout(() => searchRef.current?.focus(), 0);
-  }, []);
+  const collectorOptions =
+    collectionMethod === "TRANSPORT"
+      ? ([
+          ...HOMESAFE_COLLECTION_METHODS,
+          { value: "TRANSPORT" as const, label: "Transport" },
+        ] as const)
+      : HOMESAFE_COLLECTION_METHODS;
 
   useEffect(() => {
     const term = search.trim();
@@ -118,7 +140,7 @@ export default function TeacherHomeSafePage() {
 
   const selectLearner = (learner: LearnerResult) => {
     setSelected(learner);
-    setCollectionMethod("PARENT");
+    setCollectionMethod(collectionMethodForTeacherHomeSafeSelection(learner));
     setCollectionNote("");
     setSuccess(null);
     setErr(null);
@@ -158,6 +180,19 @@ export default function TeacherHomeSafePage() {
         const existing = data.existingDismissal;
         const time = existing?.schoolLocalTimeDisplay || "";
         const teacher = existing?.teacherName ? ` by ${existing.teacherName}` : "";
+        const updated: LearnerResult = {
+          ...selected,
+          dismissedToday: true,
+          dismissalToday: existing
+            ? {
+                displayName: existing.displayName || selected.displayName,
+                schoolLocalTimeDisplay: existing.schoolLocalTimeDisplay || time,
+                collectionMethod: existing.collectionMethod,
+              }
+            : selected.dismissalToday,
+        };
+        setSelected(updated);
+        setCollectionMethod(collectionMethodForTeacherHomeSafeSelection(updated));
         setErr(
           `${selected.displayName} was already dismissed today at ${time}${teacher}.`
         );
@@ -170,10 +205,24 @@ export default function TeacherHomeSafePage() {
       }
 
       const methodLabel = collectionMethodLabel(data.dismissal.collectionMethod);
+      const updated: LearnerResult = {
+        ...selected,
+        dismissedToday: true,
+        dismissalToday: {
+          displayName: data.dismissal.displayName,
+          schoolLocalTimeDisplay: data.dismissal.schoolLocalTimeDisplay,
+          collectionMethod: data.dismissal.collectionMethod,
+        },
+      };
+      setSelected(updated);
+      setCollectionMethod(collectionMethodForTeacherHomeSafeSelection(updated));
       setSuccess(
         `${data.dismissal.displayName} dismissed at ${data.dismissal.schoolLocalTimeDisplay} (${methodLabel}).`
       );
-      resetForNext();
+      // Keep the card visible so Collected by shows the method just saved.
+      // Clear search list only — teacher can Cancel or search the next learner.
+      setResults([]);
+      setSearch("");
     } catch (e: unknown) {
       setErr(e instanceof Error ? e.message : "Could not save dismissal");
     } finally {
@@ -250,13 +299,13 @@ export default function TeacherHomeSafePage() {
               className="teacher-homesafe-select"
               value={collectionMethod}
               onChange={(e) => {
-                const next = e.target.value as CollectionMethod;
+                const next = e.target.value as StoredCollectionMethod;
                 setCollectionMethod(next);
                 if (next !== "OTHER") setCollectionNote("");
               }}
               disabled={dismissing || selected.dismissedToday}
             >
-              {HOMESAFE_COLLECTION_METHODS.map((opt) => (
+              {collectorOptions.map((opt) => (
                 <option key={opt.value} value={opt.value}>
                   {opt.label}
                 </option>
