@@ -159,10 +159,13 @@ import {
   type AttendanceReportPayload,
 } from "./attendance/attendanceReportCatalog";
 import AttendanceRegisterReportView from "./attendance/AttendanceRegisterReportView";
+import AttendanceReportsPage from "./attendance/AttendanceReportsPage";
 import {
   buildAttendanceReportCsv,
   downloadCsv,
 } from "./attendance/buildAttendanceReportCsv";
+import { downloadAttendanceReportExcel } from "./attendance/buildAttendanceReportExcel";
+import { downloadAttendanceReportPdf } from "./attendance/buildAttendanceReportPdf";
 
 
 import "./App.css";
@@ -244,6 +247,7 @@ type PageKey =
 
   | "attendance"
   | "attendanceManage"
+  | "attendanceReports"
   | "homesafe"
 
 
@@ -382,6 +386,7 @@ const MOBILE_PAGE_TITLES: Partial<Record<PageKey, string>> = {
   teacherPerformance: "Teacher Performance",
   attendance: "Attendance",
   attendanceManage: "Attendance",
+  attendanceReports: "Attendance Reports",
   homesafe: "HomeSafe Admin",
   incidents: "Incidents",
   incidentManage: "Incidents",
@@ -821,7 +826,7 @@ useEffect(() => {
     setAttendanceApiClasses([]);
     return;
   }
-  if (activePage !== "attendance" && activePage !== "attendanceManage" && activePage !== "lists") return;
+  if (activePage !== "attendance" && activePage !== "attendanceManage" && activePage !== "lists" && activePage !== "attendanceReports") return;
 
   let cancelled = false;
   setAttendanceClassesLoading(true);
@@ -10495,13 +10500,24 @@ if (schoolId) {
 
   const renderAttendance = () => (
     <div style={{ padding: "26px", background: "#f8fafc", minHeight: "100%", borderRadius: "20px", border: "1px solid rgba(15,23,42,0.08)" }}>
-      <div style={{ marginBottom: "18px" }}>
-        <h1 style={{ margin: 0, fontSize: "34px", fontWeight: 900, color: "#0f172a" }}>Attendance</h1>
-        <p style={{ margin: "6px 0 0", color: "#64748b", fontWeight: 700 }}>
-          {attendanceSelectedClass
-            ? `Capture attendance for ${attendanceSelectedClass}`
-            : "Select a class to capture attendance"}
-        </p>
+      <div style={{ marginBottom: "18px", display: "flex", flexWrap: "wrap", gap: 12, alignItems: "flex-start", justifyContent: "space-between" }}>
+        <div>
+          <h1 style={{ margin: 0, fontSize: "34px", fontWeight: 900, color: "#0f172a" }}>Attendance</h1>
+          <p style={{ margin: "6px 0 0", color: "#64748b", fontWeight: 700 }}>
+            {attendanceSelectedClass
+              ? `Capture attendance for ${attendanceSelectedClass}`
+              : "Select a class to capture attendance"}
+          </p>
+        </div>
+        {canPage("attendanceReports") ? (
+          <button
+            type="button"
+            style={{ ...goldBtn, whiteSpace: "nowrap" }}
+            onClick={() => setActivePage("attendanceReports")}
+          >
+            Attendance Reports / Export
+          </button>
+        ) : null}
       </div>
 
       {!attendanceSelectedClass ? (
@@ -12395,6 +12411,15 @@ const renderListsRegisters = () => {
 
   const attendanceConfig = getAttendanceCatalogConfig(selectedListRegister);
 
+  const loadAttendanceReportForExport = async () => {
+    if (!attendanceConfig) return null;
+    let report = listRegisterReport;
+    if (!report) {
+      report = await loadAttendanceRegisterReport();
+    }
+    return report;
+  };
+
   const exportListRegisterCsv = async () => {
 
 
@@ -12416,10 +12441,7 @@ const renderListsRegisters = () => {
 
 
     if (attendanceConfig) {
-      let report = listRegisterReport;
-      if (!report) {
-        report = await loadAttendanceRegisterReport();
-      }
+      const report = await loadAttendanceReportForExport();
       if (!report) {
         alert(listRegisterReportError || "Could not load attendance register for export.");
         return;
@@ -12996,7 +13018,7 @@ const renderListsRegisters = () => {
             {listRegisterReportLoading ? (
               <div style={{ padding: "12px 24px 0", fontWeight: 700 }}>Loading Class Register…</div>
             ) : null}
-            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 20, padding: 24 }}>
+            <div style={{ display: "grid", gridTemplateColumns: attendanceConfig ? "1fr 1fr" : "1fr 1fr 1fr", gap: 16, padding: 24 }}>
 
 
 
@@ -13016,7 +13038,7 @@ const renderListsRegisters = () => {
 
 
 
-                ⬇ Download
+                ⬇ Download CSV
 
 
 
@@ -13024,7 +13046,61 @@ const renderListsRegisters = () => {
 
 
 
-              <button style={actionBtn} onClick={exportListRegisterCsv}>
+              {attendanceConfig ? (
+                <>
+                  <button
+                    style={actionBtn}
+                    onClick={() => {
+                      void (async () => {
+                        const report = await loadAttendanceReportForExport();
+                        if (!report) {
+                          alert(listRegisterReportError || "Could not load attendance register for export.");
+                          return;
+                        }
+                        downloadAttendanceReportExcel(report, attendanceConfig.kind, selectedListRegister);
+                      })();
+                    }}
+                  >
+                    📗 Export Excel
+                  </button>
+                  <button
+                    style={actionBtn}
+                    onClick={() => {
+                      void (async () => {
+                        const report = await loadAttendanceReportForExport();
+                        if (!report) {
+                          alert(listRegisterReportError || "Could not load attendance register for export.");
+                          return;
+                        }
+                        downloadAttendanceReportPdf(report, attendanceConfig.kind, selectedListRegister);
+                      })();
+                    }}
+                  >
+                    📕 Export PDF
+                  </button>
+                  <button
+                    style={actionBtn}
+                    onClick={() => {
+                      void (async () => {
+                        await openListRegisterView();
+                        window.setTimeout(() => window.print(), 300);
+                      })();
+                    }}
+                  >
+                    🖨 Print
+                  </button>
+                  <button
+                    style={actionBtn}
+                    onClick={() => {
+                      setListRegisterActionsOpen(false);
+                      setActivePage("attendanceReports");
+                    }}
+                  >
+                    📊 Attendance Reports
+                  </button>
+                </>
+              ) : (
+              <button style={actionBtn} onClick={() => { void exportListRegisterCsv(); }}>
 
 
 
@@ -13033,6 +13109,7 @@ const renderListsRegisters = () => {
 
 
               </button>
+              )}
 
 
 
@@ -16329,6 +16406,17 @@ case "attendanceManage":
 
 
   return renderAttendanceManage();
+
+case "attendanceReports":
+
+  return (
+    <AttendanceReportsPage
+      schoolId={schoolId || ""}
+      schoolName={schoolBranding?.name || ""}
+      classrooms={attendanceApiClasses}
+      onOpenCapture={() => setActivePage("attendance")}
+    />
+  );
   
   
      
@@ -16913,6 +17001,7 @@ return (
               "employees",
               "teacherPerformance",
               "attendance",
+              "attendanceReports",
               "homesafe",
               "incidents",
               "lists",
@@ -17043,6 +17132,10 @@ return (
   
                 {canPage("attendance") ? (
                 <div className={`submenu-item ${activePage === "attendance" ? "active" : ""}`} onClick={() => go("attendance")}>Attendance</div>
+                ) : null}
+
+                {canPage("attendanceReports") ? (
+                <div className={`submenu-item ${activePage === "attendanceReports" ? "active" : ""}`} onClick={() => go("attendanceReports")}>Attendance Reports</div>
                 ) : null}
 
                 {canPage("homesafe") ? (

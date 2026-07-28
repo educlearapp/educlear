@@ -132,7 +132,11 @@ export default function TeacherAttendancePage() {
         body: JSON.stringify(payload),
       })) as { success?: boolean; error?: string };
       if (!data?.success) throw new Error(data?.error || "Save failed");
-      setNotice(`Attendance saved for ${className} (${date}).`);
+      const summary = (data as { summary?: { present?: number; absent?: number; late?: number; excused?: number; saved?: number } }).summary;
+      const summaryText = summary
+        ? ` Present ${summary.present ?? 0}, Absent ${summary.absent ?? 0}, Late ${summary.late ?? 0}, Excused ${summary.excused ?? 0}.`
+        : "";
+      setNotice(`Attendance saved successfully for ${className} on ${date}.${summaryText}`);
       const qs = new URLSearchParams({ className, date, period });
       const refreshed = (await staffApiFetch(`/api/teacher-app/attendance?${qs}`)) as {
         marks?: MarkRow[];
@@ -154,7 +158,11 @@ export default function TeacherAttendancePage() {
         Capture attendance for your assigned classes. All assigned teachers see the same register.
       </p>
       {displayErr && <p className="teacher-error">{displayErr}</p>}
-      {notice && <p className="teacher-pwa-hint">{notice}</p>}
+      {notice && (
+        <p className="teacher-success-banner" role="status" aria-live="polite">
+          {notice}
+        </p>
+      )}
       {noAssigned && <p className="teacher-pwa-hint">{NO_ASSIGNED_CLASSROOMS_MSG}</p>}
 
       {!noAssigned && (

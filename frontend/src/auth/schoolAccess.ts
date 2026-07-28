@@ -32,6 +32,7 @@ const PAGE_RULES: Record<string, PageRule> = {
   teacherPerformance: { module: "teachers", action: "view" },
   attendance: { module: "attendance", action: "view" },
   attendanceManage: { module: "attendance", action: "edit" },
+  attendanceReports: { module: "reports", action: "view" },
   homesafe: { module: "attendance", action: "view" },
   incidents: { module: "learners", action: "view" },
   incidentManage: { module: "learners", action: "edit" },

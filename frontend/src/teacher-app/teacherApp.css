@@ -448,6 +448,18 @@
   line-height: 1.45;
 }
 
+.teacher-success-banner {
+  margin-top: 12px;
+  padding: 14px 16px;
+  border-radius: 12px;
+  border: 2px solid #16a34a;
+  background: #ecfdf5;
+  color: #14532d;
+  font-size: 0.95rem;
+  font-weight: 700;
+  line-height: 1.45;
+}
+
 .teacher-error {
   color: var(--t-error);
   font-weight: 600;
