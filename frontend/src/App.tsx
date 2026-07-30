@@ -40,6 +40,10 @@ import BillingPaymentCancelled from "./pages/BillingPaymentCancelled";
 import ParentPortalApp from "./parent/ParentPortalApp";
 import TeacherInbox from "./teacher/TeacherInbox";
 import TeacherApp from "./teacher-app/TeacherApp";
+import EduClockApp from "./educlock/EduClockApp";
+import GeofencePhase2aPreviewPage from "./geofence/GeofencePhase2aPreviewPage";
+import EntranceSetupPreviewPage from "./geofence/EntranceSetupPreviewPage";
+import OwnerLocationTestPreviewPage from "./geofence/OwnerLocationTestPreviewPage";
 
 
 
@@ -635,7 +639,23 @@ export default function App() {
         <Route path="/teacher-portal/dashboard" element={<Navigate to="/teacher/home" replace />} />
         <Route path="/teacher-portal/*" element={<Navigate to="/teacher/home" replace />} />
         <Route path="/teacher/*" element={<TeacherApp />} />
-
+        <Route path="/educlock/*" element={<EduClockApp />} />
+        {import.meta.env.DEV ? (
+          <>
+            <Route
+              path="/__local/geofence-corner-preview"
+              element={<GeofencePhase2aPreviewPage />}
+            />
+            <Route
+              path="/__local/geofence-entrance-preview"
+              element={<EntranceSetupPreviewPage />}
+            />
+            <Route
+              path="/__local/geofence-location-test-preview"
+              element={<OwnerLocationTestPreviewPage />}
+            />
+          </>
+        ) : null}
 
 
         <Route
@@ -646,7 +666,6 @@ export default function App() {
             </SubscriptionGate>
           }
         />
-
         <Route
           path="/learners/:learnerId"
           element={

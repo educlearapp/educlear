@@ -6,6 +6,10 @@ export const PERMISSION_ACTIONS = [
   "print",
   "send",
   "manage",
+  "clock",
+  "viewOwn",
+  "correct",
+  "export",
 ] as const;
 
 export type PermissionAction = (typeof PERMISSION_ACTIONS)[number];
@@ -30,6 +34,7 @@ export const PERMISSION_MODULES = [
   { key: "legalDocuments", label: "Legal Documents" },
   { key: "reports", label: "Reports" },
   { key: "payroll", label: "Payroll" },
+  { key: "educlock", label: "EduClock" },
   { key: "settings", label: "Settings" },
 ] as const;
 
@@ -122,6 +127,7 @@ export const roleTemplates: Record<Exclude<AppRole, "Custom">, PermissionMap> = 
     reports: { view: true, print: true },
     payroll: { view: true },
     settings: { view: true, edit: true, manage: true },
+    educlock: { clock: true, viewOwn: true, manage: true },
   }),
   Finance: withPermissions({
     dashboard: { view: true },
@@ -145,6 +151,7 @@ export const roleTemplates: Record<Exclude<AppRole, "Custom">, PermissionMap> = 
     classrooms: { view: true },
     teachers: { view: true },
     reports: { view: true },
+    educlock: { clock: true, viewOwn: true },
   }),
   Viewer: withPermissions({
     dashboard: { view: true },

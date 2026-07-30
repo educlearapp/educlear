@@ -46,6 +46,7 @@ const PAGE_RULES: Record<string, PageRule> = {
   invoiceCreate: { module: "invoices", action: "create" },
   payments: { module: "payments", action: "view" },
   paymentCreate: { module: "payments", action: "create" },
+  educlock: { module: "educlock", action: "manage" },
   payroll: { module: "payroll", action: "view" },
   fees: { module: "billing", action: "view" },
   feeUpsert: { module: "billing", action: "edit" },

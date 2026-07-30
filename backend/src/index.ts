@@ -35,6 +35,8 @@ import authRoutes from "./routes/auth";
 import teacherPerformanceRoutes from "./routes/teacherPerformance";
 
 import payrollRoutes from "./routes/payroll";
+import educlockRoutes from "./routes/educlock";
+import geofencesRoutes from "./routes/geofences";
 import feesRoutes from "./routes/fees";
 import registrationsRoutes from "./routes/registrations";
 import emailRoutes from "./routes/emails";
@@ -253,7 +255,14 @@ const corsOptions: cors.CorsOptions = {
       "https://www.educlear.co.za",
     ];
 
-    if (!origin || allowedOrigins.includes(origin)) {
+    const isDev = process.env.NODE_ENV !== "production";
+    const isPrivateLanOrigin =
+      typeof origin === "string" &&
+      /^https?:\/\/(192\.168\.\d{1,3}\.\d{1,3}|10\.\d{1,3}\.\d{1,3}\.\d{1,3}|172\.(1[6-9]|2\d|3[01])\.\d{1,3}\.\d{1,3})(:\d+)?$/.test(
+        origin
+      );
+
+    if (!origin || allowedOrigins.includes(origin) || (isDev && isPrivateLanOrigin)) {
       callback(null, true);
     } else {
       console.log("Blocked by CORS:", origin);
@@ -267,6 +276,7 @@ const corsOptions: cors.CorsOptions = {
     "Cache-Control",
     "Pragma",
     "Expires",
+    "Idempotency-Key",
   ],
   credentials: true,
 };
@@ -340,6 +350,8 @@ app.use("/api/billing/da-silva-late-penalties", daSilvaLatePenaltiesRoutes);
 app.use("/api/billing/reports", billingReportsRoutes);
 app.use("/api/teacher-performance", teacherPerformanceRoutes);
 app.use("/api/payroll", payrollRoutes);
+app.use("/api/educlock", educlockRoutes);
+app.use("/api/geofences", geofencesRoutes);
 app.use("/api/fees", feesRoutes);
 app.use("/api/learners", learnerRoutes);
 app.use("/api/registrations", registrationsRoutes);

@@ -8,9 +8,7 @@ datasource db {
   url = env("DATABASE_URL")
 }
 
-
 enum FeeFrequency {
-
   MONTHLY
 
   MONTHLY_EXCL_DEC
@@ -26,13 +24,13 @@ enum FeeFrequency {
   TERMLY
 
   DAILY
-
 }
 
 enum FeeCategory {
   SCHOOL_CHARGE
   EXTRAMURAL_CHARGE
 }
+
 enum UserRole {
   SCHOOL_ADMIN
 
@@ -97,81 +95,80 @@ model School {
 
   parents Parent[]
 
-  learners Learner[]
+  learners       Learner[]
   learnerResults LearnerResult[]
 
+  learnerReports LearnerReport[]
 
-
-learnerReports LearnerReport[]
-
-
-  familyAccounts FamilyAccount[]
-  fees FeeStructure[]
+  familyAccounts   FamilyAccount[]
+  fees             FeeStructure[]
   SchoolFeeSetting SchoolFeeSetting[]
   LetterTemplate   LetterTemplate[]
   Letter           Letter[]
 
   teacherPerformances TeacherPerformance[]
-  employees        Employee[]
+  employees           Employee[]
 
+  payrollSettings PayrollSetting[]
 
+  payrollRuns PayrollRun[]
 
-  payrollSettings  PayrollSetting[]
-
-
-
-  payrollRuns      PayrollRun[]
-
-
-
-  payslips         Payslip[]
-
-
+  payslips Payslip[]
 
   payrollEmailLogs PayrollEmailLog[]
 
-  billingSettings BillingSettings?
-  billingDeposits BillingDeposit[]
-  bankStatementImports BankStatementImport[]
-  bankTransactions BankTransaction[]
-  migrationTopupPaymentBatches MigrationTopupPaymentBatch[]
-  migrationTopupPaymentRows MigrationTopupPaymentRow[]
-  suppliers Supplier[]
-  supplierInvoices SupplierInvoice[]
-  expenseCategories ExpenseCategory[]
-  accountingJournals AccountingJournal[]
-  classrooms Classroom[]
-  groups Group[]
-  groupLearnerLinks GroupLearner[]
-  groupExternalMembers GroupExternalMember[]
-  classroomTeachers ClassroomTeacher[]
-  teacherLearnerNotes TeacherLearnerNote[]
-  teacherStudyNotes TeacherStudyNote[]
-  parentNotifications ParentNotification[]
-  parentTeacherThreads ParentTeacherThread[]
-  homeworkPosts HomeworkPost[]
-  schoolNotices SchoolNotice[]
-  parentDocuments ParentDocument[]
-  learnerIncidents LearnerIncident[]
-  learnerAttendances LearnerAttendance[]
-  learnerBillingPlanLines LearnerBillingPlanLine[]
+  billingSettings                  BillingSettings?
+  billingDeposits                  BillingDeposit[]
+  bankStatementImports             BankStatementImport[]
+  bankTransactions                 BankTransaction[]
+  migrationTopupPaymentBatches     MigrationTopupPaymentBatch[]
+  migrationTopupPaymentRows        MigrationTopupPaymentRow[]
+  suppliers                        Supplier[]
+  supplierInvoices                 SupplierInvoice[]
+  expenseCategories                ExpenseCategory[]
+  accountingJournals               AccountingJournal[]
+  classrooms                       Classroom[]
+  groups                           Group[]
+  groupLearnerLinks                GroupLearner[]
+  groupExternalMembers             GroupExternalMember[]
+  classroomTeachers                ClassroomTeacher[]
+  teacherLearnerNotes              TeacherLearnerNote[]
+  teacherStudyNotes                TeacherStudyNote[]
+  parentNotifications              ParentNotification[]
+  parentTeacherThreads             ParentTeacherThread[]
+  homeworkPosts                    HomeworkPost[]
+  schoolNotices                    SchoolNotice[]
+  parentDocuments                  ParentDocument[]
+  learnerIncidents                 LearnerIncident[]
+  learnerAttendances               LearnerAttendance[]
+  learnerBillingPlanLines          LearnerBillingPlanLine[]
   learnerBillingPlanClearedMarkers LearnerBillingPlanCleared[]
-  parentOnboardings ParentOnboarding[]
-  parentOutreachQueue ParentOutreachQueue[]
-  communicationMessages CommunicationMessage[]
-  communicationCampaigns CommunicationCampaign[]
-  communicationTemplates CommunicationTemplate[]
-  communicationLogs CommunicationLog[]
-  pushSubscriptions PushSubscription[]
-  schoolCommunicationProfile SchoolCommunicationProfile?
-  schoolEmailSettings SchoolEmailSettings?
-  schoolSmsSettings SchoolSmsSettings?
-  schoolSubscription SchoolSubscription?
-  subscriptionInvoices SubscriptionInvoice[]
-  subscriptionPaymentLogs SubscriptionPaymentLog[]
-  creditPurchaseInvoices CreditPurchaseInvoice[]
-  creditPurchasePaymentLogs CreditPurchasePaymentLog[]
-  homeSafeEvents HomeSafeEvent[]
+  parentOnboardings                ParentOnboarding[]
+  parentOutreachQueue              ParentOutreachQueue[]
+  communicationMessages            CommunicationMessage[]
+  communicationCampaigns           CommunicationCampaign[]
+  communicationTemplates           CommunicationTemplate[]
+  communicationLogs                CommunicationLog[]
+  pushSubscriptions                PushSubscription[]
+  schoolCommunicationProfile       SchoolCommunicationProfile?
+  schoolEmailSettings              SchoolEmailSettings?
+  schoolSmsSettings                SchoolSmsSettings?
+  schoolSubscription               SchoolSubscription?
+  subscriptionInvoices             SubscriptionInvoice[]
+  subscriptionPaymentLogs          SubscriptionPaymentLog[]
+  creditPurchaseInvoices           CreditPurchaseInvoice[]
+  creditPurchasePaymentLogs        CreditPurchasePaymentLog[]
+  homeSafeEvents                   HomeSafeEvent[]
+  eduClockActivationAudits         EduClockActivationAudit[]
+  eduClockCampuses                 EduClockCampus[]
+  eduClockEntrances                EduClockEntrance[]
+  eduClockEvents                   EduClockEvent[]
+  eduClockOpenShifts               EduClockOpenShift[]
+  eduClockExceptions               EduClockException[]
+  eduClockIdempotencyKeys          EduClockIdempotencyKey[]
+  eduClockGpsAttempts              EduClockGpsAttempt[]
+  geofenceZones                    GeofenceZone[]
+  geofenceVertices                 GeofenceVertex[]
 }
 
 enum EduClearPackageCode {
@@ -207,17 +204,17 @@ enum PaymentGatewayProvider {
 }
 
 model EduClearPackage {
-  id                  String              @id @default(cuid())
-  code                EduClearPackageCode @unique
-  name                String
-  monthlyPriceCents   Int
-  learnerLimit        Int?
-  payrollStaffLimit   Int?
-  mostPopular         Boolean             @default(false)
-  description         String?
-  isActive            Boolean             @default(true)
-  createdAt           DateTime            @default(now())
-  updatedAt           DateTime            @updatedAt
+  id                String              @id @default(cuid())
+  code              EduClearPackageCode @unique
+  name              String
+  monthlyPriceCents Int
+  learnerLimit      Int?
+  payrollStaffLimit Int?
+  mostPopular       Boolean             @default(false)
+  description       String?
+  isActive          Boolean             @default(true)
+  createdAt         DateTime            @default(now())
+  updatedAt         DateTime            @updatedAt
 
   subscriptions SchoolSubscription[]
 }
@@ -236,8 +233,8 @@ model SchoolSubscription {
   createdAt          DateTime                 @default(now())
   updatedAt          DateTime                 @updatedAt
 
-  school   School          @relation(fields: [schoolId], references: [id], onDelete: Cascade)
-  package  EduClearPackage @relation(fields: [packageId], references: [id], onDelete: Restrict)
+  school   School                @relation(fields: [schoolId], references: [id], onDelete: Cascade)
+  package  EduClearPackage       @relation(fields: [packageId], references: [id], onDelete: Restrict)
   invoices SubscriptionInvoice[]
 
   @@index([status])
@@ -259,8 +256,8 @@ model SubscriptionInvoice {
   createdAt      DateTime                  @default(now())
   updatedAt      DateTime                  @updatedAt
 
-  school       School               @relation(fields: [schoolId], references: [id], onDelete: Cascade)
-  subscription SchoolSubscription   @relation(fields: [subscriptionId], references: [id], onDelete: Cascade)
+  school       School                   @relation(fields: [schoolId], references: [id], onDelete: Cascade)
+  subscription SchoolSubscription       @relation(fields: [subscriptionId], references: [id], onDelete: Cascade)
   payments     SubscriptionPaymentLog[]
 
   @@unique([invoiceNumber])
@@ -349,8 +346,8 @@ model CreditPurchaseInvoice {
   createdAt        DateTime                    @default(now())
   updatedAt        DateTime                    @updatedAt
 
-  school   School               @relation(fields: [schoolId], references: [id], onDelete: Cascade)
-  bundle   EduClearCreditBundle @relation(fields: [bundleId], references: [id], onDelete: Restrict)
+  school   School                     @relation(fields: [schoolId], references: [id], onDelete: Cascade)
+  bundle   EduClearCreditBundle       @relation(fields: [bundleId], references: [id], onDelete: Restrict)
   payments CreditPurchasePaymentLog[]
 
   @@unique([invoiceNumber])
@@ -413,45 +410,37 @@ model BillingSettings {
 
   @@index([schoolId])
 }
-  
-
 
 model FeeStructure {
+  id String @id @default(cuid())
 
-  id        String       @id @default(cuid())
-
-  schoolId  String
+  schoolId String
 
   /// Legacy fields (kept for existing billing UI compatibility)
-  name      String
+  name String
 
-  amount    Float
+  amount Float
 
   frequency FeeFrequency
 
   /// Fees module fields
-  category  FeeCategory?
-  type      String?
+  category    FeeCategory?
+  type        String?
   description String?
 
-  notes     String?
+  notes String?
 
-  grade     String?
+  grade String?
 
-  createdAt DateTime     @default(now())
-  updatedAt DateTime     @updatedAt
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
-  isActive  Boolean      @default(true)
+  isActive Boolean @default(true)
 
-
-
-  school    School       @relation(fields: [schoolId], references: [id])
-
-
+  school School @relation(fields: [schoolId], references: [id])
 
   @@index([schoolId])
   @@index([schoolId, isActive])
-
 }
 
 model User {
@@ -459,8 +448,8 @@ model User {
 
   schoolId String
 
-  email String
-  fullName String?
+  email        String
+  fullName     String?
   passwordHash String
 
   isActive Boolean @default(true)
@@ -478,9 +467,11 @@ model User {
 
   permissionOverrides UserPermissionOverride[]
 
-  rbacMeta UserRbacMeta?
+  rbacMeta             UserRbacMeta?
   classroomAssignments ClassroomTeacher[]
-  homeSafeEvents HomeSafeEvent[]
+  homeSafeEvents       HomeSafeEvent[]
+  /// Permanent EduClock / Payroll staff link (at most one Employee per User).
+  linkedEmployee       Employee?
 
   @@unique([schoolId, email])
   @@index([schoolId])
@@ -494,7 +485,7 @@ model UserRbacMeta {
   schoolId String
 
   firstName String @default("")
-  surname String @default("")
+  surname   String @default("")
 
   appRole String @default("Viewer")
 
@@ -502,8 +493,8 @@ model UserRbacMeta {
 
   lastLoginAt DateTime?
 
-  updatedAt DateTime @updatedAt
-  updatedBy String?
+  updatedAt     DateTime  @updatedAt
+  updatedBy     String?
   roleChangedAt DateTime?
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
@@ -524,7 +515,7 @@ model Permission {
   category String?
 
   rolePermissions RolePermission[]
-  userOverrides UserPermissionOverride[]
+  userOverrides   UserPermissionOverride[]
 }
 
 /// Role definitions are per-school
@@ -541,8 +532,8 @@ model SchoolRole {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  school School @relation(fields: [schoolId], references: [id], onDelete: Cascade)
-  users User[]
+  school      School           @relation(fields: [schoolId], references: [id], onDelete: Cascade)
+  users       User[]
   permissions RolePermission[]
 
   @@unique([schoolId, name])
@@ -552,10 +543,10 @@ model SchoolRole {
 model RolePermission {
   id String @id @default(cuid())
 
-  roleId String
+  roleId       String
   permissionId String
 
-  role SchoolRole @relation(fields: [roleId], references: [id], onDelete: Cascade)
+  role       SchoolRole @relation(fields: [roleId], references: [id], onDelete: Cascade)
   permission Permission @relation(fields: [permissionId], references: [id], onDelete: Cascade)
 
   @@unique([roleId, permissionId])
@@ -567,12 +558,12 @@ model RolePermission {
 model UserPermissionOverride {
   id String @id @default(cuid())
 
-  userId String
+  userId       String
   permissionId String
 
   allowed Boolean
 
-  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  user       User       @relation(fields: [userId], references: [id], onDelete: Cascade)
   permission Permission @relation(fields: [permissionId], references: [id], onDelete: Cascade)
 
   @@unique([userId, permissionId])
@@ -581,14 +572,10 @@ model UserPermissionOverride {
 }
 
 model Parent {
-
   id String @id @default(cuid())
 
-
-
-  schoolId String
-familyAccountId String?
-
+  schoolId        String
+  familyAccountId String?
 
   relationship String?
 
@@ -600,8 +587,8 @@ familyAccountId String?
 
   nickname String?
 
-  idNumber String? @unique 
-  status String @default("GREEN")
+  idNumber String? @unique
+  status   String  @default("GREEN")
 
   outstandingAmount Float @default(0)
 
@@ -633,80 +620,65 @@ familyAccountId String?
 
   communicationBySMS Boolean @default(true)
 
-
-
   createdAt DateTime @default(now())
 
-
-
-  school School @relation(fields: [schoolId], references: [id])
-familyAccount FamilyAccount? @relation(fields: [familyAccountId], references: [id])
-
+  school        School         @relation(fields: [schoolId], references: [id])
+  familyAccount FamilyAccount? @relation(fields: [familyAccountId], references: [id])
 
   links ParentLearnerLink[]
 
-  Letter Letter[]
-  notifications ParentNotification[]
-  teacherThreads ParentTeacherThread[]
-  onboarding ParentOnboarding?
-  outreachQueue ParentOutreachQueue[]
+  Letter                Letter[]
+  notifications         ParentNotification[]
+  teacherThreads        ParentTeacherThread[]
+  onboarding            ParentOnboarding?
+  outreachQueue         ParentOutreachQueue[]
   communicationMessages CommunicationMessage[]
-  pushSubscriptions PushSubscription[]
+  pushSubscriptions     PushSubscription[]
 
   @@index([schoolId])
-
   @@index([schoolId, cellNo])
-
-
 }
+
 model FamilyAccount {
+  id String @id @default(cuid())
 
-  id              String    @id @default(cuid())
+  schoolId String
 
-  schoolId        String
+  accountRef String
 
-  accountRef      String
+  familyName String
 
-  familyName      String
+  createdAt DateTime @default(now())
 
-  createdAt       DateTime  @default(now())
+  school School @relation(fields: [schoolId], references: [id])
 
+  learners Learner[]
 
-
-  school          School    @relation(fields: [schoolId], references: [id])
-
-  learners        Learner[]
-
-  parents         Parent[]
+  parents Parent[]
 
   billingDeposits BillingDeposit[]
 
-
-
   @@unique([schoolId, accountRef])
-
   @@index([schoolId])
-
   @@index([schoolId, familyName])
-
 }
 
 model Learner {
   id String @id @default(cuid())
 
-  schoolId String
+  schoolId        String
   familyAccountId String?
-  firstName String
+  firstName       String
 
   lastName String
 
   nickname String?
 
-  birthDate DateTime?
-  gender String?
-  idNumber String?
+  birthDate    DateTime?
+  gender       String?
+  idNumber     String?
   homeLanguage String?
-  citizenship String?
+  citizenship  String?
 
   grade String
 
@@ -715,47 +687,44 @@ model Learner {
   enrollmentStatus LearnerEnrollmentStatus @default(ACTIVE)
 
   admissionNo String?
-  tuitionFee   Float   @default(0)
+  tuitionFee  Float   @default(0)
 
-transportFee Float   @default(0)
+  transportFee Float @default(0)
 
-otherFee     Float   @default(0)
+  otherFee Float @default(0)
 
-totalFee     Float   @default(0)
+  totalFee Float @default(0)
 
   createdAt DateTime @default(now())
 
   notes String?
 
-  school School @relation(fields: [schoolId], references: [id])
-familyAccount FamilyAccount? @relation(fields: [familyAccountId], references: [id])
-  links ParentLearnerLink[]
+  school        School              @relation(fields: [schoolId], references: [id])
+  familyAccount FamilyAccount?      @relation(fields: [familyAccountId], references: [id])
+  links         ParentLearnerLink[]
 
-  Letter Letter[]
+  Letter  Letter[]
   results LearnerResult[]
 
+  reports LearnerReport[]
 
-
-reports LearnerReport[]
-
-  billingDeposits BillingDeposit[]
-  billingPlanLines LearnerBillingPlanLine[]
+  billingDeposits           BillingDeposit[]
+  billingPlanLines          LearnerBillingPlanLine[]
   billingPlanClearedMarkers LearnerBillingPlanCleared[]
-  notifications ParentNotification[]
-  teacherThreads ParentTeacherThread[]
-  homeworkPosts HomeworkPost[]
-  incidents LearnerIncident[]
-  teacherLearnerNotes TeacherLearnerNote[]
-  attendances LearnerAttendance[]
-  communicationMessages CommunicationMessage[]
-  groupLinks GroupLearner[]
-  homeSafeEvents HomeSafeEvent[]
+  notifications             ParentNotification[]
+  teacherThreads            ParentTeacherThread[]
+  homeworkPosts             HomeworkPost[]
+  incidents                 LearnerIncident[]
+  teacherLearnerNotes       TeacherLearnerNote[]
+  attendances               LearnerAttendance[]
+  communicationMessages     CommunicationMessage[]
+  groupLinks                GroupLearner[]
+  homeSafeEvents            HomeSafeEvent[]
 
   @@unique([schoolId, admissionNo])
   @@index([schoolId])
   @@index([schoolId, grade])
   @@index([schoolId, enrollmentStatus])
-
 }
 
 /// Persistent per-learner billing plan fee lines (DB source of truth; replaces ephemeral JSON on Render).
@@ -938,1360 +907,968 @@ model Letter {
   @@index([schoolId, type])
   @@index([parentId])
 }
+
 model TeacherPerformance {
+  id String @id @default(cuid())
 
-  id                   String   @id @default(cuid())
+  schoolId String
 
-  schoolId             String
+  teacherName String
 
-  teacherName          String
+  teacherEmail String?
 
-  teacherEmail         String?
+  month String
 
-  month                String
+  learnerResults Float
 
-  learnerResults       Float
+  classroomManagement Float
 
-  classroomManagement  Float
+  teachingQuality Float
 
-  teachingQuality      Float
+  administration Float
 
-  administration       Float
+  professionalConduct Float
 
-  professionalConduct  Float
+  finalScore Float
 
-  finalScore           Float
+  performanceLevel String
 
-  performanceLevel     String
+  notes String?
 
-  notes                String?
+  createdAt DateTime @default(now())
 
-  createdAt            DateTime @default(now())
-
-  updatedAt            DateTime @updatedAt
-
-
+  updatedAt DateTime @updatedAt
 
   school School @relation(fields: [schoolId], references: [id], onDelete: Cascade)
 
-
-
   @@index([schoolId])
-
   @@index([month])
-
 }
+
 // =========================
-
-
 
 // PAYROLL ENUMS
 
-
-
 // =========================
 
-
-
 enum EmploymentType {
-
-
-
   PERMANENT
-
-
 
   TEMPORARY
 
-
-
   CONTRACT
-
-
 
   PART_TIME
 
-
-
   CASUAL
-
-
-
 }
 
-
-
 enum SalaryType {
-
-
-
   MONTHLY
 
-
-
   WEEKLY
-
-
 
   DAILY
 
-
-
   HOURLY
-
-
-
 }
 
-
-
 enum PayFrequency {
-
-
-
   MONTHLY
-
-
 
   WEEKLY
 
-
-
   FORTNIGHTLY
-
-
-
 }
 
-
-
 enum PayrollRunStatus {
-
-
-
   DRAFT
-
-
 
   FINALIZED
 
-
-
   CANCELLED
-
-
-
 }
 
-
-
 enum PayrollItemType {
-
-
-
   EARNING
-
-
 
   DEDUCTION
 
-
-
   EMPLOYER_CONTRIBUTION
-
-
-
 }
 
-
-
 enum PayrollItemCode {
-
-
-
   BASIC_SALARY
-
-
 
   OVERTIME
 
-
-
   BONUS
-
-
 
   COMMISSION
 
-
-
   ALLOWANCE
-
-
 
   HOUSING_ALLOWANCE
 
-
-
   TRANSPORT_ALLOWANCE
-
-
 
   CELLPHONE_ALLOWANCE
 
-
-
   OTHER_EARNING
-
-
 
   PAYE
 
-
-
   UIF_EMPLOYEE
-
-
 
   PENSION
 
-
-
   MEDICAL_AID
-
-
 
   STAFF_LOAN
 
-
-
   STAFF_ADVANCE
-
-
 
   UNION_FEE
 
-
-
   OTHER_DEDUCTION
-
-
 
   UIF_EMPLOYER
 
-
-
   OTHER_EMPLOYER_CONTRIBUTION
-
-
-
 }
 
-
-
 enum PayslipDeliveryPreference {
-
-
-
   PRINT
-
-
 
   EMAIL
 
-
-
   BOTH
-
-
-
 }
 
-
-
 enum PayslipEmailStatus {
-
-
-
   NOT_SENT
-
-
 
   SENT
 
-
-
   FAILED
-
-
-
 }
-
-
 
 enum PayslipPrintStatus {
-
-
-
   NOT_PRINTED
 
-
-
   PRINTED
-
-
-
 }
 
-
-
 enum PayrollReportType {
-
-
-
   SALARY_REGISTER
-
-
 
   DEDUCTION_REGISTER
 
-
-
   EMPLOYER_CONTRIBUTION
-
-
 
   PAYROLL_SUMMARY
 
-
-
   PAYROLL_PACK
-
-
-
 }
 
-
-
 // =========================
-
-
 
 // PAYROLL MODELS
 
-
-
 // =========================
 
-
+enum EmployeeIdentityType {
+  SA_ID
+  PASSPORT
+  PERMIT
+  OTHER
+}
 
 model Employee {
+  id String @id @default(cuid())
 
+  schoolId String
 
+  employeeNumber String?
 
-  id                     String                   @id @default(cuid())
+  firstName String
 
+  lastName String
 
+  fullName String?
 
-  schoolId               String
+  idNumber     String?
+  identityType EmployeeIdentityType?
 
+  dateOfBirth DateTime?
 
+  gender String?
 
-  employeeNumber         String?
+  mobileNumber String?
 
+  email String?
 
+  physicalAddress String? @db.Text
 
-  firstName              String
+  jobTitle String?
 
+  department String?
 
+  employmentType EmploymentType @default(PERMANENT)
 
-  lastName               String
+  salaryType SalaryType @default(MONTHLY)
 
+  payFrequency PayFrequency @default(MONTHLY)
 
+  paymentMethod String?
 
-  fullName               String?
+  startDate DateTime?
 
+  endDate DateTime?
 
+  isActive Boolean @default(true)
 
-  idNumber               String?
+  taxNumber String?
 
+  uifApplicable Boolean @default(true)
 
+  incomeTaxApplicable Boolean @default(true)
 
-  dateOfBirth            DateTime?
+  basicSalary Decimal @default(0) @db.Decimal(12, 2)
 
+  hourlyRate Decimal @default(0) @db.Decimal(12, 2)
 
+  overtimeRate Decimal @default(0) @db.Decimal(12, 2)
 
-  gender                 String?
+  overtimeHours Decimal @default(0) @db.Decimal(12, 2)
 
+  fixedHousingAllowance Decimal @default(0) @db.Decimal(12, 2)
 
+  fixedTransportAllowance Decimal @default(0) @db.Decimal(12, 2)
 
-  mobileNumber           String?
+  fixedCellphoneAllowance Decimal @default(0) @db.Decimal(12, 2)
 
+  fixedOtherAllowance Decimal @default(0) @db.Decimal(12, 2)
 
+  fixedPension Decimal @default(0) @db.Decimal(12, 2)
 
-  email                  String?
+  fixedMedicalAid Decimal @default(0) @db.Decimal(12, 2)
 
+  fixedStaffLoan Decimal @default(0) @db.Decimal(12, 2)
 
+  fixedStaffAdvance Decimal @default(0) @db.Decimal(12, 2)
 
-  physicalAddress        String?                  @db.Text
+  fixedOtherDeduction Decimal @default(0) @db.Decimal(12, 2)
 
+  employeeMedicalAid Decimal @default(0) @db.Decimal(12, 2)
 
+  employerMedicalAid Decimal @default(0) @db.Decimal(12, 2)
 
-  jobTitle               String?
+  employeePension Decimal @default(0) @db.Decimal(12, 2)
 
+  employerPension Decimal @default(0) @db.Decimal(12, 2)
 
+  bankAccountHolder String?
 
-  department             String?
+  bankName String?
 
+  bankAccountNumber String?
 
-
-  employmentType         EmploymentType           @default(PERMANENT)
-
-
-
-  salaryType             SalaryType               @default(MONTHLY)
-
-
-
-  payFrequency           PayFrequency             @default(MONTHLY)
-
-
-
-  paymentMethod          String?
-
-
-
-  startDate              DateTime?
-
-
-
-  endDate                DateTime?
-
-
-
-  isActive               Boolean                  @default(true)
-
-
-
-  taxNumber              String?
-
-
-
-  uifApplicable          Boolean                  @default(true)
-
-
-
-  incomeTaxApplicable    Boolean                  @default(true)
-
-
-
-  basicSalary            Decimal                  @default(0) @db.Decimal(12, 2)
-
-
-
-  hourlyRate             Decimal                  @default(0) @db.Decimal(12, 2)
-
-  overtimeRate           Decimal                  @default(0) @db.Decimal(12, 2)
-
-  overtimeHours          Decimal                  @default(0) @db.Decimal(12, 2)
-
-  fixedHousingAllowance  Decimal                  @default(0) @db.Decimal(12, 2)
-
-
-
-  fixedTransportAllowance Decimal                 @default(0) @db.Decimal(12, 2)
-
-
-
-  fixedCellphoneAllowance Decimal                 @default(0) @db.Decimal(12, 2)
-
-
-
-  fixedOtherAllowance    Decimal                  @default(0) @db.Decimal(12, 2)
-
-
-
-  fixedPension           Decimal                  @default(0) @db.Decimal(12, 2)
-
-
-
-  fixedMedicalAid        Decimal                  @default(0) @db.Decimal(12, 2)
-
-
-
-  fixedStaffLoan         Decimal                  @default(0) @db.Decimal(12, 2)
-
-
-
-  fixedStaffAdvance      Decimal                  @default(0) @db.Decimal(12, 2)
-
-
-
-  fixedOtherDeduction    Decimal                  @default(0) @db.Decimal(12, 2)
-
-  employeeMedicalAid     Decimal                  @default(0) @db.Decimal(12, 2)
-
-  employerMedicalAid     Decimal                  @default(0) @db.Decimal(12, 2)
-
-  employeePension        Decimal                  @default(0) @db.Decimal(12, 2)
-
-  employerPension        Decimal                  @default(0) @db.Decimal(12, 2)
-
-
-  bankAccountHolder      String?
-
-
-
-  bankName               String?
-
-
-
-  bankAccountNumber      String?
-
-
-
-  bankBranchCode         String?
-
-
+  bankBranchCode String?
 
   payslipDeliveryPreference PayslipDeliveryPreference @default(BOTH)
 
+  sendPayslipByEmail Boolean @default(true)
 
+  notes String? @db.Text
 
-  sendPayslipByEmail     Boolean                  @default(true)
+  createdAt DateTime @default(now())
 
+  updatedAt DateTime @updatedAt
 
+  school School @relation(fields: [schoolId], references: [id], onDelete: Cascade)
 
-  notes                  String?                  @db.Text
+  payrollRunEmployees PayrollRunEmployee[]
 
-
-
-  createdAt              DateTime                 @default(now())
-
-
-
-  updatedAt              DateTime                 @updatedAt
-
-
-
-  school                 School                   @relation(fields: [schoolId], references: [id], onDelete: Cascade)
-
-
-
-  payrollRunEmployees    PayrollRunEmployee[]
-
-
-
-  payslips               Payslip[]
-
-
+  payslips            Payslip[]
+  eduClockEvents      EduClockEvent[]
+  eduClockOpenShifts  EduClockOpenShift[]
+  eduClockExceptions  EduClockException[]
+  eduClockGpsAttempts EduClockGpsAttempt[]
+  /// Permanent link to the EduClear login User for this school (EduClock activation).
+  userId              String?              @unique
+  /// ISO country code for passport/permit (e.g. ZA, MW). Optional for SA_ID.
+  identityCountryCode String?
+  user                User?                @relation(fields: [userId], references: [id], onDelete: SetNull)
 
   @@index([schoolId])
-
-
-
   @@index([employeeNumber])
-
-
-
   @@index([email])
-
-
-
   @@index([isActive])
-
-
-
+  @@index([schoolId, identityType])
 }
 
+// =========================
+// EduClock + Geofence Engine
+// =========================
 
+/// Privacy-safe EduClock activation / link audit (never stores identity document numbers).
+model EduClockActivationAudit {
+  id          String   @id @default(cuid())
+  schoolId    String
+  userId      String
+  employeeId  String?
+  actorUserId String
+  action      String
+  detail      String?
+  createdAt   DateTime @default(now())
+
+  school School @relation(fields: [schoolId], references: [id], onDelete: Cascade)
+
+  @@index([schoolId, createdAt])
+  @@index([userId])
+  @@index([employeeId])
+}
+
+/// EduClock campus / work site (Build 2 foundation).
+/// Campus polygon boundaries are stored in the shared Geofence Engine (GeofenceZone), not only on this model.
+model EduClockCampus {
+  id              String   @id @default(cuid())
+  schoolId        String
+  name            String
+  description     String?
+  timezone        String   @default("Africa/Johannesburg")
+  /// External perimeter tolerance in metres (approved default 4). Not used for entrance clock GPS.
+  toleranceMetres Int      @default(4)
+  isActive        Boolean  @default(true)
+  /// NOT_DRAWN | DRAWN — mirrors whether an active CAMPUS_BOUNDARY zone exists for this campus.
+  perimeterStatus String   @default("NOT_DRAWN")
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  school        School             @relation(fields: [schoolId], references: [id], onDelete: Cascade)
+  entrances     EduClockEntrance[]
+  geofenceZones GeofenceZone[]
+
+  @@unique([schoolId, name])
+  @@index([schoolId])
+  @@index([schoolId, isActive])
+}
+
+/// Named entrance on a campus (Main Gate, Staff Entrance, etc.).
+/// Build 4: point geofence via lat/lng + allowedRadiusMetres (1–25, default 5).
+model EduClockEntrance {
+  id                  String   @id @default(cuid())
+  schoolId            String
+  campusId            String
+  name                String
+  description         String?
+  latitude            Decimal? @db.Decimal(10, 7)
+  longitude           Decimal? @db.Decimal(10, 7)
+  /// Owner-configurable entrance radius in metres. Independent of GPS accuracyMetres.
+  allowedRadiusMetres Int      @default(5)
+  isActive            Boolean  @default(true)
+  createdAt           DateTime @default(now())
+  updatedAt           DateTime @updatedAt
+
+  school             School               @relation(fields: [schoolId], references: [id], onDelete: Cascade)
+  campus             EduClockCampus       @relation(fields: [campusId], references: [id], onDelete: Cascade)
+  matchedClockEvents EduClockEvent[]      @relation("EduClockEventMatchedEntrance")
+  nearestGpsAttempts EduClockGpsAttempt[] @relation("EduClockGpsAttemptNearestEntrance")
+
+  @@unique([campusId, name])
+  @@index([schoolId])
+  @@index([campusId])
+  @@index([schoolId, isActive])
+}
+
+/// Shared Geofence Engine — reusable across EduClock, HomeSafe, Teacher Portal, transport, etc.
+/// Zone types are extensible; only CAMPUS_BOUNDARY + POLYGON geometry are required for EduClock Phase 2–4.
+enum GeofenceZoneType {
+  CAMPUS_BOUNDARY
+  ENTRANCE
+  STAFF_ENTRANCE
+  VISITOR_ENTRANCE
+  FOUNDATION_PHASE
+  HIGH_SCHOOL
+  TRANSPORT
+  ASSEMBLY_POINT
+  EXCLUSION_ZONE
+  CUSTOM
+}
+
+enum GeofenceGeometryKind {
+  POLYGON
+  POINT
+}
+
+/// Named geofence zone for a school (campus boundary, entrance, assembly, exclusion, custom, …).
+model GeofenceZone {
+  id              String               @id @default(cuid())
+  schoolId        String
+  name            String
+  type            GeofenceZoneType
+  active          Boolean              @default(true)
+  /// POLYGON (ordered vertices) or POINT (future entrances / assembly markers).
+  geometryKind    GeofenceGeometryKind @default(POLYGON)
+  /// GeoJSON geometry for interchange (Polygon / Point). Vertices table is source of truth for polygons.
+  geometry        Json?
+  metadata        Json?
+  /// Optional soft link when this zone is an EduClock campus boundary (or other campus-scoped zone).
+  campusId        String?
+  createdByUserId String?
+  createdAt       DateTime             @default(now())
+  updatedAt       DateTime             @updatedAt
+
+  school   School           @relation(fields: [schoolId], references: [id], onDelete: Cascade)
+  campus   EduClockCampus?  @relation(fields: [campusId], references: [id], onDelete: SetNull)
+  vertices GeofenceVertex[]
+
+  @@index([schoolId])
+  @@index([schoolId, type])
+  @@index([schoolId, active])
+  @@index([campusId])
+  @@index([schoolId, campusId, type, active])
+}
+
+/// Ordered polygon vertices (corners) for a GeofenceZone. sequence starts at 0.
+model GeofenceVertex {
+  id             String    @id @default(cuid())
+  schoolId       String
+  zoneId         String
+  sequence       Int
+  latitude       Decimal   @db.Decimal(10, 7)
+  longitude      Decimal   @db.Decimal(10, 7)
+  accuracyMetres Decimal?  @db.Decimal(10, 2)
+  capturedAt     DateTime?
+  createdAt      DateTime  @default(now())
+
+  school School       @relation(fields: [schoolId], references: [id], onDelete: Cascade)
+  zone   GeofenceZone @relation(fields: [zoneId], references: [id], onDelete: Cascade)
+
+  @@unique([zoneId, sequence])
+  @@index([schoolId])
+  @@index([zoneId])
+}
+
+enum EduClockEventType {
+  CLOCK_IN
+  CLOCK_OUT
+}
+
+enum EduClockEventSource {
+  STAFF_MOBILE
+  OWNER_MANUAL
+  SYSTEM
+}
+
+/// Immutable clock-in / clock-out audit events (source of truth).
+model EduClockEvent {
+  id                     String              @id @default(cuid())
+  schoolId               String
+  employeeId             String
+  /// Snapshot of employee number at event time (preserves leading zeros / history).
+  employeeNumberSnapshot String
+  userId                 String
+  eventType              EduClockEventType
+  occurredAtUtc          DateTime
+  schoolLocalDate        String
+  schoolLocalTime        String
+  timezone               String              @default("Africa/Johannesburg")
+  source                 EduClockEventSource @default(STAFF_MOBILE)
+  createdAt              DateTime            @default(now())
+  createdByUserId        String
+  note                   String?
+  correctedFromEventId   String?
+  isManualCorrection     Boolean             @default(false)
+  /// Privacy-safe JSON only — never store identity document numbers.
+  metadata               Json?
+  /// GPS fields (nullable for Build 3 historical rows; populated when GPS validation accepts).
+  latitude               Decimal?            @db.Decimal(10, 7)
+  longitude              Decimal?            @db.Decimal(10, 7)
+  accuracyMetres         Decimal?            @db.Decimal(10, 2)
+  matchedEntranceId      String?
+  distanceMetres         Decimal?            @db.Decimal(10, 2)
+  /// e.g. gps-entrance-v1 — null for pre-GPS / manual corrections without GPS.
+  validationVersion      String?
+
+  school          School              @relation(fields: [schoolId], references: [id], onDelete: Cascade)
+  employee        Employee            @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+  correctedFrom   EduClockEvent?      @relation("EduClockEventCorrections", fields: [correctedFromEventId], references: [id], onDelete: SetNull)
+  corrections     EduClockEvent[]     @relation("EduClockEventCorrections")
+  matchedEntrance EduClockEntrance?   @relation("EduClockEventMatchedEntrance", fields: [matchedEntranceId], references: [id], onDelete: SetNull)
+  openShift       EduClockOpenShift?
+  exceptions      EduClockException[]
+
+  @@index([schoolId, schoolLocalDate])
+  @@index([schoolId, employeeId, occurredAtUtc])
+  @@index([employeeId, occurredAtUtc])
+  @@index([correctedFromEventId])
+  @@index([matchedEntranceId])
+}
+
+/// At most one open shift per employee per school (enforces one-active-shift at DB level).
+model EduClockOpenShift {
+  id              String   @id @default(cuid())
+  schoolId        String
+  employeeId      String
+  clockInEventId  String   @unique
+  schoolLocalDate String
+  openedAtUtc     DateTime
+  createdAt       DateTime @default(now())
+
+  school       School        @relation(fields: [schoolId], references: [id], onDelete: Cascade)
+  employee     Employee      @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+  clockInEvent EduClockEvent @relation(fields: [clockInEventId], references: [id], onDelete: Cascade)
+
+  @@unique([schoolId, employeeId])
+  @@index([schoolId, schoolLocalDate])
+}
+
+enum EduClockExceptionType {
+  MISSING_CLOCK_OUT
+  DUPLICATE_CLOCK_ATTEMPT
+  INVALID_EVENT_SEQUENCE
+  MANUAL_CORRECTION
+  ACTIVATION_BLOCKED
+}
+
+enum EduClockExceptionStatus {
+  OPEN
+  RESOLVED
+}
+
+model EduClockException {
+  id                     String                  @id @default(cuid())
+  schoolId               String
+  employeeId             String
+  employeeNumberSnapshot String?
+  schoolLocalDate        String
+  exceptionType          EduClockExceptionType
+  details                String
+  status                 EduClockExceptionStatus @default(OPEN)
+  relatedEventId         String?
+  resolvedByUserId       String?
+  resolvedAt             DateTime?
+  createdAt              DateTime                @default(now())
+
+  school       School         @relation(fields: [schoolId], references: [id], onDelete: Cascade)
+  employee     Employee       @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+  relatedEvent EduClockEvent? @relation(fields: [relatedEventId], references: [id], onDelete: SetNull)
+
+  @@index([schoolId, schoolLocalDate])
+  @@index([schoolId, status])
+  @@index([employeeId, schoolLocalDate])
+}
+
+/// Optional client Idempotency-Key for staff clock-in / clock-out (double-tap / retry safe).
+model EduClockIdempotencyKey {
+  id        String   @id @default(cuid())
+  schoolId  String
+  userId    String
+  operation String
+  key       String
+  eventId   String?
+  response  Json?
+  createdAt DateTime @default(now())
+
+  school School @relation(fields: [schoolId], references: [id], onDelete: Cascade)
+
+  @@unique([schoolId, userId, operation, key])
+  @@index([createdAt])
+}
+
+/// Rejected GPS clock attempts — audit only. Never creates EduClockEvent / attendance rows.
+model EduClockGpsAttempt {
+  id                String            @id @default(cuid())
+  schoolId          String
+  employeeId        String
+  userId            String
+  attemptType       EduClockEventType
+  occurredAtUtc     DateTime
+  latitude          Decimal?          @db.Decimal(10, 7)
+  longitude         Decimal?          @db.Decimal(10, 7)
+  accuracyMetres    Decimal?          @db.Decimal(10, 2)
+  nearestEntranceId String?
+  distanceMetres    Decimal?          @db.Decimal(10, 2)
+  rejectionCode     String
+  rejectionReason   String
+  /// Privacy-safe device metadata only (e.g. browser timestamp, userAgent) — never identity numbers.
+  deviceMetadata    Json?
+  createdAt         DateTime          @default(now())
+
+  school          School            @relation(fields: [schoolId], references: [id], onDelete: Cascade)
+  employee        Employee          @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+  nearestEntrance EduClockEntrance? @relation("EduClockGpsAttemptNearestEntrance", fields: [nearestEntranceId], references: [id], onDelete: SetNull)
+
+  @@index([schoolId, occurredAtUtc])
+  @@index([schoolId, employeeId, occurredAtUtc])
+  @@index([nearestEntranceId])
+}
 
 model PayrollSetting {
+  id String @id @default(cuid())
 
+  schoolId String
 
+  taxYear Int
 
-  id                           String         @id @default(cuid())
+  isActive Boolean @default(true)
 
+  payFrequency PayFrequency @default(MONTHLY)
 
+  defaultPayDay Int?
 
-  schoolId                     String
-
-
-
-  taxYear                      Int
-
-
-
-  isActive                     Boolean        @default(true)
-
-
-
-  payFrequency                 PayFrequency   @default(MONTHLY)
-
-
-
-  defaultPayDay                Int?
-
-
-
-  currency                     String         @default("ZAR")
-
-
+  currency String @default("ZAR")
 
   // SARS / UIF settings
 
+  primaryRebate Decimal @default(0) @db.Decimal(12, 2)
 
+  secondaryRebate Decimal @default(0) @db.Decimal(12, 2)
 
-  primaryRebate                Decimal        @default(0) @db.Decimal(12, 2)
+  tertiaryRebate Decimal @default(0) @db.Decimal(12, 2)
 
+  taxThresholdUnder65 Decimal @default(0) @db.Decimal(12, 2)
 
+  taxThreshold65To74 Decimal @default(0) @db.Decimal(12, 2)
 
-  secondaryRebate              Decimal        @default(0) @db.Decimal(12, 2)
+  taxThreshold75AndOver Decimal @default(0) @db.Decimal(12, 2)
 
+  uifEnabled Boolean @default(true)
 
+  uifEmployeePercent Decimal @default(1) @db.Decimal(5, 2)
 
-  tertiaryRebate               Decimal        @default(0) @db.Decimal(12, 2)
+  uifEmployerPercent Decimal @default(1) @db.Decimal(5, 2)
 
+  uifMonthlyCeiling Decimal @default(17712) @db.Decimal(12, 2)
 
+  payslipPrefix String? @default("PS")
 
-  taxThresholdUnder65          Decimal        @default(0) @db.Decimal(12, 2)
+  payrollRunPrefix String? @default("PR")
 
+  payrollEmailFromName String?
 
+  payrollEmailReplyTo String?
 
-  taxThreshold65To74           Decimal        @default(0) @db.Decimal(12, 2)
+  payslipEmailSubjectTemplate String? @db.Text
 
+  payslipEmailBodyTemplate String? @db.Text
 
+  bookkeeperName String?
 
-  taxThreshold75AndOver        Decimal        @default(0) @db.Decimal(12, 2)
+  bookkeeperEmail String?
 
+  bookkeeperSendPdf Boolean @default(true)
 
+  bookkeeperSendExcel Boolean @default(true)
 
-  uifEnabled                   Boolean        @default(true)
+  bookkeeperEmailSubjectTemplate String? @db.Text
 
+  bookkeeperEmailBodyTemplate String? @db.Text
 
+  envelopeTopOffsetMm Decimal @default(0) @db.Decimal(8, 2)
 
-  uifEmployeePercent           Decimal        @default(1) @db.Decimal(5, 2)
+  envelopeLeftOffsetMm Decimal @default(0) @db.Decimal(8, 2)
 
+  showFoldGuide Boolean @default(false)
 
+  createdAt DateTime @default(now())
 
-  uifEmployerPercent           Decimal        @default(1) @db.Decimal(5, 2)
+  updatedAt DateTime @updatedAt
 
+  school School @relation(fields: [schoolId], references: [id], onDelete: Cascade)
 
-
-  uifMonthlyCeiling            Decimal        @default(17712) @db.Decimal(12, 2)
-
-
-
-  payslipPrefix                String?        @default("PS")
-
-
-
-  payrollRunPrefix             String?        @default("PR")
-
-
-
-  payrollEmailFromName         String?
-
-
-
-  payrollEmailReplyTo          String?
-
-
-
-  payslipEmailSubjectTemplate  String?        @db.Text
-
-
-
-  payslipEmailBodyTemplate     String?        @db.Text
-
-
-
-  bookkeeperName               String?
-
-
-
-  bookkeeperEmail              String?
-
-
-
-  bookkeeperSendPdf            Boolean        @default(true)
-
-
-
-  bookkeeperSendExcel          Boolean        @default(true)
-
-
-
-  bookkeeperEmailSubjectTemplate String?      @db.Text
-
-
-
-  bookkeeperEmailBodyTemplate  String?        @db.Text
-
-
-
-  envelopeTopOffsetMm          Decimal        @default(0) @db.Decimal(8, 2)
-
-
-
-  envelopeLeftOffsetMm         Decimal        @default(0) @db.Decimal(8, 2)
-
-
-
-  showFoldGuide                Boolean        @default(false)
-
-
-
-  createdAt                    DateTime       @default(now())
-
-
-
-  updatedAt                    DateTime       @updatedAt
-
-
-
-  school                       School         @relation(fields: [schoolId], references: [id], onDelete: Cascade)
-
-
-
-  payrollRuns                  PayrollRun[]
-
-
+  payrollRuns PayrollRun[]
 
   @@unique([schoolId, taxYear])
-
-
-
   @@index([schoolId])
-
-
-
   @@index([taxYear])
-
-
-
 }
-
-
 
 model PayrollRun {
+  id String @id @default(cuid())
 
+  schoolId String
 
+  payrollSettingId String?
 
-  id                    String              @id @default(cuid())
+  runNumber String?
 
+  taxYear Int
 
+  payrollMonth Int
 
-  schoolId              String
+  payrollYear Int
 
+  payDate DateTime
 
+  status PayrollRunStatus @default(DRAFT)
 
-  payrollSettingId      String?
+  employeeCount Int @default(0)
 
+  grossTotal Decimal @default(0) @db.Decimal(14, 2)
 
+  deductionsTotal Decimal @default(0) @db.Decimal(14, 2)
 
-  runNumber             String?
+  netTotal Decimal @default(0) @db.Decimal(14, 2)
 
+  employerCostTotal Decimal @default(0) @db.Decimal(14, 2)
 
+  finalizedAt DateTime?
 
-  taxYear               Int
+  notes String? @db.Text
 
+  createdAt DateTime @default(now())
 
+  updatedAt DateTime @updatedAt
 
-  payrollMonth          Int
+  school School @relation(fields: [schoolId], references: [id], onDelete: Cascade)
 
+  payrollSetting PayrollSetting? @relation(fields: [payrollSettingId], references: [id], onDelete: SetNull)
 
+  employees PayrollRunEmployee[]
 
-  payrollYear           Int
+  payslips Payslip[]
 
-
-
-  payDate               DateTime
-
-
-
-  status                PayrollRunStatus    @default(DRAFT)
-
-
-
-  employeeCount         Int                 @default(0)
-
-
-
-  grossTotal            Decimal             @default(0) @db.Decimal(14, 2)
-
-
-
-  deductionsTotal       Decimal             @default(0) @db.Decimal(14, 2)
-
-
-
-  netTotal              Decimal             @default(0) @db.Decimal(14, 2)
-
-
-
-  employerCostTotal     Decimal             @default(0) @db.Decimal(14, 2)
-
-
-
-  finalizedAt           DateTime?
-
-
-
-  notes                 String?             @db.Text
-
-
-
-  createdAt             DateTime            @default(now())
-
-
-
-  updatedAt             DateTime            @updatedAt
-
-
-
-  school                School              @relation(fields: [schoolId], references: [id], onDelete: Cascade)
-
-
-
-  payrollSetting        PayrollSetting?     @relation(fields: [payrollSettingId], references: [id], onDelete: SetNull)
-
-
-
-  employees             PayrollRunEmployee[]
-
-
-
-  payslips              Payslip[]
-
-
-
-  emailLogs             PayrollEmailLog[]
-
-
+  emailLogs PayrollEmailLog[]
 
   @@index([schoolId])
-
-
-
   @@index([payrollSettingId])
-
-
-
   @@index([taxYear, payrollMonth, payrollYear])
-
-
-
   @@index([status])
-
-
-
 }
-
-
 
 model PayrollRunEmployee {
+  id String @id @default(cuid())
 
+  payrollRunId String
 
+  employeeId String
 
-  id                    String              @id @default(cuid())
+  basicSalary Decimal @default(0) @db.Decimal(12, 2)
 
+  overtimeAmount Decimal @default(0) @db.Decimal(12, 2)
 
+  bonusAmount Decimal @default(0) @db.Decimal(12, 2)
 
-  payrollRunId          String
+  allowanceAmount Decimal @default(0) @db.Decimal(12, 2)
 
+  otherEarningsAmount Decimal @default(0) @db.Decimal(12, 2)
 
+  grossPay Decimal @default(0) @db.Decimal(12, 2)
 
-  employeeId            String
+  payeAmount Decimal @default(0) @db.Decimal(12, 2)
 
+  uifEmployeeAmount Decimal @default(0) @db.Decimal(12, 2)
 
+  otherDeductionsAmount Decimal @default(0) @db.Decimal(12, 2)
 
-  basicSalary           Decimal             @default(0) @db.Decimal(12, 2)
+  totalDeductions Decimal @default(0) @db.Decimal(12, 2)
 
+  netPay Decimal @default(0) @db.Decimal(12, 2)
 
+  uifEmployerAmount Decimal @default(0) @db.Decimal(12, 2)
 
-  overtimeAmount        Decimal             @default(0) @db.Decimal(12, 2)
+  employerCost Decimal @default(0) @db.Decimal(12, 2)
 
+  createdAt DateTime @default(now())
 
+  updatedAt DateTime @updatedAt
 
-  bonusAmount           Decimal             @default(0) @db.Decimal(12, 2)
+  payrollRun PayrollRun @relation(fields: [payrollRunId], references: [id], onDelete: Cascade)
 
+  employee Employee @relation(fields: [employeeId], references: [id], onDelete: Cascade)
 
+  items PayrollItem[]
 
-  allowanceAmount       Decimal             @default(0) @db.Decimal(12, 2)
-
-
-
-  otherEarningsAmount   Decimal             @default(0) @db.Decimal(12, 2)
-
-
-
-  grossPay              Decimal             @default(0) @db.Decimal(12, 2)
-
-
-
-  payeAmount            Decimal             @default(0) @db.Decimal(12, 2)
-
-
-
-  uifEmployeeAmount     Decimal             @default(0) @db.Decimal(12, 2)
-
-
-
-  otherDeductionsAmount Decimal             @default(0) @db.Decimal(12, 2)
-
-
-
-  totalDeductions       Decimal             @default(0) @db.Decimal(12, 2)
-
-
-
-  netPay                Decimal             @default(0) @db.Decimal(12, 2)
-
-
-
-  uifEmployerAmount     Decimal             @default(0) @db.Decimal(12, 2)
-
-
-
-  employerCost          Decimal             @default(0) @db.Decimal(12, 2)
-
-
-
-  createdAt             DateTime            @default(now())
-
-
-
-  updatedAt             DateTime            @updatedAt
-
-
-
-  payrollRun            PayrollRun          @relation(fields: [payrollRunId], references: [id], onDelete: Cascade)
-
-
-
-  employee              Employee            @relation(fields: [employeeId], references: [id], onDelete: Cascade)
-
-
-
-  items                 PayrollItem[]
-
-
-
-  payslip               Payslip?
-
-
+  payslip Payslip?
 
   @@unique([payrollRunId, employeeId])
-
-
-
   @@index([payrollRunId])
-
-
-
   @@index([employeeId])
-
-
-
 }
-
-
 
 model PayrollItem {
+  id String @id @default(cuid())
 
+  payrollRunEmployeeId String
 
+  itemType PayrollItemType
 
-  id                    String              @id @default(cuid())
+  itemCode PayrollItemCode
 
+  label String
 
+  amount Decimal @default(0) @db.Decimal(12, 2)
 
-  payrollRunEmployeeId  String
+  taxable Boolean @default(true)
 
+  sortOrder Int @default(0)
 
+  createdAt DateTime @default(now())
 
-  itemType              PayrollItemType
+  updatedAt DateTime @updatedAt
 
-
-
-  itemCode              PayrollItemCode
-
-
-
-  label                 String
-
-
-
-  amount                Decimal             @default(0) @db.Decimal(12, 2)
-
-
-
-  taxable               Boolean             @default(true)
-
-
-
-  sortOrder             Int                 @default(0)
-
-
-
-  createdAt             DateTime            @default(now())
-
-
-
-  updatedAt             DateTime            @updatedAt
-
-
-
-  payrollRunEmployee    PayrollRunEmployee  @relation(fields: [payrollRunEmployeeId], references: [id], onDelete: Cascade)
-
-
+  payrollRunEmployee PayrollRunEmployee @relation(fields: [payrollRunEmployeeId], references: [id], onDelete: Cascade)
 
   @@index([payrollRunEmployeeId])
-
-
-
   @@index([itemType])
-
-
-
   @@index([itemCode])
-
-
-
 }
-
-
 
 model Payslip {
+  id String @id @default(cuid())
 
+  schoolId String
 
+  payrollRunId String
 
-  id                    String              @id @default(cuid())
+  payrollRunEmployeeId String @unique
 
+  employeeId String
 
+  payslipNumber String?
 
-  schoolId              String
+  taxYear Int
 
+  payrollMonth Int
 
+  payrollYear Int
 
-  payrollRunId          String
+  payDate DateTime
 
+  grossPay Decimal @default(0) @db.Decimal(12, 2)
 
+  totalDeductions Decimal @default(0) @db.Decimal(12, 2)
 
-  payrollRunEmployeeId  String              @unique
+  netPay Decimal @default(0) @db.Decimal(12, 2)
 
+  employerCost Decimal @default(0) @db.Decimal(12, 2)
 
+  pdfPath String?
 
-  employeeId            String
+  emailStatus PayslipEmailStatus @default(NOT_SENT)
 
+  printStatus PayslipPrintStatus @default(NOT_PRINTED)
 
+  emailedAt DateTime?
 
-  payslipNumber         String?
+  emailedTo String?
 
+  printedAt DateTime?
 
+  lastEmailError String? @db.Text
 
-  taxYear               Int
+  createdAt DateTime @default(now())
 
+  updatedAt DateTime @updatedAt
 
+  school School @relation(fields: [schoolId], references: [id], onDelete: Cascade)
 
-  payrollMonth          Int
+  payrollRun PayrollRun @relation(fields: [payrollRunId], references: [id], onDelete: Cascade)
 
+  payrollRunEmployee PayrollRunEmployee @relation(fields: [payrollRunEmployeeId], references: [id], onDelete: Cascade)
 
-
-  payrollYear           Int
-
-
-
-  payDate               DateTime
-
-
-
-  grossPay              Decimal             @default(0) @db.Decimal(12, 2)
-
-
-
-  totalDeductions       Decimal             @default(0) @db.Decimal(12, 2)
-
-
-
-  netPay                Decimal             @default(0) @db.Decimal(12, 2)
-
-
-
-  employerCost          Decimal             @default(0) @db.Decimal(12, 2)
-
-
-
-  pdfPath               String?
-
-
-
-  emailStatus           PayslipEmailStatus  @default(NOT_SENT)
-
-
-
-  printStatus           PayslipPrintStatus  @default(NOT_PRINTED)
-
-
-
-  emailedAt             DateTime?
-
-
-
-  emailedTo             String?
-
-
-
-  printedAt             DateTime?
-
-
-
-  lastEmailError        String?             @db.Text
-
-
-
-  createdAt             DateTime            @default(now())
-
-
-
-  updatedAt             DateTime            @updatedAt
-
-
-
-  school                School              @relation(fields: [schoolId], references: [id], onDelete: Cascade)
-
-
-
-  payrollRun            PayrollRun          @relation(fields: [payrollRunId], references: [id], onDelete: Cascade)
-
-
-
-  payrollRunEmployee    PayrollRunEmployee  @relation(fields: [payrollRunEmployeeId], references: [id], onDelete: Cascade)
-
-
-
-  employee              Employee            @relation(fields: [employeeId], references: [id], onDelete: Cascade)
-
-
+  employee Employee @relation(fields: [employeeId], references: [id], onDelete: Cascade)
 
   @@index([schoolId])
-
-
-
   @@index([payrollRunId])
-
-
-
   @@index([employeeId])
-
-
-
   @@index([emailStatus])
-
-
-
 }
-
-
 
 model PayrollEmailLog {
+  id String @id @default(cuid())
 
+  schoolId String
 
+  payrollRunId String?
 
-  id                    String              @id @default(cuid())
+  reportType PayrollReportType?
 
+  recipientName String?
 
+  recipientEmail String
 
-  schoolId              String
+  subject String?
 
+  body String? @db.Text
 
+  success Boolean @default(false)
 
-  payrollRunId          String?
+  errorMessage String? @db.Text
 
+  attachedPdf Boolean @default(false)
 
+  attachedExcel Boolean @default(false)
 
-  reportType            PayrollReportType?
+  createdAt DateTime @default(now())
 
+  school School @relation(fields: [schoolId], references: [id], onDelete: Cascade)
 
-
-  recipientName         String?
-
-
-
-  recipientEmail        String
-
-
-
-  subject               String?
-
-
-
-  body                  String?             @db.Text
-
-
-
-  success               Boolean             @default(false)
-
-
-
-  errorMessage          String?             @db.Text
-
-
-
-  attachedPdf           Boolean             @default(false)
-
-
-
-  attachedExcel         Boolean             @default(false)
-
-
-
-  createdAt             DateTime            @default(now())
-
-
-
-  school                School              @relation(fields: [schoolId], references: [id], onDelete: Cascade)
-
-
-
-  payrollRun            PayrollRun?         @relation(fields: [payrollRunId], references: [id], onDelete: SetNull)
-
-
+  payrollRun PayrollRun? @relation(fields: [payrollRunId], references: [id], onDelete: SetNull)
 
   @@index([schoolId])
-
-
-
   @@index([payrollRunId])
-
-
-
   @@index([recipientEmail])
-
-
-
   @@index([createdAt])
-
-
-
 }
 
- model LearnerResult {
+model LearnerResult {
+  id String @id @default(cuid())
 
+  learnerId String
 
+  schoolId String
 
-  id               String   @id @default(cuid())
+  classroomId String?
 
+  term String
 
+  subject String
 
-  learnerId        String
+  mark Float
 
+  percentage Float?
 
+  comment String?
 
-  schoolId         String
+  createdAt DateTime @default(now())
 
+  updatedAt DateTime @updatedAt
 
+  learner Learner @relation(fields: [learnerId], references: [id], onDelete: Cascade)
 
-  classroomId      String?
-
-
-
-  term             String
-
-
-
-  subject          String
-
-
-
-  mark             Float
-
-
-
-  percentage       Float?
-
-
-
-  comment          String?
-
-
-
-  createdAt        DateTime @default(now())
-
-
-
-  updatedAt        DateTime @updatedAt
-
-
-
-  learner          Learner  @relation(fields: [learnerId], references: [id], onDelete: Cascade)
-
-
-
-  school           School   @relation(fields: [schoolId], references: [id], onDelete: Cascade)
-
-
-
+  school School @relation(fields: [schoolId], references: [id], onDelete: Cascade)
 }
-
-
 
 model LearnerReport {
+  id String @id @default(cuid())
 
+  learnerId String
 
+  schoolId String
 
-  id                    String   @id @default(cuid())
+  term String
 
+  overallAverage Float?
 
+  attendancePercent Float?
 
-  learnerId             String
+  classTeacherRemark String?
 
+  principalRemark String?
 
+  pdfUrl String?
 
-  schoolId              String
+  createdAt DateTime @default(now())
 
+  updatedAt DateTime @updatedAt
 
+  learner Learner @relation(fields: [learnerId], references: [id], onDelete: Cascade)
 
-  term                  String
-
-
-
-  overallAverage        Float?
-
-
-
-  attendancePercent     Float?
-
-
-
-  classTeacherRemark    String?
-
-
-
-  principalRemark       String?
-
-
-
-  pdfUrl                String?
-
-
-
-  createdAt             DateTime @default(now())
-
-
-
-  updatedAt             DateTime @updatedAt
-
-
-
-  learner               Learner  @relation(fields: [learnerId], references: [id], onDelete: Cascade)
-
-
-
-  school                School   @relation(fields: [schoolId], references: [id], onDelete: Cascade)
-
-
-
+  school School @relation(fields: [schoolId], references: [id], onDelete: Cascade)
 }
 
 enum DepositStatus {
@@ -2317,9 +1894,9 @@ model BillingDeposit {
   createdAt        DateTime      @default(now())
   updatedAt        DateTime      @updatedAt
 
-  school        School                      @relation(fields: [schoolId], references: [id], onDelete: Cascade)
-  learner       Learner                     @relation(fields: [learnerId], references: [id], onDelete: Cascade)
-  familyAccount FamilyAccount?              @relation(fields: [familyAccountId], references: [id], onDelete: SetNull)
+  school        School                       @relation(fields: [schoolId], references: [id], onDelete: Cascade)
+  learner       Learner                      @relation(fields: [learnerId], references: [id], onDelete: Cascade)
+  familyAccount FamilyAccount?               @relation(fields: [familyAccountId], references: [id], onDelete: SetNull)
   allocations   BillingDepositAllocation[]
   history       BillingDepositHistoryEntry[]
 
@@ -2385,38 +1962,38 @@ model BankStatementImport {
 }
 
 model BankTransaction {
-  id                    String                     @id @default(cuid())
-  schoolId              String
-  importId              String
-  date                  String
-  description           String                     @default("")
-  reference             String                     @default("")
-  moneyIn               Float                      @default(0)
-  moneyOut              Float                      @default(0)
-  direction             String
-  transactionType       String                     @default("payment")
-  suggestedAccountId    String                     @default("")
-  suggestedAccountNo    String                     @default("")
-  suggestedLearnerId    String                     @default("")
-  suggestedLearnerName  String                     @default("")
-  confidenceScore       Int                        @default(0)
-  matchConfidence       String                     @default("none")
-  matchReason           String                     @default("")
-  reviewStatus          String                     @default("pending")
-  matchStatus           BankTransactionMatchStatus @default(imported)
-  expenseCategory       String                     @default("")
-  suggestedSupplierName String                     @default("")
-  supplierId            String                     @default("")
-  suggestedInvoiceId    String                     @default("")
-  suggestedInvoiceNumber String                    @default("")
-  invoiceMatchScore     Int                        @default(0)
-  expenseNotes          String                     @default("")
-  postedPaymentId       String?
-  fingerprint           String
-  rawRow                Json?
-  isDuplicate           Boolean                    @default(false)
-  createdAt             DateTime                   @default(now())
-  updatedAt             DateTime                   @updatedAt
+  id                     String                     @id @default(cuid())
+  schoolId               String
+  importId               String
+  date                   String
+  description            String                     @default("")
+  reference              String                     @default("")
+  moneyIn                Float                      @default(0)
+  moneyOut               Float                      @default(0)
+  direction              String
+  transactionType        String                     @default("payment")
+  suggestedAccountId     String                     @default("")
+  suggestedAccountNo     String                     @default("")
+  suggestedLearnerId     String                     @default("")
+  suggestedLearnerName   String                     @default("")
+  confidenceScore        Int                        @default(0)
+  matchConfidence        String                     @default("none")
+  matchReason            String                     @default("")
+  reviewStatus           String                     @default("pending")
+  matchStatus            BankTransactionMatchStatus @default(imported)
+  expenseCategory        String                     @default("")
+  suggestedSupplierName  String                     @default("")
+  supplierId             String                     @default("")
+  suggestedInvoiceId     String                     @default("")
+  suggestedInvoiceNumber String                     @default("")
+  invoiceMatchScore      Int                        @default(0)
+  expenseNotes           String                     @default("")
+  postedPaymentId        String?
+  fingerprint            String
+  rawRow                 Json?
+  isDuplicate            Boolean                    @default(false)
+  createdAt              DateTime                   @default(now())
+  updatedAt              DateTime                   @updatedAt
 
   school School              @relation(fields: [schoolId], references: [id], onDelete: Cascade)
   import BankStatementImport @relation(fields: [importId], references: [id], onDelete: Cascade)
@@ -2429,20 +2006,20 @@ model BankTransaction {
 }
 
 model MigrationTopupPaymentBatch {
-  id            String   @id @default(cuid())
-  schoolId      String
-  uploadedAt    DateTime @default(now())
-  uploadedBy    String   @default("")
-  sourceFilename String  @default("")
+  id             String   @id @default(cuid())
+  schoolId       String
+  uploadedAt     DateTime @default(now())
+  uploadedBy     String   @default("")
+  sourceFilename String   @default("")
 
-  rowsImported  Int      @default(0)
-  rowsSkipped   Int      @default(0)
-  totalAmount   Float    @default(0)
+  rowsImported Int   @default(0)
+  rowsSkipped  Int   @default(0)
+  totalAmount  Float @default(0)
 
-  rolledBackAt  DateTime?
-  rolledBackBy  String?
+  rolledBackAt DateTime?
+  rolledBackBy String?
 
-  school School @relation(fields: [schoolId], references: [id], onDelete: Cascade)
+  school School                     @relation(fields: [schoolId], references: [id], onDelete: Cascade)
   rows   MigrationTopupPaymentRow[]
 
   @@index([schoolId])
@@ -2450,25 +2027,25 @@ model MigrationTopupPaymentBatch {
 }
 
 model MigrationTopupPaymentRow {
-  id             String   @id @default(cuid())
-  schoolId       String
-  batchId        String
+  id       String @id @default(cuid())
+  schoolId String
+  batchId  String
 
-  fingerprint    String
-  accountNo      String   @default("")
-  receiptNo      String   @default("")
-  transactionDate String  @default("")
-  amount         Float    @default(0)
-  paymentType    String   @default("")
-  ledgerEntryId  String   @default("")
+  fingerprint     String
+  accountNo       String @default("")
+  receiptNo       String @default("")
+  transactionDate String @default("")
+  amount          Float  @default(0)
+  paymentType     String @default("")
+  ledgerEntryId   String @default("")
 
-  status         String   @default("preview")
-  reason         String   @default("")
-  rawRow         Json?
+  status String @default("preview")
+  reason String @default("")
+  rawRow Json?
 
-  createdAt      DateTime @default(now())
+  createdAt DateTime @default(now())
 
-  school School @relation(fields: [schoolId], references: [id], onDelete: Cascade)
+  school School                     @relation(fields: [schoolId], references: [id], onDelete: Cascade)
   batch  MigrationTopupPaymentBatch @relation(fields: [batchId], references: [id], onDelete: Cascade)
 
   @@unique([schoolId, fingerprint])
@@ -2603,7 +2180,7 @@ model AccountingJournal {
   createdAt         DateTime @default(now())
   updatedAt         DateTime @updatedAt
 
-  school School                 @relation(fields: [schoolId], references: [id], onDelete: Cascade)
+  school School                  @relation(fields: [schoolId], references: [id], onDelete: Cascade)
   lines  AccountingJournalLine[]
 
   @@unique([schoolId, sourceFingerprint])
@@ -2695,18 +2272,18 @@ enum TeacherContentVisibility {
 }
 
 model Classroom {
-  id            String   @id @default(cuid())
-  schoolId      String
-  name          String
-  teacherName   String   @default("")
-  teacherEmail  String   @default("")
-  notes         String?  @db.Text
-  minAgeMonths  Int?
-  maxAgeMonths  Int?
-  createdAt     DateTime @default(now())
-  updatedAt     DateTime @updatedAt
+  id           String   @id @default(cuid())
+  schoolId     String
+  name         String
+  teacherName  String   @default("")
+  teacherEmail String   @default("")
+  notes        String?  @db.Text
+  minAgeMonths Int?
+  maxAgeMonths Int?
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
 
-  school   School              @relation(fields: [schoolId], references: [id], onDelete: Cascade)
+  school   School                @relation(fields: [schoolId], references: [id], onDelete: Cascade)
   threads  ParentTeacherThread[]
   teachers ClassroomTeacher[]
 
@@ -2723,8 +2300,8 @@ model Group {
   createdAt           DateTime @default(now())
   updatedAt           DateTime @updatedAt
 
-  school School @relation(fields: [schoolId], references: [id], onDelete: Cascade)
-  learnerLinks GroupLearner[]
+  school          School                @relation(fields: [schoolId], references: [id], onDelete: Cascade)
+  learnerLinks    GroupLearner[]
   externalMembers GroupExternalMember[]
 
   @@unique([schoolId, name])
@@ -2791,21 +2368,21 @@ model ClassroomTeacher {
 }
 
 model ParentNotification {
-  id          String                 @id @default(cuid())
-  schoolId    String
-  parentId    String
-  learnerId   String?
-  type        ParentNotificationType
-  title       String
-  message     String                 @db.Text
-  metadata    Json?
-  isRead      Boolean                @default(false)
-  readAt      DateTime?
-  createdAt   DateTime               @default(now())
+  id        String                 @id @default(cuid())
+  schoolId  String
+  parentId  String
+  learnerId String?
+  type      ParentNotificationType
+  title     String
+  message   String                 @db.Text
+  metadata  Json?
+  isRead    Boolean                @default(false)
+  readAt    DateTime?
+  createdAt DateTime               @default(now())
 
-  school  School  @relation(fields: [schoolId], references: [id], onDelete: Cascade)
-  parent  Parent  @relation(fields: [parentId], references: [id], onDelete: Cascade)
-  learner Learner? @relation(fields: [learnerId], references: [id], onDelete: SetNull)
+  school         School                 @relation(fields: [schoolId], references: [id], onDelete: Cascade)
+  parent         Parent                 @relation(fields: [parentId], references: [id], onDelete: Cascade)
+  learner        Learner?               @relation(fields: [learnerId], references: [id], onDelete: SetNull)
   engineMessages CommunicationMessage[] @relation("ParentNotificationEngineMessages")
 
   @@index([schoolId, parentId])
@@ -2814,23 +2391,23 @@ model ParentNotification {
 }
 
 model ParentTeacherThread {
-  id           String                    @id @default(cuid())
-  schoolId     String
-  parentId     String
-  learnerId    String
-  classroomId  String?
-  teacherId          String?
-  assignedTeacherId  String?
-  teacherName        String                    @default("")
-  teacherEmail       String                    @default("")
-  status             ParentTeacherThreadStatus @default(OPEN)
-  createdAt          DateTime                  @default(now())
-  updatedAt          DateTime                  @updatedAt
+  id                String                    @id @default(cuid())
+  schoolId          String
+  parentId          String
+  learnerId         String
+  classroomId       String?
+  teacherId         String?
+  assignedTeacherId String?
+  teacherName       String                    @default("")
+  teacherEmail      String                    @default("")
+  status            ParentTeacherThreadStatus @default(OPEN)
+  createdAt         DateTime                  @default(now())
+  updatedAt         DateTime                  @updatedAt
 
-  school    School                @relation(fields: [schoolId], references: [id], onDelete: Cascade)
-  parent    Parent                @relation(fields: [parentId], references: [id], onDelete: Cascade)
-  learner   Learner               @relation(fields: [learnerId], references: [id], onDelete: Cascade)
-  classroom Classroom?            @relation(fields: [classroomId], references: [id], onDelete: SetNull)
+  school    School                 @relation(fields: [schoolId], references: [id], onDelete: Cascade)
+  parent    Parent                 @relation(fields: [parentId], references: [id], onDelete: Cascade)
+  learner   Learner                @relation(fields: [learnerId], references: [id], onDelete: Cascade)
+  classroom Classroom?             @relation(fields: [classroomId], references: [id], onDelete: SetNull)
   messages  ParentTeacherMessage[]
 
   @@unique([schoolId, parentId, learnerId])
@@ -2840,16 +2417,16 @@ model ParentTeacherThread {
 }
 
 model ParentTeacherMessage {
-  id         String                  @id @default(cuid())
-  threadId   String
-  schoolId   String
-  senderType ParentMessageSenderType
-  senderName String                  @default("")
-  body       String                  @db.Text
+  id          String                  @id @default(cuid())
+  threadId    String
+  schoolId    String
+  senderType  ParentMessageSenderType
+  senderName  String                  @default("")
+  body        String                  @db.Text
   attachments Json?
-  isRead     Boolean                 @default(false)
-  readAt     DateTime?
-  createdAt  DateTime                @default(now())
+  isRead      Boolean                 @default(false)
+  readAt      DateTime?
+  createdAt   DateTime                @default(now())
 
   thread ParentTeacherThread @relation(fields: [threadId], references: [id], onDelete: Cascade)
 
@@ -2873,7 +2450,7 @@ model HomeworkPost {
   isDraft            Boolean                  @default(false)
   createdAt          DateTime                 @default(now())
 
-  school  School  @relation(fields: [schoolId], references: [id], onDelete: Cascade)
+  school  School   @relation(fields: [schoolId], references: [id], onDelete: Cascade)
   learner Learner? @relation(fields: [learnerId], references: [id], onDelete: SetNull)
 
   @@index([schoolId, grade])
@@ -3026,20 +2603,20 @@ model LearnerAttendance {
 
 /// Teacher Portal HomeSafe dismissal events — server-authoritative school-local timestamps.
 model HomeSafeEvent {
-  id                   String                   @id @default(cuid())
-  schoolId             String
-  learnerId            String
-  teacherId            String
-  eventType            HomeSafeEventType        @default(DISMISSED)
-  collectionMethod     HomeSafeCollectionMethod
-  collectionNote       String?
-  occurredAt           DateTime
-  schoolLocalDate      String
-  schoolLocalTime      String
-  learnerNameSnapshot  String
-  classroomSnapshot    String
-  createdAt            DateTime                 @default(now())
-  updatedAt            DateTime                 @updatedAt
+  id                  String                   @id @default(cuid())
+  schoolId            String
+  learnerId           String
+  teacherId           String
+  eventType           HomeSafeEventType        @default(DISMISSED)
+  collectionMethod    HomeSafeCollectionMethod
+  collectionNote      String?
+  occurredAt          DateTime
+  schoolLocalDate     String
+  schoolLocalTime     String
+  learnerNameSnapshot String
+  classroomSnapshot   String
+  createdAt           DateTime                 @default(now())
+  updatedAt           DateTime                 @updatedAt
 
   school  School  @relation(fields: [schoolId], references: [id], onDelete: Cascade)
   learner Learner @relation(fields: [learnerId], references: [id], onDelete: Restrict)
@@ -3052,16 +2629,16 @@ model HomeSafeEvent {
 }
 
 model ParentOnboarding {
-  id        String                 @id @default(cuid())
-  schoolId  String
-  parentId  String                 @unique
-  status    ParentOnboardingStatus @default(INVITED)
-  invitedAt DateTime               @default(now())
-  openedAt  DateTime?
+  id           String                 @id @default(cuid())
+  schoolId     String
+  parentId     String                 @unique
+  status       ParentOnboardingStatus @default(INVITED)
+  invitedAt    DateTime               @default(now())
+  openedAt     DateTime?
   registeredAt DateTime?
-  linkedAt  DateTime?
-  activeAt  DateTime?
-  updatedAt DateTime               @updatedAt
+  linkedAt     DateTime?
+  activeAt     DateTime?
+  updatedAt    DateTime               @updatedAt
 
   school School @relation(fields: [schoolId], references: [id], onDelete: Cascade)
   parent Parent @relation(fields: [parentId], references: [id], onDelete: Cascade)
@@ -3070,16 +2647,16 @@ model ParentOnboarding {
 }
 
 model ParentOutreachQueue {
-  id        String               @id @default(cuid())
+  id        String                @id @default(cuid())
   schoolId  String
   parentId  String
   channel   ParentOutreachChannel
   recipient String
   subject   String?
-  body      String               @db.Text
-  status    ParentOutreachStatus @default(QUEUED)
-  error     String?              @db.Text
-  createdAt DateTime             @default(now())
+  body      String                @db.Text
+  status    ParentOutreachStatus  @default(QUEUED)
+  error     String?               @db.Text
+  createdAt DateTime              @default(now())
   sentAt    DateTime?
 
   school School @relation(fields: [schoolId], references: [id], onDelete: Cascade)
@@ -3127,35 +2704,35 @@ enum CommunicationCategory {
 }
 
 model SchoolEmailSettings {
-  id         String   @id @default(cuid())
-  schoolId   String   @unique
-  provider   String
-  smtpHost   String
-  smtpPort   Int      @default(587)
-  smtpSecure Boolean  @default(false)
-  smtpUser   String
-  smtpPass   String
-  fromEmail  String
-  fromName   String   @default("")
-  replyTo    String?
+  id                String    @id @default(cuid())
+  schoolId          String    @unique
+  provider          String
+  smtpHost          String
+  smtpPort          Int       @default(587)
+  smtpSecure        Boolean   @default(false)
+  smtpUser          String
+  smtpPass          String
+  fromEmail         String
+  fromName          String    @default("")
+  replyTo           String?
   testEmailPassedAt DateTime?
-  createdAt  DateTime @default(now())
-  updatedAt  DateTime @updatedAt
+  createdAt         DateTime  @default(now())
+  updatedAt         DateTime  @updatedAt
 
   school School @relation(fields: [schoolId], references: [id], onDelete: Cascade)
 }
 
 model SchoolCommunicationProfile {
-  id                  String   @id @default(cuid())
-  schoolId            String   @unique
-  smtp                Json?
-  smsProvider         Json?
-  whatsappProvider    Json?
-  pushProvider        Json?
-  senderDisplayName   String   @default("")
-  replyToEmail        String   @default("")
-  createdAt           DateTime @default(now())
-  updatedAt           DateTime @updatedAt
+  id                String   @id @default(cuid())
+  schoolId          String   @unique
+  smtp              Json?
+  smsProvider       Json?
+  whatsappProvider  Json?
+  pushProvider      Json?
+  senderDisplayName String   @default("")
+  replyToEmail      String   @default("")
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
 
   school School @relation(fields: [schoolId], references: [id], onDelete: Cascade)
 }
@@ -3177,13 +2754,13 @@ model SchoolSmsSettings {
 }
 
 model CommunicationCampaign {
-  id         String                @id @default(cuid())
-  schoolId   String
-  name       String
-  category   CommunicationCategory
-  metadata   Json?
-  createdBy  String                @default("")
-  createdAt  DateTime              @default(now())
+  id        String                @id @default(cuid())
+  schoolId  String
+  name      String
+  category  CommunicationCategory
+  metadata  Json?
+  createdBy String                @default("")
+  createdAt DateTime              @default(now())
 
   school   School                 @relation(fields: [schoolId], references: [id], onDelete: Cascade)
   messages CommunicationMessage[]
@@ -3192,17 +2769,17 @@ model CommunicationCampaign {
 }
 
 model CommunicationTemplate {
-  id               String               @id @default(cuid())
-  schoolId         String?
-  templateKey      String
-  name             String
-  subjectTemplate  String               @default("")
-  bodyTemplate     String               @db.Text
-  defaultChannel   CommunicationChannel?
-  variableHints    Json?
-  isActive         Boolean              @default(true)
-  createdAt        DateTime             @default(now())
-  updatedAt        DateTime             @updatedAt
+  id              String                @id @default(cuid())
+  schoolId        String?
+  templateKey     String
+  name            String
+  subjectTemplate String                @default("")
+  bodyTemplate    String                @db.Text
+  defaultChannel  CommunicationChannel?
+  variableHints   Json?
+  isActive        Boolean               @default(true)
+  createdAt       DateTime              @default(now())
+  updatedAt       DateTime              @updatedAt
 
   school School? @relation(fields: [schoolId], references: [id], onDelete: Cascade)
 
@@ -3211,36 +2788,36 @@ model CommunicationTemplate {
 }
 
 model CommunicationMessage {
-  id                     String                     @id @default(cuid())
-  schoolId               String
-  campaignId             String?
-  learnerId              String?
-  parentId               String?
-  category               CommunicationCategory
-  channel                CommunicationChannel
-  templateKey            String?
-  subject                String                     @default("")
-  body                   String                     @db.Text
-  variables              Json?
-  recipient              String?
-  status                 CommunicationMessageStatus @default(queued)
-  queuedAt               DateTime                   @default(now())
-  sendingAt              DateTime?
-  sentAt                 DateTime?
-  failedAt               DateTime?
-  error                  String?                    @db.Text
-  providerResponse       Json?
-  createdBy              String                     @default("")
-  retryCount             Int                        @default(0)
-  parentNotificationId   String?
+  id                   String                     @id @default(cuid())
+  schoolId             String
+  campaignId           String?
+  learnerId            String?
+  parentId             String?
+  category             CommunicationCategory
+  channel              CommunicationChannel
+  templateKey          String?
+  subject              String                     @default("")
+  body                 String                     @db.Text
+  variables            Json?
+  recipient            String?
+  status               CommunicationMessageStatus @default(queued)
+  queuedAt             DateTime                   @default(now())
+  sendingAt            DateTime?
+  sentAt               DateTime?
+  failedAt             DateTime?
+  error                String?                    @db.Text
+  providerResponse     Json?
+  createdBy            String                     @default("")
+  retryCount           Int                        @default(0)
+  parentNotificationId String?
 
-  school               School                 @relation(fields: [schoolId], references: [id], onDelete: Cascade)
-  campaign             CommunicationCampaign? @relation(fields: [campaignId], references: [id], onDelete: SetNull)
-  parent               Parent?                @relation(fields: [parentId], references: [id], onDelete: SetNull)
-  learner              Learner?               @relation(fields: [learnerId], references: [id], onDelete: SetNull)
-  parentNotification   ParentNotification?    @relation("ParentNotificationEngineMessages", fields: [parentNotificationId], references: [id], onDelete: SetNull)
-  recipients           CommunicationRecipient[]
-  logs                 CommunicationLog[]
+  school             School                   @relation(fields: [schoolId], references: [id], onDelete: Cascade)
+  campaign           CommunicationCampaign?   @relation(fields: [campaignId], references: [id], onDelete: SetNull)
+  parent             Parent?                  @relation(fields: [parentId], references: [id], onDelete: SetNull)
+  learner            Learner?                 @relation(fields: [learnerId], references: [id], onDelete: SetNull)
+  parentNotification ParentNotification?      @relation("ParentNotificationEngineMessages", fields: [parentNotificationId], references: [id], onDelete: SetNull)
+  recipients         CommunicationRecipient[]
+  logs               CommunicationLog[]
 
   @@index([schoolId, status])
   @@index([schoolId, category])

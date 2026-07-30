@@ -92,6 +92,7 @@ import SchoolSasamsReportUploadPage from "./pages/SchoolSasamsReportUploadPage";
 import SchoolSettingsPage from "./pages/SchoolSettingsPage";
 import MigrationCentrePage from "./pages/migration/MigrationCentrePage";
 import AdminHomeSafePage from "./homesafe/AdminHomeSafePage";
+import EduClock from "./educlock/EduClock";
 import AdminHomeSafePwaHead from "./homesafe/AdminHomeSafePwaHead";
 import AccessDenied from "./auth/AccessDenied";
 import BillingDepositsPage from "./pages/BillingDepositsPage";
@@ -248,6 +249,7 @@ type PageKey =
   | "attendance"
   | "attendanceManage"
   | "attendanceReports"
+  | "educlock"
   | "homesafe"
 
 
@@ -387,6 +389,7 @@ const MOBILE_PAGE_TITLES: Partial<Record<PageKey, string>> = {
   attendance: "Attendance",
   attendanceManage: "Attendance",
   attendanceReports: "Attendance Reports",
+  educlock: "EduClock",
   homesafe: "HomeSafe Admin",
   incidents: "Incidents",
   incidentManage: "Incidents",
@@ -1162,6 +1165,19 @@ const [selectedLearnerReport, setSelectedLearnerReport] = useState<any>(null);
       setCommunicationOpen(false);
       if (location.pathname !== "/admin/homesafe") {
         navigate("/admin/homesafe");
+      }
+      return;
+    }
+
+
+    if (page === "educlock") {
+      setAccountingOpen(true);
+      setBillingOpen(false);
+      setSchoolsOpen(false);
+      setAdminOpen(false);
+      setCommunicationOpen(false);
+      if (location.pathname !== "/dashboard/educlock") {
+        navigate("/dashboard/educlock");
       }
       return;
     }
@@ -2120,6 +2136,22 @@ const [selectedLearnerReport, setSelectedLearnerReport] = useState<any>(null);
       setAdminOpen(true);
       setSchoolsOpen(false);
       setActivePage("homesafe");
+      return;
+    }
+
+
+    if (path === "/dashboard/educlock" || path === "/dashboard/educlock/") {
+      if (!canPage("educlock")) {
+        setActivePage(findFirstAllowedSchoolPage(schoolSessionUser) as PageKey);
+        navigate("/dashboard", { replace: true });
+        return;
+      }
+      setAccountingOpen(true);
+      setBillingOpen(false);
+      setSchoolsOpen(false);
+      setAdminOpen(false);
+      setCommunicationOpen(false);
+      setActivePage("educlock");
       return;
     }
 
@@ -16420,6 +16452,8 @@ case "attendanceReports":
   
   
      
+        case "educlock":
+          return <EduClock />;
   case "homesafe":
 
   return <AdminHomeSafePage />;
@@ -17003,6 +17037,7 @@ return (
               "attendance",
               "attendanceReports",
               "homesafe",
+              "educlock",
               "incidents",
               "lists",
               "forms",
@@ -17140,6 +17175,10 @@ return (
 
                 {canPage("homesafe") ? (
                 <div className={`submenu-item ${activePage === "homesafe" ? "active" : ""}`} onClick={() => go("homesafe")}>HomeSafe</div>
+                ) : null}
+
+                {canPage("educlock") ? (
+                <div className={`submenu-item ${activePage === "educlock" ? "active" : ""}`} onClick={() => go("educlock")}>EduClock</div>
                 ) : null}
   
   
@@ -17479,6 +17518,7 @@ return (
                     Settings
                   </div>
                 ) : null}
+
               </div>
             )}
           </div>
