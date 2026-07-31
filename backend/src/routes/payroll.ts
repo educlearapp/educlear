@@ -69,10 +69,22 @@ function calculatePayroll(payeBase: number, uifBase?: number) {
 const num = (v: unknown, fallback = 0) =>
   Number(v === undefined || v === null || v === "" ? fallback : v);
 
+/** Reject whitespace-only employeeNumber when a non-empty string was supplied. Empty/null clears. */
+function parseEmployeeNumberOrThrow(body: Record<string, unknown>): string | null {
+  if (body.employeeNumber === undefined || body.employeeNumber === null) {
+    return null;
+  }
+  const raw = String(body.employeeNumber);
+  if (raw.length > 0 && !raw.trim()) {
+    throw Object.assign(new Error("Employee number cannot be blank"), { status: 400 });
+  }
+  return raw.trim() || null;
+}
+
 function buildEmployeeData(body: Record<string, unknown>) {
   const firstName = String(body.firstName ?? "").trim();
   const lastName = String(body.lastName ?? "").trim();
-  const cleanEmpNo = String(body.employeeNumber ?? "").trim();
+  const cleanEmpNo = parseEmployeeNumberOrThrow(body);
 
   return {
     firstName,
@@ -150,6 +162,14 @@ router.post("/employee", async (req, res) => {
   } catch (error) {
 
 
+    if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === "P2002") {
+      return res.status(409).json({ error: "Employee number must be unique within the school" });
+    }
+
+    if (error instanceof Error && (error as { status?: number }).status === 400) {
+      return res.status(400).json({ error: error.message });
+    }
+
 
     console.error(error);
 
@@ -198,6 +218,12 @@ router.put("/employee/:id", async (req, res) => {
 
     res.json(employee);
   } catch (error) {
+    if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === "P2002") {
+      return res.status(409).json({ error: "Employee number must be unique within the school" });
+    }
+    if (error instanceof Error && (error as { status?: number }).status === 400) {
+      return res.status(400).json({ error: error.message });
+    }
     console.error(error);
     res.status(500).json({ error: "Failed to update employee" });
   }

@@ -8670,7 +8670,33 @@ if (schoolId) {
     }
 
     try {
-      const saved = await saveSchoolEmployee(schoolId, updatedEmployee);
+      const payload = { ...updatedEmployee };
+
+      // Employee Number: trim; reject whitespace-only; school-unique (same number OK at another school).
+      if (payload.employeeNumber !== undefined && payload.employeeNumber !== null) {
+        const rawEmpNo = String(payload.employeeNumber);
+        if (rawEmpNo.length > 0 && !rawEmpNo.trim()) {
+          alert("Employee Number cannot be blank. Enter a value such as EMP001, or clear the field completely.");
+          return;
+        }
+        const trimmedEmpNo = rawEmpNo.trim();
+        payload.employeeNumber = trimmedEmpNo;
+        if (trimmedEmpNo) {
+          const duplicate = (localEmployees || []).find(
+            (row: any) =>
+              String(row?.id || "") !== String(payload.id || "") &&
+              String(row?.employeeNumber || "").trim() === trimmedEmpNo
+          );
+          if (duplicate) {
+            alert(
+              `Employee Number "${trimmedEmpNo}" is already used by another employee at this school. Choose a different number.`
+            );
+            return;
+          }
+        }
+      }
+
+      const saved = await saveSchoolEmployee(schoolId, payload);
       const reloaded = await reloadEmployeesFromBackend(schoolId);
       const verified =
         reloaded.find((row) => String(row.id) === String(saved.id)) || saved;
@@ -9061,6 +9087,7 @@ if (schoolId) {
   
   
                 idNumber: "",
+                employeeNumber: "",
   
   
   
@@ -9224,6 +9251,15 @@ if (schoolId) {
   
   
   
+            </div>
+            <div style={{ display: "grid", gridTemplateColumns: "repeat(5, 1fr)", gap: "10px", marginTop: "10px" }}>
+              <input
+                style={inputStyle}
+                placeholder="Employee Number (for EduClock)"
+                autoComplete="off"
+                value={employeeDraft.employeeNumber || ""}
+                onChange={(e) => setEmployeeDraft((p: any) => ({ ...p, employeeNumber: e.target.value }))}
+              />
             </div>
   
   
@@ -10037,6 +10073,22 @@ if (schoolId) {
   
   
                   {field("Surname", "surname", true)}
+  
+  
+  
+                  <label style={labelStyle}>Employee Number</label>
+                  <input
+                    type="text"
+                    style={inputStyle}
+                    placeholder="e.g. EMP001"
+                    autoComplete="off"
+                    value={employeeDraft.employeeNumber ?? employee.employeeNumber ?? ""}
+                    onChange={(e) => updateEmployeeDraft("employeeNumber", e.target.value)}
+                  />
+                  <p style={{ margin: "0 0 12px", fontSize: 12, lineHeight: 1.4, color: "#6b7280" }}>
+                    Required for EduClock activation. Must be unique within this school. Leave blank only if this
+                    employee will not use EduClock.
+                  </p>
   
   
   
