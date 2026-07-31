@@ -17177,12 +17177,6 @@ return (
                 <div className={`submenu-item ${activePage === "homesafe" ? "active" : ""}`} onClick={() => go("homesafe")}>HomeSafe</div>
                 ) : null}
 
-                {canPage("educlock") ? (
-                <div className={`submenu-item ${activePage === "educlock" ? "active" : ""}`} onClick={() => go("educlock")}>EduClock</div>
-                ) : null}
-  
-  
-  
                 {canPage("incidents") ? (
                 <div className={`submenu-item ${activePage === "incidents" ? "active" : ""}`} onClick={() => go("incidents")}>Incidents</div>
                 ) : null}
@@ -17444,6 +17438,9 @@ return (
                   Banking
                 </div>
                 <div className={`submenu-item ${activePage === "payroll" ? "active" : ""}`} onClick={() => go("payroll")}>Payroll</div>
+                {canPage("educlock") ? (
+                <div className={`submenu-item ${activePage === "educlock" ? "active" : ""}`} onClick={() => go("educlock")}>EduClock</div>
+                ) : null}
                 <div className={`submenu-item ${activePage === "accountingExpenses" ? "active" : ""}`} onClick={() => go("accountingExpenses")}>Expenses</div>
                 <div className={`submenu-item ${activePage === "accountingSuppliers" ? "active" : ""}`} onClick={() => go("accountingSuppliers")}>Suppliers</div>
                 <div className={`submenu-item ${activePage === "accountingAssets" ? "active" : ""}`} onClick={() => go("accountingAssets")}>Assets</div>
