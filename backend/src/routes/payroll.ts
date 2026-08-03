@@ -4,6 +4,8 @@ import nodemailer from "nodemailer";
 
 import { PrismaClient, Prisma } from "@prisma/client";
 
+import payrollEduClockImportRoutes from "./payrollEduClockImport";
+
 
 
 const router = Router();
@@ -11,6 +13,9 @@ const router = Router();
 
 
 const prisma = new PrismaClient();
+
+/** EduClock hours import + finalize/reopen (owner-only). */
+router.use(payrollEduClockImportRoutes);
 
 function createMailTransport(): nodemailer.Transporter | null {
   const host = process.env.SMTP_HOST?.trim();

@@ -117,6 +117,9 @@ model School {
 
   payrollEmailLogs PayrollEmailLog[]
 
+  payrollEduClockImports PayrollEduClockImport[]
+  payrollAuditLogs       PayrollAuditLog[]
+
   billingSettings                  BillingSettings?
   billingDeposits                  BillingDeposit[]
   bankStatementImports             BankStatementImport[]
@@ -1195,6 +1198,9 @@ model Employee {
   eduClockOpenShifts  EduClockOpenShift[]
   eduClockExceptions  EduClockException[]
   eduClockGpsAttempts EduClockGpsAttempt[]
+  payrollEduClockImportLines  PayrollEduClockImportLine[]
+  payrollEduClockImportPairs  PayrollEduClockImportPair[]
+  payrollEduClockImportEvents PayrollEduClockImportEvent[]
   /// Permanent link to the EduClear login User for this school (EduClock activation).
   userId              String?              @unique
   /// ISO country code for passport/permit (e.g. ZA, MW). Optional for SA_ID.
@@ -1633,6 +1639,9 @@ model PayrollRun {
 
   emailLogs PayrollEmailLog[]
 
+  eduClockImports PayrollEduClockImport[]
+  payrollAuditLogs PayrollAuditLog[]
+
   @@index([schoolId])
   @@index([payrollSettingId])
   @@index([taxYear, payrollMonth, payrollYear])
@@ -1672,6 +1681,17 @@ model PayrollRunEmployee {
 
   employerCost Decimal @default(0) @db.Decimal(12, 2)
 
+  /// Additive EduClock import link — never invent monetary values when setting these.
+  eduClockImportLineId String? @unique
+
+  verifiedWorkedMinutes Int?
+
+  /// null = overtime not calculated by EduClock import (rules not configured).
+  importedOvertimeMinutes Int?
+
+  /// READY | WARNING | BLOCKED when linked to an import line.
+  timeImportStatus String?
+
   createdAt DateTime @default(now())
 
   updatedAt DateTime @updatedAt
@@ -1679,6 +1699,8 @@ model PayrollRunEmployee {
   payrollRun PayrollRun @relation(fields: [payrollRunId], references: [id], onDelete: Cascade)
 
   employee Employee @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+
+  eduClockImportLine PayrollEduClockImportLine? @relation(fields: [eduClockImportLineId], references: [id], onDelete: SetNull)
 
   items PayrollItem[]
 
@@ -1813,6 +1835,181 @@ model PayrollEmailLog {
   @@index([payrollRunId])
   @@index([recipientEmail])
   @@index([createdAt])
+}
+
+// =========================
+// EduClock → Payroll import (additive)
+// =========================
+
+enum PayrollEduClockImportStatus {
+  CONFIRMED
+  SUPERSEDED
+}
+
+enum PayrollEduClockImportLineStatus {
+  READY
+  WARNING
+  BLOCKED
+}
+
+enum PayrollEduClockImportEventRole {
+  CLOCK_IN
+  CLOCK_OUT
+}
+
+enum PayrollAuditAction {
+  EDUCLOCK_IMPORT_CONFIRMED
+  EDUCLOCK_IMPORT_RECALCULATED
+  EDUCLOCK_IMPORT_SUPERSEDED
+  PAYROLL_RUN_FINALIZED
+  PAYROLL_RUN_REOPENED
+}
+
+/// Confirmed (or superseded) EduClock hours snapshot for a PayrollRun. Preview is never persisted.
+model PayrollEduClockImport {
+  id                       String                      @id @default(cuid())
+  schoolId                 String
+  payrollRunId             String
+  payrollMonth             Int
+  payrollYear              Int
+  periodStartUtc           DateTime
+  periodEndUtc             DateTime
+  schoolTimezone           String                      @default("Africa/Johannesburg")
+  status                   PayrollEduClockImportStatus
+  importedByUserId         String
+  confirmedAt              DateTime
+  sourceCalculationVersion String
+  previewHash              String
+  confirmationKey          String                      @unique
+  totalEmployees           Int                         @default(0)
+  totalWorkedMinutes       Int                         @default(0)
+  totalWarningCount        Int                         @default(0)
+  supersedesImportId       String?
+  recalculateReason        String?
+  createdAt                DateTime                    @default(now())
+  updatedAt                DateTime                    @updatedAt
+
+  school           School                    @relation(fields: [schoolId], references: [id], onDelete: Cascade)
+  payrollRun       PayrollRun                @relation(fields: [payrollRunId], references: [id], onDelete: Cascade)
+  supersedesImport PayrollEduClockImport?    @relation("PayrollEduClockImportSupersession", fields: [supersedesImportId], references: [id], onDelete: SetNull)
+  supersededBy     PayrollEduClockImport[]   @relation("PayrollEduClockImportSupersession")
+  lines            PayrollEduClockImportLine[]
+  pairs            PayrollEduClockImportPair[]
+  events           PayrollEduClockImportEvent[]
+  auditLogs        PayrollAuditLog[]
+
+  @@index([schoolId, payrollYear, payrollMonth])
+  @@index([payrollRunId, status])
+  @@index([supersedesImportId])
+}
+
+model PayrollEduClockImportLine {
+  id                                 String                          @id @default(cuid())
+  importId                           String
+  employeeId                         String
+  employeeNumberSnapshot             String?
+  employeeNameSnapshot               String
+  workedMinutes                      Int                             @default(0)
+  /// Contractual ordinary minutes — null in Phase 2 (rules not configured).
+  ordinaryMinutes                    Int?
+  /// Auto overtime — null means not calculated.
+  overtimeMinutes                    Int?
+  status                             PayrollEduClockImportLineStatus
+  warningCodes                       String[]                        @default([])
+  warningDetails                     Json?
+  sourcePairCount                    Int                             @default(0)
+  existingManualOvertimeHoursSnapshot Decimal?                       @db.Decimal(12, 2)
+  createdAt                          DateTime                        @default(now())
+  updatedAt                          DateTime                        @updatedAt
+
+  import               PayrollEduClockImport         @relation(fields: [importId], references: [id], onDelete: Cascade)
+  employee             Employee                      @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+  pairs                PayrollEduClockImportPair[]
+  events               PayrollEduClockImportEvent[]
+  payrollRunEmployee   PayrollRunEmployee?
+
+  @@unique([importId, employeeId])
+  @@index([importId])
+  @@index([employeeId])
+}
+
+/// Authoritative payable interval for one completed shift pair (minutes stored once).
+model PayrollEduClockImportPair {
+  id                 String   @id @default(cuid())
+  importId           String
+  importLineId       String
+  employeeId         String
+  pairKey            String
+  clockInEventId     String
+  clockOutEventId    String
+  clockInUtc         DateTime
+  clockOutUtc        DateTime
+  intervalStartUtc   DateTime
+  intervalEndUtc     DateTime
+  includedMinutes    Int
+  crossesPeriodStart Boolean  @default(false)
+  crossesPeriodEnd   Boolean  @default(false)
+  createdAt          DateTime @default(now())
+
+  import     PayrollEduClockImport        @relation(fields: [importId], references: [id], onDelete: Cascade)
+  importLine PayrollEduClockImportLine    @relation(fields: [importLineId], references: [id], onDelete: Cascade)
+  employee   Employee                     @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+  events     PayrollEduClockImportEvent[]
+
+  @@unique([importId, pairKey])
+  @@unique([importId, clockInEventId])
+  @@unique([importId, clockOutEventId])
+  @@index([importLineId])
+  @@index([employeeId])
+}
+
+/// Effective payable event references only (no superseded originals).
+model PayrollEduClockImportEvent {
+  id               String                        @id @default(cuid())
+  importId         String
+  importLineId     String
+  importPairId     String
+  employeeId       String
+  eduClockEventId  String
+  effectiveEventId String
+  eventType        EduClockEventType
+  occurredAtUtc    DateTime
+  sourceRole       PayrollEduClockImportEventRole
+  correctionMeta   Json?
+  createdAt        DateTime                      @default(now())
+
+  import     PayrollEduClockImport     @relation(fields: [importId], references: [id], onDelete: Cascade)
+  importLine PayrollEduClockImportLine @relation(fields: [importLineId], references: [id], onDelete: Cascade)
+  importPair PayrollEduClockImportPair @relation(fields: [importPairId], references: [id], onDelete: Cascade)
+  employee   Employee                  @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+
+  @@unique([importId, eduClockEventId])
+  @@unique([importId, effectiveEventId])
+  @@index([importPairId])
+  @@index([importLineId])
+  @@index([employeeId])
+}
+
+model PayrollAuditLog {
+  id           String             @id @default(cuid())
+  schoolId     String
+  payrollRunId String
+  importId     String?
+  action       PayrollAuditAction
+  actorUserId  String
+  reason       String?
+  previousState Json?
+  newState      Json?
+  createdAt    DateTime           @default(now())
+
+  school     School                 @relation(fields: [schoolId], references: [id], onDelete: Cascade)
+  payrollRun PayrollRun             @relation(fields: [payrollRunId], references: [id], onDelete: Cascade)
+  import     PayrollEduClockImport? @relation(fields: [importId], references: [id], onDelete: SetNull)
+
+  @@index([schoolId, createdAt])
+  @@index([payrollRunId, createdAt])
+  @@index([importId])
+  @@index([action])
 }
 
 model LearnerResult {
