@@ -2,9 +2,13 @@ import { Router } from "express";
 
 import nodemailer from "nodemailer";
 
-import { PrismaClient, Prisma } from "@prisma/client";
+import { PrismaClient, Prisma, PayrollRunStatus } from "@prisma/client";
 
 import payrollEduClockImportRoutes from "./payrollEduClockImport";
+import {
+  evaluateOwnerSchoolAuth,
+  loadStaffSchoolAuth,
+} from "../middleware/requireOwnerSchoolAccess";
 
 
 
@@ -355,258 +359,291 @@ router.get("/school/:schoolId", async (req, res) => {
   }
 });
 
-/** RUN PAYROLL */
+/** RUN PAYROLL — owner-only; reuses an existing same-period run when present. */
 
 router.post("/run", async (req, res) => {
-
-
-
   try {
-
-
-
-    const { schoolId, month, year } = req.body;
-
-
-
-    const employees = await prisma.employee.findMany({
-
-
-
-      where: { schoolId, isActive: true },
-
-
-
+    const auth = await loadStaffSchoolAuth(req.headers.authorization);
+    const decision = evaluateOwnerSchoolAuth({
+      auth,
+      requestSchoolId: auth?.authorizedSchoolId ?? "",
+      deniedMessage: "You are not authorized to perform this payroll action.",
     });
-
-
-
-    let grossTotal = 0;
-
-    let deductionsTotal = 0;
-
-    let netTotal = 0;
-
-    let employerCostTotal = 0;
-
-    const payrollResults: any[] = [];
-
-    const payrollRun = await prisma.payrollRun.create({
-
-
-
-      data: {
-
-
-
-        schoolId,
-
-
-
-        taxYear: year,
-
-
-
-        payrollMonth: month,
-
-
-
-        payrollYear: year,
-
-
-
-        payDate: new Date(),
-
-
-
-      },
-
-
-
-    });
-
-
-
-    for (const emp of employees) {
-      const basicSalaryNum = Number(emp.basicSalary || 0);
-      const overtimeHoursNum = Number(emp.overtimeHours ?? 0);
-      const overtimeRateNum = Number(emp.overtimeRate ?? 0);
-      const overtimePay = Number((overtimeHoursNum * overtimeRateNum).toFixed(2));
-      const employerMedicalNum = Number(emp.employerMedicalAid ?? 0);
-      const employeeMedicalNum = Number(emp.employeeMedicalAid ?? 0);
-      const employeePensionNum = Number(emp.employeePension ?? 0);
-
-      const grossEarnings = Number(
-        (basicSalaryNum + overtimePay + employerMedicalNum).toFixed(2)
-      );
-
-      const payeBase = grossEarnings;
-      const uifBase = basicSalaryNum + overtimePay;
-      const payrollCalc = calculatePayroll(payeBase, uifBase);
-
-      const paye = emp.incomeTaxApplicable ? payrollCalc.tax : 0;
-      const uifEmployee = emp.uifApplicable ? payrollCalc.uif : 0;
-      const employerUif = emp.uifApplicable ? payrollCalc.uif : 0;
-
-      const otherDeductions = Number(
-        (employeePensionNum + employeeMedicalNum).toFixed(2)
-      );
-      const totalDeductions = Number(
-        (paye + uifEmployee + otherDeductions).toFixed(2)
-      );
-      const net = Number((grossEarnings - totalDeductions).toFixed(2));
-
-      grossTotal += grossEarnings;
-      deductionsTotal += totalDeductions;
-      netTotal += net;
-      employerCostTotal += grossEarnings + employerUif;
-
-      payrollResults.push({
-        employeeId: emp.id,
-        employeeName: emp.fullName || `${emp.firstName} ${emp.lastName}`,
-        employeeNumber: emp.employeeNumber,
-        idNumber: emp.idNumber,
-        jobTitle: emp.jobTitle,
-        basicSalary: Number(basicSalaryNum.toFixed(2)),
-        overtimeHours: Number(overtimeHoursNum.toFixed(2)),
-        overtimeRate: Number(overtimeRateNum.toFixed(2)),
-        overtimePay,
-        medicalAidEmployee: Number(employeeMedicalNum.toFixed(2)),
-        medicalAidEmployer: Number(employerMedicalNum.toFixed(2)),
-        pension: Number(employeePensionNum.toFixed(2)),
-        grossEarnings,
-        paye: Number(paye.toFixed(2)),
-        uif: Number(uifEmployee.toFixed(2)),
-        deductions: totalDeductions,
-        net,
-      });
-
-      await prisma.payrollRunEmployee.create({
-        data: {
-          payrollRunId: payrollRun.id,
-          employeeId: emp.id,
-          basicSalary: basicSalaryNum,
-          overtimeAmount: overtimePay,
-          grossPay: grossEarnings,
-          payeAmount: paye,
-          uifEmployeeAmount: uifEmployee,
-          otherDeductionsAmount: otherDeductions,
-          totalDeductions,
-          netPay: net,
-          uifEmployerAmount: employerUif,
-          employerCost: grossEarnings + employerUif,
-        },
-      });
-
-      await prisma.payslip.create({
-        data: {
-          schoolId,
-          payrollRunId: payrollRun.id,
-          payrollRunEmployeeId: (
-            await prisma.payrollRunEmployee.findFirst({
-              where: {
-                payrollRunId: payrollRun.id,
-                employeeId: emp.id,
-              },
-            })
-          )!.id,
-          employeeId: emp.id,
-          taxYear: year,
-          payrollMonth: month,
-          payrollYear: year,
-          payDate: new Date(),
-          grossPay: grossEarnings,
-          totalDeductions,
-          netPay: net,
-          employerCost: grossEarnings + employerUif,
-        },
+    if (!decision.allowed) {
+      return res.status(decision.status).json({
+        error: decision.error || "You are not authorized to perform this payroll action.",
+        code: "OWNER_REQUIRED",
       });
     }
 
+    const schoolId = decision.auth.authorizedSchoolId;
+    const month = Number(req.body?.month);
+    const year = Number(req.body?.year);
+    if (!Number.isInteger(month) || month < 1 || month > 12 || !Number.isInteger(year)) {
+      return res.status(400).json({
+        error: "A valid payroll month and year are required.",
+        code: "PERIOD_REQUIRED",
+      });
+    }
 
+    // Serializable reuse / create — never invent a second run for the same period.
+    const reuseOrCreate = await prisma.$transaction(
+      async (tx) => {
+        const existing = await tx.payrollRun.findMany({
+          where: {
+            schoolId,
+            payrollMonth: month,
+            payrollYear: year,
+          },
+          orderBy: [{ createdAt: "asc" }],
+        });
 
-    await prisma.payrollRun.update({
+        if (existing.length > 1) {
+          const err: any = new Error(
+            "More than one payroll run exists for this period. Owner review is required."
+          );
+          err.status = 409;
+          err.code = "DUPLICATE_PERIOD_RUNS";
+          err.details = { runIds: existing.map((r) => r.id) };
+          throw err;
+        }
 
+        if (existing.length === 1) {
+          const run = existing[0]!;
+          return {
+            mode: "reuse" as const,
+            run,
+          };
+        }
 
+        const employees = await tx.employee.findMany({
+          where: { schoolId, isActive: true },
+        });
 
-      where: { id: payrollRun.id },
+        let grossTotal = 0;
+        let deductionsTotal = 0;
+        let netTotal = 0;
+        let employerCostTotal = 0;
+        const payrollResults: any[] = [];
 
+        const payrollRun = await tx.payrollRun.create({
+          data: {
+            schoolId,
+            taxYear: year,
+            payrollMonth: month,
+            payrollYear: year,
+            payDate: new Date(),
+            status: PayrollRunStatus.DRAFT,
+          },
+        });
 
+        for (const emp of employees) {
+          const basicSalaryNum = Number(emp.basicSalary || 0);
+          const overtimeHoursNum = Number(emp.overtimeHours ?? 0);
+          const overtimeRateNum = Number(emp.overtimeRate ?? 0);
+          const overtimePay = Number((overtimeHoursNum * overtimeRateNum).toFixed(2));
+          const employerMedicalNum = Number(emp.employerMedicalAid ?? 0);
+          const employeeMedicalNum = Number(emp.employeeMedicalAid ?? 0);
+          const employeePensionNum = Number(emp.employeePension ?? 0);
 
-      data: {
+          const grossEarnings = Number(
+            (basicSalaryNum + overtimePay + employerMedicalNum).toFixed(2)
+          );
 
+          const payeBase = grossEarnings;
+          const uifBase = basicSalaryNum + overtimePay;
+          const payrollCalc = calculatePayroll(payeBase, uifBase);
 
+          const paye = emp.incomeTaxApplicable ? payrollCalc.tax : 0;
+          const uifEmployee = emp.uifApplicable ? payrollCalc.uif : 0;
+          const employerUif = emp.uifApplicable ? payrollCalc.uif : 0;
 
-        employeeCount: employees.length,
+          const otherDeductions = Number(
+            (employeePensionNum + employeeMedicalNum).toFixed(2)
+          );
+          const totalDeductions = Number(
+            (paye + uifEmployee + otherDeductions).toFixed(2)
+          );
+          const net = Number((grossEarnings - totalDeductions).toFixed(2));
 
+          grossTotal += grossEarnings;
+          deductionsTotal += totalDeductions;
+          netTotal += net;
+          employerCostTotal += grossEarnings + employerUif;
 
+          payrollResults.push({
+            employeeId: emp.id,
+            employeeName: emp.fullName || `${emp.firstName} ${emp.lastName}`,
+            employeeNumber: emp.employeeNumber,
+            idNumber: emp.idNumber,
+            jobTitle: emp.jobTitle,
+            basicSalary: Number(basicSalaryNum.toFixed(2)),
+            overtimeHours: Number(overtimeHoursNum.toFixed(2)),
+            overtimeRate: Number(overtimeRateNum.toFixed(2)),
+            overtimePay,
+            medicalAidEmployee: Number(employeeMedicalNum.toFixed(2)),
+            medicalAidEmployer: Number(employerMedicalNum.toFixed(2)),
+            pension: Number(employeePensionNum.toFixed(2)),
+            grossEarnings,
+            paye: Number(paye.toFixed(2)),
+            uif: Number(uifEmployee.toFixed(2)),
+            deductions: totalDeductions,
+            net,
+          });
 
-        grossTotal,
+          await tx.payrollRunEmployee.create({
+            data: {
+              payrollRunId: payrollRun.id,
+              employeeId: emp.id,
+              basicSalary: basicSalaryNum,
+              overtimeAmount: overtimePay,
+              grossPay: grossEarnings,
+              payeAmount: paye,
+              uifEmployeeAmount: uifEmployee,
+              otherDeductionsAmount: otherDeductions,
+              totalDeductions,
+              netPay: net,
+              uifEmployerAmount: employerUif,
+              employerCost: grossEarnings + employerUif,
+            },
+          });
 
+          const pre = await tx.payrollRunEmployee.findFirst({
+            where: {
+              payrollRunId: payrollRun.id,
+              employeeId: emp.id,
+            },
+          });
 
+          await tx.payslip.create({
+            data: {
+              schoolId,
+              payrollRunId: payrollRun.id,
+              payrollRunEmployeeId: pre!.id,
+              employeeId: emp.id,
+              taxYear: year,
+              payrollMonth: month,
+              payrollYear: year,
+              payDate: new Date(),
+              grossPay: grossEarnings,
+              totalDeductions,
+              netPay: net,
+              employerCost: grossEarnings + employerUif,
+            },
+          });
+        }
 
-        deductionsTotal,
+        const updated = await tx.payrollRun.update({
+          where: { id: payrollRun.id },
+          data: {
+            employeeCount: employees.length,
+            grossTotal,
+            deductionsTotal,
+            netTotal,
+            employerCostTotal: Number(employerCostTotal.toFixed(2)),
+          },
+        });
 
-
-
-        netTotal,
-
-        employerCostTotal: Number(employerCostTotal.toFixed(2)),
-
-
-
+        return {
+          mode: "create" as const,
+          run: updated,
+          payrollResults,
+          grossTotal,
+          deductionsTotal,
+          netTotal,
+        };
       },
+      { isolationLevel: Prisma.TransactionIsolationLevel.Serializable }
+    );
 
+    if (reuseOrCreate.mode === "reuse") {
+      const run = reuseOrCreate.run;
+      return res.json({
+        success: true,
+        payrollRunId: run.id,
+        payrollMonth: run.payrollMonth,
+        payrollYear: run.payrollYear,
+        status: run.status,
+        created: false,
+        reusedExisting: true,
+        grossTotal: Number(run.grossTotal),
+        deductionsTotal: Number(run.deductionsTotal),
+        netTotal: Number(run.netTotal),
+        employees: [],
+        message:
+          run.status === PayrollRunStatus.FINALIZED
+            ? "A finalized payroll run already exists for this period and has been selected."
+            : "A payroll run already exists and has been selected.",
+      });
+    }
 
-
-    });
-
-
-
-    res.json({
-
-
-
+    return res.json({
       success: true,
-    
-    
-    
-      grossTotal: Number(grossTotal.toFixed(2)),
-    
-    
-    
-      deductionsTotal: Number(deductionsTotal.toFixed(2)),
-    
-    
-    
-      netTotal: Number(netTotal.toFixed(2)),
-    
-    
-    
-      employees: payrollResults,
-    
-    
-    
+      payrollRunId: reuseOrCreate.run.id,
+      payrollMonth: reuseOrCreate.run.payrollMonth,
+      payrollYear: reuseOrCreate.run.payrollYear,
+      status: reuseOrCreate.run.status,
+      created: true,
+      reusedExisting: false,
+      grossTotal: Number(reuseOrCreate.grossTotal.toFixed(2)),
+      deductionsTotal: Number(reuseOrCreate.deductionsTotal.toFixed(2)),
+      netTotal: Number(reuseOrCreate.netTotal.toFixed(2)),
+      employees: reuseOrCreate.payrollResults,
     });
-
-
-
-  } catch (error) {
-
-
-
+  } catch (error: any) {
+    if (error?.code === "DUPLICATE_PERIOD_RUNS" || error?.status === 409) {
+      return res.status(409).json({
+        error:
+          error.message ||
+          "More than one payroll run exists for this period. Owner review is required.",
+        code: "DUPLICATE_PERIOD_RUNS",
+        details: error.details,
+      });
+    }
+    // Concurrent create race under Serializable
+    if (error?.code === "P2034" || /could not serialize/i.test(String(error?.message || ""))) {
+      try {
+        const auth = await loadStaffSchoolAuth(req.headers.authorization);
+        const schoolId = auth?.authorizedSchoolId;
+        const month = Number(req.body?.month);
+        const year = Number(req.body?.year);
+        if (schoolId && Number.isInteger(month) && Number.isInteger(year)) {
+          const existing = await prisma.payrollRun.findMany({
+            where: { schoolId, payrollMonth: month, payrollYear: year },
+            orderBy: { createdAt: "asc" },
+          });
+          if (existing.length === 1) {
+            const run = existing[0]!;
+            return res.json({
+              success: true,
+              payrollRunId: run.id,
+              payrollMonth: run.payrollMonth,
+              payrollYear: run.payrollYear,
+              status: run.status,
+              created: false,
+              reusedExisting: true,
+              grossTotal: Number(run.grossTotal),
+              deductionsTotal: Number(run.deductionsTotal),
+              netTotal: Number(run.netTotal),
+              employees: [],
+              message: "A payroll run already exists and has been selected.",
+            });
+          }
+          if (existing.length > 1) {
+            return res.status(409).json({
+              error: "More than one payroll run exists for this period. Owner review is required.",
+              code: "DUPLICATE_PERIOD_RUNS",
+              details: { runIds: existing.map((r) => r.id) },
+            });
+          }
+        }
+      } catch {
+        /* fall through */
+      }
+    }
     console.error(error);
-
-
-
-    res.status(500).json({ error: "Payroll failed" });
-
-
-
+    return res.status(500).json({ error: "Payroll failed" });
   }
-
-
-
 });
 
 /**

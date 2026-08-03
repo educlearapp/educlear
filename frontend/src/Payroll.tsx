@@ -11,6 +11,7 @@ import { API_URL } from "./api";
 
 
 import { useSchoolId } from "./useSchoolId";
+import PayrollEduClockImportPanel from "./PayrollEduClockImportPanel";
 import { ACCOUNTING_COA_UPDATED_EVENT } from "./accounting/accountingPayrollCoa";
 import { repairPayrollCoaForSchool } from "./accounting/AccountingChartOfAccounts";
 import { ACCOUNTING_JOURNALS_UPDATED_EVENT } from "./accounting/accountingJournalStorage";
@@ -2875,6 +2876,10 @@ export default function Payroll() {
 
 
       </div>
+
+
+
+      {schoolId ? <PayrollEduClockImportPanel schoolId={schoolId} /> : null}
 
 
 

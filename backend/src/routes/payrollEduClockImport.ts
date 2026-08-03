@@ -7,6 +7,7 @@ import {
   loadStaffSchoolAuth,
   type StaffSchoolAuth,
 } from "../middleware/requireOwnerSchoolAccess";
+import { prisma } from "../prisma";
 import {
   confirmEduClockImport,
   getCurrentEduClockImport,
@@ -26,16 +27,17 @@ type AuthedRequest = Request & { ownerAuth?: StaffSchoolAuth };
 
 async function requireOwner(req: AuthedRequest, res: Response): Promise<StaffSchoolAuth | null> {
   const auth = await loadStaffSchoolAuth(req.headers.authorization);
-  // Prefer school from body/query but never trust it over auth
-  const requested =
-    String((req.body && req.body.schoolId) || req.query.schoolId || auth?.authorizedSchoolId || "").trim();
+  // Never trust client-provided schoolId — always scope to authenticated school.
   const decision = evaluateOwnerSchoolAuth({
     auth,
-    requestSchoolId: requested || (auth?.authorizedSchoolId ?? ""),
-    deniedMessage: "EduClock payroll import is restricted to the school Owner",
+    requestSchoolId: auth?.authorizedSchoolId ?? "",
+    deniedMessage: "You are not authorized to perform this payroll action.",
   });
   if (!decision.allowed) {
-    res.status(decision.status).json({ error: decision.error, code: "OWNER_REQUIRED" });
+    res.status(decision.status).json({
+      error: decision.error || "You are not authorized to perform this payroll action.",
+      code: "OWNER_REQUIRED",
+    });
     return null;
   }
   req.ownerAuth = decision.auth;
@@ -53,6 +55,37 @@ function sendServiceError(res: Response, err: unknown) {
   console.error(err);
   return res.status(500).json({ error: "Internal payroll import error" });
 }
+
+/** GET /runs — list PayrollRun records for the authenticated school (owner-only). */
+router.get("/runs", async (req, res) => {
+  try {
+    const auth = await requireOwner(req, res);
+    if (!auth) return;
+    const month = req.query.payrollMonth != null ? Number(req.query.payrollMonth) : undefined;
+    const year = req.query.payrollYear != null ? Number(req.query.payrollYear) : undefined;
+    const where: Record<string, unknown> = { schoolId: auth.authorizedSchoolId };
+    if (Number.isInteger(month)) where.payrollMonth = month;
+    if (Number.isInteger(year)) where.payrollYear = year;
+    const runs = await prisma.payrollRun.findMany({
+      where,
+      orderBy: [{ payrollYear: "desc" }, { payrollMonth: "desc" }, { createdAt: "desc" }],
+      select: {
+        id: true,
+        payrollMonth: true,
+        payrollYear: true,
+        status: true,
+        payDate: true,
+        finalizedAt: true,
+        employeeCount: true,
+        createdAt: true,
+      },
+      take: 50,
+    });
+    return res.json({ success: true, runs });
+  } catch (err) {
+    return sendServiceError(res, err);
+  }
+});
 
 /** POST /educlock-import/preview — read-only, zero writes */
 router.post("/educlock-import/preview", async (req, res) => {
