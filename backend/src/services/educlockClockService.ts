@@ -104,7 +104,8 @@ function gpsFieldsForEvent(gps: AcceptedGpsValidation) {
     longitude: new Prisma.Decimal(gps.longitude.toFixed(7)),
     accuracyMetres: new Prisma.Decimal(gps.accuracyMetres.toFixed(2)),
     matchedEntranceId: gps.matchedEntranceId,
-    distanceMetres: new Prisma.Decimal(gps.distanceMetres.toFixed(2)),
+    distanceMetres:
+      gps.distanceMetres == null ? null : new Prisma.Decimal(gps.distanceMetres.toFixed(2)),
     validationVersion: gps.validationVersion,
     metadata: gps.deviceMetadata
       ? ({ gpsDevice: gps.deviceMetadata } as Prisma.InputJsonValue)

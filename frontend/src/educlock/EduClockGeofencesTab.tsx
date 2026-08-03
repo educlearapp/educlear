@@ -103,7 +103,7 @@ export default function EduClockGeofencesTab() {
     const ok = window.confirm(
       next
         ? `Activate entrance “${entrance.name}”?`
-        : `Deactivate entrance “${entrance.name}”? It will no longer be used for GPS clock validation.`
+        : `Deactivate entrance “${entrance.name}”? Entrances are for reference only; staff clock GPS uses the campus boundary.`
     );
     if (!ok) return;
     setBusy(true);
@@ -126,10 +126,10 @@ export default function EduClockGeofencesTab() {
       <div style={{ ...cardStyle, maxWidth: 860 }}>
         <h3 style={{ marginTop: 0 }}>Geofences</h3>
         <p style={{ color: "#64748b", lineHeight: 1.55, marginBottom: 0 }}>
-          Staff clock validation still uses each entrance’s coordinates and{" "}
-          <strong>Entrance Radius</strong> (1–25 m, default 5). Campus boundaries are stored in the
-          shared <strong>Geofence Engine</strong>; polygon clock validation stays disabled until
-          owner approval.
+          Staff clock-in and clock-out accept any GPS point inside an active{" "}
+          <strong>campus boundary</strong> polygon. Entrance coordinates and radius are for
+          reference and setup only — they do not determine clock acceptance. Boundaries are stored
+          in the shared <strong>Geofence Engine</strong>.
         </p>
       </div>
 
@@ -202,7 +202,7 @@ export default function EduClockGeofencesTab() {
           />
           <input
             placeholder="Perimeter tolerance (m)"
-            title="Future polygon perimeter tolerance — not used for entrance clock GPS"
+            title="Optional perimeter tolerance — not used for staff clock GPS (boundary containment is exact)"
             value={campusTolerance}
             onChange={(e) => setCampusTolerance(e.target.value)}
             style={{ ...ownerInputStyle, width: 170 }}
@@ -218,8 +218,7 @@ export default function EduClockGeofencesTab() {
           </button>
         </div>
         <div style={{ fontSize: 12, color: "#64748b", marginTop: 8 }}>
-          Perimeter Tolerance is for future campus polygons only. Entrance Radius (below) controls
-          clock GPS.
+          Staff clock GPS uses the active campus boundary polygon. Entrance Radius is reference-only.
         </div>
       </section>
 

@@ -465,8 +465,8 @@ export default function GeofenceDrawBoundaryWizard({
             >
               {classification.outside.length} entrance
               {classification.outside.length === 1 ? " is" : "s are"} outside the proposed
-              boundary. This will not affect staff clocking, but you may want to review their
-              positions.
+              boundary. Staff clock GPS uses the campus boundary (not entrance radius), but you may
+              want to review entrance positions for setup accuracy.
             </div>
           ) : null}
           {warnings.map((w) => (

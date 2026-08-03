@@ -1,5 +1,8 @@
 /**
- * EduClock Build 4 — GPS entrance validation (backend authority).
+ * EduClock GPS validation (backend authority).
+ * CLOCK_IN and CLOCK_OUT accept any point inside an active campus boundary polygon,
+ * plus a conservative 10 m edge tolerance for GPS drift (when accuracy ≤ 20 m).
+ * Entrance coordinates / radiuses do not determine acceptance.
  * Does not create clock events; callers persist accepted GPS fields or rejected attempts.
  */
 import { EduClockEventType, Prisma, type PrismaClient } from "@prisma/client";
@@ -10,10 +13,22 @@ import {
   isValidLongitude,
   roundDistanceMetresForStorage,
 } from "../utils/educlockGpsDistance";
+import { isPointInsidePolygon } from "./geofenceGeometry";
 import { EduClockError } from "./educlockService";
 
-export const EDUCLOCK_GPS_VALIDATION_VERSION = "gps-entrance-v1";
+/** Strict inside-polygon accept. */
+export const EDUCLOCK_GPS_VALIDATION_VERSION = "gps-boundary-v1";
+/** Outside polygon but within edge tolerance. */
+export const EDUCLOCK_GPS_VALIDATION_VERSION_EDGE = "gps-boundary-v1-edge10";
+export type EduClockGpsValidationVersion =
+  | typeof EDUCLOCK_GPS_VALIDATION_VERSION
+  | typeof EDUCLOCK_GPS_VALIDATION_VERSION_EDGE;
+
 export const EDUCLOCK_GPS_MAX_ACCURACY_METRES = 20;
+/** Conservative GPS-drift buffer outside the drawn polygon (metres). Does not rewrite the polygon. */
+export const EDUCLOCK_GPS_BOUNDARY_EDGE_TOLERANCE_METRES = 10;
+export const EDUCLOCK_GPS_EDGE_TOLERANCE_VERSION = "edge10";
+/** Retained for entrance setup / owner UI — not used for clock accept/reject. */
 export const EDUCLOCK_GPS_DEFAULT_RADIUS_METRES = 5;
 export const EDUCLOCK_GPS_MIN_RADIUS_METRES = 1;
 export const EDUCLOCK_GPS_MAX_RADIUS_METRES = 25;
@@ -27,7 +42,9 @@ export type EduClockGpsRejectionCode =
   | "GPS_ACCURACY_MISSING"
   | "GPS_ACCURACY_INVALID"
   | "GPS_ACCURACY_TOO_LOW"
+  /** Historical rejection code (entrance-era). New rejects use NO_ACTIVE_BOUNDARY. */
   | "NO_ACTIVE_ENTRANCE"
+  | "NO_ACTIVE_BOUNDARY"
   | "OUTSIDE_GEOFENCE";
 
 export const EDUCLOCK_GPS_MESSAGES: Record<EduClockGpsRejectionCode, string> = {
@@ -40,6 +57,8 @@ export const EDUCLOCK_GPS_MESSAGES: Record<EduClockGpsRejectionCode, string> = {
   GPS_ACCURACY_INVALID: "Location accuracy is invalid. Please try again.",
   GPS_ACCURACY_TOO_LOW: "We could not get an accurate enough location. Move into an open area and try again.",
   NO_ACTIVE_ENTRANCE: "No EduClock entrance has been configured. Contact the school owner.",
+  NO_ACTIVE_BOUNDARY:
+    "No active campus boundary has been configured. Contact the school owner.",
   OUTSIDE_GEOFENCE: "You are outside the permitted school clocking area.",
 };
 
@@ -51,6 +70,7 @@ export class EduClockGpsError extends EduClockError {
   readonly longitude: number | null;
   readonly accuracyMetres: number | null;
   readonly deviceMetadata: Record<string, unknown> | null;
+  readonly matchedZoneId: string | null;
 
   constructor(input: {
     rejectionCode: EduClockGpsRejectionCode;
@@ -60,6 +80,7 @@ export class EduClockGpsError extends EduClockError {
     longitude?: number | null;
     accuracyMetres?: number | null;
     deviceMetadata?: Record<string, unknown> | null;
+    matchedZoneId?: string | null;
   }) {
     super(input.rejectionCode, 400, EDUCLOCK_GPS_MESSAGES[input.rejectionCode]);
     this.rejectionCode = input.rejectionCode;
@@ -70,6 +91,7 @@ export class EduClockGpsError extends EduClockError {
     this.longitude = input.longitude ?? null;
     this.accuracyMetres = input.accuracyMetres ?? null;
     this.deviceMetadata = input.deviceMetadata ?? null;
+    this.matchedZoneId = input.matchedZoneId ?? null;
   }
 }
 
@@ -77,16 +99,19 @@ export type AcceptedGpsValidation = {
   latitude: number;
   longitude: number;
   accuracyMetres: number;
-  matchedEntranceId: string;
-  /** Full-precision metres used for the inside/outside decision. */
-  distanceMetresRaw: number;
-  /** Rounded to 2 dp for persistence. */
-  distanceMetres: number;
-  validationVersion: typeof EDUCLOCK_GPS_VALIDATION_VERSION;
+  /** Always null under boundary GPS — entrance proximity is not authoritative. */
+  matchedEntranceId: string | null;
+  /** Active CAMPUS_BOUNDARY zone that matched (inside or edge tolerance). */
+  matchedZoneId: string;
+  /** Distance to nearest polygon edge when edge tolerance was used; otherwise null. */
+  distanceMetresRaw: number | null;
+  distanceMetres: number | null;
+  validationVersion: EduClockGpsValidationVersion;
   deviceMetadata: Record<string, unknown> | null;
 };
 
 type TxClient = Prisma.TransactionClient | PrismaClient;
+type LatLng = { latitude: number; longitude: number };
 
 function readOptionalNumber(value: unknown): number | null {
   if (value === undefined || value === null || value === "") return null;
@@ -140,6 +165,48 @@ function mapClientLocationError(
   return null;
 }
 
+/**
+ * Shortest distance from a point to a polygon ring (metres).
+ * Uses local equirectangular projection per edge + clamp to segment endpoints.
+ * Does not modify the saved polygon.
+ */
+export function shortestDistanceToPolygonMetres(point: LatLng, ring: LatLng[]): number {
+  if (!ring || ring.length < 2) return Number.POSITIVE_INFINITY;
+  const metresPerDegLat = 111_320;
+  const metresPerDegLon = 111_320 * Math.cos((point.latitude * Math.PI) / 180);
+  const px = 0;
+  const py = 0;
+
+  let min = Number.POSITIVE_INFINITY;
+  for (let i = 0; i < ring.length; i++) {
+    const a = ring[i];
+    const b = ring[(i + 1) % ring.length];
+    const ax = (a.longitude - point.longitude) * metresPerDegLon;
+    const ay = (a.latitude - point.latitude) * metresPerDegLat;
+    const bx = (b.longitude - point.longitude) * metresPerDegLon;
+    const by = (b.latitude - point.latitude) * metresPerDegLat;
+    const abx = bx - ax;
+    const aby = by - ay;
+    const apx = px - ax;
+    const apy = py - ay;
+    const abLen2 = abx * abx + aby * aby;
+    let t = abLen2 > 0 ? (apx * abx + apy * aby) / abLen2 : 0;
+    if (t < 0) t = 0;
+    else if (t > 1) t = 1;
+    const cx = ax + abx * t;
+    const cy = ay + aby * t;
+    const d = Math.hypot(cx - px, cy - py);
+    if (d < min) min = d;
+  }
+
+  // Cross-check endpoints with haversine for numerical safety on tiny campuses.
+  for (const v of ring) {
+    const d = haversineDistanceMetres(point, v);
+    if (d < min) min = d;
+  }
+  return min;
+}
+
 export async function persistGpsRejectionAttempt(
   db: TxClient,
   input: {
@@ -179,8 +246,9 @@ export async function persistGpsRejectionAttempt(
 }
 
 /**
- * Validate staff GPS for clock-in/out.
+ * Validate staff GPS for clock-in/out against active campus boundary polygons.
  * Ignores client entranceId / distanceMetres / insideGeofence / matchedEntranceId.
+ * Entrance coordinates and radiuses are never loaded or consulted.
  */
 export async function validateStaffClockGps(input: {
   db: TxClient;
@@ -261,26 +329,37 @@ export async function validateStaffClockGps(input: {
     });
   }
 
-  const entrances = await input.db.eduClockEntrance.findMany({
+  const zones = await input.db.geofenceZone.findMany({
     where: {
       schoolId: input.schoolId,
-      isActive: true,
-      latitude: { not: null },
-      longitude: { not: null },
+      type: "CAMPUS_BOUNDARY",
+      active: true,
+      campusId: { not: null },
       campus: { isActive: true },
     },
     select: {
       id: true,
-      latitude: true,
-      longitude: true,
-      allowedRadiusMetres: true,
+      vertices: {
+        orderBy: { sequence: "asc" },
+        select: { latitude: true, longitude: true },
+      },
     },
     orderBy: { id: "asc" },
   });
 
-  if (entrances.length === 0) {
+  const usableZones: Array<{ id: string; ring: LatLng[] }> = [];
+  for (const zone of zones) {
+    const ring = zone.vertices
+      .map((v) => ({ latitude: Number(v.latitude), longitude: Number(v.longitude) }))
+      .filter((p) => isValidLatitude(p.latitude) && isValidLongitude(p.longitude));
+    if (ring.length >= 3) {
+      usableZones.push({ id: zone.id, ring });
+    }
+  }
+
+  if (usableZones.length === 0) {
     throw new EduClockGpsError({
-      rejectionCode: "NO_ACTIVE_ENTRANCE",
+      rejectionCode: "NO_ACTIVE_BOUNDARY",
       deviceMetadata,
       latitude,
       longitude,
@@ -288,67 +367,86 @@ export async function validateStaffClockGps(input: {
     });
   }
 
-  type Ranked = {
-    id: string;
-    distanceRaw: number;
-    allowedRadiusMetres: number;
-  };
+  const point = { latitude, longitude };
 
-  const ranked: Ranked[] = [];
-  for (const entrance of entrances) {
-    const eLat = Number(entrance.latitude);
-    const eLng = Number(entrance.longitude);
-    if (!isValidLatitude(eLat) || !isValidLongitude(eLng)) continue;
-    const distanceRaw = haversineDistanceMetres(
-      { latitude, longitude },
-      { latitude: eLat, longitude: eLng }
-    );
-    let radius = entrance.allowedRadiusMetres;
-    if (!Number.isFinite(radius)) radius = EDUCLOCK_GPS_DEFAULT_RADIUS_METRES;
-    radius = Math.min(
-      EDUCLOCK_GPS_MAX_RADIUS_METRES,
-      Math.max(EDUCLOCK_GPS_MIN_RADIUS_METRES, Math.floor(radius))
-    );
-    ranked.push({ id: entrance.id, distanceRaw, allowedRadiusMetres: radius });
+  // Prefer a strict inside match (lowest zone id order already applied).
+  for (const zone of usableZones) {
+    if (isPointInsidePolygon(point, zone.ring)) {
+      const metaWithZone: Record<string, unknown> = {
+        ...(deviceMetadata || {}),
+        matchedZoneId: zone.id,
+        rawInsidePolygon: true,
+        edgeToleranceUsed: false,
+      };
+      return {
+        latitude,
+        longitude,
+        accuracyMetres,
+        matchedEntranceId: null,
+        matchedZoneId: zone.id,
+        distanceMetresRaw: null,
+        distanceMetres: null,
+        validationVersion: EDUCLOCK_GPS_VALIDATION_VERSION,
+        deviceMetadata: metaWithZone,
+      };
+    }
   }
 
-  if (ranked.length === 0) {
-    throw new EduClockGpsError({
-      rejectionCode: "NO_ACTIVE_ENTRANCE",
-      deviceMetadata,
+  // Outside every polygon: apply edge tolerance against the nearest usable boundary.
+  let best: { zoneId: string; distanceRaw: number } | null = null;
+  for (const zone of usableZones) {
+    const distanceRaw = shortestDistanceToPolygonMetres(point, zone.ring);
+    if (!best || distanceRaw < best.distanceRaw) {
+      best = { zoneId: zone.id, distanceRaw };
+    }
+  }
+
+  if (
+    best &&
+    best.distanceRaw <= EDUCLOCK_GPS_BOUNDARY_EDGE_TOLERANCE_METRES &&
+    accuracyMetres <= EDUCLOCK_GPS_MAX_ACCURACY_METRES
+  ) {
+    const distanceRounded = roundDistanceMetresForStorage(best.distanceRaw);
+    const metaWithZone: Record<string, unknown> = {
+      ...(deviceMetadata || {}),
+      matchedZoneId: best.zoneId,
+      rawInsidePolygon: false,
+      edgeToleranceUsed: true,
+      distanceToBoundaryMetres: distanceRounded,
+      reportedAccuracyMetres: accuracyMetres,
+      edgeToleranceMetres: EDUCLOCK_GPS_BOUNDARY_EDGE_TOLERANCE_METRES,
+      edgeToleranceVersion: EDUCLOCK_GPS_EDGE_TOLERANCE_VERSION,
+    };
+    return {
       latitude,
       longitude,
       accuracyMetres,
-    });
+      matchedEntranceId: null,
+      matchedZoneId: best.zoneId,
+      distanceMetresRaw: best.distanceRaw,
+      distanceMetres: distanceRounded,
+      validationVersion: EDUCLOCK_GPS_VALIDATION_VERSION_EDGE,
+      deviceMetadata: metaWithZone,
+    };
   }
 
-  ranked.sort((a, b) => {
-    if (a.distanceRaw !== b.distanceRaw) return a.distanceRaw - b.distanceRaw;
-    return a.id < b.id ? -1 : a.id > b.id ? 1 : 0;
-  });
-
-  const nearest = ranked[0];
-  // Full-precision compare — do not round before inside/outside.
-  if (nearest.distanceRaw > nearest.allowedRadiusMetres) {
-    throw new EduClockGpsError({
-      rejectionCode: "OUTSIDE_GEOFENCE",
-      deviceMetadata,
-      latitude,
-      longitude,
-      accuracyMetres,
-      nearestEntranceId: nearest.id,
-      distanceMetres: nearest.distanceRaw,
-    });
-  }
-
-  return {
+  throw new EduClockGpsError({
+    rejectionCode: "OUTSIDE_GEOFENCE",
+    deviceMetadata: {
+      ...(deviceMetadata || {}),
+      rawInsidePolygon: false,
+      edgeToleranceUsed: false,
+      distanceToBoundaryMetres:
+        best == null ? null : roundDistanceMetresForStorage(best.distanceRaw),
+      reportedAccuracyMetres: accuracyMetres,
+      edgeToleranceMetres: EDUCLOCK_GPS_BOUNDARY_EDGE_TOLERANCE_METRES,
+      edgeToleranceVersion: EDUCLOCK_GPS_EDGE_TOLERANCE_VERSION,
+      nearestZoneId: best?.zoneId ?? null,
+    },
     latitude,
     longitude,
     accuracyMetres,
-    matchedEntranceId: nearest.id,
-    distanceMetresRaw: nearest.distanceRaw,
-    distanceMetres: roundDistanceMetresForStorage(nearest.distanceRaw),
-    validationVersion: EDUCLOCK_GPS_VALIDATION_VERSION,
-    deviceMetadata,
-  };
+    nearestEntranceId: null,
+    distanceMetres: best == null ? null : best.distanceRaw,
+  });
 }

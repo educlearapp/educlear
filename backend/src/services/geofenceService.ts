@@ -2,7 +2,8 @@
  * Shared Geofence Engine service.
  * Product modules (EduClock, HomeSafe, …) reuse this instead of duplicating GPS/boundary storage.
  *
- * Phase 2–4 scope: create/list/update CAMPUS_BOUNDARY polygons. Clock GPS remains entrance-only.
+ * Phase 2–4 scope: create/list/update CAMPUS_BOUNDARY polygons.
+ * Staff clock GPS (gps-boundary-v1) validates against active campus boundaries.
  */
 import {
   GeofenceGeometryKind,
@@ -210,7 +211,7 @@ async function assertCampusBelongsToSchool(
 /**
  * Create or replace the active CAMPUS_BOUNDARY polygon for a campus.
  * Previous active campus-boundary zones for the same campus are deactivated (history retained).
- * Does NOT change EduClock entrance GPS clock behaviour.
+ * Active boundaries are the authority for staff CLOCK_IN / CLOCK_OUT GPS (gps-boundary-v1).
  */
 export async function upsertCampusBoundaryPolygon(input: {
   schoolId: string;
@@ -525,7 +526,7 @@ export async function updateGeofenceZone(input: {
 
 /**
  * Advisory containment check for owner entrance setup.
- * Does not affect staff clock GPS (entrance radius remains authority).
+ * Staff clock GPS also uses active campus boundary polygons (gps-boundary-v1).
  */
 export async function evaluateCampusBoundaryContainment(input: {
   schoolId: string;

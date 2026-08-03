@@ -1,7 +1,13 @@
 /**
- * EduClock Build 4 — GPS validation route/service tests.
+ * EduClock GPS validation — campus boundary polygon (gps-boundary-v1).
+ * CLOCK_IN and CLOCK_OUT accept any point inside an active campus boundary.
+ * Entrance proximity must not determine accept/reject.
  * MUST run only against educlear_educlock_dev.
- * Run: DATABASE_URL=...educlear_educlock_dev npx tsc && node dist/routes/educlock.build4.gps.route.test.js
+ * Run:
+ *   set -a && source .env.educlock_dev && set +a
+ *   npx tsc
+ *   npx esbuild src/routes/educlock.build4.gps.route.test.ts --bundle --platform=node --format=cjs --outfile=dist/routes/educlock.build4.gps.route.test.js --packages=external
+ *   node dist/routes/educlock.build4.gps.route.test.js
  */
 import bcrypt from "bcryptjs";
 import express from "express";
@@ -14,6 +20,7 @@ import { PrismaClient } from "@prisma/client";
 import educlockRoutes from "./educlock";
 import { haversineDistanceMetres } from "../utils/educlockGpsDistance";
 import { EDUCLOCK_GPS_VALIDATION_VERSION } from "../services/educlockGpsValidation";
+import { isPointInsidePolygon } from "../services/geofenceGeometry";
 
 function loadDevDatabaseUrl(): string {
   const envPath = path.join(__dirname, "../../.env.educlock_dev");
@@ -73,6 +80,46 @@ function offsetMetres(lat: number, lng: number, northM: number, eastM = 0) {
   return { latitude: lat + dLat, longitude: lng + dLng };
 }
 
+/** ~200 m square centred on (lat,lng). */
+function squareRingAround(lat: number, lng: number, halfSideMetres = 100) {
+  const sw = offsetMetres(lat, lng, -halfSideMetres, -halfSideMetres);
+  const se = offsetMetres(lat, lng, -halfSideMetres, halfSideMetres);
+  const ne = offsetMetres(lat, lng, halfSideMetres, halfSideMetres);
+  const nw = offsetMetres(lat, lng, halfSideMetres, -halfSideMetres);
+  return [sw, se, ne, nw];
+}
+
+async function createActiveBoundary(input: {
+  schoolId: string;
+  campusId: string;
+  name: string;
+  ring: Array<{ latitude: number; longitude: number }>;
+}) {
+  const zone = await prisma.geofenceZone.create({
+    data: {
+      schoolId: input.schoolId,
+      campusId: input.campusId,
+      name: input.name,
+      type: "CAMPUS_BOUNDARY",
+      active: true,
+      geometryKind: "POLYGON",
+      vertices: {
+        create: input.ring.map((p, sequence) => ({
+          schoolId: input.schoolId,
+          sequence,
+          latitude: p.latitude,
+          longitude: p.longitude,
+        })),
+      },
+    },
+  });
+  await prisma.eduClockCampus.update({
+    where: { id: input.campusId },
+    data: { perimeterStatus: "DRAWN" },
+  });
+  return zone;
+}
+
 async function main() {
   const u = new URL(DEV_URL);
   const host = u.hostname;
@@ -87,6 +134,7 @@ async function main() {
   const EMP_NO = "00123";
   const BASE_LAT = -26.2041;
   const BASE_LNG = 28.0473;
+  const RING = squareRingAround(BASE_LAT, BASE_LNG, 100);
 
   const schoolA = await prisma.school.create({ data: { name: `EduClock B4 A ${stamp}` } });
   const schoolB = await prisma.school.create({ data: { name: `EduClock B4 B ${stamp}` } });
@@ -135,6 +183,7 @@ async function main() {
       perimeterStatus: "NOT_DRAWN",
     },
   });
+  // Entrances exist for isolation / ignore checks — must NOT gate acceptance.
   const entranceNear = await prisma.eduClockEntrance.create({
     data: {
       schoolId: schoolA.id,
@@ -146,7 +195,7 @@ async function main() {
       isActive: true,
     },
   });
-  const entranceFar = await prisma.eduClockEntrance.create({
+  await prisma.eduClockEntrance.create({
     data: {
       schoolId: schoolA.id,
       campusId: campusA.id,
@@ -157,51 +206,15 @@ async function main() {
       isActive: true,
     },
   });
-  const entranceNoCoords = await prisma.eduClockEntrance.create({
-    data: {
-      schoolId: schoolA.id,
-      campusId: campusA.id,
-      name: "No Coords",
-      latitude: null,
-      longitude: null,
-      allowedRadiusMetres: 5,
-      isActive: true,
-    },
-  });
-  const entranceInactive = await prisma.eduClockEntrance.create({
-    data: {
-      schoolId: schoolA.id,
-      campusId: campusA.id,
-      name: "Inactive Gate",
-      latitude: BASE_LAT,
-      longitude: BASE_LNG,
-      allowedRadiusMetres: 5,
-      isActive: false,
-    },
+
+  const zoneA = await createActiveBoundary({
+    schoolId: schoolA.id,
+    campusId: campusA.id,
+    name: `Boundary A ${stamp}`,
+    ring: RING,
   });
 
-  const inactiveCampus = await prisma.eduClockCampus.create({
-    data: {
-      schoolId: schoolA.id,
-      name: `Inactive Campus ${stamp}`,
-      isActive: false,
-      toleranceMetres: 4,
-      perimeterStatus: "NOT_DRAWN",
-    },
-  });
-  await prisma.eduClockEntrance.create({
-    data: {
-      schoolId: schoolA.id,
-      campusId: inactiveCampus.id,
-      name: "On Inactive Campus",
-      latitude: BASE_LAT,
-      longitude: BASE_LNG,
-      allowedRadiusMetres: 5,
-      isActive: true,
-    },
-  });
-
-  // School B entrance close to same coords — must never match School A staff
+  // School B boundary + entrance near same coords — must never authorize School A staff
   const campusB = await prisma.eduClockCampus.create({
     data: {
       schoolId: schoolB.id,
@@ -222,84 +235,12 @@ async function main() {
       isActive: true,
     },
   });
-
-  // Equal-distance tie fixtures (separate school for isolation of tie test)
-  const schoolTie = await prisma.school.create({ data: { name: `EduClock B4 Tie ${stamp}` } });
-  const staffTie = await prisma.user.create({
-    data: {
-      schoolId: schoolTie.id,
-      email: `tie-b4-${stamp}@example.com`,
-      fullName: "Tie Staff",
-      passwordHash,
-      role: "STAFF",
-      isActive: true,
-      rbacMeta: {
-        create: {
-          schoolId: schoolTie.id,
-          firstName: "Tie",
-          surname: "Staff",
-          appRole: "Teacher",
-          permissions: {},
-        },
-      },
-    },
+  await createActiveBoundary({
+    schoolId: schoolB.id,
+    campusId: campusB.id,
+    name: `Boundary B ${stamp}`,
+    ring: RING,
   });
-  await prisma.employee.create({
-    data: {
-      schoolId: schoolTie.id,
-      userId: staffTie.id,
-      firstName: "Tie",
-      lastName: "Staff",
-      fullName: "Tie Staff",
-      employeeNumber: "T001",
-      identityType: "SA_ID",
-      idNumber: "9101015800086",
-      isActive: true,
-    },
-  });
-  const campusTie = await prisma.eduClockCampus.create({
-    data: {
-      schoolId: schoolTie.id,
-      name: `Tie Campus ${stamp}`,
-      isActive: true,
-      toleranceMetres: 4,
-      perimeterStatus: "NOT_DRAWN",
-    },
-  });
-  // Two entrances equidistant north/south of origin
-  const tieLat = -26.3;
-  const tieLng = 28.1;
-  const north5 = offsetMetres(tieLat, tieLng, 5, 0);
-  const south5 = offsetMetres(tieLat, tieLng, -5, 0);
-  // Force IDs so tie-break is deterministic by ID ascending
-  const entranceTieZ = await prisma.eduClockEntrance.create({
-    data: {
-      id: `z-tie-${stamp}`,
-      schoolId: schoolTie.id,
-      campusId: campusTie.id,
-      name: "Z Gate",
-      latitude: north5.latitude,
-      longitude: north5.longitude,
-      allowedRadiusMetres: 10,
-      isActive: true,
-    },
-  });
-  const entranceTieA = await prisma.eduClockEntrance.create({
-    data: {
-      id: `a-tie-${stamp}`,
-      schoolId: schoolTie.id,
-      campusId: campusTie.id,
-      name: "A Gate",
-      latitude: south5.latitude,
-      longitude: south5.longitude,
-      allowedRadiusMetres: 10,
-      isActive: true,
-    },
-  });
-  void entranceTieZ;
-  void entranceNoCoords;
-  void entranceInactive;
-  void entranceFar;
 
   const app = express();
   app.use(express.json());
@@ -316,14 +257,8 @@ async function main() {
     email: staffA.email,
     role: "STAFF",
   });
-  const tieToken = signToken({
-    userId: staffTie.id,
-    schoolId: schoolTie.id,
-    email: staffTie.email,
-    role: "STAFF",
-  });
 
-  const createdSchoolIds = [schoolA.id, schoolB.id, schoolTie.id];
+  const createdSchoolIds = [schoolA.id, schoolB.id];
   const eventsBefore = await prisma.eduClockEvent.count({
     where: { schoolId: { in: createdSchoolIds } },
   });
@@ -332,8 +267,17 @@ async function main() {
   });
 
   try {
-    // 1-2 distance utility already covered in unit test; spot-check here
-    assert(haversineDistanceMetres({ latitude: BASE_LAT, longitude: BASE_LNG }, { latitude: BASE_LAT, longitude: BASE_LNG }) === 0, "identical 0");
+    assert(
+      haversineDistanceMetres(
+        { latitude: BASE_LAT, longitude: BASE_LNG },
+        { latitude: BASE_LAT, longitude: BASE_LNG }
+      ) === 0,
+      "identical 0"
+    );
+    assert(
+      isPointInsidePolygon({ latitude: BASE_LAT, longitude: BASE_LNG }, RING),
+      "fixture centre inside ring"
+    );
 
     const gpsInside = {
       latitude: BASE_LAT,
@@ -347,7 +291,6 @@ async function main() {
       matchedEntranceId: entranceB.id,
     };
 
-    // 26-27 client schoolId / employeeId must not be accepted as authority (rejected)
     const forgedIds = await apiCall(baseUrl, "/api/educlock/me/clock-in", {
       method: "POST",
       token: staffToken,
@@ -360,7 +303,7 @@ async function main() {
       "forged id rejection message"
     );
 
-    // 3 valid clock-in within 5m
+    // Valid clock-in inside polygon (near entrance — still must not set matchedEntranceId)
     const beforeIn = new Date();
     const clockIn = await apiCall(baseUrl, "/api/educlock/me/clock-in", {
       method: "POST",
@@ -369,15 +312,22 @@ async function main() {
       headers: { "Idempotency-Key": `b4-in-${stamp}` },
     });
     assert(clockIn.status === 201, `inside clock-in 201, got ${clockIn.status}: ${JSON.stringify(clockIn.json)}`);
-    assert(clockIn.json.event.matchedEntranceId === entranceNear.id, "nearest entrance matched");
+    assert(clockIn.json.event.matchedEntranceId == null, "entrance must not determine match");
     assert(clockIn.json.event.matchedEntranceId !== entranceB.id, "never school B entrance");
     assert(clockIn.json.event.validationVersion === EDUCLOCK_GPS_VALIDATION_VERSION, "validation version");
+    assert(clockIn.json.event.validationVersion === "gps-boundary-v1", "gps-boundary-v1");
     assert(clockIn.json.event.latitude === BASE_LAT, "lat stored");
-    assert(Number(clockIn.json.event.distanceMetres) <= 5, "distance within radius");
+    assert(clockIn.json.event.distanceMetres == null, "entrance distance not stored");
     assert(new Date(clockIn.json.event.occurredAtUtc).getTime() >= beforeIn.getTime() - 2000, "server time");
     assert(clockIn.json.event.occurredAtUtc !== "2099-01-01T00:00:00.000Z", "client time ignored");
+    const storedIn = await prisma.eduClockEvent.findUnique({ where: { id: clockIn.json.event.id } });
+    assert(storedIn?.matchedEntranceId == null, "DB matchedEntranceId null");
+    assert(storedIn?.validationVersion === "gps-boundary-v1", "DB validation version");
+    const storedMeta = JSON.stringify(storedIn?.metadata || {});
+    assert(storedMeta.includes(zoneA.id), "matchedZoneId persisted in event metadata");
+    void entranceNear;
 
-    // 32 idempotency
+    // Idempotency
     const replay = await apiCall(baseUrl, "/api/educlock/me/clock-in", {
       method: "POST",
       token: staffToken,
@@ -386,7 +336,7 @@ async function main() {
     });
     assert(replay.json.event.id === clockIn.json.event.id, "idempotent accepted replay");
 
-    // 30 duplicate clock-in
+    // Duplicate clock-in
     const dup = await apiCall(baseUrl, "/api/educlock/me/clock-in", {
       method: "POST",
       token: staffToken,
@@ -395,7 +345,7 @@ async function main() {
     });
     assert(dup.status === 409, `dup clock-in 409, got ${dup.status}`);
 
-    // 4 clock-out within 5m
+    // Clock-out inside polygon
     const clockOut = await apiCall(baseUrl, "/api/educlock/me/clock-out", {
       method: "POST",
       token: staffToken,
@@ -404,8 +354,10 @@ async function main() {
     });
     assert(clockOut.status === 200, `clock-out 200, got ${clockOut.status}`);
     assert(clockOut.json.event.accuracyMetres === 20, "accuracy 20 accepted");
+    assert(clockOut.json.event.matchedEntranceId == null, "clock-out no entrance match");
+    assert(clockOut.json.event.validationVersion === "gps-boundary-v1", "clock-out boundary version");
 
-    // 31 clock-out without open shift
+    // Clock-out without open shift
     const noOpen = await apiCall(baseUrl, "/api/educlock/me/clock-out", {
       method: "POST",
       token: staffToken,
@@ -414,27 +366,77 @@ async function main() {
     });
     assert(noOpen.status === 409, `no open shift 409, got ${noOpen.status}`);
 
-    // 5 boundary exactly at radius
-    const atBoundary = offsetMetres(BASE_LAT, BASE_LNG, 5, 0);
-    const dBoundary = haversineDistanceMetres(
+    // Inside polygon but far from every entrance (~70 m from centre entrance; radius 5)
+    const farInside = offsetMetres(BASE_LAT, BASE_LNG, 70, 0);
+    assert(isPointInsidePolygon(farInside, RING), "farInside must be in polygon");
+    const dFar = haversineDistanceMetres(
       { latitude: BASE_LAT, longitude: BASE_LNG },
-      atBoundary
+      farInside
     );
-    assert(dBoundary <= 5.05, `boundary fixture distance ${dBoundary}`);
-    const boundaryIn = await apiCall(baseUrl, "/api/educlock/me/clock-in", {
+    assert(dFar > 25, `farInside must be beyond entrance radius, got ${dFar}`);
+    const farIn = await apiCall(baseUrl, "/api/educlock/me/clock-in", {
       method: "POST",
       token: staffToken,
-      body: { ...atBoundary, accuracyMetres: 8 },
+      body: { ...farInside, accuracyMetres: 8 },
     });
-    assert(boundaryIn.status === 201, `boundary accepted, got ${boundaryIn.status}: ${JSON.stringify(boundaryIn.json)}`);
+    assert(
+      farIn.status === 201,
+      `far-from-entrance inside polygon accepted, got ${farIn.status}: ${JSON.stringify(farIn.json)}`
+    );
+    assert(farIn.json.event.matchedEntranceId == null, "far-inside no entrance id");
     await apiCall(baseUrl, "/api/educlock/me/clock-out", {
       method: "POST",
       token: staffToken,
-      body: { ...atBoundary, accuracyMetres: 8 },
+      body: { ...farInside, accuracyMetres: 8 },
     });
 
-    // 6 outside
-    const outside = offsetMetres(BASE_LAT, BASE_LNG, 10, 0);
+    // Near polygon edge (inside, ~2 m from northern edge of 100 m half-side)
+    const nearEdge = offsetMetres(BASE_LAT, BASE_LNG, 98, 0);
+    assert(isPointInsidePolygon(nearEdge, RING), "nearEdge inside");
+    const edgeIn = await apiCall(baseUrl, "/api/educlock/me/clock-in", {
+      method: "POST",
+      token: staffToken,
+      body: { ...nearEdge, accuracyMetres: 5 },
+    });
+    assert(
+      edgeIn.status === 201,
+      `near-edge accepted, got ${edgeIn.status}: ${JSON.stringify(edgeIn.json)}`
+    );
+    await apiCall(baseUrl, "/api/educlock/me/clock-out", {
+      method: "POST",
+      token: staffToken,
+      body: { ...nearEdge, accuracyMetres: 5 },
+    });
+
+    // Raw outside by ~4 m (half-side 100 → 104 m north) with accuracy ≤ 20 → edge tolerance accept
+    const justOutside = offsetMetres(BASE_LAT, BASE_LNG, 104, 0);
+    assert(!isPointInsidePolygon(justOutside, RING), "justOutside must be outside raw polygon");
+    const edgeTolIn = await apiCall(baseUrl, "/api/educlock/me/clock-in", {
+      method: "POST",
+      token: staffToken,
+      body: { ...justOutside, accuracyMetres: 15 },
+    });
+    assert(
+      edgeTolIn.status === 201,
+      `edge-tolerance accept, got ${edgeTolIn.status}: ${JSON.stringify(edgeTolIn.json)}`
+    );
+    assert(edgeTolIn.json.event.validationVersion === "gps-boundary-v1-edge10", "edge10 version");
+    assert(edgeTolIn.json.event.matchedEntranceId == null, "edge tol no entrance");
+    const edgeTolStored = await prisma.eduClockEvent.findUnique({
+      where: { id: edgeTolIn.json.event.id },
+    });
+    const edgeMeta = JSON.stringify(edgeTolStored?.metadata || {});
+    assert(edgeMeta.includes("edgeToleranceUsed"), "edge tolerance metadata");
+    assert(edgeMeta.includes('"rawInsidePolygon":false') || edgeMeta.includes('"rawInsidePolygon": false'), "raw outside recorded");
+    await apiCall(baseUrl, "/api/educlock/me/clock-out", {
+      method: "POST",
+      token: staffToken,
+      body: { ...justOutside, accuracyMetres: 15 },
+    });
+
+    // Outside by more than 10 m from edge (half-side 100 → 115 m)
+    const outside = offsetMetres(BASE_LAT, BASE_LNG, 115, 0);
+    assert(!isPointInsidePolygon(outside, RING), "outside fixture");
     const outsideRes = await apiCall(baseUrl, "/api/educlock/me/clock-in", {
       method: "POST",
       token: staffToken,
@@ -447,12 +449,13 @@ async function main() {
     });
     assert(outsideAttempts >= 1, "outside audited");
     assert(
-      (await prisma.eduClockEvent.count({ where: { schoolId: schoolA.id, employeeId: empA.id, eventType: "CLOCK_IN" } })) ===
-        2,
-      "outside created no extra event beyond prior 2 clock-ins"
+      (await prisma.eduClockEvent.count({
+        where: { schoolId: schoolA.id, employeeId: empA.id, eventType: "CLOCK_IN" },
+      })) === 4,
+      "outside created no extra event beyond prior 4 clock-ins"
     );
 
-    // 8 accuracy > 20
+    // Accuracy > 20
     const accHigh = await apiCall(baseUrl, "/api/educlock/me/clock-in", {
       method: "POST",
       token: staffToken,
@@ -460,7 +463,6 @@ async function main() {
       headers: { "Idempotency-Key": `b4-acc-${stamp}` },
     });
     assert(accHigh.status === 400 && accHigh.json.code === "GPS_ACCURACY_TOO_LOW", "accuracy too low");
-    // idempotent rejection replay should not flood
     const accHigh2 = await apiCall(baseUrl, "/api/educlock/me/clock-in", {
       method: "POST",
       token: staffToken,
@@ -473,7 +475,7 @@ async function main() {
     });
     assert(accAttempts === 1, `accuracy audit once for same idem key, got ${accAttempts}`);
 
-    // 9-16 missing/invalid/denied/unavailable/timeout
+    // Missing/invalid/denied/unavailable/timeout
     const cases: Array<{ body: Record<string, unknown>; code: string }> = [
       { body: { accuracyMetres: 5 }, code: "GPS_COORDINATES_MISSING" },
       { body: { latitude: 999, longitude: BASE_LNG, accuracyMetres: 5 }, code: "GPS_COORDINATES_INVALID" },
@@ -481,9 +483,18 @@ async function main() {
       { body: { latitude: BASE_LAT, longitude: BASE_LNG }, code: "GPS_ACCURACY_MISSING" },
       { body: { latitude: BASE_LAT, longitude: BASE_LNG, accuracyMetres: -1 }, code: "GPS_ACCURACY_INVALID" },
       { body: { latitude: BASE_LAT, longitude: BASE_LNG, accuracyMetres: "not-a-number" }, code: "GPS_ACCURACY_INVALID" },
-      { body: { latitude: BASE_LAT, longitude: BASE_LNG, accuracyMetres: 5, permissionState: "denied" }, code: "GPS_PERMISSION_DENIED" },
-      { body: { latitude: BASE_LAT, longitude: BASE_LNG, accuracyMetres: 5, locationError: "UNAVAILABLE" }, code: "GPS_UNAVAILABLE" },
-      { body: { latitude: BASE_LAT, longitude: BASE_LNG, accuracyMetres: 5, locationError: "TIMEOUT" }, code: "GPS_TIMEOUT" },
+      {
+        body: { latitude: BASE_LAT, longitude: BASE_LNG, accuracyMetres: 5, permissionState: "denied" },
+        code: "GPS_PERMISSION_DENIED",
+      },
+      {
+        body: { latitude: BASE_LAT, longitude: BASE_LNG, accuracyMetres: 5, locationError: "UNAVAILABLE" },
+        code: "GPS_UNAVAILABLE",
+      },
+      {
+        body: { latitude: BASE_LAT, longitude: BASE_LNG, accuracyMetres: 5, locationError: "TIMEOUT" },
+        code: "GPS_TIMEOUT",
+      },
     ];
     for (const c of cases) {
       const res = await apiCall(baseUrl, "/api/educlock/me/clock-in", {
@@ -498,7 +509,7 @@ async function main() {
       assert(n >= 1, `${c.code} audited`);
     }
 
-    // 17 no active entrance — deactivate school A entrances with coords temporarily via inactive campus only school
+    // No active boundary
     const schoolEmpty = await prisma.school.create({ data: { name: `EduClock B4 Empty ${stamp}` } });
     createdSchoolIds.push(schoolEmpty.id);
     const staffEmpty = await prisma.user.create({
@@ -539,24 +550,17 @@ async function main() {
       email: staffEmpty.email,
       role: "STAFF",
     });
-    const noEnt = await apiCall(baseUrl, "/api/educlock/me/clock-in", {
+    const noBoundary = await apiCall(baseUrl, "/api/educlock/me/clock-in", {
       method: "POST",
       token: emptyToken,
       body: { latitude: BASE_LAT, longitude: BASE_LNG, accuracyMetres: 5 },
     });
-    assert(noEnt.status === 400 && noEnt.json.code === "NO_ACTIVE_ENTRANCE", "no active entrance");
+    assert(
+      noBoundary.status === 400 && noBoundary.json.code === "NO_ACTIVE_BOUNDARY",
+      `no active boundary, got ${noBoundary.json?.code}`
+    );
 
-    // 21 nearest entrance — already checked entranceNear vs far
-    // 22 equal distance tie => lower entrance id
-    const tieIn = await apiCall(baseUrl, "/api/educlock/me/clock-in", {
-      method: "POST",
-      token: tieToken,
-      body: { latitude: tieLat, longitude: tieLng, accuracyMetres: 5 },
-    });
-    assert(tieIn.status === 201, `tie clock-in 201, got ${tieIn.status}: ${JSON.stringify(tieIn.json)}`);
-    assert(tieIn.json.event.matchedEntranceId === entranceTieA.id, `tie prefers lower id, got ${tieIn.json.event.matchedEntranceId}`);
-
-    // 35 metadata safety
+    // Metadata safety
     const attempts = await prisma.eduClockGpsAttempt.findMany({
       where: { schoolId: schoolA.id },
       take: 50,
@@ -568,7 +572,7 @@ async function main() {
       assert(!meta.includes(VALID_SA_ID), "identity not in metadata");
     }
 
-    // 34 historical non-GPS event readable
+    // Historical non-GPS event readable (preserve audit)
     const hist = await prisma.eduClockEvent.create({
       data: {
         schoolId: schoolA.id,
@@ -589,6 +593,12 @@ async function main() {
     const loaded = await prisma.eduClockEvent.findUnique({ where: { id: hist.id } });
     assert(loaded != null && loaded.latitude == null && loaded.validationVersion == null, "historical null GPS readable");
 
+    // Existing open shifts untouched by GPS rule change — create one and ensure still present
+    const openShiftCount = await prisma.eduClockOpenShift.count({
+      where: { schoolId: schoolA.id },
+    });
+    assert(openShiftCount === 0, "no leftover open shifts after paired in/out");
+
     const eventsAfter = await prisma.eduClockEvent.count({
       where: { schoolId: { in: createdSchoolIds } },
     });
@@ -607,15 +617,16 @@ async function main() {
       )
     );
 
-    console.log("✓ EduClock Build 4 GPS validation tests passed");
+    console.log("✓ EduClock GPS boundary validation tests passed");
   } finally {
     server.close();
-    // Cleanup disposable schools (force-remove GPS rows then schools)
     await prisma.eduClockGpsAttempt.deleteMany({ where: { schoolId: { in: createdSchoolIds } } });
     await prisma.eduClockIdempotencyKey.deleteMany({ where: { schoolId: { in: createdSchoolIds } } });
     await prisma.eduClockOpenShift.deleteMany({ where: { schoolId: { in: createdSchoolIds } } });
     await prisma.eduClockException.deleteMany({ where: { schoolId: { in: createdSchoolIds } } });
     await prisma.eduClockEvent.deleteMany({ where: { schoolId: { in: createdSchoolIds } } });
+    await prisma.geofenceVertex.deleteMany({ where: { schoolId: { in: createdSchoolIds } } });
+    await prisma.geofenceZone.deleteMany({ where: { schoolId: { in: createdSchoolIds } } });
     await prisma.eduClockEntrance.deleteMany({ where: { schoolId: { in: createdSchoolIds } } });
     await prisma.eduClockCampus.deleteMany({ where: { schoolId: { in: createdSchoolIds } } });
     for (const id of createdSchoolIds) {

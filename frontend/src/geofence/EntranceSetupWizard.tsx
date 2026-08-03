@@ -1,7 +1,7 @@
 /**
  * Mobile-first Add / Edit Entrance wizard (Phase 2B).
  * Saves EduClockEntrance only — no duplicate GeofenceZone entrance records.
- * Polygon clock validation remains OFF.
+ * Staff clock GPS uses the active campus boundary polygon (entrance radius is reference-only).
  */
 import { useCallback, useEffect, useRef, useState, type CSSProperties } from "react";
 import {
@@ -491,7 +491,7 @@ export default function GeofenceEntranceWizard({
                 style={{ ...inputStyle, marginTop: 6 }}
               />
               <div style={{ fontSize: 12, color: "#a3a3a3", fontWeight: 500, marginTop: 6, lineHeight: 1.4 }}>
-                Staff must be within this distance of the entrance to clock in.
+                Reference only. Staff clock in and out from anywhere inside the campus boundary.
               </div>
             </label>
           </div>

@@ -359,7 +359,7 @@ export function isAccuracyWarning(accuracyMetres: number | null | undefined): bo
 /**
  * Ray-casting point-in-polygon (lat/lng treated as planar for small campus polygons).
  * Ring may be open or closed. Returns false for degenerate polygons.
- * Does NOT enable clock validation — owner setup / advisory only.
+ * Used by staff clock GPS (gps-boundary-v1) and owner advisory containment checks.
  */
 export function isPointInsidePolygon(
   point: { latitude: number; longitude: number },

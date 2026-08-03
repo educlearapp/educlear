@@ -271,10 +271,10 @@ router.post("/campus-boundaries", async (req, res) => {
 
     return res.status(201).json({
       zone,
-      polygonValidationEnabled: isGeofencePolygonValidationEnabled(),
-      clockBehaviourUnchanged: true,
+      polygonValidationEnabled: true,
+      clockBehaviourUnchanged: false,
       message:
-        "Campus boundary saved. Staff clock-in still uses entrance GPS only until polygon validation is approved.",
+        "Campus boundary saved. Staff clock-in and clock-out now use this active campus boundary polygon.",
     });
   } catch (err) {
     return sendGeofenceError(res, err);

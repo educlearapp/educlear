@@ -16,6 +16,14 @@ import {
   type EduClockClockGpsPayload,
   type EduClockGeoFailure,
 } from "./educlockStaffGeolocation";
+import {
+  buildLocationHelpContent,
+  detectDeviceGuidanceKind,
+  queryGeolocationPermissionState,
+  shouldShowLocationHelp,
+  type EduClockLocationHelpContent,
+  type EduClockPermissionQueryState,
+} from "./educlockLocationPermissionHelp";
 
 type Phase = "idle" | "locating" | "submitting" | "error";
 type ClockAction = "in" | "out";
@@ -45,12 +53,25 @@ export default function EduClockStaffClockPage() {
   const [status, setStatus] = useState<EduClockStaffStatus | null>(null);
   const [history, setHistory] = useState<Array<Record<string, unknown>>>([]);
   const [liveClock, setLiveClock] = useState("");
+  const [permissionState, setPermissionState] = useState<EduClockPermissionQueryState | null>(null);
+  const [showLocationHelp, setShowLocationHelp] = useState(false);
+  const [locationHelp, setLocationHelp] = useState<EduClockLocationHelpContent>(() =>
+    buildLocationHelpContent(detectDeviceGuidanceKind())
+  );
+  const [lastGeoFailure, setLastGeoFailure] = useState<EduClockGeoFailure | null>(null);
   const inFlight = useRef(false);
   const actionKeyRef = useRef<string | null>(null);
   const lastActionRef = useRef<ClockAction | null>(null);
   const geoRequestCountRef = useRef(0);
 
   const busy = phase === "locating" || phase === "submitting";
+
+  const refreshPermissionState = useCallback(async () => {
+    const state = await queryGeolocationPermissionState();
+    setPermissionState(state);
+    setLocationHelp(buildLocationHelpContent(detectDeviceGuidanceKind()));
+    return state;
+  }, []);
 
   const reload = useCallback(async () => {
     const token = localStorage.getItem("token");
@@ -72,7 +93,28 @@ export default function EduClockStaffClockPage() {
 
   useEffect(() => {
     void reload();
-  }, [reload]);
+    void refreshPermissionState();
+  }, [reload, refreshPermissionState]);
+
+  useEffect(() => {
+    const onForeground = () => {
+      // Re-check permission only — never auto clock.
+      if (document.visibilityState === "visible") {
+        void refreshPermissionState();
+      }
+    };
+    const onPageShow = () => {
+      void refreshPermissionState();
+    };
+    document.addEventListener("visibilitychange", onForeground);
+    window.addEventListener("pageshow", onPageShow);
+    window.addEventListener("focus", onPageShow);
+    return () => {
+      document.removeEventListener("visibilitychange", onForeground);
+      window.removeEventListener("pageshow", onPageShow);
+      window.removeEventListener("focus", onPageShow);
+    };
+  }, [refreshPermissionState]);
 
   useEffect(() => {
     const tick = () => {
@@ -115,6 +157,8 @@ export default function EduClockStaffClockPage() {
       );
       setStatus((result.status as EduClockStaffStatus) || null);
       setError("");
+      setLastGeoFailure(null);
+      setShowLocationHelp(false);
       setPhase("idle");
       setPendingAction(null);
       actionKeyRef.current = null;
@@ -125,7 +169,6 @@ export default function EduClockStaffClockPage() {
       setError(resolveClockErrorMessage({ backendMessage, geoFailure }));
       setSuccess("");
       setPhase("error");
-      // Keep lastActionRef for deliberate Retry (new key). Clear in-flight key so Retry is fresh.
       actionKeyRef.current = null;
     } finally {
       inFlight.current = false;
@@ -146,11 +189,23 @@ export default function EduClockStaffClockPage() {
     setPendingAction(action);
     geoRequestCountRef.current += 1;
 
+    const perm = await refreshPermissionState();
     const capture = await captureStaffGeolocation();
     if (!capture.ok) {
+      setLastGeoFailure(capture.failure);
+      const help = shouldShowLocationHelp({
+        permissionQueryState: perm,
+        geoFailureCode: capture.failure.locationError,
+      });
+      setShowLocationHelp(help);
+      if (help) {
+        setLocationHelp(buildLocationHelpContent(detectDeviceGuidanceKind()));
+      }
       await submitClock(action, buildClockPayloadFromGeoFailure(capture.failure), capture.failure);
       return;
     }
+    setLastGeoFailure(null);
+    setShowLocationHelp(false);
     await submitClock(action, buildClockPayloadFromCapture(capture.location), null);
   }
 
@@ -162,15 +217,42 @@ export default function EduClockStaffClockPage() {
     void runClockAction("out", { newKey: true });
   }
 
-  function onRetry() {
+  function onRetryLocation() {
     const action = lastActionRef.current;
     if (!action) {
-      setPhase("idle");
-      setError("");
+      // Retry Location without a prior clock action: only re-check permission / capture readiness.
+      void (async () => {
+        setError("");
+        setSuccess("");
+        setPhase("locating");
+        const perm = await refreshPermissionState();
+        const capture = await captureStaffGeolocation();
+        setPhase("idle");
+        if (!capture.ok) {
+          setLastGeoFailure(capture.failure);
+          setError(capture.failure.staffMessage);
+          const help = shouldShowLocationHelp({
+            permissionQueryState: perm,
+            geoFailureCode: capture.failure.locationError,
+          });
+          setShowLocationHelp(help);
+          if (help) setLocationHelp(buildLocationHelpContent(detectDeviceGuidanceKind()));
+          return;
+        }
+        setLastGeoFailure(null);
+        setShowLocationHelp(false);
+        setError("");
+        setSuccess("Location ready. Press Clock In or Clock Out to continue.");
+      })();
       return;
     }
-    // Deliberate Retry after a completed rejection uses a new idempotency key.
+    // Deliberate Retry after a completed rejection uses a new idempotency key and re-attempts clock.
     void runClockAction(action, { newKey: true });
+  }
+
+  function onShowLocationHelp() {
+    setLocationHelp(buildLocationHelpContent(detectDeviceGuidanceKind()));
+    setShowLocationHelp(true);
   }
 
   if (loading) {
@@ -208,6 +290,13 @@ export default function EduClockStaffClockPage() {
     if (phase === "submitting") return submittingLabel;
     return clockedIn ? "Clock Out" : "Clock In";
   })();
+
+  const deniedHelpVisible =
+    showLocationHelp ||
+    shouldShowLocationHelp({
+      permissionQueryState: permissionState,
+      geoFailureCode: lastGeoFailure?.locationError,
+    });
 
   return (
     <main className="teacher-app-main" style={{ maxWidth: 480, margin: "0 auto", padding: 16 }}>
@@ -314,18 +403,58 @@ export default function EduClockStaffClockPage() {
           <p role="alert" className="teacher-error" style={{ margin: 0 }}>
             {error}
           </p>
-          {phase === "error" && !blocked ? (
-            <button
-              type="button"
-              className="teacher-touch-btn"
-              onClick={onRetry}
-              style={{ marginTop: 10 }}
-              disabled={busy}
-            >
-              Retry
-            </button>
-          ) : null}
         </div>
+      ) : null}
+
+      {!blocked ? (
+        <div style={{ display: "flex", flexWrap: "wrap", gap: 8, marginTop: 12 }}>
+          <button
+            type="button"
+            className="teacher-touch-btn"
+            onClick={onRetryLocation}
+            disabled={busy}
+          >
+            Retry Location
+          </button>
+          <button
+            type="button"
+            className="teacher-touch-btn"
+            onClick={onShowLocationHelp}
+            disabled={busy}
+          >
+            Location Help
+          </button>
+        </div>
+      ) : null}
+
+      {deniedHelpVisible ? (
+        <section
+          style={{
+            marginTop: 14,
+            padding: 14,
+            borderRadius: 12,
+            background: "#fff7ed",
+            border: "1px solid #fdba74",
+          }}
+          data-educlock-location-help={locationHelp.kind}
+        >
+          <strong style={{ color: "#9a3412" }}>{locationHelp.title}</strong>
+          <ol style={{ margin: "10px 0 0", paddingLeft: 18, color: "#7c2d12", lineHeight: 1.45 }}>
+            {locationHelp.steps.map((step) => (
+              <li key={step} style={{ marginBottom: 6 }}>
+                {step}
+              </li>
+            ))}
+          </ol>
+          {locationHelp.note ? (
+            <p style={{ margin: "8px 0 0", color: "#9a3412", fontSize: 13 }}>{locationHelp.note}</p>
+          ) : null}
+          {permissionState ? (
+            <p style={{ margin: "8px 0 0", color: "#78716c", fontSize: 12 }}>
+              Permission status: {permissionState}
+            </p>
+          ) : null}
+        </section>
       ) : null}
 
       <section style={{ marginTop: 28 }}>

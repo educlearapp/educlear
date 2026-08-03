@@ -1,9 +1,10 @@
 /**
  * Owner Location Test Mode — read-only simulation.
  * Never creates EduClockEvent, EduClockGpsAttempt, attendance, or payroll records.
- * Current real clock rule remains entrance-radius based; polygon flag stays informational.
+ * Current clock rule mirrors staff GPS: active campus boundary polygon + accuracy ≤ 20 m.
+ * Entrance radius fields remain informational only (not authoritative).
  *
- * Accuracy / radius thresholds must stay aligned with educlockGpsValidation.ts
+ * Accuracy threshold must stay aligned with educlockGpsValidation.ts
  * (imported constants avoided here to prevent circular load with EduClockError).
  */
 import {
@@ -13,10 +14,10 @@ import {
   roundDistanceMetresForStorage,
 } from "../utils/educlockGpsDistance";
 import { isPointInsidePolygon } from "./geofenceGeometry";
-import { isGeofencePolygonValidationEnabled } from "./geofencePolygonValidationFlag";
 
-/** Keep in sync with EDUCLOCK_GPS_* in educlockGpsValidation.ts */
+/** Keep in sync with EDUCLOCK_GPS_MAX_ACCURACY_METRES in educlockGpsValidation.ts */
 const GPS_MAX_ACCURACY_METRES = 20;
+/** Informational entrance-radius display helpers (not used for current clock accept). */
 const GPS_DEFAULT_RADIUS_METRES = 5;
 const GPS_MIN_RADIUS_METRES = 1;
 const GPS_MAX_RADIUS_METRES = 25;
@@ -39,7 +40,7 @@ export type OwnerLocationSimulationInput = {
   accuracyMetres: number;
   boundaryRing: Array<{ latitude: number; longitude: number }> | null;
   entrances: LocationTestEntrance[];
-  /** Injected for tests; production uses the env flag helper. */
+  /** Injected for tests; production uses the env flag helper (informational only). */
   polygonRuleEnabled?: boolean;
 };
 
@@ -57,6 +58,7 @@ export type OwnerLocationSimulationResult = {
   isWithinEntranceRadius: boolean | null;
   reportedAccuracyMetres: number;
   accuracyAcceptedByCurrentClockRule: boolean;
+  /** True when current staff clock GPS rule (boundary polygon) would accept. */
   currentEntranceRuleWouldAccept: boolean;
   polygonRuleEnabled: boolean;
   futurePolygonAwareRuleWouldAccept: boolean | null;
@@ -71,8 +73,10 @@ export type OwnerLocationSimulationResult = {
     | "GPS_ACCURACY_TOO_LOW"
     | "GPS_ACCURACY_INVALID"
     | "NO_ACTIVE_ENTRANCE"
+    | "NO_ACTIVE_BOUNDARY"
     | "NO_GPS_READY_ENTRANCE"
     | "OUTSIDE_ENTRANCE_RADIUS"
+    | "OUTSIDE_GEOFENCE"
     | "INVALID_COORDINATES"
     | null;
   activeEntranceCount: number;
@@ -107,10 +111,11 @@ function isGpsReadyEntrance(e: LocationTestEntrance): boolean {
 export function evaluateOwnerLocationSimulation(
   input: OwnerLocationSimulationInput
 ): OwnerLocationSimulationResult {
+  // Env flag is informational; current clock rule always uses the campus boundary.
   const polygonRuleEnabled =
     input.polygonRuleEnabled !== undefined
       ? Boolean(input.polygonRuleEnabled)
-      : isGeofencePolygonValidationEnabled();
+      : true;
 
   const base = {
     campusId: input.campusId,
@@ -158,7 +163,7 @@ export function evaluateOwnerLocationSimulation(
         currentClockRule: partial.currentEntranceRuleWouldAccept ? "ACCEPTED" : "REJECTED",
         futurePolygonAwareRule:
           future == null ? "NOT_EVALUABLE" : future ? "ACCEPTED" : "REJECTED",
-        polygonEnforcement: polygonRuleEnabled ? "ENABLED" : "NOT_ENABLED",
+        polygonEnforcement: "ENABLED",
       },
     };
   };
@@ -266,33 +271,22 @@ export function evaluateOwnerLocationSimulation(
     });
   }
 
-  if (activeEntrances.length === 0) {
+  if (!campusBoundaryAvailable) {
     return finish({
       ...sharedNearest,
       currentEntranceRuleWouldAccept: false,
-      rejectionReason: "No active entrances are configured for this campus.",
-      rejectionCode: "NO_ACTIVE_ENTRANCE",
+      rejectionReason: "No active campus boundary has been configured for this campus.",
+      rejectionCode: "NO_ACTIVE_BOUNDARY",
+      futurePolygonAwareRuleWouldAccept: null,
     });
   }
 
-  if (gpsReady.length === 0) {
+  if (!isInsideCampusBoundary) {
     return finish({
       ...sharedNearest,
       currentEntranceRuleWouldAccept: false,
-      rejectionReason:
-        "No GPS-ready entrances are configured. Add an active entrance with coordinates first.",
-      rejectionCode: "NO_GPS_READY_ENTRANCE",
-    });
-  }
-
-  if (!withinRadius || !nearest) {
-    return finish({
-      ...sharedNearest,
-      currentEntranceRuleWouldAccept: false,
-      rejectionReason: nearest
-        ? `You are ${distanceRounded} m from ${nearest.name}. The allowed radius is ${nearest.radius} m.`
-        : "You are outside the permitted school clocking area.",
-      rejectionCode: "OUTSIDE_ENTRANCE_RADIUS",
+      rejectionReason: "You are outside the permitted school clocking area.",
+      rejectionCode: "OUTSIDE_GEOFENCE",
     });
   }
 

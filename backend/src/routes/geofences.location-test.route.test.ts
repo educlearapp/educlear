@@ -202,7 +202,7 @@ async function main() {
   const server = http.createServer(app);
   await new Promise<void>((resolve) => server.listen(0, "127.0.0.1", resolve));
   const addr = server.address();
-  if (!addr || typeof addr === "string") throw new Error("server address");
+  assert(addr && typeof addr === "object", "server address");
   const baseUrl = `http://127.0.0.1:${addr.port}`;
 
   const ownerToken = signToken({
@@ -241,7 +241,8 @@ async function main() {
   assert(ok.status === 200, `owner test 200, got ${ok.status} ${JSON.stringify(ok.json)}`);
   assert(ok.json.currentEntranceRuleWouldAccept === true, "Would be accepted");
   assert(ok.json.nearestEntranceName === "Main Gate", "nearest Main Gate");
-  assert(ok.json.polygonRuleEnabled === false, "polygon OFF");
+  assert(ok.json.polygonRuleEnabled === true, "polygon rule enabled for current clock");
+  assert(ok.json.simulatedOverallResult.polygonEnforcement === "ENABLED", "enforcement ENABLED");
   assert(ok.json.recordsCreated.eduClockEvent === 0, "zero events");
   assert(ok.json.recordsCreated.eduClockGpsAttempt === 0, "zero gps attempts");
   assert(ok.json.simulationOnly === true, "simulation only");
@@ -300,20 +301,21 @@ async function main() {
   });
   assert(matchSchool.status === 200, "matching schoolId still ok");
 
-  // Radius fail
+  // Outside campus boundary (still near gate would have passed entrance-radius)
   const reject = await apiCall(baseUrl, "/api/geofences/test-location", {
     method: "POST",
     token: ownerToken,
     body: {
       campusId: campusA.id,
-      latitude: BASE_LAT + 0.0005,
+      latitude: BASE_LAT + 0.002,
       longitude: BASE_LNG,
       accuracyMetres: 5,
     },
   });
   assert(reject.status === 200, "reject simulation still 200");
   assert(reject.json.currentEntranceRuleWouldAccept === false, "Would be rejected");
-  assert(reject.json.rejectionCode === "OUTSIDE_ENTRANCE_RADIUS", "outside radius code");
+  assert(reject.json.rejectionCode === "OUTSIDE_GEOFENCE", "outside boundary code");
+  assert(reject.json.isInsideCampusBoundary === false, "outside polygon");
 
   // Accuracy fail
   const acc = await apiCall(baseUrl, "/api/geofences/test-location", {
@@ -341,7 +343,7 @@ async function main() {
     },
   });
   assert(empty.status === 200, "empty campus 200");
-  assert(empty.json.rejectionCode === "NO_ACTIVE_ENTRANCE", "no entrance state");
+  assert(empty.json.rejectionCode === "NO_ACTIVE_BOUNDARY", "no boundary state");
   assert(empty.json.campusBoundaryAvailable === false, "no boundary");
 
   const eventsAfter = await prisma.eduClockEvent.count({ where: { schoolId: schoolA.id } });

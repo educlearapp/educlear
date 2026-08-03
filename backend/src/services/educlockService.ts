@@ -27,7 +27,6 @@ import {
   resolveEntranceTypeLabel,
 } from "./educlockEntranceType";
 import { evaluateCampusBoundaryContainment } from "./geofenceService";
-import { isGeofencePolygonValidationEnabled } from "./geofencePolygonValidationFlag";
 
 export type EduClockErrorCode =
   | "EDUCLOCK_IDENTITY_REQUIRED"
@@ -54,6 +53,7 @@ export type EduClockErrorCode =
   | "GPS_ACCURACY_INVALID"
   | "GPS_ACCURACY_TOO_LOW"
   | "NO_ACTIVE_ENTRANCE"
+  | "NO_ACTIVE_BOUNDARY"
   | "OUTSIDE_GEOFENCE";
 
 export class EduClockError extends Error {
@@ -97,6 +97,8 @@ export const EDUCLOCK_ERROR_MESSAGES: Record<EduClockErrorCode, string> = {
   GPS_ACCURACY_TOO_LOW:
     "We could not get an accurate enough location. Move into an open area and try again.",
   NO_ACTIVE_ENTRANCE: "No EduClock entrance has been configured. Contact the school owner.",
+  NO_ACTIVE_BOUNDARY:
+    "No active campus boundary has been configured. Contact the school owner.",
   OUTSIDE_GEOFENCE: "You are outside the permitted school clocking area.",
 };
 
@@ -882,8 +884,8 @@ function serializeEntrance(
     gpsReadinessReasons: readiness.reasons,
     boundaryStatus: boundary?.status ?? null,
     boundaryZoneId: boundary && "zoneId" in boundary ? boundary.zoneId ?? null : null,
-    /** Informational — staff clock still uses entrance radius only. */
-    polygonValidationEnabled: isGeofencePolygonValidationEnabled(),
+    /** Informational — staff clock uses active campus boundary polygons (gps-boundary-v1). */
+    polygonValidationEnabled: true,
   };
 }
 
@@ -954,8 +956,8 @@ function serializeCampus(campus: {
     updatedAt: campus.updatedAt.toISOString(),
     perimeterNote:
       campus.perimeterStatus === "NOT_DRAWN"
-        ? "Campus perimeter not drawn yet. Entrance Radius is used for clock GPS. Polygon validation remains disabled until owner approval."
-        : "Campus perimeter polygon is stored in the Geofence Engine. Entrance Radius is still used for clock GPS until polygon validation is approved.",
+        ? "Campus perimeter not drawn yet. Staff clock-in and clock-out require an active campus boundary polygon."
+        : "Campus perimeter polygon is the authority for staff clock-in and clock-out GPS (any point inside the boundary).",
   };
 }
 

@@ -15,6 +15,7 @@ import { PrismaClient } from "@prisma/client";
 
 import authRoutes from "../routes/auth";
 import educlockRoutes from "../routes/educlock";
+import geofencesRoutes from "../routes/geofences";
 import subscriptionsRoutes from "../routes/subscriptions";
 
 function loadDevDatabaseUrl(): string {
@@ -227,6 +228,7 @@ async function main() {
   app.use("/auth", authRoutes);
   app.use("/api/auth", authRoutes);
   app.use("/api/educlock", educlockRoutes);
+  app.use("/api/geofences", geofencesRoutes);
   app.use("/api/subscriptions", subscriptionsRoutes);
   const server = http.createServer(app);
   await new Promise<void>((resolve) => server.listen(0, "127.0.0.1", resolve));
@@ -277,6 +279,30 @@ async function main() {
     assert(entrance.json.gpsReady === true, "Entrance GPS READY");
     disposableIds.entranceId = String(entrance.json.id);
 
+    // Active campus boundary — authority for clock GPS
+    const ring = [
+      offsetMetres(BASE_LAT, BASE_LNG, -30, -30),
+      offsetMetres(BASE_LAT, BASE_LNG, -30, 30),
+      offsetMetres(BASE_LAT, BASE_LNG, 30, 30),
+      offsetMetres(BASE_LAT, BASE_LNG, 30, -30),
+    ];
+    const boundary = await apiCall(baseUrl, "/api/geofences/campus-boundaries", {
+      method: "POST",
+      token: ownerToken,
+      body: {
+        campusId: campus.json.id,
+        name: `C5 Boundary ${stamp}`,
+        vertices: ring.map((p) => ({
+          latitude: p.latitude,
+          longitude: p.longitude,
+          accuracyMetres: 5,
+        })),
+      },
+    });
+    assert(boundary.status === 201, `Boundary create ${boundary.status} ${JSON.stringify(boundary.json)}`);
+    assert(boundary.json.clockBehaviourUnchanged === false, "boundary now drives clock GPS");
+    disposableIds.zoneId = String(boundary.json.zone?.id || "");
+
     // 3 Staff login + activate
     const staffLogin = await apiCall(baseUrl, "/auth/login", {
       method: "POST",
@@ -308,9 +334,8 @@ async function main() {
       },
     });
     assert(clockIn.status === 201, `Clock-in ${clockIn.status} ${JSON.stringify(clockIn.json)}`);
-    assert(clockIn.json.event?.matchedEntranceId === entrance.json.id, "matchedEntranceId");
-    assert(clockIn.json.event?.validationVersion === "gps-entrance-v1", "validationVersion");
-    assert(clockIn.json.event?.matchedEntranceName === "Main Gate", "matchedEntranceName");
+    assert(clockIn.json.event?.matchedEntranceId == null, "matchedEntranceId not used for boundary GPS");
+    assert(clockIn.json.event?.validationVersion === "gps-boundary-v1", "validationVersion");
     disposableIds.clockInEventId = String(clockIn.json.event.id);
     evidence.acceptedClockIn = clockIn.json.event;
 
@@ -425,7 +450,7 @@ async function main() {
     }
 
     // Staff is clocked out — rejections use clock-in
-    const outside = offsetMetres(BASE_LAT, BASE_LNG, 40, 0);
+    const outside = offsetMetres(BASE_LAT, BASE_LNG, 80, 0);
 
     await expectReject(
       "permission_denied",
@@ -479,7 +504,7 @@ async function main() {
         : "GPS rejected attempts not exposed on Exceptions API — future follow-up",
     };
 
-    // 13 Deactivate entrance prevents future matching
+    // 13 Deactivating entrance must NOT block clocking (boundary remains authority)
     const deact = await apiCall(baseUrl, `/api/educlock/owner/entrances/${entrance.json.id}`, {
       method: "PATCH",
       token: ownerToken,
@@ -487,8 +512,48 @@ async function main() {
     });
     assert(deact.status === 200 && deact.json.isActive === false, "Entrance deactivated");
 
+    const stillOk = await apiCall(baseUrl, "/api/educlock/me/clock-in", {
+      method: "POST",
+      token: staffToken,
+      headers: { "Idempotency-Key": `c5-after-deact-ent-${stamp}` },
+      body: {
+        latitude: inside.latitude,
+        longitude: inside.longitude,
+        accuracyMetres: 4,
+        capturedAtClient: new Date().toISOString(),
+        permissionState: "granted",
+      },
+    });
+    assert(
+      stillOk.status === 201,
+      `clock-in after entrance deactivate still accepted: ${stillOk.status} ${JSON.stringify(stillOk.json)}`
+    );
+    await apiCall(baseUrl, "/api/educlock/me/clock-out", {
+      method: "POST",
+      token: staffToken,
+      headers: { "Idempotency-Key": `c5-after-deact-ent-out-${stamp}` },
+      body: {
+        latitude: inside.latitude,
+        longitude: inside.longitude,
+        accuracyMetres: 4,
+        capturedAtClient: new Date().toISOString(),
+        permissionState: "granted",
+      },
+    });
+
+    // Deactivate boundary → NO_ACTIVE_BOUNDARY
+    if (disposableIds.zoneId) {
+      await prisma.geofenceZone.update({
+        where: { id: disposableIds.zoneId },
+        data: { active: false },
+      });
+      await prisma.eduClockCampus.update({
+        where: { id: String(disposableIds.campusId) },
+        data: { perimeterStatus: "NOT_DRAWN" },
+      });
+    }
     await expectReject(
-      "no_active_entrance",
+      "no_active_boundary",
       {
         latitude: inside.latitude,
         longitude: inside.longitude,
@@ -496,21 +561,26 @@ async function main() {
         capturedAtClient: new Date().toISOString(),
         permissionState: "granted",
       },
-      "NO_ACTIVE_ENTRANCE"
+      "NO_ACTIVE_BOUNDARY"
     );
 
-    // 14 Historical accepted events retain matched entrance
+    // 14 Historical accepted events retained (audit / shifts untouched by later config)
     const histIn = await prisma.eduClockEvent.findUnique({
       where: { id: disposableIds.clockInEventId },
     });
     const histOut = await prisma.eduClockEvent.findUnique({
       where: { id: disposableIds.clockOutEventId },
     });
-    assert(histIn?.matchedEntranceId === entrance.json.id, "Clock-in matchedEntrance retained");
-    assert(histOut?.matchedEntranceId === entrance.json.id, "Clock-out matchedEntrance retained");
+    assert(histIn != null && histOut != null, "Historical clock events retained");
+    assert(histIn?.validationVersion === "gps-boundary-v1", "Clock-in validation version retained");
+    assert(histOut?.validationVersion === "gps-boundary-v1", "Clock-out validation version retained");
+    assert(histIn?.matchedEntranceId == null, "Clock-in had no entrance match under boundary rule");
+    assert(histOut?.matchedEntranceId == null, "Clock-out had no entrance match under boundary rule");
     evidence.historicalLinkAfterDeactivate = {
       clockInMatchedEntranceId: histIn?.matchedEntranceId,
       clockOutMatchedEntranceId: histOut?.matchedEntranceId,
+      clockInValidationVersion: histIn?.validationVersion,
+      clockOutValidationVersion: histOut?.validationVersion,
     };
 
     // DB evidence for accepted clock-in
@@ -643,6 +713,8 @@ async function cleanup(ids: Record<string, string>) {
   await prisma.eduClockException.deleteMany({ where: { schoolId } });
   await prisma.eduClockOpenShift.deleteMany({ where: { schoolId } });
   await prisma.eduClockIdempotencyKey.deleteMany({ where: { schoolId } });
+  await prisma.geofenceVertex.deleteMany({ where: { schoolId } });
+  await prisma.geofenceZone.deleteMany({ where: { schoolId } });
   await prisma.eduClockEntrance.deleteMany({ where: { schoolId } });
   await prisma.eduClockCampus.deleteMany({ where: { schoolId } });
   await prisma.eduClockActivationAudit.deleteMany({ where: { schoolId } });

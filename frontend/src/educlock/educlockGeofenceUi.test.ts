@@ -222,7 +222,8 @@ async function main() {
   assert.ok(entranceWizardSrc.includes("Use My Current Location"), "capture CTA");
   assert.ok(entranceWizardSrc.includes("Save Entrance"), "save CTA");
   assert.ok(entranceWizardSrc.includes("Advanced details"), "advanced lat/lng tucked away");
-  assert.ok(entranceWizardSrc.includes("Staff must be within this distance"), "radius plain language");
+  assert.ok(entranceWizardSrc.includes("Reference only"), "radius plain language");
+  assert.ok(entranceWizardSrc.includes("campus boundary"), "boundary authority mentioned");
   assert.ok(entranceWizardSrc.includes("fontSize: 16"), "Safari zoom-safe inputs");
   assert.ok(entranceWizardSrc.includes("Secure connection required") || entranceWizardSrc.includes("SecureConnectionNotice"), "owner secure-connection notice");
   assert.ok(!entranceWizardSrc.includes("192.168"), "no developer IP wording");
@@ -253,7 +254,7 @@ async function main() {
   assert.ok(drawWizardSrc.includes("Start Drawing"), "draw: Start Drawing");
   assert.ok(drawWizardSrc.includes("Finish Drawing"), "draw: Finish Drawing");
   assert.ok(drawWizardSrc.includes("DRAW_ON_MAP"), "draw: capture method");
-  assert.ok(drawWizardSrc.includes("will not affect staff clocking"), "draw: advisory entrance warning");
+  assert.ok(drawWizardSrc.includes("Staff clock GPS uses the campus boundary"), "draw: boundary clock warning");
   assert.ok(
     drawWizardSrc.includes("previous version will remain"),
     "draw: replace history warning"

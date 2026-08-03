@@ -1,6 +1,6 @@
 /**
  * Lightweight Leaflet map for Geofence Engine owner capture.
- * Live position + growing polygon preview. Not used for clock validation.
+ * Live position + growing polygon preview for owner boundary / entrance setup.
  * Never centres on a hard-coded city.
  */
 import { useEffect, useRef } from "react";
