@@ -106,17 +106,17 @@ function emailDomain(email: string) {
 }
 
 function platformFromEmail() {
-  const configured =
+  // Resend always uses the verified EduClear From address.
+  if (hasResendProvider()) {
+    return EDUCLEAR_RELAY_FROM_EMAIL;
+  }
+  return (
     process.env.EDUCLEAR_MAIL_FROM_EMAIL?.trim() ||
     process.env.EDUCLEAR_SMTP_FROM?.trim() ||
     process.env.SMTP_FROM?.trim() ||
     process.env.SMTP_USER?.trim() ||
-    EDUCLEAR_RELAY_FROM_EMAIL;
-  // Resend production sends must use the verified EduClear domain.
-  if (hasResendProvider() && emailDomain(configured) !== EDUCLEAR_VERIFIED_SENDING_DOMAIN) {
-    return EDUCLEAR_RELAY_FROM_EMAIL;
-  }
-  return configured;
+    EDUCLEAR_RELAY_FROM_EMAIL
+  );
 }
 
 function platformFromName() {
