@@ -4,8 +4,13 @@ import { staffApiFetch } from "../staffApi";
 import {
   ATTENDANCE_PERIOD_OPTIONS,
   DEFAULT_ATTENDANCE_PERIOD,
-  type AttendancePeriodValue,
 } from "../attendance/periodOptions";
+import {
+  SUBJECTS_EMPTY_MESSAGE,
+  type CaptureSessionMode,
+  type CaptureSessionOption,
+  resolveSelectedSessionLabel,
+} from "../attendance/captureSessions";
 import {
   NO_ASSIGNED_CLASSROOMS_MSG,
   useTeacherAssignedClassrooms,
@@ -32,7 +37,12 @@ export default function TeacherAttendancePage() {
     useTeacherAssignedClassrooms();
   const [searchParams] = useSearchParams();
   const [date, setDate] = useState(() => new Date().toISOString().slice(0, 10));
-  const [period, setPeriod] = useState<AttendancePeriodValue>(DEFAULT_ATTENDANCE_PERIOD);
+  const [period, setPeriod] = useState<string>(DEFAULT_ATTENDANCE_PERIOD);
+  const [captureMode, setCaptureMode] = useState<CaptureSessionMode>("PERIODS");
+  const [captureSessions, setCaptureSessions] = useState<CaptureSessionOption[]>([]);
+  const [captureEmptyMessage, setCaptureEmptyMessage] = useState<string | null>(null);
+  const [subjectId, setSubjectId] = useState<string | null>(null);
+  const [sessionsLoading, setSessionsLoading] = useState(false);
   const [learners, setLearners] = useState<LearnerRow[]>([]);
   const [marks, setMarks] = useState<MarkRow[]>([]);
   const [err, setErr] = useState<string | null>(null);
@@ -46,7 +56,85 @@ export default function TeacherAttendancePage() {
   }, [searchParams, setClassName]);
 
   useEffect(() => {
+    if (!className) {
+      setCaptureMode("PERIODS");
+      setCaptureSessions([]);
+      setCaptureEmptyMessage(null);
+      setSubjectId(null);
+      return;
+    }
+    let cancelled = false;
+    void (async () => {
+      setSessionsLoading(true);
+      setErr(null);
+      try {
+        const qs = new URLSearchParams({ className, date });
+        const data = (await staffApiFetch(
+          `/api/teacher-app/attendance/capture-sessions?${qs}`
+        )) as {
+          success?: boolean;
+          mode?: CaptureSessionMode;
+          sessions?: CaptureSessionOption[];
+          emptyMessage?: string | null;
+          error?: string;
+        };
+        if (cancelled) return;
+        if (!data?.success) throw new Error(data?.error || "Could not load sessions");
+        const mode = data.mode === "SUBJECTS" ? "SUBJECTS" : "PERIODS";
+        setCaptureMode(mode);
+        if (mode === "SUBJECTS") {
+          const sessions = Array.isArray(data.sessions) ? data.sessions : [];
+          setCaptureSessions(sessions);
+          setCaptureEmptyMessage(
+            sessions.length === 0 ? data.emptyMessage || SUBJECTS_EMPTY_MESSAGE : null
+          );
+          setPeriod((prev) => {
+            const stillValid = sessions.some((s) => s.period === prev);
+            if (stillValid) {
+              const current = sessions.find((s) => s.period === prev);
+              setSubjectId(current?.subjectId || null);
+              return prev;
+            }
+            const first = sessions[0];
+            setSubjectId(first?.subjectId || null);
+            setMarks([]);
+            return first?.period || "";
+          });
+        } else {
+          setCaptureSessions([]);
+          setCaptureEmptyMessage(null);
+          setPeriod((prev) => {
+            if (!prev || String(prev).startsWith("SLOT_")) {
+              setSubjectId(null);
+              setMarks([]);
+              return DEFAULT_ATTENDANCE_PERIOD;
+            }
+            setSubjectId(null);
+            return prev;
+          });
+        }
+      } catch (e: unknown) {
+        if (!cancelled) {
+          setErr(e instanceof Error ? e.message : "Could not load capture sessions");
+          setCaptureMode("PERIODS");
+          setCaptureSessions([]);
+        }
+      } finally {
+        if (!cancelled) setSessionsLoading(false);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [className, date]);
+
+  useEffect(() => {
     if (!className) return;
+    if (captureMode === "SUBJECTS" && !period) {
+      setLearners([]);
+      setMarks([]);
+      return;
+    }
     void (async () => {
       setLoadingMarks(true);
       setErr(null);
@@ -65,7 +153,7 @@ export default function TeacherAttendancePage() {
         setLoadingMarks(false);
       }
     })();
-  }, [className, date, period]);
+  }, [className, date, period, captureMode]);
 
   const markByLearner = useMemo(() => {
     const map = new Map<string, MarkRow>();
@@ -73,13 +161,22 @@ export default function TeacherAttendancePage() {
     return map;
   }, [marks]);
 
+  const sessionLabel = resolveSelectedSessionLabel(period, captureSessions, captureMode);
+
   const updateMark = (learnerId: string, field: "status" | "reason", value: string) => {
     setMarks((prev) => {
       const existing = prev.find((m) => m.learnerId === learnerId);
       if (existing) {
         return prev.map((m) => (m.learnerId === learnerId ? { ...m, [field]: value } : m));
       }
-      return [...prev, { learnerId, status: field === "status" ? value : "", reason: field === "reason" ? value : "" }];
+      return [
+        ...prev,
+        {
+          learnerId,
+          status: field === "status" ? value : "",
+          reason: field === "reason" ? value : "",
+        },
+      ];
     });
   };
 
@@ -99,6 +196,10 @@ export default function TeacherAttendancePage() {
 
   const saveAttendance = async () => {
     if (!className) return;
+    if (captureMode === "SUBJECTS" && !period) {
+      setErr(SUBJECTS_EMPTY_MESSAGE);
+      return;
+    }
     if (!learners.length) {
       setErr("No learners in this class.");
       return;
@@ -117,6 +218,7 @@ export default function TeacherAttendancePage() {
         className,
         date,
         period,
+        subjectId: subjectId || undefined,
         marks: learners.map((l) => {
           const mark = markByLearner.get(l.id)!;
           return {
@@ -132,11 +234,23 @@ export default function TeacherAttendancePage() {
         body: JSON.stringify(payload),
       })) as { success?: boolean; error?: string };
       if (!data?.success) throw new Error(data?.error || "Save failed");
-      const summary = (data as { summary?: { present?: number; absent?: number; late?: number; excused?: number; saved?: number } }).summary;
+      const summary = (
+        data as {
+          summary?: {
+            present?: number;
+            absent?: number;
+            late?: number;
+            excused?: number;
+            saved?: number;
+          };
+        }
+      ).summary;
       const summaryText = summary
         ? ` Present ${summary.present ?? 0}, Absent ${summary.absent ?? 0}, Late ${summary.late ?? 0}, Excused ${summary.excused ?? 0}.`
         : "";
-      setNotice(`Attendance saved successfully for ${className} on ${date}.${summaryText}`);
+      setNotice(
+        `Attendance saved successfully for ${className} · ${sessionLabel} on ${date}.${summaryText}`
+      );
       const qs = new URLSearchParams({ className, date, period });
       const refreshed = (await staffApiFetch(`/api/teacher-app/attendance?${qs}`)) as {
         marks?: MarkRow[];
@@ -150,6 +264,7 @@ export default function TeacherAttendancePage() {
   };
 
   const displayErr = loadErr || err;
+  const noSubjectSessions = captureMode === "SUBJECTS" && !period;
 
   return (
     <div>
@@ -183,26 +298,56 @@ export default function TeacherAttendancePage() {
             </select>
           </div>
           <div className="teacher-field">
-            <label>Register</label>
-            <select
-              value={period}
-              onChange={(e) => setPeriod(e.target.value as AttendancePeriodValue)}
-            >
-              {ATTENDANCE_PERIOD_OPTIONS.map((opt) => (
-                <option key={opt.value} value={opt.value}>
-                  {opt.label}
-                </option>
-              ))}
-            </select>
-          </div>
-          <div className="teacher-field">
             <label>Date</label>
             <input type="date" value={date} onChange={(e) => setDate(e.target.value)} />
+          </div>
+          <div className="teacher-field">
+            <label>{captureMode === "SUBJECTS" ? "Subject session" : "Register"}</label>
+            <select
+              value={period}
+              disabled={sessionsLoading || noSubjectSessions}
+              onChange={(e) => {
+                const next = e.target.value;
+                setPeriod(next);
+                const session = captureSessions.find((s) => s.period === next);
+                setSubjectId(session?.subjectId || null);
+                setMarks([]);
+              }}
+            >
+              {captureMode === "SUBJECTS" ? (
+                captureSessions.length === 0 ? (
+                  <option value="">No sessions scheduled</option>
+                ) : (
+                  captureSessions.map((opt) => (
+                    <option key={opt.period} value={opt.period}>
+                      {opt.label}
+                    </option>
+                  ))
+                )
+              ) : (
+                ATTENDANCE_PERIOD_OPTIONS.map((opt) => (
+                  <option key={opt.value} value={opt.value}>
+                    {opt.label}
+                  </option>
+                ))
+              )}
+            </select>
+            {captureMode === "SUBJECTS" && period ? (
+              <p className="teacher-muted" style={{ marginTop: 6 }}>
+                Capturing: <strong>{sessionLabel}</strong>
+              </p>
+            ) : null}
           </div>
         </>
       )}
 
-      {className && (
+      {captureEmptyMessage ? (
+        <p className="teacher-error" role="status">
+          {captureEmptyMessage}
+        </p>
+      ) : null}
+
+      {className && !noSubjectSessions && (
         <div className="teacher-attendance-actions">
           <button type="button" className="teacher-touch-btn" onClick={setAllPresent}>
             Mark all present
@@ -213,7 +358,7 @@ export default function TeacherAttendancePage() {
           <button
             type="button"
             className="teacher-touch-btn primary"
-            disabled={saving || loadingMarks}
+            disabled={saving || loadingMarks || sessionsLoading}
             onClick={() => void saveAttendance()}
           >
             {saving ? "Saving…" : "Save attendance"}
@@ -221,9 +366,11 @@ export default function TeacherAttendancePage() {
         </div>
       )}
 
-      {loadingMarks && className ? <p className="teacher-muted">Loading attendance…</p> : null}
+      {(loadingMarks || sessionsLoading) && className ? (
+        <p className="teacher-muted">Loading attendance…</p>
+      ) : null}
 
-      {className && !loadingMarks ? (
+      {className && !loadingMarks && !sessionsLoading && !noSubjectSessions ? (
         <ul className="teacher-record-list" style={{ marginTop: 16 }}>
           {learners.length === 0 ? (
             <li className="teacher-muted">No active learners in this class.</li>
@@ -259,7 +406,7 @@ export default function TeacherAttendancePage() {
                   </div>
                   <input
                     className="teacher-attendance-reason"
-                    placeholder="Reason (optional)"
+                    placeholder="Reason (optional) e.g. S, SN - note"
                     value={mark?.reason || ""}
                     onChange={(e) => updateMark(l.id, "reason", e.target.value)}
                   />
