@@ -15,7 +15,9 @@ import {
   subjectSlotPeriodKey,
   parseSubjectSlotIdFromPeriod,
   PERIOD_REGISTER_COLUMNS,
+  INTERVENTION_SESSION,
 } from "../utils/attendanceSessionKeys";
+import { periodLabel } from "../utils/attendancePeriods";
 
 function testMondayFridayHeadings() {
   const w = mondayFridayOfWeek("2026-08-05"); // Wednesday
@@ -28,7 +30,15 @@ function testMondayFridayHeadings() {
     "2026-08-06",
     "2026-08-07",
   ]);
-  assert.strictEqual(PERIOD_REGISTER_COLUMNS.length, 7);
+  assert.strictEqual(PERIOD_REGISTER_COLUMNS.length, 8);
+  assert.strictEqual(PERIOD_REGISTER_COLUMNS[7], "PERIOD_8");
+  assert.ok(!(PERIOD_REGISTER_COLUMNS as readonly string[]).includes(INTERVENTION_SESSION));
+}
+
+function testPeriodEightAndInterventionLabels() {
+  assert.strictEqual(periodLabel("PERIOD_8"), "Period 8");
+  assert.strictEqual(periodLabel(INTERVENTION_SESSION), "Intervention");
+  assert.notStrictEqual(periodLabel(INTERVENTION_SESSION), "Period 9");
 }
 
 function testAutomaticDisplayMode() {
@@ -107,12 +117,15 @@ function testExcusedInDenominatorNotAttended() {
 
 function testSessionKeys() {
   assert.strictEqual(normalizeAttendanceSessionKey("PERIOD_3"), "PERIOD_3");
+  assert.strictEqual(normalizeAttendanceSessionKey("PERIOD_8"), "PERIOD_8");
+  assert.strictEqual(normalizeAttendanceSessionKey("INTERVENTION"), "INTERVENTION");
   assert.strictEqual(normalizeAttendanceSessionKey("daily"), "DAILY");
   const key = subjectSlotPeriodKey("slot123");
   assert.strictEqual(key, "SLOT_slot123");
   assert.strictEqual(parseSubjectSlotIdFromPeriod(key), "slot123");
   assert.strictEqual(normalizeAttendanceSessionKey(key), key);
   assert.strictEqual(normalizeAttendanceSessionKey("BOGUS"), null);
+  assert.strictEqual(normalizeAttendanceSessionKey("PERIOD_9"), null);
 }
 
 function testLegacyLabels() {
@@ -122,6 +135,7 @@ function testLegacyLabels() {
 
 function run() {
   testMondayFridayHeadings();
+  testPeriodEightAndInterventionLabels();
   testAutomaticDisplayMode();
   testMixedStatusesAndNotCapturedNotPresent();
   testNotScheduledExcludedViaEligibleOnly();

@@ -10,6 +10,8 @@ export const ATTENDANCE_PERIODS = [
   "PERIOD_5",
   "PERIOD_6",
   "PERIOD_7",
+  "PERIOD_8",
+  "INTERVENTION",
   "AFTERCARE",
 ] as const;
 
@@ -24,6 +26,8 @@ const PERIOD_LABELS: Record<AttendancePeriod, string> = {
   PERIOD_5: "Period 5",
   PERIOD_6: "Period 6",
   PERIOD_7: "Period 7",
+  PERIOD_8: "Period 8",
+  INTERVENTION: "Intervention",
   AFTERCARE: "Aftercare",
 };
 
