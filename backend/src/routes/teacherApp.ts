@@ -25,8 +25,8 @@ import {
   ATTENDANCE_PERIODS,
   bulkUpsertAttendance,
   labelFromStatus,
-  normalizeAttendancePeriod,
 } from "../utils/attendancePeriods";
+import { normalizeAttendanceSessionKey } from "../utils/attendanceSessionKeys";
 import homesafeRoutes from "./homesafe";
 
 const uploadDir = path.join(process.cwd(), "uploads/teacher-app");
@@ -894,12 +894,12 @@ router.get("/attendance", async (req, res) => {
     const { schoolId, assignedClassrooms } = teacherCtx;
     const className = String(req.query.className || "").trim();
     const dateRaw = String(req.query.date || new Date().toISOString().slice(0, 10)).trim();
-    const period = normalizeAttendancePeriod(req.query.period);
+    const period = normalizeAttendanceSessionKey(req.query.period);
     if (!assertClassAllowed(res, className, assignedClassrooms)) return;
     if (period === null) {
       return res.status(400).json({
         success: false,
-        error: `Invalid period. Allowed: ${ATTENDANCE_PERIODS.join(", ")}`,
+        error: `Invalid period. Allowed: ${ATTENDANCE_PERIODS.join(", ")} or SLOT_<id>`,
       });
     }
     if (!/^\d{4}-\d{2}-\d{2}$/.test(dateRaw)) {
@@ -928,6 +928,7 @@ router.get("/attendance", async (req, res) => {
         ? []
         : await prisma.learnerAttendance.findMany({
             where: { schoolId, learnerId: { in: learnerIds }, date, period },
+            include: { subject: { select: { id: true, name: true } } },
           });
     const marks = rows.map((row) => ({
       learnerId: row.learnerId,
@@ -935,6 +936,8 @@ router.get("/attendance", async (req, res) => {
       arrived: row.arrivedAt || "",
       left: row.leftAt || "",
       reason: row.reason || "",
+      subjectId: row.subjectId,
+      subjectName: row.subject?.name || null,
     }));
     return res.json({ success: true, learners, marks, date: dateRaw, className, period });
   } catch (e) {
@@ -948,13 +951,13 @@ router.post("/attendance/bulk", async (req, res) => {
     const className = String(req.body?.className || "").trim();
     const dateRaw = String(req.body?.date || "").trim();
     const marks = Array.isArray(req.body?.marks) ? req.body.marks : [];
-    const period = normalizeAttendancePeriod(req.body?.period);
+    const period = normalizeAttendanceSessionKey(req.body?.period);
 
     if (!assertClassAllowed(res, className, assignedClassrooms)) return;
     if (period === null) {
       return res.status(400).json({
         success: false,
-        error: `Invalid period. Allowed: ${ATTENDANCE_PERIODS.join(", ")}`,
+        error: `Invalid period. Allowed: ${ATTENDANCE_PERIODS.join(", ")} or SLOT_<id>`,
       });
     }
     if (!/^\d{4}-\d{2}-\d{2}$/.test(dateRaw)) {
@@ -983,12 +986,36 @@ router.post("/attendance/bulk", async (req, res) => {
       return res.status(403).json({ success: false, error: "Learner not in your classes" });
     }
 
+    const classroom = await prisma.classroom.findFirst({
+      where: { schoolId, name: className },
+      select: { id: true, attendanceSessionDisplay: true },
+    });
+    let subjectId: string | null = String(req.body?.subjectId || "").trim() || null;
+    if (period.startsWith("SLOT_")) {
+      const slotId = period.slice("SLOT_".length);
+      const slot = await prisma.classroomSubjectSlot.findFirst({
+        where: { id: slotId, schoolId },
+        select: { subjectId: true, classroomId: true },
+      });
+      if (!slot || (classroom && slot.classroomId !== classroom.id)) {
+        return res.status(400).json({ success: false, error: "Invalid subject timetable slot" });
+      }
+      subjectId = slot.subjectId;
+    }
+    if (classroom?.attendanceSessionDisplay === "SUBJECTS" && !subjectId) {
+      return res.status(400).json({
+        success: false,
+        error: "subjectId (or SLOT_ period) is required for SUBJECTS-mode classrooms",
+      });
+    }
+
     try {
       const result = await bulkUpsertAttendance({
         schoolId,
         className,
         date,
         period,
+        subjectId,
         marks,
         createdBy: normalizeStaffEmail(email),
         allowedLearnerIds: allowedIds,
@@ -1000,6 +1027,7 @@ router.post("/attendance/bulk", async (req, res) => {
         saved: result.saved,
         summary: result.summary,
         period,
+        subjectId,
         date: dateRaw,
         className,
       });

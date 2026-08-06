@@ -14,7 +14,8 @@ export type AttendanceExportView =
   | AttendanceRegisterKind
   | "learner"
   | "classroom_summary"
-  | "school_summary";
+  | "school_summary"
+  | "weekly_period_subject";
 
 export function buildAttendanceExportFileName(input: {
   schoolName: string;
@@ -34,6 +35,7 @@ export function buildAttendanceExportFileName(input: {
     learner: "Learner-History",
     classroom_summary: "Classroom-Summary",
     school_summary: "School-Summary",
+    weekly_period_subject: "Weekly-Period-Subject-Register",
   };
   const datePart =
     input.startDate === input.endDate

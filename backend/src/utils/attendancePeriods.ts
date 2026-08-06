@@ -105,17 +105,28 @@ export async function bulkUpsertAttendance(opts: {
   schoolId: string;
   className: string;
   date: Date;
-  period: AttendancePeriod;
+  period: string;
+  subjectId?: string | null;
   marks: MarkInput[];
   createdBy: string;
   allowedLearnerIds: Set<string>;
   totalLearners: number;
 }): Promise<{ saved: number; summary: AttendanceSummary }> {
-  const { schoolId, className, date, period, marks, createdBy, allowedLearnerIds, totalLearners } =
-    opts;
+  const {
+    schoolId,
+    className,
+    date,
+    period,
+    subjectId,
+    marks,
+    createdBy,
+    allowedLearnerIds,
+    totalLearners,
+  } = opts;
 
   const ops: Prisma.PrismaPromise<unknown>[] = [];
   let saved = 0;
+  const resolvedSubjectId = subjectId ? String(subjectId).trim() || null : null;
 
   for (const mark of marks) {
     const learnerId = String(mark?.learnerId || "").trim();
@@ -129,6 +140,7 @@ export async function bulkUpsertAttendance(opts: {
       className,
       date,
       period,
+      subjectId: resolvedSubjectId,
       status,
       arrivedAt: mark?.arrived ? String(mark.arrived).trim() || null : null,
       leftAt: mark?.left ? String(mark.left).trim() || null : null,
@@ -150,6 +162,7 @@ export async function bulkUpsertAttendance(opts: {
         update: {
           className,
           status: data.status,
+          subjectId: data.subjectId,
           arrivedAt: data.arrivedAt,
           leftAt: data.leftAt,
           reason: data.reason,

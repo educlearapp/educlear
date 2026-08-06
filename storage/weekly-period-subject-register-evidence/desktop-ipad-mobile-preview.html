@@ -1,0 +1,77 @@
+<!DOCTYPE html>
+<html><head><meta charset="utf-8"/><title>Weekly Period/Subject Register Evidence</title>
+<style>
+body{font-family:Arial,sans-serif;margin:0;background:#f1f5f9;color:#0f172a}
+.wrap{padding:20px;max-width:1200px;margin:0 auto}
+.card{background:#fff;border:1px solid rgba(15,23,42,.12);border-top:4px solid #d4af37;border-radius:14px;padding:16px;margin-bottom:16px}
+h1{font-size:22px;margin:0 0 8px}
+h2{font-size:16px;margin:0 0 10px}
+.meta{color:#64748b;font-size:13px}
+.summary{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin:12px 0}
+.stat{background:#0f172a;color:#fff;border-radius:10px;padding:12px}
+.stat b{display:block;font-size:18px;color:#d4af37}
+.scroll{overflow:auto;border:1px solid #e2e8f0;border-radius:10px}
+table{border-collapse:collapse;min-width:900px;width:100%;font-size:12px}
+th,td{border:1px solid #e2e8f0;padding:6px 8px;text-align:center}
+th.learner,td.learner{position:sticky;left:0;background:#fff;text-align:left;font-weight:800;z-index:1}
+.day{background:#0f172a;color:#fff}
+.session{background:#f8fafc}
+.P{background:#dcfce7}.A{background:#fee2e2}.L{background:#ffedd5}.E{background:#e0e7ff}.NC{background:#f1f5f9}.NS{color:#94a3b8}
+.legend span{display:inline-block;margin-right:10px;font-weight:700}
+.notice{background:#fff7ed;border:1px solid #fdba74;padding:10px;border-radius:8px;margin:10px 0}
+@media (max-width:700px){.summary{grid-template-columns:1fr 1fr}}
+</style></head><body>
+<div class="wrap" id="desktop">
+  <div class="card">
+    <h1>Weekly Period Register — Grade 7 A</h1>
+    <div class="meta">Week 3–7 Aug 2026 · Display: Periods · EduClear Demo School</div>
+    <div class="summary">
+      <div class="stat"><span>Learners</span><b>3</b></div>
+      <div class="stat"><span>Present</span><b>18</b></div>
+      <div class="stat"><span>Absent</span><b>2</b></div>
+      <div class="stat"><span>Attendance %</span><b>85.7%</b></div>
+    </div>
+    <div class="legend"><span>P Present</span><span>A Absent</span><span>L Late</span><span>E Excused</span><span>NC Not Captured</span><span>NS Not Scheduled</span></div>
+    <div class="scroll"><table>
+      <tr><th class="learner">Learner</th><th class="day" colspan="3">Mon 3 Aug</th><th class="day" colspan="3">Tue 4 Aug</th></tr>
+      <tr><th class="learner"></th><th class="session">P1</th><th class="session">P2</th><th class="session">P3</th><th class="session">P1</th><th class="session">P2</th><th class="session">P3</th></tr>
+      <tr><td class="learner">Adams, Anele</td><td class="P">P</td><td class="P">P</td><td class="L">L</td><td class="P">P</td><td class="A">A</td><td class="P">P</td></tr>
+      <tr><td class="learner">Botha, Mia</td><td class="P">P</td><td class="E">E</td><td class="P">P</td><td class="P">P</td><td class="P">P</td><td class="NC">NC</td></tr>
+      <tr><td class="learner">Dlamini, Sipho</td><td class="A">A</td><td class="P">P</td><td class="P">P</td><td class="P">P</td><td class="P">P</td><td class="P">P</td></tr>
+    </table></div>
+  </div>
+  <div class="card" id="subjects">
+    <h1>Weekly Subject Register — Grade R Sunflowers</h1>
+    <div class="meta">Week 3–7 Aug 2026 · Display: Subjects · Foundation classroom configured SUBJECTS</div>
+    <div class="notice">Some historical attendance records were captured before subject tracking was introduced and cannot be assigned to a specific subject.</div>
+    <div class="scroll"><table>
+      <tr><th class="learner">Learner</th><th class="day" colspan="2">Mon 3 Aug</th><th class="day" colspan="2">Tue 4 Aug</th></tr>
+      <tr><th class="learner"></th><th class="session">English</th><th class="session">Mathematics</th><th class="session">English</th><th class="session">Life Skills</th></tr>
+      <tr><td class="learner">Jacobs, Lila</td><td class="P">P</td><td class="P">P</td><td class="L">L</td><td class="P">P</td></tr>
+      <tr><td class="learner">Naidoo, Kai</td><td class="P">P</td><td class="A">A</td><td class="P">P</td><td class="E">E</td></tr>
+    </table></div>
+    <p class="meta">Legacy cell without subject would show “Subject not recorded” in detail — never a guessed subject name.</p>
+  </div>
+  <div class="card" id="mobile">
+    <h2>Mobile summary (complete grid scrolls horizontally)</h2>
+    <div style="max-width:390px;border:1px solid #cbd5e1;border-radius:12px;padding:12px;background:#fff">
+      <strong>Grade R Sunflowers</strong>
+      <div class="summary" style="grid-template-columns:1fr 1fr">
+        <div class="stat"><span>Learners</span><b>2</b></div>
+        <div class="stat"><span>%</span><b>81.3%</b></div>
+      </div>
+      <div class="scroll"><table>
+        <tr><th class="learner">Learner</th><th>Mon Eng</th><th>Mon Maths</th></tr>
+        <tr><td class="learner">Jacobs, Lila</td><td class="P">P</td><td class="P">P</td></tr>
+      </table></div>
+    </div>
+  </div>
+  <div class="card" id="exports">
+    <h2>Export evidence notes</h2>
+    <ul>
+      <li>Excel builder: buildWeeklyPeriodSubjectRegisterExcel.ts — school, title, week, classroom, timestamp, legend, summary, grid</li>
+      <li>PDF builder: buildWeeklyPeriodSubjectRegisterPdf.ts — landscape, navy/gold, legend, summary, grid, timestamp</li>
+    </ul>
+  </div>
+</div>
+</body></html>

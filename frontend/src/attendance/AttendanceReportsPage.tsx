@@ -16,9 +16,17 @@ import {
   type AttendanceReportPayload,
 } from "./attendanceReportCatalog";
 import AttendanceRegisterReportView from "./AttendanceRegisterReportView";
+import AttendanceSubjectsConfigPanel from "./AttendanceSubjectsConfigPanel";
+import WeeklyPeriodSubjectRegisterView from "./WeeklyPeriodSubjectRegisterView";
 import { downloadAttendanceReportExcel } from "./buildAttendanceReportExcel";
 import { downloadAttendanceReportPdf } from "./buildAttendanceReportPdf";
+import { downloadWeeklyPeriodSubjectRegisterExcel } from "./buildWeeklyPeriodSubjectRegisterExcel";
+import { downloadWeeklyPeriodSubjectRegisterPdf } from "./buildWeeklyPeriodSubjectRegisterPdf";
 import type { AttendanceExportView } from "./attendanceReportFileName";
+import type {
+  WeeklyPeriodSubjectRegisterReport,
+  WeeklyRegisterDisplayMode,
+} from "./weeklyPeriodSubjectRegisterTypes";
 import {
   buildClassroomSummaries,
   computeReportTotals,
@@ -35,6 +43,7 @@ export type AttendanceReportViewMode =
   | "daily"
   | "weekly"
   | "monthly"
+  | "weekly_period_subject"
   | "learner"
   | "classroom_summary"
   | "school_summary";
@@ -52,9 +61,16 @@ const VIEW_OPTIONS: Array<{ value: AttendanceReportViewMode; label: string }> = 
   { value: "daily", label: "Daily class register" },
   { value: "weekly", label: "Weekly attendance register" },
   { value: "monthly", label: "Monthly attendance register" },
+  { value: "weekly_period_subject", label: "Weekly Period / Subject Register" },
   { value: "learner", label: "Individual learner history" },
   { value: "classroom_summary", label: "Classroom summary" },
   { value: "school_summary", label: "Whole-school summary" },
+];
+
+const WEEKLY_DISPLAY_MODE_OPTIONS: WeeklyRegisterDisplayMode[] = [
+  "Automatic",
+  "Periods",
+  "Subjects",
 ];
 
 const STATUS_OPTIONS: AttendanceStatusFilter[] = [
@@ -170,9 +186,17 @@ export default function AttendanceReportsPage({
   const [selectedLearnerId, setSelectedLearnerId] = useState("");
   const [classes, setClasses] = useState<ClassroomOption[]>(classroomsProp || []);
   const [report, setReport] = useState<AttendanceReportPayload | null>(null);
+  const [weeklyPeriodReport, setWeeklyPeriodReport] =
+    useState<WeeklyPeriodSubjectRegisterReport | null>(null);
+  const [gradeFilter, setGradeFilter] = useState("");
+  const [teacherFilter, setTeacherFilter] = useState("");
+  const [weeklyDisplayMode, setWeeklyDisplayMode] = useState<WeeklyRegisterDisplayMode>("Automatic");
+  const [showSubjectsConfig, setShowSubjectsConfig] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [printOpen, setPrintOpen] = useState(false);
+
+  const isWeeklyPeriodSubjectView = view === "weekly_period_subject";
 
   useEffect(() => {
     if (classroomsProp?.length) {
@@ -194,7 +218,60 @@ export default function AttendanceReportsPage({
     })();
   }, [schoolId, classroomsProp]);
 
+  const loadWeeklyPeriodSubjectReport = useCallback(async () => {
+    if (!schoolId) {
+      setError("School is required.");
+      return;
+    }
+    if (!classroom || classroom === "All Classrooms") {
+      setWeeklyPeriodReport(null);
+      setError("Select a specific classroom for the Weekly Period / Subject Register.");
+      return;
+    }
+    setLoading(true);
+    setError(null);
+    try {
+      const qs = new URLSearchParams({
+        schoolId,
+        weekAnchor: anchorDate,
+        className: classroom,
+        displayMode: weeklyDisplayMode,
+        statusFilter,
+      });
+      if (gradeFilter.trim()) qs.set("grade", gradeFilter.trim());
+      if (teacherFilter.trim()) qs.set("teacher", teacherFilter.trim());
+      if (learnerSearch.trim()) qs.set("learnerSearch", learnerSearch.trim());
+      const data: any = await apiFetch(
+        `/api/attendance/weekly-period-subject-register?${qs}`
+      );
+      if (!data?.success || !data?.report) {
+        throw new Error(data?.error || "Could not load weekly period/subject register.");
+      }
+      setWeeklyPeriodReport(data.report as WeeklyPeriodSubjectRegisterReport);
+      setReport(null);
+    } catch (e: unknown) {
+      setWeeklyPeriodReport(null);
+      setError(
+        e instanceof Error ? e.message : "Failed to load weekly period/subject register."
+      );
+    } finally {
+      setLoading(false);
+    }
+  }, [
+    schoolId,
+    anchorDate,
+    classroom,
+    weeklyDisplayMode,
+    gradeFilter,
+    teacherFilter,
+    learnerSearch,
+    statusFilter,
+  ]);
+
   const loadReport = useCallback(async () => {
+    if (view === "weekly_period_subject") {
+      return loadWeeklyPeriodSubjectReport();
+    }
     if (!schoolId) {
       setError("School is required.");
       return;
@@ -227,6 +304,7 @@ export default function AttendanceReportsPage({
         throw new Error(data?.error || "Could not load attendance report.");
       }
       setReport(data.report as AttendanceReportPayload);
+      setWeeklyPeriodReport(null);
     } catch (e: unknown) {
       setReport(null);
       setError(e instanceof Error ? e.message : "Failed to load attendance report.");
@@ -242,11 +320,19 @@ export default function AttendanceReportsPage({
     includeWeekends,
     period,
     classroom,
+    loadWeeklyPeriodSubjectReport,
   ]);
 
   useEffect(() => {
     void loadReport();
   }, [loadReport]);
+
+  useEffect(() => {
+    if (view !== "weekly_period_subject") return;
+    if (classroom !== "All Classrooms") return;
+    if (!classes.length) return;
+    setClassroom(classes[0].name);
+  }, [view, classroom, classes]);
 
   useEffect(() => {
     if (view === "weekly") {
@@ -301,25 +387,46 @@ export default function AttendanceReportsPage({
     [filteredReport, view]
   );
 
-  const exportView: AttendanceExportView = view;
+  const exportView: AttendanceExportView =
+    view === "weekly_period_subject" ? "weekly_period_subject" : view;
   const title = viewTitle(view);
-  const kind = viewToKind(view);
+  const kind = viewToKind(view === "weekly_period_subject" ? "weekly" : view);
 
   const runExcel = () => {
+    if (isWeeklyPeriodSubjectView) {
+      if (!weeklyPeriodReport) return;
+      downloadWeeklyPeriodSubjectRegisterExcel(weeklyPeriodReport, title);
+      return;
+    }
     if (!filteredReport) return;
     downloadAttendanceReportExcel(filteredReport, exportView, title);
   };
 
   const runPdf = () => {
+    if (isWeeklyPeriodSubjectView) {
+      if (!weeklyPeriodReport) return;
+      downloadWeeklyPeriodSubjectRegisterPdf(weeklyPeriodReport, title);
+      return;
+    }
     if (!filteredReport) return;
     downloadAttendanceReportPdf(filteredReport, exportView, title);
   };
 
   const runPrint = () => {
+    if (isWeeklyPeriodSubjectView) {
+      if (!weeklyPeriodReport) return;
+      setPrintOpen(true);
+      window.setTimeout(() => window.print(), 250);
+      return;
+    }
     if (!filteredReport) return;
     setPrintOpen(true);
     window.setTimeout(() => window.print(), 250);
   };
+
+  const exportsDisabled =
+    loading ||
+    (isWeeklyPeriodSubjectView ? !weeklyPeriodReport : !filteredReport);
 
   const notice =
     filteredReport && (view === "daily" || view === "weekly" || view === "monthly")
@@ -576,13 +683,13 @@ export default function AttendanceReportsPage({
             <button type="button" style={ghostBtn} onClick={() => void loadReport()} disabled={loading}>
               {loading ? "Refreshing…" : "Refresh"}
             </button>
-            <button type="button" style={goldBtn} onClick={runExcel} disabled={!filteredReport || loading}>
+            <button type="button" style={goldBtn} onClick={runExcel} disabled={exportsDisabled}>
               Export Excel
             </button>
-            <button type="button" style={navyBtn} onClick={runPdf} disabled={!filteredReport || loading}>
+            <button type="button" style={navyBtn} onClick={runPdf} disabled={exportsDisabled}>
               Export PDF
             </button>
-            <button type="button" style={ghostBtn} onClick={runPrint} disabled={!filteredReport || loading}>
+            <button type="button" style={ghostBtn} onClick={runPrint} disabled={exportsDisabled}>
               Print
             </button>
           </div>
@@ -606,10 +713,17 @@ export default function AttendanceReportsPage({
             </select>
           </div>
 
-          {(view === "daily" || view === "weekly" || view === "monthly") && (
+          {(view === "daily" ||
+            view === "weekly" ||
+            view === "monthly" ||
+            view === "weekly_period_subject") && (
             <div>
               <label style={labelStyle}>
-                {view === "monthly" ? "Month" : view === "weekly" ? "Week of" : "Date"}
+                {view === "monthly"
+                  ? "Month"
+                  : view === "weekly" || view === "weekly_period_subject"
+                    ? "Week of"
+                    : "Date"}
               </label>
               <input
                 style={inputStyle}
@@ -655,13 +769,15 @@ export default function AttendanceReportsPage({
           )}
 
           <div>
-            <label style={labelStyle}>Classroom</label>
+            <label style={labelStyle}>Classroom{isWeeklyPeriodSubjectView ? " (required)" : ""}</label>
             <select
               style={inputStyle}
               value={classroom}
               onChange={(e) => setClassroom(e.target.value)}
             >
-              <option value="All Classrooms">All Classrooms</option>
+              {!isWeeklyPeriodSubjectView ? (
+                <option value="All Classrooms">All Classrooms</option>
+              ) : null}
               {classes.map((c) => (
                 <option key={c.name} value={c.name}>
                   {c.name} ({c.learnerCount})
@@ -670,20 +786,61 @@ export default function AttendanceReportsPage({
             </select>
           </div>
 
-          <div>
-            <label style={labelStyle}>Register type</label>
-            <select
-              style={inputStyle}
-              value={period}
-              onChange={(e) => setPeriod(e.target.value as AttendancePeriodValue)}
-            >
-              {ATTENDANCE_PERIOD_OPTIONS.map((opt) => (
-                <option key={opt.value} value={opt.value}>
-                  {opt.label}
-                </option>
-              ))}
-            </select>
-          </div>
+          {isWeeklyPeriodSubjectView ? (
+            <>
+              <div>
+                <label style={labelStyle}>Grade</label>
+                <input
+                  style={inputStyle}
+                  type="text"
+                  placeholder="Filter by grade"
+                  value={gradeFilter}
+                  onChange={(e) => setGradeFilter(e.target.value)}
+                />
+              </div>
+              <div>
+                <label style={labelStyle}>Teacher</label>
+                <input
+                  style={inputStyle}
+                  type="text"
+                  placeholder="Filter by teacher"
+                  value={teacherFilter}
+                  onChange={(e) => setTeacherFilter(e.target.value)}
+                />
+              </div>
+              <div>
+                <label style={labelStyle}>Display mode</label>
+                <select
+                  style={inputStyle}
+                  value={weeklyDisplayMode}
+                  onChange={(e) =>
+                    setWeeklyDisplayMode(e.target.value as WeeklyRegisterDisplayMode)
+                  }
+                >
+                  {WEEKLY_DISPLAY_MODE_OPTIONS.map((mode) => (
+                    <option key={mode} value={mode}>
+                      {mode}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            </>
+          ) : (
+            <div>
+              <label style={labelStyle}>Register type</label>
+              <select
+                style={inputStyle}
+                value={period}
+                onChange={(e) => setPeriod(e.target.value as AttendancePeriodValue)}
+              >
+                {ATTENDANCE_PERIOD_OPTIONS.map((opt) => (
+                  <option key={opt.value} value={opt.value}>
+                    {opt.label}
+                  </option>
+                ))}
+              </select>
+            </div>
+          )}
 
           {view === "learner" ? (
             <div>
@@ -710,7 +867,10 @@ export default function AttendanceReportsPage({
                 placeholder="Name or admission no."
                 value={learnerSearch}
                 onChange={(e) => setLearnerSearch(e.target.value)}
-                disabled={view === "classroom_summary" || view === "school_summary"}
+                disabled={
+                  view === "classroom_summary" ||
+                  view === "school_summary"
+                }
               />
             </div>
           )}
@@ -721,7 +881,10 @@ export default function AttendanceReportsPage({
               style={inputStyle}
               value={statusFilter}
               onChange={(e) => setStatusFilter(e.target.value as AttendanceStatusFilter)}
-              disabled={view === "classroom_summary" || view === "school_summary"}
+              disabled={
+                view === "classroom_summary" ||
+                view === "school_summary"
+              }
             >
               {STATUS_OPTIONS.map((s) => (
                 <option key={s} value={s}>
@@ -753,8 +916,52 @@ export default function AttendanceReportsPage({
             </div>
           )}
         </div>
+
+        {isWeeklyPeriodSubjectView ? (
+          <div style={{ marginTop: 14 }}>
+            <div
+              style={{
+                padding: 12,
+                borderRadius: 10,
+                background: "#f8fafc",
+                border: "1px solid rgba(15,23,42,0.08)",
+                fontSize: 13,
+                fontWeight: 600,
+                color: "#475569",
+              }}
+            >
+              Set Attendance Session Display (PERIODS/SUBJECTS) and subjects on the classroom via{" "}
+              <button
+                type="button"
+                onClick={() => setShowSubjectsConfig((v) => !v)}
+                style={{
+                  border: "none",
+                  background: "transparent",
+                  color: NAVY,
+                  fontWeight: 900,
+                  cursor: "pointer",
+                  textDecoration: "underline",
+                  padding: 0,
+                  fontSize: "inherit",
+                }}
+              >
+                school subjects settings
+              </button>
+              .
+            </div>
+            {showSubjectsConfig ? (
+              <AttendanceSubjectsConfigPanel
+                schoolId={schoolId}
+                defaultClassroomName={
+                  classroom !== "All Classrooms" ? classroom : undefined
+                }
+              />
+            ) : null}
+          </div>
+        ) : null}
       </div>
 
+      {!isWeeklyPeriodSubjectView ? (
       <div
         className="attendance-reports-no-print attendance-reports-totals"
         data-testid="attendance-report-summary-cards"
@@ -789,6 +996,7 @@ export default function AttendanceReportsPage({
           <div className="attendance-summary-card__value">{attendancePctLabel}</div>
         </div>
       </div>
+      ) : null}
 
       {error ? (
         <div
@@ -811,7 +1019,13 @@ export default function AttendanceReportsPage({
         </div>
       ) : null}
 
-      {!loading && filteredReport ? (
+      {!loading && isWeeklyPeriodSubjectView && weeklyPeriodReport ? (
+        <div style={cardStyle} className="attendance-reports-print-root">
+          <WeeklyPeriodSubjectRegisterView report={weeklyPeriodReport} title={title} />
+        </div>
+      ) : null}
+
+      {!loading && !isWeeklyPeriodSubjectView && filteredReport ? (
         <div style={cardStyle} className="attendance-reports-print-root">
           <div className="attendance-reports-print-summary">
             <div className="attendance-reports-print-summary__icon" aria-hidden="true">
@@ -1003,6 +1217,12 @@ export default function AttendanceReportsPage({
               </div>
             </div>
           ) : null}
+        </div>
+      ) : null}
+
+      {printOpen && isWeeklyPeriodSubjectView && weeklyPeriodReport ? (
+        <div className="attendance-reports-print-only attendance-reports-print-root">
+          <WeeklyPeriodSubjectRegisterView report={weeklyPeriodReport} title={title} />
         </div>
       ) : null}
 

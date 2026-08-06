@@ -144,6 +144,8 @@ model School {
   parentDocuments                  ParentDocument[]
   learnerIncidents                 LearnerIncident[]
   learnerAttendances               LearnerAttendance[]
+  schoolSubjects                   SchoolSubject[]
+  classroomSubjectSlots            ClassroomSubjectSlot[]
   learnerBillingPlanLines          LearnerBillingPlanLine[]
   learnerBillingPlanClearedMarkers LearnerBillingPlanCleared[]
   parentOnboardings                ParentOnboarding[]
@@ -2468,24 +2470,71 @@ enum TeacherContentVisibility {
   ADMIN
 }
 
-model Classroom {
-  id           String   @id @default(cuid())
-  schoolId     String
-  name         String
-  teacherName  String   @default("")
-  teacherEmail String   @default("")
-  notes        String?  @db.Text
-  minAgeMonths Int?
-  maxAgeMonths Int?
-  createdAt    DateTime @default(now())
-  updatedAt    DateTime @updatedAt
+enum AttendanceSessionDisplay {
+  PERIODS
+  SUBJECTS
+}
 
-  school   School                @relation(fields: [schoolId], references: [id], onDelete: Cascade)
-  threads  ParentTeacherThread[]
-  teachers ClassroomTeacher[]
+model Classroom {
+  id                       String                    @id @default(cuid())
+  schoolId                 String
+  name                     String
+  teacherName              String                    @default("")
+  teacherEmail             String                    @default("")
+  notes                    String?                   @db.Text
+  minAgeMonths             Int?
+  maxAgeMonths             Int?
+  /// PERIODS = Intermediate/Senior/FET numbered periods; SUBJECTS = Foundation (school-configured).
+  attendanceSessionDisplay AttendanceSessionDisplay @default(PERIODS)
+  createdAt                DateTime                  @default(now())
+  updatedAt                DateTime                  @updatedAt
+
+  school       School                 @relation(fields: [schoolId], references: [id], onDelete: Cascade)
+  threads      ParentTeacherThread[]
+  teachers     ClassroomTeacher[]
+  subjectSlots ClassroomSubjectSlot[]
 
   @@unique([schoolId, name])
   @@index([schoolId])
+}
+
+/// School-scoped subject catalog for attendance (not hard-coded by phase).
+model SchoolSubject {
+  id        String   @id @default(cuid())
+  schoolId  String
+  name      String
+  active    Boolean  @default(true)
+  sortOrder Int      @default(0)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  school           School                 @relation(fields: [schoolId], references: [id], onDelete: Cascade)
+  classroomSlots   ClassroomSubjectSlot[]
+  attendances      LearnerAttendance[]
+
+  @@unique([schoolId, name])
+  @@index([schoolId, active, sortOrder])
+}
+
+/// Minimal classroom timetable: which subject is taught on which weekday/session order.
+model ClassroomSubjectSlot {
+  id          String   @id @default(cuid())
+  schoolId    String
+  classroomId String
+  /// 1=Monday … 5=Friday
+  dayOfWeek   Int
+  sortOrder   Int      @default(0)
+  subjectId   String
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  school    School        @relation(fields: [schoolId], references: [id], onDelete: Cascade)
+  classroom Classroom     @relation(fields: [classroomId], references: [id], onDelete: Cascade)
+  subject   SchoolSubject @relation(fields: [subjectId], references: [id], onDelete: Restrict)
+
+  @@unique([classroomId, dayOfWeek, sortOrder])
+  @@index([schoolId, classroomId])
+  @@index([subjectId])
 }
 
 model Group {
@@ -2781,6 +2830,8 @@ model LearnerAttendance {
   className String
   date      DateTime         @db.Date
   period    String           @default("DAILY")
+  /// Nullable for legacy rows; required for new SUBJECTS-mode captures.
+  subjectId String?
   status    AttendanceStatus
   arrivedAt String?
   leftAt    String?
@@ -2789,13 +2840,15 @@ model LearnerAttendance {
   createdAt DateTime         @default(now())
   updatedAt DateTime         @updatedAt
 
-  school  School  @relation(fields: [schoolId], references: [id], onDelete: Cascade)
-  learner Learner @relation(fields: [learnerId], references: [id], onDelete: Cascade)
+  school  School         @relation(fields: [schoolId], references: [id], onDelete: Cascade)
+  learner Learner        @relation(fields: [learnerId], references: [id], onDelete: Cascade)
+  subject SchoolSubject? @relation(fields: [subjectId], references: [id], onDelete: SetNull)
 
   @@unique([schoolId, learnerId, date, period])
   @@index([schoolId, className, date, period])
   @@index([schoolId, date])
   @@index([learnerId])
+  @@index([subjectId])
 }
 
 /// Teacher Portal HomeSafe dismissal events — server-authoritative school-local timestamps.

@@ -41,6 +41,7 @@ import feesRoutes from "./routes/fees";
 import registrationsRoutes from "./routes/registrations";
 import emailRoutes from "./routes/emails";
 import schoolEmailSettingsRoutes from "./routes/schoolEmailSettings";
+import schoolSubjectsRoutes from "./routes/schoolSubjects";
 import schoolSmsSettingsRoutes from "./routes/schoolSmsSettings";
 import parentPortalRoutes from "./routes/parentPortal";
 import classroomsRoutes from "./routes/classrooms";
@@ -360,6 +361,7 @@ app.use("/api/classrooms", classroomsRoutes);
 app.use("/api/groups", groupsRoutes);
 app.use("/api/classes", classesRoutes);
 app.use("/api/attendance", attendanceRoutes);
+app.use("/api/school-subjects", schoolSubjectsRoutes);
 app.use("/api/teacher-inbox", teacherInboxRoutes);
 app.use("/api/teacher-app", teacherAppRoutes, teacherAppUploadErrorHandler);
 app.post(

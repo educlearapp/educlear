@@ -175,6 +175,7 @@ router.get("/", async (req, res) => {
         notes: null,
         minAgeMonths: null,
         maxAgeMonths: null,
+        attendanceSessionDisplay: "PERIODS",
         createdAt: new Date(0),
         updatedAt: new Date(0),
         learners,
@@ -327,6 +328,12 @@ router.put("/:id", async (req, res) => {
       req.body?.teacherEmail != null
         ? normalizeTeacherEmail(req.body.teacherEmail)
         : existing.teacherEmail;
+    const modeRaw = String(req.body?.attendanceSessionDisplay || "").trim().toUpperCase();
+    const attendanceSessionDisplay =
+      modeRaw === "PERIODS" || modeRaw === "SUBJECTS"
+        ? modeRaw
+        : existing.attendanceSessionDisplay;
+
     const classroom = await prisma.classroom.update({
       where: { id },
       data: {
@@ -336,6 +343,7 @@ router.put("/:id", async (req, res) => {
         notes: req.body?.notes ?? existing.notes,
         minAgeMonths: req.body?.minAgeMonths ?? existing.minAgeMonths,
         maxAgeMonths: req.body?.maxAgeMonths ?? existing.maxAgeMonths,
+        attendanceSessionDisplay,
       },
     });
 
