@@ -31,6 +31,7 @@ export function normalizeAttendanceSessionKey(input?: unknown): string | null {
   return null;
 }
 
+/** Numbered period columns for the Weekly Period Register (Period 1–8). Intervention is separate. */
 export const PERIOD_REGISTER_COLUMNS = [
   "PERIOD_1",
   "PERIOD_2",
@@ -39,6 +40,16 @@ export const PERIOD_REGISTER_COLUMNS = [
   "PERIOD_5",
   "PERIOD_6",
   "PERIOD_7",
+  "PERIOD_8",
 ] as const;
 
 export type PeriodRegisterColumn = (typeof PERIOD_REGISTER_COLUMNS)[number];
+
+/** Own session key — never aliased as Period 9. */
+export const INTERVENTION_SESSION = "INTERVENTION" as const;
+
+/** Classic sessions excluded from subject-mode orphan columns (not timetable subjects). */
+export function isNonSubjectClassicSession(period: string): boolean {
+  const p = String(period || "").trim().toUpperCase();
+  return p === "DAILY" || p === "AFTERCARE" || p === INTERVENTION_SESSION;
+}

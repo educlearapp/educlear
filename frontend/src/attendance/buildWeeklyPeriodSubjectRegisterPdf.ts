@@ -103,6 +103,13 @@ function drawLegend(doc: jsPDF, report: WeeklyPeriodSubjectRegisterReport, y: nu
   return y + 6;
 }
 
+function shortSessionLabel(sessionLabel: string): string {
+  const periodMatch = /^Period (\d+)$/i.exec(String(sessionLabel || "").trim());
+  if (periodMatch) return `P${periodMatch[1]}`;
+  if (/^Intervention$/i.test(String(sessionLabel || "").trim())) return "Intv";
+  return String(sessionLabel || "").slice(0, 6);
+}
+
 function drawGrid(doc: jsPDF, report: WeeklyPeriodSubjectRegisterReport, y: number): number {
   const pageW = doc.internal.pageSize.getWidth();
   const nameW = 38;
@@ -123,7 +130,7 @@ function drawGrid(doc: jsPDF, report: WeeklyPeriodSubjectRegisterReport, y: numb
   doc.text("%", x, y);
   x += pctW;
   for (const col of report.columns) {
-    const label = `${col.dayLabel.slice(0, 3)} ${col.sessionLabel.slice(0, 6)}`;
+    const label = `${col.dayLabel.slice(0, 3)} ${shortSessionLabel(col.sessionLabel)}`;
     doc.text(label, x, y, { maxWidth: cellW });
     x += cellW;
   }

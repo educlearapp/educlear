@@ -11,6 +11,8 @@ import {
 import { parseDateOnly, periodLabel } from "../utils/attendancePeriods";
 import {
   PERIOD_REGISTER_COLUMNS,
+  INTERVENTION_SESSION,
+  isNonSubjectClassicSession,
   isSubjectSlotPeriod,
   subjectSlotPeriodKey,
 } from "../utils/attendanceSessionKeys";
@@ -314,6 +316,20 @@ export async function buildWeeklyPeriodSubjectRegister(input: {
           period,
         });
       }
+      // Intervention is its own session (not Period 9). Show only when marks exist that day.
+      const hasIntervention = marks.some(
+        (m) => ymdFromDate(m.date) === date && m.period === INTERVENTION_SESSION
+      );
+      if (hasIntervention) {
+        columns.push({
+          key: `${date}|${INTERVENTION_SESSION}`,
+          dayOfWeek,
+          date,
+          dayLabel,
+          sessionLabel: periodLabel(INTERVENTION_SESSION),
+          period: INTERVENTION_SESSION,
+        });
+      }
     }
   } else {
     // SUBJECTS mode — columns from classroom timetable slots
@@ -352,8 +368,7 @@ export async function buildWeeklyPeriodSubjectRegister(input: {
       (m) =>
         !m.subjectId &&
         !isSubjectSlotPeriod(m.period) &&
-        m.period !== "DAILY" &&
-        m.period !== "AFTERCARE"
+        !isNonSubjectClassicSession(m.period)
     );
     // Also any mark with null subject while looking at subject register
     const hasNullSubject = marks.some((m) => !m.subjectId);
@@ -370,8 +385,8 @@ export async function buildWeeklyPeriodSubjectRegister(input: {
       const key = `${date}|${period}`;
       if (columns.some((c) => c.key === key)) continue;
       if (!isSubjectSlotPeriod(period) && !PERIOD_REGISTER_COLUMNS.includes(period as never)) {
-        // skip DAILY etc.
-        if (period === "DAILY" || period === "AFTERCARE") continue;
+        // skip DAILY / Aftercare / Intervention etc.
+        if (isNonSubjectClassicSession(period)) continue;
       }
       if (!isSubjectSlotPeriod(period)) continue;
       const dayOfWeek = parseDateOnly(date)!.getUTCDay();

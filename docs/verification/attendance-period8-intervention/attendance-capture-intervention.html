@@ -1,0 +1,37 @@
+<!DOCTYPE html>
+<html><head><meta charset="utf-8"/><title>Attendance Capture — Period 8</title>
+<style>
+  body{font-family:Georgia,serif;background:linear-gradient(160deg,#0b1c33,#12263f);color:#f8fafc;margin:0;padding:32px}
+  .card{max-width:720px;margin:0 auto;background:#0f172a;border:1px solid #d4af37;border-radius:12px;padding:24px}
+  h1{color:#d4af37;margin:0 0 8px;font-size:22px}
+  label{display:block;margin:12px 0 4px;color:#94a3b8;font-size:13px}
+  select,button{width:100%;padding:10px;border-radius:8px;border:1px solid #334155;background:#1e293b;color:#fff}
+  button{background:#d4af37;color:#0b1c33;font-weight:700;margin-top:16px;border:none}
+  table{width:100%;border-collapse:collapse;margin-top:16px;font-size:14px}
+  th,td{border-bottom:1px solid #334155;padding:8px;text-align:left}
+  .badge{display:inline-block;background:#14532d;color:#bbf7d0;padding:2px 8px;border-radius:999px;font-size:12px}
+</style></head><body>
+<div class="card">
+  <h1>EduClear · Attendance Capture</h1>
+  <p>Same workflow — Intervention is its own session (not Period 9) in the existing session dropdown.</p>
+  <label>Register type</label>
+  <select><option value="DAILY">Daily</option>
+<option value="PERIOD_1">Period 1</option>
+<option value="PERIOD_2">Period 2</option>
+<option value="PERIOD_3">Period 3</option>
+<option value="PERIOD_4">Period 4</option>
+<option value="PERIOD_5">Period 5</option>
+<option value="PERIOD_6">Period 6</option>
+<option value="PERIOD_7">Period 7</option>
+<option value="PERIOD_8">Period 8</option>
+<option value="INTERVENTION" selected>Intervention</option>
+<option value="AFTERCARE">Aftercare</option></select>
+  <label>Classroom</label>
+  <select><option>Grade 6A</option></select>
+  <table>
+    <tr><th>Learner</th><th>Status</th></tr>
+    <tr><td>Ava Learner</td><td><span class="badge">Late (Intervention)</span></td></tr>
+  </table>
+  <button>Save attendance</button>
+</div>
+</body></html>

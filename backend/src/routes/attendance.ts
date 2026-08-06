@@ -10,6 +10,7 @@ import {
   labelFromStatus,
   normalizeAttendancePeriod,
   parseDateOnly,
+  periodLabel,
 } from "../utils/attendancePeriods";
 import {
   normalizeAttendanceSessionKey,
@@ -263,7 +264,7 @@ router.get("/capture-sessions", async (req, res) => {
         mode: "PERIODS",
         sessions: ATTENDANCE_PERIODS.filter((p) => p !== "DAILY").map((p) => ({
           period: p,
-          label: p.replace("PERIOD_", "Period ").replace("AFTERCARE", "Aftercare"),
+          label: periodLabel(p),
           subjectId: null as string | null,
         })),
       });

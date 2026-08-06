@@ -7,6 +7,8 @@ export const ATTENDANCE_PERIOD_OPTIONS = [
   { value: "PERIOD_5", label: "Period 5" },
   { value: "PERIOD_6", label: "Period 6" },
   { value: "PERIOD_7", label: "Period 7" },
+  { value: "PERIOD_8", label: "Period 8" },
+  { value: "INTERVENTION", label: "Intervention" },
   { value: "AFTERCARE", label: "Aftercare" },
 ] as const;
 
