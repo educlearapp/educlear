@@ -8,7 +8,9 @@ import type {
 import {
   formatWeeklyRegisterCaptureTime,
   formatWeeklyRegisterTimestamp,
+  formatWeeklyCellDetailLines,
   weeklyAttendancePctLabel,
+  weeklyCellTone,
 } from "./weeklyPeriodSubjectRegisterTypes";
 
 const GOLD = "#d4af37";
@@ -26,21 +28,21 @@ type DetailSelection = {
 };
 
 const CELL_BG: Record<string, string> = {
-  P: "#f4faf6",
-  A: "#faf5f5",
-  L: "#fbf7f2",
-  E: "#f4f7fb",
-  NC: "#f5f7fa",
-  NS: "#f8fafc",
+  present: "#f4faf6",
+  absent: "#faf5f5",
+  late: "#fbf7f2",
+  excused: "#f4f7fb",
+  notCaptured: "#f5f7fa",
+  notScheduled: "#f8fafc",
 };
 
 const CELL_COLOR: Record<string, string> = {
-  P: "#1f6b3a",
-  A: "#9b2c2c",
-  L: "#9a5b1a",
-  E: "#2f4f7c",
-  NC: "#475569",
-  NS: "#94a3b8",
+  present: "#1f6b3a",
+  absent: "#9b2c2c",
+  late: "#9a5b1a",
+  excused: "#2f4f7c",
+  notCaptured: "#475569",
+  notScheduled: "#94a3b8",
 };
 
 export default function WeeklyPeriodSubjectRegisterView({ report, title }: Props) {
@@ -186,10 +188,10 @@ export default function WeeklyPeriodSubjectRegisterView({ report, title }: Props
           fontWeight: 800,
         }}
       >
-        <span style={{ color: NAVY }}>Legend:</span>
+        <span style={{ color: NAVY }}>Legend</span>
         {report.statusLegend.map((item) => (
           <span key={item.abbrev}>
-            {item.abbrev} — {item.label}
+            {item.abbrev} = {item.label}
           </span>
         ))}
       </div>
@@ -271,16 +273,23 @@ export default function WeeklyPeriodSubjectRegisterView({ report, title }: Props
                       {learner.cells.map((cell) => {
                         const col = columnByKey.get(cell.columnKey);
                         if (!col) return null;
+                        const tone = weeklyCellTone(cell.abbrev);
+                        const captureDisp = formatWeeklyRegisterCaptureTime(cell.captureTime);
+                        const detailLines = formatWeeklyCellDetailLines(cell, captureDisp);
+                        const titleText = [
+                          `${col.dayLabel} · ${col.sessionLabel}`,
+                          ...detailLines,
+                        ].join("\n");
                         return (
                           <td key={cell.columnKey} style={{ ...td, textAlign: "center", padding: 4 }}>
                             <button
                               type="button"
                               className="wps-register-cell-btn"
                               style={{
-                                background: CELL_BG[cell.abbrev] || "#fff",
-                                color: CELL_COLOR[cell.abbrev] || NAVY,
+                                background: CELL_BG[tone] || "#fff",
+                                color: CELL_COLOR[tone] || NAVY,
                               }}
-                              title={`${col.dayLabel} · ${col.sessionLabel} · ${cell.label}`}
+                              title={titleText}
                               onClick={() => setDetail({ learner, cell, column: col })}
                             >
                               {cell.abbrev}
@@ -335,10 +344,31 @@ export default function WeeklyPeriodSubjectRegisterView({ report, title }: Props
                   : detail.column.sessionLabel
               }
             />
-            <DetailRow label="Status" value={`${detail.cell.label} (${detail.cell.abbrev})`} />
-            <DetailRow label="Capture time" value={formatWeeklyRegisterCaptureTime(detail.cell.captureTime)} />
+            <div style={{ marginTop: 12 }}>
+              <div style={{ fontSize: 11, fontWeight: 800, color: "#64748b", textTransform: "uppercase" }}>
+                Reason
+              </div>
+              <div style={{ marginTop: 6, fontWeight: 800, fontSize: 15 }}>
+                {detail.cell.abbrev} – {detail.cell.label}
+              </div>
+              {detail.cell.teacherNote ? (
+                <div style={{ marginTop: 6, fontWeight: 700, fontSize: 14, color: "#334155" }}>
+                  {detail.cell.teacherNote}
+                </div>
+              ) : null}
+              {!detail.cell.teacherNote && detail.cell.reason && !detail.cell.fromReasonCode ? (
+                <div style={{ marginTop: 6, fontWeight: 700, fontSize: 14, color: "#334155" }}>
+                  {detail.cell.reason}
+                </div>
+              ) : null}
+              <div style={{ marginTop: 8, fontWeight: 700, fontSize: 13, color: "#64748b" }}>
+                Captured {formatWeeklyRegisterCaptureTime(detail.cell.captureTime)}
+              </div>
+            </div>
             <DetailRow label="Teacher" value={detail.cell.capturingTeacher || "—"} />
-            <DetailRow label="Reason" value={detail.cell.reason || "—"} />
+            {detail.cell.reason ? (
+              <DetailRow label="Original reason text" value={detail.cell.reason} />
+            ) : null}
             <div style={{ marginTop: 12, fontSize: 11, fontWeight: 700, color: "#64748b" }}>
               Click any cell in the grid to inspect another session.
             </div>

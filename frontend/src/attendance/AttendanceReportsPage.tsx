@@ -823,6 +823,9 @@ export default function AttendanceReportsPage({
                     </option>
                   ))}
                 </select>
+                <div style={{ marginTop: 6, fontSize: 11, fontWeight: 700, color: "#64748b" }}>
+                  Automatic follows the classroom setting (Periods or Subjects). No extra setup required.
+                </div>
               </div>
             </>
           ) : (

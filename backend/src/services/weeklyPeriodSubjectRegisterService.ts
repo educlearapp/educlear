@@ -10,6 +10,10 @@ import {
 } from "../utils/learnerEnrollment";
 import { parseDateOnly, periodLabel } from "../utils/attendancePeriods";
 import {
+  buildAttendanceReasonLegend,
+  resolveRegisterDisplay,
+} from "../utils/attendanceReasonCodes";
+import {
   PERIOD_REGISTER_COLUMNS,
   INTERVENTION_SESSION,
   isNonSubjectClassicSession,
@@ -49,11 +53,17 @@ export type WeeklyRegisterSessionColumn = {
 export type WeeklyRegisterCell = {
   columnKey: string;
   status: WeeklyRegisterCellStatus;
+  /** Display mark in the grid (reason code when present, else P/A/L/E/NC/NS). */
   abbrev: string;
   label: string;
   captureTime?: string | null;
   capturingTeacher?: string | null;
+  /** Original free-text reason from capture (never discarded). */
   reason?: string | null;
+  /** True when abbrev came from a teacher reason code/synonym. */
+  fromReasonCode?: boolean;
+  /** Teacher note after extracting a leading reason code (if any). */
+  teacherNote?: string | null;
   subjectId?: string | null;
   subjectLabel?: string | null;
 };
@@ -108,24 +118,6 @@ export type WeeklyPeriodSubjectRegisterReport = {
   legacySubjectNotice: string | null;
   statusLegend: Array<{ abbrev: string; label: string }>;
   generatedAt: string;
-};
-
-const STATUS_ABBREV: Record<WeeklyRegisterCellStatus, string> = {
-  PRESENT: "P",
-  ABSENT: "A",
-  LATE: "L",
-  EXCUSED: "E",
-  NOT_CAPTURED: "NC",
-  NOT_SCHEDULED: "NS",
-};
-
-const STATUS_LABEL: Record<WeeklyRegisterCellStatus, string> = {
-  PRESENT: "Present",
-  ABSENT: "Absent",
-  LATE: "Late",
-  EXCUSED: "Excused",
-  NOT_CAPTURED: "Not Captured",
-  NOT_SCHEDULED: "Not Scheduled",
 };
 
 const WEEKDAY_LONG = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"] as const;
@@ -442,14 +434,21 @@ export async function buildWeeklyPeriodSubjectRegister(input: {
         ? mark.subject?.name || (mark.subjectId ? SUBJECT_NOT_RECORDED_LABEL : SUBJECT_NOT_RECORDED_LABEL)
         : col.subjectName || null;
 
+      const display = resolveRegisterDisplay({
+        status,
+        reason: mark?.reason || null,
+      });
+
       cells.push({
         columnKey: col.key,
         status,
-        abbrev: STATUS_ABBREV[status],
-        label: STATUS_LABEL[status],
+        abbrev: display.abbrev,
+        label: display.label,
         captureTime: mark?.updatedAt?.toISOString() || mark?.createdAt?.toISOString() || null,
         capturingTeacher: mark?.createdBy || null,
-        reason: mark?.reason || null,
+        reason: display.reason,
+        fromReasonCode: display.fromReasonCode,
+        teacherNote: display.teacherNote,
         subjectId: mark?.subjectId || col.subjectId || null,
         subjectLabel:
           resolved === "SUBJECTS"
@@ -484,7 +483,13 @@ export async function buildWeeklyPeriodSubjectRegister(input: {
       const has = row.cells.some((c) => {
         const label = c.label.toLowerCase().replace(/\s+/g, "_");
         const code = c.status.toLowerCase();
-        return label === want || code === want || c.abbrev.toLowerCase() === want;
+        const note = String(c.teacherNote || c.reason || "").toLowerCase().replace(/\s+/g, "_");
+        return (
+          label === want ||
+          code === want ||
+          c.abbrev.toLowerCase() === want ||
+          note.includes(want)
+        );
       });
       if (!has) continue;
     }
@@ -493,6 +498,7 @@ export async function buildWeeklyPeriodSubjectRegister(input: {
   }
 
   // Summary aggregates across learner cells (scheduled = all columns × learners that are not NS)
+  // Counts remain status-based (unchanged calculations) — reason codes are display-only.
   let scheduledSessions = 0;
   let capturedSessions = 0;
   let notCapturedSessions = 0;
@@ -500,8 +506,10 @@ export async function buildWeeklyPeriodSubjectRegister(input: {
   let absent = 0;
   let late = 0;
   let excused = 0;
+  const usedAbbrevs = new Set<string>();
   for (const row of learnerRows) {
     for (const cell of row.cells) {
+      usedAbbrevs.add(cell.abbrev);
       if (cell.status === "NOT_SCHEDULED") continue;
       scheduledSessions += 1;
       if (cell.status === "NOT_CAPTURED") notCapturedSessions += 1;
@@ -562,10 +570,7 @@ export async function buildWeeklyPeriodSubjectRegister(input: {
       ).length,
     },
     legacySubjectNotice,
-    statusLegend: (Object.keys(STATUS_ABBREV) as WeeklyRegisterCellStatus[]).map((k) => ({
-      abbrev: STATUS_ABBREV[k],
-      label: STATUS_LABEL[k],
-    })),
+    statusLegend: buildAttendanceReasonLegend({ usedAbbrevs }),
     generatedAt: new Date().toISOString(),
   };
 }
@@ -610,10 +615,7 @@ function emptyReport(opts: {
       learnersBelow90Percent: 0,
     },
     legacySubjectNotice: null,
-    statusLegend: (Object.keys(STATUS_ABBREV) as WeeklyRegisterCellStatus[]).map((k) => ({
-      abbrev: STATUS_ABBREV[k],
-      label: STATUS_LABEL[k],
-    })),
+    statusLegend: buildAttendanceReasonLegend(),
     generatedAt: new Date().toISOString(),
   };
 }

@@ -267,6 +267,7 @@ router.get("/capture-sessions", async (req, res) => {
           label: periodLabel(p),
           subjectId: null as string | null,
         })),
+        emptyMessage: null as string | null,
       });
     }
 
@@ -276,17 +277,38 @@ router.get("/capture-sessions", async (req, res) => {
       include: { subject: { select: { id: true, name: true, active: true } } },
       orderBy: [{ sortOrder: "asc" }],
     });
+    const activeSlots = slots.filter((s) => s.subject.active);
+    // Number repeated subjects on the same day (Session 1, Session 2, …) by timetable order.
+    const subjectOccurrence = new Map<string, number>();
+    const subjectTotals = new Map<string, number>();
+    for (const s of activeSlots) {
+      subjectTotals.set(s.subjectId, (subjectTotals.get(s.subjectId) || 0) + 1);
+    }
+    const sessions = activeSlots.map((s) => {
+      const occurrence = (subjectOccurrence.get(s.subjectId) || 0) + 1;
+      subjectOccurrence.set(s.subjectId, occurrence);
+      const total = subjectTotals.get(s.subjectId) || 1;
+      const sessionLabel =
+        total > 1 ? `${s.subject.name} (Session ${occurrence})` : s.subject.name;
+      return {
+        period: subjectSlotPeriodKey(s.id),
+        label: sessionLabel,
+        subjectName: s.subject.name,
+        subjectId: s.subjectId,
+        sortOrder: s.sortOrder,
+        slotId: s.id,
+        sessionIndex: occurrence,
+        sessionCountForSubject: total,
+      };
+    });
     return res.json({
       success: true,
       mode: "SUBJECTS",
-      sessions: slots
-        .filter((s) => s.subject.active)
-        .map((s) => ({
-          period: subjectSlotPeriodKey(s.id),
-          label: s.subject.name,
-          subjectId: s.subjectId,
-          sortOrder: s.sortOrder,
-        })),
+      sessions,
+      emptyMessage:
+        sessions.length === 0
+          ? "No subject sessions are scheduled for this classroom on the selected date."
+          : null,
     });
   } catch (e) {
     console.error("capture sessions", e);

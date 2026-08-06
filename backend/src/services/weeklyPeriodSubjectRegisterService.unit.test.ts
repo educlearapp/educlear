@@ -18,6 +18,10 @@ import {
   INTERVENTION_SESSION,
 } from "../utils/attendanceSessionKeys";
 import { periodLabel } from "../utils/attendancePeriods";
+import {
+  buildAttendanceReasonLegend,
+  resolveRegisterDisplay,
+} from "../utils/attendanceReasonCodes";
 
 function testMondayFridayHeadings() {
   const w = mondayFridayOfWeek("2026-08-05"); // Wednesday
@@ -133,6 +137,14 @@ function testLegacyLabels() {
   assert.strictEqual(SUBJECT_NOT_RECORDED_LABEL, "Subject not recorded");
 }
 
+function testReasonCodeResolutionWired() {
+  const sn = resolveRegisterDisplay({ status: "ABSENT", reason: "SN - note" });
+  assert.strictEqual(sn.abbrev, "SN");
+  const legend = buildAttendanceReasonLegend({ usedAbbrevs: ["SN"] });
+  assert.ok(legend.some((l) => l.abbrev === "SN"));
+  assert.ok(legend.some((l) => l.abbrev === "S"));
+}
+
 function run() {
   testMondayFridayHeadings();
   testPeriodEightAndInterventionLabels();
@@ -143,6 +155,7 @@ function run() {
   testExcusedInDenominatorNotAttended();
   testSessionKeys();
   testLegacyLabels();
+  testReasonCodeResolutionWired();
   console.log("weeklyPeriodSubjectRegisterService.unit.test.ts: OK");
 }
 

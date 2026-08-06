@@ -25,8 +25,13 @@ import {
   ATTENDANCE_PERIODS,
   bulkUpsertAttendance,
   labelFromStatus,
+  parseDateOnly,
+  periodLabel,
 } from "../utils/attendancePeriods";
-import { normalizeAttendanceSessionKey } from "../utils/attendanceSessionKeys";
+import {
+  normalizeAttendanceSessionKey,
+  subjectSlotPeriodKey,
+} from "../utils/attendanceSessionKeys";
 import homesafeRoutes from "./homesafe";
 
 const uploadDir = path.join(process.cwd(), "uploads/teacher-app");
@@ -885,6 +890,88 @@ router.get("/classroom/:classroomId", async (req, res) => {
   } catch (e) {
     console.error("teacher-app classroom overview", e);
     return res.status(500).json({ success: false, error: "Failed to load classroom" });
+  }
+});
+
+router.get("/attendance/capture-sessions", async (req, res) => {
+  try {
+    const teacherCtx = ctx(req);
+    const { schoolId, assignedClassrooms } = teacherCtx;
+    const className = String(req.query.className || "").trim();
+    const dateRaw = String(req.query.date || "").trim();
+    if (!assertClassAllowed(res, className, assignedClassrooms)) return;
+    const date = parseDateOnly(dateRaw);
+    if (!date) {
+      return res.status(400).json({ success: false, error: "Valid date required (YYYY-MM-DD)" });
+    }
+
+    const room = assignedClassrooms.find(
+      (c) => c.name === className || c.classNameVariants.includes(className)
+    );
+    const classroom = await prisma.classroom.findFirst({
+      where: {
+        schoolId,
+        OR: room
+          ? [{ id: room.id }, { name: className }, { name: { in: room.classNameVariants } }]
+          : [{ name: className }],
+      },
+      select: { id: true, name: true, attendanceSessionDisplay: true },
+    });
+    const mode = classroom?.attendanceSessionDisplay || "PERIODS";
+    if (mode !== "SUBJECTS" || !classroom) {
+      return res.json({
+        success: true,
+        mode: "PERIODS",
+        sessions: ATTENDANCE_PERIODS.filter((p) => p !== "DAILY").map((p) => ({
+          period: p,
+          label: periodLabel(p),
+          subjectId: null as string | null,
+        })),
+        emptyMessage: null,
+      });
+    }
+
+    const dayOfWeek = date.getUTCDay();
+    const slots = await prisma.classroomSubjectSlot.findMany({
+      where: { schoolId, classroomId: classroom.id, dayOfWeek },
+      include: { subject: { select: { id: true, name: true, active: true } } },
+      orderBy: [{ sortOrder: "asc" }],
+    });
+    const activeSlots = slots.filter((s) => s.subject.active);
+    const subjectOccurrence = new Map<string, number>();
+    const subjectTotals = new Map<string, number>();
+    for (const s of activeSlots) {
+      subjectTotals.set(s.subjectId, (subjectTotals.get(s.subjectId) || 0) + 1);
+    }
+    const sessions = activeSlots.map((s) => {
+      const occurrence = (subjectOccurrence.get(s.subjectId) || 0) + 1;
+      subjectOccurrence.set(s.subjectId, occurrence);
+      const total = subjectTotals.get(s.subjectId) || 1;
+      const sessionLabel =
+        total > 1 ? `${s.subject.name} (Session ${occurrence})` : s.subject.name;
+      return {
+        period: subjectSlotPeriodKey(s.id),
+        label: sessionLabel,
+        subjectName: s.subject.name,
+        subjectId: s.subjectId,
+        sortOrder: s.sortOrder,
+        slotId: s.id,
+        sessionIndex: occurrence,
+        sessionCountForSubject: total,
+      };
+    });
+    return res.json({
+      success: true,
+      mode: "SUBJECTS",
+      sessions,
+      emptyMessage:
+        sessions.length === 0
+          ? "No subject sessions are scheduled for this classroom on the selected date."
+          : null,
+    });
+  } catch (e) {
+    console.error("teacher-app capture sessions", e);
+    return res.status(500).json({ success: false, error: "Failed to load capture sessions" });
   }
 });
 

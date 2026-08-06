@@ -751,7 +751,20 @@ const [attendanceSelectedClass, setAttendanceSelectedClass] = useState<string | 
 const [attendanceSearch, setAttendanceSearch] = useState("");
 const [attendanceCapturePage, setAttendanceCapturePage] = useState(1);
 const [attendanceDate, setAttendanceDate] = useState(() => new Date().toISOString().slice(0, 10));
-const [attendancePeriod, setAttendancePeriod] = useState<AttendancePeriodValue>(DEFAULT_ATTENDANCE_PERIOD);
+const [attendancePeriod, setAttendancePeriod] = useState<string>(DEFAULT_ATTENDANCE_PERIOD);
+const [attendanceCaptureMode, setAttendanceCaptureMode] = useState<"PERIODS" | "SUBJECTS">("PERIODS");
+const [attendanceCaptureSessions, setAttendanceCaptureSessions] = useState<
+  Array<{
+    period: string;
+    label: string;
+    subjectId?: string | null;
+    subjectName?: string | null;
+    sortOrder?: number;
+  }>
+>([]);
+const [attendanceCaptureEmptyMessage, setAttendanceCaptureEmptyMessage] = useState<string | null>(null);
+const [attendanceCaptureSessionsLoading, setAttendanceCaptureSessionsLoading] = useState(false);
+const [attendanceSubjectId, setAttendanceSubjectId] = useState<string | null>(null);
 const [attendanceMarks, setAttendanceMarks] = useState<
   Record<string, { status?: string; arrived?: string; left?: string; reason?: string }>
 >({});
@@ -858,8 +871,88 @@ useEffect(() => {
 }, [schoolId, activePage]);
 
 useEffect(() => {
+  if (!schoolId || !attendanceSelectedClass) {
+    setAttendanceCaptureMode("PERIODS");
+    setAttendanceCaptureSessions([]);
+    setAttendanceCaptureEmptyMessage(null);
+    setAttendanceSubjectId(null);
+    return;
+  }
+  if (activePage !== "attendance" && activePage !== "attendanceManage") return;
+
+  let cancelled = false;
+  setAttendanceCaptureSessionsLoading(true);
+  setAttendanceCaptureEmptyMessage(null);
+
+  const qs = new URLSearchParams({
+    schoolId,
+    className: attendanceSelectedClass,
+    date: attendanceDate,
+  });
+
+  void apiFetch(`/api/attendance/capture-sessions?${qs}`)
+    .then((data: any) => {
+      if (cancelled || !data?.success) return;
+      const mode = data.mode === "SUBJECTS" ? "SUBJECTS" : "PERIODS";
+      setAttendanceCaptureMode(mode);
+      if (mode === "SUBJECTS") {
+        const sessions = Array.isArray(data.sessions) ? data.sessions : [];
+        setAttendanceCaptureSessions(sessions);
+        setAttendanceCaptureEmptyMessage(
+          sessions.length === 0
+            ? String(data.emptyMessage || "No subject sessions are scheduled for this classroom on the selected date.")
+            : null
+        );
+        const stillValid = sessions.some((s: any) => s.period === attendancePeriod);
+        if (!stillValid) {
+          const first = sessions[0];
+          setAttendancePeriod(first?.period || "");
+          setAttendanceSubjectId(first?.subjectId || null);
+          setAttendanceMarks({});
+          setAttendanceCapturePage(1);
+        } else {
+          const current = sessions.find((s: any) => s.period === attendancePeriod);
+          setAttendanceSubjectId(current?.subjectId || null);
+        }
+      } else {
+        setAttendanceCaptureSessions([]);
+        setAttendanceCaptureEmptyMessage(null);
+        if (!attendancePeriod || String(attendancePeriod).startsWith("SLOT_")) {
+          setAttendancePeriod(DEFAULT_ATTENDANCE_PERIOD);
+          setAttendanceSubjectId(null);
+          setAttendanceMarks({});
+        } else {
+          setAttendanceSubjectId(null);
+        }
+      }
+    })
+    .catch(() => {
+      if (!cancelled) {
+        setAttendanceCaptureMode("PERIODS");
+        setAttendanceCaptureSessions([]);
+        setAttendanceCaptureEmptyMessage(null);
+      }
+    })
+    .finally(() => {
+      if (!cancelled) setAttendanceCaptureSessionsLoading(false);
+    });
+
+  return () => {
+    cancelled = true;
+  };
+  // attendancePeriod intentionally omitted — session reload is driven by class/date/mode
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+}, [schoolId, attendanceSelectedClass, attendanceDate, activePage]);
+
+useEffect(() => {
   if (!schoolId || !attendanceSelectedClass) return;
   if (activePage !== "attendance" && activePage !== "attendanceManage") return;
+  if (attendanceCaptureMode === "SUBJECTS" && !attendancePeriod) {
+    setAttendanceMarks({});
+    setAttendanceApiLearners([]);
+    setAttendanceLoading(false);
+    return;
+  }
 
   let cancelled = false;
   setAttendanceLoading(true);
@@ -893,7 +986,7 @@ useEffect(() => {
   return () => {
     cancelled = true;
   };
-}, [schoolId, attendanceSelectedClass, attendanceDate, attendancePeriod, activePage]);
+}, [schoolId, attendanceSelectedClass, attendanceDate, attendancePeriod, activePage, attendanceCaptureMode]);
 
 const [incidentDraft, setIncidentDraft] = useState<any>({
 
@@ -10500,6 +10593,10 @@ if (schoolId) {
 
   const saveAttendanceForClass = async () => {
     if (!schoolId || !attendanceSelectedClass) return;
+    if (attendanceCaptureMode === "SUBJECTS" && !attendancePeriod) {
+      alert("No subject sessions are scheduled for this classroom on the selected date.");
+      return;
+    }
     if (!attendanceClassLearners.length) {
       alert("No learners in this class.");
       return;
@@ -10531,11 +10628,18 @@ if (schoolId) {
           className: attendanceSelectedClass,
           date: attendanceDate,
           period: attendancePeriod,
+          subjectId: attendanceSubjectId || undefined,
           marks,
         }),
       });
       if (!data?.success) throw new Error(data?.error || "Save failed");
-      setAttendanceNotice(`Attendance saved for ${attendanceSelectedClass} (${attendanceDate}).`);
+      const sessionLabel =
+        attendanceCaptureMode === "SUBJECTS"
+          ? attendanceCaptureSessions.find((s) => s.period === attendancePeriod)?.label || "subject session"
+          : ATTENDANCE_PERIOD_OPTIONS.find((o) => o.value === attendancePeriod)?.label || attendancePeriod;
+      setAttendanceNotice(
+        `Attendance saved for ${attendanceSelectedClass} · ${sessionLabel} (${attendanceDate}).`
+      );
       const qs = new URLSearchParams({
         schoolId,
         className: attendanceSelectedClass,
@@ -10666,21 +10770,40 @@ if (schoolId) {
               />
             </label>
             <label style={{ display: "flex", alignItems: "center", gap: "8px", fontWeight: 800, color: "#334155" }}>
-              Register
+              {attendanceCaptureMode === "SUBJECTS" ? "Subject session" : "Register"}
               <select
-                style={{ ...selectStyle, width: "170px" }}
+                style={{ ...selectStyle, width: attendanceCaptureMode === "SUBJECTS" ? "280px" : "170px" }}
                 value={attendancePeriod}
+                disabled={
+                  attendanceCaptureSessionsLoading ||
+                  (attendanceCaptureMode === "SUBJECTS" && attendanceCaptureSessions.length === 0)
+                }
                 onChange={(e) => {
-                  setAttendancePeriod(e.target.value as AttendancePeriodValue);
+                  const next = e.target.value;
+                  setAttendancePeriod(next);
+                  const session = attendanceCaptureSessions.find((s) => s.period === next);
+                  setAttendanceSubjectId(session?.subjectId || null);
                   setAttendanceMarks({});
                   setAttendanceCapturePage(1);
                 }}
               >
-                {ATTENDANCE_PERIOD_OPTIONS.map((opt) => (
-                  <option key={opt.value} value={opt.value}>
-                    {opt.label}
-                  </option>
-                ))}
+                {attendanceCaptureMode === "SUBJECTS" ? (
+                  attendanceCaptureSessions.length === 0 ? (
+                    <option value="">No sessions scheduled</option>
+                  ) : (
+                    attendanceCaptureSessions.map((opt) => (
+                      <option key={opt.period} value={opt.period}>
+                        {opt.label}
+                      </option>
+                    ))
+                  )
+                ) : (
+                  ATTENDANCE_PERIOD_OPTIONS.map((opt) => (
+                    <option key={opt.value} value={opt.value}>
+                      {opt.label}
+                    </option>
+                  ))
+                )}
               </select>
             </label>
             <div style={{ flex: 1 }} />
@@ -10692,13 +10815,29 @@ if (schoolId) {
             </button>
             <button
               type="button"
-              style={{ ...goldBtn, opacity: attendanceSaving ? 0.7 : 1 }}
-              disabled={attendanceSaving}
+              style={{ ...goldBtn, opacity: attendanceSaving || (attendanceCaptureMode === "SUBJECTS" && !attendancePeriod) ? 0.7 : 1 }}
+              disabled={attendanceSaving || (attendanceCaptureMode === "SUBJECTS" && !attendancePeriod)}
               onClick={() => void saveAttendanceForClass()}
             >
               {attendanceSaving ? "Saving…" : "Save attendance"}
             </button>
           </div>
+
+          {attendanceCaptureMode === "SUBJECTS" && attendanceCaptureEmptyMessage ? (
+            <div
+              style={{
+                marginBottom: "12px",
+                padding: "12px 14px",
+                borderRadius: "10px",
+                background: "#fff7ed",
+                border: "1px solid #fdba74",
+                fontWeight: 800,
+                color: "#9a3412",
+              }}
+            >
+              {attendanceCaptureEmptyMessage}
+            </div>
+          ) : null}
 
           {attendanceNotice ? (
             <div style={{ marginBottom: "12px", padding: "10px 12px", borderRadius: "10px", background: "rgba(212,175,55,0.15)", border: `1px solid ${GOLD}`, fontWeight: 700, color: "#0f172a" }}>
@@ -10733,8 +10872,13 @@ if (schoolId) {
           <div style={{ background: "#fff", border: "1px solid rgba(15,23,42,0.10)", borderTop: `4px solid ${GOLD}`, borderRadius: "12px", overflow: "hidden", boxShadow: "0 18px 40px rgba(15,23,42,0.08)" }}>
             <div style={{ padding: "12px 14px", borderBottom: "1px solid #e5e7eb", fontWeight: 900, color: "#0f172a" }}>
               {attendanceSelectedClass} · {attendanceDate} ·{" "}
-              {ATTENDANCE_PERIOD_OPTIONS.find((o) => o.value === attendancePeriod)?.label || attendancePeriod}
-              {attendanceLoading ? " · Loading…" : ""}
+              {attendanceCaptureMode === "SUBJECTS"
+                ? attendanceCaptureSessions.find((s) => s.period === attendancePeriod)?.label ||
+                  "Subject session"
+                : ATTENDANCE_PERIOD_OPTIONS.find((o) => o.value === attendancePeriod)?.label ||
+                  attendancePeriod}
+              {attendanceCaptureMode === "SUBJECTS" ? " · Subject Mode" : ""}
+              {attendanceLoading || attendanceCaptureSessionsLoading ? " · Loading…" : ""}
             </div>
 
             <div style={{ padding: "10px", display: "flex", gap: "8px", borderBottom: "1px solid #e5e7eb", alignItems: "center" }}>
