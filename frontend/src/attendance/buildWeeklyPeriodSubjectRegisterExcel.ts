@@ -1,6 +1,7 @@
 import * as XLSX from "xlsx";
 import type { WeeklyPeriodSubjectRegisterReport } from "./weeklyPeriodSubjectRegisterTypes";
 import {
+  formatWeeklyRegisterCaptureTime,
   formatWeeklyRegisterTimestamp,
   weeklyAttendancePctLabel,
 } from "./weeklyPeriodSubjectRegisterTypes";
@@ -56,8 +57,6 @@ export function buildWeeklyPeriodSubjectRegisterWorkbook(
     ["Learners at 100%", report.summary.learnersWith100Percent],
     ["Learners below 90%", report.summary.learnersBelow90Percent],
     [],
-    ["Legend", ...report.statusLegend.map((l) => `${l.abbrev}=${l.label}`)],
-    [],
   ];
 
   if (report.legacySubjectNotice) {
@@ -91,6 +90,55 @@ export function buildWeeklyPeriodSubjectRegisterWorkbook(
     }
   }
   XLSX.utils.book_append_sheet(workbook, sheet, "Weekly Register");
+
+  // Legend worksheet
+  const legendRows: (string | number)[][] = [
+    ["Legend"],
+    ["Code", "Meaning"],
+    ...report.statusLegend.map((l) => [l.abbrev, l.label]),
+  ];
+  XLSX.utils.book_append_sheet(workbook, XLSX.utils.aoa_to_sheet(legendRows), "Legend");
+
+  // Detail worksheet — preserves reason codes + teacher notes
+  const colByKey = new Map(report.columns.map((c) => [c.key, c]));
+  const detailRows: (string | number)[][] = [
+    [
+      "Learner Name",
+      "Grade",
+      "Date",
+      "Day",
+      "Session",
+      "Code",
+      "Reason label",
+      "Teacher note",
+      "Original reason text",
+      "Status",
+      "Capture time",
+      "Teacher",
+    ],
+  ];
+  for (const learner of report.learners) {
+    for (const cell of learner.cells) {
+      if (cell.status === "NOT_CAPTURED" || cell.status === "NOT_SCHEDULED") continue;
+      const col = colByKey.get(cell.columnKey);
+      detailRows.push([
+        learner.fullName,
+        learner.grade,
+        col?.date || "",
+        col?.dayLabel || "",
+        col?.sessionLabel || "",
+        cell.abbrev,
+        cell.label,
+        cell.teacherNote || "",
+        cell.reason || "",
+        cell.status,
+        formatWeeklyRegisterCaptureTime(cell.captureTime),
+        cell.capturingTeacher || "",
+      ]);
+    }
+  }
+  XLSX.utils.book_append_sheet(workbook, XLSX.utils.aoa_to_sheet(detailRows), "Reason Details");
+
   return workbook;
 }
 

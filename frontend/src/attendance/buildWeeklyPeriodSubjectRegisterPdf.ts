@@ -91,16 +91,34 @@ function drawSummary(doc: jsPDF, report: WeeklyPeriodSubjectRegisterReport, y: n
 }
 
 function drawLegend(doc: jsPDF, report: WeeklyPeriodSubjectRegisterReport, y: number): number {
-  y = ensureSpace(doc, y, 10);
+  y = ensureSpace(doc, y, 14);
   doc.setFont("helvetica", "bold");
-  doc.setFontSize(8);
+  doc.setFontSize(9);
   doc.setTextColor(15, 23, 42);
-  doc.text(
-    `Legend: ${report.statusLegend.map((l) => `${l.abbrev}=${l.label}`).join("  ")}`,
-    14,
-    y
-  );
-  return y + 6;
+  doc.text("Legend", 14, y);
+  y += 5;
+  doc.setFont("helvetica", "normal");
+  doc.setFontSize(7.5);
+  const pageW = doc.internal.pageSize.getWidth();
+  const chunks: string[] = [];
+  let line = "";
+  for (const item of report.statusLegend) {
+    const part = `${item.abbrev} = ${item.label}`;
+    const next = line ? `${line}   ${part}` : part;
+    if (next.length > 120) {
+      if (line) chunks.push(line);
+      line = part;
+    } else {
+      line = next;
+    }
+  }
+  if (line) chunks.push(line);
+  for (const chunk of chunks) {
+    y = ensureSpace(doc, y, 5);
+    doc.text(chunk, 14, y, { maxWidth: pageW - 28 });
+    y += 4.2;
+  }
+  return y + 4;
 }
 
 function shortSessionLabel(sessionLabel: string): string {

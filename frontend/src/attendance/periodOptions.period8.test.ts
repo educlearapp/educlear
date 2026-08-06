@@ -96,20 +96,23 @@ function sampleWeeklyReport(): WeeklyPeriodSubjectRegisterReport {
           },
           {
             columnKey: "2026-08-04|INTERVENTION",
-            status: "LATE",
-            abbrev: "L",
-            label: "Late",
+            status: "ABSENT",
+            abbrev: "SN",
+            label: "Sick Bay",
+            reason: "SN - Parent phoned school.",
+            fromReasonCode: true,
+            teacherNote: "Parent phoned school.",
           },
         ],
-        attendancePercentage: 100,
+        attendancePercentage: 50,
         present: 1,
-        absent: 0,
-        late: 1,
+        absent: 1,
+        late: 0,
         excused: 0,
         notCaptured: 0,
         notScheduled: 0,
         eligibleSessions: 2,
-        attended: 2,
+        attended: 1,
       },
     ],
     summary: {
@@ -118,19 +121,23 @@ function sampleWeeklyReport(): WeeklyPeriodSubjectRegisterReport {
       capturedSessions: 2,
       notCapturedSessions: 0,
       present: 1,
-      absent: 0,
-      late: 1,
+      absent: 1,
+      late: 0,
       excused: 0,
-      overallAttendancePercentage: 100,
-      learnersWith100Percent: 1,
-      learnersBelow90Percent: 0,
+      overallAttendancePercentage: 50,
+      learnersWith100Percent: 0,
+      learnersBelow90Percent: 1,
     },
     legacySubjectNotice: null,
     statusLegend: [
       { abbrev: "P", label: "Present" },
       { abbrev: "A", label: "Absent" },
+      { abbrev: "S", label: "Sick" },
+      { abbrev: "SN", label: "Sick Bay" },
       { abbrev: "L", label: "Late" },
       { abbrev: "E", label: "Excused" },
+      { abbrev: "O", label: "Official School Activity" },
+      { abbrev: "F", label: "Family Responsibility" },
       { abbrev: "NC", label: "Not Captured" },
       { abbrev: "NS", label: "Not Scheduled" },
     ],
@@ -152,6 +159,22 @@ function testExcelExportHeadersNoDuplicates() {
   assert.ok(!header.includes("Tuesday Period 9"));
   const sessionHeaders = header.slice(3);
   assert.strictEqual(new Set(sessionHeaders).size, sessionHeaders.length, "no duplicate columns");
+
+  // Reason code preserved in grid
+  const dataRow = rows.find((r) => r[0] === "Ava Learner") as (string | number)[];
+  assert.ok(dataRow.includes("SN"));
+
+  // Legend worksheet
+  assert.ok(wb.Sheets["Legend"]);
+  const legendRows = XLSX.utils.sheet_to_json<(string | number)[]>(wb.Sheets["Legend"], { header: 1 });
+  assert.ok(legendRows.some((r) => r[0] === "SN" && String(r[1]).includes("Sick Bay")));
+
+  // Reason Details worksheet
+  assert.ok(wb.Sheets["Reason Details"]);
+  const detailRows = XLSX.utils.sheet_to_json<(string | number)[]>(wb.Sheets["Reason Details"], {
+    header: 1,
+  });
+  assert.ok(detailRows.some((r) => r.includes("SN") && r.includes("Parent phoned school.")));
 }
 
 testCaptureOptionsIncludePeriod8AndIntervention();
