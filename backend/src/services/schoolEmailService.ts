@@ -10,6 +10,15 @@ import {
   resolveSchoolReplyToEmail,
   smtpSenderFromPublic,
 } from "../communication/schoolSender";
+import {
+  postResendEmail,
+} from "./resendClient";
+
+export {
+  isResendNetworkUnavailableError,
+  ResendNetworkUnavailableError,
+  RESEND_NETWORK_UNAVAILABLE_MESSAGE,
+} from "./resendClient";
 
 export type EmailProviderType = "platform" | "gmail" | "outlook" | "icloud" | "yahoo" | "custom";
 
@@ -90,7 +99,6 @@ export const EMAIL_PROVIDER_PRESETS: Record<
 };
 
 const MASKED_PASSWORD = "********";
-const RESEND_EMAIL_API_URL = "https://api.resend.com/emails";
 const SMTP_TRANSPORT_TIMEOUT_MS = 12_000;
 const SMTP_SEND_DEADLINE_MS = 20_000;
 const SETUP_REQUIRED_MESSAGE =
@@ -106,7 +114,8 @@ function emailDomain(email: string) {
 }
 
 function platformFromEmail() {
-  // Resend always uses the verified EduClear From address.
+  // Resend path: always verified EduClear domain — never EDUCLEAR_MAIL_FROM_EMAIL
+  // (stale values such as onboarding@resend.dev must not affect Resend sends).
   if (hasResendProvider()) {
     return EDUCLEAR_RELAY_FROM_EMAIL;
   }
@@ -225,17 +234,6 @@ function attachmentContentToBase64(content: Buffer | string) {
   return Buffer.from(String(content), "utf8").toString("base64");
 }
 
-function formatResendError(status: number, body: string) {
-  const trimmed = body.trim();
-  if (!trimmed) return `Resend email send failed with HTTP ${status}`;
-  try {
-    const parsed = JSON.parse(trimmed) as { message?: string; name?: string; error?: string };
-    return parsed.message || parsed.error || `${parsed.name || "Resend error"} (HTTP ${status})`;
-  } catch {
-    return `Resend email send failed with HTTP ${status}: ${trimmed.slice(0, 240)}`;
-  }
-}
-
 async function sendWithResend(input: {
   from: string;
   to: SendSchoolEmailInput["to"];
@@ -249,39 +247,27 @@ async function sendWithResend(input: {
     throw new Error("Resend is not configured. Set RESEND_API_KEY on the server.");
   }
 
-  const response = await withSendDeadline(
-    fetch(RESEND_EMAIL_API_URL, {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${apiKey}`,
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        from: input.from,
-        to: normalizeResendRecipient(input.to),
-        subject: input.subject,
-        html: input.html,
-        ...(input.replyTo ? { reply_to: input.replyTo } : {}),
-        ...(input.attachments?.length
-          ? {
-              attachments: input.attachments.map((attachment) => ({
-                filename: attachment.filename,
-                content: attachmentContentToBase64(attachment.content),
-                ...(attachment.contentType ? { content_type: attachment.contentType } : {}),
-              })),
-            }
-          : {}),
-      }),
-    }),
-    "EduClear Resend email send"
-  );
-
-  const body = await response.text();
-  if (!response.ok) {
-    throw new Error(formatResendError(response.status, body));
-  }
-  const parsed = body ? (JSON.parse(body) as { id?: string }) : {};
-  return { messageId: parsed.id || "" };
+  const replyTo = String(input.replyTo || "").trim();
+  return postResendEmail({
+    apiKey,
+    payload: {
+      // Always the verified EduClear From — never stale EDUCLEAR_MAIL_FROM_EMAIL.
+      from: input.from,
+      to: normalizeResendRecipient(input.to),
+      subject: input.subject,
+      html: input.html,
+      ...(replyTo ? { reply_to: replyTo } : {}),
+      ...(input.attachments?.length
+        ? {
+            attachments: input.attachments.map((attachment) => ({
+              filename: attachment.filename,
+              content: attachmentContentToBase64(attachment.content),
+              ...(attachment.contentType ? { content_type: attachment.contentType } : {}),
+            })),
+          }
+        : {}),
+    },
+  });
 }
 
 export function normalizeProvider(raw: string): EmailProviderType | null {

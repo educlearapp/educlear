@@ -1,8 +1,17 @@
 import { Router } from "express";
-import { buildSetupRequiredPayload } from "../services/schoolEmailService";
+import {
+  buildSetupRequiredPayload,
+  isResendNetworkUnavailableError,
+  RESEND_NETWORK_UNAVAILABLE_MESSAGE,
+} from "../services/schoolEmailService";
 import { sendStatementEmail } from "../services/statementEmailService";
 
 const router = Router();
+
+function isRawFetchFailedMessage(message: string | undefined): boolean {
+  const m = String(message || "").trim().toLowerCase();
+  return m === "fetch failed" || m === "network error" || m === "failed to fetch";
+}
 
 router.post("/send-statement", async (req, res) => {
   try {
@@ -50,7 +59,7 @@ router.post("/send-statement", async (req, res) => {
     });
   } catch (error: unknown) {
     console.error("Send statement email error:", error);
-    const err = error as Error & { setupRequired?: boolean };
+    const err = error as Error & { setupRequired?: boolean; statusCode?: number };
     if (err.message?.includes("Missing required fields") || err.message?.includes("Missing schoolId")) {
       return res.status(400).json({
         error: err.message,
@@ -61,8 +70,18 @@ router.post("/send-statement", async (req, res) => {
       const payload = buildSetupRequiredPayload();
       return res.status(409).json(payload);
     }
+    if (isResendNetworkUnavailableError(error) || isRawFetchFailedMessage(err.message)) {
+      return res.status(503).json({
+        error: RESEND_NETWORK_UNAVAILABLE_MESSAGE,
+      });
+    }
+    // Never leak undici's raw "fetch failed" as a 500 body
+    const safeMessage =
+      isRawFetchFailedMessage(err.message)
+        ? RESEND_NETWORK_UNAVAILABLE_MESSAGE
+        : err.message || "Failed to send statement email";
     return res.status(500).json({
-      error: err.message || "Failed to send statement email",
+      error: safeMessage,
     });
   }
 });
