@@ -691,7 +691,7 @@ export default function CommunicationSettings({
             Send via EduClear Domain
           </label>
           <p style={{ margin: 0, fontSize: 12, color: "#64748b" }}>
-            When enabled, the From address uses the EduClear relay (billing@educlear.co.za). Parent replies still go to{" "}
+            When enabled, the From address uses the EduClear relay (noreply@educlear.co.za). Parent replies still go to{" "}
             <strong>{replyToEmail}</strong>.
           </p>
 

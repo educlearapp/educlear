@@ -245,8 +245,9 @@ export function newContactId() {
   return `c-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
 }
 
-export const FALLBACK_SENDER_EMAIL = "no-reply@educlear.co.za";
-export const EDUCLEAR_RELAY_FROM_EMAIL = "billing@educlear.co.za";
+export const FALLBACK_SENDER_EMAIL = "noreply@educlear.co.za";
+export const EDUCLEAR_RELAY_FROM_EMAIL = "noreply@educlear.co.za";
+export const EDUCLEAR_RELAY_FROM_NAME = "EduClear";
 
 export const COMMUNICATION_SETTINGS_UPDATED = "educlear-communication-settings-updated";
 

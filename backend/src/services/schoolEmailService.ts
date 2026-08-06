@@ -5,6 +5,8 @@ import { prisma } from "../prisma";
 import { isProductionRuntime } from "./runtime";
 import {
   EDUCLEAR_RELAY_FROM_EMAIL,
+  EDUCLEAR_RELAY_FROM_NAME,
+  EDUCLEAR_VERIFIED_SENDING_DOMAIN,
   resolveSchoolReplyToEmail,
   smtpSenderFromPublic,
 } from "../communication/schoolSender";
@@ -97,14 +99,28 @@ const SETUP_REQUIRED_MESSAGE =
 const RENDER_SMTP_BLOCKED_HINT =
   "EduClear's central email service could not connect to its configured mail provider. Check the platform email provider settings.";
 
+function emailDomain(email: string) {
+  const at = email.lastIndexOf("@");
+  if (at < 0) return "";
+  return email.slice(at + 1).trim().toLowerCase();
+}
+
 function platformFromEmail() {
-  return (
+  const configured =
     process.env.EDUCLEAR_MAIL_FROM_EMAIL?.trim() ||
     process.env.EDUCLEAR_SMTP_FROM?.trim() ||
     process.env.SMTP_FROM?.trim() ||
     process.env.SMTP_USER?.trim() ||
-    EDUCLEAR_RELAY_FROM_EMAIL
-  );
+    EDUCLEAR_RELAY_FROM_EMAIL;
+  // Resend production sends must use the verified EduClear domain.
+  if (hasResendProvider() && emailDomain(configured) !== EDUCLEAR_VERIFIED_SENDING_DOMAIN) {
+    return EDUCLEAR_RELAY_FROM_EMAIL;
+  }
+  return configured;
+}
+
+function platformFromName() {
+  return process.env.EDUCLEAR_MAIL_FROM_NAME?.trim() || EDUCLEAR_RELAY_FROM_NAME;
 }
 
 function resendApiKey() {
@@ -601,8 +617,16 @@ export async function sendMailWithSettings(
   mail: Parameters<ReturnType<typeof nodemailer.createTransport>["sendMail"]>[0]
 ) {
   if (hasResendProvider()) {
+    const fallbackFrom = formatFromAddress(platformFromName(), platformFromEmail());
+    const rawFrom = String(mail.from || fallbackFrom).trim() || fallbackFrom;
+    const fromMatch = rawFrom.match(/<([^>]+)>/);
+    const fromEmailOnly = (fromMatch ? fromMatch[1] : rawFrom).trim();
+    const from =
+      emailDomain(fromEmailOnly) === EDUCLEAR_VERIFIED_SENDING_DOMAIN
+        ? rawFrom
+        : fallbackFrom;
     return sendWithResend({
-      from: String(mail.from || platformFromEmail()),
+      from,
       to: String(mail.to || ""),
       subject: String(mail.subject || ""),
       html: String(mail.html || ""),
@@ -664,7 +688,7 @@ export async function sendSchoolEmail(schoolId: string, input: SendSchoolEmailIn
     throw err;
   }
 
-  const fromName = String(branding.schoolName || "School").trim() || "School";
+  const fromName = platformFromName();
   const from = formatFromAddress(fromName, platformFromEmail());
   const replyTo = await resolveReplyToForSchoolSend(schoolId);
   if (hasResendProvider()) {

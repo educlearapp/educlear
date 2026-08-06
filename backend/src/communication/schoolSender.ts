@@ -1,5 +1,7 @@
-export const FALLBACK_SENDER_EMAIL = "no-reply@educlear.co.za";
-export const EDUCLEAR_RELAY_FROM_EMAIL = "billing@educlear.co.za";
+export const FALLBACK_SENDER_EMAIL = "noreply@educlear.co.za";
+export const EDUCLEAR_RELAY_FROM_EMAIL = "noreply@educlear.co.za";
+export const EDUCLEAR_RELAY_FROM_NAME = "EduClear";
+export const EDUCLEAR_VERIFIED_SENDING_DOMAIN = "educlear.co.za";
 
 export type CommunicationSenderSettings = {
   sendViaEduClearDomain?: boolean;
