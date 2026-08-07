@@ -31,6 +31,10 @@ import {
   upsertLearnerBillingPlan,
   type StoredBillingPlanItem,
 } from "../utils/learnerBillingPlanStore";
+import {
+  applyParentIdentityPreservationForUpdate,
+  parentIdentityForCreate,
+} from "../utils/parentIdentityPreservation";
 
 
 
@@ -73,8 +77,7 @@ function buildParentWriteData(rawParent: any, schoolId: string, familyAccountId?
   const firstName = cleanString(rawParent.firstName || rawParent.name) || "Parent";
   const surname = cleanString(rawParent.surname || rawParent.lastName) || "-";
   const cellNo = cleanString(rawParent.cellNo || rawParent.cell || rawParent.phone || rawParent.mobile);
-  const email = cleanString(rawParent.email);
-  const idNumber = cleanString(rawParent.idNumber);
+  const identity = parentIdentityForCreate(rawParent);
   const relationship = cleanString(rawParent.relationship || rawParent.relation);
   return {
     schoolId,
@@ -83,13 +86,13 @@ function buildParentWriteData(rawParent: any, schoolId: string, familyAccountId?
     title: cleanString(rawParent.title) || null,
     firstName,
     surname,
-    idNumber: idNumber || null,
+    idNumber: identity.idNumber,
     cellNo: cellNo || "-",
     workNo: cleanString(rawParent.workNo || rawParent.work || rawParent.workPhone) || null,
     homeAddress: cleanString(rawParent.homeAddress) || null,
     homeNo: cleanString(rawParent.homeNo) || null,
     notes: cleanString(rawParent.notes) || null,
-    email: email || null,
+    email: identity.email,
     communicationAdministration: cleanBool(
       rawParent.communicationAdministration ?? rawParent.administrationCommunications,
       true
@@ -316,14 +319,17 @@ async function saveParentLinks({
     let parent = null;
 
     if (rawParent.id && !String(rawParent.id).startsWith("local-parent-")) {
+      // UPDATE: never write blank/null idNumber or email over existing values.
+      const updateData = applyParentIdentityPreservationForUpdate(parentData, rawParent);
       parent = await prisma.parent.update({
         where: { id: rawParent.id },
-        data: parentData,
+        data: updateData,
       });
     } else if (idNumber) {
+      const updateData = applyParentIdentityPreservationForUpdate(parentData, rawParent);
       parent = await prisma.parent.upsert({
         where: { idNumber },
-        update: parentData,
+        update: updateData,
         create: { ...parentData, idNumber },
       });
     } else {
@@ -1482,29 +1488,21 @@ router.put("/:id", async (req, res) => {
 
     const parents = normaliseParents(req.body);
 
+    // Only rewrite parent rows when the client explicitly sent a parents payload.
+    // Learner-only updates must not touch Parent.idNumber / Parent.email.
+    const hasParentsPayload =
+      Array.isArray(req.body?.parents) ||
+      Array.isArray(req.body?.learner?.parents) ||
+      (req.body?.parent && typeof req.body.parent === "object");
 
-
-    await saveParentLinks({
-
-
-
-      schoolId: updatedLearner.schoolId,
-
-
-
-      learnerId: updatedLearner.id,
-
-
-
-      familyAccountId: updatedLearner.familyAccountId,
-
-
-
-      parents,
-
-
-
-    });
+    if (hasParentsPayload) {
+      await saveParentLinks({
+        schoolId: updatedLearner.schoolId,
+        learnerId: updatedLearner.id,
+        familyAccountId: updatedLearner.familyAccountId,
+        parents,
+      });
+    }
 
     let billingPlan: StoredBillingPlanItem[] = [];
     if (Array.isArray(req.body?.billingPlan)) {

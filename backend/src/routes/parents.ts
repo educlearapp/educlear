@@ -1,6 +1,10 @@
 import { Router } from "express";
 import { PrismaClient } from "@prisma/client";
 import { lookupParentFeesBySaId, normalizeSaIdNumber } from "../services/parentFeeCheckService";
+import {
+  parentIdentityForCreate,
+  parentIdentityForUpdate,
+} from "../utils/parentIdentityPreservation";
 
 const router = Router();
 const prisma = new PrismaClient();
@@ -87,6 +91,8 @@ router.post("/", async (req, res) => {
       return res.status(400).json({ success: false, message: "Missing schoolId" });
     }
 
+    const identity = parentIdentityForCreate(req.body || {});
+
     const parent = await prisma.parent.create({
       data: {
         schoolId,
@@ -96,7 +102,7 @@ router.post("/", async (req, res) => {
         firstName: cleanString(req.body?.firstName) || "Parent",
         surname: cleanString(req.body?.surname) || "-",
         nickname: cleanString(req.body?.nickname) || null,
-        idNumber: cleanString(req.body?.idNumber) || null,
+        idNumber: identity.idNumber,
         maritalStatus: cleanString(req.body?.maritalStatus) || null,
         notes: cleanString(req.body?.notes) || null,
         homeAddress: cleanString(req.body?.homeAddress) || null,
@@ -104,7 +110,7 @@ router.post("/", async (req, res) => {
         workNo: cleanString(req.body?.workNo || req.body?.work) || null,
         cellNo: cleanString(req.body?.cellNo || req.body?.cell || req.body?.phone) || "-",
         faxNo: cleanString(req.body?.faxNo) || null,
-        email: cleanString(req.body?.email) || null,
+        email: identity.email,
         communicationAdministration: cleanBool(req.body?.communicationAdministration, true),
         communicationBilling: cleanBool(req.body?.communicationBilling, true),
         communicationByEmail: cleanBool(req.body?.communicationByEmail, true),
@@ -139,6 +145,8 @@ router.put("/:id", async (req, res) => {
       return res.status(404).json({ success: false, message: "Parent not found" });
     }
 
+    const identityUpdate = parentIdentityForUpdate(req.body || {});
+
     const parent = await prisma.parent.update({
       where: { id },
       data: {
@@ -152,9 +160,7 @@ router.put("/:id", async (req, res) => {
         ...(req.body?.surname !== undefined && {
           surname: cleanString(req.body.surname || req.body.lastName) || existing.surname,
         }),
-        ...(req.body?.idNumber !== undefined && {
-          idNumber: cleanString(req.body.idNumber) || null,
-        }),
+        ...(identityUpdate.idNumber !== undefined && { idNumber: identityUpdate.idNumber }),
         ...(req.body?.notes !== undefined && { notes: cleanString(req.body.notes) || null }),
         ...(req.body?.homeAddress !== undefined && {
           homeAddress: cleanString(req.body.homeAddress) || null,
@@ -166,7 +172,7 @@ router.put("/:id", async (req, res) => {
         ...(req.body?.cellNo !== undefined && {
           cellNo: cleanString(req.body.cellNo || req.body.cell || req.body.phone) || existing.cellNo,
         }),
-        ...(req.body?.email !== undefined && { email: cleanString(req.body.email) || null }),
+        ...(identityUpdate.email !== undefined && { email: identityUpdate.email }),
         ...(req.body?.communicationAdministration !== undefined && {
           communicationAdministration: cleanBool(req.body.communicationAdministration, true),
         }),
