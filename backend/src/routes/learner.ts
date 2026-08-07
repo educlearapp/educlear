@@ -35,6 +35,11 @@ import {
   applyParentIdentityPreservationForUpdate,
   parentIdentityForCreate,
 } from "../utils/parentIdentityPreservation";
+import {
+  buildParentIdConflictBody,
+  isParentIdNumberUniqueTarget,
+  ParentIdConflictError,
+} from "../utils/parentIdConflict";
 
 
 
@@ -318,24 +323,36 @@ async function saveParentLinks({
 
     let parent = null;
 
-    if (rawParent.id && !String(rawParent.id).startsWith("local-parent-")) {
-      // UPDATE: never write blank/null idNumber or email over existing values.
-      const updateData = applyParentIdentityPreservationForUpdate(parentData, rawParent);
-      parent = await prisma.parent.update({
-        where: { id: rawParent.id },
-        data: updateData,
-      });
-    } else if (idNumber) {
-      const updateData = applyParentIdentityPreservationForUpdate(parentData, rawParent);
-      parent = await prisma.parent.upsert({
-        where: { idNumber },
-        update: updateData,
-        create: { ...parentData, idNumber },
-      });
-    } else {
-      parent = await prisma.parent.create({
-        data: parentData,
-      });
+    try {
+      if (rawParent.id && !String(rawParent.id).startsWith("local-parent-")) {
+        // UPDATE: never write blank/null idNumber or email over existing values.
+        const updateData = applyParentIdentityPreservationForUpdate(parentData, rawParent);
+        parent = await prisma.parent.update({
+          where: { id: rawParent.id },
+          data: updateData,
+        });
+      } else if (idNumber) {
+        const updateData = applyParentIdentityPreservationForUpdate(parentData, rawParent);
+        parent = await prisma.parent.upsert({
+          where: { idNumber },
+          update: updateData,
+          create: { ...parentData, idNumber },
+        });
+      } else {
+        parent = await prisma.parent.create({
+          data: parentData,
+        });
+      }
+    } catch (error: unknown) {
+      if (isParentIdNumberUniqueTarget(error)) {
+        const conflictId =
+          idNumber ||
+          cleanString((rawParent as { idNumber?: unknown }).idNumber) ||
+          "";
+        const body = await buildParentIdConflictBody(prisma, conflictId);
+        throw new ParentIdConflictError(body);
+      }
+      throw error;
     }
 
     await prisma.parentLearnerLink.upsert({
@@ -1134,6 +1151,10 @@ router.post("/", async (req, res) => {
   } catch (error) {
     console.error("SAVE LEARNER ERROR:", error);
 
+    if (error instanceof ParentIdConflictError) {
+      return res.status(409).json(error.body);
+    }
+
     if (error instanceof FinanceAccountBaselineError) {
       return res.status(500).json({
         success: false,
@@ -1601,6 +1622,10 @@ router.put("/:id", async (req, res) => {
 
 
     console.error("UPDATE LEARNER ERROR:", error);
+
+    if (error instanceof ParentIdConflictError) {
+      return res.status(409).json(error.body);
+    }
 
 
 

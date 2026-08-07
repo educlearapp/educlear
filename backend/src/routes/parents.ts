@@ -5,6 +5,13 @@ import {
   parentIdentityForCreate,
   parentIdentityForUpdate,
 } from "../utils/parentIdentityPreservation";
+import {
+  buildParentIdConflictBody,
+  findDuplicateParentSignal,
+  findParentByIdNumber,
+  isParentIdNumberUniqueTarget,
+  PARENT_ID_CONFLICT_MESSAGE,
+} from "../utils/parentIdConflict";
 
 const router = Router();
 const prisma = new PrismaClient();
@@ -84,6 +91,52 @@ router.get("/fee-check/:idNumber", async (req, res) => {
   }
 });
 
+/**
+ * GET /api/parents/id-ownership?idNumber=&excludeParentId=&cellNo=&email=
+ * Lookup who owns an SA ID and soft duplicate-parent signals (cell/email overlap).
+ */
+router.get("/id-ownership", async (req, res) => {
+  res.setHeader("Cache-Control", "no-store, no-cache, must-revalidate");
+  try {
+    const idNumber = cleanString(req.query?.idNumber);
+    if (!idNumber) {
+      return res.status(400).json({ success: false, message: "Missing idNumber" });
+    }
+
+    const excludeParentId = cleanString(req.query?.excludeParentId) || null;
+    const cellNo = cleanString(req.query?.cellNo) || null;
+    const email = cleanString(req.query?.email) || null;
+
+    const existingParent = await findParentByIdNumber(prisma, idNumber);
+    const ownedByOther =
+      Boolean(existingParent) &&
+      (!excludeParentId || existingParent!.id !== excludeParentId);
+
+    const warning = await findDuplicateParentSignal({
+      prisma,
+      idNumber,
+      excludeParentId,
+      cellNo,
+      email,
+    });
+
+    return res.json({
+      success: true,
+      idNumber,
+      ownedByOther,
+      existingParent: ownedByOther ? existingParent : null,
+      warning,
+      conflictMessage: ownedByOther ? PARENT_ID_CONFLICT_MESSAGE : null,
+    });
+  } catch (error: unknown) {
+    console.error("PARENT ID OWNERSHIP ERROR:", error);
+    return res.status(500).json({
+      success: false,
+      message: "Failed to look up parent ID ownership",
+    });
+  }
+});
+
 router.post("/", async (req, res) => {
   try {
     const schoolId = cleanString(req.body?.schoolId);
@@ -122,6 +175,11 @@ router.post("/", async (req, res) => {
     return res.json({ success: true, parent });
   } catch (error: unknown) {
     console.error("CREATE PARENT ERROR:", error);
+    if (isParentIdNumberUniqueTarget(error)) {
+      const idNumber = parentIdentityForCreate(req.body || {}).idNumber || cleanString(req.body?.idNumber);
+      const body = await buildParentIdConflictBody(prisma, idNumber || "");
+      return res.status(409).json(body);
+    }
     const err = error as { message?: string; code?: string; meta?: unknown };
     return res.status(500).json({
       success: false,
@@ -194,6 +252,12 @@ router.put("/:id", async (req, res) => {
     return res.json({ success: true, parent });
   } catch (error: unknown) {
     console.error("UPDATE PARENT ERROR:", error);
+    if (isParentIdNumberUniqueTarget(error)) {
+      const identityUpdate = parentIdentityForUpdate(req.body || {});
+      const idNumber = identityUpdate.idNumber || cleanString(req.body?.idNumber);
+      const body = await buildParentIdConflictBody(prisma, idNumber || "");
+      return res.status(409).json(body);
+    }
     const err = error as { message?: string };
     return res.status(500).json({
       success: false,

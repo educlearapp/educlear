@@ -15980,6 +15980,11 @@ const [invoiceRunEmailDraft, setInvoiceRunEmailDraft] = useState({
           parents={parents}
           setParents={setParents}
           onBack={() => setActivePage("registrations")}
+          onNavigateToLearner={(learner) => {
+            setSelectedLearner(learner);
+            localStorage.setItem("selectedLearnerForManage", JSON.stringify(learner));
+            setActivePage("learnerProfile");
+          }}
         />
       );
     }

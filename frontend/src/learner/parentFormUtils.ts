@@ -103,6 +103,26 @@ export function validateParentForSave(parent: ParentRecord): string | null {
   return null;
 }
 
+/**
+ * True when Manage Parent / Add Parent form has an ID typed that is not yet
+ * stored on the linked parent. Learner "Save" must not pretend this was saved.
+ */
+export function parentIdDraftNeedsSaveParent(opts: {
+  mode: "none" | "add" | "existing" | "manage";
+  draft: ParentRecord;
+  linkedParents: ParentRecord[];
+}): boolean {
+  if (opts.mode !== "add" && opts.mode !== "manage") return false;
+  const typed = (opts.draft.idNumber || "").trim();
+  if (!typed) return false;
+  if (opts.mode === "add") return true;
+  const existing = opts.linkedParents.find((p) => String(p.id || "") === String(opts.draft.id || ""));
+  return !existing || (existing.idNumber || "").trim() !== typed;
+}
+
+export const PARENT_ID_USE_SAVE_PARENT_MESSAGE =
+  "You have unsaved parent details. Please click Save Parent before saving the learner.";
+
 export function parentsFromLearner(learner: Record<string, unknown> | null | undefined): ParentRecord[] {
   if (!learner) return [];
   const embedded = [
