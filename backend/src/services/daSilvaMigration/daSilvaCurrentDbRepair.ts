@@ -2,6 +2,7 @@ import fs from "fs";
 import path from "path";
 
 import { prisma } from "../../prisma";
+import { assertDaSilvaHistoricalParentToolAllowed } from "../migration/parentIdentity/daSilvaHistoricalParentToolGuard";
 import {
   inferGenderFromSouthAfricanId,
   isFemaleGender,
@@ -507,6 +508,9 @@ export async function repairDaSilvaSasamsParents(opts: {
   projectId: string;
   apply: boolean;
 }): Promise<DaSilvaParentsRepairResult> {
+  if (opts.apply) {
+    assertDaSilvaHistoricalParentToolAllowed("repairDaSilvaSasamsParents");
+  }
   const staged = resolveDaSilvaStagedPaths(opts.schoolId, opts.projectId);
   const parentRegister = staged.parentRegister;
   const parentLearnerLinks = staged.parentLearnerLinks;

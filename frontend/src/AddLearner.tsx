@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { apiFetch, API_URL } from "./api";
+import { staffAuthHeaders } from "./auth/staffAuthHeaders";
 import { getBirthDateFromSouthAfricanId } from "./learner/learnerIdentity";
 import ParentsSection, { parentToApiPayload } from "./learner/ParentsSection";
 import {
@@ -547,6 +548,12 @@ export default function AddLearner({ onBack, schoolParents: schoolParentsProp }:
 
 
         method: "POST",
+
+
+
+        headers: {
+          ...staffAuthHeaders(),
+        },
 
 
 

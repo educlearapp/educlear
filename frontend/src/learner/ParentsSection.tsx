@@ -14,7 +14,9 @@ import {
   fetchParentIdOwnership,
   ParentIdConflictClientError,
   PARENT_ID_CONFLICT_MESSAGE,
+  PossibleParentMatchClientError,
   type ExistingParentConflict,
+  type PossibleParentMatchPayload,
 } from "./parentIdConflict";
 
 export type ParentsSectionProps = {
@@ -24,9 +26,16 @@ export type ParentsSectionProps = {
   defaultSurname?: string;
   onSendEmail?: (parent: ParentRecord) => void;
   onSendSms?: (parent: ParentRecord) => void;
-  onPersistParent?: (parent: ParentRecord) => Promise<ParentRecord | void>;
+  onPersistParent?: (
+    parent: ParentRecord,
+    opts?: { confirmCreateDespiteMatch?: boolean }
+  ) => Promise<ParentRecord | void>;
   /** Owner/Admin: open the learner profile that owns the conflicting parent ID. */
   onViewExistingParent?: (existing: ExistingParentConflict) => void | Promise<void>;
+  /** Owner/Admin: link existing Parent to this learner via dedicated API. */
+  onLinkExistingParent?: (existing: ExistingParentConflict) => void | Promise<void>;
+  learnerId?: string;
+  schoolId?: string;
   /** Notify host when Manage/Add Parent form has an unsaved typed ID. */
   onUnsavedParentIdEditChange?: (state: {
     active: boolean;
@@ -47,6 +56,9 @@ export default function ParentsSection({
   onSendSms,
   onPersistParent,
   onViewExistingParent,
+  onLinkExistingParent,
+  learnerId,
+  schoolId,
   onUnsavedParentIdEditChange,
   className = "",
 }: ParentsSectionProps) {
@@ -125,9 +137,45 @@ export default function ParentsSection({
       const go = window.confirm(`View existing parent (${label})?`);
       if (go) await onViewExistingParent(existing);
     }
+    if (canViewExistingParentConflict() && existing && onLinkExistingParent) {
+      const link = window.confirm(
+        `Link existing parent (${existingParentDisplayName(existing)}) to this learner instead of creating a duplicate?`
+      );
+      if (link) await onLinkExistingParent(existing);
+    }
   };
 
-  const commitParent = async () => {
+  const presentPossibleMatch = async (payload: PossibleParentMatchPayload) => {
+    const cand = payload.existingParent || null;
+    const label = existingParentDisplayName(cand);
+    const detail = [
+      payload.message,
+      cand
+        ? `\nCandidate: ${label}`
+        : "",
+      "\n\nChoose OK to create a NEW parent (confirm different people), or Cancel to review.",
+    ].join("");
+    if (canViewExistingParentConflict() && cand && onLinkExistingParent) {
+      const linkFirst = window.confirm(
+        `${payload.message}\n\nLink existing parent (${label}) to this learner?\n\nOK = Link existing · Cancel = more options`
+      );
+      if (linkFirst) {
+        await onLinkExistingParent(cand);
+        return "linked";
+      }
+    }
+    if (payload.allowExplicitCreate) {
+      const createAnyway = window.confirm(detail);
+      if (createAnyway) return "create";
+    }
+    if (canViewExistingParentConflict() && cand?.primaryLearnerId && onViewExistingParent) {
+      const view = window.confirm(`View existing parent (${label})?`);
+      if (view) await onViewExistingParent(cand);
+    }
+    return "cancel";
+  };
+
+  const commitParent = async (opts?: { confirmCreateDespiteMatch?: boolean }) => {
     const err = validateParentForSave(parentDraft);
     if (err) {
       window.alert(err);
@@ -158,7 +206,9 @@ export default function ParentsSection({
     try {
       let saved = { ...parentDraft };
       if (onPersistParent) {
-        const result = await onPersistParent(parentDraft);
+        const result = await onPersistParent(parentDraft, {
+          confirmCreateDespiteMatch: Boolean(opts?.confirmCreateDespiteMatch),
+        });
         if (result) saved = normalizeParentRecord(result as Record<string, unknown>);
         if (parentMode === "manage" && selectedParent) {
           setSelectedId(String(saved.id || selectedParent.id || ""));
@@ -187,16 +237,27 @@ export default function ParentsSection({
         await presentIdConflict(error.payload.existingParent, error.payload.message);
         return;
       }
+      if (error instanceof PossibleParentMatchClientError) {
+        const choice = await presentPossibleMatch(error.payload);
+        if (choice === "create") {
+          await commitParent({ confirmCreateDespiteMatch: true });
+        }
+        return;
+      }
       window.alert(error instanceof Error ? error.message : "Failed to save parent");
     } finally {
       setSaving(false);
     }
   };
 
-  const linkExisting = () => {
+  const linkExisting = async () => {
     const found = schoolParents.find((p) => String(p.id) === String(existingPickId));
     if (!found) {
       window.alert("Please select an existing parent first.");
+      return;
+    }
+    if (!canViewExistingParentConflict()) {
+      window.alert("Only Owner/Admin may link an existing parent.");
       return;
     }
     const normalized = normalizeParentRecord(found as Record<string, unknown>);
@@ -204,6 +265,32 @@ export default function ParentsSection({
       window.alert("This parent is already linked.");
       return;
     }
+
+    if (onLinkExistingParent && normalized.id) {
+      setSaving(true);
+      try {
+        await onLinkExistingParent({
+          id: String(normalized.id),
+          schoolId: String(schoolId || ""),
+          firstName: normalized.firstName || "",
+          surname: normalized.surname || "",
+          cellNo: normalized.cellNo || "",
+          email: normalized.email || null,
+          idNumber: normalized.idNumber || null,
+          familyAccountId: null,
+          primaryLearnerId: null,
+        });
+        cancelForm();
+        window.alert("Parent linked.");
+      } catch (error) {
+        window.alert(error instanceof Error ? error.message : "Failed to link parent");
+      } finally {
+        setSaving(false);
+      }
+      return;
+    }
+
+    // Local-only (Add Learner draft) — no API until learner create.
     onChange([...parents, { ...normalized, isPrimary: parents.length === 0 }]);
     setSelectedId(String(normalized.id || ""));
     cancelForm();

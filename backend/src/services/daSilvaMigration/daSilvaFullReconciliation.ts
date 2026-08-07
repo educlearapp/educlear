@@ -5,6 +5,7 @@
 import fs from "fs";
 
 import { prisma } from "../../prisma";
+import { assertDaSilvaHistoricalParentToolAllowed } from "../migration/parentIdentity/daSilvaHistoricalParentToolGuard";
 import {
   pickLearnerGenderForWrite,
   resolveGenderFromSources,
@@ -801,6 +802,9 @@ export async function runDaSilvaFullSchoolReconciliation(opts: {
   projectId?: string;
   apply: boolean;
 }): Promise<DaSilvaFullReconciliationReport> {
+  if (opts.apply) {
+    assertDaSilvaHistoricalParentToolAllowed("runDaSilvaFullSchoolReconciliation");
+  }
   const projectId = opts.projectId || resolveLatestDaSilvaStagingProject(opts.schoolId).projectId;
   const staged = resolveDaSilvaStagedPaths(opts.schoolId, projectId);
   const sasamsRows = parseDaSilvaLearnersFromSasams({

@@ -58,6 +58,8 @@ export type ParsedKidESysChildParent = {
   workNo: string;
   homeNo: string;
   email: string;
+  /** Parent/guardian SA ID / passport when present in export (id_no). */
+  idNumber: string | null;
   isPrimary: boolean;
 };
 
@@ -452,6 +454,9 @@ function parseChildParentRows(rows: Record<string, string>[]): ParsedKidESysChil
       workNo: pickCsvField(row, ["work_no", "work"]),
       homeNo: pickCsvField(row, ["home_no", "home"]),
       email: pickCsvField(row, ["email"]),
+      idNumber:
+        pickCsvField(row, ["id_no", "id_number", "parent_id_no", "identity_number", "sa_id"]) ||
+        null,
       isPrimary:
         !primaryFlag || primaryFlag === "1" || primaryFlag === "true" || primaryFlag === "yes",
     });

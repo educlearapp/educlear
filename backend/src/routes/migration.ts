@@ -1058,6 +1058,12 @@ migrationUploadRouter.post("/apply", async (req, res) => {
     const targetSchoolId = String(req.body?.targetSchoolId || "").trim();
     const confirmationText = String(req.body?.confirmationText || "").trim();
     const proceedWithEligibleActiveOnly = Boolean(req.body?.proceedWithEligibleActiveOnly);
+    const fullMigrationPreflight =
+      Boolean(req.body?.fullMigrationPreflight) ||
+      String(req.body?.mode || "").trim().toUpperCase() === "FULL_MIGRATION_PREFLIGHT";
+    const parentIdentityResolutions = Array.isArray(req.body?.parentIdentityResolutions)
+      ? req.body.parentIdentityResolutions
+      : undefined;
 
     if (!stageId) return jsonError(res, 400, "stageId is required");
     if (!targetSchoolId) return jsonError(res, 400, "targetSchoolId is required");
@@ -1068,18 +1074,36 @@ migrationUploadRouter.post("/apply", async (req, res) => {
       targetSchoolId,
       confirmationText,
       proceedWithEligibleActiveOnly,
+      fullMigrationPreflight,
+      mode: fullMigrationPreflight ? "FULL_MIGRATION_PREFLIGHT" : "APPLY",
+      parentIdentityResolutions,
     });
-    clearMigrationSession(targetSchoolId);
 
-    return res.json({ success: true, result });
+    if (!fullMigrationPreflight) {
+      clearMigrationSession(targetSchoolId);
+    }
+
+    const requiresReview = result.migrationStatus === "MIGRATION_REQUIRES_REVIEW";
+    return res.status(requiresReview ? 409 : 200).json({
+      success: result.success && !requiresReview,
+      result,
+      migrationStatus: result.migrationStatus,
+      parentIdentityReview: result.parentIdentityReview ?? null,
+    });
   } catch (e: unknown) {
     console.error("migration/apply", e);
     if (e instanceof MigrationApplyError) {
-      const status = e.message.includes("not found") ? 404 : 400;
+      const requiresReview =
+        e.result?.migrationStatus === "MIGRATION_REQUIRES_REVIEW" ||
+        String(e.message || "").includes("MIGRATION REQUIRES REVIEW") ||
+        String(e.message || "").includes("MIGRATION_REQUIRES_REVIEW");
+      const status = e.message.includes("not found") ? 404 : requiresReview ? 409 : 400;
       return res.status(status).json({
         success: false,
         error: e.message,
         result: e.result ?? null,
+        migrationStatus: e.result?.migrationStatus ?? (requiresReview ? "MIGRATION_REQUIRES_REVIEW" : undefined),
+        parentIdentityReview: e.result?.parentIdentityReview ?? null,
       });
     }
     const message = e instanceof Error ? e.message : "Apply failed";

@@ -23,6 +23,7 @@ import {
   getDaSilvaResolvedSchoolId,
   setDaSilvaResolvedSchoolId,
 } from "../src/services/activateDaSilvaSubscription";
+import { assertDaSilvaHistoricalParentToolAllowed } from "../src/services/migration/parentIdentity/daSilvaHistoricalParentToolGuard";
 import {
   buildDaSilvaParentsStagedLearners,
   DA_SILVA_EXPECTED_LEARNER_COUNT,
@@ -451,6 +452,9 @@ async function runRepair(opts: {
 }
 
 async function main(): Promise<void> {
+  if (apply) {
+    assertDaSilvaHistoricalParentToolAllowed("repair-da-silva-parent-family-links");
+  }
   const kideesysRoot = resolveKideesysRoot();
   const paths = buildIngestPaths(kideesysRoot);
   validateIngestPaths(paths);

@@ -1,5 +1,6 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { API_URL } from "../api";
+import { staffAuthHeaders } from "../auth/staffAuthHeaders";
 import ParentsSection from "./ParentsSection";
 import type { ParentRecord } from "./parentFormTypes";
 import {
@@ -8,8 +9,11 @@ import {
   parentToApiPayload,
 } from "./parentFormUtils";
 import {
+  linkExistingParentToLearnerApi,
   ParentIdConflictClientError,
   parseParentIdConflictPayload,
+  parsePossibleParentMatchPayload,
+  PossibleParentMatchClientError,
   type ExistingParentConflict,
 } from "./parentIdConflict";
 import {
@@ -471,15 +475,20 @@ export default function ManageLearner({
       });
     };
 
-    const persistParentsToApi = async (draft: ParentRecord) => {
+    const persistParentsToApi = async (
+      draft: ParentRecord,
+      opts?: { confirmCreateDespiteMatch?: boolean }
+    ) => {
       if (!learner?.id) return draft;
       // Only write the parent being edited/added — do not rewrite sibling parents.
-      const draftPayload = parentToApiPayload(draft);
+      const draftPayload = parentToApiPayload(draft, {
+        confirmCreateDespiteMatch: Boolean(opts?.confirmCreateDespiteMatch),
+      });
       const payloads = [draftPayload];
 
       const response = await fetch(`${API_URL}/api/learners/${learner.id}`, {
         method: "PUT",
-        headers: { "Content-Type": "application/json" },
+        headers: { "Content-Type": "application/json", ...staffAuthHeaders() },
         body: JSON.stringify({ parents: payloads }),
       });
       const payload = await response.json().catch(() => ({}));
@@ -487,6 +496,10 @@ export default function ManageLearner({
         const conflict = parseParentIdConflictPayload(payload);
         if (response.status === 409 && conflict) {
           throw new ParentIdConflictClientError(conflict);
+        }
+        const possible = parsePossibleParentMatchPayload(payload);
+        if (response.status === 409 && possible) {
+          throw new PossibleParentMatchClientError(possible);
         }
         throw new Error(payload?.error || payload?.message || "Failed to save parent");
       }
@@ -503,6 +516,24 @@ export default function ManageLearner({
         normalized.find((p: ParentRecord) => draft.idNumber && p.idNumber === draft.idNumber) ||
         normalized[normalized.length - 1];
       return match || draft;
+    };
+
+    const linkExistingParentToLearner = async (existing: ExistingParentConflict) => {
+      if (!learner?.id || !learner?.schoolId) {
+        window.alert("Learner context is required to link a parent.");
+        return;
+      }
+      await linkExistingParentToLearnerApi({
+        schoolId: String(learner.schoolId),
+        parentId: String(existing.id),
+        learnerId: String(learner.id),
+        isPrimary: false,
+      });
+      const reloaded = await reloadLearnerProfile();
+      const normalized = Array.isArray(reloaded?.parents)
+        ? reloaded.parents.map((p: Record<string, unknown>) => normalizeParentRecord(p))
+        : [];
+      if (normalized.length) syncParentsState(normalized);
     };
 
     const viewExistingParent = async (existing: ExistingParentConflict) => {
@@ -2071,6 +2102,9 @@ export default function ManageLearner({
           defaultSurname={learner.lastName || learner.surname || ""}
           onPersistParent={persistParentsToApi}
           onViewExistingParent={(existing) => void viewExistingParent(existing)}
+          onLinkExistingParent={(existing) => void linkExistingParentToLearner(existing)}
+          learnerId={learner?.id}
+          schoolId={learner?.schoolId}
           onUnsavedParentIdEditChange={setUnsavedParentIdEdit}
           onSendEmail={(p) => {
             const email = (p.email || "").trim();

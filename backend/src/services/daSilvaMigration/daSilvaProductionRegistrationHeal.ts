@@ -5,6 +5,7 @@ import crypto from "crypto";
 import type { PrismaClient } from "@prisma/client";
 
 import { prisma as defaultPrisma } from "../../prisma";
+import { assertDaSilvaHistoricalParentToolAllowed } from "../migration/parentIdentity/daSilvaHistoricalParentToolGuard";
 import { buildRegistrationStats } from "../registrationStatsService";
 import { buildAccountsFromAgeAnalysisSnapshots } from "../statementAccounts";
 import { readSchoolBillingPlans, upsertSchoolBillingPlans } from "../../utils/learnerBillingPlanStore";
@@ -639,6 +640,9 @@ export async function runDaSilvaProductionRegistrationHeal(opts: {
   sourceDatabaseUrl?: string;
   sourceSchoolId?: string;
 }): Promise<ProductionRegistrationHealResult> {
+  if (opts.apply) {
+    assertDaSilvaHistoricalParentToolAllowed("runDaSilvaProductionRegistrationHeal");
+  }
   const dataRoot = opts.dataRoot || opts.sourceDir;
   const applied: string[] = [];
 
