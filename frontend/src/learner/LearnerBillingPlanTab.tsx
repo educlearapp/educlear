@@ -1,5 +1,6 @@
 import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { API_URL } from "../api";
+import { staffAuthHeaders } from "../auth/staffAuthHeaders";
 import { notifyLearnersRefresh } from "../billing/billingLedger";
 
 const GOLD = "#d4af37";
@@ -172,8 +173,14 @@ export default function LearnerBillingPlanTab({ learner, onLearnerUpdated, setLe
       try {
         const response = await fetch(`${API_URL}/api/learners/${encodeURIComponent(learnerKey)}`, {
           method: "PUT",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ ...learner, billingPlan: normalizedPlan }),
+          headers: { "Content-Type": "application/json", ...staffAuthHeaders() },
+          // Omit parents so this billing-only save does not trigger parent write auth/path.
+          body: JSON.stringify({
+            ...learner,
+            parents: undefined,
+            parent: undefined,
+            billingPlan: normalizedPlan,
+          }),
         });
         const data = await response.json().catch(() => ({}));
         if (!response.ok) {

@@ -14,12 +14,12 @@ import {
 } from "../utils/parentIdConflict";
 import {
   checkApplicationParentIdentity,
-  isOwnerAdminActor,
   linkExistingParentToLearner,
   ParentPossibleMatchError,
   requiresExplicitCreateConfirmation,
 } from "../services/applicationParentIdentity";
 import { ParentIdConflictError } from "../utils/parentIdConflict";
+import { resolveParentStaffAuth } from "../middleware/requireParentStaffAuth";
 
 const router = Router();
 const prisma = new PrismaClient();
@@ -31,15 +31,6 @@ function cleanString(value: unknown) {
 function cleanBool(value: unknown, fallback: boolean) {
   if (value === undefined || value === null) return fallback;
   return Boolean(value);
-}
-
-function readActorRole(req: { body?: any; headers?: any }): string {
-  return (
-    cleanString(req.body?.actorRole) ||
-    cleanString(req.body?.actorAppRole) ||
-    cleanString(req.headers?.["x-app-role"]) ||
-    ""
-  );
 }
 
 /** GET /api/parents/fee-check/:idNumber — cross-school guardian ID fee lookup (dashboard). */
@@ -110,11 +101,23 @@ router.get("/fee-check/:idNumber", async (req, res) => {
 
 /**
  * GET /api/parents/id-ownership?idNumber=&excludeParentId=&cellNo=&email=
- * Lookup who owns an SA ID and soft duplicate-parent signals (cell/email overlap).
+ * Authenticated staff only. Cross-school ownership returns safe semantics without PII.
  */
 router.get("/id-ownership", async (req, res) => {
   res.setHeader("Cache-Control", "no-store, no-cache, must-revalidate");
   try {
+    const authDecision = await resolveParentStaffAuth(req, {
+      requirePermission: { module: "parents", action: "view" },
+    });
+    if (!authDecision.allowed) {
+      return res.status(authDecision.status).json({
+        success: false,
+        message: authDecision.error,
+        code: authDecision.code || null,
+      });
+    }
+    const staffAuth = authDecision.auth;
+
     const idNumber = cleanString(req.query?.idNumber);
     if (!idNumber) {
       return res.status(400).json({ success: false, message: "Missing idNumber" });
@@ -129,19 +132,49 @@ router.get("/id-ownership", async (req, res) => {
       Boolean(existingParent) &&
       (!excludeParentId || existingParent!.id !== excludeParentId);
 
-    const warning = await findDuplicateParentSignal({
-      prisma,
-      idNumber,
-      excludeParentId,
-      cellNo,
-      email,
-    });
+    if (ownedByOther && existingParent && existingParent.schoolId !== staffAuth.authorizedSchoolId) {
+      return res.json({
+        success: true,
+        idNumber,
+        owned: true,
+        ownedByOther: true,
+        accessible: false,
+        existingParent: null,
+        warning: null,
+        conflictMessage: PARENT_ID_CONFLICT_MESSAGE,
+      });
+    }
+
+    const sameSchoolAccessible =
+      ownedByOther &&
+      existingParent &&
+      existingParent.schoolId === staffAuth.authorizedSchoolId &&
+      staffAuth.isOwnerAdmin;
+
+    let warning = null as Awaited<ReturnType<typeof findDuplicateParentSignal>>;
+    if (staffAuth.isOwnerAdmin) {
+      warning = await findDuplicateParentSignal({
+        prisma,
+        idNumber,
+        excludeParentId,
+        cellNo,
+        email,
+      });
+      if (
+        warning?.existingParent &&
+        warning.existingParent.schoolId !== staffAuth.authorizedSchoolId
+      ) {
+        warning = null;
+      }
+    }
 
     return res.json({
       success: true,
       idNumber,
+      owned: ownedByOther,
       ownedByOther,
-      existingParent: ownedByOther ? existingParent : null,
+      accessible: Boolean(sameSchoolAccessible),
+      existingParent: sameSchoolAccessible ? existingParent : null,
       warning,
       conflictMessage: ownedByOther ? PARENT_ID_CONFLICT_MESSAGE : null,
     });
@@ -156,17 +189,24 @@ router.get("/id-ownership", async (req, res) => {
 
 router.post("/", async (req, res) => {
   try {
-    const schoolId = cleanString(req.body?.schoolId);
-    if (!schoolId) {
-      return res.status(400).json({ success: false, message: "Missing schoolId" });
+    const authDecision = await resolveParentStaffAuth(req, {
+      requirePermission: { module: "parents", action: "create" },
+    });
+    if (!authDecision.allowed) {
+      return res.status(authDecision.status).json({
+        success: false,
+        message: authDecision.error,
+        code: authDecision.code || null,
+      });
     }
+    const staffAuth = authDecision.auth;
+    const schoolId = staffAuth.authorizedSchoolId;
 
     const identity = parentIdentityForCreate(req.body || {});
     const confirmCreateDespiteMatch = Boolean(
       req.body?.confirmCreateDespiteMatch === true ||
         req.body?.confirmCreateDespiteMatch === "true"
     );
-    const actorIsOwnerAdmin = isOwnerAdminActor(readActorRole(req));
 
     const identityCheck = await checkApplicationParentIdentity({
       prisma,
@@ -180,7 +220,7 @@ router.post("/", async (req, res) => {
         relationship: cleanString(req.body?.relationship),
       },
       excludeParentId: null,
-      actorIsOwnerAdmin,
+      actorIsOwnerAdmin: staffAuth.isOwnerAdmin,
     });
 
     if (identityCheck.decision === "EXISTING_PARENT_MATCH") {
@@ -192,16 +232,27 @@ router.post("/", async (req, res) => {
             idNumber: identity.idNumber || cleanString(req.body?.idNumber),
             existingParent: identityCheck.existingParent,
           }
-        : await buildParentIdConflictBody(prisma, identity.idNumber || cleanString(req.body?.idNumber));
+        : await buildParentIdConflictBody(
+            prisma,
+            identity.idNumber || cleanString(req.body?.idNumber)
+          );
       return res.status(409).json(body);
     }
 
     if (
       identityCheck.decision === "POSSIBLE_MATCH" &&
-      requiresExplicitCreateConfirmation(identityCheck) &&
-      !confirmCreateDespiteMatch
+      requiresExplicitCreateConfirmation(identityCheck)
     ) {
-      throw new ParentPossibleMatchError(identityCheck);
+      if (!confirmCreateDespiteMatch) {
+        throw new ParentPossibleMatchError(identityCheck);
+      }
+      if (!staffAuth.isOwnerAdmin) {
+        return res.status(403).json({
+          success: false,
+          code: "FORBIDDEN_CREATE_DESPITE_MATCH",
+          message: "Only Owner/Admin may create a parent despite a strong possible match.",
+        });
+      }
     }
 
     const parent = await prisma.parent.create({
@@ -248,7 +299,8 @@ router.post("/", async (req, res) => {
       return res.status(409).json(error.body);
     }
     if (isParentIdNumberUniqueTarget(error)) {
-      const idNumber = parentIdentityForCreate(req.body || {}).idNumber || cleanString(req.body?.idNumber);
+      const idNumber =
+        parentIdentityForCreate(req.body || {}).idNumber || cleanString(req.body?.idNumber);
       const body = await buildParentIdConflictBody(prisma, idNumber || "");
       return res.status(409).json(body);
     }
@@ -265,15 +317,24 @@ router.post("/", async (req, res) => {
 
 /**
  * POST /api/parents/link-to-learner
- * Link an existing Parent to a Learner without creating a Parent or changing FamilyAccount.
- * Owner/Admin only (actorRole / x-app-role).
+ * Trusted Owner/Admin only (staff JWT + DB role). Client role headers are ignored.
  */
 router.post("/link-to-learner", async (req, res) => {
   try {
-    const schoolId = cleanString(req.body?.schoolId);
+    const authDecision = await resolveParentStaffAuth(req, {
+      requireOwnerAdmin: true,
+    });
+    if (!authDecision.allowed) {
+      return res.status(authDecision.status).json({
+        success: false,
+        code: authDecision.code || null,
+        message: authDecision.error,
+      });
+    }
+    const staffAuth = authDecision.auth;
+    const schoolId = staffAuth.authorizedSchoolId;
     const parentId = cleanString(req.body?.parentId);
     const learnerId = cleanString(req.body?.learnerId);
-    const actorIsOwnerAdmin = isOwnerAdminActor(readActorRole(req));
 
     const result = await linkExistingParentToLearner({
       prisma,
@@ -282,7 +343,7 @@ router.post("/link-to-learner", async (req, res) => {
       learnerId,
       relation: cleanString(req.body?.relation || req.body?.relationship) || null,
       isPrimary: req.body?.isPrimary !== undefined ? Boolean(req.body.isPrimary) : true,
-      actorIsOwnerAdmin,
+      actorIsOwnerAdmin: true,
     });
     return res.json(result);
   } catch (error: unknown) {
@@ -298,13 +359,23 @@ router.post("/link-to-learner", async (req, res) => {
 
 /**
  * POST /api/parents/identity-check — soft/hard identity preview (no writes).
+ * Bound to authenticated school. Rich candidate details for Owner/Admin only.
  */
 router.post("/identity-check", async (req, res) => {
   try {
-    const schoolId = cleanString(req.body?.schoolId);
-    if (!schoolId) {
-      return res.status(400).json({ success: false, message: "Missing schoolId" });
+    const authDecision = await resolveParentStaffAuth(req, {
+      requirePermission: { module: "parents", action: "view" },
+    });
+    if (!authDecision.allowed) {
+      return res.status(authDecision.status).json({
+        success: false,
+        message: authDecision.error,
+        code: authDecision.code || null,
+      });
     }
+    const staffAuth = authDecision.auth;
+    const schoolId = staffAuth.authorizedSchoolId;
+
     const result = await checkApplicationParentIdentity({
       prisma,
       schoolId,
@@ -317,8 +388,23 @@ router.post("/identity-check", async (req, res) => {
         relationship: cleanString(req.body?.relationship),
       },
       excludeParentId: cleanString(req.body?.excludeParentId) || null,
-      actorIsOwnerAdmin: isOwnerAdminActor(readActorRole(req)),
+      actorIsOwnerAdmin: staffAuth.isOwnerAdmin,
     });
+
+    if (!staffAuth.isOwnerAdmin) {
+      return res.json({
+        success: true,
+        decision: result.decision,
+        code: result.code,
+        message: result.message,
+        confidence: result.confidence,
+        existingParent: null,
+        candidates: [],
+        allowExplicitCreate: false,
+        allowLinkExisting: false,
+      });
+    }
+
     return res.json({ success: true, ...result });
   } catch (error: unknown) {
     const err = error as { message?: string };
@@ -341,6 +427,25 @@ router.put("/:id", async (req, res) => {
       return res.status(404).json({ success: false, message: "Parent not found" });
     }
 
+    const authDecision = await resolveParentStaffAuth(req, {
+      requestSchoolId: existing.schoolId,
+      requirePermission: { module: "parents", action: "edit" },
+    });
+    if (!authDecision.allowed) {
+      return res.status(authDecision.status).json({
+        success: false,
+        message: authDecision.error,
+        code: authDecision.code || null,
+      });
+    }
+    if (existing.schoolId !== authDecision.auth.authorizedSchoolId) {
+      return res.status(403).json({
+        success: false,
+        message: "Parent is not in your school",
+        code: "SCHOOL_MISMATCH",
+      });
+    }
+
     const identityUpdate = parentIdentityForUpdate(req.body || {});
     const identityCheck = await checkApplicationParentIdentity({
       prisma,
@@ -357,7 +462,7 @@ router.put("/:id", async (req, res) => {
         email: identityUpdate.email !== undefined ? identityUpdate.email : existing.email,
       },
       excludeParentId: id,
-      actorIsOwnerAdmin: isOwnerAdminActor(readActorRole(req)),
+      actorIsOwnerAdmin: authDecision.auth.isOwnerAdmin,
     });
     if (identityCheck.decision === "EXISTING_PARENT_MATCH") {
       const body = identityCheck.existingParent
@@ -424,17 +529,19 @@ router.put("/:id", async (req, res) => {
     return res.json({ success: true, parent });
   } catch (error: unknown) {
     console.error("UPDATE PARENT ERROR:", error);
+    if (error instanceof ParentIdConflictError) {
+      return res.status(409).json(error.body);
+    }
     if (isParentIdNumberUniqueTarget(error)) {
-      const identityUpdate = parentIdentityForUpdate(req.body || {});
-      const idNumber = identityUpdate.idNumber || cleanString(req.body?.idNumber);
-      const body = await buildParentIdConflictBody(prisma, idNumber || "");
+      const idNumber =
+        parentIdentityForUpdate(req.body || {}).idNumber || cleanString(req.body?.idNumber);
+      const body = await buildParentIdConflictBody(prisma, String(idNumber || ""));
       return res.status(409).json(body);
     }
     const err = error as { message?: string };
     return res.status(500).json({
       success: false,
-      message: "Failed to update parent",
-      error: String(err?.message || error),
+      message: err.message || "Failed to update parent",
     });
   }
 });

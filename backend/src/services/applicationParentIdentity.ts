@@ -99,6 +99,7 @@ function cleanString(value: unknown): string {
 }
 
 export function isOwnerAdminActor(actorRole: unknown): boolean {
+  /** @deprecated Not for route authorization — use requireParentStaffAuth / trusted JWT+DB role. */
   const role = String(actorRole || "").trim().toUpperCase();
   const app = String(actorRole || "").trim().toLowerCase();
   return (

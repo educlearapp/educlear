@@ -1,5 +1,6 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { API_URL } from "../api";
+import { staffAuthHeaders } from "../auth/staffAuthHeaders";
 import ParentsSection from "./ParentsSection";
 import type { ParentRecord } from "./parentFormTypes";
 import {
@@ -487,7 +488,7 @@ export default function ManageLearner({
 
       const response = await fetch(`${API_URL}/api/learners/${learner.id}`, {
         method: "PUT",
-        headers: { "Content-Type": "application/json" },
+        headers: { "Content-Type": "application/json", ...staffAuthHeaders() },
         body: JSON.stringify({ parents: payloads }),
       });
       const payload = await response.json().catch(() => ({}));

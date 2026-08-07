@@ -95,12 +95,6 @@ export function parentToApiPayload(
     billingReceipt: parent.billingReceipt !== false,
     isPrimary: parent.isPrimary !== false,
     ...(opts?.confirmCreateDespiteMatch ? { confirmCreateDespiteMatch: true } : {}),
-    actorRole:
-      typeof localStorage !== "undefined"
-        ? localStorage.getItem("userAppRole") ||
-          localStorage.getItem("userRole") ||
-          (localStorage.getItem("isOwner") === "true" ? "owner" : "")
-        : "",
   };
 }
 

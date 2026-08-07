@@ -1,4 +1,5 @@
 import { API_URL } from "../api";
+import { staffAuthHeaders } from "../auth/staffAuthHeaders";
 
 export const PARENT_ID_ALREADY_EXISTS = "PARENT_ID_ALREADY_EXISTS";
 export const POSSIBLE_PARENT_MATCH = "POSSIBLE_PARENT_MATCH";
@@ -145,7 +146,9 @@ export async function fetchParentIdOwnership(input: {
   if (input.excludeParentId) qs.set("excludeParentId", input.excludeParentId);
   if (input.cellNo) qs.set("cellNo", input.cellNo);
   if (input.email) qs.set("email", input.email);
-  const response = await fetch(`${API_URL}/api/parents/id-ownership?${qs.toString()}`);
+  const response = await fetch(`${API_URL}/api/parents/id-ownership?${qs.toString()}`, {
+    headers: { ...staffAuthHeaders() },
+  });
   const payload = await response.json().catch(() => ({}));
   if (!response.ok) {
     throw new Error(payload?.message || "Failed to look up parent ID ownership");
@@ -162,10 +165,13 @@ export async function linkExistingParentToLearnerApi(input: {
 }): Promise<{ success: true; linked: boolean; alreadyLinked: boolean }> {
   const response = await fetch(`${API_URL}/api/parents/link-to-learner`, {
     method: "POST",
-    headers: { "Content-Type": "application/json", "x-app-role": actorRoleForApi() },
+    headers: { "Content-Type": "application/json", ...staffAuthHeaders() },
     body: JSON.stringify({
-      ...input,
-      actorRole: actorRoleForApi(),
+      schoolId: input.schoolId,
+      parentId: input.parentId,
+      learnerId: input.learnerId,
+      relation: input.relation,
+      isPrimary: input.isPrimary,
     }),
   });
   const payload = await response.json().catch(() => ({}));

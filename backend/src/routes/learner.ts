@@ -42,10 +42,10 @@ import {
 } from "../utils/parentIdConflict";
 import {
   checkApplicationParentIdentity,
-  isOwnerAdminActor,
   ParentPossibleMatchError,
   requiresExplicitCreateConfirmation,
 } from "../services/applicationParentIdentity";
+import { resolveParentStaffAuth } from "../middleware/requireParentStaffAuth";
 
 
 
@@ -273,11 +273,14 @@ async function saveParentLinks({
   learnerId,
   familyAccountId,
   parents,
+  trustedIsOwnerAdmin,
 }: {
   schoolId: string;
   learnerId: string;
   familyAccountId?: string | null;
   parents: any[];
+  /** Server-derived Owner/Admin only — never from client role fields. */
+  trustedIsOwnerAdmin: boolean;
 }) {
   for (const rawParent of parents) {
     const parentData = buildParentWriteData(rawParent, schoolId, familyAccountId);
@@ -302,6 +305,17 @@ async function saveParentLinks({
 
     try {
       if (existingParentId) {
+        const owned = await prisma.parent.findFirst({
+          where: { id: existingParentId, schoolId },
+          select: { id: true },
+        });
+        if (!owned) {
+          throw Object.assign(new Error("Parent not found in this school"), {
+            statusCode: 404,
+            code: "PARENT_NOT_FOUND",
+          });
+        }
+
         // UPDATE known Parent — exclude self from identity match; never reassign FamilyAccount.
         const identityCheck = await checkApplicationParentIdentity({
           prisma,
@@ -315,9 +329,7 @@ async function saveParentLinks({
             relationship: parentData.relationship,
           },
           excludeParentId: existingParentId,
-          actorIsOwnerAdmin: isOwnerAdminActor(
-            rawParent.actorRole || rawParent.actorAppRole
-          ),
+          actorIsOwnerAdmin: trustedIsOwnerAdmin,
         });
         if (identityCheck.decision === "EXISTING_PARENT_MATCH") {
           const body = identityCheck.existingParent
@@ -356,9 +368,7 @@ async function saveParentLinks({
             relationship: parentData.relationship,
           },
           excludeParentId: null,
-          actorIsOwnerAdmin: isOwnerAdminActor(
-            rawParent.actorRole || rawParent.actorAppRole
-          ),
+          actorIsOwnerAdmin: trustedIsOwnerAdmin,
         });
 
         if (identityCheck.decision === "EXISTING_PARENT_MATCH") {
@@ -376,10 +386,20 @@ async function saveParentLinks({
 
         if (
           identityCheck.decision === "POSSIBLE_MATCH" &&
-          requiresExplicitCreateConfirmation(identityCheck) &&
-          !confirmCreateDespiteMatch
+          requiresExplicitCreateConfirmation(identityCheck)
         ) {
-          throw new ParentPossibleMatchError(identityCheck);
+          if (!confirmCreateDespiteMatch) {
+            throw new ParentPossibleMatchError(identityCheck);
+          }
+          if (!trustedIsOwnerAdmin) {
+            throw Object.assign(
+              new Error("Only Owner/Admin may create a parent despite a strong possible match."),
+              {
+                statusCode: 403,
+                code: "FORBIDDEN_CREATE_DESPITE_MATCH",
+              }
+            );
+          }
         }
 
         // Do NOT upsert-by-idNumber (that silently updated the other Parent). Create only.
@@ -907,6 +927,19 @@ router.post("/", async (req, res) => {
 
   try {
 
+    const authDecision = await resolveParentStaffAuth(req, {
+      requirePermission: { module: "learners", action: "create" },
+    });
+    if (!authDecision.allowed) {
+      return res.status(authDecision.status).json({
+        success: false,
+        error: authDecision.error,
+        code: authDecision.code || null,
+        message: authDecision.error,
+      });
+    }
+    const staffAuth = authDecision.auth;
+
 
 
     const learner = req.body.learner || req.body;
@@ -937,54 +970,25 @@ router.post("/", async (req, res) => {
 
 
 
-    let school = null;
-
-
-
-    if (learner.schoolId || req.body.schoolId) {
-
-
-
-      school = await prisma.school.findUnique({
-
-
-
-        where: { id: learner.schoolId || req.body.schoolId },
-
-
-
+    const requestedSchoolId = cleanString(learner.schoolId || req.body.schoolId);
+    if (requestedSchoolId && requestedSchoolId !== staffAuth.authorizedSchoolId) {
+      return res.status(403).json({
+        success: false,
+        error: "Request schoolId does not match authenticated school",
+        code: "SCHOOL_MISMATCH",
       });
-
-
-
     }
 
-
-
-    if (!school) {
-
-
-
-      school = await prisma.school.findFirst({
-
-
-
-        orderBy: { createdAt: "asc" },
-
-
-
-      });
-
-
-
-    }
+    const school = await prisma.school.findUnique({
+      where: { id: staffAuth.authorizedSchoolId },
+    });
 
 
 
     if (!school) {
       return res.status(400).json({
         success: false,
-        error: "No school found. Register a school or provide a valid schoolId.",
+        error: "No school found for authenticated user.",
       });
     }
 
@@ -1039,6 +1043,10 @@ router.post("/", async (req, res) => {
 
 
       parents,
+
+
+
+      trustedIsOwnerAdmin: staffAuth.isOwnerAdmin,
 
 
 
@@ -1105,6 +1113,10 @@ router.post("/", async (req, res) => {
 
 
         parents,
+
+
+
+        trustedIsOwnerAdmin: staffAuth.isOwnerAdmin,
 
 
 
@@ -1200,6 +1212,15 @@ router.post("/", async (req, res) => {
     }
     if (error instanceof ParentPossibleMatchError) {
       return res.status(409).json(error.body);
+    }
+    const err = error as { statusCode?: number; code?: string; message?: string };
+    if (err?.statusCode === 403 || err?.statusCode === 404) {
+      return res.status(err.statusCode).json({
+        success: false,
+        error: err.message || "Forbidden",
+        code: err.code || null,
+        message: err.message || "Forbidden",
+      });
     }
 
     if (error instanceof FinanceAccountBaselineError) {
@@ -1323,6 +1344,47 @@ router.put("/:id", async (req, res) => {
 
 
     const { id } = req.params;
+
+    const hasParentsPayload =
+      Array.isArray(req.body?.parents) ||
+      Array.isArray(req.body?.learner?.parents) ||
+      (req.body?.parent && typeof req.body.parent === "object");
+
+    // Parent writes require trusted staff auth. Learner-only updates keep prior contract
+    // (callers like classroom reassignment / billing plan) unless parents are present.
+    let trustedIsOwnerAdmin = false;
+    let authorizedSchoolId: string | null = null;
+
+    if (hasParentsPayload) {
+      const existingForAuth = await prisma.learner.findUnique({
+        where: { id },
+        select: { schoolId: true },
+      });
+      if (!existingForAuth) {
+        return res.status(404).json({ success: false, error: "Learner not found" });
+      }
+      const authDecision = await resolveParentStaffAuth(req, {
+        requestSchoolId: existingForAuth.schoolId,
+        requirePermission: { module: "parents", action: "edit" },
+      });
+      if (!authDecision.allowed) {
+        return res.status(authDecision.status).json({
+          success: false,
+          error: authDecision.error,
+          code: authDecision.code || null,
+          message: authDecision.error,
+        });
+      }
+      trustedIsOwnerAdmin = authDecision.auth.isOwnerAdmin;
+      authorizedSchoolId = authDecision.auth.authorizedSchoolId;
+      if (existingForAuth.schoolId !== authorizedSchoolId) {
+        return res.status(403).json({
+          success: false,
+          error: "Learner is not in your school",
+          code: "SCHOOL_MISMATCH",
+        });
+      }
+    }
 
 
 
@@ -1558,17 +1620,13 @@ router.put("/:id", async (req, res) => {
 
     // Only rewrite parent rows when the client explicitly sent a parents payload.
     // Learner-only updates must not touch Parent.idNumber / Parent.email.
-    const hasParentsPayload =
-      Array.isArray(req.body?.parents) ||
-      Array.isArray(req.body?.learner?.parents) ||
-      (req.body?.parent && typeof req.body.parent === "object");
-
     if (hasParentsPayload) {
       await saveParentLinks({
         schoolId: updatedLearner.schoolId,
         learnerId: updatedLearner.id,
         familyAccountId: updatedLearner.familyAccountId,
         parents,
+        trustedIsOwnerAdmin,
       });
     }
 
@@ -1675,6 +1733,15 @@ router.put("/:id", async (req, res) => {
     }
     if (error instanceof ParentPossibleMatchError) {
       return res.status(409).json(error.body);
+    }
+    const err = error as { statusCode?: number; code?: string; message?: string };
+    if (err?.statusCode === 403 || err?.statusCode === 404) {
+      return res.status(err.statusCode).json({
+        success: false,
+        error: err.message || "Forbidden",
+        code: err.code || null,
+        message: err.message || "Forbidden",
+      });
     }
 
 
