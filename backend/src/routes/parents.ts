@@ -12,6 +12,14 @@ import {
   isParentIdNumberUniqueTarget,
   PARENT_ID_CONFLICT_MESSAGE,
 } from "../utils/parentIdConflict";
+import {
+  checkApplicationParentIdentity,
+  isOwnerAdminActor,
+  linkExistingParentToLearner,
+  ParentPossibleMatchError,
+  requiresExplicitCreateConfirmation,
+} from "../services/applicationParentIdentity";
+import { ParentIdConflictError } from "../utils/parentIdConflict";
 
 const router = Router();
 const prisma = new PrismaClient();
@@ -23,6 +31,15 @@ function cleanString(value: unknown) {
 function cleanBool(value: unknown, fallback: boolean) {
   if (value === undefined || value === null) return fallback;
   return Boolean(value);
+}
+
+function readActorRole(req: { body?: any; headers?: any }): string {
+  return (
+    cleanString(req.body?.actorRole) ||
+    cleanString(req.body?.actorAppRole) ||
+    cleanString(req.headers?.["x-app-role"]) ||
+    ""
+  );
 }
 
 /** GET /api/parents/fee-check/:idNumber — cross-school guardian ID fee lookup (dashboard). */
@@ -145,6 +162,47 @@ router.post("/", async (req, res) => {
     }
 
     const identity = parentIdentityForCreate(req.body || {});
+    const confirmCreateDespiteMatch = Boolean(
+      req.body?.confirmCreateDespiteMatch === true ||
+        req.body?.confirmCreateDespiteMatch === "true"
+    );
+    const actorIsOwnerAdmin = isOwnerAdminActor(readActorRole(req));
+
+    const identityCheck = await checkApplicationParentIdentity({
+      prisma,
+      schoolId,
+      incoming: {
+        firstName: cleanString(req.body?.firstName),
+        surname: cleanString(req.body?.surname),
+        idNumber: identity.idNumber || req.body?.idNumber,
+        cellNo: cleanString(req.body?.cellNo || req.body?.cell || req.body?.phone),
+        email: identity.email || req.body?.email,
+        relationship: cleanString(req.body?.relationship),
+      },
+      excludeParentId: null,
+      actorIsOwnerAdmin,
+    });
+
+    if (identityCheck.decision === "EXISTING_PARENT_MATCH") {
+      const body = identityCheck.existingParent
+        ? {
+            success: false as const,
+            code: "PARENT_ID_ALREADY_EXISTS" as const,
+            message: identityCheck.message,
+            idNumber: identity.idNumber || cleanString(req.body?.idNumber),
+            existingParent: identityCheck.existingParent,
+          }
+        : await buildParentIdConflictBody(prisma, identity.idNumber || cleanString(req.body?.idNumber));
+      return res.status(409).json(body);
+    }
+
+    if (
+      identityCheck.decision === "POSSIBLE_MATCH" &&
+      requiresExplicitCreateConfirmation(identityCheck) &&
+      !confirmCreateDespiteMatch
+    ) {
+      throw new ParentPossibleMatchError(identityCheck);
+    }
 
     const parent = await prisma.parent.create({
       data: {
@@ -172,9 +230,23 @@ router.post("/", async (req, res) => {
       },
     });
 
-    return res.json({ success: true, parent });
+    return res.json({
+      success: true,
+      parent,
+      identityDecision: identityCheck.decision,
+      identityWarning:
+        identityCheck.decision === "CONFLICT" || identityCheck.decision === "POSSIBLE_MATCH"
+          ? identityCheck.message
+          : null,
+    });
   } catch (error: unknown) {
     console.error("CREATE PARENT ERROR:", error);
+    if (error instanceof ParentPossibleMatchError) {
+      return res.status(409).json(error.body);
+    }
+    if (error instanceof ParentIdConflictError) {
+      return res.status(409).json(error.body);
+    }
     if (isParentIdNumberUniqueTarget(error)) {
       const idNumber = parentIdentityForCreate(req.body || {}).idNumber || cleanString(req.body?.idNumber);
       const body = await buildParentIdConflictBody(prisma, idNumber || "");
@@ -187,6 +259,72 @@ router.post("/", async (req, res) => {
       error: String(err?.message || error),
       code: err?.code || null,
       meta: err?.meta || null,
+    });
+  }
+});
+
+/**
+ * POST /api/parents/link-to-learner
+ * Link an existing Parent to a Learner without creating a Parent or changing FamilyAccount.
+ * Owner/Admin only (actorRole / x-app-role).
+ */
+router.post("/link-to-learner", async (req, res) => {
+  try {
+    const schoolId = cleanString(req.body?.schoolId);
+    const parentId = cleanString(req.body?.parentId);
+    const learnerId = cleanString(req.body?.learnerId);
+    const actorIsOwnerAdmin = isOwnerAdminActor(readActorRole(req));
+
+    const result = await linkExistingParentToLearner({
+      prisma,
+      schoolId,
+      parentId,
+      learnerId,
+      relation: cleanString(req.body?.relation || req.body?.relationship) || null,
+      isPrimary: req.body?.isPrimary !== undefined ? Boolean(req.body.isPrimary) : true,
+      actorIsOwnerAdmin,
+    });
+    return res.json(result);
+  } catch (error: unknown) {
+    const err = error as { statusCode?: number; code?: string; message?: string };
+    const status = err.statusCode || 500;
+    return res.status(status).json({
+      success: false,
+      code: err.code || null,
+      message: err.message || "Failed to link parent",
+    });
+  }
+});
+
+/**
+ * POST /api/parents/identity-check — soft/hard identity preview (no writes).
+ */
+router.post("/identity-check", async (req, res) => {
+  try {
+    const schoolId = cleanString(req.body?.schoolId);
+    if (!schoolId) {
+      return res.status(400).json({ success: false, message: "Missing schoolId" });
+    }
+    const result = await checkApplicationParentIdentity({
+      prisma,
+      schoolId,
+      incoming: {
+        firstName: cleanString(req.body?.firstName),
+        surname: cleanString(req.body?.surname),
+        idNumber: req.body?.idNumber,
+        cellNo: cleanString(req.body?.cellNo || req.body?.cell || req.body?.phone),
+        email: req.body?.email,
+        relationship: cleanString(req.body?.relationship),
+      },
+      excludeParentId: cleanString(req.body?.excludeParentId) || null,
+      actorIsOwnerAdmin: isOwnerAdminActor(readActorRole(req)),
+    });
+    return res.json({ success: true, ...result });
+  } catch (error: unknown) {
+    const err = error as { message?: string };
+    return res.status(500).json({
+      success: false,
+      message: err.message || "Identity check failed",
     });
   }
 });
@@ -204,6 +342,40 @@ router.put("/:id", async (req, res) => {
     }
 
     const identityUpdate = parentIdentityForUpdate(req.body || {});
+    const identityCheck = await checkApplicationParentIdentity({
+      prisma,
+      schoolId: existing.schoolId,
+      incoming: {
+        firstName: cleanString(req.body?.firstName) || existing.firstName,
+        surname: cleanString(req.body?.surname || req.body?.lastName) || existing.surname,
+        idNumber:
+          identityUpdate.idNumber !== undefined ? identityUpdate.idNumber : existing.idNumber,
+        cellNo:
+          req.body?.cellNo !== undefined
+            ? cleanString(req.body.cellNo || req.body.cell || req.body.phone)
+            : existing.cellNo,
+        email: identityUpdate.email !== undefined ? identityUpdate.email : existing.email,
+      },
+      excludeParentId: id,
+      actorIsOwnerAdmin: isOwnerAdminActor(readActorRole(req)),
+    });
+    if (identityCheck.decision === "EXISTING_PARENT_MATCH") {
+      const body = identityCheck.existingParent
+        ? {
+            success: false as const,
+            code: "PARENT_ID_ALREADY_EXISTS" as const,
+            message: identityCheck.message,
+            idNumber: String(
+              identityUpdate.idNumber || identityCheck.existingParent.idNumber || ""
+            ),
+            existingParent: identityCheck.existingParent,
+          }
+        : await buildParentIdConflictBody(
+            prisma,
+            String(identityUpdate.idNumber || req.body?.idNumber || "")
+          );
+      return res.status(409).json(body);
+    }
 
     const parent = await prisma.parent.update({
       where: { id },

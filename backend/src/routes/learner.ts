@@ -40,6 +40,12 @@ import {
   isParentIdNumberUniqueTarget,
   ParentIdConflictError,
 } from "../utils/parentIdConflict";
+import {
+  checkApplicationParentIdentity,
+  isOwnerAdminActor,
+  ParentPossibleMatchError,
+  requiresExplicitCreateConfirmation,
+} from "../services/applicationParentIdentity";
 
 
 
@@ -263,53 +269,24 @@ function normaliseParents(body: any) {
 
 
 async function saveParentLinks({
-
-
-
   schoolId,
-
-
-
   learnerId,
-
-
-
   familyAccountId,
-
-
-
   parents,
-
-
-
 }: {
-
-
-
   schoolId: string;
-
-
-
   learnerId: string;
-
-
-
   familyAccountId?: string | null;
-
-
-
   parents: any[];
-
-
-
 }) {
-
-
-
   for (const rawParent of parents) {
     const parentData = buildParentWriteData(rawParent, schoolId, familyAccountId);
     const linkData = buildLinkWriteData(rawParent);
     const idNumber = cleanString(rawParent.idNumber);
+    const existingParentId =
+      rawParent.id && !String(rawParent.id).startsWith("local-parent-")
+        ? String(rawParent.id).trim()
+        : "";
 
     if (
       !parentData.firstName &&
@@ -324,26 +301,96 @@ async function saveParentLinks({
     let parent = null;
 
     try {
-      if (rawParent.id && !String(rawParent.id).startsWith("local-parent-")) {
-        // UPDATE: never write blank/null idNumber or email over existing values.
+      if (existingParentId) {
+        // UPDATE known Parent — exclude self from identity match; never reassign FamilyAccount.
+        const identityCheck = await checkApplicationParentIdentity({
+          prisma,
+          schoolId,
+          incoming: {
+            firstName: parentData.firstName,
+            surname: parentData.surname,
+            idNumber: rawParent.idNumber,
+            cellNo: parentData.cellNo,
+            email: rawParent.email,
+            relationship: parentData.relationship,
+          },
+          excludeParentId: existingParentId,
+          actorIsOwnerAdmin: isOwnerAdminActor(
+            rawParent.actorRole || rawParent.actorAppRole
+          ),
+        });
+        if (identityCheck.decision === "EXISTING_PARENT_MATCH") {
+          const body = identityCheck.existingParent
+            ? {
+                success: false as const,
+                code: "PARENT_ID_ALREADY_EXISTS" as const,
+                message: identityCheck.message,
+                idNumber: idNumber || String(identityCheck.existingParent.idNumber || ""),
+                existingParent: identityCheck.existingParent,
+              }
+            : await buildParentIdConflictBody(prisma, idNumber || "");
+          throw new ParentIdConflictError(body);
+        }
+
         const updateData = applyParentIdentityPreservationForUpdate(parentData, rawParent);
+        delete (updateData as { familyAccountId?: unknown }).familyAccountId;
         parent = await prisma.parent.update({
-          where: { id: rawParent.id },
+          where: { id: existingParentId },
           data: updateData,
         });
-      } else if (idNumber) {
-        const updateData = applyParentIdentityPreservationForUpdate(parentData, rawParent);
-        parent = await prisma.parent.upsert({
-          where: { idNumber },
-          update: updateData,
-          create: { ...parentData, idNumber },
-        });
       } else {
+        // CREATE — identity check before insert. Exact ID → block. Strong contact → require confirm.
+        const confirmCreateDespiteMatch = Boolean(
+          rawParent.confirmCreateDespiteMatch === true ||
+            rawParent.confirmCreateDespiteMatch === "true"
+        );
+        const identityCheck = await checkApplicationParentIdentity({
+          prisma,
+          schoolId,
+          incoming: {
+            firstName: parentData.firstName,
+            surname: parentData.surname,
+            idNumber: rawParent.idNumber,
+            cellNo: parentData.cellNo,
+            email: rawParent.email,
+            relationship: parentData.relationship,
+          },
+          excludeParentId: null,
+          actorIsOwnerAdmin: isOwnerAdminActor(
+            rawParent.actorRole || rawParent.actorAppRole
+          ),
+        });
+
+        if (identityCheck.decision === "EXISTING_PARENT_MATCH") {
+          const body = identityCheck.existingParent
+            ? {
+                success: false as const,
+                code: "PARENT_ID_ALREADY_EXISTS" as const,
+                message: identityCheck.message,
+                idNumber: idNumber || String(identityCheck.existingParent.idNumber || ""),
+                existingParent: identityCheck.existingParent,
+              }
+            : await buildParentIdConflictBody(prisma, idNumber || "");
+          throw new ParentIdConflictError(body);
+        }
+
+        if (
+          identityCheck.decision === "POSSIBLE_MATCH" &&
+          requiresExplicitCreateConfirmation(identityCheck) &&
+          !confirmCreateDespiteMatch
+        ) {
+          throw new ParentPossibleMatchError(identityCheck);
+        }
+
+        // Do NOT upsert-by-idNumber (that silently updated the other Parent). Create only.
         parent = await prisma.parent.create({
           data: parentData,
         });
       }
     } catch (error: unknown) {
+      if (error instanceof ParentIdConflictError || error instanceof ParentPossibleMatchError) {
+        throw error;
+      }
       if (isParentIdNumberUniqueTarget(error)) {
         const conflictId =
           idNumber ||
@@ -371,9 +418,6 @@ async function saveParentLinks({
       },
     });
   }
-
-
-
 }
 
 
@@ -1154,6 +1198,9 @@ router.post("/", async (req, res) => {
     if (error instanceof ParentIdConflictError) {
       return res.status(409).json(error.body);
     }
+    if (error instanceof ParentPossibleMatchError) {
+      return res.status(409).json(error.body);
+    }
 
     if (error instanceof FinanceAccountBaselineError) {
       return res.status(500).json({
@@ -1624,6 +1671,9 @@ router.put("/:id", async (req, res) => {
     console.error("UPDATE LEARNER ERROR:", error);
 
     if (error instanceof ParentIdConflictError) {
+      return res.status(409).json(error.body);
+    }
+    if (error instanceof ParentPossibleMatchError) {
       return res.status(409).json(error.body);
     }
 

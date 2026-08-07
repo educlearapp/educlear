@@ -63,7 +63,10 @@ export function parentDisplayName(parent: ParentRecord) {
   return `${parent.firstName || ""} ${parent.surname || ""}`.trim() || "Parent";
 }
 
-export function parentToApiPayload(parent: ParentRecord) {
+export function parentToApiPayload(
+  parent: ParentRecord,
+  opts?: { confirmCreateDespiteMatch?: boolean }
+) {
   const idNumber = (parent.idNumber || "").trim();
   const email = (parent.email || "").trim();
   return {
@@ -91,6 +94,13 @@ export function parentToApiPayload(parent: ParentRecord) {
     billingInvoice: parent.billingInvoice !== false,
     billingReceipt: parent.billingReceipt !== false,
     isPrimary: parent.isPrimary !== false,
+    ...(opts?.confirmCreateDespiteMatch ? { confirmCreateDespiteMatch: true } : {}),
+    actorRole:
+      typeof localStorage !== "undefined"
+        ? localStorage.getItem("userAppRole") ||
+          localStorage.getItem("userRole") ||
+          (localStorage.getItem("isOwner") === "true" ? "owner" : "")
+        : "",
   };
 }
 
