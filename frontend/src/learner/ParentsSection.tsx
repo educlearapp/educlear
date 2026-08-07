@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import ParentFormPanel from "./ParentFormPanel";
 import type { ParentRecord } from "./parentFormTypes";
 import {
@@ -8,6 +8,14 @@ import {
   parentToApiPayload,
   validateParentForSave,
 } from "./parentFormUtils";
+import {
+  canViewExistingParentConflict,
+  existingParentDisplayName,
+  fetchParentIdOwnership,
+  ParentIdConflictClientError,
+  PARENT_ID_CONFLICT_MESSAGE,
+  type ExistingParentConflict,
+} from "./parentIdConflict";
 
 export type ParentsSectionProps = {
   parents: ParentRecord[];
@@ -17,6 +25,14 @@ export type ParentsSectionProps = {
   onSendEmail?: (parent: ParentRecord) => void;
   onSendSms?: (parent: ParentRecord) => void;
   onPersistParent?: (parent: ParentRecord) => Promise<ParentRecord | void>;
+  /** Owner/Admin: open the learner profile that owns the conflicting parent ID. */
+  onViewExistingParent?: (existing: ExistingParentConflict) => void | Promise<void>;
+  /** Notify host when Manage/Add Parent form has an unsaved typed ID. */
+  onUnsavedParentIdEditChange?: (state: {
+    active: boolean;
+    draftIdNumber: string;
+    parentId?: string;
+  }) => void;
   className?: string;
 };
 
@@ -30,6 +46,8 @@ export default function ParentsSection({
   onSendEmail,
   onSendSms,
   onPersistParent,
+  onViewExistingParent,
+  onUnsavedParentIdEditChange,
   className = "",
 }: ParentsSectionProps) {
   const [selectedId, setSelectedId] = useState<string>("");
@@ -38,6 +56,27 @@ export default function ParentsSection({
   const [existingPickId, setExistingPickId] = useState("");
   const [moreOpen, setMoreOpen] = useState(false);
   const [saving, setSaving] = useState(false);
+
+  useEffect(() => {
+    const pending = String(localStorage.getItem("selectedParentIdForManage") || "").trim();
+    if (!pending) return;
+    const match = parents.find((p) => String(p.id || "") === pending);
+    if (!match) return;
+    setSelectedId(String(match.id));
+    setParentMode("manage");
+    setParentDraft({ ...match });
+    localStorage.removeItem("selectedParentIdForManage");
+  }, [parents]);
+
+  useEffect(() => {
+    if (!onUnsavedParentIdEditChange) return;
+    const active = parentMode === "add" || parentMode === "manage";
+    onUnsavedParentIdEditChange({
+      active,
+      draftIdNumber: active ? (parentDraft.idNumber || "").trim() : "",
+      parentId: parentDraft.id,
+    });
+  }, [parentMode, parentDraft, onUnsavedParentIdEditChange]);
 
   const selectedParent = useMemo(
     () => parents.find((p) => String(p.id || "") === String(selectedId)) || null,
@@ -75,11 +114,44 @@ export default function ParentsSection({
     setExistingPickId("");
   };
 
+  const presentIdConflict = async (existing: ExistingParentConflict | null, message?: string) => {
+    window.alert(message || PARENT_ID_CONFLICT_MESSAGE);
+    if (
+      canViewExistingParentConflict() &&
+      existing?.primaryLearnerId &&
+      onViewExistingParent
+    ) {
+      const label = existingParentDisplayName(existing);
+      const go = window.confirm(`View existing parent (${label})?`);
+      if (go) await onViewExistingParent(existing);
+    }
+  };
+
   const commitParent = async () => {
     const err = validateParentForSave(parentDraft);
     if (err) {
       window.alert(err);
       return;
+    }
+
+    const draftIdNumber = (parentDraft.idNumber || "").trim();
+    if (draftIdNumber) {
+      try {
+        const ownership = await fetchParentIdOwnership({
+          idNumber: draftIdNumber,
+          excludeParentId: parentDraft.id,
+          cellNo: parentDraft.cellNo || parentDraft.cell || parentDraft.phone,
+          email: parentDraft.email,
+        });
+        if (ownership.warning) {
+          const proceed = window.confirm(
+            `${ownership.warning.message}\n\nContinue saving anyway?`
+          );
+          if (!proceed) return;
+        }
+      } catch {
+        // Soft pre-check only — save path still authoritative for conflicts.
+      }
     }
 
     setSaving(true);
@@ -94,6 +166,7 @@ export default function ParentsSection({
           setSelectedId(String(saved.id || ""));
         }
         cancelForm();
+        window.alert("Parent saved.");
         return;
       }
 
@@ -109,6 +182,12 @@ export default function ParentsSection({
         setSelectedId(String(id));
       }
       cancelForm();
+    } catch (error) {
+      if (error instanceof ParentIdConflictClientError) {
+        await presentIdConflict(error.payload.existingParent, error.payload.message);
+        return;
+      }
+      window.alert(error instanceof Error ? error.message : "Failed to save parent");
     } finally {
       setSaving(false);
     }

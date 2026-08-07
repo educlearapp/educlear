@@ -2,7 +2,16 @@ import React, { useEffect, useMemo, useState } from "react";
 import { API_URL } from "../api";
 import ParentsSection from "./ParentsSection";
 import type { ParentRecord } from "./parentFormTypes";
-import { normalizeParentRecord, parentToApiPayload } from "./parentFormUtils";
+import {
+  normalizeParentRecord,
+  PARENT_ID_USE_SAVE_PARENT_MESSAGE,
+  parentToApiPayload,
+} from "./parentFormUtils";
+import {
+  ParentIdConflictClientError,
+  parseParentIdConflictPayload,
+  type ExistingParentConflict,
+} from "./parentIdConflict";
 import {
   calculateLearnerAge,
   getBirthDateFromSouthAfricanId,
@@ -24,6 +33,8 @@ export type ManageLearnerProps = {
   parents: any[];
   setParents: React.Dispatch<React.SetStateAction<any[]>>;
   onBack: () => void;
+  /** Navigate to another learner profile (e.g. owner of a conflicting parent ID). */
+  onNavigateToLearner?: (learner: any) => void;
 };
 
 const actionBtn: React.CSSProperties = {
@@ -260,8 +271,14 @@ export default function ManageLearner({
   parents,
   setParents,
   onBack,
+  onNavigateToLearner,
 }: ManageLearnerProps) {
   const [profileMoreOpen, setProfileMoreOpen] = useState(false);
+  const [unsavedParentIdEdit, setUnsavedParentIdEdit] = useState<{
+    active: boolean;
+    draftIdNumber: string;
+    parentId?: string;
+  }>({ active: false, draftIdNumber: "" });
   const [profileTab, setProfileTab] = useState<ProfileTab>("general");
   const [detailLearner, setDetailLearner] = useState<any | null>(null);
   const [detailLoading, setDetailLoading] = useState(false);
@@ -465,7 +482,14 @@ export default function ManageLearner({
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ parents: payloads }),
       });
-      if (!response.ok) throw new Error("Failed to save parent");
+      const payload = await response.json().catch(() => ({}));
+      if (!response.ok) {
+        const conflict = parseParentIdConflictPayload(payload);
+        if (response.status === 409 && conflict) {
+          throw new ParentIdConflictClientError(conflict);
+        }
+        throw new Error(payload?.error || payload?.message || "Failed to save parent");
+      }
 
       const reloaded = await reloadLearnerProfile();
       const normalized = Array.isArray(reloaded?.parents)
@@ -479,6 +503,32 @@ export default function ManageLearner({
         normalized.find((p: ParentRecord) => draft.idNumber && p.idNumber === draft.idNumber) ||
         normalized[normalized.length - 1];
       return match || draft;
+    };
+
+    const viewExistingParent = async (existing: ExistingParentConflict) => {
+      const learnerId = String(existing.primaryLearnerId || "").trim();
+      if (!learnerId) {
+        window.alert("No linked learner was found for that parent record.");
+        return;
+      }
+      const response = await fetch(`${API_URL}/api/learners/${encodeURIComponent(learnerId)}`);
+      const payload = await response.json().catch(() => ({}));
+      if (!response.ok) {
+        throw new Error(payload?.error || "Failed to open existing parent");
+      }
+      const loaded = payload?.learner || payload;
+      if (!loaded?.id) {
+        window.alert("Could not load the learner linked to that parent.");
+        return;
+      }
+      localStorage.setItem("selectedLearnerForManage", JSON.stringify(loaded));
+      localStorage.setItem("selectedParentIdForManage", String(existing.id));
+      if (onNavigateToLearner) {
+        onNavigateToLearner(loaded);
+      } else {
+        setSelectedLearner(loaded);
+        setDetailLearner(normalizeLearnerForManage(loaded));
+      }
     };
 
     const updateLearnerField = (key: string, value: any) => {
@@ -863,6 +913,21 @@ export default function ManageLearner({
   
   
   
+                }
+
+                const linkedForGuard: ParentRecord[] =
+                  Array.isArray(learner?.parents) && learner.parents.length
+                    ? learner.parents.map((p: Record<string, unknown>) => normalizeParentRecord(p))
+                    : [];
+                if (unsavedParentIdEdit.active && unsavedParentIdEdit.draftIdNumber) {
+                  const existing = linkedForGuard.find(
+                    (p) => String(p.id || "") === String(unsavedParentIdEdit.parentId || "")
+                  );
+                  const typed = unsavedParentIdEdit.draftIdNumber;
+                  if (!existing || (existing.idNumber || "").trim() !== typed) {
+                    alert(PARENT_ID_USE_SAVE_PARENT_MESSAGE);
+                    return;
+                  }
                 }
   
   
@@ -2005,6 +2070,8 @@ export default function ManageLearner({
           schoolParents={parents.map((p: Record<string, unknown>) => normalizeParentRecord(p))}
           defaultSurname={learner.lastName || learner.surname || ""}
           onPersistParent={persistParentsToApi}
+          onViewExistingParent={(existing) => void viewExistingParent(existing)}
+          onUnsavedParentIdEditChange={setUnsavedParentIdEdit}
           onSendEmail={(p) => {
             const email = (p.email || "").trim();
             if (!email) {
