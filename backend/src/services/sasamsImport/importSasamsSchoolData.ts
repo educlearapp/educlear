@@ -443,8 +443,15 @@ export async function importSasamsSchoolData(opts: {
   /** Operator resolutions for prior REVIEW/CONFLICT itemKeys. */
   parentIdentityResolutions?: ParentIdentityResolution[];
   /**
-   * When true, only run parent identity preflight (no parent/link writes).
-   * Learner/classroom imports still follow existing flow unless dryRunOnly.
+   * When true, skip Parent / ParentLearnerLink apply only.
+   * NOT a full migration rehearsal — learners/classrooms (and Kid-e-Sys FA/billing)
+   * may still be written. Prefer Universal Migration FULL_MIGRATION_PREFLIGHT for
+   * zero-write rehearsal.
+   */
+  skipParentApply?: boolean;
+  /**
+   * @deprecated Misleading name — use skipParentApply. Kept as alias only.
+   * Does NOT mean zero-write preflight.
    */
   parentIdentityPreflightOnly?: boolean;
 }): Promise<SasamsSchoolImportResult> {
@@ -705,7 +712,10 @@ export async function importSasamsSchoolData(opts: {
   let migrationParentStatus: SasamsSchoolImportResult["migrationParentStatus"] =
     "MIGRATION_REQUIRES_REVIEW";
 
-  if (opts.parentIdentityPreflightOnly) {
+  const skipParentApply =
+    Boolean(opts.skipParentApply) || Boolean(opts.parentIdentityPreflightOnly);
+
+  if (skipParentApply) {
     migrationParentStatus = isParentIdentityPreflightClear(parentIdentityPreflight)
       ? "APPLIED"
       : "MIGRATION_REQUIRES_REVIEW";

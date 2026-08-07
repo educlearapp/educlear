@@ -1,7 +1,6 @@
 import { prisma } from "../../../prisma";
 import { normalizeClassroomInput } from "../../../utils/classroomNormalization";
 import { resolveGenderFromSources } from "../../../utils/learnerGender";
-import { normalizeSaPhone } from "../../parentPortalService";
 import {
   createMigrationImportBatch,
   updateImportBatch,
@@ -36,6 +35,12 @@ import {
   computeMigrationApplyPreview,
 } from "./computeMigrationApplyPreview";
 import { parseStagedMigrationFile, resolveSafeMigrationFilePath } from "./parseStagedMigrationFile";
+import { applyParentIdentityPlan } from "../parentIdentity";
+import {
+  enrichParentMappedFromContactList,
+  runUniversalMigrationParentPreflight,
+  type UniversalParentRowContext,
+} from "./universalMigrationParentIdentity";
 
 const MIGRATION_APPLY_TX_OPTIONS = { maxWait: 30000, timeout: 180000 };
 
@@ -116,121 +121,6 @@ function learnerNamesFromMapped(mapped: MappedRow): { firstName: string; lastNam
   const last = cleanString(mapped.lastName);
   if (first || last) return { firstName: first, lastName: last };
   return splitPersonName(cleanString(mapped.fullName));
-}
-
-function parentNamesFromMapped(mapped: MappedRow): { firstName: string; surname: string } {
-  const explicitFirst = cleanString((mapped as MappedRow & { parentFirstName?: string }).parentFirstName);
-  const explicitSurname = cleanString((mapped as MappedRow & { parentSurname?: string }).parentSurname);
-  if (explicitFirst || explicitSurname) {
-    return {
-      firstName: explicitFirst || "Parent",
-      surname: explicitSurname || "Guardian",
-    };
-  }
-  const fromName = splitPersonName(cleanString(mapped.parentName));
-  return {
-    firstName: fromName.firstName || "Parent",
-    surname: fromName.lastName || "Guardian",
-  };
-}
-
-/** Kid-e-Sys contact_list: fall back to Work/Home when Cell No is empty. */
-function enrichParentMappedFromContactList(
-  mapped: MappedRow,
-  raw: Record<string, string>
-): MappedRow {
-  if (cleanString(mapped.parentPhone)) return mapped;
-  const work = cleanString(raw["Work No"]);
-  const home = cleanString(raw["Home No"]);
-  if (work) return { ...mapped, parentPhone: work };
-  if (home) return { ...mapped, parentPhone: home };
-  return mapped;
-}
-
-async function findLearnerIdForParentLink(
-  tx: TxClient,
-  schoolId: string,
-  mapped: MappedRow
-): Promise<string | null> {
-  const names = learnerNamesFromMapped(mapped);
-  if (!names.firstName && !names.lastName) return null;
-
-  const idNumber = cleanString(mapped.idNumber) || null;
-  const classNorm = normalizeClassroomInput(
-    cleanString(mapped.classroom),
-    cleanString(mapped.grade)
-  );
-  const canonicalClass = classNorm.classroomName || null;
-
-  const existing = await tx.learner.findFirst({
-    where: {
-      schoolId,
-      ...(idNumber
-        ? { idNumber }
-        : {
-            firstName: names.firstName,
-            lastName: names.lastName || names.firstName,
-            className: canonicalClass,
-          }),
-    },
-    select: { id: true },
-  });
-
-  return existing?.id ?? null;
-}
-
-async function ensureParentLearnerLink(
-  tx: TxClient,
-  schoolId: string,
-  parentId: string,
-  learnerId: string,
-  mapped: MappedRow,
-  report: MigrationImportReportRow[],
-  plan: FileApplyPlan,
-  rowNumber: number,
-  createdCounts: MigrationApplyCounts,
-  skippedCounts: MigrationApplyCounts
-): Promise<void> {
-  const existing = await tx.parentLearnerLink.findUnique({
-    where: { parentId_learnerId: { parentId, learnerId } },
-    select: { id: true },
-  });
-
-  if (existing) {
-    pushReport(report, {
-      entityType: "parentLearnerLink",
-      sourceFileId: plan.fileId,
-      sourceFilename: plan.filename,
-      rowNumber,
-      status: "skipped",
-      message: "Parent–learner link already exists",
-      recordId: existing.id,
-    });
-    bumpCount(skippedCounts, "parentLearnerLink");
-    return;
-  }
-
-  const link = await tx.parentLearnerLink.create({
-    data: {
-      schoolId,
-      parentId,
-      learnerId,
-      relation: cleanString(mapped.relationship) || null,
-      isPrimary: true,
-    },
-    select: { id: true },
-  });
-
-  pushReport(report, {
-    entityType: "parentLearnerLink",
-    sourceFileId: plan.fileId,
-    sourceFilename: plan.filename,
-    rowNumber,
-    status: "created",
-    message: "Parent–learner link created",
-    recordId: link.id,
-  });
-  bumpCount(createdCounts, "parentLearnerLink");
 }
 
 function fileEntityKinds(
@@ -424,6 +314,8 @@ export async function applyMigrationStage(
   const stageId = cleanString(input.stageId);
   const targetSchoolId = cleanString(input.targetSchoolId);
   const confirmationText = cleanString(input.confirmationText);
+  const isFullPreflight =
+    input.mode === "FULL_MIGRATION_PREFLIGHT" || Boolean(input.fullMigrationPreflight);
 
   if (!stageId) throw new MigrationApplyError("stageId is required");
   if (!targetSchoolId) throw new MigrationApplyError("targetSchoolId is required");
@@ -469,7 +361,9 @@ export async function applyMigrationStage(
 
   const filePlans = buildFilePlans(stage);
   const proceedWithEligibleActiveOnly = Boolean(input.proceedWithEligibleActiveOnly);
-  validateTransactionApplyGate(stage, proceedWithEligibleActiveOnly);
+  if (!isFullPreflight) {
+    validateTransactionApplyGate(stage, proceedWithEligibleActiveOnly);
+  }
 
   const applyExpectations = await computeMigrationApplyPreview(stage, targetSchoolId);
   try {
@@ -478,6 +372,110 @@ export async function applyMigrationStage(
     const message =
       guardError instanceof Error ? guardError.message : "Learner create guard failed";
     throw new MigrationApplyError(message, { applyExpectations });
+  }
+
+  type ParsedFile = {
+    plan: FileApplyPlan;
+    rows: Record<string, string>[];
+    targetToSource: Map<MigrationTargetField, string>;
+  };
+
+  const parsedFiles: ParsedFile[] = [];
+  for (const plan of filePlans) {
+    if (plan.kidESysStaffImport) continue;
+    const rows = await parseStagedMigrationFile(
+      plan.path,
+      plan.filename,
+      stage.sourceSystem
+    );
+    parsedFiles.push({
+      plan,
+      rows,
+      targetToSource: buildTargetToSource(plan.mappings),
+    });
+  }
+
+  // --- Parent identity preflight (ZERO writes) before any school mutation ---
+  const parentRowContexts: UniversalParentRowContext[] = [];
+  for (const { plan, rows, targetToSource } of parsedFiles) {
+    const applyParents =
+      plan.category === "parents" &&
+      plan.entityKinds.has("parent") &&
+      hasTargetsInSet(plan.mappings, PARENT_FIELDS);
+    if (!applyParents) continue;
+    for (let i = 0; i < rows.length; i++) {
+      let mapped = mapRawRecord(rows[i]!, targetToSource);
+      mapped = enrichParentMappedFromContactList(mapped, rows[i]!);
+      parentRowContexts.push({
+        fileId: plan.fileId,
+        filename: plan.filename,
+        rowNumber: i + 1,
+        mapped,
+        raw: rows[i]!,
+      });
+    }
+  }
+
+  let parentIdentityPreflight: MigrationApplyResult["parentIdentityPreflight"];
+  let parentIdentityReview: MigrationApplyResult["parentIdentityReview"];
+  let parentPreflightClear = true;
+
+  if (parentRowContexts.length > 0) {
+    const preflight = await runUniversalMigrationParentPreflight({
+      prisma,
+      schoolId: targetSchoolId,
+      sourceSystem: stage.sourceSystem,
+      parentRows: parentRowContexts,
+      resolutions: input.parentIdentityResolutions,
+    });
+    parentIdentityPreflight = preflight.report;
+    parentIdentityReview = preflight.reviewContract;
+    parentPreflightClear = preflight.clear;
+  }
+
+  const emptyResultBase = (): MigrationApplyResult => ({
+    batchId: "",
+    stageId: stage.stageId,
+    targetSchoolId: school.id,
+    targetSchoolName: school.name,
+    appliedAt: new Date().toISOString(),
+    success: false,
+    createdCounts: emptyCounts(),
+    skippedCounts: emptyCounts(),
+    failedCounts: emptyCounts(),
+    transactionOutcomes: emptyTransactionOutcomes(),
+    report: [],
+    applyExpectations,
+    parentIdentityPreflight,
+    parentIdentityReview,
+  });
+
+  // TRUE zero-write full migration preflight
+  if (isFullPreflight) {
+    return {
+      ...emptyResultBase(),
+      success: true,
+      migrationStatus: "FULL_MIGRATION_PREFLIGHT",
+      error: parentPreflightClear
+        ? undefined
+        : parentIdentityReview?.message || "MIGRATION REQUIRES REVIEW",
+    };
+  }
+
+  // Unresolved parent identity → ZERO school writes (no half-migrated school)
+  if (parentRowContexts.length > 0 && !parentPreflightClear) {
+    const blocked: MigrationApplyResult = {
+      ...emptyResultBase(),
+      success: false,
+      migrationStatus: "MIGRATION_REQUIRES_REVIEW",
+      error:
+        parentIdentityReview?.message ||
+        "MIGRATION REQUIRES REVIEW — resolve parent identity before apply",
+    };
+    throw new MigrationApplyError(
+      blocked.error || "MIGRATION_REQUIRES_REVIEW",
+      blocked
+    );
   }
 
   const batch = createMigrationImportBatch({
@@ -508,30 +506,11 @@ export async function applyMigrationStage(
     transactionOutcomes: { ...transactionOutcomes },
     report: [...report],
     applyExpectations,
+    parentIdentityPreflight,
+    parentIdentityReview,
   });
 
   try {
-    type ParsedFile = {
-      plan: FileApplyPlan;
-      rows: Record<string, string>[];
-      targetToSource: Map<MigrationTargetField, string>;
-    };
-
-    const parsedFiles: ParsedFile[] = [];
-    for (const plan of filePlans) {
-      if (plan.kidESysStaffImport) continue;
-      const rows = await parseStagedMigrationFile(
-        plan.path,
-        plan.filename,
-        stage.sourceSystem
-      );
-      parsedFiles.push({
-        plan,
-        rows,
-        targetToSource: buildTargetToSource(plan.mappings),
-      });
-    }
-
     const seenLearners = new Set<string>();
     const seenBilling = new Set<string>();
     const seenEmployees = new Set<string>();
@@ -555,7 +534,7 @@ export async function applyMigrationStage(
         if (!plan.kidESysStaffImport) continue;
         const employees = parseEmployeesFile(plan.path);
         for (let i = 0; i < employees.length; i++) {
-          const emp = employees[i];
+          const emp = employees[i]!;
           const rowNumber = i + 1;
           const dupKey = employeeDuplicateKey(emp);
           if (!dupKey || dupKey === "name:|") {
@@ -642,25 +621,16 @@ export async function applyMigrationStage(
           plan.category === "learners" &&
           plan.entityKinds.has("learner") &&
           hasTargetsInSet(plan.mappings, LEARNER_FIELDS);
-        const applyParents =
-          plan.category === "parents" &&
-          plan.entityKinds.has("parent") &&
-          hasTargetsInSet(plan.mappings, PARENT_FIELDS);
         const applyBilling =
           plan.category === "billing" &&
           plan.entityKinds.has("billing") &&
           hasTargetsInSet(plan.mappings, BILLING_FIELDS);
-        const applyParentLinks =
-          plan.category === "parents" && hasTargetsInSet(plan.mappings, LEARNER_FIELDS);
         const applyTransactions =
           plan.entityKinds.has("transaction") && hasTargetsInSet(plan.mappings, TRANSACTION_FIELDS);
 
         for (let i = 0; i < rows.length; i++) {
           const rowNumber = i + 1;
-          let mapped = mapRawRecord(rows[i], targetToSource);
-          if (applyParents) {
-            mapped = enrichParentMappedFromContactList(mapped, rows[i]);
-          }
+          const mapped = mapRawRecord(rows[i]!, targetToSource);
 
           if (applyTransactions) {
             continue;
@@ -743,106 +713,7 @@ export async function applyMigrationStage(
             }
           }
 
-          let parentId: string | null = null;
-
-          if (applyParents) {
-            const parentKey = `source:${plan.fileId}:row:${rowNumber}`;
-            const names = parentNamesFromMapped(mapped);
-            const mobile = cleanString(mapped.parentPhone);
-            const email = cleanString(mapped.parentEmail) || null;
-            const parentIdNumber =
-              cleanString((mapped as MappedRow & { parentIdNumber?: string }).parentIdNumber) ||
-              null;
-            const phone = mobile ? normalizeSaPhone(mobile) : null;
-            const existing = parentIdNumber
-              ? await tx.parent.findFirst({
-                  where: { schoolId: targetSchoolId, idNumber: parentIdNumber },
-                  select: { id: true },
-                })
-              : null;
-
-            if (existing) {
-              parentId = existing.id;
-              pushReport(report, {
-                entityType: "parent",
-                sourceFileId: plan.fileId,
-                sourceFilename: plan.filename,
-                rowNumber,
-                status: "skipped",
-                message: "Parent already exists for this school by ID number",
-                key: parentKey,
-                recordId: existing.id,
-              });
-              bumpCount(skippedCounts, "parent");
-            } else {
-              const workPhone = cleanString(
-                (mapped as MappedRow & { parentWorkPhone?: string }).parentWorkPhone
-              );
-              const created = await tx.parent.create({
-                data: {
-                  schoolId: targetSchoolId,
-                  familyAccountId,
-                  firstName: names.firstName,
-                  surname: names.surname,
-                  cellNo: mobile || phone?.localCell || "",
-                  email,
-                  idNumber: parentIdNumber,
-                  relationship: cleanString(mapped.relationship) || null,
-                  homeAddress: cleanString(mapped.address) || null,
-                  workNo: workPhone || null,
-                  notes:
-                    cleanString((mapped as MappedRow & { parentNotes?: string }).parentNotes) ||
-                    null,
-                },
-                select: { id: true },
-              });
-              parentId = created.id;
-              pushReport(report, {
-                entityType: "parent",
-                sourceFileId: plan.fileId,
-                sourceFilename: plan.filename,
-                rowNumber,
-                status: "created",
-                message: "Parent created",
-                key: parentKey,
-                recordId: created.id,
-              });
-              bumpCount(createdCounts, "parent");
-            }
-
-            if (applyParentLinks && parentId) {
-              const learnerId = await findLearnerIdForParentLink(
-                tx,
-                targetSchoolId,
-                mapped
-              );
-              if (learnerId) {
-                await ensureParentLearnerLink(
-                  tx,
-                  targetSchoolId,
-                  parentId,
-                  learnerId,
-                  mapped,
-                  report,
-                  plan,
-                  rowNumber,
-                  createdCounts,
-                  skippedCounts
-                );
-              } else {
-                pushReport(report, {
-                  entityType: "parentLearnerLink",
-                  sourceFileId: plan.fileId,
-                  sourceFilename: plan.filename,
-                  rowNumber,
-                  status: "failed",
-                  message:
-                    "Learner not found for parent link (learner must exist from class list import)",
-                });
-                bumpCount(failedCounts, "parentLearnerLink");
-              }
-            }
-          }
+          // Parents are NOT created here — applyParentIdentityPlan runs after learners.
 
           if (applyLearners) {
             const names = learnerNamesFromMapped(mapped);
@@ -915,18 +786,18 @@ export async function applyMigrationStage(
             const idNumber = cleanString(mapped.idNumber) || null;
 
             const existingByDup = await tx.learner.findFirst({
-                  where: {
-                    schoolId: targetSchoolId,
-                    ...(idNumber
-                      ? { idNumber }
-                      : {
-                          firstName: names.firstName,
-                          lastName: names.lastName,
-                          className: canonicalClass,
-                        }),
-                  },
-                  select: { id: true },
-                });
+              where: {
+                schoolId: targetSchoolId,
+                ...(idNumber
+                  ? { idNumber }
+                  : {
+                      firstName: names.firstName,
+                      lastName: names.lastName,
+                      className: canonicalClass,
+                    }),
+              },
+              select: { id: true },
+            });
 
             const existing = existingByDup;
 
@@ -943,33 +814,6 @@ export async function applyMigrationStage(
                 recordId: existing.id,
               });
               bumpCount(skippedCounts, "learner");
-
-              if (parentId) {
-                const link = await tx.parentLearnerLink.upsert({
-                  where: {
-                    parentId_learnerId: { parentId, learnerId: existing.id },
-                  },
-                  create: {
-                    schoolId: targetSchoolId,
-                    parentId,
-                    learnerId: existing.id,
-                    relation: cleanString(mapped.relationship) || null,
-                    isPrimary: true,
-                  },
-                  update: {},
-                  select: { id: true },
-                });
-                pushReport(report, {
-                  entityType: "parentLearnerLink",
-                  sourceFileId: plan.fileId,
-                  sourceFilename: plan.filename,
-                  rowNumber,
-                  status: "created",
-                  message: "Parent–learner link ensured",
-                  recordId: link.id,
-                });
-                bumpCount(createdCounts, "parentLearnerLink");
-              }
               continue;
             }
 
@@ -1026,32 +870,47 @@ export async function applyMigrationStage(
               recordId: created.id,
             });
             bumpCount(createdCounts, "learner");
-
-            if (parentId) {
-              const link = await tx.parentLearnerLink.create({
-                data: {
-                  schoolId: targetSchoolId,
-                  parentId,
-                  learnerId: created.id,
-                  relation: cleanString(mapped.relationship) || null,
-                  isPrimary: true,
-                },
-                select: { id: true },
-              });
-              pushReport(report, {
-                entityType: "parentLearnerLink",
-                sourceFileId: plan.fileId,
-                sourceFilename: plan.filename,
-                rowNumber,
-                status: "created",
-                message: "Parent–learner link created",
-                recordId: link.id,
-              });
-              bumpCount(createdCounts, "parentLearnerLink");
-            }
-
           }
         }
+      }
+
+      // Authoritative parent identity apply (only when preflight was clear)
+      if (parentIdentityPreflight && parentRowContexts.length > 0) {
+        // Re-resolve learner links against DB now that learners may have been created.
+        const refreshed = await runUniversalMigrationParentPreflight({
+          prisma: tx as unknown as typeof prisma,
+          schoolId: targetSchoolId,
+          sourceSystem: stage.sourceSystem,
+          parentRows: parentRowContexts,
+          resolutions: input.parentIdentityResolutions,
+        });
+        if (!refreshed.clear) {
+          throw new Error(
+            "Parent identity became unresolved after learner apply — aborting transaction"
+          );
+        }
+        const parentApply = await applyParentIdentityPlan(
+          { prisma: tx as any, schoolId: targetSchoolId, requireFullyResolved: true },
+          refreshed.report
+        );
+        if (parentApply.status !== "APPLIED") {
+          throw new Error(parentApply.message || "Parent identity apply blocked");
+        }
+        createdCounts.parents += parentApply.parentsCreated;
+        createdCounts.parentLearnerLinks += parentApply.linksUpserted;
+        if (parentApply.parentsReused > 0) {
+          skippedCounts.parents += parentApply.parentsReused;
+        }
+        parentIdentityPreflight = refreshed.report;
+        parentIdentityReview = refreshed.reviewContract;
+        pushReport(report, {
+          entityType: "parent",
+          sourceFileId: stage.stageId,
+          sourceFilename: "parent-identity-resolver",
+          rowNumber: 0,
+          status: "created",
+          message: `Parent identity applied: reused=${parentApply.parentsReused} created=${parentApply.parentsCreated} links=${parentApply.linksUpserted}`,
+        });
       }
 
       const linkResult = await linkMigrationLearnersToFamilyAccounts(targetSchoolId, tx);
@@ -1086,7 +945,7 @@ export async function applyMigrationStage(
 
         for (let i = 0; i < rows.length; i++) {
           const rowNumber = i + 1;
-          const mapped = mapRawRecord(rows[i], targetToSource);
+          const mapped = mapRawRecord(rows[i]!, targetToSource);
           await postSingleMigrationLedgerTransaction(ledgerCtx, {
             mapped,
             sourceFileId: plan.fileId,
@@ -1100,12 +959,15 @@ export async function applyMigrationStage(
     const result: MigrationApplyResult = {
       ...baseResult(),
       success: true,
+      migrationStatus: "APPLIED",
       createdCounts: { ...createdCounts },
       skippedCounts: { ...skippedCounts },
       failedCounts: { ...failedCounts },
       transactionOutcomes: { ...transactionOutcomes },
       report,
       applyExpectations,
+      parentIdentityPreflight,
+      parentIdentityReview,
     };
 
     updateImportBatch(batch.batchId, {

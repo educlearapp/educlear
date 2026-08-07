@@ -1,6 +1,11 @@
 import type { MigrationStagedCounts } from "./MigrationStage";
 import type { MigrationReversalReportRow } from "./MigrationReversal";
 import type { MigrationApplyExpectations } from "./MigrationApplyExpectations";
+import type {
+  ParentIdentityPreflightReport,
+  ParentIdentityResolution,
+} from "../parentIdentity/parentIdentityTypes";
+import type { UniversalMigrationParentReviewContract } from "../core/universalMigrationParentIdentity";
 
 export type MigrationTransactionOutcomeCounts = {
   posted: number;
@@ -10,12 +15,23 @@ export type MigrationTransactionOutcomeCounts = {
   duplicateSkipped: number;
 };
 
+export type MigrationApplyMode = "APPLY" | "FULL_MIGRATION_PREFLIGHT";
+
 export type MigrationApplyRequest = {
   stageId: string;
   targetSchoolId: string;
   confirmationText: string;
   /** Super Admin override: post eligible active rows while leaving blocked/unmatched unapplied. */
   proceedWithEligibleActiveOnly?: boolean;
+  /**
+   * FULL_MIGRATION_PREFLIGHT: parse/validate/resolve identity only — ZERO database writes
+   * and ZERO production JSON billing-store writes.
+   */
+  mode?: MigrationApplyMode;
+  /** Alias for mode === "FULL_MIGRATION_PREFLIGHT". */
+  fullMigrationPreflight?: boolean;
+  /** Operator resolutions for prior REVIEW/CONFLICT parent identity itemKeys. */
+  parentIdentityResolutions?: ParentIdentityResolution[];
 };
 
 export type MigrationImportReportRowStatus =
@@ -62,6 +78,15 @@ export type MigrationApplyResult = {
   appliedAt: string;
   success: boolean;
   error?: string;
+  /**
+   * APPLY | FULL_MIGRATION_PREFLIGHT | MIGRATION_REQUIRES_REVIEW
+   * When MIGRATION_REQUIRES_REVIEW: success=false and zero school mutations occurred.
+   */
+  migrationStatus?:
+    | "APPLIED"
+    | "FULL_MIGRATION_PREFLIGHT"
+    | "MIGRATION_REQUIRES_REVIEW"
+    | "BLOCKED_REQUIRES_REVIEW";
   createdCounts: MigrationApplyCounts;
   skippedCounts: MigrationApplyCounts;
   failedCounts: MigrationApplyCounts;
@@ -69,6 +94,10 @@ export type MigrationApplyResult = {
   report: MigrationImportReportRow[];
   /** Pre-apply simulation — learner creates only from learner-category files. */
   applyExpectations?: MigrationApplyExpectations;
+  /** Parent identity preflight report (always when parents are in scope). */
+  parentIdentityPreflight?: ParentIdentityPreflightReport;
+  /** Operator-facing review contract when unresolved parents exist. */
+  parentIdentityReview?: UniversalMigrationParentReviewContract;
 };
 
 export type MigrationImportBatchStatus =

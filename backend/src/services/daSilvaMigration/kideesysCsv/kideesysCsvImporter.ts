@@ -418,6 +418,12 @@ export async function importKidESysCsv(opts: {
   dryRun?: boolean;
   skipBackup?: boolean;
   parentIdentityResolutions?: ParentIdentityResolution[];
+  /**
+   * Skip Parent / ParentLearnerLink apply only — NOT a zero-write full preflight.
+   * Classrooms, family accounts, learners, and billing stores may still write.
+   */
+  skipParentApply?: boolean;
+  /** @deprecated Use skipParentApply — does not mean zero-write rehearsal. */
   parentIdentityPreflightOnly?: boolean;
 }): Promise<KidESysCsvImportResult> {
   const schoolId = String(opts.schoolId || "").trim();
@@ -706,7 +712,10 @@ export async function importKidESysCsv(opts: {
       resolutions: opts.parentIdentityResolutions,
     });
 
-    if (opts.parentIdentityPreflightOnly) {
+    const skipParentApply =
+      Boolean(opts.skipParentApply) || Boolean(opts.parentIdentityPreflightOnly);
+
+    if (skipParentApply) {
       migrationParentStatus = isParentIdentityPreflightClear(parentIdentityPreflight)
         ? "APPLIED"
         : "MIGRATION_REQUIRES_REVIEW";

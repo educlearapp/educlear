@@ -17,8 +17,14 @@ import type {
   PlannedParentIdentityItem,
 } from "./parentIdentityTypes";
 
+/** Prisma client or interactive transaction client. */
+export type ParentIdentityPrisma = PrismaClient | {
+  parent: PrismaClient["parent"];
+  parentLearnerLink: PrismaClient["parentLearnerLink"];
+};
+
 export type ApplyParentIdentityDeps = {
-  prisma: PrismaClient;
+  prisma: ParentIdentityPrisma;
   schoolId: string;
   /**
    * When true (default), refuse all parent/link writes if any REVIEW/CONFLICT remain.

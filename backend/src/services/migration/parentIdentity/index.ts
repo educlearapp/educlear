@@ -60,3 +60,9 @@ export {
   writeParentIdentityReviewArtifact,
 } from "./parentIdentityReviewArtifact";
 export type { ParentIdentityReviewArtifact } from "./parentIdentityReviewArtifact";
+
+export {
+  assertDaSilvaHistoricalParentToolAllowed,
+  DA_SILVA_HISTORICAL_PARENT_TOOL_ENV,
+  CONFIRM_PRODUCTION_WRITE_ENV,
+} from "./daSilvaHistoricalParentToolGuard";

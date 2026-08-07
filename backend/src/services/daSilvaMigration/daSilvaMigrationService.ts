@@ -1,6 +1,7 @@
 import fs from "fs";
 import path from "path";
 import { prisma } from "../../prisma";
+import { assertDaSilvaHistoricalParentToolAllowed } from "../migration/parentIdentity/daSilvaHistoricalParentToolGuard";
 import {
   indexAgeAnalysisAccountNames,
   isKidESysSourceAccountRef,
@@ -891,6 +892,7 @@ export async function commitDaSilvaMigration(opts: {
   manifest: DaSilvaImportManifest;
   totals: DaSilvaMigrationTotals;
 }> {
+  assertDaSilvaHistoricalParentToolAllowed("commitDaSilvaMigration");
   const bundle = loadDaSilvaStaging(opts.schoolId, opts.projectId);
   if (!bundle) throw new Error("Staging not found — run preview first");
   if (!bundle.openingBalance?.adjustments) {
@@ -2557,6 +2559,7 @@ export async function commitDaSilvaParentsOnly(opts: {
   imported: { parents: number; familyAccounts: number; links: number };
   missingLearnerKeys: string[];
 }> {
+  assertDaSilvaHistoricalParentToolAllowed("commitDaSilvaParentsOnly");
   const school = await prisma.school.findUnique({
     where: { id: opts.schoolId },
     select: { id: true },
