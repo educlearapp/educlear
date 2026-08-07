@@ -456,14 +456,9 @@ export default function ManageLearner({
 
     const persistParentsToApi = async (draft: ParentRecord) => {
       if (!learner?.id) return draft;
+      // Only write the parent being edited/added — do not rewrite sibling parents.
       const draftPayload = parentToApiPayload(draft);
-      const isNew =
-        !draft.id || String(draft.id).startsWith("local-parent-");
-      const payloads = isNew
-        ? [...linkedParents.map((p) => parentToApiPayload(p)), draftPayload]
-        : linkedParents.map((p) =>
-            String(p.id) === String(draft.id) ? draftPayload : parentToApiPayload(p)
-          );
+      const payloads = [draftPayload];
 
       const response = await fetch(`${API_URL}/api/learners/${learner.id}`, {
         method: "PUT",
@@ -945,8 +940,6 @@ export default function ManageLearner({
   
   
                     notes: learner.notes || "",
-
-                    parents: linkedParents.map((p) => parentToApiPayload(p)),
                   }),
   
   

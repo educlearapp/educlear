@@ -64,17 +64,21 @@ export function parentDisplayName(parent: ParentRecord) {
 }
 
 export function parentToApiPayload(parent: ParentRecord) {
+  const idNumber = (parent.idNumber || "").trim();
+  const email = (parent.email || "").trim();
   return {
     id: parent.id && !String(parent.id).startsWith("local-parent-") ? parent.id : undefined,
     relationship: parent.relationship || "Parent",
     title: parent.title || null,
     firstName: (parent.firstName || "").trim(),
     surname: (parent.surname || "").trim(),
-    idNumber: (parent.idNumber || "").trim() || null,
+    // Omit blank identity so incidental empty form state cannot null existing DB values.
+    // Backend also preserves on update; create still accepts missing keys as null.
+    ...(idNumber ? { idNumber } : {}),
     cellNo: (parent.cellNo || parent.cell || parent.phone || "").trim(),
     phone: (parent.cellNo || parent.cell || parent.phone || "").trim(),
     workNo: (parent.workNo || parent.work || "").trim() || null,
-    email: (parent.email || "").trim() || null,
+    ...(email ? { email } : {}),
     homeAddress: (parent.homeAddress || "").trim() || null,
     notes: (parent.notes || "").trim() || null,
     communicationAdministration: parent.communicationAdministration !== false,
