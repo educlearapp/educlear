@@ -6,6 +6,18 @@ import { readSchoolBillingPlans } from "../../utils/learnerBillingPlanStore";
 import { readSchoolLedger } from "../../utils/billingLedgerStore";
 import { normalizeSaPhone } from "../parentPortalService";
 import {
+  applyParentIdentityPlan,
+  isParentIdentityPreflightClear,
+  loadSchoolParentCandidates,
+  normalizeParentCellphone,
+  normalizeParentIdentityNumber,
+  runParentIdentityPreflight,
+  type IncomingParentIdentity,
+  type ParentIdentityPreflightReport,
+  type ParentIdentityResolution,
+  type PreflightIncomingRow,
+} from "../migration/parentIdentity";
+import {
   buildDaSilvaLearnerParseAudit,
   parseDaSilvaLearnersFromSasams,
   type DaSilvaLearnerParseAudit,
@@ -73,6 +85,10 @@ export type SasamsSchoolImportResult = {
   parentsPopulated: boolean;
   auditPass: boolean;
   dryRun?: SasamsSchoolDryRun;
+  /** Ambiguous/conflict parent identity preflight (migration report). */
+  parentIdentityPreflight?: ParentIdentityPreflightReport;
+  /** Present when parent writes were blocked pending review. */
+  migrationParentStatus?: "APPLIED" | "MIGRATION_REQUIRES_REVIEW" | "BLOCKED_REQUIRES_REVIEW";
 };
 
 function pathExists(p: string): boolean {
@@ -424,6 +440,13 @@ export async function importSasamsSchoolData(opts: {
   paths: SasamsIngestPaths;
   dryRunOnly?: boolean;
   allowExistingLearners?: boolean;
+  /** Operator resolutions for prior REVIEW/CONFLICT itemKeys. */
+  parentIdentityResolutions?: ParentIdentityResolution[];
+  /**
+   * When true, only run parent identity preflight (no parent/link writes).
+   * Learner/classroom imports still follow existing flow unless dryRunOnly.
+   */
+  parentIdentityPreflightOnly?: boolean;
 }): Promise<SasamsSchoolImportResult> {
   const dryRun = dryRunSasamsSchoolImport(opts.paths);
 
@@ -625,28 +648,81 @@ export async function importSasamsSchoolData(opts: {
     opts.paths.parentLearnerLinks
   );
 
-  const parentIds = new Set<string>();
-  let parentLinksImported = 0;
+  const parentCandidates = await loadSchoolParentCandidates(prisma, opts.schoolId);
+  const preflightRows: PreflightIncomingRow[] = [];
 
   for (const parentRow of sasamsParents) {
     const match = matchParentToLearner(parentRow, indexes, learnersById);
     if (!match.learnerId || match.ambiguous) continue;
 
-    const parentId = await upsertSasamsParent(opts.schoolId, parentRow);
-    parentIds.add(parentId);
+    const phone = normalizeSaPhone(parentRow.cellNo || parentRow.homeNo || "");
+    const cellNo =
+      normalizeParentCellphone(parentRow.cellNo || parentRow.homeNo || "") ||
+      phone?.localCell ||
+      parentRow.cellNo ||
+      "0000000000";
+    const cleanedIdNumber = normalizeParentIdentityNumber(parentRow.idNumber);
 
-    await prisma.parentLearnerLink.upsert({
-      where: { parentId_learnerId: { parentId, learnerId: match.learnerId } },
-      create: {
-        schoolId: opts.schoolId,
-        parentId,
+    const incoming: IncomingParentIdentity = {
+      firstName: parentRow.firstName,
+      surname: parentRow.surname,
+      idNumber: cleanedIdNumber,
+      cellNo: parentRow.cellNo || parentRow.homeNo || null,
+      email: parentRow.email || null,
+      relationship: parentRow.relation,
+      sourceSystem: "SA-SAMS",
+      sourceParentId: null,
+      learnerLabel: [parentRow.learnerFirstName, parentRow.learnerLastName].filter(Boolean).join(" "),
+      sourceFile: parentRow.sourceFile,
+      sourceRow: parentRow.sourceRow,
+    };
+
+    preflightRows.push({
+      incoming,
+      cellNoForStorage: cellNo,
+      workNo: parentRow.workNo || null,
+      homeNo: parentRow.homeNo || null,
+      link: {
         learnerId: match.learnerId,
         relation: parentRow.relation,
         isPrimary: true,
+        familyAccountId: null,
+        cellNoForStorage: cellNo,
+        workNo: parentRow.workNo || null,
+        homeNo: parentRow.homeNo || null,
       },
-      update: { relation: parentRow.relation },
     });
-    parentLinksImported += 1;
+  }
+
+  const parentIdentityPreflight = runParentIdentityPreflight({
+    candidates: parentCandidates,
+    rows: preflightRows,
+    resolutions: opts.parentIdentityResolutions,
+  });
+
+  let parentsImported = 0;
+  let parentLinksImported = 0;
+  let migrationParentStatus: SasamsSchoolImportResult["migrationParentStatus"] =
+    "MIGRATION_REQUIRES_REVIEW";
+
+  if (opts.parentIdentityPreflightOnly) {
+    migrationParentStatus = isParentIdentityPreflightClear(parentIdentityPreflight)
+      ? "APPLIED"
+      : "MIGRATION_REQUIRES_REVIEW";
+  } else if (!isParentIdentityPreflightClear(parentIdentityPreflight)) {
+    // ATOMIC: unresolved REVIEW/CONFLICT → zero Parent / link writes.
+    migrationParentStatus = "BLOCKED_REQUIRES_REVIEW";
+  } else {
+    const applyResult = await applyParentIdentityPlan(
+      { prisma, schoolId: opts.schoolId, requireFullyResolved: true },
+      parentIdentityPreflight
+    );
+    parentsImported = applyResult.parentIds.length
+      ? new Set(applyResult.parentIds).size
+      : applyResult.parentsCreated;
+    parentLinksImported = applyResult.linksUpserted;
+    migrationParentStatus =
+      applyResult.status === "APPLIED" ? "APPLIED" : "BLOCKED_REQUIRES_REVIEW";
   }
 
   const postAudit = await auditImportedSchool(opts.schoolId, dryRun);
@@ -654,7 +730,7 @@ export async function importSasamsSchoolData(opts: {
   return {
     learnersImported,
     classroomsImported,
-    parentsImported: parentIds.size,
+    parentsImported,
     parentLinksImported,
     missingLearnerId: dryRun.missingLearnerId,
     missingDob: dryRun.missingDob,
@@ -668,102 +744,7 @@ export async function importSasamsSchoolData(opts: {
     parentsPopulated: postAudit.parentsPopulated,
     auditPass: postAudit.auditPass,
     dryRun,
+    parentIdentityPreflight,
+    migrationParentStatus,
   };
-}
-
-async function upsertSasamsParent(schoolId: string, parentRow: SasamsParsedParent): Promise<string> {
-  const digitsOnly = (value: string | null | undefined): string =>
-    String(value || "").replace(/\D/g, "");
-  const cleanedIdDigits = digitsOnly(parentRow.idNumber);
-  const cleanedIdNumber = cleanedIdDigits.length >= 13 ? cleanedIdDigits.slice(0, 13) : null;
-
-  const phone = normalizeSaPhone(parentRow.cellNo || parentRow.homeNo || "");
-  const cellNo = phone?.localCell || parentRow.cellNo || "0000000000";
-
-  if (cleanedIdNumber) {
-    const byId = await prisma.parent.findFirst({
-      where: { schoolId, idNumber: cleanedIdNumber, familyAccountId: null },
-      select: { id: true },
-    });
-    if (byId) {
-      await prisma.parent.update({
-        where: { id: byId.id },
-        data: {
-          email: parentRow.email || undefined,
-          cellNo: cellNo && cellNo !== "0000000000" ? cellNo : undefined,
-          idNumber: cleanedIdNumber,
-          relationship: parentRow.relation,
-          workNo: parentRow.workNo || undefined,
-          homeNo: parentRow.homeNo || undefined,
-          outstandingAmount: 0,
-        },
-      });
-      return byId.id;
-    }
-  }
-
-  if (parentRow.email) {
-    const byEmail = await prisma.parent.findFirst({
-      where: { schoolId, email: parentRow.email, familyAccountId: null },
-      select: { id: true },
-    });
-    if (byEmail) {
-      await prisma.parent.update({
-        where: { id: byEmail.id },
-        data: {
-          idNumber: cleanedIdNumber || undefined,
-          cellNo: cellNo && cellNo !== "0000000000" ? cellNo : undefined,
-          relationship: parentRow.relation,
-          workNo: parentRow.workNo || undefined,
-          homeNo: parentRow.homeNo || undefined,
-          outstandingAmount: 0,
-        },
-      });
-      return byEmail.id;
-    }
-  }
-
-  const existingParent = await prisma.parent.findFirst({
-    where: {
-      schoolId,
-      firstName: parentRow.firstName,
-      surname: parentRow.surname,
-      cellNo,
-      familyAccountId: null,
-    },
-    select: { id: true },
-  });
-
-  if (existingParent) {
-    await prisma.parent.update({
-      where: { id: existingParent.id },
-      data: {
-        email: parentRow.email || null,
-        idNumber: cleanedIdNumber,
-        relationship: parentRow.relation,
-        workNo: parentRow.workNo || null,
-        homeNo: parentRow.homeNo || null,
-        outstandingAmount: 0,
-      },
-    });
-    return existingParent.id;
-  }
-
-  const created = await prisma.parent.create({
-    data: {
-      schoolId,
-      familyAccountId: null,
-      firstName: parentRow.firstName,
-      surname: parentRow.surname,
-      cellNo,
-      email: parentRow.email || null,
-      idNumber: cleanedIdNumber,
-      relationship: parentRow.relation,
-      workNo: parentRow.workNo || null,
-      homeNo: parentRow.homeNo || null,
-      outstandingAmount: 0,
-    },
-    select: { id: true },
-  });
-  return created.id;
 }

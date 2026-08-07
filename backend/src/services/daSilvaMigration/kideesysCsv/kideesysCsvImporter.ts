@@ -24,6 +24,18 @@ import {
 import { parseKidEsysDate } from "../../../utils/kideesysSpreadsheet";
 import { normalizeSaPhone } from "../../parentPortalService";
 import { syncParentThreadsForClassroom } from "../../parentPortalService";
+import {
+  applyParentIdentityPlan,
+  isParentIdentityPreflightClear,
+  loadSchoolParentCandidates,
+  normalizeParentCellphone,
+  normalizeParentIdentityNumber,
+  runParentIdentityPreflight,
+  type IncomingParentIdentity,
+  type ParentIdentityPreflightReport,
+  type ParentIdentityResolution,
+  type PreflightIncomingRow,
+} from "../../migration/parentIdentity";
 import { buildAccountsFromLearners } from "../../statementAccounts";
 import { relinkLedgerLearnerIds } from "../../../utils/billingLedgerStore";
 import {
@@ -64,6 +76,8 @@ export type KidESysCsvImportResult = {
   imported: Record<string, number>;
   manifest: KidESysCsvImportManifest;
   backupPath?: string;
+  parentIdentityPreflight?: ParentIdentityPreflightReport;
+  migrationParentStatus?: "APPLIED" | "MIGRATION_REQUIRES_REVIEW" | "BLOCKED_REQUIRES_REVIEW";
 };
 
 export type KidESysCsvImportAudit = {
@@ -403,6 +417,8 @@ export async function importKidESysCsv(opts: {
   projectId?: string;
   dryRun?: boolean;
   skipBackup?: boolean;
+  parentIdentityResolutions?: ParentIdentityResolution[];
+  parentIdentityPreflightOnly?: boolean;
 }): Promise<KidESysCsvImportResult> {
   const schoolId = String(opts.schoolId || "").trim();
   if (!schoolId) throw new Error("schoolId is required");
@@ -469,6 +485,12 @@ export async function importKidESysCsv(opts: {
     openingBalances: 0,
     historyEntries: 0,
   };
+
+  const parentCandidates = dryRun
+    ? []
+    : await loadSchoolParentCandidates(prisma, schoolId);
+  let parentIdentityPreflight: ParentIdentityPreflightReport | undefined;
+  let migrationParentStatus: KidESysCsvImportResult["migrationParentStatus"];
 
   if (!dryRun) {
     const classNames = new Set<string>();
@@ -620,6 +642,7 @@ export async function importKidESysCsv(opts: {
       parentsByChild.set(link.childId, list);
     }
 
+    const preflightRows: PreflightIncomingRow[] = [];
     const primaryAssigned = new Set<string>();
     for (const [childId, links] of parentsByChild) {
       const learnerId = childIdToLearnerId.get(childId);
@@ -629,45 +652,17 @@ export async function importKidESysCsv(opts: {
       const familyAccountId = accountNo ? accountToFamilyId.get(accountNo) || null : null;
 
       for (let i = 0; i < links.length; i++) {
-        const raw = links[i];
+        const raw = links[i]!;
         const account =
           accounts.byId.get(raw.parentId) || accounts.byNo.get(raw.parentId) || undefined;
         const parentRow = enrichParentFromAccount(raw, account);
         const phone = normalizeSaPhone(parentRow.cellNo || parentRow.homeNo || "");
-        const cellNo = phone?.localCell || parentRow.cellNo || "0000000000";
-
-        const existingParent = await prisma.parent.findFirst({
-          where: {
-            schoolId,
-            firstName: parentRow.parentFirstName || "Guardian",
-            surname: parentRow.parentSurname || "Unknown",
-            cellNo,
-            familyAccountId,
-          },
-          select: { id: true },
-        });
-
-        const parentId =
-          existingParent?.id ||
-          (
-            await prisma.parent.create({
-              data: {
-                schoolId,
-                familyAccountId,
-                firstName: parentRow.parentFirstName || "Guardian",
-                surname: parentRow.parentSurname || account?.familyName || "Unknown",
-                cellNo,
-                email: parentRow.email || null,
-                relationship: parentRow.relationship,
-                workNo: parentRow.workNo || null,
-                homeNo: parentRow.homeNo || null,
-              },
-              select: { id: true },
-            })
-          ).id;
-
-        pushUnique(manifest.parentIds, parentId);
-        counts.parents += 1;
+        const cellNo =
+          normalizeParentCellphone(parentRow.cellNo || parentRow.homeNo || "") ||
+          phone?.localCell ||
+          parentRow.cellNo ||
+          "0000000000";
+        const cleanedIdNumber = normalizeParentIdentityNumber(parentRow.idNumber);
 
         let isPrimary = false;
         if (!primaryAssigned.has(learnerId) && (parentRow.isPrimary || i === 0)) {
@@ -675,21 +670,62 @@ export async function importKidESysCsv(opts: {
           primaryAssigned.add(learnerId);
         }
 
-        const linkRecord = await prisma.parentLearnerLink.upsert({
-          where: { parentId_learnerId: { parentId, learnerId } },
-          create: {
-            schoolId,
-            parentId,
+        const incoming: IncomingParentIdentity = {
+          firstName: parentRow.parentFirstName || "Guardian",
+          surname: parentRow.parentSurname || account?.familyName || "Unknown",
+          idNumber: cleanedIdNumber,
+          cellNo: parentRow.cellNo || parentRow.homeNo || null,
+          email: parentRow.email || null,
+          relationship: parentRow.relationship,
+          sourceSystem: "KID-E-SYS",
+          sourceParentId: String(raw.parentId || "").trim() || null,
+          learnerLabel: `${child?.firstName || ""} ${child?.lastName || ""}`.trim(),
+        };
+
+        preflightRows.push({
+          incoming,
+          cellNoForStorage: cellNo,
+          workNo: parentRow.workNo || null,
+          homeNo: parentRow.homeNo || null,
+          link: {
             learnerId,
             relation: parentRow.relationship,
             isPrimary,
+            familyAccountId,
+            cellNoForStorage: cellNo,
+            workNo: parentRow.workNo || null,
+            homeNo: parentRow.homeNo || null,
           },
-          update: { relation: parentRow.relationship, isPrimary },
-          select: { id: true },
         });
-        pushUnique(manifest.linkIds, linkRecord.id);
-        counts.links += 1;
       }
+    }
+
+    parentIdentityPreflight = runParentIdentityPreflight({
+      candidates: parentCandidates,
+      rows: preflightRows,
+      resolutions: opts.parentIdentityResolutions,
+    });
+
+    if (opts.parentIdentityPreflightOnly) {
+      migrationParentStatus = isParentIdentityPreflightClear(parentIdentityPreflight)
+        ? "APPLIED"
+        : "MIGRATION_REQUIRES_REVIEW";
+    } else if (!isParentIdentityPreflightClear(parentIdentityPreflight)) {
+      // ATOMIC: unresolved REVIEW/CONFLICT → zero Parent / link writes.
+      migrationParentStatus = "BLOCKED_REQUIRES_REVIEW";
+    } else {
+      const applyResult = await applyParentIdentityPlan(
+        { prisma, schoolId, requireFullyResolved: true },
+        parentIdentityPreflight
+      );
+      migrationParentStatus =
+        applyResult.status === "APPLIED" ? "APPLIED" : "BLOCKED_REQUIRES_REVIEW";
+      for (const id of applyResult.parentIds) pushUnique(manifest.parentIds, id);
+      counts.parents = applyResult.parentIds.length
+        ? new Set(applyResult.parentIds).size
+        : applyResult.parentsCreated;
+      counts.links = applyResult.linksUpserted;
+      // link ids are not individually returned; count is enough for imported summary
     }
 
     const billingPlans: Record<string, StoredBillingPlanItem[]> = {};
@@ -861,6 +897,8 @@ export async function importKidESysCsv(opts: {
     imported: counts,
     manifest,
     backupPath,
+    parentIdentityPreflight,
+    migrationParentStatus,
   };
 }
 

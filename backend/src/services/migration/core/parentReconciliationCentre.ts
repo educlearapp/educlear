@@ -53,6 +53,9 @@ function namesAreSimilar(a: ParentForReconciliation, b: ParentForReconciliation)
 
   if (!aFirst || !bFirst || !aSurname || !bSurname) return false;
   if (aFirst === bFirst && aSurname === bSurname) return true;
+  // Surname spelling variants: still "similar" when first names match exactly.
+  // Surname equality is NOT required for reconciliation suggestions when contact matches.
+  if (aFirst === bFirst) return true;
   if (aSurname !== bSurname) return false;
   return aFirst[0] === bFirst[0];
 }
