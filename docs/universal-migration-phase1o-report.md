@@ -27,8 +27,8 @@
 | Tree | Branch | HEAD |
 |------|--------|------|
 | Phase 1O | `release/migration-controlled-pilot-prep` | `5e8547b329111bea5146cedda4ca3f9ca1d84837` (uncommitted overlay + 1O docs) |
-| RC | `release/universal-migration-pilot-rc` | `b849515d0a8bdb6e6ac20e628aa8e29e5fa8f905` |
-| RC tree | | `9dd00de1eb9f14dfe91bef11f37959bfc6ce199c` |
+| RC | `release/universal-migration-pilot-rc` | `a6219b0a9dc3edbd7ac6956079d1568e91639755` |
+| RC tree | | `96351a8306e7a0aae84951a1cf6d643e3dd9bb42` |
 | Base / origin/main | | `5e8547b329111bea5146cedda4ca3f9ca1d84837` |
 
 ---
@@ -49,9 +49,9 @@ No UNCERTAIN files entered the RC. Storage artifacts excluded.
 | Base SHA | `5e8547b329111bea5146cedda4ca3f9ca1d84837` |
 | RC branch | `release/universal-migration-pilot-rc` |
 | RC worktree | `/private/tmp/educlear-mbb-ui-migration-rc` |
-| RC SHA | `b849515d0a8bdb6e6ac20e628aa8e29e5fa8f905` |
-| Tree SHA | `9dd00de1eb9f14dfe91bef11f37959bfc6ce199c` |
-| Commits | `73f4762` assemble RC; `b849515` simulateFailAt HTTP gate |
+| RC SHA | `a6219b0a9dc3edbd7ac6956079d1568e91639755` |
+| Tree SHA | `96351a8306e7a0aae84951a1cf6d643e3dd9bb42` |
+| Commits | `73f4762` assemble RC; `b849515` simulateFailAt HTTP gate; `a6219b0` Phase 1O report |
 | Diff stats | 161 files, +26574 / −558 (first commit) + 1 file gate fix |
 | Push / merge / deploy | **NONE** |
 
