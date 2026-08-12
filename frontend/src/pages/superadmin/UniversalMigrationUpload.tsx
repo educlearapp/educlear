@@ -76,6 +76,8 @@ export default function UniversalMigrationUpload() {
     targetSchoolsLoading,
     sessionRestoreBusy,
     sessionNotice,
+    dryRunStage,
+    validationSummary,
     registrySystems,
     registrySystemsLoading,
     registrySystemsError,
@@ -97,6 +99,13 @@ export default function UniversalMigrationUpload() {
   } = useUniversalMigrationWorkflow();
 
   const isKidESys = sourceSystem.trim() === "kideesys";
+  const selectedSchool = targetSchools.find((s) => s.id === selectedSessionSchoolId) ?? null;
+  const migrationLocked =
+    Boolean(selectedSessionSchoolId.trim()) &&
+    (uploadedFiles.length > 0 ||
+      previews.length > 0 ||
+      Boolean(dryRunStage) ||
+      Boolean(validationSummary));
 
   const handleDrop = useCallback(
     (e: React.DragEvent<HTMLDivElement>) => {
@@ -119,15 +128,20 @@ export default function UniversalMigrationUpload() {
 
       <div className="uc-migration-upload-source-row">
         <label className="uc-migration-staging-source-label">
-          Target school session
+          Migration Target
           <select
             className="uc-migration-staging-source-input"
             value={selectedSessionSchoolId}
             onChange={(e) => setSelectedSessionSchoolId(e.target.value)}
-            disabled={busy || sessionRestoreBusy || targetSchoolsLoading}
+            disabled={
+              busy ||
+              sessionRestoreBusy ||
+              targetSchoolsLoading ||
+              migrationLocked
+            }
           >
             <option value="">
-              {targetSchoolsLoading ? "Loading schools…" : "Choose school for this migration session"}
+              {targetSchoolsLoading ? "Loading schools…" : "Choose school for this migration"}
             </option>
             {targetSchools.map((school) => (
               <option key={school.id} value={school.id}>
@@ -164,10 +178,21 @@ export default function UniversalMigrationUpload() {
             onClick={() => void clearAll()}
             disabled={busy || sessionRestoreBusy}
           >
-            Clear Migration Session
+            {migrationLocked ? "Start New Migration" : "Clear Migration Session"}
           </button>
         ) : null}
       </div>
+
+      {migrationLocked && selectedSchool ? (
+        <p className="uc-migration-dry-run-hint" role="status">
+          Migration locked to <strong>{selectedSchool.name}</strong>. To target another school,
+          use Start New Migration.
+        </p>
+      ) : selectedSchool ? (
+        <p className="uc-migration-dry-run-hint" role="status">
+          Migration Target: <strong>{selectedSchool.name}</strong>
+        </p>
+      ) : null}
 
       {sessionNotice || sessionRestoreBusy ? (
         <p className="uc-migration-dry-run-hint" role="status">

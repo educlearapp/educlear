@@ -1,11 +1,12 @@
 /**
- * Parent ID conflict helpers + uniqueness regression.
+ * Parent ID conflict helpers + school-scoped uniqueness regression.
  * Run: npx ts-node --transpile-only src/utils/parentIdConflict.unit.test.ts
  */
 import assert from "assert";
 import {
   buildParentIdConflictBody,
   findDuplicateParentSignal,
+  findParentByIdNumberInSchool,
   isParentIdNumberUniqueTarget,
   isPrismaUniqueConstraintError,
   PARENT_ID_ALREADY_EXISTS,
@@ -26,11 +27,18 @@ function testDetectsP2002() {
   assert.strictEqual(
     isParentIdNumberUniqueTarget({
       code: "P2002",
+      meta: { target: ["schoolId", "idNumber"] },
+    }),
+    true
+  );
+  assert.strictEqual(
+    isParentIdNumberUniqueTarget({
+      code: "P2002",
       meta: { target: ["email"] },
     }),
     false
   );
-  console.log("✓ detects Prisma idNumber unique constraint");
+  console.log("✓ detects Prisma idNumber / composite unique constraint");
 }
 
 function testConflictErrorIs409() {
@@ -47,28 +55,36 @@ function testConflictErrorIs409() {
   console.log("✓ ParentIdConflictError exposes HTTP 409 body");
 }
 
-async function testBuildConflictBodyLooksUpOwner() {
+async function testBuildConflictBodyLooksUpOwnerInSchool() {
   const prisma = {
     parent: {
-      findUnique: async () => ({
-        id: "owner-1",
-        schoolId: "school-1",
-        firstName: "Jane",
-        surname: "Doe",
-        cellNo: "0821111111",
-        email: "jane@example.com",
-        idNumber: "8001015009087",
-        familyAccountId: "fam-1",
-        links: [{ learnerId: "learner-1" }],
-      }),
-      findFirst: async () => null,
+      findFirst: async ({ where }: any) => {
+        if (where.schoolId !== "school-1" || where.idNumber !== "8001015009087") return null;
+        return {
+          id: "owner-1",
+          schoolId: "school-1",
+          firstName: "Jane",
+          surname: "Doe",
+          cellNo: "0821111111",
+          email: "jane@example.com",
+          idNumber: "8001015009087",
+          familyAccountId: "fam-1",
+          links: [{ learnerId: "learner-1" }],
+        };
+      },
     },
   };
-  const body = await buildParentIdConflictBody(prisma as any, "8001015009087");
+  const body = await buildParentIdConflictBody(prisma as any, "8001015009087", "school-1");
   assert.strictEqual(body.code, PARENT_ID_ALREADY_EXISTS);
   assert.strictEqual(body.existingParent?.id, "owner-1");
   assert.strictEqual(body.existingParent?.primaryLearnerId, "learner-1");
-  console.log("✓ buildParentIdConflictBody includes existing parent + learner");
+
+  const otherSchool = await buildParentIdConflictBody(prisma as any, "8001015009087", "school-2");
+  assert.strictEqual(otherSchool.existingParent, null);
+
+  const missingSchool = await findParentByIdNumberInSchool(prisma as any, "", "8001015009087");
+  assert.strictEqual(missingSchool, null);
+  console.log("✓ buildParentIdConflictBody is school-scoped");
 }
 
 async function testDuplicateSignalByCellAndEmail() {
@@ -85,12 +101,15 @@ async function testDuplicateSignalByCellAndEmail() {
   };
   const prisma = {
     parent: {
-      findUnique: async () => owner,
-      findFirst: async () => null,
+      findFirst: async ({ where }: any) => {
+        if (where.schoolId !== "school-1") return null;
+        return owner;
+      },
     },
   };
   const warning = await findDuplicateParentSignal({
     prisma: prisma as any,
+    schoolId: "school-1",
     idNumber: "8001015009087",
     excludeParentId: "shell-1",
     cellNo: "0821111111",
@@ -101,7 +120,7 @@ async function testDuplicateSignalByCellAndEmail() {
   assert.ok(warning!.matchedBy.includes("cellNo"));
   assert.ok(warning!.matchedBy.includes("email"));
   assert.match(warning!.message, /duplicate parent record/i);
-  console.log("✓ duplicate parent signal warns on shared cell/email");
+  console.log("✓ duplicate parent signal warns on shared cell/email (same school)");
 }
 
 async function testNoWarningWhenSelfOwnsId() {
@@ -118,12 +137,12 @@ async function testNoWarningWhenSelfOwnsId() {
   };
   const prisma = {
     parent: {
-      findUnique: async () => owner,
-      findFirst: async () => null,
+      findFirst: async () => owner,
     },
   };
   const warning = await findDuplicateParentSignal({
     prisma: prisma as any,
+    schoolId: "school-1",
     idNumber: "8001015009087",
     excludeParentId: "owner-1",
     cellNo: "0821111111",
@@ -133,25 +152,24 @@ async function testNoWarningWhenSelfOwnsId() {
   console.log("✓ no duplicate warning when excluded parent already owns ID");
 }
 
-function testUniquenessRuleUnchanged() {
-  // Regression: helpers never disable uniqueness — they only classify P2002.
+function testSchoolScopedUniquenessRegression() {
   assert.strictEqual(
     isParentIdNumberUniqueTarget({
       code: "P2002",
-      meta: { target: ["idNumber"] },
+      meta: { target: ["schoolId", "idNumber"] },
     }),
     true
   );
-  console.log("✓ uniqueness regression: idNumber P2002 still treated as conflict");
+  console.log("✓ uniqueness regression: composite schoolId+idNumber P2002 still treated as conflict");
 }
 
 async function main() {
   testDetectsP2002();
   testConflictErrorIs409();
-  await testBuildConflictBodyLooksUpOwner();
+  await testBuildConflictBodyLooksUpOwnerInSchool();
   await testDuplicateSignalByCellAndEmail();
   await testNoWarningWhenSelfOwnsId();
-  testUniquenessRuleUnchanged();
+  testSchoolScopedUniquenessRegression();
   console.log("\nALL parentIdConflict tests passed");
 }
 

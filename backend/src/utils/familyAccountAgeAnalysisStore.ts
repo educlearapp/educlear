@@ -3,7 +3,10 @@ import path from "path";
 
 import { resolveSchoolJsonStoreKey } from "../services/daSilvaSchoolResolve";
 
-export type FinanceAccountSnapshotSource = "kideesys-age-analysis" | "educlear-registration";
+export type FinanceAccountSnapshotSource =
+  | "kideesys-age-analysis"
+  | "educlear-registration"
+  | "universal-migration-baseline";
 
 export type FamilyAccountAgeAnalysisSnapshot = {
   schoolId: string;

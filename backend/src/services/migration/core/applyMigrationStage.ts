@@ -34,6 +34,10 @@ import {
   assertLearnerCreateGuard,
   computeMigrationApplyPreview,
 } from "./computeMigrationApplyPreview";
+import {
+  resolveBoundTargetSchoolId,
+  MigrationSchoolBindingError,
+} from "./migrationSchoolBinding";
 import { parseStagedMigrationFile, resolveSafeMigrationFilePath } from "./parseStagedMigrationFile";
 import { applyParentIdentityPlan } from "../parentIdentity";
 import {
@@ -41,6 +45,16 @@ import {
   runUniversalMigrationParentPreflight,
   type UniversalParentRowContext,
 } from "./universalMigrationParentIdentity";
+import {
+  assertPlanFingerprintsFresh,
+  assertPlanSchool,
+  getBoundCompiledPlan,
+} from "../migrationPlan";
+import { getBoundSourceAnalysis } from "../sourceAnalysis/migrationSourceAnalysisStore";
+import { postOpeningBalancesForMappedRows } from "../finance/postMigrationOpeningBalances";
+import { applyMigrationBillingPlansFromMappedRows } from "../finance/applyMigrationBillingPlansFromStage";
+import { removeSchoolEntriesByIds } from "../../../utils/billingLedgerStore";
+import { classifyFinanceSourceRow } from "../finance/classifyFinanceSourceRow";
 
 const MIGRATION_APPLY_TX_OPTIONS = { maxWait: 30000, timeout: 180000 };
 
@@ -270,6 +284,87 @@ function emptyTransactionOutcomes(): MigrationTransactionOutcomeCounts {
   };
 }
 
+/** Map source status strings to Prisma LearnerEnrollmentStatus (schema-backed only). */
+function enrollmentStatusFromMapped(raw: string | undefined): "ACTIVE" | "HISTORICAL" | null {
+  const v = cleanString(raw).toLowerCase();
+  if (!v) return null;
+  if (
+    v === "active" ||
+    v === "enrolled" ||
+    v === "current" ||
+    v === "a"
+  ) {
+    return "ACTIVE";
+  }
+  if (
+    v === "historical" ||
+    v === "inactive" ||
+    v === "left" ||
+    v === "alumni" ||
+    v === "withdrawn" ||
+    v === "exited"
+  ) {
+    return "HISTORICAL";
+  }
+  return null;
+}
+
+/**
+ * Phase 1F — when stage is bound to a compiled plan, reject stale fingerprints / wrong school
+ * before any writes.
+ */
+function assertStageCompiledPlanFresh(stage: MigrationStage, targetSchoolId: string): void {
+  const planId = cleanString(stage.compiledPlanId);
+  const analysisId = cleanString(stage.sourceAnalysisId);
+  if (!planId && !analysisId) return;
+
+  if (planId) {
+    const plan = getBoundCompiledPlan(planId, {
+      targetSchoolId,
+      sourceAnalysisId: analysisId || undefined,
+    });
+    if (!plan) {
+      throw new MigrationApplyError(
+        "MIGRATION_SCHOOL_MISMATCH: Compiled plan is not bound to this school. No writes occurred.",
+        { success: false, error: "MIGRATION_SCHOOL_MISMATCH" }
+      );
+    }
+    try {
+      assertPlanSchool(plan, targetSchoolId);
+    } catch (e: unknown) {
+      const message = e instanceof Error ? e.message : "MIGRATION_SCHOOL_MISMATCH";
+      throw new MigrationApplyError(message, { success: false, error: message });
+    }
+    if (analysisId) {
+      const analysis = getBoundSourceAnalysis(analysisId, { targetSchoolId });
+      if (!analysis) {
+        throw new MigrationApplyError(
+          "MIGRATION_PLAN_STALE: Source Analysis missing for compiled plan. Re-analyse before apply.",
+          { success: false, error: "MIGRATION_PLAN_STALE" }
+        );
+      }
+      try {
+        assertPlanFingerprintsFresh(plan, analysis);
+      } catch (e: unknown) {
+        const message = e instanceof Error ? e.message : "MIGRATION_PLAN_STALE";
+        throw new MigrationApplyError(message, { success: false, error: message });
+      }
+    } else if (Array.isArray(stage.sourceFingerprints) && stage.sourceFingerprints.length) {
+      // Compare stage-captured fingerprints to plan
+      const byId = new Map(plan.sourceFingerprints.map((f) => [f.fileId, f.headerFingerprint]));
+      for (const fp of stage.sourceFingerprints) {
+        const expected = byId.get(fp.fileId);
+        if (!expected || expected !== fp.headerFingerprint) {
+          throw new MigrationApplyError(
+            "MIGRATION_PLAN_STALE: Stage fingerprints do not match compiled plan — re-stage before apply.",
+            { success: false, error: "MIGRATION_PLAN_STALE" }
+          );
+        }
+      }
+    }
+  }
+}
+
 function stageHasTransactionFiles(stage: MigrationStage): boolean {
   return stage.stagedCounts.transactions > 0;
 }
@@ -312,17 +407,32 @@ export async function applyMigrationStage(
   input: MigrationApplyRequest
 ): Promise<MigrationApplyResult> {
   const stageId = cleanString(input.stageId);
-  const targetSchoolId = cleanString(input.targetSchoolId);
   const confirmationText = cleanString(input.confirmationText);
   const isFullPreflight =
     input.mode === "FULL_MIGRATION_PREFLIGHT" || Boolean(input.fullMigrationPreflight);
 
   if (!stageId) throw new MigrationApplyError("stageId is required");
-  if (!targetSchoolId) throw new MigrationApplyError("targetSchoolId is required");
   if (!confirmationText) throw new MigrationApplyError("confirmationText is required");
 
   const stage = getStage(stageId);
   if (!stage) throw new MigrationApplyError("Dry run stage not found");
+
+  let targetSchoolId: string;
+  try {
+    targetSchoolId = resolveBoundTargetSchoolId({
+      stage,
+      requestedTargetSchoolId: input.targetSchoolId,
+    });
+  } catch (e: unknown) {
+    if (e instanceof MigrationSchoolBindingError) {
+      throw new MigrationApplyError(e.message, {
+        success: false,
+        error: e.message,
+        migrationStatus: undefined,
+      });
+    }
+    throw e;
+  }
 
   if (!stage.canApply) {
     throw new MigrationApplyError("Dry run cannot be applied (canApply is false)");
@@ -348,8 +458,15 @@ export async function applyMigrationStage(
     where: { id: targetSchoolId },
     select: { id: true, name: true },
   });
-  if (!school) throw new MigrationApplyError("Target school not found");
+  if (!school) {
+    throw new MigrationApplyError(
+      `Target school not found for bound migration (${targetSchoolId}). Re-stage against an existing school.`
+    );
+  }
 
+  assertStageCompiledPlanFresh(stage, targetSchoolId);
+
+  // Bound name snapshot may drift; confirmation must match live school name.
   const expectedPhrase = cleanString(school.name);
   if (
     confirmationText.trim().toLowerCase() !== expectedPhrase.trim().toLowerCase()
@@ -396,23 +513,26 @@ export async function applyMigrationStage(
   }
 
   // --- Parent identity preflight (ZERO writes) before any school mutation ---
+  const deferParents = Boolean(input.deferParentsToParentFamilyPlan);
   const parentRowContexts: UniversalParentRowContext[] = [];
-  for (const { plan, rows, targetToSource } of parsedFiles) {
-    const applyParents =
-      plan.category === "parents" &&
-      plan.entityKinds.has("parent") &&
-      hasTargetsInSet(plan.mappings, PARENT_FIELDS);
-    if (!applyParents) continue;
-    for (let i = 0; i < rows.length; i++) {
-      let mapped = mapRawRecord(rows[i]!, targetToSource);
-      mapped = enrichParentMappedFromContactList(mapped, rows[i]!);
-      parentRowContexts.push({
-        fileId: plan.fileId,
-        filename: plan.filename,
-        rowNumber: i + 1,
-        mapped,
-        raw: rows[i]!,
-      });
+  if (!deferParents) {
+    for (const { plan, rows, targetToSource } of parsedFiles) {
+      const applyParents =
+        plan.category === "parents" &&
+        plan.entityKinds.has("parent") &&
+        hasTargetsInSet(plan.mappings, PARENT_FIELDS);
+      if (!applyParents) continue;
+      for (let i = 0; i < rows.length; i++) {
+        let mapped = mapRawRecord(rows[i]!, targetToSource);
+        mapped = enrichParentMappedFromContactList(mapped, rows[i]!);
+        parentRowContexts.push({
+          fileId: plan.fileId,
+          filename: plan.filename,
+          rowNumber: i + 1,
+          mapped,
+          raw: rows[i]!,
+        });
+      }
     }
   }
 
@@ -492,6 +612,8 @@ export async function applyMigrationStage(
   const failedCounts = emptyCounts();
   const transactionOutcomes = emptyTransactionOutcomes();
   const report: MigrationImportReportRow[] = [];
+  /** Ledger entry ids written during this apply — compensated if Prisma TX fails afterward. */
+  const postedLedgerEntryIds: string[] = [];
 
   const baseResult = (): MigrationApplyResult => ({
     batchId: batch.batchId,
@@ -831,6 +953,11 @@ export async function applyMigrationStage(
               }
             }
 
+            const enrollmentStatus = enrollmentStatusFromMapped(
+              cleanString((mapped as MappedRow & { status?: string }).status)
+            );
+            const learnerNotes =
+              cleanString((mapped as MappedRow & { notes?: string }).notes) || null;
             const created = await tx.learner.create({
               data: {
                 schoolId: targetSchoolId,
@@ -854,6 +981,9 @@ export async function applyMigrationStage(
                 citizenship:
                   cleanString((mapped as MappedRow & { citizenship?: string }).citizenship) ||
                   null,
+                ...(enrollmentStatus ? { enrollmentStatus } : {}),
+                ...(learnerNotes ? { notes: learnerNotes } : {}),
+                // admissionDate intentionally omitted — not on Prisma Learner
               },
               select: { id: true },
             });
@@ -925,6 +1055,68 @@ export async function applyMigrationStage(
         });
       }
 
+      // Phase 1G — opening balances (ledger invoice/credit), then post-cutover txs, then billing plans.
+      // Prisma and file-backed ledger are not one atomic TX: track ids for compensation on failure.
+      const openingRows: Array<{
+        mapped: MappedRow;
+        sourceFileId: string;
+        sourceFilename: string;
+        rowNumber: number;
+      }> = [];
+      const billingPlanRows: typeof openingRows = [];
+      let hasOpeningBalanceMapping = false;
+
+      for (const { plan, rows, targetToSource } of parsedFiles) {
+        for (let i = 0; i < rows.length; i++) {
+          const mapped = mapRawRecord(rows[i]!, targetToSource);
+          if (cleanString((mapped as MappedRow).openingBalance)) {
+            hasOpeningBalanceMapping = true;
+            openingRows.push({
+              mapped: mapped as MappedRow,
+              sourceFileId: plan.fileId,
+              sourceFilename: plan.filename,
+              rowNumber: i + 1,
+            });
+          }
+          if (
+            cleanString((mapped as MappedRow).billingPlan) ||
+            cleanString((mapped as MappedRow).feeAmount)
+          ) {
+            billingPlanRows.push({
+              mapped: mapped as MappedRow,
+              sourceFileId: plan.fileId,
+              sourceFilename: plan.filename,
+              rowNumber: i + 1,
+            });
+          }
+        }
+      }
+
+      if (hasOpeningBalanceMapping && !cleanString(stage.cutoverDate)) {
+        throw new MigrationApplyError(
+          "Cutover date is required before posting opening balances. Set cutover on the dry run and re-stage."
+        );
+      }
+
+      if (openingRows.length > 0) {
+        await postOpeningBalancesForMappedRows(
+          {
+            tx,
+            schoolId: targetSchoolId,
+            cutoverDate: cleanString(stage.cutoverDate),
+            migrationRunId: stage.migrationRunId || stage.stageId,
+            stageId: stage.stageId,
+            sourceAnalysisId: stage.sourceAnalysisId || undefined,
+            report,
+            createdCounts,
+            skippedCounts,
+            failedCounts,
+            postedLedgerEntryIds,
+          },
+          openingRows
+        );
+      }
+
       const ledgerCtx = {
         tx,
         schoolId: targetSchoolId,
@@ -946,13 +1138,72 @@ export async function applyMigrationStage(
         for (let i = 0; i < rows.length; i++) {
           const rowNumber = i + 1;
           const mapped = mapRawRecord(rows[i]!, targetToSource);
+          // Never post UNKNOWN_FINANCE; never treat openingBalance columns as ordinary txs
+          if (cleanString((mapped as MappedRow).openingBalance)) continue;
+          const classified = classifyFinanceSourceRow({
+            mapped: mapped as MappedRow,
+            treatPreCutoverAsHistory: hasOpeningBalanceMapping,
+            isPreCutover: Boolean(
+              stage.cutoverDate &&
+                cleanString((mapped as MappedRow).transactionDate) &&
+                cleanString((mapped as MappedRow).transactionDate).slice(0, 10) <
+                  cleanString(stage.cutoverDate).slice(0, 10)
+            ),
+          });
+          if (
+            classified.classification === "UNKNOWN_FINANCE" ||
+            classified.classification === "TRANSACTION_HISTORY" ||
+            classified.classification === "OPENING_BALANCE"
+          ) {
+            pushReport(report, {
+              entityType: "transaction",
+              sourceFileId: plan.fileId,
+              sourceFilename: plan.filename,
+              rowNumber,
+              status: "not_applied",
+              message: classified.reason,
+            });
+            continue;
+          }
+          const beforeIds = new Set(
+            // capture via report recordIds after post — track by wrapping
+            [] as string[]
+          );
+          void beforeIds;
           await postSingleMigrationLedgerTransaction(ledgerCtx, {
             mapped,
             sourceFileId: plan.fileId,
             sourceFilename: plan.filename,
             rowNumber,
           });
+          // Idempotent umig-tx ids — compensation uses report-created ids collected below
         }
+      }
+
+      // Collect newly created transaction ledger ids from report for compensation
+      for (const row of report) {
+        if (
+          row.entityType === "transaction" &&
+          row.status === "created" &&
+          row.recordId &&
+          !postedLedgerEntryIds.includes(row.recordId)
+        ) {
+          postedLedgerEntryIds.push(row.recordId);
+        }
+      }
+
+      if (billingPlanRows.length > 0) {
+        await applyMigrationBillingPlansFromMappedRows(
+          {
+            tx,
+            schoolId: targetSchoolId,
+            report,
+            createdCounts,
+            skippedCounts,
+            failedCounts,
+          },
+          billingPlanRows
+        );
       }
     }, MIGRATION_APPLY_TX_OPTIONS);
 
@@ -982,6 +1233,17 @@ export async function applyMigrationStage(
 
     return result;
   } catch (e: unknown) {
+    // Compensate file-backed ledger writes if apply failed after partial ledger posts.
+    if (postedLedgerEntryIds.length > 0) {
+      try {
+        removeSchoolEntriesByIds(targetSchoolId, postedLedgerEntryIds);
+      } catch (compErr: unknown) {
+        console.error(
+          "migration apply ledger compensation failed",
+          compErr instanceof Error ? compErr.message : compErr
+        );
+      }
+    }
     const message = e instanceof Error ? e.message : "Apply failed";
     const failedResult: MigrationApplyResult = {
       ...baseResult(),

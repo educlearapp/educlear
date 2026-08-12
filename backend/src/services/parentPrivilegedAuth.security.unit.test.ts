@@ -216,22 +216,30 @@ async function main() {
   }
   console.log("✓ TEST 8 Owner gets learner names; non-admin does not");
 
-  // TEST 9 — cross-school exact ID → no existingParent payload
+  // TEST 9 — cross-school exact ID → ALLOW School A create (no School B PII)
   {
     const prisma = {
       parent: {
         findMany: async () => [],
-        findUnique: async () => ({
-          id: "p-b",
-          schoolId: SCHOOL_B,
-          firstName: "Secret",
-          surname: "Name",
-          cellNo: "0829999999",
-          email: "secret@ex.com",
-          idNumber: "8001015009087",
-          familyAccountId: "fa-b",
-          links: [{ learnerId: "l-b" }],
-        }),
+        findFirst: async ({ where }: any) => {
+          // School-scoped lookup: School A has no match even though School B has the ID.
+          if (where.schoolId === SCHOOL_A && where.idNumber === "8001015009087") return null;
+          if (where.idNumber === "8001015009087") {
+            return {
+              id: "p-b",
+              schoolId: SCHOOL_B,
+              firstName: "Secret",
+              surname: "Name",
+              cellNo: "0829999999",
+              email: "secret@ex.com",
+              idNumber: "8001015009087",
+              familyAccountId: "fa-b",
+              links: [{ learnerId: "l-b" }],
+            };
+          }
+          return null;
+        },
+        findUnique: async () => null,
       },
     } as any;
     const r = await checkApplicationParentIdentity({
@@ -240,12 +248,11 @@ async function main() {
       incoming: { firstName: "X", surname: "Y", idNumber: "8001015009087" },
       actorIsOwnerAdmin: true,
     });
-    assert.equal(r.decision, "EXISTING_PARENT_MATCH");
-    assert.equal(r.code, PARENT_ID_ALREADY_EXISTS);
+    assert.equal(r.decision, "CREATE_ALLOWED");
     assert.equal(r.existingParent, null);
     assert.equal(r.candidates.length, 0);
   }
-  console.log("✓ TEST 9 cross-school exact ID → conflict semantic only, zero PII");
+  console.log("✓ TEST 9 cross-school exact ID → ALLOW create at this school, zero other-school PII");
 
   // TEST 10 / 11 — confirmCreateDespiteMatch requires trusted Owner/Admin at route layer
   {
@@ -308,20 +315,22 @@ async function main() {
 
   // TEST 14 — edit self OK when auth school matches (identity helper)
   {
+    const self = {
+      id: "p-self",
+      schoolId: SCHOOL_A,
+      firstName: "Me",
+      surname: "Self",
+      cellNo: "0820000000",
+      email: "me@ex.com",
+      idNumber: "9001015009087",
+      familyAccountId: null,
+      links: [],
+    };
     const prisma = {
       parent: {
         findMany: async () => [],
-        findUnique: async () => ({
-          id: "p-self",
-          schoolId: SCHOOL_A,
-          firstName: "Me",
-          surname: "Self",
-          cellNo: "0820000000",
-          email: "me@ex.com",
-          idNumber: "9001015009087",
-          familyAccountId: null,
-          links: [],
-        }),
+        findFirst: async () => self,
+        findUnique: async () => self,
       },
     } as any;
     const r = await checkApplicationParentIdentity({

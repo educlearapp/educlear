@@ -145,13 +145,22 @@ export async function reconcileMigrationBatch(
   if (!batch) throw new MigrationReconciliationError("Import batch not found");
 
   if (batch.targetSchoolId !== targetSchoolId) {
-    throw new MigrationReconciliationError("targetSchoolId does not match this import batch");
+    throw new MigrationReconciliationError(
+      `MIGRATION_SCHOOL_MISMATCH: Batch is locked to school ${batch.targetSchoolId}; request targeted ${targetSchoolId}. No writes occurred.`
+    );
   }
 
   const stage = getStage(batch.stageId);
   if (!stage) {
     throw new MigrationReconciliationError(
       `Dry run stage ${batch.stageId} not found — cannot reconcile staged counts`
+    );
+  }
+
+  const stageSchoolId = String(stage.targetSchoolId || "").trim();
+  if (stageSchoolId && stageSchoolId !== batch.targetSchoolId) {
+    throw new MigrationReconciliationError(
+      `MIGRATION_SCHOOL_MISMATCH: Stage is locked to school ${stageSchoolId}; batch is locked to ${batch.targetSchoolId}. No writes occurred.`
     );
   }
 

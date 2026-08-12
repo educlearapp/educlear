@@ -47,7 +47,7 @@ function testFrontendErrorMessage() {
   });
   assert.equal(
     err.message,
-    "This ID number already belongs to another parent record and cannot be assigned here."
+    "This ID number already belongs to another parent at this school and cannot be assigned here."
   );
   console.log("✓ frontend error message exact text");
 }
@@ -102,7 +102,7 @@ function testExistingParentNavigationTarget() {
 function testUniquenessRegressionMessageStable() {
   assert.equal(
     PARENT_ID_CONFLICT_MESSAGE,
-    "This ID number already belongs to another parent record and cannot be assigned here."
+    "This ID number already belongs to another parent at this school and cannot be assigned here."
   );
   assert.equal(PARENT_ID_ALREADY_EXISTS, "PARENT_ID_ALREADY_EXISTS");
   console.log("✓ uniqueness conflict code/message regression locked");

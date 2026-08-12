@@ -34,6 +34,8 @@ export type UniversalMigrationValidateResponse = {
   success: boolean;
   summary: MigrationValidationSummary;
   issues: MigrationValidationIssue[];
+  planNotice?: string;
+  mappings?: MigrationFileColumnMappings[];
 };
 
 export async function fetchUniversalMigrationValidation(input: {
@@ -44,6 +46,8 @@ export async function fetchUniversalMigrationValidation(input: {
   schoolId?: string;
   /** ISO date (YYYY-MM-DD) — transactions before cutover are historical-only. */
   cutoverDate?: string;
+  sourceAnalysisId?: string;
+  compiledPlanId?: string;
 }): Promise<UniversalMigrationValidateResponse> {
   const data = (await superAdminApiFetch("/api/migration/validate", {
     method: "POST",

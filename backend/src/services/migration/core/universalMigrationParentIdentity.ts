@@ -155,6 +155,11 @@ export function buildIncomingFromMapped(
     learnerLabel: opts.learnerLabel || null,
     sourceFile: opts.sourceFile || null,
     sourceRow: opts.sourceRow ?? null,
+    homeAddress: cleanString((mapped as MappedRow & { address?: string }).address) || null,
+    employer: cleanString((mapped as MappedRow & { employer?: string }).employer) || null,
+    notes: cleanString((mapped as MappedRow & { parentNotes?: string }).parentNotes) || null,
+    workNo:
+      cleanString((mapped as MappedRow & { parentWorkPhone?: string }).parentWorkPhone) || null,
   };
 }
 

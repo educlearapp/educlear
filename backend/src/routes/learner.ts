@@ -340,7 +340,7 @@ async function saveParentLinks({
                 idNumber: idNumber || String(identityCheck.existingParent.idNumber || ""),
                 existingParent: identityCheck.existingParent,
               }
-            : await buildParentIdConflictBody(prisma, idNumber || "");
+            : await buildParentIdConflictBody(prisma, idNumber || "", schoolId);
           throw new ParentIdConflictError(body);
         }
 
@@ -380,7 +380,7 @@ async function saveParentLinks({
                 idNumber: idNumber || String(identityCheck.existingParent.idNumber || ""),
                 existingParent: identityCheck.existingParent,
               }
-            : await buildParentIdConflictBody(prisma, idNumber || "");
+            : await buildParentIdConflictBody(prisma, idNumber || "", schoolId);
           throw new ParentIdConflictError(body);
         }
 
@@ -416,7 +416,7 @@ async function saveParentLinks({
           idNumber ||
           cleanString((rawParent as { idNumber?: unknown }).idNumber) ||
           "";
-        const body = await buildParentIdConflictBody(prisma, conflictId);
+        const body = await buildParentIdConflictBody(prisma, conflictId, schoolId);
         throw new ParentIdConflictError(body);
       }
       throw error;

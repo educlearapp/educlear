@@ -154,7 +154,9 @@ export async function reverseMigrationLedgerBatch(
   }
 
   if (batch.targetSchoolId !== targetSchoolId) {
-    throw new MigrationReversalError("targetSchoolId does not match this import batch");
+    throw new MigrationReversalError(
+      `MIGRATION_SCHOOL_MISMATCH: Batch is locked to school ${batch.targetSchoolId}; request targeted ${targetSchoolId}. No writes occurred.`
+    );
   }
 
   const expectedPhrase = cleanString(batch.targetSchoolName);

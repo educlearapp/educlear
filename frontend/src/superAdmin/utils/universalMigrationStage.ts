@@ -73,8 +73,12 @@ export type PaymentReceiveListStageData = {
 
 export type MigrationStage = {
   stageId: string;
+  migrationRunId?: string;
   createdAt: string;
   sourceSystem: string;
+  /** Immutable school binding for this dry run. */
+  targetSchoolId: string;
+  targetSchoolName: string;
   cutoverDate?: string;
   files: MigrationStageFileSummary[];
   mappings: MigrationFileColumnMappings[];
@@ -84,18 +88,35 @@ export type MigrationStage = {
   paymentReceiveList?: PaymentReceiveListStageData;
   warnings: string[];
   canApply: boolean;
+  sourceAnalysisId?: string | null;
+  analysisVersion?: string | null;
+  compiledPlanId?: string | null;
+  compiledPlanVersion?: string | null;
+  sourceFingerprints?: Array<{
+    fileId: string;
+    filename: string;
+    headerFingerprint: string;
+  }>;
 };
 
 export type MigrationStageListItem = Pick<
   MigrationStage,
-  "stageId" | "createdAt" | "sourceSystem" | "stagedCounts" | "canApply"
+  | "stageId"
+  | "migrationRunId"
+  | "createdAt"
+  | "sourceSystem"
+  | "targetSchoolId"
+  | "targetSchoolName"
+  | "stagedCounts"
+  | "canApply"
 > & {
   fileCount: number;
 };
 
 export async function createUniversalMigrationStage(input: {
   sourceSystem: string;
-  schoolId?: string;
+  /** Required — locks the dry run to this school. */
+  schoolId: string;
   previews: MigrationFilePreview[];
   mappings: MigrationFileColumnMappings[];
   validationSummary: MigrationValidationSummary;
@@ -103,22 +124,29 @@ export async function createUniversalMigrationStage(input: {
   /** fileId → staging disk path from upload */
   filePaths?: Record<string, string>;
   cutoverDate?: string;
+  sourceAnalysisId?: string;
+  compiledPlanId?: string;
 }): Promise<MigrationStage> {
   const previewsWithPaths = input.previews.map((p) => ({
     ...p,
     path: p.path || input.filePaths?.[p.fileId] || undefined,
   }));
+  if (!String(input.schoolId || "").trim()) {
+    throw new Error("schoolId is required to create a dry run");
+  }
   const data = (await superAdminApiFetch("/api/migration/stage", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({
       sourceSystem: input.sourceSystem,
-      ...(input.schoolId ? { schoolId: input.schoolId } : {}),
+      schoolId: input.schoolId,
       previews: previewsWithPaths,
       mappings: input.mappings,
       validationSummary: input.validationSummary,
       issues: input.issues,
       ...(input.cutoverDate ? { cutoverDate: input.cutoverDate } : {}),
+      ...(input.sourceAnalysisId ? { sourceAnalysisId: input.sourceAnalysisId } : {}),
+      ...(input.compiledPlanId ? { compiledPlanId: input.compiledPlanId } : {}),
     }),
   })) as { success?: boolean; stage?: MigrationStage; error?: string };
 
@@ -129,8 +157,13 @@ export async function createUniversalMigrationStage(input: {
   return data.stage;
 }
 
-export async function fetchUniversalMigrationStages(): Promise<MigrationStageListItem[]> {
-  const data = (await superAdminApiFetch("/api/migration/stages")) as {
+export async function fetchUniversalMigrationStages(opts?: {
+  targetSchoolId?: string;
+}): Promise<MigrationStageListItem[]> {
+  const qs = opts?.targetSchoolId
+    ? `?targetSchoolId=${encodeURIComponent(opts.targetSchoolId)}`
+    : "";
+  const data = (await superAdminApiFetch(`/api/migration/stages${qs}`)) as {
     success?: boolean;
     stages?: MigrationStageListItem[];
     error?: string;

@@ -29,6 +29,22 @@ import {
 import { readMigrationFilePreview } from "../services/migration/core/readMigrationFilePreview";
 import { readMigrationFileRows } from "../services/migration/core/readMigrationFileRows";
 import { suggestColumnMappings } from "../services/migration/core/suggestColumnMappings";
+import {
+  analyzeMigrationPackage,
+  applyOperatorFieldDecision,
+  getBoundSourceAnalysis,
+  saveSourceAnalysis,
+} from "../services/migration/sourceAnalysis";
+import {
+  assertCompiledPlanReadyForStage,
+  assertPlanFingerprintsFresh,
+  assertPlanSchool,
+  clientMappingsCompatibleWithPlan,
+  compileMigrationPlan,
+  getBoundCompiledPlan,
+  saveCompiledPlan,
+} from "../services/migration/migrationPlan";
+import type { MigrationTargetField } from "../services/migration/types/MigrationTargetField";
 import { validateMigration } from "../services/migration/validation/validateMigrationPreview";
 import {
   handleKidESysMigrationReadiness,
@@ -63,7 +79,66 @@ import {
   applyMigrationStage,
   MigrationApplyError,
 } from "../services/migration/core/applyMigrationStage";
+import { parseStagedMigrationFile } from "../services/migration/core/parseStagedMigrationFile";
+import { reconcileMigrationFinance } from "../services/migration/finance/reconcileMigrationFinance";
+import {
+  getBoundFinanceReconciliation,
+  getFinanceReconciliation,
+} from "../services/migration/finance/migrationFinanceReconciliationStore";
+import {
+  acceptMigration,
+  getAcceptanceByStage,
+  MigrationAcceptanceError,
+} from "../services/migration/finance/acceptMigration";
+import { formatRandFromCents } from "../services/migration/finance/moneyCents";
+import { verifyStatementAuthority } from "../services/migration/finance/statementAuthority/verifyStatementAuthority";
+import {
+  finalizeMigrationStatementAuthority,
+  StatementAuthorityFinalizeError,
+} from "../services/migration/finance/statementAuthority/finalizeMigrationStatementAuthority";
+import {
+  getStatementAuthorityCheck,
+  getStatementAuthorityCheckByStage,
+} from "../services/migration/finance/statementAuthority/statementAuthorityStore";
+import {
+  verifyFeeCheckAuthority,
+  getFeeCheckAuthorityCheck,
+} from "../services/migration/finance/feeCheckAuthority";
+import { verifyAgingFidelity, getAgingCheck } from "../services/migration/finance/agingCheck";
+import { loadSourceAgingByAccount } from "../services/migration/finance/loadSourceAgingByAccount";
 import { computeMigrationApplyPreview } from "../services/migration/core/computeMigrationApplyPreview";
+import {
+  compileAcademicMigrationPlan,
+  saveAcademicDiscovery,
+  saveAcademicPlan,
+  getAcademicPlan,
+  getAcademicPlanByStage,
+  applyAcademicMigrationPlan,
+  verifyAcademicStructure,
+  getAcademicCheck,
+  applyAcademicReviewAction,
+} from "../services/migration/academic";
+import {
+  compileParentFamilyMigrationPlan,
+  saveParentFamilyDiscovery,
+  saveParentFamilyPlan,
+  getParentFamilyPlan,
+  getParentFamilyPlanByStage,
+  applyParentFamilyMigrationPlan,
+  verifyParentFamilyMigration,
+  getParentFamilyCheck,
+  applyParentFamilyReviewAction,
+} from "../services/migration/parentFamily";
+import { loadSchoolParentCandidates } from "../services/migration/parentIdentity/loadSchoolParentCandidates";
+import {
+  computeUniversalMigrationReadiness,
+  runAutomaticMigrationAnalysis,
+  completeUniversalMigration,
+  getOrchestratorRunByStage,
+  getOrchestratorReadinessByStage,
+  prepareMigrationFromSession,
+} from "../services/migration/orchestrator";
+import { prisma } from "../prisma";
 import {
   getImportBatch,
   listImportBatchSummaries,
@@ -129,6 +204,10 @@ import {
   getMigrationSession,
   saveMigrationSession,
 } from "../services/migration/core/migrationSessionStore";
+import {
+  assertStagePathsBelongToSchoolSession,
+  MigrationSchoolBindingError,
+} from "../services/migration/core/migrationSchoolBinding";
 import type { MigrationFile } from "../services/migration/types/MigrationFile";
 import type { MigrationFilePreview } from "../services/migration/types/MigrationFilePreview";
 import type {
@@ -274,7 +353,14 @@ migrationUploadRouter.post(
       });
 
       const schoolId = String(req.body?.schoolId || "").trim();
-      if (schoolId) {
+      if (!schoolId) {
+        return jsonError(
+          res,
+          400,
+          "schoolId is required — select the Migration Target school before uploading files"
+        );
+      }
+      {
         const sourceSystem = String(req.body?.sourceSystem || "").trim() || undefined;
         const existing = getMigrationSession(schoolId);
         saveMigrationSession(schoolId, {
@@ -415,6 +501,206 @@ migrationUploadRouter.post("/mappings/suggest", (req, res) => {
   }
 });
 
+/**
+ * Phase 1E — source-first package analysis (ZERO school DB writes).
+ * POST /api/migration/source-analysis
+ */
+migrationUploadRouter.post("/source-analysis", (req, res) => {
+  try {
+    const targetSchoolId = String(req.body?.targetSchoolId || req.body?.schoolId || "").trim();
+    const stageId = String(req.body?.stageId || "").trim() || null;
+    const systemIdHint = String(req.body?.systemId || req.body?.systemIdHint || "").trim() || null;
+    const rawFiles = req.body?.files;
+    if (!targetSchoolId) {
+      return jsonError(res, 400, "targetSchoolId is required");
+    }
+    if (!Array.isArray(rawFiles) || rawFiles.length === 0) {
+      return jsonError(res, 400, "files array required");
+    }
+
+    if (stageId) {
+      const stage = getStage(stageId);
+      if (!stage) return jsonError(res, 404, "Stage not found");
+      if (String(stage.targetSchoolId || "").trim() !== targetSchoolId) {
+        return res.status(409).json({
+          success: false,
+          error: "MIGRATION_SCHOOL_MISMATCH: Analysis school does not match stage binding.",
+          code: "MIGRATION_SCHOOL_MISMATCH",
+        });
+      }
+    }
+
+    const priorId = String(req.body?.priorAnalysisId || "").trim();
+    const prior = priorId
+      ? getBoundSourceAnalysis(priorId, { targetSchoolId, stageId })
+      : null;
+
+    const files = rawFiles.map((raw: Record<string, unknown>) => ({
+      fileId: String(raw?.fileId || raw?.id || "").trim(),
+      filename: String(raw?.filename || "").trim(),
+      path: String(raw?.path || "").trim() || undefined,
+      category: String(raw?.category || "").trim() || undefined,
+      columns: Array.isArray(raw?.columns)
+        ? raw.columns.map((c) => String(c).trim())
+        : undefined,
+      sampleRows: Array.isArray(raw?.sampleRows)
+        ? (raw.sampleRows as Record<string, unknown>[])
+        : undefined,
+      rowCount: Number(raw?.rowCount) || undefined,
+      sheetNames: Array.isArray(raw?.sheetNames)
+        ? raw.sheetNames.map((s) => String(s))
+        : undefined,
+    }));
+
+    const analysis = analyzeMigrationPackage({
+      targetSchoolId,
+      targetSchoolName: String(req.body?.targetSchoolName || "").trim() || undefined,
+      stageId,
+      migrationRunId: stageId || String(req.body?.migrationRunId || "").trim() || null,
+      systemIdHint,
+      files,
+      priorConfirmedMappings: prior?.confirmedMappings,
+      priorHeaderFingerprints: prior
+        ? Object.fromEntries(prior.files.map((f) => [f.fileId, f.headerFingerprint]))
+        : undefined,
+    });
+
+    const saved = saveSourceAnalysis(analysis);
+    try {
+      saveMigrationSession(targetSchoolId, { sourceAnalysisId: saved.analysisId });
+    } catch {
+      // non-fatal — analysis file is authoritative
+    }
+
+    return res.json({ success: true, analysis: saved });
+  } catch (e: unknown) {
+    console.error("migration/source-analysis", e);
+    const message = e instanceof Error ? e.message : "Source analysis failed";
+    return jsonError(res, 500, message);
+  }
+});
+
+migrationUploadRouter.get("/source-analysis/:analysisId", (req, res) => {
+  try {
+    const analysisId = String(req.params.analysisId || "").trim();
+    const targetSchoolId = String(req.query?.targetSchoolId || "").trim();
+    if (!analysisId) return jsonError(res, 400, "analysisId required");
+    if (!targetSchoolId) return jsonError(res, 400, "targetSchoolId query required");
+    const analysis = getBoundSourceAnalysis(analysisId, { targetSchoolId });
+    if (!analysis) {
+      return res.status(404).json({
+        success: false,
+        error: "Analysis not found for this school",
+        code: "MIGRATION_SCHOOL_MISMATCH",
+      });
+    }
+    return res.json({ success: true, analysis });
+  } catch (e: unknown) {
+    console.error("migration/source-analysis get", e);
+    const message = e instanceof Error ? e.message : "Failed to load analysis";
+    return jsonError(res, 500, message);
+  }
+});
+
+migrationUploadRouter.post("/source-analysis/:analysisId/confirm-field", (req, res) => {
+  try {
+    const analysisId = String(req.params.analysisId || "").trim();
+    const targetSchoolId = String(req.body?.targetSchoolId || "").trim();
+    const fieldKey = String(req.body?.fieldKey || "").trim();
+    const action = String(req.body?.action || "").trim().toUpperCase();
+    const target = String(req.body?.target || "").trim() || null;
+
+    if (!analysisId || !targetSchoolId || !fieldKey) {
+      return jsonError(res, 400, "analysisId, targetSchoolId, and fieldKey are required");
+    }
+    if (action !== "ACCEPT" && action !== "CHOOSE" && action !== "UNSUPPORTED") {
+      return jsonError(res, 400, "action must be ACCEPT, CHOOSE, or UNSUPPORTED");
+    }
+
+    const existing = getBoundSourceAnalysis(analysisId, { targetSchoolId });
+    if (!existing) {
+      return res.status(404).json({
+        success: false,
+        error: "Analysis not found for this school",
+        code: "MIGRATION_SCHOOL_MISMATCH",
+      });
+    }
+
+    const next = applyOperatorFieldDecision(
+      existing,
+      fieldKey,
+      action as "ACCEPT" | "CHOOSE" | "UNSUPPORTED",
+      target as MigrationTargetField | null
+    );
+    const saved = saveSourceAnalysis(next);
+    return res.json({ success: true, analysis: saved });
+  } catch (e: unknown) {
+    console.error("migration/source-analysis confirm-field", e);
+    const message = e instanceof Error ? e.message : "Field confirmation failed";
+    return jsonError(res, 500, message);
+  }
+});
+
+/**
+ * Phase 1F — compile authoritative Migration Plan from Source Analysis (ZERO school writes).
+ * POST /api/migration/compile-plan
+ */
+migrationUploadRouter.post("/compile-plan", (req, res) => {
+  try {
+    const targetSchoolId = String(req.body?.targetSchoolId || req.body?.schoolId || "").trim();
+    const sourceAnalysisId = String(req.body?.sourceAnalysisId || "").trim();
+    if (!targetSchoolId) return jsonError(res, 400, "targetSchoolId is required");
+    if (!sourceAnalysisId) return jsonError(res, 400, "sourceAnalysisId is required");
+
+    const analysis = getBoundSourceAnalysis(sourceAnalysisId, { targetSchoolId });
+    if (!analysis) {
+      return res.status(404).json({
+        success: false,
+        error: "Source Analysis not found for this school",
+        code: "MIGRATION_SCHOOL_MISMATCH",
+      });
+    }
+
+    const plan = compileMigrationPlan({ analysis });
+    const saved = saveCompiledPlan(plan);
+    try {
+      saveMigrationSession(targetSchoolId, {
+        sourceAnalysisId: analysis.analysisId,
+        compiledPlanId: saved.planId,
+      });
+    } catch {
+      // non-fatal
+    }
+    return res.json({ success: true, plan: saved });
+  } catch (e: unknown) {
+    console.error("migration/compile-plan", e);
+    const message = e instanceof Error ? e.message : "Compile plan failed";
+    return jsonError(res, 500, message);
+  }
+});
+
+migrationUploadRouter.get("/compiled-plans/:planId", (req, res) => {
+  try {
+    const planId = String(req.params.planId || "").trim();
+    const targetSchoolId = String(req.query?.targetSchoolId || "").trim();
+    if (!planId) return jsonError(res, 400, "planId required");
+    if (!targetSchoolId) return jsonError(res, 400, "targetSchoolId query required");
+    const plan = getBoundCompiledPlan(planId, { targetSchoolId });
+    if (!plan) {
+      return res.status(404).json({
+        success: false,
+        error: "Compiled plan not found for this school",
+        code: "MIGRATION_SCHOOL_MISMATCH",
+      });
+    }
+    return res.json({ success: true, plan });
+  } catch (e: unknown) {
+    console.error("migration/compiled-plans get", e);
+    const message = e instanceof Error ? e.message : "Failed to load compiled plan";
+    return jsonError(res, 500, message);
+  }
+});
+
 /** Kid-e-Sys adapter readiness — POST /api/migration/adapters/kideesys/readiness (before :systemId routes). */
 migrationUploadRouter.post(KIDESYS_ADAPTER_READINESS_PATH, handleKidESysMigrationReadiness);
 
@@ -528,11 +814,16 @@ migrationUploadRouter.post("/validate", async (req, res) => {
     const mode = req.body?.mode === "full" ? "full" : "preview";
     const rawFilePaths = req.body?.filePaths;
     const schoolId = String(req.body?.schoolId || "").trim();
+    const sourceAnalysisId = String(req.body?.sourceAnalysisId || "").trim();
+    const compiledPlanId = String(req.body?.compiledPlanId || "").trim();
     if (!Array.isArray(rawPreviews) || rawPreviews.length === 0) {
       return jsonError(res, 400, "previews array required");
     }
     if (!Array.isArray(rawMappings) || rawMappings.length === 0) {
-      return jsonError(res, 400, "mappings array required");
+      // Allow empty client mappings when a compiled plan will supply authority
+      if (!sourceAnalysisId && !compiledPlanId) {
+        return jsonError(res, 400, "mappings array required");
+      }
     }
 
     const previews: MigrationFilePreview[] = rawPreviews.map((raw: Record<string, unknown>) => {
@@ -555,19 +846,76 @@ migrationUploadRouter.post("/validate", async (req, res) => {
       };
     });
 
-    const mappings: MigrationFileColumnMappings[] = rawMappings.map(
-      (raw: Record<string, unknown>) => ({
-        fileId: String(raw?.fileId || "").trim(),
-        mappings: Array.isArray(raw?.mappings)
-          ? (raw.mappings as Array<{ sourceColumn?: string; targetField?: string }>)
-              .map((m) => ({
-                sourceColumn: String(m?.sourceColumn || "").trim(),
-                targetField: String(m?.targetField || "").trim(),
-              }))
-              .filter((m) => m.sourceColumn && m.targetField)
-          : [],
-      })
-    );
+    let mappings: MigrationFileColumnMappings[] = Array.isArray(rawMappings)
+      ? rawMappings.map((raw: Record<string, unknown>) => ({
+          fileId: String(raw?.fileId || "").trim(),
+          mappings: Array.isArray(raw?.mappings)
+            ? (raw.mappings as Array<{ sourceColumn?: string; targetField?: string }>)
+                .map((m) => ({
+                  sourceColumn: String(m?.sourceColumn || "").trim(),
+                  targetField: String(m?.targetField || "").trim(),
+                }))
+                .filter((m) => m.sourceColumn && m.targetField)
+            : [],
+        }))
+      : [];
+
+    // Phase 1F — validate against compiled plan mappings when analysis/plan is bound
+    let planNotice: string | null = null;
+    const session = schoolId ? getMigrationSession(schoolId) : null;
+    const effectiveAnalysisId =
+      sourceAnalysisId || String(session?.sourceAnalysisId || "").trim();
+    const effectivePlanId = compiledPlanId || String(session?.compiledPlanId || "").trim();
+
+    if (effectiveAnalysisId || effectivePlanId) {
+      if (!schoolId) {
+        return jsonError(
+          res,
+          400,
+          "schoolId is required when validating against a Source Analysis / compiled plan"
+        );
+      }
+      let plan = effectivePlanId
+        ? getBoundCompiledPlan(effectivePlanId, {
+            targetSchoolId: schoolId,
+            sourceAnalysisId: effectiveAnalysisId || undefined,
+          })
+        : null;
+      if (!plan && effectiveAnalysisId) {
+        const analysis = getBoundSourceAnalysis(effectiveAnalysisId, {
+          targetSchoolId: schoolId,
+        });
+        if (!analysis) {
+          return res.status(404).json({
+            success: false,
+            error: "Source Analysis not found for this school",
+            code: "MIGRATION_SCHOOL_MISMATCH",
+          });
+        }
+        plan = saveCompiledPlan(compileMigrationPlan({ analysis }));
+      }
+      if (!plan) {
+        return jsonError(res, 404, "Compiled migration plan not found");
+      }
+      if (!clientMappingsCompatibleWithPlan(mappings, plan.compiledMappings)) {
+        return res.status(409).json({
+          success: false,
+          error:
+            "Client mappings do not match the compiled Source Analysis plan. Recompile the Migration Plan — do not re-map fields manually when analysis exists.",
+          code: "MIGRATION_MAPPINGS_MISMATCH",
+        });
+      }
+      mappings = plan.compiledMappings;
+      planNotice = `Validated using compiled plan ${plan.planId} from Source Analysis.`;
+      try {
+        saveMigrationSession(schoolId, {
+          sourceAnalysisId: plan.sourceAnalysisId,
+          compiledPlanId: plan.planId,
+        });
+      } catch {
+        // non-fatal
+      }
+    }
 
     const filePaths: Record<string, string> = {};
     if (rawFilePaths && typeof rawFilePaths === "object" && !Array.isArray(rawFilePaths)) {
@@ -579,6 +927,10 @@ migrationUploadRouter.post("/validate", async (req, res) => {
 
     if (previews.some((p) => !p.fileId || !p.filename)) {
       return jsonError(res, 400, "Each preview must include fileId and filename");
+    }
+
+    if (!mappings.length || !mappings.some((m) => (m.mappings || []).length > 0)) {
+      return jsonError(res, 400, "No compiled or client mappings available to validate");
     }
 
     const cutoverDate = String(req.body?.cutoverDate || "").trim() || undefined;
@@ -601,7 +953,12 @@ migrationUploadRouter.post("/validate", async (req, res) => {
         dryRunStage: null,
       });
     }
-    return res.json({ success: true, summary, issues });
+    return res.json({
+      success: true,
+      summary,
+      issues,
+      ...(planNotice ? { planNotice, mappings } : {}),
+    });
   } catch (e: unknown) {
     console.error("migration/validate", e);
     const message = e instanceof Error ? e.message : "Validation failed";
@@ -855,17 +1212,103 @@ migrationUploadRouter.post("/stage", async (req, res) => {
     const rawMappings = req.body?.mappings;
     const rawSummary = req.body?.validationSummary;
     const schoolId = String(req.body?.schoolId || "").trim();
+    if (!schoolId) {
+      return jsonError(
+        res,
+        400,
+        "schoolId is required — select the migration target school before creating a dry run"
+      );
+    }
+
+    const { prisma } = await import("../prisma");
+    const school = await prisma.school.findUnique({
+      where: { id: schoolId },
+      select: { id: true, name: true },
+    });
+    if (!school) {
+      return jsonError(res, 404, "Target school not found");
+    }
 
     if (!sourceSystem) return jsonError(res, 400, "sourceSystem is required");
     if (!Array.isArray(rawPreviews) || rawPreviews.length === 0) {
       return jsonError(res, 400, "previews array required");
     }
-    if (!Array.isArray(rawMappings) || rawMappings.length === 0) {
-      return jsonError(res, 400, "mappings array required");
-    }
     if (!rawSummary || typeof rawSummary !== "object") {
       return jsonError(res, 400, "validationSummary required");
     }
+
+    const session = getMigrationSession(school.id);
+    const sourceAnalysisId = String(
+      req.body?.sourceAnalysisId || session?.sourceAnalysisId || ""
+    ).trim();
+    if (!sourceAnalysisId) {
+      return jsonError(
+        res,
+        400,
+        "sourceAnalysisId is required — run Package Analysis and compile a Migration Plan before staging"
+      );
+    }
+
+    const analysis = getBoundSourceAnalysis(sourceAnalysisId, { targetSchoolId: school.id });
+    if (!analysis) {
+      return res.status(404).json({
+        success: false,
+        error: "Source Analysis not found for this school",
+        code: "MIGRATION_SCHOOL_MISMATCH",
+      });
+    }
+
+    let planId = String(req.body?.compiledPlanId || session?.compiledPlanId || "").trim();
+    let plan = planId
+      ? getBoundCompiledPlan(planId, {
+          targetSchoolId: school.id,
+          sourceAnalysisId,
+        })
+      : null;
+    if (!plan) {
+      plan = saveCompiledPlan(compileMigrationPlan({ analysis }));
+      planId = plan.planId;
+    }
+
+    try {
+      assertCompiledPlanReadyForStage(plan, analysis, school.id);
+      assertPlanFingerprintsFresh(plan, analysis);
+      assertPlanSchool(plan, school.id);
+    } catch (e: unknown) {
+      const message = e instanceof Error ? e.message : "Compiled plan rejected";
+      const code = message.includes("MIGRATION_SCHOOL_MISMATCH")
+        ? "MIGRATION_SCHOOL_MISMATCH"
+        : message.includes("MIGRATION_PLAN_STALE")
+          ? "MIGRATION_PLAN_STALE"
+          : "MIGRATION_PLAN_BLOCKED";
+      return res.status(409).json({ success: false, error: message, code });
+    }
+
+    const clientMappings: MigrationFileColumnMappings[] = Array.isArray(rawMappings)
+      ? rawMappings.map((raw: Record<string, unknown>) => ({
+          fileId: String(raw?.fileId || "").trim(),
+          mappings: Array.isArray(raw?.mappings)
+            ? (raw.mappings as Array<{ sourceColumn?: string; targetField?: string }>)
+                .map((m) => ({
+                  sourceColumn: String(m?.sourceColumn || "").trim(),
+                  targetField: String(m?.targetField || "").trim(),
+                }))
+                .filter((m) => m.sourceColumn && m.targetField)
+            : [],
+        }))
+      : [];
+
+    if (!clientMappingsCompatibleWithPlan(clientMappings, plan.compiledMappings)) {
+      return res.status(409).json({
+        success: false,
+        error:
+          "Client mappings do not match the compiled Source Analysis plan. Staging uses the compiled plan only — recompile after analysis changes.",
+        code: "MIGRATION_MAPPINGS_MISMATCH",
+      });
+    }
+
+    // Authoritative mappings = compiled plan (never silent older manual mappings)
+    const mappings = plan.compiledMappings;
 
     const previews: MigrationFilePreview[] = rawPreviews.map((raw: Record<string, unknown>) => {
       const pathValue = String(raw?.path || "").trim();
@@ -886,18 +1329,6 @@ migrationUploadRouter.post("/stage", async (req, res) => {
         ...(pathValue ? { path: pathValue } : {}),
       };
     });
-
-    const mappings = rawMappings.map((raw: Record<string, unknown>) => ({
-      fileId: String(raw?.fileId || "").trim(),
-      mappings: Array.isArray(raw?.mappings)
-        ? (raw.mappings as Array<{ sourceColumn?: string; targetField?: string }>)
-            .map((m) => ({
-              sourceColumn: String(m?.sourceColumn || "").trim(),
-              targetField: String(m?.targetField || "").trim(),
-            }))
-            .filter((m) => m.sourceColumn && m.targetField)
-        : [],
-    }));
 
     const raw = rawSummary as MigrationValidationSummary;
     const validationMode = raw.mode === "full" ? "full" : "preview";
@@ -934,17 +1365,34 @@ migrationUploadRouter.post("/stage", async (req, res) => {
       );
     }
 
+    try {
+      assertStagePathsBelongToSchoolSession({
+        targetSchoolId: school.id,
+        session,
+        previews,
+      });
+    } catch (e: unknown) {
+      if (e instanceof MigrationSchoolBindingError) {
+        return res.status(409).json({
+          success: false,
+          error: e.message,
+          code: e.code,
+        });
+      }
+      throw e;
+    }
+
     const rawIssues = req.body?.issues;
     const issues: MigrationValidationIssue[] = Array.isArray(rawIssues)
-      ? rawIssues.map((raw: Record<string, unknown>) => ({
-          fileId: String(raw?.fileId || "").trim(),
-          filename: String(raw?.filename || "").trim(),
-          rowNumber: Number(raw?.rowNumber) || 0,
-          severity: String(raw?.severity || "info") as MigrationValidationIssue["severity"],
-          category: String(raw?.category || "").trim(),
-          field: String(raw?.field || "").trim(),
-          message: String(raw?.message || "").trim(),
-          value: String(raw?.value || "").trim(),
+      ? rawIssues.map((rawIssue: Record<string, unknown>) => ({
+          fileId: String(rawIssue?.fileId || "").trim(),
+          filename: String(rawIssue?.filename || "").trim(),
+          rowNumber: Number(rawIssue?.rowNumber) || 0,
+          severity: String(rawIssue?.severity || "info") as MigrationValidationIssue["severity"],
+          category: String(rawIssue?.category || "").trim(),
+          field: String(rawIssue?.field || "").trim(),
+          message: String(rawIssue?.message || "").trim(),
+          value: String(rawIssue?.value || "").trim(),
         }))
       : [];
 
@@ -976,28 +1424,43 @@ migrationUploadRouter.post("/stage", async (req, res) => {
 
     const stage = buildMigrationStage({
       sourceSystem,
+      targetSchoolId: school.id,
+      targetSchoolName: school.name,
       previews,
       mappings,
       validationSummary,
       issues,
       cutoverDate,
       rowsByFileId,
+      sourceAnalysisId: plan.sourceAnalysisId,
+      analysisVersion: plan.analysisVersion,
+      compiledPlanId: plan.planId,
+      compiledPlanVersion: plan.planVersion,
+      sourceFingerprints: plan.sourceFingerprints,
+    });
+
+    // Bind plan to this stage/run
+    saveCompiledPlan({
+      ...plan,
+      stageId: stage.stageId,
+      migrationRunId: stage.migrationRunId,
+      updatedAt: new Date().toISOString(),
     });
 
     createStage(stage);
-    if (schoolId) {
-      saveMigrationSession(schoolId, {
-        sourceSystem,
-        previews,
-        mappingOverrides: getMigrationSession(schoolId)?.mappingOverrides ?? {},
-        validationSummary,
-        validationIssues: issues,
-        validationMode,
-        cutoverDate: cutoverDate ?? "",
-        dryRunStage: stage,
-      });
-    }
-    return res.json({ success: true, stage });
+    saveMigrationSession(school.id, {
+      sourceSystem,
+      previews,
+      mappingOverrides: session?.mappingOverrides ?? {},
+      validationSummary,
+      validationIssues: issues,
+      validationMode,
+      cutoverDate: cutoverDate ?? "",
+      dryRunStage: stage,
+      sourceAnalysisId: plan.sourceAnalysisId,
+      compiledPlanId: plan.planId,
+    });
+    return res.json({ success: true, stage, compiledPlanId: plan.planId });
   } catch (e: unknown) {
     console.error("migration/stage create", e);
     const message = e instanceof Error ? e.message : "Failed to create stage";
@@ -1005,9 +1468,10 @@ migrationUploadRouter.post("/stage", async (req, res) => {
   }
 });
 
-migrationUploadRouter.get("/stages", (_req, res) => {
+migrationUploadRouter.get("/stages", (req, res) => {
   try {
-    const stages = listStages();
+    const targetSchoolId = String(req.query?.targetSchoolId || "").trim();
+    const stages = listStages(targetSchoolId ? { targetSchoolId } : undefined);
     return res.json({ success: true, stages });
   } catch (e: unknown) {
     console.error("migration/stages list", e);
@@ -1023,9 +1487,34 @@ migrationUploadRouter.get("/stages/:stageId", async (req, res) => {
     const stage = getStage(stageId);
     if (!stage) return jsonError(res, 404, "Stage not found");
 
-    const targetSchoolId = String(req.query?.targetSchoolId || "").trim();
-    if (targetSchoolId) {
-      const applyExpectations = await computeMigrationApplyPreview(stage, targetSchoolId);
+    const querySchoolId = String(req.query?.targetSchoolId || "").trim();
+    if (querySchoolId) {
+      if (!stage.targetSchoolId) {
+        return jsonError(
+          res,
+          400,
+          "MIGRATION_STAGE_UNBOUND: This dry run has no school binding. Re-create the dry run."
+        );
+      }
+      if (querySchoolId !== stage.targetSchoolId) {
+        return res.status(409).json({
+          success: false,
+          error: `MIGRATION_SCHOOL_MISMATCH: Dry run is locked to school ${stage.targetSchoolId}; request targeted ${querySchoolId}.`,
+          code: "MIGRATION_SCHOOL_MISMATCH",
+        });
+      }
+      const applyExpectations = await computeMigrationApplyPreview(
+        stage,
+        stage.targetSchoolId
+      );
+      return res.json({ success: true, stage: { ...stage, applyExpectations } });
+    }
+
+    if (stage.targetSchoolId) {
+      const applyExpectations = await computeMigrationApplyPreview(
+        stage,
+        stage.targetSchoolId
+      );
       return res.json({ success: true, stage: { ...stage, applyExpectations } });
     }
 
@@ -1051,7 +1540,7 @@ migrationUploadRouter.delete("/stages/:stageId", (req, res) => {
   }
 });
 
-/** Universal Migration Framework — apply approved dry run to one target school (Super Admin only). */
+/** Universal Migration Framework — apply approved dry run to bound target school (Super Admin only). */
 migrationUploadRouter.post("/apply", async (req, res) => {
   try {
     const stageId = String(req.body?.stageId || "").trim();
@@ -1066,12 +1555,11 @@ migrationUploadRouter.post("/apply", async (req, res) => {
       : undefined;
 
     if (!stageId) return jsonError(res, 400, "stageId is required");
-    if (!targetSchoolId) return jsonError(res, 400, "targetSchoolId is required");
     if (!confirmationText) return jsonError(res, 400, "confirmationText is required");
 
     const result = await applyMigrationStage({
       stageId,
-      targetSchoolId,
+      ...(targetSchoolId ? { targetSchoolId } : {}),
       confirmationText,
       proceedWithEligibleActiveOnly,
       fullMigrationPreflight,
@@ -1080,7 +1568,7 @@ migrationUploadRouter.post("/apply", async (req, res) => {
     });
 
     if (!fullMigrationPreflight) {
-      clearMigrationSession(targetSchoolId);
+      clearMigrationSession(result.targetSchoolId);
     }
 
     const requiresReview = result.migrationStatus === "MIGRATION_REQUIRES_REVIEW";
@@ -1093,20 +1581,1028 @@ migrationUploadRouter.post("/apply", async (req, res) => {
   } catch (e: unknown) {
     console.error("migration/apply", e);
     if (e instanceof MigrationApplyError) {
+      const mismatch = String(e.message || "").includes("MIGRATION_SCHOOL_MISMATCH");
+      const unbound = String(e.message || "").includes("MIGRATION_STAGE_UNBOUND");
       const requiresReview =
         e.result?.migrationStatus === "MIGRATION_REQUIRES_REVIEW" ||
         String(e.message || "").includes("MIGRATION REQUIRES REVIEW") ||
         String(e.message || "").includes("MIGRATION_REQUIRES_REVIEW");
-      const status = e.message.includes("not found") ? 404 : requiresReview ? 409 : 400;
+      const status = e.message.includes("not found")
+        ? 404
+        : mismatch || unbound
+          ? 409
+          : requiresReview
+            ? 409
+            : 400;
       return res.status(status).json({
         success: false,
         error: e.message,
+        code: mismatch
+          ? "MIGRATION_SCHOOL_MISMATCH"
+          : unbound
+            ? "MIGRATION_STAGE_UNBOUND"
+            : undefined,
         result: e.result ?? null,
         migrationStatus: e.result?.migrationStatus ?? (requiresReview ? "MIGRATION_REQUIRES_REVIEW" : undefined),
         parentIdentityReview: e.result?.parentIdentityReview ?? null,
       });
     }
     const message = e instanceof Error ? e.message : "Apply failed";
+    return jsonError(res, 500, message);
+  }
+});
+
+/**
+ * Phase 1G — Finance Check: source totals vs EduClear ledger totals (exact cents).
+ * POST /api/migration/finance-reconcile
+ */
+migrationUploadRouter.post("/finance-reconcile", async (req, res) => {
+  try {
+    const stageId = String(req.body?.stageId || "").trim();
+    if (!stageId) return jsonError(res, 400, "stageId is required");
+    const stage = getStage(stageId);
+    if (!stage) return jsonError(res, 404, "Dry run not found");
+
+    const requestedSchoolId = String(req.body?.targetSchoolId || "").trim();
+    if (requestedSchoolId && requestedSchoolId !== stage.targetSchoolId) {
+      return res.status(409).json({
+        success: false,
+        error: "MIGRATION_SCHOOL_MISMATCH: Finance check school does not match the dry run school.",
+        code: "MIGRATION_SCHOOL_MISMATCH",
+      });
+    }
+
+    const rowsByFileId = new Map<string, Record<string, string>[]>();
+    for (const file of stage.files) {
+      const rows = await parseStagedMigrationFile(
+        String(file.path || ""),
+        String(file.filename || "")
+      );
+      rowsByFileId.set(
+        file.fileId,
+        rows.map((r) => {
+          const out: Record<string, string> = {};
+          for (const [k, v] of Object.entries(r)) out[k] = String(v ?? "");
+          return out;
+        })
+      );
+    }
+
+    const batches = listImportBatchSummaries().filter(
+      (b) => b.stageId === stage.stageId && b.targetSchoolId === stage.targetSchoolId
+    );
+    const applyBatchComplete = batches.some((b) => b.status === "completed");
+
+    const parentUnresolved = Number(req.body?.parentReviewUnresolved ?? 0);
+
+    const reconciliation = reconcileMigrationFinance({
+      stage,
+      rowsByFileId,
+      parentReviewUnresolved: parentUnresolved,
+      applyBatchComplete,
+    });
+
+    return res.json({
+      success: true,
+      reconciliation,
+      plainLanguage: {
+        accountsChecked: reconciliation.sourceTotals.accountCount,
+        sourceTotal: formatRandFromCents(reconciliation.sourceTotals.netCents),
+        educlearTotal: formatRandFromCents(reconciliation.migratedTotals.netCents),
+        difference: formatRandFromCents(reconciliation.differenceCents),
+        ok: reconciliation.canAccept && reconciliation.differenceCents === 0,
+        mismatchCount: reconciliation.mismatches.length,
+      },
+    });
+  } catch (e: unknown) {
+    console.error("migration/finance-reconcile", e);
+    const message = e instanceof Error ? e.message : "Finance reconcile failed";
+    return jsonError(res, 500, message);
+  }
+});
+
+migrationUploadRouter.get("/finance-reconcile/:reconciliationId", (req, res) => {
+  try {
+    const id = String(req.params.reconciliationId || "").trim();
+    const targetSchoolId = String(req.query.targetSchoolId || "").trim();
+    if (!id) return jsonError(res, 400, "reconciliationId is required");
+    const row = targetSchoolId
+      ? getBoundFinanceReconciliation(id, { targetSchoolId })
+      : getFinanceReconciliation(id);
+    if (!row) return jsonError(res, 404, "Finance check not found");
+    return res.json({ success: true, reconciliation: row });
+  } catch (e: unknown) {
+    console.error("migration/finance-reconcile get", e);
+    const message = e instanceof Error ? e.message : "Finance check get failed";
+    return jsonError(res, 500, message);
+  }
+});
+
+/**
+ * Phase 1H — Statement Balance Check
+ * POST /api/migration/statement-authority-check
+ */
+migrationUploadRouter.post("/statement-authority-check", async (req, res) => {
+  try {
+    const stageId = String(req.body?.stageId || "").trim();
+    const reconciliationId = String(req.body?.reconciliationId || "").trim();
+    if (!stageId) return jsonError(res, 400, "stageId is required");
+    if (!reconciliationId) return jsonError(res, 400, "reconciliationId is required");
+
+    const stage = getStage(stageId);
+    if (!stage) return jsonError(res, 404, "Dry run not found");
+    const requestedSchoolId = String(req.body?.targetSchoolId || "").trim();
+    if (requestedSchoolId && requestedSchoolId !== stage.targetSchoolId) {
+      return res.status(409).json({
+        success: false,
+        error: "MIGRATION_SCHOOL_MISMATCH",
+        code: "MIGRATION_SCHOOL_MISMATCH",
+      });
+    }
+
+    const reconciliation = getBoundFinanceReconciliation(reconciliationId, {
+      targetSchoolId: stage.targetSchoolId,
+      stageId: stage.stageId,
+    });
+    if (!reconciliation) {
+      return res.status(409).json({
+        success: false,
+        error: "Finance Check not found for this dry run/school",
+        code: "MIGRATION_SCHOOL_MISMATCH",
+      });
+    }
+
+    const check = verifyStatementAuthority({
+      stage,
+      reconciliation,
+      confirmSameDatePrecedence: Boolean(req.body?.confirmSameDatePrecedence),
+    });
+
+    return res.json({
+      success: true,
+      check,
+      plainLanguage: {
+        accountsChecked: check.accountsChecked,
+        matchCount: check.matchCount,
+        mismatchCount: check.mismatchCount,
+        statementAuthorityMatch: check.statementAuthorityMatch,
+        canFinalizeBaseline: check.canFinalizeBaseline,
+      },
+    });
+  } catch (e: unknown) {
+    console.error("migration/statement-authority-check", e);
+    const message = e instanceof Error ? e.message : "Statement balance check failed";
+    return jsonError(res, 500, message);
+  }
+});
+
+migrationUploadRouter.get("/statement-authority-check/:checkId", (req, res) => {
+  try {
+    const id = String(req.params.checkId || "").trim();
+    const check = getStatementAuthorityCheck(id) || getStatementAuthorityCheckByStage(id);
+    if (!check) return jsonError(res, 404, "Statement Balance Check not found");
+    return res.json({ success: true, check });
+  } catch (e: unknown) {
+    console.error("migration/statement-authority-check get", e);
+    const message = e instanceof Error ? e.message : "Statement check get failed";
+    return jsonError(res, 500, message);
+  }
+});
+
+/**
+ * Phase 1H — Apply migrated balances as statement baseline (existing age-analysis store).
+ * POST /api/migration/statement-authority-finalize
+ */
+migrationUploadRouter.post("/statement-authority-finalize", async (req, res) => {
+  try {
+    const stageId = String(req.body?.stageId || "").trim();
+    const reconciliationId = String(req.body?.reconciliationId || "").trim();
+    if (!stageId) return jsonError(res, 400, "stageId is required");
+    if (!reconciliationId) return jsonError(res, 400, "reconciliationId is required");
+
+    const stage = getStage(stageId);
+    if (!stage) return jsonError(res, 404, "Dry run not found");
+    const requestedSchoolId = String(req.body?.targetSchoolId || "").trim();
+    if (requestedSchoolId && requestedSchoolId !== stage.targetSchoolId) {
+      return res.status(409).json({
+        success: false,
+        error: "MIGRATION_SCHOOL_MISMATCH",
+        code: "MIGRATION_SCHOOL_MISMATCH",
+      });
+    }
+
+    const reconciliation = getBoundFinanceReconciliation(reconciliationId, {
+      targetSchoolId: stage.targetSchoolId,
+      stageId: stage.stageId,
+    });
+    if (!reconciliation) {
+      return res.status(409).json({
+        success: false,
+        error: "Finance Check not found for this dry run/school",
+        code: "MIGRATION_SCHOOL_MISMATCH",
+      });
+    }
+
+    const rowsByFileId = new Map<string, Record<string, string>[]>();
+    for (const file of stage.files) {
+      const rows = await parseStagedMigrationFile(
+        String(file.path || ""),
+        String(file.filename || "")
+      );
+      rowsByFileId.set(
+        file.fileId,
+        rows.map((r) => {
+          const out: Record<string, string> = {};
+          for (const [k, v] of Object.entries(r)) out[k] = String(v ?? "");
+          return out;
+        })
+      );
+    }
+    const sourceAgingByAccount = loadSourceAgingByAccount(rowsByFileId);
+
+    const baseline = await finalizeMigrationStatementAuthority({
+      stage,
+      reconciliation,
+      confirmSameDatePrecedence: Boolean(req.body?.confirmSameDatePrecedence),
+      force: Boolean(req.body?.force),
+      operatorIdentity:
+        String(req.body?.operatorIdentity || "").trim() ||
+        String((req as { user?: { email?: string } }).user?.email || "").trim() ||
+        null,
+      sourceAgingByAccount,
+    });
+
+    // Re-verify after finalize
+    const check = verifyStatementAuthority({
+      stage,
+      reconciliation,
+      confirmSameDatePrecedence: true,
+    });
+
+    return res.json({
+      success: true,
+      baseline,
+      check,
+      statementAuthorityMatch: check.statementAuthorityMatch,
+    });
+  } catch (e: unknown) {
+    console.error("migration/statement-authority-finalize", e);
+    if (e instanceof StatementAuthorityFinalizeError) {
+      const mismatch = e.message.includes("MIGRATION_SCHOOL_MISMATCH");
+      return res.status(mismatch ? 409 : 400).json({
+        success: false,
+        error: e.message,
+        code: mismatch ? "MIGRATION_SCHOOL_MISMATCH" : undefined,
+      });
+    }
+    const message = e instanceof Error ? e.message : "Statement baseline finalise failed";
+    return jsonError(res, 500, message);
+  }
+});
+
+/**
+ * Phase 1I — Aging Check
+ * POST /api/migration/aging-check
+ */
+migrationUploadRouter.post("/aging-check", async (req, res) => {
+  try {
+    const stageId = String(req.body?.stageId || "").trim();
+    const reconciliationId = String(req.body?.reconciliationId || "").trim();
+    if (!stageId) return jsonError(res, 400, "stageId is required");
+    if (!reconciliationId) return jsonError(res, 400, "reconciliationId is required");
+
+    const stage = getStage(stageId);
+    if (!stage) return jsonError(res, 404, "Dry run not found");
+    const requestedSchoolId = String(req.body?.targetSchoolId || "").trim();
+    if (requestedSchoolId && requestedSchoolId !== stage.targetSchoolId) {
+      return res.status(409).json({
+        success: false,
+        error: "MIGRATION_SCHOOL_MISMATCH",
+        code: "MIGRATION_SCHOOL_MISMATCH",
+      });
+    }
+
+    const reconciliation = getBoundFinanceReconciliation(reconciliationId, {
+      targetSchoolId: stage.targetSchoolId,
+      stageId: stage.stageId,
+    });
+    if (!reconciliation) {
+      return res.status(409).json({
+        success: false,
+        error: "Finance Check not found for this dry run/school",
+        code: "MIGRATION_SCHOOL_MISMATCH",
+      });
+    }
+
+    const rowsByFileId = new Map<string, Record<string, string>[]>();
+    for (const file of stage.files) {
+      const rows = await parseStagedMigrationFile(
+        String(file.path || ""),
+        String(file.filename || "")
+      );
+      rowsByFileId.set(
+        file.fileId,
+        rows.map((r) => {
+          const out: Record<string, string> = {};
+          for (const [k, v] of Object.entries(r)) out[k] = String(v ?? "");
+          return out;
+        })
+      );
+    }
+
+    const check = verifyAgingFidelity({
+      stage,
+      reconciliation,
+      sourceAgingByAccount: loadSourceAgingByAccount(rowsByFileId),
+    });
+
+    return res.json({
+      success: true,
+      check,
+      plainLanguage: {
+        accountsChecked: check.accountsChecked,
+        sourceBucketsCount: check.sourceBucketsCount,
+        balanceOnlyCount: check.balanceOnlyCount,
+        agingCheckPass: check.agingCheckPass,
+      },
+    });
+  } catch (e: unknown) {
+    console.error("migration/aging-check", e);
+    const message = e instanceof Error ? e.message : "Aging Check failed";
+    return jsonError(res, 500, message);
+  }
+});
+
+migrationUploadRouter.get("/aging-check/:checkId", (req, res) => {
+  try {
+    const id = String(req.params.checkId || "").trim();
+    const check = getAgingCheck(id);
+    if (!check) return jsonError(res, 404, "Aging Check not found");
+    return res.json({ success: true, check });
+  } catch (e: unknown) {
+    console.error("migration/aging-check get", e);
+    const message = e instanceof Error ? e.message : "Aging Check get failed";
+    return jsonError(res, 500, message);
+  }
+});
+
+/**
+ * Phase 1I — Fee Check Authority Check
+ * POST /api/migration/fee-check-authority
+ */
+migrationUploadRouter.post("/fee-check-authority", async (req, res) => {
+  try {
+    const stageId = String(req.body?.stageId || "").trim();
+    const reconciliationId = String(req.body?.reconciliationId || "").trim();
+    const statementAuthorityCheckId = String(
+      req.body?.statementAuthorityCheckId || ""
+    ).trim();
+    if (!stageId) return jsonError(res, 400, "stageId is required");
+    if (!reconciliationId) return jsonError(res, 400, "reconciliationId is required");
+    if (!statementAuthorityCheckId) {
+      return jsonError(res, 400, "statementAuthorityCheckId is required");
+    }
+
+    const stage = getStage(stageId);
+    if (!stage) return jsonError(res, 404, "Dry run not found");
+    const requestedSchoolId = String(req.body?.targetSchoolId || "").trim();
+    if (requestedSchoolId && requestedSchoolId !== stage.targetSchoolId) {
+      return res.status(409).json({
+        success: false,
+        error: "MIGRATION_SCHOOL_MISMATCH",
+        code: "MIGRATION_SCHOOL_MISMATCH",
+      });
+    }
+
+    const reconciliation = getBoundFinanceReconciliation(reconciliationId, {
+      targetSchoolId: stage.targetSchoolId,
+      stageId: stage.stageId,
+    });
+    if (!reconciliation) {
+      return res.status(409).json({
+        success: false,
+        error: "Finance Check not found for this dry run/school",
+        code: "MIGRATION_SCHOOL_MISMATCH",
+      });
+    }
+
+    const statementCheck = getStatementAuthorityCheck(statementAuthorityCheckId);
+    if (!statementCheck) {
+      return jsonError(res, 404, "Statement Balance Check not found");
+    }
+
+    const check = await verifyFeeCheckAuthority({
+      stage,
+      reconciliation,
+      statementCheck,
+    });
+
+    return res.json({
+      success: true,
+      check,
+      plainLanguage: {
+        accountsChecked: check.accountsChecked,
+        matchCount: check.matchCount,
+        mismatchCount: check.mismatchCount,
+        feeCheckAuthorityMatch: check.feeCheckAuthorityMatch,
+      },
+    });
+  } catch (e: unknown) {
+    console.error("migration/fee-check-authority", e);
+    const message = e instanceof Error ? e.message : "Fee Check authority failed";
+    return jsonError(res, 500, message);
+  }
+});
+
+migrationUploadRouter.get("/fee-check-authority/:checkId", (req, res) => {
+  try {
+    const id = String(req.params.checkId || "").trim();
+    const check = getFeeCheckAuthorityCheck(id);
+    if (!check) return jsonError(res, 404, "Fee Check Authority Check not found");
+    return res.json({ success: true, check });
+  } catch (e: unknown) {
+    console.error("migration/fee-check-authority get", e);
+    const message = e instanceof Error ? e.message : "Fee Check get failed";
+    return jsonError(res, 500, message);
+  }
+});
+
+/**
+ * Phase 1J — Compile Academic Structure Discovery + Plan (zero writes).
+ * POST /api/migration/academic-plan
+ */
+migrationUploadRouter.post("/academic-plan", async (req, res) => {
+  try {
+    const stageId = String(req.body?.stageId || "").trim();
+    if (!stageId) return jsonError(res, 400, "stageId is required");
+    const stage = getStage(stageId);
+    if (!stage) return jsonError(res, 404, "Dry run not found");
+    const requestedSchoolId = String(req.body?.targetSchoolId || "").trim();
+    if (requestedSchoolId && requestedSchoolId !== stage.targetSchoolId) {
+      return res.status(409).json({
+        success: false,
+        error: "MIGRATION_SCHOOL_MISMATCH",
+        code: "MIGRATION_SCHOOL_MISMATCH",
+      });
+    }
+
+    const files: Array<{
+      fileId: string;
+      filename: string;
+      columns: string[];
+      rows: Record<string, string>[];
+    }> = [];
+    for (const file of stage.files) {
+      const parsed = await parseStagedMigrationFile(
+        String(file.path || ""),
+        String(file.filename || "")
+      );
+      const rows = parsed.map((r) => {
+        const out: Record<string, string> = {};
+        for (const [k, v] of Object.entries(r)) out[k] = String(v ?? "");
+        return out;
+      });
+      const columns =
+        rows[0] && Object.keys(rows[0]).length
+          ? Object.keys(rows[0])
+          : [];
+      files.push({
+        fileId: file.fileId,
+        filename: String(file.filename || ""),
+        columns,
+        rows,
+      });
+    }
+
+    const [existingClassrooms, existingSubjects] = await Promise.all([
+      prisma.classroom.findMany({
+        where: { schoolId: stage.targetSchoolId },
+        select: { name: true },
+      }),
+      prisma.schoolSubject.findMany({
+        where: { schoolId: stage.targetSchoolId },
+        select: { name: true },
+      }),
+    ]);
+
+    const { discovery, plan } = compileAcademicMigrationPlan({
+      targetSchoolId: stage.targetSchoolId,
+      stageId: stage.stageId,
+      sourceAnalysisId: stage.sourceAnalysisId || null,
+      compiledPlanId: stage.compiledPlanId || null,
+      files,
+      existingClassroomNames: existingClassrooms.map((c) => c.name),
+      existingSubjectNames: existingSubjects.map((s) => s.name),
+    });
+    saveAcademicDiscovery(discovery);
+    saveAcademicPlan(plan);
+
+    return res.json({
+      success: true,
+      discovery,
+      plan,
+      readiness: {
+        financeReady: "see Finance Check",
+        academicReady: plan.criticalUnresolvedCount === 0,
+        academicReviewRequired: plan.criticalUnresolvedCount > 0,
+      },
+    });
+  } catch (e: unknown) {
+    console.error("migration/academic-plan", e);
+    const message = e instanceof Error ? e.message : "Academic plan failed";
+    return jsonError(res, 500, message);
+  }
+});
+
+migrationUploadRouter.get("/academic-plan/:planId", (req, res) => {
+  try {
+    const plan = getAcademicPlan(String(req.params.planId || "").trim());
+    if (!plan) return jsonError(res, 404, "Academic plan not found");
+    return res.json({ success: true, plan });
+  } catch (e: unknown) {
+    const message = e instanceof Error ? e.message : "Academic plan get failed";
+    return jsonError(res, 500, message);
+  }
+});
+
+migrationUploadRouter.post("/academic-review", async (req, res) => {
+  try {
+    const planId = String(req.body?.planId || "").trim();
+    const plan = getAcademicPlan(planId);
+    if (!plan) return jsonError(res, 404, "Academic plan not found");
+    const updated = applyAcademicReviewAction({
+      plan,
+      kind: String(req.body?.kind || "") as any,
+      proposalId: String(req.body?.proposalId || "").trim(),
+      action: String(req.body?.action || "") as any,
+      chosenValue: req.body?.chosenValue ? String(req.body.chosenValue) : undefined,
+    });
+    return res.json({ success: true, plan: updated });
+  } catch (e: unknown) {
+    console.error("migration/academic-review", e);
+    const message = e instanceof Error ? e.message : "Academic review failed";
+    return jsonError(res, 500, message);
+  }
+});
+
+migrationUploadRouter.post("/academic-apply", async (req, res) => {
+  try {
+    const planId = String(req.body?.planId || "").trim();
+    const plan = getAcademicPlan(planId);
+    if (!plan) return jsonError(res, 404, "Academic plan not found");
+    const result = await applyAcademicMigrationPlan({
+      plan,
+      force: Boolean(req.body?.force),
+    });
+    return res.json({ success: true, result });
+  } catch (e: unknown) {
+    console.error("migration/academic-apply", e);
+    const message = e instanceof Error ? e.message : "Academic apply failed";
+    return jsonError(res, 500, message);
+  }
+});
+
+migrationUploadRouter.post("/academic-structure-check", async (req, res) => {
+  try {
+    const planId = String(req.body?.planId || "").trim();
+    const stageId = String(req.body?.stageId || "").trim();
+    const plan =
+      (planId && getAcademicPlan(planId)) ||
+      (stageId && getAcademicPlanByStage(stageId)) ||
+      null;
+    if (!plan) return jsonError(res, 404, "Academic plan not found");
+    const check = await verifyAcademicStructure({ plan });
+    return res.json({
+      success: true,
+      check,
+      plainLanguage: check.plainLanguage,
+      status: check.status,
+    });
+  } catch (e: unknown) {
+    console.error("migration/academic-structure-check", e);
+    const message = e instanceof Error ? e.message : "Academic check failed";
+    return jsonError(res, 500, message);
+  }
+});
+
+migrationUploadRouter.get("/academic-structure-check/:checkId", (req, res) => {
+  try {
+    const check = getAcademicCheck(String(req.params.checkId || "").trim());
+    if (!check) return jsonError(res, 404, "Academic check not found");
+    return res.json({ success: true, check });
+  } catch (e: unknown) {
+    const message = e instanceof Error ? e.message : "Academic check get failed";
+    return jsonError(res, 500, message);
+  }
+});
+
+/**
+ * Phase 1K — Compile Parent/Family Discovery + Plan (zero writes).
+ * POST /api/migration/parent-family-plan
+ */
+migrationUploadRouter.post("/parent-family-plan", async (req, res) => {
+  try {
+    const stageId = String(req.body?.stageId || "").trim();
+    if (!stageId) return jsonError(res, 400, "stageId is required");
+    const stage = getStage(stageId);
+    if (!stage) return jsonError(res, 404, "Dry run not found");
+    const requestedSchoolId = String(req.body?.targetSchoolId || "").trim();
+    if (requestedSchoolId && requestedSchoolId !== stage.targetSchoolId) {
+      return res.status(409).json({
+        success: false,
+        error: "MIGRATION_SCHOOL_MISMATCH",
+        code: "MIGRATION_SCHOOL_MISMATCH",
+      });
+    }
+
+    const files: Array<{
+      fileId: string;
+      filename: string;
+      columns: string[];
+      rows: Record<string, string>[];
+    }> = [];
+    for (const file of stage.files) {
+      const parsed = await parseStagedMigrationFile(
+        String(file.path || ""),
+        String(file.filename || "")
+      );
+      const rows = parsed.map((r) => {
+        const out: Record<string, string> = {};
+        for (const [k, v] of Object.entries(r)) out[k] = String(v ?? "");
+        return out;
+      });
+      const columns =
+        rows[0] && Object.keys(rows[0]).length ? Object.keys(rows[0]) : [];
+      files.push({
+        fileId: file.fileId,
+        filename: String(file.filename || ""),
+        columns,
+        rows,
+      });
+    }
+
+    const [candidates, learners] = await Promise.all([
+      loadSchoolParentCandidates(prisma, stage.targetSchoolId),
+      prisma.learner.findMany({
+        where: { schoolId: stage.targetSchoolId },
+        select: {
+          id: true,
+          idNumber: true,
+          admissionNo: true,
+          firstName: true,
+          lastName: true,
+        },
+      }),
+    ]);
+
+    const { discovery, plan } = compileParentFamilyMigrationPlan({
+      targetSchoolId: stage.targetSchoolId,
+      stageId: stage.stageId,
+      sourceAnalysisId: stage.sourceAnalysisId || null,
+      files,
+      candidates,
+      learners,
+    });
+    saveParentFamilyDiscovery(discovery);
+    saveParentFamilyPlan(plan);
+
+    return res.json({
+      success: true,
+      discovery,
+      plan,
+      readiness: {
+        parentFamilyReady: plan.criticalUnresolvedCount === 0,
+        parentFamilyReviewRequired: plan.criticalUnresolvedCount > 0,
+      },
+    });
+  } catch (e: unknown) {
+    console.error("migration/parent-family-plan", e);
+    const message = e instanceof Error ? e.message : "Parent/family plan failed";
+    return jsonError(res, 500, message);
+  }
+});
+
+migrationUploadRouter.get("/parent-family-plan/:planId", (req, res) => {
+  try {
+    const plan = getParentFamilyPlan(String(req.params.planId || "").trim());
+    if (!plan) return jsonError(res, 404, "Parent/family plan not found");
+    return res.json({ success: true, plan });
+  } catch (e: unknown) {
+    const message = e instanceof Error ? e.message : "Parent/family plan get failed";
+    return jsonError(res, 500, message);
+  }
+});
+
+migrationUploadRouter.post("/parent-family-review", async (req, res) => {
+  try {
+    const planId = String(req.body?.planId || "").trim();
+    const plan = getParentFamilyPlan(planId);
+    if (!plan) return jsonError(res, 404, "Parent/family plan not found");
+    const updated = applyParentFamilyReviewAction({
+      plan,
+      proposalId: String(req.body?.proposalId || "").trim(),
+      action: String(req.body?.action || "") as any,
+      chosenParentId: req.body?.chosenParentId
+        ? String(req.body.chosenParentId)
+        : undefined,
+    });
+    return res.json({ success: true, plan: updated });
+  } catch (e: unknown) {
+    console.error("migration/parent-family-review", e);
+    const message = e instanceof Error ? e.message : "Parent/family review failed";
+    return jsonError(res, 500, message);
+  }
+});
+
+migrationUploadRouter.post("/parent-family-apply", async (req, res) => {
+  try {
+    const planId = String(req.body?.planId || "").trim();
+    const plan = getParentFamilyPlan(planId);
+    if (!plan) return jsonError(res, 404, "Parent/family plan not found");
+    const result = await applyParentFamilyMigrationPlan({
+      plan,
+      force: Boolean(req.body?.force),
+    });
+    return res.json({ success: true, result });
+  } catch (e: unknown) {
+    console.error("migration/parent-family-apply", e);
+    const message = e instanceof Error ? e.message : "Parent/family apply failed";
+    return jsonError(res, 500, message);
+  }
+});
+
+migrationUploadRouter.post("/parent-family-check", async (req, res) => {
+  try {
+    const planId = String(req.body?.planId || "").trim();
+    const stageId = String(req.body?.stageId || "").trim();
+    const plan =
+      (planId && getParentFamilyPlan(planId)) ||
+      (stageId && getParentFamilyPlanByStage(stageId)) ||
+      null;
+    if (!plan) return jsonError(res, 404, "Parent/family plan not found");
+    const check = await verifyParentFamilyMigration({ plan });
+    return res.json({
+      success: true,
+      check,
+      plainLanguage: check.plainLanguage,
+      status: check.status,
+    });
+  } catch (e: unknown) {
+    console.error("migration/parent-family-check", e);
+    const message = e instanceof Error ? e.message : "Parent/family check failed";
+    return jsonError(res, 500, message);
+  }
+});
+
+migrationUploadRouter.get("/parent-family-check/:checkId", (req, res) => {
+  try {
+    const check = getParentFamilyCheck(String(req.params.checkId || "").trim());
+    if (!check) return jsonError(res, 404, "Parent/family check not found");
+    return res.json({ success: true, check });
+  } catch (e: unknown) {
+    const message = e instanceof Error ? e.message : "Parent/family check get failed";
+    return jsonError(res, 500, message);
+  }
+});
+
+/**
+ * Phase 1L — Universal Migration Orchestrator
+ * POST /api/migration/orchestrator/analyse
+ */
+migrationUploadRouter.post("/orchestrator/analyse", async (req, res) => {
+  try {
+    const stageId = String(req.body?.stageId || "").trim();
+    const targetSchoolId = String(req.body?.targetSchoolId || "").trim();
+    if (!stageId) return jsonError(res, 400, "stageId is required");
+    if (!targetSchoolId) return jsonError(res, 400, "targetSchoolId is required");
+    const stage = getStage(stageId);
+    if (!stage) return jsonError(res, 404, "Dry run not found");
+    if (stage.targetSchoolId !== targetSchoolId) {
+      return res.status(409).json({
+        success: false,
+        error: "MIGRATION_SCHOOL_MISMATCH",
+        code: "MIGRATION_SCHOOL_MISMATCH",
+      });
+    }
+    const result = await runAutomaticMigrationAnalysis({
+      targetSchoolId,
+      stageId,
+      forceRecompile: Boolean(req.body?.forceRecompile),
+    });
+    return res.json({ success: true, ...result });
+  } catch (e: unknown) {
+    console.error("migration/orchestrator/analyse", e);
+    const message = e instanceof Error ? e.message : "Orchestrator analyse failed";
+    return jsonError(res, 500, message);
+  }
+});
+
+/**
+ * Phase 1M — Auto-prepare from uploaded session (no Dry Run button).
+ * POST /api/migration/orchestrator/prepare
+ */
+migrationUploadRouter.post("/orchestrator/prepare", async (req, res) => {
+  try {
+    const targetSchoolId = String(req.body?.targetSchoolId || req.body?.schoolId || "").trim();
+    if (!targetSchoolId) return jsonError(res, 400, "targetSchoolId is required");
+    const result = await prepareMigrationFromSession({
+      targetSchoolId,
+      targetSchoolName: String(req.body?.targetSchoolName || "").trim() || undefined,
+      sourceSystem: String(req.body?.sourceSystem || "").trim() || undefined,
+      cutoverDate: String(req.body?.cutoverDate || "").trim() || undefined,
+      forceRecompile: Boolean(req.body?.forceRecompile),
+    });
+    return res.json({
+      success: true,
+      stageId: result.stageId,
+      stage: getStage(result.stageId),
+      readiness: result.analysis.readiness,
+      steps: result.steps,
+      sourceSetFingerprint: result.sourceSetFingerprint,
+      reusedExistingStage: result.reusedExistingStage,
+      plainLanguage: result.analysis.readiness.plainLanguageOverall,
+    });
+  } catch (e: unknown) {
+    console.error("migration/orchestrator/prepare", e);
+    const message =
+      e instanceof Error
+        ? e.message
+        : "EduClear could not analyse the uploaded school files. Nothing was changed in the school.";
+    return jsonError(res, 400, message);
+  }
+});
+
+migrationUploadRouter.get("/orchestrator/readiness/:stageId", (req, res) => {
+  try {
+    const stageId = String(req.params.stageId || "").trim();
+    const targetSchoolId = String(req.query.targetSchoolId || "").trim();
+    if (!stageId) return jsonError(res, 400, "stageId is required");
+    if (!targetSchoolId) return jsonError(res, 400, "targetSchoolId is required");
+    const readiness = computeUniversalMigrationReadiness({ stageId, targetSchoolId });
+    const run = getOrchestratorRunByStage(stageId);
+    return res.json({ success: true, readiness, run: run ?? null });
+  } catch (e: unknown) {
+    const message = e instanceof Error ? e.message : "Readiness failed";
+    return jsonError(res, 500, message);
+  }
+});
+
+/**
+ * POST /api/migration/orchestrator/complete
+ */
+migrationUploadRouter.post("/orchestrator/complete", async (req, res) => {
+  try {
+    const stageId = String(req.body?.stageId || "").trim();
+    const targetSchoolId = String(req.body?.targetSchoolId || "").trim();
+    const confirmation = Boolean(req.body?.confirmation);
+    if (!stageId) return jsonError(res, 400, "stageId is required");
+    if (!targetSchoolId) return jsonError(res, 400, "targetSchoolId is required");
+    const { run, readiness } = await completeUniversalMigration({
+      stageId,
+      targetSchoolId,
+      confirmation,
+      simulateFailAt: req.body?.simulateFailAt || null,
+    });
+    return res.json({
+      success: true,
+      run,
+      readiness,
+      plainLanguage:
+        run.status === "COMPLETE"
+          ? "Migration complete. The school is ready to use EduClear."
+          : readiness.plainLanguageOverall,
+    });
+  } catch (e: unknown) {
+    console.error("migration/orchestrator/complete", e);
+    const err = e as Error & { run?: unknown; readiness?: unknown };
+    const message = err instanceof Error ? err.message : "Complete migration failed";
+    return res.status(400).json({
+      success: false,
+      error: message,
+      run: err.run ?? null,
+      readiness: err.readiness ?? getOrchestratorReadinessByStage(String(req.body?.stageId || "")),
+    });
+  }
+});
+
+migrationUploadRouter.get("/orchestrator/run/:stageId", (req, res) => {
+  try {
+    const run = getOrchestratorRunByStage(String(req.params.stageId || "").trim());
+    if (!run) return jsonError(res, 404, "Orchestrator run not found");
+    return res.json({ success: true, run });
+  } catch (e: unknown) {
+    const message = e instanceof Error ? e.message : "Orchestrator run get failed";
+    return jsonError(res, 500, message);
+  }
+});
+
+/**
+ * Phase 1G/1H/1I — Accept Migration (final gate).
+ * POST /api/migration/accept-migration
+ */
+migrationUploadRouter.post("/accept-migration", async (req, res) => {
+  try {
+    const stageId = String(req.body?.stageId || "").trim();
+    const reconciliationId = String(req.body?.reconciliationId || "").trim();
+    const statementAuthorityCheckId = String(
+      req.body?.statementAuthorityCheckId || ""
+    ).trim();
+    const feeCheckAuthorityCheckId = String(
+      req.body?.feeCheckAuthorityCheckId || ""
+    ).trim();
+    const confirmation = Boolean(req.body?.confirmation);
+    if (!stageId) return jsonError(res, 400, "stageId is required");
+    if (!reconciliationId) return jsonError(res, 400, "reconciliationId is required");
+    if (!statementAuthorityCheckId) {
+      return jsonError(res, 400, "statementAuthorityCheckId is required");
+    }
+    if (!feeCheckAuthorityCheckId) {
+      return jsonError(res, 400, "feeCheckAuthorityCheckId is required");
+    }
+
+    const stage = getStage(stageId);
+    if (!stage) return jsonError(res, 404, "Dry run not found");
+
+    const requestedSchoolId = String(req.body?.targetSchoolId || "").trim();
+    if (requestedSchoolId && requestedSchoolId !== stage.targetSchoolId) {
+      return res.status(409).json({
+        success: false,
+        error: "MIGRATION_SCHOOL_MISMATCH",
+        code: "MIGRATION_SCHOOL_MISMATCH",
+      });
+    }
+
+    const summary = {
+      learners: Number(req.body?.summary?.learners ?? 0),
+      parents: Number(req.body?.summary?.parents ?? 0),
+      links: Number(req.body?.summary?.links ?? 0),
+      classrooms: Number(req.body?.summary?.classrooms ?? 0),
+      accounts: Number(req.body?.summary?.accounts ?? 0),
+      openingBalances: Number(req.body?.summary?.openingBalances ?? 0),
+      transactions: Number(req.body?.summary?.transactions ?? 0),
+      billingPlans: Number(req.body?.summary?.billingPlans ?? 0),
+      unsupportedSkipped: Number(req.body?.summary?.unsupportedSkipped ?? 0),
+      differenceCents: Number(req.body?.summary?.differenceCents ?? 0),
+    };
+
+    const acceptance = acceptMigration({
+      stage,
+      reconciliationId,
+      statementAuthorityCheckId,
+      feeCheckAuthorityCheckId,
+      confirmation,
+      summary,
+      parentReviewUnresolved: Number(req.body?.parentReviewUnresolved ?? 0),
+    });
+
+    return res.json({ success: true, acceptance });
+  } catch (e: unknown) {
+    console.error("migration/accept-migration", e);
+    if (e instanceof MigrationAcceptanceError) {
+      const mismatch = e.message.includes("MIGRATION_SCHOOL_MISMATCH");
+      const stale = e.message.includes("MIGRATION_PLAN_STALE");
+      const stmt = e.message.includes("STATEMENT_AUTHORITY_MATCH");
+      const fee = e.message.includes("FEE_CHECK_AUTHORITY_MATCH");
+      const academic =
+        e.message.includes("ACADEMIC_REVIEW_REQUIRED") ||
+        e.message.includes("ACADEMIC_STRUCTURE_MATCH") ||
+        e.message.includes("ACADEMIC_STALE");
+      const parentFamily =
+        e.message.includes("PARENT_FAMILY_REVIEW_REQUIRED") ||
+        e.message.includes("PARENT_FAMILY_MATCH") ||
+        e.message.includes("PARENT_FAMILY_STALE");
+      return res.status(mismatch || stale ? 409 : 400).json({
+        success: false,
+        error: e.message,
+        code: mismatch
+          ? "MIGRATION_SCHOOL_MISMATCH"
+          : stale
+            ? "MIGRATION_PLAN_STALE"
+            : stmt
+              ? "STATEMENT_AUTHORITY_MATCH_REQUIRED"
+              : fee
+                ? "FEE_CHECK_AUTHORITY_MATCH"
+                : academic
+                  ? "ACADEMIC_REVIEW_REQUIRED"
+                  : parentFamily
+                    ? "PARENT_FAMILY_REVIEW_REQUIRED"
+                    : undefined,
+      });
+    }
+    const message = e instanceof Error ? e.message : "Accept migration failed";
+    return jsonError(res, 500, message);
+  }
+});
+
+migrationUploadRouter.get("/accept-migration/:stageId", (req, res) => {
+  try {
+    const stageId = String(req.params.stageId || "").trim();
+    if (!stageId) return jsonError(res, 400, "stageId is required");
+    const acceptance = getAcceptanceByStage(stageId);
+    return res.json({ success: true, acceptance: acceptance ?? null });
+  } catch (e: unknown) {
+    console.error("migration/accept-migration get", e);
+    const message = e instanceof Error ? e.message : "Acceptance get failed";
     return jsonError(res, 500, message);
   }
 });
@@ -1227,8 +2723,13 @@ migrationUploadRouter.post("/import-batches/:batchId/rollback", async (req, res)
   } catch (e: unknown) {
     console.error("migration/import-batches rollback", e);
     if (e instanceof MigrationRollbackError) {
-      const status = e.message.includes("not found") ? 404 : 400;
-      return res.status(status).json({ success: false, error: e.message });
+      const mismatch = e.message.includes("MIGRATION_SCHOOL_MISMATCH");
+      const status = e.message.includes("not found") ? 404 : mismatch ? 409 : 400;
+      return res.status(status).json({
+        success: false,
+        error: e.message,
+        code: mismatch ? "MIGRATION_SCHOOL_MISMATCH" : undefined,
+      });
     }
     const message = e instanceof Error ? e.message : "Rollback failed";
     return jsonError(res, 500, message);
@@ -1249,8 +2750,13 @@ migrationUploadRouter.post("/import-batches/:batchId/reconcile", async (req, res
   } catch (e: unknown) {
     console.error("migration/import-batches reconcile", e);
     if (e instanceof MigrationReconciliationError) {
-      const status = e.message.includes("not found") ? 404 : 400;
-      return res.status(status).json({ success: false, error: e.message });
+      const mismatch = e.message.includes("MIGRATION_SCHOOL_MISMATCH");
+      const status = e.message.includes("not found") ? 404 : mismatch ? 409 : 400;
+      return res.status(status).json({
+        success: false,
+        error: e.message,
+        code: mismatch ? "MIGRATION_SCHOOL_MISMATCH" : undefined,
+      });
     }
     const message = e instanceof Error ? e.message : "Reconciliation failed";
     return jsonError(res, 500, message);
@@ -1328,8 +2834,13 @@ migrationUploadRouter.post("/import-batches/:batchId/signoff", async (req, res) 
   } catch (e: unknown) {
     console.error("migration/import-batches signoff", e);
     if (e instanceof MigrationSignoffError) {
-      const status = e.message.includes("not found") ? 404 : 400;
-      return res.status(status).json({ success: false, error: e.message });
+      const mismatch = e.message.includes("MIGRATION_SCHOOL_MISMATCH");
+      const status = e.message.includes("not found") ? 404 : mismatch ? 409 : 400;
+      return res.status(status).json({
+        success: false,
+        error: e.message,
+        code: mismatch ? "MIGRATION_SCHOOL_MISMATCH" : undefined,
+      });
     }
     const message = e instanceof Error ? e.message : "Sign-off generation failed";
     return jsonError(res, 500, message);
@@ -1550,8 +3061,13 @@ migrationUploadRouter.post("/import-batches/:batchId/reverse-ledger", async (req
   } catch (e: unknown) {
     console.error("migration/import-batches reverse-ledger", e);
     if (e instanceof MigrationReversalError) {
-      const status = e.message.includes("not found") ? 404 : 400;
-      return res.status(status).json({ success: false, error: e.message });
+      const mismatch = e.message.includes("MIGRATION_SCHOOL_MISMATCH");
+      const status = e.message.includes("not found") ? 404 : mismatch ? 409 : 400;
+      return res.status(status).json({
+        success: false,
+        error: e.message,
+        code: mismatch ? "MIGRATION_SCHOOL_MISMATCH" : undefined,
+      });
     }
     const message = e instanceof Error ? e.message : "Reversal rollback failed";
     return jsonError(res, 500, message);

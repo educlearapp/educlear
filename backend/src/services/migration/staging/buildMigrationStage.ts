@@ -22,6 +22,10 @@ import { buildPaymentReceiveListStageData } from "../core/paymentReceiveListReco
 
 export type BuildMigrationStageInput = {
   sourceSystem: string;
+  /** Required — immutable school binding for this migration run. */
+  targetSchoolId: string;
+  /** Display snapshot; required with targetSchoolId. */
+  targetSchoolName: string;
   previews: MigrationFilePreview[];
   mappings: MigrationFileColumnMappings[];
   validationSummary: MigrationValidationSummary;
@@ -30,6 +34,16 @@ export type BuildMigrationStageInput = {
   cutoverDate?: string | null;
   /** Full-file rows per fileId (required for accurate transaction readiness counts). */
   rowsByFileId?: Map<string, Record<string, unknown>[]>;
+  /** Phase 1F — bound Source Analysis + compiled plan identity. */
+  sourceAnalysisId?: string | null;
+  analysisVersion?: string | null;
+  compiledPlanId?: string | null;
+  compiledPlanVersion?: string | null;
+  sourceFingerprints?: Array<{
+    fileId: string;
+    filename: string;
+    headerFingerprint: string;
+  }>;
 };
 
 const EMPTY_TRANSACTION_READINESS: MigrationTransactionReadinessCounts = {
@@ -156,6 +170,15 @@ function normalizeCutoverDate(raw: string | null | undefined): string | undefine
 
 export function buildMigrationStage(input: BuildMigrationStageInput): MigrationStage {
   const sourceSystem = String(input.sourceSystem || "").trim() || "unknown";
+  const targetSchoolId = String(input.targetSchoolId || "").trim();
+  const targetSchoolName = String(input.targetSchoolName || "").trim();
+  if (!targetSchoolId) {
+    throw new Error("targetSchoolId is required to create a migration dry run");
+  }
+  if (!targetSchoolName) {
+    throw new Error("targetSchoolName is required to create a migration dry run");
+  }
+
   const previews = input.previews ?? [];
   const mappings = input.mappings ?? [];
   const validationSummary = input.validationSummary;
@@ -191,10 +214,28 @@ export function buildMigrationStage(input: BuildMigrationStageInput): MigrationS
     );
   }
 
+  const stageId = randomUUID();
+  const sourceAnalysisId = String(input.sourceAnalysisId || "").trim() || null;
+  const analysisVersion = String(input.analysisVersion || "").trim() || null;
+  const compiledPlanId = String(input.compiledPlanId || "").trim() || null;
+  const compiledPlanVersion = String(input.compiledPlanVersion || "").trim() || null;
+  const sourceFingerprints = Array.isArray(input.sourceFingerprints)
+    ? input.sourceFingerprints
+        .map((fp) => ({
+          fileId: String(fp.fileId || "").trim(),
+          filename: String(fp.filename || "").trim(),
+          headerFingerprint: String(fp.headerFingerprint || "").trim(),
+        }))
+        .filter((fp) => fp.fileId && fp.headerFingerprint)
+    : [];
+
   return {
-    stageId: randomUUID(),
+    stageId,
+    migrationRunId: stageId,
     createdAt: new Date().toISOString(),
     sourceSystem,
+    targetSchoolId,
+    targetSchoolName,
     ...(cutoverDate ? { cutoverDate } : {}),
     files: previews.map((p) => {
       const pathValue = String((p as { path?: string }).path || "").trim();
@@ -213,6 +254,11 @@ export function buildMigrationStage(input: BuildMigrationStageInput): MigrationS
     ...(paymentReceiveList ? { paymentReceiveList } : {}),
     warnings,
     canApply: validationSummary.canProceed,
+    ...(sourceAnalysisId ? { sourceAnalysisId } : {}),
+    ...(analysisVersion ? { analysisVersion } : {}),
+    ...(compiledPlanId ? { compiledPlanId } : {}),
+    ...(compiledPlanVersion ? { compiledPlanVersion } : {}),
+    ...(sourceFingerprints.length ? { sourceFingerprints } : {}),
   };
 }
 

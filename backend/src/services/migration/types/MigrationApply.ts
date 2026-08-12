@@ -19,7 +19,11 @@ export type MigrationApplyMode = "APPLY" | "FULL_MIGRATION_PREFLIGHT";
 
 export type MigrationApplyRequest = {
   stageId: string;
-  targetSchoolId: string;
+  /**
+   * Optional compatibility field. When provided, must equal the stage's immutable
+   * targetSchoolId. Apply always writes to the stage-bound school.
+   */
+  targetSchoolId?: string;
   confirmationText: string;
   /** Super Admin override: post eligible active rows while leaving blocked/unmatched unapplied. */
   proceedWithEligibleActiveOnly?: boolean;
@@ -32,6 +36,12 @@ export type MigrationApplyRequest = {
   fullMigrationPreflight?: boolean;
   /** Operator resolutions for prior REVIEW/CONFLICT parent identity itemKeys. */
   parentIdentityResolutions?: ParentIdentityResolution[];
+  /**
+   * Phase 1N: when Parent/Family Migration Authority owns parent apply/verify,
+   * skip legacy parents-file identity preflight and parent creates in core apply.
+   * Learners/billing/transactions still apply. Does not weaken PF critical review gates.
+   */
+  deferParentsToParentFamilyPlan?: boolean;
 };
 
 export type MigrationImportReportRowStatus =

@@ -155,6 +155,193 @@
   background: linear-gradient(180deg, #ffffff 0%, rgba(212, 175, 55, 0.08) 100%);
 }
 
+.uc-migration-center-parent-review {
+  background: linear-gradient(180deg, #ffffff 0%, rgba(212, 175, 55, 0.05) 100%);
+}
+
+.uc-migration-parent-review {
+  margin-top: 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.uc-migration-parent-review-summary-list {
+  margin: 0;
+  padding-left: 1.2rem;
+  display: grid;
+  gap: 6px;
+}
+
+.uc-migration-parent-review-clean {
+  margin: 10px 0 0;
+  color: #1b7a3d;
+  font-weight: 600;
+}
+
+.uc-migration-parent-review-queue {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.uc-migration-parent-review-card {
+  border: 1px solid rgba(212, 175, 55, 0.35);
+  border-radius: 10px;
+  padding: 14px;
+  background: #0f0f0f;
+  color: #f5f5f5;
+}
+
+.uc-migration-parent-review-card--risk {
+  border-color: rgba(220, 80, 80, 0.7);
+}
+
+.uc-migration-parent-review-card--resolved {
+  box-shadow: inset 0 0 0 1px rgba(27, 122, 61, 0.45);
+}
+
+.uc-migration-parent-review-card-header {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 12px;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 10px;
+}
+
+.uc-migration-parent-review-card-header h4 {
+  margin: 0;
+  font-size: 1.05rem;
+}
+
+.uc-migration-parent-review-badge {
+  font-size: 0.78rem;
+  padding: 4px 8px;
+  border-radius: 6px;
+  background: rgba(212, 175, 55, 0.15);
+  color: #d4af37;
+}
+
+.uc-migration-parent-review-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+  gap: 14px;
+}
+
+.uc-migration-parent-review-grid h5 {
+  margin: 0 0 8px;
+  color: #d4af37;
+  font-size: 0.85rem;
+}
+
+.uc-migration-parent-review-dl {
+  margin: 0;
+  display: grid;
+  gap: 6px;
+}
+
+.uc-migration-parent-review-dl div {
+  display: grid;
+  grid-template-columns: 120px 1fr;
+  gap: 8px;
+}
+
+.uc-migration-parent-review-dl dt {
+  margin: 0;
+  color: rgba(255, 255, 255, 0.55);
+  font-size: 0.78rem;
+}
+
+.uc-migration-parent-review-dl dd {
+  margin: 0;
+  overflow-wrap: anywhere;
+}
+
+.uc-migration-parent-review-wrap {
+  overflow-wrap: anywhere;
+  word-break: break-word;
+}
+
+.uc-migration-parent-review-candidates {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.uc-migration-parent-review-candidate {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  justify-content: space-between;
+  align-items: flex-start;
+  padding: 10px;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 8px;
+}
+
+.uc-migration-parent-review-candidate--selected {
+  border-color: #d4af37;
+  background: rgba(212, 175, 55, 0.08);
+}
+
+.uc-migration-parent-review-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 12px;
+}
+
+.uc-migration-parent-review-warning {
+  margin: 10px 0 0;
+  color: #ffb4b4;
+  font-weight: 600;
+}
+
+.uc-migration-parent-review-reasons {
+  margin: 8px 0 0;
+  padding-left: 1.1rem;
+  color: rgba(255, 255, 255, 0.75);
+  font-size: 0.85rem;
+}
+
+.uc-migration-parent-review-siblings ul {
+  margin: 4px 0;
+  padding-left: 1.1rem;
+}
+
+.uc-migration-parent-review-diagnostics {
+  margin-top: 8px;
+  font-size: 0.8rem;
+  color: rgba(255, 255, 255, 0.55);
+}
+
+.uc-migration-parent-review-diagnostics-pre {
+  overflow: auto;
+  max-height: 220px;
+  background: #111;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  padding: 10px;
+  border-radius: 6px;
+}
+
+@media (max-width: 900px) {
+  .uc-migration-parent-review-dl div {
+    grid-template-columns: 1fr;
+  }
+
+  .uc-migration-parent-review-candidate {
+    flex-direction: column;
+  }
+
+  .uc-migration-parent-review-actions button {
+    width: 100%;
+  }
+}
+
 .uc-migration-apply-section {
   margin-top: 14px;
   display: flex;
@@ -1316,6 +1503,75 @@
   font-size: 0.78rem;
   font-weight: 600;
   color: #86efac;
+}
+
+.uc-migration-plan-section {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.uc-migration-plan-summary {
+  margin-top: 8px;
+  padding: 14px 16px;
+  border-radius: 10px;
+  border: 1px solid rgba(212, 175, 55, 0.35);
+  background: rgba(10, 10, 10, 0.35);
+}
+
+.uc-migration-plan-summary-title {
+  margin: 0 0 12px;
+  font-size: 1rem;
+  font-weight: 700;
+  color: #f7d56a;
+}
+
+.uc-migration-plan-counts {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+  gap: 8px 16px;
+}
+
+.uc-migration-plan-count-row {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  font-size: 0.86rem;
+}
+
+.uc-migration-plan-count-label {
+  color: #d4d4d4;
+  font-weight: 600;
+}
+
+.uc-migration-plan-count-value {
+  color: #f7d56a;
+  font-weight: 800;
+  font-variant-numeric: tabular-nums;
+}
+
+.uc-migration-plan-blocked {
+  margin: 10px 0 0;
+  padding-left: 1.1rem;
+  color: #fca5a5;
+  font-size: 0.8rem;
+  font-weight: 600;
+}
+
+.uc-migration-primary-btn {
+  align-self: flex-start;
+  padding: 10px 16px;
+  border-radius: 8px;
+  border: 1px solid rgba(212, 175, 55, 0.55);
+  background: linear-gradient(135deg, #f7d56a, #d4af37);
+  color: #111;
+  font-weight: 800;
+  cursor: pointer;
+}
+
+.uc-migration-primary-btn:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
 }
 
 .uc-migration-dry-run-detail {
@@ -3033,4 +3289,39 @@
 
 .uc-migration-preflight-nav a:hover {
   text-decoration: underline;
+}
+
+/* Phase 1G — Finance Check / Accept */
+.uc-migration-finance-check,
+.uc-migration-accept {
+  margin-top: 8px;
+}
+.uc-migration-finance-summary h3 {
+  margin: 12px 0 8px;
+  font-size: 1.1rem;
+}
+.uc-migration-finance-totals {
+  list-style: none;
+  padding: 0;
+  margin: 0 0 12px;
+}
+.uc-migration-finance-totals li {
+  padding: 4px 0;
+  font-weight: 600;
+}
+.uc-migration-finance-mismatches ul,
+.uc-migration-finance-blocked {
+  margin: 8px 0 12px;
+  padding-left: 1.2rem;
+}
+.uc-migration-accept-confirm {
+  display: flex;
+  gap: 8px;
+  align-items: flex-start;
+  margin: 12px 0;
+  font-weight: 500;
+}
+.uc-migration-error {
+  color: #b42318;
+  font-weight: 600;
 }

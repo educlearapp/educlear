@@ -119,21 +119,23 @@ async function testDuplicateIdReturns409() {
 
   const prisma = {
     parent: {
-      findUnique: async () => ({
-        id: "owner-1",
-        schoolId: "school-1",
-        firstName: "Jane",
-        surname: "Doe",
-        cellNo: "082",
-        email: null,
-        idNumber: "8901015009087",
-        familyAccountId: null,
-        links: [{ learnerId: "learner-owner" }],
-      }),
-      findFirst: async () => null,
+      findFirst: async ({ where }: any) => {
+        if (where.schoolId !== "school-1" || where.idNumber !== "8901015009087") return null;
+        return {
+          id: "owner-1",
+          schoolId: "school-1",
+          firstName: "Jane",
+          surname: "Doe",
+          cellNo: "082",
+          email: null,
+          idNumber: "8901015009087",
+          familyAccountId: null,
+          links: [{ learnerId: "learner-owner" }],
+        };
+      },
     },
   };
-  const body = await buildParentIdConflictBody(prisma as any, "8901015009087");
+  const body = await buildParentIdConflictBody(prisma as any, "8901015009087", "school-1");
   assert.strictEqual(body.code, PARENT_ID_ALREADY_EXISTS);
   assert.strictEqual(body.message, PARENT_ID_CONFLICT_MESSAGE);
   const err = new ParentIdConflictError(body);

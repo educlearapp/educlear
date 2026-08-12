@@ -8,6 +8,7 @@ import type {
   MigrationValidationMode,
   MigrationValidationSummary,
 } from "./universalMigrationValidate";
+import type { BoundParentIdentityResolutions } from "./parentIdentityReview";
 
 export type PersistentUniversalMigrationSession = {
   schoolId: string;
@@ -23,6 +24,11 @@ export type PersistentUniversalMigrationSession = {
   validationMode: MigrationValidationMode;
   cutoverDate: string;
   dryRunStage: MigrationStage | null;
+  /** Bound to stageId + targetSchoolId — never reuse across schools. */
+  parentIdentityResolutions?: BoundParentIdentityResolutions | null;
+  /** Phase 1E/1F — authoritative analysis + compiled plan ids. */
+  sourceAnalysisId?: string | null;
+  compiledPlanId?: string | null;
 };
 
 export type PersistentUniversalMigrationSessionPatch = Partial<

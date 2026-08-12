@@ -45,10 +45,8 @@ function makePrisma(state: {
         });
       },
       findUnique: async ({ where }: any) => {
-        if (where.idNumber) {
-          return state.parents.find((p) => p.idNumber === where.idNumber) || null;
-        }
         if (where.id) return state.parents.find((p) => p.id === where.id) || null;
+        // Global idNumber unique removed — do not resolve by idNumber alone.
         return null;
       },
       findFirst: async ({ where }: any) => {
@@ -56,7 +54,8 @@ function makePrisma(state: {
           state.parents.find(
             (p) =>
               (!where.id || p.id === where.id) &&
-              (!where.schoolId || p.schoolId === where.schoolId)
+              (!where.schoolId || p.schoolId === where.schoolId) &&
+              (!where.idNumber || p.idNumber === where.idNumber)
           ) || null
         );
       },
@@ -575,7 +574,7 @@ async function main() {
     console.log("✓ TEST 15 one Parent → three links");
   }
 
-  // TEST 16 — cross-tenant
+  // TEST 16 — cross-tenant: same SA ID at School A does NOT block School B create; no PII leak
   {
     const state = {
       parents: [
@@ -600,10 +599,11 @@ async function main() {
       incoming: { firstName: "X", surname: "Y", idNumber: "7401015009087" },
       actorIsOwnerAdmin: true,
     });
-    assert.strictEqual(r.decision, "EXISTING_PARENT_MATCH");
+    assert.strictEqual(r.decision, "CREATE_ALLOWED");
     assert.strictEqual(r.existingParent, null);
+    assert.strictEqual(r.candidates.length, 0);
     assert.strictEqual(r.allowLinkExisting, false);
-    console.log("✓ TEST 16 cross-tenant → no candidate leakage");
+    console.log("✓ TEST 16 cross-tenant → ALLOW School B create, no School A PII");
   }
 
   // TEST 17 — unauthorised link

@@ -1,12 +1,12 @@
 /**
- * Parent.idNumber unique-constraint conflict helpers.
- * Uniqueness rule is unchanged — this only improves detection / API UX.
+ * Parent.idNumber uniqueness helpers — school-scoped.
+ * Uniqueness rule: @@unique([schoolId, idNumber]) — same SA ID may exist at different schools.
  */
 
 export const PARENT_ID_ALREADY_EXISTS = "PARENT_ID_ALREADY_EXISTS" as const;
 
 export const PARENT_ID_CONFLICT_MESSAGE =
-  "This ID number already belongs to another parent record and cannot be assigned here.";
+  "This ID number already belongs to another parent at this school and cannot be assigned here.";
 
 export class ParentIdConflictError extends Error {
   readonly statusCode = 409;
@@ -48,10 +48,6 @@ export type ParentIdOwnershipWarning = {
 
 type PrismaLike = {
   parent: {
-    findUnique: (args: {
-      where: { idNumber: string };
-      select: Record<string, unknown>;
-    }) => Promise<any>;
     findFirst: (args: {
       where: Record<string, unknown>;
       select: Record<string, unknown>;
@@ -70,6 +66,7 @@ export function isPrismaUniqueConstraintError(error: unknown): boolean {
   return /Unique constraint failed/i.test(msg) && /idNumber/i.test(msg);
 }
 
+/** True when P2002 targets Parent idNumber (alone or with schoolId composite). */
 export function isParentIdNumberUniqueTarget(error: unknown): boolean {
   if (!isPrismaUniqueConstraintError(error)) return false;
   const err = error as { meta?: { target?: string | string[] }; message?: string };
@@ -114,25 +111,47 @@ const existingParentSelect = {
   },
 };
 
-export async function findParentByIdNumber(
+/**
+ * Find a Parent by SA ID within one school (authoritative uniqueness scope).
+ */
+export async function findParentByIdNumberInSchool(
   prisma: PrismaLike,
+  schoolId: string,
   idNumber: string
 ): Promise<ParentIdConflictExisting | null> {
   const cleaned = cleanString(idNumber);
-  if (!cleaned) return null;
-  const row = await prisma.parent.findUnique({
-    where: { idNumber: cleaned },
+  const sid = cleanString(schoolId);
+  if (!cleaned || !sid) return null;
+  const row = await prisma.parent.findFirst({
+    where: { schoolId: sid, idNumber: cleaned },
     select: existingParentSelect,
   });
   return row ? mapExistingParent(row) : null;
 }
 
+/**
+ * @deprecated Prefer findParentByIdNumberInSchool — SA ID uniqueness is school-scoped.
+ * Kept as a thin alias that requires schoolId via opts for call-site migration.
+ */
+export async function findParentByIdNumber(
+  prisma: PrismaLike,
+  idNumber: string,
+  schoolId?: string
+): Promise<ParentIdConflictExisting | null> {
+  const sid = cleanString(schoolId);
+  if (!sid) return null;
+  return findParentByIdNumberInSchool(prisma, sid, idNumber);
+}
+
 export async function buildParentIdConflictBody(
   prisma: PrismaLike,
-  idNumber: string
+  idNumber: string,
+  schoolId?: string
 ): Promise<ParentIdConflictBody> {
   const cleaned = cleanString(idNumber);
-  const existingParent = cleaned ? await findParentByIdNumber(prisma, cleaned) : null;
+  const sid = cleanString(schoolId);
+  const existingParent =
+    cleaned && sid ? await findParentByIdNumberInSchool(prisma, sid, cleaned) : null;
   return {
     success: false,
     code: PARENT_ID_ALREADY_EXISTS,
@@ -143,20 +162,22 @@ export async function buildParentIdConflictBody(
 }
 
 /**
- * Pre-save soft warning: another parent already owns this ID and shares cell and/or email
- * with the record being edited (duplicate-parent signal). Does not block save by itself.
+ * Pre-save soft warning: another parent in the SAME school already owns this ID and shares
+ * cell and/or email with the record being edited. Does not block save by itself.
  */
 export async function findDuplicateParentSignal(opts: {
   prisma: PrismaLike;
+  schoolId: string;
   idNumber: string;
   excludeParentId?: string | null;
   cellNo?: string | null;
   email?: string | null;
 }): Promise<ParentIdOwnershipWarning | null> {
   const idNumber = cleanString(opts.idNumber);
-  if (!idNumber) return null;
+  const schoolId = cleanString(opts.schoolId);
+  if (!idNumber || !schoolId) return null;
 
-  const existing = await findParentByIdNumber(opts.prisma, idNumber);
+  const existing = await findParentByIdNumberInSchool(opts.prisma, schoolId, idNumber);
   if (!existing) return null;
   if (opts.excludeParentId && existing.id === String(opts.excludeParentId)) return null;
 

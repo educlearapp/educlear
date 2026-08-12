@@ -93,21 +93,36 @@ export function runParentIdentityPreflight(opts: {
       reuseParentId && String(reuseParentId).startsWith("virtual:")
     );
 
+    let resolutionInvalidReason: string | null = null;
+
     // Apply explicit operator resolution for REVIEW / CONFLICT before planning writes.
     if (
       (finalDecision === "REVIEW_REQUIRED" || finalDecision === "CONFLICT") &&
       resolution
     ) {
-      if (resolution.kind === "LINK_TO_EXISTING_PARENT" && resolution.existingParentId) {
-        finalDecision = "REUSE_EXISTING";
-        reuseParentId = resolution.existingParentId;
-        reuseIsVirtual = false;
+      if (resolution.kind === "LINK_TO_EXISTING_PARENT") {
+        const targetId = String(resolution.existingParentId || "").trim();
+        const inSchool = workingCandidates.find(
+          (c) => c.id === targetId && !String(c.id).startsWith("virtual:")
+        );
+        if (!targetId) {
+          resolutionInvalidReason =
+            "Use Existing Parent requires selecting a parent at this school.";
+        } else if (!inSchool) {
+          // Stale, deleted, or cross-school Parent id — never reuse blindly.
+          resolutionInvalidReason =
+            "Selected parent is no longer valid at this school. Choose again.";
+        } else {
+          finalDecision = "REUSE_EXISTING";
+          reuseParentId = targetId;
+          reuseIsVirtual = false;
+        }
       } else if (resolution.kind === "CREATE_AS_NEW_PARENT") {
         finalDecision = "CREATE_NEW";
         reuseParentId = null;
         reuseIsVirtual = false;
       } else if (resolution.kind === "SKIP_HOLD") {
-        // Remain unresolved for apply-skip; still counts as review/conflict lineage.
+        // Intentional hold — remains unresolved / migration-blocking until changed.
       }
     }
 
@@ -158,6 +173,15 @@ export function runParentIdentityPreflight(opts: {
         }
       : null;
 
+    // Attach same-school linked learner labels onto candidate views for operator UI.
+    const candidatesWithLearners = decision.candidates.map((c) => {
+      const full = workingCandidates.find((w) => w.id === c.parentId);
+      return {
+        ...c,
+        linkedLearners: full?.linkedLearners || c.linkedLearners || [],
+      };
+    });
+
     items.push({
       itemKey,
       incoming,
@@ -165,12 +189,13 @@ export function runParentIdentityPreflight(opts: {
       confidence: decision.confidence,
       reasons: decision.reasons,
       conflictReasons: decision.conflictReasons,
-      candidates: decision.candidates,
+      candidates: candidatesWithLearners,
       reuseParentId,
       reuseIsVirtual,
       link,
       sourceNameExact: `${incoming.firstName} ${incoming.surname}`.trim(),
-      resolution,
+      resolution: resolutionInvalidReason ? null : resolution,
+      resolutionInvalidReason,
     });
   }
 

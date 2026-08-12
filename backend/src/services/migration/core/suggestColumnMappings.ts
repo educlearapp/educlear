@@ -107,7 +107,16 @@ const KEYWORD_RULES: KeywordRule[] = [
   },
   {
     target: "classroom",
-    keywords: ["classroom", "class", "registerclass", "register", "homeroom", "section"],
+    keywords: [
+      "classroom",
+      "class",
+      "registerclass",
+      "register",
+      "homeroom",
+      "section",
+      "formclass",
+      "classname",
+    ],
     baseConfidence: 84,
     reason: "Column name matches class or register class",
     categoryBoost: ["learners"],
@@ -135,7 +144,19 @@ const KEYWORD_RULES: KeywordRule[] = [
   },
   {
     target: "learnerNumber",
-    keywords: ["admissionnumber", "admissionno", "registernumber", "learnernumber"],
+    keywords: [
+      "admissionnumber",
+      "admissionno",
+      "registernumber",
+      "learnernumber",
+      "learnerno",
+      "studentnumber",
+      "studentno",
+      "pupilid",
+      "pupilnumber",
+      // Note: "learnerid" is handled as idNumber via exact/generic map — not admission no.
+      "studentid",
+    ],
     baseConfidence: 86,
     reason: "Column name matches admission or register number",
     categoryBoost: ["learners"],
@@ -177,8 +198,8 @@ const KEYWORD_RULES: KeywordRule[] = [
   },
   {
     target: "parentIdNumber",
-    keywords: ["parentid", "parentidnumber", "guardianid", "idnumber"],
-    baseConfidence: 82,
+    keywords: ["parentid", "parentidnumber", "guardianid", "guardianidnumber", "motherid", "fatherid"],
+    baseConfidence: 90,
     reason: "Column name matches parent ID number",
     categoryBoost: ["parents"],
   },
@@ -229,7 +250,24 @@ const KEYWORD_RULES: KeywordRule[] = [
   },
   {
     target: "parentPhone",
-    keywords: ["cell", "mobile", "phone", "tel", "telephone", "contactnumber", "parentphone"],
+    keywords: [
+      "cell",
+      "mobile",
+      "phone",
+      "tel",
+      "telephone",
+      "contactnumber",
+      "parentphone",
+      "momcell",
+      "mothermobile",
+      "parentcell",
+      "guardiancontact",
+      "guardiancellphone",
+      "guardianmobile",
+      "cellphone",
+      "cellno",
+      "mobileno",
+    ],
     baseConfidence: 88,
     reason: "Column name matches phone or mobile",
     categoryBoost: ["parents"],
@@ -361,6 +399,13 @@ function scoreRule(
   rule: KeywordRule,
   category: string
 ): { score: number; reason: string } | null {
+  // Parent/guardian ID columns must never win the learner idNumber target.
+  if (
+    rule.target === "idNumber" &&
+    /(parent|guardian|mother|father|mom|dad)/.test(haystack)
+  ) {
+    return null;
+  }
   const matched = rule.keywords.filter((kw) => matchesKeyword(haystack, kw));
   if (matched.length === 0) return null;
 
@@ -452,6 +497,29 @@ function bestMappingForColumn(
   }
 
   const haystack = columnHaystack(column);
+
+  // Prefer explicit cellphone aliases over broad "guardian"/"parent" name matches.
+  const cellphoneAliases = new Set([
+    "momcell",
+    "mothermobile",
+    "parentcell",
+    "guardiancontact",
+    "guardiancellphone",
+    "guardianmobile",
+    "cellphone",
+    "cellno",
+    "mobileno",
+    "parentcellphone",
+    "guardiancell",
+  ]);
+  if (cellphoneAliases.has(haystack)) {
+    return {
+      target: "parentPhone",
+      confidence: 96,
+      reason: "Column name matches guardian cellphone alias",
+    };
+  }
+
   let best: { target: MigrationTargetField; confidence: number; reason: string } | null = null;
 
   for (const rule of KEYWORD_RULES) {

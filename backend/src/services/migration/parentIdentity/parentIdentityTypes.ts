@@ -45,6 +45,11 @@ export type IncomingParentIdentity = {
   learnerLabel?: string | null;
   sourceFile?: string | null;
   sourceRow?: number | null;
+  /** Schema-backed extended fields (Phase 1F). */
+  homeAddress?: string | null;
+  employer?: string | null;
+  notes?: string | null;
+  workNo?: string | null;
 };
 
 /** Existing EduClear Parent candidate (school-scoped). */
@@ -56,6 +61,8 @@ export type ExistingParentCandidate = {
   cellNo?: string | null;
   email?: string | null;
   familyAccountId?: string | null;
+  /** Same-school linked learners for operator review UI. */
+  linkedLearners?: Array<{ learnerId: string; label: string }>;
 };
 
 export type ParentIdentityCandidateView = {
@@ -67,6 +74,8 @@ export type ParentIdentityCandidateView = {
   maskedEmail: string;
   matchReasons: ParentIdentityMatchReason[];
   conflictReasons: ParentIdentityMatchReason[];
+  /** Same-school linked learners (display only; never cross-school). */
+  linkedLearners?: Array<{ learnerId: string; label: string }>;
 };
 
 export type ParentIdentityDecision = {
@@ -151,6 +160,11 @@ export type PlannedParentIdentityItem = {
   sourceNameExact: string;
   /** Operator resolution, if any. */
   resolution: ParentIdentityResolution | null;
+  /**
+   * Set when an operator resolution was ignored because the target Parent is missing,
+   * not in this school, or no longer a valid candidate.
+   */
+  resolutionInvalidReason?: string | null;
 };
 
 export type ParentIdentityPreflightReport = {

@@ -1,6 +1,10 @@
 /**
  * DB helpers for migration parent identity — school-scoped candidate load.
  * Intentionally ignores familyAccountId for identity matching.
+ *
+ * CROSS-SCHOOL SAFETY: `where: { schoolId }` ensures Parents from other schools
+ * never become REUSE candidates. Migration Center must create a local Parent when
+ * the same SA ID exists only at another school.
  */
 
 import type { PrismaClient } from "@prisma/client";
@@ -20,6 +24,16 @@ export async function loadSchoolParentCandidates(
       cellNo: true,
       email: true,
       familyAccountId: true,
+      links: {
+        where: { schoolId },
+        select: {
+          learnerId: true,
+          learner: {
+            select: { id: true, firstName: true, lastName: true },
+          },
+        },
+        take: 20,
+      },
     },
   });
   return rows.map((r) => ({
@@ -30,6 +44,13 @@ export async function loadSchoolParentCandidates(
     cellNo: r.cellNo,
     email: r.email,
     familyAccountId: r.familyAccountId,
+    linkedLearners: (r.links || []).map((link) => {
+      const learner = link.learner;
+      const label = learner
+        ? `${String(learner.firstName || "").trim()} ${String(learner.lastName || "").trim()}`.trim()
+        : link.learnerId;
+      return { learnerId: link.learnerId, label: label || link.learnerId };
+    }),
   }));
 }
 
@@ -45,6 +66,9 @@ export function buildParentReuseUpdateData(input: {
     workNo?: string | null;
     homeNo?: string | null;
     relationship?: string | null;
+    homeAddress?: string | null;
+    employer?: string | null;
+    notes?: string | null;
   };
   incoming: {
     email?: string | null;
@@ -53,6 +77,9 @@ export function buildParentReuseUpdateData(input: {
     workNo?: string | null;
     homeNo?: string | null;
     relationship?: string | null;
+    homeAddress?: string | null;
+    employer?: string | null;
+    notes?: string | null;
   };
   /** Normalized cell for storage when existing cell is placeholder. */
   normalizedCellNo?: string | null;
@@ -80,6 +107,15 @@ export function buildParentReuseUpdateData(input: {
   }
   if (!String(input.existing.relationship || "").trim() && input.incoming.relationship) {
     data.relationship = input.incoming.relationship;
+  }
+  if (!String(input.existing.homeAddress || "").trim() && input.incoming.homeAddress) {
+    data.homeAddress = input.incoming.homeAddress;
+  }
+  if (!String(input.existing.employer || "").trim() && input.incoming.employer) {
+    data.employer = input.incoming.employer;
+  }
+  if (!String(input.existing.notes || "").trim() && input.incoming.notes) {
+    data.notes = input.incoming.notes;
   }
   return data;
 }

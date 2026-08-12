@@ -87,7 +87,7 @@ function testDuplicateVisibleErrorAndNav() {
   assert.ok(parsed);
   assert.equal(
     parsed!.message,
-    "This ID number already belongs to another parent record and cannot be assigned here."
+    "This ID number already belongs to another parent at this school and cannot be assigned here."
   );
   const err = new ParentIdConflictClientError(parsed!);
   assert.equal(err.message, PARENT_ID_CONFLICT_MESSAGE);

@@ -180,7 +180,9 @@ export async function buildMigrationSignoffPack(
   const batch = getImportBatch(batchId);
   if (!batch) throw new MigrationSignoffError("Import batch not found");
   if (batch.targetSchoolId !== targetSchoolId) {
-    throw new MigrationSignoffError("targetSchoolId does not match this import batch");
+    throw new MigrationSignoffError(
+      `MIGRATION_SCHOOL_MISMATCH: Batch is locked to school ${batch.targetSchoolId}; request targeted ${targetSchoolId}. No writes occurred.`
+    );
   }
 
   let reconciliation: MigrationReconciliationResult;

@@ -65,6 +65,8 @@ import {
 import { fetchMigrationTargetSchools } from "../../superAdmin/utils/migrationTargetSchools";
 import type { SchoolOption } from "../../superAdmin/types/migration";
 import type { MigrationStage } from "../../superAdmin/utils/universalMigrationStage";
+import type { BoundParentIdentityResolutions } from "../../superAdmin/utils/parentIdentityReview";
+import type { CompiledMigrationPlan } from "../../superAdmin/utils/universalMigrationCompiledPlan";
 
 export type UniversalMigrationWorkflowContextValue = {
   uploadedFiles: UniversalMigrationUploadedFile[];
@@ -120,10 +122,18 @@ export type UniversalMigrationWorkflowContextValue = {
   uploadFiles: (fileList: FileList | File[]) => Promise<void>;
   dryRunStage: MigrationStage | null;
   setDryRunStage: (stage: MigrationStage | null) => void;
+  parentIdentityResolutionsBound: BoundParentIdentityResolutions | null;
+  setParentIdentityResolutionsBound: (value: BoundParentIdentityResolutions | null) => void;
   kidESysReadiness: KidESysMigrationReadinessResult | null;
   kidESysReadinessBusy: boolean;
   kidESysReadinessError: string | null;
   refreshKidESysReadiness: () => Promise<void>;
+  sourceAnalysisId: string | null;
+  setSourceAnalysisId: (id: string | null) => void;
+  compiledPlanId: string | null;
+  setCompiledPlanId: (id: string | null) => void;
+  compiledPlan: CompiledMigrationPlan | null;
+  setCompiledPlan: (plan: CompiledMigrationPlan | null) => void;
 };
 
 const UniversalMigrationWorkflowContext = createContext<UniversalMigrationWorkflowContextValue | null>(
@@ -177,11 +187,16 @@ export function UniversalMigrationWorkflowProvider({ children }: { children: Rea
   const [adapterTestBusy, setAdapterTestBusy] = useState(false);
   const [adapterTestResult, setAdapterTestResult] = useState<MigrationAdapterTestResult | null>(null);
   const [dryRunStage, setDryRunStage] = useState<MigrationStage | null>(null);
+  const [parentIdentityResolutionsBound, setParentIdentityResolutionsBoundState] =
+    useState<BoundParentIdentityResolutions | null>(null);
   const [kidESysReadiness, setKidESysReadiness] = useState<KidESysMigrationReadinessResult | null>(
     null
   );
   const [kidESysReadinessBusy, setKidESysReadinessBusy] = useState(false);
   const [kidESysReadinessError, setKidESysReadinessError] = useState<string | null>(null);
+  const [sourceAnalysisId, setSourceAnalysisId] = useState<string | null>(null);
+  const [compiledPlanId, setCompiledPlanId] = useState<string | null>(null);
+  const [compiledPlan, setCompiledPlan] = useState<CompiledMigrationPlan | null>(null);
 
   const resetLocalWorkflowState = useCallback(() => {
     setUploadedFiles([]);
@@ -195,8 +210,12 @@ export function UniversalMigrationWorkflowProvider({ children }: { children: Rea
     setTemplateNotice(null);
     setAdapterTestResult(null);
     setDryRunStage(null);
+    setParentIdentityResolutionsBoundState(null);
     setKidESysReadiness(null);
     setKidESysReadinessError(null);
+    setSourceAnalysisId(null);
+    setCompiledPlanId(null);
+    setCompiledPlan(null);
     clearMigrationAdapterTestSession();
   }, []);
 
@@ -247,9 +266,29 @@ export function UniversalMigrationWorkflowProvider({ children }: { children: Rea
   const setDryRunStagePersisted = useCallback(
     (stage: MigrationStage | null) => {
       setDryRunStage(stage);
-      persistSession({ dryRunStage: stage });
+      // New/cleared stage invalidates prior parent resolutions (stage-bound).
+      setParentIdentityResolutionsBoundState(null);
+      persistSession({ dryRunStage: stage, parentIdentityResolutions: null });
     },
     [persistSession]
+  );
+
+  const setParentIdentityResolutionsBound = useCallback(
+    (value: BoundParentIdentityResolutions | null) => {
+      if (
+        value &&
+        selectedSessionSchoolId.trim() &&
+        value.targetSchoolId !== selectedSessionSchoolId.trim()
+      ) {
+        // Never persist a School A resolution pack onto School B's session.
+        setParentIdentityResolutionsBoundState(null);
+        persistSession({ parentIdentityResolutions: null });
+        return;
+      }
+      setParentIdentityResolutionsBoundState(value);
+      persistSession({ parentIdentityResolutions: value });
+    },
+    [persistSession, selectedSessionSchoolId]
   );
 
   useEffect(() => {
@@ -299,6 +338,16 @@ export function UniversalMigrationWorkflowProvider({ children }: { children: Rea
         setCutoverDate(session.cutoverDate ?? "");
         setSourceSystemState(session.sourceSystem || "generic-excel-csv");
         setDryRunStage(session.dryRunStage ?? null);
+        setSourceAnalysisId(session.sourceAnalysisId ?? null);
+        setCompiledPlanId(session.compiledPlanId ?? null);
+        setCompiledPlan(null);
+        const bound = session.parentIdentityResolutions ?? null;
+        const stageId = session.dryRunStage?.stageId;
+        const schoolOk =
+          bound &&
+          bound.targetSchoolId === schoolId &&
+          (!stageId || bound.stageId === stageId);
+        setParentIdentityResolutionsBoundState(schoolOk ? bound : null);
         setValidationNotice(null);
         setError(null);
         setSessionNotice(
@@ -474,8 +523,11 @@ export function UniversalMigrationWorkflowProvider({ children }: { children: Rea
 
   const handleValidate = useCallback(async () => {
     const mappings = buildEffectiveFileMappings(mappingSuggestions, mappingOverrides);
-    if (!hasSelectedMappings(mappings)) {
-      setValidationNotice("Select mappings before validation.");
+    const hasPlan = Boolean(sourceAnalysisId || compiledPlanId);
+    if (!hasPlan && !hasSelectedMappings(mappings)) {
+      setValidationNotice(
+        "Compile a Migration Plan from Package Analysis (or select mappings) before validation."
+      );
       setValidationSummary(null);
       setValidationIssues([]);
       setError(null);
@@ -493,15 +545,20 @@ export function UniversalMigrationWorkflowProvider({ children }: { children: Rea
       const filePaths = Object.fromEntries(uploadedFiles.map((f) => [f.id, f.path]));
       const result = await fetchUniversalMigrationValidation({
         previews: previewsWithPaths,
-        mappings,
+        mappings: hasPlan ? mappings : mappings,
         mode: validationMode,
         ...(selectedSessionSchoolId.trim() ? { schoolId: selectedSessionSchoolId.trim() } : {}),
         ...(validationMode === "full" ? { filePaths } : {}),
         ...(cutoverDate.trim() ? { cutoverDate: cutoverDate.trim() } : {}),
+        ...(sourceAnalysisId ? { sourceAnalysisId } : {}),
+        ...(compiledPlanId ? { compiledPlanId } : {}),
       });
       setValidationSummary(result.summary);
       setValidationIssues(result.issues);
       setDryRunStage(null);
+      if (result.planNotice) {
+        setValidationNotice(result.planNotice);
+      }
     } catch (e: unknown) {
       setError(e instanceof Error ? e.message : "Validation failed");
       setValidationSummary(null);
@@ -517,6 +574,8 @@ export function UniversalMigrationWorkflowProvider({ children }: { children: Rea
     validationMode,
     cutoverDate,
     selectedSessionSchoolId,
+    sourceAnalysisId,
+    compiledPlanId,
   ]);
 
   const uploadFiles = useCallback(
@@ -788,10 +847,18 @@ export function UniversalMigrationWorkflowProvider({ children }: { children: Rea
       resetValidationResults,
       dryRunStage,
       setDryRunStage: setDryRunStagePersisted,
+      parentIdentityResolutionsBound,
+      setParentIdentityResolutionsBound,
       kidESysReadiness,
       kidESysReadinessBusy,
       kidESysReadinessError,
       refreshKidESysReadiness,
+      sourceAnalysisId,
+      setSourceAnalysisId,
+      compiledPlanId,
+      setCompiledPlanId,
+      compiledPlan,
+      setCompiledPlan,
     }),
     [
       uploadedFiles,
@@ -843,10 +910,15 @@ export function UniversalMigrationWorkflowProvider({ children }: { children: Rea
       resetValidationResults,
       dryRunStage,
       setDryRunStagePersisted,
+      parentIdentityResolutionsBound,
+      setParentIdentityResolutionsBound,
       kidESysReadiness,
       kidESysReadinessBusy,
       kidESysReadinessError,
       refreshKidESysReadiness,
+      sourceAnalysisId,
+      compiledPlanId,
+      compiledPlan,
     ]
   );
 

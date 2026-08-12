@@ -1,11 +1,13 @@
 /**
  * Authoritative migration parent identity resolver.
  *
- * ONE REAL PERSON = ONE Parent record.
+ * ONE REAL PERSON AT ONE SCHOOL = ONE Parent record for that school.
+ * The same SA ID may exist as separate Parent rows at different schools.
  * Surname / first name are NEVER unique identity keys.
  * Cell or email alone NEVER auto-merge.
  * familyAccountId is NOT part of person identity.
  *
+ * Candidates MUST be school-scoped (loadSchoolParentCandidates).
  * Decisions: REUSE_EXISTING | CREATE_NEW | REVIEW_REQUIRED | CONFLICT
  * Never silently guesses a merge under ambiguity.
  */
@@ -52,6 +54,7 @@ function candidateView(
     maskedEmail: maskEmail(c.email),
     matchReasons,
     conflictReasons,
+    linkedLearners: Array.isArray(c.linkedLearners) ? c.linkedLearners : [],
   };
 }
 
@@ -143,30 +146,9 @@ export function resolveParentIdentity(input: ResolveParentIdentityInput): Parent
     return { candidate: c, match, conflict, candId, cellMatch, emailMatch, firstCompatible };
   });
 
-  // --- CONFLICT: contact overlap with disagreeing non-empty IDs ---
-  const conflictHits = scored.filter(
-    (s) =>
-      s.conflict.includes("CONFLICTING_IDENTITY_NUMBERS") &&
-      (s.cellMatch || s.emailMatch || s.match.includes("COMPATIBLE_FIRST_NAME"))
-  );
-  if (conflictHits.length) {
-    for (const s of conflictHits) {
-      views.push(candidateView(s.candidate, s.match, s.conflict));
-      conflictReasons.push(...s.conflict);
-    }
-    return {
-      decision: "CONFLICT",
-      parentId: null,
-      confidence: "HIGH",
-      reasons: ["CONFLICTING_IDENTITY_NUMBERS"],
-      conflictReasons: uniqueReasons(conflictReasons),
-      candidates: views,
-      recommendedAction: "CONFLICT",
-    };
-  }
-
-  // Also: incoming ID matches one parent, but another parent shares cell with a different ID already handled above.
-  // If incoming has ID that matches exactly one candidate → Level 1 REUSE regardless of surname.
+  // --- Level 1: exact identity number (school-scoped) wins before soft conflicts ---
+  // A valid same-school SA ID / identity match must not be blocked by a name-similar
+  // different person (COMPATIBLE_FIRST_NAME alone is not identity authority).
   const idHits = scored.filter((s) => s.match.includes("EXACT_IDENTITY_NUMBER"));
   if (inId && idHits.length === 1) {
     const hit = idHits[0]!;
@@ -183,7 +165,6 @@ export function resolveParentIdentity(input: ResolveParentIdentityInput): Parent
     };
   }
   if (inId && idHits.length > 1) {
-    // Duplicate existing Parents sharing same ID — should be impossible under @unique; treat as conflict.
     for (const s of idHits) views.push(candidateView(s.candidate, s.match, s.conflict));
     return {
       decision: "CONFLICT",
@@ -191,6 +172,28 @@ export function resolveParentIdentity(input: ResolveParentIdentityInput): Parent
       confidence: "HIGH",
       reasons: ["AMBIGUOUS_CANDIDATES", "EXACT_IDENTITY_NUMBER"],
       conflictReasons: ["AMBIGUOUS_CANDIDATES"],
+      candidates: views,
+      recommendedAction: "CONFLICT",
+    };
+  }
+
+  // --- CONFLICT: contact overlap with disagreeing non-empty IDs ---
+  const conflictHits = scored.filter(
+    (s) =>
+      s.conflict.includes("CONFLICTING_IDENTITY_NUMBERS") &&
+      (s.cellMatch || s.emailMatch)
+  );
+  if (conflictHits.length) {
+    for (const s of conflictHits) {
+      views.push(candidateView(s.candidate, s.match, s.conflict));
+      conflictReasons.push(...s.conflict);
+    }
+    return {
+      decision: "CONFLICT",
+      parentId: null,
+      confidence: "HIGH",
+      reasons: ["CONFLICTING_IDENTITY_NUMBERS"],
+      conflictReasons: uniqueReasons(conflictReasons),
       candidates: views,
       recommendedAction: "CONFLICT",
     };

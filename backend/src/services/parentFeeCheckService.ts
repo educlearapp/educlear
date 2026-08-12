@@ -1,9 +1,5 @@
 import { prisma } from "../prisma";
-import { buildAccountsFromAgeAnalysisSnapshots } from "./statementAccounts";
-import {
-  calculateBalanceFromEntries,
-  readSchoolLedger,
-} from "../utils/billingLedgerStore";
+import * as financeAuthority from "./financeAuthority/resolveAuthoritativeFamilyAccountBalance";
 
 export type FeeCheckStatus = "GREEN" | "AMBER" | "RED";
 
@@ -21,6 +17,18 @@ export type FeeCheckResultRow = {
   outstandingAmount: number;
   status: FeeCheckStatus;
   learners: FeeCheckLearnerRow[];
+  /** True when this row belongs to the authenticated staff school (full PII). */
+  isHomeSchool: boolean;
+  /** Linked learner count (always present; names only for home school). */
+  learnerCount: number;
+  /**
+   * Phase 1I — how outstanding was resolved.
+   * AUTHORITATIVE_FAMILY_ACCOUNT = shared statement/Fee Check authority.
+   * LEGACY_PARENT_OUTSTANDING = fallback when no family account ref exists.
+   */
+  balanceAuthority:
+    | "AUTHORITATIVE_FAMILY_ACCOUNT"
+    | "LEGACY_PARENT_OUTSTANDING";
 };
 
 export type ParentFeeCheckResponse = {
@@ -56,6 +64,15 @@ function parentDisplayName(parent: { firstName: string; surname: string; title?:
   return [title, first, surname].filter(Boolean).join(" ").trim() || "Parent";
 }
 
+/** Cross-school: confirm ID match without exposing full contact identity. */
+function redactedParentDisplayName(parent: { firstName: string; surname: string }) {
+  const first = String(parent.firstName || "").trim();
+  const surname = String(parent.surname || "").trim();
+  const initial = first ? `${first.charAt(0).toUpperCase()}.` : "";
+  const label = [initial, surname].filter(Boolean).join(" ").trim();
+  return label || "Guardian on file";
+}
+
 function learnerDisplayName(learner: { firstName: string; lastName: string }) {
   return [String(learner.firstName || "").trim(), String(learner.lastName || "").trim()]
     .filter(Boolean)
@@ -67,16 +84,9 @@ async function resolveFamilyAccountBalance(
   schoolId: string,
   accountRef: string
 ): Promise<number> {
-  const ref = String(accountRef || "").trim().toUpperCase();
-  if (!ref) return 0;
-
-  const accounts = await buildAccountsFromAgeAnalysisSnapshots(schoolId);
-  const row = accounts.find((a) => String(a.accountNo || "").trim().toUpperCase() === ref);
-  if (row) return Math.round(row.balance * 100) / 100;
-
-  const ledger = readSchoolLedger(schoolId);
-  const entries = ledger.filter((e) => String(e.accountNo || "").trim().toUpperCase() === ref);
-  return Math.round(calculateBalanceFromEntries(entries) * 100) / 100;
+  // Phase 1I — same authority as statements / migration Finance Check.
+  const auth = await financeAuthority.resolveAuthoritativeFamilyAccountBalance(schoolId, accountRef);
+  return auth.balanceRand;
 }
 
 type FamilyAccountBundle = {
@@ -86,11 +96,21 @@ type FamilyAccountBundle = {
   learners: Map<string, FeeCheckLearnerRow>;
 };
 
-export async function lookupParentFeesBySaId(rawId: string): Promise<ParentFeeCheckResponse> {
+export type LookupParentFeesOptions = {
+  /** Authenticated staff school — home-school rows keep full PII; others are minimized. */
+  viewerSchoolId: string;
+};
+
+export async function lookupParentFeesBySaId(
+  rawId: string,
+  opts: LookupParentFeesOptions
+): Promise<ParentFeeCheckResponse> {
   const normalizedId = normalizeSaIdNumber(rawId);
+  const viewerSchoolId = String(opts.viewerSchoolId || "").trim();
   console.info("[fee-check] lookupParentFeesBySaId", {
     rawId: String(rawId || "").trim(),
     normalizedId,
+    viewerSchoolId: viewerSchoolId || null,
   });
   if (!normalizedId || normalizedId.length < 6) {
     return {
@@ -100,6 +120,9 @@ export async function lookupParentFeesBySaId(rawId: string): Promise<ParentFeeCh
       totalOutstanding: 0,
       status: "GREEN",
     };
+  }
+  if (!viewerSchoolId) {
+    throw new Error("viewerSchoolId is required for Fee Check");
   }
 
   const parents = await prisma.parent.findMany({
@@ -149,8 +172,11 @@ export async function lookupParentFeesBySaId(rawId: string): Promise<ParentFeeCh
   const resultMap = new Map<string, FeeCheckResultRow>();
 
   for (const parent of matchingParents) {
-    const parentName = parentDisplayName(parent);
     const schoolId = String(parent.schoolId || "").trim();
+    const isHomeSchool = schoolId === viewerSchoolId;
+    const parentName = isHomeSchool
+      ? parentDisplayName(parent)
+      : redactedParentDisplayName(parent);
     const schoolName = String(parent.school?.name || "").trim() || "School";
 
     const bundles = new Map<string, FamilyAccountBundle>();
@@ -172,8 +198,13 @@ export async function lookupParentFeesBySaId(rawId: string): Promise<ParentFeeCh
       if (ref && !existing.accountRef) existing.accountRef = ref;
       if (familyName && !existing.familyName) existing.familyName = familyName;
       if (learner?.id) {
-        const name = learnerDisplayName(learner);
-        existing.learners.set(learner.id, { id: learner.id, name: name || "Learner" });
+        if (isHomeSchool) {
+          const name = learnerDisplayName(learner);
+          existing.learners.set(learner.id, { id: learner.id, name: name || "Learner" });
+        } else {
+          // Cross-school: count only — never expose other-school learner names/ids.
+          existing.learners.set(`count:${learner.id}`, { id: "", name: "" });
+        }
       }
       bundles.set(key, existing);
     };
@@ -215,28 +246,42 @@ export async function lookupParentFeesBySaId(rawId: string): Promise<ParentFeeCh
       const resultKey = `${schoolId}:${bundle.familyAccountId || accountRef || parent.id}`;
 
       let outstanding = 0;
+      let balanceAuthority: FeeCheckResultRow["balanceAuthority"] =
+        "LEGACY_PARENT_OUTSTANDING";
       if (accountRef) {
         const cacheKey = `${schoolId}:${accountRef.toUpperCase()}`;
         if (!balanceCache.has(cacheKey)) {
           balanceCache.set(cacheKey, await resolveFamilyAccountBalance(schoolId, accountRef));
         }
         outstanding = balanceCache.get(cacheKey) ?? 0;
+        balanceAuthority = "AUTHORITATIVE_FAMILY_ACCOUNT";
       } else {
+        // LEGACY/FALLBACK only — Parent.outstandingAmount is not authoritative when a
+        // family account exists. Kept for accounts without accountRef linkage.
         outstanding = Math.round((Number(parent.outstandingAmount) || 0) * 100) / 100;
+        balanceAuthority = "LEGACY_PARENT_OUTSTANDING";
       }
 
       const status = feeStatusFromOutstanding(outstanding);
-      const learners = Array.from(bundle.learners.values());
+      const learnerCount = bundle.learners.size;
+      const learners: FeeCheckLearnerRow[] = isHomeSchool
+        ? Array.from(bundle.learners.values())
+        : learnerCount > 0
+          ? [{ id: "", name: `${learnerCount} linked learner(s)` }]
+          : [];
 
       const row: FeeCheckResultRow = {
         parentName,
         schoolId,
         schoolName,
         familyAccountNumber: accountRef || "—",
-        familyAccountId: bundle.familyAccountId,
+        familyAccountId: isHomeSchool ? bundle.familyAccountId : null,
         outstandingAmount: outstanding,
         status,
         learners,
+        isHomeSchool,
+        learnerCount,
+        balanceAuthority,
       };
 
       const existing = resultMap.get(resultKey);
@@ -245,14 +290,23 @@ export async function lookupParentFeesBySaId(rawId: string): Promise<ParentFeeCh
         continue;
       }
 
-      for (const learner of learners) {
-        if (!existing.learners.some((l) => l.id === learner.id)) {
-          existing.learners.push(learner);
+      if (isHomeSchool) {
+        for (const learner of learners) {
+          if (!existing.learners.some((l) => l.id === learner.id)) {
+            existing.learners.push(learner);
+          }
         }
+      } else {
+        existing.learnerCount = Math.max(existing.learnerCount, learnerCount);
+        existing.learners =
+          existing.learnerCount > 0
+            ? [{ id: "", name: `${existing.learnerCount} linked learner(s)` }]
+            : [];
       }
       if (outstanding > existing.outstandingAmount) {
         existing.outstandingAmount = outstanding;
         existing.status = status;
+        existing.balanceAuthority = balanceAuthority;
       }
     }
   }

@@ -204,11 +204,33 @@ function parseStageFile(raw: string, fileId: string): MigrationStage | null {
       : [];
 
     const paymentReceiveList = parsePaymentReceiveListStageData(parsed.paymentReceiveList);
+    const targetSchoolId = String(parsed.targetSchoolId || "").trim();
+    const targetSchoolName = String(parsed.targetSchoolName || "").trim();
+    const migrationRunId = String(parsed.migrationRunId || stageId).trim() || stageId;
+
+    const sourceAnalysisId = String(parsed.sourceAnalysisId || "").trim() || null;
+    const analysisVersion = String(parsed.analysisVersion || "").trim() || null;
+    const compiledPlanId = String(parsed.compiledPlanId || "").trim() || null;
+    const compiledPlanVersion = String(parsed.compiledPlanVersion || "").trim() || null;
+    const sourceFingerprints = Array.isArray(parsed.sourceFingerprints)
+      ? parsed.sourceFingerprints
+          .map((fp) => ({
+            fileId: String((fp as { fileId?: string }).fileId || "").trim(),
+            filename: String((fp as { filename?: string }).filename || "").trim(),
+            headerFingerprint: String(
+              (fp as { headerFingerprint?: string }).headerFingerprint || ""
+            ).trim(),
+          }))
+          .filter((fp) => fp.fileId && fp.headerFingerprint)
+      : [];
 
     return {
       stageId,
+      migrationRunId,
       createdAt,
       sourceSystem,
+      targetSchoolId,
+      targetSchoolName,
       ...(cutoverDate ? { cutoverDate } : {}),
       files,
       mappings,
@@ -218,6 +240,11 @@ function parseStageFile(raw: string, fileId: string): MigrationStage | null {
       ...(paymentReceiveList ? { paymentReceiveList } : {}),
       warnings,
       canApply: Boolean(parsed.canApply),
+      ...(sourceAnalysisId ? { sourceAnalysisId } : {}),
+      ...(analysisVersion ? { analysisVersion } : {}),
+      ...(compiledPlanId ? { compiledPlanId } : {}),
+      ...(compiledPlanVersion ? { compiledPlanVersion } : {}),
+      ...(sourceFingerprints.length ? { sourceFingerprints } : {}),
     };
   } catch {
     return null;
@@ -227,8 +254,11 @@ function parseStageFile(raw: string, fileId: string): MigrationStage | null {
 function toListItem(stage: MigrationStage): MigrationStageListItem {
   return {
     stageId: stage.stageId,
+    migrationRunId: stage.migrationRunId || stage.stageId,
     createdAt: stage.createdAt,
     sourceSystem: stage.sourceSystem,
+    targetSchoolId: stage.targetSchoolId || "",
+    targetSchoolName: stage.targetSchoolName || "",
     stagedCounts: stage.stagedCounts,
     canApply: stage.canApply,
     fileCount: stage.files.length,
@@ -239,6 +269,9 @@ export function createStage(stage: MigrationStage): MigrationStage {
   ensureStagesDir();
   const safeId = sanitizeStageId(stage.stageId);
   if (!safeId) throw new Error("Invalid stage id");
+  if (!String(stage.targetSchoolId || "").trim()) {
+    throw new Error("Stage targetSchoolId is required");
+  }
 
   const filePath = stageFilePath(safeId);
   if (fs.existsSync(filePath)) {
@@ -265,8 +298,9 @@ export function getStage(stageId: string): MigrationStage | null {
   }
 }
 
-export function listStages(): MigrationStageListItem[] {
+export function listStages(opts?: { targetSchoolId?: string }): MigrationStageListItem[] {
   ensureStagesDir();
+  const filterSchool = String(opts?.targetSchoolId || "").trim();
   const entries = fs.readdirSync(STAGES_DIR, { withFileTypes: true });
   const items: MigrationStageListItem[] = [];
 
@@ -276,7 +310,9 @@ export function listStages(): MigrationStageListItem[] {
     try {
       const raw = fs.readFileSync(path.join(STAGES_DIR, entry.name), "utf8");
       const stage = parseStageFile(raw, fileId);
-      if (stage) items.push(toListItem(stage));
+      if (!stage) continue;
+      if (filterSchool && String(stage.targetSchoolId || "").trim() !== filterSchool) continue;
+      items.push(toListItem(stage));
     } catch {
       // Skip corrupt files
     }

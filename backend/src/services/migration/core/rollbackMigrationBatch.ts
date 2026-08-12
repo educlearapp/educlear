@@ -107,7 +107,9 @@ export async function rollbackMigrationBatch(
   }
 
   if (batch.targetSchoolId !== targetSchoolId) {
-    throw new MigrationRollbackError("targetSchoolId does not match this import batch");
+    throw new MigrationRollbackError(
+      `MIGRATION_SCHOOL_MISMATCH: Batch is locked to school ${batch.targetSchoolId}; request targeted ${targetSchoolId}. No writes occurred.`
+    );
   }
 
   const expectedPhrase = cleanString(batch.targetSchoolName);

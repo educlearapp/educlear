@@ -239,11 +239,12 @@ export async function checkApplicationParentIdentity(opts: {
     sourceSystem: "MANUAL" as const,
   };
 
-  // Exact ID owned by another parent (school-scoped preference; global unique still applies).
+  // Exact ID owned by another parent in THIS school only.
+  // Same SA ID at another school is allowed (school-scoped Parent membership).
   const inId = normalizeParentIdentityNumber(incoming.idNumber);
   if (inId) {
-    const byId = await opts.prisma.parent.findUnique({
-      where: { idNumber: inId },
+    const byId = await opts.prisma.parent.findFirst({
+      where: { schoolId, idNumber: inId },
       select: {
         id: true,
         schoolId: true,
@@ -261,20 +262,6 @@ export async function checkApplicationParentIdentity(opts: {
       },
     });
     if (byId && (!excludeParentId || byId.id !== excludeParentId)) {
-      if (byId.schoolId !== schoolId) {
-        // Cross-tenant: do not leak other-school parent details.
-        return {
-          decision: "EXISTING_PARENT_MATCH",
-          code: PARENT_ID_ALREADY_EXISTS,
-          message:
-            "This ID number already belongs to another parent record and cannot be assigned here.",
-          confidence: "HIGH",
-          existingParent: null,
-          candidates: [],
-          allowExplicitCreate: false,
-          allowLinkExisting: false,
-        };
-      }
       const existing: ParentIdConflictExisting = {
         id: byId.id,
         schoolId: byId.schoolId,
@@ -290,7 +277,7 @@ export async function checkApplicationParentIdentity(opts: {
         decision: "EXISTING_PARENT_MATCH",
         code: PARENT_ID_ALREADY_EXISTS,
         message:
-          "This ID number already belongs to another parent record and cannot be assigned here.",
+          "This ID number already belongs to another parent at this school and cannot be assigned here.",
         confidence: "HIGH",
         existingParent: existing,
         candidates: [
@@ -534,9 +521,10 @@ export async function linkExistingParentToLearner(opts: {
 
 export async function buildConflictBodyFromCheck(
   prisma: PrismaClient,
-  idNumber: string
+  idNumber: string,
+  schoolId?: string
 ): Promise<ParentIdConflictBody> {
-  return buildParentIdConflictBody(prisma, idNumber);
+  return buildParentIdConflictBody(prisma, idNumber, schoolId);
 }
 
 /** Exported for tests — surname compatibility is never an identity key alone. */

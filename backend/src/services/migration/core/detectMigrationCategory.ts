@@ -11,7 +11,7 @@ const CATEGORY_KEYWORDS: Array<{ category: MigrationFileCategory; keywords: stri
   },
   {
     category: "billing",
-    keywords: ["billing", "fee", "age_analysis", "age-analysis", "billing_plan"],
+    keywords: ["billing", "fee", "age_analysis", "age-analysis", "billing_plan", "accounts", "account", "opening"],
   },
   {
     category: "learners",

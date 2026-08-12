@@ -111,6 +111,8 @@ export async function runMigrationDryRun(
       dryRunId,
       stage: buildMigrationStage({
         sourceSystem: source,
+        targetSchoolId: input.schoolId,
+        targetSchoolName: input.schoolId,
         previews,
         mappings: effective,
         validationSummary: validation.validationSummary,
@@ -139,6 +141,8 @@ export async function runMigrationDryRun(
 
   const stage = buildMigrationStage({
     sourceSystem: source,
+    targetSchoolId: input.schoolId,
+    targetSchoolName: input.schoolId,
     previews,
     mappings: effective,
     validationSummary: validation.validationSummary,

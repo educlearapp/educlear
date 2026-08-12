@@ -592,7 +592,7 @@ model Parent {
 
   nickname String?
 
-  idNumber String? @unique
+  idNumber String?
   status   String  @default("GREEN")
 
   outstandingAmount Float @default(0)
@@ -640,6 +640,7 @@ model Parent {
   communicationMessages CommunicationMessage[]
   pushSubscriptions     PushSubscription[]
 
+  @@unique([schoolId, idNumber])
   @@index([schoolId])
   @@index([schoolId, cellNo])
 }

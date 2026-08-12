@@ -2348,6 +2348,7 @@ const [selectedLearnerReport, setSelectedLearnerReport] = useState<any>(null);
 
     const buildId = import.meta.env.VITE_FEE_CHECK_BUILD_ID || "dev";
     const feeCheckUrl = `${API_URL}/api/parents/fee-check/${encodeURIComponent(normalizedId)}?_=${encodeURIComponent(buildId)}`;
+    const token = String(localStorage.getItem("token") || "").trim();
 
     try {
       const res = await fetch(feeCheckUrl, {
@@ -2357,6 +2358,7 @@ const [selectedLearnerReport, setSelectedLearnerReport] = useState<any>(null);
           Accept: "application/json",
           "Cache-Control": "no-cache",
           Pragma: "no-cache",
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
         },
       });
 

@@ -59,6 +59,9 @@ export default function UniversalMigrationDryRunPanel({
     selectedSessionSchoolId,
     dryRunStage,
     setDryRunStage,
+    sourceAnalysisId,
+    compiledPlanId,
+    setCompiledPlanId,
   } = useUniversalMigrationWorkflow();
 
   const [stageBusy, setStageBusy] = useState(false);
@@ -75,14 +78,17 @@ export default function UniversalMigrationDryRunPanel({
   const refreshStageList = useCallback(async () => {
     setListBusy(true);
     try {
-      const stages = await fetchUniversalMigrationStages();
+      const schoolFilter = selectedSessionSchoolId.trim() || undefined;
+      const stages = await fetchUniversalMigrationStages(
+        schoolFilter ? { targetSchoolId: schoolFilter } : undefined
+      );
       setPreviousStages(stages);
     } catch (e: unknown) {
       setError(e instanceof Error ? e.message : "Failed to load dry runs");
     } finally {
       setListBusy(false);
     }
-  }, []);
+  }, [selectedSessionSchoolId]);
 
   useEffect(() => {
     void refreshStageList();
@@ -94,6 +100,17 @@ export default function UniversalMigrationDryRunPanel({
 
   const handleCreateStage = useCallback(async () => {
     if (!canCreateStage) return;
+    const schoolId = selectedSessionSchoolId.trim();
+    if (!schoolId) {
+      setError("Select the Migration Target school before creating a dry run.");
+      return;
+    }
+    if (!sourceAnalysisId) {
+      setError(
+        "Compile a Migration Plan from Package Analysis before creating a dry run. Staging uses the compiled plan mappings."
+      );
+      return;
+    }
     setStageBusy(true);
     setError(null);
     try {
@@ -102,16 +119,19 @@ export default function UniversalMigrationDryRunPanel({
       );
       const stage = await createUniversalMigrationStage({
         sourceSystem: sourceSystem.trim() || "unknown",
-        schoolId: selectedSessionSchoolId.trim() || undefined,
+        schoolId,
         previews,
         filePaths,
         mappings,
         validationSummary,
         issues: validationIssues,
         ...(cutoverDate ? { cutoverDate } : {}),
+        sourceAnalysisId,
+        ...(compiledPlanId ? { compiledPlanId } : {}),
       });
       setActiveStage(stage);
       setDryRunStage(stage);
+      if (stage.compiledPlanId) setCompiledPlanId(stage.compiledPlanId);
       await refreshStageList();
     } catch (e: unknown) {
       setError(e instanceof Error ? e.message : "Failed to create dry run");
@@ -130,6 +150,9 @@ export default function UniversalMigrationDryRunPanel({
     cutoverDate,
     setDryRunStage,
     refreshStageList,
+    sourceAnalysisId,
+    compiledPlanId,
+    setCompiledPlanId,
   ]);
 
   const handleOpenStage = useCallback(async (stageId: string) => {

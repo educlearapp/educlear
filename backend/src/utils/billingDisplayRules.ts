@@ -57,6 +57,8 @@ const MIGRATION_SOURCES = new Set([
   "kidesys_csv_opening_balance",
   "kidesys_display_history",
   "kideesys-dasilva",
+  "universal_migration_opening_balance",
+  "universal_migration_phase14",
 ]);
 
 const LIVE_STRIP_REGEXES = [
@@ -74,15 +76,19 @@ const LIVE_STRIP_REGEXES = [
 export function isKidesysOpeningBalanceEntry(
   entry: Pick<BillingLedgerEntry, "source" | "reference" | "description">
 ): boolean {
+  const source = String(entry.source || "").trim();
   if (
-    String(entry.source || "").trim() === "kidesys_migration_opening_balance" ||
-    String(entry.source || "").trim() === "kidesys_csv_opening_balance"
+    source === "kidesys_migration_opening_balance" ||
+    source === "kidesys_csv_opening_balance" ||
+    source === "universal_migration_opening_balance"
   ) {
     return true;
   }
   const reference = String(entry.reference || "").trim();
   if (reference.startsWith("KIDESYS-OPENING")) return true;
+  if (reference.startsWith("UMIG-OPENING-")) return true;
   if (String(entry.description || "").includes("Kid-e-Sys opening balance")) return true;
+  if (String(entry.description || "").includes("Migration opening balance")) return true;
   return false;
 }
 

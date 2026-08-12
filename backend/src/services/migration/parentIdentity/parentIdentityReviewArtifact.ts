@@ -27,6 +27,7 @@ export type ParentIdentityReviewArtifact = {
     reasons: string[];
     candidates: ParentIdentityPreflightReport["items"][number]["candidates"];
     recommendedResolutions: ParentIdentityResolutionKind[];
+    resolutionInvalidReason?: string | null;
   }>;
   conflictQueue: Array<{
     itemKey: string;
@@ -36,6 +37,7 @@ export type ParentIdentityReviewArtifact = {
     conflictReasons: string[];
     candidates: ParentIdentityPreflightReport["items"][number]["candidates"];
     note: string;
+    resolutionInvalidReason?: string | null;
   }>;
   readyToReuse: Array<{
     itemKey: string;
@@ -69,6 +71,7 @@ export function buildParentIdentityReviewArtifact(
         "CREATE_AS_NEW_PARENT",
         "SKIP_HOLD",
       ] as ParentIdentityResolutionKind[],
+      resolutionInvalidReason: i.resolutionInvalidReason || null,
     }));
 
   const conflictQueue = report.items
@@ -81,6 +84,7 @@ export function buildParentIdentityReviewArtifact(
       conflictReasons: i.conflictReasons,
       candidates: i.candidates,
       note: "Do not auto-resolve. Require explicit authorised review before APPLY.",
+      resolutionInvalidReason: i.resolutionInvalidReason || null,
     }));
 
   return {

@@ -33,7 +33,11 @@ function cleanBool(value: unknown, fallback: boolean) {
   return Boolean(value);
 }
 
-/** GET /api/parents/fee-check/:idNumber — cross-school guardian ID fee lookup (dashboard). */
+/**
+ * GET /api/parents/fee-check/:idNumber — controlled cross-school guardian ID fee lookup.
+ * Owner/Admin only. Unauthenticated / unauthorized requests must not receive debt/PII.
+ * Cross-school rows minimize parent/learner PII; home-school rows keep full detail.
+ */
 router.get("/fee-check/:idNumber", async (req, res) => {
   res.setHeader("Cache-Control", "no-store, no-cache, must-revalidate");
   res.setHeader("Pragma", "no-cache");
@@ -42,10 +46,29 @@ router.get("/fee-check/:idNumber", async (req, res) => {
   const normalizedId = normalizeSaIdNumber(raw);
 
   try {
+    const authDecision = await resolveParentStaffAuth(req, {
+      requireOwnerAdmin: true,
+    });
+    if (!authDecision.allowed) {
+      return res.status(authDecision.status).json({
+        success: false,
+        found: false,
+        normalizedId,
+        error: authDecision.error,
+        message: authDecision.error,
+        code: authDecision.code || null,
+        results: [],
+        totalOutstanding: 0,
+        status: "GREEN",
+      });
+    }
+    const staffAuth = authDecision.auth;
+
     console.info("[fee-check] lookup", {
       rawInput: raw,
       normalizedId,
-      schoolIdQuery: cleanString((req.query as { schoolId?: unknown })?.schoolId) || null,
+      viewerSchoolId: staffAuth.authorizedSchoolId,
+      actorUserId: staffAuth.userId,
     });
 
     if (!normalizedId || normalizedId.length < 6) {
@@ -59,13 +82,16 @@ router.get("/fee-check/:idNumber", async (req, res) => {
       });
     }
 
-    const payload = await lookupParentFeesBySaId(normalizedId);
+    const payload = await lookupParentFeesBySaId(normalizedId, {
+      viewerSchoolId: staffAuth.authorizedSchoolId,
+    });
 
     console.info("[fee-check] result", {
       normalizedId: payload.normalizedId,
       found: payload.found,
       matchCount: payload.results.length,
       totalOutstanding: payload.totalOutstanding,
+      viewerSchoolId: staffAuth.authorizedSchoolId,
     });
 
     if (!payload.found) {
@@ -101,7 +127,8 @@ router.get("/fee-check/:idNumber", async (req, res) => {
 
 /**
  * GET /api/parents/id-ownership?idNumber=&excludeParentId=&cellNo=&email=
- * Authenticated staff only. Cross-school ownership returns safe semantics without PII.
+ * Authenticated staff only. Uniqueness is school-scoped — same SA ID at another school
+ * does not block create and must not leak other-school PII.
  */
 router.get("/id-ownership", async (req, res) => {
   res.setHeader("Cache-Control", "no-store, no-cache, must-revalidate");
@@ -127,45 +154,28 @@ router.get("/id-ownership", async (req, res) => {
     const cellNo = cleanString(req.query?.cellNo) || null;
     const email = cleanString(req.query?.email) || null;
 
-    const existingParent = await findParentByIdNumber(prisma, idNumber);
+    const existingParent = await findParentByIdNumber(
+      prisma,
+      idNumber,
+      staffAuth.authorizedSchoolId
+    );
     const ownedByOther =
       Boolean(existingParent) &&
       (!excludeParentId || existingParent!.id !== excludeParentId);
 
-    if (ownedByOther && existingParent && existingParent.schoolId !== staffAuth.authorizedSchoolId) {
-      return res.json({
-        success: true,
-        idNumber,
-        owned: true,
-        ownedByOther: true,
-        accessible: false,
-        existingParent: null,
-        warning: null,
-        conflictMessage: PARENT_ID_CONFLICT_MESSAGE,
-      });
-    }
-
     const sameSchoolAccessible =
-      ownedByOther &&
-      existingParent &&
-      existingParent.schoolId === staffAuth.authorizedSchoolId &&
-      staffAuth.isOwnerAdmin;
+      ownedByOther && existingParent && staffAuth.isOwnerAdmin;
 
     let warning = null as Awaited<ReturnType<typeof findDuplicateParentSignal>>;
     if (staffAuth.isOwnerAdmin) {
       warning = await findDuplicateParentSignal({
         prisma,
+        schoolId: staffAuth.authorizedSchoolId,
         idNumber,
         excludeParentId,
         cellNo,
         email,
       });
-      if (
-        warning?.existingParent &&
-        warning.existingParent.schoolId !== staffAuth.authorizedSchoolId
-      ) {
-        warning = null;
-      }
     }
 
     return res.json({
@@ -234,7 +244,8 @@ router.post("/", async (req, res) => {
           }
         : await buildParentIdConflictBody(
             prisma,
-            identity.idNumber || cleanString(req.body?.idNumber)
+            identity.idNumber || cleanString(req.body?.idNumber),
+            schoolId
           );
       return res.status(409).json(body);
     }
@@ -301,7 +312,14 @@ router.post("/", async (req, res) => {
     if (isParentIdNumberUniqueTarget(error)) {
       const idNumber =
         parentIdentityForCreate(req.body || {}).idNumber || cleanString(req.body?.idNumber);
-      const body = await buildParentIdConflictBody(prisma, idNumber || "");
+      const authForConflict = await resolveParentStaffAuth(req, {
+        requirePermission: { module: "parents", action: "create" },
+      });
+      const body = await buildParentIdConflictBody(
+        prisma,
+        idNumber || "",
+        authForConflict.allowed ? authForConflict.auth.authorizedSchoolId : undefined
+      );
       return res.status(409).json(body);
     }
     const err = error as { message?: string; code?: string; meta?: unknown };
@@ -477,7 +495,8 @@ router.put("/:id", async (req, res) => {
           }
         : await buildParentIdConflictBody(
             prisma,
-            String(identityUpdate.idNumber || req.body?.idNumber || "")
+            String(identityUpdate.idNumber || req.body?.idNumber || ""),
+            existing.schoolId
           );
       return res.status(409).json(body);
     }
@@ -535,7 +554,15 @@ router.put("/:id", async (req, res) => {
     if (isParentIdNumberUniqueTarget(error)) {
       const idNumber =
         parentIdentityForUpdate(req.body || {}).idNumber || cleanString(req.body?.idNumber);
-      const body = await buildParentIdConflictBody(prisma, String(idNumber || ""));
+      const existingForConflict = await prisma.parent.findUnique({
+        where: { id: String(req.params?.id || "").trim() },
+        select: { schoolId: true },
+      });
+      const body = await buildParentIdConflictBody(
+        prisma,
+        String(idNumber || ""),
+        existingForConflict?.schoolId
+      );
       return res.status(409).json(body);
     }
     const err = error as { message?: string };

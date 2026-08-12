@@ -1,7 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import MigrationDryRunReview from "../../superAdmin/components/migration/MigrationDryRunReview";
-import { superAdminApiFetch } from "../../superAdmin/superAdminApi";
-import type { SchoolOption } from "../../superAdmin/types/migration";
 import {
   applyUniversalMigrationStage,
   UniversalMigrationApplyError,
@@ -40,9 +38,11 @@ function formatApplyCounts(label: string, counts: MigrationApplyResult["createdC
 }
 
 export default function UniversalMigrationApplySection({ onNotice }: Props) {
-  const { selectedSessionSchoolId, clearAll } = useUniversalMigrationWorkflow();
-  const [schoolOptions, setSchoolOptions] = useState<SchoolOption[]>([]);
-  const [selectedSchoolId, setSelectedSchoolId] = useState("");
+  const {
+    selectedSessionSchoolId,
+    clearAll,
+    parentIdentityResolutionsBound,
+  } = useUniversalMigrationWorkflow();
   const [stages, setStages] = useState<MigrationStageListItem[]>([]);
   const [selectedStageId, setSelectedStageId] = useState("");
   const [stage, setStage] = useState<MigrationStage | null>(null);
@@ -59,16 +59,17 @@ export default function UniversalMigrationApplySection({ onNotice }: Props) {
     finalConfirmationAccepted: false,
   });
 
-  const selectedSchool = useMemo(
-    () => schoolOptions.find((s) => s.id === selectedSchoolId) ?? null,
-    [schoolOptions, selectedSchoolId]
-  );
+  const boundSchoolId = String(stage?.targetSchoolId || "").trim();
+  const boundSchoolName = String(stage?.targetSchoolName || "").trim();
 
   const refreshStages = useCallback(async () => {
     setListBusy(true);
     setError(null);
     try {
-      const list = await fetchUniversalMigrationStages();
+      const schoolFilter = selectedSessionSchoolId.trim() || undefined;
+      const list = await fetchUniversalMigrationStages(
+        schoolFilter ? { targetSchoolId: schoolFilter } : undefined
+      );
       setStages(list);
       if (selectedStageId && !list.some((s) => s.stageId === selectedStageId)) {
         setSelectedStageId("");
@@ -79,21 +80,7 @@ export default function UniversalMigrationApplySection({ onNotice }: Props) {
     } finally {
       setListBusy(false);
     }
-  }, [selectedStageId]);
-
-  useEffect(() => {
-    void (async () => {
-      try {
-        const schools = (await superAdminApiFetch("/api/schools")) as Array<{
-          id: string;
-          name: string;
-        }>;
-        setSchoolOptions((schools || []).map((s) => ({ id: s.id, name: s.name })));
-      } catch {
-        setSchoolOptions([]);
-      }
-    })();
-  }, []);
+  }, [selectedStageId, selectedSessionSchoolId]);
 
   useEffect(() => {
     void refreshStages();
@@ -170,14 +157,14 @@ export default function UniversalMigrationApplySection({ onNotice }: Props) {
     () =>
       buildMigrationChecklist(
         {
-          targetSchoolId: selectedSchoolId,
+          targetSchoolId: boundSchoolId,
           stageSelected: Boolean(stage),
           validationSummary: stage?.validationSummary ?? null,
           transactionGate,
         },
         manualChecklist
       ),
-    [selectedSchoolId, stage, manualChecklist, transactionGate]
+    [boundSchoolId, stage, manualChecklist, transactionGate]
   );
 
   const proceedWithEligibleActiveOnly = useMemo(
@@ -187,11 +174,18 @@ export default function UniversalMigrationApplySection({ onNotice }: Props) {
 
   const phase14PostingEnabled = Boolean(transactionGate?.hasTransactionFiles);
 
+  const resolutionsForStage = useMemo(() => {
+    if (!stage || !parentIdentityResolutionsBound) return [];
+    if (parentIdentityResolutionsBound.stageId !== stage.stageId) return [];
+    if (parentIdentityResolutionsBound.targetSchoolId !== boundSchoolId) return [];
+    return parentIdentityResolutionsBound.resolutions;
+  }, [stage, parentIdentityResolutionsBound, boundSchoolId]);
+
   const applyBlockedReason = useMemo(() => {
-    if (!selectedSchoolId) {
-      return "Select the target school before applying this dry run.";
-    }
     if (!stage) return "Select a dry run package.";
+    if (!boundSchoolId) {
+      return "This dry run has no school binding. Re-create the dry run with a target school selected.";
+    }
     if (!stage.canApply) {
       return "This dry run cannot be applied until validation passes (canApply is false).";
     }
@@ -217,14 +211,14 @@ export default function UniversalMigrationApplySection({ onNotice }: Props) {
       return "Complete Migration Readiness Checklist before apply.";
     }
     return null;
-  }, [selectedSchoolId, stage, readinessChecklist.readyForApply, transactionGate]);
+  }, [stage, boundSchoolId, readinessChecklist.readyForApply, transactionGate]);
 
   const handleApply = useCallback(
     async (confirmationText: string) => {
-      if (!stage || !selectedSchoolId || applyBlockedReason) return;
+      if (!stage || !boundSchoolId || applyBlockedReason) return;
       const resolvedConfirmationText =
         confirmationText.trim() ||
-        (readinessChecklist.readyForApply ? (selectedSchool?.name?.trim() ?? "") : "");
+        (readinessChecklist.readyForApply ? boundSchoolName : "");
       if (!resolvedConfirmationText) return;
       setApplyBusy(true);
       setError(null);
@@ -232,12 +226,13 @@ export default function UniversalMigrationApplySection({ onNotice }: Props) {
       try {
         const result = await applyUniversalMigrationStage({
           stageId: stage.stageId,
-          targetSchoolId: selectedSchoolId,
+          targetSchoolId: boundSchoolId,
           confirmationText: resolvedConfirmationText,
           proceedWithEligibleActiveOnly,
+          parentIdentityResolutions: resolutionsForStage,
         });
         setApplyResult(result);
-        if (selectedSessionSchoolId.trim() === selectedSchoolId) {
+        if (selectedSessionSchoolId.trim() === boundSchoolId) {
           clearAll();
         }
         onNotice?.(
@@ -248,6 +243,11 @@ export default function UniversalMigrationApplySection({ onNotice }: Props) {
         setError(message);
         if (e instanceof UniversalMigrationApplyError && e.result) {
           setApplyResult(e.result);
+          if (e.migrationStatus === "MIGRATION_REQUIRES_REVIEW") {
+            onNotice?.(
+              "Parent review is still required. Open Parent Review, resolve matches, then apply again."
+            );
+          }
         }
         onNotice?.(message);
       } finally {
@@ -256,11 +256,12 @@ export default function UniversalMigrationApplySection({ onNotice }: Props) {
     },
     [
       stage,
-      selectedSchoolId,
-      selectedSchool,
+      boundSchoolId,
+      boundSchoolName,
       applyBlockedReason,
       readinessChecklist.readyForApply,
       proceedWithEligibleActiveOnly,
+      resolutionsForStage,
       selectedSessionSchoolId,
       clearAll,
       onNotice,
@@ -271,22 +272,6 @@ export default function UniversalMigrationApplySection({ onNotice }: Props) {
 
   return (
     <div className="uc-migration-apply-section">
-      <label className="uc-migration-staging-source-label">
-        Target school
-        <select
-          className="uc-migration-staging-source-input"
-          value={selectedSchoolId}
-          onChange={(e) => setSelectedSchoolId(e.target.value)}
-        >
-          <option value="">Choose school to apply migration into</option>
-          {schoolOptions.map((school) => (
-            <option key={school.id} value={school.id}>
-              {school.name}
-            </option>
-          ))}
-        </select>
-      </label>
-
       <div className="uc-migration-apply-stage-row">
         <label className="uc-migration-staging-source-label">
           Dry run package
@@ -301,8 +286,8 @@ export default function UniversalMigrationApplySection({ onNotice }: Props) {
             </option>
             {stages.map((item) => (
               <option key={item.stageId} value={item.stageId}>
-                {item.sourceSystem} · {formatStageDate(item.createdAt)} · apply:{" "}
-                {item.canApply ? "yes" : "no"}
+                {item.targetSchoolName || "Unbound"} · {item.sourceSystem} ·{" "}
+                {formatStageDate(item.createdAt)} · apply: {item.canApply ? "yes" : "no"}
               </option>
             ))}
           </select>
@@ -316,6 +301,14 @@ export default function UniversalMigrationApplySection({ onNotice }: Props) {
           {listBusy ? "Refreshing…" : "Refresh list"}
         </button>
       </div>
+
+      {stage ? (
+        <p className="uc-migration-dry-run-hint" role="status">
+          Migration locked to <strong>{boundSchoolName || "Unknown school"}</strong>
+          {boundSchoolId ? ` (${boundSchoolId})` : ""}. Apply cannot retarget another school.
+          Complete Parent Review first if guardians need decisions.
+        </p>
+      ) : null}
 
       {error ? (
         <p className="uc-migration-upload-error" role="alert">
@@ -342,8 +335,8 @@ export default function UniversalMigrationApplySection({ onNotice }: Props) {
 
       {stage ? (
         <MigrationDryRunReview
-          schoolId={selectedSchoolId}
-          schoolName={selectedSchool?.name || "Selected school"}
+          schoolId={boundSchoolId}
+          schoolName={boundSchoolName || "Bound school"}
           canApply={stage.canApply && stage.validationSummary.errors === 0}
           counts={reviewCounts}
           transactionReadiness={transactionReadiness}
@@ -363,7 +356,7 @@ export default function UniversalMigrationApplySection({ onNotice }: Props) {
               ? "Phase 14 transaction posting is enabled. Only eligible active learner/account transactions on or after the cutover date will post. Historical, inactive, blocked, or unmatched transactions will not post."
               : null
           }
-          confirmPhrase={selectedSchool?.name || "APPLY"}
+          confirmPhrase={boundSchoolName || "APPLY"}
           checklistReadyForApply={readinessChecklist.readyForApply}
           onApply={handleApply}
           busy={stageBusy || applyBusy}
@@ -379,6 +372,12 @@ export default function UniversalMigrationApplySection({ onNotice }: Props) {
             <div>
               <dt>Batch ID</dt>
               <dd className="uc-migration-dry-run-mono">{applyResult.batchId}</dd>
+            </div>
+            <div>
+              <dt>School</dt>
+              <dd>
+                {applyResult.targetSchoolName} ({applyResult.targetSchoolId})
+              </dd>
             </div>
             <div>
               <dt>Status</dt>
@@ -446,8 +445,8 @@ export default function UniversalMigrationApplySection({ onNotice }: Props) {
 
       {stage ? (
         <p className="uc-migration-upload-empty">
-          Stage <span className="uc-migration-dry-run-mono">{stage.stageId}</span> · source{" "}
-          {stage.sourceSystem}
+          Stage <span className="uc-migration-dry-run-mono">{stage.stageId}</span> · locked to{" "}
+          {boundSchoolName || boundSchoolId} · source {stage.sourceSystem}
         </p>
       ) : null}
     </div>
