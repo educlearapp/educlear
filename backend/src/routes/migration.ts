@@ -2457,11 +2457,13 @@ migrationUploadRouter.post("/orchestrator/complete", async (req, res) => {
     const confirmation = Boolean(req.body?.confirmation);
     if (!stageId) return jsonError(res, 400, "stageId is required");
     if (!targetSchoolId) return jsonError(res, 400, "targetSchoolId is required");
+    // simulateFailAt is harness-only — never honor from HTTP in production/pilot.
+    const allowSimFail = process.env.ALLOW_DISPOSABLE_MIGRATION_E2E === "true";
     const { run, readiness } = await completeUniversalMigration({
       stageId,
       targetSchoolId,
       confirmation,
-      simulateFailAt: req.body?.simulateFailAt || null,
+      simulateFailAt: allowSimFail ? req.body?.simulateFailAt || null : null,
     });
     return res.json({
       success: true,
