@@ -1,5 +1,12 @@
 import { useCallback, useEffect, useState } from "react";
 import { fetchOwnerEduClockExceptions } from "./educlockApi";
+import EduClockCorrectionDialog from "./EduClockCorrectionDialog";
+import {
+  isActionableMissingClockOutException,
+  isInformationalDuplicateClockException,
+  targetFromExceptionRow,
+  type EduClockCorrectionTarget,
+} from "./educlockCorrectionUi";
 import { friendlyReadinessLabel } from "./educlockOwnerUi";
 
 const EXCEPTION_LABELS: Record<string, string> = {
@@ -26,6 +33,7 @@ export default function EduClockExceptionsTab(props: {
   const [page, setPage] = useState(0);
   const [total, setTotal] = useState(0);
   const [rows, setRows] = useState<Array<Record<string, unknown>>>([]);
+  const [correctTarget, setCorrectTarget] = useState<EduClockCorrectionTarget | null>(null);
 
   const reload = useCallback(async () => {
     setLoading(true);
@@ -55,8 +63,9 @@ export default function EduClockExceptionsTab(props: {
   return (
     <div>
       <p style={{ color: "#64748b", maxWidth: 800 }}>
-        Lifecycle exceptions for Build 3 (Missing Clock Out, duplicates, invalid sequence, manual
-        corrections, activation blocked). GPS exceptions are not included yet.
+        Lifecycle exceptions (Missing Clock Out, duplicates, invalid sequence, manual corrections,
+        activation blocked). Duplicate clock attempts are informational and are not attendance
+        corrections. GPS exceptions are not included yet.
       </p>
       {error ? (
         <p role="alert" style={{ color: "#b91c1c" }}>
@@ -118,6 +127,7 @@ export default function EduClockExceptionsTab(props: {
                 <th style={{ padding: "12px 8px" }}>Status</th>
                 <th style={{ padding: "12px 8px" }}>Resolved by</th>
                 <th style={{ padding: "12px 8px" }}>Resolved at</th>
+                <th style={{ padding: "12px 8px" }}>Action</th>
               </tr>
             </thead>
             <tbody>
@@ -136,6 +146,20 @@ export default function EduClockExceptionsTab(props: {
                   </td>
                   <td style={{ padding: "12px 8px" }}>{String(row.resolvedByUserId || "—")}</td>
                   <td style={{ padding: "12px 8px" }}>{String(row.resolvedAt || "—")}</td>
+                  <td style={{ padding: "12px 8px" }}>
+                    {isActionableMissingClockOutException(row) ? (
+                      <button
+                        type="button"
+                        onClick={() => setCorrectTarget(targetFromExceptionRow(row))}
+                      >
+                        Correct Attendance
+                      </button>
+                    ) : isInformationalDuplicateClockException(row) ? (
+                      "Informational"
+                    ) : (
+                      "—"
+                    )}
+                  </td>
                 </tr>
               ))}
             </tbody>
@@ -157,6 +181,17 @@ export default function EduClockExceptionsTab(props: {
           Next
         </button>
       </div>
+
+      {correctTarget ? (
+        <EduClockCorrectionDialog
+          target={correctTarget}
+          onClose={() => setCorrectTarget(null)}
+          onSaved={async () => {
+            setCorrectTarget(null);
+            await reload();
+          }}
+        />
+      ) : null}
     </div>
   );
 }

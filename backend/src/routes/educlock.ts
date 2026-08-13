@@ -488,6 +488,7 @@ router.post("/owner/corrections", async (req, res) => {
     const result = await ownerCreateCorrection({
       schoolId: auth.authorizedSchoolId,
       actorUserId: auth.userId,
+      actorRole: auth.appRole,
       employeeId: String(req.body?.employeeId || ""),
       action: String(req.body?.action || "") as
         | "ADD_CLOCK_IN"

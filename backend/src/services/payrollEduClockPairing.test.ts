@@ -103,6 +103,19 @@ function main() {
     assert(r.warnings.some((w) => w.code === "MISSING_CLOCK_OUT"), "missing out");
   }
 
+  // Historical missing clock-out must not invent a 50h payable pair
+  {
+    const period = computePayrollPeriodBounds(2026, 8);
+    const r = pairEffectiveEventsForEmployee(
+      "emp1",
+      [eff("i", "CLOCK_IN", "2026-08-11T05:27:00.000Z")],
+      period
+    );
+    assert(r.pairs.length === 0, "historical missing out not payable");
+    assert(r.workedMinutes === 0, "no inflated 50h payable minutes");
+    assert(r.warnings.some((w) => w.code === "MISSING_CLOCK_OUT"), "missing out warning");
+  }
+
   // Missing clock in
   {
     const period = computePayrollPeriodBounds(2026, 8);

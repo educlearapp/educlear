@@ -1,18 +1,15 @@
 import { useCallback, useEffect, useState } from "react";
 import {
   fetchOwnerEduClockAttendance,
-  postOwnerEduClockCorrection,
   type EduClockAttendanceResponse,
 } from "./educlockApi";
-
-const CORRECTION_REASONS = [
-  "Employee forgot to clock in",
-  "Employee forgot to clock out",
-  "Device unavailable",
-  "Network issue",
-  "Owner-approved correction",
-  "Other",
-];
+import EduClockCorrectionDialog from "./EduClockCorrectionDialog";
+import {
+  displayAttendanceDuration,
+  targetFromAttendanceRow,
+  type EduClockCorrectionTarget,
+} from "./educlockCorrectionUi";
+import { EduClockBadge } from "./educlockOwnerUi";
 
 export default function EduClockAttendanceTab(props: {
   emptyTitle?: string;
@@ -28,14 +25,7 @@ export default function EduClockAttendanceTab(props: {
   const [search, setSearch] = useState("");
   const [status, setStatus] = useState("ALL");
   const [page, setPage] = useState(0);
-  const [correctRow, setCorrectRow] = useState<Record<string, unknown> | null>(null);
-  const [reason, setReason] = useState(CORRECTION_REASONS[0]);
-  const [note, setNote] = useState("");
-  const [corrTime, setCorrTime] = useState("16:00");
-  const [corrAction, setCorrAction] = useState<"CLOSE_OPEN_SHIFT" | "ADD_CLOCK_IN" | "ADD_CLOCK_OUT">(
-    "CLOSE_OPEN_SHIFT"
-  );
-  const [saving, setSaving] = useState(false);
+  const [correctTarget, setCorrectTarget] = useState<EduClockCorrectionTarget | null>(null);
 
   const reload = useCallback(async () => {
     setLoading(true);
@@ -61,35 +51,12 @@ export default function EduClockAttendanceTab(props: {
     void reload();
   }, [reload]);
 
-  async function submitCorrection() {
-    if (!correctRow || !data) return;
-    setSaving(true);
-    setError("");
-    try {
-      await postOwnerEduClockCorrection({
-        employeeId: String(correctRow.employeeId),
-        action: corrAction,
-        reason,
-        note: reason === "Other" ? note : note || null,
-        schoolLocalDate: data.schoolLocalDate,
-        schoolLocalTime: corrTime,
-      });
-      setCorrectRow(null);
-      await reload();
-    } catch (err: unknown) {
-      setError(err instanceof Error ? err.message : "Correction failed");
-    } finally {
-      setSaving(false);
-    }
-  }
-
   const pageCount = Math.max(1, Math.ceil(Number(data?.total || 0) / 25));
 
   return (
     <div>
       <p style={{ color: "#64748b", maxWidth: 800 }}>
-        Daily attendance board (school-local date). Official times are server-created. No GPS
-        enforcement in this build.
+        Daily attendance board (school-local date). Official times are server-created.
       </p>
       {error ? (
         <p role="alert" style={{ color: "#b91c1c" }}>
@@ -184,20 +151,22 @@ export default function EduClockAttendanceTab(props: {
                   <td style={{ padding: "12px 8px" }}>{String(row.currentStatus)}</td>
                   <td style={{ padding: "12px 8px" }}>{String(row.clockInTime || "—")}</td>
                   <td style={{ padding: "12px 8px" }}>{String(row.clockOutTime || "—")}</td>
-                  <td style={{ padding: "12px 8px" }}>{String(row.workedDuration || "—")}</td>
+                  <td style={{ padding: "12px 8px" }}>{displayAttendanceDuration(row)}</td>
                   <td style={{ padding: "12px 8px" }}>{String(row.shiftStatus)}</td>
                   <td style={{ padding: "12px 8px" }}>{String(row.source || "—")}</td>
-                  <td style={{ padding: "12px 8px" }}>{String(row.correctionStatus)}</td>
+                  <td style={{ padding: "12px 8px" }}>
+                    {String(row.correctionStatus) === "Manually Corrected" ? (
+                      <EduClockBadge label="Corrected" tone="amber" title="Owner-corrected attendance" />
+                    ) : (
+                      String(row.correctionStatus)
+                    )}
+                  </td>
                   <td style={{ padding: "12px 8px" }}>
                     <button
                       type="button"
                       onClick={() => {
-                        setCorrectRow(row);
-                        setCorrAction(
-                          row.currentStatus === "Missing Clock Out" ||
-                            row.currentStatus === "Clocked In"
-                            ? "CLOSE_OPEN_SHIFT"
-                            : "ADD_CLOCK_OUT"
+                        setCorrectTarget(
+                          targetFromAttendanceRow(row, String(data?.schoolLocalDate || date))
                         );
                       }}
                     >
@@ -227,56 +196,15 @@ export default function EduClockAttendanceTab(props: {
         </button>
       </div>
 
-      {correctRow ? (
-        <div
-          style={{
-            marginTop: 16,
-            padding: 16,
-            border: "1px solid #e5e7eb",
-            borderRadius: 10,
-            background: "#fff",
-            maxWidth: 520,
+      {correctTarget ? (
+        <EduClockCorrectionDialog
+          target={correctTarget}
+          onClose={() => setCorrectTarget(null)}
+          onSaved={async () => {
+            setCorrectTarget(null);
+            await reload();
           }}
-        >
-          <h3 style={{ marginTop: 0 }}>Manual correction</h3>
-          <p style={{ fontSize: 13, color: "#64748b" }}>
-            {String(correctRow.employeeName)} · Original events are preserved (append-only).
-          </p>
-          <div style={{ display: "grid", gap: 8 }}>
-            <select value={corrAction} onChange={(e) => setCorrAction(e.target.value as typeof corrAction)}>
-              <option value="CLOSE_OPEN_SHIFT">Close open shift (add Clock Out)</option>
-              <option value="ADD_CLOCK_IN">Add missing Clock In</option>
-              <option value="ADD_CLOCK_OUT">Add missing Clock Out</option>
-            </select>
-            <select value={reason} onChange={(e) => setReason(e.target.value)}>
-              {CORRECTION_REASONS.map((r) => (
-                <option key={r} value={r}>
-                  {r}
-                </option>
-              ))}
-            </select>
-            <input
-              type="time"
-              value={corrTime}
-              onChange={(e) => setCorrTime(e.target.value)}
-              style={{ padding: 8 }}
-            />
-            <textarea
-              placeholder={reason === "Other" ? "Note required" : "Optional note"}
-              value={note}
-              onChange={(e) => setNote(e.target.value)}
-              rows={2}
-            />
-            <div style={{ display: "flex", gap: 8 }}>
-              <button type="button" disabled={saving} onClick={() => void submitCorrection()}>
-                {saving ? "Saving…" : "Save correction"}
-              </button>
-              <button type="button" onClick={() => setCorrectRow(null)}>
-                Cancel
-              </button>
-            </div>
-          </div>
-        </div>
+        />
       ) : null}
     </div>
   );

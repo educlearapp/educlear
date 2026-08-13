@@ -277,8 +277,8 @@ export default function EduClockStaffClockPage() {
   }
 
   const blocked = status.readiness === "BLOCKED" || status.canClock === false;
-  const clockedIn =
-    status.currentStatus === "CLOCKED_IN" || status.currentStatus === "MISSING_CLOCK_OUT";
+  const missingClockOut = status.currentStatus === "MISSING_CLOCK_OUT";
+  const clockedIn = status.currentStatus === "CLOCKED_IN";
 
   const locatingLabel = "Checking your location…";
   const submittingLabel =
@@ -338,7 +338,7 @@ export default function EduClockStaffClockPage() {
         {status.activeClockIn ? (
           <div style={{ marginTop: 8, fontSize: 14 }}>
             Clocked in at {String(status.activeClockIn.schoolLocalTimeDisplay || "")}
-            {status.currentShiftDurationDisplay
+            {!missingClockOut && status.currentShiftDurationDisplay
               ? ` · ${status.currentShiftDurationDisplay}`
               : ""}
           </div>
@@ -357,7 +357,15 @@ export default function EduClockStaffClockPage() {
         </div>
       ) : (
         <div style={{ marginTop: 20 }}>
-          {!clockedIn ? (
+          {missingClockOut ? (
+            <div style={{ marginTop: 16, padding: 14, borderRadius: 12, background: "#fff7ed" }}>
+              <strong>Missing clock-out</strong>
+              <p style={{ margin: "8px 0 0", color: "#9a3412" }}>
+                This shift is missing a clock-out from a previous attendance day. Ask the school
+                owner to correct attendance. Duration is not accumulated.
+              </p>
+            </div>
+          ) : !clockedIn ? (
             <button
               type="button"
               className="teacher-touch-btn primary"
