@@ -294,6 +294,71 @@ async function main() {
     });
     assert(beforeIn.status === 400, `clock-out before clock-in 400, got ${beforeIn.status}`);
 
+    const blankTime = await apiCall(baseUrl, "/api/educlock/owner/corrections", {
+      method: "POST",
+      token: ownerToken,
+      body: {
+        employeeId: emp.id,
+        action: "CLOSE_OPEN_SHIFT",
+        reason: "Forgot to clock out",
+        schoolLocalDate: "2026-08-12",
+        schoolLocalTime: "",
+      },
+    });
+    assert(blankTime.status === 400, `blank clock-out 400, got ${blankTime.status}`);
+
+    const ampmTime = await apiCall(baseUrl, "/api/educlock/owner/corrections", {
+      method: "POST",
+      token: ownerToken,
+      body: {
+        employeeId: emp.id,
+        action: "CLOSE_OPEN_SHIFT",
+        reason: "Forgot to clock out",
+        schoolLocalDate: "2026-08-12",
+        schoolLocalTime: "04:00 PM",
+      },
+    });
+    assert(ampmTime.status === 400, `locale AM/PM string 400, got ${ampmTime.status}`);
+
+    const malformedTime = await apiCall(baseUrl, "/api/educlock/owner/corrections", {
+      method: "POST",
+      token: ownerToken,
+      body: {
+        employeeId: emp.id,
+        action: "CLOSE_OPEN_SHIFT",
+        reason: "Forgot to clock out",
+        schoolLocalDate: "2026-08-12",
+        schoolLocalTime: "16",
+      },
+    });
+    assert(malformedTime.status === 400, `malformed time 400, got ${malformedTime.status}`);
+
+    const impossibleTime = await apiCall(baseUrl, "/api/educlock/owner/corrections", {
+      method: "POST",
+      token: ownerToken,
+      body: {
+        employeeId: emp.id,
+        action: "CLOSE_OPEN_SHIFT",
+        reason: "Forgot to clock out",
+        schoolLocalDate: "2026-08-12",
+        schoolLocalTime: "25:61",
+      },
+    });
+    assert(impossibleTime.status === 400, `impossible timestamp 400, got ${impossibleTime.status}`);
+
+    const invalidDate = await apiCall(baseUrl, "/api/educlock/owner/corrections", {
+      method: "POST",
+      token: ownerToken,
+      body: {
+        employeeId: emp.id,
+        action: "CLOSE_OPEN_SHIFT",
+        reason: "Forgot to clock out",
+        schoolLocalDate: "12/08/2026",
+        schoolLocalTime: "16:00",
+      },
+    });
+    assert(invalidDate.status === 400, `invalid date 400, got ${invalidDate.status}`);
+
     const staffStaleOut = await apiCall(baseUrl, "/api/educlock/me/clock-out", {
       method: "POST",
       token: teacherToken,
@@ -392,6 +457,62 @@ async function main() {
       },
     });
     assert(outEvents === 1, `exactly one correction clock-out, got ${outEvents}`);
+
+    const jemmahEmp = await prisma.employee.create({
+      data: {
+        schoolId: schoolA.id,
+        firstName: "Jemmah",
+        lastName: "Harris",
+        fullName: "Jemmah Harris",
+        employeeNumber: "EMP0058SYN",
+        identityType: "SA_ID",
+        idNumber: "9201015800084",
+        isActive: true,
+      },
+    });
+    ids.employeeIds.push(jemmahEmp.id);
+    const jemmahIn = await prisma.eduClockEvent.create({
+      data: {
+        schoolId: schoolA.id,
+        employeeId: jemmahEmp.id,
+        employeeNumberSnapshot: "EMP0058SYN",
+        userId: teacherA.id,
+        eventType: "CLOCK_IN",
+        occurredAtUtc: clockInAt,
+        schoolLocalDate: local.schoolLocalDate,
+        schoolLocalTime: local.schoolLocalTime,
+        timezone: local.timezone,
+        source: "STAFF_MOBILE",
+        createdByUserId: teacherA.id,
+      },
+    });
+    await prisma.eduClockOpenShift.create({
+      data: {
+        schoolId: schoolA.id,
+        employeeId: jemmahEmp.id,
+        clockInEventId: jemmahIn.id,
+        schoolLocalDate: local.schoolLocalDate,
+        openedAtUtc: clockInAt,
+      },
+    });
+    const jemmahCorr = await apiCall(baseUrl, "/api/educlock/owner/corrections", {
+      method: "POST",
+      token: ownerToken,
+      body: {
+        employeeId: jemmahEmp.id,
+        action: "CLOSE_OPEN_SHIFT",
+        reason: "Forgot to clock out",
+        schoolLocalDate: "2026-08-12",
+        schoolLocalTime: "16:00",
+      },
+    });
+    assert(jemmahCorr.status === 201, `jemmah 16:00 correction 201, got ${jemmahCorr.status}: ${JSON.stringify(jemmahCorr.json)}`);
+    assert(jemmahCorr.json.durationDisplay === "8h 42m", `jemmah duration ${jemmahCorr.json.durationDisplay}`);
+    assert(jemmahCorr.json.correctionEvent.schoolLocalDate === "2026-08-12", "jemmah affected date");
+    assert(String(jemmahCorr.json.correctionEvent.schoolLocalTime).startsWith("16:00"), `jemmah time ${jemmahCorr.json.correctionEvent.schoolLocalTime}`);
+    const stillJemmahIn = await prisma.eduClockEvent.findUnique({ where: { id: jemmahIn.id } });
+    assert(Boolean(stillJemmahIn), "jemmah original clock-in preserved");
+    assert(stillJemmahIn?.isManualCorrection === false, "jemmah original not overwritten");
 
     // Current-day live open shift still shows duration (not incomplete).
     const liveInAt = frozenNow;

@@ -2,9 +2,12 @@ import { useEffect, useRef, useState } from "react";
 import { postOwnerEduClockCorrection } from "./educlockApi";
 import {
   OWNER_CORRECTION_REASONS,
+  canonicalizeHtmlTimeValue,
   correctionActionForStatus,
   correctionNotesRequired,
+  correctionTimeInputResetKey,
   isMissingClockOutStatus,
+  readCanonicalTimeFromInput,
   type EduClockCorrectionTarget,
 } from "./educlockCorrectionUi";
 import { ownerButtonStyle, ownerInputStyle, ownerSecondaryButtonStyle } from "./educlockOwnerUi";
@@ -16,6 +19,7 @@ export default function EduClockCorrectionDialog(props: {
 }) {
   const { target } = props;
   const missing = isMissingClockOutStatus(target.currentStatus);
+  const resetKey = correctionTimeInputResetKey(target);
   const [reason, setReason] = useState<string>(
     missing ? "Forgot to clock out" : OWNER_CORRECTION_REASONS[4]
   );
@@ -26,11 +30,21 @@ export default function EduClockCorrectionDialog(props: {
   const timeRef = useRef<HTMLInputElement | null>(null);
 
   useEffect(() => {
+    setCorrTime("");
+    setNote("");
+    setError("");
+    setReason(isMissingClockOutStatus(target.currentStatus) ? "Forgot to clock out" : OWNER_CORRECTION_REASONS[4]);
     timeRef.current?.focus();
-  }, []);
+  }, [resetKey, target.currentStatus]);
+
+  function captureTimeFromElement(el: HTMLInputElement | null) {
+    const canonical = canonicalizeHtmlTimeValue(el?.value);
+    setCorrTime(canonical || "");
+  }
 
   async function submit() {
-    if (!corrTime) {
+    const canonical = readCanonicalTimeFromInput(timeRef.current, corrTime);
+    if (!canonical) {
       setError("Enter the correct clock-out time.");
       return;
     }
@@ -38,6 +52,7 @@ export default function EduClockCorrectionDialog(props: {
       setError("A note is required when reason is Other.");
       return;
     }
+    setCorrTime(canonical);
     setSaving(true);
     setError("");
     try {
@@ -47,7 +62,7 @@ export default function EduClockCorrectionDialog(props: {
         reason,
         note: note.trim() ? note.trim() : null,
         schoolLocalDate: target.affectedSchoolLocalDate,
-        schoolLocalTime: corrTime,
+        schoolLocalTime: canonical,
         targetEventId: target.clockInEventId || null,
       });
       await props.onSaved();
@@ -132,10 +147,13 @@ export default function EduClockCorrectionDialog(props: {
           <label style={{ fontSize: 13, fontWeight: 700 }}>
             Correct Clock Out time
             <input
+              key={resetKey}
               ref={timeRef}
               type="time"
-              value={corrTime}
-              onChange={(e) => setCorrTime(e.target.value)}
+              defaultValue=""
+              onChange={(e) => captureTimeFromElement(e.currentTarget)}
+              onInput={(e) => captureTimeFromElement(e.currentTarget)}
+              onBlur={(e) => captureTimeFromElement(e.currentTarget)}
               style={{ ...ownerInputStyle, width: "100%", marginTop: 6 }}
               required
             />

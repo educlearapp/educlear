@@ -65,6 +65,10 @@ assert.equal(isHistoricalMissingClockOut({
 const empOut = new Date("2026-08-12T15:00:00+02:00");
 assert.equal(durationBetweenClockEvents(empIn, empOut), "7h 42m");
 
+// Jemmah synthetic: 2026-08-12 07:18 → 16:00 Africa/Johannesburg = 8h 42m
+const jemmahOut = new Date("2026-08-12T16:00:00+02:00");
+assert.equal(durationBetweenClockEvents(empIn, jemmahOut), "8h 42m");
+
 // Same-day live open shift still shows live duration
 const liveIn = new Date("2026-08-13T07:18:00+02:00");
 assert.equal(
