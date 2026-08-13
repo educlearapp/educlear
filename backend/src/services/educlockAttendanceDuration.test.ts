@@ -69,6 +69,15 @@ assert.equal(durationBetweenClockEvents(empIn, empOut), "7h 42m");
 const jemmahOut = new Date("2026-08-12T16:00:00+02:00");
 assert.equal(durationBetweenClockEvents(empIn, jemmahOut), "8h 42m");
 
+// Case C / Zahne synthetic: 2026-08-12 06:35 → 15:02 = 8h 27m
+const zahneIn = new Date("2026-08-12T06:35:00+02:00");
+const zahneOut = new Date("2026-08-12T15:02:00+02:00");
+assert.equal(durationBetweenClockEvents(zahneIn, zahneOut), "8h 27m");
+
+// Midnight: 12 Aug 23:59 SAST is still 12 Aug, not UTC 13 Aug
+const lateOut = new Date("2026-08-12T23:59:00+02:00");
+assert.equal(lateOut.toISOString().startsWith("2026-08-12T21:59:00"), true);
+
 // Same-day live open shift still shows live duration
 const liveIn = new Date("2026-08-13T07:18:00+02:00");
 assert.equal(

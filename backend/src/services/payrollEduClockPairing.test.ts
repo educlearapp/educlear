@@ -125,7 +125,23 @@ function main() {
       period
     );
     assert(r.pairs.length === 0, "no pair");
+    assert(r.workedMinutes === 0, "missing clock-in is not payable");
     assert(r.warnings.some((w) => w.code === "MISSING_CLOCK_IN"), "missing in");
+  }
+
+  // Resolved missing clock-in pair: 06:35 → 15:02 SAST = 8h 27m
+  {
+    const period = computePayrollPeriodBounds(2026, 8);
+    const r = pairEffectiveEventsForEmployee(
+      "emp1",
+      [
+        eff("i", "CLOCK_IN", "2026-08-12T04:35:00.000Z"),
+        eff("o", "CLOCK_OUT", "2026-08-12T13:02:00.000Z"),
+      ],
+      period
+    );
+    assert(r.pairs.length === 1, "resolved pair");
+    assert(r.workedMinutes === 8 * 60 + 27, `expected 507 got ${r.workedMinutes}`);
   }
 
   // Month-end split — shift 31 Aug 22:00 → 1 Sep 06:00 Johannesburg

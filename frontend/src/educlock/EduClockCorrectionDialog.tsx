@@ -5,15 +5,90 @@ import {
   CLOCK_MERIDIEMS,
   CLOCK_MINUTES,
   OWNER_CORRECTION_REASONS,
+  buildOwnerCorrectionRequest,
   canonicalizeTwelveHourClockParts,
-  correctionActionForStatus,
+  correctionFieldsForStatus,
   correctionNotesRequired,
   correctionTimeInputResetKey,
-  isClockOutBeforeClockIn,
-  isMissingClockOutStatus,
+  defaultCorrectionReason,
   type EduClockCorrectionTarget,
 } from "./educlockCorrectionUi";
 import { ownerButtonStyle, ownerInputStyle, ownerSecondaryButtonStyle } from "./educlockOwnerUi";
+
+function TimePartsSelect(props: {
+  legend: string;
+  hour: string;
+  minute: string;
+  meridiem: string;
+  hourLabel: string;
+  minuteLabel: string;
+  meridiemLabel: string;
+  onHour: (value: string) => void;
+  onMinute: (value: string) => void;
+  onMeridiem: (value: string) => void;
+}) {
+  const canonical = canonicalizeTwelveHourClockParts({
+    hour: props.hour,
+    minute: props.minute,
+    meridiem: props.meridiem,
+  });
+  return (
+    <fieldset style={{ border: 0, margin: 0, padding: 0 }}>
+      <legend style={{ fontSize: 13, fontWeight: 700 }}>{props.legend}</legend>
+      <div style={{ display: "flex", gap: 8, marginTop: 6, alignItems: "center" }}>
+        <select
+          aria-label={props.hourLabel}
+          value={props.hour}
+          onChange={(e) => props.onHour(e.target.value)}
+          style={{ ...ownerInputStyle, flex: 1 }}
+        >
+          <option value="">HH</option>
+          {CLOCK_HOURS_12.map((h) => (
+            <option key={h} value={h}>
+              {h}
+            </option>
+          ))}
+        </select>
+        <span style={{ fontWeight: 700 }}>:</span>
+        <select
+          aria-label={props.minuteLabel}
+          value={props.minute}
+          onChange={(e) => props.onMinute(e.target.value)}
+          style={{ ...ownerInputStyle, flex: 1 }}
+        >
+          <option value="">MM</option>
+          {CLOCK_MINUTES.map((m) => (
+            <option key={m} value={m}>
+              {m}
+            </option>
+          ))}
+        </select>
+        <select
+          aria-label={props.meridiemLabel}
+          value={props.meridiem}
+          onChange={(e) => props.onMeridiem(e.target.value)}
+          style={{ ...ownerInputStyle, flex: 1 }}
+        >
+          <option value="">AM/PM</option>
+          {CLOCK_MERIDIEMS.map((p) => (
+            <option key={p} value={p}>
+              {p}
+            </option>
+          ))}
+        </select>
+      </div>
+      {canonical ? (
+        <p style={{ margin: "6px 0 0", fontSize: 12, color: "#334155" }}>
+          Will save as {canonical}
+        </p>
+      ) : (
+        <p style={{ margin: "6px 0 0", fontSize: 12, color: "#64748b" }}>
+          Select hour, minute, and AM/PM.
+        </p>
+      )}
+    </fieldset>
+  );
+}
 
 export default function EduClockCorrectionDialog(props: {
   target: EduClockCorrectionTarget;
@@ -21,55 +96,51 @@ export default function EduClockCorrectionDialog(props: {
   onSaved: () => void | Promise<void>;
 }) {
   const { target } = props;
-  const missing = isMissingClockOutStatus(target.currentStatus);
+  const fields = correctionFieldsForStatus(target.currentStatus);
   const resetKey = correctionTimeInputResetKey(target);
-  const [reason, setReason] = useState<string>(
-    missing ? "Forgot to clock out" : OWNER_CORRECTION_REASONS[4]
-  );
+  const [reason, setReason] = useState<string>(defaultCorrectionReason(target.currentStatus));
   const [note, setNote] = useState("");
-  const [hour, setHour] = useState("");
-  const [minute, setMinute] = useState("");
-  const [meridiem, setMeridiem] = useState("");
+  const [clockInHour, setClockInHour] = useState("");
+  const [clockInMinute, setClockInMinute] = useState("");
+  const [clockInMeridiem, setClockInMeridiem] = useState("");
+  const [clockOutHour, setClockOutHour] = useState("");
+  const [clockOutMinute, setClockOutMinute] = useState("");
+  const [clockOutMeridiem, setClockOutMeridiem] = useState("");
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
 
   useEffect(() => {
-    setHour("");
-    setMinute("");
-    setMeridiem("");
+    setClockInHour("");
+    setClockInMinute("");
+    setClockInMeridiem("");
+    setClockOutHour("");
+    setClockOutMinute("");
+    setClockOutMeridiem("");
     setNote("");
     setError("");
-    setReason(isMissingClockOutStatus(target.currentStatus) ? "Forgot to clock out" : OWNER_CORRECTION_REASONS[4]);
+    setReason(defaultCorrectionReason(target.currentStatus));
   }, [resetKey, target.currentStatus]);
 
-  const canonical = canonicalizeTwelveHourClockParts({ hour, minute, meridiem });
-
   async function submit() {
-    const selected = canonicalizeTwelveHourClockParts({ hour, minute, meridiem });
-    if (!selected) {
-      setError("Enter the correct clock-out time.");
-      return;
-    }
-    if (isClockOutBeforeClockIn(target.clockInTime, selected)) {
-      setError("Clock-out time must be after clock-in.");
-      return;
-    }
-    if (correctionNotesRequired(reason) && !note.trim()) {
-      setError("A note is required when reason is Other.");
+    const built = buildOwnerCorrectionRequest({
+      target,
+      reason,
+      note,
+      clockInHour,
+      clockInMinute,
+      clockInMeridiem,
+      clockOutHour,
+      clockOutMinute,
+      clockOutMeridiem,
+    });
+    if (!built.ok) {
+      setError(built.error);
       return;
     }
     setSaving(true);
     setError("");
     try {
-      await postOwnerEduClockCorrection({
-        employeeId: target.employeeId,
-        action: correctionActionForStatus(target.currentStatus),
-        reason,
-        note: note.trim() ? note.trim() : null,
-        schoolLocalDate: target.affectedSchoolLocalDate,
-        schoolLocalTime: selected,
-        targetEventId: target.clockInEventId || null,
-      });
+      await postOwnerEduClockCorrection(built.payload);
       await props.onSaved();
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : "Correction failed");
@@ -130,11 +201,11 @@ export default function EduClockCorrectionDialog(props: {
           </div>
           <div>
             <dt style={{ color: "#64748b", fontSize: 12, fontWeight: 700 }}>Clock In</dt>
-            <dd style={{ margin: 0 }}>{target.clockInTime || "—"}</dd>
+            <dd style={{ margin: 0 }}>{target.clockInTime || "Missing"}</dd>
           </div>
           <div>
             <dt style={{ color: "#64748b", fontSize: 12, fontWeight: 700 }}>Clock Out</dt>
-            <dd style={{ margin: 0 }}>{missing ? "Missing" : target.clockOutTime || "—"}</dd>
+            <dd style={{ margin: 0 }}>{target.clockOutTime || "Missing"}</dd>
           </div>
           <div>
             <dt style={{ color: "#64748b", fontSize: 12, fontWeight: 700 }}>Status</dt>
@@ -149,60 +220,34 @@ export default function EduClockCorrectionDialog(props: {
         ) : null}
 
         <div style={{ display: "grid", gap: 10, marginTop: 14 }}>
-          <fieldset style={{ border: 0, margin: 0, padding: 0 }}>
-            <legend style={{ fontSize: 13, fontWeight: 700 }}>Correct Clock Out time</legend>
-            <div style={{ display: "flex", gap: 8, marginTop: 6, alignItems: "center" }}>
-              <select
-                aria-label="Hour"
-                value={hour}
-                onChange={(e) => setHour(e.target.value)}
-                style={{ ...ownerInputStyle, flex: 1 }}
-              >
-                <option value="">HH</option>
-                {CLOCK_HOURS_12.map((h) => (
-                  <option key={h} value={h}>
-                    {h}
-                  </option>
-                ))}
-              </select>
-              <span style={{ fontWeight: 700 }}>:</span>
-              <select
-                aria-label="Minute"
-                value={minute}
-                onChange={(e) => setMinute(e.target.value)}
-                style={{ ...ownerInputStyle, flex: 1 }}
-              >
-                <option value="">MM</option>
-                {CLOCK_MINUTES.map((m) => (
-                  <option key={m} value={m}>
-                    {m}
-                  </option>
-                ))}
-              </select>
-              <select
-                aria-label="AM/PM"
-                value={meridiem}
-                onChange={(e) => setMeridiem(e.target.value)}
-                style={{ ...ownerInputStyle, flex: 1 }}
-              >
-                <option value="">AM/PM</option>
-                {CLOCK_MERIDIEMS.map((p) => (
-                  <option key={p} value={p}>
-                    {p}
-                  </option>
-                ))}
-              </select>
-            </div>
-            {canonical ? (
-              <p style={{ margin: "6px 0 0", fontSize: 12, color: "#334155" }}>
-                Will save as {canonical}
-              </p>
-            ) : (
-              <p style={{ margin: "6px 0 0", fontSize: 12, color: "#64748b" }}>
-                Select hour, minute, and AM/PM.
-              </p>
-            )}
-          </fieldset>
+          {fields.clockIn ? (
+            <TimePartsSelect
+              legend="Correct Clock In time"
+              hour={clockInHour}
+              minute={clockInMinute}
+              meridiem={clockInMeridiem}
+              hourLabel={fields.clockOut ? "Clock in hour" : "Hour"}
+              minuteLabel={fields.clockOut ? "Clock in minute" : "Minute"}
+              meridiemLabel={fields.clockOut ? "Clock in AM/PM" : "AM/PM"}
+              onHour={setClockInHour}
+              onMinute={setClockInMinute}
+              onMeridiem={setClockInMeridiem}
+            />
+          ) : null}
+          {fields.clockOut ? (
+            <TimePartsSelect
+              legend="Correct Clock Out time"
+              hour={clockOutHour}
+              minute={clockOutMinute}
+              meridiem={clockOutMeridiem}
+              hourLabel={fields.clockIn ? "Clock out hour" : "Hour"}
+              minuteLabel={fields.clockIn ? "Clock out minute" : "Minute"}
+              meridiemLabel={fields.clockIn ? "Clock out AM/PM" : "AM/PM"}
+              onHour={setClockOutHour}
+              onMinute={setClockOutMinute}
+              onMeridiem={setClockOutMeridiem}
+            />
+          ) : null}
           <label style={{ fontSize: 13, fontWeight: 700 }}>
             Correction reason
             <select

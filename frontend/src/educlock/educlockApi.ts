@@ -369,6 +369,7 @@ export async function postOwnerEduClockCorrection(input: {
   note?: string | null;
   schoolLocalDate: string;
   schoolLocalTime: string;
+  schoolLocalClockOutTime?: string | null;
   targetEventId?: string | null;
 }): Promise<Record<string, unknown>> {
   return apiFetch("/api/educlock/owner/corrections", {

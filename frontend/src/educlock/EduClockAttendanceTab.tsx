@@ -5,6 +5,7 @@ import {
 } from "./educlockApi";
 import EduClockCorrectionDialog from "./EduClockCorrectionDialog";
 import {
+  canOfferAttendanceCorrection,
   displayAttendanceDuration,
   targetFromAttendanceRow,
   type EduClockCorrectionTarget,
@@ -96,6 +97,7 @@ export default function EduClockAttendanceTab(props: {
           <option value="CLOCKED_IN">Clocked In</option>
           <option value="CLOCKED_OUT">Clocked Out</option>
           <option value="MISSING_CLOCK_OUT">Missing Clock Out</option>
+          <option value="MISSING_CLOCK_IN">Missing Clock In</option>
           <option value="MANUALLY_CORRECTED">Manually Corrected</option>
           <option value="INACTIVE">Inactive</option>
         </select>
@@ -162,16 +164,18 @@ export default function EduClockAttendanceTab(props: {
                     )}
                   </td>
                   <td style={{ padding: "12px 8px" }}>
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setCorrectTarget(
-                          targetFromAttendanceRow(row, String(data?.schoolLocalDate || date))
-                        );
-                      }}
-                    >
-                      Correct
-                    </button>
+                    {canOfferAttendanceCorrection(row.currentStatus) ? (
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setCorrectTarget(
+                            targetFromAttendanceRow(row, String(data?.schoolLocalDate || date))
+                          );
+                        }}
+                      >
+                        Correct
+                      </button>
+                    ) : null}
                   </td>
                 </tr>
               ))}

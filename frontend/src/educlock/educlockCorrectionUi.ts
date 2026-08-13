@@ -1,5 +1,6 @@
 /** Owner-facing correction reasons (human-readable; stored on the audit record). */
 export const OWNER_CORRECTION_REASONS = [
+  "Forgot to clock in",
   "Forgot to clock out",
   "Device problem",
   "Network problem",
@@ -28,9 +29,37 @@ export function isMissingClockOutStatus(status: unknown): boolean {
   return s === "Missing Clock Out" || s === "MISSING_CLOCK_OUT";
 }
 
+export function isMissingClockInStatus(status: unknown): boolean {
+  const s = String(status || "").trim();
+  return s === "Missing Clock In" || s === "MISSING_CLOCK_IN";
+}
+
 export function isClockedInStatus(status: unknown): boolean {
   const s = String(status || "").trim();
   return s === "Clocked In" || s === "CLOCKED_IN";
+}
+
+export function isNotClockedInStatus(status: unknown): boolean {
+  const s = String(status || "").trim();
+  return s === "Not Clocked In" || s === "NOT_CLOCKED_IN";
+}
+
+export function correctionFieldsForStatus(status: unknown): { clockIn: boolean; clockOut: boolean } {
+  if (isMissingClockInStatus(status)) return { clockIn: true, clockOut: false };
+  if (isMissingClockOutStatus(status) || isClockedInStatus(status)) return { clockIn: false, clockOut: true };
+  if (isNotClockedInStatus(status)) return { clockIn: true, clockOut: true };
+  return { clockIn: false, clockOut: false };
+}
+
+export function canOfferAttendanceCorrection(status: unknown): boolean {
+  const fields = correctionFieldsForStatus(status);
+  return fields.clockIn || fields.clockOut;
+}
+
+export function defaultCorrectionReason(status: unknown): string {
+  if (isMissingClockInStatus(status) || isNotClockedInStatus(status)) return "Forgot to clock in";
+  if (isMissingClockOutStatus(status) || isClockedInStatus(status)) return "Forgot to clock out";
+  return "Admin correction";
 }
 
 /** Missing clock-out rows must never display accumulated now-clockIn hours. */
@@ -39,7 +68,12 @@ export function displayAttendanceDuration(row: {
   shiftStatus?: unknown;
   workedDuration?: unknown;
 }): string {
-  if (isMissingClockOutStatus(row.currentStatus) || isMissingClockOutStatus(row.shiftStatus)) {
+  if (
+    isMissingClockOutStatus(row.currentStatus) ||
+    isMissingClockOutStatus(row.shiftStatus) ||
+    isMissingClockInStatus(row.currentStatus) ||
+    isMissingClockInStatus(row.shiftStatus)
+  ) {
     return "—";
   }
   const d = row.workedDuration;
@@ -64,7 +98,7 @@ export function correctionNotesRequired(reason: string): boolean {
 
 export function correctionActionForStatus(status: unknown): "CLOSE_OPEN_SHIFT" | "ADD_CLOCK_OUT" | "ADD_CLOCK_IN" {
   if (isMissingClockOutStatus(status) || isClockedInStatus(status)) return "CLOSE_OPEN_SHIFT";
-  return "ADD_CLOCK_OUT";
+  return "ADD_CLOCK_IN";
 }
 
 export function targetFromAttendanceRow(row: Record<string, unknown>, viewedDate: string): EduClockCorrectionTarget {
@@ -212,14 +246,26 @@ export function isClockOutBeforeClockIn(clockInHm: string | null | undefined, cl
   return b <= a;
 }
 
+export function isClockInAfterClockOut(clockInHm: string, clockOutHm: string | null | undefined): boolean {
+  if (!clockOutHm) return false;
+  return isClockOutBeforeClockIn(clockInHm, clockOutHm);
+}
+
 export function resolveCorrectionClockOutTime(input: {
   hour?: unknown;
   minute?: unknown;
   meridiem?: unknown;
 }): { ok: true; schoolLocalTime: string } | { ok: false; error: string } {
+  return resolveCorrectionTime(input, "Enter the correct clock-out time.");
+}
+
+export function resolveCorrectionTime(
+  input: { hour?: unknown; minute?: unknown; meridiem?: unknown },
+  emptyError: string
+): { ok: true; schoolLocalTime: string } | { ok: false; error: string } {
   const schoolLocalTime = canonicalizeTwelveHourClockParts(input);
   if (!schoolLocalTime) {
-    return { ok: false, error: "Enter the correct clock-out time." };
+    return { ok: false, error: emptyError };
   }
   return { ok: true, schoolLocalTime };
 }
@@ -231,6 +277,12 @@ export function buildOwnerCorrectionRequest(input: {
   hour?: unknown;
   minute?: unknown;
   meridiem?: unknown;
+  clockInHour?: unknown;
+  clockInMinute?: unknown;
+  clockInMeridiem?: unknown;
+  clockOutHour?: unknown;
+  clockOutMinute?: unknown;
+  clockOutMeridiem?: unknown;
 }):
   | {
       ok: true;
@@ -241,18 +293,52 @@ export function buildOwnerCorrectionRequest(input: {
         note: string | null;
         schoolLocalDate: string;
         schoolLocalTime: string;
+        schoolLocalClockOutTime?: string | null;
         targetEventId: string | null;
       };
     }
   | { ok: false; error: string } {
-  const time = resolveCorrectionClockOutTime({
-    hour: input.hour,
-    minute: input.minute,
-    meridiem: input.meridiem,
-  });
-  if (!time.ok) return time;
-  if (isClockOutBeforeClockIn(input.target.clockInTime, time.schoolLocalTime)) {
-    return { ok: false, error: "Clock-out time must be after clock-in." };
+  const fields = correctionFieldsForStatus(input.target.currentStatus);
+  if (!fields.clockIn && !fields.clockOut) {
+    return { ok: false, error: "This attendance row does not need a missing-event correction." };
+  }
+  const inParts = {
+    hour: input.clockInHour ?? (fields.clockIn && !fields.clockOut ? input.hour : undefined),
+    minute: input.clockInMinute ?? (fields.clockIn && !fields.clockOut ? input.minute : undefined),
+    meridiem: input.clockInMeridiem ?? (fields.clockIn && !fields.clockOut ? input.meridiem : undefined),
+  };
+  const outParts = {
+    hour: input.clockOutHour ?? (fields.clockOut && !fields.clockIn ? input.hour : undefined),
+    minute: input.clockOutMinute ?? (fields.clockOut && !fields.clockIn ? input.minute : undefined),
+    meridiem: input.clockOutMeridiem ?? (fields.clockOut && !fields.clockIn ? input.meridiem : undefined),
+  };
+
+  let schoolLocalTime = "";
+  let schoolLocalClockOutTime: string | null = null;
+  if (fields.clockIn && fields.clockOut) {
+    const inTime = resolveCorrectionTime(inParts, "Enter the correct clock-in time.");
+    if (!inTime.ok) return inTime;
+    const outTime = resolveCorrectionTime(outParts, "Enter the correct clock-out time.");
+    if (!outTime.ok) return outTime;
+    if (isClockOutBeforeClockIn(inTime.schoolLocalTime, outTime.schoolLocalTime)) {
+      return { ok: false, error: "Clock-out time must be after clock-in." };
+    }
+    schoolLocalTime = inTime.schoolLocalTime;
+    schoolLocalClockOutTime = outTime.schoolLocalTime;
+  } else if (fields.clockIn) {
+    const time = resolveCorrectionTime(inParts, "Enter the correct clock-in time.");
+    if (!time.ok) return time;
+    schoolLocalTime = time.schoolLocalTime;
+    if (isClockInAfterClockOut(schoolLocalTime, input.target.clockOutTime)) {
+      return { ok: false, error: "Clock-in time must be before clock-out." };
+    }
+  } else {
+    const time = resolveCorrectionTime(outParts, "Enter the correct clock-out time.");
+    if (!time.ok) return time;
+    schoolLocalTime = time.schoolLocalTime;
+    if (isClockOutBeforeClockIn(input.target.clockInTime, time.schoolLocalTime)) {
+      return { ok: false, error: "Clock-out time must be after clock-in." };
+    }
   }
   if (correctionNotesRequired(input.reason) && !String(input.note || "").trim()) {
     return { ok: false, error: "A note is required when reason is Other." };
@@ -266,7 +352,8 @@ export function buildOwnerCorrectionRequest(input: {
       reason: input.reason,
       note: note ? note : null,
       schoolLocalDate: input.target.affectedSchoolLocalDate,
-      schoolLocalTime: time.schoolLocalTime,
+      schoolLocalTime,
+      schoolLocalClockOutTime,
       targetEventId: input.target.clockInEventId || null,
     },
   };

@@ -499,6 +499,10 @@ router.post("/owner/corrections", async (req, res) => {
       note: req.body?.note == null ? null : String(req.body.note),
       schoolLocalDate: String(req.body?.schoolLocalDate || ""),
       schoolLocalTime: String(req.body?.schoolLocalTime || ""),
+      schoolLocalClockOutTime:
+        req.body?.schoolLocalClockOutTime == null || String(req.body.schoolLocalClockOutTime).trim() === ""
+          ? null
+          : String(req.body.schoolLocalClockOutTime),
       targetEventId: req.body?.targetEventId == null ? null : String(req.body.targetEventId),
     });
     return res.status(201).json(result);

@@ -47,6 +47,7 @@ export const EDUCLOCK_ATTENDANCE_DAY_CUTOFF_NOTE =
   "Missing Clock Out: open shift whose schoolLocalDate is before today in Africa/Johannesburg (configurable later).";
 
 const OWNER_CORRECTION_REASONS = [
+  "Forgot to clock in",
   "Forgot to clock out",
   "Device problem",
   "Network problem",
@@ -1046,6 +1047,14 @@ export async function getOwnerAttendance(input: {
       source = lastIn.source;
       affectedSchoolLocalDate = lastIn.schoolLocalDate || date;
       durationDisplay = null;
+    } else if (lastOut && !lastIn) {
+      shiftStatus = "Missing Clock In";
+      currentStatus = "Missing Clock In";
+      clockInEvent = null;
+      clockOutEvent = lastOut;
+      source = lastOut.source;
+      affectedSchoolLocalDate = lastOut.schoolLocalDate || date;
+      durationDisplay = null;
     }
 
     if (
@@ -1053,9 +1062,8 @@ export async function getOwnerAttendance(input: {
       (clockOutEvent && clockOutEvent.isManualCorrection)
     ) {
       correctionStatus = "Manually Corrected";
-      if (shiftStatus === "Clocked Out" || shiftStatus === "Clocked In") {
-        // keep status; also surface correction
-      }
+      if (clockInEvent?.isManualCorrection) source = clockInEvent.source;
+      if (clockOutEvent?.isManualCorrection) source = clockOutEvent.source;
     }
 
     if (statusFilter !== "ALL") {
@@ -1064,6 +1072,7 @@ export async function getOwnerAttendance(input: {
         CLOCKED_IN: "Clocked In",
         CLOCKED_OUT: "Clocked Out",
         MISSING_CLOCK_OUT: "Missing Clock Out",
+        MISSING_CLOCK_IN: "Missing Clock In",
         MANUALLY_CORRECTED: "Manually Corrected",
         INACTIVE: "Inactive",
       };
@@ -1318,6 +1327,7 @@ export async function ownerCreateCorrection(input: {
   note?: string | null;
   schoolLocalDate: string;
   schoolLocalTime: string;
+  schoolLocalClockOutTime?: string | null;
   targetEventId?: string | null;
 }): Promise<Record<string, unknown>> {
   const reason = String(input.reason || "").trim();
@@ -1352,31 +1362,9 @@ export async function ownerCreateCorrection(input: {
     throw new EduClockError("EDUCLOCK_IDENTITY_INVALID", 400, "schoolLocalDate must be YYYY-MM-DD");
   }
 
-  const openPreview = await prisma.eduClockOpenShift.findUnique({
-    where: {
-      schoolId_employeeId: { schoolId: input.schoolId, employeeId: employee.id },
-    },
-    include: { clockInEvent: true },
-  });
-
-  let attendanceDate = requestedDate;
-  if (input.action === "ADD_CLOCK_OUT" || input.action === "CLOSE_OPEN_SHIFT") {
-    if (!openPreview) {
-      throw new EduClockError(
-        "EDUCLOCK_FORBIDDEN",
-        409,
-        "No open shift to close with Clock Out."
-      );
-    }
-    if (requestedDate !== openPreview.schoolLocalDate) {
-      throw new EduClockError(
-        "EDUCLOCK_IDENTITY_INVALID",
-        400,
-        `schoolLocalDate must match the affected attendance date ${openPreview.schoolLocalDate}.`
-      );
-    }
-    attendanceDate = openPreview.schoolLocalDate;
-  }
+  // Selected attendance-row date is authoritative. Do not retarget to the
+  // employee's current open shift if that shift belongs to a later day.
+  const attendanceDate = requestedDate;
 
   const occurredAtUtc = parseOwnerCorrectionOccurredAt({
     schoolLocalDate: attendanceDate,
@@ -1389,6 +1377,38 @@ export async function ownerCreateCorrection(input: {
       400,
       "Corrected timestamp must remain within the selected school-local date."
     );
+  }
+
+  let clockOutOccurredAtUtc: Date | null = null;
+  let clockOutLocal = local;
+  const extraOut = String(input.schoolLocalClockOutTime || "").trim();
+  if (extraOut) {
+    if (input.action !== "ADD_CLOCK_IN") {
+      throw new EduClockError(
+        "EDUCLOCK_IDENTITY_INVALID",
+        400,
+        "schoolLocalClockOutTime is only valid when adding a clock-in."
+      );
+    }
+    clockOutOccurredAtUtc = parseOwnerCorrectionOccurredAt({
+      schoolLocalDate: attendanceDate,
+      schoolLocalTime: extraOut,
+    });
+    clockOutLocal = resolveSchoolLocalParts(clockOutOccurredAtUtc, DEFAULT_SCHOOL_TIMEZONE);
+    if (clockOutLocal.schoolLocalDate !== attendanceDate) {
+      throw new EduClockError(
+        "EDUCLOCK_IDENTITY_INVALID",
+        400,
+        "Corrected clock-out timestamp must remain within the selected school-local date."
+      );
+    }
+    if (clockOutOccurredAtUtc.getTime() <= occurredAtUtc.getTime()) {
+      throw new EduClockError(
+        "EDUCLOCK_IDENTITY_INVALID",
+        400,
+        "Clock Out before Clock In is not allowed."
+      );
+    }
   }
 
   const noteText = String(input.note || "").trim();
@@ -1406,59 +1426,96 @@ export async function ownerCreateCorrection(input: {
     let targetEventId = input.targetEventId ? String(input.targetEventId) : null;
     let eventType: EduClockEventType = EduClockEventType.CLOCK_IN;
     let correctedFromEventId: string | null = null;
+    let dayClockIn = open?.clockInEvent || null;
+    let existingDayClockOut: { id: string; occurredAtUtc: Date; schoolLocalDate: string; schoolLocalTime: string } | null =
+      null;
+    let createOpenShiftForNewIn = false;
+    let closeOpenShiftIfMatchesClockInId: string | null = null;
+
+    const dayEvents = await tx.eduClockEvent.findMany({
+      where: {
+        schoolId: input.schoolId,
+        employeeId: employee.id,
+        schoolLocalDate: attendanceDate,
+      },
+      orderBy: { occurredAtUtc: "asc" },
+    });
+    const dayIns = dayEvents.filter((e) => e.eventType === EduClockEventType.CLOCK_IN);
+    const dayOuts = dayEvents.filter((e) => e.eventType === EduClockEventType.CLOCK_OUT);
 
     if (input.action === "ADD_CLOCK_IN") {
-      if (open) {
+      if (dayIns.length > 0) {
         throw new EduClockError(
           "EDUCLOCK_FORBIDDEN",
           409,
-          "Cannot add Clock In while an open shift exists."
+          "A clock-in already exists for this attendance date."
         );
       }
+      if (open && open.schoolLocalDate === attendanceDate) {
+        throw new EduClockError(
+          "EDUCLOCK_FORBIDDEN",
+          409,
+          "Cannot add Clock In while an open shift exists on this attendance date."
+        );
+      }
+      const sameDayOut = dayOuts[dayOuts.length - 1] || null;
+      if (sameDayOut && occurredAtUtc.getTime() >= sameDayOut.occurredAtUtc.getTime()) {
+        throw new EduClockError(
+          "EDUCLOCK_IDENTITY_INVALID",
+          400,
+          "Clock In after Clock Out is not allowed."
+        );
+      }
+      existingDayClockOut = sameDayOut
+        ? {
+            id: sameDayOut.id,
+            occurredAtUtc: sameDayOut.occurredAtUtc,
+            schoolLocalDate: sameDayOut.schoolLocalDate,
+            schoolLocalTime: sameDayOut.schoolLocalTime,
+          }
+        : null;
       eventType = EduClockEventType.CLOCK_IN;
+      dayClockIn = null;
+      createOpenShiftForNewIn = !sameDayOut && !clockOutOccurredAtUtc && !open;
     } else if (input.action === "ADD_CLOCK_OUT" || input.action === "CLOSE_OPEN_SHIFT") {
-      if (!open) {
+      let clockIn =
+        (targetEventId
+          ? dayIns.find((e) => e.id === targetEventId) ||
+            (await tx.eduClockEvent.findFirst({
+              where: {
+                id: targetEventId,
+                schoolId: input.schoolId,
+                employeeId: employee.id,
+                eventType: EduClockEventType.CLOCK_IN,
+              },
+            }))
+          : null) ||
+        dayIns[dayIns.length - 1] ||
+        null;
+      if (clockIn && clockIn.schoolLocalDate !== attendanceDate) {
+        throw new EduClockError(
+          "EDUCLOCK_IDENTITY_INVALID",
+          400,
+          `schoolLocalDate must match the affected attendance date ${clockIn.schoolLocalDate}.`
+        );
+      }
+      if (!clockIn) {
         throw new EduClockError(
           "EDUCLOCK_FORBIDDEN",
           409,
-          "No open shift to close with Clock Out."
+          "No clock-in exists on this attendance date to close."
         );
       }
-      const existingCorrection = await tx.eduClockEvent.findFirst({
-        where: {
-          schoolId: input.schoolId,
-          employeeId: employee.id,
-          isManualCorrection: true,
-          eventType: EduClockEventType.CLOCK_OUT,
-          correctedFromEventId: open.clockInEventId,
-        },
-        orderBy: { createdAt: "desc" },
-      });
-      if (existingCorrection) {
-        await tx.eduClockOpenShift.deleteMany({ where: { id: open.id } });
-        const exceptionResolved = await resolveMissingClockOutExceptions(tx, {
-          schoolId: input.schoolId,
-          employeeId: employee.id,
-          schoolLocalDate: open.schoolLocalDate,
-          actorUserId: input.actorUserId,
-          correctionEventId: existingCorrection.id,
-        });
-        return {
-          ok: true,
-          correctionEvent: serializeEvent(existingCorrection),
-          originalEventId: open.clockInEventId,
-          action: input.action,
-          reason,
-          notes: noteText || null,
-          exceptionResolved,
-          idempotentReplay: true,
-          durationDisplay: durationBetweenClockEvents(
-            open.clockInEvent.occurredAtUtc,
-            existingCorrection.occurredAtUtc
-          ),
-        };
+      dayClockIn = clockIn;
+      const sameDayOut = dayOuts.find((o) => o.occurredAtUtc.getTime() > clockIn!.occurredAtUtc.getTime());
+      if (sameDayOut) {
+        throw new EduClockError(
+          "EDUCLOCK_FORBIDDEN",
+          409,
+          "A clock-out already exists for this attendance date."
+        );
       }
-      if (occurredAtUtc.getTime() <= open.openedAtUtc.getTime()) {
+      if (occurredAtUtc.getTime() <= clockIn.occurredAtUtc.getTime()) {
         await tx.eduClockException.create({
           data: {
             schoolId: input.schoolId,
@@ -1479,7 +1536,8 @@ export async function ownerCreateCorrection(input: {
         );
       }
       eventType = EduClockEventType.CLOCK_OUT;
-      correctedFromEventId = open.clockInEventId;
+      correctedFromEventId = clockIn.id;
+      closeOpenShiftIfMatchesClockInId = clockIn.id;
     } else if (input.action === "CORRECT_TIME") {
       if (!targetEventId) {
         throw new EduClockError("EDUCLOCK_IDENTITY_INVALID", 400, "targetEventId required for CORRECT_TIME");
@@ -1515,7 +1573,8 @@ export async function ownerCreateCorrection(input: {
       throw new EduClockError("EDUCLOCK_IDENTITY_INVALID", 400, "Unknown correction action");
     }
 
-    const originalClockIn = open?.clockInEvent || null;
+    const originalClockIn = dayClockIn;
+    const originalClockOut = existingDayClockOut;
     const auditMetadata = {
       action: input.action,
       reason,
@@ -1532,32 +1591,55 @@ export async function ownerCreateCorrection(input: {
             occurredAtUtc: originalClockIn.occurredAtUtc.toISOString(),
           }
         : null,
-      originalClockOut: null,
-      correctedClockIn: originalClockIn
+      originalClockOut: originalClockOut
         ? {
-            eventId: originalClockIn.id,
-            schoolLocalDate: originalClockIn.schoolLocalDate,
-            schoolLocalTime: originalClockIn.schoolLocalTime,
-            occurredAtUtc: originalClockIn.occurredAtUtc.toISOString(),
+            eventId: originalClockOut.id,
+            schoolLocalDate: originalClockOut.schoolLocalDate,
+            schoolLocalTime: originalClockOut.schoolLocalTime,
+            occurredAtUtc: originalClockOut.occurredAtUtc.toISOString(),
           }
         : null,
-      correctedClockOut:
-        eventType === EduClockEventType.CLOCK_OUT
+      correctedClockIn:
+        eventType === EduClockEventType.CLOCK_IN
           ? {
               schoolLocalDate: local.schoolLocalDate,
               schoolLocalTime: local.schoolLocalTime,
               occurredAtUtc: occurredAtUtc.toISOString(),
             }
-          : null,
+          : originalClockIn
+            ? {
+                eventId: originalClockIn.id,
+                schoolLocalDate: originalClockIn.schoolLocalDate,
+                schoolLocalTime: originalClockIn.schoolLocalTime,
+                occurredAtUtc: originalClockIn.occurredAtUtc.toISOString(),
+              }
+            : null,
+      correctedClockOut:
+        eventType === EduClockEventType.CLOCK_OUT || clockOutOccurredAtUtc
+          ? {
+              schoolLocalDate: (clockOutOccurredAtUtc ? clockOutLocal : local).schoolLocalDate,
+              schoolLocalTime: (clockOutOccurredAtUtc ? clockOutLocal : local).schoolLocalTime,
+              occurredAtUtc: (clockOutOccurredAtUtc || occurredAtUtc).toISOString(),
+            }
+          : originalClockOut
+            ? {
+                eventId: originalClockOut.id,
+                schoolLocalDate: originalClockOut.schoolLocalDate,
+                schoolLocalTime: originalClockOut.schoolLocalTime,
+                occurredAtUtc: originalClockOut.occurredAtUtc.toISOString(),
+              }
+            : null,
       correctedByUserId: input.actorUserId,
       correctedByRole: actorRole,
       resolutionSource: "OWNER_ATTENDANCE_CORRECTION",
       before:
         correctedFromEventId && input.action === "CORRECT_TIME"
           ? { targetEventId }
-          : open
-            ? { openShiftClockInEventId: open.clockInEventId, openedAtUtc: open.openedAtUtc.toISOString() }
-            : null,
+          : {
+              selectedAttendanceDate: attendanceDate,
+              openShiftClockInEventId: open?.clockInEventId || null,
+              dayClockInEventId: originalClockIn?.id || null,
+            },
       after: {
         schoolLocalDate: local.schoolLocalDate,
         schoolLocalTime: local.schoolLocalTime,
@@ -1585,27 +1667,52 @@ export async function ownerCreateCorrection(input: {
       },
     });
 
-    if (eventType === EduClockEventType.CLOCK_IN && (input.action === "ADD_CLOCK_IN" || input.action === "CORRECT_TIME")) {
-      if (input.action === "ADD_CLOCK_IN") {
-        await tx.eduClockOpenShift.create({
-          data: {
-            schoolId: input.schoolId,
-            employeeId: employee.id,
-            clockInEventId: event.id,
-            schoolLocalDate: local.schoolLocalDate,
-            openedAtUtc: occurredAtUtc,
-          },
-        });
-      }
+    let pairedOutAt = eventType === EduClockEventType.CLOCK_OUT ? occurredAtUtc : originalClockOut?.occurredAtUtc || null;
+    if (eventType === EduClockEventType.CLOCK_IN && clockOutOccurredAtUtc && clockOutLocal) {
+      const extraOutEvent = await tx.eduClockEvent.create({
+        data: {
+          schoolId: input.schoolId,
+          employeeId: employee.id,
+          employeeNumberSnapshot: empNo,
+          userId: employee.userId || input.actorUserId,
+          eventType: EduClockEventType.CLOCK_OUT,
+          occurredAtUtc: clockOutOccurredAtUtc,
+          schoolLocalDate: clockOutLocal.schoolLocalDate,
+          schoolLocalTime: clockOutLocal.schoolLocalTime,
+          timezone: clockOutLocal.timezone,
+          source: EduClockEventSource.OWNER_MANUAL,
+          createdByUserId: input.actorUserId,
+          isManualCorrection: true,
+          correctedFromEventId: event.id,
+          note,
+          metadata: auditMetadata as Prisma.InputJsonValue,
+        },
+      });
+      pairedOutAt = extraOutEvent.occurredAtUtc;
+      void extraOutEvent;
+    }
+
+    if (createOpenShiftForNewIn && eventType === EduClockEventType.CLOCK_IN) {
+      await tx.eduClockOpenShift.create({
+        data: {
+          schoolId: input.schoolId,
+          employeeId: employee.id,
+          clockInEventId: event.id,
+          schoolLocalDate: local.schoolLocalDate,
+          openedAtUtc: occurredAtUtc,
+        },
+      });
     }
 
     let exceptionResolved = false;
-    if (eventType === EduClockEventType.CLOCK_OUT && open) {
-      await tx.eduClockOpenShift.deleteMany({ where: { id: open.id } });
+    if (eventType === EduClockEventType.CLOCK_OUT) {
+      if (open && closeOpenShiftIfMatchesClockInId && open.clockInEventId === closeOpenShiftIfMatchesClockInId) {
+        await tx.eduClockOpenShift.deleteMany({ where: { id: open.id } });
+      }
       exceptionResolved = await resolveMissingClockOutExceptions(tx, {
         schoolId: input.schoolId,
         employeeId: employee.id,
-        schoolLocalDate: open.schoolLocalDate,
+        schoolLocalDate: attendanceDate,
         actorUserId: input.actorUserId,
         correctionEventId: event.id,
       });
@@ -1626,10 +1733,10 @@ export async function ownerCreateCorrection(input: {
       },
     });
 
+    const durationInAt =
+      eventType === EduClockEventType.CLOCK_IN ? occurredAtUtc : originalClockIn?.occurredAtUtc || null;
     const durationDisplay =
-      eventType === EduClockEventType.CLOCK_OUT && originalClockIn
-        ? durationBetweenClockEvents(originalClockIn.occurredAtUtc, occurredAtUtc)
-        : null;
+      durationInAt && pairedOutAt ? durationBetweenClockEvents(durationInAt, pairedOutAt) : null;
 
     return {
       ok: true,
