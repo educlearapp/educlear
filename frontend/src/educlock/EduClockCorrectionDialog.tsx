@@ -1,13 +1,16 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useState } from "react";
 import { postOwnerEduClockCorrection } from "./educlockApi";
 import {
+  CLOCK_HOURS_12,
+  CLOCK_MERIDIEMS,
+  CLOCK_MINUTES,
   OWNER_CORRECTION_REASONS,
-  canonicalizeHtmlTimeValue,
+  canonicalizeTwelveHourClockParts,
   correctionActionForStatus,
   correctionNotesRequired,
   correctionTimeInputResetKey,
+  isClockOutBeforeClockIn,
   isMissingClockOutStatus,
-  readCanonicalTimeFromInput,
   type EduClockCorrectionTarget,
 } from "./educlockCorrectionUi";
 import { ownerButtonStyle, ownerInputStyle, ownerSecondaryButtonStyle } from "./educlockOwnerUi";
@@ -24,35 +27,37 @@ export default function EduClockCorrectionDialog(props: {
     missing ? "Forgot to clock out" : OWNER_CORRECTION_REASONS[4]
   );
   const [note, setNote] = useState("");
-  const [corrTime, setCorrTime] = useState("");
+  const [hour, setHour] = useState("");
+  const [minute, setMinute] = useState("");
+  const [meridiem, setMeridiem] = useState("");
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
-  const timeRef = useRef<HTMLInputElement | null>(null);
 
   useEffect(() => {
-    setCorrTime("");
+    setHour("");
+    setMinute("");
+    setMeridiem("");
     setNote("");
     setError("");
     setReason(isMissingClockOutStatus(target.currentStatus) ? "Forgot to clock out" : OWNER_CORRECTION_REASONS[4]);
-    timeRef.current?.focus();
   }, [resetKey, target.currentStatus]);
 
-  function captureTimeFromElement(el: HTMLInputElement | null) {
-    const canonical = canonicalizeHtmlTimeValue(el?.value);
-    setCorrTime(canonical || "");
-  }
+  const canonical = canonicalizeTwelveHourClockParts({ hour, minute, meridiem });
 
   async function submit() {
-    const canonical = readCanonicalTimeFromInput(timeRef.current, corrTime);
-    if (!canonical) {
+    const selected = canonicalizeTwelveHourClockParts({ hour, minute, meridiem });
+    if (!selected) {
       setError("Enter the correct clock-out time.");
+      return;
+    }
+    if (isClockOutBeforeClockIn(target.clockInTime, selected)) {
+      setError("Clock-out time must be after clock-in.");
       return;
     }
     if (correctionNotesRequired(reason) && !note.trim()) {
       setError("A note is required when reason is Other.");
       return;
     }
-    setCorrTime(canonical);
     setSaving(true);
     setError("");
     try {
@@ -62,7 +67,7 @@ export default function EduClockCorrectionDialog(props: {
         reason,
         note: note.trim() ? note.trim() : null,
         schoolLocalDate: target.affectedSchoolLocalDate,
-        schoolLocalTime: canonical,
+        schoolLocalTime: selected,
         targetEventId: target.clockInEventId || null,
       });
       await props.onSaved();
@@ -144,20 +149,60 @@ export default function EduClockCorrectionDialog(props: {
         ) : null}
 
         <div style={{ display: "grid", gap: 10, marginTop: 14 }}>
-          <label style={{ fontSize: 13, fontWeight: 700 }}>
-            Correct Clock Out time
-            <input
-              key={resetKey}
-              ref={timeRef}
-              type="time"
-              defaultValue=""
-              onChange={(e) => captureTimeFromElement(e.currentTarget)}
-              onInput={(e) => captureTimeFromElement(e.currentTarget)}
-              onBlur={(e) => captureTimeFromElement(e.currentTarget)}
-              style={{ ...ownerInputStyle, width: "100%", marginTop: 6 }}
-              required
-            />
-          </label>
+          <fieldset style={{ border: 0, margin: 0, padding: 0 }}>
+            <legend style={{ fontSize: 13, fontWeight: 700 }}>Correct Clock Out time</legend>
+            <div style={{ display: "flex", gap: 8, marginTop: 6, alignItems: "center" }}>
+              <select
+                aria-label="Hour"
+                value={hour}
+                onChange={(e) => setHour(e.target.value)}
+                style={{ ...ownerInputStyle, flex: 1 }}
+              >
+                <option value="">HH</option>
+                {CLOCK_HOURS_12.map((h) => (
+                  <option key={h} value={h}>
+                    {h}
+                  </option>
+                ))}
+              </select>
+              <span style={{ fontWeight: 700 }}>:</span>
+              <select
+                aria-label="Minute"
+                value={minute}
+                onChange={(e) => setMinute(e.target.value)}
+                style={{ ...ownerInputStyle, flex: 1 }}
+              >
+                <option value="">MM</option>
+                {CLOCK_MINUTES.map((m) => (
+                  <option key={m} value={m}>
+                    {m}
+                  </option>
+                ))}
+              </select>
+              <select
+                aria-label="AM/PM"
+                value={meridiem}
+                onChange={(e) => setMeridiem(e.target.value)}
+                style={{ ...ownerInputStyle, flex: 1 }}
+              >
+                <option value="">AM/PM</option>
+                {CLOCK_MERIDIEMS.map((p) => (
+                  <option key={p} value={p}>
+                    {p}
+                  </option>
+                ))}
+              </select>
+            </div>
+            {canonical ? (
+              <p style={{ margin: "6px 0 0", fontSize: 12, color: "#334155" }}>
+                Will save as {canonical}
+              </p>
+            ) : (
+              <p style={{ margin: "6px 0 0", fontSize: 12, color: "#64748b" }}>
+                Select hour, minute, and AM/PM.
+              </p>
+            )}
+          </fieldset>
           <label style={{ fontSize: 13, fontWeight: 700 }}>
             Correction reason
             <select

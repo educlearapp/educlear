@@ -7,20 +7,23 @@ import fs from "node:fs";
 import path from "node:path";
 import {
   OWNER_CORRECTION_REASONS,
-  SAFARI_TIME_INPUT_CONTRACT,
   buildOwnerCorrectionRequest,
   canonicalizeHtmlTimeValue,
+  canonicalizeTwelveHourClockParts,
   correctionActionForStatus,
   correctionNotesRequired,
   correctionTimeInputResetKey,
   displayAttendanceDuration,
+  durationBetweenHm,
   isActionableMissingClockOutException,
+  isClockOutBeforeClockIn,
   isInformationalDuplicateClockException,
   isMissingClockOutStatus,
   readCanonicalTimeFromInput,
   resolveCorrectionClockOutTime,
   targetFromAttendanceRow,
   targetFromExceptionRow,
+  webkitTimeInputCanDisplayWithoutValue,
 } from "./educlockCorrectionUi";
 
 const EDUCLOCK_DIR = path.join(process.cwd(), "src/educlock");
@@ -116,43 +119,37 @@ const exTarget = targetFromExceptionRow({
 assert.equal(exTarget.currentStatus, "Missing Clock Out");
 assert.equal(exTarget.affectedSchoolLocalDate, "2026-08-12");
 
-// Safari 12-hour display vs HTML time value contract. Canonicalise .value, never "04:00 PM".
-for (const c of SAFARI_TIME_INPUT_CONTRACT) {
-  assert.equal(canonicalizeHtmlTimeValue(c.htmlValue), c.canonical, c.safariDisplayNote);
-  assert.equal(
-    canonicalizeHtmlTimeValue(c.safariDisplayNote),
-    null,
-    `must not parse locale display ${c.safariDisplayNote}`
-  );
-}
-assert.equal(canonicalizeHtmlTimeValue("16:00:00"), "16:00");
-assert.equal(canonicalizeHtmlTimeValue(""), null);
-assert.equal(canonicalizeHtmlTimeValue("25:00"), null);
-assert.equal(canonicalizeHtmlTimeValue("4:00"), null);
-assert.equal(canonicalizeHtmlTimeValue("16:00 PM"), null);
-
-// Production bug: Safari showed 04:00 PM while React state stayed "".
+// Actual Safari/WebKit failure at production SHA 3779181:
+// Owner saw 04:00 PM, HTMLInputElement.value stayed "", React state stayed "".
+assert.equal(
+  webkitTimeInputCanDisplayWithoutValue({
+    displayedText: "04:00 PM",
+    htmlValue: "",
+    reactState: "",
+  }),
+  true,
+  "WebKit can paint a time while .value and React state remain empty"
+);
 assert.equal(readCanonicalTimeFromInput({ value: "" }, ""), null);
-assert.equal(readCanonicalTimeFromInput({ value: "16:00" }, ""), "16:00");
-assert.equal(readCanonicalTimeFromInput({ value: "" }, "16:00"), "16:00");
-assert.equal(readCanonicalTimeFromInput({ value: "16:00" }, "07:00"), "16:00");
+assert.equal(canonicalizeHtmlTimeValue("04:00 PM"), null, "locale display string is not HTML time value");
+assert.equal(
+  resolveCorrectionClockOutTime({ hour: "", minute: "", meridiem: "" }).ok,
+  false,
+  "blank explicit parts still reject"
+);
 
-const safariEmptyState = resolveCorrectionClockOutTime({
-  htmlInputValue: "16:00",
-  reactStateValue: "",
-});
-assert.equal(safariEmptyState.ok, true);
-if (safariEmptyState.ok) assert.equal(safariEmptyState.schoolLocalTime, "16:00");
-
-const blankTime = resolveCorrectionClockOutTime({ htmlInputValue: "", reactStateValue: "" });
-assert.equal(blankTime.ok, false);
-if (!blankTime.ok) assert.equal(blankTime.error, "Enter the correct clock-out time.");
-
-const localeLeak = resolveCorrectionClockOutTime({
-  htmlInputValue: "04:00 PM",
-  reactStateValue: "04:00 PM",
-});
-assert.equal(localeLeak.ok, false);
+// Replacement control: explicit Hour + Minute + AM/PM owns application state.
+assert.equal(canonicalizeTwelveHourClockParts({ hour: "04", minute: "00", meridiem: "PM" }), "16:00");
+assert.equal(canonicalizeTwelveHourClockParts({ hour: "03", minute: "30", meridiem: "PM" }), "15:30");
+assert.equal(canonicalizeTwelveHourClockParts({ hour: "07", minute: "00", meridiem: "AM" }), "07:00");
+assert.equal(canonicalizeTwelveHourClockParts({ hour: "12", minute: "00", meridiem: "PM" }), "12:00");
+assert.equal(canonicalizeTwelveHourClockParts({ hour: "12", minute: "00", meridiem: "AM" }), "00:00");
+assert.equal(canonicalizeTwelveHourClockParts({ hour: "01", minute: "05", meridiem: "PM" }), "13:05");
+assert.equal(canonicalizeTwelveHourClockParts({ hour: "4", minute: "00", meridiem: "PM" }), "16:00");
+assert.equal(canonicalizeTwelveHourClockParts({ hour: "", minute: "00", meridiem: "PM" }), null);
+assert.equal(canonicalizeTwelveHourClockParts({ hour: "13", minute: "00", meridiem: "PM" }), null);
+assert.equal(canonicalizeTwelveHourClockParts({ hour: "04", minute: "60", meridiem: "PM" }), null);
+assert.equal(canonicalizeTwelveHourClockParts({ hour: "04", minute: "00", meridiem: "XX" }), null);
 
 const jemmahTarget = targetFromAttendanceRow(
   {
@@ -170,8 +167,9 @@ const jemmahTarget = targetFromAttendanceRow(
 const jemmah = buildOwnerCorrectionRequest({
   target: jemmahTarget,
   reason: "Forgot to clock out",
-  htmlInputValue: "16:00",
-  reactStateValue: "",
+  hour: "04",
+  minute: "00",
+  meridiem: "PM",
 });
 assert.equal(jemmah.ok, true);
 if (jemmah.ok) {
@@ -181,6 +179,28 @@ if (jemmah.ok) {
   assert.equal(jemmah.payload.employeeId, "emp-jemmah-synth");
   assert.equal(jemmah.payload.targetEventId, "evt-jemmah-in");
 }
+assert.equal(durationBetweenHm("07:18", "16:00"), "8h 42m");
+assert.equal(isClockOutBeforeClockIn("07:18", "07:00"), true);
+assert.equal(isClockOutBeforeClockIn("07:18", "16:00"), false);
+
+const beforeIn = buildOwnerCorrectionRequest({
+  target: jemmahTarget,
+  reason: "Forgot to clock out",
+  hour: "07",
+  minute: "00",
+  meridiem: "AM",
+});
+assert.equal(beforeIn.ok, false);
+
+const blankParts = buildOwnerCorrectionRequest({
+  target: jemmahTarget,
+  reason: "Forgot to clock out",
+  hour: "",
+  minute: "",
+  meridiem: "",
+});
+assert.equal(blankParts.ok, false);
+if (!blankParts.ok) assert.equal(blankParts.error, "Enter the correct clock-out time.");
 
 const otherEmployeeKey = correctionTimeInputResetKey({
   employeeId: "emp-other",
@@ -203,12 +223,14 @@ assert.ok(dlgSrc.includes("Correct Clock Out time"), "clock-out field");
 assert.ok(dlgSrc.includes("Attendance date"), "shows affected date");
 assert.ok(dlgSrc.includes("postOwnerEduClockCorrection"), "shared backend API");
 assert.ok(!dlgSrc.includes("ADD_CLOCK_IN"), "missing clock-out does not require re-entering clock-in");
-assert.ok(dlgSrc.includes("readCanonicalTimeFromInput"), "submit reads live HTML time value");
-assert.ok(dlgSrc.includes("onInput"), "Safari time picker input event");
-assert.ok(dlgSrc.includes("onBlur"), "Safari time picker commit on blur");
-assert.ok(dlgSrc.includes("defaultValue"), "uncontrolled time input so React empty state cannot wipe Safari value");
-assert.ok(!dlgSrc.includes("value={corrTime}"), "must not keep a controlled empty time value");
+assert.ok(!dlgSrc.includes('type="time"'), "must not use Safari-fragile native time input");
+assert.ok(dlgSrc.includes('aria-label="Hour"'), "explicit hour select");
+assert.ok(dlgSrc.includes('aria-label="Minute"'), "explicit minute select");
+assert.ok(dlgSrc.includes('aria-label="AM/PM"'), "explicit AM/PM select");
+assert.ok(dlgSrc.includes("canonicalizeTwelveHourClockParts"), "submit uses explicit 12-hour parts");
+assert.ok(dlgSrc.includes("Will save as"), "selected time is shown as canonical HH:mm");
 assert.ok(dlgSrc.includes("correctionTimeInputResetKey"), "time state resets per employee/date");
+assert.ok(dlgSrc.includes("isClockOutBeforeClockIn"), "frontend rejects clock-out before clock-in");
 
 const exSrc = read("EduClockExceptionsTab.tsx");
 assert.ok(exSrc.includes("EduClockCorrectionDialog"), "exceptions share the same dialog");

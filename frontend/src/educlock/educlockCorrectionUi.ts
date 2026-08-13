@@ -142,14 +142,82 @@ export function correctionTimeInputResetKey(
   return `${target.employeeId}::${target.affectedSchoolLocalDate}`;
 }
 
+/** Explicit 12-hour parts — independent of Safari/WebKit input[type=time]. */
+export const CLOCK_HOURS_12: string[] = Array.from({ length: 12 }, (_, i) => String(i + 1).padStart(2, "0"));
+export const CLOCK_MINUTES: string[] = Array.from({ length: 60 }, (_, i) => String(i).padStart(2, "0"));
+export const CLOCK_MERIDIEMS = ["AM", "PM"] as const;
+
+/**
+ * Production Safari/WebKit failure at 3779181: the native time control can
+ * *display* 04:00 PM while HTMLInputElement.value remains "" (or a locale
+ * AM/PM string). Reading .value therefore cannot be the source of truth.
+ */
+export function webkitTimeInputCanDisplayWithoutValue(input: {
+  displayedText: string;
+  htmlValue: string;
+  reactState: string;
+}): boolean {
+  const displayed = String(input.displayedText || "").trim();
+  const htmlValue = String(input.htmlValue || "").trim();
+  const reactState = String(input.reactState || "").trim();
+  return displayed.length > 0 && htmlValue === "" && reactState === "";
+}
+
+export function canonicalizeTwelveHourClockParts(input: {
+  hour?: unknown;
+  minute?: unknown;
+  meridiem?: unknown;
+}): string | null {
+  const hourRaw = String(input.hour ?? "").trim();
+  const minuteRaw = String(input.minute ?? "").trim();
+  const mer = String(input.meridiem ?? "")
+    .trim()
+    .toUpperCase()
+    .replace(/\./g, "");
+  if (!hourRaw || !minuteRaw || !mer) return null;
+  if (mer !== "AM" && mer !== "PM") return null;
+  const hourNum = Number(hourRaw);
+  const minuteNum = Number(minuteRaw);
+  if (!Number.isInteger(hourNum) || hourNum < 1 || hourNum > 12) return null;
+  if (!Number.isInteger(minuteNum) || minuteNum < 0 || minuteNum > 59) return null;
+  let hour24 = hourNum % 12;
+  if (mer === "PM") hour24 += 12;
+  return `${String(hour24).padStart(2, "0")}:${String(minuteNum).padStart(2, "0")}`;
+}
+
+function hmToMinutes(hm: unknown): number | null {
+  const s = canonicalizeHtmlTimeValue(hm);
+  if (!s) return null;
+  const [h, m] = s.split(":").map((p) => Number(p));
+  if (!Number.isInteger(h) || !Number.isInteger(m)) return null;
+  return h * 60 + m;
+}
+
+export function durationBetweenHm(clockInHm: string, clockOutHm: string): string | null {
+  const a = hmToMinutes(clockInHm);
+  const b = hmToMinutes(clockOutHm);
+  if (a == null || b == null || b <= a) return null;
+  const mins = b - a;
+  const hours = Math.floor(mins / 60);
+  const minutes = mins % 60;
+  if (hours <= 0) return `${minutes}m`;
+  return `${hours}h ${minutes}m`;
+}
+
+export function isClockOutBeforeClockIn(clockInHm: string | null | undefined, clockOutHm: string): boolean {
+  if (!clockInHm) return false;
+  const a = hmToMinutes(clockInHm);
+  const b = hmToMinutes(clockOutHm);
+  if (a == null || b == null) return false;
+  return b <= a;
+}
+
 export function resolveCorrectionClockOutTime(input: {
-  htmlInputValue?: unknown;
-  reactStateValue?: unknown;
+  hour?: unknown;
+  minute?: unknown;
+  meridiem?: unknown;
 }): { ok: true; schoolLocalTime: string } | { ok: false; error: string } {
-  const schoolLocalTime = readCanonicalTimeFromInput(
-    { value: String(input.htmlInputValue ?? "") },
-    input.reactStateValue
-  );
+  const schoolLocalTime = canonicalizeTwelveHourClockParts(input);
   if (!schoolLocalTime) {
     return { ok: false, error: "Enter the correct clock-out time." };
   }
@@ -160,8 +228,9 @@ export function buildOwnerCorrectionRequest(input: {
   target: EduClockCorrectionTarget;
   reason: string;
   note?: string;
-  htmlInputValue?: unknown;
-  reactStateValue?: unknown;
+  hour?: unknown;
+  minute?: unknown;
+  meridiem?: unknown;
 }):
   | {
       ok: true;
@@ -177,10 +246,14 @@ export function buildOwnerCorrectionRequest(input: {
     }
   | { ok: false; error: string } {
   const time = resolveCorrectionClockOutTime({
-    htmlInputValue: input.htmlInputValue,
-    reactStateValue: input.reactStateValue,
+    hour: input.hour,
+    minute: input.minute,
+    meridiem: input.meridiem,
   });
   if (!time.ok) return time;
+  if (isClockOutBeforeClockIn(input.target.clockInTime, time.schoolLocalTime)) {
+    return { ok: false, error: "Clock-out time must be after clock-in." };
+  }
   if (correctionNotesRequired(input.reason) && !String(input.note || "").trim()) {
     return { ok: false, error: "A note is required when reason is Other." };
   }
