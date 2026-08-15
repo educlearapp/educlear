@@ -6,6 +6,7 @@
  * No Payroll calculations.
  */
 import {
+  EduClockAbsenceApprovalStatus,
   EduClockEventSource,
   EduClockEventType,
   EduClockExceptionStatus,
@@ -41,6 +42,11 @@ import {
   resolveOpenShiftWorkedDuration,
   shouldSurfaceMissingClockOutOnDate,
 } from "./educlockAttendanceDuration";
+import {
+  ABSENCE_CLOCK_IN_BLOCKED_MESSAGE,
+  STAFF_ABSENCE_REASON_LABELS,
+  type StaffAbsenceReasonCode,
+} from "./educlockAbsenceLabels";
 
 /** School-local attendance day ends at end of calendar day in school TZ. No auto clock-out. */
 export const EDUCLOCK_ATTENDANCE_DAY_CUTOFF_NOTE =
@@ -195,7 +201,7 @@ type LinkedEmployeeForClock = Employee & {
   userId: string;
 };
 
-async function resolveActivatedEmployeeForClock(input: {
+export async function resolveActivatedEmployeeForClock(input: {
   userId: string;
   schoolId: string;
 }): Promise<{ employee: LinkedEmployeeForClock; readinessReasons: string[] }> {
@@ -447,6 +453,28 @@ export async function getStaffClockStatus(input: {
     include: { clockInEvent: true },
   });
 
+  const todayAbsence = await prisma.eduClockStaffAbsence.findUnique({
+    where: {
+      schoolId_employeeId_schoolLocalDate: {
+        schoolId: input.schoolId,
+        employeeId: employee.id,
+        schoolLocalDate: local.schoolLocalDate,
+      },
+    },
+  });
+  const activeAbsence =
+    todayAbsence?.approvalStatus === EduClockAbsenceApprovalStatus.REPORTED ? todayAbsence : null;
+
+  const todayClockIn = await prisma.eduClockEvent.findFirst({
+    where: {
+      schoolId: input.schoolId,
+      employeeId: employee.id,
+      schoolLocalDate: local.schoolLocalDate,
+      eventType: EduClockEventType.CLOCK_IN,
+    },
+    select: { id: true },
+  });
+
   const missingClockOut =
     open && open.schoolLocalDate < local.schoolLocalDate
       ? true
@@ -454,6 +482,7 @@ export async function getStaffClockStatus(input: {
 
   let currentStatus: string = open ? "CLOCKED_IN" : "CLOCKED_OUT";
   if (missingClockOut) currentStatus = "MISSING_CLOCK_OUT";
+  if (activeAbsence && !open && !todayClockIn) currentStatus = "ABSENT";
 
   const liveDurationDisplay =
     open && !missingClockOut
@@ -477,6 +506,7 @@ export async function getStaffClockStatus(input: {
     readinessReasons,
     readinessReason: readinessReasons[0] || EDUCLOCK_READINESS_REASONS.READY,
     canClock: readiness === "READY",
+    canReportAbsent: readiness === "READY" && !todayClockIn && !activeAbsence && !open,
     currentStatus,
     employeeId: employee.id,
     employeeName: employeeDisplayName(employee),
@@ -494,6 +524,23 @@ export async function getStaffClockStatus(input: {
     missingClockOut,
     recentShifts,
     attendanceDayCutoffNote: EDUCLOCK_ATTENDANCE_DAY_CUTOFF_NOTE,
+    absence: activeAbsence
+      ? {
+          id: activeAbsence.id,
+          schoolLocalDate: activeAbsence.schoolLocalDate,
+          reason: activeAbsence.reason,
+          reasonLabel:
+            STAFF_ABSENCE_REASON_LABELS[activeAbsence.reason as StaffAbsenceReasonCode] ||
+            activeAbsence.reason,
+          note: activeAbsence.note,
+          source: activeAbsence.source,
+          approvalStatus: activeAbsence.approvalStatus,
+          reportedAtUtc: activeAbsence.reportedAtUtc.toISOString(),
+          reportedTimeDisplay: formatSchoolLocalTimeDisplay(
+            resolveSchoolLocalParts(activeAbsence.reportedAtUtc, activeAbsence.timezone).schoolLocalTime
+          ),
+        }
+      : null,
   };
 }
 
@@ -580,6 +627,19 @@ export async function staffClockIn(input: {
           409,
           "Already clocked in. Clock out before starting a new shift."
         );
+      }
+
+      const reportedAbsence = await tx.eduClockStaffAbsence.findUnique({
+        where: {
+          schoolId_employeeId_schoolLocalDate: {
+            schoolId: input.schoolId,
+            employeeId: employee.id,
+            schoolLocalDate: local.schoolLocalDate,
+          },
+        },
+      });
+      if (reportedAbsence?.approvalStatus === EduClockAbsenceApprovalStatus.REPORTED) {
+        throw new EduClockError("EDUCLOCK_FORBIDDEN", 409, ABSENCE_CLOCK_IN_BLOCKED_MESSAGE);
       }
 
       const event = await tx.eduClockEvent.create({
@@ -966,6 +1026,11 @@ export async function getOwnerAttendance(input: {
     eventsByEmp.set(ev.employeeId, list);
   }
 
+  const dayAbsences = await prisma.eduClockStaffAbsence.findMany({
+    where: { schoolId: input.schoolId, schoolLocalDate: date },
+  });
+  const absenceByEmp = new Map(dayAbsences.map((a) => [a.employeeId, a]));
+
   type Row = Record<string, unknown>;
   const rows: Row[] = [];
 
@@ -1057,6 +1122,21 @@ export async function getOwnerAttendance(input: {
       durationDisplay = null;
     }
 
+    const reportedAbsence = absenceByEmp.get(emp.id);
+    const activeReported =
+      reportedAbsence?.approvalStatus === EduClockAbsenceApprovalStatus.REPORTED ? reportedAbsence : null;
+    if (activeReported && !lastIn && currentStatus === "Not Clocked In") {
+      const reasonLabel =
+        STAFF_ABSENCE_REASON_LABELS[activeReported.reason as StaffAbsenceReasonCode] || activeReported.reason;
+      shiftStatus = "Absent Reported";
+      currentStatus = `Absent — ${reasonLabel}`;
+      source = activeReported.source;
+      affectedSchoolLocalDate = activeReported.schoolLocalDate || date;
+      durationDisplay = null;
+      clockInEvent = null;
+      clockOutEvent = null;
+    }
+
     if (
       (clockInEvent && clockInEvent.isManualCorrection) ||
       (clockOutEvent && clockOutEvent.isManualCorrection)
@@ -1073,6 +1153,8 @@ export async function getOwnerAttendance(input: {
         CLOCKED_OUT: "Clocked Out",
         MISSING_CLOCK_OUT: "Missing Clock Out",
         MISSING_CLOCK_IN: "Missing Clock In",
+        ABSENT: "Absent Reported",
+        ABSENT_REPORTED: "Absent Reported",
         MANUALLY_CORRECTED: "Manually Corrected",
         INACTIVE: "Inactive",
       };
@@ -1105,6 +1187,26 @@ export async function getOwnerAttendance(input: {
       correctionStatus,
       clockInEventId: clockInEvent?.id || null,
       clockOutEventId: clockOutEvent?.id || null,
+      absence: reportedAbsence
+        ? {
+            id: reportedAbsence.id,
+            reason: reportedAbsence.reason,
+            reasonLabel:
+              STAFF_ABSENCE_REASON_LABELS[reportedAbsence.reason as StaffAbsenceReasonCode] ||
+              reportedAbsence.reason,
+            note: reportedAbsence.note,
+            source: reportedAbsence.source,
+            approvalStatus: reportedAbsence.approvalStatus,
+            reportedAtUtc: reportedAbsence.reportedAtUtc.toISOString(),
+            reportedTimeDisplay: formatSchoolLocalTimeDisplay(
+              resolveSchoolLocalParts(reportedAbsence.reportedAtUtc, reportedAbsence.timezone)
+                .schoolLocalTime
+            ),
+            cancelledAtUtc: reportedAbsence.cancelledAtUtc
+              ? reportedAbsence.cancelledAtUtc.toISOString()
+              : null,
+          }
+        : null,
     });
   }
 
@@ -1115,6 +1217,7 @@ export async function getOwnerAttendance(input: {
   const clockedIn = rows.filter((r) => r.currentStatus === "Clocked In").length;
   const clockedOut = rows.filter((r) => r.currentStatus === "Clocked Out").length;
   const notClockedIn = rows.filter((r) => r.currentStatus === "Not Clocked In").length;
+  const absentReported = rows.filter((r) => r.shiftStatus === "Absent Reported").length;
   const openShiftCount = openShifts.filter(
     (o) => o.schoolLocalDate === date || (date === today && o.schoolLocalDate <= today)
   ).length;
@@ -1139,6 +1242,7 @@ export async function getOwnerAttendance(input: {
       clockedIn,
       clockedOut,
       notClockedIn,
+      absentReported,
       openShifts: openShifts.length,
       exceptions: exceptionCount,
     },

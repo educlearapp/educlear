@@ -78,6 +78,15 @@ assert.deepEqual(correctionFieldsForStatus("Not Clocked In"), { clockIn: true, c
 assert.deepEqual(correctionFieldsForStatus("Clocked Out"), { clockIn: false, clockOut: false });
 assert.equal(canOfferAttendanceCorrection("Clocked Out"), false);
 assert.equal(canOfferAttendanceCorrection("Missing Clock In"), true);
+assert.equal(canOfferAttendanceCorrection("Absent — Sick"), false);
+assert.equal(canOfferAttendanceCorrection("Absent Reported"), false);
+assert.equal(
+  displayAttendanceDuration({
+    currentStatus: "Absent — Sick",
+    workedDuration: "8h 0m",
+  }),
+  "—"
+);
 assert.equal(defaultCorrectionReason("Missing Clock Out"), "Forgot to clock out");
 assert.equal(defaultCorrectionReason("Missing Clock In"), "Forgot to clock in");
 assert.equal(correctionNotesRequired("Other"), true);
@@ -383,5 +392,18 @@ assert.ok(exSrc.includes("Informational"), "duplicate attempts are not corrected
 const staffSrc = read("EduClockStaffClockPage.tsx");
 assert.ok(staffSrc.includes("missingClockOut"), "staff page distinguishes stale missing clock-out");
 assert.ok(staffSrc.includes("correct attendance"), "staff cannot self-correct via owner endpoint");
+assert.ok(staffSrc.includes("Report Absent"), "staff can open absence report");
+assert.ok(staffSrc.includes("postStaffAbsence"), "absence posts to staff endpoint");
+assert.ok(staffSrc.includes("Absent Reported"), "post-submit absent state");
+assert.ok(staffSrc.includes("contact management"), "staff cannot self-clear absence");
+assert.ok(staffSrc.includes("minHeight: 64"), "Clock In remains primary");
+assert.ok(staffSrc.includes("minHeight: 48"), "Report Absent is secondary");
+assert.ok(!staffSrc.includes("postOwnerCancelStaffAbsence"), "staff cannot cancel absence");
+
+const attSrc2 = read("EduClockAttendanceTab.tsx");
+assert.ok(attSrc2.includes("ABSENT_REPORTED"), "owner filter includes absent reported");
+assert.ok(attSrc2.includes("postOwnerCancelStaffAbsence"), "owner can cancel absence");
+assert.ok(attSrc2.includes("Cancel Absence Report"), "explicit management cancel");
+assert.ok(attSrc2.includes("does not create a"), "cancel does not fabricate clock-in");
 
 console.log("EDUCLOCK CORRECTION UI TESTS PASS");

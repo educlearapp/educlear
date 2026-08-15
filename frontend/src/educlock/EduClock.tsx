@@ -248,6 +248,7 @@ export default function EduClock() {
               <StatCard label="Clocked In" value={Number(dayCounts.clockedIn || 0)} />
               <StatCard label="Clocked Out" value={Number(dayCounts.clockedOut || 0)} />
               <StatCard label="Not Clocked In" value={Number(dayCounts.notClockedIn || 0)} />
+              <StatCard label="Absent Reported" value={Number(dayCounts.absentReported || 0)} />
               <StatCard label="Open Shifts" value={Number(dayCounts.openShifts || 0)} />
               <StatCard label="Exceptions" value={Number(dayCounts.exceptions || 0)} />
               <StatCard label="Ready for EduClock" value={readyToActivate} />

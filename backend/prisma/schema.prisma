@@ -172,6 +172,7 @@ model School {
   eduClockExceptions               EduClockException[]
   eduClockIdempotencyKeys          EduClockIdempotencyKey[]
   eduClockGpsAttempts              EduClockGpsAttempt[]
+  eduClockStaffAbsences            EduClockStaffAbsence[]
   geofenceZones                    GeofenceZone[]
   geofenceVertices                 GeofenceVertex[]
 }
@@ -1201,6 +1202,7 @@ model Employee {
   eduClockOpenShifts  EduClockOpenShift[]
   eduClockExceptions  EduClockException[]
   eduClockGpsAttempts EduClockGpsAttempt[]
+  eduClockStaffAbsences EduClockStaffAbsence[]
   payrollEduClockImportLines  PayrollEduClockImportLine[]
   payrollEduClockImportPairs  PayrollEduClockImportPair[]
   payrollEduClockImportEvents PayrollEduClockImportEvent[]
@@ -1513,6 +1515,58 @@ model EduClockGpsAttempt {
   @@index([schoolId, occurredAtUtc])
   @@index([schoolId, employeeId, occurredAtUtc])
   @@index([nearestEntranceId])
+}
+
+/// Employee-selectable absence reason. APPROVED_LEAVE is the staff claim, not management approval.
+enum EduClockAbsenceReason {
+  SICK
+  FAMILY_RESPONSIBILITY
+  EMERGENCY
+  MEDICAL_APPOINTMENT
+  APPROVED_LEAVE
+  UNPAID_LEAVE
+  TRAINING_OFFICIAL_DUTY
+  OTHER
+}
+
+enum EduClockAbsenceApprovalStatus {
+  REPORTED
+  AUTHORISED
+  UNAUTHORISED
+  CANCELLED
+}
+
+enum EduClockAbsenceSource {
+  STAFF_SELF_REPORT
+}
+
+/// Explicit staff absence declaration. Not an EduClockEvent. Does not create clock times or payable minutes.
+model EduClockStaffAbsence {
+  id                       String                        @id @default(cuid())
+  schoolId                 String
+  employeeId               String
+  employeeNumberSnapshot   String
+  schoolLocalDate          String
+  timezone                 String                        @default("Africa/Johannesburg")
+  reason                   EduClockAbsenceReason
+  note                     String?
+  source                   EduClockAbsenceSource         @default(STAFF_SELF_REPORT)
+  approvalStatus           EduClockAbsenceApprovalStatus @default(REPORTED)
+  reportedAtUtc            DateTime
+  reportedByUserId         String
+  createdAt                DateTime                      @default(now())
+  updatedAt                DateTime                      @updatedAt
+  /// Owner/Admin cancel only. Original reason/note/reportedAtUtc are never overwritten.
+  cancelledAtUtc           DateTime?
+  cancelledByUserId        String?
+  cancelNote               String?
+
+  school   School   @relation(fields: [schoolId], references: [id], onDelete: Cascade)
+  employee Employee @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+
+  @@unique([schoolId, employeeId, schoolLocalDate])
+  @@index([schoolId, schoolLocalDate])
+  @@index([schoolId, approvalStatus])
 }
 
 model PayrollSetting {

@@ -266,6 +266,17 @@ export type EduClockStaffStatus = {
   currentShiftDurationMs?: number | null;
   currentShiftDurationDisplay?: string | null;
   missingClockOut?: boolean;
+  canReportAbsent?: boolean;
+  absence?: {
+    id?: string;
+    reason?: string;
+    reasonLabel?: string;
+    note?: string | null;
+    source?: string;
+    approvalStatus?: string;
+    reportedAtUtc?: string;
+    reportedTimeDisplay?: string;
+  } | null;
   recentShifts?: Array<Record<string, unknown>>;
 };
 
@@ -304,6 +315,31 @@ export async function postStaffClockOut(input?: {
       ...(input?.idempotencyKey ? { "Idempotency-Key": input.idempotencyKey } : {}),
     },
     body: JSON.stringify(body),
+  }) as Promise<Record<string, unknown>>;
+}
+
+export async function postStaffAbsence(input: {
+  reason: string;
+  note?: string | null;
+}): Promise<Record<string, unknown>> {
+  return apiFetch("/api/educlock/me/absence", {
+    method: "POST",
+    headers: { ...staffAuthHeaders(), "Content-Type": "application/json" },
+    body: JSON.stringify({
+      reason: input.reason,
+      note: input.note ? input.note : null,
+    }),
+  }) as Promise<Record<string, unknown>>;
+}
+
+export async function postOwnerCancelStaffAbsence(input: {
+  absenceId: string;
+  note?: string | null;
+}): Promise<Record<string, unknown>> {
+  return apiFetch(`/api/educlock/owner/absences/${encodeURIComponent(input.absenceId)}/cancel`, {
+    method: "POST",
+    headers: { ...staffAuthHeaders(), "Content-Type": "application/json" },
+    body: JSON.stringify({ note: input.note ? input.note : null }),
   }) as Promise<Record<string, unknown>>;
 }
 

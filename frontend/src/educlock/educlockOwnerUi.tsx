@@ -37,7 +37,7 @@ export function friendlyReadinessLabel(code: string): string {
   return mapped;
 }
 
-type BadgeTone = "green" | "blue" | "amber" | "orange" | "red" | "grey";
+type BadgeTone = "green" | "blue" | "amber" | "orange" | "red" | "grey" | "violet";
 
 const BADGE_TONES: Record<
   BadgeTone,
@@ -49,6 +49,7 @@ const BADGE_TONES: Record<
   orange: { bg: "#fff7ed", fg: "#c2410c", border: "#fed7aa" },
   red: { bg: "#fef2f2", fg: "#b91c1c", border: "#fecaca" },
   grey: { bg: "#f8fafc", fg: "#475569", border: "#e2e8f0" },
+  violet: { bg: "#f5f3ff", fg: "#6d28d9", border: "#ddd6fe" },
 };
 
 export function toneForReadinessReason(reason: string): BadgeTone {

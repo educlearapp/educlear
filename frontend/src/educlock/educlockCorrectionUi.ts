@@ -44,6 +44,17 @@ export function isNotClockedInStatus(status: unknown): boolean {
   return s === "Not Clocked In" || s === "NOT_CLOCKED_IN";
 }
 
+export function isAbsentReportedStatus(status: unknown): boolean {
+  const s = String(status || "").trim();
+  return (
+    s === "ABSENT" ||
+    s === "ABSENT_REPORTED" ||
+    s === "Absent Reported" ||
+    s.startsWith("Absent —") ||
+    s.startsWith("Absent -")
+  );
+}
+
 export function correctionFieldsForStatus(status: unknown): { clockIn: boolean; clockOut: boolean } {
   if (isMissingClockInStatus(status)) return { clockIn: true, clockOut: false };
   if (isMissingClockOutStatus(status) || isClockedInStatus(status)) return { clockIn: false, clockOut: true };
@@ -52,6 +63,7 @@ export function correctionFieldsForStatus(status: unknown): { clockIn: boolean; 
 }
 
 export function canOfferAttendanceCorrection(status: unknown): boolean {
+  if (isAbsentReportedStatus(status)) return false;
   const fields = correctionFieldsForStatus(status);
   return fields.clockIn || fields.clockOut;
 }
@@ -72,7 +84,9 @@ export function displayAttendanceDuration(row: {
     isMissingClockOutStatus(row.currentStatus) ||
     isMissingClockOutStatus(row.shiftStatus) ||
     isMissingClockInStatus(row.currentStatus) ||
-    isMissingClockInStatus(row.shiftStatus)
+    isMissingClockInStatus(row.shiftStatus) ||
+    isAbsentReportedStatus(row.currentStatus) ||
+    isAbsentReportedStatus(row.shiftStatus)
   ) {
     return "—";
   }

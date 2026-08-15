@@ -209,6 +209,14 @@ function main() {
     assert(r.warnings.some((w) => w.code === "DUPLICATE_CLOCK_IN_SEQUENCE"), "dup in");
   }
 
+  // Absence is not an EduClockEvent — pairing with no clock events yields 0 payable minutes.
+  {
+    const period = computePayrollPeriodBounds(2026, 8);
+    const r = pairEffectiveEventsForEmployee("emp-absent-only", [], period);
+    assert(r.pairs.length === 0, "absence-only: no pairs");
+    assert(r.workedMinutes === 0, "absence-only: 0 payable minutes");
+  }
+
   console.log("payrollEduClockPairing.test.ts: OK");
 }
 

@@ -3,6 +3,7 @@ import { Link, useNavigate } from "react-router-dom";
 import {
   fetchStaffClockHistory,
   fetchStaffClockStatus,
+  postStaffAbsence,
   postStaffClockIn,
   postStaffClockOut,
   type EduClockStaffStatus,
@@ -24,6 +25,14 @@ import {
   type EduClockLocationHelpContent,
   type EduClockPermissionQueryState,
 } from "./educlockLocationPermissionHelp";
+import {
+  STAFF_ABSENCE_REASONS,
+  STAFF_ABSENCE_REASON_LABELS,
+  absenceNoteRequired,
+  formatSchoolLocalDateLong,
+  isAbsentStaffStatus,
+  validateStaffAbsenceForm,
+} from "./educlockAbsenceUi";
 
 type Phase = "idle" | "locating" | "submitting" | "error";
 type ClockAction = "in" | "out";
@@ -59,6 +68,11 @@ export default function EduClockStaffClockPage() {
     buildLocationHelpContent(detectDeviceGuidanceKind())
   );
   const [lastGeoFailure, setLastGeoFailure] = useState<EduClockGeoFailure | null>(null);
+  const [absenceStep, setAbsenceStep] = useState<null | "form" | "confirm">(null);
+  const [absenceReason, setAbsenceReason] = useState("");
+  const [absenceNote, setAbsenceNote] = useState("");
+  const [absenceError, setAbsenceError] = useState("");
+  const [absenceSaving, setAbsenceSaving] = useState(false);
   const inFlight = useRef(false);
   const actionKeyRef = useRef<string | null>(null);
   const lastActionRef = useRef<ClockAction | null>(null);
@@ -255,6 +269,55 @@ export default function EduClockStaffClockPage() {
     setShowLocationHelp(true);
   }
 
+  function resetAbsenceForm() {
+    setAbsenceStep(null);
+    setAbsenceReason("");
+    setAbsenceNote("");
+    setAbsenceError("");
+    setAbsenceSaving(false);
+  }
+
+  function onOpenAbsenceForm() {
+    setError("");
+    setSuccess("");
+    setAbsenceError("");
+    setAbsenceStep("form");
+  }
+
+  function onAbsenceContinue() {
+    const check = validateStaffAbsenceForm({ reason: absenceReason, note: absenceNote });
+    if (!check.ok) {
+      setAbsenceError(check.error);
+      return;
+    }
+    setAbsenceError("");
+    setAbsenceStep("confirm");
+  }
+
+  async function onConfirmAbsence() {
+    const check = validateStaffAbsenceForm({ reason: absenceReason, note: absenceNote });
+    if (!check.ok) {
+      setAbsenceError(check.error);
+      setAbsenceStep("form");
+      return;
+    }
+    if (absenceSaving) return;
+    setAbsenceSaving(true);
+    setAbsenceError("");
+    try {
+      await postStaffAbsence({
+        reason: absenceReason,
+        note: absenceNote.trim() ? absenceNote.trim() : null,
+      });
+      resetAbsenceForm();
+      setSuccess("");
+      await reload();
+    } catch (err: unknown) {
+      setAbsenceError(err instanceof Error ? err.message : "Failed to report absence");
+      setAbsenceSaving(false);
+    }
+  }
+
   if (loading) {
     return (
       <main className="teacher-app-main" style={{ maxWidth: 480, margin: "0 auto", padding: 16 }}>
@@ -279,6 +342,14 @@ export default function EduClockStaffClockPage() {
   const blocked = status.readiness === "BLOCKED" || status.canClock === false;
   const missingClockOut = status.currentStatus === "MISSING_CLOCK_OUT";
   const clockedIn = status.currentStatus === "CLOCKED_IN";
+  const reportedAbsent = isAbsentStaffStatus(status.currentStatus);
+  const canReportAbsent =
+    Boolean(status.canReportAbsent) &&
+    !blocked &&
+    !clockedIn &&
+    !missingClockOut &&
+    !reportedAbsent;
+  const showClockActions = !blocked && !reportedAbsent && absenceStep == null;
 
   const locatingLabel = "Checking your location…";
   const submittingLabel =
@@ -327,13 +398,15 @@ export default function EduClockStaffClockPage() {
         </div>
         <div style={{ marginTop: 12, fontWeight: 800 }}>
           Status:{" "}
-          {status.currentStatus === "CLOCKED_IN"
-            ? "Clocked In"
-            : status.currentStatus === "MISSING_CLOCK_OUT"
-              ? "Missing Clock Out"
-              : status.currentStatus === "BLOCKED"
-                ? "Blocked"
-                : "Clocked Out"}
+          {reportedAbsent
+            ? "Absent Reported"
+            : status.currentStatus === "CLOCKED_IN"
+              ? "Clocked In"
+              : status.currentStatus === "MISSING_CLOCK_OUT"
+                ? "Missing Clock Out"
+                : status.currentStatus === "BLOCKED"
+                  ? "Blocked"
+                  : "Clocked Out"}
         </div>
         {status.activeClockIn ? (
           <div style={{ marginTop: 8, fontSize: 14 }}>
@@ -355,6 +428,152 @@ export default function EduClockStaffClockPage() {
             Check activation
           </Link>
         </div>
+      ) : reportedAbsent ? (
+        <section
+          style={{
+            marginTop: 16,
+            padding: 16,
+            borderRadius: 12,
+            background: "#f5f3ff",
+            border: "1px solid #ddd6fe",
+          }}
+        >
+          <strong style={{ color: "#5b21b6", fontSize: 18 }}>Absent Reported</strong>
+          <p style={{ margin: "8px 0 0", fontWeight: 700 }}>
+            Reason:{" "}
+            {String(
+              status.absence?.reasonLabel ||
+                STAFF_ABSENCE_REASON_LABELS[
+                  status.absence?.reason as keyof typeof STAFF_ABSENCE_REASON_LABELS
+                ] ||
+                "—"
+            )}
+          </p>
+          {status.absence?.reportedTimeDisplay ? (
+            <p className="teacher-muted" style={{ margin: "6px 0 0" }}>
+              Reported at {String(status.absence.reportedTimeDisplay)}
+            </p>
+          ) : null}
+          <p style={{ margin: "12px 0 0", color: "#5b21b6", lineHeight: 1.45 }}>
+            If your circumstances change and you need to report for work, contact management to
+            correct today’s attendance status.
+          </p>
+        </section>
+      ) : absenceStep === "form" ? (
+        <section
+          style={{
+            marginTop: 16,
+            padding: 16,
+            borderRadius: 12,
+            background: "#fff",
+            border: "1px solid #e5e7eb",
+          }}
+        >
+          <h2 style={{ margin: 0, fontSize: 18 }}>Report Absence</h2>
+          <p className="teacher-muted" style={{ margin: "8px 0 0" }}>
+            {formatSchoolLocalDateLong(status.schoolLocalDate)}
+          </p>
+          <label style={{ display: "block", marginTop: 14, fontWeight: 700 }}>
+            Reason
+            <select
+              value={absenceReason}
+              onChange={(e) => {
+                setAbsenceReason(e.target.value);
+                setAbsenceError("");
+              }}
+              required
+              style={{ display: "block", width: "100%", marginTop: 6, minHeight: 48, padding: 10 }}
+            >
+              <option value="">Select a reason</option>
+              {STAFF_ABSENCE_REASONS.map((code) => (
+                <option key={code} value={code}>
+                  {STAFF_ABSENCE_REASON_LABELS[code]}
+                </option>
+              ))}
+            </select>
+          </label>
+          <label style={{ display: "block", marginTop: 14, fontWeight: 700 }}>
+            Additional note{absenceNoteRequired(absenceReason) ? " (required)" : " (optional)"}
+            <textarea
+              value={absenceNote}
+              onChange={(e) => setAbsenceNote(e.target.value)}
+              rows={3}
+              maxLength={500}
+              style={{
+                display: "block",
+                width: "100%",
+                marginTop: 6,
+                padding: 10,
+                boxSizing: "border-box",
+              }}
+            />
+          </label>
+          {absenceError ? (
+            <p role="alert" className="teacher-error" style={{ marginTop: 10 }}>
+              {absenceError}
+            </p>
+          ) : null}
+          <button
+            type="button"
+            className="teacher-touch-btn primary"
+            onClick={onAbsenceContinue}
+            style={{ width: "100%", minHeight: 52, marginTop: 14, fontWeight: 800 }}
+          >
+            Continue
+          </button>
+          <button
+            type="button"
+            className="teacher-touch-btn"
+            onClick={resetAbsenceForm}
+            style={{ width: "100%", minHeight: 48, marginTop: 8 }}
+          >
+            Cancel
+          </button>
+        </section>
+      ) : absenceStep === "confirm" ? (
+        <section
+          style={{
+            marginTop: 16,
+            padding: 16,
+            borderRadius: 12,
+            background: "#fff",
+            border: "1px solid #e5e7eb",
+          }}
+        >
+          <h2 style={{ margin: 0, fontSize: 18 }}>Confirm absence</h2>
+          <p style={{ marginTop: 12, lineHeight: 1.5 }}>
+            Report yourself absent for {formatSchoolLocalDateLong(status.schoolLocalDate)}?
+          </p>
+          <p style={{ fontWeight: 700 }}>
+            Reason:{" "}
+            {STAFF_ABSENCE_REASON_LABELS[absenceReason as keyof typeof STAFF_ABSENCE_REASON_LABELS] ||
+              absenceReason}
+          </p>
+          {absenceNote.trim() ? <p style={{ marginTop: 8 }}>Note: {absenceNote.trim()}</p> : null}
+          {absenceError ? (
+            <p role="alert" className="teacher-error" style={{ marginTop: 10 }}>
+              {absenceError}
+            </p>
+          ) : null}
+          <button
+            type="button"
+            className="teacher-touch-btn primary"
+            disabled={absenceSaving}
+            onClick={() => void onConfirmAbsence()}
+            style={{ width: "100%", minHeight: 52, marginTop: 14, fontWeight: 800 }}
+          >
+            {absenceSaving ? "Reporting…" : "Report Absent"}
+          </button>
+          <button
+            type="button"
+            className="teacher-touch-btn"
+            disabled={absenceSaving}
+            onClick={resetAbsenceForm}
+            style={{ width: "100%", minHeight: 48, marginTop: 8 }}
+          >
+            Cancel
+          </button>
+        </section>
       ) : (
         <div style={{ marginTop: 20 }}>
           {missingClockOut ? (
@@ -393,6 +612,26 @@ export default function EduClockStaffClockPage() {
               {buttonLabel}
             </button>
           )}
+          {canReportAbsent && !clockedIn && !missingClockOut ? (
+            <button
+              type="button"
+              className="teacher-touch-btn"
+              disabled={busy}
+              onClick={onOpenAbsenceForm}
+              style={{
+                width: "100%",
+                minHeight: 48,
+                marginTop: 10,
+                fontSize: 16,
+                fontWeight: 600,
+                background: "#fff",
+                color: "#334155",
+                border: "1px solid #cbd5e1",
+              }}
+            >
+              Report Absent
+            </button>
+          ) : null}
           {phase === "locating" || phase === "submitting" ? (
             <p className="teacher-muted" style={{ marginTop: 10 }} aria-live="polite">
               {phase === "locating" ? locatingLabel : submittingLabel}
@@ -414,7 +653,7 @@ export default function EduClockStaffClockPage() {
         </div>
       ) : null}
 
-      {!blocked ? (
+      {showClockActions ? (
         <div style={{ display: "flex", flexWrap: "wrap", gap: 8, marginTop: 12 }}>
           <button
             type="button"

@@ -32,6 +32,7 @@ import {
   staffClockIn,
   staffClockOut,
 } from "../services/educlockClockService";
+import { ownerCancelStaffAbsence, staffReportAbsence } from "../services/educlockStaffAbsence";
 import { prisma } from "../prisma";
 import { maskIdentityNumber } from "../services/employeeIdentityVerification";
 import { hasPermission, resolveStoredPermissions } from "../utils/userPermissions";
@@ -419,6 +420,29 @@ router.post("/me/clock-out", async (req, res) => {
   }
 });
 
+router.post("/me/absence", async (req, res) => {
+  try {
+    const auth = await requireStaffAuth(req);
+    const rejected = rejectClientIdentityFields(req.body);
+    if (rejected) {
+      return res.status(400).json({
+        error: "Client may not supply identity or school override fields.",
+        code: "EDUCLOCK_IDENTITY_INVALID",
+      });
+    }
+    const result = await staffReportAbsence({
+      userId: auth.userId,
+      schoolId: auth.authorizedSchoolId,
+      reason: req.body?.reason,
+      note: req.body?.note,
+      schoolLocalDate: req.body?.schoolLocalDate,
+    });
+    return res.status(result.idempotentReplay ? 200 : 201).json(result);
+  } catch (err) {
+    return sendEduClockError(res, err);
+  }
+});
+
 router.get("/me/history", async (req, res) => {
   try {
     const auth = await requireStaffAuth(req);
@@ -506,6 +530,21 @@ router.post("/owner/corrections", async (req, res) => {
       targetEventId: req.body?.targetEventId == null ? null : String(req.body.targetEventId),
     });
     return res.status(201).json(result);
+  } catch (err) {
+    return sendEduClockError(res, err);
+  }
+});
+
+router.post("/owner/absences/:absenceId/cancel", async (req, res) => {
+  try {
+    const auth = await requireEduClockManage(req);
+    const result = await ownerCancelStaffAbsence({
+      schoolId: auth.authorizedSchoolId,
+      actorUserId: auth.userId,
+      absenceId: String(req.params.absenceId || ""),
+      note: req.body?.note,
+    });
+    return res.json(result);
   } catch (err) {
     return sendEduClockError(res, err);
   }

@@ -834,7 +834,7 @@ async function main() {
     assert(bothRow.correctionStatus === "Manually Corrected", "both corrected");
 
     // Current-day live open shift still shows duration (not incomplete).
-    const liveInAt = frozenNow;
+    const liveInAt = new Date();
     const liveLocal = resolveSchoolLocalParts(liveInAt, "Africa/Johannesburg");
     const liveEmp = await prisma.employee.create({
       data: {
