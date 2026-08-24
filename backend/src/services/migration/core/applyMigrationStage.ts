@@ -66,6 +66,7 @@ import {
   saveMigrationIntegrity,
   type MigrationIntegrityFinding,
 } from "./migrationIntegrityStore";
+import { shouldAutoPostExpressInvoiceTransactions } from "./expressInvoiceAuthority";
 
 const MIGRATION_APPLY_TX_OPTIONS = { maxWait: 30000, timeout: 180000 };
 
@@ -1254,6 +1255,18 @@ export async function applyMigrationStage(
         const applyTransactions =
           plan.entityKinds.has("transaction") && hasTargetsInSet(plan.mappings, TRANSACTION_FIELDS);
         if (!applyTransactions) continue;
+        if (!shouldAutoPostExpressInvoiceTransactions(plan.filename)) {
+          pushReport(report, {
+            entityType: "transaction",
+            sourceFileId: plan.fileId,
+            sourceFilename: plan.filename,
+            rowNumber: 0,
+            status: "not_applied",
+            message:
+              "This export is supporting detail only (for example item sales). It is not posted as family invoices or payments.",
+          });
+          continue;
+        }
 
         for (let i = 0; i < rows.length; i++) {
           const rowNumber = i + 1;

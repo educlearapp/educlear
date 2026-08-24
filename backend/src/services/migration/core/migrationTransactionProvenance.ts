@@ -27,9 +27,12 @@ export function migrationTransactionProvenance(input: {
   if (!accountRef) return null;
 
   if (reference) {
+    // Invoice numbers are unique source documents — date may differ across overlapping extracts.
+    // Separate payments on the same invoice on different days must remain distinct.
+    const ignoreDate = input.postingType === "invoice" || input.postingType === "journal_debit";
     return {
       accountRef,
-      date: "*",
+      date: ignoreDate ? "*" : date || "*",
       reference,
       amount,
       postingType: input.postingType,

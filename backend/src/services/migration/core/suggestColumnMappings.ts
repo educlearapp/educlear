@@ -10,6 +10,7 @@ import {
   normalizeSASAMSColumn,
 } from "../adapters/sasamsNormalization";
 import type { MigrationTargetField } from "../types/MigrationTargetField";
+import { expressInvoiceAuthorityForFilename } from "./expressInvoiceAuthority";
 
 export type ColumnMappingSuggestion = {
   sourceColumn: string;
@@ -553,6 +554,39 @@ export function suggestColumnMappings(
       category: input.category,
       mappings: [],
       unmappedColumns: columns,
+    };
+  }
+
+  const expressAuthority = expressInvoiceAuthorityForFilename(input.filename);
+  if (expressAuthority) {
+    const bySource = new Map(
+      expressAuthority.columnMappings.map((m) => [compactColumnKey(m.sourceColumn), m.targetField])
+    );
+    for (const sourceColumn of columns) {
+      const mappedTarget = bySource.get(compactColumnKey(sourceColumn));
+      if (!mappedTarget) {
+        unmappedColumns.push(sourceColumn);
+        mappings.push({
+          sourceColumn,
+          suggestedTarget: null,
+          confidence: 0,
+          reason: `${expressAuthority.label} does not use this column as import authority`,
+        });
+        continue;
+      }
+      mappings.push({
+        sourceColumn,
+        suggestedTarget: mappedTarget as MigrationTargetField,
+        confidence: 96,
+        reason: `${expressAuthority.label} authority mapping`,
+      });
+    }
+    return {
+      fileId: input.fileId,
+      filename: input.filename,
+      category: input.category,
+      mappings,
+      unmappedColumns,
     };
   }
 
