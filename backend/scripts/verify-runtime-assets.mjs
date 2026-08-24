@@ -8,7 +8,9 @@
  * - unique account refs
  * - forbidden refs (JAC001, LET007)
  * - required snapshot fields
- * - educlear-registration rows must link to ≥1 learner in DB (Render / explicit opt-in)
+ * - educlear-registration rows must have a FamilyAccount row in DB (Render / explicit opt-in)
+ * - zero-learner FamilyAccount is WARN only when it is a zero-money empty shell;
+ *   unexplained invoices/payments/credits/deposits still fail closed
  */
 import fs from "fs";
 import path from "path";
@@ -19,9 +21,19 @@ import {
   countSchoolObjectKeys,
   repairMissingSupportFiles,
 } from "./lib/billingDiskSupportFiles.mjs";
+import {
+  classifyRegistrationFamilyAccountBoot,
+  flattenPaymentAllocationRows,
+  rowsForAccount,
+} from "./lib/emptyRegistrationFamilyAccount.mjs";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const BACKEND_ROOT = path.resolve(__dirname, "..");
+
+function assetsRoot() {
+  const override = String(process.env.RUNTIME_ASSETS_BACKEND_ROOT || "").trim();
+  return override ? path.resolve(override) : BACKEND_ROOT;
+}
 
 const REQUIRED_SNAPSHOT_FIELDS = ["schoolId", "accountRef", "accountHolder", "balance", "buckets", "source", "importedAt"];
 const ALLOWED_SOURCES = new Set(["kideesys-age-analysis", "educlear-registration"]);
@@ -164,6 +176,32 @@ function verifyAgeAnalysisIntegrity(rel, payload) {
   );
 }
 
+function readJsonIfPresent(absPath) {
+  if (!fs.existsSync(absPath)) return null;
+  try {
+    return JSON.parse(fs.readFileSync(absPath, "utf8"));
+  } catch {
+    return null;
+  }
+}
+
+function loadAccountFinancialSidecar(schoolId, accountRef) {
+  const root = assetsRoot();
+  const ledgerParsed = readJsonIfPresent(path.join(root, "data", "billing-ledger.json"));
+  const allocParsed = readJsonIfPresent(path.join(root, "data", "payment-allocations.json"));
+  const ledgerEntries = rowsForAccount(
+    Array.isArray(ledgerParsed?.[schoolId]) ? ledgerParsed[schoolId] : [],
+    accountRef,
+    ["accountNo", "accountRef"]
+  );
+  const paymentAllocations = rowsForAccount(
+    flattenPaymentAllocationRows(allocParsed?.[schoolId]),
+    accountRef,
+    ["accountRef", "accountNo"]
+  );
+  return { ledgerEntries, paymentAllocations };
+}
+
 async function verifyEduclearRegistrationLearnerLinks(rel, payload) {
   if (!shouldVerifyRegistrationLearnerLinks()) {
     console.log(
@@ -195,6 +233,7 @@ async function verifyEduclearRegistrationLearnerLinks(rel, payload) {
           id: true,
           accountRef: true,
           _count: { select: { learners: true } },
+          billingDeposits: { select: { remainingBalance: true, status: true } },
         },
       });
       if (!fa) {
@@ -202,11 +241,25 @@ async function verifyEduclearRegistrationLearnerLinks(rel, payload) {
           `${rel} orphan educlear-registration account ${ref}: FamilyAccount row missing`
         );
       }
-      if (!fa._count.learners) {
-        fail(
-          `${rel} orphan educlear-registration account ${ref}: FamilyAccount ${fa.id} has zero learners`
+      if (fa._count.learners > 0) continue;
+
+      const sidecar = loadAccountFinancialSidecar(DA_SILVA_SCHOOL_ID, ref);
+      const decision = classifyRegistrationFamilyAccountBoot({
+        learnerCount: fa._count.learners,
+        snapshot: payload[ref],
+        ledgerEntries: sidecar.ledgerEntries,
+        paymentAllocations: sidecar.paymentAllocations,
+        deposits: fa.billingDeposits || [],
+      });
+      if (decision.action === "warn") {
+        console.warn(
+          `[runtime-assets] WARN ${rel} educlear-registration account ${ref}: FamilyAccount ${fa.id} has zero learners (${decision.reason}; not boot-fatal)`
         );
+        continue;
       }
+      fail(
+        `${rel} orphan educlear-registration account ${ref}: FamilyAccount ${fa.id} has zero learners and unexplained financial position (${decision.reason})`
+      );
     }
     console.log(
       `[runtime-assets] OK educlear-registration learner links (${registrationRefs.length} account(s))`
@@ -217,7 +270,7 @@ async function verifyEduclearRegistrationLearnerLinks(rel, payload) {
 }
 
 async function verifyCriticalFile(spec) {
-  const absPath = path.join(BACKEND_ROOT, spec.rel);
+  const absPath = path.join(assetsRoot(), spec.rel);
   if (!fs.existsSync(absPath)) {
     fail(`missing critical ${spec.rel} (expected at ${absPath})`);
   }
@@ -252,7 +305,7 @@ async function verifyCriticalFile(spec) {
 }
 
 function verifySupportFile(spec) {
-  const absPath = path.join(BACKEND_ROOT, spec.rel);
+  const absPath = path.join(assetsRoot(), spec.rel);
   if (!fs.existsSync(absPath)) {
     console.warn(`[runtime-assets] WARN missing support ${spec.rel} after repair`);
     return;
@@ -317,8 +370,9 @@ function verifySupportFile(spec) {
 }
 
 async function main() {
-  console.log(`[runtime-assets] Repairing missing support files under ${BACKEND_ROOT}/data`);
-  const repair = repairMissingSupportFiles(BACKEND_ROOT);
+  const root = assetsRoot();
+  console.log(`[runtime-assets] Repairing missing support files under ${root}/data`);
+  const repair = repairMissingSupportFiles(root);
   if (repair.created.length) {
     for (const row of repair.created) {
       console.log(`[runtime-assets] repaired ${row.file} from ${row.source}`);
