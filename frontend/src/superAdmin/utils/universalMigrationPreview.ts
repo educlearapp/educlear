@@ -10,6 +10,11 @@ export type MigrationFilePreview = {
   rowCount: number;
   warnings: string[];
   path?: string;
+  worksheetName?: string;
+  workbookFilename?: string;
+  sheetRole?: string;
+  sheetKind?: string;
+  headerRowIndex?: number | null;
 };
 
 export type UniversalMigrationPreviewResponse = {

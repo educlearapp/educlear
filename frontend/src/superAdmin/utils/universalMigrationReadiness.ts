@@ -103,7 +103,14 @@ export function readinessUiStatusLabel(status: AdapterReadinessUiStatus): string
 type UploadedFileLike = {
   id: string;
   category: UniversalMigrationFileCategory;
+  sheetRole?: string | null;
 };
+
+function fileCountsTowardRequiredCategory(file: UploadedFileLike): boolean {
+  const role = String(file.sheetRole || "DATA").toUpperCase();
+  if (role === "SUMMARY" || role === "SUPPORTING") return false;
+  return true;
+}
 
 export function computeAdapterReadinessWarnings(input: {
   template: MigrationAdapterReadinessTemplate | null;
@@ -114,7 +121,8 @@ export function computeAdapterReadinessWarnings(input: {
   if (!template) return [];
 
   const warnings: AdapterReadinessWarning[] = [];
-  const uploadedCategories = new Set(uploadedFiles.map((f) => f.category));
+  const authorityFiles = uploadedFiles.filter(fileCountsTowardRequiredCategory);
+  const uploadedCategories = new Set(authorityFiles.map((f) => f.category));
 
   for (const file of template.requiredFiles) {
     if (!file.required) continue;
@@ -138,7 +146,7 @@ export function computeAdapterReadinessWarnings(input: {
     if (!field.required) continue;
     if (!uploadedCategories.has(field.category)) continue;
 
-    const fileIdsInCategory = uploadedFiles
+    const fileIdsInCategory = authorityFiles
       .filter((f) => f.category === field.category)
       .map((f) => f.id);
 

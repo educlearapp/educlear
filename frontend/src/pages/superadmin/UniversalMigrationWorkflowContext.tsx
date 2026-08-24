@@ -114,6 +114,7 @@ export type UniversalMigrationWorkflowContextValue = {
   canTestAdapter: boolean;
   rulesForSave: ReturnType<typeof collectMappingRulesForTemplate>;
   handleMappingOverride: (fileId: string, sourceColumn: string, target: string) => void;
+  handleCategoryOverride: (fileId: string, category: UniversalMigrationUploadedFile["category"]) => void;
   handleValidate: () => Promise<void>;
   handleTestAdapter: () => Promise<void>;
   clearAll: () => void;
@@ -521,6 +522,55 @@ export function UniversalMigrationWorkflowProvider({ children }: { children: Rea
     [persistSession]
   );
 
+  const handleCategoryOverride = useCallback(
+    (fileId: string, category: UniversalMigrationUploadedFile["category"]) => {
+      const dataCategories = new Set([
+        "learners",
+        "parents",
+        "billing",
+        "transactions",
+        "staff",
+        "historical",
+      ]);
+      setUploadedFiles((prev) => {
+        const next = prev.map((file) =>
+          file.id === fileId
+            ? {
+                ...file,
+                category,
+                categoryOverridden: true,
+                sheetRole: dataCategories.has(category) ? "DATA" : file.sheetRole,
+              }
+            : file
+        );
+        persistSession({
+          uploadedFiles: next,
+          validationSummary: null,
+          validationIssues: [],
+          dryRunStage: null,
+        });
+        return next;
+      });
+      setPreviews((prev) => {
+        const next = prev.map((preview) =>
+          preview.fileId === fileId
+            ? {
+                ...preview,
+                category,
+                sheetRole: dataCategories.has(category) ? "DATA" : preview.sheetRole,
+              }
+            : preview
+        );
+        void loadMappingSuggestions(next);
+        return next;
+      });
+      setValidationSummary(null);
+      setValidationIssues([]);
+      setDryRunStage(null);
+    },
+    [persistSession, loadMappingSuggestions]
+  );
+
   const handleValidate = useCallback(async () => {
     const mappings = buildEffectiveFileMappings(mappingSuggestions, mappingOverrides);
     const hasPlan = Boolean(sourceAnalysisId || compiledPlanId);
@@ -838,6 +888,7 @@ export function UniversalMigrationWorkflowProvider({ children }: { children: Rea
       canTestAdapter,
       rulesForSave,
       handleMappingOverride,
+      handleCategoryOverride,
       handleValidate,
       handleTestAdapter,
       clearAll,
@@ -901,6 +952,7 @@ export function UniversalMigrationWorkflowProvider({ children }: { children: Rea
       canTestAdapter,
       rulesForSave,
       handleMappingOverride,
+      handleCategoryOverride,
       handleValidate,
       handleTestAdapter,
       clearAll,

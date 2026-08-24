@@ -8,4 +8,9 @@ export interface MigrationFilePreview {
   warnings: string[];
   /** Staging disk path — persisted on dry-run stage for apply. */
   path?: string;
+  worksheetName?: string;
+  workbookFilename?: string;
+  sheetRole?: string;
+  sheetKind?: string;
+  headerRowIndex?: number | null;
 }

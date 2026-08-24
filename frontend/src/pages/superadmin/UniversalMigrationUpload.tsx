@@ -1,5 +1,5 @@
 import { useCallback, useRef, useState } from "react";
-import type { UniversalMigrationFileCategory } from "../../superAdmin/utils/universalMigrationUpload";
+import type { UniversalMigrationFileCategory, UniversalMigrationUploadedFile } from "../../superAdmin/utils/universalMigrationUpload";
 import UniversalMigrationFilePreview from "./UniversalMigrationFilePreview";
 import UniversalMigrationTemplateLoadModal from "./UniversalMigrationTemplateLoadModal";
 import UniversalMigrationTemplateSaveModal from "./UniversalMigrationTemplateSaveModal";
@@ -48,6 +48,30 @@ function mimeLabel(mimeType: string, filename: string): string {
   return mimeType.split("/").pop()?.toUpperCase() || "FILE";
 }
 
+function sheetRoleLabel(role?: string): string | null {
+  const value = String(role || "").toUpperCase();
+  if (value === "SUMMARY") return "Summary";
+  if (value === "SUPPORTING") return "Supporting";
+  if (value === "DATA") return "Data";
+  return null;
+}
+
+function groupUploadedFiles(files: UniversalMigrationUploadedFile[]) {
+  const groups: Array<{ workbook: string; files: UniversalMigrationUploadedFile[] }> = [];
+  const index = new Map<string, number>();
+  for (const file of files) {
+    const workbook = String(file.workbookFilename || file.filename);
+    const existing = index.get(workbook);
+    if (existing == null) {
+      index.set(workbook, groups.length);
+      groups.push({ workbook, files: [file] });
+    } else {
+      groups[existing]!.files.push(file);
+    }
+  }
+  return groups;
+}
+
 export default function UniversalMigrationUpload() {
   const inputRef = useRef<HTMLInputElement>(null);
   const [dragOver, setDragOver] = useState(false);
@@ -89,6 +113,7 @@ export default function UniversalMigrationUpload() {
     canTestAdapter,
     rulesForSave,
     handleMappingOverride,
+    handleCategoryOverride,
     handleTestAdapter,
     clearAll,
     handleApplyTemplate,
@@ -281,7 +306,7 @@ export default function UniversalMigrationUpload() {
         </span>
         <p className="uc-migration-center-dropzone-title">Drag and drop export files</p>
         <p className="uc-migration-center-dropzone-text">
-          CSV, XLS, XLSX, PDF — multi-file supported. Payment Receive List PDFs are reconciliation only.
+          CSV, XLS, XLSX, PDF — multi-file and multi-sheet workbooks supported. Each worksheet is classified separately.
         </p>
         {uploadProgress != null ? (
           <p className="uc-migration-upload-progress" aria-live="polite">
@@ -315,27 +340,45 @@ export default function UniversalMigrationUpload() {
           <p className="uc-migration-upload-empty">No files uploaded yet.</p>
         ) : (
           <ul className="uc-migration-upload-list">
-            {uploadedFiles.map((file) => (
-              <li key={file.id} className="uc-migration-upload-item">
-                <div className="uc-migration-upload-item-main">
-                  <span className="uc-migration-upload-filename">{file.filename}</span>
-                  <span className="uc-migration-upload-meta">{formatBytes(file.size)}</span>
-                </div>
-                <div className="uc-migration-upload-item-badges">
-                  <span
-                    className={`uc-migration-upload-badge uc-migration-upload-badge--category uc-migration-upload-badge--${file.category}`}
-                  >
-                    {categoryLabel(file.category, file.filename)}
-                  </span>
-                  <span className="uc-migration-upload-badge uc-migration-upload-badge--type">
-                    {mimeLabel(file.mimeType, file.filename)}
-                  </span>
-                  {file.category === "payment-receive-list" ? (
-                    <span className="uc-migration-upload-badge uc-migration-upload-badge--type">
-                      Reconciliation only — does not affect balances.
-                    </span>
-                  ) : null}
-                </div>
+            {groupUploadedFiles(uploadedFiles).map((group) => (
+              <li key={group.workbook} className="uc-migration-upload-workbook">
+                <div className="uc-migration-upload-workbook-title">{group.workbook}</div>
+                <ul className="uc-migration-upload-sheet-list">
+                  {group.files.map((file) => {
+                    const preview = previews.find((p) => p.fileId === file.id);
+                    return (
+                    <li key={file.id} className="uc-migration-upload-item">
+                      <div className="uc-migration-upload-item-main">
+                        <span className="uc-migration-upload-filename">
+                          {file.worksheetName ? `Sheet: ${file.worksheetName}` : file.filename}
+                        </span>
+                        <span className="uc-migration-upload-meta">
+                          {file.worksheetName
+                            ? `${categoryLabel(file.category, file.filename)}${
+                                preview ? ` · ${preview.rowCount.toLocaleString()} rows` : ""
+                              }`
+                            : formatBytes(file.size)}
+                        </span>
+                      </div>
+                      <div className="uc-migration-upload-item-badges">
+                        <span
+                          className={`uc-migration-upload-badge uc-migration-upload-badge--category uc-migration-upload-badge--${file.category}`}
+                        >
+                          {categoryLabel(file.category, file.filename)}
+                        </span>
+                        {sheetRoleLabel(file.sheetRole) ? (
+                          <span className={`uc-migration-upload-badge uc-migration-upload-badge--role-${String(file.sheetRole || "").toLowerCase()}`}>
+                            {sheetRoleLabel(file.sheetRole)}
+                          </span>
+                        ) : null}
+                        <span className="uc-migration-upload-badge uc-migration-upload-badge--type">
+                          {mimeLabel(file.mimeType, file.filename)}
+                        </span>
+                      </div>
+                    </li>
+                    );
+                  })}
+                </ul>
               </li>
             ))}
           </ul>
@@ -387,6 +430,12 @@ export default function UniversalMigrationUpload() {
                   mappingOverrides={mappingOverrides[preview.fileId] ?? {}}
                   onMappingOverrideChange={(sourceColumn, target) =>
                     handleMappingOverride(preview.fileId, sourceColumn, target)
+                  }
+                  onCategoryOverrideChange={(category) =>
+                    handleCategoryOverride(
+                      preview.fileId,
+                      category as UniversalMigrationFileCategory
+                    )
                   }
                 />
               );

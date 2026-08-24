@@ -44,10 +44,7 @@ function parseRowCells(rowXml: string): string[] {
   return row;
 }
 
-function parseWorksheet(xml: string, worksheetName?: string): KideesysSheet {
-  const wsMatch = xml.match(/<Worksheet\b[^>]*ss:Name="([^"]*)"[^>]*>([\s\S]*?)<\/Worksheet>/i);
-  const name = worksheetName || wsMatch?.[1] || "Report";
-  const wsBody = wsMatch?.[2] || xml;
+function parseWorksheetBody(name: string, wsBody: string): KideesysSheet {
   const tableMatch = wsBody.match(/<ss:Table>([\s\S]*?)<\/ss:Table>/i);
   const tableBody = tableMatch?.[1] || wsBody;
   const rows: string[][] = [];
@@ -59,23 +56,68 @@ function parseWorksheet(xml: string, worksheetName?: string): KideesysSheet {
   return { name, rows };
 }
 
+function parseWorksheet(xml: string, worksheetName?: string): KideesysSheet {
+  const all = parseAllXmlWorksheets(xml);
+  if (worksheetName) {
+    const wanted = worksheetName.trim().toLowerCase();
+    const match = all.find((s) => s.name.trim().toLowerCase() === wanted);
+    if (match) return match;
+  }
+  if (all.length) return all[0]!;
+  const wsMatch = xml.match(/<Worksheet\b[^>]*ss:Name="([^"]*)"[^>]*>([\s\S]*?)<\/Worksheet>/i);
+  return parseWorksheetBody(worksheetName || wsMatch?.[1] || "Report", wsMatch?.[2] || xml);
+}
+
+function parseAllXmlWorksheets(xml: string): KideesysSheet[] {
+  const sheets: KideesysSheet[] = [];
+  const regex = /<Worksheet\b([^>]*)>([\s\S]*?)<\/Worksheet>/gi;
+  let match: RegExpExecArray | null;
+  while ((match = regex.exec(xml)) !== null) {
+    const attrs = match[1] || "";
+    const nameMatch = attrs.match(/ss:Name="([^"]*)"/i);
+    sheets.push(parseWorksheetBody(nameMatch?.[1] || `Sheet${sheets.length + 1}`, match[2] || ""));
+  }
+  return sheets;
+}
+
 /** True when .xls is SpreadsheetML XML (Kid-e-Sys), not binary BIFF (SA-SAMS). */
 export function isKideesysXmlSpreadsheet(buffer: Buffer): boolean {
   const head = buffer.subarray(0, Math.min(buffer.length, 4096)).toString("utf8");
   return head.includes("<?xml") && (head.includes("<Workbook") || head.includes(":Workbook"));
 }
 
-function sheetMatrixFromBinarySpreadsheet(buffer: Buffer): string[][] {
-  const workbook = XLSX.read(buffer, { type: "buffer", cellDates: false });
-  const sheetName = workbook.SheetNames[0];
-  if (!sheetName) return [];
-  const sheet = workbook.Sheets[sheetName];
+function sheetToMatrix(sheet: XLSX.WorkSheet | undefined): string[][] {
+  if (!sheet) return [];
   const raw = XLSX.utils.sheet_to_json<(string | number | boolean | null)[]>(sheet, {
     header: 1,
     defval: "",
     raw: false,
   });
   return raw.map((row) => row.map((cell) => String(cell ?? "").trim()));
+}
+
+function sheetMatrixFromBinarySpreadsheet(buffer: Buffer, worksheetName?: string): string[][] {
+  const workbook = XLSX.read(buffer, { type: "buffer", cellDates: false });
+  if (worksheetName) {
+    const wanted = worksheetName.trim().toLowerCase();
+    const name = workbook.SheetNames.find((n) => n.trim().toLowerCase() === wanted);
+    return name ? sheetToMatrix(workbook.Sheets[name]) : [];
+  }
+  const sheetName = workbook.SheetNames[0];
+  if (!sheetName) return [];
+  return sheetToMatrix(workbook.Sheets[sheetName]);
+}
+
+export function parseAllKideesysSpreadsheetSheets(buffer: Buffer): KideesysSheet[] {
+  if (isKideesysXmlSpreadsheet(buffer)) {
+    const sheets = parseAllXmlWorksheets(buffer.toString("utf8"));
+    return sheets.length ? sheets : [{ name: "Sheet1", rows: [] }];
+  }
+  const workbook = XLSX.read(buffer, { type: "buffer", cellDates: false });
+  return (workbook.SheetNames || []).map((name) => ({
+    name,
+    rows: sheetToMatrix(workbook.Sheets[name]),
+  }));
 }
 
 /** Parse .xls/.xlsx: Kid-e-Sys XML SpreadsheetML or binary Excel (SA-SAMS). */
@@ -91,13 +133,12 @@ export function parseKideesysSpreadsheetXml(xml: string): KideesysSheet {
 
 export function parseKideesysSpreadsheetBuffer(buffer: Buffer, worksheetName?: string): KideesysSheet {
   if (isKideesysXmlSpreadsheet(buffer)) {
-    const sheet = parseKideesysSpreadsheetXml(buffer.toString("utf8"));
-    if (worksheetName) sheet.name = worksheetName;
+    const sheet = parseWorksheet(buffer.toString("utf8"), worksheetName);
     return sheet;
   }
   return {
     name: worksheetName || "Sheet1",
-    rows: sheetMatrixFromBinarySpreadsheet(buffer),
+    rows: sheetMatrixFromBinarySpreadsheet(buffer, worksheetName),
   };
 }
 

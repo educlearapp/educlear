@@ -98,6 +98,8 @@ function computeStagedCounts(previews: MigrationFilePreview[]): MigrationStagedC
   };
 
   for (const preview of previews) {
+    const role = String(preview.sheetRole || "DATA").toUpperCase();
+    if (role === "SUMMARY" || role === "SUPPORTING") continue;
     const rowCount = Math.max(0, Number(preview.rowCount) || 0);
     if (rowCount === 0) continue;
 
@@ -245,6 +247,11 @@ export function buildMigrationStage(input: BuildMigrationStageInput): MigrationS
         category: p.category,
         rowCount: Math.max(0, Number(p.rowCount) || 0),
         ...(pathValue ? { path: pathValue } : {}),
+        ...(p.worksheetName ? { worksheetName: p.worksheetName } : {}),
+        ...(p.workbookFilename ? { workbookFilename: p.workbookFilename } : {}),
+        ...(p.sheetRole ? { sheetRole: p.sheetRole } : {}),
+        ...(p.sheetKind ? { sheetKind: p.sheetKind } : {}),
+        ...(p.headerRowIndex != null ? { headerRowIndex: p.headerRowIndex } : {}),
       };
     }),
     mappings: effectiveMappings,

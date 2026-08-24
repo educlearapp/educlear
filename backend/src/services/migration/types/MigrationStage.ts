@@ -27,6 +27,11 @@ export type MigrationStageFileSummary = {
   rowCount: number;
   /** Absolute path under migration staging — required for apply. */
   path?: string;
+  worksheetName?: string;
+  workbookFilename?: string;
+  sheetRole?: string;
+  sheetKind?: string;
+  headerRowIndex?: number | null;
 };
 
 /** Read-only dry-run package — no live school data. */

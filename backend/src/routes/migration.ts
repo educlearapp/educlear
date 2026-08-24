@@ -22,6 +22,8 @@ import {
 } from "../utils/migrationLearnerFileParser";
 import { randomUUID } from "crypto";
 import { detectMigrationCategory } from "../services/migration/core/detectMigrationCategory";
+import { expandWorkbookToLogicalFiles } from "../services/migration/core/expandWorkbookUpload";
+import { isNonAuthorityMigrationSheet } from "../services/migration/core/classifyMigrationSheet";
 import {
   ensureUniversalMigrationStagingDir,
   getUniversalMigrationStagingDir,
@@ -79,7 +81,7 @@ import {
   applyMigrationStage,
   MigrationApplyError,
 } from "../services/migration/core/applyMigrationStage";
-import { parseStagedMigrationFile } from "../services/migration/core/parseStagedMigrationFile";
+import { parseStagedMigrationFile, parseStagedMigrationSource } from "../services/migration/core/parseStagedMigrationFile";
 import { reconcileMigrationFinance } from "../services/migration/finance/reconcileMigrationFinance";
 import {
   getBoundFinanceReconciliation,
@@ -333,24 +335,58 @@ migrationUploadRouter.post(
         );
       }
 
-      const files: MigrationFile[] = uploaded.map((file) => {
+      const files: MigrationFile[] = [];
+      for (const file of uploaded) {
         const filename = String(file.originalname || file.filename);
         const storedName = String(file.filename);
         const absolutePath = path.join(getUniversalMigrationStagingDir(), storedName);
-        const category = detectMigrationCategory(filename);
-        return {
+        const ext = path.extname(filename).toLowerCase();
+        if (ext === ".pdf") {
+          const category = detectMigrationCategory(filename);
+          files.push({
+            id: randomUUID(),
+            filename,
+            mimeType: String(file.mimetype || "application/octet-stream"),
+            size: file.size,
+            uploadedAt: new Date(),
+            category,
+            ...(category === "payment-receive-list"
+              ? { sourceSystem: "kideesys", purpose: "reconciliation" as const }
+              : {}),
+            path: absolutePath,
+          });
+          continue;
+        }
+
+        try {
+          const buffer = fs.readFileSync(absolutePath);
+          const expanded = expandWorkbookToLogicalFiles({
+            buffer,
+            filename,
+            mimeType: String(file.mimetype || "application/octet-stream"),
+            size: file.size,
+            path: absolutePath,
+            uploadedAt: new Date(),
+            sourceSystem: String(req.body?.sourceSystem || "").trim() || undefined,
+          });
+          if (expanded.length > 0) {
+            files.push(...expanded.map((item) => item.file));
+            continue;
+          }
+        } catch (expandError) {
+          console.warn("migration/upload workbook expand failed", expandError);
+        }
+
+        files.push({
           id: randomUUID(),
           filename,
           mimeType: String(file.mimetype || "application/octet-stream"),
           size: file.size,
           uploadedAt: new Date(),
-          category,
-          ...(category === "payment-receive-list"
-            ? { sourceSystem: "kideesys", purpose: "reconciliation" as const }
-            : {}),
+          category: detectMigrationCategory(filename),
           path: absolutePath,
-        };
-      });
+        });
+      }
 
       const schoolId = String(req.body?.schoolId || "").trim();
       if (!schoolId) {
@@ -412,6 +448,16 @@ migrationUploadRouter.post("/preview", async (req, res) => {
         uploadedAt: raw?.uploadedAt ? new Date(raw.uploadedAt) : new Date(),
         category: raw?.category ?? detectMigrationCategory(filename),
         path: filePath,
+        worksheetName: raw?.worksheetName ? String(raw.worksheetName) : undefined,
+        workbookFilename: raw?.workbookFilename ? String(raw.workbookFilename) : undefined,
+        sheetRole: raw?.sheetRole ? String(raw.sheetRole) as MigrationFile["sheetRole"] : undefined,
+        sheetKind: raw?.sheetKind ? String(raw.sheetKind) : undefined,
+        headerRowIndex: (() => {
+          const rawHeader = (raw as { headerRowIndex?: unknown })?.headerRowIndex;
+          if (rawHeader == null || rawHeader === "") return undefined;
+          const n = Number(rawHeader);
+          return Number.isFinite(n) ? n : undefined;
+        })(),
       };
 
       previews.push(await readMigrationFilePreview(migrationFile, { sourceSystem }));
@@ -470,6 +516,7 @@ migrationUploadRouter.post("/mappings/suggest", (req, res) => {
           filename,
           category,
           columns,
+          worksheetName: preview?.worksheetName ? String(preview.worksheetName) : undefined,
           systemId,
         })
       );
@@ -549,7 +596,11 @@ migrationUploadRouter.post("/source-analysis", (req, res) => {
       rowCount: Number(raw?.rowCount) || undefined,
       sheetNames: Array.isArray(raw?.sheetNames)
         ? raw.sheetNames.map((s) => String(s))
-        : undefined,
+        : raw?.worksheetName
+          ? [String(raw.worksheetName)]
+          : undefined,
+      worksheetName: raw?.worksheetName ? String(raw.worksheetName) : undefined,
+      sheetRole: raw?.sheetRole ? String(raw.sheetRole) : undefined,
     }));
 
     const analysis = analyzeMigrationPackage({
@@ -1634,10 +1685,11 @@ migrationUploadRouter.post("/finance-reconcile", async (req, res) => {
 
     const rowsByFileId = new Map<string, Record<string, string>[]>();
     for (const file of stage.files) {
-      const rows = await parseStagedMigrationFile(
-        String(file.path || ""),
-        String(file.filename || "")
-      );
+      if (isNonAuthorityMigrationSheet(file)) {
+        rowsByFileId.set(file.fileId, []);
+        continue;
+      }
+      const rows = await parseStagedMigrationSource(file, stage.sourceSystem);
       rowsByFileId.set(
         file.fileId,
         rows.map((r) => {
@@ -1805,10 +1857,11 @@ migrationUploadRouter.post("/statement-authority-finalize", async (req, res) => 
 
     const rowsByFileId = new Map<string, Record<string, string>[]>();
     for (const file of stage.files) {
-      const rows = await parseStagedMigrationFile(
-        String(file.path || ""),
-        String(file.filename || "")
-      );
+      if (isNonAuthorityMigrationSheet(file)) {
+        rowsByFileId.set(file.fileId, []);
+        continue;
+      }
+      const rows = await parseStagedMigrationSource(file, stage.sourceSystem);
       rowsByFileId.set(
         file.fileId,
         rows.map((r) => {
@@ -1896,10 +1949,11 @@ migrationUploadRouter.post("/aging-check", async (req, res) => {
 
     const rowsByFileId = new Map<string, Record<string, string>[]>();
     for (const file of stage.files) {
-      const rows = await parseStagedMigrationFile(
-        String(file.path || ""),
-        String(file.filename || "")
-      );
+      if (isNonAuthorityMigrationSheet(file)) {
+        rowsByFileId.set(file.fileId, []);
+        continue;
+      }
+      const rows = await parseStagedMigrationSource(file, stage.sourceSystem);
       rowsByFileId.set(
         file.fileId,
         rows.map((r) => {
@@ -2053,10 +2107,8 @@ migrationUploadRouter.post("/academic-plan", async (req, res) => {
       rows: Record<string, string>[];
     }> = [];
     for (const file of stage.files) {
-      const parsed = await parseStagedMigrationFile(
-        String(file.path || ""),
-        String(file.filename || "")
-      );
+      if (String(file.sheetRole || "").toUpperCase() === "SUMMARY") continue;
+      const parsed = await parseStagedMigrationSource(file, stage.sourceSystem);
       const rows = parsed.map((r) => {
         const out: Record<string, string> = {};
         for (const [k, v] of Object.entries(r)) out[k] = String(v ?? "");
@@ -2222,10 +2274,8 @@ migrationUploadRouter.post("/parent-family-plan", async (req, res) => {
       rows: Record<string, string>[];
     }> = [];
     for (const file of stage.files) {
-      const parsed = await parseStagedMigrationFile(
-        String(file.path || ""),
-        String(file.filename || "")
-      );
+      if (String(file.sheetRole || "").toUpperCase() === "SUMMARY") continue;
+      const parsed = await parseStagedMigrationSource(file, stage.sourceSystem);
       const rows = parsed.map((r) => {
         const out: Record<string, string> = {};
         for (const [k, v] of Object.entries(r)) out[k] = String(v ?? "");

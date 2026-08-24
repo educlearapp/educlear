@@ -38,7 +38,7 @@ import {
   resolveBoundTargetSchoolId,
   MigrationSchoolBindingError,
 } from "./migrationSchoolBinding";
-import { parseStagedMigrationFile, resolveSafeMigrationFilePath } from "./parseStagedMigrationFile";
+import { parseStagedMigrationSource, resolveSafeMigrationFilePath } from "./parseStagedMigrationFile";
 import { applyParentIdentityPlan } from "../parentIdentity";
 import {
   enrichParentMappedFromContactList,
@@ -84,6 +84,8 @@ type FileApplyPlan = {
   filename: string;
   path: string;
   category: string;
+  worksheetName?: string;
+  sheetRole?: string;
   mappings: MigrationFileColumnMappings["mappings"];
   entityKinds: Set<"learner" | "parent" | "billing" | "transaction">;
   /** Kid-e-Sys employee_contact_list.xls — parsed without column mappings. */
@@ -184,6 +186,11 @@ function buildFilePlans(stage: MigrationStage): FileApplyPlan[] {
       );
     }
 
+    const sheetRole = String(file.sheetRole || "DATA").toUpperCase();
+    if (sheetRole === "SUMMARY" || sheetRole === "SUPPORTING") {
+      continue;
+    }
+
     const category = String(file.category || "").trim();
     const resolvedPath = resolveSafeMigrationFilePath(pathValue);
 
@@ -193,6 +200,8 @@ function buildFilePlans(stage: MigrationStage): FileApplyPlan[] {
         filename: file.filename,
         path: resolvedPath,
         category,
+        worksheetName: file.worksheetName,
+        sheetRole: file.sheetRole,
         mappings: byFileId.get(file.fileId)?.mappings ?? [],
         entityKinds: new Set(),
         kidESysStaffImport: true,
@@ -211,6 +220,8 @@ function buildFilePlans(stage: MigrationStage): FileApplyPlan[] {
       filename: file.filename,
       path: resolvedPath,
       category,
+      worksheetName: file.worksheetName,
+      sheetRole: file.sheetRole,
       mappings: fileMappings.mappings,
       entityKinds: kinds,
     });
@@ -517,9 +528,8 @@ export async function applyMigrationStage(
   const parsedFiles: ParsedFile[] = [];
   for (const plan of filePlans) {
     if (plan.kidESysStaffImport) continue;
-    const rows = await parseStagedMigrationFile(
-      plan.path,
-      plan.filename,
+    const rows = await parseStagedMigrationSource(
+      { path: plan.path, filename: plan.filename, worksheetName: plan.worksheetName },
       stage.sourceSystem
     );
     parsedFiles.push({

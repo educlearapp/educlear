@@ -23,7 +23,7 @@ import {
   applyParentFamilyReviewAction,
 } from "../parentFamily";
 import { loadSchoolParentCandidates } from "../parentIdentity/loadSchoolParentCandidates";
-import { parseStagedMigrationFile } from "../core/parseStagedMigrationFile";
+import { parseStagedMigrationSource } from "../core/parseStagedMigrationFile";
 import { reconcileMigrationFinance } from "../finance/reconcileMigrationFinance";
 import { listFinanceReconciliationsForStage } from "../finance/migrationFinanceReconciliationStore";
 import { verifyStatementAuthority } from "../finance/statementAuthority/verifyStatementAuthority";
@@ -372,12 +372,13 @@ async function runCompleteBody(
     if (!recon) {
       const rowsByFileId = new Map<string, Record<string, string>[]>();
       for (const file of stage.files || []) {
+        const role = String(file.sheetRole || "DATA").toUpperCase();
+        if (role === "SUMMARY" || role === "SUPPORTING") {
+          rowsByFileId.set(file.fileId, []);
+          continue;
+        }
         try {
-          const { parseStagedMigrationFile } = await import("../core/parseStagedMigrationFile");
-          const rows = await parseStagedMigrationFile(
-            String(file.path || ""),
-            String(file.filename || "")
-          );
+          const rows = await parseStagedMigrationSource(file, stage.sourceSystem);
           rowsByFileId.set(
             file.fileId,
             rows.map((r) => {
@@ -545,10 +546,7 @@ async function loadStageSourceFiles(stage: NonNullable<ReturnType<typeof getStag
   }> = [];
   for (const file of stage.files || []) {
     try {
-      const parsed = await parseStagedMigrationFile(
-        String(file.path || ""),
-        String(file.filename || "")
-      );
+      const parsed = await parseStagedMigrationSource(file, stage.sourceSystem);
       const rows = parsed.map((r) => {
         const out: Record<string, string> = {};
         for (const [k, v] of Object.entries(r)) out[k] = String(v ?? "");

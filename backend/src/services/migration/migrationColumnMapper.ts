@@ -56,6 +56,7 @@ export function buildColumnMappingsForPreviews(
       filename: preview.filename,
       category,
       columns: preview.columns ?? [],
+      worksheetName: preview.worksheetName,
       systemId: systemId === "unknown" ? undefined : systemId,
     });
 

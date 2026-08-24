@@ -5,7 +5,7 @@
 
 import { prisma } from "../../../prisma";
 import { getStage } from "../staging/migrationStageStore";
-import { parseStagedMigrationFile } from "../core/parseStagedMigrationFile";
+import { parseStagedMigrationSource } from "../core/parseStagedMigrationFile";
 import {
   compileAcademicMigrationPlan,
   saveAcademicDiscovery,
@@ -33,10 +33,7 @@ async function loadStageFiles(stageId: string) {
     rows: Record<string, string>[];
   }> = [];
   for (const file of stage.files || []) {
-    const parsed = await parseStagedMigrationFile(
-      String(file.path || ""),
-      String(file.filename || "")
-    );
+    const parsed = await parseStagedMigrationSource(file, stage.sourceSystem);
     const rows = parsed.map((r) => {
       const out: Record<string, string> = {};
       for (const [k, v] of Object.entries(r)) out[k] = String(v ?? "");

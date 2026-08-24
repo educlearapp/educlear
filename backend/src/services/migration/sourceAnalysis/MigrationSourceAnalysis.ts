@@ -147,6 +147,8 @@ export type AnalyzeMigrationPackageFileInput = {
   sampleRows?: Record<string, unknown>[];
   rowCount?: number;
   sheetNames?: string[];
+  worksheetName?: string;
+  sheetRole?: string;
 };
 
 export type AnalyzeMigrationPackageInput = {

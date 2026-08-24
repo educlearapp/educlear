@@ -10,6 +10,8 @@ export type UniversalMigrationFileCategory =
   | "historical"
   | "unknown";
 
+export type UniversalMigrationSheetRole = "DATA" | "SUPPORTING" | "SUMMARY" | "UNKNOWN";
+
 export type UniversalMigrationUploadedFile = {
   id: string;
   filename: string;
@@ -20,6 +22,12 @@ export type UniversalMigrationUploadedFile = {
   sourceSystem?: string;
   purpose?: "import" | "reconciliation";
   path: string;
+  worksheetName?: string;
+  workbookFilename?: string;
+  sheetRole?: UniversalMigrationSheetRole | string;
+  sheetKind?: string;
+  headerRowIndex?: number | null;
+  categoryOverridden?: boolean;
 };
 
 export type UniversalMigrationUploadResponse = {

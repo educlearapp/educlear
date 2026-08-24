@@ -511,6 +511,68 @@
   gap: 10px;
 }
 
+.uc-migration-upload-workbook {
+  list-style: none;
+  padding: 12px 14px;
+  border: 1px solid rgba(212, 175, 55, 0.22);
+  border-radius: 10px;
+  background: #fffdf6;
+}
+
+.uc-migration-upload-workbook-title {
+  font-weight: 800;
+  color: #1d2736;
+  margin-bottom: 8px;
+}
+
+.uc-migration-upload-sheet-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.uc-migration-upload-badge--role-summary,
+.uc-migration-upload-badge--role-supporting,
+.uc-migration-upload-badge--role-unknown {
+  background: #e2e8f0;
+  color: #334155;
+}
+
+.uc-migration-upload-badge--role-data {
+  background: rgba(212, 175, 55, 0.16);
+  color: #8b6b16;
+}
+
+.uc-migration-preview-sheet {
+  margin: 4px 0 0;
+  font-size: 0.9rem;
+  font-weight: 700;
+  color: #8b6b16;
+}
+
+.uc-migration-preview-category-override {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin: 10px 0 0;
+  font-size: 0.75rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: #8b6b16;
+}
+
+.uc-migration-preview-category-override select {
+  padding: 8px 10px;
+  border-radius: 8px;
+  border: 1px solid #e2e8f0;
+  font-weight: 700;
+  font-family: inherit;
+}
+
 .uc-migration-upload-item {
   display: flex;
   flex-wrap: wrap;

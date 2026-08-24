@@ -31,7 +31,8 @@ export function resolveSafeMigrationFilePath(filePath: string): string {
 export async function parseStagedMigrationFile(
   filePath: string,
   filename: string,
-  sourceSystem?: string
+  sourceSystem?: string,
+  worksheetName?: string
 ): Promise<Record<string, string>[]> {
   const absolutePath = resolveSafeMigrationFilePath(filePath);
   const stat = await fs.stat(absolutePath);
@@ -41,9 +42,10 @@ export async function parseStagedMigrationFile(
 
   const buffer = await fs.readFile(absolutePath);
   let parsed: ReturnType<typeof parseMigrationLearnerFileBuffer> | null = null;
+  const sheet = String(worksheetName || "").trim() || undefined;
 
   if (shouldUseKideesysReportExtraction(filename, sourceSystem)) {
-    const matrix = readMigrationSpreadsheetMatrix(buffer, filename);
+    const matrix = readMigrationSpreadsheetMatrix(buffer, filename, sheet);
     const extracted = extractKideesysReportTable(matrix, filename);
     if (extracted) {
       parsed = extracted;
@@ -51,8 +53,20 @@ export async function parseStagedMigrationFile(
   }
 
   if (!parsed) {
-    parsed = parseMigrationLearnerFileBuffer(buffer, filename);
+    parsed = parseMigrationLearnerFileBuffer(buffer, filename, sheet);
   }
 
   return parsed.rows;
+}
+
+export async function parseStagedMigrationSource(
+  file: { path?: string | null; filename?: string | null; worksheetName?: string | null },
+  sourceSystem?: string
+): Promise<Record<string, string>[]> {
+  return parseStagedMigrationFile(
+    String(file.path || ""),
+    String(file.filename || ""),
+    sourceSystem,
+    String(file.worksheetName || "").trim() || undefined
+  );
 }

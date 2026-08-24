@@ -37,11 +37,22 @@ function formatCell(value: unknown): string {
 
 type MappingOverrides = Record<string, string>;
 
+const CATEGORY_OVERRIDE_OPTIONS = [
+  "learners",
+  "parents",
+  "billing",
+  "transactions",
+  "staff",
+  "historical",
+  "unknown",
+] as const;
+
 type Props = {
   preview: MigrationFilePreview;
   mappingSuggestion?: FileMappingSuggestion;
   mappingOverrides?: MappingOverrides;
   onMappingOverrideChange?: (sourceColumn: string, target: string) => void;
+  onCategoryOverrideChange?: (category: string) => void;
 };
 
 export default function UniversalMigrationFilePreview({
@@ -49,6 +60,7 @@ export default function UniversalMigrationFilePreview({
   mappingSuggestion,
   mappingOverrides = {},
   onMappingOverrideChange,
+  onCategoryOverrideChange,
 }: Props) {
   const columns =
     preview.columns.length > 0
@@ -65,8 +77,11 @@ export default function UniversalMigrationFilePreview({
     <article className="uc-migration-preview-card" aria-labelledby={`uc-preview-${preview.fileId}`}>
       <header className="uc-migration-preview-card-header">
         <h4 id={`uc-preview-${preview.fileId}`} className="uc-migration-preview-card-title">
-          {preview.filename}
+          {preview.workbookFilename || preview.filename}
         </h4>
+        {preview.worksheetName ? (
+          <p className="uc-migration-preview-sheet">Sheet: {preview.worksheetName}</p>
+        ) : null}
         <div className="uc-migration-preview-card-badges">
           <span
             className={`uc-migration-upload-badge uc-migration-upload-badge--category uc-migration-upload-badge--${preview.category}`}
@@ -74,8 +89,34 @@ export default function UniversalMigrationFilePreview({
             {categoryLabel}
           </span>
           <span className="uc-migration-preview-row-count">{preview.rowCount.toLocaleString()} rows</span>
+          {preview.sheetRole ? (
+            <span className={`uc-migration-upload-badge uc-migration-upload-badge--role-${String(preview.sheetRole).toLowerCase()}`}>
+              {preview.sheetRole}
+            </span>
+          ) : null}
+          {preview.headerRowIndex != null ? (
+            <span className="uc-migration-preview-row-count">
+              Header row {preview.headerRowIndex + 1}
+            </span>
+          ) : null}
         </div>
       </header>
+
+      {onCategoryOverrideChange ? (
+        <label className="uc-migration-preview-category-override">
+          Category
+          <select
+            value={preview.category}
+            onChange={(e) => onCategoryOverrideChange(e.target.value)}
+          >
+            {CATEGORY_OVERRIDE_OPTIONS.map((option) => (
+              <option key={option} value={option}>
+                {CATEGORY_LABELS[option] ?? option}
+              </option>
+            ))}
+          </select>
+        </label>
+      ) : null}
 
       {preview.warnings.length > 0 ? (
         <ul className="uc-migration-preview-warnings" role="status">

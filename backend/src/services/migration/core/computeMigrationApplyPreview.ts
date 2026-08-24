@@ -10,7 +10,7 @@ import {
 } from "../types/MigrationTargetField";
 import type { MigrationFileColumnMappings } from "../types/MigrationValidation";
 import { migrationTargetCategory } from "../staging/buildMigrationStage";
-import { parseStagedMigrationFile } from "./parseStagedMigrationFile";
+import { parseStagedMigrationSource } from "./parseStagedMigrationFile";
 import { migrationLearnerBatchKey } from "./migrationLearnerIdentity";
 
 const LEARNER_FIELDS = new Set<string>(LEARNER_TARGET_FIELDS);
@@ -25,6 +25,7 @@ type FilePlan = {
   filename: string;
   path: string;
   category: string;
+  worksheetName?: string;
   mappings: MigrationFileColumnMappings["mappings"];
 };
 
@@ -135,6 +136,8 @@ function buildFilePlans(stage: MigrationStage): FilePlan[] {
   for (const file of stage.files) {
     const pathValue = cleanString(file.path);
     if (!pathValue) continue;
+    const sheetRole = String(file.sheetRole || "DATA").toUpperCase();
+    if (sheetRole === "SUMMARY" || sheetRole === "SUPPORTING") continue;
     const category = String(file.category || "").trim();
     if (category === "staff") continue;
 
@@ -147,6 +150,7 @@ function buildFilePlans(stage: MigrationStage): FilePlan[] {
       filename: file.filename,
       path: pathValue,
       category,
+      worksheetName: file.worksheetName,
       mappings: fileMappings.mappings,
     });
   }
@@ -216,7 +220,10 @@ export async function computeMigrationApplyPreview(
   let billingCreates = 0;
 
   for (const plan of plans) {
-    const rows = await parseStagedMigrationFile(plan.path, plan.filename, stage.sourceSystem);
+    const rows = await parseStagedMigrationSource(
+      { path: plan.path, filename: plan.filename, worksheetName: plan.worksheetName },
+      stage.sourceSystem
+    );
     const targetToSource = buildTargetToSource(plan.mappings);
     const kinds = fileEntityKinds(plan.mappings);
 

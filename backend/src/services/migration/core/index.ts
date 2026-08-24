@@ -18,7 +18,7 @@ export {
   computeMigrationApplyPreview,
   assertLearnerCreateGuard,
 } from "./computeMigrationApplyPreview";
-export { parseStagedMigrationFile, resolveSafeMigrationFilePath } from "./parseStagedMigrationFile";
+export { parseStagedMigrationFile, parseStagedMigrationSource, resolveSafeMigrationFilePath } from "./parseStagedMigrationFile";
 export {
   createMigrationImportBatch,
   getImportBatch,
@@ -114,6 +114,12 @@ export {
   expressInvoiceAuthorityForFilename,
   EXPRESS_INVOICE_PRECEDENCE,
 } from "./expressInvoiceAuthority";
+export {
+  expandWorkbookToLogicalFiles,
+} from "./expandWorkbookUpload";
+export { classifyMigrationSheet, sheetSatisfiesRequiredCategory, isNonAuthorityMigrationSheet } from "./classifyMigrationSheet";
+export { detectTabularHeaderRow } from "./detectTabularHeaderRow";
+export { listWorkbookSheets } from "./workbookSheets";
 export {
   resolveFamilyGroupingAuthority,
   resolveMigrationFamilyAccountLink,

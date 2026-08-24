@@ -29,6 +29,7 @@ import {
   detectDomainsFromColumns,
   getSourceManifestBySchool,
   headerFingerprint,
+  logicalSourceKey,
   saveSourceManifest,
   type MigrationSourceManifest,
   type SourceManifestFile,
@@ -75,6 +76,7 @@ function buildMappingsFromPreviews(
       filename: preview.filename,
       category: preview.category,
       columns: preview.columns || [],
+      worksheetName: preview.worksheetName,
       systemId,
     });
     return {
@@ -151,20 +153,25 @@ export async function prepareMigrationFromSession(input: {
     });
     const fp = contentFingerprint({
       filename: p.filename,
+      worksheetName: p.worksheetName,
       columns: cols,
       sampleRows: sample,
       rowCount: p.rowCount,
       size: session.uploadedFiles.find((f) => f.id === p.fileId)?.size,
     });
     const prior = priorManifest?.files.find(
-      (f) => f.filename.toLowerCase() === p.filename.toLowerCase() && f.status === "ACTIVE"
+      (f) =>
+        f.status === "ACTIVE" &&
+        logicalSourceKey(f.filename, f.worksheetName) ===
+          logicalSourceKey(p.filename, p.worksheetName)
     );
     return {
       fileId: p.fileId,
       filename: p.filename,
+      ...(p.worksheetName ? { worksheetName: p.worksheetName } : {}),
       category: String(p.category || "unknown"),
       contentFingerprint: fp,
-      headerFingerprint: headerFingerprint(p.filename, cols),
+      headerFingerprint: headerFingerprint(p.filename, cols, p.worksheetName),
       detectedDomains: detectDomainsFromColumns(cols),
       rowCount: Number(p.rowCount) || sample.length,
       size: session.uploadedFiles.find((f) => f.id === p.fileId)?.size || 0,
@@ -256,6 +263,9 @@ export async function prepareMigrationFromSession(input: {
     columns: p.columns || [],
     sampleRows: p.sampleRows || [],
     rowCount: p.rowCount,
+    sheetNames: p.worksheetName ? [p.worksheetName] : [],
+    worksheetName: p.worksheetName,
+    sheetRole: p.sheetRole,
   }));
   const sourceAnalysis = analyzeMigrationPackage({
     targetSchoolId: schoolId,

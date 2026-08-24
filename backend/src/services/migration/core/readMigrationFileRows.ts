@@ -45,6 +45,11 @@ export type MigrationFileRowsResult = {
   rowCount: number;
   warnings: string[];
   parseIssues: MigrationParseIssue[];
+  worksheetName?: string;
+  workbookFilename?: string;
+  sheetRole?: string;
+  sheetKind?: string;
+  headerRowIndex?: number | null;
 };
 
 export type ReadMigrationFileRowsOptions = {
@@ -111,7 +116,12 @@ export async function readMigrationFileRows(
           ? Object.keys(stagedRows[0]).filter((k) => String(k).trim())
           : [];
     } else {
-      const parsedRows = await parseStagedMigrationFile(absolutePath, filename, sourceSystem);
+      const parsedRows = await parseStagedMigrationFile(
+        absolutePath,
+        filename,
+        sourceSystem,
+        file.worksheetName
+      );
       rowCount = parsedRows.length;
       rows = rowRecordsToUnknown(parsedRows);
       columns =
@@ -191,5 +201,10 @@ export async function readMigrationFileRows(
     rowCount,
     warnings,
     parseIssues,
+    worksheetName: file.worksheetName,
+    workbookFilename: file.workbookFilename || filename,
+    sheetRole: file.sheetRole,
+    sheetKind: file.sheetKind,
+    headerRowIndex: file.headerRowIndex ?? null,
   };
 }

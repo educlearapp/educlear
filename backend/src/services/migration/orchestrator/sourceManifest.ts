@@ -14,6 +14,7 @@ export type SourceManifestFile = {
   fileId: string;
   filename: string;
   category: string;
+  worksheetName?: string;
   /** Content fingerprint from filename + headers + sample row hash (stable). */
   contentFingerprint: string;
   headerFingerprint: string;
@@ -50,13 +51,20 @@ function sanitize(id: string): string | null {
   return t;
 }
 
-export function headerFingerprint(filename: string, columns: string[]): string {
-  const payload = `${filename}|${columns.map((c) => String(c).trim()).join("\u0001")}`;
+export function logicalSourceKey(filename: string, worksheetName?: string): string {
+  const file = String(filename || "").trim().toLowerCase();
+  const sheet = String(worksheetName || "").trim().toLowerCase();
+  return sheet ? `${file}::${sheet}` : file;
+}
+
+export function headerFingerprint(filename: string, columns: string[], worksheetName?: string): string {
+  const payload = `${logicalSourceKey(filename, worksheetName)}|${columns.map((c) => String(c).trim()).join("\u0001")}`;
   return createHash("sha256").update(payload).digest("hex").slice(0, 24);
 }
 
 export function contentFingerprint(input: {
   filename: string;
+  worksheetName?: string;
   columns: string[];
   sampleRows?: Record<string, string>[];
   rowCount?: number;
@@ -72,7 +80,7 @@ export function contentFingerprint(input: {
     )
     .join("\n");
   const payload = [
-    String(input.filename || "").trim().toLowerCase(),
+    logicalSourceKey(input.filename, input.worksheetName),
     input.columns.map((c) => c.trim()).join("\u0001"),
     String(input.rowCount ?? ""),
     String(input.size ?? ""),
@@ -84,7 +92,7 @@ export function contentFingerprint(input: {
 export function computeSourceSetFingerprint(files: SourceManifestFile[]): string {
   const active = files
     .filter((f) => f.status === "ACTIVE")
-    .map((f) => `${f.filename.toLowerCase()}::${f.contentFingerprint}`)
+    .map((f) => `${logicalSourceKey(f.filename, f.worksheetName)}::${f.contentFingerprint}`)
     .sort();
   return createHash("sha256").update(active.join("\n")).digest("hex").slice(0, 32);
 }

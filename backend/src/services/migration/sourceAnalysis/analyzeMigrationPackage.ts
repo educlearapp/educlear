@@ -58,8 +58,8 @@ function compact(value: string): string {
     .replace(/[^a-z0-9]/g, "");
 }
 
-function headerFingerprint(filename: string, columns: string[]): string {
-  const payload = `${filename}|${columns.map((c) => String(c).trim()).join("\u0001")}`;
+function headerFingerprint(filename: string, columns: string[], worksheetName?: string): string {
+  const payload = `${filename}|${worksheetName || ""}|${columns.map((c) => String(c).trim()).join("\u0001")}`;
   return createHash("sha256").update(payload).digest("hex").slice(0, 24);
 }
 
@@ -224,8 +224,14 @@ export function analyzeMigrationPackage(input: AnalyzeMigrationPackageInput): Mi
       String(file.category || "").trim() || detectMigrationCategory(filename);
     const sampleRows = Array.isArray(file.sampleRows) ? file.sampleRows : [];
     const rowCount = Math.max(0, Number(file.rowCount) || sampleRows.length || 0);
-    const sheetNames = Array.isArray(file.sheetNames) ? file.sheetNames.map(String) : [];
-    const fingerprint = headerFingerprint(filename, columns);
+    const sheetNames = Array.isArray(file.sheetNames)
+      ? file.sheetNames.map(String)
+      : file.worksheetName
+        ? [String(file.worksheetName)]
+        : [];
+    const fingerprint = headerFingerprint(filename, columns, file.worksheetName);
+    const sheetRole = String(file.sheetRole || "DATA").toUpperCase();
+    const countsTowardEntities = sheetRole !== "SUMMARY" && sheetRole !== "SUPPORTING";
 
     analysedFiles.push({
       fileId,
@@ -239,21 +245,23 @@ export function analyzeMigrationPackage(input: AnalyzeMigrationPackageInput): Mi
     });
 
     const entity = categoryToEntity(category);
-    const bucket = entityAcc.get(entity) || { fileIds: new Set<string>(), rows: 0 };
-    bucket.fileIds.add(fileId);
-    bucket.rows += rowCount;
-    entityAcc.set(entity, bucket);
+    if (countsTowardEntities) {
+      const bucket = entityAcc.get(entity) || { fileIds: new Set<string>(), rows: 0 };
+      bucket.fileIds.add(fileId);
+      bucket.rows += rowCount;
+      entityAcc.set(entity, bucket);
 
-    if (category === "learners") {
-      const classCount = uniqueClassrooms(sampleRows as Record<string, unknown>[], columns);
-      if (classCount > 0) {
-        const cBucket = entityAcc.get("classrooms") || {
-          fileIds: new Set<string>(),
-          rows: 0,
-        };
-        cBucket.fileIds.add(fileId);
-        cBucket.rows = Math.max(cBucket.rows, classCount);
-        entityAcc.set("classrooms", cBucket);
+      if (category === "learners") {
+        const classCount = uniqueClassrooms(sampleRows as Record<string, unknown>[], columns);
+        if (classCount > 0) {
+          const cBucket = entityAcc.get("classrooms") || {
+            fileIds: new Set<string>(),
+            rows: 0,
+          };
+          cBucket.fileIds.add(fileId);
+          cBucket.rows = Math.max(cBucket.rows, classCount);
+          entityAcc.set("classrooms", cBucket);
+        }
       }
     }
 
@@ -262,6 +270,7 @@ export function analyzeMigrationPackage(input: AnalyzeMigrationPackageInput): Mi
       filename,
       category,
       columns,
+      worksheetName: file.worksheetName || sheetNames[0],
       systemId:
         detectedSourceSystem === "unknown"
           ? "generic-excel-csv"

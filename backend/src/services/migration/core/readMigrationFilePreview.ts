@@ -16,6 +16,17 @@ export async function readMigrationFilePreview(
   options?: ReadMigrationFileRowsOptions
 ): Promise<MigrationFilePreview> {
   const full = await readMigrationFileRows(file, options);
+  const warnings = [...full.warnings];
+  const role = String(full.sheetRole || file.sheetRole || "").toUpperCase();
+  if (role === "SUMMARY") {
+    warnings.unshift("Summary/cover sheet — not used as learner, parent, or billing data.");
+  } else if (role === "SUPPORTING") {
+    warnings.unshift("Supporting/reconciliation sheet — reviewed, not treated as a required dataset.");
+  }
+  if (full.worksheetName) {
+    warnings.unshift(`Worksheet: ${full.worksheetName}`);
+  }
+
   return {
     fileId: full.fileId,
     filename: full.filename,
@@ -23,6 +34,12 @@ export async function readMigrationFilePreview(
     columns: full.columns,
     sampleRows: full.rows.slice(0, SAMPLE_ROW_LIMIT),
     rowCount: full.rowCount,
-    warnings: full.warnings,
+    warnings,
+    worksheetName: full.worksheetName,
+    workbookFilename: full.workbookFilename,
+    sheetRole: full.sheetRole,
+    sheetKind: full.sheetKind,
+    headerRowIndex: full.headerRowIndex,
+    path: file.path,
   };
 }

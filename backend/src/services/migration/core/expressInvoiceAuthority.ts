@@ -49,8 +49,11 @@ function compact(value: string): string {
     .replace(/[^a-z0-9]/g, "");
 }
 
-export function classifyExpressInvoiceExport(filename: string): ExpressInvoiceExportKind {
-  const hay = compact(filename);
+export function classifyExpressInvoiceExport(
+  filename: string,
+  worksheetName?: string
+): ExpressInvoiceExportKind {
+  const hay = compact([filename, worksheetName].filter(Boolean).join(" "));
   if (!hay.includes("express")) return "NOT_EXPRESS";
 
   if (hay.includes("unpaidaccount") || hay.includes("unpaidaccounts")) return "UNPAID_ACCOUNTS";
@@ -182,14 +185,20 @@ const AUTHORITY: Record<Exclude<ExpressInvoiceExportKind, "NOT_EXPRESS">, Expres
   },
 };
 
-export function expressInvoiceAuthorityForFilename(filename: string): ExpressInvoiceAuthority | null {
-  const kind = classifyExpressInvoiceExport(filename);
+export function expressInvoiceAuthorityForFilename(
+  filename: string,
+  worksheetName?: string
+): ExpressInvoiceAuthority | null {
+  const kind = classifyExpressInvoiceExport(filename, worksheetName);
   if (kind === "NOT_EXPRESS") return null;
   return AUTHORITY[kind];
 }
 
-export function expressInvoiceCategoryOverride(filename: string): MigrationFileCategory | null {
-  return expressInvoiceAuthorityForFilename(filename)?.category ?? null;
+export function expressInvoiceCategoryOverride(
+  filename: string,
+  worksheetName?: string
+): MigrationFileCategory | null {
+  return expressInvoiceAuthorityForFilename(filename, worksheetName)?.category ?? null;
 }
 
 export const EXPRESS_INVOICE_PRECEDENCE: Array<{
@@ -204,8 +213,11 @@ export const EXPRESS_INVOICE_PRECEDENCE: Array<{
   { role: "invoice-lines-items", authority: ["ITEM_SALES"] },
 ];
 
-export function shouldAutoPostExpressInvoiceTransactions(filename: string): boolean {
-  const authority = expressInvoiceAuthorityForFilename(filename);
+export function shouldAutoPostExpressInvoiceTransactions(
+  filename: string,
+  worksheetName?: string
+): boolean {
+  const authority = expressInvoiceAuthorityForFilename(filename, worksheetName);
   if (!authority) return true;
   return authority.autoPostTransactions;
 }

@@ -91,6 +91,8 @@ export function buildSourceFinancePositions(input: {
   };
 
   for (const file of input.stage.files) {
+    const role = String(file.sheetRole || "DATA").toUpperCase();
+    if (role === "SUMMARY" || role === "SUPPORTING") continue;
     const mapping = input.stage.mappings.find((m) => m.fileId === file.fileId);
     if (!mapping) continue;
     const targetToSource = buildTargetToSource(mapping.mappings);

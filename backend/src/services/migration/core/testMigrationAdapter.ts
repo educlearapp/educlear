@@ -89,7 +89,14 @@ function makeCheck(
 }
 
 function uploadedCategories(files: MigrationFile[]): Set<MigrationFileCategory> {
-  return new Set(files.map((f) => f.category));
+  return new Set(
+    files
+      .filter((f) => {
+        const role = String(f.sheetRole || "DATA").toUpperCase();
+        return role !== "SUMMARY" && role !== "SUPPORTING";
+      })
+      .map((f) => f.category)
+  );
 }
 
 function hasTransactionFiles(

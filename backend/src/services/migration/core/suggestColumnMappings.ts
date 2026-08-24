@@ -24,6 +24,7 @@ export type SuggestColumnMappingsInput = {
   filename: string;
   category: string;
   columns: string[];
+  worksheetName?: string;
   /** When `kideesys`, `sasams`, or `generic-excel-csv`, apply adapter normalization before keyword rules. */
   systemId?: string;
 };
@@ -557,7 +558,10 @@ export function suggestColumnMappings(
     };
   }
 
-  const expressAuthority = expressInvoiceAuthorityForFilename(input.filename);
+  const expressAuthority = expressInvoiceAuthorityForFilename(
+    input.filename,
+    input.worksheetName
+  );
   if (expressAuthority) {
     const bySource = new Map(
       expressAuthority.columnMappings.map((m) => [compactColumnKey(m.sourceColumn), m.targetField])
