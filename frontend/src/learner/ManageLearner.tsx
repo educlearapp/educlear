@@ -607,7 +607,7 @@ export default function ManageLearner({
           {
             method: "PATCH",
             headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ enrollmentStatus: "HISTORICAL" }),
+            body: JSON.stringify({ enrollmentStatus: "HISTORICAL", schoolId: learner.schoolId }),
           }
         );
         const payload = await response.json().catch(() => ({}));
@@ -646,7 +646,7 @@ export default function ManageLearner({
           {
             method: "PATCH",
             headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ enrollmentStatus: "ACTIVE" }),
+            body: JSON.stringify({ enrollmentStatus: "ACTIVE", schoolId: learner.schoolId }),
           }
         );
         const payload = await response.json().catch(() => ({}));

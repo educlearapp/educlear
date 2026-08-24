@@ -24,6 +24,10 @@ export type FamilyAccountAgeAnalysisSnapshot = {
   };
   source: FinanceAccountSnapshotSource;
   importedAt: string;
+  /** Canonical surviving accountRef after a family billing merge. JSON-only; not a Prisma column. */
+  mergedIntoAccountRef?: string;
+  retiredAt?: string;
+  retiredReason?: string;
 };
 
 type StoreFile = Record<string, Record<string, FamilyAccountAgeAnalysisSnapshot>>;
@@ -143,6 +147,168 @@ export function replaceSchoolFamilyAccountAgeAnalysisSnapshots(
   const all = readAll();
   all[key] = { ...snapshots };
   writeAll(all);
+}
+
+function roundMoney(value: unknown): number {
+  const n = Number(value);
+  if (!Number.isFinite(n)) return 0;
+  return Math.round(n * 100) / 100;
+}
+
+export function isRetiredAgeAnalysisSnapshot(
+  snap: FamilyAccountAgeAnalysisSnapshot | undefined | null
+): boolean {
+  if (!snap) return false;
+  return Boolean(String(snap.mergedIntoAccountRef || "").trim());
+}
+
+/**
+ * Add source snapshot opening into the canonical target, then retire the source
+ * so GET /api/statements no longer lists it as collectible debt.
+ * Does not delete the source snapshot (keeps the accountRef occupied).
+ * Idempotent when source is already merged into the same target.
+ */
+export function combineAndRetireAgeAnalysisSnapshot(
+  schoolId: string,
+  sourceAccountRef: string,
+  targetAccountRef: string,
+  opts: { retiredAt?: string; retiredReason?: string } = {}
+): {
+  sourceBalance: number;
+  targetBalanceBefore: number;
+  targetBalanceAfter: number;
+  alreadyRetired: boolean;
+} {
+  const key = String(schoolId || "").trim();
+  const from = String(sourceAccountRef || "").trim().toUpperCase();
+  const to = String(targetAccountRef || "").trim().toUpperCase();
+  if (!key || !from || !to || from === to) {
+    throw new Error("combineAndRetireAgeAnalysisSnapshot requires distinct source and target refs");
+  }
+
+  const all = readAll();
+  const schoolSnapshots = { ...(all[key] || {}) };
+  const source = schoolSnapshots[from];
+  const target = schoolSnapshots[to];
+  if (!source) {
+    throw new Error(`Source age-analysis snapshot not found for ${from}`);
+  }
+  if (!target) {
+    throw new Error(`Target age-analysis snapshot not found for ${to}`);
+  }
+
+  const existingMergedInto = String(source.mergedIntoAccountRef || "").trim().toUpperCase();
+  if (existingMergedInto === to) {
+    return {
+      sourceBalance: roundMoney(source.balance),
+      targetBalanceBefore: roundMoney(target.balance),
+      targetBalanceAfter: roundMoney(target.balance),
+      alreadyRetired: true,
+    };
+  }
+  if (existingMergedInto && existingMergedInto !== to) {
+    throw new Error(
+      `Source ${from} is already merged into ${existingMergedInto}, not ${to}`
+    );
+  }
+
+  const sourceBalance = roundMoney(source.balance);
+  const targetBalanceBefore = roundMoney(target.balance);
+  const targetBalanceAfter = roundMoney(targetBalanceBefore + sourceBalance);
+  const sourceHolder = String(source.accountHolder || "").trim();
+  const targetHolder = String(target.accountHolder || "").trim();
+  const combinedHolder =
+    sourceHolder && targetHolder && !targetHolder.includes(sourceHolder)
+      ? `${targetHolder}\n${sourceHolder}`
+      : targetHolder || sourceHolder;
+
+  schoolSnapshots[to] = {
+    ...target,
+    accountHolder: combinedHolder,
+    balance: targetBalanceAfter,
+    buckets: {
+      current: roundMoney((target.buckets?.current || 0) + (source.buckets?.current || 0)),
+      d30: roundMoney((target.buckets?.d30 || 0) + (source.buckets?.d30 || 0)),
+      d60: roundMoney((target.buckets?.d60 || 0) + (source.buckets?.d60 || 0)),
+      d90: roundMoney((target.buckets?.d90 || 0) + (source.buckets?.d90 || 0)),
+      d120: roundMoney((target.buckets?.d120 || 0) + (source.buckets?.d120 || 0)),
+    },
+  };
+  schoolSnapshots[from] = {
+    ...source,
+    mergedIntoAccountRef: to,
+    retiredAt: opts.retiredAt || new Date().toISOString(),
+    retiredReason: opts.retiredReason || "family-account-merge",
+  };
+  all[key] = schoolSnapshots;
+  writeAll(all);
+  return { sourceBalance, targetBalanceBefore, targetBalanceAfter, alreadyRetired: false };
+}
+
+/**
+ * Hide a superseded predecessor from Statements without adding its snapshot
+ * balance into the canonical account. Keeps the source snapshot occupied.
+ * Idempotent when source is already merged into the same target.
+ */
+export function retireAgeAnalysisSnapshot(
+  schoolId: string,
+  sourceAccountRef: string,
+  targetAccountRef: string,
+  opts: { retiredAt?: string; retiredReason?: string } = {}
+): {
+  sourceBalance: number;
+  targetBalanceBefore: number;
+  targetBalanceAfter: number;
+  alreadyRetired: boolean;
+} {
+  const key = String(schoolId || "").trim();
+  const from = String(sourceAccountRef || "").trim().toUpperCase();
+  const to = String(targetAccountRef || "").trim().toUpperCase();
+  if (!key || !from || !to || from === to) {
+    throw new Error("retireAgeAnalysisSnapshot requires distinct source and target refs");
+  }
+
+  const all = readAll();
+  const schoolSnapshots = { ...(all[key] || {}) };
+  const source = schoolSnapshots[from];
+  const target = schoolSnapshots[to];
+  if (!source) {
+    throw new Error(`Source age-analysis snapshot not found for ${from}`);
+  }
+  if (!target) {
+    throw new Error(`Target age-analysis snapshot not found for ${to}`);
+  }
+
+  const existingMergedInto = String(source.mergedIntoAccountRef || "").trim().toUpperCase();
+  const targetBalance = roundMoney(target.balance);
+  if (existingMergedInto === to) {
+    return {
+      sourceBalance: roundMoney(source.balance),
+      targetBalanceBefore: targetBalance,
+      targetBalanceAfter: targetBalance,
+      alreadyRetired: true,
+    };
+  }
+  if (existingMergedInto && existingMergedInto !== to) {
+    throw new Error(
+      `Source ${from} is already merged into ${existingMergedInto}, not ${to}`
+    );
+  }
+
+  schoolSnapshots[from] = {
+    ...source,
+    mergedIntoAccountRef: to,
+    retiredAt: opts.retiredAt || new Date().toISOString(),
+    retiredReason: opts.retiredReason || "stale-predecessor-retirement",
+  };
+  all[key] = schoolSnapshots;
+  writeAll(all);
+  return {
+    sourceBalance: roundMoney(source.balance),
+    targetBalanceBefore: targetBalance,
+    targetBalanceAfter: targetBalance,
+    alreadyRetired: false,
+  };
 }
 
 /** Merge Kid-e-Sys age-analysis section labels into existing snapshots (no balance changes). */

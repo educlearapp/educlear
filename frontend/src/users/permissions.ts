@@ -210,3 +210,12 @@ export function hasPermission(
   const perms = resolveStoredPermissions(String(user.appRole || "Viewer"), user.permissions);
   return Boolean(perms[module]?.[action]);
 }
+
+export function hasAnyPermission(
+  user: Pick<SchoolUser, "appRole" | "isActive" | "permissions"> | null | undefined,
+  module: ModuleKey,
+  actions: PermissionAction[]
+): boolean {
+  return actions.some((action) => hasPermission(user, module, action));
+}
+

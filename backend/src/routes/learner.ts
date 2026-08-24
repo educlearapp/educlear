@@ -46,6 +46,15 @@ import {
   requiresExplicitCreateConfirmation,
 } from "../services/applicationParentIdentity";
 import { resolveParentStaffAuth } from "../middleware/requireParentStaffAuth";
+import {
+  CrossSchoolFamilyAccountError,
+  LearnerIdentityConflictError,
+  alignParentsToCanonicalFamily,
+  registerLearner,
+  reactivateHistoricalLearner,
+  updateLearnerEnrollmentStatus,
+} from "../services/learnerRegistrationService";
+import { conflictPayload } from "../services/learnerIdentityGuard";
 
 
 
@@ -971,7 +980,13 @@ router.post("/", async (req, res) => {
 
 
     const requestedSchoolId = cleanString(learner.schoolId || req.body.schoolId);
-    if (requestedSchoolId && requestedSchoolId !== staffAuth.authorizedSchoolId) {
+    if (!requestedSchoolId) {
+      return res.status(400).json({
+        success: false,
+        error: "Missing schoolId",
+      });
+    }
+    if (requestedSchoolId !== staffAuth.authorizedSchoolId) {
       return res.status(403).json({
         success: false,
         error: "Request schoolId does not match authenticated school",
@@ -994,30 +1009,20 @@ router.post("/", async (req, res) => {
 
 
 
-    const main = await createLearnerWithAccount({
+    const existingFamilyAccountId = cleanString(
+      req.body.existingFamilyAccountId ||
+        req.body.familyAccountId ||
+        learner.existingFamilyAccountId ||
+        learner.familyAccountId
+    );
 
-
-
+    const main = await registerLearner({
       schoolId: school.id,
-
-
-
       learner: {
-
-
-
         ...learner,
-
-
-
         schoolId: school.id,
-
-
-
       },
-
-
-
+      existingFamilyAccountId: existingFamilyAccountId || null,
     });
 
 
@@ -1051,6 +1056,11 @@ router.post("/", async (req, res) => {
 
 
     });
+    await alignParentsToCanonicalFamily({
+      schoolId: school.id,
+      learnerIds: [main.learner.id],
+      canonicalFamilyAccountId: main.familyAccount.id,
+    });
 
 
 
@@ -1082,7 +1092,7 @@ router.post("/", async (req, res) => {
 
 
 
-      const createdSibling = await createLearnerOnExistingFamilyAccount({
+      const createdSibling = await registerLearner({
         schoolId: school.id,
         learner: {
           ...sibling,
@@ -1091,7 +1101,7 @@ router.post("/", async (req, res) => {
           lastName: siblingSurname,
           grade: siblingGrade,
         },
-        familyAccount: main.familyAccount,
+        existingFamilyAccountId: main.familyAccount.id,
       });
 
 
@@ -1120,6 +1130,11 @@ router.post("/", async (req, res) => {
 
 
 
+      });
+      await alignParentsToCanonicalFamily({
+        schoolId: school.id,
+        learnerIds: [createdSibling.learner.id],
+        canonicalFamilyAccountId: createdSibling.familyAccount.id,
       });
 
 
@@ -1172,6 +1187,10 @@ router.post("/", async (req, res) => {
 
 
 
+      createdNewFamilyAccount: main.createdNewFamilyAccount,
+
+
+
       learnerId: main.learner.id,
 
 
@@ -1212,6 +1231,12 @@ router.post("/", async (req, res) => {
     }
     if (error instanceof ParentPossibleMatchError) {
       return res.status(409).json(error.body);
+    }
+    if (error instanceof LearnerIdentityConflictError) {
+      return res.status(409).json(conflictPayload(error));
+    }
+    if (error instanceof CrossSchoolFamilyAccountError) {
+      return res.status(400).json({ success: false, error: error.message, code: error.code });
     }
     const err = error as { statusCode?: number; code?: string; message?: string };
     if (err?.statusCode === 403 || err?.statusCode === 404) {
@@ -1295,31 +1320,15 @@ router.patch("/:id/billing-plan", async (req, res) => {
 router.patch("/:id/enrollment-status", async (req, res) => {
   try {
     const { id } = req.params;
-    const enrollmentStatus = normalizeLearnerEnrollmentStatusUpdate(req.body?.enrollmentStatus);
-
-    if (!enrollmentStatus) {
-      return res.status(400).json({
-        success: false,
-        error: "enrollmentStatus must be ACTIVE or HISTORICAL",
-      });
+    const schoolId = cleanString(req.body?.schoolId || req.query?.schoolId);
+    if (!schoolId) {
+      return res.status(400).json({ success: false, error: "Missing schoolId" });
     }
 
-    const existingLearner = await prisma.learner.findUnique({
-      where: { id },
-      select: { id: true },
-    });
-
-    if (!existingLearner) {
-      return res.status(404).json({ success: false, error: "Learner not found" });
-    }
-
-    const updatedLearner = await prisma.learner.update({
-      where: { id },
-      data: { enrollmentStatus },
-      include: {
-        familyAccount: true,
-        links: { include: { parent: true } },
-      },
+    const updatedLearner = await updateLearnerEnrollmentStatus({
+      schoolId,
+      learnerId: id,
+      enrollmentStatus: req.body?.enrollmentStatus,
     });
 
     return res.json({
@@ -1328,10 +1337,58 @@ router.patch("/:id/enrollment-status", async (req, res) => {
     });
   } catch (error) {
     console.error("UPDATE LEARNER ENROLLMENT STATUS ERROR:", error);
-    return res.status(500).json({
+    const message = error instanceof Error ? error.message : "Failed to update learner enrollment status";
+    const status = /not found/i.test(message) ? 404 : 400;
+    return res.status(status).json({
       success: false,
-      error: "Failed to update learner enrollment status",
+      error: message,
     });
+  }
+});
+
+router.post("/:id/reactivate", async (req, res) => {
+  try {
+    const authDecision = await resolveParentStaffAuth(req, {
+      requirePermission: { module: "learners", action: "create" },
+    });
+    if (!authDecision.allowed) {
+      return res.status(authDecision.status).json({
+        success: false,
+        error: authDecision.error,
+        code: authDecision.code || null,
+        message: authDecision.error,
+      });
+    }
+    const staffAuth = authDecision.auth;
+    const { id } = req.params;
+    const schoolId = cleanString(req.body?.schoolId || req.query?.schoolId);
+    if (!schoolId) {
+      return res.status(400).json({ success: false, error: "Missing schoolId" });
+    }
+    if (schoolId !== staffAuth.authorizedSchoolId) {
+      return res.status(403).json({
+        success: false,
+        error: "Request schoolId does not match authenticated school",
+        code: "SCHOOL_MISMATCH",
+      });
+    }
+    const updatedLearner = await reactivateHistoricalLearner({
+      schoolId,
+      learnerId: id,
+      familyAccountId: req.body?.familyAccountId || req.body?.existingFamilyAccountId || null,
+    });
+    return res.json({
+      success: true,
+      learner: mapLearnerDetailForClient(updatedLearner),
+    });
+  } catch (error) {
+    console.error("REACTIVATE LEARNER ERROR:", error);
+    if (error instanceof CrossSchoolFamilyAccountError) {
+      return res.status(400).json({ success: false, error: error.message, code: error.code });
+    }
+    const message = error instanceof Error ? error.message : "Failed to reactivate learner";
+    const status = /not found/i.test(message) ? 404 : 400;
+    return res.status(status).json({ success: false, error: message });
   }
 });
 

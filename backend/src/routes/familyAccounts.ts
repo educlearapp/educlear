@@ -1,6 +1,8 @@
 import { Router } from "express";
 import { mergeFamilyAccounts, unmergeLearnerFromFamily } from "../services/familyAccountService";
+import { CrossSchoolFamilyAccountError } from "../services/learnerRegistrationService";
 import { listFamilyAccountAudit } from "../utils/familyAccountAuditStore";
+import { prisma } from "../prisma";
 
 const router = Router();
 
@@ -147,7 +149,10 @@ router.post("/merge", async (req, res) => {
       statements: result.statements,
     });
   } catch (error) {
-    const message = sanitizeFamilyAccountError(error, "Merge failed");
+    const message =
+      error instanceof CrossSchoolFamilyAccountError
+        ? error.message
+        : sanitizeFamilyAccountError(error, "Merge failed");
     const status = mergeStatusCode(message);
     console.error("[family-accounts] POST /merge failed:", {
       schoolId: schoolId || null,
@@ -205,6 +210,48 @@ router.post("/unmerge", async (req, res) => {
 });
 
 // GET /api/family-accounts/audit?schoolId=...
+router.get("/", async (req, res) => {
+  try {
+    const schoolId = typeof req.query?.schoolId === "string" ? String(req.query.schoolId).trim() : "";
+    if (!schoolId) {
+      return res.status(400).json({ success: false, error: "Missing schoolId" });
+    }
+    const rows = await prisma.familyAccount.findMany({
+      where: { schoolId },
+      select: {
+        id: true,
+        accountRef: true,
+        familyName: true,
+        createdAt: true,
+        learners: {
+          select: { id: true, firstName: true, lastName: true, enrollmentStatus: true },
+        },
+      },
+      orderBy: { accountRef: "asc" },
+    });
+    const familyAccounts = rows.map((row) => {
+      const activeLearners = row.learners.filter(
+        (learner) => String(learner.enrollmentStatus || "ACTIVE").toUpperCase() === "ACTIVE"
+      );
+      return {
+        id: row.id,
+        accountRef: row.accountRef,
+        familyName: row.familyName,
+        createdAt: row.createdAt,
+        activeLearnerCount: activeLearners.length,
+        learnerCount: row.learners.length,
+        memberNames: activeLearners.map((learner) =>
+          `${learner.firstName} ${learner.lastName}`.trim()
+        ),
+      };
+    });
+    return res.json({ success: true, familyAccounts });
+  } catch (error) {
+    console.error("[family-accounts] GET / failed:", error);
+    return res.status(500).json({ success: false, error: "Server error" });
+  }
+});
+
 router.get("/audit", async (req, res) => {
   try {
     const schoolId = typeof req.query?.schoolId === "string" ? String(req.query.schoolId) : "";

@@ -3,6 +3,13 @@ import path from "path";
 
 export type FamilyAccountAuditAction = "merge" | "unmerge";
 
+let familyAccountAuditTestDataDir: string | null = null;
+
+/** @internal Test hook — redirect family-account audit I/O to an isolated fixture directory. */
+export function setFamilyAccountAuditStoreDataDirForTests(dataDir: string | null): void {
+  familyAccountAuditTestDataDir = dataDir ? path.resolve(dataDir) : null;
+}
+
 export type FamilyAccountAuditEntry = {
   id: string;
   schoolId: string;
@@ -20,18 +27,25 @@ export type FamilyAccountAuditEntry = {
 
 type AuditFile = Record<string, FamilyAccountAuditEntry[]>;
 
-const DATA_DIR = path.join(process.cwd(), "data");
-const AUDIT_FILE = path.join(DATA_DIR, "family-account-audit.json");
+function getDataDir(): string {
+  return familyAccountAuditTestDataDir ?? path.join(process.cwd(), "data");
+}
+
+function getAuditFile(): string {
+  return path.join(getDataDir(), "family-account-audit.json");
+}
 
 function ensureStore() {
-  if (!fs.existsSync(DATA_DIR)) fs.mkdirSync(DATA_DIR, { recursive: true });
-  if (!fs.existsSync(AUDIT_FILE)) fs.writeFileSync(AUDIT_FILE, JSON.stringify({}, null, 2), "utf8");
+  const dataDir = getDataDir();
+  const auditFile = getAuditFile();
+  if (!fs.existsSync(dataDir)) fs.mkdirSync(dataDir, { recursive: true });
+  if (!fs.existsSync(auditFile)) fs.writeFileSync(auditFile, JSON.stringify({}, null, 2), "utf8");
 }
 
 function readAll(): AuditFile {
   ensureStore();
   try {
-    const raw = fs.readFileSync(AUDIT_FILE, "utf8");
+    const raw = fs.readFileSync(getAuditFile(), "utf8");
     const parsed = JSON.parse(raw);
     return parsed && typeof parsed === "object" ? parsed : {};
   } catch {
@@ -41,7 +55,7 @@ function readAll(): AuditFile {
 
 function writeAll(data: AuditFile) {
   ensureStore();
-  fs.writeFileSync(AUDIT_FILE, JSON.stringify(data, null, 2), "utf8");
+  fs.writeFileSync(getAuditFile(), JSON.stringify(data, null, 2), "utf8");
 }
 
 export function appendFamilyAccountAudit(entry: Omit<FamilyAccountAuditEntry, "id" | "createdAt">) {

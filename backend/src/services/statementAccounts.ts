@@ -305,7 +305,9 @@ export async function buildAccountsFromAgeAnalysisSnapshots(
   if (!sid) return [];
 
   const snapshotsByRef = readSchoolFamilyAccountAgeAnalysisSnapshots(sid);
-  let snapshots: FamilyAccountAgeAnalysisSnapshot[] = Object.values(snapshotsByRef || {});
+  let snapshots: FamilyAccountAgeAnalysisSnapshot[] = Object.values(snapshotsByRef || {}).filter(
+    (snap) => !String(snap.mergedIntoAccountRef || "").trim()
+  );
   const accountRefFilter = String(opts.accountRef || "").trim().toUpperCase();
   if (accountRefFilter) {
     snapshots = snapshots.filter(

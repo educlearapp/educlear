@@ -4,9 +4,30 @@ import {
   reassignLedgerAccountRefs,
   readSchoolLedger,
   unmergeLearnerLedger,
+  writeSchoolLedger,
+  type BillingLedgerEntry,
 } from "../utils/billingLedgerStore";
-import { appendFamilyAccountAudit } from "../utils/familyAccountAuditStore";
-import { buildAccountsFromLearners } from "./statementAccounts";
+import { appendFamilyAccountAudit, listFamilyAccountAudit } from "../utils/familyAccountAuditStore";
+import {
+  combineAndRetireAgeAnalysisSnapshot,
+  invalidateFamilyAccountAgeAnalysisFileCache,
+  isRetiredAgeAnalysisSnapshot,
+  readSchoolFamilyAccountAgeAnalysisSnapshots,
+  replaceSchoolFamilyAccountAgeAnalysisSnapshots,
+  retireAgeAnalysisSnapshot,
+  type FamilyAccountAgeAnalysisSnapshot,
+} from "../utils/familyAccountAgeAnalysisStore";
+import { invalidateOfficialBillingAccountRefsCache } from "./officialBillingAccountRef";
+import {
+  alignParentsToCanonicalFamily,
+  assertFamilyAccountOwnedBySchool,
+} from "./learnerRegistrationService";
+import {
+  buildAccountsFromAgeAnalysisSnapshots,
+  buildAccountsFromLearners,
+  resolveAuthoritativeAccountBalance,
+  roundStatementMoney,
+} from "./statementAccounts";
 
 const FORBIDDEN_LEARNER_IDENTITY_FIELDS = ["admissionNo", "idNumber"] as const;
 
@@ -108,12 +129,9 @@ async function findFamilyAccountById(
   schoolId: string,
   familyAccountId: string
 ): Promise<ResolvedFamilyAccount | null> {
-  const id = String(familyAccountId || "").trim();
-  if (!id) return null;
-  return prisma.familyAccount.findFirst({
-    where: { id, schoolId },
-    select: { id: true, accountRef: true, familyName: true },
-  });
+  const owned = await assertFamilyAccountOwnedBySchool(schoolId, familyAccountId);
+  if (!owned) return null;
+  return { id: owned.id, accountRef: owned.accountRef, familyName: owned.familyName };
 }
 
 async function findFamilyAccountByRef(
@@ -240,7 +258,71 @@ export type MergeFamilyAccountsInput = {
   targetAccountRef?: string;
   targetLearnerId?: string;
   actorEmail?: string;
+  /**
+   * Explicit override for snapshot handling.
+   * true  = Case A: add source snapshot into canonical (genuine unconsolidated debt).
+   * false = Case B: retire/hide source snapshot without changing canonical opening.
+   * omitted = auto-classify.
+   */
+  consolidateBalances?: boolean;
+  /** Test-only: force post-merge reconciliation to fail so rollback can be asserted. */
+  forceReconcileFailure?: boolean;
 };
+
+export type MergeBalanceMode = "consolidate" | "retire_without_adding";
+
+function snapshotSourceKind(snap: FamilyAccountAgeAnalysisSnapshot | undefined): string {
+  return String(snap?.source || "").trim().toLowerCase();
+}
+
+function hasPriorMergeIntoTarget(
+  schoolId: string,
+  sourceRef: string,
+  targetRef: string
+): boolean {
+  const from = String(sourceRef || "").trim().toUpperCase();
+  const to = String(targetRef || "").trim().toUpperCase();
+  return listFamilyAccountAudit(schoolId, 200).some((entry) => {
+    if (String(entry.action || "") !== "merge") return false;
+    return (
+      String(entry.sourceAccountRef || "").trim().toUpperCase() === from &&
+      String(entry.targetAccountRef || "").trim().toUpperCase() === to
+    );
+  });
+}
+
+/**
+ * Case A — genuine first-time consolidation of two independent Kid-e-Sys (or equivalent)
+ * openings that still have learners on the source.
+ * Case B — stale predecessor / new-learner shell: retire snapshot without adding it.
+ */
+export function resolveMergeBalanceMode(opts: {
+  consolidateBalances?: boolean;
+  sourceSnapshot?: FamilyAccountAgeAnalysisSnapshot;
+  sourceLearnerCount: number;
+  priorMergeIntoTarget: boolean;
+}): MergeBalanceMode {
+  if (opts.consolidateBalances === true) return "consolidate";
+  if (opts.consolidateBalances === false) return "retire_without_adding";
+  if (opts.priorMergeIntoTarget) return "retire_without_adding";
+  if (opts.sourceLearnerCount === 0) return "retire_without_adding";
+  const kind = snapshotSourceKind(opts.sourceSnapshot);
+  if (kind === "educlear-registration") return "retire_without_adding";
+  if (kind === "kideesys-age-analysis" || kind === "") return "consolidate";
+  return "retire_without_adding";
+}
+
+const MERGE_RECONCILE_TOLERANCE = 0.009;
+
+function cloneLedger(entries: BillingLedgerEntry[]): BillingLedgerEntry[] {
+  return entries.map((entry) => ({ ...entry }));
+}
+
+function cloneSnapshots(
+  snapshots: Record<string, FamilyAccountAgeAnalysisSnapshot>
+): Record<string, FamilyAccountAgeAnalysisSnapshot> {
+  return JSON.parse(JSON.stringify(snapshots || {}));
+}
 
 export async function mergeFamilyAccounts(opts: MergeFamilyAccountsInput) {
   const schoolId = String(opts.schoolId || "").trim();
@@ -311,10 +393,47 @@ export async function mergeFamilyAccounts(opts: MergeFamilyAccountsInput) {
 
   const sourceFamilyId = sourceAccount.id;
   const targetFamilyId = targetAccount.id;
+  const sourceRef = String(sourceAccount.accountRef || "").trim().toUpperCase();
+  const targetRef = String(targetAccount.accountRef || "").trim().toUpperCase();
+
+  const snapshotsBefore = cloneSnapshots(readSchoolFamilyAccountAgeAnalysisSnapshots(schoolId));
+  const sourceSnap = snapshotsBefore[sourceRef];
+  if (isRetiredAgeAnalysisSnapshot(sourceSnap) && String(sourceSnap.mergedIntoAccountRef).toUpperCase() === targetRef) {
+    const statements = await buildAccountsFromAgeAnalysisSnapshots(schoolId);
+    return {
+      success: true,
+      action: "merge" as const,
+      sourceAccountRef: sourceRef,
+      targetAccountRef: targetRef,
+      mergedLearnerIds: [],
+      ledgerRowsUpdated: 0,
+      alreadyMerged: true,
+      balanceBefore: {
+        source: 0,
+        target: await resolveAuthoritativeAccountBalance(schoolId, targetRef),
+        combined: await resolveAuthoritativeAccountBalance(schoolId, targetRef),
+      },
+      balanceAfter: {
+        source: 0,
+        target: await resolveAuthoritativeAccountBalance(schoolId, targetRef),
+        combined: await resolveAuthoritativeAccountBalance(schoolId, targetRef),
+      },
+      audit: null,
+      statements,
+    };
+  }
 
   const sourceLearners = await prisma.learner.findMany({
     where: { schoolId, familyAccountId: sourceFamilyId },
     select: { id: true, admissionNo: true, idNumber: true },
+  });
+  const sourceParents = await prisma.parent.findMany({
+    where: { schoolId, familyAccountId: sourceFamilyId },
+    select: { id: true },
+  });
+  const sourceDeposits = await prisma.billingDeposit.findMany({
+    where: { schoolId, familyAccountId: sourceFamilyId },
+    select: { id: true },
   });
   const sourceLearnerIds = sourceLearners.map((l) => l.id);
   const identityBefore: LearnerIdentitySnapshot[] = sourceLearners.map((l) => ({
@@ -323,73 +442,215 @@ export async function mergeFamilyAccounts(opts: MergeFamilyAccountsInput) {
     idNumber: l.idNumber,
   }));
 
-  if (sourceLearnerIds.length === 0) {
+  const hasSourceSnapshot = Boolean(sourceSnap) && !isRetiredAgeAnalysisSnapshot(sourceSnap);
+  const ledgerBefore = cloneLedger(readSchoolLedger(schoolId));
+  const sourceHasLedger = ledgerBefore.some(
+    (entry) => String(entry.accountNo || "").trim().toUpperCase() === sourceRef
+  );
+
+  if (sourceLearnerIds.length === 0 && !hasSourceSnapshot && !sourceHasLedger) {
     console.warn("[family-accounts] merge validation failed: no learners on source", {
       schoolId,
       sourceFamilyId,
-      sourceAccountRef: sourceAccount.accountRef,
+      sourceAccountRef: sourceRef,
     });
     throw new Error("No learners found on source account");
   }
 
+  const sourceBalanceBefore = await resolveAuthoritativeAccountBalance(schoolId, sourceRef, {
+    ledger: ledgerBefore,
+  });
+  const targetBalanceBefore = await resolveAuthoritativeAccountBalance(schoolId, targetRef, {
+    ledger: ledgerBefore,
+  });
+  const balanceMode = resolveMergeBalanceMode({
+    consolidateBalances: opts.consolidateBalances,
+    sourceSnapshot: sourceSnap,
+    sourceLearnerCount: sourceLearnerIds.length,
+    priorMergeIntoTarget: hasPriorMergeIntoTarget(schoolId, sourceRef, targetRef),
+  });
+  const sourceSnapshotBalance = hasSourceSnapshot
+    ? roundStatementMoney(sourceSnap?.balance)
+    : 0;
+  const sourceLivePortion = roundStatementMoney(sourceBalanceBefore - sourceSnapshotBalance);
+  const expectedCanonicalAfter =
+    balanceMode === "consolidate"
+      ? roundStatementMoney(sourceBalanceBefore + targetBalanceBefore)
+      : roundStatementMoney(targetBalanceBefore + sourceLivePortion);
+  const combinedBefore = expectedCanonicalAfter;
+
   const learnerMergeData = { familyAccountId: targetFamilyId };
   assertLearnerUpdateFieldsAllowed(learnerMergeData);
 
-  await prisma.$transaction(async (tx) => {
-    await tx.learner.updateMany({
-      where: { schoolId, familyAccountId: sourceFamilyId },
-      data: learnerMergeData,
-    });
+  let prismaCommitted = false;
+  let ledgerMoved = false;
+  let snapshotsCombined = false;
+  let ledgerRowsUpdated = 0;
 
-    await tx.parent.updateMany({
-      where: { schoolId, familyAccountId: sourceFamilyId },
-      data: { familyAccountId: targetFamilyId },
-    });
-
-    await tx.billingDeposit.updateMany({
-      where: { schoolId, familyAccountId: sourceFamilyId },
-      data: { familyAccountId: targetFamilyId },
-    });
-  });
-
-  await verifyLearnerIdentitiesUnchanged(schoolId, identityBefore);
-
-  const ledgerResult = reassignLedgerAccountRefs(schoolId, {
-    fromAccountNo: sourceAccount.accountRef,
-    toAccountNo: targetAccount.accountRef,
-    learnerIds: sourceLearnerIds,
-    includeAccountNoOnly: true,
-  });
-
-  const audit = appendFamilyAccountAudit({
-    schoolId,
-    action: "merge",
-    actorEmail: opts.actorEmail,
-    sourceFamilyAccountId: sourceFamilyId,
-    targetFamilyAccountId: targetFamilyId,
-    sourceAccountRef: sourceAccount.accountRef,
-    targetAccountRef: targetAccount.accountRef,
-    learnerIds: sourceLearnerIds,
-    metadata: {
-      sourceLearnerId: sourceLearnerId || null,
-      targetLearnerId: targetLearnerId || null,
-      ledgerRowsUpdated: ledgerResult.updated,
-    },
-  });
-
-  const ledger = readSchoolLedger(schoolId);
-  const statements = await buildAccountsFromLearners(schoolId, ledger);
-
-  return {
-    success: true,
-    action: "merge" as const,
-    sourceAccountRef: sourceAccount.accountRef,
-    targetAccountRef: targetAccount.accountRef,
-    mergedLearnerIds: sourceLearnerIds,
-    ledgerRowsUpdated: ledgerResult.updated,
-    audit,
-    statements,
+  const restoreJsonStores = () => {
+    writeSchoolLedger(schoolId, ledgerBefore);
+    replaceSchoolFamilyAccountAgeAnalysisSnapshots(schoolId, snapshotsBefore);
+    invalidateFamilyAccountAgeAnalysisFileCache();
+    invalidateOfficialBillingAccountRefsCache(schoolId);
   };
+
+  const restorePrismaLinks = async () => {
+    await prisma.$transaction(async (tx) => {
+      if (sourceLearnerIds.length) {
+        await tx.learner.updateMany({
+          where: { schoolId, id: { in: sourceLearnerIds } },
+          data: { familyAccountId: sourceFamilyId },
+        });
+      }
+      if (sourceParents.length) {
+        await tx.parent.updateMany({
+          where: { schoolId, id: { in: sourceParents.map((p) => p.id) } },
+          data: { familyAccountId: sourceFamilyId },
+        });
+      }
+      if (sourceDeposits.length) {
+        await tx.billingDeposit.updateMany({
+          where: { schoolId, id: { in: sourceDeposits.map((d) => d.id) } },
+          data: { familyAccountId: sourceFamilyId },
+        });
+      }
+    });
+  };
+
+  try {
+    await prisma.$transaction(async (tx) => {
+      if (sourceLearnerIds.length) {
+        await tx.learner.updateMany({
+          where: { schoolId, familyAccountId: sourceFamilyId },
+          data: learnerMergeData,
+        });
+      }
+      await tx.parent.updateMany({
+        where: { schoolId, familyAccountId: sourceFamilyId },
+        data: { familyAccountId: targetFamilyId },
+      });
+      await tx.billingDeposit.updateMany({
+        where: { schoolId, familyAccountId: sourceFamilyId },
+        data: { familyAccountId: targetFamilyId },
+      });
+    });
+    prismaCommitted = true;
+
+    await verifyLearnerIdentitiesUnchanged(schoolId, identityBefore);
+    await alignParentsToCanonicalFamily({
+      schoolId,
+      learnerIds: sourceLearnerIds,
+      canonicalFamilyAccountId: targetFamilyId,
+    });
+
+    const ledgerResult = reassignLedgerAccountRefs(schoolId, {
+      fromAccountNo: sourceRef,
+      toAccountNo: targetRef,
+      learnerIds: sourceLearnerIds,
+      includeAccountNoOnly: true,
+    });
+    ledgerMoved = true;
+    ledgerRowsUpdated = ledgerResult.updated;
+
+    if (hasSourceSnapshot) {
+      // Prevention: retire ONLY the explicit merge source. Do not scan for
+      // other abandoned snapshots (e.g. MOT682-style unenrol leftovers) and
+      // auto-retire them — that is a separate historical repair.
+      if (balanceMode === "consolidate") {
+        combineAndRetireAgeAnalysisSnapshot(schoolId, sourceRef, targetRef, {
+          retiredReason: "family-account-merge-consolidate",
+        });
+      } else {
+        retireAgeAnalysisSnapshot(schoolId, sourceRef, targetRef, {
+          retiredReason: "family-account-merge-stale-predecessor",
+        });
+      }
+      snapshotsCombined = true;
+      invalidateFamilyAccountAgeAnalysisFileCache();
+      invalidateOfficialBillingAccountRefsCache(schoolId);
+    }
+
+    if (opts.forceReconcileFailure) {
+      throw new Error("Forced merge reconciliation failure");
+    }
+
+    const sourceBalanceAfter = isRetiredAgeAnalysisSnapshot(
+      readSchoolFamilyAccountAgeAnalysisSnapshots(schoolId)[sourceRef]
+    )
+      ? 0
+      : await resolveAuthoritativeAccountBalance(schoolId, sourceRef);
+    const targetBalanceAfter = await resolveAuthoritativeAccountBalance(schoolId, targetRef);
+    const combinedAfter = roundStatementMoney(targetBalanceAfter);
+
+    if (Math.abs(combinedAfter - combinedBefore) > MERGE_RECONCILE_TOLERANCE) {
+      throw new Error(
+        `Merge reconciliation failed: combined position ${combinedBefore} → ${combinedAfter}`
+      );
+    }
+    if (Math.abs(sourceBalanceAfter) > MERGE_RECONCILE_TOLERANCE && hasSourceSnapshot) {
+      throw new Error(
+        `Merge reconciliation failed: retired source ${sourceRef} still shows ${sourceBalanceAfter}`
+      );
+    }
+
+    const audit = appendFamilyAccountAudit({
+      schoolId,
+      action: "merge",
+      actorEmail: opts.actorEmail,
+      sourceFamilyAccountId: sourceFamilyId,
+      targetFamilyAccountId: targetFamilyId,
+      sourceAccountRef: sourceRef,
+      targetAccountRef: targetRef,
+      learnerIds: sourceLearnerIds,
+      metadata: {
+        sourceLearnerId: sourceLearnerId || null,
+        targetLearnerId: targetLearnerId || null,
+        ledgerRowsUpdated,
+        balanceBefore: {
+          source: sourceBalanceBefore,
+          target: targetBalanceBefore,
+          combined: combinedBefore,
+        },
+        balanceAfter: {
+          source: sourceBalanceAfter,
+          target: targetBalanceAfter,
+          combined: combinedAfter,
+        },
+        snapshotsCombined,
+        balanceMode,
+        consolidateBalances: opts.consolidateBalances ?? null,
+      },
+    });
+
+    const statements = await buildAccountsFromAgeAnalysisSnapshots(schoolId);
+
+    return {
+      success: true,
+      action: "merge" as const,
+      sourceAccountRef: sourceRef,
+      targetAccountRef: targetRef,
+      mergedLearnerIds: sourceLearnerIds,
+      ledgerRowsUpdated,
+      alreadyMerged: false,
+      balanceMode,
+      balanceBefore: {
+        source: sourceBalanceBefore,
+        target: targetBalanceBefore,
+        combined: combinedBefore,
+      },
+      balanceAfter: {
+        source: sourceBalanceAfter,
+        target: targetBalanceAfter,
+        combined: combinedAfter,
+      },
+      audit,
+      statements,
+    };
+  } catch (error) {
+    if (ledgerMoved || snapshotsCombined) restoreJsonStores();
+    if (prismaCommitted) await restorePrismaLinks();
+    throw error;
+  }
 }
 
 export async function unmergeLearnerFromFamily(opts: {

@@ -14,6 +14,7 @@ import "./AddLearner.css";
 
 type AddLearnerProps = {
   onBack?: () => void;
+  onReviewLearner?: (learner: Record<string, unknown>) => void;
   schoolParents?: ParentRecord[];
 };
 
@@ -101,7 +102,11 @@ function learnerClassFromBase(learner: Record<string, unknown>): string {
   return String(learner?.classroom || learner?.className || learner?.grade || "").trim();
 }
 
-export default function AddLearner({ onBack, schoolParents: schoolParentsProp }: AddLearnerProps = {}) {
+export default function AddLearner({
+  onBack,
+  onReviewLearner,
+  schoolParents: schoolParentsProp,
+}: AddLearnerProps = {}) {
 
 
 
@@ -176,6 +181,16 @@ export default function AddLearner({ onBack, schoolParents: schoolParentsProp }:
   const [message, setMessage] = useState<string | null>(null);
 
   const [siblingBaseName, setSiblingBaseName] = useState("");
+  const [familyMode, setFamilyMode] = useState<"new" | "existing">("new");
+  const [existingFamilyAccountId, setExistingFamilyAccountId] = useState("");
+  const [familyAccounts, setFamilyAccounts] = useState<
+    Array<{ id: string; accountRef: string; familyName: string; memberNames: string[] }>
+  >([]);
+  const [identityConflict, setIdentityConflict] = useState<{
+    error: string;
+    suggestedAction: string;
+    existingLearner: Record<string, unknown>;
+  } | null>(null);
 
   useEffect(() => {
     const raw = localStorage.getItem("selectedLearnerForSibling");
@@ -194,6 +209,14 @@ export default function AddLearner({ onBack, schoolParents: schoolParentsProp }:
       }
 
       if (baseLast) setSurname(baseLast);
+
+      const familyId = String(
+        (base.familyAccount as { id?: string } | undefined)?.id || base.familyAccountId || ""
+      ).trim();
+      if (familyId) {
+        setFamilyMode("existing");
+        setExistingFamilyAccountId(familyId);
+      }
 
       const baseClass = learnerClassFromBase(base);
       if (baseClass) {
@@ -321,6 +344,26 @@ export default function AddLearner({ onBack, schoolParents: schoolParentsProp }:
       cancelled = true;
     };
   }, [schoolId, schoolParentsProp]);
+
+  useEffect(() => {
+    if (!schoolId) {
+      setFamilyAccounts([]);
+      return;
+    }
+    let cancelled = false;
+    void apiFetch(`/api/family-accounts?schoolId=${encodeURIComponent(schoolId)}`)
+      .then((data: any) => {
+        if (cancelled) return;
+        const rows = Array.isArray(data?.familyAccounts) ? data.familyAccounts : [];
+        setFamilyAccounts(rows);
+      })
+      .catch(() => {
+        if (!cancelled) setFamilyAccounts([]);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [schoolId]);
 
   const handleMainIdNumberChange = (value: string) => {
 
@@ -526,6 +569,11 @@ export default function AddLearner({ onBack, schoolParents: schoolParentsProp }:
       return;
     }
 
+    if (familyMode === "existing" && !existingFamilyAccountId) {
+      setMessage("Please select an existing family account, or choose New family account.");
+      return;
+    }
+
     const parentPayloads = parents.map((p) => parentToApiPayload(p));
 
     if (classroomSelection === NEW_CLASSROOM_VALUE && !newClassroomName.trim()) {
@@ -536,229 +584,66 @@ export default function AddLearner({ onBack, schoolParents: schoolParentsProp }:
     const savedClassName = resolvedClassName() || null;
 
     setSaving(true);
-
-
+    setIdentityConflict(null);
 
     try {
-
-
-
-      await apiFetch("/api/learners", {
-
-
-
+      const response = await fetch(`${API_URL}/api/learners`, {
         method: "POST",
-
-
-
-        headers: {
-          ...staffAuthHeaders(),
-        },
-
-
-
+        headers: { "Content-Type": "application/json", ...staffAuthHeaders() },
         body: JSON.stringify({
-
-
-
           schoolId,
-
-
-
           firstName: firstName.trim(),
-
-
-
           lastName: surname.trim(),
-
-
-
           grade: grade.trim(),
-
-
-
           className: savedClassName,
-
-
-
-
-
-
           idNumber: idNumber.trim() || null,
-
-
-
           birthDate: dateOfBirth ? new Date(dateOfBirth).toISOString() : null,
-
-
-
           gender: gender || null,
-
-
-
           homeLanguage: homeLanguage.trim() || null,
-
-
-
           nationality: nationality.trim() || null,
-
-
-
           enrollmentDate: enrollmentDate ? new Date(enrollmentDate).toISOString() : null,
-
-
-
           parent: parentPayloads[0],
           parents: parentPayloads,
-
-
-
+          existingFamilyAccountId:
+            familyMode === "existing" ? existingFamilyAccountId || null : null,
           siblings: siblings
-
-
-
             .map((s) => ({
-
-
-
               firstName: s.firstName.trim(),
-
-
-
               lastName: s.surname.trim(),
-
-
-
               grade: s.grade.trim(),
-
-
-
               className: s.className.trim() || null,
-
-
-
-
-
-
               idNumber: s.idNumber.trim() || null,
-
-
-
               birthDate: s.dateOfBirth ? new Date(s.dateOfBirth).toISOString() : null,
-
-
-
               gender: s.gender || null,
-
-
-
               homeLanguage: s.homeLanguage.trim() || null,
-
-
-
               nationality: s.nationality.trim() || null,
-
-
-
               enrollmentDate: s.enrollmentDate ? new Date(s.enrollmentDate).toISOString() : null,
-
-
-
             }))
-
-
-
             .filter((s) => s.firstName && s.lastName && s.grade),
-
-
-
         }),
-
-
-
       });
+      const payload = await response.json().catch(() => ({}));
+      if (response.status === 409 && payload?.code === "LEARNER_IDENTITY_CONFLICT") {
+        setIdentityConflict({
+          error: String(payload.error || "Existing learner found"),
+          suggestedAction: String(payload.suggestedAction || "review"),
+          existingLearner: payload.existingLearner || {},
+        });
+        setMessage(String(payload.error || "Existing learner found"));
+        return;
+      }
+      if (!response.ok) {
+        throw new Error(payload?.error || "Failed to save learner");
+      }
 
-
-
-      setMessage("Learner saved successfully.");
-
-
-
-      setFirstName("");
-
-
-
-      setSurname("");
-
-
-
-      setGrade("");
-
-
-
-      setClassName("");
-      setClassroomSelection(NO_CLASSROOM_VALUE);
-      setNewClassroomName("");
-
-
-
-      setAdmissionNo("");
-
-
-
-      setIdNumber("");
-
-
-
-      setDateOfBirth("");
-
-
-
-      setGender("");
-
-
-
-      setHomeLanguage("");
-
-
-
-      setNationality("");
-
-
-
-      setEnrollmentDate("");
-
-
-
-      setParents([]);
-      setSiblings([]);
-
-
-
-    } catch (e) {
-
-
-
-      setMessage(e instanceof Error ? e.message : "Failed to save learner.");
-
-
-
+      setMessage("Learner saved.");
+      if (onBack) onBack();
+    } catch (error) {
+      setMessage(error instanceof Error ? error.message : "Failed to save learner");
     } finally {
-
-
-
       setSaving(false);
-
-
-
     }
-
-
-
   };
-
-
-
   const messageIsSuccess = message ? message.toLowerCase().includes("success") : false;
 
   const handleBack = () => {
@@ -793,6 +678,117 @@ export default function AddLearner({ onBack, schoolParents: schoolParentsProp }:
         >
           {message}
         </div>
+      ) : null}
+
+      {identityConflict ? (
+        <section className="add-learner-card" aria-label="Existing learner found">
+          <h2 className="add-learner-section-title">
+            {identityConflict.suggestedAction === "reactivate"
+              ? "Existing historical learner found"
+              : "This learner already exists"}
+          </h2>
+          <p>
+            {identityConflict.suggestedAction === "reactivate"
+              ? "This learner is already on file as historical. Reactivate the existing record instead of creating a duplicate."
+              : "This learner already exists. Open the existing record instead of creating a duplicate."}
+          </p>
+          <p>
+            {[
+              `${String(identityConflict.existingLearner.firstName || "")} ${String(
+                identityConflict.existingLearner.lastName || ""
+              )}`.trim(),
+              identityConflict.existingLearner.accountRef
+                ? `Account ${String(identityConflict.existingLearner.accountRef)}`
+                : "",
+              identityConflict.existingLearner.enrollmentStatus
+                ? String(identityConflict.existingLearner.enrollmentStatus).toLowerCase() ===
+                  "historical"
+                  ? "Historical"
+                  : "Active"
+                : "",
+              identityConflict.existingLearner.className
+                ? String(identityConflict.existingLearner.className)
+                : "",
+            ]
+              .filter(Boolean)
+              .join(" · ")}
+          </p>
+          <div className="add-learner-actions">
+            {identityConflict.suggestedAction === "reactivate" ? (
+              <button
+                type="button"
+                className="add-learner-btn add-learner-btn--gold"
+                disabled={saving || !schoolId}
+                onClick={async () => {
+                  const existingId = String(identityConflict.existingLearner.id || "");
+                  if (!existingId || !schoolId) return;
+                  setSaving(true);
+                  try {
+                    const response = await fetch(
+                      `${API_URL}/api/learners/${encodeURIComponent(existingId)}/reactivate`,
+                      {
+                        method: "POST",
+                        headers: { "Content-Type": "application/json", ...staffAuthHeaders() },
+                        body: JSON.stringify({
+                          schoolId,
+                          familyAccountId:
+                            familyMode === "existing" ? existingFamilyAccountId || null : null,
+                        }),
+                      }
+                    );
+                    const payload = await response.json().catch(() => ({}));
+                    if (!response.ok) {
+                      throw new Error(payload?.error || "Failed to reactivate learner");
+                    }
+                    setIdentityConflict(null);
+                    setMessage("Learner reactivated.");
+                    if (onBack) onBack();
+                  } catch (error) {
+                    setMessage(error instanceof Error ? error.message : "Failed to reactivate learner");
+                  } finally {
+                    setSaving(false);
+                  }
+                }}
+              >
+                Reactivate learner
+              </button>
+            ) : null}
+            <button
+              type="button"
+              className="add-learner-btn add-learner-btn--gold-outline"
+              disabled={saving}
+              onClick={async () => {
+                const existingId = String(identityConflict.existingLearner.id || "");
+                if (!existingId) return;
+                try {
+                  const response = await fetch(
+                    `${API_URL}/api/learners/${encodeURIComponent(existingId)}`
+                  );
+                  const payload = await response.json().catch(() => ({}));
+                  const learner =
+                    (payload?.learner as Record<string, unknown> | undefined) ||
+                    identityConflict.existingLearner;
+                  if (onReviewLearner) {
+                    onReviewLearner(learner);
+                    return;
+                  }
+                  setMessage("Open this learner from Registrations to review the existing record.");
+                } catch (error) {
+                  setMessage(error instanceof Error ? error.message : "Could not open learner");
+                }
+              }}
+            >
+              Review learner
+            </button>
+            <button
+              type="button"
+              className="add-learner-btn add-learner-btn--outline"
+              onClick={() => setIdentityConflict(null)}
+            >
+              Cancel
+            </button>
+          </div>
+        </section>
       ) : null}
 
       <div className="add-learner-form-stack">
@@ -948,6 +944,52 @@ export default function AddLearner({ onBack, schoolParents: schoolParentsProp }:
                 onChange={(e) => setEnrollmentDate(e.target.value)}
               />
             </div>
+          </div>
+        </section>
+
+        <section className="add-learner-card" aria-labelledby="add-learner-family-heading">
+          <div className="add-learner-section-header">
+            <div className="add-learner-section-header-main">
+              <span className="add-learner-section-accent" aria-hidden="true" />
+              <h2 id="add-learner-family-heading" className="add-learner-section-title">
+                Family account
+              </h2>
+            </div>
+          </div>
+          <p className="add-learner-empty-hint">
+            Choose New family account for a first child, or Add to existing family account when this
+            child belongs to a family already on the system.
+          </p>
+          <div className="add-learner-grid">
+            <div className="add-learner-field">
+              <label className="add-learner-label">Family account</label>
+              <select
+                className="add-learner-select"
+                value={familyMode}
+                onChange={(e) => setFamilyMode(e.target.value === "existing" ? "existing" : "new")}
+              >
+                <option value="new">New family account</option>
+                <option value="existing">Add to existing family account</option>
+              </select>
+            </div>
+            {familyMode === "existing" ? (
+              <div className="add-learner-field">
+                <label className="add-learner-label">Existing family account</label>
+                <select
+                  className="add-learner-select"
+                  value={existingFamilyAccountId}
+                  onChange={(e) => setExistingFamilyAccountId(e.target.value)}
+                >
+                  <option value="">Select family account…</option>
+                  {familyAccounts.map((family) => (
+                    <option key={family.id} value={family.id}>
+                      {family.accountRef} · {family.familyName}
+                      {family.memberNames?.length ? ` · ${family.memberNames.join(", ")}` : ""}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            ) : null}
           </div>
         </section>
 

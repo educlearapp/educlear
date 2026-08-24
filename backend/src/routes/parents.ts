@@ -33,6 +33,24 @@ function cleanBool(value: unknown, fallback: boolean) {
   return Boolean(value);
 }
 
+/** GET /api/parents?schoolId= — school-scoped parent list for Add Learner / existing-parent picker. */
+router.get("/", async (req, res) => {
+  try {
+    const schoolId = cleanString((req.query as { schoolId?: unknown })?.schoolId);
+    if (!schoolId) {
+      return res.status(400).json({ success: false, error: "Missing schoolId" });
+    }
+    const parents = await prisma.parent.findMany({
+      where: { schoolId },
+      orderBy: [{ surname: "asc" }, { firstName: "asc" }],
+    });
+    return res.json({ success: true, parents });
+  } catch (error: unknown) {
+    console.error("LIST PARENTS ERROR:", error);
+    return res.status(500).json({ success: false, error: "Failed to list parents" });
+  }
+});
+
 /**
  * GET /api/parents/fee-check/:idNumber — controlled cross-school guardian ID fee lookup.
  * Owner/Admin only. Unauthenticated / unauthorized requests must not receive debt/PII.

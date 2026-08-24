@@ -15969,7 +15969,21 @@ const [invoiceRunEmailDraft, setInvoiceRunEmailDraft] = useState({
     }
 
     if (activePage === "addLearner")
-      return <AddLearner onBack={() => go("registrations")} schoolParents={parents} />;
+      return (
+        <AddLearner
+          onBack={() => go("registrations")}
+          onReviewLearner={(learner) => {
+            setSelectedLearner(learner);
+            try {
+              localStorage.setItem("selectedLearnerForManage", JSON.stringify(learner));
+            } catch {
+              // ignore storage failures
+            }
+            setActivePage("learnerProfile");
+          }}
+          schoolParents={parents}
+        />
+      );
 
 
 
