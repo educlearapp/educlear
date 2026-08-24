@@ -67,8 +67,26 @@ function uniqueReasons(list: ParentIdentityMatchReason[]): ParentIdentityMatchRe
  * create new, require review, or conflict.
  */
 export function resolveParentIdentity(input: ResolveParentIdentityInput): ParentIdentityDecision {
-  const { incoming, candidates } = input;
+  const { incoming } = input;
   const sourceParentIdMap = input.sourceParentIdMap || new Map<string, string>();
+  const incomingSchoolId = String(incoming.schoolId || "").trim();
+  const candidates = input.candidates.filter((c) => {
+    const candidateSchool = String(c.schoolId || "").trim();
+    if (!incomingSchoolId || !candidateSchool) return true;
+    return candidateSchool === incomingSchoolId;
+  });
+  const rejectedCrossSchool = input.candidates.length - candidates.length;
+  if (rejectedCrossSchool > 0 && candidates.length === 0) {
+    return {
+      decision: "REVIEW_REQUIRED",
+      parentId: null,
+      confidence: "LOW",
+      reasons: ["NO_STRONG_IDENTITY"],
+      conflictReasons: ["AMBIGUOUS_CANDIDATES"],
+      candidates: [],
+      recommendedAction: "REVIEW",
+    };
+  }
 
   const inId = normalizeParentIdentityNumber(incoming.idNumber);
   const inEmail = normalizeParentEmail(incoming.email);

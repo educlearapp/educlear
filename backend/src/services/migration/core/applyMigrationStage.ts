@@ -55,6 +55,17 @@ import { postOpeningBalancesForMappedRows } from "../finance/postMigrationOpenin
 import { applyMigrationBillingPlansFromMappedRows } from "../finance/applyMigrationBillingPlansFromStage";
 import { removeSchoolEntriesByIds } from "../../../utils/billingLedgerStore";
 import { classifyFinanceSourceRow } from "../finance/classifyFinanceSourceRow";
+import {
+  allocateMigrationAdmissionNo,
+  classifyMigrationLearnerIdentity,
+  migrationLearnerBatchKey,
+  type MigrationLearnerIdentityCandidate,
+} from "./migrationLearnerIdentity";
+import { openingBalanceRowsToPost } from "./migrationOpeningBalanceSafety";
+import {
+  saveMigrationIntegrity,
+  type MigrationIntegrityFinding,
+} from "./migrationIntegrityStore";
 
 const MIGRATION_APPLY_TX_OPTIONS = { maxWait: 30000, timeout: 180000 };
 
@@ -259,14 +270,19 @@ function bumpCount(
   }
 }
 
-function learnerDuplicateKey(mapped: MappedRow): string {
-  const idNumber = cleanString(mapped.idNumber);
-  if (idNumber) return `id:${idNumber.toLowerCase()}`;
+function learnerDuplicateKey(mapped: MappedRow, schoolId: string): string {
   const names = learnerNamesFromMapped(mapped);
-  const classroom = cleanString(mapped.classroom);
-  const classNorm = normalizeClassroomInput(classroom, cleanString(mapped.grade));
-  const classLabel = classNorm.classroomName || classroom;
-  return `name:${names.firstName.toLowerCase()}|${names.lastName.toLowerCase()}|${classLabel.toLowerCase()}`;
+  return (
+    migrationLearnerBatchKey({
+      schoolId,
+      firstName: names.firstName,
+      lastName: names.lastName,
+      idNumber: mapped.idNumber,
+      dateOfBirth: mapped.dateOfBirth,
+      sourceLearnerId: mapped.learnerNumber,
+    }) ||
+    `weak:${names.firstName.toLowerCase()}|${names.lastName.toLowerCase()}`
+  );
 }
 
 function billingDuplicateKey(mapped: MappedRow): string {
@@ -644,12 +660,36 @@ export async function applyMigrationStage(
       rowsByFileId.set(plan.fileId, rows);
     }
 
+    const integrityFindings: MigrationIntegrityFinding[] = [];
+
     await prisma.$transaction(async (tx) => {
       const learnerIndex = await buildApplyLearnerMatchIndex(
         tx,
         targetSchoolId,
         stage,
         rowsByFileId
+      );
+      const schoolLearnerRows = await tx.learner.findMany({
+        where: { schoolId: targetSchoolId },
+        select: {
+          id: true,
+          schoolId: true,
+          firstName: true,
+          lastName: true,
+          idNumber: true,
+          birthDate: true,
+          admissionNo: true,
+          enrollmentStatus: true,
+          familyAccountId: true,
+        },
+      });
+      const schoolLearnerCandidates: MigrationLearnerIdentityCandidate[] = [
+        ...schoolLearnerRows,
+      ];
+      const takenAdmissionNos = new Set(
+        schoolLearnerRows
+          .map((row) => String(row.admissionNo || "").trim().toUpperCase())
+          .filter(Boolean)
       );
 
       for (const plan of filePlans) {
@@ -852,7 +892,7 @@ export async function applyMigrationStage(
               continue;
             }
 
-            const dupKey = learnerDuplicateKey(mapped);
+            const dupKey = learnerDuplicateKey(mapped, targetSchoolId);
             if (seenLearners.has(dupKey)) {
               pushReport(report, {
                 entityType: "learner",
@@ -906,24 +946,19 @@ export async function applyMigrationStage(
             }
 
             const idNumber = cleanString(mapped.idNumber) || null;
-
-            const existingByDup = await tx.learner.findFirst({
-              where: {
+            const classified = classifyMigrationLearnerIdentity({
+              incoming: {
                 schoolId: targetSchoolId,
-                ...(idNumber
-                  ? { idNumber }
-                  : {
-                      firstName: names.firstName,
-                      lastName: names.lastName,
-                      className: canonicalClass,
-                    }),
+                firstName: names.firstName,
+                lastName: names.lastName,
+                idNumber,
+                dateOfBirth: cleanString(mapped.dateOfBirth) || null,
+                sourceLearnerId: cleanString(mapped.learnerNumber) || null,
               },
-              select: { id: true },
+              candidates: schoolLearnerCandidates,
             });
 
-            const existing = existingByDup;
-
-            if (existing) {
+            if (classified.hit) {
               seenLearners.add(dupKey);
               pushReport(report, {
                 entityType: "learner",
@@ -931,11 +966,24 @@ export async function applyMigrationStage(
                 sourceFilename: plan.filename,
                 rowNumber,
                 status: "skipped",
-                message: "Learner already exists for this school",
+                message: classified.operatorMessage,
                 key: dupKey,
-                recordId: existing.id,
+                recordId: classified.hit.learnerId,
               });
               bumpCount(skippedCounts, "learner");
+              integrityFindings.push({
+                findingId: `learner_${classified.hit.learnerId}_${classified.classification}`,
+                severity:
+                  classified.classification === "EXISTING_HISTORICAL_LEARNER_REACTIVATION_REVIEW"
+                    ? "BLOCKING"
+                    : "WARNING",
+                title:
+                  classified.classification === "EXISTING_HISTORICAL_LEARNER_REACTIVATION_REVIEW"
+                    ? "Historical learner needs reactivation review"
+                    : "Existing learner — review before linking",
+                message: classified.operatorMessage,
+                learnerKeys: [classified.hit.learnerId],
+              });
               continue;
             }
 
@@ -958,6 +1006,12 @@ export async function applyMigrationStage(
             );
             const learnerNotes =
               cleanString((mapped as MappedRow & { notes?: string }).notes) || null;
+            const admissionNo = allocateMigrationAdmissionNo({
+              learnerNumber: cleanString(mapped.learnerNumber),
+              accountNumber,
+              takenAdmissionNos,
+            });
+            if (admissionNo) takenAdmissionNos.add(admissionNo.toUpperCase());
             const created = await tx.learner.create({
               data: {
                 schoolId: targetSchoolId,
@@ -968,7 +1022,7 @@ export async function applyMigrationStage(
                 grade: cleanString(mapped.grade) || classNorm.gradeLabel || "",
                 className: canonicalClass,
                 idNumber,
-                admissionNo: cleanString(mapped.learnerNumber) || accountNumber || null,
+                admissionNo,
                 gender: resolveGenderFromSources({
                   gender: cleanString(mapped.gender) || null,
                   idNumber,
@@ -1000,6 +1054,17 @@ export async function applyMigrationStage(
               recordId: created.id,
             });
             bumpCount(createdCounts, "learner");
+            schoolLearnerCandidates.push({
+              id: created.id,
+              schoolId: targetSchoolId,
+              firstName: names.firstName,
+              lastName: names.lastName || names.firstName,
+              idNumber,
+              birthDate: birthDate && !Number.isNaN(birthDate.getTime()) ? birthDate : null,
+              admissionNo,
+              enrollmentStatus: enrollmentStatus || "ACTIVE",
+              familyAccountId: learnerFamilyAccountId,
+            });
           }
         }
       }
@@ -1054,6 +1119,23 @@ export async function applyMigrationStage(
           message: `Linked ${linkResult.learnersLinked} learner(s) and ${linkResult.parentsLinked} parent(s) to family accounts`,
         });
       }
+      for (const signal of linkResult.reviewSignals) {
+        integrityFindings.push({
+          findingId: `surname_${signal.learnerKeys.join("_")}`,
+          severity: "WARNING",
+          title: "Family link needs review",
+          message: signal.message,
+          learnerKeys: signal.learnerKeys,
+        });
+        pushReport(report, {
+          entityType: "learner",
+          sourceFileId: stage.stageId,
+          sourceFilename: "family-review",
+          rowNumber: 0,
+          status: "skipped",
+          message: signal.message,
+        });
+      }
 
       // Phase 1G — opening balances (ledger invoice/credit), then post-cutover txs, then billing plans.
       // Prisma and file-backed ledger are not one atomic TX: track ids for compensation on failure.
@@ -1099,22 +1181,60 @@ export async function applyMigrationStage(
       }
 
       if (openingRows.length > 0) {
-        await postOpeningBalancesForMappedRows(
-          {
-            tx,
-            schoolId: targetSchoolId,
-            cutoverDate: cleanString(stage.cutoverDate),
-            migrationRunId: stage.migrationRunId || stage.stageId,
-            stageId: stage.stageId,
-            sourceAnalysisId: stage.sourceAnalysisId || undefined,
-            report,
-            createdCounts,
-            skippedCounts,
-            failedCounts,
-            postedLedgerEntryIds,
-          },
-          openingRows
+        const collapsed = openingBalanceRowsToPost(
+          openingRows.map((row) => ({
+            accountRef: cleanString(row.mapped.accountNumber),
+            openingBalance: row.mapped.openingBalance,
+            sourceFileId: row.sourceFileId,
+            sourceFilename: row.sourceFilename,
+            rowNumber: row.rowNumber,
+          }))
         );
+        for (const fail of collapsed.failed) {
+          failedCounts.transactions += 1;
+          integrityFindings.push({
+            findingId: `opening_conflict_${fail.accountRef}`,
+            severity: "BLOCKING",
+            title: "Opening balance conflict",
+            message: fail.message,
+            accountRef: fail.accountRef,
+          });
+          pushReport(report, {
+            entityType: "transaction",
+            sourceFileId: stage.stageId,
+            sourceFilename: fail.sourceFilenames[0] || "opening-balance",
+            rowNumber: fail.rowNumbers[0] || 0,
+            status: "failed",
+            message: fail.message,
+            key: `opening:${fail.accountRef}`,
+          });
+        }
+        const firstRowByAccount = new Map<string, (typeof openingRows)[number]>();
+        for (const row of openingRows) {
+          const ref = cleanString(row.mapped.accountNumber);
+          if (ref && !firstRowByAccount.has(ref)) firstRowByAccount.set(ref, row);
+        }
+        const uniqueOpeningRows = collapsed.toPost
+          .map((row) => firstRowByAccount.get(row.accountRef))
+          .filter((row): row is (typeof openingRows)[number] => Boolean(row));
+        if (uniqueOpeningRows.length > 0) {
+          await postOpeningBalancesForMappedRows(
+            {
+              tx,
+              schoolId: targetSchoolId,
+              cutoverDate: cleanString(stage.cutoverDate),
+              migrationRunId: stage.migrationRunId || stage.stageId,
+              stageId: stage.stageId,
+              sourceAnalysisId: stage.sourceAnalysisId || undefined,
+              report,
+              createdCounts,
+              skippedCounts,
+              failedCounts,
+              postedLedgerEntryIds,
+            },
+            uniqueOpeningRows
+          );
+        }
       }
 
       const ledgerCtx = {
@@ -1206,6 +1326,14 @@ export async function applyMigrationStage(
         );
       }
     }, MIGRATION_APPLY_TX_OPTIONS);
+
+    saveMigrationIntegrity({
+      stageId: stage.stageId,
+      targetSchoolId,
+      updatedAt: new Date().toISOString(),
+      findings: integrityFindings,
+      blockingCount: integrityFindings.filter((f) => f.severity === "BLOCKING").length,
+    });
 
     const result: MigrationApplyResult = {
       ...baseResult(),

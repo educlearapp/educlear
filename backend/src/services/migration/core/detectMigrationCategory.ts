@@ -1,4 +1,5 @@
 import type { MigrationFileCategory } from "../types/MigrationFile";
+import { expressInvoiceCategoryOverride } from "./expressInvoiceAuthority";
 
 const CATEGORY_KEYWORDS: Array<{ category: MigrationFileCategory; keywords: string[] }> = [
   {
@@ -95,6 +96,9 @@ function isSiblingAccountsFilename(haystack: string): boolean {
 export function detectMigrationCategory(filename: string): MigrationFileCategory {
   const haystack = compactAlphanumeric(filename);
   if (!haystack) return "unknown";
+
+  const expressCategory = expressInvoiceCategoryOverride(filename);
+  if (expressCategory) return expressCategory;
 
   const basename = fileBasename(filename);
 

@@ -146,7 +146,20 @@ export default function UniversalMigrationFinanceCheckSection({
               completed.
             </p>
           )}
-          {recon.mismatches.length > 0 ? (
+          {recon.perAccount.length > 0 ? (
+            <div className="uc-migration-finance-mismatches">
+              <h4>Source vs EduClear by account</h4>
+              <ul>
+                {recon.perAccount.slice(0, 40).map((m) => (
+                  <li key={m.accountRef}>
+                    Account {m.accountRef}: Source {formatRandFromCents(m.sourceCents)} · EduClear{" "}
+                    {formatRandFromCents(m.educlearCents)} · Difference{" "}
+                    {formatRandFromCents(m.diffCents)} {m.ok ? "✓" : "✕"}
+                  </li>
+                ))}
+              </ul>
+            </div>
+          ) : recon.mismatches.length > 0 ? (
             <div className="uc-migration-finance-mismatches">
               <h4>Accounts that need attention</h4>
               <ul>

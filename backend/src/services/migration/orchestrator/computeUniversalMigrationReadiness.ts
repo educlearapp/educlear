@@ -33,6 +33,7 @@ import type {
 import { UNIVERSAL_ORCHESTRATOR_VERSION } from "./OrchestratorTypes";
 import { getOrchestratorRunByStage, saveOrchestratorReadiness } from "./orchestratorStore";
 import { getSourceManifestByStage } from "./sourceManifest";
+import { getMigrationIntegrityByStage } from "../core/migrationIntegrityStore";
 
 function listReconForStage(stageId: string) {
   try {
@@ -123,6 +124,20 @@ export function computeUniversalMigrationReadiness(input: {
     });
   }
   domains.push(core);
+
+  const integrity = getMigrationIntegrityByStage(stage.stageId);
+  if (integrity && integrity.findings.length > 0) {
+    for (const finding of integrity.findings) {
+      attentionItems.push({
+        attentionId: finding.findingId,
+        domainId: finding.accountRef ? "FINANCE" : "PARENTS_FAMILIES",
+        severity: finding.severity,
+        title: finding.title,
+        message: finding.message,
+        reviewSection: finding.accountRef ? "finance" : "parentsFamilies",
+      });
+    }
+  }
 
   // --- PARENTS & FAMILIES (1K) — optional ---
   const pfPlan = getParentFamilyPlanByStage(stage.stageId);

@@ -1,5 +1,4 @@
 import { prisma } from "../../../prisma";
-import { normalizeClassroomInput } from "../../../utils/classroomNormalization";
 import type { MigrationApplyExpectations } from "../types/MigrationApplyExpectations";
 import type { MigrationStage } from "../types/MigrationStage";
 import type { MigrationTargetField } from "../types/MigrationTargetField";
@@ -12,6 +11,7 @@ import {
 import type { MigrationFileColumnMappings } from "../types/MigrationValidation";
 import { migrationTargetCategory } from "../staging/buildMigrationStage";
 import { parseStagedMigrationFile } from "./parseStagedMigrationFile";
+import { migrationLearnerBatchKey } from "./migrationLearnerIdentity";
 
 const LEARNER_FIELDS = new Set<string>(LEARNER_TARGET_FIELDS);
 const PARENT_FIELDS = new Set<string>(PARENT_TARGET_FIELDS);
@@ -85,14 +85,19 @@ function enrichParentMappedFromContactList(
   return mapped;
 }
 
-function learnerDuplicateKey(mapped: MappedRow): string {
-  const idNumber = cleanString(mapped.idNumber);
-  if (idNumber) return `id:${idNumber.toLowerCase()}`;
+function learnerDuplicateKey(mapped: MappedRow, schoolId: string): string {
   const names = learnerNamesFromMapped(mapped);
-  const classroom = cleanString(mapped.classroom);
-  const classNorm = normalizeClassroomInput(classroom, cleanString(mapped.grade));
-  const classLabel = classNorm.classroomName || classroom;
-  return `name:${names.firstName.toLowerCase()}|${names.lastName.toLowerCase()}|${classLabel.toLowerCase()}`;
+  return (
+    migrationLearnerBatchKey({
+      schoolId,
+      firstName: names.firstName,
+      lastName: names.lastName,
+      idNumber: mapped.idNumber,
+      dateOfBirth: mapped.dateOfBirth,
+      sourceLearnerId: mapped.learnerNumber,
+    }) ||
+    `weak:${names.firstName.toLowerCase()}|${names.lastName.toLowerCase()}`
+  );
 }
 
 function billingDuplicateKey(mapped: MappedRow): string {
@@ -149,15 +154,27 @@ function buildFilePlans(stage: MigrationStage): FilePlan[] {
   return plans;
 }
 
-function learnerDupKeyFromDb(learner: {
-  firstName: string;
-  lastName: string;
-  idNumber: string | null;
-  className: string | null;
-}): string {
-  if (learner.idNumber) return `id:${String(learner.idNumber).toLowerCase()}`;
-  const classLabel = learner.className || "";
-  return `name:${learner.firstName.toLowerCase()}|${learner.lastName.toLowerCase()}|${classLabel.toLowerCase()}`;
+function learnerDupKeyFromDb(
+  learner: {
+    firstName: string;
+    lastName: string;
+    idNumber: string | null;
+    birthDate?: Date | string | null;
+    admissionNo?: string | null;
+  },
+  schoolId: string
+): string {
+  return (
+    migrationLearnerBatchKey({
+      schoolId,
+      firstName: learner.firstName,
+      lastName: learner.lastName,
+      idNumber: learner.idNumber,
+      dateOfBirth: learner.birthDate,
+      sourceLearnerId: learner.admissionNo,
+    }) ||
+    `weak:${learner.firstName.toLowerCase()}|${learner.lastName.toLowerCase()}`
+  );
 }
 
 export async function computeMigrationApplyPreview(
@@ -174,11 +191,12 @@ export async function computeMigrationApplyPreview(
       firstName: true,
       lastName: true,
       idNumber: true,
-      className: true,
+      birthDate: true,
+      admissionNo: true,
     },
   });
   for (const learner of dbLearners) {
-    existingLearnerKeys.add(learnerDupKeyFromDb(learner));
+    existingLearnerKeys.add(learnerDupKeyFromDb(learner, targetSchoolId));
   }
 
   const dbAccounts = await prisma.familyAccount.findMany({
@@ -233,7 +251,7 @@ export async function computeMigrationApplyPreview(
       if (applyParents) {
         parentCreates += 1;
 
-        const learnerKey = learnerDuplicateKey(mapped);
+        const learnerKey = learnerDuplicateKey(mapped, targetSchoolId);
         const names = learnerNamesFromMapped(mapped);
         if (
           (names.firstName || names.lastName) &&
@@ -249,7 +267,7 @@ export async function computeMigrationApplyPreview(
       const names = learnerNamesFromMapped(mapped);
       if (!names.firstName && !names.lastName) continue;
 
-      const dupKey = learnerDuplicateKey(mapped);
+      const dupKey = learnerDuplicateKey(mapped, targetSchoolId);
       if (!dupKey || dupKey === "name:||") continue;
       if (seenLearners.has(dupKey) || existingLearnerKeys.has(dupKey)) continue;
 

@@ -1,6 +1,6 @@
 import { prisma } from "../../../prisma";
 import {
-  appendSchoolEntry,
+  appendSchoolEntrySafe,
   normaliseAmount,
   type BillingLedgerEntry,
   type BillingLedgerEntryType,
@@ -15,6 +15,7 @@ import {
   classifyLedgerTransaction,
   formatLedgerDuplicateKey,
 } from "./classifyLedgerTransaction";
+import { formatMigrationProvenanceMessage } from "./migrationTransactionProvenance";
 import type { LedgerDuplicateKey } from "../types/MigrationLedgerPosting";
 import type { LearnerIndexEntry } from "./computeTransactionReadiness";
 import {
@@ -173,6 +174,9 @@ function migrationLedgerEntryId(
 ): string {
   const safeRef = (reference || "norefnomig").replace(/[^a-zA-Z0-9_-]/g, "_").slice(0, 40);
   const safeAcct = accountRef.replace(/[^a-zA-Z0-9_-]/g, "_").slice(0, 40);
+  if (reference && reference.trim()) {
+    return `umig-tx-${postingType}-${safeAcct}-src-${safeRef}-${amount}`;
+  }
   return `umig-tx-${postingType}-${safeAcct}-${date}-${safeRef}-${amount}`;
 }
 
@@ -271,7 +275,7 @@ export async function postSingleMigrationLedgerTransaction(
     ctx.report.push({
       ...reportBase,
       status: "skipped",
-      message: "Duplicate transaction skipped (account, date, reference, amount, type)",
+      message: formatMigrationProvenanceMessage(decision.duplicateKey),
       key: decision.duplicateKey ? formatLedgerDuplicateKey(decision.duplicateKey) : undefined,
     });
     ctx.skippedCounts.transactions += 1;
@@ -344,7 +348,19 @@ export async function postSingleMigrationLedgerTransaction(
     createdAt: new Date().toISOString(),
   };
 
-  appendSchoolEntry(ctx.schoolId, ledgerEntry);
+  const posted = appendSchoolEntrySafe(ctx.schoolId, ledgerEntry);
+  if (!posted.created) {
+    ctx.report.push({
+      ...reportBase,
+      status: "skipped",
+      message: "Transaction already present — skipped (idempotent)",
+      recordId: posted.entry.id,
+      key: formatLedgerDuplicateKey(decision.duplicateKey!),
+    });
+    ctx.skippedCounts.transactions += 1;
+    bumpTransactionOutcome(ctx.transactionOutcomes, "duplicateSkipped");
+    return;
+  }
 
   ctx.report.push({
     ...reportBase,

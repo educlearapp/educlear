@@ -1,4 +1,3 @@
-import { normaliseAmount } from "../../../utils/billingLedgerStore";
 import type { MigrationTargetField } from "../types/MigrationTargetField";
 import {
   classifyTransactionReadiness,
@@ -12,6 +11,7 @@ import type {
 } from "../types/MigrationLedgerPosting";
 import type { MigrationLearnerStatus } from "../types/MigrationLearnerStatus";
 import { isClosedOrInactiveAccountStatus } from "../types/MigrationLearnerStatus";
+import { migrationTransactionProvenance } from "./migrationTransactionProvenance";
 
 export type ClassifyLedgerTransactionInput = {
   mapped: Partial<Record<MigrationTargetField, string>>;
@@ -149,25 +149,6 @@ export function resolveLedgerPostingType(
   return "unknown";
 }
 
-function ledgerDuplicateKey(parts: {
-  accountRef: string;
-  date: string;
-  reference: string;
-  amount: number;
-  postingType: LedgerPostingType;
-}): LedgerDuplicateKey | null {
-  const accountRef = cleanString(parts.accountRef);
-  const date = cleanString(parts.date);
-  if (!accountRef || !date) return null;
-  return {
-    accountRef: accountRef.toLowerCase(),
-    date,
-    reference: cleanString(parts.reference).toLowerCase(),
-    amount: normaliseAmount(parts.amount),
-    postingType: parts.postingType,
-  };
-}
-
 function duplicateKeyString(key: LedgerDuplicateKey): string {
   return `tx:${key.accountRef}|${key.date}|${key.reference}|${key.amount}|${key.postingType}`;
 }
@@ -259,10 +240,11 @@ export function classifyLedgerTransaction(
     cutoverDate,
   });
 
-  const duplicateKey = ledgerDuplicateKey({
+  const duplicateKey = migrationTransactionProvenance({
     accountRef: accountRef || "unknown",
     date: dateIso,
     reference,
+    description,
     amount,
     postingType,
   });

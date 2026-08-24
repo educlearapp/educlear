@@ -44,6 +44,7 @@ export async function loadSchoolParentCandidates(
     cellNo: r.cellNo,
     email: r.email,
     familyAccountId: r.familyAccountId,
+    schoolId,
     linkedLearners: (r.links || []).map((link) => {
       const learner = link.learner;
       const label = learner

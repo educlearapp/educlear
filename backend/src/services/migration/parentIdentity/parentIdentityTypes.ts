@@ -23,7 +23,8 @@ export type ParentIdentityMatchReason =
   | "NAME_ONLY"
   | "CONFLICTING_IDENTITY_NUMBERS"
   | "NO_STRONG_IDENTITY"
-  | "AMBIGUOUS_CANDIDATES";
+  | "AMBIGUOUS_CANDIDATES"
+  | "CROSS_SCHOOL_CANDIDATE_REJECTED";
 
 export type ParentIdentityConfidence = "HIGH" | "MEDIUM" | "LOW";
 
@@ -50,6 +51,8 @@ export type IncomingParentIdentity = {
   employer?: string | null;
   notes?: string | null;
   workNo?: string | null;
+  /** Incoming row school. Cross-school reuse is forbidden. */
+  schoolId?: string | null;
 };
 
 /** Existing EduClear Parent candidate (school-scoped). */
@@ -61,6 +64,8 @@ export type ExistingParentCandidate = {
   cellNo?: string | null;
   email?: string | null;
   familyAccountId?: string | null;
+  /** School of this candidate. Never match a parent from another school. */
+  schoolId?: string | null;
   /** Same-school linked learners for operator review UI. */
   linkedLearners?: Array<{ learnerId: string; label: string }>;
 };

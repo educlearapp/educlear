@@ -137,6 +137,7 @@ export function buildIncomingFromMapped(
     sourceRow?: number | null;
     learnerLabel?: string | null;
     sourceParentId?: string | null;
+    schoolId?: string | null;
   }
 ): IncomingParentIdentity {
   const names = parentNamesFromMapped(mapped);
@@ -157,9 +158,10 @@ export function buildIncomingFromMapped(
     sourceRow: opts.sourceRow ?? null,
     homeAddress: cleanString((mapped as MappedRow & { address?: string }).address) || null,
     employer: cleanString((mapped as MappedRow & { employer?: string }).employer) || null,
-    notes: cleanString((mapped as MappedRow & { parentNotes?: string }).parentNotes) || null,
+    notes: cleanString((mapped as MappedRow & { parentNotes?: string }).notes) || null,
     workNo:
       cleanString((mapped as MappedRow & { parentWorkPhone?: string }).parentWorkPhone) || null,
+    schoolId: opts.schoolId || null,
   };
 }
 
@@ -198,6 +200,7 @@ export async function buildUniversalParentPreflightRows(opts: {
       sourceRow: row.rowNumber,
       learnerLabel: learnerLabel || null,
       sourceParentId: null,
+      schoolId: opts.schoolId,
     });
     // Ensure cleaned id used for matching
     incoming.idNumber = cleanedId;

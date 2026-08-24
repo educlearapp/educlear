@@ -108,7 +108,24 @@ export {
   resolveMigrationAdapterSource,
 } from "./resolveMigrationAdapter";
 export { testMigrationAdapter, type TestMigrationAdapterInput } from "./testMigrationAdapter";
+export { linkMigrationLearnersToFamilyAccounts } from "./linkMigrationLearnersToFamilyAccounts";
 export {
-  buildApplyLearnerMatchIndex,
-  postSingleMigrationLedgerTransaction,
-} from "./postMigrationLedgerTransactions";
+  classifyExpressInvoiceExport,
+  expressInvoiceAuthorityForFilename,
+  EXPRESS_INVOICE_PRECEDENCE,
+} from "./expressInvoiceAuthority";
+export {
+  resolveFamilyGroupingAuthority,
+  resolveMigrationFamilyAccountLink,
+} from "./migrationFamilyEvidence";
+export {
+  classifyMigrationLearnerIdentity,
+  matchMigrationLearnerInSchool,
+  migrationLearnerBatchKey,
+} from "./migrationLearnerIdentity";
+export { migrationTransactionProvenance } from "./migrationTransactionProvenance";
+export { collapseOpeningBalancesByAccount } from "./migrationOpeningBalanceSafety";
+export {
+  getMigrationIntegrityByStage,
+  evaluateMigrationIntegrityGate,
+} from "./migrationIntegrityStore";

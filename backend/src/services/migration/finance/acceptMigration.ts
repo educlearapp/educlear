@@ -20,6 +20,10 @@ import {
 } from "./statementAuthority/statementAuthorityStore";
 import { getFeeCheckAuthorityCheck } from "./feeCheckAuthority";
 import {
+  getMigrationIntegrityByStage,
+  evaluateMigrationIntegrityGate,
+} from "../core/migrationIntegrityStore";
+import {
   getAcademicPlanByStage,
   getAcademicCheckByStage,
 } from "../academic/academicPlanStore";
@@ -123,6 +127,12 @@ export function acceptMigration(input: {
   }
   if (input.parentReviewUnresolved > 0) {
     throw new MigrationAcceptanceError("Parent Review still has unresolved items.");
+  }
+  const integrity = evaluateMigrationIntegrityGate(getMigrationIntegrityByStage(input.stage.stageId));
+  if (!integrity.canAccept) {
+    throw new MigrationAcceptanceError(
+      `MIGRATION_INTEGRITY_REVIEW_REQUIRED: ${integrity.blockingMessages[0] || "Unresolved family or learner review items remain."}`
+    );
   }
   if (recon.blockedReasons.length) {
     throw new MigrationAcceptanceError(recon.blockedReasons.join(" "));

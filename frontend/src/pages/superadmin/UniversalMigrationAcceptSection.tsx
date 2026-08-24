@@ -73,9 +73,8 @@ export default function UniversalMigrationAcceptSection({
   return (
     <div className="uc-migration-accept">
       <p className="uc-migration-dry-run-hint" role="note">
-        Accept Migration requires Finance Check, Statement Balance Check, and Fee Check Authority
-        Check all clear (FEE_CHECK_AUTHORITY_MATCH). After acceptance, rollback is exceptional
-        recovery — not routine undo.
+        Accept Migration requires Finance Check, Statement Balance Check, Fee Check, and family/learner
+        review items to be clear. After acceptance, rollback is exceptional recovery — not routine undo.
       </p>
       {!reconciliation ? (
         <p>Run Finance Check first.</p>
