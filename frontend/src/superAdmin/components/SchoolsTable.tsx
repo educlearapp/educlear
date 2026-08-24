@@ -53,7 +53,11 @@ export default function SchoolsTable({
           <thead>
             <tr>
               {TABLE_COLUMNS.map((column) => (
-                <th key={column} scope="col">
+                <th
+                  key={column}
+                  scope="col"
+                  className={column === "Actions" ? "sa-schools-cell--actions" : undefined}
+                >
                   {column}
                 </th>
               ))}
