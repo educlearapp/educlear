@@ -351,7 +351,7 @@ const ledgerSyncInFlightBySchool: Record<string, Promise<void>> = {};
 
 export const syncBillingLedgerFromApi = async (
   schoolId: string,
-  options?: { force?: boolean }
+  options?: { force?: boolean; avoidRelink?: boolean }
 ) => {
   const sid = String(schoolId || "").trim();
   if (!sid) return;
@@ -362,6 +362,30 @@ export const syncBillingLedgerFromApi = async (
 
   const promise = (async () => {
     markSchoolLedgerApiSyncPending(sid);
+
+    const hydrateFromInvoicesAndPayments = async () => {
+      const [invoices, payments] = await Promise.all([fetchInvoices(sid), fetchPayments(sid)]);
+      if (!invoices.length && !payments.length) {
+        markSchoolLedgerApiSyncFailed(sid);
+        return;
+      }
+      const entries: BillingLedgerEntry[] = [
+        ...invoices.map((row: any) => mapApiRowToLedgerEntry(sid, { ...row, type: "invoice" })),
+        ...payments.map((row: any) =>
+          mapApiRowToLedgerEntry(sid, { ...row, type: "payment" })
+        ),
+      ];
+      if (entries.length) {
+        replaceSchoolLedgerFromApi(sid, entries);
+      } else {
+        markSchoolLedgerApiSyncFailed(sid);
+      }
+    };
+
+    if (options?.avoidRelink) {
+      await hydrateFromInvoicesAndPayments();
+      return;
+    }
 
     const ledgerUrl = `${API_URL}/api/invoices/ledger?schoolId=${encodeURIComponent(sid)}`;
     const ledgerData = await getJson(ledgerUrl);
@@ -377,24 +401,7 @@ export const syncBillingLedgerFromApi = async (
       return;
     }
 
-    const [invoices, payments] = await Promise.all([fetchInvoices(sid), fetchPayments(sid)]);
-    if (!invoices.length && !payments.length) {
-      markSchoolLedgerApiSyncFailed(sid);
-      return;
-    }
-
-    const entries: BillingLedgerEntry[] = [
-      ...invoices.map((row: any) => mapApiRowToLedgerEntry(sid, { ...row, type: "invoice" })),
-      ...payments.map((row: any) =>
-        mapApiRowToLedgerEntry(sid, { ...row, type: "payment" })
-      ),
-    ];
-
-    if (entries.length) {
-      replaceSchoolLedgerFromApi(sid, entries);
-    } else {
-      markSchoolLedgerApiSyncFailed(sid);
-    }
+    await hydrateFromInvoicesAndPayments();
   })().finally(() => {
     delete ledgerSyncInFlightBySchool[sid];
   });

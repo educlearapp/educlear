@@ -413,7 +413,7 @@ export async function resolveLearnerAccountForRun(
     return {
       accountNo: "",
       error:
-        "Could not resolve an official billing account ref for this learner. Link the learner to a Kid-e-Sys family account before invoicing.",
+        "Could not resolve an official billing account ref for this learner. Link the learner to a family billing account before invoicing.",
     };
   }
   try {

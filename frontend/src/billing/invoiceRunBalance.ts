@@ -18,27 +18,41 @@ function normaliseAccountRef(value: unknown): string {
   return String(value ?? "").trim().toUpperCase();
 }
 
+const statementBalanceIndexBySchool: Record<
+  string,
+  { rows: unknown[]; index: Map<string, number> }
+> = {};
+
+function statementBalanceByAccount(schoolId: string): Map<string, number> | null {
+  const sid = String(schoolId || "").trim();
+  const rows = readStatementApiAccounts(sid);
+  if (!rows.length) return null;
+  const cached = statementBalanceIndexBySchool[sid];
+  if (cached && cached.rows === rows) return cached.index;
+  const index = new Map<string, number>();
+  for (const row of rows) {
+    const record = row as Record<string, unknown>;
+    const ref = normaliseAccountRef(record.accountNo);
+    if (!ref) continue;
+    const balance = Number(record.balance);
+    if (!Number.isFinite(balance)) continue;
+    index.set(ref, balance);
+  }
+  statementBalanceIndexBySchool[sid] = { rows, index };
+  return index;
+}
+
 export function lookupStatementAccountBalance(
   schoolId: string,
   accountNo: string
 ): { loaded: boolean; balance: number | null } {
-  const rows = readStatementApiAccounts(schoolId);
-  if (!rows.length) return { loaded: false, balance: null };
+  const index = statementBalanceByAccount(schoolId);
+  if (!index) return { loaded: false, balance: null };
 
   const ref = normaliseAccountRef(accountNo);
   if (!ref) return { loaded: true, balance: null };
-
-  for (const row of rows) {
-    const record = row as Record<string, unknown>;
-    if (normaliseAccountRef(record.accountNo) !== ref) continue;
-    const balance = Number(record.balance);
-    return {
-      loaded: true,
-      balance: Number.isFinite(balance) ? balance : null,
-    };
-  }
-
-  return { loaded: true, balance: null };
+  if (!index.has(ref)) return { loaded: true, balance: null };
+  return { loaded: true, balance: index.get(ref) ?? null };
 }
 
 export function resolveInvoiceRunBalance(

@@ -83,6 +83,23 @@ function isActiveInvoiceEntry(entry: BillingLedgerEntry): boolean {
   return true;
 }
 
+/**
+ * Invoice Run list is EduClear runs, not every migrated source invoice.
+ * Unique Express/history descriptions would otherwise become thousands of fake runs.
+ */
+export function isHistoricalSourceInvoiceForRunList(entry: BillingLedgerEntry): boolean {
+  const source = String(entry.source || "").trim().toLowerCase();
+  if (source.startsWith("universal_migration")) return true;
+  const description = String(entry.description || "").trim();
+  if (/^express invoice\b/i.test(description)) return true;
+  if (/^migrated inferred opening/i.test(description)) return true;
+  return false;
+}
+
+function isInvoiceRunListEntry(entry: BillingLedgerEntry): boolean {
+  return isActiveInvoiceEntry(entry) && !isHistoricalSourceInvoiceForRunList(entry);
+}
+
 function resolveGroupKey(entry: BillingLedgerEntry): string {
   const runId = String(entry.runId || "").trim();
   if (runId) return `run:${runId}`;
@@ -135,7 +152,7 @@ export function listInvoiceRunsFromLedger(
   const sid = String(schoolId || "").trim();
   if (!sid) return [];
 
-  const invoices = (opts.ledger ?? listInvoices(sid)).filter(isActiveInvoiceEntry);
+  const invoices = (opts.ledger ?? listInvoices(sid)).filter(isInvoiceRunListEntry);
   const grouped = new Map<string, BillingLedgerEntry[]>();
 
   for (const entry of invoices) {
@@ -191,7 +208,7 @@ export function countInvoicesByPeriod(
   if (!sid) return {};
 
   const counts: Record<string, number> = {};
-  const invoices = (opts.ledger ?? listInvoices(sid)).filter(isActiveInvoiceEntry);
+  const invoices = (opts.ledger ?? listInvoices(sid)).filter(isInvoiceRunListEntry);
   for (const entry of invoices) {
     const period = resolveInvoicePeriod(entry);
     if (!period) continue;

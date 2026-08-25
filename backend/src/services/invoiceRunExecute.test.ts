@@ -498,6 +498,83 @@ function testUnrelatedAccountUnaffectedBySiblingDuplicate() {
   console.log("✓ unrelated account unaffected by sibling duplicate");
 }
 
+function testFlyEagleExpressNameEligibilityExcludesUnlinked() {
+  const linked = learner(
+    "fe-linked",
+    "Happy",
+    "Wolde",
+    "fa-wolde",
+    "WOLDE HAPPY BLESSING"
+  );
+  const unlinked = learner("fe-unlinked", "Sydney", "Mhondiwa", null, null);
+  const { learnerRows, integrity } = buildInvoiceRunPlanForTest({
+    allActiveLearners: [linked, unlinked],
+    processedLearners: [linked, unlinked],
+    plansByLearnerId: { "fe-linked": plan(1400), "fe-unlinked": plan(1400) },
+    explicitlyEmpty: new Set(),
+    accountNoByLearnerId: { "fe-linked": "WOLDE HAPPY BLESSING", "fe-unlinked": "" },
+    existingLedger: [],
+    invoicePeriod: "2026-08",
+  });
+
+  const linkedRow = learnerRows.find((row) => row.learnerId === "fe-linked");
+  const unlinkedRow = learnerRows.find((row) => row.learnerId === "fe-unlinked");
+  assert(linkedRow?.status === "invoiced", "linked Express family account is eligible");
+  assert(linkedRow?.accountNo === "WOLDE HAPPY BLESSING", "Express accountRef posted");
+  assert(unlinkedRow?.status === "skipped", "unlinked learner skipped");
+  assert(unlinkedRow?.skipReason === "ACCOUNT_NOT_FOUND", "unlinked skip reason");
+  assert(
+    !learnerRows.some((row) => row.accountNo === "OLD FAMILY"),
+    "historical-only account is not invoiced — it is not an active learner"
+  );
+  assert(integrity.passed, "express eligibility integrity");
+  console.log("✓ Fly Eagle Express name eligible; unlinked/historical excluded");
+}
+
+function testDuplicatePeriodOnExpressHistory() {
+  const linked = learner("fe-dup", "Happy", "Wolde", "fa-wolde", "WOLDE HAPPY BLESSING");
+  const existing: BillingLedgerEntry[] = [
+    {
+      id: "fe-inv-july",
+      schoolId: TEST_SCHOOL,
+      learnerId: "fe-dup",
+      accountNo: "WOLDE HAPPY BLESSING",
+      type: "invoice",
+      amount: 1400,
+      date: "2026-07-15",
+      reference: "0220534",
+      description: "Express invoice 0220534",
+      createdAt: "2026-08-24T22:45:16.463Z",
+      source: "universal_migration_phase14",
+    },
+  ];
+  const july = buildInvoiceRunPlanForTest({
+    allActiveLearners: [linked],
+    processedLearners: [linked],
+    plansByLearnerId: { "fe-dup": plan(1400) },
+    explicitlyEmpty: new Set(),
+    accountNoByLearnerId: { "fe-dup": "WOLDE HAPPY BLESSING" },
+    existingLedger: existing,
+    invoicePeriod: "2026-07",
+  });
+  assert(
+    july.learnerRows[0]?.skipReason === "DUPLICATE_INVOICE",
+    "July Express history blocks another July invoice run"
+  );
+
+  const august = buildInvoiceRunPlanForTest({
+    allActiveLearners: [linked],
+    processedLearners: [linked],
+    plansByLearnerId: { "fe-dup": plan(1400) },
+    explicitlyEmpty: new Set(),
+    accountNoByLearnerId: { "fe-dup": "WOLDE HAPPY BLESSING" },
+    existingLedger: existing,
+    invoicePeriod: "2026-08",
+  });
+  assert(august.learnerRows[0]?.status === "invoiced", "August run is not a July duplicate");
+  console.log("✓ duplicate protection keeps Express period history");
+}
+
 async function main() {
   testNormalizeInvoicePeriod();
   testSumBillingPlanAmount();
@@ -511,6 +588,8 @@ async function main() {
   testSiblingThreeDuplicateAfterExecute();
   testInactiveLearnerExcludedFromDuplicateRerun();
   testUnrelatedAccountUnaffectedBySiblingDuplicate();
+  testFlyEagleExpressNameEligibilityExcludesUnlinked();
+  testDuplicatePeriodOnExpressHistory();
   testFailedIntegrityGateSiblingMissed();
   await testIntegrityFailureWritesNothing();
   console.log("invoiceRunExecute.test.ts: OK");

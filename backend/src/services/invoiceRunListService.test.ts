@@ -86,6 +86,41 @@ function runTests() {
   assert(periodCounts["2026-07"] === 2, "july period count");
   assert(!periodCounts["2026-08"], "august period count excludes undone");
 
+  const flyEagleStyle: BillingLedgerEntry[] = [
+    ...ledger,
+    invoice({
+      id: "fe-inv-1",
+      runId: "",
+      invoicePeriod: "",
+      description: "Express invoice 0220534",
+      date: "2026-07-15",
+      amount: 1400,
+      accountNo: "ABAYE TUMO ASHANAFY",
+      source: "universal_migration_phase14",
+    }),
+    invoice({
+      id: "fe-open-1",
+      runId: "",
+      invoicePeriod: "",
+      description: "Migrated inferred opening position",
+      date: "2018-01-01",
+      amount: 500,
+      accountNo: "OLD FAMILY",
+      source: "universal_migration_opening_balance",
+    }),
+  ];
+  const feRuns = listInvoiceRunsFromLedger("school-express-migrated", { ledger: flyEagleStyle });
+  assert(feRuns.length === 2, `historical Express invoices must not become runs, got ${feRuns.length}`);
+  assert(
+    !feRuns.some((run) => /express invoice/i.test(String(run.description || ""))),
+    "Express invoice descriptions must not appear as invoice runs"
+  );
+  const feCounts = countInvoicesByPeriod("school-express-migrated", { ledger: flyEagleStyle });
+  assert(feCounts["2026-07"] === 2, "Express history excluded from invoice-run period counts");
+
+  const otherSchool = listInvoiceRunsFromLedger("other-school", { ledger: flyEagleStyle });
+  assert(otherSchool.length === 2, "list grouping is in-memory; schoolId only gates empty id");
+
   console.log("invoiceRunListService.test.ts: OK");
 }
 

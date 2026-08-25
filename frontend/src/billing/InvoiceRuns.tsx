@@ -14,8 +14,6 @@ import {
   substituteBillingTokens,
 } from "./billingSettingsEngine";
 import {
-  fetchInvoices,
-  fetchPayments,
   fetchInvoiceRuns,
   previewInvoiceRun,
   executeInvoiceRun,
@@ -235,18 +233,9 @@ export default function InvoiceRuns(props: any) {
   
   
   
-      const [invoicesData, paymentsData] = await Promise.all([
-        fetchInvoices(schoolId),
-        fetchPayments(schoolId),
-      ]);
-  
-  
-  
-      setInvoices(invoicesData || []);
-  
-  
-  
-      setPayments(paymentsData || []);
+      // Do not fetch GET /api/invoices + /api/payments on Invoice Run mount.
+      // Fly Eagle has ~7.5k migrated rows; parsing them froze the page.
+      // Execute/preview go through /api/invoice-runs, not these dumps.
   
   
   
@@ -364,7 +353,7 @@ export default function InvoiceRuns(props: any) {
     }
     if (wizardLedgerSyncedRef.current) return;
     wizardLedgerSyncedRef.current = true;
-    void syncBillingLedgerFromApi(schoolIdForLedger).then(() => {
+    void syncBillingLedgerFromApi(schoolIdForLedger, { avoidRelink: true }).then(() => {
       setBalanceDisplayRevision((value) => value + 1);
     });
   }, [schoolIdForLedger, invoiceRunView]);
@@ -1094,8 +1083,9 @@ export default function InvoiceRuns(props: any) {
 
 
   const selectedRows = useMemo(
-    () =>
-      normalizedLearners.map(
+    () => {
+      if (!String(invoiceRunView || "").startsWith("wizard")) return [];
+      return normalizedLearners.map(
 
 
 
@@ -1342,8 +1332,9 @@ export default function InvoiceRuns(props: any) {
 
 
 
-    }),
-    [normalizedLearners, balanceDisplayRevision, parentLookupIndex]
+    });
+    },
+    [normalizedLearners, balanceDisplayRevision, parentLookupIndex, invoiceRunView]
   );
 
 
@@ -1645,6 +1636,8 @@ export default function InvoiceRuns(props: any) {
   );
 
   const visibleRuns = mergedInvoiceRuns.allVisibleRuns;
+  const INVOICE_RUN_LIST_RENDER_CAP = 200;
+  const visibleRunsForTable = visibleRuns.slice(0, INVOICE_RUN_LIST_RENDER_CAP);
   const browserDraftRuns = mergedInvoiceRuns.browserDraftRuns;
 
   useEffect(() => {
@@ -8883,6 +8876,24 @@ export default function InvoiceRuns(props: any) {
           </div>
         ) : null}
 
+        {visibleRuns.length > INVOICE_RUN_LIST_RENDER_CAP ? (
+          <div
+            style={{
+              margin: "0 12px 12px",
+              padding: "10px 12px",
+              borderRadius: 10,
+              border: "1px solid rgba(180,83,9,0.25)",
+              background: "rgba(254,243,199,0.55)",
+              color: "#92400e",
+              fontWeight: 700,
+              fontSize: 13,
+            }}
+          >
+            Showing {INVOICE_RUN_LIST_RENDER_CAP} of {visibleRuns.length} invoice runs.
+            Historical source invoices are not EduClear invoice runs.
+          </div>
+        ) : null}
+
         {visibleRuns.length === 0 ? (
 
 
@@ -8975,7 +8986,7 @@ export default function InvoiceRuns(props: any) {
 
 
 
-              {visibleRuns.map((run: any, index: number) => (
+              {visibleRunsForTable.map((run: any, index: number) => (
 
 
 

@@ -28,9 +28,17 @@ function testListMountUsesStatementsNotFullLedger() {
     "full ledger sync must not run on empty-deps mount"
   );
   const wizardSync = invoiceRunsSource.match(
-    /wizardLedgerSyncedRef[\s\S]{0,240}syncBillingLedgerFromApi/
+    /wizardLedgerSyncedRef[\s\S]{0,320}syncBillingLedgerFromApi/
   );
   assert(Boolean(wizardSync), "wizard should still trigger full ledger sync once per session");
+  assert(
+    invoiceRunsSource.includes("avoidRelink: true"),
+    "wizard ledger sync must avoid GET /api/invoices/ledger relink"
+  );
+  assert(
+    !invoiceRunsSource.includes("fetchInvoices("),
+    "Invoice Run list must not fetch the full invoice dump"
+  );
 }
 
 function testPreviewInFlightGuardPresent() {

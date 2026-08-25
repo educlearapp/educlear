@@ -126,6 +126,10 @@ export type SchoolLedgerCacheStatus =
 
 /** Authoritative in-memory ledger from the latest successful API fetch (or local upserts). */
 const memoryLedgerBySchool: Record<string, BillingLedgerEntry[]> = {};
+const ledgerAccountIndexBySchool: Record<
+  string,
+  { ledger: BillingLedgerEntry[]; byKey: Map<string, BillingLedgerEntry[]> }
+> = {};
 const ledgerCacheStatusBySchool: Record<string, SchoolLedgerCacheStatus> = {};
 const ledgerApiSyncFailedBySchool: Record<string, boolean> = {};
 const ledgerMemoryFreshBySchool: Record<string, boolean> = {};
@@ -190,6 +194,7 @@ export function clearSchoolLedgerRuntime(schoolId: string) {
   if (!key) return;
   const storeKey = resolveLedgerStorageKey(key);
   delete memoryLedgerBySchool[storeKey];
+  delete ledgerAccountIndexBySchool[storeKey];
   delete ledgerCacheStatusBySchool[storeKey];
   delete ledgerApiSyncFailedBySchool[storeKey];
   delete ledgerMemoryFreshBySchool[storeKey];
@@ -198,6 +203,7 @@ export function clearSchoolLedgerRuntime(schoolId: string) {
 /** Test-only reset — not used in production UI. */
 export function resetSchoolLedgerRuntimeForTests() {
   for (const key of Object.keys(memoryLedgerBySchool)) delete memoryLedgerBySchool[key];
+  for (const key of Object.keys(ledgerAccountIndexBySchool)) delete ledgerAccountIndexBySchool[key];
   for (const key of Object.keys(ledgerCacheStatusBySchool)) delete ledgerCacheStatusBySchool[key];
   for (const key of Object.keys(ledgerApiSyncFailedBySchool)) delete ledgerApiSyncFailedBySchool[key];
   for (const key of Object.keys(ledgerMemoryFreshBySchool)) delete ledgerMemoryFreshBySchool[key];
@@ -205,6 +211,7 @@ export function resetSchoolLedgerRuntimeForTests() {
 
 function setMemorySchoolLedger(storeKey: string, entries: BillingLedgerEntry[], fromApi: boolean) {
   memoryLedgerBySchool[storeKey] = entries;
+  delete ledgerAccountIndexBySchool[storeKey];
   if (fromApi) {
     ledgerMemoryFreshBySchool[storeKey] = true;
     ledgerApiSyncFailedBySchool[storeKey] = false;
@@ -425,17 +432,50 @@ export function entryMatchesAccount(
   );
 }
 
+function getLedgerAccountIndex(schoolId: string): Map<string, BillingLedgerEntry[]> {
+  const storeKey = resolveLedgerStorageKey(schoolId);
+  const ledger = readSchoolLedger(schoolId);
+  const cached = ledgerAccountIndexBySchool[storeKey];
+  if (cached && cached.ledger === ledger) return cached.byKey;
+
+  const byKey = new Map<string, BillingLedgerEntry[]>();
+  for (const entry of ledger) {
+    for (const raw of [entry.learnerId, entry.accountNo]) {
+      const key = String(raw || "").trim();
+      if (!key || key === "-") continue;
+      const bucket = byKey.get(key);
+      if (bucket) bucket.push(entry);
+      else byKey.set(key, [entry]);
+    }
+  }
+  ledgerAccountIndexBySchool[storeKey] = { ledger, byKey };
+  return byKey;
+}
+
 export function getAccountLedger(
   schoolId: string,
   learnerId: string,
   accountNo: string
 ): BillingLedgerEntry[] {
-  return readSchoolLedger(schoolId)
-    .filter((e) => entryMatchesAccount(e, learnerId, accountNo))
-    .sort(
-      (a, b) =>
-        new Date(b.date || b.createdAt).getTime() - new Date(a.date || a.createdAt).getTime()
-    );
+  const keys = accountKeys(learnerId, accountNo);
+  if (!keys.size) return [];
+  const index = getLedgerAccountIndex(schoolId);
+  const seen = new Set<string>();
+  const matched: BillingLedgerEntry[] = [];
+  for (const key of keys) {
+    const bucket = index.get(key);
+    if (!bucket) continue;
+    for (const entry of bucket) {
+      const id = String(entry.id || "");
+      if (seen.has(id)) continue;
+      seen.add(id);
+      matched.push(entry);
+    }
+  }
+  return matched.sort(
+    (a, b) =>
+      new Date(b.date || b.createdAt).getTime() - new Date(a.date || a.createdAt).getTime()
+  );
 }
 
 export type FamilyLedgerScope = {
