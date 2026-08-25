@@ -1,8 +1,8 @@
 import { getLearnerAccountNo } from "../learner/learnerIdentity";
 import {
-  filterKidESysBillingRows,
-  isKidESysAccountRef,
+  filterStatementBillingRows,
   normalizeKidESysAccountRef,
+  normalizeStatementAccountRef,
   resolveKidESysAccountRefFromLearner,
 } from "./billingAccountRef";
 import {
@@ -16,9 +16,12 @@ import {
 
 export {
   filterKidESysBillingRows,
+  filterStatementBillingRows,
   isKidESysAccountRef,
   isSasamsNumericBillingAccount,
+  isStatementBillingAccountRef,
   normalizeKidESysAccountRef,
+  normalizeStatementAccountRef,
   resolveKidESysAccountRefFromLearner,
   resolveKidESysAccountRefFromRow,
 } from "./billingAccountRef";
@@ -759,9 +762,9 @@ function apiRowHasLastPayment(row: any): boolean {
   return Boolean(String(row?.lastPaymentDate || "").trim());
 }
 
-/** Map GET /api/statements row → billing table row (Kid-e-Sys accountRef + migrated fields). */
+/** Map GET /api/statements row → billing table row (source-agnostic accountRef + migrated fields). */
 export function mapApiStatementRowToBillingAccountRow(row: any): BillingAccountRow {
-  const accountNo = normalizeKidESysAccountRef(row?.accountNo) || "-";
+  const accountNo = normalizeStatementAccountRef(row?.accountNo) || "-";
   const learnerId = String(row?.learnerId || "").trim();
   const familyAccountId = row?.familyAccountId
     ? String(row.familyAccountId).trim()
@@ -987,6 +990,7 @@ function enrichBillingRowDisplay(
 
 /**
  * Billing account list for UI tables — GET /api/statements (Age Analysis accountRef) only.
+ * Source-agnostic: Kid-e-Sys codes, Express Invoice names, and other migrated refs.
  * Balances/invoice history stay on API rows; learner list enriches name/surname display only.
  */
 export function getBillingRows(learners: any[], schoolId: string): BillingAccountRow[] {
@@ -995,7 +999,7 @@ export function getBillingRows(learners: any[], schoolId: string): BillingAccoun
 
   const index = buildLearnerBillingDisplayIndex(learners);
 
-  return filterKidESysBillingRows(
+  return filterStatementBillingRows(
     apiCached.map((row) =>
       enrichBillingRowDisplay(mapApiStatementRowToBillingAccountRow(row), index, learners)
     )

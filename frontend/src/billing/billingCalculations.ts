@@ -10,7 +10,7 @@ import {
   getAccountLedger,
   entryMatchesAccount,
 } from "./billingLedger";
-import { isKidESysAccountRef } from "./billingAccountRef";
+import { isStatementBillingAccountRef } from "./billingAccountRef";
 
 export {
   formatMoney,
@@ -84,7 +84,7 @@ export const calculateLastPayment = (payments: Payment[], learnerId: string, acc
 
 export type BillingSummaryTotals = {
   accountsCount: number;
-  /** Net sum of all FamilyAccount statement balances (Kid-e-Sys Total Outstanding). */
+  /** Net sum of all FamilyAccount statement balances. */
   totalOutstanding: number;
   /** @deprecated Use totalOutstanding — kept for callers expecting netOutstanding. */
   netOutstanding: number;
@@ -121,12 +121,10 @@ export function resolveRowKidesysSection(row: any): string {
 }
 
 function isSummaryEligibleBillingRow(row: any): boolean {
-  const accountNo = String(row?.accountNo ?? "").trim();
-  if (!accountNo || accountNo === "-") return false;
-  return isKidESysAccountRef(accountNo);
+  return isStatementBillingAccountRef(row?.accountNo);
 }
 
-/** Kid-e-Sys overview cards — section totals use age-analysis section, not balance thresholds. */
+/** Statements overview cards — section totals use age-analysis section, not balance thresholds. */
 export const calculateBillingSummary = (rows: any[]): BillingSummaryTotals => {
   const included = (rows || []).filter(isSummaryEligibleBillingRow);
   const rowBalance = (row: any) => roundBillingMoney(row?.balance);

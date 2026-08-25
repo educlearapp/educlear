@@ -1,4 +1,4 @@
-import { isKidESysSourceAccountRef } from "./daSilvaMigration/ageAnalysisParser";
+import { isStatementBillingAccountRef } from "./daSilvaMigration/ageAnalysisParser";
 
 /** Kid-e-Sys Statements overview targets (Da Silva — latest age-analysis import). */
 export const DA_SILVA_KIDESYS_SUMMARY_TARGETS: BillingSummaryTotals = {
@@ -132,14 +132,12 @@ export function resolveRowKidesysSection(row: BillingSummaryRow): string {
 }
 
 export function isSummaryEligibleBillingRow(row: BillingSummaryRow): boolean {
-  const accountNo = String(row?.accountNo ?? "").trim();
-  if (!accountNo || accountNo === "-") return false;
-  return isKidESysSourceAccountRef(accountNo);
+  return isStatementBillingAccountRef(String(row?.accountNo ?? ""));
 }
 
 /**
- * Kid-e-Sys overview card math (FamilyAccount / statement row balances):
- * - Accounts: all Kid-e-Sys billing rows
+ * Statements overview card math (FamilyAccount / statement row balances):
+ * - Accounts: all source-agnostic statement billing rows
  * - Total Outstanding: net sum of balances
  * - Recently Owing / Bad Debt / Over Paid: sum balances in that age-analysis section (Over Paid signed)
  */
@@ -189,7 +187,7 @@ export function buildBillingSummaryValidationReport(
     if (!isSummaryEligibleBillingRow(row)) {
       excludedAccounts.push({
         accountNo,
-        reason: "not a Kid-e-Sys accountRef",
+        reason: "not a statement billing accountRef",
       });
       continue;
     }

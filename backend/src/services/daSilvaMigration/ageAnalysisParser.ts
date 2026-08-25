@@ -13,6 +13,18 @@ export function isKidESysSourceAccountRef(accountNo: string): boolean {
   return KIDEESYS_ACCOUNT_CODE_RE.test(ref);
 }
 
+/**
+ * Source-agnostic statement identity: Kid-e-Sys codes, Express Invoice names,
+ * and other migrated refs. Excludes empty, placeholder, and SA-SAMS numeric admission numbers.
+ */
+export function isStatementBillingAccountRef(accountNo: string): boolean {
+  const ref = String(accountNo || "").trim();
+  if (!ref || ref === "-" || ref.startsWith("KID-MISSING-")) return false;
+  if (isKidESysSourceAccountRef(ref)) return true;
+  if (/^\d{4,}$/.test(ref)) return false;
+  return true;
+}
+
 /** Map each learner name on an age-analysis row (including multi-line siblings) to accountNo. */
 export function indexAgeAnalysisAccountNames(
   accounts: ParsedBillingAccount[],
