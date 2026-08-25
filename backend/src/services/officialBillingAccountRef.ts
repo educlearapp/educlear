@@ -93,8 +93,6 @@ export async function resolveOfficialBillingAccountRef(
         select: {
           familyAccount: { select: { accountRef: true } },
           admissionNo: true,
-          accountNo: true,
-          accountNumber: true,
         },
       }));
     const familyRef = post(learner?.familyAccount?.accountRef);
