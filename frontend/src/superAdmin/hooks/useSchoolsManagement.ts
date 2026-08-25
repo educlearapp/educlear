@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { fetchSuperAdminSchools, updateSuperAdminSchool } from "../api/schoolsApi";
+import { fetchSuperAdminSchools, resetSuperAdminSchoolPassword, updateSuperAdminSchool } from "../api/schoolsApi";
 import type { SchoolPackage, SchoolRecord, SchoolStatus, SchoolsSummary } from "../types/schools";
 
 export type SchoolsStatusFilter = "all" | SchoolStatus;
@@ -85,9 +85,15 @@ export function useSchoolsManagement() {
     await loadSchools();
   }, [loadSchools]);
 
-  const onResetPassword = useCallback((_school: SchoolRecord) => {
-    /* API: trigger owner password reset */
-  }, []);
+  const onResetPassword = useCallback(
+    async (
+      school: SchoolRecord,
+      input: { newPassword: string; confirmPassword: string }
+    ) => {
+      await resetSuperAdminSchoolPassword(school.id, input);
+    },
+    []
+  );
 
   const onAddSchool = useCallback(() => {
     /* API: open create-school flow */

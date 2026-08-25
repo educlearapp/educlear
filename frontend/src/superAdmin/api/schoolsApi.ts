@@ -129,6 +129,53 @@ export async function updateSuperAdminSchool(
   }
 }
 
+export async function resetSuperAdminSchoolPassword(
+  schoolId: string,
+  input: { newPassword: string; confirmPassword: string }
+): Promise<{ schoolId: string; schoolName: string; ownerEmail: string; message: string }> {
+  const id = String(schoolId || "").trim();
+  if (!id) throw new Error("Missing schoolId");
+
+  const newPassword = String(input.newPassword ?? "");
+  const confirmPassword = String(input.confirmPassword ?? "");
+  if (newPassword.length < 8) {
+    throw new Error("New password must be at least 8 characters");
+  }
+  if (newPassword !== confirmPassword) {
+    throw new Error("Passwords do not match");
+  }
+
+  const res = (await superAdminApiFetch(
+    `/api/super-admin/schools/${encodeURIComponent(id)}/reset-password`,
+    {
+      method: "POST",
+      body: JSON.stringify({
+        schoolId: id,
+        newPassword,
+        confirmPassword,
+      }),
+    }
+  )) as {
+    success?: boolean;
+    error?: string;
+    schoolId?: string;
+    schoolName?: string;
+    ownerEmail?: string;
+    message?: string;
+  };
+
+  if (res && res.success === false) {
+    throw new Error(String(res.error || "Failed to reset password"));
+  }
+
+  return {
+    schoolId: String(res.schoolId || id),
+    schoolName: String(res.schoolName || ""),
+    ownerEmail: String(res.ownerEmail || ""),
+    message: String(res.message || "Password reset successfully."),
+  };
+}
+
 function computeSummaryFromSchools(schools: SchoolRecord[]): SchoolsSummary {
   if (!schools.length) return emptySummary();
   return {

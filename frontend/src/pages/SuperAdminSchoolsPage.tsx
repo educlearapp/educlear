@@ -186,6 +186,120 @@ function ManageSchoolModal({ school, saving = false, onClose, onRequestSave }: M
   );
 }
 
+type ResetPasswordModalProps = {
+  school: SchoolRecord;
+  saving?: boolean;
+  error?: string | null;
+  onClose: () => void;
+  onSubmit: (input: { newPassword: string; confirmPassword: string }) => void;
+};
+
+function ResetPasswordModal({
+  school,
+  saving = false,
+  error,
+  onClose,
+  onSubmit,
+}: ResetPasswordModalProps) {
+  const [newPassword, setNewPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
+  const [confirmed, setConfirmed] = useState(false);
+  const [localError, setLocalError] = useState<string | null>(null);
+
+  const handleBackdropClick = (e: React.MouseEvent<HTMLDivElement>) => {
+    if (e.target === e.currentTarget && !saving) onClose();
+  };
+
+  const validationError = (): string | null => {
+    if (newPassword.length < 8) return "New password must be at least 8 characters.";
+    if (newPassword !== confirmPassword) return "Passwords do not match.";
+    if (!confirmed) return "Confirm that you want to reset this school's login password.";
+    return null;
+  };
+
+  const handleSubmit = () => {
+    const nextError = validationError();
+    setLocalError(nextError);
+    if (nextError) return;
+    onSubmit({ newPassword, confirmPassword });
+  };
+
+  return (
+    <div className="sa-schools-modal-overlay" role="presentation" onClick={handleBackdropClick}>
+      <div
+        className="sa-schools-modal sa-schools-modal--wide"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="sa-schools-reset-title"
+        onClick={(e) => e.stopPropagation()}
+      >
+        <div className="sa-schools-modal-accent" aria-hidden="true" />
+        <h2 id="sa-schools-reset-title" className="sa-schools-modal-title">
+          Reset school password
+        </h2>
+        <p className="sa-schools-modal-message">
+          {`Reset the login password for “${school.schoolName}”.\nLogin email stays ${school.email}.\nThe new password is not saved after this reset.`}
+        </p>
+
+        <div className="sa-schools-reset-fields">
+          <label className="sa-schools-field">
+            <span className="sa-schools-field-label">New password</span>
+            <input
+              className="sa-schools-input sa-schools-input--dark"
+              type="password"
+              autoComplete="new-password"
+              value={newPassword}
+              disabled={saving}
+              onChange={(e) => setNewPassword(e.target.value)}
+            />
+          </label>
+          <label className="sa-schools-field">
+            <span className="sa-schools-field-label">Confirm password</span>
+            <input
+              className="sa-schools-input sa-schools-input--dark"
+              type="password"
+              autoComplete="new-password"
+              value={confirmPassword}
+              disabled={saving}
+              onChange={(e) => setConfirmPassword(e.target.value)}
+            />
+          </label>
+          <label className="sa-schools-reset-confirm">
+            <input
+              type="checkbox"
+              checked={confirmed}
+              disabled={saving}
+              onChange={(e) => setConfirmed(e.target.checked)}
+            />
+            <span>
+              I confirm I want to reset the login password for {school.schoolName}.
+            </span>
+          </label>
+          {localError || error ? (
+            <p className="sa-schools-reset-error" role="alert">
+              {localError || error}
+            </p>
+          ) : null}
+        </div>
+
+        <div className="sa-schools-modal-actions" style={{ gap: 12 }}>
+          <button type="button" className="sa-schools-btn" onClick={onClose} disabled={saving}>
+            Cancel
+          </button>
+          <button
+            type="button"
+            className="sa-schools-btn sa-schools-btn--gold"
+            onClick={handleSubmit}
+            disabled={saving}
+          >
+            {saving ? "Resetting…" : "Reset Password"}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 function schoolDetailMessage(school: SchoolRecord): string {
   const lines = [
     `Owner: ${school.ownerName}`,
@@ -229,6 +343,9 @@ export default function SuperAdminSchoolsPage() {
   const [notice, setNotice] = useState<Notice | null>(null);
   const [manageSchool, setManageSchool] = useState<SchoolRecord | null>(null);
   const [savingManage, setSavingManage] = useState(false);
+  const [resetSchool, setResetSchool] = useState<SchoolRecord | null>(null);
+  const [savingReset, setSavingReset] = useState(false);
+  const [resetError, setResetError] = useState<string | null>(null);
   const [confirm, setConfirm] = useState<{
     title: string;
     message: string;
@@ -339,15 +456,32 @@ export default function SuperAdminSchoolsPage() {
     [onChangePackage, showNotice]
   );
 
-  const handleResetPassword = useCallback(
-    (school: SchoolRecord) => {
-      onResetPassword(school);
-      showNotice(
-        "Reset Password",
-        `Owner password reset for “${school.schoolName}” will be available in a future release.`
-      );
+  const handleResetPassword = useCallback((school: SchoolRecord) => {
+    setResetError(null);
+    setResetSchool(school);
+  }, []);
+
+  const submitResetPassword = useCallback(
+    (input: { newPassword: string; confirmPassword: string }) => {
+      if (!resetSchool) return;
+      setSavingReset(true);
+      setResetError(null);
+      void onResetPassword(resetSchool, input)
+        .then(() => {
+          const name = resetSchool.schoolName;
+          const email = resetSchool.email;
+          setResetSchool(null);
+          showNotice(
+            "Password reset",
+            `The login password for “${name}” has been reset.\n\nSchool users sign in with ${email} and the new password.\nThe password was not saved and this session was not changed.`
+          );
+        })
+        .catch((err: unknown) => {
+          setResetError(err instanceof Error ? err.message : "Could not reset this school's password.");
+        })
+        .finally(() => setSavingReset(false));
     },
-    [onResetPassword, showNotice]
+    [onResetPassword, resetSchool, showNotice]
   );
 
   const handleAddSchool = useCallback(() => {
@@ -504,6 +638,20 @@ export default function SuperAdminSchoolsPage() {
             if (!savingManage) setManageSchool(null);
           }}
           onRequestSave={(next) => requestSaveManage(manageSchool, next)}
+        />
+      ) : null}
+      {resetSchool ? (
+        <ResetPasswordModal
+          school={resetSchool}
+          saving={savingReset}
+          error={resetError}
+          onClose={() => {
+            if (!savingReset) {
+              setResetSchool(null);
+              setResetError(null);
+            }
+          }}
+          onSubmit={submitResetPassword}
         />
       ) : null}
       {confirm ? (
