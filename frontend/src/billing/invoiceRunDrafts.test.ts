@@ -113,11 +113,13 @@ function testDraftsCannotLeakBetweenSchools() {
 function testWizardStartDoesNotBuildCandidatesOrSyncLedger() {
   assert(shouldBuildInvoiceRunCandidates("wizardStart") === false, "wizardStart skips candidate rows");
   assert(shouldBuildInvoiceRunCandidates("wizardSettings") === false, "wizardSettings skips candidate rows");
+  assert(shouldBuildInvoiceRunCandidates("wizardChildren") === true, "Children binds preview candidates");
   assert(shouldSyncInvoiceRunLedger("wizardStart") === false, "wizardStart skips full ledger sync");
   assert(shouldSyncInvoiceRunLedger("wizardSettings") === false, "wizardSettings skips full ledger sync");
-  assert(shouldBuildInvoiceRunCandidates("wizardChildren") === true, "Children builds candidates");
-  assert(shouldSyncInvoiceRunLedger("wizardFees") === true, "Fees syncs ledger");
-  assert(shouldSyncInvoiceRunLedger("wizardPreview") === true, "Preview syncs ledger");
+  assert(shouldSyncInvoiceRunLedger("wizardChildren") === false, "Children never hydrates historic ledger");
+  assert(shouldSyncInvoiceRunLedger("wizardFees") === false, "Fees never hydrates historic ledger");
+  assert(shouldSyncInvoiceRunLedger("wizardPreview") === false, "Preview never hydrates historic ledger");
+  assert(shouldSyncInvoiceRunLedger("wizardCreate") === false, "Create never hydrates historic ledger");
 }
 
 function testUnlinkedLearnersExcludedFromCandidates() {
@@ -210,7 +212,7 @@ function testCreateNewRunDoesNotWriteServerInvoices() {
   assert(body.includes('writeJson("educlearSelectedInvoiceRun"'), "+ Add may keep session selection only");
 
   assert(
-    source.includes("executeInvoiceRun(buildRunExecutePayload(run))"),
+    source.includes("executeInvoiceRun(buildRunExecutePayload(run, { forExecute: true }))"),
     "execute remains the invoice-writing operation"
   );
   const executeCount = source.split("executeInvoiceRun(").length - 1;

@@ -568,15 +568,21 @@ export const undoBillingTransaction = async (
   return body;
 };
 
-/** Sync Age Analysis accounts + Kid-e-Sys history + ledger from API (display source of truth). */
-export async function refreshBillingFromApi(schoolId: string) {
+/** Sync Age Analysis accounts, and optionally historic invoices/payments. */
+export async function refreshBillingFromApi(
+  schoolId: string,
+  options?: { includeHistoricLedger?: boolean }
+) {
   const sid = String(schoolId || "").trim();
   if (!sid) return;
+  const includeHistoricLedger = options?.includeHistoricLedger !== false;
   patchBillingStatementSyncState(sid, { loading: true });
   try {
     await syncStatementSummariesFromApi(sid).catch(() => {});
-    await syncKidesysHistoryFromApi(sid).catch(() => {});
-    await syncBillingLedgerFromApi(sid);
+    if (includeHistoricLedger) {
+      await syncKidesysHistoryFromApi(sid).catch(() => {});
+      await syncBillingLedgerFromApi(sid);
+    }
     notifyBillingUpdated();
   } finally {
     patchBillingStatementSyncState(sid, { loading: false });

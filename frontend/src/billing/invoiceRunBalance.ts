@@ -55,6 +55,25 @@ export function lookupStatementAccountBalance(
   return { loaded: true, balance: index.get(ref) ?? null };
 }
 
+export function resolveInvoiceRunWizardBalance(
+  schoolId: string,
+  _learnerId: string,
+  accountNo: string
+): InvoiceRunBalanceResult {
+  const sid = String(schoolId || "").trim();
+  if (!sid) return { ready: false, pending: true };
+
+  const statement = lookupStatementAccountBalance(sid, accountNo);
+  if (!statement.loaded) return { ready: false, pending: true };
+  if (statement.balance === null) return { ready: false, pending: false };
+
+  return {
+    ready: true,
+    balance: statement.balance,
+    source: "statements",
+  };
+}
+
 export function resolveInvoiceRunBalance(
   schoolId: string,
   learnerId: string,

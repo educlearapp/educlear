@@ -78,6 +78,7 @@ import {
   getBillingStatementSyncState,
   refreshBillingFromApi,
 } from "./billing/billingApi";
+import { shouldHydrateHistoricBillingLedger } from "./billing/invoiceRunList";
 import { shouldShowNoAccountsMessage } from "./billing/billingStatementDisplay";
 import { KIDESYS_HISTORY_UPDATED_EVENT } from "./billing/kidesysTransactionHistory";
 import {
@@ -2568,7 +2569,7 @@ const [selectedLearnerReport, setSelectedLearnerReport] = useState<any>(null);
     const run = (async () => {
       setBillingSyncLoading(true);
       try {
-        await refreshBillingFromApi(schoolId);
+        await refreshBillingFromApi(schoolId, { includeHistoricLedger: true });
         const syncState = getBillingStatementSyncState(schoolId);
         setBillingSyncConfirmedEmpty(syncState.confirmedEmpty);
       } finally {
@@ -2597,7 +2598,7 @@ const [selectedLearnerReport, setSelectedLearnerReport] = useState<any>(null);
   useEffect(() => {
     if (!schoolId) return;
     setBillingSyncLoading(true);
-    refreshBillingFromApi(schoolId)
+    refreshBillingFromApi(schoolId, { includeHistoricLedger: false })
       .then(() => {
         const syncState = getBillingStatementSyncState(schoolId);
         setBillingSyncConfirmedEmpty(syncState.confirmedEmpty);
@@ -2615,15 +2616,7 @@ const [selectedLearnerReport, setSelectedLearnerReport] = useState<any>(null);
 
   useEffect(() => {
     if (!schoolId) return;
-    const billingPages: PageKey[] = [
-      "statements",
-      "statementManage",
-      "invoices",
-      "invoiceCreate",
-      "payments",
-      "paymentCreate",
-    ];
-    if (!billingPages.includes(activePage)) return;
+    if (!shouldHydrateHistoricBillingLedger(activePage)) return;
     if (skipNextBillingPageRefreshRef.current) {
       skipNextBillingPageRefreshRef.current = false;
       return;

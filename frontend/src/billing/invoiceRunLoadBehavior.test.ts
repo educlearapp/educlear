@@ -27,29 +27,37 @@ function testListMountUsesStatementsNotFullLedger() {
     ),
     "full ledger sync must not run on empty-deps mount"
   );
-  const wizardSync = invoiceRunsSource.match(
-    /if \(!shouldSyncInvoiceRunLedger\(invoiceRunView\)\)[\s\S]{0,400}syncBillingLedgerFromApi/
-  );
-  assert(Boolean(wizardSync), "candidate wizard steps should still trigger full ledger sync once");
   assert(
-    invoiceRunsSource.includes("shouldSyncInvoiceRunLedger"),
-    "wizardStart must not sync the full ledger"
+    !invoiceRunsSource.includes("shouldSyncInvoiceRunLedger"),
+    "Invoice Runs wizard must not gate on historic ledger sync"
   );
   assert(
-    invoiceRunsSource.includes("shouldBuildInvoiceRunCandidates"),
-    "wizardStart must not build the full invoice candidate dataset"
+    invoiceRunsSource.includes("shouldPrefetchInvoiceRunPreview"),
+    "candidate wizard steps prefetch bounded server preview"
+  );
+  assert(
+    invoiceRunsSource.includes("toThinInvoiceRunDraft"),
+    "browser drafts must be thinned before persist"
+  );
+  assert(
+    invoiceRunsSource.includes("childrenPaginatedRows"),
+    "Children must render the active page only"
   );
   assert(
     invoiceRunsSource.includes("learnerHasOfficialLinkedFamilyAccount"),
     "invoice candidates must require a linked FamilyAccount"
   );
   assert(
-    invoiceRunsSource.includes("avoidRelink: true"),
-    "wizard ledger sync must avoid GET /api/invoices/ledger relink"
+    !invoiceRunsSource.includes("avoidRelink: true"),
+    "wizard must not sync the historic ledger even with avoidRelink"
   );
   assert(
     !invoiceRunsSource.includes("fetchInvoices("),
     "Invoice Run list must not fetch the full invoice dump"
+  );
+  assert(
+    !invoiceRunsSource.includes("syncBillingLedgerFromApi"),
+    "Invoice Runs must not call syncBillingLedgerFromApi"
   );
 }
 

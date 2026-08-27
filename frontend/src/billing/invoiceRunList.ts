@@ -21,11 +21,21 @@ export type InvoiceRunListRow = {
   [key: string]: unknown;
 };
 
-const INVOICE_RUN_CANDIDATE_VIEWS = new Set([
+const INVOICE_RUN_PREVIEW_VIEWS = new Set([
   "wizardChildren",
   "wizardFees",
   "wizardPreview",
   "wizardCreate",
+]);
+
+/** Pages that actually display historic invoices/payments and may hydrate that ledger. */
+const HISTORIC_BILLING_LEDGER_PAGES = new Set([
+  "statements",
+  "statementManage",
+  "invoices",
+  "invoiceCreate",
+  "payments",
+  "paymentCreate",
 ]);
 
 export function normalisePeriodKey(value: unknown): string {
@@ -63,13 +73,224 @@ export function resolveDraftPeriod(draft: InvoiceRunListRow): string {
   );
 }
 
-/** Build learner rows / download ledger only on steps that display candidates. */
+/** Candidate UI may bind to server preview on these steps. Never downloads historic ledgers. */
 export function shouldBuildInvoiceRunCandidates(view: unknown): boolean {
-  return INVOICE_RUN_CANDIDATE_VIEWS.has(String(view || ""));
+  return INVOICE_RUN_PREVIEW_VIEWS.has(String(view || ""));
 }
 
-export function shouldSyncInvoiceRunLedger(view: unknown): boolean {
-  return shouldBuildInvoiceRunCandidates(view);
+export function shouldPrefetchInvoiceRunPreview(view: unknown): boolean {
+  return INVOICE_RUN_PREVIEW_VIEWS.has(String(view || ""));
+}
+
+/** Invoice Run wizard/list must never hydrate GET /api/invoices or /api/payments. */
+export function shouldSyncInvoiceRunLedger(_view?: unknown): boolean {
+  return false;
+}
+
+export function shouldHydrateHistoricBillingLedger(page: unknown): boolean {
+  return HISTORIC_BILLING_LEDGER_PAGES.has(String(page || ""));
+}
+
+export type InvoiceRunExtraFee = {
+  feeDescription: string;
+  amount: number;
+};
+
+export type InvoiceRunPreviewLearner = {
+  learnerId?: string;
+  learnerName?: string;
+  accountNo?: string;
+  status?: string;
+  amount?: number;
+  skipReason?: string;
+  skipDetail?: string;
+};
+
+const INVOICE_RUN_PAGE_SIZE = 10;
+
+export function invoiceRunPreviewCacheKey(run: Record<string, unknown> | null | undefined): string {
+  const row = run && typeof run === "object" ? run : {};
+  return JSON.stringify({
+    id: row.id || "",
+    all: row.extraFeesAll || [],
+    byId: row.extraFeesByLearnerId || {},
+    excluded: row.excludedLearnerIds || [],
+    period: row.month || row.period || "",
+    invoiceDate: row.invoiceDate || "",
+  });
+}
+
+export function paginateInvoiceRunRows<T>(
+  rows: T[],
+  page: number,
+  pageSize: number = INVOICE_RUN_PAGE_SIZE
+): T[] {
+  const list = Array.isArray(rows) ? rows : [];
+  const size = Math.max(1, Number(pageSize) || INVOICE_RUN_PAGE_SIZE);
+  const totalPages = Math.max(1, Math.ceil(list.length / size));
+  const safePage = Math.min(Math.max(1, Number(page) || 1), totalPages);
+  const start = (safePage - 1) * size;
+  return list.slice(start, start + size);
+}
+
+function extraFeesFromRow(row: unknown): InvoiceRunExtraFee[] {
+  const record = row as { fees?: unknown[]; id?: unknown; learnerId?: unknown } | null;
+  const fees = Array.isArray(record?.fees) ? record.fees : [];
+  return fees
+    .filter(
+      (fee: any) => fee?.type === "EXTRA" || String(fee?.id || "").startsWith("extra-")
+    )
+    .map((fee: any) => ({
+      feeDescription: String(fee.description || fee.name || "Extra fee").trim(),
+      amount: Number(fee.amount || 0),
+    }))
+    .filter((fee: InvoiceRunExtraFee) => fee.feeDescription && fee.amount > 0);
+}
+
+export function extraFeesForLearner(
+  learnerId: string,
+  extraFeesByLearnerId?: Record<string, InvoiceRunExtraFee[]>,
+  extraFeesAll?: InvoiceRunExtraFee[]
+): InvoiceRunExtraFee[] {
+  const id = String(learnerId || "").trim();
+  const specific = id && extraFeesByLearnerId ? extraFeesByLearnerId[id] || [] : [];
+  const all = Array.isArray(extraFeesAll) ? extraFeesAll : [];
+  return [...all, ...specific].filter((fee) => Number(fee.amount) > 0);
+}
+
+export function buildInvoiceRunExtraFeesByLearnerId(
+  invoicedLearnerIds: string[],
+  extraFeesByLearnerId?: Record<string, InvoiceRunExtraFee[]>,
+  extraFeesAll?: InvoiceRunExtraFee[]
+): Record<string, InvoiceRunExtraFee[]> | undefined {
+  const out: Record<string, InvoiceRunExtraFee[]> = {};
+  for (const learnerId of invoicedLearnerIds) {
+    const id = String(learnerId || "").trim();
+    if (!id) continue;
+    const fees = extraFeesForLearner(id, extraFeesByLearnerId, extraFeesAll);
+    if (fees.length) out[id] = fees;
+  }
+  return Object.keys(out).length ? out : undefined;
+}
+
+function extrasFromFatRows(
+  rows: unknown[]
+): Record<string, InvoiceRunExtraFee[]> {
+  const out: Record<string, InvoiceRunExtraFee[]> = {};
+  for (const row of rows || []) {
+    const record = row as { id?: unknown; learnerId?: unknown };
+    const id = String(record?.id || record?.learnerId || "").trim();
+    const extras = extraFeesFromRow(row);
+    if (id && extras.length) out[id] = extras;
+  }
+  return out;
+}
+
+/** Persist only settings, extra fees, and exclusion ids — never 441 fat candidate rows. */
+export function toThinInvoiceRunDraft(
+  run: InvoiceRunListRow | Record<string, unknown> | null | undefined
+): InvoiceRunListRow {
+  const row = (run && typeof run === "object" ? run : {}) as InvoiceRunListRow;
+  const fatRows = Array.isArray(row.rows) ? row.rows : [];
+  const fromRows = extrasFromFatRows(fatRows);
+  const extraFeesByLearnerId = {
+    ...fromRows,
+    ...((row as { extraFeesByLearnerId?: Record<string, InvoiceRunExtraFee[]> })
+      .extraFeesByLearnerId || {}),
+  };
+  const extraFeesAll = Array.isArray((row as { extraFeesAll?: InvoiceRunExtraFee[] }).extraFeesAll)
+    ? ((row as { extraFeesAll: InvoiceRunExtraFee[] }).extraFeesAll as InvoiceRunExtraFee[])
+    : [];
+  const excludedLearnerIds = Array.isArray(
+    (row as { excludedLearnerIds?: unknown[] }).excludedLearnerIds
+  )
+    ? ((row as { excludedLearnerIds: unknown[] }).excludedLearnerIds as unknown[])
+        .map((id) => String(id || "").trim())
+        .filter(Boolean)
+    : [];
+  const executed = row.executed === true;
+  return {
+    id: String(row.id || row.runId || ""),
+    runId: row.runId ? String(row.runId) : undefined,
+    schoolId: String(row.schoolId || ""),
+    source: row.source,
+    month: row.month,
+    period: row.period,
+    invoicePeriod: row.invoicePeriod,
+    description: row.description,
+    date: row.date,
+    invoiceDate: row.invoiceDate,
+    dueDate: row.dueDate,
+    invoiceMessage: (row as { invoiceMessage?: string }).invoiceMessage,
+    extraFeesAll,
+    extraFeesByLearnerId,
+    excludedLearnerIds,
+    totalInvoices: executed ? Number(row.totalInvoices || 0) : 0,
+    totalAmount: executed ? Number(row.totalAmount || 0) : 0,
+    executed,
+    original: (row as { original?: unknown }).original,
+    createdAt: (row as { createdAt?: string }).createdAt,
+    rows: [],
+  } as InvoiceRunListRow;
+}
+
+export function mapInvoiceRunPreviewToWizardRows(args: {
+  previewLearners: InvoiceRunPreviewLearner[];
+  localLearners?: Array<Record<string, unknown>>;
+  extraFeesByLearnerId?: Record<string, InvoiceRunExtraFee[]>;
+  extraFeesAll?: InvoiceRunExtraFee[];
+  excludedLearnerIds?: string[];
+  invoiceDate?: string;
+}): Array<Record<string, unknown>> {
+  const localById = new Map(
+    (args.localLearners || []).map((learner) => [String(learner.id || ""), learner])
+  );
+  const excluded = new Set(
+    (args.excludedLearnerIds || []).map((id) => String(id || "").trim()).filter(Boolean)
+  );
+  const invoiceDate = String(args.invoiceDate || "").trim();
+  return (args.previewLearners || [])
+    .map((preview) => {
+      const learnerId = String(preview.learnerId || "").trim();
+      if (!learnerId || excluded.has(learnerId)) return null;
+      const local = localById.get(learnerId) || {};
+      const extras = extraFeesForLearner(
+        learnerId,
+        args.extraFeesByLearnerId,
+        args.extraFeesAll
+      );
+      const invoiceAmount = Number(preview.amount || 0);
+      const fullName = String(preview.learnerName || "").trim();
+      const nameParts = fullName.split(/\s+/).filter(Boolean);
+      return {
+        id: learnerId,
+        learnerId,
+        learnerName: fullName || String(local.firstName || ""),
+        firstName: String(local.firstName || local.name || nameParts[0] || ""),
+        surname: String(
+          local.surname || local.lastName || nameParts.slice(1).join(" ") || ""
+        ),
+        classroom: String(
+          local.classroom || local.className || local.grade || local.gradeName || ""
+        ),
+        accountNo: String(preview.accountNo || local.accountNo || ""),
+        familyAccountId: local.familyAccountId,
+        invoiceAmount,
+        serverStatus: String(preview.status || ""),
+        skipReason: preview.skipReason,
+        skipDetail: preview.skipDetail,
+        invoiceDate,
+        extraFees: extras,
+        fees: extras.map((fee, index) => ({
+          id: `extra-${learnerId}-${index}`,
+          type: "EXTRA",
+          description: fee.feeDescription,
+          name: fee.feeDescription,
+          amount: fee.amount,
+        })),
+      };
+    })
+    .filter(Boolean) as Array<Record<string, unknown>>;
 }
 
 /** Official FamilyAccount link only — unlinked learners must not enter the candidate set. */

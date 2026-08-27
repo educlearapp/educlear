@@ -19,17 +19,22 @@ import {
   executeInvoiceRun,
   applyInvoiceRunExecuteResponse,
   undoInvoiceRun,
+  syncStatementSummariesFromApi,
 } from "./billingApi";
 import {
   beginInvoiceRunWizard,
+  buildInvoiceRunExtraFeesByLearnerId,
   isLedgerBackedInvoiceRun,
   learnerHasOfficialLinkedFamilyAccount,
   listSchoolInvoiceRunDrafts,
+  mapInvoiceRunPreviewToWizardRows,
   mergeInvoiceRunLists,
+  paginateInvoiceRunRows,
   persistInvoiceRunDraft,
-  shouldBuildInvoiceRunCandidates,
-  shouldSyncInvoiceRunLedger,
+  invoiceRunPreviewCacheKey,
+  shouldPrefetchInvoiceRunPreview,
   stampLegacyInvoiceRunDrafts,
+  toThinInvoiceRunDraft,
   type InvoiceRunListRow,
 } from "./invoiceRunList";
 
@@ -38,16 +43,14 @@ import {
 import { calculateLastPayment } from "./billingCalculations";
 import {
   BILLING_UPDATED_EVENT,
-  readSchoolLedger,
 } from "./billingLedger";
-import { syncBillingLedgerFromApi, syncStatementSummariesFromApi } from "./billingApi";
 import {
   formatInvoiceRunBalanceAmount,
   formatInvoiceRunBalanceResult,
   invoiceRunBalanceStatusColor,
   invoiceRunBalanceStatusLabel,
   invoiceRunBalanceToAmount,
-  resolveInvoiceRunBalance,
+  resolveInvoiceRunWizardBalance,
   sumInvoiceRunBalanceAndAmount,
 } from "./invoiceRunBalance";
 import { buildStatementCoverEmailHtml, sendStatementEmail, resolveSchoolLogoUrl, STATEMENT_LOGO_IMG_STYLE } from "./statementDocument";
@@ -136,7 +139,7 @@ export default function InvoiceRuns(props: any) {
   const [billingLoading, setBillingLoading] = useState(false);
   const invoiceRunNotifiedRef = useRef<string>("");
   const invoiceRunPreviewInFlightRef = useRef(false);
-  const wizardLedgerSyncedRef = useRef(false);
+  const wizardPreviewKeyRef = useRef("");
   const invoiceRunPreviewLoadedRunIdRef = useRef("");
   const [invoiceRunServerPreview, setInvoiceRunServerPreview] = useState<any | null>(null);
   const [invoiceRunPreviewLoading, setInvoiceRunPreviewLoading] = useState(false);
@@ -327,7 +330,7 @@ export default function InvoiceRuns(props: any) {
 
   const getLearnerOutstandingBalance = (learnerId: string, accountNo = "") => {
     void balanceDisplayRevision;
-    return resolveInvoiceRunBalance(schoolIdForLedger, learnerId, accountNo);
+    return resolveInvoiceRunWizardBalance(schoolIdForLedger, learnerId, accountNo);
   };
 
   const getLearnerOutstandingBalanceAmount = (learnerId: string, accountNo = "") =>
@@ -341,11 +344,6 @@ export default function InvoiceRuns(props: any) {
 
   useEffect(() => {
     if (!schoolIdForLedger) return;
-    readSchoolLedger(schoolIdForLedger);
-  }, [schoolIdForLedger]);
-
-  useEffect(() => {
-    if (!schoolIdForLedger) return;
     let cancelled = false;
     void syncStatementSummariesFromApi(schoolIdForLedger).then(() => {
       if (!cancelled) setBalanceDisplayRevision((value) => value + 1);
@@ -354,21 +352,6 @@ export default function InvoiceRuns(props: any) {
       cancelled = true;
     };
   }, [schoolIdForLedger]);
-
-  useEffect(() => {
-    if (!schoolIdForLedger) return;
-    if (!shouldSyncInvoiceRunLedger(invoiceRunView)) {
-      if (!String(invoiceRunView || "").startsWith("wizard")) {
-        wizardLedgerSyncedRef.current = false;
-      }
-      return;
-    }
-    if (wizardLedgerSyncedRef.current) return;
-    wizardLedgerSyncedRef.current = true;
-    void syncBillingLedgerFromApi(schoolIdForLedger, { avoidRelink: true }).then(() => {
-      setBalanceDisplayRevision((value) => value + 1);
-    });
-  }, [schoolIdForLedger, invoiceRunView]);
 
   useEffect(() => {
     if (!schoolIdForLedger) return;
@@ -1096,259 +1079,27 @@ export default function InvoiceRuns(props: any) {
 
   const selectedRows = useMemo(
     () => {
-      if (!shouldBuildInvoiceRunCandidates(invoiceRunView)) return [];
-      return normalizedLearners.filter((learner: any) =>
-        learnerHasOfficialLinkedFamilyAccount(learner)
-      ).map(
-
-
-
-    (learner: any, index: number) => {
-
-
-
-      const parent = findParent(learner);
-
-
-
-      const fees = getLearnerBillingPlan(learner);
-
-
-
-      const invoiceAmount = fees.reduce(
-
-
-
-        (total: number, fee: any) =>
-
-
-
-          total +
-
-
-
-          Number(
-
-
-
-            fee?.amount ||
-
-
-
-              fee?.feeAmount ||
-
-
-
-              fee?.monthlyAmount ||
-
-
-
-              0
-
-
-
-          ),
-
-
-
-        0
-
-
-
-      );
-
-
-
-      const parentName =
-
-
-
-        parent?.name ||
-
-
-
-        parent?.fullName ||
-
-
-
-        `${
-
-
-
-          parent?.firstName || ""
-
-
-
-        } ${parent?.surname || parent?.lastName || ""}`.trim() ||
-
-
-
-        learner?.parentName ||
-
-
-
-        learner?.guardianName ||
-
-
-
-        "Parent / Guardian";
-
-
-
-      const parentEmail =
-
-
-
-        parent?.email ||
-
-
-
-        parent?.parentEmail ||
-
-
-
-        learner?.parentEmail ||
-
-
-
-        learner?.guardianEmail ||
-
-
-
-        "";
-
-
-
-      return {
-
-
-
-        id: learner?.id || index,
-
-
-
-        learnerName: learnerFullName(learner),
-
-
-
-        firstName:
-
-
-
-          learner?.firstName || learner?.name || "",
-
-
-
-        surname:
-
-
-
-          learner?.surname || learner?.lastName || "",
-
-
-
-        classroom:
-
-
-
-          learner?.classroom ||
-
-
-
-          learner?.className ||
-
-
-
-          learner?.grade ||
-
-
-
-          learner?.gradeName ||
-
-
-
-          "Classroom",
-
-
-
-        accountNo: getLearnerAccountNo(learner),
-
-
-
-        parentName,
-
-
-
-        parentEmail,
-
-
-
-        invoiceNo: buildInvoiceReference(
-          billingSettingsRef.current,
-          new Date().toISOString().slice(0, 10),
-          index + 1,
-          String(65000 + index)
-        ),
-
-
-
-        statementNo: `ST${String(index + 1).padStart(
-
-
-
-          4,
-
-
-
-          "0"
-
-
-
-        )}`,
-
-
-
-        balance: getLearnerOutstandingBalanceAmount(
-          learner.id || learner.learnerId,
-          getLearnerAccountNo(learner)
-        ),
-
-
-
-
-        invoiceAmount,
-
-
-
-        newBalance: sumInvoiceRunBalanceAndAmount(
-          getLearnerOutstandingBalanceAmount(
-            learner.id || learner.learnerId,
-            getLearnerAccountNo(learner)
-          ),
-          invoiceAmount
-        ),
-
-
-
-        status:
-
-
-
-          invoiceAmount <= 0 ? "Paid" : "Unpaid",
-
-
-
-        fees,
-
-
-
-      };
-
-
-
-    });
+      const previewLearners = Array.isArray(invoiceRunServerPreview?.learners)
+        ? invoiceRunServerPreview.learners
+        : [];
+      if (!previewLearners.length) return [];
+      const current = readJson(["educlearSelectedInvoiceRun"], null) || {};
+      const mapped = mapInvoiceRunPreviewToWizardRows({
+        previewLearners,
+        localLearners: normalizedLearners,
+        extraFeesByLearnerId: current.extraFeesByLearnerId,
+        extraFeesAll: current.extraFeesAll,
+        excludedLearnerIds: current.excludedLearnerIds,
+        invoiceDate: invoiceRunSettings?.invoiceDate || current.invoiceDate,
+      });
+      return mapped;
     },
-    [normalizedLearners, balanceDisplayRevision, parentLookupIndex, invoiceRunView]
+    [
+      invoiceRunServerPreview,
+      normalizedLearners,
+      invoiceRunSettings?.invoiceDate,
+      balanceDisplayRevision,
+    ]
   );
 
 
@@ -1370,24 +1121,11 @@ export default function InvoiceRuns(props: any) {
 
 
   const runRows = useMemo(
-    () =>
-      Array.isArray(selectedRun?.rows)
-        ? selectedRun.rows.map((row: any) => {
-            const fresh = selectedRows.find(
-              (item: any) =>
-                String(item.id) === String(row.id) ||
-                String(item.learnerName).toLowerCase() ===
-                  String(row.learnerName).toLowerCase()
-            );
-            return fresh
-              ? {
-                  ...row,
-                  parentName: fresh.parentName,
-                  parentEmail: fresh.parentEmail,
-                }
-              : row;
-          })
-        : selectedRows,
+    () => {
+      if (Array.isArray(selectedRows) && selectedRows.length) return selectedRows;
+      if (Array.isArray(selectedRun?.rows) && selectedRun.rows.length) return selectedRun.rows;
+      return [];
+    },
     [selectedRun, selectedRows]
   );
 
@@ -1465,6 +1203,24 @@ export default function InvoiceRuns(props: any) {
 
   );
 
+  const childrenSourceRows = useMemo(
+    () =>
+      filteredRows.filter((row: any) => {
+        if (String(row.serverStatus || "") !== "invoiced") return false;
+        if (row.familyAccountId) {
+          return learnerHasOfficialLinkedFamilyAccount(row);
+        }
+        return true;
+      }),
+    [filteredRows]
+  );
+  const childrenTotalPages = Math.max(1, Math.ceil(childrenSourceRows.length / 10));
+  const childrenPaginatedRows = paginateInvoiceRunRows(
+    childrenSourceRows,
+    invoiceRunPage,
+    10
+  );
+
   const extractExtraFeesForRow = (row: any) => {
     const fees = Array.isArray(row?.fees) ? row.fees : [];
     return fees
@@ -1479,44 +1235,55 @@ export default function InvoiceRuns(props: any) {
       .filter((fee: { feeDescription: string; amount: number }) => fee.amount > 0);
   };
 
-  const buildRunExecutePayload = (run: any) => {
+  const buildRunExecutePayload = (run: any, opts?: { forExecute?: boolean }) => {
     const schoolId = localStorage.getItem("schoolId") || "";
+    const thin = toThinInvoiceRunDraft({ ...run, schoolId });
     const invoiceDate =
-      String(run?.invoiceDate || run?.date || invoiceRunSettings?.invoiceDate || "").trim() ||
+      String(thin.invoiceDate || run?.date || invoiceRunSettings?.invoiceDate || "").trim() ||
       new Date().toISOString().slice(0, 10);
     const invoicePeriod = String(
-      run?.month || run?.period || invoiceRunSettings?.month || ""
+      thin.month || thin.period || invoiceRunSettings?.month || ""
     ).trim();
-    const rows = Array.isArray(run?.rows) ? run.rows : [];
-    const extraFeesByLearnerId: Record<string, { feeDescription: string; amount: number }[]> =
-      {};
-
-    for (const row of rows) {
-      const learnerId = String(row?.id || row?.learnerId || "").trim();
-      const extras = extractExtraFeesForRow(row);
-      if (learnerId && extras.length) extraFeesByLearnerId[learnerId] = extras;
-    }
+    const excluded = new Set(
+      (Array.isArray(thin.excludedLearnerIds) ? thin.excludedLearnerIds : []).map(String)
+    );
+    const invoicedIds = (Array.isArray(invoiceRunServerPreview?.learners)
+      ? invoiceRunServerPreview.learners
+      : []
+    )
+      .filter((row: any) => String(row.status || "") === "invoiced")
+      .map((row: any) => String(row.learnerId || "").trim())
+      .filter((id: string) => id && !excluded.has(id));
+    const extraFeesByLearnerId = buildInvoiceRunExtraFeesByLearnerId(
+      invoicedIds,
+      thin.extraFeesByLearnerId as any,
+      thin.extraFeesAll as any
+    );
 
     return {
       schoolId,
-      runId: String(run?.id || ""),
+      runId: String(thin.id || run?.id || ""),
       invoicePeriod,
       invoiceDate,
       dueDate:
-        String(run?.dueDate || invoiceRunSettings?.dueDate || "").trim() || undefined,
+        String(thin.dueDate || invoiceRunSettings?.dueDate || "").trim() || undefined,
       description:
-        String(run?.description || `Invoice Run For ${invoicePeriod}`).trim() || undefined,
-      extraFeesByLearnerId: Object.keys(extraFeesByLearnerId).length
-        ? extraFeesByLearnerId
-        : undefined,
+        String(thin.description || `Invoice Run For ${invoicePeriod}`).trim() || undefined,
+      extraFeesByLearnerId,
+      learnerIds: opts?.forExecute && invoicedIds.length ? invoicedIds : undefined,
     };
   };
 
   const loadInvoiceRunPreview = async (run: any) => {
     const schoolId = localStorage.getItem("schoolId") || "";
     if (!schoolId || !run?.id) return null;
+    const previewKey = invoiceRunPreviewCacheKey(run);
     if (invoiceRunPreviewInFlightRef.current) return invoiceRunServerPreview;
+    if (wizardPreviewKeyRef.current === previewKey && invoiceRunServerPreview) {
+      return invoiceRunServerPreview;
+    }
     invoiceRunPreviewInFlightRef.current = true;
+    wizardPreviewKeyRef.current = previewKey;
     setInvoiceRunPreviewLoading(true);
     setInvoiceRunPreviewError("");
     try {
@@ -1528,6 +1295,7 @@ export default function InvoiceRuns(props: any) {
         error instanceof Error ? error.message : "Invoice run preview failed";
       setInvoiceRunPreviewError(message);
       setInvoiceRunServerPreview(null);
+      wizardPreviewKeyRef.current = "";
       return null;
     } finally {
       invoiceRunPreviewInFlightRef.current = false;
@@ -1542,7 +1310,7 @@ export default function InvoiceRuns(props: any) {
     }
     setInvoiceRunExecuteLoading(true);
     try {
-      const result = await executeInvoiceRun(buildRunExecutePayload(run));
+      const result = await executeInvoiceRun(buildRunExecutePayload(run, { forExecute: true }));
       setInvoiceRunExecuteResult(result);
       if (!result?.success || result?.integrity?.passed === false) {
         const detail = formatInvoiceRunErrorReport(result);
@@ -1605,10 +1373,18 @@ export default function InvoiceRuns(props: any) {
       ? invoiceRunServerPreview.learners
       : [];
     if (!serverLearners.length) return runRows;
+    const current = readJson(["educlearSelectedInvoiceRun"], selectedRun) || {};
+    const excluded = new Set(
+      (Array.isArray(current.excludedLearnerIds) ? current.excludedLearnerIds : [])
+        .map((id: unknown) => String(id || "").trim())
+        .filter(Boolean)
+    );
     const byId = new Map(
       runRows.map((row: any) => [String(row.id || row.learnerId), row])
     );
-    return serverLearners.map((learnerRow: any) => {
+    return serverLearners
+      .filter((learnerRow: any) => !excluded.has(String(learnerRow.learnerId || "").trim()))
+      .map((learnerRow: any) => {
       const local: any = byId.get(String(learnerRow.learnerId)) || {};
       return {
         ...local,
@@ -1657,14 +1433,11 @@ export default function InvoiceRuns(props: any) {
   useEffect(() => {
     const run = readJson(["educlearSelectedInvoiceRun"], selectedRun);
     if (!run?.id) return;
-    const runId = String(run.id);
-    const shouldPrefetch =
-      invoiceRunView === "wizardFees" || invoiceRunView === "wizardPreview";
-    if (!shouldPrefetch) return;
-    if (invoiceRunPreviewLoadedRunIdRef.current === runId && invoiceRunServerPreview) {
+    if (!shouldPrefetchInvoiceRunPreview(invoiceRunView)) return;
+    const previewKey = invoiceRunPreviewCacheKey(run);
+    if (wizardPreviewKeyRef.current === previewKey && invoiceRunServerPreview) {
       return;
     }
-    invoiceRunPreviewLoadedRunIdRef.current = runId;
     void loadInvoiceRunPreview(run);
   }, [invoiceRunView, selectedRun?.id]);
 
@@ -1672,14 +1445,11 @@ export default function InvoiceRuns(props: any) {
     const schoolId = localStorage.getItem("schoolId") || "";
     const existingRuns = toArray(readJson(["educlearInvoiceRuns"], []));
     const stamped = stampLegacyInvoiceRunDrafts(existingRuns, schoolId);
-    const updatedRuns = persistInvoiceRunDraft(
-      stamped,
-      { ...run, schoolId },
-      schoolId
-    );
+    const thin = toThinInvoiceRunDraft({ ...run, schoolId });
+    const updatedRuns = persistInvoiceRunDraft(stamped, thin, schoolId);
     writeJson("educlearInvoiceRuns", updatedRuns);
     setStoredRuns(listSchoolInvoiceRunDrafts(updatedRuns, schoolId));
-    writeJson("educlearSelectedInvoiceRun", { ...run, schoolId });
+    writeJson("educlearSelectedInvoiceRun", thin);
   };
   const createNewRun = (original = false) => {
 
@@ -1766,11 +1536,12 @@ export default function InvoiceRuns(props: any) {
 
 
     setInvoiceRunServerPreview(null);
+    wizardPreviewKeyRef.current = "";
     invoiceRunPreviewLoadedRunIdRef.current = "";
     setInvoiceRunPreviewError("");
     setInvoiceRunExecuteResult(null);
 
-    writeJson("educlearSelectedInvoiceRun", run);
+    writeJson("educlearSelectedInvoiceRun", toThinInvoiceRunDraft(run));
 
 
 
@@ -2038,7 +1809,7 @@ export default function InvoiceRuns(props: any) {
           alert(result.error || "Server undo failed.");
           return;
         }
-        await syncBillingLedgerFromApi(schoolId);
+        await syncStatementSummariesFromApi(schoolId);
         await loadServerInvoiceRuns();
         await loadBillingData();
         window.dispatchEvent(new Event(BILLING_UPDATED_EVENT));
@@ -3556,15 +3327,12 @@ export default function InvoiceRuns(props: any) {
 
 
 
-      rows: Array.isArray(current.rows)
-
-
-
-        ? current.rows
-
-
-
-        : runRows,
+      extraFeesAll: Array.isArray(current.extraFeesAll) ? current.extraFeesAll : [],
+      extraFeesByLearnerId: current.extraFeesByLearnerId || {},
+      excludedLearnerIds: Array.isArray(current.excludedLearnerIds)
+        ? current.excludedLearnerIds
+        : [],
+      rows: [],
 
 
 
@@ -4285,6 +4053,21 @@ export default function InvoiceRuns(props: any) {
 
         next="wizardChildren"
 
+        nextLoading={invoiceRunPreviewLoading}
+
+        onNext={async () => {
+          const run = readJson(["educlearSelectedInvoiceRun"], selectedRun);
+          const preview = await loadInvoiceRunPreview(run);
+          if (!preview) {
+            window.alert(
+              invoiceRunPreviewError || "Invoice run preview failed. No invoices were created."
+            );
+            return false;
+          }
+          setInvoiceRunPage(1);
+          return true;
+        }}
+
 
 
       >
@@ -4747,7 +4530,95 @@ export default function InvoiceRuns(props: any) {
 
 
 
-          {runRows.length === 0 ? (
+          {invoiceRunPreviewLoading ? (
+
+
+
+            <div
+
+
+
+              style={{
+
+
+
+                padding: 30,
+
+
+
+                textAlign: "center",
+
+
+
+                color: "#1e3a8a",
+
+
+
+                fontWeight: 900,
+
+
+
+              }}
+
+
+
+            >
+
+
+
+              Loading server preview…
+
+
+
+            </div>
+
+
+
+          ) : invoiceRunPreviewError ? (
+
+
+
+            <div
+
+
+
+              style={{
+
+
+
+                padding: 30,
+
+
+
+                textAlign: "center",
+
+
+
+                color: "#991b1b",
+
+
+
+                fontWeight: 900,
+
+
+
+              }}
+
+
+
+            >
+
+
+
+              {invoiceRunPreviewError}
+
+
+
+            </div>
+
+
+
+          ) : childrenSourceRows.length === 0 ? (
 
 
 
@@ -4794,6 +4665,8 @@ export default function InvoiceRuns(props: any) {
           ) : (
 
 
+
+            <>
 
             <table style={{ width: "100%", borderCollapse: "collapse" }}>
 
@@ -4851,7 +4724,7 @@ export default function InvoiceRuns(props: any) {
 
 
 
-                {runRows.map((row: any, index: number) => (
+                {childrenPaginatedRows.map((row: any, index: number) => (
 
 
 
@@ -4988,50 +4861,32 @@ export default function InvoiceRuns(props: any) {
 
 
                           const current = readJson(
-
-
-
                             ["educlearSelectedInvoiceRun"],
-
-
-
                             selectedRun
-
-
-
                           );
-
-
-
-                          const rows = (
-
-
-
-                            Array.isArray(current?.rows)
-
-
-
-                              ? current.rows
-
-
-
-                              : runRows
-
-
-
-                          ).filter(
-
-
-
-                            (item: any) => String(item.id) !== String(row.id)
-
-
-
+                          const excluded = Array.from(
+                            new Set(
+                              [
+                                ...(Array.isArray(current?.excludedLearnerIds)
+                                  ? current.excludedLearnerIds
+                                  : []),
+                                String(row.id || row.learnerId || ""),
+                              ]
+                                .map((id: string) => String(id || "").trim())
+                                .filter(Boolean)
+                            )
                           );
-
-
-
-                          updateCurrentRun({ rows });
+                          saveRunDraft(
+                            toThinInvoiceRunDraft({
+                              ...current,
+                              excludedLearnerIds: excluded,
+                            })
+                          );
+                          wizardPreviewKeyRef.current = "";
+                          void loadInvoiceRunPreview({
+                            ...current,
+                            excludedLearnerIds: excluded,
+                          });
 
 
 
@@ -5069,7 +4924,39 @@ export default function InvoiceRuns(props: any) {
 
             </table>
 
+            <div
+              style={{
+                padding: "12px 16px",
+                display: "flex",
+                justifyContent: "space-between",
+                borderTop: "1px solid #e5e7eb",
+              }}
+            >
+              <span style={{ color: "#64748b", fontSize: 13 }}>
+                Page {invoiceRunPage} / {childrenTotalPages} · {childrenSourceRows.length}{" "}
+                learners
+              </span>
+              <div style={{ display: "flex", gap: 8 }}>
+                <button
+                  style={btn}
+                  disabled={invoiceRunPage <= 1}
+                  onClick={() => setInvoiceRunPage((p: number) => Math.max(1, p - 1))}
+                >
+                  Previous
+                </button>
+                <button
+                  style={btn}
+                  disabled={invoiceRunPage >= childrenTotalPages}
+                  onClick={() =>
+                    setInvoiceRunPage((p: number) => Math.min(childrenTotalPages, p + 1))
+                  }
+                >
+                  Next
+                </button>
+              </div>
+            </div>
 
+            </>
 
           )}
 
@@ -5169,113 +5056,17 @@ export default function InvoiceRuns(props: any) {
 
 
               const current = readJson(["educlearSelectedInvoiceRun"], selectedRun);
-
-
-
-              const rows = (Array.isArray(current?.rows) ? current.rows : runRows).map(
-
-
-
-                (row: any) => {
-
-
-
-                  const extraFee = {
-
-
-
-                    id: `extra-${Date.now()}`,
-
-
-
-                    description,
-
-
-
-                    name: description,
-
-
-
-                    type: "EXTRA",
-
-
-
-                    amount,
-
-
-
-                  };
-
-
-
-                  const fees = Array.isArray(row.fees)
-
-
-
-                    ? [...row.fees, extraFee]
-
-
-
-                    : [extraFee];
-
-
-
-                  const invoiceAmount = fees.reduce(
-
-
-
-                    (sum: number, fee: any) => sum + Number(fee.amount || 0),
-
-
-
-                    0
-
-
-
-                  );
-
-
-
-                  return {
-
-
-
-                    ...row,
-
-
-
-                    fees,
-
-
-
-                    invoiceAmount,
-
-
-
-                    newBalance: sumInvoiceRunBalanceAndAmount(row.balance, invoiceAmount),
-
-
-
-                    status: invoiceAmount <= 0 ? "Paid" : "Unpaid",
-
-
-
-                  };
-
-
-
-                }
-
-
-
-              );
-
-
-
-              updateCurrentRun({ rows });
-
-
-
+              const extraFeesAll = [
+                ...(Array.isArray(current?.extraFeesAll) ? current.extraFeesAll : []),
+                { feeDescription: String(description).trim(), amount: Number(amount) },
+              ];
+              const next = toThinInvoiceRunDraft({
+                ...current,
+                extraFeesAll,
+              });
+              saveRunDraft(next);
+              wizardPreviewKeyRef.current = "";
+              void loadInvoiceRunPreview(next);
               alert("Extra fee added to all invoices.");
 
 

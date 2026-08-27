@@ -9,6 +9,7 @@ import {
   invoiceRunBalanceStatusLabel,
   lookupStatementAccountBalance,
   resolveInvoiceRunBalance,
+  resolveInvoiceRunWizardBalance,
   sumInvoiceRunBalanceAndAmount,
 } from "./invoiceRunBalance";
 import {
@@ -114,6 +115,31 @@ function testLedgerFreshPreferredOverStatements() {
   assert(result.ready && result.source === "ledger" && result.balance === 500, "ledger wins");
 }
 
+function testWizardBalanceIgnoresFreshLedger() {
+  reset();
+  seedStatements([{ accountNo: "ACC001", balance: 100 }]);
+  seedLedger([
+    {
+      id: "inv-1",
+      schoolId: SCHOOL,
+      learnerId: "learner-1",
+      accountNo: "ACC001",
+      type: "invoice",
+      amount: 500,
+      date: "2027-01-01",
+      reference: "INV-1",
+      description: "Tuition",
+      createdAt: "2027-01-01T00:00:00.000Z",
+    },
+  ]);
+  assert(isSchoolLedgerFreshFromApi(SCHOOL), "ledger should be fresh from API");
+  const wizard = resolveInvoiceRunWizardBalance(SCHOOL, "learner-1", "ACC001");
+  assert(
+    wizard.ready && wizard.source === "statements" && wizard.balance === 100,
+    "wizard balances stay on statement summaries"
+  );
+}
+
 function testLookupStatementAccountBalance() {
   reset();
   const pending = lookupStatementAccountBalance(SCHOOL, "ACC001");
@@ -134,6 +160,7 @@ function main() {
   testRealZeroAfterStatementsLoad();
   testPositiveNegativeOverpaid();
   testLedgerFreshPreferredOverStatements();
+  testWizardBalanceIgnoresFreshLedger();
   testLookupStatementAccountBalance();
   testNewBalancePendingWhenBalancePending();
   console.log("invoiceRunBalance.test.ts — PASS");

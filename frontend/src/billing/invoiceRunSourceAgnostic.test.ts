@@ -206,11 +206,11 @@ function testLoadBehaviorAvoidsFullInvoiceDumpAndRelink() {
   assert(!source.includes("fetchInvoices("), "list mount must not fetch full invoice dump");
   assert(!source.includes("fetchPayments("), "list mount must not fetch full payment dump");
   assert(
-    source.includes("avoidRelink: true"),
-    "wizard ledger sync must not call GET /api/invoices/ledger (relink write)"
+    !source.includes("syncBillingLedgerFromApi"),
+    "wizard must not hydrate GET /api/invoices + /api/payments"
   );
   assert(
-    source.includes("shouldBuildInvoiceRunCandidates"),
+    source.includes("shouldPrefetchInvoiceRunPreview"),
     "selectedRows must not scan all learners on list or wizardStart"
   );
   assert(
