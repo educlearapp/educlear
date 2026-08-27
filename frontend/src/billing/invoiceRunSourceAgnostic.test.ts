@@ -210,8 +210,12 @@ function testLoadBehaviorAvoidsFullInvoiceDumpAndRelink() {
     "wizard ledger sync must not call GET /api/invoices/ledger (relink write)"
   );
   assert(
-    source.includes('if (!String(invoiceRunView || "").startsWith("wizard")) return [];'),
-    "selectedRows must not scan all learners on the list page"
+    source.includes("shouldBuildInvoiceRunCandidates"),
+    "selectedRows must not scan all learners on list or wizardStart"
+  );
+  assert(
+    source.includes("learnerHasOfficialLinkedFamilyAccount"),
+    "unlinked learners must be excluded from invoice candidates"
   );
 }
 

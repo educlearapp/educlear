@@ -21,8 +21,15 @@ import {
   undoInvoiceRun,
 } from "./billingApi";
 import {
+  beginInvoiceRunWizard,
   isLedgerBackedInvoiceRun,
+  learnerHasOfficialLinkedFamilyAccount,
+  listSchoolInvoiceRunDrafts,
   mergeInvoiceRunLists,
+  persistInvoiceRunDraft,
+  shouldBuildInvoiceRunCandidates,
+  shouldSyncInvoiceRunLedger,
+  stampLegacyInvoiceRunDrafts,
   type InvoiceRunListRow,
 } from "./invoiceRunList";
 
@@ -304,15 +311,19 @@ export default function InvoiceRuns(props: any) {
   useEffect(() => {
     void loadServerInvoiceRuns();
     try {
+      const schoolId = localStorage.getItem("schoolId") || "";
       const raw = localStorage.getItem("educlearInvoiceRuns");
       const parsed = raw ? JSON.parse(raw) : [];
-      if (Array.isArray(parsed) && parsed.length) {
-        setStoredRuns(parsed);
+      if (!Array.isArray(parsed)) return;
+      const stamped = stampLegacyInvoiceRunDrafts(parsed, schoolId);
+      if (stamped.length && JSON.stringify(stamped) !== JSON.stringify(parsed)) {
+        localStorage.setItem("educlearInvoiceRuns", JSON.stringify(stamped));
       }
+      setStoredRuns(listSchoolInvoiceRunDrafts(stamped, schoolId));
     } catch {
       /* ignore invalid browser draft cache */
     }
-  }, [loadServerInvoiceRuns, setStoredRuns]);
+  }, [loadServerInvoiceRuns, setStoredRuns, schoolIdForLedger]);
 
   const getLearnerOutstandingBalance = (learnerId: string, accountNo = "") => {
     void balanceDisplayRevision;
@@ -346,9 +357,10 @@ export default function InvoiceRuns(props: any) {
 
   useEffect(() => {
     if (!schoolIdForLedger) return;
-    const inWizard = String(invoiceRunView || "").startsWith("wizard");
-    if (!inWizard) {
-      wizardLedgerSyncedRef.current = false;
+    if (!shouldSyncInvoiceRunLedger(invoiceRunView)) {
+      if (!String(invoiceRunView || "").startsWith("wizard")) {
+        wizardLedgerSyncedRef.current = false;
+      }
       return;
     }
     if (wizardLedgerSyncedRef.current) return;
@@ -1084,8 +1096,10 @@ export default function InvoiceRuns(props: any) {
 
   const selectedRows = useMemo(
     () => {
-      if (!String(invoiceRunView || "").startsWith("wizard")) return [];
-      return normalizedLearners.map(
+      if (!shouldBuildInvoiceRunCandidates(invoiceRunView)) return [];
+      return normalizedLearners.filter((learner: any) =>
+        learnerHasOfficialLinkedFamilyAccount(learner)
+      ).map(
 
 
 
@@ -1629,10 +1643,10 @@ export default function InvoiceRuns(props: any) {
     () =>
       mergeInvoiceRunLists(
         serverInvoiceRuns,
-        toArray(storedRuns),
+        listSchoolInvoiceRunDrafts(toArray(storedRuns), schoolIdForLedger),
         serverInvoicePeriodCounts
       ),
-    [serverInvoiceRuns, storedRuns, serverInvoicePeriodCounts]
+    [serverInvoiceRuns, storedRuns, serverInvoicePeriodCounts, schoolIdForLedger]
   );
 
   const visibleRuns = mergedInvoiceRuns.allVisibleRuns;
@@ -1655,67 +1669,17 @@ export default function InvoiceRuns(props: any) {
   }, [invoiceRunView, selectedRun?.id]);
 
   const saveRunDraft = (run: any) => {
-
-
-
-    const existingRuns = toArray(
-
-
-
-      readJson(["educlearInvoiceRuns"], [])
-
-
-
+    const schoolId = localStorage.getItem("schoolId") || "";
+    const existingRuns = toArray(readJson(["educlearInvoiceRuns"], []));
+    const stamped = stampLegacyInvoiceRunDrafts(existingRuns, schoolId);
+    const updatedRuns = persistInvoiceRunDraft(
+      stamped,
+      { ...run, schoolId },
+      schoolId
     );
-
-
-
-    const updatedRuns = existingRuns.some(
-
-
-
-      (item: any) =>
-
-
-
-        String(item.id) === String(run.id)
-
-
-
-    )
-
-
-
-      ? existingRuns.map((item: any) =>
-
-
-
-          String(item.id) === String(run.id)
-
-
-
-            ? run
-
-
-
-            : item
-
-
-
-        )
-
-
-
-      : [run, ...existingRuns];
-
-
-
     writeJson("educlearInvoiceRuns", updatedRuns);
-
-
-
-    setStoredRuns(updatedRuns);
-    writeJson("educlearSelectedInvoiceRun", run);
+    setStoredRuns(listSchoolInvoiceRunDrafts(updatedRuns, schoolId));
+    writeJson("educlearSelectedInvoiceRun", { ...run, schoolId });
   };
   const createNewRun = (original = false) => {
 
@@ -1763,87 +1727,41 @@ export default function InvoiceRuns(props: any) {
 
 
 
-    const run: any = {
-
-
-
-      id: `RUN-${Date.now()}`,
-
-
-
-      date: now.toISOString().slice(0, 10).replaceAll("-", "/"),
-
-
-
+    const schoolId = localStorage.getItem("schoolId") || "";
+    const existingRuns = toArray(readJson(["educlearInvoiceRuns"], []));
+    const schoolDrafts = listSchoolInvoiceRunDrafts(
+      stampLegacyInvoiceRunDrafts(existingRuns, schoolId),
+      schoolId
+    );
+    const started = beginInvoiceRunWizard({
+      drafts: schoolDrafts,
+      schoolId,
       month,
+    });
+    const defaults = buildInvoiceRunDefaults(
+      billingSettingsRef.current,
+      now.toISOString().slice(0, 10),
+      month
+    );
+    const run: any = started.reused
+      ? { ...started.selectedRun, schoolId, original }
+      : {
+          ...started.selectedRun,
+          date: now.toISOString().slice(0, 10).replaceAll("-", "/"),
+          month,
+          period: month,
+          invoiceDate: now.toISOString().slice(0, 10),
+          dueDate: defaults.dueDate,
+          invoiceMessage: defaults.message,
+          rows: [],
+          totalInvoices: 0,
+          totalAmount: 0,
+          original,
+          createdAt: now.toISOString(),
+          executed: false,
+        };
 
-
-
-      period: month,
-
-
-
-      invoiceDate: now.toISOString().slice(0, 10),
-
-
-
-      dueDate: buildInvoiceRunDefaults(
-        billingSettingsRef.current,
-        now.toISOString().slice(0, 10),
-        month
-      ).dueDate,
-
-
-
-      invoiceMessage: buildInvoiceRunDefaults(
-        billingSettingsRef.current,
-        now.toISOString().slice(0, 10),
-        month
-      ).message,
-
-
-
-      rows: selectedRows,
-
-
-
-      totalInvoices: selectedRows.length,
-
-
-
-      totalAmount: selectedRows.reduce(
-
-
-
-        (sum: number, row: any) =>
-
-
-
-          sum + Number(row.invoiceAmount || 0),
-
-
-
-        0
-
-
-
-      ),
-
-
-
-      original,
-
-
-
-      createdAt: now.toISOString(),
-
-
-
-    };
-
-
-
-    run.description = `Invoice Run For ${month}`;
+    run.description = run.description || `Invoice Run For ${month}`;
 
 
 
@@ -1852,7 +1770,7 @@ export default function InvoiceRuns(props: any) {
     setInvoiceRunPreviewError("");
     setInvoiceRunExecuteResult(null);
 
-    saveRunDraft(run);
+    writeJson("educlearSelectedInvoiceRun", run);
 
 
 
@@ -2171,7 +2089,7 @@ export default function InvoiceRuns(props: any) {
 
 
 
-    setStoredRuns(updatedRuns);
+    setStoredRuns(listSchoolInvoiceRunDrafts(updatedRuns, schoolIdForLedger));
 
 
 

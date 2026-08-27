@@ -1269,6 +1269,8 @@ function migrateLegacyLedgerIfNeeded(schoolId: string) {
 
   const invoiceRuns = readJson<any[]>("educlearInvoiceRuns", []);
   for (const run of invoiceRuns) {
+    const runSchool = String(run?.schoolId || "").trim();
+    if (runSchool && runSchool !== schoolId) continue;
     const rows = Array.isArray(run?.rows) ? run.rows : [];
     const runId = String(run?.id || "");
     const invoiceDate =

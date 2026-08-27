@@ -28,9 +28,21 @@ function testListMountUsesStatementsNotFullLedger() {
     "full ledger sync must not run on empty-deps mount"
   );
   const wizardSync = invoiceRunsSource.match(
-    /wizardLedgerSyncedRef[\s\S]{0,320}syncBillingLedgerFromApi/
+    /if \(!shouldSyncInvoiceRunLedger\(invoiceRunView\)\)[\s\S]{0,400}syncBillingLedgerFromApi/
   );
-  assert(Boolean(wizardSync), "wizard should still trigger full ledger sync once per session");
+  assert(Boolean(wizardSync), "candidate wizard steps should still trigger full ledger sync once");
+  assert(
+    invoiceRunsSource.includes("shouldSyncInvoiceRunLedger"),
+    "wizardStart must not sync the full ledger"
+  );
+  assert(
+    invoiceRunsSource.includes("shouldBuildInvoiceRunCandidates"),
+    "wizardStart must not build the full invoice candidate dataset"
+  );
+  assert(
+    invoiceRunsSource.includes("learnerHasOfficialLinkedFamilyAccount"),
+    "invoice candidates must require a linked FamilyAccount"
+  );
   assert(
     invoiceRunsSource.includes("avoidRelink: true"),
     "wizard ledger sync must avoid GET /api/invoices/ledger relink"
