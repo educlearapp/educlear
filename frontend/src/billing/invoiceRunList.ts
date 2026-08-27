@@ -198,15 +198,13 @@ export function toThinInvoiceRunDraft(
     ...((row as { extraFeesByLearnerId?: Record<string, InvoiceRunExtraFee[]> })
       .extraFeesByLearnerId || {}),
   };
-  const extraFeesAll = Array.isArray((row as { extraFeesAll?: InvoiceRunExtraFee[] }).extraFeesAll)
-    ? ((row as { extraFeesAll: InvoiceRunExtraFee[] }).extraFeesAll as InvoiceRunExtraFee[])
+  const extraFeesAllRaw = row.extraFeesAll;
+  const extraFeesAll = Array.isArray(extraFeesAllRaw)
+    ? (extraFeesAllRaw as InvoiceRunExtraFee[])
     : [];
-  const excludedLearnerIds = Array.isArray(
-    (row as { excludedLearnerIds?: unknown[] }).excludedLearnerIds
-  )
-    ? ((row as { excludedLearnerIds: unknown[] }).excludedLearnerIds as unknown[])
-        .map((id) => String(id || "").trim())
-        .filter(Boolean)
+  const excludedRaw = row.excludedLearnerIds;
+  const excludedLearnerIds = Array.isArray(excludedRaw)
+    ? excludedRaw.map((id) => String(id || "").trim()).filter(Boolean)
     : [];
   const executed = row.executed === true;
   return {
