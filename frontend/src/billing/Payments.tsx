@@ -3,6 +3,8 @@ import BillingEnvDebug from "./BillingEnvDebug";
 import BillingSummaryCards from "./BillingSummaryCards";
 import {
   accountsFromStatementRows,
+  paymentAccountMatchesQuery,
+  formatPaymentAccountLabel,
   type PaymentAccountContext,
 } from "./paymentCreateShared";
 import { sendPaymentReceiptEmail } from "./paymentAllocationApi";
@@ -148,21 +150,8 @@ export default function Payments({
   const filteredAccounts = useMemo(() => {
     const q = search.trim().toLowerCase();
     if (!q) return paymentAccounts;
-    return paymentAccounts.filter((account: any) =>
-      [
-        account.accountNo,
-        account.name,
-        account.surname,
-        account.status,
-        account.lastInvoice,
-        account.lastPayment,
-        String(account.balance),
-        account.parentName,
-        ...(Array.isArray(account.memberNames) ? account.memberNames : []),
-      ]
-        .join(" ")
-        .toLowerCase()
-        .includes(q)
+    return paymentAccounts.filter((account: PaymentAccountContext) =>
+      paymentAccountMatchesQuery(account, q)
     );
   }, [paymentAccounts, search]);
 
@@ -289,7 +278,7 @@ export default function Payments({
                 }}
                 onClick={() => openPaymentCreate(account)}
               >
-                <td style={td}>{account.accountNo}</td>
+                <td style={td}>{formatPaymentAccountLabel(account)}</td>
                 <td style={td}>{account.name}</td>
                 <td style={td}>{account.surname}</td>
                 <td style={td}>R {Number(account.balance || 0).toFixed(2)}</td>

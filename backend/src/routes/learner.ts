@@ -858,8 +858,13 @@ async function createLearnerWithAccount({
 }) {
   const learnerSurname = cleanString(learner.surname || learner.lastName);
 
-  let familyAccount: { id: string; accountRef: string; familyName: string; createdAt: Date } | null =
-    null;
+  let familyAccount: {
+    id: string;
+    accountRef: string;
+    accountNo: string | null;
+    familyName: string;
+    createdAt: Date;
+  } | null = null;
   let accountNo = "";
   let newLearner: Awaited<ReturnType<typeof prisma.learner.create>> | null = null;
 
@@ -870,6 +875,7 @@ async function createLearnerWithAccount({
         data: {
           schoolId,
           accountRef: accountNo,
+          accountNo,
           familyName: learnerSurname,
         },
       });

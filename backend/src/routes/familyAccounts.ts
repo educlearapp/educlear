@@ -221,6 +221,7 @@ router.get("/", async (req, res) => {
       select: {
         id: true,
         accountRef: true,
+        accountNo: true,
         familyName: true,
         createdAt: true,
         learners: {
@@ -236,6 +237,7 @@ router.get("/", async (req, res) => {
       return {
         id: row.id,
         accountRef: row.accountRef,
+        accountNo: row.accountNo,
         familyName: row.familyName,
         createdAt: row.createdAt,
         activeLearnerCount: activeLearners.length,

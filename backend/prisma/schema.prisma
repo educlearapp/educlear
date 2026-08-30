@@ -651,7 +651,13 @@ model FamilyAccount {
 
   schoolId String
 
+  /// Ledger / snapshot / statement join key. Kid-e-Sys code for native schools;
+  /// Express customer name for Fly Eagle migrated accounts. Do not overwrite migrated values.
   accountRef String
+
+  /// Permanent EduClear human-readable account number (ABA001). Null until assigned.
+  /// Native enrolments store the same Kid-e-Sys-format value here and in accountRef.
+  accountNo String?
 
   familyName String
 
@@ -666,6 +672,7 @@ model FamilyAccount {
   billingDeposits BillingDeposit[]
 
   @@unique([schoolId, accountRef])
+  @@unique([schoolId, accountNo])
   @@index([schoolId])
   @@index([schoolId, familyName])
 }

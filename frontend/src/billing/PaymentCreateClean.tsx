@@ -35,6 +35,7 @@ import {
 } from "./paymentAllocationApi";
 import {
   dateInputValue,
+  formatPaymentAccountLabel,
   normalizeIsoDate,
   normalizePaymentType,
   parseAmountInput,
@@ -1079,7 +1080,7 @@ export default function PaymentCreateClean({
         }}
       >
         Paying {formatMoney(parseAmountInput(draft.amount) || 0)} via {draft.type || "EFT"} on{" "}
-        {dateInputValue(draft.date) || "—"} to {draft.accountNo || selectedAccount.accountNo}
+        {dateInputValue(draft.date) || "—"} to {formatPaymentAccountLabel(selectedAccount)}
         {selectedAccount.name || selectedAccount.surname
           ? ` (${`${selectedAccount.name} ${selectedAccount.surname}`.trim()})`
           : ""}
@@ -1124,7 +1125,7 @@ export default function PaymentCreateClean({
                     type="text"
                     readOnly
                     style={payInput}
-                    value={draft.accountNo}
+                    value={formatPaymentAccountLabel(selectedAccount)}
                   />,
                 ],
                 [

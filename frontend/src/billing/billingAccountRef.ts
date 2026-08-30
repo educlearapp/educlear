@@ -73,3 +73,63 @@ export function normalizeStatementAccountRef(value: unknown): string {
   if (!isStatementBillingAccountRef(raw)) return "";
   return normalizeKidESysAccountRef(raw) || raw;
 }
+
+/** Dedicated EduClear number when present; otherwise Kid-e-Sys accountRef. */
+export function resolveEduClearAccountNo(source: {
+  eduClearAccountNo?: unknown;
+  accountNo?: unknown;
+  accountRef?: unknown;
+  familyAccount?: { accountNo?: unknown; accountRef?: unknown } | null;
+} | null | undefined): string {
+  const dedicated =
+    normalizeKidESysAccountRef(source?.eduClearAccountNo) ||
+    normalizeKidESysAccountRef(source?.familyAccount?.accountNo);
+  if (dedicated) return dedicated;
+  return (
+    normalizeKidESysAccountRef(source?.accountRef) ||
+    normalizeKidESysAccountRef(source?.familyAccount?.accountRef) ||
+    normalizeKidESysAccountRef(source?.accountNo)
+  );
+}
+
+export function resolveSourceAccountRef(source: {
+  sourceAccountRef?: unknown;
+  accountRef?: unknown;
+  accountNo?: unknown;
+  familyAccount?: { accountRef?: unknown } | null;
+} | null | undefined): string {
+  return (
+    normalizeStatementAccountRef(source?.sourceAccountRef) ||
+    normalizeStatementAccountRef(source?.familyAccount?.accountRef) ||
+    normalizeStatementAccountRef(source?.accountRef) ||
+    normalizeStatementAccountRef(source?.accountNo)
+  );
+}
+
+export function resolveVisibleAccountNo(source: {
+  eduClearAccountNo?: unknown;
+  accountNo?: unknown;
+  accountRef?: unknown;
+  sourceAccountRef?: unknown;
+  familyAccount?: { accountNo?: unknown; accountRef?: unknown } | null;
+} | null | undefined): string {
+  return resolveEduClearAccountNo(source) || resolveSourceAccountRef(source);
+}
+
+export function formatAccountNoWithSource(source: {
+  eduClearAccountNo?: unknown;
+  accountNo?: unknown;
+  accountRef?: unknown;
+  sourceAccountRef?: unknown;
+  familyName?: unknown;
+  familyAccount?: { accountNo?: unknown; accountRef?: unknown } | null;
+} | null | undefined): string {
+  const edu = resolveEduClearAccountNo(source);
+  const sourceRef = resolveSourceAccountRef(source);
+  const familyName = String(source?.familyName || "").trim();
+  const context = sourceRef && sourceRef.toUpperCase() !== edu ? sourceRef : familyName;
+  if (edu && context && context.toUpperCase() !== edu) {
+    return `${edu} — ${context}`;
+  }
+  return edu || sourceRef;
+}

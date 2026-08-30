@@ -2,7 +2,11 @@
  * Capture Payment picker: FamilyAccount.id, Fly Eagle name refs, Da Silva codes, MBB.
  * Run: npx tsx src/billing/paymentCreateShared.test.ts
  */
-import { accountsFromStatementRows } from "./paymentCreateShared";
+import {
+  accountsFromStatementRows,
+  formatPaymentAccountLabel,
+  paymentAccountMatchesQuery,
+} from "./paymentCreateShared";
 
 function assert(condition: boolean, message: string) {
   if (!condition) throw new Error(message);
@@ -122,9 +126,47 @@ function testSiblingDedupesToOneFamily() {
   console.log("✓ sibling family is one Capture Payment account");
 }
 
+function testFlyEagleEduClearNumberIsSearchableWithoutReplacingJoinKey() {
+  const rows = [
+    {
+      accountNo: "ABAYE TUMO ASHANAFY",
+      sourceAccountRef: "ABAYE TUMO ASHANAFY",
+      eduClearAccountNo: "ABA001",
+      familyAccountId: "fa-abay",
+      familyName: "ABAYE TUMO ASHANAFY",
+      name: "Ashanafy",
+      surname: "Abaye",
+      memberNames: ["Ashanafy Abaye"],
+      balance: 1500,
+      learnerId: "learner-abay",
+    },
+  ];
+  const learners = [
+    {
+      id: "learner-abay",
+      firstName: "Ashanafy",
+      lastName: "Abaye",
+      familyAccountId: "fa-abay",
+      familyAccount: { id: "fa-abay", accountRef: "ABAYE TUMO ASHANAFY", accountNo: "ABA001" },
+    },
+  ];
+  const accounts = accountsFromStatementRows(rows, learners);
+  assert(accounts[0].accountNo === "ABAYE TUMO ASHANAFY", "join key remains Express ref");
+  assert(accounts[0].eduClearAccountNo === "ABA001", "picker carries EduClear number");
+  assert(accounts[0].sourceAccountRef === "ABAYE TUMO ASHANAFY", "source Express ref preserved");
+  assert(
+    formatPaymentAccountLabel(accounts[0]).startsWith("ABA001"),
+    "visible label starts with EduClear number"
+  );
+  assert(paymentAccountMatchesQuery(accounts[0], "aba001"), "search by EduClear number");
+  assert(paymentAccountMatchesQuery(accounts[0], "abaye"), "search by Express/family name");
+  assert(paymentAccountMatchesQuery(accounts[0], "ashanafy"), "search by learner name");
+  console.log("✓ Fly Eagle picker searches EduClear number and Express name; join key unchanged");
+}
 testFlyEagleNameAccountsAppear();
 testDaSilvaKidESysStillSearchable();
 testMbbWorks();
 testDropsRowsWithoutFamilyAccountId();
 testSiblingDedupesToOneFamily();
+testFlyEagleEduClearNumberIsSearchableWithoutReplacingJoinKey();
 console.log("\nAll paymentCreateShared picker tests passed.");

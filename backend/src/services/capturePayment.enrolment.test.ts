@@ -10,6 +10,8 @@ import path from "path";
 import { PrismaClient } from "@prisma/client";
 
 import { registerLearner } from "./learnerRegistrationService";
+import { allocateFamilyAccountRef } from "./allocateFamilyAccountRef";
+import { buildAccountsFromAgeAnalysisSnapshots, resolveAuthoritativeAccountBalance } from "./statementAccounts";
 import {
   captureManualPayment,
   CapturePaymentError,
@@ -19,6 +21,7 @@ import { resolveCapturePaymentFamilyAccount } from "./resolveCapturePaymentFamil
 import { invalidateOfficialBillingAccountRefsCache } from "./officialBillingAccountRef";
 import {
   invalidateFamilyAccountAgeAnalysisFileCache,
+  insertSchoolFamilyAccountAgeAnalysisSnapshotIfAbsent,
   readSchoolFamilyAccountAgeAnalysisSnapshots,
   setFamilyAccountAgeAnalysisStoreDataDirForTests,
 } from "../utils/familyAccountAgeAnalysisStore";
@@ -30,7 +33,6 @@ import {
 } from "../utils/billingLedgerStore";
 import { setFamilyAccountAuditStoreDataDirForTests } from "../utils/familyAccountAuditStore";
 import { setPaymentAllocationStoreDataDirForTests } from "../utils/paymentAllocationStore";
-import { resolveAuthoritativeAccountBalance } from "./statementAccounts";
 
 const prisma = new PrismaClient();
 
@@ -117,7 +119,11 @@ async function testANewFamily() {
       });
       assert(Boolean(created.learner.id), "learner created");
       assert(Boolean(created.familyAccount.id), "FamilyAccount.id generated");
-      assert(Boolean(created.accountNo), "human-readable account number generated");
+      assert(Boolean(created.familyAccount.accountNo), "EduClear accountNo stored on FamilyAccount");
+      assert(
+        created.familyAccount.accountNo === created.familyAccount.accountRef,
+        "native enrolment uses the same code for accountNo and accountRef"
+      );
       assert(created.learner.familyAccountId === created.familyAccount.id, "learner linked");
       assert(created.createdNewFamilyAccount === true, "new family created account");
 
@@ -183,6 +189,8 @@ async function testBSibling() {
       });
       assert(sibling.createdNewFamilyAccount === false, "sibling does not create a second family");
       assert(sibling.learner.familyAccountId === first.familyAccount.id, "linked to surviving FA");
+      assert(sibling.familyAccount.accountNo === first.familyAccount.accountNo, "sibling reuses EduClear number");
+      assert(sibling.familyAccount.accountRef === first.familyAccount.accountRef, "sibling reuses join ref");
       const count = await prisma.familyAccount.count({ where: { schoolId: school.id } });
       assert(count === 1, "no obsolete second FamilyAccount");
 
@@ -254,6 +262,108 @@ async function testCCrossSchoolSimilarNames() {
   console.log("✓ TEST C similar names at different schools remain isolated");
 }
 
+async function testDFlyEagleSequenceContinuesFromDedicatedAccountNo() {
+  const school = await createSchool("fe-seq");
+  try {
+    await withTempStores(async () => {
+      for (let n = 1; n <= 16; n += 1) {
+        const code = `MOK${String(n).padStart(3, "0")}`;
+        const fa = await prisma.familyAccount.create({
+          data: {
+            schoolId: school.id,
+            accountRef: `MOKGOTHU FAMILY ${n}`,
+            accountNo: code,
+            familyName: `MOKGOTHU ${n}`,
+          },
+        });
+        if (n === 1) {
+          await prisma.learner.create({
+            data: {
+              schoolId: school.id,
+              familyAccountId: fa.id,
+              firstName: "Onalerona",
+              lastName: "Mokgothu",
+              grade: "4",
+              admissionNo: "38102",
+              enrollmentStatus: "ACTIVE",
+            },
+          });
+        }
+        insertSchoolFamilyAccountAgeAnalysisSnapshotIfAbsent(school.id, `MOKGOTHU FAMILY ${n}`, {
+          schoolId: school.id,
+          accountRef: `MOKGOTHU FAMILY ${n}`,
+          accountHolder: `MOKGOTHU ${n}`,
+          balance: n === 1 ? 200 : 0,
+          buckets: { current: n === 1 ? 200 : 0, d30: 0, d60: 0, d90: 0, d120: 0 },
+          source: "universal-migration-baseline",
+          importedAt: "2099-01-01T00:00:00.000Z",
+        });
+      }
+
+      const next = await allocateFamilyAccountRef(school.id, "Mokgothu");
+      assert(next === "MOK017", `next MOK family must be MOK017, got ${next}`);
+
+      const created = await registerLearner({
+        schoolId: school.id,
+        learner: { firstName: "New", lastName: "Mokgothu", grade: "3" },
+      });
+      assert(created.familyAccount.accountNo === "MOK017", "new family gets MOK017");
+      assert(created.familyAccount.accountRef === "MOK017", "native source ref is MOK017");
+
+      const statements = await buildAccountsFromAgeAnalysisSnapshots(school.id);
+      const migrated = statements.find((row) => row.accountNo === "MOKGOTHU FAMILY 1");
+      assert(Boolean(migrated), "Express join key still lists the migrated account");
+      assert(migrated?.balance === 200, "migrated balance unchanged after numbering occupancy");
+      assert(migrated?.eduClearAccountNo === "MOK001", "statement exposes EduClear number separately");
+      assert(migrated?.sourceAccountRef === "MOKGOTHU FAMILY 1", "source Express ref preserved");
+
+      const pay = await captureManualPayment({
+        authorizedSchoolId: school.id,
+        familyAccountId: created.familyAccount.id,
+        amount: 50,
+        date: "2026-08-30",
+        method: "EFT",
+        description: "New MOK family",
+        idempotencyKey: "enrol-d",
+        capturedByUserId: "u1",
+        capturedByEmail: "finance@test.local",
+        capturedByName: "Finance",
+      });
+      assert(pay.familyAccountId === created.familyAccount.id, "Capture Payment uses FamilyAccount.id");
+      assert(
+        readSchoolLedger(school.id).some((e) => e.type === "payment" && e.accountNo === "MOK017"),
+        "new native family ledger uses MOK017"
+      );
+
+      const migratedFamily = await prisma.familyAccount.findFirst({
+        where: { schoolId: school.id, accountRef: "MOKGOTHU FAMILY 1" },
+      });
+      assert(Boolean(migratedFamily), "migrated family still present");
+      await captureManualPayment({
+        authorizedSchoolId: school.id,
+        familyAccountId: migratedFamily!.id,
+        amount: 25,
+        date: "2026-08-30",
+        method: "EFT",
+        description: "Migrated family",
+        idempotencyKey: "enrol-d-mig",
+        capturedByUserId: "u1",
+        capturedByEmail: "finance@test.local",
+        capturedByName: "Finance",
+      });
+      assert(
+        readSchoolLedger(school.id).some(
+          (e) => e.type === "payment" && e.accountNo === "MOKGOTHU FAMILY 1" && e.amount === 25
+        ),
+        "migrated capture still writes Express join key to ledger"
+      );
+    });
+  } finally {
+    await destroySchool(school.id);
+  }
+  console.log("✓ TEST D Fly Eagle dedicated accountNo occupies sequence; Express join/balances preserved");
+}
+
 async function main() {
   if (!isLocalDatabase()) {
     console.log("SKIP capturePayment.enrolment.test.ts — DATABASE_URL is not local");
@@ -263,6 +373,7 @@ async function main() {
     await testANewFamily();
     await testBSibling();
     await testCCrossSchoolSimilarNames();
+    await testDFlyEagleSequenceContinuesFromDedicatedAccountNo();
     console.log("\nAll capturePayment.enrolment tests passed.");
   } finally {
     await prisma.$disconnect();

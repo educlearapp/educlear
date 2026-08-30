@@ -146,7 +146,7 @@ import ManageLearner from "./learner/ManageLearner";
 import Classrooms from "./Classrooms";
 import GroupLearnerPickerModal from "./components/groups/GroupLearnerPickerModal";
 import { calculateLearnerAge } from "./learner/learnerIdentity";
-import { normalizeKidESysAccountRef, resolveKidESysAccountRefFromLearner } from "./billing/billingAccountRef";
+import { formatAccountNoWithSource, normalizeKidESysAccountRef, resolveKidESysAccountRefFromLearner } from "./billing/billingAccountRef";
 import { isMigratedOpeningBalanceOverviewLabel } from "./billing/billingDisplayRules";
 import { isActiveEnrollment, isFemaleLearnerForStats, isMaleLearnerForStats } from "./utils/learnerGender";
 import {
@@ -3178,7 +3178,7 @@ const [selectedLearnerReport, setSelectedLearnerReport] = useState<any>(null);
 
 
 
-                    <td style={td}>{row.accountNo}</td>
+                    <td style={td}>{formatAccountNoWithSource(row)}</td>
 
 
 

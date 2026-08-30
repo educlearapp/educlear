@@ -42,12 +42,20 @@ export async function collectOccupiedAccountRefsForPrefix(
   if (!sid || !upperPrefix) return occupied;
 
   const familyAccounts = await prisma.familyAccount.findMany({
-    where: { schoolId: sid, accountRef: { startsWith: upperPrefix } },
-    select: { accountRef: true },
+    where: {
+      schoolId: sid,
+      OR: [
+        { accountRef: { startsWith: upperPrefix } },
+        { accountNo: { startsWith: upperPrefix } },
+      ],
+    },
+    select: { accountRef: true, accountNo: true },
   });
   for (const row of familyAccounts) {
-    const ref = normaliseAccountRefForPrefix(row.accountRef, upperPrefix);
-    if (ref) occupied.add(ref);
+    const fromRef = normaliseAccountRefForPrefix(row.accountRef, upperPrefix);
+    if (fromRef) occupied.add(fromRef);
+    const fromNumber = normaliseAccountRefForPrefix(row.accountNo, upperPrefix);
+    if (fromNumber) occupied.add(fromNumber);
   }
 
   const snapshots = readSchoolFamilyAccountAgeAnalysisSnapshots(sid);
@@ -105,8 +113,10 @@ function isPrismaUniqueViolation(error: unknown): boolean {
 }
 
 /**
- * Allocate a unique Kid-e-Sys-format family account ref for a school + surname.
- * Checks Postgres, age-analysis snapshots, official ref index, ledger, and history.
+ * Allocate a unique Kid-e-Sys-format family account number for a school + surname.
+ * Occupied codes include FamilyAccount.accountNo, Kid-e-Sys accountRef values,
+ * age-analysis snapshots, official ref index, ledger, and history.
+ * Express-name accountRef values do not occupy the sequence.
  * Retries on concurrent unique-constraint collisions.
  */
 export async function allocateFamilyAccountRef(
@@ -125,7 +135,10 @@ export async function allocateFamilyAccountRef(
     lastCandidate = candidate;
 
     const existingFamily = await prisma.familyAccount.findFirst({
-      where: { schoolId: sid, accountRef: candidate },
+      where: {
+        schoolId: sid,
+        OR: [{ accountRef: candidate }, { accountNo: candidate }],
+      },
       select: { id: true },
     });
     if (existingFamily) continue;

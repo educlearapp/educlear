@@ -35,7 +35,7 @@ export async function assertFamilyAccountOwnedBySchool(
   if (!sid || !id) throw new Error("schoolId and familyAccountId are required");
   const row = await prisma.familyAccount.findUnique({
     where: { id },
-    select: { id: true, schoolId: true, accountRef: true, familyName: true, createdAt: true },
+    select: { id: true, schoolId: true, accountRef: true, accountNo: true, familyName: true, createdAt: true },
   });
   if (!row) return null;
   if (row.schoolId !== sid) {
@@ -69,6 +69,7 @@ async function createFamilyShell(schoolId: string, surname: string) {
   let familyAccount: {
     id: string;
     accountRef: string;
+    accountNo: string | null;
     familyName: string;
     createdAt: Date;
   } | null = null;
@@ -76,7 +77,12 @@ async function createFamilyShell(schoolId: string, surname: string) {
     const accountNo = await allocateFamilyAccountRef(schoolId, surname);
     try {
       familyAccount = await prisma.familyAccount.create({
-        data: { schoolId, accountRef: accountNo, familyName: surname },
+        data: {
+          schoolId,
+          accountRef: accountNo,
+          accountNo,
+          familyName: surname,
+        },
       });
       break;
     } catch (error) {
@@ -200,7 +206,7 @@ export async function createLearnerOnExistingFamilyAccount({
 }: {
   schoolId: string;
   learner: Record<string, unknown>;
-  familyAccount: { id: string; accountRef: string; familyName: string; createdAt?: Date };
+  familyAccount: { id: string; accountRef: string; accountNo?: string | null; familyName: string; createdAt?: Date };
 }) {
   const owned = await assertFamilyAccountOwnedBySchool(schoolId, familyAccount.id);
   if (!owned) throw new Error("Existing family account not found");

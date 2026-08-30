@@ -1,7 +1,10 @@
 import {
   normalizeStatementAccountRef,
+  resolveEduClearAccountNo,
+  resolveSourceAccountRef,
   resolveStatementAccountRefFromLearner,
   resolveStatementAccountRefFromRow,
+  formatAccountNoWithSource,
 } from "./billingAccountRef";
 
 export type PaymentAccountContext = {
@@ -18,6 +21,9 @@ export type PaymentAccountContext = {
   status?: string;
   familyAccountId?: string;
   memberNames?: string[];
+  eduClearAccountNo?: string;
+  sourceAccountRef?: string;
+  familyName?: string;
 };
 
 export type PaymentFormState = {
@@ -259,6 +265,11 @@ export function normalizePaymentAccount(
     status: live?.status || raw?.status,
     familyAccountId: resolvedFamilyId || undefined,
     memberNames,
+    familyName: String(live?.familyName || raw?.familyName || "").trim() || undefined,
+    eduClearAccountNo:
+      resolveEduClearAccountNo(live) || resolveEduClearAccountNo(raw) || undefined,
+    sourceAccountRef:
+      resolveSourceAccountRef(live) || resolveSourceAccountRef(raw) || resolvedAccountNo || undefined,
   };
 }
 
@@ -290,6 +301,9 @@ export function accountsFromStatementRows(
       learnerId,
       familyAccountId,
       id: familyAccountId,
+      eduClearAccountNo: resolveEduClearAccountNo({ ...row, ...normalized }) || undefined,
+      sourceAccountRef:
+        resolveSourceAccountRef({ ...row, ...normalized }) || displayRef || undefined,
     };
     const key = `family:${familyAccountId}`;
     if (seen.has(key)) continue;
@@ -297,6 +311,39 @@ export function accountsFromStatementRows(
     list.push(account);
   }
   return list.sort((a, b) =>
-    `${a.accountNo} ${a.surname} ${a.name}`.localeCompare(`${b.accountNo} ${b.surname} ${b.name}`)
+    `${formatPaymentAccountLabel(a)} ${a.surname} ${a.name}`.localeCompare(
+      `${formatPaymentAccountLabel(b)} ${b.surname} ${b.name}`
+    )
   );
+}
+
+export function formatPaymentAccountLabel(account: PaymentAccountContext): string {
+  return formatAccountNoWithSource({
+    eduClearAccountNo: account.eduClearAccountNo,
+    accountNo: account.accountNo,
+    sourceAccountRef: account.sourceAccountRef,
+    familyName: account.familyName,
+  });
+}
+
+export function paymentAccountMatchesQuery(account: PaymentAccountContext, query: string): boolean {
+  const q = String(query || "").trim().toLowerCase();
+  if (!q) return true;
+  return [
+    account.eduClearAccountNo,
+    account.sourceAccountRef,
+    account.accountNo,
+    account.familyName,
+    account.name,
+    account.surname,
+    account.status,
+    account.lastInvoice,
+    account.lastPayment,
+    String(account.balance),
+    account.parentName,
+    ...(Array.isArray(account.memberNames) ? account.memberNames : []),
+  ]
+    .join(" ")
+    .toLowerCase()
+    .includes(q);
 }

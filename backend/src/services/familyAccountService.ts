@@ -698,6 +698,7 @@ export async function unmergeLearnerFromFamily(opts: {
       data: {
         schoolId,
         accountRef,
+        accountNo: accountRef,
         familyName: learner.lastName,
       },
       select: { id: true, accountRef: true },

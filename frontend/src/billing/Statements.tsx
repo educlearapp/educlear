@@ -4,6 +4,7 @@ import BillingSummaryCards from "./BillingSummaryCards";
 import { buildBillingRowSearchText, formatMoney, normaliseBillingAmount } from "./billingLedger";
 import { isMigratedOpeningBalanceOverviewLabel } from "./billingDisplayRules";
 import { shouldShowNoAccountsMessage } from "./billingStatementDisplay";
+import { formatAccountNoWithSource } from "./billingAccountRef";
 
 
 
@@ -670,7 +671,7 @@ export default function Statements({
 
 
 
-                    <td style={td}>{row.accountNo}</td>
+                    <td style={td}>{formatAccountNoWithSource(row)}</td>
 
 
 

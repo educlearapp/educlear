@@ -1,3 +1,7 @@
+import {
+  resolveEduClearAccountNo,
+  resolveLedgerJoinAccountRef,
+} from "./familyAccountNumber";
 import { prisma } from "../prisma";
 import { resolveLearnerAccountNo } from "../utils/learnerIdentity";
 import { isKidESysSourceAccountRef } from "./daSilvaMigration/ageAnalysisParser";
@@ -137,6 +141,10 @@ export type BillingStatementAccountRow = {
   memberLearnerIds: string[];
   memberNames: string[];
   accountHolder: string;
+  /** Dedicated EduClear number when assigned; Kid-e-Sys accountRef otherwise. */
+  eduClearAccountNo: string | null;
+  /** FamilyAccount.accountRef — Express name or Kid-e-Sys join key. */
+  sourceAccountRef: string | null;
   ageAnalysis?: {
     accountHolder: string;
     buckets: FamilyAccountAgeAnalysisSnapshot["buckets"];
@@ -322,7 +330,7 @@ export async function buildAccountsFromAgeAnalysisSnapshots(
 
   const familyAccounts = await prisma.familyAccount.findMany({
     where: { schoolId: sid, accountRef: { in: accountRefs } },
-    select: { id: true, accountRef: true, familyName: true },
+    select: { id: true, accountRef: true, accountNo: true, familyName: true },
   });
   const familyByRef = new Map(
     familyAccounts.map((fa) => [String(fa.accountRef).trim().toUpperCase(), fa])
@@ -341,7 +349,7 @@ export async function buildAccountsFromAgeAnalysisSnapshots(
       firstName: true,
       lastName: true,
       familyAccountId: true,
-      familyAccount: { select: { accountRef: true } },
+      familyAccount: { select: { accountRef: true, accountNo: true } },
     },
   });
 
@@ -414,6 +422,12 @@ export async function buildAccountsFromAgeAnalysisSnapshots(
       ? statusFromBalance(balance)
       : displayStatusFromKidesysSection(kidesysSection, balance);
 
+    const familyNumberFields = family
+      ? { accountRef: family.accountRef, accountNo: family.accountNo }
+      : { accountRef, accountNo: null };
+    const eduClearAccountNo = resolveEduClearAccountNo(familyNumberFields) || null;
+    const sourceAccountRef = resolveLedgerJoinAccountRef(familyNumberFields) || accountRef || null;
+
     return {
       accountNo: accountRef || "-",
       learnerId: anchor?.id || "",
@@ -433,6 +447,8 @@ export async function buildAccountsFromAgeAnalysisSnapshots(
       memberLearnerIds: memberLearners.map((l) => l.id),
       memberNames,
       accountHolder,
+      eduClearAccountNo,
+      sourceAccountRef,
       ageAnalysis: {
         accountHolder: snap.accountHolder,
         buckets: snap.buckets,
@@ -480,7 +496,7 @@ export async function buildAccountsFromLearners(
       lastName: true,
       admissionNo: true,
       familyAccountId: true,
-      familyAccount: { select: { accountRef: true, familyName: true } },
+      familyAccount: { select: { accountRef: true, accountNo: true, familyName: true } },
     },
   });
 
@@ -516,6 +532,11 @@ export async function buildAccountsFromLearners(
     const paymentFields = resolveLastPaymentFields(accountEntries, historySummary);
     const kidesysSection = "";
 
+    const familyNumberFields = {
+      accountRef: anchor.familyAccount?.accountRef,
+      accountNo: anchor.familyAccount?.accountNo,
+    };
+
     return {
       accountNo,
       learnerId: anchor.id,
@@ -533,6 +554,10 @@ export async function buildAccountsFromLearners(
       familyAccountId: anchor.familyAccountId,
       familyName: anchor.familyAccount?.familyName ?? null,
       memberLearnerIds: memberIds,
+      memberNames: [],
+      accountHolder: String(anchor.familyAccount?.familyName || "").trim(),
+      eduClearAccountNo: resolveEduClearAccountNo(familyNumberFields) || null,
+      sourceAccountRef: resolveLedgerJoinAccountRef(familyNumberFields) || accountNo || null,
     };
   });
 }
