@@ -1,5 +1,10 @@
 import { Router } from "express";
 
+import {
+  requireCapturePaymentAuth,
+  requireCapturePaymentReadAuth,
+  type CapturePaymentAuthRequest,
+} from "../middleware/requireCapturePaymentAuth";
 import { resolveBillingAccountRef } from "../services/resolveBillingAccountRef";
 import { relinkSchoolBillingLedger } from "../services/billingLedgerRelink";
 import { resolveAuthoritativeAccountBalance } from "../services/statementAccounts";
@@ -159,17 +164,21 @@ router.get("/targets", async (req, res) => {
 });
 
 // POST /api/payment-allocations/suggest
-router.post("/suggest", async (req, res) => {
+router.post("/suggest", requireCapturePaymentReadAuth, async (req: CapturePaymentAuthRequest, res) => {
   try {
+    const auth = req.capturePaymentAuth;
+    if (!auth) {
+      return res.status(401).json({ success: false, error: "Authentication required" });
+    }
     const body = (req.body ?? {}) as Record<string, unknown>;
-    const schoolId = String(body.schoolId || "").trim();
+    const schoolId = auth.authorizedSchoolId;
     const accountNo = String(body.accountNo || body.accountRef || "").trim();
     const paymentAmount = normaliseAmount(body.paymentAmount);
 
     if (!schoolId || !accountNo || paymentAmount <= 0) {
       return res.status(400).json({
         success: false,
-        error: "Missing schoolId, accountNo, or paymentAmount",
+        error: "Missing accountNo or paymentAmount",
       });
     }
 
@@ -191,11 +200,15 @@ router.post("/suggest", async (req, res) => {
 });
 
 // POST /api/payment-allocations/:paymentId
-router.post("/:paymentId", async (req, res) => {
+router.post("/:paymentId", requireCapturePaymentAuth, async (req: CapturePaymentAuthRequest, res) => {
   try {
+    const auth = req.capturePaymentAuth;
+    if (!auth) {
+      return res.status(401).json({ success: false, error: "Authentication required" });
+    }
     const paymentId = String(req.params.paymentId || "").trim();
     const body = (req.body ?? {}) as Record<string, unknown>;
-    const schoolId = String(body.schoolId || "").trim();
+    const schoolId = auth.authorizedSchoolId;
     const accountNo = String(body.accountNo || body.accountRef || "").trim();
     const paymentAmount = normaliseAmount(body.paymentAmount);
     const allocatedBy = String(body.allocatedBy || "").trim() || undefined;

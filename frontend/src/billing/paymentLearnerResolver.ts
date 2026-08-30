@@ -1,14 +1,25 @@
 import {
   normalizeKidESysAccountRef,
+  normalizeStatementAccountRef,
   resolveKidESysAccountRefFromLearner,
+  resolveStatementAccountRefFromLearner,
 } from "./billingAccountRef";
 import type { PaymentAccountContext } from "./paymentCreateShared";
 
 /** True when learner's official family account ref matches the selected billing account. */
 export function learnerMatchesBillingAccountRef(learner: any, accountRef: string): boolean {
-  const acct = normalizeKidESysAccountRef(accountRef);
+  const familyId = String(learner?.familyAccountId || learner?.familyAccount?.id || "").trim();
+  const acctFamily = String(
+    (typeof accountRef === "object" && accountRef
+      ? (accountRef as { familyAccountId?: string }).familyAccountId
+      : "") || ""
+  ).trim();
+  if (familyId && acctFamily && familyId === acctFamily) return true;
+  const acct =
+    normalizeKidESysAccountRef(accountRef) || normalizeStatementAccountRef(accountRef);
   if (!acct) return true;
-  const learnerRef = resolveKidESysAccountRefFromLearner(learner);
+  const learnerRef =
+    resolveKidESysAccountRefFromLearner(learner) || resolveStatementAccountRefFromLearner(learner);
   return Boolean(learnerRef && learnerRef === acct);
 }
 
@@ -30,14 +41,34 @@ export function resolvePaymentLearnerId(
     const match = list.find(
       (l) => String(l?.id || l?.learnerId || "").trim() === candidate
     );
+    const familyId = String(selectedAccount?.familyAccountId || "").trim();
+    const matchFamily = String(match?.familyAccountId || match?.familyAccount?.id || "").trim();
+    if (match && familyId && matchFamily === familyId) {
+      return String(match.id || match.learnerId || "").trim();
+    }
     if (match && learnerMatchesBillingAccountRef(match, acct)) {
       return String(match.id || match.learnerId || "").trim();
     }
   }
 
+  const familyId = String(selectedAccount?.familyAccountId || "").trim();
+  if (familyId) {
+    const byFamily = list.find(
+      (l) => String(l?.familyAccountId || l?.familyAccount?.id || "").trim() === familyId
+    );
+    if (byFamily) return String(byFamily.id || byFamily.learnerId || "").trim();
+  }
+
   const kidRef = normalizeKidESysAccountRef(acct);
   if (kidRef) {
     const byAccount = list.find((l) => resolveKidESysAccountRefFromLearner(l) === kidRef);
+    if (byAccount) return String(byAccount.id || byAccount.learnerId || "").trim();
+  }
+  const statementRef = normalizeStatementAccountRef(acct);
+  if (statementRef) {
+    const byAccount = list.find(
+      (l) => resolveStatementAccountRefFromLearner(l) === statementRef
+    );
     if (byAccount) return String(byAccount.id || byAccount.learnerId || "").trim();
   }
 

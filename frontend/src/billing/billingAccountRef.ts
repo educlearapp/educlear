@@ -32,6 +32,22 @@ export function resolveKidESysAccountRefFromRow(row: any): string {
   );
 }
 
+export function resolveStatementAccountRefFromLearner(learner: any): string {
+  return (
+    normalizeStatementAccountRef(learner?.familyAccount?.accountRef) ||
+    normalizeStatementAccountRef(learner?.accountNo) ||
+    normalizeStatementAccountRef(learner?.accountRef)
+  );
+}
+
+export function resolveStatementAccountRefFromRow(row: any): string {
+  return (
+    normalizeStatementAccountRef(row?.accountNo) ||
+    normalizeStatementAccountRef(row?.accountRef) ||
+    normalizeStatementAccountRef(row?.familyAccount?.accountRef)
+  );
+}
+
 export function filterKidESysBillingRows<T extends { accountNo?: unknown }>(rows: T[]): T[] {
   return rows.filter((row) => isKidESysAccountRef(row?.accountNo));
 }

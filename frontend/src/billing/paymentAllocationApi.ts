@@ -1,4 +1,5 @@
 import { API_URL } from "../api";
+import { staffAuthHeaders } from "../auth/staffAuthHeaders";
 
 export type FeeCategoryKey =
   | "registration"
@@ -97,7 +98,7 @@ export async function suggestPaymentAllocations(payload: {
   const data = await parseJson(
     await fetch(`${API_URL}/api/payment-allocations/suggest`, {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers: { "Content-Type": "application/json", ...staffAuthHeaders() },
       body: JSON.stringify(payload),
     })
   );
@@ -118,7 +119,7 @@ export async function savePaymentAllocations(
   const data = await parseJson(
     await fetch(`${API_URL}/api/payment-allocations/${encodeURIComponent(paymentId)}`, {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers: { "Content-Type": "application/json", ...staffAuthHeaders() },
       body: JSON.stringify(payload),
     })
   );

@@ -19,8 +19,8 @@ import {
   syncBillingLedgerFromApi,
 } from "./billingApi";
 import {
-  normalizeKidESysAccountRef,
-  resolveKidESysAccountRefFromLearner,
+  normalizeStatementAccountRef,
+  resolveStatementAccountRefFromLearner,
 } from "./billingAccountRef";
 import { resolvePaymentLearnerId } from "./paymentLearnerResolver";
 import PaymentAllocationModal from "./PaymentAllocationModal";
@@ -88,10 +88,10 @@ function findLearnerRecord(learnerId: string, accountNo: string, learners: any[]
     const match = list.find((l) => String(l?.id || l?.learnerId || "").trim() === key);
     if (match) return match;
   }
-  const acct = normalizeKidESysAccountRef(accountNo);
+  const acct = normalizeStatementAccountRef(accountNo);
   if (acct) {
     const match = list.find(
-      (l) => resolveKidESysAccountRefFromLearner(l) === acct
+      (l) => resolveStatementAccountRefFromLearner(l) === acct
     );
     if (match) return match;
   }
@@ -111,7 +111,7 @@ function resolveParentNames(
   const learnerId = String(selectedAccount?.learnerId || "").trim();
   const accountNo = String(selectedAccount?.accountNo || "").trim();
   const familyAccountId = String(selectedAccount?.familyAccountId || "").trim();
-  const accountRef = normalizeKidESysAccountRef(accountNo);
+  const accountRef = normalizeStatementAccountRef(accountNo);
 
   const pushParent = (p: any) => {
     if (!p) return;
@@ -147,7 +147,7 @@ function resolveParentNames(
 
   for (const l of learners) {
     const fid = String(l?.familyAccountId || l?.familyAccount?.id || "").trim();
-    const ref = resolveKidESysAccountRefFromLearner(l);
+    const ref = resolveStatementAccountRefFromLearner(l);
     const sameFamily = Boolean(familyAccountId && fid === familyAccountId);
     const sameAccount = Boolean(accountRef && ref === accountRef);
     if (!sameFamily && !sameAccount) continue;
@@ -155,7 +155,7 @@ function resolveParentNames(
   }
 
   for (const row of statementRows) {
-    const rowAcct = normalizeKidESysAccountRef(String(row?.accountNo || ""));
+    const rowAcct = normalizeStatementAccountRef(String(row?.accountNo || ""));
     const rowFamily = String(row?.familyAccountId || "").trim();
     const matchesFamily = Boolean(familyAccountId && rowFamily === familyAccountId);
     const matchesAcct = Boolean(accountRef && rowAcct === accountRef);
@@ -208,10 +208,10 @@ function resolveAccountChildren(
       if (fid === familyAccountId) addLearner(l);
     }
   } else if (accountNo) {
-    const ref = normalizeKidESysAccountRef(accountNo);
+    const ref = normalizeStatementAccountRef(accountNo);
     if (ref) {
       for (const l of learners) {
-        if (resolveKidESysAccountRefFromLearner(l) === ref) addLearner(l);
+        if (resolveStatementAccountRefFromLearner(l) === ref) addLearner(l);
       }
     }
   }
@@ -378,7 +378,6 @@ export default function PaymentCreateClean({
     try {
       await syncBillingLedgerFromApi(schoolId);
       if (accountNo) {
-        // Open invoices + balance must resolve by Kid-e-Sys accountRef (FamilyAccount.accountRef) only.
         const { openInvoices, balance } = await fetchOpenInvoices(schoolId, "", accountNo);
         setApiOpenInvoices(
           openInvoices.map((row: any) => ({
@@ -823,8 +822,17 @@ export default function PaymentCreateClean({
       setSaveError("School not loaded. Sign in again and retry.");
       return;
     }
-    if (!accountNo) {
-      setSaveError("Account not selected. Go back and choose an account.");
+    const familyAccountId = String(selectedAccount.familyAccountId || "").trim();
+    if (!familyAccountId) {
+      setSaveError("Family billing account is missing. Go back and choose an account.");
+      return;
+    }
+    const displayAccountNo =
+      normalizeStatementAccountRef(accountNo) ||
+      normalizeStatementAccountRef(selectedAccount.accountNo) ||
+      String(selectedAccount.accountNo || "").trim();
+    if (!displayAccountNo || displayAccountNo === "-") {
+      setSaveError("Account number is missing for this learner.");
       return;
     }
     if (!paymentDate) {
@@ -840,25 +848,13 @@ export default function PaymentCreateClean({
       return;
     }
 
-    const resolvedAccountNo =
-      normalizeKidESysAccountRef(accountNo) ||
-      normalizeKidESysAccountRef(selectedAccount?.accountNo) ||
-      resolveKidESysAccountRefFromLearner(
-        learners.find((l) => String(l?.id || l?.learnerId || "").trim() === learnerId)
-      );
-
-    if (!resolvedAccountNo || resolvedAccountNo === "-") {
-      setSaveError("Account number is missing for this learner.");
-      return;
-    }
-
     if (saving) return;
 
     setSaving(true);
     setSaveJustSucceeded(false);
     setSaveError("");
     try {
-      const paymentAmount = normaliseBillingAmount(amount);
+      const paymentAmount = Math.round(normaliseBillingAmount(amount) * 100) / 100;
       const paymentNote =
         draft.message.trim() || draft.description.trim() || "Payment";
       if (!paymentIdempotencyKeyRef.current) {
@@ -868,13 +864,26 @@ export default function PaymentCreateClean({
             : `idem-${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
       }
       const idempotencyKey = paymentIdempotencyKeyRef.current;
+      const allocationLines: AllocationLine[] = Object.entries(rowAllocations)
+        .filter(([, amt]) => Number(amt || 0) > 0.001)
+        .map(([invoiceId, allocatedAmount]) => ({
+          invoiceId,
+          allocatedAmount: roundMoney(Number(allocatedAmount)),
+        }));
+      const unallocatedCredit = amountUnallocated;
+      const postAllocationLines =
+        allocationLines.length > 0
+          ? allocationLines
+          : unallocatedCredit > 0.001
+            ? [{ feeCategory: "account_credit" as const, allocatedAmount: unallocatedCredit }]
+            : [];
       const postStarted = performance.now();
       const result = (await createPayment({
         schoolId,
+        familyAccountId,
         idempotencyKey,
-        // Billing identity is accountRef only (FamilyAccount.accountRef / Kid-e-Sys accountRef).
         learnerId: "",
-        accountNo: resolvedAccountNo,
+        accountNo: displayAccountNo,
         amount: paymentAmount,
         date: paymentDate,
         reference: paymentType,
@@ -882,7 +891,9 @@ export default function PaymentCreateClean({
         message: draft.message.trim(),
         note: draft.message.trim(),
         notes: draft.message.trim(),
+        bankReference: draft.message.trim(),
         method: paymentType,
+        allocationLines: postAllocationLines,
       })) as {
         success?: boolean;
         error?: string;
@@ -891,6 +902,8 @@ export default function PaymentCreateClean({
         openInvoices?: unknown[];
         account?: { balance?: number };
         duplicate?: boolean;
+        allocationSaved?: boolean;
+        allocationError?: string | null;
       };
       logBillingSaveTiming("payment POST", performance.now() - postStarted);
 
@@ -925,13 +938,12 @@ export default function PaymentCreateClean({
       }
       logBillingSaveTiming("payment post-response patch", performance.now() - patchStarted);
 
-      const allocationLines: AllocationLine[] = Object.entries(rowAllocations)
-        .filter(([, amt]) => Number(amt || 0) > 0.001)
-        .map(([invoiceId, allocatedAmount]) => ({
-          invoiceId,
-          allocatedAmount: roundMoney(Number(allocatedAmount)),
-        }));
-      const unallocatedCredit = amountUnallocated;
+      if (result.allocationSaved === false) {
+        setSaveError(
+          String(result.allocationError || "").trim() ||
+            "Payment was recorded, but allocation could not be saved. Use Allocate to retry."
+        );
+      }
 
       paymentIdempotencyKeyRef.current = null;
       setLedgerTick((v) => v + 1);
@@ -947,39 +959,11 @@ export default function PaymentCreateClean({
       }));
 
       setSaving(false);
-      setSaveJustSucceeded(true);
+      setSaveJustSucceeded(result.allocationSaved !== false);
       logBillingSaveTiming("payment save total", performance.now() - saveStarted);
 
-      const allocationPayload =
-        paymentId && allocationLines.length
-          ? {
-              schoolId,
-              learnerId,
-              accountNo: resolvedAccountNo,
-              paymentAmount,
-              lines: allocationLines,
-              allocatedBy: localStorage.getItem("userEmail") || "Billing",
-            }
-          : paymentId && unallocatedCredit > 0.001
-            ? {
-                schoolId,
-                learnerId,
-                accountNo: resolvedAccountNo,
-                paymentAmount,
-                lines: [
-                  {
-                    feeCategory: "account_credit" as const,
-                    allocatedAmount: unallocatedCredit,
-                  },
-                ],
-                allocatedBy: localStorage.getItem("userEmail") || "Billing",
-              }
-            : null;
-
       void onSaved({ paymentId, receiptNumber });
-      window.setTimeout(() => {
-        void runBackgroundBillingSync(paymentId, allocationPayload);
-      }, 500);
+      void refreshLedger({ silent: true });
     } catch (error) {
       console.error(error);
       setSaveError(
@@ -999,8 +983,7 @@ export default function PaymentCreateClean({
     rowAllocations,
     amountUnallocated,
     onSaved,
-    runBackgroundBillingSync,
-    learnerId,
+    refreshLedger,
   ]);
 
   if (!selectedAccount) {
@@ -1081,6 +1064,28 @@ export default function PaymentCreateClean({
         >
           {saving ? "Saving…" : saveJustSucceeded ? "Saved ✓" : "Save Payment"}
         </button>
+      </div>
+
+      <div
+        style={{
+          marginBottom: 12,
+          background: "#fff",
+          border: "1px solid #d6c17a",
+          borderRadius: 12,
+          padding: "12px 14px",
+          fontSize: 13,
+          fontWeight: 700,
+          color: "#334155",
+        }}
+      >
+        Paying {formatMoney(parseAmountInput(draft.amount) || 0)} via {draft.type || "EFT"} on{" "}
+        {dateInputValue(draft.date) || "—"} to {draft.accountNo || selectedAccount.accountNo}
+        {selectedAccount.name || selectedAccount.surname
+          ? ` (${`${selectedAccount.name} ${selectedAccount.surname}`.trim()})`
+          : ""}
+        {selectedAccount.familyAccountId
+          ? `. Balance ${formatMoney(Number(selectedAccount.balance || 0))}.`
+          : "."}
       </div>
 
       <div

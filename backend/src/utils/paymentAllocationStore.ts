@@ -18,20 +18,34 @@ export type StoredPaymentAllocation = {
 type SchoolAllocations = Record<string, StoredPaymentAllocation[]>;
 type AllocationFile = Record<string, SchoolAllocations>;
 
-const DATA_DIR = path.join(process.cwd(), "data");
-const ALLOCATION_FILE = path.join(DATA_DIR, "payment-allocations.json");
+let paymentAllocationTestDataDir: string | null = null;
+
+function getDataDir(): string {
+  return paymentAllocationTestDataDir ?? path.join(process.cwd(), "data");
+}
+
+function getAllocationFile(): string {
+  return path.join(getDataDir(), "payment-allocations.json");
+}
+
+/** @internal Test hook — redirect allocation I/O to an isolated fixture directory. */
+export function setPaymentAllocationStoreDataDirForTests(dataDir: string | null): void {
+  paymentAllocationTestDataDir = dataDir ? path.resolve(dataDir) : null;
+}
 
 function ensureStore() {
-  if (!fs.existsSync(DATA_DIR)) fs.mkdirSync(DATA_DIR, { recursive: true });
-  if (!fs.existsSync(ALLOCATION_FILE)) {
-    fs.writeFileSync(ALLOCATION_FILE, JSON.stringify({}, null, 2), "utf8");
+  const dataDir = getDataDir();
+  const allocationFile = getAllocationFile();
+  if (!fs.existsSync(dataDir)) fs.mkdirSync(dataDir, { recursive: true });
+  if (!fs.existsSync(allocationFile)) {
+    fs.writeFileSync(allocationFile, JSON.stringify({}, null, 2), "utf8");
   }
 }
 
 function readAll(): AllocationFile {
   ensureStore();
   try {
-    const raw = fs.readFileSync(ALLOCATION_FILE, "utf8");
+    const raw = fs.readFileSync(getAllocationFile(), "utf8");
     const parsed = JSON.parse(raw);
     return parsed && typeof parsed === "object" ? parsed : {};
   } catch {
@@ -41,7 +55,7 @@ function readAll(): AllocationFile {
 
 function writeAll(data: AllocationFile) {
   ensureStore();
-  fs.writeFileSync(ALLOCATION_FILE, JSON.stringify(data, null, 2), "utf8");
+  fs.writeFileSync(getAllocationFile(), JSON.stringify(data, null, 2), "utf8");
 }
 
 function resolveStoreKey(schoolId: string): string {

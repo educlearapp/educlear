@@ -37,6 +37,15 @@ export type BillingLedgerEntry = {
   undoneByCorrectionId?: string;
   /** Original ledger entry id this correction journal reverses. */
   correctsEntryId?: string;
+  /** Canonical FamilyAccount.id for new manual captures. Historical rows may omit this. */
+  familyAccountId?: string;
+  /** Durable Capture Payment idempotency key (new manual captures only). */
+  idempotencyKey?: string;
+  capturedByUserId?: string;
+  capturedByEmail?: string;
+  capturedByName?: string;
+  /** Operator/bank/cash reference as entered — not the auto PAY- receipt number. */
+  bankReference?: string;
 };
 
 export { isKidesysOpeningBalanceEntry } from "./billingDisplayRules";
@@ -347,6 +356,8 @@ export function appendSchoolEntrySafe(
     idempotencyKey?: string;
     duplicateWindowMs?: number;
     generatePaymentReference?: boolean;
+    /** When true, skip 120s amount+date+method fingerprint (durable key handles retries). */
+    skipPaymentFingerprint?: boolean;
   } = {}
 ): AppendSchoolEntryResult {
   const sid = String(schoolId || "").trim();
@@ -370,11 +381,15 @@ export function appendSchoolEntrySafe(
 
     if (idempotencyKey && entry.type === "payment") {
       const stableId = `pay-${idempotencyKey.replace(/[^a-zA-Z0-9_-]/g, "_").slice(0, 80)}`;
-      const byKey = current.find((e) => e.id === stableId);
+      const byKey = current.find(
+        (e) =>
+          e.id === stableId ||
+          String(e.idempotencyKey || "").trim() === idempotencyKey
+      );
       if (byKey) {
         return { entry: byKey, created: false, duplicateReason: "idempotencyKey" };
       }
-      entry = { ...entry, id: stableId };
+      entry = { ...entry, id: stableId, idempotencyKey };
     }
 
     if (entry.type === "invoice") {
@@ -384,17 +399,21 @@ export function appendSchoolEntrySafe(
         return { entry: invoiceDup, created: false, duplicateReason: "invoiceFingerprint" };
       }
     } else if (entry.type === "payment") {
-      const fingerprint = paymentDuplicateFingerprint(sid, {
-        accountNo: entry.accountNo,
-        amount: entry.amount,
-        date: entry.date,
-        method: entry.method,
-        reference: entry.reference,
-      });
-      const windowMs = opts.duplicateWindowMs ?? DEFAULT_PAYMENT_DUPLICATE_WINDOW_MS;
-      const duplicate = findRecentDuplicatePayment(current, fingerprint, windowMs, entry.id);
-      if (duplicate) {
-        return { entry: duplicate, created: false, duplicateReason: "fingerprint" };
+      const windowMs = opts.skipPaymentFingerprint
+        ? 0
+        : opts.duplicateWindowMs ?? DEFAULT_PAYMENT_DUPLICATE_WINDOW_MS;
+      if (windowMs > 0) {
+        const fingerprint = paymentDuplicateFingerprint(sid, {
+          accountNo: entry.accountNo,
+          amount: entry.amount,
+          date: entry.date,
+          method: entry.method,
+          reference: entry.reference,
+        });
+        const duplicate = findRecentDuplicatePayment(current, fingerprint, windowMs, entry.id);
+        if (duplicate) {
+          return { entry: duplicate, created: false, duplicateReason: "fingerprint" };
+        }
       }
       if (opts.generatePaymentReference) {
         entry = {

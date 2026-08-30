@@ -1,4 +1,5 @@
 import { API_URL } from "../api";
+import { staffAuthHeaders } from "../auth/staffAuthHeaders";
 import {
   clearSchoolLedgerRuntime,
   isSchoolLedgerFreshFromApi,
@@ -45,8 +46,11 @@ function mergeLedgerEntriesSilent(schoolId: string, entries: BillingLedgerEntry[
   upsertSchoolEntries(schoolId, entries, ledgerNotifySilent);
 }
 
-const getJson = async (url: string) => {
-  const response = await fetch(url, { cache: "no-store" });
+const getJson = async (url: string, extraHeaders: Record<string, string> = {}) => {
+  const response = await fetch(url, {
+    cache: "no-store",
+    headers: { ...extraHeaders },
+  });
   if (!response.ok) {
     console.warn(`Billing API returned ${response.status}: ${url}`);
     return null;
@@ -54,9 +58,13 @@ const getJson = async (url: string) => {
   return response.json();
 };
 
-const getJsonOrEmptyArray = async (url: string, keys: string[]) => {
+const getJsonOrEmptyArray = async (
+  url: string,
+  keys: string[],
+  extraHeaders: Record<string, string> = {}
+) => {
   try {
-    const data = await getJson(url);
+    const data = await getJson(url, extraHeaders);
     if (!data) return [];
     return parseArray(data, keys);
   } catch (error) {
@@ -65,10 +73,15 @@ const getJsonOrEmptyArray = async (url: string, keys: string[]) => {
   }
 };
 
-const postJson = async (url: string, data: any, fallback = "Request failed") => {
+const postJson = async (
+  url: string,
+  data: any,
+  fallback = "Request failed",
+  extraHeaders: Record<string, string> = {}
+) => {
   const response = await fetch(url, {
     method: "POST",
-    headers: { "Content-Type": "application/json" },
+    headers: { "Content-Type": "application/json", ...extraHeaders },
     body: JSON.stringify(data),
     cache: "no-store",
   });
@@ -140,11 +153,11 @@ export const fetchInvoices = async (schoolId: string) =>
   ]);
 
 export const fetchPayments = async (schoolId: string) =>
-  getJsonOrEmptyArray(`${API_URL}/api/payments?schoolId=${encodeURIComponent(schoolId)}`, [
-    "payments",
-    "items",
-    "data",
-  ]);
+  getJsonOrEmptyArray(
+    `${API_URL}/api/payments?schoolId=${encodeURIComponent(schoolId)}`,
+    ["payments", "items", "data"],
+    staffAuthHeaders()
+  );
 
 export const fetchStatements = async (schoolId: string) =>
   getJsonOrEmptyArray(`${API_URL}/api/statements?schoolId=${encodeURIComponent(schoolId)}`, [
@@ -943,7 +956,7 @@ export function applyInvoiceRunExecuteResponse(
 }
 
 export const createPayment = async (data: Record<string, unknown>) =>
-  postJson(`${API_URL}/api/payments`, data, "Failed to create payment");
+  postJson(`${API_URL}/api/payments`, data, "Failed to create payment", staffAuthHeaders());
 
 /** Merge one updated account row into cached GET /api/statements data. */
 export function patchStatementApiAccount(schoolId: string, accountRow: unknown) {
@@ -1136,7 +1149,8 @@ export const fetchOpenInvoices = async (
     accountNo: String(accountNo || ""),
   });
   const data = await getJson(
-    `${API_URL}/api/payments/open-invoices?${params.toString()}`
+    `${API_URL}/api/payments/open-invoices?${params.toString()}`,
+    staffAuthHeaders()
   );
   if (!data) {
     return { openInvoices: [] as any[], balance: 0 };

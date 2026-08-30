@@ -1,7 +1,7 @@
 import {
-  normalizeKidESysAccountRef,
-  resolveKidESysAccountRefFromLearner,
-  resolveKidESysAccountRefFromRow,
+  normalizeStatementAccountRef,
+  resolveStatementAccountRefFromLearner,
+  resolveStatementAccountRefFromRow,
 } from "./billingAccountRef";
 
 export type PaymentAccountContext = {
@@ -17,6 +17,7 @@ export type PaymentAccountContext = {
   lastInvoice?: string;
   status?: string;
   familyAccountId?: string;
+  memberNames?: string[];
 };
 
 export type PaymentFormState = {
@@ -97,10 +98,12 @@ export function readStoredPaymentAccount(): any | null {
 
 export function persistPaymentAccount(account: PaymentAccountContext) {
   const learnerId = String(account.learnerId || "").trim();
+  const familyAccountId = String(account.familyAccountId || "").trim();
   const payload = {
     ...account,
     learnerId,
-    id: learnerId,
+    familyAccountId,
+    id: familyAccountId || learnerId,
     accountNo: account.accountNo,
   };
   localStorage.setItem(PAYMENT_ACCOUNT_STORAGE_KEY, JSON.stringify(payload));
@@ -131,10 +134,17 @@ export function paymentAccountContextsEqual(
 }
 
 function resolveAccountNo(source: any): string {
-  return (
-    resolveKidESysAccountRefFromRow(source) ||
-    resolveKidESysAccountRefFromLearner(source)
-  );
+  return resolveStatementAccountRefFromRow(source) || resolveStatementAccountRefFromLearner(source);
+}
+
+function resolveFamilyAccountId(source: any, learner?: any): string {
+  return String(
+    source?.familyAccountId ||
+      source?.familyAccount?.id ||
+      learner?.familyAccountId ||
+      learner?.familyAccount?.id ||
+      ""
+  ).trim();
 }
 
 function findLearnerForRow(row: any, learners: any[]): any | null {
@@ -143,6 +153,7 @@ function findLearnerForRow(row: any, learners: any[]): any | null {
 
   const rowLearnerId = String(row?.learnerId || "").trim();
   const rowId = String(row?.id || "").trim();
+  const familyAccountId = resolveFamilyAccountId(row);
   const accountNo = resolveAccountNo(row);
 
   const byLearnerKey = (key: string) =>
@@ -158,13 +169,17 @@ function findLearnerForRow(row: any, learners: any[]): any | null {
     const match = byLearnerKey(rowId);
     if (match) return match;
   }
+  if (familyAccountId) {
+    const match = list.find(
+      (l) =>
+        String(l?.familyAccountId || l?.familyAccount?.id || "").trim() === familyAccountId
+    );
+    if (match) return match;
+  }
   if (accountNo) {
     const upper = accountNo.toUpperCase();
     const match = list.find(
-      (l) =>
-        String(l?.familyAccount?.accountRef || "")
-          .trim()
-          .toUpperCase() === upper
+      (l) => resolveStatementAccountRefFromLearner(l).toUpperCase() === upper
     );
     if (match) return match;
   }
@@ -188,8 +203,11 @@ function rowMatchesAccount(
   row: any,
   learnerId: string,
   accountNo: string,
+  familyAccountId?: string,
   learners?: any[]
 ): boolean {
+  const rowFamilyId = resolveFamilyAccountId(row, findLearnerForRow(row, learners || []));
+  if (familyAccountId && rowFamilyId && rowFamilyId === familyAccountId) return true;
   const rowLearnerId = resolveLearnerId(row, learners);
   const rowAccountNo = resolveAccountNo(row);
   if (learnerId && rowLearnerId && rowLearnerId === learnerId) return true;
@@ -203,24 +221,32 @@ export function normalizePaymentAccount(
   learners?: any[]
 ): PaymentAccountContext | null {
   if (!raw) return null;
+  const learner = findLearnerForRow(raw, learners || []);
   const learnerId = resolveLearnerId(raw, learners);
   const accountNo = resolveAccountNo(raw);
-  if (!learnerId && !accountNo) return null;
+  const familyAccountId = resolveFamilyAccountId(raw, learner);
+  if (!familyAccountId && !learnerId && !accountNo) return null;
 
   const live =
-    statementRows.find((row) => rowMatchesAccount(row, learnerId, accountNo, learners)) || raw;
+    statementRows.find((row) =>
+      rowMatchesAccount(row, learnerId, accountNo, familyAccountId, learners)
+    ) || raw;
 
   const resolvedLearnerId = resolveLearnerId(live, learners) || learnerId;
   const resolvedAccountNo = resolveAccountNo(live) || accountNo;
-  if (!resolvedLearnerId && !resolvedAccountNo) return null;
+  const resolvedFamilyId = resolveFamilyAccountId(live, findLearnerForRow(live, learners || [])) || familyAccountId;
+  if (!resolvedFamilyId && !resolvedLearnerId && !resolvedAccountNo) return null;
 
   const name = String(live?.name || live?.firstName || raw?.name || raw?.firstName || "").trim();
   const surname = String(
     live?.surname || live?.lastName || raw?.surname || raw?.lastName || ""
   ).trim();
+  const memberNames = Array.isArray(live?.memberNames)
+    ? live.memberNames.map((n: unknown) => String(n || "").trim()).filter(Boolean)
+    : undefined;
 
   return {
-    id: resolvedLearnerId,
+    id: resolvedFamilyId || resolvedLearnerId,
     learnerId: resolvedLearnerId,
     accountNo: resolvedAccountNo,
     name: name || "-",
@@ -231,7 +257,8 @@ export function normalizePaymentAccount(
     lastPaymentDate: live?.lastPaymentDate || raw?.lastPaymentDate,
     lastInvoice: live?.lastInvoice || raw?.lastInvoice,
     status: live?.status || raw?.status,
-    familyAccountId: String(live?.familyAccountId || raw?.familyAccountId || "").trim() || undefined,
+    familyAccountId: resolvedFamilyId || undefined,
+    memberNames,
   };
 }
 
@@ -248,19 +275,23 @@ export function accountsFromStatementRows(
     ).trim();
     const normalized = normalizePaymentAccount(row, statementRows, learners);
     if (!normalized) continue;
-    const accountNoKey = normalizeKidESysAccountRef(normalized.accountNo);
-    if (!accountNoKey) continue;
+    const familyAccountId = String(
+      normalized.familyAccountId || resolveFamilyAccountId(row, learner)
+    ).trim();
+    if (!familyAccountId) continue;
+    const displayRef =
+      normalizeStatementAccountRef(normalized.accountNo) ||
+      String(normalized.accountNo || "").trim();
+    if (!displayRef) continue;
     const learnerId = realLearnerId || normalized.learnerId;
     const account: PaymentAccountContext = {
       ...normalized,
-      accountNo: accountNoKey,
+      accountNo: displayRef,
       learnerId,
-      id: learnerId || accountNoKey,
+      familyAccountId,
+      id: familyAccountId,
     };
-    const key =
-      accountNoKey && accountNoKey !== "-"
-        ? `account:${accountNoKey}`
-        : `learner:${account.learnerId}`;
+    const key = `family:${familyAccountId}`;
     if (seen.has(key)) continue;
     seen.add(key);
     list.push(account);

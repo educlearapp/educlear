@@ -1,9 +1,13 @@
 import { Router } from "express";
 
+import {
+  requireCapturePaymentAuth,
+  requireCapturePaymentReadAuth,
+  type CapturePaymentAuthRequest,
+} from "../middleware/requireCapturePaymentAuth";
 import { relinkSchoolBillingLedger } from "../services/billingLedgerRelink";
-import { buildBillingAccountPostResponse } from "../services/billingPostResponse";
 import { sendSavedPaymentReceiptEmail } from "../services/receiptEmailService";
-import { resolveBillingAccountRef } from "../services/resolveBillingAccountRef";
+import { captureManualPayment, CapturePaymentError } from "../services/capturePaymentService";
 import { buildSetupRequiredPayload } from "../services/schoolEmailService";
 import {
   buildAccountsFromAgeAnalysisSnapshots,
@@ -14,10 +18,8 @@ import {
   isUndoneLedgerEntry,
 } from "../utils/billingDisplayRules";
 import {
-  appendSchoolEntrySafe,
   computeOpenInvoiceLines,
   listPayments,
-  normaliseAmount,
   readSchoolLedger,
   type BillingLedgerEntry,
 } from "../utils/billingLedgerStore";
@@ -83,10 +85,10 @@ router.get("/env/full", async (_req, res) => {
 });
 
 // GET /api/payments?schoolId=...
-router.get("/", async (req, res) => {
+router.get("/", requireCapturePaymentReadAuth, async (req: CapturePaymentAuthRequest, res) => {
   try {
-    const schoolId = typeof req.query?.schoolId === "string" ? String(req.query.schoolId) : "";
-    if (!schoolId) return res.status(400).json({ success: false, error: "Missing schoolId" });
+    const schoolId = String(req.capturePaymentAuth?.authorizedSchoolId || "").trim();
+    if (!schoolId) return res.status(401).json({ success: false, error: "Authentication required" });
 
     const payments = listPayments(schoolId).map((entry) => ({
       id: entry.id,
@@ -116,15 +118,18 @@ router.get("/", async (req, res) => {
 });
 
 // GET /api/payments/open-invoices?schoolId=&learnerId=&accountNo=
-router.get("/open-invoices", async (req, res) => {
+router.get("/open-invoices", requireCapturePaymentReadAuth, async (req: CapturePaymentAuthRequest, res) => {
   try {
-    const schoolId = typeof req.query?.schoolId === "string" ? String(req.query.schoolId) : "";
+    const schoolId = String(req.capturePaymentAuth?.authorizedSchoolId || "").trim();
     const learnerId = typeof req.query?.learnerId === "string" ? String(req.query.learnerId) : "";
     const accountNo = typeof req.query?.accountNo === "string" ? String(req.query.accountNo) : "";
-    if (!schoolId || !accountNo) {
+    if (!schoolId) {
+      return res.status(401).json({ success: false, error: "Authentication required" });
+    }
+    if (!accountNo) {
       return res.status(400).json({
         success: false,
-        error: "Missing schoolId or accountNo",
+        error: "Missing accountNo",
       });
     }
 
@@ -143,10 +148,10 @@ router.get("/open-invoices", async (req, res) => {
 });
 
 // GET /api/payments/accounts?schoolId=...
-router.get("/accounts", async (req, res) => {
+router.get("/accounts", requireCapturePaymentReadAuth, async (req: CapturePaymentAuthRequest, res) => {
   try {
-    const schoolId = typeof req.query?.schoolId === "string" ? String(req.query.schoolId) : "";
-    if (!schoolId) return res.status(400).json({ success: false, error: "Missing schoolId" });
+    const schoolId = String(req.capturePaymentAuth?.authorizedSchoolId || "").trim();
+    if (!schoolId) return res.status(401).json({ success: false, error: "Authentication required" });
 
     const accounts = await buildAccountsFromAgeAnalysisSnapshots(schoolId);
 
@@ -192,7 +197,7 @@ router.post("/:paymentId/send-receipt", async (req, res) => {
   }
 });
 
-router.post("/", async (req, res) => {
+router.post("/", requireCapturePaymentAuth, async (req: CapturePaymentAuthRequest, res) => {
   try {
     const writeGuard = getPaymentWriteGuard();
     if (!writeGuard.allowed) {
@@ -208,79 +213,43 @@ router.post("/", async (req, res) => {
       });
     }
 
+    const auth = req.capturePaymentAuth;
+    if (!auth) {
+      return res.status(401).json({ success: false, error: "Authentication required" });
+    }
+
     const body = (req.body ?? {}) as Record<string, unknown>;
-    const schoolId = String(body.schoolId || "").trim();
-    const accountInput = String(body.accountNo || body.accountRef || "").trim();
-    const amount = normaliseAmount(body.amount);
+    const result = await captureManualPayment({
+      authorizedSchoolId: auth.authorizedSchoolId,
+      familyAccountId: String(body.familyAccountId || "").trim(),
+      amount: body.amount,
+      date: body.date || body.paidAt,
+      method: body.method || body.type,
+      description: body.message || body.note || body.notes || body.description || "Payment",
+      bankReference: body.bankReference || body.paymentReference || body.message,
+      idempotencyKey: String(body.idempotencyKey || "").trim(),
+      capturedByUserId: auth.userId,
+      capturedByEmail: auth.email,
+      capturedByName: auth.capturedByName,
+      allocationLines: Array.isArray(body.allocationLines)
+        ? (body.allocationLines as Array<{
+            invoiceId?: string;
+            feeCategory?: string;
+            allocatedAmount: number;
+          }>)
+        : undefined,
+    });
 
-    if (!schoolId || !amount) {
-      return res.status(400).json({ success: false, error: "Missing schoolId or amount" });
-    }
-    if (!accountInput) {
-      return res.status(400).json({ success: false, error: "Missing accountNo" });
-    }
-
-    const resolved = await resolveBillingAccountRef(schoolId, accountInput);
-    if (!resolved) {
-      return res.status(404).json({
+    const status = result.allocationSaved ? 200 : 207;
+    return res.status(status).json(result);
+  } catch (error) {
+    if (error instanceof CapturePaymentError) {
+      return res.status(error.status).json({
         success: false,
-        error: `Account not found for ref ${accountInput}`,
+        error: error.message,
+        code: error.code,
       });
     }
-
-    const paymentNote = String(
-      body.message || body.note || body.notes || body.description || "Payment"
-    ).trim();
-
-    const paymentDate = String(body.date || body.paidAt || new Date().toISOString()).slice(0, 10);
-    const paymentMethod = String(body.method || body.type || "").trim() || undefined;
-    const idempotencyKey = String(body.idempotencyKey || "").trim();
-
-    const entry: BillingLedgerEntry = {
-      id: String(body.id || "").trim() || `pay-${Date.now()}`,
-      schoolId,
-      learnerId: "",
-      accountNo: resolved.accountRef,
-      type: "payment",
-      amount,
-      date: paymentDate,
-      reference: paymentMethod || "Payment",
-      description: paymentNote || "Payment",
-      method: paymentMethod,
-      source: "manual",
-      createdAt: new Date().toISOString(),
-    };
-
-    const appendResult = appendSchoolEntrySafe(schoolId, entry, {
-      idempotencyKey,
-      generatePaymentReference: true,
-    });
-    const savedEntry = appendResult.entry;
-
-    await relinkSchoolBillingLedger(schoolId);
-    const ledger = readSchoolLedger(schoolId);
-    const accountRef = resolved.accountRef;
-    const post = await buildBillingAccountPostResponse(schoolId, accountRef, { ledger });
-
-    return res.json({
-      success: true,
-      duplicate: !appendResult.created,
-      duplicateReason: appendResult.duplicateReason,
-      payment: {
-        ...savedEntry,
-        message: savedEntry.description,
-        note: savedEntry.description,
-        notes: savedEntry.description,
-      },
-      balance: post.balance,
-      account: post.account,
-      lastPayment: post.account?.lastPayment ?? 0,
-      lastPaymentDate: post.account?.lastPaymentDate ?? "",
-      ledgerEntries: post.ledgerEntries,
-      openInvoices: post.openInvoices,
-      statements: post.account ? [post.account] : [],
-    });
-  } catch (error) {
     const message = error instanceof Error ? error.message : "Server error";
     console.error("[payments] POST / failed:", error);
     const busy = message.includes("Billing ledger is busy");

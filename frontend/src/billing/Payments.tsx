@@ -157,6 +157,8 @@ export default function Payments({
         account.lastInvoice,
         account.lastPayment,
         String(account.balance),
+        account.parentName,
+        ...(Array.isArray(account.memberNames) ? account.memberNames : []),
       ]
         .join(" ")
         .toLowerCase()

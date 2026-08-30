@@ -2677,8 +2677,10 @@ const [selectedLearnerReport, setSelectedLearnerReport] = useState<any>(null);
         }
       }
       const resolvedLearnerId = String(normalized.learnerId || "").trim();
+      const familyAccountId = String(normalized.familyAccountId || "").trim();
       const payload: PaymentAccountContext = {
         ...normalized,
+        familyAccountId: familyAccountId || undefined,
         learnerId: resolvedLearnerId || String(normalized.accountNo || "").trim(),
         id: resolvedLearnerId || String(normalized.accountNo || "").trim(),
       };
