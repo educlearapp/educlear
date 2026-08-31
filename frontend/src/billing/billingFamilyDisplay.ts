@@ -47,6 +47,10 @@ export function buildBillingRowSearchText(row: any): string {
   const holderNames = splitAccountHolderNames(String(row?.accountHolder || ""));
   return [
     row?.accountNo,
+    row?.eduClearAccountNo,
+    row?.sourceAccountRef,
+    row?.accountRef,
+    row?.familyName,
     display.name,
     display.surname,
     ...memberNames,

@@ -1,6 +1,10 @@
 import { Router } from "express";
 
 import {
+  requireInvoiceRunExecuteAuth,
+  type InvoiceRunExecuteAuthRequest,
+} from "../middleware/requireInvoiceRunExecuteAuth";
+import {
   requireInvoiceRunUndoAuth,
   type InvoiceRunUndoRequest,
 } from "../middleware/requireInvoiceRunUndoAuth";
@@ -39,12 +43,20 @@ router.get("/", async (req, res) => {
   }
 });
 
-async function handleExecute(req: { body?: Record<string, unknown> }, res: any, dryRun: boolean) {
+async function handleExecute(req: InvoiceRunExecuteAuthRequest, res: any, dryRun: boolean) {
   try {
     const body = req.body ?? {};
+    const schoolId = String(req.invoiceRunExecuteAuth?.authorizedSchoolId || "").trim();
+    if (!schoolId) {
+      return res.status(400).json({
+        success: false,
+        error: "Missing school authorization",
+        errorCode: "INVALID_REQUEST",
+      });
+    }
 
     const result = await executeInvoiceRun({
-      schoolId: String(body.schoolId || "").trim(),
+      schoolId,
       runId: String(body.runId || "").trim(),
       invoicePeriod: String(body.invoicePeriod || body.month || body.period || "").trim(),
       invoiceDate: String(body.invoiceDate || body.date || "").trim(),
@@ -82,9 +94,13 @@ async function handleExecute(req: { body?: Record<string, unknown> }, res: any, 
   }
 }
 
-router.post("/execute", (req, res) => handleExecute(req, res, req.body?.dryRun === true));
+router.post("/execute", requireInvoiceRunExecuteAuth, (req: InvoiceRunExecuteAuthRequest, res) =>
+  handleExecute(req, res, req.body?.dryRun === true)
+);
 
-router.post("/preview", (req, res) => handleExecute(req, res, true));
+router.post("/preview", requireInvoiceRunExecuteAuth, (req: InvoiceRunExecuteAuthRequest, res) =>
+  handleExecute(req, res, true)
+);
 
 router.post("/:runId/undo", requireInvoiceRunUndoAuth, async (req: InvoiceRunUndoRequest, res) => {
   try {

@@ -78,6 +78,9 @@ export type BillingAccountRow = {
   learnerId: string;
   accountNo: string;
   familyAccountId?: string;
+  eduClearAccountNo?: string;
+  sourceAccountRef?: string;
+  familyName?: string;
   memberLearnerIds?: string[];
   memberNames?: string[];
   accountHolder?: string;
@@ -861,11 +864,18 @@ export function mapApiStatementRowToBillingAccountRow(row: any): BillingAccountR
     accountHolder,
   });
 
+  const eduClearAccountNo = String(row?.eduClearAccountNo || "").trim() || undefined;
+  const sourceAccountRef = String(row?.sourceAccountRef || "").trim() || undefined;
+  const familyName = String(row?.familyName || "").trim() || undefined;
+
   return {
     id: familyAccountId || learnerId || accountNo,
     learnerId,
     accountNo,
     familyAccountId,
+    eduClearAccountNo,
+    sourceAccountRef,
+    familyName,
     memberLearnerIds,
     memberNames,
     accountHolder,

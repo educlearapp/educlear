@@ -1,8 +1,13 @@
 import { prisma } from "../prisma";
 import { matchLearnersToAccountHolder } from "./familyAccountMembers";
+import { resolveLedgerJoinAccountRef, normaliseEduClearAccountNo } from "./familyAccountNumber";
 import { buildAccountsFromAgeAnalysisSnapshots } from "./statementAccounts";
 import { readSchoolFamilyAccountAgeAnalysisSnapshots } from "../utils/familyAccountAgeAnalysisStore";
 import { resolveBillingAccountRef } from "./resolveBillingAccountRef";
+import {
+  isSasamsNumericAccount,
+  resolveStatementLedgerJoinFromFamilies,
+} from "./resolveStatementLedgerJoin";
 import {
   calculateBalanceFromEntries,
   collectAccountRefLedgerEntries,
@@ -56,19 +61,18 @@ function normalizeKidESysAccountRef(value: unknown): string {
   return ref;
 }
 
-function isSasamsNumericAccount(value: unknown): boolean {
-  const v = String(value ?? "").trim();
-  if (!v || normalizeKidESysAccountRef(v)) return false;
-  return /^\d{4,}$/.test(v);
-}
-
 function buildAccountScopeFromLearners(learners: LearnerRow[], accountRef: string) {
-  const ref = normalizeKidESysAccountRef(accountRef);
-  if (!ref) return null;
-  let group = learners.filter(
-    (l) => normalizeKidESysAccountRef(l.familyAccount?.accountRef) === ref
-  );
-  if (!group.length) return null;
+  const raw = String(accountRef || "").trim();
+  if (!raw || raw === "-") return null;
+  const kid = normalizeKidESysAccountRef(raw);
+  const matchKey = kid || raw.toUpperCase();
+  let group = learners.filter((l) => {
+    const faRef = String(l.familyAccount?.accountRef || "").trim();
+    if (!faRef) return false;
+    if (kid) return normalizeKidESysAccountRef(faRef) === kid;
+    return faRef.toUpperCase() === matchKey;
+  });
+  if (!group.length) group = learners.slice();
   const familyId = String(group[0]?.familyAccountId || group[0]?.familyAccount?.id || "").trim();
   if (familyId) {
     const byFamilyId = learners.filter(
@@ -77,10 +81,10 @@ function buildAccountScopeFromLearners(learners: LearnerRow[], accountRef: strin
     if (byFamilyId.length > group.length) group = byFamilyId;
   }
   return {
-    accountRef: ref,
+    accountRef: raw,
     learners: group,
     learnerIds: group.map((l) => l.id),
-    isFamilyAccount: group.length > 1 || Boolean(familyId),
+    isFamilyAccount: group.length !== 1 || Boolean(familyId),
   };
 }
 
@@ -94,8 +98,9 @@ const learnerSelectForStatement = {
 } as const;
 
 async function loadLearnersForAccountRef(schoolId: string, accountRef: string): Promise<LearnerRow[]> {
-  const ref = normalizeKidESysAccountRef(accountRef);
-  if (!ref) return [];
+  const joinKey = String(accountRef || "").trim();
+  if (!joinKey || joinKey === "-") return [];
+  const kid = normaliseEduClearAccountNo(joinKey);
 
   const mergeUnique = (rows: LearnerRow[]) => {
     const seen = new Set<string>();
@@ -106,30 +111,40 @@ async function loadLearnersForAccountRef(schoolId: string, accountRef: string): 
     });
   };
 
-  const rows = await prisma.learner.findMany({
-    where: { schoolId, familyAccount: { accountRef: ref } },
-    select: learnerSelectForStatement,
-    orderBy: { lastName: "asc" },
+  const family = await prisma.familyAccount.findFirst({
+    where: {
+      schoolId,
+      OR: [
+        { accountRef: joinKey },
+        { accountRef: joinKey.toUpperCase() },
+        ...(kid ? [{ accountNo: kid }] : []),
+      ],
+    },
+    select: { id: true, accountRef: true },
   });
-  let group = mergeUnique(rows as LearnerRow[]);
 
-  if (!group.length) {
-    const family = await prisma.familyAccount.findFirst({
-      where: { schoolId, accountRef: ref },
-      select: { id: true },
+  let group: LearnerRow[] = [];
+  if (family) {
+    const byFamilyId = await prisma.learner.findMany({
+      where: { schoolId, familyAccountId: family.id },
+      select: learnerSelectForStatement,
+      orderBy: { lastName: "asc" },
     });
-    if (family) {
-      const byFamilyId = await prisma.learner.findMany({
-        where: { schoolId, familyAccountId: family.id },
-        select: learnerSelectForStatement,
-        orderBy: { lastName: "asc" },
-      });
-      group = mergeUnique(byFamilyId as LearnerRow[]);
-    }
+    group = mergeUnique(byFamilyId as LearnerRow[]);
+  } else {
+    const rows = await prisma.learner.findMany({
+      where: { schoolId, familyAccount: { accountRef: joinKey } },
+      select: learnerSelectForStatement,
+      orderBy: { lastName: "asc" },
+    });
+    group = mergeUnique(rows as LearnerRow[]);
   }
 
   const snapshots = readSchoolFamilyAccountAgeAnalysisSnapshots(schoolId);
-  const accountHolder = String(snapshots[ref]?.accountHolder || "").trim();
+  const snapKey = String(family?.accountRef || joinKey).trim();
+  const accountHolder = String(
+    snapshots[snapKey]?.accountHolder || snapshots[snapKey.toUpperCase()]?.accountHolder || ""
+  ).trim();
   if (accountHolder) {
     const allSchoolLearners = await prisma.learner.findMany({
       where: { schoolId },
@@ -143,35 +158,56 @@ async function loadLearnersForAccountRef(schoolId: string, accountRef: string): 
   return group;
 }
 
-/** Resolve Kid-e-Sys billing identity (FamilyAccount.accountRef) — never admissionNo / idNumber. */
+/**
+ * Resolve ledger/statement join key for the authenticated school.
+ * Dedicated accountNo (Fly Eagle ABA001) maps to FamilyAccount.accountRef; never admissionNo / idNumber.
+ */
 async function resolveStatementAccountRef(
   schoolId: string,
   opts: { accountNo?: string; learnerId?: string }
 ): Promise<string | null> {
+  const sid = String(schoolId || "").trim();
   const rawAccountNo = String(opts.accountNo || "").trim();
   const learnerId = String(opts.learnerId || "").trim();
+  if (!sid) return null;
 
   if (rawAccountNo && !isSasamsNumericAccount(rawAccountNo)) {
-    const fromKidESysRef = normalizeKidESysAccountRef(rawAccountNo);
-    if (fromKidESysRef) return fromKidESysRef;
-    const resolved = await resolveBillingAccountRef(schoolId, rawAccountNo);
-    if (resolved?.accountRef) return normalizeKidESysAccountRef(resolved.accountRef) || null;
+    const kid = normaliseEduClearAccountNo(rawAccountNo);
+    const families = await prisma.familyAccount.findMany({
+      where: {
+        schoolId: sid,
+        OR: [
+          ...(kid ? [{ accountNo: kid }] : []),
+          { accountRef: rawAccountNo },
+          { accountRef: rawAccountNo.toUpperCase() },
+        ],
+      },
+      select: { schoolId: true, accountRef: true, accountNo: true },
+    });
+    const join = resolveStatementLedgerJoinFromFamilies({
+      authorizedSchoolId: sid,
+      query: rawAccountNo,
+      families,
+    });
+    if (join) return join;
   }
 
   if (learnerId) {
     const learner = await prisma.learner.findFirst({
-      where: { id: learnerId, schoolId },
+      where: { id: learnerId, schoolId: sid },
       select: {
-        familyAccount: { select: { accountRef: true } },
+        familyAccount: { select: { schoolId: true, accountRef: true, accountNo: true } },
       },
     });
-    const fromLearner = normalizeKidESysAccountRef(learner?.familyAccount?.accountRef);
-    if (fromLearner) return fromLearner;
+    if (learner?.familyAccount && String(learner.familyAccount.schoolId) === sid) {
+      const fromLearner = resolveLedgerJoinAccountRef(learner.familyAccount);
+      if (fromLearner) return fromLearner;
+    }
   }
 
   if (rawAccountNo && !isSasamsNumericAccount(rawAccountNo)) {
-    const resolved = await resolveBillingAccountRef(schoolId, rawAccountNo);
-    if (resolved?.accountRef) return normalizeKidESysAccountRef(resolved.accountRef) || null;
+    const resolved = await resolveBillingAccountRef(sid, rawAccountNo);
+    if (resolved?.accountRef) return resolved.accountRef;
   }
 
   return null;
@@ -433,9 +469,10 @@ export async function buildStatementPdfInput(
   );
 
   const anchor = scope.learners[0];
-  const accountLabel = scope.isFamilyAccount
-    ? `Family Account ${scope.accountRef || "—"}`
-    : `${anchor.firstName} ${anchor.lastName}`.trim();
+  const accountLabel =
+    !anchor || scope.isFamilyAccount
+      ? `Family Account ${scope.accountRef || "—"}`
+      : `${anchor.firstName} ${anchor.lastName}`.trim();
 
   const contact = await resolveStatementContactForDisplay(
     schoolId,
