@@ -3,8 +3,6 @@ import {
   ACCOUNTING_GOLD,
   ACCOUNTING_INK,
   accountingCard,
-  accountingCardLabel,
-  accountingCardValue,
 } from "../accounting/accountingTheme";
 import { postBillingPaymentJournal } from "../accounting/accountingJournalEngine";
 import { syncBillingLedgerFromApi } from "../billing/billingApi";
@@ -20,21 +18,36 @@ import { getLearnerAccountNo } from "../learner/learnerIdentity";
 import {
   BANKING_EXPENSE_CATEGORIES,
   canPostBankPaymentToBilling,
-  confidenceColor,
-  formatConfidence,
   hasSuggestedPaymentMatch,
   importSummary,
   isUnmatchedTxn,
   hasSuggestedSupplierInvoiceMatch,
   loadSuppliersForMatching,
   refreshSuppliersForMatching,
-  matchStatusLabel,
   paginate,
   statusPillStyle,
-  suggestedMatchLabel,
   txnType,
   type BankingTransactionType,
 } from "./bankingReconciliationUtils";
+import {
+  allowLearnerAcceptAction,
+  buildReviewKpiItems,
+  buildStickyPostingModel,
+  compactConfidenceTone,
+  compactDate,
+  countQueueFilters,
+  displayStatus,
+  filterReviewTransactions,
+  formatCompactConfidence,
+  looksLikeCardSettlement,
+  matchColumnView,
+  QUEUE_FILTER_CHIPS,
+  REVIEW_PAGE_SIZE,
+  type ConfidenceFilter,
+  type QueueFilter,
+  type TypeFilter,
+} from "./bankingReconciliationUi";
+import "./bankingReconciliationReview.css";
 import { addExpenseCandidateFromBank } from "../accounting/accountingExpenseStorage";
 import SupplierInvoiceBankMatch from "../accounting/SupplierInvoiceBankMatch";
 import {
@@ -57,15 +70,6 @@ type Props = {
 };
 
 type TabId = "import" | "review" | "payments" | "expenses" | "unmatched" | "history";
-
-type QueueFilter =
-  | "all"
-  | "matched"
-  | "suggested"
-  | "unmatched"
-  | "duplicate"
-  | "accepted"
-  | "rejected";
 
 const PAGE_SIZE = 10;
 const GOLD = ACCOUNTING_GOLD;
@@ -143,13 +147,15 @@ function PaginationBar({
   totalPages,
   total,
   onPage,
+  pageSize = PAGE_SIZE,
 }: {
   page: number;
   totalPages: number;
   total: number;
   onPage: (p: number) => void;
+  pageSize?: number;
 }) {
-  if (total <= PAGE_SIZE) return null;
+  if (total <= pageSize) return null;
   return (
     <div style={{ display: "flex", gap: 8, alignItems: "center", marginTop: 12, flexWrap: "wrap" }}>
       <button type="button" style={ghostBtn} disabled={page <= 1} onClick={() => onPage(page - 1)}>
@@ -182,6 +188,9 @@ export default function BankStatementImport({ schoolId, learners }: Props) {
   const [unmatchedPage, setUnmatchedPage] = useState(1);
   const [historyPage, setHistoryPage] = useState(1);
   const [queueFilter, setQueueFilter] = useState<QueueFilter>("all");
+  const [reviewSearch, setReviewSearch] = useState("");
+  const [confidenceFilter, setConfidenceFilter] = useState<ConfidenceFilter>("all");
+  const [typeFilter, setTypeFilter] = useState<TypeFilter>("all");
 
   const [typeModal, setTypeModal] = useState<BankTransactionRow | null>(null);
   const [editModal, setEditModal] = useState<BankTransactionRow | null>(null);
@@ -518,280 +527,329 @@ export default function BankStatementImport({ schoolId, learners }: Props) {
 
   const allTxns = activeImport?.transactions || [];
 
-  const matchesQueueFilter = (txn: BankTransactionRow, filter: QueueFilter): boolean => {
-    if (filter === "all") return true;
-    if (filter === "duplicate") return Boolean(txn.isDuplicate) || txn.matchStatus === "duplicate";
-    if (filter === "accepted") {
-      return txn.reviewStatus === "accepted" || txn.matchStatus === "accepted";
-    }
-    if (filter === "rejected") {
-      return txn.reviewStatus === "unmatched" || txn.matchStatus === "rejected";
-    }
-    if (filter === "matched") return txn.matchStatus === "matched";
-    if (filter === "suggested") return txn.matchStatus === "suggested";
-    if (filter === "unmatched") return isUnmatchedTxn(txn);
-    return true;
-  };
+  const queueCounts = useMemo(() => countQueueFilters(allTxns), [allTxns]);
+  const kpiItems = useMemo(
+    () => buildReviewKpiItems(allTxns, activeImport?.totalAmountImported ?? 0),
+    [allTxns, activeImport?.totalAmountImported]
+  );
+  const postingBar = useMemo(() => buildStickyPostingModel(allTxns), [allTxns]);
 
-  const filteredReviewTxns = allTxns.filter((t) => matchesQueueFilter(t, queueFilter));
+  const filteredReviewTxns = useMemo(
+    () =>
+      filterReviewTransactions(allTxns, {
+        queue: queueFilter,
+        search: reviewSearch,
+        confidence: confidenceFilter,
+        type: typeFilter,
+      }),
+    [allTxns, queueFilter, reviewSearch, confidenceFilter, typeFilter]
+  );
   const paymentRows = allTxns.filter((t) => t.direction === "in" && txnType(t) === "payment");
   const expenseRows = allTxns.filter((t) => t.direction === "out" && txnType(t) === "expense");
   const unmatchedRows = allTxns.filter(isUnmatchedTxn);
 
-  const reviewPaged = paginate(filteredReviewTxns, reviewPage, PAGE_SIZE);
+  const reviewPaged = paginate(filteredReviewTxns, reviewPage, REVIEW_PAGE_SIZE);
   const paymentsPaged = paginate(paymentRows, paymentsPage, PAGE_SIZE);
   const expensesPaged = paginate(expenseRows, expensesPage, PAGE_SIZE);
   const unmatchedPaged = paginate(unmatchedRows, unmatchedPage, PAGE_SIZE);
   const historyPaged = paginate(imports, historyPage, PAGE_SIZE);
 
   const renderActions = (txn: BankTransactionRow) => {
+    const posted = txn.reviewStatus === "posted";
+    const cardSettlement = looksLikeCardSettlement(txn);
+    const allowLearnerAccept = allowLearnerAcceptAction(txn);
     const showPaymentMatchActions =
+      allowLearnerAccept &&
       txn.direction === "in" &&
       txnType(txn) === "payment" &&
       hasSuggestedPaymentMatch(txn) &&
-      txn.reviewStatus !== "posted";
+      !posted;
 
     return (
-    <div style={{ display: "flex", flexDirection: "column", gap: 6, minWidth: 140 }}>
-      {showPaymentMatchActions ? (
-        <>
-          <button
-            type="button"
-            style={goldBtn}
-            disabled={loading}
-            onClick={() => void acceptMatchTxn(txn)}
-          >
-            Accept Match
-          </button>
-          <button
-            type="button"
-            style={ghostBtn}
-            disabled={loading}
-            onClick={() => void rejectMatchTxn(txn)}
-          >
-            Reject Match
-          </button>
-        </>
-      ) : null}
-      {txn.moneyOut > 0 && hasSuggestedSupplierInvoiceMatch(txn) ? (
-        <>
-          <button
-            type="button"
-            style={goldBtn}
-            disabled={loading}
-            onClick={async () => {
-              const { acceptBankSupplierMatch, mergeJournalsIntoLocalStore } = await import(
-                "../accounting/accountingSuppliersApi"
-              );
-              try {
-                const res = await acceptBankSupplierMatch({
-                  schoolId,
-                  invoiceId: txn.suggestedInvoiceId!,
-                  bankTransactionId: txn.id,
-                  amount: txn.moneyOut,
-                  paymentDate: txn.date,
-                  reference: txn.reference || txn.description,
-                });
-                if (res.journal) mergeJournalsIntoLocalStore(schoolId, [res.journal]);
-                await patchTxn(txn, {
-                  reviewStatus: "posted",
-                  transactionType: "expense",
-                  matchReason: "Supplier invoice matched",
-                });
-                setMessage("Supplier match accepted.");
-              } catch (e: unknown) {
-                setError(e instanceof Error ? e.message : "Supplier match failed");
+      <div className="recon-actions">
+        {showPaymentMatchActions ? (
+          <>
+            <button
+              type="button"
+              className="recon-btn-primary"
+              disabled={loading}
+              title="Accept suggested learner match"
+              aria-label="Accept suggested learner match"
+              onClick={() => void acceptMatchTxn(txn)}
+            >
+              Accept
+            </button>
+            <button
+              type="button"
+              className="recon-btn recon-btn-danger"
+              disabled={loading}
+              title="Reject match and leave unmatched"
+              aria-label="Reject match and leave unmatched"
+              onClick={() => void rejectMatchTxn(txn)}
+            >
+              Reject
+            </button>
+          </>
+        ) : null}
+        {txn.moneyOut > 0 && hasSuggestedSupplierInvoiceMatch(txn) ? (
+          <>
+            <button
+              type="button"
+              className="recon-btn-primary"
+              disabled={loading}
+              title="Accept supplier invoice match"
+              aria-label="Accept supplier invoice match"
+              onClick={async () => {
+                const { acceptBankSupplierMatch, mergeJournalsIntoLocalStore } = await import(
+                  "../accounting/accountingSuppliersApi"
+                );
+                try {
+                  const res = await acceptBankSupplierMatch({
+                    schoolId,
+                    invoiceId: txn.suggestedInvoiceId!,
+                    bankTransactionId: txn.id,
+                    amount: txn.moneyOut,
+                    paymentDate: txn.date,
+                    reference: txn.reference || txn.description,
+                  });
+                  if (res.journal) mergeJournalsIntoLocalStore(schoolId, [res.journal]);
+                  await patchTxn(txn, {
+                    reviewStatus: "posted",
+                    transactionType: "expense",
+                    matchReason: "Supplier invoice matched",
+                  });
+                  setMessage("Supplier match accepted.");
+                } catch (e: unknown) {
+                  setError(e instanceof Error ? e.message : "Supplier match failed");
+                }
+              }}
+            >
+              Accept
+            </button>
+            <button
+              type="button"
+              className="recon-btn recon-btn-danger"
+              disabled={loading}
+              title="Reject supplier match"
+              aria-label="Reject supplier match"
+              onClick={() =>
+                void patchTxn(txn, {
+                  suggestedInvoiceId: "",
+                  invoiceMatchScore: 0,
+                  matchReason: "Supplier match rejected",
+                })
               }
-            }}
-          >
-            Accept Supplier Match
-          </button>
+            >
+              Reject
+            </button>
+          </>
+        ) : null}
+        {txn.moneyOut > 0 ? (
           <button
             type="button"
-            style={ghostBtn}
-            disabled={loading}
-            onClick={() =>
-              void patchTxn(txn, {
-                suggestedInvoiceId: "",
-                invoiceMatchScore: 0,
-                matchReason: "Supplier match rejected",
-              })
-            }
+            className="recon-btn"
+            disabled={loading || posted}
+            title={hasSuggestedSupplierInvoiceMatch(txn) ? "Change supplier invoice" : "Match supplier invoice"}
+            aria-label={hasSuggestedSupplierInvoiceMatch(txn) ? "Change supplier invoice" : "Match supplier invoice"}
+            onClick={() => setSupplierMatchTxn(txn)}
           >
-            Reject Match
+            {hasSuggestedSupplierInvoiceMatch(txn) ? "Supplier" : "Invoice"}
           </button>
-        </>
-      ) : null}
-      {txn.moneyOut > 0 ? (
+        ) : null}
+        {!showPaymentMatchActions && allowLearnerAccept && !posted ? (
+          <button
+            type="button"
+            className="recon-btn-primary"
+            disabled={loading}
+            title="Accept this transaction"
+            aria-label="Accept this transaction"
+            onClick={() => void acceptTxn(txn)}
+          >
+            Accept
+          </button>
+        ) : null}
         <button
           type="button"
-          style={ghostBtn}
-          disabled={loading || txn.reviewStatus === "posted"}
-          onClick={() => setSupplierMatchTxn(txn)}
+          className="recon-btn"
+          disabled={loading || posted}
+          title="Change account or category"
+          aria-label="Change account or category"
+          onClick={() => openEditModal(txn)}
         >
-          {hasSuggestedSupplierInvoiceMatch(txn) ? "Change supplier" : "Match supplier invoice"}
+          Change
         </button>
-      ) : null}
-      <button
-        type="button"
-        style={ghostBtn}
-        disabled={loading || txn.reviewStatus === "posted"}
-        onClick={() => void acceptTxn(txn)}
-      >
-        Accept
-      </button>
-      <button type="button" style={ghostBtn} disabled={loading || txn.reviewStatus === "posted"} onClick={() => openTypeModal(txn)}>
-        Change Type
-      </button>
-      <button type="button" style={ghostBtn} disabled={loading || txn.reviewStatus === "posted"} onClick={() => openEditModal(txn)}>
-        Change Account/Category
-      </button>
-      <button
-        type="button"
-        style={ghostBtn}
-        disabled={loading || txn.reviewStatus === "posted"}
-        onClick={() => void ignoreTxn(txn)}
-      >
-        Ignore
-      </button>
-    </div>
+        <button
+          type="button"
+          className="recon-btn"
+          disabled={loading || posted}
+          title="Change transaction type"
+          aria-label="Change transaction type"
+          onClick={() => openTypeModal(txn)}
+        >
+          Type
+        </button>
+        <button
+          type="button"
+          className="recon-btn"
+          disabled={loading || posted}
+          title={cardSettlement ? "Leave unmatched — reconcile card settlement separately" : "Leave unmatched"}
+          aria-label={cardSettlement ? "Leave unmatched — reconcile card settlement separately" : "Leave unmatched"}
+          onClick={() => void ignoreTxn(txn)}
+        >
+          Ignore
+        </button>
+      </div>
     );
   };
 
+  const renderTxnRowCells = (txn: BankTransactionRow) => {
+    const match = matchColumnView(txn);
+    const status = displayStatus(txn);
+    const tone = compactConfidenceTone(txn);
+    const cardSettlement = looksLikeCardSettlement(txn);
+    return { match, status, tone, cardSettlement };
+  };
+
   const renderReconciliationTable = (rows: BankTransactionRow[]) => (
-    <table style={{ width: "100%", borderCollapse: "collapse", minWidth: 1100, background: "#fff" }}>
-      <thead>
-        <tr>
-          {[
-            "Date",
-            "Description",
-            "Amount In",
-            "Amount Out",
-            "Suggested Match",
-            "Confidence",
-            "Type",
-            "Status",
-            "Actions",
-          ].map((h) => (
-            <th key={h} style={th}>
-              {h}
-            </th>
-          ))}
-        </tr>
-      </thead>
-      <tbody>
-        {rows.length === 0 ? (
-          <tr>
-            <td colSpan={9} style={{ ...td, textAlign: "center", color: "#64748b" }}>
-              No transactions to show.
-            </td>
-          </tr>
-        ) : (
-          rows.map((txn) => (
-            <tr key={txn.id} style={txn.isDuplicate ? { background: "#fffbeb" } : undefined}>
-              <td style={td}>{txn.date}</td>
-              <td style={td}>
-                {txn.description}
-                {txn.isDuplicate ? (
-                  <div style={{ fontSize: 11, color: "#b45309", fontWeight: 800 }}>Duplicate line</div>
-                ) : null}
-              </td>
-              <td style={td}>{txn.moneyIn > 0 ? formatMoney(txn.moneyIn) : "-"}</td>
-              <td style={td}>{txn.moneyOut > 0 ? formatMoney(txn.moneyOut) : "-"}</td>
-              <td style={td}>
-                <div style={{ fontWeight: 800 }}>{suggestedMatchLabel(txn)}</div>
-                {txn.matchReason ? (
-                  <div style={{ fontSize: 11, color: "#64748b", marginTop: 4 }}>{txn.matchReason}</div>
-                ) : null}
-              </td>
-              <td style={{ ...td, color: confidenceColor(txn.matchConfidence), fontWeight: 800 }}>
-                {formatConfidence(txn)}
-              </td>
-              <td style={td}>{typeLabel(txnType(txn))}</td>
-              <td style={td}>
-                <span style={statusPillStyle(matchStatusLabel(txn))}>{matchStatusLabel(txn)}</span>
-                {txn.reviewStatus === "posted" && txn.postedPaymentId ? (
-                  <span
-                    style={{ fontSize: 11, color: "#166534", fontWeight: 700, marginTop: 4, display: "block" }}
-                  >
-                    Billing payment {txn.postedPaymentId}
-                  </span>
-                ) : null}
-              </td>
-              <td style={td}>{renderActions(txn)}</td>
+    <>
+      <div className="recon-table-wrap recon-desktop-only">
+        <table className="recon-table" data-testid="recon-txn-table" aria-label="Bank reconciliation transactions">
+          <thead>
+            <tr>
+              {["Date", "Description", "In", "Out", "Match", "Confidence", "Status", "Action"].map((h) => (
+                <th key={h} scope="col">
+                  {h}
+                </th>
+              ))}
             </tr>
-          ))
+          </thead>
+          <tbody>
+            {rows.length === 0 ? (
+              <tr>
+                <td colSpan={8} className="recon-empty">
+                  No transactions to show.
+                </td>
+              </tr>
+            ) : (
+              rows.map((txn) => {
+                const { match, status, tone, cardSettlement } = renderTxnRowCells(txn);
+                const rowClass = [
+                  txn.isDuplicate ? "is-duplicate" : "",
+                  cardSettlement ? "is-card-settlement" : "",
+                ]
+                  .filter(Boolean)
+                  .join(" ");
+                return (
+                  <tr
+                    key={txn.id}
+                    className={rowClass}
+                    data-testid={`recon-row-${txn.id}`}
+                    data-match-status={txn.matchStatus || txn.reviewStatus}
+                    data-display-status={status.kind}
+                  >
+                    <td className="recon-col-date">{compactDate(txn.date)}</td>
+                    <td className="recon-col-desc">
+                      {txn.description}
+                      {txn.isDuplicate ? <span className="recon-desc-sub">Duplicate line</span> : null}
+                      {cardSettlement ? (
+                        <span className="recon-match-secondary">Speedpoint settlement — reconcile separately</span>
+                      ) : null}
+                    </td>
+                    <td className="recon-col-amt">{txn.moneyIn > 0 ? formatMoney(txn.moneyIn) : "—"}</td>
+                    <td className="recon-col-amt">{txn.moneyOut > 0 ? formatMoney(txn.moneyOut) : "—"}</td>
+                    <td>
+                      <span className="recon-match-primary">{match.primary}</span>
+                      {match.secondary ? <span className="recon-match-secondary">{match.secondary}</span> : null}
+                    </td>
+                    <td>
+                      <span className={`recon-conf recon-conf-${tone}`}>{formatCompactConfidence(txn)}</span>
+                    </td>
+                    <td>
+                      <span
+                        className={`recon-badge recon-badge-${status.kind}`}
+                        data-testid={`recon-status-${status.kind}`}
+                      >
+                        {status.label}
+                      </span>
+                      {txn.reviewStatus === "posted" && txn.postedPaymentId ? (
+                        <span className="recon-posted-id">Billing {txn.postedPaymentId}</span>
+                      ) : null}
+                    </td>
+                    <td>{renderActions(txn)}</td>
+                  </tr>
+                );
+              })
+            )}
+          </tbody>
+        </table>
+      </div>
+      <div className="recon-mobile-list" data-testid="recon-txn-mobile">
+        {rows.length === 0 ? (
+          <div className="recon-empty">No transactions to show.</div>
+        ) : (
+          rows.map((txn) => {
+            const { match, status, tone, cardSettlement } = renderTxnRowCells(txn);
+            return (
+              <div
+                key={txn.id}
+                className="recon-mobile-row"
+                data-testid={`recon-mobile-row-${txn.id}`}
+                data-display-status={status.kind}
+              >
+                <div className="recon-mobile-top">
+                  <span className="recon-col-date">{compactDate(txn.date)}</span>
+                  <span className="recon-col-amt">
+                    {txn.moneyIn > 0 ? formatMoney(txn.moneyIn) : txn.moneyOut > 0 ? formatMoney(txn.moneyOut) : "—"}
+                  </span>
+                </div>
+                <div className="recon-col-desc">
+                  {txn.description}
+                  {cardSettlement ? (
+                    <span className="recon-match-secondary">Speedpoint settlement — reconcile separately</span>
+                  ) : null}
+                </div>
+                <div className="recon-match-primary">{match.primary}</div>
+                {match.secondary ? <span className="recon-match-secondary">{match.secondary}</span> : null}
+                <div style={{ display: "flex", gap: 6, alignItems: "center", margin: "4px 0" }}>
+                  <span className={`recon-badge recon-badge-${status.kind}`}>{status.label}</span>
+                  <span className={`recon-conf recon-conf-${tone}`}>{formatCompactConfidence(txn)}</span>
+                </div>
+                {renderActions(txn)}
+              </div>
+            );
+          })
         )}
-      </tbody>
-    </table>
+      </div>
+    </>
   );
 
   return (
-    <div style={{ padding: "8px 32px 40px", maxWidth: 1400 }}>
+    <div className="recon-review" style={{ padding: "4px 32px 24px", maxWidth: 1400 }}>
       {error ? (
-        <div style={{ marginBottom: 14, padding: 12, borderRadius: 10, background: "#fef2f2", color: "#b91c1c", fontWeight: 700 }}>
+        <div style={{ marginBottom: 10, padding: "8px 12px", borderRadius: 8, background: "#fef2f2", color: "#b91c1c", fontWeight: 700, fontSize: 13 }}>
           {error}
         </div>
       ) : null}
       {message ? (
-        <div style={{ marginBottom: 14, padding: 12, borderRadius: 10, background: "#ecfdf5", color: "#166534", fontWeight: 700 }}>
+        <div style={{ marginBottom: 10, padding: "8px 12px", borderRadius: 8, background: "#ecfdf5", color: "#166534", fontWeight: 700, fontSize: 13 }}>
           {message}
         </div>
       ) : null}
 
       {activeImport ? (
-        <div
-          style={{
-            display: "grid",
-            gridTemplateColumns: "repeat(auto-fill, minmax(140px, 1fr))",
-            gap: 12,
-            marginBottom: 16,
-          }}
-        >
-          {[
-            { label: "Total rows", value: activeImport.totalRows ?? allTxns.length },
-            { label: "Matched", value: activeImport.matchedRows ?? stats.matchedPayments },
-            { label: "Unmatched", value: activeImport.unmatchedRows ?? stats.unmatched },
-            { label: "Duplicates", value: activeImport.duplicateRows ?? stats.duplicateLines },
-            {
-              label: "Amount imported",
-              value: formatMoney(activeImport.totalAmountImported ?? 0),
-            },
-            { label: "Ready to post", value: stats.readyToPost },
-          ].map((card) => (
-            <div key={card.label} style={accountingCard}>
-              <div style={accountingCardLabel}>{card.label}</div>
-              <div style={accountingCardValue}>{card.value}</div>
+        <div className="recon-kpi-strip" data-testid="recon-kpi-strip" role="group" aria-label="Reconciliation summary">
+          {kpiItems.map((item) => (
+            <div key={item.key} className="recon-kpi-item" data-testid={`recon-kpi-${item.key}`}>
+              <span className="recon-kpi-value">
+                {item.money ? formatMoney(item.value) : item.value}
+              </span>
+              <span className="recon-kpi-label">{item.label}</span>
             </div>
           ))}
         </div>
       ) : null}
 
-      <div
-        style={{
-          display: "grid",
-          gridTemplateColumns: "repeat(auto-fill, minmax(150px, 1fr))",
-          gap: 12,
-          marginBottom: 20,
-        }}
-      >
-        {[
-          { label: "Imports", value: stats.imports },
-          { label: "Matched Payments", value: stats.matchedPayments },
-          { label: "Suggested Matches", value: stats.suggestedPayments ?? 0 },
-          { label: "Expense Candidates", value: stats.expenseCandidates },
-          { label: "Unmatched Lines", value: stats.unmatched },
-          { label: "Duplicate Lines", value: stats.duplicateLines },
-          { label: "Ready to Post", value: stats.readyToPost },
-        ].map((card) => (
-          <div key={card.label} style={accountingCard}>
-            <div style={accountingCardLabel}>{card.label}</div>
-            <div style={accountingCardValue}>{card.value}</div>
-          </div>
-        ))}
-      </div>
-
-      <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginBottom: 18 }}>
+      <div className="recon-tabs" role="tablist" aria-label="Banking sections">
         {(
           [
             ["import", "Import Statement"],
@@ -802,7 +860,14 @@ export default function BankStatementImport({ schoolId, learners }: Props) {
             ["history", "Import History"],
           ] as [TabId, string][]
         ).map(([id, label]) => (
-          <button key={id} type="button" style={tabBtn(tab === id)} onClick={() => setTab(id)}>
+          <button
+            key={id}
+            type="button"
+            role="tab"
+            aria-selected={tab === id}
+            className={tab === id ? "recon-tab is-active" : "recon-tab"}
+            onClick={() => setTab(id)}
+          >
             {label}
           </button>
         ))}
@@ -859,12 +924,12 @@ export default function BankStatementImport({ schoolId, learners }: Props) {
                 type="button"
                 style={goldBtn}
                 onClick={() => void postAccepted()}
-                disabled={loading || stats.readyToPost === 0}
+                disabled={loading || !postingBar.canPost}
               >
                 Post accepted payments to Billing
               </button>
-              <span style={{ color: "#64748b", fontWeight: 700, alignSelf: "center" }}>
-                {stats.readyToPost} ready · uses same ledger as Payments
+              <span style={{ color: "#64748b", fontWeight: 700, alignSelf: "center", fontSize: 12 }}>
+                {postingBar.selectedCount} ready · uses same ledger as Payments
               </span>
             </div>
           ) : null}
@@ -874,48 +939,113 @@ export default function BankStatementImport({ schoolId, learners }: Props) {
       {tab === "review" && (
         <div>
           {!activeImport ? (
-            <p style={{ color: "#64748b", fontWeight: 700 }}>Upload or select an import to review transactions.</p>
+            <p className="recon-meta">Upload or select an import to review transactions.</p>
           ) : (
             <>
-              <p style={{ color: "#64748b", fontSize: 13, fontWeight: 600 }}>
+              <p className="recon-meta">
                 {activeImport.fileName}
                 {activeImport.bankName ? ` · ${activeImport.bankName}` : ""}
                 {activeImport.uploadedBy ? ` · uploaded by ${activeImport.uploadedBy}` : ""}
                 {" · "}
                 {allTxns.length} line(s)
               </p>
-              <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginBottom: 12 }}>
-                {(
-                  [
-                    ["all", "All"],
-                    ["matched", "Matched"],
-                    ["suggested", "Suggested"],
-                    ["unmatched", "Unmatched"],
-                    ["duplicate", "Duplicate"],
-                    ["accepted", "Accepted"],
-                    ["rejected", "Rejected"],
-                  ] as [QueueFilter, string][]
-                ).map(([id, label]) => (
-                  <button
-                    key={id}
-                    type="button"
-                    style={tabBtn(queueFilter === id)}
-                    onClick={() => {
-                      setQueueFilter(id);
+              <div className="recon-toolbar" data-testid="recon-filter-toolbar">
+                <div className="recon-chip-row" role="group" aria-label="Match status filters">
+                  {QUEUE_FILTER_CHIPS.map(({ id, label }) => (
+                    <button
+                      key={id}
+                      type="button"
+                      className={queueFilter === id ? "recon-chip is-active" : "recon-chip"}
+                      aria-pressed={queueFilter === id}
+                      data-testid={`recon-filter-${id}`}
+                      onClick={() => {
+                        setQueueFilter(id);
+                        setReviewPage(1);
+                      }}
+                    >
+                      {label} {queueCounts[id]}
+                    </button>
+                  ))}
+                </div>
+                <div className="recon-toolbar-extras">
+                  <input
+                    className="recon-search"
+                    type="search"
+                    placeholder="Search description, account, name…"
+                    aria-label="Search transactions"
+                    data-testid="recon-search"
+                    value={reviewSearch}
+                    onChange={(e) => {
+                      setReviewSearch(e.target.value);
+                      setReviewPage(1);
+                    }}
+                  />
+                  <select
+                    className="recon-select"
+                    aria-label="Filter by confidence"
+                    data-testid="recon-confidence-filter"
+                    value={confidenceFilter}
+                    onChange={(e) => {
+                      setConfidenceFilter(e.target.value as ConfidenceFilter);
                       setReviewPage(1);
                     }}
                   >
-                    {label}
-                  </button>
-                ))}
+                    <option value="all">All confidence</option>
+                    <option value="high">High</option>
+                    <option value="medium">Medium</option>
+                    <option value="low">Low</option>
+                    <option value="none">None</option>
+                  </select>
+                  <select
+                    className="recon-select"
+                    aria-label="Filter by transaction type"
+                    data-testid="recon-type-filter"
+                    value={typeFilter}
+                    onChange={(e) => {
+                      setTypeFilter(e.target.value as TypeFilter);
+                      setReviewPage(1);
+                    }}
+                  >
+                    <option value="all">All types</option>
+                    <option value="payment">Payment</option>
+                    <option value="expense">Expense</option>
+                    <option value="transfer">Transfer</option>
+                    <option value="ignore">Ignore</option>
+                  </select>
+                </div>
               </div>
-              <div style={{ overflowX: "auto" }}>{renderReconciliationTable(reviewPaged.rows)}</div>
+              {renderReconciliationTable(reviewPaged.rows)}
               <PaginationBar
                 page={reviewPaged.page}
                 totalPages={reviewPaged.totalPages}
                 total={reviewPaged.total}
                 onPage={setReviewPage}
+                pageSize={REVIEW_PAGE_SIZE}
               />
+              <div
+                className="recon-posting-bar"
+                data-testid="recon-posting-bar"
+                role="region"
+                aria-label="Post accepted payments"
+                aria-live="polite"
+              >
+                <span className="recon-posting-meta">
+                  <strong>{postingBar.selectedCount}</strong> selected
+                </span>
+                <span className="recon-posting-meta">
+                  <strong>{formatMoney(postingBar.readyAmount)}</strong> ready to post
+                </span>
+                <button
+                  type="button"
+                  className="recon-btn-primary"
+                  data-testid="recon-post-accepted"
+                  onClick={() => void postAccepted()}
+                  disabled={loading || !postingBar.canPost}
+                  title={postingBar.canPost ? "Post accepted payments to Billing" : "Nothing ready to post"}
+                >
+                  Post accepted to Billing
+                </button>
+              </div>
             </>
           )}
         </div>
@@ -932,7 +1062,7 @@ export default function BankStatementImport({ schoolId, learners }: Props) {
                   type="button"
                   style={goldBtn}
                   onClick={() => void postAccepted()}
-                  disabled={loading || stats.readyToPost === 0}
+                  disabled={loading || !postingBar.canPost}
                 >
                   Post accepted to Billing
                 </button>
