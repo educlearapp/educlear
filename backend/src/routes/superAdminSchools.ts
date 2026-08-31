@@ -7,6 +7,11 @@ import {
   SuperAdminSchoolPasswordResetError,
 } from "../services/superAdmin/resetSuperAdminSchoolPassword";
 import { updateSuperAdminSchool } from "../services/superAdmin/updateSuperAdminSchool";
+import { updateSchoolLifecycle } from "../services/superAdmin/updateSchoolLifecycle";
+import {
+  SchoolLifecycleError,
+  resolveLifecycleTargetSchoolId,
+} from "../services/superAdmin/schoolLifecycle";
 
 const router = Router();
 
@@ -22,10 +27,26 @@ router.get("/", async (_req: SuperAdminRequest, res) => {
   }
 });
 
-/** PATCH /api/super-admin/schools/:schoolId — update school status/package (super-admin JWT only). */
+/** PATCH /api/super-admin/schools/:schoolId — lifecycle and/or subscription package (super-admin JWT only). */
 router.patch("/:schoolId", async (req: SuperAdminRequest, res) => {
   try {
-    const schoolId = String(req.params.schoolId || "").trim();
+    const schoolId = resolveLifecycleTargetSchoolId(req.params.schoolId, req.body?.schoolId);
+    const hasLifecycle =
+      req.body != null && Object.prototype.hasOwnProperty.call(req.body, "lifecycleStatus");
+
+    if (hasLifecycle) {
+      const result = await updateSchoolLifecycle({
+        schoolId,
+        lifecycleStatus: req.body.lifecycleStatus,
+        actor: req.superAdmin,
+      });
+      const packageRaw = req.body?.package as "Starter" | "Unlimited" | undefined;
+      if (packageRaw) {
+        await updateSuperAdminSchool({ schoolId, package: packageRaw });
+      }
+      return res.json(result);
+    }
+
     const statusRaw = req.body?.status as "Active" | "Trial" | "Suspended" | undefined;
     const packageRaw = req.body?.package as "Starter" | "Unlimited" | undefined;
     await updateSuperAdminSchool({
@@ -36,6 +57,9 @@ router.patch("/:schoolId", async (req: SuperAdminRequest, res) => {
     return res.json({ success: true });
   } catch (error: unknown) {
     console.error("[super-admin/schools] PATCH", error);
+    if (error instanceof SchoolLifecycleError) {
+      return res.status(error.statusCode).json({ success: false, error: error.message });
+    }
     const message = error instanceof Error ? error.message : "Failed to update school";
     return res.status(400).json({ success: false, error: message });
   }

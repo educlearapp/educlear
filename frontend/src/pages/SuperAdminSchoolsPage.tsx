@@ -2,9 +2,16 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import SchoolsSummaryCards from "../superAdmin/components/SchoolsSummaryCards";
 import SchoolsTable from "../superAdmin/components/SchoolsTable";
 import SchoolsToolbar from "../superAdmin/components/SchoolsToolbar";
-import { updateSuperAdminSchool } from "../superAdmin/api/schoolsApi";
+import { updateSchoolLifecycleStatus, updateSuperAdminSchool } from "../superAdmin/api/schoolsApi";
 import { useSchoolsManagement } from "../superAdmin/hooks/useSchoolsManagement";
 import type { SchoolRecord } from "../superAdmin/types/schools";
+import { SCHOOL_STATUS_OPTIONS } from "../superAdmin/types/schools";
+import {
+  allowedLifecycleTargets,
+  buildLifecycleConfirmation,
+  needsLifecycleConfirmation,
+  type SchoolLifecycleStatus,
+} from "../superAdmin/schoolLifecycle";
 import { formatSchoolDate, formatSchoolDateTime } from "../superAdmin/utils/formatSchoolDates";
 import "./SuperAdminSchoolsPage.css";
 
@@ -92,7 +99,10 @@ type ManageModalProps = {
   school: SchoolRecord;
   saving?: boolean;
   onClose: () => void;
-  onRequestSave: (next: { status: SchoolRecord["status"]; package: SchoolRecord["package"] }) => void;
+  onRequestSave: (next: {
+    lifecycleStatus: SchoolLifecycleStatus;
+    package: SchoolRecord["package"];
+  }) => void;
 };
 
 function ManageSchoolModal({ school, saving = false, onClose, onRequestSave }: ManageModalProps) {
@@ -100,8 +110,9 @@ function ManageSchoolModal({ school, saving = false, onClose, onRequestSave }: M
     if (e.target === e.currentTarget) onClose();
   };
 
-  const [status, setStatus] = useState<SchoolRecord["status"]>(school.status);
+  const [lifecycleStatus, setLifecycleStatus] = useState<SchoolLifecycleStatus>(school.lifecycleStatus);
   const [pkg, setPkg] = useState<SchoolRecord["package"]>(school.package);
+  const allowed = allowedLifecycleTargets(school.id);
 
   return (
     <div className="sa-schools-modal-overlay" role="presentation" onClick={handleBackdropClick}>
@@ -136,18 +147,20 @@ function ManageSchoolModal({ school, saving = false, onClose, onRequestSave }: M
 
           <label style={{ display: "grid", gap: 6 }}>
             <span style={{ fontSize: "0.78rem", fontWeight: 800, letterSpacing: "0.04em", color: "#d4af37" }}>
-              Status
+              Lifecycle
             </span>
             <select
               className="sa-schools-select"
-              value={status}
-              onChange={(e) => setStatus(e.target.value as SchoolRecord["status"])}
+              value={lifecycleStatus}
+              onChange={(e) => setLifecycleStatus(e.target.value as SchoolLifecycleStatus)}
               disabled={saving}
               style={{ background: "#0a0a0a", color: "#ffffff", borderColor: "rgba(212,175,55,0.35)" }}
             >
-              <option value="Active">Active</option>
-              <option value="Trial">Trial</option>
-              <option value="Suspended">Suspended</option>
+              {SCHOOL_STATUS_OPTIONS.map((status) => (
+                <option key={status} value={status} disabled={!allowed.includes(status)}>
+                  {status}
+                </option>
+              ))}
             </select>
           </label>
 
@@ -175,10 +188,78 @@ function ManageSchoolModal({ school, saving = false, onClose, onRequestSave }: M
           <button
             type="button"
             className="sa-schools-btn sa-schools-btn--gold"
-            onClick={() => onRequestSave({ status, package: pkg })}
+            onClick={() => onRequestSave({ lifecycleStatus, package: pkg })}
             disabled={saving}
           >
             {saving ? "Saving…" : "Save changes"}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+type ChangeLifecycleModalProps = {
+  school: SchoolRecord;
+  saving?: boolean;
+  onClose: () => void;
+  onApply: (next: SchoolLifecycleStatus) => void;
+};
+
+function ChangeLifecycleModal({ school, saving = false, onClose, onApply }: ChangeLifecycleModalProps) {
+  const handleBackdropClick = (e: React.MouseEvent<HTMLDivElement>) => {
+    if (e.target === e.currentTarget) onClose();
+  };
+
+  const [next, setNext] = useState<SchoolLifecycleStatus>(school.lifecycleStatus);
+  const allowed = allowedLifecycleTargets(school.id);
+
+  return (
+    <div className="sa-schools-modal-overlay" role="presentation" onClick={handleBackdropClick}>
+      <div
+        className="sa-schools-modal"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="sa-schools-lifecycle-title"
+        onClick={(e) => e.stopPropagation()}
+        style={{ width: "min(520px, 100%)" }}
+      >
+        <div className="sa-schools-modal-accent" aria-hidden="true" />
+        <h2 id="sa-schools-lifecycle-title" className="sa-schools-modal-title">
+          Change Status
+        </h2>
+        <p className="sa-schools-modal-message">
+          {`School: ${school.schoolName}\nCurrent status: ${school.lifecycleStatus}`}
+        </p>
+        <label style={{ display: "grid", gap: 6, marginBottom: 18 }}>
+          <span style={{ fontSize: "0.78rem", fontWeight: 800, letterSpacing: "0.04em", color: "#d4af37" }}>
+            New status
+          </span>
+          <select
+            className="sa-schools-select"
+            value={next}
+            onChange={(e) => setNext(e.target.value as SchoolLifecycleStatus)}
+            disabled={saving}
+            style={{ background: "#0a0a0a", color: "#ffffff", borderColor: "rgba(212,175,55,0.35)" }}
+          >
+            {SCHOOL_STATUS_OPTIONS.map((status) => (
+              <option key={status} value={status} disabled={!allowed.includes(status)}>
+                {status}
+              </option>
+            ))}
+          </select>
+        </label>
+        <div className="sa-schools-modal-actions" style={{ gap: 12 }}>
+          <button type="button" className="sa-schools-btn" onClick={onClose} disabled={saving}>
+            Cancel
+          </button>
+          <button
+            type="button"
+            className="sa-schools-btn sa-schools-btn--gold"
+            onClick={() => onApply(next)}
+            disabled={saving || next === school.lifecycleStatus}
+          >
+            {saving ? "Saving…" : "Change Status"}
           </button>
         </div>
       </div>
@@ -306,7 +387,7 @@ function schoolDetailMessage(school: SchoolRecord): string {
     `Email: ${school.email}`,
     `Contact: ${school.contactPhone || "—"}`,
     `Package: ${school.package}`,
-    `Status: ${school.status}${school.isActive ? "" : " (inactive)"}`,
+    `Lifecycle: ${school.lifecycleStatus}${school.isActive ? "" : " (inactive)"}`,
     `Learners: ${school.learnerCount}`,
     `Parents: ${school.parentCount}`,
     `Registered: ${formatSchoolDate(school.registeredAt)}`,
@@ -329,8 +410,7 @@ export default function SuperAdminSchoolsPage() {
     packageFilter,
     setPackageFilter,
     hasRegisteredSchools,
-    onActivateSchool,
-    onSuspendSchool,
+    onChangeLifecycle,
     onChangePackage,
     onResetPassword,
     onAddSchool,
@@ -342,6 +422,7 @@ export default function SuperAdminSchoolsPage() {
 
   const [notice, setNotice] = useState<Notice | null>(null);
   const [manageSchool, setManageSchool] = useState<SchoolRecord | null>(null);
+  const [lifecycleSchool, setLifecycleSchool] = useState<SchoolRecord | null>(null);
   const [savingManage, setSavingManage] = useState(false);
   const [resetSchool, setResetSchool] = useState<SchoolRecord | null>(null);
   const [savingReset, setSavingReset] = useState(false);
@@ -387,49 +468,46 @@ export default function SuperAdminSchoolsPage() {
     [showNotice]
   );
 
-  const handleActivate = useCallback(
-    (school: SchoolRecord) => {
+  const applyLifecycle = useCallback(
+    (school: SchoolRecord, next: SchoolLifecycleStatus) => {
+      const run = () => {
+        void onChangeLifecycle(school, next)
+          .then(() => {
+            setLifecycleSchool(null);
+            setManageSchool(null);
+            showNotice("Lifecycle updated", `“${school.schoolName}” is now ${next}.`);
+          })
+          .catch((err: unknown) =>
+            showNotice(
+              "Could not change status",
+              err instanceof Error ? err.message : "Could not update this school's lifecycle."
+            )
+          );
+      };
+
+      if (!needsLifecycleConfirmation(school.lifecycleStatus, next)) {
+        run();
+        return;
+      }
+
+      const copy = buildLifecycleConfirmation({
+        schoolName: school.schoolName,
+        from: school.lifecycleStatus,
+        to: next,
+      });
       setConfirm({
-        title: "Reactivate school?",
-        message: `This will restore access for “${school.schoolName}”.`,
-        confirmLabel: "Reactivate",
-        run: () => {
-          void onActivateSchool(school)
-            .then(() => showNotice("School reactivated", `“${school.schoolName}” is active again.`))
-            .catch((err: unknown) =>
-              showNotice(
-                "Could not reactivate",
-                err instanceof Error ? err.message : "Could not reactivate this school."
-              )
-            );
-        },
+        title: copy.title,
+        message: copy.message,
+        confirmLabel: copy.confirmLabel,
+        run,
       });
     },
-    [onActivateSchool, showNotice]
+    [onChangeLifecycle, showNotice]
   );
 
-  const handleSuspend = useCallback(
-    (school: SchoolRecord) => {
-      setConfirm({
-        title: "Suspend school?",
-        message:
-          `This will block school users from normal dashboard access.\n\n` +
-          `School data will not be deleted.`,
-        confirmLabel: "Suspend",
-        run: () => {
-          void onSuspendSchool(school)
-            .then(() => showNotice("School suspended", `“${school.schoolName}” has been suspended.`))
-            .catch((err: unknown) =>
-              showNotice(
-                "Could not suspend",
-                err instanceof Error ? err.message : "Could not suspend this school."
-              )
-            );
-        },
-      });
-    },
-    [onSuspendSchool, showNotice]
-  );
+  const handleChangeStatus = useCallback((school: SchoolRecord) => {
+    setLifecycleSchool(school);
+  }, []);
 
   const handleChangePackage = useCallback(
     (school: SchoolRecord) => {
@@ -504,15 +582,22 @@ export default function SuperAdminSchoolsPage() {
   }, []);
 
   const requestSaveManage = useCallback(
-    (school: SchoolRecord, next: { status: SchoolRecord["status"]; package: SchoolRecord["package"] }) => {
-      const statusChanged = next.status !== school.status;
-      const isSuspending = statusChanged && next.status === "Suspended";
-      const isReactivating = statusChanged && school.status === "Suspended" && next.status !== "Suspended";
+    (
+      school: SchoolRecord,
+      next: { lifecycleStatus: SchoolLifecycleStatus; package: SchoolRecord["package"] }
+    ) => {
+      const lifecycleChanged = next.lifecycleStatus !== school.lifecycleStatus;
+      const packageChanged = next.package !== school.package;
 
       const run = async () => {
         setSavingManage(true);
         try {
-          await updateSuperAdminSchool(school.id, { status: next.status, package: next.package });
+          if (lifecycleChanged) {
+            await updateSchoolLifecycleStatus(school.id, next.lifecycleStatus);
+          }
+          if (packageChanged) {
+            await updateSuperAdminSchool(school.id, { package: next.package });
+          }
           await reload();
           setManageSchool(null);
           showNotice("School updated", `Changes saved for “${school.schoolName}”.`);
@@ -526,23 +611,16 @@ export default function SuperAdminSchoolsPage() {
         }
       };
 
-      if (isSuspending) {
-        setConfirm({
-          title: "Suspend school?",
-          message:
-            `This will block school users from normal dashboard access.\n\n` +
-            `School data will not be deleted.`,
-          confirmLabel: "Suspend",
-          run: () => void run(),
+      if (lifecycleChanged && needsLifecycleConfirmation(school.lifecycleStatus, next.lifecycleStatus)) {
+        const copy = buildLifecycleConfirmation({
+          schoolName: school.schoolName,
+          from: school.lifecycleStatus,
+          to: next.lifecycleStatus,
         });
-        return;
-      }
-
-      if (isReactivating) {
         setConfirm({
-          title: "Reactivate school?",
-          message: `This will restore access for “${school.schoolName}”.`,
-          confirmLabel: "Reactivate",
+          title: copy.title,
+          message: copy.message,
+          confirmLabel: copy.confirmLabel,
           run: () => void run(),
         });
         return;
@@ -582,6 +660,7 @@ export default function SuperAdminSchoolsPage() {
         search={search}
         statusFilter={statusFilter}
         packageFilter={packageFilter}
+        summary={summary}
         onSearchChange={setSearch}
         onStatusFilterChange={setStatusFilter}
         onPackageFilterChange={setPackageFilter}
@@ -622,8 +701,7 @@ export default function SuperAdminSchoolsPage() {
         loading={loading}
         onManage={handleManage}
         onView={handleView}
-        onActivate={handleActivate}
-        onSuspend={handleSuspend}
+        onChangeStatus={handleChangeStatus}
         onChangePackage={handleChangePackage}
         onResetPassword={handleResetPassword}
         onOpenDashboard={handleOpenDashboard}
@@ -638,6 +716,16 @@ export default function SuperAdminSchoolsPage() {
             if (!savingManage) setManageSchool(null);
           }}
           onRequestSave={(next) => requestSaveManage(manageSchool, next)}
+        />
+      ) : null}
+      {lifecycleSchool ? (
+        <ChangeLifecycleModal
+          school={lifecycleSchool}
+          saving={savingManage}
+          onClose={() => {
+            if (!savingManage) setLifecycleSchool(null);
+          }}
+          onApply={(next) => applyLifecycle(lifecycleSchool, next)}
         />
       ) : null}
       {resetSchool ? (

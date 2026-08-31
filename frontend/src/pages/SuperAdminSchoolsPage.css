@@ -55,8 +55,8 @@
 /* Summary cards */
 .sa-schools-summary-grid {
   display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
-  gap: 24px;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: 16px;
   margin-bottom: 28px;
 }
 
@@ -122,6 +122,47 @@
   gap: 12px;
   flex: 1;
   min-width: 0;
+}
+
+.sa-schools-field--lifecycle {
+  flex: 1 1 420px;
+  min-width: 280px;
+}
+
+.sa-schools-lifecycle-tabs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.sa-schools-lifecycle-tab {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 36px;
+  padding: 6px 10px;
+  border-radius: 999px;
+  border: 1px solid rgba(212, 175, 55, 0.28);
+  background: #ffffff;
+  color: #3a3a3a;
+  font-size: 0.8rem;
+  font-weight: 700;
+  letter-spacing: 0.01em;
+  cursor: pointer;
+}
+
+.sa-schools-lifecycle-tab--on {
+  background: #0a0a0a;
+  color: #d4af37;
+  border-color: rgba(212, 175, 55, 0.55);
+}
+
+.sa-schools-lifecycle-tab-count {
+  display: inline-flex;
+  min-width: 18px;
+  justify-content: center;
+  font-variant-numeric: tabular-nums;
+  opacity: 0.85;
 }
 
 .sa-schools-field {
@@ -377,6 +418,16 @@
 .sa-schools-badge--trial {
   background: #fff3d6;
   color: #a66a00;
+}
+
+.sa-schools-badge--inactive {
+  background: #e8e8e8;
+  color: #5b6575;
+}
+
+.sa-schools-badge--archived {
+  background: #f4efe4;
+  color: #6b5420;
 }
 
 .sa-schools-badge--suspended {

@@ -1,5 +1,6 @@
 import { superAdminApiFetch } from "../superAdminApi";
 import type { SchoolPackage, SchoolRecord, SchoolsSummary } from "../types/schools";
+import { parseSchoolLifecycleStatus, type SchoolLifecycleStatus } from "../schoolLifecycle";
 
 type ApiSchoolRow = {
   id?: string;
@@ -9,6 +10,7 @@ type ApiSchoolRow = {
   email?: string;
   contactPhone?: string | null;
   package?: string;
+  lifecycleStatus?: string;
   status?: string;
   learnerCount?: number;
   parentCount?: number;
@@ -23,7 +25,6 @@ type ApiSchoolsResponse = {
 };
 
 const KNOWN_PACKAGES = new Set<string>(["Starter", "Unlimited"]);
-const STATUS_VALUES = new Set<string>(["Active", "Trial", "Suspended"]);
 
 function asPackage(value: unknown): SchoolPackage {
   const label = String(value || "").trim();
@@ -34,16 +35,11 @@ function asPackage(value: unknown): SchoolPackage {
   return label;
 }
 
-function asStatus(value: unknown): SchoolRecord["status"] {
-  const label = String(value || "").trim();
-  if (STATUS_VALUES.has(label)) return label as SchoolRecord["status"];
-  return "Trial";
-}
-
 function mapSchoolRow(row: ApiSchoolRow, sessionSchoolId: string | null): SchoolRecord {
   const id = String(row.id || "").trim();
   const ownerEmail = String(row.ownerEmail || row.email || "").trim();
   const contactRaw = row.contactPhone != null ? String(row.contactPhone).trim() : "";
+  const lifecycleStatus = parseSchoolLifecycleStatus(row.lifecycleStatus ?? row.status);
   return {
     id,
     schoolName: String(row.schoolName || "—").trim() || "—",
@@ -51,7 +47,8 @@ function mapSchoolRow(row: ApiSchoolRow, sessionSchoolId: string | null): School
     email: ownerEmail || "—",
     contactPhone: contactRaw || null,
     package: asPackage(row.package),
-    status: asStatus(row.status),
+    lifecycleStatus,
+    status: lifecycleStatus,
     learnerCount: Number.isFinite(row.learnerCount) ? Number(row.learnerCount) : 0,
     parentCount: Number.isFinite(row.parentCount) ? Number(row.parentCount) : 0,
     registeredAt: row.registeredAt ? String(row.registeredAt) : null,
@@ -62,7 +59,7 @@ function mapSchoolRow(row: ApiSchoolRow, sessionSchoolId: string | null): School
 }
 
 function emptySummary(): SchoolsSummary {
-  return { total: 0, active: 0, suspended: 0, trial: 0 };
+  return { total: 0, active: 0, trial: 0, inactive: 0, archived: 0 };
 }
 
 export async function fetchSuperAdminSchools(): Promise<{
@@ -92,11 +89,14 @@ export async function fetchSuperAdminSchools(): Promise<{
   const summaryRaw = data?.summary;
   const summary: SchoolsSummary = {
     total: Number(summaryRaw?.total ?? schools.length),
-    active: Number(summaryRaw?.active ?? schools.filter((s) => s.status === "Active").length),
-    suspended: Number(
-      summaryRaw?.suspended ?? schools.filter((s) => s.status === "Suspended").length
+    active: Number(summaryRaw?.active ?? schools.filter((s) => s.lifecycleStatus === "ACTIVE").length),
+    trial: Number(summaryRaw?.trial ?? schools.filter((s) => s.lifecycleStatus === "TRIAL").length),
+    inactive: Number(
+      summaryRaw?.inactive ?? schools.filter((s) => s.lifecycleStatus === "INACTIVE").length
     ),
-    trial: Number(summaryRaw?.trial ?? schools.filter((s) => s.status === "Trial").length),
+    archived: Number(
+      summaryRaw?.archived ?? schools.filter((s) => s.lifecycleStatus === "ARCHIVED").length
+    ),
   };
 
   if (!summaryRaw) {
@@ -126,6 +126,23 @@ export async function updateSuperAdminSchool(
 
   if (res && res.success === false) {
     throw new Error(String(res.error || "Failed to update school"));
+  }
+}
+
+export async function updateSchoolLifecycleStatus(
+  schoolId: string,
+  lifecycleStatus: SchoolLifecycleStatus
+): Promise<void> {
+  const id = String(schoolId || "").trim();
+  if (!id) throw new Error("Missing schoolId");
+
+  const res = (await superAdminApiFetch(`/api/super-admin/schools/${encodeURIComponent(id)}`, {
+    method: "PATCH",
+    body: JSON.stringify({ lifecycleStatus }),
+  })) as { success?: boolean; error?: string };
+
+  if (res && res.success === false) {
+    throw new Error(String(res.error || "Failed to update school lifecycle"));
   }
 }
 
@@ -180,8 +197,9 @@ function computeSummaryFromSchools(schools: SchoolRecord[]): SchoolsSummary {
   if (!schools.length) return emptySummary();
   return {
     total: schools.length,
-    active: schools.filter((s) => s.status === "Active").length,
-    suspended: schools.filter((s) => s.status === "Suspended").length,
-    trial: schools.filter((s) => s.status === "Trial").length,
+    active: schools.filter((s) => s.lifecycleStatus === "ACTIVE").length,
+    trial: schools.filter((s) => s.lifecycleStatus === "TRIAL").length,
+    inactive: schools.filter((s) => s.lifecycleStatus === "INACTIVE").length,
+    archived: schools.filter((s) => s.lifecycleStatus === "ARCHIVED").length,
   };
 }

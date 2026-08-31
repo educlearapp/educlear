@@ -5,8 +5,7 @@ import type { SchoolRecord } from "../types/schools";
 type Props = {
   school: SchoolRecord;
   onView: (school: SchoolRecord) => void;
-  onActivate: (school: SchoolRecord) => void;
-  onSuspend: (school: SchoolRecord) => void;
+  onChangeStatus: (school: SchoolRecord) => void;
   onChangePackage: (school: SchoolRecord) => void;
   onResetPassword: (school: SchoolRecord) => void;
   onOpenDashboard?: (school: SchoolRecord) => void;
@@ -15,8 +14,7 @@ type Props = {
 export default function SchoolActionsMenu({
   school,
   onView,
-  onActivate,
-  onSuspend,
+  onChangeStatus,
   onChangePackage,
   onResetPassword,
   onOpenDashboard,
@@ -155,16 +153,9 @@ export default function SchoolActionsMenu({
                   Open school dashboard
                 </button>
               ) : null}
-              {school.status !== "Active" ? (
-                <button type="button" role="menuitem" onClick={() => run(onActivate)}>
-                  Activate
-                </button>
-              ) : null}
-              {school.status !== "Suspended" ? (
-                <button type="button" role="menuitem" onClick={() => run(onSuspend)}>
-                  Suspend
-                </button>
-              ) : null}
+              <button type="button" role="menuitem" onClick={() => run(onChangeStatus)}>
+                Change Status
+              </button>
               <button type="button" role="menuitem" onClick={() => run(onChangePackage)}>
                 Change Package
               </button>

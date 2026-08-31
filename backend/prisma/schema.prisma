@@ -8,6 +8,13 @@ datasource db {
   url = env("DATABASE_URL")
 }
 
+enum SchoolLifecycleStatus {
+  ACTIVE
+  TRIAL
+  INACTIVE
+  ARCHIVED
+}
+
 enum FeeFrequency {
   MONTHLY
 
@@ -89,6 +96,12 @@ model School {
   primaryColor String?
 
   createdAt DateTime @default(now())
+
+  /// Super Admin organisation lifecycle. Separate from SchoolSubscription.status.
+  lifecycleStatus          SchoolLifecycleStatus @default(ACTIVE)
+  lifecycleChangedAt       DateTime?
+  lifecycleChangedByUserId String?
+  lifecycleChangedByEmail String?
 
   users User[]
   roles SchoolRole[]
@@ -175,6 +188,8 @@ model School {
   eduClockStaffAbsences            EduClockStaffAbsence[]
   geofenceZones                    GeofenceZone[]
   geofenceVertices                 GeofenceVertex[]
+
+  @@index([lifecycleStatus])
 }
 
 enum EduClearPackageCode {

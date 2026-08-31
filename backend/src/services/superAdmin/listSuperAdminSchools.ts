@@ -6,12 +6,18 @@ import {
 } from "@prisma/client";
 
 import { prisma } from "../../prisma";
+import {
+  countSchoolsByLifecycle,
+  parseSchoolLifecycleStatus,
+  type SchoolLifecycleStatus,
+} from "./schoolLifecycle";
 
 export type SuperAdminSchoolSummary = {
   total: number;
   active: number;
-  suspended: number;
   trial: number;
+  inactive: number;
+  archived: number;
 };
 
 export type SuperAdminSchoolListItem = {
@@ -23,7 +29,9 @@ export type SuperAdminSchoolListItem = {
   package: string;
   packageCode: EduClearPackageCode | null;
   subscriptionStatus: SchoolSubscriptionStatus | null;
-  status: "Active" | "Trial" | "Suspended";
+  /** Organisation lifecycle. Separate from SchoolSubscription.status. */
+  lifecycleStatus: SchoolLifecycleStatus;
+  status: SchoolLifecycleStatus;
   isActive: boolean;
   learnerCount: number;
   parentCount: number;
@@ -121,12 +129,7 @@ function maxLastLogin(users: SchoolAdminUser[]): string | null {
 }
 
 function computeSummary(schools: SuperAdminSchoolListItem[]): SuperAdminSchoolSummary {
-  return {
-    total: schools.length,
-    active: schools.filter((s) => s.status === "Active").length,
-    suspended: schools.filter((s) => s.status === "Suspended").length,
-    trial: schools.filter((s) => s.status === "Trial").length,
-  };
+  return countSchoolsByLifecycle(schools);
 }
 
 function schoolContactPhone(phone: string | null | undefined, cellNo: string | null | undefined): string | null {
@@ -143,6 +146,7 @@ const schoolListSelect = {
   phone: true,
   cellNo: true,
   createdAt: true,
+  lifecycleStatus: true,
   schoolSubscription: {
     select: {
       status: true,
@@ -189,7 +193,7 @@ function mapSchoolRow(row: SchoolListRow): SuperAdminSchoolListItem {
   const adminUsers = row.users as SchoolAdminUser[];
   const owner = pickOwnerUser(adminUsers);
   const subscription = row.schoolSubscription;
-  const uiStatus = mapSubscriptionToUiStatus(subscription?.status);
+  const lifecycleStatus = parseSchoolLifecycleStatus(row.lifecycleStatus);
   const ownerEmail = owner?.email || row.email || "";
   const ownerName = ownerDisplayName(owner, ownerEmail);
 
@@ -202,8 +206,9 @@ function mapSchoolRow(row: SchoolListRow): SuperAdminSchoolListItem {
     package: packageLabel(subscription?.packageCode, subscription?.package?.name),
     packageCode: subscription?.packageCode ?? null,
     subscriptionStatus: subscription?.status ?? null,
-    status: uiStatus,
-    isActive: uiStatus === "Active" && (owner?.isActive ?? true),
+    lifecycleStatus,
+    status: lifecycleStatus,
+    isActive: lifecycleStatus === "ACTIVE" && (owner?.isActive ?? true),
     learnerCount: row._count.learners,
     parentCount: row._count.parents,
     registeredAt: row.createdAt.toISOString(),

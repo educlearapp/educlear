@@ -6,10 +6,11 @@ type Card = {
 };
 
 const CARDS: Card[] = [
-  { key: "total", label: "Total Schools" },
-  { key: "active", label: "Active Schools" },
-  { key: "suspended", label: "Suspended Schools" },
-  { key: "trial", label: "Trial Schools" },
+  { key: "total", label: "Total" },
+  { key: "active", label: "Active" },
+  { key: "trial", label: "Trial" },
+  { key: "inactive", label: "Inactive" },
+  { key: "archived", label: "Archived" },
 ];
 
 type Props = {
@@ -18,7 +19,7 @@ type Props = {
 
 export default function SchoolsSummaryCards({ summary }: Props) {
   return (
-    <div className="sa-schools-summary-grid" role="group" aria-label="School statistics">
+    <div className="sa-schools-summary-grid" role="group" aria-label="School lifecycle statistics">
       {CARDS.map((card) => (
         <article key={card.key} className="sa-schools-summary-card">
           <div className="sa-schools-summary-accent" aria-hidden="true" />

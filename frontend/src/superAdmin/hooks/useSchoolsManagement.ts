@@ -1,15 +1,27 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { fetchSuperAdminSchools, resetSuperAdminSchoolPassword, updateSuperAdminSchool } from "../api/schoolsApi";
-import type { SchoolPackage, SchoolRecord, SchoolStatus, SchoolsSummary } from "../types/schools";
+import {
+  fetchSuperAdminSchools,
+  resetSuperAdminSchoolPassword,
+  updateSchoolLifecycleStatus,
+  updateSuperAdminSchool,
+} from "../api/schoolsApi";
+import {
+  filterSchoolsByLifecycle,
+  DEFAULT_SCHOOL_LIFECYCLE_FILTER,
+  type SchoolLifecycleFilter,
+  type SchoolLifecycleStatus,
+} from "../schoolLifecycle";
+import type { SchoolPackage, SchoolRecord, SchoolsSummary } from "../types/schools";
 
-export type SchoolsStatusFilter = "all" | SchoolStatus;
+export type SchoolsStatusFilter = SchoolLifecycleFilter;
 export type SchoolsPackageFilter = "all" | SchoolPackage;
 
 const EMPTY_SUMMARY: SchoolsSummary = {
   total: 0,
   active: 0,
-  suspended: 0,
   trial: 0,
+  inactive: 0,
+  archived: 0,
 };
 
 function matchesSearch(school: SchoolRecord, query: string) {
@@ -29,7 +41,7 @@ export function useSchoolsManagement() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [search, setSearch] = useState("");
-  const [statusFilter, setStatusFilter] = useState<SchoolsStatusFilter>("all");
+  const [statusFilter, setStatusFilter] = useState<SchoolsStatusFilter>(DEFAULT_SCHOOL_LIFECYCLE_FILTER);
   const [packageFilter, setPackageFilter] = useState<SchoolsPackageFilter>("all");
 
   const loadSchools = useCallback(async () => {
@@ -55,8 +67,7 @@ export function useSchoolsManagement() {
   }, [loadSchools]);
 
   const filteredSchools = useMemo(() => {
-    return schools.filter((school) => {
-      if (statusFilter !== "all" && school.status !== statusFilter) return false;
+    return filterSchoolsByLifecycle(schools, statusFilter).filter((school) => {
       if (packageFilter !== "all" && school.package !== packageFilter) return false;
       return matchesSearch(school, search);
     });
@@ -69,14 +80,22 @@ export function useSchoolsManagement() {
   }, []);
 
   const onActivateSchool = useCallback(async (school: SchoolRecord) => {
-    await updateSuperAdminSchool(school.id, { status: "Active" });
+    await updateSchoolLifecycleStatus(school.id, "ACTIVE");
     await loadSchools();
   }, [loadSchools]);
 
   const onSuspendSchool = useCallback(async (school: SchoolRecord) => {
-    await updateSuperAdminSchool(school.id, { status: "Suspended" });
+    await updateSchoolLifecycleStatus(school.id, "INACTIVE");
     await loadSchools();
   }, [loadSchools]);
+
+  const onChangeLifecycle = useCallback(
+    async (school: SchoolRecord, next: SchoolLifecycleStatus) => {
+      await updateSchoolLifecycleStatus(school.id, next);
+      await loadSchools();
+    },
+    [loadSchools]
+  );
 
   const onChangePackage = useCallback(async (school: SchoolRecord) => {
     const current = String(school.package || "").trim();
@@ -122,6 +141,7 @@ export function useSchoolsManagement() {
     onViewSchool,
     onActivateSchool,
     onSuspendSchool,
+    onChangeLifecycle,
     onChangePackage,
     onResetPassword,
     onAddSchool,

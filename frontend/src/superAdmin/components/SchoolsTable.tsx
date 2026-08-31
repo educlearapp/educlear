@@ -24,8 +24,7 @@ type Props = {
   loading?: boolean;
   onManage: (school: SchoolRecord) => void;
   onView: (school: SchoolRecord) => void;
-  onActivate: (school: SchoolRecord) => void;
-  onSuspend: (school: SchoolRecord) => void;
+  onChangeStatus: (school: SchoolRecord) => void;
   onChangePackage: (school: SchoolRecord) => void;
   onResetPassword: (school: SchoolRecord) => void;
   onOpenDashboard?: (school: SchoolRecord) => void;
@@ -38,8 +37,7 @@ export default function SchoolsTable({
   loading = false,
   onManage,
   onView,
-  onActivate,
-  onSuspend,
+  onChangeStatus,
   onChangePackage,
   onResetPassword,
   onOpenDashboard,
@@ -110,7 +108,7 @@ export default function SchoolsTable({
                     <span className="sa-schools-package-pill">{school.package}</span>
                   </td>
                   <td>
-                    <SchoolStatusBadge status={school.status} />
+                    <SchoolStatusBadge status={school.lifecycleStatus} />
                   </td>
                   <td className="sa-schools-cell sa-schools-cell--numeric">{school.learnerCount}</td>
                   <td className="sa-schools-cell sa-schools-cell--numeric">{school.parentCount}</td>
@@ -127,8 +125,7 @@ export default function SchoolsTable({
                     <SchoolActionsMenu
                       school={school}
                       onView={onView}
-                      onActivate={onActivate}
-                      onSuspend={onSuspend}
+                      onChangeStatus={onChangeStatus}
                       onChangePackage={onChangePackage}
                       onResetPassword={onResetPassword}
                       onOpenDashboard={onOpenDashboard}
