@@ -35,6 +35,7 @@ import {
   resolveMemberNames,
   splitAccountHolderNames,
 } from "./familyAccountMembers";
+import { isFamilyAccountRetired } from "./familyAccountLifecycle";
 
 export function roundStatementMoney(value: unknown): number {
   const n = Number(value);
@@ -145,6 +146,10 @@ export type BillingStatementAccountRow = {
   eduClearAccountNo: string | null;
   /** FamilyAccount.accountRef — Express name or Kid-e-Sys join key. */
   sourceAccountRef: string | null;
+  lifecycleStatus?: "active" | "retired";
+  retiredAt?: string | null;
+  mergedIntoFamilyAccountId?: string | null;
+  mergedIntoAccountRef?: string | null;
   ageAnalysis?: {
     accountHolder: string;
     buckets: FamilyAccountAgeAnalysisSnapshot["buckets"];
@@ -307,6 +312,8 @@ export async function buildAccountsFromAgeAnalysisSnapshots(
     history?: KidesysHistoryEntry[];
     /** When set, only rebuild this account (fast path for invoice/payment saves). */
     accountRef?: string;
+    /** Audit/history only. Default active billing lists omit retired predecessors. */
+    includeRetired?: boolean;
   } = {}
 ): Promise<BillingStatementAccountRow[]> {
   const sid = String(schoolId || "").trim();
@@ -330,11 +337,35 @@ export async function buildAccountsFromAgeAnalysisSnapshots(
 
   const familyAccounts = await prisma.familyAccount.findMany({
     where: { schoolId: sid, accountRef: { in: accountRefs } },
-    select: { id: true, accountRef: true, accountNo: true, familyName: true },
+    select: {
+      id: true,
+      accountRef: true,
+      accountNo: true,
+      familyName: true,
+      retiredAt: true,
+      mergedIntoFamilyAccountId: true,
+      mergedInto: { select: { accountRef: true, schoolId: true } },
+    },
   });
   const familyByRef = new Map(
     familyAccounts.map((fa) => [String(fa.accountRef).trim().toUpperCase(), fa])
   );
+
+  if (!opts.includeRetired) {
+    snapshots = snapshots.filter((snap) => {
+      const ref = String(snap.accountRef || "").trim().toUpperCase();
+      const family = familyByRef.get(ref);
+      return !family || !isFamilyAccountRetired(family);
+    });
+    accountRefs.splice(
+      0,
+      accountRefs.length,
+      ...snapshots
+        .map((s) => String(s.accountRef || "").trim().toUpperCase())
+        .filter(Boolean)
+    );
+    if (!accountRefs.length) return [];
+  }
 
   const schoolLearners = await prisma.learner.findMany({
     where: accountRefFilter
@@ -380,7 +411,9 @@ export async function buildAccountsFromAgeAnalysisSnapshots(
     const family = familyByRef.get(accountRef);
     const accountHolder = String(snap.accountHolder || family?.familyName || "").trim();
     const linkedLearners = learnersByRef.get(accountRef) || [];
-    const matchedByHolder = matchLearnersToAccountHolder(schoolLearners, accountHolder);
+    const matchedByHolder = matchLearnersToAccountHolder(schoolLearners, accountHolder, {
+      familyAccountId: family?.id || null,
+    });
     const memberLearnerMap = new Map<string, { id: string; firstName: string; lastName: string; fullName: string }>();
     for (const row of [...linkedLearners, ...matchedByHolder.map((l) => ({
       id: l.id,
@@ -449,6 +482,13 @@ export async function buildAccountsFromAgeAnalysisSnapshots(
       accountHolder,
       eduClearAccountNo,
       sourceAccountRef,
+      lifecycleStatus: family && isFamilyAccountRetired(family) ? "retired" : "active",
+      retiredAt: family?.retiredAt ? new Date(family.retiredAt).toISOString() : null,
+      mergedIntoFamilyAccountId: family?.mergedIntoFamilyAccountId || null,
+      mergedIntoAccountRef:
+        family?.mergedInto && family.mergedInto.schoolId === sid
+          ? String(family.mergedInto.accountRef || "").trim().toUpperCase() || null
+          : null,
       ageAnalysis: {
         accountHolder: snap.accountHolder,
         buckets: snap.buckets,

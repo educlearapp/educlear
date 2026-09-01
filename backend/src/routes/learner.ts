@@ -13,6 +13,10 @@ import {
   FinanceAccountBaselineError,
   registerFinanceAccountForLearner,
 } from "../services/financeAccountBaseline";
+import {
+  FamilyAccountMergedError,
+  assertFamilyAccountAcceptsNewBillingWrites,
+} from "../services/familyAccountLifecycle";
 import { normalizeLearnerEnrollmentStatusUpdate } from "../utils/learnerEnrollment";
 import { normalizeLearnerGender } from "../utils/learnerGender";
 import {
@@ -1284,11 +1288,33 @@ router.patch("/:id/billing-plan", async (req, res) => {
 
     const learner = await prisma.learner.findUnique({
       where: { id },
-      select: { id: true, schoolId: true },
+      select: {
+        id: true,
+        schoolId: true,
+        familyAccountId: true,
+        familyAccount: { select: { accountRef: true } },
+      },
     });
 
     if (!learner) {
       return res.status(404).json({ success: false, error: "Learner not found" });
+    }
+
+    try {
+      await assertFamilyAccountAcceptsNewBillingWrites({
+        schoolId: learner.schoolId,
+        familyAccountId: learner.familyAccountId || undefined,
+        accountRef: learner.familyAccount?.accountRef,
+      });
+    } catch (error) {
+      if (error instanceof FamilyAccountMergedError) {
+        return res.status(409).json({
+          success: false,
+          error: error.message,
+          errorCode: error.errorCode,
+        });
+      }
+      throw error;
     }
 
     if (!Array.isArray(req.body?.billingPlan)) {

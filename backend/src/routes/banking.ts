@@ -32,6 +32,10 @@ import {
   type SupplierMatchInput,
 } from "../utils/paymentMatcher";
 import { matchSupplierInvoicesForBankLine } from "../utils/supplierInvoiceMatcher";
+import {
+  FamilyAccountMergedError,
+  assertFamilyAccountAcceptsNewBillingWrites,
+} from "../services/familyAccountLifecycle";
 
 const router = Router();
 const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 12 * 1024 * 1024 } });
@@ -1056,6 +1060,15 @@ router.post("/imports/:id/post-payments", async (req, res) => {
       }
 
       const accountNo = learnerById.get(row.suggestedLearnerId) || row.suggestedAccountNo;
+      try {
+        await assertFamilyAccountAcceptsNewBillingWrites({ schoolId, accountRef: accountNo });
+      } catch (error) {
+        if (error instanceof FamilyAccountMergedError) {
+          skipped.push({ transactionId: txn.id, reason: error.message });
+          continue;
+        }
+        throw error;
+      }
       const bankRef = String(row.reference || "").trim();
       const bankDesc = String(row.description || "Payment").trim();
 

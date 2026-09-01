@@ -6,6 +6,10 @@ import {
   type CapturePaymentAuthRequest,
 } from "../middleware/requireCapturePaymentAuth";
 import { resolveBillingAccountRef } from "../services/resolveBillingAccountRef";
+import {
+  FamilyAccountMergedError,
+  assertFamilyAccountAcceptsNewBillingWrites,
+} from "../services/familyAccountLifecycle";
 import { relinkSchoolBillingLedger } from "../services/billingLedgerRelink";
 import { resolveAuthoritativeAccountBalance } from "../services/statementAccounts";
 import { generatePaymentReceiptPdfBuffer } from "../services/receiptEmailService";
@@ -50,10 +54,10 @@ function feeCategoryLabel(key: string | null | undefined): string {
 async function resolveAccountFromRequest(
   schoolId: string,
   accountNo: string
-): Promise<{ accountRef: string } | null> {
+): Promise<{ accountRef: string; familyAccountId: string | null } | null> {
   const resolved = await resolveBillingAccountRef(schoolId, accountNo);
   if (!resolved) return null;
-  return { accountRef: resolved.accountRef };
+  return { accountRef: resolved.accountRef, familyAccountId: resolved.familyAccountId };
 }
 
 function loadOpenInvoices(schoolId: string, accountRef: string): OpenInvoiceLine[] {
@@ -187,6 +191,19 @@ router.post("/suggest", requireCapturePaymentReadAuth, async (req: CapturePaymen
       return res.status(404).json({ success: false, error: "Account not found" });
     }
 
+    try {
+      await assertFamilyAccountAcceptsNewBillingWrites({
+        schoolId,
+        accountRef: account.accountRef,
+        familyAccountId: account.familyAccountId || undefined,
+      });
+    } catch (error) {
+      if (error instanceof FamilyAccountMergedError) {
+        return res.status(409).json({ success: false, error: error.message, errorCode: error.errorCode });
+      }
+      throw error;
+    }
+
     await relinkSchoolBillingLedger(schoolId);
     const openInvoices = loadOpenInvoices(schoolId, account.accountRef);
     const suggestions = fifoSuggest(openInvoices, paymentAmount);
@@ -224,6 +241,19 @@ router.post("/:paymentId", requireCapturePaymentAuth, async (req: CapturePayment
     const account = await resolveAccountFromRequest(schoolId, accountNo);
     if (!account) {
       return res.status(404).json({ success: false, error: "Account not found" });
+    }
+
+    try {
+      await assertFamilyAccountAcceptsNewBillingWrites({
+        schoolId,
+        accountRef: account.accountRef,
+        familyAccountId: account.familyAccountId || undefined,
+      });
+    } catch (error) {
+      if (error instanceof FamilyAccountMergedError) {
+        return res.status(409).json({ success: false, error: error.message, errorCode: error.errorCode });
+      }
+      throw error;
     }
 
     const payment = listPayments(schoolId).find((p) => p.id === paymentId);

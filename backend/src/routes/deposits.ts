@@ -4,6 +4,10 @@ import { DepositStatus, Prisma } from "@prisma/client";
 import { prisma } from "../prisma";
 import { resolveLearnerAccountNo } from "../utils/learnerIdentity";
 import { listInvoices, normaliseAmount, readSchoolLedger } from "../utils/billingLedgerStore";
+import {
+  FamilyAccountMergedError,
+  assertFamilyAccountAcceptsNewBillingWrites,
+} from "../services/familyAccountLifecycle";
 
 const router = Router();
 
@@ -244,6 +248,19 @@ router.post("/", async (req, res) => {
 
     const resolvedFamilyId =
       familyAccountId || learner.familyAccountId || learner.familyAccount?.id || null;
+
+    try {
+      await assertFamilyAccountAcceptsNewBillingWrites({
+        schoolId,
+        familyAccountId: resolvedFamilyId || undefined,
+        accountRef: learner.familyAccount?.accountRef,
+      });
+    } catch (error) {
+      if (error instanceof FamilyAccountMergedError) {
+        return res.status(409).json({ success: false, error: error.message, errorCode: error.errorCode });
+      }
+      throw error;
+    }
 
     const depositNumber = await nextDepositNumber(schoolId);
 

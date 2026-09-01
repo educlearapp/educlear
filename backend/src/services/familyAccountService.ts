@@ -28,6 +28,7 @@ import {
   resolveAuthoritativeAccountBalance,
   roundStatementMoney,
 } from "./statementAccounts";
+import { isFamilyAccountRetired } from "./familyAccountLifecycle";
 
 const FORBIDDEN_LEARNER_IDENTITY_FIELDS = ["admissionNo", "idNumber"] as const;
 
@@ -105,9 +106,21 @@ type LearnerWithFamily = {
 
 type ResolvedFamilyAccount = {
   id: string;
+  schoolId: string;
   accountRef: string;
   familyName: string;
+  retiredAt: Date | null;
+  mergedIntoFamilyAccountId: string | null;
 };
+
+const familyAccountLifecycleSelect = {
+  id: true,
+  schoolId: true,
+  accountRef: true,
+  familyName: true,
+  retiredAt: true,
+  mergedIntoFamilyAccountId: true,
+} as const;
 
 async function loadLearner(schoolId: string, learnerId: string): Promise<LearnerWithFamily | null> {
   return prisma.learner.findFirst({
@@ -131,7 +144,10 @@ async function findFamilyAccountById(
 ): Promise<ResolvedFamilyAccount | null> {
   const owned = await assertFamilyAccountOwnedBySchool(schoolId, familyAccountId);
   if (!owned) return null;
-  return { id: owned.id, accountRef: owned.accountRef, familyName: owned.familyName };
+  return prisma.familyAccount.findFirst({
+    where: { id: familyAccountId, schoolId },
+    select: familyAccountLifecycleSelect,
+  });
 }
 
 async function findFamilyAccountByRef(
@@ -142,7 +158,7 @@ async function findFamilyAccountByRef(
   if (!ref) return null;
   return prisma.familyAccount.findFirst({
     where: { schoolId, accountRef: ref },
-    select: { id: true, accountRef: true, familyName: true },
+    select: familyAccountLifecycleSelect,
   });
 }
 
@@ -391,6 +407,23 @@ export async function mergeFamilyAccounts(opts: MergeFamilyAccountsInput) {
     throw new Error("Cannot merge account into itself");
   }
 
+  if (
+    sourceAccount.schoolId !== schoolId ||
+    targetAccount.schoolId !== schoolId ||
+    sourceAccount.schoolId !== targetAccount.schoolId
+  ) {
+    console.warn("[family-accounts] merge validation failed: school mismatch", {
+      schoolId,
+      sourceSchoolId: sourceAccount.schoolId,
+      targetSchoolId: targetAccount.schoolId,
+    });
+    throw new Error("Cannot merge family accounts across schools");
+  }
+
+  if (isFamilyAccountRetired(targetAccount)) {
+    throw new Error("Cannot merge into a retired family account");
+  }
+
   const sourceFamilyId = sourceAccount.id;
   const targetFamilyId = targetAccount.id;
   const sourceRef = String(sourceAccount.accountRef || "").trim().toUpperCase();
@@ -399,6 +432,41 @@ export async function mergeFamilyAccounts(opts: MergeFamilyAccountsInput) {
   const snapshotsBefore = cloneSnapshots(readSchoolFamilyAccountAgeAnalysisSnapshots(schoolId));
   const sourceSnap = snapshotsBefore[sourceRef];
   if (isRetiredAgeAnalysisSnapshot(sourceSnap) && String(sourceSnap.mergedIntoAccountRef).toUpperCase() === targetRef) {
+    const statements = await buildAccountsFromAgeAnalysisSnapshots(schoolId);
+    return {
+      success: true,
+      action: "merge" as const,
+      sourceAccountRef: sourceRef,
+      targetAccountRef: targetRef,
+      mergedLearnerIds: [],
+      ledgerRowsUpdated: 0,
+      alreadyMerged: true,
+      balanceBefore: {
+        source: 0,
+        target: await resolveAuthoritativeAccountBalance(schoolId, targetRef),
+        combined: await resolveAuthoritativeAccountBalance(schoolId, targetRef),
+      },
+      balanceAfter: {
+        source: 0,
+        target: await resolveAuthoritativeAccountBalance(schoolId, targetRef),
+        combined: await resolveAuthoritativeAccountBalance(schoolId, targetRef),
+      },
+      audit: null,
+      statements,
+    };
+  }
+
+  if (
+    isFamilyAccountRetired(sourceAccount) &&
+    String(sourceAccount.mergedIntoFamilyAccountId || "") !== targetAccount.id
+  ) {
+    throw new Error("Source family account is already merged into a different account");
+  }
+
+  if (
+    isFamilyAccountRetired(sourceAccount) &&
+    String(sourceAccount.mergedIntoFamilyAccountId || "") === targetAccount.id
+  ) {
     const statements = await buildAccountsFromAgeAnalysisSnapshots(schoolId);
     return {
       success: true,
@@ -514,6 +582,10 @@ export async function mergeFamilyAccounts(opts: MergeFamilyAccountsInput) {
           data: { familyAccountId: sourceFamilyId },
         });
       }
+      await tx.familyAccount.updateMany({
+        where: { id: sourceFamilyId, schoolId, mergedIntoFamilyAccountId: targetFamilyId },
+        data: { retiredAt: null, mergedIntoFamilyAccountId: null },
+      });
     });
   };
 
@@ -533,6 +605,55 @@ export async function mergeFamilyAccounts(opts: MergeFamilyAccountsInput) {
         where: { schoolId, familyAccountId: sourceFamilyId },
         data: { familyAccountId: targetFamilyId },
       });
+
+      const retiredAt = new Date();
+      const sourceLocked = await tx.familyAccount.findFirst({
+        where: { id: sourceFamilyId, schoolId },
+        select: familyAccountLifecycleSelect,
+      });
+      const targetLocked = await tx.familyAccount.findFirst({
+        where: { id: targetFamilyId, schoolId },
+        select: familyAccountLifecycleSelect,
+      });
+      if (!sourceLocked || !targetLocked) {
+        throw new Error("Family account not found for this school");
+      }
+      if (
+        sourceLocked.schoolId !== schoolId ||
+        targetLocked.schoolId !== schoolId ||
+        sourceLocked.schoolId !== targetLocked.schoolId
+      ) {
+        throw new Error("Cannot merge family accounts across schools");
+      }
+      if (isFamilyAccountRetired(targetLocked)) {
+        throw new Error("Cannot merge into a retired family account");
+      }
+      if (
+        isFamilyAccountRetired(sourceLocked) &&
+        String(sourceLocked.mergedIntoFamilyAccountId || "") !== targetFamilyId
+      ) {
+        throw new Error("Source family account is already merged into a different account");
+      }
+      const retired = await tx.familyAccount.updateMany({
+        where: { id: sourceFamilyId, schoolId, retiredAt: null },
+        data: {
+          retiredAt,
+          mergedIntoFamilyAccountId: targetFamilyId,
+        },
+      });
+      if (retired.count !== 1) {
+        const current = await tx.familyAccount.findFirst({
+          where: { id: sourceFamilyId, schoolId },
+          select: familyAccountLifecycleSelect,
+        });
+        const alreadyThisTarget =
+          current &&
+          isFamilyAccountRetired(current) &&
+          String(current.mergedIntoFamilyAccountId || "") === targetFamilyId;
+        if (!alreadyThisTarget) {
+          throw new Error("Failed to retire source family account for this school");
+        }
+      }
     });
     prismaCommitted = true;
 

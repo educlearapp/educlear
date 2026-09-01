@@ -5,6 +5,10 @@ import { buildBillingAccountPostResponse } from "../services/billingPostResponse
 import { relinkSchoolBillingLedger } from "../services/billingLedgerRelink";
 import { buildInvoiceEntry } from "../services/invoiceEntryBuilder";
 import {
+  FAMILY_ACCOUNT_MERGED_ERROR_CODE,
+  FamilyAccountMergedError,
+} from "../services/familyAccountLifecycle";
+import {
   appendSchoolEntriesSafe,
   appendSchoolEntrySafe,
   listInvoices,
@@ -25,6 +29,9 @@ type InvoiceBatchSkipped = {
 };
 
 function sanitizeInvoiceRouteError(error: unknown): { error: string; errorCode: string } {
+  if (error instanceof FamilyAccountMergedError) {
+    return { error: error.message, errorCode: error.errorCode };
+  }
   const message = error instanceof Error ? error.message : "Server error";
   if (message.includes("Billing ledger is busy")) {
     return { error: message, errorCode: "LEDGER_BUSY" };
@@ -84,7 +91,8 @@ router.post("/", async (req, res) => {
     const settings = await loadSchoolBillingSettings(schoolId);
     const built = await buildInvoiceEntry(schoolId, body, settings, 0, 0);
     if (!built.entry) {
-      return res.status(400).json({
+      const status = built.errorCode === FAMILY_ACCOUNT_MERGED_ERROR_CODE ? 409 : 400;
+      return res.status(status).json({
         success: false,
         error: built.error || "Invalid invoice",
         errorCode: built.errorCode,

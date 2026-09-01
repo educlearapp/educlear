@@ -4,6 +4,10 @@ import path from "path";
 
 import { prisma } from "../../prisma";
 import { resolveBillingAccountRef } from "../resolveBillingAccountRef";
+import {
+  FamilyAccountMergedError,
+  assertFamilyAccountAcceptsNewBillingWrites,
+} from "../familyAccountLifecycle";
 import { finalizeSchoolBillingLedgerAfterPaymentWrites } from "../billingPaymentPostService";
 import {
   normaliseAmount,
@@ -406,6 +410,30 @@ export async function previewMigrationTopupPaymentsImport(opts: {
       continue;
     }
 
+    try {
+      await assertFamilyAccountAcceptsNewBillingWrites({
+        schoolId,
+        accountRef: resolved.accountRef,
+        familyAccountId: resolved.familyAccountId || undefined,
+      });
+    } catch (error) {
+      if (!(error instanceof FamilyAccountMergedError)) throw error;
+      unmatchedRows += 1;
+      previewRows.push({
+        rowNumber: row.rowNumber,
+        accountNo,
+        receiptNo: row.receiptNo,
+        transactionDate: row.transactionDate,
+        amount: row.amount,
+        paymentType: row.paymentType,
+        description: row.description,
+        status: "unmatched",
+        reason: error.message,
+        fingerprint: row.fingerprint,
+      });
+      continue;
+    }
+
     const normalizedRow: ParsedTopupPaymentRow = { ...row, accountNo: resolved.accountRef };
     if (seenFingerprints.has(normalizedRow.fingerprint)) {
       duplicatesSkipped += 1;
@@ -526,6 +554,17 @@ export async function applyMigrationTopupPaymentsImport(opts: {
     const resolved = accountNoRaw ? await resolveBillingAccountRef(schoolId, accountNoRaw) : null;
     const accountNo = String(resolved?.accountRef || "").trim();
     if (!accountNo) {
+      rowsSkipped += 1;
+      continue;
+    }
+    try {
+      await assertFamilyAccountAcceptsNewBillingWrites({
+        schoolId,
+        accountRef: accountNo,
+        familyAccountId: resolved?.familyAccountId || undefined,
+      });
+    } catch (error) {
+      if (!(error instanceof FamilyAccountMergedError)) throw error;
       rowsSkipped += 1;
       continue;
     }

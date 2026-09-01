@@ -4,6 +4,10 @@ import {
   resolveOfficialBillingAccountRef,
 } from "./officialBillingAccountRef";
 import {
+  FamilyAccountMergedError,
+  assertFamilyAccountAcceptsNewBillingWrites,
+} from "./familyAccountLifecycle";
+import {
   buildInvoiceReference,
   computeInvoiceDueDate,
   normaliseIsoDate,
@@ -66,7 +70,7 @@ export async function validateManualInvoiceLearnerAccount(
 export async function resolveInvoiceAccountNo(
   schoolId: string,
   body: InvoiceInputBody
-): Promise<{ accountNo: string; error?: string }> {
+): Promise<{ accountNo: string; error?: string; errorCode?: string }> {
   const learnerId = String(body.learnerId || "").trim();
   const accountNo = await resolveOfficialBillingAccountRef(schoolId, {
     learnerId,
@@ -85,6 +89,14 @@ export async function resolveInvoiceAccountNo(
     const message =
       guardError instanceof Error ? guardError.message : "Invalid billing account ref";
     return { accountNo: "", error: message };
+  }
+  try {
+    await assertFamilyAccountAcceptsNewBillingWrites({ schoolId, accountRef: accountNo });
+  } catch (error) {
+    if (error instanceof FamilyAccountMergedError) {
+      return { accountNo: "", error: error.message, errorCode: error.errorCode };
+    }
+    throw error;
   }
   return { accountNo };
 }
@@ -112,7 +124,7 @@ export async function buildInvoiceEntry(
 
     const resolved = await resolveInvoiceAccountNo(schoolId, body);
     if (!resolved.accountNo) {
-      return { error: resolved.error || "Invalid account" };
+      return { error: resolved.error || "Invalid account", errorCode: resolved.errorCode };
     }
     resolvedAccountNo = resolved.accountNo;
   } else if (!resolvedAccountNo) {
@@ -124,6 +136,17 @@ export async function buildInvoiceEntry(
       const message =
         guardError instanceof Error ? guardError.message : "Invalid billing account ref";
       return { error: message };
+    }
+    try {
+      await assertFamilyAccountAcceptsNewBillingWrites({
+        schoolId,
+        accountRef: resolvedAccountNo,
+      });
+    } catch (error) {
+      if (error instanceof FamilyAccountMergedError) {
+        return { error: error.message, errorCode: error.errorCode };
+      }
+      throw error;
     }
   }
 

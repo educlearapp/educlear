@@ -12,6 +12,10 @@ import {
   assertOfficialBillingAccountRef,
   resolveOfficialBillingAccountRef,
 } from "./officialBillingAccountRef";
+import {
+  FamilyAccountMergedError,
+  assertFamilyAccountAcceptsNewBillingWrites,
+} from "./familyAccountLifecycle";
 import { activeLearnerWhere } from "../utils/learnerEnrollment";
 import {
   buildBillingPlanLookupIndexes,
@@ -418,12 +422,20 @@ export async function resolveLearnerAccountForRun(
   }
   try {
     assertOfficialBillingAccountRef(schoolId, accountNo);
-    return { accountNo };
   } catch (guardError) {
     const message =
       guardError instanceof Error ? guardError.message : "Invalid billing account ref";
     return { accountNo: "", error: message };
   }
+  try {
+    await assertFamilyAccountAcceptsNewBillingWrites({ schoolId, accountRef: accountNo });
+  } catch (error) {
+    if (error instanceof FamilyAccountMergedError) {
+      return { accountNo: "", error: error.message };
+    }
+    throw error;
+  }
+  return { accountNo };
 }
 
 function writeIntegrityAuditReport(

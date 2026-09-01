@@ -678,7 +678,16 @@ model FamilyAccount {
 
   createdAt DateTime @default(now())
 
+  /// Set when this family was merged into a surviving account. Null = active.
+  retiredAt DateTime?
+
+  /// Surviving FamilyAccount this predecessor was merged into. Null = active.
+  mergedIntoFamilyAccountId String?
+
   school School @relation(fields: [schoolId], references: [id])
+
+  mergedInto FamilyAccount?  @relation("FamilyAccountMerge", fields: [mergedIntoFamilyAccountId], references: [id], onDelete: Restrict)
+  predecessors FamilyAccount[] @relation("FamilyAccountMerge")
 
   learners Learner[]
 
@@ -690,6 +699,8 @@ model FamilyAccount {
   @@unique([schoolId, accountNo])
   @@index([schoolId])
   @@index([schoolId, familyName])
+  @@index([mergedIntoFamilyAccountId])
+  @@index([schoolId, retiredAt])
 }
 
 model Learner {

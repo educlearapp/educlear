@@ -16,6 +16,10 @@ import {
   readSchoolLedger,
   type BillingLedgerEntry,
 } from "../utils/billingLedgerStore";
+import {
+  FamilyAccountMergedError,
+  assertFamilyAccountAcceptsNewBillingWrites,
+} from "../services/familyAccountLifecycle";
 
 const router = Router();
 
@@ -148,6 +152,16 @@ router.post("/apply", async (req, res) => {
       if (ledger.some((e) => e.id === id)) {
         skipped.push({ accountNo, reason: "Duplicate penalty for date/description" });
         continue;
+      }
+
+      try {
+        await assertFamilyAccountAcceptsNewBillingWrites({ schoolId, accountRef: accountNo });
+      } catch (error) {
+        if (error instanceof FamilyAccountMergedError) {
+          skipped.push({ accountNo, reason: error.message });
+          continue;
+        }
+        throw error;
       }
 
       const entry: BillingLedgerEntry = {

@@ -4,6 +4,10 @@ import {
   resolveCapturePaymentFamilyAccount,
   type CapturePaymentFamilyDecision,
 } from "./resolveCapturePaymentFamilyAccount";
+import {
+  FamilyAccountMergedError,
+  assertFamilyAccountAcceptsNewBillingWrites,
+} from "./familyAccountLifecycle";
 import { parseCapturePaymentAmount } from "../utils/capturePaymentAmount";
 import {
   appendSchoolEntrySafe,
@@ -162,6 +166,19 @@ export async function captureManualPayment(input: CapturePaymentInput) {
     throw new CapturePaymentError(familyDecision.status, familyDecision.code, familyDecision.error);
   }
   const family = familyDecision.family;
+
+  try {
+    await assertFamilyAccountAcceptsNewBillingWrites({
+      schoolId,
+      familyAccountId: family.id,
+      accountRef: family.accountRef,
+    });
+  } catch (error) {
+    if (error instanceof FamilyAccountMergedError) {
+      throw new CapturePaymentError(409, error.errorCode, error.message);
+    }
+    throw error;
+  }
 
   const capturedAt = new Date().toISOString();
   const entry: BillingLedgerEntry = {

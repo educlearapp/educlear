@@ -3,6 +3,7 @@ import { mergeFamilyAccounts, unmergeLearnerFromFamily } from "../services/famil
 import { CrossSchoolFamilyAccountError } from "../services/learnerRegistrationService";
 import { listFamilyAccountAudit } from "../utils/familyAccountAuditStore";
 import { prisma } from "../prisma";
+import { listRetiredFamilyAccountsForSchool } from "../services/familyAccountLifecycle";
 
 const router = Router();
 
@@ -26,6 +27,7 @@ function pickBodyString(body: Record<string, unknown> | undefined, keys: string[
 
 function mergeStatusCode(message: string): number {
   const lower = message.toLowerCase();
+  if (lower.includes("across schools")) return 403;
   if (lower.includes("not found") || lower.includes("route not available")) return 404;
   return 400;
 }
@@ -209,6 +211,25 @@ router.post("/unmerge", async (req, res) => {
   }
 });
 
+// GET /api/family-accounts/retired?schoolId=...  (audit/history; not for billing pickers)
+router.get("/retired", async (req, res) => {
+  try {
+    const schoolId = typeof req.query?.schoolId === "string" ? String(req.query.schoolId) : "";
+    if (!schoolId) {
+      return res.status(400).json({ success: false, error: "Missing schoolId" });
+    }
+    const accounts = await listRetiredFamilyAccountsForSchool(schoolId);
+    return res.json({
+      success: true,
+      accounts,
+      lifecycleStatus: "retired",
+    });
+  } catch (error) {
+    console.error("[family-accounts] GET /retired failed:", error);
+    return res.status(500).json({ success: false, error: "Server error" });
+  }
+});
+
 // GET /api/family-accounts/audit?schoolId=...
 router.get("/", async (req, res) => {
   try {
@@ -217,13 +238,15 @@ router.get("/", async (req, res) => {
       return res.status(400).json({ success: false, error: "Missing schoolId" });
     }
     const rows = await prisma.familyAccount.findMany({
-      where: { schoolId },
+      where: { schoolId, retiredAt: null, mergedIntoFamilyAccountId: null },
       select: {
         id: true,
         accountRef: true,
         accountNo: true,
         familyName: true,
         createdAt: true,
+        retiredAt: true,
+        mergedIntoFamilyAccountId: true,
         learners: {
           select: { id: true, firstName: true, lastName: true, enrollmentStatus: true },
         },

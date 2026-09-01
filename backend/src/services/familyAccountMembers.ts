@@ -5,6 +5,7 @@ export type LearnerNameRow = {
   id: string;
   firstName: string;
   lastName: string;
+  familyAccountId?: string | null;
 };
 
 export function splitAccountHolderNames(accountHolder: string): string[] {
@@ -31,17 +32,27 @@ export function buildLearnerNameIndex(learners: LearnerNameRow[]): Map<string, L
 /** Match school learners to Kid-e-Sys age-analysis account holder label(s). */
 export function matchLearnersToAccountHolder(
   learners: LearnerNameRow[],
-  accountHolder: string
+  accountHolder: string,
+  opts: { familyAccountId?: string | null } = {}
 ): LearnerNameRow[] {
   const names = splitAccountHolderNames(accountHolder);
   if (!names.length) return [];
 
+  const snapshotFamilyId = String(opts.familyAccountId || "").trim();
   const index = buildLearnerNameIndex(learners);
   const seen = new Set<string>();
   const matched: LearnerNameRow[] = [];
 
+  const belongsToSnapshotFamily = (learner: LearnerNameRow): boolean => {
+    if (!snapshotFamilyId) return true;
+    const linked = String(learner.familyAccountId || "").trim();
+    if (!linked) return true;
+    return linked === snapshotFamilyId;
+  };
+
   const tryAdd = (learner: LearnerNameRow | undefined) => {
     if (!learner || seen.has(learner.id)) return;
+    if (!belongsToSnapshotFamily(learner)) return;
     seen.add(learner.id);
     matched.push(learner);
   };
