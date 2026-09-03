@@ -8,17 +8,24 @@ import {
 import { buildStatementPdfFilename } from "./statementPeriod";
 import {
   BULK_STATEMENT_PERIODS,
+  applyRecipientSelected,
   buildBulkStatementRecipients,
   confirmBulkSendMessage,
-  countFailedRecipients,
-  countPendingRecipients,
+  countEligibleRecipients,
+  countSelectedFailedRecipients,
+  countSelectedPendingRecipients,
+  countSelectedRecipients,
   countSkippedRecipients,
+  deselectAllRecipients,
   failedRecipientAccounts,
   filterRowsForBulkStatementSend,
+  isBulkSendButtonEnabled,
   isBulkSendLocked,
+  isRecipientSelectable,
   resolveBulkStatementPeriod,
   runBulkStatementSend,
   safeBulkSendError,
+  selectAllEligibleRecipients,
   sortBulkStatementRows,
   summarizeBulkSend,
   type BulkRecipient,
@@ -118,9 +125,12 @@ export default function BulkStatementSend({ schoolId, learners, statementRows, o
   }, [statementRows, accountStatus, hideCorrections, includeInactiveWithBalances, sortBy]);
 
   const summary = summarizeBulkSend(recipients);
-  const pendingCount = countPendingRecipients(recipients);
   const skippedCount = countSkippedRecipients(recipients);
-  const failedCount = countFailedRecipients(recipients);
+  const eligibleCount = countEligibleRecipients(recipients);
+  const selectedCount = countSelectedRecipients(recipients);
+  const selectedPendingCount = countSelectedPendingRecipients(recipients);
+  const selectedFailedCount = countSelectedFailedRecipients(recipients);
+  const sendEnabled = isBulkSendButtonEnabled(recipients);
   const locked = sending || isBulkSendLocked(lockRef.current);
   const periodForSend = resolveBulkStatementPeriod(statementPeriod);
 
@@ -189,7 +199,7 @@ export default function BulkStatementSend({ schoolId, learners, statementRows, o
   };
 
   const confirmPanel = (kind: "pending" | "failed_only") => {
-    const n = kind === "failed_only" ? failedCount : pendingCount;
+    const n = kind === "failed_only" ? selectedFailedCount : selectedPendingCount;
     const onCancel = () => {
       if (locked) return;
       setConfirmOpen(false);
@@ -205,9 +215,8 @@ export default function BulkStatementSend({ schoolId, learners, statementRows, o
             <div style={{ fontWeight: 800, fontSize: 16 }}>{confirmBulkSendMessage(n)}</div>
             <div style={{ color: "#475569", fontWeight: 600 }}>Account status: {accountStatus}</div>
             <div style={{ color: "#475569", fontWeight: 600 }}>Statement period: {periodForSend}</div>
-            <div style={{ color: "#475569", fontWeight: 600 }}>
-              Skipped (missing email or account): {skippedCount}
-            </div>
+            <div style={{ color: "#475569", fontWeight: 600 }}>Selected: {n}</div>
+            <div style={{ color: "#475569", fontWeight: 600 }}>Skipped: {skippedCount}</div>
             <div style={{ display: "flex", gap: 10, justifyContent: "flex-end", marginTop: 8 }}>
               <button type="button" style={disabledBtn(ghostBtn, locked)} onClick={onCancel} disabled={locked}>
                 Cancel
@@ -238,7 +247,7 @@ export default function BulkStatementSend({ schoolId, learners, statementRows, o
             <div style={{ fontSize: 13, opacity: 0.85, marginTop: 4 }}>
               {sending
                 ? `Sending ${progress.current} of ${progress.total}`
-                : `${pendingCount} ready · ${skippedCount} skipped · ${filteredRows.length} account(s)`}
+                : `Eligible: ${eligibleCount} · Selected: ${selectedCount} · Skipped: ${skippedCount}`}
             </div>
           </div>
           <div style={{ padding: 24, display: "grid", gap: 14 }}>
@@ -266,25 +275,47 @@ export default function BulkStatementSend({ schoolId, learners, statementRows, o
             <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
               <button
                 type="button"
-                style={disabledBtn(goldBtn, locked || pendingCount <= 0)}
+                style={disabledBtn(ghostBtn, locked)}
                 onClick={() => {
-                  if (locked || pendingCount <= 0) return;
+                  if (locked) return;
+                  setRecipients((prev) => selectAllEligibleRecipients(prev, lockRef.current));
+                }}
+                disabled={locked}
+              >
+                Select All
+              </button>
+              <button
+                type="button"
+                style={disabledBtn(ghostBtn, locked)}
+                onClick={() => {
+                  if (locked) return;
+                  setRecipients((prev) => deselectAllRecipients(prev, lockRef.current));
+                }}
+                disabled={locked}
+              >
+                Deselect All
+              </button>
+              <button
+                type="button"
+                style={disabledBtn(goldBtn, locked || !sendEnabled)}
+                onClick={() => {
+                  if (locked || !sendEnabled) return;
                   setRetryConfirmOpen(false);
                   setConfirmOpen(true);
                 }}
-                disabled={locked || pendingCount <= 0}
+                disabled={locked || !sendEnabled}
               >
                 {sending ? `Sending ${progress.current} of ${progress.total}` : "Send"}
               </button>
               <button
                 type="button"
-                style={disabledBtn(goldBtn, locked || failedCount <= 0)}
+                style={disabledBtn(goldBtn, locked || selectedFailedCount <= 0)}
                 onClick={() => {
-                  if (locked || failedCount <= 0) return;
+                  if (locked || selectedFailedCount <= 0) return;
                   setConfirmOpen(false);
                   setRetryConfirmOpen(true);
                 }}
-                disabled={locked || failedCount <= 0}
+                disabled={locked || selectedFailedCount <= 0}
               >
                 Retry failed
               </button>
@@ -320,7 +351,7 @@ export default function BulkStatementSend({ schoolId, learners, statementRows, o
               <table style={{ width: "100%", borderCollapse: "collapse", minWidth: 720 }}>
                 <thead>
                   <tr style={{ background: "rgba(212,175,55,0.16)" }}>
-                    {["Contact Name", "Relationship", "Email", "Account", "Status"].map((h) => (
+                    {["Select", "Contact Name", "Relationship", "Email", "Account", "Status"].map((h) => (
                       <th key={h} style={{ padding: 12, textAlign: "left", fontSize: 12, fontWeight: 900 }}>
                         {h}
                       </th>
@@ -330,13 +361,30 @@ export default function BulkStatementSend({ schoolId, learners, statementRows, o
                 <tbody>
                   {recipients.length === 0 ? (
                     <tr>
-                      <td colSpan={5} style={{ padding: 20, textAlign: "center", color: "#64748b" }}>
+                      <td colSpan={6} style={{ padding: 20, textAlign: "center", color: "#64748b" }}>
                         No accounts matched the selected filters.
                       </td>
                     </tr>
                   ) : (
-                    recipients.map((c) => (
+                    recipients.map((c) => {
+                      const selectable = isRecipientSelectable(c);
+                      const boxDisabled = locked || !selectable;
+                      return (
                       <tr key={c.id}>
+                        <td style={{ padding: 12, borderBottom: "1px solid #f1f5f9" }}>
+                          <input
+                            type="checkbox"
+                            checked={Boolean(c.selected) && selectable}
+                            disabled={boxDisabled}
+                            onChange={(e) => {
+                              if (locked) return;
+                              setRecipients((prev) =>
+                                applyRecipientSelected(prev, c.id, e.target.checked, lockRef.current)
+                              );
+                            }}
+                            aria-label={`Select ${c.accountNo || c.contactName}`}
+                          />
+                        </td>
                         <td style={{ padding: 12, borderBottom: "1px solid #f1f5f9" }}>{c.contactName}</td>
                         <td style={{ padding: 12, borderBottom: "1px solid #f1f5f9" }}>{c.relationship}</td>
                         <td style={{ padding: 12, borderBottom: "1px solid #f1f5f9" }}>{c.email || "—"}</td>
@@ -347,7 +395,8 @@ export default function BulkStatementSend({ schoolId, learners, statementRows, o
                           {c.errorReason ? ` · ${c.errorReason}` : ""}
                         </td>
                       </tr>
-                    ))
+                      );
+                    })
                   )}
                 </tbody>
               </table>

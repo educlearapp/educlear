@@ -22,6 +22,7 @@ export type BulkRecipient = {
   learnerId: string;
   learnerName: string;
   status: BulkRecipientStatus;
+  selected: boolean;
   skipReason?: string;
   errorReason?: string;
 };
@@ -161,6 +162,7 @@ export function buildBulkStatementRecipients(input: {
         learnerId,
         learnerName,
         status: "SKIPPED",
+        selected: false,
         skipReason: "Missing account number",
       });
       continue;
@@ -179,6 +181,7 @@ export function buildBulkStatementRecipients(input: {
         learnerId,
         learnerName,
         status: "SKIPPED",
+        selected: false,
         skipReason: "Missing email",
       });
       continue;
@@ -199,6 +202,7 @@ export function buildBulkStatementRecipients(input: {
           learnerId,
           learnerName,
           status: "SKIPPED",
+          selected: false,
           skipReason: "Missing email",
         });
         continue;
@@ -215,11 +219,63 @@ export function buildBulkStatementRecipients(input: {
         learnerId,
         learnerName,
         status: "PENDING",
+        selected: false,
       });
     }
   }
 
   return list;
+}
+
+export function isRecipientSelectable(recipient: BulkRecipient): boolean {
+  return recipient.status === "PENDING" || recipient.status === "FAILED";
+}
+
+export function countEligibleRecipients(recipients: BulkRecipient[]): number {
+  return recipients.filter((row) => row.status !== "SKIPPED").length;
+}
+
+export function countSelectedRecipients(recipients: BulkRecipient[]): number {
+  return recipients.filter((row) => row.selected && isRecipientSelectable(row)).length;
+}
+
+export function countSelectedPendingRecipients(recipients: BulkRecipient[]): number {
+  return recipients.filter((row) => row.selected && row.status === "PENDING").length;
+}
+
+export function countSelectedFailedRecipients(recipients: BulkRecipient[]): number {
+  return recipients.filter((row) => row.selected && row.status === "FAILED").length;
+}
+
+export function isBulkSendButtonEnabled(recipients: BulkRecipient[]): boolean {
+  return countSelectedPendingRecipients(recipients) > 0;
+}
+
+export function applyRecipientSelected(
+  recipients: BulkRecipient[],
+  id: string,
+  selected: boolean,
+  lock?: BulkSendLock
+): BulkRecipient[] {
+  if (lock && isBulkSendLocked(lock)) return recipients;
+  return recipients.map((row) => {
+    if (row.id !== id) return row;
+    if (!isRecipientSelectable(row)) return { ...row, selected: false };
+    return { ...row, selected };
+  });
+}
+
+export function selectAllEligibleRecipients(recipients: BulkRecipient[], lock?: BulkSendLock): BulkRecipient[] {
+  if (lock && isBulkSendLocked(lock)) return recipients;
+  return recipients.map((row) => ({
+    ...row,
+    selected: isRecipientSelectable(row),
+  }));
+}
+
+export function deselectAllRecipients(recipients: BulkRecipient[], lock?: BulkSendLock): BulkRecipient[] {
+  if (lock && isBulkSendLocked(lock)) return recipients;
+  return recipients.map((row) => ({ ...row, selected: false }));
 }
 
 export function countSkippedRecipients(recipients: BulkRecipient[]): number {
@@ -234,8 +290,8 @@ export function countFailedRecipients(recipients: BulkRecipient[]): number {
   return recipients.filter((row) => row.status === "FAILED").length;
 }
 
-export function confirmBulkSendMessage(recipientCount: number): string {
-  return `Send statements to ${recipientCount} recipients?`;
+export function confirmBulkSendMessage(selectedCount: number): string {
+  return `Send statements to ${selectedCount} selected recipients?`;
 }
 
 export function isBulkSendLocked(lock: BulkSendLock): boolean {
@@ -261,10 +317,10 @@ export function summarizeBulkSend(recipients: BulkRecipient[]): BulkSendSummary 
   const skipped = recipients.filter((row) => row.status === "SKIPPED").length;
   const sent = recipients.filter((row) => row.status === "SENT").length;
   const failed = recipients.filter((row) => row.status === "FAILED").length;
-  const sending = recipients.filter((row) => row.status === "SENDING" || row.status === "PENDING").length;
+  const inFlight = recipients.some((row) => row.status === "SENDING");
   const finishedAttempted = sent + failed;
   let outcome: BulkBatchOutcome | null = null;
-  if (finishedAttempted > 0 && sending === 0) {
+  if (finishedAttempted > 0 && !inFlight) {
     if (failed === 0) outcome = "COMPLETE";
     else if (sent === 0) outcome = "FAILED";
     else outcome = "PARTIAL";
@@ -279,8 +335,10 @@ export function summarizeBulkSend(recipients: BulkRecipient[]): BulkSendSummary 
 }
 
 function selectForSend(recipients: BulkRecipient[], mode: BulkSendMode): BulkRecipient[] {
-  if (mode === "failed_only") return recipients.filter((row) => row.status === "FAILED");
-  return recipients.filter((row) => row.status === "PENDING");
+  if (mode === "failed_only") {
+    return recipients.filter((row) => row.selected && row.status === "FAILED");
+  }
+  return recipients.filter((row) => row.selected && row.status === "PENDING");
 }
 
 export async function runBulkStatementSend(input: {
