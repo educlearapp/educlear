@@ -1,26 +1,36 @@
-import React, { useMemo, useState } from "react";
-import { API_URL } from "../api";
-import { getLearnerAccountNo } from "../learner/learnerIdentity";
-import { normaliseBillingAmount } from "./billingLedger";
-import { sendBillingStatements } from "./billingApi";
+import React, { useMemo, useRef, useState } from "react";
+import {
+  buildStatementCoverEmailHtml,
+  loadStatementSchoolBranding,
+  sendStatementEmail,
+  type StatementSchoolBranding,
+} from "./statementDocument";
+import { buildStatementPdfFilename } from "./statementPeriod";
+import {
+  BULK_STATEMENT_PERIODS,
+  buildBulkStatementRecipients,
+  confirmBulkSendMessage,
+  countFailedRecipients,
+  countPendingRecipients,
+  countSkippedRecipients,
+  failedRecipientAccounts,
+  filterRowsForBulkStatementSend,
+  isBulkSendLocked,
+  resolveBulkStatementPeriod,
+  runBulkStatementSend,
+  safeBulkSendError,
+  sortBulkStatementRows,
+  summarizeBulkSend,
+  type BulkRecipient,
+  type BulkSendLock,
+  type BulkSendOneResult,
+} from "./bulkStatementSendLogic";
 
 type Props = {
   schoolId: string;
   learners: any[];
   statementRows: any[];
   onClose: () => void;
-};
-
-type ContactRow = {
-  id: string;
-  contactName: string;
-  relationship: string;
-  email: string;
-  attachment: string;
-  status: string;
-  accountNo: string;
-  learnerId: string;
-  learnerName: string;
 };
 
 const GOLD = "#d4af37";
@@ -65,29 +75,18 @@ const goldBtn: React.CSSProperties = {
   cursor: "pointer",
 };
 
-function periodStart(period: string): Date | null {
-  const now = new Date();
-  if (period === "Last 30 Days") {
-    const d = new Date(now);
-    d.setDate(d.getDate() - 30);
-    return d;
-  }
-  if (period === "Last 3 Months") {
-    const d = new Date(now);
-    d.setMonth(d.getMonth() - 3);
-    return d;
-  }
-  if (period === "This Year") {
-    return new Date(now.getFullYear(), 0, 1);
-  }
-  return null;
-}
+const ghostBtn: React.CSSProperties = {
+  ...goldBtn,
+  background: "#fff",
+  color: INK,
+};
 
-function matchesStatus(status: string, filter: string) {
-  if (filter === "All") return true;
-  if (filter === "Inactive") return status === "Inactive";
-  if (filter === "Paid Up") return status === "Up To Date";
-  return status === filter;
+function disabledBtn(base: React.CSSProperties, locked: boolean): React.CSSProperties {
+  return {
+    ...base,
+    opacity: locked ? 0.55 : 1,
+    cursor: locked ? "not-allowed" : "pointer",
+  };
 }
 
 export default function BulkStatementSend({ schoolId, learners, statementRows, onClose }: Props) {
@@ -95,177 +94,165 @@ export default function BulkStatementSend({ schoolId, learners, statementRows, o
   const [accountStatus, setAccountStatus] = useState("All");
   const [groupBy, setGroupBy] = useState("Grade");
   const [sortBy, setSortBy] = useState("Name");
-  const [statementPeriod, setStatementPeriod] = useState("Last 30 Days");
-  const [customFrom, setCustomFrom] = useState("");
-  const [customTo, setCustomTo] = useState("");
+  const [statementPeriod, setStatementPeriod] = useState("All Time");
   const [hideCorrections, setHideCorrections] = useState(false);
   const [includeInactiveWithBalances, setIncludeInactiveWithBalances] = useState(false);
   const [message, setMessage] = useState("Please find your statement of account attached.");
-
-  const [fromEmail, setFromEmail] = useState("billing@school.co.za");
-  const [description, setDescription] = useState("Bulk statement send");
   const [subject, setSubject] = useState("Statement of Account");
   const [emailMessage, setEmailMessage] = useState("Please find your statement of account attached.");
-  const [attachments, setAttachments] = useState<string[]>([]);
-  const [contacts, setContacts] = useState<ContactRow[]>([]);
+  const [recipients, setRecipients] = useState<BulkRecipient[]>([]);
+  const [confirmOpen, setConfirmOpen] = useState(false);
+  const [retryConfirmOpen, setRetryConfirmOpen] = useState(false);
   const [sending, setSending] = useState(false);
-
-  const learnerById = useMemo(() => {
-    const map = new Map<string, any>();
-    for (const l of learners || []) map.set(String(l.id), l);
-    return map;
-  }, [learners]);
+  const [progress, setProgress] = useState({ current: 0, total: 0 });
+  const [schoolBranding, setSchoolBranding] = useState<StatementSchoolBranding>({ name: "School" });
+  const lockRef = useRef<BulkSendLock>({ inFlight: false });
 
   const filteredRows = useMemo(() => {
-    const start = statementPeriod === "Custom" && customFrom ? new Date(customFrom) : periodStart(statementPeriod);
-    const end = statementPeriod === "Custom" && customTo ? new Date(customTo) : new Date();
-
-    return (statementRows || []).filter((row) => {
-      const status = String(row.status || "Up To Date");
-      if (!matchesStatus(status, accountStatus)) {
-        if (!(includeInactiveWithBalances && status === "Inactive" && normaliseBillingAmount(row.balance) !== 0)) {
-          return false;
-        }
-      }
-      if (hideCorrections && String(row.lastInvoice || "").toLowerCase().includes("correction")) {
-        return false;
-      }
-      if (start && row.lastInvoiceDate) {
-        const d = new Date(row.lastInvoiceDate);
-        if (d < start || d > end) return false;
-      }
-      return true;
+    const matched = filterRowsForBulkStatementSend(statementRows || [], {
+      accountStatus,
+      hideCorrections,
+      includeInactiveWithBalances,
     });
-  }, [
-    statementRows,
-    accountStatus,
-    hideCorrections,
-    includeInactiveWithBalances,
-    statementPeriod,
-    customFrom,
-    customTo,
-  ]);
+    return sortBulkStatementRows(matched, sortBy);
+  }, [statementRows, accountStatus, hideCorrections, includeInactiveWithBalances, sortBy]);
 
-  const sortedRows = useMemo(() => {
-    const rows = [...filteredRows];
-    rows.sort((a, b) => {
-      if (sortBy === "Surname") return String(a.surname).localeCompare(String(b.surname));
-      if (sortBy === "Account No") return String(a.accountNo).localeCompare(String(b.accountNo));
-      if (sortBy === "Balance") return normaliseBillingAmount(b.balance) - normaliseBillingAmount(a.balance);
-      return String(a.name).localeCompare(String(b.name));
+  const summary = summarizeBulkSend(recipients);
+  const pendingCount = countPendingRecipients(recipients);
+  const skippedCount = countSkippedRecipients(recipients);
+  const failedCount = countFailedRecipients(recipients);
+  const locked = sending || isBulkSendLocked(lockRef.current);
+  const periodForSend = resolveBulkStatementPeriod(statementPeriod);
+
+  const handleContinue = async () => {
+    const built = buildBulkStatementRecipients({
+      rows: filteredRows,
+      learners,
     });
-    return rows;
-  }, [filteredRows, sortBy]);
-
-  const buildContacts = () => {
-    const list: ContactRow[] = [];
-    for (const row of sortedRows) {
-      const learner = learnerById.get(String(row.learnerId || row.id));
-      const accountNo = getLearnerAccountNo(learner || row);
-      if (!accountNo || accountNo === "-") continue;
-
-      const parents = Array.isArray(learner?.parents) ? learner.parents : [];
-      const targets = parents.length
-        ? parents
-        : [{ firstName: row.name, surname: row.surname, relationship: "Parent", email: learner?.parentEmail || "" }];
-
-      for (const parent of targets) {
-        const email = String(parent.email || "").trim();
-        if (!email) continue;
-        const contactName = `${parent.firstName || parent.name || ""} ${parent.surname || parent.lastName || ""}`.trim();
-        const attachment = `statement-${accountNo}-${statementPeriod.replace(/\s+/g, "-").toLowerCase()}.pdf`;
-        list.push({
-          id: `${row.learnerId}-${email}`,
-          contactName: contactName || "Parent Contact",
-          relationship: String(parent.relationship || parent.relation || "Parent"),
-          email,
-          attachment,
-          status: "Ready",
-          accountNo,
-          learnerId: String(row.learnerId || row.id),
-          learnerName: `${row.name} ${row.surname}`.trim(),
-        });
-      }
-    }
-    const unique = new Map<string, ContactRow>();
-    for (const c of list) unique.set(c.id, c);
-    return Array.from(unique.values());
-  };
-
-  const handleContinue = () => {
-    const built = buildContacts();
-    setContacts(built);
-    setAttachments([...new Set(built.map((c) => c.attachment))]);
+    setRecipients(built);
     setEmailMessage(message);
-    setSubject(`Statement of Account — ${statementPeriod}`);
+    setSubject(`Statement of Account — ${periodForSend}`);
+    setConfirmOpen(false);
+    setRetryConfirmOpen(false);
+    setProgress({ current: 0, total: 0 });
+    try {
+      const branding = await loadStatementSchoolBranding(schoolId);
+      setSchoolBranding(branding);
+    } catch {
+      setSchoolBranding({ name: "School" });
+    }
     setStep("email");
   };
 
-  const handleSend = async () => {
-    setSending(true);
+  const sendOneRecipient = async (recipient: BulkRecipient): Promise<BulkSendOneResult> => {
+    const html = buildStatementCoverEmailHtml({
+      school: schoolBranding,
+      messagePlain: emailMessage || "",
+    });
     try {
-      const payload = {
+      await sendStatementEmail({
         schoolId,
-        from: fromEmail,
-        description,
-        subject,
-        message: emailMessage,
-        contacts: contacts.map((c) => ({
-          contactName: c.contactName,
-          email: c.email,
-          accountNo: c.accountNo,
-          learnerId: c.learnerId,
-          attachment: c.attachment,
-        })),
-      };
-      const res = await sendBillingStatements(payload);
-      const results = Array.isArray(res?.results) ? res.results : [];
-      setContacts((prev) =>
-        prev.map((c) => {
-          const match = results.find((r: any) => r.email === c.email && r.accountNo === c.accountNo);
-          return { ...c, status: match?.status || "Sent" };
-        })
-      );
-    } catch {
-      setContacts((prev) => prev.map((c) => ({ ...c, status: "Failed" })));
+        to: recipient.email,
+        subject: subject.trim() || `Statement of Account — ${periodForSend}`,
+        html,
+        learnerId: recipient.learnerId,
+        accountNo: recipient.accountNo,
+        period: periodForSend,
+        filename: buildStatementPdfFilename(recipient.accountNo, periodForSend),
+      });
+      return { ok: true };
+    } catch (error) {
+      return { ok: false, error: safeBulkSendError(error) };
+    }
+  };
+
+  const runSend = async (mode: "pending" | "failed_only") => {
+    if (lockRef.current.inFlight || sending) return;
+    setSending(true);
+    setConfirmOpen(false);
+    setRetryConfirmOpen(false);
+    try {
+      const next = await runBulkStatementSend({
+        lock: lockRef.current,
+        recipients,
+        mode,
+        sendOne: sendOneRecipient,
+        onProgress: (rows, current, total) => {
+          setRecipients(rows);
+          setProgress({ current, total });
+        },
+      });
+      setRecipients(next);
     } finally {
       setSending(false);
     }
   };
 
-  const handlePreview = () => {
-    if (!contacts.length) {
-      alert("No contacts to preview.");
-      return;
-    }
-    const sample = contacts[0];
-    window.open(
-      `data:text/html,${encodeURIComponent(
-        `<h1>Statement Preview</h1><p>${sample.learnerName}</p><p>Account: ${sample.accountNo}</p><p>Balance from ledger.</p>`
-      )}`,
-      "_blank"
+  const confirmPanel = (kind: "pending" | "failed_only") => {
+    const n = kind === "failed_only" ? failedCount : pendingCount;
+    const onCancel = () => {
+      if (locked) return;
+      setConfirmOpen(false);
+      setRetryConfirmOpen(false);
+    };
+    return (
+      <div style={{ ...overlay, zIndex: 5100 }}>
+        <div style={{ ...panel, width: "min(560px, 100%)" }}>
+          <div style={{ padding: "18px 22px", borderBottom: `1px solid ${GOLD}`, background: INK, color: GOLD }}>
+            <div style={{ fontWeight: 900, fontSize: 18 }}>Confirm statement send</div>
+          </div>
+          <div style={{ padding: 22, display: "grid", gap: 10 }}>
+            <div style={{ fontWeight: 800, fontSize: 16 }}>{confirmBulkSendMessage(n)}</div>
+            <div style={{ color: "#475569", fontWeight: 600 }}>Account status: {accountStatus}</div>
+            <div style={{ color: "#475569", fontWeight: 600 }}>Statement period: {periodForSend}</div>
+            <div style={{ color: "#475569", fontWeight: 600 }}>
+              Skipped (missing email or account): {skippedCount}
+            </div>
+            <div style={{ display: "flex", gap: 10, justifyContent: "flex-end", marginTop: 8 }}>
+              <button type="button" style={disabledBtn(ghostBtn, locked)} onClick={onCancel} disabled={locked}>
+                Cancel
+              </button>
+              <button
+                type="button"
+                style={disabledBtn(goldBtn, locked || n <= 0)}
+                disabled={locked || n <= 0}
+                onClick={() => runSend(kind)}
+              >
+                Confirm Send
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
     );
   };
 
   if (step === "email") {
+    const failedRows = failedRecipientAccounts(recipients);
     return (
       <div style={overlay}>
+        {(confirmOpen || retryConfirmOpen) && confirmPanel(retryConfirmOpen ? "failed_only" : "pending")}
         <div style={{ ...panel, width: "min(1100px, 100%)" }}>
           <div style={{ padding: "20px 24px", borderBottom: `1px solid ${GOLD}`, background: INK, color: GOLD }}>
             <div style={{ fontWeight: 900, fontSize: 20 }}>Send Statements — Email</div>
+            <div style={{ fontSize: 13, opacity: 0.85, marginTop: 4 }}>
+              {sending
+                ? `Sending ${progress.current} of ${progress.total}`
+                : `${pendingCount} ready · ${skippedCount} skipped · ${filteredRows.length} account(s)`}
+            </div>
           </div>
           <div style={{ padding: 24, display: "grid", gap: 14 }}>
-            <label>
-              From
-              <input style={fieldStyle} value={fromEmail} onChange={(e) => setFromEmail(e.target.value)} />
-            </label>
-            <label>
-              Description
-              <input style={fieldStyle} value={description} onChange={(e) => setDescription(e.target.value)} />
-            </label>
+            <div style={{ color: "#64748b", fontWeight: 700 }}>
+              Mail is sent through EduClear using the same statement PDF as Statement Manage.
+            </div>
             <label>
               Subject
-              <input style={fieldStyle} value={subject} onChange={(e) => setSubject(e.target.value)} />
+              <input
+                style={fieldStyle}
+                value={subject}
+                onChange={(e) => setSubject(e.target.value)}
+                disabled={locked}
+              />
             </label>
             <label>
               Message
@@ -273,38 +260,67 @@ export default function BulkStatementSend({ schoolId, learners, statementRows, o
                 style={{ ...fieldStyle, minHeight: 100 }}
                 value={emailMessage}
                 onChange={(e) => setEmailMessage(e.target.value)}
+                disabled={locked}
               />
             </label>
             <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
-              <button type="button" style={goldBtn} onClick={() => setAttachments((a) => [...a, `extra-${Date.now()}.pdf`])}>
-                Add Attachment
+              <button
+                type="button"
+                style={disabledBtn(goldBtn, locked || pendingCount <= 0)}
+                onClick={() => {
+                  if (locked || pendingCount <= 0) return;
+                  setRetryConfirmOpen(false);
+                  setConfirmOpen(true);
+                }}
+                disabled={locked || pendingCount <= 0}
+              >
+                {sending ? `Sending ${progress.current} of ${progress.total}` : "Send"}
               </button>
               <button
                 type="button"
-                style={goldBtn}
-                onClick={() => setAttachments((a) => a.slice(0, -1))}
-                disabled={!attachments.length}
+                style={disabledBtn(goldBtn, locked || failedCount <= 0)}
+                onClick={() => {
+                  if (locked || failedCount <= 0) return;
+                  setConfirmOpen(false);
+                  setRetryConfirmOpen(true);
+                }}
+                disabled={locked || failedCount <= 0}
               >
-                Remove
+                Retry failed
               </button>
-              <button type="button" style={goldBtn} onClick={handlePreview}>
-                Preview
-              </button>
-              <button type="button" style={goldBtn} onClick={handleSend} disabled={sending}>
-                {sending ? "Sending…" : "Send"}
-              </button>
-              <button type="button" style={goldBtn} onClick={() => setStep("wizard")}>
+              <button
+                type="button"
+                style={disabledBtn(goldBtn, locked)}
+                onClick={() => setStep("wizard")}
+                disabled={locked}
+              >
                 Back
               </button>
-              <button type="button" style={goldBtn} onClick={onClose}>
+              <button type="button" style={disabledBtn(goldBtn, locked)} onClick={onClose} disabled={locked}>
                 Close
               </button>
             </div>
+            {summary.outcome ? (
+              <div style={{ fontWeight: 800, color: INK }}>
+                {summary.outcome} · Attempted: {summary.attempted} · Sent: {summary.sent} · Failed: {summary.failed} ·
+                Skipped: {summary.skipped}
+              </div>
+            ) : null}
+            {failedRows.length ? (
+              <div style={{ border: "1px solid #fecaca", background: "#fef2f2", borderRadius: 10, padding: 12 }}>
+                <div style={{ fontWeight: 800, color: "#991b1b", marginBottom: 6 }}>Failed recipients</div>
+                {failedRows.map((row) => (
+                  <div key={`${row.accountNo}-${row.email}`} style={{ color: "#7f1d1d", fontWeight: 600, fontSize: 13 }}>
+                    {row.accountNo || "—"} · {row.errorReason}
+                  </div>
+                ))}
+              </div>
+            ) : null}
             <div style={{ overflowX: "auto" }}>
               <table style={{ width: "100%", borderCollapse: "collapse", minWidth: 720 }}>
                 <thead>
                   <tr style={{ background: "rgba(212,175,55,0.16)" }}>
-                    {["Contact Name", "Relationship", "Email", "Attachment(s)", "Status"].map((h) => (
+                    {["Contact Name", "Relationship", "Email", "Account", "Status"].map((h) => (
                       <th key={h} style={{ padding: 12, textAlign: "left", fontSize: 12, fontWeight: 900 }}>
                         {h}
                       </th>
@@ -312,20 +328,24 @@ export default function BulkStatementSend({ schoolId, learners, statementRows, o
                   </tr>
                 </thead>
                 <tbody>
-                  {contacts.length === 0 ? (
+                  {recipients.length === 0 ? (
                     <tr>
                       <td colSpan={5} style={{ padding: 20, textAlign: "center", color: "#64748b" }}>
-                        No contacts with email addresses found for the selected filters.
+                        No accounts matched the selected filters.
                       </td>
                     </tr>
                   ) : (
-                    contacts.map((c) => (
+                    recipients.map((c) => (
                       <tr key={c.id}>
                         <td style={{ padding: 12, borderBottom: "1px solid #f1f5f9" }}>{c.contactName}</td>
                         <td style={{ padding: 12, borderBottom: "1px solid #f1f5f9" }}>{c.relationship}</td>
-                        <td style={{ padding: 12, borderBottom: "1px solid #f1f5f9" }}>{c.email}</td>
-                        <td style={{ padding: 12, borderBottom: "1px solid #f1f5f9" }}>{c.attachment}</td>
-                        <td style={{ padding: 12, borderBottom: "1px solid #f1f5f9", fontWeight: 800 }}>{c.status}</td>
+                        <td style={{ padding: 12, borderBottom: "1px solid #f1f5f9" }}>{c.email || "—"}</td>
+                        <td style={{ padding: 12, borderBottom: "1px solid #f1f5f9" }}>{c.accountNo || "—"}</td>
+                        <td style={{ padding: 12, borderBottom: "1px solid #f1f5f9", fontWeight: 800 }}>
+                          {c.status}
+                          {c.skipReason ? ` · ${c.skipReason}` : ""}
+                          {c.errorReason ? ` · ${c.errorReason}` : ""}
+                        </td>
                       </tr>
                     ))
                   )}
@@ -333,7 +353,7 @@ export default function BulkStatementSend({ schoolId, learners, statementRows, o
               </table>
             </div>
             <div style={{ color: "#64748b", fontSize: 13 }}>
-              {contacts.length} contact(s) · Group by: {groupBy} · {sortedRows.length} account(s) · API: {API_URL}
+              Group by: {groupBy} · Period: {periodForSend}
             </div>
           </div>
         </div>
@@ -347,7 +367,7 @@ export default function BulkStatementSend({ schoolId, learners, statementRows, o
         <div style={{ padding: "20px 24px", borderBottom: `1px solid ${GOLD}`, background: INK, color: GOLD }}>
           <div style={{ fontWeight: 900, fontSize: 20 }}>Bulk Send Statements</div>
           <div style={{ fontSize: 13, opacity: 0.85, marginTop: 4 }}>
-            {sortedRows.length} account(s) match your filters
+            {filteredRows.length} account(s) match your filters
           </div>
         </div>
         <div style={{ padding: 24, display: "grid", gridTemplateColumns: "repeat(2, minmax(0, 1fr))", gap: 14 }}>
@@ -378,23 +398,11 @@ export default function BulkStatementSend({ schoolId, learners, statementRows, o
           <label>
             Statement Period
             <select style={fieldStyle} value={statementPeriod} onChange={(e) => setStatementPeriod(e.target.value)}>
-              {["Last 30 Days", "Last 3 Months", "This Year", "Custom"].map((o) => (
+              {BULK_STATEMENT_PERIODS.map((o) => (
                 <option key={o}>{o}</option>
               ))}
             </select>
           </label>
-          {statementPeriod === "Custom" && (
-            <>
-              <label>
-                From
-                <input type="date" style={fieldStyle} value={customFrom} onChange={(e) => setCustomFrom(e.target.value)} />
-              </label>
-              <label>
-                To
-                <input type="date" style={fieldStyle} value={customTo} onChange={(e) => setCustomTo(e.target.value)} />
-              </label>
-            </>
-          )}
           <label style={{ display: "flex", alignItems: "center", gap: 8, gridColumn: "span 2" }}>
             <input type="checkbox" checked={hideCorrections} onChange={(e) => setHideCorrections(e.target.checked)} />
             Hide Corrections

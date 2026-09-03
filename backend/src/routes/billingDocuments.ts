@@ -2,6 +2,9 @@ import { Router } from "express";
 
 const router = Router();
 
+export const BILLING_DOCUMENT_PREVIEW_STATUS = "PREVIEW";
+export const BILLING_DOCUMENT_WOULD_SEND_STATUS = "WOULD_SEND";
+
 const DOCUMENT_CATALOG = [
   {
     id: "invoices",
@@ -41,6 +44,61 @@ const DOCUMENT_CATALOG = [
   },
 ];
 
+export type BillingDocumentSendStatementResult = {
+  contactName: string;
+  email: string;
+  accountNo: string;
+  status: string;
+  error?: string;
+  attachment?: string;
+};
+
+/** Preview/validation only. Never sends email. Never returns Sent. */
+export function mapBillingDocumentSendStatementResults(
+  contacts: unknown[],
+  simulate: boolean
+): BillingDocumentSendStatementResult[] {
+  return (Array.isArray(contacts) ? contacts : []).map((raw: any) => {
+    const email = String(raw?.email || "").trim();
+    const accountNo = String(raw?.accountNo || "").trim();
+    const contactName = String(raw?.contactName || raw?.name || "").trim();
+    if (!email) {
+      return {
+        contactName,
+        email: "",
+        accountNo,
+        status: "SKIPPED",
+        error: "Missing email",
+      };
+    }
+    if (!accountNo || accountNo === "-") {
+      return {
+        contactName,
+        email,
+        accountNo,
+        status: "SKIPPED",
+        error: "Unassigned account number",
+      };
+    }
+    if (simulate) {
+      return {
+        contactName,
+        email,
+        accountNo,
+        attachment: raw?.attachment || `statement-${accountNo}.pdf`,
+        status: BILLING_DOCUMENT_PREVIEW_STATUS,
+      };
+    }
+    return {
+      contactName,
+      email,
+      accountNo,
+      attachment: raw?.attachment || `statement-${accountNo}.pdf`,
+      status: BILLING_DOCUMENT_WOULD_SEND_STATUS,
+    };
+  });
+}
+
 router.get("/", async (req, res) => {
   try {
     const schoolId = typeof req.query?.schoolId === "string" ? String(req.query.schoolId) : "";
@@ -65,47 +123,8 @@ router.post("/send-statements", async (req, res) => {
       return res.status(400).json({ success: false, error: "Missing schoolId" });
     }
 
-    const results = contacts.map((raw: any) => {
-      const email = String(raw?.email || "").trim();
-      const accountNo = String(raw?.accountNo || "").trim();
-      const contactName = String(raw?.contactName || raw?.name || "").trim();
-      if (!email) {
-        return {
-          contactName,
-          email: "",
-          accountNo,
-          status: "Failed",
-          error: "Missing email",
-        };
-      }
-      if (!accountNo || accountNo === "-") {
-        return {
-          contactName,
-          email,
-          accountNo,
-          status: "Failed",
-          error: "Unassigned account number",
-        };
-      }
-      if (simulate) {
-        return {
-          contactName,
-          email,
-          accountNo,
-          attachment: raw?.attachment || `statement-${accountNo}.pdf`,
-          status: "Sent",
-        };
-      }
-      return {
-        contactName,
-        email,
-        accountNo,
-        attachment: raw?.attachment || `statement-${accountNo}.pdf`,
-        status: "Ready",
-      };
-    });
-
-    return res.json({ success: true, results });
+    const results = mapBillingDocumentSendStatementResults(contacts, simulate);
+    return res.json({ success: true, simulated: simulate, results });
   } catch (error) {
     console.error("[billing-documents] POST /send-statements failed:", error);
     return res.status(500).json({ success: false, error: "Server error" });
