@@ -608,13 +608,14 @@ export const fetchBillingServerEnv = async () =>
 export const fetchBillingDocuments = async (schoolId: string) =>
   getJson(`${API_URL}/api/billing-documents?schoolId=${encodeURIComponent(schoolId)}`);
 
+/** Preview/validation only. Always simulate:true. Does not send email. */
 export const sendBillingStatements = async (payload: Record<string, unknown>) => {
   const response = await fetch(`${API_URL}/api/billing-documents/send-statements`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ ...payload, simulate: true }),
   });
-  if (!response.ok) throw new Error("Failed to send statements");
+  if (!response.ok) throw new Error("Failed to preview statements");
   return response.json();
 };
 
