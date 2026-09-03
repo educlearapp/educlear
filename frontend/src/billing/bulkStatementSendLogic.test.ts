@@ -1,11 +1,12 @@
 /**
- * Bulk statement send: selection, dedupe, sequential mocked delivery.
+ * Bulk statement send: selection, dedupe, bounded-concurrent mocked delivery.
  * Run: npx tsx src/billing/bulkStatementSendLogic.test.ts
  */
 import assert from "assert";
 import {
   applyRecipientSelected,
   buildBulkStatementRecipients,
+  clampBulkSendConcurrency,
   confirmBulkSendMessage,
   countEligibleRecipients,
   countPendingRecipients,
@@ -15,20 +16,48 @@ import {
   filterRowsForBulkStatementSend,
   isBulkSendButtonEnabled,
   isBulkSendLocked,
+  isPermanentBulkSendClientError,
   isRecipientSelectable,
+  isRetryableBulkRateLimit,
   matchesBulkAccountStatus,
+  parseBulkSendHttpStatus,
   recipientDedupKey,
+  resolveBulkRateLimitBackoffMs,
   resolveBulkStatementPeriod,
   runBulkStatementSend,
   selectAllEligibleRecipients,
   statusFromLiveSendResult,
   summarizeBulkSend,
+  nextDispatchDue,
+  BULK_STATEMENT_DISPATCH_SPACING_MS,
+  BULK_STATEMENT_SEND_CONCURRENCY,
   type BulkRecipient,
   type BulkSendLock,
 } from "./bulkStatementSendLogic";
 
 function assertTrue(condition: boolean, message: string) {
   if (!condition) throw new Error(message);
+}
+
+function sleep(ms: number) {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+function pendingSelected(count: number, start = 1): BulkRecipient[] {
+  return Array.from({ length: count }, (_, i) => {
+    const n = start + i;
+    return {
+      id: `P${n}`,
+      accountNo: `A${n}`,
+      email: `p${n}@example.test`,
+      contactName: `Parent ${n}`,
+      relationship: "Parent",
+      learnerId: `L${n}`,
+      learnerName: `Learner ${n}`,
+      status: "PENDING" as const,
+      selected: true,
+    };
+  });
 }
 
 function row(partial: Record<string, unknown>) {
@@ -210,7 +239,7 @@ async function main() {
   const oneSelected = applyRecipientSelected(mixedSeed, "1", true);
   assertTrue(isBulkSendButtonEnabled(oneSelected) === true, "Send enabled after selecting one pending");
   const sentOne: string[] = [];
-  const oneResult = await runBulkStatementSend({
+  const oneResult = await runBulkStatementSend({ dispatchSpacingMs: 0,
     lock: { inFlight: false },
     recipients: oneSelected,
     sendOne: async (recipient) => {
@@ -225,7 +254,7 @@ async function main() {
 
   const twoSelected = applyRecipientSelected(applyRecipientSelected(mixedSeed, "1", true), "3", true);
   const sentTwo: string[] = [];
-  await runBulkStatementSend({
+  await runBulkStatementSend({ dispatchSpacingMs: 0,
     lock: { inFlight: false },
     recipients: twoSelected,
     sendOne: async (recipient) => {
@@ -243,7 +272,7 @@ async function main() {
   assertTrue(noneSelected.every((r) => r.selected === false), "Deselect All selects none");
 
   const unselectedNeverCalled: string[] = [];
-  await runBulkStatementSend({
+  await runBulkStatementSend({ dispatchSpacingMs: 0,
     lock: { inFlight: false },
     recipients: mixedSeed,
     sendOne: async (recipient) => {
@@ -254,7 +283,7 @@ async function main() {
   assertTrue(unselectedNeverCalled.length === 0, "unselected recipient never reaches sendStatementEmail");
 
   const order: string[] = [];
-  const mixed = await runBulkStatementSend({
+  const mixed = await runBulkStatementSend({ dispatchSpacingMs: 0,
     lock: { inFlight: false },
     recipients: selectAllEligibleRecipients(mixedSeed),
     sendOne: async (recipient) => {
@@ -273,14 +302,14 @@ async function main() {
   assertTrue(mixedSummary.attempted === 3 && mixedSummary.sent === 2 && mixedSummary.failed === 1, "mixed counts");
   assertTrue(mixedSummary.skipped === 1, "skipped count");
 
-  const allOk = await runBulkStatementSend({
+  const allOk = await runBulkStatementSend({ dispatchSpacingMs: 0,
     lock: { inFlight: false },
     recipients: applyRecipientSelected(mixedSeed.filter((r) => r.status === "PENDING").slice(0, 1), "1", true),
     sendOne: async () => ({ ok: true }),
   });
   assertTrue(summarizeBulkSend(allOk).outcome === "COMPLETE", "all success → COMPLETE");
 
-  const allFail = await runBulkStatementSend({
+  const allFail = await runBulkStatementSend({ dispatchSpacingMs: 0,
     lock: { inFlight: false },
     recipients: applyRecipientSelected(mixedSeed.filter((r) => r.id === "2"), "2", true),
     sendOne: async () => ({ ok: false, error: "down" }),
@@ -288,7 +317,7 @@ async function main() {
   assertTrue(summarizeBulkSend(allFail).outcome === "FAILED", "all failure → FAILED");
 
   const lock: BulkSendLock = { inFlight: true };
-  const blocked = await runBulkStatementSend({
+  const blocked = await runBulkStatementSend({ dispatchSpacingMs: 0,
     lock,
     recipients: applyRecipientSelected(mixedSeed.filter((r) => r.status === "PENDING").slice(0, 1), "1", true),
     sendOne: async () => {
@@ -306,11 +335,11 @@ async function main() {
 
   let secondStarted = false;
   const liveLock: BulkSendLock = { inFlight: false };
-  const first = runBulkStatementSend({
+  const first = runBulkStatementSend({ dispatchSpacingMs: 0,
     lock: liveLock,
     recipients: applyRecipientSelected(mixedSeed.filter((r) => r.id === "1"), "1", true),
     sendOne: async () => {
-      const blockedAgain = await runBulkStatementSend({
+      const blockedAgain = await runBulkStatementSend({ dispatchSpacingMs: 0,
         lock: liveLock,
         recipients: applyRecipientSelected(mixedSeed.filter((r) => r.id === "1"), "1", true),
         sendOne: async () => {
@@ -327,7 +356,7 @@ async function main() {
 
   const retryLock: BulkSendLock = { inFlight: false };
   const retryCalled: string[] = [];
-  const afterFail = await runBulkStatementSend({
+  const afterFail = await runBulkStatementSend({ dispatchSpacingMs: 0,
     lock: retryLock,
     recipients: [
       { ...mixedSeed[0], status: "SENT", selected: true },
@@ -354,7 +383,7 @@ async function main() {
   );
   assertTrue(sentTried[0].selected === false, "SENT recipients cannot be selected");
   const resentSent: string[] = [];
-  await runBulkStatementSend({
+  await runBulkStatementSend({ dispatchSpacingMs: 0,
     lock: { inFlight: false },
     recipients: [{ ...mixedSeed[0], status: "SENT", selected: true }],
     mode: "failed_only",
@@ -371,6 +400,284 @@ async function main() {
   assertTrue(resolveBulkStatementPeriod("Last 3 Months") === "Last 3 Months", "Last 3 Months valid");
   assertTrue(countPendingRecipients(mixedSeed) === 3, "pending count");
   assertTrue(countSkippedRecipients(mixedSeed) === 1, "skipped count");
+
+  assertTrue(BULK_STATEMENT_SEND_CONCURRENCY === 5, "default concurrency cap is 5");
+  assertTrue(clampBulkSendConcurrency(99) === 5, "requested concurrency cannot exceed 5");
+  assertTrue(clampBulkSendConcurrency(0) === 5, "invalid concurrency falls back to 5");
+  assertTrue(clampBulkSendConcurrency(1) === 1, "concurrency 1 remains allowed");
+
+  const skippedInQueue: string[] = [];
+  const skippedQueueSeed: BulkRecipient[] = [
+    ...pendingSelected(2),
+    {
+      id: "SKIP1",
+      accountNo: "SKIP001",
+      email: "",
+      contactName: "Skip",
+      relationship: "Parent",
+      learnerId: "LS",
+      learnerName: "Skip",
+      status: "SKIPPED",
+      selected: true,
+      skipReason: "Missing email",
+    },
+  ];
+  await runBulkStatementSend({ dispatchSpacingMs: 0,
+    lock: { inFlight: false },
+    recipients: skippedQueueSeed,
+    sendOne: async (recipient) => {
+      skippedInQueue.push(recipient.id);
+      return { ok: true };
+    },
+  });
+  assertTrue(skippedInQueue.join(",") === "P1,P2", "SKIPPED recipients never enter the queue");
+
+  let peakInFlight = 0;
+  let inFlight = 0;
+  let peakSendingStatus = 0;
+  const twelve = pendingSelected(12);
+  const concurrent = await runBulkStatementSend({ dispatchSpacingMs: 0,
+    lock: { inFlight: false },
+    recipients: twelve,
+    concurrency: 99,
+    sendOne: async () => {
+      inFlight += 1;
+      peakInFlight = Math.max(peakInFlight, inFlight);
+      await sleep(25);
+      inFlight -= 1;
+      return { ok: true };
+    },
+    onProgress: (rows) => {
+      peakSendingStatus = Math.max(
+        peakSendingStatus,
+        rows.filter((row) => row.status === "SENDING").length
+      );
+    },
+  });
+  assertTrue(peakInFlight <= 5, "Maximum concurrency never exceeds 5");
+  assertTrue(peakInFlight === 5, "pool reaches the cap of 5 simultaneous sends");
+  assertTrue(peakSendingStatus <= 5, "SENDING rows never exceed 5");
+  assertTrue(concurrent.every((row) => row.status === "SENT"), "all concurrent successes become SENT");
+
+  const twentyThreeCalls: string[] = [];
+  const twentyThreeSeed: BulkRecipient[] = [
+    ...pendingSelected(23),
+    {
+      id: "SKIP23",
+      accountNo: "SK23",
+      email: "",
+      contactName: "Skip",
+      relationship: "Parent",
+      learnerId: "LS23",
+      learnerName: "Skip",
+      status: "SKIPPED",
+      selected: true,
+      skipReason: "Missing email",
+    },
+  ];
+  const twentyThree = await runBulkStatementSend({ dispatchSpacingMs: 0,
+    lock: { inFlight: false },
+    recipients: twentyThreeSeed,
+    sendOne: async (recipient) => {
+      twentyThreeCalls.push(recipient.id);
+      await sleep(5);
+      return { ok: true };
+    },
+  });
+  assertTrue(twentyThreeCalls.length === 23, "23 recipients results in exactly 23 send calls");
+  const twentyThreeSummary = summarizeBulkSend(twentyThree);
+  assertTrue(twentyThreeSummary.attempted === 23 && twentyThreeSummary.sent === 23 && twentyThreeSummary.failed === 0, "completion counts reconcile exactly");
+  assertTrue(twentyThreeSummary.skipped === 1 && twentyThreeSummary.outcome === "COMPLETE", "skipped stays out of attempted count");
+
+  const failDoesNotStop: string[] = [];
+  const failSeed = pendingSelected(8);
+  const failMixed = await runBulkStatementSend({ dispatchSpacingMs: 0,
+    lock: { inFlight: false },
+    recipients: failSeed,
+    sendOne: async (recipient) => {
+      failDoesNotStop.push(recipient.id);
+      await sleep(8);
+      if (recipient.id === "P2") return { ok: false, error: "mailbox rejected" };
+      return { ok: true };
+    },
+  });
+  assertTrue(failDoesNotStop.length === 8, "one failure does not stop the remaining recipients");
+  assertTrue(failMixed.find((row) => row.id === "P2")?.status === "FAILED", "failed row is FAILED");
+  assertTrue(failMixed.filter((row) => row.status === "SENT").length === 7, "other recipients still SENT");
+  assertTrue(summarizeBulkSend(failMixed).outcome === "PARTIAL", "mixed concurrent batch → PARTIAL");
+
+  const firstPass = await runBulkStatementSend({ dispatchSpacingMs: 0,
+    lock: { inFlight: false },
+    recipients: pendingSelected(4),
+    sendOne: async () => {
+      await sleep(5);
+      return { ok: true };
+    },
+  });
+  assertTrue(firstPass.every((row) => row.status === "SENT"), "first pass marks SENT only after success");
+  const duplicateCalls: string[] = [];
+  await runBulkStatementSend({ dispatchSpacingMs: 0,
+    lock: { inFlight: false },
+    recipients: firstPass.map((row) => ({ ...row, selected: true })),
+    sendOne: async (recipient) => {
+      duplicateCalls.push(recipient.id);
+      return { ok: true };
+    },
+  });
+  assertTrue(duplicateCalls.length === 0, "SENT recipients are never duplicated");
+
+  const retryOnlyFailed: string[] = [];
+  const retrySeed: BulkRecipient[] = [
+    { ...pendingSelected(1)[0], status: "SENT", selected: true },
+    { ...pendingSelected(1, 2)[0], status: "FAILED", selected: true, errorReason: "down" },
+    { ...pendingSelected(1, 3)[0], status: "FAILED", selected: false, errorReason: "unselected" },
+    { ...pendingSelected(1, 4)[0], status: "PENDING", selected: true },
+    {
+      id: "SKIP-R",
+      accountNo: "SKR",
+      email: "",
+      contactName: "Skip",
+      relationship: "Parent",
+      learnerId: "LSR",
+      learnerName: "Skip",
+      status: "SKIPPED",
+      selected: true,
+      skipReason: "Missing email",
+    },
+  ];
+  const retried = await runBulkStatementSend({ dispatchSpacingMs: 0,
+    lock: { inFlight: false },
+    recipients: retrySeed,
+    mode: "failed_only",
+    sendOne: async (recipient) => {
+      retryOnlyFailed.push(recipient.id);
+      await sleep(5);
+      return { ok: true };
+    },
+  });
+  assertTrue(retryOnlyFailed.join(",") === "P2", "Retry Failed sends only failed selected recipients");
+  assertTrue(retried.find((row) => row.id === "P1")?.status === "SENT", "retry does not resend SENT");
+  assertTrue(retried.find((row) => row.id === "P3")?.status === "FAILED", "unselected FAILED stays FAILED");
+  assertTrue(retried.find((row) => row.id === "P4")?.status === "PENDING", "retry does not pick PENDING");
+  assertTrue(retried.find((row) => row.id === "SKIP-R")?.status === "SKIPPED", "retry does not send SKIPPED");
+
+  assertTrue(parseBulkSendHttpStatus("Too many requests") === 429, "Resend too-many-requests maps to 429");
+  assertTrue(parseBulkSendHttpStatus("Resend email send failed with HTTP 429") === 429, "HTTP_429 text maps");
+  assertTrue(isRetryableBulkRateLimit({ ok: false, error: "Too many requests", httpStatus: 429 }) === true, "429 is retryable");
+  assertTrue(isPermanentBulkSendClientError({ ok: false, error: "HTTP 422 invalid recipient", httpStatus: 422 }) === true, "422 is permanent");
+  assertTrue(isRetryableBulkRateLimit({ ok: false, error: "HTTP 422 invalid recipient", httpStatus: 422 }) === false, "422 is not retried");
+  assertTrue(isRetryableBulkRateLimit({ ok: true }) === false, "HTTP 200 is never retried");
+  assertTrue(resolveBulkRateLimitBackoffMs({ ok: false, error: "x", retryAfterMs: 800 }) === 800, "Retry-After ms honored");
+  assertTrue(resolveBulkRateLimitBackoffMs({ ok: false, error: "retry-after: 2" }) === 2000, "Retry-After seconds honored");
+  assertTrue(BULK_STATEMENT_DISPATCH_SPACING_MS === 220, "default dispatch spacing is ~4.5 req/s");
+
+  const callCounts: Record<string, number> = {};
+  const rateLimitedSeed = pendingSelected(3);
+  const after429 = await runBulkStatementSend({
+    dispatchSpacingMs: 0,
+    lock: { inFlight: false },
+    recipients: rateLimitedSeed,
+    sleepImpl: async () => {},
+    sendOne: async (recipient) => {
+      callCounts[recipient.id] = (callCounts[recipient.id] || 0) + 1;
+      if (recipient.id === "P2" && callCounts[recipient.id] === 1) {
+        return { ok: false, error: "Too many requests", httpStatus: 429, retryAfterMs: 250 };
+      }
+      return { ok: true };
+    },
+  });
+  assertTrue(callCounts.P1 === 1 && callCounts.P3 === 1, "non-429 recipients send once");
+  assertTrue(callCounts.P2 === 2, "one 429 retries only that recipient");
+  assertTrue(after429.find((row) => row.id === "P2")?.status === "SENT", "429 retry can become SENT");
+  assertTrue(after429.filter((row) => row.status === "SENT").length === 3, "final counts remain accurate after 429 retry");
+
+  const backoffs: number[] = [];
+  let nowMs = 0;
+  await runBulkStatementSend({
+    dispatchSpacingMs: 0,
+    lock: { inFlight: false },
+    recipients: pendingSelected(1),
+    nowImpl: () => nowMs,
+    sleepImpl: async (ms) => {
+      backoffs.push(ms);
+      nowMs += ms;
+    },
+    sendOne: async () => {
+      if (backoffs.length === 0) {
+        return { ok: false, error: "HTTP 429", httpStatus: 429, retryAfterMs: 700 };
+      }
+      return { ok: true };
+    },
+  });
+  assertTrue(backoffs.includes(700), "Retry-After/backoff is respected where available");
+
+  const permanentCalls: Record<string, number> = {};
+  const permanent = await runBulkStatementSend({
+    dispatchSpacingMs: 0,
+    lock: { inFlight: false },
+    recipients: pendingSelected(2),
+    sleepImpl: async () => {},
+    sendOne: async (recipient) => {
+      permanentCalls[recipient.id] = (permanentCalls[recipient.id] || 0) + 1;
+      if (recipient.id === "P1") return { ok: false, error: "HTTP 422 invalid recipient", httpStatus: 422 };
+      return { ok: false, error: "HTTP 400 missing fields", httpStatus: 400 };
+    },
+  });
+  assertTrue(permanentCalls.P1 === 1 && permanentCalls.P2 === 1, "permanent 422/400 does not retry");
+  assertTrue(permanent.every((row) => row.status === "FAILED"), "permanent client errors stay FAILED");
+
+  const successIds: string[] = [];
+  await runBulkStatementSend({
+    dispatchSpacingMs: 0,
+    lock: { inFlight: false },
+    recipients: pendingSelected(5),
+    sleepImpl: async () => {},
+    sendOne: async (recipient) => {
+      successIds.push(recipient.id);
+      return { ok: true };
+    },
+  });
+  assertTrue(successIds.sort().join(",") === "P1,P2,P3,P4,P5", "HTTP 200 is never duplicated");
+
+  let clock = 0;
+  const dispatchAt: number[] = [];
+  await runBulkStatementSend({
+    dispatchSpacingMs: 40,
+    concurrency: 1,
+    lock: { inFlight: false },
+    recipients: pendingSelected(6),
+    nowImpl: () => clock,
+    sleepImpl: async (ms) => {
+      clock += ms;
+    },
+    sendOne: async () => {
+      dispatchAt.push(clock);
+      return { ok: true };
+    },
+  });
+  const gaps = dispatchAt.slice(1).map((t, i) => t - dispatchAt[i]);
+  assertTrue(dispatchAt.length === 6, "bounded dispatch still sends every recipient");
+  assertTrue(
+    gaps.every((gap) => gap >= 40),
+    "dispatch rate is bounded"
+  );
+  assertTrue(nextDispatchDue(null, 1000, 220) === 1000, "first dispatch has no delay");
+  assertTrue(nextDispatchDue(1000, 1000, 220) === 1220, "later dispatches are spaced");
+  assertTrue(nextDispatchDue(1000, 2000, 220) === 2000, "spacing does not add delay when already behind");
+
+  const reduced: number[] = [];
+  const hammered = await runBulkStatementSend({
+    dispatchSpacingMs: 0,
+    lock: { inFlight: false },
+    recipients: pendingSelected(6),
+    sleepImpl: async () => {},
+    onRateLimit: (state) => reduced.push(state.effectiveConcurrency),
+    sendOne: async () => ({ ok: false, error: "HTTP 429", httpStatus: 429, retryAfterMs: 200 }),
+  });
+  assertTrue(reduced.includes(3) && reduced.includes(2), "repeated 429 reduces concurrency 5 → 3 → 2");
+  assertTrue(hammered.every((row) => row.status === "FAILED"), "exhausted 429 retries become FAILED");
+  assertTrue(summarizeBulkSend(hammered).attempted === 6 && summarizeBulkSend(hammered).failed === 6, "final counts remain accurate after rate-limit failures");
+  assertTrue(summarizeBulkSend(hammered).sent === 0, "no false SENT after 429 exhaustion");
 
   const unmatchedMapped = statusFromLiveSendResult(undefined);
   assertTrue(unmatchedMapped !== "SENT" && unmatchedMapped !== "Sent", "unmatched/missing never Sent");

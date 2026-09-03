@@ -24,10 +24,10 @@ import {
   isRecipientSelectable,
   resolveBulkStatementPeriod,
   runBulkStatementSend,
-  safeBulkSendError,
   selectAllEligibleRecipients,
   sortBulkStatementRows,
   summarizeBulkSend,
+  toBulkSendFailure,
   type BulkRecipient,
   type BulkSendLock,
   type BulkSendOneResult,
@@ -172,7 +172,7 @@ export default function BulkStatementSend({ schoolId, learners, statementRows, o
       });
       return { ok: true };
     } catch (error) {
-      return { ok: false, error: safeBulkSendError(error) };
+      return toBulkSendFailure(error);
     }
   };
 
@@ -246,7 +246,11 @@ export default function BulkStatementSend({ schoolId, learners, statementRows, o
             <div style={{ fontWeight: 900, fontSize: 20 }}>Send Statements — Email</div>
             <div style={{ fontSize: 13, opacity: 0.85, marginTop: 4 }}>
               {sending
-                ? `Sending ${progress.current} of ${progress.total}`
+                ? `Sending ${progress.current} of ${progress.total}${
+                    recipients.some((row) => row.status === "SENDING")
+                      ? ` · ${recipients.filter((row) => row.status === "SENDING").length} in flight`
+                      : ""
+                  }`
                 : `Eligible: ${eligibleCount} · Selected: ${selectedCount} · Skipped: ${skippedCount}`}
             </div>
           </div>

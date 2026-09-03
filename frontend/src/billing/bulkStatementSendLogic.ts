@@ -1,6 +1,7 @@
 /**
- * Bulk statement recipient selection, dedupe, and sequential live send.
+ * Bulk statement recipient selection, dedupe, and rate-limited concurrent live send.
  * Live delivery uses the proven sendStatementEmail → /api/emails/send-statement path.
+ * At most 5 requests in flight, with dispatch spacing and a single 429 retry per recipient.
  * Does not write ledgers, invoices, payments, or FamilyAccounts.
  */
 import { getLearnerAccountNo } from "../learner/learnerIdentity";
@@ -8,6 +9,40 @@ import { normaliseBillingAmount } from "./billingLedger";
 import { DEFAULT_STATEMENT_PERIOD, normalizeStatementPeriod } from "./statementPeriod";
 
 export const BULK_STATEMENT_PERIODS = ["All Time", "Last 3 Months", "Last 6 Months", "This Year"] as const;
+
+/** Hard cap on simultaneous /api/emails/send-statement requests from one bulk run. */
+export const BULK_STATEMENT_SEND_CONCURRENCY = 5;
+/** ~4.5 new statement requests per second from this bulk sender. */
+export const BULK_STATEMENT_DISPATCH_SPACING_MS = 220;
+/** Conservative frontend backoff when Retry-After is not exposed. */
+export const BULK_STATEMENT_429_BACKOFF_MS = 1500;
+export const BULK_STATEMENT_MAX_429_RETRIES = 1;
+export const BULK_STATEMENT_CONCURRENCY_LADDER = [5, 3, 2] as const;
+
+export function clampBulkSendConcurrency(value?: number): number {
+  if (value == null || !Number.isFinite(value)) return BULK_STATEMENT_SEND_CONCURRENCY;
+  const n = Math.floor(Number(value));
+  if (n < 1) return BULK_STATEMENT_SEND_CONCURRENCY;
+  return Math.min(n, BULK_STATEMENT_SEND_CONCURRENCY);
+}
+
+export function clampBulkDispatchSpacingMs(value?: number): number {
+  if (value == null || !Number.isFinite(value)) return BULK_STATEMENT_DISPATCH_SPACING_MS;
+  const n = Math.floor(Number(value));
+  if (n < 0) return BULK_STATEMENT_DISPATCH_SPACING_MS;
+  return Math.min(n, 2000);
+}
+
+export function nextDispatchDue(lastDispatchAt: number | null, now: number, spacingMs: number): number {
+  if (spacingMs <= 0) return now;
+  if (lastDispatchAt == null) return now;
+  return Math.max(now, lastDispatchAt + spacingMs);
+}
+
+export function nextReducedBulkSendConcurrency(current: number): number {
+  if (current > 3) return 3;
+  return 2;
+}
 
 export type BulkRecipientStatus = "PENDING" | "SENDING" | "SENT" | "FAILED" | "SKIPPED";
 
@@ -38,6 +73,13 @@ export type BulkSendOneResult = {
 } | {
   ok: false;
   error: string;
+  httpStatus?: number;
+  retryAfterMs?: number;
+};
+
+export type BulkSendRateLimitState = {
+  effectiveConcurrency: number;
+  dispatchSpacingMs: number;
 };
 
 export type BulkSendSummary = {
@@ -313,6 +355,65 @@ export function safeBulkSendError(error: unknown): string {
   return trimmed;
 }
 
+export function parseRetryAfterMs(text: string | undefined): number | undefined {
+  const raw = String(text || "");
+  const header = raw.match(/retry-after[:\s]+(\d+(?:\.\d+)?)/i);
+  if (header) {
+    const seconds = Number(header[1]);
+    if (Number.isFinite(seconds) && seconds >= 0) return Math.min(Math.round(seconds * 1000), 15_000);
+  }
+  const ms = raw.match(/retry-after-ms[:\s]+(\d+)/i);
+  if (ms) {
+    const n = Number(ms[1]);
+    if (Number.isFinite(n) && n >= 0) return Math.min(n, 15_000);
+  }
+  return undefined;
+}
+
+export function parseBulkSendHttpStatus(error: string | undefined, httpStatus?: number): number | undefined {
+  if (httpStatus && httpStatus >= 400 && httpStatus <= 599) return httpStatus;
+  const text = String(error || "");
+  const labeled =
+    text.match(/\bHTTP[_\s-]?(\d{3})\b/i) || text.match(/\bstatus(?:\s+code)?\s*[:=]?\s*(\d{3})\b/i);
+  if (labeled) return Number(labeled[1]);
+  if (/\b429\b/.test(text) || /too many requests/i.test(text) || /rate[_ ]limit/i.test(text)) return 429;
+  if (/\b422\b/.test(text)) return 422;
+  return undefined;
+}
+
+export function isRetryableBulkRateLimit(result: BulkSendOneResult | null | undefined): boolean {
+  if (!result || result.ok) return false;
+  return parseBulkSendHttpStatus(result.error, result.httpStatus) === 429;
+}
+
+export function isPermanentBulkSendClientError(result: BulkSendOneResult | null | undefined): boolean {
+  if (!result || result.ok) return false;
+  const status = parseBulkSendHttpStatus(result.error, result.httpStatus);
+  return status === 400 || status === 404 || status === 409 || status === 422;
+}
+
+export function resolveBulkRateLimitBackoffMs(
+  result: BulkSendOneResult | null | undefined,
+  fallbackMs = BULK_STATEMENT_429_BACKOFF_MS
+): number {
+  if (result && result.ok === false && result.retryAfterMs != null && Number.isFinite(result.retryAfterMs)) {
+    return Math.max(200, Math.min(Math.floor(result.retryAfterMs), 15_000));
+  }
+  const parsed = result && result.ok === false ? parseRetryAfterMs(result.error) : undefined;
+  if (parsed != null) return Math.max(200, parsed);
+  return Math.max(200, fallbackMs);
+}
+
+export function toBulkSendFailure(error: unknown): Extract<BulkSendOneResult, { ok: false }> {
+  const raw = error instanceof Error ? error.message : String(error || "Failed to send statement email");
+  return {
+    ok: false,
+    error: safeBulkSendError(error),
+    httpStatus: parseBulkSendHttpStatus(raw),
+    retryAfterMs: parseRetryAfterMs(raw),
+  };
+}
+
 export function summarizeBulkSend(recipients: BulkRecipient[]): BulkSendSummary {
   const skipped = recipients.filter((row) => row.status === "SKIPPED").length;
   const sent = recipients.filter((row) => row.status === "SENT").length;
@@ -345,8 +446,13 @@ export async function runBulkStatementSend(input: {
   lock: BulkSendLock;
   recipients: BulkRecipient[];
   mode?: BulkSendMode;
+  concurrency?: number;
+  dispatchSpacingMs?: number;
   sendOne: (recipient: BulkRecipient) => Promise<BulkSendOneResult>;
   onProgress?: (next: BulkRecipient[], current: number, total: number) => void;
+  onRateLimit?: (state: BulkSendRateLimitState) => void;
+  sleepImpl?: (ms: number) => Promise<void>;
+  nowImpl?: () => number;
 }): Promise<BulkRecipient[]> {
   if (input.lock.inFlight) {
     return input.recipients;
@@ -356,39 +462,105 @@ export async function runBulkStatementSend(input: {
   const targets = selectForSend(input.recipients, mode);
   if (!targets.length) return input.recipients;
 
+  const sleepImpl =
+    input.sleepImpl || ((ms: number) => new Promise<void>((resolve) => setTimeout(resolve, ms)));
+  const nowImpl = input.nowImpl || (() => Date.now());
+  let effectiveConcurrency = clampBulkSendConcurrency(input.concurrency);
+  let spacingMs = clampBulkDispatchSpacingMs(input.dispatchSpacingMs);
+  let rateLimitHits = 0;
   input.lock.inFlight = true;
   let next = input.recipients.map((row) => ({ ...row }));
+  const total = targets.length;
+  let completed = 0;
+  let cursor = 0;
+  let lastDispatchAt: number | null = null;
+  let dispatchTail = Promise.resolve();
+
+  const reportProgress = () => {
+    const sendingNow = next.filter((row) => row.status === "SENDING").length;
+    input.onProgress?.(next, Math.min(completed + sendingNow, total), total);
+  };
+
+  const noteRateLimit = () => {
+    rateLimitHits += 1;
+    spacingMs = Math.min(1000, spacingMs + 180);
+    if (rateLimitHits >= 2) {
+      rateLimitHits = 0;
+      effectiveConcurrency = nextReducedBulkSendConcurrency(effectiveConcurrency);
+    }
+    input.onRateLimit?.({ effectiveConcurrency, dispatchSpacingMs: spacingMs });
+  };
+
+  const acquireDispatch = () => {
+    const previous = dispatchTail;
+    let release: () => void = () => {};
+    dispatchTail = new Promise<void>((resolve) => {
+      release = resolve;
+    });
+    return previous.then(async () => {
+      const now = nowImpl();
+      const due = nextDispatchDue(lastDispatchAt, now, spacingMs);
+      lastDispatchAt = due;
+      const wait = Math.max(0, due - now);
+      release();
+      if (wait > 0) await sleepImpl(wait);
+    });
+  };
+
+  const callSendOne = async (target: BulkRecipient): Promise<BulkSendOneResult> => {
+    await acquireDispatch();
+    try {
+      return await input.sendOne(next.find((row) => row.id === target.id) || target);
+    } catch (error) {
+      return toBulkSendFailure(error);
+    }
+  };
+
+  const runOne = async (target: BulkRecipient) => {
+    next = next.map((row) =>
+      row.id === target.id ? { ...row, status: "SENDING" as const, errorReason: undefined } : row
+    );
+    reportProgress();
+
+    let result = await callSendOne(target);
+    if (isRetryableBulkRateLimit(result) && !isPermanentBulkSendClientError(result)) {
+      noteRateLimit();
+      next = next.map((row) =>
+        row.id === target.id ? { ...row, status: "SENDING" as const, errorReason: "Rate limited — retrying" } : row
+      );
+      reportProgress();
+      await sleepImpl(resolveBulkRateLimitBackoffMs(result));
+      result = await callSendOne(target);
+      if (isRetryableBulkRateLimit(result)) noteRateLimit();
+    }
+
+    const status = statusFromLiveSendResult(result);
+    const errorReason =
+      status === "FAILED"
+        ? result.ok === false
+          ? safeBulkSendError(result.error)
+          : "Failed to send statement email"
+        : undefined;
+    next = next.map((row) => (row.id === target.id ? { ...row, status, errorReason } : row));
+    completed += 1;
+    reportProgress();
+  };
 
   try {
-    const total = targets.length;
-    let current = 0;
-    for (const target of targets) {
-      current += 1;
-      next = next.map((row) =>
-        row.id === target.id ? { ...row, status: "SENDING" as const, errorReason: undefined } : row
-      );
-      input.onProgress?.(next, current, total);
-
-      let result: BulkSendOneResult;
-      try {
-        result = await input.sendOne(next.find((row) => row.id === target.id) || target);
-      } catch (error) {
-        result = { ok: false, error: safeBulkSendError(error) };
+    const workerCount = Math.min(effectiveConcurrency, targets.length);
+    const workers = Array.from({ length: workerCount }, async (_, workerIndex) => {
+      while (true) {
+        while (workerIndex >= effectiveConcurrency) {
+          if (cursor >= targets.length) return;
+          await sleepImpl(Math.min(50, Math.max(spacingMs, 10)));
+        }
+        const index = cursor;
+        cursor += 1;
+        if (index >= targets.length) return;
+        await runOne(targets[index]);
       }
-
-      const status = statusFromLiveSendResult(result);
-      const errorReason = status === "FAILED" ? (result.ok === false ? safeBulkSendError(result.error) : "Failed to send statement email") : undefined;
-      next = next.map((row) =>
-        row.id === target.id
-          ? {
-              ...row,
-              status,
-              errorReason,
-            }
-          : row
-      );
-      input.onProgress?.(next, current, total);
-    }
+    });
+    await Promise.all(workers);
     return next;
   } finally {
     input.lock.inFlight = false;
