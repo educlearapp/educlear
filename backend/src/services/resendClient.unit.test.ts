@@ -11,6 +11,10 @@ import {
   RESEND_MAX_ATTEMPTS,
   RESEND_ATTEMPT_TIMEOUT_MS,
   RESEND_RETRYABLE_ERROR_CODES,
+  RESEND_CONNECT_FAMILY,
+  RESEND_IPV4_CONNECT_OPTIONS,
+  RESEND_EMAIL_API_URL,
+  buildResendIpv4HttpsOptions,
   formatResendHttpError,
 } from "./resendClient";
 import {
@@ -255,6 +259,32 @@ async function testRetryNeverExceedsOne() {
   assert.strictEqual(RESEND_MAX_ATTEMPTS, 2);
 }
 
+async function testIpv4OnlyTransport() {
+  assert.strictEqual(RESEND_CONNECT_FAMILY, 4);
+  assert.strictEqual(RESEND_IPV4_CONNECT_OPTIONS.family, 4);
+  assert.strictEqual(RESEND_IPV4_CONNECT_OPTIONS.autoSelectFamily, false);
+  const options = buildResendIpv4HttpsOptions(RESEND_EMAIL_API_URL);
+  assert.strictEqual(options.family, 4);
+  assert.strictEqual(options.autoSelectFamily, false);
+  assert.strictEqual(options.hostname, "api.resend.com");
+  assert.strictEqual(options.port, 443);
+  assert.strictEqual(options.method, "POST");
+  assert.strictEqual(options.path, "/emails");
+  assert.strictEqual(options.servername, "api.resend.com");
+
+  const result = await postResendEmail({
+    apiKey: "re_test",
+    payload: {
+      from: `"EduClear" <${EDUCLEAR_RELAY_FROM_EMAIL}>`,
+      to: ["parent@example.com"],
+      subject: "Statement",
+      html: "<p>Hi</p>",
+    },
+    fetchImpl: async () => jsonResponse(200, { id: "msg_ipv4_ok" }),
+  });
+  assert.strictEqual(result.messageId, "msg_ipv4_ok");
+}
+
 async function testHelpers() {
   assert.ok(isResendTransientNetworkError(networkError("ETIMEDOUT")));
   assert.ok(isResendTransientNetworkError(networkError("ECONNRESET")));
@@ -263,6 +293,10 @@ async function testHelpers() {
   assert.ok(RESEND_RETRYABLE_ERROR_CODES.includes("ETIMEDOUT"));
   assert.ok(RESEND_RETRYABLE_ERROR_CODES.includes("UND_ERR_CONNECT_TIMEOUT"));
   assert.ok(formatResendHttpError(400, '{"message":"bad"}').includes("bad"));
+  assert.strictEqual(
+    RESEND_NETWORK_UNAVAILABLE_MESSAGE,
+    "The email service could not be reached. Please try again shortly."
+  );
 }
 
 async function main() {
@@ -274,6 +308,7 @@ async function main() {
   await testHttp401And403NoRetry();
   await testFromAndReplyToPreserved();
   await testRetryNeverExceedsOne();
+  await testIpv4OnlyTransport();
   await testHelpers();
   console.log("resendClient.unit.test.ts: OK");
 }

@@ -146,6 +146,10 @@ async function main() {
       });
       assert.strictEqual(status, 503, JSON.stringify(json));
       assert.strictEqual(json.error, RESEND_NETWORK_UNAVAILABLE_MESSAGE);
+      assert.strictEqual(
+        json.error,
+        "The email service could not be reached. Please try again shortly."
+      );
       assert.notStrictEqual(json.error, "fetch failed");
       assert.strictEqual(fetchCalls, 2);
     }
