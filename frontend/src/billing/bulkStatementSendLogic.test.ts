@@ -155,9 +155,22 @@ async function main() {
   const pendingDup = dupRecipients.filter((r) => r.status === "PENDING");
   assertTrue(pendingDup.length === 2, "same account + same email dedupes; different emails remain");
   assertTrue(dupRecipients.every((r) => r.selected === false), "initial eligible recipients are unselected");
+  assertTrue(
+    pendingDup.filter((r) => r.isCanonicalBillingRecipient).length === 1,
+    "exactly one canonical billing recipient"
+  );
+  assertTrue(
+    pendingDup.filter((r) => r.isAdditionalBillingContact).length === 1,
+    "second distinct email is additional (manual only)"
+  );
   const emails = pendingDup.map((r) => r.email.trim().toLowerCase()).sort();
   assertTrue(emails[0] === "same@example.test" && emails[1] === "two@example.test", "keeps one same-email recipient");
   assertTrue(recipientDedupKey("fam001", "A@X.COM") === recipientDedupKey("FAM001", "a@x.com"), "dedupe key");
+  const selectAllDup = selectAllEligibleRecipients(dupRecipients);
+  assertTrue(
+    selectAllDup.filter((r) => r.selected).length === 1,
+    "Select All selects only the canonical contact"
+  );
 
   const missingEmail = buildBulkStatementRecipients({
     rows: [row({ learnerId: "L-NOMAIL", accountNo: "NOMAIL1" })],
@@ -270,6 +283,42 @@ async function main() {
   assertTrue(allEligible.find((r) => r.id === "4")?.selected === false, "Select All does not select SKIPPED");
   const noneSelected = deselectAllRecipients(allEligible);
   assertTrue(noneSelected.every((r) => r.selected === false), "Deselect All selects none");
+
+  const withAdditional: BulkRecipient[] = [
+    {
+      id: "c1",
+      accountNo: "FAM9",
+      email: "primary@example.test",
+      contactName: "Primary",
+      relationship: "Father",
+      learnerId: "L9",
+      learnerName: "Kid",
+      status: "PENDING",
+      selected: false,
+      isCanonicalBillingRecipient: true,
+    },
+    {
+      id: "a1",
+      accountNo: "FAM9",
+      email: "second@example.test",
+      contactName: "Second",
+      relationship: "Mother",
+      learnerId: "L9",
+      learnerName: "Kid",
+      status: "PENDING",
+      selected: false,
+      isCanonicalBillingRecipient: false,
+      isAdditionalBillingContact: true,
+    },
+  ];
+  const selectCanonicalOnly = selectAllEligibleRecipients(withAdditional);
+  assertTrue(selectCanonicalOnly.find((r) => r.id === "c1")?.selected === true, "Select All selects canonical");
+  assertTrue(
+    selectCanonicalOnly.find((r) => r.id === "a1")?.selected === false,
+    "Select All does not select additional contact"
+  );
+  const manualAdditional = applyRecipientSelected(selectCanonicalOnly, "a1", true);
+  assertTrue(manualAdditional.find((r) => r.id === "a1")?.selected === true, "additional can be selected manually");
 
   const unselectedNeverCalled: string[] = [];
   await runBulkStatementSend({ dispatchSpacingMs: 0,
@@ -681,6 +730,180 @@ async function main() {
 
   const unmatchedMapped = statusFromLiveSendResult(undefined);
   assertTrue(unmatchedMapped !== "SENT" && unmatchedMapped !== "Sent", "unmatched/missing never Sent");
+
+  // --- Recipient policy (canonical billing contact / consent / validation) ---
+  const oneAccountOneParent = buildBulkStatementRecipients({
+    rows: [row({ learnerId: "L-ONE", accountNo: "ONE001" })],
+    learners: [
+      learner({
+        id: "L-ONE",
+        accountNo: "ONE001",
+        parents: [{ firstName: "Only", surname: "Parent", email: "only@example.test", isPrimary: true }],
+      }),
+    ],
+  });
+  assertTrue(
+    oneAccountOneParent.filter((r) => r.status === "PENDING").length === 1,
+    "A: one account + one valid billing recipient => one eligible"
+  );
+  assertTrue(oneAccountOneParent[0].isCanonicalBillingRecipient === true, "A: marked canonical");
+
+  const multiParent = buildBulkStatementRecipients({
+    rows: [row({ learnerId: "L-MULTI", accountNo: "MULTI1" })],
+    learners: [
+      learner({
+        id: "L-MULTI",
+        accountNo: "MULTI1",
+        parents: [
+          {
+            firstName: "Secondary",
+            surname: "Parent",
+            email: "second@example.test",
+            isPrimary: false,
+            isPayingPerson: false,
+          },
+          {
+            firstName: "Primary",
+            surname: "Parent",
+            email: "primary@example.test",
+            isPrimary: true,
+            isPayingPerson: true,
+          },
+        ],
+      }),
+    ],
+  });
+  const multiPending = multiParent.filter((r) => r.status === "PENDING");
+  assertTrue(multiPending.length === 2, "B: multiple valid parents remain listed");
+  const multiCanonical = multiPending.find((r) => r.isCanonicalBillingRecipient);
+  assertTrue(multiCanonical?.email === "primary@example.test", "B: canonical is primary/paying contact");
+  assertTrue(
+    selectAllEligibleRecipients(multiParent).filter((r) => r.selected).length === 1,
+    "B: Select All sends only canonical"
+  );
+
+  const consentBlocked = buildBulkStatementRecipients({
+    rows: [row({ learnerId: "L-CONSENT", accountNo: "CON001" })],
+    learners: [
+      learner({
+        id: "L-CONSENT",
+        accountNo: "CON001",
+        parents: [
+          {
+            firstName: "No",
+            surname: "Mail",
+            email: "blocked@example.test",
+            communicationByEmail: false,
+            isPrimary: true,
+          },
+        ],
+      }),
+    ],
+  });
+  assertTrue(
+    consentBlocked.some((r) => r.status === "SKIPPED" && r.skipReason === "Billing/email preferences disabled"),
+    "D: consent disabled matches single-send exclusion"
+  );
+  assertTrue(consentBlocked.every((r) => r.status !== "PENDING"), "D: no pending when only consent-blocked contact");
+
+  const malformed = buildBulkStatementRecipients({
+    rows: [row({ learnerId: "L-BADMAIL", accountNo: "BADMAIL" })],
+    learners: [
+      learner({
+        id: "L-BADMAIL",
+        accountNo: "BADMAIL",
+        parents: [{ firstName: "Bad", surname: "Mail", email: "thatomoesbv.co.za", isPrimary: true }],
+      }),
+    ],
+  });
+  assertTrue(
+    malformed.some((r) => r.status === "SKIPPED" && r.skipReason === "Invalid email"),
+    "F: malformed email skipped"
+  );
+
+  const schoolInbox = buildBulkStatementRecipients({
+    rows: [row({ learnerId: "L-SCH", accountNo: "SIL007" })],
+    schoolEmail: "dasilvaacademy@gmail.com",
+    learners: [
+      learner({
+        id: "L-SCH",
+        accountNo: "SIL007",
+        parents: [
+          {
+            firstName: "Jose",
+            surname: "Guardian",
+            email: "dasilvaacademy@gmail.com",
+            isPrimary: true,
+          },
+          {
+            firstName: "Tony",
+            surname: "Parent",
+            email: "tony.parent@example.test",
+            isPrimary: false,
+            isPayingPerson: true,
+          },
+        ],
+      }),
+    ],
+  });
+  assertTrue(
+    schoolInbox.some((r) => r.status === "SKIPPED" && r.skipReason === "School or internal email"),
+    "G: school inbox blocked from recipients"
+  );
+  assertTrue(
+    schoolInbox.some((r) => r.status === "PENDING" && r.email === "tony.parent@example.test" && r.isCanonicalBillingRecipient),
+    "G: legitimate parent becomes canonical instead"
+  );
+
+  const sharedEmailAcrossAccounts = buildBulkStatementRecipients({
+    rows: [
+      row({ learnerId: "L-A1", accountNo: "ACC001" }),
+      row({ learnerId: "L-A2", accountNo: "ACC002" }),
+    ],
+    learners: [
+      learner({
+        id: "L-A1",
+        accountNo: "ACC001",
+        parents: [{ firstName: "Shared", surname: "One", email: "shared.house@example.test", isPrimary: true }],
+      }),
+      learner({
+        id: "L-A2",
+        accountNo: "ACC002",
+        parents: [{ firstName: "Shared", surname: "One", email: "shared.house@example.test", isPrimary: true }],
+      }),
+    ],
+  });
+  const sharedPending = sharedEmailAcrossAccounts.filter((r) => r.status === "PENDING");
+  assertTrue(sharedPending.length === 2, "H: same email on different accounts stays two recipients");
+  assertTrue(
+    new Set(sharedPending.map((r) => r.accountNo)).size === 2,
+    "H: accounts are not merged by matching email"
+  );
+
+  const billingStatementFalse = buildBulkStatementRecipients({
+    rows: [row({ learnerId: "L-BS", accountNo: "BS001" })],
+    learners: [
+      learner({
+        id: "L-BS",
+        accountNo: "BS001",
+        parents: [
+          {
+            firstName: "Off",
+            surname: "Statements",
+            email: "off@example.test",
+            billingStatement: false,
+            isPrimary: true,
+          },
+        ],
+      }),
+    ],
+  });
+  assertTrue(
+    billingStatementFalse.some(
+      (r) => r.status === "SKIPPED" && r.skipReason === "Billing/email preferences disabled"
+    ),
+    "D: billingStatement false excluded"
+  );
 
   const originalFetch = globalThis.fetch;
   const posted: string[] = [];

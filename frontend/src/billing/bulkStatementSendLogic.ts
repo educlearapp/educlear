@@ -3,10 +3,23 @@
  * Live delivery uses the proven sendStatementEmail → /api/emails/send-statement path.
  * At most 5 requests in flight, with dispatch spacing and a single 429 retry per recipient.
  * Does not write ledgers, invoices, payments, or FamilyAccounts.
+ *
+ * Recipient policy (Select All default): one canonical billing contact per FamilyAccount,
+ * using the same consent/ranking rules as single-statement send.
  */
 import { getLearnerAccountNo } from "../learner/learnerIdentity";
 import { normaliseBillingAmount } from "./billingLedger";
 import { DEFAULT_STATEMENT_PERIOD, normalizeStatementPeriod } from "./statementPeriod";
+import {
+  collectParentPairsForLearner,
+  contactScore,
+  isSchoolOrInternalRecipientEmail,
+  isStatementBillingContact,
+  isValidStatementEmail,
+  normalizeStatementEmail,
+  parentDisplayName,
+  type StatementParentPair,
+} from "./statementBillingContact";
 
 export const BULK_STATEMENT_PERIODS = ["All Time", "Last 3 Months", "Last 6 Months", "This Year"] as const;
 
@@ -58,6 +71,10 @@ export type BulkRecipient = {
   learnerName: string;
   status: BulkRecipientStatus;
   selected: boolean;
+  /** Default Select All only includes canonical billing contacts. */
+  isCanonicalBillingRecipient?: boolean;
+  /** Extra opted-in contacts available for explicit manual selection only. */
+  isAdditionalBillingContact?: boolean;
   skipReason?: string;
   errorReason?: string;
 };
@@ -149,119 +166,266 @@ export function sortBulkStatementRows(rows: any[], sortBy: string): any[] {
   return next;
 }
 
-function parentCandidates(learner: any, row: any): Array<{ firstName?: string; name?: string; surname?: string; lastName?: string; relationship?: string; relation?: string; email?: string }> {
-  const parents = Array.isArray(learner?.parents) ? learner.parents : [];
-  if (parents.length) return parents;
-  return [
-    {
-      firstName: row?.name,
-      surname: row?.surname,
-      relationship: "Parent",
-      email: String(learner?.parentEmail || row?.parentEmail || "").trim(),
-    },
-  ];
-}
-
 function contactNameFromParent(parent: any, fallback: string): string {
-  const name = `${parent?.firstName || parent?.name || ""} ${parent?.surname || parent?.lastName || ""}`.trim();
-  return name || fallback;
+  return parentDisplayName(parent) || fallback;
 }
 
+function relationshipFromPair(pair: StatementParentPair): string {
+  return String(
+    pair.link?.relation ||
+      pair.link?.relationship ||
+      pair.parent?.relationship ||
+      pair.parent?.relation ||
+      "Parent"
+  );
+}
+
+function accountLearnerIdsForRow(row: any): string[] {
+  const ids = new Set<string>();
+  const primary = String(row?.learnerId || row?.id || "").trim();
+  if (primary) ids.add(primary);
+  for (const id of row?.memberLearnerIds || []) {
+    const clean = String(id || "").trim();
+    if (clean) ids.add(clean);
+  }
+  return [...ids];
+}
+
+function pushSkipped(
+  list: BulkRecipient[],
+  seen: Set<string>,
+  input: {
+    accountNo: string;
+    email?: string;
+    contactName?: string;
+    relationship?: string;
+    learnerId: string;
+    learnerName: string;
+    skipReason: string;
+    dedupeSalt?: string;
+  }
+): void {
+  const email = String(input.email || "").trim();
+  const key = recipientDedupKey(
+    input.accountNo || "-",
+    email || input.dedupeSalt || `skip:${input.skipReason}:${input.learnerId || input.learnerName}`
+  );
+  if (seen.has(key)) return;
+  seen.add(key);
+  list.push({
+    id: key,
+    accountNo: input.accountNo || "",
+    email,
+    contactName: input.contactName || "Parent Contact",
+    relationship: input.relationship || "Parent",
+    learnerId: input.learnerId,
+    learnerName: input.learnerName,
+    status: "SKIPPED",
+    selected: false,
+    isCanonicalBillingRecipient: false,
+    isAdditionalBillingContact: false,
+    skipReason: input.skipReason,
+  });
+}
+
+/**
+ * Build bulk recipients with one canonical billing contact per FamilyAccount by default.
+ * Additional consented contacts remain listed for explicit manual selection only.
+ */
 export function buildBulkStatementRecipients(input: {
   rows: any[];
   learners?: any[];
+  globalParents?: any[];
+  /** Authoritative school profile email — blocks school inbox as a parent recipient. */
+  schoolEmail?: string | null;
 }): BulkRecipient[] {
   const learnerById = new Map<string, any>();
   for (const learner of input.learners || []) {
-    const id = String(learner?.id || "").trim();
+    const id = String(learner?.id || learner?.learnerId || "").trim();
     if (id) learnerById.set(id, learner);
   }
 
   const list: BulkRecipient[] = [];
   const seen = new Set<string>();
+  const schoolEmail = String(input.schoolEmail || "").trim();
 
   for (const row of input.rows || []) {
-    const learnerId = String(row?.learnerId || row?.id || "").trim();
-    const learner = learnerById.get(learnerId) || row;
-    const accountNo = getLearnerAccountNo(learner || row);
+    const learnerIds = accountLearnerIdsForRow(row);
+    const primaryLearnerId = learnerIds[0] || "";
+    const primaryLearner = learnerById.get(primaryLearnerId) || row;
+    const accountNo = String(row?.accountNo || "").trim() || getLearnerAccountNo(primaryLearner);
     const learnerName = `${row?.name || ""} ${row?.surname || ""}`.trim() || "Account";
-    const parents = parentCandidates(learner, row);
-    const emailsOnRow = parents
-      .map((parent) => String(parent?.email || "").trim())
-      .filter(Boolean);
 
     if (!accountNo || accountNo === "-") {
-      const email = emailsOnRow[0] || "";
-      const key = recipientDedupKey("-", email || `missing-account:${learnerId || learnerName}`);
-      if (seen.has(key)) continue;
-      seen.add(key);
-      list.push({
-        id: key,
+      pushSkipped(list, seen, {
         accountNo: accountNo || "",
-        email,
-        contactName: contactNameFromParent(parents[0], "Parent Contact"),
-        relationship: String(parents[0]?.relationship || parents[0]?.relation || "Parent"),
-        learnerId,
+        learnerId: primaryLearnerId,
         learnerName,
-        status: "SKIPPED",
-        selected: false,
         skipReason: "Missing account number",
+        dedupeSalt: `missing-account:${primaryLearnerId || learnerName}`,
       });
       continue;
     }
 
-    if (!emailsOnRow.length) {
-      const key = recipientDedupKey(accountNo, `missing-email:${learnerId || accountNo}`);
-      if (seen.has(key)) continue;
-      seen.add(key);
-      list.push({
-        id: key,
+    const pairs: StatementParentPair[] = [];
+    const pairSeen = new Set<string>();
+    for (const learnerId of learnerIds) {
+      const learner = learnerById.get(learnerId);
+      if (!learner) continue;
+      for (const pair of collectParentPairsForLearner(learner, input.globalParents || [])) {
+        const parentId = String(pair.parent?.id || "").trim();
+        const email = normalizeStatementEmail(pair.parent?.email || "");
+        const key = parentId || `${parentDisplayName(pair.parent)}|${email}`;
+        if (!key || pairSeen.has(key)) continue;
+        pairSeen.add(key);
+        pairs.push(pair);
+      }
+    }
+
+    if (!pairs.length) {
+      const fallbackEmail = String(
+        primaryLearner?.parentEmail || row?.parentEmail || ""
+      ).trim();
+      if (fallbackEmail) {
+        pairs.push({
+          parent: {
+            firstName: row?.name,
+            surname: row?.surname,
+            relationship: "Parent",
+            email: fallbackEmail,
+          },
+          link: {},
+        });
+      }
+    }
+
+    if (!pairs.length) {
+      pushSkipped(list, seen, {
         accountNo,
-        email: "",
-        contactName: "Parent Contact",
-        relationship: "Parent",
-        learnerId,
+        learnerId: primaryLearnerId,
         learnerName,
-        status: "SKIPPED",
-        selected: false,
         skipReason: "Missing email",
+        dedupeSalt: `missing-email:${primaryLearnerId || accountNo}`,
       });
       continue;
     }
 
-    for (const parent of parents) {
-      const email = String(parent?.email || "").trim();
+    type Ranked = {
+      pair: StatementParentPair;
+      email: string;
+      kind: "canonical_candidate" | "skipped";
+      skipReason?: string;
+    };
+    const ranked: Ranked[] = [];
+
+    for (const pair of pairs) {
+      const email = String(pair.parent?.email || "").trim();
       if (!email) {
-        const key = recipientDedupKey(accountNo, `missing-email:${learnerId}:${list.length}`);
-        if (seen.has(key)) continue;
-        seen.add(key);
-        list.push({
-          id: key,
-          accountNo,
+        ranked.push({
+          pair,
           email: "",
-          contactName: contactNameFromParent(parent, "Parent Contact"),
-          relationship: String(parent?.relationship || parent?.relation || "Parent"),
-          learnerId,
-          learnerName,
-          status: "SKIPPED",
-          selected: false,
+          kind: "skipped",
           skipReason: "Missing email",
         });
         continue;
       }
-      const key = recipientDedupKey(accountNo, email);
+      if (!isValidStatementEmail(email)) {
+        ranked.push({
+          pair,
+          email,
+          kind: "skipped",
+          skipReason: "Invalid email",
+        });
+        continue;
+      }
+      if (isSchoolOrInternalRecipientEmail(email, schoolEmail)) {
+        ranked.push({
+          pair,
+          email,
+          kind: "skipped",
+          skipReason: "School or internal email",
+        });
+        continue;
+      }
+      if (!isStatementBillingContact(pair)) {
+        ranked.push({
+          pair,
+          email,
+          kind: "skipped",
+          skipReason: "Billing/email preferences disabled",
+        });
+        continue;
+      }
+      ranked.push({ pair, email, kind: "canonical_candidate" });
+    }
+
+    const candidates = ranked
+      .filter((row) => row.kind === "canonical_candidate")
+      .sort((a, b) => contactScore(b.pair) - contactScore(a.pair));
+
+    for (const skipped of ranked.filter((row) => row.kind === "skipped")) {
+      pushSkipped(list, seen, {
+        accountNo,
+        email: skipped.email,
+        contactName: contactNameFromParent(skipped.pair.parent, "Parent Contact"),
+        relationship: relationshipFromPair(skipped.pair),
+        learnerId: primaryLearnerId,
+        learnerName,
+        skipReason: skipped.skipReason || "Skipped",
+        dedupeSalt: skipped.email
+          ? undefined
+          : `missing-email:${primaryLearnerId}:${list.length}`,
+      });
+    }
+
+    if (!candidates.length) {
+      if (!ranked.some((row) => row.kind === "skipped")) {
+        pushSkipped(list, seen, {
+          accountNo,
+          learnerId: primaryLearnerId,
+          learnerName,
+          skipReason: "No eligible billing contact",
+          dedupeSalt: `no-contact:${accountNo}`,
+        });
+      }
+      continue;
+    }
+
+    const canonical = candidates[0];
+    const canonicalKey = recipientDedupKey(accountNo, canonical.email);
+    if (!seen.has(canonicalKey)) {
+      seen.add(canonicalKey);
+      list.push({
+        id: canonicalKey,
+        accountNo,
+        email: canonical.email,
+        contactName: contactNameFromParent(canonical.pair.parent, "Parent Contact"),
+        relationship: relationshipFromPair(canonical.pair),
+        learnerId: primaryLearnerId,
+        learnerName,
+        status: "PENDING",
+        selected: false,
+        isCanonicalBillingRecipient: true,
+        isAdditionalBillingContact: false,
+      });
+    }
+
+    for (const extra of candidates.slice(1)) {
+      const key = recipientDedupKey(accountNo, extra.email);
       if (seen.has(key)) continue;
       seen.add(key);
       list.push({
         id: key,
         accountNo,
-        email,
-        contactName: contactNameFromParent(parent, "Parent Contact"),
-        relationship: String(parent?.relationship || parent?.relation || "Parent"),
-        learnerId,
+        email: extra.email,
+        contactName: contactNameFromParent(extra.pair.parent, "Parent Contact"),
+        relationship: relationshipFromPair(extra.pair),
+        learnerId: primaryLearnerId,
         learnerName,
         status: "PENDING",
         selected: false,
+        isCanonicalBillingRecipient: false,
+        isAdditionalBillingContact: true,
       });
     }
   }
@@ -273,12 +437,43 @@ export function isRecipientSelectable(recipient: BulkRecipient): boolean {
   return recipient.status === "PENDING" || recipient.status === "FAILED";
 }
 
+export function isCanonicalBulkRecipient(recipient: BulkRecipient): boolean {
+  if (recipient.status === "SKIPPED") return false;
+  if (recipient.isAdditionalBillingContact) return false;
+  // Explicit false excludes; undefined (legacy) counts as canonical.
+  if (recipient.isCanonicalBillingRecipient === false) return false;
+  return true;
+}
+
 export function countEligibleRecipients(recipients: BulkRecipient[]): number {
   return recipients.filter((row) => row.status !== "SKIPPED").length;
 }
 
+/** Default Select All / account-oriented eligible count. */
+export function countCanonicalEligibleRecipients(recipients: BulkRecipient[]): number {
+  return recipients.filter(
+    (row) => row.status === "PENDING" && isCanonicalBulkRecipient(row)
+  ).length;
+}
+
+export function countAdditionalEligibleRecipients(recipients: BulkRecipient[]): number {
+  return recipients.filter(
+    (row) => row.status === "PENDING" && row.isAdditionalBillingContact
+  ).length;
+}
+
 export function countSelectedRecipients(recipients: BulkRecipient[]): number {
   return recipients.filter((row) => row.selected && isRecipientSelectable(row)).length;
+}
+
+export function countSelectedAccountNos(recipients: BulkRecipient[]): number {
+  const accounts = new Set<string>();
+  for (const row of recipients) {
+    if (!(row.selected && isRecipientSelectable(row))) continue;
+    const accountNo = String(row.accountNo || "").trim().toUpperCase();
+    if (accountNo) accounts.add(accountNo);
+  }
+  return accounts.size;
 }
 
 export function countSelectedPendingRecipients(recipients: BulkRecipient[]): number {
@@ -307,11 +502,12 @@ export function applyRecipientSelected(
   });
 }
 
+/** Select All selects only canonical billing contacts (one per account by default). */
 export function selectAllEligibleRecipients(recipients: BulkRecipient[], lock?: BulkSendLock): BulkRecipient[] {
   if (lock && isBulkSendLocked(lock)) return recipients;
   return recipients.map((row) => ({
     ...row,
-    selected: isRecipientSelectable(row),
+    selected: row.status === "PENDING" && isCanonicalBulkRecipient(row),
   }));
 }
 
@@ -334,6 +530,14 @@ export function countFailedRecipients(recipients: BulkRecipient[]): number {
 
 export function confirmBulkSendMessage(selectedCount: number): string {
   return `Send statements to ${selectedCount} selected recipients?`;
+}
+
+export function confirmBulkSendDetails(input: {
+  accounts: number;
+  emailRecipients: number;
+  skipped: number;
+}): string {
+  return `Accounts: ${input.accounts} · Email recipients: ${input.emailRecipients} · Skipped: ${input.skipped}`;
 }
 
 export function isBulkSendLocked(lock: BulkSendLock): boolean {
