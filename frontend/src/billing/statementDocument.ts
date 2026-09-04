@@ -8,6 +8,14 @@ import {
   substituteBillingTokens,
 } from "./billingSettingsEngine";
 import { DEFAULT_STATEMENT_PERIOD, normalizeStatementPeriod } from "./statementPeriod";
+import {
+  parentDisplayName,
+  resolveStatementBillingContact,
+  type StatementContact,
+} from "./statementBillingContact";
+
+export type { StatementContact } from "./statementBillingContact";
+export { resolveStatementBillingContact } from "./statementBillingContact";
 
 export type StatementTransaction = {
   date: string;
@@ -18,12 +26,6 @@ export type StatementTransaction = {
   amountOut: number;
   balance: number;
   learner?: string;
-};
-
-export type StatementContact = {
-  name: string;
-  email: string;
-  relationship: string;
 };
 
 export type StatementSchoolBranding = {
@@ -43,124 +45,6 @@ function escapeHtml(value: unknown): string {
     .replaceAll(">", "&gt;")
     .replaceAll('"', "&quot;")
     .replaceAll("'", "&#039;");
-}
-
-function parentDisplayName(parent: any): string {
-  return (
-    `${parent?.firstName || parent?.name || ""} ${parent?.surname || parent?.lastName || ""}`.trim() ||
-    String(parent?.fullName || "").trim() ||
-    "Parent / Guardian"
-  );
-}
-
-function learnerFullName(learner: any): string {
-  return `${learner?.firstName || learner?.name || ""} ${learner?.lastName || learner?.surname || ""}`.trim();
-}
-
-function collectParentPairsForLearner(learner: any, globalParents: any[]): { parent: any; link: any }[] {
-  const seen = new Set<string>();
-  const pairs: { parent: any; link: any }[] = [];
-
-  const add = (rawParent: any, link: any = {}) => {
-    if (!rawParent) return;
-    const parent = rawParent?.parent || rawParent;
-    const mergedLink = rawParent?.parent ? rawParent : link;
-    const id = String(parent?.id || "").trim();
-    const email = String(parent?.email || "").trim().toLowerCase();
-    const key = id || `${parentDisplayName(parent)}|${email}`;
-    if (!key || seen.has(key)) return;
-    seen.add(key);
-    pairs.push({ parent, link: mergedLink || {} });
-  };
-
-  add(learner?.parent);
-  add(learner?.primaryParent);
-  add(learner?.guardian);
-  for (const p of learner?.parents || []) add(p);
-  for (const link of learner?.links || learner?.parentLinks || []) {
-    add(link?.parent || link, link);
-  }
-
-  const learnerId = String(learner?.id || learner?.learnerId || "").trim();
-  const learnerName = learnerFullName(learner).toLowerCase();
-
-  for (const parent of globalParents || []) {
-    const childIds = [
-      parent?.learnerId,
-      parent?.childId,
-      parent?.studentId,
-      parent?.child?.id,
-      parent?.learner?.id,
-      ...(Array.isArray(parent?.learnerIds) ? parent.learnerIds : []),
-      ...(Array.isArray(parent?.children) ? parent.children.map((c: any) => c?.id) : []),
-      ...(Array.isArray(parent?.learners) ? parent.learners.map((c: any) => c?.id) : []),
-    ]
-      .filter(Boolean)
-      .map(String);
-
-    const childNames = [
-      parent?.learnerName,
-      parent?.childName,
-      parent?.studentName,
-      ...(Array.isArray(parent?.children) ? parent.children.map((c: any) => learnerFullName(c)) : []),
-      ...(Array.isArray(parent?.learners) ? parent.learners.map((c: any) => learnerFullName(c)) : []),
-    ]
-      .map((x: any) => String(x || "").toLowerCase().trim())
-      .filter(Boolean);
-
-    if (childIds.includes(learnerId) || childNames.includes(learnerName)) {
-      add(parent);
-    }
-  }
-
-  return pairs;
-}
-
-function isStatementBillingContact(pair: { parent: any; link: any }): boolean {
-  const parent = pair.parent;
-  const link = pair.link;
-  if (link?.billingStatement === false) return false;
-  if (parent?.communicationBilling === false) return false;
-  if (parent?.communicationByEmail === false) return false;
-  return Boolean(String(parent?.email || "").trim());
-}
-
-function contactScore(pair: { parent: any; link: any }): number {
-  let score = 0;
-  if (pair.link?.isPrimary) score += 10;
-  if (pair.link?.isPayingPerson) score += 6;
-  if (pair.parent?.communicationBilling !== false) score += 2;
-  return score;
-}
-
-/** Linked parent/guardian for statement email (billing + email flags). */
-export function resolveStatementBillingContact(
-  learners: any[],
-  globalParents: any[],
-  accountLearnerIds: string[]
-): StatementContact | null {
-  const ids = accountLearnerIds.filter(Boolean);
-  const candidates: { parent: any; link: any }[] = [];
-
-  for (const learnerId of ids) {
-    const learner = (learners || []).find(
-      (l) => String(l?.id || l?.learnerId) === learnerId
-    );
-    if (!learner) continue;
-    for (const pair of collectParentPairsForLearner(learner, globalParents)) {
-      if (isStatementBillingContact(pair)) candidates.push(pair);
-    }
-  }
-
-  if (!candidates.length) return null;
-
-  candidates.sort((a, b) => contactScore(b) - contactScore(a));
-  const best = candidates[0];
-  return {
-    name: parentDisplayName(best.parent),
-    email: String(best.parent.email || "").trim(),
-    relationship: String(best.link?.relation || best.link?.relationship || best.parent?.relationship || "Parent"),
-  };
 }
 
 export { absolutizeSchoolLogoUrl, resolveSchoolLogoUrl } from "../utils/schoolLogo";
