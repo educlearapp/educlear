@@ -10,8 +10,10 @@ import {
   BULK_STATEMENT_PERIODS,
   applyRecipientSelected,
   buildBulkStatementRecipients,
+  confirmBulkSendDetails,
   confirmBulkSendMessage,
-  countEligibleRecipients,
+  countAdditionalEligibleRecipients,
+  countCanonicalEligibleRecipients,
   countSelectedFailedRecipients,
   countSelectedPendingRecipients,
   countSelectedRecipients,
@@ -126,7 +128,8 @@ export default function BulkStatementSend({ schoolId, learners, statementRows, o
 
   const summary = summarizeBulkSend(recipients);
   const skippedCount = countSkippedRecipients(recipients);
-  const eligibleCount = countEligibleRecipients(recipients);
+  const canonicalEligibleCount = countCanonicalEligibleRecipients(recipients);
+  const additionalEligibleCount = countAdditionalEligibleRecipients(recipients);
   const selectedCount = countSelectedRecipients(recipients);
   const selectedPendingCount = countSelectedPendingRecipients(recipients);
   const selectedFailedCount = countSelectedFailedRecipients(recipients);
@@ -135,9 +138,17 @@ export default function BulkStatementSend({ schoolId, learners, statementRows, o
   const periodForSend = resolveBulkStatementPeriod(statementPeriod);
 
   const handleContinue = async () => {
+    let branding: StatementSchoolBranding = { name: "School" };
+    try {
+      branding = await loadStatementSchoolBranding(schoolId);
+    } catch {
+      branding = { name: "School" };
+    }
+    setSchoolBranding(branding);
     const built = buildBulkStatementRecipients({
       rows: filteredRows,
       learners,
+      schoolEmail: branding.email || "",
     });
     setRecipients(built);
     setEmailMessage(message);
@@ -145,12 +156,6 @@ export default function BulkStatementSend({ schoolId, learners, statementRows, o
     setConfirmOpen(false);
     setRetryConfirmOpen(false);
     setProgress({ current: 0, total: 0 });
-    try {
-      const branding = await loadStatementSchoolBranding(schoolId);
-      setSchoolBranding(branding);
-    } catch {
-      setSchoolBranding({ name: "School" });
-    }
     setStep("email");
   };
 
@@ -200,6 +205,17 @@ export default function BulkStatementSend({ schoolId, learners, statementRows, o
 
   const confirmPanel = (kind: "pending" | "failed_only") => {
     const n = kind === "failed_only" ? selectedFailedCount : selectedPendingCount;
+    const accountsForConfirm = (() => {
+      const accounts = new Set<string>();
+      for (const row of recipients) {
+        if (!row.selected) continue;
+        if (kind === "failed_only" && row.status !== "FAILED") continue;
+        if (kind === "pending" && row.status !== "PENDING") continue;
+        const accountNo = String(row.accountNo || "").trim().toUpperCase();
+        if (accountNo) accounts.add(accountNo);
+      }
+      return accounts.size;
+    })();
     const onCancel = () => {
       if (locked) return;
       setConfirmOpen(false);
@@ -213,10 +229,19 @@ export default function BulkStatementSend({ schoolId, learners, statementRows, o
           </div>
           <div style={{ padding: 22, display: "grid", gap: 10 }}>
             <div style={{ fontWeight: 800, fontSize: 16 }}>{confirmBulkSendMessage(n)}</div>
+            <div style={{ color: "#475569", fontWeight: 700 }}>
+              {confirmBulkSendDetails({
+                accounts: accountsForConfirm,
+                emailRecipients: n,
+                skipped: skippedCount,
+              })}
+            </div>
             <div style={{ color: "#475569", fontWeight: 600 }}>Account status: {accountStatus}</div>
             <div style={{ color: "#475569", fontWeight: 600 }}>Statement period: {periodForSend}</div>
-            <div style={{ color: "#475569", fontWeight: 600 }}>Selected: {n}</div>
-            <div style={{ color: "#475569", fontWeight: 600 }}>Skipped: {skippedCount}</div>
+            <div style={{ color: "#64748b", fontWeight: 600, fontSize: 13 }}>
+              Select All chooses one canonical billing contact per family account. Additional contacts
+              stay available for manual selection only.
+            </div>
             <div style={{ display: "flex", gap: 10, justifyContent: "flex-end", marginTop: 8 }}>
               <button type="button" style={disabledBtn(ghostBtn, locked)} onClick={onCancel} disabled={locked}>
                 Cancel
@@ -251,7 +276,7 @@ export default function BulkStatementSend({ schoolId, learners, statementRows, o
                       ? ` · ${recipients.filter((row) => row.status === "SENDING").length} in flight`
                       : ""
                   }`
-                : `Eligible: ${eligibleCount} · Selected: ${selectedCount} · Skipped: ${skippedCount}`}
+                : `Accounts: ${canonicalEligibleCount} · Additional contacts: ${additionalEligibleCount} · Selected: ${selectedCount} · Skipped: ${skippedCount}`}
             </div>
           </div>
           <div style={{ padding: 24, display: "grid", gap: 14 }}>
@@ -395,6 +420,8 @@ export default function BulkStatementSend({ schoolId, learners, statementRows, o
                         <td style={{ padding: 12, borderBottom: "1px solid #f1f5f9" }}>{c.accountNo || "—"}</td>
                         <td style={{ padding: 12, borderBottom: "1px solid #f1f5f9", fontWeight: 800 }}>
                           {c.status}
+                          {c.isCanonicalBillingRecipient ? " · Billing contact" : ""}
+                          {c.isAdditionalBillingContact ? " · Additional" : ""}
                           {c.skipReason ? ` · ${c.skipReason}` : ""}
                           {c.errorReason ? ` · ${c.errorReason}` : ""}
                         </td>
