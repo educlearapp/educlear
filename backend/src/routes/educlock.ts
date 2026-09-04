@@ -33,6 +33,14 @@ import {
   staffClockOut,
 } from "../services/educlockClockService";
 import { ownerCancelStaffAbsence, staffReportAbsence } from "../services/educlockStaffAbsence";
+import {
+  exportOwnerMovementsCsv,
+  listOwnerMovements,
+  ownerCancelStaffMovement,
+  ownerReturnStaffMovement,
+  staffLeavePremises,
+  staffReturnToPremises,
+} from "../services/educlockStaffMovement";
 import { prisma } from "../prisma";
 import { maskIdentityNumber } from "../services/employeeIdentityVerification";
 import { hasPermission, resolveStoredPermissions } from "../utils/userPermissions";
@@ -443,6 +451,57 @@ router.post("/me/absence", async (req, res) => {
   }
 });
 
+router.post("/me/movements/leave", async (req, res) => {
+  try {
+    const auth = await requireStaffAuth(req);
+    const rejected = rejectClientIdentityFields(req.body);
+    if (rejected) {
+      return res.status(400).json({
+        error: "Client may not supply identity or school override fields.",
+        code: "EDUCLOCK_IDENTITY_INVALID",
+      });
+    }
+    const idem =
+      String(req.headers["idempotency-key"] || req.body?.idempotencyKey || "").trim() || null;
+    const result = await staffLeavePremises({
+      userId: auth.userId,
+      schoolId: auth.authorizedSchoolId,
+      reason: req.body?.reason,
+      destination: req.body?.destination,
+      note: req.body?.note,
+      body: req.body,
+      idempotencyKey: idem,
+    });
+    return res.status(result.idempotentReplay ? 200 : 201).json(result);
+  } catch (err) {
+    return sendEduClockError(res, err);
+  }
+});
+
+router.post("/me/movements/return", async (req, res) => {
+  try {
+    const auth = await requireStaffAuth(req);
+    const rejected = rejectClientIdentityFields(req.body);
+    if (rejected) {
+      return res.status(400).json({
+        error: "Client may not supply identity or school override fields.",
+        code: "EDUCLOCK_IDENTITY_INVALID",
+      });
+    }
+    const idem =
+      String(req.headers["idempotency-key"] || req.body?.idempotencyKey || "").trim() || null;
+    const result = await staffReturnToPremises({
+      userId: auth.userId,
+      schoolId: auth.authorizedSchoolId,
+      body: req.body,
+      idempotencyKey: idem,
+    });
+    return res.status(result.idempotentReplay ? 200 : 201).json(result);
+  } catch (err) {
+    return sendEduClockError(res, err);
+  }
+});
+
 router.get("/me/history", async (req, res) => {
   try {
     const auth = await requireStaffAuth(req);
@@ -542,6 +601,92 @@ router.post("/owner/absences/:absenceId/cancel", async (req, res) => {
       schoolId: auth.authorizedSchoolId,
       actorUserId: auth.userId,
       absenceId: String(req.params.absenceId || ""),
+      note: req.body?.note,
+    });
+    return res.json(result);
+  } catch (err) {
+    return sendEduClockError(res, err);
+  }
+});
+
+router.get("/owner/movements/export.csv", async (req, res) => {
+  try {
+    const auth = await requireEduClockManage(req);
+    const exported = await exportOwnerMovementsCsv({
+      schoolId: auth.authorizedSchoolId,
+      startDate: req.query?.startDate ? String(req.query.startDate) : undefined,
+      endDate: req.query?.endDate ? String(req.query.endDate) : undefined,
+      employeeId: req.query?.employeeId ? String(req.query.employeeId) : undefined,
+      employee: req.query?.employee ? String(req.query.employee) : undefined,
+      reason: req.query?.reason ? String(req.query.reason) : undefined,
+      status: req.query?.status ? String(req.query.status) : undefined,
+      department: req.query?.department ? String(req.query.department) : undefined,
+    });
+    res.setHeader("Content-Type", "text/csv; charset=utf-8");
+    res.setHeader("Content-Disposition", `attachment; filename="${exported.filename}"`);
+    return res.status(200).send(exported.csv);
+  } catch (err) {
+    return sendEduClockError(res, err);
+  }
+});
+
+router.get("/owner/movements", async (req, res) => {
+  try {
+    const auth = await requireEduClockManage(req);
+    const data = await listOwnerMovements({
+      schoolId: auth.authorizedSchoolId,
+      startDate: req.query?.startDate ? String(req.query.startDate) : undefined,
+      endDate: req.query?.endDate ? String(req.query.endDate) : undefined,
+      employeeId: req.query?.employeeId ? String(req.query.employeeId) : undefined,
+      employee: req.query?.employee ? String(req.query.employee) : undefined,
+      reason: req.query?.reason ? String(req.query.reason) : undefined,
+      status: req.query?.status ? String(req.query.status) : undefined,
+      department: req.query?.department ? String(req.query.department) : undefined,
+      page: req.query?.page != null ? Number(req.query.page) : 0,
+      pageSize: req.query?.pageSize != null ? Number(req.query.pageSize) : 25,
+    });
+    return res.json(data);
+  } catch (err) {
+    return sendEduClockError(res, err);
+  }
+});
+
+router.post("/owner/movements/:id/return", async (req, res) => {
+  try {
+    const auth = await requireEduClockManage(req);
+    const rejected = rejectClientIdentityFields(req.body);
+    if (rejected) {
+      return res.status(400).json({
+        error: "Client may not supply identity or school override fields.",
+        code: "EDUCLOCK_IDENTITY_INVALID",
+      });
+    }
+    const result = await ownerReturnStaffMovement({
+      schoolId: auth.authorizedSchoolId,
+      actorUserId: auth.userId,
+      movementId: String(req.params.id || ""),
+      body: req.body,
+    });
+    return res.json(result);
+  } catch (err) {
+    return sendEduClockError(res, err);
+  }
+});
+
+router.post("/owner/movements/:id/cancel", async (req, res) => {
+  try {
+    const auth = await requireEduClockManage(req);
+    const rejected = rejectClientIdentityFields(req.body);
+    if (rejected) {
+      return res.status(400).json({
+        error: "Client may not supply identity or school override fields.",
+        code: "EDUCLOCK_IDENTITY_INVALID",
+      });
+    }
+    const result = await ownerCancelStaffMovement({
+      schoolId: auth.authorizedSchoolId,
+      actorUserId: auth.userId,
+      movementId: String(req.params.id || ""),
       note: req.body?.note,
     });
     return res.json(result);

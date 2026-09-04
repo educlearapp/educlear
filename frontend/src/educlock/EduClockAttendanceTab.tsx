@@ -172,7 +172,19 @@ export default function EduClockAttendanceTab(props: {
                         title="Staff self-reported absence"
                       />
                     ) : (
-                      String(row.currentStatus)
+                      <span>
+                        {String(row.currentStatus)}
+                        {row.offPremises ? (
+                          <>
+                            {" "}
+                            <EduClockBadge
+                              label="Off Premises"
+                              tone="teal"
+                              title="Temporary departure; still clocked in"
+                            />
+                          </>
+                        ) : null}
+                      </span>
                     )}
                   </td>
                   <td style={{ padding: "12px 8px" }}>{String(row.clockInTime || "—")}</td>

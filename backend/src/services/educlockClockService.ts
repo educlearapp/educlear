@@ -47,6 +47,11 @@ import {
   STAFF_ABSENCE_REASON_LABELS,
   type StaffAbsenceReasonCode,
 } from "./educlockAbsenceLabels";
+import {
+  MOVEMENT_CLOCK_OUT_BLOCKED_MESSAGE,
+  STAFF_MOVEMENT_REASON_LABELS,
+  type StaffMovementReasonCode,
+} from "./educlockMovementLabels";
 
 /** School-local attendance day ends at end of calendar day in school TZ. No auto clock-out. */
 export const EDUCLOCK_ATTENDANCE_DAY_CUTOFF_NOTE =
@@ -441,6 +446,10 @@ export async function getStaffClockStatus(input: {
         currentShiftDurationDisplay: null,
         recentShifts: [],
         attendanceDayCutoffNote: EDUCLOCK_ATTENDANCE_DAY_CUTOFF_NOTE,
+        canLeavePremises: false,
+        canReturnToPremises: false,
+        offPremises: false,
+        openMovement: null,
       };
     }
     throw err;
@@ -480,6 +489,13 @@ export async function getStaffClockStatus(input: {
       ? true
       : false;
 
+  const openMovementRow = await prisma.eduClockOpenMovement.findUnique({
+    where: { schoolId_employeeId: { schoolId: input.schoolId, employeeId: employee.id } },
+    include: { movement: true },
+  });
+  const openMovement = openMovementRow?.movement || null;
+  const offPremises = Boolean(openMovement);
+
   let currentStatus: string = open ? "CLOCKED_IN" : "CLOCKED_OUT";
   if (missingClockOut) currentStatus = "MISSING_CLOCK_OUT";
   if (activeAbsence && !open && !todayClockIn) currentStatus = "ABSENT";
@@ -507,6 +523,31 @@ export async function getStaffClockStatus(input: {
     readinessReason: readinessReasons[0] || EDUCLOCK_READINESS_REASONS.READY,
     canClock: readiness === "READY",
     canReportAbsent: readiness === "READY" && !todayClockIn && !activeAbsence && !open,
+    canLeavePremises:
+      readiness === "READY" && Boolean(open) && !missingClockOut && !activeAbsence && !offPremises,
+    canReturnToPremises: readiness === "READY" && offPremises,
+    offPremises,
+    openMovement: openMovement
+      ? {
+          id: openMovement.id,
+          schoolLocalDate: openMovement.schoolLocalDate,
+          reason: openMovement.reason,
+          reasonLabel:
+            STAFF_MOVEMENT_REASON_LABELS[openMovement.reason as StaffMovementReasonCode] ||
+            openMovement.reason,
+          destination: openMovement.destination,
+          note: openMovement.note,
+          departedAtUtc: openMovement.departedAtUtc.toISOString(),
+          departedTimeDisplay: formatSchoolLocalTimeDisplay(
+            resolveSchoolLocalParts(openMovement.departedAtUtc, openMovement.timezone).schoolLocalTime
+          ),
+          elapsedAwayMs: Math.max(0, now.getTime() - openMovement.departedAtUtc.getTime()),
+          elapsedAwayDisplay: formatWorkedDurationMs(
+            Math.max(0, now.getTime() - openMovement.departedAtUtc.getTime())
+          ),
+          status: openMovement.status,
+        }
+      : null,
     currentStatus,
     employeeId: employee.id,
     employeeName: employeeDisplayName(employee),
@@ -794,6 +835,14 @@ export async function staffClockOut(input: {
     );
   }
 
+  const openMovement = await prisma.eduClockOpenMovement.findUnique({
+    where: { schoolId_employeeId: { schoolId: input.schoolId, employeeId: employee.id } },
+    select: { id: true },
+  });
+  if (openMovement) {
+    throw new EduClockError("EDUCLOCK_FORBIDDEN", 409, MOVEMENT_CLOCK_OUT_BLOCKED_MESSAGE);
+  }
+
   const gps = await validateGpsOrAudit({
     schoolId: input.schoolId,
     employeeId: employee.id,
@@ -1031,6 +1080,12 @@ export async function getOwnerAttendance(input: {
   });
   const absenceByEmp = new Map(dayAbsences.map((a) => [a.employeeId, a]));
 
+  const openMovements = await prisma.eduClockOpenMovement.findMany({
+    where: { schoolId: input.schoolId },
+    include: { movement: true },
+  });
+  const openMovementByEmp = new Map(openMovements.map((m) => [m.employeeId, m]));
+
   type Row = Record<string, unknown>;
   const rows: Row[] = [];
 
@@ -1137,6 +1192,9 @@ export async function getOwnerAttendance(input: {
       clockOutEvent = null;
     }
 
+    const liveMovement = openMovementByEmp.get(emp.id)?.movement || null;
+    const offPremises = Boolean(liveMovement && currentStatus === "Clocked In");
+
     if (
       (clockInEvent && clockInEvent.isManualCorrection) ||
       (clockOutEvent && clockOutEvent.isManualCorrection)
@@ -1187,6 +1245,21 @@ export async function getOwnerAttendance(input: {
       correctionStatus,
       clockInEventId: clockInEvent?.id || null,
       clockOutEventId: clockOutEvent?.id || null,
+      offPremises,
+      openMovement: offPremises && liveMovement
+        ? {
+            id: liveMovement.id,
+            reason: liveMovement.reason,
+            reasonLabel:
+              STAFF_MOVEMENT_REASON_LABELS[liveMovement.reason as StaffMovementReasonCode] ||
+              liveMovement.reason,
+            destination: liveMovement.destination,
+            departedAtUtc: liveMovement.departedAtUtc.toISOString(),
+            departedTimeDisplay: formatSchoolLocalTimeDisplay(
+              resolveSchoolLocalParts(liveMovement.departedAtUtc, liveMovement.timezone).schoolLocalTime
+            ),
+          }
+        : null,
       absence: reportedAbsence
         ? {
             id: reportedAbsence.id,
@@ -1218,6 +1291,7 @@ export async function getOwnerAttendance(input: {
   const clockedOut = rows.filter((r) => r.currentStatus === "Clocked Out").length;
   const notClockedIn = rows.filter((r) => r.currentStatus === "Not Clocked In").length;
   const absentReported = rows.filter((r) => r.shiftStatus === "Absent Reported").length;
+  const staffOffPremises = openMovements.length;
   const openShiftCount = openShifts.filter(
     (o) => o.schoolLocalDate === date || (date === today && o.schoolLocalDate <= today)
   ).length;
@@ -1243,6 +1317,7 @@ export async function getOwnerAttendance(input: {
       clockedOut,
       notClockedIn,
       absentReported,
+      staffOffPremises,
       openShifts: openShifts.length,
       exceptions: exceptionCount,
     },

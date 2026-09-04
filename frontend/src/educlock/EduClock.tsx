@@ -3,6 +3,7 @@ import EduClockOwnerStaffPage, { type StaffReadinessCache } from "./EduClockOwne
 import EduClockAttendanceTab from "./EduClockAttendanceTab";
 import EduClockExceptionsTab from "./EduClockExceptionsTab";
 import EduClockGeofencesTab from "./EduClockGeofencesTab";
+import EduClockMovementsTab from "./EduClockMovementsTab";
 import {
   fetchOwnerEduClockAttendance,
   fetchOwnerEduClockReadiness,
@@ -17,6 +18,7 @@ type TabKey =
   | "staff"
   | "attendance"
   | "exceptions"
+  | "movements"
   | "geofences"
   | "reports"
   | "settings";
@@ -26,6 +28,7 @@ const TABS: Array<{ key: TabKey; label: string }> = [
   { key: "staff", label: "Staff" },
   { key: "attendance", label: "Attendance" },
   { key: "exceptions", label: "Exceptions" },
+  { key: "movements", label: "Movement Register" },
   { key: "geofences", label: "Geofences" },
   { key: "reports", label: "Reports" },
   { key: "settings", label: "Settings" },
@@ -249,6 +252,7 @@ export default function EduClock() {
               <StatCard label="Clocked Out" value={Number(dayCounts.clockedOut || 0)} />
               <StatCard label="Not Clocked In" value={Number(dayCounts.notClockedIn || 0)} />
               <StatCard label="Absent Reported" value={Number(dayCounts.absentReported || 0)} />
+              <StatCard label="Staff Off Premises" value={Number(dayCounts.staffOffPremises || 0)} />
               <StatCard label="Open Shifts" value={Number(dayCounts.openShifts || 0)} />
               <StatCard label="Exceptions" value={Number(dayCounts.exceptions || 0)} />
               <StatCard label="Ready for EduClock" value={readyToActivate} />
@@ -308,6 +312,8 @@ export default function EduClock() {
             emptyBody="Exceptions will appear automatically when required."
           />
         )}
+
+        {tab === "movements" && <EduClockMovementsTab />}
 
         {tab === "geofences" && <EduClockGeofencesTab />}
 

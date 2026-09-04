@@ -267,6 +267,21 @@ export type EduClockStaffStatus = {
   currentShiftDurationDisplay?: string | null;
   missingClockOut?: boolean;
   canReportAbsent?: boolean;
+  canLeavePremises?: boolean;
+  canReturnToPremises?: boolean;
+  offPremises?: boolean;
+  openMovement?: {
+    id?: string;
+    reason?: string;
+    reasonLabel?: string;
+    destination?: string | null;
+    note?: string | null;
+    departedAtUtc?: string;
+    departedTimeDisplay?: string;
+    elapsedAwayMs?: number;
+    elapsedAwayDisplay?: string;
+    status?: string;
+  } | null;
   absence?: {
     id?: string;
     reason?: string;
@@ -330,6 +345,119 @@ export async function postStaffAbsence(input: {
       note: input.note ? input.note : null,
     }),
   }) as Promise<Record<string, unknown>>;
+}
+
+export async function postStaffMovementLeave(input: {
+  reason: string;
+  destination?: string | null;
+  note?: string | null;
+  gps?: Record<string, unknown> | null;
+  idempotencyKey?: string;
+}): Promise<Record<string, unknown>> {
+  const gps = input.gps && typeof input.gps === "object" ? input.gps : {};
+  return apiFetch("/api/educlock/me/movements/leave", {
+    method: "POST",
+    headers: {
+      ...staffAuthHeaders(),
+      "Content-Type": "application/json",
+      ...(input.idempotencyKey ? { "Idempotency-Key": input.idempotencyKey } : {}),
+    },
+    body: JSON.stringify({
+      reason: input.reason,
+      destination: input.destination ? input.destination : null,
+      note: input.note ? input.note : null,
+      ...(gps.latitude != null ? { latitude: gps.latitude } : {}),
+      ...(gps.longitude != null ? { longitude: gps.longitude } : {}),
+      ...(gps.accuracyMetres != null ? { accuracyMetres: gps.accuracyMetres } : {}),
+    }),
+  }) as Promise<Record<string, unknown>>;
+}
+
+export async function postStaffMovementReturn(input?: {
+  gps?: Record<string, unknown> | null;
+  idempotencyKey?: string;
+}): Promise<Record<string, unknown>> {
+  const gps = input?.gps && typeof input.gps === "object" ? input.gps : {};
+  return apiFetch("/api/educlock/me/movements/return", {
+    method: "POST",
+    headers: {
+      ...staffAuthHeaders(),
+      "Content-Type": "application/json",
+      ...(input?.idempotencyKey ? { "Idempotency-Key": input.idempotencyKey } : {}),
+    },
+    body: JSON.stringify({
+      ...(gps.latitude != null ? { latitude: gps.latitude } : {}),
+      ...(gps.longitude != null ? { longitude: gps.longitude } : {}),
+      ...(gps.accuracyMetres != null ? { accuracyMetres: gps.accuracyMetres } : {}),
+    }),
+  }) as Promise<Record<string, unknown>>;
+}
+
+export async function fetchOwnerEduClockMovements(params?: {
+  startDate?: string;
+  endDate?: string;
+  employee?: string;
+  employeeId?: string;
+  reason?: string;
+  status?: string;
+  department?: string;
+  page?: number;
+  pageSize?: number;
+}): Promise<Record<string, unknown>> {
+  const q = new URLSearchParams();
+  if (params?.startDate) q.set("startDate", params.startDate);
+  if (params?.endDate) q.set("endDate", params.endDate);
+  if (params?.employee) q.set("employee", params.employee);
+  if (params?.employeeId) q.set("employeeId", params.employeeId);
+  if (params?.reason) q.set("reason", params.reason);
+  if (params?.status) q.set("status", params.status);
+  if (params?.department) q.set("department", params.department);
+  if (params?.page != null) q.set("page", String(params.page));
+  if (params?.pageSize != null) q.set("pageSize", String(params.pageSize));
+  const qs = q.toString();
+  return apiFetch(`/api/educlock/owner/movements${qs ? `?${qs}` : ""}`, {
+    headers: { ...staffAuthHeaders() },
+  }) as Promise<Record<string, unknown>>;
+}
+
+export async function postOwnerReturnStaffMovement(input: {
+  movementId: string;
+}): Promise<Record<string, unknown>> {
+  return apiFetch(`/api/educlock/owner/movements/${encodeURIComponent(input.movementId)}/return`, {
+    method: "POST",
+    headers: { ...staffAuthHeaders(), "Content-Type": "application/json" },
+    body: JSON.stringify({}),
+  }) as Promise<Record<string, unknown>>;
+}
+
+export async function postOwnerCancelStaffMovement(input: {
+  movementId: string;
+  note?: string | null;
+}): Promise<Record<string, unknown>> {
+  return apiFetch(`/api/educlock/owner/movements/${encodeURIComponent(input.movementId)}/cancel`, {
+    method: "POST",
+    headers: { ...staffAuthHeaders(), "Content-Type": "application/json" },
+    body: JSON.stringify({ note: input.note ? input.note : null }),
+  }) as Promise<Record<string, unknown>>;
+}
+
+export function ownerMovementsCsvUrl(params?: {
+  startDate?: string;
+  endDate?: string;
+  employee?: string;
+  reason?: string;
+  status?: string;
+  department?: string;
+}): string {
+  const q = new URLSearchParams();
+  if (params?.startDate) q.set("startDate", params.startDate);
+  if (params?.endDate) q.set("endDate", params.endDate);
+  if (params?.employee) q.set("employee", params.employee);
+  if (params?.reason) q.set("reason", params.reason);
+  if (params?.status) q.set("status", params.status);
+  if (params?.department) q.set("department", params.department);
+  const qs = q.toString();
+  return `/api/educlock/owner/movements/export.csv${qs ? `?${qs}` : ""}`;
 }
 
 export async function postOwnerCancelStaffAbsence(input: {

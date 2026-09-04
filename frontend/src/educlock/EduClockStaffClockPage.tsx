@@ -6,6 +6,8 @@ import {
   postStaffAbsence,
   postStaffClockIn,
   postStaffClockOut,
+  postStaffMovementLeave,
+  postStaffMovementReturn,
   type EduClockStaffStatus,
 } from "./educlockApi";
 import {
@@ -33,6 +35,14 @@ import {
   isAbsentStaffStatus,
   validateStaffAbsenceForm,
 } from "./educlockAbsenceUi";
+import {
+  STAFF_MOVEMENT_REASON_LABELS,
+  STAFF_MOVEMENT_REASONS,
+  formatElapsedAwayMs,
+  movementDestinationRequired,
+  movementNoteRequired,
+  validateStaffMovementForm,
+} from "./educlockMovementUi";
 
 type Phase = "idle" | "locating" | "submitting" | "error";
 type ClockAction = "in" | "out";
@@ -73,6 +83,13 @@ export default function EduClockStaffClockPage() {
   const [absenceNote, setAbsenceNote] = useState("");
   const [absenceError, setAbsenceError] = useState("");
   const [absenceSaving, setAbsenceSaving] = useState(false);
+  const [movementStep, setMovementStep] = useState<null | "form" | "confirm">(null);
+  const [movementReason, setMovementReason] = useState("");
+  const [movementDestination, setMovementDestination] = useState("");
+  const [movementNote, setMovementNote] = useState("");
+  const [movementError, setMovementError] = useState("");
+  const [movementSaving, setMovementSaving] = useState(false);
+  const [movementElapsedMs, setMovementElapsedMs] = useState(0);
   const inFlight = useRef(false);
   const actionKeyRef = useRef<string | null>(null);
   const lastActionRef = useRef<ClockAction | null>(null);
@@ -148,6 +165,25 @@ export default function EduClockStaffClockPage() {
     const id = window.setInterval(tick, 1000);
     return () => window.clearInterval(id);
   }, [status?.timezone]);
+
+  useEffect(() => {
+    const departedAt = status?.openMovement?.departedAtUtc;
+    const serverNow = status?.serverTimeUtc;
+    if (!departedAt || !status?.offPremises) {
+      setMovementElapsedMs(0);
+      return;
+    }
+    const departedMs = Date.parse(String(departedAt));
+    const serverMs = Date.parse(String(serverNow || "")) || Date.now();
+    const loadedAt = Date.now();
+    const tick = () => {
+      const elapsed = Math.max(0, serverMs + (Date.now() - loadedAt) - departedMs);
+      setMovementElapsedMs(elapsed);
+    };
+    tick();
+    const id = window.setInterval(tick, 1000);
+    return () => window.clearInterval(id);
+  }, [status?.offPremises, status?.openMovement?.departedAtUtc, status?.serverTimeUtc]);
 
   async function submitClock(action: ClockAction, gps: EduClockClockGpsPayload, geoFailure: EduClockGeoFailure | null) {
     const key = actionKeyRef.current || makeIdempotencyKey(action);
@@ -318,6 +354,97 @@ export default function EduClockStaffClockPage() {
     }
   }
 
+  function resetMovementForm() {
+    setMovementStep(null);
+    setMovementReason("");
+    setMovementDestination("");
+    setMovementNote("");
+    setMovementError("");
+    setMovementSaving(false);
+  }
+
+  function onOpenMovementForm() {
+    setError("");
+    setSuccess("");
+    setMovementError("");
+    setMovementStep("form");
+  }
+
+  function onMovementContinue() {
+    const check = validateStaffMovementForm({
+      reason: movementReason,
+      destination: movementDestination,
+      note: movementNote,
+    });
+    if (!check.ok) {
+      setMovementError(check.error);
+      return;
+    }
+    setMovementError("");
+    setMovementStep("confirm");
+  }
+
+  async function captureOptionalMovementGps(): Promise<Record<string, unknown> | null> {
+    const capture = await captureStaffGeolocation();
+    if (!capture.ok) return null;
+    return {
+      latitude: capture.location.latitude,
+      longitude: capture.location.longitude,
+      accuracyMetres: capture.location.accuracyMetres,
+    };
+  }
+
+  async function onConfirmLeavePremises() {
+    const check = validateStaffMovementForm({
+      reason: movementReason,
+      destination: movementDestination,
+      note: movementNote,
+    });
+    if (!check.ok) {
+      setMovementError(check.error);
+      setMovementStep("form");
+      return;
+    }
+    if (movementSaving) return;
+    setMovementSaving(true);
+    setMovementError("");
+    try {
+      const gps = await captureOptionalMovementGps();
+      await postStaffMovementLeave({
+        reason: movementReason,
+        destination: movementDestination.trim() ? movementDestination.trim() : null,
+        note: movementNote.trim() ? movementNote.trim() : null,
+        gps,
+        idempotencyKey: makeIdempotencyKey("leave"),
+      });
+      resetMovementForm();
+      setSuccess("");
+      await reload();
+    } catch (err: unknown) {
+      setMovementError(err instanceof Error ? err.message : "Failed to record departure");
+      setMovementSaving(false);
+    }
+  }
+
+  async function onReturnToPremises() {
+    if (movementSaving) return;
+    setMovementSaving(true);
+    setMovementError("");
+    setError("");
+    try {
+      const gps = await captureOptionalMovementGps();
+      await postStaffMovementReturn({
+        gps,
+        idempotencyKey: makeIdempotencyKey("return"),
+      });
+      setMovementSaving(false);
+      await reload();
+    } catch (err: unknown) {
+      setMovementError(err instanceof Error ? err.message : "Failed to record return");
+      setMovementSaving(false);
+    }
+  }
+
   if (loading) {
     return (
       <main className="teacher-app-main" style={{ maxWidth: 480, margin: "0 auto", padding: 16 }}>
@@ -343,13 +470,17 @@ export default function EduClockStaffClockPage() {
   const missingClockOut = status.currentStatus === "MISSING_CLOCK_OUT";
   const clockedIn = status.currentStatus === "CLOCKED_IN";
   const reportedAbsent = isAbsentStaffStatus(status.currentStatus);
+  const offPremises = Boolean(status.offPremises || status.openMovement);
   const canReportAbsent =
     Boolean(status.canReportAbsent) &&
     !blocked &&
     !clockedIn &&
     !missingClockOut &&
     !reportedAbsent;
-  const showClockActions = !blocked && !reportedAbsent && absenceStep == null;
+  const canLeavePremises =
+    Boolean(status.canLeavePremises) && clockedIn && !offPremises && !missingClockOut && !blocked;
+  const showClockActions =
+    !blocked && !reportedAbsent && absenceStep == null && movementStep == null && !offPremises;
 
   const locatingLabel = "Checking your location…";
   const submittingLabel =
@@ -400,6 +531,8 @@ export default function EduClockStaffClockPage() {
           Status:{" "}
           {reportedAbsent
             ? "Absent Reported"
+            : offPremises
+              ? "Off Premises"
             : status.currentStatus === "CLOCKED_IN"
               ? "Clocked In"
               : status.currentStatus === "MISSING_CLOCK_OUT"
@@ -458,6 +591,179 @@ export default function EduClockStaffClockPage() {
             If your circumstances change and you need to report for work, contact management to
             correct today’s attendance status.
           </p>
+        </section>
+      ) : offPremises ? (
+        <section
+          style={{
+            marginTop: 16,
+            padding: 16,
+            borderRadius: 12,
+            background: "#ecfeff",
+            border: "1px solid #a5f3fc",
+          }}
+        >
+          <strong style={{ color: "#155e75", fontSize: 18 }}>OFF PREMISES</strong>
+          <p style={{ margin: "8px 0 0", fontWeight: 700 }}>
+            Left at {String(status.openMovement?.departedTimeDisplay || "—")}
+          </p>
+          <p style={{ margin: "6px 0 0", fontWeight: 700 }}>
+            Reason:{" "}
+            {String(
+              status.openMovement?.reasonLabel ||
+                STAFF_MOVEMENT_REASON_LABELS[
+                  status.openMovement?.reason as keyof typeof STAFF_MOVEMENT_REASON_LABELS
+                ] ||
+                "—"
+            )}
+          </p>
+          {status.openMovement?.destination ? (
+            <p style={{ margin: "6px 0 0" }}>Destination: {String(status.openMovement.destination)}</p>
+          ) : null}
+          <p style={{ margin: "10px 0 0", fontSize: 22, fontWeight: 800, color: "#155e75" }}>
+            Away {formatElapsedAwayMs(movementElapsedMs || Number(status.openMovement?.elapsedAwayMs || 0))}
+          </p>
+          {movementError ? (
+            <p role="alert" className="teacher-error" style={{ marginTop: 10 }}>
+              {movementError}
+            </p>
+          ) : null}
+          <button
+            type="button"
+            className="teacher-touch-btn primary"
+            disabled={movementSaving || busy}
+            onClick={() => void onReturnToPremises()}
+            style={{ width: "100%", minHeight: 52, marginTop: 14, fontWeight: 800 }}
+          >
+            {movementSaving ? "Recording return…" : "I Have Returned"}
+          </button>
+        </section>
+      ) : movementStep === "form" ? (
+        <section
+          style={{
+            marginTop: 16,
+            padding: 16,
+            borderRadius: 12,
+            background: "#fff",
+            border: "1px solid #e5e7eb",
+          }}
+        >
+          <h2 style={{ margin: 0, fontSize: 18 }}>Leave Premises</h2>
+          <p className="teacher-muted" style={{ margin: "8px 0 0" }}>
+            You remain clocked in. This records a temporary departure.
+          </p>
+          <label style={{ display: "block", marginTop: 14, fontWeight: 700 }}>
+            Reason
+            <select
+              value={movementReason}
+              onChange={(e) => {
+                setMovementReason(e.target.value);
+                setMovementError("");
+              }}
+              required
+              style={{ display: "block", width: "100%", marginTop: 6, minHeight: 48, padding: 10 }}
+            >
+              <option value="">Select a reason</option>
+              {STAFF_MOVEMENT_REASONS.map((code) => (
+                <option key={code} value={code}>
+                  {STAFF_MOVEMENT_REASON_LABELS[code]}
+                </option>
+              ))}
+            </select>
+          </label>
+          <label style={{ display: "block", marginTop: 14, fontWeight: 700 }}>
+            Destination
+            {movementDestinationRequired(movementReason) ? " (required)" : " (optional)"}
+            <input
+              value={movementDestination}
+              onChange={(e) => setMovementDestination(e.target.value)}
+              maxLength={200}
+              style={{ display: "block", width: "100%", marginTop: 6, minHeight: 48, padding: 10, boxSizing: "border-box" }}
+            />
+          </label>
+          <label style={{ display: "block", marginTop: 14, fontWeight: 700 }}>
+            Additional note{movementNoteRequired(movementReason) ? " (required)" : " (optional)"}
+            <textarea
+              value={movementNote}
+              onChange={(e) => setMovementNote(e.target.value)}
+              rows={3}
+              maxLength={500}
+              style={{
+                display: "block",
+                width: "100%",
+                marginTop: 6,
+                padding: 10,
+                boxSizing: "border-box",
+              }}
+            />
+          </label>
+          {movementError ? (
+            <p role="alert" className="teacher-error" style={{ marginTop: 10 }}>
+              {movementError}
+            </p>
+          ) : null}
+          <button
+            type="button"
+            className="teacher-touch-btn primary"
+            onClick={onMovementContinue}
+            style={{ width: "100%", minHeight: 52, marginTop: 14, fontWeight: 800 }}
+          >
+            Continue
+          </button>
+          <button
+            type="button"
+            className="teacher-touch-btn"
+            onClick={resetMovementForm}
+            style={{ width: "100%", minHeight: 48, marginTop: 8 }}
+          >
+            Cancel
+          </button>
+        </section>
+      ) : movementStep === "confirm" ? (
+        <section
+          style={{
+            marginTop: 16,
+            padding: 16,
+            borderRadius: 12,
+            background: "#fff",
+            border: "1px solid #e5e7eb",
+          }}
+        >
+          <h2 style={{ margin: 0, fontSize: 18 }}>Confirm departure</h2>
+          <p style={{ marginTop: 12, lineHeight: 1.5 }}>
+            Leave school premises now? You remain clocked in.
+          </p>
+          <p style={{ fontWeight: 700 }}>
+            Reason:{" "}
+            {STAFF_MOVEMENT_REASON_LABELS[movementReason as keyof typeof STAFF_MOVEMENT_REASON_LABELS] ||
+              movementReason}
+          </p>
+          {movementDestination.trim() ? (
+            <p style={{ marginTop: 8 }}>Destination: {movementDestination.trim()}</p>
+          ) : null}
+          {movementNote.trim() ? <p style={{ marginTop: 8 }}>Note: {movementNote.trim()}</p> : null}
+          {movementError ? (
+            <p role="alert" className="teacher-error" style={{ marginTop: 10 }}>
+              {movementError}
+            </p>
+          ) : null}
+          <button
+            type="button"
+            className="teacher-touch-btn primary"
+            disabled={movementSaving}
+            onClick={() => void onConfirmLeavePremises()}
+            style={{ width: "100%", minHeight: 52, marginTop: 14, fontWeight: 800 }}
+          >
+            {movementSaving ? "Recording…" : "Leave Premises"}
+          </button>
+          <button
+            type="button"
+            className="teacher-touch-btn"
+            disabled={movementSaving}
+            onClick={resetMovementForm}
+            style={{ width: "100%", minHeight: 48, marginTop: 8 }}
+          >
+            Cancel
+          </button>
         </section>
       ) : absenceStep === "form" ? (
         <section
@@ -599,7 +905,7 @@ export default function EduClockStaffClockPage() {
             <button
               type="button"
               className="teacher-touch-btn primary"
-              disabled={busy}
+              disabled={busy || offPremises}
               onClick={onClockOut}
               style={{
                 width: "100%",
@@ -607,11 +913,32 @@ export default function EduClockStaffClockPage() {
                 fontSize: 18,
                 fontWeight: 800,
                 background: "#b91c1c",
+                opacity: offPremises ? 0.45 : 1,
               }}
             >
               {buttonLabel}
             </button>
           )}
+          {canLeavePremises ? (
+            <button
+              type="button"
+              className="teacher-touch-btn"
+              disabled={busy || movementSaving}
+              onClick={onOpenMovementForm}
+              style={{
+                width: "100%",
+                minHeight: 48,
+                marginTop: 10,
+                fontSize: 16,
+                fontWeight: 600,
+                background: "#fff",
+                color: "#155e75",
+                border: "1px solid #67e8f9",
+              }}
+            >
+              Leave Premises
+            </button>
+          ) : null}
           {canReportAbsent && !clockedIn && !missingClockOut ? (
             <button
               type="button"

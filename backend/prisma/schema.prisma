@@ -186,6 +186,8 @@ model School {
   eduClockIdempotencyKeys          EduClockIdempotencyKey[]
   eduClockGpsAttempts              EduClockGpsAttempt[]
   eduClockStaffAbsences            EduClockStaffAbsence[]
+  eduClockStaffMovements           EduClockStaffMovement[]
+  eduClockOpenMovements            EduClockOpenMovement[]
   geofenceZones                    GeofenceZone[]
   geofenceVertices                 GeofenceVertex[]
 
@@ -1236,6 +1238,8 @@ model Employee {
   eduClockExceptions  EduClockException[]
   eduClockGpsAttempts EduClockGpsAttempt[]
   eduClockStaffAbsences EduClockStaffAbsence[]
+  eduClockStaffMovements EduClockStaffMovement[]
+  eduClockOpenMovements  EduClockOpenMovement[]
   payrollEduClockImportLines  PayrollEduClockImportLine[]
   payrollEduClockImportPairs  PayrollEduClockImportPair[]
   payrollEduClockImportEvents PayrollEduClockImportEvent[]
@@ -1600,6 +1604,88 @@ model EduClockStaffAbsence {
   @@unique([schoolId, employeeId, schoolLocalDate])
   @@index([schoolId, schoolLocalDate])
   @@index([schoolId, approvalStatus])
+}
+
+enum EduClockMovementReason {
+  SCHOOL_BUSINESS
+  MEETING
+  COLLECT_DELIVER
+  PERSONAL
+  MEDICAL
+  BANK_ERRAND
+  EMERGENCY
+  TRAINING_OFFICIAL_DUTY
+  OTHER
+}
+
+enum EduClockMovementStatus {
+  OPEN
+  RETURNED
+  CANCELLED
+}
+
+enum EduClockMovementSource {
+  STAFF_SELF_REPORT
+  OWNER_MANUAL
+}
+
+/// Temporary off-premises movement during an attended day. Not an EduClockEvent. Does not change payroll minutes.
+model EduClockStaffMovement {
+  id                     String                  @id @default(cuid())
+  schoolId               String
+  employeeId             String
+  employeeNumberSnapshot String
+  openShiftId            String?
+  schoolLocalDate        String
+  timezone               String                  @default("Africa/Johannesburg")
+  status                 EduClockMovementStatus  @default(OPEN)
+  source                 EduClockMovementSource  @default(STAFF_SELF_REPORT)
+  reason                 EduClockMovementReason
+  destination            String?
+  note                   String?
+  departedAtUtc          DateTime
+  departedByUserId       String
+  returnedAtUtc          DateTime?
+  returnedByUserId       String?
+  durationAwayMs         Int?
+  departLatitude         Decimal?                @db.Decimal(10, 7)
+  departLongitude        Decimal?                @db.Decimal(10, 7)
+  departAccuracyMetres   Decimal?                @db.Decimal(10, 2)
+  returnLatitude         Decimal?                @db.Decimal(10, 7)
+  returnLongitude        Decimal?                @db.Decimal(10, 7)
+  returnAccuracyMetres   Decimal?                @db.Decimal(10, 2)
+  cancelledAtUtc         DateTime?
+  cancelledByUserId      String?
+  cancelNote             String?
+  createdAt              DateTime                @default(now())
+  updatedAt              DateTime                @updatedAt
+
+  school       School                @relation(fields: [schoolId], references: [id], onDelete: Cascade)
+  employee     Employee              @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+  openPointer  EduClockOpenMovement?
+
+  @@index([schoolId, schoolLocalDate])
+  @@index([schoolId, employeeId, departedAtUtc])
+  @@index([schoolId, status])
+  @@index([schoolId, reason])
+}
+
+/// At most one OPEN movement per employee per school (sidecar, same pattern as EduClockOpenShift).
+model EduClockOpenMovement {
+  id              String   @id @default(cuid())
+  schoolId        String
+  employeeId      String
+  movementId      String   @unique
+  schoolLocalDate String
+  departedAtUtc   DateTime
+  createdAt       DateTime @default(now())
+
+  school    School                 @relation(fields: [schoolId], references: [id], onDelete: Cascade)
+  employee  Employee               @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+  movement  EduClockStaffMovement  @relation(fields: [movementId], references: [id], onDelete: Cascade)
+
+  @@unique([schoolId, employeeId])
+  @@index([schoolId, schoolLocalDate])
 }
 
 model PayrollSetting {
