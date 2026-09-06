@@ -8753,7 +8753,10 @@ if (schoolId) {
   
   
   
-  const saveEmployee = async (updatedEmployee: any) => {
+  const saveEmployee = async (
+    updatedEmployee: any,
+    saveOptions?: { autoAssignEmployeeNumber?: boolean }
+  ) => {
     if (!schoolId) {
       alert("School ID is missing. Cannot save employee.");
       return;
@@ -8761,9 +8764,12 @@ if (schoolId) {
 
     try {
       const payload = { ...updatedEmployee };
+      const autoAssign = saveOptions?.autoAssignEmployeeNumber === true;
 
-      // Employee Number: trim; reject whitespace-only; school-unique (same number OK at another school).
-      if (payload.employeeNumber !== undefined && payload.employeeNumber !== null) {
+      if (autoAssign) {
+        payload.employeeNumber = "";
+      } else if (payload.employeeNumber !== undefined && payload.employeeNumber !== null) {
+        // Employee Number: trim; reject whitespace-only; school-unique (same number OK at another school).
         const rawEmpNo = String(payload.employeeNumber);
         if (rawEmpNo.length > 0 && !rawEmpNo.trim()) {
           alert("Employee Number cannot be blank. Enter a value such as EMP001, or clear the field completely.");
@@ -8786,7 +8792,11 @@ if (schoolId) {
         }
       }
 
-      const saved = await saveSchoolEmployee(schoolId, payload);
+      const saved = await saveSchoolEmployee(
+        schoolId,
+        payload,
+        autoAssign ? { autoAssignEmployeeNumber: true } : undefined
+      );
       const reloaded = await reloadEmployeesFromBackend(schoolId);
       const verified =
         reloaded.find((row) => String(row.id) === String(saved.id)) || saved;
@@ -9342,14 +9352,8 @@ if (schoolId) {
   
   
             </div>
-            <div style={{ display: "grid", gridTemplateColumns: "repeat(5, 1fr)", gap: "10px", marginTop: "10px" }}>
-              <input
-                style={inputStyle}
-                placeholder="Employee Number (for EduClock)"
-                autoComplete="off"
-                value={employeeDraft.employeeNumber || ""}
-                onChange={(e) => setEmployeeDraft((p: any) => ({ ...p, employeeNumber: e.target.value }))}
-              />
+            <div style={{ marginTop: "10px", color: "#64748b", fontWeight: 700, fontSize: "13px" }}>
+              Employee number will be assigned automatically when saved.
             </div>
   
   
@@ -9379,7 +9383,7 @@ if (schoolId) {
   
   
                   try {
-                    await saveEmployee(employeeDraft);
+                    await saveEmployee(employeeDraft, { autoAssignEmployeeNumber: true });
                     setEmployeeMode("none");
                   } catch {
                     /* alert shown in saveEmployee */
@@ -10169,15 +10173,15 @@ if (schoolId) {
                   <label style={labelStyle}>Employee Number</label>
                   <input
                     type="text"
-                    style={inputStyle}
-                    placeholder="e.g. EMP001"
+                    style={{ ...inputStyle, background: "#f8fafc", color: "#334155" }}
+                    placeholder="Assigned automatically"
                     autoComplete="off"
+                    readOnly
                     value={employeeDraft.employeeNumber ?? employee.employeeNumber ?? ""}
-                    onChange={(e) => updateEmployeeDraft("employeeNumber", e.target.value)}
                   />
                   <p style={{ margin: "0 0 12px", fontSize: 12, lineHeight: 1.4, color: "#6b7280" }}>
-                    Required for EduClock activation. Must be unique within this school. Leave blank only if this
-                    employee will not use EduClock.
+                    Assigned automatically when the employee was created. Required for EduClock. This number cannot be
+                    changed here.
                   </p>
   
   

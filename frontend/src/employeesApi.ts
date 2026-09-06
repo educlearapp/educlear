@@ -128,10 +128,22 @@ export function apiEmployeeToAdmin(emp: Record<string, unknown>): AdminEmployee 
   };
 }
 
+export type EmployeeApiPayloadOptions = {
+  /** Add Employee only — server allocates Employee.employeeNumber and ignores any client number. */
+  autoAssignEmployeeNumber?: boolean;
+};
+
+export function wantsAutoAssignEmployeeNumber(
+  options?: EmployeeApiPayloadOptions | null
+): boolean {
+  return options?.autoAssignEmployeeNumber === true;
+}
+
 /** Map Administration UI employee → backend Employee payload. */
 export function adminEmployeeToApiPayload(
   employee: AdminEmployee,
-  schoolId: string
+  schoolId: string,
+  options?: EmployeeApiPayloadOptions
 ): Record<string, unknown> {
   const firstName = String(employee.firstName || "").trim();
   const lastName = String(employee.surname || employee.lastName || "").trim();
@@ -145,7 +157,7 @@ export function adminEmployeeToApiPayload(
       ? addressParts.join(", ")
       : String(employee.physicalAddress || employee.address1 || "").trim() || null;
 
-  return {
+  const payload: Record<string, unknown> = {
     schoolId,
     firstName,
     lastName,
@@ -153,7 +165,6 @@ export function adminEmployeeToApiPayload(
     idNumber: String(employee.idNumber || "").trim() || null,
     mobileNumber: String(employee.cell || employee.mobileNumber || "").trim() || null,
     jobTitle: String(employee.occupation || employee.jobTitle || "").trim() || null,
-    employeeNumber: String(employee.employeeNumber || "").trim() || null,
     basicSalary: num(employee.basicSalary),
     taxNumber: String(employee.taxNumber || "").trim() || null,
     bankName: String(employee.bankName || "").trim() || null,
@@ -172,6 +183,14 @@ export function adminEmployeeToApiPayload(
     overtimeRate: num(employee.overtimeRate),
     startDate: employee.employmentDate ? String(employee.employmentDate) : null,
   };
+
+  if (wantsAutoAssignEmployeeNumber(options)) {
+    payload.autoAssignEmployeeNumber = true;
+  } else {
+    payload.employeeNumber = String(employee.employeeNumber || "").trim() || null;
+  }
+
+  return payload;
 }
 
 export async function fetchSchoolEmployees(schoolId: string): Promise<AdminEmployee[]> {
@@ -294,9 +313,10 @@ export async function reloadEmployeesFromBackend(schoolId: string): Promise<Admi
 
 export async function createSchoolEmployee(
   schoolId: string,
-  employee: AdminEmployee
+  employee: AdminEmployee,
+  options?: EmployeeApiPayloadOptions
 ): Promise<AdminEmployee> {
-  const payload = adminEmployeeToApiPayload(employee, schoolId);
+  const payload = adminEmployeeToApiPayload(employee, schoolId, options);
   const created = await apiFetch("/api/payroll/employee", {
     method: "POST",
     body: JSON.stringify(payload),
@@ -319,12 +339,17 @@ export async function updateSchoolEmployee(
 
 export async function saveSchoolEmployee(
   schoolId: string,
-  employee: AdminEmployee
+  employee: AdminEmployee,
+  options?: EmployeeApiPayloadOptions
 ): Promise<AdminEmployee> {
   if (isServerEmployeeId(employee.id)) {
     return updateSchoolEmployee(schoolId, employee);
   }
-  return createSchoolEmployee(schoolId, employee);
+  return createSchoolEmployee(
+    schoolId,
+    employee,
+    wantsAutoAssignEmployeeNumber(options) ? { autoAssignEmployeeNumber: true } : undefined
+  );
 }
 
 export async function deleteSchoolEmployee(schoolId: string, employeeId: string): Promise<void> {

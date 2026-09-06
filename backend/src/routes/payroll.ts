@@ -9,6 +9,10 @@ import {
   evaluateOwnerSchoolAuth,
   loadStaffSchoolAuth,
 } from "../middleware/requireOwnerSchoolAccess";
+import {
+  createEmployeeAllocatingNumber,
+  isAutoAssignEmployeeNumberRequest,
+} from "../services/allocateEmployeeNumber";
 
 
 
@@ -149,18 +153,32 @@ router.post("/employee", async (req, res) => {
       return res.status(400).json({ error: "schoolId is required" });
     }
 
-    const data = buildEmployeeData(req.body);
+    const autoAssign = isAutoAssignEmployeeNumberRequest(req.body as Record<string, unknown>);
+    const bodyForCreate = autoAssign
+      ? { ...(req.body as Record<string, unknown>), employeeNumber: undefined }
+      : (req.body as Record<string, unknown>);
+    const data = buildEmployeeData(bodyForCreate);
 
     if (!data.firstName || !data.lastName) {
       return res.status(400).json({ error: "firstName and lastName are required" });
     }
 
-    const employee = await prisma.employee.create({
-      data: {
-        ...data,
-        schoolId: String(schoolId),
-      } as Prisma.EmployeeUncheckedCreateInput,
-    });
+    const sid = String(schoolId);
+    const employee = autoAssign
+      ? await createEmployeeAllocatingNumber(
+          sid,
+          {
+            ...data,
+            schoolId: sid,
+          } as Prisma.EmployeeUncheckedCreateInput,
+          prisma
+        )
+      : await prisma.employee.create({
+          data: {
+            ...data,
+            schoolId: sid,
+          } as Prisma.EmployeeUncheckedCreateInput,
+        });
 
 
 
@@ -218,6 +236,10 @@ router.put("/employee/:id", async (req, res) => {
 
     if (!data.firstName || !data.lastName) {
       return res.status(400).json({ error: "firstName and lastName are required" });
+    }
+
+    if (isAutoAssignEmployeeNumberRequest(req.body as Record<string, unknown>)) {
+      data.employeeNumber = existing.employeeNumber;
     }
 
     const employee = await prisma.employee.update({
