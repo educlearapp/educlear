@@ -33,6 +33,12 @@ type Props = {
   onClose: () => void;
 };
 
+function countLabel(def: ListRegisterDef, total: number): string {
+  if (def.kind === "contact") return `${total} contact${total === 1 ? "" : "s"}`;
+  if (def.kind === "address") return `${total} address row${total === 1 ? "" : "s"}`;
+  return `${total} learner${total === 1 ? "" : "s"}`;
+}
+
 export default function ListRegisterReportView({ def, schoolName, sections, onClose }: Props) {
   const cols = def.columns;
   const total = sections.reduce((n, s) => n + s.count, 0);
@@ -80,9 +86,7 @@ export default function ListRegisterReportView({ def, schoolName, sections, onCl
       <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 12, gap: 16 }}>
         <div>
           <h1 style={{ fontSize: 32, margin: 0 }}>{def.label}</h1>
-          <div style={{ marginTop: 6, color: "#64748b", fontWeight: 700 }}>
-            {total} learner{total === 1 ? "" : "s"}
-          </div>
+          <div style={{ marginTop: 6, color: "#64748b", fontWeight: 700 }}>{countLabel(def, total)}</div>
         </div>
         <h1 style={{ fontSize: 28, margin: 0 }}>{schoolName}</h1>
       </div>
@@ -96,12 +100,13 @@ export default function ListRegisterReportView({ def, schoolName, sections, onCl
         </div>
       ) : (
         sections.map((section) => (
-          <div key={section.key} style={{ marginTop: 28 }}>
+          <div key={section.key} style={{ marginTop: 28 }} className="list-register-section">
             {showSectionHeaders ? (
               <h2 style={{ fontSize: 20, margin: "0 0 10px", borderBottom: `2px solid ${GOLD}`, paddingBottom: 6 }}>
                 {section.label}{" "}
                 <span style={{ color: "#64748b", fontWeight: 700, fontSize: 14 }}>
-                  ({section.count})
+                  ({section.count}
+                  {def.kind === "class-roster" ? " learners" : ""})
                 </span>
               </h2>
             ) : null}
@@ -118,7 +123,7 @@ export default function ListRegisterReportView({ def, schoolName, sections, onCl
               <tbody>
                 {section.rows.map((row, index) => (
                   <tr
-                    key={`${section.key}-${row.learnerId}-${index}`}
+                    key={`${section.key}-${row.learnerId}-${row.parentId || ""}-${index}`}
                     style={{ background: index % 2 ? "rgba(212,175,55,0.05)" : "#fff" }}
                   >
                     {cols.map((c) => (
@@ -131,7 +136,7 @@ export default function ListRegisterReportView({ def, schoolName, sections, onCl
                 {section.rows.length === 0 ? (
                   <tr>
                     <td style={td} colSpan={cols.length}>
-                      No learners match the current filters.
+                      No rows match the current filters.
                     </td>
                   </tr>
                 ) : null}
@@ -145,6 +150,7 @@ export default function ListRegisterReportView({ def, schoolName, sections, onCl
         @media print {
           .list-register-no-print { display: none !important; }
           body { background: #fff; }
+          .list-register-section { break-inside: avoid; page-break-inside: avoid; }
         }
       `}</style>
     </div>

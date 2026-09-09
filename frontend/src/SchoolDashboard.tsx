@@ -13083,15 +13083,17 @@ const renderListsRegisters = () => {
                       <select
                         style={inputStyle}
                         value={listRegisterControls.hasAddress}
-                        onChange={(e) =>
+                        onChange={(e) => {
+                          const v = e.target.value;
                           setListRegisterControls((c) => ({
                             ...c,
-                            hasAddress: e.target.value === "yes" ? "yes" : "all",
-                          }))
-                        }
+                            hasAddress: v === "yes" ? "yes" : v === "no" ? "no" : "all",
+                          }));
+                        }}
                       >
                         <option value="all">All</option>
                         <option value="yes">Has address</option>
+                        <option value="no">Missing address</option>
                       </select>
                     </>
                   ) : null}
@@ -13114,7 +13116,9 @@ const renderListsRegisters = () => {
                               ? "DOB"
                               : s === "birthday"
                                 ? "Birthday"
-                                : s.charAt(0).toUpperCase() + s.slice(1)}
+                                : s === "age"
+                                  ? "Age"
+                                  : s.charAt(0).toUpperCase() + s.slice(1)}
                           </option>
                         ))}
                       </select>

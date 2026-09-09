@@ -11,6 +11,7 @@ export type ListRegisterKind =
 
 export type ListRegisterColumnId =
   | "accountNo"
+  | "admissionNo"
   | "surname"
   | "name"
   | "learner"
@@ -22,6 +23,8 @@ export type ListRegisterColumnId =
   | "birthday"
   | "guardian"
   | "relationship"
+  | "primary"
+  | "paying"
   | "cellphone"
   | "alternate"
   | "email"
@@ -33,6 +36,7 @@ export type ListRegisterSortId =
   | "classroom"
   | "grade"
   | "dob"
+  | "age"
   | "birthday"
   | "guardian"
   | "learner";
@@ -51,6 +55,8 @@ export type ListRegisterDef = {
   filters: ListRegisterFilterId[];
   sorts: ListRegisterSortId[];
   groupBy: ListRegisterGroupBy;
+  /** Row grain for product meaning / CSV. */
+  rowGrain: "learner" | "learner-contact" | "learner-address";
   exportCsv: boolean;
   exportExcel: boolean;
   exportPdf: boolean;
@@ -64,10 +70,11 @@ export const PHASE1_LIST_REGISTER_DEFS: ListRegisterDef[] = [
     entity: "learner",
     kind: "roster",
     dataSource: "registrations.learners",
-    columns: ["accountNo", "surname", "name", "grade", "classroom", "status"],
+    columns: ["surname", "name", "grade", "classroom", "admissionNo", "accountNo", "status"],
     filters: ["classroom", "grade"],
-    sorts: ["surname", "name", "classroom", "grade"],
+    sorts: ["surname", "name", "grade", "classroom"],
     groupBy: "none",
+    rowGrain: "learner",
     exportCsv: true,
     exportExcel: false,
     exportPdf: false,
@@ -79,10 +86,11 @@ export const PHASE1_LIST_REGISTER_DEFS: ListRegisterDef[] = [
     entity: "learner",
     kind: "class-roster",
     dataSource: "registrations.learners",
-    columns: ["accountNo", "surname", "name", "grade", "status"],
+    columns: ["surname", "name", "admissionNo", "accountNo", "status"],
     filters: ["classroom"],
     sorts: ["surname", "name"],
     groupBy: "classroom",
+    rowGrain: "learner",
     exportCsv: true,
     exportExcel: false,
     exportPdf: false,
@@ -95,19 +103,23 @@ export const PHASE1_LIST_REGISTER_DEFS: ListRegisterDef[] = [
     kind: "contact",
     dataSource: "registrations.learners",
     columns: [
-      "accountNo",
-      "learner",
+      "surname",
+      "name",
       "grade",
       "classroom",
       "guardian",
       "relationship",
+      "primary",
+      "paying",
       "cellphone",
       "alternate",
       "email",
+      "accountNo",
     ],
     filters: ["classroom"],
-    sorts: ["learner", "guardian"],
-    groupBy: "none",
+    sorts: ["surname", "name", "guardian"],
+    groupBy: "classroom",
+    rowGrain: "learner-contact",
     exportCsv: true,
     exportExcel: false,
     exportPdf: false,
@@ -119,10 +131,11 @@ export const PHASE1_LIST_REGISTER_DEFS: ListRegisterDef[] = [
     entity: "learner",
     kind: "address",
     dataSource: "registrations.learners",
-    columns: ["accountNo", "learner", "grade", "classroom", "guardian", "address"],
-    filters: ["hasAddress"],
+    columns: ["learner", "grade", "classroom", "guardian", "address", "accountNo"],
+    filters: ["classroom", "hasAddress"],
     sorts: ["learner", "classroom"],
     groupBy: "none",
+    rowGrain: "learner-address",
     exportCsv: true,
     exportExcel: false,
     exportPdf: false,
@@ -134,10 +147,11 @@ export const PHASE1_LIST_REGISTER_DEFS: ListRegisterDef[] = [
     entity: "learner",
     kind: "age",
     dataSource: "registrations.learners",
-    columns: ["accountNo", "surname", "name", "dob", "age", "grade", "classroom"],
-    filters: ["classroom"],
-    sorts: ["dob", "surname", "classroom"],
+    columns: ["surname", "name", "dob", "age", "grade", "classroom", "accountNo"],
+    filters: ["classroom", "grade"],
+    sorts: ["age", "dob", "surname", "classroom"],
     groupBy: "none",
+    rowGrain: "learner",
     exportCsv: true,
     exportExcel: false,
     exportPdf: false,
@@ -149,10 +163,11 @@ export const PHASE1_LIST_REGISTER_DEFS: ListRegisterDef[] = [
     entity: "learner",
     kind: "birthday",
     dataSource: "registrations.learners",
-    columns: ["accountNo", "surname", "name", "birthday", "grade", "classroom"],
+    columns: ["surname", "name", "birthday", "age", "grade", "classroom", "accountNo"],
     filters: ["month"],
     sorts: ["birthday", "surname"],
     groupBy: "birthdayMonth",
+    rowGrain: "learner",
     exportCsv: true,
     exportExcel: false,
     exportPdf: false,
@@ -193,6 +208,7 @@ export function unimplementedListRegisterDef(label: string): ListRegisterDef {
     filters: [],
     sorts: [],
     groupBy: "none",
+    rowGrain: "learner",
     exportCsv: false,
     exportExcel: false,
     exportPdf: false,
@@ -220,6 +236,7 @@ export function getListRegisterDefByLabel(label: string): ListRegisterDef | null
 
 export const COLUMN_LABELS: Record<ListRegisterColumnId, string> = {
   accountNo: "Account No",
+  admissionNo: "Admission No",
   surname: "Surname",
   name: "Name",
   learner: "Learner",
@@ -231,6 +248,8 @@ export const COLUMN_LABELS: Record<ListRegisterColumnId, string> = {
   birthday: "Birthday",
   guardian: "Guardian",
   relationship: "Relationship",
+  primary: "Primary",
+  paying: "Paying",
   cellphone: "Cellphone",
   alternate: "Alternate Contact",
   email: "Email",
