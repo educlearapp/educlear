@@ -115,6 +115,7 @@ import {
 } from "./auth/schoolSession";
 import DashboardPackagePanel from "./subscriptions/DashboardPackagePanel";
 import { API_URL, apiFetch } from "./api";
+import { staffAuthHeaders } from "./auth/staffAuthHeaders";
 import { normalizeSaIdNumber } from "./utils/normalizeSaIdNumber";
 
 
@@ -169,6 +170,22 @@ import {
 } from "./attendance/buildAttendanceReportCsv";
 import { downloadAttendanceReportExcel } from "./attendance/buildAttendanceReportExcel";
 import { downloadAttendanceReportPdf } from "./attendance/buildAttendanceReportPdf";
+import {
+  PHASE1_LIST_REGISTER_DEFS,
+  UNIMPLEMENTED_LIST_REGISTER_LABELS,
+  getListRegisterDefByLabel,
+  MONTH_OPTIONS,
+  type ListRegisterSortId,
+} from "./listsRegisters/listRegisterCatalog";
+import {
+  buildListRegisterCsv,
+  buildListRegisterRows,
+  downloadListRegisterCsv,
+  uniqueClassroomOptions,
+  uniqueGradeOptions,
+  type ListRegisterControls,
+} from "./listsRegisters/buildListRegisterReport";
+import ListRegisterReportView from "./listsRegisters/ListRegisterReportView";
 
 
 import "./App.css";
@@ -2029,11 +2046,14 @@ const [selectedLearnerReport, setSelectedLearnerReport] = useState<any>(null);
     setRegistrationsDataLoading(true);
 
     Promise.all([
-      fetch(`${API_URL}/api/registrations/learners?schoolId=${encodeURIComponent(schoolId)}`).then((res) =>
+      fetch(`${API_URL}/api/registrations/learners?schoolId=${encodeURIComponent(schoolId)}`, {
+        headers: { ...staffAuthHeaders() },
+      }).then((res) =>
         res.json()
       ),
       fetch(
-        `${API_URL}/api/registrations/learners?schoolId=${encodeURIComponent(schoolId)}&includeHistorical=true`
+        `${API_URL}/api/registrations/learners?schoolId=${encodeURIComponent(schoolId)}&includeHistorical=true`,
+        { headers: { ...staffAuthHeaders() } }
       ).then((res) => res.json()),
       fetch(`${API_URL}/api/parents?schoolId=${encodeURIComponent(schoolId)}`).then((res) =>
         res.json()
@@ -12197,129 +12217,14 @@ const renderIncidentManage = () => (
 );
 
 const LIST_REGISTER_ITEMS = [
-
-
-
-  "Address List",
-
-
-
-  "Age List",
-
-
-
-  "Allergies List",
-
-
-
+  ...PHASE1_LIST_REGISTER_DEFS.map((d) => d.label),
   "Attendance List",
-
-
-
   "Attendance Register (Daily)",
-
-
-
   "Attendance Register (Monthly)",
-
-
-
   "Attendance Register (Monthly) (Weekends)",
-
-
-
   "Attendance Register (Weekly)",
-
-
-
   "Attendance Register (Weekly) (Weekends)",
-
-
-
-  "Birthday Child List",
-
-
-
-  "Birthday Employee List",
-
-
-
-  "Birthday Parent List",
-
-
-
-  "Block Sheet (5 Blocks)",
-
-
-
-  "Block Sheet (10 Blocks)",
-
-
-
-  "Block Sheet (20 Blocks)",
-
-
-
-  "Child List",
-
-
-
-  "Child List (3 Extra Fields)",
-
-
-
-  "Child List (6 Extra Fields)",
-
-
-
-  "Class List",
-
-
-
-  "Contact List",
-
-
-
-  "Employee Attendance Register (Monthly)",
-
-
-
-  "Employee Attendance Register (Monthly) (Weekends)",
-
-
-
-  "Employee Attendance Register (Weekly)",
-
-
-
-  "Employee Attendance Register (Weekly) (Weekends)",
-
-
-
-  "Employee Attendance Time Register (Weekly)",
-
-
-
-  "Employee Attendance Time Register (Weekly) (Weekends)",
-
-
-
-  "Employee Contact List",
-
-
-
-  "Future Enrolled List",
-
-
-
-  "Group List",
-
-
-
-  "Incident List",
-
-
-
+  ...UNIMPLEMENTED_LIST_REGISTER_LABELS,
 ];
 
 
@@ -12366,6 +12271,19 @@ const [listRegisterSortBy, setListRegisterSortBy] =
   const [listRegisterReport, setListRegisterReport] = useState<AttendanceReportPayload | null>(null);
   const [listRegisterReportLoading, setListRegisterReportLoading] = useState(false);
   const [listRegisterReportError, setListRegisterReportError] = useState<string | null>(null);
+  const [listRegisterControls, setListRegisterControls] = useState<ListRegisterControls>({
+    classroom: "all",
+    grade: "all",
+    month: "all",
+    hasAddress: "all",
+    sort: "surname",
+  });
+  const [listRegisterPhase1Sections, setListRegisterPhase1Sections] = useState<
+    ReturnType<typeof buildListRegisterRows>["sections"]
+  >([]);
+  const selectedListRegisterDef = selectedListRegister
+    ? getListRegisterDefByLabel(selectedListRegister)
+    : null;
   const [formsTemplateSearch, setFormsTemplateSearch] = useState("");
 
 
@@ -12535,6 +12453,13 @@ const openListRegister = (name: string) => {
 
 
 const continueListRegister = () => {
+  const def = getListRegisterDefByLabel(selectedListRegister);
+  if (def?.implemented) {
+    setListRegisterControls((c) => ({
+      ...c,
+      sort: (def.sorts.includes(c.sort) ? c.sort : def.sorts[0] || "surname") as ListRegisterSortId,
+    }));
+  }
 
 
 
@@ -12600,7 +12525,20 @@ const openListRegisterView = async () => {
       setListRegisterActionsOpen(true);
       return;
     }
+    setListRegisterPhase1Sections([]);
+    setListRegisterViewOpen(true);
+    return;
   }
+
+  const def = getListRegisterDefByLabel(selectedListRegister);
+  if (!def || !def.implemented) {
+    setListRegisterPhase1Sections([]);
+    setListRegisterViewOpen(true);
+    return;
+  }
+
+  const built = buildListRegisterRows(learners as any[], def, listRegisterControls);
+  setListRegisterPhase1Sections(built.sections);
   setListRegisterViewOpen(true);
 };
 
@@ -12608,43 +12546,8 @@ const renderListsRegisters = () => {
 
 
 
-  const escapeCsv = (value: any) => {
-
-
-
-    const text = String(value ?? "");
-
-
-
-    return `"${text.replace(/"/g, '""')}"`;
-
-
-
-  };
-
-
-
-  const listRegisterRows = learners.map((learner: any) => ({
-
-
-
-    name: learner.firstName || "-",
-
-
-
-    surname: learner.lastName || learner.surname || "-",
-
-
-
-    classroom: getLearnerGrade(learner) || learner.classroom || "-",
-
-
-
-  }));
-
-
-
   const attendanceConfig = getAttendanceCatalogConfig(selectedListRegister);
+  const phase1Def = getListRegisterDefByLabel(selectedListRegister);
 
   const loadAttendanceReportForExport = async () => {
     if (!attendanceConfig) return null;
@@ -12689,69 +12592,14 @@ const renderListsRegisters = () => {
       return;
     }
 
+    if (phase1Def?.implemented) {
+      const built = buildListRegisterRows(learners as any[], phase1Def, listRegisterControls);
+      const csv = buildListRegisterCsv(phase1Def, built.sections, schoolBranding.name || "");
+      downloadListRegisterCsv(`${phase1Def.id}.csv`, csv);
+      return;
+    }
 
-
-    const csv = [
-
-
-
-      ["Report", selectedListRegister],
-
-
-
-      ["School", schoolBranding.name || ""],
-
-
-
-      [],
-
-
-
-      ["Name", "Surname", "Classroom"],
-
-
-
-      ...listRegisterRows.map((row) => [row.name, row.surname, row.classroom]),
-
-
-
-    ]
-
-
-
-      .map((row) => row.map(escapeCsv).join(","))
-
-
-
-      .join("\n");
-
-
-
-    const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
-
-
-
-    const url = URL.createObjectURL(blob);
-
-
-
-    const link = document.createElement("a");
-
-
-
-    link.href = url;
-
-
-
-    link.download = `${String(selectedListRegister).replace(/\s+/g, "-").toLowerCase()}.csv`;
-
-
-
-    link.click();
-
-
-
-    URL.revokeObjectURL(url);
+    alert("This report is not yet implemented.");
 
 
 
@@ -13047,10 +12895,12 @@ const renderListsRegisters = () => {
 
 
 
-            <div style={{ padding: 20, display: "grid", gridTemplateColumns: "120px 1fr", gap: 14, alignItems: "center" }}>
+            <div style={{ padding: 20, display: "grid", gridTemplateColumns: "140px 1fr", gap: 14, alignItems: "center" }}>
 
 
 
+              {isLearnerAttendanceRegister(selectedListRegister) ? (
+                <>
               <label style={labelStyle}>Group By</label>
 
 
@@ -13091,8 +12941,6 @@ const renderListsRegisters = () => {
 
 
 
-              {isLearnerAttendanceRegister(selectedListRegister) ? (
-                <>
                   <label style={labelStyle}>Class Register</label>
                   <div style={{ fontWeight: 800, color: "#0f172a" }}>Class Register layout</div>
 
@@ -13171,7 +13019,113 @@ const renderListsRegisters = () => {
                     </div>
                   )}
                 </>
-              ) : null}
+              ) : selectedListRegisterDef?.implemented ? (
+                <>
+                  {selectedListRegisterDef.filters.includes("classroom") ? (
+                    <>
+                      <label style={labelStyle}>Classroom</label>
+                      <select
+                        style={inputStyle}
+                        value={listRegisterControls.classroom}
+                        onChange={(e) =>
+                          setListRegisterControls((c) => ({ ...c, classroom: e.target.value }))
+                        }
+                      >
+                        <option value="all">All classrooms</option>
+                        {uniqueClassroomOptions(learners as any[]).map((name) => (
+                          <option key={name} value={name}>
+                            {name}
+                          </option>
+                        ))}
+                      </select>
+                    </>
+                  ) : null}
+                  {selectedListRegisterDef.filters.includes("grade") ? (
+                    <>
+                      <label style={labelStyle}>Grade</label>
+                      <select
+                        style={inputStyle}
+                        value={listRegisterControls.grade}
+                        onChange={(e) =>
+                          setListRegisterControls((c) => ({ ...c, grade: e.target.value }))
+                        }
+                      >
+                        <option value="all">All grades</option>
+                        {uniqueGradeOptions(learners as any[]).map((name) => (
+                          <option key={name} value={name}>
+                            {name}
+                          </option>
+                        ))}
+                      </select>
+                    </>
+                  ) : null}
+                  {selectedListRegisterDef.filters.includes("month") ? (
+                    <>
+                      <label style={labelStyle}>Month</label>
+                      <select
+                        style={inputStyle}
+                        value={listRegisterControls.month}
+                        onChange={(e) =>
+                          setListRegisterControls((c) => ({ ...c, month: e.target.value }))
+                        }
+                      >
+                        {MONTH_OPTIONS.map((opt) => (
+                          <option key={opt.value} value={opt.value}>
+                            {opt.label}
+                          </option>
+                        ))}
+                      </select>
+                    </>
+                  ) : null}
+                  {selectedListRegisterDef.filters.includes("hasAddress") ? (
+                    <>
+                      <label style={labelStyle}>Address</label>
+                      <select
+                        style={inputStyle}
+                        value={listRegisterControls.hasAddress}
+                        onChange={(e) =>
+                          setListRegisterControls((c) => ({
+                            ...c,
+                            hasAddress: e.target.value === "yes" ? "yes" : "all",
+                          }))
+                        }
+                      >
+                        <option value="all">All</option>
+                        <option value="yes">Has address</option>
+                      </select>
+                    </>
+                  ) : null}
+                  {selectedListRegisterDef.sorts.length ? (
+                    <>
+                      <label style={labelStyle}>Sort By</label>
+                      <select
+                        style={inputStyle}
+                        value={listRegisterControls.sort}
+                        onChange={(e) =>
+                          setListRegisterControls((c) => ({
+                            ...c,
+                            sort: e.target.value as ListRegisterSortId,
+                          }))
+                        }
+                      >
+                        {selectedListRegisterDef.sorts.map((s) => (
+                          <option key={s} value={s}>
+                            {s === "dob"
+                              ? "DOB"
+                              : s === "birthday"
+                                ? "Birthday"
+                                : s.charAt(0).toUpperCase() + s.slice(1)}
+                          </option>
+                        ))}
+                      </select>
+                    </>
+                  ) : null}
+                </>
+              ) : (
+                <div style={{ gridColumn: "1 / -1", color: "#64748b", fontWeight: 700 }}>
+                  This report is not yet implemented. View will show a placeholder — no learner data is exported.
+                </div>
+              )}
 
 
 
@@ -13253,11 +13207,15 @@ const renderListsRegisters = () => {
             {listRegisterReportLoading ? (
               <div style={{ padding: "12px 24px 0", fontWeight: 700 }}>Loading Class Register…</div>
             ) : null}
-            <div style={{ display: "grid", gridTemplateColumns: attendanceConfig ? "1fr 1fr" : "1fr 1fr 1fr", gap: 16, padding: 24 }}>
+            <div style={{ display: "grid", gridTemplateColumns: attendanceConfig ? "1fr 1fr" : "1fr 1fr", gap: 16, padding: 24 }}>
 
 
 
-              <button style={goldBtn} onClick={() => { void openListRegisterView(); }} disabled={listRegisterReportLoading}>
+              <button
+                style={goldBtn}
+                onClick={() => { void openListRegisterView(); }}
+                disabled={listRegisterReportLoading}
+              >
 
 
 
@@ -13269,7 +13227,11 @@ const renderListsRegisters = () => {
 
 
 
-              <button style={actionBtn} onClick={downloadListRegister}>
+              <button
+                style={actionBtn}
+                onClick={downloadListRegister}
+                disabled={Boolean(selectedListRegisterDef && !selectedListRegisterDef.implemented && !attendanceConfig)}
+              >
 
 
 
@@ -13334,16 +13296,20 @@ const renderListsRegisters = () => {
                     📊 Attendance Reports
                   </button>
                 </>
-              ) : (
+              ) : selectedListRegisterDef?.implemented ? (
               <button style={actionBtn} onClick={() => { void exportListRegisterCsv(); }}>
 
 
 
-                📄 Export
+                📄 Export CSV
 
 
 
               </button>
+              ) : (
+                <div style={{ gridColumn: "1 / -1", color: "#64748b", fontWeight: 700 }}>
+                  Report not yet implemented — CSV/Excel/PDF disabled.
+                </div>
               )}
 
 
@@ -13398,94 +13364,24 @@ const renderListsRegisters = () => {
               kind={getAttendanceCatalogConfig(selectedListRegister)?.kind || "daily"}
               catalogTitle={selectedListRegister}
             />
+          ) : selectedListRegisterDef ? (
+            <ListRegisterReportView
+              def={selectedListRegisterDef}
+              schoolName={schoolBranding.name || ""}
+              sections={
+                selectedListRegisterDef.implemented
+                  ? listRegisterPhase1Sections
+                  : []
+              }
+              onClose={() => setListRegisterViewOpen(false)}
+            />
           ) : (
-            <>
-          <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 40 }}>
-
-
-
-            <h1 style={{ fontSize: 32, margin: 0 }}>{selectedListRegister}</h1>
-
-
-
-            <h1 style={{ fontSize: 32, margin: 0 }}>{schoolBranding.name || ""}</h1>
-
-
-
-          </div>
-
-
-
-          <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 14 }}>
-
-
-
-            <thead>
-
-
-
-              <tr>
-
-
-
-                <th style={th}>Name</th>
-
-
-
-                <th style={th}>Surname</th>
-
-
-
-                <th style={th}>Classroom</th>
-
-
-
-              </tr>
-
-
-
-            </thead>
-
-
-
-            <tbody>
-
-
-
-              {listRegisterRows.map((row, index: number) => (
-
-
-
-                <tr key={`${row.name}-${row.surname}-${index}`} style={{ background: index % 2 ? "rgba(212,175,55,0.05)" : "#fff" }}>
-
-
-
-                  <td style={td}>{row.name}</td>
-
-
-
-                  <td style={td}>{row.surname}</td>
-
-
-
-                  <td style={td}>{row.classroom}</td>
-
-
-
-                </tr>
-
-
-
-              ))}
-
-
-
-            </tbody>
-
-
-
-          </table>
-            </>
+            <div style={{ padding: 40 }}>
+              <h1>Report not yet implemented</h1>
+              <button style={goldBtn} onClick={() => setListRegisterViewOpen(false)}>
+                Close
+              </button>
+            </div>
           )}
 
 
@@ -13497,6 +13393,7 @@ const renderListsRegisters = () => {
             <div style={{ marginTop: 16, fontWeight: 700 }}>Loading Class Register…</div>
           ) : null}
 
+          {!(selectedListRegisterDef && !isLearnerAttendanceRegister(selectedListRegister)) ? (
           <div style={{ marginTop: 30 }} className="attendance-register-no-print">
 
 
@@ -13526,6 +13423,7 @@ const renderListsRegisters = () => {
 
 
           </div>
+          ) : null}
 
 
 

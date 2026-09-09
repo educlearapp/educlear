@@ -81,36 +81,22 @@ type ParentLinkRecord = {
   parent: ParentContactRecord;
 };
 
-/** Display contact score — same weights as statement PDF display ranking (no email gate). */
+import {
+  parentDisplayName,
+  pickAlternateContact,
+  scoreDisplayContact,
+} from "../utils/displayContactRanking";
+
+/** @deprecated Prefer scoreDisplayContact — identical weights preserved for OA API stability. */
 export function scoreOutstandingDisplayContact(input: {
   isPrimary?: boolean | null;
   isPayingPerson?: boolean | null;
   communicationBilling?: boolean | null;
 }): number {
-  let score = 0;
-  if (input.isPrimary) score += 10;
-  if (input.isPayingPerson) score += 6;
-  if (input.communicationBilling !== false) score += 2;
-  return score;
+  return scoreDisplayContact(input);
 }
 
-export function parentDisplayName(parent: {
-  firstName?: string | null;
-  surname?: string | null;
-}): string {
-  return `${parent.firstName || ""} ${parent.surname || ""}`.trim();
-}
-
-export function pickAlternateContact(parent: {
-  workNo?: string | null;
-  homeNo?: string | null;
-}): string | null {
-  const work = String(parent.workNo || "").trim();
-  if (work) return work;
-  const home = String(parent.homeNo || "").trim();
-  if (home) return home;
-  return null;
-}
+export { parentDisplayName, pickAlternateContact };
 
 export function selectOutstandingBillingContact(
   links: ParentLinkRecord[],

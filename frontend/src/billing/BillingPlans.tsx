@@ -4,6 +4,7 @@ import { flushSync } from "react-dom";
 
 
 import { API_URL } from "../api";
+import { staffAuthHeaders } from "../auth/staffAuthHeaders";
 import { notifyLearnersRefresh } from "./billingLedger";
 import { clearEduClearMigrationCache } from "../utils/educlearStorageDebug";
 
@@ -577,7 +578,8 @@ export default function BillingPlans({
     const response = await fetch(
       `${API_URL}/api/registrations/learners?schoolId=${encodeURIComponent(
         schoolId
-      )}${diagQuery}&_t=${Date.now()}`
+      )}${diagQuery}&_t=${Date.now()}`,
+      { headers: { ...staffAuthHeaders() } }
     );
     const data = await response.json().catch(() => ({}));
     if (!response.ok) {

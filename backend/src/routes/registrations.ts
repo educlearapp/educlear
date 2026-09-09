@@ -14,6 +14,10 @@ import {
   registrationEnrollmentFields,
   resolveLearnerClassroomLabel,
 } from "../utils/learnerEnrollment";
+import {
+  requireRegistrationsLearnersAuth,
+  type RegistrationsLearnersAuthRequest,
+} from "../middleware/requireRegistrationsLearnersAuth";
 
 import { PrismaClient } from "@prisma/client";
 
@@ -44,7 +48,7 @@ router.get("/stats", async (req, res) => {
 
 
 
-router.get("/learners", async (req, res) => {
+router.get("/learners", requireRegistrationsLearnersAuth, async (req: RegistrationsLearnersAuthRequest, res) => {
 
 
 
@@ -52,33 +56,10 @@ router.get("/learners", async (req, res) => {
 
 
 
-    const schoolId = String(req.query.schoolId || "");
+    const auth = req.registrationsLearnersAuth!;
+    const schoolId = auth.authorizedSchoolId;
     const includeHistorical =
       String(req.query.includeHistorical || "").trim().toLowerCase() === "true";
-
-
-
-    if (!schoolId) {
-
-
-
-      return res.status(400).json({
-
-
-
-        success: false,
-
-
-
-        error: "Missing schoolId",
-
-
-
-      });
-
-
-
-    }
 
 
 
@@ -161,7 +142,10 @@ router.get("/learners", async (req, res) => {
 
 
 
-      const accountNo = String(learner.familyAccount?.accountRef || "").trim();
+      const accountRef = String(learner.familyAccount?.accountRef || "").trim();
+      const eduClearAccountNo = String(learner.familyAccount?.accountNo || "").trim();
+      /** Legacy join/display field: ledger accountRef (unchanged for existing consumers). */
+      const accountNo = accountRef;
 
       const classroomLabel = resolveLearnerClassroomLabel(learner);
       const enrollmentFields = registrationEnrollmentFields(learner.enrollmentStatus);
@@ -181,6 +165,14 @@ router.get("/learners", async (req, res) => {
 
 
         familyAccountId: learner.familyAccountId,
+
+
+
+        accountRef,
+
+
+
+        eduClearAccountNo: eduClearAccountNo || null,
 
 
 
@@ -295,6 +287,7 @@ router.get("/learners", async (req, res) => {
           phone: link.parent.cellNo || "",
           email: link.parent.email || "",
           workNo: link.parent.workNo || "",
+          homeNo: link.parent.homeNo || "",
           homeAddress: link.parent.homeAddress || "",
           notes: link.parent.notes || "",
           communicationAdministration: link.parent.communicationAdministration ?? true,
