@@ -18,6 +18,7 @@ import {
   requireRegistrationsLearnersAuth,
   type RegistrationsLearnersAuthRequest,
 } from "../middleware/requireRegistrationsLearnersAuth";
+import { resolveAuthoritativeAdmissionDateYmd } from "../utils/optionalProfileFields";
 
 import { PrismaClient } from "@prisma/client";
 
@@ -222,6 +223,12 @@ router.get("/learners", requireRegistrationsLearnersAuth, async (req: Registrati
 
         gender: learner.gender || "",
 
+        allergies: learner.allergies || "",
+        medicalAlert: learner.medicalAlert || "",
+        admissionDate: resolveAuthoritativeAdmissionDateYmd(learner),
+        enrollmentDate: resolveAuthoritativeAdmissionDateYmd(learner),
+        enrolmentDate: resolveAuthoritativeAdmissionDateYmd(learner),
+
 
 
         idNumber: learner.idNumber || "",
@@ -290,6 +297,12 @@ router.get("/learners", requireRegistrationsLearnersAuth, async (req: Registrati
           homeNo: link.parent.homeNo || "",
           homeAddress: link.parent.homeAddress || "",
           notes: link.parent.notes || "",
+          birthDate: link.parent.birthDate
+            ? link.parent.birthDate.toISOString().slice(0, 10)
+            : null,
+          dateOfBirth: link.parent.birthDate
+            ? link.parent.birthDate.toISOString().slice(0, 10)
+            : null,
           communicationAdministration: link.parent.communicationAdministration ?? true,
           communicationBilling: link.parent.communicationBilling ?? true,
           communicationByEmail: link.parent.communicationByEmail ?? true,

@@ -38,6 +38,11 @@ export type ListRegisterLearnerInput = {
   age?: string;
   gender?: string | null;
   idNumber?: string | null;
+  allergies?: string | null;
+  medicalAlert?: string | null;
+  admissionDate?: unknown;
+  enrollmentDate?: unknown;
+  enrolmentDate?: unknown;
   parents?: Array<Record<string, unknown>>;
 };
 
@@ -232,6 +237,10 @@ function blankExtras(_count: number): Record<string, string> {
     idNumber: "—",
     parent1Contact: "—",
     parent2Contact: "—",
+    enrolmentDate: "—",
+    allergies: "—",
+    medicalAlert: "—",
+    linkedLearners: "—",
   };
 }
 
@@ -268,6 +277,15 @@ function baseLearnerFields(l: ListRegisterLearnerInput, _extraFieldCount = 0): L
     idNumber: dash(l.idNumber),
     parent1Contact: parent1 ? formatParentContactLine(parent1) : "—",
     parent2Contact: parent2 ? formatParentContactLine(parent2) : "—",
+    enrolmentDate: (() => {
+      const iso = normaliseDateForInput(
+        l.admissionDate ?? l.enrolmentDate ?? l.enrollmentDate
+      );
+      return iso || "—";
+    })(),
+    allergies: String(l.allergies || "").trim() || "—",
+    medicalAlert: String(l.medicalAlert || "").trim() || "—",
+    linkedLearners: "—",
     employeeNo: "—",
     department: "—",
     jobTitle: "—",
@@ -343,9 +361,106 @@ function expandLearnerRows(learners: ListRegisterLearnerInput[], def: ListRegist
   for (const l of active) {
     if (def.kind === "contact") out.push(...buildContactRows(l));
     else if (def.kind === "address") out.push(...buildAddressRows(l));
-    else out.push(buildLearnerRow(l, extra));
+    else if (def.kind === "allergies") {
+      const allergyText = String(l.allergies || "").trim();
+      if (!allergyText) continue;
+      out.push(buildLearnerRow(l, extra));
+    } else out.push(buildLearnerRow(l, extra));
   }
   return out;
+}
+
+/** Birthday Parent List: one row per unique parent with non-null birthDate. */
+function expandBirthdayParentRows(learners: ListRegisterLearnerInput[]): ListRegisterRow[] {
+  type Acc = {
+    id: string;
+    firstName: string;
+    surname: string;
+    birthDate: string;
+    cellNo: string;
+    email: string;
+    linked: Set<string>;
+  };
+  const byId = new Map<string, Acc>();
+  for (const l of learners.filter(isActiveListRegisterLearner)) {
+    const learnerLabel =
+      `${learnerSurname(l)} ${learnerFirstName(l)}`.trim() || String(l.id || "");
+    for (const raw of l.parents || []) {
+      const id = String((raw as any).id || "").trim();
+      const dobIso = normaliseDateForInput(
+        (raw as any).birthDate || (raw as any).dateOfBirth || (raw as any).dob
+      );
+      if (!dobIso) continue;
+      const key = id || `anon:${dobIso}:${(raw as any).cellNo || ""}:${(raw as any).surname || ""}`;
+      let acc = byId.get(key);
+      if (!acc) {
+        acc = {
+          id: key,
+          firstName: String((raw as any).firstName || (raw as any).name || "").trim(),
+          surname: String((raw as any).surname || (raw as any).lastName || "").trim(),
+          birthDate: dobIso,
+          cellNo: String((raw as any).cellNo || (raw as any).cell || (raw as any).phone || "").trim(),
+          email: String((raw as any).email || "").trim(),
+          linked: new Set<string>(),
+        };
+        byId.set(key, acc);
+      }
+      if (learnerLabel) acc.linked.add(learnerLabel);
+    }
+  }
+  const rows: ListRegisterRow[] = [];
+  for (const acc of byId.values()) {
+    const age = ageFromDob(acc.birthDate);
+    rows.push({
+      learnerId: "",
+      parentId: acc.id,
+      employeeId: "",
+      accountNo: "—",
+      admissionNo: "—",
+      surname: acc.surname || "—",
+      name: acc.firstName || "—",
+      learner: "—",
+      grade: "—",
+      classroom: "—",
+      status: "—",
+      dob: acc.birthDate,
+      age: age.display,
+      birthday: formatBirthdayDisplay(acc.birthDate),
+      guardian: "—",
+      relationship: "—",
+      primary: "—",
+      paying: "—",
+      cellphone: acc.cellNo || "—",
+      alternate: "—",
+      email: acc.email || "—",
+      address: "—",
+      gender: "—",
+      idNumber: "—",
+      parent1Contact: "—",
+      parent2Contact: "—",
+      enrolmentDate: "—",
+      allergies: "—",
+      medicalAlert: "—",
+      linkedLearners: Array.from(acc.linked).sort().join("; ") || "—",
+      employeeNo: "—",
+      department: "—",
+      jobTitle: "—",
+      groupName: "—",
+      incidentDate: "—",
+      incidentType: "—",
+      subject: "—",
+      summary: "—",
+      createdBy: "—",
+      date: "—",
+      clockIn: "—",
+      clockOut: "—",
+      attendanceStatus: "—",
+      ...emptyMeta(acc.birthDate),
+      _ageYears: String(age.years),
+      _entity: "parent",
+    });
+  }
+  return rows;
 }
 
 function employeeSurname(e: ListRegisterEmployeeInput): string {
@@ -808,8 +923,10 @@ export function buildListRegisterReport(
 
   let rows: ListRegisterRow[] = [];
 
-  if (def.entity === "learner" || def.kind === "child-extra") {
+  if (def.entity === "learner" || def.kind === "child-extra" || def.kind === "allergies") {
     rows = expandLearnerRows(input.learners || [], def);
+  } else if (def.kind === "birthday-parent") {
+    rows = expandBirthdayParentRows(input.learners || []);
   } else if (def.kind === "birthday-employee" || def.kind === "employee-contact") {
     rows = expandEmployeeRows(input.employees || [], def);
   } else if (def.kind === "group-list") {

@@ -569,6 +569,11 @@ export async function importSasamsSchoolData(opts: {
 
     const norm = normalizeClassroomInput(row.canonicalClassName);
     const notes = learnerNotesFromAdmissionDate(admissionByMatchKey.get(row.matchKey) ?? null);
+    const admissionDateRaw = admissionByMatchKey.get(row.matchKey) ?? null;
+    const admissionDate =
+      admissionDateRaw instanceof Date && !Number.isNaN(admissionDateRaw.getTime())
+        ? admissionDateRaw
+        : null;
 
     let learnerId = await findExistingLearnerId({
       schoolId: opts.schoolId,
@@ -585,6 +590,7 @@ export async function importSasamsSchoolData(opts: {
       grade: row.grade || norm.gradeLabel || "",
       className: row.canonicalClassName,
       notes,
+      ...(admissionDate ? { admissionDate } : {}),
       enrollmentStatus: "ACTIVE" as const,
       totalFee: 0,
       tuitionFee: 0,

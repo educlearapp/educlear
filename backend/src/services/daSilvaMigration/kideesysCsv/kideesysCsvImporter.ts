@@ -570,6 +570,11 @@ export async function importKidESysCsv(opts: {
 
       const familyAccountId = accountNo ? accountToFamilyId.get(accountNo) || null : null;
       const birthDate = parseBirthDate(child.birthDate);
+      const admissionDate = parseBirthDate(child.enrollmentDate);
+      const allergies =
+        child.allergies && String(child.allergies).trim()
+          ? String(child.allergies).trim().slice(0, 4000)
+          : null;
 
       const learnerData = {
         schoolId,
@@ -585,6 +590,8 @@ export async function importKidESysCsv(opts: {
         className: canonicalClassName,
         enrollmentStatus: isHistorical ? ("HISTORICAL" as const) : ("ACTIVE" as const),
         admissionNo: null as string | null,
+        admissionDate,
+        allergies,
         totalFee: 0,
         tuitionFee: 0,
       };
@@ -610,6 +617,8 @@ export async function importKidESysCsv(opts: {
                   grade: learnerData.grade,
                   className: learnerData.className,
                   enrollmentStatus: learnerData.enrollmentStatus,
+                  ...(admissionDate ? { admissionDate } : {}),
+                  ...(allergies ? { allergies } : {}),
                 },
               })
             : await prisma.learner.create({ data: learnerData });
@@ -629,6 +638,8 @@ export async function importKidESysCsv(opts: {
             grade,
             className: canonicalClassName,
             enrollmentStatus: learnerData.enrollmentStatus,
+            ...(admissionDate ? { admissionDate } : {}),
+            ...(allergies ? { allergies } : {}),
           },
         });
       }

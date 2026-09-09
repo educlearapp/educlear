@@ -1017,6 +1017,14 @@ export async function applyMigrationStage(
             );
             const learnerNotes =
               cleanString((mapped as MappedRow & { notes?: string }).notes) || null;
+            const admissionRaw = cleanString(
+              (mapped as MappedRow & { admissionDate?: string }).admissionDate
+            );
+            const admissionParsed = admissionRaw ? new Date(admissionRaw) : null;
+            const admissionDate =
+              admissionParsed && !Number.isNaN(admissionParsed.getTime())
+                ? admissionParsed
+                : null;
             const admissionNo = allocateMigrationAdmissionNo({
               learnerNumber: cleanString(mapped.learnerNumber),
               accountNumber,
@@ -1048,7 +1056,7 @@ export async function applyMigrationStage(
                   null,
                 ...(enrollmentStatus ? { enrollmentStatus } : {}),
                 ...(learnerNotes ? { notes: learnerNotes } : {}),
-                // admissionDate intentionally omitted — not on Prisma Learner
+                ...(admissionDate ? { admissionDate } : {}),
               },
               select: { id: true },
             });

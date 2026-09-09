@@ -20,6 +20,11 @@ import {
 } from "../services/applicationParentIdentity";
 import { ParentIdConflictError } from "../utils/parentIdConflict";
 import { resolveParentStaffAuth } from "../middleware/requireParentStaffAuth";
+import {
+  formatDateOnlyUtc,
+  OptionalProfileFieldError,
+  parseOptionalDateOnlyField,
+} from "../utils/optionalProfileFields";
 
 const router = Router();
 const prisma = new PrismaClient();
@@ -33,6 +38,13 @@ function cleanBool(value: unknown, fallback: boolean) {
   return Boolean(value);
 }
 
+function mapParentBirthDateForClient(parent: { birthDate?: Date | null }) {
+  return {
+    birthDate: formatDateOnlyUtc(parent.birthDate ?? null),
+    dateOfBirth: formatDateOnlyUtc(parent.birthDate ?? null),
+  };
+}
+
 /** GET /api/parents?schoolId= — school-scoped parent list for Add Learner / existing-parent picker. */
 router.get("/", async (req, res) => {
   try {
@@ -44,7 +56,13 @@ router.get("/", async (req, res) => {
       where: { schoolId },
       orderBy: [{ surname: "asc" }, { firstName: "asc" }],
     });
-    return res.json({ success: true, parents });
+    return res.json({
+      success: true,
+      parents: parents.map((p) => ({
+        ...p,
+        ...mapParentBirthDateForClient(p),
+      })),
+    });
   } catch (error: unknown) {
     console.error("LIST PARENTS ERROR:", error);
     return res.status(500).json({ success: false, error: "Failed to list parents" });
@@ -284,6 +302,14 @@ router.post("/", async (req, res) => {
       }
     }
 
+    const birthDate =
+      req.body?.birthDate !== undefined || req.body?.dateOfBirth !== undefined
+        ? parseOptionalDateOnlyField(
+            req.body?.birthDate ?? req.body?.dateOfBirth,
+            "birthDate"
+          )
+        : null;
+
     const parent = await prisma.parent.create({
       data: {
         schoolId,
@@ -294,6 +320,7 @@ router.post("/", async (req, res) => {
         surname: cleanString(req.body?.surname) || "-",
         nickname: cleanString(req.body?.nickname) || null,
         idNumber: identity.idNumber,
+        birthDate,
         maritalStatus: cleanString(req.body?.maritalStatus) || null,
         notes: cleanString(req.body?.notes) || null,
         homeAddress: cleanString(req.body?.homeAddress) || null,
@@ -312,7 +339,7 @@ router.post("/", async (req, res) => {
 
     return res.json({
       success: true,
-      parent,
+      parent: { ...parent, ...mapParentBirthDateForClient(parent) },
       identityDecision: identityCheck.decision,
       identityWarning:
         identityCheck.decision === "CONFLICT" || identityCheck.decision === "POSSIBLE_MATCH"
@@ -321,6 +348,9 @@ router.post("/", async (req, res) => {
     });
   } catch (error: unknown) {
     console.error("CREATE PARENT ERROR:", error);
+    if (error instanceof OptionalProfileFieldError) {
+      return res.status(400).json({ success: false, message: error.message });
+    }
     if (error instanceof ParentPossibleMatchError) {
       return res.status(409).json(error.body);
     }
@@ -519,6 +549,14 @@ router.put("/:id", async (req, res) => {
       return res.status(409).json(body);
     }
 
+    let birthDateUpdate: Date | null | undefined = undefined;
+    if (req.body?.birthDate !== undefined || req.body?.dateOfBirth !== undefined) {
+      birthDateUpdate = parseOptionalDateOnlyField(
+        req.body?.birthDate ?? req.body?.dateOfBirth,
+        "birthDate"
+      );
+    }
+
     const parent = await prisma.parent.update({
       where: { id },
       data: {
@@ -533,6 +571,7 @@ router.put("/:id", async (req, res) => {
           surname: cleanString(req.body.surname || req.body.lastName) || existing.surname,
         }),
         ...(identityUpdate.idNumber !== undefined && { idNumber: identityUpdate.idNumber }),
+        ...(birthDateUpdate !== undefined && { birthDate: birthDateUpdate }),
         ...(req.body?.notes !== undefined && { notes: cleanString(req.body.notes) || null }),
         ...(req.body?.homeAddress !== undefined && {
           homeAddress: cleanString(req.body.homeAddress) || null,
@@ -563,9 +602,15 @@ router.put("/:id", async (req, res) => {
       },
     });
 
-    return res.json({ success: true, parent });
+    return res.json({
+      success: true,
+      parent: { ...parent, ...mapParentBirthDateForClient(parent) },
+    });
   } catch (error: unknown) {
     console.error("UPDATE PARENT ERROR:", error);
+    if (error instanceof OptionalProfileFieldError) {
+      return res.status(400).json({ success: false, message: error.message });
+    }
     if (error instanceof ParentIdConflictError) {
       return res.status(409).json(error.body);
     }

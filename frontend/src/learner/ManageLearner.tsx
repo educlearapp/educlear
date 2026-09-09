@@ -126,6 +126,8 @@ type GeneralFormState = {
   nationality: string;
   enrollmentDate: string;
   notes: string;
+  allergies: string;
+  medicalAlert: string;
 };
 
 const emptyGeneralForm: GeneralFormState = {
@@ -139,6 +141,8 @@ const emptyGeneralForm: GeneralFormState = {
   nationality: "",
   enrollmentDate: "",
   notes: "",
+  allergies: "",
+  medicalAlert: "",
 };
 
 function learnerFirstName(learner: any) {
@@ -368,9 +372,14 @@ export default function ManageLearner({
       homeLanguage: currentLearner?.homeLanguage || currentLearner?.language || "",
       nationality: currentLearner?.nationality || currentLearner?.citizenship || "",
       enrollmentDate: normaliseDateForInput(
-        currentLearner?.enrollmentDate || currentLearner?.enrolmentDate || ""
+        currentLearner?.admissionDate ||
+          currentLearner?.enrollmentDate ||
+          currentLearner?.enrolmentDate ||
+          ""
       ),
       notes: currentLearner?.notes || "",
+      allergies: currentLearner?.allergies || "",
+      medicalAlert: currentLearner?.medicalAlert || "",
     });
   }, [detailLearner, seedLearner, learnerId]);
 
@@ -1692,7 +1701,7 @@ export default function ManageLearner({
 
                 {field("Religion", "religion", learner.religion)}
 
-                <label style={labelStyle}>Enrolment Date</label>
+                  <label style={labelStyle}>Enrolment Date</label>
                 <input
                   style={inputStyle}
                   type="date"
@@ -1700,8 +1709,9 @@ export default function ManageLearner({
                   onChange={(e) => {
                     const next = e.target.value;
                     setForm((prev) => ({ ...prev, enrollmentDate: next }));
-                    updateLearnerField("enrollmentDate", next);
-                    updateLearnerField("enrolmentDate", next);
+                    updateLearnerField("admissionDate", next || null);
+                    updateLearnerField("enrollmentDate", next || null);
+                    updateLearnerField("enrolmentDate", next || null);
                   }}
                 />
 
@@ -1733,28 +1743,48 @@ export default function ManageLearner({
                 onLearnerUpdated={persistLearner}
                 setLearners={setLearners}
               />
+            ) : profileTab === "medical" ? (
+              <div style={{ padding: "28px", display: "grid", gap: 16, maxWidth: 720 }}>
+                <div>
+                  <label style={labelStyle}>Allergies</label>
+                  <textarea
+                    style={{
+                      ...inputStyle,
+                      minHeight: "120px",
+                      resize: "vertical",
+                      fontFamily: "inherit",
+                    }}
+                    value={form.allergies}
+                    maxLength={4000}
+                    placeholder="Optional — list known allergies"
+                    onChange={(e) => {
+                      const next = e.target.value;
+                      setForm((prev) => ({ ...prev, allergies: next }));
+                      updateLearnerField("allergies", next.trim() ? next : null);
+                    }}
+                  />
+                </div>
+                <div>
+                  <label style={labelStyle}>Medical Alert</label>
+                  <input
+                    style={inputStyle}
+                    value={form.medicalAlert}
+                    maxLength={500}
+                    placeholder="Optional short alert (e.g. EpiPen)"
+                    onChange={(e) => {
+                      const next = e.target.value;
+                      setForm((prev) => ({ ...prev, medicalAlert: next }));
+                      updateLearnerField("medicalAlert", next.trim() ? next : null);
+                    }}
+                  />
+                </div>
+              </div>
             ) : (
               <div style={{ padding: "28px", color: "#64748b", fontWeight: 900 }}>
-                {profileTab === "medical" && "Medical information will be connected here."}
-  
-  
-  
                 {profileTab === "groups" && "Groups information will be connected here."}
-  
-  
-  
                 {profileTab === "other" && "Other learner information will be connected here."}
-  
-  
-  
                 {profileTab === "extra" && "Extra learner fields will be connected here."}
-  
-  
-  
               </div>
-  
-  
-  
             )}
   
   

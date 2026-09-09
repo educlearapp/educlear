@@ -167,7 +167,7 @@ async function run() {
     console.log("  ✓ C — classroom relationships compiled");
   }
 
-  // D — extended learner fields; admissionDate NOT applied (no schema)
+  // D — extended learner fields; admissionDate now persists on Learner
   {
     const analysis = analyzeMigrationPackage({
       targetSchoolId: SCHOOL_A,
@@ -183,17 +183,17 @@ async function run() {
     );
     const admission = entries.find((e) => e.sourceColumn === "Admission Date");
     if (admission) {
-      assert.notStrictEqual(
+      assert.strictEqual(
         admission.target,
         "admissionDate",
-        "D: admissionDate must not flow as target"
+        "D: admissionDate must flow as target when mapped"
       );
       assert.ok(
-        admission.fieldTrace === "unsupported" || admission.target == null,
-        "D: admission date preserved unsupported"
+        admission.target === "admissionDate" && admission.fieldTrace !== "unsupported",
+        `D: admission date should map, got ${admission.fieldTrace}`
       );
     }
-    console.log("  ✓ D — extended learner fields; no admissionDate persist");
+    console.log("  ✓ D — extended learner fields; admissionDate may persist");
   }
 
   // E — extended parent fields

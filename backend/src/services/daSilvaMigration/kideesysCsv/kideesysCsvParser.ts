@@ -44,6 +44,10 @@ export type ParsedKidESysChild = {
   idNumber: string | null;
   homeLanguage: string | null;
   citizenship: string | null;
+  /** Kid-e-Sys enrollment_date → Learner.admissionDate when valid. */
+  enrollmentDate: string | null;
+  /** Kid-e-Sys allergies column only. */
+  allergies: string | null;
   enrollmentStatus: "ACTIVE" | "HISTORICAL";
   matchKey: string;
 };
@@ -350,6 +354,9 @@ function parseChildRows(rows: Record<string, string>[]): ParsedKidESysChild[] {
       idNumber,
     });
     const classification = classifyKidESysChildRow(row);
+    const enrollmentDateRaw =
+      pickCsvField(row, ["enrollment_date", "enrolment_date", "admission_date"]) || null;
+    const allergiesRaw = pickCsvField(row, ["allergies", "allergy", "allergy_notes"]) || null;
 
     out.push({
       childId: childId || `${resolvedFirst}|${resolvedLast}|${className}`.toLowerCase(),
@@ -366,6 +373,8 @@ function parseChildRows(rows: Record<string, string>[]): ParsedKidESysChild[] {
       homeLanguage:
         pickCsvField(row, ["home_language", "language", "mother_tongue"]) || null,
       citizenship: pickCsvField(row, ["citizenship", "nationality"]) || null,
+      enrollmentDate: enrollmentDateRaw,
+      allergies: allergiesRaw ? allergiesRaw.trim() || null : null,
       enrollmentStatus: classification.enrollmentStatus,
       matchKey: buildChildMatchKey(
         fullName || `${resolvedFirst} ${resolvedLast}`,

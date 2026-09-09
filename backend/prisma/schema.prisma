@@ -613,6 +613,9 @@ model Parent {
   idNumber String?
   status   String  @default("GREEN")
 
+  /// Optional parent date of birth (Birthday Parent List). Never required.
+  birthDate DateTime?
+
   outstandingAmount Float @default(0)
 
   maritalStatus String?
@@ -721,6 +724,15 @@ model Learner {
   idNumber     String?
   homeLanguage String?
   citizenship  String?
+
+  /// Educational enrolment/start date (UI: Enrolment Date). Not createdAt.
+  admissionDate DateTime?
+
+  /// Free-text allergies for Allergies List / Medical tab. Optional.
+  allergies String? @db.Text
+
+  /// Short staff medical alert (e.g. EpiPen). Optional — not a full EMR.
+  medicalAlert String?
 
   grade String
 

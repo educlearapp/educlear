@@ -12,9 +12,45 @@ import {
   findDuplicateLearnerInSchool,
 } from "./learnerIdentityGuard";
 import { normalizeLearnerEnrollmentStatusUpdate } from "../utils/learnerEnrollment";
+import {
+  ALLERGIES_MAX_LENGTH,
+  MEDICAL_ALERT_MAX_LENGTH,
+  parseOptionalDateOnlyField,
+  parseOptionalTrimmedText,
+} from "../utils/optionalProfileFields";
 
 function cleanString(value: unknown): string {
   return typeof value === "string" ? value.trim() : "";
+}
+
+function optionalLearnerProfileFields(learner: Record<string, unknown>) {
+  const admissionRaw =
+    learner.admissionDate ?? learner.enrolmentDate ?? learner.enrollmentDate;
+  const admissionDate =
+    admissionRaw !== undefined && admissionRaw !== null && String(admissionRaw).trim() !== ""
+      ? parseOptionalDateOnlyField(admissionRaw, "admissionDate")
+      : admissionRaw === "" || admissionRaw === null
+        ? null
+        : undefined;
+  const allergies =
+    learner.allergies !== undefined
+      ? parseOptionalTrimmedText(learner.allergies, {
+          maxLength: ALLERGIES_MAX_LENGTH,
+          fieldLabel: "allergies",
+        })
+      : undefined;
+  const medicalAlert =
+    learner.medicalAlert !== undefined
+      ? parseOptionalTrimmedText(learner.medicalAlert, {
+          maxLength: MEDICAL_ALERT_MAX_LENGTH,
+          fieldLabel: "medicalAlert",
+        })
+      : undefined;
+  return {
+    ...(admissionDate !== undefined ? { admissionDate } : {}),
+    ...(allergies !== undefined ? { allergies } : {}),
+    ...(medicalAlert !== undefined ? { medicalAlert } : {}),
+  };
 }
 
 export class CrossSchoolFamilyAccountError extends Error {
@@ -174,6 +210,7 @@ export async function createLearnerWithNewFamilyAccount({
         transportFee: Number(learner.transportFee) || 0,
         otherFee: Number(learner.otherFee) || 0,
         totalFee: Number(learner.totalFee) || 0,
+        ...optionalLearnerProfileFields(learner),
       },
     });
     registerFinanceAccountForLearner({
@@ -232,6 +269,7 @@ export async function createLearnerOnExistingFamilyAccount({
       transportFee: Number(learner.transportFee) || 0,
       otherFee: Number(learner.otherFee) || 0,
       totalFee: Number(learner.totalFee) || 0,
+      ...optionalLearnerProfileFields(learner),
     },
   });
 

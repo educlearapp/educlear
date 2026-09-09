@@ -59,8 +59,15 @@ import {
   updateLearnerEnrollmentStatus,
 } from "../services/learnerRegistrationService";
 import { conflictPayload } from "../services/learnerIdentityGuard";
-
-
+import {
+  ALLERGIES_MAX_LENGTH,
+  MEDICAL_ALERT_MAX_LENGTH,
+  OptionalProfileFieldError,
+  formatDateOnlyUtc,
+  parseOptionalDateOnlyField,
+  parseOptionalTrimmedText,
+  resolveAuthoritativeAdmissionDateYmd,
+} from "../utils/optionalProfileFields";
 
 const router = Router();
 
@@ -103,6 +110,13 @@ function buildParentWriteData(rawParent: any, schoolId: string, familyAccountId?
   const cellNo = cleanString(rawParent.cellNo || rawParent.cell || rawParent.phone || rawParent.mobile);
   const identity = parentIdentityForCreate(rawParent);
   const relationship = cleanString(rawParent.relationship || rawParent.relation);
+  let birthDate: Date | null | undefined = undefined;
+  if (rawParent.birthDate !== undefined || rawParent.dateOfBirth !== undefined) {
+    birthDate = parseOptionalDateOnlyField(
+      rawParent.birthDate ?? rawParent.dateOfBirth,
+      "birthDate"
+    );
+  }
   return {
     schoolId,
     familyAccountId: familyAccountId || null,
@@ -111,6 +125,7 @@ function buildParentWriteData(rawParent: any, schoolId: string, familyAccountId?
     firstName,
     surname,
     idNumber: identity.idNumber,
+    ...(birthDate !== undefined ? { birthDate } : {}),
     cellNo: cellNo || "-",
     workNo: cleanString(rawParent.workNo || rawParent.work || rawParent.workPhone) || null,
     homeAddress: cleanString(rawParent.homeAddress) || null,
@@ -161,6 +176,8 @@ function mapParentForClient(link: { parent: any; relation?: string | null; isPri
     homeAddress: p.homeAddress || "",
     email: p.email || "",
     notes: p.notes || "",
+    birthDate: formatDateOnlyUtc(p.birthDate ?? null),
+    dateOfBirth: formatDateOnlyUtc(p.birthDate ?? null),
     relationship: link.relation || p.relationship || "",
     relation: link.relation || p.relationship || "",
     isPrimary: link.isPrimary || false,
@@ -470,6 +487,9 @@ function mapLearnerDetailForClient(learner: {
   className: string | null;
   enrollmentStatus?: string;
   admissionNo: string | null;
+  admissionDate?: Date | null;
+  allergies?: string | null;
+  medicalAlert?: string | null;
   tuitionFee: number;
   transportFee: number;
   otherFee: number;
@@ -491,8 +511,7 @@ function mapLearnerDetailForClient(learner: {
   const firstName = learner.firstName || "";
   const lastName = learner.lastName || "";
   const notes = learner.notes || "";
-  const enrollmentDateMatch = notes.match(/Enrolment date:\s*(\d{4}-\d{2}-\d{2})/i);
-  const enrollmentDate = enrollmentDateMatch?.[1] || learner.createdAt.toISOString().slice(0, 10);
+  const enrollmentDate = resolveAuthoritativeAdmissionDateYmd(learner);
   return {
     id: learner.id,
     schoolId: learner.schoolId,
@@ -527,7 +546,11 @@ function mapLearnerDetailForClient(learner: {
     classroom: learner.className || learner.grade || "",
     classroomName: learner.className || learner.grade || "",
     classroomId: null,
+    admissionDate: formatDateOnlyUtc(learner.admissionDate ?? null),
     enrollmentDate,
+    enrolmentDate: enrollmentDate,
+    allergies: learner.allergies || "",
+    medicalAlert: learner.medicalAlert || "",
     notes,
     tuitionFee: learner.tuitionFee ?? 0,
     transportFee: learner.transportFee ?? 0,
@@ -768,6 +791,12 @@ router.get("/", async (req, res) => {
 
 
         classroomName: learner.className || "",
+
+        admissionDate: formatDateOnlyUtc(learner.admissionDate ?? null),
+        enrollmentDate: resolveAuthoritativeAdmissionDateYmd(learner),
+        enrolmentDate: resolveAuthoritativeAdmissionDateYmd(learner),
+        allergies: learner.allergies || "",
+        medicalAlert: learner.medicalAlert || "",
 
 
 
@@ -1539,7 +1568,11 @@ router.put("/:id", async (req, res) => {
 
       totalFee,
 
-
+      admissionDate,
+      enrolmentDate,
+      enrollmentDate,
+      allergies,
+      medicalAlert,
 
     } = req.body;
 
@@ -1577,6 +1610,28 @@ router.put("/:id", async (req, res) => {
 
 
 
+    }
+
+    let parsedAdmissionDate: Date | null | undefined = undefined;
+    if (admissionDate !== undefined || enrolmentDate !== undefined || enrollmentDate !== undefined) {
+      parsedAdmissionDate = parseOptionalDateOnlyField(
+        admissionDate ?? enrolmentDate ?? enrollmentDate,
+        "admissionDate"
+      );
+    }
+    let parsedAllergies: string | null | undefined = undefined;
+    if (allergies !== undefined) {
+      parsedAllergies = parseOptionalTrimmedText(allergies, {
+        maxLength: ALLERGIES_MAX_LENGTH,
+        fieldLabel: "allergies",
+      });
+    }
+    let parsedMedicalAlert: string | null | undefined = undefined;
+    if (medicalAlert !== undefined) {
+      parsedMedicalAlert = parseOptionalTrimmedText(medicalAlert, {
+        maxLength: MEDICAL_ALERT_MAX_LENGTH,
+        fieldLabel: "medicalAlert",
+      });
     }
 
 
@@ -1662,6 +1717,10 @@ router.put("/:id", async (req, res) => {
 
 
         ...(totalFee !== undefined && { totalFee: Number(totalFee) || 0 }),
+
+        ...(parsedAdmissionDate !== undefined && { admissionDate: parsedAdmissionDate }),
+        ...(parsedAllergies !== undefined && { allergies: parsedAllergies }),
+        ...(parsedMedicalAlert !== undefined && { medicalAlert: parsedMedicalAlert }),
 
 
 
@@ -1831,6 +1890,10 @@ router.put("/:id", async (req, res) => {
         code: err.code || null,
         message: err.message || "Forbidden",
       });
+    }
+
+    if (error instanceof OptionalProfileFieldError) {
+      return res.status(400).json({ success: false, error: error.message, message: error.message });
     }
 
 

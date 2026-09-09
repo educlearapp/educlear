@@ -53,13 +53,9 @@ export function compileMappingsFromAnalysis(
       reason = "Needs operator confirmation before staging";
     }
 
-    // Prisma Learner has no admissionDate — never invent/persist it
+    // admissionDate now persists on Learner when mapped.
     if (target === "admissionDate") {
-      flows = false;
-      target = null;
-      fieldTrace = "unsupported";
-      reason =
-        "Admission/start date is recognised but EduClear Learner has no admissionDate column — preserved as unsupported.";
+      // keep flows as computed above
     }
 
     // Finance ambiguous never auto-flows even if suggested

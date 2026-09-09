@@ -287,8 +287,9 @@ assert.equal(PHASE1_LIST_REGISTER_DEFS.length, 6);
 assert.ok(PHASE1_LIST_REGISTER_DEFS.every((d) => d.implemented));
 assert.ok(COMPLETE_LIST_REGISTER_DEFS.length >= 24);
 assert.equal(getListRegisterDefByLabel("Child List")?.id, "child-list");
-assert.equal(getListRegisterDefByLabel("Allergies List")?.status, "blocked_missing_data");
-assert.ok(getListRegisterDefByLabel("Allergies List")?.blockedReason);
+assert.equal(getListRegisterDefByLabel("Allergies List")?.status, "implemented");
+assert.equal(getListRegisterDefByLabel("Future Enrolled List")?.status, "blocked_missing_data");
+assert.ok(getListRegisterDefByLabel("Future Enrolled List")?.blockedReason);
 console.log("✓ catalogue IDs and blocked stubs");
 
 assert.equal(scoreDisplayContact({ isPrimary: true, isPayingPerson: true, communicationBilling: true }), 18);
@@ -536,22 +537,158 @@ function reconcileViewAndCsv(defLabel: string, controls: ListRegisterControls = 
 // ——— V3 ———
 
 {
-  for (const label of [
-    "Allergies List",
-    "Birthday Parent List",
-    "Future Enrolled List",
-    "Child List (6 Extra Fields)",
-  ]) {
-    const def = getListRegisterDefByLabel(label)!;
-    assert.equal(def.status, "blocked_missing_data");
-    assert.ok(def.blockedReason && def.blockedReason.length > 10);
-    const built = buildListRegisterReport(def, baseControls, { learners });
-    assert.equal(built.implemented, false);
-    assert.equal(built.rows.length, 0);
-    assert.equal(built.sections.length, 0);
-    assert.equal(buildListRegisterCsv(def, built.sections, "X"), "");
-  }
-  console.log("✓ blocked defs return empty + no CSV");
+  const def = getListRegisterDefByLabel("Future Enrolled List")!;
+  assert.equal(def.status, "blocked_missing_data");
+  assert.ok(/future enrolment/i.test(def.blockedReason || ""));
+  const built = buildListRegisterReport(def, baseControls, { learners });
+  assert.equal(built.implemented, false);
+  assert.equal(built.rows.length, 0);
+  assert.equal(buildListRegisterCsv(def, built.sections, "X"), "");
+  console.log("✓ Future Enrolled List remains blocked");
+}
+
+{
+  const def = getListRegisterDefByLabel("Allergies List")!;
+  assert.equal(def.status, "implemented");
+  const withAllergy: ListRegisterLearnerInput[] = [
+    { ...learners[0], allergies: "Peanuts", medicalAlert: "EpiPen" },
+    { ...learners[1], allergies: "  ", medicalAlert: "" },
+    { ...learners[2], allergies: null },
+  ];
+  const built = buildListRegisterReport(def, baseControls, { learners: withAllergy });
+  assert.equal(built.rows.length, 1);
+  assert.equal(built.rows[0].surname, "Zephyr");
+  assert.equal(built.rows[0].allergies, "Peanuts");
+  assert.equal(built.rows[0].medicalAlert, "EpiPen");
+  const csv = buildListRegisterCsv(def, built.sections, "Test School");
+  assert.ok(csv.includes("Peanuts"));
+  assert.ok(!csv.includes("Able"));
+  console.log("✓ Allergies List only non-empty allergies / CSV");
+}
+
+{
+  const def = getListRegisterDefByLabel("Birthday Parent List")!;
+  assert.equal(def.status, "implemented");
+  assert.equal(def.entity, "parent");
+  const withDob: ListRegisterLearnerInput[] = [
+    {
+      ...learners[0],
+      parents: [
+        {
+          ...(learners[0].parents![0] as any),
+          birthDate: "1980-03-10",
+        },
+      ],
+    },
+    {
+      ...learners[1],
+      parents: [
+        {
+          ...(learners[1].parents![0] as any),
+          id: "p-shared",
+          firstName: "Shared",
+          surname: "Parent",
+          birthDate: "1980-03-10",
+          cellNo: "080000",
+          email: "s@example.com",
+        },
+        {
+          ...(learners[1].parents![1] as any),
+          id: "p-shared",
+          firstName: "Shared",
+          surname: "Parent",
+          birthDate: "1980-03-10",
+        },
+      ],
+    },
+    {
+      ...learners[2],
+      // same shared parent linked to second learner — must not duplicate
+      parents: [
+        {
+          id: "p-shared",
+          firstName: "Shared",
+          surname: "Parent",
+          birthDate: "1980-03-10",
+          cellNo: "080000",
+          email: "s@example.com",
+        },
+      ],
+    },
+  ];
+  const march = buildListRegisterReport(
+    def,
+    { ...baseControls, month: "3", sort: "birthday" },
+    { learners: withDob }
+  );
+  assert.ok(march.rows.length >= 2);
+  assert.ok(march.rows.every((r) => r._entity === "parent"));
+  const shared = march.rows.filter((r) => r.parentId === "p-shared");
+  assert.equal(shared.length, 1);
+  assert.ok(shared[0].linkedLearners.includes("Able") || shared[0].linkedLearners.includes("Ben"));
+  const noDob = buildListRegisterReport(def, baseControls, {
+    learners: [{ ...learners[0], parents: [{ id: "px", firstName: "X", surname: "Y" }] }],
+  });
+  assert.equal(noDob.rows.length, 0);
+  const csv = buildListRegisterCsv(def, march.sections, "Test School");
+  assert.ok(csv.includes("Shared") || csv.includes("Zephyr") || csv.includes("Pat"));
+  console.log("✓ Birthday Parent List month / dedupe / missing DOB excluded");
+}
+
+{
+  const def3 = getListRegisterDefByLabel("Child List (3 Extra Fields)")!;
+  assert.equal(def3.status, "implemented");
+  assert.equal(def3.extraFieldCount, 3);
+  assert.deepEqual(def3.columns.slice(-3), ["age", "dob", "gender"]);
+  const withProfile: ListRegisterLearnerInput[] = [
+    {
+      ...learners[1],
+      gender: "M",
+    },
+  ];
+  const built3 = buildListRegisterRows(withProfile, def3, baseControls);
+  assert.equal(built3.rows.length, 1);
+  assert.ok(built3.rows[0].age && built3.rows[0].age !== "—");
+  assert.equal(built3.rows[0].dob, "2016-11-02");
+  assert.equal(built3.rows[0].gender, "M");
+  console.log("✓ Child List (3 Extra Fields) uses real Age/DOB/Gender");
+}
+
+{
+  const def6 = getListRegisterDefByLabel("Child List (6 Extra Fields)")!;
+  assert.equal(def6.status, "implemented");
+  assert.equal(def6.extraFieldCount, 6);
+  assert.deepEqual(def6.columns.slice(-6), [
+    "age",
+    "dob",
+    "gender",
+    "parent1Contact",
+    "parent2Contact",
+    "enrolmentDate",
+  ]);
+  const withAdm: ListRegisterLearnerInput[] = [
+    {
+      ...learners[1],
+      gender: "M",
+      admissionDate: "2020-01-15",
+      createdAt: "1999-01-01",
+    } as any,
+  ];
+  const built6 = buildListRegisterRows(withAdm, def6, baseControls);
+  assert.equal(built6.rows.length, 1);
+  assert.equal(built6.rows[0].enrolmentDate, "2020-01-15");
+  assert.ok(!String(built6.rows[0].enrolmentDate).includes("1999"));
+  assert.ok(built6.rows[0].parent1Contact.includes("Primary") || built6.rows[0].parent1Contact.includes("Mother"));
+  const missing = buildListRegisterRows(
+    [{ ...learners[0], admissionDate: null, enrollmentDate: null, enrolmentDate: null }],
+    def6,
+    baseControls
+  );
+  assert.equal(missing.rows[0].enrolmentDate, "—");
+  const csv = buildListRegisterCsv(def6, built6.sections, "Test School");
+  assert.ok(csv.includes("Enrolment Date"));
+  assert.ok(csv.includes("2020-01-15"));
+  console.log("✓ Child List (6 Extra Fields) exact six fields / admissionDate only");
 }
 
 {
@@ -607,42 +744,6 @@ function reconcileViewAndCsv(defLabel: string, controls: ListRegisterControls = 
     assert.equal(buildListRegisterCsv(def, built.sections, "X"), "");
   }
   console.log("✓ Block sheets exact block counts / CSV disabled");
-}
-
-{
-  const def3 = getListRegisterDefByLabel("Child List (3 Extra Fields)")!;
-  assert.equal(def3.status, "implemented");
-  assert.equal(def3.extraFieldCount, 3);
-  // Kid-e-Sys-aligned real fields — Age, Birth Date, Gender (not blank placeholders)
-  assert.deepEqual(def3.columns.slice(-3), ["age", "dob", "gender"]);
-  const withProfile: ListRegisterLearnerInput[] = [
-    {
-      ...learners[1],
-      gender: "M",
-    },
-  ];
-  const built3 = buildListRegisterRows(withProfile, def3, baseControls);
-  assert.equal(built3.rows.length, 1);
-  assert.ok(built3.rows[0].age && built3.rows[0].age !== "—");
-  assert.equal(built3.rows[0].dob, "2016-11-02");
-  assert.equal(built3.rows[0].gender, "M");
-  const csv = buildListRegisterCsv(def3, built3.sections, "Test School");
-  assert.ok(csv.includes("Gender"));
-  assert.ok(csv.includes("Age"));
-  assert.ok(csv.includes("DOB"));
-  assert.ok(!csv.includes("Extra Field 1"));
-  console.log("✓ Child List (3 Extra Fields) uses real Age/DOB/Gender");
-}
-
-{
-  const def6 = getListRegisterDefByLabel("Child List (6 Extra Fields)")!;
-  assert.equal(def6.status, "blocked_missing_data");
-  assert.equal(def6.implemented, false);
-  assert.ok(/enrolment date/i.test(def6.blockedReason || ""));
-  assert.ok(!/schema/i.test(def6.blockedReason || ""));
-  // Must not invent ID Number as a stand-in for Enrolment Date
-  assert.ok(!def6.columns.includes("idNumber"));
-  console.log("✓ Child List (6 Extra Fields) blocked — Enrolment Date not on learner");
 }
 
 {

@@ -131,6 +131,18 @@ export default function ParentFormPanel({
               />
             </div>
             <div className="parent-form-panel__field">
+              <label className="parent-form-panel__label">Date of birth</label>
+              <input
+                className="parent-form-panel__input"
+                type="date"
+                value={draft.birthDate || draft.dateOfBirth || ""}
+                onChange={(e) => {
+                  const v = e.target.value;
+                  onChange({ ...draft, birthDate: v, dateOfBirth: v });
+                }}
+              />
+            </div>
+            <div className="parent-form-panel__field">
               <label className="parent-form-panel__label">Primary contact</label>
               <label className="parent-form-panel__check" style={{ marginTop: 10 }}>
                 <input

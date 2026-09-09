@@ -23,6 +23,8 @@ export type ListRegisterKind =
   | "age"
   | "birthday"
   | "birthday-employee"
+  | "birthday-parent"
+  | "allergies"
   | "employee-contact"
   | "block-sheet"
   | "child-extra"
@@ -67,6 +69,10 @@ export type ListRegisterColumnId =
   | "idNumber"
   | "parent1Contact"
   | "parent2Contact"
+  | "enrolmentDate"
+  | "allergies"
+  | "medicalAlert"
+  | "linkedLearners"
   | "employeeNo"
   | "department"
   | "jobTitle"
@@ -174,16 +180,23 @@ const CHILD_LIST_COLUMNS: ListRegisterColumnId[] = [
 
 /**
  * Kid-e-Sys "Child List Extra Fields" were real data columns, not blank worksheets.
- * Evidence: kideesysLearnerClassListNormalization.ts CHILD_LIST_EXTRA_HEADER_ALIASES
- * and kideesysLearnerClassListNormalization.test.ts (Age, Birth Date, Gender,
- * Parent 1/2 Contact Info, Enrolment Date).
- *
- * 3 Extra → Age, Birth Date, Gender (all on Learner).
- * 6 Extra → those + Parent 1/2 + Enrolment Date — Enrolment Date is NOT on Prisma
- * Learner (admissionDate intentionally unsupported), so the 6-field title is blocked.
+ * 3 Extra → Age, Birth Date, Gender.
+ * 6 Extra → those + Parent 1/2 Contact + Enrolment Date (Learner.admissionDate).
  */
 function childListThreeExtraColumns(): ListRegisterColumnId[] {
   return [...CHILD_LIST_COLUMNS, "age", "dob", "gender"];
+}
+
+function childListSixExtraColumns(): ListRegisterColumnId[] {
+  return [
+    ...CHILD_LIST_COLUMNS,
+    "age",
+    "dob",
+    "gender",
+    "parent1Contact",
+    "parent2Contact",
+    "enrolmentDate",
+  ];
 }
 
 function employeeAttendanceDef(opts: {
@@ -326,40 +339,6 @@ export const PHASE1_LIST_REGISTER_DEFS: ListRegisterDef[] = [
 
 const BLOCKED_DEFS: ListRegisterDef[] = [
   def({
-    id: "allergies-list",
-    label: "Allergies List",
-    entity: "learner",
-    kind: "blocked",
-    dataSource: "none",
-    status: "blocked_missing_data",
-    blockedReason: "Allergy information is not currently recorded on learner profiles.",
-    columns: [],
-    filters: [],
-    sorts: [],
-    groupBy: "none",
-    rowGrain: "learner",
-    exportCsv: false,
-    exportExcel: false,
-    exportPdf: false,
-  }),
-  def({
-    id: "birthday-parent-list",
-    label: "Birthday Parent List",
-    entity: "parent",
-    kind: "blocked",
-    dataSource: "none",
-    status: "blocked_missing_data",
-    blockedReason: "Parent dates of birth are not currently recorded in EduClear.",
-    columns: [],
-    filters: [],
-    sorts: [],
-    groupBy: "none",
-    rowGrain: "parent",
-    exportCsv: false,
-    exportExcel: false,
-    exportPdf: false,
-  }),
-  def({
     id: "future-enrolled-list",
     label: "Future Enrolled List",
     entity: "learner",
@@ -367,25 +346,7 @@ const BLOCKED_DEFS: ListRegisterDef[] = [
     dataSource: "none",
     status: "blocked_missing_data",
     blockedReason:
-      "Future enrolment status is not currently recorded separately from active and historical enrolments.",
-    columns: [],
-    filters: [],
-    sorts: [],
-    groupBy: "none",
-    rowGrain: "learner",
-    exportCsv: false,
-    exportExcel: false,
-    exportPdf: false,
-  }),
-  def({
-    id: "child-list-6-extra",
-    label: "Child List (6 Extra Fields)",
-    entity: "learner",
-    kind: "blocked",
-    dataSource: "none",
-    status: "blocked_missing_data",
-    blockedReason:
-      "Learner enrolment date is not currently recorded on learner profiles, so the six-field Child List cannot be produced in full.",
+      "Future enrolment is not currently recorded separately from active and historical enrolments.",
     columns: [],
     filters: [],
     sorts: [],
@@ -399,6 +360,21 @@ const BLOCKED_DEFS: ListRegisterDef[] = [
 
 const V3_IMPLEMENTED_DEFS: ListRegisterDef[] = [
   def({
+    id: "allergies-list",
+    label: "Allergies List",
+    entity: "learner",
+    kind: "allergies",
+    dataSource: "registrations.learners",
+    columns: ["surname", "name", "grade", "classroom", "allergies", "medicalAlert"],
+    filters: ["classroom", "grade"],
+    sorts: ["surname", "name"],
+    groupBy: "none",
+    rowGrain: "learner",
+    exportCsv: true,
+    exportExcel: false,
+    exportPdf: false,
+  }),
+  def({
     id: "birthday-employee-list",
     label: "Birthday Employee List",
     entity: "employee",
@@ -409,6 +385,21 @@ const V3_IMPLEMENTED_DEFS: ListRegisterDef[] = [
     sorts: ["birthday", "surname"],
     groupBy: "birthdayMonth",
     rowGrain: "employee",
+    exportCsv: true,
+    exportExcel: false,
+    exportPdf: false,
+  }),
+  def({
+    id: "birthday-parent-list",
+    label: "Birthday Parent List",
+    entity: "parent",
+    kind: "birthday-parent",
+    dataSource: "registrations.learners",
+    columns: ["surname", "name", "birthday", "age", "cellphone", "email", "linkedLearners"],
+    filters: ["month"],
+    sorts: ["birthday", "surname"],
+    groupBy: "birthdayMonth",
+    rowGrain: "parent",
     exportCsv: true,
     exportExcel: false,
     exportPdf: false,
@@ -476,6 +467,22 @@ const V3_IMPLEMENTED_DEFS: ListRegisterDef[] = [
     exportExcel: false,
     exportPdf: false,
     extraFieldCount: 3,
+  }),
+  def({
+    id: "child-list-6-extra",
+    label: "Child List (6 Extra Fields)",
+    entity: "learner",
+    kind: "child-extra",
+    dataSource: "registrations.learners",
+    columns: childListSixExtraColumns(),
+    filters: ["classroom", "grade"],
+    sorts: ["surname", "name", "grade", "classroom"],
+    groupBy: "none",
+    rowGrain: "learner",
+    exportCsv: true,
+    exportExcel: false,
+    exportPdf: false,
+    extraFieldCount: 6,
   }),
   employeeAttendanceDef({
     id: "employee-attendance-monthly",
@@ -765,6 +772,10 @@ export const COLUMN_LABELS: Record<ListRegisterColumnId, string> = {
   idNumber: "ID Number",
   parent1Contact: "Parent 1 Contact",
   parent2Contact: "Parent 2 Contact",
+  enrolmentDate: "Enrolment Date",
+  allergies: "Allergies",
+  medicalAlert: "Medical Alert",
+  linkedLearners: "Linked Learner(s)",
   employeeNo: "Employee No",
   department: "Department",
   jobTitle: "Job Title",

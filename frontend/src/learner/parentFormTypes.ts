@@ -8,6 +8,8 @@ export type ParentRecord = {
   surname?: string;
   name?: string;
   lastName?: string;
+  birthDate?: string;
+  dateOfBirth?: string;
   idNumber?: string;
   cellNo?: string;
   cell?: string;
