@@ -171,19 +171,27 @@ import {
 import { downloadAttendanceReportExcel } from "./attendance/buildAttendanceReportExcel";
 import { downloadAttendanceReportPdf } from "./attendance/buildAttendanceReportPdf";
 import {
-  PHASE1_LIST_REGISTER_DEFS,
-  UNIMPLEMENTED_LIST_REGISTER_LABELS,
+  LIST_REGISTER_CATALOGUE_LABELS,
   getListRegisterDefByLabel,
   MONTH_OPTIONS,
+  needsListsRegistersApi,
   type ListRegisterSortId,
 } from "./listsRegisters/listRegisterCatalog";
 import {
   buildListRegisterCsv,
+  buildListRegisterReport,
   buildListRegisterRows,
   downloadListRegisterCsv,
   uniqueClassroomOptions,
+  uniqueDepartmentOptions,
   uniqueGradeOptions,
+  uniqueGroupOptions,
+  type ListRegisterBuildInput,
   type ListRegisterControls,
+  type ListRegisterEmployeeAttendanceInput,
+  type ListRegisterEmployeeInput,
+  type ListRegisterGroupMemberInput,
+  type ListRegisterIncidentInput,
 } from "./listsRegisters/buildListRegisterReport";
 import ListRegisterReportView from "./listsRegisters/ListRegisterReportView";
 
@@ -12216,16 +12224,7 @@ const renderIncidentManage = () => (
 
 );
 
-const LIST_REGISTER_ITEMS = [
-  ...PHASE1_LIST_REGISTER_DEFS.map((d) => d.label),
-  "Attendance List",
-  "Attendance Register (Daily)",
-  "Attendance Register (Monthly)",
-  "Attendance Register (Monthly) (Weekends)",
-  "Attendance Register (Weekly)",
-  "Attendance Register (Weekly) (Weekends)",
-  ...UNIMPLEMENTED_LIST_REGISTER_LABELS,
-];
+const LIST_REGISTER_ITEMS = [...LIST_REGISTER_CATALOGUE_LABELS];
 
 
 
@@ -12277,9 +12276,18 @@ const [listRegisterSortBy, setListRegisterSortBy] =
     month: "all",
     hasAddress: "all",
     sort: "surname",
+    group: "all",
+    department: "all",
+    anchorDate: new Date().toISOString().slice(0, 10),
   });
   const [listRegisterPhase1Sections, setListRegisterPhase1Sections] = useState<
     ReturnType<typeof buildListRegisterRows>["sections"]
+  >([]);
+  const [listRegisterApiEmployees, setListRegisterApiEmployees] = useState<ListRegisterEmployeeInput[]>([]);
+  const [listRegisterApiGroups, setListRegisterApiGroups] = useState<ListRegisterGroupMemberInput[]>([]);
+  const [listRegisterApiIncidents, setListRegisterApiIncidents] = useState<ListRegisterIncidentInput[]>([]);
+  const [listRegisterApiEmployeeAttendance, setListRegisterApiEmployeeAttendance] = useState<
+    ListRegisterEmployeeAttendanceInput[]
   >([]);
   const selectedListRegisterDef = selectedListRegister
     ? getListRegisterDefByLabel(selectedListRegister)
@@ -12446,6 +12454,33 @@ const openListRegister = (name: string) => {
 
   setListRegisterSetupOpen(true);
 
+  const def = getListRegisterDefByLabel(name);
+  if (def && needsListsRegistersApi(def) && schoolId) {
+    // Prefetch for setup filter options (department / group)
+    void (async () => {
+      try {
+        const headers = { ...staffAuthHeaders() };
+        if (def.dataSource === "listsRegisters.employees") {
+          const data: any = await apiFetch(
+            `/api/lists-registers/employees?schoolId=${encodeURIComponent(schoolId)}`,
+            { headers }
+          );
+          const list = (data?.employees || data?.rows || data || []) as ListRegisterEmployeeInput[];
+          if (Array.isArray(list)) setListRegisterApiEmployees(list);
+        } else if (def.dataSource === "listsRegisters.groups") {
+          const data: any = await apiFetch(
+            `/api/lists-registers/groups?schoolId=${encodeURIComponent(schoolId)}`,
+            { headers }
+          );
+          const list = (data?.members || data?.rows || data || []) as ListRegisterGroupMemberInput[];
+          if (Array.isArray(list)) setListRegisterApiGroups(list);
+        }
+      } catch {
+        /* filter options stay empty until view load */
+      }
+    })();
+  }
+
 
 
 };
@@ -12458,6 +12493,7 @@ const continueListRegister = () => {
     setListRegisterControls((c) => ({
       ...c,
       sort: (def.sorts.includes(c.sort) ? c.sort : def.sorts[0] || "surname") as ListRegisterSortId,
+      anchorDate: c.anchorDate || listRegisterAnchorDate,
     }));
   }
 
@@ -12471,6 +12507,95 @@ const continueListRegister = () => {
 
 
 
+};
+
+const loadListsRegistersApiDataset = async (
+  def: NonNullable<ReturnType<typeof getListRegisterDefByLabel>>
+): Promise<ListRegisterBuildInput> => {
+  if (!schoolId || !needsListsRegistersApi(def)) return {};
+  setListRegisterReportLoading(true);
+  setListRegisterReportError(null);
+  try {
+    const headers = { ...staffAuthHeaders() };
+    if (def.dataSource === "listsRegisters.employees") {
+      const data: any = await apiFetch(
+        `/api/lists-registers/employees?schoolId=${encodeURIComponent(schoolId)}`,
+        { headers }
+      );
+      const employees = (data?.employees || data?.rows || data || []) as ListRegisterEmployeeInput[];
+      const list = Array.isArray(employees) ? employees : [];
+      setListRegisterApiEmployees(list);
+      return { employees: list };
+    }
+    if (def.dataSource === "listsRegisters.groups") {
+      const data: any = await apiFetch(
+        `/api/lists-registers/groups?schoolId=${encodeURIComponent(schoolId)}`,
+        { headers }
+      );
+      const members = (data?.members || data?.rows || data || []) as ListRegisterGroupMemberInput[];
+      const list = Array.isArray(members) ? members : [];
+      setListRegisterApiGroups(list);
+      return { groupMembers: list };
+    }
+    if (def.dataSource === "listsRegisters.incidents") {
+      const data: any = await apiFetch(
+        `/api/lists-registers/incidents?schoolId=${encodeURIComponent(schoolId)}`,
+        { headers }
+      );
+      const incidents = (data?.incidents || data?.rows || data || []) as ListRegisterIncidentInput[];
+      const list = Array.isArray(incidents) ? incidents : [];
+      setListRegisterApiIncidents(list);
+      return { incidents: list };
+    }
+    if (def.dataSource === "listsRegisters.employeeAttendance") {
+      const anchor = listRegisterControls.anchorDate || listRegisterAnchorDate;
+      const qs = new URLSearchParams({
+        schoolId,
+        kind: def.attendanceWindow || "weekly",
+        includeWeekends: def.includeWeekends ? "true" : "false",
+        includeTimes: def.includeTimes ? "true" : "false",
+        anchorDate: anchor,
+      });
+      const data: any = await apiFetch(`/api/lists-registers/employee-attendance?${qs}`, { headers });
+      const rows = (data?.rows || data?.attendance || data || []) as ListRegisterEmployeeAttendanceInput[];
+      const list = Array.isArray(rows) ? rows : [];
+      setListRegisterApiEmployeeAttendance(list);
+      return { employeeAttendance: list };
+    }
+    return {};
+  } catch (e: unknown) {
+    const message = e instanceof Error ? e.message : "Failed to load lists & registers data";
+    setListRegisterReportError(message);
+    throw e;
+  } finally {
+    setListRegisterReportLoading(false);
+  }
+};
+
+const buildSelectedListRegisterSections = async () => {
+  const def = getListRegisterDefByLabel(selectedListRegister);
+  if (!def || !def.implemented || def.kind === "learner-attendance") {
+    return [];
+  }
+  let apiInput: ListRegisterBuildInput = {};
+  if (needsListsRegistersApi(def)) {
+    apiInput = await loadListsRegistersApiDataset(def);
+  } else if (def.entity === "employee") {
+    apiInput = {
+      employees: listRegisterApiEmployees,
+      employeeAttendance: listRegisterApiEmployeeAttendance,
+    };
+  } else if (def.entity === "group-member") {
+    apiInput = { groupMembers: listRegisterApiGroups };
+  } else if (def.entity === "incident") {
+    apiInput = { incidents: listRegisterApiIncidents };
+  }
+  const built = buildListRegisterReport(def, listRegisterControls, {
+    learners: learners as any[],
+    extraFieldLabels: adminChildExtraFields,
+    ...apiInput,
+  });
+  return built.sections;
 };
 
 
@@ -12537,9 +12662,13 @@ const openListRegisterView = async () => {
     return;
   }
 
-  const built = buildListRegisterRows(learners as any[], def, listRegisterControls);
-  setListRegisterPhase1Sections(built.sections);
-  setListRegisterViewOpen(true);
+  try {
+    const sections = await buildSelectedListRegisterSections();
+    setListRegisterPhase1Sections(sections);
+    setListRegisterViewOpen(true);
+  } catch {
+    setListRegisterActionsOpen(true);
+  }
 };
 
 const renderListsRegisters = () => {
@@ -12592,14 +12721,47 @@ const renderListsRegisters = () => {
       return;
     }
 
-    if (phase1Def?.implemented) {
-      const built = buildListRegisterRows(learners as any[], phase1Def, listRegisterControls);
-      const csv = buildListRegisterCsv(phase1Def, built.sections, schoolBranding.name || "");
-      downloadListRegisterCsv(`${phase1Def.id}.csv`, csv);
+    if (phase1Def?.status === "blocked_missing_data") {
+      alert(
+        `Blocked — required authoritative data does not exist.\n${phase1Def.blockedReason || ""}`
+      );
       return;
     }
 
-    alert("This report is not yet implemented.");
+    if (phase1Def?.implemented && phase1Def.exportCsv) {
+      try {
+        let apiInput: ListRegisterBuildInput = {};
+        if (needsListsRegistersApi(phase1Def)) {
+          apiInput = await loadListsRegistersApiDataset(phase1Def);
+        }
+        const built = buildListRegisterReport(phase1Def, listRegisterControls, {
+          learners: learners as any[],
+          extraFieldLabels: adminChildExtraFields,
+          ...apiInput,
+        });
+        const csv = buildListRegisterCsv(
+          phase1Def,
+          built.sections,
+          schoolBranding.name || "",
+          adminChildExtraFields
+        );
+        if (!csv) {
+          alert("CSV export is not available for this report.");
+          return;
+        }
+        downloadListRegisterCsv(`${phase1Def.id}.csv`, csv);
+      } catch {
+        alert(listRegisterReportError || "Could not export this report.");
+      }
+      return;
+    }
+
+    if (phase1Def && !phase1Def.exportCsv) {
+      alert("CSV export is not available for this report.");
+      return;
+    }
+
+    alert("This report cannot be exported.");
 
 
 
@@ -12695,7 +12857,7 @@ const renderListsRegisters = () => {
 
 
 
-              setListRegisterSetupOpen(true);
+              openListRegister(selectedListRegister);
 
 
 
@@ -12795,11 +12957,7 @@ const renderListsRegisters = () => {
 
 
 
-                  setSelectedListRegister(item);
-
-
-
-                  setListRegisterSetupOpen(true);
+                  openListRegister(item);
 
 
 
@@ -13097,6 +13255,68 @@ const renderListsRegisters = () => {
                       </select>
                     </>
                   ) : null}
+                  {selectedListRegisterDef.filters.includes("group") ? (
+                    <>
+                      <label style={labelStyle}>Group</label>
+                      <select
+                        style={inputStyle}
+                        value={listRegisterControls.group || "all"}
+                        onChange={(e) =>
+                          setListRegisterControls((c) => ({ ...c, group: e.target.value }))
+                        }
+                      >
+                        <option value="all">All groups</option>
+                        {uniqueGroupOptions(listRegisterApiGroups).map((name) => (
+                          <option key={name} value={name}>
+                            {name}
+                          </option>
+                        ))}
+                      </select>
+                    </>
+                  ) : null}
+                  {selectedListRegisterDef.filters.includes("department") ? (
+                    <>
+                      <label style={labelStyle}>Department</label>
+                      <select
+                        style={inputStyle}
+                        value={listRegisterControls.department || "all"}
+                        onChange={(e) =>
+                          setListRegisterControls((c) => ({ ...c, department: e.target.value }))
+                        }
+                      >
+                        <option value="all">All departments</option>
+                        {uniqueDepartmentOptions(listRegisterApiEmployees).map((name) => (
+                          <option key={name} value={name}>
+                            {name}
+                          </option>
+                        ))}
+                      </select>
+                    </>
+                  ) : null}
+                  {selectedListRegisterDef.filters.includes("dateWindow") ? (
+                    <>
+                      <label style={labelStyle}>
+                        {selectedListRegisterDef.attendanceWindow === "monthly" ? "Month" : "Week of"}
+                      </label>
+                      <input
+                        type={
+                          selectedListRegisterDef.attendanceWindow === "monthly" ? "month" : "date"
+                        }
+                        style={inputStyle}
+                        value={
+                          selectedListRegisterDef.attendanceWindow === "monthly"
+                            ? (listRegisterControls.anchorDate || listRegisterAnchorDate).slice(0, 7)
+                            : listRegisterControls.anchorDate || listRegisterAnchorDate
+                        }
+                        onChange={(e) => {
+                          const v = e.target.value;
+                          const next = /^\d{4}-\d{2}$/.test(v) ? `${v}-01` : v;
+                          setListRegisterControls((c) => ({ ...c, anchorDate: next }));
+                          setListRegisterAnchorDate(next);
+                        }}
+                      />
+                    </>
+                  ) : null}
                   {selectedListRegisterDef.sorts.length ? (
                     <>
                       <label style={labelStyle}>Sort By</label>
@@ -13118,16 +13338,35 @@ const renderListsRegisters = () => {
                                 ? "Birthday"
                                 : s === "age"
                                   ? "Age"
-                                  : s.charAt(0).toUpperCase() + s.slice(1)}
+                                  : s === "employeeNo"
+                                    ? "Employee No"
+                                    : s === "groupName"
+                                      ? "Group"
+                                      : s === "incidentDate"
+                                        ? "Incident Date"
+                                        : s.charAt(0).toUpperCase() + s.slice(1)}
                           </option>
                         ))}
                       </select>
                     </>
                   ) : null}
+                  {selectedListRegisterDef.kind === "block-sheet" ? (
+                    <div style={{ gridColumn: "1 / -1", color: "#64748b", fontWeight: 700 }}>
+                      Printable blank worksheet — {selectedListRegisterDef.blockCount} blocks. No data
+                      filters required.
+                    </div>
+                  ) : null}
                 </>
+              ) : selectedListRegisterDef?.status === "blocked_missing_data" ? (
+                <div style={{ gridColumn: "1 / -1", color: "#991b1b", fontWeight: 700 }}>
+                  Blocked — required authoritative data does not exist.
+                  <div style={{ marginTop: 8, color: "#7f1d1d", fontWeight: 600 }}>
+                    {selectedListRegisterDef.blockedReason}
+                  </div>
+                </div>
               ) : (
                 <div style={{ gridColumn: "1 / -1", color: "#64748b", fontWeight: 700 }}>
-                  This report is not yet implemented. View will show a placeholder — no learner data is exported.
+                  This report cannot be configured.
                 </div>
               )}
 
@@ -13234,7 +13473,12 @@ const renderListsRegisters = () => {
               <button
                 style={actionBtn}
                 onClick={downloadListRegister}
-                disabled={Boolean(selectedListRegisterDef && !selectedListRegisterDef.implemented && !attendanceConfig)}
+                disabled={Boolean(
+                  selectedListRegisterDef &&
+                    (!selectedListRegisterDef.exportCsv ||
+                      selectedListRegisterDef.status === "blocked_missing_data") &&
+                    !attendanceConfig
+                )}
               >
 
 
@@ -13300,7 +13544,7 @@ const renderListsRegisters = () => {
                     📊 Attendance Reports
                   </button>
                 </>
-              ) : selectedListRegisterDef?.implemented ? (
+              ) : selectedListRegisterDef?.implemented && selectedListRegisterDef.exportCsv ? (
               <button style={actionBtn} onClick={() => { void exportListRegisterCsv(); }}>
 
 
@@ -13310,9 +13554,16 @@ const renderListsRegisters = () => {
 
 
               </button>
+              ) : selectedListRegisterDef?.status === "blocked_missing_data" ? (
+                <div style={{ gridColumn: "1 / -1", color: "#991b1b", fontWeight: 700 }}>
+                  Blocked — required authoritative data does not exist. CSV/Excel/PDF disabled.
+                  <div style={{ marginTop: 8, color: "#7f1d1d", fontWeight: 600 }}>
+                    {selectedListRegisterDef.blockedReason}
+                  </div>
+                </div>
               ) : (
                 <div style={{ gridColumn: "1 / -1", color: "#64748b", fontWeight: 700 }}>
-                  Report not yet implemented — CSV/Excel/PDF disabled.
+                  CSV export is not available for this report.
                 </div>
               )}
 
@@ -13377,11 +13628,12 @@ const renderListsRegisters = () => {
                   ? listRegisterPhase1Sections
                   : []
               }
+              extraFieldLabels={adminChildExtraFields}
               onClose={() => setListRegisterViewOpen(false)}
             />
           ) : (
             <div style={{ padding: 40 }}>
-              <h1>Report not yet implemented</h1>
+              <h1>Report unavailable</h1>
               <button style={goldBtn} onClick={() => setListRegisterViewOpen(false)}>
                 Close
               </button>

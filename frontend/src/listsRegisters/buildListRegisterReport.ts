@@ -11,7 +11,7 @@ import type {
   ListRegisterFilterId,
   ListRegisterSortId,
 } from "./listRegisterCatalog";
-import { COLUMN_LABELS } from "./listRegisterCatalog";
+import { resolveColumnLabel } from "./listRegisterCatalog";
 
 export type ListRegisterLearnerInput = {
   id?: string;
@@ -39,16 +39,86 @@ export type ListRegisterLearnerInput = {
   parents?: Array<Record<string, unknown>>;
 };
 
-export type ListRegisterRow = Record<
-  ListRegisterColumnId | "learnerId" | "parentId" | "_dobIso" | "_birthdayKey" | "_month" | "_ageYears" | "_gradeHint",
-  string
->;
+export type ListRegisterEmployeeInput = {
+  id?: string;
+  employeeNumber?: string | null;
+  firstName?: string;
+  lastName?: string;
+  surname?: string;
+  fullName?: string | null;
+  dateOfBirth?: unknown;
+  birthDate?: unknown;
+  mobileNumber?: string | null;
+  email?: string | null;
+  physicalAddress?: string | null;
+  jobTitle?: string | null;
+  department?: string | null;
+  isActive?: boolean;
+};
+
+export type ListRegisterGroupMemberInput = {
+  groupId?: string;
+  groupName?: string;
+  learnerId?: string;
+  surname?: string;
+  lastName?: string;
+  name?: string;
+  firstName?: string;
+  grade?: string;
+  classroom?: string;
+  className?: string;
+};
+
+export type ListRegisterIncidentInput = {
+  id?: string;
+  incidentDate?: unknown;
+  type?: string;
+  subject?: string;
+  summary?: string;
+  createdBy?: string;
+  learnerId?: string;
+  learnerName?: string;
+  surname?: string;
+  name?: string;
+  grade?: string;
+  classroom?: string;
+  className?: string;
+};
+
+export type ListRegisterEmployeeAttendanceInput = {
+  employeeId?: string;
+  employeeNumber?: string | null;
+  firstName?: string;
+  lastName?: string;
+  surname?: string;
+  department?: string | null;
+  jobTitle?: string | null;
+  date?: string;
+  status?: string;
+  clockIn?: string | null;
+  clockOut?: string | null;
+};
+
+export type ListRegisterBuildInput = {
+  learners?: ListRegisterLearnerInput[];
+  employees?: ListRegisterEmployeeInput[];
+  groupMembers?: ListRegisterGroupMemberInput[];
+  incidents?: ListRegisterIncidentInput[];
+  employeeAttendance?: ListRegisterEmployeeAttendanceInput[];
+  /** Labels for Extra Field 1..N (Child List extra-field worksheets). */
+  extraFieldLabels?: string[];
+};
+
+export type ListRegisterRow = Record<string, string>;
 
 export type ListRegisterSection = {
   key: string;
   label: string;
   count: number;
   rows: ListRegisterRow[];
+  /** Block sheets: number of blank writing lines per block. */
+  blockLines?: number;
+  blockCount?: number;
 };
 
 export type ListRegisterControls = {
@@ -57,6 +127,9 @@ export type ListRegisterControls = {
   month: string; // "all" | "1".."12"
   hasAddress: "all" | "yes" | "no";
   sort: ListRegisterSortId;
+  group?: string; // "all" | group name
+  department?: string; // "all" | department
+  anchorDate?: string; // YYYY-MM-DD for dateWindow filters
 };
 
 export function dash(value: unknown): string {
@@ -143,12 +216,19 @@ function emptyMeta(dobIso: string): Pick<ListRegisterRow, "_dobIso" | "_birthday
   };
 }
 
-function baseLearnerFields(l: ListRegisterLearnerInput): ListRegisterRow {
+function blankExtras(count: number): Record<string, string> {
+  const out: Record<string, string> = {};
+  for (let i = 1; i <= count; i++) out[`extra${i}`] = "";
+  return out;
+}
+
+function baseLearnerFields(l: ListRegisterLearnerInput, extraFieldCount = 0): ListRegisterRow {
   const dobIso = learnerDobIso(l);
   const age = ageFromDob(dobIso);
   return {
     learnerId: String(l.id || ""),
     parentId: "",
+    employeeId: "",
     accountNo: learnerVisibleAccountNo(l),
     admissionNo: learnerAdmissionNo(l),
     surname: learnerSurname(l) || "—",
@@ -168,9 +248,24 @@ function baseLearnerFields(l: ListRegisterLearnerInput): ListRegisterRow {
     alternate: "—",
     email: "—",
     address: "—",
+    employeeNo: "—",
+    department: "—",
+    jobTitle: "—",
+    groupName: "—",
+    incidentDate: "—",
+    incidentType: "—",
+    subject: "—",
+    summary: "—",
+    createdBy: "—",
+    date: "—",
+    clockIn: "—",
+    clockOut: "—",
+    attendanceStatus: "—",
+    ...blankExtras(Math.max(extraFieldCount, 6)),
     ...emptyMeta(dobIso),
     _gradeHint: learnerGrade(l) || "",
     _ageYears: String(age.years),
+    _entity: "learner",
   };
 }
 
@@ -190,8 +285,8 @@ function applyParentContact(row: ListRegisterRow, parent: RankedDisplayParent | 
   };
 }
 
-function buildLearnerRow(l: ListRegisterLearnerInput): ListRegisterRow {
-  return baseLearnerFields(l);
+function buildLearnerRow(l: ListRegisterLearnerInput, extraFieldCount = 0): ListRegisterRow {
+  return baseLearnerFields(l, extraFieldCount);
 }
 
 /** Contact List: one row per linked parent/guardian (or one empty-contact row if none). */
@@ -222,15 +317,246 @@ function buildAddressRows(l: ListRegisterLearnerInput): ListRegisterRow[] {
   return Array.from(seen.values());
 }
 
-function expandRows(learners: ListRegisterLearnerInput[], def: ListRegisterDef): ListRegisterRow[] {
+function expandLearnerRows(learners: ListRegisterLearnerInput[], def: ListRegisterDef): ListRegisterRow[] {
   const active = learners.filter(isActiveListRegisterLearner);
+  const extra = def.extraFieldCount || 0;
   const out: ListRegisterRow[] = [];
   for (const l of active) {
     if (def.kind === "contact") out.push(...buildContactRows(l));
     else if (def.kind === "address") out.push(...buildAddressRows(l));
-    else out.push(buildLearnerRow(l));
+    else out.push(buildLearnerRow(l, extra));
   }
   return out;
+}
+
+function employeeSurname(e: ListRegisterEmployeeInput): string {
+  return String(e.lastName || e.surname || "").trim();
+}
+
+function employeeFirstName(e: ListRegisterEmployeeInput): string {
+  return String(e.firstName || "").trim();
+}
+
+function employeeDobIso(e: ListRegisterEmployeeInput): string {
+  return normaliseDateForInput(e.dateOfBirth || e.birthDate);
+}
+
+function buildEmployeeRow(e: ListRegisterEmployeeInput): ListRegisterRow {
+  const dobIso = employeeDobIso(e);
+  const age = ageFromDob(dobIso);
+  const surname = employeeSurname(e);
+  const name = employeeFirstName(e);
+  return {
+    learnerId: "",
+    parentId: "",
+    employeeId: String(e.id || ""),
+    accountNo: "—",
+    admissionNo: "—",
+    surname: surname || "—",
+    name: name || "—",
+    learner: "—",
+    grade: "—",
+    classroom: "—",
+    status: e.isActive === false ? "Inactive" : "Active",
+    dob: dobIso || "—",
+    age: age.display,
+    birthday: formatBirthdayDisplay(dobIso),
+    guardian: "—",
+    relationship: "—",
+    primary: "—",
+    paying: "—",
+    cellphone: dash(e.mobileNumber),
+    alternate: "—",
+    email: dash(e.email),
+    address: dash(e.physicalAddress),
+    employeeNo: dash(e.employeeNumber),
+    department: dash(e.department),
+    jobTitle: dash(e.jobTitle),
+    groupName: "—",
+    incidentDate: "—",
+    incidentType: "—",
+    subject: "—",
+    summary: "—",
+    createdBy: "—",
+    date: "—",
+    clockIn: "—",
+    clockOut: "—",
+    attendanceStatus: "—",
+    ...blankExtras(6),
+    ...emptyMeta(dobIso),
+    _ageYears: String(age.years),
+    _entity: "employee",
+  };
+}
+
+function expandEmployeeRows(employees: ListRegisterEmployeeInput[], def: ListRegisterDef): ListRegisterRow[] {
+  const active = employees.filter((e) => e.isActive !== false);
+  if (def.kind === "birthday-employee") {
+    return active.map(buildEmployeeRow);
+  }
+  return active.map(buildEmployeeRow);
+}
+
+function buildGroupMemberRow(m: ListRegisterGroupMemberInput): ListRegisterRow {
+  const surname = String(m.surname || m.lastName || "").trim();
+  const name = String(m.name || m.firstName || "").trim();
+  const classroom = String(m.classroom || m.className || "").trim();
+  return {
+    learnerId: String(m.learnerId || ""),
+    parentId: "",
+    employeeId: "",
+    accountNo: "—",
+    admissionNo: "—",
+    surname: surname || "—",
+    name: name || "—",
+    learner: `${surname} ${name}`.trim() || "—",
+    grade: dash(m.grade),
+    classroom: classroom || "—",
+    status: "—",
+    dob: "—",
+    age: "—",
+    birthday: "—",
+    guardian: "—",
+    relationship: "—",
+    primary: "—",
+    paying: "—",
+    cellphone: "—",
+    alternate: "—",
+    email: "—",
+    address: "—",
+    employeeNo: "—",
+    department: "—",
+    jobTitle: "—",
+    groupName: dash(m.groupName),
+    incidentDate: "—",
+    incidentType: "—",
+    subject: "—",
+    summary: "—",
+    createdBy: "—",
+    date: "—",
+    clockIn: "—",
+    clockOut: "—",
+    attendanceStatus: "—",
+    ...blankExtras(6),
+    ...emptyMeta(""),
+    _groupId: String(m.groupId || ""),
+    _entity: "group-member",
+  };
+}
+
+function buildIncidentRow(inc: ListRegisterIncidentInput): ListRegisterRow {
+  const iso = normaliseDateForInput(inc.incidentDate);
+  const learnerName = String(inc.learnerName || "").trim();
+  let surname = String(inc.surname || "").trim();
+  let name = String(inc.name || "").trim();
+  if ((!surname || !name) && learnerName) {
+    const parts = learnerName.split(/\s+/);
+    if (!surname && parts.length) surname = parts[parts.length - 1];
+    if (!name && parts.length > 1) name = parts.slice(0, -1).join(" ");
+    else if (!name) name = learnerName;
+  }
+  const classroom = String(inc.classroom || inc.className || "").trim();
+  return {
+    learnerId: String(inc.learnerId || ""),
+    parentId: "",
+    employeeId: "",
+    accountNo: "—",
+    admissionNo: "—",
+    surname: surname || "—",
+    name: name || "—",
+    learner: learnerName || `${surname} ${name}`.trim() || "—",
+    grade: dash(inc.grade),
+    classroom: classroom || "—",
+    status: "—",
+    dob: "—",
+    age: "—",
+    birthday: "—",
+    guardian: "—",
+    relationship: "—",
+    primary: "—",
+    paying: "—",
+    cellphone: "—",
+    alternate: "—",
+    email: "—",
+    address: "—",
+    employeeNo: "—",
+    department: "—",
+    jobTitle: "—",
+    groupName: "—",
+    incidentDate: iso || dash(inc.incidentDate),
+    incidentType: dash(inc.type),
+    subject: dash(inc.subject),
+    summary: dash(inc.summary),
+    createdBy: dash(inc.createdBy),
+    date: iso || "—",
+    clockIn: "—",
+    clockOut: "—",
+    attendanceStatus: "—",
+    ...blankExtras(6),
+    ...emptyMeta(""),
+    _incidentId: String(inc.id || ""),
+    _sortDate: iso || "9999-99-99",
+    _entity: "incident",
+  };
+}
+
+function buildEmployeeAttendanceRow(r: ListRegisterEmployeeAttendanceInput): ListRegisterRow {
+  const surname = String(r.lastName || r.surname || "").trim();
+  const name = String(r.firstName || "").trim();
+  const date = String(r.date || "").trim();
+  return {
+    learnerId: "",
+    parentId: "",
+    employeeId: String(r.employeeId || ""),
+    accountNo: "—",
+    admissionNo: "—",
+    surname: surname || "—",
+    name: name || "—",
+    learner: "—",
+    grade: "—",
+    classroom: "—",
+    status: "—",
+    dob: "—",
+    age: "—",
+    birthday: "—",
+    guardian: "—",
+    relationship: "—",
+    primary: "—",
+    paying: "—",
+    cellphone: "—",
+    alternate: "—",
+    email: "—",
+    address: "—",
+    employeeNo: dash(r.employeeNumber),
+    department: dash(r.department),
+    jobTitle: dash(r.jobTitle),
+    groupName: "—",
+    incidentDate: "—",
+    incidentType: "—",
+    subject: "—",
+    summary: "—",
+    createdBy: "—",
+    date: date || "—",
+    clockIn: dash(r.clockIn),
+    clockOut: dash(r.clockOut),
+    attendanceStatus: dash(r.status),
+    ...blankExtras(6),
+    ...emptyMeta(""),
+    _sortDate: date || "9999-99-99",
+    _entity: "employee",
+  };
+}
+
+function buildBlockSheetSections(def: ListRegisterDef): ListRegisterSection[] {
+  const n = def.blockCount || 5;
+  return Array.from({ length: n }, (_, i) => ({
+    key: `block-${i + 1}`,
+    label: `Block ${i + 1}`,
+    count: 0,
+    rows: [],
+    blockLines: 8,
+    blockCount: n,
+  }));
 }
 
 function cmpStr(a: string, b: string): number {
@@ -266,7 +592,6 @@ function sortRows(rows: ListRegisterRow[], sort: ListRegisterSortId, def: ListRe
         const yb = Number(b._ageYears);
         const sa = Number.isFinite(ya) && ya >= 0 ? ya : -1;
         const sb = Number.isFinite(yb) && yb >= 0 ? yb : -1;
-        // Older first; missing ages last
         if (sa < 0 && sb < 0) primary = 0;
         else if (sa < 0) primary = 1;
         else if (sb < 0) primary = -1;
@@ -275,7 +600,7 @@ function sortRows(rows: ListRegisterRow[], sort: ListRegisterSortId, def: ListRe
         break;
       }
       case "birthday":
-        primary = a._birthdayKey.localeCompare(b._birthdayKey) || cmpStr(a.surname, b.surname);
+        primary = (a._birthdayKey || "99-99").localeCompare(b._birthdayKey || "99-99") || cmpStr(a.surname, b.surname);
         break;
       case "guardian":
         primary = cmpStr(a.guardian, b.guardian) || cmpStr(a.surname, b.surname) || cmpStr(a.name, b.name);
@@ -283,19 +608,30 @@ function sortRows(rows: ListRegisterRow[], sort: ListRegisterSortId, def: ListRe
       case "learner":
         primary = cmpStr(a.learner, b.learner);
         break;
+      case "department":
+        primary = cmpStr(a.department, b.department) || cmpStr(a.surname, b.surname) || cmpStr(a.name, b.name);
+        break;
+      case "employeeNo":
+        primary = cmpStr(a.employeeNo, b.employeeNo) || cmpStr(a.surname, b.surname);
+        break;
+      case "groupName":
+        primary = cmpStr(a.groupName, b.groupName) || cmpStr(a.surname, b.surname) || cmpStr(a.name, b.name);
+        break;
+      case "incidentDate":
+      case "date":
+        primary =
+          (a._sortDate || a.date || "9999-99-99").localeCompare(b._sortDate || b.date || "9999-99-99") ||
+          cmpStr(a.surname, b.surname) ||
+          cmpStr(a.name, b.name);
+        break;
       case "surname":
       default:
         primary = cmpStr(a.surname, b.surname) || cmpStr(a.name, b.name);
         break;
     }
 
-    // Contact List / Address List: within the same learner, primary → paying → remaining
     if ((def.kind === "contact" || def.kind === "address") && a.learnerId && a.learnerId === b.learnerId) {
-      return (
-        contactPriority(b) - contactPriority(a) ||
-        cmpStr(a.parentId, b.parentId) ||
-        primary
-      );
+      return contactPriority(b) - contactPriority(a) || cmpStr(a.parentId, b.parentId) || primary;
     }
 
     return primary;
@@ -322,6 +658,12 @@ export function applyListRegisterFilters(
       const has = Boolean(row.address && row.address !== "—");
       if (controls.hasAddress === "yes" && !has) return false;
       if (controls.hasAddress === "no" && has) return false;
+    }
+    if (def.filters.includes("group") && controls.group && controls.group !== "all") {
+      if (row.groupName !== controls.group) return false;
+    }
+    if (def.filters.includes("department") && controls.department && controls.department !== "all") {
+      if (row.department !== controls.department) return false;
     }
     return true;
   });
@@ -389,32 +731,108 @@ function buildBirthdayMonthSections(rows: ListRegisterRow[]): ListRegisterSectio
     }));
 }
 
-export function buildListRegisterRows(
-  learners: ListRegisterLearnerInput[],
-  def: ListRegisterDef,
-  controls: ListRegisterControls
-): { rows: ListRegisterRow[]; sections: ListRegisterSection[] } {
-  if (!def.implemented) return { rows: [], sections: [] };
+function buildGroupNameSections(rows: ListRegisterRow[]): ListRegisterSection[] {
+  const byGroup = new Map<string, ListRegisterRow[]>();
+  for (const row of rows) {
+    const key = row.groupName && row.groupName !== "—" ? row.groupName : "(No group)";
+    if (!byGroup.has(key)) byGroup.set(key, []);
+    byGroup.get(key)!.push(row);
+  }
+  return Array.from(byGroup.entries())
+    .sort((a, b) => cmpStr(a[0], b[0]))
+    .map(([key, sectionRows]) => ({
+      key,
+      label: key,
+      count: sectionRows.length,
+      rows: sectionRows,
+    }));
+}
 
-  let rows = expandRows(learners, def);
+/**
+ * Conceptual guard for tests: employee-entity reports must not be treated as
+ * learner rosters. The builder ignores learners for employee kinds; this assert
+ * fails when a caller attempts a learner-only dataset for an employee report.
+ */
+export function assertEmployeeDatasetNotLearners(
+  def: ListRegisterDef,
+  input: ListRegisterBuildInput
+): void {
+  if (def.entity !== "employee") return;
+  const hasEmployeeData =
+    (Array.isArray(input.employees) && input.employees.length > 0) ||
+    (Array.isArray(input.employeeAttendance) && input.employeeAttendance.length > 0);
+  const hasLearners = Array.isArray(input.learners) && input.learners.length > 0;
+  if (hasLearners && !hasEmployeeData) {
+    throw new Error(
+      `Employee report "${def.label}" cannot be built from a learner-only dataset`
+    );
+  }
+}
+
+export function buildListRegisterReport(
+  def: ListRegisterDef,
+  controls: ListRegisterControls,
+  input: ListRegisterBuildInput = {}
+): { rows: ListRegisterRow[]; sections: ListRegisterSection[]; implemented: boolean } {
+  if (def.status === "blocked_missing_data" || !def.implemented || def.kind === "blocked") {
+    return { rows: [], sections: [], implemented: false };
+  }
+
+  if (def.kind === "learner-attendance") {
+    return { rows: [], sections: [], implemented: true };
+  }
+
+  if (def.kind === "block-sheet") {
+    const sections = buildBlockSheetSections(def);
+    return { rows: [], sections, implemented: true };
+  }
+
+  let rows: ListRegisterRow[] = [];
+
+  if (def.entity === "learner" || def.kind === "child-extra") {
+    rows = expandLearnerRows(input.learners || [], def);
+  } else if (def.kind === "birthday-employee" || def.kind === "employee-contact") {
+    rows = expandEmployeeRows(input.employees || [], def);
+  } else if (def.kind === "group-list") {
+    rows = (input.groupMembers || []).map(buildGroupMemberRow);
+  } else if (def.kind === "incident-list") {
+    rows = (input.incidents || []).map(buildIncidentRow);
+  } else if (def.kind === "employee-attendance" || def.kind === "employee-attendance-time") {
+    rows = (input.employeeAttendance || []).map(buildEmployeeAttendanceRow);
+  } else {
+    rows = expandLearnerRows(input.learners || [], def);
+  }
+
   rows = applyListRegisterFilters(rows, def, controls);
   const sort = def.sorts.includes(controls.sort) ? controls.sort : def.sorts[0] || "surname";
   rows = sortRows(rows, sort, def);
 
-  // Class List + Contact List: always section by classroom (incl. single-class filter)
   if (def.groupBy === "classroom") {
-    const sections = buildClassroomSections(rows, def);
-    return { rows, sections };
+    return { rows, sections: buildClassroomSections(rows, def), implemented: true };
   }
-
   if (def.groupBy === "birthdayMonth" && controls.month === "all") {
-    return { rows, sections: buildBirthdayMonthSections(rows) };
+    return { rows, sections: buildBirthdayMonthSections(rows), implemented: true };
+  }
+  if (def.groupBy === "groupName") {
+    return { rows, sections: buildGroupNameSections(rows), implemented: true };
   }
 
   return {
     rows,
     sections: [{ key: "all", label: def.label, count: rows.length, rows }],
+    implemented: true,
   };
+}
+
+/** Phase-1 compatible learner-only entry point. */
+export function buildListRegisterRows(
+  learners: ListRegisterLearnerInput[],
+  def: ListRegisterDef,
+  controls: ListRegisterControls,
+  options?: Omit<ListRegisterBuildInput, "learners">
+): { rows: ListRegisterRow[]; sections: ListRegisterSection[] } {
+  const result = buildListRegisterReport(def, controls, { learners, ...options });
+  return { rows: result.rows, sections: result.sections };
 }
 
 export function uniqueClassroomOptions(learners: ListRegisterLearnerInput[]): string[] {
@@ -435,11 +853,33 @@ export function uniqueGradeOptions(learners: ListRegisterLearnerInput[]): string
   return Array.from(set).sort((a, b) => cmpStr(a, b));
 }
 
+export function uniqueDepartmentOptions(employees: ListRegisterEmployeeInput[]): string[] {
+  const set = new Set<string>();
+  for (const e of employees.filter((x) => x.isActive !== false)) {
+    const d = String(e.department || "").trim();
+    if (d) set.add(d);
+  }
+  return Array.from(set).sort((a, b) => cmpStr(a, b));
+}
+
+export function uniqueGroupOptions(members: ListRegisterGroupMemberInput[]): string[] {
+  const set = new Set<string>();
+  for (const m of members) {
+    const g = String(m.groupName || "").trim();
+    if (g) set.add(g);
+  }
+  return Array.from(set).sort((a, b) => cmpStr(a, b));
+}
+
 export function buildListRegisterCsv(
   def: ListRegisterDef,
   sections: ListRegisterSection[],
-  schoolName: string
+  schoolName: string,
+  extraFieldLabels?: string[]
 ): string {
+  if (!def.exportCsv || def.kind === "block-sheet" || def.status === "blocked_missing_data") {
+    return "";
+  }
   const escape = (v: unknown) => `"${String(v ?? "").replace(/"/g, '""')}"`;
   const cols = def.columns;
   const lines: string[] = [
@@ -453,10 +893,12 @@ export function buildListRegisterCsv(
     sections.length > 0 &&
     !(sections.length === 1 && sections[0].key === "all" && def.groupBy === "birthdayMonth");
 
-  if (useSections && (def.groupBy === "classroom" || (def.groupBy === "birthdayMonth" && sections[0]?.key !== "all"))) {
+  const header = cols.map((c) => escape(resolveColumnLabel(c, extraFieldLabels))).join(",");
+
+  if (useSections && (def.groupBy === "classroom" || def.groupBy === "groupName" || (def.groupBy === "birthdayMonth" && sections[0]?.key !== "all"))) {
     for (const section of sections) {
       lines.push([section.label, `Count: ${section.count}`].map(escape).join(","));
-      lines.push(cols.map((c) => escape(COLUMN_LABELS[c])).join(","));
+      lines.push(header);
       for (const row of section.rows) {
         lines.push(cols.map((c) => escape(row[c])).join(","));
       }
@@ -464,7 +906,7 @@ export function buildListRegisterCsv(
     }
   } else {
     const rows = sections.flatMap((s) => s.rows);
-    lines.push(cols.map((c) => escape(COLUMN_LABELS[c])).join(","));
+    lines.push(header);
     for (const row of rows) {
       lines.push(cols.map((c) => escape(row[c])).join(","));
     }

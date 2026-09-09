@@ -1,18 +1,24 @@
 /**
- * Lists & Registers Phase 1 — product-meaning builders.
+ * Lists & Registers V3 — product-meaning builders.
  * Run: npx --yes tsx src/listsRegisters/buildListRegisterReport.test.ts
  */
 import assert from "assert";
 import {
+  COMPLETE_LIST_REGISTER_DEFS,
   PHASE1_LIST_REGISTER_DEFS,
-  UNIMPLEMENTED_LIST_REGISTER_LABELS,
   getListRegisterDefByLabel,
 } from "./listRegisterCatalog";
 import {
+  assertEmployeeDatasetNotLearners,
   buildListRegisterCsv,
+  buildListRegisterReport,
   buildListRegisterRows,
   flattenListRegisterViewRows,
   type ListRegisterControls,
+  type ListRegisterEmployeeAttendanceInput,
+  type ListRegisterEmployeeInput,
+  type ListRegisterGroupMemberInput,
+  type ListRegisterIncidentInput,
   type ListRegisterLearnerInput,
 } from "./buildListRegisterReport";
 import {
@@ -27,6 +33,9 @@ const baseControls: ListRegisterControls = {
   month: "all",
   hasAddress: "all",
   sort: "surname",
+  group: "all",
+  department: "all",
+  anchorDate: "2026-03-10",
 };
 
 const learners: ListRegisterLearnerInput[] = [
@@ -108,7 +117,7 @@ const learners: ListRegisterLearnerInput[] = [
         workNo: "",
         homeNo: "",
         email: "",
-        homeAddress: "9 Oak St", // identical to mother — dedupe on Address List
+        homeAddress: "9 Oak St",
         isPrimary: false,
         isPayingPerson: false,
         communicationBilling: true,
@@ -153,30 +162,146 @@ const learners: ListRegisterLearnerInput[] = [
   },
 ];
 
+const employees: ListRegisterEmployeeInput[] = [
+  {
+    id: "e1",
+    employeeNumber: "EMP-01",
+    firstName: "Nina",
+    lastName: "Adams",
+    dateOfBirth: "1990-03-12",
+    mobileNumber: "081111",
+    email: "nina@school.test",
+    physicalAddress: "10 Staff Rd",
+    jobTitle: "Teacher",
+    department: "Foundation",
+    isActive: true,
+  },
+  {
+    id: "e2",
+    employeeNumber: "EMP-02",
+    firstName: "Omar",
+    lastName: "Baker",
+    dateOfBirth: "1985-11-20",
+    mobileNumber: "082222",
+    email: "omar@school.test",
+    physicalAddress: "",
+    jobTitle: "Admin",
+    department: "Office",
+    isActive: true,
+  },
+  {
+    id: "e-inactive",
+    employeeNumber: "EMP-X",
+    firstName: "Zed",
+    lastName: "Gone",
+    dateOfBirth: "1970-01-01",
+    isActive: false,
+  },
+];
+
+const groupMembers: ListRegisterGroupMemberInput[] = [
+  {
+    groupId: "g1",
+    groupName: "Chess Club",
+    learnerId: "l1",
+    surname: "Zephyr",
+    name: "Ada",
+    grade: "Grade 5",
+    classroom: "Grade 5A",
+  },
+  {
+    groupId: "g1",
+    groupName: "Chess Club",
+    learnerId: "l2",
+    surname: "Able",
+    name: "Ben",
+    grade: "Grade 3",
+    classroom: "Grade 3B",
+  },
+  {
+    groupId: "g2",
+    groupName: "Choir",
+    learnerId: "l3",
+    surname: "Able",
+    name: "Cara",
+    grade: "Grade 3",
+    classroom: "Grade 3B",
+  },
+];
+
+const incidents: ListRegisterIncidentInput[] = [
+  {
+    id: "i1",
+    incidentDate: "2026-02-01",
+    type: "Behaviour",
+    subject: "General",
+    summary: "Spoke out of turn",
+    createdBy: "Ms A",
+    learnerId: "l2",
+    learnerName: "Ben Able",
+    grade: "Grade 3",
+    classroom: "Grade 3B",
+  },
+  {
+    id: "i2",
+    incidentDate: "2026-03-01",
+    type: "Medical",
+    subject: "Injury",
+    summary: "Scraped knee",
+    createdBy: "Mr B",
+    learnerId: "l1",
+    learnerName: "Ada Zephyr",
+    grade: "Grade 5",
+    classroom: "Grade 5A",
+  },
+];
+
+const attendanceRows: ListRegisterEmployeeAttendanceInput[] = [
+  {
+    employeeId: "e1",
+    employeeNumber: "EMP-01",
+    firstName: "Nina",
+    lastName: "Adams",
+    department: "Foundation",
+    jobTitle: "Teacher",
+    date: "2026-03-10",
+    status: "Present",
+    clockIn: "07:55",
+    clockOut: "14:05",
+  },
+  {
+    employeeId: "e2",
+    employeeNumber: "EMP-02",
+    firstName: "Omar",
+    lastName: "Baker",
+    department: "Office",
+    jobTitle: "Admin",
+    date: "2026-03-10",
+    status: "Absent",
+    clockIn: null,
+    clockOut: null,
+  },
+];
+
 assert.equal(PHASE1_LIST_REGISTER_DEFS.length, 6);
 assert.ok(PHASE1_LIST_REGISTER_DEFS.every((d) => d.implemented));
-assert.ok(UNIMPLEMENTED_LIST_REGISTER_LABELS.length >= 10);
+assert.ok(COMPLETE_LIST_REGISTER_DEFS.length >= 24);
 assert.equal(getListRegisterDefByLabel("Child List")?.id, "child-list");
-assert.equal(getListRegisterDefByLabel("Allergies List")?.implemented, false);
-console.log("✓ catalogue IDs and unimplemented stubs");
+assert.equal(getListRegisterDefByLabel("Allergies List")?.status, "blocked_missing_data");
+assert.ok(getListRegisterDefByLabel("Allergies List")?.blockedReason);
+console.log("✓ catalogue IDs and blocked stubs");
 
 assert.equal(scoreDisplayContact({ isPrimary: true, isPayingPerson: true, communicationBilling: true }), 18);
 {
   const all = listRankedDisplayParentsForLearner(learners[1].parents as any[]);
   assert.equal(all.length, 3);
-  assert.equal(all[0].id, "p2b"); // primary first
-  assert.equal(all[1].id, "p2a"); // paying second
+  assert.equal(all[0].id, "p2b");
+  assert.equal(all[1].id, "p2a");
   const single = rankDisplayParentsForLearner(learners[1].parents as any[]);
-  assert.equal(single?.id, "p2b"); // OA-style single pick still primary only
+  assert.equal(single?.id, "p2b");
   assert.notEqual(all.length, 1);
 }
 console.log("✓ ranking: all contacts vs single OA pick");
-
-function csvDataRows(csv: string, defLabel: string): string[] {
-  return csv
-    .split("\n")
-    .filter((line) => line && !line.startsWith('"Report"') && !line.startsWith('"School"') && !line.includes("Count:") && !line.includes(`"${defLabel}"` === "x"));
-}
 
 function reconcileViewAndCsv(defLabel: string, controls: ListRegisterControls = baseControls) {
   const def = getListRegisterDefByLabel(defLabel)!;
@@ -189,7 +314,6 @@ function reconcileViewAndCsv(defLabel: string, controls: ListRegisterControls = 
   for (const row of viewRows) {
     for (const col of def.columns) {
       const cell = String(row[col] ?? "");
-      // Escaped CSV contains the cell value
       assert.ok(
         csv.includes(cell.replace(/"/g, '""')) || cell === "",
         `${defLabel}: CSV missing cell ${col}=${cell}`
@@ -244,10 +368,8 @@ function reconcileViewAndCsv(defLabel: string, controls: ListRegisterControls = 
   assert.equal(g3.count, 2);
   assert.equal(g3.rows.length, 2);
   assert.ok(g3.label.includes("Grade 3"));
-  assert.equal(g3.rows[0].surname <= g3.rows[1].surname || g3.rows[0].name <= g3.rows[1].name, true);
-  // alphabetical within class: Able Cara before Able Ben? Able Able — Cara before Ben by name when surname same
   assert.equal(g3.rows[0].surname, "Able");
-  assert.equal(g3.rows[0].name, "Ben"); // Ben before Cara? B before C — wait Ben then Cara
+  assert.equal(g3.rows[0].name, "Ben");
   assert.equal(g3.rows[1].name, "Cara");
   const one = buildListRegisterRows(learners, def, { ...baseControls, classroom: "Grade 5A" });
   assert.equal(one.rows.length, 1);
@@ -282,19 +404,15 @@ function reconcileViewAndCsv(defLabel: string, controls: ListRegisterControls = 
   assert.equal(ableContacts[2].cellphone, "084444");
   assert.equal(ableContacts[0].email, "primary@example.com");
   assert.equal(ableContacts[1].email, "—");
-  // Not OA single-contact selection
   assert.notEqual(ableContacts.length, 1);
   const oaPick = rankDisplayParentsForLearner(learners[1].parents as any[]);
   assert.equal(oaPick?.id, "p2b");
   assert.ok(ableContacts.some((r) => r.parentId === "p2a"));
   assert.ok(ableContacts.some((r) => r.parentId === "p2c"));
 
-  // Deduped parent ids — no duplicate learner+parent pairs
   const pairs = ableContacts.map((r) => `${r.learnerId}:${r.parentId}`);
   assert.equal(new Set(pairs).size, pairs.length);
 
-  // Classroom grouping
-  assert.ok(sections.every((s) => s.key !== "all" || sections.length === 1));
   const sec3 = sections.find((s) => s.key === "Grade 3B")!;
   assert.ok(sec3);
   assert.equal(sec3.count, sec3.rows.length);
@@ -352,7 +470,7 @@ function reconcileViewAndCsv(defLabel: string, controls: ListRegisterControls = 
   const { rows } = buildListRegisterRows(learners, def, { ...baseControls, sort: "dob" });
   assert.ok(def.columns.includes("dob") && def.columns.includes("age"));
   assert.equal(rows[0]._dobIso <= rows[1]._dobIso, true);
-  assert.ok(rows.every((r) => r.dob !== "—" ? r.age !== "—" : true));
+  assert.ok(rows.every((r) => (r.dob !== "—" ? r.age !== "—" : true)));
   const noDob = buildListRegisterRows(
     [{ ...learners[0], birthDate: null, dateOfBirth: null, dob: null, age: "99 years" }],
     def,
@@ -362,7 +480,6 @@ function reconcileViewAndCsv(defLabel: string, controls: ListRegisterControls = 
   assert.equal(noDob.age, "—", "do not invent age from stale field");
 
   const byAge = buildListRegisterRows(learners, def, { ...baseControls, sort: "age" }).rows;
-  // Older first: Ada (2014) before Cara (2015) before Ben (2016)
   assert.equal(byAge[0].learnerId, "l1");
   assert.equal(byAge[1].learnerId, "l3");
   assert.equal(byAge[2].learnerId, "l2");
@@ -380,7 +497,6 @@ function reconcileViewAndCsv(defLabel: string, controls: ListRegisterControls = 
   const march = buildListRegisterRows(learners, def, { ...baseControls, month: "3", sort: "birthday" });
   assert.equal(march.rows.length, 2);
   assert.equal(march.rows[0]._birthdayKey <= march.rows[1]._birthdayKey, true);
-  // day ascending: Cara 01 Mar before Ada 15 Mar
   assert.equal(march.rows[0].learnerId, "l3");
   assert.equal(march.rows[1].learnerId, "l1");
 
@@ -402,7 +518,6 @@ function reconcileViewAndCsv(defLabel: string, controls: ListRegisterControls = 
 }
 
 {
-  // Distinct report purposes
   const child = flattenListRegisterViewRows(
     buildListRegisterRows(learners, getListRegisterDefByLabel("Child List")!, baseControls).sections
   );
@@ -418,7 +533,156 @@ function reconcileViewAndCsv(defLabel: string, controls: ListRegisterControls = 
   console.log("✓ Child ≠ Contact ≠ Address row grains");
 }
 
-// silence unused
-void csvDataRows;
+// ——— V3 ———
+
+{
+  for (const label of ["Allergies List", "Birthday Parent List", "Future Enrolled List"]) {
+    const def = getListRegisterDefByLabel(label)!;
+    assert.equal(def.status, "blocked_missing_data");
+    assert.ok(def.blockedReason && def.blockedReason.length > 10);
+    const built = buildListRegisterReport(def, baseControls, { learners });
+    assert.equal(built.implemented, false);
+    assert.equal(built.rows.length, 0);
+    assert.equal(built.sections.length, 0);
+    assert.equal(buildListRegisterCsv(def, built.sections, "X"), "");
+  }
+  console.log("✓ blocked defs return empty + no CSV");
+}
+
+{
+  const def = getListRegisterDefByLabel("Birthday Employee List")!;
+  assert.equal(def.entity, "employee");
+  const march = buildListRegisterReport(def, { ...baseControls, month: "3", sort: "birthday" }, { employees });
+  assert.equal(march.rows.length, 1);
+  assert.equal(march.rows[0].employeeId, "e1");
+  assert.equal(march.rows[0]._entity, "employee");
+  assert.ok(!march.rows.some((r) => r._entity === "learner"));
+
+  const all = buildListRegisterReport(def, { ...baseControls, sort: "birthday" }, { employees });
+  assert.ok(all.sections.some((s) => s.label === "March"));
+  assert.ok(all.sections.some((s) => s.label === "November"));
+  assert.ok(!all.rows.some((r) => r.employeeId === "e-inactive"));
+
+  assert.throws(() =>
+    assertEmployeeDatasetNotLearners(def, { learners })
+  );
+  console.log("✓ Birthday Employee List month / grouping / rejects learner-only");
+}
+
+{
+  const def = getListRegisterDefByLabel("Employee Contact List")!;
+  assert.equal(def.entity, "employee");
+  const { rows } = buildListRegisterReport(def, baseControls, { employees });
+  assert.equal(rows.length, 2);
+  assert.equal(rows[0].surname, "Adams");
+  assert.equal(rows.find((r) => r.employeeId === "e1")?.cellphone, "081111");
+  assert.equal(rows.find((r) => r.employeeId === "e1")?.email, "nina@school.test");
+  const office = buildListRegisterReport(def, { ...baseControls, department: "Office" }, { employees });
+  assert.equal(office.rows.length, 1);
+  assert.equal(office.rows[0].employeeId, "e2");
+  const csv = buildListRegisterCsv(def, office.sections, "Test School");
+  assert.ok(csv.includes("Omar"));
+  assert.ok(!csv.includes("Ada"));
+  console.log("✓ Employee Contact List / department filter / CSV");
+}
+
+{
+  for (const [label, n] of [
+    ["Block Sheet (5 Blocks)", 5],
+    ["Block Sheet (10 Blocks)", 10],
+    ["Block Sheet (20 Blocks)", 20],
+  ] as const) {
+    const def = getListRegisterDefByLabel(label)!;
+    assert.equal(def.entity, "worksheet");
+    assert.equal(def.exportCsv, false);
+    assert.equal(def.blockCount, n);
+    const built = buildListRegisterReport(def, baseControls, {});
+    assert.equal(built.sections.length, n);
+    assert.ok(built.sections.every((s) => s.rows.length === 0 && s.blockLines === 8));
+    assert.equal(buildListRegisterCsv(def, built.sections, "X"), "");
+  }
+  console.log("✓ Block sheets exact block counts / CSV disabled");
+}
+
+{
+  const def3 = getListRegisterDefByLabel("Child List (3 Extra Fields)")!;
+  const def6 = getListRegisterDefByLabel("Child List (6 Extra Fields)")!;
+  assert.equal(def3.extraFieldCount, 3);
+  assert.equal(def6.extraFieldCount, 6);
+  assert.ok(def3.columns.includes("extra1") && def3.columns.includes("extra3") && !def3.columns.includes("extra4"));
+  assert.ok(def6.columns.includes("extra6"));
+  const built3 = buildListRegisterRows(learners, def3, baseControls);
+  assert.equal(built3.rows.length, 3);
+  assert.equal(built3.rows[0].extra1, "");
+  assert.equal(built3.rows[0].extra3, "");
+  const csv = buildListRegisterCsv(def3, built3.sections, "Test School", ["A", "B", "C"]);
+  assert.ok(csv.includes("A") && csv.includes("B") && csv.includes("C"));
+  assert.ok(csv.includes("Able"));
+  console.log("✓ Child List extra field columns / empty worksheet cells / CSV headers");
+}
+
+{
+  const def = getListRegisterDefByLabel("Group List")!;
+  assert.equal(def.entity, "group-member");
+  assert.equal(def.groupBy, "groupName");
+  const { sections, rows } = buildListRegisterReport(def, baseControls, { groupMembers });
+  assert.equal(rows.length, 3);
+  assert.ok(sections.some((s) => s.label === "Chess Club" && s.count === 2));
+  assert.ok(sections.some((s) => s.label === "Choir" && s.count === 1));
+  const chess = buildListRegisterReport(def, { ...baseControls, group: "Chess Club" }, { groupMembers });
+  assert.equal(chess.rows.length, 2);
+  assert.ok(chess.rows.every((r) => r.groupName === "Chess Club"));
+  // Must not substitute classroom as group
+  assert.ok(!chess.rows.every((r) => r.groupName === r.classroom));
+  console.log("✓ Group List membership / group sections / filter");
+}
+
+{
+  const def = getListRegisterDefByLabel("Incident List")!;
+  assert.equal(def.entity, "incident");
+  const { rows } = buildListRegisterReport(def, { ...baseControls, sort: "incidentDate" }, { incidents });
+  assert.equal(rows.length, 2);
+  assert.equal(rows[0]._entity, "incident");
+  assert.equal(rows[0].incidentType, "Behaviour");
+  assert.ok(rows.every((r) => r.summary && r.summary !== "—"));
+  // Not a learner roster (no admission/account columns)
+  assert.ok(!def.columns.includes("admissionNo"));
+  assert.ok(!def.columns.includes("accountNo"));
+  const classF = buildListRegisterReport(
+    def,
+    { ...baseControls, classroom: "Grade 5A" },
+    { incidents }
+  );
+  assert.equal(classF.rows.length, 1);
+  assert.equal(classF.rows[0].learnerId, "l1");
+  console.log("✓ Incident List rows / class filter / not roster columns");
+}
+
+{
+  const weekly = getListRegisterDefByLabel("Employee Attendance Register (Weekly)")!;
+  const time = getListRegisterDefByLabel("Employee Attendance Time Register (Weekly)")!;
+  assert.equal(weekly.entity, "employee");
+  assert.equal(weekly.attendanceWindow, "weekly");
+  assert.equal(weekly.includeWeekends, false);
+  assert.equal(weekly.includeTimes, false);
+  assert.equal(time.includeTimes, true);
+  assert.ok(time.columns.includes("clockIn") && time.columns.includes("clockOut"));
+  assert.ok(!weekly.columns.includes("clockIn"));
+
+  const built = buildListRegisterReport(weekly, baseControls, { employeeAttendance: attendanceRows });
+  assert.equal(built.rows.length, 2);
+  assert.ok(built.rows.every((r) => r._entity === "employee"));
+  assert.equal(built.rows.find((r) => r.employeeId === "e1")?.attendanceStatus, "Present");
+
+  assert.throws(() =>
+    assertEmployeeDatasetNotLearners(weekly, { learners })
+  );
+
+  const weekends = getListRegisterDefByLabel("Employee Attendance Register (Weekly) (Weekends)")!;
+  assert.equal(weekends.includeWeekends, true);
+  const monthly = getListRegisterDefByLabel("Employee Attendance Register (Monthly)")!;
+  assert.equal(monthly.attendanceWindow, "monthly");
+  console.log("✓ Employee attendance registers entity / times / reject learner-only");
+}
 
 console.log("\nAll buildListRegisterReport tests passed.");
