@@ -167,10 +167,11 @@ export default function ListRegisterReportView({
             }}
           >
             <strong style={{ color: "#991b1b", fontSize: 18 }}>
-              Blocked — required authoritative data does not exist
+              This report cannot be produced yet
             </strong>
-            <p style={{ marginTop: 12, color: "#7f1d1d", fontWeight: 600 }}>
-              {def.blockedReason || "This catalogue title cannot be fulfilled from existing EduClear schema fields."}
+            <p style={{ marginTop: 12, color: "#7f1d1d", fontWeight: 600, lineHeight: 1.5 }}>
+              {def.blockedReason ||
+                "The information needed for this report is not currently recorded in EduClear."}
             </p>
           </div>
         </div>

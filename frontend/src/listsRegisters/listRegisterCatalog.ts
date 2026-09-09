@@ -63,12 +63,10 @@ export type ListRegisterColumnId =
   | "alternate"
   | "email"
   | "address"
-  | "extra1"
-  | "extra2"
-  | "extra3"
-  | "extra4"
-  | "extra5"
-  | "extra6"
+  | "gender"
+  | "idNumber"
+  | "parent1Contact"
+  | "parent2Contact"
   | "employeeNo"
   | "department"
   | "jobTitle"
@@ -141,7 +139,7 @@ export type ListRegisterDef = {
   implemented: boolean;
   /** Block Sheet printable block count. */
   blockCount?: 5 | 10 | 20;
-  /** Child List (N Extra Fields). */
+  /** Child List (N Extra Fields) — count of Kid-e-Sys-aligned profile extras. */
   extraFieldCount?: 3 | 6;
   /** Employee attendance window / weekends / times. */
   attendanceWindow?: ListRegisterAttendanceWindow;
@@ -174,9 +172,18 @@ const CHILD_LIST_COLUMNS: ListRegisterColumnId[] = [
   "status",
 ];
 
-function childExtraColumns(n: 3 | 6): ListRegisterColumnId[] {
-  const extras = (["extra1", "extra2", "extra3", "extra4", "extra5", "extra6"] as const).slice(0, n);
-  return [...CHILD_LIST_COLUMNS, ...extras];
+/**
+ * Kid-e-Sys "Child List Extra Fields" were real data columns, not blank worksheets.
+ * Evidence: kideesysLearnerClassListNormalization.ts CHILD_LIST_EXTRA_HEADER_ALIASES
+ * and kideesysLearnerClassListNormalization.test.ts (Age, Birth Date, Gender,
+ * Parent 1/2 Contact Info, Enrolment Date).
+ *
+ * 3 Extra → Age, Birth Date, Gender (all on Learner).
+ * 6 Extra → those + Parent 1/2 + Enrolment Date — Enrolment Date is NOT on Prisma
+ * Learner (admissionDate intentionally unsupported), so the 6-field title is blocked.
+ */
+function childListThreeExtraColumns(): ListRegisterColumnId[] {
+  return [...CHILD_LIST_COLUMNS, "age", "dob", "gender"];
 }
 
 function employeeAttendanceDef(opts: {
@@ -325,7 +332,7 @@ const BLOCKED_DEFS: ListRegisterDef[] = [
     kind: "blocked",
     dataSource: "none",
     status: "blocked_missing_data",
-    blockedReason: "Learner has no authoritative allergy / medical-alert field in the schema.",
+    blockedReason: "Allergy information is not currently recorded on learner profiles.",
     columns: [],
     filters: [],
     sorts: [],
@@ -342,7 +349,7 @@ const BLOCKED_DEFS: ListRegisterDef[] = [
     kind: "blocked",
     dataSource: "none",
     status: "blocked_missing_data",
-    blockedReason: "Parent has no birthDate / dateOfBirth field in the schema.",
+    blockedReason: "Parent dates of birth are not currently recorded in EduClear.",
     columns: [],
     filters: [],
     sorts: [],
@@ -359,7 +366,26 @@ const BLOCKED_DEFS: ListRegisterDef[] = [
     kind: "blocked",
     dataSource: "none",
     status: "blocked_missing_data",
-    blockedReason: "LearnerEnrollmentStatus only supports ACTIVE|HISTORICAL — no future-enrolled state.",
+    blockedReason:
+      "Future enrolment status is not currently recorded separately from active and historical enrolments.",
+    columns: [],
+    filters: [],
+    sorts: [],
+    groupBy: "none",
+    rowGrain: "learner",
+    exportCsv: false,
+    exportExcel: false,
+    exportPdf: false,
+  }),
+  def({
+    id: "child-list-6-extra",
+    label: "Child List (6 Extra Fields)",
+    entity: "learner",
+    kind: "blocked",
+    dataSource: "none",
+    status: "blocked_missing_data",
+    blockedReason:
+      "Learner enrolment date is not currently recorded on learner profiles, so the six-field Child List cannot be produced in full.",
     columns: [],
     filters: [],
     sorts: [],
@@ -441,7 +467,7 @@ const V3_IMPLEMENTED_DEFS: ListRegisterDef[] = [
     entity: "learner",
     kind: "child-extra",
     dataSource: "registrations.learners",
-    columns: childExtraColumns(3),
+    columns: childListThreeExtraColumns(),
     filters: ["classroom", "grade"],
     sorts: ["surname", "name", "grade", "classroom"],
     groupBy: "none",
@@ -450,22 +476,6 @@ const V3_IMPLEMENTED_DEFS: ListRegisterDef[] = [
     exportExcel: false,
     exportPdf: false,
     extraFieldCount: 3,
-  }),
-  def({
-    id: "child-list-6-extra",
-    label: "Child List (6 Extra Fields)",
-    entity: "learner",
-    kind: "child-extra",
-    dataSource: "registrations.learners",
-    columns: childExtraColumns(6),
-    filters: ["classroom", "grade"],
-    sorts: ["surname", "name", "grade", "classroom"],
-    groupBy: "none",
-    rowGrain: "learner",
-    exportCsv: true,
-    exportExcel: false,
-    exportPdf: false,
-    extraFieldCount: 6,
   }),
   employeeAttendanceDef({
     id: "employee-attendance-monthly",
@@ -751,12 +761,10 @@ export const COLUMN_LABELS: Record<ListRegisterColumnId, string> = {
   alternate: "Alternate Contact",
   email: "Email",
   address: "Address",
-  extra1: "Extra Field 1",
-  extra2: "Extra Field 2",
-  extra3: "Extra Field 3",
-  extra4: "Extra Field 4",
-  extra5: "Extra Field 5",
-  extra6: "Extra Field 6",
+  gender: "Gender",
+  idNumber: "ID Number",
+  parent1Contact: "Parent 1 Contact",
+  parent2Contact: "Parent 2 Contact",
   employeeNo: "Employee No",
   department: "Department",
   jobTitle: "Job Title",
@@ -772,12 +780,7 @@ export const COLUMN_LABELS: Record<ListRegisterColumnId, string> = {
   attendanceStatus: "Status",
 };
 
-export function resolveColumnLabel(col: ListRegisterColumnId, extraFieldLabels?: string[]): string {
-  if (col.startsWith("extra") && extraFieldLabels?.length) {
-    const n = Number(col.replace("extra", ""));
-    const custom = extraFieldLabels[n - 1];
-    if (custom && String(custom).trim()) return String(custom).trim();
-  }
+export function resolveColumnLabel(col: ListRegisterColumnId, _extraFieldLabels?: string[]): string {
   return COLUMN_LABELS[col] || col;
 }
 

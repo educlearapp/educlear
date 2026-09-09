@@ -536,7 +536,12 @@ function reconcileViewAndCsv(defLabel: string, controls: ListRegisterControls = 
 // ——— V3 ———
 
 {
-  for (const label of ["Allergies List", "Birthday Parent List", "Future Enrolled List"]) {
+  for (const label of [
+    "Allergies List",
+    "Birthday Parent List",
+    "Future Enrolled List",
+    "Child List (6 Extra Fields)",
+  ]) {
     const def = getListRegisterDefByLabel(label)!;
     assert.equal(def.status, "blocked_missing_data");
     assert.ok(def.blockedReason && def.blockedReason.length > 10);
@@ -606,19 +611,38 @@ function reconcileViewAndCsv(defLabel: string, controls: ListRegisterControls = 
 
 {
   const def3 = getListRegisterDefByLabel("Child List (3 Extra Fields)")!;
-  const def6 = getListRegisterDefByLabel("Child List (6 Extra Fields)")!;
+  assert.equal(def3.status, "implemented");
   assert.equal(def3.extraFieldCount, 3);
-  assert.equal(def6.extraFieldCount, 6);
-  assert.ok(def3.columns.includes("extra1") && def3.columns.includes("extra3") && !def3.columns.includes("extra4"));
-  assert.ok(def6.columns.includes("extra6"));
-  const built3 = buildListRegisterRows(learners, def3, baseControls);
-  assert.equal(built3.rows.length, 3);
-  assert.equal(built3.rows[0].extra1, "");
-  assert.equal(built3.rows[0].extra3, "");
-  const csv = buildListRegisterCsv(def3, built3.sections, "Test School", ["A", "B", "C"]);
-  assert.ok(csv.includes("A") && csv.includes("B") && csv.includes("C"));
-  assert.ok(csv.includes("Able"));
-  console.log("✓ Child List extra field columns / empty worksheet cells / CSV headers");
+  // Kid-e-Sys-aligned real fields — Age, Birth Date, Gender (not blank placeholders)
+  assert.deepEqual(def3.columns.slice(-3), ["age", "dob", "gender"]);
+  const withProfile: ListRegisterLearnerInput[] = [
+    {
+      ...learners[1],
+      gender: "M",
+    },
+  ];
+  const built3 = buildListRegisterRows(withProfile, def3, baseControls);
+  assert.equal(built3.rows.length, 1);
+  assert.ok(built3.rows[0].age && built3.rows[0].age !== "—");
+  assert.equal(built3.rows[0].dob, "2016-11-02");
+  assert.equal(built3.rows[0].gender, "M");
+  const csv = buildListRegisterCsv(def3, built3.sections, "Test School");
+  assert.ok(csv.includes("Gender"));
+  assert.ok(csv.includes("Age"));
+  assert.ok(csv.includes("DOB"));
+  assert.ok(!csv.includes("Extra Field 1"));
+  console.log("✓ Child List (3 Extra Fields) uses real Age/DOB/Gender");
+}
+
+{
+  const def6 = getListRegisterDefByLabel("Child List (6 Extra Fields)")!;
+  assert.equal(def6.status, "blocked_missing_data");
+  assert.equal(def6.implemented, false);
+  assert.ok(/enrolment date/i.test(def6.blockedReason || ""));
+  assert.ok(!/schema/i.test(def6.blockedReason || ""));
+  // Must not invent ID Number as a stand-in for Enrolment Date
+  assert.ok(!def6.columns.includes("idNumber"));
+  console.log("✓ Child List (6 Extra Fields) blocked — Enrolment Date not on learner");
 }
 
 {
@@ -632,8 +656,17 @@ function reconcileViewAndCsv(defLabel: string, controls: ListRegisterControls = 
   const chess = buildListRegisterReport(def, { ...baseControls, group: "Chess Club" }, { groupMembers });
   assert.equal(chess.rows.length, 2);
   assert.ok(chess.rows.every((r) => r.groupName === "Chess Club"));
-  // Must not substitute classroom as group
-  assert.ok(!chess.rows.every((r) => r.groupName === r.classroom));
+  // Group A with learners from different classrooms must both appear
+  assert.equal(
+    sections.find((s) => s.label === "Chess Club")!.rows.map((r) => r.classroom).sort().join(","),
+    "Grade 3B,Grade 5A"
+  );
+  // Learner not in Choir must not appear under Choir
+  const choir = sections.find((s) => s.label === "Choir")!;
+  assert.equal(choir.rows.length, 1);
+  assert.equal(choir.rows[0].learnerId, "l3");
+  assert.ok(!choir.rows.some((r) => r.learnerId === "l1"));
+  assert.ok(!choir.rows.some((r) => r.learnerId === "l2"));
   console.log("✓ Group List membership / group sections / filter");
 }
 
@@ -655,6 +688,13 @@ function reconcileViewAndCsv(defLabel: string, controls: ListRegisterControls = 
   );
   assert.equal(classF.rows.length, 1);
   assert.equal(classF.rows[0].learnerId, "l1");
+  // Learner with zero incidents must not invent an incident row
+  const none = buildListRegisterReport(def, baseControls, {
+    incidents: [],
+    learners,
+  });
+  assert.equal(none.rows.length, 0);
+  assert.ok(!none.rows.some((r) => r._entity === "learner"));
   console.log("✓ Incident List rows / class filter / not roster columns");
 }
 

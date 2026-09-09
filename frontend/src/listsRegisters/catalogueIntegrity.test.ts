@@ -86,22 +86,29 @@ assert.equal(getListRegisterDefByLabel(""), null);
 console.log("✓ unknown titles do not invent a generic def");
 
 const blocked = integrity.filter((i) => i.resolution === "blocked_missing_data");
-assert.equal(blocked.length, 3);
+assert.equal(blocked.length, 4);
 assert.deepEqual(
   blocked.map((b) => b.label).sort(),
-  ["Allergies List", "Birthday Parent List", "Future Enrolled List"].sort()
+  [
+    "Allergies List",
+    "Birthday Parent List",
+    "Child List (6 Extra Fields)",
+    "Future Enrolled List",
+  ].sort()
 );
 for (const b of blocked) {
   assert.ok(!/not yet implemented/i.test(b.def!.blockedReason || ""));
+  assert.ok(!/schema/i.test(b.def!.blockedReason || ""), `${b.label} should not expose schema jargon`);
+  assert.ok((b.def!.blockedReason || "").length > 20);
 }
-console.log("✓ exactly three blocked titles with real reasons");
+console.log("✓ exactly four blocked titles with real reasons");
 
 const implementedNonAttendance = integrity.filter((i) => i.resolution === "implemented");
-assert.equal(implementedNonAttendance.length, 21); // 6 phase1 + 15 v3
+assert.equal(implementedNonAttendance.length, 20); // 6 phase1 + 14 v3 (6-extra blocked)
 assert.equal(PHASE1_LIST_REGISTER_DEFS.length, 6);
 assert.equal(
   COMPLETE_LIST_REGISTER_DEFS.filter((d) => d.implemented).length,
-  21
+  20
 );
 console.log("✓ implemented counts (phase1 + v3)");
 

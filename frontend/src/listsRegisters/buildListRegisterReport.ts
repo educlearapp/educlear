@@ -36,6 +36,8 @@ export type ListRegisterLearnerInput = {
   dateOfBirth?: unknown;
   dob?: unknown;
   age?: string;
+  gender?: string | null;
+  idNumber?: string | null;
   parents?: Array<Record<string, unknown>>;
 };
 
@@ -216,15 +218,29 @@ function emptyMeta(dobIso: string): Pick<ListRegisterRow, "_dobIso" | "_birthday
   };
 }
 
-function blankExtras(count: number): Record<string, string> {
-  const out: Record<string, string> = {};
-  for (let i = 1; i <= count; i++) out[`extra${i}`] = "";
-  return out;
+function formatParentContactLine(parent: RankedDisplayParent): string {
+  const name = `${parent.firstName} ${parent.surname}`.trim();
+  const rel = parent.relationship || "";
+  const cell = parent.cellNo || "";
+  const parts = [rel && name ? `${rel} - ${name}` : name || rel, cell].filter(Boolean);
+  return parts.join(" · ") || "—";
 }
 
-function baseLearnerFields(l: ListRegisterLearnerInput, extraFieldCount = 0): ListRegisterRow {
+function blankExtras(_count: number): Record<string, string> {
+  return {
+    gender: "—",
+    idNumber: "—",
+    parent1Contact: "—",
+    parent2Contact: "—",
+  };
+}
+
+function baseLearnerFields(l: ListRegisterLearnerInput, _extraFieldCount = 0): ListRegisterRow {
   const dobIso = learnerDobIso(l);
   const age = ageFromDob(dobIso);
+  const ranked = listRankedDisplayParentsForLearner((l.parents || []) as any[]);
+  const parent1 = ranked[0] || null;
+  const parent2 = ranked[1] || null;
   return {
     learnerId: String(l.id || ""),
     parentId: "",
@@ -248,6 +264,10 @@ function baseLearnerFields(l: ListRegisterLearnerInput, extraFieldCount = 0): Li
     alternate: "—",
     email: "—",
     address: "—",
+    gender: dash(l.gender),
+    idNumber: dash(l.idNumber),
+    parent1Contact: parent1 ? formatParentContactLine(parent1) : "—",
+    parent2Contact: parent2 ? formatParentContactLine(parent2) : "—",
     employeeNo: "—",
     department: "—",
     jobTitle: "—",
@@ -261,7 +281,6 @@ function baseLearnerFields(l: ListRegisterLearnerInput, extraFieldCount = 0): Li
     clockIn: "—",
     clockOut: "—",
     attendanceStatus: "—",
-    ...blankExtras(Math.max(extraFieldCount, 6)),
     ...emptyMeta(dobIso),
     _gradeHint: learnerGrade(l) || "",
     _ageYears: String(age.years),

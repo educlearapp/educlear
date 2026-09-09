@@ -185,6 +185,63 @@ function testInvalidAnchor() {
   console.log("✓ invalid anchorDate throws");
 }
 
+function testClockInWithoutClockOutDoesNotInventOut() {
+  const rows = buildListsRegistersEmployeeAttendanceRows({
+    employees: [
+      {
+        id: "emp-1",
+        employeeNumber: "E001",
+        firstName: "Ada",
+        lastName: "Ng",
+        department: null,
+        jobTitle: null,
+      },
+    ],
+    dates: ["2026-07-20"],
+    events: [
+      {
+        employeeId: "emp-1",
+        eventType: "CLOCK_IN",
+        schoolLocalDate: "2026-07-20",
+        schoolLocalTime: "07:55",
+        occurredAtUtc: new Date("2026-07-20T05:55:00.000Z"),
+      },
+    ],
+    absences: [],
+    includeTimes: true,
+  });
+  assert.equal(rows[0].status, "Present");
+  assert.equal(rows[0].clockIn, "07:55");
+  assert.equal(rows[0].clockOut, null);
+  console.log("✓ clock-in without clock-out → Present, clockOut null (not invented)");
+}
+
+function testMondayFridaySaturdaySundayBoundaries() {
+  // Monday anchor
+  const mon = computeListsRegistersAttendanceDateRange("weekly", "2026-07-20", false);
+  assert.equal(mon.startDate, "2026-07-20");
+  assert.equal(mon.endDate, "2026-07-24");
+  // Friday anchor same week
+  const fri = computeListsRegistersAttendanceDateRange("weekly", "2026-07-24", false);
+  assert.equal(fri.startDate, "2026-07-20");
+  assert.equal(fri.endDate, "2026-07-24");
+  // Saturday with weekends → includes Sat+Sun
+  const sat = computeListsRegistersAttendanceDateRange("weekly", "2026-07-25", true);
+  assert.equal(sat.startDate, "2026-07-20");
+  assert.equal(sat.endDate, "2026-07-26");
+  assert.ok(sat.dates.includes("2026-07-25"));
+  assert.ok(sat.dates.includes("2026-07-26"));
+  // Saturday without weekends → still Mon–Fri of that week
+  const satNo = computeListsRegistersAttendanceDateRange("weekly", "2026-07-25", false);
+  assert.equal(satNo.endDate, "2026-07-24");
+  assert.equal(satNo.dates.includes("2026-07-25"), false);
+  // Month end Feb 2026
+  const monthEnd = computeListsRegistersAttendanceDateRange("monthly", "2026-02-28", true);
+  assert.equal(monthEnd.endDate, "2026-02-28");
+  assert.ok(monthEnd.dates.includes("2026-02-28"));
+  console.log("✓ Mon/Fri/Sat/Sun and month-end date boundaries");
+}
+
 testWeeklyWeekdaysOnly();
 testWeeklyWithWeekends();
 testWeeklyFromSundayAnchor();
@@ -193,4 +250,6 @@ testStatusResolution();
 testEmployeeShapedRowsNotLearner();
 testIncludeTimesFalseClearsTimes();
 testInvalidAnchor();
+testClockInWithoutClockOutDoesNotInventOut();
+testMondayFridaySaturdaySundayBoundaries();
 console.log("\nAll listsRegistersEmployeeAttendance tests passed.");

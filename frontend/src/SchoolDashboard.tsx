@@ -12723,7 +12723,7 @@ const renderListsRegisters = () => {
 
     if (phase1Def?.status === "blocked_missing_data") {
       alert(
-        `Blocked — required authoritative data does not exist.\n${phase1Def.blockedReason || ""}`
+        `${phase1Def.label}\n\n${phase1Def.blockedReason || "The information needed for this report is not currently recorded in EduClear."}`
       );
       return;
     }
@@ -13359,7 +13359,7 @@ const renderListsRegisters = () => {
                 </>
               ) : selectedListRegisterDef?.status === "blocked_missing_data" ? (
                 <div style={{ gridColumn: "1 / -1", color: "#991b1b", fontWeight: 700 }}>
-                  Blocked — required authoritative data does not exist.
+                  This report cannot be produced yet.
                   <div style={{ marginTop: 8, color: "#7f1d1d", fontWeight: 600 }}>
                     {selectedListRegisterDef.blockedReason}
                   </div>
@@ -13556,7 +13556,7 @@ const renderListsRegisters = () => {
               </button>
               ) : selectedListRegisterDef?.status === "blocked_missing_data" ? (
                 <div style={{ gridColumn: "1 / -1", color: "#991b1b", fontWeight: 700 }}>
-                  Blocked — required authoritative data does not exist. CSV/Excel/PDF disabled.
+                  This report cannot be produced yet. Print/CSV/Excel/PDF are disabled.
                   <div style={{ marginTop: 8, color: "#7f1d1d", fontWeight: 600 }}>
                     {selectedListRegisterDef.blockedReason}
                   </div>
