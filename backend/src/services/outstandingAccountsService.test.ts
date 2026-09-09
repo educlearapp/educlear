@@ -11,8 +11,19 @@ import {
   filterPositiveBalanceAccounts,
   mapOutstandingRows,
   resolveOldestPastDue,
+  resolveOutstandingLearnerNames,
   selectOutstandingBillingContact,
 } from "./outstandingAccountsService";
+
+function learner(
+  id: string,
+  firstName: string,
+  lastName: string,
+  grade: string,
+  className: string | null = null
+) {
+  return { id, firstName, lastName, grade, className };
+}
 
 function baseAccount(partial: Partial<BillingStatementAccountRow>): BillingStatementAccountRow {
   return {
@@ -32,7 +43,8 @@ function baseAccount(partial: Partial<BillingStatementAccountRow>): BillingState
     familyAccountId: "FA1",
     familyName: "Smith",
     memberLearnerIds: ["L1", "L2"],
-    memberNames: ["John Smith", "Mary Smith"],
+    // Incomplete statement memberNames — report must NOT rely on this alone.
+    memberNames: ["John Smith"],
     accountHolder: "Smith",
     eduClearAccountNo: "FAM001",
     sourceAccountRef: "FAM001",
@@ -52,12 +64,12 @@ function testBalanceInclusion() {
   console.log("✓ balance > 0 only; zero/credit/rounded-zero excluded");
 }
 
-function testMultiLearnerOneRow() {
+function testTwoMemberIdsTwoNames() {
   const mapped = mapOutstandingRows({
-    statementAccounts: [baseAccount({ balance: 4500 })],
+    statementAccounts: [baseAccount({ balance: 4500, memberNames: ["Only One"] })],
     learnersById: new Map([
-      ["L1", { id: "L1", grade: "Grade 3", className: "3A" }],
-      ["L2", { id: "L2", grade: "Grade 7", className: "7B" }],
+      ["L1", learner("L1", "John", "Smith", "Grade 3", "3A")],
+      ["L2", learner("L2", "Mary", "Smith", "Grade 7", "7B")],
     ]),
     links: [],
     parentsByFamilyId: new Map(),
@@ -73,7 +85,110 @@ function testMultiLearnerOneRow() {
   assert.equal(summary.outstandingAccountCount, 1);
   assert.equal(summary.learnersAffected, 2);
   assert.equal(summary.totalOutstanding, 4500);
-  console.log("✓ multi-learner: one row, both names, balance once, learnersAffected=2");
+  console.log("✓ two memberLearnerIds → two learner names; balance once");
+}
+
+function testThreeMemberIdsThreeNames() {
+  const mapped = mapOutstandingRows({
+    statementAccounts: [
+      baseAccount({
+        memberLearnerIds: ["L1", "L2", "L3"],
+        memberNames: ["Incomplete"],
+        balance: 23000,
+      }),
+    ],
+    learnersById: new Map([
+      ["L1", learner("L1", "A", "One", "Grade 1", "1A")],
+      ["L2", learner("L2", "B", "Two", "Grade 5", "5A")],
+      ["L3", learner("L3", "C", "Three", "Grade 6", "6A")],
+    ]),
+    links: [],
+    parentsByFamilyId: new Map(),
+    ledger: [],
+    asOfDate: "2026-09-09",
+  });
+  assert.deepEqual(mapped[0].learnerNames, ["A One", "B Two", "C Three"]);
+  assert.equal(mapped[0].outstandingBalance, 23000);
+  assert.equal(mapped[0].memberLearnerIds.length, 3);
+  console.log("✓ three memberLearnerIds → three learner names");
+}
+
+function testDuplicateIdsDoNotDuplicateNames() {
+  const names = resolveOutstandingLearnerNames(
+    ["L1", "L2", "L1", "L2"],
+    new Map([
+      ["L1", learner("L1", "John", "Smith", "3")],
+      ["L2", learner("L2", "Mary", "Smith", "7")],
+    ])
+  );
+  assert.deepEqual(names, ["John Smith", "Mary Smith"]);
+  console.log("✓ duplicate learner IDs do not duplicate names");
+}
+
+function testUnresolvableIdSafe() {
+  const mapped = mapOutstandingRows({
+    statementAccounts: [
+      baseAccount({
+        memberLearnerIds: ["L1", "MISSING"],
+        memberNames: ["Should Not Use"],
+        balance: 100,
+      }),
+    ],
+    learnersById: new Map([["L1", learner("L1", "John", "Smith", "1", null)]]),
+    links: [],
+    parentsByFamilyId: new Map(),
+    ledger: [],
+    asOfDate: "2026-09-09",
+  });
+  assert.deepEqual(mapped[0].learnerNames, ["John Smith"]);
+  assert.equal(mapped[0].outstandingBalance, 100);
+  console.log("✓ missing/unresolvable learner ID does not crash; no invented name");
+}
+
+function testSingleLearnerNormal() {
+  const mapped = mapOutstandingRows({
+    statementAccounts: [
+      baseAccount({
+        memberLearnerIds: ["L1"],
+        memberNames: [],
+        balance: 500,
+      }),
+    ],
+    learnersById: new Map([["L1", learner("L1", "Solo", "Learner", "Grade 4", "4A")]]),
+    links: [],
+    parentsByFamilyId: new Map(),
+    ledger: [],
+    asOfDate: "2026-09-09",
+  });
+  assert.equal(mapped.length, 1);
+  assert.deepEqual(mapped[0].learnerNames, ["Solo Learner"]);
+  assert.deepEqual(mapped[0].grades, ["Grade 4"]);
+  assert.deepEqual(mapped[0].classes, ["4A"]);
+  assert.equal(mapped[0].outstandingBalance, 500);
+  console.log("✓ single learner still displays normally");
+}
+
+function testIgnoresIncompleteStatementMemberNames() {
+  const mapped = mapOutstandingRows({
+    statementAccounts: [
+      baseAccount({
+        memberLearnerIds: ["L1", "L2"],
+        memberNames: ["Ronan Murdoch"],
+        balance: 36100,
+      }),
+    ],
+    learnersById: new Map([
+      ["L1", learner("L1", "Ronan", "Murdoch", "02", "Grade 2A")],
+      ["L2", learner("L2", "Sibling", "Murdoch", "05", "Grade 5A")],
+    ]),
+    links: [],
+    parentsByFamilyId: new Map(),
+    ledger: [],
+    asOfDate: "2026-09-09",
+  });
+  assert.deepEqual(mapped[0].learnerNames, ["Ronan Murdoch", "Sibling Murdoch"]);
+  assert.equal(mapped[0].outstandingBalance, 36100);
+  console.log("✓ incomplete statement memberNames ignored; batch learners used");
 }
 
 function testContactRanking() {
@@ -154,8 +269,8 @@ function testMissingEmailDoesNotExclude() {
 
 function testMissingParentSafe() {
   const mapped = mapOutstandingRows({
-    statementAccounts: [baseAccount({ balance: 100 })],
-    learnersById: new Map([["L1", { id: "L1", grade: "1", className: null }]]),
+    statementAccounts: [baseAccount({ balance: 100, memberLearnerIds: ["L1"] })],
+    learnersById: new Map([["L1", learner("L1", "A", "B", "1", null)]]),
     links: [],
     parentsByFamilyId: new Map(),
     ledger: [],
@@ -213,16 +328,25 @@ function testUnknownOverdueWhenNoDue() {
 function testSummaryEqualsRowSum() {
   const mapped = mapOutstandingRows({
     statementAccounts: [
-      baseAccount({ accountNo: "A", balance: 1000.1, memberLearnerIds: ["L1"], memberNames: ["A"] }),
+      baseAccount({
+        accountNo: "A",
+        balance: 1000.1,
+        memberLearnerIds: ["L1"],
+        memberNames: ["A"],
+      }),
       baseAccount({
         accountNo: "B",
         balance: 2000.2,
         familyAccountId: "FA2",
         memberLearnerIds: ["L2", "L3"],
-        memberNames: ["B1", "B2"],
+        memberNames: ["B1"],
       }),
     ],
-    learnersById: new Map(),
+    learnersById: new Map([
+      ["L1", learner("L1", "A", "One", "1")],
+      ["L2", learner("L2", "B", "Two", "2")],
+      ["L3", learner("L3", "C", "Three", "3")],
+    ]),
     links: [],
     parentsByFamilyId: new Map(),
     ledger: [],
@@ -264,7 +388,12 @@ function testWorkNoPreferredOverHomeNo() {
 }
 
 testBalanceInclusion();
-testMultiLearnerOneRow();
+testTwoMemberIdsTwoNames();
+testThreeMemberIdsThreeNames();
+testDuplicateIdsDoNotDuplicateNames();
+testUnresolvableIdSafe();
+testSingleLearnerNormal();
+testIgnoresIncompleteStatementMemberNames();
 testContactRanking();
 testMissingEmailDoesNotExclude();
 testMissingParentSafe();

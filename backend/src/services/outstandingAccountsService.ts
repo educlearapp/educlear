@@ -295,7 +295,45 @@ export function resolveDisplayAccountNumber(row: BillingStatementAccountRow): st
   return String(row.accountNo || "").trim() || "-";
 }
 
-type LearnerGradeClass = { id: string; grade: string; className: string | null };
+type LearnerGradeClass = {
+  id: string;
+  firstName: string;
+  lastName: string;
+  grade: string;
+  className: string | null;
+};
+
+/** Display name from batch-loaded Learner fields (no invented placeholders). */
+export function formatOutstandingLearnerName(learner: {
+  firstName?: string | null;
+  lastName?: string | null;
+}): string {
+  return `${learner.firstName || ""} ${learner.lastName || ""}`.trim();
+}
+
+/**
+ * Resolve display names for family members from membership IDs + batch-loaded learners.
+ * Preserves membership order, dedupes by learner id, skips unresolvable IDs.
+ * Does not rely on incomplete statement memberNames.
+ */
+export function resolveOutstandingLearnerNames(
+  memberLearnerIds: string[],
+  learnersById: Map<string, LearnerGradeClass>
+): string[] {
+  const seen = new Set<string>();
+  const names: string[] = [];
+  for (const rawId of memberLearnerIds) {
+    const id = String(rawId || "").trim();
+    if (!id || seen.has(id)) continue;
+    seen.add(id);
+    const learner = learnersById.get(id);
+    if (!learner) continue;
+    const name = formatOutstandingLearnerName(learner);
+    if (!name) continue;
+    names.push(name);
+  }
+  return names;
+}
 
 /** Pure mapper used by service + tests (no DB). */
 export function mapOutstandingRows(input: {
@@ -311,11 +349,12 @@ export function mapOutstandingRows(input: {
   const runDueDates = input.runDueDates || {};
 
   return positive.map((account) => {
-    const memberLearnerIds = (account.memberLearnerIds || []).map((id) => String(id || "").trim()).filter(Boolean);
-    const learnerNames =
-      (account.memberNames || []).map((n) => String(n || "").trim()).filter(Boolean).length > 0
-        ? (account.memberNames || []).map((n) => String(n || "").trim()).filter(Boolean)
-        : [`${account.name || ""} ${account.surname || ""}`.trim()].filter(Boolean);
+    const memberLearnerIds = Array.from(
+      new Set(
+        (account.memberLearnerIds || []).map((id) => String(id || "").trim()).filter(Boolean)
+      )
+    );
+    const learnerNames = resolveOutstandingLearnerNames(memberLearnerIds, input.learnersById);
 
     const grades: string[] = [];
     const classes: string[] = [];
@@ -383,7 +422,7 @@ async function batchLoadLearnersAndContacts(
     memberIds.length
       ? prisma.learner.findMany({
           where: { schoolId, id: { in: memberIds } },
-          select: { id: true, grade: true, className: true },
+          select: { id: true, firstName: true, lastName: true, grade: true, className: true },
         })
       : Promise.resolve([]),
     memberIds.length
@@ -432,6 +471,8 @@ async function batchLoadLearnersAndContacts(
   for (const l of learners) {
     learnersById.set(l.id, {
       id: l.id,
+      firstName: String(l.firstName || "").trim(),
+      lastName: String(l.lastName || "").trim(),
       grade: String(l.grade || "").trim(),
       className: l.className ? String(l.className).trim() : null,
     });
