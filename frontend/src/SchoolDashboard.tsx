@@ -33,6 +33,7 @@ import PaymentCreateClean from "./billing/PaymentCreateClean";
 import InvoiceCreateClean from "./billing/InvoiceCreateClean";
 import BillingDocuments from "./billing/BillingDocuments";
 import BillingReports from "./billing/BillingReports";
+import OutstandingAccountsReport from "./billing/OutstandingAccountsReport";
 import FinanceHubPage from "./billing/FinanceHubPage";
 import FinanceCollectionsCentre from "./billing/FinanceCollectionsCentre";
 import Email from "./communication/Email";
@@ -317,6 +318,10 @@ type PageKey =
 
 
 
+  | "outstandingAccounts"
+
+
+
   | "financeHub"
 
 
@@ -410,6 +415,7 @@ const MOBILE_PAGE_TITLES: Partial<Record<PageKey, string>> = {
   plans: "Billing Plans",
   runs: "Invoice Runs",
   reports: "Billing Reports",
+  outstandingAccounts: "Outstanding Accounts",
   financeHub: "Finance Hub",
   financeCollections: "Collections Centre",
   documents: "Documents",
@@ -1320,7 +1326,7 @@ const [selectedLearnerReport, setSelectedLearnerReport] = useState<any>(null);
       setAccountingOpen(false);
     }
 
-    if (page === "billingDeposits" || page === "billingSettings" || page === "financeHub" || page === "financeCollections") {
+    if (page === "billingDeposits" || page === "billingSettings" || page === "financeHub" || page === "financeCollections" || page === "outstandingAccounts") {
       setBillingOpen(true);
       setBillingMoreOpen(true);
       setSchoolsOpen(false);
@@ -16868,6 +16874,9 @@ return (
             />
           );
 
+        case "outstandingAccounts":
+          return <OutstandingAccountsReport schoolId={schoolId || ""} />;
+
         case "financeHub":
           return (
             <FinanceHubPage
@@ -17555,6 +17564,15 @@ return (
   
                 {canPage("reports") ? (
                 <div className={`submenu-item ${activePage === "reports" ? "active" : ""}`} onClick={() => go("reports")}>Billing Reports</div>
+                ) : null}
+
+                {canPage("outstandingAccounts") ? (
+                <div
+                  className={`submenu-item ${activePage === "outstandingAccounts" ? "active" : ""}`}
+                  onClick={() => go("outstandingAccounts")}
+                >
+                  Outstanding Accounts
+                </div>
                 ) : null}
 
                 {canPage("financeHub") ? (
