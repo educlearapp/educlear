@@ -161,6 +161,48 @@ function learnerClassroom(learner: any) {
   return learner?.classroom || learner?.className || learner?.classroomName || learner?.grade || "";
 }
 
+function mergeSensitiveIntoLearner(
+  learner: any,
+  sensitive: {
+    allergies?: string | null;
+    medicalAlert?: string | null;
+    parents?: Array<{ id?: string; birthDate?: string | null; dateOfBirth?: string | null }>;
+  } | null
+) {
+  if (!learner || !sensitive) return learner;
+  const byId = new Map(
+    (Array.isArray(sensitive.parents) ? sensitive.parents : [])
+      .filter((p) => p?.id)
+      .map((p) => [String(p.id), p])
+  );
+  const parents = Array.isArray(learner.parents)
+    ? learner.parents.map((p: any) => {
+        const hit = byId.get(String(p?.id || ""));
+        if (!hit) return p;
+        const dob = hit.birthDate || hit.dateOfBirth || "";
+        return { ...p, birthDate: dob, dateOfBirth: dob };
+      })
+    : learner.parents;
+  return {
+    ...learner,
+    allergies: sensitive.allergies ?? "",
+    medicalAlert: sensitive.medicalAlert ?? "",
+    parents,
+  };
+}
+
+async function fetchLearnerSensitiveFields(learnerId: string) {
+  const response = await fetch(
+    `${API_URL}/api/learners/${encodeURIComponent(learnerId)}/sensitive-fields`,
+    { headers: { ...staffAuthHeaders() } }
+  );
+  const payload = await response.json().catch(() => ({}));
+  if (!response.ok) {
+    throw new Error(payload?.error || "Failed to load sensitive learner fields");
+  }
+  return payload;
+}
+
 function normalizeLearnerForManage(raw: any) {
   if (!raw || typeof raw !== "object") return raw;
   const firstName = learnerFirstName(raw);
@@ -328,7 +370,16 @@ export default function ManageLearner({
         if (!response.ok) {
           throw new Error(payload?.error || "Failed to load learner profile");
         }
-        const loaded = normalizeLearnerForManage(payload?.learner || payload);
+        let loaded = normalizeLearnerForManage(payload?.learner || payload);
+        if (cancelled || !loaded?.id) return;
+        try {
+          const sensitive = await fetchLearnerSensitiveFields(learnerId);
+          if (!cancelled) {
+            loaded = normalizeLearnerForManage(mergeSensitiveIntoLearner(loaded, sensitive));
+          }
+        } catch {
+          // Sensitive merge is best-effort; legacy profile still loads without medical/DOB.
+        }
         if (cancelled || !loaded?.id) return;
         setDetailLearner(loaded);
         setSelectedLearner(loaded);
@@ -461,8 +512,14 @@ export default function ManageLearner({
       if (!response.ok) {
         throw new Error(payload?.error || "Failed to reload learner profile");
       }
-      const loaded = normalizeLearnerForManage(payload?.learner || payload);
+      let loaded = normalizeLearnerForManage(payload?.learner || payload);
       if (!loaded?.id) return null;
+      try {
+        const sensitive = await fetchLearnerSensitiveFields(learnerId);
+        loaded = normalizeLearnerForManage(mergeSensitiveIntoLearner(loaded, sensitive));
+      } catch {
+        // keep non-sensitive profile
+      }
       persistLearner(loaded);
       setLearners((prev) =>
         prev.map((row) => (String(row.id) === String(loaded.id) ? { ...row, ...loaded } : row))
@@ -1069,7 +1126,42 @@ export default function ManageLearner({
   
   
   
-                const updatedLearner = result.learner || result;
+                let updatedLearner = normalizeLearnerForManage(result.learner || result);
+
+                const sensitiveResponse = await fetch(
+                  `${API_URL}/api/learners/${encodeURIComponent(learner.id)}/sensitive-fields`,
+                  {
+                    method: "PUT",
+                    headers: {
+                      "Content-Type": "application/json",
+                      ...staffAuthHeaders(),
+                    },
+                    body: JSON.stringify({
+                      allergies: (form.allergies || "").trim() || null,
+                      medicalAlert: (form.medicalAlert || "").trim() || null,
+                    }),
+                  }
+                );
+                const sensitivePayload = await sensitiveResponse.json().catch(() => ({}));
+                if (!sensitiveResponse.ok) {
+                  throw new Error(
+                    sensitivePayload?.error || "Failed to save medical fields"
+                  );
+                }
+                updatedLearner = normalizeLearnerForManage(
+                  mergeSensitiveIntoLearner(updatedLearner, {
+                    allergies: sensitivePayload.allergies,
+                    medicalAlert: sensitivePayload.medicalAlert,
+                    parents: Array.isArray(learner.parents)
+                      ? learner.parents.map((p: any) => ({
+                          id: p.id,
+                          birthDate: p.birthDate || p.dateOfBirth || null,
+                          dateOfBirth: p.birthDate || p.dateOfBirth || null,
+                        }))
+                      : [],
+                  })
+                );
+                setDetailLearner(updatedLearner);
   
   
   

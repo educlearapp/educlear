@@ -44,6 +44,8 @@ export function normalizeParentRecord(raw: Record<string, unknown> | null | unde
     homeAddress: String(raw.homeAddress || "").trim(),
     homeNo: String(raw.homeNo || "").trim(),
     notes: String(raw.notes || "").trim(),
+    birthDate: String(raw.birthDate || raw.dateOfBirth || raw.dob || "").trim(),
+    dateOfBirth: String(raw.birthDate || raw.dateOfBirth || raw.dob || "").trim(),
     communicationAdministration: raw.communicationAdministration !== false,
     communicationBilling: raw.communicationBilling !== false,
     communicationByEmail: raw.communicationByEmail !== false,
@@ -84,6 +86,9 @@ export function parentToApiPayload(
     ...(email ? { email } : {}),
     homeAddress: (parent.homeAddress || "").trim() || null,
     notes: (parent.notes || "").trim() || null,
+    // Always send so staff can clear DOB → null on authenticated parent write paths.
+    birthDate: (parent.birthDate || parent.dateOfBirth || "").trim() || null,
+    dateOfBirth: (parent.birthDate || parent.dateOfBirth || "").trim() || null,
     communicationAdministration: parent.communicationAdministration !== false,
     communicationBilling: parent.communicationBilling !== false,
     communicationByEmail: parent.communicationByEmail !== false,

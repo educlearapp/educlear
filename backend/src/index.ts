@@ -473,7 +473,8 @@ app.get("/api/parents", async (_req, res) => {
 
 
 
-      parents,
+      // Legacy unauthenticated list must not newly expose Parent.birthDate.
+      parents: parents.map(({ birthDate: _omitBirthDate, ...rest }) => rest),
 
 
 

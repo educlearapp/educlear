@@ -155,7 +155,7 @@ function buildLinkWriteData(rawParent: any) {
   };
 }
 
-function mapParentForClient(link: { parent: any; relation?: string | null; isPrimary?: boolean; isPayingPerson?: boolean; billingStatement?: boolean; billingInvoice?: boolean; billingReceipt?: boolean }) {
+export function mapParentForClient(link: { parent: any; relation?: string | null; isPrimary?: boolean; isPayingPerson?: boolean; billingStatement?: boolean; billingInvoice?: boolean; billingReceipt?: boolean }) {
   const p = link.parent;
   return {
     id: p.id,
@@ -176,8 +176,6 @@ function mapParentForClient(link: { parent: any; relation?: string | null; isPri
     homeAddress: p.homeAddress || "",
     email: p.email || "",
     notes: p.notes || "",
-    birthDate: formatDateOnlyUtc(p.birthDate ?? null),
-    dateOfBirth: formatDateOnlyUtc(p.birthDate ?? null),
     relationship: link.relation || p.relationship || "",
     relation: link.relation || p.relationship || "",
     isPrimary: link.isPrimary || false,
@@ -472,7 +470,7 @@ async function saveParentLinks({
 
 
 
-function mapLearnerDetailForClient(learner: {
+export function mapLearnerDetailForClient(learner: {
   id: string;
   schoolId: string;
   familyAccountId: string | null;
@@ -549,8 +547,6 @@ function mapLearnerDetailForClient(learner: {
     admissionDate: formatDateOnlyUtc(learner.admissionDate ?? null),
     enrollmentDate,
     enrolmentDate: enrollmentDate,
-    allergies: learner.allergies || "",
-    medicalAlert: learner.medicalAlert || "",
     notes,
     tuitionFee: learner.tuitionFee ?? 0,
     transportFee: learner.transportFee ?? 0,
@@ -560,6 +556,132 @@ function mapLearnerDetailForClient(learner: {
     parents: learner.links?.map((link) => mapParentForClient(link)) || [],
   };
 }
+
+/** Authenticated staff-only medical + parent DOB for Manage Learner (not on legacy unauth GETs). */
+router.get("/:id/sensitive-fields", async (req, res) => {
+  try {
+    const { id } = req.params;
+    const existing = await prisma.learner.findUnique({
+      where: { id },
+      select: { schoolId: true },
+    });
+    if (!existing) {
+      return res.status(404).json({ success: false, error: "Learner not found" });
+    }
+
+    const authDecision = await resolveParentStaffAuth(req, {
+      requestSchoolId: existing.schoolId,
+      requirePermission: { module: "learners", action: "view" },
+    });
+    if (!authDecision.allowed) {
+      return res.status(authDecision.status).json({
+        success: false,
+        error: authDecision.error,
+        code: authDecision.code || null,
+        message: authDecision.error,
+      });
+    }
+    if (existing.schoolId !== authDecision.auth.authorizedSchoolId) {
+      return res.status(403).json({
+        success: false,
+        error: "Learner is not in your school",
+        code: "SCHOOL_MISMATCH",
+      });
+    }
+
+    const learner = await prisma.learner.findUnique({
+      where: { id },
+      include: {
+        links: { include: { parent: true } },
+      },
+    });
+    if (!learner) {
+      return res.status(404).json({ success: false, error: "Learner not found" });
+    }
+
+    return res.json({
+      success: true,
+      allergies: learner.allergies || "",
+      medicalAlert: learner.medicalAlert || "",
+      parents: (learner.links || []).map((link) => ({
+        id: link.parent.id,
+        birthDate: formatDateOnlyUtc(link.parent.birthDate ?? null),
+        dateOfBirth: formatDateOnlyUtc(link.parent.birthDate ?? null),
+      })),
+    });
+  } catch (error) {
+    console.error("Error fetching learner sensitive fields:", error);
+    return res.status(500).json({ success: false, error: "Failed to fetch sensitive fields" });
+  }
+});
+
+router.put("/:id/sensitive-fields", async (req, res) => {
+  try {
+    const { id } = req.params;
+    const existing = await prisma.learner.findUnique({
+      where: { id },
+      select: { schoolId: true },
+    });
+    if (!existing) {
+      return res.status(404).json({ success: false, error: "Learner not found" });
+    }
+
+    const authDecision = await resolveParentStaffAuth(req, {
+      requestSchoolId: existing.schoolId,
+      requirePermission: { module: "learners", action: "edit" },
+    });
+    if (!authDecision.allowed) {
+      return res.status(authDecision.status).json({
+        success: false,
+        error: authDecision.error,
+        code: authDecision.code || null,
+        message: authDecision.error,
+      });
+    }
+    if (existing.schoolId !== authDecision.auth.authorizedSchoolId) {
+      return res.status(403).json({
+        success: false,
+        error: "Learner is not in your school",
+        code: "SCHOOL_MISMATCH",
+      });
+    }
+
+    const data: { allergies?: string | null; medicalAlert?: string | null } = {};
+    if (Object.prototype.hasOwnProperty.call(req.body || {}, "allergies")) {
+      data.allergies = parseOptionalTrimmedText(req.body.allergies, {
+        maxLength: ALLERGIES_MAX_LENGTH,
+        fieldLabel: "allergies",
+      });
+    }
+    if (Object.prototype.hasOwnProperty.call(req.body || {}, "medicalAlert")) {
+      data.medicalAlert = parseOptionalTrimmedText(req.body.medicalAlert, {
+        maxLength: MEDICAL_ALERT_MAX_LENGTH,
+        fieldLabel: "medicalAlert",
+      });
+    }
+    if (Object.keys(data).length === 0) {
+      return res.status(400).json({ success: false, error: "No sensitive fields to update" });
+    }
+
+    const updated = await prisma.learner.update({
+      where: { id },
+      data,
+      select: { id: true, allergies: true, medicalAlert: true },
+    });
+
+    return res.json({
+      success: true,
+      allergies: updated.allergies || "",
+      medicalAlert: updated.medicalAlert || "",
+    });
+  } catch (error) {
+    console.error("Error updating learner sensitive fields:", error);
+    if (error instanceof OptionalProfileFieldError) {
+      return res.status(400).json({ success: false, error: error.message });
+    }
+    return res.status(500).json({ success: false, error: "Failed to update sensitive fields" });
+  }
+});
 
 router.get("/:id", async (req, res) => {
   try {
@@ -795,8 +917,6 @@ router.get("/", async (req, res) => {
         admissionDate: formatDateOnlyUtc(learner.admissionDate ?? null),
         enrollmentDate: resolveAuthoritativeAdmissionDateYmd(learner),
         enrolmentDate: resolveAuthoritativeAdmissionDateYmd(learner),
-        allergies: learner.allergies || "",
-        medicalAlert: learner.medicalAlert || "",
 
 
 
@@ -1612,26 +1732,22 @@ router.put("/:id", async (req, res) => {
 
     }
 
+    // Medical fields must not be writable via legacy PUT (may be unauthenticated).
+    // Use PUT /api/learners/:id/sensitive-fields instead.
+    if (allergies !== undefined || medicalAlert !== undefined) {
+      return res.status(400).json({
+        success: false,
+        error:
+          "allergies and medicalAlert must be updated via PUT /api/learners/:id/sensitive-fields",
+        code: "USE_SENSITIVE_FIELDS_ENDPOINT",
+      });
+    }
     let parsedAdmissionDate: Date | null | undefined = undefined;
     if (admissionDate !== undefined || enrolmentDate !== undefined || enrollmentDate !== undefined) {
       parsedAdmissionDate = parseOptionalDateOnlyField(
         admissionDate ?? enrolmentDate ?? enrollmentDate,
         "admissionDate"
       );
-    }
-    let parsedAllergies: string | null | undefined = undefined;
-    if (allergies !== undefined) {
-      parsedAllergies = parseOptionalTrimmedText(allergies, {
-        maxLength: ALLERGIES_MAX_LENGTH,
-        fieldLabel: "allergies",
-      });
-    }
-    let parsedMedicalAlert: string | null | undefined = undefined;
-    if (medicalAlert !== undefined) {
-      parsedMedicalAlert = parseOptionalTrimmedText(medicalAlert, {
-        maxLength: MEDICAL_ALERT_MAX_LENGTH,
-        fieldLabel: "medicalAlert",
-      });
     }
 
 
@@ -1719,8 +1835,6 @@ router.put("/:id", async (req, res) => {
         ...(totalFee !== undefined && { totalFee: Number(totalFee) || 0 }),
 
         ...(parsedAdmissionDate !== undefined && { admissionDate: parsedAdmissionDate }),
-        ...(parsedAllergies !== undefined && { allergies: parsedAllergies }),
-        ...(parsedMedicalAlert !== undefined && { medicalAlert: parsedMedicalAlert }),
 
 
 

@@ -38,6 +38,12 @@ function cleanBool(value: unknown, fallback: boolean) {
   return Boolean(value);
 }
 
+/** Strip Parent.birthDate from legacy unauthenticated list responses. */
+export function mapParentForLegacyUnauthList<T extends { birthDate?: unknown }>(parent: T) {
+  const { birthDate: _omitBirthDate, ...rest } = parent as T & { birthDate?: unknown };
+  return rest;
+}
+
 function mapParentBirthDateForClient(parent: { birthDate?: Date | null }) {
   return {
     birthDate: formatDateOnlyUtc(parent.birthDate ?? null),
@@ -56,12 +62,10 @@ router.get("/", async (req, res) => {
       where: { schoolId },
       orderBy: [{ surname: "asc" }, { firstName: "asc" }],
     });
+    // Legacy unauthenticated list must not newly expose Parent.birthDate.
     return res.json({
       success: true,
-      parents: parents.map((p) => ({
-        ...p,
-        ...mapParentBirthDateForClient(p),
-      })),
+      parents: parents.map((p) => mapParentForLegacyUnauthList(p)),
     });
   } catch (error: unknown) {
     console.error("LIST PARENTS ERROR:", error);
