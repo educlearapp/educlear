@@ -1,4 +1,5 @@
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
+import MetaPixel from "./analytics/MetaPixel";
 import InactivityLogoutManager from "./auth/InactivityLogoutManager";
 
 
@@ -558,6 +559,7 @@ export default function App() {
 
 
     <BrowserRouter>
+      <MetaPixel />
       <InactivityLogoutManager />
 
       <Routes>
