@@ -6,6 +6,8 @@ import assert from "assert";
 import {
   canAdministerAdmissionPayment,
   canMakeAdmissionDecision,
+  canViewAdmissionsMedicalDetails,
+  canViewAdmissionsStaffNotes,
 } from "../services/admissions/admissionsDecisionAuth";
 import {
   PERMISSION_MODULES,
@@ -58,6 +60,18 @@ function main() {
   assert.strictEqual(canAdministerAdmissionPayment("Finance", true), true);
   assert.strictEqual(canAdministerAdmissionPayment("Finance", false), false);
   assert.strictEqual(canAdministerAdmissionPayment("Teacher", true), false);
+
+  // OA-03F sensitive visibility helpers (existing manage vs edit distinction)
+  assert.strictEqual(canViewAdmissionsMedicalDetails(true), true);
+  assert.strictEqual(canViewAdmissionsMedicalDetails(false), false);
+  assert.strictEqual(canViewAdmissionsStaffNotes(true), true);
+  assert.strictEqual(canViewAdmissionsStaffNotes(false), false);
+  assert.strictEqual(canViewAdmissionsMedicalDetails(finance.admissions.manage), false);
+  assert.strictEqual(
+    canViewAdmissionsStaffNotes(finance.admissions.edit || finance.admissions.manage),
+    true
+  );
+  assert.strictEqual(canViewAdmissionsMedicalDetails(admin.admissions.manage), true);
 
   const defaults = defaultAdmissionsSettingsShape("school-x");
   assert.strictEqual(defaults.admissionFeeRequired, false);
