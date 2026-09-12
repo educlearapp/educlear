@@ -574,11 +574,29 @@ export async function openApplicantDocumentForDownload(
       deletedAt: null,
     },
   });
-  if (!doc || doc.storageProvider !== ADMISSIONS_STORAGE_PROVIDER) {
+  if (!doc) {
     throw new PublicAdmissionsError("Document not found", 404, "DOCUMENT_NOT_FOUND");
   }
 
-  // Path traversal guard: storageKey must stay under admissions root
+  const file = resolveLocalAdmissionsDocumentFile(doc);
+  await fs.access(file.absolutePath);
+  return file;
+}
+
+/**
+ * Resolve private on-disk path from trusted DB metadata (OA-03D storage).
+ * Never accepts client-supplied paths/keys.
+ */
+export function resolveLocalAdmissionsDocumentFile(doc: {
+  storageProvider: string;
+  storageKey: string;
+  contentType: string;
+  originalFileName: string;
+}): { absolutePath: string; contentType: string; originalFileName: string } {
+  if (doc.storageProvider !== ADMISSIONS_STORAGE_PROVIDER) {
+    throw new PublicAdmissionsError("Document not found", 404, "DOCUMENT_NOT_FOUND");
+  }
+
   const root = resolveAdmissionsStorageRoot();
   const absolutePath = path.join(root, ...doc.storageKey.split("/"));
   const resolved = path.resolve(absolutePath);
@@ -586,7 +604,6 @@ export async function openApplicantDocumentForDownload(
     throw new PublicAdmissionsError("Document not found", 404, "DOCUMENT_NOT_FOUND");
   }
 
-  await fs.access(resolved);
   return {
     absolutePath: resolved,
     contentType: doc.contentType,
