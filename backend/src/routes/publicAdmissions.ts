@@ -1,5 +1,5 @@
 /**
- * Public Online Admissions API (OA-03B/C/D).
+ * Public Online Admissions API (OA-03B/C/D/E).
  * Tenant = publicSlug → server-resolved schoolId. Client schoolId rejected.
  */
 import { Router } from "express";
@@ -21,6 +21,7 @@ import {
   getApplicationForApplicant,
   updateDraftApplication,
 } from "../services/admissions/draftApplicationService";
+import { getApplicantPaymentView } from "../services/admissions/paymentInstructionsService";
 import {
   getPublicAdmissionsConfig,
   PublicAdmissionsError,
@@ -169,8 +170,25 @@ router.post("/applications/:publicAccessId/submit", async (req, res) => {
       application: result.application,
       paymentInstructionsAvailable: result.paymentInstructionsAvailable,
       bankConfigurationIncomplete: result.bankConfigurationIncomplete,
-      // Bank details intentionally omitted — payment slice exposes them later when safe.
+      // Bank details intentionally omitted from submit — use GET .../payment after submit.
     });
+  } catch (err) {
+    return sendPublicError(res, err);
+  }
+});
+
+/**
+ * GET /api/public/admissions/:schoolSlug/applications/:publicAccessId/payment
+ * Authenticated applicant payment instructions (read-only). Uses fee snapshot, not live fee settings.
+ */
+router.get("/applications/:publicAccessId/payment", async (req, res) => {
+  try {
+    const schoolSlug = param(req, "schoolSlug");
+    const publicAccessId = param(req, "publicAccessId");
+    const token = extractApplicantAccessToken(req);
+    const payment = await getApplicantPaymentView(prisma, schoolSlug, publicAccessId, token);
+    res.setHeader("Cache-Control", "no-store");
+    return res.json({ success: true, payment });
   } catch (err) {
     return sendPublicError(res, err);
   }
