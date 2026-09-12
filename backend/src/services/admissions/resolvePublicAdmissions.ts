@@ -6,11 +6,18 @@ import type { PrismaClient, School, SchoolAdmissionsSettings } from "@prisma/cli
 export class PublicAdmissionsError extends Error {
   readonly statusCode: number;
   readonly code: string;
-  constructor(message: string, statusCode: number, code: string) {
+  readonly details?: Array<{ field: string; message: string }>;
+  constructor(
+    message: string,
+    statusCode: number,
+    code: string,
+    details?: Array<{ field: string; message: string }>
+  ) {
     super(message);
     this.name = "PublicAdmissionsError";
     this.statusCode = statusCode;
     this.code = code;
+    this.details = details;
   }
 }
 

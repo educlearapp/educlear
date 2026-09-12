@@ -284,6 +284,327 @@ const applicationInclude = {
   feeRecord: true,
 } as const;
 
+export { applicationInclude };
+
+/** Top-level keys applicants may send on draft PATCH. */
+export const APPLICANT_DRAFT_ALLOWED_KEYS = new Set([
+  "requestedGrade",
+  "intakeYear",
+  "learner",
+  "guardians",
+  "answers",
+  "declaredExistingSibling",
+  "declaredSiblingLearnerName",
+  "declaredSiblingAdmissionNo",
+  "declaredExistingFamily",
+  "privacyAccepted",
+  "declarationsAccepted",
+  "privacyNoticeVersion",
+]);
+
+/** Explicitly blocked / internal fields — presence is always rejected. */
+export const APPLICANT_DRAFT_FORBIDDEN_KEYS = new Set([
+  "schoolId",
+  "id",
+  "status",
+  "applicationNumber",
+  "paymentStatus",
+  "feeRequired",
+  "feeAmount",
+  "feeCurrency",
+  "feeSnapshotAt",
+  "accessTokenHash",
+  "accessTokenExpiresAt",
+  "publicAccessId",
+  "promotedLearnerId",
+  "promotedFamilyAccountId",
+  "acceptedByUserId",
+  "acceptedAt",
+  "declinedAt",
+  "withdrawnAt",
+  "cancelledAt",
+  "statusReason",
+  "staffMatchedFamilyAccountId",
+  "staffMatchDecision",
+  "submittedAt",
+  "createdAt",
+  "updatedAt",
+  "lastApplicantActivityAt",
+  "feeRecord",
+  "statusHistory",
+  "auditEvents",
+  "staffNotes",
+  "documents",
+]);
+
+export type UpdateDraftApplicationInput = CreateDraftApplicationInput & {
+  answers?: Array<{
+    questionKey: string;
+    questionLabelSnapshot?: string;
+    valueJson?: unknown;
+  }> | null;
+  privacyAccepted?: boolean;
+  declarationsAccepted?: boolean;
+  privacyNoticeVersion?: string | null;
+};
+
+function rejectProtectedOrUnknownKeys(body: Record<string, unknown>) {
+  const keys = Object.keys(body);
+  const forbidden = keys.filter((k) => APPLICANT_DRAFT_FORBIDDEN_KEYS.has(k));
+  if (forbidden.length) {
+    throw new PublicAdmissionsError(
+      "Protected fields cannot be modified",
+      400,
+      "PROTECTED_FIELD",
+      forbidden.map((field) => ({ field, message: "This field cannot be modified by applicants" }))
+    );
+  }
+  const unknown = keys.filter((k) => !APPLICANT_DRAFT_ALLOWED_KEYS.has(k));
+  if (unknown.length) {
+    throw new PublicAdmissionsError(
+      "Unknown or disallowed fields",
+      400,
+      "DISALLOWED_FIELD",
+      unknown.map((field) => ({ field, message: "Field is not allowed on draft update" }))
+    );
+  }
+}
+
+type OwnedApplication = Prisma.AdmissionApplicationGetPayload<{ include: typeof applicationInclude }>;
+
+/**
+ * Load owned application for mutation. Generic 404 on any auth/tenant failure.
+ */
+export async function loadOwnedApplicationForApplicant(
+  prisma: PrismaClient,
+  schoolSlug: string,
+  publicAccessId: string,
+  accessToken: string | null | undefined,
+  now: Date = new Date()
+): Promise<{ app: OwnedApplication; schoolId: string; settings: Awaited<ReturnType<typeof resolvePublicAdmissionsBySlug>>["settings"] }> {
+  const accessId = clean(publicAccessId);
+  const token = clean(accessToken);
+  if (!accessId || !token) {
+    throw new PublicAdmissionsError("Application not found", 404, "APPLICATION_NOT_FOUND");
+  }
+
+  let resolved;
+  try {
+    resolved = await resolvePublicAdmissionsBySlug(prisma, schoolSlug);
+  } catch {
+    throw new PublicAdmissionsError("Application not found", 404, "APPLICATION_NOT_FOUND");
+  }
+
+  const app = await prisma.admissionApplication.findFirst({
+    where: {
+      publicAccessId: accessId,
+      schoolId: resolved.school.id,
+    },
+    include: applicationInclude,
+  });
+
+  if (
+    !app ||
+    !app.accessTokenHash ||
+    !verifyApplicantAccessToken(token, app.accessTokenHash) ||
+    (app.accessTokenExpiresAt && app.accessTokenExpiresAt.getTime() < now.getTime())
+  ) {
+    throw new PublicAdmissionsError("Application not found", 404, "APPLICATION_NOT_FOUND");
+  }
+
+  return { app, schoolId: resolved.school.id, settings: resolved.settings };
+}
+
+/**
+ * PATCH draft — allow-listed fields only. Blocked once status !== DRAFT.
+ */
+export async function updateDraftApplication(
+  prisma: PrismaClient,
+  schoolSlug: string,
+  publicAccessId: string,
+  accessToken: string | null | undefined,
+  body: UpdateDraftApplicationInput,
+  now: Date = new Date()
+): Promise<ApplicantApplicationView> {
+  const raw = (body && typeof body === "object" ? body : {}) as Record<string, unknown>;
+  if (raw.schoolId !== undefined && raw.schoolId !== null && String(raw.schoolId).trim() !== "") {
+    throw new PublicAdmissionsError("schoolId is not accepted on public admissions", 400, "SCHOOL_ID_NOT_ALLOWED");
+  }
+  rejectProtectedOrUnknownKeys(raw);
+
+  const { app, schoolId, settings } = await loadOwnedApplicationForApplicant(
+    prisma,
+    schoolSlug,
+    publicAccessId,
+    accessToken,
+    now
+  );
+
+  if (app.status !== "DRAFT") {
+    throw new PublicAdmissionsError(
+      "Submitted applications cannot be edited",
+      409,
+      "APPLICATION_NOT_EDITABLE"
+    );
+  }
+
+  const requestedGrade =
+    raw.requestedGrade !== undefined ? clean(raw.requestedGrade) || null : undefined;
+  if (requestedGrade && !gradeIsAccepted(settings, requestedGrade)) {
+    throw new PublicAdmissionsError("Requested grade is not accepted", 400, "GRADE_NOT_ACCEPTED");
+  }
+
+  let intakeYear: number | undefined;
+  if (raw.intakeYear !== undefined) {
+    if (raw.intakeYear === null || raw.intakeYear === "") {
+      throw new PublicAdmissionsError("intakeYear is required", 400, "INTAKE_YEAR_REQUIRED");
+    }
+    intakeYear = Number(raw.intakeYear);
+    if (!Number.isInteger(intakeYear) || intakeYear < 2000 || intakeYear > 2100) {
+      throw new PublicAdmissionsError("Invalid intakeYear", 400, "INVALID_INTAKE_YEAR");
+    }
+  }
+
+  const learner = raw.learner as UpdateDraftApplicationInput["learner"] | undefined;
+  const guardians = raw.guardians as UpdateDraftApplicationInput["guardians"] | undefined;
+  const answers = raw.answers as UpdateDraftApplicationInput["answers"] | undefined;
+
+  const privacyAccepted =
+    raw.privacyAccepted === undefined ? undefined : Boolean(raw.privacyAccepted);
+  const declarationsAccepted =
+    raw.declarationsAccepted === undefined ? undefined : Boolean(raw.declarationsAccepted);
+
+  const updated = await prisma.$transaction(async (tx) => {
+    await tx.admissionApplication.update({
+      where: { id: app.id },
+      data: {
+        ...(requestedGrade !== undefined ? { requestedGrade } : {}),
+        ...(intakeYear !== undefined ? { intakeYear } : {}),
+        ...(raw.declaredExistingSibling !== undefined
+          ? { declaredExistingSibling: Boolean(raw.declaredExistingSibling) }
+          : {}),
+        ...(raw.declaredSiblingLearnerName !== undefined
+          ? { declaredSiblingLearnerName: clean(raw.declaredSiblingLearnerName) || null }
+          : {}),
+        ...(raw.declaredSiblingAdmissionNo !== undefined
+          ? { declaredSiblingAdmissionNo: clean(raw.declaredSiblingAdmissionNo) || null }
+          : {}),
+        ...(raw.declaredExistingFamily !== undefined
+          ? { declaredExistingFamily: Boolean(raw.declaredExistingFamily) }
+          : {}),
+        ...(privacyAccepted === true
+          ? {
+              privacyAcceptedAt: now,
+              privacyNoticeVersion:
+                clean(raw.privacyNoticeVersion) || settings.privacyNoticeVersion || app.privacyNoticeVersion,
+            }
+          : {}),
+        ...(declarationsAccepted === true ? { declarationsAcceptedAt: now } : {}),
+        lastApplicantActivityAt: now,
+      },
+    });
+
+    if (learner !== undefined && learner !== null) {
+      const learnerData = {
+        firstName: clean(learner.firstName) || "",
+        lastName: clean(learner.lastName) || "",
+        nickname: clean(learner.nickname) || null,
+        birthDate: optionalDate(learner.birthDate),
+        gender: clean(learner.gender) || null,
+        idNumber: clean(learner.idNumber) || null,
+        homeLanguage: clean(learner.homeLanguage) || null,
+        citizenship: clean(learner.citizenship) || null,
+        homeAddress: clean(learner.homeAddress) || null,
+        allergies: clean(learner.allergies) || null,
+        medicalAlert: clean(learner.medicalAlert) || null,
+        previousSchoolName: clean(learner.previousSchoolName) || null,
+        notes: clean(learner.notes) || null,
+      };
+      if (app.learnerCandidate) {
+        await tx.admissionLearnerCandidate.update({
+          where: { applicationId: app.id },
+          data: learnerData,
+        });
+      } else {
+        await tx.admissionLearnerCandidate.create({
+          data: { schoolId, applicationId: app.id, ...learnerData },
+        });
+      }
+    }
+
+    if (guardians !== undefined) {
+      const list = Array.isArray(guardians) ? guardians : [];
+      await tx.admissionGuardian.deleteMany({ where: { applicationId: app.id } });
+      if (list.length) {
+        await tx.admissionGuardian.createMany({
+          data: list.map((g, index) => ({
+            schoolId,
+            applicationId: app.id,
+            title: clean(g.title) || null,
+            firstName: clean(g.firstName) || "",
+            surname: clean(g.surname) || "",
+            relationship: clean(g.relationship) || null,
+            idNumber: clean(g.idNumber) || null,
+            cellNo: clean(g.cellNo) || null,
+            email: clean(g.email) || null,
+            homeAddress: clean(g.homeAddress) || null,
+            employer: clean(g.employer) || null,
+            isPrimary: g.isPrimary !== undefined ? Boolean(g.isPrimary) : index === 0,
+            isPayingPerson: Boolean(g.isPayingPerson),
+            sortOrder: Number.isInteger(g.sortOrder) ? Number(g.sortOrder) : index,
+          })),
+        });
+      }
+    }
+
+    if (answers !== undefined) {
+      const list = Array.isArray(answers) ? answers : [];
+      for (const a of list) {
+        const questionKey = clean(a.questionKey);
+        if (!questionKey) continue;
+        const label =
+          clean(a.questionLabelSnapshot) ||
+          questionKey;
+        await tx.admissionAnswer.upsert({
+          where: {
+            applicationId_questionKey: { applicationId: app.id, questionKey },
+          },
+          create: {
+            schoolId,
+            applicationId: app.id,
+            questionKey,
+            questionLabelSnapshot: label,
+            valueJson:
+              a.valueJson === undefined ? Prisma.JsonNull : (a.valueJson as Prisma.InputJsonValue),
+          },
+          update: {
+            questionLabelSnapshot: label,
+            valueJson:
+              a.valueJson === undefined ? undefined : (a.valueJson as Prisma.InputJsonValue),
+          },
+        });
+      }
+    }
+
+    await tx.admissionAuditEvent.create({
+      data: {
+        schoolId,
+        applicationId: app.id,
+        eventType: "APPLICATION_DRAFT_UPDATED",
+        actorType: "APPLICANT",
+        metadataJson: { keys: Object.keys(raw) },
+      },
+    });
+
+    return tx.admissionApplication.findUniqueOrThrow({
+      where: { id: app.id },
+      include: applicationInclude,
+    });
+  });
+
+  return serializeApplicantApplication(updated);
+}
+
 /**
  * Create a DRAFT application for the school resolved from publicSlug.
  * Returns plaintext access token once (caller must set cookie / store client-side securely).

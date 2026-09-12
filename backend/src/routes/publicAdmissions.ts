@@ -1,5 +1,5 @@
 /**
- * Public Online Admissions API (OA-03B foundation).
+ * Public Online Admissions API (OA-03B/C).
  * Tenant = publicSlug → server-resolved schoolId. Client schoolId rejected.
  */
 import { Router } from "express";
@@ -9,11 +9,13 @@ import { prisma } from "../prisma";
 import {
   createDraftApplication,
   getApplicationForApplicant,
+  updateDraftApplication,
 } from "../services/admissions/draftApplicationService";
 import {
   getPublicAdmissionsConfig,
   PublicAdmissionsError,
 } from "../services/admissions/publicAdmissionsConfig";
+import { submitApplication } from "../services/admissions/submitApplicationService";
 
 const router = Router({ mergeParams: true });
 
@@ -23,6 +25,7 @@ function sendPublicError(res: import("express").Response, err: unknown) {
       success: false,
       error: err.message,
       code: err.code,
+      ...(err.details ? { details: err.details } : {}),
     });
   }
   console.error("public admissions error");
@@ -54,7 +57,6 @@ router.post("/applications", async (req, res) => {
       unknown
     >;
     const result = await createDraftApplication(prisma, schoolSlug, body as any);
-    // Return token once; clients should store securely (httpOnly cookie preferred in SPA later).
     res.setHeader("Cache-Control", "no-store");
     return res.status(201).json({
       success: true,
@@ -81,6 +83,50 @@ router.get("/applications/:publicAccessId", async (req, res) => {
     );
     res.setHeader("Cache-Control", "no-store");
     return res.json({ success: true, application });
+  } catch (err) {
+    return sendPublicError(res, err);
+  }
+});
+
+/** PATCH /api/public/admissions/:schoolSlug/applications/:publicAccessId */
+router.patch("/applications/:publicAccessId", async (req, res) => {
+  try {
+    const schoolSlug = param(req, "schoolSlug");
+    const publicAccessId = param(req, "publicAccessId");
+    const token = extractApplicantAccessToken(req);
+    const body = (req.body && typeof req.body === "object" ? req.body : {}) as Record<
+      string,
+      unknown
+    >;
+    const application = await updateDraftApplication(
+      prisma,
+      schoolSlug,
+      publicAccessId,
+      token,
+      body as any
+    );
+    res.setHeader("Cache-Control", "no-store");
+    return res.json({ success: true, application });
+  } catch (err) {
+    return sendPublicError(res, err);
+  }
+});
+
+/** POST /api/public/admissions/:schoolSlug/applications/:publicAccessId/submit */
+router.post("/applications/:publicAccessId/submit", async (req, res) => {
+  try {
+    const schoolSlug = param(req, "schoolSlug");
+    const publicAccessId = param(req, "publicAccessId");
+    const token = extractApplicantAccessToken(req);
+    const result = await submitApplication(prisma, schoolSlug, publicAccessId, token);
+    res.setHeader("Cache-Control", "no-store");
+    return res.json({
+      success: true,
+      application: result.application,
+      paymentInstructionsAvailable: result.paymentInstructionsAvailable,
+      bankConfigurationIncomplete: result.bankConfigurationIncomplete,
+      // Bank details intentionally omitted — payment slice exposes them later when safe.
+    });
   } catch (err) {
     return sendPublicError(res, err);
   }
