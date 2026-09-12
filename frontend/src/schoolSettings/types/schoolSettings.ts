@@ -1,4 +1,4 @@
-export type SchoolSettingsTab = "general" | "documents";
+export type SchoolSettingsTab = "general" | "documents" | "admissions";
 
 export type GeneralSettings = {
   studentMode: boolean;

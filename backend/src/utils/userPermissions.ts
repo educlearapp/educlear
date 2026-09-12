@@ -35,6 +35,7 @@ export const PERMISSION_MODULES = [
   { key: "reports", label: "Reports" },
   { key: "payroll", label: "Payroll" },
   { key: "educlock", label: "EduClock" },
+  { key: "admissions", label: "Admissions" },
   { key: "settings", label: "Settings" },
 ] as const;
 
@@ -118,6 +119,9 @@ export const roleTemplates: Record<Exclude<AppRole, "Custom">, PermissionMap> = 
     payroll: { view: true },
     settings: { view: true, edit: true, manage: true },
     educlock: { clock: true, viewOwn: true, manage: true },
+    // Full operational admissions (settings + payment + decisions).
+    // Accept/decline must ALSO enforce Owner/Admin at route level (Finance must not decide).
+    admissions: { view: true, edit: true, delete: true, manage: true, send: true, export: true, print: true },
   }),
   Finance: withPermissions({
     dashboard: { view: true },
@@ -133,6 +137,9 @@ export const roleTemplates: Record<Exclude<AppRole, "Custom">, PermissionMap> = 
     billingDocuments: { view: true, create: true, edit: true, print: true, send: true },
     legalDocuments: { view: true, create: true, edit: true, print: true, send: true },
     reports: { view: true, print: true },
+    // Payment administration only — NOT manage (settings/accept/decline).
+    // Future verify/reject/waive → admissions.edit; accept/decline → manage + Owner/Admin.
+    admissions: { view: true, edit: true, send: true, export: true, print: true },
   }),
   Teacher: withPermissions({
     dashboard: { view: true },
