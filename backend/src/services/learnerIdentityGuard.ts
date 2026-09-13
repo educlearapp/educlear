@@ -1,4 +1,7 @@
+import type { Prisma, PrismaClient } from "@prisma/client";
 import { prisma } from "../prisma";
+
+type Db = PrismaClient | Prisma.TransactionClient;
 
 export type LearnerIdentityMatchReason = "idNumber" | "name+dob";
 
@@ -81,7 +84,9 @@ export async function findDuplicateLearnerInSchool(input: {
   lastName?: string | null;
   birthDate?: Date | string | null;
   excludeLearnerId?: string | null;
+  db?: Db;
 }): Promise<DuplicateLearnerMatch | null> {
+  const db = input.db ?? prisma;
   const schoolId = String(input.schoolId || "").trim();
   if (!schoolId) {
     throw new Error("schoolId is required for duplicate learner detection");
@@ -109,7 +114,7 @@ export async function findDuplicateLearnerInSchool(input: {
   } as const;
 
   if (isUsableLearnerIdNumber(idNumber)) {
-    const rows = await prisma.learner.findMany({
+    const rows = await db.learner.findMany({
       where: {
         schoolId,
         ...(excludeId ? { id: { not: excludeId } } : {}),
@@ -122,7 +127,7 @@ export async function findDuplicateLearnerInSchool(input: {
   }
 
   if (firstName && lastName && dob) {
-    const rows = await prisma.learner.findMany({
+    const rows = await db.learner.findMany({
       where: {
         schoolId,
         ...(excludeId ? { id: { not: excludeId } } : {}),

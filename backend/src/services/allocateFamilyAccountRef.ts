@@ -1,4 +1,7 @@
+import type { Prisma, PrismaClient } from "@prisma/client";
 import { prisma } from "../prisma";
+
+type Db = PrismaClient | Prisma.TransactionClient;
 import { isKidESysSourceAccountRef } from "./daSilvaMigration/ageAnalysisParser";
 import { readOfficialBillingAccountRefs } from "./officialBillingAccountRef";
 import { readSchoolLedger } from "../utils/billingLedgerStore";
@@ -33,7 +36,8 @@ export function parseAccountRefSuffix(prefix: string, accountRef: string): numbe
 /** Collect occupied refs for a surname prefix from all authoritative finance sources. */
 export async function collectOccupiedAccountRefsForPrefix(
   schoolId: string,
-  prefix: string
+  prefix: string,
+  db: Db = prisma
 ): Promise<Set<string>> {
   const sid = String(schoolId || "").trim();
   const upperPrefix = normalisePrefix(prefix);
@@ -41,7 +45,7 @@ export async function collectOccupiedAccountRefsForPrefix(
 
   if (!sid || !upperPrefix) return occupied;
 
-  const familyAccounts = await prisma.familyAccount.findMany({
+  const familyAccounts = await db.familyAccount.findMany({
     where: {
       schoolId: sid,
       OR: [
@@ -121,7 +125,8 @@ function isPrismaUniqueViolation(error: unknown): boolean {
  */
 export async function allocateFamilyAccountRef(
   schoolId: string,
-  surname: string
+  surname: string,
+  db: Db = prisma
 ): Promise<string> {
   const sid = String(schoolId || "").trim();
   const prefix = getSurnamePrefix(surname);
@@ -130,11 +135,11 @@ export async function allocateFamilyAccountRef(
   let lastCandidate = "";
 
   for (let attempt = 0; attempt < MAX_ALLOCATION_ATTEMPTS; attempt++) {
-    const occupied = await collectOccupiedAccountRefsForPrefix(sid, prefix);
+    const occupied = await collectOccupiedAccountRefsForPrefix(sid, prefix, db);
     const candidate = computeNextAvailableAccountRef(prefix, occupied);
     lastCandidate = candidate;
 
-    const existingFamily = await prisma.familyAccount.findFirst({
+    const existingFamily = await db.familyAccount.findFirst({
       where: {
         schoolId: sid,
         OR: [{ accountRef: candidate }, { accountNo: candidate }],
