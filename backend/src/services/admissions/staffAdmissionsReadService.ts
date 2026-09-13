@@ -13,6 +13,7 @@ import fs from "fs/promises";
 import {
   resolveLocalAdmissionsDocumentFile,
 } from "./admissionsDocumentService";
+import { buildPostEnrolmentSummary, type PostEnrolmentSummary } from "./admissionsPostEnrolmentService";
 import { PublicAdmissionsError } from "./resolvePublicAdmissions";
 
 export class StaffAdmissionsError extends Error {
@@ -129,6 +130,7 @@ export type PromotedLearnerSummary = {
   lastName: string;
   admissionNo: string | null;
   grade: string;
+  className: string | null;
 };
 
 export type StaffApplicationListItem = {
@@ -470,6 +472,7 @@ export type StaffApplicationDetail = {
   promotedLearnerId: string | null;
   promotedFamilyAccountId: string | null;
   promotedLearner: PromotedLearnerSummary | null;
+  postEnrolment: PostEnrolmentSummary | null;
   learner: {
     firstName: string;
     lastName: string;
@@ -602,6 +605,7 @@ export async function getStaffApplicationDetail(
           lastName: true,
           admissionNo: true,
           grade: true,
+          className: true,
         },
       },
       learnerCandidate: true,
@@ -639,6 +643,17 @@ export async function getStaffApplicationDetail(
 
   const lc = app.learnerCandidate;
 
+  const postEnrolment =
+    app.promotedLearnerId
+      ? await buildPostEnrolmentSummary(prisma, sid, {
+          applicationId: app.id,
+          promotedLearnerId: app.promotedLearnerId,
+          promotedFamilyAccountId: app.promotedFamilyAccountId,
+          feeRequired: Boolean(app.feeRequired),
+          paymentStatus: app.feeRecord?.paymentStatus ?? null,
+        })
+      : null;
+
   return {
     id: app.id,
     publicAccessId: app.publicAccessId,
@@ -671,8 +686,10 @@ export async function getStaffApplicationDetail(
           lastName: app.promotedLearner.lastName,
           admissionNo: app.promotedLearner.admissionNo,
           grade: app.promotedLearner.grade,
+          className: app.promotedLearner.className,
         }
       : null,
+    postEnrolment,
     learner: lc
       ? {
           firstName: lc.firstName,

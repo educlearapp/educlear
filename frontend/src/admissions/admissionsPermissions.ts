@@ -24,3 +24,27 @@ export function canConvertAdmissionApplication(user = getSchoolSessionUser()): b
   if (!hasPermission(user, "learners", "create")) return false;
   return isOwnerOrAdmin(user);
 }
+
+export function canOpenLearnerProfile(user = getSchoolSessionUser()): boolean {
+  return hasPermission(user, "learners", "view");
+}
+
+export function canEditLearnerPlacement(user = getSchoolSessionUser()): boolean {
+  return hasPermission(user, "learners", "edit");
+}
+
+export function canViewBillingPlan(user = getSchoolSessionUser()): boolean {
+  return hasPermission(user, "billingPlans", "view") || hasPermission(user, "learners", "view");
+}
+
+export function canEditBillingPlan(user = getSchoolSessionUser()): boolean {
+  return hasPermission(user, "billingPlans", "edit");
+}
+
+export function canViewParentPortalGuidance(user = getSchoolSessionUser()): boolean {
+  return hasPermission(user, "parents", "view");
+}
+
+export function canViewClassrooms(user = getSchoolSessionUser()): boolean {
+  return hasPermission(user, "classrooms", "view");
+}

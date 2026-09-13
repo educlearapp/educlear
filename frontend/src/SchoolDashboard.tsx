@@ -1982,8 +1982,22 @@ const [selectedLearnerReport, setSelectedLearnerReport] = useState<any>(null);
 
   const openLearnerFromAdmissions = (
     learnerId: string,
-    summary?: { firstName: string; lastName: string; grade: string; admissionNo: string | null }
+    summary?: {
+      firstName: string;
+      lastName: string;
+      grade: string;
+      admissionNo: string | null;
+      className?: string | null;
+    },
+    options?: { initialTab?: "general" | "billing" }
   ) => {
+    if (options?.initialTab) {
+      try {
+        localStorage.setItem("manageLearnerInitialTab", options.initialTab);
+      } catch {
+        // ignore
+      }
+    }
     const found = registrationLearners.find((l) => String(l?.id) === learnerId);
     if (found) {
       openLearnerProfile(found);
@@ -1994,6 +2008,7 @@ const [selectedLearnerReport, setSelectedLearnerReport] = useState<any>(null);
       firstName: summary?.firstName || "",
       lastName: summary?.lastName || "",
       grade: summary?.grade || "",
+      className: summary?.className || "",
       admissionNo: summary?.admissionNo || null,
     });
   };
@@ -16336,6 +16351,8 @@ const [invoiceRunEmailDraft, setInvoiceRunEmailDraft] = useState({
               setActivePage("admissions");
             }}
             onOpenLearner={openLearnerFromAdmissions}
+            onOpenParentPortal={() => go("parentPortal")}
+            onOpenClassrooms={() => go("classrooms")}
           />
         ) : (
           <AdmissionsListPage
