@@ -5,6 +5,9 @@ import {
   type ConversionDecisionDto,
   type ConversionPreflight,
   type ConversionResult,
+  type ReactivationDecisionDto,
+  type ReactivationPreflight,
+  type ReactivationResult,
   type ListStaffApplicationsQuery,
   type ListStaffApplicationsResult,
   type StaffApplicationDetail,
@@ -153,4 +156,33 @@ export function acceptApplication(applicationId: string) {
 
 export function rejectApplication(applicationId: string, payload: { reason?: string } = {}) {
   return workflowPost(applicationId, "reject", payload);
+}
+
+
+export async function getReactivationPreflight(
+  applicationId: string
+): Promise<ReactivationPreflight> {
+  const data = await staffRequest<ApiEnvelope & { preflight?: ReactivationPreflight }>(
+    "GET",
+    `/api/admissions/applications/${encodeURIComponent(applicationId)}/reactivation-preflight`
+  );
+  if (!data.preflight) {
+    throw new Error("Missing reactivation preflight in response");
+  }
+  return data.preflight;
+}
+
+export async function reactivateHistoricalLearner(
+  applicationId: string,
+  dto: ReactivationDecisionDto
+): Promise<ReactivationResult> {
+  const data = await staffRequest<ApiEnvelope & ReactivationResult>(
+    "POST",
+    `/api/admissions/applications/${encodeURIComponent(applicationId)}/reactivate-historical-learner`,
+    dto as unknown as Record<string, unknown>
+  );
+  if (!data.learnerId) {
+    throw new Error("Missing reactivation result");
+  }
+  return data as ReactivationResult;
 }

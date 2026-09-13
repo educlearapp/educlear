@@ -2,6 +2,7 @@ import { useCallback, useEffect, useState } from "react";
 import AdmissionsStatusBadge from "./AdmissionsStatusBadge";
 import EnrolLearnerModal from "./EnrolLearnerModal";
 import PostEnrolmentChecklist from "./PostEnrolmentChecklist";
+import ReactivateHistoricalLearnerModal from "./ReactivateHistoricalLearnerModal";
 import {
   canConvertAdmissionApplication,
   canEditAdmissionsWorkflow,
@@ -66,6 +67,7 @@ export default function AdmissionsDetailPage({
   const [actionError, setActionError] = useState("");
   const [actionBusy, setActionBusy] = useState(false);
   const [showEnrolModal, setShowEnrolModal] = useState(false);
+  const [showReactivateModal, setShowReactivateModal] = useState(false);
 
   const canEdit = canEditAdmissionsWorkflow();
   const canDecide = canManageAdmissionsDecisions();
@@ -375,6 +377,24 @@ export default function AdmissionsDetailPage({
           onClose={() => setShowEnrolModal(false)}
           onSuccess={() => {
             setShowEnrolModal(false);
+            void loadDetail();
+          }}
+          onOpenLearner={onOpenLearner}
+          onRequestHistoricalReactivate={() => {
+            setShowEnrolModal(false);
+            setShowReactivateModal(true);
+          }}
+        />
+      ) : null}
+
+      {showReactivateModal ? (
+        <ReactivateHistoricalLearnerModal
+          key={`reactivate-${applicationId}`}
+          applicationId={applicationId}
+          schoolId={schoolId}
+          onClose={() => setShowReactivateModal(false)}
+          onSuccess={() => {
+            setShowReactivateModal(false);
             void loadDetail();
           }}
           onOpenLearner={onOpenLearner}

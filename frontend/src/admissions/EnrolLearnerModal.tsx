@@ -22,6 +22,8 @@ type Props = {
   onClose: () => void;
   onSuccess: () => void;
   onOpenLearner?: (learnerId: string) => void;
+  /** OA-05B — open dedicated historical reactivation flow instead of dead blocker. */
+  onRequestHistoricalReactivate?: () => void;
 };
 
 type Step = "loading" | "decisions" | "confirm" | "success";
@@ -46,6 +48,7 @@ export default function EnrolLearnerModal({
   onClose,
   onSuccess,
   onOpenLearner,
+  onRequestHistoricalReactivate,
 }: Props) {
   const [step, setStep] = useState<Step>("loading");
   const [preflight, setPreflight] = useState<ConversionPreflight | null>(null);
@@ -374,17 +377,31 @@ export default function EnrolLearnerModal({
               <p>Requested grade: {preflight.learner.requestedGrade || "—"}</p>
               <p>Intake: {preflight.learner.intakeYear}</p>
               {preflight.learner.duplicate ? (
-                <p className="admissions-staff-blocker" role="alert">
-                  {preflight.learner.duplicate.blockerCode === "HISTORICAL_LEARNER_REQUIRES_REACTIVATION"
-                    ? "HISTORICAL LEARNER FOUND — "
-                    : preflight.learner.duplicate.blockerCode === "LEARNER_IDENTITY_CONFLICT"
-                      ? "EXISTING LEARNER FOUND — "
-                      : "POSSIBLE DUPLICATE — "}
-                  {describeBlockerCode(
-                    preflight.learner.duplicate.blockerCode,
-                    "Conversion is blocked."
-                  )}
-                </p>
+                <div className="admissions-staff-blocker" role="alert">
+                  <p style={{ margin: "0 0 8px" }}>
+                    {preflight.learner.duplicate.blockerCode ===
+                    "HISTORICAL_LEARNER_REQUIRES_REACTIVATION"
+                      ? "HISTORICAL LEARNER FOUND — "
+                      : preflight.learner.duplicate.blockerCode === "LEARNER_IDENTITY_CONFLICT"
+                        ? "EXISTING LEARNER FOUND — "
+                        : "POSSIBLE DUPLICATE — "}
+                    {describeBlockerCode(
+                      preflight.learner.duplicate.blockerCode,
+                      "Conversion is blocked."
+                    )}
+                  </p>
+                  {preflight.learner.duplicate.blockerCode ===
+                    "HISTORICAL_LEARNER_REQUIRES_REACTIVATION" &&
+                  onRequestHistoricalReactivate ? (
+                    <button
+                      type="button"
+                      className="admissions-staff-btn admissions-staff-btn--gold"
+                      onClick={onRequestHistoricalReactivate}
+                    >
+                      Reactivate Existing Learner
+                    </button>
+                  ) : null}
+                </div>
               ) : null}
             </section>
 
