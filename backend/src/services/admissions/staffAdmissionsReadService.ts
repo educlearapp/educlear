@@ -123,6 +123,14 @@ function toStaffDocumentMeta(doc: {
   };
 }
 
+export type PromotedLearnerSummary = {
+  id: string;
+  firstName: string;
+  lastName: string;
+  admissionNo: string | null;
+  grade: string;
+};
+
 export type StaffApplicationListItem = {
   id: string;
   applicationNumber: string | null;
@@ -144,6 +152,8 @@ export type StaffApplicationListItem = {
   proofUploaded: boolean;
   documentsComplete: boolean;
   missingDocumentCount: number;
+  promotedLearnerId: string | null;
+  promotedFamilyAccountId: string | null;
 };
 
 export type ListStaffApplicationsQuery = {
@@ -359,6 +369,8 @@ export async function listStaffApplications(
         createdAt: true,
         intakeYear: true,
         requestedGrade: true,
+        promotedLearnerId: true,
+        promotedFamilyAccountId: true,
         feeRequired: true,
         feeAmount: true,
         feeCurrency: true,
@@ -424,6 +436,8 @@ export async function listStaffApplications(
       proofUploaded,
       documentsComplete: completeness.documentsComplete,
       missingDocumentCount: completeness.missingDocumentTypes.length,
+      promotedLearnerId: row.promotedLearnerId,
+      promotedFamilyAccountId: row.promotedFamilyAccountId,
     };
   });
 
@@ -453,6 +467,9 @@ export type StaffApplicationDetail = {
   declarationsAcceptedAt: string | null;
   privacyNoticeVersion: string | null;
   statusReason: string | null;
+  promotedLearnerId: string | null;
+  promotedFamilyAccountId: string | null;
+  promotedLearner: PromotedLearnerSummary | null;
   learner: {
     firstName: string;
     lastName: string;
@@ -578,6 +595,15 @@ export async function getStaffApplicationDetail(
   const app = await prisma.admissionApplication.findFirst({
     where: { id: appId, schoolId: sid },
     include: {
+      promotedLearner: {
+        select: {
+          id: true,
+          firstName: true,
+          lastName: true,
+          admissionNo: true,
+          grade: true,
+        },
+      },
       learnerCandidate: true,
       guardians: { orderBy: [{ isPrimary: "desc" }, { sortOrder: "asc" }] },
       answers: { orderBy: { createdAt: "asc" } },
@@ -636,6 +662,17 @@ export async function getStaffApplicationDetail(
     declarationsAcceptedAt: iso(app.declarationsAcceptedAt),
     privacyNoticeVersion: app.privacyNoticeVersion,
     statusReason: app.statusReason,
+    promotedLearnerId: app.promotedLearnerId,
+    promotedFamilyAccountId: app.promotedFamilyAccountId,
+    promotedLearner: app.promotedLearner
+      ? {
+          id: app.promotedLearner.id,
+          firstName: app.promotedLearner.firstName,
+          lastName: app.promotedLearner.lastName,
+          admissionNo: app.promotedLearner.admissionNo,
+          grade: app.promotedLearner.grade,
+        }
+      : null,
     learner: lc
       ? {
           firstName: lc.firstName,
