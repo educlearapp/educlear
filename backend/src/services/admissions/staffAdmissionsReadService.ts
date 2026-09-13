@@ -18,11 +18,18 @@ import { PublicAdmissionsError } from "./resolvePublicAdmissions";
 export class StaffAdmissionsError extends Error {
   readonly statusCode: number;
   readonly code: string;
-  constructor(message: string, statusCode: number, code: string) {
+  readonly details?: Array<{ field: string; message: string }>;
+  constructor(
+    message: string,
+    statusCode: number,
+    code: string,
+    details?: Array<{ field: string; message: string }>
+  ) {
     super(message);
     this.name = "StaffAdmissionsError";
     this.statusCode = statusCode;
     this.code = code;
+    this.details = details;
   }
 }
 
