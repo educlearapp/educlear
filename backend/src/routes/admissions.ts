@@ -34,6 +34,10 @@ import {
   type ConversionActor,
 } from "../services/admissions/admissionsConversionService";
 import {
+  getReactivationPreflight,
+  reactivateHistoricalLearnerForApplication,
+} from "../services/admissions/admissionsHistoricalReactivationService";
+import {
   acceptAdmissionApplication,
   rejectAdmissionApplication,
   rejectAdmissionProofOfPayment,
@@ -525,6 +529,56 @@ router.post(
       return res.json({ success: true, ...result });
     } catch (err) {
       return sendStaffAdmissionsError(res, err, "Failed to convert admissions application");
+    }
+  }
+);
+
+
+/**
+ * GET /api/admissions/applications/:applicationId/reactivation-preflight
+ * OA-05B — read-only historical reactivation preview (no canonical writes).
+ */
+router.get(
+  "/applications/:applicationId/reactivation-preflight",
+  requireAdmissionsSettingsAuth("manage"),
+  async (req: AdmissionsSettingsAuthRequest, res) => {
+    try {
+      const actor = requireConversionAuth(req, res);
+      if (!actor) return;
+      const preflight = await getReactivationPreflight(
+        prisma,
+        actor,
+        String(req.params.applicationId || "")
+      );
+      res.setHeader("Cache-Control", "no-store");
+      return res.json({ success: true, preflight });
+    } catch (err) {
+      return sendStaffAdmissionsError(res, err, "Failed to load reactivation preflight");
+    }
+  }
+);
+
+/**
+ * POST /api/admissions/applications/:applicationId/reactivate-historical-learner
+ * OA-05B — explicit ACCEPTED → reactivate historical learner in one transaction.
+ */
+router.post(
+  "/applications/:applicationId/reactivate-historical-learner",
+  requireAdmissionsSettingsAuth("manage"),
+  async (req: AdmissionsSettingsAuthRequest, res) => {
+    try {
+      const actor = requireConversionAuth(req, res);
+      if (!actor) return;
+      const result = await reactivateHistoricalLearnerForApplication(
+        prisma,
+        actor,
+        String(req.params.applicationId || ""),
+        bodyObject(req)
+      );
+      res.setHeader("Cache-Control", "no-store");
+      return res.json({ success: true, ...result });
+    } catch (err) {
+      return sendStaffAdmissionsError(res, err, "Failed to reactivate historical learner");
     }
   }
 );

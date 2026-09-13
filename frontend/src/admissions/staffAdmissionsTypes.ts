@@ -383,3 +383,154 @@ export class StaffAdmissionsApiError extends Error {
     this.code = code;
   }
 }
+
+
+/** OA-05B — historical learner reactivation */
+export type ReactivationFamilyMode = "KEEP_EXISTING" | "USE_EXISTING";
+
+export type ReactivationDecisionDto = {
+  learnerId: string;
+  family: {
+    mode: ReactivationFamilyMode;
+    familyAccountId?: string;
+    acknowledgeHistoricalFamilyChange?: boolean;
+  };
+  guardians: Array<{
+    admissionGuardianId: string;
+    mode: GuardianDecisionMode;
+    existingParentId?: string;
+    confirmCreateDespiteMatch?: boolean;
+  }>;
+  placement: {
+    grade: string;
+    className?: string | null;
+  };
+  acknowledgeExistingBillingPlan?: boolean;
+};
+
+export type ReactivationPreflight = {
+  application: {
+    id: string;
+    applicationNumber: string | null;
+    status: string;
+    alreadyEnrolled: boolean;
+    promotedLearnerId: string | null;
+    promotedFamilyAccountId: string | null;
+    intakeYear: number;
+    requestedGrade: string | null;
+  };
+  historicalLearner: null | {
+    id: string;
+    firstName: string;
+    lastName: string;
+    admissionNo: string | null;
+    birthDate: string | null;
+    historicalGrade: string;
+    historicalClassName: string | null;
+    enrollmentStatus: string;
+  };
+  match: null | {
+    strength: "STRONG";
+    matchReason: "idNumber" | "name+dob";
+    caution: "EXACT_ID" | "NAME_DOB";
+  };
+  currentFamily: null | {
+    familyAccountId: string;
+    accountRef: string;
+    accountNo: string | null;
+    familyName: string;
+  };
+  finance: {
+    balanceRand: number | null;
+    balanceStatus: "POSITIVE" | "ZERO" | "CREDIT" | "UNKNOWN";
+    warningCode: string | null;
+    warningMessage: string | null;
+  };
+  billingPlan: {
+    lineCount: number;
+    summary: string[];
+    warningCode: string | null;
+    warningMessage: string | null;
+    requiresAcknowledgeExistingBillingPlan: boolean;
+  };
+  existingParentLinks: Array<{
+    parentId: string;
+    firstName: string;
+    surname: string;
+    relationship: string | null;
+    isPrimary: boolean;
+    isPayingPerson: boolean;
+  }>;
+  preserveExistingParentLinksWarning: { code: string; message: string };
+  guardians: Array<{
+    admissionGuardianId: string;
+    firstName: string;
+    surname: string;
+    relationship: string | null;
+    hasIdNumber: boolean;
+    hasEmail: boolean;
+    hasCellNo: boolean;
+    isPrimary: boolean;
+    isPayingPerson: boolean;
+    identityDecision: string | null;
+    matchStrength: "STRONG" | "PROBABLE" | "AMBIGUOUS" | "NONE";
+    candidates: Array<{
+      parentId: string;
+      firstName: string;
+      surname: string;
+      maskedIdNumber: string;
+      maskedCellphone: string;
+      maskedEmail: string;
+      matchReasons: string[];
+      familyAccountId: string | null;
+    }>;
+    suggestedMode: GuardianDecisionMode | null;
+    suggestedExistingParentId: string | null;
+    alreadyLinkedToLearner: boolean;
+  }>;
+  family: {
+    defaultMode: ReactivationFamilyMode | null;
+    allowedModes: ReactivationFamilyMode[];
+    createNewSupported: false;
+    candidates: Array<{
+      familyAccountId: string;
+      accountRef: string;
+      familyName: string;
+      reason: string;
+      strength: "STRONG" | "PROBABLE";
+      isCurrent: boolean;
+    }>;
+    requiresAcknowledgeHistoricalFamilyChange: boolean;
+  };
+  placement: {
+    historicalGrade: string | null;
+    historicalClassName: string | null;
+    requestedGrade: string | null;
+    proposedGrade: string | null;
+    classNameRequired: false;
+    mustConfirmGrade: true;
+  };
+  identityWarnings: Array<{ code: string; message: string }>;
+  blockers: Array<{ code: string; message: string }>;
+  warnings: Array<{ code: string; message: string }>;
+  canReactivate: boolean;
+};
+
+export type ReactivationResult = {
+  action: "reactivate_historical_learner";
+  idempotent: boolean;
+  learnerId: string;
+  familyAccountId: string;
+  admissionNo: string | null;
+  accountRef: string | null;
+  familyMode: "kept" | "switched";
+  guardianOutcomes: Array<{
+    admissionGuardianId: string;
+    mode: "created" | "linked" | "already_linked";
+    parentId: string;
+  }>;
+  grade: string;
+  className: string | null;
+  financeBaselineRegistered: boolean;
+  financeBaselineWarning?: "FINANCE_BASELINE_SYNC_FAILED";
+};
