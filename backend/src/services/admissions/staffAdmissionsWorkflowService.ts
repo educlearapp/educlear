@@ -11,6 +11,10 @@ import type {
 } from "@prisma/client";
 
 import {
+  findInformationSuppliedForCycle,
+  getCurrentInfoRequestCycle,
+} from "./applicantInfoResponseService";
+import {
   canAdministerAdmissionPayment,
   canMakeAdmissionDecision,
 } from "./admissionsDecisionAuth";
@@ -395,6 +399,29 @@ export async function resumeApplicationReview(
     if (locked.status === "UNDER_REVIEW") {
       return { idempotent: true };
     }
+
+    const cycle = await getCurrentInfoRequestCycle(tx, actor.schoolId, locked.id);
+    if (!cycle) {
+      throw new StaffAdmissionsError(
+        "No active information request cycle found",
+        409,
+        "NO_INFO_REQUEST_CYCLE"
+      );
+    }
+    const supplied = await findInformationSuppliedForCycle(
+      tx,
+      actor.schoolId,
+      locked.id,
+      cycle.historyId
+    );
+    if (!supplied) {
+      throw new StaffAdmissionsError(
+        "Applicant has not marked information as supplied for the current request",
+        409,
+        "APPLICANT_RESPONSE_REQUIRED"
+      );
+    }
+
     await writeStatusChange(tx, {
       schoolId: actor.schoolId,
       applicationId: locked.id,
@@ -403,6 +430,10 @@ export async function resumeApplicationReview(
       actorUserId: actor.userId,
       reason: "Staff resumed review after information request",
       eventType: "REVIEW_RESUMED",
+      metadataJson: {
+        infoRequestHistoryId: cycle.historyId,
+        informationSuppliedEventId: supplied.id,
+      },
     });
     return { idempotent: false };
   });

@@ -75,6 +75,8 @@ export type CreateDraftApplicationInput = {
 export type ApplicantApplicationView = {
   publicAccessId: string;
   status: string;
+  /** Applicant-facing staff message (e.g. info request / decline reason). Never staff internal notes. */
+  statusReason: string | null;
   intakeYear: number;
   requestedGrade: string | null;
   applicationNumber: string | null;
@@ -144,6 +146,7 @@ function dec(value: Prisma.Decimal | null | undefined): string | null {
 export function serializeApplicantApplication(app: {
   publicAccessId: string;
   status: string;
+  statusReason?: string | null;
   intakeYear: number;
   requestedGrade: string | null;
   applicationNumber: string | null;
@@ -207,6 +210,7 @@ export function serializeApplicantApplication(app: {
   return {
     publicAccessId: app.publicAccessId,
     status: app.status,
+    statusReason: app.statusReason ?? null,
     intakeYear: app.intakeYear,
     requestedGrade: app.requestedGrade,
     applicationNumber: app.applicationNumber,
@@ -416,7 +420,9 @@ export async function loadOwnedApplicationForApplicant(
 }
 
 /**
- * PATCH draft — allow-listed fields only. Blocked once status !== DRAFT.
+ * PATCH allow-listed applicant fields.
+ * Editable while DRAFT or INFO_REQUESTED (OA-03H response loop).
+ * Never mutates status / statusReason / payment / staff fields.
  */
 export async function updateDraftApplication(
   prisma: PrismaClient,
@@ -440,13 +446,15 @@ export async function updateDraftApplication(
     now
   );
 
-  if (app.status !== "DRAFT") {
+  if (app.status !== "DRAFT" && app.status !== "INFO_REQUESTED") {
     throw new PublicAdmissionsError(
-      "Submitted applications cannot be edited",
+      "Application cannot be edited in its current state",
       409,
       "APPLICATION_NOT_EDITABLE"
     );
   }
+
+  const respondingToInfoRequest = app.status === "INFO_REQUESTED";
 
   const requestedGrade =
     raw.requestedGrade !== undefined ? clean(raw.requestedGrade) || null : undefined;
@@ -474,6 +482,12 @@ export async function updateDraftApplication(
   const declarationsAccepted =
     raw.declarationsAccepted === undefined ? undefined : Boolean(raw.declarationsAccepted);
 
+  // Consent provenance: during INFO_REQUESTED do not overwrite existing acceptance timestamps.
+  const applyPrivacyAccept =
+    privacyAccepted === true && (!respondingToInfoRequest || !app.privacyAcceptedAt);
+  const applyDeclarationsAccept =
+    declarationsAccepted === true && (!respondingToInfoRequest || !app.declarationsAcceptedAt);
+
   const updated = await prisma.$transaction(async (tx) => {
     await tx.admissionApplication.update({
       where: { id: app.id },
@@ -492,14 +506,14 @@ export async function updateDraftApplication(
         ...(raw.declaredExistingFamily !== undefined
           ? { declaredExistingFamily: Boolean(raw.declaredExistingFamily) }
           : {}),
-        ...(privacyAccepted === true
+        ...(applyPrivacyAccept
           ? {
               privacyAcceptedAt: now,
               privacyNoticeVersion:
                 clean(raw.privacyNoticeVersion) || settings.privacyNoticeVersion || app.privacyNoticeVersion,
             }
           : {}),
-        ...(declarationsAccepted === true ? { declarationsAcceptedAt: now } : {}),
+        ...(applyDeclarationsAccept ? { declarationsAcceptedAt: now } : {}),
         lastApplicantActivityAt: now,
       },
     });
@@ -590,7 +604,9 @@ export async function updateDraftApplication(
       data: {
         schoolId,
         applicationId: app.id,
-        eventType: "APPLICATION_DRAFT_UPDATED",
+        eventType: respondingToInfoRequest
+          ? "APPLICATION_UPDATED_WHILE_INFO_REQUESTED"
+          : "APPLICATION_DRAFT_UPDATED",
         actorType: "APPLICANT",
         metadataJson: { keys: Object.keys(raw) },
       },

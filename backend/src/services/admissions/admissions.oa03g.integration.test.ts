@@ -6,6 +6,7 @@ import "dotenv/config";
 import assert from "assert";
 import { PrismaClient } from "@prisma/client";
 
+import { markInformationSupplied } from "./applicantInfoResponseService";
 import { uploadApplicantDocument, uploadProofOfPayment } from "./admissionsDocumentService";
 import {
   createDraftApplication,
@@ -240,6 +241,15 @@ async function main() {
     assert.strictEqual(info.application.statusReason, "Please upload a clearer birth certificate");
     const notes = await prisma.admissionStaffNote.findMany({ where: { applicationId: app.appId } });
     assert.ok(notes.some((n) => n.body === "Internal: blurry scan"));
+
+    // Resume blocked until applicant marks information supplied (OA-03H)
+    await assert.rejects(
+      () => resumeApplicationReview(prisma, financeA, app.appId),
+      (err: unknown) =>
+        err instanceof StaffAdmissionsError && err.code === "APPLICANT_RESPONSE_REQUIRED"
+    );
+
+    await markInformationSupplied(prisma, a.slug, app.accessId, app.token);
 
     // Resume review
     const resumed = await resumeApplicationReview(prisma, financeA, app.appId);
