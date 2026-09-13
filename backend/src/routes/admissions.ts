@@ -11,6 +11,7 @@ import {
 } from "../middleware/requireAdmissionsSettingsAuth";
 import { prisma } from "../prisma";
 import {
+  canMakeAdmissionDecision,
   canViewAdmissionsMedicalDetails,
   canViewAdmissionsStaffNotes,
 } from "../services/admissions/admissionsDecisionAuth";
@@ -27,6 +28,11 @@ import {
   openStaffApplicationDocumentForDownload,
   StaffAdmissionsError,
 } from "../services/admissions/staffAdmissionsReadService";
+import {
+  convertAcceptedApplicationToLearner,
+  getConversionPreflight,
+  type ConversionActor,
+} from "../services/admissions/admissionsConversionService";
 import {
   acceptAdmissionApplication,
   rejectAdmissionApplication,
@@ -94,6 +100,49 @@ function workflowActorFromReq(req: AdmissionsSettingsAuthRequest): StaffWorkflow
     hasAdmissionsEdit: hasPermission(permUser, "admissions", "edit"),
     hasAdmissionsManage: hasPermission(permUser, "admissions", "manage"),
   };
+}
+
+/** OA-04B conversion: admissions.manage + learners.create + Owner/Admin. */
+function conversionActorFromReq(req: AdmissionsSettingsAuthRequest): ConversionActor {
+  const auth = req.admissionsSettingsAuth!;
+  const permissions = resolveStoredPermissions(auth.appRole, auth.permissions);
+  const permUser = { appRole: auth.appRole, isActive: true, permissions };
+  return {
+    userId: auth.userId,
+    schoolId: auth.authorizedSchoolId,
+    appRole: auth.appRole,
+    hasAdmissionsManage: hasPermission(permUser, "admissions", "manage"),
+    hasLearnersCreate: hasPermission(permUser, "learners", "create"),
+  };
+}
+
+function requireConversionAuth(req: AdmissionsSettingsAuthRequest, res: import("express").Response): ConversionActor | null {
+  const actor = conversionActorFromReq(req);
+  if (!actor.hasAdmissionsManage) {
+    res.status(403).json({
+      success: false,
+      error: "Admissions manage permission required for conversion",
+      code: "ADMISSIONS_FORBIDDEN",
+    });
+    return null;
+  }
+  if (!actor.hasLearnersCreate) {
+    res.status(403).json({
+      success: false,
+      error: "Learners create permission required for conversion",
+      code: "LEARNERS_CREATE_FORBIDDEN",
+    });
+    return null;
+  }
+  if (!canMakeAdmissionDecision(actor.appRole)) {
+    res.status(403).json({
+      success: false,
+      error: "Only Owner/Admin may convert accepted applications",
+      code: "ADMISSIONS_DECISION_FORBIDDEN",
+    });
+    return null;
+  }
+  return actor;
 }
 
 function bodyObject(req: import("express").Request): Record<string, unknown> {
@@ -427,6 +476,55 @@ router.post(
       });
     } catch (err) {
       return sendStaffAdmissionsError(res, err, "Failed to reject admissions application");
+    }
+  }
+);
+
+/**
+ * GET /api/admissions/applications/:applicationId/conversion-preflight
+ * OA-04B — read-only conversion preview (no canonical writes).
+ */
+router.get(
+  "/applications/:applicationId/conversion-preflight",
+  requireAdmissionsSettingsAuth("manage"),
+  async (req: AdmissionsSettingsAuthRequest, res) => {
+    try {
+      const actor = requireConversionAuth(req, res);
+      if (!actor) return;
+      const preflight = await getConversionPreflight(
+        prisma,
+        actor,
+        String(req.params.applicationId || "")
+      );
+      res.setHeader("Cache-Control", "no-store");
+      return res.json({ success: true, preflight });
+    } catch (err) {
+      return sendStaffAdmissionsError(res, err, "Failed to load conversion preflight");
+    }
+  }
+);
+
+/**
+ * POST /api/admissions/applications/:applicationId/convert-to-learner
+ * OA-04B — explicit ACCEPTED → canonical enrolment. Status remains ACCEPTED.
+ */
+router.post(
+  "/applications/:applicationId/convert-to-learner",
+  requireAdmissionsSettingsAuth("manage"),
+  async (req: AdmissionsSettingsAuthRequest, res) => {
+    try {
+      const actor = requireConversionAuth(req, res);
+      if (!actor) return;
+      const result = await convertAcceptedApplicationToLearner(
+        prisma,
+        actor,
+        String(req.params.applicationId || ""),
+        bodyObject(req)
+      );
+      res.setHeader("Cache-Control", "no-store");
+      return res.json({ success: true, ...result });
+    } catch (err) {
+      return sendStaffAdmissionsError(res, err, "Failed to convert admissions application");
     }
   }
 );
