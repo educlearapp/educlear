@@ -143,6 +143,8 @@ import {
 import ParentPortal from "./ParentPortal";
 import TeacherInbox from "./teacher/TeacherInbox";
 import Registrations from "./components/registrations/Registrations";
+import AdmissionsListPage from "./admissions/AdmissionsListPage";
+import AdmissionsDetailPage from "./admissions/AdmissionsDetailPage";
 import Users from "./users/Users";
 import ManageLearner from "./learner/ManageLearner";
 import Classrooms from "./Classrooms";
@@ -240,6 +242,10 @@ type PageKey =
 
 
   | "registrations"
+
+  | "admissions"
+
+  | "admissionsDetail"
 
   | "sasamsReportUpload"
 
@@ -405,6 +411,8 @@ const MOBILE_PAGE_TITLES: Partial<Record<PageKey, string>> = {
   schoolSettings: "Settings",
   migrationCentre: "Migration Centre",
   registrations: "Registrations",
+  admissions: "Admissions",
+  admissionsDetail: "Application",
   sasamsReportUpload: "SASAMS Upload",
   parentPortal: "Parent Portal",
   teacherInbox: "Teacher Inbox",
@@ -618,6 +626,7 @@ const schoolId =
   >("general");
 
   const [manageFeeId, setManageFeeId] = useState<string | null>(null);
+  const [admissionsDetailId, setAdmissionsDetailId] = useState<string | null>(null);
 
 
 
@@ -1920,6 +1929,24 @@ const [selectedLearnerReport, setSelectedLearnerReport] = useState<any>(null);
 
 
 
+  };
+
+  const openLearnerFromAdmissions = (
+    learnerId: string,
+    summary?: { firstName: string; lastName: string; grade: string; admissionNo: string | null }
+  ) => {
+    const found = registrationLearners.find((l) => String(l?.id) === learnerId);
+    if (found) {
+      openLearnerProfile(found);
+      return;
+    }
+    openLearnerProfile({
+      id: learnerId,
+      firstName: summary?.firstName || "",
+      lastName: summary?.lastName || "",
+      grade: summary?.grade || "",
+      admissionNo: summary?.admissionNo || null,
+    });
   };
 
   useEffect(() => {
@@ -16230,6 +16257,36 @@ const [invoiceRunEmailDraft, setInvoiceRunEmailDraft] = useState({
 
         return <DashboardPackagePanel />;
 
+      case "admissions":
+        return (
+          <AdmissionsListPage
+            onOpenApplication={(applicationId) => {
+              setAdmissionsDetailId(applicationId);
+              setActivePage("admissionsDetail");
+            }}
+          />
+        );
+
+      case "admissionsDetail":
+        return admissionsDetailId ? (
+          <AdmissionsDetailPage
+            applicationId={admissionsDetailId}
+            schoolId={schoolId || ""}
+            onBack={() => {
+              setAdmissionsDetailId(null);
+              setActivePage("admissions");
+            }}
+            onOpenLearner={openLearnerFromAdmissions}
+          />
+        ) : (
+          <AdmissionsListPage
+            onOpenApplication={(applicationId) => {
+              setAdmissionsDetailId(applicationId);
+              setActivePage("admissionsDetail");
+            }}
+          />
+        );
+
       case "registrations":
 
       return (
@@ -17405,6 +17462,7 @@ return (
           {canViewAnySchoolPage(
             [
               "registrations",
+              "admissions",
               "sasamsReportUpload",
               "parentPortal",
               "teacherInbox",
@@ -17494,6 +17552,18 @@ return (
   
                 {canPage("registrations") ? (
                 <div className={`submenu-item ${activePage === "registrations" ? "active" : ""}`} onClick={() => go("registrations")}>Registrations</div>
+                ) : null}
+
+                {canPage("admissions") ? (
+                <div
+                  className={`submenu-item ${activePage === "admissions" || activePage === "admissionsDetail" ? "active" : ""}`}
+                  onClick={() => {
+                    setAdmissionsDetailId(null);
+                    go("admissions");
+                  }}
+                >
+                  Admissions
+                </div>
                 ) : null}
 
                 {canPage("sasamsReportUpload") ? (
