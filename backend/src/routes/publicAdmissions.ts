@@ -21,6 +21,7 @@ import {
   getApplicationForApplicant,
   updateDraftApplication,
 } from "../services/admissions/draftApplicationService";
+import { markInformationSupplied } from "../services/admissions/applicantInfoResponseService";
 import { getApplicantPaymentView } from "../services/admissions/paymentInstructionsService";
 import {
   getPublicAdmissionsConfig,
@@ -171,6 +172,31 @@ router.post("/applications/:publicAccessId/submit", async (req, res) => {
       paymentInstructionsAvailable: result.paymentInstructionsAvailable,
       bankConfigurationIncomplete: result.bankConfigurationIncomplete,
       // Bank details intentionally omitted from submit — use GET .../payment after submit.
+    });
+  } catch (err) {
+    return sendPublicError(res, err);
+  }
+});
+
+/**
+ * POST .../applications/:publicAccessId/information-supplied
+ * Applicant declares requested information has been supplied (OA-03H).
+ * Status remains INFO_REQUESTED — staff resume-review owns return to UNDER_REVIEW.
+ */
+router.post("/applications/:publicAccessId/information-supplied", async (req, res) => {
+  try {
+    const schoolSlug = param(req, "schoolSlug");
+    const publicAccessId = param(req, "publicAccessId");
+    const token = extractApplicantAccessToken(req);
+    const result = await markInformationSupplied(prisma, schoolSlug, publicAccessId, token);
+    res.setHeader("Cache-Control", "no-store");
+    return res.json({
+      success: true,
+      action: "information_supplied",
+      idempotent: result.idempotent,
+      informationSuppliedAt: result.informationSuppliedAt,
+      infoRequestHistoryId: result.infoRequestHistoryId,
+      application: result.application,
     });
   } catch (err) {
     return sendPublicError(res, err);
