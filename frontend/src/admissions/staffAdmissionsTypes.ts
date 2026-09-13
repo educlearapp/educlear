@@ -6,6 +6,68 @@ export type PromotedLearnerSummary = {
   lastName: string;
   admissionNo: string | null;
   grade: string;
+  className?: string | null;
+};
+
+export type PostEnrolmentSummary = {
+  learner: {
+    id: string;
+    firstName: string;
+    lastName: string;
+    admissionNo: string | null;
+    grade: string;
+    className: string | null;
+    enrollmentStatus: string;
+  };
+  family: {
+    id: string;
+    accountRef: string;
+    accountNo: string;
+    familyName: string;
+    mode: "created" | "reused" | "unknown";
+  } | null;
+  placement: {
+    status: "COMPLETE" | "ACTION_RECOMMENDED";
+    label: string;
+    grade: string;
+    className: string | null;
+  };
+  billingPlan: {
+    status: "ASSIGNED" | "REQUIRED";
+    label: string;
+    lineCount: number;
+  };
+  finance: {
+    status: "READY" | "BASELINE_MISSING" | "ACCOUNT_MISSING";
+    label: string;
+    accountRef: string | null;
+    baselinePresent: boolean | null;
+    note: string;
+  };
+  guardians: Array<{
+    parentId: string;
+    firstName: string;
+    surname: string;
+    relationship: string | null;
+    isPrimary: boolean;
+    isPayingPerson: boolean;
+    hasEmail: boolean;
+    hasCellNo: boolean;
+    portalStatus: "READY" | "ONBOARDING_REQUIRED" | "CONTACT_REQUIRED";
+    portalLabel: string;
+    onboardingStatus: string | null;
+  }>;
+  invoicing: {
+    status: "WAITING_FOR_BILLING_PLAN" | "READY_FOR_FUTURE_INVOICE_RUN";
+    label: string;
+    note: string;
+  };
+  admissionFee: {
+    required: boolean;
+    paymentStatus: string | null;
+    label: string;
+    note: string;
+  };
 };
 
 export type StaffApplicationListItem = {
@@ -78,6 +140,7 @@ export type StaffApplicationDetail = {
   promotedLearnerId: string | null;
   promotedFamilyAccountId: string | null;
   promotedLearner: PromotedLearnerSummary | null;
+  postEnrolment: PostEnrolmentSummary | null;
   learner: {
     firstName: string;
     lastName: string;

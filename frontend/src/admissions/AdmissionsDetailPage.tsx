@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from "react";
 import AdmissionsStatusBadge from "./AdmissionsStatusBadge";
 import EnrolLearnerModal from "./EnrolLearnerModal";
+import PostEnrolmentChecklist from "./PostEnrolmentChecklist";
 import {
   canConvertAdmissionApplication,
   canEditAdmissionsWorkflow,
@@ -22,7 +23,19 @@ type Props = {
   applicationId: string;
   schoolId: string;
   onBack: () => void;
-  onOpenLearner?: (learnerId: string, summary?: { firstName: string; lastName: string; grade: string; admissionNo: string | null }) => void;
+  onOpenLearner?: (
+    learnerId: string,
+    summary?: {
+      firstName: string;
+      lastName: string;
+      grade: string;
+      admissionNo: string | null;
+      className?: string | null;
+    },
+    options?: { initialTab?: "general" | "billing" }
+  ) => void;
+  onOpenParentPortal?: () => void;
+  onOpenClassrooms?: () => void;
 };
 
 function formatDate(value: string | null): string {
@@ -44,6 +57,8 @@ export default function AdmissionsDetailPage({
   schoolId,
   onBack,
   onOpenLearner,
+  onOpenParentPortal,
+  onOpenClassrooms,
 }: Props) {
   const [detail, setDetail] = useState<StaffApplicationDetail | null>(null);
   const [loading, setLoading] = useState(true);
@@ -250,6 +265,15 @@ export default function AdmissionsDetailPage({
         </div>
       ) : null}
 
+      {detail.status === "ACCEPTED" && detail.promotedLearnerId && detail.postEnrolment ? (
+        <PostEnrolmentChecklist
+          summary={detail.postEnrolment}
+          onOpenLearner={onOpenLearner}
+          onOpenParentPortal={onOpenParentPortal}
+          onOpenClassrooms={onOpenClassrooms}
+        />
+      ) : null}
+
       <div className="admissions-staff-actions">
         {canEdit && detail.status === "SUBMITTED" ? (
           <button
@@ -329,7 +353,13 @@ export default function AdmissionsDetailPage({
             type="button"
             className="admissions-staff-btn admissions-staff-btn--outline"
             onClick={() =>
-              onOpenLearner(detail.promotedLearnerId!, detail.promotedLearner ?? undefined)
+              onOpenLearner(detail.promotedLearnerId!, {
+                firstName: detail.promotedLearner?.firstName || "",
+                lastName: detail.promotedLearner?.lastName || "",
+                grade: detail.promotedLearner?.grade || "",
+                admissionNo: detail.promotedLearner?.admissionNo ?? null,
+                className: detail.promotedLearner?.className ?? null,
+              })
             }
           >
             View learner

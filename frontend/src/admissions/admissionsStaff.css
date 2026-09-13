@@ -475,3 +475,135 @@
 .admissions-staff-back-link:hover {
   color: #d4af37;
 }
+
+.admissions-staff-checklist {
+  margin-top: 18px;
+  padding: 18px 16px;
+  border-radius: 12px;
+  border: 1px solid rgba(212, 175, 55, 0.28);
+  background: #ffffff;
+}
+
+.admissions-staff-checklist-intro {
+  margin: 0 0 14px;
+  color: #64748b;
+  font-size: 0.9rem;
+}
+
+.admissions-staff-checklist-summary {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 8px;
+  margin-bottom: 16px;
+}
+
+.admissions-staff-checklist-summary > div {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 10px 12px;
+  border-radius: 8px;
+  background: #f8fafc;
+  border: 1px solid rgba(15, 23, 42, 0.06);
+  font-size: 0.82rem;
+}
+
+.admissions-staff-checklist-summary > div > span:first-child {
+  color: #64748b;
+  font-weight: 600;
+}
+
+.admissions-staff-checklist-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+  gap: 12px;
+}
+
+.admissions-staff-checklist-card {
+  padding: 14px;
+  border-radius: 10px;
+  border: 1px solid rgba(15, 23, 42, 0.08);
+  background: #fbfdff;
+}
+
+.admissions-staff-checklist-card h3 {
+  margin: 0 0 8px;
+  font-size: 0.95rem;
+  color: #0f172a;
+}
+
+.admissions-staff-checklist-card dl {
+  margin: 0 0 12px;
+}
+
+.admissions-staff-checklist-card dt {
+  font-size: 0.72rem;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: #94a3b8;
+}
+
+.admissions-staff-checklist-card dd {
+  margin: 0 0 8px;
+  color: #0f172a;
+  font-weight: 600;
+  word-break: break-word;
+}
+
+.admissions-staff-checklist-note {
+  margin: 0 0 10px;
+  font-size: 0.82rem;
+  color: #64748b;
+  line-height: 1.4;
+}
+
+.admissions-staff-checklist-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.admissions-staff-checklist-guardians {
+  margin: 0 0 10px;
+  padding-left: 18px;
+  font-size: 0.86rem;
+}
+
+.admissions-staff-checklist-guardians li {
+  margin-bottom: 8px;
+}
+
+.admissions-staff-checklist-guardians .admissions-staff-checklist-status {
+  display: inline-block;
+  margin-left: 6px;
+}
+
+.admissions-staff-checklist-status {
+  display: inline-block;
+  font-size: 0.78rem;
+  font-weight: 800;
+  letter-spacing: 0.01em;
+}
+
+.admissions-staff-checklist-status--ok {
+  color: #15803d;
+}
+
+.admissions-staff-checklist-status--action {
+  color: #b45309;
+}
+
+.admissions-staff-checklist-status--warn {
+  color: #b91c1c;
+}
+
+.admissions-staff-checklist-status--info {
+  color: #334155;
+}
+
+@media (max-width: 900px) {
+  .admissions-staff-checklist-summary,
+  .admissions-staff-checklist-grid {
+    grid-template-columns: 1fr;
+  }
+}
