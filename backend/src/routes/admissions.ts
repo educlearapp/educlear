@@ -27,6 +27,17 @@ import {
   openStaffApplicationDocumentForDownload,
   StaffAdmissionsError,
 } from "../services/admissions/staffAdmissionsReadService";
+import {
+  acceptAdmissionApplication,
+  rejectAdmissionApplication,
+  rejectAdmissionProofOfPayment,
+  requestApplicationInfo,
+  resumeApplicationReview,
+  startApplicationReview,
+  verifyAdmissionPayment,
+  waiveAdmissionFee,
+  type StaffWorkflowActor,
+} from "../services/admissions/staffAdmissionsWorkflowService";
 import { hasPermission, resolveStoredPermissions } from "../utils/userPermissions";
 
 const router = Router();
@@ -37,6 +48,7 @@ function sendStaffAdmissionsError(res: import("express").Response, err: unknown,
       success: false,
       error: err.message,
       code: err.code,
+      ...(err.details ? { details: err.details } : {}),
     });
   }
   if (err instanceof AdmissionsSettingsValidationError) {
@@ -69,6 +81,23 @@ function admissionsCapabilityFlags(auth: NonNullable<AdmissionsSettingsAuthReque
     includeMedicalDetails: canViewAdmissionsMedicalDetails(hasManage),
     includeStaffNotes: canViewAdmissionsStaffNotes(hasEdit || hasManage),
   };
+}
+
+function workflowActorFromReq(req: AdmissionsSettingsAuthRequest): StaffWorkflowActor {
+  const auth = req.admissionsSettingsAuth!;
+  const permissions = resolveStoredPermissions(auth.appRole, auth.permissions);
+  const permUser = { appRole: auth.appRole, isActive: true, permissions };
+  return {
+    userId: auth.userId,
+    schoolId: auth.authorizedSchoolId,
+    appRole: auth.appRole,
+    hasAdmissionsEdit: hasPermission(permUser, "admissions", "edit"),
+    hasAdmissionsManage: hasPermission(permUser, "admissions", "manage"),
+  };
+}
+
+function bodyObject(req: import("express").Request): Record<string, unknown> {
+  return (req.body && typeof req.body === "object" ? req.body : {}) as Record<string, unknown>;
 }
 
 router.get(
@@ -200,6 +229,204 @@ router.get(
       return res.sendFile(file.absolutePath);
     } catch (err) {
       return sendStaffAdmissionsError(res, err, "Failed to download admissions document");
+    }
+  }
+);
+
+/** OA-03G workflow — admissions.edit */
+router.post(
+  "/applications/:applicationId/start-review",
+  requireAdmissionsSettingsAuth("edit"),
+  async (req: AdmissionsSettingsAuthRequest, res) => {
+    try {
+      const result = await startApplicationReview(
+        prisma,
+        workflowActorFromReq(req),
+        String(req.params.applicationId || "")
+      );
+      res.setHeader("Cache-Control", "no-store");
+      return res.json({
+        success: true,
+        action: result.action,
+        idempotent: result.idempotent,
+        application: result.application,
+      });
+    } catch (err) {
+      return sendStaffAdmissionsError(res, err, "Failed to start admissions review");
+    }
+  }
+);
+
+router.post(
+  "/applications/:applicationId/request-info",
+  requireAdmissionsSettingsAuth("edit"),
+  async (req: AdmissionsSettingsAuthRequest, res) => {
+    try {
+      const body = bodyObject(req);
+      const result = await requestApplicationInfo(
+        prisma,
+        workflowActorFromReq(req),
+        String(req.params.applicationId || ""),
+        {
+          message: body.message as string | undefined,
+          internalNote: body.internalNote as string | undefined,
+        }
+      );
+      res.setHeader("Cache-Control", "no-store");
+      return res.json({
+        success: true,
+        action: result.action,
+        idempotent: result.idempotent,
+        application: result.application,
+      });
+    } catch (err) {
+      return sendStaffAdmissionsError(res, err, "Failed to request admissions information");
+    }
+  }
+);
+
+router.post(
+  "/applications/:applicationId/resume-review",
+  requireAdmissionsSettingsAuth("edit"),
+  async (req: AdmissionsSettingsAuthRequest, res) => {
+    try {
+      const result = await resumeApplicationReview(
+        prisma,
+        workflowActorFromReq(req),
+        String(req.params.applicationId || "")
+      );
+      res.setHeader("Cache-Control", "no-store");
+      return res.json({
+        success: true,
+        action: result.action,
+        idempotent: result.idempotent,
+        application: result.application,
+      });
+    } catch (err) {
+      return sendStaffAdmissionsError(res, err, "Failed to resume admissions review");
+    }
+  }
+);
+
+/** OA-03G payment — route requires edit; service enforces canAdministerAdmissionPayment */
+router.post(
+  "/applications/:applicationId/payment/verify",
+  requireAdmissionsSettingsAuth("edit"),
+  async (req: AdmissionsSettingsAuthRequest, res) => {
+    try {
+      const result = await verifyAdmissionPayment(
+        prisma,
+        workflowActorFromReq(req),
+        String(req.params.applicationId || "")
+      );
+      res.setHeader("Cache-Control", "no-store");
+      return res.json({
+        success: true,
+        action: result.action,
+        idempotent: result.idempotent,
+        application: result.application,
+      });
+    } catch (err) {
+      return sendStaffAdmissionsError(res, err, "Failed to verify admissions payment");
+    }
+  }
+);
+
+router.post(
+  "/applications/:applicationId/payment/reject",
+  requireAdmissionsSettingsAuth("edit"),
+  async (req: AdmissionsSettingsAuthRequest, res) => {
+    try {
+      const body = bodyObject(req);
+      const result = await rejectAdmissionProofOfPayment(
+        prisma,
+        workflowActorFromReq(req),
+        String(req.params.applicationId || ""),
+        { reason: body.reason as string | undefined }
+      );
+      res.setHeader("Cache-Control", "no-store");
+      return res.json({
+        success: true,
+        action: result.action,
+        idempotent: result.idempotent,
+        application: result.application,
+      });
+    } catch (err) {
+      return sendStaffAdmissionsError(res, err, "Failed to reject admissions proof of payment");
+    }
+  }
+);
+
+router.post(
+  "/applications/:applicationId/payment/waive",
+  requireAdmissionsSettingsAuth("edit"),
+  async (req: AdmissionsSettingsAuthRequest, res) => {
+    try {
+      const body = bodyObject(req);
+      const result = await waiveAdmissionFee(
+        prisma,
+        workflowActorFromReq(req),
+        String(req.params.applicationId || ""),
+        { reason: body.reason as string | undefined }
+      );
+      res.setHeader("Cache-Control", "no-store");
+      return res.json({
+        success: true,
+        action: result.action,
+        idempotent: result.idempotent,
+        application: result.application,
+      });
+    } catch (err) {
+      return sendStaffAdmissionsError(res, err, "Failed to waive admissions fee");
+    }
+  }
+);
+
+/** OA-03G final decisions — manage + Owner/Admin enforced in service */
+router.post(
+  "/applications/:applicationId/accept",
+  requireAdmissionsSettingsAuth("manage"),
+  async (req: AdmissionsSettingsAuthRequest, res) => {
+    try {
+      const result = await acceptAdmissionApplication(
+        prisma,
+        workflowActorFromReq(req),
+        String(req.params.applicationId || "")
+      );
+      res.setHeader("Cache-Control", "no-store");
+      return res.json({
+        success: true,
+        action: result.action,
+        idempotent: result.idempotent,
+        application: result.application,
+      });
+    } catch (err) {
+      return sendStaffAdmissionsError(res, err, "Failed to accept admissions application");
+    }
+  }
+);
+
+router.post(
+  "/applications/:applicationId/reject",
+  requireAdmissionsSettingsAuth("manage"),
+  async (req: AdmissionsSettingsAuthRequest, res) => {
+    try {
+      const body = bodyObject(req);
+      const result = await rejectAdmissionApplication(
+        prisma,
+        workflowActorFromReq(req),
+        String(req.params.applicationId || ""),
+        { reason: body.reason as string | undefined }
+      );
+      res.setHeader("Cache-Control", "no-store");
+      return res.json({
+        success: true,
+        action: result.action,
+        idempotent: result.idempotent,
+        application: result.application,
+      });
+    } catch (err) {
+      return sendStaffAdmissionsError(res, err, "Failed to reject admissions application");
     }
   }
 );
