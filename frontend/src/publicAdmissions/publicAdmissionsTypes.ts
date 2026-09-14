@@ -156,6 +156,14 @@ export type UpdateDraftApplicationBody = {
   intakeYear?: number | null;
   learner?: DraftLearnerPayload | null;
   guardians?: DraftGuardianPayload[] | null;
+  answers?: Array<{
+    questionKey: string;
+    questionLabelSnapshot?: string;
+    valueJson?: unknown;
+  }> | null;
+  privacyAccepted?: boolean;
+  declarationsAccepted?: boolean;
+  privacyNoticeVersion?: string | null;
 };
 
 export type CreateDraftApplicationResponse = {
@@ -172,6 +180,23 @@ export type ApplicantApplicationResponse = {
   application?: ApplicantApplicationView;
   error?: string;
   code?: string;
+  details?: Array<{ field: string; message: string }>;
+};
+
+export type SubmitApplicationResponse = {
+  success: boolean;
+  application?: ApplicantApplicationView;
+  paymentInstructionsAvailable?: boolean;
+  bankConfigurationIncomplete?: boolean;
+  error?: string;
+  code?: string;
+  details?: Array<{ field: string; message: string }>;
+};
+
+export type PublicApplicationQuestion = {
+  key: string;
+  label: string;
+  required: boolean;
 };
 
 /** Local form guardian row (clientKey is UI-only; never sent as authority). */
@@ -251,4 +276,9 @@ export type ApplicantDocumentUploadResponse = {
   code?: string;
 };
 
-export type ApplyWizardStep = "details" | "documents";
+export type ApplyWizardStep = "details" | "documents" | "review";
+
+export type PublicValidationDetail = {
+  field: string;
+  message: string;
+};

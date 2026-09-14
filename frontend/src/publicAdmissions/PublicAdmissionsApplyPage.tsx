@@ -1,4 +1,4 @@
-import { useEffect, useId, useRef, useState } from "react";
+import { useCallback, useEffect, useId, useRef, useState } from "react";
 import { Link, useParams } from "react-router-dom";
 import {
   clearApplicantSession,
@@ -25,7 +25,11 @@ import {
 } from "./publicAdmissionsApi";
 import PublicAdmissionsDocumentsStep from "./PublicAdmissionsDocumentsStep";
 import PublicAdmissionsLayout from "./PublicAdmissionsLayout";
+import PublicAdmissionsReviewStep from "./PublicAdmissionsReviewStep";
+import PublicAdmissionsStatusView from "./PublicAdmissionsStatusView";
+import { isEditableDraftStatus, isPostSubmitStatus } from "./reviewReadiness";
 import type {
+  ApplicantApplicationView,
   ApplyWizardStep,
   DraftApplicationFormState,
   DraftSaveUiState,
@@ -76,7 +80,7 @@ function FieldError({ id, message }: { id?: string; message?: string }) {
 }
 
 /**
- * OA-06C/D draft application — details + supporting documents. No submit / payment / POP.
+ * OA-06C/D/E draft → review → submit → status. No payment / POP UI.
  */
 export default function PublicAdmissionsApplyPage() {
   const { publicSlug = "" } = useParams<{ publicSlug: string }>();
@@ -87,6 +91,7 @@ export default function PublicAdmissionsApplyPage() {
   const [activeStep, setActiveStep] = useState<ApplyWizardStep>("details");
   const [config, setConfig] = useState<PublicAdmissionsConfig | null>(null);
   const [form, setForm] = useState<DraftApplicationFormState>(() => createEmptyDraftForm(null));
+  const [application, setApplication] = useState<ApplicantApplicationView | null>(null);
   const [publicAccessId, setPublicAccessId] = useState<string | null>(null);
   const [accessToken, setAccessToken] = useState<string | null>(null);
   const [saveState, setSaveState] = useState<DraftSaveUiState>("clean");
@@ -94,6 +99,8 @@ export default function PublicAdmissionsApplyPage() {
   const [clientErrors, setClientErrors] = useState<DraftFormClientErrors>({});
   const [bannerError, setBannerError] = useState<string | null>(null);
   const [stepNavBusy, setStepNavBusy] = useState(false);
+  const [justSubmitted, setJustSubmitted] = useState(false);
+  const [statusRefreshing, setStatusRefreshing] = useState(false);
 
   const createInFlight = useRef(false);
   const bootGeneration = useRef(0);
@@ -110,6 +117,8 @@ export default function PublicAdmissionsApplyPage() {
     setClientErrors({});
     setPublicAccessId(null);
     setAccessToken(null);
+    setApplication(null);
+    setJustSubmitted(false);
 
     if (!slug) {
       setPhase("not_found");
@@ -134,9 +143,16 @@ export default function PublicAdmissionsApplyPage() {
             if (cancelled || bootGeneration.current !== gen) return;
             setPublicAccessId(session.publicAccessId);
             setAccessToken(session.accessToken);
+            setApplication(application);
             setForm(hydrateDraftFormFromApplication(application, nextConfig));
             setSaveState("clean");
-            setPhase("form");
+            if (isPostSubmitStatus(application.status)) {
+              setJustSubmitted(false);
+              setPhase("form");
+              setActiveStep("review");
+            } else {
+              setPhase("form");
+            }
           } catch {
             if (cancelled || bootGeneration.current !== gen) return;
             clearApplicantSession(slug);
@@ -185,9 +201,11 @@ export default function PublicAdmissionsApplyPage() {
       });
       setPublicAccessId(created.application.publicAccessId);
       setAccessToken(created.accessToken);
+      setApplication(created.application);
       setForm(hydrateDraftFormFromApplication(created.application, config));
       setSaveState("clean");
       setPhase("form");
+      setActiveStep("details");
     } catch (err) {
       const mapped = parentFacingCreateError(err);
       if (mapped.kind === "closed") {
@@ -232,6 +250,7 @@ export default function PublicAdmissionsApplyPage() {
         accessToken,
         buildUpdateDraftBody(form)
       );
+      setApplication(updated);
       setForm(hydrateDraftFormFromApplication(updated, config));
       setSaveState("saved");
       if (!opts?.silent) {
@@ -272,9 +291,60 @@ export default function PublicAdmissionsApplyPage() {
     setActiveStep("documents");
   }
 
-  function handleDocumentsSessionInvalid() {
+  async function goToReviewStep() {
+    if (stepNavBusy) return;
+    if (saveState === "dirty" || saveState === "failed") {
+      setStepNavBusy(true);
+      const ok = await handleSave({ silent: true });
+      setStepNavBusy(false);
+      if (!ok) {
+        setSaveMessage(
+          (prev) =>
+            prev || "Please save your details successfully before continuing to review."
+        );
+        return;
+      }
+    }
+    // Refresh authoritative application before review
+    if (slug && publicAccessId && accessToken) {
+      try {
+        const fresh = await fetchPublicDraftApplication(slug, publicAccessId, accessToken);
+        setApplication(fresh);
+        setForm(hydrateDraftFormFromApplication(fresh, config));
+        if (!isEditableDraftStatus(fresh.status)) {
+          setJustSubmitted(false);
+          setActiveStep("review");
+          return;
+        }
+      } catch (err) {
+        if (err instanceof PublicAdmissionsApiError && err.status === 404) {
+          handleDocumentsSessionInvalid();
+          return;
+        }
+      }
+    }
+    setActiveStep("review");
+  }
+
+  const handleDocumentsSessionInvalid = useCallback(() => {
     clearApplicantSession(slug);
     setPhase("session_invalid");
+  }, [slug]);
+
+  async function refreshStatus() {
+    if (!slug || !publicAccessId || !accessToken || statusRefreshing) return;
+    setStatusRefreshing(true);
+    try {
+      const fresh = await fetchPublicDraftApplication(slug, publicAccessId, accessToken);
+      setApplication(fresh);
+      setJustSubmitted(false);
+    } catch (err) {
+      if (err instanceof PublicAdmissionsApiError && err.status === 404) {
+        handleDocumentsSessionInvalid();
+      }
+    } finally {
+      setStatusRefreshing(false);
+    }
   }
 
   function handleStartNewAfterStale() {
@@ -428,7 +498,7 @@ export default function PublicAdmissionsApplyPage() {
       <PublicAdmissionsLayout config={config}>
         <section className="pa-card" data-testid="pa-begin-application">
           <nav className="pa-progress" aria-label="Application progress">
-            <ol className="pa-progress-list">
+            <ol className="pa-progress-list pa-progress-list--3">
               <li className="pa-progress-item is-active">Details</li>
               <li className="pa-progress-item" aria-disabled="true">
                 Documents
@@ -475,41 +545,60 @@ export default function PublicAdmissionsApplyPage() {
   }
 
   // form phase
+  const showPostSubmit =
+    application != null && isPostSubmitStatus(application.status);
+
   return (
     <PublicAdmissionsLayout config={config}>
       <div className="pa-apply" data-testid="pa-draft-form">
-        <nav className="pa-progress" aria-label="Application progress">
-          <ol className="pa-progress-list pa-progress-list--3">
-            <li>
-              <button
-                type="button"
-                className={`pa-progress-item ${activeStep === "details" ? "is-active" : ""}`}
-                onClick={() => setActiveStep("details")}
-                data-testid="pa-step-details"
-              >
-                Details
-              </button>
-            </li>
-            <li>
-              <button
-                type="button"
-                className={`pa-progress-item ${activeStep === "documents" ? "is-active" : ""}`}
-                onClick={() => void goToDocumentsStep()}
-                disabled={stepNavBusy || saveState === "saving"}
-                data-testid="pa-step-documents"
-              >
-                Documents
-              </button>
-            </li>
-            <li>
-              <span className="pa-progress-item" aria-disabled="true">
-                Review
-              </span>
-            </li>
-          </ol>
-        </nav>
+        {!showPostSubmit ? (
+          <nav className="pa-progress" aria-label="Application progress">
+            <ol className="pa-progress-list pa-progress-list--3">
+              <li>
+                <button
+                  type="button"
+                  className={`pa-progress-item ${activeStep === "details" ? "is-active" : ""}`}
+                  onClick={() => setActiveStep("details")}
+                  data-testid="pa-step-details"
+                >
+                  Details
+                </button>
+              </li>
+              <li>
+                <button
+                  type="button"
+                  className={`pa-progress-item ${activeStep === "documents" ? "is-active" : ""}`}
+                  onClick={() => void goToDocumentsStep()}
+                  disabled={stepNavBusy || saveState === "saving"}
+                  data-testid="pa-step-documents"
+                >
+                  Documents
+                </button>
+              </li>
+              <li>
+                <button
+                  type="button"
+                  className={`pa-progress-item ${activeStep === "review" ? "is-active" : ""}`}
+                  onClick={() => void goToReviewStep()}
+                  disabled={stepNavBusy || saveState === "saving"}
+                  data-testid="pa-step-review"
+                >
+                  Review
+                </button>
+              </li>
+            </ol>
+          </nav>
+        ) : null}
 
-        {activeStep === "documents" && publicAccessId && accessToken ? (
+        {showPostSubmit && application ? (
+          <PublicAdmissionsStatusView
+            application={application}
+            config={config}
+            justSubmitted={justSubmitted}
+            onRefresh={() => void refreshStatus()}
+            refreshing={statusRefreshing}
+          />
+        ) : activeStep === "documents" && publicAccessId && accessToken ? (
           <PublicAdmissionsDocumentsStep
             publicSlug={slug}
             publicAccessId={publicAccessId}
@@ -517,6 +606,26 @@ export default function PublicAdmissionsApplyPage() {
             config={config}
             onSessionInvalid={handleDocumentsSessionInvalid}
             onBackToDetails={() => setActiveStep("details")}
+          />
+        ) : activeStep === "review" && publicAccessId && accessToken && application ? (
+          <PublicAdmissionsReviewStep
+            publicSlug={slug}
+            publicAccessId={publicAccessId}
+            accessToken={accessToken}
+            config={config}
+            application={application}
+            onApplicationUpdated={(next) => {
+              setApplication(next);
+              setForm(hydrateDraftFormFromApplication(next, config));
+            }}
+            onSubmitted={(next) => {
+              setApplication(next);
+              setJustSubmitted(true);
+              setSaveState("clean");
+            }}
+            onEditDetails={() => setActiveStep("details")}
+            onEditDocuments={() => setActiveStep("documents")}
+            onSessionInvalid={handleDocumentsSessionInvalid}
           />
         ) : (
           <>
@@ -965,8 +1074,8 @@ export default function PublicAdmissionsApplyPage() {
               Save progress
             </h2>
             <p className="pa-body">
-              Save your draft details, then continue to documents. Final submission is a later
-              step. Payment instructions become available only after submission.
+              Save your draft details, then continue to documents and review. Payment
+              instructions, if any, become available only after submission.
             </p>
             <div className="pa-cta-row pa-cta-row--stack">
               <button
@@ -985,6 +1094,15 @@ export default function PublicAdmissionsApplyPage() {
                 data-testid="pa-continue-documents"
               >
                 {stepNavBusy ? "Saving…" : "Continue to documents"}
+              </button>
+              <button
+                type="button"
+                className="pa-secondary-btn"
+                disabled={saveState === "saving" || stepNavBusy}
+                onClick={() => void goToReviewStep()}
+                data-testid="pa-continue-review"
+              >
+                Continue to review
               </button>
               <button
                 type="button"

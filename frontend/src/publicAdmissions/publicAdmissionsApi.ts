@@ -9,18 +9,27 @@ import type {
   CreateDraftApplicationResponse,
   PublicAdmissionsConfig,
   PublicAdmissionsConfigResponse,
+  PublicValidationDetail,
+  SubmitApplicationResponse,
   UpdateDraftApplicationBody,
 } from "./publicAdmissionsTypes";
 
 export class PublicAdmissionsApiError extends Error {
   readonly status: number;
   readonly code: string | null;
+  readonly details: PublicValidationDetail[];
 
-  constructor(message: string, status: number, code: string | null = null) {
+  constructor(
+    message: string,
+    status: number,
+    code: string | null = null,
+    details: PublicValidationDetail[] = []
+  ) {
     super(message);
     this.name = "PublicAdmissionsApiError";
     this.status = status;
     this.code = code;
+    this.details = details;
   }
 }
 
@@ -50,11 +59,27 @@ async function parseJson(res: Response): Promise<Record<string, unknown>> {
   return (await res.json().catch(() => ({}))) as Record<string, unknown>;
 }
 
+function parseDetails(payload: Record<string, unknown>): PublicValidationDetail[] {
+  const raw = payload.details;
+  if (!Array.isArray(raw)) return [];
+  return raw
+    .filter((d) => d && typeof d === "object")
+    .map((d) => {
+      const row = d as { field?: unknown; message?: unknown };
+      return {
+        field: String(row.field || ""),
+        message: String(row.message || "Please review this field"),
+      };
+    })
+    .filter((d) => d.field || d.message);
+}
+
 function throwFromPayload(res: Response, payload: Record<string, unknown>, fallback: string): never {
   throw new PublicAdmissionsApiError(
     String(payload.error || fallback),
     res.status,
-    payload.code ? String(payload.code) : null
+    payload.code ? String(payload.code) : null,
+    parseDetails(payload)
   );
 }
 
@@ -338,5 +363,46 @@ export async function downloadPublicApplicantDocumentBlob(
     blob,
     contentType,
     fileName: match?.[1] || null,
+  };
+}
+
+/**
+ * Formal submit DRAFT → SUBMITTED. Idempotent for already-submitted apps.
+ * Does not return bank details.
+ */
+export async function submitPublicApplication(
+  publicSlug: string,
+  publicAccessId: string,
+  accessToken: string
+): Promise<{
+  application: ApplicantApplicationView;
+  paymentInstructionsAvailable: boolean;
+  bankConfigurationIncomplete: boolean;
+}> {
+  const slug = normalizeSlug(publicSlug);
+  const accessId = String(publicAccessId || "").trim();
+  const token = String(accessToken || "").trim();
+  if (!slug || !accessId || !token) {
+    throw new PublicAdmissionsApiError("Application not found", 404, "APPLICATION_NOT_FOUND");
+  }
+
+  const res = await fetch(`${applicationsBase(slug, accessId)}/submit`, {
+    method: "POST",
+    headers: applicantAuthHeaders(token),
+    body: JSON.stringify({}),
+  });
+
+  const payload = (await parseJson(res)) as SubmitApplicationResponse;
+  if (!res.ok) {
+    throwFromPayload(res, payload as Record<string, unknown>, "Could not submit application");
+  }
+  if (!payload.success || !payload.application) {
+    throw new PublicAdmissionsApiError("Could not submit application", 500, "INVALID_RESPONSE");
+  }
+
+  return {
+    application: payload.application,
+    paymentInstructionsAvailable: Boolean(payload.paymentInstructionsAvailable),
+    bankConfigurationIncomplete: Boolean(payload.bankConfigurationIncomplete),
   };
 }

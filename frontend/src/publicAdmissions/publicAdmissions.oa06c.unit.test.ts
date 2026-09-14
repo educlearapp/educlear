@@ -166,8 +166,12 @@ assert.ok(
   /method:\s*"PATCH"/.test(apiSrc) && /\/applications\/\$\{encodeURIComponent\(accessId\)\}`/.test(apiSrc),
   "18. PATCH draft through public endpoint"
 );
-assert.ok(!/\/submit/.test(apiSrc), "API client has no submit helper in OA-06C surface used");
 assert.ok(!/\/api\/admissions\//.test(apiSrc), "does not call staff /api/admissions/*");
+// Submit helper exists for OA-06E; OA-06C apply bootstrap must not auto-call it
+assert.ok(
+  !/submitPublicApplication/.test(applySrc),
+  "OA-06C apply page does not call submit helper directly"
+);
 
 // --- Form helpers ---
 const empty = createEmptyDraftForm(baseConfig());
