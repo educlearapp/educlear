@@ -7,6 +7,11 @@ import {
 
 import { prisma } from "../../prisma";
 import {
+  defaultAllEnabledEntitlements,
+  mapEntitlementRowsBySchool,
+  type SchoolModuleEntitlementsMap,
+} from "../schoolModuleEntitlements";
+import {
   countSchoolsByLifecycle,
   parseSchoolLifecycleStatus,
   type SchoolLifecycleStatus,
@@ -37,6 +42,8 @@ export type SuperAdminSchoolListItem = {
   parentCount: number;
   registeredAt: string;
   lastLoginAt: string | null;
+  /** Product module licenses (CORE / ACCOUNTING / PAYROLL). Missing rows fail-open as enabled. */
+  moduleEntitlements: SchoolModuleEntitlementsMap;
 };
 
 export type SuperAdminSchoolsListResult = {
@@ -189,7 +196,10 @@ const schoolListSelect = {
 
 type SchoolListRow = Prisma.SchoolGetPayload<{ select: typeof schoolListSelect }>;
 
-function mapSchoolRow(row: SchoolListRow): SuperAdminSchoolListItem {
+function mapSchoolRow(
+  row: SchoolListRow,
+  moduleEntitlements: SchoolModuleEntitlementsMap
+): SuperAdminSchoolListItem {
   const adminUsers = row.users as SchoolAdminUser[];
   const owner = pickOwnerUser(adminUsers);
   const subscription = row.schoolSubscription;
@@ -213,6 +223,7 @@ function mapSchoolRow(row: SchoolListRow): SuperAdminSchoolListItem {
     parentCount: row._count.parents,
     registeredAt: row.createdAt.toISOString(),
     lastLoginAt: maxLastLogin(adminUsers),
+    moduleEntitlements,
   };
 }
 
@@ -223,7 +234,20 @@ export async function listSuperAdminSchools(): Promise<SuperAdminSchoolsListResu
     orderBy: { name: "asc" },
   });
 
-  const schools = rows.filter((row) => !isInternalSchoolName(row.name)).map(mapSchoolRow);
+  const visible = rows.filter((row) => !isInternalSchoolName(row.name));
+  const schoolIds = visible.map((row) => row.id);
+  const entitlementRows =
+    schoolIds.length === 0
+      ? []
+      : await prisma.schoolModuleEntitlement.findMany({
+          where: { schoolId: { in: schoolIds } },
+          select: { schoolId: true, module: true, enabled: true },
+        });
+  const entitlementsBySchool = mapEntitlementRowsBySchool(entitlementRows);
+
+  const schools = visible.map((row) =>
+    mapSchoolRow(row, entitlementsBySchool.get(row.id) ?? defaultAllEnabledEntitlements())
+  );
   return {
     schools,
     summary: computeSummary(schools),

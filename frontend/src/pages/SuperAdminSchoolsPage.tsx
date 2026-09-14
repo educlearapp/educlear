@@ -102,6 +102,8 @@ type ManageModalProps = {
   onRequestSave: (next: {
     lifecycleStatus: SchoolLifecycleStatus;
     package: SchoolRecord["package"];
+    accountingEnabled: boolean;
+    payrollEnabled: boolean;
   }) => void;
 };
 
@@ -112,6 +114,10 @@ function ManageSchoolModal({ school, saving = false, onClose, onRequestSave }: M
 
   const [lifecycleStatus, setLifecycleStatus] = useState<SchoolLifecycleStatus>(school.lifecycleStatus);
   const [pkg, setPkg] = useState<SchoolRecord["package"]>(school.package);
+  const [accountingEnabled, setAccountingEnabled] = useState(
+    school.moduleEntitlements.ACCOUNTING !== false
+  );
+  const [payrollEnabled, setPayrollEnabled] = useState(school.moduleEntitlements.PAYROLL !== false);
   const allowed = allowedLifecycleTargets(school.id);
 
   return (
@@ -179,6 +185,53 @@ function ManageSchoolModal({ school, saving = false, onClose, onRequestSave }: M
               <option value="Unlimited">Unlimited</option>
             </select>
           </label>
+
+          <fieldset
+            style={{
+              margin: 0,
+              padding: "12px 14px",
+              borderRadius: 10,
+              border: "1px solid rgba(212, 175, 55, 0.28)",
+              display: "grid",
+              gap: 10,
+            }}
+          >
+            <legend
+              style={{
+                fontSize: "0.78rem",
+                fontWeight: 800,
+                letterSpacing: "0.04em",
+                color: "#d4af37",
+                padding: "0 6px",
+              }}
+            >
+              Product modules
+            </legend>
+            <label style={{ display: "flex", gap: 10, alignItems: "center", opacity: 0.85 }}>
+              <input type="checkbox" checked disabled readOnly />
+              <span>
+                EduClear Core <span style={{ opacity: 0.7 }}>(includes Billing — always enabled)</span>
+              </span>
+            </label>
+            <label style={{ display: "flex", gap: 10, alignItems: "center" }}>
+              <input
+                type="checkbox"
+                checked={accountingEnabled}
+                disabled={saving}
+                onChange={(e) => setAccountingEnabled(e.target.checked)}
+              />
+              <span>Accounting (GL / bookkeeping)</span>
+            </label>
+            <label style={{ display: "flex", gap: 10, alignItems: "center" }}>
+              <input
+                type="checkbox"
+                checked={payrollEnabled}
+                disabled={saving}
+                onChange={(e) => setPayrollEnabled(e.target.checked)}
+              />
+              <span>Payroll</span>
+            </label>
+          </fieldset>
         </div>
 
         <div className="sa-schools-modal-actions" style={{ gap: 12 }}>
@@ -188,7 +241,14 @@ function ManageSchoolModal({ school, saving = false, onClose, onRequestSave }: M
           <button
             type="button"
             className="sa-schools-btn sa-schools-btn--gold"
-            onClick={() => onRequestSave({ lifecycleStatus, package: pkg })}
+            onClick={() =>
+              onRequestSave({
+                lifecycleStatus,
+                package: pkg,
+                accountingEnabled,
+                payrollEnabled,
+              })
+            }
             disabled={saving}
           >
             {saving ? "Saving…" : "Save changes"}
@@ -382,12 +442,16 @@ function ResetPasswordModal({
 }
 
 function schoolDetailMessage(school: SchoolRecord): string {
+  const mods = school.moduleEntitlements;
   const lines = [
     `Owner: ${school.ownerName}`,
     `Email: ${school.email}`,
     `Contact: ${school.contactPhone || "—"}`,
     `Package: ${school.package}`,
     `Lifecycle: ${school.lifecycleStatus}${school.isActive ? "" : " (inactive)"}`,
+    `Modules: Core ${mods.CORE !== false ? "ON" : "OFF"} · Accounting ${
+      mods.ACCOUNTING !== false ? "ON" : "OFF"
+    } · Payroll ${mods.PAYROLL !== false ? "ON" : "OFF"}`,
     `Learners: ${school.learnerCount}`,
     `Parents: ${school.parentCount}`,
     `Registered: ${formatSchoolDate(school.registeredAt)}`,
@@ -584,10 +648,18 @@ export default function SuperAdminSchoolsPage() {
   const requestSaveManage = useCallback(
     (
       school: SchoolRecord,
-      next: { lifecycleStatus: SchoolLifecycleStatus; package: SchoolRecord["package"] }
+      next: {
+        lifecycleStatus: SchoolLifecycleStatus;
+        package: SchoolRecord["package"];
+        accountingEnabled: boolean;
+        payrollEnabled: boolean;
+      }
     ) => {
       const lifecycleChanged = next.lifecycleStatus !== school.lifecycleStatus;
       const packageChanged = next.package !== school.package;
+      const accountingChanged =
+        next.accountingEnabled !== (school.moduleEntitlements.ACCOUNTING !== false);
+      const payrollChanged = next.payrollEnabled !== (school.moduleEntitlements.PAYROLL !== false);
 
       const run = async () => {
         setSavingManage(true);
@@ -595,8 +667,18 @@ export default function SuperAdminSchoolsPage() {
           if (lifecycleChanged) {
             await updateSchoolLifecycleStatus(school.id, next.lifecycleStatus);
           }
-          if (packageChanged) {
-            await updateSuperAdminSchool(school.id, { package: next.package });
+          if (packageChanged || accountingChanged || payrollChanged) {
+            await updateSuperAdminSchool(school.id, {
+              ...(packageChanged ? { package: next.package } : {}),
+              ...(accountingChanged || payrollChanged
+                ? {
+                    moduleEntitlements: {
+                      ...(accountingChanged ? { ACCOUNTING: next.accountingEnabled } : {}),
+                      ...(payrollChanged ? { PAYROLL: next.payrollEnabled } : {}),
+                    },
+                  }
+                : {}),
+            });
           }
           await reload();
           setManageSchool(null);

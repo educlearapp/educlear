@@ -1,5 +1,11 @@
 import { superAdminApiFetch } from "../superAdminApi";
-import type { SchoolPackage, SchoolRecord, SchoolsSummary } from "../types/schools";
+import type {
+  SchoolModuleEntitlements,
+  SchoolPackage,
+  SchoolRecord,
+  SchoolsSummary,
+} from "../types/schools";
+import { DEFAULT_SCHOOL_MODULE_ENTITLEMENTS } from "../types/schools";
 import { parseSchoolLifecycleStatus, type SchoolLifecycleStatus } from "../schoolLifecycle";
 
 type ApiSchoolRow = {
@@ -17,6 +23,7 @@ type ApiSchoolRow = {
   registeredAt?: string | null;
   lastLoginAt?: string | null;
   isActive?: boolean;
+  moduleEntitlements?: Partial<SchoolModuleEntitlements> | null;
 };
 
 type ApiSchoolsResponse = {
@@ -33,6 +40,16 @@ function asPackage(value: unknown): SchoolPackage {
   if (label.toLowerCase() === "unlimited") return "Unlimited";
   if (label.toLowerCase() === "starter") return "Starter";
   return label;
+}
+
+function asModuleEntitlements(value: unknown): SchoolModuleEntitlements {
+  const raw =
+    value && typeof value === "object" ? (value as Partial<SchoolModuleEntitlements>) : null;
+  return {
+    CORE: raw?.CORE !== false,
+    ACCOUNTING: raw?.ACCOUNTING !== false,
+    PAYROLL: raw?.PAYROLL !== false,
+  };
 }
 
 function mapSchoolRow(row: ApiSchoolRow, sessionSchoolId: string | null): SchoolRecord {
@@ -55,6 +72,7 @@ function mapSchoolRow(row: ApiSchoolRow, sessionSchoolId: string | null): School
     lastLoginAt: row.lastLoginAt ? String(row.lastLoginAt) : null,
     isActive: row.isActive !== false,
     canOpenDashboard: Boolean(sessionSchoolId && id && sessionSchoolId === id),
+    moduleEntitlements: asModuleEntitlements(row.moduleEntitlements),
   };
 }
 
@@ -108,8 +126,12 @@ export async function fetchSuperAdminSchools(): Promise<{
 
 export async function updateSuperAdminSchool(
   schoolId: string,
-  input: { status?: SchoolRecord["status"]; package?: SchoolPackage }
-): Promise<void> {
+  input: {
+    status?: SchoolRecord["status"];
+    package?: SchoolPackage;
+    moduleEntitlements?: Partial<Pick<SchoolModuleEntitlements, "ACCOUNTING" | "PAYROLL">>;
+  }
+): Promise<{ moduleEntitlements?: SchoolModuleEntitlements }> {
   const id = String(schoolId || "").trim();
   if (!id) throw new Error("Missing schoolId");
 
@@ -119,14 +141,51 @@ export async function updateSuperAdminSchool(
   const pkg = String(input.package || "").trim();
   if (pkg && pkg !== "—") payload.package = pkg;
 
+  if (input.moduleEntitlements) {
+    const mods: Record<string, boolean> = {};
+    if (typeof input.moduleEntitlements.ACCOUNTING === "boolean") {
+      mods.ACCOUNTING = input.moduleEntitlements.ACCOUNTING;
+    }
+    if (typeof input.moduleEntitlements.PAYROLL === "boolean") {
+      mods.PAYROLL = input.moduleEntitlements.PAYROLL;
+    }
+    if (Object.keys(mods).length) {
+      payload.moduleEntitlements = mods;
+    }
+  }
+
   const res = (await superAdminApiFetch(`/api/super-admin/schools/${encodeURIComponent(id)}`, {
     method: "PATCH",
     body: JSON.stringify(payload),
-  })) as { success?: boolean; error?: string };
+  })) as {
+    success?: boolean;
+    error?: string;
+    moduleEntitlements?: SchoolModuleEntitlements;
+  };
 
   if (res && res.success === false) {
     throw new Error(String(res.error || "Failed to update school"));
   }
+
+  return {
+    moduleEntitlements: res.moduleEntitlements
+      ? asModuleEntitlements(res.moduleEntitlements)
+      : undefined,
+  };
+}
+
+export async function updateSchoolModuleEntitlements(
+  schoolId: string,
+  input: Partial<Pick<SchoolModuleEntitlements, "ACCOUNTING" | "PAYROLL">>
+): Promise<SchoolModuleEntitlements> {
+  const result = await updateSuperAdminSchool(schoolId, { moduleEntitlements: input });
+  return (
+    result.moduleEntitlements ?? {
+      ...DEFAULT_SCHOOL_MODULE_ENTITLEMENTS,
+      ACCOUNTING: input.ACCOUNTING ?? DEFAULT_SCHOOL_MODULE_ENTITLEMENTS.ACCOUNTING,
+      PAYROLL: input.PAYROLL ?? DEFAULT_SCHOOL_MODULE_ENTITLEMENTS.PAYROLL,
+    }
+  );
 }
 
 export async function updateSchoolLifecycleStatus(
