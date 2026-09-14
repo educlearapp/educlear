@@ -4,6 +4,19 @@ export type SchoolStatus = SchoolLifecycleStatus;
 
 export type SchoolPackage = "Starter" | "Growth" | "Professional" | "Unlimited" | "—" | (string & {});
 
+/** Product module licenses (orthogonal to STARTER/UNLIMITED capacity packages). No FINANCE module. */
+export type SchoolModuleEntitlements = {
+  CORE: boolean;
+  ACCOUNTING: boolean;
+  PAYROLL: boolean;
+};
+
+export const DEFAULT_SCHOOL_MODULE_ENTITLEMENTS: SchoolModuleEntitlements = {
+  CORE: true,
+  ACCOUNTING: true,
+  PAYROLL: true,
+};
+
 export type SchoolRecord = {
   id: string;
   schoolName: string;
@@ -22,6 +35,8 @@ export type SchoolRecord = {
   isActive: boolean;
   /** True when the signed-in session belongs to this school (can open /dashboard). */
   canOpenDashboard: boolean;
+  /** Commercial module entitlements. CORE is always treated as enabled in Super Admin UI. */
+  moduleEntitlements: SchoolModuleEntitlements;
 };
 
 export type SchoolsSummary = {
