@@ -321,7 +321,11 @@ function main() {
     path.join(__dirname, "../pages/SuperAdminSchoolsPage.tsx"),
     "utf8"
   );
-  assert.ok(superAdmin.includes("describeModulePackageLabel"));
+  assert.ok(
+    superAdmin.includes("describeModulePackageLabel") ||
+      superAdmin.includes("commercialPackageShortDisplay"),
+    "Super Admin package view must use modular package labels"
+  );
   assert.ok(superAdmin.includes("EduClear Core"));
   assert.ok(superAdmin.includes("includes Billing"));
   assert.ok(superAdmin.includes("hasAnyCommercialModule"));

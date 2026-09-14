@@ -6,10 +6,8 @@ import { updateSchoolLifecycleStatus, updateSuperAdminSchool } from "../superAdm
 import { useSchoolsManagement } from "../superAdmin/hooks/useSchoolsManagement";
 import type { SchoolRecord } from "../superAdmin/types/schools";
 import { SCHOOL_STATUS_OPTIONS } from "../superAdmin/types/schools";
-import {
-  describeModulePackageLabel,
-  hasAnyCommercialModule,
-} from "../modules/schoolModuleEntitlements";
+import { hasAnyCommercialModule } from "../modules/schoolModuleEntitlements";
+import { commercialPackageShortDisplay } from "../modules/educlearCommercialPackages";
 import {
   allowedLifecycleTargets,
   buildLifecycleConfirmation,
@@ -118,18 +116,23 @@ function ManageSchoolModal({ school, saving = false, onClose, onRequestSave }: M
   };
 
   const [lifecycleStatus, setLifecycleStatus] = useState<SchoolLifecycleStatus>(school.lifecycleStatus);
-  const [pkg, setPkg] = useState<SchoolRecord["package"]>(school.package);
+  const [pkg, setPkg] = useState<SchoolRecord["package"]>(
+    (school.legacyCapacityPackage === "Unlimited" ? "Unlimited" : "Starter") as SchoolRecord["package"]
+  );
   const [coreEnabled, setCoreEnabled] = useState(school.moduleEntitlements.CORE !== false);
   const [accountingEnabled, setAccountingEnabled] = useState(
     school.moduleEntitlements.ACCOUNTING !== false
   );
   const [payrollEnabled, setPayrollEnabled] = useState(school.moduleEntitlements.PAYROLL !== false);
   const allowed = allowedLifecycleTargets(school.id);
-  const packageView = describeModulePackageLabel({
-    CORE: coreEnabled,
-    ACCOUNTING: accountingEnabled,
-    PAYROLL: payrollEnabled,
-  });
+  const packageView = commercialPackageShortDisplay(
+    {
+      CORE: coreEnabled,
+      ACCOUNTING: accountingEnabled,
+      PAYROLL: payrollEnabled,
+    },
+    { includeSecondary: true }
+  );
   const modulesValid = hasAnyCommercialModule({
     CORE: coreEnabled,
     ACCOUNTING: accountingEnabled,
@@ -188,7 +191,7 @@ function ManageSchoolModal({ school, saving = false, onClose, onRequestSave }: M
 
           <label style={{ display: "grid", gap: 6 }}>
             <span style={{ fontSize: "0.78rem", fontWeight: 800, letterSpacing: "0.04em", color: "#d4af37" }}>
-              Package
+              Legacy capacity (historical)
             </span>
             <select
               className="sa-schools-select"
@@ -197,8 +200,8 @@ function ManageSchoolModal({ school, saving = false, onClose, onRequestSave }: M
               disabled={saving}
               style={{ background: "#0a0a0a", color: "#ffffff", borderColor: "rgba(212,175,55,0.35)" }}
             >
-              <option value="Starter">Starter</option>
-              <option value="Unlimited">Unlimited</option>
+              <option value="Starter">Starter (legacy)</option>
+              <option value="Unlimited">Unlimited (legacy)</option>
             </select>
           </label>
 
@@ -493,9 +496,11 @@ function schoolDetailMessage(school: SchoolRecord): string {
     `Owner: ${school.ownerName}`,
     `Email: ${school.email}`,
     `Contact: ${school.contactPhone || "—"}`,
-    `Package: ${school.package}`,
+    `Commercial package: ${school.package}`,
+    school.legacyCapacityPackage
+      ? `Legacy capacity (historical): ${school.legacyCapacityPackage}`
+      : null,
     `Lifecycle: ${school.lifecycleStatus}${school.isActive ? "" : " (inactive)"}`,
-    `Module package: ${describeModulePackageLabel(mods)}`,
     `Modules: Core ${mods.CORE !== false ? "ON" : "OFF"} · Accounting ${
       mods.ACCOUNTING !== false ? "ON" : "OFF"
     } · Payroll ${mods.PAYROLL !== false ? "ON" : "OFF"}`,
@@ -503,7 +508,7 @@ function schoolDetailMessage(school: SchoolRecord): string {
     `Parents: ${school.parentCount}`,
     `Registered: ${formatSchoolDate(school.registeredAt)}`,
     `Last login: ${formatSchoolDateTime(school.lastLoginAt)}`,
-  ];
+  ].filter(Boolean) as string[];
   return lines.join("\n");
 }
 
@@ -622,20 +627,23 @@ export default function SuperAdminSchoolsPage() {
 
   const handleChangePackage = useCallback(
     (school: SchoolRecord) => {
-      const current = String(school.package || "").trim();
+      const current = String(school.legacyCapacityPackage || "Starter").trim();
       const next = current === "Starter" ? "Unlimited" : "Starter";
       setConfirm({
-        title: "Change package?",
-        message: `Switch “${school.schoolName}” from ${school.package || "—"} to ${next}?`,
-        confirmLabel: "Change package",
+        title: "Change legacy capacity package?",
+        message: `Legacy capacity (STARTER/UNLIMITED) is historical only. Commercial modules stay as set. Switch “${school.schoolName}” from ${current} to ${next}?`,
+        confirmLabel: "Change legacy capacity",
         run: () => {
           void onChangePackage(school)
             .then(() =>
-              showNotice("Package updated", `“${school.schoolName}” is now on ${next}.`)
+              showNotice(
+                "Legacy capacity updated",
+                `“${school.schoolName}” legacy capacity is now ${next}. Commercial package remains ${school.package}.`
+              )
             )
             .catch((err: unknown) =>
               showNotice(
-                "Could not change package",
+                "Could not change legacy capacity",
                 err instanceof Error ? err.message : "Could not update this school's package."
               )
             );

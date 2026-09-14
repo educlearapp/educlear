@@ -1,213 +1,54 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 
-import TermsAgreementCheckbox from "../components/legal/TermsAgreementCheckbox";
-import { submitPayFastCheckout } from "./payfastCheckout";
+import { apiFetch } from "../api";
+import type { SchoolModuleEntitlements } from "../modules/schoolModuleEntitlements";
 import {
-  findPackageByCode,
-  getPackageSwitchButtonLabel,
-  isPackageSwitchDisabled,
-  normalizePackageCode,
-  resolveDisplayedCurrentPackage,
+  ANNUAL_PROMOTION_COPY,
+  PACKAGE_COMPARISON_ROWS,
+  type BillingInterval,
+  type EduClearCommercialPackage,
+  formatCommercialPackagePrice,
+  listNewSaleCommercialPackages,
+  packageIncludesFeature,
+} from "../modules/educlearCommercialPackages";
+import {
+  formatCurrentPackageCard,
+  isModularCheckoutAvailable,
+  listUpgradeOptions,
+  modularCheckoutDisabledReason,
+  resolveCurrentCommercialPackageStrict,
+  upgradeButtonLabel,
 } from "./dashboardPackagePanelLogic";
-import {
-  type EduClearPackage,
-  type SchoolSubscriptionStatus,
-  createSubscriptionCheckout,
-  fetchSchoolSubscriptionStatus,
-  fetchSubscriptionConfig,
-  fetchSubscriptionPackages,
-  formatLearnerLimit,
-  formatPackagePriceLabel,
-  formatPayrollLimit,
-  formatSubscriptionStatus,
-} from "./subscriptionsApi";
+import { fetchSchoolSubscriptionStatus, formatSubscriptionStatus } from "./subscriptionsApi";
 
 const GOLD = "#d4af37";
 
-const actionBtn: React.CSSProperties = {
-  padding: "10px 16px",
-  borderRadius: "10px",
-  border: "1px solid rgba(15, 23, 42, 0.14)",
-  background: "#ffffff",
-  fontWeight: 800,
-  fontSize: "13px",
-  color: "#0f172a",
-  boxShadow: "0 4px 10px rgba(15, 23, 42, 0.05)",
-  cursor: "pointer",
+const cardBase: React.CSSProperties = {
+  borderRadius: 16,
+  padding: 22,
+  border: "1px solid rgba(15, 23, 42, 0.12)",
+  background: "#fff",
+  boxShadow: "0 8px 20px rgba(15, 23, 42, 0.06)",
 };
 
-const goldBtn: React.CSSProperties = {
-  ...actionBtn,
-  border: "1px solid rgba(212, 175, 55, 0.7)",
-  background: "linear-gradient(135deg, #d4af37, #f5d06f)",
-  color: "#111827",
-  boxShadow: "0 8px 18px rgba(212, 175, 55, 0.28)",
+type Props = {
+  moduleEntitlements?: SchoolModuleEntitlements | null;
 };
 
-function packageSortOrder(code: string): number {
-  if (code === "STARTER") return 0;
-  if (code === "UNLIMITED") return 1;
-  return 2;
-}
-
-type PackageCardProps = {
-  pkg: EduClearPackage;
-  currentPackageCode: string;
-  subscriptionStatus: SchoolSubscriptionStatus | null;
-  checkoutCode: string;
-  payfastConfigured: boolean;
-  termsAccepted: boolean;
-  variant: "starter" | "unlimited";
-  onSelect: (pkg: EduClearPackage) => void;
-};
-
-function PackageCard({
-  pkg,
-  currentPackageCode,
-  subscriptionStatus,
-  checkoutCode,
-  payfastConfigured,
-  termsAccepted,
-  variant,
-  onSelect,
-}: PackageCardProps) {
-  const targetCode = normalizePackageCode(pkg.code);
-  const checkoutBusy = checkoutCode === targetCode;
-  const disabled = isPackageSwitchDisabled(
-    currentPackageCode,
-    targetCode,
-    subscriptionStatus,
-    checkoutBusy,
-    termsAccepted,
-    payfastConfigured
-  );
-  const label = getPackageSwitchButtonLabel(
-    currentPackageCode,
-    targetCode,
-    subscriptionStatus,
-    checkoutBusy
-  );
-  const priceLabel = formatPackagePriceLabel(pkg);
-
-  if (variant === "unlimited") {
-    return (
-      <div
-        style={{
-          background: "linear-gradient(135deg, #050505, #111827)",
-          color: "#fff",
-          borderRadius: "18px",
-          padding: "28px",
-          border: `2px solid ${GOLD}`,
-          boxShadow: "0 18px 40px rgba(212,175,55,0.18)",
-        }}
-      >
-        <div style={{ color: GOLD, fontWeight: 900, letterSpacing: "1px" }}>MOST POPULAR</div>
-        <h2 style={{ margin: "8px 0 6px" }}>{pkg.name}</h2>
-        <p
-          style={{ margin: "0 0 4px", fontSize: 24, fontWeight: 800, color: GOLD }}
-          data-testid={`dashboard-package-price-${pkg.code}`}
-        >
-          {priceLabel}
-        </p>
-        <p style={{ color: "#d1d5db", marginTop: 8 }}>For growing and larger schools.</p>
-        <div style={{ marginTop: "20px", lineHeight: 2, color: "#e5e7eb" }}>
-          ✅ {formatLearnerLimit(pkg.learnerLimit)}
-          <br />
-          ✅ {formatPayrollLimit(pkg.payrollStaffLimit)}
-          <br />
-          ✅ All EduClear features
-          <br />
-          ✅ Priority support
-        </div>
-        {payfastConfigured ? (
-          <button
-            type="button"
-            disabled={disabled}
-            onClick={() => onSelect(pkg)}
-            style={{
-              ...goldBtn,
-              marginTop: "24px",
-              width: "100%",
-              opacity: disabled ? 0.75 : 1,
-              cursor: disabled ? "not-allowed" : "pointer",
-            }}
-          >
-            {!termsAccepted && !isPackageSwitchDisabled(currentPackageCode, targetCode, subscriptionStatus, checkoutBusy, true, payfastConfigured)
-              ? "Accept Terms to Continue"
-              : label}
-          </button>
-        ) : null}
-      </div>
-    );
-  }
-
-  return (
-    <div
-      style={{
-        background: "#fff",
-        borderRadius: "18px",
-        padding: "28px",
-        border: "1px solid rgba(15,23,42,0.08)",
-        boxShadow: "0 12px 30px rgba(15,23,42,0.08)",
-      }}
-    >
-      <h2 style={{ margin: "0 0 6px" }}>{pkg.name}</h2>
-      <p
-        style={{ margin: "0 0 4px", fontSize: 24, fontWeight: 800, color: "#0f172a" }}
-        data-testid={`dashboard-package-price-${pkg.code}`}
-      >
-        {priceLabel}
-      </p>
-      <p style={{ color: "#6b7280", marginTop: 8 }}>For smaller schools getting started.</p>
-      <div style={{ marginTop: "20px", lineHeight: 2, color: "#334155" }}>
-        ✅ {formatLearnerLimit(pkg.learnerLimit)}
-        <br />
-        ✅ {formatPayrollLimit(pkg.payrollStaffLimit)}
-        <br />
-        ✅ Billing, statements and payments
-        <br />
-        ✅ Registrations and learner records
-      </div>
-      {payfastConfigured ? (
-        <button
-          type="button"
-          disabled={disabled}
-          onClick={() => onSelect(pkg)}
-          style={{
-            ...actionBtn,
-            marginTop: "24px",
-            width: "100%",
-            border: `1px solid ${GOLD}`,
-            background:
-              isPackageSwitchDisabled(currentPackageCode, targetCode, subscriptionStatus, false, true, payfastConfigured) &&
-              normalizePackageCode(currentPackageCode) === targetCode
-                ? GOLD
-                : "#fff",
-            opacity: disabled ? 0.7 : 1,
-            cursor: disabled ? "not-allowed" : "pointer",
-          }}
-        >
-          {!termsAccepted && !isPackageSwitchDisabled(currentPackageCode, targetCode, subscriptionStatus, checkoutBusy, true, payfastConfigured)
-            ? "Accept Terms to Continue"
-            : label}
-        </button>
-      ) : null}
-    </div>
-  );
-}
-
-export default function DashboardPackagePanel() {
+export default function DashboardPackagePanel({ moduleEntitlements = null }: Props) {
   const schoolId = String(localStorage.getItem("schoolId") || "").trim();
-  const [packages, setPackages] = useState<EduClearPackage[]>([]);
-  const [currentPackageCode, setCurrentPackageCode] = useState("");
-  const [subscriptionStatus, setSubscriptionStatus] = useState<SchoolSubscriptionStatus | null>(null);
-  const [currentPackage, setCurrentPackage] = useState<EduClearPackage | null>(null);
+  const [entitlements, setEntitlements] = useState<SchoolModuleEntitlements | null>(
+    moduleEntitlements
+  );
+  const [interval, setInterval] = useState<BillingInterval>("monthly");
+  const [subscriptionStatus, setSubscriptionStatus] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
-  const [checkoutCode, setCheckoutCode] = useState("");
-  const [payfastConfigured, setPayfastConfigured] = useState(true);
-  const [missingPayFastEnv, setMissingPayFastEnv] = useState<string[]>([]);
-  const [agreedToTerms, setAgreedToTerms] = useState(false);
+  const [showComparison, setShowComparison] = useState(false);
+
+  useEffect(() => {
+    if (moduleEntitlements) setEntitlements(moduleEntitlements);
+  }, [moduleEntitlements]);
 
   const loadData = useCallback(async () => {
     if (!schoolId) {
@@ -215,233 +56,268 @@ export default function DashboardPackagePanel() {
       setLoading(false);
       return;
     }
-
     setLoading(true);
     setError("");
-
     try {
-      const [rows, configResponse, statusResponse] = await Promise.all([
-        fetchSubscriptionPackages(),
-        fetchSubscriptionConfig().catch(() => ({
-          payfastConfigured: true,
-          missingPayFastEnv: [] as string[],
-        })),
-        fetchSchoolSubscriptionStatus(schoolId),
-      ]);
-
-      setPayfastConfigured(Boolean(configResponse?.payfastConfigured));
-      setMissingPayFastEnv(
-        Array.isArray(configResponse?.missingPayFastEnv) ? configResponse.missingPayFastEnv : []
-      );
-
-      const sorted = [...rows].sort(
-        (a, b) => packageSortOrder(a.code) - packageSortOrder(b.code)
-      );
-      setPackages(sorted);
-
-      const activeCode = normalizePackageCode(statusResponse?.subscription?.packageCode);
-      setCurrentPackageCode(activeCode);
+      const statusResponse = await fetchSchoolSubscriptionStatus(schoolId);
       setSubscriptionStatus(statusResponse?.subscription?.status ?? null);
-      setCurrentPackage(
-        resolveDisplayedCurrentPackage(
-          sorted,
-          activeCode,
-          statusResponse?.subscription?.package ?? null
-        )
-      );
+
+      if (!moduleEntitlements) {
+        const token = String(localStorage.getItem("token") || "").trim();
+        const body = (await apiFetch("/api/auth/me", {
+          headers: token ? { Authorization: `Bearer ${token}` } : {},
+        })) as {
+          moduleEntitlements?: SchoolModuleEntitlements;
+          school?: { moduleEntitlements?: SchoolModuleEntitlements };
+        };
+        const mods = body.moduleEntitlements || body.school?.moduleEntitlements || null;
+        if (mods) setEntitlements(mods);
+      }
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : "Failed to load package details");
     } finally {
       setLoading(false);
     }
-  }, [schoolId]);
+  }, [schoolId, moduleEntitlements]);
 
   useEffect(() => {
     void loadData();
   }, [loadData]);
 
-  async function handleSelect(pkg: EduClearPackage) {
-    if (!agreedToTerms) {
-      setError("You must agree to the EduClear Terms & Conditions before payment.");
-      return;
-    }
+  const current = useMemo(
+    () => resolveCurrentCommercialPackageStrict(entitlements),
+    [entitlements]
+  );
+  const upgrades = useMemo(() => listUpgradeOptions(entitlements), [entitlements]);
+  const catalog = useMemo(() => listNewSaleCommercialPackages(), []);
+  const currentCard = current ? formatCurrentPackageCard(current, interval) : null;
+  const checkoutAvailable = isModularCheckoutAvailable();
 
-    if (!schoolId) {
-      setError("Please log in again before choosing a package.");
-      return;
-    }
-
-    const packageCode = normalizePackageCode(pkg.code);
-    if (packageCode !== "STARTER" && packageCode !== "UNLIMITED") {
-      setError("Invalid package. Choose Starter or Unlimited.");
-      return;
-    }
-
-    if (
-      isPackageSwitchDisabled(
-        currentPackageCode,
-        packageCode,
-        subscriptionStatus,
-        false,
-        true,
-        payfastConfigured
-      )
-    ) {
-      return;
-    }
-
-    setError("");
-    setCheckoutCode(packageCode);
-    localStorage.setItem("educlearSelectedPackageCode", packageCode);
-
-    try {
-      const payerEmail = String(localStorage.getItem("userEmail") || "").trim();
-      const result = await createSubscriptionCheckout({
-        schoolId,
-        packageCode,
-        payerEmail: payerEmail || undefined,
-      });
-
-      if (!result?.paymentUrl || !result?.payload) {
-        throw new Error("PayFast checkout response was incomplete");
-      }
-
-      submitPayFastCheckout(result.paymentUrl, result.payload);
-    } catch (err: unknown) {
-      setCheckoutCode("");
-      setError(err instanceof Error ? err.message : "Could not start PayFast checkout");
-    }
+  if (loading) {
+    return <div style={{ padding: 24 }}>Loading package…</div>;
   }
 
-  const starterPkg = findPackageByCode(packages, "STARTER");
-  const unlimitedPkg = findPackageByCode(packages, "UNLIMITED");
-  const statusLabel = subscriptionStatus ? formatSubscriptionStatus(subscriptionStatus) : "No subscription";
-
   return (
-    <div style={{ padding: "32px" }}>
-      <h1 className="page-title">Package</h1>
-      <p style={{ color: "#475569", marginTop: "-8px" }}>
-        Choose the EduClear package that matches your school size. Package changes are completed
-        through PayFast when payment is confirmed.
+    <div style={{ padding: "8px 4px 32px", maxWidth: 1100 }} data-testid="dashboard-package-panel">
+      <h1 style={{ margin: "0 0 8px", fontSize: 28, fontWeight: 800 }}>Package</h1>
+      <p style={{ margin: "0 0 20px", color: "#64748b" }}>
+        Your EduClear commercial package is defined by Core, Accounting, and Payroll modules.
+        School-fee Billing is included with Core — it is not an Accounting add-on.
       </p>
 
-      {loading ? <p style={{ color: "#64748b", marginTop: 24 }}>Loading packages...</p> : null}
-
       {error ? (
-        <p style={{ color: "#b91c1c", marginTop: 24 }} role="alert">
-          {error}
+        <div style={{ marginBottom: 16, color: "#b91c1c", fontWeight: 600 }}>{error}</div>
+      ) : null}
+
+      <div style={{ display: "flex", gap: 8, marginBottom: 16 }}>
+        <button
+          type="button"
+          onClick={() => setInterval("monthly")}
+          style={{
+            ...cardBase,
+            padding: "8px 14px",
+            fontWeight: 700,
+            cursor: "pointer",
+            borderColor: interval === "monthly" ? GOLD : undefined,
+          }}
+        >
+          Monthly
+        </button>
+        <button
+          type="button"
+          onClick={() => setInterval("annual")}
+          style={{
+            ...cardBase,
+            padding: "8px 14px",
+            fontWeight: 700,
+            cursor: "pointer",
+            borderColor: interval === "annual" ? GOLD : undefined,
+          }}
+        >
+          Annual
+        </button>
+      </div>
+
+      <section
+        style={{
+          ...cardBase,
+          marginBottom: 20,
+          border: `2px solid ${GOLD}`,
+          background: "linear-gradient(135deg, #fffbeb, #ffffff)",
+        }}
+        data-testid="current-package-card"
+      >
+        <div style={{ color: GOLD, fontWeight: 900, letterSpacing: 1, fontSize: 12 }}>
+          CURRENT PACKAGE
+        </div>
+        {currentCard && current ? (
+          <>
+            <h2 style={{ margin: "8px 0 4px" }} data-testid="current-package-name">
+              {currentCard.title}
+            </h2>
+            {current.secondaryLabel ? (
+              <div style={{ color: "#64748b", fontWeight: 600 }}>{current.secondaryLabel}</div>
+            ) : null}
+            <p
+              style={{ margin: "10px 0 4px", fontSize: 26, fontWeight: 800 }}
+              data-testid="current-package-price"
+            >
+              {currentCard.priceLine}
+            </p>
+            {currentCard.promoLine ? (
+              <p style={{ margin: "0 0 8px", color: "#047857", fontWeight: 700 }}>
+                {currentCard.promoLine}
+              </p>
+            ) : null}
+            <p style={{ margin: 0, color: "#475569" }}>{currentCard.description}</p>
+            {subscriptionStatus ? (
+              <p style={{ margin: "12px 0 0", fontSize: 13, color: "#64748b" }}>
+                Subscription status: {formatSubscriptionStatus(subscriptionStatus as never)}
+              </p>
+            ) : null}
+          </>
+        ) : (
+          <p style={{ margin: "8px 0 0", color: "#b91c1c", fontWeight: 700 }}>
+            Invalid package (no commercial modules). Contact EduClear support.
+          </p>
+        )}
+      </section>
+
+      {current?.code === "FULL" ? (
+        <p style={{ fontWeight: 700, color: "#047857" }}>
+          You already have EduClear Full — no upgrade required.
+        </p>
+      ) : (
+        <section style={{ marginBottom: 28 }}>
+          <h3 style={{ margin: "0 0 12px" }}>Upgrade options</h3>
+          <div
+            style={{
+              display: "grid",
+              gridTemplateColumns: "repeat(auto-fit, minmax(240px, 1fr))",
+              gap: 14,
+            }}
+          >
+            {upgrades.map((pkg) => (
+              <UpgradeCard
+                key={pkg.code}
+                pkg={pkg}
+                interval={interval}
+                checkoutAvailable={checkoutAvailable}
+              />
+            ))}
+          </div>
+          {!checkoutAvailable ? (
+            <p
+              style={{ marginTop: 14, color: "#92400e", fontWeight: 600 }}
+              data-testid="modular-checkout-disabled"
+            >
+              {modularCheckoutDisabledReason()}
+            </p>
+          ) : null}
+        </section>
+      )}
+
+      <button
+        type="button"
+        onClick={() => setShowComparison((v) => !v)}
+        style={{
+          marginBottom: 12,
+          padding: "10px 14px",
+          borderRadius: 10,
+          border: "1px solid rgba(15,23,42,0.14)",
+          background: "#fff",
+          fontWeight: 800,
+          cursor: "pointer",
+        }}
+      >
+        {showComparison ? "Hide package comparison" : "Show package comparison"}
+      </button>
+
+      {showComparison ? <PackageComparisonTable catalog={catalog} /> : null}
+    </div>
+  );
+}
+
+function UpgradeCard({
+  pkg,
+  interval,
+  checkoutAvailable,
+}: {
+  pkg: EduClearCommercialPackage;
+  interval: BillingInterval;
+  checkoutAvailable: boolean;
+}) {
+  return (
+    <div style={cardBase} data-testid={`upgrade-card-${pkg.code}`}>
+      <h4 style={{ margin: "0 0 4px" }}>{pkg.name}</h4>
+      {pkg.secondaryLabel ? (
+        <div style={{ color: "#64748b", fontSize: 13 }}>{pkg.secondaryLabel}</div>
+      ) : null}
+      <p style={{ margin: "10px 0 4px", fontSize: 20, fontWeight: 800 }}>
+        {formatCommercialPackagePrice(pkg, interval)}
+      </p>
+      {interval === "annual" ? (
+        <p style={{ margin: "0 0 8px", color: "#047857", fontSize: 13, fontWeight: 700 }}>
+          {ANNUAL_PROMOTION_COPY}
         </p>
       ) : null}
+      <p style={{ margin: "0 0 14px", color: "#475569", fontSize: 14 }}>{pkg.description}</p>
+      <button
+        type="button"
+        disabled={!checkoutAvailable}
+        title={!checkoutAvailable ? modularCheckoutDisabledReason() : undefined}
+        style={{
+          padding: "10px 14px",
+          borderRadius: 10,
+          border: `1px solid ${GOLD}`,
+          background: checkoutAvailable
+            ? "linear-gradient(135deg, #d4af37, #f5d06f)"
+            : "#e2e8f0",
+          fontWeight: 800,
+          cursor: checkoutAvailable ? "pointer" : "not-allowed",
+          opacity: checkoutAvailable ? 1 : 0.7,
+        }}
+      >
+        {upgradeButtonLabel(pkg)}
+      </button>
+    </div>
+  );
+}
 
-      {!loading ? (
-        <div
-          style={{
-            marginTop: 24,
-            padding: "16px 18px",
-            borderRadius: 14,
-            border: "1px solid rgba(212, 175, 55, 0.35)",
-            background: "#fff",
-          }}
-        >
-          <TermsAgreementCheckbox
-            checked={agreedToTerms}
-            onChange={setAgreedToTerms}
-            id="dashboard-package-terms"
-          />
-        </div>
-      ) : null}
-
-      {!loading && !payfastConfigured ? (
-        <div
-          style={{
-            marginTop: 24,
-            padding: "20px 22px",
-            borderRadius: 14,
-            border: "1px solid rgba(217, 119, 6, 0.35)",
-            background: "rgba(255, 251, 235, 0.95)",
-            color: "#92400e",
-          }}
-          role="status"
-        >
-          <p style={{ margin: "0 0 8px", fontWeight: 800 }}>
-            PayFast is not configured on this server
-          </p>
-          <p style={{ margin: 0, lineHeight: 1.6 }}>
-            {missingPayFastEnv.length
-              ? `Missing: ${missingPayFastEnv.join(", ")}`
-              : "PayFast environment variables are not set."}
-          </p>
-        </div>
-      ) : null}
-
-      {!loading && currentPackage ? (
-        <div
-          style={{
-            background: "linear-gradient(135deg, #050505, #111827)",
-            color: "#fff",
-            borderRadius: "18px",
-            padding: "28px",
-            marginTop: "24px",
-            border: "1px solid rgba(212,175,55,0.35)",
-          }}
-          data-testid="dashboard-current-package-banner"
-        >
-          <div style={{ color: GOLD, fontWeight: 900, letterSpacing: "1px" }}>CURRENT PACKAGE</div>
-          <h2 style={{ margin: "12px 0 6px" }} data-testid="dashboard-current-package-name">
-            {currentPackage.name}
-          </h2>
-          <p style={{ margin: "0 0 8px", fontSize: 20, fontWeight: 800, color: GOLD }}>
-            {formatPackagePriceLabel(currentPackage)}
-          </p>
-          <p style={{ margin: "0 0 8px", color: "#d1d5db" }}>
-            Status: <strong>{statusLabel}</strong>
-          </p>
-          <p style={{ margin: 0, color: "#d1d5db" }}>
-            {formatLearnerLimit(currentPackage.learnerLimit)} •{" "}
-            {formatPayrollLimit(currentPackage.payrollStaffLimit)}
-          </p>
-        </div>
-      ) : null}
-
-      {!loading && (starterPkg || unlimitedPkg) ? (
-        <div
-          style={{
-            display: "grid",
-            gridTemplateColumns: "1fr 1fr",
-            gap: "28px",
-            marginTop: "28px",
-          }}
-        >
-          {starterPkg ? (
-            <PackageCard
-              pkg={starterPkg}
-              currentPackageCode={currentPackageCode}
-              subscriptionStatus={subscriptionStatus}
-              checkoutCode={checkoutCode}
-              payfastConfigured={payfastConfigured}
-              termsAccepted={agreedToTerms}
-              variant="starter"
-              onSelect={handleSelect}
-            />
-          ) : null}
-          {unlimitedPkg ? (
-            <PackageCard
-              pkg={unlimitedPkg}
-              currentPackageCode={currentPackageCode}
-              subscriptionStatus={subscriptionStatus}
-              checkoutCode={checkoutCode}
-              payfastConfigured={payfastConfigured}
-              termsAccepted={agreedToTerms}
-              variant="unlimited"
-              onSelect={handleSelect}
-            />
-          ) : null}
-        </div>
-      ) : null}
-
-      {!loading && packages.length === 0 ? (
-        <p style={{ color: "#64748b", marginTop: 24 }}>No packages available.</p>
-      ) : null}
+function PackageComparisonTable({ catalog }: { catalog: EduClearCommercialPackage[] }) {
+  const columns = catalog;
+  return (
+    <div style={{ overflowX: "auto", ...cardBase }} data-testid="package-comparison-table">
+      <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13 }}>
+        <thead>
+          <tr>
+            <th style={{ textAlign: "left", padding: 8 }}>Feature</th>
+            {columns.map((pkg) => (
+              <th key={pkg.code} style={{ textAlign: "center", padding: 8 }}>
+                {pkg.shortLabel}
+              </th>
+            ))}
+          </tr>
+        </thead>
+        <tbody>
+          {PACKAGE_COMPARISON_ROWS.map((row) => (
+            <tr key={row.feature} style={{ borderTop: "1px solid #e2e8f0" }}>
+              <td style={{ padding: 8 }}>
+                <div style={{ fontWeight: 700 }}>{row.feature}</div>
+                <div style={{ color: "#94a3b8", fontSize: 11 }}>{row.group}</div>
+                {row.note ? (
+                  <div style={{ color: "#64748b", fontSize: 11 }}>{row.note}</div>
+                ) : null}
+              </td>
+              {columns.map((pkg) => (
+                <td key={pkg.code} style={{ textAlign: "center", padding: 8 }}>
+                  {packageIncludesFeature(pkg, row) ? "✅" : "—"}
+                </td>
+              ))}
+            </tr>
+          ))}
+        </tbody>
+      </table>
     </div>
   );
 }

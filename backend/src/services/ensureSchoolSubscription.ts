@@ -1,3 +1,13 @@
+/**
+ * Ensures every school has a SchoolSubscription row for payment/lifecycle history.
+ *
+ * IMPORTANT (Phase 6C.1):
+ * - SchoolSubscription.packageCode is LEGACY capacity only (STARTER | UNLIMITED).
+ * - It is NOT the commercial product identity.
+ * - New schools use UNLIMITED as a non-Starter capacity placeholder aligned with the
+ *   modular Full (111) default — never STARTER for new-sale commercial meaning.
+ * - Commercial package = CORE/ACCOUNTING/PAYROLL entitlements → educlearCommercialPackages.
+ */
 import {
   EduClearPackageCode,
   Prisma,
@@ -10,14 +20,19 @@ import { addOneCalendarMonth } from "./payfastService";
 
 export const SCHOOL_REGISTRATION_ACTIVATION_SOURCE = "school_registration";
 
+/**
+ * Legacy capacity FK for NEW schools only.
+ * Not a commercial SKU. Commercial identity is modular Full unless overridden.
+ */
+export const NEW_SCHOOL_LEGACY_CAPACITY_PLACEHOLDER: EduClearPackageCode = "UNLIMITED";
+
 type DbClient = Prisma.TransactionClient | typeof prisma;
 
-const DEFAULT_PACKAGE_CODE: EduClearPackageCode = "STARTER";
 const DEFAULT_STATUS = SchoolSubscriptionStatus.PENDING_PAYMENT;
 
 async function resolvePackage(
   db: DbClient,
-  packageCode: EduClearPackageCode = DEFAULT_PACKAGE_CODE
+  packageCode: EduClearPackageCode = NEW_SCHOOL_LEGACY_CAPACITY_PLACEHOLDER
 ) {
   const pkg = await db.eduClearPackage.findFirst({
     where: { code: packageCode, isActive: true },
@@ -44,7 +59,9 @@ function activePeriodFields(activatedAt: Date) {
 }
 
 /**
- * Ensures every school has a SchoolSubscription row (default Starter / Trial).
+ * Ensures every school has a SchoolSubscription row.
+ * New rows default to UNLIMITED capacity placeholder + PENDING_PAYMENT.
+ * Never defaults to STARTER.
  * Safe to call repeatedly; no-op when a record already exists.
  */
 export async function ensureSchoolSubscription(
@@ -64,7 +81,7 @@ export async function ensureSchoolSubscription(
   const db: DbClient = opts?.tx ?? prisma;
   const existing = await db.schoolSubscription.findUnique({
     where: { schoolId: schoolIdNorm },
-    select: { id: true },
+    select: { id: true, packageCode: true },
   });
   if (existing) {
     return existing;
@@ -72,7 +89,11 @@ export async function ensureSchoolSubscription(
 
   await ensureEduClearPackages();
 
-  const packageCode = opts?.packageCode ?? DEFAULT_PACKAGE_CODE;
+  const packageCode = opts?.packageCode ?? NEW_SCHOOL_LEGACY_CAPACITY_PLACEHOLDER;
+  if (packageCode === "STARTER" && opts?.packageCode === undefined) {
+    // Defensive: default path must never assign STARTER.
+    throw new Error("Internal error: new-school subscription defaulted to STARTER");
+  }
   const status = opts?.status ?? DEFAULT_STATUS;
   const pkg = await resolvePackage(db, packageCode);
 
@@ -93,6 +114,6 @@ export async function ensureSchoolSubscription(
 
   return db.schoolSubscription.create({
     data: createData,
-    select: { id: true },
+    select: { id: true, packageCode: true },
   });
 }

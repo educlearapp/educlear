@@ -2,6 +2,7 @@ import { EduClearPackageCode, SchoolSubscriptionStatus } from "@prisma/client";
 
 import { prisma } from "../../prisma";
 import { ensureEduClearPackages } from "../ensureEduClearPackages";
+import { NEW_SCHOOL_LEGACY_CAPACITY_PLACEHOLDER } from "../ensureSchoolSubscription";
 import { addOneCalendarMonth } from "../payfastService";
 
 export type SuperAdminUpdateSchoolInput = {
@@ -57,7 +58,7 @@ export async function updateSuperAdminSchool(input: SuperAdminUpdateSchoolInput)
   });
 
   const targetPackageCode =
-    patchPackageCode ?? existing?.packageCode ?? ("STARTER" as EduClearPackageCode);
+    patchPackageCode ?? existing?.packageCode ?? NEW_SCHOOL_LEGACY_CAPACITY_PLACEHOLDER;
   const pkg = await prisma.eduClearPackage.findUnique({
     where: { code: targetPackageCode },
     select: { id: true, code: true },

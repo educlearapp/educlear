@@ -24,10 +24,11 @@ const SECTIONS = [
   },
   {
     id: "packages",
-    title: "3. Starter & Unlimited Packages",
+    title: "3. Modular Packages",
     body: [
-      "Starter and Unlimited packages define usage limits such as learner counts, payroll staff limits, and enabled modules. Package fees are charged according to the plan and billing cycle displayed at registration, upgrade, or renewal.",
-      "Moving between Starter and Unlimited, or changing billing cycles, may require payment of applicable fees before the new package takes effect. Downgrades may be subject to prorated credits or adjusted renewal dates at EduClear's discretion, as communicated at the time of change.",
+      "EduClear commercial packages are modular combinations of Core, Accounting, and Payroll (including Business and Full). Package fees are charged according to the plan and billing cycle displayed at registration, upgrade, or renewal.",
+      "Moving between modular packages, or changing billing cycles, may require payment of applicable fees before the new package takes effect. Downgrades may be subject to prorated credits or adjusted renewal dates at EduClear's discretion, as communicated at the time of change.",
+      "Historical Starter and Unlimited capacity labels may appear on older accounts for payment-history compatibility only and are not offered as new purchasable plans.",
     ],
   },
   {
@@ -115,7 +116,8 @@ export default function RefundAndCancellationPolicy() {
         <div className="terms-legal-intro">
           <p className="terms-legal-effective">Effective date: 1 June 2026</p>
           <p>
-            This policy applies to EduClear subscriptions, Starter and Unlimited packages, SMS
+            This policy applies to EduClear subscriptions, modular Core / Accounting / Payroll
+            packages (including Business and Full), SMS
             and communication credits, and payments made through PayFast or other supported
             gateways. Please read it together with our{" "}
             <Link to="/terms-and-conditions">Terms &amp; Conditions</Link>.
