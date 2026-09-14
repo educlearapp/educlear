@@ -1259,14 +1259,36 @@ router.patch("/:id/billing-plan", async (req, res) => {
 
 router.patch("/:id/enrollment-status", async (req, res) => {
   try {
+    const authDecision = await resolveParentStaffAuth(req, {
+      requirePermission: { module: "learners", action: "edit" },
+    });
+    if (!authDecision.allowed) {
+      return res.status(authDecision.status).json({
+        success: false,
+        error: authDecision.error,
+        code: authDecision.code || null,
+        message: authDecision.error,
+      });
+    }
+    const staffAuth = authDecision.auth;
     const { id } = req.params;
-    const schoolId = cleanString(req.body?.schoolId || req.query?.schoolId);
-    if (!schoolId) {
-      return res.status(400).json({ success: false, error: "Missing schoolId" });
+    // Client schoolId is optional; JWT authorizedSchoolId is authoritative.
+    // If body and/or query supply schoolId, neither may contradict the JWT school.
+    const bodySchoolId = cleanString(req.body?.schoolId);
+    const querySchoolId = cleanString(req.query?.schoolId);
+    if (
+      (bodySchoolId && bodySchoolId !== staffAuth.authorizedSchoolId) ||
+      (querySchoolId && querySchoolId !== staffAuth.authorizedSchoolId)
+    ) {
+      return res.status(403).json({
+        success: false,
+        error: "Request schoolId does not match authenticated school",
+        code: "SCHOOL_MISMATCH",
+      });
     }
 
     const updatedLearner = await updateLearnerEnrollmentStatus({
-      schoolId,
+      schoolId: staffAuth.authorizedSchoolId,
       learnerId: id,
       enrollmentStatus: req.body?.enrollmentStatus,
     });

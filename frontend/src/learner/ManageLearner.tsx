@@ -1,6 +1,8 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { API_URL } from "../api";
+import { getSchoolSessionUser } from "../auth/schoolSession";
 import { staffAuthHeaders } from "../auth/staffAuthHeaders";
+import { hasPermission } from "../users/permissions";
 import ParentsSection from "./ParentsSection";
 import type { ParentRecord } from "./parentFormTypes";
 import {
@@ -509,6 +511,17 @@ export default function ManageLearner({
     const isHistoricalLearner =
       String(learner?.enrollmentStatus || "").trim().toUpperCase() === "HISTORICAL";
     const enrollmentAction = isHistoricalLearner ? "Re-enrol" : "Unenrol";
+    const canMutateEnrollmentStatus = hasPermission(
+      getSchoolSessionUser(),
+      "learners",
+      "edit"
+    );
+    const profileMoreItems = [
+      "Send Email",
+      "Send SMS",
+      ...(canMutateEnrollmentStatus ? [enrollmentAction] : []),
+      "Delete",
+    ];
 
     const persistLearner = (updated: any) => {
       setSelectedLearner(updated);
@@ -683,7 +696,7 @@ export default function ManageLearner({
           `${API_URL}/api/learners/${encodeURIComponent(learner.id)}/enrollment-status`,
           {
             method: "PATCH",
-            headers: { "Content-Type": "application/json" },
+            headers: { "Content-Type": "application/json", ...staffAuthHeaders() },
             body: JSON.stringify({ enrollmentStatus: "HISTORICAL", schoolId: learner.schoolId }),
           }
         );
@@ -722,7 +735,7 @@ export default function ManageLearner({
           `${API_URL}/api/learners/${encodeURIComponent(learner.id)}/enrollment-status`,
           {
             method: "PATCH",
-            headers: { "Content-Type": "application/json" },
+            headers: { "Content-Type": "application/json", ...staffAuthHeaders() },
             body: JSON.stringify({ enrollmentStatus: "ACTIVE", schoolId: learner.schoolId }),
           }
         );
@@ -1312,7 +1325,7 @@ export default function ManageLearner({
   
   
   
-              {["Send Email", "Send SMS", enrollmentAction, "Delete"].map((item) => (
+              {profileMoreItems.map((item) => (
   
   
   
