@@ -37,8 +37,8 @@ export const SHARED_PLATFORM_PAGES = [
 ] as const;
 
 /**
- * Safe standalone Accounting bookkeeping (no learner / FamilyAccount / school-fee dependency).
- * Visible for Accounting-only tenants.
+ * Safe standalone Accounting bookkeeping for ACCOUNTING-only tenants.
+ * Core fee/FamilyAccount enrichment is conditional inside these pages when CORE=true.
  */
 export const ACCOUNTING_SAFE_STANDALONE_PAGES = [
   "accountingOverview",
@@ -52,19 +52,17 @@ export const ACCOUNTING_SAFE_STANDALONE_PAGES = [
   "accountingCreditorsAgeing",
   "accountingSupplierInvoices",
   "accountingSettings",
-] as const;
-
-/**
- * Accounting pages that still pull Core billing / learners.
- * Require CORE && ACCOUNTING until Phase 5D repairs them for Core-off.
- */
-export const ACCOUNTING_CORE_DEPENDENT_PAGES = [
   "accountingFinancialStatements",
   "accountingReports",
-  "accountingDebtorsAgeing",
   "accountingAuditCompliance",
   "accountingExportCenter",
 ] as const;
+
+/**
+ * Accounting pages that remain school-fee / FamilyAccount based (no Accounting-native AR).
+ * Require CORE && ACCOUNTING.
+ */
+export const ACCOUNTING_CORE_DEPENDENT_PAGES = ["accountingDebtorsAgeing"] as const;
 
 /** All ACCOUNTING-gated bookkeeping pages (safe + Core-dependent). Banking is separate. */
 export const ACCOUNTING_ONLY_PAGES = [

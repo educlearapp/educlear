@@ -1,6 +1,7 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { fetchBankImports, type BankImportRecord } from "../banking/bankingApi";
 import { BILLING_UPDATED_EVENT, formatMoney, getBillingRows } from "../billing/billingLedger";
+import { isAccountingCoreBillingEnabled } from "./accountingCoreUi";
 import { ACCOUNTING_ASSETS_UPDATED_EVENT } from "./accountingAssetStorage";
 import {
   ACCOUNTING_SETTINGS_UPDATED_EVENT,
@@ -299,12 +300,14 @@ export default function AccountingAuditCompliance({ schoolId, schoolName, learne
   const [reportYear, setReportYear] = useState(now.getFullYear());
   const [reportMonth, setReportMonth] = useState(now.getMonth());
   const [reportBasis, setReportBasis] = useState<ReportingBasis>("doe");
+  const coreBillingEnabled = isAccountingCoreBillingEnabled();
 
   const bump = useCallback(() => setRefreshKey((k) => k + 1), []);
 
   useEffect(() => {
     const handler = () => bump();
     for (const evt of COMPLIANCE_REFRESH_EVENTS) {
+      if (!coreBillingEnabled && evt === BILLING_UPDATED_EVENT) continue;
       window.addEventListener(evt, handler);
     }
     window.addEventListener(ACCOUNTING_SETTINGS_UPDATED_EVENT, handler);
@@ -314,7 +317,7 @@ export default function AccountingAuditCompliance({ schoolId, schoolName, learne
       }
       window.removeEventListener(ACCOUNTING_SETTINGS_UPDATED_EVENT, handler);
     };
-  }, [bump]);
+  }, [bump, coreBillingEnabled]);
 
   useEffect(() => {
     if (!schoolId) {
@@ -340,8 +343,9 @@ export default function AccountingAuditCompliance({ schoolId, schoolName, learne
   }, [schoolId, refreshKey]);
 
   const statementRows = useMemo(
-    () => getBillingRows(learners || [], schoolId || ""),
-    [learners, schoolId, refreshKey]
+    () =>
+      coreBillingEnabled ? getBillingRows(learners || [], schoolId || "") : [],
+    [learners, schoolId, refreshKey, coreBillingEnabled]
   );
 
   const metrics = useMemo(
@@ -349,7 +353,12 @@ export default function AccountingAuditCompliance({ schoolId, schoolName, learne
     [schoolId, statementRows, bankImports, refreshKey]
   );
 
-  const complianceChecks = useMemo(() => buildComplianceChecks(metrics), [metrics]);
+  const complianceChecks = useMemo(() => {
+    const checks = buildComplianceChecks(metrics);
+    if (coreBillingEnabled) return checks;
+    return checks.filter((c) => c.id !== "debtors" && !/debtor/i.test(c.issue || ""));
+  }, [metrics, coreBillingEnabled]);
+
   const hasHighSeverity = complianceChecks.some((c) => c.severity === "high" && (c.count === undefined || c.count > 0));
 
   const auditTrail = useMemo(() => listMergedAuditTrail(schoolId), [schoolId, refreshKey]);
@@ -392,13 +401,13 @@ export default function AccountingAuditCompliance({ schoolId, schoolName, learne
   const activeLocks = lockedPeriods.filter((p) => p.status === "locked");
 
   const summaryCards = [
-    { label: "Open Audit Items", value: String(metrics.openAuditItems) },
-    { label: "Locked Periods", value: String(metrics.lockedPeriods) },
-    { label: "Unreconciled Bank Items", value: String(metrics.unreconciledBankItems) },
-    { label: "Unposted Journals", value: String(metrics.unpostedJournals) },
-    { label: "Overdue Debtors", value: String(metrics.overdueDebtors) },
-    { label: "Overdue Creditors", value: String(metrics.overdueCreditors) },
-  ];
+    { label: "Open Audit Items", value: String(metrics.openAuditItems), coreOnly: false },
+    { label: "Locked Periods", value: String(metrics.lockedPeriods), coreOnly: false },
+    { label: "Unreconciled Bank Items", value: String(metrics.unreconciledBankItems), coreOnly: false },
+    { label: "Unposted Journals", value: String(metrics.unpostedJournals), coreOnly: false },
+    { label: "Overdue Debtors", value: String(metrics.overdueDebtors), coreOnly: true },
+    { label: "Overdue Creditors", value: String(metrics.overdueCreditors), coreOnly: false },
+  ].filter((card) => coreBillingEnabled || !card.coreOnly);
 
   const handleLockPeriod = () => {
     const sid = String(schoolId || "").trim();
@@ -566,7 +575,7 @@ export default function AccountingAuditCompliance({ schoolId, schoolName, learne
         `Unreconciled bank lines: ${metrics.unreconciledBankItems}`,
         `Unposted journals: ${metrics.unpostedJournals}`,
         `Expense candidates: ${metrics.expenseCandidates}`,
-        `Overdue debtors: ${metrics.overdueDebtors}`,
+        ...(coreBillingEnabled ? [`Overdue debtors: ${metrics.overdueDebtors}`] : []),
         `Overdue creditors: ${metrics.overdueCreditors}`,
         `Supplier payment plans: ${metrics.supplierPaymentPlans}`,
       ]
@@ -1056,14 +1065,16 @@ export default function AccountingAuditCompliance({ schoolId, schoolName, learne
           <div style={{ padding: 20 }}>
             <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))", gap: 14 }}>
               {[
-                { label: "Unreconciled bank lines", value: metrics.unreconciledBankItems },
-                { label: "Unposted journals", value: metrics.unpostedJournals },
-                { label: "Unbalanced journals", value: metrics.unbalancedJournals },
-                { label: "Pending expenses", value: metrics.expenseCandidates },
-                { label: "Overdue debtors", value: metrics.overdueDebtors },
-                { label: "Overdue creditors", value: metrics.overdueCreditors },
-                { label: "Supplier payment plans", value: metrics.supplierPaymentPlans },
-              ].map((item) => (
+                { label: "Unreconciled bank lines", value: metrics.unreconciledBankItems, coreOnly: false },
+                { label: "Unposted journals", value: metrics.unpostedJournals, coreOnly: false },
+                { label: "Unbalanced journals", value: metrics.unbalancedJournals, coreOnly: false },
+                { label: "Pending expenses", value: metrics.expenseCandidates, coreOnly: false },
+                { label: "Overdue debtors", value: metrics.overdueDebtors, coreOnly: true },
+                { label: "Overdue creditors", value: metrics.overdueCreditors, coreOnly: false },
+                { label: "Supplier payment plans", value: metrics.supplierPaymentPlans, coreOnly: false },
+              ]
+                .filter((item) => coreBillingEnabled || !item.coreOnly)
+                .map((item) => (
                 <div key={item.label} style={{ ...summaryCard, minHeight: 100 }}>
                   <div style={summaryLabel}>{item.label}</div>
                   <div style={summaryValue}>{item.value}</div>
@@ -1071,7 +1082,8 @@ export default function AccountingAuditCompliance({ schoolId, schoolName, learne
               ))}
             </div>
             <p style={{ marginTop: 16, fontSize: 13, color: "#64748b", fontWeight: 600 }}>
-              Counts are sourced live from Banking, Journals, Expenses, Debtors, and Creditors modules (browser storage).
+              Counts are sourced live from Banking, Journals, Expenses
+              {coreBillingEnabled ? ", Debtors," : ""} and Creditors modules.
             </p>
           </div>
         )}

@@ -1269,13 +1269,13 @@ export default function BankStatementImport({ schoolId, learners }: Props) {
         >
           <div style={{ ...accountingCard, width: "min(480px, 100%)" }}>
             <h3 style={{ marginTop: 0 }}>
-              {txnType(editModal) === "payment"
+              {txnType(editModal) === "payment" && coreEnabled
                 ? "Change payment account"
                 : accountingEnabled
                   ? "Change expense details"
                   : "Edit transaction"}
             </h3>
-            {txnType(editModal) === "payment" ? (
+            {txnType(editModal) === "payment" && coreEnabled ? (
               <>
                 <input
                   style={{ ...fieldStyle, marginBottom: 8 }}
@@ -1292,6 +1292,11 @@ export default function BankStatementImport({ schoolId, learners }: Props) {
                   ))}
                 </select>
               </>
+            ) : txnType(editModal) === "payment" && !coreEnabled ? (
+              <p style={{ color: "#64748b", fontWeight: 700, fontSize: 13 }}>
+                Fee-payment matching requires EduClear Core. Change the transaction type to Expense (if Accounting is
+                enabled) or Ignore.
+              </p>
             ) : accountingEnabled ? (
               <>
                 <label style={{ fontWeight: 800, fontSize: 12 }}>Supplier</label>

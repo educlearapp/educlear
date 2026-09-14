@@ -15,6 +15,10 @@ import {
 } from "../billing/billingLedger";
 import { fetchLegalDocumentHistory } from "../billing/billingApi";
 import {
+  isAccountingCoreBillingEnabled,
+  isCoreOnlyReportType,
+} from "./accountingCoreUi";
+import {
   ACCOUNTING_EXPENSES_UPDATED_EVENT,
   filterApprovedExpensesForMonth,
   loadApprovedExpenses,
@@ -398,8 +402,18 @@ export default function AccountingReports({ schoolId, learners = [], schoolName 
   const [placeholderBanner, setPlaceholderBanner] = useState("");
   const [tablePage, setTablePage] = useState(1);
   const reportRef = useRef<HTMLDivElement>(null);
+  const coreBillingEnabled = isAccountingCoreBillingEnabled();
+  const availableReportOptions = useMemo(
+    () => REPORT_OPTIONS.filter((o) => coreBillingEnabled || !isCoreOnlyReportType(o.id)),
+    [coreBillingEnabled]
+  );
 
   const bumpRefresh = useCallback(() => setRefreshKey((k) => k + 1), []);
+
+  useEffect(() => {
+    if (coreBillingEnabled || reportType !== "debtors") return;
+    setReportType("management");
+  }, [coreBillingEnabled, reportType]);
 
   useEffect(() => {
     if (!schoolId) return;
@@ -438,7 +452,9 @@ export default function AccountingReports({ schoolId, learners = [], schoolName 
       if (!detail?.schoolId || detail.schoolId === schoolId) bumpRefresh();
     };
     window.addEventListener(ACCOUNTING_EXPENSES_UPDATED_EVENT, onExpenses);
-    window.addEventListener(BILLING_UPDATED_EVENT, onBilling);
+    if (coreBillingEnabled) {
+      window.addEventListener(BILLING_UPDATED_EVENT, onBilling);
+    }
     window.addEventListener(ACCOUNTING_ASSETS_UPDATED_EVENT, onAssets);
     window.addEventListener(CREDITORS_UPDATED_EVENT, onCreditors);
     window.addEventListener(ACCOUNTING_PAYROLL_UPDATED_EVENT, onPayroll);
@@ -449,7 +465,7 @@ export default function AccountingReports({ schoolId, learners = [], schoolName 
       window.removeEventListener(CREDITORS_UPDATED_EVENT, onCreditors);
       window.removeEventListener(ACCOUNTING_PAYROLL_UPDATED_EVENT, onPayroll);
     };
-  }, [schoolId, bumpRefresh]);
+  }, [schoolId, bumpRefresh, coreBillingEnabled]);
 
   useEffect(() => {
     if (!schoolId) {
@@ -470,7 +486,7 @@ export default function AccountingReports({ schoolId, learners = [], schoolName 
   }, [schoolId, refreshKey]);
 
   useEffect(() => {
-    if (!schoolId) {
+    if (!schoolId || !coreBillingEnabled) {
       setLegalHistoryCount(0);
       return;
     }
@@ -480,7 +496,7 @@ export default function AccountingReports({ schoolId, learners = [], schoolName 
         setLegalHistoryCount(rows.length);
       })
       .catch(() => setLegalHistoryCount(0));
-  }, [schoolId, refreshKey]);
+  }, [schoolId, refreshKey, coreBillingEnabled]);
 
   useEffect(() => {
     setTablePage(1);
@@ -495,8 +511,9 @@ export default function AccountingReports({ schoolId, learners = [], schoolName 
   const data = useMemo(() => {
     void refreshKey;
     const sid = String(schoolId || "").trim();
-    const statementRows: BillingAccountRow[] = sid ? getBillingRows(learners, sid) : [];
-    const ledger = sid ? readSchoolLedger(sid) : [];
+    const statementRows: BillingAccountRow[] =
+      sid && coreBillingEnabled ? getBillingRows(learners, sid) : [];
+    const ledger = sid && coreBillingEnabled ? readSchoolLedger(sid) : [];
     const approvedAll = sid ? loadApprovedExpenses(sid) : [];
     const approvedMonth =
       reportingBasis === "month"
@@ -832,16 +849,16 @@ export default function AccountingReports({ schoolId, learners = [], schoolName 
       payrollJournals,
       payrollRunsInPeriod,
     };
-  }, [schoolId, learners, year, monthIndex, reportingBasis, period, refreshKey, bankImports]);
+  }, [schoolId, learners, year, monthIndex, reportingBasis, period, refreshKey, bankImports, coreBillingEnabled]);
 
   const summaryCards = [
-    { label: "Total Income", value: formatMoney(data.income) },
-    { label: "Total Expenses", value: formatMoney(data.expenses) },
-    { label: "Net Position", value: formatMoney(data.net) },
-    { label: "Outstanding Debtors", value: formatMoney(data.outstandingDebtors) },
-    { label: "Budget Variance", value: formatMoney(data.budgetVariance) },
-    { label: "Forecasted Cash Position", value: formatMoney(data.forecastedCash) },
-  ];
+    { label: "Total Income", value: formatMoney(data.income), coreOnly: true },
+    { label: "Total Expenses", value: formatMoney(data.expenses), coreOnly: false },
+    { label: "Net Position", value: formatMoney(data.net), coreOnly: false },
+    { label: "Outstanding Debtors", value: formatMoney(data.outstandingDebtors), coreOnly: true },
+    { label: "Budget Variance", value: formatMoney(data.budgetVariance), coreOnly: false },
+    { label: "Forecasted Cash Position", value: formatMoney(data.forecastedCash), coreOnly: false },
+  ].filter((card) => coreBillingEnabled || !card.coreOnly);
 
   const handleGenerate = () => {
     setGenerated(true);
@@ -981,7 +998,11 @@ ${el.innerHTML}
               <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(200px, 1fr))", gap: 12 }}>
                 <div>
                   <strong>Income summary</strong>
-                  <div>{formatMoney(data.income)} fee payments ({periodLabel})</div>
+                  <div>
+                    {coreBillingEnabled
+                      ? `${formatMoney(data.income)} fee payments (${periodLabel})`
+                      : "School-fee income requires EduClear Core"}
+                  </div>
                 </div>
                 <div>
                   <strong>Expenses summary</strong>
@@ -1030,6 +1051,7 @@ ${el.innerHTML}
                 From Creditors Ageing supplier invoices — not double-counted with approved expenses.
               </p>
             </div>
+            {coreBillingEnabled ? (
             <div style={sectionCard}>
               <h2 style={{ margin: "0 0 12px", fontSize: 17, fontWeight: 900 }}>Outstanding fees / debtors</h2>
               <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(160px, 1fr))", gap: 10 }}>
@@ -1039,6 +1061,7 @@ ${el.innerHTML}
                 <div>Overpaid: {data.overpaid.length} accounts</div>
               </div>
             </div>
+            ) : null}
             <div style={sectionCard}>
               <h2 style={{ margin: "0 0 12px", fontSize: 17, fontWeight: 900 }}>Fixed assets</h2>
               <div
@@ -1197,6 +1220,16 @@ ${el.innerHTML}
         );
 
       case "debtors":
+        if (!coreBillingEnabled) {
+          return (
+            <div style={sectionCard}>
+              <h2 style={{ margin: "0 0 12px", fontSize: 17, fontWeight: 900 }}>Debtors summary</h2>
+              <p style={{ margin: 0, fontWeight: 600, color: "#64748b" }}>
+                School-fee Debtors Summary requires EduClear Core. It is not available on Accounting-only packages.
+              </p>
+            </div>
+          );
+        }
         return (
           <>
             <div style={sectionCard}>
@@ -1384,7 +1417,11 @@ ${el.innerHTML}
                 "Trial Balance — Financial Statements module",
                 `General Ledger — ${data.journalCount} journal(s) on file`,
                 `Journals — ${data.postedJournals} posted`,
-                `Debtors Ageing — ${formatMoney(data.outstandingDebtors)} outstanding`,
+                `Debtors Ageing — ${
+                  coreBillingEnabled
+                    ? `${formatMoney(data.outstandingDebtors)} outstanding`
+                    : "requires EduClear Core (school-fee Billing)"
+                }`,
                 `Creditors Ageing — ${formatMoney(data.creditorTotals.supplierPayables)} payables (${data.creditorTotals.openInvoiceCount} open invoice(s))`,
                 `Supplier Invoice Listing — ${data.creditorTotals.openInvoiceCount} open, ${data.creditorTotals.overdueInvoiceCount} overdue`,
                 `Supplier Payment Plans — ${data.creditorTotals.paymentPlanCommitments > 0 ? `${formatMoney(data.creditorTotals.paymentPlanCommitments)} commitments` : "none active"}`,
@@ -1499,7 +1536,7 @@ ${el.innerHTML}
         <label style={{ display: "grid", gap: 6, fontWeight: 800, fontSize: 12, color: "#64748b" }}>
           Report type
           <select style={{ ...fieldStyle, minWidth: 220 }} value={reportType} onChange={(e) => setReportType(e.target.value as ReportType)}>
-            {REPORT_OPTIONS.map((o) => (
+            {availableReportOptions.map((o) => (
               <option key={o.id} value={o.id}>
                 {o.label}
               </option>

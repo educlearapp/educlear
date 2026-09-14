@@ -41,6 +41,7 @@ import {
   accountingSubtitle,
   accountingTitle,
 } from "./accountingTheme";
+import { isAccountingCoreBillingEnabled } from "./accountingCoreUi";
 
 type Props = {
   schoolId: string;
@@ -142,6 +143,7 @@ export default function AccountingOverview({ schoolId }: Props) {
   const [monthIndex, setMonthIndex] = useState(now.getMonth());
   const [refreshKey, setRefreshKey] = useState(0);
   const [bankImports, setBankImports] = useState<BankImportRecord[]>([]);
+  const coreBillingEnabled = isAccountingCoreBillingEnabled();
 
   const bumpRefresh = useCallback(() => {
     setRefreshKey((k) => k + 1);
@@ -171,7 +173,9 @@ export default function AccountingOverview({ schoolId }: Props) {
       if (!detail?.schoolId || detail.schoolId === schoolId) bumpRefresh();
     };
     window.addEventListener(ACCOUNTING_EXPENSES_UPDATED_EVENT, onExpenses);
-    window.addEventListener(BILLING_UPDATED_EVENT, onBilling);
+    if (coreBillingEnabled) {
+      window.addEventListener(BILLING_UPDATED_EVENT, onBilling);
+    }
     window.addEventListener(ACCOUNTING_ASSETS_UPDATED_EVENT, onAssets);
     window.addEventListener(CREDITORS_UPDATED_EVENT, onCreditors);
     window.addEventListener(ACCOUNTING_PAYROLL_UPDATED_EVENT, onPayroll);
@@ -182,7 +186,7 @@ export default function AccountingOverview({ schoolId }: Props) {
       window.removeEventListener(CREDITORS_UPDATED_EVENT, onCreditors);
       window.removeEventListener(ACCOUNTING_PAYROLL_UPDATED_EVENT, onPayroll);
     };
-  }, [schoolId, bumpRefresh]);
+  }, [schoolId, bumpRefresh, coreBillingEnabled]);
 
   useEffect(() => {
     if (!schoolId) {
@@ -234,8 +238,8 @@ export default function AccountingOverview({ schoolId }: Props) {
     const assets = loadAssets(sid);
     const assetBook = calculateBookValueTotals(assets);
 
-    const ledger = readSchoolLedger(sid);
-    const income = sumPaymentsForMonth(ledger, year, monthIndex);
+    const ledger = coreBillingEnabled ? readSchoolLedger(sid) : [];
+    const income = coreBillingEnabled ? sumPaymentsForMonth(ledger, year, monthIndex) : 0;
     const approvedAll = loadApprovedExpenses(sid);
     const approvedMonth = filterApprovedExpensesForMonth(approvedAll, year, monthIndex);
     const expenses = totalApprovedSpendForMonth(approvedAll, year, monthIndex);
@@ -276,17 +280,19 @@ export default function AccountingOverview({ schoolId }: Props) {
       });
     }
 
-    for (const pay of paymentsForMonth(ledger, year, monthIndex)) {
-      const amount = normaliseBillingAmount(pay.amount);
-      if (amount <= 0) continue;
-      const sortKey = new Date(pay.date || pay.createdAt).getTime() || 0;
-      activity.push({
-        date: pay.date,
-        type: "Income",
-        description: String(pay.description || pay.reference || "Fee payment").trim() || "Fee payment",
-        amount,
-        sortKey,
-      });
+    if (coreBillingEnabled) {
+      for (const pay of paymentsForMonth(ledger, year, monthIndex)) {
+        const amount = normaliseBillingAmount(pay.amount);
+        if (amount <= 0) continue;
+        const sortKey = new Date(pay.date || pay.createdAt).getTime() || 0;
+        activity.push({
+          date: pay.date,
+          type: "Income",
+          description: String(pay.description || pay.reference || "Fee payment").trim() || "Fee payment",
+          amount,
+          sortKey,
+        });
+      }
     }
 
     activity.sort((a, b) => b.sortKey - a.sortKey);
@@ -295,15 +301,15 @@ export default function AccountingOverview({ schoolId }: Props) {
       income,
       expenses,
       net,
-      cashEstimate: net,
+      cashEstimate: coreBillingEnabled ? net : -expenses,
       unreconciled,
       expenseCandidates: candidates.length,
       approvedCount: approvedMonth.length,
-      paymentCount: paymentsForMonth(ledger, year, monthIndex).length,
+      paymentCount: coreBillingEnabled ? paymentsForMonth(ledger, year, monthIndex).length : 0,
       categoryRows,
       recentActivity: activity.slice(0, 12),
       biggestCategory,
-      expensesExceedIncome: expenses > income && (expenses > 0 || income > 0),
+      expensesExceedIncome: coreBillingEnabled && expenses > income && (expenses > 0 || income > 0),
       assetNetBookValue: assetBook.netBookValue,
       assetActiveCount: assets.filter((a) => a.status !== "Disposed").length,
       supplierPayables: creditorTotals.supplierPayables,
@@ -311,7 +317,7 @@ export default function AccountingOverview({ schoolId }: Props) {
       payrollCost: payrollInsights.payrollCost,
       payrollLiabilities: payrollInsights.liabilities,
     };
-  }, [schoolId, year, monthIndex, refreshKey, bankImports]);
+  }, [schoolId, year, monthIndex, refreshKey, bankImports, coreBillingEnabled]);
 
   const periodLabel = formatPeriodLabel(year, monthIndex);
   const yearOptions = useMemo(() => {
@@ -323,67 +329,83 @@ export default function AccountingOverview({ schoolId }: Props) {
     {
       label: "Cash Position",
       value: formatMoney(metrics.cashEstimate),
-      hint: "Estimated monthly cash movement (income − expenses)",
+      hint: coreBillingEnabled
+        ? "Estimated monthly cash movement (income − expenses)"
+        : "Approved expenses for the period (school-fee income requires EduClear Core)",
+      coreOnly: false,
     },
     {
       label: "Income This Month",
       value: formatMoney(metrics.income),
       hint: "Fee payments received in billing ledger",
+      coreOnly: true,
     },
     {
       label: "Expenses This Month",
       value: formatMoney(metrics.expenses),
       hint: "Approved accounting expenses",
+      coreOnly: false,
     },
     {
       label: "Net Position",
       value: formatMoney(metrics.net),
-      hint: "Income minus approved expenses",
+      hint: coreBillingEnabled
+        ? "Income minus approved expenses"
+        : "Expense total for the period (no Core fee income applied)",
+      coreOnly: false,
     },
     {
       label: "Unreconciled Transactions",
       value: String(metrics.unreconciled),
       hint: "Bank lines not accepted, ignored, or posted",
+      coreOnly: false,
     },
     {
       label: "Expense Candidates",
       value: String(metrics.expenseCandidates),
       hint: "Pending review from bank imports",
+      coreOnly: false,
     },
     {
       label: "Asset Value (net book)",
       value: formatMoney(metrics.assetNetBookValue),
       hint: "Active fixed assets from Accounting Assets",
+      coreOnly: false,
     },
     {
       label: "Supplier Payables",
       value: formatMoney(metrics.supplierPayables),
       hint: "Outstanding supplier invoices (Creditors Ageing)",
+      coreOnly: false,
     },
     {
       label: "Overdue Suppliers",
       value: formatMoney(metrics.overdueSuppliers),
       hint: "Overdue creditor balances as at period end",
+      coreOnly: false,
     },
     {
       label: "Payroll Cost This Month",
       value: formatMoney(metrics.payrollCost),
       hint: "Posted payroll runs in Accounting",
+      coreOnly: false,
     },
     {
       label: "Payroll Liabilities",
       value: formatMoney(metrics.payrollLiabilities),
       hint: "Net pay + statutory deductions not yet paid",
+      coreOnly: false,
     },
-  ];
+  ].filter((card) => coreBillingEnabled || !card.coreOnly);
 
   return (
     <div style={accountingPageWrap}>
       <div style={{ borderBottom: `2px solid ${ACCOUNTING_GOLD}`, paddingBottom: 18, marginBottom: 24 }}>
         <h1 style={accountingTitle}>Accounting Overview</h1>
         <p style={accountingSubtitle}>
-          School finance at a glance for {periodLabel}. Income from Billing payments; expenses from approved
-          Accounting records.
+          {coreBillingEnabled
+            ? `School finance at a glance for ${periodLabel}. Income from Billing payments; expenses from approved Accounting records.`
+            : `Accounting at a glance for ${periodLabel}. Expenses, suppliers, assets, and bank reconciliation — school-fee Billing requires EduClear Core.`}
         </p>
       </div>
 
@@ -461,10 +483,15 @@ export default function AccountingOverview({ schoolId }: Props) {
             color: ACCOUNTING_INK,
           }}
         >
-          <div>Fee income received: {formatMoney(metrics.income)}</div>
+          {coreBillingEnabled ? (
+            <div>Fee income received: {formatMoney(metrics.income)}</div>
+          ) : null}
           <div>Approved expenses: {formatMoney(metrics.expenses)} ({metrics.approvedCount} items)</div>
           <div>Pending expense candidates: {metrics.expenseCandidates}</div>
-          <div>Estimated net movement: {formatMoney(metrics.net)}</div>
+          <div>
+            {coreBillingEnabled ? "Estimated net movement" : "Expense total"}:{" "}
+            {formatMoney(coreBillingEnabled ? metrics.net : metrics.expenses)}
+          </div>
           <div>Biggest expense category: {metrics.biggestCategory}</div>
           <div>
             Fixed assets: {formatMoney(metrics.assetNetBookValue)} net book ({metrics.assetActiveCount} active)
@@ -591,8 +618,9 @@ export default function AccountingOverview({ schoolId }: Props) {
           fontSize: 14,
         }}
       >
-        Cash position is estimated from billing payments minus approved expenses until live bank balances are
-        connected. Use Banking for statement import; approved bank expenses flow into Expenses automatically.
+        {coreBillingEnabled
+          ? "Cash position is estimated from billing payments minus approved expenses until live bank balances are connected. Use Banking for statement import; approved bank expenses flow into Expenses automatically."
+          : "Cash position reflects approved Accounting expenses until live bank balances are connected. Use Banking for statement import and expense matching — school-fee Billing requires EduClear Core."}
       </div>
     </div>
   );
