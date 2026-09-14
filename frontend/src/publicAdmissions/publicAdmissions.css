@@ -530,9 +530,97 @@ button.pa-progress-item:disabled {
   border: 0;
 }
 
+/* OA-06E review / status */
+.pa-review,
+.pa-status {
+  display: grid;
+  gap: 1rem;
+}
+
+.pa-review-head {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem 0.75rem;
+  align-items: baseline;
+  justify-content: space-between;
+  margin-bottom: 0.5rem;
+}
+
+.pa-review-dl {
+  margin: 0;
+  display: grid;
+  gap: 0.75rem;
+}
+
+.pa-review-dl > div {
+  display: grid;
+  gap: 0.15rem;
+  min-width: 0;
+}
+
+.pa-review-dl dt {
+  font-size: 0.8rem;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  color: var(--pa-muted);
+}
+
+.pa-review-dl dd {
+  margin: 0;
+  font-weight: 600;
+  word-break: break-word;
+}
+
+.pa-review-guardian-list,
+.pa-review-doc-list,
+.pa-issue-list {
+  margin: 0.5rem 0 0;
+  padding-left: 1.1rem;
+}
+
+.pa-review-guardian {
+  margin-bottom: 0.85rem;
+}
+
+.pa-check {
+  display: flex;
+  gap: 0.65rem;
+  align-items: flex-start;
+  margin: 0.75rem 0;
+  font-size: 0.95rem;
+  line-height: 1.4;
+}
+
+.pa-check input {
+  margin-top: 0.2rem;
+  flex-shrink: 0;
+}
+
+.pa-declaration-box {
+  margin: 0.5rem 0;
+  padding: 0.85rem;
+  border: 1px solid var(--pa-border);
+  border-radius: 0.75rem;
+  background: color-mix(in srgb, var(--pa-bg) 70%, #fff);
+}
+
+.pa-info-request {
+  margin-top: 1rem;
+  padding-top: 0.75rem;
+  border-top: 1px solid var(--pa-border);
+}
+
 @media (min-width: 640px) {
   .pa-doc-actions {
     grid-template-columns: repeat(auto-fit, minmax(8.5rem, max-content));
     align-items: center;
+  }
+
+  .pa-review-dl {
+    grid-template-columns: 1fr 1fr;
+  }
+
+  .pa-review-full {
+    grid-column: 1 / -1;
   }
 }
