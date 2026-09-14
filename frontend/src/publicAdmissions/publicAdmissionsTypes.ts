@@ -282,3 +282,60 @@ export type PublicValidationDetail = {
   field: string;
   message: string;
 };
+
+/** Applicant payment instructions view (GET .../payment) — OA-03E / OA-06F. */
+export type ApplicantBankDetails = {
+  bankName: string;
+  accountHolder: string;
+  accountNumber: string;
+  branchCode: string;
+  accountType: string | null;
+  paymentInstructions: string | null;
+};
+
+export type ApplicantProofMeta = {
+  id: string;
+  originalFileName: string;
+  contentType: string;
+  byteSize: number;
+  uploadedAt: string;
+};
+
+export type ApplicantPaymentGuidance = {
+  code: string;
+  message: string;
+  shouldPay: boolean;
+  canUploadProof: boolean;
+};
+
+export type ApplicantPaymentView = {
+  applicationNumber: string;
+  paymentReference: string | null;
+  feeRequired: boolean;
+  feeAmount: string | null;
+  currency: string;
+  paymentStatus: string;
+  paymentInstructionsAvailable: boolean;
+  bankConfigurationIncomplete: boolean;
+  bank: ApplicantBankDetails | null;
+  proofOfPayment: {
+    uploaded: boolean;
+    document: ApplicantProofMeta | null;
+  };
+  guidance: ApplicantPaymentGuidance;
+};
+
+export type ApplicantPaymentResponse = {
+  success: boolean;
+  payment?: ApplicantPaymentView;
+  error?: string;
+  code?: string;
+};
+
+export type ApplicantPaymentProofUploadResponse = {
+  success: boolean;
+  document?: ApplicantDocumentView;
+  paymentStatus?: string;
+  error?: string;
+  code?: string;
+};

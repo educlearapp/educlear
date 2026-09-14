@@ -246,10 +246,9 @@ assert.ok(/INFO_REQUESTED/.test(statusSrc), "30. info requested placeholder");
 assert.ok(/ACCEPTED/.test(readySrc), "31");
 assert.ok(/DECLINED/.test(readySrc), "32");
 
-assert.ok(!/\/payment["'`]|payment-proof/.test(reviewSrc), "33/34. no payment/POP");
-assert.ok(!/\/payment["'`]|payment-proof/.test(statusSrc), "33/34");
-assert.ok(!/bankName|accountNumber|branchCode/.test(reviewSrc), "35. no bank details");
-assert.ok(!/bankName|accountNumber|branchCode/.test(statusSrc), "35");
+assert.ok(!/\/payment["'`]|payment-proof/.test(reviewSrc), "33/34. review has no payment/POP");
+assert.ok(/PublicAdmissionsPaymentSection/.test(statusSrc), "status hosts payment section (OA-06F)");
+assert.ok(!/bankName|accountNumber|branchCode/.test(reviewSrc), "35. review no bank details");
 assert.ok(!/FamilyAccount|ledger|invoice/.test(reviewSrc), "36");
 assert.ok(!/\/api\/admissions\//.test(reviewSrc), "40");
 assert.ok(!/\{accessToken\}/.test(reviewSrc), "37/38 token not JSX text");

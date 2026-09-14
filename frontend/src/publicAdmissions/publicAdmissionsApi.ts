@@ -5,6 +5,9 @@ import type {
   ApplicantDocumentUploadResponse,
   ApplicantDocumentsListResponse,
   ApplicantDocumentView,
+  ApplicantPaymentProofUploadResponse,
+  ApplicantPaymentResponse,
+  ApplicantPaymentView,
   CreateDraftApplicationBody,
   CreateDraftApplicationResponse,
   PublicAdmissionsConfig,
@@ -363,6 +366,77 @@ export async function downloadPublicApplicantDocumentBlob(
     blob,
     contentType,
     fileName: match?.[1] || null,
+  };
+}
+
+/**
+ * GET applicant payment instructions (post-submit only).
+ * Bank details only after formal submission — never call for DRAFT.
+ */
+export async function fetchPublicApplicantPayment(
+  publicSlug: string,
+  publicAccessId: string,
+  accessToken: string
+): Promise<ApplicantPaymentView> {
+  const slug = normalizeSlug(publicSlug);
+  const accessId = String(publicAccessId || "").trim();
+  const token = String(accessToken || "").trim();
+  if (!slug || !accessId || !token) {
+    throw new PublicAdmissionsApiError("Application not found", 404, "APPLICATION_NOT_FOUND");
+  }
+
+  const res = await fetch(`${applicationsBase(slug, accessId)}/payment`, {
+    method: "GET",
+    headers: applicantAuthHeaders(token),
+  });
+  const payload = (await parseJson(res)) as ApplicantPaymentResponse;
+  if (!res.ok) {
+    throwFromPayload(res, payload as Record<string, unknown>, "Could not load payment details");
+  }
+  if (!payload.success || !payload.payment) {
+    throw new PublicAdmissionsApiError("Could not load payment details", 500, "INVALID_RESPONSE");
+  }
+  return payload.payment;
+}
+
+/**
+ * POST proof of payment (multipart field: file). Does not mark payment VERIFIED.
+ */
+export async function uploadPublicPaymentProof(
+  publicSlug: string,
+  publicAccessId: string,
+  accessToken: string,
+  file: File
+): Promise<{ document: ApplicantDocumentView; paymentStatus: string }> {
+  const slug = normalizeSlug(publicSlug);
+  const accessId = String(publicAccessId || "").trim();
+  const token = String(accessToken || "").trim();
+  if (!slug || !accessId || !token) {
+    throw new PublicAdmissionsApiError("Application not found", 404, "APPLICATION_NOT_FOUND");
+  }
+
+  const form = new FormData();
+  form.append("file", file);
+
+  const res = await fetch(`${applicationsBase(slug, accessId)}/payment-proof`, {
+    method: "POST",
+    headers: applicantTokenOnlyHeaders(token),
+    body: form,
+  });
+  const payload = (await parseJson(res)) as ApplicantPaymentProofUploadResponse;
+  if (!res.ok) {
+    throwFromPayload(res, payload as Record<string, unknown>, "Could not upload proof of payment");
+  }
+  if (!payload.success || !payload.document || !payload.paymentStatus) {
+    throw new PublicAdmissionsApiError(
+      "Could not upload proof of payment",
+      500,
+      "INVALID_RESPONSE"
+    );
+  }
+  return {
+    document: payload.document,
+    paymentStatus: String(payload.paymentStatus),
   };
 }
 

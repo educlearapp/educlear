@@ -1,3 +1,4 @@
+import PublicAdmissionsPaymentSection from "./PublicAdmissionsPaymentSection";
 import type { ApplicantApplicationView, PublicAdmissionsConfig } from "./publicAdmissionsTypes";
 import {
   parentFacingStatusBody,
@@ -10,6 +11,10 @@ type Props = {
   justSubmitted?: boolean;
   onRefresh?: () => void;
   refreshing?: boolean;
+  publicSlug: string;
+  publicAccessId: string;
+  accessToken: string;
+  onSessionInvalid: () => void;
 };
 
 function display(value: string | null | undefined): string {
@@ -18,8 +23,7 @@ function display(value: string | null | undefined): string {
 }
 
 /**
- * Post-submit confirmation / status surface (OA-06E).
- * No payment instructions or POP UI.
+ * Post-submit confirmation / status surface (OA-06E) + payment hub (OA-06F).
  */
 export default function PublicAdmissionsStatusView({
   application,
@@ -27,6 +31,10 @@ export default function PublicAdmissionsStatusView({
   justSubmitted = false,
   onRefresh,
   refreshing = false,
+  publicSlug,
+  publicAccessId,
+  accessToken,
+  onSessionInvalid,
 }: Props) {
   const status = String(application.status || "").toUpperCase();
   const learnerName = [application.learner?.firstName, application.learner?.lastName]
@@ -99,11 +107,6 @@ export default function PublicAdmissionsStatusView({
           </p>
         ) : null}
 
-        <p className="pa-body">
-          Further steps, such as payment instructions where applicable, will be available after
-          submission in a later update of this admissions experience.
-        </p>
-
         {onRefresh ? (
           <div className="pa-cta-row">
             <button
@@ -118,6 +121,14 @@ export default function PublicAdmissionsStatusView({
           </div>
         ) : null}
       </section>
+
+      <PublicAdmissionsPaymentSection
+        publicSlug={publicSlug}
+        publicAccessId={publicAccessId}
+        accessToken={accessToken}
+        applicationStatus={application.status}
+        onSessionInvalid={onSessionInvalid}
+      />
     </div>
   );
 }
