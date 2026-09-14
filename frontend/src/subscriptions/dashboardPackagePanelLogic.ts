@@ -52,12 +52,17 @@ export function upgradeButtonLabel(target: EduClearCommercialPackage): string {
 }
 
 export function isModularCheckoutAvailable(): boolean {
-  // PayFast still only accepts STARTER|UNLIMITED in the backend enum.
+  // Modular online checkout is intentionally not live yet.
   return false;
 }
 
 export function modularCheckoutDisabledReason(): string {
-  return "Modular package checkout is not available yet. PayFast still uses legacy capacity packages. Contact EduClear to change your package.";
+  return "Online package changes are not available yet. Contact EduClear to change your package.";
+}
+
+/** Safe school-user notice when online payments are unavailable (no config/secret names). */
+export function onlinePackagePaymentsUnavailableNotice(): string {
+  return "Online package payments are currently unavailable.";
 }
 
 /** @deprecated Legacy capacity helpers — not for new-sale UX. */

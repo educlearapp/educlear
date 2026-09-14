@@ -22,7 +22,9 @@ import {
   isModularCheckoutAvailable,
   listUpgradeOptions,
   modularCheckoutDisabledReason,
+  onlinePackagePaymentsUnavailableNotice,
   resolveCurrentCommercialPackageStrict,
+  upgradeButtonLabel,
 } from "./dashboardPackagePanelLogic";
 import {
   activateSubscriptionTestMode,
@@ -144,7 +146,6 @@ export default function SubscriptionPackages() {
   const [error, setError] = useState("");
   const [payfastConfigured, setPayfastConfigured] = useState(true);
   const [testModeAvailable, setTestModeAvailable] = useState(false);
-  const [missingPayFastEnv, setMissingPayFastEnv] = useState<string[]>([]);
   const [testModeBusy, setTestModeBusy] = useState(false);
   const [agreedToTerms, setAgreedToTerms] = useState(false);
   const [interval, setInterval] = useState<BillingInterval>("monthly");
@@ -183,11 +184,7 @@ export default function SubscriptionPackages() {
         if (cancelled) return;
         setPayfastConfigured(Boolean(configResponse?.payfastConfigured));
         setTestModeAvailable(Boolean(configResponse?.testModeAvailable));
-        setMissingPayFastEnv(
-          Array.isArray(configResponse?.missingPayFastEnv)
-            ? configResponse.missingPayFastEnv
-            : []
-        );
+        // Never surface missingPayFastEnv / secret names to school users.
         const mods =
           (me as { moduleEntitlements?: SchoolModuleEntitlements } | null)?.moduleEntitlements ||
           (me as { school?: { moduleEntitlements?: SchoolModuleEntitlements } } | null)?.school
@@ -292,23 +289,17 @@ export default function SubscriptionPackages() {
           <div
             style={{
               marginTop: 24,
-              padding: "20px 22px",
+              padding: "16px 18px",
               borderRadius: 14,
-              border: "1px solid rgba(217, 119, 6, 0.35)",
-              background: "rgba(255, 251, 235, 0.95)",
-              color: "#92400e",
+              border: "1px solid rgba(148, 163, 184, 0.45)",
+              background: "#fff",
+              color: "#475569",
             }}
             role="status"
+            data-testid="online-payments-unavailable"
           >
-            <p style={{ margin: "0 0 8px", fontWeight: 800 }}>
-              PayFast is not configured on this server
-            </p>
-            <p style={{ margin: 0, lineHeight: 1.6 }}>
-              {missingPayFastEnv.length
-                ? `Missing: ${missingPayFastEnv.join(", ")}`
-                : "PayFast environment variables are not set."}{" "}
-              Modular package checkout is not available yet. Staging/test may use test mode to
-              unlock the dashboard while module entitlements are managed by Super Admin.
+            <p style={{ margin: 0, fontWeight: 700, lineHeight: 1.5 }}>
+              {onlinePackagePaymentsUnavailableNotice()}
             </p>
             {testModeAvailable ? (
               <button
