@@ -28,6 +28,7 @@ import {
 import { canAccessMigration } from "../utils/migrationAccess";
 import { isPlatformSuperAdminEmail } from "../utils/superAdmin";
 import { toStoredSchoolLogoUrl } from "../utils/schoolLogo";
+import { getSchoolModuleEntitlements } from "../services/schoolModuleEntitlements";
 import {
   buildOtpStoreKey,
   consumeStoredOtp,
@@ -186,18 +187,27 @@ router.post("/login", async (req, res) => {
     };
     const canAccessMigrationFlag = canAccessMigration(migrationCtx);
     const access = await resolveUserAccess(matched);
+    const moduleEntitlements = await getSchoolModuleEntitlements(matched.schoolId);
 
     return res.json({
       token,
       ...(educlearRole ? { educlearRole } : {}),
       canAccessMigration: canAccessMigrationFlag,
+      moduleEntitlements,
       user: serializeAuthUser(matched, access, {
         canAccessMigration: canAccessMigrationFlag,
+        moduleEntitlements,
         ...(educlearRole ? { educlearRole } : {}),
       }),
       school: school
-        ? { id: school.id, name: school.name, email: school.email, logoUrl: school.logoUrl }
-        : { id: matched.schoolId },
+        ? {
+            id: school.id,
+            name: school.name,
+            email: school.email,
+            logoUrl: school.logoUrl,
+            moduleEntitlements,
+          }
+        : { id: matched.schoolId, moduleEntitlements },
     });
   } catch (error) {
     console.error("[auth] POST /login failed:", error);
@@ -249,13 +259,17 @@ router.get("/me", async (req, res) => {
       email: normalizeEmail(user.email),
       role: user.role,
     };
+    const moduleEntitlements = await getSchoolModuleEntitlements(user.schoolId);
 
     return res.json({
+      moduleEntitlements,
       user: serializeAuthUser(user, access, {
         isActive: user.isActive,
         canAccessMigration: canAccessMigration(migrationCtx),
+        moduleEntitlements,
         ...(educlearRole ? { educlearRole } : {}),
       }),
+      school: { id: user.schoolId, moduleEntitlements },
     });
   } catch (error) {
     console.error("[auth] GET /me failed:", error);

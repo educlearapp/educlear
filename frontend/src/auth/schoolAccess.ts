@@ -5,6 +5,13 @@ import {
   type PermissionAction,
 } from "../users/permissions";
 import { getSchoolSessionUser, type SchoolSessionUser } from "./schoolSession";
+import {
+  getSchoolModuleEntitlements,
+  isSchoolPageModuleEntitled,
+  requiredModuleForSchoolPage,
+  schoolPageModuleDenialMessage,
+  type SchoolModuleEntitlements,
+} from "../modules/schoolModuleEntitlements";
 
 export type SchoolPageKey = string;
 
@@ -65,9 +72,10 @@ const PAGE_RULES: Record<string, PageRule> = {
   communicationSms: { module: "settings", action: "view" },
   communicationSettings: { module: "settings", action: "view" },
   communicationCentre: { module: "settings", action: "view" },
-  bankStatementImport: { module: "reports", action: "view" },
+  /** Core fee bank import / match / post — not ACCOUNTING-gated. */
+  bankStatementImport: { module: "payments", action: "view" },
   accountingOverview: { module: "reports", action: "view" },
-  accountingBanking: { module: "reports", action: "view" },
+  accountingBanking: { module: "payments", action: "view" },
   accountingExpenses: { module: "reports", action: "view" },
   accountingSuppliers: { module: "reports", action: "view" },
   accountingAssets: { module: "reports", action: "view" },
@@ -101,7 +109,17 @@ const FALLBACK_PAGE_ORDER: SchoolPageKey[] = [
   "settings",
 ];
 
-export function canAccessSchoolPage(
+export type SchoolPageAccessDenial =
+  | { allowed: true }
+  | {
+      allowed: false;
+      reason: "auth" | "permission" | "module";
+      message: string;
+      module?: "ACCOUNTING" | "PAYROLL";
+    };
+
+/** RBAC-only check (ignores product modules). */
+export function canAccessSchoolPageByPermission(
   page: SchoolPageKey,
   user: SchoolSessionUser | null = getSchoolSessionUser()
 ): boolean {
@@ -127,21 +145,64 @@ export function canAccessSchoolPage(
   return hasPermission(user, rule.module, rule.action);
 }
 
+export function evaluateSchoolPageAccess(
+  page: SchoolPageKey,
+  user: SchoolSessionUser | null = getSchoolSessionUser(),
+  entitlements: SchoolModuleEntitlements = getSchoolModuleEntitlements()
+): SchoolPageAccessDenial {
+  if (isSuperAdmin()) return { allowed: true };
+  if (!user) {
+    return { allowed: false, reason: "auth", message: "Authentication required." };
+  }
+
+  const required = requiredModuleForSchoolPage(page);
+  if (required && !isSchoolPageModuleEntitled(page, entitlements)) {
+    return {
+      allowed: false,
+      reason: "module",
+      module: required,
+      message:
+        schoolPageModuleDenialMessage(page) ||
+        `${required} is not included in this school’s EduClear package.`,
+    };
+  }
+
+  if (!canAccessSchoolPageByPermission(page, user)) {
+    return {
+      allowed: false,
+      reason: "permission",
+      message: "You do not have permission to access this section.",
+    };
+  }
+
+  return { allowed: true };
+}
+
+export function canAccessSchoolPage(
+  page: SchoolPageKey,
+  user: SchoolSessionUser | null = getSchoolSessionUser(),
+  entitlements: SchoolModuleEntitlements = getSchoolModuleEntitlements()
+): boolean {
+  return evaluateSchoolPageAccess(page, user, entitlements).allowed;
+}
+
 export function findFirstAllowedSchoolPage(
-  user: SchoolSessionUser | null = getSchoolSessionUser()
+  user: SchoolSessionUser | null = getSchoolSessionUser(),
+  entitlements: SchoolModuleEntitlements = getSchoolModuleEntitlements()
 ): SchoolPageKey {
   for (const page of FALLBACK_PAGE_ORDER) {
-    if (canAccessSchoolPage(page, user)) return page;
+    if (canAccessSchoolPage(page, user, entitlements)) return page;
   }
   for (const page of Object.keys(PAGE_RULES)) {
-    if (canAccessSchoolPage(page, user)) return page;
+    if (canAccessSchoolPage(page, user, entitlements)) return page;
   }
   return "dashboard";
 }
 
 export function canViewAnySchoolPage(
   pages: SchoolPageKey[],
-  user: SchoolSessionUser | null = getSchoolSessionUser()
+  user: SchoolSessionUser | null = getSchoolSessionUser(),
+  entitlements: SchoolModuleEntitlements = getSchoolModuleEntitlements()
 ): boolean {
-  return pages.some((page) => canAccessSchoolPage(page, user));
+  return pages.some((page) => canAccessSchoolPage(page, user, entitlements));
 }

@@ -50,6 +50,7 @@ import {
 import "./bankingReconciliationReview.css";
 import { addExpenseCandidateFromBank } from "../accounting/accountingExpenseStorage";
 import SupplierInvoiceBankMatch from "../accounting/SupplierInvoiceBankMatch";
+import { hasSchoolModule } from "../modules/schoolModuleEntitlements";
 import {
   fetchBankImport,
   fetchBankImports,
@@ -175,6 +176,7 @@ export default function BankStatementImport({ schoolId, learners }: Props) {
   const [imports, setImports] = useState<BankImportRecord[]>([]);
   const [activeImport, setActiveImport] = useState<BankImportRecord | null>(null);
   const [tab, setTab] = useState<TabId>("import");
+  const accountingEnabled = hasSchoolModule("ACCOUNTING");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [message, setMessage] = useState("");
@@ -465,6 +467,12 @@ export default function BankStatementImport({ schoolId, learners }: Props) {
       }).then(() => setEditModal(null));
       return;
     }
+    if (!accountingEnabled) {
+      void patchTxn(editModal, {
+        description: draftDescription,
+      }).then(() => setEditModal(null));
+      return;
+    }
     void patchTxn(editModal, {
       suggestedSupplierName: draftSupplier,
       expenseCategory: draftCategory,
@@ -591,7 +599,7 @@ export default function BankStatementImport({ schoolId, learners }: Props) {
             </button>
           </>
         ) : null}
-        {txn.moneyOut > 0 && hasSuggestedSupplierInvoiceMatch(txn) ? (
+        {accountingEnabled && txn.moneyOut > 0 && hasSuggestedSupplierInvoiceMatch(txn) ? (
           <>
             <button
               type="button"
@@ -644,7 +652,7 @@ export default function BankStatementImport({ schoolId, learners }: Props) {
             </button>
           </>
         ) : null}
-        {txn.moneyOut > 0 ? (
+        {accountingEnabled && txn.moneyOut > 0 ? (
           <button
             type="button"
             className="recon-btn"
@@ -855,7 +863,7 @@ export default function BankStatementImport({ schoolId, learners }: Props) {
             ["import", "Import Statement"],
             ["review", "Reconciliation Review"],
             ["payments", "Payment Matches"],
-            ["expenses", "Expense Matches"],
+            ...(accountingEnabled ? ([["expenses", "Expense Matches"]] as [TabId, string][]) : []),
             ["unmatched", "Unmatched"],
             ["history", "Import History"],
           ] as [TabId, string][]
@@ -1079,7 +1087,7 @@ export default function BankStatementImport({ schoolId, learners }: Props) {
         </div>
       )}
 
-      {tab === "expenses" && (
+      {tab === "expenses" && accountingEnabled && (
         <div>
           {!activeImport ? (
             <p style={{ color: "#64748b", fontWeight: 700 }}>No active import.</p>
@@ -1215,7 +1223,7 @@ export default function BankStatementImport({ schoolId, learners }: Props) {
             <h3 style={{ marginTop: 0 }}>Change transaction type</h3>
             <select style={fieldStyle} value={draftType} onChange={(e) => setDraftType(e.target.value as BankingTransactionType)}>
               <option value="payment">Payment</option>
-              <option value="expense">Expense</option>
+              {accountingEnabled ? <option value="expense">Expense</option> : null}
               <option value="transfer">Transfer</option>
               <option value="ignore">Ignore</option>
             </select>
@@ -1246,7 +1254,11 @@ export default function BankStatementImport({ schoolId, learners }: Props) {
         >
           <div style={{ ...accountingCard, width: "min(480px, 100%)" }}>
             <h3 style={{ marginTop: 0 }}>
-              {txnType(editModal) === "payment" ? "Change payment account" : "Change expense details"}
+              {txnType(editModal) === "payment"
+                ? "Change payment account"
+                : accountingEnabled
+                  ? "Change expense details"
+                  : "Edit transaction"}
             </h3>
             {txnType(editModal) === "payment" ? (
               <>
@@ -1265,7 +1277,7 @@ export default function BankStatementImport({ schoolId, learners }: Props) {
                   ))}
                 </select>
               </>
-            ) : (
+            ) : accountingEnabled ? (
               <>
                 <label style={{ fontWeight: 800, fontSize: 12 }}>Supplier</label>
                 <input style={fieldStyle} value={draftSupplier} onChange={(e) => setDraftSupplier(e.target.value)} />
@@ -1282,6 +1294,11 @@ export default function BankStatementImport({ schoolId, learners }: Props) {
                 <label style={{ fontWeight: 800, fontSize: 12, marginTop: 10, display: "block" }}>Notes</label>
                 <textarea style={{ ...fieldStyle, minHeight: 72 }} value={draftNotes} onChange={(e) => setDraftNotes(e.target.value)} />
               </>
+            ) : (
+              <>
+                <label style={{ fontWeight: 800, fontSize: 12 }}>Description</label>
+                <input style={fieldStyle} value={draftDescription} onChange={(e) => setDraftDescription(e.target.value)} />
+              </>
             )}
             <div style={{ display: "flex", gap: 10, marginTop: 16 }}>
               <button type="button" style={goldBtn} onClick={saveEditModal}>
@@ -1295,7 +1312,7 @@ export default function BankStatementImport({ schoolId, learners }: Props) {
         </div>
       ) : null}
 
-      {supplierMatchTxn && schoolId ? (
+      {supplierMatchTxn && schoolId && accountingEnabled ? (
         <SupplierInvoiceBankMatch
           schoolId={schoolId}
           bankTransactionId={supplierMatchTxn.id}
