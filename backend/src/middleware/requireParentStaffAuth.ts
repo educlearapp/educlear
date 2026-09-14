@@ -11,6 +11,7 @@ import {
   appRoleFromPrismaRole,
   hasPermission,
   resolveStoredPermissions,
+  type ModuleKey,
   type PermissionMap,
 } from "../utils/userPermissions";
 import { verifyStaffJwt, type StaffJwtPayload } from "../utils/staffJwt";
@@ -39,6 +40,11 @@ export type ParentStaffAuthRequest = Request & {
   parentStaffAuth?: ParentStaffAuthContext;
 };
 
+export type ParentStaffRequirePermission = {
+  module: Extract<ModuleKey, "parents" | "learners" | "billingPlans">;
+  action: "create" | "edit" | "view";
+};
+
 export function isTrustedOwnerAdminRole(appRole: string): boolean {
   const role = String(appRole || "").trim();
   return role === "Owner" || role === "Admin";
@@ -54,7 +60,7 @@ export function evaluateParentStaffAuth(input: {
   /** When true, only Owner/Admin may proceed. */
   requireOwnerAdmin?: boolean;
   /** When set, require the named module permission (Owner always passes via hasPermission). */
-  requirePermission?: { module: "parents" | "learners"; action: "create" | "edit" | "view" };
+  requirePermission?: ParentStaffRequirePermission;
 }): ParentStaffAuthDecision {
   const payload = input.jwtPayload;
   if (!payload?.userId || !payload?.schoolId) {
@@ -153,7 +159,7 @@ export async function resolveParentStaffAuth(
   req: Request,
   opts?: {
     requireOwnerAdmin?: boolean;
-    requirePermission?: { module: "parents" | "learners"; action: "create" | "edit" | "view" };
+    requirePermission?: ParentStaffRequirePermission;
     /** Prefer this schoolId for mismatch checks (e.g. existing learner.schoolId). */
     requestSchoolId?: string;
   }
@@ -194,7 +200,7 @@ export async function requireParentStaffAuth(
   next: NextFunction,
   opts?: {
     requireOwnerAdmin?: boolean;
-    requirePermission?: { module: "parents" | "learners"; action: "create" | "edit" | "view" };
+    requirePermission?: ParentStaffRequirePermission;
   }
 ) {
   const decision = await resolveParentStaffAuth(req, opts);
@@ -213,7 +219,7 @@ export async function requireParentStaffAuth(
 /** Express middleware factory. */
 export function parentStaffAuthMiddleware(opts?: {
   requireOwnerAdmin?: boolean;
-  requirePermission?: { module: "parents" | "learners"; action: "create" | "edit" | "view" };
+  requirePermission?: ParentStaffRequirePermission;
 }) {
   return (req: ParentStaffAuthRequest, res: Response, next: NextFunction) =>
     void requireParentStaffAuth(req, res, next, opts);

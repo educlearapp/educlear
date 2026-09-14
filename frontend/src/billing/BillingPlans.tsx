@@ -4,7 +4,9 @@ import { flushSync } from "react-dom";
 
 
 import { API_URL } from "../api";
+import { getSchoolSessionUser } from "../auth/schoolSession";
 import { staffAuthHeaders } from "../auth/staffAuthHeaders";
+import { hasPermission } from "../users/permissions";
 import { notifyLearnersRefresh } from "./billingLedger";
 import { clearEduClearMigrationCache } from "../utils/educlearStorageDebug";
 
@@ -122,6 +124,12 @@ export default function BillingPlans({
   const prevPlanLearnerKeyRef = useRef<string | null>(null);
   const savedResetTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const diagLearnerIdRef = useRef<string | null>(null);
+  // SEC-02C: mutate only with billingPlans.edit (Admin is view-only under current templates).
+  const canEditBillingPlans = hasPermission(
+    getSchoolSessionUser(),
+    "billingPlans",
+    "edit"
+  );
 
   const getDiagLearnerId = () =>
     diagLearnerIdRef.current ||
@@ -633,6 +641,9 @@ export default function BillingPlans({
     plan: any[],
     options?: { reloadList?: boolean }
   ): Promise<{ ok: boolean; error?: string }> => {
+    if (!canEditBillingPlans) {
+      return { ok: false, error: "Permission denied: billingPlans.edit" };
+    }
     const learnerKey = String(learner?.id || learner?.learnerId || "");
     const normalizedPlan = plan.map(normalizeFee);
 
@@ -646,7 +657,7 @@ export default function BillingPlans({
         `${API_URL}/api/learners/${encodeURIComponent(learnerKey)}/billing-plan`,
         {
           method: "PATCH",
-          headers: { "Content-Type": "application/json" },
+          headers: { "Content-Type": "application/json", ...staffAuthHeaders() },
           body: JSON.stringify({ billingPlan: normalizedPlan }),
         }
       );
@@ -1286,10 +1297,15 @@ export default function BillingPlans({
                   type="submit"
                   style={{
                     ...btnGold,
-                    opacity: planActionBusy ? 0.85 : 1,
-                    cursor: planActionBusy ? "wait" : "pointer",
+                    opacity: planActionBusy || !canEditBillingPlans ? 0.85 : 1,
+                    cursor: planActionBusy || !canEditBillingPlans ? "not-allowed" : "pointer",
                   }}
-                  disabled={planActionBusy}
+                  disabled={planActionBusy || !canEditBillingPlans}
+                  title={
+                    canEditBillingPlans
+                      ? undefined
+                      : "Requires billingPlans.edit permission"
+                  }
                 >
                   {saveStatusLabel || "Save"}
                 </button>
@@ -1392,11 +1408,33 @@ export default function BillingPlans({
 
 
 
-                  <button style={btnGold} onClick={loadFeesThenOpen}>+ Add</button>
+                  <button
+                    style={btnGold}
+                    onClick={loadFeesThenOpen}
+                    disabled={!canEditBillingPlans}
+                    title={
+                      canEditBillingPlans
+                        ? undefined
+                        : "Requires billingPlans.edit permission"
+                    }
+                  >
+                    + Add
+                  </button>
 
 
 
-                  <button style={btnLight} onClick={loadFeesThenOpen}>+ New</button>
+                  <button
+                    style={btnLight}
+                    onClick={loadFeesThenOpen}
+                    disabled={!canEditBillingPlans}
+                    title={
+                      canEditBillingPlans
+                        ? undefined
+                        : "Requires billingPlans.edit permission"
+                    }
+                  >
+                    + New
+                  </button>
 
 
 
@@ -1404,10 +1442,16 @@ export default function BillingPlans({
                     type="button"
                     style={{
                       ...btnDanger,
-                      opacity: planActionBusy ? 0.7 : 1,
-                      cursor: planActionBusy ? "wait" : "pointer",
+                      opacity: planActionBusy || !canEditBillingPlans ? 0.7 : 1,
+                      cursor:
+                        planActionBusy || !canEditBillingPlans ? "not-allowed" : "pointer",
                     }}
-                    disabled={planActionBusy}
+                    disabled={planActionBusy || !canEditBillingPlans}
+                    title={
+                      canEditBillingPlans
+                        ? undefined
+                        : "Requires billingPlans.edit permission"
+                    }
                     onClick={() => {
                       void handlePlanRemove(activePlanLearner, []);
                     }}
@@ -1554,7 +1598,9 @@ export default function BillingPlans({
 
 
 
-              void savePlan(activePlanLearner, updatedPlan);
+              if (canEditBillingPlans) {
+                void savePlan(activePlanLearner, updatedPlan);
+              }
 
 
 
@@ -1598,10 +1644,15 @@ export default function BillingPlans({
             type="button"
             style={{
               ...btnDanger,
-              opacity: planActionBusy ? 0.7 : 1,
-              cursor: planActionBusy ? "wait" : "pointer",
+              opacity: planActionBusy || !canEditBillingPlans ? 0.7 : 1,
+              cursor: planActionBusy || !canEditBillingPlans ? "not-allowed" : "pointer",
             }}
-            disabled={planActionBusy}
+            disabled={planActionBusy || !canEditBillingPlans}
+            title={
+              canEditBillingPlans
+                ? undefined
+                : "Requires billingPlans.edit permission"
+            }
             onClick={() => {
               const updatedPlan = plan.filter(
                 (_: any, itemIndex: number) => itemIndex !== index

@@ -1192,10 +1192,36 @@ router.post("/", async (req, res) => {
 
 router.patch("/:id/billing-plan", async (req, res) => {
   try {
+    const authDecision = await resolveParentStaffAuth(req, {
+      requirePermission: { module: "billingPlans", action: "edit" },
+    });
+    if (!authDecision.allowed) {
+      return res.status(authDecision.status).json({
+        success: false,
+        error: authDecision.error,
+        code: authDecision.code || null,
+        message: authDecision.error,
+      });
+    }
+    const staffAuth = authDecision.auth;
     const { id } = req.params;
 
-    const learner = await prisma.learner.findUnique({
-      where: { id },
+    // Client schoolId is optional; JWT authorizedSchoolId is authoritative.
+    const bodySchoolId = cleanString(req.body?.schoolId);
+    const querySchoolId = cleanString(req.query?.schoolId);
+    if (
+      (bodySchoolId && bodySchoolId !== staffAuth.authorizedSchoolId) ||
+      (querySchoolId && querySchoolId !== staffAuth.authorizedSchoolId)
+    ) {
+      return res.status(403).json({
+        success: false,
+        error: "Request schoolId does not match authenticated school",
+        code: "SCHOOL_MISMATCH",
+      });
+    }
+
+    const learner = await prisma.learner.findFirst({
+      where: { id, schoolId: staffAuth.authorizedSchoolId },
       select: {
         id: true,
         schoolId: true,
