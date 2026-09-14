@@ -23,8 +23,10 @@ import {
   PublicAdmissionsApiError,
   updatePublicDraftApplication,
 } from "./publicAdmissionsApi";
+import PublicAdmissionsDocumentsStep from "./PublicAdmissionsDocumentsStep";
 import PublicAdmissionsLayout from "./PublicAdmissionsLayout";
 import type {
+  ApplyWizardStep,
   DraftApplicationFormState,
   DraftSaveUiState,
   PublicAdmissionsConfig,
@@ -74,7 +76,7 @@ function FieldError({ id, message }: { id?: string; message?: string }) {
 }
 
 /**
- * OA-06C draft application form — create / resume / save. No submit, docs, or payment.
+ * OA-06C/D draft application — details + supporting documents. No submit / payment / POP.
  */
 export default function PublicAdmissionsApplyPage() {
   const { publicSlug = "" } = useParams<{ publicSlug: string }>();
@@ -82,6 +84,7 @@ export default function PublicAdmissionsApplyPage() {
   const formId = useId();
 
   const [phase, setPhase] = useState<ApplyPhase>("booting");
+  const [activeStep, setActiveStep] = useState<ApplyWizardStep>("details");
   const [config, setConfig] = useState<PublicAdmissionsConfig | null>(null);
   const [form, setForm] = useState<DraftApplicationFormState>(() => createEmptyDraftForm(null));
   const [publicAccessId, setPublicAccessId] = useState<string | null>(null);
@@ -90,6 +93,7 @@ export default function PublicAdmissionsApplyPage() {
   const [saveMessage, setSaveMessage] = useState<string | null>(null);
   const [clientErrors, setClientErrors] = useState<DraftFormClientErrors>({});
   const [bannerError, setBannerError] = useState<string | null>(null);
+  const [stepNavBusy, setStepNavBusy] = useState(false);
 
   const createInFlight = useRef(false);
   const bootGeneration = useRef(0);
@@ -99,6 +103,7 @@ export default function PublicAdmissionsApplyPage() {
     let cancelled = false;
 
     setPhase("booting");
+    setActiveStep("details");
     setBannerError(null);
     setSaveState("clean");
     setSaveMessage(null);
@@ -205,15 +210,16 @@ export default function PublicAdmissionsApplyPage() {
     setSaveMessage(null);
   }
 
-  async function handleSave() {
-    if (!slug || !publicAccessId || !accessToken || saveState === "saving") return;
+  async function handleSave(opts?: { silent?: boolean }): Promise<boolean> {
+    if (!slug || !publicAccessId || !accessToken || saveState === "saving") return false;
     const grades = Array.isArray(config?.acceptedGrades) ? config!.acceptedGrades : [];
     const errors = validateDraftFormClient(form, grades);
     setClientErrors(errors);
     if (hasClientErrors(errors)) {
       setSaveState("dirty");
       setSaveMessage("Please fix the highlighted fields before saving.");
-      return;
+      setActiveStep("details");
+      return false;
     }
 
     setSaveState("saving");
@@ -228,20 +234,47 @@ export default function PublicAdmissionsApplyPage() {
       );
       setForm(hydrateDraftFormFromApplication(updated, config));
       setSaveState("saved");
-      setSaveMessage("Saved. You can continue later on this device.");
+      if (!opts?.silent) {
+        setSaveMessage("Saved. You can continue later on this device.");
+      }
+      return true;
     } catch (err) {
       if (err instanceof PublicAdmissionsApiError && err.status === 404) {
         clearApplicantSession(slug);
         setPhase("session_invalid");
         setSaveState("failed");
         setSaveMessage(null);
-        return;
+        return false;
       }
       setSaveState("failed");
       setSaveMessage(
         "We could not save your progress. Your entries are still on this screen — please try again."
       );
+      return false;
     }
+  }
+
+  async function goToDocumentsStep() {
+    if (stepNavBusy) return;
+    if (saveState === "dirty" || saveState === "failed") {
+      setStepNavBusy(true);
+      const ok = await handleSave({ silent: true });
+      setStepNavBusy(false);
+      if (!ok) {
+        setSaveMessage(
+          (prev) =>
+            prev ||
+            "Please save your details successfully before continuing to documents."
+        );
+        return;
+      }
+    }
+    setActiveStep("documents");
+  }
+
+  function handleDocumentsSessionInvalid() {
+    clearApplicantSession(slug);
+    setPhase("session_invalid");
   }
 
   function handleStartNewAfterStale() {
@@ -401,9 +434,6 @@ export default function PublicAdmissionsApplyPage() {
                 Documents
               </li>
               <li className="pa-progress-item" aria-disabled="true">
-                Payment
-              </li>
-              <li className="pa-progress-item" aria-disabled="true">
                 Review
               </li>
             </ol>
@@ -449,20 +479,47 @@ export default function PublicAdmissionsApplyPage() {
     <PublicAdmissionsLayout config={config}>
       <div className="pa-apply" data-testid="pa-draft-form">
         <nav className="pa-progress" aria-label="Application progress">
-          <ol className="pa-progress-list">
-            <li className="pa-progress-item is-active">Details</li>
-            <li className="pa-progress-item" aria-disabled="true">
-              Documents
+          <ol className="pa-progress-list pa-progress-list--3">
+            <li>
+              <button
+                type="button"
+                className={`pa-progress-item ${activeStep === "details" ? "is-active" : ""}`}
+                onClick={() => setActiveStep("details")}
+                data-testid="pa-step-details"
+              >
+                Details
+              </button>
             </li>
-            <li className="pa-progress-item" aria-disabled="true">
-              Payment
+            <li>
+              <button
+                type="button"
+                className={`pa-progress-item ${activeStep === "documents" ? "is-active" : ""}`}
+                onClick={() => void goToDocumentsStep()}
+                disabled={stepNavBusy || saveState === "saving"}
+                data-testid="pa-step-documents"
+              >
+                Documents
+              </button>
             </li>
-            <li className="pa-progress-item" aria-disabled="true">
-              Review
+            <li>
+              <span className="pa-progress-item" aria-disabled="true">
+                Review
+              </span>
             </li>
           </ol>
         </nav>
 
+        {activeStep === "documents" && publicAccessId && accessToken ? (
+          <PublicAdmissionsDocumentsStep
+            publicSlug={slug}
+            publicAccessId={publicAccessId}
+            accessToken={accessToken}
+            config={config}
+            onSessionInvalid={handleDocumentsSessionInvalid}
+            onBackToDetails={() => setActiveStep("details")}
+          />
+        ) : (
+          <>
         <div className="pa-save-bar" aria-live="polite">
           <span
             className={`pa-save-status pa-save-status--${saveState}`}
@@ -908,8 +965,8 @@ export default function PublicAdmissionsApplyPage() {
               Save progress
             </h2>
             <p className="pa-body">
-              Save your draft to continue later on this device. Document upload, payment, and
-              final submission come in later steps.
+              Save your draft details, then continue to documents. Final submission is a later
+              step. Payment instructions become available only after submission.
             </p>
             <div className="pa-cta-row pa-cta-row--stack">
               <button
@@ -919,6 +976,15 @@ export default function PublicAdmissionsApplyPage() {
                 data-testid="pa-save-draft"
               >
                 {saveState === "saving" ? "Saving…" : "Save"}
+              </button>
+              <button
+                type="button"
+                className="pa-secondary-btn"
+                disabled={saveState === "saving" || stepNavBusy}
+                onClick={() => void goToDocumentsStep()}
+                data-testid="pa-continue-documents"
+              >
+                {stepNavBusy ? "Saving…" : "Continue to documents"}
               </button>
               <button
                 type="button"
@@ -939,6 +1005,8 @@ export default function PublicAdmissionsApplyPage() {
             ) : null}
           </section>
         </form>
+          </>
+        )}
       </div>
     </PublicAdmissionsLayout>
   );

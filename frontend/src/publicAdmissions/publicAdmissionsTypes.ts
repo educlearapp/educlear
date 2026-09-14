@@ -216,3 +216,39 @@ export type PublicApplicantSession = {
   accessToken: string;
   accessTokenExpiresAt: string | null;
 };
+
+/** Configured admissions document requirement (from public config requiredDocuments). */
+export type PublicRequiredDocumentConfig = {
+  key: string;
+  label: string | null;
+  required: boolean;
+};
+
+/** Applicant document list item from public documents API. */
+export type ApplicantDocumentView = {
+  id: string;
+  documentType: string;
+  originalFileName: string;
+  contentType: string;
+  byteSize: number;
+  uploadedAt: string;
+  scanStatus: string;
+  isProofOfPayment: boolean;
+};
+
+export type ApplicantDocumentsListResponse = {
+  success: boolean;
+  documents?: ApplicantDocumentView[];
+  requiredDocumentTypes?: string[];
+  error?: string;
+  code?: string;
+};
+
+export type ApplicantDocumentUploadResponse = {
+  success: boolean;
+  document?: ApplicantDocumentView;
+  error?: string;
+  code?: string;
+};
+
+export type ApplyWizardStep = "details" | "documents";

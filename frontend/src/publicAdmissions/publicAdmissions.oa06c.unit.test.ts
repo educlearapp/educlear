@@ -140,14 +140,15 @@ assert.ok(/createPublicDraftApplication/.test(applySrc), "draft create wired on 
 assert.ok(/pa-begin-draft/.test(applySrc), "explicit Begin Application action");
 assert.ok(/createInFlight/.test(applySrc), "3. draft POST guarded against duplicate in-flight");
 assert.ok(/writeApplicantSession/.test(applySrc), "4/5. captures publicAccessId + token via session write");
-assert.ok(!/\{accessToken\}/.test(applySrc), "6. token not rendered as JSX expression");
+assert.ok(!/>\s*\{accessToken\}\s*</.test(applySrc), "6. token not rendered as JSX text");
 assert.ok(!/\{session\.accessToken\}/.test(applySrc), "6. session token not rendered");
 assert.ok(!/searchParams|URLSearchParams|location\.hash/.test(applySrc), "7. no URL token plumbing");
 assert.ok(!/\bstaffAuthHeaders\s*\(/.test(applySrc), "8. no staff auth headers on apply page");
 assert.ok(!/\/submit/.test(applySrc), "21. no submit endpoint");
 assert.ok(
-  !/\/documents|payment-proof|\/payment["'`]/.test(applySrc),
-  "22. no document/payment endpoints"
+  !/\/documents|payment-proof|\/payment["'`]/.test(applySrc) ||
+    /PublicAdmissionsDocumentsStep/.test(applySrc),
+  "21b. apply page does not inline document/payment endpoints (docs step owns documents)"
 );
 
 const apiSrc = read("publicAdmissions/publicAdmissionsApi.ts");

@@ -2,6 +2,9 @@ import { API_URL } from "../api";
 import type {
   ApplicantApplicationResponse,
   ApplicantApplicationView,
+  ApplicantDocumentUploadResponse,
+  ApplicantDocumentsListResponse,
+  ApplicantDocumentView,
   CreateDraftApplicationBody,
   CreateDraftApplicationResponse,
   PublicAdmissionsConfig,
@@ -31,6 +34,14 @@ function applicantAuthHeaders(accessToken: string): Record<string, string> {
   return {
     Accept: "application/json",
     "Content-Type": "application/json",
+    "X-Admissions-Access-Token": String(accessToken || "").trim(),
+  };
+}
+
+/** Auth header for multipart uploads — do not set Content-Type (browser boundary). */
+function applicantTokenOnlyHeaders(accessToken: string): Record<string, string> {
+  return {
+    Accept: "application/json",
     "X-Admissions-Access-Token": String(accessToken || "").trim(),
   };
 }
@@ -188,4 +199,144 @@ export async function updatePublicDraftApplication(
     throw new PublicAdmissionsApiError("Could not save application", 500, "INVALID_RESPONSE");
   }
   return payload.application;
+}
+
+function applicationsBase(slug: string, publicAccessId: string): string {
+  return `${API_URL}/api/public/admissions/${encodeURIComponent(slug)}/applications/${encodeURIComponent(publicAccessId)}`;
+}
+
+export async function listPublicApplicantDocuments(
+  publicSlug: string,
+  publicAccessId: string,
+  accessToken: string
+): Promise<{ documents: ApplicantDocumentView[]; requiredDocumentTypes: string[] }> {
+  const slug = normalizeSlug(publicSlug);
+  const accessId = String(publicAccessId || "").trim();
+  const token = String(accessToken || "").trim();
+  if (!slug || !accessId || !token) {
+    throw new PublicAdmissionsApiError("Application not found", 404, "APPLICATION_NOT_FOUND");
+  }
+
+  const res = await fetch(`${applicationsBase(slug, accessId)}/documents`, {
+    method: "GET",
+    headers: applicantAuthHeaders(token),
+  });
+  const payload = (await parseJson(res)) as ApplicantDocumentsListResponse;
+  if (!res.ok) {
+    throwFromPayload(res, payload as Record<string, unknown>, "Could not load documents");
+  }
+  if (!payload.success) {
+    throw new PublicAdmissionsApiError("Could not load documents", 500, "INVALID_RESPONSE");
+  }
+  return {
+    documents: Array.isArray(payload.documents) ? payload.documents : [],
+    requiredDocumentTypes: Array.isArray(payload.requiredDocumentTypes)
+      ? payload.requiredDocumentTypes.map((t) => String(t))
+      : [],
+  };
+}
+
+export async function uploadPublicApplicantDocument(
+  publicSlug: string,
+  publicAccessId: string,
+  accessToken: string,
+  input: { documentType: string; file: File }
+): Promise<ApplicantDocumentView> {
+  const slug = normalizeSlug(publicSlug);
+  const accessId = String(publicAccessId || "").trim();
+  const token = String(accessToken || "").trim();
+  const documentType = String(input.documentType || "").trim();
+  if (!slug || !accessId || !token || !documentType || !input.file) {
+    throw new PublicAdmissionsApiError("Could not upload document", 400, "INVALID_UPLOAD");
+  }
+
+  const body = new FormData();
+  body.append("file", input.file);
+  body.append("documentType", documentType);
+
+  const res = await fetch(`${applicationsBase(slug, accessId)}/documents`, {
+    method: "POST",
+    headers: applicantTokenOnlyHeaders(token),
+    body,
+  });
+  const payload = (await parseJson(res)) as ApplicantDocumentUploadResponse;
+  if (!res.ok) {
+    throwFromPayload(res, payload as Record<string, unknown>, "Could not upload document");
+  }
+  if (!payload.success || !payload.document) {
+    throw new PublicAdmissionsApiError("Could not upload document", 500, "INVALID_RESPONSE");
+  }
+  return payload.document;
+}
+
+export async function deletePublicApplicantDocument(
+  publicSlug: string,
+  publicAccessId: string,
+  accessToken: string,
+  documentId: string
+): Promise<void> {
+  const slug = normalizeSlug(publicSlug);
+  const accessId = String(publicAccessId || "").trim();
+  const token = String(accessToken || "").trim();
+  const docId = String(documentId || "").trim();
+  if (!slug || !accessId || !token || !docId) {
+    throw new PublicAdmissionsApiError("Document not found", 404, "DOCUMENT_NOT_FOUND");
+  }
+
+  const res = await fetch(
+    `${applicationsBase(slug, accessId)}/documents/${encodeURIComponent(docId)}`,
+    {
+      method: "DELETE",
+      headers: applicantAuthHeaders(token),
+    }
+  );
+  const payload = await parseJson(res);
+  if (!res.ok) {
+    throwFromPayload(res, payload, "Could not delete document");
+  }
+}
+
+/**
+ * Authenticated download — returns a Blob. Caller creates/revokes object URLs.
+ * Never puts the access token in a URL.
+ */
+export async function downloadPublicApplicantDocumentBlob(
+  publicSlug: string,
+  publicAccessId: string,
+  accessToken: string,
+  documentId: string
+): Promise<{ blob: Blob; contentType: string; fileName: string | null }> {
+  const slug = normalizeSlug(publicSlug);
+  const accessId = String(publicAccessId || "").trim();
+  const token = String(accessToken || "").trim();
+  const docId = String(documentId || "").trim();
+  if (!slug || !accessId || !token || !docId) {
+    throw new PublicAdmissionsApiError("Document not found", 404, "DOCUMENT_NOT_FOUND");
+  }
+
+  const res = await fetch(
+    `${applicationsBase(slug, accessId)}/documents/${encodeURIComponent(docId)}/download`,
+    {
+      method: "GET",
+      headers: {
+        Accept: "*/*",
+        "X-Admissions-Access-Token": token,
+      },
+    }
+  );
+
+  if (!res.ok) {
+    const payload = await parseJson(res).catch(() => ({}));
+    throwFromPayload(res, payload, "Could not download document");
+  }
+
+  const blob = await res.blob();
+  const contentType = res.headers.get("Content-Type") || blob.type || "application/octet-stream";
+  const disposition = res.headers.get("Content-Disposition") || "";
+  const match = /filename="([^"]+)"/i.exec(disposition);
+  return {
+    blob,
+    contentType,
+    fileName: match?.[1] || null,
+  };
 }
