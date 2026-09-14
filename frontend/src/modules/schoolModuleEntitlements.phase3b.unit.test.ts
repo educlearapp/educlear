@@ -186,6 +186,7 @@ function main() {
   assert.strictEqual(hasSchoolModule("ACCOUNTING", MODULE_PRESETS.CORE_PAYROLL), false);
   assert.strictEqual(requiredModuleForSchoolPage("payroll"), "PAYROLL");
   assert.strictEqual(requiredModuleForSchoolPage("accountingBanking"), null);
+  assert.strictEqual(requiredModuleForSchoolPage("educlock"), "CORE");
   {
     const d = evaluateSchoolPageAccess("accountingExpenses", owner(), MODULE_PRESETS.CORE_PAYROLL);
     assert.ok(!d.allowed && d.reason === "module" && d.module === "ACCOUNTING");
@@ -306,31 +307,43 @@ function main() {
   const dash = fs.readFileSync(path.join(__dirname, "../SchoolDashboard.tsx"), "utf8");
   const accountingSubmenu = dash.slice(
     dash.indexOf("<span>Accounting</span>"),
-    dash.indexOf("<span>Communication</span>")
+    dash.indexOf("<span>Communication</span>") > 0
+      ? dash.indexOf("<span>Communication</span>")
+      : dash.indexOf("bottom-section")
   );
   assert.ok(!accountingSubmenu.includes('go("educlock")'));
   assert.ok(!accountingSubmenu.includes('go("payroll")'));
-  assert.ok(!accountingSubmenu.includes('go("accountingBanking")'));
-  assert.ok(dash.includes('go("accountingBanking")'), "Banking under Billing");
+  assert.ok(dash.includes('hasCoreModule && canPage("accountingBanking")'), "Banking under Billing when CORE");
+  assert.ok(
+    dash.includes('!hasCoreModule && canPage("accountingBanking")'),
+    "Banking under Accounting when CORE off"
+  );
   assert.ok(dash.includes("hasPayrollModule ? tabButton"));
   assert.ok(dash.includes("Staff Active"));
   assert.ok(dash.includes("discardEntitlementsIfSchoolMismatch"));
+  assert.ok(dash.includes("resolvePreferredLandingPage"));
+  assert.ok(dash.includes("hasCoreModule"));
 
-  // Banking ACCOUNTING off/on controls
+  // Banking ACCOUNTING off/on + CORE fee controls
   const banking = fs.readFileSync(
     path.join(__dirname, "../banking/BankStatementImport.tsx"),
     "utf8"
   );
   assert.ok(banking.includes('hasSchoolModule("ACCOUNTING")'));
+  assert.ok(banking.includes('hasSchoolModule("CORE")'));
   assert.ok(banking.includes("Expense Matches"));
   assert.ok(banking.includes("accountingEnabled ?"));
   assert.ok(banking.includes("Payment Matches"));
   assert.ok(banking.includes("accountingEnabled && txn.moneyOut"));
+  assert.ok(banking.includes("coreEnabled ?") || banking.includes("coreEnabled &&"));
 
-  // Single Banking menu (Billing only)
+  // Payroll EduClock import requires CORE && PAYROLL
+  assert.ok(payrollSrc.includes("eduClockPayrollImportEnabled"));
+  assert.ok(payrollSrc.includes("coreModuleEnabled && hasSchoolModule(\"PAYROLL\")"));
+
+  // Single Banking menu pattern (Billing when CORE; Accounting when Core-off)
   const bankingNavHits = dash.split('go("accountingBanking")').length - 1;
-  assert.ok(bankingNavHits >= 1, "Banking nav present");
-  assert.ok(!accountingSubmenu.includes("Banking"), "no Banking under Accounting");
+  assert.ok(bankingNavHits >= 2, "Banking nav present in Billing and Accounting placements");
 
   console.log("✓ schoolModuleEntitlements.phase3b.unit.test.ts passed");
 }
