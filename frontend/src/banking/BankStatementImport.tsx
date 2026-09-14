@@ -177,6 +177,7 @@ export default function BankStatementImport({ schoolId, learners }: Props) {
   const [activeImport, setActiveImport] = useState<BankImportRecord | null>(null);
   const [tab, setTab] = useState<TabId>("import");
   const accountingEnabled = hasSchoolModule("ACCOUNTING");
+  const coreEnabled = hasSchoolModule("CORE");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [message, setMessage] = useState("");
@@ -450,6 +451,10 @@ export default function BankStatementImport({ schoolId, learners }: Props) {
     if (!editModal) return;
     const type = txnType(editModal);
     if (type === "payment") {
+      if (!coreEnabled) {
+        setError("Fee-payment matching requires EduClear Core.");
+        return;
+      }
       const learner = learnerOptions.find((l) => l.id === draftLearnerId);
       if (!learner) {
         setError("Select a learner account for payment matching.");
@@ -484,6 +489,10 @@ export default function BankStatementImport({ schoolId, learners }: Props) {
 
   const postAccepted = async () => {
     console.log("POST PAYMENTS CLICKED");
+    if (!coreEnabled) {
+      setError("Fee-payment posting requires EduClear Core.");
+      return;
+    }
     if (!activeImport || !schoolId) {
       setError("No import selected — open an import before posting payments.");
       return;
@@ -567,6 +576,7 @@ export default function BankStatementImport({ schoolId, learners }: Props) {
     const cardSettlement = looksLikeCardSettlement(txn);
     const allowLearnerAccept = allowLearnerAcceptAction(txn);
     const showPaymentMatchActions =
+      coreEnabled &&
       allowLearnerAccept &&
       txn.direction === "in" &&
       txnType(txn) === "payment" &&
@@ -862,7 +872,7 @@ export default function BankStatementImport({ schoolId, learners }: Props) {
           [
             ["import", "Import Statement"],
             ["review", "Reconciliation Review"],
-            ["payments", "Payment Matches"],
+            ...(coreEnabled ? ([["payments", "Payment Matches"]] as [TabId, string][]) : []),
             ...(accountingEnabled ? ([["expenses", "Expense Matches"]] as [TabId, string][]) : []),
             ["unmatched", "Unmatched"],
             ["history", "Import History"],
@@ -885,8 +895,11 @@ export default function BankStatementImport({ schoolId, learners }: Props) {
         <div style={{ ...accountingCard, marginBottom: 16 }}>
           <h3 style={{ marginTop: 0, color: INK }}>Upload bank statement</h3>
           <p style={{ color: "#64748b", fontSize: 13, marginTop: 0 }}>
-            CSV or OFX (Generic, Standard Bank, FNB, TymeBank auto-detect) · accept matches then post to Billing ·
-            duplicate lines are never posted twice
+            {coreEnabled
+              ? "CSV or OFX (Generic, Standard Bank, FNB, TymeBank auto-detect) · accept matches then post to Billing · duplicate lines are never posted twice"
+              : accountingEnabled
+                ? "CSV or OFX (Generic, Standard Bank, FNB, TymeBank auto-detect) · match expenses to suppliers · fee/Billing posting is not available without EduClear Core"
+                : "CSV or OFX bank statement import"}
           </p>
           <input
             type="file"
@@ -926,7 +939,7 @@ export default function BankStatementImport({ schoolId, learners }: Props) {
               </select>
             </div>
           ) : null}
-          {activeImport ? (
+          {activeImport && coreEnabled ? (
             <div style={{ marginTop: 16, display: "flex", gap: 10, flexWrap: "wrap" }}>
               <button
                 type="button"
@@ -1030,6 +1043,7 @@ export default function BankStatementImport({ schoolId, learners }: Props) {
                 onPage={setReviewPage}
                 pageSize={REVIEW_PAGE_SIZE}
               />
+              {coreEnabled ? (
               <div
                 className="recon-posting-bar"
                 data-testid="recon-posting-bar"
@@ -1054,12 +1068,13 @@ export default function BankStatementImport({ schoolId, learners }: Props) {
                   Post accepted to Billing
                 </button>
               </div>
+              ) : null}
             </>
           )}
         </div>
       )}
 
-      {tab === "payments" && (
+      {tab === "payments" && coreEnabled && (
         <div>
           {!activeImport ? (
             <p style={{ color: "#64748b", fontWeight: 700 }}>No active import.</p>
@@ -1222,7 +1237,7 @@ export default function BankStatementImport({ schoolId, learners }: Props) {
           <div style={{ ...accountingCard, width: "min(420px, 100%)" }}>
             <h3 style={{ marginTop: 0 }}>Change transaction type</h3>
             <select style={fieldStyle} value={draftType} onChange={(e) => setDraftType(e.target.value as BankingTransactionType)}>
-              <option value="payment">Payment</option>
+              {coreEnabled ? <option value="payment">Payment</option> : null}
               {accountingEnabled ? <option value="expense">Expense</option> : null}
               <option value="transfer">Transfer</option>
               <option value="ignore">Ignore</option>

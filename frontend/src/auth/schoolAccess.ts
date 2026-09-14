@@ -6,10 +6,13 @@ import {
 } from "../users/permissions";
 import { getSchoolSessionUser, type SchoolSessionUser } from "./schoolSession";
 import {
+  deniedModuleForSchoolPage,
   getSchoolModuleEntitlements,
+  hasSchoolModule,
   isSchoolPageModuleEntitled,
-  requiredModuleForSchoolPage,
   schoolPageModuleDenialMessage,
+  schoolPageModuleRequirement,
+  type ProductModuleKey,
   type SchoolModuleEntitlements,
 } from "../modules/schoolModuleEntitlements";
 
@@ -72,7 +75,7 @@ const PAGE_RULES: Record<string, PageRule> = {
   communicationSms: { module: "settings", action: "view" },
   communicationSettings: { module: "settings", action: "view" },
   communicationCentre: { module: "settings", action: "view" },
-  /** Core fee bank import / match / post — not ACCOUNTING-gated. */
+  /** Banking — CORE || ACCOUNTING (module gate); fee vs expense UI is field-policy. */
   bankStatementImport: { module: "payments", action: "view" },
   accountingOverview: { module: "reports", action: "view" },
   accountingBanking: { module: "payments", action: "view" },
@@ -95,6 +98,10 @@ const PAGE_RULES: Record<string, PageRule> = {
 
 const FALLBACK_PAGE_ORDER: SchoolPageKey[] = [
   "dashboard",
+  "accountingOverview",
+  "payroll",
+  "employees",
+  "schoolProfile",
   "registrations",
   "statements",
   "invoices",
@@ -111,7 +118,7 @@ export type SchoolPageAccessDenial =
       allowed: false;
       reason: "auth" | "permission" | "module";
       message: string;
-      module?: "ACCOUNTING" | "PAYROLL";
+      module?: ProductModuleKey;
     };
 
 /** RBAC-only check (ignores product modules). */
@@ -151,15 +158,15 @@ export function evaluateSchoolPageAccess(
     return { allowed: false, reason: "auth", message: "Authentication required." };
   }
 
-  const required = requiredModuleForSchoolPage(page);
-  if (required && !isSchoolPageModuleEntitled(page, entitlements)) {
+  if (!isSchoolPageModuleEntitled(page, entitlements)) {
+    const denied = deniedModuleForSchoolPage(page, entitlements);
     return {
       allowed: false,
       reason: "module",
-      module: required,
+      module: denied,
       message:
-        schoolPageModuleDenialMessage(page) ||
-        `${required} is not included in this school’s EduClear package.`,
+        schoolPageModuleDenialMessage(page, entitlements) ||
+        "This section is not included in this school’s EduClear package.",
     };
   }
 
@@ -182,17 +189,42 @@ export function canAccessSchoolPage(
   return evaluateSchoolPageAccess(page, user, entitlements).allowed;
 }
 
-export function findFirstAllowedSchoolPage(
+/**
+ * Preferred post-login / invalid-route landing by commercial package.
+ * CORE → school Dashboard; Accounting (no Core) → Accounting Overview; Payroll-only → Payroll.
+ */
+export function resolvePreferredLandingPage(
   user: SchoolSessionUser | null = getSchoolSessionUser(),
   entitlements: SchoolModuleEntitlements = getSchoolModuleEntitlements()
 ): SchoolPageKey {
+  if (hasSchoolModule("CORE", entitlements) && canAccessSchoolPage("dashboard", user, entitlements)) {
+    return "dashboard";
+  }
+  if (
+    hasSchoolModule("ACCOUNTING", entitlements) &&
+    canAccessSchoolPage("accountingOverview", user, entitlements)
+  ) {
+    return "accountingOverview";
+  }
+  if (hasSchoolModule("PAYROLL", entitlements) && canAccessSchoolPage("payroll", user, entitlements)) {
+    return "payroll";
+  }
+  if (canAccessSchoolPage("employees", user, entitlements)) return "employees";
+  if (canAccessSchoolPage("schoolProfile", user, entitlements)) return "schoolProfile";
   for (const page of FALLBACK_PAGE_ORDER) {
     if (canAccessSchoolPage(page, user, entitlements)) return page;
   }
   for (const page of Object.keys(PAGE_RULES)) {
     if (canAccessSchoolPage(page, user, entitlements)) return page;
   }
-  return "dashboard";
+  return "schoolProfile";
+}
+
+export function findFirstAllowedSchoolPage(
+  user: SchoolSessionUser | null = getSchoolSessionUser(),
+  entitlements: SchoolModuleEntitlements = getSchoolModuleEntitlements()
+): SchoolPageKey {
+  return resolvePreferredLandingPage(user, entitlements);
 }
 
 export function canViewAnySchoolPage(
@@ -202,3 +234,6 @@ export function canViewAnySchoolPage(
 ): boolean {
   return pages.some((page) => canAccessSchoolPage(page, user, entitlements));
 }
+
+/** Re-export for callers that need to inspect gates without importing modules twice. */
+export { schoolPageModuleRequirement };
