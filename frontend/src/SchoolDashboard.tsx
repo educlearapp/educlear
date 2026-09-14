@@ -108,6 +108,7 @@ import {
   canViewAnySchoolPage,
   evaluateSchoolPageAccess,
   findFirstAllowedSchoolPage,
+  resolvePreferredLandingPage,
 } from "./auth/schoolAccess";
 import {
   discardEntitlementsIfSchoolMismatch,
@@ -610,12 +611,15 @@ const schoolId =
   );
   const canPage = (page: PageKey) =>
     canAccessSchoolPage(page, schoolSessionUser, moduleEntitlements);
+  const hasCoreModule = hasSchoolModule("CORE", moduleEntitlements);
   const hasAccountingModule = hasSchoolModule("ACCOUNTING", moduleEntitlements);
   const hasPayrollModule = hasSchoolModule("PAYROLL", moduleEntitlements);
 
 
 
-  const [activePage, setActivePage] = useState<PageKey>("dashboard");
+  const [activePage, setActivePage] = useState<PageKey>(() =>
+    resolvePreferredLandingPage(getSchoolSessionUser(), getSchoolModuleEntitlements()) as PageKey
+  );
 
 
 
@@ -17413,7 +17417,8 @@ return (
   
           {canViewAnySchoolPage(
             ["schoolProfile", "schoolPackage", "schoolCredits", "schoolUsers", "schoolSettings"],
-            schoolSessionUser
+            schoolSessionUser,
+            moduleEntitlements
           ) ? (
           <div className="main-section">
   
@@ -17548,7 +17553,8 @@ return (
               "forms",
               "more",
             ],
-            schoolSessionUser
+            schoolSessionUser,
+            moduleEntitlements
           ) ? (
           <div className="main-section">
   
@@ -17754,7 +17760,8 @@ return (
               "billingSettings",
               "billing-help",
             ],
-            schoolSessionUser
+            schoolSessionUser,
+            moduleEntitlements
           ) ? (
           <div className="main-section">
   
@@ -17835,7 +17842,7 @@ return (
                 </div>
                 ) : null}
 
-                {canPage("accountingBanking") ? (
+                {hasCoreModule && canPage("accountingBanking") ? (
                 <div
                   className={`submenu-item ${activePage === "accountingBanking" || activePage === "bankStatementImport" ? "active" : ""}`}
                   onClick={() => go("accountingBanking")}
@@ -17903,7 +17910,7 @@ return (
   
   
   
-                {canViewAnySchoolPage(["billingDeposits", "billingSettings"], schoolSessionUser) ? (
+                {canViewAnySchoolPage(["billingDeposits", "billingSettings"], schoolSessionUser, moduleEntitlements) ? (
                 <div
                   className={`submenu-item submenu-expand ${billingMoreOpen ? "open" : ""} ${
                     activePage === "billingDeposits" || activePage === "billingSettings" ? "active" : ""
@@ -18023,6 +18030,14 @@ return (
                 {canPage("accountingOverview") ? (
                 <div className={`submenu-item ${activePage === "accountingOverview" ? "active" : ""}`} onClick={() => go("accountingOverview")}>Overview</div>
                 ) : null}
+                {!hasCoreModule && canPage("accountingBanking") ? (
+                <div
+                  className={`submenu-item ${activePage === "accountingBanking" || activePage === "bankStatementImport" ? "active" : ""}`}
+                  onClick={() => go("accountingBanking")}
+                >
+                  Banking
+                </div>
+                ) : null}
                 {canPage("accountingExpenses") ? (
                 <div className={`submenu-item ${activePage === "accountingExpenses" ? "active" : ""}`} onClick={() => go("accountingExpenses")}>Expenses</div>
                 ) : null}
@@ -18073,6 +18088,17 @@ return (
           </div>
           ) : null}
 
+          {hasCoreModule &&
+          canViewAnySchoolPage(
+            [
+              "communicationCentre",
+              "communicationEmail",
+              "communicationSms",
+              "communicationSettings",
+            ],
+            schoolSessionUser,
+            moduleEntitlements
+          ) ? (
           <div className="main-section">
             <div
               className="section-header"
@@ -18093,24 +18119,32 @@ return (
             </div>
             {communicationOpen && (
               <div className="submenu">
+                {canPage("communicationCentre") ? (
                 <div
                   className={`submenu-item ${activePage === "communicationCentre" ? "active" : ""}`}
                   onClick={() => go("communicationCentre")}
                 >
                   Communication Centre
                 </div>
+                ) : null}
+                {canPage("communicationEmail") ? (
                 <div
                   className={`submenu-item ${activePage === "communicationEmail" ? "active" : ""}`}
                   onClick={() => go("communicationEmail")}
                 >
                   Email
                 </div>
+                ) : null}
+                {canPage("communicationSms") ? (
                 <div
                   className={`submenu-item ${activePage === "communicationSms" ? "active" : ""}`}
                   onClick={() => go("communicationSms")}
                 >
                   SMS
                 </div>
+                ) : null}
+                {canPage("communicationSettings") ? (
+                <>
                 <div
                   className={`submenu-item submenu-expand ${communicationMoreOpen ? "open" : ""}`}
                   onClick={(e) => {
@@ -18129,10 +18163,13 @@ return (
                     Settings
                   </div>
                 ) : null}
+                </>
+                ) : null}
 
               </div>
             )}
           </div>
+          ) : null}
 
           <div className="bottom-section">
             <div className="sidebar-collapse">≪</div>

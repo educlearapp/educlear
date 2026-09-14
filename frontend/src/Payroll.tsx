@@ -790,6 +790,8 @@ export default function Payroll() {
 
   /** Optional Accounting integration (journals/COA post). Not required for Payroll runs. */
   const accountingModuleEnabled = hasSchoolModule("ACCOUNTING");
+  const coreModuleEnabled = hasSchoolModule("CORE");
+  const eduClockPayrollImportEnabled = coreModuleEnabled && hasSchoolModule("PAYROLL");
 
 
 
@@ -2885,7 +2887,9 @@ export default function Payroll() {
 
 
 
-      {schoolId ? <PayrollEduClockImportPanel schoolId={schoolId} /> : null}
+      {schoolId && eduClockPayrollImportEnabled ? (
+        <PayrollEduClockImportPanel schoolId={schoolId} />
+      ) : null}
 
 
 

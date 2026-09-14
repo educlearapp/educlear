@@ -122,11 +122,11 @@ function main() {
   // Page module map
   assert.strictEqual(requiredModuleForSchoolPage("accountingOverview"), "ACCOUNTING");
   assert.strictEqual(requiredModuleForSchoolPage("payroll"), "PAYROLL");
-  assert.strictEqual(requiredModuleForSchoolPage("accountingBanking"), null);
-  assert.strictEqual(requiredModuleForSchoolPage("bankStatementImport"), null);
-  assert.strictEqual(requiredModuleForSchoolPage("educlock"), null);
-  assert.strictEqual(requiredModuleForSchoolPage("statements"), null);
-  assert.strictEqual(requiredModuleForSchoolPage("employees"), null);
+  assert.strictEqual(requiredModuleForSchoolPage("accountingBanking"), null); // CORE||ACCOUNTING (any)
+  assert.strictEqual(requiredModuleForSchoolPage("bankStatementImport"), null); // CORE||ACCOUNTING (any)
+  assert.strictEqual(requiredModuleForSchoolPage("educlock"), "CORE");
+  assert.strictEqual(requiredModuleForSchoolPage("statements"), "CORE");
+  assert.strictEqual(requiredModuleForSchoolPage("employees"), null); // CORE||PAYROLL (any)
   assert.ok(ACCOUNTING_ONLY_PAGES.includes("accountingExpenses"));
 
   assert.strictEqual(isSchoolPageModuleEntitled("accountingOverview", coreOnly), false);
@@ -181,14 +181,23 @@ function main() {
     path.join(__dirname, "../SchoolDashboard.tsx"),
     "utf8"
   );
-  // Accounting submenu must not list Banking/Payroll/EduClock (those moved out).
+  // Accounting submenu must not list Payroll/EduClock. Banking may appear for Core-off only.
   const accountingSubmenu = dash.slice(
     dash.indexOf("<span>Accounting</span>"),
-    dash.indexOf("<span>Communication</span>")
+    dash.indexOf("<span>Communication</span>") > 0
+      ? dash.indexOf("<span>Communication</span>")
+      : dash.indexOf("bottom-section")
   );
   assert.ok(!accountingSubmenu.includes('go("educlock")'), "EduClock not under Accounting");
   assert.ok(!accountingSubmenu.includes('go("payroll")'), "Payroll not under Accounting");
-  assert.ok(!accountingSubmenu.includes('go("accountingBanking")'), "Banking not under Accounting");
+  assert.ok(
+    dash.includes('hasCoreModule && canPage("accountingBanking")'),
+    "Banking under Billing when CORE"
+  );
+  assert.ok(
+    dash.includes('!hasCoreModule && canPage("accountingBanking")'),
+    "Banking under Accounting when CORE off"
+  );
   assert.ok(accountingSubmenu.includes('go("accountingExpenses")'), "Expenses remains under Accounting");
 
   const banking = fs.readFileSync(
@@ -196,9 +205,11 @@ function main() {
     "utf8"
   );
   assert.ok(banking.includes('hasSchoolModule("ACCOUNTING")'));
+  assert.ok(banking.includes('hasSchoolModule("CORE")'));
   assert.ok(banking.includes("Expense Matches"));
   assert.ok(banking.includes("accountingEnabled ?"));
   assert.ok(banking.includes("Payment Matches"));
+  assert.ok(banking.includes("coreEnabled ?"));
 
   // Employee payroll tab gated
   assert.ok(dash.includes('hasPayrollModule ? tabButton("payroll"'));
