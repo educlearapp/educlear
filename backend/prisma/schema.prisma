@@ -205,7 +205,37 @@ model School {
   admissionAuditEvents         AdmissionAuditEvent[]
   admissionStaffNotes          AdmissionStaffNote[]
 
+  /// Commercial product module entitlements (EduClear Core / Accounting / Payroll).
+  /// CORE includes school-fee Billing. ACCOUNTING and PAYROLL are optional add-ons.
+  moduleEntitlements SchoolModuleEntitlement[]
+
   @@index([lifecycleStatus])
+}
+
+/// Platform product modules licensed per school. Orthogonal to STARTER/UNLIMITED capacity packages.
+/// CORE includes full school-fee Billing. There is no FINANCE product module.
+enum ProductModule {
+  CORE
+  ACCOUNTING
+  PAYROLL
+}
+
+/// Super-Admin-managed school module license. Missing rows are treated as enabled (fail-open).
+model SchoolModuleEntitlement {
+  id              String        @id @default(cuid())
+  schoolId        String
+  module          ProductModule
+  enabled         Boolean       @default(true)
+  createdAt       DateTime      @default(now())
+  updatedAt       DateTime      @updatedAt
+  updatedByUserId String?
+  updatedByEmail  String?
+
+  school School @relation(fields: [schoolId], references: [id], onDelete: Cascade)
+
+  @@unique([schoolId, module])
+  @@index([schoolId])
+  @@index([module])
 }
 
 enum EduClearPackageCode {
