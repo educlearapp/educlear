@@ -31,7 +31,9 @@ export class SchoolModuleEntitlementError extends Error {
   }
 }
 
+/** All three commercial modules may be toggled by Super Admin. */
 const TOGGLEABLE_MODULES = new Set<ProductModule>([
+  ProductModule.CORE,
   ProductModule.ACCOUNTING,
   ProductModule.PAYROLL,
 ]);
@@ -57,7 +59,29 @@ function rowsToMap(
   return map;
 }
 
-/** Ensure CORE/ACCOUNTING/PAYROLL rows exist (all enabled). Never disables existing rows. */
+export function hasAnyCommercialModule(map: SchoolModuleEntitlementsMap): boolean {
+  return map.CORE === true || map.ACCOUNTING === true || map.PAYROLL === true;
+}
+
+/**
+ * Deterministic commercial package label from entitlement flags.
+ * 000 → "Invalid / No modules"
+ */
+export function describeModulePackageLabel(map: SchoolModuleEntitlementsMap): string {
+  const c = map.CORE === true;
+  const a = map.ACCOUNTING === true;
+  const p = map.PAYROLL === true;
+  if (c && a && p) return "Full";
+  if (!c && a && p) return "Accounting + Payroll";
+  if (c && a && !p) return "Core + Accounting";
+  if (c && !a && p) return "Core + Payroll";
+  if (c && !a && !p) return "Core";
+  if (!c && a && !p) return "Accounting";
+  if (!c && !a && p) return "Payroll";
+  return "Invalid / No modules";
+}
+
+/** Ensure CORE/ACCOUNTING/PAYROLL rows exist. Missing → enabled=true. Existing rows unchanged. */
 export async function ensureSchoolModuleEntitlements(schoolId: string): Promise<void> {
   const id = String(schoolId || "").trim();
   if (!id) throw new SchoolModuleEntitlementError("Missing schoolId", 400);
@@ -144,7 +168,8 @@ export async function isSchoolModuleEnabled(
 
 export type UpdateSchoolModuleEntitlementsInput = {
   schoolId: string;
-  /** Only ACCOUNTING and PAYROLL may be changed. CORE cannot be disabled via this API. */
+  /** Optional partial patch. Resulting state after merge must not be 000. */
+  core?: boolean;
   accounting?: boolean;
   payroll?: boolean;
   actor: SchoolModuleEntitlementActor | null | undefined;
@@ -165,13 +190,12 @@ function assertActor(
 }
 
 /**
- * Super Admin update for ACCOUNTING / PAYROLL only.
- * Rejects any attempt to disable CORE (CORE stays enabled for EduClear schools).
+ * Super Admin update for CORE / ACCOUNTING / PAYROLL.
+ * Partial patches merge onto current state; resulting 000 is rejected.
  *
- * Architecture note (Phase 1 — not gated yet):
- * ACCOUNTING entitlement covers bookkeeping/GL/suppliers/expenses surfaces.
- * School-fee Billing (including bank import used to identify/match/post fee payments)
- * remains CORE and must not be designed as dependent on ACCOUNTING being enabled.
+ * Architecture note:
+ * ACCOUNTING covers bookkeeping/GL/suppliers/expenses.
+ * School-fee Billing remains CORE (surface gating is a later phase).
  */
 export async function updateSchoolModuleEntitlements(
   input: UpdateSchoolModuleEntitlementsInput
@@ -180,9 +204,10 @@ export async function updateSchoolModuleEntitlements(
   const schoolId = String(input.schoolId || "").trim();
   if (!schoolId) throw new SchoolModuleEntitlementError("Missing schoolId", 400);
 
+  const hasCore = Object.prototype.hasOwnProperty.call(input, "core");
   const hasAccounting = Object.prototype.hasOwnProperty.call(input, "accounting");
   const hasPayroll = Object.prototype.hasOwnProperty.call(input, "payroll");
-  if (!hasAccounting && !hasPayroll) {
+  if (!hasCore && !hasAccounting && !hasPayroll) {
     throw new SchoolModuleEntitlementError("No module entitlement changes provided", 400);
   }
 
@@ -193,8 +218,15 @@ export async function updateSchoolModuleEntitlements(
   if (!school) throw new SchoolModuleEntitlementError("School not found", 404);
 
   await ensureSchoolModuleEntitlements(schoolId);
+  const current = await getSchoolModuleEntitlements(schoolId);
 
   const patches: Array<{ module: ProductModule; enabled: boolean }> = [];
+  if (hasCore) {
+    if (typeof input.core !== "boolean") {
+      throw new SchoolModuleEntitlementError("core must be a boolean", 400);
+    }
+    patches.push({ module: ProductModule.CORE, enabled: input.core });
+  }
   if (hasAccounting) {
     if (typeof input.accounting !== "boolean") {
       throw new SchoolModuleEntitlementError("accounting must be a boolean", 400);
@@ -217,7 +249,20 @@ export async function updateSchoolModuleEntitlements(
     }
   }
 
-  // Explicit CORE protection: never write CORE.enabled=false from this path.
+  const resulting: SchoolModuleEntitlementsMap = { ...current };
+  for (const patch of patches) {
+    if (patch.module === ProductModule.CORE) resulting.CORE = patch.enabled;
+    else if (patch.module === ProductModule.ACCOUNTING) resulting.ACCOUNTING = patch.enabled;
+    else if (patch.module === ProductModule.PAYROLL) resulting.PAYROLL = patch.enabled;
+  }
+
+  if (!hasAnyCommercialModule(resulting)) {
+    throw new SchoolModuleEntitlementError(
+      "At least one commercial module (CORE, ACCOUNTING, or PAYROLL) must remain enabled.",
+      400
+    );
+  }
+
   await prisma.$transaction(
     patches.map((patch) =>
       prisma.schoolModuleEntitlement.upsert({
@@ -239,25 +284,6 @@ export async function updateSchoolModuleEntitlements(
       })
     )
   );
-
-  // Re-assert CORE remains enabled after any entitlement write.
-  await prisma.schoolModuleEntitlement.upsert({
-    where: {
-      schoolId_module: { schoolId, module: ProductModule.CORE },
-    },
-    create: {
-      schoolId,
-      module: ProductModule.CORE,
-      enabled: true,
-      updatedByUserId: actor.userId,
-      updatedByEmail: actor.email,
-    },
-    update: {
-      enabled: true,
-      updatedByUserId: actor.userId,
-      updatedByEmail: actor.email,
-    },
-  });
 
   return getSchoolModuleEntitlements(schoolId);
 }
@@ -285,29 +311,17 @@ export function defaultAllEnabledEntitlements(): SchoolModuleEntitlementsMap {
 }
 
 /**
- * Reject body attempts to disable CORE via Super Admin PATCH.
- * Also reject any legacy FINANCE entitlement payload — FINANCE is not a product module.
+ * Reject invalid Super Admin module entitlement payload shapes.
+ * Allows CORE=false. Rejects FINANCE (not a product module).
+ * All-off (000) is validated against resulting state in updateSchoolModuleEntitlements.
  */
-export function assertCoreNotDisabledInPatchBody(body: unknown): void {
+export function assertModuleEntitlementPatchBody(body: unknown): void {
   if (!body || typeof body !== "object") return;
   const record = body as Record<string, unknown>;
-
-  if (record.core === false || record.CORE === false) {
-    throw new SchoolModuleEntitlementError(
-      "CORE cannot be disabled. EduClear Core remains enabled for schools.",
-      400
-    );
-  }
 
   const nested = record.moduleEntitlements;
   if (nested && typeof nested === "object") {
     const mods = nested as Record<string, unknown>;
-    if (mods.CORE === false || mods.core === false) {
-      throw new SchoolModuleEntitlementError(
-        "CORE cannot be disabled. EduClear Core remains enabled for schools.",
-        400
-      );
-    }
     if (
       Object.prototype.hasOwnProperty.call(mods, "FINANCE") ||
       Object.prototype.hasOwnProperty.call(mods, "finance")
@@ -328,4 +342,9 @@ export function assertCoreNotDisabledInPatchBody(body: unknown): void {
       400
     );
   }
+}
+
+/** @deprecated Use assertModuleEntitlementPatchBody — CORE may now be disabled when another module remains on. */
+export function assertCoreNotDisabledInPatchBody(body: unknown): void {
+  assertModuleEntitlementPatchBody(body);
 }

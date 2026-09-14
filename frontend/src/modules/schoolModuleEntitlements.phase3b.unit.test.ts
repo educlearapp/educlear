@@ -121,10 +121,32 @@ function main() {
 
   // --- Presets ---
   assert.strictEqual(describeModulePackageLabel(MODULE_PRESETS.CORE_ONLY), "Core");
+  assert.strictEqual(describeModulePackageLabel(MODULE_PRESETS.ACCOUNTING_ONLY), "Accounting");
+  assert.strictEqual(describeModulePackageLabel(MODULE_PRESETS.PAYROLL_ONLY), "Payroll");
+  assert.strictEqual(
+    describeModulePackageLabel(MODULE_PRESETS.ACCOUNTING_PAYROLL),
+    "Accounting + Payroll"
+  );
   assert.strictEqual(describeModulePackageLabel(MODULE_PRESETS.CORE_ACCOUNTING), "Core + Accounting");
   assert.strictEqual(describeModulePackageLabel(MODULE_PRESETS.CORE_PAYROLL), "Core + Payroll");
   assert.strictEqual(describeModulePackageLabel(MODULE_PRESETS.FULL), "Full");
+  assert.strictEqual(describeModulePackageLabel(MODULE_PRESETS.NONE), "Invalid / No modules");
 
+  // Explicit CORE=false preserved through normalize/cache
+  const accountingOnly = asSchoolModuleEntitlements({
+    CORE: false,
+    ACCOUNTING: true,
+    PAYROLL: false,
+  });
+  assert.deepStrictEqual(accountingOnly, MODULE_PRESETS.ACCOUNTING_ONLY);
+  assert.strictEqual(hasSchoolModule("CORE", accountingOnly), false);
+  assert.strictEqual(hasSchoolModule("ACCOUNTING", accountingOnly), true);
+  setSchoolModuleEntitlements(accountingOnly, "school-acc");
+  assert.deepStrictEqual(getSchoolModuleEntitlements("school-acc"), MODULE_PRESETS.ACCOUNTING_ONLY);
+  // Missing/invalid payload still fail-opens Full
+  assert.deepStrictEqual(asSchoolModuleEntitlements(null), MODULE_PRESETS.FULL);
+  assert.deepStrictEqual(asSchoolModuleEntitlements(undefined), MODULE_PRESETS.FULL);
+  assert.deepStrictEqual(asSchoolModuleEntitlements("x"), MODULE_PRESETS.FULL);
   // --- CORE ONLY ---
   assertNavVisibility("CORE ONLY", MODULE_PRESETS.CORE_ONLY, {
     accounting: false,

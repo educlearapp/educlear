@@ -80,6 +80,7 @@ function main() {
     ACCOUNTING: false,
     PAYROLL: false,
   });
+  assert.strictEqual(coreOnly.CORE, true);
   assert.strictEqual(coreOnly.ACCOUNTING, false);
   assert.strictEqual(coreOnly.PAYROLL, false);
   assert.strictEqual(describeModulePackageLabel(coreOnly), "Core");
@@ -87,6 +88,33 @@ function main() {
     describeModulePackageLabel({ CORE: true, ACCOUNTING: true, PAYROLL: true }),
     "Full"
   );
+  assert.strictEqual(
+    describeModulePackageLabel({ CORE: false, ACCOUNTING: true, PAYROLL: false }),
+    "Accounting"
+  );
+  assert.strictEqual(
+    describeModulePackageLabel({ CORE: false, ACCOUNTING: false, PAYROLL: true }),
+    "Payroll"
+  );
+  assert.strictEqual(
+    describeModulePackageLabel({ CORE: false, ACCOUNTING: true, PAYROLL: true }),
+    "Accounting + Payroll"
+  );
+  assert.strictEqual(
+    describeModulePackageLabel({ CORE: false, ACCOUNTING: false, PAYROLL: false }),
+    "Invalid / No modules"
+  );
+
+  // Explicit CORE=false must not be forced on
+  const accOnly = asSchoolModuleEntitlements({ CORE: false, ACCOUNTING: true, PAYROLL: false });
+  assert.strictEqual(accOnly.CORE, false);
+  assert.strictEqual(hasSchoolModule("CORE", accOnly), false);
+  // Missing data fail-opens Full
+  assert.deepStrictEqual(asSchoolModuleEntitlements(null), {
+    CORE: true,
+    ACCOUNTING: true,
+    PAYROLL: true,
+  });
 
   setSchoolModuleEntitlements(coreOnly);
   assert.ok(localStorage.getItem(SCHOOL_MODULE_ENTITLEMENTS_STORAGE_KEY));

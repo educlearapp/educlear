@@ -129,7 +129,7 @@ export async function updateSuperAdminSchool(
   input: {
     status?: SchoolRecord["status"];
     package?: SchoolPackage;
-    moduleEntitlements?: Partial<Pick<SchoolModuleEntitlements, "ACCOUNTING" | "PAYROLL">>;
+    moduleEntitlements?: Partial<SchoolModuleEntitlements>;
   }
 ): Promise<{ moduleEntitlements?: SchoolModuleEntitlements }> {
   const id = String(schoolId || "").trim();
@@ -143,6 +143,9 @@ export async function updateSuperAdminSchool(
 
   if (input.moduleEntitlements) {
     const mods: Record<string, boolean> = {};
+    if (typeof input.moduleEntitlements.CORE === "boolean") {
+      mods.CORE = input.moduleEntitlements.CORE;
+    }
     if (typeof input.moduleEntitlements.ACCOUNTING === "boolean") {
       mods.ACCOUNTING = input.moduleEntitlements.ACCOUNTING;
     }
@@ -176,14 +179,15 @@ export async function updateSuperAdminSchool(
 
 export async function updateSchoolModuleEntitlements(
   schoolId: string,
-  input: Partial<Pick<SchoolModuleEntitlements, "ACCOUNTING" | "PAYROLL">>
+  input: Partial<SchoolModuleEntitlements>
 ): Promise<SchoolModuleEntitlements> {
   const result = await updateSuperAdminSchool(schoolId, { moduleEntitlements: input });
   return (
     result.moduleEntitlements ?? {
       ...DEFAULT_SCHOOL_MODULE_ENTITLEMENTS,
-      ACCOUNTING: input.ACCOUNTING ?? DEFAULT_SCHOOL_MODULE_ENTITLEMENTS.ACCOUNTING,
-      PAYROLL: input.PAYROLL ?? DEFAULT_SCHOOL_MODULE_ENTITLEMENTS.PAYROLL,
+      ...(typeof input.CORE === "boolean" ? { CORE: input.CORE } : {}),
+      ...(typeof input.ACCOUNTING === "boolean" ? { ACCOUNTING: input.ACCOUNTING } : {}),
+      ...(typeof input.PAYROLL === "boolean" ? { PAYROLL: input.PAYROLL } : {}),
     }
   );
 }

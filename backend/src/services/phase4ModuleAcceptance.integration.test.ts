@@ -431,6 +431,27 @@ async function main() {
   assert.strictEqual(await isSchoolModuleEnabled(corePay.school.id, "PAYROLL"), true);
   console.log("✓ Super Admin-style PAYROLL toggle on fixture school");
 
+  // Phase 5A foundation: explicit CORE=false preserved; ensure does not flip it
+  await updateSchoolModuleEntitlements({
+    schoolId: coreAcc.school.id,
+    core: false,
+    accounting: true,
+    payroll: false,
+    actor: { userId: coreAcc.user.id, email: coreAcc.user.email },
+  });
+  assert.deepStrictEqual(await getSchoolModuleEntitlements(coreAcc.school.id), {
+    CORE: false,
+    ACCOUNTING: true,
+    PAYROLL: false,
+  });
+  await ensureSchoolModuleEntitlements(coreAcc.school.id);
+  assert.deepStrictEqual(await getSchoolModuleEntitlements(coreAcc.school.id), {
+    CORE: false,
+    ACCOUNTING: true,
+    PAYROLL: false,
+  });
+  console.log("✓ Phase5A: CORE=false Accounting-only preserved through ensure");
+
   // Admissions Core: no ACCOUNTING required for module map (admissions not in ACCOUNTING_ONLY)
   // Proven by product model + isSchoolModuleEnabled CORE path; admissions routes are not ACCOUNTING-gated.
   assert.strictEqual(await isSchoolModuleEnabled(coreOnly.school.id, "CORE"), true);
