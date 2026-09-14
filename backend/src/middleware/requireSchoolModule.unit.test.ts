@@ -11,11 +11,18 @@ import { ProductModule } from "@prisma/client";
 import { prisma } from "../prisma";
 import { STAFF_JWT_SECRET } from "../utils/staffJwt";
 import {
+  evaluateAnySchoolModuleGate,
   evaluateSchoolModuleGate,
   MODULE_NOT_ENTITLED,
+  requireAnySchoolModule,
   requireSchoolModule,
 } from "./requireSchoolModule";
 import { requireCapturePaymentAuth } from "./requireCapturePaymentAuth";
+import {
+  assertNoCoreBankingMutationWhenDisabled,
+  bankImportTransactionTypeForModule,
+  sanitizeBankTransactionForModule,
+} from "../services/bankingModuleFieldPolicy";
 
 const SCHOOL_A = "school-mod-a";
 const SCHOOL_B = "school-mod-b";
@@ -129,24 +136,36 @@ async function startServer() {
   app.post("/api/payroll/run", requireSchoolModule("PAYROLL"), (_req, res) => {
     res.json({ success: true, area: "payroll-run" });
   });
-  app.get("/api/payroll/employees/:schoolId", (_req, res) => {
-    res.json({ success: true, area: "employees-core" });
-  });
-  app.get("/api/educlock/health", (_req, res) => {
+  app.get(
+    "/api/payroll/employees/:schoolId",
+    requireAnySchoolModule(["CORE", "PAYROLL"]),
+    (_req, res) => {
+      res.json({ success: true, area: "employees-shared" });
+    }
+  );
+  app.get("/api/educlock/health", requireSchoolModule("CORE"), (_req, res) => {
     res.json({ success: true, area: "educlock-core" });
   });
-  app.get("/api/statements", (_req, res) => {
+  app.get("/api/statements", requireSchoolModule("CORE"), (_req, res) => {
     res.json({ success: true, area: "billing-core" });
   });
-  app.get("/api/payments", requireCapturePaymentAuth, (_req, res) => {
+  app.get("/api/payments", requireSchoolModule("CORE"), requireCapturePaymentAuth, (_req, res) => {
     res.json({ success: true, area: "payments-core" });
   });
-  app.get("/api/banking/stats", (_req, res) => {
-    res.json({ success: true, area: "banking-ungated" });
+  app.get("/api/banking/stats", requireAnySchoolModule(["CORE", "ACCOUNTING"]), (_req, res) => {
+    res.json({ success: true, area: "banking" });
   });
-  app.get("/api/admissions/settings", (_req, res) => {
+  app.get("/api/admissions/settings", requireSchoolModule("CORE"), (_req, res) => {
     res.json({ success: true, area: "admissions-core" });
   });
+  app.get(
+    "/api/payroll/educlock-import",
+    requireSchoolModule("PAYROLL"),
+    requireSchoolModule("CORE"),
+    (_req, res) => {
+      res.json({ success: true, area: "educlock-import" });
+    }
+  );
 
   const server = http.createServer(app);
   await new Promise<void>((resolve) => server.listen(0, resolve));
@@ -303,7 +322,7 @@ async function main() {
     assert.strictEqual(payBody.code, MODULE_NOT_ENTITLED);
     assert.strictEqual(payBody.module, "PAYROLL");
 
-    // Core retains Billing, banking (ungated), employees, EduClock, Admissions
+    // Core retains Billing, banking (CORE), employees (C||P), EduClock, Admissions
     for (const path of [
       "/api/statements",
       `/api/payroll/employees/${SCHOOL_A}`,
@@ -317,7 +336,7 @@ async function main() {
       assert.strictEqual(res.status, 200, path);
     }
 
-    // Payments still subject to RBAC even when Billing is Core (module not gated)
+    // Payments still subject to RBAC even when Billing is Core
     const payRbac = await fetch(`${server.base}/api/payments?schoolId=${SCHOOL_A}`, {
       headers: { Authorization: `Bearer ${tokenViewer}` },
     });
@@ -347,6 +366,158 @@ async function main() {
   } finally {
     (accessStore as { getUserAccessMeta: typeof originalGet }).getUserAccessMeta = originalGet;
     await server.close();
+  }
+
+  // --- Phase 5B: CORE gate + combinations ---
+  mockDb([
+    { schoolId: SCHOOL_A, module: "CORE", enabled: false },
+    { schoolId: SCHOOL_A, module: "ACCOUNTING", enabled: true },
+    { schoolId: SCHOOL_A, module: "PAYROLL", enabled: false },
+  ]);
+  const coreOff = await evaluateSchoolModuleGate({
+    authHeader: `Bearer ${sign(OWNER_A, SCHOOL_A)}`,
+    requestSchoolId: SCHOOL_A,
+    module: "CORE",
+  });
+  assert.strictEqual(coreOff.allowed, false);
+  if (!coreOff.allowed) {
+    assert.strictEqual(coreOff.code, MODULE_NOT_ENTITLED);
+    assert.strictEqual(coreOff.module, "CORE");
+  }
+  const accOnlyOk = await evaluateSchoolModuleGate({
+    authHeader: `Bearer ${sign(OWNER_A, SCHOOL_A)}`,
+    module: "ACCOUNTING",
+  });
+  assert.strictEqual(accOnlyOk.allowed, true);
+
+  const bankingAccOnly = await evaluateAnySchoolModuleGate({
+    authHeader: `Bearer ${sign(OWNER_A, SCHOOL_A)}`,
+    modules: ["CORE", "ACCOUNTING"],
+  });
+  assert.strictEqual(bankingAccOnly.allowed, true);
+
+  const employeesAccOnly = await evaluateAnySchoolModuleGate({
+    authHeader: `Bearer ${sign(OWNER_A, SCHOOL_A)}`,
+    modules: ["CORE", "PAYROLL"],
+  });
+  assert.strictEqual(employeesAccOnly.allowed, false);
+
+  mockDb([
+    { schoolId: SCHOOL_A, module: "CORE", enabled: false },
+    { schoolId: SCHOOL_A, module: "ACCOUNTING", enabled: false },
+    { schoolId: SCHOOL_A, module: "PAYROLL", enabled: true },
+  ]);
+  const payrollOnlyEmp = await evaluateAnySchoolModuleGate({
+    authHeader: `Bearer ${sign(OWNER_A, SCHOOL_A)}`,
+    modules: ["CORE", "PAYROLL"],
+  });
+  assert.strictEqual(payrollOnlyEmp.allowed, true);
+  const payrollOnlyBanking = await evaluateAnySchoolModuleGate({
+    authHeader: `Bearer ${sign(OWNER_A, SCHOOL_A)}`,
+    modules: ["CORE", "ACCOUNTING"],
+  });
+  assert.strictEqual(payrollOnlyBanking.allowed, false);
+
+  // Banking matrix helpers
+  assert.strictEqual(
+    bankImportTransactionTypeForModule("in", { coreEnabled: false, accountingEnabled: true }),
+    "ignore"
+  );
+  assert.strictEqual(
+    bankImportTransactionTypeForModule("out", { coreEnabled: false, accountingEnabled: true }),
+    "expense"
+  );
+  assert.strictEqual(
+    bankImportTransactionTypeForModule("in", { coreEnabled: true, accountingEnabled: false }),
+    "payment"
+  );
+  const coreFeeBlocked = assertNoCoreBankingMutationWhenDisabled(
+    { suggestedLearnerId: "learner-1", matchAction: "accept" },
+    false
+  );
+  assert.ok(coreFeeBlocked);
+  assert.strictEqual(coreFeeBlocked?.module, "CORE");
+  const sanitizedAccOnly = sanitizeBankTransactionForModule(
+    {
+      suggestedLearnerId: "L1",
+      suggestedLearnerName: "Kid",
+      transactionType: "payment",
+      expenseCategory: "Utilities",
+    },
+    true,
+    false
+  );
+  assert.strictEqual(sanitizedAccOnly.suggestedLearnerId, "");
+  assert.strictEqual(sanitizedAccOnly.transactionType, "ignore");
+  assert.strictEqual(sanitizedAccOnly.expenseCategory, "Utilities");
+
+  // HTTP: Accounting-only school
+  mockDb([
+    { schoolId: SCHOOL_A, module: "CORE", enabled: false },
+    { schoolId: SCHOOL_A, module: "ACCOUNTING", enabled: true },
+    { schoolId: SCHOOL_A, module: "PAYROLL", enabled: false },
+    { schoolId: SCHOOL_B, module: "CORE", enabled: true },
+    { schoolId: SCHOOL_B, module: "ACCOUNTING", enabled: true },
+    { schoolId: SCHOOL_B, module: "PAYROLL", enabled: true },
+  ]);
+  const accessStore2 = await import("../utils/userAccessStore");
+  const originalGet2 = accessStore2.getUserAccessMeta;
+  (accessStore2 as { getUserAccessMeta: typeof originalGet2 }).getUserAccessMeta = async (
+    userId: string
+  ) => {
+    if (userId === OWNER_A || userId === OWNER_B) {
+      return {
+        userId,
+        appRole: "Owner",
+        permissions: {
+          payments: { view: true, create: true },
+          payroll: { view: true },
+        },
+        firstName: "Owner",
+        surname: "User",
+        lastLoginAt: null,
+      } as Awaited<ReturnType<typeof originalGet2>>;
+    }
+    return null;
+  };
+  const server2 = await startServer();
+  try {
+    const tokenA = sign(OWNER_A, SCHOOL_A);
+    const statementsOff = await fetch(`${server2.base}/api/statements`, {
+      headers: { Authorization: `Bearer ${tokenA}` },
+    });
+    assert.strictEqual(statementsOff.status, 403);
+    const stmtBody = (await statementsOff.json()) as { code?: string; module?: string };
+    assert.strictEqual(stmtBody.code, MODULE_NOT_ENTITLED);
+    assert.strictEqual(stmtBody.module, "CORE");
+
+    const educlockOff = await fetch(`${server2.base}/api/educlock/health`, {
+      headers: { Authorization: `Bearer ${tokenA}` },
+    });
+    assert.strictEqual(educlockOff.status, 403);
+
+    const empOff = await fetch(`${server2.base}/api/payroll/employees/${SCHOOL_A}`, {
+      headers: { Authorization: `Bearer ${tokenA}` },
+    });
+    assert.strictEqual(empOff.status, 403);
+
+    const accOn = await fetch(`${server2.base}/api/accounting/suppliers?schoolId=${SCHOOL_A}`, {
+      headers: { Authorization: `Bearer ${tokenA}` },
+    });
+    assert.strictEqual(accOn.status, 200);
+
+    const bankOn = await fetch(`${server2.base}/api/banking/stats`, {
+      headers: { Authorization: `Bearer ${tokenA}` },
+    });
+    assert.strictEqual(bankOn.status, 200);
+
+    const importOff = await fetch(`${server2.base}/api/payroll/educlock-import`, {
+      headers: { Authorization: `Bearer ${tokenA}` },
+    });
+    assert.strictEqual(importOff.status, 403);
+  } finally {
+    (accessStore2 as { getUserAccessMeta: typeof originalGet2 }).getUserAccessMeta = originalGet2;
+    await server2.close();
   }
 
   console.log("✓ requireSchoolModule.unit.test.ts passed");

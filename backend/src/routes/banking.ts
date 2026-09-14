@@ -38,14 +38,16 @@ import {
 } from "../services/familyAccountLifecycle";
 import {
   assertNoAccountingBankingMutationWhenDisabled,
+  assertNoCoreBankingMutationWhenDisabled,
   bankImportTransactionTypeForModule,
   persistableBankImportAccountingFields,
-  resolveAccountingModuleEnabled,
+  persistableBankImportCoreFields,
+  resolveBankingModuleFlags,
   sanitizeBankingStatsForModule,
   sanitizeBankTransactionForModule,
   sanitizeBankTransactionsForModule,
 } from "../services/bankingModuleFieldPolicy";
-import { MODULE_NOT_ENTITLED } from "../middleware/requireSchoolModule";
+import { MODULE_NOT_ENTITLED, requireAnySchoolModule } from "../middleware/requireSchoolModule";
 import {
   authorizedBankingSchoolId,
   requireBankingAuth,
@@ -57,6 +59,8 @@ const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 12 
 
 /** Staff JWT + payments.view/create + school binding for all banking routes. */
 router.use(requireBankingAuth);
+/** Banking requires CORE (fee) and/or ACCOUNTING (expense) — never Payroll alone. */
+router.use(requireAnySchoolModule(["CORE", "ACCOUNTING"]));
 
 type TransactionType = "payment" | "expense" | "transfer" | "ignore";
 
@@ -223,7 +227,8 @@ function toImportRecord(
     totalAmountImported?: number;
   },
   transactions: BankTransaction[],
-  accountingEnabled = true
+  accountingEnabled = true,
+  coreEnabled = true
 ): BankImportRecord {
   const mapped = transactions.map(toApiRow);
   return {
@@ -241,7 +246,8 @@ function toImportRecord(
     totalAmountImported: normaliseAmount(imp.totalAmountImported ?? 0),
     transactions: sanitizeBankTransactionsForModule(
       mapped as Array<Record<string, unknown>>,
-      accountingEnabled
+      accountingEnabled,
+      coreEnabled
     ) as BankTransactionRow[],
   };
 }
@@ -522,7 +528,8 @@ async function buildMatchProfiles(schoolId: string): Promise<LearnerMatchProfile
 async function fetchImportRecord(
   schoolId: string,
   importId: string,
-  accountingEnabled = true
+  accountingEnabled = true,
+  coreEnabled = true
 ): Promise<BankImportRecord | null> {
   const imp = await prisma.bankStatementImport.findFirst({
     where: { id: importId, schoolId },
@@ -531,7 +538,7 @@ async function fetchImportRecord(
     },
   });
   if (!imp) return null;
-  return toImportRecord(imp, imp.transactions, accountingEnabled);
+  return toImportRecord(imp, imp.transactions, accountingEnabled, coreEnabled);
 }
 
 router.get("/stats", async (req: BankingAuthRequest, res) => {
@@ -539,11 +546,11 @@ router.get("/stats", async (req: BankingAuthRequest, res) => {
     const schoolId = authorizedBankingSchoolId(req);
     if (!schoolId) return res.status(403).json({ success: false, error: "Missing school authorization" });
     const importId = String(req.query.importId || "").trim();
-    const accountingEnabled = await resolveAccountingModuleEnabled(schoolId);
+    const { coreEnabled, accountingEnabled } = await resolveBankingModuleFlags(schoolId);
     const stats = await computeStats(schoolId, importId || undefined);
     return res.json({
       success: true,
-      stats: sanitizeBankingStatsForModule(stats as Record<string, unknown>, accountingEnabled),
+      stats: sanitizeBankingStatsForModule(stats as Record<string, unknown>, accountingEnabled, coreEnabled),
     });
   } catch (error) {
     console.error("[banking] GET /stats failed:", error);
@@ -567,10 +574,11 @@ router.get("/transactions", async (req: BankingAuthRequest, res) => {
       orderBy: [{ date: "desc" }, { createdAt: "desc" }],
     });
 
-    const accountingEnabled = await resolveAccountingModuleEnabled(schoolId);
+    const { coreEnabled, accountingEnabled } = await resolveBankingModuleFlags(schoolId);
     const transactions = sanitizeBankTransactionsForModule(
       rows.map(toApiRow) as Array<Record<string, unknown>>,
-      accountingEnabled
+      accountingEnabled,
+      coreEnabled
     );
     return res.json({ success: true, transactions });
   } catch (error) {
@@ -585,7 +593,7 @@ router.post("/import", upload.single("file"), async (req: BankingAuthRequest, re
     if (!schoolId) return res.status(403).json({ success: false, error: "Missing school authorization" });
     if (!req.file) return res.status(400).json({ success: false, error: "Missing bank statement file" });
 
-    const accountingEnabled = await resolveAccountingModuleEnabled(schoolId);
+    const { coreEnabled, accountingEnabled } = await resolveBankingModuleFlags(schoolId);
 
     const parsed = parseBankStatementBuffer(
       req.file.buffer,
@@ -600,9 +608,9 @@ router.post("/import", upload.single("file"), async (req: BankingAuthRequest, re
     const bankName = String(parsed.bankName || "").trim();
     const importFormat = parsed.parserId || parsed.format;
 
-    const profiles = await buildMatchProfiles(schoolId);
-    const previousMatches = await loadPreviousBankMatches(schoolId);
-    const invoiceRefs = buildBillingInvoiceRefs(schoolId);
+    const profiles = coreEnabled ? await buildMatchProfiles(schoolId) : [];
+    const previousMatches = coreEnabled ? await loadPreviousBankMatches(schoolId) : [];
+    const invoiceRefs = coreEnabled ? buildBillingInvoiceRefs(schoolId) : [];
 
     const dbSuppliers = accountingEnabled
       ? await prisma.supplier.findMany({
@@ -730,11 +738,21 @@ router.post("/import", upload.single("file"), async (req: BankingAuthRequest, re
         expenseMatchReason,
       });
 
-      const matchConfidence = suggestion.matchConfidence;
+      const corePersist = persistableBankImportCoreFields(coreEnabled, {
+        suggestedAccountId: suggestion.suggestedAccountId,
+        suggestedAccountNo: suggestion.suggestedAccountNo,
+        suggestedLearnerId: suggestion.suggestedLearnerId,
+        suggestedLearnerName: suggestion.suggestedLearnerName,
+        confidenceScore: suggestion.confidenceScore,
+        matchConfidence: suggestion.matchConfidence,
+        matchReason: suggestion.matchReason,
+      });
+
+      const matchConfidence = corePersist.matchConfidence as MatchConfidence;
       const matchStatus = deriveInitialMatchStatus({
         isDuplicate,
         direction,
-        confidenceScore: suggestion.confidenceScore,
+        confidenceScore: corePersist.confidenceScore,
         expenseCategory: accountingPersist.expenseCategory as ExpenseCategory | "",
       });
 
@@ -747,17 +765,17 @@ router.post("/import", upload.single("file"), async (req: BankingAuthRequest, re
         moneyIn: normaliseAmount(txn.moneyIn),
         moneyOut: normaliseAmount(txn.moneyOut),
         direction,
-        transactionType: bankImportTransactionTypeForModule(direction, accountingEnabled),
-        suggestedAccountId: suggestion.suggestedAccountId,
-        suggestedAccountNo: suggestion.suggestedAccountNo,
-        suggestedLearnerId: suggestion.suggestedLearnerId,
-        suggestedLearnerName: suggestion.suggestedLearnerName,
-        confidenceScore: suggestion.confidenceScore,
+        transactionType: bankImportTransactionTypeForModule(direction, { coreEnabled, accountingEnabled }),
+        suggestedAccountId: corePersist.suggestedAccountId,
+        suggestedAccountNo: corePersist.suggestedAccountNo,
+        suggestedLearnerId: corePersist.suggestedLearnerId,
+        suggestedLearnerName: corePersist.suggestedLearnerName,
+        confidenceScore: corePersist.confidenceScore,
         matchConfidence,
         matchReason:
           direction === "in"
-            ? suggestion.matchReason
-            : accountingPersist.expenseMatchReason || suggestion.matchReason,
+            ? corePersist.matchReason
+            : accountingPersist.expenseMatchReason || corePersist.matchReason,
         reviewStatus: "pending",
         matchStatus,
         expenseCategory: accountingPersist.expenseCategory,
@@ -804,7 +822,7 @@ router.post("/import", upload.single("file"), async (req: BankingAuthRequest, re
       },
     });
 
-    const hydrated = toImportRecord(importRecord, importRecord.transactions, accountingEnabled);
+    const hydrated = toImportRecord(importRecord, importRecord.transactions, accountingEnabled, coreEnabled);
 
     return res.status(201).json({
       success: true,
@@ -828,7 +846,7 @@ router.get("/imports", async (req: BankingAuthRequest, res) => {
     const schoolId = authorizedBankingSchoolId(req);
     if (!schoolId) return res.status(403).json({ success: false, error: "Missing school authorization" });
 
-    const accountingEnabled = await resolveAccountingModuleEnabled(schoolId);
+    const { coreEnabled, accountingEnabled } = await resolveBankingModuleFlags(schoolId);
     const imports = await prisma.bankStatementImport.findMany({
       where: { schoolId },
       orderBy: { importedAt: "desc" },
@@ -839,7 +857,7 @@ router.get("/imports", async (req: BankingAuthRequest, res) => {
 
     return res.json({
       success: true,
-      imports: imports.map((imp) => toImportRecord(imp, imp.transactions, accountingEnabled)),
+      imports: imports.map((imp) => toImportRecord(imp, imp.transactions, accountingEnabled, coreEnabled)),
     });
   } catch (error) {
     console.error("[banking] GET /imports failed:", error);
@@ -853,8 +871,8 @@ router.get("/imports/:id", async (req: BankingAuthRequest, res) => {
     if (!schoolId) return res.status(403).json({ success: false, error: "Missing school authorization" });
     const id = String(req.params.id || "").trim();
 
-    const accountingEnabled = await resolveAccountingModuleEnabled(schoolId);
-    const record = await fetchImportRecord(schoolId, id, accountingEnabled);
+    const { coreEnabled, accountingEnabled } = await resolveBankingModuleFlags(schoolId);
+    const record = await fetchImportRecord(schoolId, id, accountingEnabled, coreEnabled);
     if (!record) return res.status(404).json({ success: false, error: "Import not found" });
 
     return res.json({
@@ -881,7 +899,7 @@ router.patch("/imports/:id/transaction/:transactionId", async (req: BankingAuthR
     const schoolId = authorizedBankingSchoolId(req);
     if (!schoolId) return res.status(403).json({ success: false, error: "Missing school authorization" });
 
-    const accountingEnabled = await resolveAccountingModuleEnabled(schoolId);
+    const { coreEnabled, accountingEnabled } = await resolveBankingModuleFlags(schoolId);
     const accountingViolation = assertNoAccountingBankingMutationWhenDisabled(
       (req.body || {}) as Record<string, unknown>,
       accountingEnabled
@@ -894,6 +912,20 @@ router.patch("/imports/:id/transaction/:transactionId", async (req: BankingAuthR
         code: accountingViolation.code || MODULE_NOT_ENTITLED,
         module: accountingViolation.module,
         fields: accountingViolation.fields,
+      });
+    }
+    const coreViolation = assertNoCoreBankingMutationWhenDisabled(
+      (req.body || {}) as Record<string, unknown>,
+      coreEnabled
+    );
+    if (coreViolation) {
+      return res.status(403).json({
+        success: false,
+        error: coreViolation.error,
+        message: coreViolation.error,
+        code: coreViolation.code || MODULE_NOT_ENTITLED,
+        module: coreViolation.module,
+        fields: coreViolation.fields,
       });
     }
 
@@ -1025,14 +1057,15 @@ router.patch("/imports/:id/transaction/:transactionId", async (req: BankingAuthR
       },
     });
 
-    const importRecord = await fetchImportRecord(schoolId, importId, accountingEnabled);
+    const importRecord = await fetchImportRecord(schoolId, importId, accountingEnabled, coreEnabled);
     if (!importRecord) return res.status(404).json({ success: false, error: "Import not found" });
 
     return res.json({
       success: true,
       transaction: sanitizeBankTransactionForModule(
         toApiRow(updated) as Record<string, unknown>,
-        accountingEnabled
+        accountingEnabled,
+        coreEnabled
       ),
       import: importRecord,
     });
@@ -1064,6 +1097,18 @@ router.post("/imports/:id/post-payments", async (req: BankingAuthRequest, res) =
     const importId = String(req.params.id || "").trim();
     const schoolId = authorizedBankingSchoolId(req);
     if (!schoolId) return res.status(403).json({ success: false, error: "Missing school authorization" });
+
+    const { coreEnabled, accountingEnabled } = await resolveBankingModuleFlags(schoolId);
+    if (!coreEnabled) {
+      return res.status(403).json({
+        success: false,
+        error: "CORE module is not enabled for this school",
+        message: "CORE module is not enabled for this school",
+        code: MODULE_NOT_ENTITLED,
+        module: "CORE",
+      });
+    }
+
     const transactionIds = Array.isArray(req.body?.transactionIds)
       ? (req.body.transactionIds as unknown[]).map((v) => String(v).trim()).filter(Boolean)
       : [];
@@ -1195,8 +1240,7 @@ router.post("/imports/:id/post-payments", async (req: BankingAuthRequest, res) =
       posted.push(entry);
     }
 
-    const accountingEnabled = await resolveAccountingModuleEnabled(schoolId);
-    const importRecord = await fetchImportRecord(schoolId, importId, accountingEnabled);
+    const importRecord = await fetchImportRecord(schoolId, importId, accountingEnabled, coreEnabled);
 
     return res.json({
       success: true,
