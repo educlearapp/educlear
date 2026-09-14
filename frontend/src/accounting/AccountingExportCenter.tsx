@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import {
   ACCOUNTING_GOLD,
   ACCOUNTING_INK,
@@ -8,7 +8,6 @@ import {
   accountingTitle,
 } from "./accountingTheme";
 import {
-  EXPORT_REPORT_OPTIONS,
   buildReportHtml,
   exportPayloadCsv,
   exportPayloadPdf,
@@ -16,6 +15,10 @@ import {
   type ExportReportType,
 } from "./accountingExportEngine";
 import { collectAccountingExportPayload } from "./accountingExportCollectors";
+import {
+  exportOptionsForModules,
+  isAccountingCoreBillingEnabled,
+} from "./accountingCoreUi";
 import {
   MONTH_NAMES,
   REPORTING_BASIS_OPTIONS,
@@ -65,7 +68,14 @@ const disabledBtn: React.CSSProperties = {
 
 export default function AccountingExportCenter({ schoolId, learners = [], schoolName }: Props) {
   const now = new Date();
-  const [reportType, setReportType] = useState<ExportReportType>("financial-statements");
+  const coreBillingEnabled = isAccountingCoreBillingEnabled();
+  const exportOptions = useMemo(
+    () => exportOptionsForModules(coreBillingEnabled),
+    [coreBillingEnabled]
+  );
+  const [reportType, setReportType] = useState<ExportReportType>(() =>
+    exportOptionsForModules(isAccountingCoreBillingEnabled())[0]?.id || "general-ledger"
+  );
   const [reportingBasis, setReportingBasis] = useState<ReportingBasis>(() =>
     schoolId ? getDefaultReportingBasis(schoolId) : "doe"
   );
@@ -87,6 +97,12 @@ export default function AccountingExportCenter({ schoolId, learners = [], school
     return Array.from({ length: 6 }, (_, i) => current - i);
   }, []);
 
+  useEffect(() => {
+    if (exportOptions.some((o) => o.id === reportType)) return;
+    setReportType(exportOptions[0]?.id || "general-ledger");
+    setPreviewReady(false);
+  }, [exportOptions, reportType]);
+
   const handleGeneratePreview = () => {
     if (!schoolId) {
       setBanner("Select a school before generating exports.");
@@ -101,6 +117,7 @@ export default function AccountingExportCenter({ schoolId, learners = [], school
       reportingBasis,
       year,
       monthIndex,
+      coreBillingEnabled,
     });
     setPayload(next);
     setPreviewHtml(buildReportHtml(next));
@@ -135,7 +152,9 @@ export default function AccountingExportCenter({ schoolId, learners = [], school
       <div style={{ borderBottom: `2px solid ${ACCOUNTING_GOLD}`, paddingBottom: 18, marginBottom: 24 }}>
         <h1 style={accountingTitle}>Export Center</h1>
         <p style={accountingSubtitle}>
-          Generate professional PDF and Excel-ready accounting reports.
+          {coreBillingEnabled
+            ? "Generate professional PDF and Excel-ready accounting reports."
+            : "Export Accounting-owned data (GL, journals, suppliers, expenses, assets). School-fee / learner exports require EduClear Core."}
         </p>
       </div>
 
@@ -174,7 +193,7 @@ export default function AccountingExportCenter({ schoolId, learners = [], school
               setPreviewReady(false);
             }}
           >
-            {EXPORT_REPORT_OPTIONS.map((o) => (
+            {exportOptions.map((o) => (
               <option key={o.id} value={o.id}>
                 {o.label}
               </option>

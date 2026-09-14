@@ -58,6 +58,7 @@ import {
   payloadFromTable,
   resolveExportBranding,
 } from "./accountingExportEngine";
+import { isAccountingCoreBillingEnabled } from "./accountingCoreUi";
 
 type Props = {
   schoolId: string;
@@ -341,19 +342,22 @@ type FinancialReport = {
 export function buildFinancialReport(
   schoolId: string,
   learners: any[],
-  period: ResolvedReportingPeriod
+  period: ResolvedReportingPeriod,
+  options?: { coreBillingEnabled?: boolean }
 ): FinancialReport {
-  const ledger = readSchoolLedger(schoolId);
+  const coreBillingEnabled = options?.coreBillingEnabled !== false;
+  const ledger = coreBillingEnabled ? readSchoolLedger(schoolId) : [];
   const approved = loadApprovedExpenses(schoolId);
   const monthApproved =
     period.basis === "month"
       ? filterApprovedExpensesForMonth(approved, period.year, period.monthIndex)
       : approvedExpensesInRange(approved, period.startDate, period.endDate);
 
-  const paymentRows =
-    period.basis === "month"
+  const paymentRows = coreBillingEnabled
+    ? period.basis === "month"
       ? paymentsForMonth(ledger, period.year, period.monthIndex)
-      : paymentsInRange(ledger, period.startDate, period.endDate);
+      : paymentsInRange(ledger, period.startDate, period.endDate)
+    : [];
 
   const incomeByLine = emptyLineMap(INCOME_LINES);
   for (const pay of paymentRows) {
@@ -410,7 +414,7 @@ export function buildFinancialReport(
   const closingCashPlaceholder = openingCashPlaceholder + netCashMovement;
   const bankCashEstimate = Math.max(closingCashPlaceholder, 0);
 
-  const billingRows = getBillingRows(learners || [], schoolId);
+  const billingRows = coreBillingEnabled ? getBillingRows(learners || [], schoolId) : [];
   const debtorsOutstanding = billingRows.reduce((sum, row) => {
     const bal = normaliseBillingAmount(row.balance);
     return sum + (bal > 0 ? bal : 0);
@@ -606,7 +610,9 @@ export function buildPrintHtml(opts: {
     body += `</table>`;
   } else if (statementType === "cashflow") {
     body += `<table style="width:100%;border-collapse:collapse;">`;
-    body += lineRow("Cash received from parents / billing", report.cashReceived);
+    if (report.cashReceived > 0) {
+      body += lineRow("Cash received from parents / billing", report.cashReceived);
+    }
     body += lineRow("Cash paid to suppliers / expenses", report.cashPaidExpenses);
     body += lineRow("Scheduled supplier payments (creditors due)", report.scheduledSupplierPayments);
     body += lineRow(
@@ -627,7 +633,9 @@ export function buildPrintHtml(opts: {
   } else {
     body += `<h2 style="font-size:16px;margin:12px 0 6px;">Assets</h2><table style="width:100%;">`;
     body += lineRow("Bank / Cash (estimated)", report.bankCashEstimate);
-    body += lineRow("Debtors (billing outstanding)", report.debtorsOutstanding);
+    if (report.debtorsOutstanding > 0) {
+      body += lineRow("Debtors (billing outstanding)", report.debtorsOutstanding);
+    }
     body += lineRow("Fixed assets at book value (gross)", report.fixedAssetsGross);
     body += lineRow("Accumulated depreciation", report.accumulatedDepreciation);
     body += lineRow("Net fixed asset value", report.fixedAssetsNetBook);
@@ -663,7 +671,7 @@ export function buildPrintHtml(opts: {
   <h1>${escapeHtml(title)}</h1>
   ${body}
   <div class="notes">
-    <p>Management statement based on approved expenses and billing receipts.</p>
+    <p>Management statement based on approved expenses${report.totalIncome > 0 || report.debtorsOutstanding > 0 ? " and billing receipts" : ""}${report.fixedAssetsNetBook > 0 || report.depreciationExpense > 0 ? " and asset depreciation" : ""}.</p>
     <p>Final audited financial statements must be reviewed by the school's accountant/auditor.</p>
   </div>
   <div class="footer">Prepared by EduClear Accounting</div>
@@ -686,6 +694,7 @@ export default function AccountingFinancialStatements({
   const [refreshKey, setRefreshKey] = useState(0);
   const [exportBanner, setExportBanner] = useState("");
   const previewRef = useRef<HTMLDivElement>(null);
+  const coreBillingEnabled = isAccountingCoreBillingEnabled();
 
   const schoolName =
     String(schoolNameProp || localStorage.getItem("schoolName") || "").trim() || "School";
@@ -728,7 +737,9 @@ export default function AccountingFinancialStatements({
       if (!detail?.schoolId || detail.schoolId === schoolId) bumpRefresh();
     };
     window.addEventListener(ACCOUNTING_EXPENSES_UPDATED_EVENT, onExpenses);
-    window.addEventListener(BILLING_UPDATED_EVENT, onBilling);
+    if (coreBillingEnabled) {
+      window.addEventListener(BILLING_UPDATED_EVENT, onBilling);
+    }
     window.addEventListener(ACCOUNTING_ASSETS_UPDATED_EVENT, onAssets);
     window.addEventListener(CREDITORS_UPDATED_EVENT, onCreditors);
     window.addEventListener(ACCOUNTING_PAYROLL_UPDATED_EVENT, onPayroll);
@@ -739,7 +750,7 @@ export default function AccountingFinancialStatements({
       window.removeEventListener(CREDITORS_UPDATED_EVENT, onCreditors);
       window.removeEventListener(ACCOUNTING_PAYROLL_UPDATED_EVENT, onPayroll);
     };
-  }, [schoolId, bumpRefresh]);
+  }, [schoolId, bumpRefresh, coreBillingEnabled]);
 
   const period = useMemo(
     () => resolveReportingPeriod(reportingBasis, year, monthIndex),
@@ -750,11 +761,11 @@ export default function AccountingFinancialStatements({
   const report = useMemo(() => {
     const sid = String(schoolId || "").trim();
     if (!sid) {
-      return buildFinancialReport("", [], period);
+      return buildFinancialReport("", [], period, { coreBillingEnabled });
     }
-    return buildFinancialReport(sid, learners, period);
+    return buildFinancialReport(sid, learners, period, { coreBillingEnabled });
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [schoolId, learners, period, refreshKey]);
+  }, [schoolId, learners, period, refreshKey, coreBillingEnabled]);
 
   const displayGeneratedAt = generatedAt || "Not generated yet — click Generate";
 
@@ -904,23 +915,30 @@ export default function AccountingFinancialStatements({
   const renderCashFlow = () => (
     <table style={{ width: "100%", borderCollapse: "collapse" }}>
       <tbody>
-        {[
-          ["Cash received from parents / billing", report.cashReceived],
-          ["Cash paid to suppliers / expenses (approved)", report.cashPaidExpenses],
-          ["Scheduled supplier payments (creditors due)", report.scheduledSupplierPayments],
-          ["Upcoming creditor payments (estimate)", report.upcomingCreditorPaymentsEstimate],
-          ["Payroll / salary payments", report.payrollPayments],
-          ["Net cash movement", report.netCashMovement],
-          ["Opening balance (placeholder)", report.openingCashPlaceholder],
-          ["Closing balance (placeholder)", report.closingCashPlaceholder],
-        ].map(([label, amount], idx) => (
+        {(
+          [
+            ...(coreBillingEnabled || report.cashReceived > 0
+              ? ([["Cash received from parents / billing", report.cashReceived]] as [string, number][])
+              : []),
+            ["Cash paid to suppliers / expenses (approved)", report.cashPaidExpenses],
+            ["Scheduled supplier payments (creditors due)", report.scheduledSupplierPayments],
+            ["Upcoming creditor payments (estimate)", report.upcomingCreditorPaymentsEstimate],
+            ["Payroll / salary payments", report.payrollPayments],
+            ["Net cash movement", report.netCashMovement],
+            ["Opening balance (placeholder)", report.openingCashPlaceholder],
+            ["Closing balance (placeholder)", report.closingCashPlaceholder],
+          ] as [string, number][]
+        ).map(([label, amount]) => {
+          const bold = label.startsWith("Net cash") || label.startsWith("Closing");
+          return (
           <tr key={String(label)}>
-            <td style={{ ...td, fontWeight: idx === 5 || idx === 7 ? 900 : 600 }}>{label}</td>
-            <td style={{ ...tdRight, fontWeight: idx === 5 || idx === 7 ? 900 : 600 }}>
+            <td style={{ ...td, fontWeight: bold ? 900 : 600 }}>{label}</td>
+            <td style={{ ...tdRight, fontWeight: bold ? 900 : 600 }}>
               {formatMoney(amount as number)}
             </td>
           </tr>
-        ))}
+          );
+        })}
       </tbody>
     </table>
   );
@@ -964,15 +982,17 @@ export default function AccountingFinancialStatements({
         <tbody>
           {[
             ["Bank / Cash (estimated)", report.bankCashEstimate],
-            ["Debtors (billing outstanding)", report.debtorsOutstanding],
+            ...(coreBillingEnabled || report.debtorsOutstanding > 0
+              ? ([["Debtors (billing outstanding)", report.debtorsOutstanding]] as [string, number][])
+              : []),
             ["Fixed assets at book value (gross)", report.fixedAssetsGross],
             ["Accumulated depreciation", report.accumulatedDepreciation],
             ["Net fixed asset value", report.fixedAssetsNetBook],
             ["Total Assets", report.totalAssets],
-          ].map(([label, amount], idx) => (
+          ].map(([label, amount]) => (
             <tr key={String(label)}>
-              <td style={{ ...td, fontWeight: idx === 5 ? 900 : 600 }}>{label}</td>
-              <td style={{ ...tdRight, fontWeight: idx === 5 ? 900 : 600 }}>
+              <td style={{ ...td, fontWeight: label === "Total Assets" ? 900 : 600 }}>{label}</td>
+              <td style={{ ...tdRight, fontWeight: label === "Total Assets" ? 900 : 600 }}>
                 {formatMoney(amount as number)}
               </td>
             </tr>
@@ -1189,8 +1209,9 @@ export default function AccountingFinancialStatements({
           }}
         >
           <p style={{ margin: "0 0 8px" }}>
-            Management statement based on approved expenses, billing receipts, and asset depreciation from
-            Accounting Assets.
+            {coreBillingEnabled
+              ? "Management statement based on approved expenses, billing receipts, and asset depreciation from Accounting Assets."
+              : "Management statement based on approved Accounting expenses, suppliers, assets, and payroll postings. School-fee Billing income and debtors require EduClear Core."}
           </p>
           <p style={{ margin: "0 0 8px", fontSize: 12, color: "#64748b" }}>
             Asset depreciation feeds Financial Statements automatically. Disposed assets remain available for
