@@ -220,11 +220,17 @@
   margin: 0;
   padding: 0;
   display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
+  grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 0.35rem;
 }
 
+.pa-progress-list--3 {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
 .pa-progress-item {
+  display: block;
+  width: 100%;
   font-size: 0.72rem;
   text-align: center;
   padding: 0.4rem 0.25rem;
@@ -234,6 +240,18 @@
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+  border: none;
+  font: inherit;
+  cursor: default;
+}
+
+button.pa-progress-item {
+  cursor: pointer;
+}
+
+button.pa-progress-item:disabled {
+  opacity: 0.65;
+  cursor: not-allowed;
 }
 
 .pa-progress-item.is-active {
@@ -424,5 +442,97 @@
 
   .pa-cta-row--stack {
     justify-items: start;
+  }
+}
+
+/* OA-06D supporting documents */
+.pa-docs {
+  display: grid;
+  gap: 1rem;
+}
+
+.pa-docs-summary {
+  margin: 0.75rem 0 0;
+  font-weight: 700;
+}
+
+.pa-doc-card-head {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem 0.75rem;
+  align-items: baseline;
+  justify-content: space-between;
+  margin-bottom: 0.5rem;
+}
+
+.pa-doc-card .pa-subsection-title {
+  margin: 0;
+}
+
+.pa-doc-status {
+  font-size: 0.8rem;
+  font-weight: 700;
+}
+
+.pa-doc-status--missing {
+  color: #9b1c1c;
+}
+
+.pa-doc-status--ok {
+  color: #1f6b3a;
+}
+
+.pa-doc-status--optional {
+  color: var(--pa-muted);
+}
+
+.pa-doc-filename {
+  margin: 0;
+  font-weight: 600;
+  word-break: break-word;
+}
+
+.pa-file-input {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+.pa-doc-actions {
+  display: grid;
+  gap: 0.65rem;
+  margin-top: 0.85rem;
+}
+
+.pa-file-label {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  cursor: pointer;
+}
+
+.pa-sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+@media (min-width: 640px) {
+  .pa-doc-actions {
+    grid-template-columns: repeat(auto-fit, minmax(8.5rem, max-content));
+    align-items: center;
   }
 }
