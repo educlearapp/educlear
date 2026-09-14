@@ -77,10 +77,26 @@ function testUpgradePaths() {
     "CORE_PAYROLL",
     "FULL",
   ]);
+  assert.deepStrictEqual(upgradeCodesFrom("ACCOUNTING"), [
+    "BUSINESS",
+    "CORE_ACCOUNTING",
+    "FULL",
+  ]);
+  assert.deepStrictEqual(upgradeCodesFrom("PAYROLL"), ["BUSINESS", "CORE_PAYROLL", "FULL"]);
+  assert.deepStrictEqual(upgradeCodesFrom("BUSINESS"), ["FULL"]);
   assert.deepStrictEqual(upgradeCodesFrom("FULL"), []);
   const upgrades = upgradePackagesFrom({ CORE: true, ACCOUNTING: true, PAYROLL: false });
   assert.strictEqual(upgrades.length, 1);
   assert.strictEqual(upgrades[0].code, "FULL");
+  const fromBusiness = upgradePackagesFrom({
+    CORE: false,
+    ACCOUNTING: true,
+    PAYROLL: true,
+  });
+  assert.deepStrictEqual(
+    fromBusiness.map((p) => p.code),
+    ["FULL"]
+  );
   console.log("✓ upgrade paths");
 }
 
