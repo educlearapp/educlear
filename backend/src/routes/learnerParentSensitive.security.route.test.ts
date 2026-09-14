@@ -380,10 +380,25 @@ async function runLiveRouteTests() {
       method: "PUT",
       body: { allergies: "HACK", medicalAlert: "HACK" },
     });
-    assert.equal(legacyPut.status, 400);
+    // SEC-02B: generic PUT requires auth first (401). Authenticated medical still → 400.
+    assert.equal(legacyPut.status, 401);
     const afterHack = await prisma.learner.findUnique({ where: { id: learnerA.id } });
     assert.equal(afterHack?.allergies, "Peanuts");
-    console.log("✓ PUT /api/learners/:id rejects medical fields");
+    console.log("✓ PUT /api/learners/:id unauth medical attempt denied (401); data unchanged");
+
+    const legacyPutAuthed = await jsonFetch(
+      `${base}/api/learners/${encodeURIComponent(learnerA.id)}`,
+      {
+        method: "PUT",
+        token: tokenA,
+        body: { allergies: "HACK", medicalAlert: "HACK" },
+      }
+    );
+    assert.equal(legacyPutAuthed.status, 400);
+    assert.equal(legacyPutAuthed.json.code, "USE_SENSITIVE_FIELDS_ENDPOINT");
+    const afterHackAuthed = await prisma.learner.findUnique({ where: { id: learnerA.id } });
+    assert.equal(afterHackAuthed?.allergies, "Peanuts");
+    console.log("✓ PUT /api/learners/:id rejects medical fields when authenticated");
 
     assert.equal(
       (

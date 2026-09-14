@@ -1066,6 +1066,7 @@ export default function ManageLearner({
   
   
                     "Content-Type": "application/json",
+                    ...staffAuthHeaders(),
   
   
   

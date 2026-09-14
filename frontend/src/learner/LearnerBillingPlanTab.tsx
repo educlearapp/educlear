@@ -171,18 +171,14 @@ export default function LearnerBillingPlanTab({ learner, onLearnerUpdated, setLe
 
       setSaving(true);
       try {
-        const response = await fetch(`${API_URL}/api/learners/${encodeURIComponent(learnerKey)}`, {
-          method: "PUT",
-          headers: { "Content-Type": "application/json", ...staffAuthHeaders() },
-          // Omit parents so this billing-only save does not trigger parent write auth/path.
-          body: JSON.stringify({
-            ...learner,
-            parents: undefined,
-            parent: undefined,
-            billingPlan: normalizedPlan,
-          }),
-        });
-        const data = await response.json().catch(() => ({}));
+        const response = await fetch(
+          `${API_URL}/api/learners/${encodeURIComponent(learnerKey)}/billing-plan`,
+          {
+            method: "PATCH",
+            headers: { "Content-Type": "application/json", ...staffAuthHeaders() },
+            body: JSON.stringify({ billingPlan: normalizedPlan }),
+          }
+        );        const data = await response.json().catch(() => ({}));
         if (!response.ok) {
           const message = String(
             (data as { error?: string })?.error || `Save failed (${response.status})`

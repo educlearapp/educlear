@@ -1369,43 +1369,41 @@ router.put("/:id", async (req, res) => {
       Array.isArray(req.body?.learner?.parents) ||
       (req.body?.parent && typeof req.body.parent === "object");
 
-    // Parent writes require trusted staff auth. Learner-only updates keep prior contract
-    // (callers like classroom reassignment / billing plan) unless parents are present.
-    let trustedIsOwnerAdmin = false;
-    let authorizedSchoolId: string | null = null;
+    // SEC-02B: every generic PUT mutation requires learners.edit + JWT school bind.
+    // Parents presence never decides whether authentication is required.
+    const authDecision = await resolveParentStaffAuth(req, {
+      requirePermission: { module: "learners", action: "edit" },
+    });
+    if (!authDecision.allowed) {
+      return res.status(authDecision.status).json({
+        success: false,
+        error: authDecision.error,
+        code: authDecision.code || null,
+        message: authDecision.error,
+      });
+    }
+    const staffAuth = authDecision.auth;
+    const trustedIsOwnerAdmin = staffAuth.isOwnerAdmin;
+    const authorizedSchoolId = staffAuth.authorizedSchoolId;
 
-    if (hasParentsPayload) {
-      const existingForAuth = await prisma.learner.findUnique({
-        where: { id },
-        select: { schoolId: true },
+    if (hasParentsPayload && !staffAuth.canEditParents) {
+      return res.status(403).json({
+        success: false,
+        error: "Permission denied: parents.edit",
+        code: "FORBIDDEN_PERMISSION",
+        message: "Permission denied: parents.edit",
       });
-      if (!existingForAuth) {
-        return res.status(404).json({ success: false, error: "Learner not found" });
-      }
-      const authDecision = await resolveParentStaffAuth(req, {
-        requestSchoolId: existingForAuth.schoolId,
-        requirePermission: { module: "parents", action: "edit" },
-      });
-      if (!authDecision.allowed) {
-        return res.status(authDecision.status).json({
-          success: false,
-          error: authDecision.error,
-          code: authDecision.code || null,
-          message: authDecision.error,
-        });
-      }
-      trustedIsOwnerAdmin = authDecision.auth.isOwnerAdmin;
-      authorizedSchoolId = authDecision.auth.authorizedSchoolId;
-      if (existingForAuth.schoolId !== authorizedSchoolId) {
-        return res.status(403).json({
-          success: false,
-          error: "Learner is not in your school",
-          code: "SCHOOL_MISMATCH",
-        });
-      }
     }
 
-
+    // Generic PUT must not mutate billing plans — dedicated PATCH /:id/billing-plan.
+    if (Object.prototype.hasOwnProperty.call(req.body || {}, "billingPlan")) {
+      return res.status(400).json({
+        success: false,
+        error:
+          "billingPlan must be updated via PATCH /api/learners/:id/billing-plan",
+        code: "USE_BILLING_PLAN_ENDPOINT",
+      });
+    }
 
     const {
 
@@ -1479,11 +1477,11 @@ router.put("/:id", async (req, res) => {
 
 
 
-    const existingLearner = await prisma.learner.findUnique({
+    const existingLearner = await prisma.learner.findFirst({
 
 
 
-      where: { id },
+      where: { id, schoolId: authorizedSchoolId },
 
 
 
@@ -1513,7 +1511,7 @@ router.put("/:id", async (req, res) => {
 
     }
 
-    // Medical fields must not be writable via legacy PUT (may be unauthenticated).
+    // Medical fields must not be writable via legacy PUT.
     // Use PUT /api/learners/:id/sensitive-fields instead.
     if (allergies !== undefined || medicalAlert !== undefined) {
       return res.status(400).json({
@@ -1537,7 +1535,7 @@ router.put("/:id", async (req, res) => {
 
 
 
-      where: { id },
+      where: { id: existingLearner.id },
 
 
 
@@ -1673,35 +1671,11 @@ router.put("/:id", async (req, res) => {
       });
     }
 
-    let billingPlan: StoredBillingPlanItem[] = [];
-    if (Array.isArray(req.body?.billingPlan)) {
-      const items = parseBillingPlanItemsFromBody(req.body.billingPlan);
-      if (items.length === 0) {
-        await removeLearnerBillingPlanFromDb(updatedLearner.schoolId, updatedLearner.id);
-        removeLearnerBillingPlan(updatedLearner.schoolId, updatedLearner.id);
-        await markLearnerBillingPlanExplicitlyEmpty(
-          updatedLearner.schoolId,
-          updatedLearner.id
-        );
-        billingPlan = [];
-      } else {
-        await upsertLearnerBillingPlanToDb(updatedLearner.schoolId, updatedLearner.id, items);
-        upsertLearnerBillingPlan(updatedLearner.schoolId, updatedLearner.id, items);
-        await clearLearnerBillingPlanExplicitlyEmpty(
-          updatedLearner.schoolId,
-          updatedLearner.id
-        );
-        billingPlan = await readLearnerBillingPlanFromDb(
-          updatedLearner.schoolId,
-          updatedLearner.id
-        );
-      }
-    } else {
-      billingPlan = await readLearnerBillingPlanFromDb(
-        updatedLearner.schoolId,
-        updatedLearner.id
-      );
-    }
+    // Read-only: generic PUT no longer writes billing plan lines (SEC-02B).
+    const billingPlan = await readLearnerBillingPlanFromDb(
+      updatedLearner.schoolId,
+      updatedLearner.id
+    );
 
 
 
@@ -1709,7 +1683,7 @@ router.put("/:id", async (req, res) => {
 
 
 
-      where: { id },
+      where: { id: existingLearner.id },
 
 
 

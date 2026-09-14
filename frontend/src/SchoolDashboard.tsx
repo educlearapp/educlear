@@ -4792,7 +4792,7 @@ const [selectedLearnerReport, setSelectedLearnerReport] = useState<any>(null);
   
   
   
-                  headers: { "Content-Type": "application/json" },
+                  headers: { "Content-Type": "application/json", ...staffAuthHeaders() },
   
   
   
