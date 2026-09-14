@@ -12,6 +12,7 @@ import { API_URL } from "./api";
 
 import { useSchoolId } from "./useSchoolId";
 import PayrollEduClockImportPanel from "./PayrollEduClockImportPanel";
+import { hasSchoolModule } from "./modules/schoolModuleEntitlements";
 import { ACCOUNTING_COA_UPDATED_EVENT } from "./accounting/accountingPayrollCoa";
 import { repairPayrollCoaForSchool } from "./accounting/AccountingChartOfAccounts";
 import { ACCOUNTING_JOURNALS_UPDATED_EVENT } from "./accounting/accountingJournalStorage";
@@ -787,6 +788,9 @@ export default function Payroll() {
   const [accountingBusy, setAccountingBusy] = useState(false);
   const [accountingSyncTick, setAccountingSyncTick] = useState(0);
 
+  /** Optional Accounting integration (journals/COA post). Not required for Payroll runs. */
+  const accountingModuleEnabled = hasSchoolModule("ACCOUNTING");
+
 
 
   const period = `${MONTHS[new Date().getMonth()]} ${new Date().getFullYear()}`;
@@ -1065,7 +1069,7 @@ export default function Payroll() {
 
 
 
-    if (schoolId) {
+    if (schoolId && accountingModuleEnabled) {
 
 
 
@@ -1399,7 +1403,7 @@ export default function Payroll() {
 
     );
 
-    if (schoolId) {
+    if (schoolId && accountingModuleEnabled) {
       const draft = upsertDraftPayrollRun({
         schoolId,
         period,
@@ -1407,7 +1411,9 @@ export default function Payroll() {
         payrollRunId: currentPayrollRunId || undefined,
       });
       setCurrentPayrollRunId(draft.payrollRunId);
-      setAccountingMessage(`Accounting: Draft saved for ${period}. Post to Accounting when ready.`);
+      if (accountingModuleEnabled) {
+        setAccountingMessage(`Accounting: Draft saved for ${period}. Post to Accounting when ready.`);
+      }
     }
 
 
@@ -1415,7 +1421,7 @@ export default function Payroll() {
   }
 
   useEffect(() => {
-    if (!schoolId) return;
+    if (!schoolId || !accountingModuleEnabled) return;
     const bump = () => setAccountingSyncTick((n) => n + 1);
     const onPayroll = (event: Event) => {
       const detail = (event as CustomEvent<{ schoolId?: string }>).detail;
@@ -1428,22 +1434,22 @@ export default function Payroll() {
       window.removeEventListener(ACCOUNTING_PAYROLL_UPDATED_EVENT, onPayroll);
       window.removeEventListener(ACCOUNTING_JOURNALS_UPDATED_EVENT, onPayroll);
     };
-  }, [schoolId]);
+  }, [schoolId, accountingModuleEnabled]);
 
   useEffect(() => {
-    if (!schoolId || !currentPayrollRunId) return;
+    if (!schoolId || !currentPayrollRunId || !accountingModuleEnabled) return;
     reconcilePayrollRunWithJournal(schoolId, currentPayrollRunId);
     setAccountingSyncTick((n) => n + 1);
-  }, [schoolId, currentPayrollRunId, results.length]);
+  }, [schoolId, currentPayrollRunId, results.length, accountingModuleEnabled]);
 
   useEffect(() => {
-    if (!schoolId) return;
+    if (!schoolId || !accountingModuleEnabled) return;
     repairPayrollCoaForSchool(schoolId);
     setAccountingSyncTick((n) => n + 1);
-  }, [schoolId]);
+  }, [schoolId, accountingModuleEnabled]);
 
   useEffect(() => {
-    if (!schoolId) return;
+    if (!schoolId || !accountingModuleEnabled) return;
     const onCoaUpdated = (event: Event) => {
       const detail = (event as CustomEvent<{ schoolId?: string }>).detail;
       if (detail?.schoolId && detail.schoolId !== schoolId) return;
@@ -1451,19 +1457,19 @@ export default function Payroll() {
     };
     window.addEventListener(ACCOUNTING_COA_UPDATED_EVENT, onCoaUpdated);
     return () => window.removeEventListener(ACCOUNTING_COA_UPDATED_EVENT, onCoaUpdated);
-  }, [schoolId]);
+  }, [schoolId, accountingModuleEnabled]);
 
   const postedPayrollJournal = useMemo(() => {
-    if (!schoolId || !currentPayrollRunId) return null;
+    if (!accountingModuleEnabled || !schoolId || !currentPayrollRunId) return null;
     return findPostedPayrollJournal(schoolId, currentPayrollRunId);
-  }, [schoolId, currentPayrollRunId, accountingSyncTick]);
+  }, [accountingModuleEnabled, schoolId, currentPayrollRunId, accountingSyncTick]);
 
   const hasPostedPayrollJournal = Boolean(postedPayrollJournal);
 
   const currentAccountingRun = useMemo(() => {
-    if (!schoolId || !currentPayrollRunId) return null;
+    if (!accountingModuleEnabled || !schoolId || !currentPayrollRunId) return null;
     return getPayrollRun(schoolId, currentPayrollRunId);
-  }, [schoolId, currentPayrollRunId, accountingSyncTick]);
+  }, [accountingModuleEnabled, schoolId, currentPayrollRunId, accountingSyncTick]);
 
   const payrollJournalNo = postedPayrollJournal?.journalNo || currentAccountingRun?.journalNo || "";
 
@@ -1474,9 +1480,9 @@ export default function Payroll() {
       : "Draft";
 
   const coaValidation = useMemo(() => {
-    if (!schoolId || hasPostedPayrollJournal) return { ok: true, message: "" };
+    if (!accountingModuleEnabled || !schoolId || hasPostedPayrollJournal) return { ok: true, message: "" };
     return validatePayrollCoaForPosting(schoolId, payImmediately);
-  }, [schoolId, payImmediately, hasPostedPayrollJournal, accountingSyncTick]);
+  }, [accountingModuleEnabled, schoolId, payImmediately, hasPostedPayrollJournal, accountingSyncTick]);
 
   useEffect(() => {
     if (!hasPostedPayrollJournal || !payrollJournalNo) return;
@@ -3515,7 +3521,7 @@ export default function Payroll() {
 
 
 
-      {results.length > 0 && schoolId ? (
+      {results.length > 0 && schoolId && accountingModuleEnabled ? (
         <div style={{ ...card, marginBottom: 22 }}>
           <div style={header}>Accounting</div>
           <div style={{ padding: 16, display: "grid", gap: 12 }}>

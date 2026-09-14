@@ -1,5 +1,9 @@
 import type { PermissionMap } from "../users/permissions";
 import { mergePermissions, resolveStoredPermissions } from "../users/permissions";
+import {
+  clearSchoolModuleEntitlements,
+  syncSchoolModuleEntitlementsFromAuthResponse,
+} from "../modules/schoolModuleEntitlements";
 
 export const USER_APP_ROLE_STORAGE_KEY = "userAppRole";
 export const USER_PERMISSIONS_STORAGE_KEY = "userPermissions";
@@ -22,6 +26,7 @@ function parsePermissions(raw: unknown): PermissionMap | null {
 export function clearSchoolSession(): void {
   localStorage.removeItem(USER_APP_ROLE_STORAGE_KEY);
   localStorage.removeItem(USER_PERMISSIONS_STORAGE_KEY);
+  clearSchoolModuleEntitlements();
 }
 
 /** Persist app role + permission map from login or /auth/me. */
@@ -45,6 +50,8 @@ export function syncSchoolSessionFromLoginResponse(data: unknown): void {
   } else if (user.role != null && String(user.role).includes("_")) {
     localStorage.setItem("userRole", String(user.role));
   }
+
+  syncSchoolModuleEntitlementsFromAuthResponse(data);
 }
 
 export function getSchoolSessionUser(): SchoolSessionUser {

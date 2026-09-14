@@ -207,6 +207,28 @@ function ManageSchoolModal({ school, saving = false, onClose, onRequestSave }: M
             >
               Product modules
             </legend>
+            <label
+              style={{
+                display: "flex",
+                gap: 10,
+                alignItems: "center",
+                opacity: 0.85,
+                marginBottom: 4,
+              }}
+            >
+              <span style={{ fontSize: "0.85rem", color: "rgba(255,255,255,0.75)" }}>
+                Package view:{" "}
+                <strong style={{ color: "#d4af37" }}>
+                  {accountingEnabled && payrollEnabled
+                    ? "Full"
+                    : accountingEnabled
+                      ? "Core + Accounting"
+                      : payrollEnabled
+                        ? "Core + Payroll"
+                        : "Core"}
+                </strong>
+              </span>
+            </label>
             <label style={{ display: "flex", gap: 10, alignItems: "center", opacity: 0.85 }}>
               <input type="checkbox" checked disabled readOnly />
               <span>
