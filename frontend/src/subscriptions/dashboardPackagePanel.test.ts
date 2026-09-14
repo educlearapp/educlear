@@ -1,100 +1,78 @@
 /**
- * Dashboard package panel logic tests.
+ * Dashboard package panel logic tests (Phase 6C modular).
  * Run: npx tsx src/subscriptions/dashboardPackagePanel.test.ts
  */
+import assert from "assert";
+
 import {
-  findPackageByCode,
-  getPackageSwitchButtonLabel,
-  isCurrentActivePackage,
-  isPackageSwitchDisabled,
-  resolveDisplayedCurrentPackage,
+  formatCurrentPackageCard,
+  isModularCheckoutAvailable,
+  listUpgradeOptions,
+  resolveCurrentCommercialPackageStrict,
+  upgradeButtonLabel,
 } from "./dashboardPackagePanelLogic";
-import type { EduClearPackage } from "./subscriptionsApi";
 
-const PACKAGES: EduClearPackage[] = [
-  {
-    id: "1",
-    code: "STARTER",
-    name: "Starter",
-    monthlyPriceCents: 150_000,
-    monthlyPriceZar: 1500,
-    priceLabel: "R1,500 / month",
-    learnerLimit: 100,
-    payrollStaffLimit: 15,
-    mostPopular: false,
-    description: "Starter",
-    isActive: true,
-  },
-  {
-    id: "2",
-    code: "UNLIMITED",
-    name: "Unlimited",
-    monthlyPriceCents: 200_000,
-    monthlyPriceZar: 2000,
-    priceLabel: "R2,000 / month",
-    learnerLimit: null,
-    payrollStaffLimit: null,
-    mostPopular: true,
-    description: "Unlimited",
-    isActive: true,
-  },
-];
-
-function assert(condition: boolean, message: string) {
-  if (!condition) throw new Error(message);
+function testCurrentPackageFromEntitlements() {
+  const pkg = resolveCurrentCommercialPackageStrict({
+    CORE: false,
+    ACCOUNTING: true,
+    PAYROLL: false,
+  });
+  assert.strictEqual(pkg?.code, "ACCOUNTING");
+  assert.strictEqual(pkg?.monthlyPriceZar, 750);
+  const card = formatCurrentPackageCard(pkg!, "monthly");
+  assert.strictEqual(card.title, "EduClear Accounting");
+  assert.strictEqual(card.priceLine, "R750 / month");
+  console.log("✓ current package card from entitlements");
 }
 
-function testRendersCurrentUnlimitedFromApi() {
-  const current = resolveDisplayedCurrentPackage(PACKAGES, "UNLIMITED", PACKAGES[1]);
-  assert(current?.code === "UNLIMITED", "current package should be Unlimited from API");
-  assert(current?.name === "Unlimited", "shows Unlimited name");
-  console.log("✓ renders current Unlimited from API");
+function testAnnualCard() {
+  const pkg = resolveCurrentCommercialPackageStrict({
+    CORE: true,
+    ACCOUNTING: false,
+    PAYROLL: false,
+  });
+  const card = formatCurrentPackageCard(pkg!, "annual");
+  assert.strictEqual(card.priceLine, "R10,000 / year");
+  assert.ok(card.promoLine?.includes("2 months free"));
+  console.log("✓ annual current package card");
 }
 
-function testCurrentPackageButtonDisabledWhenActive() {
-  const disabled = isPackageSwitchDisabled(
-    "UNLIMITED",
-    "UNLIMITED",
-    "ACTIVE",
-    false,
-    true,
-    true
+function testUpgradeOptions() {
+  const fromCore = listUpgradeOptions({ CORE: true, ACCOUNTING: false, PAYROLL: false });
+  assert.deepStrictEqual(
+    fromCore.map((p) => p.code),
+    ["CORE_ACCOUNTING", "CORE_PAYROLL", "FULL"]
   );
-  assert(disabled, "current Unlimited + ACTIVE should disable button");
-  const label = getPackageSwitchButtonLabel("UNLIMITED", "UNLIMITED", "ACTIVE", false);
-  assert(label === "Current Package", "label should be Current Package");
-  console.log("✓ current package button disabled when ACTIVE");
+  const fromFull = listUpgradeOptions({ CORE: true, ACCOUNTING: true, PAYROLL: true });
+  assert.strictEqual(fromFull.length, 0);
+  assert.strictEqual(upgradeButtonLabel(fromCore[0]), "Upgrade to Core + Accounting");
+  console.log("✓ upgrade options");
 }
 
-function testSwitchLabelForDifferentPackage() {
-  const label = getPackageSwitchButtonLabel("STARTER", "UNLIMITED", "ACTIVE", false);
-  assert(label === "Switch to Unlimited", "different package shows switch label");
-  const disabled = isPackageSwitchDisabled("STARTER", "UNLIMITED", "ACTIVE", false, true, true);
-  assert(!disabled, "switch button enabled for ACTIVE Starter -> Unlimited");
-  console.log("✓ switch label for different package");
-}
-
-function testPendingPaymentAllowsCheckoutForSelectedPackage() {
-  assert(
-    !isCurrentActivePackage("STARTER", "UNLIMITED", "PENDING_PAYMENT"),
-    "pending payment is not current active package"
+function testNo000() {
+  assert.strictEqual(
+    resolveCurrentCommercialPackageStrict({
+      CORE: false,
+      ACCOUNTING: false,
+      PAYROLL: false,
+    }),
+    null
   );
-  const label = getPackageSwitchButtonLabel("STARTER", "UNLIMITED", "PENDING_PAYMENT", false);
-  assert(label === "Switch to Unlimited", "pending payment can switch package label");
-  console.log("✓ pending payment allows checkout for selected package");
+  console.log("✓ no 000 current package");
 }
 
-function testFindPackageByCode() {
-  assert(findPackageByCode(PACKAGES, "starter")?.code === "STARTER", "finds starter case-insensitive");
-  console.log("✓ findPackageByCode");
+function testModularCheckoutDisabled() {
+  assert.strictEqual(isModularCheckoutAvailable(), false);
+  console.log("✓ modular checkout disabled until PayFast integration");
 }
 
 function main() {
-  testRendersCurrentUnlimitedFromApi();
-  testCurrentPackageButtonDisabledWhenActive();
-  testSwitchLabelForDifferentPackage();
-  testPendingPaymentAllowsCheckoutForSelectedPackage();
-  testFindPackageByCode();
+  testCurrentPackageFromEntitlements();
+  testAnnualCard();
+  testUpgradeOptions();
+  testNo000();
+  testModularCheckoutDisabled();
   console.log("\nAll dashboardPackagePanel tests passed.");
 }
 

@@ -342,7 +342,7 @@ export default function RegisterSchool() {
 
       setStatus({
         type: "success",
-        message: "Registration successful. Choose your subscription package...",
+        message: "Registration successful. Choose your EduClear modular package...",
       });
 
       navigate("/subscription/packages");

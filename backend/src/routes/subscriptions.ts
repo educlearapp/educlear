@@ -12,6 +12,11 @@ import {
   activateSchoolSubscriptionTestMode,
 } from "../services/activateTestSubscription";
 import { ensureEduClearPackages } from "../services/ensureEduClearPackages";
+import { listNewSaleCommercialPackages } from "../services/educlearCommercialPackages";
+import {
+  resolveSchoolCommercialPackage,
+  serializeCommercialPackage,
+} from "../services/resolveSchoolCommercialPackage";
 import { isDaSilvaSchoolId, refreshDaSilvaSchoolIdCache } from "../services/daSilvaSchoolResolve";
 import {
   getMissingPayFastEnvVars,
@@ -85,6 +90,34 @@ router.get("/config", (_req, res) => {
 
 router.get("/packages", async (_req, res) => {
   try {
+    // New-sale catalogue = modular commercial packages (not STARTER/UNLIMITED).
+    const packages = listNewSaleCommercialPackages().map((pkg) => {
+      const commercial = serializeCommercialPackage(pkg);
+      return {
+        ...commercial,
+        id: `commercial:${pkg.code}`,
+        mostPopular: pkg.code === "FULL",
+        isActive: true,
+        learnerLimit: null,
+        payrollStaffLimit: null,
+        priceLabel: commercial.priceLabelMonthly,
+      };
+    });
+
+    return res.json({
+      success: true,
+      packages,
+      catalogue: "modular",
+    });
+  } catch (error) {
+    console.error("[subscriptions] GET /packages failed:", error);
+    return res.status(500).json({ success: false, error: "Failed to fetch packages" });
+  }
+});
+
+/** Historical STARTER/UNLIMITED capacity rows — not new-sale. */
+router.get("/packages/legacy", async (_req, res) => {
+  try {
     await ensureEduClearPackages();
     const packages = await prisma.eduClearPackage.findMany({
       where: { isActive: true },
@@ -95,10 +128,11 @@ router.get("/packages", async (_req, res) => {
     return res.json({
       success: true,
       packages: packages.map((pkg) => serializePackage(pkg)),
+      catalogue: "legacy-capacity",
     });
   } catch (error) {
-    console.error("[subscriptions] GET /packages failed:", error);
-    return res.status(500).json({ success: false, error: "Failed to fetch packages" });
+    console.error("[subscriptions] GET /packages/legacy failed:", error);
+    return res.status(500).json({ success: false, error: "Failed to fetch legacy packages" });
   }
 });
 
@@ -154,6 +188,9 @@ router.get("/school/:schoolId/status", async (req, res) => {
       },
     });
 
+    const { moduleEntitlements, commercialPackage, bits } =
+      await resolveSchoolCommercialPackage(schoolId);
+
     const isActive = subscription
       ? isActiveSubscriptionStatus(subscription.status)
       : false;
@@ -166,11 +203,16 @@ router.get("/school/:schoolId/status", async (req, res) => {
       hasSubscription: Boolean(subscription),
       isActive,
       dashboardUnlocked,
+      moduleEntitlements,
+      commercialPackage,
+      commercialBits: bits,
       subscription: subscription
         ? {
             id: subscription.id,
             status: subscription.status,
+            /** @deprecated Legacy capacity code — not commercial package. */
             packageCode: subscription.packageCode,
+            legacyCapacityPackageCode: subscription.packageCode,
             currentPeriodStart: subscription.currentPeriodStart,
             currentPeriodEnd: subscription.currentPeriodEnd,
             activatedAt: subscription.activatedAt,
@@ -179,6 +221,7 @@ router.get("/school/:schoolId/status", async (req, res) => {
             createdAt: subscription.createdAt,
             updatedAt: subscription.updatedAt,
             package: serializePackage(subscription.package),
+            legacyCapacityPackage: serializePackage(subscription.package),
           }
         : null,
     });

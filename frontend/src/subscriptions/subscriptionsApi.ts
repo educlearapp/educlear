@@ -30,10 +30,31 @@ export type SchoolSubscriptionStatus =
   | "CANCELLED"
   | "SUSPENDED";
 
+export type CommercialPackageStatus = {
+  bits: string;
+  code: string;
+  name: string;
+  shortLabel: string;
+  secondaryLabel: string | null;
+  description: string;
+  monthlyPriceZar: number;
+  annualPriceZar: number;
+  monthlyPriceCents: number;
+  priceLabelMonthly: string;
+  priceLabelAnnual: string;
+  modules: {
+    CORE: boolean;
+    ACCOUNTING: boolean;
+    PAYROLL: boolean;
+  };
+};
+
 export type SchoolSubscription = {
   id: string;
   status: SchoolSubscriptionStatus;
+  /** @deprecated Legacy capacity code — not commercial package. */
   packageCode: string;
+  legacyCapacityPackageCode?: string;
   activationSource?: string | null;
   currentPeriodStart: string | null;
   currentPeriodEnd: string | null;
@@ -42,6 +63,24 @@ export type SchoolSubscription = {
   createdAt: string;
   updatedAt: string;
   package: EduClearPackage;
+  legacyCapacityPackage?: EduClearPackage;
+};
+
+export type SubscriptionStatusResponse = {
+  success: boolean;
+  schoolId: string;
+  schoolName: string;
+  hasSubscription: boolean;
+  isActive: boolean;
+  dashboardUnlocked: boolean;
+  moduleEntitlements?: {
+    CORE: boolean;
+    ACCOUNTING: boolean;
+    PAYROLL: boolean;
+  };
+  commercialPackage?: CommercialPackageStatus | null;
+  commercialBits?: string;
+  subscription: SchoolSubscription | null;
 };
 
 export type SubscriptionConfigResponse = {
@@ -60,19 +99,10 @@ export type TestActivateSubscriptionResponse = {
   subscription: SchoolSubscription;
 };
 
-export type SubscriptionStatusResponse = {
-  success: boolean;
-  schoolId: string;
-  schoolName: string;
-  hasSubscription: boolean;
-  isActive: boolean;
-  dashboardUnlocked: boolean;
-  subscription: SchoolSubscription | null;
-};
-
 export type PackagesResponse = {
   success: boolean;
   packages: EduClearPackage[];
+  catalogue?: string;
 };
 
 function normalizeEduClearPackage(raw: Record<string, unknown>): EduClearPackage {

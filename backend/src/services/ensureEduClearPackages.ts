@@ -12,6 +12,11 @@ type PackageSeed = {
   description: string;
 };
 
+/**
+ * LEGACY capacity packages only (historical SchoolSubscription / PayFast ITN).
+ * New-sale commercial SKUs live in educlearCommercialPackages.ts (modular bits).
+ * Do not expose STARTER/UNLIMITED as new modular purchase choices in UI.
+ */
 const PACKAGE_SEEDS: PackageSeed[] = [
   {
     code: "STARTER",
@@ -20,7 +25,8 @@ const PACKAGE_SEEDS: PackageSeed[] = [
     learnerLimit: 100,
     payrollStaffLimit: 15,
     mostPopular: false,
-    description: "Includes all core EduClear modules.",
+    description:
+      "Legacy capacity package (historical compatibility). Not offered for new modular sales.",
   },
   {
     code: "UNLIMITED",
@@ -29,7 +35,8 @@ const PACKAGE_SEEDS: PackageSeed[] = [
     learnerLimit: null,
     payrollStaffLimit: null,
     mostPopular: true,
-    description: "Includes all EduClear modules with unlimited learners and payroll staff.",
+    description:
+      "Legacy capacity package (historical compatibility). Not offered for new modular sales.",
   },
 ];
 

@@ -98,7 +98,7 @@ export function useSchoolsManagement() {
   );
 
   const onChangePackage = useCallback(async (school: SchoolRecord) => {
-    const current = String(school.package || "").trim();
+    const current = String(school.legacyCapacityPackage || "Starter").trim();
     const next = current === "Starter" ? "Unlimited" : "Starter";
     await updateSuperAdminSchool(school.id, { package: next as SchoolPackage });
     await loadSchools();

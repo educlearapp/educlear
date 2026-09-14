@@ -6,6 +6,7 @@ import {
 } from "@prisma/client";
 
 import { prisma } from "../../prisma";
+import { commercialPackageShortDisplay } from "../educlearCommercialPackages";
 import {
   defaultAllEnabledEntitlements,
   mapEntitlementRowsBySchool,
@@ -31,8 +32,12 @@ export type SuperAdminSchoolListItem = {
   ownerName: string;
   ownerEmail: string;
   contactPhone: string | null;
+  /** Commercial modular package label (from CORE/ACCOUNTING/PAYROLL entitlements). */
   package: string;
+  /** Legacy capacity package code (STARTER/UNLIMITED) — historical compatibility only. */
   packageCode: EduClearPackageCode | null;
+  /** Legacy capacity package display name when present. */
+  legacyCapacityPackage: string | null;
   subscriptionStatus: SchoolSubscriptionStatus | null;
   /** Organisation lifecycle. Separate from SchoolSubscription.status. */
   lifecycleStatus: SchoolLifecycleStatus;
@@ -60,7 +65,7 @@ function isInternalSchoolName(name: string): boolean {
   return INTERNAL_SCHOOL_NAMES.has(String(name || "").trim().toLowerCase());
 }
 
-const PACKAGE_LABEL: Record<EduClearPackageCode, string> = {
+const LEGACY_CAPACITY_LABEL: Record<EduClearPackageCode, string> = {
   STARTER: "Starter",
   UNLIMITED: "Unlimited",
 };
@@ -78,13 +83,13 @@ type SchoolAdminUser = {
   } | null;
 };
 
-function packageLabel(
+function legacyCapacityPackageLabel(
   code: EduClearPackageCode | null | undefined,
   packageName: string | null | undefined
-): string {
+): string | null {
   if (packageName?.trim()) return packageName.trim();
-  if (code && PACKAGE_LABEL[code]) return PACKAGE_LABEL[code];
-  return "—";
+  if (code && LEGACY_CAPACITY_LABEL[code]) return LEGACY_CAPACITY_LABEL[code];
+  return null;
 }
 
 function mapSubscriptionToUiStatus(
@@ -213,8 +218,12 @@ function mapSchoolRow(
     ownerName,
     ownerEmail,
     contactPhone: schoolContactPhone(row.phone, row.cellNo),
-    package: packageLabel(subscription?.packageCode, subscription?.package?.name),
+    package: commercialPackageShortDisplay(moduleEntitlements),
     packageCode: subscription?.packageCode ?? null,
+    legacyCapacityPackage: legacyCapacityPackageLabel(
+      subscription?.packageCode,
+      subscription?.package?.name
+    ),
     subscriptionStatus: subscription?.status ?? null,
     lifecycleStatus,
     status: lifecycleStatus,

@@ -16325,7 +16325,7 @@ const [invoiceRunEmailDraft, setInvoiceRunEmailDraft] = useState({
 
       case "schoolPackage":
 
-        return <DashboardPackagePanel />;
+        return <DashboardPackagePanel moduleEntitlements={moduleEntitlements} />;
 
       case "admissions":
         return (

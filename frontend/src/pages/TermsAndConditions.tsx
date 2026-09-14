@@ -34,7 +34,7 @@ const SECTIONS = [
     id: "subscription",
     title: "4. Subscription & Package Terms",
     body: [
-      "EduClear subscription packages define usage limits such as learner counts, payroll staff limits, and enabled modules. Package details displayed at signup or checkout apply to your account unless otherwise agreed in writing.",
+      "EduClear modular subscription packages (Core, Accounting, Payroll, and combinations including Business and Full) define enabled product modules and commercial pricing. Package details displayed at signup or checkout apply to your account unless otherwise agreed in writing. Historical Starter/Unlimited capacity labels on older accounts are not current purchasable plans.",
       "Upgrades, downgrades, or package changes may take effect according to EduClear billing rules and may require payment of applicable fees before activation.",
     ],
   },
