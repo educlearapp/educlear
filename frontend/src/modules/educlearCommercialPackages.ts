@@ -307,7 +307,8 @@ export function upgradeCodesFrom(code: CommercialPackageCode): CommercialPackage
     case "PAYROLL":
       return ["BUSINESS", "CORE_PAYROLL", "FULL"];
     case "BUSINESS":
-      return ["CORE_ACCOUNTING", "CORE_PAYROLL", "FULL"];
+      // Adding Core while dropping Accounting or Payroll is not an upgrade.
+      return ["FULL"];
     case "CORE_ACCOUNTING":
       return ["FULL"];
     case "CORE_PAYROLL":

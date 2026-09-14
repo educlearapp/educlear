@@ -13,7 +13,10 @@ import {
   formatSubscriptionStatus,
   isSubscriptionDashboardUnlocked,
 } from "./subscriptionsApi";
-import { isModularCheckoutAvailable } from "./dashboardPackagePanelLogic";
+import {
+  isModularCheckoutAvailable,
+  modularCheckoutDisabledReason,
+} from "./dashboardPackagePanelLogic";
 
 const GOLD = "#D4AF37";
 const BG =
@@ -202,8 +205,6 @@ export default function SubscriptionStatus() {
   const needsPayment = Boolean(
     subscription?.status === "PENDING_PAYMENT" || !canOpenDashboard
   );
-  const legacyCapacity =
-    subscription?.legacyCapacityPackageCode || subscription?.packageCode || null;
   useEffect(() => {
     if (!schoolId || !needsPayment || canOpenDashboard) return;
 
@@ -221,9 +222,7 @@ export default function SubscriptionStatus() {
   }, [canOpenDashboard]);
 
   async function handlePayNow() {
-    setError(
-      "Modular package checkout is not available yet. Contact EduClear to activate payment for your package."
-    );
+    setError(modularCheckoutDisabledReason());
     navigate("/subscription/packages");
   }
   if (isSuperAdmin() || isPlatformSuperAdminEmail(localStorage.getItem("userEmail"))) {
@@ -318,23 +317,16 @@ export default function SubscriptionStatus() {
               <SummaryRow label="Next payment date" value={nextPaymentDate} />
             ) : null}
 
-            {legacyCapacity ? (
-              <p style={{ color: "#94a3b8", marginTop: 16, fontSize: 12, lineHeight: 1.5 }}>
-                Historical capacity record: {legacyCapacity} (not your commercial package).
-              </p>
-            ) : null}
-
             {!subscription ? (
               <p style={{ color: "#d6d6d6", marginTop: 20, lineHeight: 1.6 }}>
                 No payment subscription record yet. Your commercial package above is defined by
-                Core / Accounting / Payroll modules. Modular PayFast checkout is not available yet.
+                your EduClear modules. Online package payments are currently unavailable.
               </p>
             ) : null}
 
             {subscription?.status === "PENDING_PAYMENT" ? (
               <p style={{ color: "#d6d6d6", marginTop: 20, lineHeight: 1.6 }}>
-                Payment activation is pending. Modular checkout is not enabled — use test mode on
-                staging or contact EduClear.
+                {modularCheckoutDisabledReason()}
               </p>
             ) : null}
 

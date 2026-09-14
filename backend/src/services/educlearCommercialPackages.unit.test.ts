@@ -88,11 +88,7 @@ function testUpgradePaths() {
     "FULL",
   ]);
   assert.deepStrictEqual(upgradeCodesFrom("PAYROLL"), ["BUSINESS", "CORE_PAYROLL", "FULL"]);
-  assert.deepStrictEqual(upgradeCodesFrom("BUSINESS"), [
-    "CORE_ACCOUNTING",
-    "CORE_PAYROLL",
-    "FULL",
-  ]);
+  assert.deepStrictEqual(upgradeCodesFrom("BUSINESS"), ["FULL"]);
   assert.deepStrictEqual(upgradeCodesFrom("CORE_ACCOUNTING"), ["FULL"]);
   assert.deepStrictEqual(upgradeCodesFrom("CORE_PAYROLL"), ["FULL"]);
   assert.deepStrictEqual(upgradeCodesFrom("FULL"), []);
