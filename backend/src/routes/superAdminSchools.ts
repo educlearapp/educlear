@@ -13,7 +13,7 @@ import {
   resolveLifecycleTargetSchoolId,
 } from "../services/superAdmin/schoolLifecycle";
 import {
-  assertCoreNotDisabledInPatchBody,
+  assertModuleEntitlementPatchBody,
   SchoolModuleEntitlementError,
   updateSchoolModuleEntitlements,
 } from "../services/schoolModuleEntitlements";
@@ -27,6 +27,7 @@ function parseOptionalBoolean(value: unknown): boolean | undefined {
 }
 
 function extractModuleEntitlementPatch(body: unknown): {
+  core?: boolean;
   accounting?: boolean;
   payroll?: boolean;
 } | null {
@@ -37,6 +38,16 @@ function extractModuleEntitlementPatch(body: unknown): {
       ? (record.moduleEntitlements as Record<string, unknown>)
       : null;
 
+  const coreRaw =
+    nested && Object.prototype.hasOwnProperty.call(nested, "CORE")
+      ? nested.CORE
+      : nested && Object.prototype.hasOwnProperty.call(nested, "core")
+        ? nested.core
+        : Object.prototype.hasOwnProperty.call(record, "core")
+          ? record.core
+          : Object.prototype.hasOwnProperty.call(record, "CORE")
+            ? record.CORE
+            : undefined;
   const accountingRaw =
     nested && Object.prototype.hasOwnProperty.call(nested, "ACCOUNTING")
       ? nested.ACCOUNTING
@@ -54,10 +65,11 @@ function extractModuleEntitlementPatch(body: unknown): {
           ? record.payroll
           : undefined;
 
+  const core = parseOptionalBoolean(coreRaw);
   const accounting = parseOptionalBoolean(accountingRaw);
   const payroll = parseOptionalBoolean(payrollRaw);
-  if (accounting === undefined && payroll === undefined) return null;
-  return { accounting, payroll };
+  if (core === undefined && accounting === undefined && payroll === undefined) return null;
+  return { core, accounting, payroll };
 }
 
 /** GET /api/super-admin/schools — platform school monitoring (super-admin JWT only). */
@@ -74,12 +86,12 @@ router.get("/", async (_req: SuperAdminRequest, res) => {
 
 /**
  * PATCH /api/super-admin/schools/:schoolId
- * lifecycle and/or subscription package and/or ACCOUNTING|PAYROLL module entitlements
- * (super-admin JWT only). CORE cannot be disabled. FINANCE is not a product module.
+ * lifecycle and/or subscription package and/or CORE|ACCOUNTING|PAYROLL module entitlements
+ * (super-admin JWT only). Resulting 000 is rejected. FINANCE is not a product module.
  */
 router.patch("/:schoolId", async (req: SuperAdminRequest, res) => {
   try {
-    assertCoreNotDisabledInPatchBody(req.body);
+    assertModuleEntitlementPatchBody(req.body);
 
     const schoolId = resolveLifecycleTargetSchoolId(req.params.schoolId, req.body?.schoolId);
     const hasLifecycle =
@@ -92,6 +104,7 @@ router.patch("/:schoolId", async (req: SuperAdminRequest, res) => {
     if (modulePatch) {
       moduleEntitlements = await updateSchoolModuleEntitlements({
         schoolId,
+        ...(modulePatch.core !== undefined ? { core: modulePatch.core } : {}),
         ...(modulePatch.accounting !== undefined
           ? { accounting: modulePatch.accounting }
           : {}),

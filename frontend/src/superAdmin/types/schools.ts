@@ -35,7 +35,7 @@ export type SchoolRecord = {
   isActive: boolean;
   /** True when the signed-in session belongs to this school (can open /dashboard). */
   canOpenDashboard: boolean;
-  /** Commercial module entitlements. CORE is always treated as enabled in Super Admin UI. */
+  /** Commercial module entitlements (CORE / ACCOUNTING / PAYROLL — independently toggleable). */
   moduleEntitlements: SchoolModuleEntitlements;
 };
 

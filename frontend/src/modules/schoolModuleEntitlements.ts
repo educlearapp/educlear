@@ -2,7 +2,8 @@
  * School product module entitlements (CORE / ACCOUNTING / PAYROLL).
  * Orthogonal to RBAC permissions and STARTER/UNLIMITED capacity packages.
  *
- * Rollout-safe default: missing data → all modules enabled (matches backend fail-open).
+ * Rollout-safe default: missing/invalid data → all modules enabled (matches backend fail-open).
+ * Explicit false is preserved (including CORE=false).
  * Entitlements are bound to schoolId so login/school switch cannot reuse another tenant’s cache.
  */
 export type ProductModuleKey = "CORE" | "ACCOUNTING" | "PAYROLL";
@@ -45,6 +46,12 @@ export const ACCOUNTING_ONLY_PAGES = [
 /** Pages that require optional PAYROLL. */
 export const PAYROLL_ONLY_PAGES = ["payroll"] as const;
 
+/**
+ * Normalize entitlement payload.
+ * Missing/invalid object → Full (fail-open).
+ * Explicit false for any module (including CORE) is preserved.
+ * Missing keys inside a valid object fail-open to true.
+ */
 export function asSchoolModuleEntitlements(
   raw: unknown
 ): SchoolModuleEntitlements {
@@ -53,11 +60,18 @@ export function asSchoolModuleEntitlements(
   }
   const o = raw as Record<string, unknown>;
   return {
-    // CORE cannot be disabled for an active school product surface.
-    CORE: true,
+    CORE: o.CORE !== false,
     ACCOUNTING: o.ACCOUNTING !== false,
     PAYROLL: o.PAYROLL !== false,
   };
+}
+
+export function hasAnyCommercialModule(entitlements: SchoolModuleEntitlements): boolean {
+  return (
+    entitlements.CORE !== false ||
+    entitlements.ACCOUNTING !== false ||
+    entitlements.PAYROLL !== false
+  );
 }
 
 export function getEntitlementBoundSchoolId(): string {
@@ -165,7 +179,6 @@ export function hasSchoolModule(
   module: ProductModuleKey,
   entitlements: SchoolModuleEntitlements = getSchoolModuleEntitlements()
 ): boolean {
-  if (module === "CORE") return true;
   return entitlements[module] !== false;
 }
 
@@ -197,20 +210,29 @@ export function schoolPageModuleDenialMessage(page: string): string | null {
   return "Payroll is not included in this school’s EduClear package.";
 }
 
-/** Super Admin display helper — not a persisted package field. */
+/** Deterministic commercial package label (same rules as backend). */
 export function describeModulePackageLabel(entitlements: SchoolModuleEntitlements): string {
-  const accounting = entitlements.ACCOUNTING !== false;
-  const payroll = entitlements.PAYROLL !== false;
-  if (accounting && payroll) return "Full";
-  if (accounting) return "Core + Accounting";
-  if (payroll) return "Core + Payroll";
-  return "Core";
+  const c = entitlements.CORE !== false;
+  const a = entitlements.ACCOUNTING !== false;
+  const p = entitlements.PAYROLL !== false;
+  if (c && a && p) return "Full";
+  if (!c && a && p) return "Accounting + Payroll";
+  if (c && a && !p) return "Core + Accounting";
+  if (c && !a && p) return "Core + Payroll";
+  if (c && !a && !p) return "Core";
+  if (!c && a && !p) return "Accounting";
+  if (!c && !a && p) return "Payroll";
+  return "Invalid / No modules";
 }
 
 /** Named entitlement presets for tests / docs. */
 export const MODULE_PRESETS = {
   CORE_ONLY: { CORE: true, ACCOUNTING: false, PAYROLL: false } as SchoolModuleEntitlements,
+  ACCOUNTING_ONLY: { CORE: false, ACCOUNTING: true, PAYROLL: false } as SchoolModuleEntitlements,
+  PAYROLL_ONLY: { CORE: false, ACCOUNTING: false, PAYROLL: true } as SchoolModuleEntitlements,
+  ACCOUNTING_PAYROLL: { CORE: false, ACCOUNTING: true, PAYROLL: true } as SchoolModuleEntitlements,
   CORE_ACCOUNTING: { CORE: true, ACCOUNTING: true, PAYROLL: false } as SchoolModuleEntitlements,
   CORE_PAYROLL: { CORE: true, ACCOUNTING: false, PAYROLL: true } as SchoolModuleEntitlements,
   FULL: { CORE: true, ACCOUNTING: true, PAYROLL: true } as SchoolModuleEntitlements,
+  NONE: { CORE: false, ACCOUNTING: false, PAYROLL: false } as SchoolModuleEntitlements,
 };

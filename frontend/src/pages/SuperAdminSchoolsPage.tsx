@@ -7,6 +7,10 @@ import { useSchoolsManagement } from "../superAdmin/hooks/useSchoolsManagement";
 import type { SchoolRecord } from "../superAdmin/types/schools";
 import { SCHOOL_STATUS_OPTIONS } from "../superAdmin/types/schools";
 import {
+  describeModulePackageLabel,
+  hasAnyCommercialModule,
+} from "../modules/schoolModuleEntitlements";
+import {
   allowedLifecycleTargets,
   buildLifecycleConfirmation,
   needsLifecycleConfirmation,
@@ -102,6 +106,7 @@ type ManageModalProps = {
   onRequestSave: (next: {
     lifecycleStatus: SchoolLifecycleStatus;
     package: SchoolRecord["package"];
+    coreEnabled: boolean;
     accountingEnabled: boolean;
     payrollEnabled: boolean;
   }) => void;
@@ -114,11 +119,22 @@ function ManageSchoolModal({ school, saving = false, onClose, onRequestSave }: M
 
   const [lifecycleStatus, setLifecycleStatus] = useState<SchoolLifecycleStatus>(school.lifecycleStatus);
   const [pkg, setPkg] = useState<SchoolRecord["package"]>(school.package);
+  const [coreEnabled, setCoreEnabled] = useState(school.moduleEntitlements.CORE !== false);
   const [accountingEnabled, setAccountingEnabled] = useState(
     school.moduleEntitlements.ACCOUNTING !== false
   );
   const [payrollEnabled, setPayrollEnabled] = useState(school.moduleEntitlements.PAYROLL !== false);
   const allowed = allowedLifecycleTargets(school.id);
+  const packageView = describeModulePackageLabel({
+    CORE: coreEnabled,
+    ACCOUNTING: accountingEnabled,
+    PAYROLL: payrollEnabled,
+  });
+  const modulesValid = hasAnyCommercialModule({
+    CORE: coreEnabled,
+    ACCOUNTING: accountingEnabled,
+    PAYROLL: payrollEnabled,
+  });
 
   return (
     <div className="sa-schools-modal-overlay" role="presentation" onClick={handleBackdropClick}>
@@ -212,27 +228,34 @@ function ManageSchoolModal({ school, saving = false, onClose, onRequestSave }: M
                 display: "flex",
                 gap: 10,
                 alignItems: "center",
-                opacity: 0.85,
                 marginBottom: 4,
               }}
             >
               <span style={{ fontSize: "0.85rem", color: "rgba(255,255,255,0.75)" }}>
                 Package view:{" "}
-                <strong style={{ color: "#d4af37" }}>
-                  {accountingEnabled && payrollEnabled
-                    ? "Full"
-                    : accountingEnabled
-                      ? "Core + Accounting"
-                      : payrollEnabled
-                        ? "Core + Payroll"
-                        : "Core"}
-                </strong>
+                <strong style={{ color: "#d4af37" }}>{packageView}</strong>
               </span>
             </label>
-            <label style={{ display: "flex", gap: 10, alignItems: "center", opacity: 0.85 }}>
-              <input type="checkbox" checked disabled readOnly />
+            {!modulesValid ? (
+              <p
+                style={{
+                  margin: 0,
+                  fontSize: "0.85rem",
+                  color: "#f87171",
+                }}
+              >
+                At least one module (Core, Accounting, or Payroll) must remain enabled.
+              </p>
+            ) : null}
+            <label style={{ display: "flex", gap: 10, alignItems: "center" }}>
+              <input
+                type="checkbox"
+                checked={coreEnabled}
+                disabled={saving}
+                onChange={(e) => setCoreEnabled(e.target.checked)}
+              />
               <span>
-                EduClear Core <span style={{ opacity: 0.7 }}>(includes Billing — always enabled)</span>
+                EduClear Core <span style={{ opacity: 0.7 }}>(includes Billing)</span>
               </span>
             </label>
             <label style={{ display: "flex", gap: 10, alignItems: "center" }}>
@@ -267,11 +290,12 @@ function ManageSchoolModal({ school, saving = false, onClose, onRequestSave }: M
               onRequestSave({
                 lifecycleStatus,
                 package: pkg,
+                coreEnabled,
                 accountingEnabled,
                 payrollEnabled,
               })
             }
-            disabled={saving}
+            disabled={saving || !modulesValid}
           >
             {saving ? "Saving…" : "Save changes"}
           </button>
@@ -471,6 +495,7 @@ function schoolDetailMessage(school: SchoolRecord): string {
     `Contact: ${school.contactPhone || "—"}`,
     `Package: ${school.package}`,
     `Lifecycle: ${school.lifecycleStatus}${school.isActive ? "" : " (inactive)"}`,
+    `Module package: ${describeModulePackageLabel(mods)}`,
     `Modules: Core ${mods.CORE !== false ? "ON" : "OFF"} · Accounting ${
       mods.ACCOUNTING !== false ? "ON" : "OFF"
     } · Payroll ${mods.PAYROLL !== false ? "ON" : "OFF"}`,
@@ -673,15 +698,33 @@ export default function SuperAdminSchoolsPage() {
       next: {
         lifecycleStatus: SchoolLifecycleStatus;
         package: SchoolRecord["package"];
+        coreEnabled: boolean;
         accountingEnabled: boolean;
         payrollEnabled: boolean;
       }
     ) => {
       const lifecycleChanged = next.lifecycleStatus !== school.lifecycleStatus;
       const packageChanged = next.package !== school.package;
+      const coreChanged = next.coreEnabled !== (school.moduleEntitlements.CORE !== false);
       const accountingChanged =
         next.accountingEnabled !== (school.moduleEntitlements.ACCOUNTING !== false);
       const payrollChanged = next.payrollEnabled !== (school.moduleEntitlements.PAYROLL !== false);
+      const modulesChanged = coreChanged || accountingChanged || payrollChanged;
+
+      if (
+        modulesChanged &&
+        !hasAnyCommercialModule({
+          CORE: next.coreEnabled,
+          ACCOUNTING: next.accountingEnabled,
+          PAYROLL: next.payrollEnabled,
+        })
+      ) {
+        showNotice(
+          "Invalid module package",
+          "At least one commercial module (Core, Accounting, or Payroll) must remain enabled."
+        );
+        return;
+      }
 
       const run = async () => {
         setSavingManage(true);
@@ -689,12 +732,13 @@ export default function SuperAdminSchoolsPage() {
           if (lifecycleChanged) {
             await updateSchoolLifecycleStatus(school.id, next.lifecycleStatus);
           }
-          if (packageChanged || accountingChanged || payrollChanged) {
+          if (packageChanged || modulesChanged) {
             await updateSuperAdminSchool(school.id, {
               ...(packageChanged ? { package: next.package } : {}),
-              ...(accountingChanged || payrollChanged
+              ...(modulesChanged
                 ? {
                     moduleEntitlements: {
+                      ...(coreChanged ? { CORE: next.coreEnabled } : {}),
                       ...(accountingChanged ? { ACCOUNTING: next.accountingEnabled } : {}),
                       ...(payrollChanged ? { PAYROLL: next.payrollEnabled } : {}),
                     },

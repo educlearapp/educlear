@@ -15,10 +15,12 @@ import { STAFF_JWT_SECRET } from "../utils/staffJwt";
 import { prisma } from "../prisma";
 import {
   PRODUCT_MODULES,
-  assertCoreNotDisabledInPatchBody,
+  assertModuleEntitlementPatchBody,
   defaultAllEnabledEntitlements,
+  describeModulePackageLabel,
   ensureSchoolModuleEntitlements,
   getSchoolModuleEntitlements,
+  hasAnyCommercialModule,
   isSchoolModuleEnabled,
   mapEntitlementRowsBySchool,
   SchoolModuleEntitlementError,
@@ -276,7 +278,39 @@ async function main() {
   const afterEnsure = await getSchoolModuleEntitlements(SCHOOL_A);
   assert.deepStrictEqual(afterEnsure, defaultAllEnabledEntitlements());
 
-  // --- Accounting / Payroll toggles + CORE protection ---
+  // Explicit CORE=false vs missing CORE row
+  const coreRow = emptyStore.rows.find((r) => r.schoolId === SCHOOL_A && r.module === "CORE");
+  assert.ok(coreRow);
+  coreRow!.enabled = false;
+  assert.strictEqual(await isSchoolModuleEnabled(SCHOOL_A, "CORE"), false);
+  const coreIdx = emptyStore.rows.findIndex((r) => r.schoolId === SCHOOL_A && r.module === "CORE");
+  assert.ok(coreIdx >= 0);
+  emptyStore.rows.splice(coreIdx, 1);
+  assert.strictEqual(await isSchoolModuleEnabled(SCHOOL_A, "CORE"), true, "missing CORE row fail-opens");
+  await ensureSchoolModuleEntitlements(SCHOOL_A);
+  const restoredCore = emptyStore.rows.find((r) => r.schoolId === SCHOOL_A && r.module === "CORE");
+  assert.ok(restoredCore);
+  assert.strictEqual(restoredCore!.enabled, true, "ensure creates missing CORE enabled=true");
+  // Do not flip existing false when other modules missing: set CORE false, delete PAYROLL, ensure
+  restoredCore!.enabled = false;
+  const payIdx = emptyStore.rows.findIndex((r) => r.schoolId === SCHOOL_A && r.module === "PAYROLL");
+  assert.ok(payIdx >= 0);
+  emptyStore.rows.splice(payIdx, 1);
+  await ensureSchoolModuleEntitlements(SCHOOL_A);
+  assert.strictEqual(
+    emptyStore.rows.find((r) => r.schoolId === SCHOOL_A && r.module === "CORE")!.enabled,
+    false,
+    "ensure must not overwrite CORE=false when filling missing modules"
+  );
+  assert.strictEqual(
+    emptyStore.rows.find((r) => r.schoolId === SCHOOL_A && r.module === "PAYROLL")!.enabled,
+    true
+  );
+  // Restore Full for subsequent toggle tests
+  for (const row of emptyStore.rows.filter((r) => r.schoolId === SCHOOL_A)) {
+    row.enabled = true;
+  }
+  // --- Accounting / Payroll / CORE toggles + 000 rejection ---
   const toggled = await updateSchoolModuleEntitlements({
     schoolId: SCHOOL_A,
     accounting: false,
@@ -291,6 +325,156 @@ async function main() {
   assert.strictEqual(await isSchoolModuleEnabled(SCHOOL_A, "CORE"), true);
   assert.strictEqual(await isSchoolModuleEnabled(SCHOOL_A, "ACCOUNTING"), false);
   assert.strictEqual(await isSchoolModuleEnabled(SCHOOL_A, "PAYROLL"), false);
+  assert.strictEqual(describeModulePackageLabel(toggled), "Core");
+
+  // ensure must NOT overwrite explicit CORE=false
+  await updateSchoolModuleEntitlements({
+    schoolId: SCHOOL_A,
+    core: false,
+    accounting: true,
+    actor: { userId: SUPER_ADMIN_USER_ID, email: "info@educlear.co.za" },
+  });
+  assert.strictEqual(await isSchoolModuleEnabled(SCHOOL_A, "CORE"), false);
+  assert.strictEqual(await isSchoolModuleEnabled(SCHOOL_A, "ACCOUNTING"), true);
+  await ensureSchoolModuleEntitlements(SCHOOL_A);
+  assert.strictEqual(await isSchoolModuleEnabled(SCHOOL_A, "CORE"), false, "ensure must preserve CORE=false");
+  assert.deepStrictEqual(await getSchoolModuleEntitlements(SCHOOL_A), {
+    CORE: false,
+    ACCOUNTING: true,
+    PAYROLL: false,
+  });
+  assert.strictEqual(
+    describeModulePackageLabel(await getSchoolModuleEntitlements(SCHOOL_A)),
+    "Accounting"
+  );
+
+  // Valid standalone / combo packages
+  await updateSchoolModuleEntitlements({
+    schoolId: SCHOOL_A,
+    core: false,
+    accounting: false,
+    payroll: true,
+    actor: { userId: SUPER_ADMIN_USER_ID, email: "info@educlear.co.za" },
+  });
+  assert.deepStrictEqual(await getSchoolModuleEntitlements(SCHOOL_A), {
+    CORE: false,
+    ACCOUNTING: false,
+    PAYROLL: true,
+  });
+  assert.strictEqual(describeModulePackageLabel(await getSchoolModuleEntitlements(SCHOOL_A)), "Payroll");
+
+  await updateSchoolModuleEntitlements({
+    schoolId: SCHOOL_A,
+    accounting: true,
+    actor: { userId: SUPER_ADMIN_USER_ID, email: "info@educlear.co.za" },
+  });
+  assert.deepStrictEqual(await getSchoolModuleEntitlements(SCHOOL_A), {
+    CORE: false,
+    ACCOUNTING: true,
+    PAYROLL: true,
+  });
+  assert.strictEqual(
+    describeModulePackageLabel(await getSchoolModuleEntitlements(SCHOOL_A)),
+    "Accounting + Payroll"
+  );
+
+  await updateSchoolModuleEntitlements({
+    schoolId: SCHOOL_A,
+    core: true,
+    accounting: true,
+    payroll: false,
+    actor: { userId: SUPER_ADMIN_USER_ID, email: "info@educlear.co.za" },
+  });
+  assert.strictEqual(describeModulePackageLabel(await getSchoolModuleEntitlements(SCHOOL_A)), "Core + Accounting");
+
+  await updateSchoolModuleEntitlements({
+    schoolId: SCHOOL_A,
+    accounting: false,
+    payroll: true,
+    actor: { userId: SUPER_ADMIN_USER_ID, email: "info@educlear.co.za" },
+  });
+  assert.strictEqual(describeModulePackageLabel(await getSchoolModuleEntitlements(SCHOOL_A)), "Core + Payroll");
+
+  await updateSchoolModuleEntitlements({
+    schoolId: SCHOOL_A,
+    accounting: true,
+    payroll: true,
+    actor: { userId: SUPER_ADMIN_USER_ID, email: "info@educlear.co.za" },
+  });
+  assert.strictEqual(describeModulePackageLabel(await getSchoolModuleEntitlements(SCHOOL_A)), "Full");
+
+  // Exhaustive package labels (8 combinations)
+  assert.strictEqual(
+    describeModulePackageLabel({ CORE: true, ACCOUNTING: false, PAYROLL: false }),
+    "Core"
+  );
+  assert.strictEqual(
+    describeModulePackageLabel({ CORE: false, ACCOUNTING: true, PAYROLL: false }),
+    "Accounting"
+  );
+  assert.strictEqual(
+    describeModulePackageLabel({ CORE: false, ACCOUNTING: false, PAYROLL: true }),
+    "Payroll"
+  );
+  assert.strictEqual(
+    describeModulePackageLabel({ CORE: false, ACCOUNTING: true, PAYROLL: true }),
+    "Accounting + Payroll"
+  );
+  assert.strictEqual(
+    describeModulePackageLabel({ CORE: true, ACCOUNTING: true, PAYROLL: false }),
+    "Core + Accounting"
+  );
+  assert.strictEqual(
+    describeModulePackageLabel({ CORE: true, ACCOUNTING: false, PAYROLL: true }),
+    "Core + Payroll"
+  );
+  assert.strictEqual(
+    describeModulePackageLabel({ CORE: true, ACCOUNTING: true, PAYROLL: true }),
+    "Full"
+  );
+  assert.strictEqual(
+    describeModulePackageLabel({ CORE: false, ACCOUNTING: false, PAYROLL: false }),
+    "Invalid / No modules"
+  );
+  assert.strictEqual(hasAnyCommercialModule({ CORE: false, ACCOUNTING: false, PAYROLL: false }), false);
+
+  // Core-only → CORE=false partial PATCH must reject (resulting 000)
+  await updateSchoolModuleEntitlements({
+    schoolId: SCHOOL_A,
+    core: true,
+    accounting: false,
+    payroll: false,
+    actor: { userId: SUPER_ADMIN_USER_ID, email: "info@educlear.co.za" },
+  });
+  await expectReject(
+    () =>
+      updateSchoolModuleEntitlements({
+        schoolId: SCHOOL_A,
+        core: false,
+        actor: { userId: SUPER_ADMIN_USER_ID, email: "info@educlear.co.za" },
+      }),
+    400,
+    "at least one commercial module"
+  );
+  assert.deepStrictEqual(await getSchoolModuleEntitlements(SCHOOL_A), {
+    CORE: true,
+    ACCOUNTING: false,
+    PAYROLL: false,
+  });
+
+  // Explicit 000 rejected
+  await expectReject(
+    () =>
+      updateSchoolModuleEntitlements({
+        schoolId: SCHOOL_A,
+        core: false,
+        accounting: false,
+        payroll: false,
+        actor: { userId: SUPER_ADMIN_USER_ID, email: "info@educlear.co.za" },
+      }),
+    400,
+    "at least one commercial module"
+  );
 
   const reEnabled = await updateSchoolModuleEntitlements({
     schoolId: SCHOOL_A,
@@ -312,15 +496,11 @@ async function main() {
     "actor required"
   );
 
-  assert.throws(
-    () => assertCoreNotDisabledInPatchBody({ moduleEntitlements: { CORE: false } }),
-    (err: unknown) =>
-      err instanceof SchoolModuleEntitlementError &&
-      err.statusCode === 400 &&
-      /CORE cannot be disabled/i.test(err.message)
+  assert.doesNotThrow(() =>
+    assertModuleEntitlementPatchBody({ moduleEntitlements: { CORE: false } })
   );
   assert.throws(
-    () => assertCoreNotDisabledInPatchBody({ moduleEntitlements: { FINANCE: false } }),
+    () => assertModuleEntitlementPatchBody({ moduleEntitlements: { FINANCE: false } }),
     (err: unknown) =>
       err instanceof SchoolModuleEntitlementError &&
       err.statusCode === 400 &&
@@ -328,6 +508,14 @@ async function main() {
   );
 
   // --- school isolation ---
+  // Restore A to Core+Accounting for isolation assertions (HTTP section mutates further).
+  await updateSchoolModuleEntitlements({
+    schoolId: SCHOOL_A,
+    core: true,
+    accounting: true,
+    payroll: false,
+    actor: { userId: SUPER_ADMIN_USER_ID, email: "info@educlear.co.za" },
+  });
   await ensureSchoolModuleEntitlements(SCHOOL_B);
   await updateSchoolModuleEntitlements({
     schoolId: SCHOOL_B,
@@ -377,18 +565,6 @@ async function main() {
     });
     assert.strictEqual(nonAdmin.status, 403);
 
-    const coreDisable = await fetch(`${server.baseUrl}/${SCHOOL_A}`, {
-      method: "PATCH",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${signToken(SUPER_ADMIN_USER_ID)}`,
-      },
-      body: JSON.stringify({ moduleEntitlements: { CORE: false } }),
-    });
-    assert.strictEqual(coreDisable.status, 400);
-    const coreBody = (await coreDisable.json()) as { error?: string };
-    assert.match(String(coreBody.error || ""), /CORE cannot be disabled/i);
-
     const financeReject = await fetch(`${server.baseUrl}/${SCHOOL_A}`, {
       method: "PATCH",
       headers: {
@@ -401,13 +577,52 @@ async function main() {
     const financeBody = (await financeReject.json()) as { error?: string };
     assert.match(String(financeBody.error || ""), /FINANCE is not a product module/i);
 
+    // CORE=false with ACCOUNTING still on → Accounting-only OK
+    const coreOffAccOn = await fetch(`${server.baseUrl}/${SCHOOL_A}`, {
+      method: "PATCH",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${signToken(SUPER_ADMIN_USER_ID)}`,
+      },
+      body: JSON.stringify({ moduleEntitlements: { CORE: false } }),
+    });
+    assert.strictEqual(coreOffAccOn.status, 200);
+    const coreOffBody = (await coreOffAccOn.json()) as {
+      success?: boolean;
+      moduleEntitlements?: { CORE: boolean; ACCOUNTING: boolean; PAYROLL: boolean };
+    };
+    assert.strictEqual(coreOffBody.success, true);
+    assert.deepStrictEqual(coreOffBody.moduleEntitlements, {
+      CORE: false,
+      ACCOUNTING: true,
+      PAYROLL: false,
+    });
+
+    // partial PATCH cannot produce 000 (Accounting-only → CORE stays false, ACC off)
+    const zeroReject = await fetch(`${server.baseUrl}/${SCHOOL_A}`, {
+      method: "PATCH",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${signToken(SUPER_ADMIN_USER_ID)}`,
+      },
+      body: JSON.stringify({ moduleEntitlements: { ACCOUNTING: false } }),
+    });
+    assert.strictEqual(zeroReject.status, 400);
+    const zeroBody = (await zeroReject.json()) as { error?: string };
+    assert.match(String(zeroBody.error || ""), /at least one commercial module/i);
+    assert.deepStrictEqual(await getSchoolModuleEntitlements(SCHOOL_A), {
+      CORE: false,
+      ACCOUNTING: true,
+      PAYROLL: false,
+    });
+
     const ok = await fetch(`${server.baseUrl}/${SCHOOL_A}`, {
       method: "PATCH",
       headers: {
         "Content-Type": "application/json",
         Authorization: `Bearer ${signToken(SUPER_ADMIN_USER_ID)}`,
       },
-      body: JSON.stringify({ moduleEntitlements: { ACCOUNTING: false, PAYROLL: true } }),
+      body: JSON.stringify({ moduleEntitlements: { CORE: true, ACCOUNTING: false, PAYROLL: true } }),
     });
     assert.strictEqual(ok.status, 200);
     const okBody = (await ok.json()) as {
