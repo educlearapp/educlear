@@ -13,6 +13,7 @@ import {
 import {
   postResendEmail,
 } from "./resendClient";
+import { assertOutboundEmailEnabled } from "../utils/outboundSafety";
 
 export {
   isResendNetworkUnavailableError,
@@ -602,6 +603,8 @@ export async function sendMailWithSettings(
   _row: SchoolEmailSettings,
   mail: Parameters<ReturnType<typeof nodemailer.createTransport>["sendMail"]>[0]
 ) {
+  assertOutboundEmailEnabled();
+
   if (hasResendProvider()) {
     const fallbackFrom = formatFromAddress(platformFromName(), platformFromEmail());
     const rawFrom = String(mail.from || fallbackFrom).trim() || fallbackFrom;
@@ -663,6 +666,8 @@ export async function resolveReplyToForSchoolSend(schoolId: string): Promise<str
 }
 
 export async function sendSchoolEmail(schoolId: string, input: SendSchoolEmailInput) {
+  assertOutboundEmailEnabled();
+
   await seedSchoolEmailDefaults(schoolId);
   const [row, branding] = await Promise.all([
     getSchoolEmailSettingsRow(schoolId),

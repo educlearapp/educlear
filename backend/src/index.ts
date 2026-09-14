@@ -5,7 +5,12 @@ import cors from "cors";
 
 import fs from "fs";
 import path from "path";
-import multer from "multer"; 
+import multer from "multer";
+import {
+  buildHealthResponse,
+  isCorsOriginAllowed,
+  resolveCorsAllowedOrigins,
+} from "./utils/outboundSafety"; 
 import schoolsRoutes from "./routes/schools";
 import parentsRoutes from "./routes/parents";
 import jwt from "jsonwebtoken";
@@ -235,7 +240,7 @@ app.get("/api/debug-current-server", (req, res) => {
   });
 });
 
-const PORT = 3000;
+const PORT = Number(process.env.PORT) || 3000;
 
 
 
@@ -250,25 +255,18 @@ app.use(express.json({ limit: "12mb" }));
 app.use("/uploads/school-logos", express.static(persistentSchoolLogoDir));
 app.use("/uploads/school-logos", express.static(legacySchoolLogoDir));
 app.use("/uploads", express.static(path.join(process.cwd(), "uploads")));
+
+/** Liveness probe for Render / deploy scripts — no secrets or diagnostics. */
+app.get("/api/health", (_req, res) => {
+  res.status(200).json(buildHealthResponse());
+});
+
 const corsOptions: cors.CorsOptions = {
   origin: (origin, callback) => {
-    const allowedOrigins = [
-      "http://localhost:5173",
-      "http://localhost:5174",
-      "http://localhost:5175",
-      "https://educlear-frontend.onrender.com",
-      "https://educlear.co.za",
-      "https://www.educlear.co.za",
-    ];
-
+    const allowedOrigins = resolveCorsAllowedOrigins();
     const isDev = process.env.NODE_ENV !== "production";
-    const isPrivateLanOrigin =
-      typeof origin === "string" &&
-      /^https?:\/\/(192\.168\.\d{1,3}\.\d{1,3}|10\.\d{1,3}\.\d{1,3}\.\d{1,3}|172\.(1[6-9]|2\d|3[01])\.\d{1,3}\.\d{1,3})(:\d+)?$/.test(
-        origin
-      );
 
-    if (!origin || allowedOrigins.includes(origin) || (isDev && isPrivateLanOrigin)) {
+    if (isCorsOriginAllowed(origin, allowedOrigins, { isDev })) {
       callback(null, true);
     } else {
       console.log("Blocked by CORS:", origin);

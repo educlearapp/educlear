@@ -1,4 +1,8 @@
 import { redactSensitiveValues } from "../utils/secretCrypto";
+import {
+  assertOutboundSmsEnabled,
+  OutboundSmsDisabledError,
+} from "../utils/outboundSafety";
 
 const WINSMS_BASE_URL =
   String(process.env.WINSMS_API_BASE_URL || "https://www.winsms.co.za/api/rest/v1").replace(/\/$/, "");
@@ -41,6 +45,15 @@ async function winSmsRequest<T extends WinSmsApiResponse>(
   path: string,
   body?: unknown
 ): Promise<T> {
+  try {
+    assertOutboundSmsEnabled();
+  } catch (error) {
+    if (error instanceof OutboundSmsDisabledError) {
+      throw new WinSmsApiError(error.message, 503);
+    }
+    throw error;
+  }
+
   const key = String(apiKey || "").trim();
   if (!key) {
     throw new WinSmsApiError("WinSMS API key is required", 400);

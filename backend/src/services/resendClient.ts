@@ -5,6 +5,7 @@
 
 import https from "node:https";
 import { URL } from "node:url";
+import { assertOutboundEmailEnabled } from "../utils/outboundSafety";
 
 export const RESEND_EMAIL_API_URL = "https://api.resend.com/emails";
 export const RESEND_ATTEMPT_TIMEOUT_MS = 15_000;
@@ -301,6 +302,8 @@ export function formatResendHttpError(status: number, body: string): string {
  * Production uses IPv4-only HTTPS; injected fetchImpl (tests) is unchanged.
  */
 export async function postResendEmail(opts: ResendPostOptions): Promise<ResendSendResult> {
+  assertOutboundEmailEnabled();
+
   const fetchImplProvided = Boolean(opts.fetchImpl);
   const fetchImpl = opts.fetchImpl || globalThis.fetch;
   const useIpv4Transport = shouldUseResendIpv4Transport(fetchImpl, fetchImplProvided);

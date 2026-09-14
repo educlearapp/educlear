@@ -21,6 +21,10 @@ import {
   sanitizeEmployeesForModule,
   stripPayrollFieldsFromWriteData,
 } from "../services/employeeModuleFieldPolicy";
+import {
+  isOutboundEmailDisabled,
+  OUTBOUND_EMAIL_DISABLED_MESSAGE,
+} from "../utils/outboundSafety";
 
 
 
@@ -34,6 +38,7 @@ const prisma = new PrismaClient();
 router.use(payrollEduClockImportRoutes);
 
 function createMailTransport(): nodemailer.Transporter | null {
+  if (isOutboundEmailDisabled()) return null;
   const host = process.env.SMTP_HOST?.trim();
   if (!host) return null;
   const port = Number(process.env.SMTP_PORT || "587");
@@ -46,6 +51,11 @@ function createMailTransport(): nodemailer.Transporter | null {
     secure,
     auth: user && pass ? { user, pass: String(pass) } : undefined,
   });
+}
+
+function outboundEmailUnavailableMessage(): string {
+  if (isOutboundEmailDisabled()) return OUTBOUND_EMAIL_DISABLED_MESSAGE;
+  return "Email is not configured. Set SMTP_HOST (and SMTP_USER / SMTP_PASS if required) on the server.";
 }
 
 // ===== TAX CALCULATION (SARS 2025/2026 - simplified) =====
@@ -762,7 +772,7 @@ router.post("/email-payslip", requireSchoolModule("PAYROLL"), async (req, res) =
     const transport = createMailTransport();
     if (!transport) {
       return res.status(503).json({
-        error: "Email is not configured. Set SMTP_HOST (and SMTP_USER / SMTP_PASS if required) on the server.",
+        error: outboundEmailUnavailableMessage(),
       });
     }
 
@@ -859,7 +869,7 @@ router.post("/email-bookkeeper-report", requireSchoolModule("PAYROLL"), async (r
     const transport = createMailTransport();
     if (!transport) {
       return res.status(503).json({
-        error: "Email is not configured. Set SMTP_HOST (and SMTP_USER / SMTP_PASS if required) on the server.",
+        error: outboundEmailUnavailableMessage(),
       });
     }
 
