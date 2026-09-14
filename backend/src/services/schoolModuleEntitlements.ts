@@ -62,22 +62,29 @@ export async function ensureSchoolModuleEntitlements(schoolId: string): Promise<
   const id = String(schoolId || "").trim();
   if (!id) throw new SchoolModuleEntitlementError("Missing schoolId", 400);
 
-  const existing = await prisma.schoolModuleEntitlement.findMany({
-    where: { schoolId: id },
-    select: { module: true },
-  });
-  const have = new Set(existing.map((row) => row.module));
-  const missing = PRODUCT_MODULES.filter((module) => !have.has(module));
-  if (!missing.length) return;
+  try {
+    const existing = await prisma.schoolModuleEntitlement.findMany({
+      where: { schoolId: id },
+      select: { module: true },
+    });
+    const have = new Set(existing.map((row) => row.module));
+    const missing = PRODUCT_MODULES.filter((module) => !have.has(module));
+    if (!missing.length) return;
 
-  await prisma.schoolModuleEntitlement.createMany({
-    data: missing.map((module) => ({
-      schoolId: id,
-      module,
-      enabled: true,
-    })),
-    skipDuplicates: true,
-  });
+    await prisma.schoolModuleEntitlement.createMany({
+      data: missing.map((module) => ({
+        schoolId: id,
+        module,
+        enabled: true,
+      })),
+      skipDuplicates: true,
+    });
+  } catch (error) {
+    console.warn(
+      "[schoolModuleEntitlements] ensureSchoolModuleEntitlements skipped after error:",
+      error instanceof Error ? error.message : error
+    );
+  }
 }
 
 /** Read entitlements for a school. Ensures default all-on rows if any are missing. */
@@ -109,15 +116,30 @@ export async function isSchoolModuleEnabled(
     throw new SchoolModuleEntitlementError(`Unknown product module: ${module}`, 400);
   }
 
-  const row = await prisma.schoolModuleEntitlement.findUnique({
-    where: {
-      schoolId_module: { schoolId: id, module: moduleKey },
-    },
-    select: { enabled: true },
-  });
+  try {
+    const row = await prisma.schoolModuleEntitlement.findUnique({
+      where: {
+        schoolId_module: { schoolId: id, module: moduleKey },
+      },
+      select: { enabled: true },
+    });
 
-  if (!row) return true;
-  return row.enabled === true;
+    if (!row) return true;
+    return row.enabled === true;
+  } catch (error) {
+    // Pre-migration / missing table: fail-open so Core Billing and employee CRUD stay available.
+    const code =
+      error && typeof error === "object" && "code" in error
+        ? String((error as { code?: string }).code || "")
+        : "";
+    if (code !== "P2021") {
+      console.warn(
+        "[schoolModuleEntitlements] isSchoolModuleEnabled fail-open after read error:",
+        error instanceof Error ? error.message : error
+      );
+    }
+    return true;
+  }
 }
 
 export type UpdateSchoolModuleEntitlementsInput = {

@@ -1,5 +1,6 @@
 /**
  * Owner-only EduClock → Payroll import routes + finalize/reopen.
+ * PAYROLL module entitlement required (Phase 2). EduClock itself remains CORE.
  */
 import { Router, type Request, type Response } from "express";
 import {
@@ -7,6 +8,7 @@ import {
   loadStaffSchoolAuth,
   type StaffSchoolAuth,
 } from "../middleware/requireOwnerSchoolAccess";
+import { requireSchoolModule } from "../middleware/requireSchoolModule";
 import { prisma } from "../prisma";
 import {
   confirmEduClockImport,
@@ -22,6 +24,8 @@ import {
 } from "../services/payrollRunLockService";
 
 const router = Router();
+
+router.use(requireSchoolModule("PAYROLL"));
 
 type AuthedRequest = Request & { ownerAuth?: StaffSchoolAuth };
 

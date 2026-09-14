@@ -9,10 +9,18 @@ import {
   evaluateOwnerSchoolAuth,
   loadStaffSchoolAuth,
 } from "../middleware/requireOwnerSchoolAccess";
+import { requireSchoolModule } from "../middleware/requireSchoolModule";
 import {
   createEmployeeAllocatingNumber,
   isAutoAssignEmployeeNumberRequest,
 } from "../services/allocateEmployeeNumber";
+import {
+  assertNoPayrollMutationWhenDisabled,
+  resolvePayrollModuleEnabled,
+  sanitizeEmployeeForModule,
+  sanitizeEmployeesForModule,
+  stripPayrollFieldsFromWriteData,
+} from "../services/employeeModuleFieldPolicy";
 
 
 
@@ -153,17 +161,34 @@ router.post("/employee", async (req, res) => {
       return res.status(400).json({ error: "schoolId is required" });
     }
 
-    const autoAssign = isAutoAssignEmployeeNumberRequest(req.body as Record<string, unknown>);
+    const sid = String(schoolId);
+    const payrollEnabled = await resolvePayrollModuleEnabled(sid);
+    const bodyRecord = req.body as Record<string, unknown>;
+    const payrollViolation = assertNoPayrollMutationWhenDisabled(bodyRecord, payrollEnabled);
+    if (payrollViolation) {
+      return res.status(403).json({
+        success: false,
+        error: payrollViolation.error,
+        message: payrollViolation.error,
+        code: payrollViolation.code,
+        module: payrollViolation.module,
+        fields: payrollViolation.fields,
+      });
+    }
+
+    const autoAssign = isAutoAssignEmployeeNumberRequest(bodyRecord);
     const bodyForCreate = autoAssign
-      ? { ...(req.body as Record<string, unknown>), employeeNumber: undefined }
-      : (req.body as Record<string, unknown>);
-    const data = buildEmployeeData(bodyForCreate);
+      ? { ...bodyRecord, employeeNumber: undefined }
+      : bodyRecord;
+    const data = stripPayrollFieldsFromWriteData(
+      buildEmployeeData(bodyForCreate) as Record<string, unknown>,
+      payrollEnabled
+    );
 
     if (!data.firstName || !data.lastName) {
       return res.status(400).json({ error: "firstName and lastName are required" });
     }
 
-    const sid = String(schoolId);
     const employee = autoAssign
       ? await createEmployeeAllocatingNumber(
           sid,
@@ -182,7 +207,7 @@ router.post("/employee", async (req, res) => {
 
 
 
-    res.json(employee);
+    res.json(sanitizeEmployeeForModule(employee as Record<string, unknown>, payrollEnabled));
 
 
 
@@ -232,22 +257,59 @@ router.put("/employee/:id", async (req, res) => {
       return res.status(404).json({ error: "Employee not found" });
     }
 
-    const data = buildEmployeeData(req.body);
+    const payrollEnabled = await resolvePayrollModuleEnabled(String(schoolId));
+    const bodyRecord = req.body as Record<string, unknown>;
+    const payrollViolation = assertNoPayrollMutationWhenDisabled(bodyRecord, payrollEnabled);
+    if (payrollViolation) {
+      return res.status(403).json({
+        success: false,
+        error: payrollViolation.error,
+        message: payrollViolation.error,
+        code: payrollViolation.code,
+        module: payrollViolation.module,
+        fields: payrollViolation.fields,
+      });
+    }
+
+    const data = stripPayrollFieldsFromWriteData(
+      buildEmployeeData(bodyRecord) as Record<string, unknown>,
+      payrollEnabled
+    );
 
     if (!data.firstName || !data.lastName) {
       return res.status(400).json({ error: "firstName and lastName are required" });
     }
 
-    if (isAutoAssignEmployeeNumberRequest(req.body as Record<string, unknown>)) {
+    if (isAutoAssignEmployeeNumberRequest(bodyRecord)) {
       data.employeeNumber = existing.employeeNumber;
     }
 
+    // When PAYROLL is off, only persist Core staff fields so salary/tax defaults are not wiped.
+    const coreWriteKeys = new Set([
+      "firstName",
+      "lastName",
+      "fullName",
+      "email",
+      "idNumber",
+      "mobileNumber",
+      "dateOfBirth",
+      "startDate",
+      "isActive",
+      "physicalAddress",
+      "employeeNumber",
+      "jobTitle",
+      "notes",
+    ]);
+    const finalUpdate = payrollEnabled
+      ? data
+      : Object.fromEntries(Object.entries(data).filter(([k]) => coreWriteKeys.has(k)));
+
     const employee = await prisma.employee.update({
       where: { id },
-      data: data as Prisma.EmployeeUpdateInput,
+      data: finalUpdate as Prisma.EmployeeUpdateInput,
     });
 
-    res.json(employee);
+    res.json(sanitizeEmployeeForModule(employee as Record<string, unknown>, payrollEnabled));
   } catch (error) {
     if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === "P2002") {
       return res.status(409).json({ error: "Employee number must be unique within the school" });
@@ -329,9 +391,13 @@ router.get("/employees/:schoolId", async (req, res) => {
 
     });
 
-
-
-    res.json(employees);
+    const payrollEnabled = await resolvePayrollModuleEnabled(String(schoolId));
+    res.json(
+      sanitizeEmployeesForModule(
+        employees as Array<Record<string, unknown>>,
+        payrollEnabled
+      )
+    );
 
 
 
@@ -353,10 +419,10 @@ router.get("/employees/:schoolId", async (req, res) => {
 
 });
 
-/** Summary for payslips (employer block). */
-router.get("/school/:schoolId", async (req, res) => {
+/** Summary for payslips (employer block) — PAYROLL module only. */
+router.get("/school/:schoolId", requireSchoolModule("PAYROLL"), async (req, res) => {
   try {
-    const { schoolId } = req.params;
+    const schoolId = String(req.params.schoolId || "").trim();
     const school = await prisma.school.findUnique({
       where: { id: schoolId },
       select: {
@@ -381,9 +447,9 @@ router.get("/school/:schoolId", async (req, res) => {
   }
 });
 
-/** RUN PAYROLL — owner-only; reuses an existing same-period run when present. */
+/** RUN PAYROLL — owner-only; reuses an existing same-period run when present. PAYROLL module required. */
 
-router.post("/run", async (req, res) => {
+router.post("/run", requireSchoolModule("PAYROLL"), async (req, res) => {
   try {
     const auth = await loadStaffSchoolAuth(req.headers.authorization);
     const decision = evaluateOwnerSchoolAuth({
@@ -673,7 +739,7 @@ router.post("/run", async (req, res) => {
  * Body: { schoolId, employeeId, pdfBase64, fileName?, periodLabel?, employeeName? }
  * Sends the payslip PDF to the employee email on file (never a client-supplied address).
  */
-router.post("/email-payslip", async (req, res) => {
+router.post("/email-payslip", requireSchoolModule("PAYROLL"), async (req, res) => {
   try {
     const body = req.body || {};
     const schoolId = typeof body.schoolId === "string" ? body.schoolId : "";
@@ -767,7 +833,7 @@ router.post("/email-payslip", async (req, res) => {
  * Body: { schoolId, bookkeeperEmail, pdfBase64, fileName?, periodLabel? }
  * Attaches the client-generated bookkeeper PDF (same content as download).
  */
-router.post("/email-bookkeeper-report", async (req, res) => {
+router.post("/email-bookkeeper-report", requireSchoolModule("PAYROLL"), async (req, res) => {
   try {
     const body = req.body || {};
     const schoolId = typeof body.schoolId === "string" ? body.schoolId : "";

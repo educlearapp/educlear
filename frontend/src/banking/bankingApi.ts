@@ -1,4 +1,5 @@
 import { API_URL } from "../api";
+import { staffAuthHeaders } from "../auth/staffAuthHeaders";
 
 const BASE = `${API_URL}/api/banking`;
 
@@ -116,7 +117,11 @@ export async function importBankStatement(
   form.append("file", file);
   if (uploadedBy?.trim()) form.append("uploadedBy", uploadedBy.trim());
   if (suppliers?.length) form.append("suppliers", JSON.stringify(suppliers));
-  const res = await fetch(`${BASE}/import`, { method: "POST", body: form });
+  const res = await fetch(`${BASE}/import`, {
+    method: "POST",
+    headers: { ...staffAuthHeaders() },
+    body: form,
+  });
   return parseJson(res) as Promise<{
     success: boolean;
     import: BankImportRecord;
@@ -126,14 +131,18 @@ export async function importBankStatement(
 }
 
 export async function fetchBankImports(schoolId: string) {
-  const res = await fetch(`${BASE}/imports?schoolId=${encodeURIComponent(schoolId)}`);
+  const res = await fetch(`${BASE}/imports?schoolId=${encodeURIComponent(schoolId)}`, {
+    headers: { ...staffAuthHeaders() },
+  });
   return parseJson(res) as Promise<{ success: boolean; imports: BankImportRecord[] }>;
 }
 
 export async function fetchBankingStats(schoolId: string, importId?: string) {
   const params = new URLSearchParams({ schoolId });
   if (importId) params.set("importId", importId);
-  const res = await fetch(`${BASE}/stats?${params.toString()}`);
+  const res = await fetch(`${BASE}/stats?${params.toString()}`, {
+    headers: { ...staffAuthHeaders() },
+  });
   return parseJson(res) as Promise<{ success: boolean; stats: BankingStats }>;
 }
 
@@ -144,13 +153,16 @@ export async function fetchBankTransactions(
   const params = new URLSearchParams({ schoolId });
   if (options?.importId) params.set("importId", options.importId);
   if (options?.matchStatus) params.set("matchStatus", options.matchStatus);
-  const res = await fetch(`${BASE}/transactions?${params.toString()}`);
+  const res = await fetch(`${BASE}/transactions?${params.toString()}`, {
+    headers: { ...staffAuthHeaders() },
+  });
   return parseJson(res) as Promise<{ success: boolean; transactions: BankTransactionRow[] }>;
 }
 
 export async function fetchBankImport(schoolId: string, importId: string) {
   const res = await fetch(
-    `${BASE}/imports/${encodeURIComponent(importId)}?schoolId=${encodeURIComponent(schoolId)}`
+    `${BASE}/imports/${encodeURIComponent(importId)}?schoolId=${encodeURIComponent(schoolId)}`,
+    { headers: { ...staffAuthHeaders() } }
   );
   return parseJson(res) as Promise<{
     success: boolean;
@@ -172,7 +184,7 @@ export async function patchBankTransaction(
       `${BASE}/imports/${encodeURIComponent(importId)}/transaction/${encodeURIComponent(transactionId)}`,
       {
         method: "PATCH",
-        headers: { "Content-Type": "application/json" },
+        headers: { ...staffAuthHeaders(), "Content-Type": "application/json" },
         body: JSON.stringify({ schoolId, ...payload }),
       }
     );
@@ -201,7 +213,7 @@ export async function postAcceptedBankPayments(
   try {
     const res = await fetch(`${BASE}/imports/${encodeURIComponent(importId)}/post-payments`, {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers: { ...staffAuthHeaders(), "Content-Type": "application/json" },
       body: JSON.stringify({ schoolId, transactionIds }),
     });
     const data = (await parseJson(res)) as {
