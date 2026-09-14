@@ -157,12 +157,12 @@ function main() {
   assert.strictEqual(requiredModuleForSchoolPage("employees"), null);
   assert.strictEqual(requiredModuleForSchoolPage("accountingBanking"), null);
 
-  // Core-dependent Accounting pages need CORE && ACCOUNTING
+  // Phase 5C: ACCOUNTING_CORE_DEPENDENT was multi-page; Phase 5D unlocks FS/Reports/Audit/Export.
   for (const page of ACCOUNTING_CORE_DEPENDENT_PAGES) {
     assert.strictEqual(
       isSchoolPageModuleEntitled(page, MODULE_PRESETS.ACCOUNTING_ONLY),
       false,
-      `${page} unsafe without CORE`
+      `${page} still requires CORE (school-fee AR)`
     );
     assert.strictEqual(
       isSchoolPageModuleEntitled(page, MODULE_PRESETS.CORE_ACCOUNTING),

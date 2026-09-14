@@ -39,6 +39,7 @@ import {
   type AccountingExportPayload,
   type ExportReportType,
 } from "./accountingExportEngine";
+import { isAccountingCoreBillingEnabled, isCoreOnlyExportType } from "./accountingCoreUi";
 
 export type CollectExportInput = {
   schoolId: string;
@@ -48,6 +49,8 @@ export type CollectExportInput = {
   reportingBasis: ReportingBasis;
   year: number;
   monthIndex: number;
+  /** When false, skip school-fee / FamilyAccount collectors. Defaults from entitlements. */
+  coreBillingEnabled?: boolean;
 };
 
 function statementTypeForReport(reportType: ExportReportType): StatementType {
@@ -80,6 +83,10 @@ function reportTitleForType(reportType: ExportReportType): string {
 
 export function collectAccountingExportPayload(input: CollectExportInput): AccountingExportPayload {
   const { schoolId, learners, reportType, reportingBasis, year, monthIndex } = input;
+  const coreBillingEnabled =
+    input.coreBillingEnabled !== undefined
+      ? input.coreBillingEnabled
+      : isAccountingCoreBillingEnabled();
   const period = resolveReportingPeriod(reportingBasis, year, monthIndex);
   const periodLabel = period.label;
   const generatedAt = new Date().toLocaleString("en-ZA");
@@ -87,8 +94,19 @@ export function collectAccountingExportPayload(input: CollectExportInput): Accou
   const title = reportTitleForType(reportType);
   const sid = String(schoolId || "").trim();
 
+  if (isCoreOnlyExportType(reportType) && !coreBillingEnabled) {
+    return payloadFromTable(
+      branding,
+      title,
+      periodLabel,
+      generatedAt,
+      { columns: ["Note"], rows: [["This export requires EduClear Core (school-fee Billing)."]] },
+      [{ label: "Module", value: "Core required" }]
+    );
+  }
+
   if (reportType === "audit-pack") {
-    const statementRows = sid ? getBillingRows(learners, sid) : [];
+    const statementRows = sid && coreBillingEnabled ? getBillingRows(learners, sid) : [];
     const outstanding = statementRows
       .filter((r) => Number(r.balance) > 0)
       .reduce((s, r) => s + Number(r.balance), 0);
@@ -97,12 +115,14 @@ export function collectAccountingExportPayload(input: CollectExportInput): Accou
     const activeAssets = assets.filter((a) => a.status !== "Disposed");
     const creditorTotals = sid ? calculateCreditorTotals(sid, period.endDate) : null;
     const details = [
-      `Income Statement — billing and expenses data for ${periodLabel}`,
+      `Income Statement — ${coreBillingEnabled ? `billing and expenses data for ${periodLabel}` : `Accounting expenses for ${periodLabel} (fee income requires Core)`}`,
       `Balance Sheet — includes fixed assets from register`,
       `Trial Balance — available via Financial Statements`,
       `General Ledger — ${journals.journals.length} journal(s) on file`,
       `Journals — ${journals.journals.filter((j) => j.status === "Posted").length} posted`,
-      `Debtors Ageing — ${formatMoney(outstanding)} outstanding`,
+      coreBillingEnabled
+        ? `Debtors Ageing — ${formatMoney(outstanding)} outstanding`
+        : "Debtors Ageing — requires EduClear Core",
       creditorTotals
         ? `Creditors Ageing — ${formatMoney(creditorTotals.supplierPayables)} payables`
         : "Creditors Ageing — no creditor data",
@@ -122,7 +142,7 @@ export function collectAccountingExportPayload(input: CollectExportInput): Accou
     reportType === "trial-balance"
   ) {
     const stmt = statementTypeForReport(reportType);
-    const report = buildFinancialReport(sid, learners, period);
+    const report = buildFinancialReport(sid, learners, period, { coreBillingEnabled });
     const fullDocumentHtml = buildPrintHtml({
       schoolName: branding.schoolName,
       periodLabel,
