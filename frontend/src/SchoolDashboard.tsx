@@ -106,12 +106,18 @@ import { isSuperAdmin } from "./auth/roles";
 import {
   canAccessSchoolPage,
   canViewAnySchoolPage,
+  evaluateSchoolPageAccess,
   findFirstAllowedSchoolPage,
 } from "./auth/schoolAccess";
 import {
+  discardEntitlementsIfSchoolMismatch,
+  getSchoolModuleEntitlements,
+  hasSchoolModule,
+  type SchoolModuleEntitlements,
+} from "./modules/schoolModuleEntitlements";
+import {
   getSchoolSessionUser,
   syncSchoolSessionFromLoginResponse,
-  USER_PERMISSIONS_STORAGE_KEY,
 } from "./auth/schoolSession";
 import DashboardPackagePanel from "./subscriptions/DashboardPackagePanel";
 import { API_URL, apiFetch } from "./api";
@@ -591,7 +597,13 @@ const schoolId =
   const BLACK = "#050505";
 
   const schoolSessionUser = getSchoolSessionUser();
-  const canPage = (page: PageKey) => canAccessSchoolPage(page, schoolSessionUser);
+  const [moduleEntitlements, setModuleEntitlements] = useState<SchoolModuleEntitlements>(() =>
+    getSchoolModuleEntitlements()
+  );
+  const canPage = (page: PageKey) =>
+    canAccessSchoolPage(page, schoolSessionUser, moduleEntitlements);
+  const hasAccountingModule = hasSchoolModule("ACCOUNTING", moduleEntitlements);
+  const hasPayrollModule = hasSchoolModule("PAYROLL", moduleEntitlements);
 
 
 
@@ -610,6 +622,7 @@ const schoolId =
   const [billingOpen, setBillingOpen] = useState(true);
   const [billingMoreOpen, setBillingMoreOpen] = useState(false);
   const [accountingOpen, setAccountingOpen] = useState(false);
+  const [payrollOpen, setPayrollOpen] = useState(false);
 
   const [communicationOpen, setCommunicationOpen] = useState(false);
   const [communicationMoreOpen, setCommunicationMoreOpen] = useState(false);
@@ -1239,10 +1252,20 @@ const [selectedLearnerReport, setSelectedLearnerReport] = useState<any>(null);
   useEffect(() => {
     const token = localStorage.getItem("token");
     if (!token) return;
-    if (localStorage.getItem(USER_PERMISSIONS_STORAGE_KEY)) return;
+    const activeSchoolId = String(localStorage.getItem("schoolId") || "").trim();
+    discardEntitlementsIfSchoolMismatch(activeSchoolId);
+    setModuleEntitlements(getSchoolModuleEntitlements(activeSchoolId));
     apiFetch("/auth/me", { headers: { Authorization: `Bearer ${token}` } })
-      .then((data) => syncSchoolSessionFromLoginResponse(data))
-      .catch(() => {});
+      .then((data) => {
+        syncSchoolSessionFromLoginResponse(data);
+        setModuleEntitlements(getSchoolModuleEntitlements(activeSchoolId));
+      })
+      .catch(() => {
+        // Network/auth failure: drop foreign-school cache; keep same-school cache.
+        if (discardEntitlementsIfSchoolMismatch(activeSchoolId)) {
+          setModuleEntitlements(getSchoolModuleEntitlements(activeSchoolId));
+        }
+      });
   }, []);
 
   useEffect(() => {
@@ -1271,12 +1294,13 @@ const [selectedLearnerReport, setSelectedLearnerReport] = useState<any>(null);
 
   useEffect(() => {
     if (canPage(activePage)) return;
-    setActivePage(findFirstAllowedSchoolPage(schoolSessionUser) as PageKey);
-  }, [activePage]);
+    setActivePage(findFirstAllowedSchoolPage(schoolSessionUser, moduleEntitlements) as PageKey);
+  }, [activePage, moduleEntitlements]);
 
   const go = (page: PageKey) => {
-    if (!canPage(page)) {
-      window.alert("You do not have permission to access this section.");
+    const access = evaluateSchoolPageAccess(page, schoolSessionUser, moduleEntitlements);
+    if (!access.allowed) {
+      window.alert(access.message);
       return;
     }
     setActivePage(page);
@@ -1287,6 +1311,7 @@ const [selectedLearnerReport, setSelectedLearnerReport] = useState<any>(null);
       setSchoolsOpen(false);
       setBillingOpen(false);
       setAccountingOpen(false);
+      setPayrollOpen(false);
       setCommunicationOpen(false);
       if (location.pathname !== "/admin/homesafe") {
         navigate("/admin/homesafe");
@@ -1296,10 +1321,11 @@ const [selectedLearnerReport, setSelectedLearnerReport] = useState<any>(null);
 
 
     if (page === "educlock") {
-      setAccountingOpen(true);
+      setAdminOpen(true);
+      setAccountingOpen(false);
+      setPayrollOpen(false);
       setBillingOpen(false);
       setSchoolsOpen(false);
-      setAdminOpen(false);
       setCommunicationOpen(false);
       if (location.pathname !== "/dashboard/educlock") {
         navigate("/dashboard/educlock");
@@ -1307,11 +1333,18 @@ const [selectedLearnerReport, setSelectedLearnerReport] = useState<any>(null);
       return;
     }
 
+    if (page === "payroll") {
+      setPayrollOpen(true);
+      setAccountingOpen(false);
+      setBillingOpen(false);
+      setSchoolsOpen(false);
+      setAdminOpen(false);
+      setCommunicationOpen(false);
+      setCommunicationMoreOpen(false);
+    }
+
     const isAccountingPage =
-      page === "payroll" ||
-      page === "bankStatementImport" ||
       page === "accountingOverview" ||
-      page === "accountingBanking" ||
       page === "accountingExpenses" ||
       page === "accountingSuppliers" ||
       page === "accountingAssets" ||
@@ -1330,11 +1363,21 @@ const [selectedLearnerReport, setSelectedLearnerReport] = useState<any>(null);
 
     if (isAccountingPage) {
       setAccountingOpen(true);
+      setPayrollOpen(false);
       setBillingOpen(false);
       setSchoolsOpen(false);
       setAdminOpen(false);
       setCommunicationOpen(false);
       setCommunicationMoreOpen(false);
+    }
+
+    if (page === "accountingBanking" || page === "bankStatementImport") {
+      setBillingOpen(true);
+      setAccountingOpen(false);
+      setPayrollOpen(false);
+      setSchoolsOpen(false);
+      setAdminOpen(false);
+      setCommunicationOpen(false);
     }
 
     if (
@@ -1349,6 +1392,7 @@ const [selectedLearnerReport, setSelectedLearnerReport] = useState<any>(null);
       setAdminOpen(false);
       setBillingOpen(false);
       setAccountingOpen(false);
+      setPayrollOpen(false);
     }
 
     if (page === "billingDeposits" || page === "billingSettings" || page === "financeHub" || page === "financeCollections" || page === "outstandingAccounts") {
@@ -1357,6 +1401,7 @@ const [selectedLearnerReport, setSelectedLearnerReport] = useState<any>(null);
       setSchoolsOpen(false);
       setAdminOpen(false);
       setAccountingOpen(false);
+      setPayrollOpen(false);
       setCommunicationOpen(false);
     }
 
@@ -2257,7 +2302,7 @@ const [selectedLearnerReport, setSelectedLearnerReport] = useState<any>(null);
 
     if (path === "/admin/homesafe" || path === "/admin/homesafe/") {
       if (!canPage("homesafe")) {
-        setActivePage(findFirstAllowedSchoolPage(schoolSessionUser) as PageKey);
+        setActivePage(findFirstAllowedSchoolPage(schoolSessionUser, moduleEntitlements) as PageKey);
         navigate("/dashboard", { replace: true });
         return;
       }
@@ -2270,14 +2315,15 @@ const [selectedLearnerReport, setSelectedLearnerReport] = useState<any>(null);
 
     if (path === "/dashboard/educlock" || path === "/dashboard/educlock/") {
       if (!canPage("educlock")) {
-        setActivePage(findFirstAllowedSchoolPage(schoolSessionUser) as PageKey);
+        setActivePage(findFirstAllowedSchoolPage(schoolSessionUser, moduleEntitlements) as PageKey);
         navigate("/dashboard", { replace: true });
         return;
       }
-      setAccountingOpen(true);
+      setAdminOpen(true);
+      setAccountingOpen(false);
+      setPayrollOpen(false);
       setBillingOpen(false);
       setSchoolsOpen(false);
-      setAdminOpen(false);
       setCommunicationOpen(false);
       setActivePage("educlock");
       return;
@@ -2293,7 +2339,7 @@ const [selectedLearnerReport, setSelectedLearnerReport] = useState<any>(null);
 
     if (path === "/dashboard/billing/fees" || path === "/dashboard/billing/fees/") {
       if (!canPage("fees")) {
-        setActivePage(findFirstAllowedSchoolPage(schoolSessionUser) as PageKey);
+        setActivePage(findFirstAllowedSchoolPage(schoolSessionUser, moduleEntitlements) as PageKey);
         navigate("/dashboard");
         return;
       }
@@ -9489,7 +9535,7 @@ if (schoolId) {
   
   
   
-              <th style={th}>Payroll</th>
+              <th style={th}>Active</th>
   
   
   
@@ -9629,7 +9675,7 @@ if (schoolId) {
   
   
   
-                        {employee.payrollEnabled ? "Enabled" : "Not enabled"}
+                        {employee.payrollEnabled ? "Active" : "Inactive"}
   
   
   
@@ -10160,7 +10206,7 @@ if (schoolId) {
   
   
   
-              {tabButton("payroll", "Payroll")}
+              {hasPayrollModule ? tabButton("payroll", "Payroll") : null}
   
   
   
@@ -10332,7 +10378,7 @@ if (schoolId) {
   
   
   
-              {employeeTab === "payroll" && (
+              {employeeTab === "payroll" && hasPayrollModule && (
   
   
   
@@ -10340,7 +10386,7 @@ if (schoolId) {
   
   
   
-                  <label style={labelStyle}>Payroll Enabled</label>
+                  <label style={labelStyle}>Staff Active</label>
   
   
   
@@ -10508,7 +10554,7 @@ if (schoolId) {
   
   
   
-                ["Payroll", employeeDraft.payrollEnabled ?? employee.payrollEnabled ? "Enabled" : "Not enabled"],
+                ["Staff Active", employeeDraft.payrollEnabled ?? employee.payrollEnabled ? "Active" : "Inactive"],
   
   
   
@@ -16107,19 +16153,24 @@ const [invoiceRunEmailDraft, setInvoiceRunEmailDraft] = useState({
 
 
   const renderPage = () => {
-    if (!canPage(activePage)) {
+    const pageAccess = evaluateSchoolPageAccess(activePage, schoolSessionUser, moduleEntitlements);
+    if (!pageAccess.allowed) {
+      const isModule = pageAccess.reason === "module";
       return (
         <div style={{ padding: "32px", maxWidth: "560px" }}>
-          <h1 className="page-title">Access restricted</h1>
+          <h1 className="page-title">{isModule ? "Module not included" : "Access restricted"}</h1>
           <p style={{ color: "#64748b", marginTop: "8px" }}>
-            Your account does not have permission to open this section. Contact your school owner if
-            you need access.
+            {isModule
+              ? pageAccess.message
+              : "Your account does not have permission to open this section. Contact your school owner if you need access."}
           </p>
           <button
             type="button"
             className="profile-btn"
             style={{ marginTop: "16px" }}
-            onClick={() => setActivePage(findFirstAllowedSchoolPage(schoolSessionUser) as PageKey)}
+            onClick={() =>
+              setActivePage(findFirstAllowedSchoolPage(schoolSessionUser, moduleEntitlements) as PageKey)
+            }
           >
             Go to allowed page
           </button>
@@ -17556,6 +17607,10 @@ return (
                 <div className={`submenu-item ${activePage === "homesafe" ? "active" : ""}`} onClick={() => go("homesafe")}>HomeSafe</div>
                 ) : null}
 
+                {canPage("educlock") ? (
+                <div className={`submenu-item ${activePage === "educlock" ? "active" : ""}`} onClick={() => go("educlock")}>EduClock</div>
+                ) : null}
+
                 {canPage("incidents") ? (
                 <div className={`submenu-item ${activePage === "incidents" ? "active" : ""}`} onClick={() => go("incidents")}>Incidents</div>
                 ) : null}
@@ -17631,6 +17686,7 @@ return (
                 setSchoolsOpen(false);
                 setAdminOpen(false);
                 setAccountingOpen(false);
+                setPayrollOpen(false);
               }}
   
   
@@ -17689,6 +17745,15 @@ return (
                   onClick={() => go("payments")}
                 >
                   Payments
+                </div>
+                ) : null}
+
+                {canPage("accountingBanking") ? (
+                <div
+                  className={`submenu-item ${activePage === "accountingBanking" || activePage === "bankStatementImport" ? "active" : ""}`}
+                  onClick={() => go("accountingBanking")}
+                >
+                  Banking
                 </div>
                 ) : null}
 
@@ -17799,11 +17864,61 @@ return (
           </div>
           ) : null}
 
+          {canPage("payroll") ? (
+          <div className="main-section">
+            <div
+              className="section-header"
+              onClick={() => {
+                setPayrollOpen(!payrollOpen);
+                setAccountingOpen(false);
+                setBillingOpen(false);
+                setSchoolsOpen(false);
+                setAdminOpen(false);
+                setCommunicationOpen(false);
+              }}
+            >
+              <div className="section-left">
+                <span className="menu-icon">◈</span>
+                <span>Payroll</span>
+              </div>
+              <span className={`chevron ${payrollOpen ? "open" : ""}`}>⌄</span>
+            </div>
+            {payrollOpen && (
+              <div className="submenu">
+                <div className={`submenu-item ${activePage === "payroll" ? "active" : ""}`} onClick={() => go("payroll")}>Payroll</div>
+              </div>
+            )}
+          </div>
+          ) : null}
+
+          {hasAccountingModule && canViewAnySchoolPage(
+            [
+              "accountingOverview",
+              "accountingExpenses",
+              "accountingSuppliers",
+              "accountingAssets",
+              "accountingJournals",
+              "accountingGeneralLedger",
+              "accountingChartOfAccounts",
+              "accountingBudget",
+              "accountingFinancialStatements",
+              "accountingReports",
+              "accountingDebtorsAgeing",
+              "accountingCreditorsAgeing",
+              "accountingSupplierInvoices",
+              "accountingAuditCompliance",
+              "accountingExportCenter",
+              "accountingSettings",
+            ],
+            schoolSessionUser,
+            moduleEntitlements
+          ) ? (
           <div className="main-section">
             <div
               className="section-header"
               onClick={() => {
                 setAccountingOpen(!accountingOpen);
+                setPayrollOpen(false);
                 setBillingOpen(false);
                 setSchoolsOpen(false);
                 setAdminOpen(false);
@@ -17818,35 +17933,58 @@ return (
             </div>
             {accountingOpen && (
               <div className="submenu">
+                {canPage("accountingOverview") ? (
                 <div className={`submenu-item ${activePage === "accountingOverview" ? "active" : ""}`} onClick={() => go("accountingOverview")}>Overview</div>
-                <div
-                  className={`submenu-item ${activePage === "accountingBanking" || activePage === "bankStatementImport" ? "active" : ""}`}
-                  onClick={() => go("accountingBanking")}
-                >
-                  Banking
-                </div>
-                <div className={`submenu-item ${activePage === "payroll" ? "active" : ""}`} onClick={() => go("payroll")}>Payroll</div>
-                {canPage("educlock") ? (
-                <div className={`submenu-item ${activePage === "educlock" ? "active" : ""}`} onClick={() => go("educlock")}>EduClock</div>
                 ) : null}
+                {canPage("accountingExpenses") ? (
                 <div className={`submenu-item ${activePage === "accountingExpenses" ? "active" : ""}`} onClick={() => go("accountingExpenses")}>Expenses</div>
+                ) : null}
+                {canPage("accountingSuppliers") ? (
                 <div className={`submenu-item ${activePage === "accountingSuppliers" ? "active" : ""}`} onClick={() => go("accountingSuppliers")}>Suppliers</div>
+                ) : null}
+                {canPage("accountingAssets") ? (
                 <div className={`submenu-item ${activePage === "accountingAssets" ? "active" : ""}`} onClick={() => go("accountingAssets")}>Assets</div>
+                ) : null}
+                {canPage("accountingJournals") ? (
                 <div className={`submenu-item ${activePage === "accountingJournals" ? "active" : ""}`} onClick={() => go("accountingJournals")}>Journals</div>
+                ) : null}
+                {canPage("accountingGeneralLedger") ? (
                 <div className={`submenu-item ${activePage === "accountingGeneralLedger" ? "active" : ""}`} onClick={() => go("accountingGeneralLedger")}>General Ledger</div>
+                ) : null}
+                {canPage("accountingChartOfAccounts") ? (
                 <div className={`submenu-item ${activePage === "accountingChartOfAccounts" ? "active" : ""}`} onClick={() => go("accountingChartOfAccounts")}>Chart of Accounts</div>
+                ) : null}
+                {canPage("accountingBudget") ? (
                 <div className={`submenu-item ${activePage === "accountingBudget" ? "active" : ""}`} onClick={() => go("accountingBudget")}>Budget</div>
+                ) : null}
+                {canPage("accountingFinancialStatements") ? (
                 <div className={`submenu-item ${activePage === "accountingFinancialStatements" ? "active" : ""}`} onClick={() => go("accountingFinancialStatements")}>Financial Statements</div>
+                ) : null}
+                {canPage("accountingReports") ? (
                 <div className={`submenu-item ${activePage === "accountingReports" ? "active" : ""}`} onClick={() => go("accountingReports")}>Reports</div>
+                ) : null}
+                {canPage("accountingDebtorsAgeing") ? (
                 <div className={`submenu-item ${activePage === "accountingDebtorsAgeing" ? "active" : ""}`} onClick={() => go("accountingDebtorsAgeing")}>Debtors Ageing</div>
+                ) : null}
+                {canPage("accountingCreditorsAgeing") ? (
                 <div className={`submenu-item ${activePage === "accountingCreditorsAgeing" ? "active" : ""}`} onClick={() => go("accountingCreditorsAgeing")}>Creditors Ageing</div>
+                ) : null}
+                {canPage("accountingSupplierInvoices") ? (
                 <div className={`submenu-item ${activePage === "accountingSupplierInvoices" ? "active" : ""}`} onClick={() => go("accountingSupplierInvoices")}>Supplier Invoices</div>
+                ) : null}
+                {canPage("accountingAuditCompliance") ? (
                 <div className={`submenu-item ${activePage === "accountingAuditCompliance" ? "active" : ""}`} onClick={() => go("accountingAuditCompliance")}>Audit & Compliance</div>
+                ) : null}
+                {canPage("accountingExportCenter") ? (
                 <div className={`submenu-item ${activePage === "accountingExportCenter" ? "active" : ""}`} onClick={() => go("accountingExportCenter")}>Export Center</div>
+                ) : null}
+                {canPage("accountingSettings") ? (
                 <div className={`submenu-item ${activePage === "accountingSettings" ? "active" : ""}`} onClick={() => go("accountingSettings")}>Settings</div>
+                ) : null}
               </div>
             )}
           </div>
+          ) : null}
 
           <div className="main-section">
             <div
@@ -17857,6 +17995,7 @@ return (
                 setAdminOpen(false);
                 setBillingOpen(false);
                 setAccountingOpen(false);
+                setPayrollOpen(false);
               }}
             >
               <div className="section-left">
