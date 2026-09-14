@@ -5,7 +5,7 @@ import {
   PublicAdmissionsApiError,
 } from "./publicAdmissionsApi";
 import { derivePublicAdmissionsShellState } from "./derivePublicAdmissionsShellState";
-import PublicAdmissionsApplyPlaceholder from "./PublicAdmissionsApplyPlaceholder";
+import PublicAdmissionsApplyPage from "./PublicAdmissionsApplyPage";
 import PublicAdmissionsLandingPage from "./PublicAdmissionsLandingPage";
 import PublicAdmissionsLayout from "./PublicAdmissionsLayout";
 import type {
@@ -73,14 +73,14 @@ function PublicAdmissionsLandingRoute() {
 }
 
 /**
- * Public EduClear Online Admissions SPA entry (OA-06B).
+ * Public EduClear Online Admissions SPA entry (OA-06B / OA-06C).
  * Mounted at /admissions/* — no staff JWT, no SchoolDashboard shell.
  */
 export default function PublicAdmissionsApp() {
   return (
     <Routes>
       <Route path=":publicSlug" element={<PublicAdmissionsLandingRoute />} />
-      <Route path=":publicSlug/apply" element={<PublicAdmissionsApplyPlaceholder />} />
+      <Route path=":publicSlug/apply" element={<PublicAdmissionsApplyPage />} />
       <Route
         path="*"
         element={

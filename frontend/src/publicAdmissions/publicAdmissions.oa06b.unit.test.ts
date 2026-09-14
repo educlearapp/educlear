@@ -179,10 +179,9 @@ assert.ok(
   "public config client does not call staffAuthHeaders()"
 );
 assert.ok(
-  !/Authorization\s*:/.test(apiSrc),
-  "public config client does not set Authorization header"
+  !/\bstaffAuthHeaders\s*\(/.test(apiSrc) && !/localStorage\.getItem\(["']token["']\)/.test(apiSrc),
+  "public API client does not pull staff token"
 );
-assert.ok(!/method:\s*["']POST["']/.test(apiSrc), "OA-06B API client has no POST");
 
 const appPublicSrc = read("publicAdmissions/PublicAdmissionsApp.tsx");
 assert.ok(
@@ -202,8 +201,12 @@ assert.ok(
   "Start Application boundary route :publicSlug/apply exists"
 );
 assert.ok(
-  !/method:\s*["']POST["']/.test(appPublicSrc),
-  "landing does not POST applications"
+  /PublicAdmissionsApplyPage/.test(appPublicSrc),
+  "apply route mounts PublicAdmissionsApplyPage"
+);
+assert.ok(
+  !/createPublicDraftApplication|method:\s*["']POST["']/.test(appPublicSrc),
+  "landing shell App does not POST drafts"
 );
 
 const landingSrc = read("publicAdmissions/PublicAdmissionsLandingPage.tsx");
@@ -227,6 +230,10 @@ assert.ok(
   !/SchoolDashboard|sidebar|billing menus/i.test(landingSrc),
   "landing has no staff dashboard chrome markers"
 );
+assert.ok(
+  !/createPublicDraftApplication|method:\s*["']POST["']/.test(landingSrc),
+  "landing page remains non-mutating"
+);
 
 const layoutSrc = read("publicAdmissions/PublicAdmissionsLayout.tsx");
 assert.ok(
@@ -239,25 +246,19 @@ assert.ok(
 );
 assert.ok(/Online Admissions/.test(layoutSrc), "public admissions branding eyebrow");
 
-const placeholderSrc = read("publicAdmissions/PublicAdmissionsApplyPlaceholder.tsx");
-assert.ok(
-  /No application has been created yet/.test(placeholderSrc),
-  "apply placeholder does not create application"
-);
-assert.ok(!/fetch\(/.test(placeholderSrc), "apply placeholder does not call APIs");
-assert.ok(!/method:\s*["']POST["']/.test(placeholderSrc), "no draft POST in placeholder");
-
 const cssSrc = read("publicAdmissions/publicAdmissions.css");
 assert.ok(/min-height:\s*3rem/.test(cssSrc), "mobile-friendly CTA height");
 assert.ok(/max-width:\s*40rem/.test(cssSrc), "narrow mobile-first content column");
 
-// Landing must not create applications on render (no POST in OA-06B public module)
-const moduleFiles = fs
-  .readdirSync(path.join(root, "publicAdmissions"))
-  .filter((f) => (f.endsWith(".ts") || f.endsWith(".tsx")) && !f.includes(".test."));
-for (const file of moduleFiles) {
-  const src = read(`publicAdmissions/${file}`);
-  assert.ok(!/method:\s*["']POST["']/.test(src), `${file}: must not POST in OA-06B`);
+// Foundation files must never use staff auth / SchoolDashboard
+const foundationFiles = [
+  "publicAdmissions/PublicAdmissionsApp.tsx",
+  "publicAdmissions/PublicAdmissionsLandingPage.tsx",
+  "publicAdmissions/PublicAdmissionsLayout.tsx",
+  "publicAdmissions/publicAdmissionsApi.ts",
+];
+for (const file of foundationFiles) {
+  const src = read(file.replace(/^publicAdmissions\//, "publicAdmissions/"));
   assert.ok(!/\bstaffAuthHeaders\s*\(/.test(src), `${file}: no staffAuthHeaders()`);
   assert.ok(
     !/import\s+SchoolDashboard|<\s*SchoolDashboard/.test(src),
