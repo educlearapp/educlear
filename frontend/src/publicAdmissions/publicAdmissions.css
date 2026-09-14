@@ -610,6 +610,56 @@ button.pa-progress-item:disabled {
   border-top: 1px solid var(--pa-border);
 }
 
+/* OA-06F payment / POP */
+.pa-payment-status {
+  margin: 0 0 0.5rem;
+  font-size: 1.05rem;
+  font-weight: 700;
+}
+
+.pa-bank {
+  margin-top: 1rem;
+  padding-top: 0.75rem;
+  border-top: 1px solid var(--pa-border);
+}
+
+.pa-copy-row dd {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  align-items: center;
+}
+
+.pa-copy-btn {
+  min-height: 2.5rem;
+  padding: 0.4rem 0.75rem;
+  font-size: 0.85rem;
+}
+
+.pa-payment-rejected {
+  margin-top: 0.75rem;
+  padding: 0.75rem;
+  border: 1px solid color-mix(in srgb, #b45309 40%, var(--pa-border));
+  border-radius: 0.75rem;
+  background: color-mix(in srgb, #b45309 8%, transparent);
+}
+
+.pa-proof-meta {
+  margin-top: 0.75rem;
+  display: grid;
+  gap: 0.5rem;
+}
+
+.pa-pop-upload {
+  margin-top: 1rem;
+  display: grid;
+  gap: 0.5rem;
+}
+
+.pa-file-input {
+  max-width: 100%;
+}
+
 @media (min-width: 640px) {
   .pa-doc-actions {
     grid-template-columns: repeat(auto-fit, minmax(8.5rem, max-content));

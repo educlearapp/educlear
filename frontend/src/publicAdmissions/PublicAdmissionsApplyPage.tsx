@@ -80,7 +80,7 @@ function FieldError({ id, message }: { id?: string; message?: string }) {
 }
 
 /**
- * OA-06C/D/E draft → review → submit → status. No payment / POP UI.
+ * OA-06C/D/E/F draft → review → submit → status + payment.
  */
 export default function PublicAdmissionsApplyPage() {
   const { publicSlug = "" } = useParams<{ publicSlug: string }>();
@@ -590,13 +590,17 @@ export default function PublicAdmissionsApplyPage() {
           </nav>
         ) : null}
 
-        {showPostSubmit && application ? (
+        {showPostSubmit && application && publicAccessId && accessToken ? (
           <PublicAdmissionsStatusView
             application={application}
             config={config}
             justSubmitted={justSubmitted}
             onRefresh={() => void refreshStatus()}
             refreshing={statusRefreshing}
+            publicSlug={slug}
+            publicAccessId={publicAccessId}
+            accessToken={accessToken}
+            onSessionInvalid={handleDocumentsSessionInvalid}
           />
         ) : activeStep === "documents" && publicAccessId && accessToken ? (
           <PublicAdmissionsDocumentsStep

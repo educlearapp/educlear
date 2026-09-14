@@ -212,10 +212,8 @@ assert.ok(
   "28/29. payment and POP endpoints not called from docs step"
 );
 assert.ok(
-  !/\/payment["'`]|payment-proof/.test(
-    apiSrc.slice(apiSrc.indexOf("listPublicApplicantDocuments"))
-  ),
-  "28/29. document API surface has no payment helpers"
+  !/fetchPublicApplicantPayment|uploadPublicPaymentProof/.test(docsSrc),
+  "28/29. docs step does not use payment helpers (OA-06F owns those)"
 );
 assert.ok(
   /Payment instructions[\s\S]*after you submit/.test(docsSrc),
