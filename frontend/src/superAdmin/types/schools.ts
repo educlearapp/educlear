@@ -2,9 +2,21 @@ import type { SchoolLifecycleStatus } from "../schoolLifecycle";
 
 export type SchoolStatus = SchoolLifecycleStatus;
 
-export type SchoolPackage = "Starter" | "Growth" | "Professional" | "Unlimited" | "—" | (string & {});
+export type SchoolPackage =
+  | "Core"
+  | "Accounting"
+  | "Payroll"
+  | "Business"
+  | "Accounting + Payroll"
+  | "Core + Accounting"
+  | "Core + Payroll"
+  | "Full"
+  | "Starter"
+  | "Unlimited"
+  | "—"
+  | (string & {});
 
-/** Product module licenses (orthogonal to STARTER/UNLIMITED capacity packages). No FINANCE module. */
+/** Product module licenses — authoritative commercial package source. */
 export type SchoolModuleEntitlements = {
   CORE: boolean;
   ACCOUNTING: boolean;
@@ -23,7 +35,10 @@ export type SchoolRecord = {
   ownerName: string;
   email: string;
   contactPhone: string | null;
+  /** Commercial modular package label (from entitlements). */
   package: SchoolPackage;
+  /** Legacy STARTER/UNLIMITED capacity label when present. */
+  legacyCapacityPackage?: string | null;
   /** Organisation lifecycle. Separate from subscription/billing status. */
   lifecycleStatus: SchoolLifecycleStatus;
   status: SchoolLifecycleStatus;
@@ -54,4 +69,16 @@ export const SCHOOL_STATUS_OPTIONS: SchoolLifecycleStatus[] = [
   "ARCHIVED",
 ];
 
-export const SCHOOL_PACKAGE_OPTIONS: SchoolPackage[] = ["—", "Starter", "Unlimited"];
+/** New-sale / filter labels — modular packages. Legacy Starter/Unlimited kept for historical filter only. */
+export const SCHOOL_PACKAGE_OPTIONS: SchoolPackage[] = [
+  "—",
+  "Core",
+  "Accounting",
+  "Payroll",
+  "Business",
+  "Core + Accounting",
+  "Core + Payroll",
+  "Full",
+  "Starter",
+  "Unlimited",
+];

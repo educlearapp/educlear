@@ -16,6 +16,7 @@ type ApiSchoolRow = {
   email?: string;
   contactPhone?: string | null;
   package?: string;
+  legacyCapacityPackage?: string | null;
   lifecycleStatus?: string;
   status?: string;
   learnerCount?: number;
@@ -31,15 +32,10 @@ type ApiSchoolsResponse = {
   summary?: Partial<SchoolsSummary>;
 };
 
-const KNOWN_PACKAGES = new Set<string>(["Starter", "Unlimited"]);
-
 function asPackage(value: unknown): SchoolPackage {
   const label = String(value || "").trim();
   if (!label || label === "—") return "—";
-  if (KNOWN_PACKAGES.has(label)) return label as SchoolPackage;
-  if (label.toLowerCase() === "unlimited") return "Unlimited";
-  if (label.toLowerCase() === "starter") return "Starter";
-  return label;
+  return label as SchoolPackage;
 }
 
 function asModuleEntitlements(value: unknown): SchoolModuleEntitlements {
@@ -64,6 +60,9 @@ function mapSchoolRow(row: ApiSchoolRow, sessionSchoolId: string | null): School
     email: ownerEmail || "—",
     contactPhone: contactRaw || null,
     package: asPackage(row.package),
+    legacyCapacityPackage: row.legacyCapacityPackage
+      ? String(row.legacyCapacityPackage).trim()
+      : null,
     lifecycleStatus,
     status: lifecycleStatus,
     learnerCount: Number.isFinite(row.learnerCount) ? Number(row.learnerCount) : 0,

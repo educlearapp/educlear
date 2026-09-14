@@ -5,20 +5,15 @@ import { isSuperAdmin, SUPER_ADMIN_ENTRY_PATH } from "../auth/roles";
 import { isPlatformSuperAdminEmail } from "../auth/superAdminSession";
 import logoIcon from "../assets/logo.icon.png";
 import {
-  getPackageDisplayPrice,
-  submitPayFastCheckout,
-} from "./payfastCheckout";
-import {
   type SchoolSubscriptionStatus,
   type SubscriptionStatusResponse,
   clearSubscriptionGateCache,
-  createSubscriptionCheckout,
   fetchSchoolSubscriptionStatus,
   formatDisplayDate,
-  formatPackageMonthlyPrice,
   formatSubscriptionStatus,
   isSubscriptionDashboardUnlocked,
 } from "./subscriptionsApi";
+import { isModularCheckoutAvailable } from "./dashboardPackagePanelLogic";
 
 const GOLD = "#D4AF37";
 const BG =
@@ -147,15 +142,10 @@ export default function SubscriptionStatus() {
     () => String(localStorage.getItem("schoolId") || "").trim(),
     []
   );
-  const selectedPackageCode = useMemo(
-    () => String(localStorage.getItem("educlearSelectedPackageCode") || "").trim(),
-    []
-  );
 
   const [data, setData] = useState<SubscriptionStatusResponse | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
-  const [payBusy, setPayBusy] = useState(false);
   const [returnNotice, setReturnNotice] = useState("");
 
   const refreshStatus = useCallback(async () => {
@@ -201,16 +191,9 @@ export default function SubscriptionStatus() {
   }, [schoolId, refreshStatus]);
 
   const subscription = data?.subscription ?? null;
-  const packageInfo = subscription?.package ?? null;
-  const packageCode =
-    packageInfo?.code || subscription?.packageCode || selectedPackageCode;
-  const packageName =
-    packageInfo?.name ||
-    (packageCode ? packageCode.replace("_", " ") : "Not selected");
-  const displayPrice = getPackageDisplayPrice(
-    packageCode,
-    packageInfo ? `${formatPackageMonthlyPrice(packageInfo)} / month` : undefined
-  );
+  const commercial = data?.commercialPackage ?? null;
+  const packageName = commercial?.name || "Not assigned";
+  const displayPrice = commercial?.priceLabelMonthly || "—";
   const statusLabel = subscription
     ? formatSubscriptionStatus(subscription.status)
     : "No subscription";
@@ -219,7 +202,8 @@ export default function SubscriptionStatus() {
   const needsPayment = Boolean(
     subscription?.status === "PENDING_PAYMENT" || !canOpenDashboard
   );
-
+  const legacyCapacity =
+    subscription?.legacyCapacityPackageCode || subscription?.packageCode || null;
   useEffect(() => {
     if (!schoolId || !needsPayment || canOpenDashboard) return;
 
@@ -237,39 +221,11 @@ export default function SubscriptionStatus() {
   }, [canOpenDashboard]);
 
   async function handlePayNow() {
-    if (!schoolId) return;
-
-    const code = String(packageCode || selectedPackageCode || "")
-      .trim()
-      .toUpperCase();
-    if (code !== "STARTER" && code !== "UNLIMITED") {
-      navigate("/subscription/packages");
-      return;
-    }
-
-    setPayBusy(true);
-    setError("");
-
-    try {
-      const payerEmail = String(localStorage.getItem("userEmail") || "").trim();
-      const result = await createSubscriptionCheckout({
-        schoolId,
-        packageCode: code,
-        payerEmail: payerEmail || undefined,
-      });
-
-      if (!result?.paymentUrl || !result?.payload) {
-        throw new Error("PayFast checkout response was incomplete");
-      }
-
-      localStorage.setItem("educlearSelectedPackageCode", code);
-      submitPayFastCheckout(result.paymentUrl, result.payload);
-    } catch (err: unknown) {
-      setPayBusy(false);
-      setError(err instanceof Error ? err.message : "Could not start PayFast checkout");
-    }
+    setError(
+      "Modular package checkout is not available yet. Contact EduClear to activate payment for your package."
+    );
+    navigate("/subscription/packages");
   }
-
   if (isSuperAdmin() || isPlatformSuperAdminEmail(localStorage.getItem("userEmail"))) {
     return <Navigate to={SUPER_ADMIN_ENTRY_PATH} replace />;
   }
@@ -342,8 +298,16 @@ export default function SubscriptionStatus() {
             </p>
 
             <SummaryRow label="Current package" value={packageName} />
+            {commercial?.secondaryLabel ? (
+              <SummaryRow label="Also known as" value={commercial.secondaryLabel} />
+            ) : null}
             <SummaryRow label="Monthly fee" value={displayPrice} />
-            <div style={{ ...rowStyle, borderBottom: "none" }}>
+            {commercial?.description ? (
+              <p style={{ color: "#d6d6d6", margin: "8px 0 0", lineHeight: 1.5, fontSize: 14 }}>
+                {commercial.description}
+              </p>
+            ) : null}
+            <div style={{ ...rowStyle, borderBottom: "none", marginTop: 8 }}>
               <span style={rowLabel}>Status</span>
               <span style={statusBadgeStyle(subscription?.status || "")}>
                 {statusLabel}
@@ -354,16 +318,23 @@ export default function SubscriptionStatus() {
               <SummaryRow label="Next payment date" value={nextPaymentDate} />
             ) : null}
 
+            {legacyCapacity ? (
+              <p style={{ color: "#94a3b8", marginTop: 16, fontSize: 12, lineHeight: 1.5 }}>
+                Historical capacity record: {legacyCapacity} (not your commercial package).
+              </p>
+            ) : null}
+
             {!subscription ? (
               <p style={{ color: "#d6d6d6", marginTop: 20, lineHeight: 1.6 }}>
-                No subscription record yet. Choose Starter (R1,500 / month) or Unlimited
-                (R2,000 / month) to continue.
+                No payment subscription record yet. Your commercial package above is defined by
+                Core / Accounting / Payroll modules. Modular PayFast checkout is not available yet.
               </p>
             ) : null}
 
             {subscription?.status === "PENDING_PAYMENT" ? (
               <p style={{ color: "#d6d6d6", marginTop: 20, lineHeight: 1.6 }}>
-                Complete PayFast payment to unlock your school dashboard.
+                Payment activation is pending. Modular checkout is not enabled — use test mode on
+                staging or contact EduClear.
               </p>
             ) : null}
 
@@ -381,14 +352,13 @@ export default function SubscriptionStatus() {
                   cursor: "pointer",
                 }}
               >
-                Change package
+                View packages
               </button>
 
-              {needsPayment && packageCode ? (
+              {needsPayment && isModularCheckoutAvailable() ? (
                 <button
                   type="button"
                   onClick={handlePayNow}
-                  disabled={payBusy}
                   style={{
                     padding: "12px 18px",
                     borderRadius: 12,
@@ -397,11 +367,10 @@ export default function SubscriptionStatus() {
                       "linear-gradient(180deg, rgba(212,175,55,0.28) 0%, rgba(212,175,55,0.12) 100%)",
                     color: GOLD,
                     fontWeight: 800,
-                    cursor: payBusy ? "wait" : "pointer",
-                    opacity: payBusy ? 0.75 : 1,
+                    cursor: "pointer",
                   }}
                 >
-                  {payBusy ? "Opening PayFast..." : "Pay now with PayFast"}
+                  Pay now with PayFast
                 </button>
               ) : null}
 
