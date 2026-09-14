@@ -28,6 +28,11 @@ import {
   PublicAdmissionsError,
 } from "../services/admissions/publicAdmissionsConfig";
 import { submitApplication } from "../services/admissions/submitApplicationService";
+import { resolvePublicAdmissionsBySlug } from "../services/admissions/resolvePublicAdmissions";
+import {
+  assertSchoolModuleEntitled,
+  MODULE_NOT_ENTITLED,
+} from "../middleware/requireSchoolModule";
 
 const router = Router({ mergeParams: true });
 
@@ -82,6 +87,26 @@ function param(req: import("express").Request, key: string): string {
   const value = (req.params as Record<string, string | undefined>)[key];
   return String(value || "");
 }
+
+/** Public admissions is a CORE product surface. */
+router.use(async (req, res, next) => {
+  try {
+    const schoolSlug = param(req, "schoolSlug");
+    const resolved = await resolvePublicAdmissionsBySlug(prisma, schoolSlug);
+    const decision = await assertSchoolModuleEntitled(resolved.school.id, "CORE");
+    if (!decision.allowed) {
+      return res.status(decision.status).json({
+        success: false,
+        error: decision.error,
+        code: decision.code || MODULE_NOT_ENTITLED,
+        module: "CORE",
+      });
+    }
+    return next();
+  } catch (err) {
+    return sendPublicError(res, err);
+  }
+});
 
 /** GET /api/public/admissions/:schoolSlug/config */
 router.get("/config", async (req, res) => {

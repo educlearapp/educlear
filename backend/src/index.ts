@@ -83,7 +83,7 @@ import admissionsRoutes from "./routes/admissions";
 import publicAdmissionsRoutes from "./routes/publicAdmissions";
 import { requireMigrationAccess } from "./middleware/requireMigrationAccess";
 import { requireSuperAdmin } from "./middleware/requireSuperAdmin";
-import { requireSchoolModule } from "./middleware/requireSchoolModule";
+import { requireSchoolModule, assertSchoolModuleEntitled, MODULE_NOT_ENTITLED } from "./middleware/requireSchoolModule";
 import superAdminSchoolsRoutes from "./routes/superAdminSchools";
 import { prisma } from "./prisma";
 import { bootstrapDevTestSchoolEmail } from "./dev/devTestSchoolEmail";
@@ -293,11 +293,11 @@ app.options(/.*/, cors(corsOptions));
 // ===== AUTH =====
 app.use("/auth", authRoutes);
 app.use("/api/auth", authRoutes);
-app.use("/learner", learnerRoutes);
+app.use("/learner", requireSchoolModule("CORE"), learnerRoutes);
 app.use("/api/schools", schoolsRoutes);
-app.use("/api/emails", emailRoutes);
-app.use("/api/school-email-settings", schoolEmailSettingsRoutes);
-app.use("/api/school-sms-settings", schoolSmsSettingsRoutes);
+app.use("/api/emails", requireSchoolModule("CORE"), emailRoutes);
+app.use("/api/school-email-settings", requireSchoolModule("CORE"), schoolEmailSettingsRoutes);
+app.use("/api/school-sms-settings", requireSchoolModule("CORE"), schoolSmsSettingsRoutes);
 app.use("/api/users", usersRoutes);
 app.post("/api/upload-logo", upload.single("logo"), (req, res) => {
 
@@ -333,45 +333,45 @@ app.post("/api/upload-logo", upload.single("logo"), (req, res) => {
 
 
 });
-app.use("/api/parents", parentsRoutes);
-app.use("/api/invoices", invoicesRoutes);
-app.use("/api/invoice-runs", invoiceRunsRoutes);
-app.use("/api/statements", statementsRoutes);
-app.use("/api/family-accounts", familyAccountsRoutes);
-app.use("/api/payments", paymentsRoutes);
-app.use("/api/payment-allocations", paymentAllocationsRoutes);
-app.use("/api/billing-transactions", billingTransactionsRoutes);
-app.use("/api/billing-documents", billingDocumentsRoutes);
-app.use("/api/legal-billing-documents", legalBillingDocumentsRoutes);
-app.use("/api/communication", communicationRoutes);
-app.use("/api/communication-engine", communicationEngineRoutes);
-app.use("/api/billing-settings", billingSettingsRoutes);
-app.use("/api/deposits", depositsRoutes);
+app.use("/api/parents", requireSchoolModule("CORE"), parentsRoutes);
+app.use("/api/invoices", requireSchoolModule("CORE"), invoicesRoutes);
+app.use("/api/invoice-runs", requireSchoolModule("CORE"), invoiceRunsRoutes);
+app.use("/api/statements", requireSchoolModule("CORE"), statementsRoutes);
+app.use("/api/family-accounts", requireSchoolModule("CORE"), familyAccountsRoutes);
+app.use("/api/payments", requireSchoolModule("CORE"), paymentsRoutes);
+app.use("/api/payment-allocations", requireSchoolModule("CORE"), paymentAllocationsRoutes);
+app.use("/api/billing-transactions", requireSchoolModule("CORE"), billingTransactionsRoutes);
+app.use("/api/billing-documents", requireSchoolModule("CORE"), billingDocumentsRoutes);
+app.use("/api/legal-billing-documents", requireSchoolModule("CORE"), legalBillingDocumentsRoutes);
+app.use("/api/communication", requireSchoolModule("CORE"), communicationRoutes);
+app.use("/api/communication-engine", requireSchoolModule("CORE"), communicationEngineRoutes);
+app.use("/api/billing-settings", requireSchoolModule("CORE"), billingSettingsRoutes);
+app.use("/api/deposits", requireSchoolModule("CORE"), depositsRoutes);
 app.use("/api/banking", bankingRoutes);
-// ACCOUNTING entitlement — bookkeeping/GL/suppliers only. Billing stays CORE (ungated).
+// ACCOUNTING entitlement — bookkeeping/GL/suppliers only. Billing stays CORE (gated above).
 app.use("/api/accounting", requireSchoolModule("ACCOUNTING"), accountingRoutes);
-app.use("/api/billing/late-penalties", billingPenaltiesRoutes);
-app.use("/api/billing/da-silva-late-penalties", daSilvaLatePenaltiesRoutes);
-app.use("/api/billing/reports", billingReportsRoutes);
-app.use("/api/outstanding-accounts", outstandingAccountsRoutes);
-app.use("/api/teacher-performance", teacherPerformanceRoutes);
+app.use("/api/billing/late-penalties", requireSchoolModule("CORE"), billingPenaltiesRoutes);
+app.use("/api/billing/da-silva-late-penalties", requireSchoolModule("CORE"), daSilvaLatePenaltiesRoutes);
+app.use("/api/billing/reports", requireSchoolModule("CORE"), billingReportsRoutes);
+app.use("/api/outstanding-accounts", requireSchoolModule("CORE"), outstandingAccountsRoutes);
+app.use("/api/teacher-performance", requireSchoolModule("CORE"), teacherPerformanceRoutes);
 app.use("/api/payroll", payrollRoutes);
-app.use("/api/educlock", educlockRoutes);
-app.use("/api/geofences", geofencesRoutes);
-app.use("/api/fees", feesRoutes);
-app.use("/api/learners", learnerRoutes);
-app.use("/api/registrations", registrationsRoutes);
-app.use("/api/admissions", admissionsRoutes);
+app.use("/api/educlock", requireSchoolModule("CORE"), educlockRoutes);
+app.use("/api/geofences", requireSchoolModule("CORE"), geofencesRoutes);
+app.use("/api/fees", requireSchoolModule("CORE"), feesRoutes);
+app.use("/api/learners", requireSchoolModule("CORE"), learnerRoutes);
+app.use("/api/registrations", requireSchoolModule("CORE"), registrationsRoutes);
+app.use("/api/admissions", requireSchoolModule("CORE"), admissionsRoutes);
 app.use("/api/public/admissions/:schoolSlug", publicAdmissionsRoutes);
-app.use("/api/lists-registers", listsRegistersRoutes);
+app.use("/api/lists-registers", requireSchoolModule("CORE"), listsRegistersRoutes);
 app.use("/api/parent-portal", parentPortalRoutes);
-app.use("/api/classrooms", classroomsRoutes);
-app.use("/api/groups", groupsRoutes);
-app.use("/api/classes", classesRoutes);
-app.use("/api/attendance", attendanceRoutes);
-app.use("/api/school-subjects", schoolSubjectsRoutes);
-app.use("/api/teacher-inbox", teacherInboxRoutes);
-app.use("/api/teacher-app", teacherAppRoutes, teacherAppUploadErrorHandler);
+app.use("/api/classrooms", requireSchoolModule("CORE"), classroomsRoutes);
+app.use("/api/groups", requireSchoolModule("CORE"), groupsRoutes);
+app.use("/api/classes", requireSchoolModule("CORE"), classesRoutes);
+app.use("/api/attendance", requireSchoolModule("CORE"), attendanceRoutes);
+app.use("/api/school-subjects", requireSchoolModule("CORE"), schoolSubjectsRoutes);
+app.use("/api/teacher-inbox", requireSchoolModule("CORE"), teacherInboxRoutes);
+app.use("/api/teacher-app", requireSchoolModule("CORE"), teacherAppRoutes, teacherAppUploadErrorHandler);
 app.post(
   `/api/migration${KIDESYS_ADAPTER_READINESS_PATH}`,
   requireSuperAdmin,
@@ -430,90 +430,42 @@ app.use("/api/subscriptions", subscriptionsRoutes);
 app.use("/api/credits", creditsRoutes);
 app.use("/api/payfast", payfastRoutes);
 app.get("/api/parents", async (_req, res) => {
-
-
-
   try {
-
-
-
     const schoolId =
-
-
-
       typeof (_req as any).query?.schoolId === "string"
-
-
-
         ? String((_req as any).query.schoolId)
-
-
-
         : "";
-
-
+    if (!schoolId) {
+      return res.status(400).json({ success: false, message: "schoolId is required" });
+    }
+    const coreGate = await assertSchoolModuleEntitled(schoolId, "CORE");
+    if (!coreGate.allowed) {
+      return res.status(coreGate.status).json({
+        success: false,
+        message: coreGate.error,
+        error: coreGate.error,
+        code: coreGate.code || MODULE_NOT_ENTITLED,
+        module: "CORE",
+      });
+    }
 
     const parents = await prisma.parent.findMany({
-
-
-
-      where: schoolId ? { schoolId } : undefined,
-
-
-
+      where: { schoolId },
       orderBy: { createdAt: "desc" },
-
-
-
     });
-
-
 
     res.json({
-
-
-
       success: true,
-
-
-
       // Legacy unauthenticated list must not newly expose Parent.birthDate.
       parents: parents.map(({ birthDate: _omitBirthDate, ...rest }) => rest),
-
-
-
     });
-
-
-
   } catch (error) {
-
-
-
     console.error("Get parents error:", error);
-
-
-
     res.status(500).json({
-
-
-
       success: false,
-
-
-
       message: "Failed to fetch parents",
-
-
-
     });
-
-
-
   }
-
-
-
 });
 
 app.get("/api/parent-portal/lookup", async (req, res) => {

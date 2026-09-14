@@ -25,7 +25,9 @@ import {
 
 const router = Router();
 
+/** EduClock → Payroll import requires both PAYROLL (consumer) and CORE (EduClock source). */
 router.use(requireSchoolModule("PAYROLL"));
+router.use(requireSchoolModule("CORE"));
 
 type AuthedRequest = Request & { ownerAuth?: StaffSchoolAuth };
 

@@ -9,7 +9,7 @@ import {
   evaluateOwnerSchoolAuth,
   loadStaffSchoolAuth,
 } from "../middleware/requireOwnerSchoolAccess";
-import { requireSchoolModule } from "../middleware/requireSchoolModule";
+import { requireAnySchoolModule, requireSchoolModule } from "../middleware/requireSchoolModule";
 import {
   createEmployeeAllocatingNumber,
   isAutoAssignEmployeeNumberRequest,
@@ -36,6 +36,9 @@ const prisma = new PrismaClient();
 
 /** EduClock hours import + finalize/reopen (owner-only). */
 router.use(payrollEduClockImportRoutes);
+
+/** Employee directory: available when CORE || PAYROLL (shared workforce). */
+const requireEmployeeDirectory = requireAnySchoolModule(["CORE", "PAYROLL"]);
 
 function createMailTransport(): nodemailer.Transporter | null {
   if (isOutboundEmailDisabled()) return null;
@@ -159,7 +162,7 @@ function buildEmployeeData(body: Record<string, unknown>) {
 
 
 
-router.post("/employee", async (req, res) => {
+router.post("/employee", requireEmployeeDirectory, async (req, res) => {
 
 
 
@@ -250,9 +253,9 @@ router.post("/employee", async (req, res) => {
 /**
  * UPDATE EMPLOYEE
  */
-router.put("/employee/:id", async (req, res) => {
+router.put("/employee/:id", requireEmployeeDirectory, async (req, res) => {
   try {
-    const { id } = req.params;
+    const id = String(req.params.id || "").trim();
     const { schoolId } = req.body;
 
     if (!schoolId) {
@@ -260,7 +263,7 @@ router.put("/employee/:id", async (req, res) => {
     }
 
     const existing = await prisma.employee.findFirst({
-      where: { id, schoolId },
+      where: { id, schoolId: String(schoolId) },
     });
 
     if (!existing) {
@@ -335,9 +338,9 @@ router.put("/employee/:id", async (req, res) => {
 /**
  * DELETE EMPLOYEE
  */
-router.delete("/employee/:id", async (req, res) => {
+router.delete("/employee/:id", requireEmployeeDirectory, async (req, res) => {
   try {
-    const { id } = req.params;
+    const id = String(req.params.id || "").trim();
     const schoolId = String(req.query.schoolId ?? req.body?.schoolId ?? "").trim();
 
     if (!schoolId) {
@@ -375,7 +378,7 @@ router.delete("/employee/:id", async (req, res) => {
 
 
 
-router.get("/employees/:schoolId", async (req, res) => {
+router.get("/employees/:schoolId", requireEmployeeDirectory, async (req, res) => {
 
 
 
@@ -383,25 +386,14 @@ router.get("/employees/:schoolId", async (req, res) => {
 
 
 
-    const { schoolId } = req.params;
-
-
+    const schoolId = String(req.params.schoolId || "").trim();
 
     const employees = await prisma.employee.findMany({
-
-
-
       where: { schoolId },
-
-
-
       orderBy: { createdAt: "desc" },
-
-
-
     });
 
-    const payrollEnabled = await resolvePayrollModuleEnabled(String(schoolId));
+    const payrollEnabled = await resolvePayrollModuleEnabled(schoolId);
     res.json(
       sanitizeEmployeesForModule(
         employees as Array<Record<string, unknown>>,
