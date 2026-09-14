@@ -76,6 +76,7 @@ import payfastRoutes from "./routes/payfast";
 import creditsRoutes from "./routes/credits";
 import { requireMigrationAccess } from "./middleware/requireMigrationAccess";
 import { requireSuperAdmin } from "./middleware/requireSuperAdmin";
+import { requireSchoolModule } from "./middleware/requireSchoolModule";
 import superAdminSchoolsRoutes from "./routes/superAdminSchools";
 import { prisma } from "./prisma";
 import { bootstrapDevTestSchoolEmail } from "./dev/devTestSchoolEmail";
@@ -347,7 +348,8 @@ app.use("/api/communication-engine", communicationEngineRoutes);
 app.use("/api/billing-settings", billingSettingsRoutes);
 app.use("/api/deposits", depositsRoutes);
 app.use("/api/banking", bankingRoutes);
-app.use("/api/accounting", accountingRoutes);
+// ACCOUNTING entitlement — bookkeeping/GL/suppliers only. Billing stays CORE (ungated).
+app.use("/api/accounting", requireSchoolModule("ACCOUNTING"), accountingRoutes);
 app.use("/api/billing/late-penalties", billingPenaltiesRoutes);
 app.use("/api/billing/da-silva-late-penalties", daSilvaLatePenaltiesRoutes);
 app.use("/api/billing/reports", billingReportsRoutes);

@@ -36,9 +36,27 @@ import {
   FamilyAccountMergedError,
   assertFamilyAccountAcceptsNewBillingWrites,
 } from "../services/familyAccountLifecycle";
+import {
+  assertNoAccountingBankingMutationWhenDisabled,
+  bankImportTransactionTypeForModule,
+  persistableBankImportAccountingFields,
+  resolveAccountingModuleEnabled,
+  sanitizeBankingStatsForModule,
+  sanitizeBankTransactionForModule,
+  sanitizeBankTransactionsForModule,
+} from "../services/bankingModuleFieldPolicy";
+import { MODULE_NOT_ENTITLED } from "../middleware/requireSchoolModule";
+import {
+  authorizedBankingSchoolId,
+  requireBankingAuth,
+  type BankingAuthRequest,
+} from "../middleware/requireBankingAuth";
 
 const router = Router();
 const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 12 * 1024 * 1024 } });
+
+/** Staff JWT + payments.view/create + school binding for all banking routes. */
+router.use(requireBankingAuth);
 
 type TransactionType = "payment" | "expense" | "transfer" | "ignore";
 
@@ -204,8 +222,10 @@ function toImportRecord(
     duplicateRows?: number;
     totalAmountImported?: number;
   },
-  transactions: BankTransaction[]
+  transactions: BankTransaction[],
+  accountingEnabled = true
 ): BankImportRecord {
+  const mapped = transactions.map(toApiRow);
   return {
     id: imp.id,
     schoolId: imp.schoolId,
@@ -219,7 +239,10 @@ function toImportRecord(
     unmatchedRows: imp.unmatchedRows ?? 0,
     duplicateRows: imp.duplicateRows ?? 0,
     totalAmountImported: normaliseAmount(imp.totalAmountImported ?? 0),
-    transactions: transactions.map(toApiRow),
+    transactions: sanitizeBankTransactionsForModule(
+      mapped as Array<Record<string, unknown>>,
+      accountingEnabled
+    ) as BankTransactionRow[],
   };
 }
 
@@ -496,7 +519,11 @@ async function buildMatchProfiles(schoolId: string): Promise<LearnerMatchProfile
   });
 }
 
-async function fetchImportRecord(schoolId: string, importId: string): Promise<BankImportRecord | null> {
+async function fetchImportRecord(
+  schoolId: string,
+  importId: string,
+  accountingEnabled = true
+): Promise<BankImportRecord | null> {
   const imp = await prisma.bankStatementImport.findFirst({
     where: { id: importId, schoolId },
     include: {
@@ -504,29 +531,32 @@ async function fetchImportRecord(schoolId: string, importId: string): Promise<Ba
     },
   });
   if (!imp) return null;
-  return toImportRecord(imp, imp.transactions);
+  return toImportRecord(imp, imp.transactions, accountingEnabled);
 }
 
-router.get("/stats", async (req, res) => {
+router.get("/stats", async (req: BankingAuthRequest, res) => {
   try {
-    const schoolId = String(req.query.schoolId || "").trim();
+    const schoolId = authorizedBankingSchoolId(req);
+    if (!schoolId) return res.status(403).json({ success: false, error: "Missing school authorization" });
     const importId = String(req.query.importId || "").trim();
-    if (!schoolId) return res.status(400).json({ success: false, error: "Missing schoolId" });
+    const accountingEnabled = await resolveAccountingModuleEnabled(schoolId);
     const stats = await computeStats(schoolId, importId || undefined);
-    return res.json({ success: true, stats });
+    return res.json({
+      success: true,
+      stats: sanitizeBankingStatsForModule(stats as Record<string, unknown>, accountingEnabled),
+    });
   } catch (error) {
     console.error("[banking] GET /stats failed:", error);
     return res.status(500).json({ success: false, error: "Server error" });
   }
 });
 
-router.get("/transactions", async (req, res) => {
+router.get("/transactions", async (req: BankingAuthRequest, res) => {
   try {
-    const schoolId = String(req.query.schoolId || "").trim();
+    const schoolId = authorizedBankingSchoolId(req);
+    if (!schoolId) return res.status(403).json({ success: false, error: "Missing school authorization" });
     const importId = String(req.query.importId || "").trim();
     const matchStatus = String(req.query.matchStatus || "").trim() as BankTransactionMatchStatus;
-
-    if (!schoolId) return res.status(400).json({ success: false, error: "Missing schoolId" });
 
     const where: Prisma.BankTransactionWhereInput = { schoolId };
     if (importId) where.importId = importId;
@@ -537,18 +567,25 @@ router.get("/transactions", async (req, res) => {
       orderBy: [{ date: "desc" }, { createdAt: "desc" }],
     });
 
-    return res.json({ success: true, transactions: rows.map(toApiRow) });
+    const accountingEnabled = await resolveAccountingModuleEnabled(schoolId);
+    const transactions = sanitizeBankTransactionsForModule(
+      rows.map(toApiRow) as Array<Record<string, unknown>>,
+      accountingEnabled
+    );
+    return res.json({ success: true, transactions });
   } catch (error) {
     console.error("[banking] GET /transactions failed:", error);
     return res.status(500).json({ success: false, error: "Server error" });
   }
 });
 
-router.post("/import", upload.single("file"), async (req, res) => {
+router.post("/import", upload.single("file"), async (req: BankingAuthRequest, res) => {
   try {
-    const schoolId = String(req.body?.schoolId || "").trim();
-    if (!schoolId) return res.status(400).json({ success: false, error: "Missing schoolId" });
+    const schoolId = authorizedBankingSchoolId(req);
+    if (!schoolId) return res.status(403).json({ success: false, error: "Missing school authorization" });
     if (!req.file) return res.status(400).json({ success: false, error: "Missing bank statement file" });
+
+    const accountingEnabled = await resolveAccountingModuleEnabled(schoolId);
 
     const parsed = parseBankStatementBuffer(
       req.file.buffer,
@@ -557,7 +594,9 @@ router.post("/import", upload.single("file"), async (req, res) => {
     );
     if (!parsed.ok) return res.status(400).json({ success: false, error: parsed.error });
 
-    const uploadedBy = String(req.body?.uploadedBy || req.body?.createdBy || "").trim();
+    const uploadedBy =
+      String(req.body?.uploadedBy || req.body?.createdBy || "").trim() ||
+      String(req.capturePaymentAuth?.capturedByName || "").trim();
     const bankName = String(parsed.bankName || "").trim();
     const importFormat = parsed.parserId || parsed.format;
 
@@ -565,27 +604,32 @@ router.post("/import", upload.single("file"), async (req, res) => {
     const previousMatches = await loadPreviousBankMatches(schoolId);
     const invoiceRefs = buildBillingInvoiceRefs(schoolId);
 
-    const dbSuppliers = await prisma.supplier.findMany({
-      where: { schoolId, status: "active" },
-      select: { id: true, supplierName: true },
-    });
-    const supplierList: SupplierMatchInput[] =
-      parseSupplierList(req.body?.suppliers).length > 0
+    const dbSuppliers = accountingEnabled
+      ? await prisma.supplier.findMany({
+          where: { schoolId, status: "active" },
+          select: { id: true, supplierName: true },
+        })
+      : [];
+    const supplierList: SupplierMatchInput[] = accountingEnabled
+      ? parseSupplierList(req.body?.suppliers).length > 0
         ? parseSupplierList(req.body?.suppliers)
         : dbSuppliers.map((s) => ({
             id: s.id,
             name: s.supplierName,
             category: "Other",
-          }));
+          }))
+      : [];
 
-    const openInvoices = await prisma.supplierInvoice.findMany({
-      where: {
-        schoolId,
-        status: { in: ["approved", "partially_paid"] },
-        outstandingAmount: { gt: 0 },
-      },
-      include: { supplier: true },
-    });
+    const openInvoices = accountingEnabled
+      ? await prisma.supplierInvoice.findMany({
+          where: {
+            schoolId,
+            status: { in: ["approved", "partially_paid"] },
+            outstandingAmount: { gt: 0 },
+          },
+          include: { supplier: true },
+        })
+      : [];
     const invoiceMatchInputs = openInvoices.map((inv) => ({
       id: inv.id,
       invoiceNumber: inv.invoiceNumber,
@@ -638,7 +682,8 @@ router.post("/import", upload.single("file"), async (req, res) => {
       let suggestedInvoiceNumber = "";
       let invoiceMatchScore = 0;
 
-      if (direction === "out") {
+      // ACCOUNTING-off: never infer/persist expense/supplier/invoice enrichment.
+      if (direction === "out" && accountingEnabled) {
         const bankAmount = normaliseAmount(txn.moneyOut);
         const invoiceHit = matchSupplierInvoicesForBankLine(
           txn.description,
@@ -674,12 +719,23 @@ router.post("/import", upload.single("file"), async (req, res) => {
         }
       }
 
+      const accountingPersist = persistableBankImportAccountingFields(accountingEnabled, {
+        expenseCategory,
+        suggestedSupplierName,
+        supplierId,
+        suggestedInvoiceId,
+        suggestedInvoiceNumber,
+        invoiceMatchScore,
+        expenseNotes: "",
+        expenseMatchReason,
+      });
+
       const matchConfidence = suggestion.matchConfidence;
       const matchStatus = deriveInitialMatchStatus({
         isDuplicate,
         direction,
         confidenceScore: suggestion.confidenceScore,
-        expenseCategory,
+        expenseCategory: accountingPersist.expenseCategory as ExpenseCategory | "",
       });
 
       createRows.push({
@@ -691,7 +747,7 @@ router.post("/import", upload.single("file"), async (req, res) => {
         moneyIn: normaliseAmount(txn.moneyIn),
         moneyOut: normaliseAmount(txn.moneyOut),
         direction,
-        transactionType: direction === "in" ? "payment" : "expense",
+        transactionType: bankImportTransactionTypeForModule(direction, accountingEnabled),
         suggestedAccountId: suggestion.suggestedAccountId,
         suggestedAccountNo: suggestion.suggestedAccountNo,
         suggestedLearnerId: suggestion.suggestedLearnerId,
@@ -699,16 +755,18 @@ router.post("/import", upload.single("file"), async (req, res) => {
         confidenceScore: suggestion.confidenceScore,
         matchConfidence,
         matchReason:
-          direction === "in" ? suggestion.matchReason : expenseMatchReason || suggestion.matchReason,
+          direction === "in"
+            ? suggestion.matchReason
+            : accountingPersist.expenseMatchReason || suggestion.matchReason,
         reviewStatus: "pending",
         matchStatus,
-        expenseCategory,
-        suggestedSupplierName,
-        supplierId,
-        suggestedInvoiceId,
-        suggestedInvoiceNumber,
-        invoiceMatchScore,
-        expenseNotes: "",
+        expenseCategory: accountingPersist.expenseCategory,
+        suggestedSupplierName: accountingPersist.suggestedSupplierName,
+        supplierId: accountingPersist.supplierId,
+        suggestedInvoiceId: accountingPersist.suggestedInvoiceId,
+        suggestedInvoiceNumber: accountingPersist.suggestedInvoiceNumber,
+        invoiceMatchScore: accountingPersist.invoiceMatchScore,
+        expenseNotes: accountingPersist.expenseNotes,
         fingerprint,
         rawRow: txn as unknown as Prisma.InputJsonValue,
         isDuplicate,
@@ -746,14 +804,18 @@ router.post("/import", upload.single("file"), async (req, res) => {
       },
     });
 
-    const hydrated = toImportRecord(importRecord, importRecord.transactions);
+    const hydrated = toImportRecord(importRecord, importRecord.transactions, accountingEnabled);
 
     return res.status(201).json({
       success: true,
       import: hydrated,
-      expenseCategories: EXPENSE_CATEGORIES,
-      accountingNote:
-        "Accepted banking expense candidates are sent to Accounting → Expenses review queue.",
+      ...(accountingEnabled
+        ? {
+            expenseCategories: EXPENSE_CATEGORIES,
+            accountingNote:
+              "Accepted banking expense candidates are sent to Accounting → Expenses review queue.",
+          }
+        : {}),
     });
   } catch (error) {
     console.error("[banking] POST /import failed:", error);
@@ -761,11 +823,12 @@ router.post("/import", upload.single("file"), async (req, res) => {
   }
 });
 
-router.get("/imports", async (req, res) => {
+router.get("/imports", async (req: BankingAuthRequest, res) => {
   try {
-    const schoolId = String(req.query.schoolId || "").trim();
-    if (!schoolId) return res.status(400).json({ success: false, error: "Missing schoolId" });
+    const schoolId = authorizedBankingSchoolId(req);
+    if (!schoolId) return res.status(403).json({ success: false, error: "Missing school authorization" });
 
+    const accountingEnabled = await resolveAccountingModuleEnabled(schoolId);
     const imports = await prisma.bankStatementImport.findMany({
       where: { schoolId },
       orderBy: { importedAt: "desc" },
@@ -776,7 +839,7 @@ router.get("/imports", async (req, res) => {
 
     return res.json({
       success: true,
-      imports: imports.map((imp) => toImportRecord(imp, imp.transactions)),
+      imports: imports.map((imp) => toImportRecord(imp, imp.transactions, accountingEnabled)),
     });
   } catch (error) {
     console.error("[banking] GET /imports failed:", error);
@@ -784,21 +847,26 @@ router.get("/imports", async (req, res) => {
   }
 });
 
-router.get("/imports/:id", async (req, res) => {
+router.get("/imports/:id", async (req: BankingAuthRequest, res) => {
   try {
-    const schoolId = String(req.query.schoolId || "").trim();
+    const schoolId = authorizedBankingSchoolId(req);
+    if (!schoolId) return res.status(403).json({ success: false, error: "Missing school authorization" });
     const id = String(req.params.id || "").trim();
-    if (!schoolId) return res.status(400).json({ success: false, error: "Missing schoolId" });
 
-    const record = await fetchImportRecord(schoolId, id);
+    const accountingEnabled = await resolveAccountingModuleEnabled(schoolId);
+    const record = await fetchImportRecord(schoolId, id, accountingEnabled);
     if (!record) return res.status(404).json({ success: false, error: "Import not found" });
 
     return res.json({
       success: true,
       import: record,
-      expenseCategories: EXPENSE_CATEGORIES,
-      accountingNote:
-        "Accepted banking expense candidates are sent to Accounting → Expenses review queue.",
+      ...(accountingEnabled
+        ? {
+            expenseCategories: EXPENSE_CATEGORIES,
+            accountingNote:
+              "Accepted banking expense candidates are sent to Accounting → Expenses review queue.",
+          }
+        : {}),
     });
   } catch (error) {
     console.error("[banking] GET /imports/:id failed:", error);
@@ -806,12 +874,28 @@ router.get("/imports/:id", async (req, res) => {
   }
 });
 
-router.patch("/imports/:id/transaction/:transactionId", async (req, res) => {
+router.patch("/imports/:id/transaction/:transactionId", async (req: BankingAuthRequest, res) => {
   try {
     const importId = String(req.params.id || "").trim();
     const transactionId = String(req.params.transactionId || "").trim();
-    const schoolId = String(req.body?.schoolId || "").trim();
-    if (!schoolId) return res.status(400).json({ success: false, error: "Missing schoolId" });
+    const schoolId = authorizedBankingSchoolId(req);
+    if (!schoolId) return res.status(403).json({ success: false, error: "Missing school authorization" });
+
+    const accountingEnabled = await resolveAccountingModuleEnabled(schoolId);
+    const accountingViolation = assertNoAccountingBankingMutationWhenDisabled(
+      (req.body || {}) as Record<string, unknown>,
+      accountingEnabled
+    );
+    if (accountingViolation) {
+      return res.status(403).json({
+        success: false,
+        error: accountingViolation.error,
+        message: accountingViolation.error,
+        code: accountingViolation.code || MODULE_NOT_ENTITLED,
+        module: accountingViolation.module,
+        fields: accountingViolation.fields,
+      });
+    }
 
     const existing = await prisma.bankTransaction.findFirst({
       where: { id: transactionId, importId, schoolId },
@@ -941,10 +1025,17 @@ router.patch("/imports/:id/transaction/:transactionId", async (req, res) => {
       },
     });
 
-    const importRecord = await fetchImportRecord(schoolId, importId);
+    const importRecord = await fetchImportRecord(schoolId, importId, accountingEnabled);
     if (!importRecord) return res.status(404).json({ success: false, error: "Import not found" });
 
-    return res.json({ success: true, transaction: toApiRow(updated), import: importRecord });
+    return res.json({
+      success: true,
+      transaction: sanitizeBankTransactionForModule(
+        toApiRow(updated) as Record<string, unknown>,
+        accountingEnabled
+      ),
+      import: importRecord,
+    });
   } catch (error) {
     console.error("[banking] PATCH transaction failed:", error);
     return res.status(500).json({ success: false, error: "Server error" });
@@ -968,15 +1059,14 @@ function ledgerHasBankSourcePayment(
   );
 }
 
-router.post("/imports/:id/post-payments", async (req, res) => {
+router.post("/imports/:id/post-payments", async (req: BankingAuthRequest, res) => {
   try {
     const importId = String(req.params.id || "").trim();
-    const schoolId = String(req.body?.schoolId || "").trim();
+    const schoolId = authorizedBankingSchoolId(req);
+    if (!schoolId) return res.status(403).json({ success: false, error: "Missing school authorization" });
     const transactionIds = Array.isArray(req.body?.transactionIds)
       ? (req.body.transactionIds as unknown[]).map((v) => String(v).trim()).filter(Boolean)
       : [];
-
-    if (!schoolId) return res.status(400).json({ success: false, error: "Missing schoolId" });
 
     const importExists = await prisma.bankStatementImport.findFirst({
       where: { id: importId, schoolId },
@@ -1105,7 +1195,8 @@ router.post("/imports/:id/post-payments", async (req, res) => {
       posted.push(entry);
     }
 
-    const importRecord = await fetchImportRecord(schoolId, importId);
+    const accountingEnabled = await resolveAccountingModuleEnabled(schoolId);
+    const importRecord = await fetchImportRecord(schoolId, importId, accountingEnabled);
 
     return res.json({
       success: true,
