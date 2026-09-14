@@ -38,6 +38,7 @@ import SubscriptionStatus from "./subscriptions/SubscriptionStatus";
 import BillingPaymentSuccess from "./pages/BillingPaymentSuccess";
 import BillingPaymentCancelled from "./pages/BillingPaymentCancelled";
 import ParentPortalApp from "./parent/ParentPortalApp";
+import PublicAdmissionsApp from "./publicAdmissions/PublicAdmissionsApp";
 import TeacherInbox from "./teacher/TeacherInbox";
 import TeacherApp from "./teacher-app/TeacherApp";
 import EduClockApp from "./educlock/EduClockApp";
@@ -617,6 +618,9 @@ export default function App() {
         <Route path="/parent/*" element={<ParentPortalApp />} />
         <Route path="/parent-portal" element={<Navigate to="/parent" replace />} />
         <Route path="/parent-portal/*" element={<Navigate to="/parent" replace />} />
+
+        {/* Public Online Admissions applicant SPA (OA-06B) — no staff JWT */}
+        <Route path="/admissions/*" element={<PublicAdmissionsApp />} />
 
         <Route
           path="/dashboard/*"
