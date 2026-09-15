@@ -9,6 +9,7 @@ const TABLE_COLUMNS = [
   "Email",
   "Contact",
   "Package",
+  "Capacity",
   "Status",
   "Learners",
   "Parents",
@@ -106,6 +107,29 @@ export default function SchoolsTable({
                   <td className="sa-schools-cell">{school.contactPhone || "—"}</td>
                   <td>
                     <span className="sa-schools-package-pill">{school.package}</span>
+                    {school.moduleEntitlements ? (
+                      <div
+                        style={{
+                          marginTop: 4,
+                          fontSize: "0.72rem",
+                          color: "rgba(255,255,255,0.55)",
+                          letterSpacing: "0.02em",
+                        }}
+                      >
+                        {school.moduleEntitlements.CORE !== false ? "C" : "—"}
+                        {school.moduleEntitlements.ACCOUNTING !== false ? "A" : "—"}
+                        {school.moduleEntitlements.PAYROLL !== false ? "P" : "—"}
+                        {school.legacyCapacityPackage
+                          ? ` · legacy ${school.legacyCapacityPackage}`
+                          : ""}
+                      </div>
+                    ) : null}
+                  </td>
+                  <td className="sa-schools-cell">
+                    {school.learnerCapacityLabel ||
+                      (school.learnerLimit == null
+                        ? "Unlimited"
+                        : `Up to ${school.learnerLimit} learners`)}
                   </td>
                   <td>
                     <SchoolStatusBadge status={school.lifecycleStatus} />

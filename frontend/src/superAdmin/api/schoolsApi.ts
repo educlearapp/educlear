@@ -16,6 +16,10 @@ type ApiSchoolRow = {
   email?: string;
   contactPhone?: string | null;
   package?: string;
+  commercialPackageCode?: string | null;
+  commercialPackageName?: string | null;
+  learnerLimit?: number | null;
+  learnerCapacityLabel?: string | null;
   legacyCapacityPackage?: string | null;
   lifecycleStatus?: string;
   status?: string;
@@ -60,6 +64,19 @@ function mapSchoolRow(row: ApiSchoolRow, sessionSchoolId: string | null): School
     email: ownerEmail || "—",
     contactPhone: contactRaw || null,
     package: asPackage(row.package),
+    commercialPackageCode: row.commercialPackageCode
+      ? String(row.commercialPackageCode).trim()
+      : null,
+    commercialPackageName: row.commercialPackageName
+      ? String(row.commercialPackageName).trim()
+      : null,
+    learnerLimit:
+      row.learnerLimit === null || row.learnerLimit === undefined
+        ? null
+        : Number(row.learnerLimit),
+    learnerCapacityLabel: row.learnerCapacityLabel
+      ? String(row.learnerCapacityLabel).trim()
+      : null,
     legacyCapacityPackage: row.legacyCapacityPackage
       ? String(row.legacyCapacityPackage).trim()
       : null,

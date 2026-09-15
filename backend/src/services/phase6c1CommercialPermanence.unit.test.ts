@@ -26,6 +26,8 @@ function testCataloguePrices() {
     CORE_ACCOUNTING: [1500, 15_000],
     CORE_PAYROLL: [1500, 15_000],
     FULL: [2000, 20_000],
+    FULL_100: [1500, 15_000],
+    FULL_UNLIMITED: [2000, 20_000],
   };
   for (const [code, [m, a]] of Object.entries(expected)) {
     const pkg = findCommercialPackageByCode(code)!;
@@ -106,9 +108,9 @@ function testAuthRegistersModules() {
 
 function testNewSaleExcludesLegacy() {
   const sale = listNewSaleCommercialPackages();
-  assert.strictEqual(sale.length, 7);
+  assert.strictEqual(sale.length, 8);
   assert.ok(!sale.some((p) => (p.code as string) === "STARTER"));
-  assert.strictEqual(EDUCLEAR_COMMERCIAL_PACKAGES.length, 7);
+  assert.strictEqual(EDUCLEAR_COMMERCIAL_PACKAGES.length, 8);
   console.log("✓ new-sale catalogue excludes STARTER/UNLIMITED");
 }
 

@@ -186,9 +186,9 @@ export default function DashboardPackagePanel({ moduleEntitlements = null }: Pro
         )}
       </section>
 
-      {current?.code === "FULL" ? (
+      {current?.code === "FULL_UNLIMITED" ? (
         <p style={{ fontWeight: 700, color: "#047857" }}>
-          You already have EduClear Full — no upgrade required.
+          You already have EduClear Full Unlimited — no upgrade required.
         </p>
       ) : (
         <section style={{ marginBottom: 28 }}>
