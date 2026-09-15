@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState, type CSSProperties } from "react";
 import { API_URL } from "./api";
 import { useSchoolId } from "./useSchoolId";
+import { invalidateBillingPlanFeeOptionsCache } from "./billing/invoiceFeeOptionsLoader";
 
 const CATEGORY_OPTIONS = [
   { value: "SCHOOL_CHARGE", label: "School Charge" },
@@ -295,6 +296,9 @@ export default function FeeUpsert(props: { feeId?: string | null; onBack: () => 
                 );
                 const data = await res.json();
                 if (!res.ok) throw new Error(data?.message || (isEdit ? "Failed to update fee" : "Failed to create fee"));
+                // Invalidate shared fee-options cache only after a successful save
+                // so Invoice / Billing Plans pickers cannot keep a pre-create snapshot.
+                invalidateBillingPlanFeeOptionsCache();
                 props.onSaved();
               } catch (e: any) {
                 setError(e?.message || "Failed to save fee");

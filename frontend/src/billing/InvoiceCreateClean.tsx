@@ -28,6 +28,11 @@ import {
   resolveManualInvoiceLearnerId,
   resolvePaymentLearnerId,
 } from "./paymentLearnerResolver";
+import {
+  fetchAllSchoolFees,
+  mergeFeeOptionsByStableKey,
+  rewriteBillingPlanFeeOptionsCache,
+} from "./invoiceFeeOptionsLoader";
 
 export type InvoiceDetailLine = {
   id: string;
@@ -554,52 +559,24 @@ export default function InvoiceCreateClean({
     if (!schoolId) return;
     setLoadingFees(true);
     try {
-      let schoolFees: FeeOption[] = [];
-      try {
-        const saved = localStorage.getItem("billingPlanFeeOptions");
-        const parsed = saved ? JSON.parse(saved) : [];
-        if (Array.isArray(parsed) && parsed.length) {
-          schoolFees = parsed.map((fee: any, index: number) =>
-            normalizeFeeOption(fee, index, "fee")
-          );
-        }
-      } catch {
-        // continue to API
-      }
-
-      if (!schoolFees.length) {
-        const response = await fetch(
-          `${API_URL}/api/fees?schoolId=${encodeURIComponent(schoolId)}`
-        );
-        if (response.ok) {
-          const data = await response.json();
-          const list = Array.isArray(data)
-            ? data
-            : Array.isArray(data?.fees)
-              ? data.fees
-              : Array.isArray(data?.data)
-                ? data.data
-                : Array.isArray(data?.items)
-                  ? data.items
-                  : [];
-          schoolFees = list.map((fee: any, index: number) =>
-            normalizeFeeOption(fee, index, "fee")
-          );
-          if (schoolFees.length) {
-            localStorage.setItem("billingPlanFeeOptions", JSON.stringify(list));
-          }
-        }
+      // Always live-fetch the school catalogue (paginated). Never trust stale
+      // localStorage.billingPlanFeeOptions as the authoritative source.
+      const { fees: list } = await fetchAllSchoolFees({
+        apiUrl: API_URL,
+        schoolId,
+      });
+      const schoolFees = list.map((fee: any, index: number) =>
+        normalizeFeeOption(fee, index, "fee")
+      );
+      if (list.length) {
+        rewriteBillingPlanFeeOptionsCache(list);
       }
 
       const planFees = getLearnerBillingPlan(learnerId, learners).map((fee: any, index: number) =>
         normalizeFeeOption(fee, index, "plan")
       );
 
-      const merged = new Map<string, FeeOption>();
-      for (const fee of [...planFees, ...schoolFees]) {
-        if (!merged.has(fee.stableKey)) merged.set(fee.stableKey, fee);
-      }
-      setFeeOptions(Array.from(merged.values()));
+      setFeeOptions(mergeFeeOptionsByStableKey(planFees, schoolFees));
     } catch (error) {
       console.error(error);
       setFeeOptions([]);
