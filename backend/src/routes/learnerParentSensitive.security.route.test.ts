@@ -365,8 +365,15 @@ async function runLiveRouteTests() {
     }
     console.log("✓ GET /api/learners/:id unauth: no allergies/medicalAlert/parent.birthDate");
 
-    const parentsList = await jsonFetch(
+    const parentsUnauth = await jsonFetch(
       `${base}/api/parents?schoolId=${encodeURIComponent(schoolA.id)}`
+    );
+    assert.equal(parentsUnauth.status, 401);
+    console.log("✓ GET /api/parents unauth: denied");
+
+    const parentsList = await jsonFetch(
+      `${base}/api/parents?schoolId=${encodeURIComponent(schoolA.id)}`,
+      { token: tokenA }
     );
     assert.equal(parentsList.status, 200);
     const parentRow = (parentsList.json.parents || []).find(
@@ -374,7 +381,7 @@ async function runLiveRouteTests() {
     );
     assert.ok(parentRow);
     assertNoParentBirthDate(parentRow, "GET /api/parents");
-    console.log("✓ GET /api/parents unauth: no Parent.birthDate");
+    console.log("✓ GET /api/parents authed: no Parent.birthDate");
 
     const legacyPut = await jsonFetch(`${base}/api/learners/${encodeURIComponent(learnerA.id)}`, {
       method: "PUT",

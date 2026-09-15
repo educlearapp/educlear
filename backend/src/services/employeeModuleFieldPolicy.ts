@@ -3,6 +3,9 @@
  *
  * CORE keeps staff administration + EduClock linkage.
  * PAYROLL covers remuneration, tax, allowances/deductions, and payslip bank details.
+ *
+ * Phase 6E.1: fail-closed allowlists — unknown fields are NOT exposed or writable
+ * merely because they are unclassified.
  */
 import { MODULE_NOT_ENTITLED } from "../middleware/requireSchoolModule";
 import { isSchoolModuleEnabled } from "./schoolModuleEntitlements";
@@ -74,6 +77,20 @@ export const PAYROLL_EMPLOYEE_API_FIELDS = [
 
 const PAYROLL_FIELD_SET = new Set<string>(PAYROLL_EMPLOYEE_API_FIELDS);
 const CORE_FIELD_SET = new Set<string>(CORE_EMPLOYEE_API_FIELDS);
+const ALLOWED_RELATION_STRIP = new Set([
+  "payrollRunEmployees",
+  "payslips",
+  "school",
+  "user",
+]);
+
+/** Write aliases that map onto known fields (not independent columns). */
+const WRITE_ALIASES: Record<string, string> = {
+  bankAccount: "bankAccountNumber",
+};
+
+/** Non-persisted client keys allowed on writes (mapped / ignored safely). */
+const WRITE_PASSTHROUGH_KEYS = new Set(["payrollEnabled"]);
 
 export type PayrollFieldViolation = {
   fields: string[];
@@ -82,21 +99,42 @@ export type PayrollFieldViolation = {
   error: string;
 };
 
+function canonicalWriteKey(key: string): string {
+  return WRITE_ALIASES[key] || key;
+}
+
+function isAllowedEmployeeApiField(key: string, payrollEnabled: boolean): boolean {
+  if (CORE_FIELD_SET.has(key)) return true;
+  if (payrollEnabled && PAYROLL_FIELD_SET.has(key)) return true;
+  return false;
+}
+
 /** Body keys that attempt to set payroll-only fields (including aliases). */
 export function findPayrollMutationFields(body: Record<string, unknown> | null | undefined): string[] {
   if (!body || typeof body !== "object") return [];
   const found = new Set<string>();
   for (const key of Object.keys(body)) {
-    if (PAYROLL_FIELD_SET.has(key)) found.add(key);
+    const canonical = canonicalWriteKey(key);
+    if (PAYROLL_FIELD_SET.has(canonical)) found.add(canonical);
   }
-  // Frontend alias for bankAccountNumber
-  if (Object.prototype.hasOwnProperty.call(body, "bankAccount")) {
-    found.add("bankAccountNumber");
-  }
-  // Explicit payrollEnabled is a payroll UI concept mapped to isActive — allow isActive via Core;
-  // reject only if client sends payrollEnabled as a distinct payroll config key alongside salary fields.
-  if (Object.prototype.hasOwnProperty.call(body, "payrollEnabled")) {
-    // payrollEnabled alone maps to isActive (Core). Do not treat as payroll-only.
+  return [...found].sort();
+}
+
+/**
+ * Fail-closed write policy: only CORE (+ PAYROLL when enabled) fields may be set.
+ * Unknown keys are rejected so future columns do not auto-become writable.
+ */
+export function findDisallowedEmployeeMutationFields(
+  body: Record<string, unknown> | null | undefined,
+  payrollEnabled: boolean
+): string[] {
+  if (!body || typeof body !== "object") return [];
+  const found = new Set<string>();
+  for (const key of Object.keys(body)) {
+    if (WRITE_PASSTHROUGH_KEYS.has(key)) continue;
+    const canonical = canonicalWriteKey(key);
+    if (isAllowedEmployeeApiField(canonical, payrollEnabled)) continue;
+    found.add(key);
   }
   return [...found].sort();
 }
@@ -105,33 +143,35 @@ export function assertNoPayrollMutationWhenDisabled(
   body: Record<string, unknown>,
   payrollEnabled: boolean
 ): PayrollFieldViolation | null {
-  if (payrollEnabled) return null;
-  const fields = findPayrollMutationFields(body);
+  const fields = findDisallowedEmployeeMutationFields(body, payrollEnabled);
   if (!fields.length) return null;
+  const payrollOnly = fields.filter((f) => PAYROLL_FIELD_SET.has(canonicalWriteKey(f)));
   return {
     fields,
     code: MODULE_NOT_ENTITLED,
     module: "PAYROLL",
-    error:
-      "Payroll-specific employee fields cannot be set while the PAYROLL module is disabled for this school",
+    error: payrollOnly.length
+      ? "Payroll-specific employee fields cannot be set while the PAYROLL module is disabled for this school"
+      : "Unrecognized employee fields cannot be set for this school's module entitlements",
   };
 }
 
+/**
+ * Fail-closed read sanitizer.
+ * - PAYROLL off → CORE allowlist only
+ * - PAYROLL on → CORE ∪ PAYROLL allowlist only
+ * Unknown/synthetic fields are never passed through.
+ */
 export function sanitizeEmployeeForModule<T extends Record<string, unknown>>(
   employee: T,
   payrollEnabled: boolean
 ): Partial<T> {
-  if (payrollEnabled) return { ...employee };
   const out: Record<string, unknown> = {};
   for (const [key, value] of Object.entries(employee)) {
-    if (PAYROLL_FIELD_SET.has(key)) continue;
-    // Keep unknown non-payroll keys that are not in PAYROLL set (relations stripped separately)
-    if (CORE_FIELD_SET.has(key) || !PAYROLL_FIELD_SET.has(key)) {
-      if (key === "payrollRunEmployees" || key === "payslips" || key === "school") continue;
-      if (key.startsWith("eduClock") || key.startsWith("payrollEduClock")) continue;
-      if (key === "user") continue;
-      out[key] = value;
-    }
+    if (ALLOWED_RELATION_STRIP.has(key)) continue;
+    if (key.startsWith("eduClock") || key.startsWith("payrollEduClock")) continue;
+    if (!isAllowedEmployeeApiField(key, payrollEnabled)) continue;
+    out[key] = value;
   }
   return out as Partial<T>;
 }
@@ -147,15 +187,20 @@ export async function resolvePayrollModuleEnabled(schoolId: string): Promise<boo
   return isSchoolModuleEnabled(schoolId, "PAYROLL");
 }
 
-/** Strip payroll keys from create/update data object when PAYROLL is off (defence in depth). */
+/** Strip disallowed keys from create/update data (defence in depth). */
 export function stripPayrollFieldsFromWriteData<T extends Record<string, unknown>>(
   data: T,
   payrollEnabled: boolean
 ): T {
-  if (payrollEnabled) return data;
-  const out: Record<string, unknown> = { ...data };
-  for (const key of PAYROLL_EMPLOYEE_API_FIELDS) {
-    delete out[key];
+  const out: Record<string, unknown> = {};
+  for (const [key, value] of Object.entries(data)) {
+    if (WRITE_PASSTHROUGH_KEYS.has(key)) {
+      out[key] = value;
+      continue;
+    }
+    const canonical = canonicalWriteKey(key);
+    if (!isAllowedEmployeeApiField(canonical, payrollEnabled)) continue;
+    out[key] = value;
   }
   return out as T;
 }

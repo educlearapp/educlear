@@ -121,7 +121,7 @@ function main() {
   assert.strictEqual(describeModulePackageLabel(MODULE_PRESETS.CORE_ONLY), "Core");
   assert.strictEqual(describeModulePackageLabel(MODULE_PRESETS.ACCOUNTING_ONLY), "Accounting");
   assert.strictEqual(describeModulePackageLabel(MODULE_PRESETS.PAYROLL_ONLY), "Payroll");
-  assert.strictEqual(describeModulePackageLabel(MODULE_PRESETS.ACCOUNTING_PAYROLL), "Accounting + Payroll");
+  assert.strictEqual(describeModulePackageLabel(MODULE_PRESETS.ACCOUNTING_PAYROLL), "Business");
   assert.strictEqual(describeModulePackageLabel(MODULE_PRESETS.CORE_ACCOUNTING), "Core + Accounting");
   assert.strictEqual(describeModulePackageLabel(MODULE_PRESETS.CORE_PAYROLL), "Core + Payroll");
   assert.strictEqual(describeModulePackageLabel(MODULE_PRESETS.FULL), "Full");

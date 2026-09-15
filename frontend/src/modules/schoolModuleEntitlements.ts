@@ -375,13 +375,14 @@ export function deniedModuleForSchoolPage(
   return req.modules[0];
 }
 
-/** Deterministic commercial package label (same rules as backend). */
+/** Deterministic commercial package label (same rules as backend / catalogue shortLabel). */
 export function describeModulePackageLabel(entitlements: SchoolModuleEntitlements): string {
   const c = entitlements.CORE !== false;
   const a = entitlements.ACCOUNTING !== false;
   const p = entitlements.PAYROLL !== false;
   if (c && a && p) return "Full";
-  if (!c && a && p) return "Accounting + Payroll";
+  // Canonical commercial short label for 011 (EduClear Business).
+  if (!c && a && p) return "Business";
   if (c && a && !p) return "Core + Accounting";
   if (c && !a && p) return "Core + Payroll";
   if (c && !a && !p) return "Core";
