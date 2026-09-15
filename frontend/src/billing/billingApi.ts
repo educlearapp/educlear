@@ -146,11 +146,11 @@ export type { InvoiceBatchSaveResult } from "./invoiceBatchSave";
 export { assertInvoiceBatchSaveSucceeded } from "./invoiceBatchSave";
 
 export const fetchInvoices = async (schoolId: string) =>
-  getJsonOrEmptyArray(`${API_URL}/api/invoices?schoolId=${encodeURIComponent(schoolId)}`, [
-    "invoices",
-    "items",
-    "data",
-  ]);
+  getJsonOrEmptyArray(
+    `${API_URL}/api/invoices?schoolId=${encodeURIComponent(schoolId)}`,
+    ["invoices", "items", "data"],
+    staffAuthHeaders()
+  );
 
 export const fetchPayments = async (schoolId: string) =>
   getJsonOrEmptyArray(
@@ -160,12 +160,11 @@ export const fetchPayments = async (schoolId: string) =>
   );
 
 export const fetchStatements = async (schoolId: string) =>
-  getJsonOrEmptyArray(`${API_URL}/api/statements?schoolId=${encodeURIComponent(schoolId)}`, [
-    "statements",
-    "accounts",
-    "items",
-    "data",
-  ]);
+  getJsonOrEmptyArray(
+    `${API_URL}/api/statements?schoolId=${encodeURIComponent(schoolId)}`,
+    ["statements", "accounts", "items", "data"],
+    staffAuthHeaders()
+  );
 
 export type StatementAccountTransactionRow = {
   key: string;
@@ -401,7 +400,8 @@ export const syncBillingLedgerFromApi = async (
     }
 
     const ledgerUrl = `${API_URL}/api/invoices/ledger?schoolId=${encodeURIComponent(sid)}`;
-    const ledgerData = await getJson(ledgerUrl);
+    const ledgerData = await getJson(ledgerUrl, staffAuthHeaders());
+
     if (!ledgerData) {
       markSchoolLedgerApiSyncFailed(sid);
       return;
@@ -458,7 +458,7 @@ export async function fetchStatementsWithStatus(
   if (!sid) return { ok: false, rows: [] };
   const url = `${API_URL}/api/statements?schoolId=${encodeURIComponent(sid)}`;
   try {
-    const data = await getJson(url);
+    const data = await getJson(url, staffAuthHeaders());
     if (!data) return { ok: false, rows: [] };
     return {
       ok: true,
