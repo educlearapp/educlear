@@ -17,8 +17,12 @@ import {
 } from "../modules/educlearCommercialPackages";
 import type { SchoolModuleEntitlements } from "../modules/schoolModuleEntitlements";
 import { apiFetch } from "../api";
+import { BillingIntervalToggle } from "./BillingIntervalToggle";
 import {
+  FULL_UNLIMITED_TOP_PACKAGE_MESSAGE,
+  PACKAGE_PAGE_INTRO_COPY,
   formatCurrentPackageCard,
+  formatPackageCapacityDisplay,
   isModularCheckoutAvailable,
   listUpgradeOptions,
   modularCheckoutDisabledReason,
@@ -37,6 +41,7 @@ import {
 import { submitPayFastCheckout } from "./payfastCheckout";
 
 const GOLD = "#d4af37";
+const INK = "#0f172a";
 
 const goldBtn: React.CSSProperties = {
   padding: "10px 16px",
@@ -155,13 +160,18 @@ export default function SubscriptionPackages() {
   const [schoolName, setSchoolName] = useState<string | null>(null);
   const [modularCheckoutAvailable, setModularCheckoutAvailable] = useState(false);
   const [checkoutBusySku, setCheckoutBusySku] = useState<string | null>(null);
+  const [legacyPackageCode, setLegacyPackageCode] = useState<string | null>(null);
 
   const catalog = useMemo(() => listNewSaleCommercialPackages(), []);
+  const packageOpts = useMemo(() => ({ legacyPackageCode }), [legacyPackageCode]);
   const current = useMemo(
-    () => resolveCurrentCommercialPackageStrict(entitlements),
-    [entitlements]
+    () => resolveCurrentCommercialPackageStrict(entitlements, packageOpts),
+    [entitlements, packageOpts]
   );
-  const upgrades = useMemo(() => listUpgradeOptions(entitlements), [entitlements]);
+  const upgrades = useMemo(
+    () => listUpgradeOptions(entitlements, packageOpts),
+    [entitlements, packageOpts]
+  );
   const currentCard = current ? formatCurrentPackageCard(current, interval) : null;
   const checkoutAvailable = isModularCheckoutAvailable(modularCheckoutAvailable);
 
@@ -196,6 +206,11 @@ export default function SubscriptionPackages() {
           (statusResponse as { schoolName?: string } | null)?.schoolName || ""
         ).trim();
         setSchoolName(statusSchool || null);
+        const statusPkg = String(
+          (statusResponse as { subscription?: { packageCode?: string } } | null)?.subscription
+            ?.packageCode || ""
+        ).trim();
+        setLegacyPackageCode(statusPkg || null);
         const mods =
           (me as { moduleEntitlements?: SchoolModuleEntitlements } | null)?.moduleEntitlements ||
           (me as { school?: { moduleEntitlements?: SchoolModuleEntitlements } } | null)?.school
@@ -290,15 +305,19 @@ export default function SubscriptionPackages() {
         if (dashboardUnlocked) navigate("/dashboard");
       }}
     >
-      <div style={{ padding: "32px", maxWidth: 1100 }}>
-        <h1 className="page-title">Package</h1>
-        <p style={{ color: "#475569", marginTop: "-8px" }}>
-          EduClear commercial packages are modular: Core, Accounting, and Payroll.
-          Complete school-fee Billing is included with Core. Starter and Unlimited are no longer
-          offered for new sales.
+      <div style={{ padding: "32px", maxWidth: 1100, color: INK, boxSizing: "border-box" }}>
+        <h1 className="page-title" style={{ color: INK }}>
+          Package
+        </h1>
+        <p style={{ color: "#64748b", marginTop: "-8px", lineHeight: 1.5, maxWidth: 640 }}>
+          {PACKAGE_PAGE_INTRO_COPY}
         </p>
 
-        {loading ? <p style={{ color: "#64748b", marginTop: 24 }}>Loading packages...</p> : null}
+        {loading ? (
+          <p style={{ color: "#64748b", marginTop: 24 }} data-testid="packages-loading">
+            Loading packages...
+          </p>
+        ) : null}
         {error ? (
           <p style={{ color: "#b91c1c", marginTop: 24 }} role="alert">
             {error}
@@ -313,6 +332,7 @@ export default function SubscriptionPackages() {
               borderRadius: 14,
               border: "1px solid rgba(212, 175, 55, 0.35)",
               background: "#fff",
+              color: INK,
             }}
           >
             <TermsAgreementCheckbox
@@ -361,6 +381,12 @@ export default function SubscriptionPackages() {
           </div>
         ) : null}
 
+        {!loading ? (
+          <div style={{ marginTop: 20 }}>
+            <BillingIntervalToggle value={interval} onChange={setInterval} />
+          </div>
+        ) : null}
+
         {!loading && currentCard && current ? (
           <div
             style={{
@@ -376,12 +402,15 @@ export default function SubscriptionPackages() {
             <div style={{ color: GOLD, fontWeight: 900, letterSpacing: "1px" }}>
               CURRENT PACKAGE
             </div>
-            <h2 style={{ margin: "12px 0 6px" }} data-testid="current-package-name">
+            <h2 style={{ margin: "12px 0 6px", color: "#fff" }} data-testid="current-package-name">
               {currentCard.title}
             </h2>
-            {current.secondaryLabel ? (
-              <p style={{ margin: 0, color: "#d1d5db" }}>{current.secondaryLabel}</p>
-            ) : null}
+            <p
+              style={{ margin: 0, color: "#d1d5db", fontWeight: 600 }}
+              data-testid="current-package-capacity"
+            >
+              {currentCard.capacityLine}
+            </p>
             <p
               style={{ margin: "12px 0 8px", fontSize: 22, fontWeight: 800, color: GOLD }}
               data-testid="current-package-price"
@@ -392,28 +421,26 @@ export default function SubscriptionPackages() {
               <p style={{ margin: 0, color: "#86efac", fontWeight: 700 }}>{ANNUAL_PROMOTION_COPY}</p>
             ) : null}
             <p style={{ margin: "10px 0 0", color: "#d1d5db" }}>{currentCard.description}</p>
+            {current.code === "FULL_UNLIMITED" ? (
+              <p
+                style={{ margin: "14px 0 0", color: "#86efac", fontWeight: 700 }}
+                data-testid="top-package-message"
+              >
+                {FULL_UNLIMITED_TOP_PACKAGE_MESSAGE}
+              </p>
+            ) : null}
           </div>
         ) : null}
 
-        {!loading ? (
-          <div style={{ display: "flex", gap: 8, marginTop: 20 }}>
-            <button type="button" onClick={() => setInterval("monthly")} style={goldBtn}>
-              Monthly
-            </button>
-            <button type="button" onClick={() => setInterval("annual")} style={goldBtn}>
-              Annual
-            </button>
-          </div>
-        ) : null}
-
-        {!loading && upgrades.length > 0 ? (
-          <section style={{ marginTop: 28 }}>
-            <h3>Upgrade options</h3>
+        {!loading && current?.code !== "FULL_UNLIMITED" && upgrades.length > 0 ? (
+          <section style={{ marginTop: 28 }} data-testid="upgrade-options-section">
+            <h3 style={{ color: INK }}>Upgrade options</h3>
             <div
               style={{
                 display: "grid",
-                gridTemplateColumns: "repeat(auto-fit, minmax(240px, 1fr))",
+                gridTemplateColumns: "repeat(auto-fit, minmax(260px, 1fr))",
                 gap: 16,
+                alignItems: "stretch",
               }}
             >
               {upgrades.map((pkg) => {
@@ -424,52 +451,75 @@ export default function SubscriptionPackages() {
                   schoolName,
                 });
                 return (
-                <div
-                  key={pkg.code}
-                  style={{
-                    background: "#fff",
-                    borderRadius: 16,
-                    padding: 20,
-                    border: "1px solid rgba(15,23,42,0.1)",
-                  }}
-                  data-testid={`upgrade-card-${pkg.code}`}
-                >
-                  <h4 style={{ margin: "0 0 6px" }}>{pkg.name}</h4>
-                  <p style={{ margin: "0 0 8px", fontWeight: 800 }}>
-                    {formatCommercialPackagePrice(pkg, interval)}
-                  </p>
-                  <p style={{ margin: "0 0 12px", color: "#64748b", fontSize: 14 }}>
-                    {pkg.description}
-                  </p>
-                  {cta.kind === "mailto" ? (
-                    <a
-                      href={cta.href}
-                      data-testid={`upgrade-contact-cta-${pkg.code}`}
-                      style={{ ...goldBtn, display: "inline-block", textDecoration: "none" }}
-                    >
-                      {cta.label}
-                    </a>
-                  ) : (
-                    <button
-                      type="button"
-                      style={{
-                        ...goldBtn,
-                        opacity: checkoutBusySku && checkoutBusySku !== pkg.code ? 0.65 : 1,
-                        cursor: checkoutBusySku ? "not-allowed" : "pointer",
-                      }}
-                      data-testid={`upgrade-checkout-cta-${pkg.code}`}
-                      disabled={Boolean(checkoutBusySku)}
-                      onClick={() => void handleUpgradeCheckout(pkg)}
-                    >
-                      {checkoutBusySku === pkg.code ? "Opening PayFast…" : cta.label}
-                    </button>
-                  )}
-                </div>
+                  <div
+                    key={pkg.code}
+                    style={{
+                      background: "#fff",
+                      borderRadius: 16,
+                      padding: 20,
+                      border: "1px solid rgba(15,23,42,0.1)",
+                      color: INK,
+                      display: "flex",
+                      flexDirection: "column",
+                      minHeight: 220,
+                      boxSizing: "border-box",
+                    }}
+                    data-testid={`upgrade-card-${pkg.code}`}
+                  >
+                    <h4 style={{ margin: "0 0 6px", color: INK }}>{pkg.name}</h4>
+                    <p style={{ margin: 0, color: "#64748b", fontSize: 13, fontWeight: 600 }}>
+                      {formatPackageCapacityDisplay(pkg)}
+                    </p>
+                    <p style={{ margin: "10px 0 8px", fontWeight: 800, color: INK }}>
+                      {formatCommercialPackagePrice(pkg, interval)}
+                    </p>
+                    {interval === "annual" ? (
+                      <p style={{ margin: "0 0 8px", color: "#047857", fontWeight: 700, fontSize: 13 }}>
+                        {ANNUAL_PROMOTION_COPY}
+                      </p>
+                    ) : null}
+                    <p style={{ margin: "0 0 12px", color: "#64748b", fontSize: 14 }}>
+                      {pkg.description}
+                    </p>
+                    {cta.kind === "mailto" ? (
+                      <a
+                        href={cta.href}
+                        data-testid={`upgrade-contact-cta-${pkg.code}`}
+                        style={{
+                          ...goldBtn,
+                          display: "inline-block",
+                          textDecoration: "none",
+                          marginTop: "auto",
+                          textAlign: "center",
+                        }}
+                      >
+                        {cta.label}
+                      </a>
+                    ) : (
+                      <button
+                        type="button"
+                        style={{
+                          ...goldBtn,
+                          marginTop: "auto",
+                          opacity: checkoutBusySku && checkoutBusySku !== pkg.code ? 0.65 : 1,
+                          cursor: checkoutBusySku ? "not-allowed" : "pointer",
+                        }}
+                        data-testid={`upgrade-checkout-cta-${pkg.code}`}
+                        disabled={Boolean(checkoutBusySku)}
+                        onClick={() => void handleUpgradeCheckout(pkg)}
+                      >
+                        {checkoutBusySku === pkg.code ? "Opening PayFast…" : cta.label}
+                      </button>
+                    )}
+                  </div>
                 );
               })}
             </div>
             {!checkoutAvailable ? (
-              <p style={{ marginTop: 12, color: "#92400e", fontWeight: 600 }} data-testid="modular-checkout-disabled">
+              <p
+                style={{ marginTop: 12, color: "#92400e", fontWeight: 600 }}
+                data-testid="modular-checkout-disabled"
+              >
                 {modularCheckoutDisabledReason()}
               </p>
             ) : null}
@@ -480,15 +530,24 @@ export default function SubscriptionPackages() {
           <button
             type="button"
             onClick={() => setShowComparison((v) => !v)}
-            style={{ ...goldBtn, marginTop: 24, background: "#fff" }}
+            style={{ ...goldBtn, marginTop: 24, background: "#fff", color: INK }}
           >
             {showComparison ? "Hide comparison" : "Show comparison"}
           </button>
         ) : null}
 
         {!loading && showComparison ? (
-          <div style={{ overflowX: "auto", marginTop: 16, background: "#fff", borderRadius: 16, padding: 12 }}>
-            <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13 }}>
+          <div
+            style={{
+              overflowX: "auto",
+              marginTop: 16,
+              background: "#fff",
+              borderRadius: 16,
+              padding: 12,
+              color: INK,
+            }}
+          >
+            <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13, color: INK }}>
               <thead>
                 <tr>
                   <th style={{ textAlign: "left", padding: 8 }}>Feature</th>

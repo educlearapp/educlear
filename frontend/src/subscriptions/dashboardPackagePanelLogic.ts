@@ -11,6 +11,7 @@ import {
   findCommercialPackageByModules,
   formatCommercialPackagePrice,
   isLegacyCapacityPackageCode,
+  listNewSaleCommercialPackages,
   upgradePackagesFrom,
 } from "../modules/educlearCommercialPackages";
 
@@ -19,41 +20,77 @@ export { isLegacyCapacityPackageCode };
 export const PACKAGE_UPGRADE_CONTACT_CTA_LABEL = "Contact EduClear to upgrade";
 export const PACKAGE_UPGRADE_MAIL_SUBJECT = "EduClear Package Upgrade Request";
 
+/** Customer-facing package page intro (no internal module language). */
+export const PACKAGE_PAGE_INTRO_COPY =
+  "Choose the EduClear package that fits your school. Upgrade at any time as your school grows.";
+
+export const FULL_UNLIMITED_TOP_PACKAGE_MESSAGE =
+  "You're on EduClear Full Unlimited — our complete package.";
+
+export function formatPackageCapacityDisplay(pkg: EduClearCommercialPackage): string {
+  if (pkg.learnerLimit == null) return "Unlimited learners";
+  return `Up to ${Math.trunc(pkg.learnerLimit)} active learners`;
+}
+
 export function resolveCurrentCommercialPackageStrict(
-  entitlements: SchoolModuleEntitlements | null | undefined
+  entitlements: SchoolModuleEntitlements | null | undefined,
+  opts?: { legacyPackageCode?: string | null; fullCapacityCode?: "FULL_100" | "FULL_UNLIMITED" | null }
 ): EduClearCommercialPackage | null {
   if (!entitlements) return null;
-  return findCommercialPackageByModules({
-    CORE: entitlements.CORE === true,
-    ACCOUNTING: entitlements.ACCOUNTING === true,
-    PAYROLL: entitlements.PAYROLL === true,
-  });
+  return findCommercialPackageByModules(
+    {
+      CORE: entitlements.CORE === true,
+      ACCOUNTING: entitlements.ACCOUNTING === true,
+      PAYROLL: entitlements.PAYROLL === true,
+    },
+    {
+      legacyPackageCode: opts?.legacyPackageCode,
+      fullCapacityCode: opts?.fullCapacityCode,
+    }
+  );
 }
 
 export function listUpgradeOptions(
-  entitlements: SchoolModuleEntitlements | null | undefined
+  entitlements: SchoolModuleEntitlements | null | undefined,
+  opts?: { legacyPackageCode?: string | null; fullCapacityCode?: "FULL_100" | "FULL_UNLIMITED" | null }
 ): EduClearCommercialPackage[] {
-  const current = resolveCurrentCommercialPackageStrict(entitlements);
+  const current = resolveCurrentCommercialPackageStrict(entitlements, opts);
   if (!current) return [];
-  return upgradePackagesFrom(current.modules);
+  return upgradePackagesFrom(current.modules, opts);
 }
 
 export function formatCurrentPackageCard(
   pkg: EduClearCommercialPackage,
   interval: BillingInterval = "monthly"
-): { title: string; priceLine: string; promoLine: string | null; description: string } {
+): {
+  title: string;
+  capacityLine: string;
+  priceLine: string;
+  promoLine: string | null;
+  description: string;
+} {
   const priceLine = formatCommercialPackagePrice(pkg, interval);
   return {
     title: pkg.name,
+    capacityLine: formatPackageCapacityDisplay(pkg),
     priceLine,
     promoLine: interval === "annual" ? ANNUAL_PROMOTION_COPY : null,
     description: pkg.description,
   };
 }
 
-/** @deprecated Prefer PACKAGE_UPGRADE_CONTACT_CTA_LABEL while modular checkout is offline. */
+/** Checkout CTA when modular PayFast is enabled (flag ON). */
 export function upgradeButtonLabel(target: EduClearCommercialPackage): string {
-  return `Upgrade to ${target.shortLabel}`;
+  return `Upgrade to ${target.name}`;
+}
+
+/** All 8 catalogue prices for the selected interval (regression helper). */
+export function cataloguePriceLinesForInterval(interval: BillingInterval): Record<string, string> {
+  const out: Record<string, string> = {};
+  for (const pkg of listNewSaleCommercialPackages()) {
+    out[pkg.code] = formatCommercialPackagePrice(pkg, interval);
+  }
+  return out;
 }
 
 /** Backend-controlled. Pass modularCheckoutAvailable from GET /api/subscriptions/config. */

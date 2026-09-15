@@ -11,8 +11,12 @@ import {
   listNewSaleCommercialPackages,
   packageIncludesFeature,
 } from "../modules/educlearCommercialPackages";
+import { BillingIntervalToggle } from "./BillingIntervalToggle";
 import {
+  FULL_UNLIMITED_TOP_PACKAGE_MESSAGE,
+  PACKAGE_PAGE_INTRO_COPY,
   formatCurrentPackageCard,
+  formatPackageCapacityDisplay,
   isModularCheckoutAvailable,
   listUpgradeOptions,
   modularCheckoutDisabledReason,
@@ -28,6 +32,15 @@ import {
 } from "./subscriptionsApi";
 
 const GOLD = "#d4af37";
+const INK = "#0f172a";
+
+const pageRoot: React.CSSProperties = {
+  padding: "8px 4px 32px",
+  maxWidth: 1100,
+  color: INK,
+  boxSizing: "border-box",
+  width: "100%",
+};
 
 const cardBase: React.CSSProperties = {
   borderRadius: 16,
@@ -35,6 +48,8 @@ const cardBase: React.CSSProperties = {
   border: "1px solid rgba(15, 23, 42, 0.12)",
   background: "#fff",
   boxShadow: "0 8px 20px rgba(15, 23, 42, 0.06)",
+  color: INK,
+  boxSizing: "border-box",
 };
 
 type Props = {
@@ -48,6 +63,7 @@ export default function DashboardPackagePanel({ moduleEntitlements = null }: Pro
   );
   const [interval, setInterval] = useState<BillingInterval>("monthly");
   const [subscriptionStatus, setSubscriptionStatus] = useState<string | null>(null);
+  const [legacyPackageCode, setLegacyPackageCode] = useState<string | null>(null);
   const [schoolName, setSchoolName] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
@@ -74,8 +90,12 @@ export default function DashboardPackagePanel({ moduleEntitlements = null }: Pro
         fetchSubscriptionConfig().catch(() => null),
       ]);
       setSubscriptionStatus(statusResponse?.subscription?.status ?? null);
+      setLegacyPackageCode(
+        String(statusResponse?.subscription?.packageCode || "").trim() || null
+      );
       const name = String(statusResponse?.schoolName || "").trim();
       setSchoolName(name || null);
+      // Fail safe: missing config → contact mode (flag treated as false).
       setModularCheckoutAvailable(Boolean(configResponse?.modularCheckoutAvailable));
 
       if (!moduleEntitlements) {
@@ -100,11 +120,18 @@ export default function DashboardPackagePanel({ moduleEntitlements = null }: Pro
     void loadData();
   }, [loadData]);
 
-  const current = useMemo(
-    () => resolveCurrentCommercialPackageStrict(entitlements),
-    [entitlements]
+  const packageOpts = useMemo(
+    () => ({ legacyPackageCode }),
+    [legacyPackageCode]
   );
-  const upgrades = useMemo(() => listUpgradeOptions(entitlements), [entitlements]);
+  const current = useMemo(
+    () => resolveCurrentCommercialPackageStrict(entitlements, packageOpts),
+    [entitlements, packageOpts]
+  );
+  const upgrades = useMemo(
+    () => listUpgradeOptions(entitlements, packageOpts),
+    [entitlements, packageOpts]
+  );
   const catalog = useMemo(() => listNewSaleCommercialPackages(), []);
   const currentCard = current ? formatCurrentPackageCard(current, interval) : null;
   const checkoutAvailable = isModularCheckoutAvailable(modularCheckoutAvailable);
@@ -138,53 +165,41 @@ export default function DashboardPackagePanel({ moduleEntitlements = null }: Pro
   );
 
   if (loading) {
-    return <div style={{ padding: 24 }}>Loading package…</div>;
+    return (
+      <div style={pageRoot} data-testid="dashboard-package-panel-loading">
+        <p style={{ margin: 0, color: "#64748b", fontWeight: 600 }}>Loading package…</p>
+      </div>
+    );
   }
 
   return (
-    <div style={{ padding: "8px 4px 32px", maxWidth: 1100 }} data-testid="dashboard-package-panel">
-      <h1 style={{ margin: "0 0 8px", fontSize: 28, fontWeight: 800 }}>Package</h1>
-      <p style={{ margin: "0 0 20px", color: "#64748b" }}>
-        Your EduClear commercial package is defined by Core, Accounting, and Payroll modules.
-        School-fee Billing is included with Core — it is not an Accounting add-on.
+    <div style={pageRoot} data-testid="dashboard-package-panel">
+      <h1 style={{ margin: "0 0 8px", fontSize: 28, fontWeight: 800, color: INK }}>Package</h1>
+      <p style={{ margin: "0 0 20px", color: "#64748b", lineHeight: 1.5, maxWidth: 640 }}>
+        {PACKAGE_PAGE_INTRO_COPY}
       </p>
 
       {error ? (
-        <div style={{ marginBottom: 16, color: "#b91c1c", fontWeight: 600 }}>{error}</div>
+        <div
+          style={{ marginBottom: 16, color: "#b91c1c", fontWeight: 600 }}
+          role="alert"
+          data-testid="package-load-error"
+        >
+          {error}
+        </div>
       ) : null}
       {checkoutError ? (
-        <div style={{ marginBottom: 16, color: "#b91c1c", fontWeight: 600 }} data-testid="checkout-error">
+        <div
+          style={{ marginBottom: 16, color: "#b91c1c", fontWeight: 600 }}
+          role="alert"
+          data-testid="checkout-error"
+        >
           {checkoutError}
         </div>
       ) : null}
 
-      <div style={{ display: "flex", gap: 8, marginBottom: 16 }}>
-        <button
-          type="button"
-          onClick={() => setInterval("monthly")}
-          style={{
-            ...cardBase,
-            padding: "8px 14px",
-            fontWeight: 700,
-            cursor: "pointer",
-            borderColor: interval === "monthly" ? GOLD : undefined,
-          }}
-        >
-          Monthly
-        </button>
-        <button
-          type="button"
-          onClick={() => setInterval("annual")}
-          style={{
-            ...cardBase,
-            padding: "8px 14px",
-            fontWeight: 700,
-            cursor: "pointer",
-            borderColor: interval === "annual" ? GOLD : undefined,
-          }}
-        >
-          Annual
-        </button>
+      <div style={{ marginBottom: 16 }}>
+        <BillingIntervalToggle value={interval} onChange={setInterval} />
       </div>
 
       <section
@@ -192,58 +207,77 @@ export default function DashboardPackagePanel({ moduleEntitlements = null }: Pro
           ...cardBase,
           marginBottom: 20,
           border: `2px solid ${GOLD}`,
-          background: "linear-gradient(135deg, #fffbeb, #ffffff)",
+          background: "linear-gradient(135deg, #0a0a0a 0%, #1a1a1a 55%, #111827 100%)",
+          color: "#fff",
         }}
         data-testid="current-package-card"
       >
-        <div style={{ color: GOLD, fontWeight: 900, letterSpacing: 1, fontSize: 12 }}>
+        <div style={{ color: GOLD, fontWeight: 900, letterSpacing: 1.2, fontSize: 12 }}>
           CURRENT PACKAGE
         </div>
         {currentCard && current ? (
           <>
-            <h2 style={{ margin: "8px 0 4px" }} data-testid="current-package-name">
+            <h2
+              style={{ margin: "10px 0 6px", color: "#fff", fontSize: 26, fontWeight: 800 }}
+              data-testid="current-package-name"
+            >
               {currentCard.title}
             </h2>
-            {current.secondaryLabel ? (
-              <div style={{ color: "#64748b", fontWeight: 600 }}>{current.secondaryLabel}</div>
-            ) : null}
+            <div
+              style={{ color: "#d1d5db", fontWeight: 600 }}
+              data-testid="current-package-capacity"
+            >
+              {currentCard.capacityLine}
+            </div>
             <p
-              style={{ margin: "10px 0 4px", fontSize: 26, fontWeight: 800 }}
+              style={{ margin: "14px 0 4px", fontSize: 28, fontWeight: 800, color: GOLD }}
               data-testid="current-package-price"
             >
               {currentCard.priceLine}
             </p>
             {currentCard.promoLine ? (
-              <p style={{ margin: "0 0 8px", color: "#047857", fontWeight: 700 }}>
+              <p
+                style={{ margin: "0 0 8px", color: "#86efac", fontWeight: 700 }}
+                data-testid="current-package-promo"
+              >
                 {currentCard.promoLine}
               </p>
             ) : null}
-            <p style={{ margin: 0, color: "#475569" }}>{currentCard.description}</p>
+            <p style={{ margin: "8px 0 0", color: "#d1d5db", lineHeight: 1.5 }}>
+              {currentCard.description}
+            </p>
             {subscriptionStatus ? (
-              <p style={{ margin: "12px 0 0", fontSize: 13, color: "#64748b" }}>
+              <p
+                style={{ margin: "14px 0 0", fontSize: 14, color: GOLD, fontWeight: 700 }}
+                data-testid="current-package-status"
+              >
                 Subscription status: {formatSubscriptionStatus(subscriptionStatus as never)}
               </p>
             ) : null}
           </>
         ) : (
-          <p style={{ margin: "8px 0 0", color: "#b91c1c", fontWeight: 700 }}>
-            Invalid package (no commercial modules). Contact EduClear support.
+          <p style={{ margin: "8px 0 0", color: "#fca5a5", fontWeight: 700 }}>
+            We could not determine your package. Contact EduClear support.
           </p>
         )}
       </section>
 
       {current?.code === "FULL_UNLIMITED" ? (
-        <p style={{ fontWeight: 700, color: "#047857" }}>
-          You already have EduClear Full Unlimited — no upgrade required.
+        <p
+          style={{ fontWeight: 700, color: "#047857", marginBottom: 24 }}
+          data-testid="top-package-message"
+        >
+          {FULL_UNLIMITED_TOP_PACKAGE_MESSAGE}
         </p>
-      ) : (
-        <section style={{ marginBottom: 28 }}>
-          <h3 style={{ margin: "0 0 12px" }}>Upgrade options</h3>
+      ) : upgrades.length > 0 ? (
+        <section style={{ marginBottom: 28 }} data-testid="upgrade-options-section">
+          <h3 style={{ margin: "0 0 12px", color: INK }}>Upgrade options</h3>
           <div
             style={{
               display: "grid",
-              gridTemplateColumns: "repeat(auto-fit, minmax(240px, 1fr))",
+              gridTemplateColumns: "repeat(auto-fit, minmax(260px, 1fr))",
               gap: 14,
+              alignItems: "stretch",
             }}
           >
             {upgrades.map((pkg) => (
@@ -269,7 +303,7 @@ export default function DashboardPackagePanel({ moduleEntitlements = null }: Pro
             </p>
           ) : null}
         </section>
-      )}
+      ) : null}
 
       <button
         type="button"
@@ -280,6 +314,7 @@ export default function DashboardPackagePanel({ moduleEntitlements = null }: Pro
           borderRadius: 10,
           border: "1px solid rgba(15,23,42,0.14)",
           background: "#fff",
+          color: INK,
           fontWeight: 800,
           cursor: "pointer",
         }}
@@ -319,6 +354,7 @@ function UpgradeCard({
   });
   const buttonStyle: React.CSSProperties = {
     display: "inline-block",
+    marginTop: "auto",
     padding: "10px 14px",
     borderRadius: 10,
     border: `1px solid ${GOLD}`,
@@ -332,12 +368,26 @@ function UpgradeCard({
   };
 
   return (
-    <div style={cardBase} data-testid={`upgrade-card-${pkg.code}`}>
-      <h4 style={{ margin: "0 0 4px" }}>{pkg.name}</h4>
-      {pkg.secondaryLabel ? (
-        <div style={{ color: "#64748b", fontSize: 13 }}>{pkg.secondaryLabel}</div>
-      ) : null}
-      <p style={{ margin: "10px 0 4px", fontSize: 20, fontWeight: 800 }}>
+    <div
+      style={{
+        ...cardBase,
+        display: "flex",
+        flexDirection: "column",
+        minHeight: 220,
+      }}
+      data-testid={`upgrade-card-${pkg.code}`}
+    >
+      <h4 style={{ margin: "0 0 4px", color: INK }}>{pkg.name}</h4>
+      <div
+        style={{ color: "#64748b", fontSize: 13, fontWeight: 600 }}
+        data-testid={`upgrade-capacity-${pkg.code}`}
+      >
+        {formatPackageCapacityDisplay(pkg)}
+      </div>
+      <p
+        style={{ margin: "12px 0 4px", fontSize: 22, fontWeight: 800, color: INK }}
+        data-testid={`upgrade-price-${pkg.code}`}
+      >
         {formatCommercialPackagePrice(pkg, interval)}
       </p>
       {interval === "annual" ? (
@@ -345,7 +395,9 @@ function UpgradeCard({
           {ANNUAL_PROMOTION_COPY}
         </p>
       ) : null}
-      <p style={{ margin: "0 0 14px", color: "#475569", fontSize: 14 }}>{pkg.description}</p>
+      <p style={{ margin: "0 0 14px", color: "#475569", fontSize: 14, lineHeight: 1.45 }}>
+        {pkg.description}
+      </p>
       {cta.kind === "mailto" ? (
         <a
           href={cta.href}
@@ -373,12 +425,12 @@ function PackageComparisonTable({ catalog }: { catalog: EduClearCommercialPackag
   const columns = catalog;
   return (
     <div style={{ overflowX: "auto", ...cardBase }} data-testid="package-comparison-table">
-      <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13 }}>
+      <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13, color: INK }}>
         <thead>
           <tr>
-            <th style={{ textAlign: "left", padding: 8 }}>Feature</th>
+            <th style={{ textAlign: "left", padding: 8, color: INK }}>Feature</th>
             {columns.map((pkg) => (
-              <th key={pkg.code} style={{ textAlign: "center", padding: 8 }}>
+              <th key={pkg.code} style={{ textAlign: "center", padding: 8, color: INK }}>
                 {pkg.shortLabel}
               </th>
             ))}
