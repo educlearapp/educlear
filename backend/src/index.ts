@@ -254,6 +254,7 @@ const corsOptions: cors.CorsOptions = {
       "http://localhost:5174",
       "http://localhost:5175",
       "https://educlear-frontend.onrender.com",
+      "https://educlear-frontend-staging.onrender.com",
       "https://educlear.co.za",
       "https://www.educlear.co.za",
     ];
