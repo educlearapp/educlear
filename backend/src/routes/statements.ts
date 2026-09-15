@@ -8,6 +8,14 @@ import { buildAccountStatementTransactions } from "../services/statementAccountT
 import { buildAndGenerateStatementPdf } from "../services/statementPdfData";
 import { buildAccountsFromAgeAnalysisSnapshots } from "../services/statementAccounts";
 import {
+  previewStatementSms,
+  sendStatementSms,
+} from "../services/statementSmsService";
+import {
+  requireStatementSendAuth,
+  type StatementSendAuthRequest,
+} from "../middleware/requireStatementSendAuth";
+import {
   filterHistoryForAccount,
   readSchoolKidesysHistory,
 } from "../utils/kidesysTransactionHistoryStore";
@@ -175,6 +183,102 @@ router.get("/accounts", async (req, res) => {
   } catch (error) {
     console.error("[statements] GET /accounts failed:", error);
     return res.status(500).json({ success: false, error: "Server error" });
+  }
+});
+
+// GET /api/statements/sms-preview — eligible contacts + default message (statements.send)
+router.get("/sms-preview", requireStatementSendAuth, async (req: StatementSendAuthRequest, res) => {
+  try {
+    const auth = req.statementSendAuth!;
+    const schoolId = auth.authorizedSchoolId;
+    const familyAccountId =
+      typeof req.query?.familyAccountId === "string" ? String(req.query.familyAccountId).trim() : "";
+    const accountRef =
+      typeof req.query?.accountRef === "string" ? String(req.query.accountRef).trim() : "";
+    const accountNo =
+      typeof req.query?.accountNo === "string" ? String(req.query.accountNo).trim() : "";
+    const learnerId =
+      typeof req.query?.learnerId === "string" ? String(req.query.learnerId).trim() : "";
+
+    if (!familyAccountId && !accountRef && !accountNo && !learnerId) {
+      return res.status(400).json({
+        success: false,
+        error: "Missing familyAccountId, accountRef, accountNo, or learnerId",
+        simulated: false,
+      });
+    }
+
+    const preview = await previewStatementSms({
+      schoolId,
+      familyAccountId: familyAccountId || undefined,
+      accountRef: accountRef || undefined,
+      accountNo: accountNo || undefined,
+      learnerId: learnerId || undefined,
+    });
+
+    if (!preview.ok) {
+      return res.status(preview.status).json({
+        success: false,
+        error: preview.error,
+        code: preview.code,
+        simulated: false,
+      });
+    }
+
+    return res.json({
+      success: true,
+      simulated: false,
+      ...preview,
+    });
+  } catch (error) {
+    console.error("[statements] GET /sms-preview failed:", error);
+    return res.status(500).json({
+      success: false,
+      error: "Server error",
+      simulated: false,
+    });
+  }
+});
+
+// POST /api/statements/send-sms — send statement SMS via WinSMS (statements.send)
+router.post("/send-sms", requireStatementSendAuth, async (req: StatementSendAuthRequest, res) => {
+  try {
+    const auth = req.statementSendAuth!;
+    const schoolId = auth.authorizedSchoolId;
+    const body = (req.body ?? {}) as Record<string, unknown>;
+
+    const selectionModeRaw = String(body.selectionMode || "").trim().toLowerCase();
+    const selectionMode =
+      selectionModeRaw === "all" || selectionModeRaw === "alleligible" ? "all" : "parentIds";
+    const parentIds = Array.isArray(body.parentIds)
+      ? body.parentIds.map((id) => String(id || "").trim()).filter(Boolean)
+      : [];
+
+    const result = await sendStatementSms({
+      schoolId,
+      familyAccountId: typeof body.familyAccountId === "string" ? body.familyAccountId : undefined,
+      accountRef: typeof body.accountRef === "string" ? body.accountRef : undefined,
+      accountNo: typeof body.accountNo === "string" ? body.accountNo : undefined,
+      learnerId: typeof body.learnerId === "string" ? body.learnerId : undefined,
+      selectionMode,
+      parentIds,
+      message: typeof body.message === "string" ? body.message : "",
+      mobileNumbers: body.mobileNumbers,
+      cellNo: body.cellNo,
+      phone: body.phone,
+    });
+
+    return res.status(result.status).json({
+      success: Boolean(result.ok),
+      ...result,
+    });
+  } catch (error) {
+    console.error("[statements] POST /send-sms failed:", error);
+    return res.status(500).json({
+      success: false,
+      error: "Server error",
+      simulated: false,
+    });
   }
 });
 
