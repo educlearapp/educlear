@@ -23,8 +23,8 @@ import {
   listUpgradeOptions,
   modularCheckoutDisabledReason,
   onlinePackagePaymentsUnavailableNotice,
+  packageUpgradeCta,
   resolveCurrentCommercialPackageStrict,
-  upgradeButtonLabel,
 } from "./dashboardPackagePanelLogic";
 import {
   activateSubscriptionTestMode,
@@ -150,6 +150,7 @@ export default function SubscriptionPackages() {
   const [agreedToTerms, setAgreedToTerms] = useState(false);
   const [interval, setInterval] = useState<BillingInterval>("monthly");
   const [showComparison, setShowComparison] = useState(true);
+  const [schoolName, setSchoolName] = useState<string | null>(null);
 
   const catalog = useMemo(() => listNewSaleCommercialPackages(), []);
   const current = useMemo(
@@ -185,6 +186,10 @@ export default function SubscriptionPackages() {
         setPayfastConfigured(Boolean(configResponse?.payfastConfigured));
         setTestModeAvailable(Boolean(configResponse?.testModeAvailable));
         // Never surface missingPayFastEnv / secret names to school users.
+        const statusSchool = String(
+          (statusResponse as { schoolName?: string } | null)?.schoolName || ""
+        ).trim();
+        setSchoolName(statusSchool || null);
         const mods =
           (me as { moduleEntitlements?: SchoolModuleEntitlements } | null)?.moduleEntitlements ||
           (me as { school?: { moduleEntitlements?: SchoolModuleEntitlements } } | null)?.school
@@ -378,7 +383,14 @@ export default function SubscriptionPackages() {
                 gap: 16,
               }}
             >
-              {upgrades.map((pkg) => (
+              {upgrades.map((pkg) => {
+                const cta = packageUpgradeCta({
+                  checkoutAvailable,
+                  currentPackageName: current?.name || "Unknown",
+                  requestedPackage: pkg,
+                  schoolName,
+                });
+                return (
                 <div
                   key={pkg.code}
                   style={{
@@ -387,6 +399,7 @@ export default function SubscriptionPackages() {
                     padding: 20,
                     border: "1px solid rgba(15,23,42,0.1)",
                   }}
+                  data-testid={`upgrade-card-${pkg.code}`}
                 >
                   <h4 style={{ margin: "0 0 6px" }}>{pkg.name}</h4>
                   <p style={{ margin: "0 0 8px", fontWeight: 800 }}>
@@ -395,11 +408,22 @@ export default function SubscriptionPackages() {
                   <p style={{ margin: "0 0 12px", color: "#64748b", fontSize: 14 }}>
                     {pkg.description}
                   </p>
-                  <button type="button" disabled style={{ ...goldBtn, opacity: 0.65, cursor: "not-allowed" }}>
-                    Upgrade to {pkg.shortLabel}
-                  </button>
+                  {cta.kind === "mailto" ? (
+                    <a
+                      href={cta.href}
+                      data-testid={`upgrade-contact-cta-${pkg.code}`}
+                      style={{ ...goldBtn, display: "inline-block", textDecoration: "none" }}
+                    >
+                      {cta.label}
+                    </a>
+                  ) : (
+                    <button type="button" style={goldBtn}>
+                      {cta.label}
+                    </button>
+                  )}
                 </div>
-              ))}
+                );
+              })}
             </div>
             {!checkoutAvailable ? (
               <p style={{ marginTop: 12, color: "#92400e", fontWeight: 600 }} data-testid="modular-checkout-disabled">

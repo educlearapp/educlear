@@ -16,8 +16,8 @@ import {
   isModularCheckoutAvailable,
   listUpgradeOptions,
   modularCheckoutDisabledReason,
+  packageUpgradeCta,
   resolveCurrentCommercialPackageStrict,
-  upgradeButtonLabel,
 } from "./dashboardPackagePanelLogic";
 import { fetchSchoolSubscriptionStatus, formatSubscriptionStatus } from "./subscriptionsApi";
 
@@ -42,6 +42,7 @@ export default function DashboardPackagePanel({ moduleEntitlements = null }: Pro
   );
   const [interval, setInterval] = useState<BillingInterval>("monthly");
   const [subscriptionStatus, setSubscriptionStatus] = useState<string | null>(null);
+  const [schoolName, setSchoolName] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [showComparison, setShowComparison] = useState(false);
@@ -61,6 +62,8 @@ export default function DashboardPackagePanel({ moduleEntitlements = null }: Pro
     try {
       const statusResponse = await fetchSchoolSubscriptionStatus(schoolId);
       setSubscriptionStatus(statusResponse?.subscription?.status ?? null);
+      const name = String(statusResponse?.schoolName || "").trim();
+      setSchoolName(name || null);
 
       if (!moduleEntitlements) {
         const token = String(localStorage.getItem("token") || "").trim();
@@ -203,6 +206,8 @@ export default function DashboardPackagePanel({ moduleEntitlements = null }: Pro
                 pkg={pkg}
                 interval={interval}
                 checkoutAvailable={checkoutAvailable}
+                currentPackageName={current?.name || "Unknown"}
+                schoolName={schoolName}
               />
             ))}
           </div>
@@ -242,11 +247,34 @@ function UpgradeCard({
   pkg,
   interval,
   checkoutAvailable,
+  currentPackageName,
+  schoolName,
 }: {
   pkg: EduClearCommercialPackage;
   interval: BillingInterval;
   checkoutAvailable: boolean;
+  currentPackageName: string;
+  schoolName?: string | null;
 }) {
+  const cta = packageUpgradeCta({
+    checkoutAvailable,
+    currentPackageName,
+    requestedPackage: pkg,
+    schoolName,
+  });
+  const buttonStyle: React.CSSProperties = {
+    display: "inline-block",
+    padding: "10px 14px",
+    borderRadius: 10,
+    border: `1px solid ${GOLD}`,
+    background: "linear-gradient(135deg, #d4af37, #f5d06f)",
+    fontWeight: 800,
+    cursor: "pointer",
+    color: "#111827",
+    textDecoration: "none",
+    textAlign: "center",
+  };
+
   return (
     <div style={cardBase} data-testid={`upgrade-card-${pkg.code}`}>
       <h4 style={{ margin: "0 0 4px" }}>{pkg.name}</h4>
@@ -262,24 +290,19 @@ function UpgradeCard({
         </p>
       ) : null}
       <p style={{ margin: "0 0 14px", color: "#475569", fontSize: 14 }}>{pkg.description}</p>
-      <button
-        type="button"
-        disabled={!checkoutAvailable}
-        title={!checkoutAvailable ? modularCheckoutDisabledReason() : undefined}
-        style={{
-          padding: "10px 14px",
-          borderRadius: 10,
-          border: `1px solid ${GOLD}`,
-          background: checkoutAvailable
-            ? "linear-gradient(135deg, #d4af37, #f5d06f)"
-            : "#e2e8f0",
-          fontWeight: 800,
-          cursor: checkoutAvailable ? "pointer" : "not-allowed",
-          opacity: checkoutAvailable ? 1 : 0.7,
-        }}
-      >
-        {upgradeButtonLabel(pkg)}
-      </button>
+      {cta.kind === "mailto" ? (
+        <a
+          href={cta.href}
+          data-testid={`upgrade-contact-cta-${pkg.code}`}
+          style={buttonStyle}
+        >
+          {cta.label}
+        </a>
+      ) : (
+        <button type="button" data-testid={`upgrade-checkout-cta-${pkg.code}`} style={buttonStyle}>
+          {cta.label}
+        </button>
+      )}
     </div>
   );
 }
