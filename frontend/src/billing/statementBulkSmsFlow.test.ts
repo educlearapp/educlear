@@ -8,12 +8,16 @@ import { dirname, join } from "path";
 import { fileURLToPath } from "url";
 import {
   BULK_STATEMENT_SMS_DEFAULT_TEMPLATE,
+  collectBulkSmsPreviewRecipients,
   estimateBulkTemplateSegments,
   formatBulkSmsFailureSummary,
+  formatBulkSmsPreviewRecipientLine,
+  looksLikeFullCellphone,
   outstandingSelectionKey,
   STATEMENT_SMS_MAX_CHARS,
   STATEMENT_SMS_SEGMENT_CHARS,
   summarizeSelectedOutstanding,
+  type BulkStatementSmsPreview,
 } from "./statementBulkSmsApi.ts";
 
 const here = dirname(fileURLToPath(import.meta.url));
@@ -113,6 +117,7 @@ function testFailureSummaryCopyable() {
         contacts: [],
         recommendedParentId: null,
         selectedParentIds: [],
+        recipients: [],
         destinationCount: 0,
         duplicateMobilesRemoved: 0,
         sampleMessage: null,
@@ -124,6 +129,62 @@ function testFailureSummaryCopyable() {
   assert.ok(text.includes("Partial"));
   assert.ok(text.includes("timeout"));
   assert.ok(text.includes("No eligible"));
+}
+
+function testRecipientPreviewFormatting() {
+  const line = formatBulkSmsPreviewRecipientLine({
+    displayName: "Test Parent One",
+    mobileMasked: "•••• 0001",
+    accountNo: "SYN001",
+  });
+  assert.strictEqual(line, "Test Parent One — •••• 0001 — SYN001");
+  assert.ok(!looksLikeFullCellphone(line));
+  assert.ok(looksLikeFullCellphone("0821234567"));
+  assert.ok(!looksLikeFullCellphone("•••• 0001"));
+}
+
+function testCollectPreviewRecipientsByStrategyShape() {
+  const recommended: BulkStatementSmsPreview = {
+    success: true,
+    requestedAccountCount: 1,
+    eligibleAccountCount: 1,
+    skippedAccountCount: 0,
+    destinationCount: 1,
+    duplicateNumbersRemoved: 0,
+    totalOutstanding: 1250,
+    estimatedSegments: 1,
+    recipientStrategy: "recommended",
+    messageTemplate: BULK_STATEMENT_SMS_DEFAULT_TEMPLATE,
+    defaultMessageTemplate: BULK_STATEMENT_SMS_DEFAULT_TEMPLATE,
+    maxChars: STATEMENT_SMS_MAX_CHARS,
+    segmentChars: STATEMENT_SMS_SEGMENT_CHARS,
+    sampleMessages: [],
+    recipients: [
+      { displayName: "Test Parent One", mobileMasked: "•••• 0001", accountNo: "SYN001" },
+    ],
+    accounts: [],
+    smsReady: true,
+    outboundDisabled: true,
+    canSend: false,
+    concurrency: 5,
+  };
+  assert.strictEqual(collectBulkSmsPreviewRecipients(recommended).length, 1);
+
+  const allEligible: BulkStatementSmsPreview = {
+    ...recommended,
+    recipientStrategy: "all_eligible",
+    destinationCount: 2,
+    recipients: [
+      { displayName: "Test Parent One", mobileMasked: "•••• 0001", accountNo: "SYN001" },
+      { displayName: "Test Parent Two", mobileMasked: "•••• 0002", accountNo: "SYN001" },
+    ],
+  };
+  const rows = collectBulkSmsPreviewRecipients(allEligible);
+  assert.strictEqual(rows.length, 2);
+  for (const row of rows) {
+    assert.ok(!looksLikeFullCellphone(row.mobileMasked));
+    assert.ok(!looksLikeFullCellphone(formatBulkSmsPreviewRecipientLine(row)));
+  }
 }
 
 function testOutstandingAccountsWired() {
@@ -145,6 +206,10 @@ function testModalHasStrategyAndPreview() {
   assert.ok(src.includes("Outbound SMS is disabled for this environment."));
   assert.ok(src.includes("Copy failure summary"));
   assert.ok(src.includes("Step {step} of 5"));
+  assert.ok(src.includes("Recipients who will receive this SMS"));
+  assert.ok(src.includes("formatBulkSmsPreviewRecipientLine"));
+  assert.ok(src.includes("collectBulkSmsPreviewRecipients"));
+  assert.ok(!src.includes("mobileNumber"));
 }
 
 function main() {
@@ -152,6 +217,8 @@ function main() {
   testSelectAllFilteredSummarizes();
   testSegmentEstimate();
   testFailureSummaryCopyable();
+  testRecipientPreviewFormatting();
+  testCollectPreviewRecipientsByStrategyShape();
   testOutstandingAccountsWired();
   testModalHasStrategyAndPreview();
   console.log("statementBulkSmsFlow.test.ts: all passed");

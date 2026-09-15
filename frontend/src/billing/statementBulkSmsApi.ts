@@ -11,6 +11,14 @@ export type BulkStatementSmsAccountOverride = {
   parentIds?: string[];
 };
 
+/** Preview-safe recipient — never includes a full cellphone number. */
+export type BulkStatementSmsPreviewRecipient = {
+  displayName: string;
+  mobileMasked: string;
+  accountNo: string;
+  parentIds?: string[];
+};
+
 export type BulkStatementSmsAccountPreview = {
   familyAccountId: string;
   accountRef: string;
@@ -22,6 +30,8 @@ export type BulkStatementSmsAccountPreview = {
   contacts: StatementSmsContact[];
   recommendedParentId: string | null;
   selectedParentIds: string[];
+  /** Final destinations after consent + duplicate removal (masked only). */
+  recipients?: BulkStatementSmsPreviewRecipient[];
   destinationCount: number;
   duplicateMobilesRemoved: number;
   sampleMessage: string | null;
@@ -44,6 +54,8 @@ export type BulkStatementSmsPreview = {
   maxChars: number;
   segmentChars: number;
   sampleMessages: string[];
+  /** Flat final-preview recipient list (masked only). */
+  recipients?: BulkStatementSmsPreviewRecipient[];
   accounts: BulkStatementSmsAccountPreview[];
   smsReady: boolean;
   outboundDisabled: boolean;
@@ -95,6 +107,39 @@ export function estimateBulkTemplateSegments(template: string): number {
   const len = String(template || "").trim().length;
   if (len <= 0) return 0;
   return Math.max(1, Math.ceil(len / STATEMENT_SMS_SEGMENT_CHARS));
+}
+
+export function formatBulkSmsPreviewRecipientLine(
+  recipient: BulkStatementSmsPreviewRecipient
+): string {
+  const name = String(recipient.displayName || "").trim() || "Parent / Guardian";
+  const masked = String(recipient.mobileMasked || "").trim() || "•••• ????";
+  const accountNo = String(recipient.accountNo || "").trim() || "Account";
+  return `${name} — ${masked} — ${accountNo}`;
+}
+
+/** Prefer top-level preview.recipients; fall back to per-account recipients. */
+export function collectBulkSmsPreviewRecipients(
+  preview: Pick<BulkStatementSmsPreview, "recipients" | "accounts"> | null | undefined
+): BulkStatementSmsPreviewRecipient[] {
+  if (!preview) return [];
+  if (Array.isArray(preview.recipients) && preview.recipients.length) {
+    return preview.recipients;
+  }
+  const out: BulkStatementSmsPreviewRecipient[] = [];
+  for (const account of preview.accounts || []) {
+    if (account.status !== "eligible") continue;
+    for (const row of account.recipients || []) {
+      out.push(row);
+    }
+  }
+  return out;
+}
+
+/** True when a string appears to contain an unmasked SA cellphone (10+ digits). */
+export function looksLikeFullCellphone(value: unknown): boolean {
+  const digits = String(value ?? "").replace(/\D/g, "");
+  return digits.length >= 10;
 }
 
 export async function fetchBulkStatementSmsPreview(input: {
