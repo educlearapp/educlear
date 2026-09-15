@@ -294,7 +294,7 @@ type ResolvedAccount = {
   schoolName: string;
 };
 
-async function resolveStatementSmsAccount(
+export async function resolveStatementSmsAccount(
   schoolId: string,
   input: {
     familyAccountId?: string;
@@ -384,7 +384,7 @@ async function resolveStatementSmsAccount(
   };
 }
 
-async function loadEligibleStatementSmsPairs(
+export async function loadEligibleStatementSmsPairs(
   schoolId: string,
   familyAccountId: string
 ): Promise<StatementSmsParentPair[]> {

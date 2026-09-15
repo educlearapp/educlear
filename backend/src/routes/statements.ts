@@ -12,6 +12,12 @@ import {
   sendStatementSms,
 } from "../services/statementSmsService";
 import {
+  parseBulkRecipientStrategy,
+  previewBulkStatementSms,
+  sendBulkStatementSms,
+  type BulkStatementSmsAccountOverride,
+} from "../services/statementBulkSmsService";
+import {
   requireStatementSendAuth,
   type StatementSendAuthRequest,
 } from "../middleware/requireStatementSendAuth";
@@ -281,5 +287,113 @@ router.post("/send-sms", requireStatementSendAuth, async (req: StatementSendAuth
     });
   }
 });
+
+function parseBulkAccountOverrides(raw: unknown): BulkStatementSmsAccountOverride[] {
+  if (!Array.isArray(raw)) return [];
+  const out: BulkStatementSmsAccountOverride[] = [];
+  for (const row of raw) {
+    if (!row || typeof row !== "object") continue;
+    const item = row as Record<string, unknown>;
+    const familyAccountId = String(item.familyAccountId || "").trim();
+    if (!familyAccountId) continue;
+    const modeRaw = String(item.selectionMode || "").trim().toLowerCase();
+    const selectionMode =
+      modeRaw === "all" || modeRaw === "all_eligible" || modeRaw === "alleligible"
+        ? "all"
+        : modeRaw === "parentids" || modeRaw === "parent_ids"
+          ? "parentIds"
+          : "recommended";
+    const parentIds = Array.isArray(item.parentIds)
+      ? item.parentIds.map((id) => String(id || "").trim()).filter(Boolean)
+      : [];
+    out.push({ familyAccountId, selectionMode, parentIds });
+  }
+  return out;
+}
+
+// POST /api/statements/bulk-sms-preview — outstanding bulk SMS preview (no send)
+router.post(
+  "/bulk-sms-preview",
+  requireStatementSendAuth,
+  async (req: StatementSendAuthRequest, res) => {
+    try {
+      const auth = req.statementSendAuth!;
+      const schoolId = auth.authorizedSchoolId;
+      const body = (req.body ?? {}) as Record<string, unknown>;
+
+      const preview = await previewBulkStatementSms({
+        schoolId,
+        familyAccountIds: Array.isArray(body.familyAccountIds)
+          ? body.familyAccountIds
+          : [],
+        recipientStrategy: parseBulkRecipientStrategy(body.recipientStrategy),
+        accountOverrides: parseBulkAccountOverrides(body.accountOverrides),
+        messageTemplate:
+          typeof body.messageTemplate === "string" ? body.messageTemplate : undefined,
+      });
+
+      if (!preview.ok) {
+        return res.status(preview.status).json({
+          success: false,
+          error: preview.error,
+          code: preview.code,
+          simulated: false,
+        });
+      }
+
+      return res.json({
+        success: true,
+        simulated: false,
+        ...preview,
+      });
+    } catch (error) {
+      console.error("[statements] POST /bulk-sms-preview failed:", error);
+      return res.status(500).json({
+        success: false,
+        error: "Server error",
+        simulated: false,
+      });
+    }
+  }
+);
+
+// POST /api/statements/bulk-send-sms — outstanding bulk SMS send (revalidates everything)
+router.post(
+  "/bulk-send-sms",
+  requireStatementSendAuth,
+  async (req: StatementSendAuthRequest, res) => {
+    try {
+      const auth = req.statementSendAuth!;
+      const schoolId = auth.authorizedSchoolId;
+      const body = (req.body ?? {}) as Record<string, unknown>;
+
+      const result = await sendBulkStatementSms({
+        schoolId,
+        familyAccountIds: Array.isArray(body.familyAccountIds)
+          ? body.familyAccountIds
+          : [],
+        recipientStrategy: parseBulkRecipientStrategy(body.recipientStrategy),
+        accountOverrides: parseBulkAccountOverrides(body.accountOverrides),
+        messageTemplate:
+          typeof body.messageTemplate === "string" ? body.messageTemplate : undefined,
+        mobileNumbers: body.mobileNumbers,
+        cellNo: body.cellNo,
+        phone: body.phone,
+      });
+
+      return res.status(result.status).json({
+        success: Boolean(result.ok),
+        ...result,
+      });
+    } catch (error) {
+      console.error("[statements] POST /bulk-send-sms failed:", error);
+      return res.status(500).json({
+        success: false,
+        error: "Server error",
+        simulated: false,
+      });
+    }
+  }
+);
 
 export default router;

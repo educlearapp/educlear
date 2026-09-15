@@ -2,6 +2,11 @@ import React, { useEffect, useMemo, useState } from "react";
 import { API_URL } from "../api";
 import { staffAuthHeaders } from "../auth/staffAuthHeaders";
 import { formatMoney } from "./billingLedger";
+import BulkStatementSmsModal from "./BulkStatementSmsModal";
+import {
+  outstandingSelectionKey,
+  summarizeSelectedOutstanding,
+} from "./statementBulkSmsApi";
 import {
   filterOutstandingAccounts,
   OUTSTANDING_BALANCE_RANGES,
@@ -166,6 +171,7 @@ export default function OutstandingAccountsReport({ schoolId }: Props) {
   const [accounts, setAccounts] = useState<OutstandingAccountApiRow[]>([]);
   const [serverSummary, setServerSummary] = useState<Summary | null>(null);
   const [selected, setSelected] = useState<Record<string, boolean>>({});
+  const [bulkSmsOpen, setBulkSmsOpen] = useState(false);
 
   const [search, setSearch] = useState("");
   const [grade, setGrade] = useState("all");
@@ -252,18 +258,23 @@ export default function OutstandingAccountsReport({ schoolId }: Props) {
   }, [filtered, search, grade, className, balanceRange, daysOverdue, serverSummary]);
 
   const allFilteredSelected =
-    filtered.length > 0 && filtered.every((row) => selected[row.accountRef]);
+    filtered.length > 0 &&
+    filtered.every((row) => selected[outstandingSelectionKey(row)]);
 
   function toggleAllFiltered() {
     if (allFilteredSelected) {
       const next = { ...selected };
-      for (const row of filtered) delete next[row.accountRef];
+      for (const row of filtered) delete next[outstandingSelectionKey(row)];
       setSelected(next);
       return;
     }
     const next = { ...selected };
-    for (const row of filtered) next[row.accountRef] = true;
+    for (const row of filtered) next[outstandingSelectionKey(row)] = true;
     setSelected(next);
+  }
+
+  function clearSelection() {
+    setSelected({});
   }
 
   function resetFilters() {
@@ -274,14 +285,30 @@ export default function OutstandingAccountsReport({ schoolId }: Props) {
     setDaysOverdue("all");
   }
 
-  const selectedCount = Object.values(selected).filter(Boolean).length;
+  const selectionSummary = useMemo(
+    () => summarizeSelectedOutstanding(filtered, selected, outstandingSelectionKey),
+    [filtered, selected]
+  );
+  const selectedCount = selectionSummary.count;
+  const selectedTotal = selectionSummary.total;
+  const selectedFamilyAccountIds = selectionSummary.familyAccountIds;
+
+  /** Keys selected but currently hidden by filters — excluded from Bulk SMS until visible again. */
+  const hiddenSelectedCount = useMemo(() => {
+    const visible = new Set(filtered.map((row) => outstandingSelectionKey(row)));
+    let n = 0;
+    for (const [key, on] of Object.entries(selected)) {
+      if (on && !visible.has(key)) n += 1;
+    }
+    return n;
+  }, [filtered, selected]);
 
   return (
     <div style={pageWrap}>
       <h1 style={heading}>Outstanding Accounts</h1>
       <div style={subtitle}>
-        Family accounts with an outstanding balance greater than R0.00. Read-only — no messages or
-        payments from this screen yet.
+        Family accounts with an outstanding balance greater than R0.00. Select accounts to send bulk
+        statement SMS.
       </div>
 
       <div style={summaryWrap}>
@@ -363,10 +390,55 @@ export default function OutstandingAccountsReport({ schoolId }: Props) {
         </button>
       </div>
 
-      <div style={{ fontSize: 13, color: "#64748b", marginBottom: 10 }}>
-        Showing {filtered.length} of {accounts.length} outstanding account
-        {accounts.length === 1 ? "" : "s"}
-        {selectedCount ? ` · ${selectedCount} selected` : ""}
+      <div style={{ fontSize: 13, color: "#64748b", marginBottom: 10, display: "flex", flexWrap: "wrap", gap: 10, alignItems: "center" }}>
+        <span>
+          Showing {filtered.length} of {accounts.length} outstanding account
+          {accounts.length === 1 ? "" : "s"}
+          {selectedCount
+            ? ` · ${selectedCount} selected · ${formatMoney(selectedTotal)}`
+            : ""}
+          {hiddenSelectedCount
+            ? ` · ${hiddenSelectedCount} selected hidden by filters (excluded from Bulk SMS)`
+            : ""}
+        </span>
+        <span style={{ flex: 1 }} />
+        {selectedCount ? (
+          <button
+            type="button"
+            onClick={clearSelection}
+            style={{
+              border: "1px solid #cbd5e1",
+              background: "#fff",
+              borderRadius: 10,
+              padding: "8px 14px",
+              fontWeight: 700,
+              cursor: "pointer",
+              fontSize: 13,
+            }}
+          >
+            Clear selection
+          </button>
+        ) : null}
+        <button
+          type="button"
+          disabled={!selectedFamilyAccountIds.length}
+          onClick={() => setBulkSmsOpen(true)}
+          style={{
+            border: "1px solid #b89329",
+            background: selectedFamilyAccountIds.length
+              ? "linear-gradient(135deg, #f7d56a, #d4af37)"
+              : "#e2e8f0",
+            borderRadius: 10,
+            padding: "8px 14px",
+            fontWeight: 900,
+            cursor: selectedFamilyAccountIds.length ? "pointer" : "not-allowed",
+            fontSize: 13,
+            color: "#111827",
+            opacity: selectedFamilyAccountIds.length ? 1 : 0.55,
+          }}
+        >
+          Bulk SMS
+        </button>
       </div>
 
       {loading ? (
@@ -425,16 +497,18 @@ export default function OutstandingAccountsReport({ schoolId }: Props) {
               </tr>
             </thead>
             <tbody>
-              {filtered.map((row) => (
-                <tr key={row.accountRef}>
+              {filtered.map((row) => {
+                const key = outstandingSelectionKey(row);
+                return (
+                <tr key={key}>
                   <td style={td}>
                     <input
                       type="checkbox"
-                      checked={Boolean(selected[row.accountRef])}
+                      checked={Boolean(selected[key])}
                       onChange={() =>
                         setSelected((prev) => ({
                           ...prev,
-                          [row.accountRef]: !prev[row.accountRef],
+                          [key]: !prev[key],
                         }))
                       }
                       aria-label={`Select ${row.accountNumber}`}
@@ -462,11 +536,22 @@ export default function OutstandingAccountsReport({ schoolId }: Props) {
                       : "Unknown"}
                   </td>
                 </tr>
-              ))}
+              );
+              })}
             </tbody>
           </table>
         </div>
       )}
+
+      {bulkSmsOpen ? (
+        <BulkStatementSmsModal
+          schoolId={schoolId}
+          familyAccountIds={selectedFamilyAccountIds}
+          selectedCount={selectedCount}
+          selectedTotalOutstanding={selectedTotal}
+          onClose={() => setBulkSmsOpen(false)}
+        />
+      ) : null}
     </div>
   );
 }
