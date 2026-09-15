@@ -10,6 +10,7 @@ import {
 } from "./educlearCommercialPackages";
 import {
   getSchoolModuleEntitlements,
+  getSchoolModuleEntitlementsReadOnly,
   type SchoolModuleEntitlementsMap,
 } from "./schoolModuleEntitlements";
 
@@ -63,6 +64,26 @@ export async function resolveSchoolCommercialPackage(
   bits: string;
 }> {
   const moduleEntitlements = await getSchoolModuleEntitlements(schoolId);
+  const bits = modulesToBits(moduleEntitlements);
+  return {
+    moduleEntitlements,
+    commercialPackage: commercialPackageFromEntitlements(moduleEntitlements),
+    bits,
+  };
+}
+
+/**
+ * Read-only commercial resolve for GET status surfaces.
+ * Uses fail-open missing-row semantics without writing entitlement rows.
+ */
+export async function resolveSchoolCommercialPackageReadOnly(
+  schoolId: string
+): Promise<{
+  moduleEntitlements: SchoolModuleEntitlementsMap;
+  commercialPackage: CommercialPackageApiPayload | null;
+  bits: string;
+}> {
+  const moduleEntitlements = await getSchoolModuleEntitlementsReadOnly(schoolId);
   const bits = modulesToBits(moduleEntitlements);
   return {
     moduleEntitlements,

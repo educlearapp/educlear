@@ -36,8 +36,12 @@ export function phoneOrClause(rawCellNo: string, idNumber?: string) {
   ];
 }
 
+/**
+ * Parent credential lookup — ALWAYS school-scoped.
+ * Missing schoolId returns null (never cross-tenant findFirst).
+ */
 export async function findParentByCredentials(opts: {
-  schoolId?: string;
+  schoolId: string;
   cellNo?: string;
   idNumber?: string;
 }) {
@@ -45,10 +49,11 @@ export async function findParentByCredentials(opts: {
   const rawCellNo = String(opts.cellNo || "").trim();
   const idNumber = String(opts.idNumber || "").trim();
 
+  if (!schoolId) return null;
   if (!idNumber && !rawCellNo) return null;
 
   const where: any = {
-    ...(schoolId ? { schoolId } : {}),
+    schoolId,
     OR: idNumber
       ? [{ idNumber }, ...(rawCellNo ? phoneOrClause(rawCellNo) : [])]
       : rawCellNo
@@ -59,7 +64,10 @@ export async function findParentByCredentials(opts: {
   return prisma.parent.findFirst({
     where,
     include: {
-      links: { include: { learner: true } },
+      links: {
+        where: { schoolId },
+        include: { learner: true },
+      },
       school: { select: { id: true, name: true } },
     },
   });

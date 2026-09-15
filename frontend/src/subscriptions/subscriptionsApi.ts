@@ -317,7 +317,11 @@ export async function refreshSchoolSubscriptionStatus(
       `/api/subscriptions/school/${encodeURIComponent(key)}/status`,
       {
         cache: "no-store",
-        headers: { "Cache-Control": "no-cache", Pragma: "no-cache" },
+        headers: {
+          ...subscriptionAuthHeaders(),
+          "Cache-Control": "no-cache",
+          Pragma: "no-cache",
+        },
       }
     )) as SubscriptionStatusResponse;
     cacheSchoolSubscriptionStatus(key, fresh);
