@@ -14,6 +14,21 @@ import {
 import { prisma } from "../prisma";
 import { ensureEduClearCreditBundles } from "../services/ensureEduClearCreditBundles";
 import { ensureEduClearPackages } from "../services/ensureEduClearPackages";
+import { ensureSchoolSubscription } from "../services/ensureSchoolSubscription";
+import {
+  ModularCheckoutError,
+  applyExactCommercialModuleEntitlements,
+  assertModularUpgradeAllowed,
+  buildModularPaymentIntent,
+  computeSubscriptionPeriodEnd,
+  isLegacyCapacityInitiationCode,
+  isModularPayfastCheckoutEnabled,
+  modularIntentAsJson,
+  parseCommercialSku,
+  planModularActivationFromIntent,
+  readModularPaymentIntent,
+  resolveModularCheckoutQuote,
+} from "../services/modularPayfastCheckout";
 import {
   PayFastConfigError,
   addOneCalendarMonth,
@@ -29,6 +44,7 @@ import {
   splitSchoolContactName,
   verifyPayFastItnSignature,
 } from "../services/payfastService";
+import { getSchoolModuleEntitlements } from "../services/schoolModuleEntitlements";
 import {
   readCheckoutTargetPackageCode,
   resolvePaidPackageFromCheckout,
@@ -40,7 +56,12 @@ const router = Router();
 
 type PayFastCheckoutType = "SUBSCRIPTION" | "CREDITS";
 
-function parseCheckoutType(raw: unknown, packageCode: unknown, bundleCode: unknown): PayFastCheckoutType | null {
+function parseCheckoutType(
+  raw: unknown,
+  packageCode: unknown,
+  bundleCode: unknown,
+  sku?: unknown
+): PayFastCheckoutType | null {
   const normalized = String(raw || "")
     .trim()
     .toUpperCase();
@@ -52,7 +73,11 @@ function parseCheckoutType(raw: unknown, packageCode: unknown, bundleCode: unkno
   if (parseBundleCode(bundleCode)) {
     return "CREDITS";
   }
-  if (parsePackageCode(String(packageCode || ""))) {
+  if (
+    parsePackageCode(String(packageCode || "")) ||
+    parseCommercialSku(packageCode) ||
+    parseCommercialSku(sku)
+  ) {
     return "SUBSCRIPTION";
   }
 
@@ -124,26 +149,233 @@ function clientIpFromRequest(req: express.Request): string {
 async function createSubscriptionCheckout(
   req: express.Request,
   res: express.Response,
-  _config: ReturnType<typeof loadPayFastConfig>,
+  config: ReturnType<typeof loadPayFastConfig> | null,
 ) {
   const schoolId = String(req.body?.schoolId || "").trim();
-  const packageCode = parsePackageCode(String(req.body?.packageCode || ""));
+  const rawSku = req.body?.sku ?? req.body?.packageCode;
+  const legacyCode = parsePackageCode(String(rawSku || ""));
+  const commercialSku = parseCommercialSku(rawSku);
 
-  if (!schoolId || !packageCode) {
-    return res.status(400).json({
+  // Legacy STARTER / UNLIMITED initiation remains permanently blocked.
+  if (legacyCode || isLegacyCapacityInitiationCode(rawSku)) {
+    return res.status(403).json({
       success: false,
-      error: "schoolId and packageCode (STARTER | UNLIMITED) are required for subscription checkout",
+      error:
+        "Legacy Starter/Unlimited checkout is no longer available for new purchases. Contact EduClear to change your package.",
+      code: "LEGACY_CAPACITY_CHECKOUT_DISABLED",
     });
   }
 
-  // Phase 6E.1: block NEW legacy capacity checkout initiation.
-  // Historical ITN for existing STARTER/UNLIMITED payment logs remains unchanged.
-  // Modular online package checkout is intentionally not implemented yet.
-  return res.status(403).json({
-    success: false,
-    error:
-      "Legacy Starter/Unlimited checkout is no longer available for new purchases. Contact EduClear to change your package.",
-    code: "LEGACY_CAPACITY_CHECKOUT_DISABLED",
+  if (!schoolId || !commercialSku) {
+    return res.status(400).json({
+      success: false,
+      error:
+        "schoolId and sku/packageCode (CORE | ACCOUNTING | PAYROLL | BUSINESS | CORE_ACCOUNTING | CORE_PAYROLL | FULL_100 | FULL_UNLIMITED) are required",
+      code: "INVALID_SKU",
+    });
+  }
+
+  if (!isModularPayfastCheckoutEnabled()) {
+    return res.status(403).json({
+      success: false,
+      error:
+        "Online modular package checkout is not available yet. Contact EduClear to change your package.",
+      code: "MODULAR_CHECKOUT_DISABLED",
+    });
+  }
+
+  if (!config) {
+    return res.status(503).json({
+      success: false,
+      error: "PayFast is not configured",
+      code: "PAYFAST_NOT_CONFIGURED",
+    });
+  }
+
+  let quote;
+  try {
+    quote = resolveModularCheckoutQuote({
+      sku: commercialSku,
+      billingCycle: req.body?.billingCycle ?? req.body?.interval,
+      clientAmountCents: req.body?.amountCents,
+      clientAmountZar: req.body?.amount ?? req.body?.amountZar,
+    });
+  } catch (error) {
+    if (error instanceof ModularCheckoutError) {
+      return res.status(error.statusCode).json({
+        success: false,
+        error: error.message,
+        code: error.code,
+      });
+    }
+    throw error;
+  }
+
+  const school = await prisma.school.findUnique({
+    where: { id: schoolId },
+    select: { id: true, name: true, email: true, phone: true, cellNo: true },
+  });
+  if (!school) {
+    return res.status(404).json({ success: false, error: "School not found" });
+  }
+
+  const [moduleEntitlements, subscriptionRow] = await Promise.all([
+    getSchoolModuleEntitlements(schoolId),
+    prisma.schoolSubscription.findUnique({
+      where: { schoolId },
+      select: { id: true, packageCode: true, status: true },
+    }),
+  ]);
+
+  try {
+    assertModularUpgradeAllowed({
+      currentModules: moduleEntitlements,
+      targetSku: quote.sku,
+      legacyPackageCode: subscriptionRow?.packageCode ?? null,
+    });
+  } catch (error) {
+    if (error instanceof ModularCheckoutError) {
+      return res.status(error.statusCode).json({
+        success: false,
+        error: error.message,
+        code: error.code,
+      });
+    }
+    throw error;
+  }
+
+  await ensureEduClearPackages();
+  await ensureSchoolSubscription(schoolId);
+
+  const subscription = await prisma.schoolSubscription.findUnique({
+    where: { schoolId },
+    select: { id: true, status: true, packageCode: true },
+  });
+  if (!subscription) {
+    return res.status(500).json({ success: false, error: "Subscription record missing" });
+  }
+
+  const capacityPkg = await prisma.eduClearPackage.findFirst({
+    where: { code: quote.legacyCapacityCode, isActive: true },
+    select: { id: true, code: true },
+  });
+  if (!capacityPkg) {
+    return res.status(500).json({
+      success: false,
+      error: `Legacy capacity package ${quote.legacyCapacityCode} not found`,
+    });
+  }
+
+  const payerEmail = String(req.body?.payerEmail || school.email || "").trim();
+  if (!payerEmail) {
+    return res.status(400).json({
+      success: false,
+      error: "School has no billing email; provide payerEmail",
+    });
+  }
+
+  const invoiceNumber = await nextSubscriptionInvoiceNumber(schoolId);
+  const merchantPaymentId = `ec-sub-${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
+  const intent = buildModularPaymentIntent({ schoolId, quote });
+  const { first, last } = splitSchoolContactName(school.name);
+
+  const result = await prisma.$transaction(async (tx) => {
+    if (
+      shouldPersistPackageOnSubscriptionBeforePayment(subscription.status) &&
+      subscription.packageCode !== capacityPkg.code
+    ) {
+      await tx.schoolSubscription.update({
+        where: { id: subscription.id },
+        data: {
+          packageId: capacityPkg.id,
+          packageCode: capacityPkg.code,
+        },
+      });
+    }
+
+    const invoice = await tx.subscriptionInvoice.create({
+      data: {
+        schoolId,
+        subscriptionId: subscription.id,
+        invoiceNumber,
+        amountCents: quote.amountCents,
+        currency: "ZAR",
+        status: SubscriptionInvoiceStatus.PENDING,
+        dueAt: new Date(),
+      },
+    });
+
+    const paymentLog = await tx.subscriptionPaymentLog.create({
+      data: {
+        schoolId,
+        invoiceId: invoice.id,
+        status: SubscriptionPaymentStatus.PENDING,
+        merchantPaymentId,
+        amountCents: quote.amountCents,
+        checkoutUrl: config.processUrl,
+        returnUrl: config.returnUrl,
+        cancelUrl: config.cancelUrl,
+        notifyUrl: config.notifyUrl,
+        payerEmail,
+        rawRequest: modularIntentAsJson(intent),
+      },
+    });
+
+    const checkout = buildPayFastCheckout({
+      merchantPaymentId,
+      amountCents: quote.amountCents,
+      itemName: quote.itemName,
+      itemDescription: quote.itemDescription,
+      payerEmail,
+      payerFirstName: first,
+      payerLastName: last,
+      payerCell: school.cellNo || school.phone || undefined,
+      customStr1: paymentLog.id,
+      customStr2: invoice.id,
+      customStr3: "SUBSCRIPTION",
+    });
+
+    await tx.subscriptionPaymentLog.update({
+      where: { id: paymentLog.id },
+      data: {
+        rawRequest: modularIntentAsJson({
+          ...intent,
+          // Keep authoritative intent; payload stored separately for audit.
+        }),
+      },
+    });
+
+    // Attach checkout payload snapshot without allowing client to mutate intent fields later.
+    await tx.subscriptionPaymentLog.update({
+      where: { id: paymentLog.id },
+      data: {
+        rawRequest: {
+          ...intent,
+          checkoutPayload: checkout.payload,
+        } as Prisma.InputJsonValue,
+      },
+    });
+
+    return { invoice, paymentLog, checkout };
+  });
+
+  return res.status(201).json({
+    success: true,
+    checkoutType: "SUBSCRIPTION",
+    checkoutKind: intent.checkoutKind,
+    paymentUrl: result.checkout.paymentUrl,
+    payload: result.checkout.payload,
+    merchantPaymentId,
+    paymentLogId: result.paymentLog.id,
+    invoiceId: result.invoice.id,
+    invoiceNumber: result.invoice.invoiceNumber,
+    amountCents: quote.amountCents,
+    amount: quote.amountZarDisplay,
+    sku: quote.sku,
+    packageCode: quote.sku,
+    billingCycle: quote.billingCycle,
+    periodMonths: quote.periodMonths,
+    learnerLimit: quote.learnerLimit,
   });
 }
 
@@ -290,20 +522,39 @@ router.post("/create-checkout", async (req, res) => {
       req.body?.checkoutType,
       req.body?.packageCode,
       req.body?.bundleCode,
+      req.body?.sku,
     );
 
     if (!checkoutType) {
       return res.status(400).json({
         success: false,
         error:
-          "checkoutType (SUBSCRIPTION | CREDITS) is required, or provide packageCode / bundleCode",
+          "checkoutType (SUBSCRIPTION | CREDITS) is required, or provide packageCode / sku / bundleCode",
       });
     }
 
-    // Block NEW legacy capacity subscription checkout before config load / PayFast calls.
-    // Historical ITN processing is unchanged. Credits checkout remains available.
+    // Legacy STARTER/UNLIMITED short-circuit before config load.
+    // Modular path needs PayFast config when the feature flag is enabled.
     if (checkoutType === "SUBSCRIPTION") {
-      return createSubscriptionCheckout(req, res, null as never);
+      const rawSku = req.body?.sku ?? req.body?.packageCode;
+      if (isLegacyCapacityInitiationCode(rawSku) || parsePackageCode(String(rawSku || ""))) {
+        return createSubscriptionCheckout(req, res, null);
+      }
+
+      if (!isModularPayfastCheckoutEnabled()) {
+        return createSubscriptionCheckout(req, res, null);
+      }
+
+      let config;
+      try {
+        config = loadPayFastConfig();
+      } catch (error) {
+        if (error instanceof PayFastConfigError) {
+          return res.status(503).json({ success: false, error: error.message });
+        }
+        throw error;
+      }
+      return createSubscriptionCheckout(req, res, config);
     }
 
     let config;
@@ -370,23 +621,51 @@ async function handleSubscriptionItn(
   if (isPayFastPaymentComplete(paymentStatus)) {
     const activatedAt = new Date();
     const currentPeriodStart = activatedAt;
-    const currentPeriodEnd = addOneCalendarMonth(activatedAt);
+
+    const modularIntent = readModularPaymentIntent(paymentLog.rawRequest);
+    const modularPlan = modularIntent
+      ? planModularActivationFromIntent(modularIntent)
+      : null;
+
+    // Refuse modular activation if ITN school does not match persisted intent.
+    if (modularIntent && modularIntent.schoolId !== paymentLog.schoolId) {
+      console.warn("[payfast] modular ITN schoolId mismatch", {
+        merchantPaymentId,
+        intentSchoolId: modularIntent.schoolId,
+        paymentLogSchoolId: paymentLog.schoolId,
+      });
+      return "amount_mismatch";
+    }
+
+    const currentPeriodEnd = modularPlan
+      ? computeSubscriptionPeriodEnd(activatedAt, modularPlan.billingCycle)
+      : addOneCalendarMonth(activatedAt);
 
     const activePackages = await prisma.eduClearPackage.findMany({
       where: { isActive: true },
       select: { id: true, code: true, monthlyPriceCents: true },
     });
-    const paidPackage = resolvePaidPackageFromCheckout(
-      paymentLog.rawRequest,
-      paymentLog.amountCents,
-      activePackages,
-    );
-    const fallbackPackageCode = readCheckoutTargetPackageCode(paymentLog.rawRequest);
-    const resolvedPaidPackage =
-      paidPackage ??
-      (fallbackPackageCode
-        ? activePackages.find((pkg) => pkg.code === fallbackPackageCode) ?? null
-        : null);
+
+    let resolvedPaidPackage: { id: string; code: EduClearPackageCode } | null = null;
+
+    if (modularPlan) {
+      const capacity = activePackages.find((pkg) => pkg.code === modularPlan.legacyCapacityCode);
+      resolvedPaidPackage = capacity
+        ? { id: capacity.id, code: capacity.code as EduClearPackageCode }
+        : null;
+    } else {
+      const paidPackage = resolvePaidPackageFromCheckout(
+        paymentLog.rawRequest,
+        paymentLog.amountCents,
+        activePackages,
+      );
+      const fallbackPackageCode = readCheckoutTargetPackageCode(paymentLog.rawRequest);
+      resolvedPaidPackage =
+        paidPackage ??
+        (fallbackPackageCode
+          ? activePackages.find((pkg) => pkg.code === fallbackPackageCode) ?? null
+          : null);
+    }
 
     await prisma.$transaction(async (tx) => {
       await tx.subscriptionPaymentLog.update({
@@ -419,12 +698,23 @@ async function handleSubscriptionItn(
                 packageCode: resolvedPaidPackage.code,
               }
             : {}),
+          ...(modularPlan
+            ? { activationSource: "payfast_modular_itn" }
+            : {}),
           activatedAt,
           currentPeriodStart,
           currentPeriodEnd,
           cancelledAt: null,
         },
       });
+
+      if (modularPlan) {
+        await applyExactCommercialModuleEntitlements({
+          schoolId: paymentLog.schoolId,
+          modules: modularPlan.modules,
+          tx,
+        });
+      }
     });
 
     return "processed";

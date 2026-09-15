@@ -86,8 +86,11 @@ export type SubscriptionStatusResponse = {
 export type SubscriptionConfigResponse = {
   success: boolean;
   payfastConfigured: boolean;
+  paymentsConfigured?: boolean;
   missingPayFastEnv?: string[];
   testModeAvailable: boolean;
+  /** Backend feature flag (ENABLE_MODULAR_PAYFAST_CHECKOUT). Default false. */
+  modularCheckoutAvailable?: boolean;
 };
 
 export type TestActivateSubscriptionResponse = {
@@ -441,7 +444,9 @@ export function formatDisplayDate(value: string | null | undefined): string | nu
 
 export type CreateSubscriptionCheckoutInput = {
   schoolId: string;
-  packageCode: string;
+  /** Commercial SKU (CORE … FULL_UNLIMITED). */
+  sku: string;
+  billingCycle: "MONTHLY" | "ANNUAL";
   payerEmail?: string;
 };
 
@@ -453,7 +458,9 @@ export async function createSubscriptionCheckout(
     body: JSON.stringify({
       checkoutType: "SUBSCRIPTION",
       schoolId: input.schoolId,
-      packageCode: input.packageCode,
+      sku: input.sku,
+      packageCode: input.sku,
+      billingCycle: input.billingCycle,
       payerEmail: input.payerEmail,
     }),
   }) as Promise<PayFastCheckoutResponse>;

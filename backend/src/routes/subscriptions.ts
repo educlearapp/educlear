@@ -12,6 +12,7 @@ import {
 } from "../services/activateTestSubscription";
 import { ensureEduClearPackages } from "../services/ensureEduClearPackages";
 import { listNewSaleCommercialPackages } from "../services/educlearCommercialPackages";
+import { isModularPayfastCheckoutEnabled } from "../services/modularPayfastCheckout";
 import {
   resolveSchoolCommercialPackageReadOnly,
   serializeCommercialPackage,
@@ -83,6 +84,8 @@ router.get("/config", (_req, res) => {
     payfastConfigured: isPayFastConfigured(),
     paymentsConfigured: isPayFastConfigured(),
     testModeAvailable: isSubscriptionTestModeAllowed(),
+    // Boolean only — never expose ENABLE_MODULAR_PAYFAST_CHECKOUT env name.
+    modularCheckoutAvailable: isModularPayfastCheckoutEnabled(),
   });
 });
 

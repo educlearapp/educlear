@@ -360,7 +360,13 @@ export function splitSchoolContactName(schoolName: string): { first: string; las
 }
 
 export function addOneCalendarMonth(from: Date): Date {
+  return addCalendarMonths(from, 1);
+}
+
+/** Add N calendar months (used for monthly=1 / annual=12 subscription periods). */
+export function addCalendarMonths(from: Date, months: number): Date {
   const result = new Date(from);
-  result.setMonth(result.getMonth() + 1);
+  const n = Math.max(0, Math.trunc(Number(months) || 0));
+  result.setMonth(result.getMonth() + n);
   return result;
 }

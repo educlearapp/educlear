@@ -29,10 +29,12 @@ import {
 import {
   activateSubscriptionTestMode,
   clearSubscriptionGateCache,
+  createSubscriptionCheckout,
   fetchSchoolSubscriptionStatus,
   fetchSubscriptionConfig,
   isSubscriptionDashboardUnlocked,
 } from "./subscriptionsApi";
+import { submitPayFastCheckout } from "./payfastCheckout";
 
 const GOLD = "#d4af37";
 
@@ -151,6 +153,8 @@ export default function SubscriptionPackages() {
   const [interval, setInterval] = useState<BillingInterval>("monthly");
   const [showComparison, setShowComparison] = useState(true);
   const [schoolName, setSchoolName] = useState<string | null>(null);
+  const [modularCheckoutAvailable, setModularCheckoutAvailable] = useState(false);
+  const [checkoutBusySku, setCheckoutBusySku] = useState<string | null>(null);
 
   const catalog = useMemo(() => listNewSaleCommercialPackages(), []);
   const current = useMemo(
@@ -159,7 +163,7 @@ export default function SubscriptionPackages() {
   );
   const upgrades = useMemo(() => listUpgradeOptions(entitlements), [entitlements]);
   const currentCard = current ? formatCurrentPackageCard(current, interval) : null;
-  const checkoutAvailable = isModularCheckoutAvailable();
+  const checkoutAvailable = isModularCheckoutAvailable(modularCheckoutAvailable);
 
   useEffect(() => {
     let cancelled = false;
@@ -170,6 +174,7 @@ export default function SubscriptionPackages() {
       fetchSubscriptionConfig().catch(() => ({
         payfastConfigured: true,
         testModeAvailable: false,
+        modularCheckoutAvailable: false,
         missingPayFastEnv: [] as string[],
       })),
       schoolId
@@ -185,6 +190,7 @@ export default function SubscriptionPackages() {
         if (cancelled) return;
         setPayfastConfigured(Boolean(configResponse?.payfastConfigured));
         setTestModeAvailable(Boolean(configResponse?.testModeAvailable));
+        setModularCheckoutAvailable(Boolean(configResponse?.modularCheckoutAvailable));
         // Never surface missingPayFastEnv / secret names to school users.
         const statusSchool = String(
           (statusResponse as { schoolName?: string } | null)?.schoolName || ""
@@ -219,6 +225,33 @@ export default function SubscriptionPackages() {
     clearSubscriptionGateCache();
     navigate("/dashboard", { replace: true });
   }, [dashboardUnlocked, navigate]);
+
+  async function handleUpgradeCheckout(pkg: EduClearCommercialPackage) {
+    if (!checkoutAvailable || checkoutBusySku) return;
+    const schoolId = String(localStorage.getItem("schoolId") || "").trim();
+    if (!schoolId) {
+      setError("Please log in or register your school before continuing.");
+      navigate("/login");
+      return;
+    }
+    setError("");
+    setCheckoutBusySku(pkg.code);
+    try {
+      const billingCycle = interval === "annual" ? "ANNUAL" : "MONTHLY";
+      const result = await createSubscriptionCheckout({
+        schoolId,
+        sku: pkg.code,
+        billingCycle,
+      });
+      if (!result?.paymentUrl || !result?.payload) {
+        throw new Error("Checkout response incomplete");
+      }
+      submitPayFastCheckout(result.paymentUrl, result.payload);
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : "Failed to start PayFast checkout");
+      setCheckoutBusySku(null);
+    }
+  }
 
   async function handleTestModeActivate() {
     if (!agreedToTerms) {
@@ -417,8 +450,18 @@ export default function SubscriptionPackages() {
                       {cta.label}
                     </a>
                   ) : (
-                    <button type="button" style={goldBtn}>
-                      {cta.label}
+                    <button
+                      type="button"
+                      style={{
+                        ...goldBtn,
+                        opacity: checkoutBusySku && checkoutBusySku !== pkg.code ? 0.65 : 1,
+                        cursor: checkoutBusySku ? "not-allowed" : "pointer",
+                      }}
+                      data-testid={`upgrade-checkout-cta-${pkg.code}`}
+                      disabled={Boolean(checkoutBusySku)}
+                      onClick={() => void handleUpgradeCheckout(pkg)}
+                    >
+                      {checkoutBusySku === pkg.code ? "Opening PayFast…" : cta.label}
                     </button>
                   )}
                 </div>

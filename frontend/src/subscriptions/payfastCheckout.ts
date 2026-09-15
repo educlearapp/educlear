@@ -2,11 +2,16 @@
 export type PayFastCheckoutResponse = {
   success: boolean;
   checkoutType: string;
+  checkoutKind?: string;
   paymentUrl: string;
   payload: Record<string, string>;
   merchantPaymentId?: string;
   paymentLogId?: string;
   packageCode?: string;
+  sku?: string;
+  billingCycle?: string;
+  amountCents?: number;
+  amount?: string;
 };
 
 /**

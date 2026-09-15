@@ -19,7 +19,13 @@ import {
   packageUpgradeCta,
   resolveCurrentCommercialPackageStrict,
 } from "./dashboardPackagePanelLogic";
-import { fetchSchoolSubscriptionStatus, formatSubscriptionStatus } from "./subscriptionsApi";
+import { submitPayFastCheckout } from "./payfastCheckout";
+import {
+  createSubscriptionCheckout,
+  fetchSchoolSubscriptionStatus,
+  fetchSubscriptionConfig,
+  formatSubscriptionStatus,
+} from "./subscriptionsApi";
 
 const GOLD = "#d4af37";
 
@@ -46,6 +52,9 @@ export default function DashboardPackagePanel({ moduleEntitlements = null }: Pro
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [showComparison, setShowComparison] = useState(false);
+  const [modularCheckoutAvailable, setModularCheckoutAvailable] = useState(false);
+  const [checkoutBusySku, setCheckoutBusySku] = useState<string | null>(null);
+  const [checkoutError, setCheckoutError] = useState("");
 
   useEffect(() => {
     if (moduleEntitlements) setEntitlements(moduleEntitlements);
@@ -60,10 +69,14 @@ export default function DashboardPackagePanel({ moduleEntitlements = null }: Pro
     setLoading(true);
     setError("");
     try {
-      const statusResponse = await fetchSchoolSubscriptionStatus(schoolId);
+      const [statusResponse, configResponse] = await Promise.all([
+        fetchSchoolSubscriptionStatus(schoolId),
+        fetchSubscriptionConfig().catch(() => null),
+      ]);
       setSubscriptionStatus(statusResponse?.subscription?.status ?? null);
       const name = String(statusResponse?.schoolName || "").trim();
       setSchoolName(name || null);
+      setModularCheckoutAvailable(Boolean(configResponse?.modularCheckoutAvailable));
 
       if (!moduleEntitlements) {
         const token = String(localStorage.getItem("token") || "").trim();
@@ -94,7 +107,35 @@ export default function DashboardPackagePanel({ moduleEntitlements = null }: Pro
   const upgrades = useMemo(() => listUpgradeOptions(entitlements), [entitlements]);
   const catalog = useMemo(() => listNewSaleCommercialPackages(), []);
   const currentCard = current ? formatCurrentPackageCard(current, interval) : null;
-  const checkoutAvailable = isModularCheckoutAvailable();
+  const checkoutAvailable = isModularCheckoutAvailable(modularCheckoutAvailable);
+
+  const handleUpgradeCheckout = useCallback(
+    async (pkg: EduClearCommercialPackage) => {
+      if (!checkoutAvailable || checkoutBusySku) return;
+      if (!schoolId) {
+        setCheckoutError("No school selected. Please log in again.");
+        return;
+      }
+      setCheckoutError("");
+      setCheckoutBusySku(pkg.code);
+      try {
+        const billingCycle = interval === "annual" ? "ANNUAL" : "MONTHLY";
+        const result = await createSubscriptionCheckout({
+          schoolId,
+          sku: pkg.code,
+          billingCycle,
+        });
+        if (!result?.paymentUrl || !result?.payload) {
+          throw new Error("Checkout response incomplete");
+        }
+        submitPayFastCheckout(result.paymentUrl, result.payload);
+      } catch (err: unknown) {
+        setCheckoutError(err instanceof Error ? err.message : "Failed to start PayFast checkout");
+        setCheckoutBusySku(null);
+      }
+    },
+    [checkoutAvailable, checkoutBusySku, interval, schoolId]
+  );
 
   if (loading) {
     return <div style={{ padding: 24 }}>Loading package…</div>;
@@ -110,6 +151,11 @@ export default function DashboardPackagePanel({ moduleEntitlements = null }: Pro
 
       {error ? (
         <div style={{ marginBottom: 16, color: "#b91c1c", fontWeight: 600 }}>{error}</div>
+      ) : null}
+      {checkoutError ? (
+        <div style={{ marginBottom: 16, color: "#b91c1c", fontWeight: 600 }} data-testid="checkout-error">
+          {checkoutError}
+        </div>
       ) : null}
 
       <div style={{ display: "flex", gap: 8, marginBottom: 16 }}>
@@ -206,8 +252,11 @@ export default function DashboardPackagePanel({ moduleEntitlements = null }: Pro
                 pkg={pkg}
                 interval={interval}
                 checkoutAvailable={checkoutAvailable}
+                checkoutBusy={checkoutBusySku === pkg.code}
+                checkoutDisabled={Boolean(checkoutBusySku)}
                 currentPackageName={current?.name || "Unknown"}
                 schoolName={schoolName}
+                onCheckout={() => void handleUpgradeCheckout(pkg)}
               />
             ))}
           </div>
@@ -247,14 +296,20 @@ function UpgradeCard({
   pkg,
   interval,
   checkoutAvailable,
+  checkoutBusy,
+  checkoutDisabled,
   currentPackageName,
   schoolName,
+  onCheckout,
 }: {
   pkg: EduClearCommercialPackage;
   interval: BillingInterval;
   checkoutAvailable: boolean;
+  checkoutBusy: boolean;
+  checkoutDisabled: boolean;
   currentPackageName: string;
   schoolName?: string | null;
+  onCheckout: () => void;
 }) {
   const cta = packageUpgradeCta({
     checkoutAvailable,
@@ -269,10 +324,11 @@ function UpgradeCard({
     border: `1px solid ${GOLD}`,
     background: "linear-gradient(135deg, #d4af37, #f5d06f)",
     fontWeight: 800,
-    cursor: "pointer",
+    cursor: checkoutDisabled ? "not-allowed" : "pointer",
     color: "#111827",
     textDecoration: "none",
     textAlign: "center",
+    opacity: checkoutDisabled && !checkoutBusy ? 0.65 : 1,
   };
 
   return (
@@ -299,8 +355,14 @@ function UpgradeCard({
           {cta.label}
         </a>
       ) : (
-        <button type="button" data-testid={`upgrade-checkout-cta-${pkg.code}`} style={buttonStyle}>
-          {cta.label}
+        <button
+          type="button"
+          data-testid={`upgrade-checkout-cta-${pkg.code}`}
+          style={buttonStyle}
+          disabled={checkoutDisabled}
+          onClick={onCheckout}
+        >
+          {checkoutBusy ? "Opening PayFast…" : cta.label}
         </button>
       )}
     </div>

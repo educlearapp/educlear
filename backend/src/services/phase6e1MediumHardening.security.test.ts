@@ -269,6 +269,8 @@ async function main() {
   const cfgText = JSON.stringify(cfg.data || {});
   assert.ok(!/PAYFAST_/i.test(cfgText));
   assert.ok("payfastConfigured" in (cfg.data || {}) || "paymentsConfigured" in (cfg.data || {}));
+  assert.ok("modularCheckoutAvailable" in (cfg.data || {}));
+  assert.strictEqual((cfg.data as { modularCheckoutAvailable?: boolean }).modularCheckoutAvailable, false);
   console.log("✓ school config API does not expose PAYFAST_* env names");
 
   // --- Legacy checkout initiation blocked; ITN route still mounted ---

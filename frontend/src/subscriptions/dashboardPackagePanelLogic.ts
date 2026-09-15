@@ -56,9 +56,10 @@ export function upgradeButtonLabel(target: EduClearCommercialPackage): string {
   return `Upgrade to ${target.shortLabel}`;
 }
 
-export function isModularCheckoutAvailable(): boolean {
-  // Modular online checkout is intentionally not live yet.
-  return false;
+/** Backend-controlled. Pass modularCheckoutAvailable from GET /api/subscriptions/config. */
+export function isModularCheckoutAvailable(backendFlag?: boolean | null): boolean {
+  // Modular online checkout stays off unless the backend explicitly enables it.
+  return backendFlag === true;
 }
 
 export function modularCheckoutDisabledReason(): string {

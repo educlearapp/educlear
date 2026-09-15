@@ -13,6 +13,7 @@ import {
   listNewSaleCommercialPackages,
 } from "./educlearCommercialPackages";
 import { NEW_SCHOOL_LEGACY_CAPACITY_PLACEHOLDER } from "./ensureSchoolSubscription";
+import { isModularPayfastCheckoutEnabled } from "./modularPayfastCheckout";
 import { serializeCommercialPackage } from "./resolveSchoolCommercialPackage";
 
 const ROOT = path.join(__dirname, "../../..");
@@ -85,9 +86,16 @@ function testModularCheckoutDisabled() {
     path.join(ROOT, "frontend/src/subscriptions/dashboardPackagePanelLogic.ts"),
     "utf8"
   );
-  assert.ok(logic.includes("return false"));
   assert.ok(logic.includes("isModularCheckoutAvailable"));
-  console.log("✓ modular checkout remains disabled");
+  assert.ok(logic.includes("backendFlag === true"));
+  const flagSrc = fs.readFileSync(
+    path.join(__dirname, "modularPayfastCheckout.ts"),
+    "utf8"
+  );
+  assert.ok(flagSrc.includes("ENABLE_MODULAR_PAYFAST_CHECKOUT"));
+  assert.ok(flagSrc.includes('=== "true"'));
+  assert.strictEqual(isModularPayfastCheckoutEnabled({}), false);
+  console.log("✓ modular checkout remains disabled by default (explicit flag opt-in)");
 }
 
 function testPackagesEndpointIsModular() {

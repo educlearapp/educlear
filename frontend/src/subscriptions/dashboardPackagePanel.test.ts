@@ -50,6 +50,7 @@ function testUpgradeOptions() {
 
 function testContactCtaReplacesDeadUpgrade() {
   assert.strictEqual(isModularCheckoutAvailable(), false);
+  assert.strictEqual(isModularCheckoutAvailable(false), false);
   const full = findCommercialPackageByCode("FULL_UNLIMITED")!;
   const cta = packageUpgradeCta({
     checkoutAvailable: false,
@@ -68,7 +69,17 @@ function testContactCtaReplacesDeadUpgrade() {
   assert.ok(decoded.includes("Current package: EduClear Business"));
   assert.ok(decoded.includes("Requested package: EduClear Full Unlimited"));
   assert.ok(!/Upgrade to Full/i.test(cta.label));
+
+  const checkoutCta = packageUpgradeCta({
+    checkoutAvailable: isModularCheckoutAvailable(true),
+    currentPackageName: "EduClear Business",
+    requestedPackage: full,
+  });
+  assert.strictEqual(checkoutCta.kind, "checkout");
+  if (checkoutCta.kind !== "checkout") throw new Error("expected checkout");
+  assert.ok(/Upgrade to/i.test(checkoutCta.label));
   console.log("✓ contact CTA replaces dead Upgrade action");
+  console.log("✓ flag-ON checkout CTA kind available");
 }
 
 function testMailtoOmitsMissingSchool() {
