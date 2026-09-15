@@ -13,6 +13,7 @@ import {
   selectStatementSmsPairs,
   STATEMENT_SMS_MAX_CHARS,
   STATEMENT_SMS_SEGMENT_CHARS,
+  type StatementSmsDestination,
   type StatementSmsEligibleContact,
   type StatementSmsParentPair,
   type StatementSmsSendResultRow,
@@ -46,6 +47,14 @@ export type BulkStatementSmsSkipReason =
   | "INVALID_MESSAGE"
   | "DUPLICATE_ACCOUNT";
 
+/** Preview-safe destination — never includes a full cellphone number. */
+export type BulkStatementSmsPreviewRecipient = {
+  displayName: string;
+  mobileMasked: string;
+  accountNo: string;
+  parentIds: string[];
+};
+
 export type BulkStatementSmsAccountPreview = {
   familyAccountId: string;
   accountRef: string;
@@ -57,12 +66,42 @@ export type BulkStatementSmsAccountPreview = {
   contacts: StatementSmsEligibleContact[];
   recommendedParentId: string | null;
   selectedParentIds: string[];
+  /** Final SMS destinations after consent + duplicate-number removal (masked only). */
+  recipients: BulkStatementSmsPreviewRecipient[];
   destinationCount: number;
   duplicateMobilesRemoved: number;
   sampleMessage: string | null;
   charCount: number;
   segments: number;
 };
+
+/**
+ * Map send destinations to preview recipients without exposing full mobile numbers.
+ * Uses the same mask already produced by `maskStatementSmsMobile` on destinations.
+ */
+export function buildSafeBulkSmsPreviewRecipients(
+  destinations: StatementSmsDestination[],
+  accountNo: string
+): BulkStatementSmsPreviewRecipient[] {
+  const acct = String(accountNo || "").trim();
+  return (destinations || []).map((dest) => ({
+    displayName:
+      (dest.displayNames || []).map((n) => String(n || "").trim()).filter(Boolean).join(" & ") ||
+      "Parent / Guardian",
+    mobileMasked: String(dest.mobileMasked || "").trim(),
+    accountNo: acct,
+    parentIds: [...(dest.parentIds || [])],
+  }));
+}
+
+export function formatBulkSmsPreviewRecipientLine(
+  recipient: BulkStatementSmsPreviewRecipient
+): string {
+  const name = String(recipient.displayName || "").trim() || "Parent / Guardian";
+  const masked = String(recipient.mobileMasked || "").trim() || "•••• ????";
+  const accountNo = String(recipient.accountNo || "").trim() || "Account";
+  return `${name} — ${masked} — ${accountNo}`;
+}
 
 export type BulkStatementSmsDestinationResult = StatementSmsSendResultRow & {
   familyAccountId: string;
@@ -446,6 +485,7 @@ export async function previewBulkStatementSms(input: {
   );
 
   const accounts: BulkStatementSmsAccountPreview[] = [];
+  const recipients: BulkStatementSmsPreviewRecipient[] = [];
   const sampleMessages: string[] = [];
   let eligibleAccountCount = 0;
   let skippedAccountCount = 0;
@@ -462,6 +502,11 @@ export async function previewBulkStatementSms(input: {
       duplicateNumbersRemoved += row.account.duplicateMobilesRemoved;
       estimatedSegments += row.account.segments * row.account.destinations.length;
       if (sampleMessages.length < 3) sampleMessages.push(row.account.message);
+      const accountRecipients = buildSafeBulkSmsPreviewRecipients(
+        row.account.destinations,
+        row.account.accountNo
+      );
+      recipients.push(...accountRecipients);
       accounts.push({
         familyAccountId: row.account.familyAccountId,
         accountRef: row.account.accountRef,
@@ -474,6 +519,7 @@ export async function previewBulkStatementSms(input: {
         recommendedParentId:
           row.account.contacts.find((c) => c.recommended)?.parentId || null,
         selectedParentIds: row.account.selectedParentIds,
+        recipients: accountRecipients,
         destinationCount: row.account.destinations.length,
         duplicateMobilesRemoved: row.account.duplicateMobilesRemoved,
         sampleMessage: row.account.message,
@@ -493,6 +539,7 @@ export async function previewBulkStatementSms(input: {
         contacts: row.skipped.contacts,
         recommendedParentId: row.skipped.recommendedParentId,
         selectedParentIds: [],
+        recipients: [],
         destinationCount: 0,
         duplicateMobilesRemoved: 0,
         sampleMessage: null,
@@ -524,6 +571,8 @@ export async function previewBulkStatementSms(input: {
     maxChars: STATEMENT_SMS_MAX_CHARS,
     segmentChars: STATEMENT_SMS_SEGMENT_CHARS,
     sampleMessages,
+    /** Flat list of final destinations (masked only) for Step 4 final preview. */
+    recipients,
     accounts,
     smsReady,
     outboundDisabled,
@@ -635,6 +684,7 @@ export async function sendBulkStatementSms(input: {
         contacts: row.skipped.contacts,
         recommendedParentId: row.skipped.recommendedParentId,
         selectedParentIds: [],
+        recipients: [],
         destinationCount: 0,
         duplicateMobilesRemoved: 0,
         sampleMessage: null,

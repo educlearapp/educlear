@@ -2,9 +2,11 @@ import React, { useEffect, useMemo, useState } from "react";
 import { formatMoney } from "./billingLedger";
 import {
   BULK_STATEMENT_SMS_DEFAULT_TEMPLATE,
+  collectBulkSmsPreviewRecipients,
   estimateBulkTemplateSegments,
   fetchBulkStatementSmsPreview,
   formatBulkSmsFailureSummary,
+  formatBulkSmsPreviewRecipientLine,
   sendBulkStatementSmsRequest,
   STATEMENT_SMS_MAX_CHARS,
   type BulkStatementSmsPreview,
@@ -133,6 +135,7 @@ export default function BulkStatementSmsModal({
   }, [step, schoolId, familyAccountIds, strategy, messageTemplate]);
 
   const skippedAccounts = (preview?.accounts || []).filter((a) => a.status === "skipped");
+  const previewRecipients = collectBulkSmsPreviewRecipients(preview);
   const canAdvanceFromMessage =
     Boolean(messageTemplate.trim()) && messageTemplate.trim().length <= STATEMENT_SMS_MAX_CHARS;
 
@@ -327,6 +330,36 @@ export default function BulkStatementSmsModal({
                     {preview.recipientStrategy === "all_eligible"
                       ? "All eligible parents"
                       : "Recommended parent"}
+                  </div>
+                  <div style={{ marginTop: 14 }}>
+                    <div style={{ fontWeight: 800, marginBottom: 6 }}>
+                      Recipients who will receive this SMS
+                    </div>
+                    {previewRecipients.length ? (
+                      <ul
+                        style={{
+                          margin: 0,
+                          padding: "10px 12px 10px 28px",
+                          borderRadius: 10,
+                          background: "#f8fafc",
+                          border: "1px solid #e2e8f0",
+                          listStyleType: "disc",
+                        }}
+                      >
+                        {previewRecipients.map((row, idx) => (
+                          <li
+                            key={`${row.accountNo}-${row.mobileMasked}-${idx}`}
+                            style={{ fontSize: 13, marginBottom: 4, fontWeight: 700 }}
+                          >
+                            {formatBulkSmsPreviewRecipientLine(row)}
+                          </li>
+                        ))}
+                      </ul>
+                    ) : (
+                      <div style={{ fontSize: 13, color: "#9a3412", fontWeight: 700 }}>
+                        No eligible recipients for the current selection.
+                      </div>
+                    )}
                   </div>
                   {preview.sampleMessages.length ? (
                     <div style={{ marginTop: 12 }}>

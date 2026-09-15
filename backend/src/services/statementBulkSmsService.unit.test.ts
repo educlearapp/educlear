@@ -6,13 +6,16 @@ import assert from "assert";
 import {
   BULK_STATEMENT_SMS_CONCURRENCY,
   BULK_STATEMENT_SMS_DEFAULT_TEMPLATE,
+  buildSafeBulkSmsPreviewRecipients,
   dedupeFamilyAccountIds,
+  formatBulkSmsPreviewRecipientLine,
   parseBulkRecipientStrategy,
   renderBulkStatementSmsTemplate,
   resolveBulkMessageForAccount,
 } from "./statementBulkSmsService";
 import {
   buildStatementSmsDestinations,
+  maskStatementSmsMobile,
   rankStatementSmsContacts,
   selectStatementSmsPairs,
   STATEMENT_SMS_MAX_CHARS,
@@ -190,6 +193,66 @@ function testConcurrencyConstant() {
   assert.strictEqual(BULK_STATEMENT_SMS_CONCURRENCY, 5);
 }
 
+function testSafePreviewRecipientsNeverExposeFullMobile() {
+  const p1 = pair({
+    id: "p1",
+    firstName: "Test",
+    surname: "Parent One",
+    cellNo: "0821111001",
+    isPrimary: true,
+  });
+  const p2 = pair({
+    id: "p2",
+    firstName: "Test",
+    surname: "Parent Two",
+    cellNo: "0822222002",
+    isPrimary: false,
+  });
+  const all = selectStatementSmsPairs([p1, p2], { mode: "all" });
+  assert.ok(all.ok);
+  if (!all.ok) return;
+  const destinations = buildStatementSmsDestinations(all.pairs);
+  assert.strictEqual(destinations.length, 2);
+
+  const recipients = buildSafeBulkSmsPreviewRecipients(destinations, "SYN001");
+  assert.strictEqual(recipients.length, 2);
+  assert.strictEqual(recipients[0].accountNo, "SYN001");
+  assert.ok(recipients[0].displayName.includes("Parent"));
+  assert.ok(recipients[0].mobileMasked.includes("••••"));
+  assert.ok(recipients[0].mobileMasked.includes(maskStatementSmsMobile("0821111001").last4));
+
+  const payload = JSON.stringify(recipients);
+  assert.ok(!payload.includes("0821111001"));
+  assert.ok(!payload.includes("0822222002"));
+  assert.ok(!payload.includes("mobileNumber"));
+  assert.ok(!/"\d{10,}"/.test(payload));
+
+  const line = formatBulkSmsPreviewRecipientLine(recipients[0]);
+  assert.ok(line.includes(" — "));
+  assert.ok(line.includes("SYN001"));
+  assert.ok(line.includes(recipients[0].mobileMasked));
+  assert.ok(!line.includes("0821111001"));
+
+  const recommended = selectStatementSmsPairs([p1, p2], {
+    mode: "parentIds",
+    parentIds: [rankStatementSmsContacts([p1, p2])[0].parentId],
+  });
+  assert.ok(recommended.ok);
+  if (!recommended.ok) return;
+  const one = buildSafeBulkSmsPreviewRecipients(
+    buildStatementSmsDestinations(recommended.pairs),
+    "SYN001"
+  );
+  assert.strictEqual(one.length, 1);
+}
+
+function testServiceExposesRecipientsInPreview() {
+  const src = readFileSync(join(__dirname, "statementBulkSmsService.ts"), "utf8");
+  assert.ok(src.includes("buildSafeBulkSmsPreviewRecipients"));
+  assert.ok(src.includes("recipients: accountRecipients"));
+  assert.ok(src.includes("/** Flat list of final destinations"));
+}
+
 function testRoutesWired() {
   const src = readFileSync(join(__dirname, "../routes/statements.ts"), "utf8");
   assert.ok(src.includes('/bulk-sms-preview'));
@@ -246,6 +309,8 @@ async function main() {
   testInvalidPhoneExcluded();
   testAuthRequiresStatementsSend();
   testConcurrencyConstant();
+  testSafePreviewRecipientsNeverExposeFullMobile();
+  testServiceExposesRecipientsInPreview();
   testRoutesWired();
   testServiceUsesOutboundKillSwitch();
   await testPartialFailureContinues();
