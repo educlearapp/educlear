@@ -32,6 +32,62 @@ export function formatPackageCapacityDisplay(pkg: EduClearCommercialPackage): st
   return `Up to ${Math.trunc(pkg.learnerLimit)} active learners`;
 }
 
+/**
+ * Paid commercial package UI requires an ACTIVE subscription.
+ * Fail-open module entitlements (missing rows → all true) must NOT be treated
+ * as FULL_UNLIMITED for unpaid / pending schools.
+ */
+export function isPaidActiveSubscription(
+  subscriptionStatus: string | null | undefined
+): boolean {
+  return String(subscriptionStatus || "").trim().toUpperCase() === "ACTIVE";
+}
+
+export type PackagePageVisibility = {
+  kind: "new_unpaid" | "existing";
+  current: EduClearCommercialPackage | null;
+  /** New unpaid: all 8 catalogue SKUs. Existing: valid upgrades only (never downgrade/lateral). */
+  offerPackages: EduClearCommercialPackage[];
+};
+
+/**
+ * Package page visibility SoT.
+ * - New / unpaid (no ACTIVE subscription): no current paid package; offer all 8.
+ * - Existing ACTIVE lower package: current + upgrade graph only.
+ * - Existing ACTIVE FULL_UNLIMITED: current only; no offer cards.
+ */
+export function resolvePackagePageVisibility(input: {
+  entitlements: SchoolModuleEntitlements | null | undefined;
+  subscriptionStatus: string | null | undefined;
+  legacyPackageCode?: string | null;
+  fullCapacityCode?: "FULL_100" | "FULL_UNLIMITED" | null;
+}): PackagePageVisibility {
+  if (!isPaidActiveSubscription(input.subscriptionStatus)) {
+    return {
+      kind: "new_unpaid",
+      current: null,
+      offerPackages: listNewSaleCommercialPackages(),
+    };
+  }
+
+  const opts = {
+    legacyPackageCode: input.legacyPackageCode,
+    fullCapacityCode: input.fullCapacityCode,
+  };
+  const current = resolveCurrentCommercialPackageStrict(input.entitlements, opts);
+  if (!current) {
+    return { kind: "existing", current: null, offerPackages: [] };
+  }
+  if (current.code === "FULL_UNLIMITED") {
+    return { kind: "existing", current, offerPackages: [] };
+  }
+  return {
+    kind: "existing",
+    current,
+    offerPackages: listUpgradeOptions(input.entitlements, opts),
+  };
+}
+
 export function resolveCurrentCommercialPackageStrict(
   entitlements: SchoolModuleEntitlements | null | undefined,
   opts?: { legacyPackageCode?: string | null; fullCapacityCode?: "FULL_100" | "FULL_UNLIMITED" | null }

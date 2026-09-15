@@ -28,6 +28,7 @@ import {
   onlinePackagePaymentsUnavailableNotice,
   packageUpgradeCta,
   resolveCurrentCommercialPackageStrict,
+  resolvePackagePageVisibility,
   upgradeButtonLabel,
 } from "./dashboardPackagePanelLogic";
 
@@ -90,7 +91,91 @@ function testFullUnlimitedCurrentState() {
   assert.ok(annual.promoLine && /2 months free/i.test(annual.promoLine));
   assert.strictEqual(listUpgradeOptions({ CORE: true, ACCOUNTING: true, PAYROLL: true }).length, 0);
   assert.ok(/Full Unlimited/i.test(FULL_UNLIMITED_TOP_PACKAGE_MESSAGE));
+
+  const activeFull = resolvePackagePageVisibility({
+    entitlements: { CORE: true, ACCOUNTING: true, PAYROLL: true },
+    subscriptionStatus: "ACTIVE",
+    legacyPackageCode: "UNLIMITED",
+  });
+  assert.strictEqual(activeFull.kind, "existing");
+  assert.strictEqual(activeFull.current?.code, "FULL_UNLIMITED");
+  assert.strictEqual(activeFull.offerPackages.length, 0);
   console.log("✓ FULL_UNLIMITED current package has no upgrade CTA + correct prices");
+}
+
+function testNewUnpaidNotInterpretedAsFullUnlimited() {
+  // Fail-open entitlements (all true) + unpaid must NOT become FULL_UNLIMITED.
+  const unpaid = resolvePackagePageVisibility({
+    entitlements: { CORE: true, ACCOUNTING: true, PAYROLL: true },
+    subscriptionStatus: null,
+    legacyPackageCode: "UNLIMITED",
+  });
+  assert.strictEqual(unpaid.kind, "new_unpaid");
+  assert.strictEqual(unpaid.current, null);
+  assert.deepStrictEqual(
+    unpaid.offerPackages.map((p) => p.code),
+    [
+      "CORE",
+      "ACCOUNTING",
+      "PAYROLL",
+      "BUSINESS",
+      "CORE_ACCOUNTING",
+      "CORE_PAYROLL",
+      "FULL_100",
+      "FULL_UNLIMITED",
+    ]
+  );
+
+  const pending = resolvePackagePageVisibility({
+    entitlements: { CORE: true, ACCOUNTING: true, PAYROLL: true },
+    subscriptionStatus: "PENDING_PAYMENT",
+  });
+  assert.strictEqual(pending.kind, "new_unpaid");
+  assert.strictEqual(pending.offerPackages.length, 8);
+  console.log("✓ NEW / unpaid school shows all 8 packages (not false FULL_UNLIMITED)");
+}
+
+function testLowerPackageValidUpgradesOnly() {
+  const core = resolvePackagePageVisibility({
+    entitlements: { CORE: true, ACCOUNTING: false, PAYROLL: false },
+    subscriptionStatus: "ACTIVE",
+  });
+  assert.strictEqual(core.kind, "existing");
+  assert.strictEqual(core.current?.code, "CORE");
+  assert.deepStrictEqual(
+    core.offerPackages.map((p) => p.code),
+    ["CORE_ACCOUNTING", "CORE_PAYROLL", "FULL_100", "FULL_UNLIMITED"]
+  );
+
+  const business = resolvePackagePageVisibility({
+    entitlements: { CORE: false, ACCOUNTING: true, PAYROLL: true },
+    subscriptionStatus: "ACTIVE",
+  });
+  assert.deepStrictEqual(
+    business.offerPackages.map((p) => p.code),
+    ["FULL_100", "FULL_UNLIMITED"]
+  );
+  console.log("✓ lower package shows valid upgrades only (no downgrade/lateral)");
+}
+
+function testExistingCustomersPreservedViaActiveStatus() {
+  // Da Silva-like: ACTIVE Full Unlimited remains current-only.
+  const daSilva = resolvePackagePageVisibility({
+    entitlements: { CORE: true, ACCOUNTING: true, PAYROLL: true },
+    subscriptionStatus: "ACTIVE",
+    legacyPackageCode: "UNLIMITED",
+  });
+  assert.strictEqual(daSilva.current?.code, "FULL_UNLIMITED");
+  assert.strictEqual(daSilva.offerPackages.length, 0);
+
+  // ACTIVE Core school still sees Core upgrades (unchanged graph).
+  const activeCore = resolvePackagePageVisibility({
+    entitlements: { CORE: true, ACCOUNTING: false, PAYROLL: false },
+    subscriptionStatus: "ACTIVE",
+  });
+  assert.strictEqual(activeCore.current?.code, "CORE");
+  assert.ok(activeCore.offerPackages.some((p) => p.code === "FULL_UNLIMITED"));
+  console.log("✓ existing ACTIVE customers preserved");
 }
 
 function testContactCtaReplacesDeadUpgrade() {
@@ -226,6 +311,7 @@ function testPanelsWireToggleAndFailSafeContact() {
   assert.ok(dash.includes("if (!checkoutAvailable || checkoutBusySku) return"));
   assert.ok(dash.includes('billingCycle = interval === "annual" ? "ANNUAL" : "MONTHLY"'));
   assert.ok(dash.includes("sku: pkg.code"));
+  assert.ok(dash.includes("resolvePackagePageVisibility"));
   assert.ok(dash.includes("FULL_UNLIMITED_TOP_PACKAGE_MESSAGE"));
   console.log("✓ panels wire toggle; flag-ON checkout passes SKU/cycle; duplicate click guarded");
 }
@@ -245,6 +331,9 @@ function main() {
   testUpgradeOptions();
   testCoreUpgradeChoices();
   testFullUnlimitedCurrentState();
+  testNewUnpaidNotInterpretedAsFullUnlimited();
+  testLowerPackageValidUpgradesOnly();
+  testExistingCustomersPreservedViaActiveStatus();
   testContactCtaReplacesDeadUpgrade();
   testMailtoOmitsMissingSchool();
   testModularCheckoutDisabledCopy();

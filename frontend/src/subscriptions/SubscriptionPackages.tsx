@@ -24,11 +24,10 @@ import {
   formatCurrentPackageCard,
   formatPackageCapacityDisplay,
   isModularCheckoutAvailable,
-  listUpgradeOptions,
   modularCheckoutDisabledReason,
   onlinePackagePaymentsUnavailableNotice,
   packageUpgradeCta,
-  resolveCurrentCommercialPackageStrict,
+  resolvePackagePageVisibility,
 } from "./dashboardPackagePanelLogic";
 import {
   activateSubscriptionTestMode,
@@ -161,17 +160,20 @@ export default function SubscriptionPackages() {
   const [modularCheckoutAvailable, setModularCheckoutAvailable] = useState(false);
   const [checkoutBusySku, setCheckoutBusySku] = useState<string | null>(null);
   const [legacyPackageCode, setLegacyPackageCode] = useState<string | null>(null);
+  const [subscriptionStatus, setSubscriptionStatus] = useState<string | null>(null);
 
   const catalog = useMemo(() => listNewSaleCommercialPackages(), []);
-  const packageOpts = useMemo(() => ({ legacyPackageCode }), [legacyPackageCode]);
-  const current = useMemo(
-    () => resolveCurrentCommercialPackageStrict(entitlements, packageOpts),
-    [entitlements, packageOpts]
+  const visibility = useMemo(
+    () =>
+      resolvePackagePageVisibility({
+        entitlements,
+        subscriptionStatus,
+        legacyPackageCode,
+      }),
+    [entitlements, subscriptionStatus, legacyPackageCode]
   );
-  const upgrades = useMemo(
-    () => listUpgradeOptions(entitlements, packageOpts),
-    [entitlements, packageOpts]
-  );
+  const current = visibility.current;
+  const offerPackages = visibility.offerPackages;
   const currentCard = current ? formatCurrentPackageCard(current, interval) : null;
   const checkoutAvailable = isModularCheckoutAvailable(modularCheckoutAvailable);
 
@@ -207,10 +209,15 @@ export default function SubscriptionPackages() {
         ).trim();
         setSchoolName(statusSchool || null);
         const statusPkg = String(
-          (statusResponse as { subscription?: { packageCode?: string } } | null)?.subscription
-            ?.packageCode || ""
+          (statusResponse as { subscription?: { packageCode?: string; status?: string } } | null)
+            ?.subscription?.packageCode || ""
         ).trim();
         setLegacyPackageCode(statusPkg || null);
+        const subStatus = String(
+          (statusResponse as { subscription?: { status?: string } } | null)?.subscription?.status ||
+            ""
+        ).trim();
+        setSubscriptionStatus(subStatus || null);
         const mods =
           (me as { moduleEntitlements?: SchoolModuleEntitlements } | null)?.moduleEntitlements ||
           (me as { school?: { moduleEntitlements?: SchoolModuleEntitlements } } | null)?.school
@@ -432,9 +439,37 @@ export default function SubscriptionPackages() {
           </div>
         ) : null}
 
-        {!loading && current?.code !== "FULL_UNLIMITED" && upgrades.length > 0 ? (
+        {!loading && visibility.kind === "new_unpaid" ? (
+          <div
+            style={{
+              background: "linear-gradient(135deg, #050505, #111827)",
+              color: "#fff",
+              borderRadius: "18px",
+              padding: "28px",
+              marginTop: "24px",
+              border: "1px solid rgba(212,175,55,0.35)",
+            }}
+            data-testid="current-package-card"
+          >
+            <div style={{ color: GOLD, fontWeight: 900, letterSpacing: "1px" }}>
+              CURRENT PACKAGE
+            </div>
+            <p
+              style={{ margin: "12px 0 0", color: "#d1d5db", lineHeight: 1.5 }}
+              data-testid="no-paid-package-message"
+            >
+              No paid package yet. Choose an EduClear package below to get started.
+            </p>
+          </div>
+        ) : null}
+
+        {!loading &&
+        !(visibility.kind === "existing" && current?.code === "FULL_UNLIMITED") &&
+        offerPackages.length > 0 ? (
           <section style={{ marginTop: 28 }} data-testid="upgrade-options-section">
-            <h3 style={{ color: INK }}>Upgrade options</h3>
+            <h3 style={{ color: INK }}>
+              {visibility.kind === "new_unpaid" ? "Available packages" : "Upgrade options"}
+            </h3>
             <div
               style={{
                 display: "grid",
@@ -443,10 +478,10 @@ export default function SubscriptionPackages() {
                 alignItems: "stretch",
               }}
             >
-              {upgrades.map((pkg) => {
+              {offerPackages.map((pkg) => {
                 const cta = packageUpgradeCta({
                   checkoutAvailable,
-                  currentPackageName: current?.name || "Unknown",
+                  currentPackageName: current?.name || "No package yet",
                   requestedPackage: pkg,
                   schoolName,
                 });
@@ -482,19 +517,39 @@ export default function SubscriptionPackages() {
                       {pkg.description}
                     </p>
                     {cta.kind === "mailto" ? (
-                      <a
-                        href={cta.href}
-                        data-testid={`upgrade-contact-cta-${pkg.code}`}
-                        style={{
-                          ...goldBtn,
-                          display: "inline-block",
-                          textDecoration: "none",
-                          marginTop: "auto",
-                          textAlign: "center",
-                        }}
-                      >
-                        {cta.label}
-                      </a>
+                      agreedToTerms ? (
+                        <a
+                          href={cta.href}
+                          data-testid={`upgrade-contact-cta-${pkg.code}`}
+                          style={{
+                            ...goldBtn,
+                            display: "inline-block",
+                            textDecoration: "none",
+                            marginTop: "auto",
+                            textAlign: "center",
+                          }}
+                        >
+                          {cta.label}
+                        </a>
+                      ) : (
+                        <button
+                          type="button"
+                          data-testid={`upgrade-contact-cta-${pkg.code}`}
+                          style={{
+                            ...goldBtn,
+                            marginTop: "auto",
+                            opacity: 0.75,
+                            cursor: "not-allowed",
+                          }}
+                          onClick={() =>
+                            setError(
+                              "You must agree to the EduClear Terms & Conditions before continuing."
+                            )
+                          }
+                        >
+                          Accept Terms to Continue
+                        </button>
+                      )
                     ) : (
                       <button
                         type="button"
@@ -502,13 +557,25 @@ export default function SubscriptionPackages() {
                           ...goldBtn,
                           marginTop: "auto",
                           opacity: checkoutBusySku && checkoutBusySku !== pkg.code ? 0.65 : 1,
-                          cursor: checkoutBusySku ? "not-allowed" : "pointer",
+                          cursor: checkoutBusySku || !agreedToTerms ? "not-allowed" : "pointer",
                         }}
                         data-testid={`upgrade-checkout-cta-${pkg.code}`}
-                        disabled={Boolean(checkoutBusySku)}
-                        onClick={() => void handleUpgradeCheckout(pkg)}
+                        disabled={Boolean(checkoutBusySku) || !agreedToTerms}
+                        onClick={() => {
+                          if (!agreedToTerms) {
+                            setError(
+                              "You must agree to the EduClear Terms & Conditions before continuing."
+                            );
+                            return;
+                          }
+                          void handleUpgradeCheckout(pkg);
+                        }}
                       >
-                        {checkoutBusySku === pkg.code ? "Opening PayFast…" : cta.label}
+                        {checkoutBusySku === pkg.code
+                          ? "Opening PayFast…"
+                          : !agreedToTerms
+                            ? "Accept Terms to Continue"
+                            : cta.label}
                       </button>
                     )}
                   </div>

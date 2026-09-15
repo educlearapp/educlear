@@ -18,10 +18,9 @@ import {
   formatCurrentPackageCard,
   formatPackageCapacityDisplay,
   isModularCheckoutAvailable,
-  listUpgradeOptions,
   modularCheckoutDisabledReason,
   packageUpgradeCta,
-  resolveCurrentCommercialPackageStrict,
+  resolvePackagePageVisibility,
 } from "./dashboardPackagePanelLogic";
 import { submitPayFastCheckout } from "./payfastCheckout";
 import {
@@ -124,14 +123,17 @@ export default function DashboardPackagePanel({ moduleEntitlements = null }: Pro
     () => ({ legacyPackageCode }),
     [legacyPackageCode]
   );
-  const current = useMemo(
-    () => resolveCurrentCommercialPackageStrict(entitlements, packageOpts),
-    [entitlements, packageOpts]
+  const visibility = useMemo(
+    () =>
+      resolvePackagePageVisibility({
+        entitlements,
+        subscriptionStatus,
+        ...packageOpts,
+      }),
+    [entitlements, subscriptionStatus, packageOpts]
   );
-  const upgrades = useMemo(
-    () => listUpgradeOptions(entitlements, packageOpts),
-    [entitlements, packageOpts]
-  );
+  const current = visibility.current;
+  const offerPackages = visibility.offerPackages;
   const catalog = useMemo(() => listNewSaleCommercialPackages(), []);
   const currentCard = current ? formatCurrentPackageCard(current, interval) : null;
   const checkoutAvailable = isModularCheckoutAvailable(modularCheckoutAvailable);
@@ -215,7 +217,14 @@ export default function DashboardPackagePanel({ moduleEntitlements = null }: Pro
         <div style={{ color: GOLD, fontWeight: 900, letterSpacing: 1.2, fontSize: 12 }}>
           CURRENT PACKAGE
         </div>
-        {currentCard && current ? (
+        {visibility.kind === "new_unpaid" ? (
+          <p
+            style={{ margin: "10px 0 0", color: "#d1d5db", lineHeight: 1.5 }}
+            data-testid="no-paid-package-message"
+          >
+            No paid package yet. Choose an EduClear package below to get started.
+          </p>
+        ) : currentCard && current ? (
           <>
             <h2
               style={{ margin: "10px 0 6px", color: "#fff", fontSize: 26, fontWeight: 800 }}
@@ -262,16 +271,18 @@ export default function DashboardPackagePanel({ moduleEntitlements = null }: Pro
         )}
       </section>
 
-      {current?.code === "FULL_UNLIMITED" ? (
+      {visibility.kind === "existing" && current?.code === "FULL_UNLIMITED" ? (
         <p
           style={{ fontWeight: 700, color: "#047857", marginBottom: 24 }}
           data-testid="top-package-message"
         >
           {FULL_UNLIMITED_TOP_PACKAGE_MESSAGE}
         </p>
-      ) : upgrades.length > 0 ? (
+      ) : offerPackages.length > 0 ? (
         <section style={{ marginBottom: 28 }} data-testid="upgrade-options-section">
-          <h3 style={{ margin: "0 0 12px", color: INK }}>Upgrade options</h3>
+          <h3 style={{ margin: "0 0 12px", color: INK }}>
+            {visibility.kind === "new_unpaid" ? "Available packages" : "Upgrade options"}
+          </h3>
           <div
             style={{
               display: "grid",
@@ -280,7 +291,7 @@ export default function DashboardPackagePanel({ moduleEntitlements = null }: Pro
               alignItems: "stretch",
             }}
           >
-            {upgrades.map((pkg) => (
+            {offerPackages.map((pkg) => (
               <UpgradeCard
                 key={pkg.code}
                 pkg={pkg}
@@ -288,7 +299,7 @@ export default function DashboardPackagePanel({ moduleEntitlements = null }: Pro
                 checkoutAvailable={checkoutAvailable}
                 checkoutBusy={checkoutBusySku === pkg.code}
                 checkoutDisabled={Boolean(checkoutBusySku)}
-                currentPackageName={current?.name || "Unknown"}
+                currentPackageName={current?.name || "No package yet"}
                 schoolName={schoolName}
                 onCheckout={() => void handleUpgradeCheckout(pkg)}
               />
