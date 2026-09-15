@@ -1,7 +1,8 @@
 /**
- * Modular commercial package panel helpers (Phase 6C).
+ * Modular commercial package panel helpers (Phase 6C / 6D / 6D.1).
  */
 import type { SchoolModuleEntitlements } from "../modules/schoolModuleEntitlements";
+import { EDUCLEAR_LEGAL_CONTACT } from "../components/legal/legalContact";
 import {
   type BillingInterval,
   type CommercialPackageCode,
@@ -14,6 +15,9 @@ import {
 } from "../modules/educlearCommercialPackages";
 
 export { isLegacyCapacityPackageCode };
+
+export const PACKAGE_UPGRADE_CONTACT_CTA_LABEL = "Contact EduClear to upgrade";
+export const PACKAGE_UPGRADE_MAIL_SUBJECT = "EduClear Package Upgrade Request";
 
 export function resolveCurrentCommercialPackageStrict(
   entitlements: SchoolModuleEntitlements | null | undefined
@@ -47,6 +51,7 @@ export function formatCurrentPackageCard(
   };
 }
 
+/** @deprecated Prefer PACKAGE_UPGRADE_CONTACT_CTA_LABEL while modular checkout is offline. */
 export function upgradeButtonLabel(target: EduClearCommercialPackage): string {
   return `Upgrade to ${target.shortLabel}`;
 }
@@ -63,6 +68,57 @@ export function modularCheckoutDisabledReason(): string {
 /** Safe school-user notice when online payments are unavailable (no config/secret names). */
 export function onlinePackagePaymentsUnavailableNotice(): string {
   return "Online package payments are currently unavailable.";
+}
+
+export type PackageUpgradeMailtoInput = {
+  currentPackageName: string;
+  requestedPackageName: string;
+  schoolName?: string | null;
+};
+
+/**
+ * Builds a mailto: href to the canonical EduClear contact email.
+ * Omits school name when not safely available. No IDs, secrets, or balances.
+ */
+export function buildPackageUpgradeMailtoHref(input: PackageUpgradeMailtoInput): string {
+  const current = String(input.currentPackageName || "").trim() || "Unknown";
+  const requested = String(input.requestedPackageName || "").trim() || "Unknown";
+  const school = String(input.schoolName || "").trim();
+
+  const lines = [
+    ...(school ? [`School: ${school}`] : []),
+    `Current package: ${current}`,
+    `Requested package: ${requested}`,
+  ];
+
+  const params = new URLSearchParams({
+    subject: PACKAGE_UPGRADE_MAIL_SUBJECT,
+    body: lines.join("\n"),
+  });
+  // URLSearchParams uses + for spaces; mailto clients prefer %20
+  const query = params.toString().replace(/\+/g, "%20");
+  return `mailto:${EDUCLEAR_LEGAL_CONTACT.email}?${query}`;
+}
+
+/** While modular checkout is offline, always use the contact CTA (never a dead Upgrade button). */
+export function packageUpgradeCta(input: {
+  checkoutAvailable: boolean;
+  currentPackageName: string;
+  requestedPackage: EduClearCommercialPackage;
+  schoolName?: string | null;
+}): { kind: "mailto"; label: string; href: string } | { kind: "checkout"; label: string } {
+  if (input.checkoutAvailable) {
+    return { kind: "checkout", label: upgradeButtonLabel(input.requestedPackage) };
+  }
+  return {
+    kind: "mailto",
+    label: PACKAGE_UPGRADE_CONTACT_CTA_LABEL,
+    href: buildPackageUpgradeMailtoHref({
+      currentPackageName: input.currentPackageName,
+      requestedPackageName: input.requestedPackage.name,
+      schoolName: input.schoolName,
+    }),
+  };
 }
 
 /** @deprecated Legacy capacity helpers — not for new-sale UX. */

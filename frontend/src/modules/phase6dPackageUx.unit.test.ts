@@ -63,13 +63,27 @@ function testCustomerFacingCopyClean() {
     assert.ok(!text.includes("PAYFAST_NOTIFY_URL"), rel);
     assert.ok(!text.includes("PayFast still uses legacy capacity packages"), rel);
     assert.ok(!text.includes("PayFast is not configured on this server"), rel);
-    // Rendered customer strings must not say "legacy capacity"
     if (rel.endsWith(".tsx")) {
       assert.ok(!/legacy capacity packages/i.test(text), rel);
       assert.ok(!/Missing: \$\{missingPayFastEnv/i.test(text), rel);
+      // No dead disabled Upgrade button while checkout is offline
+      assert.ok(!/disabled.*Upgrade to|Upgrade to \$\{pkg\.shortLabel\}/i.test(text), rel);
+      assert.ok(text.includes("packageUpgradeCta") || text.includes("Contact EduClear to upgrade") || rel.includes("Status"), rel);
     }
   }
-  console.log("✓ school UI free of raw PayFast env / legacy capacity copy");
+  // Package surfaces must use contact CTA helper
+  const packages = fs.readFileSync(
+    path.join(FE_SRC, "subscriptions/SubscriptionPackages.tsx"),
+    "utf8"
+  );
+  const dashboard = fs.readFileSync(
+    path.join(FE_SRC, "subscriptions/DashboardPackagePanel.tsx"),
+    "utf8"
+  );
+  assert.ok(packages.includes("packageUpgradeCta"));
+  assert.ok(dashboard.includes("packageUpgradeCta"));
+  assert.ok(packages.includes("Contact EduClear to upgrade") || packages.includes("PACKAGE_UPGRADE_CONTACT_CTA_LABEL") || packages.includes("packageUpgradeCta"));
+  console.log("✓ school UI free of raw PayFast env / legacy capacity / dead Upgrade CTAs");
 }
 
 function testPricingUntouched() {
