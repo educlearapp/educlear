@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { API_URL } from "./api";
+import { staffAuthHeaders } from "./auth/staffAuthHeaders";
 
 const frequencies = ["ONCE_OFF", "MONTHLY", "YEARLY"] as const;
 
@@ -34,7 +35,9 @@ export default function FeeManage(props: { feeId: string; onDone: () => void }) 
       try {
         const url = new URL(`${API_URL}/api/fees/${encodeURIComponent(props.feeId)}`);
         url.searchParams.set("schoolId", schoolId);
-        const res = await fetch(url.toString());
+        const res = await fetch(url.toString(), {
+          headers: { ...staffAuthHeaders() },
+        });
         const data = await res.json();
         if (!res.ok) throw new Error(data?.message || "Failed to load fee");
         const f = data?.fee as Fee;
@@ -199,7 +202,7 @@ export default function FeeManage(props: { feeId: string; onDone: () => void }) 
                   try {
                     const res = await fetch(`${API_URL}/api/fees/${encodeURIComponent(props.feeId)}`, {
                       method: "PUT",
-                      headers: { "Content-Type": "application/json" },
+                      headers: { "Content-Type": "application/json", ...staffAuthHeaders() },
                       body: JSON.stringify({
                         schoolId,
                         name: name.trim(),

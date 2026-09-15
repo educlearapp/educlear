@@ -23,15 +23,22 @@ type MockPage = { items: any[]; total: number; pageSize?: number };
 
 function makeFetchMock(pagesByUrl: (url: string) => MockPage | null) {
   const calls: string[] = [];
-  const fetchImpl: typeof fetch = async (input: RequestInfo | URL) => {
+  const headerCalls: Array<Record<string, string>> = [];
+  const fetchImpl: typeof fetch = async (input: RequestInfo | URL, init?: RequestInit) => {
     const url = String(input);
     calls.push(url);
+    const raw = (init?.headers || {}) as Record<string, string>;
+    headerCalls.push({ ...raw });
     const page = pagesByUrl(url);
     if (!page) {
       return {
         ok: false,
-        status: 404,
-        json: async () => ({ success: false }),
+        status: 401,
+        json: async () => ({
+          success: false,
+          message: "Authentication required",
+          code: "AUTH_REQUIRED",
+        }),
       } as Response;
     }
     return {
@@ -45,7 +52,7 @@ function makeFetchMock(pagesByUrl: (url: string) => MockPage | null) {
       }),
     } as Response;
   };
-  return { fetchImpl, calls };
+  return { fetchImpl, calls, headerCalls };
 }
 
 function memoryLocalStorage() {
@@ -262,6 +269,85 @@ async function testInvoiceCreateCleanDoesNotPreferCache() {
   console.log("✓ InvoiceCreateClean no longer prefers stale localStorage cache");
 }
 
+async function testAuthHeadersOnSchoolFeeFetch() {
+  const ls = memoryLocalStorage();
+  (globalThis as any).localStorage = ls;
+  ls.setItem("token", "staff-jwt-test-token");
+
+  const { fetchImpl, calls, headerCalls } = makeFetchMock((url) => {
+    if (!url.includes("/api/fees")) return null;
+    return {
+      items: [
+        { id: "fee-1", name: "Tuition", amount: 2500 },
+        { id: "fee-2", name: "Aftercare", amount: 500 },
+      ],
+      total: 2,
+    };
+  });
+
+  const result = await fetchAllSchoolFees({
+    apiUrl: "https://api.example",
+    schoolId: "cmpideqeq0000108xb6ouv9zi",
+    fetchImpl,
+  });
+
+  assert(calls.length === 1, "auth: one page for 2 fees");
+  assert(
+    String(headerCalls[0]?.Authorization || "") === "Bearer staff-jwt-test-token",
+    `auth: Authorization Bearer required — got ${JSON.stringify(headerCalls[0])}`
+  );
+  assert(result.fees.length === 2, "auth: authenticated catalogue returns school fees");
+  assert(
+    calls[0].includes("schoolId=cmpideqeq0000108xb6ouv9zi"),
+    "auth: correct schoolId on catalogue request"
+  );
+  console.log("✓ auth: staff Authorization header sent; school catalogue returned");
+}
+
+async function testUnauthenticatedSchoolFeeFetchRejected() {
+  const ls = memoryLocalStorage();
+  (globalThis as any).localStorage = ls;
+  // no token
+
+  const { fetchImpl, headerCalls } = makeFetchMock(() => null);
+  const result = await fetchAllSchoolFees({
+    apiUrl: "https://api.example",
+    schoolId: "school-1",
+    fetchImpl,
+  });
+
+  assert(
+    !String(headerCalls[0]?.Authorization || "").trim(),
+    "unauth: no Authorization when token missing"
+  );
+  assert(result.fees.length === 0, "unauth: rejected / empty school catalogue");
+  console.log("✓ unauth: missing token yields empty catalogue (API reject path)");
+}
+
+function testFeesPageUsesStaffAuthHeaders() {
+  const feesPath = join(dirname(fileURLToPath(import.meta.url)), "../Fees.tsx");
+  const src = readFileSync(feesPath, "utf8");
+  assert(src.includes('from "./auth/staffAuthHeaders"'), "Fees.tsx imports staffAuthHeaders");
+  assert(src.includes("staffAuthHeaders()"), "Fees.tsx calls staffAuthHeaders()");
+  assert(src.includes("schoolId"), "Fees.tsx still passes schoolId");
+  console.log("✓ Fees.tsx uses staffAuthHeaders for GET /api/fees");
+}
+
+function testPlanOnlyTwoRowsWhenSchoolFetchFails() {
+  const planFees = [
+    { stableKey: "sig:fee|100.00||", description: "Fee", source: "plan" as const },
+    { stableKey: "sig:fee|200.00||", description: "Fee", source: "plan" as const },
+  ];
+  const schoolFees: typeof planFees = [];
+  const merged = mergeFeeOptionsByStableKey(planFees, schoolFees);
+  assert(merged.length === 2, "invoice picker: plan-only merge yields two rows when school API empty");
+  assert(
+    merged.every((f) => f.source === "plan" && f.description === "Fee"),
+    "invoice picker: two generic Fee rows come from billing-plan merge, not school catalogue"
+  );
+  console.log("✓ invoice picker two generic rows explained by plan-only merge");
+}
+
 async function main() {
   testParseFeesApiList();
   await testA_StaleCacheStillFetchesLive();
@@ -270,6 +356,10 @@ async function main() {
   await testF_SchoolIdOnEveryRequest();
   testG_PlanSchoolMergeDedupe();
   await testInvoiceCreateCleanDoesNotPreferCache();
+  await testAuthHeadersOnSchoolFeeFetch();
+  await testUnauthenticatedSchoolFeeFetchRejected();
+  testFeesPageUsesStaffAuthHeaders();
+  testPlanOnlyTwoRowsWhenSchoolFetchFails();
   console.log("\nAll invoice fee options loader regression tests passed.");
 }
 

@@ -234,7 +234,9 @@ export default function LearnerBillingPlanTab({ learner, onLearnerUpdated, setLe
           const url = `${API_URL}/api/fees?schoolId=${encodeURIComponent(
             schoolId
           )}&page=${page}&pageSize=${apiPageSize}`;
-          const response = await fetch(url);
+          const response = await fetch(url, {
+            headers: { ...staffAuthHeaders() },
+          });
           if (!response.ok) break;
           const data = await response.json();
           const list = parseFeesApiList(data);

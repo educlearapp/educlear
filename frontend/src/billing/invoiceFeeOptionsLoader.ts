@@ -4,6 +4,8 @@
  * localStorage.billingPlanFeeOptions as the source of truth.
  */
 
+import { staffAuthHeaders } from "../auth/staffAuthHeaders";
+
 export const BILLING_PLAN_FEE_OPTIONS_KEY = "billingPlanFeeOptions";
 
 const DEFAULT_PAGE_SIZE = 100;
@@ -48,6 +50,8 @@ export async function fetchAllSchoolFees(options: {
   schoolId: string;
   pageSize?: number;
   fetchImpl?: typeof fetch;
+  /** Extra headers (tests). Defaults include staff Authorization when a token exists. */
+  headers?: Record<string, string>;
 }): Promise<FetchAllSchoolFeesResult> {
   const schoolId = String(options.schoolId || "").trim();
   if (!schoolId) {
@@ -60,6 +64,10 @@ export async function fetchAllSchoolFees(options: {
   );
   const fetchFn = options.fetchImpl || fetch;
   const base = String(options.apiUrl || "").replace(/\/$/, "");
+  const headers = {
+    ...staffAuthHeaders(),
+    ...(options.headers || {}),
+  };
 
   const loadedFees: any[] = [];
   const requestUrls: string[] = [];
@@ -70,7 +78,7 @@ export async function fetchAllSchoolFees(options: {
     const url = `${base}/api/fees?schoolId=${encodeURIComponent(schoolId)}&page=${page}&pageSize=${apiPageSize}`;
     requestUrls.push(url);
 
-    const response = await fetchFn(url);
+    const response = await fetchFn(url, { headers });
     if (!response.ok) break;
 
     const data = await response.json();

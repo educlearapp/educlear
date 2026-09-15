@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useRef, useState, type CSSProperties } from "react";
 import { API_URL } from "./api";
+import { staffAuthHeaders } from "./auth/staffAuthHeaders";
 import { useSchoolId } from "./useSchoolId";
 import { invalidateBillingPlanFeeOptionsCache } from "./billing/invoiceFeeOptionsLoader";
 
@@ -112,7 +113,9 @@ export default function FeeUpsert(props: { feeId?: string | null; onBack: () => 
       try {
         const url = new URL(`${API_URL}/api/fees/${encodeURIComponent(String(props.feeId))}`);
         url.searchParams.set("schoolId", schoolId);
-        const res = await fetch(url.toString());
+        const res = await fetch(url.toString(), {
+          headers: { ...staffAuthHeaders() },
+        });
         const data = await res.json();
         if (!res.ok) throw new Error(data?.message || "Failed to load fee");
         const fee = (data?.fee || null) as FeeDto | null;
@@ -290,7 +293,7 @@ export default function FeeUpsert(props: { feeId?: string | null; onBack: () => 
                   isEdit ? `${API_URL}/api/fees/${encodeURIComponent(String(props.feeId))}` : `${API_URL}/api/fees`,
                   {
                     method: isEdit ? "PUT" : "POST",
-                    headers: { "Content-Type": "application/json" },
+                    headers: { "Content-Type": "application/json", ...staffAuthHeaders() },
                     body: JSON.stringify(payload),
                   }
                 );
@@ -363,7 +366,7 @@ export default function FeeUpsert(props: { feeId?: string | null; onBack: () => 
                         `${API_URL}/api/fees/${encodeURIComponent(String(props.feeId))}/toggle-active`,
                         {
                           method: "PATCH",
-                          headers: { "Content-Type": "application/json" },
+                          headers: { "Content-Type": "application/json", ...staffAuthHeaders() },
                           body: JSON.stringify({ schoolId }),
                         }
                       );

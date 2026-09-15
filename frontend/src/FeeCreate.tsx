@@ -1,5 +1,6 @@
 import { useMemo, useState } from "react";
 import { API_URL } from "./api";
+import { staffAuthHeaders } from "./auth/staffAuthHeaders";
 
 const frequencies = ["ONCE_OFF", "MONTHLY", "YEARLY"] as const;
 
@@ -153,7 +154,7 @@ export default function FeeCreate(props: { onDone: () => void }) {
               try {
                 const res = await fetch(`${API_URL}/api/fees`, {
                   method: "POST",
-                  headers: { "Content-Type": "application/json" },
+                  headers: { "Content-Type": "application/json", ...staffAuthHeaders() },
                   body: JSON.stringify({
                     schoolId,
                     name: name.trim(),

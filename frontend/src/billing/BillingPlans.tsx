@@ -455,7 +455,9 @@ export default function BillingPlans({
           const url = `${API_URL}/api/fees?schoolId=${encodeURIComponent(
             schoolIdForPlans
           )}&page=${page}&pageSize=${apiPageSize}`;
-          const response = await fetch(url);
+          const response = await fetch(url, {
+            headers: { ...staffAuthHeaders() },
+          });
           if (!response.ok) break;
 
           const data = await response.json();

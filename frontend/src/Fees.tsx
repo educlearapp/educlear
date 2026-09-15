@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { API_URL } from "./api";
+import { staffAuthHeaders } from "./auth/staffAuthHeaders";
 import { useSchoolId } from "./useSchoolId";
 
 export type FeeListItem = {
@@ -92,7 +93,9 @@ export default function Fees(props: {
 
     (async () => {
       try {
-        const res = await fetch(url.toString());
+        const res = await fetch(url.toString(), {
+          headers: { ...staffAuthHeaders() },
+        });
         const data = await res.json();
         if (!res.ok) throw new Error(data?.message || "Failed to fetch fees");
         if (cancelled) return;
