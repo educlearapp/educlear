@@ -98,7 +98,7 @@ function main() {
   );
   assert.strictEqual(
     describeModulePackageLabel({ CORE: false, ACCOUNTING: true, PAYROLL: true }),
-    "Accounting + Payroll"
+    "Business"
   );
   assert.strictEqual(
     describeModulePackageLabel({ CORE: false, ACCOUNTING: false, PAYROLL: false }),

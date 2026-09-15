@@ -330,7 +330,9 @@ export default function AddLearner({
       return;
     }
     let cancelled = false;
-    void fetch(`${API_URL}/api/parents?schoolId=${encodeURIComponent(schoolId)}`)
+    void fetch(`${API_URL}/api/parents?schoolId=${encodeURIComponent(schoolId)}`, {
+      headers: { ...staffAuthHeaders() },
+    })
       .then((res) => res.json())
       .then((data) => {
         if (cancelled) return;

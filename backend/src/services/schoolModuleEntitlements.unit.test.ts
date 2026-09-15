@@ -375,7 +375,7 @@ async function main() {
   });
   assert.strictEqual(
     describeModulePackageLabel(await getSchoolModuleEntitlements(SCHOOL_A)),
-    "Accounting + Payroll"
+    "Business"
   );
 
   await updateSchoolModuleEntitlements({
@@ -418,7 +418,7 @@ async function main() {
   );
   assert.strictEqual(
     describeModulePackageLabel({ CORE: false, ACCOUNTING: true, PAYROLL: true }),
-    "Accounting + Payroll"
+    "Business"
   );
   assert.strictEqual(
     describeModulePackageLabel({ CORE: true, ACCOUNTING: true, PAYROLL: false }),

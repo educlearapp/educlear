@@ -18,7 +18,6 @@ import {
 } from "../services/resolveSchoolCommercialPackage";
 import { authorizeSchoolSubscriptionStatusAccess } from "../services/subscriptionStatusAuth";
 import {
-  getMissingPayFastEnvVars,
   isPayFastConfigured,
 } from "../services/payfastService";
 import { isProductionRuntime } from "../services/runtime";
@@ -78,11 +77,11 @@ function isSubscriptionTestModeAllowed(): boolean {
 }
 
 router.get("/config", (_req, res) => {
-  const missing = getMissingPayFastEnvVars();
+  // School-facing: high-level state only — never leak PAYFAST_* env var names.
   return res.json({
     success: true,
-    payfastConfigured: missing.length === 0,
-    missingPayFastEnv: missing,
+    payfastConfigured: isPayFastConfigured(),
+    paymentsConfigured: isPayFastConfigured(),
     testModeAvailable: isSubscriptionTestModeAllowed(),
   });
 });
