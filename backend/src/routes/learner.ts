@@ -38,6 +38,7 @@ import {
 import { ParentIdConflictError } from "../utils/parentIdConflict";
 import { ParentPossibleMatchError } from "../services/applicationParentIdentity";
 import { saveParentLinks } from "../services/parentLinkService";
+import { assertLearnerCreateAllowed } from "../services/learnerLimitEnforcement";
 import { resolveParentStaffAuth } from "../middleware/requireParentStaffAuth";
 import {
   CrossSchoolFamilyAccountError,
@@ -925,6 +926,21 @@ router.post("/", async (req, res) => {
       });
     }
 
+    const learnerLimitGate = await assertLearnerCreateAllowed(school.id);
+    if (!learnerLimitGate.allowed) {
+      return res.status(learnerLimitGate.status).json({
+        success: false,
+        error: learnerLimitGate.error,
+        code: learnerLimitGate.code,
+        learnerCapacity: {
+          learnerLimit: learnerLimitGate.capacity.learnerLimit,
+          activeLearnerCount: learnerLimitGate.capacity.activeLearnerCount,
+          commercialPackageCode: learnerLimitGate.capacity.commercialPackageCode,
+          learnerCapacityLabel: learnerLimitGate.capacity.learnerCapacityLabel,
+        },
+      });
+    }
+
 
 
     const existingFamilyAccountId = cleanString(
@@ -1358,6 +1374,20 @@ router.post("/:id/reactivate", async (req, res) => {
         success: false,
         error: "Request schoolId does not match authenticated school",
         code: "SCHOOL_MISMATCH",
+      });
+    }
+    const learnerLimitGate = await assertLearnerCreateAllowed(schoolId);
+    if (!learnerLimitGate.allowed) {
+      return res.status(learnerLimitGate.status).json({
+        success: false,
+        error: learnerLimitGate.error,
+        code: learnerLimitGate.code,
+        learnerCapacity: {
+          learnerLimit: learnerLimitGate.capacity.learnerLimit,
+          activeLearnerCount: learnerLimitGate.capacity.activeLearnerCount,
+          commercialPackageCode: learnerLimitGate.capacity.commercialPackageCode,
+          learnerCapacityLabel: learnerLimitGate.capacity.learnerCapacityLabel,
+        },
       });
     }
     const updatedLearner = await reactivateHistoricalLearner({

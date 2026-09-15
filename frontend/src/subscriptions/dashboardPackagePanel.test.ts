@@ -41,16 +41,16 @@ function testUpgradeOptions() {
   });
   assert.deepStrictEqual(
     fromBusiness.map((p) => p.code),
-    ["FULL"]
+    ["FULL_100", "FULL_UNLIMITED"]
   );
   const fromFull = listUpgradeOptions({ CORE: true, ACCOUNTING: true, PAYROLL: true });
   assert.strictEqual(fromFull.length, 0);
-  console.log("✓ Business → Full only; Full → none");
+  console.log("✓ Business → Full SKUs; Full Unlimited → none");
 }
 
 function testContactCtaReplacesDeadUpgrade() {
   assert.strictEqual(isModularCheckoutAvailable(), false);
-  const full = findCommercialPackageByCode("FULL")!;
+  const full = findCommercialPackageByCode("FULL_UNLIMITED")!;
   const cta = packageUpgradeCta({
     checkoutAvailable: false,
     currentPackageName: "EduClear Business",
@@ -66,7 +66,7 @@ function testContactCtaReplacesDeadUpgrade() {
   assert.ok(decoded.includes("EduClear Package Upgrade Request"));
   assert.ok(decoded.includes("School: Example Primary School"));
   assert.ok(decoded.includes("Current package: EduClear Business"));
-  assert.ok(decoded.includes("Requested package: EduClear Full"));
+  assert.ok(decoded.includes("Requested package: EduClear Full Unlimited"));
   assert.ok(!/Upgrade to Full/i.test(cta.label));
   console.log("✓ contact CTA replaces dead Upgrade action");
 }

@@ -6,7 +6,11 @@ import {
 } from "@prisma/client";
 
 import { prisma } from "../../prisma";
-import { commercialPackageShortDisplay } from "../educlearCommercialPackages";
+import {
+  commercialPackageShortDisplay,
+  findCommercialPackageByModules,
+  formatLearnerCapacityLabel,
+} from "../educlearCommercialPackages";
 import {
   defaultAllEnabledEntitlements,
   mapEntitlementRowsBySchool,
@@ -32,8 +36,16 @@ export type SuperAdminSchoolListItem = {
   ownerName: string;
   ownerEmail: string;
   contactPhone: string | null;
-  /** Commercial modular package label (from CORE/ACCOUNTING/PAYROLL entitlements). */
+  /** Commercial modular package label (from CORE/ACCOUNTING/PAYROLL + Full capacity). */
   package: string;
+  /** Commercial SKU code (CORE, FULL_100, FULL_UNLIMITED, …). */
+  commercialPackageCode: string | null;
+  /** Commercial SKU full name. */
+  commercialPackageName: string | null;
+  /** Learner capacity for the commercial SKU (null = unlimited). */
+  learnerLimit: number | null;
+  /** Human-readable learner capacity. */
+  learnerCapacityLabel: string;
   /** Legacy capacity package code (STARTER/UNLIMITED) — historical compatibility only. */
   packageCode: EduClearPackageCode | null;
   /** Legacy capacity package display name when present. */
@@ -211,6 +223,10 @@ function mapSchoolRow(
   const lifecycleStatus = parseSchoolLifecycleStatus(row.lifecycleStatus);
   const ownerEmail = owner?.email || row.email || "";
   const ownerName = ownerDisplayName(owner, ownerEmail);
+  const legacyCode = subscription?.packageCode ?? null;
+  const commercial = findCommercialPackageByModules(moduleEntitlements, {
+    legacyPackageCode: legacyCode,
+  });
 
   return {
     id: row.id,
@@ -218,10 +234,16 @@ function mapSchoolRow(
     ownerName,
     ownerEmail,
     contactPhone: schoolContactPhone(row.phone, row.cellNo),
-    package: commercialPackageShortDisplay(moduleEntitlements),
-    packageCode: subscription?.packageCode ?? null,
+    package: commercialPackageShortDisplay(moduleEntitlements, {
+      legacyPackageCode: legacyCode,
+    }),
+    commercialPackageCode: commercial?.code ?? null,
+    commercialPackageName: commercial?.name ?? null,
+    learnerLimit: commercial?.learnerLimit ?? null,
+    learnerCapacityLabel: formatLearnerCapacityLabel(commercial?.learnerLimit ?? null),
+    packageCode: legacyCode,
     legacyCapacityPackage: legacyCapacityPackageLabel(
-      subscription?.packageCode,
+      legacyCode,
       subscription?.package?.name
     ),
     subscriptionStatus: subscription?.status ?? null,

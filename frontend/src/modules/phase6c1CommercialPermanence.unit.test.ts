@@ -71,7 +71,7 @@ function testStatusUsesCommercialPackage() {
 
 function testCheckoutDisabled() {
   assert.strictEqual(isModularCheckoutAvailable(), false);
-  assert.strictEqual(listNewSaleCommercialPackages().length, 7);
+  assert.strictEqual(listNewSaleCommercialPackages().length, 8);
   console.log("✓ modular checkout disabled + 7 packages");
 }
 

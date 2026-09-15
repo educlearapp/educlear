@@ -11,6 +11,8 @@ export type SchoolPackage =
   | "Core + Accounting"
   | "Core + Payroll"
   | "Full"
+  | "Full ≤100"
+  | "Full Unlimited"
   | "Starter"
   | "Unlimited"
   | "—"
@@ -35,8 +37,16 @@ export type SchoolRecord = {
   ownerName: string;
   email: string;
   contactPhone: string | null;
-  /** Commercial modular package label (from entitlements). */
+  /** Commercial modular package label (from entitlements + Full capacity). */
   package: SchoolPackage;
+  /** Commercial SKU code (CORE, FULL_100, FULL_UNLIMITED, …). */
+  commercialPackageCode?: string | null;
+  /** Commercial SKU full name. */
+  commercialPackageName?: string | null;
+  /** Learner capacity for the commercial SKU (null = unlimited). */
+  learnerLimit?: number | null;
+  /** Human-readable learner capacity. */
+  learnerCapacityLabel?: string | null;
   /** Legacy STARTER/UNLIMITED capacity label when present. */
   legacyCapacityPackage?: string | null;
   /** Organisation lifecycle. Separate from subscription/billing status. */
@@ -78,6 +88,8 @@ export const SCHOOL_PACKAGE_OPTIONS: SchoolPackage[] = [
   "Business",
   "Core + Accounting",
   "Core + Payroll",
+  "Full ≤100",
+  "Full Unlimited",
   "Full",
   "Starter",
   "Unlimited",
