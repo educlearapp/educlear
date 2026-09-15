@@ -71,6 +71,14 @@ import StatementPeriodModal, {
   persistStatementExportPeriod,
   readRememberedStatementExportPeriod,
 } from "./StatementPeriodModal";
+import {
+  estimateStatementSmsSegments,
+  fetchStatementSmsPreview,
+  sendStatementSmsRequest,
+  STATEMENT_SMS_MAX_CHARS,
+  type StatementSmsContact,
+  type StatementSmsPreview,
+} from "./statementSmsApi";
 
 type Props = {
   selected: any;
@@ -304,6 +312,16 @@ export default function StatementManage({
   const [exportPeriodModal, setExportPeriodModal] = useState<ExportAction | null>(null);
   const [exportPeriod, setExportPeriod] = useState(readRememberedStatementExportPeriod);
   const [emailExportPeriod, setEmailExportPeriod] = useState<string | null>(null);
+  const [deliveryChooserOpen, setDeliveryChooserOpen] = useState(false);
+  const [deliveryPeriod, setDeliveryPeriod] = useState<string | null>(null);
+  const [smsOpen, setSmsOpen] = useState(false);
+  const [smsPreview, setSmsPreview] = useState<StatementSmsPreview | null>(null);
+  const [smsContacts, setSmsContacts] = useState<StatementSmsContact[]>([]);
+  const [smsSelection, setSmsSelection] = useState<string>(""); // parentId or "__ALL__"
+  const [smsMessage, setSmsMessage] = useState("");
+  const [smsBusy, setSmsBusy] = useState(false);
+  const [smsError, setSmsError] = useState("");
+  const [smsLoading, setSmsLoading] = useState(false);
   const emailReady = isSchoolEmailReadyForUi(emailReadiness);
 
   const loadEmailReadiness = useCallback(async () => {
@@ -953,7 +971,7 @@ export default function StatementManage({
   const exportPeriodActionLabel = (action: ExportAction) => {
     if (action === "print") return "Print Statement";
     if (action === "download") return "Download PDF";
-    return "Continue to Email";
+    return "Continue";
   };
 
   const openExportPeriodModal = (action: ExportAction) => {
@@ -1042,7 +1060,8 @@ export default function StatementManage({
 
     if (action === "email") {
       setExportPeriodModal(null);
-      await openSendStatementModal(selectedPeriod);
+      setDeliveryPeriod(selectedPeriod);
+      setDeliveryChooserOpen(true);
       return;
     }
 
@@ -1091,18 +1110,8 @@ export default function StatementManage({
   };
 
   const handleSendStatement = async () => {
-    if (statementExportBusy || pdfDownloading) return;
+    if (statementExportBusy || pdfDownloading || smsBusy || smsLoading) return;
     setActionNotice("");
-    const targetIds = familyLearnerIds.length ? familyLearnerIds : learnerId ? [learnerId] : [];
-    const contact = resolveStatementBillingContact(learners, parents, targetIds);
-    if (!contact?.email) {
-      setModalKind("pending");
-      setPendingModal({
-        title: "Send Statement",
-        body: "No parent or guardian email is on file for this account. Add an email on the learner’s Parents tab (with billing statements enabled) and try again.",
-      });
-      return;
-    }
     if (!schoolId) {
       setModalKind("pending");
       setPendingModal({
@@ -1111,7 +1120,39 @@ export default function StatementManage({
       });
       return;
     }
+    const anchorId = familyLearnerIds[0] || learnerId;
+    if (!anchorId && !accountRef && !accountNo && !familyAccountId) {
+      setModalKind("pending");
+      setPendingModal({
+        title: "Send Statement",
+        body: "Account context is missing. Open the statement from the Statements list and try again.",
+      });
+      return;
+    }
+    openExportPeriodModal("email");
+  };
+
+  const closeDeliveryChooser = () => {
+    if (smsBusy || smsLoading || sendBusy) return;
+    setDeliveryChooserOpen(false);
+  };
+
+  const chooseDeliveryEmail = async () => {
+    if (!deliveryPeriod) return;
+    const selectedPeriod = normalizeStatementPeriod(deliveryPeriod);
+    const targetIds = familyLearnerIds.length ? familyLearnerIds : learnerId ? [learnerId] : [];
+    const contact = resolveStatementBillingContact(learners, parents, targetIds);
+    if (!contact?.email) {
+      setDeliveryChooserOpen(false);
+      setModalKind("pending");
+      setPendingModal({
+        title: "Send Statement",
+        body: "No parent or guardian email is on file for this account. Add an email on the learner’s Parents tab (with billing statements enabled) and try again.",
+      });
+      return;
+    }
     if (!emailReady) {
+      setDeliveryChooserOpen(false);
       if (onOpenEmailSetup) {
         onOpenEmailSetup();
         return;
@@ -1123,7 +1164,153 @@ export default function StatementManage({
       });
       return;
     }
-    openExportPeriodModal("email");
+    setDeliveryChooserOpen(false);
+    await openSendStatementModal(selectedPeriod);
+  };
+
+  const closeSmsComposer = () => {
+    if (smsBusy) return;
+    setSmsOpen(false);
+    setSmsError("");
+    setSmsBusy(false);
+    setSmsLoading(false);
+    setSmsPreview(null);
+    setSmsContacts([]);
+    setSmsSelection("");
+    setSmsMessage("");
+  };
+
+  const chooseDeliverySms = async () => {
+    if (!schoolId || !deliveryPeriod) return;
+    setDeliveryChooserOpen(false);
+    setSmsLoading(true);
+    setSmsError("");
+    setSmsOpen(true);
+    try {
+      const preview = await fetchStatementSmsPreview({
+        schoolId,
+        familyAccountId: familyAccountId || undefined,
+        accountRef: accountRef || undefined,
+        accountNo: accountNo || undefined,
+        learnerId: learnerId || undefined,
+      });
+      setSmsPreview(preview);
+      setSmsContacts(preview.contacts || []);
+      setSmsMessage(preview.defaultMessage || "");
+      const recommended =
+        preview.recommendedParentId ||
+        preview.contacts?.find((c) => c.recommended)?.parentId ||
+        preview.contacts?.[0]?.parentId ||
+        "";
+      setSmsSelection(recommended);
+      if (!preview.contacts?.length) {
+        setSmsError(
+          "No eligible billing SMS contacts for this account. Parents need billing statements, billing communication, SMS consent, and a valid mobile number."
+        );
+      } else if (preview.outboundDisabled) {
+        setSmsError("Outbound SMS is disabled for this environment.");
+      } else if (!preview.smsReady) {
+        setSmsError(
+          "WinSMS is not configured or not connected. Open Communication → Settings → SMS to connect before sending."
+        );
+      }
+    } catch (e: unknown) {
+      setSmsError((e as Error).message || "Could not load SMS statement recipients.");
+      setSmsContacts([]);
+      setSmsPreview(null);
+    } finally {
+      setSmsLoading(false);
+    }
+  };
+
+  const selectedSmsContacts = useMemo(() => {
+    if (smsSelection === "__ALL__") return smsContacts;
+    return smsContacts.filter((c) => c.parentId === smsSelection);
+  }, [smsContacts, smsSelection]);
+
+  const smsToPreviewLines = useMemo(() => {
+    if (!selectedSmsContacts.length) return [] as string[];
+    const byLast4 = new Map<string, string[]>();
+    for (const c of selectedSmsContacts) {
+      const key = c.mobileLast4 || c.mobileMasked;
+      const names = byLast4.get(key) || [];
+      names.push(c.displayName);
+      byLast4.set(key, names);
+    }
+    const lines: string[] = [];
+    for (const c of selectedSmsContacts) {
+      const key = c.mobileLast4 || c.mobileMasked;
+      const sharing = byLast4.get(key) || [];
+      if (sharing.length > 1) {
+        if (lines.some((line) => line.includes(c.mobileMasked))) continue;
+        lines.push(
+          `${sharing.join(" & ")} — ${c.mobileMasked} (same number — one SMS)`
+        );
+      } else {
+        lines.push(`${c.displayName} — ${c.mobileMasked}`);
+      }
+    }
+    return lines;
+  }, [selectedSmsContacts]);
+
+  const confirmSendStatementSms = async () => {
+    if (!schoolId || smsBusy) return;
+    if (!smsContacts.length) {
+      setSmsError("No eligible billing SMS contacts for this account.");
+      return;
+    }
+    const trimmed = smsMessage.trim();
+    if (!trimmed) {
+      setSmsError("Please enter an SMS message.");
+      return;
+    }
+    if (trimmed.length > STATEMENT_SMS_MAX_CHARS) {
+      setSmsError(`SMS message must be ${STATEMENT_SMS_MAX_CHARS} characters or fewer.`);
+      return;
+    }
+    if (smsSelection !== "__ALL__" && !smsSelection) {
+      setSmsError("Select a contact to receive the SMS.");
+      return;
+    }
+    if (smsPreview && (!smsPreview.smsReady || smsPreview.outboundDisabled)) {
+      setSmsError(
+        smsPreview.outboundDisabled
+          ? "Outbound SMS is disabled for this environment."
+          : "WinSMS is not configured or not connected."
+      );
+      return;
+    }
+
+    setSmsBusy(true);
+    setSmsError("");
+    try {
+      const result = await sendStatementSmsRequest({
+        schoolId,
+        familyAccountId: smsPreview?.familyAccountId || familyAccountId || undefined,
+        accountRef: smsPreview?.accountRef || accountRef || undefined,
+        accountNo: smsPreview?.accountNo || accountNo || undefined,
+        learnerId: learnerId || undefined,
+        selectionMode: smsSelection === "__ALL__" ? "all" : "parentIds",
+        parentIds: smsSelection === "__ALL__" ? smsContacts.map((c) => c.parentId) : [smsSelection],
+        message: trimmed,
+      });
+      if (!result.success && !(result.sentCount && result.sentCount > 0)) {
+        setSmsError(result.error || result.summary || "SMS send failed.");
+        return;
+      }
+      closeSmsComposer();
+      setDeliveryPeriod(null);
+      setActionNotice(result.summary || "SMS sent successfully.");
+      setModalKind("pending");
+      setPendingModal({
+        title: "SMS Statement",
+        body: result.summary || "SMS sent successfully.",
+      });
+    } catch (e: unknown) {
+      setSmsError((e as Error).message || "SMS send failed.");
+    } finally {
+      setSmsBusy(false);
+    }
   };
 
   const confirmSendStatement = async () => {
@@ -2205,6 +2392,185 @@ export default function StatementManage({
             </p>
             {sendError ? (
               <p style={{ margin: 0, color: "#b91c1c", fontWeight: 700, lineHeight: 1.6 }}>{sendError}</p>
+            ) : null}
+          </div>
+        </StatementModal>
+      ) : null}
+
+      {deliveryChooserOpen ? (
+        <StatementModal
+          title="Send Statement"
+          onClose={closeDeliveryChooser}
+          footer={
+            <button type="button" style={modalBtn} onClick={closeDeliveryChooser}>
+              Cancel
+            </button>
+          }
+        >
+          <div style={{ display: "grid", gap: 16 }}>
+            <p style={{ margin: 0, color: "#64748b", fontWeight: 600, lineHeight: 1.6 }}>
+              Choose how to deliver the statement for period{" "}
+              {normalizeStatementPeriod(deliveryPeriod || exportPeriod)}.
+            </p>
+            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
+              <button
+                type="button"
+                onClick={() => void chooseDeliveryEmail()}
+                style={{
+                  display: "flex",
+                  flexDirection: "column",
+                  alignItems: "center",
+                  gap: 10,
+                  padding: "22px 16px",
+                  borderRadius: 12,
+                  border: `2px solid ${GOLD}`,
+                  background: "#fffef8",
+                  cursor: "pointer",
+                  fontWeight: 900,
+                  color: INK,
+                }}
+              >
+                <svg width="28" height="28" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                  <rect x="3" y="5" width="18" height="14" rx="2" stroke={INK} strokeWidth="1.8" />
+                  <path d="M4 7l8 6 8-6" stroke={INK} strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
+                </svg>
+                Email
+              </button>
+              <button
+                type="button"
+                onClick={() => void chooseDeliverySms()}
+                style={{
+                  display: "flex",
+                  flexDirection: "column",
+                  alignItems: "center",
+                  gap: 10,
+                  padding: "22px 16px",
+                  borderRadius: 12,
+                  border: `2px solid ${GOLD}`,
+                  background: "#fffef8",
+                  cursor: "pointer",
+                  fontWeight: 900,
+                  color: INK,
+                }}
+              >
+                <svg width="28" height="28" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                  <rect x="7" y="2" width="10" height="20" rx="2" stroke={INK} strokeWidth="1.8" />
+                  <path d="M10 18h4" stroke={INK} strokeWidth="1.8" strokeLinecap="round" />
+                  <path d="M9 8h6M9 11h6" stroke={INK} strokeWidth="1.5" strokeLinecap="round" />
+                </svg>
+                SMS
+              </button>
+            </div>
+          </div>
+        </StatementModal>
+      ) : null}
+
+      {smsOpen ? (
+        <StatementModal
+          title="SMS Statement"
+          onClose={smsBusy ? undefined : closeSmsComposer}
+          footer={
+            <>
+              <button type="button" style={modalBtn} onClick={closeSmsComposer} disabled={smsBusy}>
+                Cancel
+              </button>
+              <button
+                type="button"
+                style={modalGoldBtn}
+                onClick={() => void confirmSendStatementSms()}
+                disabled={
+                  smsBusy ||
+                  smsLoading ||
+                  !smsContacts.length ||
+                  Boolean(smsPreview && (!smsPreview.smsReady || smsPreview.outboundDisabled))
+                }
+              >
+                {smsBusy ? "Sending…" : "Send SMS"}
+              </button>
+            </>
+          }
+        >
+          <div style={{ display: "grid", gap: 14 }}>
+            {smsLoading ? (
+              <p style={{ margin: 0, color: "#64748b", fontWeight: 600 }}>Loading eligible contacts…</p>
+            ) : (
+              <>
+                <div>
+                  <div style={{ fontWeight: 900, color: INK, marginBottom: 6 }}>Description</div>
+                  <div style={{ padding: 12, borderRadius: 8, border: "1px solid #e5e7eb", background: "#f8fafc", fontWeight: 700 }}>
+                    {smsPreview?.description || `Statement ${accountRef || accountNo || ""}`}
+                  </div>
+                </div>
+                <div>
+                  <div style={{ fontWeight: 900, color: INK, marginBottom: 6 }}>Contact</div>
+                  {smsContacts.length === 0 ? (
+                    <div style={{ padding: 12, borderRadius: 8, border: "1px solid #e5e7eb", background: "#f8fafc", fontWeight: 600, color: "#64748b" }}>
+                      No eligible contacts
+                    </div>
+                  ) : smsContacts.length === 1 ? (
+                    <div style={{ padding: 12, borderRadius: 8, border: "1px solid #e5e7eb", background: "#f8fafc", fontWeight: 700 }}>
+                      {smsContacts[0].displayName}
+                    </div>
+                  ) : (
+                    <select
+                      value={smsSelection}
+                      onChange={(e) => setSmsSelection(e.target.value)}
+                      disabled={smsBusy}
+                      style={{
+                        width: "100%",
+                        padding: "10px 12px",
+                        borderRadius: 8,
+                        border: "1px solid #cbd5e1",
+                        fontWeight: 700,
+                        background: "#fff",
+                      }}
+                    >
+                      {smsContacts.map((c) => (
+                        <option key={c.parentId} value={c.parentId}>
+                          {c.displayName}
+                          {c.recommended ? " (recommended)" : ""}
+                        </option>
+                      ))}
+                      <option value="__ALL__">
+                        {smsContacts.length === 2 ? "Both Parents" : "All Eligible Parents"}
+                      </option>
+                    </select>
+                  )}
+                </div>
+                <div>
+                  <div style={{ fontWeight: 900, color: INK, marginBottom: 6 }}>To</div>
+                  <div style={{ padding: 12, borderRadius: 8, border: "1px solid #e5e7eb", background: "#f8fafc", fontWeight: 700, lineHeight: 1.7 }}>
+                    {smsToPreviewLines.length
+                      ? smsToPreviewLines.map((line) => <div key={line}>{line}</div>)
+                      : "—"}
+                  </div>
+                </div>
+                <div>
+                  <div style={{ fontWeight: 900, color: INK, marginBottom: 6 }}>Text</div>
+                  <textarea
+                    value={smsMessage}
+                    onChange={(e) => setSmsMessage(e.target.value.slice(0, STATEMENT_SMS_MAX_CHARS))}
+                    rows={5}
+                    disabled={smsBusy}
+                    style={{
+                      width: "100%",
+                      padding: "10px 12px",
+                      borderRadius: 8,
+                      border: "1px solid #cbd5e1",
+                      fontWeight: 600,
+                      resize: "vertical",
+                    }}
+                  />
+                  <div style={{ marginTop: 6, color: "#64748b", fontSize: 12, fontWeight: 600 }}>
+                    {smsMessage.length}/{STATEMENT_SMS_MAX_CHARS} characters ·{" "}
+                    {estimateStatementSmsSegments(smsMessage)} SMS segment
+                    {estimateStatementSmsSegments(smsMessage) === 1 ? "" : "s"}
+                  </div>
+                </div>
+              </>
+            )}
+            {smsError ? (
+              <p style={{ margin: 0, color: "#b91c1c", fontWeight: 700, lineHeight: 1.6 }}>{smsError}</p>
             ) : null}
           </div>
         </StatementModal>
