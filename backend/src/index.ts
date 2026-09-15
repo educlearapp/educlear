@@ -86,6 +86,7 @@ import { requireSuperAdmin } from "./middleware/requireSuperAdmin";
 import { requireSchoolModule } from "./middleware/requireSchoolModule";
 import { lookupParentPortalBySchool } from "./services/parentPortalLookup";
 import superAdminSchoolsRoutes from "./routes/superAdminSchools";
+import stagingSafetyRoutes, { requireStagingRuntime } from "./routes/stagingSafety";
 import { prisma } from "./prisma";
 import { bootstrapDevTestSchoolEmail } from "./dev/devTestSchoolEmail";
 import { ensureSuperAdminOnStartup } from "./services/ensureSuperAdmin";
@@ -383,6 +384,12 @@ app.use(
   requireMigrationAccess,
   migrationUploadRouter,
   migrationUploadErrorHandler
+);
+app.use(
+  "/api/staging-safety",
+  requireStagingRuntime,
+  requireSuperAdmin,
+  stagingSafetyRoutes
 );
 app.use("/api/super-admin/schools", requireSuperAdmin, superAdminSchoolsRoutes);
 app.use("/api/super-admin/migration", requireMigrationAccess, migrationRoutes, migrationErrorHandler);
