@@ -36,6 +36,7 @@ import {
   assertSchoolModuleEntitled,
   MODULE_NOT_ENTITLED,
 } from "../middleware/requireSchoolModule";
+import { lookupParentPortalBySchool } from "../services/parentPortalLookup";
 
 const router = Router();
 
@@ -885,7 +886,11 @@ router.get("/incidents/:id", parentAuthMiddleware, async (req, res) => {
     if (!incident) return res.status(404).json({ success: false, error: "Incident not found" });
 
     const link = await prisma.parentLearnerLink.findFirst({
-      where: { parentId: auth.parentId, learnerId: incident.learnerId },
+      where: {
+        parentId: auth.parentId,
+        learnerId: incident.learnerId,
+        schoolId: auth.schoolId,
+      },
     });
     if (!link) return res.status(403).json({ success: false, error: "Access denied" });
 
@@ -1161,35 +1166,26 @@ router.post("/migration/onboarding", async (req, res) => {
   }
 });
 
-// Legacy lookup (cell + optional id) for staff-embedded portal
+// Legacy lookup (cell + optional id) for staff-embedded portal — school-scoped only.
 router.get("/lookup-by-cell", async (req, res) => {
   try {
-    const schoolId = String(req.query.schoolId || "").trim();
-    const rawCellNo = String(req.query.cellNo || "").trim();
-    const idNumber = String(req.query.idNumber || "").trim();
-    if (!schoolId || !rawCellNo) {
-      return res.status(400).json({ success: false, error: "schoolId and cellNo are required" });
-    }
-    const parent = await findParentByCredentials({ schoolId, cellNo: rawCellNo, idNumber });
-    if (!parent) {
-      return res.status(404).json({ success: false, error: "Parent not found" });
+    const result = await lookupParentPortalBySchool({
+      schoolId: String(req.query.schoolId || "").trim(),
+      cellNo: String(req.query.cellNo || "").trim(),
+      idNumber: String(req.query.idNumber || "").trim(),
+    });
+    if (!result.ok) {
+      return res.status(result.status).json({
+        success: false,
+        error: result.error,
+        ...(result.code ? { code: result.code } : {}),
+        ...(result.module ? { module: result.module } : {}),
+      });
     }
     return res.json({
       success: true,
-      parent: {
-        id: parent.id,
-        firstName: parent.firstName,
-        surname: parent.surname,
-        cellNo: parent.cellNo,
-        email: parent.email,
-        school: parent.school,
-      },
-      learners: parent.links.map((link) => ({
-        linkId: link.id,
-        isPrimary: link.isPrimary,
-        relation: link.relation,
-        learner: link.learner,
-      })),
+      parent: result.parent,
+      learners: result.learners,
     });
   } catch (e) {
     return res.status(500).json({ success: false, error: "Lookup failed" });

@@ -3,6 +3,11 @@ dist
 
 /src/generated/prisma
 
+# Local secrets — never commit (Phase 6E)
+.env
+.env.local
+.env.*.local
+
 # Private Admissions uploads (OA-03D) — never public /uploads
 data/admissions/
 

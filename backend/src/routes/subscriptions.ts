@@ -6,7 +6,6 @@ import {
   type SchoolSubscriptionAdminRequest,
 } from "../middleware/requireSchoolSubscriptionAdmin";
 import { prisma } from "../prisma";
-import { ensureDaSilvaAcademySubscription } from "../services/activateDaSilvaSubscription";
 import {
   TEST_SUBSCRIPTION_ACTIVATION_SOURCE,
   activateSchoolSubscriptionTestMode,
@@ -14,15 +13,15 @@ import {
 import { ensureEduClearPackages } from "../services/ensureEduClearPackages";
 import { listNewSaleCommercialPackages } from "../services/educlearCommercialPackages";
 import {
-  resolveSchoolCommercialPackage,
+  resolveSchoolCommercialPackageReadOnly,
   serializeCommercialPackage,
 } from "../services/resolveSchoolCommercialPackage";
-import { isDaSilvaSchoolId, refreshDaSilvaSchoolIdCache } from "../services/daSilvaSchoolResolve";
+import { authorizeSchoolSubscriptionStatusAccess } from "../services/subscriptionStatusAuth";
 import {
   getMissingPayFastEnvVars,
   isPayFastConfigured,
 } from "../services/payfastService";
-import { isProductionRuntime, isProductionOrGoLive } from "../services/runtime";
+import { isProductionRuntime } from "../services/runtime";
 import { isPlatformSuperAdminEmail } from "../utils/superAdmin";
 import { normalizeStaffEmail } from "../utils/staffJwt";
 
@@ -143,6 +142,18 @@ router.get("/school/:schoolId/status", async (req, res) => {
       return res.status(400).json({ success: false, error: "Missing schoolId" });
     }
 
+    const access = await authorizeSchoolSubscriptionStatusAccess({
+      authHeader: req.headers.authorization,
+      requestSchoolId: schoolId,
+    });
+    if (!access.allowed) {
+      return res.status(access.status).json({
+        success: false,
+        error: access.error,
+        code: access.code,
+      });
+    }
+
     const school = await prisma.school.findUnique({
       where: { id: schoolId },
       select: { id: true, name: true },
@@ -152,23 +163,8 @@ router.get("/school/:schoolId/status", async (req, res) => {
       return res.status(404).json({ success: false, error: "School not found" });
     }
 
-    let daSilvaLiveActivated = false;
-    await refreshDaSilvaSchoolIdCache();
-    if (isProductionOrGoLive() && isDaSilvaSchoolId(schoolId)) {
-      try {
-        await ensureDaSilvaAcademySubscription(schoolId);
-        daSilvaLiveActivated = true;
-        console.log(
-          "[subscription-status] Da Silva live activation ensured ACTIVE, dashboardUnlocked=true"
-        );
-      } catch (activationError) {
-        console.error(
-          "[subscription-status] Da Silva live activation failed:",
-          activationError
-        );
-      }
-    }
-
+    // Read-only GET: no Da Silva ensure/write and no entitlement row creation.
+    // Missing entitlement rows resolve fail-open Full via read-only snapshot.
     const subscription = await prisma.schoolSubscription.findUnique({
       where: { schoolId },
       select: {
@@ -189,12 +185,12 @@ router.get("/school/:schoolId/status", async (req, res) => {
     });
 
     const { moduleEntitlements, commercialPackage, bits } =
-      await resolveSchoolCommercialPackage(schoolId);
+      await resolveSchoolCommercialPackageReadOnly(schoolId);
 
     const isActive = subscription
       ? isActiveSubscriptionStatus(subscription.status)
       : false;
-    const dashboardUnlocked = isActive || daSilvaLiveActivated;
+    const dashboardUnlocked = isActive;
 
     return res.json({
       success: true,

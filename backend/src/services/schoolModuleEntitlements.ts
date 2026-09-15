@@ -111,6 +111,37 @@ export async function ensureSchoolModuleEntitlements(schoolId: string): Promise<
   }
 }
 
+/**
+ * Read-only entitlement snapshot. Does NOT create rows.
+ * Missing rows → fail-open Full via rowsToMap (Phase 1 backwards compatibility).
+ */
+export async function getSchoolModuleEntitlementsReadOnly(
+  schoolId: string
+): Promise<SchoolModuleEntitlementsMap> {
+  const id = String(schoolId || "").trim();
+  if (!id) throw new SchoolModuleEntitlementError("Missing schoolId", 400);
+
+  try {
+    const rows = await prisma.schoolModuleEntitlement.findMany({
+      where: { schoolId: id },
+      select: { module: true, enabled: true },
+    });
+    return rowsToMap(rows);
+  } catch (error) {
+    const code =
+      error && typeof error === "object" && "code" in error
+        ? String((error as { code?: string }).code || "")
+        : "";
+    if (code !== "P2021") {
+      console.warn(
+        "[schoolModuleEntitlements] getSchoolModuleEntitlementsReadOnly fail-open after read error:",
+        error instanceof Error ? error.message : error
+      );
+    }
+    return emptyEntitlementsMap(true);
+  }
+}
+
 /** Read entitlements for a school. Ensures default all-on rows if any are missing. */
 export async function getSchoolModuleEntitlements(
   schoolId: string
