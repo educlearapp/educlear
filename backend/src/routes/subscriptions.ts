@@ -94,9 +94,9 @@ router.get("/packages", async (_req, res) => {
       return {
         ...commercial,
         id: `commercial:${pkg.code}`,
-        mostPopular: pkg.code === "FULL",
+        mostPopular: pkg.code === "FULL_UNLIMITED",
         isActive: true,
-        learnerLimit: null,
+        learnerLimit: pkg.learnerLimit,
         payrollStaffLimit: null,
         priceLabel: commercial.priceLabelMonthly,
       };

@@ -1,12 +1,15 @@
 /**
- * Resolve a school's current commercial package from module entitlements.
- * Never from legacy STARTER/UNLIMITED capacity codes.
+ * Resolve a school's current commercial package from module entitlements
+ * plus legacy STARTER/UNLIMITED capacity (Full ≤100 vs Full Unlimited).
+ * Feature gating must use module entitlements — never package-name checks.
  */
+import { prisma } from "../prisma";
 import {
-  type EduClearCommercialPackage,
   findCommercialPackageByModules,
   formatCommercialPackagePrice,
+  formatLearnerCapacityLabel,
   modulesToBits,
+  type EduClearCommercialPackage,
 } from "./educlearCommercialPackages";
 import {
   getSchoolModuleEntitlements,
@@ -26,6 +29,8 @@ export type CommercialPackageApiPayload = {
   monthlyPriceCents: number;
   priceLabelMonthly: string;
   priceLabelAnnual: string;
+  learnerLimit: number | null;
+  learnerCapacityLabel: string;
   modules: SchoolModuleEntitlementsMap;
 };
 
@@ -44,16 +49,29 @@ export function serializeCommercialPackage(
     monthlyPriceCents: pkg.monthlyPriceZar * 100,
     priceLabelMonthly: formatCommercialPackagePrice(pkg, "monthly"),
     priceLabelAnnual: formatCommercialPackagePrice(pkg, "annual"),
+    learnerLimit: pkg.learnerLimit,
+    learnerCapacityLabel: formatLearnerCapacityLabel(pkg.learnerLimit),
     modules: { ...pkg.modules },
   };
 }
 
 export function commercialPackageFromEntitlements(
-  entitlements: SchoolModuleEntitlementsMap
+  entitlements: SchoolModuleEntitlementsMap,
+  legacyPackageCode?: string | null
 ): CommercialPackageApiPayload | null {
-  const pkg = findCommercialPackageByModules(entitlements);
+  const pkg = findCommercialPackageByModules(entitlements, {
+    legacyPackageCode,
+  });
   if (!pkg) return null;
   return serializeCommercialPackage(pkg);
+}
+
+async function loadLegacyCapacityCode(schoolId: string): Promise<string | null> {
+  const sub = await prisma.schoolSubscription.findUnique({
+    where: { schoolId },
+    select: { packageCode: true },
+  });
+  return sub?.packageCode ? String(sub.packageCode) : null;
 }
 
 export async function resolveSchoolCommercialPackage(
@@ -62,13 +80,19 @@ export async function resolveSchoolCommercialPackage(
   moduleEntitlements: SchoolModuleEntitlementsMap;
   commercialPackage: CommercialPackageApiPayload | null;
   bits: string;
+  legacyCapacityPackageCode: string | null;
 }> {
   const moduleEntitlements = await getSchoolModuleEntitlements(schoolId);
+  const legacyCapacityPackageCode = await loadLegacyCapacityCode(schoolId);
   const bits = modulesToBits(moduleEntitlements);
   return {
     moduleEntitlements,
-    commercialPackage: commercialPackageFromEntitlements(moduleEntitlements),
+    commercialPackage: commercialPackageFromEntitlements(
+      moduleEntitlements,
+      legacyCapacityPackageCode
+    ),
     bits,
+    legacyCapacityPackageCode,
   };
 }
 
@@ -82,12 +106,18 @@ export async function resolveSchoolCommercialPackageReadOnly(
   moduleEntitlements: SchoolModuleEntitlementsMap;
   commercialPackage: CommercialPackageApiPayload | null;
   bits: string;
+  legacyCapacityPackageCode: string | null;
 }> {
   const moduleEntitlements = await getSchoolModuleEntitlementsReadOnly(schoolId);
+  const legacyCapacityPackageCode = await loadLegacyCapacityCode(schoolId);
   const bits = modulesToBits(moduleEntitlements);
   return {
     moduleEntitlements,
-    commercialPackage: commercialPackageFromEntitlements(moduleEntitlements),
+    commercialPackage: commercialPackageFromEntitlements(
+      moduleEntitlements,
+      legacyCapacityPackageCode
+    ),
     bits,
+    legacyCapacityPackageCode,
   };
 }

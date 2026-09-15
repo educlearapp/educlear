@@ -7,7 +7,11 @@ import { useSchoolsManagement } from "../superAdmin/hooks/useSchoolsManagement";
 import type { SchoolRecord } from "../superAdmin/types/schools";
 import { SCHOOL_STATUS_OPTIONS } from "../superAdmin/types/schools";
 import { hasAnyCommercialModule } from "../modules/schoolModuleEntitlements";
-import { commercialPackageShortDisplay } from "../modules/educlearCommercialPackages";
+import {
+  commercialPackageShortDisplay,
+  findCommercialPackageByModules,
+  formatLearnerCapacityLabel,
+} from "../modules/educlearCommercialPackages";
 import {
   allowedLifecycleTargets,
   buildLifecycleConfirmation,
@@ -125,14 +129,28 @@ function ManageSchoolModal({ school, saving = false, onClose, onRequestSave }: M
   );
   const [payrollEnabled, setPayrollEnabled] = useState(school.moduleEntitlements.PAYROLL !== false);
   const allowed = allowedLifecycleTargets(school.id);
+  const legacyCode =
+    pkg === "Unlimited" ? "UNLIMITED" : pkg === "Starter" ? "STARTER" : school.legacyCapacityPackage;
   const packageView = commercialPackageShortDisplay(
     {
       CORE: coreEnabled,
       ACCOUNTING: accountingEnabled,
       PAYROLL: payrollEnabled,
     },
-    { includeSecondary: true }
+    {
+      includeSecondary: true,
+      legacyPackageCode: legacyCode,
+    }
   );
+  const resolvedCommercial = findCommercialPackageByModules(
+    {
+      CORE: coreEnabled,
+      ACCOUNTING: accountingEnabled,
+      PAYROLL: payrollEnabled,
+    },
+    { legacyPackageCode: legacyCode }
+  );
+  const capacityLabel = formatLearnerCapacityLabel(resolvedCommercial?.learnerLimit ?? null);
   const modulesValid = hasAnyCommercialModule({
     CORE: coreEnabled,
     ACCOUNTING: accountingEnabled,
@@ -235,8 +253,21 @@ function ManageSchoolModal({ school, saving = false, onClose, onRequestSave }: M
               }}
             >
               <span style={{ fontSize: "0.85rem", color: "rgba(255,255,255,0.75)" }}>
-                Package view:{" "}
+                Commercial SKU:{" "}
                 <strong style={{ color: "#d4af37" }}>{packageView}</strong>
+              </span>
+            </label>
+            <label
+              style={{
+                display: "flex",
+                gap: 10,
+                alignItems: "center",
+                marginBottom: 4,
+              }}
+            >
+              <span style={{ fontSize: "0.85rem", color: "rgba(255,255,255,0.75)" }}>
+                Learner capacity:{" "}
+                <strong style={{ color: "#d4af37" }}>{capacityLabel}</strong>
               </span>
             </label>
             {!modulesValid ? (
@@ -496,7 +527,12 @@ function schoolDetailMessage(school: SchoolRecord): string {
     `Owner: ${school.ownerName}`,
     `Email: ${school.email}`,
     `Contact: ${school.contactPhone || "—"}`,
-    `Commercial package: ${school.package}`,
+    `Commercial package: ${school.commercialPackageName || school.package}`,
+    school.commercialPackageCode ? `Commercial SKU: ${school.commercialPackageCode}` : null,
+    `Learner capacity: ${
+      school.learnerCapacityLabel ||
+      (school.learnerLimit == null ? "Unlimited" : `Up to ${school.learnerLimit} learners`)
+    }`,
     school.legacyCapacityPackage
       ? `Legacy capacity (historical): ${school.legacyCapacityPackage}`
       : null,

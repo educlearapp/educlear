@@ -18,22 +18,31 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const FE_SRC = path.join(__dirname, "..");
 
 function testBusinessUpgradeFullOnly() {
-  assert.deepStrictEqual(upgradeCodesFrom("BUSINESS"), ["FULL"]);
+  assert.deepStrictEqual(upgradeCodesFrom("BUSINESS"), ["FULL_100", "FULL_UNLIMITED"]);
   assert.deepStrictEqual(upgradeCodesFrom("CORE"), [
     "CORE_ACCOUNTING",
     "CORE_PAYROLL",
-    "FULL",
+    "FULL_100",
+    "FULL_UNLIMITED",
   ]);
   assert.deepStrictEqual(upgradeCodesFrom("ACCOUNTING"), [
     "BUSINESS",
     "CORE_ACCOUNTING",
-    "FULL",
+    "FULL_100",
+    "FULL_UNLIMITED",
   ]);
-  assert.deepStrictEqual(upgradeCodesFrom("PAYROLL"), ["BUSINESS", "CORE_PAYROLL", "FULL"]);
-  assert.deepStrictEqual(upgradeCodesFrom("CORE_ACCOUNTING"), ["FULL"]);
-  assert.deepStrictEqual(upgradeCodesFrom("CORE_PAYROLL"), ["FULL"]);
+  assert.deepStrictEqual(upgradeCodesFrom("PAYROLL"), [
+    "BUSINESS",
+    "CORE_PAYROLL",
+    "FULL_100",
+    "FULL_UNLIMITED",
+  ]);
+  assert.deepStrictEqual(upgradeCodesFrom("CORE_ACCOUNTING"), ["FULL_100", "FULL_UNLIMITED"]);
+  assert.deepStrictEqual(upgradeCodesFrom("CORE_PAYROLL"), ["FULL_100", "FULL_UNLIMITED"]);
+  assert.deepStrictEqual(upgradeCodesFrom("FULL_100"), ["FULL_UNLIMITED"]);
   assert.deepStrictEqual(upgradeCodesFrom("FULL"), []);
-  console.log("✓ upgrade matrix including Business → Full only");
+  assert.deepStrictEqual(upgradeCodesFrom("FULL_UNLIMITED"), []);
+  console.log("✓ upgrade matrix including Business → Full SKUs");
 }
 
 function testCustomerFacingCopyClean() {
