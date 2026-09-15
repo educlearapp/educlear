@@ -124,7 +124,7 @@ function clientIpFromRequest(req: express.Request): string {
 async function createSubscriptionCheckout(
   req: express.Request,
   res: express.Response,
-  config: ReturnType<typeof loadPayFastConfig>,
+  _config: ReturnType<typeof loadPayFastConfig>,
 ) {
   const schoolId = String(req.body?.schoolId || "").trim();
   const packageCode = parsePackageCode(String(req.body?.packageCode || ""));
@@ -136,156 +136,14 @@ async function createSubscriptionCheckout(
     });
   }
 
-  await ensureEduClearPackages();
-
-  const [school, pkg] = await Promise.all([
-    prisma.school.findUnique({
-      where: { id: schoolId },
-      select: { id: true, name: true, email: true, phone: true, cellNo: true },
-    }),
-    prisma.eduClearPackage.findFirst({
-      where: { code: packageCode, isActive: true },
-    }),
-  ]);
-
-  if (!school) {
-    return res.status(404).json({ success: false, error: "School not found" });
-  }
-  if (!pkg) {
-    return res.status(404).json({ success: false, error: "Package not found or inactive" });
-  }
-
-  const payerEmail = String(req.body?.payerEmail || school.email || "").trim();
-  if (!payerEmail) {
-    return res.status(400).json({
-      success: false,
-      error: "School has no billing email; provide payerEmail",
-    });
-  }
-
-  const now = new Date();
-  const invoiceNumber = await nextSubscriptionInvoiceNumber(schoolId);
-  const merchantPaymentId = `ec-sub-${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
-
-  const { first, last } = splitSchoolContactName(school.name);
-  const itemName = `EduClear ${pkg.name} subscription`;
-  const itemDescription = pkg.description || `Monthly ${pkg.name} plan`;
-
-  const result = await prisma.$transaction(async (tx) => {
-    let subscription = await tx.schoolSubscription.findUnique({
-      where: { schoolId },
-    });
-
-    if (!subscription) {
-      subscription = await tx.schoolSubscription.create({
-        data: {
-          schoolId,
-          packageId: pkg.id,
-          packageCode: pkg.code,
-          status: SchoolSubscriptionStatus.PENDING_PAYMENT,
-        },
-      });
-    } else if (
-      shouldPersistPackageOnSubscriptionBeforePayment(subscription.status) &&
-      (subscription.packageId !== pkg.id || subscription.packageCode !== pkg.code)
-    ) {
-      subscription = await tx.schoolSubscription.update({
-        where: { id: subscription.id },
-        data: {
-          packageId: pkg.id,
-          packageCode: pkg.code,
-        },
-      });
-    }
-
-    const checkoutPackageMeta = {
-      checkoutType: "SUBSCRIPTION",
-      schoolId,
-      packageCode: pkg.code,
-      targetPackageCode: pkg.code,
-      targetPackageId: pkg.id,
-      subscriptionStatusAtCheckout: subscription.status,
-    } satisfies Prisma.InputJsonValue;
-
-    const invoice = await tx.subscriptionInvoice.create({
-      data: {
-        schoolId,
-        subscriptionId: subscription.id,
-        invoiceNumber,
-        amountCents: pkg.monthlyPriceCents,
-        currency: "ZAR",
-        status: SubscriptionInvoiceStatus.PENDING,
-        dueAt: now,
-        periodStart: null,
-        periodEnd: null,
-      },
-    });
-
-    const paymentLog = await tx.subscriptionPaymentLog.create({
-      data: {
-        schoolId,
-        invoiceId: invoice.id,
-        status: SubscriptionPaymentStatus.PENDING,
-        merchantPaymentId,
-        amountCents: pkg.monthlyPriceCents,
-        checkoutUrl: config.processUrl,
-        returnUrl: config.returnUrl,
-        cancelUrl: config.cancelUrl,
-        notifyUrl: config.notifyUrl,
-        payerEmail,
-        rawRequest: {
-          ...checkoutPackageMeta,
-          invoiceNumber,
-        } satisfies Prisma.InputJsonValue,
-      },
-    });
-
-    const checkout = buildPayFastCheckout({
-      merchantPaymentId,
-      amountCents: pkg.monthlyPriceCents,
-      itemName,
-      itemDescription,
-      payerEmail,
-      payerFirstName: first,
-      payerLastName: last,
-      payerCell: school.cellNo || school.phone || undefined,
-      customStr1: paymentLog.id,
-      customStr2: invoice.id,
-      customStr3: "SUBSCRIPTION",
-    });
-
-    await tx.subscriptionPaymentLog.update({
-      where: { id: paymentLog.id },
-      data: {
-        rawRequest: {
-          ...checkoutPackageMeta,
-          invoiceNumber,
-          checkoutPayload: checkout.payload,
-        } satisfies Prisma.InputJsonValue,
-      },
-    });
-
-    return {
-      subscription,
-      invoice,
-      paymentLog,
-      checkout,
-      targetPackageCode: pkg.code,
-    };
-  });
-
-  return res.status(201).json({
-    success: true,
-    checkoutType: "SUBSCRIPTION",
-    paymentUrl: result.checkout.paymentUrl,
-    payload: result.checkout.payload,
-    merchantPaymentId,
-    paymentLogId: result.paymentLog.id,
-    invoiceId: result.invoice.id,
-    invoiceNumber: result.invoice.invoiceNumber,
-    subscriptionId: result.subscription.id,
-    amountCents: result.invoice.amountCents,
-    packageCode: pkg.code,
+  // Phase 6E.1: block NEW legacy capacity checkout initiation.
+  // Historical ITN for existing STARTER/UNLIMITED payment logs remains unchanged.
+  // Modular online package checkout is intentionally not implemented yet.
+  return res.status(403).json({
+    success: false,
+    error:
+      "Legacy Starter/Unlimited checkout is no longer available for new purchases. Contact EduClear to change your package.",
+    code: "LEGACY_CAPACITY_CHECKOUT_DISABLED",
   });
 }
 
@@ -442,6 +300,12 @@ router.post("/create-checkout", async (req, res) => {
       });
     }
 
+    // Block NEW legacy capacity subscription checkout before config load / PayFast calls.
+    // Historical ITN processing is unchanged. Credits checkout remains available.
+    if (checkoutType === "SUBSCRIPTION") {
+      return createSubscriptionCheckout(req, res, null as never);
+    }
+
     let config;
     try {
       config = loadPayFastConfig();
@@ -452,11 +316,7 @@ router.post("/create-checkout", async (req, res) => {
       throw error;
     }
 
-    if (checkoutType === "CREDITS") {
-      return createCreditsCheckout(req, res, config);
-    }
-
-    return createSubscriptionCheckout(req, res, config);
+    return createCreditsCheckout(req, res, config);
   } catch (error) {
     console.error("[payfast] POST /create-checkout failed:", error);
     return res.status(500).json({ success: false, error: "Failed to create PayFast checkout" });

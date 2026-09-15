@@ -125,7 +125,7 @@ function main() {
   assert.strictEqual(describeModulePackageLabel(MODULE_PRESETS.PAYROLL_ONLY), "Payroll");
   assert.strictEqual(
     describeModulePackageLabel(MODULE_PRESETS.ACCOUNTING_PAYROLL),
-    "Accounting + Payroll"
+    "Business"
   );
   assert.strictEqual(describeModulePackageLabel(MODULE_PRESETS.CORE_ACCOUNTING), "Core + Accounting");
   assert.strictEqual(describeModulePackageLabel(MODULE_PRESETS.CORE_PAYROLL), "Core + Payroll");

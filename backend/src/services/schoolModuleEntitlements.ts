@@ -72,7 +72,8 @@ export function describeModulePackageLabel(map: SchoolModuleEntitlementsMap): st
   const a = map.ACCOUNTING === true;
   const p = map.PAYROLL === true;
   if (c && a && p) return "Full";
-  if (!c && a && p) return "Accounting + Payroll";
+  // Canonical commercial short label for 011 (EduClear Business).
+  if (!c && a && p) return "Business";
   if (c && a && !p) return "Core + Accounting";
   if (c && !a && p) return "Core + Payroll";
   if (c && !a && !p) return "Core";

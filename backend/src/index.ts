@@ -76,7 +76,7 @@ import payfastRoutes from "./routes/payfast";
 import creditsRoutes from "./routes/credits";
 import { requireMigrationAccess } from "./middleware/requireMigrationAccess";
 import { requireSuperAdmin } from "./middleware/requireSuperAdmin";
-import { requireSchoolModule, assertSchoolModuleEntitled, MODULE_NOT_ENTITLED } from "./middleware/requireSchoolModule";
+import { requireSchoolModule } from "./middleware/requireSchoolModule";
 import { lookupParentPortalBySchool } from "./services/parentPortalLookup";
 import superAdminSchoolsRoutes from "./routes/superAdminSchools";
 import { prisma } from "./prisma";
@@ -428,44 +428,6 @@ app.use(
 app.use("/api/subscriptions", subscriptionsRoutes);
 app.use("/api/credits", creditsRoutes);
 app.use("/api/payfast", payfastRoutes);
-app.get("/api/parents", async (_req, res) => {
-  try {
-    const schoolId =
-      typeof (_req as any).query?.schoolId === "string"
-        ? String((_req as any).query.schoolId)
-        : "";
-    if (!schoolId) {
-      return res.status(400).json({ success: false, message: "schoolId is required" });
-    }
-    const coreGate = await assertSchoolModuleEntitled(schoolId, "CORE");
-    if (!coreGate.allowed) {
-      return res.status(coreGate.status).json({
-        success: false,
-        message: coreGate.error,
-        error: coreGate.error,
-        code: coreGate.code || MODULE_NOT_ENTITLED,
-        module: "CORE",
-      });
-    }
-
-    const parents = await prisma.parent.findMany({
-      where: { schoolId },
-      orderBy: { createdAt: "desc" },
-    });
-
-    res.json({
-      success: true,
-      // Legacy unauthenticated list must not newly expose Parent.birthDate.
-      parents: parents.map(({ birthDate: _omitBirthDate, ...rest }) => rest),
-    });
-  } catch (error) {
-    console.error("Get parents error:", error);
-    res.status(500).json({
-      success: false,
-      message: "Failed to fetch parents",
-    });
-  }
-});
 
 app.get("/api/parent-portal/lookup", async (req, res) => {
   try {

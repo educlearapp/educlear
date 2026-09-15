@@ -51,18 +51,27 @@ function mapParentBirthDateForClient(parent: { birthDate?: Date | null }) {
   };
 }
 
-/** GET /api/parents?schoolId= — school-scoped parent list for Add Learner / existing-parent picker. */
+/** GET /api/parents — authenticated, tenant-bound parent list (parents.view + CORE via mount). */
 router.get("/", async (req, res) => {
   try {
-    const schoolId = cleanString((req.query as { schoolId?: unknown })?.schoolId);
-    if (!schoolId) {
-      return res.status(400).json({ success: false, error: "Missing schoolId" });
+    const authDecision = await resolveParentStaffAuth(req, {
+      requirePermission: { module: "parents", action: "view" },
+    });
+    if (!authDecision.allowed) {
+      return res.status(authDecision.status).json({
+        success: false,
+        error: authDecision.error,
+        message: authDecision.error,
+        code: authDecision.code || null,
+      });
     }
+
+    // Never trust client schoolId over JWT tenant.
+    const schoolId = authDecision.authorizedSchoolId;
     const parents = await prisma.parent.findMany({
       where: { schoolId },
       orderBy: [{ surname: "asc" }, { firstName: "asc" }],
     });
-    // Legacy unauthenticated list must not newly expose Parent.birthDate.
     return res.json({
       success: true,
       parents: parents.map((p) => mapParentForLegacyUnauthList(p)),
