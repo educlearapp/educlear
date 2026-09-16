@@ -38,11 +38,14 @@ export function submitPayFastCheckout(
   form.action = paymentUrl;
   form.style.display = "none";
 
+  // Submit non-empty fields only (must match signed set). Preserve payload key order.
   for (const [name, value] of Object.entries(payload)) {
+    const trimmed = String(value ?? "").trim();
+    if (!trimmed) continue;
     const input = document.createElement("input");
     input.type = "hidden";
     input.name = name;
-    input.value = String(value ?? "");
+    input.value = trimmed;
     form.appendChild(input);
   }
 

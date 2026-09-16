@@ -80,19 +80,32 @@ export class PayFastConfigError extends Error {
   }
 }
 
-function encodePayFastValue(value: string): string {
-  return encodeURIComponent(String(value).trim()).replace(/%20/g, "+");
+/**
+ * PayFast checkout signing uses PHP urlencode semantics (not raw encodeURIComponent).
+ * Spaces → '+'; encode ! ' ( ) * ~ ; percent escapes uppercase.
+ * See: https://developers.payfast.co.za/docs/#step_2_signature
+ */
+export function encodePayFastValue(value: string): string {
+  return encodeURIComponent(String(value).trim())
+    .replace(/!/g, "%21")
+    .replace(/'/g, "%27")
+    .replace(/\(/g, "%28")
+    .replace(/\)/g, "%29")
+    .replace(/\*/g, "%2A")
+    .replace(/~/g, "%7E")
+    .replace(/%20/g, "+");
 }
 
-function buildParamStringFromOrderedFields(
+export function buildParamStringFromOrderedFields(
   data: Record<string, string>,
   fieldOrder: readonly string[],
 ): string {
   const parts: string[] = [];
 
   for (const key of fieldOrder) {
+    if (key === "signature") continue;
     const value = data[key];
-    if (value !== undefined && value !== "") {
+    if (value !== undefined && String(value).trim() !== "") {
       parts.push(`${key}=${encodePayFastValue(value)}`);
     }
   }
@@ -107,11 +120,44 @@ export function generatePayFastSignature(
 ): string {
   let paramString = buildParamStringFromOrderedFields(data, fieldOrder);
 
-  if (passphrase) {
-    paramString += `&passphrase=${encodePayFastValue(passphrase)}`;
+  const pass = passphrase == null ? "" : String(passphrase).trim();
+  if (pass) {
+    paramString += `&passphrase=${encodePayFastValue(pass)}`;
   }
 
   return crypto.createHash("md5").update(paramString).digest("hex");
+}
+
+/** Non-secret helper: ordered non-empty checkout field names that enter the signature. */
+export function listCheckoutSignatureFieldNames(data: Record<string, string>): string[] {
+  const names: string[] = [];
+  for (const key of CHECKOUT_SIGNATURE_FIELD_ORDER) {
+    const value = data[key];
+    if (value !== undefined && String(value).trim() !== "") {
+      names.push(key);
+    }
+  }
+  return names;
+}
+
+/**
+ * Checkout payload for browser POST: same non-empty fields used for signing, in doc order,
+ * plus signature last. Empty fields are omitted so submitted set === signed set.
+ */
+export function finalizeCheckoutPayload(
+  basePayload: Record<string, string>,
+  passphrase: string,
+): Record<string, string> {
+  const cleaned: Record<string, string> = {};
+  for (const key of CHECKOUT_SIGNATURE_FIELD_ORDER) {
+    const raw = basePayload[key];
+    if (raw === undefined) continue;
+    const value = String(raw).trim();
+    if (!value) continue;
+    cleaned[key] = value;
+  }
+  const signature = generatePayFastSignature(cleaned, passphrase);
+  return { ...cleaned, signature };
 }
 
 export function formatPayFastAmount(amountCents: number): string {
@@ -226,8 +272,7 @@ export function buildPayFastCheckout(input: PayFastCheckoutInput): PayFastChecko
     basePayload.custom_str3 = input.customStr3;
   }
 
-  const signature = generatePayFastSignature(basePayload, config.passphrase);
-  const payload = { ...basePayload, signature };
+  const payload = finalizeCheckoutPayload(basePayload, config.passphrase);
 
   return {
     paymentUrl: config.processUrl,
@@ -243,7 +288,7 @@ export function buildItnParamString(postData: Record<string, string>): string {
       break;
     }
     const value = String(rawValue ?? "").replace(/\\/g, "");
-    parts.push(`${key}=${encodeURIComponent(value).replace(/%20/g, "+")}`);
+    parts.push(`${key}=${encodePayFastValue(value)}`);
   }
 
   return parts.join("&");
