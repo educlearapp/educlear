@@ -1,4 +1,5 @@
 import { API_URL } from "../api";
+import { staffAuthHeaders } from "../auth/staffAuthHeaders";
 
 const BASE = `${API_URL}/api/school-sms-settings`;
 
@@ -28,7 +29,11 @@ async function request<T>(path: string, options: RequestInit = {}, timeoutMs = 6
   try {
     res = await fetch(`${BASE}${path}`, {
       ...options,
-      headers: { "Content-Type": "application/json", ...(options.headers || {}) },
+      headers: {
+        "Content-Type": "application/json",
+        ...staffAuthHeaders(),
+        ...(options.headers || {}),
+      },
       signal: controller.signal,
     });
   } catch (e: unknown) {
@@ -74,7 +79,11 @@ async function requestWithSettingsOnError<T extends { settings: SchoolSmsSetting
   try {
     res = await fetch(`${BASE}${path}`, {
       ...options,
-      headers: { "Content-Type": "application/json", ...(options.headers || {}) },
+      headers: {
+        "Content-Type": "application/json",
+        ...staffAuthHeaders(),
+        ...(options.headers || {}),
+      },
       signal: controller.signal,
     });
   } catch (e: unknown) {

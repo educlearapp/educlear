@@ -835,7 +835,7 @@ export async function fetchInvoiceRuns(schoolId: string): Promise<{
 
   const url = `${API_URL}/api/invoice-runs?schoolId=${encodeURIComponent(sid)}`;
   try {
-    const data = await getJson(url);
+    const data = await getJson(url, staffAuthHeaders());
     if (!data || typeof data !== "object") {
       return { ok: false, runs: [], invoicePeriodCounts: {} };
     }

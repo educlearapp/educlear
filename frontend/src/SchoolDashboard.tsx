@@ -2117,7 +2117,9 @@ const [selectedLearnerReport, setSelectedLearnerReport] = useState<any>(null);
       }).then((res) =>
         res.json()
       ),
-      fetch(`${API_URL}/api/registrations/stats?schoolId=${encodeURIComponent(schoolId)}`).then((res) =>
+      fetch(`${API_URL}/api/registrations/stats?schoolId=${encodeURIComponent(schoolId)}`, {
+        headers: { ...staffAuthHeaders() },
+      }).then((res) =>
         res.json()
       ),
     ])

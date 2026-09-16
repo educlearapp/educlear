@@ -1,11 +1,16 @@
 import { API_URL } from "../api";
+import { staffAuthHeaders } from "../auth/staffAuthHeaders";
 
 const BASE = `${API_URL}/api/communication`;
 
 async function request<T>(path: string, options: RequestInit = {}): Promise<T> {
   const res = await fetch(`${BASE}${path}`, {
-    headers: { "Content-Type": "application/json", ...(options.headers || {}) },
     ...options,
+    headers: {
+      "Content-Type": "application/json",
+      ...staffAuthHeaders(),
+      ...(options.headers || {}),
+    },
   });
   const data = await res.json().catch(() => ({}));
   if (!res.ok) {
@@ -223,7 +228,7 @@ export type SendSmsResponse = {
 export async function sendSms(schoolId: string, id: string): Promise<SendSmsResponse> {
   const res = await fetch(`${BASE}/sms/${encodeURIComponent(id)}/send`, {
     method: "POST",
-    headers: { "Content-Type": "application/json" },
+    headers: { "Content-Type": "application/json", ...staffAuthHeaders() },
     body: JSON.stringify({ schoolId }),
   });
   const data = (await res.json().catch(() => ({}))) as SendSmsResponse & { error?: string };
