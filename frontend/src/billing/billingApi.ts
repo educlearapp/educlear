@@ -224,7 +224,8 @@ export const fetchKidesysHistory = async (schoolId: string, accountNo?: string) 
   if (accountNo) params.set("accountNo", accountNo);
 
   const primary = await getJson(
-    `${API_URL}/api/statements/kidesys-history?${params.toString()}`
+    `${API_URL}/api/statements/kidesys-history?${params.toString()}`,
+    staffAuthHeaders()
   );
   const primaryRows = parseKidesysHistoryPayload(primary);
   if (primaryRows.length) return primaryRows;
@@ -235,7 +236,8 @@ export const fetchKidesysHistory = async (schoolId: string, accountNo?: string) 
   });
   if (accountNo) fallbackParams.set("accountNo", accountNo);
   const fallback = await getJson(
-    `${API_URL}/api/statements/accounts?${fallbackParams.toString()}`
+    `${API_URL}/api/statements/accounts?${fallbackParams.toString()}`,
+    staffAuthHeaders()
   );
   return parseKidesysHistoryPayload(fallback);
 };

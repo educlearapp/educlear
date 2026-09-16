@@ -246,3 +246,10 @@ export function formatBulkAddSummaryMessage(summary: BulkAddApplySummary): strin
   }
   return `Bulk add failed: ${parts.join(", ")}.`;
 }
+
+/** Refresh plans only after the operator dismisses the result screen (Done). */
+export function shouldRefreshBillingPlansAfterBulkResult(
+  summary: BulkAddApplySummary | null | undefined
+): boolean {
+  return Boolean(summary && summary.successCount > 0);
+}

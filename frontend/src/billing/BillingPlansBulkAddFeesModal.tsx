@@ -6,6 +6,7 @@ import {
   filterLearnersForBulkAdd,
   formatBulkAddSummaryMessage,
   selectAllFilteredLearnerIds,
+  shouldRefreshBillingPlansAfterBulkResult,
   uniqueClassrooms,
   type BulkAddApplySummary,
   type BulkAddFee,
@@ -197,13 +198,31 @@ export default function BillingPlansBulkAddFeesModal({
         selectedFees,
         savePlan,
       });
+      // Keep result on screen until Done — do not refresh/remount here.
       setSummary(result);
       setStep("result");
-      if (result.successCount > 0) {
+    } finally {
+      setApplying(false);
+    }
+  };
+
+  const finishResultAndClose = async () => {
+    const shouldRefresh = shouldRefreshBillingPlansAfterBulkResult(summary);
+    try {
+      if (shouldRefresh) {
         await onApplied();
       }
     } finally {
+      setStep("select");
+      setLearnerSearch("");
+      setClassroomFilter("all");
+      setFeeSearch("");
+      setSelectedLearnerIds(new Set());
+      setSelectedFeeIds(new Set());
+      setValidationError("");
+      setSummary(null);
       setApplying(false);
+      onClose();
     }
   };
 
@@ -562,7 +581,11 @@ export default function BillingPlansBulkAddFeesModal({
           {step === "result" ? (
             <>
               <span />
-              <button type="button" style={btnGold} onClick={closeAndReset}>
+              <button
+                type="button"
+                style={btnGold}
+                onClick={() => void finishResultAndClose()}
+              >
                 Done
               </button>
             </>
