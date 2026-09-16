@@ -106,6 +106,64 @@ export type InvoiceRunPreviewLearner = {
   skipDetail?: string;
 };
 
+/** Display/contact fields required by Email Statements / Email Invoices wizard UI. */
+export function enrichInvoiceRunWizardRowContactAndLabels(args: {
+  row: Record<string, unknown>;
+  /** 0-based index in the mapped wizard list (pre-71978b5 used index+1). */
+  index: number;
+  localLearner?: Record<string, unknown> | null;
+  parent?: Record<string, unknown> | null;
+  /** Preferred canonical billing contact from resolveStatementBillingContact. */
+  billingContact?: { name?: string; email?: string } | null;
+  /** Pre-71978b5 buildInvoiceReference(...) result when available. */
+  invoiceNo?: string;
+}): Record<string, unknown> {
+  const row = args.row && typeof args.row === "object" ? args.row : {};
+  const parent = args.parent && typeof args.parent === "object" ? args.parent : null;
+  const local =
+    args.localLearner && typeof args.localLearner === "object" ? args.localLearner : null;
+  const contact =
+    args.billingContact && typeof args.billingContact === "object"
+      ? args.billingContact
+      : null;
+
+  const parentEmail =
+    String(contact?.email || "").trim() ||
+    String(parent?.email || "").trim() ||
+    String(parent?.parentEmail || "").trim() ||
+    String(local?.parentEmail || "").trim() ||
+    String(local?.guardianEmail || "").trim() ||
+    "";
+
+  const parentName =
+    String(contact?.name || "").trim() ||
+    String(parent?.name || "").trim() ||
+    String(parent?.fullName || "").trim() ||
+    `${String(parent?.firstName || "").trim()} ${String(
+      parent?.surname || parent?.lastName || ""
+    ).trim()}`.trim() ||
+    String(local?.parentName || "").trim() ||
+    String(local?.guardianName || "").trim() ||
+    "Parent / Guardian";
+
+  const statementNo =
+    String(row.statementNo || "").trim() ||
+    `ST${String(Math.max(0, args.index) + 1).padStart(4, "0")}`;
+
+  const invoiceNo =
+    String(row.invoiceNo || "").trim() ||
+    String(args.invoiceNo || "").trim() ||
+    String(65000 + Math.max(0, args.index));
+
+  return {
+    ...row,
+    parentName,
+    parentEmail,
+    statementNo,
+    invoiceNo,
+  };
+}
+
 const INVOICE_RUN_PAGE_SIZE = 10;
 
 export function invoiceRunPreviewCacheKey(run: Record<string, unknown> | null | undefined): string {

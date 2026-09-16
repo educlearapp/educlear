@@ -24,6 +24,7 @@ import {
 import {
   beginInvoiceRunWizard,
   buildInvoiceRunExtraFeesByLearnerId,
+  enrichInvoiceRunWizardRowContactAndLabels,
   isLedgerBackedInvoiceRun,
   learnerHasOfficialLinkedFamilyAccount,
   listSchoolInvoiceRunDrafts,
@@ -37,6 +38,7 @@ import {
   toThinInvoiceRunDraft,
   type InvoiceRunListRow,
 } from "./invoiceRunList";
+import { resolveStatementBillingContact } from "./statementBillingContact";
 
 
 
@@ -1092,13 +1094,44 @@ export default function InvoiceRuns(props: any) {
         excludedLearnerIds: current.excludedLearnerIds,
         invoiceDate: invoiceRunSettings?.invoiceDate || current.invoiceDate,
       });
-      return mapped;
+      const invoiceDate = String(
+        invoiceRunSettings?.invoiceDate || current.invoiceDate || new Date().toISOString().slice(0, 10)
+      ).slice(0, 10);
+      return mapped.map((row, index) => {
+        const learnerId = String(row.learnerId || row.id || "").trim();
+        const local =
+          normalizedLearners.find(
+            (learner: any) => String(learner?.id || learner?.learnerId || "") === learnerId
+          ) || null;
+        const parent = findParent(local || row);
+        const billingContact = resolveStatementBillingContact(
+          normalizedLearners,
+          storedParents,
+          learnerId ? [learnerId] : []
+        );
+        const invoiceNo = buildInvoiceReference(
+          billingSettingsRef.current,
+          invoiceDate,
+          index + 1,
+          String(65000 + index)
+        );
+        return enrichInvoiceRunWizardRowContactAndLabels({
+          row,
+          index,
+          localLearner: local,
+          parent,
+          billingContact,
+          invoiceNo,
+        });
+      });
     },
     [
       invoiceRunServerPreview,
       normalizedLearners,
+      storedParents,
       invoiceRunSettings?.invoiceDate,
       balanceDisplayRevision,
+      parentLookupIndex,
     ]
   );
 
