@@ -5,7 +5,11 @@ import cors from "cors";
 
 import fs from "fs";
 import path from "path";
-import multer from "multer"; 
+import multer from "multer";
+import {
+  isCorsOriginAllowed,
+  resolveCorsAllowedOrigins,
+} from "./utils/outboundSafety"; 
 import schoolsRoutes from "./routes/schools";
 import parentsRoutes from "./routes/parents";
 import jwt from "jsonwebtoken";
@@ -251,23 +255,8 @@ app.use("/uploads/school-logos", express.static(legacySchoolLogoDir));
 app.use("/uploads", express.static(path.join(process.cwd(), "uploads")));
 const corsOptions: cors.CorsOptions = {
   origin: (origin, callback) => {
-    const allowedOrigins = [
-      "http://localhost:5173",
-      "http://localhost:5174",
-      "http://localhost:5175",
-      "https://educlear-frontend.onrender.com",
-      "https://educlear.co.za",
-      "https://www.educlear.co.za",
-    ];
-
-    const isDev = process.env.NODE_ENV !== "production";
-    const isPrivateLanOrigin =
-      typeof origin === "string" &&
-      /^https?:\/\/(192\.168\.\d{1,3}\.\d{1,3}|10\.\d{1,3}\.\d{1,3}\.\d{1,3}|172\.(1[6-9]|2\d|3[01])\.\d{1,3}\.\d{1,3})(:\d+)?$/.test(
-        origin
-      );
-
-    if (!origin || allowedOrigins.includes(origin) || (isDev && isPrivateLanOrigin)) {
+    const allowedOrigins = resolveCorsAllowedOrigins();
+    if (isCorsOriginAllowed(origin, allowedOrigins)) {
       callback(null, true);
     } else {
       console.log("Blocked by CORS:", origin);

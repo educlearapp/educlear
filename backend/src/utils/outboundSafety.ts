@@ -9,12 +9,13 @@ export const OUTBOUND_EMAIL_DISABLED_MESSAGE =
 export const OUTBOUND_SMS_DISABLED_MESSAGE =
   "Outbound SMS is disabled (DISABLE_OUTBOUND_SMS=true).";
 
-/** Hardcoded production + local origins — always retained; env origins are additive. */
+/** Hardcoded production + staging + local origins — always retained; env origins are additive. */
 export const DEFAULT_CORS_ALLOWED_ORIGINS: readonly string[] = [
   "http://localhost:5173",
   "http://localhost:5174",
   "http://localhost:5175",
   "https://educlear-frontend.onrender.com",
+  "https://educlear-frontend-staging.onrender.com",
   "https://educlear.co.za",
   "https://www.educlear.co.za",
 ];
