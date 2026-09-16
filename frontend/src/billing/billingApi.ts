@@ -786,14 +786,14 @@ export const fetchLegalDocumentHistory = async (schoolId: string, documentType?:
 };
 
 export const createInvoice = async (data: any) =>
-  postJson(`${API_URL}/api/invoices`, data, "Failed to create invoice");
+  postJson(`${API_URL}/api/invoices`, data, "Failed to create invoice", staffAuthHeaders());
 
 export const createInvoicesBatch = async (data: {
   schoolId: string;
   runId?: string;
   invoices: Record<string, unknown>[];
 }) =>
-  postJson(`${API_URL}/api/invoices/batch`, data, "Failed to create invoices");
+  postJson(`${API_URL}/api/invoices/batch`, data, "Failed to create invoices", staffAuthHeaders());
 
 export type InvoiceRunExecutePayload = {
   schoolId: string;
@@ -856,7 +856,7 @@ async function postInvoiceRunEndpoint(
 ) {
   const response = await fetch(`${API_URL}${path}`, {
     method: "POST",
-    headers: { "Content-Type": "application/json" },
+    headers: { "Content-Type": "application/json", ...staffAuthHeaders() },
     body: JSON.stringify(payload),
     cache: "no-store",
   });

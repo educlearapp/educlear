@@ -6,6 +6,8 @@ import { flushSync } from "react-dom";
 import { API_URL } from "../api";
 import { staffAuthHeaders } from "../auth/staffAuthHeaders";
 import { notifyLearnersRefresh } from "./billingLedger";
+import BillingPlansBulkAddFeesModal from "./BillingPlansBulkAddFeesModal";
+import type { BulkAddFee, BulkAddLearner } from "./billingPlansBulkAddFees";
 import { clearEduClearMigrationCache } from "../utils/educlearStorageDebug";
 
 const isDev = import.meta.env.DEV;
@@ -118,6 +120,8 @@ export default function BillingPlans({
   const feePickerWasOpenRef = useRef(false);
   const [saveStatus, setSaveStatus] = useState<"idle" | "saving" | "saved" | "removing">("idle");
   const [saveError, setSaveError] = useState("");
+  const [showBulkAddModal, setShowBulkAddModal] = useState(false);
+  const [bulkFeesLoading, setBulkFeesLoading] = useState(false);
   const [detailPlan, setDetailPlan] = useState<any[]>([]);
   const prevPlanLearnerKeyRef = useRef<string | null>(null);
   const savedResetTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -503,6 +507,87 @@ export default function BillingPlans({
     setShowFeePicker(true);
   };
 
+  const openBulkAddFeesModal = async () => {
+    setBulkFeesLoading(true);
+    setShowBulkAddModal(true);
+    try {
+      await loadFeesThenOpenBulk();
+    } finally {
+      setBulkFeesLoading(false);
+    }
+  };
+
+  /** Load fee catalogue for bulk add without opening the single-learner picker. */
+  const loadFeesThenOpenBulk = async () => {
+    try {
+      localStorage.removeItem("billingPlanFeeOptions");
+    } catch {
+      // ignore storage errors
+    }
+    setAllFees([]);
+
+    let loadedFees: any[] = [];
+
+    const schoolIdForPlans =
+      localStorage.getItem("schoolId") ||
+      localStorage.getItem("selectedSchoolId") ||
+      localStorage.getItem("currentSchoolId") ||
+      "";
+
+    if (schoolIdForPlans) {
+      const apiPageSize = 100;
+      let page = 1;
+      let totalFromApi = 0;
+
+      try {
+        while (true) {
+          const url = `${API_URL}/api/fees?schoolId=${encodeURIComponent(
+            schoolIdForPlans
+          )}&page=${page}&pageSize=${apiPageSize}`;
+          const response = await fetch(url, {
+            headers: { ...staffAuthHeaders() },
+          });
+          if (!response.ok) break;
+
+          const data = await response.json();
+          const list = parseFeesApiList(data);
+          const reportedTotal = Number((data as { total?: unknown })?.total);
+          if (Number.isFinite(reportedTotal) && reportedTotal > 0) {
+            totalFromApi = reportedTotal;
+          }
+
+          if (list.length > 0) {
+            loadedFees = loadedFees.concat(list);
+          }
+
+          if (list.length === 0) break;
+          if (totalFromApi > 0 && loadedFees.length >= totalFromApi) break;
+          const responsePageSize = Number((data as { pageSize?: unknown })?.pageSize);
+          const effectivePageSize =
+            Number.isFinite(responsePageSize) && responsePageSize > 0
+              ? responsePageSize
+              : apiPageSize;
+          if (totalFromApi <= 0 && list.length < effectivePageSize) break;
+          page += 1;
+        }
+      } catch {
+        // API unavailable; loadedFees may stay empty
+      }
+    }
+
+    if (loadedFees.length > 0) {
+      loadedFees = loadedFees.map(normalizeFee);
+    }
+
+    setAllFees(loadedFees);
+
+    try {
+      localStorage.setItem("billingPlanFeeOptions", JSON.stringify(loadedFees));
+    } catch {
+      // ignore storage errors
+    }
+  };
+
 
 
   const applyLearnerPlanLocally = (learner: any, plan: any[]) => {
@@ -648,7 +733,7 @@ export default function BillingPlans({
         `${API_URL}/api/learners/${encodeURIComponent(learnerKey)}/billing-plan`,
         {
           method: "PATCH",
-          headers: { "Content-Type": "application/json" },
+          headers: { "Content-Type": "application/json", ...staffAuthHeaders() },
           body: JSON.stringify({ billingPlan: normalizedPlan }),
         }
       );
@@ -1151,6 +1236,44 @@ export default function BillingPlans({
 
 
     : [];
+
+  const bulkAddLearners: BulkAddLearner[] = useMemo(
+    () =>
+      (Array.isArray(learners) ? learners : [])
+        .filter((learner: any) => !learner?.unenrolled)
+        .map((learner: any) => ({
+          id: String(learner?.id || learner?.learnerId || "").trim(),
+          name: getName(learner),
+          surname: getSurname(learner),
+          classroom: getClassroom(learner),
+          billingPlan: Array.isArray(learner?.billingPlan)
+            ? learner.billingPlan.map(normalizeFee)
+            : [],
+        }))
+        .filter((learner: BulkAddLearner) => Boolean(learner.id)),
+    // getName/getSurname/getClassroom/normalizeFee are stable enough for this list snapshot
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [learners]
+  );
+
+  const bulkRawLearnersById = useMemo(() => {
+    const map = new Map<string, any>();
+    for (const learner of Array.isArray(learners) ? learners : []) {
+      if (learner?.unenrolled) continue;
+      const id = String(learner?.id || learner?.learnerId || "").trim();
+      if (id) map.set(id, learner);
+    }
+    return map;
+  }, [learners]);
+
+  const bulkAddFees: BulkAddFee[] = useMemo(
+    () =>
+      (Array.isArray(allFees) ? allFees : []).map((fee: any, index: number) =>
+        normalizeFee(fee, index)
+      ),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [allFees]
+  );
 
   const filteredLearners = learnersForPlans.filter((learner: any) =>
     getLearnerSearchHaystack(learner).includes(String(plansSearch || "").toLowerCase())
@@ -2456,6 +2579,10 @@ return (
 
 
 
+<>
+
+
+
 <div style={{ padding: "20px", background: "#f8fafc", minHeight: "100vh" }}>
 
 
@@ -2519,7 +2646,7 @@ Manage
 
 
 
-<button style={btnGold} onClick={loadFeesThenOpen}>
+<button style={btnGold} onClick={() => void openBulkAddFeesModal()}>
 
 
 
@@ -2928,6 +3055,28 @@ outline: "none",
 
 
 </div>
+
+
+
+{showBulkAddModal ? (
+  <BillingPlansBulkAddFeesModal
+    open={showBulkAddModal}
+    onClose={() => setShowBulkAddModal(false)}
+    learners={bulkAddLearners}
+    rawLearnersById={bulkRawLearnersById}
+    fees={bulkAddFees}
+    feesLoading={bulkFeesLoading}
+    savePlan={async (learner, plan) => savePlan(learner, plan)}
+    onApplied={async () => {
+      await reloadLearnersWithBillingPlans(getSchoolIdForPlans());
+      notifyLearnersRefresh();
+    }}
+  />
+) : null}
+
+
+
+</>
 
 
 
