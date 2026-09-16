@@ -8,6 +8,7 @@ import { staffAuthHeaders } from "../auth/staffAuthHeaders";
 import { notifyLearnersRefresh } from "./billingLedger";
 import BillingPlansBulkAddFeesModal from "./BillingPlansBulkAddFeesModal";
 import type { BulkAddFee, BulkAddLearner } from "./billingPlansBulkAddFees";
+import { resolveSelectedPlanLearnerAfterPlanSave } from "./billingPlansBulkAddFees";
 import { clearEduClearMigrationCache } from "../utils/educlearStorageDebug";
 
 const isDev = import.meta.env.DEV;
@@ -702,23 +703,25 @@ export default function BillingPlans({
     }
   };
 
-  const mergeLearnerIntoList = (learnerKey: string, learnerRow: any) => {
+  const mergeLearnerIntoList = (
+    learnerKey: string,
+    learnerRow: any,
+    options?: { suppressDetailSelection?: boolean }
+  ) => {
     setLearners((prev: any[]) =>
       prev.map((item: any) =>
         String(item?.id || item?.learnerId || "") === learnerKey ? learnerRow : item
       )
     );
-    setSelectedPlanLearner((prev: any | null) => {
-      if (!prev) return learnerRow;
-      const prevKey = String(prev?.id || prev?.learnerId || "");
-      return prevKey === learnerKey ? learnerRow : prev;
-    });
+    setSelectedPlanLearner((prev: any | null) =>
+      resolveSelectedPlanLearnerAfterPlanSave(prev, learnerKey, learnerRow, options)
+    );
   };
 
   const savePlan = async (
     learner: any,
     plan: any[],
-    options?: { reloadList?: boolean }
+    options?: { reloadList?: boolean; suppressDetailSelection?: boolean }
   ): Promise<{ ok: boolean; error?: string }> => {
     const learnerKey = String(learner?.id || learner?.learnerId || "");
     const normalizedPlan = plan.map(normalizeFee);
@@ -764,7 +767,9 @@ export default function BillingPlans({
         selectedLearnerBillingPlan: mergedLearner.billingPlan,
       });
 
-      mergeLearnerIntoList(learnerKey, mergedLearner);
+      mergeLearnerIntoList(learnerKey, mergedLearner, {
+        suppressDetailSelection: options?.suppressDetailSelection,
+      });
       syncLearnerBillingPlanCache(learnerKey, savedPlan, mergedLearner);
 
       if (options?.reloadList) {
@@ -789,7 +794,9 @@ export default function BillingPlans({
               : 0,
             planToUseCount: planToUse.length,
           });
-          mergeLearnerIntoList(learnerKey, mergedRow);
+          mergeLearnerIntoList(learnerKey, mergedRow, {
+            suppressDetailSelection: options?.suppressDetailSelection,
+          });
           syncLearnerBillingPlanCache(learnerKey, planToUse, mergedRow);
         }
       }
@@ -3066,7 +3073,12 @@ outline: "none",
     rawLearnersById={bulkRawLearnersById}
     fees={bulkAddFees}
     feesLoading={bulkFeesLoading}
-    savePlan={async (learner, plan) => savePlan(learner, plan)}
+    savePlan={async (learner, plan, options) =>
+      savePlan(learner, plan, {
+        ...options,
+        suppressDetailSelection: true,
+      })
+    }
     onApplied={async () => {
       await reloadLearnersWithBillingPlans(getSchoolIdForPlans());
       notifyLearnersRefresh();

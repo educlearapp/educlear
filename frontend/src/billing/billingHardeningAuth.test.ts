@@ -106,6 +106,15 @@ function testModalSourceDefersOnApplied() {
     /Succeeded: \{summary\.successCount\}/.test(modalSrc),
     "result counts render in JSX"
   );
+  const plansSrc = fs.readFileSync(path.join(__dirname, "BillingPlans.tsx"), "utf8");
+  assert.ok(
+    /suppressDetailSelection:\s*true/.test(plansSrc),
+    "bulk path suppresses selectedPlanLearner navigation"
+  );
+  assert.ok(
+    /resolveSelectedPlanLearnerAfterPlanSave/.test(plansSrc),
+    "BillingPlans wires bulk-safe selection resolver"
+  );
   console.log("✓ source: modal defers onApplied to Done; counts rendered");
 }
 

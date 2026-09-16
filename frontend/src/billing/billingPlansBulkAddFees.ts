@@ -152,10 +152,39 @@ export function summarizeBulkAddOutcome(
   return { successCount, skippedCount, failedCount, results, outcome };
 }
 
+export type SavePlanOptions = {
+  reloadList?: boolean;
+  /** Bulk apply must update list rows without opening learner detail. */
+  suppressDetailSelection?: boolean;
+};
+
 export type SavePlanFn = (
   learner: { id: string; billingPlan?: BulkAddFee[]; [key: string]: unknown },
-  plan: BulkAddFee[]
+  plan: BulkAddFee[],
+  options?: SavePlanOptions
 ) => Promise<{ ok: boolean; error?: string }>;
+
+/**
+ * Resolve selectedPlanLearner after a billing-plan save.
+ * Default (single-learner): keep existing detail open / open saved learner when none selected.
+ * Bulk mode: never auto-select a learner — preserves the bulk result modal mount.
+ */
+export function resolveSelectedPlanLearnerAfterPlanSave(
+  prev: any | null,
+  learnerKey: string,
+  learnerRow: any,
+  options?: { suppressDetailSelection?: boolean }
+): any | null {
+  const key = String(learnerKey || "").trim();
+  if (options?.suppressDetailSelection) {
+    if (!prev) return null;
+    const prevKey = String(prev?.id || prev?.learnerId || "").trim();
+    return prevKey === key ? learnerRow : prev;
+  }
+  if (!prev) return learnerRow;
+  const prevKey = String(prev?.id || prev?.learnerId || "").trim();
+  return prevKey === key ? learnerRow : prev;
+}
 
 /**
  * Apply selected fees to each selected learner via the canonical savePlan path.
@@ -204,7 +233,8 @@ export async function applyBulkAddFees(input: {
     try {
       const result = await input.savePlan(
         { ...raw, id: learnerId, billingPlan: learner.billingPlan },
-        nextPlan
+        nextPlan,
+        { suppressDetailSelection: true }
       );
       if (result.ok) {
         results.push({ learnerId, learnerLabel, status: "success" });

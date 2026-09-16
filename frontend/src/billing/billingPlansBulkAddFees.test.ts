@@ -12,6 +12,7 @@ import {
   clearFilteredLearnerIds,
   filterLearnersForBulkAdd,
   formatBulkAddSummaryMessage,
+  resolveSelectedPlanLearnerAfterPlanSave,
   selectAllFilteredLearnerIds,
   validateBulkAddSelection,
   type BulkAddFee,
@@ -116,14 +117,16 @@ async function testApplyUsesSavePlanWithAppendedFees() {
   const byId = new Map(learners.map((l) => [l.id, { ...l, raw: { id: "l1", schoolId: "s1" } }]));
   let savedPlan: BulkAddFee[] | null = null;
   let savedLearnerId = "";
+  let savedOptions: { suppressDetailSelection?: boolean } | undefined;
 
   const summary = await applyBulkAddFees({
     selectedLearnerIds: ["l1"],
     learnersById: byId,
     selectedFees: [feeA],
-    savePlan: async (learner, plan) => {
+    savePlan: async (learner, plan, options) => {
       savedLearnerId = String(learner.id);
       savedPlan = plan;
+      savedOptions = options;
       return { ok: true };
     },
   });
@@ -134,7 +137,89 @@ async function testApplyUsesSavePlanWithAppendedFees() {
   assert.equal(savedPlan!.length, 2);
   assert.equal(savedPlan![0].id, "fee-b");
   assert.equal(savedPlan![1].id, "fee-a");
+  assert.equal(
+    savedOptions?.suppressDetailSelection,
+    true,
+    "bulk apply passes suppressDetailSelection so detail view does not open"
+  );
   console.log("✓ apply: uses canonical savePlan with appended fee catalogue lines");
+}
+
+function testBulkDoesNotAutoSelectDetailLearner() {
+  const row = { id: "l1", name: "Lee", billingPlan: [feeA] };
+
+  // Bulk: no prior selection → stay null (modal remains mounted on list)
+  assert.equal(
+    resolveSelectedPlanLearnerAfterPlanSave(null, "l1", row, {
+      suppressDetailSelection: true,
+    }),
+    null,
+    "bulk complete/partial/failed must not navigate into detail"
+  );
+
+  // Bulk: existing unrelated detail stays as-is
+  const other = { id: "other", name: "Other" };
+  assert.equal(
+    resolveSelectedPlanLearnerAfterPlanSave(other, "l1", row, {
+      suppressDetailSelection: true,
+    }),
+    other
+  );
+
+  // Bulk: if same learner already open, refresh the row in place
+  assert.deepEqual(
+    resolveSelectedPlanLearnerAfterPlanSave({ id: "l1", name: "Old" }, "l1", row, {
+      suppressDetailSelection: true,
+    }),
+    row
+  );
+
+  // Single-learner default: still auto-selects when none selected
+  assert.deepEqual(
+    resolveSelectedPlanLearnerAfterPlanSave(null, "l1", row),
+    row,
+    "single-learner savePlan still opens/keeps detail"
+  );
+  assert.deepEqual(
+    resolveSelectedPlanLearnerAfterPlanSave({ id: "l1", name: "Old" }, "l1", row),
+    row
+  );
+  assert.deepEqual(
+    resolveSelectedPlanLearnerAfterPlanSave(other, "l1", row),
+    other
+  );
+  console.log("✓ selection: bulk suppresses detail nav; single-learner unchanged");
+}
+
+async function testBulkMultiLearnerNeverSelectsDetail() {
+  const learners = [
+    learner("a", "Ann", "One", "G1"),
+    learner("b", "Bob", "Two", "G1"),
+  ];
+  const byId = new Map(learners.map((l) => [l.id, l]));
+  const selectedSnapshots: Array<any | null> = [];
+  let selected: any | null = null;
+
+  await applyBulkAddFees({
+    selectedLearnerIds: ["a", "b"],
+    learnersById: byId,
+    selectedFees: [feeA],
+    savePlan: async (learner, _plan, options) => {
+      selected = resolveSelectedPlanLearnerAfterPlanSave(
+        selected,
+        String(learner.id),
+        { id: learner.id, billingPlan: [feeA] },
+        options
+      );
+      selectedSnapshots.push(selected);
+      return { ok: true };
+    },
+  });
+
+  assert.equal(selectedSnapshots.length, 2);
+  assert.ok(selectedSnapshots.every((s) => s === null));
+  assert.equal(selected, null, "after multiple successes selectedPlanLearner stays null");
+  console.log("✓ apply: multi-learner success never opens detail");
 }
 
 async function testEmptySelectionDoesNotCallSave() {
@@ -172,6 +257,14 @@ function testListViewWiresBulkModal() {
       /billing-plan[\s\S]*staffAuthHeaders\(\)/.test(plansSrc),
     "canonical savePlan PATCH sends staffAuthHeaders"
   );
+  assert.ok(
+    /suppressDetailSelection:\s*true/.test(plansSrc),
+    "bulk modal savePlan wrapper suppresses detail selection"
+  );
+  assert.ok(
+    /resolveSelectedPlanLearnerAfterPlanSave/.test(plansSrc),
+    "BillingPlans uses bulk-safe selectedPlanLearner resolver"
+  );
   console.log("✓ source: list view opens bulk modal; savePlan authenticated");
 }
 
@@ -181,6 +274,8 @@ async function main() {
   testFilterAndSelectAllFilteredOnly();
   await testApplyPartialFailureSurfaced();
   await testApplyUsesSavePlanWithAppendedFees();
+  testBulkDoesNotAutoSelectDetailLearner();
+  await testBulkMultiLearnerNeverSelectsDetail();
   await testEmptySelectionDoesNotCallSave();
   testListViewWiresBulkModal();
   console.log("\nAll billingPlansBulkAddFees tests passed.");
