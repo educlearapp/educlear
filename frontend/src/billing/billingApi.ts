@@ -204,7 +204,10 @@ export const fetchStatementAccountTransactions = async (
   if (options.period) params.set("period", String(options.period));
   if (options.showCorrectionsAudit) params.set("showCorrections", "true");
 
-  const data = await getJson(`${API_URL}/api/statements/transactions?${params.toString()}`);
+  const data = await getJson(
+    `${API_URL}/api/statements/transactions?${params.toString()}`,
+    staffAuthHeaders()
+  );
   if (!data || (data as { success?: boolean }).success === false) return [];
   return Array.isArray((data as { transactions?: unknown }).transactions)
     ? ((data as { transactions: StatementAccountTransactionRow[] }).transactions || [])

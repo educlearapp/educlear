@@ -1,5 +1,6 @@
 import jsPDF from "jspdf";
 import { API_URL } from "../api";
+import { staffAuthHeaders } from "../auth/staffAuthHeaders";
 import { cacheSchoolLogoUrl, resolveSchoolLogoUrl } from "../utils/schoolLogo";
 import { formatMoney } from "./billingLedger";
 import {
@@ -751,7 +752,9 @@ export async function fetchSchoolStatementPdfBlob(
   if (billingRef) params.set("accountNo", billingRef);
   if (learnerId) params.set("learnerId", learnerId);
   if (statementNote) params.set("statementNote", statementNote);
-  const res = await fetch(`${API_URL}/api/statements/pdf?${params.toString()}`);
+  const res = await fetch(`${API_URL}/api/statements/pdf?${params.toString()}`, {
+    headers: { ...staffAuthHeaders() },
+  });
   if (!res.ok) {
     const body = await res.json().catch(() => ({}));
     throw new Error(String((body as { error?: string }).error || "Failed to generate statement PDF"));
@@ -877,7 +880,7 @@ export async function sendStatementEmail(payload: {
 }): Promise<{ messageId?: string }> {
   const response = await fetch(`${API_URL}/api/emails/send-statement`, {
     method: "POST",
-    headers: { "Content-Type": "application/json" },
+    headers: { "Content-Type": "application/json", ...staffAuthHeaders() },
     body: JSON.stringify(payload),
   });
   const body = await response.json().catch(() => ({}));

@@ -1,11 +1,16 @@
 import { API_URL } from "../api";
+import { staffAuthHeaders } from "../auth/staffAuthHeaders";
 
 const BASE = `${API_URL}/api/communication-engine`;
 
 async function request<T>(path: string, options: RequestInit = {}): Promise<T> {
   const res = await fetch(`${BASE}${path}`, {
-    headers: { "Content-Type": "application/json", ...(options.headers || {}) },
     ...options,
+    headers: {
+      "Content-Type": "application/json",
+      ...staffAuthHeaders(),
+      ...(options.headers || {}),
+    },
   });
   const data = await res.json().catch(() => ({}));
   if (!res.ok) {
