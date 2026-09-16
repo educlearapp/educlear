@@ -227,21 +227,29 @@ async function createSubscriptionCheckout(
     }),
   ]);
 
-  try {
-    assertModularUpgradeAllowed({
-      currentModules: moduleEntitlements,
-      targetSku: quote.sku,
-      legacyPackageCode: subscriptionRow?.packageCode ?? null,
-    });
-  } catch (error) {
-    if (error instanceof ModularCheckoutError) {
-      return res.status(error.statusCode).json({
-        success: false,
-        error: error.message,
-        code: error.code,
+  // First purchase (no ACTIVE paid package): skip upgrade-graph checks.
+  // Fail-open entitlements must not block new unpaid schools as false FULL_UNLIMITED.
+  const isActivePaid =
+    String(subscriptionRow?.status || "")
+      .trim()
+      .toUpperCase() === "ACTIVE";
+  if (isActivePaid) {
+    try {
+      assertModularUpgradeAllowed({
+        currentModules: moduleEntitlements,
+        targetSku: quote.sku,
+        legacyPackageCode: subscriptionRow?.packageCode ?? null,
       });
+    } catch (error) {
+      if (error instanceof ModularCheckoutError) {
+        return res.status(error.statusCode).json({
+          success: false,
+          error: error.message,
+          code: error.code,
+        });
+      }
+      throw error;
     }
-    throw error;
   }
 
   await ensureEduClearPackages();

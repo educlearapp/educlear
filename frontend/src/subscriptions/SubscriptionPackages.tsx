@@ -26,7 +26,8 @@ import {
   isModularCheckoutAvailable,
   modularCheckoutDisabledReason,
   onlinePackagePaymentsUnavailableNotice,
-  packageUpgradeCta,
+  packageChangePolicyNotice,
+  resolvePackageActionCta,
   resolvePackagePageVisibility,
 } from "./dashboardPackagePanelLogic";
 import {
@@ -479,8 +480,12 @@ export default function SubscriptionPackages() {
               }}
             >
               {offerPackages.map((pkg) => {
-                const cta = packageUpgradeCta({
+                const cta = resolvePackageActionCta({
                   checkoutAvailable,
+                  pageKind: visibility.kind,
+                  interval,
+                  termsAccepted: agreedToTerms,
+                  checkoutBusy: checkoutBusySku === pkg.code,
                   currentPackageName: current?.name || "No package yet",
                   requestedPackage: pkg,
                   schoolName,
@@ -517,71 +522,66 @@ export default function SubscriptionPackages() {
                       {pkg.description}
                     </p>
                     {cta.kind === "mailto" ? (
-                      agreedToTerms ? (
-                        <a
-                          href={cta.href}
-                          data-testid={`upgrade-contact-cta-${pkg.code}`}
-                          style={{
-                            ...goldBtn,
-                            display: "inline-block",
-                            textDecoration: "none",
-                            marginTop: "auto",
-                            textAlign: "center",
-                          }}
-                        >
-                          {cta.label}
-                        </a>
-                      ) : (
-                        <button
-                          type="button"
-                          data-testid={`upgrade-contact-cta-${pkg.code}`}
-                          style={{
-                            ...goldBtn,
-                            marginTop: "auto",
-                            opacity: 0.75,
-                            cursor: "not-allowed",
-                          }}
-                          onClick={() =>
-                            setError(
-                              "You must agree to the EduClear Terms & Conditions before continuing."
-                            )
-                          }
-                        >
-                          Accept Terms to Continue
-                        </button>
-                      )
+                      <a
+                        href={cta.href}
+                        data-testid={`upgrade-contact-cta-${pkg.code}`}
+                        style={{
+                          ...goldBtn,
+                          display: "inline-block",
+                          textDecoration: "none",
+                          marginTop: "auto",
+                          textAlign: "center",
+                        }}
+                      >
+                        {cta.label}
+                      </a>
+                    ) : cta.kind === "terms_gate" ? (
+                      <button
+                        type="button"
+                        data-testid={`upgrade-terms-cta-${pkg.code}`}
+                        style={{
+                          ...goldBtn,
+                          marginTop: "auto",
+                          opacity: 0.75,
+                          cursor: "not-allowed",
+                        }}
+                        onClick={() =>
+                          setError(
+                            "You must agree to the EduClear Terms & Conditions before continuing."
+                          )
+                        }
+                      >
+                        {cta.label}
+                      </button>
                     ) : (
                       <button
                         type="button"
                         style={{
                           ...goldBtn,
                           marginTop: "auto",
-                          opacity: checkoutBusySku && checkoutBusySku !== pkg.code ? 0.65 : 1,
-                          cursor: checkoutBusySku || !agreedToTerms ? "not-allowed" : "pointer",
+                          opacity:
+                            checkoutBusySku && checkoutBusySku !== pkg.code ? 0.65 : 1,
+                          cursor: cta.disabled || checkoutBusySku ? "not-allowed" : "pointer",
                         }}
                         data-testid={`upgrade-checkout-cta-${pkg.code}`}
-                        disabled={Boolean(checkoutBusySku) || !agreedToTerms}
-                        onClick={() => {
-                          if (!agreedToTerms) {
-                            setError(
-                              "You must agree to the EduClear Terms & Conditions before continuing."
-                            );
-                            return;
-                          }
-                          void handleUpgradeCheckout(pkg);
-                        }}
+                        disabled={cta.disabled || Boolean(checkoutBusySku)}
+                        onClick={() => void handleUpgradeCheckout(pkg)}
                       >
-                        {checkoutBusySku === pkg.code
-                          ? "Opening PayFast…"
-                          : !agreedToTerms
-                            ? "Accept Terms to Continue"
-                            : cta.label}
+                        {cta.label}
                       </button>
                     )}
                   </div>
                 );
               })}
             </div>
+            {visibility.kind === "existing" && packageChangePolicyNotice(visibility.kind) ? (
+              <p
+                style={{ marginTop: 12, color: "#64748b", fontWeight: 600, fontSize: 13 }}
+                data-testid="package-change-policy-notice"
+              >
+                {packageChangePolicyNotice(visibility.kind)}
+              </p>
+            ) : null}
             {!checkoutAvailable ? (
               <p
                 style={{ marginTop: 12, color: "#92400e", fontWeight: 600 }}

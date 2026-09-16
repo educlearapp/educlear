@@ -77,7 +77,14 @@ function testCustomerFacingCopyClean() {
       assert.ok(!/Missing: \$\{missingPayFastEnv/i.test(text), rel);
       // No dead disabled Upgrade button while checkout is offline
       assert.ok(!/disabled.*Upgrade to|Upgrade to \$\{pkg\.shortLabel\}/i.test(text), rel);
-      assert.ok(text.includes("packageUpgradeCta") || text.includes("Contact EduClear to upgrade") || rel.includes("Status"), rel);
+      assert.ok(
+        text.includes("packageUpgradeCta") ||
+          text.includes("resolvePackageActionCta") ||
+          text.includes("Contact EduClear to upgrade") ||
+          text.includes("PACKAGE_UPGRADE_CONTACT_CTA_LABEL") ||
+          rel.includes("Status"),
+        rel
+      );
     }
   }
   // Package surfaces must use contact CTA helper
@@ -89,9 +96,9 @@ function testCustomerFacingCopyClean() {
     path.join(FE_SRC, "subscriptions/DashboardPackagePanel.tsx"),
     "utf8"
   );
-  assert.ok(packages.includes("packageUpgradeCta"));
-  assert.ok(dashboard.includes("packageUpgradeCta"));
-  assert.ok(packages.includes("Contact EduClear to upgrade") || packages.includes("PACKAGE_UPGRADE_CONTACT_CTA_LABEL") || packages.includes("packageUpgradeCta"));
+  assert.ok(packages.includes("packageUpgradeCta") || packages.includes("resolvePackageActionCta"));
+  assert.ok(dashboard.includes("packageUpgradeCta") || dashboard.includes("resolvePackageActionCta"));
+  assert.ok(packages.includes("Contact EduClear to upgrade") || packages.includes("PACKAGE_UPGRADE_CONTACT_CTA_LABEL") || packages.includes("packageUpgradeCta") || packages.includes("resolvePackageActionCta"));
   console.log("✓ school UI free of raw PayFast env / legacy capacity / dead Upgrade CTAs");
 }
 

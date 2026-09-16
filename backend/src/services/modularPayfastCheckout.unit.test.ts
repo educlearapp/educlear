@@ -3,6 +3,9 @@
  * Run: npx tsx src/services/modularPayfastCheckout.unit.test.ts
  */
 import assert from "assert";
+import fs from "fs";
+import path from "path";
+import { fileURLToPath } from "url";
 
 import { EDUCLEAR_COMMERCIAL_PACKAGES } from "./educlearCommercialPackages";
 import { formatPayFastAmount } from "./payfastService";
@@ -24,6 +27,7 @@ import {
   zarToCents,
 } from "./modularPayfastCheckout";
 
+const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const EXPECTED: Record<string, { monthly: string; annual: string }> = {
   CORE: { monthly: "1000.00", annual: "10000.00" },
   ACCOUNTING: { monthly: "750.00", annual: "7500.00" },
@@ -204,6 +208,19 @@ function testUpgradePolicy() {
   console.log("✓ upgrade allowed; same package / downgrade blocked");
 }
 
+function testFirstPurchaseSkipsUpgradeGateInRoute() {
+  const route = fs.readFileSync(path.join(__dirname, "../routes/payfast.ts"), "utf8");
+  assert.ok(route.includes('=== "ACTIVE"'));
+  assert.ok(route.includes("if (isActivePaid)"));
+  assert.ok(route.includes("assertModularUpgradeAllowed"));
+  // First-purchase / unpaid must not always call the upgrade graph.
+  assert.ok(
+    /isActivePaid[\s\S]*assertModularUpgradeAllowed/.test(route),
+    "upgrade assert must be gated behind ACTIVE paid status"
+  );
+  console.log("✓ create-checkout skips upgrade graph for non-ACTIVE first purchase");
+}
+
 function testParsers() {
   assert.strictEqual(parseCommercialSku("core"), "CORE");
   assert.strictEqual(parseModularBillingCycle("monthly"), "MONTHLY");
@@ -220,6 +237,7 @@ function main() {
   testPeriodLogic();
   testIntentRoundTripAndIdempotentRead();
   testUpgradePolicy();
+  testFirstPurchaseSkipsUpgradeGateInRoute();
   testParsers();
   console.log("\nAll modularPayfastCheckout.unit.test.ts passed.");
 }

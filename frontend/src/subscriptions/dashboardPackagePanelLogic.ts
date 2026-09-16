@@ -19,6 +19,14 @@ export { isLegacyCapacityPackageCode };
 
 export const PACKAGE_UPGRADE_CONTACT_CTA_LABEL = "Contact EduClear to upgrade";
 export const PACKAGE_UPGRADE_MAIL_SUBJECT = "EduClear Package Upgrade Request";
+export const PACKAGE_PAY_NOW_LABEL = "Pay now";
+export const PACKAGE_PAY_ANNUALLY_LABEL = "Pay annually";
+export const PACKAGE_UPGRADE_AND_PAY_LABEL = "Upgrade & Pay";
+export const PACKAGE_ACCEPT_TERMS_CTA_LABEL = "Accept Terms to Continue";
+export const PACKAGE_OPENING_PAYMENT_LABEL = "Opening secure payment…";
+/** Shown only for existing paid schools with upgrade options — never for new unpaid. */
+export const PACKAGE_DOWNGRADE_LATERAL_NOTICE =
+  "Downgrades and lateral package changes require contacting EduClear";
 
 /** Customer-facing package page intro (no internal module language). */
 export const PACKAGE_PAGE_INTRO_COPY =
@@ -27,6 +35,13 @@ export const PACKAGE_PAGE_INTRO_COPY =
 export const FULL_UNLIMITED_TOP_PACKAGE_MESSAGE =
   "You're on EduClear Full Unlimited — our complete package.";
 
+/** New unpaid first purchase: never show downgrade/lateral policy copy. */
+export function packageChangePolicyNotice(
+  pageKind: "new_unpaid" | "existing"
+): string | null {
+  if (pageKind === "new_unpaid") return null;
+  return PACKAGE_DOWNGRADE_LATERAL_NOTICE;
+}
 export function formatPackageCapacityDisplay(pkg: EduClearCommercialPackage): string {
   if (pkg.learnerLimit == null) return "Unlimited learners";
   return `Up to ${Math.trunc(pkg.learnerLimit)} active learners`;
@@ -135,9 +150,75 @@ export function formatCurrentPackageCard(
   };
 }
 
-/** Checkout CTA when modular PayFast is enabled (flag ON). */
-export function upgradeButtonLabel(target: EduClearCommercialPackage): string {
-  return `Upgrade to ${target.name}`;
+/** Checkout CTA when modular PayFast is enabled (flag ON) — existing upgrades. */
+export function upgradeButtonLabel(_target: EduClearCommercialPackage): string {
+  return PACKAGE_UPGRADE_AND_PAY_LABEL;
+}
+
+export function newSaleCheckoutButtonLabel(interval: BillingInterval): string {
+  return interval === "annual" ? PACKAGE_PAY_ANNUALLY_LABEL : PACKAGE_PAY_NOW_LABEL;
+}
+
+/**
+ * Final package action CTA.
+ *
+ * Mailto ONLY when modular checkout is unavailable.
+ * When checkoutAvailable=true, never returns mailto.
+ */
+export function resolvePackageActionCta(input: {
+  checkoutAvailable: boolean;
+  pageKind: "new_unpaid" | "existing";
+  interval: BillingInterval;
+  termsAccepted: boolean;
+  checkoutBusy?: boolean;
+  currentPackageName: string;
+  requestedPackage: EduClearCommercialPackage;
+  schoolName?: string | null;
+}):
+  | { kind: "mailto"; label: string; href: string }
+  | { kind: "checkout"; label: string; disabled: boolean }
+  | { kind: "terms_gate"; label: string } {
+  if (input.checkoutBusy) {
+    return {
+      kind: "checkout",
+      label: PACKAGE_OPENING_PAYMENT_LABEL,
+      disabled: true,
+    };
+  }
+
+  if (!input.checkoutAvailable) {
+    if (input.pageKind === "new_unpaid" && !input.termsAccepted) {
+      return { kind: "terms_gate", label: PACKAGE_ACCEPT_TERMS_CTA_LABEL };
+    }
+    return {
+      kind: "mailto",
+      label: PACKAGE_UPGRADE_CONTACT_CTA_LABEL,
+      href: buildPackageUpgradeMailtoHref({
+        currentPackageName: input.currentPackageName,
+        requestedPackageName: input.requestedPackage.name,
+        schoolName: input.schoolName,
+      }),
+    };
+  }
+
+  // Modular checkout enabled — never mailto.
+  if (input.pageKind === "new_unpaid" && !input.termsAccepted) {
+    return { kind: "terms_gate", label: PACKAGE_ACCEPT_TERMS_CTA_LABEL };
+  }
+
+  if (input.pageKind === "new_unpaid") {
+    return {
+      kind: "checkout",
+      label: newSaleCheckoutButtonLabel(input.interval),
+      disabled: false,
+    };
+  }
+
+  return {
+    kind: "checkout",
+    label: PACKAGE_UPGRADE_AND_PAY_LABEL,
+    disabled: false,
+  };
 }
 
 /** All 8 catalogue prices for the selected interval (regression helper). */
@@ -194,25 +275,34 @@ export function buildPackageUpgradeMailtoHref(input: PackageUpgradeMailtoInput):
   return `mailto:${EDUCLEAR_LEGAL_CONTACT.email}?${query}`;
 }
 
-/** While modular checkout is offline, always use the contact CTA (never a dead Upgrade button). */
+/** @deprecated Prefer resolvePackageActionCta for final Pay/Upgrade labels. */
 export function packageUpgradeCta(input: {
   checkoutAvailable: boolean;
   currentPackageName: string;
   requestedPackage: EduClearCommercialPackage;
   schoolName?: string | null;
-}): { kind: "mailto"; label: string; href: string } | { kind: "checkout"; label: string } {
-  if (input.checkoutAvailable) {
-    return { kind: "checkout", label: upgradeButtonLabel(input.requestedPackage) };
+  pageKind?: "new_unpaid" | "existing";
+  interval?: BillingInterval;
+  termsAccepted?: boolean;
+  checkoutBusy?: boolean;
+}):
+  | { kind: "mailto"; label: string; href: string }
+  | { kind: "checkout"; label: string }
+  | { kind: "terms_gate"; label: string } {
+  const resolved = resolvePackageActionCta({
+    checkoutAvailable: input.checkoutAvailable,
+    pageKind: input.pageKind || "existing",
+    interval: input.interval || "monthly",
+    termsAccepted: input.termsAccepted !== false,
+    checkoutBusy: input.checkoutBusy,
+    currentPackageName: input.currentPackageName,
+    requestedPackage: input.requestedPackage,
+    schoolName: input.schoolName,
+  });
+  if (resolved.kind === "checkout") {
+    return { kind: "checkout", label: resolved.label };
   }
-  return {
-    kind: "mailto",
-    label: PACKAGE_UPGRADE_CONTACT_CTA_LABEL,
-    href: buildPackageUpgradeMailtoHref({
-      currentPackageName: input.currentPackageName,
-      requestedPackageName: input.requestedPackage.name,
-      schoolName: input.schoolName,
-    }),
-  };
+  return resolved;
 }
 
 /** @deprecated Legacy capacity helpers — not for new-sale UX. */

@@ -15,7 +15,13 @@ import {
 } from "../modules/educlearCommercialPackages";
 import {
   FULL_UNLIMITED_TOP_PACKAGE_MESSAGE,
+  PACKAGE_ACCEPT_TERMS_CTA_LABEL,
+  PACKAGE_DOWNGRADE_LATERAL_NOTICE,
+  PACKAGE_OPENING_PAYMENT_LABEL,
   PACKAGE_PAGE_INTRO_COPY,
+  PACKAGE_PAY_ANNUALLY_LABEL,
+  PACKAGE_PAY_NOW_LABEL,
+  PACKAGE_UPGRADE_AND_PAY_LABEL,
   PACKAGE_UPGRADE_CONTACT_CTA_LABEL,
   PACKAGE_UPGRADE_MAIL_SUBJECT,
   buildPackageUpgradeMailtoHref,
@@ -26,8 +32,10 @@ import {
   listUpgradeOptions,
   modularCheckoutDisabledReason,
   onlinePackagePaymentsUnavailableNotice,
+  packageChangePolicyNotice,
   packageUpgradeCta,
   resolveCurrentCommercialPackageStrict,
+  resolvePackageActionCta,
   resolvePackagePageVisibility,
   upgradeButtonLabel,
 } from "./dashboardPackagePanelLogic";
@@ -207,10 +215,116 @@ function testContactCtaReplacesDeadUpgrade() {
   });
   assert.strictEqual(checkoutCta.kind, "checkout");
   if (checkoutCta.kind !== "checkout") throw new Error("expected checkout");
-  assert.strictEqual(checkoutCta.label, "Upgrade to EduClear Full Unlimited");
-  assert.strictEqual(upgradeButtonLabel(full), "Upgrade to EduClear Full Unlimited");
+  assert.strictEqual(checkoutCta.label, PACKAGE_UPGRADE_AND_PAY_LABEL);
+  assert.strictEqual(upgradeButtonLabel(full), PACKAGE_UPGRADE_AND_PAY_LABEL);
   console.log("✓ contact CTA replaces dead Upgrade action");
   console.log("✓ flag-ON checkout CTA kind available");
+}
+
+function testFinalPayfastCtaLabels() {
+  const core = findCommercialPackageByCode("CORE")!;
+
+  const unpaidNoTerms = resolvePackageActionCta({
+    checkoutAvailable: true,
+    pageKind: "new_unpaid",
+    interval: "monthly",
+    termsAccepted: false,
+    currentPackageName: "No package yet",
+    requestedPackage: core,
+  });
+  assert.strictEqual(unpaidNoTerms.kind, "terms_gate");
+  assert.strictEqual(unpaidNoTerms.label, PACKAGE_ACCEPT_TERMS_CTA_LABEL);
+
+  const unpaidMonthly = resolvePackageActionCta({
+    checkoutAvailable: true,
+    pageKind: "new_unpaid",
+    interval: "monthly",
+    termsAccepted: true,
+    currentPackageName: "No package yet",
+    requestedPackage: core,
+  });
+  assert.strictEqual(unpaidMonthly.kind, "checkout");
+  if (unpaidMonthly.kind !== "checkout") throw new Error("expected checkout");
+  assert.strictEqual(unpaidMonthly.label, PACKAGE_PAY_NOW_LABEL);
+  assert.ok(!/mailto:/i.test(JSON.stringify(unpaidMonthly)));
+
+  const unpaidAnnual = resolvePackageActionCta({
+    checkoutAvailable: true,
+    pageKind: "new_unpaid",
+    interval: "annual",
+    termsAccepted: true,
+    currentPackageName: "No package yet",
+    requestedPackage: core,
+  });
+  assert.strictEqual(unpaidAnnual.kind, "checkout");
+  if (unpaidAnnual.kind !== "checkout") throw new Error("expected checkout");
+  assert.strictEqual(unpaidAnnual.label, PACKAGE_PAY_ANNUALLY_LABEL);
+
+  const busy = resolvePackageActionCta({
+    checkoutAvailable: true,
+    pageKind: "new_unpaid",
+    interval: "monthly",
+    termsAccepted: true,
+    checkoutBusy: true,
+    currentPackageName: "No package yet",
+    requestedPackage: core,
+  });
+  assert.strictEqual(busy.kind, "checkout");
+  if (busy.kind !== "checkout") throw new Error("expected checkout");
+  assert.strictEqual(busy.label, PACKAGE_OPENING_PAYMENT_LABEL);
+
+  const existing = resolvePackageActionCta({
+    checkoutAvailable: true,
+    pageKind: "existing",
+    interval: "monthly",
+    termsAccepted: true,
+    currentPackageName: "EduClear Core",
+    requestedPackage: findCommercialPackageByCode("FULL_UNLIMITED")!,
+  });
+  assert.strictEqual(existing.kind, "checkout");
+  if (existing.kind !== "checkout") throw new Error("expected checkout");
+  assert.strictEqual(existing.label, PACKAGE_UPGRADE_AND_PAY_LABEL);
+
+  const flagOff = resolvePackageActionCta({
+    checkoutAvailable: false,
+    pageKind: "new_unpaid",
+    interval: "monthly",
+    termsAccepted: true,
+    currentPackageName: "No package yet",
+    requestedPackage: core,
+  });
+  assert.strictEqual(flagOff.kind, "mailto");
+  if (flagOff.kind !== "mailto") throw new Error("expected mailto");
+  assert.ok(flagOff.href.startsWith("mailto:"));
+
+  // Flag ON never mailto
+  for (const interval of ["monthly", "annual"] as const) {
+    const cta = resolvePackageActionCta({
+      checkoutAvailable: true,
+      pageKind: "new_unpaid",
+      interval,
+      termsAccepted: true,
+      currentPackageName: "No package yet",
+      requestedPackage: core,
+    });
+    assert.notStrictEqual(cta.kind, "mailto");
+    assert.ok(!/Upgrade/i.test(cta.kind === "checkout" || cta.kind === "terms_gate" ? cta.label : ""));
+  }
+
+  assert.strictEqual(packageChangePolicyNotice("new_unpaid"), null);
+  assert.strictEqual(packageChangePolicyNotice("existing"), PACKAGE_DOWNGRADE_LATERAL_NOTICE);
+
+  const fullUnlimited = resolvePackagePageVisibility({
+    entitlements: { CORE: true, ACCOUNTING: true, PAYROLL: true },
+    subscriptionStatus: "ACTIVE",
+    legacyPackageCode: "UNLIMITED",
+    fullCapacityCode: "FULL_UNLIMITED",
+  });
+  assert.strictEqual(fullUnlimited.current?.code, "FULL_UNLIMITED");
+  assert.strictEqual(fullUnlimited.offerPackages.length, 0);
+
+  console.log("✓ NEW unpaid Pay now / Pay annually; existing Upgrade & Pay; flag-off mailto");
+  console.log("✓ unpaid has no downgrade warning; Full Unlimited has no upgrade CTA");
 }
 
 function testMailtoOmitsMissingSchool() {
@@ -306,14 +420,20 @@ function testPanelsWireToggleAndFailSafeContact() {
     assert.ok(src.includes("BillingIntervalToggle"));
     assert.ok(src.includes("PACKAGE_PAGE_INTRO_COPY"));
     assert.ok(src.includes("color: INK") || src.includes('color: "#0f172a"') || src.includes("INK"));
+    assert.ok(src.includes("packageChangePolicyNotice"));
+    assert.ok(src.includes('visibility.kind === "existing"'));
+    assert.ok(!/Upgrade to \$\{/.test(src));
+    assert.ok(src.includes("createSubscriptionCheckout"));
+    assert.ok(src.includes("sku: pkg.code"));
+    assert.ok(src.includes('billingCycle = interval === "annual" ? "ANNUAL" : "MONTHLY"'));
   }
   assert.ok(dash.includes("checkoutBusySku"));
   assert.ok(dash.includes("if (!checkoutAvailable || checkoutBusySku) return"));
-  assert.ok(dash.includes('billingCycle = interval === "annual" ? "ANNUAL" : "MONTHLY"'));
-  assert.ok(dash.includes("sku: pkg.code"));
-  assert.ok(dash.includes("resolvePackagePageVisibility"));
-  assert.ok(dash.includes("FULL_UNLIMITED_TOP_PACKAGE_MESSAGE"));
+  assert.ok(dash.includes("resolvePackageActionCta") || dash.includes("resolvePackagePageVisibility"));
+  assert.ok(packs.includes("resolvePackageActionCta"));
+  assert.ok(packs.includes("Pay now") || packs.includes("PACKAGE_PAY_NOW") || packs.includes("resolvePackageActionCta"));
   console.log("✓ panels wire toggle; flag-ON checkout passes SKU/cycle; duplicate click guarded");
+  console.log("✓ unpaid path has no Upgrade-to label; downgrade notice gated to existing only");
 }
 
 function testPriceSwitchesWithInterval() {
@@ -335,6 +455,7 @@ function main() {
   testLowerPackageValidUpgradesOnly();
   testExistingCustomersPreservedViaActiveStatus();
   testContactCtaReplacesDeadUpgrade();
+  testFinalPayfastCtaLabels();
   testMailtoOmitsMissingSchool();
   testModularCheckoutDisabledCopy();
   testAllEightPrices();

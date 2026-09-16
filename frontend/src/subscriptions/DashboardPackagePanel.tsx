@@ -19,7 +19,8 @@ import {
   formatPackageCapacityDisplay,
   isModularCheckoutAvailable,
   modularCheckoutDisabledReason,
-  packageUpgradeCta,
+  packageChangePolicyNotice,
+  resolvePackageActionCta,
   resolvePackagePageVisibility,
 } from "./dashboardPackagePanelLogic";
 import { submitPayFastCheckout } from "./payfastCheckout";
@@ -296,6 +297,7 @@ export default function DashboardPackagePanel({ moduleEntitlements = null }: Pro
                 key={pkg.code}
                 pkg={pkg}
                 interval={interval}
+                pageKind={visibility.kind}
                 checkoutAvailable={checkoutAvailable}
                 checkoutBusy={checkoutBusySku === pkg.code}
                 checkoutDisabled={Boolean(checkoutBusySku)}
@@ -305,6 +307,14 @@ export default function DashboardPackagePanel({ moduleEntitlements = null }: Pro
               />
             ))}
           </div>
+          {visibility.kind === "existing" && packageChangePolicyNotice(visibility.kind) ? (
+            <p
+              style={{ marginTop: 14, color: "#64748b", fontWeight: 600, fontSize: 13 }}
+              data-testid="package-change-policy-notice"
+            >
+              {packageChangePolicyNotice(visibility.kind)}
+            </p>
+          ) : null}
           {!checkoutAvailable ? (
             <p
               style={{ marginTop: 14, color: "#92400e", fontWeight: 600 }}
@@ -341,6 +351,7 @@ export default function DashboardPackagePanel({ moduleEntitlements = null }: Pro
 function UpgradeCard({
   pkg,
   interval,
+  pageKind,
   checkoutAvailable,
   checkoutBusy,
   checkoutDisabled,
@@ -350,6 +361,7 @@ function UpgradeCard({
 }: {
   pkg: EduClearCommercialPackage;
   interval: BillingInterval;
+  pageKind: "new_unpaid" | "existing";
   checkoutAvailable: boolean;
   checkoutBusy: boolean;
   checkoutDisabled: boolean;
@@ -357,8 +369,12 @@ function UpgradeCard({
   schoolName?: string | null;
   onCheckout: () => void;
 }) {
-  const cta = packageUpgradeCta({
+  const cta = resolvePackageActionCta({
     checkoutAvailable,
+    pageKind,
+    interval,
+    termsAccepted: true,
+    checkoutBusy,
     currentPackageName,
     requestedPackage: pkg,
     schoolName,
@@ -371,7 +387,7 @@ function UpgradeCard({
     border: `1px solid ${GOLD}`,
     background: "linear-gradient(135deg, #d4af37, #f5d06f)",
     fontWeight: 800,
-    cursor: checkoutDisabled ? "not-allowed" : "pointer",
+    cursor: checkoutDisabled || (cta.kind === "checkout" && cta.disabled) ? "not-allowed" : "pointer",
     color: "#111827",
     textDecoration: "none",
     textAlign: "center",
@@ -420,12 +436,16 @@ function UpgradeCard({
       ) : (
         <button
           type="button"
-          data-testid={`upgrade-checkout-cta-${pkg.code}`}
+          data-testid={
+            cta.kind === "terms_gate"
+              ? `upgrade-terms-cta-${pkg.code}`
+              : `upgrade-checkout-cta-${pkg.code}`
+          }
           style={buttonStyle}
-          disabled={checkoutDisabled}
-          onClick={onCheckout}
+          disabled={checkoutDisabled || (cta.kind === "checkout" && cta.disabled)}
+          onClick={cta.kind === "checkout" ? onCheckout : undefined}
         >
-          {checkoutBusy ? "Opening PayFast…" : cta.label}
+          {cta.label}
         </button>
       )}
     </div>
