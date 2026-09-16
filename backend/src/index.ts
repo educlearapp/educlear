@@ -46,6 +46,7 @@ import feesRoutes from "./routes/fees";
 import registrationsRoutes from "./routes/registrations";
 import listsRegistersRoutes from "./routes/listsRegisters";
 import emailRoutes from "./routes/emails";
+import bulkStatementEmailJobsRoutes from "./routes/bulkStatementEmailJobs";
 import schoolEmailSettingsRoutes from "./routes/schoolEmailSettings";
 import schoolSubjectsRoutes from "./routes/schoolSubjects";
 import schoolSmsSettingsRoutes from "./routes/schoolSmsSettings";
@@ -87,6 +88,7 @@ import { prisma } from "./prisma";
 import { bootstrapDevTestSchoolEmail } from "./dev/devTestSchoolEmail";
 import { ensureSuperAdminOnStartup } from "./services/ensureSuperAdmin";
 import { runProductionStartup } from "./services/productionStartup";
+import { startBulkStatementEmailJobProcessor } from "./services/bulkStatementEmailJobProcessor";
 
 type OtpRecord = {
 
@@ -286,6 +288,7 @@ app.use("/api/auth", authRoutes);
 app.use("/learner", requireSchoolModule("CORE"), learnerRoutes);
 app.use("/api/schools", schoolsRoutes);
 app.use("/api/emails", requireSchoolModule("CORE"), emailRoutes);
+app.use("/api/bulk-statement-email-jobs", requireSchoolModule("CORE"), bulkStatementEmailJobsRoutes);
 app.use("/api/school-email-settings", requireSchoolModule("CORE"), schoolEmailSettingsRoutes);
 app.use("/api/school-sms-settings", requireSchoolModule("CORE"), schoolSmsSettingsRoutes);
 app.use("/api/users", usersRoutes);
@@ -451,6 +454,7 @@ async function startServer() {
   await runProductionStartup();
   await ensureSuperAdminOnStartup();
   await bootstrapDevTestSchoolEmail();
+  startBulkStatementEmailJobProcessor(prisma);
 
   const server = app.listen(PORT, () => {
     console.log(`Server running on http://localhost:${PORT}`);

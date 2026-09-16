@@ -168,6 +168,8 @@ model School {
   communicationTemplates           CommunicationTemplate[]
   communicationLogs                CommunicationLog[]
   pushSubscriptions                PushSubscription[]
+  bulkStatementEmailJobs           BulkStatementEmailJob[]
+  bulkStatementEmailRecipients     BulkStatementEmailRecipient[]
   schoolCommunicationProfile       SchoolCommunicationProfile?
   schoolEmailSettings              SchoolEmailSettings?
   schoolSmsSettings                SchoolSmsSettings?
@@ -3331,4 +3333,84 @@ model PushSubscription {
   parent Parent @relation(fields: [parentId], references: [id], onDelete: Cascade)
 
   @@index([schoolId, parentId])
+}
+
+enum BulkStatementEmailJobStatus {
+  PENDING
+  RUNNING
+  COMPLETE
+  PARTIAL
+  FAILED
+  CANCELLED
+}
+
+enum BulkStatementEmailRecipientStatus {
+  PENDING
+  SENDING
+  SENT
+  FAILED
+  SKIPPED
+}
+
+/// Durable bulk statement-email job — server-owned, survives browser logout/restart.
+model BulkStatementEmailJob {
+  id              String                     @id @default(cuid())
+  schoolId        String
+  createdBy       String                     @default("")
+  subject         String
+  htmlBody        String                     @db.Text
+  messagePlain    String                     @default("") @db.Text
+  statementPeriod String                     @default("All Time")
+  filterSnapshot  Json?
+  status          BulkStatementEmailJobStatus @default(PENDING)
+  totalRecipients Int                        @default(0)
+  pendingCount    Int                        @default(0)
+  sendingCount    Int                        @default(0)
+  sentCount       Int                        @default(0)
+  failedCount     Int                        @default(0)
+  skippedCount    Int                        @default(0)
+  createdAt       DateTime                   @default(now())
+  startedAt       DateTime?
+  completedAt     DateTime?
+  updatedAt       DateTime                   @updatedAt
+
+  school     School                         @relation(fields: [schoolId], references: [id], onDelete: Cascade)
+  recipients BulkStatementEmailRecipient[]
+
+  @@index([schoolId, createdAt])
+  @@index([schoolId, status])
+  @@index([status, updatedAt])
+}
+
+model BulkStatementEmailRecipient {
+  id               String                            @id @default(cuid())
+  jobId            String
+  schoolId         String
+  accountNo        String
+  learnerId        String                            @default("")
+  learnerName      String                            @default("")
+  parentId         String                            @default("")
+  contactName      String                            @default("")
+  relationship     String                            @default("")
+  normalizedEmail  String
+  displayEmail     String                            @default("")
+  /// Stable identity within a job: accountNo|parentId|normalizedEmail
+  recipientKey     String
+  status           BulkStatementEmailRecipientStatus @default(PENDING)
+  failureReason    String?                           @db.Text
+  providerMessageId String?
+  attemptCount     Int                               @default(0)
+  lastAttemptAt    DateTime?
+  sendingLeaseUntil DateTime?
+  sentAt           DateTime?
+  createdAt        DateTime                          @default(now())
+  updatedAt        DateTime                          @updatedAt
+
+  job    BulkStatementEmailJob @relation(fields: [jobId], references: [id], onDelete: Cascade)
+  school School                @relation(fields: [schoolId], references: [id], onDelete: Cascade)
+
+  @@unique([jobId, recipientKey])
+  @@index([jobId, status])
+  @@index([schoolId, status])
+  @@index([status, sendingLeaseUntil])
 }

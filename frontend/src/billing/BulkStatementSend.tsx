@@ -1,11 +1,16 @@
-import React, { useMemo, useRef, useState } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import {
   buildStatementCoverEmailHtml,
   loadStatementSchoolBranding,
-  sendStatementEmail,
   type StatementSchoolBranding,
 } from "./statementDocument";
-import { buildStatementPdfFilename } from "./statementPeriod";
+import {
+  createBulkStatementEmailJob,
+  fetchBulkStatementEmailJob,
+  listBulkStatementEmailJobs,
+  retryFailedBulkStatementEmailJob,
+  type BulkStatementEmailJob,
+} from "./bulkStatementEmailJobsApi";
 import {
   BULK_STATEMENT_PERIODS,
   applyRecipientSelected,
@@ -19,20 +24,13 @@ import {
   countSelectedRecipients,
   countSkippedRecipients,
   deselectAllRecipients,
-  failedRecipientAccounts,
   filterRowsForBulkStatementSend,
   isBulkSendButtonEnabled,
-  isBulkSendLocked,
   isRecipientSelectable,
   resolveBulkStatementPeriod,
-  runBulkStatementSend,
   selectAllEligibleRecipients,
   sortBulkStatementRows,
-  summarizeBulkSend,
-  toBulkSendFailure,
   type BulkRecipient,
-  type BulkSendLock,
-  type BulkSendOneResult,
 } from "./bulkStatementSendLogic";
 
 type Props = {
@@ -98,6 +96,28 @@ function disabledBtn(base: React.CSSProperties, locked: boolean): React.CSSPrope
   };
 }
 
+function jobToRecipients(job: BulkStatementEmailJob | null): BulkRecipient[] {
+  if (!job?.recipients?.length) return [];
+  return job.recipients.map((r) => ({
+    id: String(r.id),
+    accountNo: String(r.accountNo || ""),
+    email: String(r.email || ""),
+    contactName: String(r.contactName || ""),
+    relationship: String(r.relationship || ""),
+    learnerId: String(r.learnerId || ""),
+    learnerName: String(r.learnerName || ""),
+    status: (r.status as BulkRecipient["status"]) || "PENDING",
+    selected: r.status === "FAILED",
+    skipReason: r.status === "SKIPPED" ? String(r.failureReason || "Skipped") : undefined,
+    errorReason: r.status === "FAILED" ? String(r.failureReason || "Failed") : undefined,
+  }));
+}
+
+function isJobActive(status: string | undefined): boolean {
+  const s = String(status || "");
+  return s === "PENDING" || s === "RUNNING";
+}
+
 export default function BulkStatementSend({ schoolId, learners, statementRows, onClose }: Props) {
   const [step, setStep] = useState<"wizard" | "email">("wizard");
   const [accountStatus, setAccountStatus] = useState("All");
@@ -112,10 +132,12 @@ export default function BulkStatementSend({ schoolId, learners, statementRows, o
   const [recipients, setRecipients] = useState<BulkRecipient[]>([]);
   const [confirmOpen, setConfirmOpen] = useState(false);
   const [retryConfirmOpen, setRetryConfirmOpen] = useState(false);
-  const [sending, setSending] = useState(false);
-  const [progress, setProgress] = useState({ current: 0, total: 0 });
+  const [submitting, setSubmitting] = useState(false);
   const [schoolBranding, setSchoolBranding] = useState<StatementSchoolBranding>({ name: "School" });
-  const lockRef = useRef<BulkSendLock>({ inFlight: false });
+  const [activeJob, setActiveJob] = useState<BulkStatementEmailJob | null>(null);
+  const [jobError, setJobError] = useState("");
+  const [recentJobs, setRecentJobs] = useState<BulkStatementEmailJob[]>([]);
+  const pollRef = useRef<number | null>(null);
 
   const filteredRows = useMemo(() => {
     const matched = filterRowsForBulkStatementSend(statementRows || [], {
@@ -126,16 +148,65 @@ export default function BulkStatementSend({ schoolId, learners, statementRows, o
     return sortBulkStatementRows(matched, sortBy);
   }, [statementRows, accountStatus, hideCorrections, includeInactiveWithBalances, sortBy]);
 
-  const summary = summarizeBulkSend(recipients);
   const skippedCount = countSkippedRecipients(recipients);
   const canonicalEligibleCount = countCanonicalEligibleRecipients(recipients);
   const additionalEligibleCount = countAdditionalEligibleRecipients(recipients);
   const selectedCount = countSelectedRecipients(recipients);
   const selectedPendingCount = countSelectedPendingRecipients(recipients);
   const selectedFailedCount = countSelectedFailedRecipients(recipients);
-  const sendEnabled = isBulkSendButtonEnabled(recipients);
-  const locked = sending || isBulkSendLocked(lockRef.current);
+  const sendEnabled = !activeJob && isBulkSendButtonEnabled(recipients);
+  const jobLocked = Boolean(activeJob && isJobActive(activeJob.status));
+  const locked = submitting || jobLocked;
   const periodForSend = resolveBulkStatementPeriod(statementPeriod);
+
+  const stopPolling = () => {
+    if (pollRef.current != null) {
+      window.clearInterval(pollRef.current);
+      pollRef.current = null;
+    }
+  };
+
+  const applyJob = (job: BulkStatementEmailJob) => {
+    setActiveJob(job);
+    const mapped = jobToRecipients(job);
+    if (mapped.length) setRecipients(mapped);
+  };
+
+  const refreshJob = async (jobId: string) => {
+    const job = await fetchBulkStatementEmailJob(jobId, schoolId);
+    applyJob(job);
+    if (!isJobActive(job.status)) stopPolling();
+    return job;
+  };
+
+  const startPolling = (jobId: string) => {
+    stopPolling();
+    pollRef.current = window.setInterval(() => {
+      void refreshJob(jobId).catch((error) => {
+        setJobError(error instanceof Error ? error.message : "Failed to refresh job");
+      });
+    }, 2500);
+  };
+
+  useEffect(() => () => stopPolling(), []);
+
+  useEffect(() => {
+    if (step !== "email") return;
+    void (async () => {
+      try {
+        const jobs = await listBulkStatementEmailJobs(schoolId, 8);
+        setRecentJobs(jobs);
+        const running = jobs.find((j) => isJobActive(j.status));
+        if (running) {
+          const full = await fetchBulkStatementEmailJob(running.id, schoolId);
+          applyJob(full);
+          startPolling(full.id);
+        }
+      } catch {
+        // Recent job recovery is best-effort; selection still works offline to create a new job later.
+      }
+    })();
+  }, [step, schoolId]);
 
   const handleContinue = async () => {
     let branding: StatementSchoolBranding = { name: "School" };
@@ -155,51 +226,83 @@ export default function BulkStatementSend({ schoolId, learners, statementRows, o
     setSubject(`Statement of Account — ${periodForSend}`);
     setConfirmOpen(false);
     setRetryConfirmOpen(false);
-    setProgress({ current: 0, total: 0 });
+    setActiveJob(null);
+    setJobError("");
     setStep("email");
   };
 
-  const sendOneRecipient = async (recipient: BulkRecipient): Promise<BulkSendOneResult> => {
-    const html = buildStatementCoverEmailHtml({
-      school: schoolBranding,
-      messagePlain: emailMessage || "",
-    });
+  const createJobFromSelection = async () => {
+    if (submitting || activeJob) return;
+    setSubmitting(true);
+    setConfirmOpen(false);
+    setJobError("");
     try {
-      await sendStatementEmail({
+      const html = buildStatementCoverEmailHtml({
+        school: schoolBranding,
+        messagePlain: emailMessage || "",
+      });
+      const payloadRecipients = recipients
+        .filter((r) => (r.selected && r.status === "PENDING") || r.status === "SKIPPED")
+        .map((r) => ({
+          accountNo: r.accountNo,
+          learnerId: r.learnerId,
+          learnerName: r.learnerName,
+          contactName: r.contactName,
+          relationship: r.relationship,
+          email: r.email,
+          skipped: r.status === "SKIPPED",
+          skipReason: r.skipReason,
+        }));
+      const selectedOnly = payloadRecipients.filter((r) => !r.skipped);
+      if (!selectedOnly.length) {
+        throw new Error("Select at least one eligible recipient");
+      }
+      const job = await createBulkStatementEmailJob({
         schoolId,
-        to: recipient.email,
         subject: subject.trim() || `Statement of Account — ${periodForSend}`,
         html,
-        learnerId: recipient.learnerId,
-        accountNo: recipient.accountNo,
-        period: periodForSend,
-        filename: buildStatementPdfFilename(recipient.accountNo, periodForSend),
+        messagePlain: emailMessage || "",
+        statementPeriod: periodForSend,
+        filterSnapshot: {
+          accountStatus,
+          hideCorrections,
+          includeInactiveWithBalances,
+          groupBy,
+          sortBy,
+        },
+        recipients: payloadRecipients,
       });
-      return { ok: true };
+      applyJob(job);
+      startPolling(job.id);
+      const jobs = await listBulkStatementEmailJobs(schoolId, 8).catch(() => []);
+      setRecentJobs(jobs);
     } catch (error) {
-      return toBulkSendFailure(error);
+      setJobError(error instanceof Error ? error.message : "Failed to start bulk send job");
+    } finally {
+      setSubmitting(false);
     }
   };
 
-  const runSend = async (mode: "pending" | "failed_only") => {
-    if (lockRef.current.inFlight || sending) return;
-    setSending(true);
-    setConfirmOpen(false);
+  const retryFailedJob = async () => {
+    if (!activeJob || submitting) return;
+    setSubmitting(true);
     setRetryConfirmOpen(false);
+    setJobError("");
     try {
-      const next = await runBulkStatementSend({
-        lock: lockRef.current,
-        recipients,
-        mode,
-        sendOne: sendOneRecipient,
-        onProgress: (rows, current, total) => {
-          setRecipients(rows);
-          setProgress({ current, total });
-        },
+      const selectedFailedIds = recipients
+        .filter((r) => r.selected && r.status === "FAILED")
+        .map((r) => r.id);
+      const job = await retryFailedBulkStatementEmailJob({
+        jobId: activeJob.id,
+        schoolId,
+        recipientIds: selectedFailedIds.length ? selectedFailedIds : undefined,
       });
-      setRecipients(next);
+      applyJob(job);
+      startPolling(job.id);
+    } catch (error) {
+      setJobError(error instanceof Error ? error.message : "Failed to retry failed recipients");
     } finally {
-      setSending(false);
+      setSubmitting(false);
     }
   };
 
@@ -242,6 +345,9 @@ export default function BulkStatementSend({ schoolId, learners, statementRows, o
               Select All selects all eligible email recipients (canonical and additional contacts with
               a valid external email). Skipped, school/internal, and blocked contacts stay unselected.
             </div>
+            <div style={{ color: "#0f766e", fontWeight: 700, fontSize: 13 }}>
+              Sending continues on the server if you close this window or log out.
+            </div>
             <div style={{ display: "flex", gap: 10, justifyContent: "flex-end", marginTop: 8 }}>
               <button type="button" style={disabledBtn(ghostBtn, locked)} onClick={onCancel} disabled={locked}>
                 Cancel
@@ -250,7 +356,7 @@ export default function BulkStatementSend({ schoolId, learners, statementRows, o
                 type="button"
                 style={disabledBtn(goldBtn, locked || n <= 0)}
                 disabled={locked || n <= 0}
-                onClick={() => runSend(kind)}
+                onClick={() => (kind === "failed_only" ? void retryFailedJob() : void createJobFromSelection())}
               >
                 Confirm Send
               </button>
@@ -262,7 +368,7 @@ export default function BulkStatementSend({ schoolId, learners, statementRows, o
   };
 
   if (step === "email") {
-    const failedRows = failedRecipientAccounts(recipients);
+    const failedRows = recipients.filter((r) => r.status === "FAILED");
     return (
       <div style={overlay}>
         {(confirmOpen || retryConfirmOpen) && confirmPanel(retryConfirmOpen ? "failed_only" : "pending")}
@@ -270,12 +376,8 @@ export default function BulkStatementSend({ schoolId, learners, statementRows, o
           <div style={{ padding: "20px 24px", borderBottom: `1px solid ${GOLD}`, background: INK, color: GOLD }}>
             <div style={{ fontWeight: 900, fontSize: 20 }}>Send Statements — Email</div>
             <div style={{ fontSize: 13, opacity: 0.85, marginTop: 4 }}>
-              {sending
-                ? `Sending ${progress.current} of ${progress.total}${
-                    recipients.some((row) => row.status === "SENDING")
-                      ? ` · ${recipients.filter((row) => row.status === "SENDING").length} in flight`
-                      : ""
-                  }`
+              {activeJob
+                ? `Job ${activeJob.status} · Pending: ${activeJob.pendingCount} · Sending: ${activeJob.sendingCount} · Sent: ${activeJob.sentCount} · Failed: ${activeJob.failedCount} · Skipped: ${activeJob.skippedCount}`
                 : `Accounts: ${canonicalEligibleCount} · Additional contacts: ${additionalEligibleCount} · Selected: ${selectedCount} · Skipped: ${skippedCount}`}
             </div>
           </div>
@@ -283,13 +385,41 @@ export default function BulkStatementSend({ schoolId, learners, statementRows, o
             <div style={{ color: "#64748b", fontWeight: 700 }}>
               Mail is sent through EduClear using the same statement PDF as Statement Manage.
             </div>
+            <div style={{ color: "#0f766e", fontWeight: 700, fontSize: 13 }}>
+              Server-owned send: progress is saved. You can close this page or log out; reopen Bulk Statement Email
+              to continue watching this job.
+            </div>
+            {jobError ? (
+              <div style={{ border: "1px solid #fecaca", background: "#fef2f2", borderRadius: 10, padding: 12, color: "#991b1b", fontWeight: 700 }}>
+                {jobError}
+              </div>
+            ) : null}
+            {recentJobs.length && !activeJob ? (
+              <div style={{ border: "1px solid #e2e8f0", borderRadius: 10, padding: 12 }}>
+                <div style={{ fontWeight: 800, marginBottom: 6 }}>Recent jobs</div>
+                {recentJobs.slice(0, 5).map((job) => (
+                  <button
+                    key={job.id}
+                    type="button"
+                    style={{ ...ghostBtn, display: "block", width: "100%", textAlign: "left", marginBottom: 6 }}
+                    onClick={() => {
+                      void refreshJob(job.id).then((full) => {
+                        if (isJobActive(full.status)) startPolling(full.id);
+                      });
+                    }}
+                  >
+                    {job.status} · Sent {job.sentCount} · Failed {job.failedCount} · {new Date(job.createdAt).toLocaleString()}
+                  </button>
+                ))}
+              </div>
+            ) : null}
             <label>
               Subject
               <input
                 style={fieldStyle}
                 value={subject}
                 onChange={(e) => setSubject(e.target.value)}
-                disabled={locked}
+                disabled={locked || Boolean(activeJob)}
               />
             </label>
             <label>
@@ -298,29 +428,29 @@ export default function BulkStatementSend({ schoolId, learners, statementRows, o
                 style={{ ...fieldStyle, minHeight: 100 }}
                 value={emailMessage}
                 onChange={(e) => setEmailMessage(e.target.value)}
-                disabled={locked}
+                disabled={locked || Boolean(activeJob)}
               />
             </label>
             <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
               <button
                 type="button"
-                style={disabledBtn(ghostBtn, locked)}
+                style={disabledBtn(ghostBtn, locked || Boolean(activeJob))}
                 onClick={() => {
-                  if (locked) return;
-                  setRecipients((prev) => selectAllEligibleRecipients(prev, lockRef.current));
+                  if (locked || activeJob) return;
+                  setRecipients((prev) => selectAllEligibleRecipients(prev));
                 }}
-                disabled={locked}
+                disabled={locked || Boolean(activeJob)}
               >
                 Select All
               </button>
               <button
                 type="button"
-                style={disabledBtn(ghostBtn, locked)}
+                style={disabledBtn(ghostBtn, locked || Boolean(activeJob))}
                 onClick={() => {
-                  if (locked) return;
-                  setRecipients((prev) => deselectAllRecipients(prev, lockRef.current));
+                  if (locked || activeJob) return;
+                  setRecipients((prev) => deselectAllRecipients(prev));
                 }}
-                disabled={locked}
+                disabled={locked || Boolean(activeJob)}
               >
                 Deselect All
               </button>
@@ -334,36 +464,40 @@ export default function BulkStatementSend({ schoolId, learners, statementRows, o
                 }}
                 disabled={locked || !sendEnabled}
               >
-                {sending ? `Sending ${progress.current} of ${progress.total}` : "Send"}
+                {submitting ? "Starting…" : "Send"}
               </button>
               <button
                 type="button"
-                style={disabledBtn(goldBtn, locked || selectedFailedCount <= 0)}
+                style={disabledBtn(goldBtn, locked || !activeJob || (activeJob.failedCount || 0) <= 0)}
                 onClick={() => {
-                  if (locked || selectedFailedCount <= 0) return;
+                  if (!activeJob || (activeJob.failedCount || 0) <= 0) return;
                   setConfirmOpen(false);
                   setRetryConfirmOpen(true);
                 }}
-                disabled={locked || selectedFailedCount <= 0}
+                disabled={locked || !activeJob || (activeJob.failedCount || 0) <= 0}
               >
                 Retry failed
               </button>
               <button
                 type="button"
                 style={disabledBtn(goldBtn, locked)}
-                onClick={() => setStep("wizard")}
-                disabled={locked}
+                onClick={() => {
+                  stopPolling();
+                  setActiveJob(null);
+                  setStep("wizard");
+                }}
+                disabled={locked && submitting}
               >
                 Back
               </button>
-              <button type="button" style={disabledBtn(goldBtn, locked)} onClick={onClose} disabled={locked}>
+              <button type="button" style={goldBtn} onClick={onClose}>
                 Close
               </button>
             </div>
-            {summary.outcome ? (
+            {activeJob ? (
               <div style={{ fontWeight: 800, color: INK }}>
-                {summary.outcome} · Attempted: {summary.attempted} · Sent: {summary.sent} · Failed: {summary.failed} ·
-                Skipped: {summary.skipped}
+                {activeJob.status} · Pending: {activeJob.pendingCount} · Sending: {activeJob.sendingCount} · Sent:{" "}
+                {activeJob.sentCount} · Failed: {activeJob.failedCount} · Skipped: {activeJob.skippedCount}
               </div>
             ) : null}
             {failedRows.length ? (
@@ -396,36 +530,32 @@ export default function BulkStatementSend({ schoolId, learners, statementRows, o
                     </tr>
                   ) : (
                     recipients.map((c) => {
-                      const selectable = isRecipientSelectable(c);
+                      const selectable = !activeJob && isRecipientSelectable(c);
                       const boxDisabled = locked || !selectable;
                       return (
-                      <tr key={c.id}>
-                        <td style={{ padding: 12, borderBottom: "1px solid #f1f5f9" }}>
-                          <input
-                            type="checkbox"
-                            checked={Boolean(c.selected) && selectable}
-                            disabled={boxDisabled}
-                            onChange={(e) => {
-                              if (locked) return;
-                              setRecipients((prev) =>
-                                applyRecipientSelected(prev, c.id, e.target.checked, lockRef.current)
-                              );
-                            }}
-                            aria-label={`Select ${c.accountNo || c.contactName}`}
-                          />
-                        </td>
-                        <td style={{ padding: 12, borderBottom: "1px solid #f1f5f9" }}>{c.contactName}</td>
-                        <td style={{ padding: 12, borderBottom: "1px solid #f1f5f9" }}>{c.relationship}</td>
-                        <td style={{ padding: 12, borderBottom: "1px solid #f1f5f9" }}>{c.email || "—"}</td>
-                        <td style={{ padding: 12, borderBottom: "1px solid #f1f5f9" }}>{c.accountNo || "—"}</td>
-                        <td style={{ padding: 12, borderBottom: "1px solid #f1f5f9", fontWeight: 800 }}>
-                          {c.status}
-                          {c.isCanonicalBillingRecipient ? " · Billing contact" : ""}
-                          {c.isAdditionalBillingContact ? " · Additional" : ""}
-                          {c.skipReason ? ` · ${c.skipReason}` : ""}
-                          {c.errorReason ? ` · ${c.errorReason}` : ""}
-                        </td>
-                      </tr>
+                        <tr key={c.id}>
+                          <td style={{ padding: 12, borderBottom: "1px solid #f1f5f9" }}>
+                            <input
+                              type="checkbox"
+                              checked={Boolean(c.selected) && (selectable || c.status === "FAILED")}
+                              disabled={boxDisabled && c.status !== "FAILED"}
+                              onChange={(e) => {
+                                if (activeJob && c.status !== "FAILED") return;
+                                setRecipients((prev) => applyRecipientSelected(prev, c.id, e.target.checked));
+                              }}
+                              aria-label={`Select ${c.accountNo || c.contactName}`}
+                            />
+                          </td>
+                          <td style={{ padding: 12, borderBottom: "1px solid #f1f5f9" }}>{c.contactName}</td>
+                          <td style={{ padding: 12, borderBottom: "1px solid #f1f5f9" }}>{c.relationship}</td>
+                          <td style={{ padding: 12, borderBottom: "1px solid #f1f5f9" }}>{c.email || "—"}</td>
+                          <td style={{ padding: 12, borderBottom: "1px solid #f1f5f9" }}>{c.accountNo || "—"}</td>
+                          <td style={{ padding: 12, borderBottom: "1px solid #f1f5f9", fontWeight: 800 }}>
+                            {c.status}
+                            {c.skipReason ? ` · ${c.skipReason}` : ""}
+                            {c.errorReason ? ` · ${c.errorReason}` : ""}
+                          </td>
+                        </tr>
                       );
                     })
                   )}

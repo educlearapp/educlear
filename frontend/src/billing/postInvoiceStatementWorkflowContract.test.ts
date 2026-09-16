@@ -50,21 +50,26 @@ function assertSourceLocks() {
   const bulkUi = read("BulkStatementSend.tsx");
   const logic = read("bulkStatementSendLogic.ts");
   const statementDoc = read("statementDocument.ts");
+  const jobsApi = read("bulkStatementEmailJobsApi.ts");
   const invoiceRuns = read("InvoiceRuns.tsx");
   const billingApi = read("billingApi.ts");
   const smsModal = read("BulkStatementSmsModal.tsx");
   const smsApi = read("statementBulkSmsApi.ts");
 
-  assert.match(bulkUi, /selectAllEligibleRecipients\(prev,\s*lockRef\.current\)/, "Select All wires selectAllEligibleRecipients");
-  assert.match(bulkUi, /await sendStatementEmail\(/, "sendOneRecipient calls sendStatementEmail");
-  assert.match(bulkUi, /runBulkStatementSend\(/, "runSend uses runBulkStatementSend");
-  assert.match(bulkUi, /mode,\s*\n\s*sendOne:\s*sendOneRecipient/, "runBulkStatementSend receives sendOneRecipient");
-  assert.match(bulkUi, /retryConfirmOpen \? "failed_only" : "pending"/, "Retry failed uses failed_only mode");
+  assert.match(bulkUi, /selectAllEligibleRecipients\(prev\)/, "Select All wires selectAllEligibleRecipients");
+  assert.match(bulkUi, /createBulkStatementEmailJob\(/, "Send creates durable server job");
+  assert.match(bulkUi, /fetchBulkStatementEmailJob\(/, "UI polls persisted job status");
+  assert.match(bulkUi, /retryFailedBulkStatementEmailJob\(/, "Retry failed uses persisted job API");
+  assert.match(bulkUi, /Sending continues on the server/, "UI states send survives logout");
+  assert.equal(/runBulkStatementSend\(/.test(bulkUi), false, "browser recipient loop removed from BulkStatementSend");
   assert.match(
     bulkUi,
     /Select All selects all eligible email recipients/,
     "confirm copy documents all-eligible Select All"
   );
+
+  assert.match(jobsApi, /\/api\/bulk-statement-email-jobs/, "jobs API targets durable job routes");
+  assert.match(jobsApi, /staffAuthHeaders\(\)/, "jobs API authenticated");
 
   assert.match(
     logic,
@@ -378,7 +383,7 @@ async function main() {
   console.log("✓ Select All: canonical + additional; missing/internal/consent excluded");
 
   await testSelectedFlowIntoSendPath(selected);
-  console.log("✓ Select All → runBulkStatementSend → sendOne (sendStatementEmail path) mocked");
+  console.log("✓ Select All → selection set ready for durable server job (mocked send path retained for contract)");
 
   await testRetryFailedUnchanged();
   console.log("✓ Retry failed targets FAILED only");
