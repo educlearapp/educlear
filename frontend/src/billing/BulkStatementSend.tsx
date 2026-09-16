@@ -239,8 +239,8 @@ export default function BulkStatementSend({ schoolId, learners, statementRows, o
             <div style={{ color: "#475569", fontWeight: 600 }}>Account status: {accountStatus}</div>
             <div style={{ color: "#475569", fontWeight: 600 }}>Statement period: {periodForSend}</div>
             <div style={{ color: "#64748b", fontWeight: 600, fontSize: 13 }}>
-              Select All chooses one canonical billing contact per family account. Additional contacts
-              stay available for manual selection only.
+              Select All selects all eligible email recipients (canonical and additional contacts with
+              a valid external email). Skipped, school/internal, and blocked contacts stay unselected.
             </div>
             <div style={{ display: "flex", gap: 10, justifyContent: "flex-end", marginTop: 8 }}>
               <button type="button" style={disabledBtn(ghostBtn, locked)} onClick={onCancel} disabled={locked}>

@@ -161,15 +161,15 @@ async function main() {
   );
   assertTrue(
     pendingDup.filter((r) => r.isAdditionalBillingContact).length === 1,
-    "second distinct email is additional (manual only)"
+    "second distinct email is additional"
   );
   const emails = pendingDup.map((r) => r.email.trim().toLowerCase()).sort();
   assertTrue(emails[0] === "same@example.test" && emails[1] === "two@example.test", "keeps one same-email recipient");
   assertTrue(recipientDedupKey("fam001", "A@X.COM") === recipientDedupKey("FAM001", "a@x.com"), "dedupe key");
   const selectAllDup = selectAllEligibleRecipients(dupRecipients);
   assertTrue(
-    selectAllDup.filter((r) => r.selected).length === 1,
-    "Select All selects only the canonical contact"
+    selectAllDup.filter((r) => r.selected).length === 2,
+    "Select All selects canonical and additional PENDING contacts"
   );
 
   const missingEmail = buildBulkStatementRecipients({
@@ -311,14 +311,14 @@ async function main() {
       isAdditionalBillingContact: true,
     },
   ];
-  const selectCanonicalOnly = selectAllEligibleRecipients(withAdditional);
-  assertTrue(selectCanonicalOnly.find((r) => r.id === "c1")?.selected === true, "Select All selects canonical");
+  const selectAllWithAdditional = selectAllEligibleRecipients(withAdditional);
+  assertTrue(selectAllWithAdditional.find((r) => r.id === "c1")?.selected === true, "Select All selects canonical");
   assertTrue(
-    selectCanonicalOnly.find((r) => r.id === "a1")?.selected === false,
-    "Select All does not select additional contact"
+    selectAllWithAdditional.find((r) => r.id === "a1")?.selected === true,
+    "Select All selects additional PENDING contact"
   );
-  const manualAdditional = applyRecipientSelected(selectCanonicalOnly, "a1", true);
-  assertTrue(manualAdditional.find((r) => r.id === "a1")?.selected === true, "additional can be selected manually");
+  const deselectAdditional = applyRecipientSelected(selectAllWithAdditional, "a1", false);
+  assertTrue(deselectAdditional.find((r) => r.id === "a1")?.selected === false, "additional can still be deselected manually");
 
   const unselectedNeverCalled: string[] = [];
   await runBulkStatementSend({ dispatchSpacingMs: 0,
@@ -778,8 +778,14 @@ async function main() {
   const multiCanonical = multiPending.find((r) => r.isCanonicalBillingRecipient);
   assertTrue(multiCanonical?.email === "primary@example.test", "B: canonical is primary/paying contact");
   assertTrue(
-    selectAllEligibleRecipients(multiParent).filter((r) => r.selected).length === 1,
-    "B: Select All sends only canonical"
+    selectAllEligibleRecipients(multiParent).filter((r) => r.selected).length === 2,
+    "B: Select All selects all valid parents on same account"
+  );
+  assertTrue(
+    selectAllEligibleRecipients(multiParent).every(
+      (r) => r.status !== "PENDING" || r.selected === true
+    ),
+    "B: every PENDING parent selected by Select All"
   );
 
   const consentBlocked = buildBulkStatementRecipients({
@@ -905,8 +911,50 @@ async function main() {
     "D: billingStatement false excluded"
   );
 
+  // --- Select All eligibility (canonical + additional; exclude SKIPPED/SENT/FAILED) ---
+  const selectAllMissing = selectAllEligibleRecipients(missingEmail);
+  assertTrue(selectAllMissing.every((r) => r.selected === false), "Select All: missing email not selected");
+  const selectAllInvalid = selectAllEligibleRecipients(malformed);
+  assertTrue(
+    selectAllInvalid.every((r) => r.status !== "SKIPPED" || r.selected === false),
+    "Select All: invalid email SKIPPED not selected"
+  );
+  const selectAllSchool = selectAllEligibleRecipients(schoolInbox);
+  assertTrue(
+    selectAllSchool
+      .filter((r) => r.skipReason === "School or internal email")
+      .every((r) => r.selected === false),
+    "Select All: school/internal email not selected"
+  );
+  assertTrue(
+    selectAllSchool.filter((r) => r.status === "PENDING").every((r) => r.selected === true),
+    "Select All: valid external contact on school-inbox account still selected"
+  );
+  const selectAllConsent = selectAllEligibleRecipients(consentBlocked);
+  assertTrue(selectAllConsent.every((r) => r.selected === false), "Select All: consent-blocked not selected");
+  assertTrue(
+    selectAllEligibleRecipients(billingStatementFalse).every((r) => r.selected === false),
+    "Select All: billingStatement false not selected"
+  );
+  const selectAllSkippedSeed = selectAllEligibleRecipients(mixedSeed);
+  assertTrue(selectAllSkippedSeed.find((r) => r.id === "4")?.selected === false, "Select All: SKIPPED not selected");
+  const selectAllSent = selectAllEligibleRecipients([
+    { ...mixedSeed[0], status: "SENT", selected: false, isCanonicalBillingRecipient: true },
+    { ...mixedSeed[1], status: "FAILED", selected: false, isCanonicalBillingRecipient: true },
+  ]);
+  assertTrue(selectAllSent.every((r) => r.selected === false), "Select All: SENT and FAILED not selected");
+
   const originalFetch = globalThis.fetch;
   const posted: string[] = [];
+  const prevLocalStorage = (globalThis as { localStorage?: Storage }).localStorage;
+  (globalThis as { localStorage: Storage }).localStorage = {
+    getItem: (key: string) => (key === "educlear_staff_token" ? "test-token" : null),
+    setItem: () => undefined,
+    removeItem: () => undefined,
+    clear: () => undefined,
+    key: () => null,
+    length: 0,
+  } as Storage;
   globalThis.fetch = (async (input: any) => {
     posted.push(String(input));
     return new Response(JSON.stringify({ success: true, messageId: "mock-msg" }), {
@@ -931,6 +979,11 @@ async function main() {
     );
   } finally {
     globalThis.fetch = originalFetch;
+    if (prevLocalStorage) {
+      (globalThis as { localStorage: Storage }).localStorage = prevLocalStorage;
+    } else {
+      delete (globalThis as { localStorage?: Storage }).localStorage;
+    }
   }
 
   console.log("bulkStatementSendLogic.test.ts: OK");

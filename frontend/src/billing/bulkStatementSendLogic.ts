@@ -4,8 +4,9 @@
  * At most 5 requests in flight, with dispatch spacing and a single 429 retry per recipient.
  * Does not write ledgers, invoices, payments, or FamilyAccounts.
  *
- * Recipient policy (Select All default): one canonical billing contact per FamilyAccount,
- * using the same consent/ranking rules as single-statement send.
+ * Recipient build policy: one canonical billing contact per FamilyAccount (contactScore),
+ * with additional valid contacts listed for selection. Select All selects every PENDING
+ * selectable recipient (canonical + additional); SKIPPED/SENT stay unselected.
  */
 import { getLearnerAccountNo } from "../learner/learnerIdentity";
 import { normaliseBillingAmount } from "./billingLedger";
@@ -71,9 +72,9 @@ export type BulkRecipient = {
   learnerName: string;
   status: BulkRecipientStatus;
   selected: boolean;
-  /** Default Select All only includes canonical billing contacts. */
+  /** Highest-ranked billing contact for the account (display / ranking). */
   isCanonicalBillingRecipient?: boolean;
-  /** Extra opted-in contacts available for explicit manual selection only. */
+  /** Extra valid contacts for the same account (still Select All eligible when PENDING). */
   isAdditionalBillingContact?: boolean;
   skipReason?: string;
   errorReason?: string;
@@ -230,7 +231,7 @@ function pushSkipped(
 
 /**
  * Build bulk recipients with one canonical billing contact per FamilyAccount by default.
- * Additional consented contacts remain listed for explicit manual selection only.
+ * Additional consented contacts remain listed (Select All includes them when PENDING).
  */
 export function buildBulkStatementRecipients(input: {
   rows: any[];
@@ -502,12 +503,12 @@ export function applyRecipientSelected(
   });
 }
 
-/** Select All selects only canonical billing contacts (one per account by default). */
+/** Select All selects every PENDING selectable recipient (canonical + additional). */
 export function selectAllEligibleRecipients(recipients: BulkRecipient[], lock?: BulkSendLock): BulkRecipient[] {
   if (lock && isBulkSendLocked(lock)) return recipients;
   return recipients.map((row) => ({
     ...row,
-    selected: row.status === "PENDING" && isCanonicalBulkRecipient(row),
+    selected: row.status === "PENDING" && isRecipientSelectable(row),
   }));
 }
 
