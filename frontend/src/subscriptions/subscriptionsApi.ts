@@ -161,6 +161,40 @@ export async function fetchSubscriptionConfig(): Promise<SubscriptionConfigRespo
   return apiFetch("/api/subscriptions/config") as Promise<SubscriptionConfigResponse>;
 }
 
+export type PaymentReturnStatusResponse = {
+  success: boolean;
+  schoolId?: string;
+  paymentStatus: "PENDING" | "PAID" | "FAILED" | "UNKNOWN";
+  activationStatus: "PENDING" | "ACTIVE" | "FAILED" | "NOT_FOUND";
+  commercialSku: string | null;
+  billingCycle: "MONTHLY" | "ANNUAL" | null;
+  uiState: "activated" | "pending" | "unconfirmed";
+  merchantPaymentId?: string | null;
+  code?: string;
+  error?: string;
+};
+
+/** Tenant-scoped PayFast return status (read-only). */
+export async function fetchPaymentReturnStatus(input: {
+  schoolId: string;
+  merchantPaymentId?: string | null;
+}): Promise<PaymentReturnStatusResponse> {
+  const schoolId = String(input.schoolId || "").trim();
+  if (!schoolId) {
+    throw new Error("Missing schoolId");
+  }
+  const qs = new URLSearchParams();
+  const mid = String(input.merchantPaymentId || "").trim();
+  if (mid) qs.set("merchantPaymentId", mid);
+  const query = qs.toString();
+  const path = `/api/subscriptions/school/${encodeURIComponent(schoolId)}/payment-return-status${
+    query ? `?${query}` : ""
+  }`;
+  return apiFetch(path, {
+    headers: subscriptionAuthHeaders(),
+  }) as Promise<PaymentReturnStatusResponse>;
+}
+
 export async function activateSubscriptionTestMode(
   packageCode?: string
 ): Promise<TestActivateSubscriptionResponse> {

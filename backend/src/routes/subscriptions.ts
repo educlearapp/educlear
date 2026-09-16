@@ -18,6 +18,7 @@ import {
   serializeCommercialPackage,
 } from "../services/resolveSchoolCommercialPackage";
 import { authorizeSchoolSubscriptionStatusAccess } from "../services/subscriptionStatusAuth";
+import { resolvePaymentReturnStatusView } from "../services/paymentReturnStatus";
 import {
   isPayFastConfigured,
 } from "../services/payfastService";
@@ -226,6 +227,117 @@ router.get("/school/:schoolId/status", async (req, res) => {
   } catch (error) {
     console.error("[subscriptions] GET /school/:schoolId/status failed:", error);
     return res.status(500).json({ success: false, error: "Failed to fetch subscription status" });
+  }
+});
+
+/**
+ * Read-only PayFast browser-return status for the authenticated school.
+ * Tenant-scoped: merchantPaymentId must belong to request schoolId.
+ * Never returns rawNotify, signatures, or merchant secrets.
+ */
+router.get("/school/:schoolId/payment-return-status", async (req, res) => {
+  try {
+    const schoolId = String(req.params.schoolId || "").trim();
+    if (!schoolId) {
+      return res.status(400).json({ success: false, error: "Missing schoolId" });
+    }
+
+    const access = await authorizeSchoolSubscriptionStatusAccess({
+      authHeader: req.headers.authorization,
+      requestSchoolId: schoolId,
+    });
+    if (!access.allowed) {
+      return res.status(access.status).json({
+        success: false,
+        error: access.error,
+        code: access.code,
+      });
+    }
+
+    const merchantPaymentId = String(req.query.merchantPaymentId || "").trim();
+
+    let paymentLog =
+      merchantPaymentId.length > 0
+        ? await prisma.subscriptionPaymentLog.findFirst({
+            where: { schoolId, merchantPaymentId },
+            select: {
+              id: true,
+              status: true,
+              amountCents: true,
+              paidAt: true,
+              rawRequest: true,
+              merchantPaymentId: true,
+              createdAt: true,
+            },
+          })
+        : null;
+
+    // Explicit merchantPaymentId that is missing for this tenant → hard NOT_FOUND
+    // (do not fall back to another payment — prevents cross-tenant confusion).
+    if (merchantPaymentId && !paymentLog) {
+      return res.status(404).json({
+        success: false,
+        error: "Payment not found for this school",
+        code: "PAYMENT_NOT_FOUND",
+        paymentStatus: "UNKNOWN",
+        activationStatus: "NOT_FOUND",
+        commercialSku: null,
+        billingCycle: null,
+        uiState: "unconfirmed",
+      });
+    }
+
+    // Fallback only when no merchantPaymentId was supplied: most recent checkout (6h).
+    if (!paymentLog) {
+      const since = new Date(Date.now() - 6 * 60 * 60 * 1000);
+      paymentLog = await prisma.subscriptionPaymentLog.findFirst({
+        where: { schoolId, createdAt: { gte: since } },
+        orderBy: { createdAt: "desc" },
+        select: {
+          id: true,
+          status: true,
+          amountCents: true,
+          paidAt: true,
+          rawRequest: true,
+          merchantPaymentId: true,
+          createdAt: true,
+        },
+      });
+    }
+
+    const subscription = await prisma.schoolSubscription.findUnique({
+      where: { schoolId },
+      select: { status: true },
+    });
+
+    const view = resolvePaymentReturnStatusView({
+      paymentFound: Boolean(paymentLog),
+      paymentStatus: paymentLog?.status ?? null,
+      subscriptionStatus: subscription?.status ?? null,
+      rawRequest: paymentLog?.rawRequest ?? null,
+    });
+
+    return res.json({
+      success: true,
+      schoolId,
+      paymentStatus: view.paymentStatus,
+      activationStatus: view.activationStatus,
+      commercialSku: view.commercialSku,
+      billingCycle: view.billingCycle,
+      uiState: view.uiState,
+      merchantPaymentId: paymentLog
+        ? String(paymentLog.merchantPaymentId || "").trim() || null
+        : null,
+    });
+  } catch (error) {
+    console.error(
+      "[subscriptions] GET /school/:schoolId/payment-return-status failed:",
+      error
+    );
+    return res.status(500).json({
+      success: false,
+      error: "Failed to fetch payment return status",
+    });
   }
 });
 

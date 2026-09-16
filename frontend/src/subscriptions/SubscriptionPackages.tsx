@@ -39,6 +39,7 @@ import {
   isSubscriptionDashboardUnlocked,
 } from "./subscriptionsApi";
 import { submitPayFastCheckout } from "./payfastCheckout";
+import { rememberPendingCheckout } from "./paymentReturnStatus";
 
 const GOLD = "#d4af37";
 const INK = "#0f172a";
@@ -268,6 +269,12 @@ export default function SubscriptionPackages() {
       });
       if (!result?.paymentUrl || !result?.payload) {
         throw new Error("Checkout response incomplete");
+      }
+      if (result.merchantPaymentId) {
+        rememberPendingCheckout({
+          schoolId,
+          merchantPaymentId: result.merchantPaymentId,
+        });
       }
       submitPayFastCheckout(result.paymentUrl, result.payload);
     } catch (err: unknown) {

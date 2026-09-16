@@ -24,6 +24,7 @@ import {
   resolvePackagePageVisibility,
 } from "./dashboardPackagePanelLogic";
 import { submitPayFastCheckout } from "./payfastCheckout";
+import { rememberPendingCheckout } from "./paymentReturnStatus";
 import {
   createSubscriptionCheckout,
   fetchSchoolSubscriptionStatus,
@@ -157,6 +158,12 @@ export default function DashboardPackagePanel({ moduleEntitlements = null }: Pro
         });
         if (!result?.paymentUrl || !result?.payload) {
           throw new Error("Checkout response incomplete");
+        }
+        if (result.merchantPaymentId) {
+          rememberPendingCheckout({
+            schoolId,
+            merchantPaymentId: result.merchantPaymentId,
+          });
         }
         submitPayFastCheckout(result.paymentUrl, result.payload);
       } catch (err: unknown) {
