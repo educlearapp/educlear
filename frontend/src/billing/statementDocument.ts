@@ -1,5 +1,5 @@
 import jsPDF from "jspdf";
-import { API_URL, authenticatedFetch } from "../api";
+import { authenticatedFetch } from "../api";
 import { cacheSchoolLogoUrl, resolveSchoolLogoUrl } from "../utils/schoolLogo";
 import { formatMoney } from "./billingLedger";
 import {
