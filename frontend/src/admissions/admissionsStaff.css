@@ -1,0 +1,609 @@
+/* Staff Admissions — premium black + gold (OA-04C) */
+
+.admissions-staff-page {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 0;
+}
+
+.admissions-staff-header {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 14px;
+  margin-bottom: 18px;
+}
+
+.admissions-staff-header-main {
+  flex: 1;
+  min-width: 200px;
+}
+
+.admissions-staff-subtitle {
+  margin: 0;
+  font-size: 0.95rem;
+  line-height: 1.45;
+  color: #5b6575;
+  font-weight: 500;
+}
+
+.admissions-staff-filters {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+  gap: 12px;
+  margin-bottom: 14px;
+}
+
+.admissions-staff-filter {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+
+.admissions-staff-filter-label {
+  font-size: 0.78rem;
+  font-weight: 700;
+  color: #64748b;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.admissions-staff-select,
+.admissions-staff-input {
+  width: 100%;
+  padding: 8px 10px;
+  border-radius: 8px;
+  border: 1px solid rgba(212, 175, 55, 0.35);
+  background: #ffffff;
+  color: #0f172a;
+  font-size: 0.88rem;
+  font-weight: 600;
+  font-family: inherit;
+  box-sizing: border-box;
+}
+
+.admissions-staff-select:focus,
+.admissions-staff-input:focus {
+  outline: none;
+  border-color: #d4af37;
+  box-shadow: 0 0 0 3px rgba(212, 175, 55, 0.18);
+}
+
+.admissions-staff-table-card {
+  border-radius: 10px;
+  border: 1px solid rgba(212, 175, 55, 0.28);
+  background: #ffffff;
+  box-shadow: 0 6px 20px rgba(15, 15, 15, 0.05);
+  overflow: hidden;
+}
+
+.admissions-staff-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.88rem;
+}
+
+.admissions-staff-table th {
+  text-align: left;
+  padding: 10px 12px;
+  background: #0a0a0a;
+  color: #f7d56a;
+  font-size: 0.75rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.admissions-staff-table td {
+  padding: 10px 12px;
+  border-top: 1px solid rgba(212, 175, 55, 0.15);
+  color: #0f172a;
+}
+
+.admissions-staff-table-row {
+  cursor: pointer;
+  transition: background 0.15s ease;
+}
+
+.admissions-staff-table-row:hover,
+.admissions-staff-table-row:focus-visible {
+  background: rgba(212, 175, 55, 0.08);
+  outline: none;
+}
+
+.admissions-staff-btn {
+  padding: 8px 16px;
+  border-radius: 8px;
+  font-size: 0.88rem;
+  font-weight: 700;
+  font-family: inherit;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: background 0.2s ease, border-color 0.2s ease, color 0.2s ease;
+}
+
+.admissions-staff-btn:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+.admissions-staff-btn--gold {
+  border: none;
+  background: linear-gradient(135deg, #f7d56a, #d4af37);
+  color: #0a0a0a;
+  box-shadow: 0 6px 16px rgba(212, 175, 55, 0.28);
+}
+
+.admissions-staff-btn--gold:hover:not(:disabled) {
+  background: linear-gradient(135deg, #f0cc55, #c9a227);
+}
+
+.admissions-staff-btn--outline {
+  border: 1px solid rgba(212, 175, 55, 0.55);
+  background: #ffffff;
+  color: #8b6b16;
+}
+
+.admissions-staff-btn--outline:hover:not(:disabled) {
+  border-color: #d4af37;
+  background: rgba(212, 175, 55, 0.08);
+}
+
+.admissions-staff-btn--danger {
+  border: 1px solid rgba(239, 68, 68, 0.45);
+  background: #ffffff;
+  color: #b91c1c;
+}
+
+.admissions-staff-status-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 3px 10px;
+  border-radius: 999px;
+  font-size: 0.72rem;
+  font-weight: 800;
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+  border: 1px solid transparent;
+}
+
+.admissions-staff-status-badge--submitted {
+  background: rgba(59, 130, 246, 0.12);
+  color: #1d4ed8;
+  border-color: rgba(59, 130, 246, 0.25);
+}
+
+.admissions-staff-status-badge--review {
+  background: rgba(212, 175, 55, 0.15);
+  color: #8b6b16;
+  border-color: rgba(212, 175, 55, 0.35);
+}
+
+.admissions-staff-status-badge--info {
+  background: rgba(249, 115, 22, 0.12);
+  color: #c2410c;
+  border-color: rgba(249, 115, 22, 0.25);
+}
+
+.admissions-staff-status-badge--accepted {
+  background: rgba(34, 197, 94, 0.12);
+  color: #15803d;
+  border-color: rgba(34, 197, 94, 0.25);
+}
+
+.admissions-staff-status-badge--declined {
+  background: rgba(239, 68, 68, 0.1);
+  color: #b91c1c;
+  border-color: rgba(239, 68, 68, 0.25);
+}
+
+.admissions-staff-status-badge--neutral {
+  background: rgba(100, 116, 139, 0.12);
+  color: #475569;
+  border-color: rgba(100, 116, 139, 0.25);
+}
+
+.admissions-staff-enrol-hint {
+  font-size: 0.78rem;
+  font-weight: 700;
+  color: #8b6b16;
+}
+
+.admissions-staff-enrol-hint--done {
+  color: #15803d;
+}
+
+.admissions-staff-detail-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  gap: 16px;
+  margin-top: 16px;
+}
+
+.admissions-staff-card {
+  border-radius: 10px;
+  border: 1px solid rgba(212, 175, 55, 0.28);
+  background: #ffffff;
+  padding: 16px;
+  box-shadow: 0 4px 14px rgba(15, 15, 15, 0.04);
+}
+
+.admissions-staff-card-title {
+  margin: 0 0 10px;
+  font-size: 0.82rem;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: #8b6b16;
+}
+
+.admissions-staff-card dl {
+  margin: 0;
+  display: grid;
+  gap: 8px;
+}
+
+.admissions-staff-card dt {
+  font-size: 0.72rem;
+  font-weight: 700;
+  color: #64748b;
+  text-transform: uppercase;
+}
+
+.admissions-staff-card dd {
+  margin: 0;
+  font-size: 0.9rem;
+  color: #0f172a;
+  font-weight: 600;
+}
+
+.admissions-staff-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 16px;
+}
+
+.admissions-staff-alert {
+  padding: 10px 12px;
+  border-radius: 8px;
+  font-size: 0.86rem;
+  font-weight: 600;
+  margin-top: 12px;
+}
+
+.admissions-staff-alert--error {
+  background: rgba(239, 68, 68, 0.1);
+  border: 1px solid rgba(239, 68, 68, 0.3);
+  color: #b91c1c;
+}
+
+.admissions-staff-alert--warning {
+  background: rgba(249, 115, 22, 0.1);
+  border: 1px solid rgba(249, 115, 22, 0.3);
+  color: #c2410c;
+}
+
+.admissions-staff-alert--success {
+  background: rgba(34, 197, 94, 0.1);
+  border: 1px solid rgba(34, 197, 94, 0.3);
+  color: #15803d;
+}
+
+.admissions-staff-modal-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 5000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+  background: rgba(0, 0, 0, 0.72);
+  backdrop-filter: blur(4px);
+}
+
+.admissions-staff-modal {
+  position: relative;
+  width: min(720px, 100%);
+  max-height: min(90vh, 860px);
+  overflow: auto;
+  -webkit-overflow-scrolling: touch;
+  padding: 24px 22px 20px;
+  border-radius: 12px;
+  border: 2px solid #d4af37;
+  background: #0a0a0a;
+  color: #ffffff;
+  box-shadow:
+    0 0 24px rgba(212, 175, 55, 0.35),
+    0 24px 60px rgba(0, 0, 0, 0.5);
+}
+
+@media (max-width: 900px) {
+  .admissions-staff-table-card {
+    overflow-x: auto;
+  }
+
+  .admissions-staff-detail-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .admissions-staff-modal {
+    width: min(100%, 100vw - 24px);
+    max-height: 92vh;
+  }
+}
+
+.admissions-staff-modal-accent {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 3px;
+  background: linear-gradient(90deg, #f7d56a, #d4af37, #f7d56a);
+}
+
+.admissions-staff-modal-title {
+  margin: 0 0 6px;
+  font-size: 1.15rem;
+  font-weight: 800;
+  color: #f7d56a;
+}
+
+.admissions-staff-modal-subtitle {
+  margin: 0 0 16px;
+  font-size: 0.88rem;
+  color: rgba(255, 255, 255, 0.72);
+}
+
+.admissions-staff-modal-section {
+  margin-bottom: 18px;
+  padding-bottom: 16px;
+  border-bottom: 1px solid rgba(212, 175, 55, 0.2);
+}
+
+.admissions-staff-modal-section-title {
+  margin: 0 0 10px;
+  font-size: 0.78rem;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: #d4af37;
+}
+
+.admissions-staff-field {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  margin-bottom: 10px;
+}
+
+.admissions-staff-field-label {
+  font-size: 0.78rem;
+  font-weight: 700;
+  color: rgba(255, 255, 255, 0.75);
+}
+
+.admissions-staff-select--dark,
+.admissions-staff-input--dark {
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(212, 175, 55, 0.35);
+  color: #ffffff;
+}
+
+.admissions-staff-radio-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  margin-bottom: 8px;
+}
+
+.admissions-staff-radio-row label {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.86rem;
+  cursor: pointer;
+}
+
+.admissions-staff-match-strong {
+  margin: 0 0 8px;
+  font-size: 0.82rem;
+  font-weight: 600;
+  color: #fbbf24;
+}
+
+.admissions-staff-match-warning {
+  font-size: 0.82rem;
+  font-weight: 700;
+  color: #fb923c;
+  margin: 6px 0;
+}
+
+.admissions-staff-blocker {
+  font-size: 0.82rem;
+  font-weight: 700;
+  color: #f87171;
+  margin: 4px 0;
+}
+
+.admissions-staff-modal-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  justify-content: flex-end;
+  margin-top: 16px;
+}
+
+.admissions-staff-loading {
+  padding: 24px;
+  text-align: center;
+  color: #64748b;
+}
+
+.admissions-staff-empty {
+  padding: 32px;
+  text-align: center;
+  color: #64748b;
+}
+
+.admissions-staff-pagination {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 12px;
+  border-top: 1px solid rgba(212, 175, 55, 0.15);
+}
+
+.admissions-staff-back-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  margin-bottom: 12px;
+  padding: 0;
+  border: none;
+  background: none;
+  color: #8b6b16;
+  font-weight: 700;
+  font-size: 0.88rem;
+  cursor: pointer;
+  font-family: inherit;
+}
+
+.admissions-staff-back-link:hover {
+  color: #d4af37;
+}
+
+.admissions-staff-checklist {
+  margin-top: 18px;
+  padding: 18px 16px;
+  border-radius: 12px;
+  border: 1px solid rgba(212, 175, 55, 0.28);
+  background: #ffffff;
+}
+
+.admissions-staff-checklist-intro {
+  margin: 0 0 14px;
+  color: #64748b;
+  font-size: 0.9rem;
+}
+
+.admissions-staff-checklist-summary {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 8px;
+  margin-bottom: 16px;
+}
+
+.admissions-staff-checklist-summary > div {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 10px 12px;
+  border-radius: 8px;
+  background: #f8fafc;
+  border: 1px solid rgba(15, 23, 42, 0.06);
+  font-size: 0.82rem;
+}
+
+.admissions-staff-checklist-summary > div > span:first-child {
+  color: #64748b;
+  font-weight: 600;
+}
+
+.admissions-staff-checklist-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+  gap: 12px;
+}
+
+.admissions-staff-checklist-card {
+  padding: 14px;
+  border-radius: 10px;
+  border: 1px solid rgba(15, 23, 42, 0.08);
+  background: #fbfdff;
+}
+
+.admissions-staff-checklist-card h3 {
+  margin: 0 0 8px;
+  font-size: 0.95rem;
+  color: #0f172a;
+}
+
+.admissions-staff-checklist-card dl {
+  margin: 0 0 12px;
+}
+
+.admissions-staff-checklist-card dt {
+  font-size: 0.72rem;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: #94a3b8;
+}
+
+.admissions-staff-checklist-card dd {
+  margin: 0 0 8px;
+  color: #0f172a;
+  font-weight: 600;
+  word-break: break-word;
+}
+
+.admissions-staff-checklist-note {
+  margin: 0 0 10px;
+  font-size: 0.82rem;
+  color: #64748b;
+  line-height: 1.4;
+}
+
+.admissions-staff-checklist-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.admissions-staff-checklist-guardians {
+  margin: 0 0 10px;
+  padding-left: 18px;
+  font-size: 0.86rem;
+}
+
+.admissions-staff-checklist-guardians li {
+  margin-bottom: 8px;
+}
+
+.admissions-staff-checklist-guardians .admissions-staff-checklist-status {
+  display: inline-block;
+  margin-left: 6px;
+}
+
+.admissions-staff-checklist-status {
+  display: inline-block;
+  font-size: 0.78rem;
+  font-weight: 800;
+  letter-spacing: 0.01em;
+}
+
+.admissions-staff-checklist-status--ok {
+  color: #15803d;
+}
+
+.admissions-staff-checklist-status--action {
+  color: #b45309;
+}
+
+.admissions-staff-checklist-status--warn {
+  color: #b91c1c;
+}
+
+.admissions-staff-checklist-status--info {
+  color: #334155;
+}
+
+@media (max-width: 900px) {
+  .admissions-staff-checklist-summary,
+  .admissions-staff-checklist-grid {
+    grid-template-columns: 1fr;
+  }
+}

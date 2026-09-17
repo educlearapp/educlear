@@ -79,9 +79,12 @@ import mbbDirectImportRoutes from "./routes/mbbDirectImport";
 import subscriptionsRoutes from "./routes/subscriptions";
 import payfastRoutes from "./routes/payfast";
 import creditsRoutes from "./routes/credits";
+import admissionsRoutes from "./routes/admissions";
+import publicAdmissionsRoutes from "./routes/publicAdmissions";
 import { requireMigrationAccess } from "./middleware/requireMigrationAccess";
 import { requireSuperAdmin } from "./middleware/requireSuperAdmin";
 import { requireSchoolModule } from "./middleware/requireSchoolModule";
+import { publicAdmissionsJsonParser } from "./middleware/publicAdmissionsJsonLimit";
 import { lookupParentPortalBySchool } from "./services/parentPortalLookup";
 import superAdminSchoolsRoutes from "./routes/superAdminSchools";
 import { prisma } from "./prisma";
@@ -251,6 +254,9 @@ const PORT = 3000;
   Allow frontend (Vite runs on 5173)
 
 */
+// Public OA JSON must be parsed with a tight limit BEFORE the global 12 MiB parser.
+// Otherwise express.json({ limit: "12mb" }) would already consume the body.
+app.use("/api/public/admissions", publicAdmissionsJsonParser);
 app.use(express.json({ limit: "12mb" }));
 app.use("/uploads/school-logos", express.static(persistentSchoolLogoDir));
 app.use("/uploads/school-logos", express.static(legacySchoolLogoDir));
@@ -354,6 +360,8 @@ app.use("/api/geofences", requireSchoolModule("CORE"), geofencesRoutes);
 app.use("/api/fees", requireSchoolModule("CORE"), feesRoutes);
 app.use("/api/learners", requireSchoolModule("CORE"), learnerRoutes);
 app.use("/api/registrations", requireSchoolModule("CORE"), registrationsRoutes);
+app.use("/api/admissions", requireSchoolModule("CORE"), admissionsRoutes);
+app.use("/api/public/admissions/:schoolSlug", publicAdmissionsRoutes);
 app.use("/api/lists-registers", requireSchoolModule("CORE"), listsRegistersRoutes);
 app.use("/api/parent-portal", parentPortalRoutes);
 app.use("/api/classrooms", requireSchoolModule("CORE"), classroomsRoutes);

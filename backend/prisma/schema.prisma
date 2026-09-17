@@ -101,7 +101,7 @@ model School {
   lifecycleStatus          SchoolLifecycleStatus @default(ACTIVE)
   lifecycleChangedAt       DateTime?
   lifecycleChangedByUserId String?
-  lifecycleChangedByEmail String?
+  lifecycleChangedByEmail  String?
 
   users User[]
   roles SchoolRole[]
@@ -196,6 +196,20 @@ model School {
   /// Commercial product module entitlements (EduClear Core / Accounting / Payroll).
   /// CORE includes school-fee Billing. ACCOUNTING and PAYROLL are optional add-ons.
   moduleEntitlements SchoolModuleEntitlement[]
+
+  /// Online Admissions (staging domain) — OA-03A+
+  admissionsSettings           SchoolAdmissionsSettings?
+  admissionApplicationCounters AdmissionApplicationCounter[]
+  admissionApplications        AdmissionApplication[]
+  admissionLearnerCandidates   AdmissionLearnerCandidate[]
+  admissionGuardians           AdmissionGuardian[]
+  admissionAnswers             AdmissionAnswer[]
+  admissionDocuments           AdmissionDocument[]
+  admissionFeeRecords          AdmissionFeeRecord[]
+  admissionStatusHistory       AdmissionStatusHistory[]
+  admissionPaymentHistory      AdmissionPaymentHistory[]
+  admissionAuditEvents         AdmissionAuditEvent[]
+  admissionStaffNotes          AdmissionStaffNote[]
 
   @@index([lifecycleStatus])
 }
@@ -528,6 +542,14 @@ model User {
   /// Permanent EduClock / Payroll staff link (at most one Employee per User).
   linkedEmployee       Employee?
 
+  admissionsAcceptedBy         AdmissionApplication[]    @relation("AdmissionAcceptedBy")
+  admissionsFeeVerifiedBy      AdmissionFeeRecord[]      @relation("AdmissionFeeVerifiedBy")
+  admissionsFeeWaivedBy        AdmissionFeeRecord[]      @relation("AdmissionFeeWaivedBy")
+  admissionsStatusActor        AdmissionStatusHistory[]  @relation("AdmissionStatusActor")
+  admissionsPaymentActor       AdmissionPaymentHistory[] @relation("AdmissionPaymentActor")
+  admissionsAuditActor         AdmissionAuditEvent[]     @relation("AdmissionAuditActor")
+  admissionsStaffNotesAuthored AdmissionStaffNote[]      @relation("AdmissionNoteAuthor")
+
   @@unique([schoolId, email])
   @@index([schoolId])
   @@index([roleId])
@@ -693,6 +715,9 @@ model Parent {
   communicationMessages CommunicationMessage[]
   pushSubscriptions     PushSubscription[]
 
+  /// Soft match targets from Online Admissions (staging) — never auto-created from applications.
+  admissionGuardianMatches AdmissionGuardian[] @relation("AdmissionGuardianMatchedParent")
+
   @@unique([schoolId, idNumber])
   @@index([schoolId])
   @@index([schoolId, cellNo])
@@ -723,7 +748,7 @@ model FamilyAccount {
 
   school School @relation(fields: [schoolId], references: [id])
 
-  mergedInto FamilyAccount?  @relation("FamilyAccountMerge", fields: [mergedIntoFamilyAccountId], references: [id], onDelete: Restrict)
+  mergedInto   FamilyAccount?  @relation("FamilyAccountMerge", fields: [mergedIntoFamilyAccountId], references: [id], onDelete: Restrict)
   predecessors FamilyAccount[] @relation("FamilyAccountMerge")
 
   learners Learner[]
@@ -731,6 +756,10 @@ model FamilyAccount {
   parents Parent[]
 
   billingDeposits BillingDeposit[]
+
+  /// Staff-selected family match / post-accept link from Online Admissions (staging).
+  admissionStaffMatches AdmissionApplication[] @relation("AdmissionStaffMatchedFamily")
+  admissionPromotedFrom AdmissionApplication[] @relation("AdmissionPromotedFamily")
 
   @@unique([schoolId, accountRef])
   @@unique([schoolId, accountNo])
@@ -806,6 +835,9 @@ model Learner {
   communicationMessages     CommunicationMessage[]
   groupLinks                GroupLearner[]
   homeSafeEvents            HomeSafeEvent[]
+
+  /// Post-accept link from Online Admissions application (historical staging record retained).
+  admissionPromotedFrom AdmissionApplication[] @relation("AdmissionPromotedLearner")
 
   @@unique([schoolId, admissionNo])
   @@index([schoolId])
@@ -1276,22 +1308,22 @@ model Employee {
 
   payrollRunEmployees PayrollRunEmployee[]
 
-  payslips            Payslip[]
-  eduClockEvents      EduClockEvent[]
-  eduClockOpenShifts  EduClockOpenShift[]
-  eduClockExceptions  EduClockException[]
-  eduClockGpsAttempts EduClockGpsAttempt[]
-  eduClockStaffAbsences EduClockStaffAbsence[]
-  eduClockStaffMovements EduClockStaffMovement[]
-  eduClockOpenMovements  EduClockOpenMovement[]
+  payslips                    Payslip[]
+  eduClockEvents              EduClockEvent[]
+  eduClockOpenShifts          EduClockOpenShift[]
+  eduClockExceptions          EduClockException[]
+  eduClockGpsAttempts         EduClockGpsAttempt[]
+  eduClockStaffAbsences       EduClockStaffAbsence[]
+  eduClockStaffMovements      EduClockStaffMovement[]
+  eduClockOpenMovements       EduClockOpenMovement[]
   payrollEduClockImportLines  PayrollEduClockImportLine[]
   payrollEduClockImportPairs  PayrollEduClockImportPair[]
   payrollEduClockImportEvents PayrollEduClockImportEvent[]
   /// Permanent link to the EduClear login User for this school (EduClock activation).
-  userId              String?              @unique
+  userId                      String?                      @unique
   /// ISO country code for passport/permit (e.g. ZA, MW). Optional for SA_ID.
-  identityCountryCode String?
-  user                User?                @relation(fields: [userId], references: [id], onDelete: SetNull)
+  identityCountryCode         String?
+  user                        User?                        @relation(fields: [userId], references: [id], onDelete: SetNull)
 
   @@index([schoolId])
   @@index([employeeNumber])
@@ -1623,24 +1655,24 @@ enum EduClockAbsenceSource {
 
 /// Explicit staff absence declaration. Not an EduClockEvent. Does not create clock times or payable minutes.
 model EduClockStaffAbsence {
-  id                       String                        @id @default(cuid())
-  schoolId                 String
-  employeeId               String
-  employeeNumberSnapshot   String
-  schoolLocalDate          String
-  timezone                 String                        @default("Africa/Johannesburg")
-  reason                   EduClockAbsenceReason
-  note                     String?
-  source                   EduClockAbsenceSource         @default(STAFF_SELF_REPORT)
-  approvalStatus           EduClockAbsenceApprovalStatus @default(REPORTED)
-  reportedAtUtc            DateTime
-  reportedByUserId         String
-  createdAt                DateTime                      @default(now())
-  updatedAt                DateTime                      @updatedAt
+  id                     String                        @id @default(cuid())
+  schoolId               String
+  employeeId             String
+  employeeNumberSnapshot String
+  schoolLocalDate        String
+  timezone               String                        @default("Africa/Johannesburg")
+  reason                 EduClockAbsenceReason
+  note                   String?
+  source                 EduClockAbsenceSource         @default(STAFF_SELF_REPORT)
+  approvalStatus         EduClockAbsenceApprovalStatus @default(REPORTED)
+  reportedAtUtc          DateTime
+  reportedByUserId       String
+  createdAt              DateTime                      @default(now())
+  updatedAt              DateTime                      @updatedAt
   /// Owner/Admin cancel only. Original reason/note/reportedAtUtc are never overwritten.
-  cancelledAtUtc           DateTime?
-  cancelledByUserId        String?
-  cancelNote               String?
+  cancelledAtUtc         DateTime?
+  cancelledByUserId      String?
+  cancelNote             String?
 
   school   School   @relation(fields: [schoolId], references: [id], onDelete: Cascade)
   employee Employee @relation(fields: [employeeId], references: [id], onDelete: Cascade)
@@ -1675,15 +1707,15 @@ enum EduClockMovementSource {
 
 /// Temporary off-premises movement during an attended day. Not an EduClockEvent. Does not change payroll minutes.
 model EduClockStaffMovement {
-  id                     String                  @id @default(cuid())
+  id                     String                 @id @default(cuid())
   schoolId               String
   employeeId             String
   employeeNumberSnapshot String
   openShiftId            String?
   schoolLocalDate        String
-  timezone               String                  @default("Africa/Johannesburg")
-  status                 EduClockMovementStatus  @default(OPEN)
-  source                 EduClockMovementSource  @default(STAFF_SELF_REPORT)
+  timezone               String                 @default("Africa/Johannesburg")
+  status                 EduClockMovementStatus @default(OPEN)
+  source                 EduClockMovementSource @default(STAFF_SELF_REPORT)
   reason                 EduClockMovementReason
   destination            String?
   note                   String?
@@ -1692,21 +1724,21 @@ model EduClockStaffMovement {
   returnedAtUtc          DateTime?
   returnedByUserId       String?
   durationAwayMs         Int?
-  departLatitude         Decimal?                @db.Decimal(10, 7)
-  departLongitude        Decimal?                @db.Decimal(10, 7)
-  departAccuracyMetres   Decimal?                @db.Decimal(10, 2)
-  returnLatitude         Decimal?                @db.Decimal(10, 7)
-  returnLongitude        Decimal?                @db.Decimal(10, 7)
-  returnAccuracyMetres   Decimal?                @db.Decimal(10, 2)
+  departLatitude         Decimal?               @db.Decimal(10, 7)
+  departLongitude        Decimal?               @db.Decimal(10, 7)
+  departAccuracyMetres   Decimal?               @db.Decimal(10, 2)
+  returnLatitude         Decimal?               @db.Decimal(10, 7)
+  returnLongitude        Decimal?               @db.Decimal(10, 7)
+  returnAccuracyMetres   Decimal?               @db.Decimal(10, 2)
   cancelledAtUtc         DateTime?
   cancelledByUserId      String?
   cancelNote             String?
-  createdAt              DateTime                @default(now())
-  updatedAt              DateTime                @updatedAt
+  createdAt              DateTime               @default(now())
+  updatedAt              DateTime               @updatedAt
 
-  school       School                @relation(fields: [schoolId], references: [id], onDelete: Cascade)
-  employee     Employee              @relation(fields: [employeeId], references: [id], onDelete: Cascade)
-  openPointer  EduClockOpenMovement?
+  school      School                @relation(fields: [schoolId], references: [id], onDelete: Cascade)
+  employee    Employee              @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+  openPointer EduClockOpenMovement?
 
   @@index([schoolId, schoolLocalDate])
   @@index([schoolId, employeeId, departedAtUtc])
@@ -1724,9 +1756,9 @@ model EduClockOpenMovement {
   departedAtUtc   DateTime
   createdAt       DateTime @default(now())
 
-  school    School                 @relation(fields: [schoolId], references: [id], onDelete: Cascade)
-  employee  Employee               @relation(fields: [employeeId], references: [id], onDelete: Cascade)
-  movement  EduClockStaffMovement  @relation(fields: [movementId], references: [id], onDelete: Cascade)
+  school   School                @relation(fields: [schoolId], references: [id], onDelete: Cascade)
+  employee Employee              @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+  movement EduClockStaffMovement @relation(fields: [movementId], references: [id], onDelete: Cascade)
 
   @@unique([schoolId, employeeId])
   @@index([schoolId, schoolLocalDate])
@@ -1859,7 +1891,7 @@ model PayrollRun {
 
   emailLogs PayrollEmailLog[]
 
-  eduClockImports PayrollEduClockImport[]
+  eduClockImports  PayrollEduClockImport[]
   payrollAuditLogs PayrollAuditLog[]
 
   @@index([schoolId])
@@ -2109,10 +2141,10 @@ model PayrollEduClockImport {
   createdAt                DateTime                    @default(now())
   updatedAt                DateTime                    @updatedAt
 
-  school           School                    @relation(fields: [schoolId], references: [id], onDelete: Cascade)
-  payrollRun       PayrollRun                @relation(fields: [payrollRunId], references: [id], onDelete: Cascade)
-  supersedesImport PayrollEduClockImport?    @relation("PayrollEduClockImportSupersession", fields: [supersedesImportId], references: [id], onDelete: SetNull)
-  supersededBy     PayrollEduClockImport[]   @relation("PayrollEduClockImportSupersession")
+  school           School                       @relation(fields: [schoolId], references: [id], onDelete: Cascade)
+  payrollRun       PayrollRun                   @relation(fields: [payrollRunId], references: [id], onDelete: Cascade)
+  supersedesImport PayrollEduClockImport?       @relation("PayrollEduClockImportSupersession", fields: [supersedesImportId], references: [id], onDelete: SetNull)
+  supersededBy     PayrollEduClockImport[]      @relation("PayrollEduClockImportSupersession")
   lines            PayrollEduClockImportLine[]
   pairs            PayrollEduClockImportPair[]
   events           PayrollEduClockImportEvent[]
@@ -2124,29 +2156,29 @@ model PayrollEduClockImport {
 }
 
 model PayrollEduClockImportLine {
-  id                                 String                          @id @default(cuid())
-  importId                           String
-  employeeId                         String
-  employeeNumberSnapshot             String?
-  employeeNameSnapshot               String
-  workedMinutes                      Int                             @default(0)
+  id                                  String                          @id @default(cuid())
+  importId                            String
+  employeeId                          String
+  employeeNumberSnapshot              String?
+  employeeNameSnapshot                String
+  workedMinutes                       Int                             @default(0)
   /// Contractual ordinary minutes — null in Phase 2 (rules not configured).
-  ordinaryMinutes                    Int?
+  ordinaryMinutes                     Int?
   /// Auto overtime — null means not calculated.
-  overtimeMinutes                    Int?
-  status                             PayrollEduClockImportLineStatus
-  warningCodes                       String[]                        @default([])
-  warningDetails                     Json?
-  sourcePairCount                    Int                             @default(0)
-  existingManualOvertimeHoursSnapshot Decimal?                       @db.Decimal(12, 2)
-  createdAt                          DateTime                        @default(now())
-  updatedAt                          DateTime                        @updatedAt
+  overtimeMinutes                     Int?
+  status                              PayrollEduClockImportLineStatus
+  warningCodes                        String[]                        @default([])
+  warningDetails                      Json?
+  sourcePairCount                     Int                             @default(0)
+  existingManualOvertimeHoursSnapshot Decimal?                        @db.Decimal(12, 2)
+  createdAt                           DateTime                        @default(now())
+  updatedAt                           DateTime                        @updatedAt
 
-  import               PayrollEduClockImport         @relation(fields: [importId], references: [id], onDelete: Cascade)
-  employee             Employee                      @relation(fields: [employeeId], references: [id], onDelete: Cascade)
-  pairs                PayrollEduClockImportPair[]
-  events               PayrollEduClockImportEvent[]
-  payrollRunEmployee   PayrollRunEmployee?
+  import             PayrollEduClockImport        @relation(fields: [importId], references: [id], onDelete: Cascade)
+  employee           Employee                     @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+  pairs              PayrollEduClockImportPair[]
+  events             PayrollEduClockImportEvent[]
+  payrollRunEmployee PayrollRunEmployee?
 
   @@unique([importId, employeeId])
   @@index([importId])
@@ -2185,7 +2217,7 @@ model PayrollEduClockImportPair {
 
 /// Effective payable event references only (no superseded originals).
 model PayrollEduClockImportEvent {
-  id               String                        @id @default(cuid())
+  id               String                         @id @default(cuid())
   importId         String
   importLineId     String
   importPairId     String
@@ -2196,7 +2228,7 @@ model PayrollEduClockImportEvent {
   occurredAtUtc    DateTime
   sourceRole       PayrollEduClockImportEventRole
   correctionMeta   Json?
-  createdAt        DateTime                      @default(now())
+  createdAt        DateTime                       @default(now())
 
   import     PayrollEduClockImport     @relation(fields: [importId], references: [id], onDelete: Cascade)
   importLine PayrollEduClockImportLine @relation(fields: [importLineId], references: [id], onDelete: Cascade)
@@ -2211,16 +2243,16 @@ model PayrollEduClockImportEvent {
 }
 
 model PayrollAuditLog {
-  id           String             @id @default(cuid())
-  schoolId     String
-  payrollRunId String
-  importId     String?
-  action       PayrollAuditAction
-  actorUserId  String
-  reason       String?
+  id            String             @id @default(cuid())
+  schoolId      String
+  payrollRunId  String
+  importId      String?
+  action        PayrollAuditAction
+  actorUserId   String
+  reason        String?
   previousState Json?
   newState      Json?
-  createdAt    DateTime           @default(now())
+  createdAt     DateTime           @default(now())
 
   school     School                 @relation(fields: [schoolId], references: [id], onDelete: Cascade)
   payrollRun PayrollRun             @relation(fields: [payrollRunId], references: [id], onDelete: Cascade)
@@ -2694,18 +2726,18 @@ enum AttendanceSessionDisplay {
 }
 
 model Classroom {
-  id                       String                    @id @default(cuid())
+  id                       String                   @id @default(cuid())
   schoolId                 String
   name                     String
-  teacherName              String                    @default("")
-  teacherEmail             String                    @default("")
-  notes                    String?                   @db.Text
+  teacherName              String                   @default("")
+  teacherEmail             String                   @default("")
+  notes                    String?                  @db.Text
   minAgeMonths             Int?
   maxAgeMonths             Int?
   /// PERIODS = Intermediate/Senior/FET numbered periods; SUBJECTS = Foundation (school-configured).
   attendanceSessionDisplay AttendanceSessionDisplay @default(PERIODS)
-  createdAt                DateTime                  @default(now())
-  updatedAt                DateTime                  @updatedAt
+  createdAt                DateTime                 @default(now())
+  updatedAt                DateTime                 @updatedAt
 
   school       School                 @relation(fields: [schoolId], references: [id], onDelete: Cascade)
   threads      ParentTeacherThread[]
@@ -2726,9 +2758,9 @@ model SchoolSubject {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  school           School                 @relation(fields: [schoolId], references: [id], onDelete: Cascade)
-  classroomSlots   ClassroomSubjectSlot[]
-  attendances      LearnerAttendance[]
+  school         School                 @relation(fields: [schoolId], references: [id], onDelete: Cascade)
+  classroomSlots ClassroomSubjectSlot[]
+  attendances    LearnerAttendance[]
 
   @@unique([schoolId, name])
   @@index([schoolId, active, sortOrder])
@@ -3413,4 +3445,422 @@ model BulkStatementEmailRecipient {
   @@index([jobId, status])
   @@index([schoolId, status])
   @@index([status, sendingLeaseUntil])
+}
+
+// =========================
+// ONLINE ADMISSIONS (staging domain) — OA-03A
+// Unaccepted applications MUST NOT create Learner/Parent/FamilyAccount.
+// =========================
+
+enum AdmissionApplicationStatus {
+  DRAFT
+  SUBMITTED
+  UNDER_REVIEW
+  INFO_REQUESTED
+  ACCEPTED
+  DECLINED
+  WITHDRAWN
+  CANCELLED
+}
+
+enum AdmissionPaymentStatus {
+  NOT_REQUIRED
+  AWAITING_PAYMENT
+  PROOF_UPLOADED
+  UNDER_VERIFICATION
+  VERIFIED
+  REJECTED
+  WAIVED
+}
+
+enum AdmissionMatchDecision {
+  EXACT_MATCH
+  POSSIBLE_MATCH
+  NO_MATCH
+  CONFIRMED_NEW
+}
+
+enum AdmissionActorType {
+  APPLICANT
+  STAFF
+  SYSTEM
+}
+
+enum AdmissionDocumentUploader {
+  APPLICANT
+  STAFF
+}
+
+enum AdmissionDocumentScanStatus {
+  NOT_SCANNED
+  CLEAN
+  INFECTED
+  ERROR
+}
+
+/// Per-school Online Admissions configuration. Disabled by default; fee amount is NOT globally defaulted.
+model SchoolAdmissionsSettings {
+  id       String @id @default(cuid())
+  schoolId String @unique
+
+  enabled    Boolean @default(false)
+  /// Globally unique public URL slug. Null until configured. Never accept client schoolId on public APIs.
+  publicSlug String? @unique
+
+  applicationsOpenAt  DateTime?
+  applicationsCloseAt DateTime?
+  intakeYear          Int?
+  /// string[] of grade labels offered for intake
+  acceptedGrades      Json      @default("[]")
+
+  admissionFeeRequired               Boolean  @default(false)
+  /// Tenant-configurable. No EduClear-wide default (e.g. Da Silva R1600 is school config only).
+  defaultAdmissionFeeAmount          Decimal? @db.Decimal(12, 2)
+  currency                           String   @default("ZAR")
+  proofOfPaymentRequired             Boolean  @default(false)
+  paymentVerificationRequired        Boolean  @default(true)
+  requirePaymentVerifiedBeforeAccept Boolean  @default(true)
+
+  bankName            String?
+  accountHolder       String?
+  accountNumber       String?
+  branchCode          String?
+  accountType         String?
+  paymentInstructions String? @db.Text
+
+  admissionContactEmail String?
+  admissionContactPhone String?
+
+  /// [{ key, label, required, maxCount? }]
+  requiredDocuments            Json @default("[]")
+  /// [{ key, label, type, required, options? }]
+  applicationQuestions         Json @default("[]")
+  /// string[] of staff User ids to notify
+  notificationRecipientUserIds Json @default("[]")
+
+  privacyNoticeVersion String?
+  declarationText      String? @db.Text
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  /// Settings are config (like email/SMS). Application history uses Restrict separately.
+  school School @relation(fields: [schoolId], references: [id], onDelete: Cascade)
+
+  @@index([enabled])
+}
+
+/// Concurrency-safe sequence for APP-{intakeYear}-{NNNNNN} (allocation in later OA phase).
+model AdmissionApplicationCounter {
+  schoolId   String
+  intakeYear Int
+  nextValue  Int      @default(1)
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  school School @relation(fields: [schoolId], references: [id], onDelete: Cascade)
+
+  @@id([schoolId, intakeYear])
+}
+
+model AdmissionApplication {
+  id       String @id @default(cuid())
+  schoolId String
+
+  /// Issued on finalize/submit (later). Multiple nulls allowed for drafts (Postgres UNIQUE).
+  applicationNumber String?
+  status            AdmissionApplicationStatus @default(DRAFT)
+
+  intakeYear     Int
+  requestedGrade String?
+
+  /// Fee snapshot — immutable after issue; never re-read live settings.
+  feeRequired   Boolean   @default(false)
+  feeAmount     Decimal?  @db.Decimal(12, 2)
+  feeCurrency   String?
+  feeSnapshotAt DateTime?
+
+  /// Opaque public identifier (not sequential; not internal schoolId).
+  publicAccessId       String    @unique @default(cuid())
+  accessTokenHash      String?
+  accessTokenExpiresAt DateTime?
+  resumeOtpHash        String?
+  resumeOtpExpiresAt   DateTime?
+
+  declaredExistingSibling    Boolean @default(false)
+  declaredSiblingLearnerName String?
+  declaredSiblingAdmissionNo String?
+  declaredExistingFamily     Boolean @default(false)
+
+  staffMatchedFamilyAccountId String?
+  staffMatchDecision          AdmissionMatchDecision?
+
+  promotedLearnerId       String?
+  promotedFamilyAccountId String?
+  acceptedByUserId        String?
+  acceptedAt              DateTime?
+  declinedAt              DateTime?
+  withdrawnAt             DateTime?
+  cancelledAt             DateTime?
+  statusReason            String?   @db.Text
+
+  privacyAcceptedAt      DateTime?
+  declarationsAcceptedAt DateTime?
+  privacyNoticeVersion   String?
+
+  createdAt               DateTime  @default(now())
+  updatedAt               DateTime  @updatedAt
+  submittedAt             DateTime?
+  lastApplicantActivityAt DateTime?
+
+  school                    School         @relation(fields: [schoolId], references: [id], onDelete: Restrict)
+  staffMatchedFamilyAccount FamilyAccount? @relation("AdmissionStaffMatchedFamily", fields: [staffMatchedFamilyAccountId], references: [id], onDelete: SetNull)
+  promotedLearner           Learner?       @relation("AdmissionPromotedLearner", fields: [promotedLearnerId], references: [id], onDelete: Restrict)
+  promotedFamilyAccount     FamilyAccount? @relation("AdmissionPromotedFamily", fields: [promotedFamilyAccountId], references: [id], onDelete: Restrict)
+  acceptedBy                User?          @relation("AdmissionAcceptedBy", fields: [acceptedByUserId], references: [id], onDelete: SetNull)
+
+  learnerCandidate AdmissionLearnerCandidate?
+  guardians        AdmissionGuardian[]
+  answers          AdmissionAnswer[]
+  documents        AdmissionDocument[]
+  feeRecord        AdmissionFeeRecord?
+  statusHistory    AdmissionStatusHistory[]
+  paymentHistory   AdmissionPaymentHistory[]
+  auditEvents      AdmissionAuditEvent[]
+  staffNotes       AdmissionStaffNote[]
+
+  @@unique([schoolId, applicationNumber])
+  @@index([schoolId, status])
+  @@index([schoolId, intakeYear])
+  @@index([schoolId, submittedAt])
+  @@index([schoolId, createdAt])
+  @@index([promotedLearnerId])
+  @@index([staffMatchedFamilyAccountId])
+}
+
+model AdmissionLearnerCandidate {
+  id            String @id @default(cuid())
+  schoolId      String
+  applicationId String @unique
+
+  firstName String
+  lastName  String
+  nickname  String?
+
+  birthDate    DateTime?
+  gender       String?
+  idNumber     String?
+  homeLanguage String?
+  citizenship  String?
+
+  homeAddress        String?
+  allergies          String? @db.Text
+  medicalAlert       String?
+  previousSchoolName String?
+  notes              String? @db.Text
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  school      School               @relation(fields: [schoolId], references: [id], onDelete: Restrict)
+  application AdmissionApplication @relation(fields: [applicationId], references: [id], onDelete: Cascade)
+
+  @@index([schoolId])
+}
+
+model AdmissionGuardian {
+  id            String @id @default(cuid())
+  schoolId      String
+  applicationId String
+
+  title        String?
+  firstName    String
+  surname      String
+  relationship String?
+  idNumber     String?
+  cellNo       String?
+  email        String?
+  homeAddress  String?
+  employer     String?
+
+  isPrimary      Boolean @default(true)
+  isPayingPerson Boolean @default(false)
+  sortOrder      Int     @default(0)
+
+  matchedParentId String?
+  matchDecision   AdmissionMatchDecision?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  school        School               @relation(fields: [schoolId], references: [id], onDelete: Restrict)
+  application   AdmissionApplication @relation(fields: [applicationId], references: [id], onDelete: Cascade)
+  matchedParent Parent?              @relation("AdmissionGuardianMatchedParent", fields: [matchedParentId], references: [id], onDelete: SetNull)
+
+  @@index([schoolId, applicationId])
+  @@index([matchedParentId])
+}
+
+model AdmissionAnswer {
+  id            String @id @default(cuid())
+  schoolId      String
+  applicationId String
+
+  questionKey           String
+  questionLabelSnapshot String
+  valueJson             Json?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  school      School               @relation(fields: [schoolId], references: [id], onDelete: Restrict)
+  application AdmissionApplication @relation(fields: [applicationId], references: [id], onDelete: Cascade)
+
+  @@unique([applicationId, questionKey])
+  @@index([schoolId])
+}
+
+/// Private document metadata only — no public URL. File bytes stored later under private disk keys.
+model AdmissionDocument {
+  id            String @id @default(cuid())
+  schoolId      String
+  applicationId String
+
+  documentType     String
+  originalFileName String
+  contentType      String
+  byteSize         Int
+  storageProvider  String  @default("local_disk")
+  storageKey       String  @unique
+  checksumSha256   String?
+
+  uploadedBy AdmissionDocumentUploader
+  uploadedAt DateTime                  @default(now())
+  deletedAt  DateTime?
+
+  scanStatus AdmissionDocumentScanStatus @default(NOT_SCANNED)
+
+  replacedByDocumentId String?
+  replacedBy           AdmissionDocument?  @relation("AdmissionDocumentReplace", fields: [replacedByDocumentId], references: [id], onDelete: SetNull)
+  replaces             AdmissionDocument[] @relation("AdmissionDocumentReplace")
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  school      School               @relation(fields: [schoolId], references: [id], onDelete: Restrict)
+  application AdmissionApplication @relation(fields: [applicationId], references: [id], onDelete: Restrict)
+
+  feeRecordLatestProof AdmissionFeeRecord? @relation("AdmissionFeeLatestProof")
+
+  @@index([schoolId, applicationId])
+  @@index([applicationId, documentType])
+}
+
+/// Payment source of truth for an application (independent of application status).
+model AdmissionFeeRecord {
+  id            String @id @default(cuid())
+  schoolId      String
+  applicationId String @unique
+
+  required Boolean  @default(false)
+  amount   Decimal? @db.Decimal(12, 2)
+  currency String   @default("ZAR")
+
+  paymentStatus    AdmissionPaymentStatus @default(NOT_REQUIRED)
+  paymentReference String?
+
+  verifiedByUserId String?
+  verifiedAt       DateTime?
+  waivedByUserId   String?
+  waivedAt         DateTime?
+  waiveReason      String?   @db.Text
+  rejectedAt       DateTime?
+  rejectionReason  String?   @db.Text
+
+  latestProofDocumentId String? @unique
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  school              School               @relation(fields: [schoolId], references: [id], onDelete: Restrict)
+  application         AdmissionApplication @relation(fields: [applicationId], references: [id], onDelete: Restrict)
+  verifiedBy          User?                @relation("AdmissionFeeVerifiedBy", fields: [verifiedByUserId], references: [id], onDelete: SetNull)
+  waivedBy            User?                @relation("AdmissionFeeWaivedBy", fields: [waivedByUserId], references: [id], onDelete: SetNull)
+  latestProofDocument AdmissionDocument?   @relation("AdmissionFeeLatestProof", fields: [latestProofDocumentId], references: [id], onDelete: SetNull)
+
+  @@index([schoolId, paymentStatus])
+}
+
+model AdmissionStatusHistory {
+  id            String @id @default(cuid())
+  schoolId      String
+  applicationId String
+
+  fromStatus  AdmissionApplicationStatus?
+  toStatus    AdmissionApplicationStatus
+  actorType   AdmissionActorType
+  actorUserId String?
+  reason      String?                     @db.Text
+  createdAt   DateTime                    @default(now())
+
+  school      School               @relation(fields: [schoolId], references: [id], onDelete: Restrict)
+  application AdmissionApplication @relation(fields: [applicationId], references: [id], onDelete: Restrict)
+  actorUser   User?                @relation("AdmissionStatusActor", fields: [actorUserId], references: [id], onDelete: SetNull)
+
+  @@index([schoolId, applicationId, createdAt])
+}
+
+model AdmissionPaymentHistory {
+  id            String @id @default(cuid())
+  schoolId      String
+  applicationId String
+
+  fromStatus  AdmissionPaymentStatus?
+  toStatus    AdmissionPaymentStatus
+  actorType   AdmissionActorType
+  actorUserId String?
+  reason      String?                 @db.Text
+  createdAt   DateTime                @default(now())
+
+  school      School               @relation(fields: [schoolId], references: [id], onDelete: Restrict)
+  application AdmissionApplication @relation(fields: [applicationId], references: [id], onDelete: Restrict)
+  actorUser   User?                @relation("AdmissionPaymentActor", fields: [actorUserId], references: [id], onDelete: SetNull)
+
+  @@index([schoolId, applicationId, createdAt])
+}
+
+/// Append-only audit. metadataJson must not store raw ID/passport/bank account numbers.
+model AdmissionAuditEvent {
+  id            String  @id @default(cuid())
+  schoolId      String
+  applicationId String?
+
+  eventType    String
+  actorType    AdmissionActorType
+  actorUserId  String?
+  metadataJson Json?
+  createdAt    DateTime           @default(now())
+
+  school      School                @relation(fields: [schoolId], references: [id], onDelete: Restrict)
+  application AdmissionApplication? @relation(fields: [applicationId], references: [id], onDelete: SetNull)
+  actorUser   User?                 @relation("AdmissionAuditActor", fields: [actorUserId], references: [id], onDelete: SetNull)
+
+  @@index([schoolId, createdAt])
+  @@index([applicationId, createdAt])
+}
+
+model AdmissionStaffNote {
+  id            String   @id @default(cuid())
+  schoolId      String
+  applicationId String
+  authorUserId  String
+  body          String   @db.Text
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  school      School               @relation(fields: [schoolId], references: [id], onDelete: Restrict)
+  application AdmissionApplication @relation(fields: [applicationId], references: [id], onDelete: Restrict)
+  author      User                 @relation("AdmissionNoteAuthor", fields: [authorUserId], references: [id], onDelete: Restrict)
+
+  @@index([schoolId, applicationId, createdAt])
 }

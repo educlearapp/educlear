@@ -1,4 +1,7 @@
+import type { Prisma, PrismaClient } from "@prisma/client";
 import { prisma } from "../prisma";
+
+type Db = PrismaClient | Prisma.TransactionClient;
 
 export type LearnerIdentityMatchReason = "idNumber" | "name+dob";
 
@@ -81,7 +84,9 @@ export async function findDuplicateLearnerInSchool(input: {
   lastName?: string | null;
   birthDate?: Date | string | null;
   excludeLearnerId?: string | null;
+  db?: Db;
 }): Promise<DuplicateLearnerMatch | null> {
+  const db = input.db ?? prisma;
   const schoolId = String(input.schoolId || "").trim();
   if (!schoolId) {
     throw new Error("schoolId is required for duplicate learner detection");
@@ -109,7 +114,7 @@ export async function findDuplicateLearnerInSchool(input: {
   } as const;
 
   if (isUsableLearnerIdNumber(idNumber)) {
-    const rows = await prisma.learner.findMany({
+    const rows = await db.learner.findMany({
       where: {
         schoolId,
         ...(excludeId ? { id: { not: excludeId } } : {}),
@@ -122,7 +127,7 @@ export async function findDuplicateLearnerInSchool(input: {
   }
 
   if (firstName && lastName && dob) {
-    const rows = await prisma.learner.findMany({
+    const rows = await db.learner.findMany({
       where: {
         schoolId,
         ...(excludeId ? { id: { not: excludeId } } : {}),
@@ -139,6 +144,90 @@ export async function findDuplicateLearnerInSchool(input: {
   }
 
   return null;
+}
+
+/**
+ * OA-05B — all strong same-school matches (exact usable ID and/or name+DOB).
+ * Prefer this when reactivation must detect ambiguity; do not auto-pick `.find()`.
+ * ID matches prefer matchReason "idNumber"; name+DOB-only keep "name+dob".
+ */
+export async function findAllStrongLearnerMatchesInSchool(input: {
+  schoolId: string;
+  idNumber?: string | null;
+  firstName?: string | null;
+  lastName?: string | null;
+  birthDate?: Date | string | null;
+  excludeLearnerId?: string | null;
+  db?: Db;
+}): Promise<DuplicateLearnerMatch[]> {
+  const db = input.db ?? prisma;
+  const schoolId = String(input.schoolId || "").trim();
+  if (!schoolId) {
+    throw new Error("schoolId is required for duplicate learner detection");
+  }
+
+  const excludeId = String(input.excludeLearnerId || "").trim();
+  const idNumber = normaliseLearnerIdNumber(input.idNumber);
+  const firstName = compactName(input.firstName);
+  const lastName = compactName(input.lastName);
+  const dob = birthDayKey(input.birthDate);
+
+  const select = {
+    id: true,
+    schoolId: true,
+    firstName: true,
+    lastName: true,
+    admissionNo: true,
+    idNumber: true,
+    birthDate: true,
+    enrollmentStatus: true,
+    className: true,
+    grade: true,
+    familyAccountId: true,
+    familyAccount: { select: { id: true, accountRef: true, familyName: true } },
+  } as const;
+
+  const byId = new Map<string, DuplicateLearnerMatch>();
+
+  if (isUsableLearnerIdNumber(idNumber)) {
+    const rows = await db.learner.findMany({
+      where: {
+        schoolId,
+        ...(excludeId ? { id: { not: excludeId } } : {}),
+        idNumber: { not: null },
+      },
+      select,
+    });
+    for (const row of rows) {
+      if (normaliseLearnerIdNumber(row.idNumber) === idNumber) {
+        byId.set(row.id, toMatch(row, "idNumber"));
+      }
+    }
+  }
+
+  if (firstName && lastName && dob) {
+    const rows = await db.learner.findMany({
+      where: {
+        schoolId,
+        ...(excludeId ? { id: { not: excludeId } } : {}),
+      },
+      select,
+    });
+    for (const row of rows) {
+      const nameDobHit =
+        compactName(row.firstName) === firstName &&
+        compactName(row.lastName) === lastName &&
+        birthDayKey(row.birthDate) === dob;
+      if (!nameDobHit) continue;
+      const existing = byId.get(row.id);
+      if (!existing) {
+        byId.set(row.id, toMatch(row, "name+dob"));
+      }
+      // If already matched by ID, keep idNumber as the stronger reason.
+    }
+  }
+
+  return Array.from(byId.values());
 }
 
 export function conflictPayload(error: LearnerIdentityConflictError) {

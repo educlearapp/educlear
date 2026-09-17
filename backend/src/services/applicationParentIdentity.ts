@@ -4,7 +4,9 @@
  * Does NOT auto-merge historical duplicates. Does NOT mutate FamilyAccount.
  */
 
-import type { PrismaClient } from "@prisma/client";
+import type { Prisma, PrismaClient } from "@prisma/client";
+
+type Db = PrismaClient | Prisma.TransactionClient;
 import {
   firstNamesCompatible,
   maskCellphone,
@@ -112,11 +114,11 @@ export function isOwnerAdminActor(actorRole: unknown): boolean {
 }
 
 async function loadSchoolCandidates(
-  prisma: PrismaClient,
+  db: Db,
   schoolId: string,
   excludeParentId?: string | null
 ): Promise<(ExistingParentCandidate & { primaryLearnerId: string | null; linkedLearnerNames: string[] })[]> {
-  const rows = await prisma.parent.findMany({
+  const rows = await db.parent.findMany({
     where: {
       schoolId,
       ...(excludeParentId ? { id: { not: String(excludeParentId) } } : {}),
@@ -198,7 +200,7 @@ function enrichCandidate(
  * Exclude current Parent.id on EDIT so self is never treated as a duplicate.
  */
 export async function checkApplicationParentIdentity(opts: {
-  prisma: PrismaClient;
+  prisma: Db;
   schoolId: string;
   incoming: {
     firstName?: string | null;

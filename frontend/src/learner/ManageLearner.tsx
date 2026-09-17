@@ -321,7 +321,18 @@ export default function ManageLearner({
     draftIdNumber: string;
     parentId?: string;
   }>({ active: false, draftIdNumber: "" });
-  const [profileTab, setProfileTab] = useState<ProfileTab>("general");
+  const [profileTab, setProfileTab] = useState<ProfileTab>(() => {
+    try {
+      const raw = localStorage.getItem("manageLearnerInitialTab");
+      if (raw === "billing" || raw === "general" || raw === "medical" || raw === "groups" || raw === "other" || raw === "extra") {
+        localStorage.removeItem("manageLearnerInitialTab");
+        return raw;
+      }
+    } catch {
+      // ignore
+    }
+    return "general";
+  });
   const [detailLearner, setDetailLearner] = useState<any | null>(null);
   const [detailLoading, setDetailLoading] = useState(false);
   const [detailError, setDetailError] = useState("");

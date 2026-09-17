@@ -8,6 +8,7 @@ type Props = {
 const TABS: { id: SchoolSettingsTab; label: string }[] = [
   { id: "general", label: "General" },
   { id: "documents", label: "Documents" },
+  { id: "admissions", label: "Admissions" },
 ];
 
 export default function SettingsTabs({ activeTab, onTabChange }: Props) {

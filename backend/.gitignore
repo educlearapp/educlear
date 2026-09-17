@@ -8,5 +8,8 @@ dist
 .env.local
 .env.*.local
 
+# Private Admissions uploads (OA-03D) — never public /uploads
+data/admissions/
+
 # Build-time copies of data/ support JSON for persistent disk repair (see stage-billing-disk-support-templates.mjs)
 storage/billing-disk-support-templates/

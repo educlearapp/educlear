@@ -94,6 +94,10 @@ const PAGE_RULES: Record<string, PageRule> = {
   accountingAuditCompliance: { module: "reports", action: "view" },
   accountingExportCenter: { module: "reports", action: "view" },
   accountingSettings: { module: "settings", action: "view" },
+  /** Settings → Admissions (OA-03A). Dashboard module comes later. */
+  admissionsSettings: { module: "admissions", action: "view" },
+  admissions: { module: "admissions", action: "view" },
+  admissionsDetail: { module: "admissions", action: "view" },
 };
 
 const FALLBACK_PAGE_ORDER: SchoolPageKey[] = [

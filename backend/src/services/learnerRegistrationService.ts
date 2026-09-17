@@ -1,4 +1,12 @@
+import type { Prisma, PrismaClient } from "@prisma/client";
 import { prisma } from "../prisma";
+
+type Db = PrismaClient | Prisma.TransactionClient;
+
+function isDbWithinTransaction(db: Db, withinTransaction?: boolean): boolean {
+  if (withinTransaction !== undefined) return withinTransaction;
+  return typeof (db as PrismaClient).$transaction !== "function";
+}
 import {
   allocateFamilyAccountRef,
   isFamilyAccountRefCollision,
@@ -64,12 +72,13 @@ export class CrossSchoolFamilyAccountError extends Error {
 
 export async function assertFamilyAccountOwnedBySchool(
   schoolId: string,
-  familyAccountId: string
+  familyAccountId: string,
+  db: Db = prisma
 ) {
   const sid = String(schoolId || "").trim();
   const id = String(familyAccountId || "").trim();
   if (!sid || !id) throw new Error("schoolId and familyAccountId are required");
-  const row = await prisma.familyAccount.findUnique({
+  const row = await db.familyAccount.findUnique({
     where: { id },
     select: { id: true, schoolId: true, accountRef: true, accountNo: true, familyName: true, createdAt: true },
   });
@@ -80,12 +89,16 @@ export async function assertFamilyAccountOwnedBySchool(
   return row;
 }
 
-async function allocateUniqueAdmissionNo(schoolId: string, preferred: string): Promise<string> {
+async function allocateUniqueAdmissionNo(
+  schoolId: string,
+  preferred: string,
+  db: Db = prisma
+): Promise<string> {
   const sid = String(schoolId || "").trim();
   const base = String(preferred || "").trim().toUpperCase() || "ACC";
   const taken = new Set(
     (
-      await prisma.learner.findMany({
+      await db.learner.findMany({
         where: { schoolId: sid, admissionNo: { not: null } },
         select: { admissionNo: true },
       })
@@ -101,7 +114,7 @@ async function allocateUniqueAdmissionNo(schoolId: string, preferred: string): P
   return `${base}-${Date.now().toString(36).toUpperCase()}`;
 }
 
-async function createFamilyShell(schoolId: string, surname: string) {
+async function createFamilyShell(schoolId: string, surname: string, db: Db = prisma) {
   let familyAccount: {
     id: string;
     accountRef: string;
@@ -110,9 +123,9 @@ async function createFamilyShell(schoolId: string, surname: string) {
     createdAt: Date;
   } | null = null;
   for (let attempt = 0; attempt < 5; attempt += 1) {
-    const accountNo = await allocateFamilyAccountRef(schoolId, surname);
+    const accountNo = await allocateFamilyAccountRef(schoolId, surname, db);
     try {
-      familyAccount = await prisma.familyAccount.create({
+      familyAccount = await db.familyAccount.create({
         data: {
           schoolId,
           accountRef: accountNo,
@@ -132,16 +145,19 @@ async function createFamilyShell(schoolId: string, surname: string) {
   return familyAccount;
 }
 
-async function rollbackLearnerRegistration(input: { learnerId?: string; familyAccountId?: string }) {
+async function rollbackLearnerRegistration(
+  input: { learnerId?: string; familyAccountId?: string },
+  db: Db = prisma
+) {
   const learnerId = String(input.learnerId || "").trim();
   const familyAccountId = String(input.familyAccountId || "").trim();
   if (learnerId) {
-    await prisma.learner.delete({ where: { id: learnerId } }).catch(() => undefined);
+    await db.learner.delete({ where: { id: learnerId } }).catch(() => undefined);
   }
   if (familyAccountId) {
-    const linkedCount = await prisma.learner.count({ where: { familyAccountId } });
+    const linkedCount = await db.learner.count({ where: { familyAccountId } });
     if (linkedCount === 0) {
-      await prisma.familyAccount.delete({ where: { id: familyAccountId } }).catch(() => undefined);
+      await db.familyAccount.delete({ where: { id: familyAccountId } }).catch(() => undefined);
     }
   }
 }
@@ -150,11 +166,22 @@ export async function registerLearner(input: {
   schoolId: string;
   learner: Record<string, unknown>;
   existingFamilyAccountId?: string | null;
+  db?: Db;
+  withinTransaction?: boolean;
+  /**
+   * When false, skip file-based finance baseline registration.
+   * Default true — preserves POST /api/learners behaviour.
+   * Admissions conversion sets false inside the DB txn and registers after commit.
+   */
+  registerFinanceBaseline?: boolean;
 }) {
+  const db = input.db ?? prisma;
+  const withinTransaction = isDbWithinTransaction(db, input.withinTransaction);
+  const registerFinanceBaseline = input.registerFinanceBaseline !== false;
   const schoolId = String(input.schoolId || "").trim();
   if (!schoolId) throw new Error("Missing schoolId");
 
-  const school = await prisma.school.findUnique({
+  const school = await db.school.findUnique({
     where: { id: schoolId },
     select: { id: true },
   });
@@ -167,6 +194,7 @@ export async function registerLearner(input: {
     firstName: cleanString(learner.firstName),
     lastName: cleanString(learner.surname || learner.lastName),
     birthDate: (learner.birthDate as string | Date | null) || null,
+    db,
   });
   if (duplicate) {
     throw new LearnerIdentityConflictError(schoolId, duplicate);
@@ -174,26 +202,46 @@ export async function registerLearner(input: {
 
   const existingFamilyAccountId = String(input.existingFamilyAccountId || "").trim();
   if (existingFamilyAccountId) {
-    const familyAccount = await assertFamilyAccountOwnedBySchool(schoolId, existingFamilyAccountId);
+    const familyAccount = await assertFamilyAccountOwnedBySchool(schoolId, existingFamilyAccountId, db);
     if (!familyAccount) throw new Error("Existing family account not found");
-    return createLearnerOnExistingFamilyAccount({ schoolId, learner, familyAccount });
+    return createLearnerOnExistingFamilyAccount({
+      schoolId,
+      learner,
+      familyAccount,
+      db,
+      withinTransaction,
+      registerFinanceBaseline,
+    });
   }
 
-  return createLearnerWithNewFamilyAccount({ schoolId, learner });
+  return createLearnerWithNewFamilyAccount({
+    schoolId,
+    learner,
+    db,
+    withinTransaction,
+    registerFinanceBaseline,
+  });
 }
 
 export async function createLearnerWithNewFamilyAccount({
   schoolId,
   learner,
+  db = prisma,
+  withinTransaction = false,
+  registerFinanceBaseline = true,
 }: {
   schoolId: string;
   learner: Record<string, unknown>;
+  db?: Db;
+  withinTransaction?: boolean;
+  registerFinanceBaseline?: boolean;
 }) {
+  const inTx = isDbWithinTransaction(db, withinTransaction);
   const learnerSurname = cleanString(learner.surname || learner.lastName);
-  const familyAccount = await createFamilyShell(schoolId, learnerSurname);
+  const familyAccount = await createFamilyShell(schoolId, learnerSurname, db);
   let newLearner: Awaited<ReturnType<typeof prisma.learner.create>> | null = null;
   try {
-    newLearner = await prisma.learner.create({
+    newLearner = await db.learner.create({
       data: {
         schoolId,
         familyAccountId: familyAccount.id,
@@ -213,19 +261,26 @@ export async function createLearnerWithNewFamilyAccount({
         ...optionalLearnerProfileFields(learner),
       },
     });
-    registerFinanceAccountForLearner({
-      schoolId,
-      learnerId: newLearner.id,
-      familyAccountId: familyAccount.id,
-      accountRef: familyAccount.accountRef,
-      accountHolder: familyAccount.familyName,
-      createdAt: familyAccount.createdAt,
-    });
+    if (registerFinanceBaseline) {
+      registerFinanceAccountForLearner({
+        schoolId,
+        learnerId: newLearner.id,
+        familyAccountId: familyAccount.id,
+        accountRef: familyAccount.accountRef,
+        accountHolder: familyAccount.familyName,
+        createdAt: familyAccount.createdAt,
+      });
+    }
   } catch (error) {
-    await rollbackLearnerRegistration({
-      learnerId: newLearner?.id,
-      familyAccountId: familyAccount.id,
-    });
+    if (!inTx) {
+      await rollbackLearnerRegistration(
+        {
+          learnerId: newLearner?.id,
+          familyAccountId: familyAccount.id,
+        },
+        db
+      );
+    }
     throw error;
   }
   return {
@@ -240,19 +295,26 @@ export async function createLearnerOnExistingFamilyAccount({
   schoolId,
   learner,
   familyAccount,
+  db = prisma,
+  withinTransaction = false,
+  registerFinanceBaseline = true,
 }: {
   schoolId: string;
   learner: Record<string, unknown>;
   familyAccount: { id: string; accountRef: string; accountNo?: string | null; familyName: string; createdAt?: Date };
+  db?: Db;
+  withinTransaction?: boolean;
+  registerFinanceBaseline?: boolean;
 }) {
-  const owned = await assertFamilyAccountOwnedBySchool(schoolId, familyAccount.id);
+  const inTx = isDbWithinTransaction(db, withinTransaction);
+  const owned = await assertFamilyAccountOwnedBySchool(schoolId, familyAccount.id, db);
   if (!owned) throw new Error("Existing family account not found");
 
   const learnerSurname = cleanString(learner.surname || learner.lastName);
   const accountNo = String(familyAccount.accountRef || "").trim().toUpperCase();
-  const admissionNo = await allocateUniqueAdmissionNo(schoolId, accountNo);
+  const admissionNo = await allocateUniqueAdmissionNo(schoolId, accountNo, db);
 
-  const newLearner = await prisma.learner.create({
+  const newLearner = await db.learner.create({
     data: {
       schoolId,
       familyAccountId: familyAccount.id,
@@ -274,16 +336,20 @@ export async function createLearnerOnExistingFamilyAccount({
   });
 
   try {
-    registerFinanceAccountForLearner({
-      schoolId,
-      learnerId: newLearner.id,
-      familyAccountId: familyAccount.id,
-      accountRef: accountNo,
-      accountHolder: familyAccount.familyName,
-      createdAt: familyAccount.createdAt,
-    });
+    if (registerFinanceBaseline) {
+      registerFinanceAccountForLearner({
+        schoolId,
+        learnerId: newLearner.id,
+        familyAccountId: familyAccount.id,
+        accountRef: accountNo,
+        accountHolder: familyAccount.familyName,
+        createdAt: familyAccount.createdAt,
+      });
+    }
   } catch (error) {
-    await rollbackLearnerRegistration({ learnerId: newLearner.id });
+    if (!inTx) {
+      await rollbackLearnerRegistration({ learnerId: newLearner.id }, db);
+    }
     throw error;
   }
 
@@ -358,21 +424,23 @@ export async function alignParentsToCanonicalFamily(input: {
   schoolId: string;
   learnerIds: string[];
   canonicalFamilyAccountId: string;
+  db?: Db;
 }) {
+  const db = input.db ?? prisma;
   const schoolId = String(input.schoolId || "").trim();
   const canonicalFamilyAccountId = String(input.canonicalFamilyAccountId || "").trim();
   if (!schoolId || !canonicalFamilyAccountId || !input.learnerIds.length) return 0;
 
-  await assertFamilyAccountOwnedBySchool(schoolId, canonicalFamilyAccountId);
+  await assertFamilyAccountOwnedBySchool(schoolId, canonicalFamilyAccountId, db);
 
-  const links = await prisma.parentLearnerLink.findMany({
+  const links = await db.parentLearnerLink.findMany({
     where: { schoolId, learnerId: { in: input.learnerIds } },
     select: { parentId: true },
   });
   const parentIds = [...new Set(links.map((row) => row.parentId))];
   if (!parentIds.length) return 0;
 
-  const result = await prisma.parent.updateMany({
+  const result = await db.parent.updateMany({
     where: { schoolId, id: { in: parentIds } },
     data: { familyAccountId: canonicalFamilyAccountId },
   });
