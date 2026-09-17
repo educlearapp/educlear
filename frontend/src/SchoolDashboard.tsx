@@ -2015,27 +2015,9 @@ const [selectedLearnerReport, setSelectedLearnerReport] = useState<any>(null);
 
 
 
-        const res = await fetch(`${API_URL}/api/teacher-performance/school/${schoolId}`);
-
-
-
-        if (!res.ok) {
-
-
-
-          if (!cancelled) setTopPerformer(null);
-
-
-
-          return;
-
-
-
-        }
-
-
-
-        const data = (await res.json()) as TeacherPerformanceRecord[];
+        const data = (await apiFetch(
+          `/api/teacher-performance/school/${schoolId}`
+        )) as TeacherPerformanceRecord[];
 
 
 
@@ -2715,8 +2697,7 @@ const [selectedLearnerReport, setSelectedLearnerReport] = useState<any>(null);
   useEffect(() => {
     if (!schoolId) return;
     let cancelled = false;
-    fetch(`${API_URL}/api/schools`)
-      .then((res) => res.json())
+    apiFetch("/api/schools")
       .then((rows) => {
         if (cancelled) return;
         const match = Array.isArray(rows) ? rows.find((row: any) => row?.id === schoolId) : null;
@@ -4796,15 +4777,11 @@ const [selectedLearnerReport, setSelectedLearnerReport] = useState<any>(null);
   
   
   
-                await fetch(`${API_URL}/api/learners/${learnerId}`, {
+                await apiFetch(`/api/learners/${learnerId}`, {
   
   
   
                   method: "PUT",
-  
-  
-  
-                  headers: { "Content-Type": "application/json" },
   
   
   

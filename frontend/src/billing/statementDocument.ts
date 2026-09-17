@@ -1,6 +1,5 @@
 import jsPDF from "jspdf";
-import { API_URL } from "../api";
-import { staffAuthHeaders } from "../auth/staffAuthHeaders";
+import { API_URL, authenticatedFetch } from "../api";
 import { cacheSchoolLogoUrl, resolveSchoolLogoUrl } from "../utils/schoolLogo";
 import { formatMoney } from "./billingLedger";
 import {
@@ -61,7 +60,7 @@ export async function loadStatementSchoolBranding(schoolId: string): Promise<Sta
     return { name: fallbackName, logoUrl: fallbackLogoUrl || undefined };
   }
   try {
-    const res = await fetch(`${API_URL}/api/schools/${encodeURIComponent(schoolId)}`);
+    const res = await authenticatedFetch(`/api/schools/${encodeURIComponent(schoolId)}`);
     if (!res.ok) throw new Error("Failed to load school branding");
     const match = (await res.json()) as Record<string, unknown>;
     const logoUrl =
@@ -752,9 +751,7 @@ export async function fetchSchoolStatementPdfBlob(
   if (billingRef) params.set("accountNo", billingRef);
   if (learnerId) params.set("learnerId", learnerId);
   if (statementNote) params.set("statementNote", statementNote);
-  const res = await fetch(`${API_URL}/api/statements/pdf?${params.toString()}`, {
-    headers: { ...staffAuthHeaders() },
-  });
+  const res = await authenticatedFetch(`/api/statements/pdf?${params.toString()}`);
   if (!res.ok) {
     const body = await res.json().catch(() => ({}));
     throw new Error(String((body as { error?: string }).error || "Failed to generate statement PDF"));
@@ -816,7 +813,8 @@ export async function fetchParentStatementPdfBlob(
     learnerId,
     period: normalizeStatementPeriod(period),
   });
-  const res = await fetch(`${API_URL}/api/parent-portal/billing/statement.pdf?${params.toString()}`, {
+  const res = await authenticatedFetch(`/api/parent-portal/billing/statement.pdf?${params.toString()}`, {
+    skipAuth: true,
     headers: token ? { Authorization: `Bearer ${token}` } : {},
   });
   if (!res.ok) {
@@ -878,9 +876,8 @@ export async function sendStatementEmail(payload: {
   statementNote?: string;
   filename?: string;
 }): Promise<{ messageId?: string }> {
-  const response = await fetch(`${API_URL}/api/emails/send-statement`, {
+  const response = await authenticatedFetch(`/api/emails/send-statement`, {
     method: "POST",
-    headers: { "Content-Type": "application/json", ...staffAuthHeaders() },
     body: JSON.stringify(payload),
   });
   const body = await response.json().catch(() => ({}));

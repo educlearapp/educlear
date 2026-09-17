@@ -6,7 +6,7 @@ import jsPDF from "jspdf";
 
 
 
-import { API_URL } from "./api";
+import { apiFetch } from "./api";
 
 
 
@@ -815,19 +815,9 @@ export default function Payroll() {
 
 
 
-      const response = await fetch(
-
-
-
-        `${API_URL}/api/payroll/employees/${schoolId}`
-
-
-
+      const data = await apiFetch(
+        `/api/payroll/employees/${schoolId}`
       );
-
-
-
-      const data = await response.json();
 
 
 

@@ -1,26 +1,20 @@
-import { API_URL, apiFetch } from "./api";
+import { API_URL, apiFetch, authenticatedFetch, type ApiFetchOptions } from "./api";
 
 export function getStaffToken() {
   return localStorage.getItem("token") || "";
 }
 
-/** School staff JWT — adds Authorization for `/api/teacher-app` and secured teacher inbox. */
-export async function staffApiFetch(path: string, options: RequestInit = {}) {
-  const token = getStaffToken();
-  return apiFetch(path, {
-    ...options,
-    headers: {
-      ...(options.headers || {}),
-      ...(token ? { Authorization: `Bearer ${token}` } : {}),
-    },
-  });
+/**
+ * School staff JWT client for `/api/teacher-app` and secured teacher inbox.
+ * apiFetch already injects staff Bearer by default; this remains the explicit staff entrypoint.
+ */
+export async function staffApiFetch(path: string, options: ApiFetchOptions = {}) {
+  return apiFetch(path, options);
 }
 
 export async function staffFormPost(path: string, form: FormData) {
-  const token = getStaffToken();
-  const res = await fetch(`${API_URL}${path}`, {
+  const res = await authenticatedFetch(`${API_URL}${path}`, {
     method: "POST",
-    headers: token ? { Authorization: `Bearer ${token}` } : {},
     body: form,
   });
   const text = await res.text();

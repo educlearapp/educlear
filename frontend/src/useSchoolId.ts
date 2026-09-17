@@ -1,15 +1,17 @@
 import { useEffect, useState } from "react";
-import { API_URL } from "./api";
+import { apiFetch } from "./api";
 
 type SchoolListItem = { id: string };
 
 async function fetchFirstSchoolId(): Promise<string | null> {
-  const res = await fetch(`${API_URL}/api/schools`);
-  if (!res.ok) return null;
-  const data = (await res.json()) as unknown;
-  const list = Array.isArray(data) ? (data as SchoolListItem[]) : [];
-  const first = list.find((s) => s && typeof (s as any).id === "string");
-  return first?.id ? String(first.id) : null;
+  try {
+    const data = await apiFetch("/api/schools");
+    const list = Array.isArray(data) ? (data as SchoolListItem[]) : [];
+    const first = list.find((s) => s && typeof (s as any).id === "string");
+    return first?.id ? String(first.id) : null;
+  } catch {
+    return null;
+  }
 }
 
 /**
@@ -54,4 +56,3 @@ export function useSchoolId(): string {
 
   return schoolId;
 }
-

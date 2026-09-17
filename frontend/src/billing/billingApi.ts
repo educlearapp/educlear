@@ -1,4 +1,4 @@
-import { API_URL } from "../api";
+import { API_URL, authenticatedFetch } from "../api";
 import { staffAuthHeaders } from "../auth/staffAuthHeaders";
 import {
   clearSchoolLedgerRuntime,
@@ -47,7 +47,7 @@ function mergeLedgerEntriesSilent(schoolId: string, entries: BillingLedgerEntry[
 }
 
 const getJson = async (url: string, extraHeaders: Record<string, string> = {}) => {
-  const response = await fetch(url, {
+  const response = await authenticatedFetch(url, {
     cache: "no-store",
     headers: { ...extraHeaders },
   });
@@ -79,7 +79,7 @@ const postJson = async (
   fallback = "Request failed",
   extraHeaders: Record<string, string> = {}
 ) => {
-  const response = await fetch(url, {
+  const response = await authenticatedFetch(url, {
     method: "POST",
     headers: { "Content-Type": "application/json", ...extraHeaders },
     body: JSON.stringify(data),
@@ -548,7 +548,7 @@ export const undoBillingTransaction = async (
   const ref = String(accountNo || "").trim();
   if (!sid || !id) throw new Error("Missing school or transaction id");
 
-  const response = await fetch(
+  const response = await authenticatedFetch(
     `${API_URL}/api/billing-transactions/${encodeURIComponent(id)}/undo`,
     {
       method: "POST",
@@ -615,7 +615,7 @@ export const fetchBillingDocuments = async (schoolId: string) =>
 
 /** Preview/validation only. Always simulate:true. Does not send email. */
 export const sendBillingStatements = async (payload: Record<string, unknown>) => {
-  const response = await fetch(`${API_URL}/api/billing-documents/send-statements`, {
+  const response = await authenticatedFetch(`${API_URL}/api/billing-documents/send-statements`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ ...payload, simulate: true }),
@@ -625,7 +625,7 @@ export const sendBillingStatements = async (payload: Record<string, unknown>) =>
 };
 
 export const previewLatePenalties = async (payload: Record<string, unknown>) => {
-  const response = await fetch(`${API_URL}/api/billing/late-penalties/preview`, {
+  const response = await authenticatedFetch(`${API_URL}/api/billing/late-penalties/preview`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(payload),
@@ -635,7 +635,7 @@ export const previewLatePenalties = async (payload: Record<string, unknown>) => 
 };
 
 export const applyLatePenalties = async (payload: Record<string, unknown>) => {
-  const response = await fetch(`${API_URL}/api/billing/late-penalties/apply`, {
+  const response = await authenticatedFetch(`${API_URL}/api/billing/late-penalties/apply`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(payload),
@@ -709,7 +709,7 @@ export const previewDaSilvaLatePenalties = async (payload: {
   penaltyMonth: string;
   accountRefs?: string[];
 }) => {
-  const response = await fetch(`${API_URL}/api/billing/da-silva-late-penalties/preview`, {
+  const response = await authenticatedFetch(`${API_URL}/api/billing/da-silva-late-penalties/preview`, {
     method: "POST",
     headers: { "Content-Type": "application/json", ...daSilvaStaffAuthHeaders() },
     body: JSON.stringify(payload),
@@ -729,7 +729,7 @@ export const applyDaSilvaLatePenalties = async (payload: {
   penaltyMonth: string;
   selectedAccountRefs: string[];
 }) => {
-  const response = await fetch(`${API_URL}/api/billing/da-silva-late-penalties/apply`, {
+  const response = await authenticatedFetch(`${API_URL}/api/billing/da-silva-late-penalties/apply`, {
     method: "POST",
     headers: { "Content-Type": "application/json", ...daSilvaStaffAuthHeaders() },
     body: JSON.stringify(payload),
@@ -746,7 +746,7 @@ export const applyDaSilvaLatePenalties = async (payload: {
 export type LegalDocumentType = "section-41-notice" | "letter-of-demand" | "final-demand";
 
 export const previewLegalDocuments = async (payload: Record<string, unknown>) => {
-  const response = await fetch(`${API_URL}/api/legal-billing-documents/preview`, {
+  const response = await authenticatedFetch(`${API_URL}/api/legal-billing-documents/preview`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(payload),
@@ -759,7 +759,7 @@ export const previewLegalDocuments = async (payload: Record<string, unknown>) =>
 };
 
 export const generateLegalDocuments = async (payload: Record<string, unknown>) => {
-  const response = await fetch(`${API_URL}/api/legal-billing-documents/generate`, {
+  const response = await authenticatedFetch(`${API_URL}/api/legal-billing-documents/generate`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(payload),
@@ -772,7 +772,7 @@ export const generateLegalDocuments = async (payload: Record<string, unknown>) =
 };
 
 export const sendLegalDocuments = async (payload: Record<string, unknown>) => {
-  const response = await fetch(`${API_URL}/api/legal-billing-documents/send`, {
+  const response = await authenticatedFetch(`${API_URL}/api/legal-billing-documents/send`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ ...payload, simulate: true }),
@@ -859,7 +859,7 @@ async function postInvoiceRunEndpoint(
   payload: InvoiceRunExecutePayload,
   fallback: string
 ) {
-  const response = await fetch(`${API_URL}${path}`, {
+  const response = await authenticatedFetch(`${API_URL}${path}`, {
     method: "POST",
     headers: { "Content-Type": "application/json", ...staffAuthHeaders() },
     body: JSON.stringify(payload),
@@ -927,7 +927,7 @@ export async function undoInvoiceRun(
     };
   }
 
-  const response = await fetch(
+  const response = await authenticatedFetch(
     `${API_URL}/api/invoice-runs/${encodeURIComponent(runId)}/undo`,
     {
       method: "POST",
@@ -1099,7 +1099,7 @@ export const mergeFamilyAccount = async (payload: {
   targetLearnerId?: string;
   actorEmail?: string;
 }) => {
-  const response = await fetch(`${API_URL}/api/family-accounts/merge`, {
+  const response = await authenticatedFetch(`${API_URL}/api/family-accounts/merge`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(payload),
@@ -1123,7 +1123,7 @@ export const unmergeFamilyAccount = async (payload: {
   createNewAccount: boolean;
   actorEmail?: string;
 }) => {
-  const response = await fetch(`${API_URL}/api/family-accounts/unmerge`, {
+  const response = await authenticatedFetch(`${API_URL}/api/family-accounts/unmerge`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(payload),

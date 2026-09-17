@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState } from "react";
-import { API_URL } from "../api";
+import { apiFetch, ApiError } from "../api";
 import { staffAuthHeaders } from "../auth/staffAuthHeaders";
 import ParentsSection from "./ParentsSection";
 import type { ParentRecord } from "./parentFormTypes";
@@ -192,15 +192,7 @@ function mergeSensitiveIntoLearner(
 }
 
 async function fetchLearnerSensitiveFields(learnerId: string) {
-  const response = await fetch(
-    `${API_URL}/api/learners/${encodeURIComponent(learnerId)}/sensitive-fields`,
-    { headers: { ...staffAuthHeaders() } }
-  );
-  const payload = await response.json().catch(() => ({}));
-  if (!response.ok) {
-    throw new Error(payload?.error || "Failed to load sensitive learner fields");
-  }
-  return payload;
+  return apiFetch(`/api/learners/${encodeURIComponent(learnerId)}/sensitive-fields`);
 }
 
 function normalizeLearnerForManage(raw: any) {
@@ -365,11 +357,7 @@ export default function ManageLearner({
 
     (async () => {
       try {
-        const response = await fetch(`${API_URL}/api/learners/${encodeURIComponent(learnerId)}`);
-        const payload = await response.json().catch(() => ({}));
-        if (!response.ok) {
-          throw new Error(payload?.error || "Failed to load learner profile");
-        }
+        const payload = await apiFetch(`/api/learners/${encodeURIComponent(learnerId)}`);
         let loaded = normalizeLearnerForManage(payload?.learner || payload);
         if (cancelled || !loaded?.id) return;
         try {
@@ -507,11 +495,7 @@ export default function ManageLearner({
 
     const reloadLearnerProfile = async () => {
       if (!learnerId) return null;
-      const response = await fetch(`${API_URL}/api/learners/${encodeURIComponent(learnerId)}`);
-      const payload = await response.json().catch(() => ({}));
-      if (!response.ok) {
-        throw new Error(payload?.error || "Failed to reload learner profile");
-      }
+      const payload = await apiFetch(`/api/learners/${encodeURIComponent(learnerId)}`);
       let loaded = normalizeLearnerForManage(payload?.learner || payload);
       if (!loaded?.id) return null;
       try {
@@ -552,22 +536,29 @@ export default function ManageLearner({
       });
       const payloads = [draftPayload];
 
-      const response = await fetch(`${API_URL}/api/learners/${learner.id}`, {
-        method: "PUT",
-        headers: { "Content-Type": "application/json", ...staffAuthHeaders() },
-        body: JSON.stringify({ parents: payloads }),
-      });
-      const payload = await response.json().catch(() => ({}));
-      if (!response.ok) {
-        const conflict = parseParentIdConflictPayload(payload);
-        if (response.status === 409 && conflict) {
-          throw new ParentIdConflictClientError(conflict);
+      try {
+        await apiFetch(`/api/learners/${learner.id}`, {
+          method: "PUT",
+          headers: { ...staffAuthHeaders() },
+          body: JSON.stringify({ parents: payloads }),
+        });
+      } catch (error) {
+        if (error instanceof ApiError && error.status === 409) {
+          const payload = error.data;
+          const conflict = parseParentIdConflictPayload(payload);
+          if (conflict) {
+            throw new ParentIdConflictClientError(conflict);
+          }
+          const possible = parsePossibleParentMatchPayload(payload);
+          if (possible) {
+            throw new PossibleParentMatchClientError(possible);
+          }
         }
-        const possible = parsePossibleParentMatchPayload(payload);
-        if (response.status === 409 && possible) {
-          throw new PossibleParentMatchClientError(possible);
+        if (error instanceof ApiError) {
+          const payload = error.data as { error?: string; message?: string } | null;
+          throw new Error(payload?.error || payload?.message || error.message || "Failed to save parent");
         }
-        throw new Error(payload?.error || payload?.message || "Failed to save parent");
+        throw error;
       }
 
       const reloaded = await reloadLearnerProfile();
@@ -608,11 +599,7 @@ export default function ManageLearner({
         window.alert("No linked learner was found for that parent record.");
         return;
       }
-      const response = await fetch(`${API_URL}/api/learners/${encodeURIComponent(learnerId)}`);
-      const payload = await response.json().catch(() => ({}));
-      if (!response.ok) {
-        throw new Error(payload?.error || "Failed to open existing parent");
-      }
+      const payload = await apiFetch(`/api/learners/${encodeURIComponent(learnerId)}`);
       const loaded = payload?.learner || payload;
       if (!loaded?.id) {
         window.alert("Could not load the learner linked to that parent.");
@@ -668,18 +655,13 @@ export default function ManageLearner({
 
       setUnenrolling(true);
       try {
-        const response = await fetch(
-          `${API_URL}/api/learners/${encodeURIComponent(learner.id)}/enrollment-status`,
+        const payload = await apiFetch(
+          `/api/learners/${encodeURIComponent(learner.id)}/enrollment-status`,
           {
             method: "PATCH",
-            headers: { "Content-Type": "application/json" },
             body: JSON.stringify({ enrollmentStatus: "HISTORICAL", schoolId: learner.schoolId }),
           }
         );
-        const payload = await response.json().catch(() => ({}));
-        if (!response.ok) {
-          throw new Error(payload?.error || "Failed to unenrol learner");
-        }
 
         const updatedLearner = normalizeLearnerForManage(payload?.learner || {
           ...learner,
@@ -707,18 +689,13 @@ export default function ManageLearner({
 
       setUnenrolling(true);
       try {
-        const response = await fetch(
-          `${API_URL}/api/learners/${encodeURIComponent(learner.id)}/enrollment-status`,
+        const payload = await apiFetch(
+          `/api/learners/${encodeURIComponent(learner.id)}/enrollment-status`,
           {
             method: "PATCH",
-            headers: { "Content-Type": "application/json" },
             body: JSON.stringify({ enrollmentStatus: "ACTIVE", schoolId: learner.schoolId }),
           }
         );
-        const payload = await response.json().catch(() => ({}));
-        if (!response.ok) {
-          throw new Error(payload?.error || "Failed to re-enrol learner");
-        }
 
         const updatedLearner = normalizeLearnerForManage(payload?.learner || {
           ...learner,
@@ -1029,125 +1006,37 @@ export default function ManageLearner({
   
   
   
-                const response = await fetch(`${API_URL}/api/learners/${learner.id}`, {
-  
-  
-  
+                const result = await apiFetch(`/api/learners/${learner.id}`, {
                   method: "PUT",
-  
-  
-  
-                  headers: {
-  
-  
-  
-                    "Content-Type": "application/json",
-  
-  
-  
-                  },
-  
-  
-  
                   body: JSON.stringify({
-  
-  
-  
                     firstName: learner.firstName || "",
-  
-  
-  
                     lastName: learner.lastName || learner.surname || "",
-  
-  
-  
                     gender: learner.gender || "",
-  
-  
-  
                     birthDate: learner.birthDate || learner.dateOfBirth || "",
-  
-  
-  
                     homeLanguage: learner.homeLanguage || "",
-  
-  
-  
                     religion: learner.religion || "",
-  
-  
-  
                     nationality: learner.nationality || "",
-  
-  
-  
                     enrolmentDate: learner.enrolmentDate || "",
-  
-  
-  
                     idNumber: learner.idNumber || learner.idNo || "",
-  
-  
-  
                     classroom: learner.classroom || learner.className || "",
-  
-  
-  
                     classroomName: learner.classroomName || learner.classroom || learner.className || "",
-  
-  
-  
                     className: learner.className || learner.classroom || "",
-  
-  
-  
                     notes: learner.notes || "",
                   }),
-  
-  
-  
                 });
-  
-  
-  
-                if (!response.ok) {
-  
-  
-  
-                  throw new Error("Failed to save learner");
-  
-  
-  
-                }
-  
-  
-  
-                const result = await response.json();
-  
-  
-  
+
                 let updatedLearner = normalizeLearnerForManage(result.learner || result);
 
-                const sensitiveResponse = await fetch(
-                  `${API_URL}/api/learners/${encodeURIComponent(learner.id)}/sensitive-fields`,
+                const sensitivePayload = await apiFetch(
+                  `/api/learners/${encodeURIComponent(learner.id)}/sensitive-fields`,
                   {
                     method: "PUT",
-                    headers: {
-                      "Content-Type": "application/json",
-                      ...staffAuthHeaders(),
-                    },
                     body: JSON.stringify({
                       allergies: (form.allergies || "").trim() || null,
                       medicalAlert: (form.medicalAlert || "").trim() || null,
                     }),
                   }
                 );
-                const sensitivePayload = await sensitiveResponse.json().catch(() => ({}));
-                if (!sensitiveResponse.ok) {
-                  throw new Error(
-                    sensitivePayload?.error || "Failed to save medical fields"
-                  );
-                }
                 updatedLearner = normalizeLearnerForManage(
                   mergeSensitiveIntoLearner(updatedLearner, {
                     allergies: sensitivePayload.allergies,

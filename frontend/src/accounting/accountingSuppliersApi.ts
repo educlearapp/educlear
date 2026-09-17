@@ -1,4 +1,4 @@
-import { API_URL } from "../api";
+import { API_URL, authenticatedFetch } from "../api";
 
 const BASE = `${API_URL}/api/accounting`;
 
@@ -122,7 +122,7 @@ export async function fetchSuppliers(
   if (opts?.status) params.set("status", opts.status);
   if (opts?.page) params.set("page", String(opts.page));
   if (opts?.pageSize) params.set("pageSize", String(opts.pageSize));
-  const res = await fetch(`${BASE}/suppliers?${params}`);
+  const res = await authenticatedFetch(`${BASE}/suppliers?${params}`);
   return parseJson(res) as Promise<{
     success: boolean;
     suppliers: ApiSupplier[];
@@ -136,9 +136,8 @@ export async function createSupplier(
   schoolId: string,
   body: Partial<ApiSupplier> & { supplierName: string }
 ) {
-  const res = await fetch(`${BASE}/suppliers`, {
+  const res = await authenticatedFetch(`${BASE}/suppliers`, {
     method: "POST",
-    headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ schoolId, ...body }),
   });
   return parseJson(res) as Promise<{ success: boolean; supplier: ApiSupplier }>;
@@ -149,16 +148,17 @@ export async function updateSupplier(
   id: string,
   body: Partial<ApiSupplier>
 ) {
-  const res = await fetch(`${BASE}/suppliers/${id}`, {
+  const res = await authenticatedFetch(`${BASE}/suppliers/${id}`, {
     method: "PATCH",
-    headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ schoolId, ...body }),
   });
   return parseJson(res) as Promise<{ success: boolean; supplier: ApiSupplier }>;
 }
 
 export async function fetchExpenseCategories(schoolId: string) {
-  const res = await fetch(`${BASE}/expense-categories?schoolId=${encodeURIComponent(schoolId)}`);
+  const res = await authenticatedFetch(
+    `${BASE}/expense-categories?schoolId=${encodeURIComponent(schoolId)}`
+  );
   return parseJson(res) as Promise<{ success: boolean; categories: ApiExpenseCategory[] }>;
 }
 
@@ -172,7 +172,7 @@ export async function fetchSupplierInvoices(
   if (opts?.supplierId) params.set("supplierId", opts.supplierId);
   if (opts?.page) params.set("page", String(opts.page));
   if (opts?.pageSize) params.set("pageSize", String(opts.pageSize));
-  const res = await fetch(`${BASE}/supplier-invoices?${params}`);
+  const res = await authenticatedFetch(`${BASE}/supplier-invoices?${params}`);
   return parseJson(res) as Promise<{
     success: boolean;
     invoices: ApiSupplierInvoice[];
@@ -183,7 +183,9 @@ export async function fetchSupplierInvoices(
 }
 
 export async function fetchOpenSupplierInvoices(schoolId: string) {
-  const res = await fetch(`${BASE}/supplier-invoices/open?schoolId=${encodeURIComponent(schoolId)}`);
+  const res = await authenticatedFetch(
+    `${BASE}/supplier-invoices/open?schoolId=${encodeURIComponent(schoolId)}`
+  );
   return parseJson(res) as Promise<{ success: boolean; invoices: ApiSupplierInvoice[] }>;
 }
 
@@ -202,18 +204,16 @@ export async function createSupplierInvoice(
     autoApprove?: boolean;
   }
 ) {
-  const res = await fetch(`${BASE}/supplier-invoices`, {
+  const res = await authenticatedFetch(`${BASE}/supplier-invoices`, {
     method: "POST",
-    headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ schoolId, ...body }),
   });
   return parseJson(res) as Promise<{ success: boolean; invoice: ApiSupplierInvoice; journal?: ApiJournal | null }>;
 }
 
 export async function approveSupplierInvoice(schoolId: string, invoiceId: string) {
-  const res = await fetch(`${BASE}/supplier-invoices/${invoiceId}/approve`, {
+  const res = await authenticatedFetch(`${BASE}/supplier-invoices/${invoiceId}/approve`, {
     method: "POST",
-    headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ schoolId }),
   });
   return parseJson(res) as Promise<{
@@ -231,9 +231,8 @@ export async function acceptBankSupplierMatch(body: {
   paymentDate: string;
   reference?: string;
 }) {
-  const res = await fetch(`${BASE}/bank-match/accept`, {
+  const res = await authenticatedFetch(`${BASE}/bank-match/accept`, {
     method: "POST",
-    headers: { "Content-Type": "application/json" },
     body: JSON.stringify(body),
   });
   return parseJson(res) as Promise<{
@@ -255,7 +254,7 @@ export async function fetchBankMatchSuggestions(
     reference,
     amount: String(amount),
   });
-  const res = await fetch(`${BASE}/bank-match/suggestions?${params}`);
+  const res = await authenticatedFetch(`${BASE}/bank-match/suggestions?${params}`);
   return parseJson(res) as Promise<{
     success: boolean;
     best: {
@@ -289,9 +288,8 @@ export async function postSupplierInvoicePayment(
     bankTransactionId?: string;
   }
 ) {
-  const res = await fetch(`${BASE}/supplier-invoices/${invoiceId}/payments`, {
+  const res = await authenticatedFetch(`${BASE}/supplier-invoices/${invoiceId}/payments`, {
     method: "POST",
-    headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ schoolId, ...body }),
   });
   return parseJson(res) as Promise<{
@@ -310,7 +308,7 @@ export async function fetchCreditorsAgeing(
   if (opts?.asOf) params.set("asOf", opts.asOf);
   if (opts?.page) params.set("page", String(opts.page));
   if (opts?.pageSize) params.set("pageSize", String(opts.pageSize));
-  const res = await fetch(`${BASE}/creditors-ageing?${params}`);
+  const res = await authenticatedFetch(`${BASE}/creditors-ageing?${params}`);
   return parseJson(res) as Promise<{
     success: boolean;
     rows: CreditorsAgeingRow[];
@@ -323,7 +321,9 @@ export async function fetchCreditorsAgeing(
 }
 
 export async function fetchAccountingJournals(schoolId: string) {
-  const res = await fetch(`${BASE}/journals?schoolId=${encodeURIComponent(schoolId)}`);
+  const res = await authenticatedFetch(
+    `${BASE}/journals?schoolId=${encodeURIComponent(schoolId)}`
+  );
   return parseJson(res) as Promise<{ success: boolean; journals: ApiJournal[] }>;
 }
 

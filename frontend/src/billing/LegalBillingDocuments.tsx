@@ -1,5 +1,5 @@
 import React, { useCallback, useMemo, useState } from "react";
-import { API_URL } from "../api";
+import { API_URL, authenticatedFetch } from "../api";
 import { previewLegalDocuments, type LegalDocumentType } from "./billingApi";
 import {
   buildRunDueDateMap,
@@ -219,9 +219,8 @@ function historyLookupKey(learnerId: string, accountNo: string) {
 }
 
 async function legalApiPost(path: string, payload: Record<string, unknown>) {
-  const response = await fetch(`${API_URL}/api/legal-billing-documents${path}`, {
+  const response = await authenticatedFetch(`${API_URL}/api/legal-billing-documents${path}`, {
     method: "POST",
-    headers: { "Content-Type": "application/json" },
     body: JSON.stringify(payload),
   });
   const text = await response.text();

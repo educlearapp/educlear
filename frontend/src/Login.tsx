@@ -74,6 +74,7 @@ export default function Login({ onLoggedIn }: Props) {
       const data: any = await apiFetch("/auth/login", {
 
         method: "POST",
+        skipAuth: true,
 
         body: JSON.stringify({
           email: email.trim().toLowerCase(),
