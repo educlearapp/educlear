@@ -7,6 +7,15 @@ import multer from "multer";
 import path from "path";
 
 import { extractApplicantAccessToken } from "../middleware/extractApplicantAccessToken";
+import {
+  rateLimitApplicantRead,
+  rateLimitApplicantWrite,
+  rateLimitDocumentUpload,
+  rateLimitDraftCreate,
+  rateLimitPaymentProofUpload,
+  rateLimitPublicConfig,
+  rateLimitSubmit,
+} from "../middleware/publicAdmissionsRateLimit";
 import { prisma } from "../prisma";
 import {
   ADMISSIONS_MAX_UPLOAD_BYTES,
@@ -84,7 +93,7 @@ function param(req: import("express").Request, key: string): string {
 }
 
 /** GET /api/public/admissions/:schoolSlug/config */
-router.get("/config", async (req, res) => {
+router.get("/config", rateLimitPublicConfig, async (req, res) => {
   try {
     const schoolSlug = param(req, "schoolSlug");
     const config = await getPublicAdmissionsConfig(prisma, schoolSlug);
@@ -95,7 +104,7 @@ router.get("/config", async (req, res) => {
 });
 
 /** POST /api/public/admissions/:schoolSlug/applications */
-router.post("/applications", async (req, res) => {
+router.post("/applications", rateLimitDraftCreate, async (req, res) => {
   try {
     const schoolSlug = param(req, "schoolSlug");
     const body = (req.body && typeof req.body === "object" ? req.body : {}) as Record<
@@ -116,7 +125,7 @@ router.post("/applications", async (req, res) => {
 });
 
 /** GET /api/public/admissions/:schoolSlug/applications/:publicAccessId */
-router.get("/applications/:publicAccessId", async (req, res) => {
+router.get("/applications/:publicAccessId", rateLimitApplicantRead, async (req, res) => {
   try {
     const schoolSlug = param(req, "schoolSlug");
     const publicAccessId = param(req, "publicAccessId");
@@ -135,7 +144,7 @@ router.get("/applications/:publicAccessId", async (req, res) => {
 });
 
 /** PATCH /api/public/admissions/:schoolSlug/applications/:publicAccessId */
-router.patch("/applications/:publicAccessId", async (req, res) => {
+router.patch("/applications/:publicAccessId", rateLimitApplicantWrite, async (req, res) => {
   try {
     const schoolSlug = param(req, "schoolSlug");
     const publicAccessId = param(req, "publicAccessId");
@@ -159,7 +168,7 @@ router.patch("/applications/:publicAccessId", async (req, res) => {
 });
 
 /** POST /api/public/admissions/:schoolSlug/applications/:publicAccessId/submit */
-router.post("/applications/:publicAccessId/submit", async (req, res) => {
+router.post("/applications/:publicAccessId/submit", rateLimitSubmit, async (req, res) => {
   try {
     const schoolSlug = param(req, "schoolSlug");
     const publicAccessId = param(req, "publicAccessId");
@@ -183,7 +192,10 @@ router.post("/applications/:publicAccessId/submit", async (req, res) => {
  * Applicant declares requested information has been supplied (OA-03H).
  * Status remains INFO_REQUESTED — staff resume-review owns return to UNDER_REVIEW.
  */
-router.post("/applications/:publicAccessId/information-supplied", async (req, res) => {
+router.post(
+  "/applications/:publicAccessId/information-supplied",
+  rateLimitApplicantWrite,
+  async (req, res) => {
   try {
     const schoolSlug = param(req, "schoolSlug");
     const publicAccessId = param(req, "publicAccessId");
@@ -207,7 +219,7 @@ router.post("/applications/:publicAccessId/information-supplied", async (req, re
  * GET /api/public/admissions/:schoolSlug/applications/:publicAccessId/payment
  * Authenticated applicant payment instructions (read-only). Uses fee snapshot, not live fee settings.
  */
-router.get("/applications/:publicAccessId/payment", async (req, res) => {
+router.get("/applications/:publicAccessId/payment", rateLimitApplicantRead, async (req, res) => {
   try {
     const schoolSlug = param(req, "schoolSlug");
     const publicAccessId = param(req, "publicAccessId");
@@ -221,7 +233,7 @@ router.get("/applications/:publicAccessId/payment", async (req, res) => {
 });
 
 /** GET /api/public/admissions/:schoolSlug/applications/:publicAccessId/documents */
-router.get("/applications/:publicAccessId/documents", async (req, res) => {
+router.get("/applications/:publicAccessId/documents", rateLimitApplicantRead, async (req, res) => {
   try {
     const schoolSlug = param(req, "schoolSlug");
     const publicAccessId = param(req, "publicAccessId");
@@ -244,6 +256,7 @@ router.get("/applications/:publicAccessId/documents", async (req, res) => {
  */
 router.post(
   "/applications/:publicAccessId/documents",
+  rateLimitDocumentUpload,
   uploadSingle("file"),
   async (req, res) => {
     try {
@@ -277,6 +290,7 @@ router.post(
  */
 router.post(
   "/applications/:publicAccessId/payment-proof",
+  rateLimitPaymentProofUpload,
   uploadSingle("file"),
   async (req, res) => {
     try {
@@ -305,7 +319,10 @@ router.post(
 );
 
 /** GET .../documents/:documentId/download — authenticated stream; no public URL */
-router.get("/applications/:publicAccessId/documents/:documentId/download", async (req, res) => {
+router.get(
+  "/applications/:publicAccessId/documents/:documentId/download",
+  rateLimitApplicantRead,
+  async (req, res) => {
   try {
     const schoolSlug = param(req, "schoolSlug");
     const publicAccessId = param(req, "publicAccessId");
@@ -331,7 +348,10 @@ router.get("/applications/:publicAccessId/documents/:documentId/download", async
 });
 
 /** DELETE .../documents/:documentId */
-router.delete("/applications/:publicAccessId/documents/:documentId", async (req, res) => {
+router.delete(
+  "/applications/:publicAccessId/documents/:documentId",
+  rateLimitApplicantWrite,
+  async (req, res) => {
   try {
     const schoolSlug = param(req, "schoolSlug");
     const publicAccessId = param(req, "publicAccessId");
