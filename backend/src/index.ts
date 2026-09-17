@@ -84,6 +84,7 @@ import publicAdmissionsRoutes from "./routes/publicAdmissions";
 import { requireMigrationAccess } from "./middleware/requireMigrationAccess";
 import { requireSuperAdmin } from "./middleware/requireSuperAdmin";
 import { requireSchoolModule } from "./middleware/requireSchoolModule";
+import { publicAdmissionsJsonParser } from "./middleware/publicAdmissionsJsonLimit";
 import { lookupParentPortalBySchool } from "./services/parentPortalLookup";
 import superAdminSchoolsRoutes from "./routes/superAdminSchools";
 import { prisma } from "./prisma";
@@ -253,6 +254,9 @@ const PORT = 3000;
   Allow frontend (Vite runs on 5173)
 
 */
+// Public OA JSON must be parsed with a tight limit BEFORE the global 12 MiB parser.
+// Otherwise express.json({ limit: "12mb" }) would already consume the body.
+app.use("/api/public/admissions", publicAdmissionsJsonParser);
 app.use(express.json({ limit: "12mb" }));
 app.use("/uploads/school-logos", express.static(persistentSchoolLogoDir));
 app.use("/uploads/school-logos", express.static(legacySchoolLogoDir));
