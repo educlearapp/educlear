@@ -41,7 +41,15 @@ export function normaliseInvoiceRunPostingAccountRef(
   return raw.toUpperCase();
 }
 
-/** Kid-e-Sys age-analysis snapshot account refs — authoritative billing list when non-empty. */
+/**
+ * Kid-e-Sys age-analysis snapshot account refs — authoritative billing list when non-empty.
+ *
+ * Only snapshots with source `kideesys-age-analysis` activate this gate.
+ * Migration baselines (`universal-migration-baseline`) and registration snapshots
+ * must not force Kid-e-Sys-only posting — otherwise Express Invoice schools
+ * (Fly Eagle) fail invoice-run eligibility despite valid family accountRefs.
+ * This function is read-only: it never writes ledger, balances, or account links.
+ */
 export function readOfficialBillingAccountRefs(schoolId: string): Set<string> {
   const sid = String(schoolId || "").trim();
   const cached = officialRefsBySchool.get(sid);
@@ -49,7 +57,8 @@ export function readOfficialBillingAccountRefs(schoolId: string): Set<string> {
 
   const snapshots = readSchoolFamilyAccountAgeAnalysisSnapshots(schoolId);
   const refs = new Set<string>();
-  for (const key of Object.keys(snapshots || {})) {
+  for (const [key, snap] of Object.entries(snapshots || {})) {
+    if (String(snap?.source || "").trim() !== "kideesys-age-analysis") continue;
     const ref = normaliseOfficialBillingAccountRef(key);
     if (ref) refs.add(ref);
   }
