@@ -1,4 +1,4 @@
-import { API_URL } from "../api";
+import { API_URL, authenticatedFetch } from "../api";
 import { staffAuthHeaders } from "../auth/staffAuthHeaders";
 
 export type FeeCategoryKey =
@@ -78,7 +78,7 @@ export async function fetchAllocationTargets(params: {
   });
   if (params.paymentId) q.set("paymentId", params.paymentId);
   const data = await parseJson(
-    await fetch(`${API_URL}/api/payment-allocations/targets?${q.toString()}`)
+    await authenticatedFetch(`${API_URL}/api/payment-allocations/targets?${q.toString()}`)
   );
   return data as {
     targets: AllocationTargets;
@@ -96,7 +96,7 @@ export async function suggestPaymentAllocations(payload: {
   paymentAmount: number;
 }) {
   const data = await parseJson(
-    await fetch(`${API_URL}/api/payment-allocations/suggest`, {
+    await authenticatedFetch(`${API_URL}/api/payment-allocations/suggest`, {
       method: "POST",
       headers: { "Content-Type": "application/json", ...staffAuthHeaders() },
       body: JSON.stringify(payload),
@@ -117,7 +117,7 @@ export async function savePaymentAllocations(
   }
 ) {
   const data = await parseJson(
-    await fetch(`${API_URL}/api/payment-allocations/${encodeURIComponent(paymentId)}`, {
+    await authenticatedFetch(`${API_URL}/api/payment-allocations/${encodeURIComponent(paymentId)}`, {
       method: "POST",
       headers: { "Content-Type": "application/json", ...staffAuthHeaders() },
       body: JSON.stringify(payload),
@@ -128,7 +128,7 @@ export async function savePaymentAllocations(
 
 export async function clearPaymentAllocations(schoolId: string, paymentId: string) {
   await parseJson(
-    await fetch(
+    await authenticatedFetch(
       `${API_URL}/api/payment-allocations/${encodeURIComponent(paymentId)}?schoolId=${encodeURIComponent(schoolId)}`,
       { method: "DELETE" }
     )
@@ -141,9 +141,8 @@ export function receiptPdfUrl(schoolId: string, paymentId: string): string {
 
 export async function sendPaymentReceiptEmail(schoolId: string, paymentId: string) {
   const data = await parseJson(
-    await fetch(`${API_URL}/api/payments/${encodeURIComponent(paymentId)}/send-receipt`, {
+    await authenticatedFetch(`${API_URL}/api/payments/${encodeURIComponent(paymentId)}/send-receipt`, {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ schoolId }),
     })
   );

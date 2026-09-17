@@ -18,8 +18,10 @@ export async function superAdminApiFetch(path: string, options: RequestInit = {}
       path
     );
   }
+  // skipAuth: never inject school staff JWT; super-admin Bearer must win exclusively.
   return apiFetch(path, {
     ...rest,
+    skipAuth: true,
     headers: {
       ...(incomingHeaders || {}),
       ...auth,

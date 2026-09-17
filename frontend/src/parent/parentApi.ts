@@ -37,8 +37,10 @@ export function clearParentSession() {
 
 export async function parentApiFetch(path: string, options: RequestInit = {}) {
   const token = getParentToken();
+  // skipAuth: never inject staff JWT; parent portal uses its own Bearer only.
   return apiFetch(path, {
     ...options,
+    skipAuth: true,
     headers: {
       ...(options.headers || {}),
       ...(token ? { Authorization: `Bearer ${token}` } : {}),
@@ -46,4 +48,8 @@ export async function parentApiFetch(path: string, options: RequestInit = {}) {
   });
 }
 
-export const PARENT_PORTAL_URL = `${window.location.origin}/parent`;
+export const PARENT_PORTAL_URL = `${
+  typeof window !== "undefined" && window.location?.origin
+    ? window.location.origin
+    : ""
+}/parent`;

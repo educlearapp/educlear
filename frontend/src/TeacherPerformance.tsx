@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from "react";
-import { API_URL } from "./api";
+import { apiFetch, ApiError } from "./api";
 import { useSchoolId } from "./useSchoolId";
 
 
@@ -96,11 +96,7 @@ export default function TeacherPerformance() {
   const loadRecords = useCallback(async () => {
     if (!schoolId) return;
     try {
-      const res = await fetch(`${API_URL}/api/teacher-performance/school/${schoolId}`);
-      if (!res.ok) {
-        throw new Error(`Failed to load records (${res.status})`);
-      }
-      const data = await res.json();
+      const data = await apiFetch(`/api/teacher-performance/school/${schoolId}`);
       setRecords([...data].sort((a, b) => b.finalScore - a.finalScore));
     } catch (error) {
       console.error("Failed to load records", error);
@@ -122,9 +118,9 @@ export default function TeacherPerformance() {
     try {
       setLoading(true);
       const wasEditing = Boolean(editingId);
-      const url = editingId
-        ? `${API_URL}/api/teacher-performance/${editingId}`
-        : `${API_URL}/api/teacher-performance`;
+      const path = editingId
+        ? `/api/teacher-performance/${editingId}`
+        : `/api/teacher-performance`;
       const method = editingId ? "PUT" : "POST";
       const body: Record<string, unknown> = {
         teacherName: form.teacherName,
@@ -140,19 +136,18 @@ export default function TeacherPerformance() {
       if (!wasEditing) {
         body.schoolId = schoolId;
       }
-      const res = await fetch(url, {
-        method,
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(body),
-      });
-      const data = await res.json().catch(() => ({}));
-      if (!res.ok) {
-        alert(
-          (data as { details?: string; error?: string })?.details ||
-            (data as { error?: string })?.error ||
-            "Save failed"
-        );
-        return;
+      try {
+        await apiFetch(path, {
+          method,
+          body: JSON.stringify(body),
+        });
+      } catch (error) {
+        if (error instanceof ApiError) {
+          const data = error.data as { details?: string; error?: string } | null;
+          alert(data?.details || data?.error || error.message || "Save failed");
+          return;
+        }
+        throw error;
       }
       setForm({
         teacherName: "",
@@ -181,11 +176,15 @@ export default function TeacherPerformance() {
 
   const handleDelete = async (id: string) => {
     try {
-      const res = await fetch(`${API_URL}/api/teacher-performance/${id}`, { method: "DELETE" });
-      const data = await res.json().catch(() => ({}));
-      if (!res.ok) {
-        alert((data as { details?: string; error?: string })?.details || (data as { error?: string })?.error || "Failed to delete");
-        return;
+      try {
+        await apiFetch(`/api/teacher-performance/${id}`, { method: "DELETE" });
+      } catch (error) {
+        if (error instanceof ApiError) {
+          const data = error.data as { details?: string; error?: string } | null;
+          alert(data?.details || data?.error || error.message || "Failed to delete");
+          return;
+        }
+        throw error;
       }
       await loadRecords();
     } catch (error) {

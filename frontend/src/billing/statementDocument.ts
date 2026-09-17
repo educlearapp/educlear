@@ -1,5 +1,5 @@
 import jsPDF from "jspdf";
-import { API_URL } from "../api";
+import { API_URL, authenticatedFetch } from "../api";
 import { staffAuthHeaders } from "../auth/staffAuthHeaders";
 import { cacheSchoolLogoUrl, resolveSchoolLogoUrl } from "../utils/schoolLogo";
 import { formatMoney } from "./billingLedger";
@@ -61,7 +61,7 @@ export async function loadStatementSchoolBranding(schoolId: string): Promise<Sta
     return { name: fallbackName, logoUrl: fallbackLogoUrl || undefined };
   }
   try {
-    const res = await fetch(`${API_URL}/api/schools/${encodeURIComponent(schoolId)}`);
+    const res = await authenticatedFetch(`/api/schools/${encodeURIComponent(schoolId)}`);
     if (!res.ok) throw new Error("Failed to load school branding");
     const match = (await res.json()) as Record<string, unknown>;
     const logoUrl =

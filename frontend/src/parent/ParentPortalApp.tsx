@@ -285,7 +285,7 @@ export default function ParentPortalApp() {
   }, [dashboard?.notifications]);
 
   useEffect(() => {
-    void apiFetch("/api/schools/")
+    void apiFetch("/api/schools/", { skipAuth: true })
       .then((data: any) => {
         const list = Array.isArray(data) ? data : Array.isArray(data?.schools) ? data.schools : [];
         setSchools(list.map((s: any) => ({ id: s.id, name: s.name })));
@@ -311,7 +311,7 @@ export default function ParentPortalApp() {
 
   useEffect(() => {
     if (!sid) return;
-    void apiFetch(`/api/schools/${encodeURIComponent(sid)}`)
+    void apiFetch(`/api/schools/${encodeURIComponent(sid)}`, { skipAuth: true })
       .then((s: any) => {
         setSchoolBranding({
           logoUrl: s?.logoUrl ? absolutizeSchoolLogoUrl(String(s.logoUrl)) : null,
@@ -487,6 +487,7 @@ export default function ParentPortalApp() {
     try {
       const data = await apiFetch("/api/parent-portal/auth/request-otp", {
         method: "POST",
+        skipAuth: true,
         body: JSON.stringify({ schoolId, idNumber, cellNo: cellNo.trim() }),
       });
       const testOtp = String(data?.testOtp || data?.devOtp || "").trim();
@@ -533,6 +534,7 @@ export default function ParentPortalApp() {
     try {
       const data = await apiFetch("/api/parent-portal/auth/verify-otp", {
         method: "POST",
+        skipAuth: true,
         body: JSON.stringify({ schoolId, idNumber, cellNo: cellNo.trim(), code }),
       });
       setParentSession(data.token, { parent: data.parent, learners: data.learners });

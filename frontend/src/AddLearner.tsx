@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { apiFetch, API_URL } from "./api";
+import { apiFetch, ApiError } from "./api";
 import { staffAuthHeaders } from "./auth/staffAuthHeaders";
 import { getBirthDateFromSouthAfricanId } from "./learner/learnerIdentity";
 import ParentsSection, { parentToApiPayload } from "./learner/ParentsSection";
@@ -330,10 +330,9 @@ export default function AddLearner({
       return;
     }
     let cancelled = false;
-    void fetch(`${API_URL}/api/parents?schoolId=${encodeURIComponent(schoolId)}`, {
+    void apiFetch(`/api/parents?schoolId=${encodeURIComponent(schoolId)}`, {
       headers: { ...staffAuthHeaders() },
     })
-      .then((res) => res.json())
       .then((data) => {
         if (cancelled) return;
         const rows = Array.isArray(data?.parents) ? data.parents : [];
@@ -589,53 +588,56 @@ export default function AddLearner({
     setIdentityConflict(null);
 
     try {
-      const response = await fetch(`${API_URL}/api/learners`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json", ...staffAuthHeaders() },
-        body: JSON.stringify({
-          schoolId,
-          firstName: firstName.trim(),
-          lastName: surname.trim(),
-          grade: grade.trim(),
-          className: savedClassName,
-          idNumber: idNumber.trim() || null,
-          birthDate: dateOfBirth ? new Date(dateOfBirth).toISOString() : null,
-          gender: gender || null,
-          homeLanguage: homeLanguage.trim() || null,
-          nationality: nationality.trim() || null,
-          enrollmentDate: enrollmentDate ? new Date(enrollmentDate).toISOString() : null,
-          parent: parentPayloads[0],
-          parents: parentPayloads,
-          existingFamilyAccountId:
-            familyMode === "existing" ? existingFamilyAccountId || null : null,
-          siblings: siblings
-            .map((s) => ({
-              firstName: s.firstName.trim(),
-              lastName: s.surname.trim(),
-              grade: s.grade.trim(),
-              className: s.className.trim() || null,
-              idNumber: s.idNumber.trim() || null,
-              birthDate: s.dateOfBirth ? new Date(s.dateOfBirth).toISOString() : null,
-              gender: s.gender || null,
-              homeLanguage: s.homeLanguage.trim() || null,
-              nationality: s.nationality.trim() || null,
-              enrollmentDate: s.enrollmentDate ? new Date(s.enrollmentDate).toISOString() : null,
-            }))
-            .filter((s) => s.firstName && s.lastName && s.grade),
-        }),
-      });
-      const payload = await response.json().catch(() => ({}));
-      if (response.status === 409 && payload?.code === "LEARNER_IDENTITY_CONFLICT") {
-        setIdentityConflict({
-          error: String(payload.error || "Existing learner found"),
-          suggestedAction: String(payload.suggestedAction || "review"),
-          existingLearner: payload.existingLearner || {},
+      try {
+        await apiFetch(`/api/learners`, {
+          method: "POST",
+          headers: { ...staffAuthHeaders() },
+          body: JSON.stringify({
+            schoolId,
+            firstName: firstName.trim(),
+            lastName: surname.trim(),
+            grade: grade.trim(),
+            className: savedClassName,
+            idNumber: idNumber.trim() || null,
+            birthDate: dateOfBirth ? new Date(dateOfBirth).toISOString() : null,
+            gender: gender || null,
+            homeLanguage: homeLanguage.trim() || null,
+            nationality: nationality.trim() || null,
+            enrollmentDate: enrollmentDate ? new Date(enrollmentDate).toISOString() : null,
+            parent: parentPayloads[0],
+            parents: parentPayloads,
+            existingFamilyAccountId:
+              familyMode === "existing" ? existingFamilyAccountId || null : null,
+            siblings: siblings
+              .map((s) => ({
+                firstName: s.firstName.trim(),
+                lastName: s.surname.trim(),
+                grade: s.grade.trim(),
+                className: s.className.trim() || null,
+                idNumber: s.idNumber.trim() || null,
+                birthDate: s.dateOfBirth ? new Date(s.dateOfBirth).toISOString() : null,
+                gender: s.gender || null,
+                homeLanguage: s.homeLanguage.trim() || null,
+                nationality: s.nationality.trim() || null,
+                enrollmentDate: s.enrollmentDate ? new Date(s.enrollmentDate).toISOString() : null,
+              }))
+              .filter((s) => s.firstName && s.lastName && s.grade),
+          }),
         });
-        setMessage(String(payload.error || "Existing learner found"));
-        return;
-      }
-      if (!response.ok) {
-        throw new Error(payload?.error || "Failed to save learner");
+      } catch (error) {
+        if (error instanceof ApiError && error.status === 409) {
+          const conflictPayload = (error.data || {}) as Record<string, unknown>;
+          if (conflictPayload?.code === "LEARNER_IDENTITY_CONFLICT") {
+            setIdentityConflict({
+              error: String(conflictPayload.error || "Existing learner found"),
+              suggestedAction: String(conflictPayload.suggestedAction || "review"),
+              existingLearner: (conflictPayload.existingLearner as Record<string, unknown>) || {},
+            });
+            setMessage(String(conflictPayload.error || "Existing learner found"));
+            return;
+          }
+        }
+        throw error;
       }
 
       setMessage("Learner saved.");
@@ -726,11 +728,11 @@ export default function AddLearner({
                   if (!existingId || !schoolId) return;
                   setSaving(true);
                   try {
-                    const response = await fetch(
-                      `${API_URL}/api/learners/${encodeURIComponent(existingId)}/reactivate`,
+                    await apiFetch(
+                      `/api/learners/${encodeURIComponent(existingId)}/reactivate`,
                       {
                         method: "POST",
-                        headers: { "Content-Type": "application/json", ...staffAuthHeaders() },
+                        headers: { ...staffAuthHeaders() },
                         body: JSON.stringify({
                           schoolId,
                           familyAccountId:
@@ -738,10 +740,6 @@ export default function AddLearner({
                         }),
                       }
                     );
-                    const payload = await response.json().catch(() => ({}));
-                    if (!response.ok) {
-                      throw new Error(payload?.error || "Failed to reactivate learner");
-                    }
                     setIdentityConflict(null);
                     setMessage("Learner reactivated.");
                     if (onBack) onBack();
@@ -763,10 +761,9 @@ export default function AddLearner({
                 const existingId = String(identityConflict.existingLearner.id || "");
                 if (!existingId) return;
                 try {
-                  const response = await fetch(
-                    `${API_URL}/api/learners/${encodeURIComponent(existingId)}`
+                  const payload = await apiFetch(
+                    `/api/learners/${encodeURIComponent(existingId)}`
                   );
-                  const payload = await response.json().catch(() => ({}));
                   const learner =
                     (payload?.learner as Record<string, unknown> | undefined) ||
                     identityConflict.existingLearner;

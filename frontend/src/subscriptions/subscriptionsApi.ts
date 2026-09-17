@@ -150,7 +150,9 @@ function subscriptionAuthHeaders(): Record<string, string> {
 }
 
 export async function fetchSubscriptionPackages(): Promise<EduClearPackage[]> {
-  const data = (await apiFetch("/api/subscriptions/packages")) as PackagesResponse;
+  const data = (await apiFetch("/api/subscriptions/packages", {
+    skipAuth: true,
+  })) as PackagesResponse;
   if (!Array.isArray(data?.packages)) return [];
   return data.packages.map((pkg) =>
     normalizeEduClearPackage(pkg as unknown as Record<string, unknown>)
@@ -158,7 +160,9 @@ export async function fetchSubscriptionPackages(): Promise<EduClearPackage[]> {
 }
 
 export async function fetchSubscriptionConfig(): Promise<SubscriptionConfigResponse> {
-  return apiFetch("/api/subscriptions/config") as Promise<SubscriptionConfigResponse>;
+  return apiFetch("/api/subscriptions/config", {
+    skipAuth: true,
+  }) as Promise<SubscriptionConfigResponse>;
 }
 
 export type PaymentReturnStatusResponse = {

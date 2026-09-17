@@ -52,6 +52,7 @@ export default function SuperAdminLogin({ initialStatus = "", returnPathOverride
     try {
       const data: Record<string, unknown> = (await apiFetch("/auth/login", {
         method: "POST",
+        skipAuth: true,
         body: JSON.stringify({
           email: email.trim().toLowerCase(),
           password,

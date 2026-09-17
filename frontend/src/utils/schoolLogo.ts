@@ -1,4 +1,4 @@
-import { API_URL } from "../api";
+import { API_URL, authenticatedFetch } from "../api";
 
 /** School.logoUrl first, with the last saved profile logo cache as a refresh fallback. */
 export function resolveSchoolLogoUrl(school?: { logoUrl?: string | null } | null): string {
@@ -22,7 +22,7 @@ export function absolutizeSchoolLogoUrl(url: string): string {
 export async function uploadSchoolLogoFile(file: File): Promise<string> {
   const fd = new FormData();
   fd.append("logo", file);
-  const res = await fetch(`${API_URL}/api/upload-logo`, { method: "POST", body: fd });
+  const res = await authenticatedFetch("/api/upload-logo", { method: "POST", body: fd });
   const data = (await res.json().catch(() => ({}))) as { success?: boolean; url?: string; error?: string };
   if (!res.ok || !data?.success || !data?.url) {
     throw new Error(data?.error || "Logo upload failed");

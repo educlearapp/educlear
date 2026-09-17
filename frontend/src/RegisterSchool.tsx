@@ -322,6 +322,7 @@ export default function RegisterSchool() {
 
       const data: any = await apiFetch("/auth/register-school", {
         method: "POST",
+        skipAuth: true,
         body: JSON.stringify({
           schoolName: String(form.schoolName).trim(),
           contactPerson: String(form.contactPerson).trim(),

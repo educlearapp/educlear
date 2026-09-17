@@ -27,6 +27,7 @@ export default function TeacherLogin() {
     try {
       const data: any = await apiFetch("/auth/login", {
         method: "POST",
+        skipAuth: true,
         body: JSON.stringify({ email: email.trim().toLowerCase(), password }),
       });
       const token = data?.token;
