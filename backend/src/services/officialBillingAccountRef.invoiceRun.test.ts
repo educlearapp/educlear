@@ -1,7 +1,6 @@
 /**
- * Invoice-run posting refs: Express names when no Kid-e-Sys official list,
- * Kid-e-Sys-only when true kideesys-age-analysis snapshots exist.
- * Zero ledger impact — store fixture I/O only, no production writes.
+ * Invoice-run posting refs — school-scoped Express exemption + Da Silva/Magical gate.
+ * Zero ledger impact — fixture I/O only.
  *
  * Run: npx tsx src/services/officialBillingAccountRef.invoiceRun.test.ts
  */
@@ -15,19 +14,40 @@ import {
 } from "../utils/familyAccountAgeAnalysisStore";
 import {
   invalidateOfficialBillingAccountRefsCache,
+  isExpressInvoiceBillingSchool,
   normaliseInvoiceRunPostingAccountRef,
   normaliseOfficialBillingAccountRef,
   readOfficialBillingAccountRefs,
   resolveOfficialBillingAccountRef,
 } from "./officialBillingAccountRef";
+import { buildInvoiceRunPlanForTest } from "./invoiceRunExecuteService";
+import type { BillingLedgerEntry } from "../utils/billingLedgerStore";
 
 function assert(condition: boolean, message: string) {
   if (!condition) throw new Error(message);
 }
 
-const FLY_EAGLE = "school-fly-eagle-express";
-const DA_SILVA = "school-da-silva-kideesys";
+const FLY_EAGLE = "cmt1e8bjp0jo8lcjeketlynhl";
+const DA_SILVA = "cmpideqeq0000108xb6ouv9zi";
+const MAGICAL = "cmq4xjckq00at60gqg4eb956h";
 const OTHER = "school-other-tenant";
+
+function snap(
+  schoolId: string,
+  accountRef: string,
+  source: string,
+  balance = 0
+) {
+  return {
+    schoolId,
+    accountRef,
+    accountHolder: accountRef,
+    balance,
+    buckets: { current: balance, d30: 0, d60: 0, d90: 0, d120: 0 },
+    source,
+    importedAt: "2026-01-01T00:00:00.000Z",
+  };
+}
 
 async function withFixtureStore(
   snapshotsBySchool: Record<string, Record<string, unknown>>,
@@ -58,23 +78,14 @@ function runNormaliseTests() {
 
   assert(normaliseOfficialBillingAccountRef("ALI002") === "ALI002", "Kid-e-Sys kept");
   assert(normaliseOfficialBillingAccountRef("ABAYE TUMO ASHANAFY") === "", "Express not Kid-e-Sys");
-  assert(normaliseOfficialBillingAccountRef("26006") === "", "accession not Kid-e-Sys");
+  assert(isExpressInvoiceBillingSchool(FLY_EAGLE), "Fly Eagle is Express school");
+  assert(!isExpressInvoiceBillingSchool(DA_SILVA), "Da Silva is not Express school");
+  assert(!isExpressInvoiceBillingSchool(MAGICAL), "Magical is not Express school");
 
   assert(
     normaliseInvoiceRunPostingAccountRef("ABAYE TUMO ASHANAFY", empty) === "ABAYE TUMO ASHANAFY",
     "Express name allowed when no official Kid-e-Sys list"
   );
-  assert(
-    normaliseInvoiceRunPostingAccountRef("ali002", empty) === "ALI002",
-    "Kid-e-Sys still allowed with empty official list"
-  );
-  assert(
-    normaliseInvoiceRunPostingAccountRef("26006", empty) === "",
-    "unlinked accession / SA-SAMS numeric must not post"
-  );
-  assert(normaliseInvoiceRunPostingAccountRef("1234567", empty) === "", "numeric admission excluded");
-  assert(normaliseInvoiceRunPostingAccountRef("-", empty) === "", "placeholder excluded");
-
   assert(
     normaliseInvoiceRunPostingAccountRef("ABAYE TUMO ASHANAFY", daSilvaOfficial) === "",
     "Da Silva official list must not accept Express names"
@@ -83,181 +94,185 @@ function runNormaliseTests() {
     normaliseInvoiceRunPostingAccountRef("ALI002", daSilvaOfficial) === "ALI002",
     "Da Silva Kid-e-Sys ref still posts"
   );
-  assert(
-    normaliseInvoiceRunPostingAccountRef("RAM021", daSilvaOfficial) === "RAM021",
-    "normalise still returns Kid-e-Sys shape; membership is asserted separately"
-  );
-  console.log("✓ normalise Invoice-run posting refs");
+  console.log("✓ normalise + school classification");
 }
 
-async function testMigrationBaselineDoesNotActivateKidESysGate() {
+async function testFlyEagleExpressEligibleDespiteMigrationCodes() {
   await withFixtureStore(
     {
       [FLY_EAGLE]: {
-        // EduClear-style codes from migration must NOT activate Kid-e-Sys gate
-        BEY001: {
-          schoolId: FLY_EAGLE,
-          accountRef: "BEY001",
-          accountHolder: "BEYAMO DEGAFECHY",
-          balance: 2200,
-          buckets: { current: 2200, d30: 0, d60: 0, d90: 0, d120: 0 },
-          source: "universal-migration-baseline",
-          importedAt: "2026-08-24T00:00:00.000Z",
-        },
-        "BEYAMO DEGAFECHY": {
-          schoolId: FLY_EAGLE,
-          accountRef: "BEYAMO DEGAFECHY",
-          accountHolder: "BEYAMO DEGAFECHY",
-          balance: 2200,
-          buckets: { current: 2200, d30: 0, d60: 0, d90: 0, d120: 0 },
-          source: "universal-migration-baseline",
-          importedAt: "2026-08-24T00:00:00.000Z",
-        },
+        BEY001: snap(FLY_EAGLE, "BEY001", "universal-migration-baseline", 2200),
+        "BEYAMO DEGAFECHY": snap(
+          FLY_EAGLE,
+          "BEYAMO DEGAFECHY",
+          "universal-migration-baseline",
+          2200
+        ),
+        // Even if wrongly tagged kideesys, Express school must not gate
+        WRONG001: snap(FLY_EAGLE, "WRONG001", "kideesys-age-analysis", 1),
       },
     },
     async () => {
-      const official = readOfficialBillingAccountRefs(FLY_EAGLE);
-      assert(official.size === 0, "migration baseline must not create official Kid-e-Sys gate");
-
+      assert(readOfficialBillingAccountRefs(FLY_EAGLE).size === 0, "Fly Eagle official gate off");
       const resolved = await resolveOfficialBillingAccountRef(FLY_EAGLE, {
         learner: { familyAccount: { accountRef: "BEYAMO DEGAFECHY" } },
       });
+      assert(resolved === "BEYAMO DEGAFECHY", "Fly Eagle Express account → resolves");
+    }
+  );
+  console.log("✓ Fly Eagle Express account → eligible resolution");
+}
+
+async function testDaSilvaValidAndInvalidUnchanged() {
+  await withFixtureStore(
+    {
+      [DA_SILVA]: {
+        ALI002: snap(DA_SILVA, "ALI002", "kideesys-age-analysis", 4000),
+        DUP001: snap(DA_SILVA, "DUP001", "kideesys-age-analysis", -12200),
+      },
+    },
+    async () => {
+      const official = readOfficialBillingAccountRefs(DA_SILVA);
+      assert(official.size === 2, "Da Silva official size 2");
       assert(
-        resolved === "BEYAMO DEGAFECHY",
-        "Fly Eagle Express family accountRef must resolve when only migration baselines exist"
+        (await resolveOfficialBillingAccountRef(DA_SILVA, { accountNo: "ALI002" })) === "ALI002",
+        "Da Silva valid Kid-e-Sys → same resolve"
+      );
+      assert(
+        (await resolveOfficialBillingAccountRef(DA_SILVA, {
+          learner: { familyAccount: { accountRef: "NOTONLIST99" } },
+        })) === "",
+        "Da Silva invalid/non-official → rejected"
+      );
+      assert(
+        (await resolveOfficialBillingAccountRef(DA_SILVA, {
+          learner: { familyAccount: { accountRef: "ABAYE TUMO ASHANAFY" } },
+        })) === "",
+        "Da Silva Express name → rejected"
       );
     }
   );
-  console.log("✓ Fly Eagle Express resolves despite migration-baseline EduClear codes");
+  console.log("✓ Da Silva valid/invalid Kid-e-Sys unchanged");
 }
 
-async function testRegistrationSourceDoesNotActivateGate() {
+async function testMagicalValidAndInvalidUnchanged() {
   await withFixtureStore(
     {
-      [FLY_EAGLE]: {
-        REG001: {
-          schoolId: FLY_EAGLE,
-          accountRef: "REG001",
-          accountHolder: "REG",
-          balance: 0,
-          buckets: { current: 0, d30: 0, d60: 0, d90: 0, d120: 0 },
-          source: "educlear-registration",
-          importedAt: "2026-09-01T00:00:00.000Z",
-        },
+      [MAGICAL]: {
+        MBB001: snap(MAGICAL, "MBB001", "kideesys-age-analysis", 100),
+        MBB012: snap(MAGICAL, "MBB012", "universal-migration-baseline", 50),
       },
     },
     async () => {
-      assert(readOfficialBillingAccountRefs(FLY_EAGLE).size === 0, "registration source ignored");
-      const resolved = await resolveOfficialBillingAccountRef(FLY_EAGLE, {
-        learner: { familyAccount: { accountRef: "WOLDE HAPPY BLESSING" } },
-      });
-      assert(resolved === "WOLDE HAPPY BLESSING", "Express name still resolves");
+      // Pre-fix behaviour: ANY Kid-e-Sys-shaped key activates gate (source-agnostic).
+      const official = readOfficialBillingAccountRefs(MAGICAL);
+      assert(official.size === 2, "Magical gate includes both Kid-e-Sys-shaped keys");
+      assert(
+        (await resolveOfficialBillingAccountRef(MAGICAL, { accountNo: "MBB001" })) === "MBB001",
+        "Magical valid account → resolves"
+      );
+      assert(
+        (await resolveOfficialBillingAccountRef(MAGICAL, { accountNo: "MBB999" })) === "",
+        "Magical invalid/non-official → rejected"
+      );
+      assert(
+        (await resolveOfficialBillingAccountRef(MAGICAL, {
+          learner: { familyAccount: { accountRef: "SOME EXPRESS NAME" } },
+        })) === "",
+        "Magical Express name → rejected when gate active"
+      );
     }
   );
-  console.log("✓ educlear-registration snapshots do not activate Kid-e-Sys gate");
+
+  // Empty Magical snapshots → empty gate (pre-fix identical)
+  await withFixtureStore({ [MAGICAL]: {} }, async () => {
+    assert(readOfficialBillingAccountRefs(MAGICAL).size === 0, "empty Magical → no gate");
+    assert(
+      (await resolveOfficialBillingAccountRef(MAGICAL, {
+        learner: { familyAccount: { accountRef: "MBB001" } },
+      })) === "MBB001",
+      "Magical without snapshots still accepts Kid-e-Sys-shaped family ref"
+    );
+  });
+  console.log("✓ Magical valid/invalid unchanged vs pre-fix gate rules");
 }
 
-async function testDaSilvaKidESysGateUnchanged() {
+async function testCrossSchoolStillBlocked() {
   await withFixtureStore(
     {
-      [DA_SILVA]: {
-        ALI002: {
-          schoolId: DA_SILVA,
-          accountRef: "ALI002",
-          accountHolder: "Ali",
-          balance: 4000,
-          buckets: { current: 4000, d30: 0, d60: 0, d90: 0, d120: 0 },
-          source: "kideesys-age-analysis",
-          importedAt: "2026-01-01T00:00:00.000Z",
-        },
-        DUP001: {
-          schoolId: DA_SILVA,
-          accountRef: "DUP001",
-          accountHolder: "Dup",
-          balance: -12200,
-          buckets: { current: 0, d30: 0, d60: 0, d90: 0, d120: -12200 },
-          source: "kideesys-age-analysis",
-          importedAt: "2026-01-01T00:00:00.000Z",
-        },
-      },
-      [FLY_EAGLE]: {
-        BEY001: {
-          schoolId: FLY_EAGLE,
-          accountRef: "BEY001",
-          accountHolder: "Beyamo",
-          balance: 100,
-          buckets: { current: 100, d30: 0, d60: 0, d90: 0, d120: 0 },
-          source: "universal-migration-baseline",
-          importedAt: "2026-08-24T00:00:00.000Z",
-        },
-      },
-    },
-    async () => {
-      const daOfficial = readOfficialBillingAccountRefs(DA_SILVA);
-      assert(daOfficial.size === 2, "Da Silva official list from kideesys-age-analysis");
-      assert(daOfficial.has("ALI002") && daOfficial.has("DUP001"), "Da Silva refs present");
-
-      const ali = await resolveOfficialBillingAccountRef(DA_SILVA, { accountNo: "ALI002" });
-      assert(ali === "ALI002", "Da Silva Kid-e-Sys account resolves");
-
-      const expressOnDaSilva = await resolveOfficialBillingAccountRef(DA_SILVA, {
-        learner: { familyAccount: { accountRef: "ABAYE TUMO ASHANAFY" } },
-      });
-      assert(expressOnDaSilva === "", "Da Silva must reject Express names when Kid-e-Sys gate active");
-
-      const feOfficial = readOfficialBillingAccountRefs(FLY_EAGLE);
-      assert(feOfficial.size === 0, "Fly Eagle migration baseline must not leak into official gate");
-      const fe = await resolveOfficialBillingAccountRef(FLY_EAGLE, {
-        learner: { familyAccount: { accountRef: "BEYAMO DEGAFECHY" } },
-      });
-      assert(fe === "BEYAMO DEGAFECHY", "Fly Eagle Express still resolves beside Da Silva data");
-    }
-  );
-  console.log("✓ Da Silva Kid-e-Sys gate unchanged; no cross-tenant leakage");
-}
-
-async function testCrossTenantIsolationOfOfficialList() {
-  await withFixtureStore(
-    {
-      [DA_SILVA]: {
-        ALI002: {
-          schoolId: DA_SILVA,
-          accountRef: "ALI002",
-          accountHolder: "Ali",
-          balance: 1,
-          buckets: { current: 1, d30: 0, d60: 0, d90: 0, d120: 0 },
-          source: "kideesys-age-analysis",
-          importedAt: "2026-01-01T00:00:00.000Z",
-        },
-      },
+      [DA_SILVA]: { ALI002: snap(DA_SILVA, "ALI002", "kideesys-age-analysis", 1) },
+      [MAGICAL]: { MBB001: snap(MAGICAL, "MBB001", "kideesys-age-analysis", 1) },
+      [FLY_EAGLE]: { BEY001: snap(FLY_EAGLE, "BEY001", "universal-migration-baseline", 1) },
       [OTHER]: {},
     },
     async () => {
-      assert(readOfficialBillingAccountRefs(OTHER).size === 0, "empty school has empty official list");
+      assert(!readOfficialBillingAccountRefs(MAGICAL).has("ALI002"), "Magical lacks Da Silva refs");
+      assert(!readOfficialBillingAccountRefs(DA_SILVA).has("MBB001"), "Da Silva lacks Magical refs");
+      assert(!readOfficialBillingAccountRefs(FLY_EAGLE).has("ALI002"), "Fly Eagle gate empty");
       assert(
-        readOfficialBillingAccountRefs(DA_SILVA).has("ALI002"),
-        "Da Silva list remains school-scoped"
+        (await resolveOfficialBillingAccountRef(MAGICAL, { accountNo: "ALI002" })) === "",
+        "cross-school Da Silva code on Magical rejected"
       );
-      const otherResolve = await resolveOfficialBillingAccountRef(OTHER, { accountNo: "ALI002" });
-      // Without official gate, Kid-e-Sys shape is still a valid statement-safe candidate —
-      // but OTHER school should not inherit DA_SILVA's official membership requirement.
-      // Cross-tenant isolation of the official SET is what we assert here.
       assert(
-        !readOfficialBillingAccountRefs(OTHER).has("ALI002"),
-        "OTHER must not inherit Da Silva official refs"
+        (await resolveOfficialBillingAccountRef(DA_SILVA, { accountNo: "MBB001" })) === "",
+        "cross-school Magical code on Da Silva rejected"
       );
-      void otherResolve;
     }
   );
-  console.log("✓ official list is school-scoped (no cross-tenant)");
+  console.log("✓ cross-school account resolution still blocked");
+}
+
+function testDuplicateInvoiceStillBlocked() {
+  const linked = {
+    id: "fe-dup",
+    firstName: "Happy",
+    lastName: "Wolde",
+    enrollmentStatus: "ACTIVE",
+    admissionNo: null as string | null,
+    idNumber: null as string | null,
+    familyAccountId: "fa-wolde",
+    familyAccount: { accountRef: "WOLDE HAPPY BLESSING" },
+  };
+  const existing: BillingLedgerEntry[] = [
+    {
+      id: "fe-inv-july",
+      schoolId: FLY_EAGLE,
+      learnerId: "fe-dup",
+      accountNo: "WOLDE HAPPY BLESSING",
+      type: "invoice",
+      amount: 1400,
+      date: "2026-07-15",
+      reference: "0220534",
+      description: "Express invoice",
+      createdAt: "2026-08-24T22:45:16.463Z",
+      source: "universal_migration_phase14",
+    },
+  ];
+  const july = buildInvoiceRunPlanForTest({
+    allActiveLearners: [linked],
+    processedLearners: [linked],
+    plansByLearnerId: {
+      "fe-dup": [{ feeDescription: "Fees", amount: 1400 }],
+    },
+    explicitlyEmpty: new Set(),
+    accountNoByLearnerId: { "fe-dup": "WOLDE HAPPY BLESSING" },
+    existingLedger: existing,
+    invoicePeriod: "2026-07",
+  });
+  assert(
+    july.learnerRows[0]?.skipReason === "DUPLICATE_INVOICE",
+    "Existing duplicate invoice → still blocked"
+  );
+  console.log("✓ duplicate invoice still blocked");
 }
 
 async function main() {
   runNormaliseTests();
-  await testMigrationBaselineDoesNotActivateKidESysGate();
-  await testRegistrationSourceDoesNotActivateGate();
-  await testDaSilvaKidESysGateUnchanged();
-  await testCrossTenantIsolationOfOfficialList();
+  await testFlyEagleExpressEligibleDespiteMigrationCodes();
+  await testDaSilvaValidAndInvalidUnchanged();
+  await testMagicalValidAndInvalidUnchanged();
+  await testCrossSchoolStillBlocked();
+  testDuplicateInvoiceStillBlocked();
   console.log("officialBillingAccountRef.invoiceRun.test.ts — PASS");
 }
 

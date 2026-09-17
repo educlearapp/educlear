@@ -8,6 +8,22 @@ import { resolveLearnerAccountNo } from "../utils/learnerIdentity";
 
 const officialRefsBySchool = new Map<string, Set<string>>();
 
+/**
+ * Express Invoice schools post against statement-safe family accountRefs (names),
+ * not Kid-e-Sys debtor codes. They must never activate the Kid-e-Sys official gate
+ * — including when migration baselines store EduClear-style codes (e.g. BEY001).
+ *
+ * All other schools keep the pre-existing gate: any Kid-e-Sys-shaped age-analysis
+ * key activates official-list membership checks (Da Silva, Magical, etc.).
+ */
+export const EXPRESS_INVOICE_BILLING_SCHOOL_IDS = new Set<string>([
+  "cmt1e8bjp0jo8lcjeketlynhl", // Fly Eagle Primary School
+]);
+
+export function isExpressInvoiceBillingSchool(schoolId: string): boolean {
+  return EXPRESS_INVOICE_BILLING_SCHOOL_IDS.has(String(schoolId || "").trim());
+}
+
 /** @internal Test hook — clears memoized official account ref sets. */
 export function invalidateOfficialBillingAccountRefsCache(schoolId?: string): void {
   if (schoolId) officialRefsBySchool.delete(String(schoolId || "").trim());
@@ -44,21 +60,28 @@ export function normaliseInvoiceRunPostingAccountRef(
 /**
  * Kid-e-Sys age-analysis snapshot account refs — authoritative billing list when non-empty.
  *
- * Only snapshots with source `kideesys-age-analysis` activate this gate.
- * Migration baselines (`universal-migration-baseline`) and registration snapshots
- * must not force Kid-e-Sys-only posting — otherwise Express Invoice schools
- * (Fly Eagle) fail invoice-run eligibility despite valid family accountRefs.
- * This function is read-only: it never writes ledger, balances, or account links.
+ * Read-only. Never writes ledger, balances, statements, plans, or account links.
+ *
+ * Scope:
+ * - Express Invoice schools (Fly Eagle): always empty → Express name posting path.
+ * - All other schools: unchanged from historical behaviour — every Kid-e-Sys-shaped
+ *   age-analysis key activates the official gate (source-agnostic), matching
+ *   Da Silva / Magical pre-fix behaviour.
  */
 export function readOfficialBillingAccountRefs(schoolId: string): Set<string> {
   const sid = String(schoolId || "").trim();
   const cached = officialRefsBySchool.get(sid);
   if (cached) return cached;
 
+  if (isExpressInvoiceBillingSchool(sid)) {
+    const empty = new Set<string>();
+    officialRefsBySchool.set(sid, empty);
+    return empty;
+  }
+
   const snapshots = readSchoolFamilyAccountAgeAnalysisSnapshots(schoolId);
   const refs = new Set<string>();
-  for (const [key, snap] of Object.entries(snapshots || {})) {
-    if (String(snap?.source || "").trim() !== "kideesys-age-analysis") continue;
+  for (const key of Object.keys(snapshots || {})) {
     const ref = normaliseOfficialBillingAccountRef(key);
     if (ref) refs.add(ref);
   }
