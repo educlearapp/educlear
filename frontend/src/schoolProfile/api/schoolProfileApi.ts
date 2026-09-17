@@ -1,4 +1,4 @@
-import { API_URL } from "../../api";
+import { API_URL, authenticatedFetch } from "../../api";
 import {
   formToSchoolUpdatePayload,
   type SchoolProfileFormState,
@@ -19,13 +19,6 @@ export type SchoolProfileApiPayload = {
 /** Maps form state to PUT /api/schools/:id body; always includes cellNo. */
 export function mapToApiPayload(form: SchoolProfileFormState): SchoolProfileApiPayload {
   return formToSchoolUpdatePayload(form);
-}
-
-function schoolProfileHeaders(): HeadersInit {
-  const headers: Record<string, string> = { "Content-Type": "application/json" };
-  const token = localStorage.getItem("token");
-  if (token) headers.Authorization = `Bearer ${token}`;
-  return headers;
 }
 
 function parseJsonBody(text: string): unknown {
@@ -79,9 +72,7 @@ export async function fetchSchoolProfile(schoolId: string): Promise<SchoolProfil
   const id = String(schoolId || "").trim();
   if (!id) return null;
 
-  const res = await fetch(`${API_URL}/api/schools/${encodeURIComponent(id)}`, {
-    headers: schoolProfileHeaders(),
-  });
+  const res = await authenticatedFetch(`${API_URL}/api/schools/${encodeURIComponent(id)}`);
 
   const text = await res.text();
   const data = parseJsonBody(text);
@@ -115,9 +106,8 @@ export async function saveSchoolProfile(
     ...(payload.logoUrl !== undefined ? { logoUrl: payload.logoUrl } : {}),
   };
 
-  const res = await fetch(`${API_URL}/api/schools/${encodeURIComponent(id)}`, {
+  const res = await authenticatedFetch(`${API_URL}/api/schools/${encodeURIComponent(id)}`, {
     method: "PUT",
-    headers: schoolProfileHeaders(),
     body: JSON.stringify(body),
   });
 
@@ -142,9 +132,8 @@ export async function changeSchoolProfilePassword(
   const id = String(schoolId || "").trim();
   if (!id) throw new Error("No school selected");
 
-  const res = await fetch(`${API_URL}/api/schools/${encodeURIComponent(id)}/password`, {
+  const res = await authenticatedFetch(`${API_URL}/api/schools/${encodeURIComponent(id)}/password`, {
     method: "POST",
-    headers: schoolProfileHeaders(),
     body: JSON.stringify({ newPassword }),
   });
 
