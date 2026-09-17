@@ -8,21 +8,8 @@ import { resolveLearnerAccountNo } from "../utils/learnerIdentity";
 
 const officialRefsBySchool = new Map<string, Set<string>>();
 
-/**
- * Express Invoice schools post against statement-safe family accountRefs (names),
- * not Kid-e-Sys debtor codes. They must never activate the Kid-e-Sys official gate
- * — including when migration baselines store EduClear-style codes (e.g. BEY001).
- *
- * All other schools keep the pre-existing gate: any Kid-e-Sys-shaped age-analysis
- * key activates official-list membership checks (Da Silva, Magical, etc.).
- */
-export const EXPRESS_INVOICE_BILLING_SCHOOL_IDS = new Set<string>([
-  "cmt1e8bjp0jo8lcjeketlynhl", // Fly Eagle Primary School
-]);
-
-export function isExpressInvoiceBillingSchool(schoolId: string): boolean {
-  return EXPRESS_INVOICE_BILLING_SCHOOL_IDS.has(String(schoolId || "").trim());
-}
+/** Only this snapshot source activates the Kid-e-Sys official posting gate. */
+export const KIDEESYS_AGE_ANALYSIS_SOURCE = "kideesys-age-analysis";
 
 /** @internal Test hook — clears memoized official account ref sets. */
 export function invalidateOfficialBillingAccountRefsCache(schoolId?: string): void {
@@ -38,7 +25,7 @@ export function normaliseOfficialBillingAccountRef(value: unknown): string {
 
 /**
  * Invoice-run / posting identity.
- * When Kid-e-Sys age-analysis snapshots exist, keep Kid-e-Sys-only refs.
+ * When genuine Kid-e-Sys age-analysis snapshots exist, keep Kid-e-Sys-only refs.
  * When that official list is empty, accept learner-linked statement-safe refs
  * (Express Invoice names). Never SA-SAMS numeric admission numbers.
  */
@@ -60,28 +47,25 @@ export function normaliseInvoiceRunPostingAccountRef(
 /**
  * Kid-e-Sys age-analysis snapshot account refs — authoritative billing list when non-empty.
  *
- * Read-only. Never writes ledger, balances, statements, plans, or account links.
+ * Read-only eligibility resolution only. Never writes ledger, balances, statements,
+ * plans, account refs, or learner links.
  *
- * Scope:
- * - Express Invoice schools (Fly Eagle): always empty → Express name posting path.
- * - All other schools: unchanged from historical behaviour — every Kid-e-Sys-shaped
- *   age-analysis key activates the official gate (source-agnostic), matching
- *   Da Silva / Magical pre-fix behaviour.
+ * Gate rule (school-agnostic):
+ * - Snapshots with source `kideesys-age-analysis` → include Kid-e-Sys-shaped keys
+ *   (Da Silva / Magical genuine Kid-e-Sys imports preserve the official gate).
+ * - `universal-migration-baseline` / `educlear-registration` (and any other source)
+ *   → do NOT activate the gate merely because Kid-e-Sys-shaped keys exist
+ *   (Fly Eagle Express family accountRefs can resolve).
  */
 export function readOfficialBillingAccountRefs(schoolId: string): Set<string> {
   const sid = String(schoolId || "").trim();
   const cached = officialRefsBySchool.get(sid);
   if (cached) return cached;
 
-  if (isExpressInvoiceBillingSchool(sid)) {
-    const empty = new Set<string>();
-    officialRefsBySchool.set(sid, empty);
-    return empty;
-  }
-
   const snapshots = readSchoolFamilyAccountAgeAnalysisSnapshots(schoolId);
   const refs = new Set<string>();
-  for (const key of Object.keys(snapshots || {})) {
+  for (const [key, snap] of Object.entries(snapshots || {})) {
+    if (String(snap?.source || "").trim() !== KIDEESYS_AGE_ANALYSIS_SOURCE) continue;
     const ref = normaliseOfficialBillingAccountRef(key);
     if (ref) refs.add(ref);
   }
