@@ -3445,6 +3445,7 @@ model BulkStatementEmailRecipient {
   @@index([jobId, status])
   @@index([schoolId, status])
   @@index([status, sendingLeaseUntil])
+}
 
 // =========================
 // ONLINE ADMISSIONS (staging domain) — OA-03A
@@ -3862,5 +3863,4 @@ model AdmissionStaffNote {
   author      User                 @relation("AdmissionNoteAuthor", fields: [authorUserId], references: [id], onDelete: Restrict)
 
   @@index([schoolId, applicationId, createdAt])
-}
 }
