@@ -14,8 +14,11 @@ export {
   matchApprovedClassB,
 } from "./approvedClassBManifests";
 export { executeApprovedClassBConsolidation } from "./classBApply";
+export { APPROVED_HIRBORO } from "./approvedHirConsolidation";
+export { executeApprovedHirConsolidation } from "./hirConsolidateApply";
 export type * from "./types";
 export type { IntegrityFinding, BillingIntegrityReport } from "./integrityReport";
 export type { LedgerConsolidationManifest } from "./ledgerConsolidate";
 export type { ApprovedClassBSpec } from "./approvedClassBManifests";
+export type { ApprovedHirConsolidationSpec } from "./approvedHirConsolidation";
 
