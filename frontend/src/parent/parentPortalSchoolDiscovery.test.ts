@@ -5,8 +5,12 @@
 import assert from "assert";
 import fs from "fs";
 import path from "path";
+import { fileURLToPath } from "url";
 
-const source = fs.readFileSync(path.join(__dirname, "ParentPortalApp.tsx"), "utf8");
+const source = fs.readFileSync(
+  path.join(path.dirname(fileURLToPath(import.meta.url)), "ParentPortalApp.tsx"),
+  "utf8"
+);
 
 assert.ok(source.includes('apiFetch("/api/public/schools", { skipAuth: true })'));
 assert.ok(source.includes("apiFetch(`/api/public/schools/${encodeURIComponent(sid)}`, { skipAuth: true })"));
