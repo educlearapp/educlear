@@ -285,7 +285,7 @@ export default function ParentPortalApp() {
   }, [dashboard?.notifications]);
 
   useEffect(() => {
-    void apiFetch("/api/schools/", { skipAuth: true })
+    void apiFetch("/api/public/schools", { skipAuth: true })
       .then((data: any) => {
         const list = Array.isArray(data) ? data : Array.isArray(data?.schools) ? data.schools : [];
         setSchools(list.map((s: any) => ({ id: s.id, name: s.name })));
@@ -311,7 +311,7 @@ export default function ParentPortalApp() {
 
   useEffect(() => {
     if (!sid) return;
-    void apiFetch(`/api/schools/${encodeURIComponent(sid)}`, { skipAuth: true })
+    void apiFetch(`/api/public/schools/${encodeURIComponent(sid)}`, { skipAuth: true })
       .then((s: any) => {
         setSchoolBranding({
           logoUrl: s?.logoUrl ? absolutizeSchoolLogoUrl(String(s.logoUrl)) : null,

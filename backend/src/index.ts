@@ -11,6 +11,7 @@ import {
   resolveCorsAllowedOrigins,
 } from "./utils/outboundSafety"; 
 import schoolsRoutes from "./routes/schools";
+import publicSchoolsRoutes from "./routes/publicSchools";
 import parentsRoutes from "./routes/parents";
 import jwt from "jsonwebtoken";
 import learnerRoutes from "./routes/learner";
@@ -292,6 +293,7 @@ app.options(/.*/, cors(corsOptions));
 app.use("/auth", authRoutes);
 app.use("/api/auth", authRoutes);
 app.use("/learner", requireSchoolModule("CORE"), learnerRoutes);
+app.use("/api/public/schools", publicSchoolsRoutes);
 app.use("/api/schools", schoolsRoutes);
 app.use("/api/emails", requireSchoolModule("CORE"), emailRoutes);
 app.use("/api/bulk-statement-email-jobs", requireSchoolModule("CORE"), bulkStatementEmailJobsRoutes);

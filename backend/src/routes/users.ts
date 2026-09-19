@@ -18,8 +18,37 @@ import {
   listAccessMetaForSchool,
   setUserAccessMeta,
 } from "../utils/userAccessStore";
+import {
+  allowSchool,
+  allowUsersAction,
+  resolveStaffSchoolGate,
+  sendAuthRequired,
+  type StaffSchoolGate,
+} from "../middleware/staffSchoolGate";
+import type { Request } from "express";
 
 const router = Router();
+
+type GatedRequest = Request & { staffSchoolGate?: StaffSchoolGate };
+
+router.use(async (req, res, next) => {
+  try {
+    const gate = await resolveStaffSchoolGate(req.headers.authorization);
+    if (!gate) {
+      sendAuthRequired(res);
+      return;
+    }
+    (req as GatedRequest).staffSchoolGate = gate;
+    next();
+  } catch (error) {
+    console.error("[users] auth gate failed:", error);
+    res.status(500).json({ success: false, error: "Failed to authorize request" });
+  }
+});
+
+function gateOf(req: Request): StaffSchoolGate | null {
+  return (req as GatedRequest).staffSchoolGate || null;
+}
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/i;
 
@@ -101,10 +130,15 @@ async function countActiveOwners(schoolId: string, excludeUserId?: string) {
 
 router.get("/", async (req, res) => {
   try {
+    const gate = gateOf(req);
+    if (!gate) return sendAuthRequired(res);
+    if (!allowUsersAction(gate, "view", res)) return;
+
     const schoolId = String(req.query?.schoolId || "").trim();
     if (!schoolId) {
       return res.status(400).json({ success: false, error: "schoolId is required" });
     }
+    if (!allowSchool(gate, schoolId, res)) return;
 
     const users = await prisma.user.findMany({
       where: { schoolId },
@@ -135,8 +169,13 @@ router.get("/", async (req, res) => {
 
 router.post("/", async (req, res) => {
   try {
+    const gate = gateOf(req);
+    if (!gate) return sendAuthRequired(res);
+    if (!allowUsersAction(gate, "create", res)) return;
+
     const body = req.body ?? {};
     const schoolId = String(body.schoolId || "").trim();
+    if (!allowSchool(gate, schoolId, res)) return;
     const firstName = String(body.firstName || body.name || "").trim();
     const surname = String(body.surname || "").trim();
     const email = String(body.email || "").trim().toLowerCase();
@@ -228,6 +267,10 @@ router.put("/:id", async (req, res) => {
     if (!existing) {
       return res.status(404).json({ success: false, error: "User not found" });
     }
+    const gate = gateOf(req);
+    if (!gate) return sendAuthRequired(res);
+    if (!allowUsersAction(gate, "edit", res)) return;
+    if (!allowSchool(gate, existing.schoolId, res)) return;
     if (schoolId && existing.schoolId !== schoolId) {
       return res.status(403).json({ success: false, error: "User does not belong to this school" });
     }
@@ -347,6 +390,10 @@ router.patch("/:id/status", async (req, res) => {
     if (!existing) {
       return res.status(404).json({ success: false, error: "User not found" });
     }
+    const statusGate = gateOf(req);
+    if (!statusGate) return sendAuthRequired(res);
+    if (!allowUsersAction(statusGate, "edit", res)) return;
+    if (!allowSchool(statusGate, existing.schoolId, res)) return;
 
     const meta = await getUserAccessMeta(userId);
     if (meta?.appRole === "Owner" && !isActive) {
@@ -394,6 +441,10 @@ router.patch("/:id/permissions", async (req, res) => {
     if (!existing) {
       return res.status(404).json({ success: false, error: "User not found" });
     }
+    const permGate = gateOf(req);
+    if (!permGate) return sendAuthRequired(res);
+    if (!allowUsersAction(permGate, "manage", res)) return;
+    if (!allowSchool(permGate, existing.schoolId, res)) return;
 
     const meta = await getUserAccessMeta(userId);
     const resolvedRole = (appRole || meta?.appRole || appRoleFromPrismaRole(existing.role)) as AppRole;
@@ -457,6 +508,10 @@ router.post("/:id/reset-password", async (req, res) => {
     if (!existing) {
       return res.status(404).json({ success: false, error: "User not found" });
     }
+    const resetGate = gateOf(req);
+    if (!resetGate) return sendAuthRequired(res);
+    if (!allowUsersAction(resetGate, "manage", res)) return;
+    if (!allowSchool(resetGate, existing.schoolId, res)) return;
 
     const passwordHash = await bcrypt.hash(password, 10);
     await prisma.user.update({
@@ -481,6 +536,10 @@ router.delete("/:id", async (req, res) => {
     if (!existing) {
       return res.status(404).json({ success: false, error: "User not found" });
     }
+    const deleteGate = gateOf(req);
+    if (!deleteGate) return sendAuthRequired(res);
+    if (!allowUsersAction(deleteGate, "edit", res)) return;
+    if (!allowSchool(deleteGate, existing.schoolId, res)) return;
 
     const meta = await getUserAccessMeta(userId);
     if (meta?.appRole === "Owner") {

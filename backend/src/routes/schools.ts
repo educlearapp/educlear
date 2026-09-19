@@ -2,6 +2,11 @@ import { Router } from "express";
 import jwt from "jsonwebtoken";
 
 import { prisma } from "../prisma";
+import {
+  allowSchool,
+  resolveStaffSchoolGate,
+  sendAuthRequired,
+} from "../middleware/staffSchoolGate";
 import { hashAuthPassword } from "../services/authCredentials";
 import { toStoredSchoolLogoUrl } from "../utils/schoolLogo";
 
@@ -51,9 +56,22 @@ async function resolveAuthenticatedSchoolUser(req: any) {
   });
 }
 
-router.get("/", async (_req, res) => {
+async function requireSchoolGate(req: { headers: { authorization?: string } }, res: Parameters<typeof sendAuthRequired>[0]) {
+  const gate = await resolveStaffSchoolGate(req.headers.authorization);
+  if (!gate) {
+    sendAuthRequired(res);
+    return null;
+  }
+  return gate;
+}
+
+router.get("/", async (req, res) => {
   try {
+    const gate = await requireSchoolGate(req, res);
+    if (!gate) return;
+
     const schools = await prisma.school.findMany({
+      where: gate.superAdmin ? undefined : { id: gate.auth.authorizedSchoolId },
       select: {
         id: true,
         name: true,
@@ -72,8 +90,12 @@ router.get("/", async (_req, res) => {
 
 router.get("/:id", async (req, res) => {
   try {
+    const gate = await requireSchoolGate(req, res);
+    if (!gate) return;
+
     const id = String(req.params.id || "").trim();
     if (!id) return res.status(400).json({ error: "Missing school id" });
+    if (!allowSchool(gate, id, res)) return;
 
     const school = await prisma.school.findUnique({
       where: { id },
@@ -91,8 +113,12 @@ router.get("/:id", async (req, res) => {
 
 router.put("/:id", async (req, res) => {
   try {
+    const gate = await requireSchoolGate(req, res);
+    if (!gate) return;
+
     const id = String(req.params.id || "").trim();
     if (!id) return res.status(400).json({ error: "Missing school id" });
+    if (!allowSchool(gate, id, res)) return;
 
     const existing = await prisma.school.findUnique({
       where: { id },
