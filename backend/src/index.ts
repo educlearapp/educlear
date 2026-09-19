@@ -86,7 +86,7 @@ import { requireMigrationAccess } from "./middleware/requireMigrationAccess";
 import { requireSuperAdmin } from "./middleware/requireSuperAdmin";
 import { requireSchoolModule } from "./middleware/requireSchoolModule";
 import { publicAdmissionsJsonParser } from "./middleware/publicAdmissionsJsonLimit";
-import { lookupParentPortalBySchool } from "./services/parentPortalLookup";
+import { isAllowedSchoolLogo, schoolLogoExtension } from "./utils/logoUploadPolicy";
 import superAdminSchoolsRoutes from "./routes/superAdminSchools";
 import { prisma } from "./prisma";
 import { bootstrapDevTestSchoolEmail } from "./dev/devTestSchoolEmail";
@@ -160,7 +160,8 @@ type OtpRecord = {
   
   
   
-      cb(null, "school-logo-" + unique + path.extname(file.originalname));
+      const ext = schoolLogoExtension(file.mimetype, file.originalname) || ".png";
+      cb(null, "school-logo-" + unique + ext);
   
   
   
@@ -172,7 +173,17 @@ type OtpRecord = {
   
   
   
-  const upload = multer({ storage });
+  const upload = multer({
+    storage,
+    limits: { fileSize: 2 * 1024 * 1024 },
+    fileFilter: (_req, file, cb) => {
+      if (!isAllowedSchoolLogo(file.mimetype, file.originalname)) {
+        cb(new Error("LOGO_TYPE"));
+        return;
+      }
+      cb(null, true);
+    },
+  });
   function authMiddleware(req: any, res: any, next: any) {
 
     const authHeader = req.headers.authorization;
@@ -300,39 +311,28 @@ app.use("/api/bulk-statement-email-jobs", requireSchoolModule("CORE"), bulkState
 app.use("/api/school-email-settings", requireSchoolModule("CORE"), schoolEmailSettingsRoutes);
 app.use("/api/school-sms-settings", requireSchoolModule("CORE"), schoolSmsSettingsRoutes);
 app.use("/api/users", usersRoutes);
-app.post("/api/upload-logo", upload.single("logo"), (req, res) => {
-
-
-
-  if (!req.file) {
-
-
-
-    return res.status(400).json({ success: false });
-
-
-
-  }
-
-
-
-  const relativeUrl = `/uploads/school-logos/${req.file.filename}`;
-  const base =
-    process.env.PUBLIC_API_URL?.replace(/\/$/, "") ||
-    `${req.protocol}://${req.get("host")}`;
-  const absoluteUrl = `${base}${relativeUrl}`;
-
-  res.json({
-    success: true,
-    url: relativeUrl,
-    absoluteUrl,
-
-
-
+app.post("/api/upload-logo", (req, res) => {
+  upload.single("logo")(req, res, (err: unknown) => {
+    if (err) {
+      return res.status(400).json({
+        success: false,
+        error: "Logo must be a PNG, JPEG, WEBP, or GIF image under 2MB",
+      });
+    }
+    if (!req.file) {
+      return res.status(400).json({ success: false, error: "Logo file is required" });
+    }
+    const relativeUrl = `/uploads/school-logos/${req.file.filename}`;
+    const base =
+      process.env.PUBLIC_API_URL?.replace(/\/$/, "") ||
+      `${req.protocol}://${req.get("host")}`;
+    const absoluteUrl = `${base}${relativeUrl}`;
+    return res.json({
+      success: true,
+      url: relativeUrl,
+      absoluteUrl,
+    });
   });
-
-
-
 });
 app.use("/api/parents", requireSchoolModule("CORE"), parentsRoutes);
 app.use("/api/invoices", requireSchoolModule("CORE"), invoicesRoutes);

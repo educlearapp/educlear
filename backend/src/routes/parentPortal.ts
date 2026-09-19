@@ -37,6 +37,24 @@ import {
   MODULE_NOT_ENTITLED,
 } from "../middleware/requireSchoolModule";
 import { lookupParentPortalBySchool } from "../services/parentPortalLookup";
+import {
+  allowSchool,
+  resolveStaffSchoolGate,
+  sendAuthRequired,
+} from "../middleware/staffSchoolGate";
+
+async function requireSameSchoolStaff(
+  req: { headers: { authorization?: string } },
+  res: Parameters<typeof sendAuthRequired>[0],
+  schoolId: string
+): Promise<boolean> {
+  const gate = await resolveStaffSchoolGate(req.headers.authorization);
+  if (!gate) {
+    sendAuthRequired(res);
+    return false;
+  }
+  return allowSchool(gate, schoolId, res);
+}
 
 const router = Router();
 
@@ -915,6 +933,7 @@ router.get("/incidents/:id", parentAuthMiddleware, async (req, res) => {
 router.post("/staff/incidents", async (req, res) => {
   try {
     const schoolId = String(req.body?.schoolId || "").trim();
+    if (!(await requireSameSchoolStaff(req, res, schoolId))) return;
     const learnerId = String(req.body?.learnerId || "").trim();
     const summary = String(req.body?.summary || req.body?.incident || "").trim();
     if (!schoolId || !learnerId || !summary) {
@@ -956,6 +975,7 @@ router.post("/staff/incidents", async (req, res) => {
 router.get("/staff/incidents", async (req, res) => {
   try {
     const schoolId = String(req.query.schoolId || "").trim();
+    if (!(await requireSameSchoolStaff(req, res, schoolId))) return;
     if (!schoolId) return res.status(400).json({ success: false, error: "schoolId required" });
     const incidents = await prisma.learnerIncident.findMany({
       where: { schoolId },
@@ -971,6 +991,7 @@ router.get("/staff/incidents", async (req, res) => {
 router.post("/staff/homework", async (req, res) => {
   try {
     const schoolId = String(req.body?.schoolId || "").trim();
+    if (!(await requireSameSchoolStaff(req, res, schoolId))) return;
     const title = String(req.body?.title || "").trim();
     if (!schoolId || !title) {
       return res.status(400).json({ success: false, error: "schoolId and title required" });
@@ -1032,6 +1053,7 @@ router.post("/staff/homework", async (req, res) => {
 router.post("/staff/notices", async (req, res) => {
   try {
     const schoolId = String(req.body?.schoolId || "").trim();
+    if (!(await requireSameSchoolStaff(req, res, schoolId))) return;
     const title = String(req.body?.title || "").trim();
     const noticeType = String(req.body?.noticeType || "SCHOOL").toUpperCase();
     if (!schoolId || !title) {
@@ -1086,6 +1108,7 @@ router.post("/staff/notices", async (req, res) => {
 router.post("/staff/documents", async (req, res) => {
   try {
     const schoolId = String(req.body?.schoolId || "").trim();
+    if (!(await requireSameSchoolStaff(req, res, schoolId))) return;
     const title = String(req.body?.title || "").trim();
     const fileUrl = String(req.body?.fileUrl || "").trim();
     if (!schoolId || !title || !fileUrl) {
@@ -1136,6 +1159,7 @@ router.post("/staff/documents", async (req, res) => {
 router.post("/notify-invoice-run", async (req, res) => {
   try {
     const schoolId = String(req.body?.schoolId || "").trim();
+    if (!(await requireSameSchoolStaff(req, res, schoolId))) return;
     const month = String(req.body?.month || "").trim();
     const runId = String(req.body?.runId || "").trim();
     const learnerIds = Array.isArray(req.body?.learnerIds)
@@ -1157,6 +1181,7 @@ router.post("/notify-invoice-run", async (req, res) => {
 router.post("/migration/onboarding", async (req, res) => {
   try {
     const schoolId = String(req.body?.schoolId || "").trim();
+    if (!(await requireSameSchoolStaff(req, res, schoolId))) return;
     if (!schoolId) return res.status(400).json({ success: false, error: "schoolId required" });
     const result = await runMigrationParentOnboarding(schoolId);
     return res.json({ success: true, ...result });
@@ -1167,6 +1192,7 @@ router.post("/migration/onboarding", async (req, res) => {
 });
 
 // Legacy lookup (cell + optional id) for staff-embedded portal — school-scoped only.
+// FOLLOW-UP: add rate limiting. Cell+ID isolation is in place; this route is not staff-JWT gated.
 router.get("/lookup-by-cell", async (req, res) => {
   try {
     const result = await lookupParentPortalBySchool({

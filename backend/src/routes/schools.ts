@@ -165,6 +165,22 @@ router.put("/:id", async (req, res) => {
 router.post("/:id/password", async (req, res) => {
   try {
     const schoolId = String(req.params.id || "").trim();
+    const user = await resolveAuthenticatedSchoolUser(req);
+    if (!user || !user.isActive) {
+      return res.status(401).json({
+        success: false,
+        error: "Authentication required",
+        code: "AUTH_REQUIRED",
+      });
+    }
+    if (user.schoolId !== schoolId) {
+      return res.status(403).json({
+        success: false,
+        error: "You can only change the password for your current school account",
+        code: "SCHOOL_MISMATCH",
+      });
+    }
+
     const newPassword = String(req.body?.newPassword || req.body?.password || "");
     if (!schoolId) return res.status(400).json({ success: false, error: "Missing school id" });
     if (!newPassword) {
@@ -174,17 +190,6 @@ router.post("/:id/password", async (req, res) => {
       return res.status(400).json({
         success: false,
         error: "New password must be at least 8 characters",
-      });
-    }
-
-    const user = await resolveAuthenticatedSchoolUser(req);
-    if (!user || !user.isActive) {
-      return res.status(401).json({ success: false, error: "Authentication required" });
-    }
-    if (user.schoolId !== schoolId) {
-      return res.status(403).json({
-        success: false,
-        error: "You can only change the password for your current school account",
       });
     }
 

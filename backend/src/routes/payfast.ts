@@ -12,6 +12,11 @@ import {
 } from "@prisma/client";
 
 import { prisma } from "../prisma";
+import {
+  allowSchool,
+  resolveStaffSchoolGate,
+  sendAuthRequired,
+} from "../middleware/staffSchoolGate";
 import { ensureEduClearCreditBundles } from "../services/ensureEduClearCreditBundles";
 import { ensureEduClearPackages } from "../services/ensureEduClearPackages";
 import { ensureSchoolSubscription } from "../services/ensureSchoolSubscription";
@@ -526,6 +531,11 @@ async function createCreditsCheckout(
 
 router.post("/create-checkout", async (req, res) => {
   try {
+    const gate = await resolveStaffSchoolGate(req.headers.authorization);
+    if (!gate) return sendAuthRequired(res);
+    const requestedSchoolId = String(req.body?.schoolId || "").trim();
+    if (!allowSchool(gate, requestedSchoolId, res)) return;
+
     const checkoutType = parseCheckoutType(
       req.body?.checkoutType,
       req.body?.packageCode,

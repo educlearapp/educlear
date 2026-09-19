@@ -282,8 +282,21 @@ async function main() {
       packageCode: "STARTER",
     },
   });
-  assert.strictEqual(checkout.status, 403);
-  assert.strictEqual(checkout.data.code, "LEGACY_CAPACITY_CHECKOUT_DISABLED");
+  assert.strictEqual(checkout.status, 401);
+  assert.strictEqual(checkout.data.code, "AUTH_REQUIRED");
+  console.log("✓ unauthenticated PayFast checkout requires staff auth");
+
+  const authedLegacy = await jsonFetch(base, "/api/payfast/create-checkout", {
+    method: "POST",
+    headers: { Authorization: bearer(a.owner) },
+    body: {
+      checkoutType: "SUBSCRIPTION",
+      schoolId: a.school.id,
+      packageCode: "STARTER",
+    },
+  });
+  assert.strictEqual(authedLegacy.status, 403);
+  assert.strictEqual(authedLegacy.data.code, "LEGACY_CAPACITY_CHECKOUT_DISABLED");
   console.log("✓ legacy STARTER checkout initiation blocked");
 
   // --- Business label ---
