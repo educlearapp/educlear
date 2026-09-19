@@ -516,7 +516,7 @@ export function buildRepairPlan(rows: ZeroLinkedFaRow[]): {
       `orphan FA ${row.faId} still zero-linked`,
       `schoolId must remain Fly Eagle`,
       row.repairClass === "A" || row.repairClass === "B"
-        ? `action=${row.action} only if live state matches audited IDs`
+        ? `action=${row.proposedAction} only if live state matches audited IDs`
         : `no mutation — Class C`,
     ],
     monetary: {
