@@ -273,23 +273,47 @@ export function normalizePaymentAccount(
   };
 }
 
+/**
+ * FamilyAccount.id is eligible for a NEW payment only when at least one
+ * learner in the current learners list is linked to that family account.
+ * Statement history may still show zero-linked accounts separately.
+ */
+export function familyAccountHasLinkedLearner(
+  familyAccountId: unknown,
+  learners: any[] | undefined | null
+): boolean {
+  const fid = String(familyAccountId || "").trim();
+  if (!fid) return false;
+  for (const learner of learners || []) {
+    const linked = String(
+      learner?.familyAccountId || learner?.familyAccount?.id || ""
+    ).trim();
+    if (linked === fid) return true;
+  }
+  return false;
+}
+
+/** Capture Payment picker rows — excludes zero-linked family accounts. */
 export function accountsFromStatementRows(
   statementRows: any[],
   learners?: any[]
 ): PaymentAccountContext[] {
+  const learnerList = learners || [];
   const seen = new Set<string>();
   const list: PaymentAccountContext[] = [];
   for (const row of statementRows) {
-    const learner = findLearnerForRow(row, learners || []);
+    const learner = findLearnerForRow(row, learnerList);
     const realLearnerId = String(
       learner?.id || learner?.learnerId || row?.learnerId || ""
     ).trim();
-    const normalized = normalizePaymentAccount(row, statementRows, learners);
+    const normalized = normalizePaymentAccount(row, statementRows, learnerList);
     if (!normalized) continue;
     const familyAccountId = String(
       normalized.familyAccountId || resolveFamilyAccountId(row, learner)
     ).trim();
     if (!familyAccountId) continue;
+    // Backend GET /api/payments/accounts applies the same rule via Prisma links.
+    if (!familyAccountHasLinkedLearner(familyAccountId, learnerList)) continue;
     const displayRef =
       normalizeStatementAccountRef(normalized.accountNo) ||
       String(normalized.accountNo || "").trim();

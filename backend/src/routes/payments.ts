@@ -9,6 +9,7 @@ import { relinkSchoolBillingLedger } from "../services/billingLedgerRelink";
 import { sendSavedPaymentReceiptEmail } from "../services/receiptEmailService";
 import { captureManualPayment, CapturePaymentError } from "../services/capturePaymentService";
 import { buildSetupRequiredPayload } from "../services/schoolEmailService";
+import { filterPaymentAccountsForSchool } from "../services/paymentAccountEligibility";
 import {
   buildAccountsFromAgeAnalysisSnapshots,
   resolveAuthoritativeAccountBalance,
@@ -148,12 +149,15 @@ router.get("/open-invoices", requireCapturePaymentReadAuth, async (req: CaptureP
 });
 
 // GET /api/payments/accounts?schoolId=...
+// Payment targets only — zero-linked family accounts are omitted.
+// Full statement/history lists remain on GET /api/statements (unchanged).
 router.get("/accounts", requireCapturePaymentReadAuth, async (req: CapturePaymentAuthRequest, res) => {
   try {
     const schoolId = String(req.capturePaymentAuth?.authorizedSchoolId || "").trim();
     if (!schoolId) return res.status(401).json({ success: false, error: "Authentication required" });
 
-    const accounts = await buildAccountsFromAgeAnalysisSnapshots(schoolId);
+    const allAccounts = await buildAccountsFromAgeAnalysisSnapshots(schoolId);
+    const accounts = await filterPaymentAccountsForSchool(schoolId, allAccounts);
 
     return res.json({ success: true, accounts });
   } catch (error) {

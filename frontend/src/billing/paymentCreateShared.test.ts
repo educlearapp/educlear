@@ -4,6 +4,7 @@
  */
 import {
   accountsFromStatementRows,
+  familyAccountHasLinkedLearner,
   formatPaymentAccountLabel,
   paymentAccountMatchesQuery,
 } from "./paymentCreateShared";
@@ -163,10 +164,104 @@ function testFlyEagleEduClearNumberIsSearchableWithoutReplacingJoinKey() {
   assert(paymentAccountMatchesQuery(accounts[0], "ashanafy"), "search by learner name");
   console.log("✓ Fly Eagle picker searches EduClear number and Express name; join key unchanged");
 }
+
+function testZeroLinkedOrphansExcludedFromNewPaymentPicker() {
+  const rows = [
+    {
+      accountNo: "GROOM ADEBO",
+      eduClearAccountNo: "ADD001",
+      familyAccountId: "fa-add001",
+      memberNames: ["GROOM ADEBO"],
+      memberLearnerIds: [],
+      balance: 1350,
+    },
+    {
+      accountNo: "KAYODE KATLEGO",
+      eduClearAccountNo: "KAY001",
+      familyAccountId: "fa-kay001",
+      memberLearnerIds: [],
+      balance: 1450,
+    },
+    {
+      accountNo: "HIRBORO ANTEFAZA",
+      eduClearAccountNo: "HIR002",
+      familyAccountId: "fa-hir002",
+      memberLearnerIds: [],
+      balance: 2900,
+    },
+    {
+      accountNo: "BEYAMO DEGAFECHY",
+      familyAccountId: "fa-beyamo",
+      memberLearnerIds: ["learner-bey"],
+      balance: 2200,
+      learnerId: "learner-bey",
+    },
+  ];
+  const learners = [
+    {
+      id: "learner-bey",
+      firstName: "Beyamo",
+      lastName: "Degafechy",
+      familyAccountId: "fa-beyamo",
+      familyAccount: { id: "fa-beyamo", accountRef: "BEYAMO DEGAFECHY" },
+    },
+    // Antefazen is linked to HIR003 — not HIR002 — so HIR002 stays ineligible
+    {
+      id: "learner-antefazen",
+      firstName: "ANTEFAZEN",
+      lastName: "HIRBORO",
+      familyAccountId: "fa-hir003",
+      familyAccount: { id: "fa-hir003", accountRef: "HIR003" },
+    },
+  ];
+
+  assert(!familyAccountHasLinkedLearner("fa-add001", learners), "ADD001 has no linked learner");
+  assert(!familyAccountHasLinkedLearner("fa-kay001", learners), "KAY001 has no linked learner");
+  assert(!familyAccountHasLinkedLearner("fa-hir002", learners), "HIR002 has no linked learner");
+  assert(familyAccountHasLinkedLearner("fa-beyamo", learners), "linked Fly Eagle FA eligible");
+
+  const accounts = accountsFromStatementRows(rows, learners);
+  assert(accounts.length === 1, "only linked account is a new-payment target");
+  assert(accounts[0].familyAccountId === "fa-beyamo", "normal linked account selectable");
+  assert(
+    !accounts.some((a) => ["ADD001", "KAY001", "HIR002"].includes(String(a.eduClearAccountNo || ""))),
+    "ADD001/KAY001/HIR002 not offered for new payment"
+  );
+  console.log("✓ zero-linked orphans excluded; linked Fly Eagle account still selectable");
+}
+
+function testNameMatchOnStatementDoesNotMakeOrphanPayable() {
+  // Statements may show holder name in memberNames while memberLearnerIds is empty
+  // and no learner.familyAccountId points at this FA.
+  const rows = [
+    {
+      accountNo: "GROOM ADEBO",
+      eduClearAccountNo: "ADD001",
+      familyAccountId: "fa-add001",
+      memberNames: ["GROOM ADEBO"],
+      memberLearnerIds: [],
+      balance: 1350,
+    },
+  ];
+  const learners = [
+    {
+      id: "unrelated",
+      firstName: "Other",
+      lastName: "Child",
+      familyAccountId: "fa-other",
+    },
+  ];
+  const accounts = accountsFromStatementRows(rows, learners);
+  assert(accounts.length === 0, "display name alone does not unlock payment");
+  console.log("✓ statement display name without FA link is not payable");
+}
+
 testFlyEagleNameAccountsAppear();
 testDaSilvaKidESysStillSearchable();
 testMbbWorks();
 testDropsRowsWithoutFamilyAccountId();
 testSiblingDedupesToOneFamily();
 testFlyEagleEduClearNumberIsSearchableWithoutReplacingJoinKey();
+testZeroLinkedOrphansExcludedFromNewPaymentPicker();
+testNameMatchOnStatementDoesNotMakeOrphanPayable();
 console.log("\nAll paymentCreateShared picker tests passed.");
