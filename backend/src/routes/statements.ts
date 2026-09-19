@@ -86,13 +86,16 @@ router.get("/summary-validation", async (req, res) => {
   }
 });
 
-// GET /api/statements?schoolId=...
+// GET /api/statements?schoolId=&includeRetired=
 router.get("/", async (req, res) => {
   try {
     const schoolId = typeof req.query?.schoolId === "string" ? String(req.query.schoolId) : "";
     if (!schoolId) return res.status(400).json({ success: false, error: "Missing schoolId" });
 
-    const accounts = await buildAccountsFromAgeAnalysisSnapshots(schoolId);
+    const includeRetired =
+      req.query?.includeRetired === "true" || req.query?.includeRetired === "1";
+
+    const accounts = await buildAccountsFromAgeAnalysisSnapshots(schoolId, { includeRetired });
     return res.json({ success: true, statements: accounts, accounts });
   } catch (error) {
     console.error("[statements] GET / failed:", error);

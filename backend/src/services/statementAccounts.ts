@@ -36,6 +36,13 @@ import {
   splitAccountHolderNames,
 } from "./familyAccountMembers";
 import { isFamilyAccountRetired } from "./familyAccountLifecycle";
+import {
+  collectLedgerEntriesForFamily,
+  orphanSnapshotRefs,
+  resolveSnapshotForFamily,
+  selectStatementFamilyAccounts,
+  type StatementFamilyAccount,
+} from "./statementAccountIdentity";
 
 export function roundStatementMoney(value: unknown): number {
   const n = Number(value);
@@ -302,8 +309,13 @@ function resolveLastPaymentFields(
 }
 
 /**
- * Authoritative billing account list: Kid-e-Sys Age Analysis snapshots (accountRef) +
- * ledger + display history. Never uses SA-SAMS admission numbers for accountNo.
+ * Authoritative billing account list — FamilyAccount-canonical.
+ *
+ * CURRENT identity = FamilyAccount (accountNo / FA id).
+ * LEGACY join = accountRef (Express name or Kid-e-Sys code) for ledger + age-analysis enrichment.
+ * Age-analysis snapshots enrich balances but must not be the sole visibility gate:
+ * current FAs with learners/ledger appear even when their snapshot key is missing (SOT002).
+ * Historical predecessors appear only when includeRetired is true.
  */
 export async function buildAccountsFromAgeAnalysisSnapshots(
   schoolId: string,
@@ -319,24 +331,20 @@ export async function buildAccountsFromAgeAnalysisSnapshots(
   const sid = String(schoolId || "").trim();
   if (!sid) return [];
 
-  const snapshotsByRef = readSchoolFamilyAccountAgeAnalysisSnapshots(sid);
-  let snapshots: FamilyAccountAgeAnalysisSnapshot[] = Object.values(snapshotsByRef || {}).filter(
-    (snap) => !String(snap.mergedIntoAccountRef || "").trim()
-  );
-  const accountRefFilter = String(opts.accountRef || "").trim().toUpperCase();
-  if (accountRefFilter) {
-    snapshots = snapshots.filter(
-      (s) => String(s.accountRef || "").trim().toUpperCase() === accountRefFilter
-    );
+  const rawSnapshots = readSchoolFamilyAccountAgeAnalysisSnapshots(sid);
+  const snapshotsByRef: Record<string, FamilyAccountAgeAnalysisSnapshot | undefined> = {};
+  for (const snap of Object.values(rawSnapshots || {})) {
+    if (!snap) continue;
+    if (String(snap.mergedIntoAccountRef || "").trim()) continue;
+    const key = String(snap.accountRef || "").trim().toUpperCase();
+    if (!key) continue;
+    snapshotsByRef[key] = snap;
   }
-  const accountRefs = snapshots
-    .map((s) => String(s.accountRef || "").trim().toUpperCase())
-    .filter(Boolean);
 
-  if (!accountRefs.length) return [];
+  const accountRefFilter = String(opts.accountRef || "").trim().toUpperCase();
 
-  const familyAccounts = await prisma.familyAccount.findMany({
-    where: { schoolId: sid, accountRef: { in: accountRefs } },
+  const familyAccounts = (await prisma.familyAccount.findMany({
+    where: { schoolId: sid },
     select: {
       id: true,
       accountRef: true,
@@ -346,34 +354,10 @@ export async function buildAccountsFromAgeAnalysisSnapshots(
       mergedIntoFamilyAccountId: true,
       mergedInto: { select: { accountRef: true, schoolId: true } },
     },
-  });
-  const familyByRef = new Map(
-    familyAccounts.map((fa) => [String(fa.accountRef).trim().toUpperCase(), fa])
-  );
-
-  if (!opts.includeRetired) {
-    snapshots = snapshots.filter((snap) => {
-      const ref = String(snap.accountRef || "").trim().toUpperCase();
-      const family = familyByRef.get(ref);
-      return !family || !isFamilyAccountRetired(family);
-    });
-    accountRefs.splice(
-      0,
-      accountRefs.length,
-      ...snapshots
-        .map((s) => String(s.accountRef || "").trim().toUpperCase())
-        .filter(Boolean)
-    );
-    if (!accountRefs.length) return [];
-  }
+  })) as StatementFamilyAccount[];
 
   const schoolLearners = await prisma.learner.findMany({
-    where: accountRefFilter
-      ? {
-          schoolId: sid,
-          familyAccount: { accountRef: accountRefFilter },
-        }
-      : { schoolId: sid },
+    where: { schoolId: sid },
     orderBy: { createdAt: "desc" },
     select: {
       id: true,
@@ -384,20 +368,22 @@ export async function buildAccountsFromAgeAnalysisSnapshots(
     },
   });
 
-  const learnersByRef = new Map<
+  const linkedFamilyAccountIds = new Set<string>();
+  const learnersByFaId = new Map<
     string,
     { id: string; firstName: string; lastName: string; fullName: string }[]
   >();
   for (const l of schoolLearners) {
-    const ref = String(l.familyAccount?.accountRef || "").trim().toUpperCase();
-    if (!ref || !accountRefs.includes(ref)) continue;
+    const faId = String(l.familyAccountId || "").trim();
+    if (!faId) continue;
+    linkedFamilyAccountIds.add(faId);
     const firstName = String(l.firstName || "").trim();
     const lastName = String(l.lastName || "").trim();
-    const fullName = learnerFullName({ id: l.id, firstName, lastName }) || ref;
-    const bucket = learnersByRef.get(ref) || [];
+    const fullName = learnerFullName({ id: l.id, firstName, lastName }) || faId;
+    const bucket = learnersByFaId.get(faId) || [];
     if (!bucket.some((row) => row.id === l.id)) {
       bucket.push({ id: l.id, firstName, lastName, fullName });
-      learnersByRef.set(ref, bucket);
+      learnersByFaId.set(faId, bucket);
     }
   }
 
@@ -405,22 +391,38 @@ export async function buildAccountsFromAgeAnalysisSnapshots(
   const history = opts.history ?? readSchoolKidesysHistory(sid);
   const historyIndex = buildKidesysHistoryAccountIndex(history);
 
-  return snapshots.map((snap) => {
-    const accountRef = String(snap.accountRef || "").trim().toUpperCase();
-    const ageBalance = Number(snap.balance) || 0;
-    const family = familyByRef.get(accountRef);
-    const accountHolder = String(snap.accountHolder || family?.familyName || "").trim();
-    const linkedLearners = learnersByRef.get(accountRef) || [];
+  const selected = selectStatementFamilyAccounts({
+    familyAccounts,
+    snapshotsByRef,
+    ledger,
+    linkedFamilyAccountIds,
+    includeRetired: opts.includeRetired,
+    accountRefFilter: accountRefFilter || undefined,
+  });
+
+  const rows: BillingStatementAccountRow[] = selected.map((family) => {
+    const joinRef = resolveLedgerJoinAccountRef(family).toUpperCase();
+    const snap = resolveSnapshotForFamily(family, snapshotsByRef);
+    const accountHolder = String(
+      snap?.accountHolder || family.familyName || ""
+    ).trim();
+    const linkedLearners = learnersByFaId.get(family.id) || [];
     const matchedByHolder = matchLearnersToAccountHolder(schoolLearners, accountHolder, {
-      familyAccountId: family?.id || null,
+      familyAccountId: family.id,
     });
-    const memberLearnerMap = new Map<string, { id: string; firstName: string; lastName: string; fullName: string }>();
-    for (const row of [...linkedLearners, ...matchedByHolder.map((l) => ({
-      id: l.id,
-      firstName: String(l.firstName || "").trim(),
-      lastName: String(l.lastName || "").trim(),
-      fullName: learnerFullName(l),
-    }))]) {
+    const memberLearnerMap = new Map<
+      string,
+      { id: string; firstName: string; lastName: string; fullName: string }
+    >();
+    for (const row of [
+      ...linkedLearners,
+      ...matchedByHolder.map((l) => ({
+        id: l.id,
+        firstName: String(l.firstName || "").trim(),
+        lastName: String(l.lastName || "").trim(),
+        fullName: learnerFullName(l),
+      })),
+    ]) {
       if (!row.id || memberLearnerMap.has(row.id)) continue;
       memberLearnerMap.set(row.id, row);
     }
@@ -430,39 +432,49 @@ export async function buildAccountsFromAgeAnalysisSnapshots(
     const holderNames = splitAccountHolderNames(accountHolder);
     const label =
       memberNames.join(" · ") ||
-      String(family?.familyName || "").trim() ||
+      String(family.familyName || "").trim() ||
       String(anchor?.fullName || "").trim() ||
-      accountRef ||
+      joinRef ||
       "-";
     const split = splitDisplayName(holderNames[0] || label);
     const name = String(anchor?.firstName || "").trim() || split.name;
     const surname = String(anchor?.lastName || "").trim() || split.surname;
 
-    const accountEntries = ledger.filter(
-      (e) => String(e.accountNo || "").trim().toUpperCase() === accountRef
-    );
-    const hist = historyIndex.get(accountRef) || { lastInvoice: null, lastPayment: null };
+    const accountEntries = collectLedgerEntriesForFamily(family, ledger);
+    const hist = historyIndex.get(joinRef) || { lastInvoice: null, lastPayment: null };
     const invoiceFields = resolveLastInvoiceFields(accountEntries, hist);
     const paymentFields = resolveLastPaymentFields(accountEntries, hist);
 
-    const importedAt = String(snap.importedAt || "").trim();
-    const postImportEntries = filterPostImportBalanceEntries(accountEntries, importedAt);
+    const ageBalance = Number(snap?.balance) || 0;
+    const importedAt = String(snap?.importedAt || "").trim();
+    const postImportEntries = snap
+      ? filterPostImportBalanceEntries(accountEntries, importedAt)
+      : accountEntries.filter(
+          (entry) =>
+            !isUndoneLedgerEntry(entry) &&
+            !isEduClearUndoCorrectionEntry(entry) &&
+            countsTowardPostImportBalanceDelta(entry)
+        );
     const deltaBalance = calculateBalanceFromEntries(postImportEntries);
-    const balance = ageBalance + deltaBalance;
-    const kidesysSection = normalizeKidesysBillingSection(snap.kidesysSection);
-    const hasLiveLedgerDelta = postImportEntries.length > 0;
+    const balance = snap
+      ? roundStatementMoney(ageBalance + deltaBalance)
+      : roundStatementMoney(calculateBalanceFromEntries(postImportEntries));
+    const kidesysSection = normalizeKidesysBillingSection(snap?.kidesysSection);
+    const hasLiveLedgerDelta = snap ? postImportEntries.length > 0 : true;
     const accountStatus = hasLiveLedgerDelta
       ? statusFromBalance(balance)
       : displayStatusFromKidesysSection(kidesysSection, balance);
 
-    const familyNumberFields = family
-      ? { accountRef: family.accountRef, accountNo: family.accountNo }
-      : { accountRef, accountNo: null };
+    const familyNumberFields = {
+      accountRef: family.accountRef,
+      accountNo: family.accountNo,
+    };
     const eduClearAccountNo = resolveEduClearAccountNo(familyNumberFields) || null;
-    const sourceAccountRef = resolveLedgerJoinAccountRef(familyNumberFields) || accountRef || null;
+    const sourceAccountRef = resolveLedgerJoinAccountRef(familyNumberFields) || joinRef || null;
 
     return {
-      accountNo: accountRef || "-",
+      // Ledger join key stays accountRef so payments/invoices keep matching history rows.
+      accountNo: joinRef || "-",
       learnerId: anchor?.id || "",
       schoolId: sid,
       name,
@@ -475,28 +487,110 @@ export async function buildAccountsFromAgeAnalysisSnapshots(
       lastPaymentDate: paymentFields.lastPaymentDate,
       status: accountStatus,
       kidesysSection,
-      familyAccountId: family?.id || null,
-      familyName: family?.familyName ?? null,
+      familyAccountId: family.id,
+      familyName: family.familyName ?? null,
       memberLearnerIds: memberLearners.map((l) => l.id),
       memberNames,
       accountHolder,
       eduClearAccountNo,
       sourceAccountRef,
-      lifecycleStatus: family && isFamilyAccountRetired(family) ? "retired" : "active",
-      retiredAt: family?.retiredAt ? new Date(family.retiredAt).toISOString() : null,
-      mergedIntoFamilyAccountId: family?.mergedIntoFamilyAccountId || null,
+      lifecycleStatus: isFamilyAccountRetired(family) ? "retired" : "active",
+      retiredAt: family.retiredAt ? new Date(family.retiredAt).toISOString() : null,
+      mergedIntoFamilyAccountId: family.mergedIntoFamilyAccountId || null,
       mergedIntoAccountRef:
-        family?.mergedInto && family.mergedInto.schoolId === sid
+        family.mergedInto && family.mergedInto.schoolId === sid
           ? String(family.mergedInto.accountRef || "").trim().toUpperCase() || null
           : null,
+      ageAnalysis: snap
+        ? {
+            accountHolder: snap.accountHolder,
+            buckets: snap.buckets,
+            importedAt: snap.importedAt,
+            source: snap.source,
+          }
+        : undefined,
+    };
+  });
+
+  // Orphan age-analysis keys with no FamilyAccount — retain for migration edge cases.
+  const coveredJoinKeys = new Set(
+    selected.map((fa) => resolveLedgerJoinAccountRef(fa).toUpperCase()).filter(Boolean)
+  );
+  for (const orphanRef of orphanSnapshotRefs(snapshotsByRef, familyAccounts)) {
+    if (coveredJoinKeys.has(orphanRef)) continue;
+    if (accountRefFilter && orphanRef !== accountRefFilter) continue;
+    const snap = snapshotsByRef[orphanRef];
+    if (!snap) continue;
+
+    const accountHolder = String(snap.accountHolder || "").trim();
+    const matchedByHolder = matchLearnersToAccountHolder(schoolLearners, accountHolder, {
+      familyAccountId: null,
+    });
+    const memberLearners = matchedByHolder.map((l) => ({
+      id: l.id,
+      firstName: String(l.firstName || "").trim(),
+      lastName: String(l.lastName || "").trim(),
+      fullName: learnerFullName(l),
+    }));
+    const memberNames = resolveMemberNames(accountHolder, memberLearners);
+    const anchor = memberLearners[0];
+    const holderNames = splitAccountHolderNames(accountHolder);
+    const label = memberNames.join(" · ") || accountHolder || orphanRef || "-";
+    const split = splitDisplayName(holderNames[0] || label);
+    const name = String(anchor?.firstName || "").trim() || split.name;
+    const surname = String(anchor?.lastName || "").trim() || split.surname;
+
+    const accountEntries = ledger.filter(
+      (e) => String(e.accountNo || "").trim().toUpperCase() === orphanRef
+    );
+    const hist = historyIndex.get(orphanRef) || { lastInvoice: null, lastPayment: null };
+    const invoiceFields = resolveLastInvoiceFields(accountEntries, hist);
+    const paymentFields = resolveLastPaymentFields(accountEntries, hist);
+    const ageBalance = Number(snap.balance) || 0;
+    const importedAt = String(snap.importedAt || "").trim();
+    const postImportEntries = filterPostImportBalanceEntries(accountEntries, importedAt);
+    const balance = roundStatementMoney(ageBalance + calculateBalanceFromEntries(postImportEntries));
+    const kidesysSection = normalizeKidesysBillingSection(snap.kidesysSection);
+    const hasLiveLedgerDelta = postImportEntries.length > 0;
+    const accountStatus = hasLiveLedgerDelta
+      ? statusFromBalance(balance)
+      : displayStatusFromKidesysSection(kidesysSection, balance);
+
+    rows.push({
+      accountNo: orphanRef || "-",
+      learnerId: anchor?.id || "",
+      schoolId: sid,
+      name,
+      surname,
+      balance,
+      lastInvoice: invoiceFields.lastInvoice,
+      lastInvoiceDate: invoiceFields.lastInvoiceDate,
+      lastInvoiceLabel: invoiceFields.lastInvoiceLabel,
+      lastPayment: paymentFields.lastPayment,
+      lastPaymentDate: paymentFields.lastPaymentDate,
+      status: accountStatus,
+      kidesysSection,
+      familyAccountId: null,
+      familyName: null,
+      memberLearnerIds: memberLearners.map((l) => l.id),
+      memberNames,
+      accountHolder,
+      eduClearAccountNo: null,
+      sourceAccountRef: orphanRef,
+      lifecycleStatus: "active",
+      retiredAt: null,
+      mergedIntoFamilyAccountId: null,
+      mergedIntoAccountRef: null,
       ageAnalysis: {
         accountHolder: snap.accountHolder,
         buckets: snap.buckets,
         importedAt: snap.importedAt,
         source: snap.source,
       },
-    };
-  });
+    });
+  }
+
+  return rows;
 }
 
 /** Fast single-account rebuild for post-write responses (invoice/payment saves). */
@@ -508,10 +602,17 @@ export async function buildSingleAccountFromAgeAnalysisSnapshot(
   const rows = await buildAccountsFromAgeAnalysisSnapshots(schoolId, {
     ...opts,
     accountRef,
+    // Single-account lookups may target a retired predecessor for historical view.
+    includeRetired: true,
   });
   const ref = String(accountRef || "").trim().toUpperCase();
   return (
-    rows.find((row) => String(row.accountNo || "").trim().toUpperCase() === ref) ?? null
+    rows.find((row) => {
+      const join = String(row.accountNo || "").trim().toUpperCase();
+      const edu = String(row.eduClearAccountNo || "").trim().toUpperCase();
+      const source = String(row.sourceAccountRef || "").trim().toUpperCase();
+      return join === ref || edu === ref || source === ref;
+    }) ?? null
   );
 }
 
